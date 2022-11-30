@@ -746,6 +746,35 @@ namespace UE
 			}
 		}
 
+		void DeduplicateNameArray(TArray<FString>& InOutNames)
+		{
+			TMap<FString, int32> NameUseCount;
+			for (FString& Name : InOutNames)
+			{
+				int32& Count = NameUseCount.FindOrAdd(Name, 0);
+				if (++Count > 1)
+				{
+					Name.Append(FString::Format(TEXT("({0})"), { NameUseCount[Name] }));
+				}
+			}
+
+			// For any names we found duplicates of, append (1) to the first to keep naming consistent
+			for (TPair<FString, int32>& Pair : NameUseCount)
+			{
+				if (Pair.Value > 1)
+				{
+					for (FString& Name : InOutNames)
+					{
+						if (Name.Equals(Pair.Key))
+						{
+							Name.Append(TEXT("(1)"));
+							break;
+						}
+					}
+				}
+			}
+		}
+
 		void RemoveFrameNumberFormatStrings(FString& InOutFilenameFormatString, const bool bIncludeShots)
 		{
 			// Strip {frame_number} related separators from their file name, otherwise it will create one output file per frame.

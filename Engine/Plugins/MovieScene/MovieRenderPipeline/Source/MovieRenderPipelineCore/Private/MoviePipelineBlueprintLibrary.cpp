@@ -380,41 +380,6 @@ UMoviePipelineQueue* UMoviePipelineBlueprintLibrary::LoadManifestFileFromString(
 	return OutQueue;
 }
 
-namespace UE
-{
-namespace MoviePipeline
-{
-	void DeduplicateNameArray(TArray<FString>& InOutNames)
-	{
-		TMap<FString, int32> NameUseCount;
-		for (FString& Name : InOutNames)
-		{
-			int32& Count = NameUseCount.FindOrAdd(Name, 0);
-			if (++Count > 1)
-			{
-				Name.Append(FString::Format(TEXT("({0})"), { NameUseCount[Name] }));
-			}
-		}
-
-		// For any shot names we found duplicates, append 1 to the first to keep naming consistent
-		for (TPair<FString, int32>& Pair : NameUseCount)
-		{
-			if (Pair.Value > 1)
-			{
-				for (FString& Name : InOutNames)
-				{
-					if (Name.Equals(Pair.Key))
-					{
-						Name.Append(TEXT("(1)"));
-						break;
-					}
-				}
-			}
-		}
-	}
-}
-}
-
 void UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(ULevelSequence* InSequence, UMoviePipelineExecutorJob* InJob, bool& bShotsChanged)
 {
 	if (!ensureMsgf(InSequence && InJob, TEXT("Cannot generate shot list for null sequence/job.")))

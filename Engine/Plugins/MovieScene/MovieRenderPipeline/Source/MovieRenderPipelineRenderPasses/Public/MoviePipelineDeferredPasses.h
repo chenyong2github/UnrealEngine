@@ -182,6 +182,10 @@ public:
 	static FString StencilLayerMaterialAsset;
 	static FString DefaultDepthAsset;
 	static FString DefaultMotionVectorsAsset;
+
+private:
+	/** Cached de-duplicated stencil layer names. */
+	TArray<FString> UniqueStencilLayerNames;
 };
 
 

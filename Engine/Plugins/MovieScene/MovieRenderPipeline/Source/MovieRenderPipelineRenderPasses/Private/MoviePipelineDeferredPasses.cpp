@@ -265,11 +265,35 @@ void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipeli
 			ColorFormatCVar->Set(1, EConsoleVariableFlags::ECVF_SetByConsole);
 		}
 	}
+
+	// Cache out the stencil layer names (from data layers or actor layers) and de-duplicate. If layers with the same name
+	// are provided, renders may fail, which is why the the names need to be de-duplicated.
+	if (IsUsingDataLayers())
+	{
+		for (FSoftObjectPath DataLayerAssetPath : DataLayers)
+		{
+			UDataLayerAsset* DataLayerAsset = Cast<UDataLayerAsset>(DataLayerAssetPath.TryLoad());
+			if (DataLayerAsset)
+			{
+				UniqueStencilLayerNames.Add(DataLayerAsset->GetName());
+			}
+		}
+	}
+	else
+	{
+		for (const FActorLayer& Layer : ActorLayers)
+		{
+			UniqueStencilLayerNames.Add(Layer.Name.ToString());
+		}
+	}
+	
+	UE::MoviePipeline::DeduplicateNameArray(UniqueStencilLayerNames);
 }
 
 void UMoviePipelineDeferredPassBase::TeardownImpl()
 {
 	ActivePostProcessMaterials.Reset();
+	UniqueStencilLayerNames.Reset();
 
 	for (FMultiCameraViewStateData& CameraData : CameraViewStateData)
 	{
@@ -534,16 +558,16 @@ void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePip
 			};
 
 			// Now for each stencil layer we reconfigure all the actors custom depth/stencil 
-			TArray<FString> AllStencilLayers = GetStencilLayerNames();
+			TArray<FString> AllStencilLayerNames = GetStencilLayerNames();
 			if (bAddDefaultLayer)
 			{
-				AllStencilLayers.Add(TEXT("DefaultLayer"));
+				AllStencilLayerNames.Add(TEXT("DefaultLayer"));
 			}
 
 			// If we're going to be using stencil layers, we need to cache all of the users
 			// custom stencil/depth settings since we're changing them to do the mask.
 			TMap<UPrimitiveComponent*, FStencilValues> PreviousValues;
-			if (AllStencilLayers.Num() > 0)
+			if (AllStencilLayerNames.Num() > 0)
 			{
 				for (TActorIterator<AActor> ActorItr(GetWorld()); ActorItr; ++ActorItr)
 				{
@@ -566,9 +590,9 @@ void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePip
 			}
 
 
-			for (int32 StencilLayerIndex = 0; StencilLayerIndex < AllStencilLayers.Num(); StencilLayerIndex++)
+			for (int32 StencilLayerIndex = 0; StencilLayerIndex < AllStencilLayerNames.Num(); StencilLayerIndex++)
 			{
-				const FString& LayerName = AllStencilLayers[StencilLayerIndex];
+				const FString& LayerName = AllStencilLayerNames[StencilLayerIndex];
 				FMoviePipelinePassIdentifier LayerPassIdentifier = FMoviePipelinePassIdentifier(PassIdentifierForCurrentCamera.Name + LayerName);
 				LayerPassIdentifier.CameraName = PassIdentifierForCurrentCamera.CameraName;
 
@@ -1057,27 +1081,7 @@ int32 UMoviePipelineDeferredPassBase::GetNumStencilLayers() const
 
 TArray<FString> UMoviePipelineDeferredPassBase::GetStencilLayerNames() const
 {
-	TArray<FString> LayerNames;
-	if (IsUsingDataLayers())
-	{
-		for (FSoftObjectPath DataLayerAssetPath : DataLayers)
-		{
-			UDataLayerAsset* DataLayerAsset = Cast<UDataLayerAsset>(DataLayerAssetPath.TryLoad());
-			if (DataLayerAsset)
-			{
-				LayerNames.Add(DataLayerAsset->GetName());
-			}
-		}
-	}
-	else
-	{
-		for (const FActorLayer& Layer : ActorLayers)
-		{
-			LayerNames.Add(Layer.Name.ToString());
-		}
-	}
-
-	return LayerNames;
+	return UniqueStencilLayerNames;
 }
 
 FSoftObjectPath UMoviePipelineDeferredPassBase::GetValidDataLayerByIndex(const int32 InIndex) const
