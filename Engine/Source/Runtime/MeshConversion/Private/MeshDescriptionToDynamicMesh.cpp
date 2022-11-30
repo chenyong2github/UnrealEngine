@@ -7,6 +7,7 @@
 #include "DynamicMesh/DynamicVertexAttribute.h"
 #include "DynamicMesh/DynamicVertexSkinWeightsAttribute.h"
 #include "DynamicMesh/MeshTangents.h"
+#include "DynamicMesh/NonManifoldMappingSupport.h"
 #include "MeshDescriptionBuilder.h"
 #include "StaticMeshAttributes.h"
 #include "SkeletalMeshAttributes.h"
@@ -241,6 +242,7 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 	// allocate the TriIDMap (maps from DynamicMesh triangle ID to MeshDescription FTriangleID)
 	TriIDMap.AddUninitialized(MeshIn->Triangles().Num());
 	
+	bool bSrcIsManifold = true;
 
 	// Iterate over triangles in the Mesh Description
 	// NOTE: If you change the iteration order here, please update the corresponding iteration in FDynamicMeshToMeshDescription::UpdateAttributes, 
@@ -310,6 +312,8 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 		// if append failed due to non-manifold, duplicate verts
 		if (NewTriangleID == FDynamicMesh3::NonManifoldID)
 		{
+			bSrcIsManifold = false;
+
 			int e0 = MeshOut.FindEdge(VertexIDs[0], VertexIDs[1]);
 			int e1 = MeshOut.FindEdge(VertexIDs[1], VertexIDs[2]);
 			int e2 = MeshOut.FindEdge(VertexIDs[2], VertexIDs[0]);
@@ -850,6 +854,19 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 
 		// wait for all work to be done
 		UE::Tasks::Wait(Pending);
+
+		// add non-manifold mapping information if required.
+		if (!bSrcIsManifold && bVIDsFromNonManifoldMeshDescriptionAttr)
+		{
+			TArray<int32> TmpVIDMap;
+			TmpVIDMap.SetNumUninitialized(VertIDMap.Num());
+			for (int32 i = 0, I = VertIDMap.Num(); i < I; ++i)
+			{
+				TmpVIDMap[i] = VertIDMap[i].GetValue();
+			}
+			FNonManifoldMappingSupport::AttachNonManifoldVertexMappingData(TmpVIDMap, MeshOut);
+		}
+
 
 		if (!bFoundNonDefaultVertexInstanceColor)
 		{

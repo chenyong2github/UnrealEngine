@@ -53,6 +53,16 @@ public:
 	*/
 	TArray<FVertexID> VertIDMap;
 
+
+	/**
+	* If the source MeshDescription is non-manifold, store mesh vertex id as a vertex attribute on the result mesh 
+	* This data can be accessed using FNonManifoldMappingSupport ( see NonManifoldMappingSupport.h)
+	* 
+	* Note: the vertex attribute will not be created if the source mesh is manifold (as this data would be redundant) or if bDisableAttributes is true.
+	*/ 
+	bool bVIDsFromNonManifoldMeshDescriptionAttr = false;
+
+
 	/**
 	 * Various modes can be used to create output triangle groups
 	 */

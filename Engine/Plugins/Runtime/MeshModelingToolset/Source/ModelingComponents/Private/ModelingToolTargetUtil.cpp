@@ -25,6 +25,8 @@
 #include "DynamicMeshToMeshDescription.h"
 #include "StaticMeshAttributes.h"
 
+#include "DynamicMesh/NonManifoldMappingSupport.h"
+
 #define LOCTEXT_NAMESPACE "ModelingToolTargetUtil"
 
 using namespace UE::Geometry;
@@ -206,6 +208,7 @@ FDynamicMesh3 UE::ToolTarget::GetDynamicMeshCopy(UToolTarget* Target, bool bWant
 	if (MeshDescriptionProvider)
 	{
 		FMeshDescriptionToDynamicMesh Converter;
+		Converter.bVIDsFromNonManifoldMeshDescriptionAttr= true;
 		if (bWantMeshTangents)
 		{
 			FGetMeshParameters GetMeshParams;
@@ -307,6 +310,7 @@ void UE::ToolTarget::Internal::CommitDynamicMeshViaIPersistentDynamicMeshSource(
 	DynamicMesh->EditMesh([&](FDynamicMesh3& EditMesh)
 		{
 			EditMesh.CompactCopy(UpdatedMesh);
+			FNonManifoldMappingSupport::RemoveAllNonManifoldMappingData(EditMesh);
 		});
 
 	TSharedPtr<FDynamicMesh3> NewMeshShared = MakeShared<FDynamicMesh3>();

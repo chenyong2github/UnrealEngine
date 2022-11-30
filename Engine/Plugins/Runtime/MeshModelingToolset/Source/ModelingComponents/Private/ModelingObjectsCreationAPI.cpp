@@ -7,6 +7,7 @@
 #include "Misc/Paths.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "DynamicMesh/NonManifoldMappingSupport.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ModelingObjectsCreationAPI)
 
@@ -22,12 +23,20 @@ void FCreateMeshObjectParams::SetMesh(const UE::Geometry::FDynamicMesh3* Dynamic
 {
 	DynamicMesh = *DynamicMeshIn;
 	MeshType = ECreateMeshObjectSourceMeshType::DynamicMesh;
+	if(DynamicMesh)
+	{ 
+		UE::Geometry::FNonManifoldMappingSupport::RemoveAllNonManifoldMappingData(*DynamicMesh);
+	}
 }
 
 void FCreateMeshObjectParams::SetMesh(UE::Geometry::FDynamicMesh3&& DynamicMeshIn)
 {
 	DynamicMesh = MoveTemp(DynamicMeshIn);
 	MeshType = ECreateMeshObjectSourceMeshType::DynamicMesh;
+	if (DynamicMesh)
+	{
+		UE::Geometry::FNonManifoldMappingSupport::RemoveAllNonManifoldMappingData(*DynamicMesh);
+	}
 }
 
 

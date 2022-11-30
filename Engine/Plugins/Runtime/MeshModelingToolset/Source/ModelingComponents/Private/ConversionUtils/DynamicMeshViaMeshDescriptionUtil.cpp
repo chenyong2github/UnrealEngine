@@ -13,6 +13,7 @@ FDynamicMesh3 UE::Geometry::GetDynamicMeshViaMeshDescription(
 {
 	FDynamicMesh3 DynamicMesh;
 	FMeshDescriptionToDynamicMesh Converter;
+	Converter.bVIDsFromNonManifoldMeshDescriptionAttr = true;
 	Converter.Convert(MeshDescriptionProvider.GetMeshDescription(), DynamicMesh);
 	return DynamicMesh;
 }

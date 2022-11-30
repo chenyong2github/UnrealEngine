@@ -397,11 +397,15 @@ public:
 		}
 	}
 
-	FDynamicMeshAttributeBase* GetAttachedAttribute(FName AttribName) const
+	FDynamicMeshAttributeBase* GetAttachedAttribute(FName AttribName)
 	{
 		return GenericAttributes[AttribName].Get();
 	}
 
+	const FDynamicMeshAttributeBase* GetAttachedAttribute(FName AttribName) const
+	{
+		return GenericAttributes[AttribName].Get();
+	}
 	int NumAttachedAttributes() const
 	{
 		return GenericAttributes.Num();

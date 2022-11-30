@@ -11,6 +11,7 @@
 
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ModelingToolTargetUtil.h"
+#include "DynamicMesh/NonManifoldMappingSupport.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MeshAttributePaintTool)
 
@@ -453,10 +454,12 @@ void UMeshAttributePaintTool::UpdateVisibleAttribute()
 		PreviewMesh->EditMesh([&](FDynamicMesh3& Mesh)
 		{
 			FDynamicMeshColorOverlay* ColorOverlay = Mesh.Attributes()->PrimaryColors();
+			FNonManifoldMappingSupport NonManifoldMappingSupport(Mesh);
 			for (int32 elid : ColorOverlay->ElementIndicesItr())
 			{
 				const int32 vid = ColorOverlay->GetParentVertex(elid);
-				const float Value = AttribData.CurrentValues[vid];
+				const int32 srcvid = NonManifoldMappingSupport.GetOriginalNonManifoldVertexID(vid);
+				const float Value = AttribData.CurrentValues[srcvid];
 				const FVector4f Color4f = ToVector4<float>(ColorMapper->ToColor(Value));
 				ColorOverlay->SetElement(elid,  Color4f);
 			}
@@ -525,11 +528,13 @@ void UMeshAttributePaintTool::ApplyStamp(const FBrushStampData& Stamp)
 	{
 		TArray<int> ElIDs;
 		FDynamicMeshColorOverlay* ColorOverlay = Mesh.Attributes()->PrimaryColors();
+		FNonManifoldMappingSupport NonManifoldMappingSupport(Mesh);
 		int32 NumVertices = ActionData.ROIVertices.Num();
 		for (int32 k = 0; k < NumVertices; ++k)
 		{
 			int32 vid = ActionData.ROIVertices[k];
-			AttribData.CurrentValues[vid] = ActionData.ROIAfter[k];
+			int32 srcvid = NonManifoldMappingSupport.GetOriginalNonManifoldVertexID(vid);
+			AttribData.CurrentValues[srcvid] = ActionData.ROIAfter[k];
 			FVector4f NewColor( ToVector4<float>(ColorMapper->ToColor(ActionData.ROIAfter[k])) );
 			ColorOverlay->GetVertexElements(vid, ElIDs);
 			for (int elid : ElIDs)
@@ -555,6 +560,7 @@ void UMeshAttributePaintTool::ApplyStamp_Paint(const FBrushStampData& Stamp, FSt
 	FAttributeData& AttribData = Attributes[CurrentAttributeIndex];
 
 	const FDynamicMesh3* CurrentMesh = PreviewMesh->GetMesh();
+	FNonManifoldMappingSupport NonManifoldMappingSupport(*CurrentMesh);
 	if (bInSmoothStroke)
 	{
 		float SmoothSpeed = 0.25f;
@@ -566,17 +572,19 @@ void UMeshAttributePaintTool::ApplyStamp_Paint(const FBrushStampData& Stamp, FSt
 			float ValueSum = 0, WeightSum = 0;
 			for (int32 NbrVID : CurrentMesh->VtxVerticesItr(vid))
 			{
+				int32 srcNbrVID =  NonManifoldMappingSupport.GetOriginalNonManifoldVertexID(NbrVID);
 				FVector3d NbrPos = CurrentMesh->GetVertex(NbrVID);
 				float Weight = FMathf::Clamp(1.0f / DistanceSquared(NbrPos, Position), 0.0001f, 1000.0f);
-				ValueSum += Weight * AttribData.CurrentValues[NbrVID];
+				ValueSum += Weight * AttribData.CurrentValues[srcNbrVID];
 				WeightSum += Weight;
 			}
 			ValueSum /= WeightSum;
 
 			float Falloff = (float)CalculateBrushFalloff(Distance(Position, StampPosLocal));
-			float NewValue = FMathf::Lerp(AttribData.CurrentValues[vid], ValueSum, SmoothSpeed*Falloff);
+			const int32 srcvid =  NonManifoldMappingSupport.GetOriginalNonManifoldVertexID(vid);
+			float NewValue = FMathf::Lerp(AttribData.CurrentValues[srcvid], ValueSum, SmoothSpeed*Falloff);
 
-			ActionData.ROIBefore[k] = AttribData.CurrentValues[vid];
+			ActionData.ROIBefore[k] = AttribData.CurrentValues[srcvid];
 			ActionData.ROIAfter[k] = CurrentValueRange.Clamp(NewValue);
 		}
 	}
@@ -588,9 +596,10 @@ void UMeshAttributePaintTool::ApplyStamp_Paint(const FBrushStampData& Stamp, FSt
 		for (int32 k = 0; k < NumVertices; ++k)
 		{
 			int32 vid = ActionData.ROIVertices[k];
+			int32 srcvid =  NonManifoldMappingSupport.GetOriginalNonManifoldVertexID(vid);
 			FVector3d Position = CurrentMesh->GetVertex(vid);
 			float Falloff = (float)CalculateBrushFalloff(Distance(Position, StampPosLocal));
-			ActionData.ROIBefore[k] = AttribData.CurrentValues[vid];
+			ActionData.ROIBefore[k] = AttribData.CurrentValues[srcvid];
 			ActionData.ROIAfter[k] = CurrentValueRange.Clamp(ActionData.ROIBefore[k] + UseStrength*Falloff);
 		}
 	}
@@ -615,6 +624,7 @@ void UMeshAttributePaintTool::ApplyStamp_FloodFill(const FBrushStampData& Stamp,
 		SetValue = CurrentValueRange.Min;
 	}
 
+	FNonManifoldMappingSupport NonManifoldMappingSupport(*CurrentMesh);
 	ActionData.ROIVertices.Reset();
 	TArray<int32> InputTriROI, OutputTriROI, QueueTempBuffer;
 	TSet<int32> DoneTempBuffer, DoneVertices;
@@ -638,10 +648,12 @@ void UMeshAttributePaintTool::ApplyStamp_FloodFill(const FBrushStampData& Stamp,
 			{
 				if (DoneVertices.Contains(TriVertices[j]) == false)
 				{
-					ActionData.ROIVertices.Add(TriVertices[j]);
-					ActionData.ROIBefore.Add(AttribData.CurrentValues[TriVertices[j]]);
+					int32 vid = TriVertices[j];
+					ActionData.ROIVertices.Add(vid);
+					int32 srcvid = NonManifoldMappingSupport.GetOriginalNonManifoldVertexID(vid);
+					ActionData.ROIBefore.Add(AttribData.CurrentValues[srcvid]);
 					ActionData.ROIAfter.Add(SetValue);
-					DoneVertices.Add(TriVertices[j]);
+					DoneVertices.Add(vid);
 				}
 			}
 		}
