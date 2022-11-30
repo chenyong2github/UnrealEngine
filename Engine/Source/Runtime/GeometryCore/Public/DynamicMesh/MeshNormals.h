@@ -153,8 +153,10 @@ public:
 
 	/**
 	 * @return the computed overlay normal at an element of the overlay (ie based on normals of triangles connected to this element)
+	 * @param bWeightByArea weight neighbor triangles by area
+	 * @param bWeightByAngle weight neighbor triangles by angle
 	 */
-	static FVector3d ComputeOverlayNormal(const FDynamicMesh3& Mesh, const FDynamicMeshNormalOverlay* NormalOverlay, int ElemIdx);
+	static FVector3d ComputeOverlayNormal(const FDynamicMesh3& Mesh, const FDynamicMeshNormalOverlay* NormalOverlay, int ElemIdx, bool bWeightByArea = true, bool bWeightByAngle = true);
 
 	/**
 	 * Initialize the given NormalOverlay with per-vertex normals, ie single overlay element for each mesh vertex.
@@ -193,6 +195,15 @@ public:
 	 */
 	static bool QuickRecomputeOverlayNormals(FDynamicMesh3& Mesh, bool bInvert = false, bool bWeightByArea = true, bool bWeightByAngle = true);
 
+	/**
+	 * Compute overlay normals for the given mesh, for the given set of triangles
+	 */
+	static bool RecomputeOverlayTriNormals(FDynamicMesh3& Mesh, const TArray<int32>& Triangles, bool bWeightByArea = true, bool bWeightByAngle = true);
+
+	/**
+	 * Compute overlay normals for the given mesh, for the given set of element IDs
+	 */
+	static bool RecomputeOverlayElementNormals(FDynamicMesh3& Mesh, const TArray<int32>& ElementIDs, bool bWeightByArea = true, bool bWeightByAngle = true);
 
 	/**
 	 * Retrieve the area and/or angle weights for each vertex of a triangle

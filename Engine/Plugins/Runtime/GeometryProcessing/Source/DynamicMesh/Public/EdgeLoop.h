@@ -240,5 +240,43 @@ public:
 };
 
 
+//
+// Utility functions for converting/processing edge loops
+//
+
+/**
+ * Convert the input Vertex/Edge loop into an edge loop representation that is
+ * independent of Vertex/Edge IDs. See description of FMeshTriOrderedEdgeID for
+ * more information on how this works. But essentially the resulting TriOrderedEdgesLoopOut
+ * is stable across some topological changes, in particular if the vertices of
+ * the loop change but the triangle topology remains the same (eg if a bowtie vertex
+ * is disconnected, or if the mesh is disconnected along the edge loop), the encoded
+ * loop remains valid, while an explicit vertex or edge loop would not.
+ * 
+ * @param SelectEdgeTriangleFunc This function is used to select which triangle to use for encoding at each edge
+ */
+DYNAMICMESH_API bool ConvertLoopToTriOrderedEdgeLoop(const FDynamicMesh3& Mesh,
+	const TArray<int32>& VertexLoop, const TArray<int32>& EdgeLoop,
+	TFunctionRef<int(int EdgeID, int TriangleA, int TriangleB)> SelectEdgeTriangleFunc,
+	TArray<FMeshTriOrderedEdgeID>& TriOrderedEdgesLoopOut );
+
+/**
+ * Variant of ConvertLoopToTriOrderedEdgeLoop that always encodes using EdgeTriangles.A, ie suitable for encoding open border loops
+ */
+DYNAMICMESH_API bool ConvertLoopToTriOrderedEdgeLoop(const FDynamicMesh3& Mesh,
+	const TArray<int32>& VertexLoop, const TArray<int32>& EdgeLoop,
+	TArray<FMeshTriOrderedEdgeID>& TriOrderedEdgesLoopOut );
+
+/**
+ * Recover the current Vertex and Edge loops given an encoded loop of FMeshTriOrderedEdgeID.
+ * See FMeshTriOrderedEdgeID for details on this encoding, this function basically reverses
+ * ConvertLoopToTriOrderedEdgeLoop() for the current mesh topology
+ */
+DYNAMICMESH_API bool ConvertTriOrderedEdgeLoopToLoop(const FDynamicMesh3& Mesh,
+	const TArray<FMeshTriOrderedEdgeID>& TriOrderedEdgesLoopOut,
+	TArray<int32>& VertexLoop, TArray<int32>* EdgeLoop = nullptr);
+
+
+
 } // end namespace UE::Geometry
 } // end namespace UE

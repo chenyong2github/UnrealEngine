@@ -210,12 +210,52 @@ public:
 
 	static FAxisAlignedBox3d GetBounds(const TriangleMeshType& Mesh)
 	{
-		FAxisAlignedBox3d Bounds;
+		FAxisAlignedBox3d Bounds = FAxisAlignedBox3d::Empty();
 		for (int i = 0; i < Mesh.MaxVertexID(); ++i)
 		{
 			if (Mesh.IsVertex(i))
 			{
 				Bounds.Contain(Mesh.GetVertex(i));
+			}
+		}
+		return Bounds;
+	}
+
+	/** @return bounding box of subset of triangles of Mesh */
+	template<typename EnumerableTriListType>
+	static FAxisAlignedBox3d GetTrianglesBounds(
+		const TriangleMeshType& Mesh, 
+		const EnumerableTriListType& Triangles, 
+		const FTransform& Transform = FTransform::Identity)
+	{
+		FAxisAlignedBox3d Bounds = FAxisAlignedBox3d::Empty();
+		for (int32 tid : Triangles)
+		{
+			if (Mesh.IsTriangle(tid))
+			{
+				FVector3d A,B,C;
+				Mesh.GetTriVertices(tid, A,B,C);		// cannot use GetTriBounds here unless it is a FDynamicMesh3!
+				Bounds.Contain(Transform.TransformPosition(A));
+				Bounds.Contain(Transform.TransformPosition(B));
+				Bounds.Contain(Transform.TransformPosition(C));
+			}
+		}
+		return Bounds;
+	}
+
+	/** @return bounding box of subset of vertices of Mesh */
+	template<typename EnumerableTriListType>
+	static FAxisAlignedBox3d GetVerticesBounds(
+		const TriangleMeshType& Mesh, 
+		const EnumerableTriListType& Vertices,
+		const FTransform& Transform = FTransform::Identity)
+	{
+		FAxisAlignedBox3d Bounds = FAxisAlignedBox3d::Empty();
+		for (int32 vid : Vertices)
+		{
+			if (Mesh.IsVertex(vid))
+			{
+				Bounds.Contain( Transform.TransformPosition(Mesh.GetVertex(vid)) );
 			}
 		}
 		return Bounds;

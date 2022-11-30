@@ -397,6 +397,47 @@ bool FMeshNormals::QuickRecomputeOverlayNormals(FDynamicMesh3& Mesh, bool bInver
 	return false;
 }
 
+bool FMeshNormals::RecomputeOverlayTriNormals(FDynamicMesh3& Mesh, const TArray<int32>& Triangles, bool bWeightByArea, bool bWeightByAngle)
+{
+	if (Mesh.HasAttributes() && Mesh.Attributes()->PrimaryNormals() != nullptr )
+	{
+		FDynamicMeshNormalOverlay* NormalOverlay = Mesh.Attributes()->PrimaryNormals();
+		TSet<int32> UniqueElementIDs;
+		for ( int32 tid : Triangles)
+		{
+			if (NormalOverlay->IsSetTriangle(tid))
+			{
+				FIndex3i NormalTri = NormalOverlay->GetTriangle(tid);
+				UniqueElementIDs.Add(NormalTri.A);
+				UniqueElementIDs.Add(NormalTri.B);
+				UniqueElementIDs.Add(NormalTri.C);
+			}
+		}
+
+		return RecomputeOverlayElementNormals(Mesh, UniqueElementIDs.Array(), bWeightByArea, bWeightByAngle);
+	}
+	return false;
+}
+
+bool FMeshNormals::RecomputeOverlayElementNormals(FDynamicMesh3& Mesh, const TArray<int32>& ElementIDs, bool bWeightByArea, bool bWeightByAngle)
+{
+	if (Mesh.HasAttributes() && Mesh.Attributes()->PrimaryNormals() != nullptr )
+	{
+		FDynamicMeshNormalOverlay* NormalOverlay = Mesh.Attributes()->PrimaryNormals();
+		ParallelFor(ElementIDs.Num(), [&](int32 k) 
+		{
+			int32 ElementID = ElementIDs[k];
+			if ( NormalOverlay->IsElement(ElementID) )
+			{
+				FVector3d NewNormal = FMeshNormals::ComputeOverlayNormal(Mesh, NormalOverlay, ElementID, bWeightByArea, bWeightByAngle);
+				NormalOverlay->SetElement(ElementID, (FVector3f)NewNormal);
+			}
+		});
+		return true;
+	}
+	return false;
+}
+
 
 FVector3d FMeshNormals::ComputeVertexNormal(const FDynamicMesh3& Mesh, int VertIdx, bool bWeightByArea, bool bWeightByAngle)
 {
@@ -436,7 +477,7 @@ FVector3d FMeshNormals::ComputeVertexNormal(const FDynamicMesh3& Mesh, int32 Ver
 
 
 
-FVector3d FMeshNormals::ComputeOverlayNormal(const FDynamicMesh3& Mesh, const FDynamicMeshNormalOverlay* NormalOverlay, int ElemIdx)
+FVector3d FMeshNormals::ComputeOverlayNormal(const FDynamicMesh3& Mesh, const FDynamicMeshNormalOverlay* NormalOverlay, int ElemIdx, bool bWeightByArea, bool bWeightByAngle)
 {
 	int ParentVertexID = NormalOverlay->GetParentVertex(ElemIdx);
 	FVector3d SumNormal = FVector3d::Zero();
@@ -447,7 +488,10 @@ FVector3d FMeshNormals::ComputeOverlayNormal(const FDynamicMesh3& Mesh, const FD
 		{
 			FVector3d Normal, Centroid; double Area;
 			Mesh.GetTriInfo(TriIdx, Normal, Area, Centroid);
-			SumNormal += Area * Normal;
+			FVector3d TriNormalWeights = GetVertexWeightsOnTriangle(&Mesh, TriIdx, Area, bWeightByArea, bWeightByAngle);
+			FIndex3i Triangle = NormalOverlay->GetTriangle(TriIdx);
+			int32 j = IndexUtil::FindTriIndex(ElemIdx, Triangle);	// todo: we computed already in TriangleHasElement...
+			SumNormal += Normal * TriNormalWeights[j];
 			Count++;
 		}
 	});

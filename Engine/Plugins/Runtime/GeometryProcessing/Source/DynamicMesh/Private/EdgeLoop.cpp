@@ -251,3 +251,77 @@ void FEdgeLoop::VertexLoopToEdgeLoop(const FDynamicMesh3* Mesh, const TArray<int
 		OutEdgeLoop[i] = Mesh->FindEdge(v0, v1);
 	}
 }
+
+
+bool UE::Geometry::ConvertLoopToTriOrderedEdgeLoop(const FDynamicMesh3& Mesh, const TArray<int32>& VertexLoop,
+	const TArray<int32>& EdgeLoop, TArray<FMeshTriOrderedEdgeID>& TriOrderedEdgesLoopOut)
+{
+	return ConvertLoopToTriOrderedEdgeLoop(Mesh, VertexLoop, EdgeLoop, [](int, int32 A, int32 B) { return A;}, TriOrderedEdgesLoopOut);
+}
+
+
+bool UE::Geometry::ConvertLoopToTriOrderedEdgeLoop(const FDynamicMesh3& Mesh, const TArray<int32>& VertexLoop,
+	const TArray<int32>& EdgeLoop, 
+	TFunctionRef<int(int, int,int)> SelectEdgeTriangleFunc,
+	TArray<FMeshTriOrderedEdgeID>& TriOrderedEdgesLoopOut )
+{
+	if (!ensure(EdgeLoop.Num() == VertexLoop.Num()))
+	{
+		return false;
+	}
+
+	TriOrderedEdgesLoopOut.Reset();
+	TriOrderedEdgesLoopOut.Reserve(EdgeLoop.Num());
+	for (int32 LoopIndex = 0; LoopIndex < EdgeLoop.Num(); ++LoopIndex)
+	{
+		FIndex2i EdgeT = Mesh.GetEdgeT(EdgeLoop[LoopIndex]);
+		int32 TriangleID = SelectEdgeTriangleFunc(EdgeLoop[LoopIndex], EdgeT.A, EdgeT.B);
+		int32 FirstVertexID = VertexLoop[LoopIndex];
+		int32 SecondVertexID = VertexLoop[(LoopIndex + 1) % VertexLoop.Num()];
+
+		FIndex3i Triangle = Mesh.GetTriangle(TriangleID);
+		int32 FirstVertexIndex = (int32)IndexUtil::FindTriIndex(FirstVertexID, Triangle);
+		int32 SecondVertexIndex = (int32)IndexUtil::FindTriIndex(SecondVertexID, Triangle);
+		if (ensure(FirstVertexIndex >= 0 && SecondVertexIndex >= 0))
+		{
+			TriOrderedEdgesLoopOut.Emplace( FMeshTriOrderedEdgeID(TriangleID, FirstVertexIndex, SecondVertexIndex) );
+		}
+		else
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+
+bool UE::Geometry::ConvertTriOrderedEdgeLoopToLoop(const FDynamicMesh3& Mesh,
+	const TArray<FMeshTriOrderedEdgeID>& TriOrderedEdgesLoopOut,
+	TArray<int32>& VertexLoop, TArray<int32>* EdgeLoop)
+{
+	int32 N = TriOrderedEdgesLoopOut.Num();
+	VertexLoop.Reset();
+	VertexLoop.Reserve(N-1);
+
+	FIndex3i FirstTri = Mesh.GetTriangle(TriOrderedEdgesLoopOut[0].TriangleID);
+	VertexLoop.Add(FirstTri[TriOrderedEdgesLoopOut[0].VertIndexA]);
+	VertexLoop.Add(FirstTri[TriOrderedEdgesLoopOut[0].VertIndexB]);
+	for (int32 k = 1; k < N-1; ++k)
+	{
+		FIndex3i Tri = Mesh.GetTriangle(TriOrderedEdgesLoopOut[k].TriangleID);
+		check( Tri[TriOrderedEdgesLoopOut[k].VertIndexA] == VertexLoop.Last() );
+		VertexLoop.Add( Tri[TriOrderedEdgesLoopOut[k].VertIndexB] );
+	}
+	if ( EdgeLoop != nullptr )
+	{
+		EdgeLoop->Reset();
+		EdgeLoop->Reserve(N);
+		for (int32 k = 0; k < N; ++k)
+		{
+			int32 EdgeID = Mesh.FindEdgeFromTri( TriOrderedEdgesLoopOut[k].TriangleID, VertexLoop[k], VertexLoop[(k+1)%N] );
+			EdgeLoop->Add(EdgeID);
+		}
+	}
+	return true;
+}
+
