@@ -108,7 +108,7 @@ public:
 
 	FString GetBoneName(int32 Index) const;
 	float GetRelativeSize(int32 Index) const;
-	float GetVolume(int32 Index) const;
+	float GetVolumetricUnit(int32 Index) const;
 	int32 GetInitialState(int32 Index) const;
 	bool IsAnchored(int32 Index) const;
 	float GetDamage(int32 Index) const;
@@ -126,7 +126,7 @@ private:
 	TManagedArrayAccessor<bool>			VisibleAttribute;
 	TManagedArrayAccessor<int32>		InitialStateAttribute;
 	TManagedArrayAccessor<float>		RelativeSizeAttribute;
-	TManagedArrayAccessor<float>		VolumeAttribute;
+	TManagedArrayAccessor<float>		VolumetricUnitAttribute;
 	TManagedArrayAccessor<bool>			AnchoredAttribute;
 	TManagedArrayAccessor<float>		DamageAttribute;
 	TManagedArrayAccessor<float>		DamageThresholdAttribute;
