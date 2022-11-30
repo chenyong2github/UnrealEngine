@@ -18,7 +18,6 @@ AWheeledVehiclePawn::AWheeledVehiclePawn(const FObjectInitializer& ObjectInitial
 	Mesh->BodyInstance.bSimulatePhysics = false;
 	Mesh->BodyInstance.bNotifyRigidBodyCollision = true;
 	Mesh->BodyInstance.bUseCCD = true;
-	Mesh->bBlendPhysics = true;
 	Mesh->SetGenerateOverlapEvents(true);
 	Mesh->SetCanEverAffectNavigation(false);
 	RootComponent = Mesh;
