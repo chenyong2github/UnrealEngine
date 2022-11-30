@@ -1993,6 +1993,7 @@ namespace Chaos
 				[[maybe_unused]] VectorRegister4Float X1;
 				[[maybe_unused]] VectorRegister4Float X2;
 				[[maybe_unused]] FRealSingle Radius;
+				[[maybe_unused]] FAABBSimd AABBSimd;
 				if constexpr (std::is_same<QueryGeomType, FCapsule>::value)
 				{
 					Radius = FRealSingle(QueryGeom.GetRadius());
@@ -2020,6 +2021,10 @@ namespace Chaos
 					Radius = FRealSingle(QueryGeom.GetRadius());
 					const FVec3f X1f = QueryGeom.GetUnscaledObject()->GetCenter() * QueryGeom.GetScale();
 					X1 = VectorLoadFloat3(&X1f.X);
+				}
+				else if constexpr (std::is_same<QueryGeomType, TBox<FReal, 3>>::value || std::is_same<QueryGeomType, TImplicitObjectScaled<TBox<FReal, 3>>>::value)
+				{
+					AABBSimd = FAABBSimd(QueryGeom);
 				}
 
 				VectorRegister4Float Points[4];
@@ -2068,6 +2073,17 @@ namespace Chaos
 								return true;
 							}
 						}
+						else if constexpr (std::is_same<QueryGeomType, TBox<FReal, 3>>::value || std::is_same<QueryGeomType, TImplicitObjectScaled<TBox<FReal, 3>>>::value)
+						{
+							if (AABBSimd.OverlapTriangle(Points[0], Points[1], Points[3]))
+							{
+								return true;
+							}
+							if (AABBSimd.OverlapTriangle(Points[0], Points[3], Points[2]))
+							{
+								return true;
+							}
+						}
 						else
 						{
 							if (OverlapTriangleNoMTD(Points[0], Points[1], Points[3]))
@@ -2078,7 +2094,7 @@ namespace Chaos
 							{
 								return true;
 							}
-						}	
+						}
 					}
 				}
 			}

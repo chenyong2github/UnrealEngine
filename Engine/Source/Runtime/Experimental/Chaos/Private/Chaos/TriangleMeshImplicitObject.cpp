@@ -646,6 +646,135 @@ struct FTriangleMeshOverlapVisitorNoMTD<TImplicitObjectScaled<Chaos::FSphere>>
 	bool bFoundIntersection;
 };
 
+template <>
+struct FTriangleMeshOverlapVisitorNoMTD<TBox<FReal, 3>>
+{
+	FTriangleMeshOverlapVisitorNoMTD(const TRigidTransform<FReal, 3>& WorldScaleQueryTM, const TBox<FReal, 3>& InQueryGeom, FReal InThickness, const FVec3f& InTriMeshScale, const FTriangleMeshImplicitObject* InTriMesh)
+		: bIsAxisAligned(FMath::Abs(WorldScaleQueryTM.GetRotation().W) == 1.0)
+		, TriMesh(InTriMesh)
+		, bFoundIntersection(false)
+	{
+		if (bIsAxisAligned)
+		{
+			Box.AABBSimd = FAABBSimd(WorldScaleQueryTM, InQueryGeom);
+		}
+		else
+		{
+			Box.BoxSimd = FBoxSimd(WorldScaleQueryTM, InQueryGeom);
+		}
+		
+		TriMeshScale = VectorLoadFloat3(&InTriMeshScale.X);
+	}
+
+	bool VisitOverlap(int32 TriIdx)
+	{
+		VectorRegister4Float A, B, C;
+		if (TriMesh->MElements.RequiresLargeIndices())
+		{
+			TriangleMeshTransformVertsHelperSimd(TriMeshScale, TriIdx, TriMesh->MParticles, TriMesh->MElements.GetLargeIndexBuffer(), A, B, C);
+		}
+		else
+		{
+			TriangleMeshTransformVertsHelperSimd(TriMeshScale, TriIdx, TriMesh->MParticles, TriMesh->MElements.GetSmallIndexBuffer(), A, B, C);
+		}
+
+		if (bIsAxisAligned)
+		{
+			bFoundIntersection = Box.AABBSimd.OverlapTriangle(A, B, C);
+		}
+		else
+		{
+			bFoundIntersection = Box.BoxSimd.OverlapTriangle(A, B, C);
+		}
+		return !bFoundIntersection;
+	}
+
+	bool VisitSweep(int32 Instance, FRealSingle& CurDataLength)
+	{
+		check(false);
+		return true;
+	}
+	bool VisitRaycast(int32 Instance, FRealSingle& CurDataLength)
+	{
+		check(false);
+		return true;
+	}
+
+	const bool bIsAxisAligned;
+	struct {
+		FBoxSimd  BoxSimd;
+		FAABBSimd AABBSimd;
+	} Box;
+	VectorRegister4Float TriMeshScale;
+	const FTriangleMeshImplicitObject* TriMesh;
+	bool bFoundIntersection;
+};
+
+
+template <>
+struct FTriangleMeshOverlapVisitorNoMTD<TImplicitObjectScaled<TBox<FReal, 3>>>
+{
+	FTriangleMeshOverlapVisitorNoMTD(const TRigidTransform<FReal, 3>& WorldScaleQueryTM, const TImplicitObjectScaled< TBox<FReal, 3> >& InQueryGeom, FReal InThickness, const FVec3f& InTriMeshScale, const FTriangleMeshImplicitObject* InTriMesh)
+		: bIsAxisAligned(FMath::Abs(WorldScaleQueryTM.GetRotation().W) == 1.0)
+		, TriMesh(InTriMesh)
+		, bFoundIntersection(false)
+	{
+		if (bIsAxisAligned)
+		{
+			Box.AABBSimd = FAABBSimd(WorldScaleQueryTM, InQueryGeom);
+		}
+		else
+		{
+			Box.BoxSimd = FBoxSimd(WorldScaleQueryTM, InQueryGeom);
+		}
+
+		TriMeshScale = VectorLoadFloat3(&InTriMeshScale.X);
+	}
+
+	bool VisitOverlap(int32 TriIdx)
+	{
+		VectorRegister4Float A, B, C;
+		if (TriMesh->MElements.RequiresLargeIndices())
+		{
+			TriangleMeshTransformVertsHelperSimd(TriMeshScale, TriIdx, TriMesh->MParticles, TriMesh->MElements.GetLargeIndexBuffer(), A, B, C);
+		}
+		else
+		{
+			TriangleMeshTransformVertsHelperSimd(TriMeshScale, TriIdx, TriMesh->MParticles, TriMesh->MElements.GetSmallIndexBuffer(), A, B, C);
+		}
+
+		if (bIsAxisAligned)
+		{
+			bFoundIntersection = Box.AABBSimd.OverlapTriangle(A, B, C);
+		}
+		else
+		{
+			bFoundIntersection = Box.BoxSimd.OverlapTriangle(A, B, C);
+		}
+		return !bFoundIntersection;
+	}
+
+	bool VisitSweep(int32 Instance, FRealSingle& CurDataLength)
+	{
+		check(false);
+		return true;
+	}
+	bool VisitRaycast(int32 Instance, FRealSingle& CurDataLength)
+	{
+		check(false);
+		return true;
+	}
+
+	const bool bIsAxisAligned;
+	struct {
+		FBoxSimd  BoxSimd;
+		FAABBSimd AABBSimd;
+	} Box;
+	VectorRegister4Float TriMeshScale;
+	const FTriangleMeshImplicitObject* TriMesh;
+	bool bFoundIntersection;
+};
+
 template <typename QueryGeomType>
 bool FTrimeshBVH::FindAllIntersectionsNoMTD(const FAABB3& Intersection, const TRigidTransform<FReal, 3>& Transform, const QueryGeomType& QueryGeom, FReal Thickness, const FVec3& TriMeshScale, const FTriangleMeshImplicitObject* TriMesh) const
 {
@@ -1874,7 +2003,6 @@ void FTriangleMeshImplicitObject::UpdateVertices(const TArray<FVector>& NewPosit
 			MParticles.X(InternalIdx) = Chaos::FVec3(NewPositions[i]);
 		}
 	}
-
 	RebuildFastBVH();
 }
 

@@ -606,6 +606,45 @@ namespace ChaosTest
 					bool bResult = TriangleMesh->OverlapGeom(Box, QueryTM, 0.0);
 					EXPECT_EQ(bResult, false);
 				}
+				{
+					const FRigidTransform3 QueryTM(FVec3(0.0, 0.0, -2.5), FQuat(FVec3(1.0, 0.0, 0.0), 3.1415926 / 4.0));
+					bool bResult = TriangleMesh->OverlapGeom(Box, QueryTM, 0.0);
+					EXPECT_EQ(bResult, false);
+				}
+				{
+					const FRigidTransform3 QueryTM(FVec3(5.0, 5.0, -2.5), FQuat(FVec3(0.0, 1.0, 0.0), 3.1415926 / 6.0));
+					bool bResult = TriangleMesh->OverlapGeom(Box, QueryTM, 0.0);
+					EXPECT_EQ(bResult, false);
+				}
+				{
+					const FRigidTransform3 QueryTM(FVec3(-5.0, 5.0, -2.5), FQuat(FVec3(1.0, 0.0, 0.0), 3.1415926 / 4.0));
+					bool bResult = TriangleMesh->OverlapGeom(Box, QueryTM, 0.0);
+					EXPECT_EQ(bResult, false);
+				}
+				{
+					const FRigidTransform3 QueryTM(FVec3(-5.0, -5.0, -2.5), FQuat(FVec3(1.0, 0.0, 0.0), -3.1415926 / 6.0));
+					bool bResult = TriangleMesh->OverlapGeom(Box, QueryTM, 0.0);
+					EXPECT_EQ(bResult, false);
+				}
+				{
+					const FRigidTransform3 QueryTM(FVec3(0.0, 0.0, -2.5), FQuat(FVec3(1.0, 0.0, 0.0), 3.1415926 / 4.0));
+					bool bResult = TriangleMesh->OverlapGeom(Box, QueryTM, 0.0);
+					EXPECT_EQ(bResult, false);
+				}
+				{
+					const FRigidTransform3 QueryTM(FVec3(7.0, 0.0, 10.0), FQuat::Identity);
+					bool bResult = TriangleMesh->OverlapGeom(Box, QueryTM, 0.0);
+					EXPECT_EQ(bResult, false);
+				}
+			}
+			{
+				// Box test
+				const TBox<FReal, 3> Box = TBox<FReal, 3>({ -1.0, -1.0, -1.0 }, { 1.0, 1.0, 1.0 });
+				{
+					const FRigidTransform3 QueryTM(FVec3(7.0, 0.0, 10.0), FQuat::Identity);
+					bool bResult = TriangleMesh->OverlapGeom(Box, QueryTM, 0.0);
+					EXPECT_EQ(bResult, false);
+				}
 			}
 
 			// Box Scaled
