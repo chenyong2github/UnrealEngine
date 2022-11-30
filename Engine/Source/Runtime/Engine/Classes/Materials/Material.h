@@ -512,6 +512,10 @@ public:
 	UPROPERTY(EditAnywhere, Category=Material)
 	uint8 TwoSided : 1;
 
+	/** Indicates that the material should be rendered as a thin surface (i.e., without inner volume). */
+	UPROPERTY(EditAnywhere, Category = Material)
+	uint8 bIsThinSurface : 1;
+
 	/** Whether meshes rendered with the material should support dithered LOD transitions. */
 	UPROPERTY(EditAnywhere, Category = Material, AdvancedDisplay, meta = (DisplayName = "Dithered LOD Transition"))
 	uint8 DitheredLODTransition : 1;
@@ -1063,6 +1067,7 @@ public:
 	ENGINE_API virtual FMaterialShadingModelField GetShadingModels() const override;
 	ENGINE_API virtual bool IsShadingModelFromMaterialExpression() const override;
 	ENGINE_API virtual bool IsTwoSided() const override;
+	ENGINE_API virtual bool IsThinSurface() const override;
 	ENGINE_API virtual bool IsDitheredLODTransition() const override;
 	ENGINE_API virtual bool IsTranslucencyWritingCustomDepth() const override;
 	ENGINE_API virtual bool IsTranslucencyWritingVelocity() const override;

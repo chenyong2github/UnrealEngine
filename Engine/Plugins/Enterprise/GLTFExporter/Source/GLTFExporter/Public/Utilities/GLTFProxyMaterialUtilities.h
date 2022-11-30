@@ -40,11 +40,13 @@ public:
 #endif
 
 	static bool GetTwoSided(const UMaterialInterface* Material, bool& OutValue, bool NonDefaultOnly = false);
+	static bool GetIsThinSurface(const UMaterialInterface* Material, bool& OutValue, bool NonDefaultOnly = false);
 	static bool GetBlendMode(const UMaterialInterface* Material, EBlendMode& OutValue, bool NonDefaultOnly = false);
 	static bool GetOpacityMaskClipValue(const UMaterialInterface* Material, float& OutValue, bool NonDefaultOnly = false);
 
 #if WITH_EDITOR
 	static void SetTwoSided(UMaterialInstanceConstant* Material, bool Value, bool NonDefaultOnly = false);
+	static void SetIsThinSurface(UMaterialInstanceConstant* Material, bool Value, bool NonDefaultOnly = false);
 	static void SetBlendMode(UMaterialInstanceConstant* Material, EBlendMode Value, bool NonDefaultOnly = false);
 	static void SetOpacityMaskClipValue(UMaterialInstanceConstant* Material, float Value, bool NonDefaultOnly = false);
 #endif

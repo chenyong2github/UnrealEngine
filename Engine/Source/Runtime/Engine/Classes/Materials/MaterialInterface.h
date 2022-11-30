@@ -838,6 +838,7 @@ public:
 	ENGINE_API virtual FMaterialShadingModelField GetShadingModels() const;
 	ENGINE_API virtual bool IsShadingModelFromMaterialExpression() const;
 	ENGINE_API virtual bool IsTwoSided() const;
+	ENGINE_API virtual bool IsThinSurface() const;
 	ENGINE_API virtual bool IsDitheredLODTransition() const;
 	ENGINE_API virtual bool IsTranslucencyWritingCustomDepth() const;
 	ENGINE_API virtual bool IsTranslucencyWritingVelocity() const;

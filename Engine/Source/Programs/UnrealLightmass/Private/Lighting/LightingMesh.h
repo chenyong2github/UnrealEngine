@@ -280,6 +280,8 @@ public:
 	 * It just indicates whether backfaces will be visible, and therefore artifacts on backfaces should be avoided.
 	 */
 	bool bIsTwoSided;
+	/** Whether Material is a thin surface or not. */
+	bool bIsThinSurface;
 	/** Whether Material wants to cast shadows as masked, cached here to avoid dereferencing Material. */
 	bool bCastShadowAsMasked;
 	bool bSurfaceDomain;
@@ -290,6 +292,7 @@ public:
 		bTranslucent(false),
 		bIsMasked(false),
 		bIsTwoSided(false),
+		bIsThinSurface(false),
 		bCastShadowAsMasked(false),
 		bSurfaceDomain(true),
 		Material(NULL)
@@ -348,6 +351,7 @@ public:
 	inline bool UsesTwoSidedLighting(int32 ElementIndex) const { return MaterialElements[ElementIndex].bUseTwoSidedLighting; }
 	/** Whether samples using the given element are going to have backfaces visible, and therefore artifacts on backfaces should be avoided. */
 	inline bool IsTwoSided(int32 ElementIndex) const { return MaterialElements[ElementIndex].bIsTwoSided || MaterialElements[ElementIndex].bUseTwoSidedLighting; }
+	inline bool IsThinSurface(int32 ElementIndex) const { return MaterialElements[ElementIndex].bIsThinSurface; }
 	inline bool IsCastingShadowsAsMasked(int32 ElementIndex) const { return MaterialElements[ElementIndex].bCastShadowAsMasked; }
 	inline bool IsSurfaceDomain(int32 ElementIndex) const { return MaterialElements[ElementIndex].bSurfaceDomain; }
 	inline bool IsCastingShadowAsTwoSided() const { return bCastShadowAsTwoSided; }

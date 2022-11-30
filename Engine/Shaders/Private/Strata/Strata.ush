@@ -1346,9 +1346,15 @@ FStrataData GetStrataSlabBSDF(
 	float SecondRoughness, float SecondRoughnessWeight, float SecondRoughnessAsSimpleClearCoat,
 	float FuzzAmount, float3 FuzzColor,
 	float Thickness,
+	bool bIsThinSurface,
 	uint SharedLocalBasisIndex, inout uint SharedLocalBasisTypes)
 {
 	FStrataData StrataData = GetInitialisedStrataData();
+
+	if (bIsThinSurface)
+	{
+		Thickness = STRATA_LAYER_ISTHIN_THICKNESS_THRESHOLD_CM - 1e-5f;
+	}
 
 	SSSMFPScale = saturate(SSSMFPScale);
 	const bool bSSSProfilePlugged = SSSProfileID > 0.0f;
@@ -3428,6 +3434,7 @@ void StrataConvertFromDBuffer(
 		0.f,				// FuzzAmount
 		0.f,				// FuzzColor
 		DefaultThickness,
+		false,				// bIsThinSurface,
 		SharedLocalBasisIndex,
 		SharedLocalBasisTypes);
 #if STRATA_INLINE_SHADING

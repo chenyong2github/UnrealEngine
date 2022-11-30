@@ -685,6 +685,9 @@ public:
 	virtual bool GetTwoSided() const override {return bTwoSided; }
 	virtual void SetTwoSided( bool bInTwoSided ) override { bTwoSided = bInTwoSided; }
 
+	virtual bool GetIsThinSurface() const override { return bIsThinSurface; }
+	virtual void SetIsThinSurface(bool bInIsThinSurface) override { bIsThinSurface = bInIsThinSurface; }
+
 	virtual bool GetUseMaterialAttributes() const override{ return bUseMaterialAttributes; }
 	virtual void SetUseMaterialAttributes( bool bInUseMaterialAttributes ) override { bUseMaterialAttributes = bInUseMaterialAttributes; }
 
@@ -733,6 +736,7 @@ protected:
 
 	TReflected<int32> BlendMode;
 	TReflected<bool> bTwoSided;
+	TReflected<bool> bIsThinSurface;
 	TReflected<bool> bUseMaterialAttributes;
 	TReflected<bool> bMaterialFunctionOnly;
 	TReflected<float> OpacityMaskClipValue;

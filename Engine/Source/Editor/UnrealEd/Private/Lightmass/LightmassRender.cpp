@@ -545,6 +545,14 @@ public:
 		}
 		return false;
 	}
+	virtual bool IsThinSurface() const override
+	{
+		if (MaterialInterface)
+		{
+			return MaterialInterface->IsThinSurface();
+		}
+		return false;
+	}
 	virtual bool IsDitheredLODTransition() const override
 	{
 		if (MaterialInterface)
@@ -1106,6 +1114,7 @@ bool FLightmassMaterialRenderer::GenerateMaterialData(
 
 	// Set the two-sided flag
 	OutMaterialData.bTwoSided = (uint32)InMaterial.IsTwoSided();
+	OutMaterialData.bIsThinSurface = (uint32)InMaterial.IsThinSurface();
 	OutMaterialData.OpacityMaskClipValue = InMaterial.GetOpacityMaskClipValue();
 	// Cast shadow as masked feature need to access transmission texture. Only allow
 	// if transmission/opacity data exists

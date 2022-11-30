@@ -1776,6 +1776,11 @@ bool FMaterialResource::IsTwoSided() const
 	return MaterialInstance ? MaterialInstance->IsTwoSided() : Material->IsTwoSided();
 }
 
+bool FMaterialResource::IsThinSurface() const
+{
+	return MaterialInstance ? MaterialInstance->IsThinSurface() : Material->IsThinSurface();
+}
+
 bool FMaterialResource::IsDitheredLODTransition() const 
 {
 	if (!AllowDitheredLODTransition(GetFeatureLevel()))
@@ -2335,6 +2340,7 @@ void FMaterial::SetupMaterialEnvironment(
 
 	OutEnvironment.SetDefine(TEXT("USE_DITHERED_LOD_TRANSITION_FROM_MATERIAL"), IsDitheredLODTransition());
 	OutEnvironment.SetDefine(TEXT("MATERIAL_TWOSIDED"), IsTwoSided());
+	OutEnvironment.SetDefine(TEXT("MATERIAL_ISTHINSURFACE"), IsThinSurface());
 	OutEnvironment.SetDefine(TEXT("MATERIAL_TANGENTSPACENORMAL"), IsTangentSpaceNormal());
 	OutEnvironment.SetDefine(TEXT("GENERATE_SPHERICAL_PARTICLE_NORMALS"),ShouldGenerateSphericalParticleNormals());
 	OutEnvironment.SetDefine(TEXT("MATERIAL_USES_SCENE_COLOR_COPY"), RequiresSceneColorCopy_GameThread());
@@ -5224,8 +5230,10 @@ FMaterialInstanceBasePropertyOverrides::FMaterialInstanceBasePropertyOverrides()
 	,bOverride_DitheredLODTransition(false)
 	,bOverride_CastDynamicShadowAsMasked(false)
 	,bOverride_TwoSided(false)
+	,bOverride_bIsThinSurface(false)
 	,bOverride_OutputTranslucentVelocity(false)
 	,TwoSided(0)
+	,bIsThinSurface(false)
 	,DitheredLODTransition(0)
 	,bCastDynamicShadowAsMasked(false)
 	,bOutputTranslucentVelocity(false)
@@ -5242,12 +5250,14 @@ bool FMaterialInstanceBasePropertyOverrides::operator==(const FMaterialInstanceB
 		bOverride_BlendMode == Other.bOverride_BlendMode &&
 		bOverride_ShadingModel == Other.bOverride_ShadingModel &&
 		bOverride_TwoSided == Other.bOverride_TwoSided &&
+		bOverride_bIsThinSurface == Other.bOverride_bIsThinSurface &&
 		bOverride_DitheredLODTransition == Other.bOverride_DitheredLODTransition &&
 		bOverride_OutputTranslucentVelocity == Other.bOverride_OutputTranslucentVelocity &&
 		OpacityMaskClipValue == Other.OpacityMaskClipValue &&
 		BlendMode == Other.BlendMode &&
 		ShadingModel == Other.ShadingModel &&
 		TwoSided == Other.TwoSided &&
+		bIsThinSurface == Other.bIsThinSurface &&
 		DitheredLODTransition == Other.DitheredLODTransition &&
 		bCastDynamicShadowAsMasked == Other.bCastDynamicShadowAsMasked;
 }
@@ -6105,6 +6115,7 @@ FMaterialShaderParameters::FMaterialShaderParameters(const FMaterial* InMaterial
 	bIsSpecialEngineMaterial = InMaterial->IsSpecialEngineMaterial();
 	bIsMasked = InMaterial->IsMasked();
 	bIsTwoSided = InMaterial->IsTwoSided();
+	bIsThinSurface = InMaterial->IsThinSurface();
 	bIsDistorted = InMaterial->IsDistorted();
 	bShouldCastDynamicShadows = InMaterial->ShouldCastDynamicShadows();
 	bWritesEveryPixel = InMaterial->WritesEveryPixel(false);

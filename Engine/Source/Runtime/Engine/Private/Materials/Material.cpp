@@ -4278,6 +4278,7 @@ bool UMaterial::CanEditChange(const FProperty* InProperty) const
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bFullyRough) ||
 			PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bNormalCurvatureToRoughness) ||
 			PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, TwoSided) ||
+			PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bIsThinSurface) ||
 			PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bUseLightmapDirectionality) ||
 			PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bUseHQForwardReflections) ||
 			PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bForwardBlendsSkyLightCubemaps) ||
@@ -6383,6 +6384,11 @@ bool UMaterial::IsShadingModelFromMaterialExpression() const
 bool UMaterial::IsTwoSided() const
 {
 	return TwoSided != 0;
+}
+
+bool UMaterial::IsThinSurface() const
+{
+	return bIsThinSurface != 0;
 }
 
 bool UMaterial::IsDitheredLODTransition() const

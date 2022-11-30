@@ -207,6 +207,7 @@ FDatasmithUEPbrMaterialElementImpl::FDatasmithUEPbrMaterialElementImpl( const TC
 	, MaterialAttributes( MakeShared< FDatasmithExpressionInputImpl >( TEXT("MaterialAttributes") ) )
 	, BlendMode(0)
 	, bTwoSided( false )
+	, bIsThinSurface(false)
 	, bUseMaterialAttributes( false )
 	, bMaterialFunctionOnly ( false )
 	, OpacityMaskClipValue( 0.3333f )
@@ -232,6 +233,7 @@ FDatasmithUEPbrMaterialElementImpl::FDatasmithUEPbrMaterialElementImpl( const TC
 
 	Store.RegisterParameter( BlendMode, "BlendMode" );
 	Store.RegisterParameter( bTwoSided, "bTwoSided" );
+	Store.RegisterParameter( bIsThinSurface, "bIsThinSurface");
 	Store.RegisterParameter( bUseMaterialAttributes, "bUseMaterialAttributes" );
 	Store.RegisterParameter( bMaterialFunctionOnly, "bMaterialFunctionOnly" );
 	Store.RegisterParameter( OpacityMaskClipValue, "OpacityMaskClipValue" );
@@ -250,6 +252,7 @@ FMD5Hash FDatasmithUEPbrMaterialElementImpl::CalculateElementHash(bool bForce)
 	FMD5 MD5;
 	MD5.Update(reinterpret_cast<const uint8*>(&BlendMode), sizeof(BlendMode));
 	MD5.Update(reinterpret_cast<const uint8*>(&bTwoSided), sizeof(bTwoSided));
+	MD5.Update(reinterpret_cast<const uint8*>(&bIsThinSurface), sizeof(bIsThinSurface));
 	MD5.Update(reinterpret_cast<const uint8*>(&bUseMaterialAttributes), sizeof(bUseMaterialAttributes));
 	MD5.Update(reinterpret_cast<const uint8*>(&bMaterialFunctionOnly), sizeof(bMaterialFunctionOnly));
 	MD5.Update(reinterpret_cast<const uint8*>(&OpacityMaskClipValue), sizeof(OpacityMaskClipValue));

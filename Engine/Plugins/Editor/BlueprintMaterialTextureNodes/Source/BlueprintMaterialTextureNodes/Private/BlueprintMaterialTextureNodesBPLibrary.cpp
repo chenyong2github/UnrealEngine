@@ -402,6 +402,24 @@ bool UBlueprintMaterialTextureNodesBPLibrary::SetMICTwoSided_EditorOnly(UMateria
 	return 0;
 }
 
+bool UBlueprintMaterialTextureNodesBPLibrary::SetMICIsThinSurface_EditorOnly(UMaterialInstanceConstant* Material, bool bIsThinSurface)
+{
+#if WITH_EDITOR
+	if (Material != nullptr)
+	{
+		Material->BasePropertyOverrides.bOverride_bIsThinSurface = true;
+		Material->BasePropertyOverrides.bIsThinSurface = bIsThinSurface;
+		UpdateMIC(Material);
+
+		return 1;
+	}
+	FMessageLog("Blueprint").Warning(LOCTEXT("SetMICIsThinSurface_InvalidMIC", "SetMICIsThinSurface_EditorOnly: MIC must be non-null."));
+#else
+	FMessageLog("Blueprint").Error(LOCTEXT("SetMICIsThinSurface_CannotBeModifiedAtRuntime", "SetMICIsThinSurface: Can't modify MIC at run time."));
+#endif
+	return 0;
+}
+
 bool UBlueprintMaterialTextureNodesBPLibrary::SetMICDitheredLODTransition_EditorOnly(UMaterialInstanceConstant* Material, bool DitheredLODTransition)
 {
 #if WITH_EDITOR

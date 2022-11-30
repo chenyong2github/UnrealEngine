@@ -56,6 +56,7 @@ struct FFlattenMaterial
 	FFlattenMaterial()
 		: RenderSize(0, 0)
 		, bTwoSided(false)
+		, bIsThinSurface(false)
 		, bDitheredLODTransition(false)
 		, BlendMode(BLEND_Opaque)
 		, EmissiveScale(1.0f)
@@ -106,6 +107,8 @@ struct FFlattenMaterial
 
 	/** Flag whether or not the material will have to be two-sided */
 	bool			bTwoSided;
+	/** Flag whether or not the material will have to be thin  */
+	bool			bIsThinSurface;
 	/** Flag whether or not the material will use dithered LOD transitions */
 	bool			bDitheredLODTransition;
 	/** Blend mode for the new material */

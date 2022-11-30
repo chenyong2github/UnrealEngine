@@ -149,6 +149,7 @@ void FStaticLightingMesh::Import( FLightmassImporter& Importer )
 
 		CurrentMaterialElement.bIsMasked = bMasked && CurrentMaterialElement.Material->TransmissionSize > 0;
 		CurrentMaterialElement.bIsTwoSided = CurrentMaterialElement.Material->bTwoSided;
+		CurrentMaterialElement.bIsThinSurface = CurrentMaterialElement.Material->bIsThinSurface;
 		CurrentMaterialElement.bTranslucent = !CurrentMaterialElement.bIsMasked && CurrentMaterialElement.Material->TransmissionSize > 0;
 		CurrentMaterialElement.bCastShadowAsMasked = CurrentMaterialElement.Material->bCastShadowAsMasked;
 		CurrentMaterialElement.bSurfaceDomain = CurrentMaterialElement.Material->bSurfaceDomain;

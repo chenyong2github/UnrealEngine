@@ -103,6 +103,13 @@ class BLUEPRINTMATERIALTEXTURENODES_API UBlueprintMaterialTextureNodesBPLibrary 
 	static bool SetMICTwoSided_EditorOnly(UMaterialInstanceConstant* Material, bool TwoSided = false);
 
 	/**
+	* Overrides the IsThinSurface setting of a Material Instance Constant
+	* Only works in the editor
+	*/
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set MIC IsThinSurface Editor Only", Keywords = "Set MIC IsThinSurface", UnsafeDuringActorConstruction = "true"), Category = Rendering)
+	static bool SetMICIsThinSurface_EditorOnly(UMaterialInstanceConstant* Material, bool bIsThinSurface = false);	
+
+	/**
 	* Overrides the Blend Mode of a Material Instance Constant
 	* Only works in the editor
 	*/

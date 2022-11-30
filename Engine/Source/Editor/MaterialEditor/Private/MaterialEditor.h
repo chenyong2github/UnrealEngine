@@ -116,6 +116,7 @@ public:
 	virtual EMaterialDomain GetMaterialDomain() const override { return MD_Surface; }
 	virtual FString GetMaterialUsageDescription() const override { return FString::Printf(TEXT("FMatExpressionPreview %s"), Expression.IsValid() ? *Expression->GetName() : TEXT("NULL")); }
 	virtual bool IsTwoSided() const override { return false; }
+	virtual bool IsThinSurface() const override { return false; }
 	virtual bool IsDitheredLODTransition() const override { return false; }
 	virtual bool IsLightFunction() const override { return false; }
 	virtual bool IsDeferredDecal() const override { return false; }

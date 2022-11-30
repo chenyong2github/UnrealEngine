@@ -936,6 +936,10 @@ void UMaterialEditorInstanceConstant::CopyBasePropertiesFromParent()
 	{
 		BasePropertyOverrides.TwoSided = SourceInstance->IsTwoSided();
 	}
+	if (!BasePropertyOverrides.bOverride_bIsThinSurface)
+	{
+		BasePropertyOverrides.bIsThinSurface = SourceInstance->IsThinSurface();
+	}
 	if (!BasePropertyOverrides.bOverride_OutputTranslucentVelocity)
 	{
 		BasePropertyOverrides.bOutputTranslucentVelocity = SourceInstance->IsTranslucencyWritingVelocity();

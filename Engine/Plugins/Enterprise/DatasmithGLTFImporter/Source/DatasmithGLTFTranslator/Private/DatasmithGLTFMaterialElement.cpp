@@ -42,6 +42,16 @@ void FDatasmithGLTFMaterialElement::SetTwoSided(bool bTwoSided)
 	MaterialElement->SetTwoSided(bTwoSided);
 }
 
+bool FDatasmithGLTFMaterialElement::GetIsThinSurface() const
+{
+	return MaterialElement->GetIsThinSurface();
+}
+
+void FDatasmithGLTFMaterialElement::SetIsThinSurface(bool bTwoSided)
+{
+	MaterialElement->SetIsThinSurface(bTwoSided);
+}
+
 void FDatasmithGLTFMaterialElement::SetShadingModel(GLTF::EGLTFMaterialShadingModel InShadingModel)
 {
 	EDatasmithShadingModel DatasmithShadingModel;

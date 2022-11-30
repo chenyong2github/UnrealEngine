@@ -234,6 +234,16 @@ void FGLTFMaterialElement::SetTwoSided(bool bTwoSided)
 	Material->TwoSided = bTwoSided;
 }
 
+bool FGLTFMaterialElement::GetIsThinSurface() const
+{
+	return Material->IsThinSurface();
+}
+
+void FGLTFMaterialElement::SetIsThinSurface(bool bIsThinSurface)
+{
+	Material->bIsThinSurface = bIsThinSurface;
+}
+
 void FGLTFMaterialElement::SetShadingModel(GLTF::EGLTFMaterialShadingModel InShadingModel)
 {
 	EMaterialShadingModel MaterialShadingModel;

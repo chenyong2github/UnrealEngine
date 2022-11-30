@@ -1651,6 +1651,11 @@ bool UMaterialInstanceDynamic::IsTwoSided() const
 	return Parent ? Parent->IsTwoSided() : false;
 }
 
+bool UMaterialInstanceDynamic::IsThinSurface() const
+{
+	return Parent ? Parent->IsThinSurface() : false;
+}
+
 bool UMaterialInstanceDynamic::IsTranslucencyWritingVelocity() const
 {
 	return Parent ? Parent->IsTranslucencyWritingVelocity() : false;
@@ -2031,6 +2036,7 @@ void UMaterialInstance::UpdateOverridableBaseProperties()
 		BlendMode = BLEND_Opaque;
 		ShadingModels = MSM_DefaultLit;
 		TwoSided = 0;
+		bIsThinSurface = false;
 		DitheredLODTransition = 0;
 		bIsShadingModelFromMaterialExpression = 0;
 		bOutputTranslucentVelocity = false;
@@ -2122,6 +2128,16 @@ void UMaterialInstance::UpdateOverridableBaseProperties()
 	{
 		TwoSided = Parent->IsTwoSided();
 		BasePropertyOverrides.TwoSided = TwoSided;
+	}
+
+	if (BasePropertyOverrides.bOverride_bIsThinSurface)
+	{
+		bIsThinSurface = BasePropertyOverrides.bIsThinSurface != 0;
+	}
+	else
+	{
+		bIsThinSurface = Parent->IsThinSurface();
+		BasePropertyOverrides.bIsThinSurface = bIsThinSurface;
 	}
 
 	if (BasePropertyOverrides.bOverride_DitheredLODTransition)
@@ -2784,6 +2800,11 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 					FArchive_Serialize_BitfieldBool(Ar, BasePropertyOverrides.bOverride_TwoSided);
 					FArchive_Serialize_BitfieldBool(Ar, BasePropertyOverrides.TwoSided);
 
+					if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::MaterialInstanceBasePropertyOverridesThinSurface)
+					{
+						FArchive_Serialize_BitfieldBool(Ar, BasePropertyOverrides.bOverride_bIsThinSurface);
+						FArchive_Serialize_BitfieldBool(Ar, BasePropertyOverrides.bIsThinSurface);
+					}
 					if( Ar.UEVer() >= VER_UE4_MATERIAL_INSTANCE_BASE_PROPERTY_OVERRIDES_DITHERED_LOD_TRANSITION )
 					{
 						FArchive_Serialize_BitfieldBool(Ar, BasePropertyOverrides.bOverride_DitheredLODTransition);
@@ -4155,6 +4176,14 @@ void UMaterialInstance::GetBasePropertyOverridesHash(FSHAHash& OutHash)const
 		Hash.Update((uint8*)&bUsedIsTwoSided, sizeof(bUsedIsTwoSided));
 		bHasOverrides = true;
 	}
+	bool bUsedIsThinSurface = IsThinSurface();
+	if (bUsedIsThinSurface != Mat->IsThinSurface())
+	{
+		const FString HashString = TEXT("bOverride_bIsThinSurface");
+		Hash.UpdateWithString(*HashString, HashString.Len());
+		Hash.Update((uint8*)&bUsedIsThinSurface, sizeof(bUsedIsThinSurface));
+		bHasOverrides = true;
+	}
 	bool bUsedIsDitheredLODTransition = IsDitheredLODTransition();
 	if (bUsedIsDitheredLODTransition != Mat->IsDitheredLODTransition())
 	{
@@ -4188,6 +4217,7 @@ bool UMaterialInstance::HasOverridenBaseProperties()const
 		(GetBlendMode() != Parent->GetBlendMode()) ||
 		(GetShadingModels() != Parent->GetShadingModels()) ||
 		(IsTwoSided() != Parent->IsTwoSided()) ||
+		(IsThinSurface() != Parent->IsThinSurface()) ||
 		(IsDitheredLODTransition() != Parent->IsDitheredLODTransition()) ||
 		(GetCastDynamicShadowAsMasked() != Parent->GetCastDynamicShadowAsMasked()) ||
 		(IsTranslucencyWritingVelocity() != Parent->IsTranslucencyWritingVelocity())
@@ -4209,6 +4239,7 @@ FString UMaterialInstance::GetBasePropertyOverrideString() const
 		BasePropString += FString::Printf(TEXT("bOverride_BlendMode_%d, "), (GetBlendMode() != Parent->GetBlendMode()));
 		BasePropString += FString::Printf(TEXT("bOverride_ShadingModel_%d, "), (GetShadingModels() != Parent->GetShadingModels()));
 		BasePropString += FString::Printf(TEXT("bOverride_TwoSided_%d, "), (IsTwoSided() != Parent->IsTwoSided()));
+		BasePropString += FString::Printf(TEXT("bOverride_bIsThinSurface_%d, "), (IsThinSurface() != Parent->IsThinSurface()));
 		BasePropString += FString::Printf(TEXT("bOverride_DitheredLODTransition_%d, "), (IsDitheredLODTransition() != Parent->IsDitheredLODTransition()));
 		BasePropString += FString::Printf(TEXT("bOverride_CastDynamicShadowAsMasked_%d, "), (GetCastDynamicShadowAsMasked() != Parent->GetCastDynamicShadowAsMasked()));
 		BasePropString += FString::Printf(TEXT("bOverride_OutputTranslucentVelocity_%d "), (IsTranslucencyWritingVelocity() != Parent->IsTranslucencyWritingVelocity()));
@@ -4250,6 +4281,11 @@ bool UMaterialInstance::IsShadingModelFromMaterialExpression() const
 bool UMaterialInstance::IsTwoSided() const
 {
 	return TwoSided;
+}
+
+bool UMaterialInstance::IsThinSurface() const
+{
+	return bIsThinSurface;
 }
 
 bool UMaterialInstance::IsTranslucencyWritingVelocity() const

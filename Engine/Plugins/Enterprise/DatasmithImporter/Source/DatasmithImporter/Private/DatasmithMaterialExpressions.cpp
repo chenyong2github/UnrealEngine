@@ -3236,6 +3236,7 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterial(UPackage*
 
 	UnrealMaterial->bUseMaterialAttributes = MaterialElement->GetUseMaterialAttributes();
 	UnrealMaterial->TwoSided = MaterialElement->GetTwoSided();
+	UnrealMaterial->bIsThinSurface = MaterialElement->GetIsThinSurface();
 	UnrealMaterial->BlendMode = GetUEPbrImportBlendMode(MaterialElement, AssetsContext);
 	UnrealMaterial->OpacityMaskClipValue = MaterialElement->GetOpacityMaskClipValue();
 	UnrealMaterial->TranslucencyLightingMode = static_cast<ETranslucencyLightingMode>(MaterialElement->GetTranslucencyLightingMode());

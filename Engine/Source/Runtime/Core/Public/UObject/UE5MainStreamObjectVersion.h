@@ -309,7 +309,10 @@ struct CORE_API FUE5MainStreamObjectVersion
 
 		// Store the Visual Logger timestamp as a double
 		VisualLoggerTimeStampAsDouble,
-		
+
+		// Add ThinSurface instance override support
+		MaterialInstanceBasePropertyOverridesThinSurface,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

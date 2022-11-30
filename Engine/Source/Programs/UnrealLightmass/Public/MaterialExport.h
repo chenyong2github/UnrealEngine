@@ -72,6 +72,8 @@ struct FMaterialData
 	EStrataBlendMode StrataBlendMode;
 	/** Whether the material is two-sided or not */
 	uint32 bTwoSided:1;
+	/** Whether the material is thin-surface or not */
+	uint32 bIsThinSurface: 1;
 	/** Whether the material should cast shadows as masked even though it has a translucent blend mode. */
 	uint32 bCastShadowAsMasked:1;
 	uint32 bSurfaceDomain:1;

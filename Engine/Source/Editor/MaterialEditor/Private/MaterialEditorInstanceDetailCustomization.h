@@ -111,12 +111,14 @@ private:
 	bool OverrideBlendModeEnabled() const;
 	bool OverrideShadingModelEnabled() const;
 	bool OverrideTwoSidedEnabled() const;
+	bool OverrideIsThinSurfaceEnabled() const;
 	bool OverrideDitheredLODTransitionEnabled() const;
 	bool OverrideOutputTranslucentVelocityEnabled() const;
 	void OnOverrideOpacityClipMaskValueChanged(bool NewValue);
 	void OnOverrideBlendModeChanged(bool NewValue);
 	void OnOverrideShadingModelChanged(bool NewValue);
 	void OnOverrideTwoSidedChanged(bool NewValue);
+	void OnOverrideIsThinSurfaceChanged(bool NewValue);
 	void OnOverrideDitheredLODTransitionChanged(bool NewValue);
 	void OnOverrideOutputTranslucentVelocityChanged(bool NewValue);
 

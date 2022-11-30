@@ -284,6 +284,8 @@ UMaterialInstanceConstant* FMaterialUtilities::CreateFlattenMaterialInstance(UPa
 
 	OutMaterial->BasePropertyOverrides.TwoSided = FlattenMaterial.bTwoSided && InMaterialProxySettings.bAllowTwoSidedMaterial;
 	OutMaterial->BasePropertyOverrides.bOverride_TwoSided = (FlattenMaterial.bTwoSided != false) && InMaterialProxySettings.bAllowTwoSidedMaterial;
+	OutMaterial->BasePropertyOverrides.bIsThinSurface = (FlattenMaterial.bIsThinSurface != false);
+	OutMaterial->BasePropertyOverrides.bOverride_bIsThinSurface = (FlattenMaterial.bIsThinSurface != false);
 	OutMaterial->BasePropertyOverrides.DitheredLODTransition = FlattenMaterial.bDitheredLODTransition;
 	OutMaterial->BasePropertyOverrides.bOverride_DitheredLODTransition = FlattenMaterial.bDitheredLODTransition != false;
 

@@ -1781,6 +1781,7 @@ public:
 #endif // WITH_EDITORONLY_DATA
 	virtual EMaterialDomain GetMaterialDomain() const = 0; // See EMaterialDomain.
 	virtual bool IsTwoSided() const = 0;
+	virtual bool IsThinSurface() const = 0;
 	virtual bool IsDitheredLODTransition() const = 0;
 	virtual bool IsTranslucencyWritingCustomDepth() const { return false; }
 	virtual bool IsTranslucencyWritingVelocity() const { return false; }
@@ -2832,6 +2833,7 @@ public:
 #endif // WITH_EDITOR
 	ENGINE_API virtual EMaterialDomain GetMaterialDomain() const override;
 	ENGINE_API virtual bool IsTwoSided() const override;
+	ENGINE_API virtual bool IsThinSurface() const override;
 	ENGINE_API virtual bool IsDitheredLODTransition() const override;
 	ENGINE_API virtual bool IsTranslucencyWritingCustomDepth() const override;
 	ENGINE_API virtual bool IsTranslucencyWritingVelocity() const override;
@@ -3478,6 +3480,7 @@ struct FMaterialShaderParameters
 			uint64 bIsSpecialEngineMaterial : 1;
 			uint64 bIsMasked : 1;
 			uint64 bIsTwoSided : 1;
+			uint64 bIsThinSurface : 1;
 			uint64 bIsDistorted : 1;
 			uint64 bShouldCastDynamicShadows : 1;
 			uint64 bWritesEveryPixel : 1;

@@ -233,6 +233,9 @@ public:
 	virtual bool GetTwoSided() const = 0;
 	virtual void SetTwoSided( bool bTwoSided ) = 0;
 
+	virtual bool GetIsThinSurface() const = 0;
+	virtual void SetIsThinSurface(bool bIsThinSurface) = 0;
+
 	virtual bool GetUseMaterialAttributes() const = 0;
 	virtual void SetUseMaterialAttributes( bool bInUseMaterialAttributes ) = 0;
 

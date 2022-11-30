@@ -75,6 +75,13 @@ void FGLTFMaterialProxyFactory::SetBaseProperties(UMaterialInstanceConstant* Pro
 		ProxyMaterial->BasePropertyOverrides.TwoSided = bTwoSided;
 	}
 
+	const bool bIsThinSurface = OriginalMaterial->IsThinSurface();
+	if (bIsThinSurface != BaseMaterial->IsThinSurface())
+	{
+		ProxyMaterial->BasePropertyOverrides.bOverride_bIsThinSurface = true;
+		ProxyMaterial->BasePropertyOverrides.bIsThinSurface = bIsThinSurface;
+	}
+
 	const EBlendMode BlendMode = OriginalMaterial->GetBlendMode();
 	if (BlendMode != BaseMaterial->GetBlendMode())
 	{

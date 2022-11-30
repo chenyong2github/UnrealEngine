@@ -108,6 +108,7 @@ UMaterialInterface* FMaterialUtilities::CreateProxyMaterialAndTextures(UPackage*
 	
 	Material->BasePropertyOverrides.TwoSided = MaterialData.Material->IsTwoSided();
 	Material->BasePropertyOverrides.bOverride_TwoSided = MaterialData.Material->IsTwoSided();
+	Material->BasePropertyOverrides.bOverride_bIsThinSurface = MaterialData.Material->IsThinSurface();
 	Material->BasePropertyOverrides.DitheredLODTransition = MaterialData.Material->IsDitheredLODTransition();
 	Material->BasePropertyOverrides.bOverride_DitheredLODTransition = MaterialData.Material->IsDitheredLODTransition();
 
@@ -645,6 +646,14 @@ public:
 		if (MaterialInterface)
 		{
 			return MaterialInterface->IsTwoSided();
+		}
+		return false;
+	}
+	virtual bool IsThinSurface() const  override
+	{
+		if (MaterialInterface)
+		{
+			return MaterialInterface->IsThinSurface();
 		}
 		return false;
 	}

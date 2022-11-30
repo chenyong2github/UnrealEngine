@@ -196,6 +196,20 @@ bool FGLTFProxyMaterialUtilities::GetTwoSided(const UMaterialInterface* Material
 	return true;
 }
 
+bool FGLTFProxyMaterialUtilities::GetIsThinSurface(const UMaterialInterface* Material, bool& OutValue, bool NonDefaultOnly)
+{
+	const bool DefaultValue = Material->GetMaterial()->IsThinSurface();
+	const bool Value = Material->IsThinSurface();
+
+	if (NonDefaultOnly && Value == DefaultValue)
+	{
+		return false;
+	}
+
+	OutValue = Value;
+	return true;
+}
+
 bool FGLTFProxyMaterialUtilities::GetBlendMode(const UMaterialInterface* Material, EBlendMode& OutValue, bool NonDefaultOnly)
 {
 	const EBlendMode DefaultValue = Material->GetMaterial()->GetBlendMode();
@@ -239,6 +253,22 @@ void FGLTFProxyMaterialUtilities::SetTwoSided(UMaterialInstanceConstant* Materia
 	Material->BasePropertyOverrides.bOverride_TwoSided = true;
 	Material->BasePropertyOverrides.TwoSided = Value;
 	Material->TwoSided = Value;
+}
+
+void FGLTFProxyMaterialUtilities::SetIsThinSurface(UMaterialInstanceConstant* Material, bool Value, bool NonDefaultOnly)
+{
+	if (NonDefaultOnly)
+	{
+		const bool DefaultValue = Material->Parent->IsThinSurface();
+		if (DefaultValue == Value)
+		{
+			return;
+		}
+	}
+
+	Material->BasePropertyOverrides.bOverride_bIsThinSurface = true;
+	Material->BasePropertyOverrides.bIsThinSurface = Value;
+	Material->bIsThinSurface = Value;
 }
 
 void FGLTFProxyMaterialUtilities::SetBlendMode(UMaterialInstanceConstant* Material, EBlendMode Value, bool NonDefaultOnly)

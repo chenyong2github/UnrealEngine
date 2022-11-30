@@ -35,6 +35,7 @@ SMaterialAnalyzer::SMaterialAnalyzer()
 	BasePropertyOverrideNames.Add(TEXT("bOverride_DitheredLODTransition"), TEXT("DitheredLODTransitionOverride"));
 	BasePropertyOverrideNames.Add(TEXT("bOverride_CastDynamicShadowAsMasked"), TEXT("CastDynamicShadowAsMaskedOverride"));
 	BasePropertyOverrideNames.Add(TEXT("bOverride_TwoSided"), TEXT("TwoSidedOverride"));
+	BasePropertyOverrideNames.Add(TEXT("bOverride_bIsThinSurface"), TEXT("bIsThinSurfaceOverride"));
 	BasePropertyOverrideNames.Add(TEXT("bOverride_OutputTranslucentVelocity"), TEXT("bOutputTranslucentVelocity"));
 }
 
@@ -763,6 +764,14 @@ void FAnalyzeMaterialTreeAsyncTask::DoWork()
 			if (CurrentMaterialInstance)
 			{
 				bIsOverridden = CurrentMaterialInstance->BasePropertyOverrides.bOverride_TwoSided;
+			}
+		}
+		else if (BasePropertyOverrideName.Key.IsEqual(TEXT("bOverride_bIsThinSurface")))
+		{
+			TempValue = CurrentMaterialInterface->IsThinSurface();
+			if (CurrentMaterialInstance)
+			{
+				bIsOverridden = CurrentMaterialInstance->BasePropertyOverrides.bOverride_bIsThinSurface;
 			}
 		}
 		else if (BasePropertyOverrideName.Key.IsEqual(TEXT("bOverride_OutputTranslucentVelocity")))

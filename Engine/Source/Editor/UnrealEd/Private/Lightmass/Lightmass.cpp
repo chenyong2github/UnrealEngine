@@ -1421,6 +1421,7 @@ void FLightmassExporter::ExportMaterial(UMaterialInterface* Material, const FLig
 		FMemory::Memzero(&MaterialData,sizeof(MaterialData));
 		UMaterial* BaseMaterial = Material->GetMaterial();
 		MaterialData.bTwoSided = (uint32)Material->IsTwoSided();
+		MaterialData.bIsThinSurface = (uint32)Material->IsThinSurface();
 		MaterialData.EmissiveBoost = Material->GetEmissiveBoost();
 		MaterialData.DiffuseBoost = Material->GetDiffuseBoost();
 

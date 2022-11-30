@@ -1262,6 +1262,7 @@ void FStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PD
 							!(bAnySectionUsesDitheredLODTransition && !bAllSectionsUseDitheredLODTransition) // can't use a single section if they are not homogeneous
 							&& Material.WritesEveryPixel()
 							&& !Material.IsTwoSided()
+							&& !Material.IsThinSurface()
 							&& !IsTranslucentBlendMode(Material.GetBlendMode())
 							&& !Material.MaterialModifiesMeshPosition_RenderThread()
 							&& Material.GetMaterialDomain() == MD_Surface

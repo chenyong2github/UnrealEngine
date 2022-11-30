@@ -43,6 +43,7 @@ struct FStrataLegacyParameters
 	float  FuzzAmount;
 	float3 FuzzColor;
 	float  Thickness;
+	bool   bIsThinSurface;
 	uint   SharedLocalBasisIndex;
 
 	float Weight;
@@ -76,6 +77,7 @@ FStrataLegacyParameters InitStrataLegacyParameters(FStrataPixelFootprint InPixel
 	Out.FuzzAmount = 0.f;
 	Out.FuzzColor = Zeros;
 	Out.Thickness = STRATA_LAYER_DEFAULT_THICKNESS_CM;
+	Out.bIsThinSurface = false;
 	Out.SharedLocalBasisIndex = InSharedLocalBasisIndex;
 	Out.Weight = InWeight;
 	Out.PixelFootprint = InPixelFootprint;
@@ -118,6 +120,7 @@ FStrataData CreateLegacySlab(
 		In.FuzzAmount,										// FuzzAmount
 		In.FuzzColor,										// FuzzColor
 		In.Thickness,
+		In.bIsThinSurface,
 		In.SharedLocalBasisIndex, SharedLocalBasisTypes);
 }
 
@@ -356,6 +359,7 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 		LegacySlab.Emissive = Emissive;
 		LegacySlab.UseSSSDiffusion = false;
 		LegacySlab.Thickness = Thickness;
+		LegacySlab.bIsThinSurface = true;
 
 		FinalWeight = 1.0f;
 #if STRATA_TRANSLUCENT_MATERIAL

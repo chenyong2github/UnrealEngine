@@ -459,6 +459,14 @@ public:
 		}
 		return false;
 	}
+	virtual bool IsThinSurface() const  override
+	{
+		if (MaterialInterface)
+		{
+			return MaterialInterface->IsThinSurface();
+		}
+		return false;
+	}
 	virtual bool IsDitheredLODTransition() const  override
 	{
 		if (MaterialInterface)
