@@ -903,6 +903,8 @@ struct FNiagaraParameterDirectBinding
 #endif
 	{}
 
+	FORCEINLINE bool IsBound()const { return ValuePtr != nullptr; }
+
 	T* Init(FNiagaraParameterStore& InStore, const FNiagaraVariable& DestVariable)
 	{
 #if NIAGARA_VALIDATE_DIRECT_BINDINGS
@@ -957,6 +959,8 @@ struct FNiagaraParameterDirectBinding<FMatrix44f>
 		, BoundStore(nullptr)
 #endif
 	{}
+
+	FORCEINLINE bool IsBound()const { return ValuePtr != nullptr; }
 
 	FMatrix44f* Init(FNiagaraParameterStore& InStore, const FNiagaraVariable& DestVariable)
 	{
@@ -1014,6 +1018,8 @@ struct FNiagaraParameterDirectBinding<FVector4f>
 #endif
 	{}
 
+	FORCEINLINE bool IsBound()const { return ValuePtr != nullptr; }
+
 	FVector4f* Init(FNiagaraParameterStore& InStore, const FNiagaraVariable& DestVariable)
 	{
 #if NIAGARA_VALIDATE_DIRECT_BINDINGS
@@ -1070,6 +1076,8 @@ struct FNiagaraParameterDirectBinding<FQuat4f>
 #endif
 	{}
 
+	FORCEINLINE bool IsBound()const { return ValuePtr != nullptr; }
+
 	FQuat4f* Init(FNiagaraParameterStore& InStore, const FNiagaraVariable& DestVariable)
 	{
 #if NIAGARA_VALIDATE_DIRECT_BINDINGS
@@ -1125,6 +1133,8 @@ struct FNiagaraParameterDirectBinding<FNiagaraBool>
 		, BoundStore(nullptr)
 #endif
 	{}
+
+	FORCEINLINE bool IsBound()const { return ValuePtr != nullptr; }
 
 	uint32* Init(FNiagaraParameterStore& InStore, const FNiagaraVariable& DestVariable)
 	{
@@ -1204,6 +1214,8 @@ struct FNiagaraParameterDirectBinding<UObject*>
 	FNiagaraParameterDirectBinding()
 		: UObjectOffset(INDEX_NONE), BoundStore(nullptr)
 	{}
+
+	FORCEINLINE bool IsBound()const { return UObjectOffset != INDEX_NONE; }
 
 	UObject* Init(FNiagaraParameterStore& InStore, const FNiagaraVariable& DestVariable)
 	{

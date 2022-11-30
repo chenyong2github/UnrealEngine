@@ -106,6 +106,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "LOD")
 	int32 LODIndex = 0;
 
+	/** Reference to a user parameter if we're reading one. */
+	UPROPERTY(EditAnywhere, Category = "LOD")
+	FNiagaraUserParameterBinding LODIndexUserParameter;
+
 	/** List of filtered sockets to use. */
 	UPROPERTY(EditAnywhere, Category = "Mesh")
 	TArray<FName> FilteredSockets;
