@@ -3368,6 +3368,19 @@ void USceneComponent::OnRep_AttachChildren()
 			}
 		}
 	}
+
+	// It's possible AttachChildren are spawned before the AttachParent. This results in the AttachParent never being set.
+	for (USceneComponent* ChildComponent : AttachChildren)
+	{
+		if (ChildComponent)
+		{
+			if (ChildComponent->GetAttachParent() != this)
+			{
+				ChildComponent->SetAttachParent(this);
+				ChildComponent->UpdateComponentToWorld();
+			}
+		}
+	}
 }
 
 void USceneComponent::OnRep_Visibility(bool OldValue)
@@ -3484,6 +3497,11 @@ void USceneComponent::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & O
 	FDoRepLifetimeParams SharedParams;
 	SharedParams.bIsPushBased = true;
 
+	// There's an issue where the RelativeLocation might not receive a rep notify if the server is modified just after level streaming.
+	// FORT-543236
+	FDoRepLifetimeParams RelativeLocationParams = SharedParams;
+	RelativeLocationParams.RepNotifyCondition = REPNOTIFY_Always;
+
 	DOREPLIFETIME_WITH_PARAMS_FAST(USceneComponent, bAbsoluteLocation, SharedParams);
 	DOREPLIFETIME_WITH_PARAMS_FAST(USceneComponent, bAbsoluteRotation, SharedParams);
 	DOREPLIFETIME_WITH_PARAMS_FAST(USceneComponent, bAbsoluteScale, SharedParams);
@@ -3495,7 +3513,7 @@ void USceneComponent::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & O
 	DOREPLIFETIME_WITH_PARAMS_FAST(USceneComponent, AttachParent, SharedParams);
 	DOREPLIFETIME_WITH_PARAMS_FAST(USceneComponent, AttachChildren, SharedParams);
 	DOREPLIFETIME_WITH_PARAMS_FAST(USceneComponent, AttachSocketName, SharedParams);
-	DOREPLIFETIME_WITH_PARAMS_FAST(USceneComponent, RelativeLocation, SharedParams);
+	DOREPLIFETIME_WITH_PARAMS_FAST(USceneComponent, RelativeLocation, RelativeLocationParams);
 	DOREPLIFETIME_WITH_PARAMS_FAST(USceneComponent, RelativeRotation, SharedParams);
 	DOREPLIFETIME_WITH_PARAMS_FAST(USceneComponent, RelativeScale3D, SharedParams);
 	DOREPLIFETIME_WITH_PARAMS_FAST(USceneComponent, Mobility, SharedParams);

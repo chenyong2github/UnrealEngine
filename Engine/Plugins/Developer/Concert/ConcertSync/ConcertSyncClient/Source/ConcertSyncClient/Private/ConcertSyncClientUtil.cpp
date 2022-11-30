@@ -187,9 +187,7 @@ void AddActorToOwnerLevel(AActor* InActor)
 
 bool ObjectIdsMatch(const FConcertObjectId& One, const FConcertObjectId& Two)
 {
-	return One.ObjectClassPathName == Two.ObjectClassPathName
-		&& One.ObjectOuterPathName == Two.ObjectOuterPathName
-		&& One.ObjectName == Two.ObjectName;
+	return One == Two;
 }
 
 int32 GetObjectPathDepth(UObject* InObjToTest)

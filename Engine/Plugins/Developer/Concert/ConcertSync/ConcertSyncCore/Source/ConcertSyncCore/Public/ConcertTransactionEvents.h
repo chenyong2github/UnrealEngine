@@ -89,6 +89,18 @@ struct FConcertObjectId
 	uint32 ObjectPersistentFlags = 0;
 };
 
+inline bool operator ==(const FConcertObjectId& A, const FConcertObjectId& B)
+{
+	return A.ObjectClassPathName == B.ObjectClassPathName
+		&& A.ObjectOuterPathName == B.ObjectOuterPathName
+		&& A.ObjectName == B.ObjectName;
+}
+
+inline uint32 GetTypeHash(const FConcertObjectId& ConcertObjectId)
+{
+	return HashCombine(GetTypeHash(ConcertObjectId.ObjectName), GetTypeHash(ConcertObjectId.ObjectOuterPathName));
+}
+
 USTRUCT()
 struct FConcertSerializedObjectData
 {
