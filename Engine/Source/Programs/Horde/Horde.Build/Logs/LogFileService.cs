@@ -1318,16 +1318,8 @@ namespace Horde.Build.Logs
 				await _builder.CompleteChunkAsync(logId, offset);
 			}
 
-			if (_settings.Value.FeatureFlags.LimitConcurrentLogChunkWriting)
-			{
-				// Flush all the chunks and await completion instead of running them async
-				await WriteCompleteChunksV2Async(flushChunks, true, cancellationToken);
-			}
-			else
-			{
-				// Add tasks for flushing all the chunks
-				WriteCompleteChunks(flushChunks, true);
-			}
+			// Flush all the chunks and await completion instead of running them async
+			await WriteCompleteChunksV2Async(flushChunks, true, cancellationToken);
 		}
 
 		/// <summary>

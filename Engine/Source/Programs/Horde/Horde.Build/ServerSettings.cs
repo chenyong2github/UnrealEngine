@@ -171,16 +171,6 @@ namespace Horde.Build
 	public class FeatureFlagSettings
 	{
 		/// <summary>
-		/// Use new auth config for custom auth servers in Okta
-		/// </summary>
-		public bool AuthSettingsV2 { get; set; } = false;
-		
-		/// <summary>
-		/// Limit concurrent log chunk writes and await them to reduce mem and I/O usage
-		/// </summary>
-		public bool LimitConcurrentLogChunkWriting { get; set; } = false;
-
-		/// <summary>
 		/// Whether to use the new log storage backend
 		/// </summary>
 		public bool EnableNewLogger { get; set; } = false;
