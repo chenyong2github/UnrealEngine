@@ -140,6 +140,12 @@ public:
 	 */
 	virtual bool ShouldIncludeUnsupportedProperties() const;
 
+	/**
+	 * If a property is changed that has a name found in this set, the panel will be refreshed.
+	 * Add a property name to this list if you expect the list to change in some way after changing that property.
+	 */
+	virtual TSet<FName> GetPropertiesThatRequireListRefresh() const;
+
 	static TSet<UClass*> GetParentAndChildClassesFromSpecifiedClasses(
 		const TSet<UClass*>& InSpecifiedClasses, EObjectMixerInheritanceInclusionOptions Options);
 
@@ -324,6 +330,18 @@ public:
 	bool ShouldIncludeUnsupportedProperties_Implementation() const
 	{
 		return Super::ShouldIncludeUnsupportedProperties();
+	}
+	
+	/**
+	 * If a property is changed that has a name found in this set, the panel will be refreshed.
+	 * Add a property name to this list if you expect the list to change in some way after changing that property.
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Object Mixer")
+	TSet<FName> GetPropertiesThatRequireListRefresh() const override;
+
+	TSet<FName> GetPropertiesThatRequireListRefresh_Implementation() const
+	{
+		return Super::GetPropertiesThatRequireListRefresh();
 	}
 
 };

@@ -52,12 +52,7 @@ UWorld* FObjectMixerEditorModule::GetWorld()
 }
 
 void FObjectMixerEditorModule::Initialize()
-{
-	PropertiesThatRequireRefresh =
-		{
-			"LightingChannels"
-		};
-	
+{	
 	BindDelegates();
 	
 	SetupMenuItemVariables();
@@ -134,7 +129,7 @@ TSharedPtr<SWidget> FObjectMixerEditorModule::MakeObjectMixerDialog(
 	if (!MainPanel.IsValid())
 	{
 		MainPanel = MakeShared<FObjectMixerEditorMainPanel>(GetModuleName());
-		MainPanel->Init();
+		MainPanel->Initialize();
 	}
 	
 	const TSharedPtr<SWidget> ObjectMixerDialog = MainPanel->GetOrCreateWidget();
@@ -339,12 +334,12 @@ void FObjectMixerEditorModule::BindDelegates()
 	{
 		RequestSyncEditorSelectionToListSelection();
 	}));
-
+	
 	DelegateHandles.Add(FEditorDelegates::MapChange.AddLambda([this](uint32)
 	{
 		RequestRebuildList();
 	}));
-
+	
 	DelegateHandles.Add(FEditorDelegates::PostUndoRedo.AddLambda([this]()
 	{
 		RequestRebuildList();
@@ -352,7 +347,7 @@ void FObjectMixerEditorModule::BindDelegates()
 		// Because we can undo/redo collection adds and removes, we need to save the data after each
 		GetMutableDefault<UObjectMixerEditorSerializedData>()->SaveConfig();
 	}));
-
+	
 	DelegateHandles.Add(FCoreUObjectDelegates::OnObjectTransacted.AddLambda([this](UObject*, const FTransactionObjectEvent& Event)
 	{		
 		if (Event.GetEventType() == ETransactionObjectEventType::Finalized)
@@ -361,26 +356,38 @@ void FObjectMixerEditorModule::BindDelegates()
 			{
 				RequestRebuildList();
 			}
-			else
+			else if (const TSet<FName> PropertiesThatRequireRefresh = GetPropertiesThatRequireRefresh(); PropertiesThatRequireRefresh.Num() > 0)
 			{
 				const TSet<FName> ChangedPropertyNames = TSet<FName>(Event.GetChangedProperties());
-				const bool bPropertyChangedThatRequiresRefresh =
-					ChangedPropertyNames.Difference(PropertiesThatRequireRefresh).Num() > 0 ||
-						PropertiesThatRequireRefresh.Difference(ChangedPropertyNames).Num() > 0;
-
-				if (bPropertyChangedThatRequiresRefresh)
+	
+				if (ChangedPropertyNames.Intersect(PropertiesThatRequireRefresh).Num() > 0)
 				{
 					RequestRebuildList();
 				}
 			}
 		}
 	}));
-
+	
 	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
 	LevelEditorModule.OnComponentsEdited().AddLambda([this]()
 	{
 		RequestRebuildList();
 	});
+}
+
+TSet<FName> FObjectMixerEditorModule::GetPropertiesThatRequireRefresh() const
+{
+	TSet<FName> ReturnValue;
+
+	if (MainPanel.IsValid())
+	{
+		for (const TObjectPtr<UObjectMixerObjectFilter> Instance : MainPanel->GetObjectFilterInstances())
+		{
+			ReturnValue.Append(Instance->GetPropertiesThatRequireListRefresh());
+		}
+	}
+
+	return ReturnValue;
 }
 
 const TSubclassOf<UObjectMixerObjectFilter>& FObjectMixerEditorModule::GetDefaultFilterClass() const

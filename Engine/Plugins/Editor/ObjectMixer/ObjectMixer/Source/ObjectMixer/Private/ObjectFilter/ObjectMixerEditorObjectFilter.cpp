@@ -135,6 +135,11 @@ bool UObjectMixerObjectFilter::ShouldIncludeUnsupportedProperties() const
 	return false;
 }
 
+TSet<FName> UObjectMixerObjectFilter::GetPropertiesThatRequireListRefresh() const
+{
+	return { "Mobility" };
+}
+
 TSet<UClass*> UObjectMixerObjectFilter::GetParentAndChildClassesFromSpecifiedClasses(
 	const TSet<UClass*>& InSpecifiedClasses, EObjectMixerInheritanceInclusionOptions Options)
 {

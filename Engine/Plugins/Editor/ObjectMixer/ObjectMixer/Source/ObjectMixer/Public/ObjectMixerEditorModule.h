@@ -78,6 +78,9 @@ public:
 protected:
 
 	virtual void BindDelegates();
+
+	/** If a property is changed that has a name found in this set, the panel will be refreshed. */
+	TSet<FName> GetPropertiesThatRequireRefresh() const;
 	
 	/** Lives for as long as the module is loaded. */
 	TSharedPtr<FObjectMixerEditorMainPanel> MainPanel;
@@ -98,9 +101,6 @@ protected:
 	TSubclassOf<UObjectMixerObjectFilter> DefaultFilterClass;
 	
 	TSet<FDelegateHandle> DelegateHandles;
-
-	/** If a property is changed that has a name found in this set, the panel will be refreshed. */
-	TSet<FName> PropertiesThatRequireRefresh;
 
 private:
 

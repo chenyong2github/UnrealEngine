@@ -29,9 +29,9 @@ public:
 	: ModuleName(InModuleName)
 	{}
 
-	~FObjectMixerEditorMainPanel() = default;
+	virtual ~FObjectMixerEditorMainPanel() override = default;
 
-	void Init();
+	void Initialize();
 	
 	void RegisterAndMapContextMenuCommands();
 
@@ -45,7 +45,7 @@ public:
 	void RequestRebuildList() const;
 
 	/**
-	 * Refresh filters and sorting.
+	 * Refresh list filters and sorting.
 	 * Useful for when the list state has gone stale but the variable count has not changed.
 	 */
 	void RefreshList() const;

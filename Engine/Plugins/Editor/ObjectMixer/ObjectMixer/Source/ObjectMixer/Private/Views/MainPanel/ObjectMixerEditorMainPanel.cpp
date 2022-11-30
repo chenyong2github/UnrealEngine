@@ -9,7 +9,7 @@
 #include "Views/List/ObjectMixerEditorList.h"
 #include "Views/MainPanel/SObjectMixerEditorMainPanel.h"
 
-void FObjectMixerEditorMainPanel::Init()
+void FObjectMixerEditorMainPanel::Initialize()
 {
 	RegenerateListModel();
 	RegisterAndMapContextMenuCommands();
@@ -18,32 +18,6 @@ void FObjectMixerEditorMainPanel::Init()
 void FObjectMixerEditorMainPanel::RegisterAndMapContextMenuCommands()
 {
 	ObjectMixerElementEditCommands = MakeShared<FUICommandList>();
-
-	ObjectMixerElementEditCommands->MapAction(FGenericCommands::Get().Cut,
-		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("EDIT CUT") ) ),
-		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::Cut_CanExecute )
-	);
-	ObjectMixerElementEditCommands->MapAction(FGenericCommands::Get().Copy,
-		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("EDIT COPY") ) ),
-		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::Copy_CanExecute )
-	);
-	ObjectMixerElementEditCommands->MapAction(FGenericCommands::Get().Paste,
-		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("EDIT PASTE") ) ),
-		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::Paste_CanExecute )
-	);
-	ObjectMixerElementEditCommands->MapAction(FGenericCommands::Get().Duplicate,
-		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("DUPLICATE") ) ),
-		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::Duplicate_CanExecute )
-	);
-	ObjectMixerElementEditCommands->MapAction(FGenericCommands::Get().Delete,
-		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("DELETE") ) ),
-		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::Delete_CanExecute )
-	);
-	ObjectMixerElementEditCommands->MapAction(FGenericCommands::Get().Rename,
-		FUIAction(FExecuteAction::CreateRaw(this, &FObjectMixerEditorMainPanel::OnRenameCommand))
-	);
-
-	ObjectMixerFolderEditCommands = MakeShared<FUICommandList>();
 
 	ObjectMixerElementEditCommands->MapAction(FGenericCommands::Get().Cut,
 		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("EDIT CUT") ) ),
