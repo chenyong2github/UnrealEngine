@@ -71,6 +71,7 @@ protected:
 
 protected:
 	static const TCHAR* TemplateShaderFilePath;
+	static const FName LoadTexture2DName;
 	static const FName SampleTexture2DName;
 	static const FName SamplePseudoVolumeTextureName;
 	static const FName GetTextureDimensionsName;

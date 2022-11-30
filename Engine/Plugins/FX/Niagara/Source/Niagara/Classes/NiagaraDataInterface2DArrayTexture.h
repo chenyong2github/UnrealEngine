@@ -66,6 +66,7 @@ protected:
 
 protected:
 	static const TCHAR* TemplateShaderFilePath;
+	static const FName LoadTextureName;
 	static const FName SampleTextureName;
 	static const FName TextureDimsName;
 };

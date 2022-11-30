@@ -5,6 +5,11 @@ int				{ParameterName}_MipLevels;
 Texture2D		{ParameterName}_Texture;
 SamplerState	{ParameterName}_TextureSampler;
 
+void LoadTexture2D_{ParameterName}(in int TexelX, in int TexelY, in int MipLevel, out float4 OutValue)
+{
+	OutValue = {ParameterName}_Texture.Load(int3(TexelX, TexelY, MipLevel));
+}
+
 void SampleTexture2D_{ParameterName}(in float2 UV, in float MipLevel, out float4 OutValue)
 {
 	OutValue = {ParameterName}_Texture.SampleLevel({ParameterName}_TextureSampler, UV, MipLevel);

@@ -19,6 +19,7 @@
 #define LOCTEXT_NAMESPACE "UNiagaraDataInterfaceTexture"
 
 const TCHAR* UNiagaraDataInterfaceTexture::TemplateShaderFilePath = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceTextureTemplate.ush");
+const FName UNiagaraDataInterfaceTexture::LoadTexture2DName(TEXT("LoadTexture2D"));
 const FName UNiagaraDataInterfaceTexture::SampleTexture2DName(TEXT("SampleTexture2D"));
 const FName UNiagaraDataInterfaceTexture::SamplePseudoVolumeTextureName(TEXT("SamplePseudoVolumeTexture"));
 const FName UNiagaraDataInterfaceTexture::GetTextureDimensionsName(TEXT("GetTextureDimensions"));
@@ -147,28 +148,34 @@ bool UNiagaraDataInterfaceTexture::Equals(const UNiagaraDataInterface* Other) co
 
 void UNiagaraDataInterfaceTexture::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
 {
+	FNiagaraFunctionSignature DefaultGpuSig;
+	DefaultGpuSig.bMemberFunction = true;
+	DefaultGpuSig.bRequiresContext = false;
+	DefaultGpuSig.bSupportsCPU = false;
+	DefaultGpuSig.bSupportsGPU = true;
+	DefaultGpuSig.Inputs.Emplace(FNiagaraTypeDefinition(GetClass()), TEXT("Texture"));
+	DefaultGpuSig.SetFunctionVersion(FNDITextureFunctionVersion::LatestVersion);
+
 	{
-		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
+		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(DefaultGpuSig);
+		Sig.Name = LoadTexture2DName;
+		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("TexelX"));
+		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("TexelY"));
+		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("MipLevel"));
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetVec4Def(), TEXT("Value"));
+		Sig.SetDescription(LOCTEXT("TextureLoadTexture2DDesc", "Read a texel from the provided location & mip without any filtering or sampling."));
+	}
+	{
+		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(DefaultGpuSig);
 		Sig.Name = SampleTexture2DName;
-		Sig.bMemberFunction = true;
-		Sig.bRequiresContext = false;		
-		Sig.bSupportsCPU = false;
-		Sig.bSupportsGPU = true;
-		Sig.Inputs.Emplace(FNiagaraTypeDefinition(GetClass()), TEXT("Texture"));
 		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetVec2Def(), TEXT("UV"));
 		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetFloatDef(), TEXT("MipLevel"));
 		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetVec4Def(), TEXT("Value"));
 		Sig.SetDescription(LOCTEXT("TextureSampleTexture2DDesc", "Sample supplied mip level from input 2d texture at the specified UV coordinates. The UV origin (0,0) is in the upper left hand corner of the image."));
-		Sig.SetFunctionVersion(FNDITextureFunctionVersion::LatestVersion);
 	}
 	{
-		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
+		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(DefaultGpuSig);
 		Sig.Name = SamplePseudoVolumeTextureName;
-		Sig.bMemberFunction = true;
-		Sig.bRequiresContext = false;
-		Sig.bSupportsCPU = false;
-		Sig.bSupportsGPU = true;
-		Sig.Inputs.Emplace(FNiagaraTypeDefinition(GetClass()), TEXT("Texture"));
 		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("UVW"));
 		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetVec2Def(), TEXT("XYNumFrames"));
 		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetFloatDef(), TEXT("TotalNumFrames"));
@@ -178,8 +185,8 @@ void UNiagaraDataInterfaceTexture::GetFunctions(TArray<FNiagaraFunctionSignature
 		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetVec2Def(), TEXT("DDY"));
 		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetVec4Def(), TEXT("Value"));
 		Sig.SetDescription(LOCTEXT("TextureSamplePseudoVolumeTextureDesc", "Return a pseudovolume texture sample.\nUseful for simulating 3D texturing with a 2D texture or as a texture flipbook with lerped transitions.\nTreats 2d layout of frames as a 3d texture and performs bilinear filtering by blending with an offset Z frame.\nTexture = Input Texture Object storing Volume Data\nUVW = Input float3 for Position, 0 - 1\nXYNumFrames = Input float for num frames in x, y directions\nTotalNumFrames = Input float for num total frames\nMipMode = Sampling mode : 0 = use miplevel, 1 = use UV computed gradients, 2 = Use gradients(default = 0)\nMipLevel = MIP level to use in mipmode = 0 (default 0)\nDDX, DDY = Texture gradients in mipmode = 2\n"));
-		Sig.SetFunctionVersion(FNDITextureFunctionVersion::LatestVersion);
 	}
+
 	{
 		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
 		Sig.Name = GetTextureDimensionsName;
@@ -386,6 +393,7 @@ bool UNiagaraDataInterfaceTexture::GetFunctionHLSL(const FNiagaraDataInterfaceGP
 {
 	static const TSet<FName> ValidGpuFunctions =
 	{
+		LoadTexture2DName,
 		SampleTexture2DName,
 		SamplePseudoVolumeTextureName,
 		GetTextureDimensionsName,

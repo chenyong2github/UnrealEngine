@@ -67,6 +67,7 @@ protected:
 
 protected:
 	static const TCHAR* TemplateShaderFilePath;
+	static const FName LoadVolumeTextureName;
 	static const FName SampleVolumeTextureName;
 	static const FName TextureDimsName;
 };
