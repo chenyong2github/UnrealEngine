@@ -51,7 +51,7 @@ public:
 	{
 		check(AnimNodeStruct);
 		check(AnimNode);
-		check(NodeType::StaticStruct()->IsChildOf(AnimNodeStruct));
+		check(AnimNodeStruct->IsChildOf(NodeType::StaticStruct()));
 		return *static_cast<NodeType*>(AnimNode);
 	}
 
