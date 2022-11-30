@@ -65,8 +65,10 @@ static FAutoConsoleVariableRef NavmeshVarSynchronous(TEXT("n.GNavmeshSynchronous
 #if RECAST_INTERNAL_DEBUG_DATA
 static int32 GNavmeshDebugTileX = MAX_int32;
 static int32 GNavmeshDebugTileY = MAX_int32;
+static bool GNavmeshGenerateDebugTileOnly = false;
 static FAutoConsoleVariableRef NavmeshVarDebugTileX(TEXT("n.GNavmeshDebugTileX"), GNavmeshDebugTileX, TEXT(""), ECVF_Default);
 static FAutoConsoleVariableRef NavmeshVarDebugTileY(TEXT("n.GNavmeshDebugTileY"), GNavmeshDebugTileY, TEXT(""), ECVF_Default);
+static FAutoConsoleVariableRef NavmeshVarGenerateDebugTileOnly(TEXT("n.GNavmeshGenerateDebugTileOnly"), GNavmeshGenerateDebugTileOnly, TEXT(""), ECVF_Default);
 #endif //RECAST_INTERNAL_DEBUG_DATA
 
 // Hotfixing this flag without rebuilding the data will cause decompression errors, equivalent to not having prebuilt navmesh data at all.
@@ -1993,12 +1995,16 @@ void FRecastTileGenerator::GatherNavigationDataGeometry(const TSharedRef<FNaviga
 	bool bDumpGeometryData = false;
 
 #if RECAST_INTERNAL_DEBUG_DATA
+	if (!IsTileDebugAllowingGeneration())
+	{
+		return;
+	}
 	if (IsTileDebugActive())
 	{
 		UE_LOG(LogNavigation, Log, TEXT("Gathering geometry for tile (%i,%i): %s."), TileX, TileY, *GetFullNameSafe(ElementData->GetOwner()));
 		UE_LOG(LogNavigation, Log, TEXT("                       bounds: %s"), *ElementData->Bounds.ToString());
 	}
-#endif
+#endif // RECAST_INTERNAL_DEBUG_DATA
 
 	if (ElementData->IsPendingLazyGeometryGathering() || ElementData->NeedAnyPendingLazyModifiersGathering())
 	{
@@ -2517,6 +2523,13 @@ private:
 
 bool FRecastTileGenerator::CreateHeightField(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext)
 {
+#if RECAST_INTERNAL_DEBUG_DATA
+	if (!IsTileDebugAllowingGeneration())
+	{
+		return false;
+	}
+#endif // RECAST_INTERNAL_DEBUG_DATA
+
 	SCOPE_CYCLE_COUNTER(STAT_Navigation_RecastCreateHeightField);
 
 	TileConfig.width = TileConfig.tileSize + TileConfig.borderSize * 2;
@@ -2652,7 +2665,18 @@ void FRecastTileGenerator::RasterizeGeometryRecast(FNavMeshBuildContext& BuildCo
 			*RasterContext.SolidHF, TileConfig.walkableClimb, RasterizationFlags, MaskArray);
 	}
 
-#if RECAST_INTERNAL_DEBUG_DATA	
+#if RECAST_INTERNAL_DEBUG_DATA
+	if (IsTileDebugActive() && TileDebugSettings.bCollisionGeometry) 
+	{
+		TArray<FVector::FReal> Normals;
+		Normals.AddZeroed(NumFaces*3);
+
+		rcCalcTriNormals(Coords.GetData(), NumVerts, Indices.GetData(), NumFaces, Normals.GetData());
+
+		constexpr FVector::FReal TextureScale = 1.;
+		duDebugDrawTriMesh(&BuildContext.InternalDebugData, Coords.GetData(), NumVerts, Indices.GetData(), Normals.GetData(), NumFaces, RasterizeGeomRecastTriAreas.GetData(), TextureScale);
+	}
+
 	BuildContext.InternalDebugData.TriangleCount += NumFaces;
 #endif // RECAST_INTERNAL_DEBUG_DATA
 
@@ -7138,9 +7162,26 @@ public:
 #endif // WITH_RECAST
 
 #if RECAST_INTERNAL_DEBUG_DATA
-bool FRecastTileGenerator::IsTileDebugActive()
+bool FRecastTileGenerator::IsTileDebugActive() const
 {
-	const FIntVector& Coord = TileDebugSettings.TileCoordinate; 
+	const FIntVector& Coord = TileDebugSettings.TileCoordinate;
 	return (TileDebugSettings.bEnabled && TileX == Coord.X && TileY == Coord.Y) || (TileX == GNavmeshDebugTileX && TileY == GNavmeshDebugTileY);
+}
+
+bool FRecastTileGenerator::IsTileDebugAllowingGeneration() const
+{
+	const FIntVector& Coord = TileDebugSettings.TileCoordinate;
+	if (TileDebugSettings.bEnabled && TileDebugSettings.bGenerateDebugTileOnly)
+	{
+		return TileX == Coord.X && TileY == Coord.Y;
+	}
+	else if (GNavmeshGenerateDebugTileOnly)
+	{
+		return TileX == GNavmeshDebugTileX && TileY == GNavmeshDebugTileY;
+	}
+	else
+	{
+		return true;
+	}
 }
 #endif //RECAST_INTERNAL_DEBUG_DATA

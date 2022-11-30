@@ -876,6 +876,17 @@ inline void rcVnormalize(rcReal* v)
 	v[2] *= d;
 }
 
+//@UE BEGIN
+/// Calculates the normals of each triangles in an array
+///  @ingroup recast
+///  @param[in]		verts	An array of vertices. [(x, y, z) * @p nv]
+///  @param[in]		nv		The number of vertices in the @p verts array.
+///  @param[in]		tris	The triangle vertex indices. [(vertA, vertB, vertC) * @p nt]
+///  @param[in]		nt		The number of triangles.
+///  @param[out]	norms	The normal vector of each triangle. [(x, y, z) * @p nt]
+NAVMESH_API void rcCalcTriNormals(const rcReal* verts, const int nv, const int* tris, const int nt, rcReal* norms);
+//@UE END
+
 /// @}
 /// @name Heightfield Functions
 /// @see rcHeightfield

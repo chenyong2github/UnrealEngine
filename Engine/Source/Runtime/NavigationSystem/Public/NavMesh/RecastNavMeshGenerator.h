@@ -440,7 +440,8 @@ protected:
 	void DumpAsyncData();
 
 #if RECAST_INTERNAL_DEBUG_DATA
-	bool IsTileDebugActive();
+	bool IsTileDebugActive() const;
+	bool IsTileDebugAllowingGeneration() const;
 #endif
 
 protected:

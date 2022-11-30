@@ -321,6 +321,21 @@ static void calcTriNormal(const rcReal* v0, const rcReal* v1, const rcReal* v2, 
 	rcVnormalize(norm);
 }
 
+//@UE BEGIN
+void rcCalcTriNormals(const rcReal* verts, const int nv, const int* tris, const int nt, rcReal* norms)
+{
+	for (int i = 0; i < nt; ++i)
+	{
+		const int* tri = &tris[i*3];
+		const rcReal* v0 = &verts[tri[0]*3];
+		const rcReal* v1 = &verts[tri[1]*3];
+		const rcReal* v2 = &verts[tri[2]*3];
+
+		calcTriNormal(v0, v1, v2, &norms[i*3]);
+	}
+}
+//@UE END
+
 /// @par
 ///
 /// Only sets the aread id's for the walkable triangles.  Does not alter the

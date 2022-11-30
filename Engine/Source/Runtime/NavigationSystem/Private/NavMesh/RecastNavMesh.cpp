@@ -452,6 +452,8 @@ FRecastNavMeshTileGenerationDebug::FRecastNavMeshTileGenerationDebug()
 {
 	bEnabled = false;
 	TileCoordinate = FIntVector::ZeroValue;
+	bGenerateDebugTileOnly = false;
+	bCollisionGeometry = false;
 	bHeightfieldSolidFromRasterization = false;
 	bHeightfieldSolidPostInclusionBoundsFiltering = false;
 	bHeightfieldSolidPostHeightFiltering = false;

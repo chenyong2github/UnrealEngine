@@ -446,6 +446,15 @@ struct NAVIGATIONSYSTEM_API FRecastNavMeshTileGenerationDebug
 	UPROPERTY(EditAnywhere, Category = Debug)
 	FIntVector TileCoordinate = FIntVector::ZeroValue;
 
+	/** If set, the generator will only generate the tile selected to debug (set in TileCoordinate).*/
+	UPROPERTY(EditAnywhere, Category = Debug)
+	uint32 bGenerateDebugTileOnly : 1;
+
+	/** Display the collision used for the navmesh rasterization.
+	 * Note: The visualization is affected by the DrawOffset of the RecastNavmesh owner*/
+	UPROPERTY(EditAnywhere, Category = Debug)
+	uint32 bCollisionGeometry : 1;
+
 	UPROPERTY(EditAnywhere, Category = Debug)
 	uint32 bHeightfieldSolidFromRasterization : 1;
 
