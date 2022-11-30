@@ -10521,6 +10521,24 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 		// Reuse deleted array
 		FMemory::Memzero(UseAfterFreeArray, UseAfterFreeArraySize);
 	}
+	else if (FParse::Command(&Cmd, TEXT("USEAFTERFREEMEMSTACK")))
+	{
+		static constexpr size_t MemStackUseAfterFreeArraySize = 4096; 
+		uint8* DanglingMemStackPtr = nullptr;
+		{
+			FMemMark Mark(FMemStack::Get());
+			DanglingMemStackPtr = static_cast<uint8*>(FMemStack::Get().Alloc(MemStackUseAfterFreeArraySize, 16));
+		}
+
+		// Do another Memstack allocation to validate the freed chunk from above has been put in quarantine
+		{
+			FMemMark Mark(FMemStack::Get());
+			FMemStack::Get().Alloc(MemStackUseAfterFreeArraySize, 16);
+		}
+
+		// Reuse deleted array
+		FMemory::Memzero(DanglingMemStackPtr, MemStackUseAfterFreeArraySize);
+	}
 #endif
 #endif // !UE_BUILD_SHIPPING
 	return false;

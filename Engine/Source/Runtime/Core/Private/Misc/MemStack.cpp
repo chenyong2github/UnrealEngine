@@ -235,16 +235,24 @@ uint64 FPageAllocator::BytesFree()
 
 void *FPageAllocator::Alloc()
 {
+#if USING_ADDRESS_SANITISER
+	return FMemory::Malloc(FPageAllocator::PageSize);
+#else
 	LLM_SCOPE_BY_BOOTSTRAP_TAG(MemStack);
 	void *Result = TheAllocator.Allocate();
 	STAT(UpdateStats());
 	return Result;
+#endif
 }
 
 void FPageAllocator::Free(void *Mem)
 {
+#if USING_ADDRESS_SANITISER
+	FMemory::Free(Mem);
+#else
 	TheAllocator.Free(Mem);
 	STAT(UpdateStats());
+#endif
 }
 
 void *FPageAllocator::AllocSmall()
