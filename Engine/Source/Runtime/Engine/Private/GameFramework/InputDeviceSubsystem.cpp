@@ -449,6 +449,14 @@ bool UInputDeviceSubsystem::IsDevicePropertyHandleValid(const FInputDeviceProper
 
 void UInputDeviceSubsystem::RemoveAllDeviceProperties()
 {
+	for (FActiveDeviceProperty& ActiveProperty : ActiveProperties)
+	{
+		if (ActiveProperty.Property)
+		{
+			ActiveProperty.Property->ResetDeviceProperty(ActiveProperty.PlatformUser);
+		}		
+	}
+
 	ActiveProperties.Empty();
 }
 
