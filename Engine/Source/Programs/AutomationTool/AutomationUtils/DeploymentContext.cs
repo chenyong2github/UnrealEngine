@@ -496,7 +496,7 @@ public class DeploymentContext //: ProjectParams
 
 		RelativeProjectRootForStage = new StagedDirectoryReference(ShortProjectName);
 
-		ProjectArgForCommandLines = CommandUtils.MakePathSafeToUseWithCommandLine(RawProjectPath.FullName);
+		ProjectArgForCommandLines = string.Format("-project={0}", CommandUtils.MakePathSafeToUseWithCommandLine(RawProjectPath.FullName));
 		CookSourceRuntimeRootDir = RuntimeRootDir = LocalRoot;
 		RuntimeProjectRootDir = ProjectRoot;
 
@@ -529,7 +529,7 @@ public class DeploymentContext //: ProjectParams
 			RuntimeRootDir = StageDirectory;
 			CookSourceRuntimeRootDir = DirectoryReference.Combine(BaseStageDirectory, CookPlatform);
 			RuntimeProjectRootDir = DirectoryReference.Combine(StageDirectory, RelativeProjectRootForStage.Name);
-			ProjectArgForCommandLines = CommandUtils.MakePathSafeToUseWithCommandLine(UProjectCommandLineArgInternalRoot + RelativeProjectRootForStage.Name + "/" + ShortProjectName + ".uproject");
+			ProjectArgForCommandLines = string.Format("-project={0}", CommandUtils.MakePathSafeToUseWithCommandLine(UProjectCommandLineArgInternalRoot + RelativeProjectRootForStage.Name + "/" + ShortProjectName + ".uproject"));
 		}
 		if (Archive)
 		{
