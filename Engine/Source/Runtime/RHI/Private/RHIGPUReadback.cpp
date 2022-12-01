@@ -168,7 +168,7 @@ void FRHIGPUTextureReadback::EnqueueCopy(FRHICommandList& RHICmdList, FRHITextur
 
 			if (Rect.IsValid())
 			{
-				CopyInfo.SourcePosition = FIntVector(Rect.X1, Rect.Y1, 1);
+				CopyInfo.SourcePosition = FIntVector(Rect.X1, Rect.Y1, 0);
 				CopyInfo.DestPosition = CopyInfo.SourcePosition;
 				CopyInfo.Size = FIntVector(Rect.X2 - Rect.X1, Rect.Y2 - Rect.Y1, 1);
 			}
