@@ -13,6 +13,7 @@ struct FSourceControlResultInfo
 	{
 		InfoMessages.Append(InResultInfo.InfoMessages);
 		ErrorMessages.Append(InResultInfo.ErrorMessages);
+		Tags.Append(InResultInfo.Tags);
 	}
 
 	/** Info and/or warning message storage */
@@ -20,6 +21,9 @@ struct FSourceControlResultInfo
 
 	/** Potential error message storage */
 	TArray<FText> ErrorMessages;
+
+	/** Additional arbitrary information attached to the command */
+	TArray<FString> Tags;
 };
 
 
@@ -56,6 +60,12 @@ public:
 
 	/** Add error message. */
 	virtual void AddErrorMessge(const FText& InError)
+	{
+		// Implemented in subclasses
+	}
+
+	/** Add tag. */
+	virtual void AddTag(const FString& InTag)
 	{
 		// Implemented in subclasses
 	}
