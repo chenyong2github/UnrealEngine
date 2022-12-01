@@ -106,9 +106,20 @@ void GetVertex_{ParameterName}(int Vertex, out float3 Position, out float3 Veloc
 		float3 TangentY = cross(TangentZ.xyz, TangentX.xyz) * TangentZ.w;
 
 		Velocity	= float3(0, 0, 0);
-		Normal		= TangentZ.xyz;
-		Bitangent	= TangentY;
-		Tangent		= TangentX.xyz;
+
+		// Sometimes we have bogus tangent data in the buffer, i.e. X==Z so ensure we handle this and don't end up with NaNs in the buffer
+		if ( length2(TangentY) > 0.001f )
+		{
+			Normal		= TangentZ.xyz;
+			Bitangent	= TangentY;
+			Tangent		= TangentX.xyz;
+		}
+		else
+		{
+			Normal		= float3(0, 0, 1);
+			Bitangent	= float3(0, 1, 0);
+			Tangent		= float3(1, 0, 0);
+		}
 	}
 	else
 	{
