@@ -344,7 +344,7 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 	else if (ShadingModel == SHADINGMODELID_TWOSIDED_FOLIAGE)
 	{
 		// Set a thickness that will enabled the thin lighting model (corresponding to the legacy two-sided lighting model)
-		const float Thickness = STRATA_LAYER_ISTHIN_THICKNESS_THRESHOLD_CM - 1e-5f;
+		const float Thickness = STRATA_LAYER_DEFAULT_THICKNESS_CM;
 		const float3 MFPInCm = TransmittanceToMeanFreePath(SubSurfaceColor /*TransmittanceColor*/, Thickness * CENTIMETER_TO_METER) * METER_TO_CENTIMETER;
 
 		LegacySlab.BaseColor = BaseColor;

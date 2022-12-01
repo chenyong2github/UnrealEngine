@@ -424,10 +424,13 @@ public:
 			return MaterialInterface->CompileProperty(Compiler, MP_ShadingModel);
 
 		}
+		else if (Property == MP_SurfaceThickness)
+		{
+			return MaterialInterface->CompileProperty(Compiler, MP_SurfaceThickness);
+		}
 		else if (Property == MP_FrontMaterial)
 		{
 			return MaterialInterface->CompileProperty(Compiler, MP_FrontMaterial);
-
 		}
 		else
 		{

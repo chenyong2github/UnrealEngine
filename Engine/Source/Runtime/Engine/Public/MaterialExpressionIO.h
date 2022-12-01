@@ -302,7 +302,7 @@ struct FMaterialAttributesInput : FExpressionInput
 	: PropertyConnectedBitmask(0)
 	{ 
 		// ensure PropertyConnectedBitmask can contain all properties.
-		static_assert((uint32)(MP_MAX)-1 <= (8 * sizeof(PropertyConnectedBitmask)), "PropertyConnectedBitmask cannot contain entire EMaterialProperty enumeration.");
+		static_assert((uint32)(MP_MaterialAttributes)-1 <= (8 * sizeof(PropertyConnectedBitmask)), "PropertyConnectedBitmask cannot contain entire EMaterialProperty enumeration.");
 	}
 
 #if WITH_EDITOR

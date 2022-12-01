@@ -100,13 +100,14 @@ struct FStrataOperator
 	int32 OperatorType;
 	bool bNodeRequestParameterBlending;
 
-	int32 Index;		// Index into the array of operators
-	int32 ParentIndex;	// Parent operator index
-	int32 LeftIndex;	// Left child operator index
-	int32 RightIndex;	// Right child operator index
+	int32 Index;			// Index into the array of operators
+	int32 ParentIndex;		// Parent operator index
+	int32 LeftIndex;		// Left child operator index
+	int32 RightIndex;		// Right child operator index
+	int32 ThicknessIndex;	// Thickness expression index
 
 	// Data used for BSDF type nodes only
-	int32 BSDFIndex;	// Index in the array of BSDF if a BSDF operator
+	int32 BSDFIndex;		// Index in the array of BSDF if a BSDF operator
 	uint8 BSDFType;
 	FStrataRegisteredSharedLocalBasis BSDFRegisteredSharedLocalBasis;
 	bool  bBSDFHasSSS;
@@ -132,6 +133,7 @@ struct FStrataOperator
 		ParentIndex = INDEX_NONE;
 		LeftIndex = INDEX_NONE;
 		RightIndex = INDEX_NONE;
+		ThicknessIndex = INDEX_NONE;
 
 		BSDFIndex = INDEX_NONE;
 		BSDFType = 0;
@@ -666,8 +668,8 @@ public:
 		int32 WaterAlbedo, int32 WaterExtinction, int32 WaterPhaseG, int32 ColorScaleBehindWater, int32 Normal, const FString& SharedLocalBasisIndexMacro, FStrataOperator* PromoteToOperator) = 0;
 	virtual int32 StrataHorizontalMixing(int32 Background, int32 Foreground, int32 Mix, int OperatorIndex, uint32 MaxDistanceFromLeaves) = 0;
 	virtual int32 StrataHorizontalMixingParameterBlending(int32 Background, int32 Foreground, int32 HorizontalMixCodeChunk, int32 NormalMixCodeChunk, const FString& SharedLocalBasisIndexMacro, FStrataOperator* PromoteToOperator) = 0;
-	virtual int32 StrataVerticalLayering(int32 Top, int32 Base, int OperatorIndex, uint32 MaxDistanceFromLeaves) = 0;
-	virtual int32 StrataVerticalLayeringParameterBlending(int32 Top, int32 Base, const FString& SharedLocalBasisIndexMacro, int32 TopBSDFNormalCodeChunk, FStrataOperator* PromoteToOperator) = 0;
+	virtual int32 StrataVerticalLayering(int32 Top, int32 Base, int32 Thickness, int OperatorIndex, uint32 MaxDistanceFromLeaves) = 0;
+	virtual int32 StrataVerticalLayeringParameterBlending(int32 Top, int32 Base, int32 Thickness, const FString& SharedLocalBasisIndexMacro, int32 TopBSDFNormalCodeChunk, FStrataOperator* PromoteToOperator) = 0;
 	virtual int32 StrataAdd(int32 A, int32 B, int OperatorIndex, uint32 MaxDistanceFromLeaves) = 0;
 	virtual int32 StrataAddParameterBlending(int32 A, int32 B, int32 AMixWeight, const FString& SharedLocalBasisIndexMacro, FStrataOperator* PromoteToOperator) = 0;
 	virtual int32 StrataWeight(int32 A, int32 Weight, int OperatorIndex, uint32 MaxDistanceFromLeaves) = 0;
@@ -700,6 +702,11 @@ public:
 	 * Pops a node node of the Strata tree being walked. Used when walking up the tree back to its root level.
 	 */
 	virtual void StrataTreeStackPop() = 0;
+
+	virtual int32 StrataThicknessStackGetThicknessIndex() = 0;
+	virtual int32 StrataThicknessStackGetThicknessCode(int32 Index) = 0;
+	virtual int32 StrataThicknessStackPush(UMaterialExpression* Expression, FExpressionInput* Input) = 0;
+	virtual void StrataThicknessStackPop() = 0;
 
 	/**
 	 * Register an operator of the tree representation the Strata material and its topology.
@@ -1318,14 +1325,14 @@ public:
 		return Compiler->StrataHorizontalMixingParameterBlending(Background, Foreground, HorizontalMixCodeChunk, NormalMixCodeChunk, SharedLocalBasisIndexMacro, PromoteToOperator);
 	}
 
-	virtual int32 StrataVerticalLayering(int32 Top, int32 Base, int OperatorIndex, uint32 MaxDistanceFromLeaves) override
+	virtual int32 StrataVerticalLayering(int32 Top, int32 Base, int32 Thickness, int OperatorIndex, uint32 MaxDistanceFromLeaves) override
 	{
-		return Compiler->StrataVerticalLayering(Top, Base, OperatorIndex, MaxDistanceFromLeaves);
+		return Compiler->StrataVerticalLayering(Top, Base, Thickness, OperatorIndex, MaxDistanceFromLeaves);
 	}
 
-	virtual int32 StrataVerticalLayeringParameterBlending(int32 Top, int32 Base, const FString& SharedLocalBasisIndexMacro, int32 TopBSDFNormalCodeChunk, FStrataOperator* PromoteToOperator) override
+	virtual int32 StrataVerticalLayeringParameterBlending(int32 Top, int32 Base, int32 Thickness, const FString& SharedLocalBasisIndexMacro, int32 TopBSDFNormalCodeChunk, FStrataOperator* PromoteToOperator) override
 	{
-		return Compiler->StrataVerticalLayeringParameterBlending(Top, Base, SharedLocalBasisIndexMacro, TopBSDFNormalCodeChunk, PromoteToOperator);
+		return Compiler->StrataVerticalLayeringParameterBlending(Top, Base, Thickness, SharedLocalBasisIndexMacro, TopBSDFNormalCodeChunk, PromoteToOperator);
 	}
 
 	virtual int32 StrataAdd(int32 A, int32 B, int OperatorIndex, uint32 MaxDistanceFromLeaves) override
@@ -1392,6 +1399,23 @@ public:
 	virtual void StrataTreeStackPop() override
 	{
 		Compiler->StrataTreeStackPop();
+	}
+
+	virtual int32 StrataThicknessStackGetThicknessIndex() override
+	{
+		return Compiler->StrataThicknessStackGetThicknessIndex();
+	}
+	virtual int32 StrataThicknessStackGetThicknessCode(int32 Index) override
+	{
+		return Compiler->StrataThicknessStackGetThicknessCode(Index);
+	}
+	virtual int32 StrataThicknessStackPush(UMaterialExpression* Expression, FExpressionInput* Input) override
+	{
+		return Compiler->StrataThicknessStackPush(Expression, Input);
+	}
+	virtual void StrataThicknessStackPop() override
+	{
+		Compiler->StrataThicknessStackPop();
 	}
 
 	virtual FStrataOperator& StrataCompilationRegisterOperator(int32 OperatorType, FGuid StrataExpressionGuid, UMaterialExpression* Parent, FGuid StrataParentExpressionGuid, bool bUseParameterBlending = false) override

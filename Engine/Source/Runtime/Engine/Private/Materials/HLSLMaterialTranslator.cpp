@@ -315,6 +315,7 @@ FHLSLMaterialTranslator::FHLSLMaterialTranslator(FMaterial* InMaterial,
 	SharedPixelProperties[MP_PixelDepthOffset] = true;
 	SharedPixelProperties[MP_SubsurfaceColor] = true;
 	SharedPixelProperties[MP_ShadingModel] = true;
+	SharedPixelProperties[MP_SurfaceThickness] = true;
 	SharedPixelProperties[MP_FrontMaterial] = true;
 
 	for (int32 Frequency = 0; Frequency < SF_NumFrequencies; ++Frequency)
@@ -742,7 +743,18 @@ bool FHLSLMaterialTranslator::Translate()
 		#if DEBUG_STRATA_TREE_STACK
 			UE_LOG(LogMaterial, Display, TEXT(" StrataTreeStack: StrataGenerateMaterialTopologyTree"));
 		#endif
-			FrontMaterialExpr->StrataGenerateMaterialTopologyTree(this, nullptr, 0);
+			{
+				StrataThicknessIndexToExpressionInput.SetNum(0);
+				StrataThicknessStack.SetNum(0);
+			
+				FExpressionInput* SurfaceThickness = Material->IsThinSurface() && Material->GetMaterialInterface() ? &Material->GetMaterialInterface()->GetMaterial()->GetEditorOnlyData()->SurfaceThickness : nullptr;
+				StrataThicknessStackPush(nullptr, SurfaceThickness);
+				FrontMaterialExpr->StrataGenerateMaterialTopologyTree(this, nullptr, 0);
+				StrataThicknessStackPop();
+
+				check(StrataThicknessStack.Num() == 0);
+			}
+
 			if (!StrataGenerateDerivedMaterialOperatorData())
 			{
 				Errorf(TEXT("Strata material errors encountered."));
@@ -872,6 +884,7 @@ bool FHLSLMaterialTranslator::Translate()
 	#if DEBUG_STRATA_TREE_STACK
 		UE_LOG(LogMaterial, Display, TEXT(" StrataTreeStack: Material->CompilePropertyAndSetMaterialProperty(MP_FrontMaterial)"));
 	#endif
+		Chunk[MP_SurfaceThickness]				= Material->CompilePropertyAndSetMaterialProperty(MP_SurfaceThickness		,this);
 		Chunk[MP_FrontMaterial]					= Material->CompilePropertyAndSetMaterialProperty(MP_FrontMaterial			,this);
 		}
 
@@ -10700,6 +10713,7 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(
 {
 	const FString NormalCode = GetParameterCode(Normal);
 	const FString TangentCode = Tangent != INDEX_NONE ? *GetParameterCode(Tangent) : TEXT("NONE");
+	const FString ThicknessCode = GetParameterCode(Thickness);
 	const bool bIsThinSurface = Material->IsThinSurface();
 
 	if (PromoteToOperator)
@@ -10710,7 +10724,7 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(
 			return INDEX_NONE;
 		}
 		return AddCodeChunk(
-			MCT_Strata, TEXT("PromoteParameterBlendedBSDFToOperator(GetStrataSlabBSDF(Parameters.StrataPixelFootprint, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.SharedLocalBases.Types) /* Normal = %s ; Tangent = %s */, Parameters.StrataTree, %u, %u, %u, %u)"),
+			MCT_Strata, TEXT("PromoteParameterBlendedBSDFToOperator(GetStrataSlabBSDF(Parameters.StrataPixelFootprint, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.SharedLocalBases.Types) /* Normal = %s ; Tangent = %s ; Thickness = %s */, Parameters.StrataTree, %u, %u, %u, %u)"),
 			*StrataGetCastParameterCode(DiffuseAlbedo,			MCT_Float3),
 			*StrataGetCastParameterCode(F0,						MCT_Float3),
 			*StrataGetCastParameterCode(F90,					MCT_Float3),
@@ -10732,6 +10746,7 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(
 			*SharedLocalBasisIndexMacro,
 			*NormalCode,
 			*TangentCode,
+			*ThicknessCode,
 			PromoteToOperator->Index,
 			PromoteToOperator->BSDFIndex,
 			PromoteToOperator->LayerDepth,
@@ -10740,7 +10755,7 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(
 	}
 	
 	return AddCodeChunk(
-		MCT_Strata, TEXT("GetStrataSlabBSDF(Parameters.StrataPixelFootprint, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.SharedLocalBases.Types) /* Normal = %s ; Tangent = %s */"),
+		MCT_Strata, TEXT("GetStrataSlabBSDF(Parameters.StrataPixelFootprint, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.SharedLocalBases.Types) /* Normal = %s ; Tangent = %s ; Thickness = %s */"),
 		*StrataGetCastParameterCode(DiffuseAlbedo,			MCT_Float3),
 		*StrataGetCastParameterCode(F0,						MCT_Float3),
 		*StrataGetCastParameterCode(F90,					MCT_Float3),
@@ -10761,7 +10776,8 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(
 		bIsThinSurface ? TEXT("true") : TEXT("false"),
 		*SharedLocalBasisIndexMacro,
 		*NormalCode,
-		*TangentCode
+		*TangentCode,
+		*ThicknessCode
 	);
 }
 
@@ -11011,34 +11027,38 @@ int32 FHLSLMaterialTranslator::StrataHorizontalMixingParameterBlending(
 	);
 }
 
-int32 FHLSLMaterialTranslator::StrataVerticalLayering(int32 Top, int32 Base, int OperatorIndex, uint32 MaxDistanceFromLeaves)
+int32 FHLSLMaterialTranslator::StrataVerticalLayering(int32 Top, int32 Base, int32 Thickness, int OperatorIndex, uint32 MaxDistanceFromLeaves)
 {
 	if (Top == INDEX_NONE || Base == INDEX_NONE)
 	{
 		return INDEX_NONE;
 	}
+	const FString ThicknessCode = Thickness != INDEX_NONE ? GetParameterCode(Thickness) : TEXT("NONE");;
 	return AddCodeChunk(
-		MCT_Strata, TEXT("StrataVerticalLayering(%s, %s, Parameters.StrataTree, %u, %u)"),
+		MCT_Strata, TEXT("StrataVerticalLayering(%s, %s, Parameters.StrataTree, %u, %u) /* Thickness = %s */"),
 		*GetParameterCode(Top),
 		*GetParameterCode(Base),
 		OperatorIndex,
-		MaxDistanceFromLeaves
+		MaxDistanceFromLeaves,
+		*ThicknessCode
 	);
 }
 
-int32 FHLSLMaterialTranslator::StrataVerticalLayeringParameterBlending(int32 Top, int32 Base, const FString& SharedLocalBasisIndexMacro, int32 TopBSDFNormalCodeChunk, FStrataOperator* PromoteToOperator)
+int32 FHLSLMaterialTranslator::StrataVerticalLayeringParameterBlending(int32 Top, int32 Base, int32 Thickness, const FString& SharedLocalBasisIndexMacro, int32 TopBSDFNormalCodeChunk, FStrataOperator* PromoteToOperator)
 {
 	if (Top == INDEX_NONE || Base == INDEX_NONE)
 	{
 		return INDEX_NONE;
 	}
+
+	const FString ThicknessCode = Thickness != INDEX_NONE ? GetParameterCode(Thickness) : TEXT("NONE");
 
 	if (PromoteToOperator)
 	{
 		check(PromoteToOperator->Index != INDEX_NONE);
 		check(PromoteToOperator->BSDFIndex != INDEX_NONE);
 		return AddCodeChunk(
-			MCT_Strata, TEXT("PromoteParameterBlendedBSDFToOperator(StrataVerticalLayeringParameterBlending(%s, %s, %s, dot(%s, %s)), Parameters.StrataTree, %u, %u, %u, %u)"),
+			MCT_Strata, TEXT("PromoteParameterBlendedBSDFToOperator(StrataVerticalLayeringParameterBlending(%s, %s, %s, dot(%s, %s)), Parameters.StrataTree, %u, %u, %u, %u) /* Thickness = %s */"),
 			*GetParameterCode(Top),
 			*GetParameterCode(Base),
 			*SharedLocalBasisIndexMacro,
@@ -11047,17 +11067,19 @@ int32 FHLSLMaterialTranslator::StrataVerticalLayeringParameterBlending(int32 Top
 			PromoteToOperator->Index,
 			PromoteToOperator->BSDFIndex,
 			PromoteToOperator->LayerDepth,
-			PromoteToOperator->bIsBottom ? 1 : 0
+			PromoteToOperator->bIsBottom ? 1 : 0,
+			*ThicknessCode
 		);
 	}
 
 	return AddCodeChunk(
-		MCT_Strata, TEXT("StrataVerticalLayeringParameterBlending(%s, %s, %s, dot(%s, %s))"),
+		MCT_Strata, TEXT("StrataVerticalLayeringParameterBlending(%s, %s, %s, dot(%s, %s)) /* Thickness = %s */"),
 		*GetParameterCode(Top),
 		*GetParameterCode(Base),
 		*SharedLocalBasisIndexMacro,
 		*GetParameterCode(TopBSDFNormalCodeChunk),
-		*GetParameterCode(CameraVector())
+		*GetParameterCode(CameraVector()),
+		*ThicknessCode
 	);
 }
 
@@ -11345,6 +11367,49 @@ void FHLSLMaterialTranslator::StrataTreeStackPop()
 	}
 	UE_LOG(LogMaterial, Display, TEXT(" StrataTreeStack: Pop %s."), *GuidStack);
 #endif
+}
+
+int32 FHLSLMaterialTranslator::StrataThicknessStackGetThicknessIndex()
+{
+	return StrataThicknessStack.Top();
+}
+
+int32 FHLSLMaterialTranslator::StrataThicknessStackGetThicknessCode(int32 Index)
+{
+	int32 OutCode = INDEX_NONE;
+	if (Index == INDEX_NONE || Index >= StrataThicknessIndexToExpressionInput.Num())
+	{
+		UE_LOG(LogMaterial, Error, TEXT(" StrataThichkness: %i could not be found)"), Index);
+	}
+	else if (FExpressionInput* Input = StrataThicknessIndexToExpressionInput[Index])
+	{
+		OutCode = Input->GetTracedInput().Expression ? Input->Compile(this) : Constant(STRATA_LAYER_DEFAULT_THICKNESS_CM);
+		EMaterialValueType Type = GetType(OutCode);
+		if (IsLWCType(Type))
+		{
+			Type = MakeNonLWCType(Type);
+			OutCode = ValidCast(OutCode, Type);
+		}	
+	}
+	if (OutCode == INDEX_NONE)
+	{
+		OutCode = Constant(STRATA_LAYER_DEFAULT_THICKNESS_CM);
+	}
+	return OutCode;
+}
+
+int32 FHLSLMaterialTranslator::StrataThicknessStackPush(UMaterialExpression* Expression, FExpressionInput* Input)
+{
+	int32 Index = StrataThicknessIndexToExpressionInput.Num();
+	StrataThicknessIndexToExpressionInput.Add(Input);
+	StrataThicknessStack.Push(Index);
+	return Index;	
+}
+
+void FHLSLMaterialTranslator::StrataThicknessStackPop()
+{
+	check(StrataThicknessStack.Num() >= 1);
+	StrataThicknessStack.Pop();
 }
 
 int32 FHLSLMaterialTranslator::MapARPassthroughCameraUV(int32 UV)

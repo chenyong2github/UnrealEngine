@@ -18,6 +18,7 @@
 void PostProcessSlabBeforeLighting(inout FStrataBSDF BSDF)
 {
 	// Two sided lighting can only be evaluated on the bottom layer, together with option SSS. Otherwise, the simple volume will be used.
+	// At the moment, a material can't be thin & simple volume at the same time. This should be fixed by unifying SSSDiffusion|SSSWrap|SimpleVolume into a single evaluation function
 	const bool bIsThin = BSDF.bIsBottom && BSDF_GETISTHIN(BSDF);
 
 	// We want simple volumetric only if the MFP input is pluged in, otherwise we avoid dealing with simple volumetric.

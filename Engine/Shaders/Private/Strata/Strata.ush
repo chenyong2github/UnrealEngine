@@ -1351,15 +1351,10 @@ FStrataData GetStrataSlabBSDF(
 {
 	FStrataData StrataData = GetInitialisedStrataData();
 
-	if (bIsThinSurface)
-	{
-		ThicknessCm = STRATA_LAYER_ISTHIN_THICKNESS_THRESHOLD_CM - 1e-5f;
-	}
-
 	SSSMFPScale = saturate(SSSMFPScale);
 	const bool bSSSProfilePlugged = SSSProfileID > 0.0f;
 	const bool bMFPPlugged = any(SSSMFP > 0);
-	bool bIsThin = bMFPPlugged && ThicknessCm < STRATA_LAYER_ISTHIN_THICKNESS_THRESHOLD_CM && !UseSSSDiffusion; // Thin is used for flagging 'legacy foliage' case
+	bool bIsThin = bMFPPlugged && bIsThinSurface; // Enable thin only if MFP is plugged, as otherwise there will be no back-tramission
 	bool bHasSSSWrap = bMFPPlugged && !UseSSSDiffusion;
 	bool bHasSSSProfile = !bIsThin && bSSSProfilePlugged && SSSMFPScale > 0.f;	// When no profile is provide, we use Burley. STRATA_TODO we should clarify as burley is also an option of the profile.
 	bool bHasSSS = bMFPPlugged || bHasSSSProfile || bHasSSSWrap;
@@ -1413,7 +1408,7 @@ FStrataData GetStrataSlabBSDF(
 	}
 
 	// About the thin, a.k.a. two sided lighting, model:
-	// 	- Thin lighting model is used when thickness becomes less than STRATA_LAYER_ISTHIN_THICKNESS_THRESHOLD_CM
+	// 	- Thin lighting model is used when MFP is plugged and the surface is flagged as 'is-thin-surface'
 	//  - It cannot work with a SSS Profile because the profile id is stored in the register used for the MFP (e.g. see SLAB_SSSPROFILEID).
 	// 	- Thin lighting model force disabled the SSSProfile.
 	//  - It can work with the Strata SSS because the MFP is shared in this case between both.

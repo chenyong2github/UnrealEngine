@@ -2719,7 +2719,7 @@ void UMaterial::Serialize(FArchive& Ar)
 	}
 #endif // #if WITH_EDITOR
 
-	static_assert(MP_MAX == 33, "New material properties must have DoMaterialAttributeReorder called on them to ensure that any future reordering of property pins is correctly applied.");
+	static_assert(MP_MAX == 34, "New material properties must have DoMaterialAttributeReorder called on them to ensure that any future reordering of property pins is correctly applied.");
 
 	if (Ar.UEVer() < VER_UE4_MATERIAL_MASKED_BLENDMODE_TIDY)
 	{
@@ -3694,6 +3694,7 @@ void UMaterial::PostLoad()
 	DoMaterialAttributeReorder(&EditorOnly->PixelDepthOffset, UEVer, RenderObjVer, UE5MainVer);
 	DoMaterialAttributeReorder(&EditorOnly->ShadingModelFromMaterialExpression, UEVer, RenderObjVer, UE5MainVer);
 	DoMaterialAttributeReorder(&EditorOnly->FrontMaterial, UEVer, RenderObjVer, UE5MainVer);
+	DoMaterialAttributeReorder(&EditorOnly->SurfaceThickness, UEVer, RenderObjVer, UE5MainVer);
 
 	if (ParameterGroupData_DEPRECATED.Num() > 0)
 	{
@@ -4107,6 +4108,11 @@ bool UMaterial::HasEmissiveColorConnected() const
 bool UMaterial::HasAnisotropyConnected() const
 {
 	return IsPropertyConnected(MP_Anisotropy);
+}
+
+bool UMaterial::HasSurfaceThicknessConnected() const
+{
+	return IsPropertyConnected(MP_SurfaceThickness);
 }
 
 bool UMaterial::HasStrataFrontMaterialConnected() const
@@ -5560,6 +5566,7 @@ bool UMaterial::GetExpressionInputDescription(EMaterialProperty InProperty, FMat
 	case MP_MaterialAttributes: SetMaterialInputDescription(EditorOnly->MaterialAttributes, false, OutDescription); return true;
 	case MP_PixelDepthOffset: SetMaterialInputDescription(EditorOnly->PixelDepthOffset, false, OutDescription); return true;
 	case MP_ShadingModel: SetMaterialInputDescription(EditorOnly->ShadingModelFromMaterialExpression, false, OutDescription); return true;
+	case MP_SurfaceThickness: SetMaterialInputDescription(EditorOnly->SurfaceThickness, false, OutDescription); return true;
 	case MP_FrontMaterial: SetMaterialInputDescription(EditorOnly->FrontMaterial, false, OutDescription); return true;
 	default:
 		if (InProperty >= MP_CustomizedUVs0 && InProperty <= MP_CustomizedUVs7)
@@ -6165,6 +6172,7 @@ int32 UMaterial::CompilePropertyEx( FMaterialCompiler* Compiler, const FGuid& At
 		case MP_WorldPositionOffset:	return EditorOnly->WorldPositionOffset.CompileWithDefault(Compiler, Property);
 		case MP_PixelDepthOffset:		return EditorOnly->PixelDepthOffset.CompileWithDefault(Compiler, Property);
 		case MP_ShadingModel:			return EditorOnly->ShadingModelFromMaterialExpression.CompileWithDefault(Compiler, Property);
+		case MP_SurfaceThickness:		return EditorOnly->SurfaceThickness.CompileWithDefault(Compiler, Property);
 		case MP_FrontMaterial:			return EditorOnly->FrontMaterial.CompileWithDefault(Compiler, Property);
 
 		default:
@@ -6437,6 +6445,7 @@ bool UMaterial::IsPropertySupported(EMaterialProperty InProperty) const
 		case MP_AmbientOcclusion:
 		case MP_WorldPositionOffset:
 		case MP_PixelDepthOffset:
+		case MP_SurfaceThickness:
 		case MP_FrontMaterial:
 			bSupported = true;
 			break;
@@ -6478,6 +6487,7 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 	bool bHasRefraction,
 	bool bUsesShadingModelFromMaterialExpression,
 	bool bIsTranslucencyWritingVelocity,
+	bool bIsThinSurface,
 	bool bIsSupported)
 {
 	const bool bStrataEnabled = Engine_IsStrataEnabled();
@@ -6619,6 +6629,9 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 			case MP_PixelDepthOffset:
 				Active = (!bIsTranslucentBlendMode) || (bIsTranslucencyWritingVelocity);
 				break;
+			case MP_SurfaceThickness:
+				Active = bIsThinSurface;
+				break;
 			case MP_FrontMaterial:
 				Active = true;
 				break;
@@ -6690,6 +6703,7 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 		case MP_ShadingModel:
 			Active = bUsesShadingModelFromMaterialExpression;
 			break;
+		case MP_SurfaceThickness:
 		case MP_FrontMaterial:
 			{
 				Active = bStrataEnabled;
@@ -6724,6 +6738,7 @@ bool UMaterial::IsPropertyActiveInEditor(EMaterialProperty InProperty) const
 		GetEditorOnlyData()->Refraction.IsConnected(),
 		IsShadingModelFromMaterialExpression(),
 		IsTranslucencyWritingVelocity(),
+		IsThinSurface(),
 		IsPropertySupported(InProperty));
 }
 #endif // WITH_EDITOR
@@ -6749,6 +6764,7 @@ bool UMaterial::IsPropertyActiveInDerived(EMaterialProperty InProperty, const UM
 		!bUseMaterialAttributes ? GetCachedExpressionData().IsPropertyConnected(MP_Refraction) : bUsesDistortion,
 		DerivedMaterial->IsShadingModelFromMaterialExpression(),
 		IsTranslucencyWritingVelocity(),
+		IsThinSurface(),
 		IsPropertySupported(InProperty));
 }
 

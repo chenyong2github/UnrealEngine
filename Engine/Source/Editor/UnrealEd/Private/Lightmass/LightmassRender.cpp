@@ -503,6 +503,10 @@ public:
 		{
 			return MaterialInterface->CompileProperty(Compiler, MP_OpacityMask);
 		}
+		else if (Property == MP_SurfaceThickness)
+		{
+			return MaterialInterface->CompileProperty(Compiler, MP_SurfaceThickness);
+		}
 		else if (Property == MP_FrontMaterial)
 		{
 			if (bStrataEnabled)

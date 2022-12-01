@@ -376,6 +376,9 @@ public:
 	FShadingModelMaterialInput ShadingModelFromMaterialExpression;
 
 	UPROPERTY()
+	FScalarMaterialInput SurfaceThickness;
+
+	UPROPERTY()
 	FStrataMaterialInput FrontMaterial;
 
 	UPROPERTY()
@@ -1762,6 +1765,7 @@ public:
 	ENGINE_API bool HasMetallicConnected() const;
 	ENGINE_API bool HasEmissiveColorConnected() const;
 	ENGINE_API bool HasAnisotropyConnected() const;
+	ENGINE_API bool HasSurfaceThicknessConnected() const;
 	ENGINE_API bool HasStrataFrontMaterialConnected() const;
 	ENGINE_API bool HasVertexPositionOffsetConnected() const;
 	ENGINE_API bool HasPixelDepthOffsetConnected() const;

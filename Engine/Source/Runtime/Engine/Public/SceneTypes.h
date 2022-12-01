@@ -233,6 +233,7 @@ enum EMaterialProperty
 	MP_PixelDepthOffset UMETA(Hidden),
 	MP_ShadingModel UMETA(Hidden),
 	MP_FrontMaterial UMETA(Hidden),
+	MP_SurfaceThickness UMETA(Hidden),
 
 	//^^^ New material properties go above here ^^^^
 	MP_MaterialAttributes UMETA(Hidden),

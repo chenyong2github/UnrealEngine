@@ -312,6 +312,7 @@ void PackStrataOut(
 				const uint SingleIsSimpleVolume		= 0x10;
 				const uint SingleIsWrap				= 0x20;
 				const uint SingleIsSSSProfile		= 0x40;
+				const uint SingleIsWrapThin			= SingleIsThin | SingleIsWrap;
 				// No need to add anisotropy since it is not supported by the simple mode.
 
 				uint OptimisedModeMask = 0;
@@ -353,9 +354,8 @@ void PackStrataOut(
 				else if ((OptimisedModeMask & SingleHasCloth) == SingleHasCloth)
 				{
 					OptimisedLegacyMode = SINGLE_OPTLEGACYMODE_CLOTH;
-				}
-				
-				else if ((OptimisedModeMask & SingleIsThin) == SingleIsThin)
+				}				
+				else if ((OptimisedModeMask & SingleIsWrapThin) == SingleIsWrapThin)
 				{
 					OptimisedLegacyMode = SINGLE_OPTLEGACYMODE_SSSWRAP_THIN;
 					SSSData.Header.Bytes = 0; // Force to skip SSSData writing

@@ -281,7 +281,7 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 	 * The slab thickness. (type = float, centimeters, default = 0.01 centimeter = 0.1 millimeter)
 	 */
 	UPROPERTY()
-	FExpressionInput Thickness;
+	FExpressionInput Thickness; // TODO: Remove
 
 	/**
 	 * The amount of fuzz on top of the surface used to simulate cloth-like appearance.
@@ -824,6 +824,12 @@ class UMaterialExpressionStrataVerticalLayering : public UMaterialExpressionStra
 	FExpressionInput Base;
 
 	/**
+	 * Thickness of the Top material layer
+	 */
+	UPROPERTY()
+	FExpressionInput Thickness;
+
+	/**
 	 * Merge Top and Base into a single material by mixing their inputs rather than their evaluation. This makes lighting evaluation cheaper (Default: off)
 	 */
 	UPROPERTY(EditAnywhere, Category = Mode)
@@ -838,6 +844,7 @@ class UMaterialExpressionStrataVerticalLayering : public UMaterialExpressionStra
 	virtual bool IsResultStrataMaterial(int32 OutputIndex) override;
 	virtual void GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex) override;
 	virtual FStrataOperator* StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, UMaterialExpression* Parent, int32 OutputIndex) override;
+	virtual FName GetInputName(int32 InputIndex) const override;
 #endif
 	//~ End UMaterialExpression Interface
 };
