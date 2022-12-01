@@ -5,6 +5,7 @@
 #include "NiagaraActions.h"
 #include "NiagaraConstants.h"
 #include "NiagaraEditorModule.h"
+#include "NiagaraNode.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraEditorSettings)
 
@@ -23,6 +24,13 @@ const FGuid FNiagaraEditorGuids::ParameterCollectionNamespaceMetaDataGuid = FGui
 const FGuid FNiagaraEditorGuids::DataInstanceNamespaceMetaDataGuid = FGuid(TEXT("17F5FC610A914BA58D7EA8FD39B9A1D0"));
 const FGuid FNiagaraEditorGuids::StaticSwitchNamespaceMetaDataGuid = FGuid(TEXT("6A44CDD2EC3D4495BDC7FE28CAE00604"));
 
+int32 GbLogFoundButNotAllowedAssets = 0;
+static FAutoConsoleVariableRef CVarLogFoundButNotAllowedAssets(
+	TEXT("fx.Niagara.LogFoundButNotAllowedAssets"),
+	GbShowNiagaraDeveloperWindows,
+	TEXT("If > 0 assets which are found, but not allowed in the current editor context will be printed to the log."),
+	ECVF_Default
+);
 
 FNiagaraNamespaceMetadata::FNiagaraNamespaceMetadata()
 	: BackgroundColor(FLinearColor::Black)
@@ -57,6 +65,7 @@ UNiagaraEditorSettings::UNiagaraEditorSettings(const FObjectInitializer& ObjectI
 	bResimulateOnChangeWhilePaused = true;
 	bResetDependentSystemsWhenEditingEmitters = false;
 	SetupNamespaceMetadata();
+	TrackedUsageBaseClasses = { UNiagaraNode::StaticClass(), UNiagaraDataInterface::StaticClass(), UNiagaraRendererProperties::StaticClass() };
 }
 
 #define LOCTEXT_NAMESPACE "NamespaceMetadata"
@@ -669,6 +678,121 @@ bool UNiagaraEditorSettings::IsAllowedClassPath(const FTopLevelAssetPath& InClas
 bool UNiagaraEditorSettings::IsAllowedTypeDefinition(const FNiagaraTypeDefinition& InTypeDefinition) const
 {
 	return InTypeDefinition.GetClass() == nullptr || IsAllowedClass(InTypeDefinition.GetClass());
+}
+
+const FName ClassUsageListTagName = "ClassUsageList";
+
+bool UNiagaraEditorSettings::ShouldTrackClassUsage(const UClass* InClass) const
+{
+	for (const UClass* TrackedUsageBaseClass : TrackedUsageBaseClasses)
+	{
+		if (InClass->IsChildOf(TrackedUsageBaseClass))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+UObject::FAssetRegistryTag UNiagaraEditorSettings::CreateClassUsageAssetRegistryTag(const UObject* SourceObject) const
+{
+	FString ClassUsageList;
+	if (SourceObject->IsAsset())
+	{
+		TSet<FString> ClassPaths;
+		TArray<UObject*> ObjectsInPackage;
+		GetObjectsWithPackage(SourceObject->GetOutermost(), ObjectsInPackage);
+		for (UObject* ObjectInPackage : ObjectsInPackage)
+		{
+			if (ShouldTrackClassUsage(ObjectInPackage->GetClass()))
+			{
+				ClassPaths.Add(ObjectInPackage->GetClass()->GetClassPathName().ToString());
+			}
+		}
+		ClassUsageList = FString::Join(ClassPaths, TEXT("\n"));
+	}
+	else
+	{
+		ClassUsageList = "";
+	}
+
+	return UObject::FAssetRegistryTag(ClassUsageListTagName, ClassUsageList, FAssetRegistryTag::TT_Hidden);
+}
+
+bool UNiagaraEditorSettings::IsAllowedAssetByClassUsage(const FAssetData& InAssetData) const
+{
+	if (OnIsClassAllowedDelegate.IsBound() == false)
+	{
+		return true;
+	}
+
+	const UObject* AssetObject = nullptr;
+	bool bClassDataFound = false;
+	bool bInvalidClassFound = false;
+	if (InAssetData.IsAssetLoaded())
+	{
+		AssetObject = InAssetData.GetAsset();
+		if (AssetObject != nullptr)
+		{
+			bClassDataFound = true;
+			TArray<UObject*> ObjectsInPackage;
+			GetObjectsWithPackage(AssetObject->GetOutermost(), ObjectsInPackage);
+			for (UObject* ObjectInPackage : ObjectsInPackage)
+			{
+				if (ShouldTrackClassUsage(ObjectInPackage->GetClass()) && IsAllowedClass(ObjectInPackage->GetClass()) == false)
+				{
+					bInvalidClassFound = true;
+					if (GbLogFoundButNotAllowedAssets)
+					{
+						UE_LOG(LogNiagaraEditor, Log, TEXT("Asset %s is not allowed due to object %s with class %s which is not allowed in this editor context."),
+							*InAssetData.GetFullName(), *ObjectInPackage->GetPathName(), *ObjectInPackage->GetClass()->GetClassPathName().ToString());
+					}
+					else
+					{
+						break;
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		FString ClassUsageList;
+		if (InAssetData.GetTagValue(ClassUsageListTagName, ClassUsageList) && ClassUsageList.Len() != 0)
+		{
+			bClassDataFound = true;
+			TArray<FString> ClassUsageListLines;
+			ClassUsageList.ParseIntoArrayLines(ClassUsageListLines);
+			for (const FString& ClassUsageListLine : ClassUsageListLines)
+			{
+				FTopLevelAssetPath ClassPath(ClassUsageListLine);
+				UClass* UsedClass = FindObject<UClass>(ClassPath);
+				if (UsedClass == nullptr || (ShouldTrackClassUsage(UsedClass) && IsAllowedClass(UsedClass) == false))
+				{
+					bInvalidClassFound = true;
+					if (GbLogFoundButNotAllowedAssets)
+					{
+						if (UsedClass == nullptr)
+						{
+							UE_LOG(LogNiagaraEditor, Log, TEXT("Asset %s is not allowed due to class %s which is was not found."),
+								*InAssetData.GetFullName(), *ClassUsageListLine);
+						}
+						else
+						{
+							UE_LOG(LogNiagaraEditor, Log, TEXT("Asset %s is not allowed due to class %s which is not allowed in this editor context."),
+								*InAssetData.GetFullName(), *UsedClass->GetPathName());
+						}
+					}
+					else
+					{
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	return bClassDataFound && bInvalidClassFound == false;
 }
 
 #undef LOCTEXT_NAMESPACE

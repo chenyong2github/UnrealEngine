@@ -114,22 +114,24 @@ TArray<FAssetData> SNiagaraAssetPickerList::GetAssetDataForSelector(UClass* Asse
 	TArray<FAssetData> EmitterAssets;
 	AssetRegistryModule.Get().GetAssetsByClass(AssetClass->GetClassPathName(), EmitterAssets);
 
+	const UNiagaraEditorSettings* NiagaraEditorSettings = GetDefault<UNiagaraEditorSettings>();
 	TArray<FAssetData> EmittersToShow;
-	if (TabOptions.GetOnlyShowTemplates())
+	for(FAssetData& EmitterAsset : EmitterAssets)
 	{
-		for(FAssetData& EmitterAsset :EmitterAssets)
-		{ 
+		bool bShowEmitter = true;
+		if (TabOptions.GetOnlyShowTemplates())
+		{
 			ENiagaraScriptTemplateSpecification TemplateSpecification;
 			bool bFoundTemplateScriptTag = FNiagaraEditorUtilities::GetTemplateSpecificationFromTag(EmitterAsset, TemplateSpecification);
-			if (bFoundTemplateScriptTag && TemplateSpecification == ENiagaraScriptTemplateSpecification::Template)
+			if (bFoundTemplateScriptTag && TemplateSpecification != ENiagaraScriptTemplateSpecification::Template)
 			{
-				EmittersToShow.Add(EmitterAsset);
+				bShowEmitter = false;
 			}
 		}
-	}
-	else
-	{
-		EmittersToShow = EmitterAssets;
+		if (bShowEmitter && NiagaraEditorSettings->IsAllowedAssetByClassUsage(EmitterAsset))
+		{
+			EmittersToShow.Add(EmitterAsset);
+		}
 	}
 
 	return EmittersToShow;

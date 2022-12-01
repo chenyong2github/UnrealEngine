@@ -1403,6 +1403,7 @@ void FNiagaraEditorUtilities::GetFilteredScriptAssets(FGetFilteredScriptAssetsOp
 	TArray<FAssetData> FilteredScriptAssets;
 	AssetRegistryModule.Get().GetAssets(ScriptFilter, FilteredScriptAssets);
 
+	const UNiagaraEditorSettings* NiagaraEditorSettings = GetDefault<UNiagaraEditorSettings>();
 	for (int i = 0; i < FilteredScriptAssets.Num(); ++i)
 	{
 		// Get the custom version the asset was saved with so it can be used below.
@@ -1480,6 +1481,12 @@ void FNiagaraEditorUtilities::GetFilteredScriptAssets(FGetFilteredScriptAssetsOp
 			{
 				continue;
 			}
+		}
+
+		// Filter by allowed class usage.
+		if (NiagaraEditorSettings->IsAllowedAssetByClassUsage(FilteredScriptAssets[i]) == false)
+		{
+			continue;
 		}
 		
 		OutFilteredScriptAssets.Add(FilteredScriptAssets[i]);

@@ -12,6 +12,7 @@
 
 class UCurveFloat;
 enum class EScriptSource : uint8;
+class UClass;
 
 namespace FNiagaraEditorGuids
 {
@@ -383,9 +384,14 @@ public:
 	/** Returns whether or not the supplied niagara type definition can be used in the current editor context. */
 	bool IsAllowedTypeDefinition(const FNiagaraTypeDefinition& InTypeDefinition) const;
 
+	FAssetRegistryTag CreateClassUsageAssetRegistryTag(const UObject* SourceObject) const;
+
+	bool IsAllowedAssetByClassUsage(const FAssetData& InAssetData) const;
+
 private:
 	void SetupNamespaceMetadata();
 	void BuildCachedPlaybackSpeeds() const;
+	bool ShouldTrackClassUsage(const UClass* InClass) const;
 protected:
 	FOnNiagaraEditorSettingsChanged SettingsChangedDelegate;
 private:
@@ -473,6 +479,8 @@ private:
 
 	FOnIsClassAllowed OnIsClassAllowedDelegate;
 	FOnIsClassPathAllowed OnIsClassPathAllowedDelegate;
+
+	TArray<UClass*> TrackedUsageBaseClasses;
 
 public:
 	bool IsShowInstructionsCount() const;

@@ -216,6 +216,12 @@ class FNiagaraEditorOnlyDataUtilities : public INiagaraEditorOnlyDataUtilities
 	{
 		return NewObject<UNiagaraEditorParametersAdapter>(InOuter);
 	}
+
+	virtual UObject::FAssetRegistryTag CreateClassUsageAssetRegistryTag(const UObject* SourceObject) const override
+	{
+		const UNiagaraEditorSettings* NiagaraEditorSettings = GetDefault<UNiagaraEditorSettings>();
+		return NiagaraEditorSettings->CreateClassUsageAssetRegistryTag(SourceObject);
+	}
 };
 
 class FNiagaraScriptGraphPanelPinFactory : public FGraphPanelPinFactory
