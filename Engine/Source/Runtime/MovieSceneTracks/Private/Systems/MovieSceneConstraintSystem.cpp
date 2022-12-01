@@ -116,6 +116,10 @@ void UMovieSceneConstraintSystem::OnRun(FSystemTaskPrerequisites& InPrerequisite
 			{
 				const FSequenceInstance& TargetInstance = InstanceRegistry->GetInstance(InstanceHandle);
 
+				if (ConstraintChannel.ConstraintAndActiveChannel->Constraint.IsPending())
+				{
+					ConstraintChannel.ConstraintAndActiveChannel->Constraint.LoadSynchronous();
+				}
 				UTickableConstraint* Constraint = ConstraintChannel.ConstraintAndActiveChannel->Constraint.Get();
 				if (!Constraint)
 				{

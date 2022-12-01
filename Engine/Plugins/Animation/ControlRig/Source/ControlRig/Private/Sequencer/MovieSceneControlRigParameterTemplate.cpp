@@ -1828,7 +1828,10 @@ void FMovieSceneControlRigParameterTemplate::EvaluateCurvesWithMasks(const FMovi
 			bool Value = false;
 			const FConstraintAndActiveChannel& ConstraintAndActiveChannel = Constraints[Index];
 			ConstraintAndActiveChannel.ActiveChannel.Evaluate(RoundTime, Value);
-			
+			if (ConstraintAndActiveChannel.Constraint.IsPending())
+			{
+				ConstraintAndActiveChannel.Constraint.LoadSynchronous();
+			}
 			Values.ConstraintsValues.Emplace(ConstraintAndActiveChannel.Constraint.Get(), ConstraintAndActiveChannel.ConstraintCopyToSpawn, Value);
 		}
 		
