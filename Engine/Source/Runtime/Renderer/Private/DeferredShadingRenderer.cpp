@@ -83,6 +83,7 @@
 #include "HeterogeneousVolumes/HeterogeneousVolumes.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "RenderCore.h"
+#include "VariableRateShadingImageManager.h"
 
 extern int32 GNaniteShowStats;
 extern int32 GNanitePickingDomain;
@@ -3009,6 +3010,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	SceneTextures.UniformBuffer = CreateSceneTextureUniformBuffer(GraphBuilder, &SceneTextures, FeatureLevel, SceneTextures.SetupMode);
 
 	AddResolveSceneDepthPass(GraphBuilder, Views, SceneTextures.Depth);
+
+	GVRSImageManager.PrepareImageBasedVRS(GraphBuilder, ViewFamily, SceneTextures);
 
 	FComputeLightGridOutput ComputeLightGridOutput = {};
 

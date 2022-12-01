@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	VariableRateShading.usf
+	FixedFoveationVariableRateShading.usf
 =============================================================================*/
 
-#include "Common.ush"
+#include "../Common.ush"
 
 // Supplied defines:
 // SHADING_RATE_1x1			- Shading rate of 1x1
