@@ -26,10 +26,14 @@
 #include "HitProxies.h"
 #include "Interfaces/Interface_AsyncCompilation.h"
 #include "HLOD/HLODBatchingPolicy.h"
+#include "Stats/Stats2.h"
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
 #include "Engine/OverlapInfo.h"
 #endif
 #include "PrimitiveComponent.generated.h"
+
+DECLARE_CYCLE_STAT_EXTERN(TEXT("BeginComponentOverlap"), STAT_BeginComponentOverlap, STATGROUP_Game, ENGINE_API);
+DECLARE_CYCLE_STAT_EXTERN(TEXT("MoveComponent FastOverlap"), STAT_MoveComponent_FastOverlap, STATGROUP_Game, ENGINE_API);
 
 class AController;
 class FPrimitiveSceneProxy;
@@ -170,6 +174,24 @@ struct FRendererStencilMaskEvaluation
 			return EStencilMask::SM_Default;
 		}
 	}
+};
+
+// Predicate to determine if an overlap is with a certain AActor.
+struct FPredicateOverlapHasSameActor
+{
+	FPredicateOverlapHasSameActor(const AActor& Owner)
+		: MyOwnerPtr(&Owner)
+	{
+	}
+
+	bool operator() (const FOverlapInfo& Info)
+	{
+		// MyOwnerPtr is always valid, so we don't need the IsValid() checks in the WeakObjectPtr comparison operator.
+		return MyOwnerPtr.HasSameIndexAndSerialNumber(Info.OverlapInfo.HitObjectHandle.FetchActor());
+	}
+
+private:
+	const TWeakObjectPtr<const AActor> MyOwnerPtr;
 };
 
 // Predicate to determine if an overlap is *NOT* with a certain AActor.
@@ -2828,7 +2850,7 @@ bool UPrimitiveComponent::ConvertSweptOverlapsToCurrentOverlaps(
 			// We know we are not overlapping any new components at the end location. Children are ignored here (see note below).
 			if (PrimitiveComponentCVars::bEnableFastOverlapCheck)
 			{
-				//SCOPE_CYCLE_COUNTER(STAT_MoveComponent_FastOverlap);
+				SCOPE_CYCLE_COUNTER(STAT_MoveComponent_FastOverlap);
 
 				// Check components we hit during the sweep, keep only those still overlapping
 				const FCollisionQueryParams UnusedQueryParams(NAME_None, FCollisionQueryParams::GetUnknownStatId());
