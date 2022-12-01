@@ -520,6 +520,16 @@ void UNiagaraEmitter::Serialize(FArchive& Ar)
 			}
 		}
 	}
+
+	// When cooking an emitter that's not an asset, clear out the thumbnail image to prevent issues
+	// with cooked editor data.
+	bool bCookingNonAssetEmitter = Ar.IsCooking() && this->IsAsset() == false;
+	UTexture2D* CachedThumbnail = nullptr;
+	if (bCookingNonAssetEmitter)
+	{
+		CachedThumbnail = ThumbnailImage;
+		ThumbnailImage = nullptr;
+	}
 	
 #endif
 	Super::Serialize(Ar);
@@ -528,6 +538,12 @@ void UNiagaraEmitter::Serialize(FArchive& Ar)
 	if (Ar.IsLoading())
 	{
 		IsCooked = Ar.IsFilterEditorOnly();
+	}
+
+	// Restore the thumbnail image that was cleared before serialize.
+	if (bCookingNonAssetEmitter)
+	{
+		ThumbnailImage = CachedThumbnail;
 	}
 #endif
 
