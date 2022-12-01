@@ -15,7 +15,12 @@ using namespace UE::Geometry;
 
 FRay UGeometryScriptLibrary_RayFunctions::MakeRayFromPoints(const FVector& A, const FVector& B)
 {
-	return FRay(A, Normalized(B-A), true);
+	FVector Direction(B-A);
+	if (Normalize(Direction) < FMathf::Epsilon)
+	{
+		Direction = FVector(0,0,1);
+	}
+	return FRay(A, Direction, true);
 }
 
 FRay UGeometryScriptLibrary_RayFunctions::MakeRayFromPointDirection(const FVector& Origin, const FVector& Direction, bool bDirectionIsNormalized)
@@ -34,17 +39,17 @@ FVector UGeometryScriptLibrary_RayFunctions::GetRayPoint(const FRay& Ray, double
 	return Ray.PointAt(Distance);
 }
 
-double UGeometryScriptLibrary_RayFunctions::GetRayParameter(const FRay& Ray, FVector& Point)
+double UGeometryScriptLibrary_RayFunctions::GetRayParameter(const FRay& Ray, const FVector& Point)
 {
 	return Ray.GetParameter(Point);
 }
 
-double UGeometryScriptLibrary_RayFunctions::GetRayPointDistance(const FRay& Ray, FVector& Point)
+double UGeometryScriptLibrary_RayFunctions::GetRayPointDistance(const FRay& Ray, const FVector& Point)
 {
 	return Ray.Dist(Point);
 }
 
-FVector UGeometryScriptLibrary_RayFunctions::GetRayClosestPoint(const FRay& Ray, FVector& Point)
+FVector UGeometryScriptLibrary_RayFunctions::GetRayClosestPoint(const FRay& Ray, const FVector& Point)
 {
 	return Ray.ClosestPoint(Point);
 }
