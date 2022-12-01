@@ -492,7 +492,11 @@ void ADebugCameraController::OnDeactivate( APlayerController* RestoredPC )
 	ConsoleCommand(TEXT("show camfrustums"));
 	DrawFrustum->UnregisterComponent();
 	RestoredPC->SetActorHiddenInGame(true);
-	RestoredPC->PlayerCameraManager->SetActorHiddenInGame(true);
+	
+	if (RestoredPC->PlayerCameraManager)
+	{
+		RestoredPC->PlayerCameraManager->SetActorHiddenInGame(true);
+	}
 
 	OriginalControllerRef = nullptr;
 	OriginalPlayer = nullptr;
