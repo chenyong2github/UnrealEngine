@@ -9003,18 +9003,22 @@ void FHlslNiagaraTranslator::Select(UNiagaraNodeSelect* SelectNode, int32 Select
 	for (int32 SelectorValueIndex = 0; SelectorValueIndex < SelectorValues.Num(); SelectorValueIndex++)
 	{
 		FString Definition;
-		if (bIsBoolSelector)
+		// We default to the first value from the select operation to ensure we always set to a valid value
+		// Failure to do this can result in bad / incorrect values being used in the VVM
+		if (SelectorValueIndex > 0)
 		{
-			Definition = SelectorValues[SelectorValueIndex] == 0 ? TEXT("if({0} == 0)\n\t{ ") : TEXT("if({0} != 0)\n\t{ ");
-		}
-		else
-		{
-			Definition = FString::Printf(TEXT("if({0} == %d)\n\t{ "), SelectorValues[SelectorValueIndex]);
+			if (bIsBoolSelector)
+			{
+				Definition = SelectorValues[SelectorValueIndex] == 0 ? TEXT("if({0} == 0)\n\t{ ") : TEXT("if({0} != 0)\n\t{ ");
+			}
+			else
+			{
+				Definition = FString::Printf(TEXT("if({0} == %d)\n\t{ "), SelectorValues[SelectorValueIndex]);
+			}
+			TArray<int32> SourceChunks = { Selector };
+			AddBodyChunk(TEXT(""), Definition, FNiagaraTypeDefinition::GetFloatDef(), SourceChunks, false, false);
 		}
 
-		TArray<int32> SourceChunks = { Selector };
-		
-		AddBodyChunk(TEXT(""), Definition, FNiagaraTypeDefinition::GetFloatDef(), SourceChunks, false, false);
 		int32 NaturalIndex = 0;
 		for(int32 CompiledPinCodeChunk : Options[SelectorValues[SelectorValueIndex]])
 		{
@@ -9023,7 +9027,10 @@ void FHlslNiagaraTranslator::Select(UNiagaraNodeSelect* SelectNode, int32 Select
 			NaturalIndex++;
 		}
 		
-		AddBodyChunk(TEXT(""), TEXT("}"), FNiagaraTypeDefinition::GetFloatDef(), false, false);
+		if (SelectorValueIndex > 0)
+		{
+			AddBodyChunk(TEXT(""), TEXT("}"), FNiagaraTypeDefinition::GetFloatDef(), false, false);
+		}
 	}
 
 	// Add an additional invalid output for the add pin which doesn't get compiled.
