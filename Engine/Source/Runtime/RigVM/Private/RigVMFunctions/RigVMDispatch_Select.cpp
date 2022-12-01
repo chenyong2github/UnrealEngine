@@ -137,7 +137,7 @@ void FRigVMDispatch_SelectInt32::Execute(FRigVMExtendedExecuteContext& InContext
 	FRigVMMemoryHandle& InputHandle = Handles[1 + Index];
 	if(InputHandle.IsLazy())
 	{
-		InputHandle.ComputeLazyValueIfNecessary();
+		InputHandle.ComputeLazyValueIfNecessary(InContext.GetSlice().GetIndex());
 	}
 
 	const uint8* Input = InputHandle.GetData();

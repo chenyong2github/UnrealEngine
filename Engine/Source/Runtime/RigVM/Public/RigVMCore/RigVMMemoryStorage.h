@@ -141,7 +141,7 @@ public:
 	{}
 
 	ERigVMExecuteResult Execute();
-	ERigVMExecuteResult ExecuteIfRequired(int32 InSliceIndex = INDEX_NONE);
+	ERigVMExecuteResult ExecuteIfRequired(int32 InSliceIndex);
 
 private:
 

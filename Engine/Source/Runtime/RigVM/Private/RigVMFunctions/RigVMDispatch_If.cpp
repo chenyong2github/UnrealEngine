@@ -74,7 +74,7 @@ void FRigVMDispatch_If::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMM
 	FRigVMMemoryHandle& InputHandle = Condition ? Handles[1] : Handles[2];
 	if(InputHandle.IsLazy())
 	{
-		InputHandle.ComputeLazyValueIfNecessary();
+		InputHandle.ComputeLazyValueIfNecessary(InContext.GetSlice().GetIndex());
 	}
 
 	const uint8* Input = InputHandle.GetData();
