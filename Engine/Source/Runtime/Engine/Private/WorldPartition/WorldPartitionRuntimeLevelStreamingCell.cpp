@@ -417,19 +417,6 @@ ULevel* UWorldPartitionRuntimeLevelStreamingCell::GetLevel() const
 
 bool UWorldPartitionRuntimeLevelStreamingCell::CanUnload() const
 {
-	// @todo_ow ContentBundles do not support Hlods and events below are forwarding
-	// Events to the HLodSubsystem which assumes knowledge of all cells (not true with plugins)
-	if (LevelStreaming && !GetContentBundleID().IsValid())
-	{
-		if (const UWorldPartition* WorldPartition = LevelStreaming->GetWorld()->GetWorldPartition(); WorldPartition && WorldPartition->IsStreamingEnabled())
-		{
-			if (UHLODSubsystem* HLODSubsystem = LevelStreaming->GetWorld()->GetSubsystem<UHLODSubsystem>())
-			{
-				return HLODSubsystem->RequestUnloading(this);
-			}
-		}
-	}
-
 	return true;
 }
 

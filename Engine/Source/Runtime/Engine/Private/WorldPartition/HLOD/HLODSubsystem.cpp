@@ -33,40 +33,56 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogHLODSubsystem, Log, All);
 
-static TAutoConsoleVariable<int32> CVarHLODWarmupNumFrames(
-	TEXT("wp.Runtime.HLOD.WarmupNumFrames"),
-	5,
-	TEXT("Delay unloading of a cell for this amount of frames to ensure HLOD assets are ready to be shown at the proper resolution. Set to 0 to force disable warmup."),
-	ECVF_Default
-);
-
 static TAutoConsoleVariable<int32> CVarHLODWarmupEnabled(
 	TEXT("wp.Runtime.HLOD.WarmupEnabled"),
 	1,
-	TEXT("Enable HLOD assets warmup. Will delay unloading of cells & transition to HLODs for wp.Runtime.HLOD.WarmupNumFrames frames."),
-	ECVF_Default
-);
+	TEXT("Enable HLOD assets warmup. Will delay unloading of cells & transition to HLODs for wp.Runtime.HLOD.WarmupNumFrames frames."));
+
+static TAutoConsoleVariable<int32> CVarHLODWarmupVT(
+	TEXT("wp.Runtime.HLOD.WarmupVT"),
+	1,
+	TEXT("Enable virtual texture warmup for HLOD assets. Requires wp.Runtime.HLOD.WarmupEnabled to be 1."));
+
+static TAutoConsoleVariable<int32> CVarHLODWarmupNanite(
+	TEXT("wp.Runtime.HLOD.WarmupNanite"),
+	1,
+	TEXT("Enable Nanite warmup for HLOD assets. Requires wp.Runtime.HLOD.WarmupEnabled to be 1."));
+
+static TAutoConsoleVariable<int32> CVarHLODWarmupNumFrames(
+	TEXT("wp.Runtime.HLOD.WarmupNumFrames"),
+	5,
+	TEXT("Delay unloading of a cell for this amount of frames to ensure HLOD assets are ready to be shown at the proper resolution. Set to 0 to force disable warmup."));
 
 static TAutoConsoleVariable<int32> CVarHLODWarmupDebugDraw(
 	TEXT("wp.Runtime.HLOD.WarmupDebugDraw"),
 	0,
-	TEXT("Draw debug display for the warmup requests"),
-	ECVF_Default
-);
+	TEXT("Draw debug display for the warmup requests"));
 
 static TAutoConsoleVariable<float> CVarHLODWarmupVTScaleFactor(
 	TEXT("wp.Runtime.HLOD.WarmupVTScaleFactor"),
 	2.0f,
-	TEXT("Scale the VT size we ask to prefetch by this factor."),
-	ECVF_Default
-);
+	TEXT("Scale the VT size we ask to prefetch by this factor."));
 
 static TAutoConsoleVariable<int32> CVarHLODWarmupVTSizeClamp(
 	TEXT("wp.Runtime.HLOD.WarmupVTSizeClamp"),
 	2048,
-	TEXT("Clamp VT warmup requests for safety."),
-	ECVF_Default
-);
+	TEXT("Clamp VT warmup requests for safety."));
+
+static void HLODSubsystemCVarSinkFunction()
+{
+	for (UWorld* World : TObjectRange<UWorld>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::Garbage))
+	{
+		if (World->WorldType == EWorldType::Game || World->WorldType == EWorldType::PIE)
+		{
+			if (UHLODSubsystem* HLODSubsystem = World->GetSubsystem<UHLODSubsystem>())
+			{
+				HLODSubsystem->OnCVarsChanged();
+			}
+		}
+	}
+}
+
+static FAutoConsoleVariableSink CVarHLODSink(FConsoleCommandDelegate::CreateStatic(&HLODSubsystemCVarSinkFunction));
 
 namespace FHLODSubsystem
 {
@@ -114,6 +130,7 @@ public:
 
 UHLODSubsystem::UHLODSubsystem()
 	: UWorldSubsystem()
+	, bCachedShouldPerformWarmup(true)
 {
 }
 
@@ -216,6 +233,8 @@ void UHLODSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	GetWorld()->OnWorldPartitionInitialized().AddUObject(this, &UHLODSubsystem::OnWorldPartitionInitialized);
 	GetWorld()->OnWorldPartitionUninitialized().AddUObject(this, &UHLODSubsystem::OnWorldPartitionUninitialized);
 
+	bCachedShouldPerformWarmup = ShouldPerformWarmup();
+
 	SceneViewExtension = FSceneViewExtensions::NewExtension<FHLODResourcesResidencySceneViewExtension>(World);
 }
 
@@ -256,42 +275,33 @@ void UHLODSubsystem::OnWorldPartitionUninitialized(UWorldPartition* InWorldParti
 	}
 }
 
-void UHLODSubsystem::RegisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHLOD)
+const UHLODSubsystem::FCellData* UHLODSubsystem::GetCellData(const UWorldPartitionRuntimeCell* InCell) const
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODSubsystem::RegisterHLODActor);
-
-	const UWorldPartition* WorldPartition = FHLODSubsystem::GetWorldPartition(InWorldPartitionHLOD);
-	check(WorldPartition && WorldPartition->IsStreamingEnabled());
-
-	FWorldPartitionHLODRuntimeData* WorldPartitionHLODRuntimeData = WorldPartitionsHLODRuntimeData.Find(WorldPartition);
-	if (WorldPartitionHLODRuntimeData)
-	{
-		const FName CellName = InWorldPartitionHLOD->GetSourceCellName();
-		FCellData* CellData = WorldPartitionHLODRuntimeData->CellsData.Find(CellName);
-
-#if WITH_EDITOR
-		UE_LOG(LogHLODSubsystem, Verbose, TEXT("Registering HLOD %s (%s) for cell %s"), *InWorldPartitionHLOD->GetActorLabel(), *InWorldPartitionHLOD->GetActorGuid().ToString(), *CellName.ToString());
-#endif
-
-		if (CellData)
-		{
-			CellData->LoadedHLODs.Add(InWorldPartitionHLOD);
-			InWorldPartitionHLOD->SetVisibility(UHLODSubsystem::WorldPartitionHLODEnabled && !CellData->bIsCellVisible);
-		}
-		else
-		{
-			UE_LOG(LogHLODSubsystem, Verbose, TEXT("Found HLOD referencing nonexistent cell '%s'"), *CellName.ToString());
-			InWorldPartitionHLOD->SetVisibility(false);
-		}
-	}
-
-	HLODActorRegisteredEvent.Broadcast(InWorldPartitionHLOD);
+	return const_cast<UHLODSubsystem*>(this)->GetCellData(InCell);
 }
 
-void UHLODSubsystem::UnregisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHLOD)
+UHLODSubsystem::FCellData* UHLODSubsystem::GetCellData(const UWorldPartitionRuntimeCell* InCell)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODSubsystem::UnregisterHLODActor);
+	// @todo_ow ContentBundles do not support Hlods
+	if (InCell->GetContentBundleID().IsValid())
+	{
+		return nullptr;
+	}
 
+	const UWorldPartition* WorldPartition = InCell->GetCellOwner()->GetOuterWorld()->GetWorldPartition();
+	check(WorldPartition && WorldPartition->IsStreamingEnabled());
+
+	FWorldPartitionHLODRuntimeData* WorldPartitionHLODRuntimeData = WorldPartitionsHLODRuntimeData.Find(WorldPartition);
+	if (WorldPartitionHLODRuntimeData)
+	{
+		return WorldPartitionHLODRuntimeData->CellsData.Find(InCell->GetFName());
+	}
+
+	return nullptr;
+}
+
+UHLODSubsystem::FCellData* UHLODSubsystem::GetCellData(AWorldPartitionHLOD* InWorldPartitionHLOD)
+{
 	const UWorldPartition* WorldPartition = FHLODSubsystem::GetWorldPartition(InWorldPartitionHLOD);
 	check(WorldPartition && WorldPartition->IsStreamingEnabled());
 
@@ -299,33 +309,17 @@ void UHLODSubsystem::UnregisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHL
 	if (WorldPartitionHLODRuntimeData)
 	{
 		const FName CellName = InWorldPartitionHLOD->GetSourceCellName();
-		FCellData* CellData = WorldPartitionHLODRuntimeData->CellsData.Find(CellName);
-		if (CellData)
-		{
-#if WITH_EDITOR
-			UE_LOG(LogHLODSubsystem, Verbose, TEXT("Unregistering HLOD %s (%s) for cell %s"), *InWorldPartitionHLOD->GetActorLabel(), *InWorldPartitionHLOD->GetActorGuid().ToString(), *CellName.ToString());
-#endif
-
-			int32 NumRemoved = CellData->LoadedHLODs.Remove(InWorldPartitionHLOD);
-			check(NumRemoved == 1);
-		}
+		return WorldPartitionHLODRuntimeData->CellsData.Find(CellName);
 	}
 
-	HLODActorUnregisteredEvent.Broadcast(InWorldPartitionHLOD);
+	return nullptr;		
 }
 
 const TArray<AWorldPartitionHLOD*>& UHLODSubsystem::GetHLODActorsForCell(const UWorldPartitionRuntimeCell* InCell) const
 {
-	const UWorldPartition* WorldPartition = InCell->GetWorld()->GetWorldPartition();
-
-	const FWorldPartitionHLODRuntimeData* WorldPartitionHLODRuntimeData = WorldPartitionsHLODRuntimeData.Find(WorldPartition);
-	if (WorldPartitionHLODRuntimeData)
+	if (const FCellData* CellData = GetCellData(InCell))
 	{
-		const FCellData* CellData = WorldPartitionHLODRuntimeData->CellsData.Find(InCell->GetFName());
-		if (CellData)
-		{
-			return CellData->LoadedHLODs;
-		}
+		return CellData->LoadedHLODs;
 	}
 
 	// No HLOD found for the given cell, return a dummy array
@@ -333,70 +327,82 @@ const TArray<AWorldPartitionHLOD*>& UHLODSubsystem::GetHLODActorsForCell(const U
 	return DummyArray;
 }
 
-void UHLODSubsystem::OnCellShown(const UWorldPartitionRuntimeCell* InCell)
+void UHLODSubsystem::RegisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHLOD)
 {
-	// @todo_ow ContentBundles do not support Hlods
-	if (InCell->GetContentBundleID().IsValid())
+	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODSubsystem::RegisterHLODActor);
+	
+	if (FCellData* CellData = GetCellData(InWorldPartitionHLOD))
 	{
-		return;
+#if WITH_EDITOR
+		UE_LOG(LogHLODSubsystem, Verbose, TEXT("Registering HLOD %s (%s) for cell %s"), *InWorldPartitionHLOD->GetActorLabel(), *InWorldPartitionHLOD->GetActorGuid().ToString(), *InWorldPartitionHLOD->GetSourceCellName().ToString());
+#endif
+		CellData->LoadedHLODs.Add(InWorldPartitionHLOD);
+		InWorldPartitionHLOD->SetVisibility(UHLODSubsystem::WorldPartitionHLODEnabled && !CellData->bIsCellVisible);
+	}
+	else
+	{
+		UE_LOG(LogHLODSubsystem, Verbose, TEXT("Found HLOD referencing nonexistent cell '%s'"), *InWorldPartitionHLOD->GetSourceCellName().ToString());
+		InWorldPartitionHLOD->SetVisibility(false);
 	}
 
-	const UWorldPartition* WorldPartition = InCell->GetCellOwner()->GetOuterWorld()->GetWorldPartition();
-	check(WorldPartition && WorldPartition->IsStreamingEnabled());
+	HLODActorsToWarmup.Remove(InWorldPartitionHLOD);
+	HLODActorRegisteredEvent.Broadcast(InWorldPartitionHLOD);
+}
 
-	FWorldPartitionHLODRuntimeData* WorldPartitionHLODRuntimeData = WorldPartitionsHLODRuntimeData.Find(WorldPartition);
-	if (WorldPartitionHLODRuntimeData)
+void UHLODSubsystem::UnregisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHLOD)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODSubsystem::UnregisterHLODActor);
+
+	if (FCellData* CellData = GetCellData(InWorldPartitionHLOD))
 	{
-		FCellData* CellData = WorldPartitionHLODRuntimeData->CellsData.Find(InCell->GetFName());
-		if (CellData)
+#if WITH_EDITOR
+		UE_LOG(LogHLODSubsystem, Verbose, TEXT("Unregistering HLOD %s (%s) for cell %s"), *InWorldPartitionHLOD->GetActorLabel(), *InWorldPartitionHLOD->GetActorGuid().ToString(), *InWorldPartitionHLOD->GetSourceCellName().ToString());
+#endif
+
+		int32 NumRemoved = CellData->LoadedHLODs.Remove(InWorldPartitionHLOD);
+		check(NumRemoved == 1);
+	}
+
+	HLODActorUnregisteredEvent.Broadcast(InWorldPartitionHLOD);
+}
+
+void UHLODSubsystem::OnCellShown(const UWorldPartitionRuntimeCell* InCell)
+{
+	if (FCellData* CellData = GetCellData(InCell))
+	{
+		CellData->bIsCellVisible = true;
+
+#if WITH_EDITOR
+		UE_LOG(LogHLODSubsystem, Verbose, TEXT("Cell shown - %s - hiding %d HLOD actors"), *InCell->GetName(), CellData->LoadedHLODs.Num());
+#endif
+
+		for (AWorldPartitionHLOD* HLODActor : CellData->LoadedHLODs)
 		{
-			CellData->bIsCellVisible = true;
-
 #if WITH_EDITOR
-			UE_LOG(LogHLODSubsystem, Verbose, TEXT("Cell shown - %s - hiding %d HLOD actors"), *InCell->GetName(), CellData->LoadedHLODs.Num());
+			UE_LOG(LogHLODSubsystem, Verbose, TEXT("\t\t%s - %s"), *HLODActor->GetActorLabel(), *HLODActor->GetActorGuid().ToString());
 #endif
-
-			for (AWorldPartitionHLOD* HLODActor : CellData->LoadedHLODs)
-			{
-#if WITH_EDITOR
-				UE_LOG(LogHLODSubsystem, Verbose, TEXT("\t\t%s - %s"), *HLODActor->GetActorLabel(), *HLODActor->GetActorGuid().ToString());
-#endif
-				HLODActor->SetVisibility(false);
-			}
+			HLODActor->SetVisibility(false);
 		}
 	}
 }
 
 void UHLODSubsystem::OnCellHidden(const UWorldPartitionRuntimeCell* InCell)
 {
-	// @todo_ow ContentBundles do not support Hlods
-	if (InCell->GetContentBundleID().IsValid())
+	if (FCellData* CellData = GetCellData(InCell))
 	{
-		return;
-	}
+		CellData->bIsCellVisible = false;
 
-	const UWorldPartition* WorldPartition = InCell->GetCellOwner()->GetOuterWorld()->GetWorldPartition();
-	check(WorldPartition && WorldPartition->IsStreamingEnabled());
+#if WITH_EDITOR
+		UE_LOG(LogHLODSubsystem, Verbose, TEXT("Cell hidden - %s - showing %d HLOD actors"), *InCell->GetName(), CellData->LoadedHLODs.Num());
+#endif
 
-	FWorldPartitionHLODRuntimeData* WorldPartitionHLODRuntimeData = WorldPartitionsHLODRuntimeData.Find(WorldPartition);
-	if (WorldPartitionHLODRuntimeData)
-	{
-		FCellData* CellData = WorldPartitionHLODRuntimeData->CellsData.Find(InCell->GetFName());
-		if (CellData)
+		for (AWorldPartitionHLOD* HLODActor : CellData->LoadedHLODs)
 		{
-			CellData->bIsCellVisible = false;
-
 #if WITH_EDITOR
-			UE_LOG(LogHLODSubsystem, Verbose, TEXT("Cell hidden - %s - showing %d HLOD actors"), *InCell->GetName(), CellData->LoadedHLODs.Num());
+			UE_LOG(LogHLODSubsystem, Verbose, TEXT("\t\t%s - %s"), *HLODActor->GetActorLabel(), *HLODActor->GetActorGuid().ToString());
 #endif
-
-			for (AWorldPartitionHLOD* HLODActor : CellData->LoadedHLODs)
-			{
-#if WITH_EDITOR
-				UE_LOG(LogHLODSubsystem, Verbose, TEXT("\t\t%s - %s"), *HLODActor->GetActorLabel(), *HLODActor->GetActorGuid().ToString());
-#endif
-				HLODActor->SetVisibility(UHLODSubsystem::WorldPartitionHLODEnabled);
-			}
+			HLODActor->SetVisibility(UHLODSubsystem::WorldPartitionHLODEnabled);
+			HLODActorsToWarmup.Remove(HLODActor);
 		}
 	}
 }
@@ -425,174 +431,279 @@ static void PrepareNaniteRequests(TSet<Nanite::FResources*>& InOutNaniteRequests
 	UStaticMesh* StaticMesh = InStaticMeshComponent->GetStaticMesh();
 	if (StaticMesh && StaticMesh->HasValidNaniteData())
 	{
-		// UE_LOG(LogHLODSubsystem, Warning, TEXT("NanitePrefetch: %s, %d pages"), *StaticMesh->GetFullName(), StaticMesh->GetRenderData()->NaniteResources.PageStreamingStates.Num());
 		InOutNaniteRequests.Add(&StaticMesh->GetRenderData()->NaniteResources);
 	}
 }
 
-static float EstimateScreenSize(UStaticMeshComponent* InStaticMeshComponent, const FSceneViewFamily& InViewFamily)
+bool UHLODSubsystem::PrepareToWarmup(const UWorldPartitionRuntimeCell* InCell, AWorldPartitionHLOD* InHLODActor)
 {
-	float MaxPixels = 0;
+	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODSubsystem::PrepareToWarmup)
+
+	bool bHLODActorNeedsWarmUp = false;
+
+	if (InHLODActor->DoesRequireWarmup())
+	{
+		FWorldPartitionHLODWarmupState& WarmupState = HLODActorsToWarmup.FindOrAdd(InHLODActor);
+
+		// In case a previous request to unload was aborted and the cell never unloaded... assume warmup requests are expired after a given amount of frames.
+		const uint32 WarmupExpiredFrames = 30;
+		const uint32 CurrentFrameNumber = GetWorld()->Scene->GetFrameNumber();
+
+		// Trigger warmup on the first request to unload, or if a warmup request expired
+		const bool bInitiateWarmup = WarmupState.WarmupEndFrame == INDEX_NONE || CurrentFrameNumber > (WarmupState.WarmupEndFrame + WarmupExpiredFrames);
+		const bool bWarmupCompleted = !bInitiateWarmup && CurrentFrameNumber >= WarmupState.WarmupEndFrame;
+		
+		if (bInitiateWarmup)
+		{
+			// Warmup will be triggered in the next BeginRenderView() call, at which point the frame number will have been incremented.
+			WarmupState.WarmupStartFrame = CurrentFrameNumber + 1;
+			WarmupState.WarmupEndFrame = WarmupState.WarmupStartFrame + CVarHLODWarmupNumFrames.GetValueOnGameThread();
+			WarmupState.Location = InCell->GetCellBounds().GetCenter();
+		}
+
+		bHLODActorNeedsWarmUp = !bWarmupCompleted;
+	}
+
+	return bHLODActorNeedsWarmUp;
+}
+
+void UHLODSubsystem::OnCVarsChanged()
+{
+	bCachedShouldPerformWarmup = ShouldPerformWarmup();
+}
+
+bool UHLODSubsystem::ShouldPerformWarmup() const
+{
+	// Test if warmup is disabled globally.
+	const bool bWarmupEnabled = CVarHLODWarmupEnabled.GetValueOnGameThread() != 0;
+	if (!bWarmupEnabled)
+	{
+		return false;
+	}
+
+	// If warmup num of frames is invalid, no warmup needed
+	if (CVarHLODWarmupNumFrames.GetValueOnGameThread() <= 0)
+	{
+		return false;
+	}
+
+	// If warmup num of frames is invalid, no warmup needed
+	const EShaderPlatform ShaderPlatform = GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel];
+	const bool bNaniteEnabled = UseNanite(ShaderPlatform);
+	const bool bVirtualTextureEnabled = UseVirtualTexturing(ShaderPlatform);
+	const bool bWarmupNanite = CVarHLODWarmupNanite.GetValueOnGameThread() != 0;
+	const bool bWarmupVT = CVarHLODWarmupVT.GetValueOnGameThread() != 0;
+	const bool bWarmupNeeded = (bNaniteEnabled && bWarmupNanite) || (bVirtualTextureEnabled && bWarmupVT);
+	if (!bWarmupNeeded)
+	{
+		return false;
+	}
+
+	// If we're running a dedicated server, no warmup needed
+	const bool bIsDedicatedServer = GetWorld()->GetNetMode() == NM_DedicatedServer;
+	if (bIsDedicatedServer)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool UHLODSubsystem::ShouldPerformWarmupForCell(const UWorldPartitionRuntimeCell* InCell) const
+{
+	if (!bCachedShouldPerformWarmup)
+	{
+		return false;
+	}
+
+	const UWorld* World = GetWorld();
+
+	// Blocking loading shouldn't trigger warmup
+	const bool bIsInBlockingLoading = World->GetIsInBlockTillLevelStreamingCompleted();
+	if (bIsInBlockingLoading)
+	{
+		return false;
+	}
+
+	// If processing for this cell in Add/RemoveFromWorld() has already started, it's too late for warmup
+	const ULevel* CellLevel = InCell->GetLevel();
+	const bool bCurrentlyProcessingLevel = CellLevel == World->GetCurrentLevelPendingVisibility() ||
+										   CellLevel == World->GetCurrentLevelPendingInvisibility();
+	if (bCurrentlyProcessingLevel)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool UHLODSubsystem::CanMakeVisible(const UWorldPartitionRuntimeCell* InCell)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODSubsystem::CanMakeVisible)
+
+	if (!ShouldPerformWarmupForCell(InCell))
+	{
+		return true;
+	}
+
+	bool bCanMakeVisible = true;
+
+	// Prevent cells containing HLODs actors from being made visible until warmup has been performed
+	if (InCell->GetIsHLOD() && InCell->GetLevel())
+	{
+		for (AActor* Actor : InCell->GetLevel()->Actors)
+		{
+			if (AWorldPartitionHLOD* HLODActor = Cast<AWorldPartitionHLOD>(Actor))
+			{
+				const bool bHLODActorNeedsWarmup = PrepareToWarmup(InCell, HLODActor);
+				bCanMakeVisible &= !bHLODActorNeedsWarmup;
+			}
+		}
+	}
+
+	return bCanMakeVisible;
+}
+
+bool UHLODSubsystem::CanMakeInvisible(const UWorldPartitionRuntimeCell* InCell)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODSubsystem::CanMakeInvisible)
+
+	if (!ShouldPerformWarmupForCell(InCell))
+	{
+		return true;
+	}
+
+	bool bCanMakeInvisible = true;
+
+	// Prevent cells which have an HLOD representation from being hidden until their matching HLOD actors have been warmed up
+	if (FCellData* CellData = GetCellData(InCell))
+	{
+		for (AWorldPartitionHLOD* HLODActor : CellData->LoadedHLODs)
+		{
+			const bool bHLODActorNeedsWarmup = PrepareToWarmup(InCell, HLODActor);
+			bCanMakeInvisible &= !bHLODActorNeedsWarmup;
+		}
+	}
+
+	return bCanMakeInvisible;
+}
+
+static float IsInView(const FVector& BoundsOrigin, const FVector& BoundsExtent, const FSceneViewFamily& InViewFamily, bool bComputeScreenSize, float& MaxScreenSizePixels)
+{
+	MaxScreenSizePixels = 0;
 
 	// Estimate the highest screen pixel size of this component in the provided views
 	for (const FSceneView* View : InViewFamily.Views)
 	{
 		// Make sure the HLOD actor we're about to show is actually in the frustum
-		if (View->ViewFrustum.IntersectSphere(InStaticMeshComponent->Bounds.Origin, InStaticMeshComponent->Bounds.SphereRadius))
+		if (View->ViewFrustum.IntersectBox(BoundsOrigin, BoundsExtent))
 		{
-			float ScreenDiameter = ComputeBoundsScreenSize(InStaticMeshComponent->Bounds.Origin, InStaticMeshComponent->Bounds.SphereRadius, *View);
-			float PixelSize = ScreenDiameter * View->ViewMatrices.GetScreenScale() * 2.0f;
+			if (bComputeScreenSize)
+			{
+				float ScreenDiameter = ComputeBoundsScreenSize(BoundsOrigin, BoundsExtent.Size(), *View);
+				float ScreenSizePixels = ScreenDiameter * View->ViewMatrices.GetScreenScale() * 2.0f;
 
-			MaxPixels = FMath::Max(MaxPixels, PixelSize);
+				MaxScreenSizePixels = FMath::Max(MaxScreenSizePixels, ScreenSizePixels);
+			}
+			else
+			{
+				return true;
+			}
 		}
 	}
 
-	return MaxPixels;
+	return MaxScreenSizePixels > 0;
 }
 
-void UHLODSubsystem::MakeRenderResourcesResident(const FCellData& CellData, const FSceneViewFamily& InViewFamily)
+static void MakeHLODRenderResourcesResident(TMap<UMaterialInterface*, float>& VTRequests, TSet<Nanite::FResources*>& NaniteRequests, const FSceneViewFamily& InViewFamily)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODSubsystem::MakeRenderResourcesResident)
-
-	TMap<UMaterialInterface*, float> VTRequests;
-	TSet<Nanite::FResources*> NaniteRequests;
-
-	// For each HLOD actor representing this cell
-	for(AWorldPartitionHLOD* HLODActor : CellData.LoadedHLODs)
-	{
-		// Skip HLOD actors that doesn't require warmup.
-		// For example, instanced HLODs, as they reuse the same meshes/textures as their source actors.
-		// These resources should already be resident & at the proper resolution.
-		if (!HLODActor->DoesRequireWarmup())
-		{
-			continue;
-		}
-
-		HLODActor->ForEachComponent<UStaticMeshComponent>(false, [&](UStaticMeshComponent* SMC)
-		{
-			float PixelSize = EstimateScreenSize(SMC, InViewFamily);
-
-			if (PixelSize > 0)
-			{
-				PrepareVTRequests(VTRequests, SMC, PixelSize);
-
-				// Only issue Nanite requests on the first warmup frame
-				if (CellData.WarmupStartFrame == InViewFamily.FrameNumber)
-				{
-					PrepareNaniteRequests(NaniteRequests, SMC);
-				}
-
-#if ENABLE_DRAW_DEBUG
-				if (CVarHLODWarmupDebugDraw.GetValueOnAnyThread())
-				{
-					const FBox& Box = SMC->CalcLocalBounds().GetBox();
-					DrawDebugBox(HLODActor->GetWorld(), Box.GetCenter(), Box.GetExtent(), FColor::Yellow, /*bPersistentLine*/ false, /*Lifetime*/ 1.0f);
-				}
-#endif
-			}
-		});
-	}
-
 	if (!VTRequests.IsEmpty() || !NaniteRequests.IsEmpty())
 	{
 		ENQUEUE_RENDER_COMMAND(MakeHLODRenderResourcesResident)(
 			[VTRequests = MoveTemp(VTRequests), NaniteRequests = MoveTemp(NaniteRequests), FeatureLevel = InViewFamily.GetFeatureLevel()](FRHICommandListImmediate& RHICmdList)
+		{
+			for (const TPair<UMaterialInterface*, float>& VTRequest : VTRequests)
 			{
-				for (const TPair<UMaterialInterface*, float>& VTRequest : VTRequests)
-				{
-					UMaterialInterface* Material = VTRequest.Key;
-					FMaterialRenderProxy* MaterialRenderProxy = Material->GetRenderProxy();
+				UMaterialInterface* Material = VTRequest.Key;
+				FMaterialRenderProxy* MaterialRenderProxy = Material->GetRenderProxy();
 
-					GetRendererModule().RequestVirtualTextureTiles(MaterialRenderProxy, FVector2D(VTRequest.Value, VTRequest.Value), FeatureLevel);
-				}
+				GetRendererModule().RequestVirtualTextureTiles(MaterialRenderProxy, FVector2D(VTRequest.Value, VTRequest.Value), FeatureLevel);
+			}
 
-				const uint32 NumFramesBeforeRender = CVarHLODWarmupNumFrames.GetValueOnRenderThread();
-				for (const Nanite::FResources* Resource : NaniteRequests)
-				{
-					GetRendererModule().PrefetchNaniteResource(Resource, NumFramesBeforeRender);
-				}
-			});
+			const uint32 NumFramesBeforeRender = CVarHLODWarmupNumFrames.GetValueOnRenderThread();
+			for (const Nanite::FResources* Resource : NaniteRequests)
+			{
+				GetRendererModule().PrefetchNaniteResource(Resource, NumFramesBeforeRender);
+			}
+		});
 	}
-}
-
-bool UHLODSubsystem::RequestUnloading(const UWorldPartitionRuntimeCell* InCell)
-{
-	// Test if warmup is disabled globally.
-	bool bPerformWarmpup = (CVarHLODWarmupEnabled.GetValueOnGameThread() != 0) && (CVarHLODWarmupNumFrames.GetValueOnGameThread() > 0) && (GetWorld()->GetNetMode() != NM_DedicatedServer);
-	if (!bPerformWarmpup)
-	{
-		return true;
-	}
-
-	const UWorldPartition* WorldPartition = InCell->GetCellOwner()->GetOuterWorld()->GetWorldPartition();;
-	FWorldPartitionHLODRuntimeData* WorldPartitionHLODRuntimeData = WorldPartitionsHLODRuntimeData.Find(WorldPartition);
-	if (!WorldPartitionHLODRuntimeData)
-	{
-		return true;
-	}
-
-	FCellData* CellData = WorldPartitionHLODRuntimeData->CellsData.Find(InCell->GetFName());
-	if (!CellData)
-	{
-		return true;
-	}
-
-	// If cell wasn't even visible yet or doesn't have HLOD actors, skip warmup.
-	bPerformWarmpup = !CellData->LoadedHLODs.IsEmpty() && CellData->bIsCellVisible;
-	if (!bPerformWarmpup)
-	{
-		return true;
-	}
-
-	// Verify that at least one HLOD actor associated with this cell needs warmup.
-	bPerformWarmpup = Algo::AnyOf(CellData->LoadedHLODs, [](const AWorldPartitionHLOD* HLODActor) { return HLODActor->DoesRequireWarmup(); });
-	if (!bPerformWarmpup)
-	{
-		return true;
-	}
-
-	// In case a previous request to unload was aborted and the cell never unloaded... assume warmup requests are expired after a given amount of frames.
-	const uint32 WarmupExpiredFrames = 30;
-
-	uint32 CurrentFrameNumber = GetWorld()->Scene->GetFrameNumber();
-
-	// Trigger warmup on the first request to unload, or if a warmup request expired
-	if (CellData->WarmupEndFrame == INDEX_NONE || CurrentFrameNumber > (CellData->WarmupEndFrame + WarmupExpiredFrames))
-	{
-		// Warmup will be triggered in the next BeginRenderView() call, at which point the frame number will have been incremented.
-		CellData->WarmupStartFrame = CurrentFrameNumber + 1; 
-		CellData->WarmupEndFrame = CellData->WarmupStartFrame + CVarHLODWarmupNumFrames.GetValueOnGameThread();
-		WorldPartitionHLODRuntimeData->CellsToWarmup.Add(CellData);
-	}
-
-	// Test if warmup is completed
-	bool bCanUnload = CurrentFrameNumber >= CellData->WarmupEndFrame;
-	if (bCanUnload)
-	{
-		CellData->WarmupStartFrame = INDEX_NONE;
-		CellData->WarmupEndFrame = INDEX_NONE;
-	}
-
-	return bCanUnload;
 }
 
 void UHLODSubsystem::OnBeginRenderViews(const FSceneViewFamily& InViewFamily)
 {
-	for (auto& KeyValuePair : WorldPartitionsHLODRuntimeData)
+	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODSubsystem::OnBeginRenderViews)
+
+	TMap<UMaterialInterface*, float> VTRequests;
+	TSet<Nanite::FResources*> NaniteRequests;
+
+	const bool bWarmupNanite = CVarHLODWarmupNanite.GetValueOnGameThread() != 0;
+	const bool bWarmupVT = CVarHLODWarmupVT.GetValueOnGameThread() != 0;
+
+	for (FHLODWarmupStateMap::TIterator HLODActorWarmupStateIt(HLODActorsToWarmup); HLODActorWarmupStateIt; ++HLODActorWarmupStateIt)
 	{
-		for (TSet<FCellData*>::TIterator CellIt(KeyValuePair.Value.CellsToWarmup); CellIt; ++CellIt)
+		const FObjectKey& HLODActorObjectKey = HLODActorWarmupStateIt.Key();
+		const FWorldPartitionHLODWarmupState& HLODWarmupState = HLODActorWarmupStateIt.Value();
+		const AWorldPartitionHLOD* HLODActor = Cast<AWorldPartitionHLOD>(HLODActorObjectKey.ResolveObjectPtr());
+		
+		if (HLODActor && InViewFamily.FrameNumber < HLODWarmupState.WarmupEndFrame)
 		{
-			FCellData* CellPendingUnload = *CellIt;
-
-			MakeRenderResourcesResident(*CellPendingUnload, InViewFamily);
-
-			// Stop processing this cell if warmup is done.
-			if (InViewFamily.FrameNumber >= CellPendingUnload->WarmupEndFrame)
+			HLODActor->ForEachComponent<UStaticMeshComponent>(false, [&](UStaticMeshComponent* SMC)
 			{
-				CellIt.RemoveCurrent();
-			}
+				// Assume ISM HLOD don't need warmup, as they are actually found in the source level
+				if (SMC->IsA<UInstancedStaticMeshComponent>() || !SMC->GetStaticMesh())
+				{
+					return;
+				}
+
+				// Retrieve this component's bound - we must support getting the bounds before the component is even registered.
+				FVector BoundsOrigin = SMC->GetStaticMesh()->GetBounds().Origin + SMC->GetRelativeLocation();
+				FVector BoundsExtent = SMC->GetStaticMesh()->GetBounds().BoxExtent;
+				
+				float ScreenSizePixels = 0;
+				if (IsInView(BoundsOrigin, BoundsExtent, InViewFamily, bWarmupVT, ScreenSizePixels))
+				{
+					if (bWarmupVT)
+					{
+						PrepareVTRequests(VTRequests, SMC, ScreenSizePixels);
+					}
+
+					if (bWarmupNanite)
+					{
+						// Only issue Nanite requests on the first warmup frame
+						if (HLODWarmupState.WarmupStartFrame == InViewFamily.FrameNumber)
+						{
+							PrepareNaniteRequests(NaniteRequests, SMC);
+						}
+					}
+
+#if ENABLE_DRAW_DEBUG
+					if (CVarHLODWarmupDebugDraw.GetValueOnAnyThread())
+					{
+						DrawDebugBox(HLODActor->GetWorld(), BoundsOrigin, BoundsExtent, FColor::Yellow, /*bPersistentLine*/ false, /*Lifetime*/ 1.0f);
+					}
+#endif
+				}
+			});
+		}
+
+		if (!HLODActor)
+		{
+			// HLOD actor has been unloaded, stop tracking it's warmup state
+			HLODActorWarmupStateIt.RemoveCurrent();
 		}
 	}
+
+	MakeHLODRenderResourcesResident(VTRequests, NaniteRequests, InViewFamily);
 }
 
 #if WITH_EDITOR

@@ -2,6 +2,7 @@
 
 #include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
 #include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/HLOD/HLODSubsystem.h"
 #include "Engine/World.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionLevelStreamingDynamic)
@@ -624,6 +625,62 @@ void UWorldPartitionLevelStreamingDynamic::Deactivate()
 	check(ShouldBeVisible());
 
 	SetShouldBeVisible(false);
+}
+
+bool UWorldPartitionLevelStreamingDynamic::CanMakeVisible()
+{
+	const ENetMode NetMode = GetWorld()->GetNetMode();
+	if (NetMode != NM_DedicatedServer)
+	{
+		// @todo_ow ContentBundles do not support Hlods and events below are forwarding
+		// Events to the HLodSubsystem which assumes knowledge of all cells (not true with plugins)
+		if (const UWorldPartitionRuntimeLevelStreamingCell* RuntimeLevelStreamingCell = StreamingCell.Get())
+		{
+			if (RuntimeLevelStreamingCell->GetIsHLOD() && !RuntimeLevelStreamingCell->GetContentBundleID().IsValid())
+			{
+				if (const UWorldPartition* WorldPartition = GetWorld()->GetWorldPartition())
+				{
+					if (UHLODSubsystem* HLODSubsystem = GetWorld()->GetSubsystem<UHLODSubsystem>())
+					{
+						if (!HLODSubsystem->CanMakeVisible(StreamingCell.Get()))
+						{
+							return false;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return Super::CanMakeVisible();
+}
+
+bool UWorldPartitionLevelStreamingDynamic::CanMakeInvisible()
+{
+	const ENetMode NetMode = GetWorld()->GetNetMode();
+	if (NetMode != NM_DedicatedServer)
+	{
+		// @todo_ow ContentBundles do not support Hlods and events below are forwarding
+		// Events to the HLodSubsystem which assumes knowledge of all cells (not true with plugins)
+		if (const UWorldPartitionRuntimeLevelStreamingCell* RuntimeLevelStreamingCell = StreamingCell.Get())
+		{
+			if (!RuntimeLevelStreamingCell->GetContentBundleID().IsValid())
+			{
+				if (const UWorldPartition* WorldPartition = GetWorld()->GetWorldPartition())
+				{
+					if (UHLODSubsystem* HLODSubsystem = GetWorld()->GetSubsystem<UHLODSubsystem>())
+					{
+						if (!HLODSubsystem->CanMakeInvisible(StreamingCell.Get()))
+						{
+							return false;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return Super::CanMakeInvisible();
 }
 
 UWorld* UWorldPartitionLevelStreamingDynamic::GetOuterWorld() const

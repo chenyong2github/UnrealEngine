@@ -350,6 +350,11 @@ protected:
 	/** Updates the current state of the streaming level and notifies any observers. */
 	void SetCurrentState(ELevelStreamingState NewState);
 
+	/** Returns whether the streaming level can make visible (can call AddToWorld). */
+	virtual bool CanMakeVisible();
+	/** Returns whether the streaming level can make invisible (can call RemoveFromWorld). */
+	virtual bool CanMakeInvisible();
+
 private:
 
 	/** If true client will wait for acknowledgment from server before making streaming levels invisible */
@@ -360,10 +365,6 @@ private:
 	bool ShouldWaitForServerAckBeforeChangingVisibilityState(ENetLevelVisibilityRequest InRequestType, bool bInShouldBeVisible);
 	/** Ack a client instigated visibility/streaming transaction */
 	void AckNetVisibilityTransaction(FNetLevelVisibilityTransactionId AckedClientTransactionId, bool bClientAckCanMakeVisible);
-	/** Returns whether the streaming level can make visible (can call AddToWorld). */
-	bool CanMakeVisible();
-	/** Returns whether the streaming level can make invisible (can call RemoveFromWorld). */
-	bool CanMakeInvisible();
 
 	/** Determine what the streaming level's target state should be. */
 	ELevelStreamingTargetState DetermineTargetState() const;
