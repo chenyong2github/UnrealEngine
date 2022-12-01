@@ -20,6 +20,10 @@ class IBehaviorReader;
 class IGeometryReader;
 class FRigLogicMemoryStream;
 class UAssetUserData;
+class USkeleton;
+class USkeletalMesh;
+class USkeletalMeshComponent;
+struct FDNAIndexMapping;
 struct FSharedRigRuntimeContext;
 enum class EDNADataLayer: uint8;
 
@@ -71,6 +75,9 @@ private:
 
 	TSharedPtr<FSharedRigRuntimeContext> GetRigRuntimeContext(EDNARetentionPolicy Policy);
 	void InvalidateRigRuntimeContext();
+	TSharedPtr<FDNAIndexMapping> GetDNAIndexMapping(const USkeleton* Skeleton,
+													const USkeletalMesh* SkeletalMesh,
+													const USkeletalMeshComponent* SkeletalMeshComponent);
 
 private:
 	// Synchronize DNA updates
@@ -78,6 +85,9 @@ private:
 
 	// Synchronize Rig Runtime Context updates
 	FRWLock RigRuntimeContextUpdateLock;
+
+	// Synchronize DNA Index Mapping updates
+	FRWLock DNAIndexMappingUpdateLock;
 
 	/** Part of the .dna file needed for run-time execution of RigLogic;
 	 **/
@@ -92,4 +102,9 @@ private:
 	**/
 	TSharedPtr<FSharedRigRuntimeContext> RigRuntimeContext;
 
+	/** Container for Skeleton <-> DNAAsset index mappings
+	  * The mapping object owners will be the SkeletalMeshes, and periodic cleanups will
+	  * ensure that dead objects are deleted from the map.
+	 **/
+	TMap<TWeakObjectPtr<const USkeletalMesh>, TSharedPtr<FDNAIndexMapping>> DNAIndexMappingContainer;
 };
