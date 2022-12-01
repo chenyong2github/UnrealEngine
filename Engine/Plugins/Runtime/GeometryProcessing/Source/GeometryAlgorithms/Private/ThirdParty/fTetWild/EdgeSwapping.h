@@ -6,8 +6,7 @@
 // obtain one at http://mozilla.org/MPL/2.0/.
 //
 
-#ifndef FLOATTETWILD_EDGESWAPPING_H
-#define FLOATTETWILD_EDGESWAPPING_H
+#pragma once
 
 #include "ThirdParty/fTetWild/Mesh.hpp"
 
@@ -18,4 +17,3 @@ namespace floatTetWild {
     bool remove_an_edge_56(Mesh& mesh, int v1_id, int v2_id, const std::vector<int>& n12_t_ids, std::vector<std::array<int, 2>>& new_edges);
 }
 
-#endif //FLOATTETWILD_EDGESWAPPING_H

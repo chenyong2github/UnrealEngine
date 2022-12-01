@@ -10,8 +10,7 @@
 // Created by Yixin Hu on 9/12/19.
 //
 
-#ifndef FLOATTETWILD_CUTMESH_H
-#define FLOATTETWILD_CUTMESH_H
+#pragma once
 
 #include "ThirdParty/fTetWild/Mesh.hpp"
 #include <map>
@@ -64,5 +63,3 @@ namespace floatTetWild {
 
 }
 
-
-#endif //FLOATTETWILD_CUTMESH_H

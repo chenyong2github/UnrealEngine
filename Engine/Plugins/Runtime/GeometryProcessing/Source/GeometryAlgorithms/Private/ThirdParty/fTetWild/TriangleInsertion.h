@@ -10,8 +10,7 @@
 // Created by Yixin Hu on 2019-08-27.
 //
 
-#ifndef FLOATTETWILD_TRIANGLEINSERTION_H
-#define FLOATTETWILD_TRIANGLEINSERTION_H
+#pragma once
 
 #include "ThirdParty/fTetWild/Mesh.hpp"
 #include "ThirdParty/fTetWild/AABBWrapper.h"
@@ -118,5 +117,3 @@ namespace floatTetWild {
     Vector3 get_normal(const Vector3& a, const Vector3& b, const Vector3& c);
 }
 
-
-#endif //FLOATTETWILD_TRIANGLEINSERTION_H

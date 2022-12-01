@@ -6,8 +6,7 @@
 // obtain one at http://mozilla.org/MPL/2.0/.
 //
 
-#ifndef FLOATTETWILD_LOCALOPERATIONS_H
-#define FLOATTETWILD_LOCALOPERATIONS_H
+#pragma once
 
 #include "ThirdParty/fTetWild/Mesh.hpp"
 #include "ThirdParty/fTetWild/AABBWrapper.h"
@@ -160,4 +159,3 @@ namespace floatTetWild {
 }
 
 
-#endif //FLOATTETWILD_LOCALOPERATIONS_H

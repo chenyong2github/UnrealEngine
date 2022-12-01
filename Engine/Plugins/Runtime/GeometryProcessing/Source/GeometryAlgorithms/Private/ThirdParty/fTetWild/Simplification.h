@@ -6,8 +6,7 @@
 // obtain one at http://mozilla.org/MPL/2.0/.
 //
 
-#ifndef FLOATTETWILD_SIMPLIFICATION_H
-#define FLOATTETWILD_SIMPLIFICATION_H
+#pragma once
 
 #include "ThirdParty/fTetWild/Mesh.hpp"
 #include "ThirdParty/fTetWild/AABBWrapper.h"
@@ -30,4 +29,4 @@ namespace floatTetWild {
 
 }
 
-#endif //FLOATTETWILD_SIMPLIFICATION_H
+

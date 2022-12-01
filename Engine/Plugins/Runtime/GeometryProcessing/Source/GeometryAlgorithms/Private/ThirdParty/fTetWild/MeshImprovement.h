@@ -6,8 +6,7 @@
 // obtain one at http://mozilla.org/MPL/2.0/.
 //
 
-#ifndef FLOATTETWILD_MESHIMPROVEMENT_H
-#define FLOATTETWILD_MESHIMPROVEMENT_H
+#pragma once
 
 #include "ThirdParty/fTetWild/Mesh.hpp"
 #include "ThirdParty/fTetWild/AABBWrapper.h"
@@ -49,4 +48,3 @@ namespace floatTetWild {
     void untangle(Mesh &mesh);
 }
 
-#endif //FLOATTETWILD_MESHIMPROVEMENT_H

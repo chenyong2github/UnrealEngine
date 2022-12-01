@@ -6,8 +6,7 @@
 // obtain one at http://mozilla.org/MPL/2.0/.
 //
 
-#ifndef FLOATTETWILD_INTERSECTIONS_H
-#define FLOATTETWILD_INTERSECTIONS_H
+#pragma once
 
 #include "ThirdParty/fTetWild/Mesh.hpp"
 
@@ -58,4 +57,3 @@ namespace floatTetWild {
     bool is_point_inside_tet(const Vector3& p, const Vector3& p0t, const Vector3& p1t, const Vector3& p2t, const Vector3& p3t);
 }
 
-#endif //FLOATTETWILD_INTERSECTIONS_H

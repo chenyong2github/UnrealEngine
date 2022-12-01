@@ -6,8 +6,7 @@
 // obtain one at http://mozilla.org/MPL/2.0/.
 //
 
-#ifndef FLOATTETWILD_EDGECOLLAPSING_H
-#define FLOATTETWILD_EDGECOLLAPSING_H
+#pragma once
 
 #include "ThirdParty/fTetWild/Mesh.hpp"
 #include "ThirdParty/fTetWild/AABBWrapper.h"
@@ -24,4 +23,3 @@ namespace floatTetWild {
     bool is_collapsable_boundary(Mesh& mesh, int v1_id, int v2_id, const AABBWrapper& tree);
 }
 
-#endif //FLOATTETWILD_EDGECOLLAPSING_H

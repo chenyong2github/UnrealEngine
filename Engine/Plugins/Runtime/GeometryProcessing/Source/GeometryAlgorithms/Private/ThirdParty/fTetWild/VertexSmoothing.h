@@ -6,8 +6,7 @@
 // obtain one at http://mozilla.org/MPL/2.0/.
 //
 
-#ifndef FLOATTETWILD_VERTEXSMOOTHING_H
-#define FLOATTETWILD_VERTEXSMOOTHING_H
+#pragma once
 
 #include "ThirdParty/fTetWild/Mesh.hpp"
 #include "ThirdParty/fTetWild/AABBWrapper.h"
@@ -19,4 +18,3 @@ namespace floatTetWild {
     bool find_new_pos(Mesh& mesh, const int v_id, Vector3& p);
 }
 
-#endif //FLOATTETWILD_VERTEXSMOOTHING_H
