@@ -35,6 +35,7 @@ ShaderCodeLibrary.cpp: Bound shader state cache implementation.
 #include "Shader.h"
 #include "ShaderCodeArchive.h"
 #include "ShaderPipelineCache.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "String/ParseTokens.h"
 
 #if WITH_EDITORONLY_DATA

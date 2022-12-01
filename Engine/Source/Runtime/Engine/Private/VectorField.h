@@ -22,6 +22,8 @@ class FSceneView;
 /** A vertex factory that can be used to visualize vector fields. */
 class FVectorFieldVisualizationVertexFactory;
 
+class FRHICommandListImmediate;
+
 /*------------------------------------------------------------------------------
 	Vector field delcarations.
 ------------------------------------------------------------------------------*/

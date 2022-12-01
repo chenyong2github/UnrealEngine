@@ -7,6 +7,8 @@
 
 #if RHI_RAYTRACING
 
+class FRayTracingGeometry;
+
 struct FRayTracingMaskAndFlags
 {
 	/** Instance mask that can be used to exclude the instance from specific effects (eg. ray traced shadows). */

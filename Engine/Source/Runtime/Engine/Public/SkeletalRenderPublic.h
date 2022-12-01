@@ -22,6 +22,7 @@ class UMorphTarget;
 struct FSkelMeshRenderSection;
 struct FCachedGeometry;
 class FGPUSkinCacheEntry;
+class FRayTracingGeometry;
 
 /** data for a single skinned skeletal mesh vertex */
 struct FFinalSkinVertex

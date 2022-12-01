@@ -57,6 +57,7 @@ struct FDynamicMeshVertex;
 class ULightMapVirtualTexture2D;
 class FGPUScenePrimitiveCollector;
 class FVirtualShadowMapArrayCacheManager;
+class FRayTracingGeometry;
 
 namespace UE { namespace Color { class FColorSpace; } }
 

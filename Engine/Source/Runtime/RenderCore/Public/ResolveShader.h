@@ -11,6 +11,7 @@
 #include "Shader.h"
 #include "ShaderCore.h"
 #include "ShaderParameters.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 class FPointerTableBase;
 class FRHICommandList;

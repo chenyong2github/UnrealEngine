@@ -7,6 +7,7 @@
 #include "Shader.h"
 #include "GlobalShader.h"
 #include "ShaderParameterUtils.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 class FWideCustomResolveVS : public FGlobalShader
 {

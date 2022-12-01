@@ -12,6 +12,7 @@
 #include "GlobalShader.h"
 #include "SceneTypes.h"
 #include "Engine/EngineTypes.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 class FSceneView;
 struct FRelativeViewMatrices;

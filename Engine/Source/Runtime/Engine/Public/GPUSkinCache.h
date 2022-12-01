@@ -43,6 +43,7 @@
 #include "VertexFactory.h"
 #include "CanvasTypes.h"
 #include "CachedGeometry.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 class FGPUSkinPassthroughVertexFactory;
 class FGPUBaseSkinVertexFactory;

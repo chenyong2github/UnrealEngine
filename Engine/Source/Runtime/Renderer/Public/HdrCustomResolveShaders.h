@@ -14,6 +14,7 @@
 #include "ShaderCore.h"
 #include "ShaderParameterUtils.h"
 #include "ShaderParameters.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 class FPointerTableBase;
 

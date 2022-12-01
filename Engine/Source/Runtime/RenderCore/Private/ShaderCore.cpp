@@ -23,6 +23,7 @@
 #include "Interfaces/IShaderFormat.h"
 #include "Interfaces/IShaderFormatModule.h"
 #include "RHIShaderFormatDefinitions.inl"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "Compression/OodleDataCompression.h"
 #include "Serialization/MemoryWriter.h"
 #if WITH_EDITOR

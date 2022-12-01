@@ -4,6 +4,7 @@
 
 #include "RenderResource.h"
 #include "StaticMeshVertexData.h"
+#include "RHI.h"
 
 struct FStaticMeshBuildVertex;
 

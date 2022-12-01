@@ -31,6 +31,7 @@ enum class ERuntimeVirtualTextureMaterialType : uint8;
 struct FMeshBatch;
 class FColorVertexBuffer;
 struct FInstanceUpdateCmdBuffer;
+class FRayTracingGeometry;
 
 namespace Nanite
 {

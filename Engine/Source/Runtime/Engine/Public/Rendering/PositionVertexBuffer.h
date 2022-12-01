@@ -3,6 +3,7 @@
 #pragma once
 
 #include "RenderResource.h"
+#include "RHI.h"
 
 struct FStaticMeshBuildVertex;
 

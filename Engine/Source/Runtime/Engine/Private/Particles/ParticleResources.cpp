@@ -6,6 +6,7 @@
 
 #include "ParticleResources.h"
 #include "ParticleCurveTexture.h"
+#include "RHI.h"
 
 /** The size of the scratch vertex buffer. */
 const int32 GParticleScratchVertexBufferSize = 64 * (1 << 10); // 64KB

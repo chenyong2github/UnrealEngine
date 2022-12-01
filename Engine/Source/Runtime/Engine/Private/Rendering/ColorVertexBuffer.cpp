@@ -2,11 +2,11 @@
 
 #include "Rendering/ColorVertexBuffer.h"
 #include "CoreMinimal.h"
-#include "RHI.h"
 #include "Components.h"
 #include "EngineUtils.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "VertexFactory.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 /*-----------------------------------------------------------------------------
 FColorVertexBuffer

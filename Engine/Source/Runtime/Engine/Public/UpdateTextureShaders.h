@@ -7,6 +7,7 @@
 #include "ShaderParameters.h"
 #include "Shader.h"
 #include "GlobalShader.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 enum class EUpdateTextureValueType
 {

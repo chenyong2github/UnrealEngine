@@ -8,6 +8,8 @@
 #include "Math/IntVector.h"
 #include "Math/UnrealMathSSE.h"
 #include "RenderResource.h"
+#include "RHI.h"
+#include "RHIUtilities.h"
 
 namespace Nanite
 {
