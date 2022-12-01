@@ -2,24 +2,24 @@
 
 #include "Selections/GeometrySelection.h"
 #include "DynamicMesh/DynamicMesh3.h"
+#include "Algo/Find.h"
 
 using namespace UE::Geometry;
 
-void FGeometrySelectionEditor::Initialize(FGeometrySelection* TargetSelectionIn, const FGeometrySelectionHitQueryConfig& QueryConfigIn)
+void FGeometrySelectionEditor::Initialize(FGeometrySelection* TargetSelectionIn, const FGeometrySelectionHitQueryConfig& QueryConfigIn, bool bEnableTopologyIDFilteringIn)
 {
 	check(TargetSelectionIn != nullptr);
-	check(QueryConfigIn.ElementType == TargetSelectionIn->ElementType);
-	check(QueryConfigIn.TopologyType == TargetSelectionIn->TopologyType);
 	TargetSelection = TargetSelectionIn;
-	QueryConfig = QueryConfigIn;
+	UpdateQueryConfig(QueryConfigIn, bEnableTopologyIDFilteringIn);
 }
 
 
-void FGeometrySelectionEditor::UpdateQueryConfig(const FGeometrySelectionHitQueryConfig& NewConfig)
+void FGeometrySelectionEditor::UpdateQueryConfig(const FGeometrySelectionHitQueryConfig& NewConfig, bool bEnableTopologyIDFilteringIn)
 {
 	check(NewConfig.ElementType == TargetSelection->ElementType);
 	check(NewConfig.TopologyType == TargetSelection->TopologyType);
 	QueryConfig = NewConfig;
+	bEnableTopologyIDFiltering = bEnableTopologyIDFilteringIn;
 }
 
 void FGeometrySelectionEditor::ClearSelection(FGeometrySelectionDelta& DeltaOut)
@@ -35,7 +35,45 @@ void FGeometrySelectionEditor::ClearSelection(FGeometrySelectionDelta& DeltaOut)
 
 bool FGeometrySelectionEditor::IsSelected(uint64 ID) const
 {
+	if (bEnableTopologyIDFiltering)
+	{
+		bool bFound;
+		RemapToExistingTopologyID(ID, bFound);
+		return bFound;
+	}
 	return TargetSelection->Selection.Contains(ID);
+}
+
+bool FGeometrySelectionEditor::RemoveFromSelection(uint64 ID)
+{
+	if (bEnableTopologyIDFiltering)
+	{
+		bool bFound;
+		ID = RemapToExistingTopologyID(ID, bFound);
+		if (!bFound)
+		{
+			return false;
+		}
+	}
+	int32 NumRemoved = TargetSelection->Selection.Remove(ID);
+	checkSlow(NumRemoved == 0 || NumRemoved == 1);
+	return (NumRemoved > 0);
+}
+
+uint64 FGeometrySelectionEditor::RemapToExistingTopologyID(uint64 ID, bool& bFound) const
+{
+	bFound = false;
+	uint32 TopologyID = FGeoSelectionID(ID).TopologyID;
+	const uint64* Found = Algo::FindByPredicate(TargetSelection->Selection, [&](uint64 Item)
+	{
+		return FGeoSelectionID(Item).TopologyID == TopologyID;
+	});
+	if (Found != nullptr)
+	{
+		bFound = true;
+		return *Found;
+	}
+	return ID;
 }
 
 bool FGeometrySelectionEditor::Replace(const FGeometrySelection& NewSelection, FGeometrySelectionDelta& DeltaOut)

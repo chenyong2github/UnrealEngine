@@ -101,15 +101,15 @@ void UInputBehaviorSet::RemoveAll()
 
 void UInputBehaviorSet::CollectWantsCapture(const FInputDeviceState& input, TArray<FInputCaptureRequest>& result)
 {
-	for (auto b : Behaviors)
+	for (FBehaviorInfo& BehaviorInfo : Behaviors)
 	{
 		// only call WantsCapture if the Behavior supports the current input device
-		if (SupportsInputType(b.Behavior, input)) 
+		if (SupportsInputType(BehaviorInfo.Behavior, input)) 
 		{
-			FInputCaptureRequest request = b.Behavior->WantsCapture(input);
+			FInputCaptureRequest request = BehaviorInfo.Behavior->WantsCapture(input);
 			if ( request.Type != EInputCaptureRequestType::Ignore ) 
 			{
-				request.Owner = b.Source;
+				request.Owner = BehaviorInfo.Source;
 				result.Add(request);
 			}
 		}
@@ -120,15 +120,15 @@ void UInputBehaviorSet::CollectWantsCapture(const FInputDeviceState& input, TArr
 
 void UInputBehaviorSet::CollectWantsHoverCapture(const FInputDeviceState& input, TArray<FInputCaptureRequest>& result)
 {
-	for (auto b : Behaviors)
+	for (FBehaviorInfo& BehaviorInfo : Behaviors)
 	{
 		// only call WantsCapture if the Behavior supports the current input device
-		if (b.Behavior->WantsHoverEvents() && SupportsInputType(b.Behavior, input))
+		if (BehaviorInfo.Behavior->WantsHoverEvents() && SupportsInputType(BehaviorInfo.Behavior, input))
 		{
-			FInputCaptureRequest request = b.Behavior->WantsHoverCapture(input);
+			FInputCaptureRequest request = BehaviorInfo.Behavior->WantsHoverCapture(input);
 			if (request.Type != EInputCaptureRequestType::Ignore)
 			{
-				request.Owner = b.Source;
+				request.Owner = BehaviorInfo.Source;
 				result.Add(request);
 			}
 		}

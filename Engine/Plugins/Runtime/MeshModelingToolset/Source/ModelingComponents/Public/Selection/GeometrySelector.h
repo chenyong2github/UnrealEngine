@@ -40,6 +40,7 @@ struct MODELINGCOMPONENTS_API FGeometryIdentifier
 		DynamicMeshComponent = 1,
 		DynamicMesh = 2,
 		BrushComponent = 3,
+		StaticMeshComponent = 4,
 
 		UserDefinedBase = 64
 	};

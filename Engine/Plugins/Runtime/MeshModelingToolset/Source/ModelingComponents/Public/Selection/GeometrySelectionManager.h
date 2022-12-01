@@ -170,6 +170,44 @@ public:
 	);
 
 
+	//
+	// Support for more complex selection changes that might (eg) occur over multiple frames, 
+	// or be computed externally. The usage pattern is:
+	//   - verify that CanBeginTrackedSelectionChange() returns true
+	//   - call BeginTrackedSelectionChange(), this opens transacation
+	//      - modify selection here, eg via multiple calls to AccumulateSelectionUpdate_Raycast
+	//   - call EndTrackedSelectionChange() to emit changes and close transaction
+
+	/** @return true if a tracked selection change can be initialized */
+	virtual bool CanBeginTrackedSelectionChange() const;
+
+	/** @return true if an active tracked selection change is in flight */
+	virtual bool IsInTrackedSelectionChange() const { return bInTrackedSelectionChange; }
+
+	/**
+	 * Begin a tracked selection change. CanBeginTrackedSelectionChange() must return true to call this function.
+	 * EndTrackedSelectionChange() must be called to close the selection change.
+	 * @param UpdateConfig how the selection will be modified. Currently this must be consistent across the entire tracked change (ie, only add, only subtract, etc)
+	 * @param bClearOnBegin if true, selection will be initially cleared (eg Replace-style)
+	 */
+	virtual bool BeginTrackedSelectionChange(FGeometrySelectionUpdateConfig UpdateConfig, bool bClearOnBegin);
+
+	/**
+	 * Update the tracked selection change via a single Raycast, using the active UpdateConfig mode passed to BeginTrackedSelectionChange
+	 * @param ResultOut information on any element selection modifications is returned here* 
+	 */
+	virtual void AccumulateSelectionUpdate_Raycast(
+		const FRay3d& WorldRay,
+		FGeometrySelectionUpdateResult& ResultOut
+	);	
+
+	/**
+	 * Close an active tracked selection change. 
+	 * This will emit one or more FChanges for the selection modifications, and then close the open Transaction
+	 */
+	virtual void EndTrackedSelectionChange();
+
+
 	DECLARE_MULTICAST_DELEGATE(FModelingSelectionInteraction_SelectionModified);
 	/**
 	 * OnSelectionModified is broadcast if the selection is modified via the above functions.
@@ -381,6 +419,15 @@ protected:
 
 	friend class FGeometrySelectionManager_SelectionTypeChange;
 	friend class FGeometrySelectionManager_ActiveTargetsChange;
+
+
+	// support for complex selection changes that are driven externally
+	bool bInTrackedSelectionChange = false;
+	FGeometrySelectionUpdateConfig ActiveTrackedUpdateConfig;
+	FGeometrySelection ActiveTrackedSelection;
+	UE::Geometry::FGeometrySelectionDelta InitialTrackedDelta;
+	UE::Geometry::FGeometrySelectionDelta ActiveTrackedDelta;
+	bool bSelectionModifiedDuringTrackedChange = false;
 
 
 	// legacy / to-deprecate/remove

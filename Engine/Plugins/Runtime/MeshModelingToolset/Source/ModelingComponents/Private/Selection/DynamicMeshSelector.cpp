@@ -15,20 +15,20 @@
 
 using namespace UE::Geometry;
 
-#define LOCTEXT_NAMESPACE "FDynamicMeshSelector"
+#define LOCTEXT_NAMESPACE "FBaseDynamicMeshSelector"
 
 
-FDynamicMeshSelector::~FDynamicMeshSelector()
+FBaseDynamicMeshSelector::~FBaseDynamicMeshSelector()
 {
 	if (TargetMesh.IsValid())
 	{
-		ensureMsgf(false, TEXT("FDynamicMeshSelector was not properly Shutdown!"));
-		FDynamicMeshSelector::Shutdown();
+		ensureMsgf(false, TEXT("FBaseDynamicMeshSelector was not properly Shutdown!"));
+		FBaseDynamicMeshSelector::Shutdown();
 	}
 }
 
 
-void FDynamicMeshSelector::Initialize(
+void FBaseDynamicMeshSelector::Initialize(
 	FGeometryIdentifier SourceGeometryIdentifierIn,
 	UDynamicMesh* TargetMeshIn, 
 	TUniqueFunction<UE::Geometry::FTransformSRT3d()> GetWorldTransformFuncIn)
@@ -42,25 +42,30 @@ void FDynamicMeshSelector::Initialize(
 	RegisterMeshChangedHandler();
 }
 
-void FDynamicMeshSelector::RegisterMeshChangedHandler()
+void FBaseDynamicMeshSelector::RegisterMeshChangedHandler()
 {
 	TargetMesh_OnMeshChangedHandle = TargetMesh->OnMeshChanged().AddLambda([this](UDynamicMesh* Mesh, FDynamicMeshChangeInfo ChangeInfo)
 	{
-		ColliderMesh.Reset();
-		GroupEdgeSegmentTree.Reset();
-
-		if (ChangeInfo.Type != EDynamicMeshChangeType::MeshVertexChange)
-		{
-			GroupTopology.Reset();
-		}
-
-		// publish geometry-modified event
-		NotifyGeometryModified();
+		InvalidateOnMeshChange(ChangeInfo);
 	});
 }
 
+void FBaseDynamicMeshSelector::InvalidateOnMeshChange(FDynamicMeshChangeInfo ChangeInfo)
+{
+	ColliderMesh.Reset();
+	GroupEdgeSegmentTree.Reset();
 
-void FDynamicMeshSelector::Shutdown()
+	if (ChangeInfo.Type != EDynamicMeshChangeType::MeshVertexChange)
+	{
+		GroupTopology.Reset();
+	}
+
+	// publish geometry-modified event
+	NotifyGeometryModified();
+}
+
+
+void FBaseDynamicMeshSelector::Shutdown()
 {
 	if (TargetMesh.IsValid())
 	{
@@ -74,7 +79,7 @@ void FDynamicMeshSelector::Shutdown()
 	TargetMesh = nullptr;
 }
 
-bool FDynamicMeshSelector::Sleep()
+bool FBaseDynamicMeshSelector::Sleep()
 {
 	check(TargetMesh.IsValid());
 
@@ -91,7 +96,7 @@ bool FDynamicMeshSelector::Sleep()
 	return true;
 }
 
-bool FDynamicMeshSelector::Restore()
+bool FBaseDynamicMeshSelector::Restore()
 {
 	check(SleepingTargetMesh.IsValid());
 
@@ -108,7 +113,7 @@ bool FDynamicMeshSelector::Restore()
 
 
 
-bool FDynamicMeshSelector::RayHitTest(
+bool FBaseDynamicMeshSelector::RayHitTest(
 	const FWorldRayQueryInfo& RayInfo,
 	FGeometrySelectionHitQueryConfig QueryConfig,
 	FInputRayHit& HitResultOut )
@@ -150,7 +155,7 @@ bool FDynamicMeshSelector::RayHitTest(
 }
 
 
-void FDynamicMeshSelector::UpdateSelectionViaRaycast(
+void FBaseDynamicMeshSelector::UpdateSelectionViaRaycast(
 	const FWorldRayQueryInfo& RayInfo,
 	FGeometrySelectionEditor& SelectionEditor,
 	const FGeometrySelectionUpdateConfig& UpdateConfig,
@@ -176,7 +181,7 @@ void FDynamicMeshSelector::UpdateSelectionViaRaycast(
 	}
 }
 
-void FDynamicMeshSelector::UpdateSelectionViaRaycast_MeshTopology(
+void FBaseDynamicMeshSelector::UpdateSelectionViaRaycast_MeshTopology(
 	const FWorldRayQueryInfo& RayInfo,
 	FGeometrySelectionEditor& SelectionEditor,
 	const FGeometrySelectionUpdateConfig& UpdateConfig,
@@ -189,7 +194,7 @@ void FDynamicMeshSelector::UpdateSelectionViaRaycast_MeshTopology(
 }
 
 
-void FDynamicMeshSelector::UpdateSelectionViaRaycast_GroupEdges(
+void FBaseDynamicMeshSelector::UpdateSelectionViaRaycast_GroupEdges(
 	const FWorldRayQueryInfo& RayInfo,
 	FGeometrySelectionEditor& SelectionEditor,
 	const FGeometrySelectionUpdateConfig& UpdateConfig,
@@ -255,7 +260,7 @@ void FDynamicMeshSelector::UpdateSelectionViaRaycast_GroupEdges(
 
 
 
-void FDynamicMeshSelector::GetSelectionPreviewForRaycast(
+void FBaseDynamicMeshSelector::GetSelectionPreviewForRaycast(
 	const FWorldRayQueryInfo& RayInfo,
 	FGeometrySelectionEditor& PreviewEditor)
 {
@@ -267,7 +272,7 @@ void FDynamicMeshSelector::GetSelectionPreviewForRaycast(
 
 
 
-void FDynamicMeshSelector::GetSelectionFrame(const FGeometrySelection& Selection, FFrame3d& SelectionFrame, bool bTransformToWorld)
+void FBaseDynamicMeshSelector::GetSelectionFrame(const FGeometrySelection& Selection, FFrame3d& SelectionFrame, bool bTransformToWorld)
 {
 	if (Selection.TopologyType == EGeometryTopologyType::Polygroup)
 	{
@@ -294,7 +299,7 @@ void FDynamicMeshSelector::GetSelectionFrame(const FGeometrySelection& Selection
 	}
 }
 
-void FDynamicMeshSelector::AccumulateSelectionBounds(const FGeometrySelection& Selection, FGeometrySelectionBounds& BoundsInOut, bool bTransformToWorld)
+void FBaseDynamicMeshSelector::AccumulateSelectionBounds(const FGeometrySelection& Selection, FGeometrySelectionBounds& BoundsInOut, bool bTransformToWorld)
 {
 	FTransform UseTransform = (bTransformToWorld) ? GetLocalToWorldTransform() : FTransform::Identity;
 	UE::Geometry::FAxisAlignedBox3d TargetWorldBounds = UE::Geometry::FAxisAlignedBox3d::Empty();
@@ -334,7 +339,7 @@ void FDynamicMeshSelector::AccumulateSelectionBounds(const FGeometrySelection& S
 
 
 
-void FDynamicMeshSelector::AccumulateSelectionElements(const FGeometrySelection& Selection, FGeometrySelectionElements& Elements, bool bTransformToWorld, bool bIsForPreview)
+void FBaseDynamicMeshSelector::AccumulateSelectionElements(const FGeometrySelection& Selection, FGeometrySelectionElements& Elements, bool bTransformToWorld, bool bIsForPreview)
 {
 	FTransform UseWorldTransform = GetLocalToWorldTransform();
 	const FTransform* ApplyTransform = (bTransformToWorld) ? &UseWorldTransform : nullptr;
@@ -368,7 +373,7 @@ void FDynamicMeshSelector::AccumulateSelectionElements(const FGeometrySelection&
 }
 
 
-void FDynamicMeshSelector::UpdateColliderMesh()
+void FBaseDynamicMeshSelector::UpdateColliderMesh()
 {
 	// should we transform to world??
 	TargetMesh->ProcessMesh([&](const UE::Geometry::FDynamicMesh3& SourceMesh)
@@ -379,7 +384,7 @@ void FDynamicMeshSelector::UpdateColliderMesh()
 	});
 }
 
-const FColliderMesh* FDynamicMeshSelector::GetColliderMesh()
+const FColliderMesh* FBaseDynamicMeshSelector::GetColliderMesh()
 {
 	if (!ColliderMesh.IsValid())
 	{
@@ -389,7 +394,7 @@ const FColliderMesh* FDynamicMeshSelector::GetColliderMesh()
 }
 
 
-void FDynamicMeshSelector::UpdateGroupTopology()
+void FBaseDynamicMeshSelector::UpdateGroupTopology()
 {
 	// TODO would be preferable to not have to use the raw mesh pointer here, however
 	// FGroupTopology currently needs the pointer to do mesh queries
@@ -397,7 +402,7 @@ void FDynamicMeshSelector::UpdateGroupTopology()
 	GroupTopology = MakePimpl<FGroupTopology>(TargetMesh->GetMeshPtr(), true);
 }
 
-const FGroupTopology* FDynamicMeshSelector::GetGroupTopology()
+const FGroupTopology* FBaseDynamicMeshSelector::GetGroupTopology()
 {
 	if (!GroupTopology.IsValid())
 	{
@@ -408,7 +413,7 @@ const FGroupTopology* FDynamicMeshSelector::GetGroupTopology()
 
 
 
-void FDynamicMeshSelector::UpdateGroupEdgeSegmentTree()
+void FBaseDynamicMeshSelector::UpdateGroupEdgeSegmentTree()
 {
 	const FGroupTopology* UseGroupTopology = GetGroupTopology();
 
@@ -428,7 +433,7 @@ void FDynamicMeshSelector::UpdateGroupEdgeSegmentTree()
 	});
 }
 
-const FSegmentTree3* FDynamicMeshSelector::GetGroupEdgeSpatial()
+const FSegmentTree3* FBaseDynamicMeshSelector::GetGroupEdgeSpatial()
 {
 	if (!GroupEdgeSegmentTree.IsValid())
 	{
@@ -469,40 +474,47 @@ TUniquePtr<IGeometrySelector> FDynamicMeshComponentSelectorFactory::BuildForTarg
 
 
 
-/**
-* FDynamicMeshSelectionTransformer is a basic Transformer implementation for a
-* FDynamicMeshSelector. 
-*/
-class FDynamicMeshSelectionTransformer : public IGeometrySelectionTransformer
+
+IGeometrySelectionTransformer* FDynamicMeshSelector::InitializeTransformation(const FGeometrySelection& Selection)
 {
-public:
-	FDynamicMeshSelector* Selector;
+	check(!ActiveTransformer);
 
-	TArray<int32> MeshVertices;
-	TArray<FVector3d> InitialPositions;
-	TSet<int32> TriangleROI;
-	TSet<int32> OverlayNormals;
-
-	TArray<FVector3d> UpdatedPositions;
-
-	TPimplPtr<FMeshVertexChangeBuilder> ActiveVertexChange;
-
-	virtual IGeometrySelector* GetSelector() const override
+	// If we are transforming a DynamicMeshComponent, we want to defer collision updates, otherwise 
+	// complex collision will be rebuilt every frame
+	FGeometryIdentifier ParentIdentifier = GetSourceGeometryIdentifier();
+	if (ParentIdentifier.ObjectType == FGeometryIdentifier::EObjectType::DynamicMeshComponent)
 	{
-		return Selector;
+		ParentIdentifier.GetAsComponentType<UDynamicMeshComponent>()->SetTransientDeferCollisionUpdates(true);
 	}
 
-	virtual void BeginTransform(const FGeometrySelection& Selection) override;
+	ActiveTransformer = MakePimpl<FBasicDynamicMeshSelectionTransformer>();
+	ActiveTransformer->Initialize(this);
+	return ActiveTransformer.Get();
+}
 
-	virtual void UpdateTransform( TFunctionRef<FVector3d(int32 VertexID, const FVector3d& InitialPosition, const FTransform& WorldTransform)> PositionTransformFunc ) override;
-	void UpdatePendingVertexChange(bool bFinal);
+void FDynamicMeshSelector::ShutdownTransformation(IGeometrySelectionTransformer* Transformer)
+{
+	ActiveTransformer.Reset();
 
-	virtual void EndTransform(IToolsContextTransactionsAPI* TransactionsAPI) override;
-};
+	FGeometryIdentifier ParentIdentifier = GetSourceGeometryIdentifier();
+	if (ParentIdentifier.ObjectType == FGeometryIdentifier::EObjectType::DynamicMeshComponent)
+	{
+		ParentIdentifier.GetAsComponentType<UDynamicMeshComponent>()->SetTransientDeferCollisionUpdates(false);
+		ParentIdentifier.GetAsComponentType<UDynamicMeshComponent>()->UpdateCollision(true);
+	}
+}
 
 
 
-void FDynamicMeshSelectionTransformer::BeginTransform(const FGeometrySelection& Selection)
+
+
+
+void FBasicDynamicMeshSelectionTransformer::Initialize(FBaseDynamicMeshSelector* SelectorIn)
+{
+	Selector = SelectorIn;
+}
+
+void FBasicDynamicMeshSelectionTransformer::BeginTransform(const FGeometrySelection& Selection)
 {
 	const FGroupTopology* UseTopology = nullptr;
 	if (Selection.TopologyType == EGeometryTopologyType::Polygroup)
@@ -551,7 +563,7 @@ void FDynamicMeshSelectionTransformer::BeginTransform(const FGeometrySelection& 
 	UpdatePendingVertexChange(false);
 }
 
-void FDynamicMeshSelectionTransformer::UpdateTransform( 
+void FBasicDynamicMeshSelectionTransformer::UpdateTransform( 
 	TFunctionRef<FVector3d(int32 VertexID, const FVector3d& InitialPosition, const FTransform& WorldTransform)> PositionTransformFunc 
 )
 {
@@ -580,7 +592,7 @@ void FDynamicMeshSelectionTransformer::UpdateTransform(
 	UpdatePendingVertexChange(false);
 }
 
-void FDynamicMeshSelectionTransformer::UpdatePendingVertexChange(bool bFinal)
+void FBasicDynamicMeshSelectionTransformer::UpdatePendingVertexChange(bool bFinal)
 {
 	// update the vertex change
 	Selector->GetDynamicMesh()->ProcessMesh([&](const FDynamicMesh3& SourceMesh)
@@ -590,7 +602,7 @@ void FDynamicMeshSelectionTransformer::UpdatePendingVertexChange(bool bFinal)
 	});
 }
 
-void FDynamicMeshSelectionTransformer::EndTransform(IToolsContextTransactionsAPI* TransactionsAPI)
+void FBasicDynamicMeshSelectionTransformer::EndTransform(IToolsContextTransactionsAPI* TransactionsAPI)
 {
 	UpdatePendingVertexChange(true);
 
@@ -601,43 +613,15 @@ void FDynamicMeshSelectionTransformer::EndTransform(IToolsContextTransactionsAPI
 	}
 
 	ActiveVertexChange.Reset();
-}
 
-
-
-
-
-
-
-IGeometrySelectionTransformer* FDynamicMeshSelector::InitializeTransformation(const FGeometrySelection& Selection)
-{
-	check(!ActiveTransformer);
-
-	// If we are transforming a DynamicMeshComponent, we want to defer collision updates, otherwise 
-	// complex collision will be rebuilt every frame
-	FGeometryIdentifier ParentIdentifier = GetSourceGeometryIdentifier();
-	if (ParentIdentifier.ObjectType == FGeometryIdentifier::EObjectType::DynamicMeshComponent)
+	if (OnEndTransformFunc)
 	{
-		ParentIdentifier.GetAsComponentType<UDynamicMeshComponent>()->SetTransientDeferCollisionUpdates(true);
-	}
-
-	ActiveTransformer = MakePimpl<FDynamicMeshSelectionTransformer>();
-	ActiveTransformer->Selector = this;
-
-	return ActiveTransformer.Get();
-}
-
-void FDynamicMeshSelector::ShutdownTransformation(IGeometrySelectionTransformer* Transformer)
-{
-	ActiveTransformer.Reset();
-
-	FGeometryIdentifier ParentIdentifier = GetSourceGeometryIdentifier();
-	if (ParentIdentifier.ObjectType == FGeometryIdentifier::EObjectType::DynamicMeshComponent)
-	{
-		ParentIdentifier.GetAsComponentType<UDynamicMeshComponent>()->SetTransientDeferCollisionUpdates(false);
-		ParentIdentifier.GetAsComponentType<UDynamicMeshComponent>()->UpdateCollision(true);
+		OnEndTransformFunc(TransactionsAPI);
 	}
 }
+
+
+
 
 
 

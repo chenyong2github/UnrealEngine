@@ -12,24 +12,25 @@
 #include "TransformTypes.h"
 
 
-class FDynamicMeshSelectionTransformer;
+class FBasicDynamicMeshSelectionTransformer;
 class FMeshVertexChangeBuilder;
 PREDECLARE_GEOMETRY(class FGroupTopology);
 PREDECLARE_GEOMETRY(class FColliderMesh);
 PREDECLARE_GEOMETRY(class FSegmentTree3);
 
 /**
- * FDynamicMeshSelector is an implementation of IGeometrySelector for a UDynamicMesh.
- * Note that the Selector itself does *not* require that the target object be a UDynamicMeshComponent.
+ * FBaseDynamicMeshSelector is an implementation of IGeometrySelector for a UDynamicMesh.
+ * Note that the Selector itself does *not* require that the target object be a UDynamicMeshComponent,
+ * and subclasses of FBaseDynamicMeshSelector are used for both Volumes and StaticMeshComponents.
  * Access to the World transform is provided by a TUniqueFunction set up in the Factory.
  */
-class MODELINGCOMPONENTS_API FDynamicMeshSelector : public IGeometrySelector
+class MODELINGCOMPONENTS_API FBaseDynamicMeshSelector : public IGeometrySelector
 {
 public:
-	virtual ~FDynamicMeshSelector();
+	virtual ~FBaseDynamicMeshSelector();
 
 	/**
-	 * Initialize the FDynamicMeshSelector for a given source/target UDynamicMesh.
+	 * Initialize the FBaseDynamicMeshSelector for a given source/target UDynamicMesh.
 	 * @param SourceGeometryIdentifier identifier for the object that the TargetMesh came from (eg DynamicMeshComponent or other UDynamicMesh source)
 	 * @param TargetMesh the target UDynamicMesh
 	 * @param GetWorldTransformFunc function that provides the Local to World Transform
@@ -91,19 +92,21 @@ public:
 	virtual void AccumulateSelectionBounds(const FGeometrySelection& Selection, FGeometrySelectionBounds& BoundsInOut, bool bTransformToWorld) override;
 	virtual void AccumulateSelectionElements(const FGeometrySelection& Selection, FGeometrySelectionElements& Elements, bool bTransformToWorld, bool bIsForPreview) override;
 
-	virtual IGeometrySelectionTransformer* InitializeTransformation(const FGeometrySelection& Selection) override;
-	virtual void ShutdownTransformation(IGeometrySelectionTransformer* Transformer) override;
-
+public:
+	// these need to be public for the Transformers...can we do it another way?
+	UDynamicMesh* GetDynamicMesh() const { return TargetMesh.Get(); }
+	const UE::Geometry::FGroupTopology* GetGroupTopology();
 
 protected:
 	FGeometryIdentifier SourceGeometryIdentifier;
 	TUniqueFunction<UE::Geometry::FTransformSRT3d()> GetWorldTransformFunc;
 
 	TWeakObjectPtr<UDynamicMesh> TargetMesh;
-	UDynamicMesh* GetDynamicMesh() const { return TargetMesh.Get(); }
+	//UDynamicMesh* GetDynamicMesh() const { return TargetMesh.Get(); }		// temporarily public above
 
 	FDelegateHandle TargetMesh_OnMeshChangedHandle;
 	void RegisterMeshChangedHandler();
+	void InvalidateOnMeshChange(FDynamicMeshChangeInfo ChangeInfo);
 
 	//
 	// FColliderMesh is used to store a hit-testable AABBTree independent of the UDynamicMesh 
@@ -117,7 +120,7 @@ protected:
 	//
 	TPimplPtr<UE::Geometry::FGroupTopology> GroupTopology;
 	void UpdateGroupTopology();
-	const UE::Geometry::FGroupTopology* GetGroupTopology();
+	//const UE::Geometry::FGroupTopology* GetGroupTopology();		// temporarily public above
 
 	//
 	// GroupEdgeSegmentTree stores a hit-testable AABBTree for the polygroup edges (depends on GroupTopology)
@@ -128,10 +131,6 @@ protected:
 
 	// support for sleep/restore
 	TWeakObjectPtr<UDynamicMesh> SleepingTargetMesh = nullptr;
-
-
-	TPimplPtr<FDynamicMeshSelectionTransformer> ActiveTransformer;
-
 
 
 	virtual void UpdateSelectionViaRaycast_GroupEdges(
@@ -146,11 +145,27 @@ protected:
 		const FGeometrySelectionUpdateConfig& UpdateConfig,
 		FGeometrySelectionUpdateResult& ResultOut);
 
+};
 
+
+/**
+ * FDynamicMeshSelector is an implementation of FBaseDynamicMeshSelector meant to be used
+ * with UDynamicMeshComponents.
+ */
+class MODELINGCOMPONENTS_API FDynamicMeshSelector : public FBaseDynamicMeshSelector
+{
+public:
+
+	virtual IGeometrySelectionTransformer* InitializeTransformation(const FGeometrySelection& Selection) override;
+	virtual void ShutdownTransformation(IGeometrySelectionTransformer* Transformer) override;
+
+protected:
+	TPimplPtr<FBasicDynamicMeshSelectionTransformer> ActiveTransformer;
 
 	// give Transformer access to internals 
-	friend class FDynamicMeshSelectionTransformer;
+	friend class FBasicDynamicMeshSelectionTransformer;
 };
+
 
 
 /**
@@ -165,6 +180,44 @@ public:
 	virtual TUniquePtr<IGeometrySelector> BuildForTarget(FGeometryIdentifier TargetIdentifier) const;
 };
 
+
+/**
+* BasicDynamicMeshSelectionTransformer is a basic Transformer implementation that can be
+* used with a FBaseDynamicMeshSelector. This Transformer moves the selected vertices and 
+* nothing else (ie no polygroup-based soft deformation)
+*/
+class MODELINGCOMPONENTS_API FBasicDynamicMeshSelectionTransformer : public IGeometrySelectionTransformer
+{
+public:
+	virtual void Initialize(FBaseDynamicMeshSelector* Selector);
+
+	virtual IGeometrySelector* GetSelector() const override
+	{
+		return Selector;
+	}
+
+	virtual void BeginTransform(const UE::Geometry::FGeometrySelection& Selection) override;
+
+	virtual void UpdateTransform( TFunctionRef<FVector3d(int32 VertexID, const FVector3d& InitialPosition, const FTransform& WorldTransform)> PositionTransformFunc ) override;
+	void UpdatePendingVertexChange(bool bFinal);
+
+	virtual void EndTransform(IToolsContextTransactionsAPI* TransactionsAPI) override;
+
+	TFunction<void(IToolsContextTransactionsAPI* TransactionsAPI)> OnEndTransformFunc;
+
+protected:
+	FBaseDynamicMeshSelector* Selector;
+
+	TArray<int32> MeshVertices;
+	TArray<FVector3d> InitialPositions;
+	TSet<int32> TriangleROI;
+	TSet<int32> OverlayNormals;
+
+	TArray<FVector3d> UpdatedPositions;
+
+	TPimplPtr<FMeshVertexChangeBuilder> ActiveVertexChange;
+
+};
 
 
 

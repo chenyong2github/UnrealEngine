@@ -300,6 +300,17 @@ struct DYNAMICMESH_API FGeometrySelectionUpdateResult
  * a FGeometrySelection. The various functions can be used to add or remove
  * to the Selection, while also tracking what changed, returned via
  * FGeometrySelectionDelta structs. 
+ * 
+ * In some cases (eg Polygroup selections on faces and edges), only the TopologyIDs
+ * are unique, and the same TopologyID may be paired with an arbitrary TriangleID/EdgeID.
+ * FGeometrySelection is currently not aware of this distinction, however it means when
+ * (for example) adding to a selection, a new uint64 ID should only be added if the 
+ * TopologyID is unique, ie the ElementID bit should be ignored. FGeometrySelectionEditor can
+ * do this, by enabling TopologyIDFiltering in the various setup/config functions.
+ * 
+ * Note, however, this means that FGeometrySelectionEditor.IsSelected() must be used
+ * to determine whether an ID is selected, rather than Selection.Contains()
+ * 
  */
 class DYNAMICMESH_API FGeometrySelectionEditor
 {
@@ -310,7 +321,8 @@ public:
 	 */
 	void Initialize(
 		FGeometrySelection* TargetSelectionIn,
-		const FGeometrySelectionHitQueryConfig& QueryConfigIn);
+		const FGeometrySelectionHitQueryConfig& QueryConfigIn,
+		bool bEnableTopologyIDFiltering);
 
 	/** @return the Element Type of the Target Selection */
 	EGeometryElementType GetElementType() const { return TargetSelection->ElementType; }
@@ -320,18 +332,23 @@ public:
 	/** @return the active configuration for this Selection Editor, eg what type of element/topology is being selected. This is redundant w/ the above fields.  */
 	const FGeometrySelectionHitQueryConfig& GetQueryConfig() const { return QueryConfig; }
 
+	bool GetIsTopologyIDFilteringEnabled() const { return bEnableTopologyIDFiltering; }
+
 	/** 
 	 * Update the active QueryConfig for this SelectionEditor. This is necessary to keep it in sync w/ the TargetSelection, if
 	 * the ElementType or TopologyType are modified. This perhaps should be revisited as they basically
 	 * always need to be the same...
 	 */
-	void UpdateQueryConfig(const FGeometrySelectionHitQueryConfig& NewConfig);
+	void UpdateQueryConfig(const FGeometrySelectionHitQueryConfig& NewConfig, bool bEnableTopologyIDFilteringIn);
 
 	/** @return true if the given ID is currently selected in the Target Selection */
 	bool IsSelected(uint64 ID) const;
 
 	/** Clear the Target Selection and return change information in DeltaOut */
 	void ClearSelection(FGeometrySelectionDelta& DeltaOut);
+
+	/** Remove ID from Selection */
+	bool RemoveFromSelection(uint64 ID);
 
 	/** Access the Selection object this Editor is modifying */
 	const FGeometrySelection& GetSelection() const { return *TargetSelection; }
@@ -343,7 +360,7 @@ public:
 		int32 NumAdded = 0;
 		for (uint64 ID : List)
 		{
-			if (TargetSelection->Selection.Contains(ID) == false)
+			if (IsSelected(ID) == false)
 			{
 				TargetSelection->Selection.Add(ID);
 				DeltaOut.Added.Add(ID);
@@ -360,12 +377,11 @@ public:
 		int32 TotalRemoved = 0;
 		for (uint64 ID : List)
 		{
-			int32 NumRemoved = TargetSelection->Selection.Remove(ID);
-			if (NumRemoved > 0)
+			if (RemoveFromSelection(ID))
 			{
 				DeltaOut.Removed.Add(ID);
+				TotalRemoved++;
 			}
-			TotalRemoved += NumRemoved;
 		}
 		return (TotalRemoved > 0);
 	}
@@ -377,6 +393,9 @@ public:
 protected:
 	FGeometrySelection* TargetSelection = nullptr;
 	FGeometrySelectionHitQueryConfig QueryConfig;
+
+	bool bEnableTopologyIDFiltering = false;
+	uint64 RemapToExistingTopologyID(uint64 ID, bool& bFoundOut) const;
 };
 
 
@@ -395,7 +414,7 @@ public:
 	FGeometrySelectionPreview(const FGeometrySelectionEditor& ActiveEditor)
 	{
 		PreviewSelection.InitializeTypes(ActiveEditor.GetSelection());
-		Initialize(&PreviewSelection, ActiveEditor.GetQueryConfig());
+		Initialize(&PreviewSelection, ActiveEditor.GetQueryConfig(), ActiveEditor.GetIsTopologyIDFilteringEnabled());
 	}
 
 	bool IsEmpty() const { return PreviewSelection.IsEmpty(); }
