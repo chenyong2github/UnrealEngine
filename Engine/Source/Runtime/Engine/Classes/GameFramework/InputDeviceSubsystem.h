@@ -20,6 +20,14 @@ struct ENGINE_API FActiveDeviceProperty
 {
 	GENERATED_BODY()
 
+	/** Active properties can just use the hash of their FInputDevicePropertyHandle for a fast and unique lookup */
+	ENGINE_API friend uint32 GetTypeHash(const FActiveDeviceProperty& InProp);
+
+	bool operator==(const FActiveDeviceProperty& Other) const;
+	bool operator!=(const FActiveDeviceProperty& Other) const;
+	ENGINE_API friend bool operator==(const FActiveDeviceProperty& ActiveProp, const FInputDevicePropertyHandle& Handle);
+	ENGINE_API friend bool operator!=(const FActiveDeviceProperty& ActiveProp, const FInputDevicePropertyHandle& Handle);
+	
 	/** The active device property */
 	UPROPERTY(Transient)
 	TObjectPtr<UInputDeviceProperty> Property = nullptr;
@@ -132,40 +140,32 @@ public:
 	FInputDevicePropertyHandle SetDeviceProperty(const FSetDevicePropertyParams& Params);
 
 	/** Returns a pointer to the active input device property with the given handle. Returns null if the property doesn't exist */
-	TObjectPtr<UInputDeviceProperty> GetActiveDeviceProperty(const FInputDevicePropertyHandle Handle);
-
-	/** 
-	* Remove any active device properties that have the same class as the one given.
-	* 
-	* @param UserId					The PlatformUser that would have the device property applied to them
-	* @param DevicePropertyClass	The Device Property type to remove
-	* 
-	* @return						The number of removed device properties. 
-	*/
-	UFUNCTION(BlueprintCallable, Category = "Input Devices", meta = (ReturnDisplayName = "Num Removed"))
-	int32 RemoveDevicePropertiesOfClass(const FPlatformUserId UserId, TSubclassOf<UInputDeviceProperty> DevicePropertyClass);
+	UFUNCTION(BlueprintCallable, Category = "Input Devices", meta=(ReturnDisplayName="Device Property"))
+	UInputDeviceProperty* GetActiveDeviceProperty(const FInputDevicePropertyHandle Handle) const;
+	
+	/** Returns true if the property associated with the given handle is currently active, and it is not pending removal */
+	UFUNCTION(BlueprintCallable, Category = "Input Devices", meta = (ReturnDisplayName = "Is Property Active"))
+	bool IsPropertyActive(const FInputDevicePropertyHandle Handle) const;
 
 	/**
 	* Remove a single device property based on it's handle
 	*
-	* @param FInputDevicePropertyHandle		Device property handle to be removed
-	* @param bResetOnRemoval				If true, call ResetDeviceProperty before it is removed. Default is true.
+	* @param FInputDevicePropertyHandle		Device property handle to be removed	
 	*
 	* @return								The number of removed device properties.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Input Devices", meta = (ReturnDisplayName = "Num Removed"))
-	int32 RemoveDevicePropertyByHandle(const FInputDevicePropertyHandle HandleToRemove, const bool bResetOnRemoval = true);
+	UFUNCTION(BlueprintCallable, Category = "Input Devices")
+	void RemoveDevicePropertyByHandle(const FInputDevicePropertyHandle HandleToRemove);
 
 	/**
 	* Remove a set of device properties based on their handles. 
 	* 
 	* @param HandlesToRemove	The set of device property handles to remove
-	* @param bResetOnRemoval	If true, call ResetDeviceProperty before it is removed. Default is true.
 	* 
 	* @return					The number of removed device properties
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Input Devices", meta = (ReturnDisplayName = "Num Removed"))
-	int32 RemoveDevicePropertyHandles(const TSet<FInputDevicePropertyHandle>& HandlesToRemove, const bool bResetOnRemoval = true);
+	UFUNCTION(BlueprintCallable, Category = "Input Devices")
+	void RemoveDevicePropertyHandles(const TSet<FInputDevicePropertyHandle>& HandlesToRemove);
 
 	/** Removes all the current Input Device Properties that are active, regardless of the Platform User */
 	UFUNCTION(BlueprintCallable, Category = "Input Devices")
@@ -206,7 +206,14 @@ protected:
 	* Array of currently active input device properties that will be evaluated on tick
 	*/
 	UPROPERTY(Transient)
-	TArray<FActiveDeviceProperty> ActiveProperties;
+	TSet<FActiveDeviceProperty> ActiveProperties;
+
+	/**
+	 * Set of property handles the properties that are currently pending manual removal.
+	 * This is populated by the "Remove device property" functions. 
+	 */
+	UPROPERTY(Transient)
+	TSet<FInputDevicePropertyHandle> PropertiesPendingRemoval;
 	
 	/** A map of an input device to it's most recent hardware device identifier */
 	TMap<FInputDeviceId, FHardwareDeviceIdentifier> LatestInputDeviceIdentifiers;

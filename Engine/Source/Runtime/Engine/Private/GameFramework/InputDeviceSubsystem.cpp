@@ -94,6 +94,36 @@ public:
 };
 
 ////////////////////////////////////////////////////////
+// FActiveDeviceProperty
+
+/** Active properties can just use the hash of their Property Device handle for a fast and unique lookup */
+uint32 GetTypeHash(const FActiveDeviceProperty& InProp)
+{
+	return InProp.PropertyHandle.GetTypeHash();
+}
+
+// The property handles are the only things that matter when comparing, they will always be unique.
+bool FActiveDeviceProperty::operator==(const FActiveDeviceProperty& Other) const
+{
+	return PropertyHandle == Other.PropertyHandle;
+}
+
+bool FActiveDeviceProperty::operator!=(const FActiveDeviceProperty& Other) const
+{
+	return PropertyHandle != Other.PropertyHandle;
+}
+
+bool operator==(const FActiveDeviceProperty& ActiveProp, const FInputDevicePropertyHandle& Handle)
+{
+	return ActiveProp.PropertyHandle == Handle;
+}
+
+bool operator!=(const FActiveDeviceProperty& ActiveProp, const FInputDevicePropertyHandle& Handle)
+{
+	return ActiveProp.PropertyHandle != Handle;
+}
+
+////////////////////////////////////////////////////////
 // FSetDevicePropertyParams
 
 FSetDevicePropertyParams::FSetDevicePropertyParams()
@@ -202,16 +232,17 @@ ETickableTickType UInputDeviceSubsystem::GetTickableTickType() const
 
 bool UInputDeviceSubsystem::IsAllowedToTick() const
 {
+	// Only tick when there are active device properties or ones we want to remove
+	const bool bWantsTick = !ActiveProperties.IsEmpty() || !PropertiesPendingRemoval.IsEmpty();
 #if WITH_EDITOR
 	// If we are PIE'ing, then check if PIE is paused
 	if (GEditor && (GEditor->bIsSimulatingInEditor || GEditor->PlayWorld))
 	{
-		return bIsPIEPlaying && !ActiveProperties.IsEmpty();
+		return bIsPIEPlaying && bWantsTick;
 	}	
 #endif
-
-	// Only tick when there are active device properties
-	return !ActiveProperties.IsEmpty();
+	
+	return bWantsTick;
 }
 
 bool UInputDeviceSubsystem::IsTickableInEditor() const
@@ -233,43 +264,56 @@ void UInputDeviceSubsystem::Tick(float InDeltaTime)
 	const UWorld* World = GetTickableGameObjectWorld();
 	const bool bIsGamePaused = World ? World->IsPaused() : false;
 
-	for (int32 Index = ActiveProperties.Num() - 1; Index >= 0; --Index)
+	for (auto It = ActiveProperties.CreateIterator(); It; ++It)
 	{
-		if (!ActiveProperties[Index].Property)
+		FActiveDeviceProperty& ActiveProp = *It;
+		if (!ActiveProp.Property)
 		{
 			// Something has gone wrong if we get here... maybe the Property has been GC'd ?
 			// This is really just an emergency handling case
 			ensure(false);
 			continue;
 		}
+		
+		if (PropertiesPendingRemoval.Contains(ActiveProp.PropertyHandle))
+		{
+			ActiveProp.Property->ResetDeviceProperty(ActiveProp.PlatformUser);
+			It.RemoveCurrent();
+			PropertiesPendingRemoval.Remove(ActiveProp.PropertyHandle);
+			continue;
+		}
 
-		// If the game is paused, only play effects that have explicitly specified that they should be 
+		// If the game is paused, only play effects that have explicitly specified that they should be
 		// played while paused.
-		if (bIsGamePaused && !ActiveProperties[Index].bPlayWhilePaused)
+		if (bIsGamePaused && !ActiveProp.bPlayWhilePaused)
 		{
 			continue;
 		}
 
-		const double DeltaTime = ActiveProperties[Index].bIgnoreTimeDilation ? NonDialatedDeltaTime : static_cast<double>(InDeltaTime);
-		
+		const double DeltaTime = ActiveProp.bIgnoreTimeDilation ? NonDialatedDeltaTime : static_cast<double>(InDeltaTime);
+
 		// Increase the evaluated time of this property
-		ActiveProperties[Index].EvaluatedDuration += DeltaTime;
+		ActiveProp.EvaluatedDuration += DeltaTime;
 
 		// If the property has run past it's duration, reset it and remove it from our active properties
 		// Only do this if it is marked as 'bRemoveAfterEvaluationTime' so that you can keep device properties set
 		// without having to worry about duration. 
-		if (ActiveProperties[Index].bRemoveAfterEvaluationTime && ActiveProperties[Index].EvaluatedDuration > ActiveProperties[Index].Property->GetDuration())
+		if (ActiveProp.bRemoveAfterEvaluationTime && ActiveProp.EvaluatedDuration > ActiveProp.Property->GetDuration())
 		{
-			ActiveProperties[Index].Property->ResetDeviceProperty(ActiveProperties[Index].PlatformUser);
-			ActiveProperties.RemoveAtSwap(Index);			
+			ActiveProp.Property->ResetDeviceProperty(ActiveProp.PlatformUser);
+			It.RemoveCurrent();
+			continue;
 		}
 		// Otherwise, we can evaluate and apply it as normal
 		else
 		{
-			ActiveProperties[Index].Property->EvaluateDeviceProperty(ActiveProperties[Index].PlatformUser, DeltaTime, ActiveProperties[Index].EvaluatedDuration);
-			ActiveProperties[Index].Property->ApplyDeviceProperty(ActiveProperties[Index].PlatformUser);
-		}
+			ActiveProp.Property->EvaluateDeviceProperty(ActiveProp.PlatformUser, DeltaTime, ActiveProp.EvaluatedDuration);
+			ActiveProp.Property->ApplyDeviceProperty(ActiveProp.PlatformUser);
+		}		 
 	}
+
+	// After we are done ticking, there should be no properties pending removal
+	ensure(PropertiesPendingRemoval.IsEmpty());
 }
 
 APlayerController* UInputDeviceSubsystem::GetPlayerControllerFromPlatformUser(const FPlatformUserId UserId)
@@ -335,72 +379,42 @@ FInputDevicePropertyHandle UInputDeviceSubsystem::SetDeviceProperty(const FSetDe
 	return OutHandle;
 }
 
-TObjectPtr<UInputDeviceProperty> UInputDeviceSubsystem::GetActiveDeviceProperty(const FInputDevicePropertyHandle Handle)
+UInputDeviceProperty* UInputDeviceSubsystem::GetActiveDeviceProperty(const FInputDevicePropertyHandle Handle) const
 {
-	for (const FActiveDeviceProperty& ActiveProp : ActiveProperties)
+	// Don't include any properties that are pending removal
+	if (!PropertiesPendingRemoval.Contains(Handle))
 	{
-		if (ActiveProp.PropertyHandle == Handle)
+		// We can find the active property based on the handle's hash because FActiveDeviceProperty::GetTypeHash
+		// just returns its FInputDevicePropertyHandle's GetTypeHash
+		if (const FActiveDeviceProperty* ExistingProp = ActiveProperties.FindByHash(Handle.GetTypeHash(), Handle))
 		{
-			return ActiveProp.Property;
+			return ExistingProp->Property;
 		}
 	}
+	
 	return nullptr;
 }
 
-int32 UInputDeviceSubsystem::RemoveDevicePropertiesOfClass(const FPlatformUserId UserId, TSubclassOf<UInputDeviceProperty> DevicePropertyClass)
+bool UInputDeviceSubsystem::IsPropertyActive(const FInputDevicePropertyHandle Handle) const
 {
-	int32 NumRemoved = 0;
+	return ActiveProperties.ContainsByHash(Handle.GetTypeHash(), Handle) && !PropertiesPendingRemoval.Contains(Handle);
+}
 
-	if (DevicePropertyClass)
+void UInputDeviceSubsystem::RemoveDevicePropertyByHandle(const FInputDevicePropertyHandle HandleToRemove)
+{
+	PropertiesPendingRemoval.Add(HandleToRemove);
+}
+
+void UInputDeviceSubsystem::RemoveDevicePropertyHandles(const TSet<FInputDevicePropertyHandle>& HandlesToRemove)
+{
+	if (!HandlesToRemove.IsEmpty())
 	{
-		// Remove all active properties that are of the same class type
-		for (int32 Index = ActiveProperties.Num() - 1; Index >= 0; --Index)
-		{
-			if (ActiveProperties[Index].PlatformUser == UserId && ActiveProperties[Index].Property && ActiveProperties[Index].Property->GetClass() == DevicePropertyClass)
-			{
-				ActiveProperties[Index].Property->ResetDeviceProperty(ActiveProperties[Index].PlatformUser);
-				ActiveProperties.RemoveAtSwap(Index);
-				++NumRemoved;
-			}
-		}
-	}	
+		PropertiesPendingRemoval.Append(HandlesToRemove);	
+	}
 	else
 	{
-		UE_LOG(LogInputDeviceProperties, Error, TEXT("Invalid DevicePropertyClass passed into RemoveDeviceProperty! Nothing will happen."));
+		UE_LOG(LogInputDeviceProperties, Warning, TEXT("Provided an empty set of handles to remove. Nothing will happen."));
 	}
-
-	return NumRemoved;
-}
-
-int32 UInputDeviceSubsystem::RemoveDevicePropertyByHandle(const FInputDevicePropertyHandle HandleToRemove, const bool bResetOnRemoval /*= true*/)
-{
-	return RemoveDevicePropertyHandles({ HandleToRemove }, bResetOnRemoval);
-}
-
-int32 UInputDeviceSubsystem::RemoveDevicePropertyHandles(const TSet<FInputDevicePropertyHandle>& HandlesToRemove, const bool bResetOnRemoval /*= true*/)
-{
-	int32 NumRemoved = 0;
-
-	for (int32 Index = ActiveProperties.Num() - 1; Index >= 0; --Index)
-	{
-		if (HandlesToRemove.Contains(ActiveProperties[Index].PropertyHandle))
-		{
-			if (bResetOnRemoval)
-			{
-				ActiveProperties[Index].Property->ResetDeviceProperty(ActiveProperties[Index].PlatformUser);
-			}			
-			ActiveProperties.RemoveAtSwap(Index);
-			++NumRemoved;
-			break;
-		}
-	}
-
-	if (NumRemoved <= 0)
-	{
-		UE_LOG(LogInputDeviceProperties, Warning, TEXT("Unable to remove any device property handles!"));
-	}
-
-	return NumRemoved;
 }
 
 bool UInputDeviceSubsystem::IsDevicePropertyHandleValid(const FInputDevicePropertyHandle& InHandle)
@@ -417,8 +431,9 @@ void UInputDeviceSubsystem::RemoveAllDeviceProperties()
 			ActiveProperty.Property->ResetDeviceProperty(ActiveProperty.PlatformUser);
 		}		
 	}
-
+	
 	ActiveProperties.Empty();
+	PropertiesPendingRemoval.Empty();
 }
 
 FHardwareDeviceIdentifier UInputDeviceSubsystem::GetMostRecentlyUsedHardwareDevice(const FPlatformUserId InUserId) const
