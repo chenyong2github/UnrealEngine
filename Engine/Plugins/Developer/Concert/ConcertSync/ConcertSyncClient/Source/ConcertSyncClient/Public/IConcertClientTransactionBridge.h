@@ -58,10 +58,29 @@ enum class ETransactionNotification
 	End,
 };
 
+/**
+ * Data holding information about conflict that occurred while processing an inbound transaction.
+ */
+struct FConcertConflictDescriptionBase
+{
+	FConcertConflictDescriptionBase() = default;
+	virtual ~FConcertConflictDescriptionBase() = default;
+
+	virtual FText GetConflictDetails() const
+	{
+		return FText();
+	};
+	virtual FText GetConflictTitle() const
+	{
+		return FText();
+	};
+};
+
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnApplyTransaction, ETransactionNotification, const bool bIsSnapshot);
 DECLARE_DELEGATE_RetVal_TwoParams(ETransactionFilterResult, FTransactionFilterDelegate, UObject*, UPackage*);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnConcertClientLocalTransactionSnapshot, const FConcertClientLocalTransactionCommonData&, const FConcertClientLocalTransactionSnapshotData&);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnConcertClientLocalTransactionFinalized, const FConcertClientLocalTransactionCommonData&, const FConcertClientLocalTransactionFinalizedData&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnConcertConflictResolutionForPendingSend, const FConcertConflictDescriptionBase& ConflictDescription);
 
 /**
  * Bridge between the editor transaction system and Concert.
@@ -117,6 +136,9 @@ public:
 	 * @note This is called during end-frame processing.
 	 */
 	virtual FOnConcertClientLocalTransactionFinalized& OnLocalTransactionFinalized() = 0;
+
+	/** Callback when a conflict occurs on pending transactions. */
+	virtual FOnConcertConflictResolutionForPendingSend& OnConflictResolutionForPendingSend() = 0;
 
 	/**
 	 * Can we currently apply a remote transaction event to this local instance?

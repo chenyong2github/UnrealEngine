@@ -70,6 +70,11 @@ struct FConcertObjectId
 		return FTransactionObjectId(ObjectPackageName, ObjectName, ObjectPathName.ToString(), ObjectOuterPathName, ObjectExternalPackageName, ObjectClassPathName);
 	}
 
+	bool IsValid() const
+	{
+		return !ObjectName.IsNone() && !ObjectOuterPathName.IsNone();
+	}
+
 	UPROPERTY()
 	FName ObjectClassPathName;
 

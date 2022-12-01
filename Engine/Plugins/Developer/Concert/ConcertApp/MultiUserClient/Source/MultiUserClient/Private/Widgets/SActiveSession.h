@@ -12,6 +12,7 @@
 
 class IConcertClientSession;
 class IConcertSyncClient;
+struct FConcertConflictDescriptionBase;
 struct FConcertSessionClientInfo;
 class SDockTab;
 class SExpandableArea;
@@ -88,6 +89,9 @@ private:
 	/** Handles how much space the 'History' area uses with respect to its expansion state. */
 	SSplitter::ESizeRule GetHistoryAreaSizeRule() const { return bHistoryAreaExpanded ? SSplitter::ESizeRule::FractionOfParent : SSplitter::ESizeRule::SizeToContent; }
 	void OnHistoryAreaExpansionChanged(bool bExpanded) { bHistoryAreaExpanded = bExpanded; }
+
+	/** Delegate handler when a conflict between inbound transaction and those stored pending outbound transactions. */
+	void OnSendConflict(const FConcertConflictDescriptionBase& ConflictMsg);
 
 private:
 

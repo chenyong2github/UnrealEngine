@@ -651,6 +651,12 @@ FOnApplyTransaction& FConcertClientTransactionBridge::OnApplyTransaction()
 	return OnApplyTransactionDelegate;
 }
 
+FOnConcertConflictResolutionForPendingSend& FConcertClientTransactionBridge::OnConflictResolutionForPendingSend()
+{
+	return OnConflictResolutionForPendingSendDelegate;
+}
+
+
 void FConcertClientTransactionBridge::ApplyRemoteTransaction(const FConcertTransactionEventBase& InEvent, const FConcertSessionVersionInfo* InVersionInfo, const TArray<FName>& InPackagesToProcess, const FConcertLocalIdentifierTable* InLocalIdentifierTablePtr, const bool bIsSnapshot)
 {
 	ConcertClientTransactionBridgeUtil::ProcessTransactionEvent(InEvent, InVersionInfo, InPackagesToProcess, InLocalIdentifierTablePtr, bIsSnapshot, FConcertSyncWorldRemapper(), bIncludeEditorOnlyProperties);

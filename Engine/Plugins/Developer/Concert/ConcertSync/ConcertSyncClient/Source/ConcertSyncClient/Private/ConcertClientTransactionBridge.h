@@ -20,6 +20,7 @@ public:
 	virtual FOnConcertClientLocalTransactionFinalized& OnLocalTransactionFinalized() override;
 	virtual bool CanApplyRemoteTransaction() const override;
 	virtual FOnApplyTransaction& OnApplyTransaction() override;
+	virtual FOnConcertConflictResolutionForPendingSend& OnConflictResolutionForPendingSend() override;
 
 	virtual void ApplyRemoteTransaction(const FConcertTransactionEventBase& InEvent, const FConcertSessionVersionInfo* InVersionInfo, const TArray<FName>& InPackagesToProcess, const FConcertLocalIdentifierTable* InLocalIdentifierTablePtr, const bool bIsSnapshot) override;
 	virtual void ApplyRemoteTransaction(const FConcertTransactionEventBase& InEvent, const FConcertSessionVersionInfo* InVersionInfo, const TArray<FName>& InPackagesToProcess, const FConcertLocalIdentifierTable* InLocalIdentifierTablePtr, const bool bIsSnapshot, const FConcertSyncWorldRemapper& ConcertSyncWorldRemapper) override;
@@ -71,6 +72,9 @@ private:
 
 	/** Called when an transaction is finalized */
 	FOnConcertClientLocalTransactionFinalized OnLocalTransactionFinalizedDelegate;
+
+	/** Delegeate called when a inbound transaction conflicts with a pending transaction to send.*/
+	FOnConcertConflictResolutionForPendingSend OnConflictResolutionForPendingSendDelegate;
 
 	/** Called when we are about to apply a transaction. */
 	FOnApplyTransaction OnApplyTransactionDelegate;

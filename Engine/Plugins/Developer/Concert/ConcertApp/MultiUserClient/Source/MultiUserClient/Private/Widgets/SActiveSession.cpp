@@ -17,16 +17,20 @@
 #include "EditorFontGlyphs.h"
 #include "FileHelpers.h"
 #include "ISettingsModule.h"
+#include "Misc/AsyncTaskNotification.h"
 #include "Misc/PackageName.h"
 #include "Styling/AppStyle.h"
 #include "Session/History/SSessionHistory.h"
 #include "Session/History/SSessionHistoryWrapper.h"
+#include "Widgets/Notifications/SNotificationList.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SHyperlink.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
+#include "Framework/Notifications/NotificationManager.h"
+
 
 #define LOCTEXT_NAMESPACE "SActiveSession"
 
@@ -368,6 +372,7 @@ void SActiveSession::Construct(const FArguments& InArgs, TSharedPtr<IConcertSync
 			WeakSessionPtr = ClientSession;
 			ClientInfo = MakeShared<FConcertSessionClientInfo>(FConcertSessionClientInfo{ClientSession->GetSessionClientEndpointId(), ClientSession->GetLocalClientInfo()});
 			ClientSession->OnSessionClientChanged().AddSP(this, &SActiveSession::HandleSessionClientChanged);
+			InConcertSyncClient->GetTransactionBridge()->OnConflictResolutionForPendingSend().AddSP(this, &SActiveSession::OnSendConflict);
 		}
 	}
 
@@ -600,6 +605,10 @@ void SActiveSession::HandleSessionStartup(TSharedRef<IConcertClientSession> InCl
 {
 	WeakSessionPtr = InClientSession;
 	InClientSession->OnSessionClientChanged().AddSP(this, &SActiveSession::HandleSessionClientChanged);
+	if (TSharedPtr<IConcertSyncClient> SyncClient = WeakConcertSyncClient.Pin())
+	{
+		SyncClient->GetTransactionBridge()->OnConflictResolutionForPendingSend().AddSP(this, &SActiveSession::OnSendConflict);
+	}
 
 	ClientInfo = MakeShared<FConcertSessionClientInfo>(FConcertSessionClientInfo{InClientSession->GetSessionClientEndpointId(), InClientSession->GetLocalClientInfo()});
 
@@ -617,6 +626,10 @@ void SActiveSession::HandleSessionShutdown(TSharedRef<IConcertClientSession> InC
 	{
 		WeakSessionPtr.Reset();
 		InClientSession->OnSessionClientChanged().RemoveAll(this);
+		if (TSharedPtr<IConcertSyncClient> SyncClient = WeakConcertSyncClient.Pin())
+		{
+			SyncClient->GetTransactionBridge()->OnConflictResolutionForPendingSend().RemoveAll(this);
+		}
 		Clients.Reset();
 
 		if (ClientsListView.IsValid())
@@ -801,6 +814,18 @@ FSlateFontInfo SActiveSession::GetConnectionIconFontInfo() const
 	ConnectionIconFontInfo.OutlineSettings.OutlineColor = GetConnectionIconStyle().Pressed.TintColor.GetSpecifiedColor();
 
 	return ConnectionIconFontInfo;
+}
+
+void SActiveSession::OnSendConflict(const FConcertConflictDescriptionBase& ConflictDescription)
+{
+	FAsyncTaskNotificationConfig Config;
+	Config.bKeepOpenOnFailure = true;
+	Config.TitleText = ConflictDescription.GetConflictTitle();
+	Config.ExpireDuration = 5.0f;
+
+	FAsyncTaskNotification Notification(Config);
+	Notification.SetHyperlink(FSimpleDelegate(), LOCTEXT("TransactionConflictDetails", "See Details..."));
+	Notification.SetComplete(Config.TitleText, ConflictDescription.GetConflictDetails(), false);
 }
 
 FText SActiveSession::GetConnectionStatusText() const
