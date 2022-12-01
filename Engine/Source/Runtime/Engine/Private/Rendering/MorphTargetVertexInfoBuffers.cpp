@@ -4,6 +4,7 @@
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
 #include "Animation/MorphTarget.h"
+#include "RHI.h"
 
 extern int32 GSkinCacheRecomputeTangents;
 
@@ -38,6 +39,13 @@ void FMorphTargetVertexInfoBuffers::ReleaseRHI()
 	MorphDataBuffer.SafeRelease();
 	MorphDataSRV.SafeRelease();
 	bRHIIntialized = false;
+}
+
+uint32 FMorphTargetVertexInfoBuffers::GetMaximumThreadGroupSize()
+{
+	//D3D11 there can be at most 65535 Thread Groups in each dimension of a Dispatch call.
+	uint64 MaximumThreadGroupSize = uint64(GMaxComputeDispatchDimension) * 32ull;
+	return uint32(FMath::Min<uint64>(MaximumThreadGroupSize, UINT32_MAX));
 }
 
 const float FMorphTargetVertexInfoBuffers::CalculatePositionPrecision(float TargetPositionErrorTolerance)

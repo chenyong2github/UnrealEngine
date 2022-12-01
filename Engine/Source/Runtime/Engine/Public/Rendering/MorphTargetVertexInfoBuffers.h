@@ -26,12 +26,8 @@ public:
 	ENGINE_API virtual void InitRHI() override;
 	ENGINE_API virtual void ReleaseRHI() override;
 
-	static uint32 GetMaximumThreadGroupSize()
-	{
-		//D3D11 there can be at most 65535 Thread Groups in each dimension of a Dispatch call.
-		uint64 MaximumThreadGroupSize = uint64(GMaxComputeDispatchDimension) * 32ull;
-		return uint32(FMath::Min<uint64>(MaximumThreadGroupSize, UINT32_MAX));
-	}
+	UE_DEPRECATED(5.2, "GetMaximumThreadGroupSize will be removed as it is no longer used.")
+	static ENGINE_API uint32 GetMaximumThreadGroupSize();
 
 	ENGINE_API uint32 GetNumBatches(uint32 index = UINT_MAX) const
 	{
