@@ -789,7 +789,9 @@ void FMovieSceneEntitySystemGraph::ExecutePhase(const ArrayType& SortedEntries, 
 				{
 					const uint16 NewNodeIndex     = SortedEntries[NewIndex];
 					const uint16 CurrentNodeIndex = SortedEntries[CurrentIndex];
-					ensureAlwaysMsgf(false, TEXT("New system %s has been added upstream of %s in the same execution phase that is currently in-flight - this will not be run this frame"),
+					ensureAlwaysMsgf(false, 
+						TEXT("System %s has been inserted upstream of %s in the same execution phase that is currently in-flight, and will not be run this frame. "
+							 "This can be either because this system has been newly linked, or because it has been re-ordered due to other newly linked systems."),
 						*this->Nodes.Array[NewNodeIndex].System->GetName(),
 						*this->Nodes.Array[CurrentNodeIndex].System->GetName()
 					);
