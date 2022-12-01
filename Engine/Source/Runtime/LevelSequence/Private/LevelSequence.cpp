@@ -518,7 +518,7 @@ UBlueprint* ULevelSequence::GetDirectorBlueprint() const
 
 FString ULevelSequence::GetDirectorBlueprintName() const
 {
-	return GetDisplayName().ToString() + " (Director BP)";
+	return GetDisplayName().ToString() + "_DirectorBP";
 }
 
 void ULevelSequence::SetDirectorBlueprint(UBlueprint* NewDirectorBlueprint)
