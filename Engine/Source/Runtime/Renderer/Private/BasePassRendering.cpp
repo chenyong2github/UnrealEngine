@@ -1913,7 +1913,7 @@ bool FBasePassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatc
 
 		// When AutoBeforeDOFTranslucencyBoundary is valid, we automatically move After DOF translucent meshes (never blurred by DOF)
 		// before DOF if those elements are behind the focus distance.
-		if (TranslucencyPassType == ETranslucencyPass::TPT_StandardTranslucency)
+		if (TranslucencyPassType == ETranslucencyPass::TPT_TranslucencyStandard)
 		{
 			if (bIsStandardTranslucency)
 			{
@@ -2346,7 +2346,7 @@ FBasePassMeshProcessor::FBasePassMeshProcessor(
 	if (InTranslucencyPassType != ETranslucencyPass::TPT_MAX && InViewIfDynamicMeshCommand && ViewIfDynamicMeshCommand->bIsViewInfo)
 	{
 		const FViewInfo* ViewInfo = (FViewInfo*)ViewIfDynamicMeshCommand;
-		if (InTranslucencyPassType == ETranslucencyPass::TPT_StandardTranslucency ||
+		if (InTranslucencyPassType == ETranslucencyPass::TPT_TranslucencyStandard ||
 			InTranslucencyPassType == ETranslucencyPass::TPT_TranslucencyAfterDOF ||
 			InTranslucencyPassType == ETranslucencyPass::TPT_TranslucencyAfterDOFModulate)
 		{
