@@ -4722,9 +4722,10 @@ ENetMode AActor::InternalGetNetMode() const
 		return NetDriver->GetNetMode();
 	}
 
-	if (UDemoNetDriver* DemoNetDriver = World ? World->GetDemoNetDriver() : nullptr)
+	if (World)
 	{
-		return DemoNetDriver->GetNetMode();
+		// World handles the demo net mode and has some special case checks for PIE
+		return World->GetNetMode();
 	}
 
 	return NM_Standalone;
