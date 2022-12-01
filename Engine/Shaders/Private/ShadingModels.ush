@@ -405,8 +405,6 @@ FDirectLighting ClearCoatBxDF( FGBufferData GBuffer, half3 N, half3 V, half3 L, 
 {
 	const half ClearCoat			= GBuffer.CustomData.x;
 	const half ClearCoatRoughness	= max(GBuffer.CustomData.y, 0.02f);
-	const half Film = 1 * ClearCoat;
-	const half MetalSpec = 0.9;
 
 	FDirectLighting Lighting = {
 		float3(0.0, 0.0, 0.0),
