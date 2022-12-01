@@ -220,36 +220,52 @@ uint32 FCustomizableObjectSaveDDRunnable::Run()
 		FileManager.MakeDirectory(*FolderPath, true);
 
 		// Delete files...
-		FileManager.Delete(*CompildeDataFullFileName, true, false, true);
-		FileManager.Delete(*StreamableDataFullFileName, true, false, true);
+		bool bFilesDeleted = true;
+		if (!FileManager.Delete(*CompildeDataFullFileName, true, false, true))
+		{
+			UE_LOG(LogMutable, Error, TEXT("Failed to delete compiled data in file [%s]."), *CompildeDataFullFileName);
+			bFilesDeleted = false;
+		}
 
-		// Create file writers...
-		FArchive* ModelMemoryWriter = FileManager.CreateFileWriter(*CompildeDataFullFileName);
-		FArchive* StreamableMemoryWriter = FileManager.CreateFileWriter(*StreamableDataFullFileName);
+		if (!FileManager.Delete(*StreamableDataFullFileName, true, false, true))
+		{
+			UE_LOG(LogMutable, Error, TEXT("Failed to delete streamed data in file [%s]."), *StreamableDataFullFileName);
+			bFilesDeleted = false;
+		}
 
-		// Serailize headers to validate data
-		*ModelMemoryWriter << CustomizableObjectHeader;
-		*StreamableMemoryWriter << CustomizableObjectHeader;
+		// Store current compiled data
+		if (bFilesDeleted)
+		{
+			// Create file writers...
+			FArchive* ModelMemoryWriter = FileManager.CreateFileWriter(*CompildeDataFullFileName);
+			FArchive* StreamableMemoryWriter = FileManager.CreateFileWriter(*StreamableDataFullFileName);
+			check(ModelMemoryWriter);
+			check(StreamableMemoryWriter);
 
-		// Serialize Customizable Object's Data to disk
-		ModelMemoryWriter->Serialize(reinterpret_cast<void*>(Bytes.GetData()), Bytes.Num() * sizeof(uint8));
-		Bytes.Empty();
+			// Serailize headers to validate data
+			*ModelMemoryWriter << CustomizableObjectHeader;
+			*StreamableMemoryWriter << CustomizableObjectHeader;
 
-		// Serialize mu::Model and streamable resources
-		*ModelMemoryWriter << bModelSerialized;
+			// Serialize Customizable Object's Data to disk
+			ModelMemoryWriter->Serialize(reinterpret_cast<void*>(Bytes.GetData()), Bytes.Num() * sizeof(uint8));
+			Bytes.Empty();
 
-		FUnrealMutableModelBulkStreamer Streamer(ModelMemoryWriter, StreamableMemoryWriter);
-		mu::Model::Serialise(Model.get(), Streamer);
+			// Serialize mu::Model and streamable resources
+			*ModelMemoryWriter << bModelSerialized;
 
-		// Save to disk
-		ModelMemoryWriter->Flush();
-		StreamableMemoryWriter->Flush();
+			FUnrealMutableModelBulkStreamer Streamer(ModelMemoryWriter, StreamableMemoryWriter);
+			mu::Model::Serialise(Model.get(), Streamer);
 
-		ModelMemoryWriter->Close();
-		StreamableMemoryWriter->Close();
+			// Save to disk
+			ModelMemoryWriter->Flush();
+			StreamableMemoryWriter->Flush();
 
-		delete ModelMemoryWriter;
-		delete StreamableMemoryWriter;
+			ModelMemoryWriter->Close();
+			StreamableMemoryWriter->Close();
+
+			delete ModelMemoryWriter;
+			delete StreamableMemoryWriter;
+		}
 	}
 
 	bThreadCompleted = true;
