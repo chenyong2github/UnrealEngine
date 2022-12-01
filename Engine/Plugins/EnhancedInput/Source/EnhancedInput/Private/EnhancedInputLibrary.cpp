@@ -43,8 +43,25 @@ void UEnhancedInputLibrary::RequestRebuildControlMappingsUsingContext(const UInp
 
 FInputActionValue UEnhancedInputLibrary::GetBoundActionValue(AActor* Actor, const UInputAction* Action)
 {
-	UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(Actor->InputComponent);
-	return EIC ? EIC->GetBoundActionValue(Action) : FInputActionValue(Action->ValueType, FVector::ZeroVector);
+	if (Actor && Action)
+	{
+		UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(Actor->InputComponent);
+		return EIC ? EIC->GetBoundActionValue(Action) : FInputActionValue(Action->ValueType, FVector::ZeroVector);
+	}
+	else
+	{
+		if (!Actor)
+		{
+			UE_LOG(LogEnhancedInput, Error, TEXT("UEnhancedInputLibrary::GetBoundActionValue was called with an invalid Actor!"));
+		}
+		
+		if (!Action)
+		{
+			UE_LOG(LogEnhancedInput, Error, TEXT("UEnhancedInputLibrary::GetBoundActionValue was called with an invalid Action!"));
+		}		
+		ensureMsgf(false, TEXT("Invalid GetBoundActionValue call. Check logs for details!"));
+	}
+	return FInputActionValue();
 }
 
 
