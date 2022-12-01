@@ -53,6 +53,8 @@ public:
 	TArray< TSharedPtr< FUICommandInfo > > OpenRecentFileCommands;
 	static const int32 MaxFavoriteFiles = 20;
 	TArray< TSharedPtr< FUICommandInfo > > OpenFavoriteFileCommands;
+	
+	TSharedPtr< FUICommandInfo > ClearRecentFiles;
 
 	TSharedPtr< FUICommandInfo > ToggleFavorite;
 
@@ -669,6 +671,9 @@ public:
 	 * @param	RecentFileIndex		Index into our MRU list of recent files that can be opened
 	 */
 	static void OpenRecentFile( int32 RecentFileIndex );
+
+	/** Clear the list of recent files. */
+	static void ClearRecentFiles();
 
 	/**
 	 * Opens a favorite file

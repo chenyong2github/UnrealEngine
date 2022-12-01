@@ -64,6 +64,11 @@ public:
 	void RemoveMRUItem(int32 ItemIndex);
 
 	/**
+	 * Clears the list of MRU items. 
+	 */
+	void ClearMRUItems();
+
+	/**
 	 * Checks to make sure the file specified still exists.  If it does, it is
 	 * moved to the top of the MRU list and we return true.  If not, we remove it
 	 * from the list and return false.

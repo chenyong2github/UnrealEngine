@@ -38,6 +38,12 @@ void FMRUList::Cull()
 	}
 }
 
+void FMRUList::ClearMRUItems()
+{
+	Items.Empty();
+
+	WriteToINI();
+}
 
 void FMRUList::ReadFromINI()
 {

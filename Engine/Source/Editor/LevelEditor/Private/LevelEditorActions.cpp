@@ -302,28 +302,35 @@ void FLevelEditorActionCallbacks::DeltaTransform()
 void FLevelEditorActionCallbacks::OpenRecentFile( int32 RecentFileIndex )
 {
 	IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>( "MainFrame" );
-	FMainMRUFavoritesList* RecentsAndFavorites = MainFrameModule.GetMRUFavoritesList();
-
-	FString NewPackageName;
-	if( RecentsAndFavorites->VerifyMRUFile( RecentFileIndex, NewPackageName ) )
+	
+	if (FMainMRUFavoritesList* RecentsAndFavorites = MainFrameModule.GetMRUFavoritesList())
 	{
-		// Prompt the user to save any outstanding changes.
-		if( FEditorFileUtils::SaveDirtyPackages(true, true, false) )
+		FString NewPackageName;
+		if( RecentsAndFavorites->VerifyMRUFile( RecentFileIndex, NewPackageName ) )
 		{
-			FString NewFilename;
-			if (FPackageName::TryConvertLongPackageNameToFilename(NewPackageName, NewFilename, FPackageName::GetMapPackageExtension()))
+			// Prompt the user to save any outstanding changes.
+			if( FEditorFileUtils::SaveDirtyPackages(true, true, false) )
 			{
-				// Load the requested level.
-				FEditorFileUtils::LoadMap(NewFilename);
+				FString NewFilename;
+				if (FPackageName::TryConvertLongPackageNameToFilename(NewPackageName, NewFilename, FPackageName::GetMapPackageExtension()))
+				{
+					// Load the requested level.
+					FEditorFileUtils::LoadMap(NewFilename);
+				}
 			}
-		}
-		else
-		{
-			// something went wrong or the user pressed cancel.  Return to the editor so the user doesn't lose their changes		
 		}
 	}
 }
 
+void FLevelEditorActionCallbacks::ClearRecentFiles()
+{
+	IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>( "MainFrame" );
+	
+	if (FMainMRUFavoritesList* RecentsAndFavorites = MainFrameModule.GetMRUFavoritesList())
+	{
+		RecentsAndFavorites->ClearMRUItems();
+	}
+}
 
 void FLevelEditorActionCallbacks::OpenFavoriteFile( int32 FavoriteFileIndex )
 {
@@ -3488,6 +3495,7 @@ void FLevelEditorCommands::RegisterCommands()
 		OpenFavoriteFileCommands.Add(OpenFavoriteFile);
 	}
 
+	UI_COMMAND( ClearRecentFiles, "Clear Recent Levels", "Clear the list of recently opened levels", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( ImportScene, "Import Into Level...", "Imports a scene from a FBX or OBJ format into the current level", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND( ExportAll, "Export All...", "Exports the entire level to a file on disk (multiple formats are supported.)", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( ExportSelected, "Export Selected...", "Exports currently-selected objects to a file on disk (multiple formats are supported.)", EUserInterfaceActionType::Button, FInputChord() );

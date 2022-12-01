@@ -151,28 +151,34 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 			{
 				struct FRecentLevelMenu
 				{
-					static void MakeRecentLevelMenu( UToolMenu* InMenu )
+					static void MakeRecentLevelMenu(UToolMenu* InMenu)
 					{
-						const FMainMRUFavoritesList& MRUFavorites = *FModuleManager::LoadModuleChecked<IMainFrameModule>( "MainFrame" ).GetMRUFavoritesList();
+						const FMainMRUFavoritesList& MRUFavorites = *FModuleManager::LoadModuleChecked<IMainFrameModule>("MainFrame").GetMRUFavoritesList();
 						const int32 NumRecents = MRUFavorites.GetNumItems();
 
-						const int32 AllowedRecents = FMath::Min( NumRecents, FLevelEditorCommands::Get().OpenRecentFileCommands.Num() );
-						for ( int32 CurRecentIndex = 0; CurRecentIndex < AllowedRecents; ++CurRecentIndex )
+						FToolMenuSection& Section = InMenu->FindOrAddSection("Recent");
+
+						const int32 AllowedRecents = FMath::Min(NumRecents, FLevelEditorCommands::Get().OpenRecentFileCommands.Num());
+						for (int32 CurRecentIndex = 0; CurRecentIndex < AllowedRecents; ++CurRecentIndex)
 						{
-							TSharedPtr< FUICommandInfo > OpenRecentFile = FLevelEditorCommands::Get().OpenRecentFileCommands[ CurRecentIndex ];
+							TSharedPtr< FUICommandInfo > OpenRecentFile = FLevelEditorCommands::Get().OpenRecentFileCommands[CurRecentIndex];
 
 							if (!MRUFavorites.MRUItemPassesCurrentFilter(CurRecentIndex))
 							{
 								continue;
 							}
 
-							const FString CurRecent = MRUFavorites.GetMRUItem( CurRecentIndex );
+							const FString& CurRecent = MRUFavorites.GetMRUItem(CurRecentIndex);
 
-							const FText ToolTip = FText::Format( LOCTEXT( "RecentLevelToolTip", "Opens recent level: {0}" ), FText::FromString( CurRecent ) );
-							const FText Label = FText::FromString( FPaths::GetBaseFilename( CurRecent ) );
+							const FText ToolTip = FText::Format(LOCTEXT("RecentLevelToolTip", "Opens recent level: {0}"), FText::FromString(CurRecent));
+							const FText Label = FText::FromString(FPaths::GetBaseFilename(CurRecent));
 
-							InMenu->FindOrAddSection("Recent").AddMenuEntry( OpenRecentFile, Label, ToolTip ).Name = NAME_None;
+							Section.AddMenuEntry(OpenRecentFile, Label, ToolTip).Name = NAME_None;
 						}
+
+						Section.AddSeparator("AfterRecentLevels");
+
+						Section.AddMenuEntry("ClearRecentLevels", FLevelEditorCommands::Get().ClearRecentFiles);
 					}
 				};
 
