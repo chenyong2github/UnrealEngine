@@ -373,6 +373,19 @@ namespace AudioModulation
 		return false;
 	}
 
+	bool FAudioModulationSystem::GetModulatorValueThreadSafe(uint32 ModulatorID, float& OutValue) const
+	{
+		FScopeLock Lock(&ThreadSafeModValueCritSection);
+
+		if (const float* Value = ThreadSafeModValueMap.Find(ModulatorID))
+		{
+			OutValue = *Value;
+			return true;
+		}
+
+		return false;
+	}
+
 	Audio::FDeviceId FAudioModulationSystem::GetAudioDeviceId() const
 	{
 		return AudioDeviceId;

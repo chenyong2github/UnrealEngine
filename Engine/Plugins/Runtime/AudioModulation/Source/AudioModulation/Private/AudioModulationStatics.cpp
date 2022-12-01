@@ -467,5 +467,21 @@ void UAudioModulationStatics::UpdateModulator(const UObject* WorldContextObject,
 		}
 	}
 }
+
+float UAudioModulationStatics::GetModulatorValue(const UObject* WorldContextObject, USoundModulatorBase* Modulator)
+{	
+	if (Modulator)
+	{
+		UWorld* World = GetAudioWorld(WorldContextObject);
+		if (AudioModulation::FAudioModulationManager* ModSystem = GetModulation(World))
+		{
+			return ModSystem->GetModulatorValueThreadSafe(Modulator->GetUniqueID());
+		}
+	}
+
+	return 1.0f;
+}
+
+
 #undef LOCTEXT_NAMESPACE
 

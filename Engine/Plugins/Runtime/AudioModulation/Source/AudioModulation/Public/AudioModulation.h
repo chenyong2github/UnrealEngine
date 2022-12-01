@@ -81,6 +81,8 @@ namespace AudioModulation
 		void ClearGlobalBusMixValue(const USoundControlBus& InBus, float InFadeTime);
 		void ClearAllGlobalBusMixValues(float InFadeTime);
 
+		float GetModulatorValueThreadSafe(uint32 ModulationID);
+
 		FAudioModulationSystem& GetSystem();
 
 	private:

@@ -159,6 +159,13 @@ namespace AudioModulation
 		ModSystem->ClearAllGlobalBusMixValues(InFadeTime);
 	}
 
+	float FAudioModulationManager::GetModulatorValueThreadSafe(uint32 ModulationID)
+	{
+		float OutValue = 1.0f;
+		ModSystem->GetModulatorValueThreadSafe(ModulationID, OutValue);
+		return OutValue;
+	}
+
 #if !UE_BUILD_SHIPPING
 	bool FAudioModulationManager::OnPostHelp(FCommonViewportClient* ViewportClient, const TCHAR* Stream)
 	{

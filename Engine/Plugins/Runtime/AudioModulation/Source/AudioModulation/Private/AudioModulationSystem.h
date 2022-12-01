@@ -102,6 +102,9 @@ namespace AudioModulation
 		/* Attempts to get the modulator value from any thread (lock contentious).*/
 		bool GetModulatorValueThreadSafe(const Audio::FModulatorHandle& ModulatorHandle, float& OutValue) const;
 
+		/* Attempts to get the modulator value from any thread (lock contentious).*/
+		bool GetModulatorValueThreadSafe(uint32 ModulatorID, float& OutValue) const;
+
 		void UnregisterModulator(const Audio::FModulatorHandle& InHandle);
 
 		/* Saves mix to .ini profile for fast iterative development that does not require re-cooking a mix */
