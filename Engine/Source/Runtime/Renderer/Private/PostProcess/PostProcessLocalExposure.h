@@ -16,7 +16,7 @@ void AddApplyLocalExposurePass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FEyeAdaptationParameters& EyeAdaptationParameters,
-	FRDGTextureRef EyeAdaptationTexture,
+	FRDGBufferRef EyeAdaptationBuffer,
 	FRDGTextureRef LocalExposureTexture,
 	FRDGTextureRef BlurredLogLuminanceTexture,
 	FScreenPassTexture Input,

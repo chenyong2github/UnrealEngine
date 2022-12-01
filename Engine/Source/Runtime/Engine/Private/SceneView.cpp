@@ -2724,7 +2724,7 @@ bool FSceneView::HasValidEyeAdaptationBuffer() const
 
 IPooledRenderTarget* FSceneView::GetEyeAdaptationTexture() const
 {
-	checkf(FeatureLevel > ERHIFeatureLevel::ES3_1, TEXT("SM5 and above use RenderTarget for read back"));
+	checkf(FeatureLevel > ERHIFeatureLevel::ES3_1, TEXT("EyeAdaptation Texture is only available on SM5 and above."));
 	if (EyeAdaptationViewState)
 	{
 		return EyeAdaptationViewState->GetCurrentEyeAdaptationTexture();
@@ -2734,7 +2734,6 @@ IPooledRenderTarget* FSceneView::GetEyeAdaptationTexture() const
 
 FRDGPooledBuffer* FSceneView::GetEyeAdaptationBuffer() const
 {
-	checkf(FeatureLevel == ERHIFeatureLevel::ES3_1, TEXT("ES3_1 use RWBuffer for read back"));
 	if (EyeAdaptationViewState)
 	{
 		return EyeAdaptationViewState->GetCurrentEyeAdaptationBuffer();

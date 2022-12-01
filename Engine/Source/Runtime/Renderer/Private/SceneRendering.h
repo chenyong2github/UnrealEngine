@@ -1693,7 +1693,7 @@ public:
 
 	/** Allocates and returns the current eye adaptation texture. */
 	using FSceneView::GetEyeAdaptationTexture;
-	IPooledRenderTarget* GetEyeAdaptationTexture(FRHICommandList& RHICmdList) const;
+	IPooledRenderTarget* GetEyeAdaptationTexture(FRDGBuilder& GraphBuilder) const;
 
 	/** Allocates and returns the current eye adaptation buffer. */
 	using FSceneView::GetEyeAdaptationBuffer;
@@ -1706,15 +1706,12 @@ public:
 	float GetLastAverageSceneLuminance() const;
 
 	/**Swap the order of the two eye adaptation targets in the double buffer system */
-	void SwapEyeAdaptationTextures() const;
 	void SwapEyeAdaptationBuffers() const;
 
 	/** Update Last Exposure with the most recent available value */
-	void UpdateEyeAdaptationLastExposureFromTexture() const;
 	void UpdateEyeAdaptationLastExposureFromBuffer() const;
 
 	/** Enqueue a pass to readback current exposure */
-	void EnqueueEyeAdaptationExposureTextureReadback(FRDGBuilder& GraphBuilder) const;
 	void EnqueueEyeAdaptationExposureBufferReadback(FRDGBuilder& GraphBuilder) const;
 	
 	/** Returns the load action to use when overwriting all pixels of a target that you intend to read from. Takes into account the HMD hidden area mesh. */

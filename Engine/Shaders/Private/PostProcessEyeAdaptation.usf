@@ -20,11 +20,11 @@
 #include "SHCommon.ush"
 #include "/Engine/Private/ScreenPass.ush"
 
-RWTexture2D<float4> RWEyeAdaptationTexture;
+RWStructuredBuffer<float4> RWEyeAdaptationBuffer;
 
 #endif
 
-Texture2D EyeAdaptationTexture;
+StructuredBuffer<float4> EyeAdaptationBuffer;
 
 Texture2D HistogramTexture;
 
@@ -144,8 +144,15 @@ void EyeAdaptationCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	OutColor.z = AverageSceneLuminance;
 	OutColor.w = MiddleGreyExposureCompensation;
 	
-	uint2 PixelPos = DispatchThreadId;
-	RWEyeAdaptationTexture[PixelPos] = OutColor;
+	RWEyeAdaptationBuffer[0] = OutColor;
+}
+
+RWTexture2D<float4> RWEyeAdaptationTexture;
+
+[numthreads(1, 1, 1)]
+void CopyEyeAdaptationToTextureCS(uint2 DispatchThreadId : SV_DispatchThreadID)
+{
+	RWEyeAdaptationTexture[DispatchThreadId] = EyeAdaptationBuffer[0];
 }
 #endif
 
@@ -232,7 +239,7 @@ void BasicEyeAdaptationCS(uint GIndex : SV_GroupIndex, uint2 GTId : SV_GroupThre
 	const float ClampedLumAve = clamp(LumAve, EyeAdaptation_MinAverageLuminance, EyeAdaptation_MaxAverageLuminance);
 	
 	// The Exposure Scale (and thus intensity) used in the previous frame
-	const float ExposureScaleOld = EyeAdaptationTexture.Load(int3(0, 0, 0)).x;
+	const float ExposureScaleOld = EyeAdaptationBuffer[0].x;
 	const float LuminanceAveOld = MiddleGreyExposureCompensation / (ExposureScaleOld != 0 ? ExposureScaleOld : 1.0f);
 
 	// Time-based expoential blend of the intensity to allow the eye adaptation to ramp up over a few frames.
@@ -257,7 +264,7 @@ void BasicEyeAdaptationCS(uint GIndex : SV_GroupIndex, uint2 GTId : SV_GroupThre
 	
 	if(GIndex==0)
 	{
-		RWEyeAdaptationTexture[uint2(0,0)] = OutColor;
+		RWEyeAdaptationBuffer[0] = OutColor;
 	}
 }
 

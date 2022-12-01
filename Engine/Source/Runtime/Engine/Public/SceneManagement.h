@@ -237,7 +237,7 @@ public:
 	/** Returns the eye adaptation texture (SM5+ only). */
 	virtual IPooledRenderTarget* GetCurrentEyeAdaptationTexture() const = 0;
 
-	/** Returns the eye adaptation buffer (mobile only). */
+	/** Returns the eye adaptation buffer. */
 	virtual FRDGPooledBuffer* GetCurrentEyeAdaptationBuffer() const = 0;
 
 	/** Returns the eye adaptation exposure. */

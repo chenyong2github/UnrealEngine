@@ -9,7 +9,7 @@ SCREEN_PASS_TEXTURE_VIEWPORT(Output)
 
 Texture2D InputTexture;
 
-Texture2D EyeAdaptationTexture;
+StructuredBuffer<float4> EyeAdaptationBuffer;
 
 Texture3D LumBilateralGrid;
 Texture2D BlurredLogLum;
@@ -36,7 +36,7 @@ void ApplyLocalExposureCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	{
 		const float2 UV = (DispatchThreadId + 0.5f) * Output_ExtentInverse;
 
-		float2 ExposureScaleMiddleGrey = EyeAdaptationTexture.Load(int3(0, 0, 0)).xw;
+		float2 ExposureScaleMiddleGrey = EyeAdaptationBuffer[0].xw;
 		float ExposureScale = ExposureScaleMiddleGrey.x;
 		float MiddleGreyLumValue = log2(0.18 * ExposureScaleMiddleGrey.y * EyeAdaptation_LocalExposureMiddleGreyExposureCompensation);
 

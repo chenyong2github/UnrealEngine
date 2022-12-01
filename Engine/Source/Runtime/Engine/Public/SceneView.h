@@ -1614,7 +1614,7 @@ public:
 	/** Returns the eye adaptation texture (SM5+ only) or null if it doesn't exist. */
 	IPooledRenderTarget* GetEyeAdaptationTexture() const;
 
-	/** Returns the eye adaptation buffer (mobile) or null if it doesn't exist. */
+	/** Returns the eye adaptation buffer or null if it doesn't exist. */
 	FRDGPooledBuffer* GetEyeAdaptationBuffer() const;
 
 	/** Returns the eye adaptation exposure or 0.0f if it doesn't exist. */

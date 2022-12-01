@@ -31,12 +31,13 @@ BEGIN_SHADER_PARAMETER_STRUCT(FBloomSetupParameters, )
 	SHADER_PARAMETER_SAMPLER(SamplerState, LumBilateralGridSampler)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, BlurredLogLum)
 	SHADER_PARAMETER_SAMPLER(SamplerState, BlurredLogLumSampler)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptationTexture)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, EyeAdaptationBuffer)
 	SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, EyeAdaptation)
 	SHADER_PARAMETER(float, BloomThreshold)
 END_SHADER_PARAMETER_STRUCT()
 
 FBloomSetupParameters GetBloomSetupParameters(
+	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FScreenPassTextureViewport& InputViewport,
 	const FBloomSetupInputs& Inputs)
@@ -50,7 +51,7 @@ FBloomSetupParameters GetBloomSetupParameters(
 	Parameters.LumBilateralGridSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	Parameters.BlurredLogLum = Inputs.BlurredLogLuminanceTexture;
 	Parameters.BlurredLogLumSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	Parameters.EyeAdaptationTexture = Inputs.EyeAdaptationTexture;
+	Parameters.EyeAdaptationBuffer = GraphBuilder.CreateSRV(Inputs.EyeAdaptationBuffer);
 	Parameters.EyeAdaptation = *Inputs.EyeAdaptationParameters;
 	Parameters.BloomThreshold = Inputs.Threshold;
 	return Parameters;
@@ -112,7 +113,7 @@ IMPLEMENT_GLOBAL_SHADER(FBloomSetupCS, "/Engine/Private/PostProcessBloom.usf", "
 FScreenPassTexture AddBloomSetupPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FBloomSetupInputs& Inputs)
 {
 	check(Inputs.SceneColor.IsValid());
-	check(Inputs.EyeAdaptationTexture);
+	check(Inputs.EyeAdaptationBuffer);
 	check(Inputs.Threshold > -1.0f || Inputs.EyeAdaptationParameters != nullptr);
 
 	const bool bIsComputePass = View.bUseComputePasses;
@@ -127,7 +128,7 @@ FScreenPassTexture AddBloomSetupPass(FRDGBuilder& GraphBuilder, const FViewInfo&
 	if (bIsComputePass)
 	{
 		FBloomSetupCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBloomSetupCS::FParameters>();
-		PassParameters->BloomSetup = GetBloomSetupParameters(View, Viewport, Inputs);
+		PassParameters->BloomSetup = GetBloomSetupParameters(GraphBuilder, View, Viewport, Inputs);
 		PassParameters->RWOutputTexture = GraphBuilder.CreateUAV(Output.Texture);
 
 		FBloomSetupCS::FPermutationDomain PermutationVector;
@@ -145,7 +146,7 @@ FScreenPassTexture AddBloomSetupPass(FRDGBuilder& GraphBuilder, const FViewInfo&
 	else
 	{
 		FBloomSetupPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBloomSetupPS::FParameters>();
-		PassParameters->BloomSetup = GetBloomSetupParameters(View, Viewport, Inputs);
+		PassParameters->BloomSetup = GetBloomSetupParameters(GraphBuilder, View, Viewport, Inputs);
 		PassParameters->SvPositionToInputTextureUV = (
 			FScreenTransform::ChangeTextureBasisFromTo(FScreenPassTextureViewport(Output), FScreenTransform::ETextureBasis::TexelPosition, FScreenTransform::ETextureBasis::ViewportUV) *
 			FScreenTransform::ChangeTextureBasisFromTo(FScreenPassTextureViewport(Inputs.SceneColor), FScreenTransform::ETextureBasis::ViewportUV, FScreenTransform::ETextureBasis::TextureUV));

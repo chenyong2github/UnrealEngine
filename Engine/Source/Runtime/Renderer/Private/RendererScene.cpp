@@ -882,10 +882,6 @@ uint64 FSceneViewState::FEyeAdaptationManager::GetGPUSizeBytes(bool bLogSizes) c
 	{
 		TotalSize += GetRenderTargetGPUSizeBytes(PooledRenderTarget[TargetIndex], bLogSizes);
 	}
-	for (FRHIGPUTextureReadback* ReadbackTexture : ExposureReadbackTextures)
-	{
-		TotalSize += GetTextureReadbackGPUSizeBytes(ReadbackTexture, bLogSizes);
-	}
 	for (int32 BufferIndex = 0; BufferIndex < UE_ARRAY_COUNT(ExposureBufferData); BufferIndex++)
 	{
 		TotalSize += GetBufferGPUSizeBytes(ExposureBufferData[BufferIndex], bLogSizes);

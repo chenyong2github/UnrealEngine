@@ -786,7 +786,6 @@ private:
 	bool bUpdateLastExposure;
 
 	// to implement eye adaptation / auto exposure changes over time
-	// SM5 and above should use RenderTarget and ES3_1 for mobile should use RWBuffer for read back.
 	class FEyeAdaptationManager
 	{
 	public:
@@ -802,32 +801,22 @@ private:
 
 		const TRefCountPtr<IPooledRenderTarget>& GetCurrentTexture() const
 		{
-			return GetTexture(CurrentBuffer);
+			return GetTexture(CurrentBufferIndex);
 		}
 
-		/** Return current Render Target */
-		const TRefCountPtr<IPooledRenderTarget>& GetCurrentTexture(FRHICommandList& RHICmdList)
+		const TRefCountPtr<IPooledRenderTarget>& GetCurrentTexture(FRDGBuilder& GraphBuilder)
 		{
-			return GetOrCreateTexture(RHICmdList, CurrentBuffer);
+			return GetOrCreateTexture(GraphBuilder, CurrentBufferIndex);
 		}
-
-		/** Reverse the current/last order of the targets */
-		void SwapTextures();
-
-		/** Update Last Exposure with the most recent value */
-		void UpdateLastExposureFromTexture();
-
-		/** Enqueue a pass to readback current exposure */
-		void EnqueueExposureTextureReadback(FRDGBuilder& GraphBuilder);
 
 		const TRefCountPtr<FRDGPooledBuffer>& GetCurrentBuffer() const
 		{
-			return GetBuffer(CurrentBuffer);
+			return GetBuffer(CurrentBufferIndex);
 		}
 
 		const TRefCountPtr<FRDGPooledBuffer>& GetCurrentBuffer(FRDGBuilder& GraphBuilder)
 		{
-			return GetOrCreateBuffer(GraphBuilder, CurrentBuffer);
+			return GetOrCreateBuffer(GraphBuilder, CurrentBufferIndex);
 		}
 
 		void SwapBuffers();
@@ -838,26 +827,27 @@ private:
 
 	private:
 		const TRefCountPtr<IPooledRenderTarget>& GetTexture(uint32 TextureIndex) const;
-		const TRefCountPtr<IPooledRenderTarget>& GetOrCreateTexture(FRHICommandList& RHICmdList, uint32 TextureIndex);
+		const TRefCountPtr<IPooledRenderTarget>& GetOrCreateTexture(FRDGBuilder& GraphBuilder, uint32 TextureIndex);
 
 		const TRefCountPtr<FRDGPooledBuffer>& GetBuffer(uint32 BufferIndex) const;
 		const TRefCountPtr<FRDGPooledBuffer>& GetOrCreateBuffer(FRDGBuilder& GraphBuilder, uint32 BufferIndex);
 
 		FRHIGPUBufferReadback* GetLatestReadbackBuffer();
-		FRHIGPUTextureReadback* GetLatestReadbackTexture();
 
+		// TODO: Do we need to double buffer?
+		// - for readback we copy data to readback buffers
+		// - do we ever need to access prev frame exposure AFTER current frame exposure has been calculated?
+		// - should at least make it more explicit/safe by having GetCurrentBuffer() and GetPreviousBuffer()
+		//		and assert if current is accessed too early in frame.
 		static const int32 NUM_BUFFERS = 2;
 
-		int32 CurrentBuffer = 0;
+		int32 CurrentBufferIndex = 0;
 
 		float LastExposure = 0;
 		float LastAverageSceneLuminance = 0; // 0 means invalid. Used for Exposure Compensation Curve.
 
-		// Exposure texture/buffer is double buffered
 		TRefCountPtr<IPooledRenderTarget> PooledRenderTarget[NUM_BUFFERS];
-		TArray<FRHIGPUTextureReadback*> ExposureReadbackTextures;
 
-		// ES3.1 feature level. For efficent readback use buffers instead of textures
 		TRefCountPtr<FRDGPooledBuffer> ExposureBufferData[NUM_BUFFERS];
 		TArray<FRHIGPUBufferReadback*> ExposureReadbackBuffers;
 
@@ -1189,32 +1179,10 @@ public:
 		return Texture;
 	}
 
-	IPooledRenderTarget* GetCurrentEyeAdaptationTexture(FRHICommandList& RHICmdList)
+	IPooledRenderTarget* GetCurrentEyeAdaptationTexture(FRDGBuilder& GraphBuilder)
 	{
 		bValidEyeAdaptationTexture = true;
-		return EyeAdaptationManager.GetCurrentTexture(RHICmdList).GetReference();
-	}
-
-	/** Swaps the double-buffer targets used in eye adaptation */
-	void SwapEyeAdaptationTextures()
-	{
-		EyeAdaptationManager.SwapTextures();
-	}
-
-	void UpdateEyeAdaptationLastExposureFromTexture()
-	{
-		if (bUpdateLastExposure && bValidEyeAdaptationTexture)
-		{
-			EyeAdaptationManager.UpdateLastExposureFromTexture();
-		}
-	}
-
-	void EnqueueEyeAdaptationExposureTextureReadback(FRDGBuilder& GraphBuilder)
-	{
-		if (bUpdateLastExposure && bValidEyeAdaptationTexture)
-		{
-			EyeAdaptationManager.EnqueueExposureTextureReadback(GraphBuilder);
-		}
+		return EyeAdaptationManager.GetCurrentTexture(GraphBuilder).GetReference();
 	}
 
 	FRDGPooledBuffer* GetCurrentEyeAdaptationBuffer() const override final

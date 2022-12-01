@@ -52,10 +52,7 @@ struct FTonemapInputs
 	// [Required] Color grading texture used to remap colors.
 	FRDGTextureRef ColorGradingTexture = nullptr;
 
-	// [Optional, SM5+] Eye adaptation texture used to compute exposure. If this is null, a default exposure value is used instead.
-	FRDGTextureRef EyeAdaptationTexture = nullptr;
-
-	// [Optional, ES31] Eye adaptation buffer used to compute exposure. 
+	// Eye adaptation buffer used to compute exposure. 
 	FRDGBufferRef EyeAdaptationBuffer = nullptr;
 
 	// [Raster Only] Controls whether the alpha channel of the scene texture should be written to the output texture.

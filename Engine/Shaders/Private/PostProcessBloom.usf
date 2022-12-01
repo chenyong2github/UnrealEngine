@@ -26,13 +26,7 @@ float BloomThreshold;
 
 float2 GetExposureScaleMiddleGreyLumValue()
 {
-#if SHADING_PATH_DEFERRED
-	float2 ExposureScaleMiddleGreyLumValue = EyeAdaptationLookupTexture2D(EyeAdaptationTexture).xw;
-#elif SHADING_PATH_MOBILE
 	float2 ExposureScaleMiddleGreyLumValue = EyeAdaptationLookupBuffer(EyeAdaptationBuffer).xw;
-#else
-#	error Unknown shading path.
-#endif
 
 	// Middle grey lum value adjusted by exposure compensation
 	ExposureScaleMiddleGreyLumValue.y = log2(0.18f * ExposureScaleMiddleGreyLumValue.y * EyeAdaptation_LocalExposureMiddleGreyExposureCompensation);

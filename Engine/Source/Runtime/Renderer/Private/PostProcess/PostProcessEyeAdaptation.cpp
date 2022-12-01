@@ -525,6 +525,45 @@ float GetEyeAdaptationFixedExposure(const FViewInfo& View)
 }
 
 //////////////////////////////////////////////////////////////////////////
+//! CopyEyeAdaptationToTexture
+//////////////////////////////////////////////////////////////////////////
+
+class FCopyEyeAdaptationToTextureCS : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FCopyEyeAdaptationToTextureCS);
+	SHADER_USE_PARAMETER_STRUCT(FCopyEyeAdaptationToTextureCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, EyeAdaptationBuffer)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWEyeAdaptationTexture)
+		END_SHADER_PARAMETER_STRUCT()
+
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FCopyEyeAdaptationToTextureCS, "/Engine/Private/PostProcessEyeAdaptation.usf", "CopyEyeAdaptationToTextureCS", SF_Compute);
+
+void AddCopyEyeAdaptationDataToTexturePass(FRDGBuilder& GraphBuilder, const FGlobalShaderMap* ShaderMap, FRDGBufferRef EyeAdaptationBuffer, FRDGTextureRef OutputTexture)
+{
+	auto* PassParameters = GraphBuilder.AllocParameters<FCopyEyeAdaptationToTextureCS::FParameters>();
+	PassParameters->EyeAdaptationBuffer = GraphBuilder.CreateSRV(EyeAdaptationBuffer);
+	PassParameters->RWEyeAdaptationTexture = GraphBuilder.CreateUAV(OutputTexture);
+
+	auto ComputeShader = ShaderMap->GetShader<FCopyEyeAdaptationToTextureCS>();
+
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("CopyEyeAdaptationToTexture (CS)"),
+		ComputeShader,
+		PassParameters,
+		FIntVector(1, 1, 1));
+}
+
+//////////////////////////////////////////////////////////////////////////
 //! Setup
 //////////////////////////////////////////////////////////////////////////
 
@@ -704,7 +743,7 @@ class FEyeAdaptationCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, EyeAdaptation)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistogramTexture)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWEyeAdaptationTexture)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<float4>, RWEyeAdaptationBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static const EPixelFormat OutputFormat = PF_A32B32G32R32F;
@@ -717,21 +756,21 @@ class FEyeAdaptationCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FEyeAdaptationCS, "/Engine/Private/PostProcessEyeAdaptation.usf", "EyeAdaptationCS", SF_Compute);
 
-FRDGTextureRef AddHistogramEyeAdaptationPass(
+FRDGBufferRef AddHistogramEyeAdaptationPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FEyeAdaptationParameters& EyeAdaptationParameters,
 	FRDGTextureRef HistogramTexture)
 {
-	View.UpdateEyeAdaptationLastExposureFromTexture();
-	View.SwapEyeAdaptationTextures();
+	View.UpdateEyeAdaptationLastExposureFromBuffer();
+	View.SwapEyeAdaptationBuffers();
 
-	FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(View.GetEyeAdaptationTexture(GraphBuilder.RHICmdList), ERDGTextureFlags::MultiFrame);
+	FRDGBufferRef OutputBuffer = GraphBuilder.RegisterExternalBuffer(View.GetEyeAdaptationBuffer(GraphBuilder), ERDGBufferFlags::MultiFrame);
 
 	FEyeAdaptationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FEyeAdaptationCS::FParameters>();
 	PassParameters->EyeAdaptation = GetEyeAdaptationParameters(View, ERHIFeatureLevel::SM5);
 	PassParameters->HistogramTexture = HistogramTexture;
-	PassParameters->RWEyeAdaptationTexture = GraphBuilder.CreateUAV(OutputTexture);
+	PassParameters->RWEyeAdaptationBuffer = GraphBuilder.CreateUAV(OutputBuffer);
 
 	TShaderMapRef<FEyeAdaptationCS> ComputeShader(View.ShaderMap);
 	FComputeShaderUtils::AddPass(
@@ -741,9 +780,14 @@ FRDGTextureRef AddHistogramEyeAdaptationPass(
 		PassParameters,
 		FIntVector(1, 1, 1));
 
-	View.EnqueueEyeAdaptationExposureTextureReadback(GraphBuilder);
+	{
+		FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(View.GetEyeAdaptationTexture(GraphBuilder), ERDGTextureFlags::MultiFrame);
+		AddCopyEyeAdaptationDataToTexturePass(GraphBuilder, View.ShaderMap, OutputBuffer, OutputTexture);
+	}
 
-	return OutputTexture;
+	View.EnqueueEyeAdaptationExposureBufferReadback(GraphBuilder);
+
+	return OutputBuffer;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -822,8 +866,8 @@ public:
 		SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, EyeAdaptation)
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Color)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ColorTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptationTexture)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWEyeAdaptationTexture)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, EyeAdaptationBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<float4>, RWEyeAdaptationBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -834,29 +878,29 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FBasicEyeAdaptationCS, "/Engine/Private/PostProcessEyeAdaptation.usf", "BasicEyeAdaptationCS", SF_Compute);
 
-FRDGTextureRef AddBasicEyeAdaptationPass(
+FRDGBufferRef AddBasicEyeAdaptationPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FEyeAdaptationParameters& EyeAdaptationParameters,
 	FScreenPassTexture SceneColor,
-	FRDGTextureRef EyeAdaptationTexture)
+	FRDGBufferRef EyeAdaptationBuffer)
 {
-	View.UpdateEyeAdaptationLastExposureFromTexture();
-	View.SwapEyeAdaptationTextures();
+	View.UpdateEyeAdaptationLastExposureFromBuffer();
+	View.SwapEyeAdaptationBuffers();
 
 	const FScreenPassTextureViewport SceneColorViewport(SceneColor);
 
-	FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(View.GetEyeAdaptationTexture(GraphBuilder.RHICmdList), ERDGTextureFlags::MultiFrame);
+	FRDGBufferRef OutputBuffer = GraphBuilder.RegisterExternalBuffer(View.GetEyeAdaptationBuffer(GraphBuilder), ERDGBufferFlags::MultiFrame);
 
 	FBasicEyeAdaptationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBasicEyeAdaptationCS::FParameters>();
 	PassParameters->View = View.ViewUniformBuffer;
 	PassParameters->EyeAdaptation = EyeAdaptationParameters;
 	PassParameters->Color = GetScreenPassTextureViewportParameters(SceneColorViewport);
 	PassParameters->ColorTexture = SceneColor.Texture;
-	PassParameters->EyeAdaptationTexture = EyeAdaptationTexture;
-	PassParameters->RWEyeAdaptationTexture = GraphBuilder.CreateUAV(OutputTexture);
+	PassParameters->EyeAdaptationBuffer = GraphBuilder.CreateSRV(EyeAdaptationBuffer);
+	PassParameters->RWEyeAdaptationBuffer = GraphBuilder.CreateUAV(OutputBuffer);
 
-	auto ComputeShader = View.ShaderMap->GetShader<FBasicEyeAdaptationCS>();
+	TShaderMapRef<FBasicEyeAdaptationCS> ComputeShader(View.ShaderMap);
 
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
@@ -865,20 +909,24 @@ FRDGTextureRef AddBasicEyeAdaptationPass(
 		PassParameters,
 		FIntVector(1, 1, 1));
 
-	View.EnqueueEyeAdaptationExposureTextureReadback(GraphBuilder);
+	{
+		FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(View.GetEyeAdaptationTexture(GraphBuilder), ERDGTextureFlags::MultiFrame);
+		AddCopyEyeAdaptationDataToTexturePass(GraphBuilder, View.ShaderMap, OutputBuffer, OutputTexture);
+	}
 
-	return OutputTexture;
+	View.EnqueueEyeAdaptationExposureBufferReadback(GraphBuilder);
+
+	return OutputBuffer;
 }
 
 FSceneViewState::FEyeAdaptationManager::FEyeAdaptationManager()
 {
-	ExposureReadbackTextures.AddZeroed(MAX_READBACK_BUFFERS);
 	ExposureReadbackBuffers.AddZeroed(MAX_READBACK_BUFFERS);
 }
 
 void FSceneViewState::FEyeAdaptationManager::SafeRelease()
 {
-	CurrentBuffer = 0;
+	CurrentBufferIndex = 0;
 	ReadbackBuffersWriteIndex = 0;
 	ReadbackBuffersNumPending = 0;
 
@@ -887,17 +935,8 @@ void FSceneViewState::FEyeAdaptationManager::SafeRelease()
 
 	for (int32 Index = 0; Index < NUM_BUFFERS; Index++)
 	{
-		PooledRenderTarget[Index].SafeRelease();
 		ExposureBufferData[Index].SafeRelease();
-	}
-
-	for (int32 Index = 0; Index < ExposureReadbackTextures.Num(); ++Index)
-	{
-		if (ExposureReadbackTextures[Index])
-		{
-			delete ExposureReadbackTextures[Index];
-			ExposureReadbackTextures[Index] = nullptr;
-		}
+		PooledRenderTarget[Index].SafeRelease();
 	}
 
 	for (int32 Index = 0; Index < ExposureReadbackBuffers.Num(); ++Index)
@@ -910,102 +949,23 @@ void FSceneViewState::FEyeAdaptationManager::SafeRelease()
 	}
 }
 
-FRHIGPUTextureReadback* FSceneViewState::FEyeAdaptationManager::GetLatestReadbackTexture()
-{
-	FRHIGPUTextureReadback* LatestReadbackTexture = nullptr;
-
-	// Find latest texture that is ready
-	while (ReadbackBuffersNumPending > 0)
-	{
-		uint32 Index = (ReadbackBuffersWriteIndex + MAX_READBACK_BUFFERS - ReadbackBuffersNumPending) % MAX_READBACK_BUFFERS;
-
-		if (ExposureReadbackTextures[Index]->IsReady())
-		{
-			--ReadbackBuffersNumPending;
-			LatestReadbackTexture = ExposureReadbackTextures[Index];
-		}
-		else
-		{
-			break;
-		}
-	}
-
-	return LatestReadbackTexture;
-}
-
-void FSceneViewState::FEyeAdaptationManager::SwapTextures()
-{
-	CurrentBuffer = (CurrentBuffer + 1) % NUM_BUFFERS;
-}
-
-void FSceneViewState::FEyeAdaptationManager::UpdateLastExposureFromTexture()
-{
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_FEyeAdaptationRTManager_ReadbackLastExposure);
-
-	// Get the most up to date value
-	FRHIGPUTextureReadback* ReadbackTexture = GetLatestReadbackTexture();
-
-	if (ReadbackTexture)
-	{
-		// Read the last request results.
-		int32 RowPitch = 0;
-		FVector4f* ReadbackData = (FVector4f*)ReadbackTexture->Lock(RowPitch);
-		if (ReadbackData)
-		{
-			LastExposure = ReadbackData->X;
-			LastAverageSceneLuminance = ReadbackData->Z;
-
-			ReadbackTexture->Unlock();
-		}
-	}
-}
-
-void FSceneViewState::FEyeAdaptationManager::EnqueueExposureTextureReadback(FRDGBuilder& GraphBuilder)
-{
-	check(PooledRenderTarget[CurrentBuffer].IsValid());
-	
-	if (ReadbackBuffersNumPending < MAX_READBACK_BUFFERS)
-	{
-		// limit to single bit here for readback to work
-		RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::FromIndex(GraphBuilder.RHICmdList.GetGPUMask().GetFirstIndex()));
-		FRDGTextureRef CurrentTexture = GraphBuilder.RegisterExternalTexture(PooledRenderTarget[CurrentBuffer], ERDGTextureFlags::MultiFrame);
-
-		FRHIGPUTextureReadback* ExposureReadbackTexture = ExposureReadbackTextures[ReadbackBuffersWriteIndex];
-
-		if (ExposureReadbackTexture == nullptr)
-		{
-			static const FName ExposureValueName(TEXT("Scene view state exposure readback"));
-			ExposureReadbackTexture = new FRHIGPUTextureReadback(ExposureValueName);
-			ExposureReadbackTextures[ReadbackBuffersWriteIndex] = ExposureReadbackTexture;
-		}
-
-		AddEnqueueCopyPass(GraphBuilder, ExposureReadbackTexture, CurrentTexture);
-
-		ReadbackBuffersWriteIndex = (ReadbackBuffersWriteIndex + 1) % MAX_READBACK_BUFFERS;
-		ReadbackBuffersNumPending = FMath::Min(ReadbackBuffersNumPending + 1, MAX_READBACK_BUFFERS);
-	}
-}
-
 const TRefCountPtr<IPooledRenderTarget>& FSceneViewState::FEyeAdaptationManager::GetTexture(uint32 TextureIndex) const
 {
 	check(0 <= TextureIndex && TextureIndex < NUM_BUFFERS);
 	return PooledRenderTarget[TextureIndex];
 }
 
-const TRefCountPtr<IPooledRenderTarget>& FSceneViewState::FEyeAdaptationManager::GetOrCreateTexture(FRHICommandList& RHICmdList, uint32 TextureIndex)
+const TRefCountPtr<IPooledRenderTarget>& FSceneViewState::FEyeAdaptationManager::GetOrCreateTexture(FRDGBuilder& GraphBuilder, uint32 TextureIndex)
 {
 	check(0 <= TextureIndex && TextureIndex < NUM_BUFFERS);
 
-	// Create textures if needed.
+	// Create texture if needed.
 	if (!PooledRenderTarget[TextureIndex].IsValid())
 	{
-		// Create the texture needed for EyeAdaptation
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(1, 1), PF_A32B32G32R32F, FClearValueBinding::None, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
-		if (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5)
-		{
-			Desc.Flags |= TexCreate_UAV;
-		}
-		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, PooledRenderTarget[TextureIndex], TEXT("EyeAdaptation"));
+		const FRDGTextureDesc RDGTextureDesc = FRDGTextureDesc::Create2D(FIntPoint(1, 1), PF_A32B32G32R32F, FClearValueBinding::None, TexCreate_UAV | TexCreate_ShaderResource);
+		FRDGTextureRef RDGTexture = GraphBuilder.CreateTexture(RDGTextureDesc, TEXT("EyeAdaptationTexture"), ERDGTextureFlags::MultiFrame);
+
+		PooledRenderTarget[TextureIndex] = GraphBuilder.ConvertToExternalTexture(RDGTexture);
 	}
 
 	return PooledRenderTarget[TextureIndex];
@@ -1022,7 +982,7 @@ const TRefCountPtr<FRDGPooledBuffer>& FSceneViewState::FEyeAdaptationManager::Ge
 {
 	check(0 <= BufferIndex && BufferIndex < NUM_BUFFERS);
 
-	// Create textures if needed.
+	// Create buffer if needed.
 	if (!ExposureBufferData[BufferIndex].IsValid())
 	{
 		FRDGBufferDesc RDGBufferDesc = FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4f), 1);
@@ -1064,7 +1024,7 @@ FRHIGPUBufferReadback* FSceneViewState::FEyeAdaptationManager::GetLatestReadback
 
 void FSceneViewState::FEyeAdaptationManager::SwapBuffers()
 {
-	CurrentBuffer = (CurrentBuffer + 1) % NUM_BUFFERS;
+	CurrentBufferIndex = (CurrentBufferIndex + 1) % NUM_BUFFERS;
 }
 
 void FSceneViewState::FEyeAdaptationManager::UpdateLastExposureFromBuffer()
@@ -1090,11 +1050,11 @@ void FSceneViewState::FEyeAdaptationManager::UpdateLastExposureFromBuffer()
 
 void FSceneViewState::FEyeAdaptationManager::EnqueueExposureBufferReadback(FRDGBuilder& GraphBuilder)
 {
-	check(ExposureBufferData[CurrentBuffer].IsValid());
+	check(ExposureBufferData[CurrentBufferIndex].IsValid());
 
 	if (ReadbackBuffersNumPending < MAX_READBACK_BUFFERS)
 	{
-		FRDGBufferRef CurrentRDGBuffer = GraphBuilder.RegisterExternalBuffer(ExposureBufferData[CurrentBuffer], ERDGBufferFlags::MultiFrame);
+		FRDGBufferRef CurrentRDGBuffer = GraphBuilder.RegisterExternalBuffer(ExposureBufferData[CurrentBufferIndex], ERDGBufferFlags::MultiFrame);
 
 		FRHIGPUBufferReadback* ExposureReadbackBuffer = ExposureReadbackBuffers[ReadbackBuffersWriteIndex];
 

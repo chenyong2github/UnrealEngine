@@ -43,7 +43,7 @@ uint2 ThreadGroupCount;
 #define HISTOGRAMS_PER_THREAD ( (HISTOGRAM_SIZE < THREADGROUP_SIZEX) ? 1: HISTOGRAM_SIZE/THREADGROUP_SIZEX)
 
 Texture2D InputTexture;
-Texture2D EyeAdaptationTexture;
+StructuredBuffer<float4> EyeAdaptationBuffer;
 
 ///////////////////////////////////////////////////////
 // * LOCAL DATA STORE *
@@ -396,7 +396,7 @@ void HistogramConvertCS(uint3 GroupThreadId : SV_GroupThreadID)
 {
 	float2 InvViewSize = Input_ViewportSizeInverse.xy;
 	float NormalizeFactor = InvViewSize.x * InvViewSize.y;
-	float4 OldExposureScale = ToScalarMemory(EyeAdaptationTexture.Load(int3(0, 0, 0)));
+	float4 OldExposureScale = ToScalarMemory(EyeAdaptationBuffer[0]);
 
 	UNROLL_N(HISTOGRAMS_PER_THREAD)
 	for (uint t = 0; t < HISTOGRAMS_PER_THREAD; t++)

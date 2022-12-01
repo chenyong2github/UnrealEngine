@@ -12,7 +12,7 @@ FRDGTextureRef AddHistogramPass(
 	const FEyeAdaptationParameters& EyeAdaptationParameters,
 	FScreenPassTexture SceneColor,
 	const FSceneTextureParameters& SceneTextures,
-	FRDGTextureRef EyeAdaptationTexture);
+	FRDGBufferRef EyeAdaptationBuffer);
 
 FRDGTextureRef AddLocalExposurePass(
 	FRDGBuilder& GraphBuilder,

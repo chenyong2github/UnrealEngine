@@ -106,8 +106,8 @@ FRDGTextureRef AddCalculateExposureIlluminancePass(
 	const struct FTranslucencyLightingVolumeTextures& TranslucencyLightingVolumeTextures,
 	FRDGTextureRef ExposureIlluminanceSetup);
 
-// Returns the updated 1x1 eye adaptation texture.
-FRDGTextureRef AddHistogramEyeAdaptationPass(
+// Returns the updated eye adaptation buffer.
+FRDGBufferRef AddHistogramEyeAdaptationPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FEyeAdaptationParameters& EyeAdaptationParameters,
@@ -120,10 +120,10 @@ FScreenPassTexture AddBasicEyeAdaptationSetupPass(
 	const FEyeAdaptationParameters& EyeAdaptationParameters,
 	FScreenPassTexture SceneColor);
 
-// Returns the updated 1x1 eye adaptation texture.
-FRDGTextureRef AddBasicEyeAdaptationPass(
+// Returns the updated eye adaptation buffer.
+FRDGBufferRef AddBasicEyeAdaptationPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FEyeAdaptationParameters& EyeAdaptationParameters,
 	FScreenPassTexture SceneColor,
-	FRDGTextureRef EyeAdaptationTexture);
+	FRDGBufferRef EyeAdaptationBuffer);

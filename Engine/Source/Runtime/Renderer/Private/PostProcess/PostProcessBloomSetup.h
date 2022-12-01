@@ -27,8 +27,8 @@ struct FBloomSetupInputs
 	// [Required]: The intermediate scene color being processed.
 	FScreenPassTexture SceneColor;
 
-	// [Required]: The scene eye adaptation texture.
-	FRDGTextureRef EyeAdaptationTexture = nullptr;
+	// [Required]: The scene eye adaptation buffer.
+	FRDGBufferRef EyeAdaptationBuffer = nullptr;
 
 	// [Required]: The bloom threshold to apply. Must be >0.
 	float Threshold = 0.0f;

@@ -10,7 +10,7 @@
 uint LoopSize;
 
 // The last frames eye adaptation settings
-Texture2D EyeAdaptationTexture;
+StructuredBuffer<float4> EyeAdaptationBuffer;
 
 Texture2D InputTexture;
 
@@ -38,10 +38,10 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition: 
 	}
 	else
 	{
-		// line 1: store 4 channels of EyeAdaptationTexture (copied over so we can read the value in EyeAdaptation pass which is writing to eye adaptation)
+		// line 1: store 4 channels of EyeAdaptationBuffer (copied over so we can read the value in EyeAdaptation pass which is writing to eye adaptation)
 
 		// second line first pixel in the texture has the ExposureScale from last frame
-		float4 OldExposureScale = EyeAdaptationTexture.Load(int3(0, 0, 0));
+		float4 OldExposureScale = EyeAdaptationBuffer[0];
 
 		OutColor = OldExposureScale;
 	}

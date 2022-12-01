@@ -2200,51 +2200,19 @@ FSceneViewState* FViewInfo::GetEyeAdaptationViewState() const
 	return static_cast<FSceneViewState*>(EyeAdaptationViewState);
 }
 
-IPooledRenderTarget* FViewInfo::GetEyeAdaptationTexture(FRHICommandList& RHICmdList) const
+IPooledRenderTarget* FViewInfo::GetEyeAdaptationTexture(FRDGBuilder& GraphBuilder) const
 {
-	checkf(FeatureLevel > ERHIFeatureLevel::ES3_1, TEXT("SM5 and above use RenderTarget for read back"));
+	checkf(FeatureLevel > ERHIFeatureLevel::ES3_1, TEXT("EyeAdaptation Texture is only available on SM5 and above."));
 
 	if (FSceneViewState* EffectiveViewState = GetEyeAdaptationViewState())
 	{
-		return EffectiveViewState->GetCurrentEyeAdaptationTexture(RHICmdList);
+		return EffectiveViewState->GetCurrentEyeAdaptationTexture(GraphBuilder);
 	}
 	return nullptr;
 }
 
-void FViewInfo::SwapEyeAdaptationTextures() const
-{
-	checkf(FeatureLevel > ERHIFeatureLevel::ES3_1, TEXT("SM5 and above use RenderTarget for read back"));
-
-	if (FSceneViewState* EffectiveViewState = GetEyeAdaptationViewState())
-	{
-		EffectiveViewState->SwapEyeAdaptationTextures();
-	}
-}
-
-void FViewInfo::UpdateEyeAdaptationLastExposureFromTexture() const
-{
-	checkf(FeatureLevel > ERHIFeatureLevel::ES3_1, TEXT("SM5 and above use RenderTarget for read back"));
-
-	if (FSceneViewState* EffectiveViewState = GetEyeAdaptationViewState())
-	{
-		EffectiveViewState->UpdateEyeAdaptationLastExposureFromTexture();
-	}
-}
-
-void FViewInfo::EnqueueEyeAdaptationExposureTextureReadback(FRDGBuilder& GraphBuilder) const
-{
-	checkf(FeatureLevel > ERHIFeatureLevel::ES3_1, TEXT("SM5 and above use RenderTarget for read back"));
-
-	if (FSceneViewState* EffectiveViewState = GetEyeAdaptationViewState())
-	{
-		EffectiveViewState->EnqueueEyeAdaptationExposureTextureReadback(GraphBuilder);
-	}
-}
-
 FRDGPooledBuffer* FViewInfo::GetEyeAdaptationBuffer(FRDGBuilder& GraphBuilder) const
 {
-	checkf(FeatureLevel == ERHIFeatureLevel::ES3_1, TEXT("ES3_1 use RWBuffer for read back"));
-
 	if (FSceneViewState* EffectiveViewState = GetEyeAdaptationViewState())
 	{
 		return EffectiveViewState->GetCurrentEyeAdaptationBuffer(GraphBuilder);
@@ -2254,8 +2222,6 @@ FRDGPooledBuffer* FViewInfo::GetEyeAdaptationBuffer(FRDGBuilder& GraphBuilder) c
 
 void FViewInfo::SwapEyeAdaptationBuffers() const
 {
-	checkf(FeatureLevel == ERHIFeatureLevel::ES3_1, TEXT("ES3_1 use RWBuffer for read back"));
-
 	if (FSceneViewState* EffectiveViewState = GetEyeAdaptationViewState())
 	{
 		EffectiveViewState->SwapEyeAdaptationBuffers();
@@ -2264,8 +2230,6 @@ void FViewInfo::SwapEyeAdaptationBuffers() const
 
 void FViewInfo::UpdateEyeAdaptationLastExposureFromBuffer() const
 {
-	checkf(FeatureLevel == ERHIFeatureLevel::ES3_1, TEXT("ES3_1 use RWBuffer for read back"));
-
 	if (FSceneViewState* EffectiveViewState = GetEyeAdaptationViewState())
 	{
 		EffectiveViewState->UpdateEyeAdaptationLastExposureFromBuffer();
@@ -2274,8 +2238,6 @@ void FViewInfo::UpdateEyeAdaptationLastExposureFromBuffer() const
 
 void FViewInfo::EnqueueEyeAdaptationExposureBufferReadback(FRDGBuilder& GraphBuilder) const
 {
-	checkf(FeatureLevel == ERHIFeatureLevel::ES3_1, TEXT("ES3_1 use RWBuffer for read back"));
-
 	if (FSceneViewState* EffectiveViewState = GetEyeAdaptationViewState())
 	{
 		EffectiveViewState->EnqueueEyeAdaptationExposureBufferReadback(GraphBuilder);

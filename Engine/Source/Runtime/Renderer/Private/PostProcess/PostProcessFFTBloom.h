@@ -25,6 +25,6 @@ FFFTBloomOutput AddFFTBloomPass(
 	const FScreenPassTexture& InputSceneColor,
 	float InputResolutionFraction,
 	const FEyeAdaptationParameters& EyeAdaptationParameters,
-	FRDGTextureRef EyeAdaptationTexture,
+	FRDGBufferRef EyeAdaptationBuffer,
 	FRDGTextureRef LocalExposureTexture,
 	FRDGTextureRef BlurredLogLuminanceTexture);
