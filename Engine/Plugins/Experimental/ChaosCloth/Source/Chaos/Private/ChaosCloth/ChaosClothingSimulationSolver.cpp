@@ -1033,7 +1033,7 @@ void FClothingSimulationSolver::Update(Softs::FSolverReal InDeltaTime)
 
 			const int32 TimeDependentNumIterations = bClothSolverDisableTimeDependentNumIterations ?
 				NumIterations :
-				(int32)(SolverFrequency * DeltaTime * (Softs::FSolverReal)NumIterations);
+				FMath::RoundToInt32(SolverFrequency * DeltaTime * (Softs::FSolverReal)NumIterations);
 
 			Evolution->SetIterations(FMath::Clamp(TimeDependentNumIterations, 1, MaxNumIterations));
 
