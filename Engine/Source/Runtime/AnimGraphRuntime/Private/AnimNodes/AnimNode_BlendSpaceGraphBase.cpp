@@ -82,7 +82,8 @@ void FAnimNode_BlendSpaceGraphBase::Update_AnyThread(const FAnimationUpdateConte
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Update_AnyThread)
 	GetEvaluateGraphExposedInputs().Execute(Context);
 
-	UE::Anim::TScopedGraphMessage<UE::Anim::FAnimSyncGroupScope> Message(Context, Context, GroupName, GroupRole);
+	const bool bApplySyncing = GroupName != NAME_None;
+	UE::Anim::TOptionalScopedGraphMessage<UE::Anim::FAnimSyncGroupScope> Message(bApplySyncing, Context, Context, GroupName, GroupRole);
 
 	UpdateInternal(Context);
 }
