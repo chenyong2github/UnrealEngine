@@ -607,6 +607,15 @@ private:
 
 	TMap<FString, FString> GameFeaturePluginNameToPathMap;
 
+	struct FCachedGameFeaturePluginDetails
+	{
+		FGameFeaturePluginDetails Details;
+		FDateTime TimeStamp;
+		FCachedGameFeaturePluginDetails() {}
+		FCachedGameFeaturePluginDetails(const FGameFeaturePluginDetails& InDetails, const FDateTime& InTimeStamp) : Details(InDetails), TimeStamp(InTimeStamp) {}
+	};
+	mutable TMap<FString, FCachedGameFeaturePluginDetails> CachedPluginDetailsByFilename;
+
 	UPROPERTY()
 	TArray<TObjectPtr<UObject>> Observers;
 
