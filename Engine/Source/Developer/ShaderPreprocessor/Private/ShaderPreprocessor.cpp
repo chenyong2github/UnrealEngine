@@ -7,8 +7,6 @@
 #include "Modules/ModuleManager.h"
 #include "PreprocessorPrivate.h"
 
-#define STB_DS_IMPLEMENTATION
-#define STB_ALLOC_IMPLEMENTATION
 #include "stb_preprocess/preprocessor.h"
 #include "stb_preprocess/stb_alloc.h"
 #include "stb_preprocess/stb_ds.h"
