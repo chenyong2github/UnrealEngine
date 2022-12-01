@@ -23,6 +23,7 @@ namespace UnrealBuildTool.Rules
 					"RenderCore",
 					"RHI",
 					"ElectraBase",
+					"ColorManagement",
 				});
 
 			PrivateIncludePathModuleNames.AddRange(

@@ -33,10 +33,7 @@ public:
 	}
 
 public:
-	void Initialize(FVideoDecoderOutput* InVideoDecoderOutput)
-	{
-		VideoDecoderOutput = StaticCastSharedPtr<FVideoDecoderOutputApple, IDecoderOutputPoolable, ESPMode::ThreadSafe>(InVideoDecoderOutput->AsShared());
-	}
+	void Initialize(FVideoDecoderOutput* InVideoDecoderOutput);
 
 	//~ IMediaTextureSample interface
 
@@ -59,10 +56,7 @@ public:
 		return (EMediaOrientation)VideoDecoderOutput->GetOrientation();
 	}
 
-	virtual EMediaTextureSampleFormat GetFormat() const override
-	{
-		return EMediaTextureSampleFormat::CharBGRA;
-	}
+	virtual EMediaTextureSampleFormat GetFormat() const override;
 
 	virtual FIntPoint GetOutputDim() const override;
 	virtual uint32 GetStride() const override;
@@ -79,15 +73,18 @@ public:
 		return true;
 	}
 
-	virtual bool IsOutputSrgb() const override
-	{
-		return true;
-	}
-
     virtual IMediaTextureSampleConverter* GetMediaTextureSampleConverter() override
     {
         return this;
     }
+
+	bool IsOutputSrgb() const override;
+	const FMatrix& GetYUVToRGBMatrix() const override;
+	bool GetFullRange() const override;
+	FMatrix44f GetSampleToRGBMatrix() const override;
+	FMatrix44f GetGamutToXYZMatrix() const override;
+	FVector2f GetWhitePoint() const override;
+	UE::Color::EEncoding GetEncodingType() const override;
 
 	virtual void InitializePoolable() override;
 	virtual void ShutdownPoolable() override;
@@ -100,6 +97,13 @@ private:
 	TSharedPtr<FVideoDecoderOutputApple, ESPMode::ThreadSafe> VideoDecoderOutput;
 
 	TWeakPtr<FElectraMediaTexConvApple, ESPMode::ThreadSafe> TexConv;
+
+	/** Quick access for some HDR related info */
+	TWeakPtr<const IVideoDecoderHDRInformation, ESPMode::ThreadSafe> HDRInfo;
+	TWeakPtr<const IVideoDecoderColorimetry, ESPMode::ThreadSafe> Colorimetry;
+
+	/** YUV matrix, adjusted to compensate for decoder output specific scale */
+	FMatrix44f YuvToRgbMtx;
 
 	virtual uint32 GetConverterInfoFlags() const override;
     virtual bool Convert(FTexture2DRHIRef & InDstTexture, const FConversionHints & Hints) override;
@@ -117,7 +121,7 @@ public:
     ~FElectraMediaTexConvApple();
 
 #if WITH_ENGINE
-    void ConvertTexture(FTexture2DRHIRef & InDstTexture, CVImageBufferRef InImageBufferRef);
+    void ConvertTexture(FTexture2DRHIRef & InDstTexture, CVImageBufferRef InImageBufferRef, bool bFullRange, EMediaTextureSampleFormat Format, const FMatrix44f& YUVMtx, const FMatrix44f& GamutToXYZMtx, UE::Color::EEncoding EncodingType);
 #endif
 
 private:
