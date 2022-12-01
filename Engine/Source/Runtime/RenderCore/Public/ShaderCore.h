@@ -664,7 +664,7 @@ struct FShaderCodeResourceMasks
 };
 
 // if this changes you need to make sure all shaders get invalidated
-enum class EShaderCodeFeatures : uint8
+enum class EShaderCodeFeatures : uint16
 {
 	None                    = 0,
 	WaveOps                 = 1 << 0,
@@ -674,6 +674,7 @@ enum class EShaderCodeFeatures : uint8
 	DiagnosticBuffer        = 1 << 4,
 	BindlessResources       = 1 << 5,
 	BindlessSamplers        = 1 << 6,
+	StencilRef              = 1 << 7,
 };
 ENUM_CLASS_FLAGS(EShaderCodeFeatures);
 

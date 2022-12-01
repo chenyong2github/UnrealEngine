@@ -58,13 +58,21 @@ public:
 			ShaderModelHash ^= 0x96ED7F56;
 		#endif
 
+			// Make sure we recompile if EShaderCodeFeatures gets bigger
+			ShaderModelHash = HashCombine(ShaderModelHash, GetTypeHash(sizeof(EShaderCodeFeatures)));
+
 			return HashCombine(DxcVersionHash, ShaderModelHash);
 		}
 		else if (Format == NAME_PCD3D_SM5)
 		{
+			uint32 ShaderModelHash = GetVersionHash(UE_SHADER_PCD3D_SM6_VER);
+
+			// Make sure we recompile if EShaderCodeFeatures gets bigger
+			ShaderModelHash = HashCombine(ShaderModelHash, GetTypeHash(sizeof(EShaderCodeFeatures)));
+
 			// Technically not needed for regular SM5 compiled with legacy compiler,
 			// but PCD3D_SM5 currently includes ray tracing shaders that are compiled with new compiler stack.
-			return HashCombine(DxcVersionHash, GetVersionHash(UE_SHADER_PCD3D_SM5_VER));
+			return HashCombine(DxcVersionHash, ShaderModelHash);
 		}
 		else if (Format == NAME_PCD3D_ES3_1) 
 		{

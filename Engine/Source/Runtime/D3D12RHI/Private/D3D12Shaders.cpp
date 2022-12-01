@@ -76,6 +76,11 @@ static bool ValidateShaderIsUsable(FD3D12ShaderData* InShader, EShaderFrequency 
 			return false;
 		}
 	}
+
+	if (InFrequency == SF_Pixel && EnumHasAnyFlags(InShader->Features, EShaderCodeFeatures::StencilRef) && !GRHISupportsStencilRefFromPixelShader)
+	{
+		return false;
+	}
 #endif
 
 	return true;

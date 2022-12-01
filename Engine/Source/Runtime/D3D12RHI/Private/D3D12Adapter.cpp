@@ -953,6 +953,15 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				UE_LOG(LogD3D12RHI, Log, TEXT("Bindless resources are supported"));
 			}
 
+			{
+				D3D12_FEATURE_DATA_D3D12_OPTIONS Features{};
+				RootDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &Features, sizeof(Features));
+
+				GRHISupportsStencilRefFromPixelShader = (Features.PSSpecifiedStencilRefSupported != 0);
+
+				UE_LOG(LogD3D12RHI, Log, TEXT("Stencil ref from pixel shader is %s"), GRHISupportsStencilRefFromPixelShader ? TEXT("supported") : TEXT("not supported"));
+			}
+
 			// Detect availability of shader model 6.0 wave operations
 			{
 				D3D12_FEATURE_DATA_D3D12_OPTIONS1 Features{};
