@@ -819,14 +819,9 @@ mu::NodeObjectPtr GenerateMutableSource(const UEdGraphPin * Pin, FMutableGraphGe
 				LODNode->SetComponent(MeshComponentIndex, ComponentNode);
 			}
 
-			if (GenerationContext.CurrentLOD < GenerationContext.FirstLODAvailable)
-			{
-				continue;
-			} 
-
 			const bool bUseAutomaticLods = 
 					GenerationContext.CurrentAutoLODStrategy == ECustomizableObjectAutomaticLODStrategy::AutomaticFromMesh;
-			LastDefinedLOD = (LODIndex < NumLODs) && (LastDefinedLOD == -1 || !bUseAutomaticLods) ? LODIndex : LastDefinedLOD;
+			LastDefinedLOD = (LODIndex < NumLODs) && (LastDefinedLOD == INDEX_NONE || !bUseAutomaticLods) ? LODIndex : LastDefinedLOD;
 
 			// It turns out LODToGenerate is always LastDefinedLOD.
 			const int32& LODToGenerate = LastDefinedLOD;
@@ -834,6 +829,11 @@ mu::NodeObjectPtr GenerateMutableSource(const UEdGraphPin * Pin, FMutableGraphGe
 			{
 				continue;
 			}
+
+			if (GenerationContext.CurrentLOD < GenerationContext.FirstLODAvailable)
+			{
+				continue;
+			} 
 			
 			TArray<UEdGraphPin*> ConnectedLODPins = FollowInputPinArray(*TypedNodeObj->LODPin(LODToGenerate));
 
@@ -1401,7 +1401,7 @@ int32 ComputeLODBias(const FMutableGraphGenerationContext& GenerationContext, co
 		GenerationContext.CurrentAutoLODStrategy == ECustomizableObjectAutomaticLODStrategy::AutomaticFromMesh)
 	{
 		// Only if the texture actually uses a layout. Otherwise it could be a special texture we shouldn't scale.
-		if (MaterialNode->GetImageUVLayout(ImageIndex) >= 0)
+		if (!MaterialNode || MaterialNode->GetImageUVLayout(ImageIndex) >= 0)
 		{
 			// \todo: make it an object property to be tweaked
 			int MipsToSkipPerLOD = 1;

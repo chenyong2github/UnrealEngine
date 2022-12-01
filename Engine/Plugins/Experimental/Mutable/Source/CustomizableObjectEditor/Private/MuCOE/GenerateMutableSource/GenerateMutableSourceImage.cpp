@@ -251,9 +251,17 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 		ResizeNode->SetBase(FormatNode);
 		ResizeNode->SetRelative(false);
 
-		if (TypedNodeParam->DefaultValue)
+		const UTexture2D* ReferenceTexture = TypedNodeParam->DefaultValue;
+		if (ReferenceTexture)
 		{
-			ResizeNode->SetSize(TypedNodeParam->DefaultValue->GetResource()->GetSizeX(), TypedNodeParam->DefaultValue->GetResource()->GetSizeY());
+			const int32 LODBias = ComputeLODBias(GenerationContext, ReferenceTexture, MaxTextureSize, nullptr, INDEX_NONE);
+
+			int32 Width = MaxTextureSize > 0 ? FMath::Min(MaxTextureSize, ReferenceTexture->GetImportedSize().X) : ReferenceTexture->GetImportedSize().X;
+			int32 Height = MaxTextureSize > 0 ? FMath::Min(MaxTextureSize, ReferenceTexture->GetImportedSize().Y) : ReferenceTexture->GetImportedSize().Y;
+			Width = Width >> LODBias;
+			Height = Height >> LODBias;
+
+			ResizeNode->SetSize(FMath::Max(Width,1), FMath::Max(Height, 1));
 		}
 		else
 		{
