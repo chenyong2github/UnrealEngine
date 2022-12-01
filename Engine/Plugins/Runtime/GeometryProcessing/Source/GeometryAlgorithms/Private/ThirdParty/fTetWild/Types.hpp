@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
 #if defined(_MSC_VER)
 #pragma warning(push)
 #pragma warning(disable : 6011)
@@ -15,7 +16,9 @@
 #pragma warning(disable : 6313)
 #pragma warning(disable : 6294)
 #endif
+THIRD_PARTY_INCLUDES_START
 #include <Eigen/Dense>
+THIRD_PARTY_INCLUDES_END
 #if defined(_MSC_VER)
 #pragma warning(pop)
 #endif
