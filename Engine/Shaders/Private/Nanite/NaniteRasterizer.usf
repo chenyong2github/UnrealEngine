@@ -43,6 +43,8 @@ ALLOW_NO_PS_EXPORT
 
 #define ENABLE_EARLY_Z_TEST (NANITE_PIXEL_PROGRAMMABLE)
 
+HOIST_DESCRIPTORS
+
 uint ActiveRasterizerBin;
 
 float2 HardwareViewportSize;
@@ -546,7 +548,6 @@ void RasterizeTri_Rect_Inner( FRaster Raster, FRasterTri Tri, uint PixelValue, c
 			float ZX  = ZY  + Tri.DepthPlane.x;
 			x++;
 
-			HOIST_DESCRIPTORS
 			while (true)
 			{
 				if (min3(CX0, CX1, CX2) >= 0)
@@ -606,7 +607,6 @@ void RasterizeTri_RectSingle( FRaster Raster, FRasterTri Tri, uint PixelValue )
 	int x = Tri.MinPixel.x;
 	int y = Tri.MinPixel.y;
 
-	HOIST_DESCRIPTORS
 	while( true )
 	{
 		if( min3( CX0, CX1, CX2 ) >= 0 )
