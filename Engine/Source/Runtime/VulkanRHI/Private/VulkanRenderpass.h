@@ -688,6 +688,7 @@ private:
 
 	FVulkanAttachmentReference<VkAttachmentReference2> ShadingRateAttachmentReference;
 	FVulkanFragmentShadingRateAttachmentInfo FragmentShadingRateAttachmentInfo;
+
 	FVulkanRenderPassFragmentDensityMapCreateInfoEXT FragDensityCreateInfo;
 
 	TRenderPassCreateInfoClass CreateInfo;
