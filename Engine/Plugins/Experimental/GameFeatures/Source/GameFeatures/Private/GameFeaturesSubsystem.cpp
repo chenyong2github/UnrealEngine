@@ -57,7 +57,7 @@ namespace UE::GameFeatures
 	}
 
 	static bool GCachePluginDetails = true;
-	static FAutoConsoleVariableRef CVarRenameLeakedPackages(
+	static FAutoConsoleVariableRef CVarCachePluginDetails(
 		TEXT("GameFeaturePlugin.CachePluginDetails"),
 		GCachePluginDetails,
 		TEXT("Should use plugin details caching."),
