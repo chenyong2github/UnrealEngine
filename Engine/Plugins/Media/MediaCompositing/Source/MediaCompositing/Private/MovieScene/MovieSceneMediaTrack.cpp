@@ -39,6 +39,22 @@ UMovieSceneMediaTrack::UMovieSceneMediaTrack(const FObjectInitializer& ObjectIni
 
 UMovieSceneSection* UMovieSceneMediaTrack::AddNewMediaSourceOnRow(UMediaSource& MediaSource, FFrameNumber Time, int32 RowIndex)
 {
+	UMovieSceneMediaSection* NewSection = AddNewSectionOnRow(Time, RowIndex);
+	NewSection->SetMediaSource(&MediaSource);
+	return NewSection;
+}
+
+
+UMovieSceneSection* UMovieSceneMediaTrack::AddNewMediaSourceProxyOnRow(UObject& MediaSourceProxy, int32 MediaSourceProxyIndex, FFrameNumber Time, int32 RowIndex)
+{
+	UMovieSceneMediaSection* NewSection = AddNewSectionOnRow(Time, RowIndex);
+	NewSection->SetMediaSourceProxy(&MediaSourceProxy, MediaSourceProxyIndex);
+	return NewSection;
+}
+
+
+UMovieSceneMediaSection* UMovieSceneMediaTrack::AddNewSectionOnRow(FFrameNumber Time, int32 RowIndex)
+{
 	const float DefaultMediaSectionDuration = 1.0f;
 	FFrameRate TickResolution = GetTypedOuter<UMovieScene>()->GetTickResolution();
 	FFrameTime DurationToUse  = DefaultMediaSectionDuration * TickResolution;
@@ -47,7 +63,6 @@ UMovieSceneSection* UMovieSceneMediaTrack::AddNewMediaSourceOnRow(UMediaSource& 
 	UMovieSceneMediaSection* NewSection = NewObject<UMovieSceneMediaSection>(this, NAME_None, RF_Transactional);
 
 	NewSection->InitialPlacementOnRow(MediaSections, Time, DurationToUse.FrameNumber.Value, RowIndex);
-	NewSection->SetMediaSource(&MediaSource);
 
 	MediaSections.Add(NewSection);
 

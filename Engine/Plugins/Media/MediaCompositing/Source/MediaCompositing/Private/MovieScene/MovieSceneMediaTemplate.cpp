@@ -254,6 +254,8 @@ private:
 FMovieSceneMediaSectionTemplate::FMovieSceneMediaSectionTemplate(const UMovieSceneMediaSection& InSection, const UMovieSceneMediaTrack& InTrack)
 {
 	Params.MediaSource = InSection.GetMediaSource();
+	Params.MediaSourceProxy = InSection.MediaSourceProxy.Get();
+	Params.MediaSourceProxyIndex = InSection.MediaSourceProxyIndex;
 	Params.MediaSoundComponent = InSection.MediaSoundComponent;
 	Params.bLooping = InSection.bLooping;
 	Params.StartFrameOffset = InSection.StartFrameOffset;
@@ -282,7 +284,19 @@ FMovieSceneMediaSectionTemplate::FMovieSceneMediaSectionTemplate(const UMovieSce
 
 void FMovieSceneMediaSectionTemplate::Evaluate(const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const
 {
-	if ((Params.MediaSource == nullptr) || Context.IsPostRoll())
+	UMediaSource* MediaSource = Params.MediaSource;
+	UObject* MediaSourceProxy = Params.MediaSourceProxy.Get();
+	if (MediaSourceProxy != nullptr)
+	{
+		IMediaPlayerProxyInterface* PlayerProxyInterface =
+			Cast<IMediaPlayerProxyInterface>(MediaSourceProxy);
+		if (PlayerProxyInterface != nullptr)
+		{
+			MediaSource = PlayerProxyInterface->GetMediaSourceFromIndex(Params.MediaSourceProxyIndex);
+		}
+	}
+
+	if ((MediaSource == nullptr) || Context.IsPostRoll())
 	{
 		return;
 	}
@@ -297,7 +311,7 @@ void FMovieSceneMediaSectionTemplate::Evaluate(const FMovieSceneEvaluationOperan
 		const double StartFrameInSeconds = FrameRate.AsSeconds(StartFrame);
 		const int64 StartTicks = StartFrameInSeconds * ETimespan::TicksPerSecond;
 
-		ExecutionTokens.Add(FMediaSectionPreRollExecutionToken(Params.MediaSource, FTimespan(StartTicks)));
+		ExecutionTokens.Add(FMediaSectionPreRollExecutionToken(MediaSource, FTimespan(StartTicks)));
 	}
 	else if (!Context.IsPostRoll() && (Context.GetTime().FrameNumber < Params.SectionEndFrame))
 	{
@@ -322,7 +336,7 @@ void FMovieSceneMediaSectionTemplate::Evaluate(const FMovieSceneEvaluationOperan
 			);
 		#endif
 
-		ExecutionTokens.Add(FMediaSectionExecutionToken(Params.MediaSource, FTimespan(FrameTicks), FTimespan(FrameDurationTicks)));
+		ExecutionTokens.Add(FMediaSectionExecutionToken(MediaSource, FTimespan(FrameTicks), FTimespan(FrameDurationTicks)));
 	}
 }
 

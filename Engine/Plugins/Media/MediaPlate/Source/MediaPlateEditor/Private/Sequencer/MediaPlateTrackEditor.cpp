@@ -188,7 +188,7 @@ void FMediaPlateTrackEditor::AddTrackForComponent(UMediaPlateComponent* Componen
 				UMediaSource* MediaSource = Playlist->Get(Index);
 				if (MediaSource != nullptr)
 				{
-					UMovieSceneSection* Section = MediaTrack->AddNewMediaSource(*MediaSource, FFrameNumber(0));
+					UMovieSceneSection* Section = MediaTrack->AddNewMediaSourceProxy(*Component, Index, FFrameNumber(0));
 					if (Section != nullptr)
 					{
 						// Start process to get the duration.

@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneMediaSection.h"
+
+#include "MediaPlayerProxyInterface.h"
 #include "MovieScene.h"
 #include "Misc/FrameRate.h"
 
@@ -21,6 +23,7 @@ namespace
 
 UMovieSceneMediaSection::UMovieSceneMediaSection(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, MediaSourceProxyIndex(0)
 	, bLooping(true)
 	, bHasMediaPlayerProxy(false)
 {
@@ -86,6 +89,29 @@ void UMovieSceneMediaSection::MigrateFrameTimes(FFrameRate SourceRate, FFrameRat
 		FFrameNumber NewStartFrameOffset = ConvertFrameTime(FFrameTime(StartFrameOffset), SourceRate, DestinationRate).FloorToFrame();
 		StartFrameOffset = NewStartFrameOffset;
 	}
+}
+
+UMediaSource* UMovieSceneMediaSection::GetMediaSource() const
+{
+	UMediaSource* LocalMediaSource = nullptr;
+
+	// Get media source from the proxy if we have one.
+	UObject* MediaSourceProxyObject = MediaSourceProxy.Get();
+	IMediaPlayerProxyInterface* PlayerProxyInterface = nullptr;
+	if (MediaSourceProxyObject)
+	{
+		PlayerProxyInterface = Cast<IMediaPlayerProxyInterface>(MediaSourceProxyObject);
+	}
+	if (PlayerProxyInterface != nullptr)
+	{
+		LocalMediaSource = PlayerProxyInterface->GetMediaSourceFromIndex(MediaSourceProxyIndex);
+	}
+	else
+	{
+		LocalMediaSource = MediaSource.Get();
+	}
+
+	return LocalMediaSource;
 }
 
 #undef LOCTEXT_NAMESPACE

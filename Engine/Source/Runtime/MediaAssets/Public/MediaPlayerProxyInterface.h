@@ -6,6 +6,7 @@
 
 #include "MediaPlayerProxyInterface.generated.h"
 
+class UMediaSource; 
 struct FMediaSourceCacheSettings;
 
 /**
@@ -50,5 +51,10 @@ public:
 	 * Gets the cache settings for the player.
 	 */
 	virtual const FMediaSourceCacheSettings& GetCacheSettings() const = 0;
+
+	/**
+	 * Get the media source for a given index.
+	 */
+	virtual UMediaSource* GetMediaSourceFromIndex(int32 Index) const = 0;
 	
 };

@@ -581,6 +581,16 @@ const FMediaSourceCacheSettings& UMediaPlateComponent::GetCacheSettings() const
 	return CacheSettings;
 }
 
+UMediaSource* UMediaPlateComponent::GetMediaSourceFromIndex(int32 Index) const
+{
+	UMediaSource* MediaSource = nullptr;
+	if (MediaPlaylist != nullptr)
+	{
+		MediaSource = MediaPlaylist->Get(Index);
+	}
+	return MediaSource;
+}
+
 void UMediaPlateComponent::RestartPlayer()
 {
 	if (MediaPlayer != nullptr)

@@ -10,6 +10,7 @@
 #include "MovieSceneMediaTrack.generated.h"
 
 class UMediaSource;
+class UMovieSceneMediaSection;
 
 
 /**
@@ -35,9 +36,16 @@ public:
 
 	/** Adds a new media source to the track. */
 	virtual UMovieSceneSection* AddNewMediaSourceOnRow(UMediaSource& MediaSource, FFrameNumber Time, int32 RowIndex);
+	/** Adds a new media source to the track. */
+	virtual UMovieSceneSection* AddNewMediaSourceProxyOnRow(UObject& MediaSourceProxy, int32 MediaSourceProxyIndex, FFrameNumber Time, int32 RowIndex);
 
 	/** Adds a new media source on the next available/non-overlapping row. */
 	virtual UMovieSceneSection* AddNewMediaSource(UMediaSource& MediaSource, FFrameNumber Time) { return AddNewMediaSourceOnRow(MediaSource, Time, INDEX_NONE); }
+	/** Adds a new media source on the next available/non-overlapping row. */
+	virtual UMovieSceneSection* AddNewMediaSourceProxy(UObject& MediaSourceProxy, int32 MediaSourceProxyIndex, FFrameNumber Time)
+	{
+		return AddNewMediaSourceProxyOnRow(MediaSourceProxy, MediaSourceProxyIndex, Time, INDEX_NONE); 
+	}
 
 public:
 
@@ -55,6 +63,8 @@ public:
 	virtual bool SupportsMultipleRows() const override { return true; }
 
 private:
+	/** Base function to add a new section. */
+	UMovieSceneMediaSection* AddNewSectionOnRow(FFrameNumber Time, int32 RowIndex);
 
 	/** List of all media sections. */
 	UPROPERTY()

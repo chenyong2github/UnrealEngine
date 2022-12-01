@@ -27,9 +27,15 @@ public:
 
 
 public:
-	/** The source to play with this video track. */
+	/** The source to play with this video track if MediaSourceProxy is not available. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Media")
 	TObjectPtr<UMediaSource> MediaSource;
+	/** The object to get the source to play from if you don't want to directly specify a media source. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media")
+	TSoftObjectPtr<UObject> MediaSourceProxy;
+	/** The index to pass to MediaSourceProxy to get the media source. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media")
+	int32 MediaSourceProxyIndex;
 
 	/** Should the media player be set to loop? This can be helpful for media formats that can use this information (such as exr sequences) to pre-cache the starting data when nearing the end of playback. Does not cause the media to continue playing after the end of the section is reached. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media")
@@ -90,10 +96,7 @@ public:
 	 * @return The media source object.
 	 * @see SetMediaSource
 	 */
-	UMediaSource* GetMediaSource() const
-	{
-		return MediaSource;
-	}
+	UMediaSource* GetMediaSource() const;
 
 	/**
 	 * Set this section's video source.
@@ -104,6 +107,18 @@ public:
 	void SetMediaSource(UMediaSource* InMediaSource)
 	{
 		MediaSource = InMediaSource;
+	}
+
+	/**
+	 * Set this section's video source proxy.
+	 *
+	 * @param InMediaSourceProxy	This should implement IMediaPlayerProxyInterface.
+	 * @param InIndex				Index to pass to IMediaPlayerProxyInterface.
+	 */
+	void SetMediaSourceProxy(UObject* InMediaSourceProxy, int32 InIndex)
+	{
+		MediaSourceProxy = InMediaSourceProxy;
+		MediaSourceProxyIndex = InIndex;
 	}
 
 #if WITH_EDITORONLY_DATA

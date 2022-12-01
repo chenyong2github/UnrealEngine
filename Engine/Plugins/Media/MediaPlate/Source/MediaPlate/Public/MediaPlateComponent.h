@@ -241,6 +241,7 @@ public:
 	virtual bool SetProxyRate(float Rate) override;
 	virtual bool IsExternalControlAllowed() override;
 	virtual const FMediaSourceCacheSettings& GetCacheSettings() const override;
+	virtual UMediaSource* GetMediaSourceFromIndex(int32 Index) const override;
 
 private:
 	/**

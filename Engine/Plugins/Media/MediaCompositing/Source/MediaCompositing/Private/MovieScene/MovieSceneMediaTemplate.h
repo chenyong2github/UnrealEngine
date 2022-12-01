@@ -27,6 +27,12 @@ struct FMovieSceneMediaSectionParams
 	TObjectPtr<UMediaSource> MediaSource;
 
 	UPROPERTY()
+	TObjectPtr<UObject> MediaSourceProxy;
+
+	UPROPERTY()
+	int32 MediaSourceProxyIndex;
+
+	UPROPERTY()
 	TObjectPtr<UMediaTexture> MediaTexture;
 
 	UPROPERTY()
@@ -47,6 +53,8 @@ struct FMovieSceneMediaSectionParams
 	FMovieSceneMediaSectionParams()
 		: MediaSoundComponent(nullptr)
 		, MediaSource(nullptr)
+		, MediaSourceProxy(nullptr)
+		, MediaSourceProxyIndex(0)
 		, MediaTexture(nullptr)
 		, MediaPlayer(nullptr)
 		, bLooping(false)
