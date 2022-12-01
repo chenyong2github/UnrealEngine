@@ -1125,6 +1125,11 @@ FUnrealEnumDefinitionInfo& FHeaderParser::CompileEnum()
 	if (CppForm == UEnum::ECppForm::EnumClass)
 	{
 		UnderlyingType = ParseUnderlyingEnumType();
+		if (UnderlyingType != EUnderlyingEnumType::uint8 && EnumMetaData.Contains(FHeaderParserNames::NAME_BlueprintType))
+		{
+			Throwf(TEXT("Invalid BlueprintType enum base - currently only uint8 supported"));
+		}
+
 		if (UnderlyingType != EnumDef.GetUnderlyingType())
 		{
 			Throwf(TEXT("ICE: Mismatch of underlying enum type between pre-parser and parser"));
@@ -1132,19 +1137,8 @@ FUnrealEnumDefinitionInfo& FHeaderParser::CompileEnum()
 	}
 	else if (CppForm == UEnum::ECppForm::Regular)
 	{
-		if (MatchSymbol(TEXT(':')))
-		{
-			FToken BaseToken;
-			if (!GetIdentifier(BaseToken))
-			{
-				Throwf(TEXT("Missing enum base"));
-			}
-
-			if (!BaseToken.IsValue(TEXT("int"), ESearchCase::CaseSensitive))
-			{
-				LogError(TEXT("Regular enums only support 'int' as the value size"));
-			}
-		}
+		UnderlyingType = ParseUnderlyingEnumType();
+		EnumDef.SetUnderlyingType(UnderlyingType);
 	}
 	else
 	{
@@ -1152,11 +1146,6 @@ FUnrealEnumDefinitionInfo& FHeaderParser::CompileEnum()
 		{
 			Throwf(TEXT("The 'Flags' specifier can only be used on enum classes"));
 		}
-	}
-
-	if (UnderlyingType != EUnderlyingEnumType::uint8 && EnumMetaData.Contains(FHeaderParserNames::NAME_BlueprintType))
-	{
-		Throwf(TEXT("Invalid BlueprintType enum base - currently only uint8 supported"));
 	}
 
 	EnumDef.GetDefinitionRange().Start = &Input[InputPos];
@@ -1181,19 +1170,8 @@ FUnrealEnumDefinitionInfo& FHeaderParser::CompileEnum()
 
 			EnumDef.SetCppType(FString::Printf(TEXT("%s::%s"), *EnumIdentifier, *InnerEnumToken.GetTokenValue()));
 
-			if (MatchSymbol(TEXT(':')))
-			{
-				FToken BaseToken;
-				if (!GetIdentifier(BaseToken))
-				{
-					Throwf(TEXT("Missing enum base"));
-				}
-
-				if (!BaseToken.IsValue(TEXT("int"), ESearchCase::CaseSensitive))
-				{
-					LogError(TEXT("Namespace enums only support 'int' as the value size"));
-				}
-			}
+			UnderlyingType = ParseUnderlyingEnumType();
+			EnumDef.SetUnderlyingType(UnderlyingType);
 
 			RequireSymbol( TEXT('{'), TEXT("'Enum'") );
 		}
@@ -6903,7 +6881,8 @@ void FHeaderParser::ParseParameterList(FUnrealFunctionDefinitionInfo& FunctionDe
 			{
 				if (FUnrealEnumDefinitionInfo* EnumDef = Property.AsEnum())
 				{
-					if (EnumDef->GetUnderlyingType() != EUnderlyingEnumType::uint8 &&
+					if (EnumDef->GetCppForm() == UEnum::ECppForm::EnumClass &&
+						EnumDef->GetUnderlyingType() != EUnderlyingEnumType::uint8 &&
 						EnumDef->GetUnderlyingType() != EUnderlyingEnumType::Unspecified)
 					{
 						Throwf(TEXT("Invalid enum param for Blueprints - currently only uint8 supported"));
@@ -9220,11 +9199,7 @@ TSharedRef<FUnrealTypeDefinitionInfo> FHeaderPreParser::ParseEnumDeclaration(con
 	}
 
 	// Read base for enum class
-	EUnderlyingEnumType UnderlyingType = EUnderlyingEnumType::uint8;
-	if (CppForm == UEnum::ECppForm::EnumClass)
-	{
-		UnderlyingType = ParseUnderlyingEnumType();
-	}
+	EUnderlyingEnumType UnderlyingType = ParseUnderlyingEnumType();
 
 	TSharedRef<FUnrealEnumDefinitionInfo> EnumDef = MakeShareable(new FUnrealEnumDefinitionInfo(SourceFile, InLineNumber, FString(EnumToken.Value), FName(EnumToken.Value, FNAME_Add), CppForm, UnderlyingType));
 	return EnumDef;

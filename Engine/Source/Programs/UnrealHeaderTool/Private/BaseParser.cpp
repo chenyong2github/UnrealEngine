@@ -1271,9 +1271,13 @@ EUnderlyingEnumType FBaseParser::ParseUnderlyingEnumType()
 		{
 			UnderlyingType = EUnderlyingEnumType::int64;
 		}
+		else if (BaseToken.IsValue(TEXT("int"), ESearchCase::CaseSensitive))
+		{
+			UnderlyingType = EUnderlyingEnumType::Int;
+		}
 		else
 		{
-			Throwf(TEXT("Unsupported enum class base type: %s"), *BaseToken.GetTokenValue());
+			Throwf(TEXT("Unsupported enum base type: %s"), *BaseToken.GetTokenValue());
 		}
 	}
 	else

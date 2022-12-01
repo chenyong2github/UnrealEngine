@@ -2013,6 +2013,14 @@ public:
 	}
 
 	/**
+	 * Set the underlying enumeration type
+	 */
+	void SetUnderlyingType(EUnderlyingEnumType InUnderlyingType)
+	{
+		UnderlyingType = InUnderlyingType;
+	}
+
+	/**
 	 * Return true if the enumeration is editor only
 	 */
 	bool IsEditorOnly() const

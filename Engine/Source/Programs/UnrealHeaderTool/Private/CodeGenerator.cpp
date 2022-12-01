@@ -3335,6 +3335,32 @@ FString FNativeClassHeaderGenerator::GetClassFlagExportText(FUnrealClassDefiniti
 	return StaticClassFlagText;
 }
 
+static FString GetUnderlyingType(FUnrealEnumDefinitionInfo& EnumDef)
+{
+	FString UnderlyingTypeString;
+
+	if (EnumDef.GetUnderlyingType() != EUnderlyingEnumType::Unspecified)
+	{
+		UnderlyingTypeString = TEXT(" : ");
+
+		switch (EnumDef.GetUnderlyingType())
+		{
+		case EUnderlyingEnumType::int8:        UnderlyingTypeString += TNameOf<int8>::GetName();	break;
+		case EUnderlyingEnumType::int16:       UnderlyingTypeString += TNameOf<int16>::GetName();	break;
+		case EUnderlyingEnumType::int32:       UnderlyingTypeString += TNameOf<int32>::GetName();	break;
+		case EUnderlyingEnumType::int64:       UnderlyingTypeString += TNameOf<int64>::GetName();	break;
+		case EUnderlyingEnumType::uint8:       UnderlyingTypeString += TNameOf<uint8>::GetName();	break;
+		case EUnderlyingEnumType::uint16:      UnderlyingTypeString += TNameOf<uint16>::GetName();	break;
+		case EUnderlyingEnumType::uint32:      UnderlyingTypeString += TNameOf<uint32>::GetName();	break;
+		case EUnderlyingEnumType::uint64:      UnderlyingTypeString += TNameOf<uint64>::GetName();	break;
+		case EUnderlyingEnumType::Int:         UnderlyingTypeString += TEXT("int");                 break;
+		default:
+			check(false);
+		}
+	}
+	return UnderlyingTypeString;
+}
+
 /**
 * Exports the header text for the list of enums specified
 *
@@ -3360,33 +3386,27 @@ void FNativeClassHeaderGenerator::ExportEnum(FOutputDevice& Out, FUnrealEnumDefi
 
 	if (EnumDef.GetCppForm() == UEnum::ECppForm::EnumClass)
 	{
-		FString UnderlyingTypeString;
+		Out.Logf(TEXT("\r\n"));
+		Out.Logf(TEXT("enum class %s%s;\r\n"), *EnumDef.GetCppType(), *GetUnderlyingType(EnumDef));
 
-		if (EnumDef.GetUnderlyingType() != EUnderlyingEnumType::Unspecified)
-		{
-			UnderlyingTypeString = TEXT(" : ");
-
-			switch (EnumDef.GetUnderlyingType())
-			{
-			case EUnderlyingEnumType::int8:        UnderlyingTypeString += TNameOf<int8>::GetName();	break;
-			case EUnderlyingEnumType::int16:       UnderlyingTypeString += TNameOf<int16>::GetName();	break;
-			case EUnderlyingEnumType::int32:       UnderlyingTypeString += TNameOf<int32>::GetName();	break;
-			case EUnderlyingEnumType::int64:       UnderlyingTypeString += TNameOf<int64>::GetName();	break;
-			case EUnderlyingEnumType::uint8:       UnderlyingTypeString += TNameOf<uint8>::GetName();	break;
-			case EUnderlyingEnumType::uint16:      UnderlyingTypeString += TNameOf<uint16>::GetName();	break;
-			case EUnderlyingEnumType::uint32:      UnderlyingTypeString += TNameOf<uint32>::GetName();	break;
-			case EUnderlyingEnumType::uint64:      UnderlyingTypeString += TNameOf<uint64>::GetName();	break;
-			default:
-				check(false);
-			}
-		}
-
-		Out.Logf( TEXT("\r\n") );
-		Out.Logf( TEXT("enum class %s%s;\r\n"), *EnumDef.GetCppType(), *UnderlyingTypeString );
-		
 		// Add TIsUEnumClass typetraits
-		Out.Logf( TEXT("template<> struct TIsUEnumClass<%s> { enum { Value = true }; };\r\n"), *EnumDef.GetCppType());
+		Out.Logf(TEXT("template<> struct TIsUEnumClass<%s> { enum { Value = true }; };\r\n"), *EnumDef.GetCppType());
+	}
+	else if (EnumDef.GetCppForm() == UEnum::ECppForm::Regular && EnumDef.GetUnderlyingType() != EUnderlyingEnumType::Unspecified)
+	{
+		Out.Logf(TEXT("\r\n"));
+		Out.Logf(TEXT("enum %s%s;\r\n"), *EnumDef.GetCppType(), *GetUnderlyingType(EnumDef));
+	}
+	else if (EnumDef.GetCppForm() == UEnum::ECppForm::Namespaced && EnumDef.GetUnderlyingType() != EUnderlyingEnumType::Unspecified)
+	{
+		TArray<FString> Parts;
+		EnumDef.GetCppType().ParseIntoArray(Parts, TEXT("::"));
+		Out.Logf(TEXT("\r\n"));
+		Out.Logf(TEXT("namespace %s { enum %s%s; }\r\n"), *Parts[0], *Parts[1], *GetUnderlyingType(EnumDef));
+	}
 
+	if (EnumDef.GetCppForm() == UEnum::ECppForm::EnumClass || EnumDef.GetUnderlyingType() != EUnderlyingEnumType::Unspecified)
+	{
 		// Forward declare the StaticEnum<> specialisation for enum classes
 		Out.Logf( TEXT("template<> %sUEnum* StaticEnum<%s>();\r\n"), *GetAPIString(), *EnumDef.GetCppType());
 		Out.Logf( TEXT("\r\n") );

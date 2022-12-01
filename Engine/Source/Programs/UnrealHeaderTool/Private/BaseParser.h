@@ -25,7 +25,8 @@ enum class EUnderlyingEnumType
 	int8,
 	int16,
 	int32,
-	int64
+	int64,
+	Int,
 };
 
 using FMetaData = TMap<FName, FString>;
