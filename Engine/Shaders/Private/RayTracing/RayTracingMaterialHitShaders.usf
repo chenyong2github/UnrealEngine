@@ -468,11 +468,29 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 	PackedPayload.HitT = RayTCurrent();
 
 #if USE_MATERIAL_CLOSEST_HIT_SHADER
+	GlobalTextureMipBias = PackedPayload.GetMipBias();
+
+	ResolvedView = ResolveView();
+
+	FVertexFactoryInterpolantsVSToPS Interpolants;
+	const float3 TranslatedWorldPosition = TranslatedWorldRayOrigin() + RayTCurrent() * WorldRayDirection();
+	float4 SvPosition = mul(float4(TranslatedWorldPosition, 1.0f), ResolvedView.TranslatedWorldToClip);
+	
+	FRayCone PropagatedCone = PropagateRayCone(PackedPayload.GetRayCone(), 0 /* surface curvature */, RayTCurrent());
+	CalcInterpolants(PropagatedCone, Attributes, Interpolants);
+
+#if VF_SUPPORTS_RAYTRACING_PREPARE_MATERIAL_PIXEL_PARAMETERS
+	float3 GeoNormal = 0;
+	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(TranslatedWorldRayOrigin(), WorldRayDirection(), RayTCurrent(), PrimitiveIndex(), Attributes, HitKind(), GeoNormal);
+#else
+	float3 GeoNormal = GetLumenGeometryNormal();
+	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Interpolants, SvPosition);
+#endif
 
 	bool bIsLumenPayload = PackedPayload.IsLumenPayload();
 	if (bIsLumenPayload)
 	{
-		float3 SurfaceNormal = GetLumenGeometryNormal();
+		const float3 SurfaceNormal = GeoNormal;
 		const int PrimitiveIndex = GetInstanceUserData();
 		const int PrimitiveInstanceIndex = InstanceIndex() - GetBaseInstanceIndex();
 
@@ -490,24 +508,6 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 		return;
 	}
 
-	GlobalTextureMipBias = PackedPayload.GetMipBias();
-
-	ResolvedView = ResolveView();
-
-	FVertexFactoryInterpolantsVSToPS Interpolants;
-	const float3 TranslatedWorldPosition = TranslatedWorldRayOrigin() + RayTCurrent() * WorldRayDirection();
-	float4 SvPosition = mul(float4(TranslatedWorldPosition, 1.0f), ResolvedView.TranslatedWorldToClip);
-
-	
-	FRayCone PropagatedCone = PropagateRayCone(PackedPayload.GetRayCone(), 0 /* surface curvature */, RayTCurrent());
-	CalcInterpolants(PropagatedCone, Attributes, Interpolants);
-
-#if VF_SUPPORTS_RAYTRACING_PREPARE_MATERIAL_PIXEL_PARAMETERS
-	float3 GeoNormal = 0;
-	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(TranslatedWorldRayOrigin(), WorldRayDirection(), RayTCurrent(), PrimitiveIndex(), Attributes, HitKind(), GeoNormal);
-#else
-	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Interpolants, SvPosition);
-#endif
 	FPixelMaterialInputs PixelMaterialInputs;
 
 	{

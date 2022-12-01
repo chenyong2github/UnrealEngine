@@ -155,13 +155,17 @@ FVertexInfo GetVertexInfo(FVertexFactoryInput Input)
 #if RAYHITGROUPSHADER
 FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexIndex)
 {
+	FVertexFactoryInput Input = (FVertexFactoryInput)0;
+
+#if !ENABLE_PROCEDURAL_INTERSECTOR
 	FTriangleBaseAttributes TriangleBase = LoadTriangleBaseAttributes(TriangleIndex);
 
-	FVertexFactoryInput Input;
 	Input.Position = float4(TriangleBase.LocalPositions[VertexIndex], 1.0f);
 	Input.VertexId = TriangleBase.Indices[VertexIndex];
 	Input.TriangleId = TriangleIndex;
 	Input.TriangleVertexId = VertexIndex;
+#endif // !ENABLE_PROCEDURAL_INTERSECTOR
+
 	// Note: GetInstanceUserData() stores the GPU-Scene primitive ID
 	VF_GPUSCENE_SET_INPUT_FOR_RT(Input, GetInstanceUserData(), 0U);
 
