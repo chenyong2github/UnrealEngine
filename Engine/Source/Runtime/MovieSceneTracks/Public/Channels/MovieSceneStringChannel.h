@@ -153,6 +153,8 @@ private:
 	UPROPERTY()
 	bool bHasDefaultValue;
 
+	/** This needs to be a UPROPERTY so it gets saved into editor transactions but transient so it doesn't get saved into assets. */
+	UPROPERTY(Transient)
 	FMovieSceneKeyHandleMap KeyHandles;
 };
 
