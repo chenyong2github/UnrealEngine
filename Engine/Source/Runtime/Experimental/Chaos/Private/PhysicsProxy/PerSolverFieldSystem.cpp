@@ -187,7 +187,7 @@ FORCEINLINE void EvaluateImpulseField(
 	static_cast<const FFieldNode<FVector>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
 	if (OutputImpulse.Num() == 0)
 	{
-		OutputImpulse.SetNum(ResultsView.Num(), false);
+		OutputImpulse.SetNumZeroed(ResultsView.Num(), false);
 		for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
 		{
 			if (Index.Sample < OutputImpulse.Num() && Index.Result < ResultsView.Num())
