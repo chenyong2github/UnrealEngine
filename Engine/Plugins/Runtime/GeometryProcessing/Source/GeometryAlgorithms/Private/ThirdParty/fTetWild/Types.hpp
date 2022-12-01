@@ -8,8 +8,17 @@
 
 #pragma once
 
-
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 6011)
+#pragma warning(disable : 6387)
+#pragma warning(disable : 6313)
+#pragma warning(disable : 6294)
+#endif
 #include <Eigen/Dense>
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 
 
 namespace floatTetWild {

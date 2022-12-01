@@ -858,54 +858,6 @@ void floatTetWild::pausee(std::string msg) {
     return;
 }
 
-bool floatTetWild::is_energy_unstable(const std::array<Scalar, 12>& T, Scalar res) {
-    static const std::vector<std::array<int, 4>> combs = {{{0, 1, 3, 2}},
-                                                          {{0, 2, 1, 3}},
-                                                          {{0, 2, 3, 1}},
-                                                          {{0, 3, 1, 2}},
-                                                          {{0, 3, 2, 1}},
-                                                          {{1, 0, 2, 3}},
-                                                          {{1, 0, 3, 2}},
-                                                          {{1, 2, 0, 3}},
-                                                          {{1, 2, 3, 0}},
-                                                          {{1, 3, 0, 2}},
-                                                          {{1, 3, 2, 0}},
-                                                          {{2, 0, 1, 3}},
-                                                          {{2, 0, 3, 1}},
-                                                          {{2, 1, 0, 3}},
-                                                          {{2, 1, 3, 0}},
-                                                          {{2, 3, 0, 1}},
-                                                          {{2, 3, 1, 0}},
-                                                          {{3, 0, 1, 2}},
-                                                          {{3, 0, 2, 1}},
-                                                          {{3, 1, 0, 2}},
-                                                          {{3, 1, 2, 0}},
-                                                          {{3, 2, 0, 1}},
-                                                          {{3, 2, 1, 0}}};
-    Scalar res0;
-    if (std::isinf(res))
-        return true;
-
-    for (int i = 0; i < combs.size(); i++) {
-        std::array<Scalar, 12> tmp_T;
-        for (int j = 0; j < 4; j++) {
-            for (int k = 0; k < 3; k++)
-                tmp_T[j * 3 + k] = T[combs[i][j] * 3 + k];
-        }
-        Scalar res1 = AMIPS_energy_aux(tmp_T);
-        if (std::isinf(res1))
-            continue;
-        if (res0 == 0)
-            res0 = res1;
-//        if (res1 - res0 > 10)
-        if (abs(res1 - res0)/res0 > 0.01)
-            return true;
-    }
-    return false;
-}
-
-int cnt_stable = 0;
-int cnt_large = 0;
 Scalar floatTetWild::AMIPS_energy(const std::array<Scalar, 12>& T) {
     Scalar res = AMIPS_energy_aux(T);
 
