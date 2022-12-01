@@ -153,6 +153,27 @@ public:
 				break;
 			}
 
+			case mu::OP_TYPE::IM_MIPMAP:
+			{
+				mu::OP::ImageMipmapArgs Args = Program.GetOpArgs<mu::OP::ImageMipmapArgs>(RowItem->MutableOperation);
+				OpName += FString::Printf(TEXT(" levels: %d-%d tail: %d"), Args.levels, Args.blockLevels, int32(Args.onlyTail));
+				break;
+			}
+
+			case mu::OP_TYPE::IM_RESIZE:
+			{
+				mu::OP::ImageResizeArgs Args = Program.GetOpArgs<mu::OP::ImageResizeArgs>(RowItem->MutableOperation);
+				OpName += FString::Printf(TEXT(" %d x %d"), int32(Args.size[0]), int32(Args.size[1]));
+				break;
+			}
+
+			case mu::OP_TYPE::IM_RESIZEREL:
+			{
+				mu::OP::ImageResizeRelArgs Args = Program.GetOpArgs<mu::OP::ImageResizeRelArgs>(RowItem->MutableOperation);
+				OpName += FString::Printf(TEXT(" %.3f x %.3f"), int32(Args.factor[0]), int32(Args.factor[1]));
+				break;
+			}
+
 			case mu::OP_TYPE::IM_MULTILAYER:
 			{
 				mu::OP::ImageMultiLayerArgs Args = Program.GetOpArgs<mu::OP::ImageMultiLayerArgs>(RowItem->MutableOperation);
@@ -171,8 +192,13 @@ public:
 			case mu::OP_TYPE::IM_LAYER:
 			{
 				mu::OP::ImageLayerArgs Args = Program.GetOpArgs<mu::OP::ImageLayerArgs>(RowItem->MutableOperation);
-				OpName += TEXT(" ");
+				OpName += TEXT(" rgb: ");
 				OpName += mu::TypeInfo::s_blendModeName[int32(Args.blendType)];
+				if (Args.blendTypeAlpha != int8(mu::EBlendType::BT_NONE))
+				{
+					OpName += TEXT(", a: ");
+					OpName += mu::TypeInfo::s_blendModeName[int32(Args.blendTypeAlpha)];
+				}
 				OpName += FString::Printf(TEXT(" flags %d"),Args.flags);
 				break;
 			}
@@ -192,7 +218,7 @@ public:
 			}
 
 			// Prepare the text shown on the UI side of the operation tree
-			FString MainLabel = FString::Printf(TEXT("%s (%d) : %s"), *RowItem->Caption, int32(RowItem->MutableOperation), *OpName);
+			FString MainLabel = FString::Printf(TEXT("%s %d : %s"), *RowItem->Caption, int32(RowItem->MutableOperation), *OpName);
 
 #if UE_BUILD_DEBUG
 			FString IndexOnTree = FString::FromInt(RowItem->IndexOnTree);
@@ -2151,6 +2177,48 @@ bool SMutableCodeViewer::IsConstantResourceUsedByOperation(const int32 IndexOnCo
 #pragma endregion 
 
 
+namespace
+{
+	/** Test implementation to provide image parameters. It will generate some images of a fixed size and format. */
+	class TestImageProvider : public mu::ImageParameterGenerator
+	{
+	public:
+		mu::Ptr<mu::Image> GetImage(mu::EXTERNAL_IMAGE_ID id) override
+		{
+			MUTABLE_CPUPROFILER_SCOPE(TestImageProvider_GetImage);
+
+			const int32 Size = 1024;
+			const int32 LODCount = 1;
+			const mu::EImageFormat Format = mu::EImageFormat::IF_RGBA_UBYTE;
+			mu::Ptr<mu::Image> Image = new mu::Image(Size, Size, LODCount, Format);
+
+			// Generate an alphatested circle with an horizontal gradient color.
+			uint8* Data = Image->GetData();
+			int32 CircleRadius = (Size * 2) / 5;
+			int32 CircleRadius2 = CircleRadius * CircleRadius;
+			int32 Color[3] = { 255,128,0 };
+
+			for (int y = 0; y < Size; ++y)
+			{
+				for (int x = 0; x < Size; ++x)
+				{
+					float R2 = (x - Size / 2) * (x - Size / 2) + (y - Size / 2) * (y - Size / 2);
+					int32 Opacity = FMath::Clamp( (CircleRadius2-R2)/CircleRadius2 * 512 - 64, 0, 255 );
+					Data[0] = (Color[0] * x) / Size;
+					Data[1] = (Color[1] * x) / Size;
+					Data[2] = (Color[2] * x) / Size;
+					Data[3] = uint8(Opacity);
+					Data += 4;
+				}
+			}
+
+			return Image;
+		}
+
+	};
+}
+
+
 void SMutableCodeViewer::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
@@ -2178,8 +2246,12 @@ void SMutableCodeViewer::Tick(const FGeometry& AllottedGeometry, const double In
 	const mu::OP_TYPE OperationType = MutableModel->GetPrivate()->m_program.GetOpType(SelectedOperationAddress);
 	const mu::DATATYPE OperationDataType = mu::GetOpDataType(OperationType);
 
-	const mu::SettingsPtr Settings = new mu::Settings();
-	const mu::SystemPtr System = new mu::System(Settings);
+	const mu::Ptr<mu::Settings> Settings = new mu::Settings();
+	const mu::Ptr<mu::System> System = new mu::System(Settings);
+
+	TestImageProvider* ImageProvider = new TestImageProvider;
+	System->SetImageParameterGenerator(ImageProvider);
+
 	System->GetPrivate()->BeginBuild(MutableModel);
 
 	switch (OperationDataType)

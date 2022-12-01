@@ -527,16 +527,19 @@ namespace mu
             ADDRESS base;
             ADDRESS mask;
             ADDRESS blended;
-			uint8 blendType;	// One of BLEND_TYPE
+			uint8 blendType;		// One of EBlendType
+			uint8 blendTypeAlpha;	// One of EBlendType
 			uint8 flags;
 			typedef enum
             {
-                F_NONE              =	0,
-                //! The mask is considered binary: 0 means 0% and any other value means 100%
-                F_BINARY_MASK       =	1 << 0,
-                //! If the image has 4 channels, apply to the fourth channel as well.
-                F_APPLY_TO_ALPHA    =	1 << 1
-            } FLAGS;
+                F_NONE           = 0,
+                /** The mask is considered binary : 0 means 0% and any other value means 100% */
+                F_BINARY_MASK    = 1 << 0,
+				/** If the image has 4 channels, apply to the fourth channel as well. */
+				F_APPLY_TO_ALPHA = 1 << 1,
+				/** Use the alpha channel of the blended image as mask. Mask should be null.*/
+				F_USE_MASK_FROM_BLENDED = 1 << 2
+			} FLAGS;
         };
 
         struct ImageMultiLayerArgs
@@ -546,8 +549,8 @@ namespace mu
             ADDRESS blended;
             ADDRESS rangeSize;
             uint16 rangeId;
-			uint8 blendType;		// One of BLEND_TYPE
-			uint8 blendTypeAlpha;	// One of BLEND_TYPE
+			uint8 blendType;		// One of EBlendType
+			uint8 blendTypeAlpha;	// One of EBlendType
 			uint8 bUseMaskFromBlended;	
 		};
 
@@ -556,8 +559,8 @@ namespace mu
             ADDRESS base;
             ADDRESS mask;
             ADDRESS colour;
-			uint8 blendType;		// One of BLEND_TYPE
-			uint8 blendTypeAlpha;	// One of BLEND_TYPE
+			uint8 blendType;		// One of EBlendType
+			uint8 blendTypeAlpha;	// One of EBlendType
 		};
 
         struct ImagePixelFormatArgs
@@ -1075,8 +1078,6 @@ namespace mu
             ArithmeticArgs ColourArithmetic;
 
             //-------------------------------------------------------------------------------------
-            ImageLayerArgs ImageLayer;
-            ImageLayerColourArgs ImageLayerColour;
             ImageResizeArgs ImageResize;
             ImageResizeLikeArgs ImageResizeLike;
             ImageResizeVarArgs ImageResizeVar;

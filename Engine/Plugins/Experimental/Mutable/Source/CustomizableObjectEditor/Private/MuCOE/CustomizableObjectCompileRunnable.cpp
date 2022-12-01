@@ -103,10 +103,6 @@ uint32 FCustomizableObjectCompileRunnable::Run()
 		? mu::CompilerOptions::TextureLayoutStrategy::None
 		: mu::CompilerOptions::TextureLayoutStrategy::Pack);
 
-	// \TODO For now force it to be disabled.
-	//CompilerOptions->SetEnableConcurrency(Options.bUseParallelCompilation);
-	CompilerOptions->SetEnableConcurrency(false);
-
 	mu::CompilerPtr Compiler = new mu::Compiler(CompilerOptions);
 
 	UE_LOG(LogMutable, Verbose, TEXT("PROFILE: [ %16.8f ] FCustomizableObjectCompileRunnable Compile start."), FPlatformTime::Seconds());

@@ -30,12 +30,12 @@ class UTexture;
 */
 struct FMutableUpdateContext
 {
-	mu::SystemPtr System;
-	mu::ModelPtr Model;
-	mu::ParametersPtrConst Parameters;
+	mu::Ptr<mu::System> System;
+	mu::Ptr<mu::Model> Model;
+	mu::Ptr<const mu::Parameters> Parameters;
 	int32 State = -1;
 
-	TArray<mu::ImagePtrConst> ImageParameterValues;
+	TArray<mu::Ptr<const mu::Image>> ImageParameterValues;
 };
 
 

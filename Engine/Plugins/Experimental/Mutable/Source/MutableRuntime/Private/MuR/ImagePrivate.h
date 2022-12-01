@@ -87,6 +87,8 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	MUTABLERUNTIME_API inline EImageFormat GetUncompressedFormat(EImageFormat f )
 	{
+		check(f < EImageFormat::IF_COUNT);
+
 		EImageFormat r = f;
 
 		switch ( r )

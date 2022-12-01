@@ -1122,22 +1122,6 @@ FImageDesc ASTOpFixed::GetImageDesc( bool returnBestOption, FGetImageDescContext
     case OP_TYPE::NONE:
         break;
 
-    case OP_TYPE::IM_LAYER:
-        res = GetImageDesc( op.args.ImageLayer.base, returnBestOption, context );
-        if ( res.m_format==EImageFormat::IF_L_UBYTE )
-        {
-            res.m_format = EImageFormat::IF_RGB_UBYTE;
-        }
-        break;
-
-    case OP_TYPE::IM_LAYERCOLOUR:
-        res = GetImageDesc( op.args.ImageLayerColour.base, returnBestOption, context );
-        if ( res.m_format==EImageFormat::IF_L_UBYTE )
-        {
-            res.m_format = EImageFormat::IF_RGB_UBYTE;
-        }
-        break;
-
     case OP_TYPE::IM_SATURATE:
         res = GetImageDesc( op.args.ImageSaturate.base, returnBestOption, context );
         break;
@@ -1302,18 +1286,6 @@ void ASTOpFixed::GetLayoutBlockSize( int* pBlockX, int* pBlockY )
 
 		break;
 	}
-
-    case OP_TYPE::IM_LAYER:
-    {
-        GetLayoutBlockSize(op.args.ImageLayer.base, pBlockX, pBlockY);
-        break;
-    }
-
-    case OP_TYPE::IM_LAYERCOLOUR:
-    {
-        GetLayoutBlockSize(op.args.ImageLayerColour.base, pBlockX, pBlockY);
-        break;
-    }
 
 	case OP_TYPE::IM_BLANKLAYOUT:
 	{
@@ -1627,20 +1599,6 @@ mu::Ptr<ImageSizeExpression> ASTOpFixed::GetImageSizeExpression() const
         pRes->size[1]=0;
         break;
     }
-
-    case OP_TYPE::IM_LAYER:
-        if ( children[op.args.ImageLayer.base] )
-        {
-            pRes = children[op.args.ImageLayer.base].child()->GetImageSizeExpression();
-        }
-        break;
-
-    case OP_TYPE::IM_LAYERCOLOUR:
-        if ( children[op.args.ImageLayerColour.base] )
-        {
-            pRes = children[op.args.ImageLayerColour.base].child()->GetImageSizeExpression();
-        }
-        break;
 
     case OP_TYPE::IM_RESIZE:
         pRes->type = ImageSizeExpression::ISET_CONSTANT;

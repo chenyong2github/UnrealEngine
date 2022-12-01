@@ -663,10 +663,8 @@ namespace mu
 
 			if (SharedResultPhysicsBody.Get<1>())
 			{
-				check(!pFirst->GetPhysicsBody() || !pSecond->GetPhysicsBody())
-
-					// Only one or non of the meshes has physics, share the result.
-					pResult->SetPhysicsBody(SharedResultPhysicsBody.Get<0>());
+				// Only one or non of the meshes has physics, share the result.
+				pResult->SetPhysicsBody(SharedResultPhysicsBody.Get<0>());
 			}
 			else
 			{

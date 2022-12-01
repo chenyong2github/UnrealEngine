@@ -21,7 +21,6 @@
 #include "MuT/ASTOpMeshApplyPose.h"
 
 #include <unordered_set>
-#include <shared_mutex>
 
 namespace mu
 {
@@ -427,15 +426,13 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	//---------------------------------------------------------------------------------------------
 	//---------------------------------------------------------------------------------------------
-	class ConstantTask : public TaskManager::Task
+	class ConstantTask 
 	{
 	public:
 		// input
 		mu::Ptr<ASTOp> m_source;
 		bool m_useDiskCache = false;
 		int m_imageCompressionQuality = 0;
-
-		std::shared_timed_mutex* m_codeAccessMutex = nullptr;
 
 	private:
 
@@ -445,14 +442,12 @@ namespace mu
 	public:
 
 		// mu::Task interface
-		void Run() override
+		void Run()
 		{
 			MUTABLE_CPUPROFILER_SCOPE(ConstantTask_Run);
 
 			// We need the clone because linking modifies ASTOp state
-			m_codeAccessMutex->lock_shared();
 			mu::Ptr<ASTOp> cloned = ASTOp::DeepClone( m_source );
-			m_codeAccessMutex->unlock_shared();
 
 			OP_TYPE type = cloned->GetOpType();
 			DATATYPE dtype = GetOpDataType(type);
@@ -576,20 +571,16 @@ namespace mu
 
 		}
 
-		// TaskManager::Task interface
-		void Complete() override
+		void Complete()
 		{
 			// This runs in the managing thread
-			m_codeAccessMutex->lock();
 			ASTOp::Replace( m_source, m_result );
-			m_codeAccessMutex->unlock();
 		}
 	};
 
 
 	//---------------------------------------------------------------------------------------------
-	bool ConstantGeneratorAST( const CompilerOptions::Private* options, Ptr<ASTOp>& root,
-								   TaskManager* pTaskManager )
+	bool ConstantGeneratorAST( const CompilerOptions::Private* options, Ptr<ASTOp>& root )
 	{
 		MUTABLE_CPUPROFILER_SCOPE(ConstantGenerator);
 
@@ -665,8 +656,6 @@ namespace mu
 			});
 
 		}
-
-		std::shared_timed_mutex codeAccessMutex;
 
 		TArray< Ptr<ASTOp> > roots;
 		roots.Add(root);
@@ -755,23 +744,13 @@ namespace mu
 					modified = true;
 
 					ConstantTask* constantTask = new ConstantTask;
-					constantTask->m_useDiskCache =
-						options->m_optimisationOptions.m_useDiskCache;
+					constantTask->m_useDiskCache = options->m_optimisationOptions.m_useDiskCache;
 					constantTask->m_source = n;
-					constantTask->m_codeAccessMutex = &codeAccessMutex;
-					constantTask->m_imageCompressionQuality =
-						options->m_imageCompressionQuality;
+					constantTask->m_imageCompressionQuality = options->m_imageCompressionQuality;
 
-					if ( pTaskManager )
-					{
-						pTaskManager->AddTask( constantTask );
-					}
-					else
-					{
-						constantTask->Run();
-						constantTask->Complete();
-						delete constantTask;
-					}
+					constantTask->Run();
+					constantTask->Complete();
+					delete constantTask;
 
 					break;
 				}
@@ -796,11 +775,6 @@ namespace mu
 			return recurse;
 		});
 
-		if (pTaskManager)
-		{
-			pTaskManager->CompleteTasks();
-		}
-
 		return modified;
 	}
 
@@ -816,8 +790,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void CodeOptimiser::FullOptimiseAST( ASTOpList& roots,
-										 TaskManager* pTaskManager )
+	void CodeOptimiser::FullOptimiseAST( ASTOpList& roots )
 	{
 		bool modified = true;
 		int numIterations = 0;
@@ -880,7 +853,7 @@ namespace mu
 			UE_LOG(LogMutableCore, Verbose, TEXT(" - constant generator"));
 
 			// Constant subtree generation
-			modified = ConstantGeneratorAST( m_options->GetPrivate(), r, pTaskManager );
+			modified = ConstantGeneratorAST( m_options->GetPrivate(), r );
 		}
 
 		UE_LOG(LogMutableCore, Verbose, TEXT("(int) %s : %ld"), TEXT("ast size"), int64(ASTOp::CountNodes(roots)));
@@ -1180,7 +1153,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void CodeOptimiser::OptimiseAST( TaskManager* pTaskManager )
+	void CodeOptimiser::OptimiseAST()
 	{
 		MUTABLE_CPUPROFILER_SCOPE(OptimiseAST);
 
@@ -1251,31 +1224,10 @@ namespace mu
 			// Main optimisation stage
 			{
 				MUTABLE_CPUPROFILER_SCOPE(MainStage);
-				FullOptimiseAST( roots, pTaskManager );
+				FullOptimiseAST( roots );
 				UE_LOG(LogMutableCore, Verbose, TEXT("(int) %s : %ld"), TEXT("ast size"), int64(ASTOp::CountNodes(roots)));
 				ASTOp::LogHistogram(roots);
 			}
-
-	//            // Third optimisation stage: introduce image compose conditions
-	//            {
-	//                // TODO: We have disable this since the new operation "layout remove block" is used.
-	//                // Proper support needs to be implemented for this case.
-	//    //                MUTABLE_CPUPROFILER_SCOPE(ImageComposeConditionGenerator);
-	//    //                AXE_INT_VALUE("Mutable", Verbose, "program size", (int64_t)program.m_opAddress.Num());
-	//    //                UE_LOG(LogMutableCore, Verbose, " - image compose conditions generator");
-	//    //                ImageComposeConditionGenerator composeGen( program );
-	//            }
-
-
-			//{
-			//	MUTABLE_CPUPROFILER_SCOPE(ConditionalsStage);
-
-			//	//program.Check();
-
-			//	// Optimise the conditionals added by the image compose condition generator
-			//	// also the constants generator at the end of previous fulloptimiseAST.
-			//	FullOptimiseAST( roots, pTaskManager );
-			//}
 
 			// Analyse mesh constants to see which of them are in optimised mesh formats, and set the flags.
 			ASTOp::Traverse_BottomUp_Unique_NonReentrant( roots, [&](Ptr<ASTOp>& n)
@@ -1302,7 +1254,7 @@ namespace mu
 				MUTABLE_CPUPROFILER_SCOPE(StatesStage);
 
 				// Optimise for every state
-				OptimiseStatesAST( pTaskManager );
+				OptimiseStatesAST( );
 
 				// Optimise the data formats (TODO)
 				//OperationFlagGenerator flagGen( pResult.get() );
@@ -1329,7 +1281,7 @@ namespace mu
 			for ( size_t s=0;  s<m_states.size(); ++s )
 			{
 				UE_LOG(LogMutableCore, Verbose, TEXT(" - constant generator"));
-				ConstantGeneratorAST( m_options->GetPrivate(), m_states[s].root, pTaskManager );
+				ConstantGeneratorAST( m_options->GetPrivate(), m_states[s].root );
 				//AXE_INT_VALUE("Mutable", Verbose, "ast size", (int64_t)ASTOp::CountNodes(roots));
 			}
 

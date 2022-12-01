@@ -17,14 +17,13 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	//!
 	//---------------------------------------------------------------------------------------------
-	class ASTOpImageMultiLayer : public ASTOp
+	class ASTOpImageLayer : public ASTOp
 	{
 	public:
 
 		ASTChild base;
 		ASTChild blend;
 		ASTChild mask;
-		FRangeData range;
 
 		/** Blend type used for the colour channels. */
 		EBlendType blendType = EBlendType::BT_NONE;
@@ -32,24 +31,27 @@ namespace mu
 		/** Blend type used for the alpha channel if any. */
 		EBlendType blendTypeAlpha = EBlendType::BT_NONE;
 
-		/** If true, use the alpha channel of the blended image as mask. Mask should be null.*/
-		bool bUseMaskFromBlended = false;
+		/** See ImageLayerArgs::Flags .*/
+		uint8 Flags = 0;
 
 	public:
 
-		ASTOpImageMultiLayer();
-		ASTOpImageMultiLayer(const ASTOpImageMultiLayer&) = delete;
-		~ASTOpImageMultiLayer();
+		ASTOpImageLayer();
+		ASTOpImageLayer(const ASTOpImageLayer&) = delete;
+		~ASTOpImageLayer();
 
-		OP_TYPE GetOpType() const override { return OP_TYPE::IM_MULTILAYER; }
+		OP_TYPE GetOpType() const override { return OP_TYPE::IM_LAYER; }
 		uint64 Hash() const override;
 		bool IsEqual(const ASTOp& otherUntyped) const override;
 		Ptr<ASTOp> Clone(MapChildFuncRef mapChild) const override;
 		void ForEachChild(const TFunctionRef<void(ASTChild&)>) override;
-		void Link(FProgram& program, const FLinkerOptions* Options) override;
-		FImageDesc GetImageDesc(bool returnBestOption, FGetImageDescContext* context) const override;
+		void Link(FProgram& program, const FLinkerOptions*) override;
+		FImageDesc GetImageDesc(bool returnBestOption, FGetImageDescContext*) const override;
 		void GetLayoutBlockSize(int* pBlockX, int* pBlockY) override;
 		Ptr<ImageSizeExpression> GetImageSizeExpression() const override;
+		Ptr<ASTOp> OptimiseSemantic(const FModelOptimizationOptions&) const override;
+		Ptr<ASTOp> OptimiseSink(const FModelOptimizationOptions&, FOptimizeSinkContext&) const;
+
 	};
 
 }

@@ -69,8 +69,6 @@ namespace mu
         //! Detailed optimization options
         FModelOptimizationOptions m_optimisationOptions;
 
-        bool m_enablePartialOptimise = false;
-		bool m_enableConcurrency = false;
         bool m_ignoreStates = false;
         CompilerOptions::TextureLayoutStrategy m_textureLayoutStrategy = CompilerOptions::TextureLayoutStrategy::Pack;
 

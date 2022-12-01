@@ -18,6 +18,8 @@
 #include "MuR/RefCounted.h"
 #include "MuT/ASTOpConstantResource.h"
 #include "MuT/ASTOpImageCompose.h"
+#include "MuT/ASTOpImageLayer.h"
+#include "MuT/ASTOpImageLayerColor.h"
 #include "MuT/ASTOpImageMultiLayer.h"
 #include "MuT/ASTOpInstanceAdd.h"
 #include "MuT/ASTOpMeshExtractLayoutBlocks.h"
@@ -380,18 +382,18 @@ namespace mu
             case OP_TYPE::IM_LAYERCOLOUR:
             {
                 recurse = false;
-				const ASTOpFixed* op = dynamic_cast<const ASTOpFixed*>(node.get());
+				const ASTOpImageLayerColor* op = dynamic_cast<const ASTOpImageLayerColor*>(node.get());
 				TArray<bool> newState;
 				newState.Init(false, size_t(EImageFormat::IF_COUNT));
-				RecurseWithState( op->children[op->op.args.ImageLayerColour.base].child(), newState );
-                RecurseWithState( op->children[op->op.args.ImageLayerColour.colour].child(), newState );
+				RecurseWithState( op->base.child(), newState );
+                RecurseWithState( op->color.child(), newState );
 
-                if ( op->children[op->op.args.ImageLayerColour.mask] )
+                if ( op->mask )
                 {
                     newState[(size_t)EImageFormat::IF_L_UBYTE] = true;
                     newState[(size_t)EImageFormat::IF_L_UBYTE_RLE] = true;
 
-                    RecurseWithState( op->children[op->op.args.ImageLayerColour.mask].child(), newState );
+                    RecurseWithState( op->mask.child(), newState );
                 }
                 break;
             }
@@ -399,18 +401,18 @@ namespace mu
             case OP_TYPE::IM_LAYER:
             {
                 recurse = false;
-				const ASTOpFixed* op = dynamic_cast<const ASTOpFixed*>(node.get());
+				const ASTOpImageLayer* op = dynamic_cast<const ASTOpImageLayer*>(node.get());
 				TArray<bool> newState;
 				newState.Init(false, size_t(EImageFormat::IF_COUNT));
-				RecurseWithState( op->children[op->op.args.ImageLayer.base].child(), newState );
-                RecurseWithState( op->children[op->op.args.ImageLayer.blended].child(), newState );
+				RecurseWithState( op->base.child(), newState );
+                RecurseWithState( op->blend.child(), newState );
 
-                if (op->children[op->op.args.ImageLayer.mask])
+                if (op->mask)
                 {
                     newState[(size_t)EImageFormat::IF_L_UBYTE] = true;
                     newState[(size_t)EImageFormat::IF_L_UBYTE_RLE] = true;
 
-                    RecurseWithState( op->children[op->op.args.ImageLayer.mask].child(), newState );
+                    RecurseWithState( op->mask.child(), newState );
                 }
                 break;
             }

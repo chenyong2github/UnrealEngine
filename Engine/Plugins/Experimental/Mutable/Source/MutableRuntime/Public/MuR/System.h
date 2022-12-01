@@ -21,22 +21,10 @@ namespace mu
 	// Forward references
 	class Model;
 	class ModelStreamer;
-
-    using ModelPtr=Ptr<Model>;
-    using ModelPtrConst=Ptr<const Model>;
-
 	class Parameters;
-
-    using ParametersPtr=Ptr<Parameters>;
-    using ParametersPtrConst=Ptr<const Parameters>;
-
     class Mesh;
 
-    using MeshPtr=Ptr<Mesh>;
-    using MeshPtrConst=Ptr<const Mesh>;
-
     class System;
-
     using SystemPtr=Ptr<System>;
     using SystemPtrConst=Ptr<const System>;
 
@@ -82,7 +70,7 @@ namespace mu
         virtual ~ImageParameterGenerator() = default;
 
         //!
-        virtual ImagePtr GetImage( EXTERNAL_IMAGE_ID id ) = 0;
+        virtual Ptr<Image> GetImage( EXTERNAL_IMAGE_ID id ) = 0;
     };
 
 
@@ -98,9 +86,9 @@ namespace mu
     public:
 
 		//! Constructor of a system object to build data.
-        //! \param settings Optional class with the settings to use in this system. The default
+        //! \param Settings Optional class with the settings to use in this system. The default
         //! value configures a production-ready system.
-        System( const SettingsPtr& settings = nullptr );
+        System( const Ptr<Settings>& Settings = nullptr );
 
         //! Set a new provider for model data. The provider will become owned by this instance and
         //! destroyed when necessary.
@@ -112,6 +100,7 @@ namespace mu
 
         //! Set a new provider for external image data. This is only necessary if image parameters
         //! are used in the models.
+		//! The provided pointer becomes owned by the system.
         void SetImageParameterGenerator( ImageParameterGenerator* );
 
         //! Set the maximum memory that this system can use. This memory is used for built data,
@@ -126,7 +115,7 @@ namespace mu
         //! no longer needed.
         //! \param pModel Model to build an instance of
         //! \return An identifier that is always bigger than 0.
-        Instance::ID NewInstance( const ModelPtrConst& pModel );
+        Instance::ID NewInstance( const Ptr<const Model>& Model );
 
         //! \brief Update an instance with a new parameter set and/or state.
         //!
@@ -140,41 +129,41 @@ namespace mu
         //! \return the instance data with all the LOD, components, and ids to generate the meshes 
         //! and images.  The returned Instance is only valid until the next call to EndUpdate with 
         //! the same instanceID parameter.
-        const Instance* BeginUpdate( Instance::ID instanceID,
-                                     const ParametersPtrConst& pParams,
-                                     int32 stateIndex,
-                                     uint32 lodMask );
+        const Instance* BeginUpdate( Instance::ID InstanceID,
+                                     const Ptr<const Parameters>& Params,
+                                     int32 StateIndex,
+                                     uint32 LodMask );
 
 		//! Only valid between BeginUpdate and EndUpdate
 		//! Calculate the description of an image, without generating it.
-		void GetImageDesc(Instance::ID instanceID, RESOURCE_ID imageId, FImageDesc& OutDesc );
+		void GetImageDesc(Instance::ID InstanceID, RESOURCE_ID ImageId, FImageDesc& OutDesc );
 
 		//! Only valid between BeginUpdate and EndUpdate
 		//! \param MipsToSkip Number of mips to skip compared from the full image.
 		//! If 0, all mip levels will be generated. If more levels than possible to discard are specified, 
 		//! the image will still contain a minimum number of mips specified at model compile time.
-		ImagePtrConst GetImage(Instance::ID instanceID, RESOURCE_ID imageId, int32 MipsToSkip = 0);
+		Ptr<const Image> GetImage(Instance::ID InstanceID, RESOURCE_ID ImageId, int32 MipsToSkip = 0);
 
         //! Only valid between BeginUpdate and EndUpdate
-        MeshPtrConst GetMesh(Instance::ID instanceID, RESOURCE_ID meshId);
+        Ptr<const Mesh> GetMesh(Instance::ID InstanceID, RESOURCE_ID MeshId);
 
         //! Invalidate and free the last Instance data returned by a call to BeginUpdate with
         //! the same instance index. After a call to this method, that Instance cannot be used any
         //! more and its content is undefined.
         //! \param instance The index of the instance whose last data will be invalidated.
-        void EndUpdate( Instance::ID instance );
+        void EndUpdate( Instance::ID InstanceID);
 
         //! Completely destroy an instance. After a call to this method the given instance cannot be
         //! updated any more, and its resources may have been freed.
         //! \param instance The id of the instance to destroy.
-        void ReleaseInstance( Instance::ID instance );
+        void ReleaseInstance( Instance::ID InstanceID);
 
 		//! Build one of the images defined in a model parameter as additional description. These
 		//! images can be used for colour bars, icons, etc...
-        ImagePtrConst BuildParameterAdditionalImage( const ModelPtrConst& pModel,
-                                                     const ParametersPtrConst& pParams,
-                                                     int parameter,
-                                                     int image );
+		Ptr<const Image> BuildParameterAdditionalImage( const Ptr<const Model>& Model,
+														const Ptr<const Parameters>& Params,
+														int32 Parameter,
+														int32 ImageIndex );
 
 		//! Calculate the relevancy of every parameter. Some parameters may be unused depending on
 		//! the values of other parameters. This method will set to true the flags for parameters
@@ -184,9 +173,9 @@ namespace mu
         //! \param pParameters Parameter set that we want to find the relevancy of.
         //! \param pFlags is a pointer to a preallocated array of booleans that contains at least
 		//! pParameters->GetCount() elements.
-        void GetParameterRelevancy( const ModelPtrConst& pModel,
-									const ParametersPtrConst& pParameters,
-									bool* pFlags );
+        void GetParameterRelevancy( const Ptr<const Model>& Model,
+									const Ptr<const Parameters>& Parameters,
+									bool* Flags );
 
         //! Free memory used in internal runtime caches. This is useful for long-running processes
         //! that keep models loaded. This could be called when a game finishes, or a change of

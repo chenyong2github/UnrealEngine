@@ -32,7 +32,6 @@
 #include "MuT/Node.h"
 #include "MuT/NodePrivate.h"
 #include "MuT/Table.h"
-#include "MuT/TaskManager.h"
 #include "Trace/Detail/Channel.h"
 
 #include <algorithm>
@@ -104,20 +103,6 @@ namespace mu
     {
         m_pD->m_optimisationOptions.m_constReduction = constReduction;
     }
-
-
-	//---------------------------------------------------------------------------------------------
-	void CompilerOptions::SetEnablePartialOptimisation(bool bEnabled)
-	{
-		m_pD->m_enablePartialOptimise = bEnabled;
-	}
-
-
-	//---------------------------------------------------------------------------------------------
-	void CompilerOptions::SetEnableConcurrency(bool bEnabled)
-	{
-		m_pD->m_enableConcurrency = bEnabled;
-	}
 
 
     //---------------------------------------------------------------------------------------------
@@ -198,14 +183,12 @@ namespace mu
     {
         MUTABLE_CPUPROFILER_SCOPE(Compile);
 
-        TaskManager* pTaskManager = new TaskManager(m_pD->m_options->GetPrivate()->m_enableConcurrency);
-
         vector< STATE_COMPILATION_DATA > states;
         Ptr<ErrorLog> genErrorLog;
         {
             CodeGenerator gen( m_pD->m_options->GetPrivate() );
 
-            gen.GenerateRoot( pNode, pTaskManager );
+            gen.GenerateRoot( pNode );
 
             check( !gen.m_states.IsEmpty() );
 
@@ -234,7 +217,7 @@ namespace mu
         // Optimize the generated code
         {
             CodeOptimiser optimiser( m_pD->m_options, states );
-            optimiser.OptimiseAST( pTaskManager );
+            optimiser.OptimiseAST( );
         }
 
 
@@ -364,8 +347,6 @@ namespace mu
 		m_pD->GenerateRoms(pResult.get(),MinimumBytesPerRom);
 
 		UE_LOG(LogMutableCore, Verbose, TEXT("(int) %s : %ld"), TEXT("program size"), int64(program.m_opAddress.Num()));
-
-        delete pTaskManager;
 
         return pResult;
     }

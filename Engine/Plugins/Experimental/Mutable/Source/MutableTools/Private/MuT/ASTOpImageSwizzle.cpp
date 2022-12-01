@@ -17,6 +17,8 @@
 #include "MuT/ASTOpImagePatch.h"
 #include "MuT/ASTOpImagePixelFormat.h"
 #include "MuT/ASTOpImageMultiLayer.h"
+#include "MuT/ASTOpImageLayer.h"
+#include "MuT/ASTOpImageLayerColor.h"
 #include "MuT/ASTOpSwitch.h"
 #include "MuT/StreamsPrivate.h"
 
@@ -119,7 +121,6 @@ namespace mu
 
 	mu::Ptr<ASTOp> ASTOpImageSwizzle::OptimiseSemantic(const FModelOptimizationOptions&) const
 	{
-		// If children channels are also swizzle ops, recurse them
 		Ptr<ASTOpImageSwizzle> sat;
 
 		for (int c = 0; c < MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++c)
@@ -230,6 +231,17 @@ namespace mu
 			}
 		}
 
+		// If we are not changing channel order, just remove the swizzle and adjust the format.
+		bool bSameChannelOrder = true;
+		int32 NumChannelsInFormat = GetImageFormatData(Format).m_channels;
+		for (int32 c = 0; c < NumChannelsInFormat; ++c)
+		{
+			if (Sources[c] && SourceChannels[c] != c)
+			{
+				bSameChannelOrder = false;
+			}
+		}
+
 		OP_TYPE sourceType = channelSourceAt->GetOpType();
 
 		if (bAllChannelsAreTheSame && channelSourceAt)
@@ -300,15 +312,15 @@ namespace mu
 			case OP_TYPE::IM_LAYER:
 			{
 				// We move the swizzle down the two paths
-				Ptr<ASTOpFixed> nop = mu::Clone<ASTOpFixed>(channelSourceAt);
+				Ptr<ASTOpImageLayer> nop = mu::Clone<ASTOpImageLayer>(channelSourceAt);
 
 				Ptr<ASTOpImageSwizzle> aOp = mu::Clone<ASTOpImageSwizzle>(this);
-				ReplaceAllSources(aOp, nop->children[nop->op.args.ImageLayer.base].child());
-				nop->SetChild(nop->op.args.ImageLayer.base, aOp);
+				ReplaceAllSources(aOp, nop->base.child());
+				nop->base = aOp;
 
 				Ptr<ASTOpImageSwizzle> bOp = mu::Clone<ASTOpImageSwizzle>(this);
-				ReplaceAllSources(bOp, nop->children[nop->op.args.ImageLayer.blended].child());
-				nop->SetChild(nop->op.args.ImageLayer.blended, bOp);
+				ReplaceAllSources(bOp, nop->blend.child());
+				nop->blend = bOp;
 
 				at = nop;
 				break;
@@ -317,21 +329,21 @@ namespace mu
 			case OP_TYPE::IM_LAYERCOLOUR:
 			{
 				// We move the swizzle down the base path
-				Ptr<ASTOpFixed> nop = mu::Clone<ASTOpFixed>(channelSourceAt);
+				Ptr<ASTOpImageLayerColor> nop = mu::Clone<ASTOpImageLayerColor>(channelSourceAt);
 
 				Ptr<ASTOpImageSwizzle> NewSwizzle = mu::Clone<ASTOpImageSwizzle>(this);
-				ReplaceAllSources(NewSwizzle, nop->children[nop->op.args.ImageLayerColour.base].child());
-				nop->SetChild(nop->op.args.ImageLayerColour.base, NewSwizzle);
+				ReplaceAllSources(NewSwizzle, nop->base.child());
+				nop->base = NewSwizzle;
 
 				// We need to swizzle the colour too
 				Ptr<ASTOpFixed> cOp = new ASTOpFixed;
 				cOp->op.type = OP_TYPE::CO_SWIZZLE;
 				for (int i = 0; i < MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++i)
 				{
-					cOp->SetChild(cOp->op.args.ColourSwizzle.sources[i], nop->children[nop->op.args.ImageLayerColour.colour]);
+					cOp->SetChild(cOp->op.args.ColourSwizzle.sources[i], nop->color);
 					cOp->op.args.ColourSwizzle.sourceChannels[i] = SourceChannels[i];
 				}
-				nop->SetChild(nop->op.args.ImageLayerColour.colour, cOp);
+				nop->color = cOp;
 
 				at = nop;
 				break;
@@ -357,6 +369,38 @@ namespace mu
 				break;
 			}
 
+			case OP_TYPE::IM_RESIZE:
+			{
+				Ptr<ASTOpFixed> NewResize = mu::Clone<ASTOpFixed>(channelSourceAt);
+				Ptr<ASTOpImageSwizzle> NewSwizzle = mu::Clone<ASTOpImageSwizzle>(this);
+				ReplaceAllSources(NewSwizzle, NewResize->children[NewResize->op.args.ImageResize.source].child());
+				NewResize->SetChild(NewResize->op.args.ImageResize.source, NewSwizzle);
+				at = NewResize;
+				break;
+			}
+
+			// This is not valid: binarize always forces format L8
+			//case OP_TYPE::IM_BINARISE:
+			//{
+			//	Ptr<ASTOpFixed> NewBinarise = mu::Clone<ASTOpFixed>(channelSourceAt);
+			//	Ptr<ASTOpImageSwizzle> NewSwizzle = mu::Clone<ASTOpImageSwizzle>(this);
+			//	ReplaceAllSources(NewSwizzle, NewBinarise->children[NewBinarise->op.args.ImageBinarise.base].child());
+			//	NewBinarise->SetChild(NewBinarise->op.args.ImageBinarise.base, NewSwizzle);
+			//	at = NewBinarise;
+			//	break;
+			//}
+
+			case OP_TYPE::IM_PIXELFORMAT:
+			{
+				if (bSameChannelOrder)
+				{
+					Ptr<ASTOpImagePixelFormat> NewFormat = mu::Clone<ASTOpImagePixelFormat>(channelSourceAt);
+					NewFormat->Format = Format;
+					at = NewFormat;
+				}
+				break;
+			}
+
 			default:
 				bAllChannelsAreTheSame = false;
 				break;
@@ -370,6 +414,8 @@ namespace mu
 			// If we have RGB being the same IM_MULTILAYER, and alpha a compatible IM_MULTILAYER we can optimize with
 			// a special multilayer blend mode. This happens often because of higher level group projector nodes.
 			if (!at
+				&&
+				Format == EImageFormat::IF_RGBA_UBYTE
 				&&
 				Sources[0] == Sources[1] && Sources[0] == Sources[2]
 				&&
@@ -421,6 +467,62 @@ namespace mu
 					}
 
 					at = NewMultiLayer;
+				}
+			}
+
+			// If we have RGB being the same IM_LAYER, and alpha a compatible IM_LAYER we can optimize with a special layer blend mode.
+			if (!at
+				&&
+				Format == EImageFormat::IF_RGBA_UBYTE
+				&&
+				Sources[0] == Sources[1] && (Sources[0] == Sources[2] || !Sources[2])
+				&&
+				Sources[0] && Sources[0]->GetOpType() == OP_TYPE::IM_LAYER
+				&&
+				Sources[3] && Sources[3]->GetOpType() == OP_TYPE::IM_LAYER
+				&&
+				SourceChannels[0] == 0 && SourceChannels[1] == 1 && (SourceChannels[2] == 2 || !Sources[2] ) && SourceChannels[3] == 0
+				)
+			{
+				const ASTOpImageLayer* ColorLayer = dynamic_cast<const ASTOpImageLayer*>(Sources[0].child().get());
+				check(ColorLayer);
+				const ASTOpImageLayer* AlphaLayer = dynamic_cast<const ASTOpImageLayer*>(Sources[3].child().get());
+				check(AlphaLayer);
+
+				bool bIsSpecialMultiLayer = !AlphaLayer->mask;
+
+				if (bIsSpecialMultiLayer)
+				{
+					// We can combine the 2 multilayers into the composite blend+lighten mode
+
+					Ptr<ASTOpImageSwizzle> NewBase = mu::Clone<ASTOpImageSwizzle>(this);
+					NewBase->Sources[0] = ColorLayer->base.child();
+					NewBase->Sources[1] = ColorLayer->base.child();
+					NewBase->Sources[2] = Sources[2] ? ColorLayer->base.child() : nullptr;
+					NewBase->Sources[3] = AlphaLayer->base.child();
+
+					Ptr<ASTOpImageSwizzle> NewBlended = mu::Clone<ASTOpImageSwizzle>(this);
+					NewBlended->Sources[0] = ColorLayer->blend.child();
+					NewBlended->Sources[1] = ColorLayer->blend.child();
+					NewBlended->Sources[2] = Sources[2] ? ColorLayer->blend.child() : nullptr;
+					NewBlended->Sources[3] = AlphaLayer->blend.child();
+
+					Ptr<ASTOpImageLayer> NewLayer = mu::Clone<ASTOpImageLayer>(ColorLayer);
+					NewLayer->blendTypeAlpha = AlphaLayer->blendType;
+					NewLayer->base = NewBase;
+					NewLayer->blend = NewBlended;
+
+					if (NewLayer->mask.child() == AlphaLayer->blend.child()
+						&&
+						NewBlended->Format == EImageFormat::IF_RGBA_UBYTE
+						)
+					{
+						// Additional optimization is possible here.
+						NewLayer->Flags |= OP::ImageLayerArgs::FLAGS::F_USE_MASK_FROM_BLENDED;
+						NewLayer->mask = nullptr;
+					}
+
+					at = NewLayer;
 				}
 			}
 
@@ -486,7 +588,7 @@ namespace mu
 				}
 			}
 
-			// Swizzle down a displace.
+			// Swizzle down compatible displaces.
 			if (!at && sourceType == OP_TYPE::IM_DISPLACE)
 			{
 				const ASTOpFixed* FirstDisplace = dynamic_cast<const ASTOpFixed*>(Sources[0].child().get());
@@ -529,13 +631,13 @@ namespace mu
 
 			}
 
-			// Swizzle down a raster mesh.
+			// Swizzle down compatible raster meshes.
 			if (!at && sourceType == OP_TYPE::IM_RASTERMESH)
 			{
 				const ASTOpFixed* FirstRasterMesh = dynamic_cast<const ASTOpFixed*>(Sources[0].child().get());
 				check(FirstRasterMesh);
 
-				bool bAreAllFirstRasterMeshesCompatible = true;
+				bool bAreAllRasterMeshesCompatible = true;
 				for (int32 c = 1; c < MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++c)
 				{
 					if (Sources[c])
@@ -548,13 +650,13 @@ namespace mu
 
 						if (FMemory::Memcmp(&ArgCopy, &Typed->op.args.ImageRasterMesh, sizeof(OP::ImageRasterMeshArgs)) != 0)
 						{
-							bAreAllFirstRasterMeshesCompatible = false;
+							bAreAllRasterMeshesCompatible = false;
 							break;
 						}
 					}
 				}
 
-				if (bAreAllFirstRasterMeshesCompatible)
+				if (bAreAllRasterMeshesCompatible)
 				{
 					// Move the swizzle down all the paths
 					Ptr<ASTOpFixed> NewRaster = mu::Clone<ASTOpFixed>(FirstRasterMesh);
@@ -575,10 +677,88 @@ namespace mu
 				}
 
 			}
+
+			// Swizzle down compatible resizes.
+			if (!at && sourceType == OP_TYPE::IM_RESIZE)
+			{
+				const ASTOpFixed* FirstResize = dynamic_cast<const ASTOpFixed*>(Sources[0].child().get());
+				check(FirstResize);
+
+				bool bAreAllResizesCompatible = true;
+				for (int32 c = 1; c < MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++c)
+				{
+					if (Sources[c])
+					{
+						const ASTOpFixed* Typed = dynamic_cast<const ASTOpFixed*>(Sources[c].child().get());
+						check(Typed);
+						// Compare all args but the source image
+						OP::ImageResizeArgs ArgCopy = FirstResize->op.args.ImageResize;
+						ArgCopy.source = Typed->op.args.ImageResize.source;
+
+						if (FMemory::Memcmp(&ArgCopy, &Typed->op.args.ImageResize, sizeof(OP::ImageResizeArgs)) != 0)
+						{
+							bAreAllResizesCompatible = false;
+							break;
+						}
+					}
+				}
+
+				if (bAreAllResizesCompatible)
+				{
+					// Move the swizzle down all the paths
+					Ptr<ASTOpFixed> NewResize = mu::Clone<ASTOpFixed>(FirstResize);
+
+					Ptr<ASTOpImageSwizzle> NewSwizzle = mu::Clone<ASTOpImageSwizzle>(this);
+					for (int c = 0; c < MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++c)
+					{
+						const ASTOpFixed* ChannelResize = dynamic_cast<const ASTOpFixed*>(Sources[c].child().get());
+						if (ChannelResize)
+						{
+							NewSwizzle->Sources[c] = ChannelResize->children[ChannelResize->op.args.ImageResize.source].child();
+						}
+					}
+
+					NewResize->SetChild(NewResize->op.args.ImageResize.source, NewSwizzle);
+
+					at = NewResize;
+				}
+
+			}
+
+			// Swizzle down compatible pixelformats.
+			if (!at && sourceType == OP_TYPE::IM_PIXELFORMAT && bSameChannelOrder)
+			{
+				const ASTOpImagePixelFormat* FirstFormat = dynamic_cast<const ASTOpImagePixelFormat*>(Sources[0].child().get());
+				check(FirstFormat);
+
+				bool bAreAllFormatsCompatible = true;
+				for (int32 c = 1; c < MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++c)
+				{
+					if (Sources[c])
+					{
+						const ASTOpImagePixelFormat* Typed = dynamic_cast<const ASTOpImagePixelFormat*>(Sources[c].child().get());
+						check(Typed);
+
+						if (Typed->Source.child() != FirstFormat->Source.child())
+						{
+							bAreAllFormatsCompatible = false;
+							break;
+						}
+					}
+				}
+
+				if (bAreAllFormatsCompatible)
+				{
+					// Move the swizzle down all the paths
+					Ptr<ASTOpImagePixelFormat> NewFormat = mu::Clone<ASTOpImagePixelFormat>(FirstFormat);
+					NewFormat->Format = Format;
+					at = NewFormat;
+				}
+			}
 		}
 
 		// Swizzle of RGB from a source + A from a layer colour
-		// This can be optimize to apply the layer colour on-base directly to the alpha channel to skip the swizzle
+		// This can be optimized to apply the layer colour on-base directly to the alpha channel to skip the swizzle
 		if ( !at 
 			&&
 			Sources[0] && Sources[0]==Sources[1] && Sources[0]==Sources[2]
@@ -586,361 +766,69 @@ namespace mu
 			Sources[3] && Sources[3]->GetOpType()==OP_TYPE::IM_LAYERCOLOUR )
 		{
 			// Move the swizzle down all the paths
-			Ptr<ASTOpFixed> NewLayerColour = mu::Clone<ASTOpFixed>(Sources[3].child());
+			Ptr<ASTOpImageLayerColor> NewLayerColour = mu::Clone<ASTOpImageLayerColor>(Sources[3].child());
 
 			Ptr<ASTOpImageSwizzle> NewSwizzle = mu::Clone<ASTOpImageSwizzle>(this);
-			NewSwizzle->Sources[3] = NewLayerColour->children[NewLayerColour->op.args.ImageLayerColour.base].child();
+			NewSwizzle->Sources[3] = NewLayerColour->base.child();
 
-			NewLayerColour->op.args.ImageLayerColour.blendTypeAlpha = NewLayerColour->op.args.ImageLayerColour.blendType;
-			NewLayerColour->op.args.ImageLayerColour.blendType = uint8(EBlendType::BT_NONE);
-			NewLayerColour->SetChild(NewLayerColour->op.args.ImageLayerColour.base, NewSwizzle);
+			NewLayerColour->blendTypeAlpha = NewLayerColour->blendType;
+			NewLayerColour->blendType = EBlendType::BT_NONE;
+			NewLayerColour->base = NewSwizzle;
 
 			at = NewLayerColour;
 
 		}
 
+		// Swizzle of RGB from a layer colour + A from a different source
+		// This can be optimized to apply the layer colour on-base directly to the rgb channel to skip the swizzle
+		if (!at
+			&&
+			Sources[0] 
+			&& 
+			(!Sources[1] || Sources[0] == Sources[1]) 
+			&& 
+			(!Sources[2] || Sources[0] == Sources[2])
+			&&
+			Sources[0]->GetOpType() == OP_TYPE::IM_LAYERCOLOUR)
+		{
+			// Move the swizzle down all the rgb path
+			Ptr<ASTOpImageLayerColor> NewLayerColour = mu::Clone<ASTOpImageLayerColor>(Sources[0].child());
+			check(NewLayerColour);
 
-//            OP::ADDRESS sourceAt = program.m_code[at].args.ImageSwizzle.sources[0];
-//            OP_TYPE sourceType = (OP_TYPE)program.m_code[sourceAt].type;
-//            switch ( sourceType )
-//            {
-//            case OP_TYPE::IM_COMPOSE:
-//            {
-//                bool canSink = true;
-//                OP::ADDRESS layout = program.m_code[sourceAt].args.ImageCompose.layout;
-//                uint32_t block = program.m_code[sourceAt].args.ImageCompose.blockIndex;
-//                for ( int c=1; c<MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++c )
-//                {
-//                    OP::ADDRESS candidate = program.m_code[at].args.ImageSwizzle.sources[c];
-//                    if ( candidate )
-//                    {
-//                        if ( program.m_code[candidate].type==sourceType )
-//                        {
-//                            OP::ADDRESS clayout =
-//                                    program.m_code[candidate].args.ImageCompose.layout;
-//                            uint32_t cblock =
-//                                    program.m_code[candidate].args.ImageCompose.blockIndex;
-//                            canSink = canSink
-//                                    && ( layout == clayout )
-//                                    && ( block == cblock );
-//                        }
-//                        else
-//                        {
-//                            canSink = false;
-//                        }
-//                    }
-//                }
+			Ptr<ASTOpImageSwizzle> NewSwizzle = mu::Clone<ASTOpImageSwizzle>(this);
+			NewSwizzle->Sources[0] = NewLayerColour->base.child();
+			NewSwizzle->Sources[1] = Sources[1] ? NewLayerColour->base.child() : nullptr;
+			NewSwizzle->Sources[2] = Sources[2] ? NewLayerColour->base.child() : nullptr;
 
-//                if ( canSink )
-//                {
-//                    m_modified = true;
+			NewLayerColour->blendTypeAlpha = EBlendType::BT_NONE;
+			NewLayerColour->base = NewSwizzle;
 
-//                    OP op = program.m_code[sourceAt];
+			at = NewLayerColour;
+		}
 
-//                    OP swizzleBaseOp = program.m_code[at];
-//                    OP swizzleBlockOp = program.m_code[at];
+		// Swizzle of RGB from a binarise + A from a different source
+		// This can be optimized to apply the layer colour on-base directly to the rgb channel to skip the swizzle
+		// This is not valid because binarise always forces L8 format.
+		//if (!at
+		//	&&
+		//	Sources[0] && (!Sources[0] ||Sources[0] == Sources[1]) && (!Sources[2] || Sources[0] == Sources[2])
+		//	&&
+		//	Sources[0]->GetOpType() == OP_TYPE::IM_BINARISE)
+		//{
+		//	// Move the swizzle down all the rgb path
+		//	Ptr<ASTOpFixed> NewBinarise = mu::Clone<ASTOpFixed>(Sources[0].child());
+		//	check(NewBinarise);
 
-//                    for ( int c=0; c<MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++c )
-//                    {
-//                        OP::ADDRESS source = program.m_code[at].args.ImageSwizzle.sources[c];
-//                        if ( source )
-//                        {
-//                            swizzleBaseOp.args.ImageSwizzle.sources[c] =
-//                                    program.m_code[ source ].args.ImageCompose.base;
+		//	Ptr<ASTOpImageSwizzle> NewSwizzle = mu::Clone<ASTOpImageSwizzle>(this);
+		//	NewSwizzle->Sources[0] = NewBinarise->children[NewBinarise->op.args.ImageBinarise.base].child();
+		//	NewSwizzle->Sources[1] = Sources[1] ? NewSwizzle->Sources[0].child() : nullptr;
+		//	NewSwizzle->Sources[2] = Sources[2] ? NewSwizzle->Sources[0].child() : nullptr;
 
-//                            swizzleBlockOp.args.ImageSwizzle.sources[c] =
-//                                    program.m_code[ source ].args.ImageCompose.blockImage;
-//                        }
-//                    }
-//                    op.args.ImageCompose.base = program.AddOp( swizzleBaseOp );
-//                    op.args.ImageCompose.blockImage = program.AddOp( swizzleBlockOp );
+		//	NewBinarise->SetChild(NewBinarise->op.args.ImageBinarise.base, NewSwizzle);
 
-//                    at = program.AddOp( op );
-//                }
-//                break;
-//            }
+		//	at = NewBinarise;
+		//}
 
-//            case OP_TYPE::IM_CONDITIONAL:
-//            {
-//                // We can always sink into conditionals
-//                m_modified = true;
-
-//                OP op = program.m_code[sourceAt];
-
-//                OP swizzleYesOp = program.m_code[at];
-//                OP swizzleNoOp = program.m_code[at];
-//                OP::ADDRESS source0 = 0;
-//                for ( int c=0; c<MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++c )
-//                {
-//                    OP::ADDRESS source = program.m_code[at].args.ImageSwizzle.sources[c];
-//                    if ( c==0 )
-//                    {
-//                        source0 = source;
-//                    }
-
-//                    if ( source
-//                        &&
-//                        ( (c==0) || ( program.m_code[source0].args.Conditional.condition == program.m_code[source].args.Conditional.condition ) )
-//                        )
-//                    {
-//                        swizzleYesOp.args.ImageSwizzle.sources[c] =
-//                                program.m_code[ source ].args.Conditional.yes;
-
-//                        swizzleNoOp.args.ImageSwizzle.sources[c] =
-//                                program.m_code[ source ].args.Conditional.no;
-//                    }
-//                }
-//                op.args.Conditional.yes = program.AddOp( swizzleYesOp );
-//                op.args.Conditional.no = program.AddOp( swizzleNoOp );
-
-//                at = program.AddOp( op );
-//                break;
-//            }
-
-
-//            case OP_TYPE::IM_SWITCH:
-//            {
-//                bool canSink = true;
-//                OP::ADDRESS variable = program.m_code[sourceAt].args.Switch.variable;
-
-//                // If at least 3 channels can be combined, do it. We may be duplicating some data
-//                // But it greatly optimises speed in some cases like the constant alpha masks of
-//                // the face colour interpolation.
-//                // TODO: Make this dependent on compilation options.
-//                //for ( int c=1; c<MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++c )
-//                for ( int c=1; c<3; ++c )
-//                {
-//                    OP::ADDRESS candidate = program.m_code[at].args.ImageSwizzle.sources[c];
-//                    if ( candidate )
-//                    {
-//                        if ( program.m_code[candidate].type==sourceType )
-//                        {
-//                            OP::ADDRESS cvariable =
-//                                    program.m_code[candidate].args.Switch.variable;
-//                            canSink = canSink && ( variable == cvariable );
-//                        }
-//                        else
-//                        {
-//                            canSink = false;
-//                        }
-//                    }
-//                }
-
-//                if ( canSink )
-//                {
-//                    // TODO since data-switch
-////                    m_modified = true;
-
-////                    OP op = program.m_code[sourceAt];
-
-////                    if ( op.args.Switch.def )
-////                    {
-////                        OP swizzleDefOp = program.m_code[at];
-////                        for ( int c=0; c<MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++c )
-////                        {
-////                            OP::ADDRESS source = program.m_code[at].args.ImageSwizzle.sources[c];
-////                            if ( source )
-////                            {
-////                                if ( program.m_code[source].type==sourceType )
-////                                {
-////                                    swizzleDefOp.args.ImageSwizzle.sources[c] =
-////                                            program.m_code[ source ].args.Switch.def;
-////                                }
-////                                else
-////                                {
-////                                    swizzleDefOp.args.ImageSwizzle.sources[c] = source;
-////                                }
-////                            }
-////                        }
-////                        op.args.Switch.def = program.AddOp( swizzleDefOp );
-////                    }
-
-////                    for ( int o=0; o<MUTABLE_OP_MAX_SWITCH_OPTIONS; ++o )
-////                    {
-////                        if ( op.args.Switch.values[o] )
-////                        {
-////                            OP swizzleOptOp = program.m_code[at];
-////                            for ( int c=0; c<MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++c )
-////                            {
-////                                OP::ADDRESS source = program.m_code[at].args.ImageSwizzle.sources[c];
-////                                if ( source )
-////                                {
-////                                    if ( program.m_code[source].type==sourceType )
-////                                    {
-////                                        swizzleOptOp.args.ImageSwizzle.sources[c] =
-////                                                program.m_code[ source ].args.Switch.values[o];
-////                                    }
-////                                    else
-////                                    {
-////                                        swizzleOptOp.args.ImageSwizzle.sources[c] = source;
-////                                    }
-////                                }
-////                            }
-////                            op.args.Switch.values[o] = program.AddOp( swizzleOptOp );
-////                        }
-////                    }
-
-////                    at = program.AddOp( op );
-//                }
-//                break;
-//            }
-
-
-//            case OP_TYPE::IM_INTERPOLATE:
-//            {
-//                bool canSink = true;
-//                OP::ADDRESS factor = program.m_code[sourceAt].args.ImageInterpolate.factor;
-
-//                // It is worth to sink 3 channels
-//                // TODO: Make it depend on compilation parameters
-//                //for ( int c=1; c<MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++c )
-//                for ( int c=1; c<3; ++c )
-//                {
-//                    OP::ADDRESS candidate = program.m_code[at].args.ImageSwizzle.sources[c];
-//                    if ( candidate )
-//                    {
-//                        if ( program.m_code[candidate].type==sourceType )
-//                        {
-//                            OP::ADDRESS cfactor =
-//                                    program.m_code[candidate].args.ImageInterpolate.factor;
-//                            canSink = canSink && ( factor == cfactor );
-//                        }
-//                        else
-//                        {
-//                            canSink = false;
-//                        }
-//                    }
-//                }
-
-//                if ( canSink )
-//                {
-//                    m_modified = true;
-
-//                    OP op = program.m_code[sourceAt];
-
-//                    for ( int o=0; o<MUTABLE_OP_MAX_INTERPOLATE_COUNT; ++o )
-//                    {
-//                        if ( op.args.ImageInterpolate.targets[o] )
-//                        {
-//                            OP swizzleOptOp = program.m_code[at];
-//                            for ( int c=0; c<MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++c )
-//                            {
-//                                OP::ADDRESS source = program.m_code[at].args.ImageSwizzle.sources[c];
-
-//                                if ( source
-//                                     && program.m_code[source].type==OP_TYPE::IM_INTERPOLATE
-//                                     && program.m_code[source].args.ImageInterpolate.factor==factor
-//                                     )
-//                                {
-//                                    swizzleOptOp.args.ImageSwizzle.sources[c] =
-//                                            program.m_code[ source ].args.ImageInterpolate.targets[o];
-//                                }
-//                            }
-//                            op.args.ImageInterpolate.targets[o] = program.AddOp( swizzleOptOp );
-//                        }
-//                    }
-
-//                    at = program.AddOp( op );
-//                }
-//                break;
-//            }
-
-
-//            case OP_TYPE::IM_INTERPOLATE3:
-//            {
-//                // We can sink if all channels are interpolates for the same factors
-//                OP::ADDRESS sourceAt0 = program.m_code[at].args.ImageSwizzle.sources[0];
-//                OP::ADDRESS factor10 = program.m_code[sourceAt0].args.ImageInterpolate3.factor1;
-//                OP::ADDRESS factor20 = program.m_code[sourceAt0].args.ImageInterpolate3.factor2;
-
-//                OP::ADDRESS sourceAt1 = program.m_code[at].args.ImageSwizzle.sources[1];
-//                OP::ADDRESS factor11 = program.m_code[sourceAt1].args.ImageInterpolate3.factor1;
-//                OP::ADDRESS factor21 = program.m_code[sourceAt1].args.ImageInterpolate3.factor2;
-
-//                OP::ADDRESS sourceAt2 = program.m_code[at].args.ImageSwizzle.sources[2];
-//                OP::ADDRESS factor12 = program.m_code[sourceAt2].args.ImageInterpolate3.factor1;
-//                OP::ADDRESS factor22 = program.m_code[sourceAt2].args.ImageInterpolate3.factor2;
-
-//                bool canSink = true;
-//                canSink &= program.m_code[sourceAt0].type == program.m_code[sourceAt1].type;
-//                canSink &= program.m_code[sourceAt0].type == program.m_code[sourceAt2].type;
-//                canSink &= factor10 == factor11;
-//                canSink &= factor10 == factor12;
-//                canSink &= factor20 == factor21;
-//                canSink &= factor20 == factor22;
-
-//                if ( canSink )
-//                {
-//                    m_modified = true;
-
-//                    OP op = program.m_code[sourceAt0];
-
-//                    // Target 0
-//                    {
-//                        OP swizzleOptOp = program.m_code[at];
-//                        for ( int c=0; c<MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++c )
-//                        {
-//                            OP::ADDRESS source = program.m_code[at].args.ImageSwizzle.sources[c];
-//                            if ( source
-//                                 && program.m_code[source].type==OP_TYPE::IM_INTERPOLATE3
-//                                 && program.m_code[source].args.ImageInterpolate3.factor1==factor10
-//                                 && program.m_code[source].args.ImageInterpolate3.factor2==factor20
-//                                 )
-//                            {
-//                                swizzleOptOp.args.ImageSwizzle.sources[c] =
-//                                        program.m_code[ source ].args.ImageInterpolate3.target0;
-//                            }
-//                        }
-//                        op.args.ImageInterpolate3.target0 = program.AddOp( swizzleOptOp );
-//                    }
-
-//                    // Target 1
-//                    {
-//                        OP swizzleOptOp = program.m_code[at];
-//                        for ( int c=0; c<MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++c )
-//                        {
-//                            OP::ADDRESS source = program.m_code[at].args.ImageSwizzle.sources[c];
-//                            if ( source
-//                                 && program.m_code[source].type==OP_TYPE::IM_INTERPOLATE3
-//                                 && program.m_code[source].args.ImageInterpolate3.factor1==factor10
-//                                 && program.m_code[source].args.ImageInterpolate3.factor2==factor20
-//                                 )
-//                            {
-//                                swizzleOptOp.args.ImageSwizzle.sources[c] =
-//                                        program.m_code[ source ].args.ImageInterpolate3.target1;
-//                            }
-//                        }
-//                        op.args.ImageInterpolate3.target1 = program.AddOp( swizzleOptOp );
-//                    }
-
-//                    // Target 2
-//                    {
-//                        OP swizzleOptOp = program.m_code[at];
-//                        for ( int c=0; c<MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++c )
-//                        {
-//                            OP::ADDRESS source = program.m_code[at].args.ImageSwizzle.sources[c];
-//                            if ( source
-//                                 && program.m_code[source].type==OP_TYPE::IM_INTERPOLATE3
-//                                 && program.m_code[source].args.ImageInterpolate3.factor1==factor10
-//                                 && program.m_code[source].args.ImageInterpolate3.factor2==factor20
-//                                 )
-//                            {
-//                                swizzleOptOp.args.ImageSwizzle.sources[c] =
-//                                        program.m_code[ source ].args.ImageInterpolate3.target2;
-//                            }
-//                        }
-//                        op.args.ImageInterpolate3.target2 = program.AddOp( swizzleOptOp );
-//                    }
-
-//                    at = program.AddOp( op );
-//                }
-//                break;
-//            }
-
-//            default:
-//                break;
-//            }
-//		}
 
 		return at;
 	}
