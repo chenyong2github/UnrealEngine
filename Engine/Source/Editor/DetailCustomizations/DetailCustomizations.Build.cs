@@ -64,6 +64,8 @@ public class DetailCustomizations : ModuleRules
 				"ToolWidgets",
 				"MaterialEditor",
 				"VirtualTexturingEditor",
+				"Json",
+				"JsonUtilities",
 			}
 		);
 

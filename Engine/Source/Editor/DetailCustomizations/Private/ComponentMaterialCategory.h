@@ -47,6 +47,28 @@ private:
 	 */
 	void OnMaterialChanged( UMaterialInterface* NewMaterial, UMaterialInterface* PrevMaterial, int32 SlotIndex, bool bReplaceAll );
 
+	/**
+	 * Called when a user executes the copy command on a material list item
+	 *
+	 * @param CurrentSlot	The slot index that was copied
+	 */
+	void OnCopyMaterialItem(int32 CurrentSlot);
+
+	/**
+	 * Called to determine if the copy command should be enabled for a particular a material list item
+	 *
+	 * @param CurrentSlot	The slot index that was copied
+	 * @return	whether this slot index can be copied
+	 */
+	bool OnCanCopyMaterialItem(int32 CurrentSlot) const;
+
+	/**
+	 * Called when a user executes the paste command on a material list item
+	 *
+	 * @param CurrentSlot	The slot index that was pasted on
+	 */
+	void OnPasteMaterialItem(int32 CurrentSlot);
+
 	/** 
 	 * @return true if a component is editable (and visible in the view)
 	 */
