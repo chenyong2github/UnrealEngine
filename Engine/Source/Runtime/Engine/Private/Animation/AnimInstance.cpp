@@ -1328,6 +1328,13 @@ void UAnimInstance::BeginDestroy()
 		AnimInstanceProxy = nullptr;
 	}
 
+#if WITH_EDITOR
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		FCoreUObjectDelegates::OnObjectsReinstanced.RemoveAll(this);
+	}
+#endif // WITH_EDITOR
+
 	Super::BeginDestroy();
 }
 

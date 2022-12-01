@@ -1663,6 +1663,7 @@ public:
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 	virtual void BeginPlay() override;
 	virtual void SetComponentTickEnabled(bool bEnabled) override;
+	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
 
 	//Handle registering our end physics tick function
 	virtual void RegisterEndPhysicsTick(bool bRegister);

@@ -410,6 +410,13 @@ void USkeletalMeshComponent::SetComponentTickEnabled(bool bEnabled)
 	}
 }
 
+void USkeletalMeshComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
+{
+	ClearAnimScriptInstance();
+
+	Super::OnComponentDestroyed(bDestroyingHierarchy);
+}
+
 void USkeletalMeshComponent::RegisterEndPhysicsTick(bool bRegister)
 {
 	if (bRegister != EndPhysicsTickFunction.IsTickFunctionRegistered())
@@ -1000,6 +1007,7 @@ void USkeletalMeshComponent::ClearAnimScriptInstance()
 		HandleExistingParallelEvaluationTask(bBlockOnTask, bPerformPostAnimEvaluation);
 
 		AnimScriptInstance->EndNotifyStates();
+		AnimScriptInstance->MarkAsGarbage();
 	}
 	AnimScriptInstance = nullptr;
 	ResetLinkedAnimInstances();
