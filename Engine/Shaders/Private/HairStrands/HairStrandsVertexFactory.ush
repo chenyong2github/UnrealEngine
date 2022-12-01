@@ -3,7 +3,7 @@
 /*=============================================================================
 	StrandHairFactory.usf
 =============================================================================*/
-#include "../VertexFactoryCommon.ush"
+#include "../VertexFactoryCommon.ush"  
 #include "../LocalVertexFactoryCommon.ush"
 #include "HairStrandsVisibilityCommon.ush"
 #include "HairStrandsVertexFactoryCommon.ush"
