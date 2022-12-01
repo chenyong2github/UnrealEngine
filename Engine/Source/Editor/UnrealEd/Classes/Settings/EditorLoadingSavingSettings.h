@@ -162,6 +162,10 @@ public:
 	UPROPERTY(EditAnywhere, config, Category=AutoSave, meta=(DisplayName="Warning in seconds", ClampMin = "0", UIMin = "0", UIMax = "20"))
 	int32 AutoSaveWarningInSeconds;
 
+	/** How many auto save files to keep around*/
+	UPROPERTY(EditAnywhere, config, Category = AutoSave, meta = (DisplayName = "Maximum number of AutoSaves", ClampMin = "1", UIMin = "1", UIMax = "100"))
+	int32 AutoSaveMaxBackups = 10;
+
 public:
 
 	/** Whether to automatically checkout on asset modification */

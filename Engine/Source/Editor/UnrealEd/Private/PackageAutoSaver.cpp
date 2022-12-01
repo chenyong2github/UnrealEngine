@@ -192,8 +192,9 @@ void FPackageAutoSaver::AttemptAutoSave()
 			const FString AutoSaveDir = AutoSaveUtils::GetAutoSaveDir();
 			IFileManager::Get().MakeDirectory(*AutoSaveDir, true);
 
+			const int32 AutoSaveMaxBackups = LoadingSavingSettings->AutoSaveMaxBackups > 0 ? LoadingSavingSettings->AutoSaveMaxBackups : 10;
 			// Auto-save maps and/or content packages based on user settings.
-			const int32 NewAutoSaveIndex = (AutoSaveIndex + 1) % 10;
+			const int32 NewAutoSaveIndex = (AutoSaveIndex + 1) % AutoSaveMaxBackups;
 
 			bool bLevelSaved = false;
 			auto MapsSaveResults = EAutosaveContentPackagesResult::NothingToDo;
