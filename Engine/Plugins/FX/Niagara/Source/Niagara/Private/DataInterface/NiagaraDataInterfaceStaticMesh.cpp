@@ -677,14 +677,14 @@ namespace NDIStaticMeshLocal
 					StaticMesh->GetOnMeshChanged().Remove(OnMeshChanged);
 					StaticMesh->OnPostMeshBuild().Remove(OnPostMeshBuild);
 				}
+				OnMeshChanged.Reset();
+				OnPostMeshBuild.Reset();
 				if (UImportSubsystem* ImportSubsystem = GEditor->GetEditorSubsystem<UImportSubsystem>())
 				{
 					ImportSubsystem->OnAssetReimport.Remove(OnMeshReimported);
 				}
+				OnMeshReimported.Reset();
 			}
-			OnMeshChanged.Reset();
-			OnPostMeshBuild.Reset();
-			OnMeshReimported.Reset();
 		}
 #endif
 
