@@ -87,4 +87,20 @@ public:
 		UGeometryScriptDebug* Debug = nullptr);
 
 
+	/**
+	 * Set the Pivot Location for the Mesh. Since the Pivot of a Mesh object is always the point at (0,0,0),
+	 * this function simply translates the mesh by -PivotLocation.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Transforms", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	TranslatePivotToLocation(
+		UDynamicMesh* TargetMesh,
+		FVector PivotLocation,
+		UGeometryScriptDebug* Debug = nullptr)
+	{
+		// note: this function is redundant, however *many* users do not intuitively understand the relationship
+		// between "setting the pivot" and translation. This function is for those users.
+		return TranslateMesh(TargetMesh, -PivotLocation, Debug);
+	}
+
 };

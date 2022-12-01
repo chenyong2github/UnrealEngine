@@ -52,6 +52,43 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::SetVertexPosition(U
 }
 
 
+UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::SetAllMeshVertexPositions(
+	UDynamicMesh* TargetMesh,
+	FGeometryScriptVectorList PositionList,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetAllMeshVertexPositions_InvalidMesh", "SetAllMeshVertexPositions: TargetMesh is Null"));
+		return TargetMesh;
+	}
+	if (PositionList.List.IsValid() == false || PositionList.List->Num() == 0)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetAllMeshVertexPositions_InvalidList", "SetAllMeshVertexPositions: List is empty"));
+		return TargetMesh;
+	}
+
+	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
+	{
+		const TArray<FVector>& VertexPositions = *PositionList.List;
+		if (VertexPositions.Num() < EditMesh.MaxVertexID())
+		{
+			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("SetAllMeshVertexPositions_IncorrectCount", "SetAllMeshVertexPositions: size of provided PositionList is smaller than MaxVertexID of Mesh"));
+		}
+		else
+		{
+			for (int32 VertexID : EditMesh.VertexIndicesItr())
+			{
+				EditMesh.SetVertex( VertexID, VertexPositions[VertexID] );
+			}
+		}
+	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
+
+	return TargetMesh;
+}
+
+
+
 
 UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AddVertexToMesh(
 	UDynamicMesh* TargetMesh,

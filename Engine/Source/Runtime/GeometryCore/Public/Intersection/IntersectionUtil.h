@@ -239,7 +239,7 @@ namespace IntersectionUtil
 		// adapted from GeometricTools GTEngine
 		// https://www.geometrictools.com/GTEngine/Include/Mathematics/GteIntrRay3Sphere3.h
 
-		RaySphereIntersection(RayOrigin, RayDirection, SphereCenter, SphereRadius, Result);
+		LineSphereIntersection(RayOrigin, RayDirection, SphereCenter, SphereRadius, Result);
 		if (Result.intersects) 
 		{
 			// The line containing the ray intersects the sphere; the t-interval

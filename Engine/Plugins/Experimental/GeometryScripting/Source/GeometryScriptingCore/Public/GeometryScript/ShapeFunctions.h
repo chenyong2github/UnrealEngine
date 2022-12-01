@@ -8,6 +8,68 @@
 #include "ShapeFunctions.generated.h"
 
 
+UCLASS(meta = (ScriptName = "GeometryScript_Ray"))
+class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_RayFunctions : public UBlueprintFunctionLibrary
+{
+	GENERATED_BODY()
+public:
+
+	/**
+	 * Create a Ray from two points, placing the Origin at A and the Direction as Normalize(B-A)
+	 */
+	UFUNCTION(BlueprintPure, Category = "GeometryScript|Shapes|Ray")
+	static FRay MakeRayFromPoints(const FVector& A, const FVector& B);
+
+	/**
+	 * Create a Ray from an Origin and Direction, with optionally non-normalized Direction
+	 */
+	UFUNCTION(BlueprintPure, Category = "GeometryScript|Shapes|Ray")
+	static FRay MakeRayFromPointDirection(const FVector& Origin, const FVector& Direction, bool bDirectionIsNormalized = true);
+
+	/**
+	 * Apply the given Transform to the given Ray, or optionally the Transform Inverse, and return the new transformed Ray
+	 */
+	UFUNCTION(BlueprintPure, Category = "GeometryScript|Shapes|Ray", meta=(ScriptMethod))
+	static FRay GetTransformedRay(const FRay& Ray, const FTransform& Transform, bool bInvert = false);
+
+	/**
+	 * Get a Point at the given Distance along the Ray (Origin + Distance*Direction)
+	 */
+	UFUNCTION(BlueprintPure, Category = "GeometryScript|Shapes|Ray", meta=(ScriptMethod))
+	static FVector GetRayPoint(const FRay& Ray, double Distance);
+
+	/**
+	 * Project the given Point onto the closest point along the Ray, and return the Ray Parameter/Distance at that Point
+	 */
+	UFUNCTION(BlueprintPure, Category = "GeometryScript|Shapes|Ray", meta=(ScriptMethod))
+	static double GetRayParameter(const FRay& Ray, FVector& Point);
+
+	/**
+	 * Get the distance from Point to the closest point on the Ray
+	 */
+	UFUNCTION(BlueprintPure, Category = "GeometryScript|Shapes|Ray", meta=(ScriptMethod))
+	static double GetRayPointDistance(const FRay& Ray, FVector& Point);
+
+	/**
+	 * Get the closest point on the Ray to the given Point
+	 */
+	UFUNCTION(BlueprintPure, Category = "GeometryScript|Shapes|Ray", meta=(ScriptMethod))
+	static FVector GetRayClosestPoint(const FRay& Ray, FVector& Point);
+
+	/**
+	 * Check if the Ray intersects a Sphere defined by the SphereCenter and SphereRadius
+	 */
+	UFUNCTION(BlueprintPure, Category = "GeometryScript|Shapes|Ray", meta=(ScriptMethod))
+	static bool GetRaySphereIntersection(const FRay& Ray, const FVector& SphereCenter, double SphereRadius, double& Distance1, double& Distance2);
+
+	/**
+	 * Check if the Ray intersects a Sphere defined by the SphereCenter and SphereRadius
+	 */
+	UFUNCTION(BlueprintPure, Category = "GeometryScript|Shapes|Ray", meta=(ScriptMethod))
+	static bool GetRayBoxIntersection(const FRay& Ray, const FBox& Box, double& HitDistance);
+
+};
+
 
 UCLASS(meta = (ScriptName = "GeometryScript_Box"))
 class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_BoxFunctions : public UBlueprintFunctionLibrary

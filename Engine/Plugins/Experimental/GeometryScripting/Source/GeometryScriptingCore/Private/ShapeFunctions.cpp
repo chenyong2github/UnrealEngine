@@ -2,12 +2,75 @@
 
 #include "GeometryScript/ShapeFunctions.h"
 #include "VectorTypes.h"
+#include "Intersection/IntersectionUtil.h"
+#include "Intersection/IntrRay3AxisAlignedBox3.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ShapeFunctions)
 
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UGeometryScriptLibrary_BoxFunctions"
+
+
+
+FRay UGeometryScriptLibrary_RayFunctions::MakeRayFromPoints(const FVector& A, const FVector& B)
+{
+	return FRay(A, Normalized(B-A), true);
+}
+
+FRay UGeometryScriptLibrary_RayFunctions::MakeRayFromPointDirection(const FVector& Origin, const FVector& Direction, bool bDirectionIsNormalized)
+{
+	return FRay(Origin, Direction, bDirectionIsNormalized);
+}
+
+FRay UGeometryScriptLibrary_RayFunctions::GetTransformedRay(const FRay& Ray, const FTransform& TransformIn, bool bInvert)
+{
+	FTransformSRT3d Transform(TransformIn);
+	return (bInvert) ? Transform.InverseTransformRay(Ray) : Transform.TransformRay(Ray);
+}
+
+FVector UGeometryScriptLibrary_RayFunctions::GetRayPoint(const FRay& Ray, double Distance)
+{
+	return Ray.PointAt(Distance);
+}
+
+double UGeometryScriptLibrary_RayFunctions::GetRayParameter(const FRay& Ray, FVector& Point)
+{
+	return Ray.GetParameter(Point);
+}
+
+double UGeometryScriptLibrary_RayFunctions::GetRayPointDistance(const FRay& Ray, FVector& Point)
+{
+	return Ray.Dist(Point);
+}
+
+FVector UGeometryScriptLibrary_RayFunctions::GetRayClosestPoint(const FRay& Ray, FVector& Point)
+{
+	return Ray.ClosestPoint(Point);
+}
+
+bool UGeometryScriptLibrary_RayFunctions::GetRaySphereIntersection(const FRay& Ray, const FVector& SphereCenter, double SphereRadius, double& Distance1, double& Distance2)
+{
+	Distance1 = Distance2 = (double)TNumericLimits<float>::Max();
+	FLinearIntersection Intersection;
+	bool bIntersects = IntersectionUtil::RaySphereIntersection(Ray.Origin, Ray.Direction, SphereCenter, SphereRadius, Intersection);
+	if (bIntersects)
+	{
+		Distance1 = Intersection.parameter.Min;
+		Distance2 = (Intersection.numIntersections > 1) ? Intersection.parameter.Max : Intersection.parameter.Min;
+	}
+	return bIntersects;
+}
+
+bool UGeometryScriptLibrary_RayFunctions::GetRayBoxIntersection(const FRay& Ray, const FBox& Box, double& HitDistance)
+{
+	HitDistance = (double)TNumericLimits<float>::Max();
+	return FIntrRay3AxisAlignedBox3d::FindIntersection(Ray, FAxisAlignedBox3d(Box), HitDistance);
+}
+
+
+
+
 
 FBox UGeometryScriptLibrary_BoxFunctions::MakeBoxFromCenterSize(const FVector& Center, const FVector& Dimensions)
 {

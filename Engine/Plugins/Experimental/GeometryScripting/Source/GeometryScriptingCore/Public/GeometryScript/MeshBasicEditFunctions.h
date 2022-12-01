@@ -109,6 +109,17 @@ public:
 		bool& bIsValidVertex, 
 		bool bDeferChangeNotifications = false );
 
+	/**
+	 * Set all vertex positions in the TargetMesh to the specified Positions
+	 * @param PositionList new vertex Positions. Size must be less than or equal to the MaxVertexID of TargetMesh  (ie gaps are supported)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh*
+	SetAllMeshVertexPositions(
+		UDynamicMesh* TargetMesh,
+		FGeometryScriptVectorList PositionList,
+		UGeometryScriptDebug* Debug = nullptr);
+
 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshEdits", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
