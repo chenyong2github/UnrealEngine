@@ -15,7 +15,6 @@ public class ShaderPreprocessor : ModuleRules
 
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "MCPP");
 
-		PrivateDefinitions.Add("STB_DS_IMPLEMENTATION");
-		PrivateDefinitions.Add("STB_ALLOC_IMPLEMENTATION");
+		PrivateDefinitions.Add("STB_CONFIG=../StbConfig.h");
 	}
 }

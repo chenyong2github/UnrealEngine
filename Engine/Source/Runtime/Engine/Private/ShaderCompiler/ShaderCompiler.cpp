@@ -1209,6 +1209,16 @@ static TAutoConsoleVariable<int32> CVarShadersRemoveDeadCode(
 	TEXT("\t1: Remove unreferenced code before compilation\n"),
 	ECVF_ReadOnly);
 
+// note: this cvar is intended to be short-lived; when removing be sure to remove the associated code from
+// ShaderMapAppendKeyString (in Shader.cpp)
+static TAutoConsoleVariable<bool> CVarShadersUseLegacyPreprocessor(
+	TEXT("r.Shaders.UseLegacyPreprocessor"),
+	true,
+	TEXT("Executes shader preprocessing via the legacy MCPP preprocessor (instead of the new STB preprocessor).\n")
+	TEXT("\ttrue: Enabled - preprocess with MCPP\n")
+	TEXT("\tfalse: Disabled - preprocess with STB\n"),
+	ECVF_ReadOnly);
+
 extern bool CompileShaderPipeline(const IShaderFormat* Compiler, FName Format, FShaderPipelineCompileJob* PipelineJob, const FString& Dir);
 
 #if ENABLE_COOK_STATS
@@ -3736,6 +3746,9 @@ FShaderCompilingManager::FShaderCompilingManager() :
 	verify(GConfig->GetBool( TEXT("DevOptions.Shaders"), TEXT("bAllowCompilingThroughWorkers"), bAllowCompilingThroughWorkers, GEngineIni ));
 	verify(GConfig->GetBool( TEXT("DevOptions.Shaders"), TEXT("bAllowAsynchronousShaderCompiling"), bAllowAsynchronousShaderCompiling, GEngineIni ));
 
+	// Explicitly load ShaderPreprocessor module so it will run its initialization step
+	FModuleManager::LoadModuleChecked<IModuleInterface>(TEXT("ShaderPreprocessor"));
+	
 	// override the use of workers, can be helpful for debugging shader compiler code
 	static const IConsoleVariable* CVarAllowCompilingThroughWorkers = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shaders.AllowCompilingThroughWorkers"), false);
 	if (!FPlatformProcess::SupportsMultithreading() || FParse::Param(FCommandLine::Get(), TEXT("noshaderworker")) || (CVarAllowCompilingThroughWorkers && CVarAllowCompilingThroughWorkers->GetInt() == 0))
@@ -6457,6 +6470,11 @@ void GlobalBeginCompileShader(
 	if (CVarShadersRemoveDeadCode.GetValueOnAnyThread())
 	{
 		Input.Environment.CompilerFlags.Add(CFLAG_RemoveDeadCode);
+	}
+
+	if (CVarShadersUseLegacyPreprocessor.GetValueOnAnyThread())
+	{
+		Input.Environment.CompilerFlags.Add(CFLAG_UseLegacyPreprocessor);
 	}
 
 	{

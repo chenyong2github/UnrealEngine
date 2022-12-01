@@ -120,8 +120,8 @@ enum ECompilerFlags
 	CFLAG_BindlessSamplers,
 	// EXPERIMENTAL: Run the shader re-writer that removes any unused functions/resources/types from source code before compilation.
 	CFLAG_RemoveDeadCode,
-	// EXPERIMENTAL: Use the DXC preprocessor (instead of the legacy MCPP)
-	CFLAG_PreprocessWithDXC,
+	// Execute shader preprocessing with MCPP (instead of the new STB preprocessor)
+	CFLAG_UseLegacyPreprocessor,
 
 	CFLAG_Max,
 };

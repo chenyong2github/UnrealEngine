@@ -15,11 +15,11 @@ enum class EMessageType
 };
 
 /**
- * Filter MCPP errors.
+ * Filter preprocessor errors.
  * @param ErrorMsg - The error message.
  * @returns true if the message is valid and has not been filtered out.
  */
-inline EMessageType FilterMcppError(const FString& ErrorMsg)
+inline EMessageType FilterPreprocessorError(const FString& ErrorMsg)
 {
 	const TCHAR* SubstringsToFilter[] =
 	{
@@ -49,6 +49,10 @@ static void ExtractDirective(FString& OutString, FString WarningString)
 	static const FString PrefixString = TEXT("UESHADERMETADATA_");
 	uint32 DirectiveStartPosition = WarningString.Find(PrefixString) + PrefixString.Len();
 	uint32 DirectiveEndPosition = WarningString.Find(TEXT("\n"));
+	if (DirectiveEndPosition == INDEX_NONE)
+	{
+		DirectiveEndPosition = WarningString.Len();
+	}
 	OutString = WarningString.Mid(DirectiveStartPosition, (DirectiveEndPosition - DirectiveStartPosition));
 }
 
@@ -84,7 +88,7 @@ static bool ParseMcppErrors(TArray<FShaderCompilerError>& OutErrors, TArray<FStr
 					Message.TrimStartAndEndInline();
 
 					// Ignore the warning about files that don't end with a newline.
-					switch (FilterMcppError(Message))
+					switch (FilterPreprocessorError(Message))
 					{
 						case EMessageType::Error:
 						{
