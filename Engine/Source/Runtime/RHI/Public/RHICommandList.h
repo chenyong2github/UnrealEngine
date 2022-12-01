@@ -473,22 +473,41 @@ public:
 		BatchedParameters.ParametersData.Append((const uint8*)NewValue, NumBytes);
 		BatchedParameters.Parameters.Emplace((uint16)BufferIndex, (uint16)BaseIndex, (uint16)DestDataOffset, (uint16)NumBytes);
 	}
+
 	FORCEINLINE_DEBUGGABLE void SetShaderTexture(FRHIShader* Shader, uint32 TextureIndex, FRHITexture* Texture)
 	{
-		GetBatchedShaderParameters(Shader).ResourceParameters.Emplace(FRHIShaderParameterResource::EType::Texture, Texture, (uint16)TextureIndex);
+		GetBatchedShaderParameters(Shader).ResourceParameters.Emplace(Texture, (uint16)TextureIndex);
 	}
 	FORCEINLINE_DEBUGGABLE void SetShaderResourceViewParameter(FRHIShader* Shader, uint32 SamplerIndex, FRHIShaderResourceView* SRV)
 	{
-		GetBatchedShaderParameters(Shader).ResourceParameters.Emplace(FRHIShaderParameterResource::EType::ResourceView, SRV, (uint16)SamplerIndex);
+		GetBatchedShaderParameters(Shader).ResourceParameters.Emplace(SRV, (uint16)SamplerIndex);
 	}
 	FORCEINLINE_DEBUGGABLE void SetShaderSampler(FRHIShader* Shader, uint32 SamplerIndex, FRHISamplerState* State)
 	{
-		GetBatchedShaderParameters(Shader).ResourceParameters.Emplace(FRHIShaderParameterResource::EType::Sampler, State, (uint16)SamplerIndex);
+		GetBatchedShaderParameters(Shader).ResourceParameters.Emplace(State, (uint16)SamplerIndex);
 	}
 	FORCEINLINE_DEBUGGABLE void SetUAVParameter(FRHIShader* Shader, uint32 UAVIndex, FRHIUnorderedAccessView* UAV)
 	{
-		GetBatchedShaderParameters(Shader).ResourceParameters.Emplace(FRHIShaderParameterResource::EType::UnorderedAccessView, UAV, (uint16)UAVIndex);
+		GetBatchedShaderParameters(Shader).ResourceParameters.Emplace(UAV, (uint16)UAVIndex);
 	}
+
+	FORCEINLINE_DEBUGGABLE void SetBindlessTexture(FRHIShader* Shader, uint32 Index, FRHITexture* Texture)
+	{
+		GetBatchedShaderParameters(Shader).BindlessParameters.Emplace(Texture, (uint16)Index);
+	}
+	FORCEINLINE_DEBUGGABLE void SetBindlessResourceView(FRHIShader* Shader, uint32 Index, FRHIShaderResourceView* SRV)
+	{
+		GetBatchedShaderParameters(Shader).BindlessParameters.Emplace(SRV, (uint16)Index);
+	}
+	FORCEINLINE_DEBUGGABLE void SetBindlessSampler(FRHIShader* Shader, uint32 Index, FRHISamplerState* State)
+	{
+		GetBatchedShaderParameters(Shader).BindlessParameters.Emplace(State, (uint16)Index);
+	}
+	FORCEINLINE_DEBUGGABLE void SetBindlessUAV(FRHIShader* Shader, uint32 Index, FRHIUnorderedAccessView* UAV)
+	{
+		GetBatchedShaderParameters(Shader).BindlessParameters.Emplace(UAV, (uint16)Index);
+	}
+
 	FORCEINLINE_DEBUGGABLE void SetUAVParameter(FRHIShader* Shader, uint32 UAVIndex, FRHIUnorderedAccessView* UAV, uint32 InitialCount)
 	{
 		checkNoEntry(); // @todo: support append/consume buffers
@@ -2629,6 +2648,70 @@ public:
 		ALLOC_COMMAND(FRHICommandSetUAVParameter_InitialCount)(Shader, UAVIndex, UAV, InitialCount);
 	}
 
+	FORCEINLINE_DEBUGGABLE void SetBindlessTexture(FRHIComputeShader* Shader, uint32 Index, FRHITexture* Texture)
+	{
+		ValidateBoundShader(Shader);
+
+		if (ParameterBatcher.IsEnabled())
+		{
+			ParameterBatcher.SetBindlessTexture(Shader, Index, Texture);
+			return;
+		}
+
+		FRHIShaderParameterResource Resource(Texture, (uint16)Index);
+		SetShaderParameters(Shader, {}, {}, {}, MakeArrayView(&Resource, 1));
+	}
+
+	FORCEINLINE_DEBUGGABLE void SetBindlessResourceView(FRHIComputeShader* Shader, uint32 Index, FRHIShaderResourceView* SRV)
+	{
+		ValidateBoundShader(Shader);
+
+		if (ParameterBatcher.IsEnabled())
+		{
+			ParameterBatcher.SetBindlessResourceView(Shader, Index, SRV);
+			return;
+		}
+
+		FRHIShaderParameterResource Resource(SRV, (uint16)Index);
+		SetShaderParameters(Shader, {}, {}, {}, MakeArrayView(&Resource, 1));
+	}
+
+	FORCEINLINE_DEBUGGABLE void SetBindlessSampler(FRHIComputeShader* Shader, uint32 Index, FRHISamplerState* State)
+	{
+		ValidateBoundShader(Shader);
+
+		// Immutable samplers can't be set dynamically
+		check(!State->IsImmutable());
+		if (State->IsImmutable())
+		{
+			return;
+		}
+
+		// Immutable samplers can't be set dynamically
+		if (ParameterBatcher.IsEnabled())
+		{
+			ParameterBatcher.SetBindlessSampler(Shader, Index, State);
+			return;
+		}
+
+		FRHIShaderParameterResource Resource(State, (uint16)Index);
+		SetShaderParameters(Shader, {}, {}, {}, MakeArrayView(&Resource, 1));
+	}
+
+	FORCEINLINE_DEBUGGABLE void SetBindlessUAV(FRHIComputeShader* Shader, uint32 Index, FRHIUnorderedAccessView* UAV)
+	{
+		ValidateBoundShader(Shader);
+
+		if (ParameterBatcher.IsEnabled())
+		{
+			ParameterBatcher.SetBindlessUAV(Shader, Index, UAV);
+			return;
+		}
+
+		FRHIShaderParameterResource Resource(UAV, (uint16)Index);
+		SetShaderParameters(Shader, {}, {}, {}, MakeArrayView(&Resource, 1));
+	}
+
 	UE_DEPRECATED(5.1, "ComputePipelineStates should be used instead of direct ComputeShaders. You can use SetComputePipelineState(RHICmdList, ComputeShader).")
 	FORCEINLINE_DEBUGGABLE void SetComputeShader(FRHIComputeShader* ComputeShader)
 	{
@@ -3457,6 +3540,77 @@ public:
 	FORCEINLINE_DEBUGGABLE void SetUAVParameter(const TRefCountPtr<FRHIPixelShader>& Shader, uint32 UAVIndex, FRHIUnorderedAccessView* UAV)
 	{
 		SetUAVParameter(Shader.GetReference(), UAVIndex, UAV);
+	}
+
+	using FRHIComputeCommandList::SetBindlessTexture;
+
+	FORCEINLINE_DEBUGGABLE void SetBindlessTexture(FRHIGraphicsShader* Shader, uint32 Index, FRHITexture* Texture)
+	{
+		ValidateBoundShader(Shader);
+
+		if (ParameterBatcher.IsEnabled())
+		{
+			ParameterBatcher.SetBindlessTexture(Shader, Index, Texture);
+			return;
+		}
+
+		FRHIShaderParameterResource Resource(Texture, (uint16)Index);
+		SetShaderParameters(Shader, {}, {}, {}, MakeArrayView(&Resource, 1));
+	}
+
+	using FRHIComputeCommandList::SetBindlessResourceView;
+
+	FORCEINLINE_DEBUGGABLE void SetBindlessResourceView(FRHIGraphicsShader* Shader, uint32 Index, FRHIShaderResourceView* SRV)
+	{
+		ValidateBoundShader(Shader);
+
+		if (ParameterBatcher.IsEnabled())
+		{
+			ParameterBatcher.SetBindlessResourceView(Shader, Index, SRV);
+			return;
+		}
+
+		FRHIShaderParameterResource Resource(SRV, (uint16)Index);
+		SetShaderParameters(Shader, {}, {}, {}, MakeArrayView(&Resource, 1));
+	}
+
+	using FRHIComputeCommandList::SetBindlessSampler;
+
+	FORCEINLINE_DEBUGGABLE void SetBindlessSampler(FRHIGraphicsShader* Shader, uint32 Index, FRHISamplerState* State)
+	{
+		ValidateBoundShader(Shader);
+
+		// Immutable samplers can't be set dynamically
+		check(!State->IsImmutable());
+		if (State->IsImmutable())
+		{
+			return;
+		}
+
+		if (ParameterBatcher.IsEnabled())
+		{
+			ParameterBatcher.SetBindlessSampler(Shader, Index, State);
+			return;
+		}
+
+		FRHIShaderParameterResource Resource(State, (uint16)Index);
+		SetShaderParameters(Shader, {}, {}, {}, MakeArrayView(&Resource, 1));
+	}
+
+	using FRHIComputeCommandList::SetBindlessUAV;
+
+	FORCEINLINE_DEBUGGABLE void SetBindlessUAV(FRHIPixelShader* Shader, uint32 Index, FRHIUnorderedAccessView* UAV)
+	{
+		ValidateBoundShader(Shader);
+
+		if (ParameterBatcher.IsEnabled())
+		{
+			ParameterBatcher.SetBindlessUAV(Shader, Index, UAV);
+			return;
+		}
+
+		FRHIShaderParameterResource Resource(UAV, (uint16)Index);
+		SetShaderParameters(Shader, {}, {}, {}, MakeArrayView(&Resource, 1));
 	}
 
 	FORCEINLINE_DEBUGGABLE void SetBlendFactor(const FLinearColor& BlendFactor = FLinearColor::White)

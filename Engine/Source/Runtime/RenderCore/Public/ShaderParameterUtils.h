@@ -152,36 +152,24 @@ GUARD_SETSHADERVALUE(FQuat4)
 GUARD_SETSHADERVALUE(FSphere3)
 GUARD_SETSHADERVALUE(FBox3)
 
-template<typename TRHIShader, typename TRHICmdList>
-FORCEINLINE void SetBindlessParameter(TRHICmdList& RHICmdList, TRHIShader* Shader, const FShaderResourceParameter& Parameter, FRHIDescriptorHandle Handle)
-{
-	if (Handle.IsValid())
-	{
-		const uint32 BindlessIndex = Handle.GetIndex();
-		RHICmdList.SetShaderParameter(Shader, 0, Parameter.GetBaseIndex(), sizeof(BindlessIndex), &BindlessIndex);
-	}
-}
-
-
 /**
  * Sets the value of a shader surface parameter (e.g. to access MSAA samples).
  * Template'd on shader type (e.g. pixel shader or compute shader).
  */
 template<typename TRHIShader, typename TRHICmdList>
-FORCEINLINE void SetTextureParameter(TRHICmdList& RHICmdList, TRHIShader* Shader, const FShaderResourceParameter& Parameter, FRHITexture* NewTextureRHI, uint32 ElementIndex = 0)
+FORCEINLINE void SetTextureParameter(TRHICmdList& RHICmdList, TRHIShader* Shader, const FShaderResourceParameter& Parameter, FRHITexture* TextureRHI, uint32 ElementIndex = 0)
 {
 	if (Parameter.IsBound() && ElementIndex < Parameter.GetNumResources())
 	{
 #if PLATFORM_SUPPORTS_BINDLESS_RENDERING
 		if (Parameter.GetType() == EShaderParameterType::BindlessResourceIndex)
 		{
-			const FRHIDescriptorHandle Handle = NewTextureRHI ? NewTextureRHI->GetDefaultBindlessHandle() : FRHIDescriptorHandle();
-			SetBindlessParameter(RHICmdList, Shader, Parameter, Handle);
+			RHICmdList.SetBindlessTexture(Shader, Parameter.GetBaseIndex(), TextureRHI);
 		}
 		else
 #endif
 		{
-			RHICmdList.SetShaderTexture(Shader, Parameter.GetBaseIndex() + ElementIndex, NewTextureRHI);
+			RHICmdList.SetShaderTexture(Shader, Parameter.GetBaseIndex() + ElementIndex, TextureRHI);
 		}
 	}
 }
@@ -197,8 +185,7 @@ FORCEINLINE void SetSamplerParameter(TRHICmdList& RHICmdList, TRHIShader* Shader
 #if PLATFORM_SUPPORTS_BINDLESS_RENDERING
 		if (Parameter.GetType() == EShaderParameterType::BindlessSamplerIndex)
 		{
-			const FRHIDescriptorHandle Handle = SamplerStateRHI ? SamplerStateRHI->GetBindlessHandle() : FRHIDescriptorHandle();
-			SetBindlessParameter(RHICmdList, Shader, Parameter, Handle);
+			RHICmdList.SetBindlessSampler(Shader, Parameter.GetBaseIndex(), SamplerStateRHI);
 		}
 		else
 #endif
@@ -261,33 +248,27 @@ FORCEINLINE void SetTextureParameter(
  * Template'd on shader type (e.g. pixel shader or compute shader).
  */
 template<typename TRHIShader, typename TRHICmdList>
-FORCEINLINE void SetSRVParameter(
-	TRHICmdList& RHICmdList,
-	TRHIShader* Shader,
-	const FShaderResourceParameter& Parameter,
-	FRHIShaderResourceView* NewShaderResourceViewRHI
-	)
+FORCEINLINE void SetSRVParameter(TRHICmdList& RHICmdList, TRHIShader* Shader, const FShaderResourceParameter& Parameter, FRHIShaderResourceView* SRV)
 {
 	if (Parameter.IsBound())
 	{
 #if PLATFORM_SUPPORTS_BINDLESS_RENDERING
 		if (Parameter.GetType() == EShaderParameterType::BindlessResourceIndex)
 		{
-			const FRHIDescriptorHandle Handle = NewShaderResourceViewRHI ? NewShaderResourceViewRHI->GetBindlessHandle() : FRHIDescriptorHandle();
-			SetBindlessParameter(RHICmdList, Shader, Parameter, Handle);
+			RHICmdList.SetBindlessResourceView(Shader, Parameter.GetBaseIndex(), SRV);
 		}
 		else
 #endif
 		{
-			RHICmdList.SetShaderResourceViewParameter(Shader, Parameter.GetBaseIndex(), NewShaderResourceViewRHI);
+			RHICmdList.SetShaderResourceViewParameter(Shader, Parameter.GetBaseIndex(), SRV);
 		}
 	}
 }
 
 template<typename TRHIShader, typename TRHICmdList>
-FORCEINLINE void SetSRVParameter(TRHICmdList& RHICmdList, const TRefCountPtr<TRHIShader>& Shader, const FShaderResourceParameter& Parameter, FRHIShaderResourceView* NewShaderResourceViewRHI)
+FORCEINLINE void SetSRVParameter(TRHICmdList& RHICmdList, const TRefCountPtr<TRHIShader>& Shader, const FShaderResourceParameter& Parameter, FRHIShaderResourceView* SRV)
 {
-	SetSRVParameter(RHICmdList, Shader.GetReference(), Parameter, NewShaderResourceViewRHI);
+	SetSRVParameter(RHICmdList, Shader.GetReference(), Parameter, SRV);
 }
 
 template<typename TRHIShader, typename TRHICmdList>
@@ -298,8 +279,7 @@ FORCEINLINE void SetUAVParameterSafeShader(TRHICmdList& RHICmdList, TRHIShader* 
 #if PLATFORM_SUPPORTS_BINDLESS_RENDERING
 		if (Parameter.GetType() == EShaderParameterType::BindlessResourceIndex)
 		{
-			const FRHIDescriptorHandle Handle = UAV ? UAV->GetBindlessHandle() : FRHIDescriptorHandle();
-			SetBindlessParameter(RHICmdList, Shader, Parameter, Handle);
+			RHICmdList.SetBindlessUAV(Shader, Parameter.GetBaseIndex(), UAV);
 		}
 		else
 #endif
