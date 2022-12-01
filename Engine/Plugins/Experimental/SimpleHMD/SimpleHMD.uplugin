@@ -14,6 +14,16 @@
 	"CanContainContent" : false,
 	"IsBetaVersion" : false,
 	"Installed" : false,
+	"SupportedTargetPlatforms": [
+		"Win64",
+		"Linux",
+		"Android",
+		"HoloLens",
+		"PS4",
+		"PS5",
+		"Mac",
+		"IOS"
+	],
 	"Modules" :
 	[
 		{
