@@ -962,7 +962,7 @@ void RenderScreenSpaceReflections(
 		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
 			View.GetSceneTexturesConfig().Extent,
 			PF_FloatRGBA, FClearValueBinding(FLinearColor(0, 0, 0, 0)),
-			TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV);
+			TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV | TexCreate_NoFastClear);
 
 		Desc.Flags |= GFastVRamConfig.SSR;
 
