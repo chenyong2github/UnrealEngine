@@ -298,6 +298,9 @@
 
 		<!-- Used by Switchboard application, and by iOS/tvOS build automation -->
 		Engine/Extras/ThirdPartyNotUE/cwrsync/...
+
+		<!-- nanosvg -->
+		Engine/Source/ThirdParty/nanosvg/...
 	</Property>
 
 	<Property Name="CopyEditorExceptionsWin64" Value="$(CopyEditorExceptions)">
