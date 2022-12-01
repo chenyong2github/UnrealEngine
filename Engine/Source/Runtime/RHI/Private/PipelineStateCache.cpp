@@ -612,12 +612,6 @@ int32 FindRayTracingMissShaderIndex(FRayTracingPipelineState* Pipeline, FRHIRayT
 	return INDEX_NONE;
 }
 
-bool IsPrecachedPSO(const FGraphicsPipelineStateInitializer& Initializer)
-{
-	check((Initializer.bFromPSOFileCache && Initializer.bPSOPrecache) == 0);
-	return Initializer.bFromPSOFileCache || Initializer.bPSOPrecache;
-}
-
 void SetGraphicsPipelineState(FRHICommandList& RHICmdList, const FGraphicsPipelineStateInitializer& Initializer, uint32 StencilRef, EApplyRendertargetOption ApplyFlags, bool bApplyAdditionalState, EPSOPrecacheResult PSOPrecacheResult)
 {
 #if PLATFORM_USE_FALLBACK_PSO
@@ -950,65 +944,80 @@ private:
 
 };
 
-template<class TPrecachePipelineCacheDerived, class TPrecachedPSOInitializer, class TPipelineState>
-class TPrecachePipelineCacheBase
+class FPrecacheGraphicsPipelineCache
 {
 public:
-	~TPrecachePipelineCacheBase()
+
+	~FPrecacheGraphicsPipelineCache()
 	{
 		// Wait for all precache tasks to finished
 		WaitTasksComplete();
 	}
-	
-protected:
-	void TryAddNewState(const TPrecachedPSOInitializer& Initializer, bool bDoAsyncCompile, FGraphEventRef& GraphEvent)
+
+	bool Contains(const FGraphicsPipelineStateInitializer& Initializer)
 	{
-		uint32 InitializerHash = TPrecachePipelineCacheDerived::PipelineStateInitializerHash(Initializer);
+		FRWScopeLock ReadLock(PrecachePSOsRWLock, SLT_ReadOnly);
+		return PrecachedPSOInitializers.Contains(Initializer);
+	}
+
+	FGraphicsPipelineState* TryAddNewState(const FGraphicsPipelineStateInitializer& Initializer, bool bDoAsyncCompile)
+	{
 		// Fast check first with read lock
+		if (Contains(Initializer))
 		{
-			FRWScopeLock ReadLock(PrecachePSOsRWLock, SLT_ReadOnly);
-			if (HasPSOBeenRequested(Initializer, InitializerHash, GraphEvent))
-			{
-				return;
-			}
-		}
+			return nullptr;
+		}		
+
+		FGraphicsPipelineState* NewState = nullptr;
 
 		// Now try and add with write lock
 		{
 			FRWScopeLock WriteLock(PrecachePSOsRWLock, SLT_Write);
-			if (HasPSOBeenRequested(Initializer, InitializerHash, GraphEvent))
+
+			// check again
+			if (PrecachedPSOInitializers.Contains(Initializer))
 			{
-				return;
+				return nullptr;
 			}
-
-
-			// create new graphics state
-			TPipelineState* NewState = TPrecachePipelineCacheDerived::CreateNewPSO(Initializer);
 
 			// Add to cache before starting async operation, because the async op will remove the task from active ops when done			
-			PrecachedPSOInitializers.AddByHash(InitializerHash, Initializer);
+			PrecachedPSOInitializers.Add(Initializer);
+		}
 
-			// Add to active set of precaching PSOs if it's created async
-			if (bDoAsyncCompile)
+		// Add to active set of precaching PSOs if it's created async
+		if (bDoAsyncCompile)
+		{
+			// Only need the hash of the PSO here
+			uint64 PrecachePSOHash = RHIComputePrecachePSOHash(Initializer);
+
+			FRWScopeLock WriteLock(ActivePrecachingTasksRWLock, SLT_Write);
+
+			if (ActivePrecachingTasks.Contains(PrecachePSOHash))
 			{
-				FPrecacheTask PrecacheTask;
-				PrecacheTask.Initializer = Initializer;
-				PrecacheTask.PSO = NewState;
-#if DO_ENSURE
-				ensure(!ActivePrecachingTasks.ContainsByHash(InitializerHash, Initializer));
-#endif
-				ActivePrecachingTasks.AddByHash(InitializerHash, Initializer, PrecacheTask);
+				return nullptr;
 			}
 
-			TPrecachePipelineCacheDerived::OnNewPipelineStateCreated(Initializer, NewState, bDoAsyncCompile);
-			GraphEvent = NewState->CompletionEvent;
+			// create new graphics state
+			NewState = new FGraphicsPipelineState();
+
+			FPrecacheTask PrecacheTask;
+			PrecacheTask.Initializer = Initializer;
+			PrecacheTask.PSO = NewState;
+
+			ActivePrecachingTasks.Add(PrecachePSOHash, PrecacheTask);
 		}
+		else
+		{
+			// create new graphics state
+			NewState = new FGraphicsPipelineState();
+		}
+
+		return NewState;
 	}
-public:
 
 	void WaitTasksComplete()
 	{
-		FRWScopeLock WriteLock(GetActivePrecachingTasksRWLock(), SLT_Write);
+		FRWScopeLock WriteLock(ActivePrecachingTasksRWLock, SLT_Write);
 
 		for (auto Iterator = ActivePrecachingTasks.CreateIterator(); Iterator; ++Iterator)
 		{
@@ -1020,50 +1029,48 @@ public:
 		ActivePrecachingTasks.Empty();
 	}
 
-	EPSOPrecacheResult GetPrecachingState(const TPrecachedPSOInitializer& Initializer)
+	bool IsPrecaching(const FGraphicsPipelineStateInitializer& Initializer)
 	{
-		uint32 InitializerHash = TPrecachePipelineCacheDerived::PipelineStateInitializerHash(Initializer);
-		FRWScopeLock ReadLock(GetActivePrecachingTasksRWLock(), SLT_ReadOnly);
-		FPrecacheTask* FindResult = ActivePrecachingTasks.FindByHash(InitializerHash, Initializer);
-		if (FindResult && !FindResult->PSO->IsComplete())
-		{
-			return EPSOPrecacheResult::Active;
-		}
+		uint64 PrecachePSOHash = RHIComputePrecachePSOHash(Initializer);
 
-		if (!PrecachedPSOInitializers.ContainsByHash(InitializerHash, Initializer))
+		FRWScopeLock ReadLock(ActivePrecachingTasksRWLock, SLT_ReadOnly);
+		FPrecacheTask* FindResult = ActivePrecachingTasks.Find(PrecachePSOHash);
+		if (FindResult)
 		{
-			return EPSOPrecacheResult::Missed;
+			// Check if not complete yet
+			return !(FindResult->PSO->IsComplete());
 		}
 
 		// not found then assume it's not precaching
-		return EPSOPrecacheResult::Complete;
+		return false;
 	}
 
 	bool IsPrecaching()
 	{
-		FRWScopeLock ReadLock(GetActivePrecachingTasksRWLock(), SLT_ReadOnly);
+		FRWScopeLock ReadLock(ActivePrecachingTasksRWLock, SLT_ReadOnly);
 		return !ActivePrecachingTasks.IsEmpty();
 	}
 
-	void PrecacheFinished(const TPrecachedPSOInitializer& Initializer)
+	void PrecacheFinished(const FGraphicsPipelineStateInitializer& Initializer)
 	{
-		uint32 InitializerHash = TPrecachePipelineCacheDerived::PipelineStateInitializerHash(Initializer);
-		FRWScopeLock WriteLock(GetActivePrecachingTasksRWLock(), SLT_Write);
-		FPrecacheTask* FindResult = ActivePrecachingTasks.FindByHash(InitializerHash, Initializer);
+		uint64 PrecachePSOHash = RHIComputePrecachePSOHash(Initializer);
+
+		FRWScopeLock WriteLock(ActivePrecachingTasksRWLock, SLT_Write);
+		FPrecacheTask* FindResult = ActivePrecachingTasks.Find(PrecachePSOHash);
 		// Might have already been processed because the task got rescheduled
 		if (FindResult != nullptr)
 		{
-			verify(ActivePrecachingTasks.RemoveByHash(InitializerHash, Initializer) == 1);
+			verify(ActivePrecachingTasks.Remove(PrecachePSOHash) == 1);
 			PrecachedPSOs.Add(FindResult->PSO);
 		}
 	}
 
 	void ProcessDelayedCleanup()
 	{
-		FRWScopeLock WriteLock(GetActivePrecachingTasksRWLock(), SLT_Write);
+		FRWScopeLock WriteLock(ActivePrecachingTasksRWLock, SLT_Write);
 		for (int32 Index = 0; Index < PrecachedPSOs.Num(); ++Index)
 		{
-			TPipelineState* GraphicsPSO = PrecachedPSOs[Index];
+			FGraphicsPipelineState* GraphicsPSO = PrecachedPSOs[Index];
 			if (GraphicsPSO->IsComplete())
 			{
 				// This is needed to cleanup the members - bit strange because it's complete already
@@ -1072,125 +1079,40 @@ public:
 				delete GraphicsPSO;
 				PrecachedPSOs.RemoveAtSwap(Index);
 				Index--;
-			}
+			}			
 		}
+
 	}
 
 private:
-	bool HasPSOBeenRequested(const TPrecachedPSOInitializer& Initializer, uint32 InitializerHash, FGraphEventRef& GraphEvent)
+
+	struct FGraphicsPSOInitializerKeyFuncs : DefaultKeyFuncs<FGraphicsPipelineStateInitializer>
 	{
-		FPrecacheTask* FindResult = ActivePrecachingTasks.FindByHash(InitializerHash, Initializer);
-		if (FindResult)
+		static FORCEINLINE bool Matches(KeyInitType A, KeyInitType B)
 		{
-			GraphEvent = FindResult->PSO->CompletionEvent;
-			check(GraphEvent != nullptr);
-			return true;
+			return RHIMatchPrecachePSOInitializers(A, B);
 		}
 
-		if (PrecachedPSOInitializers.ContainsByHash(InitializerHash, Initializer))
+		static FORCEINLINE uint32 GetKeyHash(KeyInitType Key)
 		{
-			return true;
+			return RHIComputePrecachePSOHash(Key);
 		}
-
-		return false;
-	}
-
-	FRWLock& GetActivePrecachingTasksRWLock()
-	{
-		return PrecachePSOsRWLock;
-	}
+	};
 
 	// Cache of all precached PSOs - need correct compare to make sure we precache all of them
 	FRWLock PrecachePSOsRWLock;
-
-	using TSetKeyFuncsBaseClass = DefaultKeyFuncs<TPrecachedPSOInitializer>;
-	struct TSetKeyFuncs : public TSetKeyFuncsBaseClass
-	{
-		static FORCEINLINE bool Matches(typename TSetKeyFuncsBaseClass::KeyInitType A, typename TSetKeyFuncsBaseClass::KeyInitType B)
-		{
-			return TPrecachePipelineCacheDerived::PipelineStateInitializerMatch(A, B);
-		}
-		static FORCEINLINE uint32 GetKeyHash(typename TSetKeyFuncsBaseClass::KeyInitType Key)
-		{
-			return TPrecachePipelineCacheDerived::PipelineStateInitializerHash(Key);
-		}
-	};
-	TSet<TPrecachedPSOInitializer, TSetKeyFuncs> PrecachedPSOInitializers;
+	TSet<FGraphicsPipelineStateInitializer, FGraphicsPSOInitializerKeyFuncs> PrecachedPSOInitializers;
 
 	// Current active background precache operations - full PSO hash can be used for fast retrieval
 	// (on hash clash it might report that a PSO is still compiling)
+	FRWLock ActivePrecachingTasksRWLock;
 	struct FPrecacheTask
 	{
-		TPrecachedPSOInitializer Initializer;
-		TPipelineState* PSO = nullptr;
+		FGraphicsPipelineStateInitializer Initializer;
+		FGraphicsPipelineState* PSO = nullptr;
 	};
-
-	using TMapKeyFuncsBaseClass = TDefaultMapHashableKeyFuncs<TPrecachedPSOInitializer, FPrecacheTask, false>;
-	struct TMapKeyFuncs : public TMapKeyFuncsBaseClass
-	{
-		static FORCEINLINE bool Matches(typename TMapKeyFuncsBaseClass::KeyInitType A, typename TMapKeyFuncsBaseClass::KeyInitType B)
-		{
-			return TPrecachePipelineCacheDerived::PipelineStateInitializerMatch(A, B);
-		}
-		static FORCEINLINE uint32 GetKeyHash(typename TMapKeyFuncsBaseClass::KeyInitType Key)
-		{
-			return TPrecachePipelineCacheDerived::PipelineStateInitializerHash(Key);
-		}
-	};
-
-	TMap<TPrecachedPSOInitializer, FPrecacheTask, FDefaultSetAllocator, TMapKeyFuncs> ActivePrecachingTasks;
-	TArray<TPipelineState*> PrecachedPSOs;
-};
-
-class FPrecacheComputePipelineCache : public TPrecachePipelineCacheBase<FPrecacheComputePipelineCache, FRHIComputeShader*, FComputePipelineState>
-{
-public:
-	static FComputePipelineState* CreateNewPSO(const FRHIComputeShader* ComputeShader)
-	{
-		return new FComputePipelineState((FRHIComputeShader*)ComputeShader);
-	}
-
-	FGraphEventRef PrecacheComputePipelineState(FRHIComputeShader* ComputeShader, bool bForcePrecache);
-	static void OnNewPipelineStateCreated(FRHIComputeShader* ComputeShader, FComputePipelineState* NewComputePipelineState, bool bDoAsyncCompile);
-
-	static FORCEINLINE bool PipelineStateInitializerMatch(const FRHIComputeShader* A, const FRHIComputeShader* B)
-	{
-		// todo: would be good/more robust to have the CS equivalent of RHIMatchPrecachePSOInitializers instead of relying on pointers
-		// (for example if an FRHIComputeShader gets released and a new one is allocated with the same pointer value)
-		return A == B;
-	}
-
-	static FORCEINLINE uint32 PipelineStateInitializerHash(const FRHIComputeShader* Key)
-	{
-		// will hash the pointer through PointerHash(const void* Key)
-		return GetTypeHash(Key);
-	}
-
-};
-
-class FPrecacheGraphicsPipelineCache : public TPrecachePipelineCacheBase<FPrecacheGraphicsPipelineCache, FGraphicsPipelineStateInitializer, FGraphicsPipelineState>
-{
-public:
-	static FGraphicsPipelineState* CreateNewPSO(const FGraphicsPipelineStateInitializer& Initializer)
-		{
-		return new FGraphicsPipelineState;
-	}
-
-	static FORCEINLINE bool PipelineStateInitializerMatch(const FGraphicsPipelineStateInitializer& A, const FGraphicsPipelineStateInitializer& B)
-	{
-		return RHIMatchPrecachePSOInitializers(A, B);
-	}
-
-	static FORCEINLINE uint32 PipelineStateInitializerHash(const FGraphicsPipelineStateInitializer& Key)
-	{
-		return RHIComputePrecachePSOHash(Key);
-	}
-
-
-	FGraphEventRef PrecacheGraphicsPipelineState(const FGraphicsPipelineStateInitializer& Initializer);
-
-	static void OnNewPipelineStateCreated(const FGraphicsPipelineStateInitializer& Initializer, FGraphicsPipelineState* NewGraphicsPipelineState, bool bDoAsyncCompile);
-
+	TMap<uint64, FPrecacheTask> ActivePrecachingTasks;
+	TArray<FGraphicsPipelineState*> PrecachedPSOs;
 };
 
 // Typed caches for compute and graphics
@@ -1201,7 +1123,6 @@ typedef TSharedPipelineStateCache<FGraphicsPipelineStateInitializer, FGraphicsPi
 FComputePipelineCache GComputePipelineCache;
 FGraphicsPipelineCache GGraphicsPipelineCache;
 FPrecacheGraphicsPipelineCache GPrecacheGraphicsPipelineCache;
-FPrecacheComputePipelineCache GPrecacheComputePipelineCache;
 
 FAutoConsoleTaskPriority CPrio_FCompilePipelineStateTask(
 	TEXT("TaskGraph.TaskPriorities.CompilePipelineStateTask"),
@@ -1432,7 +1353,7 @@ public:
 		, Initializer(InInitializer)
 		, PSOPreCacheResult(InPSOPreCacheResult)
 	{
-		if(IsPrecachedPSO(Initializer))
+		if(Initializer.bFromPSOFileCache)
 		{
 			GPipelinePrecompileTasksInFlight++;
 		}
@@ -1493,7 +1414,7 @@ public:
 
 	~FCompilePipelineStateTask()
 	{
-		if (IsPrecachedPSO(Initializer))
+		if (Initializer.bFromPSOFileCache)
 		{
 			GPipelinePrecompileTasksInFlight--;
 		}
@@ -1515,10 +1436,6 @@ public:
 		{
 			FComputePipelineState* ComputePipeline = static_cast<FComputePipelineState*>(Pipeline);
 			ComputePipeline->RHIPipeline = RHICreateComputePipelineState(ComputePipeline->ComputeShader);
-			if (Initializer.bPSOPrecache)
-			{
-				GPrecacheComputePipelineCache.PrecacheFinished(ComputePipeline->ComputeShader);
-			}
 		}
 		else
 		{
@@ -1661,7 +1578,6 @@ void PipelineStateCache::FlushResources()
 	GGraphicsPipelineCache.ProcessDelayedCleanup();
 
 	GPrecacheGraphicsPipelineCache.ProcessDelayedCleanup();
-	GPrecacheComputePipelineCache.ProcessDelayedCleanup();
 
 	{
 		int32 NumMissesThisFrame = GraphicsPipelineCacheMisses.Load(EMemoryOrder::Relaxed);
@@ -1789,9 +1705,7 @@ FComputePipelineState* PipelineStateCache::GetAndOrCreateComputePipelineState(FR
 		// create a compilation task, or just do it now...
 		if (DoAsyncCompile)
 		{
-			FGraphicsPipelineStateInitializer GraphicsPipelineStateInitializer;
-			GraphicsPipelineStateInitializer.bFromPSOFileCache = bFromFileCache;
-			OutCachedState->CompletionEvent = TGraphTask<FCompilePipelineStateTask>::CreateTask().ConstructAndDispatchWhenReady(OutCachedState, GraphicsPipelineStateInitializer, EPSOPrecacheResult::Untracked);
+			OutCachedState->CompletionEvent = TGraphTask<FCompilePipelineStateTask>::CreateTask().ConstructAndDispatchWhenReady(OutCachedState, FGraphicsPipelineStateInitializer(), EPSOPrecacheResult::Untracked);
 			if (!bFromFileCache)
 			{
 				RHICmdList.AddDispatchPrerequisite(OutCachedState->CompletionEvent);
@@ -2298,7 +2212,6 @@ FGraphicsPipelineState* PipelineStateCache::GetAndOrCreateGraphicsPipelineState(
 	FGraphicsPipelineState* OutCachedState = nullptr;
 
 	bool bWasFound = GGraphicsPipelineCache.Find(Initializer, OutCachedState);
-    ensure(!Initializer.bPSOPrecache);
 	bool DoAsyncCompile = IsAsyncCompilationAllowed(RHICmdList, Initializer.bFromPSOFileCache);
 
 	if (bWasFound == false)
@@ -2372,10 +2285,10 @@ bool PipelineStateCache::IsPSOPrecachingEnabled()
 #endif // WITH_EDITOR
 }
 
-FGraphEventRef FPrecacheComputePipelineCache::PrecacheComputePipelineState(FRHIComputeShader* ComputeShader, bool bForcePrecache)
+FGraphEventRef PipelineStateCache::PrecacheComputePipelineState(FRHIComputeShader* ComputeShader, bool bForcePrecache)
 {
 	FGraphEventRef GraphEvent = nullptr;
-	if (!PipelineStateCache::IsPSOPrecachingEnabled() && !bForcePrecache)
+	if (!IsPSOPrecachingEnabled() && !bForcePrecache)
 	{
 		return GraphEvent;
 	}
@@ -2385,36 +2298,31 @@ FGraphEventRef FPrecacheComputePipelineCache::PrecacheComputePipelineState(FRHIC
 		return GraphEvent;
 	}
 
-	static bool bDoAsyncCompile = FApp::ShouldUseThreadingForPerformance();
-	GPrecacheComputePipelineCache.TryAddNewState(ComputeShader, bDoAsyncCompile, GraphEvent);
-
-	if (GraphEvent == nullptr)
+	FComputePipelineState* CachedState = nullptr;
+	if (GComputePipelineCache.Find(ComputeShader, CachedState))
 	{
-		check(GPrecacheComputePipelineCache.GetPrecachingState(ComputeShader) == EPSOPrecacheResult::Complete)
+		return GraphEvent;
 	}
 
-	return GraphEvent;
-}
+	// create new graphics state
+	CachedState = new FComputePipelineState(ComputeShader);
 
-void FPrecacheComputePipelineCache::OnNewPipelineStateCreated(FRHIComputeShader* ComputeShader, FComputePipelineState* CachedState, bool bDoAsyncCompile)
-{
 	// create a compilation task, or just do it now...
+	static bool bDoAsyncCompile = FApp::ShouldUseThreadingForPerformance();
 	if (bDoAsyncCompile)
 	{
-		FGraphicsPipelineStateInitializer GraphicsPipelineStateInitializer;
-		GraphicsPipelineStateInitializer.bPSOPrecache = true;
 		// Thread pool disabled?
 		if (!FPSOPrecacheThreadPool::UsePool())
 		{
-			CachedState->CompletionEvent = TGraphTask<FCompilePipelineStateTask>::CreateTask().ConstructAndDispatchWhenReady(CachedState, GraphicsPipelineStateInitializer, EPSOPrecacheResult::Active);
+			CachedState->CompletionEvent = TGraphTask<FCompilePipelineStateTask>::CreateTask().ConstructAndDispatchWhenReady(CachedState, FGraphicsPipelineStateInitializer(), EPSOPrecacheResult::Active);
+			GraphEvent = CachedState->CompletionEvent;
 		}
 		else
 		{
 			// Here, PSO precompiles use a separate thread pool.
 			// Note that we do not add precompile tasks as cmdlist prerequisites.
-			FGraphEventRef GraphEvent = FGraphEvent::CreateGraphEvent();
-			CachedState->CompletionEvent = GraphEvent;
-			TUniquePtr<FCompilePipelineStateTask> ThreadPoolTask = MakeUnique<FCompilePipelineStateTask>(CachedState, GraphicsPipelineStateInitializer, EPSOPrecacheResult::Active);
+			GraphEvent = FGraphEvent::CreateGraphEvent();
+			TUniquePtr<FCompilePipelineStateTask> ThreadPoolTask = MakeUnique<FCompilePipelineStateTask>(CachedState, FGraphicsPipelineStateInitializer(), EPSOPrecacheResult::Active);
 			CachedState->CompletionEvent = GraphEvent;
 			uint64 StartTime = FPlatformTime::Cycles64();
 #if	PSO_TRACK_CACHE_STATS
@@ -2441,16 +2349,14 @@ void FPrecacheComputePipelineCache::OnNewPipelineStateCreated(FRHIComputeShader*
 	{
 		CachedState->RHIPipeline = RHICreateComputePipelineState(CachedState->ComputeShader);
 	}
+
+	GComputePipelineCache.Add(ComputeShader, CachedState);
+	return GraphEvent;
 }
 
-FGraphEventRef PipelineStateCache::PrecacheComputePipelineState(FRHIComputeShader* ComputeShader, bool bForcePrecache)
+FGraphEventRef PipelineStateCache::PrecacheGraphicsPipelineState(const FGraphicsPipelineStateInitializer& Initializer)
 {
-	return GPrecacheComputePipelineCache.PrecacheComputePipelineState(ComputeShader, bForcePrecache);
-}
-
-FGraphEventRef FPrecacheGraphicsPipelineCache::PrecacheGraphicsPipelineState(const FGraphicsPipelineStateInitializer& Initializer)
-{
-	if (!PipelineStateCache::IsPSOPrecachingEnabled())
+	if (!IsPSOPrecachingEnabled())
 	{
 		return nullptr;
 	}
@@ -2461,17 +2367,12 @@ FGraphEventRef FPrecacheGraphicsPipelineCache::PrecacheGraphicsPipelineState(con
 	static bool bDoAsyncCompile = FApp::ShouldUseThreadingForPerformance();
 
 	// try and create new graphics state
-	FGraphEventRef PrecachingEvent;
-	GPrecacheGraphicsPipelineCache.TryAddNewState(Initializer, bDoAsyncCompile, PrecachingEvent);
-	if (PrecachingEvent == nullptr)
+	FGraphicsPipelineState* NewGraphicsPipelineState = GPrecacheGraphicsPipelineCache.TryAddNewState(Initializer, bDoAsyncCompile);
+	if (NewGraphicsPipelineState == nullptr)
 	{
-		check(GPrecacheGraphicsPipelineCache.GetPrecachingState(Initializer) == EPSOPrecacheResult::Complete);
+		return nullptr;
 	}
-	return PrecachingEvent;
-}
 	
-void FPrecacheGraphicsPipelineCache::OnNewPipelineStateCreated(const FGraphicsPipelineStateInitializer & Initializer, FGraphicsPipelineState * NewGraphicsPipelineState, bool bDoAsyncCompile)
-{
 	ValidateGraphicsPipelineStateInitializer(Initializer);
 
 	// Mark as precache so it will try and use the background thread pool if available
@@ -2481,14 +2382,7 @@ void FPrecacheGraphicsPipelineCache::OnNewPipelineStateCreated(const FGraphicsPi
 	InitializerCopy.bPSOPrecache = true;
 
 	// Start the precache task
-	FGraphEventRef GraphEventRef = CreateGraphicsPipelineState(InitializerCopy, EPSOPrecacheResult::Active, bDoAsyncCompile, bPSOPrecache, NewGraphicsPipelineState);
-
-	check(GraphEventRef == NewGraphicsPipelineState->CompletionEvent);
-}
-
-FGraphEventRef PipelineStateCache::PrecacheGraphicsPipelineState(const FGraphicsPipelineStateInitializer& Initializer)
-{
-	return GPrecacheGraphicsPipelineCache.PrecacheGraphicsPipelineState(Initializer);
+	return CreateGraphicsPipelineState(InitializerCopy, EPSOPrecacheResult::Active, bDoAsyncCompile, bPSOPrecache, NewGraphicsPipelineState);
 }
 
 EPSOPrecacheResult PipelineStateCache::CheckPipelineStateInCache(const FGraphicsPipelineStateInitializer& PipelineStateInitializer)
@@ -2498,7 +2392,12 @@ EPSOPrecacheResult PipelineStateCache::CheckPipelineStateInCache(const FGraphics
 		return EPSOPrecacheResult::Unknown;
 	}
 
-	return GPrecacheGraphicsPipelineCache.GetPrecachingState(PipelineStateInitializer);
+	if (!GPrecacheGraphicsPipelineCache.Contains(PipelineStateInitializer))
+	{
+		return EPSOPrecacheResult::Missed;
+	}
+
+	return GPrecacheGraphicsPipelineCache.IsPrecaching(PipelineStateInitializer) ? EPSOPrecacheResult::Active : EPSOPrecacheResult::Complete;
 }
 
 EPSOPrecacheResult PipelineStateCache::CheckPipelineStateInCache(FRHIComputeShader* ComputeShader)
@@ -2508,7 +2407,18 @@ EPSOPrecacheResult PipelineStateCache::CheckPipelineStateInCache(FRHIComputeShad
 		return EPSOPrecacheResult::Unknown;
 	}
 
-	return GPrecacheComputePipelineCache.GetPrecachingState(ComputeShader);
+	FComputePipelineState* CachedState = nullptr;
+	if (!GComputePipelineCache.Find(ComputeShader, CachedState))
+	{
+		return EPSOPrecacheResult::Missed;
+	}
+
+	if (!CachedState->IsComplete())
+	{
+		return EPSOPrecacheResult::Active;
+	}
+
+	return CachedState->RHIPipeline && CachedState->RHIPipeline->IsValid() ? EPSOPrecacheResult::Complete : EPSOPrecacheResult::NotSupported;
 }
 
 bool PipelineStateCache::IsPrecaching(const FGraphicsPipelineStateInitializer& PipelineStateInitializer)
@@ -2518,17 +2428,7 @@ bool PipelineStateCache::IsPrecaching(const FGraphicsPipelineStateInitializer& P
 		return false;
 	}
 
-	return GPrecacheGraphicsPipelineCache.GetPrecachingState(PipelineStateInitializer) == EPSOPrecacheResult::Active;
-}
-
-bool PipelineStateCache::IsPrecaching(FRHIComputeShader* ComputeShader)
-{
-	if (!IsPSOPrecachingEnabled())
-	{
-		return false;
-	}
-
-	return GPrecacheComputePipelineCache.GetPrecachingState(ComputeShader) == EPSOPrecacheResult::Active;
+	return GPrecacheGraphicsPipelineCache.IsPrecaching(PipelineStateInitializer);
 }
 
 bool PipelineStateCache::IsPrecaching()
@@ -2538,7 +2438,7 @@ bool PipelineStateCache::IsPrecaching()
 		return false;
 	}
 
-	return GPrecacheGraphicsPipelineCache.IsPrecaching() || GPrecacheComputePipelineCache.IsPrecaching();
+	return GPrecacheGraphicsPipelineCache.IsPrecaching();
 }
 
 FRHIGraphicsPipelineState* ExecuteSetGraphicsPipelineState(FGraphicsPipelineState* GraphicsPipelineState)
