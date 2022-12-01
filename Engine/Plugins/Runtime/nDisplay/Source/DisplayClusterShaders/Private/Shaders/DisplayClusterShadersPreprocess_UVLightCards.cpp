@@ -101,7 +101,7 @@ public:
 		FMeshMaterialShaderElementData ShaderElementData;
 		ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, false);
 
-		FMeshDrawCommandSortKey SortKey = CalculateMeshStaticSortKey(PassShaders.VertexShader.GetShader(), PassShaders.PixelShader.GetShader());
+		FMeshDrawCommandSortKey SortKey = CreateMeshSortKey(MeshBatch, PrimitiveSceneProxy, Material, PassShaders.VertexShader.GetShader(), PassShaders.PixelShader.GetShader());
 
 		BuildMeshDrawCommands(
 			MeshBatch,
@@ -116,6 +116,45 @@ public:
 			SortKey,
 			EMeshPassFeatures::Default,
 			ShaderElementData);
+	}
+
+protected:
+	virtual FMeshDrawCommandSortKey CreateMeshSortKey(const FMeshBatch& RESTRICT MeshBatch,
+	const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
+	const FMaterial& Material,
+	const FMeshMaterialShader* VertexShader,
+	const FMeshMaterialShader* PixelShader)
+	{
+		FMeshDrawCommandSortKey SortKey = FMeshDrawCommandSortKey::Default;
+		
+		uint16 SortKeyPriority = 0;
+		float Distance = 0.0f;
+
+		if (PrimitiveSceneProxy)
+		{
+			const FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
+			SortKeyPriority = (uint16)((int32)PrimitiveSceneInfo->Proxy->GetTranslucencySortPriority() - (int32)SHRT_MIN);
+
+			// Use the standard sort by distance method for translucent objects
+			const float DistanceOffset = PrimitiveSceneInfo->Proxy->GetTranslucencySortDistanceOffset();
+			const FVector BoundsOrigin = PrimitiveSceneProxy->GetBounds().Origin;
+			const FVector ViewOrigin = this->ViewIfDynamicMeshCommand->ViewMatrices.GetViewOrigin();
+			Distance = (BoundsOrigin - ViewOrigin).Size() + DistanceOffset;
+		}
+
+		SortKey.Translucent.MeshIdInPrimitive = MeshBatch.MeshIdInPrimitive;
+		SortKey.Translucent.Priority = SortKeyPriority;
+		SortKey.Translucent.Distance = (uint32)~BitInvertIfNegativeFloat(*(uint32*)&Distance);
+
+		return SortKey;
+	}
+
+private:
+	/** Inverts the bits of the floating point number if that number is negative */
+	uint32 BitInvertIfNegativeFloat(uint32 FloatBit)
+	{
+		unsigned Mask = -int32(FloatBit >> 31) | 0x80000000;
+		return FloatBit ^ Mask;
 	}
 
 private:
@@ -187,8 +226,8 @@ bool FDisplayClusterShadersPreprocess_UVLightCards::RenderPreprocess_UVLightCard
 		FPlane(0, 1, 0, 0),
 		FPlane(0, 0, 0, 1));
 
-	const float ZScale = 0.5f / HALF_WORLD_MAX;
-	const float ZOffset = HALF_WORLD_MAX;
+	const float ZScale = 0.5f / UE_OLD_HALF_WORLD_MAX;
+	const float ZOffset = UE_OLD_HALF_WORLD_MAX;
 	const float OrthoSize = 0.5f * ProjectionPlaneSize;
 
 	if ((bool)ERHIZBuffer::IsInverted)

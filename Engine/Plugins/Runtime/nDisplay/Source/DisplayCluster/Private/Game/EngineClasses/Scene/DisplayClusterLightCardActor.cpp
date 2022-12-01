@@ -398,6 +398,10 @@ void ADisplayClusterLightCardActor::UpdateUVIndicator()
 
 	if (GIsEditor && bIsUVLightCard)
 	{
+		// Always keep indicator on top of the light card
+		UVIndicatorComponent->TranslucencySortPriority = LightCardComponent->TranslucencySortPriority;
+		UVIndicatorComponent->TranslucencySortDistanceOffset = LightCardComponent->TranslucencySortDistanceOffset - 0.1f;
+		
 		// Keep 1:1 aspect ratio
 		if (const USceneComponent* UVParentComponent = UVIndicatorComponent->GetAttachParent())
 		{
@@ -435,6 +439,12 @@ void ADisplayClusterLightCardActor::UpdateUVIndicator()
 
 void ADisplayClusterLightCardActor::ShowLightCardLabel(bool bValue, float ScaleValue, ADisplayClusterRootActor* InRootActor)
 {
+	if (IsUVActor())
+	{
+		// UV actors don't currently support labels
+		return;
+	}
+
 #if WITH_EDITOR
 	LabelComponent->Modify(false);
 	LightCardComponent->Modify(false);
@@ -512,6 +522,35 @@ void ADisplayClusterLightCardActor::AddToLightCardLayer(ADisplayClusterRootActor
 	ULayersSubsystem* LayersSubsystem = GEditor ? GEditor->GetEditorSubsystem<ULayersSubsystem>() : nullptr;
 	if (LayersSubsystem)
 	{
+		// Adjust transparent sort order for UV light cards
+		if (IsUVActor())
+		{
+			int32 HighestPriority = MIN_int32;
+			bool bExistingPrioritiesFound = false;
+			
+			const TArray<AActor*> ActorsInLayer = LayersSubsystem->GetActorsFromLayer(LightCardLayerName);
+			for (AActor* Actor : ActorsInLayer)
+			{
+				if (const ADisplayClusterLightCardActor* LightCard = Cast<ADisplayClusterLightCardActor>(Actor))
+				{
+					if (LightCard->IsUVActor())
+					{
+						if (LightCard->LightCardComponent->TranslucencySortPriority > HighestPriority)
+						{
+							HighestPriority = LightCard->LightCardComponent->TranslucencySortPriority;
+						}
+						bExistingPrioritiesFound = true;
+					}
+				}
+			}
+
+			if (bExistingPrioritiesFound)
+			{
+				// Newly added cards should be on the top-most visibility layer
+				LightCardComponent->TranslucencySortPriority = HighestPriority < MAX_int32 ? HighestPriority + 1 : HighestPriority;
+			}
+		}
+
 		LayersSubsystem->AddActorsToLayer(TArray<AActor*>{ this }, LightCardLayerName);
 		bLayerAdded = true;
 	}
