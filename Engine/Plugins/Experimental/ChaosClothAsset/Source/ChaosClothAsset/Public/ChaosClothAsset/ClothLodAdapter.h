@@ -54,6 +54,9 @@ namespace UE::Chaos::ClothAsset
 		TConstArrayView<FVector2f> GetPatternsSimPosition() const { return GetClothCollection()->GetPatternsElements(GetClothCollection()->SimPosition, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd, GetElementIndex()); }
 		TConstArrayView<FVector3f> GetPatternsSimRestPosition() const { return GetClothCollection()->GetPatternsElements(GetClothCollection()->SimRestPosition, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd, GetElementIndex()); }
 		TConstArrayView<FVector3f> GetPatternsSimRestNormal() const { return GetClothCollection()->GetPatternsElements(GetClothCollection()->SimRestNormal, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd, GetElementIndex()); }
+		TConstArrayView<int32> GetPatternsSimNumBoneInfluences() const { return GetClothCollection()->GetPatternsElements(GetClothCollection()->SimNumBoneInfluences, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd, GetElementIndex()); }
+		TConstArrayView<TArray<int32>> GetPatternsSimBoneIndices() const { return GetClothCollection()->GetPatternsElements(GetClothCollection()->SimBoneIndices, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd, GetElementIndex()); }
+		TConstArrayView<TArray<float>> GetPatternsSimBoneWeights() const { return GetClothCollection()->GetPatternsElements(GetClothCollection()->SimBoneWeights, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd, GetElementIndex()); }
 
 		// All patterns Sim Faces Group, use these to access all pattern at once
 		TTuple<int32, int32> GetPatternsSimFacesRange() const { return GetClothCollection()->GetPatternsElementsStartEnd<true, true>(GetClothCollection()->SimFacesStart, GetClothCollection()->SimFacesEnd, GetElementIndex()); }
@@ -72,6 +75,9 @@ namespace UE::Chaos::ClothAsset
 		TConstArrayView<FVector3f> GetPatternsRenderTangentV() const { return GetClothCollection()->GetPatternsElements(GetClothCollection()->RenderTangentV, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
 		TConstArrayView<TArray<FVector2f>> GePatternstRenderUVs() const { return GetClothCollection()->GetPatternsElements(GetClothCollection()->RenderUVs, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
 		TConstArrayView<FLinearColor> GetPatternsRenderColor() const { return GetClothCollection()->GetPatternsElements(GetClothCollection()->RenderColor, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
+		TConstArrayView<int32> GetPatternsRenderNumBoneInfluences() const { return GetClothCollection()->GetPatternsElements(GetClothCollection()->RenderNumBoneInfluences, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
+		TConstArrayView<TArray<int32>> GetPatternsRenderBoneIndices() const { return GetClothCollection()->GetPatternsElements(GetClothCollection()->RenderBoneIndices, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
+		TConstArrayView<TArray<float>> GetPatternsRenderBoneWeights() const { return GetClothCollection()->GetPatternsElements(GetClothCollection()->RenderBoneWeights, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
 
 		// All patterns Sim Faces Group, use these to access all pattern at once
 		TTuple<int32, int32> GetPatternsRenderFacesRange() const { return GetClothCollection()->GetPatternsElementsStartEnd<true, true>(GetClothCollection()->RenderFacesStart, GetClothCollection()->RenderFacesEnd, GetElementIndex()); }
@@ -147,6 +153,9 @@ namespace UE::Chaos::ClothAsset
 		TArrayView<FVector2f> GetPatternsSimPosition() { return GetClothCollection()->GetPatternsElements(GetClothCollection()->SimPosition, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd, GetElementIndex()); }
 		TArrayView<FVector3f> GetPatternsSimRestPosition() { return GetClothCollection()->GetPatternsElements(GetClothCollection()->SimRestPosition, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd, GetElementIndex()); }
 		TArrayView<FVector3f> GetPatternsSimRestNormal() { return GetClothCollection()->GetPatternsElements(GetClothCollection()->SimRestNormal, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd, GetElementIndex()); }
+		TArrayView<int32> GetPatternsSimNumBoneInfluences() { return GetClothCollection()->GetPatternsElements(GetClothCollection()->SimNumBoneInfluences, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd, GetElementIndex()); }
+		TArrayView<TArray<int32>> GetPatternsSimBoneIndices() { return GetClothCollection()->GetPatternsElements(GetClothCollection()->SimBoneIndices, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd, GetElementIndex()); }
+		TArrayView<TArray<float>> GetPatternsSimBoneWeights() { return GetClothCollection()->GetPatternsElements(GetClothCollection()->SimBoneWeights, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd, GetElementIndex()); }
 
 		// All patterns Sim Faces Group, use these to access all pattern at once
 		TArrayView<FIntVector3> GetPatternsSimIndices() { return GetClothCollection()->GetPatternsElements(GetClothCollection()->SimIndices, GetClothCollection()->SimFacesStart, GetClothCollection()->SimFacesEnd, GetElementIndex()); }
@@ -158,6 +167,9 @@ namespace UE::Chaos::ClothAsset
 		TArrayView<FVector3f> GetPatternsRenderTangentV() { return GetClothCollection()->GetPatternsElements(GetClothCollection()->RenderTangentV, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
 		TArrayView<TArray<FVector2f>> GePatternstRenderUVs() { return GetClothCollection()->GetPatternsElements(GetClothCollection()->RenderUVs, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
 		TArrayView<FLinearColor> GetPatternsRenderColor() { return GetClothCollection()->GetPatternsElements(GetClothCollection()->RenderColor, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
+		TArrayView<int32> GetPatternsRenderNumBoneInfluences() { return GetClothCollection()->GetPatternsElements(GetClothCollection()->RenderNumBoneInfluences, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
+		TArrayView<TArray<int32>> GetPatternsRenderBoneIndices() { return GetClothCollection()->GetPatternsElements(GetClothCollection()->RenderBoneIndices, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
+		TArrayView<TArray<float>> GetPatternsRenderBoneWeights() { return GetClothCollection()->GetPatternsElements(GetClothCollection()->RenderBoneWeights, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
 
 		// All patterns Render Faces Group, use these to access all pattern at once
 		TArrayView<FIntVector3> GetPatternsRenderIndices() { return GetClothCollection()->GetPatternsElements(GetClothCollection()->RenderIndices, GetClothCollection()->RenderFacesStart, GetClothCollection()->RenderFacesEnd, GetElementIndex()); }

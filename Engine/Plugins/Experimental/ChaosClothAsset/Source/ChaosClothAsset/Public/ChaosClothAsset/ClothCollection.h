@@ -7,23 +7,9 @@
 // TODO:
 // - Transition Sim LOD data
 // - Move wrap deformer into struct similar to FMeshToMeshVertData
-// - Add FVertexBoneData to MANAGED_ARRAY_TYPE?
 
 namespace UE::Chaos::ClothAsset
 {
-	// TODO: Do we want to move the skinning data away from the static render data?
-	///**
-	// * Skinning data per vertex
-	// */
-	//struct FVertexBoneData
-	//{
-	//	static const int8 MaxTotalInfluences = 12;  // Up to MAX_TOTAL_INFLUENCES bone indices that this vert is weighted to
-	//
-	//	int32 NumInfluences;
-	//	uint16 BoneIndices[MaxTotalInfluences];
-	//	float BoneWeights[MaxTotalInfluences];
-	//};
-
 	/**
 	 * Tailored Cloth Asset Collection containing draping and pattern information.
 	 */
@@ -78,7 +64,9 @@ namespace UE::Chaos::ClothAsset
 		TManagedArray<FVector2f> SimPosition;
 		TManagedArray<FVector3f> SimRestPosition;
 		TManagedArray<FVector3f> SimRestNormal;  // Used for capture, maxdistance, backstop authoring ...etc
-		//TManagedArray<FVertexBoneData> SimBoneData;
+		TManagedArray<int32> SimNumBoneInfluences;
+		TManagedArray<TArray<int32>> SimBoneIndices;
+		TManagedArray<TArray<float>> SimBoneWeights;
 
 		// Sim Faces Group
 		TManagedArray<FIntVector3> SimIndices;  // The indices point to the elements in the Sim Vertices arrays but don't include the LOD start offset
@@ -90,7 +78,9 @@ namespace UE::Chaos::ClothAsset
 		TManagedArray<FVector3f> RenderTangentV;
 		TManagedArray<TArray<FVector2f>> RenderUVs;
 		TManagedArray<FLinearColor> RenderColor;
-		//TManagedArray<FVertexBoneData> RenderBoneData;
+		TManagedArray<int32> RenderNumBoneInfluences;
+		TManagedArray<TArray<int32>> RenderBoneIndices;
+		TManagedArray<TArray<float>> RenderBoneWeights;
 
 		// Render Faces Group
 		TManagedArray<FIntVector3> RenderIndices;  // The indices point to the elements in the Render Vertices arrays but don't include the LOD start offset

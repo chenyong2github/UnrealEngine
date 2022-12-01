@@ -43,7 +43,9 @@ namespace UE::Chaos::ClothAsset
 		AddExternalAttribute<FVector2f>("SimPosition", SimVerticesGroup, SimPosition);
 		AddExternalAttribute<FVector3f>("SimRestPosition", SimVerticesGroup, SimRestPosition);
 		AddExternalAttribute<FVector3f>("SimRestNormal", SimVerticesGroup, SimRestNormal);
-		//AddExternalAttribute<FVertexBoneData>("SimBoneData", SimVerticesGroup, SimBoneData);
+		AddExternalAttribute<int32>("SimNumBoneInfluences", SimVerticesGroup, SimNumBoneInfluences);
+		AddExternalAttribute<TArray<int32>>("SimBoneIndices", SimVerticesGroup, SimBoneIndices);
+		AddExternalAttribute<TArray<float>>("SimBoneWeights", SimVerticesGroup, SimBoneWeights);
 
 		// Sim Faces Group
 		AddExternalAttribute<FIntVector3>("SimIndices", SimFacesGroup, SimIndices, SimVerticesDependency);
@@ -55,7 +57,9 @@ namespace UE::Chaos::ClothAsset
 		AddExternalAttribute<FVector3f>("RenderTangentV", RenderVerticesGroup, RenderTangentV);
 		AddExternalAttribute<TArray<FVector2f>>("RenderUVs", RenderVerticesGroup, RenderUVs);
 		AddExternalAttribute<FLinearColor>("RenderColor", RenderVerticesGroup, RenderColor);
-		//AddExternalAttribute<FVertexBoneData>("RenderBoneData", RenderVerticesGroup, RenderBoneData);
+		AddExternalAttribute<int32>("RenderNumBoneInfluences", RenderVerticesGroup, RenderNumBoneInfluences);
+		AddExternalAttribute<TArray<int32>>("RenderBoneIndices", RenderVerticesGroup, RenderBoneIndices);
+		AddExternalAttribute<TArray<float>>("RenderBoneWeights", RenderVerticesGroup, RenderBoneWeights);
 
 		// Render Faces Group
 		AddExternalAttribute<FIntVector3>("RenderIndices", RenderFacesGroup, RenderIndices, RenderVerticesDependency);

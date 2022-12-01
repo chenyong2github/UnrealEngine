@@ -26,6 +26,9 @@ namespace UE::Chaos::ClothAsset
 		TConstArrayView<FVector2f> GetSimPosition() const { return GetClothCollection()->GetElements(GetClothCollection()->SimPosition, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd, GetElementIndex()); }
 		TConstArrayView<FVector3f> GetSimRestPosition() const { return GetClothCollection()->GetElements(GetClothCollection()->SimRestPosition, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd, GetElementIndex()); }
 		TConstArrayView<FVector3f> GetSimRestNormal() const { return GetClothCollection()->GetElements(GetClothCollection()->SimRestNormal, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd, GetElementIndex()); }
+		TConstArrayView<int32> GetSimNumBoneInfluences() const { return GetClothCollection()->GetElements(GetClothCollection()->SimNumBoneInfluences, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd, GetElementIndex()); }
+		TConstArrayView<TArray<int32>> GetSimBoneIndices() const { return GetClothCollection()->GetElements(GetClothCollection()->SimBoneIndices, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd, GetElementIndex()); }
+		TConstArrayView<TArray<float>> GetSimBoneWeights() const { return GetClothCollection()->GetElements(GetClothCollection()->SimBoneWeights, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd, GetElementIndex()); }
 
 		// Sim Faces Group, note: SimIndices points to the LOD arrays, not the pattern arrays
 		int32 GetNumSimFaces() const { return GetClothCollection()->GetNumElements(GetClothCollection()->SimFacesStart, GetClothCollection()->SimFacesEnd, GetElementIndex()); }
@@ -40,6 +43,9 @@ namespace UE::Chaos::ClothAsset
 		TConstArrayView<FVector3f> GetRenderTangentV() const { return GetClothCollection()->GetElements(GetClothCollection()->RenderTangentV, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
 		TConstArrayView<TArray<FVector2f>> GetRenderUVs() const { return GetClothCollection()->GetElements(GetClothCollection()->RenderUVs, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
 		TConstArrayView<FLinearColor> GetRenderColor() const { return GetClothCollection()->GetElements(GetClothCollection()->RenderColor, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
+		TConstArrayView<int32> GetRenderNumBoneInfluences() const { return GetClothCollection()->GetElements(GetClothCollection()->RenderNumBoneInfluences, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
+		TConstArrayView<TArray<int32>> GetRenderBoneIndices() const { return GetClothCollection()->GetElements(GetClothCollection()->RenderBoneIndices, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
+		TConstArrayView<TArray<float>> GetRenderBoneWeights() const { return GetClothCollection()->GetElements(GetClothCollection()->RenderBoneWeights, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
 
 		// Render Faces Group, note: RenderIndices points to the LOD arrays, not the pattern arrays
 		int32 GetNumRenderFaces() const { return GetClothCollection()->GetNumElements(GetClothCollection()->RenderFacesStart, GetClothCollection()->RenderFacesEnd, GetElementIndex()); }
@@ -111,6 +117,9 @@ namespace UE::Chaos::ClothAsset
 		TArrayView<FVector2f> GetSimPosition() { return GetClothCollection()->GetElements(GetClothCollection()->SimPosition, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd, GetElementIndex()); }
 		TArrayView<FVector3f> GetSimRestPosition() { return GetClothCollection()->GetElements(GetClothCollection()->SimRestPosition, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd, GetElementIndex()); }
 		TArrayView<FVector3f> GetSimRestNormal() { return GetClothCollection()->GetElements(GetClothCollection()->SimRestNormal, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd, GetElementIndex()); }
+		TArrayView<int32> GetSimNumBoneInfluences() { return GetClothCollection()->GetElements(GetClothCollection()->SimNumBoneInfluences, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd, GetElementIndex()); }
+		TArrayView<TArray<int32>> GetSimBoneIndices() { return GetClothCollection()->GetElements(GetClothCollection()->SimBoneIndices, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd, GetElementIndex()); }
+		TArrayView<TArray<float>> GetSimBoneWeights() { return GetClothCollection()->GetElements(GetClothCollection()->SimBoneWeights, GetClothCollection()->SimVerticesStart, GetClothCollection()->SimVerticesEnd, GetElementIndex()); }
 
 		// Sim Faces Group, note: SimIndices points to the LOD arrays, not the pattern arrays
 		TArrayView<FIntVector3> GetSimIndices() { return GetClothCollection()->GetElements(GetClothCollection()->SimIndices, GetClothCollection()->SimFacesStart, GetClothCollection()->SimFacesEnd, GetElementIndex()); }
@@ -123,6 +132,9 @@ namespace UE::Chaos::ClothAsset
 		TArrayView<FVector3f> GetRenderTangentV() { return GetClothCollection()->GetElements(GetClothCollection()->RenderTangentV, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
 		TArrayView<TArray<FVector2f>> GetRenderUVs() { return GetClothCollection()->GetElements(GetClothCollection()->RenderUVs, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
 		TArrayView<FLinearColor> GetRenderColor() { return GetClothCollection()->GetElements(GetClothCollection()->RenderColor, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
+		TArrayView<int32> GetRenderNumBoneInfluences() { return GetClothCollection()->GetElements(GetClothCollection()->RenderNumBoneInfluences, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
+		TArrayView<TArray<int32>> GetRenderBoneIndices() { return GetClothCollection()->GetElements(GetClothCollection()->RenderBoneIndices, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
+		TArrayView<TArray<float>> GetRenderBoneWeights() { return GetClothCollection()->GetElements(GetClothCollection()->RenderBoneWeights, GetClothCollection()->RenderVerticesStart, GetClothCollection()->RenderVerticesEnd, GetElementIndex()); }
 
 		// Render Faces Group, note: RenderIndices points to the LOD arrays, not the pattern arrays
 		TArrayView<FIntVector3> GetRenderIndices() { return GetClothCollection()->GetElements(GetClothCollection()->RenderIndices, GetClothCollection()->RenderFacesStart, GetClothCollection()->RenderFacesEnd, GetElementIndex()); }
