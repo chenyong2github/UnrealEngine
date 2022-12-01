@@ -34,6 +34,37 @@ FAnimNode_RigLogic::~FAnimNode_RigLogic()
 	}
 }
 
+bool FAnimNode_RigLogic::NeedsOnInitializeAnimInstance() const
+{
+	return true;
+}
+
+void FAnimNode_RigLogic::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_AnimNode_RigLogic_OnInitializeAnimInstance);
+	LLM_SCOPE_BYNAME(TEXT("Animation/RigLogic"));
+
+	USkeletalMeshComponent* SkeletalMeshComponent = InAnimInstance->GetSkelMeshComponent();
+	if (SkeletalMeshComponent == nullptr)
+	{
+		return;
+	}
+
+	USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMeshAsset();
+	if (SkeletalMesh == nullptr)
+	{
+		return;
+	}
+
+	UDNAIndexMapping* DNAIndexMappingContainer = Cast<UDNAIndexMapping>(SkeletalMesh->GetAssetUserDataOfClass(UDNAIndexMapping::StaticClass()));
+	if (DNAIndexMappingContainer == nullptr)
+	{
+		DNAIndexMappingContainer = NewObject<UDNAIndexMapping>(SkeletalMesh);
+		SkeletalMesh->AddAssetUserData(DNAIndexMappingContainer);
+	}
+}
+
 void FAnimNode_RigLogic::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
@@ -51,6 +82,7 @@ void FAnimNode_RigLogic::CacheBones_AnyThread(const FAnimationCacheBonesContext&
 
 	AnimSequence.CacheBones(Context);
 
+	// Initialize things that depend on the skeleton of Anim BP
 	USkeletalMeshComponent* SkeletalMeshComponent = Context.AnimInstanceProxy->GetSkelMeshComponent();
 	if (SkeletalMeshComponent == nullptr)
 	{
@@ -65,6 +97,12 @@ void FAnimNode_RigLogic::CacheBones_AnyThread(const FAnimationCacheBonesContext&
 
 	USkeleton* Skeleton = Context.AnimInstanceProxy->GetSkeleton();
 	if (Skeleton == nullptr)
+	{
+		return;
+	}
+
+	UDNAIndexMapping* DNAIndexMappingContainer = Cast<UDNAIndexMapping>(SkeletalMesh->GetAssetUserDataOfClass(UDNAIndexMapping::StaticClass()));
+	if (DNAIndexMappingContainer == nullptr)
 	{
 		return;
 	}
@@ -91,7 +129,7 @@ void FAnimNode_RigLogic::CacheBones_AnyThread(const FAnimationCacheBonesContext&
 		RigInstance = new FRigInstance(LocalRigRuntimeContext->RigLogic.Get());
 	}
 
-	LocalDNAIndexMapping = DNAAsset->GetDNAIndexMapping(Skeleton, SkeletalMesh, SkeletalMeshComponent);
+	LocalDNAIndexMapping = DNAIndexMappingContainer->GetCachedMapping(LocalRigRuntimeContext->BehaviorReader.Get(), Skeleton, SkeletalMesh, SkeletalMeshComponent);
 	// CacheBones is called on LOD switches as well, in which case compact pose bone indices must be remapped
 	const FBoneContainer& RequiredBones = Context.AnimInstanceProxy->GetRequiredBones();
 	if (RequiredBones.IsValid())

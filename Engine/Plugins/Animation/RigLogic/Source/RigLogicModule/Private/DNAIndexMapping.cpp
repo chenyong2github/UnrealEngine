@@ -4,11 +4,30 @@
 
 #include "HAL/LowLevelMemTracker.h"
 #include "DNAReader.h"
+#include "Hasher.h"
 #include "Animation/Skeleton.h"
 #include "Animation/SmartName.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DNAIndexMapping)
+
+
+static uint32 HashDNA(const IDefinitionReader* Reader)
+{
+	Hasher DNAHasher;
+	DNAHasher.Update(Reader->GetTranslationUnit());
+	DNAHasher.Update(Reader->GetRotationUnit());
+	DNAHasher.Update(Reader->GetCoordinateSystem());
+	DNAHasher.Update(Reader->GetLODCount());
+	DNAHasher.Update(Reader->GetDBMaxLOD());
+	DNAHasher.Update(Reader->GetDBComplexity());
+	DNAHasher.Update(Reader->GetDBName());
+	DNAHasher.Update(Reader->GetJointCount());
+	DNAHasher.Update(Reader->GetBlendShapeChannelCount());
+	DNAHasher.Update(Reader->GetAnimatedMapCount());
+	return DNAHasher.GetHash();
+}
 
 /** Constructs curve name from nameToSplit using formatString of form x<obj>y<attr>z **/
 static FString CreateCurveName(const FString& NameToSplit, const FString& FormatString)
@@ -140,3 +159,37 @@ void FDNAIndexMapping::MapMaskMultipliers(const IBehaviorReader* DNABehavior, co
 		}
 	}
 }
+
+UDNAIndexMapping::UDNAIndexMapping() : Cached{nullptr}
+{
+}
+
+TSharedPtr<FDNAIndexMapping> UDNAIndexMapping::GetCachedMapping(const IBehaviorReader* DNABehavior,
+																const USkeleton* Skeleton,
+																const USkeletalMesh* SkeletalMesh,
+																const USkeletalMeshComponent* SkeletalMeshComponent)
+{
+	LLM_SCOPE_BYNAME(TEXT("Animation/RigLogic"));
+
+	const FGuid SkeletonGuid = Skeleton->GetGuid();
+	const uint32 DNAHash = HashDNA(DNABehavior);
+	// If GUID or DNA hash is different, all skeleton <-> DNA mappings should be recreated
+	FRWScopeLock ScopeLock(Lock, SLT_ReadOnly);
+	if (!Cached.IsValid() || (Cached->SkeletonGuid != SkeletonGuid) || (Cached->DNAHash != DNAHash))
+	{
+		ScopeLock.ReleaseReadOnlyLockAndAcquireWriteLock_USE_WITH_CAUTION();
+		if (!Cached.IsValid() || (Cached->SkeletonGuid != SkeletonGuid) || (Cached->DNAHash != DNAHash))
+		{
+			TSharedPtr<FDNAIndexMapping> NewMapping = MakeShared<FDNAIndexMapping>();
+			NewMapping->SkeletonGuid = SkeletonGuid;
+			NewMapping->DNAHash = DNAHash;
+			NewMapping->MapControlCurves(DNABehavior, Skeleton);
+			NewMapping->MapJoints(DNABehavior, SkeletalMeshComponent);
+			NewMapping->MapMorphTargets(DNABehavior, Skeleton, SkeletalMesh);
+			NewMapping->MapMaskMultipliers(DNABehavior, Skeleton);
+			Cached = NewMapping;
+		}
+	}
+	return Cached;
+}
+
