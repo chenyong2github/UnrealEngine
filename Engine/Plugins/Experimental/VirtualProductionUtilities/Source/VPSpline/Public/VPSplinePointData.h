@@ -14,7 +14,9 @@ struct FVPSplinePointData
 	GENERATED_BODY()
 public:
 	FVPSplinePointData()
-		: FocalLength(35.0f)
+		: Location(FVector::ZeroVector)
+		, Rotation(FRotator::ZeroRotator)
+		, FocalLength(35.0f)
 		, Aperture(2.8f)
 		, FocusDistance(100000.f)
 	{};

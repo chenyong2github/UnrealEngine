@@ -305,7 +305,7 @@ struct FRCPresetExposePropertyRequest : public FRCRequest
 	 * Whether to automatically enable the edit condition for the exposed property.
 	 */
 	UPROPERTY()
-	bool EnableEditCondition;
+	bool EnableEditCondition = true;
 };
 
 /**
