@@ -121,6 +121,7 @@ public:
 
 	virtual void PostLoad() override
 	{
+		Super::PostLoad();
 		InputChanged();
 	}
 #endif
