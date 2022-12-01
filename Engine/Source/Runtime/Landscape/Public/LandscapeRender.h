@@ -490,16 +490,18 @@ public:
 	FLandscapeSceneViewExtension(const FAutoRegister& AutoReg);
 	virtual ~FLandscapeSceneViewExtension();
 
+	void EndFrame_GameThread();
 	void EndFrame_RenderThread();
 
 	virtual void SetupViewFamily(FSceneViewFamily& InViewFamily) override {}
 	virtual void SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView) override {}
-	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override {}
+	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override;
 
 	virtual void PreRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView) override;
 	virtual void PreInitViews_RenderThread(FRDGBuilder& GraphBuilder) override;
 
 	LANDSCAPE_API const TMap<uint32, FLandscapeRenderSystem*>& GetLandscapeRenderSystems() const;
+	LANDSCAPE_API int32 GetNumViewsWithShowCollision() const { return NumViewsWithShowCollision; }
 private:
 	FBufferRHIRef LandscapeLODDataBuffer;
 	FBufferRHIRef LandscapeIndirectionBuffer;
@@ -519,6 +521,8 @@ private:
 
 	TArray<FLandscapeViewData> LandscapeViews;
 	UE::Tasks::FTask LandscapeSetupTask;
+	int32 NumViewsWithShowCollision = 0;    // Last frame number of views with collision enabled.
+	int32 NumViewsWithShowCollisionAcc = 0; // Accumulate the number of views with collision
 };
 
 

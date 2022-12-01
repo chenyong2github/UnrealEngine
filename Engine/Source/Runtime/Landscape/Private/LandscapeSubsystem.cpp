@@ -11,6 +11,9 @@
 #include "LandscapeStreamingProxy.h"
 #include "LandscapeInfo.h"
 #include "LandscapeInfoMap.h"
+#include "LandscapeModule.h"
+#include "LandscapeRender.h"
+#include "LandscapePrivate.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "ActorPartition/ActorPartitionSubsystem.h"
@@ -170,6 +173,23 @@ void ULandscapeSubsystem::Tick(float DeltaTime)
 
 	Super::Tick(DeltaTime);
 
+#if WITH_EDITOR
+	//Check if we need to start or stop creating Collision SceneProxies
+	ILandscapeModule& LandscapeModule = FModuleManager::GetModuleChecked<ILandscapeModule>("Landscape");
+	int32 NumViewsWithShowCollision = LandscapeModule.GetLandscapeSceneViewExtension()->GetNumViewsWithShowCollision();
+	bool bNewShowCollisions = NumViewsWithShowCollision > 0;
+    bool bCollisionChanged = bNewShowCollisions != bAnyViewShowCollisions;
+    bAnyViewShowCollisions = bNewShowCollisions;
+        
+	if (bCollisionChanged)
+	{
+		for (ULandscapeHeightfieldCollisionComponent* LandscapeHeightfieldCollisionComponent : TObjectRange<ULandscapeHeightfieldCollisionComponent>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::Garbage))
+		{
+			LandscapeHeightfieldCollisionComponent->MarkRenderStateDirty();
+		}
+	}
+#endif
+	
 	UWorld* World = GetWorld();
 
 	static TArray<FVector> OldCameras;

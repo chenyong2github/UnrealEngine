@@ -85,6 +85,7 @@ public:
 	LANDSCAPE_API static bool IsDirtyOnlyInModeEnabled();
 	FLandscapeNotificationManager* GetNotificationManager() { return NotificationManager; }
 	FOnHeightmapStreamedDelegate& GetOnHeightmapStreamedDelegate() { return OnHeightmapStreamed; }
+	LANDSCAPE_API bool AnyViewShowCollisions() const { return bAnyViewShowCollisions; }  //! Returns true if any view has view collisions enabled.
 #endif // WITH_EDITOR
 
 private:
@@ -107,5 +108,6 @@ private:
 	
 	FLandscapeNotificationManager* NotificationManager;
 	FOnHeightmapStreamedDelegate OnHeightmapStreamed;
+	bool bAnyViewShowCollisions = false;
 #endif // WITH_EDITOR
 };
