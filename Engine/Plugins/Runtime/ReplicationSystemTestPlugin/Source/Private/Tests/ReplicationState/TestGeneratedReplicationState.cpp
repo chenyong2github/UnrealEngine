@@ -94,10 +94,9 @@ UE_NET_TEST(FTestTypedReplicationState, ValidateState)
 	// so test by casting as it always should be the first member
 	const UE::Net::FReplicationStateHeader& Header = UE::Net::Private::GetReplicationStateHeader(reinterpret_cast<uint8*>(&State), State.GetReplicationStateDescriptor());
 
-	UE_NET_ASSERT_EQ(0u, UE::Net::Private::FReplicationStateHeaderAccessor::GetReplicationIndex(Header));
-	UE_NET_ASSERT_EQ(0u, UE::Net::Private::FReplicationStateHeaderAccessor::GetReplicationSystemId(Header));
-	UE_NET_ASSERT_EQ(0u, UE::Net::Private::FReplicationStateHeaderAccessor::GetReplicationFlags(Header));
-	UE_NET_ASSERT_EQ(false, UE::Net::Private::FReplicationStateHeaderAccessor::GetIsInitStateDirty(Header));
+	UE_NET_ASSERT_EQ(FReplicationStateHeaderAccessor::GetNetHandleId(Header), 0U);
+	UE_NET_ASSERT_FALSE(FReplicationStateHeaderAccessor::GetIsInitStateDirty(Header));
+	UE_NET_ASSERT_FALSE(FReplicationStateHeaderAccessor::GetIsStateDirty(Header));
 
 	// Verify defaults
 	const int32 ExpectedDefaultValue = 0;

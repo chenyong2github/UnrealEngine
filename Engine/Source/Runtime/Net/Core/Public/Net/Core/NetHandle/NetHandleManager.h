@@ -32,6 +32,9 @@ public:
 	/** Returns an existing NetHandle for an object if it's present or creates one if it's not. Assumes Init() has been called. */
 	NETCORE_API static FNetHandle GetOrCreateNetHandle(const UObject*);
 
+	/** Returns a NetHandle given an Id that has previously been extracted from a valid NetHandle. The behavior is implementation defined if the Id was not extracted from a valid NetHandle. */
+	NETCORE_API static FNetHandle MakeNetHandleFromId(uint32 Id);
+
 private:
 	friend FNetHandleDestroyer;
 

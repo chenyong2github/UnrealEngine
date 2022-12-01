@@ -46,7 +46,12 @@ static FNetDebugName s_LifetimeConditionDebugNames[] =
 	{TEXT("SkipReplay"), 0},
 	{TEXT("ILLEGAL"), 0},
 	{TEXT("Never"), 0},
+	{TEXT("NetGroup"), 0},
 };
+static_assert(COND_Max == 17, "s_LifetimeConditionDebugNames may need updating.");
+
+static void AppendMemberChangeMasks(FNetBitStreamWriter* ChangeMaskWriter, FNetBitStreamWriter* ConditionalChangeMaskWriter, uint8* ExternalStateBuffer, const FReplicationStateDescriptor* Descriptor);
+static void ResetMemberChangeMasks(uint8* ExternalStateBuffer, const FReplicationStateDescriptor* Descriptor);
 
 }
 
@@ -458,29 +463,33 @@ void FReplicationStateOperations::DeserializeDeltaWithMask(FNetSerializationCont
 	}
 }
 
-void FReplicationInstanceOperations::PollAndRefreshCachedPropertyData(const FReplicationInstanceProtocol* InstanceProtocol, EReplicationFragmentTraits ExcludeTraits, EReplicationFragmentPollFlags PollOptions)
+bool FReplicationInstanceOperations::PollAndRefreshCachedPropertyData(const FReplicationInstanceProtocol* InstanceProtocol, EReplicationFragmentTraits ExcludeTraits, EReplicationFragmentPollFlags PollOptions)
 {
+	bool bIsStateDirty = false;
 	FReplicationFragment* const * Fragments = InstanceProtocol->Fragments;
 
-	// $IRIS, Cache traits to avoid touching fragments
+	// @TODO Cache traits to avoid touching fragments
 	const uint32 FragmentCount = InstanceProtocol->FragmentCount;
 	for (uint32 StateIt = 0; StateIt < FragmentCount; ++StateIt)
 	{
 		const EReplicationFragmentTraits MaskedFragmentTraits = Fragments[StateIt]->GetTraits() & (EReplicationFragmentTraits::NeedsPoll | ExcludeTraits);
 		if (MaskedFragmentTraits == EReplicationFragmentTraits::NeedsPoll)
 		{			
-			Fragments[StateIt]->PollReplicatedState(PollOptions);
+			bIsStateDirty |= Fragments[StateIt]->PollReplicatedState(PollOptions);
 		}
 	}
+
+	return bIsStateDirty;
 }
 
-void FReplicationInstanceOperations::PollAndRefreshCachedPropertyData(const FReplicationInstanceProtocol* InstanceProtocol, EReplicationFragmentPollFlags PollOptions)
+bool FReplicationInstanceOperations::PollAndRefreshCachedPropertyData(const FReplicationInstanceProtocol* InstanceProtocol, EReplicationFragmentPollFlags PollOptions)
 {
-	PollAndRefreshCachedPropertyData(InstanceProtocol, EReplicationFragmentTraits::None, PollOptions);
+	return PollAndRefreshCachedPropertyData(InstanceProtocol, EReplicationFragmentTraits::None, PollOptions);
 }
 
-void FReplicationInstanceOperations::PollAndRefreshCachedObjectReferences(const FReplicationInstanceProtocol* InstanceProtocol, EReplicationFragmentTraits RequiredTraits)
+bool FReplicationInstanceOperations::PollAndRefreshCachedObjectReferences(const FReplicationInstanceProtocol* InstanceProtocol, EReplicationFragmentTraits RequiredTraits)
 {
+	bool bIsStateDirty = false;
 	const EReplicationFragmentTraits ExpectedTraits = EReplicationFragmentTraits::HasObjectReference | RequiredTraits;
 
 	FReplicationFragment* const * Fragments = InstanceProtocol->Fragments;
@@ -490,60 +499,12 @@ void FReplicationInstanceOperations::PollAndRefreshCachedObjectReferences(const 
 		const EReplicationFragmentTraits MaskedFragmentTraits = Fragments[StateIt]->GetTraits() & ExpectedTraits;
 		if (MaskedFragmentTraits == ExpectedTraits)
 		{			
-			Fragments[StateIt]->PollReplicatedState(EReplicationFragmentPollFlags::ForceRefreshCachedObjectReferencesAfterGC);
+			bIsStateDirty |= Fragments[StateIt]->PollReplicatedState(EReplicationFragmentPollFlags::ForceRefreshCachedObjectReferencesAfterGC);
 		}
 	}
+
+	return bIsStateDirty;
 }
-
-static void AppendAndResetMemberChangeMasks(FNetBitStreamWriter* ChangeMaskWriter, FNetBitStreamWriter* ConditionalChangeMaskWriter, uint8* StateBuffer, const FReplicationStateDescriptor* Descriptor)
-{
-	FNetBitArrayView::StorageWordType* ChangeMaskStorage = reinterpret_cast<FNetBitArrayView::StorageWordType*>(StateBuffer + Descriptor->GetChangeMaskOffset());
-	const uint32 BitCount = Descriptor->ChangeMaskBitCount;
-
-	// Append change mask bits
-	if (BitCount <= 32u)
-	{
-		ChangeMaskWriter->WriteBits(*ChangeMaskStorage, BitCount);
-	}
-	else
-	{
-		ChangeMaskWriter->WriteBitStream(ChangeMaskStorage, 0, BitCount);
-	}
-
-	// Reset the local changemask
-	FNetBitArrayView MemberChangeMask(ChangeMaskStorage, BitCount, FNetBitArrayView::NoResetNoValidate);
-	MemberChangeMask.Reset();
-
-	// Also reset init state dirtiness which doesn't have a changemask
-	FReplicationStateHeader& ReplicationStateHeader = Private::GetReplicationStateHeader(StateBuffer, Descriptor);
-	Private::FReplicationStateHeaderAccessor::ClearInitStateIsDirty(ReplicationStateHeader);
-
-	if (ConditionalChangeMaskWriter != nullptr)
-	{
-		if (EnumHasAnyFlags(Descriptor->Traits, EReplicationStateTraits::HasLifetimeConditionals))
-		{
-			FNetBitArrayView::StorageWordType* ConditionalChangeMaskStorage = reinterpret_cast<FNetBitArrayView::StorageWordType*>(StateBuffer + Descriptor->GetConditionalChangeMaskOffset());
-
-			// Append conditional change mask bits.
-			// The conditionals are on or off rather than tracking dirtiness so we do no reset them.
-			if (BitCount <= 32u)
-			{
-				ConditionalChangeMaskWriter->WriteBits(*ConditionalChangeMaskStorage, BitCount);
-			}
-			else
-			{
-				constexpr uint32 BitOffset = 0;
-				ConditionalChangeMaskWriter->WriteBitStream(ConditionalChangeMaskStorage, BitOffset, BitCount);
-			}
-		}
-		else
-		{
-			// Skip past our non-existing conditional mask.
-			ConditionalChangeMaskWriter->Seek(ConditionalChangeMaskWriter->GetPosBits() + BitCount);
-		}
-	}
-}
-
 
 void FReplicationInstanceOperations::CopyAndQuantize(FNetSerializationContext& Context, uint8* DstObjectStateBuffer, FNetBitStreamWriter* OutChangeMaskWriter, const FReplicationInstanceProtocol* InstanceProtocol, const FReplicationProtocol* Protocol)
 {
@@ -570,8 +531,8 @@ void FReplicationInstanceOperations::CopyAndQuantize(FNetSerializationContext& C
 		
 		FReplicationStateOperations::Quantize(Context, CurrentInternalStateBuffer, FragmentData[StateIt].ExternalSrcBuffer, CurrentDescriptor);
 
-		// Append and reset changemask data
-		AppendAndResetMemberChangeMasks(OutChangeMaskWriter, OutConditionalChangeMaskWriter, FragmentData[StateIt].ExternalSrcBuffer, CurrentDescriptor);
+		// Append changemask data to bitstreams
+		Private::AppendMemberChangeMasks(OutChangeMaskWriter, OutConditionalChangeMaskWriter, FragmentData[StateIt].ExternalSrcBuffer, CurrentDescriptor);
 		
 		CurrentInternalStateBuffer += CurrentDescriptor->InternalSize;
 	}
@@ -583,6 +544,19 @@ void FReplicationInstanceOperations::CopyAndQuantize(FNetSerializationContext& C
 	}
 }
 
+void FReplicationInstanceOperations::ResetDirtiness(const FReplicationInstanceProtocol* InstanceProtocol, const FReplicationProtocol* Protocol)
+{
+	check(InstanceProtocol && InstanceProtocol->FragmentCount == Protocol->ReplicationStateCount);
+
+	FReplicationInstanceProtocol::FFragmentData* FragmentData = InstanceProtocol->FragmentData;
+	const FReplicationStateDescriptor** ReplicationStateDescriptors = Protocol->ReplicationStateDescriptors;
+
+	for (uint32 StateIt = 0, StateEndIt = Protocol->ReplicationStateCount; StateIt < StateEndIt; ++StateIt)
+	{
+		const FReplicationStateDescriptor* CurrentDescriptor = ReplicationStateDescriptors[StateIt];
+		Private::ResetMemberChangeMasks(FragmentData[StateIt].ExternalSrcBuffer, CurrentDescriptor);
+	}
+}
 
 void FReplicationInstanceOperations::DequantizeAndApply(FNetSerializationContext& NetSerializationContext, const FDequantizeAndApplyParameters& Parameters)
 {
@@ -1133,6 +1107,65 @@ bool FReplicationProtocolOperations::IsEqualQuantizedState(FNetSerializationCont
 	}
 
 	return true;
+}
+
+}
+
+namespace UE::Net::Private
+{
+
+static void AppendMemberChangeMasks(FNetBitStreamWriter* ChangeMaskWriter, FNetBitStreamWriter* ConditionalChangeMaskWriter, uint8* StateBuffer, const FReplicationStateDescriptor* Descriptor)
+{
+	FNetBitArrayView::StorageWordType* ChangeMaskStorage = reinterpret_cast<FNetBitArrayView::StorageWordType*>(StateBuffer + Descriptor->GetChangeMaskOffset());
+	const uint32 BitCount = Descriptor->ChangeMaskBitCount;
+
+	// Append change mask bits
+	if (BitCount <= 32u)
+	{
+		ChangeMaskWriter->WriteBits(*ChangeMaskStorage, BitCount);
+	}
+	else
+	{
+		ChangeMaskWriter->WriteBitStream(ChangeMaskStorage, 0, BitCount);
+	}
+
+	if (ConditionalChangeMaskWriter != nullptr)
+	{
+		if (EnumHasAnyFlags(Descriptor->Traits, EReplicationStateTraits::HasLifetimeConditionals))
+		{
+			FNetBitArrayView::StorageWordType* ConditionalChangeMaskStorage = reinterpret_cast<FNetBitArrayView::StorageWordType*>(StateBuffer + Descriptor->GetConditionalChangeMaskOffset());
+
+			// Append conditional change mask bits.
+			// The conditionals are on or off rather than tracking dirtiness so we do not reset them.
+			if (BitCount <= 32u)
+			{
+				ConditionalChangeMaskWriter->WriteBits(*ConditionalChangeMaskStorage, BitCount);
+			}
+			else
+			{
+				constexpr uint32 BitOffset = 0;
+				ConditionalChangeMaskWriter->WriteBitStream(ConditionalChangeMaskStorage, BitOffset, BitCount);
+			}
+		}
+		else
+		{
+			// Skip past our non-existing conditional mask.
+			ConditionalChangeMaskWriter->Seek(ConditionalChangeMaskWriter->GetPosBits() + BitCount);
+		}
+	}
+}
+
+static void ResetMemberChangeMasks(uint8* ExternalStateBuffer, const FReplicationStateDescriptor* Descriptor)
+{
+	FNetBitArrayView::StorageWordType* ChangeMaskStorage = reinterpret_cast<FNetBitArrayView::StorageWordType*>(ExternalStateBuffer + Descriptor->GetChangeMaskOffset());
+	const uint32 BitCount = Descriptor->ChangeMaskBitCount;
+
+	// Reset the changemask. We assume it's fine to clear any padding bits.
+	FNetBitArrayView MemberChangeMask(ChangeMaskStorage, BitCount, FNetBitArrayView::ResetOnInit);
+
+	// Reset state dirtiness.
+	FReplicationStateHeader& ReplicationStateHeader = Private::GetReplicationStateHeader(ExternalStateBuffer, Descriptor);
+	Private::FReplicationStateHeaderAccessor::ClearAllStateIsDirty(ReplicationStateHeader);
 }
 
 }

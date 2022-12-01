@@ -151,7 +151,7 @@ protected:
 
 	IRISCORE_API virtual void Initialize(UReplicationSystem* InReplicationSystem) override;
 	IRISCORE_API virtual void Deinitialize() override;
-	IRISCORE_API virtual void PreSendUpdateSingleHandle(FNetRefHandle Handle) override;	
+	IRISCORE_API virtual void PreSendUpdateSingleHandle(FNetRefHandle RefHandle) override;	
 	IRISCORE_API virtual void PreSendUpdate() override;	
 	IRISCORE_API virtual void UpdateInstancesWorldLocation() override;
 	IRISCORE_API virtual void PruneStaleObjects() override;	
@@ -225,11 +225,11 @@ protected:
 
 private:
 
-	void PreUpdateAndPollImpl(FNetRefHandle Handle);
+	void PreUpdateAndPollImpl(FNetRefHandle RefHandle);
 
-	void RegisterRemoteInstance(FNetRefHandle Handle, UObject* InstancePtr, const UE::Net::FReplicationProtocol* Protocol, UE::Net::FReplicationInstanceProtocol* InstanceProtocol, const FCreationHeader* Header, uint32 ConnectionId);
+	void RegisterRemoteInstance(FNetRefHandle RefHandle, UObject* InstancePtr, const UE::Net::FReplicationProtocol* Protocol, UE::Net::FReplicationInstanceProtocol* InstanceProtocol, const FCreationHeader* Header, uint32 ConnectionId);
 
-	void UnregisterRemoteInstance(FNetRefHandle Handle, bool bTearOff, bool bShouldDestroyInstance);
+	void UnregisterRemoteInstance(FNetRefHandle RefHandle, bool bTearOff, bool bShouldDestroyInstance);
 
 	void SetNetPushIdOnInstance(UE::Net::FReplicationInstanceProtocol* InstanceProtocol, FNetHandle NetHandle);
 

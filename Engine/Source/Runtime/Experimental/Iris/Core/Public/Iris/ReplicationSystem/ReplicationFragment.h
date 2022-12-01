@@ -157,9 +157,10 @@ public:
 	virtual void CallRepNotifies(FReplicationStateApplyContext& Context) {};
 
 	/**
-	* Optional Poll method required for backwards compatibility mode which will be invoked for all Fragment with the EReplicationFragmentTraits::NeedsPoll trait set.
-	*/
-	virtual void PollReplicatedState(EReplicationFragmentPollFlags PollOption = EReplicationFragmentPollFlags::PollAllState) {}
+	 * Optional Poll method required for backwards compatibility mode which will be invoked for all Fragment with the EReplicationFragmentTraits::NeedsPoll trait set.
+	 * @return True if the state is dirty, false if not.
+	 */
+	virtual bool PollReplicatedState(EReplicationFragmentPollFlags PollOption = EReplicationFragmentPollFlags::PollAllState) { return false; }
 
 	/**
 	* Optional method to output state data to StringBuilder.

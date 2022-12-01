@@ -110,20 +110,22 @@ void FPropertyReplicationFragment::ApplyReplicatedState(FReplicationStateApplyCo
 	ReceivedState.PushPropertyReplicationState(Owner);
 }
 
-void FPropertyReplicationFragment::PollReplicatedState(EReplicationFragmentPollFlags PollOption)
+bool FPropertyReplicationFragment::PollReplicatedState(EReplicationFragmentPollFlags PollOption)
 {
 	// Since PollPropertyReplicationState always copies the new value we do not need to do anything special
 	// with object references if the EReplicationFragmentPollOption::All flag is set
 	if (EnumHasAnyFlags(PollOption, EReplicationFragmentPollFlags::PollAllState))
 	{
 		const void* ExternalSourceState = static_cast<void*>(Owner);
-		SrcReplicationState->PollPropertyReplicationState(ExternalSourceState);
+		return SrcReplicationState->PollPropertyReplicationState(ExternalSourceState);
 	}
 	else if (EnumHasAnyFlags(PollOption, EReplicationFragmentPollFlags::ForceRefreshCachedObjectReferencesAfterGC))
 	{
 		const void* ExternalSourceState = static_cast<void*>(Owner);
-		SrcReplicationState->PollObjectReferences(ExternalSourceState);
+		return SrcReplicationState->PollObjectReferences(ExternalSourceState);
 	}
+
+	return false;
 }
 
 void FPropertyReplicationFragment::ReplicatedStateToString(FStringBuilderBase& StringBuilder, FReplicationStateApplyContext& Context, EReplicationStateToStringFlags Flags) const

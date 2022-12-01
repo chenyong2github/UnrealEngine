@@ -29,9 +29,11 @@ public:
 
 protected:
 	virtual void ApplyReplicatedState(FReplicationStateApplyContext& Context) const override;
-	virtual void PollReplicatedState(EReplicationFragmentPollFlags PollOption) override;
+	virtual bool PollReplicatedState(EReplicationFragmentPollFlags PollOption) override;
 
-	void PollAllState(bool bForceFullCompare = false);
+	bool PollAllState(bool bForceFullCompare = false);
+
+	bool IsDirty() const;
 
 private:
 	// Get the wrapped FastArraySerializerProperty
@@ -60,9 +62,11 @@ protected:
 	virtual void ApplyReplicatedState(FReplicationStateApplyContext& Context) const override;
 	virtual void CallRepNotifies(FReplicationStateApplyContext& Context) override;
 	virtual void ReplicatedStateToString(FStringBuilderBase& StringBuilder, FReplicationStateApplyContext& Context, EReplicationStateToStringFlags Flags) const override;
-	virtual void PollReplicatedState(EReplicationFragmentPollFlags PollOption) override;
+	virtual bool PollReplicatedState(EReplicationFragmentPollFlags PollOption) override;
 
-	void PollAllState();
+	bool PollAllState();
+
+	bool IsDirty() const;
 
 private:
 	// Get the wrapped FastArraySerializerProperty
@@ -103,21 +107,23 @@ FastArrayType* TFastArrayReplicationFragment<FastArrayItemType, FastArrayType>::
 }
 
 template <typename FastArrayItemType, typename FastArrayType>
-void TFastArrayReplicationFragment<FastArrayItemType, FastArrayType>::PollReplicatedState(EReplicationFragmentPollFlags PollOption)
+bool TFastArrayReplicationFragment<FastArrayItemType, FastArrayType>::PollReplicatedState(EReplicationFragmentPollFlags PollOption)
 {
 	// If the ForceObjectReferences flag is set we cannot early out and must always refresh cached data
 	if (EnumHasAnyFlags(PollOption, EReplicationFragmentPollFlags::ForceRefreshCachedObjectReferencesAfterGC))
 	{
-		PollAllState(true);
+		constexpr bool bForceFullCompare = true;
+		return PollAllState(bForceFullCompare);
 	}
 	else
 	{
-		PollAllState(false);
+		constexpr bool bForceFullCompare = false;
+		return PollAllState(bForceFullCompare);
 	}
 }
 
 template <typename FastArrayItemType, typename FastArrayType>
-void TFastArrayReplicationFragment<FastArrayItemType, FastArrayType>::PollAllState(bool bForceFullCompare)
+bool TFastArrayReplicationFragment<FastArrayItemType, FastArrayType>::PollAllState(bool bForceFullCompare)
 {
 	// Lookup source data, we need the actual FastArraySerializer and the Array it is wrapping
 	FastArrayType* SrcArraySerializer = GetWrappedFastArraySerializer();
@@ -130,7 +136,7 @@ void TFastArrayReplicationFragment<FastArrayItemType, FastArrayType>::PollAllSta
 	// Check if we can early out
 	if (!bForceFullCompare && SrcArraySerializer->ArrayReplicationKey == DstArraySerializer->ArrayReplicationKey)
 	{
-		return;
+		return IsDirty();
 	}
 
 	// First we must resize target to match size of source data
@@ -196,6 +202,15 @@ void TFastArrayReplicationFragment<FastArrayItemType, FastArrayType>::PollAllSta
 		MemberChangeMask.SetBit(FIrisFastArraySerializer::IrisFastArrayPropertyBitIndex);
 		MarkNetObjectStateDirty(UE::Net::Private::GetReplicationStateHeader(SrcReplicationState->GetStateBuffer(), ReplicationStateDescriptor));
 	}
+
+	return IsDirty();
+}
+
+template <typename FastArrayItemType, typename FastArrayType>
+bool TFastArrayReplicationFragment<FastArrayItemType, FastArrayType>::IsDirty() const
+{
+	FReplicationStateHeader& ReplicationStateHeader = Private::GetReplicationStateHeader(SrcReplicationState->GetStateBuffer(), ReplicationStateDescriptor);
+	return Private::FReplicationStateHeaderAccessor::GetIsStateDirty(ReplicationStateHeader);
 }
 
 /*
@@ -244,17 +259,19 @@ void TNativeFastArrayReplicationFragment<FastArrayItemType, FastArrayType, Polli
 }
 
 template <typename FastArrayItemType, typename FastArrayType, typename PollingPolicyType>
-void TNativeFastArrayReplicationFragment<FastArrayItemType, FastArrayType, PollingPolicyType>::PollReplicatedState(EReplicationFragmentPollFlags PollOption)
+bool TNativeFastArrayReplicationFragment<FastArrayItemType, FastArrayType, PollingPolicyType>::PollReplicatedState(EReplicationFragmentPollFlags PollOption)
 {
 	// We ignore object references polling. Since the source state will have references cleaned up they will be valid once any affected item is dirtied.
 	if (PollOption == EReplicationFragmentPollFlags::PollAllState)
 	{
-		PollAllState();
+		return PollAllState();
 	}
+
+	return IsDirty();
 }
 
 template <typename FastArrayItemType, typename FastArrayType, typename PollingPolicyType>
-void TNativeFastArrayReplicationFragment<FastArrayItemType, FastArrayType, PollingPolicyType>::PollAllState()
+bool TNativeFastArrayReplicationFragment<FastArrayItemType, FastArrayType, PollingPolicyType>::PollAllState()
 {
 	using FPollingState = FastArrayPollingPolicies::FPollingState;
 	if (FPollingState* PollingState = PollingPolicy.GetPollingState())
@@ -266,7 +283,7 @@ void TNativeFastArrayReplicationFragment<FastArrayItemType, FastArrayType, Polli
 		// Check if we can early out
 		if (SrcArraySerializer->ArrayReplicationKey == PollingState->ArrayReplicationKey)
 		{
-			return;
+			return IsDirty();
 		}
 
 		// First we must resize target to match size of source data
@@ -331,6 +348,16 @@ void TNativeFastArrayReplicationFragment<FastArrayItemType, FastArrayType, Polli
 			}
 		}
 	}
+
+	return IsDirty();
+}
+
+template <typename FastArrayItemType, typename FastArrayType, typename PollingPolicyType>
+bool TNativeFastArrayReplicationFragment<FastArrayItemType, FastArrayType, PollingPolicyType>::IsDirty() const
+{
+	FastArrayType* SrcArraySerializer = GetWrappedFastArraySerializer();
+	const FReplicationStateHeader& ReplicationStateHeader = Private::FIrisFastArraySerializerPrivateAccessor::GetReplicationStateHeader(*SrcArraySerializer);
+	return Private::FReplicationStateHeaderAccessor::GetIsStateDirty(ReplicationStateHeader);
 }
 
 template <typename FastArrayItemType, typename FastArrayType, typename PollingPolicyType>

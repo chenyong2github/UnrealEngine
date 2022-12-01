@@ -96,7 +96,7 @@ UE_NET_TEST_FIXTURE(FMultiReplicationSystemsTestFixture, ObjectIsReplicatedToAll
 	// Create clients for all systems
 	for (FReplicationSystemTestServer* Server : GetAllServers())
 	{
-		constexpr unsigned ClientCountPerServer = 3;
+		constexpr unsigned ClientCountPerServer = 3U;
 		for (unsigned ClientIt = 0, ClientEndIt = ClientCountPerServer; ClientIt != ClientEndIt; ++ClientIt)
 		{
 			CreateClientForServer(Server);
@@ -210,5 +210,41 @@ UE_NET_TEST_FIXTURE(FMultiReplicationSystemsTestFixture, ReplicatedObjectCanStop
 	}
 }
 
+UE_NET_TEST_FIXTURE(FMultiReplicationSystemsTestFixture, ModifiedObjectIsReplicatedToAllClientsOnAllSystems)
+{
+	CreateSomeServers();
+
+	// Create clients for all systems
+	for (FReplicationSystemTestServer* Server : GetAllServers())
+	{
+		constexpr unsigned ClientCountPerServer = 1U;
+		for (unsigned ClientIt = 0, ClientEndIt = ClientCountPerServer; ClientIt != ClientEndIt; ++ClientIt)
+		{
+			CreateClientForServer(Server);
+		}
+	}
+
+	UTestReplicatedIrisObject* ServerObject = CreateObject(UTestReplicatedIrisObject::FComponents{});
+	BeginReplication(ServerObject);
+
+	FullSendAndDeliverUpdate();
+
+	ServerObject->IntA ^= 4711;
+	const int32 ExpectedIntAVAlue = ServerObject->IntA;
+
+	FullSendAndDeliverUpdate();
+
+	// Verify the object has the updated value on all clients
+	for (FReplicationSystemTestServer* Server : GetAllServers())
+	{
+		FNetRefHandle RefHandleOnServer = Server->GetReplicationBridge()->GetReplicatedRefHandle(ServerObject);
+		for (FReplicationSystemTestClient* Client : GetClients(Server))
+		{
+			UTestReplicatedIrisObject* ClientObject = Cast<UTestReplicatedIrisObject>(Client->GetReplicationBridge()->GetReplicatedObject(RefHandleOnServer));
+			CA_ASSUME(ClientObject != nullptr);
+			UE_NET_ASSERT_EQ(ClientObject->IntA, ExpectedIntAVAlue);
+		}
+	}
+}
 
 }

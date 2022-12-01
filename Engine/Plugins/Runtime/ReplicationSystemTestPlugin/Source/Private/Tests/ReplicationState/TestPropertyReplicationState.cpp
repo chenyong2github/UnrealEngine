@@ -11,6 +11,7 @@
 #include "Misc/EnumClassFlags.h"
 #include "UObject/StrongObjectPtr.h"
 #include "Net/UnrealNetwork.h"
+#include "Net/Core/NetHandle/NetHandleManager.h"
 
 
 void UTestPropertyReplicationState_TestClass::GetLifetimeReplicatedProps( TArray< class FLifetimeProperty > & OutLifetimeProps ) const
@@ -42,8 +43,9 @@ void UTestPropertyReplicationState_TestClassWithInitAndCArrays::GetLifetimeRepli
 namespace UE::Net::Private
 {
 
-struct FTestPropertyReplicationStateContext : public FNetworkAutomationTestSuiteFixture
+class FTestPropertyReplicationStateContext : public FNetworkAutomationTestSuiteFixture
 {
+protected:
 	FReplicationStateDescriptorBuilder::FResult Descriptors;
 	const FReplicationStateDescriptor* Descriptor;
 
@@ -53,7 +55,14 @@ struct FTestPropertyReplicationStateContext : public FNetworkAutomationTestSuite
 
 		Descriptor = Descriptors[0];
 
-		UE_NET_ASSERT_TRUE(Descriptor != nullptr);
+		UE_NET_ASSERT_NE(Descriptor, nullptr);
+	}
+
+	FNetHandle GenerateNetHandle()
+	{
+		UObject* Object = NewObject<UTestPropertyReplicationState_TestClass>();
+		FNetHandle NetHandle = FNetHandleManager::GetOrCreateNetHandle(Object);
+		return NetHandle;
 	}
 };
 
@@ -222,7 +231,8 @@ UE_NET_TEST_FIXTURE(FTestPropertyReplicationStateContext, PropertyReplicationSta
 	BoundState.MarkDirty(1);
 
 	// Fake that we are bound
-	UE::Net::Private::FReplicationStateHeaderAccessor::SetReplicationIndex(UE::Net::Private::GetReplicationStateHeader(BoundState.GetStateBuffer(), Descriptor), 1U, 0U);
+	const FNetHandle NetHandle = GenerateNetHandle();
+	FReplicationStateHeaderAccessor::SetNetHandleId(GetReplicationStateHeader(BoundState.GetStateBuffer(), Descriptor), NetHandle);
 
 	// Create other state
 	FPropertyReplicationState OtherState(Descriptor);
@@ -236,8 +246,8 @@ UE_NET_TEST_FIXTURE(FTestPropertyReplicationStateContext, PropertyReplicationSta
 	// Assign to the bound state, this should result in all states being dirty
 	BoundState = OtherState;
 
-	// Verify that we did not overwrite the internal index
-	UE_NET_ASSERT_EQ(1u, UE::Net::Private::FReplicationStateHeaderAccessor::GetReplicationIndex(UE::Net::Private::GetReplicationStateHeader(BoundState.GetStateBuffer(), Descriptor)));
+	// Verify that we did not overwrite the NetHandle
+	UE_NET_ASSERT_EQ(Private::FReplicationStateHeaderAccessor::GetNetHandleId(GetReplicationStateHeader(BoundState.GetStateBuffer(), Descriptor)), NetHandle.GetId());
 
 	// check that original states are still dirty and that we also have dirtied the value that was modified in OtherState
 	UE_NET_ASSERT_TRUE(BoundState.IsDirty(0));
@@ -257,7 +267,8 @@ UE_NET_TEST_FIXTURE(FTestPropertyReplicationStateContext, PropertyReplicationSta
 	BoundState.MarkDirty(1);
 
 	// Fake that we are bound
-	UE::Net::Private::FReplicationStateHeaderAccessor::SetReplicationIndex(UE::Net::Private::GetReplicationStateHeader(BoundState.GetStateBuffer(), Descriptor), 1U, 0U);
+	const FNetHandle NetHandle = GenerateNetHandle();
+	FReplicationStateHeaderAccessor::SetNetHandleId(GetReplicationStateHeader(BoundState.GetStateBuffer(), Descriptor), NetHandle);
 
 	// Create other state
 	FPropertyReplicationState OtherState(Descriptor);
@@ -271,8 +282,8 @@ UE_NET_TEST_FIXTURE(FTestPropertyReplicationStateContext, PropertyReplicationSta
 	// copy the bound state, this should overwrite all local changes but not copy the internalindex
 	OtherState = BoundState;
 
-	// Verify that we did not overwrite the internal index
-	UE_NET_ASSERT_EQ(0u, UE::Net::Private::FReplicationStateHeaderAccessor::GetReplicationIndex(UE::Net::Private::GetReplicationStateHeader(OtherState.GetStateBuffer(), Descriptor)));
+	// Verify that we did not overwrite the NetHandle
+	UE_NET_ASSERT_EQ(FReplicationStateHeaderAccessor::GetNetHandleId(GetReplicationStateHeader(OtherState.GetStateBuffer(), Descriptor)), 0U);
 
 	// check that original states are still dirty and that we also have dirtied the value that was modified in OtherState
 	UE_NET_ASSERT_TRUE(OtherState.IsDirty(0));

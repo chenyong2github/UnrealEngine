@@ -68,17 +68,24 @@ struct FReplicationStateOperations
 
 struct FReplicationInstanceOperations
 {
-	/** Update all registered Fragments that updates dirtiness by polling, except for those with any of the ExcludeTraits. */
-	static IRISCORE_API void PollAndRefreshCachedPropertyData(const FReplicationInstanceProtocol* InstanceProtocol, EReplicationFragmentTraits ExcludeTraits, EReplicationFragmentPollFlags PollOptions = EReplicationFragmentPollFlags::PollAllState);
+	/** Update all registered Fragments that updates dirtiness by polling, except for those with any of the ExcludeTraits. Returns true if a polled state is dirty. */
+	static IRISCORE_API bool PollAndRefreshCachedPropertyData(const FReplicationInstanceProtocol* InstanceProtocol, EReplicationFragmentTraits ExcludeTraits, EReplicationFragmentPollFlags PollOptions = EReplicationFragmentPollFlags::PollAllState);
 
-	/** Update all registered Fragments that updates dirtiness by polling. */
-	static IRISCORE_API void PollAndRefreshCachedPropertyData(const FReplicationInstanceProtocol* InstanceProtocol, EReplicationFragmentPollFlags PollOptions = EReplicationFragmentPollFlags::PollAllState);
+	/** Update all registered Fragments that updates dirtiness by polling.  Returns true if a polled state is dirty. */
+	static IRISCORE_API bool PollAndRefreshCachedPropertyData(const FReplicationInstanceProtocol* InstanceProtocol, EReplicationFragmentPollFlags PollOptions = EReplicationFragmentPollFlags::PollAllState);
 
-	/** Update object references in fragments that has object references and additional required traits. */
-	static IRISCORE_API void PollAndRefreshCachedObjectReferences(const FReplicationInstanceProtocol* InstanceProtocol, EReplicationFragmentTraits RequiredTraits);
+	/** Update object references in fragments that has object references and additional required traits. Returns true if a polled state is dirty. */
+	static IRISCORE_API bool PollAndRefreshCachedObjectReferences(const FReplicationInstanceProtocol* InstanceProtocol, EReplicationFragmentTraits RequiredTraits);
 
-	/** Quantize the state for a replicated object with a given InstanceProtocol using the ReplicationProtocol. DstObjectStateBuffer needs to be cleared before calling this function. */
-	static IRISCORE_API void CopyAndQuantize(FNetSerializationContext& Context, uint8* DstObjectStateBuffer, FNetBitStreamWriter* OutChangeMaskWriter, const FReplicationInstanceProtocol* InstanceProtocol, const FReplicationProtocol* Protocol);
+	/**
+	 * Quantize the state for a replicated object with a given InstanceProtocol using the ReplicationProtocol. DstObjectStateBuffer needs to be cleared before calling this function.
+	 * Changemasks will be written to the ChangeMaskWriter. Dirtiness will not be reset.
+	 * @see ResetDirtiness
+	 */
+	static IRISCORE_API void CopyAndQuantize(FNetSerializationContext& Context, uint8* DstObjectStateBuffer, FNetBitStreamWriter* ChangeMaskWriter, const FReplicationInstanceProtocol* InstanceProtocol, const FReplicationProtocol* Protocol);
+
+	/** Resets dirty tracking stored with the protocol, such as changemasks and init state dirtiness. */
+	static IRISCORE_API void ResetDirtiness(const FReplicationInstanceProtocol* InstanceProtocol, const FReplicationProtocol* Protocol);
 
 	/** Dequantize the state for a replicated object with a given protocol. Data will be pushed out by using the ReplicationFragments. */
 	static IRISCORE_API void DequantizeAndApply(FNetSerializationContext& Context, const FDequantizeAndApplyParameters& Parameters);

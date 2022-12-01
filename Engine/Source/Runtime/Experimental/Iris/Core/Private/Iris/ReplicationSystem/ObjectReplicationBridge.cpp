@@ -270,9 +270,9 @@ UE::Net::FNetRefHandle UObjectReplicationBridge::BeginReplication(UObject* Insta
 		FNetRefHandle RefHandle = InternalCreateNetObject(AllocatedRefHandle, NetHandle, ReplicationProtocol);
 		if (RefHandle.IsValid())
 		{
-			// Attach the instance and Bind the Instance protocol to dirty tracking
+			// Attach the instance and bind the instance protocol to dirty tracking
 			constexpr bool bBindInstanceProtocol = true;
-			InternalAttachInstanceToNetHandle(RefHandle, bBindInstanceProtocol, InstanceProtocol.Get(), Instance);
+			InternalAttachInstanceToNetRefHandle(RefHandle, bBindInstanceProtocol, InstanceProtocol.Get(), Instance, NetHandle);
 #if WITH_PUSH_MODEL
 			SetNetPushIdOnInstance(InstanceProtocol.Get(), NetHandle);
 #endif
@@ -486,30 +486,30 @@ void UObjectReplicationBridge::DetachInstance(FNetRefHandle Handle)
 	UnregisterRemoteInstance(Handle, bTearOff, bShouldDestroyInstance);
 }
 
-void UObjectReplicationBridge::RegisterRemoteInstance(FNetRefHandle Handle, UObject* Instance, const UE::Net::FReplicationProtocol* Protocol, UE::Net::FReplicationInstanceProtocol* InstanceProtocol, const FCreationHeader* Header, uint32 ConnectionId)
+void UObjectReplicationBridge::RegisterRemoteInstance(FNetRefHandle RefHandle, UObject* Instance, const UE::Net::FReplicationProtocol* Protocol, UE::Net::FReplicationInstanceProtocol* InstanceProtocol, const FCreationHeader* Header, uint32 ConnectionId)
 {
-	// Attach the instance protocol and instance to the Handle
+	// Attach the instance protocol and instance to the handle
 	constexpr bool bBindInstanceProtocol = false;
-	InternalAttachInstanceToNetHandle(Handle, bBindInstanceProtocol, InstanceProtocol, Instance);
+	InternalAttachInstanceToNetRefHandle(RefHandle, bBindInstanceProtocol, InstanceProtocol, Instance, FNetHandle());
 
 	// Dynamic references needs to be promoted to find the instantiated object
-	if (Handle.IsDynamic())
+	if (RefHandle.IsDynamic())
 	{
-		GetObjectReferenceCache()->AddRemoteReference(Handle, Instance);
+		GetObjectReferenceCache()->AddRemoteReference(RefHandle, Instance);
 	}
 
-	UE_LOG_OBJECTREPLICATIONBRIDGE(Verbose, TEXT("RegisterRemoteInstance %s %s with ProtocolId:0x%" UINT64_x_FMT), *Handle.ToString(), ToCStr(Instance->GetName()), Protocol->ProtocolIdentifier);
+	UE_LOG_OBJECTREPLICATIONBRIDGE(Verbose, TEXT("RegisterRemoteInstance %s %s with ProtocolId:0x%" UINT64_x_FMT), *RefHandle.ToString(), ToCStr(Instance->GetName()), Protocol->ProtocolIdentifier);
 }
 
-void UObjectReplicationBridge::UnregisterRemoteInstance(FNetRefHandle Handle, bool bTearOff, bool bShouldDestroyInstance)
+void UObjectReplicationBridge::UnregisterRemoteInstance(FNetRefHandle RefHandle, bool bTearOff, bool bShouldDestroyInstance)
 {
 	// Lookup the instance and remove it	
-	UObject* Instance = GetObjectFromReferenceHandle(Handle);
+	UObject* Instance = GetObjectFromReferenceHandle(RefHandle);
 	
 	// Try to remove any references to dynamic objects
-	if (Handle.IsDynamic())
+	if (RefHandle.IsDynamic())
 	{
-		GetObjectReferenceCache()->RemoveReference(Handle, Instance);
+		GetObjectReferenceCache()->RemoveReference(RefHandle, Instance);
 	}
 
 	// Destroy instance if we should	
@@ -609,18 +609,18 @@ void UObjectReplicationBridge::PostApplyInitialState(FNetRefHandle Handle)
 	EndInstantiateFromRemote(Handle);
 }
 
-void UObjectReplicationBridge::PreSendUpdateSingleHandle(FNetRefHandle Handle)
+void UObjectReplicationBridge::PreSendUpdateSingleHandle(FNetRefHandle RefHandle)
 {
-	PreUpdateAndPollImpl(Handle);
+	PreUpdateAndPollImpl(RefHandle);
 }
 
 void UObjectReplicationBridge::PreSendUpdate()
 {
 	IRIS_PROFILER_SCOPE(UObjectReplicationBridge_OnPreSendUpdate);
 
-	// Invalid Handle means update all objects
-	FNetRefHandle Handle;
-	PreUpdateAndPollImpl(Handle);
+	// Invalid/default handle means update all objects
+	FNetRefHandle RefHandle;
+	PreUpdateAndPollImpl(RefHandle);
 }
 
 
@@ -691,7 +691,7 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 	const FNetRefHandleManager& LocalNetRefHandleManager = ReplicationSystemInternal->GetNetRefHandleManager();
 	const TArray<UObject*>& ReplicatedInstances = LocalNetRefHandleManager.GetReplicatedInstances();
 	const bool bIsUsingPushModel = IsIrisPushModelEnabled();
-	const FNetBitArrayView DirtyObjects = ReplicationSystemInternal->GetDirtyNetObjectTracker().GetDirtyNetObjects();
+	FNetBitArrayView DirtyObjects = ReplicationSystemInternal->GetDirtyNetObjectTracker().GetDirtyNetObjects();
 
 	struct FPreUpdateAndPollStats
 	{
@@ -702,7 +702,7 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 
 	FPreUpdateAndPollStats Stats;
 
-	auto UpdateAndPollFunction = [&ReplicatedInstances, this, &LocalNetRefHandleManager, &Stats](uint32 InternalObjectIndex)
+	auto UpdateAndPollFunction = [&ReplicatedInstances, this, &LocalNetRefHandleManager, &DirtyObjects, &Stats](uint32 InternalObjectIndex)
 	{
 		const FNetRefHandleManager::FReplicatedObjectData& ObjectData = LocalNetRefHandleManager.GetReplicatedObjectDataNoCheck(InternalObjectIndex);
 		if (ObjectData.InstanceProtocol)
@@ -733,7 +733,11 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 				EReplicationFragmentPollFlags PollOptions = EReplicationFragmentPollFlags::PollAllState;
 				PollOptions |= bIsGCAffectedObject ? EReplicationFragmentPollFlags::ForceRefreshCachedObjectReferencesAfterGC : EReplicationFragmentPollFlags::None;
 
-				FReplicationInstanceOperations::PollAndRefreshCachedPropertyData(ObjectData.InstanceProtocol, PollOptions);
+				const bool bWasMarkedDirty = FReplicationInstanceOperations::PollAndRefreshCachedPropertyData(ObjectData.InstanceProtocol, PollOptions);
+				if (bWasMarkedDirty)
+				{
+					DirtyObjects.SetBit(InternalObjectIndex);
+				}
 				++Stats.PolledObjectCount;
 			}
 		}
@@ -775,6 +779,7 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 #endif
 
 			// If the object is fully push model we only need to poll it if it's dirty, unless it's a new object or was garbage collected.
+			bool bWasMarkedDirty = false;
 			if (EnumHasAnyFlags(InstanceTraits, EReplicationInstanceProtocolTraits::HasFullPushBasedDirtiness))
 			{
 				if (bIsDirtyObject | bIsNewInScope)
@@ -782,14 +787,14 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 					// We need to do a poll if object is marked as dirty
 					EReplicationFragmentPollFlags PollOptions = EReplicationFragmentPollFlags::PollAllState;
 					PollOptions |= bIsGCAffectedObject ? EReplicationFragmentPollFlags::ForceRefreshCachedObjectReferencesAfterGC : EReplicationFragmentPollFlags::None;
-					FReplicationInstanceOperations::PollAndRefreshCachedPropertyData(InstanceProtocol, EReplicationFragmentTraits::None, PollOptions);
+					bWasMarkedDirty = FReplicationInstanceOperations::PollAndRefreshCachedPropertyData(InstanceProtocol, EReplicationFragmentTraits::None, PollOptions);
 					++Stats.PolledObjectCount;
 				}
 				else if (bIsGCAffectedObject)
 				{
 					// If this object might have been affected by GC, only refresh cached references
 					const EReplicationFragmentTraits RequiredTraits = EReplicationFragmentTraits::HasPushBasedDirtiness;
-					FReplicationInstanceOperations::PollAndRefreshCachedObjectReferences(InstanceProtocol, RequiredTraits);
+					bWasMarkedDirty = FReplicationInstanceOperations::PollAndRefreshCachedObjectReferences(InstanceProtocol, RequiredTraits);
 					++Stats.PolledReferencesObjectCount;
 				}
 			}
@@ -803,7 +808,7 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 				{
 					// Only states which has push based dirtiness need to be updated as the other states will be polled in full anyway.
 					const EReplicationFragmentTraits RequiredTraits = EReplicationFragmentTraits::HasPushBasedDirtiness;
-					FReplicationInstanceOperations::PollAndRefreshCachedObjectReferences(InstanceProtocol, RequiredTraits);
+					bWasMarkedDirty = FReplicationInstanceOperations::PollAndRefreshCachedObjectReferences(InstanceProtocol, RequiredTraits);
 					++Stats.PolledReferencesObjectCount;
 				}
 
@@ -813,8 +818,13 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 
 				// If the object is not new or dirty at this point we only need to poll non-push based fragments as we know that pushed based states have not been modified
 				const EReplicationFragmentTraits ExcludeTraits = (bIsDirtyObject | bIsNewInScope) ? EReplicationFragmentTraits::None : EReplicationFragmentTraits::HasPushBasedDirtiness;
-				FReplicationInstanceOperations::PollAndRefreshCachedPropertyData(InstanceProtocol, ExcludeTraits, PollOptions);
+				bWasMarkedDirty |= FReplicationInstanceOperations::PollAndRefreshCachedPropertyData(InstanceProtocol, ExcludeTraits, PollOptions);
 				++Stats.PolledObjectCount;
+			}
+
+			if (bWasMarkedDirty)
+			{
+				DirtyObjects.SetBit(InternalObjectIndex);
 			}
 		}
 	};

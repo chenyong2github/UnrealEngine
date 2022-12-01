@@ -325,31 +325,31 @@ UE::Net::FNetRefHandle UReplicationBridge::InternalCreateNetObjectFromRemote(FNe
 	return Handle;
 }
 
-void UReplicationBridge::InternalAttachInstanceToNetHandle(FNetRefHandle Handle, bool bBindInstanceProtocol, UE::Net::FReplicationInstanceProtocol* InstanceProtocol, UObject* Instance)
+void UReplicationBridge::InternalAttachInstanceToNetRefHandle(FNetRefHandle RefHandle, bool bBindInstanceProtocol, UE::Net::FReplicationInstanceProtocol* InstanceProtocol, UObject* Instance, FNetHandle NetHandle)
 {
 	using namespace UE::Net;
 	using namespace UE::Net::Private;
 
-	const uint32 ReplicationSystemId = Handle.GetReplicationSystemId();
-	const FInternalNetRefIndex InternalReplicationIndex = NetRefHandleManager->GetInternalIndex(Handle);
+	const uint32 ReplicationSystemId = RefHandle.GetReplicationSystemId();
+	const FInternalNetRefIndex InternalReplicationIndex = NetRefHandleManager->GetInternalIndex(RefHandle);
 
 	NetRefHandleManager->AttachInstanceProtocol(InternalReplicationIndex, InstanceProtocol, Instance);
-	UE_LOG_REPLICATIONBRIDGE(Verbose, TEXT("InternalAttachInstanceToNetHandle Attached: %s %s to ( InternalIndex: %u )"), *Instance->GetName(), *Handle.ToString(), InternalReplicationIndex);
+	UE_LOG_REPLICATIONBRIDGE(Verbose, TEXT("InternalAttachInstanceToNetHandle Attached: %s %s to ( InternalIndex: %u )"), *Instance->GetName(), *RefHandle.ToString(), InternalReplicationIndex);
 
 	// Bind instance protocol to dirty state tracking
 	if (bBindInstanceProtocol)
 	{
-		FReplicationInstanceOperationsInternal::BindInstanceProtocol(ReplicationSystemId, InternalReplicationIndex, InstanceProtocol, NetRefHandleManager->GetReplicatedObjectDataNoCheck(InternalReplicationIndex).Protocol);
-		MarkNetObjectStateDirty(Handle.GetReplicationSystemId(), InternalReplicationIndex);
+		FReplicationInstanceOperationsInternal::BindInstanceProtocol(NetHandle, InstanceProtocol, NetRefHandleManager->GetReplicatedObjectDataNoCheck(InternalReplicationIndex).Protocol);
+		MarkNetObjectStateDirty(ReplicationSystemId, InternalReplicationIndex);
 	}
 }
 
-void UReplicationBridge::InternalDetachInstanceFromNetRefHandle(FNetRefHandle Handle)
+void UReplicationBridge::InternalDetachInstanceFromNetRefHandle(FNetRefHandle RefHandle)
 {
 	using namespace UE::Net;
 	using namespace UE::Net::Private;
 
-	const FInternalNetRefIndex InternalReplicationIndex = NetRefHandleManager->GetInternalIndex(Handle);
+	const FInternalNetRefIndex InternalReplicationIndex = NetRefHandleManager->GetInternalIndex(RefHandle);
 
 	if (FReplicationInstanceProtocol* InstanceProtocol = const_cast<FReplicationInstanceProtocol*>(NetRefHandleManager->DetachInstanceProtocol(InternalReplicationIndex)))
 	{

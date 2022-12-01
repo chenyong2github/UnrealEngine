@@ -233,7 +233,7 @@ bool FReplicationConditionals::SetPropertyCustomCondition(FInternalNetRefIndex O
 
 			// If a condition is enabled we also mark the corresponding regular changemask as dirty.
 			FNetBitArrayView MemberChangeMask = UE::Net::Private::GetMemberChangeMask(Fragment.ExternalSrcBuffer, StateDescriptor);
-			const FReplicationStateHeader& ReplicationStateHeader = UE::Net::Private::GetReplicationStateHeader(Fragment.ExternalSrcBuffer, StateDescriptor);
+			FReplicationStateHeader& ReplicationStateHeader = UE::Net::Private::GetReplicationStateHeader(Fragment.ExternalSrcBuffer, StateDescriptor);
 			MarkDirty(ReplicationStateHeader, MemberChangeMask, ChangeMaskDescriptor);
 
 			// Enabled conditions causes new properties to be replicated which most likely have incorrect values at the receiving end.
@@ -298,7 +298,7 @@ bool FReplicationConditionals::SetPropertyCustomCondition(FInternalNetRefIndex O
 
 					// If a condition is enabled we also mark the corresponding regular changemask as dirty.
 					FNetBitArrayView MemberChangeMask = GetMemberChangeMask(Fragment.ExternalSrcBuffer, StateDescriptor);
-					const FReplicationStateHeader& Header = GetReplicationStateHeader(Fragment.ExternalSrcBuffer, StateDescriptor);
+					FReplicationStateHeader& Header = GetReplicationStateHeader(Fragment.ExternalSrcBuffer, StateDescriptor);
 					MarkDirty(Header, MemberChangeMask, ChangeMaskDescriptor);
 
 					// Enabled conditions causes new properties to be replicated which most likely have incorrect values at the receiving end.

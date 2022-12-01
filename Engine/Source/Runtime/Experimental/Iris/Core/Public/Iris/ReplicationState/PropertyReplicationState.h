@@ -83,13 +83,14 @@ public:
 
 	/** $IRIS TODO: Move Poll/Push/CallRepNotifies out of PropertyReplicationState as loose functions */
 
-	/** Poll src data from properties in SrcData, Note: SrcData is a UClass/UStruct containing properties
-		Compare and update representation in DstStateBuffer and update ChangeMask 
-		This is currently used to track and update dirtiness for the properties
-		$TODO: THIS requires some thought as the property offset we get in all are expressed from the base, but we do generate descriptors for all parts of the inheritance chain
-		do we carry around the base pointer or should we recalculate the offsets when we build the descriptor
+	/**
+	 * Poll src data from properties in SrcData, where SrcData is a UClass/UStruct containing properties.
+	 * Compare and update representation in DstStateBuffer and update ChangeMask. This is currently used to track and update dirtiness for the properties.
+	 * @return True if any state is dirty, false if not.
+	 * @todo This requires some thought as the property offset we get in all are expressed from the base, but we do generate descriptors for all parts of the inheritance chain.
+	 * Do we carry around the base pointer or should we recalculate the offsets when we build the descriptor
 	*/
-	IRISCORE_API void PollPropertyReplicationState(const void* RESTRICT SrcData);
+	IRISCORE_API bool PollPropertyReplicationState(const void* RESTRICT SrcData);
 
 	/** Push received state data to properties in DstData buffer, Note: DstData is a UClass/UStruct containing properties
 		Compare and update representation in DstStateBuffer and update ChangeMask 
@@ -98,13 +99,13 @@ public:
 
 
 	/**
-	  * Poll data from object referencing properties in SrcData, Note: SrcData is a UObject containing properties.
-	  * Behaves like PollPropertyReplicationState when it comes to dirtiness and such.
-	*/
-	IRISCORE_API void PollObjectReferences(const void* RESTRICT SrcData);
+	 * Poll data from object referencing properties in SrcData, Note: SrcData is a UObject containing properties.
+	 * Behaves like PollPropertyReplicationState when it comes to dirtiness and such.
+	 * @return True if any state is dirty, false if not.
+	 */
+	IRISCORE_API bool PollObjectReferences(const void* RESTRICT SrcData);
 
-	/** Invoke repnotifies for all dirty members
-	*/
+	/** Invoke repnotifies for all dirty members */
 	IRISCORE_API void CallRepNotifies(void* RESTRICT DstData, const FPropertyReplicationState* PreviousState, bool bIsInit) const;
 
 	/** Debug output state to FString */
@@ -130,6 +131,7 @@ public:
 
 private:
 	bool IsInitState() const;
+	bool IsDirty() const;
 	void ConstructStateInternal();
 	void DestructStateInternal();
 	void InjectState(const FReplicationStateDescriptor* Descriptor, uint8* InStateBuffer);

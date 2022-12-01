@@ -77,6 +77,17 @@ bool FPropertyReplicationState::IsInitState() const
 	return IsValid() && ReplicationStateDescriptor->IsInitState();
 }
 
+bool FPropertyReplicationState::IsDirty() const
+{
+	if (IsValid())
+	{
+		const FReplicationStateHeader& Header = Private::GetReplicationStateHeader(StateBuffer, ReplicationStateDescriptor);
+		return Private::FReplicationStateHeaderAccessor::GetIsStateDirty(Header) || Private::FReplicationStateHeaderAccessor::GetIsInitStateDirty(Header);
+	}
+
+	return false;
+}
+
 void FPropertyReplicationState::ConstructStateInternal()
 {
 	// allocate memory
@@ -111,8 +122,7 @@ void FPropertyReplicationState::InjectState(const FReplicationStateDescriptor* D
 	StateBuffer = InStateBuffer;
 }
 
-void
-FPropertyReplicationState::Set(const FPropertyReplicationState& Other)
+void FPropertyReplicationState::Set(const FPropertyReplicationState& Other)
 {
 	if (IsValid())
 	{
@@ -204,7 +214,7 @@ bool FPropertyReplicationState::IsDirty(uint32 Index) const
 	}
 }
 
-void FPropertyReplicationState::PollPropertyReplicationState(const void* RESTRICT SrcStateData)
+bool FPropertyReplicationState::PollPropertyReplicationState(const void* RESTRICT SrcStateData)
 {
 	if (IsValid())
 	{
@@ -226,6 +236,8 @@ void FPropertyReplicationState::PollPropertyReplicationState(const void* RESTRIC
 			SetPropertyValue(MemberIt, SrcBuffer + Property->GetOffset_ForGC() + Property->ElementSize*MemberPropertyDescriptor.ArrayIndex);
 		}
 	}
+
+	return IsDirty();
 }
 
 void FPropertyReplicationState::PushPropertyReplicationState(void* RESTRICT DstData, bool bInPushAll) const
@@ -259,7 +271,7 @@ void FPropertyReplicationState::PushPropertyReplicationState(void* RESTRICT DstD
 	}
 }
 
-void FPropertyReplicationState::PollObjectReferences(const void* RESTRICT SrcStateData)
+bool FPropertyReplicationState::PollObjectReferences(const void* RESTRICT SrcStateData)
 {
 	if (IsValid())
 	{
@@ -284,6 +296,8 @@ void FPropertyReplicationState::PollObjectReferences(const void* RESTRICT SrcSta
 			}
 		}
 	}
+
+	return IsDirty();
 }
 
 void FPropertyReplicationState::CallRepNotifies(void* RESTRICT DstData, const FPropertyReplicationState* PreviousState, bool bIsInit) const

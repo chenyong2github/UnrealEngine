@@ -83,6 +83,26 @@ FNetHandle FNetHandleManager::GetOrCreateNetHandle(const UObject* Object)
 	return FNetHandle();
 }
 
+FNetHandle FNetHandleManager::MakeNetHandleFromId(uint32 Id)
+{
+	// There aren't any valid NetHandles unless there's a manager.
+	if (!Instance)
+	{
+		return FNetHandle();
+	}
+
+	if (FUObjectItem* ObjectItem = GUObjectArray.IndexToObject(static_cast<int32>(Id)))
+	{
+		FNetHandle::FInternalValue InternalValue;
+		InternalValue.Id = Id;
+		InternalValue.Epoch = static_cast<uint32>(ObjectItem->GetSerialNumber());
+		FNetHandle Handle(InternalValue);
+		return Handle;
+	}
+
+	return FNetHandle();
+}
+
 void FNetHandleManager::DestroyNetHandle(FNetHandle Handle)
 {
 	if (!Instance)

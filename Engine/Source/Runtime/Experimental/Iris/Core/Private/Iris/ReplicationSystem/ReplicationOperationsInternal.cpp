@@ -23,7 +23,7 @@
 namespace UE::Net::Private
 {
 
-void FReplicationInstanceOperationsInternal::BindInstanceProtocol(uint32 ReplicationSystemId, uint32 InternalReplicationIndex, FReplicationInstanceProtocol* InstanceProtocol, const FReplicationProtocol* Protocol)
+void FReplicationInstanceOperationsInternal::BindInstanceProtocol(FNetHandle NetHandle, FReplicationInstanceProtocol* InstanceProtocol, const FReplicationProtocol* Protocol)
 {
 	FReplicationInstanceProtocol::FFragmentData* FragmentData = InstanceProtocol->FragmentData;
 	const FReplicationStateDescriptor** Descriptors = Protocol->ReplicationStateDescriptors;
@@ -35,21 +35,21 @@ void FReplicationInstanceOperationsInternal::BindInstanceProtocol(uint32 Replica
 		{
 			UE::Net::FReplicationStateHeader& ReplicationStateHeader = UE::Net::Private::GetReplicationStateHeader(FragmentData[It].ExternalSrcBuffer, Descriptors[It]);
 
-			// should be initialized to 0 when we bind it
-			check(ReplicationStateHeader.IsBound() == false || InternalReplicationIndex == 0U);
+			// Can't overwrite a bound header with a valid NetHandle.
+			check(!ReplicationStateHeader.IsBound() || !NetHandle.IsValid());
 
-			UE::Net::Private::FReplicationStateHeaderAccessor::SetReplicationIndex(ReplicationStateHeader, InternalReplicationIndex, ReplicationSystemId);
+			FReplicationStateHeaderAccessor::SetNetHandleId(ReplicationStateHeader, NetHandle);
 		}
 	}
 
-	InstanceProtocol->InstanceTraits = InternalReplicationIndex != 0U ? InstanceProtocol->InstanceTraits | EReplicationInstanceProtocolTraits::IsBound : InstanceProtocol->InstanceTraits &= ~EReplicationInstanceProtocolTraits::IsBound;
+	InstanceProtocol->InstanceTraits = NetHandle.IsValid() ? InstanceProtocol->InstanceTraits | EReplicationInstanceProtocolTraits::IsBound : InstanceProtocol->InstanceTraits &= ~EReplicationInstanceProtocolTraits::IsBound;
 }
 
 void FReplicationInstanceOperationsInternal::UnbindInstanceProtocol(FReplicationInstanceProtocol* InstanceProtocol, const FReplicationProtocol* Protocol)
 { 
 	if (EnumHasAnyFlags(InstanceProtocol->InstanceTraits, EReplicationInstanceProtocolTraits::IsBound))
 	{
-		BindInstanceProtocol(0, 0, InstanceProtocol, Protocol);
+		BindInstanceProtocol(FNetHandle(), InstanceProtocol, Protocol);
 	}
 }
 
@@ -126,6 +126,19 @@ uint32 FReplicationInstanceOperationsInternal::CopyObjectStateData(FNetBitStream
 	}
 
 	return 0U;
+}
+
+void FReplicationInstanceOperationsInternal::ResetObjectStateDirtiness(FNetRefHandleManager& NetRefHandleManager, uint32 InternalIndex)
+{
+	if (NetRefHandleManager.IsScopableIndex(InternalIndex))
+	{
+		const FNetRefHandleManager::FReplicatedObjectData& Object = NetRefHandleManager.GetReplicatedObjectDataNoCheck(InternalIndex);
+		// Only instance protocols with state date can have dirtiness.
+		if (Object.InstanceProtocol && Object.Protocol->InternalTotalSize > 0U)
+		{
+			FReplicationInstanceOperations::ResetDirtiness(Object.InstanceProtocol, Object.Protocol);
+		}
+	}
 }
 
 void FReplicationStateOperationsInternal::CloneDynamicState(FNetSerializationContext& Context, uint8* RESTRICT DstInternalBuffer, const uint8* RESTRICT SrcInternalBuffer, const FReplicationStateDescriptor* Descriptor)

@@ -290,7 +290,6 @@ public:
 		FNetRefHandleManager& NetRefHandleManager = ReplicationSystemInternal.GetNetRefHandleManager();
 		FChangeMaskCache& Cache = ReplicationSystemInternal.GetChangeMaskCache();
 
-		const uint32 ReplicationSystemId = ReplicationSystem->GetId();
 		uint32 CopiedObjectCount = 0;
 		
 		// Prepare cache
@@ -307,7 +306,7 @@ public:
 
 		SerializationContext.SetInternalContext(&InternalContext);
 
-		auto CopyFunction = [&ChangeMaskWriter, &Cache, &NetRefHandleManager, &CopiedObjectCount, &SerializationContext, ReplicationSystemId](uint32 DirtyIndex)
+		auto CopyFunction = [&ChangeMaskWriter, &Cache, &NetRefHandleManager, &CopiedObjectCount, &SerializationContext](uint32 DirtyIndex)
 		{
 			CopiedObjectCount += FReplicationInstanceOperationsInternal::CopyObjectStateData(ChangeMaskWriter, Cache, NetRefHandleManager, SerializationContext, DirtyIndex);
 		};
@@ -320,7 +319,26 @@ public:
 		// Copy all ReplicatedObjects with dirty state data
 		DirtyObjects.ForAllSetBits(CopyFunction);
 
+		const uint32 ReplicationSystemId = ReplicationSystem->GetId();
 		UE_NET_TRACE_FRAME_STATSCOUNTER(ReplicationSystemId, ReplicationSystem.CopiedObjectCount, CopiedObjectCount, ENetTraceVerbosity::Trace);
+	}
+
+	void ResetObjectStateDirtiness()
+	{
+		IRIS_PROFILER_SCOPE(FReplicationSystem_ResetObjectStateDirtiness);
+
+		FNetRefHandleManager& NetRefHandleManager = ReplicationSystemInternal.GetNetRefHandleManager();
+		FDirtyNetObjectTracker& DirtyNetObjectTracker = ReplicationSystemInternal.GetDirtyNetObjectTracker();
+
+		auto ResetDirtinessFunction = [&NetRefHandleManager](uint32 DirtyIndex)
+		{
+			FReplicationInstanceOperationsInternal::ResetObjectStateDirtiness(NetRefHandleManager, DirtyIndex);
+		};
+
+		FNetBitArrayView DirtyObjects = DirtyNetObjectTracker.GetDirtyNetObjects();
+		DirtyObjects.ForAllSetBits(ResetDirtinessFunction);
+
+		DirtyNetObjectTracker.ClearDirtyNetObjects();
 	}
 
 	void ProcessNetObjectAttachmentSendQueue(FNetBlobManager::EProcessMode ProcessMode)
@@ -588,7 +606,7 @@ void UReplicationSystem::PostSendUpdate()
 	
 	FReplicationSystemInternal& InternalSys = Impl->ReplicationSystemInternal;
 
-	InternalSys.GetDirtyNetObjectTracker().ClearDirtyNetObjects();
+	Impl->ResetObjectStateDirtiness();
 
 	InternalSys.GetChangeMaskCache().ResetCache();
 

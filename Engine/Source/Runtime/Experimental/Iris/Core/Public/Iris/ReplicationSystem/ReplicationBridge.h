@@ -184,7 +184,7 @@ protected:
 	IRISCORE_API FNetRefHandle InternalCreateNetObjectFromRemote(FNetRefHandle WantedNetHandle, const UE::Net::FReplicationProtocol* ReplicationProtocol);
 
 	/** Attach instance to NetRefHandle. */
-	IRISCORE_API void InternalAttachInstanceToNetHandle(FNetRefHandle Handle, bool bBindInstanceProtocol, UE::Net::FReplicationInstanceProtocol* InstanceProtocol, UObject* Instance);
+	IRISCORE_API void InternalAttachInstanceToNetRefHandle(FNetRefHandle RefHandle, bool bBindInstanceProtocol, UE::Net::FReplicationInstanceProtocol* InstanceProtocol, UObject* Instance, FNetHandle NetHandle);
 
 	/** Detach instance from NetRefHandle and destroy the instance protocol. */
 	IRISCORE_API void InternalDetachInstanceFromNetRefHandle(FNetRefHandle Handle);

@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "HAL/Platform.h"
 #include "Net/Core/NetBitArray.h"
+#include "Net/Core/NetHandle/NetHandleManager.h"
+#include "Net/Core/DirtyNetObjectTracker/GlobalDirtyNetObjectTracker.h"
 #include "Iris/ReplicationState/ReplicationStateDescriptor.h"
 #include "Iris/ReplicationState/ReplicationStateFwd.h"
 
@@ -14,10 +16,13 @@ namespace UE::Net::Private
 
 namespace UE::Net
 {
-/**
- * Mark the a NetObject/Handle as dirty which means it requires to be copied when we update the Replication system
- */
-inline void MarkNetObjectStateDirty(const FReplicationStateHeader& Header) { Private::MarkNetObjectStateDirty(Private::FReplicationStateHeaderAccessor::GetReplicationSystemId(Header), Private::FReplicationStateHeaderAccessor::GetReplicationIndex(Header)); }
+/** Mark the a NetObject/Handle as dirty which means it requires to be copied when we update the Replication system */
+inline void MarkNetObjectStateDirty(FReplicationStateHeader& Header)
+{
+	MarkNetObjectStateDirty(FNetHandleManager::MakeNetHandleFromId(Private::FReplicationStateHeaderAccessor::GetNetHandleId(Header)));
+	Private::FReplicationStateHeaderAccessor::MarkStateDirty(Header);
+}
+
 }
 
 namespace UE::Net::Private
@@ -65,13 +70,14 @@ inline FNetBitArrayView GetMemberConditionalChangeMask(uint8* StateBuffer, const
  * Mark specific member dirty, if this is the first bit marked as dirty in the local MemberChangeMask and the state is bound, mark owning object as dirty as well.
  * Note that all bits described by the ChangeMaskInfo will be dirtied by the call. 
  */
-inline void MarkDirty(const UE::Net::FReplicationStateHeader& InternalState, FNetBitArrayView& MemberChangeMask, const FReplicationStateMemberChangeMaskDescriptor& ChangeMaskInfo)
+inline void MarkDirty(UE::Net::FReplicationStateHeader& InternalState, FNetBitArrayView& MemberChangeMask, const FReplicationStateMemberChangeMaskDescriptor& ChangeMaskInfo)
 {
 	// If this state is bound to a replicated object, notify the replication system that we have data to copy
 	// Note that we only check the first bit of the changemask, as this is used to indicate whether the property is dirty or not
 	// some properties might use additional bits but will only be treated as dirty if the parent bit is set.
 	if (InternalState.IsBound() && !MemberChangeMask.GetBit(ChangeMaskInfo.BitOffset))
 	{
+		FReplicationStateHeaderAccessor::MarkStateDirty(InternalState);
 		MarkNetObjectStateDirty(InternalState);
 	}
 

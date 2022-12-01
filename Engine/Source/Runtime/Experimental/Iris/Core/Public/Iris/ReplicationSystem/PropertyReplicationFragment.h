@@ -47,7 +47,7 @@ protected:
 	
 	virtual void CallRepNotifies(FReplicationStateApplyContext& Context) override;
 	
-	virtual void PollReplicatedState(EReplicationFragmentPollFlags PollOption) override;
+	virtual bool PollReplicatedState(EReplicationFragmentPollFlags PollOption) override;
 
 	virtual void ReplicatedStateToString(FStringBuilderBase& StringBuilder, FReplicationStateApplyContext& Context, EReplicationStateToStringFlags Flags) const override;
 

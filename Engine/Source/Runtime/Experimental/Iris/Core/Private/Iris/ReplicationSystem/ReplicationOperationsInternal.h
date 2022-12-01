@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Iris/ReplicationSystem/NetHandle.h"
 #include "Iris/Core/NetObjectReference.h"
+#include "Net/Core/NetHandle/NetHandle.h"
 
 
 namespace UE::Net 
@@ -30,13 +30,16 @@ namespace UE::Net::Private
 struct FReplicationInstanceOperationsInternal
 {
 	/** A call to this function will inject the index of the handle into the external statebuffer contained in the Instance Protocol */
-	static IRISCORE_API void BindInstanceProtocol(uint32 ReplicationSystemId, uint32 InternalReplicationIndex, FReplicationInstanceProtocol* InstanceProtocol, const FReplicationProtocol* Protocol);
+	static IRISCORE_API void BindInstanceProtocol(FNetHandle NetHandle, FReplicationInstanceProtocol* InstanceProtocol, const FReplicationProtocol* Protocol);
 
 	/** A call to this function will clear the index of the handle into the external statebuffer contained in the Instance Protocol */
 	static IRISCORE_API void UnbindInstanceProtocol(FReplicationInstanceProtocol* InstanceProtocol, const FReplicationProtocol* Protocol);
 
 	/** Copy state data for a single instance */
 	static IRISCORE_API uint32 CopyObjectStateData(FNetBitStreamWriter& ChangeMaskWriter, FChangeMaskCache& Cache, FNetRefHandleManager& NetRefHandleManager, FNetSerializationContext& SerializationContext, uint32 InternalIndex);
+
+	/** Reset instance state dirtiness. */
+	static IRISCORE_API void ResetObjectStateDirtiness(FNetRefHandleManager& NetRefHandleManager, uint32 InternalIndex);
 };
 
 struct FReplicationStateOperationsInternal

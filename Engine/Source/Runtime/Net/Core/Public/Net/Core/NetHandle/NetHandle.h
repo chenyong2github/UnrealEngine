@@ -64,7 +64,9 @@ private:
 	};
 
 	FNetHandle(FObjectKey ObjectKey);
+	explicit FNetHandle(FInternalValue InInternalValue);
 	explicit FNetHandle(uint64 InInternalValue);
+
 	uint64 GetInternalValue() const;
 
 	union
@@ -85,7 +87,7 @@ inline FNetHandle::FNetHandle(const	FNetHandle& Other)
 }
 
 inline FNetHandle::FNetHandle(FNetHandle&& Other)
-	: Value(Other.Value)
+: Value(Other.Value)
 {
 }
 
@@ -94,9 +96,14 @@ inline FNetHandle::FNetHandle(FObjectKey ObjectKey)
 {
 }
 
-inline FNetHandle::FNetHandle(uint64 InInternalValue)
+inline FNetHandle::FNetHandle(FInternalValue InInternalValue)
+: Value(BitCast<FObjectKey>(InInternalValue))
 {
-	Value = BitCast<FObjectKey>(InInternalValue);
+}
+
+inline FNetHandle::FNetHandle(uint64 InInternalValue)
+: Value(BitCast<FObjectKey>(InInternalValue))
+{
 }
 
 inline uint64 FNetHandle::GetInternalValue() const
