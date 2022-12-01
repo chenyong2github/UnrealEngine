@@ -30,10 +30,9 @@ namespace Chaos
 
 enum class EHeightfieldSource
 {
-	None,
-	Simple,
-	Complex,
-	Editor
+	Simple = 0,
+	Complex = 1,
+	Editor = 2
 };
 
 UCLASS(MinimalAPI, Within=LandscapeProxy)
