@@ -1699,11 +1699,6 @@ public:
 	using FSceneView::GetEyeAdaptationBuffer;
 	FRDGPooledBuffer* GetEyeAdaptationBuffer(FRDGBuilder& GraphBuilder) const;
 
-#if WITH_MGPU
-	void BroadcastEyeAdaptationTemporalEffect(FRHICommandList& RHICmdList);
-	void WaitForEyeAdaptationTemporalEffect(FRHICommandList& RHICmdList);
-#endif
-
 	/** Get the last valid exposure value for eye adapation. */
 	float GetLastEyeAdaptationExposure() const;
 

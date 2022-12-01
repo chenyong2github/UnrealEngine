@@ -1171,21 +1171,3 @@ void FSceneViewState::UpdatePreExposure(FViewInfo& View)
 		PrevFrameViewInfo.SceneColorPreExposure = PreExposure;
 	}
 }
-
-#if WITH_MGPU
-static const FName NAME_EyeAdaptation(TEXT("EyeAdaptation"));
-
-void FSceneViewState::BroadcastEyeAdaptationTemporalEffect(FRHICommandList& RHICmdList)
-{
-	FRHITexture* EyeAdaptation = GetCurrentEyeAdaptationTexture(RHICmdList)->GetRHI();
-	RHICmdList.BroadcastTemporalEffect(FName(NAME_EyeAdaptation, UniqueID), { &EyeAdaptation, 1 });
-}
-
-DECLARE_GPU_STAT(AFRWaitForEyeAdaptation);
-
-void FSceneViewState::WaitForEyeAdaptationTemporalEffect(FRHICommandList& RHICmdList)
-{
-	SCOPED_GPU_STAT(RHICmdList, AFRWaitForEyeAdaptation);
-	RHICmdList.WaitForTemporalEffect(FName(NAME_EyeAdaptation, UniqueID));
-}
-#endif // WITH_MGPU

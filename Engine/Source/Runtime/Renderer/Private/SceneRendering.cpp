@@ -2282,28 +2282,6 @@ void FViewInfo::EnqueueEyeAdaptationExposureBufferReadback(FRDGBuilder& GraphBui
 	}
 }
 
-#if WITH_MGPU
-void FViewInfo::WaitForEyeAdaptationTemporalEffect(FRHICommandList& RHICmdList)
-{
-	FSceneViewState* EffectiveViewState = GetEyeAdaptationViewState();
-
-	if (EffectiveViewState)
-	{
-		EffectiveViewState->WaitForEyeAdaptationTemporalEffect(RHICmdList);
-	}
-}
-
-void FViewInfo::BroadcastEyeAdaptationTemporalEffect(FRHICommandList& RHICmdList)
-{
-	FSceneViewState* EffectiveViewState = GetEyeAdaptationViewState();
-
-	if (EffectiveViewState)
-	{
-		EffectiveViewState->BroadcastEyeAdaptationTemporalEffect(RHICmdList);
-	}
-}
-#endif // WITH_MGPU
-
 float FViewInfo::GetLastEyeAdaptationExposure() const
 {
 	if (const FSceneViewState* EffectiveViewState = GetEyeAdaptationViewState())

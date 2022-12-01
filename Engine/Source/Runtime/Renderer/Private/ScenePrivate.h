@@ -1251,11 +1251,6 @@ public:
 		}
 	}
 
-#if WITH_MGPU
-	void BroadcastEyeAdaptationTemporalEffect(FRHICommandList& RHICmdList);
-	void WaitForEyeAdaptationTemporalEffect(FRHICommandList& RHICmdList);
-#endif
-
 	float GetLastEyeAdaptationExposure() const
 	{
 		return EyeAdaptationManager.GetLastExposure();
