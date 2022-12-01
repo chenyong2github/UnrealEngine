@@ -3,6 +3,7 @@
 #pragma once
 
 #include "MuR/System.h"
+#include "MuR/Mesh.h"
 
 class USkeletalMesh;
 
