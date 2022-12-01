@@ -463,12 +463,11 @@ static const ANSICHAR* StbLoadFile(const ANSICHAR* Filename, void* RawContext, s
 			CheckShaderHashCacheInclude(FilenameConverted, Context.ShaderInput.Target.GetPlatform(), Context.ShaderInput.ShaderFormat.ToString());
 			LoadShaderSourceFile(*FilenameConverted, Context.ShaderInput.Target.GetPlatform(), &ShaderSource, nullptr);
 		}
-		if (!ShaderSource.IsEmpty())
-		{
-			ContentsCached = &Context.LoadedIncludesCache.Add(FilenameConverted);
-			ConvertAndStripComments(ShaderSource, *ContentsCached);
-		}
+		check(!ShaderSource.IsEmpty());
+		ContentsCached = &Context.LoadedIncludesCache.Add(FilenameConverted);
+		ConvertAndStripComments(ShaderSource, *ContentsCached);
 	}
+	check(ContentsCached);
 	*OutLength = ContentsCached->Num();
 	return ContentsCached->GetData();
 }
