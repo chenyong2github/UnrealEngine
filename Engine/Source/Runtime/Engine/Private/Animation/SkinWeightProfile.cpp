@@ -371,7 +371,9 @@ void FSkinWeightProfilesData::SetDynamicDefaultSkinWeightProfile(USkeletalMesh* 
 								DefaultOverrideSkinWeightBuffer = OverrideBuffer;
 								bDefaultOverriden = true;
 								DefaultProfileName = Profiles[DefaultProfileIndex].Name;
-
+								
+								const FName OwnerName(USkinnedAsset::GetLODPathName(Mesh, LODIndex));
+								OverrideBuffer->SetOwnerName(OwnerName);
 								OverrideBuffer->BeginInitResources();
 							}
 						}
@@ -744,6 +746,10 @@ void FSkinWeightProfilesData::InitialiseProfileBuffer(const FName& ProfileName)
 				ProfilePtr->ApplyOverrides(OverrideBuffer, BaseBufferData, BaseBuffer->GetNumVertices());
 			}
 
+#if RHI_ENABLE_RESOURCE_INFO
+			const FName OwnerName = FName(ProfileName.ToString() + TEXT("_FSkinWeightProfilesData"));
+			OverrideBuffer->SetOwnerName(OwnerName);
+#endif
 			OverrideBuffer->BeginInitResources();
 		}	
 	}

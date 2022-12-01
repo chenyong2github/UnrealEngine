@@ -4300,7 +4300,11 @@ void USkinnedMeshComponent::SetSkinWeightOverride(int32 LODIndex, const TArray<F
 			Info.OverrideSkinWeights->SetMaxBoneInfluences(NumBoneInfluences);
 			Info.OverrideSkinWeights->SetUse16BitBoneIndex(bUse16BitBoneIndex);
 
-			const FReferenceSkeleton& RefSkel = GetSkinnedAsset()->GetRefSkeleton();
+			const USkinnedAsset* Mesh = GetSkinnedAsset();
+			const FName OwnerName(USkinnedAsset::GetLODPathName(Mesh, LODIndex));
+			Info.OverrideSkinWeights->SetOwnerName(OwnerName);
+
+			const FReferenceSkeleton& RefSkel = Mesh->GetRefSkeleton();
 			TArray<FSkinWeightInfo> GPUWeights;
 			CreateSkinWeightsArray(SkinWeights, LODData, GPUWeights, RefSkel);
 			*(Info.OverrideSkinWeights) = GPUWeights;

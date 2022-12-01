@@ -668,6 +668,22 @@ bool operator==(const FBlendStateInitializerRHI::FRenderTarget& A, const FBlendS
 	return bSame;
 }
 
+FName FRHIResource::GetOwnerName() const
+{
+#if RHI_ENABLE_RESOURCE_INFO
+	return OwnerName;
+#else
+	return NAME_None;
+#endif
+}
+
+void FRHIResource::SetOwnerName(const FName& InOwnerName)
+{
+#if RHI_ENABLE_RESOURCE_INFO
+	OwnerName = InOwnerName;
+#endif
+}
+
 #if RHI_ENABLE_RESOURCE_INFO
 
 static FCriticalSection GRHIResourceTrackingCriticalSection;
@@ -1065,12 +1081,12 @@ void RHIGetTrackedResourceStats(TArray<TSharedPtr<FRHIResourceStats>>& OutResour
 	OutResourceStats.SetNum(Resources.Num());
 	ParallelFor(Resources.Num(), [&](int32 Index)
 	{
+		const FRHIResource* Resource = Resources[Index].Resource;
 		const FRHIResourceInfo& ResourceInfo = Resources[Index].ResourceInfo;
-		FString ResourceName = ResourceInfo.Name.ToString();
 		const TCHAR* ResourceType = StringFromRHIResourceType(ResourceInfo.Type);
 		const int64 SizeInBytes = ResourceInfo.VRamAllocation.AllocationSize;
 		RHIInternal::FResourceFlags Flags = GetResourceFlagsInternal(Resources[Index]);
-		OutResourceStats[Index] = MakeShared<FRHIResourceStats>(ResourceName, ResourceType, Flags.GetString(), SizeInBytes,
+		OutResourceStats[Index] = MakeShared<FRHIResourceStats>(ResourceInfo.Name, Resource->GetOwnerName(), ResourceType, Flags.GetString(), SizeInBytes,
 									Flags.bMarkedForDelete, Flags.bTransient, Flags.bStreaming, Flags.bRT, Flags.bDS, Flags.bUAV, Flags.bRTAS, Flags.bHasFlags);
 	});
 }

@@ -758,6 +758,13 @@ void FSkinWeightVertexBuffer::ResetVertexBoneWeights(uint32 VertexIndex)
 	DataVertexBuffer.ResetVertexBoneWeights(VertexWeightOffset, VertexInfluenceCount);
 }
 
+void FSkinWeightVertexBuffer::SetOwnerName(const FName& OwnerName)
+{
+	check(IsInGameThread());
+	LookupVertexBuffer.SetOwnerName(OwnerName);
+	DataVertexBuffer.SetOwnerName(OwnerName);
+}
+
 void FSkinWeightVertexBuffer::BeginInitResources()
 {
 	BeginInitResource(&LookupVertexBuffer);

@@ -334,17 +334,21 @@ FBufferRHIRef FRawStaticIndexBuffer::CreateRHIBuffer_Internal()
 		const EBufferUsageFlags BufferFlags = EBufferUsageFlags::Static | (bSRV ? EBufferUsageFlags::ShaderResource : EBufferUsageFlags::None);
 
 		// Create the index buffer.
+		FBufferRHIRef Ret;
 		FRHIResourceCreateInfo CreateInfo(Is32Bit() ? TEXT("FRawStaticIndexBuffer32") : TEXT("FRawStaticIndexBuffer16"), &IndexStorage);
 		CreateInfo.bWithoutNativeResource = !SizeInBytes;
 		if (bRenderThread)
 		{
-			return RHICreateIndexBuffer(IndexStride, SizeInBytes, BufferFlags, CreateInfo);
+			Ret = RHICreateIndexBuffer(IndexStride, SizeInBytes, BufferFlags, CreateInfo);
 		}
 		else
 		{
 			FRHIAsyncCommandList CommandList;
-			return CommandList->CreateBuffer(SizeInBytes, BufferFlags | EBufferUsageFlags::IndexBuffer, IndexStride, ERHIAccess::SRVMask, CreateInfo);
+			Ret = CommandList->CreateBuffer(SizeInBytes, BufferFlags | EBufferUsageFlags::IndexBuffer, IndexStride, ERHIAccess::SRVMask, CreateInfo);
 		}
+
+		Ret->SetOwnerName(GetOwnerName());
+		return Ret;
 	}
 	return nullptr;
 }

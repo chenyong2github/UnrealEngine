@@ -377,3 +377,12 @@ TArray<FSkeletalMaterial>& USkinnedAsset::GetSkeletalMaterialDummyArray()
 	static TArray<FSkeletalMaterial> Dummy;
 	return Dummy;
 }
+
+FString USkinnedAsset::GetLODPathName(const USkinnedAsset* Mesh, int32 LODIndex)
+{
+#if RHI_ENABLE_RESOURCE_INFO
+	return FString::Printf(TEXT("%s [LOD%d]"), Mesh ? *Mesh->GetPathName() : TEXT("UnknownSkinnedAsset"), LODIndex);
+#else
+	return TEXT("");
+#endif
+}

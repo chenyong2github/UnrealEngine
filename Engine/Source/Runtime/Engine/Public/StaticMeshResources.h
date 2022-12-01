@@ -455,7 +455,7 @@ public:
 	}
 
 	/** Initializes all rendering resources. */
-	void InitResources(UStaticMesh* Parent);
+	void InitResources(UStaticMesh* Parent, int32 LODIndex);
 
 	/** Releases all rendering resources. */
 	void ReleaseResources();

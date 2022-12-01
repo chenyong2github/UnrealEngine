@@ -1318,43 +1318,54 @@ void FStaticMeshLODResources::UpdateVertexMemoryStats() const
 #endif
 }
 
-void FStaticMeshLODResources::InitResources(UStaticMesh* Parent)
+void FStaticMeshLODResources::InitResources(UStaticMesh* Parent, int32 LODIndex)
 {
+	const FName OwnerName(FString::Printf(TEXT("%s [LOD%d]"), Parent ? *Parent->GetPathName() : TEXT("UnknownStaticMesh"), LODIndex));
+
 	if (bBuffersInlined)
 	{
 		UpdateIndexMemoryStats<true>();
 	}
 
+	IndexBuffer.SetOwnerName(OwnerName);
 	BeginInitResource(&IndexBuffer);
 	if(bHasWireframeIndices)
 	{
+		AdditionalIndexBuffers->WireframeIndexBuffer.SetOwnerName(OwnerName);
 		BeginInitResource(&AdditionalIndexBuffers->WireframeIndexBuffer);
 	}
+	VertexBuffers.StaticMeshVertexBuffer.SetOwnerName(OwnerName);
 	BeginInitResource(&VertexBuffers.StaticMeshVertexBuffer);
+	VertexBuffers.PositionVertexBuffer.SetOwnerName(OwnerName);
 	BeginInitResource(&VertexBuffers.PositionVertexBuffer);
 	if(bHasColorVertexData)
 	{
+		VertexBuffers.ColorVertexBuffer.SetOwnerName(OwnerName);
 		BeginInitResource(&VertexBuffers.ColorVertexBuffer);
 	}
 
 	if (bHasReversedIndices)
 	{
+		AdditionalIndexBuffers->ReversedIndexBuffer.SetOwnerName(OwnerName);
 		BeginInitResource(&AdditionalIndexBuffers->ReversedIndexBuffer);
 	}
 
 	if (bHasDepthOnlyIndices)
 	{
+		DepthOnlyIndexBuffer.SetOwnerName(OwnerName);
 		BeginInitResource(&DepthOnlyIndexBuffer);
 	}
 
 	if (bHasReversedDepthOnlyIndices)
 	{
+		AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.SetOwnerName(OwnerName);
 		BeginInitResource(&AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer);
 	}
 
 	if (Parent->bSupportGpuUniformlyDistributedSampling && Parent->bSupportUniformlyDistributedSampling && (AreaWeightedSampler.GetNumEntries() > 0))
 	{
 		AreaWeightedSectionSamplersBuffer.Init(&AreaWeightedSectionSamplers);
+		AreaWeightedSectionSamplersBuffer.SetOwnerName(OwnerName);
 		BeginInitResource(&AreaWeightedSectionSamplersBuffer);
 	}
 
@@ -1882,7 +1893,7 @@ void FStaticMeshRenderData::InitResources(ERHIFeatureLevel::Type InFeatureLevel,
 		// Skip LODs that have their render data stripped
 		if (LODResources[LODIndex].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() > 0)
 		{
-			LODResources[LODIndex].InitResources(Owner);
+			LODResources[LODIndex].InitResources(Owner, LODIndex);
 			LODVertexFactories[LODIndex].InitResources(LODResources[LODIndex], LODIndex, Owner);
 		}
 	}

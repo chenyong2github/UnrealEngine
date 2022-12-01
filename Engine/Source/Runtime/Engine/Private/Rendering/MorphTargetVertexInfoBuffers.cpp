@@ -17,6 +17,7 @@ void FMorphTargetVertexInfoBuffers::InitRHI()
 	const uint32 BufferSize = MorphData.Num() * sizeof(uint32);
 	FRHIResourceCreateInfo CreateInfo(TEXT("MorphData"));
 	MorphDataBuffer = RHICreateStructuredBuffer(sizeof(uint32), BufferSize, BUF_Static | BUF_ByteAddressBuffer | BUF_ShaderResource, ERHIAccess::SRVMask, CreateInfo);
+	MorphDataBuffer->SetOwnerName(GetOwnerName());
 	
 	void* BufferPtr = RHILockBuffer(MorphDataBuffer, 0, BufferSize, RLM_WriteOnly);
 	FMemory::ParallelMemcpy(BufferPtr, MorphData.GetData(), BufferSize, EMemcpyCachePolicy::StoreUncached);

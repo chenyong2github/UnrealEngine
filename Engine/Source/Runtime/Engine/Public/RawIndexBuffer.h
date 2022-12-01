@@ -572,9 +572,10 @@ private:
 			else
 			{
 				FRHIAsyncCommandList CommandList;
-				return CommandList->CreateBuffer(Size, Flags | EBufferUsageFlags::IndexBuffer, sizeof(INDEX_TYPE), ERHIAccess::SRVMask, CreateInfo);
+				Ret = CommandList->CreateBuffer(Size, Flags | EBufferUsageFlags::IndexBuffer, sizeof(INDEX_TYPE), ERHIAccess::SRVMask, CreateInfo);
 			}
 
+			Ret->SetOwnerName(GetOwnerName());
 			return Ret;
 		}
 		return nullptr;

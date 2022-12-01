@@ -213,27 +213,35 @@ void FSkeletalMeshLODRenderData::InitMorphResources()
 
 void FSkeletalMeshLODRenderData::InitResources(bool bNeedsVertexColors, int32 LODIndex, TArray<UMorphTarget*>& InMorphTargets, USkinnedAsset* Owner)
 {
+	const FName OwnerName(USkinnedAsset::GetLODPathName(Owner, LODIndex));
+
 	if (bStreamedDataInlined)
 	{
 		IncrementMemoryStats(bNeedsVertexColors);
 	}
 
+	MultiSizeIndexContainer.SetOwnerName(OwnerName);
 	MultiSizeIndexContainer.InitResources();
 
+	StaticVertexBuffers.PositionVertexBuffer.SetOwnerName(OwnerName);
 	BeginInitResource(&StaticVertexBuffers.PositionVertexBuffer);
+	StaticVertexBuffers.StaticMeshVertexBuffer.SetOwnerName(OwnerName);
 	BeginInitResource(&StaticVertexBuffers.StaticMeshVertexBuffer);
 
+	SkinWeightVertexBuffer.SetOwnerName(OwnerName);
 	SkinWeightVertexBuffer.BeginInitResources();
 
 	if (bNeedsVertexColors)
 	{
 		// Only init the color buffer if the mesh has vertex colors
+		StaticVertexBuffers.ColorVertexBuffer.SetOwnerName(OwnerName);
 		BeginInitResource(&StaticVertexBuffers.ColorVertexBuffer);
 	}
 
 	if (ClothVertexBuffer.GetNumVertices() > 0)
 	{
 		// Only init the clothing buffer if the mesh has clothing data
+		ClothVertexBuffer.SetOwnerName(OwnerName);
 		BeginInitResource(&ClothVertexBuffer);
 	}
 
@@ -254,6 +262,7 @@ void FSkeletalMeshLODRenderData::InitResources(bool bNeedsVertexColors, int32 LO
 			{
 				// No need to discard CPU data in cooked builds as bNeedsCPUAccess is false (see FDuplicatedVerticesBuffer constructor), 
 				// so it'd be auto-discarded after the RHI has copied the resource data. Keep CPU data when in the editor for geometry operations.
+				RenderSection.DuplicatedVerticesBuffer.SetOwnerName(OwnerName);
 				BeginInitResource(&RenderSection.DuplicatedVerticesBuffer);
 			}
 		}
@@ -269,6 +278,7 @@ void FSkeletalMeshLODRenderData::InitResources(bool bNeedsVertexColors, int32 LO
 	
 	if (!MorphTargetVertexInfoBuffers.IsRHIIntialized() && MorphTargetVertexInfoBuffers.IsMorphCPUDataValid() && MorphTargetVertexInfoBuffers.NumTotalBatches > 0)
 	{
+		MorphTargetVertexInfoBuffers.SetOwnerName(OwnerName);
 		BeginInitResource(&MorphTargetVertexInfoBuffers);
 	}
 
@@ -277,6 +287,7 @@ void FSkeletalMeshLODRenderData::InitResources(bool bNeedsVertexColors, int32 LO
 	{
 		if (SourceRayTracingGeometry.RawData.Num() > 0)
 		{
+			SourceRayTracingGeometry.SetOwnerName(OwnerName);
 			BeginInitResource(&SourceRayTracingGeometry);
 		}
 	}

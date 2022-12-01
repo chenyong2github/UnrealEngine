@@ -15,6 +15,7 @@ namespace RenderResourceViewerInternal
 	const FName ColumnType("Type");
 	const FName ColumnSize("Size");
 	const FName ColumnFlags("Flags");
+	const FName ColumnOwner("Owner");
 	
 	// Format the size to nearest size unit of Byte/KB/MB
 	FString GetFormatedSize(uint64 SizeInBytes)
@@ -55,7 +56,7 @@ namespace RenderResourceViewerInternal
 			if (Column == RenderResourceViewerInternal::ColumnName)
 			{
 				return SNew(STextBlock)
-					.Text(FText::FromString(Info->Name));
+					.Text(FText::FromName(Info->Name));
 			}
 			else if (Column == RenderResourceViewerInternal::ColumnType)
 			{
@@ -71,6 +72,11 @@ namespace RenderResourceViewerInternal
 			{
 				return SNew(STextBlock)
 					.Text(FText::FromString(Info->Flags));
+			}
+			else if (Column == RenderResourceViewerInternal::ColumnOwner)
+			{
+				return SNew(STextBlock)
+					.Text(FText::FromName(Info->OwnerName));
 			}
 			return SNullWidget::NullWidget;
 		}
@@ -94,6 +100,13 @@ namespace RenderResourceViewerInternal
 			.IsChecked(bIsChecked) \
 			.OnCheckStateChanged(this, &OnCheckStateChangedFunc) \
 		]
+
+#define RENDER_RESOURCE_VIEWER_ADD_COLUMN(Name, Width, Label) \
+	+ SHeaderRow::Column(Name) \
+		.FillWidth(Width) \
+		.DefaultLabel(Label) \
+		.SortMode(this, &SRenderResourceViewerWidget::GetColumnSortMode, Name) \
+		.OnSort(this, &SRenderResourceViewerWidget::OnColumnSortModeChanged)
 
 void SRenderResourceViewerWidget::Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& ConstructUnderMajorTab, const TSharedPtr<SWindow>& ConstructUnderWindow)
 {
@@ -150,8 +163,8 @@ void SRenderResourceViewerWidget::Construct(const FArguments& InArgs, const TSha
 				.AutoHeight()
 				[
 					SAssignNew(FilterTextBox, SSearchBox)
-					.HintText(LOCTEXT("FilterTextBoxHint", "Search resources by name."))
-					.ToolTipText(LOCTEXT("FilterTextBoxToolTip", "Type here to filter the list of render resources by name."))
+					.HintText(LOCTEXT("FilterTextBoxHint", "Search resources by name or owner."))
+					.ToolTipText(LOCTEXT("FilterTextBoxToolTip", "Type here to filter the list of render resources by name or owner."))
 					.OnTextChanged(this, &SRenderResourceViewerWidget::FilterTextBox_OnTextChanged)
 				]
 
@@ -207,29 +220,11 @@ void SRenderResourceViewerWidget::Construct(const FArguments& InArgs, const TSha
 					(
 						SNew(SHeaderRow)
 
-						+ SHeaderRow::Column(RenderResourceViewerInternal::ColumnName)
-						.FillWidth(0.6f)
-						.DefaultLabel(LOCTEXT("NameColumn", "Resource Name"))
-						.SortMode(this, &SRenderResourceViewerWidget::GetColumnSortMode, RenderResourceViewerInternal::ColumnName)
-						.OnSort(this, &SRenderResourceViewerWidget::OnColumnSortModeChanged)
-
-						+ SHeaderRow::Column(RenderResourceViewerInternal::ColumnType)
-						.FillWidth(0.1f)
-						.DefaultLabel(LOCTEXT("TypeColumn", "Type"))
-						.SortMode(this, &SRenderResourceViewerWidget::GetColumnSortMode, RenderResourceViewerInternal::ColumnType)
-						.OnSort(this, &SRenderResourceViewerWidget::OnColumnSortModeChanged)
-
-						+ SHeaderRow::Column(RenderResourceViewerInternal::ColumnSize)
-						.FillWidth(0.1f)
-						.DefaultLabel(LOCTEXT("AllocationSizeColumn", "Size"))
-						.SortMode(this, &SRenderResourceViewerWidget::GetColumnSortMode, RenderResourceViewerInternal::ColumnSize)
-						.OnSort(this, &SRenderResourceViewerWidget::OnColumnSortModeChanged)
-
-						+ SHeaderRow::Column(RenderResourceViewerInternal::ColumnFlags)
-						.FillWidth(0.2f)
-						.DefaultLabel(LOCTEXT("FlagsColumn", "Flags"))
-						.SortMode(this, &SRenderResourceViewerWidget::GetColumnSortMode, RenderResourceViewerInternal::ColumnFlags)
-						.OnSort(this, &SRenderResourceViewerWidget::OnColumnSortModeChanged)
+						RENDER_RESOURCE_VIEWER_ADD_COLUMN(RenderResourceViewerInternal::ColumnName, 0.3f, LOCTEXT("NameColumn", "Resource Name"))
+						RENDER_RESOURCE_VIEWER_ADD_COLUMN(RenderResourceViewerInternal::ColumnType, 0.1f, LOCTEXT("TypeColumn", "Type"))
+						RENDER_RESOURCE_VIEWER_ADD_COLUMN(RenderResourceViewerInternal::ColumnSize, 0.1f, LOCTEXT("SizeColumn", "Size"))
+						RENDER_RESOURCE_VIEWER_ADD_COLUMN(RenderResourceViewerInternal::ColumnFlags, 0.15f, LOCTEXT("FlagsColumn", "Flags"))
+						RENDER_RESOURCE_VIEWER_ADD_COLUMN(RenderResourceViewerInternal::ColumnOwner, 0.4f, LOCTEXT("OwnerColumn", "Owner"))
 					)
 				]
 			]
@@ -254,7 +249,7 @@ void SRenderResourceViewerWidget::RefreshNodes()
 	TotalResourceSize = 0;
 	for (const TSharedPtr<FRHIResourceStats>& Info : RHIResources)
 	{
-		bool bContainsFilterText = FilterText.IsEmpty() || Info->Name.Contains(FilterText.ToString());
+		bool bContainsFilterText = FilterText.IsEmpty() || Info->Name.ToString().Contains(FilterText.ToString()) || Info->OwnerName.ToString().Contains(FilterText.ToString());
 		// Note bMarkedForDelete resources are excluded from display
 		bool bContainsFilterFlags = (bShowTransient && Info->bTransient) || (bShowStreaming && Info->bStreaming)
 									|| (bShowRT && Info->bRenderTarget) || (bShowDS && Info->bDepthStencil) || (bShowUAV && Info->bUnorderedAccessView) || (bShowRTAS && Info->bRayTracingAccelerationStructure)
@@ -273,8 +268,8 @@ void SRenderResourceViewerWidget::RefreshNodes()
 		if (SortByColumn == RenderResourceViewerInternal::ColumnName)
 		{
 			ResourceInfos.Sort([this](const TSharedPtr<FRHIResourceStats>& A, const TSharedPtr<FRHIResourceStats>& B) {
-				if (SortMode == EColumnSortMode::Ascending) return (A->Name < B->Name);
-				else if (SortMode == EColumnSortMode::Descending) return (A->Name >= B->Name);
+				if (SortMode == EColumnSortMode::Ascending) return (A->Name.LexicalLess(B->Name));
+				else if (SortMode == EColumnSortMode::Descending) return (!A->Name.LexicalLess(B->Name));
 				return true;
 			});
 		}
@@ -299,6 +294,14 @@ void SRenderResourceViewerWidget::RefreshNodes()
 			ResourceInfos.Sort([this](const TSharedPtr<FRHIResourceStats>& A, const TSharedPtr<FRHIResourceStats>& B) {
 				if (SortMode == EColumnSortMode::Ascending) return (A->Flags < B->Flags);
 				else if (SortMode == EColumnSortMode::Descending) return (A->Flags >= B->Flags);
+				return true;
+			});
+		}
+		else if (SortByColumn == RenderResourceViewerInternal::ColumnOwner)
+		{
+			ResourceInfos.Sort([this](const TSharedPtr<FRHIResourceStats>& A, const TSharedPtr<FRHIResourceStats>& B) {
+				if (SortMode == EColumnSortMode::Ascending) return (A->OwnerName.LexicalLess(B->OwnerName));
+				else if (SortMode == EColumnSortMode::Descending) return (!A->OwnerName.LexicalLess(B->OwnerName));
 				return true;
 			});
 		}

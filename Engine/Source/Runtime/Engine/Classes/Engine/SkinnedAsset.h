@@ -239,6 +239,9 @@ public:
 		
 	TArray<FSkinnedAssetVertexFactoryTypesPerMaterialData, TInlineAllocator<4>> GetVertexFactoryTypesPerMaterialIndex(int32 MinLODIndex, bool bCPUSkin, ERHIFeatureLevel::Type FeatureLevel);
 
+	/** Helper function for resource tracking, construct a string using the skinned asset's path name and LOD index . */
+	static FString GetLODPathName(const USkinnedAsset* Mesh, int32 LODIndex);
+
 #if WITH_EDITOR
 	/** IInterface_AsyncCompilation begin*/
 	virtual bool IsCompiling() const override;

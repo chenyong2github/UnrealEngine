@@ -11,6 +11,15 @@ FMultiSizeIndexContainer::~FMultiSizeIndexContainer()
 	}
 }
 
+void FMultiSizeIndexContainer::SetOwnerName(const FName& OwnerName)
+{
+	check(IsInGameThread());
+	if (IndexBuffer)
+	{
+		IndexBuffer->SetOwnerName(OwnerName);
+	}
+}
+
 /**
 * Initialize the index buffer's render resources.
 */

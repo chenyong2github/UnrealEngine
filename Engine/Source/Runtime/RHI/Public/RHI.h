@@ -123,7 +123,8 @@ RHI_API void RHIDumpResourceMemoryToCSV();
 
 struct FRHIResourceStats
 {
-	FString Name;
+	FName Name;
+	FName OwnerName;
 	FString Type;
 	FString Flags;
 	uint64	SizeInBytes = 0;
@@ -136,9 +137,10 @@ struct FRHIResourceStats
 	bool	bRayTracingAccelerationStructure = false;
 	bool	bHasFlags = false;
 
-	FRHIResourceStats(const FString& InName, const FString& InType, const FString& InFlags, const uint64& InSizeInBytes, 
+	FRHIResourceStats(const FName& InName, const FName& InOwnerName, const FString& InType, const FString& InFlags, const uint64& InSizeInBytes,
 						bool bInMarkedForDelete, bool bInTransient, bool bInStreaming, bool bInRT, bool bInDS, bool bInUAV, bool bInRTAS, bool bInHasFlags)
 		: Name(InName)
+		, OwnerName(InOwnerName)
 		, Type(InType)
 		, Flags(InFlags)
 		, SizeInBytes(InSizeInBytes)

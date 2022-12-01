@@ -26,6 +26,11 @@ public:
 	ENGINE_API ~FMultiSizeIndexContainer();
 
 	/**
+	* SetOwnerName should be called before BeginInitResources for the owner name to be successfully tracked.
+	*/
+	ENGINE_API void SetOwnerName(const FName& OwnerName);
+
+	/**
 	* Initialize the index buffer's render resources.
 	*/
 	void InitResources();

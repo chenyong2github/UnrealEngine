@@ -145,8 +145,15 @@ public:
 
 	int32 GetListIndex() const { return ListIndex; }
 
+	/** SetOwnerName should be called before BeginInitResource for the owner name to be successfully tracked. */
+	void SetOwnerName(const FName& InOwnerName);
+	FName GetOwnerName() const;
+
 private:
 	int32 ListIndex;
+#if RHI_ENABLE_RESOURCE_INFO
+	FName OwnerName;
+#endif
 
 protected:
 	// This is used during mobile editor preview refactor, this will eventually be replaced with a parameter to InitRHI() etc..
@@ -169,11 +176,14 @@ protected:
 			if (bRenderThread)
 			{
 				Buffer = RHICreateVertexBuffer(SizeInBytes, InBufferUsageFlags, CreateInfo);
+				Buffer->SetOwnerName(GetOwnerName());
 			}
 			else
 			{
 				FRHIAsyncCommandList CommandList;
-				return CommandList->CreateBuffer(SizeInBytes, InBufferUsageFlags | EBufferUsageFlags::VertexBuffer, 0, ERHIAccess::SRVMask, CreateInfo);
+				Buffer = CommandList->CreateBuffer(SizeInBytes, InBufferUsageFlags | EBufferUsageFlags::VertexBuffer, 0, ERHIAccess::SRVMask, CreateInfo);
+				Buffer->SetOwnerName(GetOwnerName());
+				return Buffer;
 			}
 		}
 

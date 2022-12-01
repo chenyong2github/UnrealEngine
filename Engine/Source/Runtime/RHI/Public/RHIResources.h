@@ -128,6 +128,9 @@ public:
 
 	inline ERHIResourceType GetType() const { return ResourceType; }
 
+	FName GetOwnerName() const;
+	void SetOwnerName(const FName& InOwnerName);
+
 #if RHI_ENABLE_RESOURCE_INFO
 	// Get resource info if available.
 	// Should return true if the ResourceInfo was filled with data.
@@ -221,6 +224,7 @@ private:
 	uint8 bCommitted : 1;
 #if RHI_ENABLE_RESOURCE_INFO
 	uint8 bBeingTracked : 1;
+	FName OwnerName;
 #endif
 
 	static UE::TConsumeAllMpmcQueue<FRHIResource*> PendingDeletes;

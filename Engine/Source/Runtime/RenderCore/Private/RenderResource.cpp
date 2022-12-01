@@ -325,6 +325,23 @@ FRenderResource::~FRenderResource()
 	}
 }
 
+void FRenderResource::SetOwnerName(const FName& InOwnerName)
+{
+#if RHI_ENABLE_RESOURCE_INFO
+	check(IsInGameThread());
+	OwnerName = InOwnerName;
+#endif
+}
+
+FName FRenderResource::GetOwnerName() const
+{
+#if RHI_ENABLE_RESOURCE_INFO
+	return OwnerName;
+#else
+	return NAME_None;
+#endif
+}
+
 void BeginInitResource(FRenderResource* Resource)
 {
 	LLM_SCOPE(ELLMTag::SceneRender);

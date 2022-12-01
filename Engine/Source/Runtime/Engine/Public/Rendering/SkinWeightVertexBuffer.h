@@ -514,6 +514,8 @@ public:
 	ENGINE_API void SetBoneWeight(uint32 VertexIndex, uint32 InfluenceIndex, uint16 BoneWeight);
 	ENGINE_API void ResetVertexBoneWeights(uint32 VertexIndex);
 
+	/** SetOwnerName should be called before BeginInitResources for the owner name to be successfully tracked. */
+	ENGINE_API void SetOwnerName(const FName& OwnerName);
 	ENGINE_API void BeginInitResources();
 	ENGINE_API void BeginReleaseResources();
 	ENGINE_API void ReleaseResources();
