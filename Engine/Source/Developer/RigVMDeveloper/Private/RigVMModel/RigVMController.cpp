@@ -19753,6 +19753,23 @@ void URigVMController::PatchIfSelectNodesOnLoad()
 	}
 }
 
+void URigVMController::PostDuplicateHost(const FString& InOldPathName, const FString& InNewPathName)
+{
+	if (const URigVMGraph* Graph = GetGraph())
+	{
+		TArray<URigVMNode*> FunctionRefNodes = Graph->GetNodes().FilterByPredicate([](URigVMNode* Node)
+		{
+			return Node->IsA<URigVMFunctionReferenceNode>();
+		});
+
+		for(URigVMNode* Node : FunctionRefNodes)
+		{
+			URigVMFunctionReferenceNode* FunctionReferenceNode = CastChecked<URigVMFunctionReferenceNode>(Node);
+			FunctionReferenceNode->ReferencedFunctionHeader.PostDuplicateHost(InOldPathName, InNewPathName);
+		}
+	}
+}
+
 #endif
 
 URigVMControllerSettings::URigVMControllerSettings(const FObjectInitializer& Initializer)

@@ -107,6 +107,8 @@ bool FControlRigPublicFunctionData::IsMutable() const
 }
 
 TArray<UControlRigBlueprint*> UControlRigBlueprint::sCurrentlyOpenedRigBlueprints;
+FSoftObjectPath UControlRigBlueprint::PreDuplicateAssetPath;
+FSoftObjectPath UControlRigBlueprint::PreDuplicateHostPath;
 
 UControlRigBlueprint::UControlRigBlueprint(const FObjectInitializer& ObjectInitializer)
 {
@@ -2629,6 +2631,21 @@ void UControlRigBlueprint::ReplaceDeprecatedNodes()
 	Super::ReplaceDeprecatedNodes();
 }
 
+void UControlRigBlueprint::PreDuplicate(FObjectDuplicationParameters& DupParams)
+{
+	Super::PreDuplicate(DupParams);
+	PreDuplicateAssetPath = GetPathName();
+	if(UControlRigBlueprintGeneratedClass* CRGeneratedClass = GetControlRigBlueprintGeneratedClass())
+	{
+		PreDuplicateHostPath = FSoftObjectPath(CRGeneratedClass->GetPathName());
+	}
+	else
+	{
+		PreDuplicateHostPath.Reset();
+	}
+
+}
+
 void UControlRigBlueprint::PostDuplicate(bool bDuplicateForPIE)
 {
 	RefreshAllModels();
@@ -2640,6 +2657,33 @@ void UControlRigBlueprint::PostDuplicate(bool bDuplicateForPIE)
 		Controller->OnModified().RemoveAll(this);
 		Controller->OnModified().AddUObject(this, &UControlRigBlueprint::HandleHierarchyModified);
 	}
+
+	auto UpdateFunctionHeaders = [this](const FString& InOldPath, const FString& InNewPath)
+	{
+		if(InOldPath.IsEmpty() || InNewPath.IsEmpty())
+		{
+			return;
+		}
+		if(!InNewPath.Equals(InOldPath, ESearchCase::CaseSensitive))
+		{
+			if(UControlRigBlueprintGeneratedClass* CRGeneratedClass = GetControlRigBlueprintGeneratedClass())
+			{
+				FRigVMGraphFunctionStore& Store = CRGeneratedClass->GraphFunctionStore;
+				Store.PostDuplicateHost(InOldPath, InNewPath);
+			}
+			RigVMClient.PostDuplicateHost(InOldPath, InNewPath);
+		}
+	};
+
+	// update the paths once for the blueprint and once for the generated class
+	UpdateFunctionHeaders(PreDuplicateAssetPath.ToString(), GetPathName());
+	if(const UControlRigBlueprintGeneratedClass* CRGeneratedClass = GetControlRigBlueprintGeneratedClass())
+	{
+		UpdateFunctionHeaders(PreDuplicateHostPath.ToString(), CRGeneratedClass->GetPathName());
+	}
+
+	PreDuplicateAssetPath.Reset();
+	PreDuplicateHostPath.Reset();
 
 	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(this);
 	RecompileVM();

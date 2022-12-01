@@ -671,6 +671,16 @@ void FRigVMClient::PatchModelsOnLoad()
 	}
 }
 
+void FRigVMClient::PostDuplicateHost(const FString& InOldPathName, const FString& InNewPathName)
+{
+	TArray<URigVMGraph*> AllModels = GetAllModels(true, true);
+	for(URigVMGraph* Model : AllModels)
+	{
+		URigVMController* Controller = GetOrCreateController(Model);
+		Controller->PostDuplicateHost(InOldPathName, InNewPathName);
+	}
+}
+
 void FRigVMClient::HandleGraphModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject)
 {
 	if (bIgnoreModelNotifications)

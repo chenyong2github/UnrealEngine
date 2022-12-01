@@ -1168,6 +1168,9 @@ protected:
 	void PatchDispatchNodesOnLoad();
 	void PatchBranchNodesOnLoad();
 	void PatchIfSelectNodesOnLoad();
+
+	// work to do after a duplication of the host asset
+	void PostDuplicateHost(const FString& InOldPathName, const FString& InNewPathName);
 	
 private: 
 	UPROPERTY(transient)

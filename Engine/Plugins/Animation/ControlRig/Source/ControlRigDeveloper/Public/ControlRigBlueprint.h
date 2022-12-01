@@ -243,6 +243,7 @@ public:
 	virtual bool IsPostLoadThreadSafe() const override { return false; }
 	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
 	virtual void ReplaceDeprecatedNodes() override;
+	virtual void PreDuplicate(FObjectDuplicationParameters& DupParams) override;
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 
 	virtual bool SupportsGlobalVariables() const override { return true; }
@@ -781,6 +782,11 @@ public:
 #endif
 
 	static constexpr TCHAR RigVMModelPrefix[] = TEXT("RigVMModel");
+
+protected:
+
+	static FSoftObjectPath PreDuplicateAssetPath;
+	static FSoftObjectPath PreDuplicateHostPath;
 
 private:
 	bool bDirtyDuringLoad;

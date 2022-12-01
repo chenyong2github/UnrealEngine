@@ -142,6 +142,9 @@ public:
 	// backwards compatibility
 	void PatchModelsOnLoad();
 
+	// work to be done after a duplication of the source asset
+	void PostDuplicateHost(const FString& InOldPathName, const FString& InNewPathName);
+
 	void HandleGraphModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
 
 	FRigVMGraphFunctionStore* FindFunctionStore(const URigVMLibraryNode* InLibraryNode);

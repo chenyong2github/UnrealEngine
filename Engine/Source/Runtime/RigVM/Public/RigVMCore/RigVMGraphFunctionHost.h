@@ -68,6 +68,8 @@ public:
 
 	bool RemoveAllCompilationData();
 
+	void PostDuplicateHost(const FString& InOldPathName, const FString& InNewPathName);
+
 	friend FArchive& operator<<(FArchive& Ar, FRigVMGraphFunctionStore& Host)
 	{
 		Ar << Host.PublicFunctions;

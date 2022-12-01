@@ -308,3 +308,16 @@ bool FRigVMGraphFunctionStore::RemoveAllCompilationData()
 
 	return true;
 }
+
+void FRigVMGraphFunctionStore::PostDuplicateHost(const FString& InOldPathName, const FString& InNewPathName)
+{
+	for (FRigVMGraphFunctionData& Data : PublicFunctions)
+	{
+		Data.Header.PostDuplicateHost(InOldPathName, InNewPathName);
+	}
+
+	for (FRigVMGraphFunctionData& Data : PrivateFunctions)
+	{
+		Data.Header.PostDuplicateHost(InOldPathName, InNewPathName);
+	}
+}

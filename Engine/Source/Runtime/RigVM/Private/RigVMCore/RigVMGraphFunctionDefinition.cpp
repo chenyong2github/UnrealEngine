@@ -61,7 +61,35 @@ FRigVMGraphFunctionData* FRigVMGraphFunctionHeader::GetFunctionData() const
 	return nullptr;
 }
 
+void FRigVMGraphFunctionHeader::PostDuplicateHost(const FString& InOldPathName, const FString& InNewPathName)
+{
+	const FString OldPathName = InOldPathName + TEXT(":");
+	const FString NewPathName = InNewPathName + TEXT(":");
+
+	auto ReplacePathName = [InOldPathName, InNewPathName, OldPathName, NewPathName](FSoftObjectPath& InOutObjectPath)
+	{
+		FString PathName = InOutObjectPath.ToString();
+		if(PathName.Equals(InOldPathName, ESearchCase::CaseSensitive))
+		{
+			InOutObjectPath = FSoftObjectPath(InNewPathName);
+		}
+		else if(PathName.StartsWith(OldPathName, ESearchCase::CaseSensitive))
+		{
+			PathName = NewPathName + PathName.Mid(OldPathName.Len());
+			InOutObjectPath = FSoftObjectPath(PathName);
+		}
+	};
+
+	ReplacePathName(LibraryPointer.LibraryNode);
+	ReplacePathName(LibraryPointer.HostObject);
+}
+
 bool FRigVMGraphFunctionData::IsMutable() const
 {
 	return Header.IsMutable();
+}
+
+void FRigVMGraphFunctionData::PostDuplicateHost(const FString& InOldHostPathName, const FString& InNewHostPathName)
+{
+	Header.PostDuplicateHost(InOldHostPathName, InNewHostPathName);
 }

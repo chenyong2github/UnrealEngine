@@ -403,6 +403,8 @@ struct RIGVM_API FRigVMGraphFunctionHeader
 		Ar << Data.ExternalVariables;
 		return Ar;
 	}
+
+	void PostDuplicateHost(const FString& InOldPathName, const FString& InNewPathName);
 };
 
 USTRUCT(BlueprintType)
@@ -436,4 +438,6 @@ struct RIGVM_API FRigVMGraphFunctionData
 		Ar << Data.CompilationData;
 		return Ar;
 	}
+
+	void PostDuplicateHost(const FString& InOldPathName, const FString& InNewPathName);
 };
