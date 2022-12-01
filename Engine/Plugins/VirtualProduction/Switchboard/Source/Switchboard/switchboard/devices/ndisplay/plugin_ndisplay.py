@@ -862,7 +862,7 @@ class DevicenDisplay(DeviceUnreal):
                 args.append("-statnamedevents")
 
             # if bookmarks are enabled, also enable the vblank monitoring thread
-            if 'bookmark' in traces.split(','):
+            if any(bmtrace in traces.split(',') for bmtrace in ('bookmark','default')) :
                 dp_cvars.append('nDisplay.sync.diag.VBlankMonitoring=1')
 
         # Always tell Chaos to be deterministic
