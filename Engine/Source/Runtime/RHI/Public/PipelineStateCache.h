@@ -112,6 +112,9 @@ namespace PipelineStateCache
 	/* Is the given PSO initializer still precaching? */
 	extern RHI_API bool						IsPrecaching(const FGraphicsPipelineStateInitializer& PipelineStateInitializer);
 
+	/* Is the given PSO initializer still precaching? */
+	extern RHI_API bool						IsPrecaching(FRHIComputeShader* ComputeShader);
+
 	/* Any async precaching operations still busy */
 	extern RHI_API bool						IsPrecaching();
 
