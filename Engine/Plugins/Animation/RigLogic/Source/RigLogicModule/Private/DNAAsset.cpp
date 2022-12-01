@@ -6,6 +6,7 @@
 #include "ArchiveMemoryStream.h"
 #include "DNAAssetCustomVersion.h"
 #include "DNAReaderAdapter.h"
+#include "DNAIndexMapping.h"
 #include "FMemoryResource.h"
 #include "RigLogicMemoryStream.h"
 #include "SharedRigRuntimeContext.h"
@@ -121,13 +122,16 @@ void UDNAAsset::SetGeometryReader(TSharedPtr<IDNAReader> SourceDNAReader)
 void UDNAAsset::InvalidateRigRuntimeContext()
 {
 	FWriteScopeLock ScopeLock{RigRuntimeContextUpdateLock};
+	FWriteScopeLock MappingScopeLock(DNAIndexMappingUpdateLock);
 	RigRuntimeContext = nullptr;
+	DNAIndexMappingContainer.Empty(1);
 }
 
 TSharedPtr<FSharedRigRuntimeContext> UDNAAsset::GetRigRuntimeContext(EDNARetentionPolicy Policy)
 {
 	LLM_SCOPE_BYNAME(TEXT("Animation/RigLogic"));
 
+	FScopeLock DNAScopeLock{&DNAUpdateSection};
 	FRWScopeLock ContextScopeLock(RigRuntimeContextUpdateLock, SLT_ReadOnly);
 	if (!RigRuntimeContext.IsValid())
 	{
@@ -135,7 +139,6 @@ TSharedPtr<FSharedRigRuntimeContext> UDNAAsset::GetRigRuntimeContext(EDNARetenti
 		if (!RigRuntimeContext.IsValid())
 		{
 			TSharedPtr<FSharedRigRuntimeContext> NewContext = MakeShared<FSharedRigRuntimeContext>();
-			FScopeLock DNAScopeLock{&DNAUpdateSection};
 			if (BehaviorReader.IsValid() && (BehaviorReader->GetJointCount() != 0))
 			{
 				NewContext->BehaviorReader = BehaviorReader;
@@ -153,6 +156,48 @@ TSharedPtr<FSharedRigRuntimeContext> UDNAAsset::GetRigRuntimeContext(EDNARetenti
 		}
 	}
 	return RigRuntimeContext;
+}
+
+TSharedPtr<FDNAIndexMapping> UDNAAsset::GetDNAIndexMapping(const USkeleton* Skeleton,
+														   const USkeletalMesh* SkeletalMesh,
+														   const USkeletalMeshComponent* SkeletalMeshComponent)
+{
+	LLM_SCOPE_BYNAME(TEXT("Animation/RigLogic"));
+
+	FScopeLock DNAScopeLock{&DNAUpdateSection};
+	FWriteScopeLock MappingScopeLock(DNAIndexMappingUpdateLock);
+
+	// Find currently needed mapping and also clean stale objects along the way (requires only one iteration over the map)
+	TSharedPtr<FDNAIndexMapping> DNAIndexMapping;
+	for (auto Iterator = DNAIndexMappingContainer.CreateIterator(); Iterator; ++Iterator)
+	{
+		if (Iterator->Key.IsValid())
+		{
+			if (Iterator->Key == SkeletalMesh)
+			{
+				DNAIndexMapping = Iterator->Value;
+			}
+		}
+		else
+		{
+			Iterator.RemoveCurrent();
+		}
+	}
+
+	// Check if currently needed mapping exists, and if not, create it now
+	const FGuid SkeletonGuid = Skeleton->GetGuid();
+	if (!DNAIndexMapping.IsValid() || (SkeletonGuid != DNAIndexMapping->SkeletonGuid))
+	{
+		DNAIndexMapping = MakeShared<FDNAIndexMapping>();
+		DNAIndexMapping->SkeletonGuid = SkeletonGuid;
+		DNAIndexMapping->MapControlCurves(BehaviorReader.Get(), Skeleton);
+		DNAIndexMapping->MapJoints(BehaviorReader.Get(), SkeletalMeshComponent);
+		DNAIndexMapping->MapMorphTargets(BehaviorReader.Get(), Skeleton, SkeletalMesh);
+		DNAIndexMapping->MapMaskMultipliers(BehaviorReader.Get(), Skeleton);
+		DNAIndexMappingContainer.Add(SkeletalMesh, DNAIndexMapping);
+	}
+
+	return DNAIndexMapping;
 }
 
 bool UDNAAsset::Init(const FString& DNAFilename)
