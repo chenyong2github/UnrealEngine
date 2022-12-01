@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Algo/Copy.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
@@ -10,6 +11,7 @@
 #include "InputCoreTypes.h"
 #include "Templates/SubclassOf.h"
 #include "Engine/EngineTypes.h"
+#include "Engine/ScopedMovementUpdate.h"
 #include "Components/SceneComponent.h"
 #include "RenderCommandFence.h"
 #include "GameFramework/Actor.h"
@@ -44,6 +46,8 @@ namespace PrimitiveComponentCVars
 {
 	extern float HitDistanceToleranceCVar;
 	extern float InitialOverlapToleranceCVar;
+	extern int32 bAllowCachedOverlapsCVar;
+	extern int32 bEnableFastOverlapCheck;
 }
 
 /** Determines whether a Character can attempt to step up onto a component when they walk in to it. */
@@ -165,6 +169,24 @@ struct FRendererStencilMaskEvaluation
 			return EStencilMask::SM_Default;
 		}
 	}
+};
+
+// Predicate to determine if an overlap is *NOT* with a certain AActor.
+struct FPredicateOverlapHasDifferentActor
+{
+	FPredicateOverlapHasDifferentActor(const AActor& Owner)
+		: MyOwnerPtr(&Owner)
+	{
+	}
+
+	bool operator() (const FOverlapInfo& Info)
+	{
+		// MyOwnerPtr is always valid, so we don't need the IsValid() checks in the WeakObjectPtr comparison operator.
+		return !MyOwnerPtr.HasSameIndexAndSerialNumber(Info.OverlapInfo.HitObjectHandle.FetchActor());
+	}
+
+private:
+	const TWeakObjectPtr<const AActor> MyOwnerPtr;
 };
 
 // TODO: Add sleep and wake state change types to this enum, so that the
@@ -2675,6 +2697,9 @@ public:
 	/** If true then DoCustomNavigableGeometryExport will be called to collect navigable geometry of this component. */
 	FORCEINLINE EHasCustomNavigableGeometry::Type HasCustomNavigableGeometry() const { return bHasCustomNavigableGeometry; }
 
+	// Returns true if we should check the GetGenerateOverlapEvents() flag when gathering overlaps, otherwise we'll always just do it.
+	FORCEINLINE_DEBUGGABLE bool ShouldCheckOverlapFlagToQueueOverlaps(const UPrimitiveComponent& ThisComponent) const;
+
 	/** Set value of HasCustomNavigableGeometry */
 	void SetCustomNavigableGeometry(const EHasCustomNavigableGeometry::Type InType);
 
@@ -2769,4 +2794,128 @@ FORCEINLINE_DEBUGGABLE bool UPrimitiveComponent::K2_IsPhysicsCollisionEnabled() 
 FORCEINLINE_DEBUGGABLE bool UPrimitiveComponent::GetGenerateOverlapEvents() const
 {
 	return bGenerateOverlapEvents;
+}
+
+FORCEINLINE_DEBUGGABLE bool UPrimitiveComponent::ShouldCheckOverlapFlagToQueueOverlaps(const UPrimitiveComponent& ThisComponent) const
+{
+	const FScopedMovementUpdate* CurrentUpdate = ThisComponent.GetCurrentScopedMovement();
+	if (CurrentUpdate)
+	{
+		return CurrentUpdate->RequiresOverlapsEventFlag();
+	}
+	// By default we require the GetGenerateOverlapEvents() to queue up overlaps, since we require it to trigger events.
+	return true;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// PrimitiveComponent templates
+
+template<typename AllocatorType>
+bool UPrimitiveComponent::ConvertSweptOverlapsToCurrentOverlaps(
+	TArray<FOverlapInfo, AllocatorType>& OverlapsAtEndLocation, const TOverlapArrayView& SweptOverlaps, int32 SweptOverlapsIndex,
+	const FVector& EndLocation, const FQuat& EndRotationQuat)
+{
+	checkSlow(SweptOverlapsIndex >= 0);
+
+	bool bResult = false;
+	const bool bForceGatherOverlaps = !ShouldCheckOverlapFlagToQueueOverlaps(*this);
+	if ((GetGenerateOverlapEvents() || bForceGatherOverlaps) && PrimitiveComponentCVars::bAllowCachedOverlapsCVar)
+	{
+		const AActor* Actor = GetOwner();
+		if (Actor && Actor->GetRootComponent() == this)
+		{
+			// We know we are not overlapping any new components at the end location. Children are ignored here (see note below).
+			if (PrimitiveComponentCVars::bEnableFastOverlapCheck)
+			{
+				SCOPE_CYCLE_COUNTER(STAT_MoveComponent_FastOverlap);
+
+				// Check components we hit during the sweep, keep only those still overlapping
+				const FCollisionQueryParams UnusedQueryParams(NAME_None, FCollisionQueryParams::GetUnknownStatId());
+				const int32 NumSweptOverlaps = SweptOverlaps.Num();
+				OverlapsAtEndLocation.Reserve(OverlapsAtEndLocation.Num() + NumSweptOverlaps);
+				for (int32 Index = SweptOverlapsIndex; Index < NumSweptOverlaps; ++Index)
+				{
+					const FOverlapInfo& OtherOverlap = SweptOverlaps[Index];
+					UPrimitiveComponent* OtherPrimitive = OtherOverlap.OverlapInfo.GetComponent();
+					if (OtherPrimitive && (OtherPrimitive->GetGenerateOverlapEvents() || bForceGatherOverlaps))
+					{
+						if (OtherPrimitive->bMultiBodyOverlap)
+						{
+							// Not handled yet. We could do it by checking every body explicitly and track each body index in the overlap test, but this seems like a rare need.
+							return false;
+						}
+						else if (Cast<USkeletalMeshComponent>(OtherPrimitive) || Cast<USkeletalMeshComponent>(this))
+						{
+							// SkeletalMeshComponent does not support this operation, and would return false in the test when an actual query could return true.
+							return false;
+						}
+						else if (OtherPrimitive->ComponentOverlapComponent(this, EndLocation, EndRotationQuat, UnusedQueryParams))
+						{
+							OverlapsAtEndLocation.Add(OtherOverlap);
+						}
+					}
+				}
+
+				// Note: we don't worry about adding any child components here, because they are not included in the sweep results.
+				// Children test for their own overlaps after we update our own, and we ignore children in our own update.
+				checkfSlow(OverlapsAtEndLocation.FindByPredicate(FPredicateOverlapHasSameActor(*Actor)) == nullptr,
+					TEXT("Child overlaps should not be included in the SweptOverlaps() array in UPrimitiveComponent::ConvertSweptOverlapsToCurrentOverlaps()."));
+
+				bResult = true;
+			}
+			else
+			{
+				if (SweptOverlaps.Num() == 0 && AreAllCollideableDescendantsRelative())
+				{
+					// Add overlaps with components in this actor.
+					GetOverlapsWithActor_Template(Actor, OverlapsAtEndLocation);
+					bResult = true;
+				}
+			}
+		}
+	}
+
+	return bResult;
+}
+
+template<typename AllocatorType>
+bool UPrimitiveComponent::ConvertRotationOverlapsToCurrentOverlaps(TArray<FOverlapInfo, AllocatorType>& OutOverlapsAtEndLocation, const TOverlapArrayView& CurrentOverlaps)
+{
+	bool bResult = false;
+	const bool bForceGatherOverlaps = !ShouldCheckOverlapFlagToQueueOverlaps(*this);
+	if ((GetGenerateOverlapEvents() || bForceGatherOverlaps) && PrimitiveComponentCVars::bAllowCachedOverlapsCVar)
+	{
+		const AActor* Actor = GetOwner();
+		if (Actor && Actor->GetRootComponent() == this)
+		{
+			if (PrimitiveComponentCVars::bEnableFastOverlapCheck)
+			{
+				// Add all current overlaps that are not children. Children test for their own overlaps after we update our own, and we ignore children in our own update.
+				OutOverlapsAtEndLocation.Reserve(OutOverlapsAtEndLocation.Num() + CurrentOverlaps.Num());
+				Algo::CopyIf(CurrentOverlaps, OutOverlapsAtEndLocation, FPredicateOverlapHasDifferentActor(*Actor));
+				bResult = true;
+			}
+		}
+	}
+
+	return bResult;
+}
+
+template<typename AllocatorType>
+bool UPrimitiveComponent::GetOverlapsWithActor_Template(const AActor* Actor, TArray<FOverlapInfo, AllocatorType>& OutOverlaps) const
+{
+	const int32 InitialCount = OutOverlaps.Num();
+	if (Actor)
+	{
+		for (int32 OverlapIdx = 0; OverlapIdx < OverlappingComponents.Num(); ++OverlapIdx)
+		{
+			UPrimitiveComponent const* const PrimComp = OverlappingComponents[OverlapIdx].OverlapInfo.Component.Get();
+			if (PrimComp && (PrimComp->GetOwner() == Actor))
+			{
+				OutOverlaps.Add(OverlappingComponents[OverlapIdx]);
+			}
+		}
+	}
+
+	return InitialCount != OutOverlaps.Num();
 }
