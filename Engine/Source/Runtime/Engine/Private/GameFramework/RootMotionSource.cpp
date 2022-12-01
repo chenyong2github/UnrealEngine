@@ -230,7 +230,8 @@ bool FRootMotionSource::Matches(const FRootMotionSource* Other) const
 {
 	return Other != nullptr && 
 		GetScriptStruct() == Other->GetScriptStruct() && 
-		Priority == Other->Priority && 
+		Priority == Other->Priority &&
+		AccumulateMode == Other->AccumulateMode &&
 		bInLocalSpace == Other->bInLocalSpace &&
 		InstanceName == Other->InstanceName &&
 		FMath::IsNearlyEqual(Duration, Other->Duration, UE_SMALL_NUMBER);
