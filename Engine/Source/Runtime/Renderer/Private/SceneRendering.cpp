@@ -19,6 +19,7 @@
 #include "RenderTargetTemp.h"
 #include "RendererModule.h"
 #include "ScenePrivate.h"
+#include "PostProcess/DiaphragmDOF.h"
 #include "PostProcess/SceneFilterRendering.h"
 #include "PostProcess/PostProcessEyeAdaptation.h"
 #include "PostProcess/PostProcessSubsurface.h"
@@ -357,6 +358,12 @@ static TAutoConsoleVariable<int32> CVarNaniteShowUnsupportedError(
 );
 
 #endif
+
+static TAutoConsoleVariable<float> CVarTranslucencyAutoBeforeDOF(
+	TEXT("r.Translucency.AutoBeforeDOF"), 0.5f,
+	TEXT("Automatically bin After DOF translucency before DOF if behind focus distance (Experimental)"),
+	ECVF_Default);
+
 
 static FParallelCommandListSet* GOutstandingParallelCommandListSet = nullptr;
 
@@ -839,6 +846,7 @@ void FViewInfo::Init()
 	bHasSingleLayerWaterMaterial = 0;
 	bHasTranslucencySeparateModulation = 0;
 	bHasStandardTranslucencyModulation = 0;
+	AutoBeforeDOFTranslucencyBoundary = 0.0f;
 
 	NumVisibleStaticMeshElements = 0;
 	PrecomputedVisibilityData = 0;
@@ -2031,10 +2039,10 @@ void FViewInfo::CreateViewUniformBuffers(const FViewUniformShaderParameters& Par
 			InstancedViewParametersUtils::CopyIntoInstancedViewParameters(LocalInstancedViewUniformShaderParameters, Params, 1);
 		}
 
-		InstancedViewUniformBuffer = TUniformBufferRef<FInstancedViewUniformShaderParameters>::CreateUniformBufferImmediate(
+			InstancedViewUniformBuffer = TUniformBufferRef<FInstancedViewUniformShaderParameters>::CreateUniformBufferImmediate(
 			LocalInstancedViewUniformShaderParameters,
-			UniformBuffer_SingleFrame);
-	}
+				UniformBuffer_SingleFrame);
+		}
 }
 
 extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
@@ -2523,6 +2531,11 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily, FHitProxyCo
 					ViewInfo->FilmGrainTexture = TextureResource->GetTexture2DResource();
 				}
 			}
+		}
+
+		if (CVarTranslucencyAutoBeforeDOF.GetValueOnGameThread() >= 0.0f && DiaphragmDOF::IsEnabled(*ViewInfo))
+		{
+			ViewInfo->AutoBeforeDOFTranslucencyBoundary = ViewInfo->FinalPostProcessSettings.DepthOfFieldFocalDistance / FMath::Clamp(1.0f - CVarTranslucencyAutoBeforeDOF.GetValueOnGameThread(), 0.01f, 1.0f);
 		}
 	}
 

@@ -1475,6 +1475,9 @@ public:
 	 */
 	uint32 bHasStandardTranslucencyModulation : 1;
 
+	/** Whether post DOF translucency should be rendered before DOF if primitive bounds behind DOF's focus distance. */
+	float AutoBeforeDOFTranslucencyBoundary;
+
 	/** Bitmask of all shading models used by primitives in this view */
 	uint16 ShadingModelMaskInView;
 

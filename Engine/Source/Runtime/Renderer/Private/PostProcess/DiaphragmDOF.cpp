@@ -1315,7 +1315,7 @@ bool DiaphragmDOF::IsEnabled(const FViewInfo& View)
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DepthOfFieldQuality"));
 	check(CVar);
 
-	const bool bDepthOfFieldRequestedByCVar = CVar->GetValueOnRenderThread() > 0;
+	const bool bDepthOfFieldRequestedByCVar = CVar->GetValueOnAnyThread() > 0;
 
 	return
 		DiaphragmDOF::IsSupported(View.GetShaderPlatform()) &&

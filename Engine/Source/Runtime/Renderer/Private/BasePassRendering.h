@@ -830,6 +830,7 @@ private:
 	const bool bEnableReceiveDecalOutput;
 	EDepthDrawingMode EarlyZPassMode;
 	bool bRequiresExplicit128bitRT;
+	float AutoBeforeDOFTranslucencyBoundary = 0.0f;
 };
 
 ENUM_CLASS_FLAGS(FBasePassMeshProcessor::EFlags);

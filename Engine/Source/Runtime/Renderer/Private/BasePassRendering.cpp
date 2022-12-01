@@ -1838,6 +1838,12 @@ bool FBasePassMeshProcessor::ShouldDraw(const FMaterial& Material)
 			{
 			case ETranslucencyPass::TPT_TranslucencyStandard:
 				bShouldDraw = !Material.IsTranslucencyAfterDOFEnabled() && !Material.IsTranslucencyAfterMotionBlurEnabled();
+				if (AutoBeforeDOFTranslucencyBoundary > 0.0f)
+				{
+					bShouldDraw = bShouldDraw || (Material.IsTranslucencyAfterDOFEnabled() && StrataBlendMode != SBM_ColoredTransmittanceOnly);
+					bShouldDraw = bShouldDraw || (Material.IsTranslucencyAfterDOFEnabled() && (Material.IsDualBlendingEnabled(GetFeatureLevelShaderPlatform(FeatureLevel)) ||
+						BlendMode == BLEND_Modulate || StrataBlendMode == SBM_ColoredTransmittanceOnly));
+				}
 				break;
 
 			case ETranslucencyPass::TPT_TranslucencyStandardModulate:
@@ -1877,13 +1883,64 @@ bool FBasePassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatc
 {
 	// Determine the mesh's material and blend mode.
 	const EBlendMode BlendMode = Material.GetBlendMode();
+	const EStrataBlendMode StrataBlendMode = Material.GetStrataBlendMode();
 	const FMaterialShadingModelField ShadingModels = Material.GetShadingModels();
 	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
 	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
 	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
 	const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
 
-	bool bShouldDraw = ShouldDraw(Material);
+
+	bool bShouldDraw = false;
+	if (AutoBeforeDOFTranslucencyBoundary > 0.0f && PrimitiveSceneProxy && bIsTranslucent)
+	{
+		check(ViewIfDynamicMeshCommand);
+		check(TranslucencyPassType != ETranslucencyPass::TPT_MAX);
+
+		const FVector& BoundsOrigin = PrimitiveSceneProxy->GetBounds().Origin;
+
+		const FVector& ViewOrigin = ViewIfDynamicMeshCommand->ViewMatrices.GetViewOrigin();
+		const FVector ViewForward = ViewIfDynamicMeshCommand->ViewMatrices.GetOverriddenTranslatedViewMatrix().GetColumn(2);
+
+		const FVector CameraToObject = BoundsOrigin - ViewOrigin;
+		float Distance = FVector::DotProduct(CameraToObject, ViewForward);
+		bool bIsInDOFBackground = Distance > AutoBeforeDOFTranslucencyBoundary;
+
+		bool bIsStandardTranslucency = !Material.IsTranslucencyAfterDOFEnabled() && !Material.IsTranslucencyAfterMotionBlurEnabled();
+		bool bIsAfterDOF = Material.IsTranslucencyAfterDOFEnabled() && !Material.IsTranslucencyAfterMotionBlurEnabled() && StrataBlendMode != SBM_ColoredTransmittanceOnly;
+		bool bIsAfterDOFModulate = Material.IsTranslucencyAfterDOFEnabled() && (Material.IsDualBlendingEnabled(GetFeatureLevelShaderPlatform(FeatureLevel)) ||
+			BlendMode == BLEND_Modulate || StrataBlendMode == SBM_ColoredTransmittanceOnly);
+
+		// When AutoBeforeDOFTranslucencyBoundary is valid, we automatically move After DOF translucent meshes (never blurred by DOF)
+		// before DOF if those elements are behind the focus distance.
+		if (TranslucencyPassType == ETranslucencyPass::TPT_StandardTranslucency)
+		{
+			if (bIsStandardTranslucency)
+			{
+				bShouldDraw = true;
+			}
+			else if (bIsInDOFBackground)
+			{
+				bShouldDraw = bIsAfterDOF || bIsAfterDOFModulate;
+			}
+		}
+		else if (TranslucencyPassType == ETranslucencyPass::TPT_TranslucencyAfterDOF)
+		{
+			bShouldDraw = bIsAfterDOF && !bIsInDOFBackground;
+		}
+		else if (TranslucencyPassType == ETranslucencyPass::TPT_TranslucencyAfterDOFModulate)
+		{
+			bShouldDraw = bIsAfterDOFModulate && !bIsInDOFBackground;
+		}
+		else
+		{
+			unimplemented();
+		}
+	}
+	else
+	{
+		bShouldDraw = ShouldDraw(Material);
+	}
 
 	// Only draw opaque materials.
 	bool bResult = true;
@@ -2286,6 +2343,16 @@ FBasePassMeshProcessor::FBasePassMeshProcessor(
 	, EarlyZPassMode(Scene ? Scene->EarlyZPassMode : DDM_None)
 	, bRequiresExplicit128bitRT((Flags & EFlags::bRequires128bitRT) == EFlags::bRequires128bitRT)
 {
+	if (InTranslucencyPassType != ETranslucencyPass::TPT_MAX && InViewIfDynamicMeshCommand && ViewIfDynamicMeshCommand->bIsViewInfo)
+	{
+		const FViewInfo* ViewInfo = (FViewInfo*)ViewIfDynamicMeshCommand;
+		if (InTranslucencyPassType == ETranslucencyPass::TPT_StandardTranslucency ||
+			InTranslucencyPassType == ETranslucencyPass::TPT_TranslucencyAfterDOF ||
+			InTranslucencyPassType == ETranslucencyPass::TPT_TranslucencyAfterDOFModulate)
+		{
+			AutoBeforeDOFTranslucencyBoundary = ViewInfo->AutoBeforeDOFTranslucencyBoundary;
+		}
+	}
 }
 
 FMeshPassProcessor* CreateBasePassProcessor(ERHIFeatureLevel::Type FeatureLevel, const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
