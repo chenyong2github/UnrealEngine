@@ -79,7 +79,8 @@ class CONTROLRIG_API UControlRigTestData : public UObject
 public:
 
 	UControlRigTestData()
-		: LastFrameIndex(INDEX_NONE)
+		: Tolerance(0.001)
+		, LastFrameIndex(INDEX_NONE)
 		, DesiredRecordingDuration(0.0)
 		, TimeAtStartOfRecording(0.0)
 		, bIsApplyingOutputs(false)
@@ -125,6 +126,12 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ControlRigTestData")
 	TArray<FControlRigTestDataFrame> OutputFrames;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ControlRigTestData")
+	TArray<int32> FramesToSkip;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ControlRigTestData")
+	double Tolerance;
 
 private:
 
