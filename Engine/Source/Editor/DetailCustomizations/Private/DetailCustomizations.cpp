@@ -95,6 +95,7 @@
 #include "Math/Quat.h"
 #include "Math/Transform.h"
 #include "MeshComponentDetails.h"
+#include "MeshDeformerCustomizations.h"
 #include "MeshMergingSettingsCustomization.h"
 #include "MeshProxySettingsCustomizations.h"
 #include "Misc/AssertionMacros.h"
@@ -353,6 +354,7 @@ void FDetailCustomizationsModule::RegisterPropertyTypeCustomizations()
 	RegisterCustomPropertyTypeLayout("CustomPrimitiveData", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FCustomPrimitiveDataCustomization::MakeInstance));
 	RegisterCustomPropertyTypeLayout("TemplateString", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FTemplateStringStructCustomization::MakeInstance));
 	RegisterCustomPropertyTypeLayout("LightingChannels", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FLightingChannelsCustomization::MakeInstance));
+	RegisterCustomPropertyTypeLayout("MeshDeformer", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FMeshDeformerCustomization::MakeInstance));
 }
 
 #undef REGISTER_UIMINMAX_CUSTOMIZATION

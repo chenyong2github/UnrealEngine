@@ -2279,6 +2279,35 @@ void UOptimusDeformer::PostRename(UObject* OldOuter, const FName OldName)
 	}
 }
 
+void UOptimusDeformer::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
+{
+	Super::GetAssetRegistryTags(OutTags);
+
+	UClass* BindingClass = nullptr;
+
+	if (Bindings != nullptr)
+	{
+		for (UOptimusComponentSourceBinding const* Binding : Bindings->Bindings)
+		{
+			if (Binding != nullptr && Binding->IsPrimaryBinding())
+			{
+				if (Binding->GetComponentSource() != nullptr)
+				{
+					BindingClass = Binding->GetComponentSource()->GetComponentClass();
+					break;
+				}
+			}
+		}
+	}
+
+	if (BindingClass != nullptr)
+	{
+		FSoftClassPath ClassPath(BindingClass);
+		OutTags.Add(FAssetRegistryTag(TEXT("PrimaryBindingClass"), *ClassPath.ToString(), FAssetRegistryTag::TT_Hidden));
+	}
+}
+
+
 #if WITH_EDITOR
 void UOptimusDeformer::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {

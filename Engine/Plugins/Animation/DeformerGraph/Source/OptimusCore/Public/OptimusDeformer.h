@@ -254,7 +254,8 @@ public:
 	// are not moved to the new package automatically (see FAssetRenameManager), so we
 	// have to manually perform the move/rename, to avoid invalid reference to the old package
 	void PostRename(UObject* OldOuter, const FName OldName) override;
-	
+	void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
+
 #if WITH_EDITOR
 	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
