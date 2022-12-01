@@ -18,7 +18,8 @@ class ConditionalTable {
                          Vector<float>&& slopeValues_,
                          Vector<float>&& cutValues_,
                          std::uint16_t inputCount_,
-                         std::uint16_t outputCount_);
+                         std::uint16_t outputCount_,
+                         MemoryResource* memRes);
 
         std::uint16_t getInputCount() const;
         std::uint16_t getOutputCount() const;
@@ -27,7 +28,8 @@ class ConditionalTable {
 
         template<class Archive>
         void serialize(Archive& archive) {
-            archive(inputIndices,
+            archive(intervalsRemaining,
+                    inputIndices,
                     outputIndices,
                     fromValues,
                     toValues,
@@ -38,6 +40,7 @@ class ConditionalTable {
         }
 
     private:
+        Vector<std::uint16_t> intervalsRemaining;
         Vector<std::uint16_t> inputIndices;
         Vector<std::uint16_t> outputIndices;
         Vector<float> fromValues;

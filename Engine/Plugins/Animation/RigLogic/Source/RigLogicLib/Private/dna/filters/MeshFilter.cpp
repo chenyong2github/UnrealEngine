@@ -15,11 +15,13 @@ MeshFilter::MeshFilter(MemoryResource* memRes_) :
     remappedIndices{memRes} {
 }
 
-void MeshFilter::apply(RawDefinition& dest) {
-    // Collect all distinct element position indices that are referenced by the present LODs
-    dest.lodMeshMapping.mergeIndicesInto(passingIndices);
+void MeshFilter::configure(std::uint16_t meshCount, UnorderedSet<std::uint16_t> allowedMeshIndices) {
+    passingIndices = std::move(allowedMeshIndices);
     // Fill the structure that maps indices prior to deletion to indices after deletion
-    remap(static_cast<std::uint16_t>(dest.meshNames.size()), passingIndices, remappedIndices);
+    remap(meshCount, passingIndices, remappedIndices);
+}
+
+void MeshFilter::apply(RawDefinition& dest) {
     // Fix indices so they match the same elements as earlier (but their
     // actual position changed with the deletion of the unneeded entries)
     dest.lodMeshMapping.mapIndices([this](std::uint16_t value) {

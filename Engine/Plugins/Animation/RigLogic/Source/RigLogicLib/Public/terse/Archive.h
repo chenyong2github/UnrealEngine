@@ -16,7 +16,19 @@ namespace terse {
 template<class ArchiveImpl>
 class Archive {
     public:
-        explicit Archive(ArchiveImpl* impl_) : impl{impl_} {
+        explicit Archive(ArchiveImpl* impl_) : impl{impl_}, userData{nullptr} {
+        }
+
+        bool isOk() {
+            return impl->isOk();
+        }
+
+        void sync() {
+            impl->sync();
+        }
+
+        void label(const char* value) {
+            impl->label(value);
         }
 
         template<typename ... Args>
@@ -36,6 +48,14 @@ class Archive {
             return *impl;
         }
 
+        void* getUserData() const {
+            return userData;
+        }
+
+        void setUserData(void* data) {
+            userData = data;
+        }
+
     protected:
         template<typename Head>
         void dispatch(Head&& head) {
@@ -50,6 +70,7 @@ class Archive {
 
     private:
         ArchiveImpl* impl;
+        void* userData;
 };
 
 }  // namespace terse

@@ -131,7 +131,7 @@ TIterator advanced(TIterator source, TDistance distance) {
 }
 
 template<class TIterator, class Predicate>
-typename TIterator::difference_type advanceWhile(TIterator& it, const TIterator& end, Predicate pred) {
+typename std::iterator_traits<TIterator>::difference_type advanceWhile(TIterator& it, const TIterator& end, Predicate pred) {
     const auto start = it;
     while (it != end && pred(*it)) {
         ++it;

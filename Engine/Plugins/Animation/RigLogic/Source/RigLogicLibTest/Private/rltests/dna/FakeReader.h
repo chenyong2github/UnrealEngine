@@ -23,9 +23,6 @@ class FakeReader : public Reader {
     public:
         ~FakeReader();
 
-        void unload(DataLayer layer) override {
-        }
-
         // DescriptorReader methods start
         StringView getName() const override {
             return {};
@@ -468,6 +465,10 @@ class FakeReader : public Reader {
         ConstArrayView<std::uint32_t> getBlendShapeTargetVertexIndices(std::uint16_t meshIndex,
                                                                        std::uint16_t blendShapeTargetIndex) const override {
             return {};
+        }
+
+        void unload(DataLayer  /**/) override {
+
         }
 
 };

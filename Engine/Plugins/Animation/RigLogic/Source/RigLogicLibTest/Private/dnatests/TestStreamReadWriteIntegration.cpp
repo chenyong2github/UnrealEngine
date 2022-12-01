@@ -7,8 +7,10 @@
 
 #include "dna/DataLayer.h"
 #include "dna/DNA.h"
-#include "dna/StreamReader.h"
-#include "dna/StreamWriter.h"
+#include "dna/BinaryStreamReader.h"
+#include "dna/BinaryStreamWriter.h"
+#include "dna/JSONStreamReader.h"
+#include "dna/JSONStreamWriter.h"
 
 #include <pma/resources/AlignedMemoryResource.h>
 
@@ -338,7 +340,7 @@ static void assertReaderHasAllData(Reader* reader, const LODParameters& params) 
     verifyGeometry(reader, params);
 }
 
-TEST_P(StreamReadWriteIntegrationTest, VerifyAllDNADataAfterSetFromIsUsed) {
+TEST(StreamReadWriteIntegrationTest, JSONVerifyAllDNADataAfterSetFromIsUsed) {
     pma::AlignedMemoryResource memRes;
 
     const auto bytes = raw::getBytes();
@@ -346,23 +348,42 @@ TEST_P(StreamReadWriteIntegrationTest, VerifyAllDNADataAfterSetFromIsUsed) {
     source->write(reinterpret_cast<const char*>(bytes.data()), bytes.size());
     source->seek(0);
 
-    auto sourceReader = StreamReader::create(source.get(), DataLayer::All, 0u, &memRes);
+    auto sourceReader = pma::makeScoped<BinaryStreamReader>(source.get(), DataLayer::All, static_cast<std::uint16_t>(0), &memRes);
     sourceReader->read();
 
     auto clone = pma::makeScoped<trio::MemoryStream>();
-    auto cloneWriter = StreamWriter::create(clone.get(), &memRes);
-    cloneWriter->setFrom(sourceReader);
+    auto cloneWriter = pma::makeScoped<JSONStreamWriter>(clone.get(), 4u, &memRes);
+    cloneWriter->setFrom(sourceReader.get());
     cloneWriter->write();
 
     clone->seek(0ul);
-    auto cloneReader = StreamReader::create(clone.get(), DataLayer::All, params.maxLOD, &memRes);
+    auto cloneReader = pma::makeScoped<JSONStreamReader>(clone.get(), &memRes);
     cloneReader->read();
 
-    assertReaderHasAllData(cloneReader, params);
+    assertReaderHasAllData(cloneReader.get(), {0u, 0u});
+}
 
-    StreamReader::destroy(cloneReader);
-    StreamWriter::destroy(cloneWriter);
-    StreamReader::destroy(sourceReader);
+TEST_P(StreamReadWriteIntegrationTest, BinaryVerifyAllDNADataAfterSetFromIsUsed) {
+    pma::AlignedMemoryResource memRes;
+
+    const auto bytes = raw::getBytes();
+    auto source = pma::makeScoped<trio::MemoryStream>();
+    source->write(reinterpret_cast<const char*>(bytes.data()), bytes.size());
+    source->seek(0);
+
+    auto sourceReader = pma::makeScoped<BinaryStreamReader>(source.get(), DataLayer::All, static_cast<std::uint16_t>(0), &memRes);
+    sourceReader->read();
+
+    auto clone = pma::makeScoped<trio::MemoryStream>();
+    auto cloneWriter = pma::makeScoped<BinaryStreamWriter>(clone.get(), &memRes);
+    cloneWriter->setFrom(sourceReader.get());
+    cloneWriter->write();
+
+    clone->seek(0ul);
+    auto cloneReader = pma::makeScoped<BinaryStreamReader>(clone.get(), DataLayer::All, params.maxLOD, &memRes);
+    cloneReader->read();
+
+    assertReaderHasAllData(cloneReader.get(), params);
 }
 
 INSTANTIATE_TEST_SUITE_P(StreamReadWriteIntegrationTest, StreamReadWriteIntegrationTest, ::testing::Values(

@@ -50,56 +50,117 @@ struct block128 {
 
 }  // namespace impl
 
+enum class Endianness {
+    Little,
+    Big,
+    Network = Big
+};
+
+template<Endianness EByteOrder>
+struct ByteSwapper;
+
+template<>
+struct ByteSwapper<Endianness::Little> {
+
+    template<typename T>
+    static void swap(T& value) {
+        #ifdef TARGET_LITTLE_ENDIAN
+            static_cast<void>(value);
+        #else
+            using UIntType = typename traits::uint_of_size<sizeof(T)>::type;
+            static_assert(sizeof(T) == sizeof(UIntType), "No matching unsigned integral type found for the given type.");
+            // Using memcpy is the only well-defined way of reconstructing arbitrary types from raw bytes.
+            // The seemingly unnecessary copies and memcpy calls are all optimized away,
+            // compiler knows what's up.
+            UIntType swapped;
+            std::memcpy(&swapped, &value, sizeof(T));
+            swapped = bswap(swapped);
+            std::memcpy(&value, &swapped, sizeof(T));
+        #endif  // TARGET_LITTLE_ENDIAN
+    }
+
+    template<typename T>
+    static void swap(T* values) {
+        #ifdef TARGET_LITTLE_ENDIAN
+            static_cast<void>(values);
+        #else
+            using UIntType = typename traits::uint_of_size<sizeof(T)>::type;
+            static_assert(sizeof(T) == sizeof(UIntType), "No matching unsigned integral type found for the given type.");
+            // Using memcpy is the only well-defined way of reconstructing arbitrary types from raw bytes.
+            // The seemingly unnecessary copies and memcpy calls are all optimized away,
+            // compiler knows what's up.
+            alignas(impl::block128::alignment()) UIntType swapped[16ul / sizeof(T)];
+            std::memcpy(static_cast<UIntType*>(swapped), values, 16ul);
+            bswap(static_cast<UIntType*>(swapped));
+            std::memcpy(values, static_cast<UIntType*>(swapped), 16ul);
+        #endif  // TARGET_LITTLE_ENDIAN
+    }
+
+};
+
+template<>
+struct ByteSwapper<Endianness::Big> {
+
+    template<typename T>
+    static void swap(T& value) {
+        #ifdef TARGET_LITTLE_ENDIAN
+            using UIntType = typename traits::uint_of_size<sizeof(T)>::type;
+            static_assert(sizeof(T) == sizeof(UIntType), "No matching unsigned integral type found for the given type.");
+            // Using memcpy is the only well-defined way of reconstructing arbitrary types from raw bytes.
+            // The seemingly unnecessary copies and memcpy calls are all optimized away,
+            // compiler knows what's up.
+            UIntType swapped;
+            std::memcpy(&swapped, &value, sizeof(T));
+            swapped = bswap(swapped);
+            std::memcpy(&value, &swapped, sizeof(T));
+        #else
+            static_cast<void>(value);
+        #endif  // TARGET_LITTLE_ENDIAN
+    }
+
+    template<typename T>
+    static void swap(T* values) {
+        #ifdef TARGET_LITTLE_ENDIAN
+            using UIntType = typename traits::uint_of_size<sizeof(T)>::type;
+            static_assert(sizeof(T) == sizeof(UIntType), "No matching unsigned integral type found for the given type.");
+            // Using memcpy is the only well-defined way of reconstructing arbitrary types from raw bytes.
+            // The seemingly unnecessary copies and memcpy calls are all optimized away,
+            // compiler knows what's up.
+            alignas(impl::block128::alignment()) UIntType swapped[16ul / sizeof(T)];
+            std::memcpy(static_cast<UIntType*>(swapped), values, 16ul);
+            bswap(static_cast<UIntType*>(swapped));
+            std::memcpy(values, static_cast<UIntType*>(swapped), 16ul);
+        #else
+            static_cast<void>(values);
+        #endif  // TARGET_LITTLE_ENDIAN
+    }
+
+};
+
+template<Endianness EByteOrder>
+using SwapTo = ByteSwapper<EByteOrder>;
+
+template<Endianness EByteOrder>
+using SwapFrom = ByteSwapper<EByteOrder>;
+
 template<typename T>
 inline void networkToHost(T& value) {
-    using UIntType = typename traits::uint_of_size<sizeof(T)>::type;
-    static_assert(sizeof(T) == sizeof(UIntType), "No matching unsigned integral type found for the given type.");
-    // Using memcpy is the only well-defined way of reconstructing arbitrary types from raw bytes.
-    // The seemingly unnecessary copies and memcpy calls are all optimized away,
-    // compiler knows what's up.
-    UIntType hostOrder;
-    std::memcpy(&hostOrder, &value, sizeof(T));
-    hostOrder = ntoh(hostOrder);
-    std::memcpy(&value, &hostOrder, sizeof(T));
+    SwapFrom<Endianness::Network>::swap(value);
 }
 
 template<typename T>
 inline void networkToHost128(T* values) {
-    using UIntType = typename traits::uint_of_size<sizeof(T)>::type;
-    static_assert(sizeof(T) == sizeof(UIntType), "No matching unsigned integral type found for the given type.");
-    // Using memcpy is the only well-defined way of reconstructing arbitrary types from raw bytes.
-    // The seemingly unnecessary copies and memcpy calls are all optimized away,
-    // compiler knows what's up.
-    alignas(impl::block128::alignment()) UIntType hostOrder[16ul / sizeof(T)];
-    std::memcpy(static_cast<UIntType*>(hostOrder), values, 16ul);
-    ntoh(static_cast<UIntType*>(hostOrder));
-    std::memcpy(values, static_cast<UIntType*>(hostOrder), 16ul);
+    SwapFrom<Endianness::Network>::swap(values);
 }
 
 template<typename T>
 inline void hostToNetwork(T& value) {
-    using UIntType = typename traits::uint_of_size<sizeof(T)>::type;
-    static_assert(sizeof(T) == sizeof(UIntType), "No matching unsigned integral type found for the given type.");
-    // Using memcpy is the only well-defined way of reconstructing arbitrary types from raw bytes.
-    // The seemingly unnecessary copies and memcpy calls are all optimized away,
-    // compiler knows what's up.
-    UIntType networkOrder;
-    std::memcpy(&networkOrder, &value, sizeof(T));
-    networkOrder = hton(networkOrder);
-    std::memcpy(&value, &networkOrder, sizeof(T));
+    SwapTo<Endianness::Network>::swap(value);
 }
 
 template<typename T>
 inline void hostToNetwork128(T* values) {
-    using UIntType = typename traits::uint_of_size<sizeof(T)>::type;
-    static_assert(sizeof(T) == sizeof(UIntType), "No matching unsigned integral type found for the given type.");
-    // Using memcpy is the only well-defined way of reconstructing arbitrary types from raw bytes.
-    // The seemingly unnecessary copies and memcpy calls are all optimized away,
-    // compiler knows what's up.
-    alignas(impl::block128::alignment()) UIntType networkOrder[16ul / sizeof(T)];
-    std::memcpy(static_cast<UIntType*>(networkOrder), values, 16ul);
-    hton(static_cast<UIntType*>(networkOrder));
-    std::memcpy(values, static_cast<UIntType*>(networkOrder), 16ul);
+    SwapTo<Endianness::Network>::swap(values);
 }
 
 }  // namespace terse

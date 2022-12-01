@@ -13,6 +13,7 @@ struct RawDefinition;
 class BlendShapeFilter {
     public:
         explicit BlendShapeFilter(MemoryResource* memRes_);
+        void configure(std::uint16_t blendShapeCount, UnorderedSet<std::uint16_t> allowedBlendShapeIndices);
         void apply(RawDefinition& dest);
         bool passes(std::uint16_t index) const;
 

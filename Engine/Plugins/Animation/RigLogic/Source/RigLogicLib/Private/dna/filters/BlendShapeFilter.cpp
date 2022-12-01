@@ -15,11 +15,13 @@ BlendShapeFilter::BlendShapeFilter(MemoryResource* memRes_) :
     remappedIndices{memRes} {
 }
 
-void BlendShapeFilter::apply(RawDefinition& dest) {
-    // Collect all distinct element position indices that are referenced by the present LODs
-    dest.lodBlendShapeMapping.mergeIndicesInto(passingIndices);
+void BlendShapeFilter::configure(std::uint16_t blendShapeCount, UnorderedSet<std::uint16_t> allowedBlendShapeIndices) {
+    passingIndices = std::move(allowedBlendShapeIndices);
     // Fill the structure that maps indices prior to deletion to indices after deletion
-    remap(static_cast<std::uint16_t>(dest.blendShapeChannelNames.size()), passingIndices, remappedIndices);
+    remap(blendShapeCount, passingIndices, remappedIndices);
+}
+
+void BlendShapeFilter::apply(RawDefinition& dest) {
     // Fix indices so they match the same elements as earlier (but their
     // actual position changed with the deletion of the unneeded entries)
     dest.lodBlendShapeMapping.mapIndices([this](std::uint16_t value) {

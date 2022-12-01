@@ -16,6 +16,7 @@ class LODConstraint {
         bool hasImpactOn(std::uint16_t lodCount) const;
         std::uint16_t getMaxLOD() const;
         std::uint16_t getMinLOD() const;
+        std::uint16_t getLODCount() const;
         void clampTo(std::uint16_t lodCount);
         void applyTo(Vector<std::uint16_t>& unconstrainedLODs) const;
         void applyTo(DynArray<std::uint16_t>& unconstrainedLODs) const;

@@ -17,7 +17,7 @@ class RigLogicTest : public ::testing::Test {
             stream->write(reinterpret_cast<const char*>(bytes.data()), bytes.size());
             stream->seek(0);
 
-            reader = dna::StreamReader::create(stream.get());
+            reader = dna::BinaryStreamReader::create(stream.get());
             reader->read();
 
             rigLogic = rl4::RigLogic::create(reader);
@@ -27,13 +27,13 @@ class RigLogicTest : public ::testing::Test {
         void TearDown() override {
             rl4::RigInstance::destroy(rigInstance);
             rl4::RigLogic::destroy(rigLogic);
-            dna::StreamReader::destroy(reader);
+            dna::BinaryStreamReader::destroy(reader);
         }
 
     protected:
         pma::AlignedMemoryResource memRes;
         pma::ScopedPtr<trio::MemoryStream, pma::FactoryDestroy<trio::MemoryStream> > stream;
-        dna::StreamReader* reader;
+        dna::BinaryStreamReader* reader;
         rl4::RigLogic* rigLogic;
         rl4::RigInstance* rigInstance;
 };

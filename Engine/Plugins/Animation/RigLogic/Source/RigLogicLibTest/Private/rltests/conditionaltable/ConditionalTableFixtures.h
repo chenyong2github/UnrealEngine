@@ -25,6 +25,7 @@ struct ConditionalTableFactory {
 
     static rl4::ConditionalTable withSingleIO(rl4::Vector<float>&& fromValues,
                                               rl4::Vector<float>&& toValues,
+                                              rl4::Vector<float>&& cutValues,
                                               rl4::MemoryResource* memRes);
     static rl4::ConditionalTable withMultipleIO(rl4::Vector<float>&& fromValues,
                                                 rl4::Vector<float>&& toValues,

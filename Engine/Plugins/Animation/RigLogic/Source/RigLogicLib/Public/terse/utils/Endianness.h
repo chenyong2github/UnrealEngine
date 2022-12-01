@@ -9,7 +9,8 @@
 #endif
 
 #if !defined(NO_ENDIAN_H)
-    #if defined(USE_ENDIAN_H) || defined(USE_MACHINE_ENDIAN_H) || defined(USE_SYS_ENDIAN_H)
+    #if defined(USE_ENDIAN_H) || defined(USE_MACHINE_ENDIAN_H) || defined(USE_SYS_ENDIAN_H) || defined(USE_SYS_ISA_DEFS_H) || \
+    defined(USE_SYS_PARAM_H)
         #define OVERRIDDEN_ENDIAN_H
     #endif
 
@@ -20,6 +21,10 @@
             #define USE_MACHINE_ENDIAN_H
         #elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
             #define USE_SYS_ENDIAN_H
+        #elif defined(__sun)
+            #define USE_SYS_ISA_DEFS_H
+        #elif defined(__MINGW32__) || defined(__MINGW64__) || !(defined(_WIN64) || defined(_WIN32))
+            #define USE_SYS_PARAM_H
         #endif
     #endif
 
@@ -29,9 +34,9 @@
         #include <machine/endian.h>
     #elif defined(USE_SYS_ENDIAN_H)
         #include <sys/endian.h>
-    #elif defined(__sun)
+    #elif defined(USE_SYS_ISA_DEFS_H)
         #include <sys/isa_defs.h>
-    #elif defined(__MINGW32__) || defined(__MINGW64__) || !(defined(_WIN64) || defined(_WIN32))
+    #elif defined(USE_SYS_PARAM_H)
         #include <sys/param.h>
     #endif
 #endif
@@ -227,6 +232,11 @@
     #error "Platform not supported, no byte swap functions defined."
 #endif
 
+#if defined(__clang__) || defined(__GNUC__)
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wunused-value"
+#endif
+
 // Process single values
 
 inline std::uint8_t ntoh(std::uint8_t x) {
@@ -264,14 +274,7 @@ inline std::uint64_t hton(std::uint64_t x) {
 // Process multiple blocks simultaneously
 
 inline void ntoh(std::uint8_t* x) {
-    #if defined(__clang__) || defined(__GNUC__)
-        #pragma GCC diagnostic push
-        #pragma GCC diagnostic ignored "-Wunused-value"
-    #endif
     ntoh8x16(x);
-    #if defined(__clang__) || defined(__GNUC__)
-        #pragma GCC diagnostic pop
-    #endif
 }
 
 inline void ntoh(std::uint16_t* x) {
@@ -287,14 +290,7 @@ inline void ntoh(std::uint64_t* x) {
 }
 
 inline void hton(std::uint8_t* x) {
-    #if defined(__clang__) || defined(__GNUC__)
-        #pragma GCC diagnostic push
-        #pragma GCC diagnostic ignored "-Wunused-value"
-    #endif
     hton8x16(x);
-    #if defined(__clang__) || defined(__GNUC__)
-        #pragma GCC diagnostic pop
-    #endif
 }
 
 inline void hton(std::uint16_t* x) {
@@ -308,3 +304,43 @@ inline void hton(std::uint32_t* x) {
 inline void hton(std::uint64_t* x) {
     hton64x2(x);
 }
+
+// Byte swap overloads
+
+inline std::uint8_t bswap(std::uint8_t x) {
+    // No operation
+    return x;
+}
+
+inline std::uint16_t bswap(std::uint16_t x) {
+    return bswap16(x);
+}
+
+inline std::uint32_t bswap(std::uint32_t x) {
+    return bswap32(x);
+}
+
+inline std::uint64_t bswap(std::uint64_t x) {
+    return bswap64(x);
+}
+
+inline void bswap(std::uint8_t* x) {
+    // No operation
+    static_cast<void>(x);
+}
+
+inline void bswap(std::uint16_t* x) {
+    bswap16x8(x);
+}
+
+inline void bswap(std::uint32_t* x) {
+    bswap32x4(x);
+}
+
+inline void bswap(std::uint64_t* x) {
+    bswap64x2(x);
+}
+
+#if defined(__clang__) || defined(__GNUC__)
+    #pragma GCC diagnostic pop
+#endif

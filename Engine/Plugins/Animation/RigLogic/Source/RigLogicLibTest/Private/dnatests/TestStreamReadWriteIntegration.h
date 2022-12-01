@@ -4,9 +4,6 @@
 
 #include "dnatests/Defs.h"
 
-#include "dna/StreamReader.h"
-
-
 struct LODParameters {
     std::uint16_t maxLOD;
     std::uint16_t currentLOD;

@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "terse/utils/ArchiveOffset.h"
+#include "terse/types/ArchiveOffset.h"
+#include "terse/types/Versioned.h"
 
 #include <pma/TypeDefs.h>
 
@@ -120,3 +121,29 @@ template<class TArchive>
 void save(TArchive& archive, const SerializableByFreeLoadSave& source) {
     archive(source.a, source.b);
 }
+
+struct UpgradedSerializableType {
+    std::uint32_t a;
+    std::uint16_t b;
+
+    template<class Archive>
+    void load(Archive& archive, terse::Version<1>) {
+        archive(a);
+    }
+
+    template<class Archive>
+    void load(Archive& archive, terse::Version<2>) {
+        archive(a, b);
+    }
+
+    template<class Archive>
+    void save(Archive& archive, terse::Version<1>) {
+        archive(a);
+    }
+
+    template<class Archive>
+    void save(Archive& archive, terse::Version<2>) {
+        archive(a, b);
+    }
+
+};

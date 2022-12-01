@@ -35,6 +35,7 @@ const std::uint16_t distinctOutputs = 2ul;
 
 rl4::ConditionalTable ConditionalTableFactory::withSingleIO(rl4::Vector<float>&& fromValues,
                                                             rl4::Vector<float>&& toValues,
+                                                            rl4::Vector<float>&& cutValues,
                                                             rl4::MemoryResource* memRes) {
     return rl4::ConditionalTable{
         rl4::Vector<std::uint16_t>{single::inputIndices, single::inputIndices + single::size, memRes},
@@ -42,9 +43,10 @@ rl4::ConditionalTable ConditionalTableFactory::withSingleIO(rl4::Vector<float>&&
         std::move(fromValues),
         std::move(toValues),
         rl4::Vector<float>{single::slopeValues, single::slopeValues + single::size, memRes},
-        rl4::Vector<float>{single::cutValues, single::cutValues + single::size, memRes},
+        std::move(cutValues),
         single::distinctInputs,
-        single::distinctOutputs
+        single::distinctOutputs,
+        memRes
     };
 }
 
@@ -59,7 +61,8 @@ rl4::ConditionalTable ConditionalTableFactory::withMultipleIO(rl4::Vector<float>
         rl4::Vector<float>{multiple::slopeValues, multiple::slopeValues + multiple::size, memRes},
         rl4::Vector<float>{multiple::cutValues, multiple::cutValues + multiple::size, memRes},
         multiple::distinctInputs,
-        multiple::distinctOutputs
+        multiple::distinctOutputs,
+        memRes
     };
 }
 
@@ -67,6 +70,7 @@ rl4::ConditionalTable ConditionalTableFactory::withSingleIODefaults(rl4::MemoryR
     return withSingleIO(
         rl4::Vector<float>{single::fromValues, single::fromValues + single::size, memRes},
         rl4::Vector<float>{single::toValues, single::toValues + single::size, memRes},
+        rl4::Vector<float>{single::cutValues, single::cutValues + single::size, memRes},
         memRes
         );
 }

@@ -6,7 +6,7 @@
 #include "dna/SurjectiveMapping.h"
 #include "dna/TypeDefs.h"
 
-#include <terse/utils/ArchiveOffset.h>
+#include <terse/types/ArchiveOffset.h>
 
 #ifdef _MSC_VER
     #pragma warning(push)
@@ -32,7 +32,10 @@ struct RawSurjectiveMapping : public SurjectiveMapping<TFrom, TTo> {
 
     template<class Archive>
     void serialize(Archive& archive) {
-        archive(this->from, this->to);
+        archive.label("from");
+        archive(this->from);
+        archive.label("to");
+        archive(this->to);
     }
 
 };
@@ -47,11 +50,13 @@ struct ExpectedValue {
 
     template<class Archive>
     void load(Archive& archive) {
+        archive.label("value");
         archive(got);
     }
 
     template<class Archive>
     void save(Archive& archive) {
+        archive.label("value");
         archive(expected);
     }
 
@@ -72,6 +77,7 @@ struct Signature {
 
     template<class Archive>
     void serialize(Archive& archive) {
+        archive.label("data");
         archive(value);
     }
 
@@ -92,7 +98,10 @@ struct Version {
 
     template<class Archive>
     void serialize(Archive& archive) {
-        archive(generation, version);
+        archive.label("generation");
+        archive(generation);
+        archive.label("version");
+        archive(version);
     }
 
     bool matches() const {
@@ -113,14 +122,22 @@ struct SectionLookupTable {
 
     template<class Archive>
     void serialize(Archive& archive) {
-        archive(descriptor,
-                definition,
-                behavior,
-                controls,
-                joints,
-                blendShapeChannels,
-                animatedMaps,
-                geometry);
+        archive.label("descriptor");
+        archive(descriptor);
+        archive.label("definition");
+        archive(definition);
+        archive.label("behavior");
+        archive(behavior);
+        archive.label("controls");
+        archive(controls);
+        archive.label("joints");
+        archive(joints);
+        archive.label("blendShapeChannels");
+        archive(blendShapeChannels);
+        archive.label("animatedMaps");
+        archive(animatedMaps);
+        archive.label("geometry");
+        archive(geometry);
     }
 
 };
@@ -132,7 +149,12 @@ struct RawCoordinateSystem {
 
     template<class Archive>
     void serialize(Archive& archive) {
-        archive(xAxis, yAxis, zAxis);
+        archive.label("xAxis");
+        archive(xAxis);
+        archive.label("yAxis");
+        archive(yAxis);
+        archive.label("zAxis");
+        archive(zAxis);
     }
 
 };
@@ -142,7 +164,10 @@ struct RawLODMapping : public LODMapping {
 
     template<class Archive>
     void serialize(Archive& archive) {
-        archive(lods, indices);
+        archive.label("lods");
+        archive(lods);
+        archive.label("indices");
+        archive(indices);
     }
 
 };
@@ -182,19 +207,31 @@ struct RawDescriptor {
 
     template<class Archive>
     void serialize(Archive& archive) {
-        archive(marker,
-                name,
-                archetype,
-                gender,
-                age,
-                metadata,
-                translationUnit,
-                rotationUnit,
-                coordinateSystem,
-                lodCount,
-                maxLOD,
-                complexity,
-                dbName);
+        archive(marker);
+        archive.label("name");
+        archive(name);
+        archive.label("archetype");
+        archive(archetype);
+        archive.label("gender");
+        archive(gender);
+        archive.label("age");
+        archive(age);
+        archive.label("metadata");
+        archive(metadata);
+        archive.label("translationUnit");
+        archive(translationUnit);
+        archive.label("rotationUnit");
+        archive(rotationUnit);
+        archive.label("coordinateSystem");
+        archive(coordinateSystem);
+        archive.label("lodCount");
+        archive(lodCount);
+        archive.label("maxLOD");
+        archive(maxLOD);
+        archive.label("complexity");
+        archive(complexity);
+        archive.label("dbName");
+        archive(dbName);
     }
 
 };
@@ -224,7 +261,12 @@ struct RawVector3Vector {
 
     template<class Archive>
     void serialize(Archive& archive) {
-        archive(xs, ys, zs);
+        archive.label("xs");
+        archive(xs);
+        archive.label("ys");
+        archive(ys);
+        archive.label("zs");
+        archive(zs);
     }
 
     std::size_t size() const {
@@ -306,21 +348,35 @@ struct RawDefinition {
 
     template<class Archive>
     void serialize(Archive& archive) {
-        archive(marker,
-                lodJointMapping,
-                lodBlendShapeMapping,
-                lodAnimatedMapMapping,
-                lodMeshMapping,
-                guiControlNames,
-                rawControlNames,
-                jointNames,
-                blendShapeChannelNames,
-                animatedMapNames,
-                meshNames,
-                meshBlendShapeChannelMapping,
-                jointHierarchy,
-                neutralJointTranslations,
-                neutralJointRotations);
+        archive(marker);
+        archive.label("lodJointMapping");
+        archive(lodJointMapping);
+        archive.label("lodBlendShapeMapping");
+        archive(lodBlendShapeMapping);
+        archive.label("lodAnimatedMapMapping");
+        archive(lodAnimatedMapMapping);
+        archive.label("lodMeshMapping");
+        archive(lodMeshMapping);
+        archive.label("guiControlNames");
+        archive(guiControlNames);
+        archive.label("rawControlNames");
+        archive(rawControlNames);
+        archive.label("jointNames");
+        archive(jointNames);
+        archive.label("blendShapeChannelNames");
+        archive(blendShapeChannelNames);
+        archive.label("animatedMapNames");
+        archive(animatedMapNames);
+        archive.label("meshNames");
+        archive(meshNames);
+        archive.label("meshBlendShapeChannelMapping");
+        archive(meshBlendShapeChannelMapping);
+        archive.label("jointHierarchy");
+        archive(jointHierarchy);
+        archive.label("neutralJointTranslations");
+        archive(neutralJointTranslations);
+        archive.label("neutralJointRotations");
+        archive(neutralJointRotations);
     }
 
 };
@@ -344,12 +400,18 @@ struct RawConditionalTable {
 
     template<class Archive>
     void serialize(Archive& archive) {
-        archive(inputIndices,
-                outputIndices,
-                fromValues,
-                toValues,
-                slopeValues,
-                cutValues);
+        archive.label("inputIndices");
+        archive(inputIndices);
+        archive.label("outputIndices");
+        archive(outputIndices);
+        archive.label("fromValues");
+        archive(fromValues);
+        archive.label("toValues");
+        archive(toValues);
+        archive.label("slopeValues");
+        archive(slopeValues);
+        archive.label("cutValues");
+        archive(cutValues);
     }
 
 };
@@ -367,7 +429,12 @@ struct RawPSDMatrix {
 
     template<class Archive>
     void serialize(Archive& archive) {
-        archive(rows, columns, values);
+        archive.label("rows");
+        archive(rows);
+        archive.label("columns");
+        archive(columns);
+        archive.label("values");
+        archive(values);
     }
 
 };
@@ -385,7 +452,12 @@ struct RawControls {
 
     template<class Archive>
     void serialize(Archive& archive) {
-        archive(psdCount, conditionals, psds);
+        archive.label("psdCount");
+        archive(psdCount);
+        archive.label("conditionals");
+        archive(conditionals);
+        archive.label("psds");
+        archive(psds);
     }
 
 };
@@ -416,7 +488,16 @@ struct RawJointGroup {
 
     template<class Archive>
     void serialize(Archive& archive) {
-        archive(lods, inputIndices, outputIndices, values, jointIndices);
+        archive.label("lods");
+        archive(lods);
+        archive.label("inputIndices");
+        archive(inputIndices);
+        archive.label("outputIndices");
+        archive(outputIndices);
+        archive.label("values");
+        archive(values);
+        archive.label("jointIndices");
+        archive(jointIndices);
     }
 
 };
@@ -434,7 +515,12 @@ struct RawJoints {
 
     template<class Archive>
     void serialize(Archive& archive) {
-        archive(rowCount, colCount, jointGroups);
+        archive.label("rowCount");
+        archive(rowCount);
+        archive.label("colCount");
+        archive(colCount);
+        archive.label("jointGroups");
+        archive(jointGroups);
     }
 
 };
@@ -452,7 +538,12 @@ struct RawBlendShapeChannels {
 
     template<class Archive>
     void serialize(Archive& archive) {
-        archive(lods, inputIndices, outputIndices);
+        archive.label("lods");
+        archive(lods);
+        archive.label("inputIndices");
+        archive(inputIndices);
+        archive.label("outputIndices");
+        archive(outputIndices);
     }
 
 };
@@ -468,7 +559,10 @@ struct RawAnimatedMaps {
 
     template<class Archive>
     void serialize(Archive& archive) {
-        archive(lods, conditionals);
+        archive.label("lods");
+        archive(lods);
+        archive.label("conditionals");
+        archive(conditionals);
     }
 
 };
@@ -507,15 +601,18 @@ struct RawBehavior {
 
     template<class Archive>
     void serialize(Archive& archive) {
-        archive(marker,
-                controlsMarker,
-                controls,
-                jointsMarker,
-                joints,
-                blendShapeChannelsMarker,
-                blendShapeChannels,
-                animatedMapsMarker,
-                animatedMaps);
+        archive(marker, controlsMarker);
+        archive.label("controls");
+        archive(controls);
+        archive(jointsMarker);
+        archive.label("joints");
+        archive(joints);
+        archive(blendShapeChannelsMarker);
+        archive.label("blendShapeChannels");
+        archive(blendShapeChannels);
+        archive(animatedMapsMarker);
+        archive.label("animatedMaps");
+        archive(animatedMaps);
     }
 
 };
@@ -531,7 +628,10 @@ struct RawTextureCoordinateVector {
 
     template<class Archive>
     void serialize(Archive& archive) {
-        archive(us, vs);
+        archive.label("us");
+        archive(us);
+        archive.label("vs");
+        archive(vs);
     }
 
     std::size_t size() const {
@@ -559,7 +659,12 @@ struct RawVertexLayoutVector {
 
     template<class Archive>
     void serialize(Archive& archive) {
-        archive(positions, textureCoordinates, normals);
+        archive.label("positions");
+        archive(positions);
+        archive.label("textureCoordinates");
+        archive(textureCoordinates);
+        archive.label("normals");
+        archive(normals);
     }
 
     std::size_t size() const {
@@ -584,6 +689,7 @@ struct RawFace {
 
     template<class Archive>
     void serialize(Archive& archive) {
+        archive.label("layoutIndices");
         archive(layoutIndices);
     }
 
@@ -600,7 +706,10 @@ struct RawVertexSkinWeights {
 
     template<class Archive>
     void serialize(Archive& archive) {
-        archive(weights, jointIndices);
+        archive.label("weights");
+        archive(weights);
+        archive.label("jointIndices");
+        archive(jointIndices);
     }
 
 };
@@ -618,7 +727,12 @@ struct RawBlendShapeTarget {
 
     template<class Archive>
     void serialize(Archive& archive) {
-        archive(deltas, vertexIndices, blendShapeChannelIndex);
+        archive.label("deltas");
+        archive(deltas);
+        archive.label("vertexIndices");
+        archive(vertexIndices);
+        archive.label("blendShapeChannelIndex");
+        archive(blendShapeChannelIndex);
     }
 
 };
@@ -650,16 +764,25 @@ struct RawMesh {
 
     template<class Archive>
     void serialize(Archive& archive) {
-        archive(offset,
-                positions,
-                textureCoordinates,
-                normals,
-                layouts,
-                faces,
-                maximumInfluencePerVertex,
-                skinWeights,
-                blendShapeTargets,
-                marker);
+        archive.label("offset");
+        archive(offset);
+        archive.label("positions");
+        archive(positions);
+        archive.label("textureCoordinates");
+        archive(textureCoordinates);
+        archive.label("normals");
+        archive(normals);
+        archive.label("layouts");
+        archive(layouts);
+        archive.label("faces");
+        archive(faces);
+        archive.label("maximumInfluencePerVertex");
+        archive(maximumInfluencePerVertex);
+        archive.label("skinWeights");
+        archive(skinWeights);
+        archive.label("blendShapeTargets");
+        archive(blendShapeTargets);
+        archive(marker);
     }
 
 };
@@ -675,13 +798,15 @@ struct RawGeometry {
 
     template<class Archive>
     void serialize(Archive& archive) {
-        archive(marker, meshes);
+        archive(marker);
+        archive.label("meshes");
+        archive(meshes);
     }
 
 };
 
 struct DNA {
-	MemoryResource* memRes;
+    MemoryResource* memRes;
     Signature<3> signature{{'D', 'N', 'A'}};
     Version version{2, 1};
     SectionLookupTable sections;
@@ -707,32 +832,60 @@ struct DNA {
 
     template<class Archive>
     void load(Archive& archive) {
-        archive(signature, version);
+        archive.label("signature");
+        archive(signature);
+        archive.label("version");
+        archive(version);
         if (signature.matches() && version.matches()) {
-            archive(sections, descriptor, definition, behavior, geometry, eof);
+            archive.label("sections");
+            archive(sections);
+            archive.label("descriptor");
+            archive(descriptor);
+            archive.label("definition");
+            archive(definition);
+            archive.label("behavior");
+            archive(behavior);
+            archive.label("geometry");
+            archive(geometry);
+            archive.label("eof");
+            archive(eof);
             assert(eof.matches());
         }
     }
 
     template<class Archive>
     void save(Archive& archive) {
-        archive(signature, version, sections, descriptor, definition, behavior, geometry, eof);
+        archive.label("signature");
+        archive(signature);
+        archive.label("version");
+        archive(version);
+        archive.label("sections");
+        archive(sections);
+        archive.label("descriptor");
+        archive(descriptor);
+        archive.label("definition");
+        archive(definition);
+        archive.label("behavior");
+        archive(behavior);
+        archive.label("geometry");
+        archive(geometry);
+        archive.label("eof");
+        archive(eof);
     }
 
-	void unloadDefinition()
-	{
-		definition = RawDefinition{sections.definition, memRes};
-	}
+    void unloadDefinition() {
+        definition = RawDefinition{sections.definition, memRes};
+    }
 
-	void unloadBehavior()
-	{
-		behavior = RawBehavior{sections.behavior, sections.controls, sections.joints, sections.blendShapeChannels, sections.animatedMaps, memRes};
-	}
+    void unloadBehavior() {
+        behavior =
+            RawBehavior{sections.behavior, sections.controls, sections.joints, sections.blendShapeChannels, sections.animatedMaps,
+                        memRes};
+    }
 
-	void unloadGeometry()
-	{
-		geometry = RawGeometry{sections.geometry, memRes};
-	}
+    void unloadGeometry() {
+        geometry = RawGeometry{sections.geometry, memRes};
+    }
 
 };
 

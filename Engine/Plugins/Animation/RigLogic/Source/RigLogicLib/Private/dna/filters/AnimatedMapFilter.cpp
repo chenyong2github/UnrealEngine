@@ -15,11 +15,13 @@ AnimatedMapFilter::AnimatedMapFilter(MemoryResource* memRes_) :
     remappedIndices{memRes} {
 }
 
-void AnimatedMapFilter::apply(RawDefinition& dest) {
-    // Collect all distinct element position indices that are referenced by the present LODs
-    dest.lodAnimatedMapMapping.mergeIndicesInto(passingIndices);
+void AnimatedMapFilter::configure(std::uint16_t animatedMapCount, UnorderedSet<std::uint16_t> allowedAnimatedMapIndices) {
+    passingIndices = std::move(allowedAnimatedMapIndices);
     // Fill the structure that maps indices prior to deletion to indices after deletion
-    remap(static_cast<std::uint16_t>(dest.animatedMapNames.size()), passingIndices, remappedIndices);
+    remap(animatedMapCount, passingIndices, remappedIndices);
+}
+
+void AnimatedMapFilter::apply(RawDefinition& dest) {
     // Fix indices so they match the same elements as earlier (but their
     // actual position changed with the deletion of the unneeded entries)
     dest.lodAnimatedMapMapping.mapIndices([this](std::uint16_t value) {

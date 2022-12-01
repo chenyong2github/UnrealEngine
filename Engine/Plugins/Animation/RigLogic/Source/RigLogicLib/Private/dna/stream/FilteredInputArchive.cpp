@@ -88,7 +88,7 @@ void FilteredInputArchive::process(RawDescriptor& dest) {
     lodConstraint.clampTo(dest.lodCount);
     unconstrainedLODCount = dest.lodCount;
     dest.maxLOD = static_cast<std::uint16_t>(dest.maxLOD + lodConstraint.getMaxLOD());
-    dest.lodCount = static_cast<std::uint16_t>(lodConstraint.getMinLOD() - lodConstraint.getMaxLOD() + 1);
+    dest.lodCount = lodConstraint.getLODCount();
 }
 
 void FilteredInputArchive::process(RawDefinition& dest) {
@@ -102,14 +102,34 @@ void FilteredInputArchive::process(RawDefinition& dest) {
         return;
     }
 
+    // To find joints that are not in any LOD, find the joints that are not in LOD 0 (the current max LOD, at index 0), as it
+    // contains joints from all lower LODs.
+    Vector<std::uint16_t> jointsNotInLOD0{memRes};
+    const auto jointIndicesForLOD0 = dest.lodJointMapping.getIndices(0);
+    for (std::uint16_t idx = 0; idx < dest.jointNames.size(); ++idx) {
+        if (std::find(jointIndicesForLOD0.begin(), jointIndicesForLOD0.end(), idx) == jointIndicesForLOD0.end()) {
+            jointsNotInLOD0.push_back(idx);
+        }
+    }
+
     // Discard LOD data that is not relevant for the selected MaxLOD and MinLOD constraints
     dest.lodMeshMapping.discardLODs(lodConstraint);
     dest.lodJointMapping.discardLODs(lodConstraint);
     dest.lodBlendShapeMapping.discardLODs(lodConstraint);
     dest.lodAnimatedMapMapping.discardLODs(lodConstraint);
+    MeshFilter::configure(static_cast<std::uint16_t>(dest.meshNames.size()),
+                          dest.lodMeshMapping.getCombinedDistinctIndices(memRes));
     MeshFilter::apply(dest);
+    auto allowedJointIndices = dest.lodJointMapping.getCombinedDistinctIndices(memRes);
+    // In order to keep joints that are not in any LOD, add them all to the list of joints to keep when filtering.
+    allowedJointIndices.insert(jointsNotInLOD0.begin(), jointsNotInLOD0.end());
+    JointFilter::configure(static_cast<std::uint16_t>(dest.jointNames.size()), allowedJointIndices);
     JointFilter::apply(dest);
+    BlendShapeFilter::configure(static_cast<std::uint16_t>(dest.blendShapeChannelNames.size()),
+                                dest.lodBlendShapeMapping.getCombinedDistinctIndices(memRes));
     BlendShapeFilter::apply(dest);
+    AnimatedMapFilter::configure(static_cast<std::uint16_t>(dest.animatedMapNames.size()),
+                                 dest.lodAnimatedMapMapping.getCombinedDistinctIndices(memRes));
     AnimatedMapFilter::apply(dest);
 }
 
@@ -271,31 +291,7 @@ void FilteredInputArchive::process(RawVertexSkinWeights& dest) {
 
     if (lodConstraint.hasImpactOn(unconstrainedLODCount)) {
         assert(dest.weights.size() == dest.jointIndices.size());
-
-        auto itWeightSrc = dest.weights.begin();
-        auto itWeightDst = itWeightSrc;
-        auto itJointSrc = dest.jointIndices.begin();
-        auto itJointDst = itJointSrc;
-        while (itJointSrc != dest.jointIndices.end()) {
-            if (JointFilter::passes(*itJointSrc)) {
-                *itJointDst = *itJointSrc;
-                ++itJointSrc;
-                ++itJointDst;
-
-                *itWeightDst = *itWeightSrc;
-                ++itWeightSrc;
-                ++itWeightDst;
-            } else {
-                ++itJointSrc;
-                ++itWeightSrc;
-            }
-        }
-        dest.jointIndices.resize(static_cast<std::size_t>(std::distance(dest.jointIndices.begin(), itJointDst)));
-        dest.weights.resize(static_cast<std::size_t>(std::distance(dest.weights.begin(), itWeightDst)));
-
-        for (auto& jntIdx : dest.jointIndices) {
-            jntIdx = JointFilter::remapped(jntIdx);
-        }
+        JointFilter::apply(dest);
     }
 }
 

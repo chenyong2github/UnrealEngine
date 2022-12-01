@@ -50,7 +50,8 @@ AnimatedMapsFactory::AnimatedMapsPtr AnimatedMapsFactory::create(const dna::Beha
                                   std::move(slopeValues),
                                   std::move(cutValues),
                                   inputCount,
-                                  outputCount};
+                                  outputCount,
+                                  memRes};
     return ManagedAnimatedMaps::with(memRes).create(std::move(lods), std::move(conditionals));
 }
 

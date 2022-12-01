@@ -34,7 +34,27 @@ struct needs_allocator<T, typename sink<typename T::allocator_type,
 template<class>
 struct true_sink : std::true_type {};
 
+template<class TContainer>
+static auto test_reserve_member(std::int32_t)->true_sink<decltype(std::declval<TContainer>().reserve(0u))>;
+
+template<class>
+static auto test_reserve_member(std::uint32_t)->std::false_type;
+
+template<class T>
+struct has_reserve_member : decltype(test_reserve_member<T>(0)) {};
+
+template<class TContainer>
+static auto test_push_back_member(std::int32_t)->true_sink<decltype(std::declval<TContainer>().push_back(
+                                                                        std::declval<typename TContainer::value_type>()))>;
+
+template<class>
+static auto test_push_back_member(std::uint32_t)->std::false_type;
+
+template<class T>
+struct has_push_back_member : decltype(test_push_back_member<T>(0)) {};
+
 // Serializer member functions
+
 template<class T>
 static auto test_serialize_member(std::int32_t)->true_sink<decltype(std::declval<T>().serialize(std::declval<T&>()))>;
 
@@ -90,6 +110,68 @@ static auto test_save_function(std::uint32_t)->std::false_type;
 
 template<class T>
 struct has_save_function : decltype(test_save_function<T>(0)) {};
+
+// Versioned serializer member functions
+
+template<class T, class V>
+static auto test_versioned_serialize_member(std::int32_t)->true_sink <
+decltype(std::declval<T>().serialize(std::declval<T&>(), V{})) >;
+
+template<class, class>
+static auto test_versioned_serialize_member(std::uint32_t)->std::false_type;
+
+template<class T, class V>
+struct has_versioned_serialize_member : decltype(test_versioned_serialize_member<T, V>(0)) {};
+
+template<class T, class V>
+static auto test_versioned_load_member(std::int32_t)->true_sink < decltype(std::declval<T>().load(std::declval<T&>(), V{})) >;
+
+template<class, class>
+static auto test_versioned_load_member(std::uint32_t)->std::false_type;
+
+template<class T, class V>
+struct has_versioned_load_member : decltype(test_versioned_load_member<T, V>(0)) {};
+
+template<class T, class V>
+static auto test_versioned_save_member(std::int32_t)->true_sink < decltype(std::declval<T>().save(std::declval<T&>(), V{})) >;
+
+template<class, class>
+static auto test_versioned_save_member(std::uint32_t)->std::false_type;
+
+template<class T, class V>
+struct has_versioned_save_member : decltype(test_versioned_save_member<T, V>(0)) {};
+
+// Versioned serializer free functions
+
+template<class T, class V>
+static auto test_versioned_serialize_function(std::int32_t)->true_sink < decltype(serialize(std::declval<T&>(), V{},
+                                                                                            std::declval<T&>())) >;
+
+template<class, class>
+static auto test_versioned_serialize_function(std::uint32_t)->std::false_type;
+
+template<class T, class V>
+struct has_versioned_serialize_function : decltype(test_versioned_serialize_function<T, V>(0)) {};
+
+template<class T, class V>
+static auto test_versioned_load_function(std::int32_t)->true_sink < decltype(load(std::declval<T&>(), V{}, std::declval<T&>())) >;
+
+template<class, class>
+static auto test_versioned_load_function(std::uint32_t)->std::false_type;
+
+template<class T, class V>
+struct has_versioned_load_function : decltype(test_versioned_load_function<T, V>(0)) {};
+
+template<class T, class V>
+static auto test_versioned_save_function(std::int32_t)->true_sink < decltype(save(std::declval<T&>(), V{}, std::declval<T&>())) >;
+
+template<class, class>
+static auto test_versioned_save_function(std::uint32_t)->std::false_type;
+
+template<class T, class V>
+struct has_versioned_save_function : decltype(test_versioned_save_function<T, V>(0)) {};
+
+// Heuristic traits
 
 template<typename TContainer>
 using is_batchable = std::is_scalar<typename TContainer::value_type>;

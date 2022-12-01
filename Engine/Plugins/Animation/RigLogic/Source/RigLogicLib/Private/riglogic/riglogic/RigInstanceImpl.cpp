@@ -94,6 +94,11 @@ std::uint16_t RigInstanceImpl::getLOD() const {
 }
 
 void RigInstanceImpl::setLOD(std::uint16_t level) {
+    if (level != lodLevel) {
+        std::fill(jointOutputs.begin(), jointOutputs.end(), 0.0f);
+        std::fill(blendShapeOutputs.begin(), blendShapeOutputs.end(), 0.0f);
+        std::fill(animatedMapOutputs.begin(), animatedMapOutputs.end(), 0.0f);
+    }
     lodLevel = extd::clamp(level, static_cast<std::uint16_t>(0), lodMaxLevel);
 }
 

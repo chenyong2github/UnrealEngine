@@ -29,7 +29,11 @@ LODConstraint::LODConstraint(ConstArrayView<std::uint16_t> lods_, MemoryResource
 }
 
 bool LODConstraint::hasImpactOn(std::uint16_t lodCount) const {
-    return (getMaxLOD() > 0u) || (getMinLOD() < static_cast<std::uint16_t>(lodCount - 1u));
+    std::uint16_t lod = {};
+    for (auto it = lods.begin(); (it != lods.end()) && (lod < lodCount); ++it) {
+        lod = static_cast<std::uint16_t>(lod + static_cast<std::uint16_t>(lod == *it));
+    }
+    return (lod != lodCount);
 }
 
 std::uint16_t LODConstraint::getMaxLOD() const {
@@ -38,6 +42,10 @@ std::uint16_t LODConstraint::getMaxLOD() const {
 
 std::uint16_t LODConstraint::getMinLOD() const {
     return (lods.empty() ? std::uint16_t{} : lods.back());
+}
+
+std::uint16_t LODConstraint::getLODCount() const {
+    return static_cast<std::uint16_t>(lods.size());
 }
 
 void LODConstraint::clampTo(std::uint16_t lodCount) {

@@ -32,12 +32,14 @@ class FilteredInputArchive final : public AnimatedMapFilter, public BlendShapeFi
     public terse::ExtendableBinaryInputArchive<FilteredInputArchive,
                                                BoundedIOStream,
                                                std::uint32_t,
-                                               std::uint32_t> {
+                                               std::uint32_t,
+                                               terse::Endianness::Network> {
     private:
         using BaseArchive = terse::ExtendableBinaryInputArchive<FilteredInputArchive,
                                                                 BoundedIOStream,
                                                                 std::uint32_t,
-                                                                std::uint32_t>;
+                                                                std::uint32_t,
+                                                                terse::Endianness::Network>;
         friend Archive<FilteredInputArchive>;
 
     public:

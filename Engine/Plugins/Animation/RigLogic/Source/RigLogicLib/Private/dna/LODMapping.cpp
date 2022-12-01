@@ -126,10 +126,12 @@ void LODMapping::associateLODWithIndices(std::uint16_t lod, std::uint16_t index)
     lods[lod] = index;
 }
 
-void LODMapping::mergeIndicesInto(UnorderedSet<std::uint16_t>& destination) const {
+UnorderedSet<std::uint16_t> LODMapping::getCombinedDistinctIndices(MemoryResource* memRes) const {
+    UnorderedSet<std::uint16_t> distinctIndices{memRes};
     for (const auto& row : indices) {
-        destination.insert(row.begin(), row.end());
+        distinctIndices.insert(row.begin(), row.end());
     }
+    return distinctIndices;
 }
 
 }  // namespace dna

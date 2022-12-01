@@ -47,6 +47,7 @@ static void copyDescriptor(const DescriptorReader* source, DescriptorWriter* des
     destination->setArchetype(source->getArchetype());
     destination->setGender(source->getGender());
     destination->setAge(source->getAge());
+    destination->clearMetaData();
     for (std::uint32_t i = 0u; i < source->getMetaDataCount(); ++i) {
         const auto key = source->getMetaDataKey(i);
         const auto value = source->getMetaDataValue(key);
@@ -102,6 +103,22 @@ static void copyNameIndices(IndicesGetter getIndices,
 }
 
 static void copyDefinition(const DefinitionReader* source, DefinitionWriter* destination, MemoryResource* memRes) {
+    destination->clearGUIControlNames();
+    destination->clearRawControlNames();
+    destination->clearJointNames();
+    destination->clearBlendShapeChannelNames();
+    destination->clearAnimatedMapNames();
+    destination->clearMeshNames();
+    destination->clearJointIndices();
+    destination->clearLODJointMappings();
+    destination->clearBlendShapeChannelIndices();
+    destination->clearLODBlendShapeChannelMappings();
+    destination->clearAnimatedMapIndices();
+    destination->clearLODAnimatedMapMappings();
+    destination->clearMeshIndices();
+    destination->clearLODMeshMappings();
+    destination->clearMeshBlendShapeChannelMappings();
+
     const auto lodCount = source->getLODCount();
 
     for (std::uint16_t i = source->getGUIControlCount(); i > 0u; --i) {
@@ -181,6 +198,8 @@ static void copyDefinition(const DefinitionReader* source, DefinitionWriter* des
 }
 
 static void copyBehavior(const BehaviorReader* source, BehaviorWriter* destination, MemoryResource*  /*unused*/) {
+    destination->clearJointGroups();
+
     auto guiToRawInputIndices = source->getGUIToRawInputIndices();
     destination->setGUIToRawInputIndices(guiToRawInputIndices.data(), static_cast<std::uint16_t>(guiToRawInputIndices.size()));
 
@@ -274,7 +293,33 @@ static void copyBehavior(const BehaviorReader* source, BehaviorWriter* destinati
     destination->setAnimatedMapCutValues(animatedMapCutValues.data(), static_cast<std::uint16_t>(animatedMapCutValues.size()));
 }
 
+static bool hasGeometry(const GeometryReader* source) {
+    // Heuristic for determining whether source DNA actually has any geometry data, or mesh count is non-zero only
+    // because of mesh names stored in definition layer
+    std::uint32_t totalVertexCount = {};
+    std::uint32_t totalVertexNormalCount = {};
+    std::uint32_t totalTextureCoordCount = {};
+    std::uint32_t totalVertexLayoutCount = {};
+    std::uint32_t totalSkinWeightCount = {};
+    for (std::uint16_t meshIndex = {}; meshIndex < source->getMeshCount(); ++meshIndex) {
+        totalVertexCount += source->getVertexPositionCount(meshIndex);
+        totalVertexNormalCount += source->getVertexNormalCount(meshIndex);
+        totalTextureCoordCount += source->getVertexTextureCoordinateCount(meshIndex);
+        totalVertexLayoutCount += source->getVertexLayoutCount(meshIndex);
+        totalSkinWeightCount += source->getSkinWeightsCount(meshIndex);
+    }
+    return ((totalVertexCount != 0u) || (totalVertexNormalCount != 0u) || (totalTextureCoordCount != 0u) ||
+            (totalVertexLayoutCount != 0u) || (totalSkinWeightCount != 0u));
+}
+
 static void copyGeometry(const GeometryReader* source, GeometryWriter* destination, MemoryResource* memRes) {
+    destination->clearMeshes();
+
+    if (!hasGeometry(source)) {
+        // Source DNA was loaded without geometry layer
+        return;
+    }
+
     for (std::uint16_t meshIndexPlusOne = source->getMeshCount(); meshIndexPlusOne > 0u; --meshIndexPlusOne) {
         const auto meshIndex = static_cast<std::uint16_t>(meshIndexPlusOne - 1u);
         auto vertexCount = source->getVertexPositionCount(meshIndex);
@@ -326,7 +371,22 @@ static void copyGeometry(const GeometryReader* source, GeometryWriter* destinati
     }
 }
 
+static bool hasBlendShapeTargets(const GeometryReader* source) {
+    // Heuristic for determining whether source DNA actually has any blend shape target data, or mesh count is non-zero only
+    // because of mesh names stored in definition layer
+    std::uint32_t totalBlendShapeTargetCount = {};
+    for (std::uint16_t meshIndex = {}; meshIndex < source->getMeshCount(); ++meshIndex) {
+        totalBlendShapeTargetCount += source->getBlendShapeTargetCount(meshIndex);
+    }
+    return (totalBlendShapeTargetCount != 0u);
+}
+
 static void copyBlendShapeTargets(const GeometryReader* source, GeometryWriter* destination, MemoryResource* memRes) {
+    if (!hasBlendShapeTargets(source)) {
+        // Source DNA was loaded without blend shape targets
+        return;
+    }
+
     for (std::uint16_t meshIndexPlusOne = source->getMeshCount(); meshIndexPlusOne > 0u; --meshIndexPlusOne) {
         const auto meshIndex = static_cast<std::uint16_t>(meshIndexPlusOne - 1u);
         for (std::uint16_t blendShapeTargetIndexPlusOne = source->getBlendShapeTargetCount(meshIndex);

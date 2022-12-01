@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "HAL/Platform.h"
 #include "riglogic/joints/JointsEvaluator.h"
 #include "riglogic/riglogic/Configuration.h"
 #include "riglogic/types/Aliases.h"

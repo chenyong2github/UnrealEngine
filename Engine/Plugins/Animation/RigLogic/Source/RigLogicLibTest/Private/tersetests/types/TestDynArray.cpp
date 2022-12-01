@@ -102,9 +102,14 @@ TEST(DynArrayTest, MoveConstruct) {
     terse::DynArray<int, pma::PolyAllocator<int> > arr{values, 10ul};
     terse::DynArray<int, pma::PolyAllocator<int> > arrCopy = std::move(arr);
 
-    ASSERT_TRUE(arr.empty());
-    ASSERT_EQ(arr.size(), 0ul);
-    ASSERT_EQ(arr.data(), nullptr);
+    // Hide these assertions from clang static analyzer, as move operations for DynArrays are
+    // well defined, but clang doesn't know that, so it will always warn about accessing
+    // moved-from objects.
+    #ifndef __clang_analyzer__
+        ASSERT_TRUE(arr.empty());
+        ASSERT_EQ(arr.size(), 0ul);
+        ASSERT_EQ(arr.data(), nullptr);
+    #endif  // __clang_analyzer__
 
     ASSERT_EQ(arrCopy.size(), 10ul);
     for (std::size_t i{}; i < arrCopy.size(); ++i) {
@@ -120,9 +125,14 @@ TEST(DynArrayTest, MoveAssign) {
     terse::DynArray<int, pma::PolyAllocator<int> > arrCopy;
     arrCopy = std::move(arr);
 
-    ASSERT_TRUE(arr.empty());
-    ASSERT_EQ(arr.size(), 0ul);
-    ASSERT_EQ(arr.data(), nullptr);
+    // Hide these assertions from clang static analyzer, as move operations for DynArrays are
+    // well defined, but clang doesn't know that, so it will always warn about accessing
+    // moved-from objects.
+    #ifndef __clang_analyzer__
+        ASSERT_TRUE(arr.empty());
+        ASSERT_EQ(arr.size(), 0ul);
+        ASSERT_EQ(arr.data(), nullptr);
+    #endif  // __clang_analyzer__
 
     ASSERT_EQ(arrCopy.size(), 10ul);
     for (std::size_t i{}; i < arrCopy.size(); ++i) {

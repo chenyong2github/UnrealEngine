@@ -35,7 +35,7 @@ class LODMapping {
         void associateLODWithIndices(std::uint16_t lod, std::uint16_t index);
         void mapIndices(std::function<std::uint16_t(std::uint16_t)> mapper);
         void filterIndices(std::function<bool(std::uint16_t)> filterer);
-        void mergeIndicesInto(UnorderedSet<std::uint16_t>& destination) const;
+        UnorderedSet<std::uint16_t> getCombinedDistinctIndices(MemoryResource* memRes) const;
 
     private:
         void cleanupIndices();

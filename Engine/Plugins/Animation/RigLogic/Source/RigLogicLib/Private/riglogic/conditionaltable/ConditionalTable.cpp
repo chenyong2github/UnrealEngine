@@ -24,9 +24,31 @@ namespace {
 const float clampMin = 0.0f;
 const float clampMax = 1.0f;
 
+Vector<std::uint16_t> buildIntervalSkipMap(const Vector<std::uint16_t>& inputIndices,
+                                           const Vector<std::uint16_t>& outputIndices,
+                                           MemoryResource* memRes) {
+    assert(inputIndices.size() == outputIndices.size());
+    Vector<std::uint16_t> intervalsRemaining{inputIndices.size(), {}, memRes};
+    for (std::size_t i = {}; i < inputIndices.size();) {
+        std::uint16_t intervalCount = 1u;
+        const std::uint16_t currentInputIndex = inputIndices[i];
+        const std::uint16_t currentOutputIndex = outputIndices[i];
+        for (std::size_t j = i + 1ul;
+             (j < inputIndices.size()) && (currentInputIndex == inputIndices[j]) && (currentOutputIndex == outputIndices[j]);
+             ++j) {
+            intervalsRemaining[j] = intervalCount++;
+        }
+        auto start = intervalsRemaining.data() + i;
+        std::reverse(start, start + intervalCount);
+        i += intervalCount;
+    }
+    return intervalsRemaining;
+}
+
 }  // namespace
 
 ConditionalTable::ConditionalTable(MemoryResource* memRes) :
+    intervalsRemaining{memRes},
     inputIndices{memRes},
     outputIndices{memRes},
     fromValues{memRes},
@@ -44,7 +66,9 @@ ConditionalTable::ConditionalTable(Vector<std::uint16_t>&& inputIndices_,
                                    Vector<float>&& slopeValues_,
                                    Vector<float>&& cutValues_,
                                    std::uint16_t inputCount_,
-                                   std::uint16_t outputCount_) :
+                                   std::uint16_t outputCount_,
+                                   MemoryResource* memRes) :
+    intervalsRemaining{buildIntervalSkipMap(inputIndices_, outputIndices_, memRes)},
     inputIndices{std::move(inputIndices_)},
     outputIndices{std::move(outputIndices_)},
     fromValues{std::move(fromValues_)},
@@ -66,15 +90,16 @@ std::uint16_t ConditionalTable::getOutputCount() const {
 void ConditionalTable::calculate(const float* inputs, float* outputs, std::uint16_t chunkSize) const {
     std::fill_n(outputs, outputCount, 0.0f);
 
-    for (std::uint16_t i = 0u; i < chunkSize; ++i) {
+    for (std::uint16_t i = {}; i < chunkSize; ++i) {
         const float inValue = inputs[inputIndices[i]];
         const float from = fromValues[i];
         const float to = toValues[i];
-        if ((from < inValue) && (inValue <= to)) {
+        if ((from <= inValue) && (inValue <= to)) {
             const std::uint16_t outIndex = outputIndices[i];
             const float slope = slopeValues[i];
             const float cut = cutValues[i];
             outputs[outIndex] += (slope * inValue + cut);
+            i = static_cast<std::uint16_t>(i + intervalsRemaining[i]);
         }
     }
 

@@ -13,6 +13,7 @@ struct RawDefinition;
 class MeshFilter {
     public:
         explicit MeshFilter(MemoryResource* memRes_);
+        void configure(std::uint16_t meshCount, UnorderedSet<std::uint16_t> allowedMeshIndices);
         void apply(RawDefinition& dest);
         bool passes(std::uint16_t index) const;
 

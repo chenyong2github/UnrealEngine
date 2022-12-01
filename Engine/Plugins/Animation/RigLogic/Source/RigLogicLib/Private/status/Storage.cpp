@@ -19,11 +19,11 @@ struct StatusCodeStorage {
     char message[512];
 };
 
-void strcopy(char* destination, const char* source, std::size_t size) {
+void strcopy(char* destination, const char* source, std::size_t bufferSize) {
     #ifdef _MSC_VER
-        strncpy_s(destination, size, source, size);
+        strncpy_s(destination, bufferSize, source, bufferSize - 1ul);
     #else
-        std::strncpy(destination, source, size);
+        std::strncpy(destination, source, bufferSize - 1ul);
     #endif
 }
 

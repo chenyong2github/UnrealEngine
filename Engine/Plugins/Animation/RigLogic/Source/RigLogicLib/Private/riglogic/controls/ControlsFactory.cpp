@@ -39,6 +39,7 @@ ControlsFactory::ControlsPtr ControlsFactory::create(const dna::BehaviorReader* 
             std::swap(fromValues[i], toValues[i]);
         }
     }
+
     ConditionalTable conditionals{std::move(inputIndices),
                                   std::move(outputIndices),
                                   std::move(fromValues),
@@ -46,7 +47,8 @@ ControlsFactory::ControlsPtr ControlsFactory::create(const dna::BehaviorReader* 
                                   std::move(slopeValues),
                                   std::move(cutValues),
                                   reader->getGUIControlCount(),
-                                  reader->getRawControlCount()};
+                                  reader->getRawControlCount(),
+                                  memRes};
 
     Vector<std::uint16_t> psdRows{memRes};
     Vector<std::uint16_t> psdColumns{memRes};

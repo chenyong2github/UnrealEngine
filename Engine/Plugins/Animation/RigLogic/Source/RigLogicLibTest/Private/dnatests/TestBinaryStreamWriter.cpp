@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "dnatests/TestStreamWriter.h"
+#include "dnatests/TestBinaryStreamWriter.h"
 
-StreamWriterTest::~StreamWriterTest() = default;
+BinaryStreamWriterTest::~BinaryStreamWriterTest() = default;
 
-TEST_F(StreamWriterTest, SetName) {
+TEST_F(BinaryStreamWriterTest, SetName) {
     writer->setLODCount(1);
     writer->setName("test");
     writer->write();
@@ -14,7 +14,7 @@ TEST_F(StreamWriterTest, SetName) {
     EXPECT_STREQ(gotName, "test");
 }
 
-TEST_F(StreamWriterTest, SetControlName) {
+TEST_F(BinaryStreamWriterTest, SetControlName) {
     writer->setLODCount(1);
     writer->setRawControlName(0ul, "test");
     writer->write();
@@ -24,7 +24,7 @@ TEST_F(StreamWriterTest, SetControlName) {
     EXPECT_STREQ(reader->getRawControlName(0ul), "test");
 }
 
-TEST_F(StreamWriterTest, SetJointRowCount) {
+TEST_F(BinaryStreamWriterTest, SetJointRowCount) {
     writer->setLODCount(1);
     writer->setJointRowCount(1ul);
     writer->write();

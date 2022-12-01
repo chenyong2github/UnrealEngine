@@ -1,11 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "tersetests/Defs.h"
+#include "tersetests/FakeStream.h"
 #include "tersetests/archives/binary/Common.h"
-#include "tersetests/archives/binary/FakeStream.h"
 
-#include "terse/utils/ArchiveOffset.h"
 #include "terse/archives/binary/InputArchive.h"
+#include "terse/types/Anchor.h"
+#include "terse/types/ArchiveOffset.h"
+#include "terse/types/ArchiveSize.h"
+#include "terse/types/DynArray.h"
+#include "terse/types/Versioned.h"
 
 #include <pma/TypeDefs.h>
 #include <pma/resources/AlignedMemoryResource.h>
@@ -24,13 +28,13 @@
 
 TEST(BinaryInputArchiveTest, StreamExtractionOperator) {
     tersetests::FakeStream stream;
-    unsigned char bytes[2 * sizeof(char)] = {0x01, 0x02};
+    unsigned char bytes[2ul * sizeof(char)] = {0x01, 0x02};
     stream.write(reinterpret_cast<char*>(bytes), sizeof(bytes));
     stream.seek(0ul);
 
     terse::BinaryInputArchive<tersetests::FakeStream> archive(&stream);
-    char first;
-    char second;
+    char first = {};
+    char second = {};
     archive >> first >> second;
 
     ASSERT_EQ(first, 0x01);
@@ -58,15 +62,12 @@ TEST(BinaryInputArchiveTest, ArchiveOffset) {
     OffsetUtilizer dest;
     archive >> dest;
 
-    ASSERT_EQ(dest.layerStart.position, 0ul);
     ASSERT_EQ(dest.layerStart.proxy, &dest.layerMarker);
     ASSERT_EQ(dest.layerStart.value, 25ul);
 
-    ASSERT_EQ(dest.first.position, 4ul);
     ASSERT_EQ(dest.first.proxy, &dest.firstMarker);
     ASSERT_EQ(dest.first.value, 25ul);
 
-    ASSERT_EQ(dest.second.position, 8ul);
     ASSERT_EQ(dest.second.proxy, &dest.secondMarker);
     ASSERT_EQ(dest.second.value, 29ul);
 }
@@ -138,6 +139,69 @@ TEST(BinaryInputArchiveTest, ArchiveOffsetRepositionsStream) {
     ASSERT_EQ(dest.ignored.c, 0u);
 }
 
+struct Wrapped {
+    std::uint32_t someValue;
+    terse::ArchiveSize<std::uint32_t, std::uint32_t> size;
+    terse::ArchiveSize<std::uint32_t, std::uint32_t> size2;
+    terse::Anchor<std::uint32_t> base;
+    IgnoredSection ignored;
+    terse::ArchiveSize<std::uint32_t, std::uint32_t>::Proxy sizeMarker;
+
+    Wrapped() :
+        someValue{},
+        size{},
+        size2{},
+        base{},
+        ignored{},
+        sizeMarker{size, base} {
+    }
+
+    template<class Archive>
+    void serialize(Archive& archive) {
+        archive(someValue, size, size2, base, ignored, sizeMarker, terse::proxy(size2, base));
+    }
+
+};
+
+TEST(BinaryInputArchiveTest, ArchiveSizeIsRelativeToOffset) {
+    tersetests::FakeStream stream;
+    unsigned char bytes[26ul] = {
+        0x00, 0x00, 0x00, 0x11,  // someValue
+        0x00, 0x00, 0x00, 0x0e,  // size
+        0x00, 0x00, 0x00, 0x0e,  // size2
+        0x00, 0x00, 0x04, 0xd2,  // a = 1234
+        0x00, 0x00, 0x00, 0x04,  // b size = 4
+        0x61, 0x62, 0x63, 0x64,  // b = 'abcd'
+        0x01, 0x00  // c = 256
+    };
+    stream.write(reinterpret_cast<char*>(bytes), sizeof(bytes));
+    stream.seek(0ul);
+
+    terse::BinaryInputArchive<tersetests::FakeStream> archive(&stream);
+    Wrapped dest;
+    archive >> dest;
+
+    // Sanity check to make sure ignored layer was really ignored
+    ASSERT_EQ(dest.ignored.a, 0u);
+    ASSERT_EQ(dest.ignored.b, "");
+    ASSERT_EQ(dest.ignored.c, 0u);
+    // Verify that stream was positioned correctly to jump to the end when size marker was encountered
+    ASSERT_EQ(stream.tell(), sizeof(bytes));
+}
+
+TEST(BinaryInputArchiveTest, LittleEndianDataDeserialization) {
+    tersetests::FakeStream stream;
+    unsigned char bytes[sizeof(std::int32_t)] = {0xd2, 0x04, 0x00, 0x00};  // 1234
+    stream.write(reinterpret_cast<char*>(bytes), sizeof(bytes));
+    stream.seek(0ul);
+
+    terse::BinaryInputArchive<tersetests::FakeStream, std::uint32_t, std::uint32_t, terse::Endianness::Little> archive(&stream);
+    std::int32_t dest;
+    archive(dest);
+
+    ASSERT_EQ(dest, 1234);
+}
+
 TEST(BinaryInputArchiveTest, PrimitiveTypeDeserialization) {
     tersetests::FakeStream stream;
     unsigned char bytes[sizeof(std::int32_t)] = {0x00, 0x00, 0x04, 0xd2};  // 1234
@@ -153,7 +217,7 @@ TEST(BinaryInputArchiveTest, PrimitiveTypeDeserialization) {
 
 TEST(BinaryInputArchiveTest, ComplexTypeDeserialization) {
     tersetests::FakeStream stream;
-    unsigned char bytes[sizeof(ComplexType)] = {
+    unsigned char bytes[14ul] = {
         0x7f,  // 127
         0xff,  // 255
         0x7f, 0xff,  // 32767
@@ -178,7 +242,7 @@ TEST(BinaryInputArchiveTest, ComplexTypeDeserialization) {
 
 TEST(BinaryInputArchiveTest, FreeSerialize) {
     tersetests::FakeStream stream;
-    unsigned char bytes[sizeof(SerializableByFreeSerialize)] = {
+    unsigned char bytes[6ul] = {
         0xff, 0xff, 0xff, 0xff,  // 4294967295
         0xff, 0xff  // 65535
     };
@@ -195,7 +259,7 @@ TEST(BinaryInputArchiveTest, FreeSerialize) {
 
 TEST(BinaryInputArchiveTest, FreeLoad) {
     tersetests::FakeStream stream;
-    unsigned char bytes[sizeof(SerializableByFreeLoadSave)] = {
+    unsigned char bytes[6ul] = {
         0xff, 0xff, 0xff, 0xff,  // 4294967295
         0xff, 0xff  // 65535
     };
@@ -213,7 +277,7 @@ TEST(BinaryInputArchiveTest, FreeLoad) {
 TEST(BinaryInputArchiveTest, StringDeserialization) {
     tersetests::FakeStream stream;
     unsigned char size[sizeof(std::uint32_t)] = {0x00, 0x00, 0x00, 0x08};  // 8
-    unsigned char bytes[8] = {
+    unsigned char bytes[8ul] = {
         0x61,  // 'a'
         0x62,  // 'b'
         0x63,  // 'c'
@@ -234,10 +298,35 @@ TEST(BinaryInputArchiveTest, StringDeserialization) {
     ASSERT_EQ(dest, "abcdefgh");
 }
 
+TEST(BinaryInputArchiveTest, BlobDeserialization) {
+    tersetests::FakeStream stream;
+    unsigned char bytes[8ul] = {
+        0x61,  // 'a'
+        0x62,  // 'b'
+        0x63,  // 'c'
+        0x64,  // 'd'
+        0x65,  // 'e'
+        0x66,  // 'f'
+        0x67,  // 'g'
+        0x68  // 'h'
+    };
+    stream.write(reinterpret_cast<char*>(bytes), sizeof(bytes));
+    stream.seek(0ul);
+
+    terse::BinaryInputArchive<tersetests::FakeStream> archive(&stream);
+    terse::Blob<char, pma::PolyAllocator<char> > dest;
+    dest.setSize(4ul);  // This dictates the number of bytes that will be read
+    archive(dest);
+
+    ASSERT_EQ(dest.size(), 4ul);
+    ASSERT_EQ(stream.tell(), 4ul);
+    ASSERT_ELEMENTS_EQ(dest.data(), bytes, dest.size());
+}
+
 TEST(BinaryInputArchiveTest, VectorOfInt8TypeDeserialization) {
     tersetests::FakeStream stream;
     unsigned char size[sizeof(std::uint32_t)] = {0x00, 0x00, 0x00, 0x05};  // 5
-    unsigned char bytes[5] = {
+    unsigned char bytes[5ul] = {
         0x80,  // -128
         0x9c,  // -100
         0xff,  // -1
@@ -259,7 +348,7 @@ TEST(BinaryInputArchiveTest, VectorOfInt8TypeDeserialization) {
 TEST(BinaryInputArchiveTest, VectorOfInt16TypeDeserialization) {
     tersetests::FakeStream stream;
     unsigned char size[sizeof(std::uint32_t)] = {0x00, 0x00, 0x00, 0x05};  // 5
-    unsigned char bytes[5 * sizeof(std::uint16_t)] = {
+    unsigned char bytes[5ul * sizeof(std::uint16_t)] = {
         0x80, 0x00,  // -32768
         0xff, 0xf9,  // -7
         0x00, 0x0f,  // 15
@@ -282,7 +371,7 @@ TEST(BinaryInputArchiveTest, VectorOfInt16TypeDeserialization) {
 TEST(BinaryInputArchiveTest, VectorOfInt32TypeDeserialization) {
     tersetests::FakeStream stream;
     unsigned char size[sizeof(std::uint32_t)] = {0x00, 0x00, 0x00, 0x08};  // 8
-    unsigned char bytes[8 * sizeof(std::int32_t)] = {
+    unsigned char bytes[8ul * sizeof(std::int32_t)] = {
         0x80, 0x00, 0x00, 0x00,  // -2147483648
         0xff, 0xff, 0xff, 0xf0,  // -16
         0x00, 0x00, 0x00, 0x80,  // 128
@@ -308,7 +397,7 @@ TEST(BinaryInputArchiveTest, VectorOfInt32TypeDeserialization) {
 TEST(BinaryInputArchiveTest, VectorOfInt64TypeDeserialization) {
     tersetests::FakeStream stream;
     unsigned char size[sizeof(std::int32_t)] = {0x00, 0x00, 0x00, 0x05};  // 5
-    unsigned char bytes[5 * sizeof(std::int64_t)] = {
+    unsigned char bytes[5ul * sizeof(std::int64_t)] = {
         0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // -9223372036854775808
         0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00,  // -256
         0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,  // -1
@@ -331,7 +420,7 @@ TEST(BinaryInputArchiveTest, VectorOfInt64TypeDeserialization) {
 TEST(BinaryInputArchiveTest, VectorOfFloatTypeDeserialization) {
     tersetests::FakeStream stream;
     unsigned char size[sizeof(std::uint32_t)] = {0x00, 0x00, 0x00, 0x05};  // 5
-    unsigned char bytes[5 * sizeof(float)] = {
+    unsigned char bytes[5ul * sizeof(float)] = {
         0x3f, 0x99, 0x99, 0x9a,  // 1.2f
         0x40, 0x48, 0xf5, 0xc3,  // 3.14f
         0x3d, 0x4c, 0xcc, 0xcd,  // 0.05f
@@ -353,7 +442,7 @@ TEST(BinaryInputArchiveTest, VectorOfFloatTypeDeserialization) {
 TEST(BinaryInputArchiveTest, VectorOfDoubleTypeDeserialization) {
     tersetests::FakeStream stream;
     unsigned char size[sizeof(std::uint32_t)] = {0x00, 0x00, 0x00, 0x05};  // 5
-    unsigned char bytes[5 * sizeof(double)] = {
+    unsigned char bytes[5ul * sizeof(double)] = {
         0xc0, 0x24, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x40, 0x09, 0x1e, 0xb8, 0x51, 0xeb, 0x85, 0x1f,
         0x3f, 0xa9, 0x99, 0x99, 0x99, 0x99, 0x99, 0x9a,
@@ -375,7 +464,7 @@ TEST(BinaryInputArchiveTest, VectorOfDoubleTypeDeserialization) {
 TEST(BinaryInputArchiveTest, VectorOfComplexTypeDeserialization) {
     tersetests::FakeStream stream;
     unsigned char size[sizeof(std::uint32_t)] = {0x00, 0x00, 0x00, 0x02};  // 2
-    unsigned char bytes[2 * sizeof(ComplexType)] = {
+    unsigned char bytes[28ul] = {
         0x7f,  // 127
         0xff,  // 255
         0x7f, 0xff,  // 32767
@@ -395,6 +484,42 @@ TEST(BinaryInputArchiveTest, VectorOfComplexTypeDeserialization) {
 
     terse::BinaryInputArchive<tersetests::FakeStream> archive(&stream);
     std::vector<ComplexType> dest;
+    archive(dest);
+
+    ASSERT_EQ(dest.size(), 2ul);
+    for (const auto& ct : dest) {
+        ASSERT_EQ(ct.a, 127);
+        ASSERT_EQ(ct.b, 255u);
+        ASSERT_EQ(ct.c, 32767);
+        ASSERT_EQ(ct.d, 65535u);
+        ASSERT_EQ(ct.e, 2147483647);
+        ASSERT_EQ(ct.f, 4294967295u);
+    }
+}
+
+TEST(BinaryInputArchiveTest, DynArrayOfPrimitiveStructsDeserialization) {
+    tersetests::FakeStream stream;
+    unsigned char size[sizeof(std::uint32_t)] = {0x00, 0x00, 0x00, 0x02};  // 2
+    unsigned char bytes[28ul] = {
+        0x7f,  // 127
+        0xff,  // 255
+        0x7f, 0xff,  // 32767
+        0xff, 0xff,  // 65535
+        0x7f, 0xff, 0xff, 0xff,  // 2147483647
+        0xff, 0xff, 0xff, 0xff,  // 4294967295
+        0x7f,  // 127
+        0xff,  // 255
+        0x7f, 0xff,  // 32767
+        0xff, 0xff,  // 65535
+        0x7f, 0xff, 0xff, 0xff,  // 2147483647
+        0xff, 0xff, 0xff, 0xff  // 4294967295
+    };
+    stream.write(reinterpret_cast<char*>(size), sizeof(size));
+    stream.write(reinterpret_cast<char*>(bytes), sizeof(bytes));
+    stream.seek(0ul);
+
+    terse::BinaryInputArchive<tersetests::FakeStream> archive(&stream);
+    terse::DynArray<ComplexType, pma::PolyAllocator<ComplexType> > dest;
     archive(dest);
 
     ASSERT_EQ(dest.size(), 2ul);
@@ -481,8 +606,8 @@ TEST(BinaryInputArchiveTest, VectorOfPairOfStringsDeserialization) {
     tersetests::FakeStream stream;
     unsigned char vectorSize[sizeof(std::uint32_t)] = {0x00, 0x00, 0x00, 0x02};  // 2
     unsigned char stringSize[sizeof(std::uint32_t)] = {0x00, 0x00, 0x00, 0x04};  // 4
-    unsigned char keyBytes[4] = {0x61, 0x62, 0x63, 0x64};  // "abcd"
-    unsigned char valueBytes[4] = {0x65, 0x66, 0x67, 0x68};  // "efgh"
+    unsigned char keyBytes[4ul] = {0x61, 0x62, 0x63, 0x64};  // "abcd"
+    unsigned char valueBytes[4ul] = {0x65, 0x66, 0x67, 0x68};  // "efgh"
     stream.write(reinterpret_cast<char*>(vectorSize), sizeof(vectorSize));
     // Write key
     stream.write(reinterpret_cast<char*>(stringSize), sizeof(stringSize));
@@ -514,7 +639,7 @@ TEST(BinaryInputArchiveTest, VectorOfVectorOfPrimitiveTypeDeserialization) {
     tersetests::FakeStream stream;
     unsigned char outerVectorSize[sizeof(std::uint32_t)] = {0x00, 0x00, 0x00, 0x02};  // 2
     unsigned char innerVectorSize[sizeof(std::uint32_t)] = {0x00, 0x00, 0x00, 0x04};  // 4
-    unsigned char innerVectorBytes[4 * sizeof(std::uint16_t)] = {
+    unsigned char innerVectorBytes[4ul * sizeof(std::uint16_t)] = {
         0x00, 0x04,  // 4
         0x00, 0x10,  // 16
         0x01, 0x00,  // 256
@@ -594,4 +719,34 @@ TEST(BinaryInputArchiveTest, MixedNestedTypes) {
             ASSERT_EQ(child.floats[2], 3.14f);
         }
     }
+}
+
+TEST(BinaryInputArchiveTest, AttachUserData) {
+    int userData = {};
+    tersetests::FakeStream stream;
+    terse::BinaryInputArchive<tersetests::FakeStream> archive(&stream);
+    ASSERT_EQ(archive.getUserData(), nullptr);
+    archive.setUserData(&userData);
+    ASSERT_EQ(archive.getUserData(), &userData);
+}
+
+TEST(BinaryInputArchiveTest, LoadVersionedType) {
+    unsigned char bytesv1[] = {0x00, 0x00, 0x04, 0xd2};  // 1234
+    unsigned char bytesv2[] = {0x00, 0x00, 0x04, 0xd2, 0x00, 0xff};  // 1234, 255
+
+    tersetests::FakeStream stream;
+    stream.write(reinterpret_cast<char*>(bytesv1), sizeof(bytesv1));
+    stream.write(reinterpret_cast<char*>(bytesv2), sizeof(bytesv2));
+    stream.seek(0ul);
+    terse::BinaryInputArchive<tersetests::FakeStream> archive(&stream);
+
+    UpgradedSerializableType destv1{};
+    archive(terse::versioned(destv1, terse::Version<1>{}));
+    ASSERT_EQ(destv1.a, 1234u);
+    ASSERT_EQ(destv1.b, 0u);  // b is not loaded under version-1 serialization rules
+
+    UpgradedSerializableType destv2{};
+    archive(terse::versioned(destv2, terse::Version<2>{}));
+    ASSERT_EQ(destv2.a, 1234u);
+    ASSERT_EQ(destv2.b, 255u);
 }
