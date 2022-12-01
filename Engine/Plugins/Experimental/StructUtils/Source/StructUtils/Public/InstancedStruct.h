@@ -145,6 +145,7 @@ public:
 	bool ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText, FArchive* InSerializingArchive = nullptr);
 	bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
 	void GetPreloadDependencies(TArray<UObject*>& OutDeps);
+	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
 
 	/** Returns struct type. */
 	const UScriptStruct* GetScriptStruct() const
@@ -293,5 +294,6 @@ struct TStructOpsTypeTraits<FInstancedStruct> : public TStructOpsTypeTraitsBase2
 		WithAddStructReferencedObjects = true,
 		WithStructuredSerializeFromMismatchedTag = true,
 		WithGetPreloadDependencies = true,
+		WithNetSerializer = true,
 	};
 };
