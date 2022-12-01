@@ -83,7 +83,7 @@ ALandscapeProxy* FLandscapeConfigHelper::FindOrAddLandscapeStreamingProxy(UActor
 	const bool bBoundsSearch = false;
 
 	ALandscapeProxy* LandscapeProxy = Cast<ALandscapeProxy>(InActorPartitionSubsystem->GetActor(ALandscapeStreamingProxy::StaticClass(), InCellCoord, bCreate, InLandscapeInfo->LandscapeGuid, Landscape->GridSize, bBoundsSearch, LandscapeProxyCreated));
-	check(LandscapeProxy->GridSize == Landscape->GridSize);
+	check(!LandscapeProxy || LandscapeProxy->GridSize == Landscape->GridSize);
 	return LandscapeProxy;
 }
 

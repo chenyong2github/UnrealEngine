@@ -18,6 +18,8 @@
 #include "Misc/SecureHash.h"
 #include "CollisionQueryParams.h"
 #include "Engine/World.h"
+#include "LandscapeSubsystem.h"
+#include "LandscapeRender.h"
 #include "LandscapeProxy.h"
 #include "LandscapeInfo.h"
 #include "Interfaces/Interface_CollisionDataProvider.h"
@@ -66,11 +68,11 @@ using namespace PhysicsInterfaceTypes;
 // Global switch for whether to read/write to DDC for landscape cooked data
 // It's a lot faster to compute than to request from DDC, so always skip.
 bool GLandscapeCollisionSkipDDC = true;
-static int32 CVarLandscapeShowCollisionMeshCurrentValue = 0;
+static int32 CVarLandscapeShowCollisionMeshCurrentValue = static_cast<int>(EHeightfieldSource::Simple);
 static TAutoConsoleVariable<int32> CVarLandscapeShowCollisionMesh(
 	TEXT("landscape.ShowCollisionMesh"),
 	CVarLandscapeShowCollisionMeshCurrentValue,
-	TEXT("Selects which heightfield to visualize when ShowFlags.Collision is used. 0 for simple, 1 for complex, 2 for editor only."),
+	TEXT("Selects which heightfield to visualize when ShowFlags.Collision is used. 0 to disable, 1 for simple, 2 for complex, 3 for editor only."),
 	ECVF_RenderThreadSafe
 );
 
@@ -621,7 +623,12 @@ FPrimitiveSceneProxy* ULandscapeHeightfieldCollisionComponent::CreateSceneProxy(
 	};
 
 	FLandscapeHeightfieldCollisionComponentSceneProxy* Proxy = nullptr;
-
+	if (ULandscapeSubsystem* LandscapeSubsystem = this->GetWorld()->GetSubsystem<ULandscapeSubsystem>(); 
+		LandscapeSubsystem && !LandscapeSubsystem->AnyViewShowCollisions())
+	{
+		return Proxy;
+	}
+	
 	if (HeightfieldRef.IsValid() && IsValidRef(HeightfieldRef))
 	{
 		const Chaos::FHeightField* LocalHeightfield = nullptr;
@@ -629,6 +636,9 @@ FPrimitiveSceneProxy* ULandscapeHeightfieldCollisionComponent::CreateSceneProxy(
 
 		switch (static_cast<EHeightfieldSource>(CVarLandscapeShowCollisionMesh.GetValueOnGameThread()))
 		{
+		case EHeightfieldSource::None:
+			WireframeColor = FColor(0, 0, 0, 0);
+			break;
 		case EHeightfieldSource::Simple:
 			if (HeightfieldRef->HeightfieldSimple.IsValid())
 			{
@@ -2656,6 +2666,8 @@ TOptional<float> ULandscapeHeightfieldCollisionComponent::GetHeight(float X, flo
 	
 	switch(HeightFieldSource)
 	{
+	case EHeightfieldSource::None:
+		break;
 	case EHeightfieldSource::Simple:
 		HeightField = HeightfieldRef->HeightfieldSimple.Get(); 
 		break;

@@ -606,12 +606,23 @@ void FLandscapeRenderSystem::UpdateBuffers()
 //
 FLandscapeSceneViewExtension::FLandscapeSceneViewExtension(const FAutoRegister& AutoReg) : FSceneViewExtensionBase(AutoReg)
 {
+
+	FCoreDelegates::OnEndFrame.AddRaw(this, &FLandscapeSceneViewExtension::EndFrame_GameThread);
 	FCoreDelegates::OnEndFrameRT.AddRaw(this, &FLandscapeSceneViewExtension::EndFrame_RenderThread);
 }
 
 FLandscapeSceneViewExtension::~FLandscapeSceneViewExtension()
 {
 	FCoreDelegates::OnEndFrameRT.RemoveAll(this);
+	FCoreDelegates::OnEndFrame.RemoveAll(this);
+}
+
+void FLandscapeSceneViewExtension::BeginRenderViewFamily(FSceneViewFamily& InViewFamily) 
+{
+	if (InViewFamily.EngineShowFlags.Collision)
+	{
+		NumViewsWithShowCollisionAcc++;
+	}
 }
 
 void FLandscapeSceneViewExtension::PreRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView)
@@ -691,6 +702,12 @@ void FLandscapeSceneViewExtension::PreInitViews_RenderThread(FRDGBuilder& GraphB
 	}
 
 	LandscapeViews.Reset();
+}
+
+void FLandscapeSceneViewExtension::EndFrame_GameThread()
+{
+	NumViewsWithShowCollision = NumViewsWithShowCollisionAcc;
+	NumViewsWithShowCollisionAcc = 0;
 }
 
 // TODO [jonathan.bard] Ideally this should be symmetrical with FLandscapeSceneViewExtension::PreRenderView_RenderThread and should be called in FLandscapeSceneViewExtension::PostRenderView_RenderThread
