@@ -29,9 +29,14 @@ bool FInputDevicePropertyHandle::operator!=(const FInputDevicePropertyHandle& Ot
 	return InternalId != Other.InternalId;
 }
 
+uint32 FInputDevicePropertyHandle::GetTypeHash() const
+{
+	return ::GetTypeHash(InternalId);
+}
+
 uint32 GetTypeHash(const FInputDevicePropertyHandle& InHandle)
 {
-	return GetTypeHash(InHandle.InternalId);
+	return InHandle.GetTypeHash();
 }
 
 FString FInputDevicePropertyHandle::ToString() const

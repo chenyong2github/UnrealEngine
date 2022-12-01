@@ -21,6 +21,8 @@ struct ENGINE_API FInputDevicePropertyHandle
 	/** An invalid Input Device Property handle */
 	static FInputDevicePropertyHandle InvalidHandle;
 
+	uint32 GetTypeHash() const;
+
 	ENGINE_API friend uint32 GetTypeHash(const FInputDevicePropertyHandle& InHandle);
 
 	bool operator==(const FInputDevicePropertyHandle& Other) const;
