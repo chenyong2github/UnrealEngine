@@ -6,7 +6,6 @@
 
 #include "Components/PrimitiveComponent.h"
 #include "Engine/Level.h"
-#include "EngineStats.h"
 #include "GameFramework/DamageType.h"
 #include "GameFramework/Pawn.h"
 #include "PSOPrecache.h"

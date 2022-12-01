@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Algo/Copy.h"
+#include "EngineStats.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
