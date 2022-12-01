@@ -1746,6 +1746,11 @@ public:
 	ENGINE_API FGraphEventArray CollectPSOs(ERHIFeatureLevel::Type InFeatureLevel, const TConstArrayView<const FVertexFactoryType*>& VertexFactoryTypes, const FPSOPrecacheParams& PreCacheParams);
 
 	/**
+	 * Helper function used by background thread when PSO collection for given vertex factory type and params are done - it also passes the currently compiling PSO graph events to keep track of
+	 */
+	void AddPrecachedPSOVertexFactoryType(const FVertexFactoryType* VertexFactoryType, const FPSOPrecacheParams& PreCacheParams, const FGraphEventArray& PSOCompileEvents);
+
+	/**
 	 * Should the shader for this material with the given platform, shader type and vertex 
 	 * factory type combination be compiled
 	 *
@@ -2385,8 +2390,19 @@ private:
 			return HashCombine(GetTypeHash(Params.PrecachePSOParams), GetTypeHash(Params.VertexFactoryType));
 		}
 	};
+
+	/**
+	 * Struct used to keep track of all precached vertex factories with pso params and the currently still compiling graph events 
+	 * No map is used reduce the memory footprint for storage (mostly for platforms where PSO precaching is not enabled)
+	 */
+	struct FPSOPrecacheEntry
+	{
+		FPrecacheVertexTypeWithParams PrecacheVertexTypeWithParams;
+		FGraphEventArray CompilingGraphEvents;
+	};
+
 	FRWLock PrecachePSOVFLock;
-	TArray<FPrecacheVertexTypeWithParams> PrecachedPSOVertexFactories;
+	TArray<FPSOPrecacheEntry> PrecachedPSOVertexFactories;
 
 #if WITH_EDITOR
 	/**

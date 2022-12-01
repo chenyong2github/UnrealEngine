@@ -2353,7 +2353,8 @@ FPrimitiveSceneProxy* UInstancedStaticMeshComponent::CreateSceneProxy()
 		// make sure we have an actual static mesh
 		GetStaticMesh() &&
 		GetStaticMesh()->IsCompiling() == false &&
-		GetStaticMesh()->HasValidRenderData();
+		GetStaticMesh()->HasValidRenderData() &&
+		!IsPSOPrecaching();
 
 	if (bMeshIsValid)
 	{
@@ -4548,14 +4549,18 @@ void UInstancedStaticMeshComponent::PrecachePSOs()
 	
 	const FVertexFactoryType* VFType = ShouldCreateNaniteProxy() ? &Nanite::FVertexFactory::StaticType : &FInstancedStaticMeshVertexFactory::StaticType;
 
+	FGraphEventArray PSOPrecacheCompileEvents;
 	for (uint16 MaterialIndex : UsedMaterialIndices)
 	{
 		UMaterialInterface* MaterialInterface = GetMaterial(MaterialIndex);
 		if (MaterialInterface)
 		{
-			MaterialInterface->PrecachePSOs(VFType, PrecachePSOParams);
+			PSOPrecacheCompileEvents.Append(MaterialInterface->PrecachePSOs(VFType, PrecachePSOParams));
 		}
 	}
+
+	// Mark the render state dirty when all PSOs are compiled so the proxy gets recreated
+	RequestRecreateRenderStateWhenPSOPrecacheFinished(PSOPrecacheCompileEvents);
 }
 
 void UInstancedStaticMeshComponent::OnPostLoadPerInstanceData()

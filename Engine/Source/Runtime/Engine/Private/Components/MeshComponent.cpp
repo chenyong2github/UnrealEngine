@@ -7,6 +7,7 @@
 #include "ContentStreaming.h"
 #include "Streaming/TextureStreamingHelpers.h"
 #include "Engine/World.h"
+#include "PSOPrecache.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MeshComponent)
 
@@ -25,6 +26,7 @@ UMeshComponent::UMeshComponent(const FObjectInitializer& ObjectInitializer)
 	bCanEverAffectNavigation = true;
 	bCachedMaterialParameterIndicesAreDirty = true;
 	bEnableMaterialParameterCaching = false;
+	bPSOPrecacheCalled = false;
 }
 
 UMaterialInterface* UMeshComponent::GetMaterial(int32 ElementIndex) const
@@ -74,6 +76,10 @@ void UMeshComponent::SetMaterial(int32 ElementIndex, UMaterialInterface* Materia
 
 			// Set the material and invalidate things
 			OverrideMaterials[ElementIndex] = Material;
+
+			// Precache PSOs again
+			PrecachePSOs();
+
 			MarkRenderStateDirty();
 			// If MarkRenderStateDirty didn't notify the streamer, do it now
 			if (!bIgnoreStreamingManagerUpdate && OwnerLevelHasRegisteredStaticComponentsInStreamingManager(GetOwner()))
@@ -90,8 +96,6 @@ void UMeshComponent::SetMaterial(int32 ElementIndex, UMaterialInterface* Materia
 			{
 				BodyInst->UpdatePhysicalMaterials();
 			}
-
-			PrecachePSOs();
 
 #if WITH_EDITOR
 			// Static Lighting is updated when compilation finishes
@@ -142,6 +146,59 @@ FMaterialRelevance UMeshComponent::GetMaterialRelevance(ERHIFeatureLevel::Type I
 int32 UMeshComponent::GetNumOverrideMaterials() const
 {
 	return OverrideMaterials.Num();
+}
+
+class FMarkRenderStateDirtyTask
+{
+public:
+	explicit FMarkRenderStateDirtyTask(UActorComponent* InActorComponent)
+		: ActorComponent(InActorComponent)
+	{
+	}
+
+	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+	{
+		if (ActorComponent.IsValid())
+		{
+			ActorComponent->MarkRenderStateDirty();
+			ActorComponent = nullptr;
+		}
+	}
+
+public:
+
+	TWeakObjectPtr<UActorComponent> ActorComponent;
+
+	static ESubsequentsMode::Type	GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
+	ENamedThreads::Type				GetDesiredThread() { return ENamedThreads::GameThread; }
+	FORCEINLINE TStatId				GetStatId() const { return TStatId(); }
+};
+
+void UMeshComponent::RequestRecreateRenderStateWhenPSOPrecacheFinished(const FGraphEventArray& PSOPrecacheCompileEvents)
+{
+	// Mark the render state dirty when all PSOs are compiled so the proxy gets recreated
+	if (ProxyCreationWhenPSOReady() && !PSOPrecacheCompileEvents.IsEmpty())
+	{
+		PSOPrecacheCompileEvent = TGraphTask<FMarkRenderStateDirtyTask>::CreateTask(&PSOPrecacheCompileEvents).ConstructAndDispatchWhenReady(this);
+	}
+
+	bPSOPrecacheCalled = true;
+}
+
+bool UMeshComponent::IsPSOPrecaching()
+{
+	if (!ProxyCreationWhenPSOReady())
+	{
+		return false;
+	}
+
+	ensure(!IsComponentPSOPrecachingEnabled() || bPSOPrecacheCalled);
+
+	if (PSOPrecacheCompileEvent && PSOPrecacheCompileEvent->IsComplete())
+	{
+		PSOPrecacheCompileEvent = nullptr;
+	}
+	return PSOPrecacheCompileEvent != nullptr;
 }
 
 #if WITH_EDITOR

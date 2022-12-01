@@ -134,6 +134,12 @@ public:
 	/** Precache all PSOs which can be used by the mesh component */
 	virtual void PrecachePSOs() {}
 
+	/** Schedule task to mark render state dirty when the PSO precaching tasks are done */
+	void RequestRecreateRenderStateWhenPSOPrecacheFinished(const FGraphEventArray& PSOPrecacheCompileEvents);
+
+	/** Check if PSOs are still precaching */
+	bool IsPSOPrecaching();
+
 	/** Generate streaming data for all materials. */
 	void GetStreamingTextureInfoInner(FStreamingTextureLevelContext& LevelContext, const TArray<FStreamingTextureBuildInfo>* PreBuiltData, float ComponentScaling, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingTextures) const;
 
@@ -194,5 +200,11 @@ protected:
 
 	/** Flag whether or not the cached material parameter indices map is dirty (defaults to true, and is set from SetMaterial/Set(Skeletal)Mesh */
 	uint8 bCachedMaterialParameterIndicesAreDirty : 1;
+
+	/** Helper flag to check if PSOs have been precached already */
+	uint8 bPSOPrecacheCalled : 1;
+
+	/** Graph event used to track all the PSO precache events */
+	FGraphEventRef PSOPrecacheCompileEvent;
 
 };

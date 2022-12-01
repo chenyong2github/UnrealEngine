@@ -31,6 +31,14 @@ static FAutoConsoleVariableRef CVarPSOPrecacheResources(
 	ECVF_ReadOnly
 );
 
+int32 GPSOProxyCreationWhenPSOReady = 0;
+static FAutoConsoleVariableRef CVarPSOProxyCreationWhenPSOReady(
+	TEXT("r.PSOPrecache.ProxyCreationWhenPSOReady"),
+	GPSOProxyCreationWhenPSOReady,
+	TEXT("Delay the component proxy creation when the requested PSOs for precaching are still compiling."),
+	ECVF_ReadOnly
+);
+
 PSOCollectorCreateFunction FPSOCollectorCreateManager::JumpTable[(int32)EShadingPath::Num][FPSOCollectorCreateManager::MaxPSOCollectorCount] = {};
 
 bool IsComponentPSOPrecachingEnabled()
@@ -41,6 +49,11 @@ bool IsComponentPSOPrecachingEnabled()
 bool IsResourcePSOPrecachingEnabled()
 {
 	return FApp::CanEverRender() && PipelineStateCache::IsPSOPrecachingEnabled() && GPSOPrecacheResources && !GIsEditor;
+}
+
+bool ProxyCreationWhenPSOReady()
+{
+	return FApp::CanEverRender() && PipelineStateCache::IsPSOPrecachingEnabled() && GPSOProxyCreationWhenPSOReady && !GIsEditor;
 }
 
 FGraphEventArray PrecachePSOs(const TArray<FPSOPrecacheData>& PSOInitializers)

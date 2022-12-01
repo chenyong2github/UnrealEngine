@@ -503,7 +503,8 @@ FPrimitiveSceneProxy* USkinnedMeshComponent::CreateSceneProxy()
 	if (SkelMeshRenderData &&
 		SkelMeshRenderData->LODRenderData.IsValidIndex(GetPredictedLODLevel()) &&
 		!bHideSkin &&
-		MeshObject)
+		MeshObject &&
+		!IsPSOPrecaching())
 	{
 		// Only create a scene proxy if the bone count being used is supported, or if we don't have a skeleton (this is the case with destructibles)
 		int32 MinLODIndex = ComputeMinLOD();
@@ -577,14 +578,17 @@ void USkinnedMeshComponent::PrecachePSOs()
 	SetupPrecachePSOParams(PrecachePSOParams);
 	PrecachePSOParams.bCastShadow = PrecachePSOParams.bCastShadow && bAnySectionCastsShadows;
 
+	FGraphEventArray PSOPrecacheCompileEvents;
 	for (FSkinnedAssetVertexFactoryTypesPerMaterialData& VFsPerMaterial : VFsPerMaterials)
 	{
 		UMaterialInterface* MaterialInterface = GetMaterial(VFsPerMaterial.MaterialIndex);
 		if (MaterialInterface)
 		{
-			MaterialInterface->PrecachePSOs(VFsPerMaterial.VertexFactoryTypes, PrecachePSOParams);
+			PSOPrecacheCompileEvents.Append(MaterialInterface->PrecachePSOs(VFsPerMaterial.VertexFactoryTypes, PrecachePSOParams));
 		}
 	}
+
+	RequestRecreateRenderStateWhenPSOPrecacheFinished(PSOPrecacheCompileEvents);
 }
 
 void USkinnedMeshComponent::OnRegister()
@@ -645,6 +649,8 @@ void USkinnedMeshComponent::OnRegister()
 	MeshDeformerInstance = ActiveMeshDeformer != nullptr ? ActiveMeshDeformer->CreateInstance(this, MeshDeformerInstanceSettings) : nullptr;
 
 	RefreshExternalMorphTargetWeights();
+
+	PrecachePSOs();
 }
 
 void USkinnedMeshComponent::OnUnregister()

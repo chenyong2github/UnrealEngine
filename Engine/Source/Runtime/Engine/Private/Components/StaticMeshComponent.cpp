@@ -1559,6 +1559,7 @@ void UStaticMeshComponent::PrecachePSOs()
 
 	const FVertexFactoryType* VFType = ShouldCreateNaniteProxy() ? &Nanite::FVertexFactory::StaticType :  &FLocalVertexFactory::StaticType;
 
+	FGraphEventArray PSOPrecacheCompileEvents;
 	for (uint16 MaterialIndex : UsedMaterialIndices)
 	{
 		UMaterialInterface* MaterialInterface = GetMaterial(MaterialIndex);
@@ -1567,9 +1568,12 @@ void UStaticMeshComponent::PrecachePSOs()
 			PrecachePSOParams.bHasWorldPositionOffsetVelocity = SupportsWorldPositionOffsetVelocity()
 				&& MaterialInterface->GetRelevance_Concurrent(FeatureLevel).bUsesWorldPositionOffset;
 
-			MaterialInterface->PrecachePSOs(VFType, PrecachePSOParams);
+			PSOPrecacheCompileEvents.Append(MaterialInterface->PrecachePSOs(VFType, PrecachePSOParams));
 		}
 	}
+
+	// Mark the render state dirty when all PSOs are compiled so the proxy gets recreated
+	RequestRecreateRenderStateWhenPSOPrecacheFinished(PSOPrecacheCompileEvents);
 }
 
 #if WITH_EDITOR
@@ -2203,6 +2207,9 @@ bool UStaticMeshComponent::SetStaticMesh(UStaticMesh* NewMesh)
 		);
 	}
 
+	// Precache the PSOs
+	PrecachePSOs();
+
 	// Need to send this to render thread at some point
 	if (IsRenderStateCreated())
 	{
@@ -2230,9 +2237,6 @@ bool UStaticMeshComponent::SetStaticMesh(UStaticMesh* NewMesh)
 
 	// Mark cached material parameter names dirty
 	MarkCachedMaterialParameterNameIndicesDirty();
-
-	// Precache the PSOs
-	PrecachePSOs();
 
 #if WITH_EDITOR
 	// Broadcast that the static mesh has changed

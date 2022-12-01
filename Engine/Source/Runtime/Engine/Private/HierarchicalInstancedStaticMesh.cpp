@@ -3163,7 +3163,8 @@ FPrimitiveSceneProxy* UHierarchicalInstancedStaticMeshComponent::CreateSceneProx
 		// Make sure we have an actual static mesh.
 		GetStaticMesh() &&
 		!GetStaticMesh()->IsCompiling() &&
-		GetStaticMesh()->HasValidRenderData(false);
+		GetStaticMesh()->HasValidRenderData(false) &&
+		!IsPSOPrecaching();
 
 	if (bMeshIsValid)
 	{

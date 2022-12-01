@@ -2738,7 +2738,7 @@ public:
 		TStrongObjectPtr<UMaterialInterface>* InMaterialInterface,
 		FMaterialShaderMap* InMaterialShaderMap,
 		ERHIFeatureLevel::Type InFeatureLevel,
-		const FMaterial* InMaterial,
+		FMaterial* InMaterial,
 		const TConstArrayView<const FVertexFactoryType*>& InVertexFactoryTypes,
 		const FPSOPrecacheParams& InPreCacheParams)
 		: MaterialInterface(InMaterialInterface)
@@ -2759,6 +2759,12 @@ public:
 		// Won't touch the material interface anymore - PSO compile jobs take refs to all RHI resources while creating the task
 		TGraphTask<FMaterialInterfaceReleaseTask>::CreateTask().ConstructAndDispatchWhenReady(MaterialInterface);
 
+		// Mark this vertex factory with precache params as processed with current compile events
+		for (const FVertexFactoryType* VFType : VertexFactoryTypes)
+		{
+			Material->AddPrecachedPSOVertexFactoryType(VFType, PreCacheParams, PSOCompileGraphEvents);
+		}
+
 		// Extend MyCompletionGraphEvent to wait for all the async compile events
 		for (FGraphEventRef& GraphEvent : PSOCompileGraphEvents)
 		{
@@ -2771,7 +2777,7 @@ public:
 	TStrongObjectPtr<UMaterialInterface>* MaterialInterface;
 	FMaterialShaderMap* MaterialShaderMap;
 	ERHIFeatureLevel::Type FeatureLevel;
-	const FMaterial* Material;
+	FMaterial* Material;
 	TArray<const FVertexFactoryType*, TInlineAllocator<4>> VertexFactoryTypes;
 	const FPSOPrecacheParams PreCacheParams;
 
@@ -2792,6 +2798,18 @@ FGraphEventArray FMaterial::CollectPSOs(ERHIFeatureLevel::Type InFeatureLevel, c
 		return GraphEvents;
 	}
 
+	auto FindPrecacheEntry = [this](const FPrecacheVertexTypeWithParams& Other) -> FPSOPrecacheEntry*
+	{
+		for (FPSOPrecacheEntry& Entry : PrecachedPSOVertexFactories)
+		{
+			if (Entry.PrecacheVertexTypeWithParams == Other)
+			{
+				return &Entry;
+			}
+		}
+		return nullptr;
+	};
+
 	TArray<const FVertexFactoryType*, TInlineAllocator<4>> MissingVFs;
 
 	// Try and find missing entries which still need to be precached
@@ -2802,7 +2820,9 @@ FGraphEventArray FMaterial::CollectPSOs(ERHIFeatureLevel::Type InFeatureLevel, c
 			FPrecacheVertexTypeWithParams PrecacheVertexTypeWithParams;
 			PrecacheVertexTypeWithParams.VertexFactoryType = VFType;
 			PrecacheVertexTypeWithParams.PrecachePSOParams = PreCacheParams;
-			if (!PrecachedPSOVertexFactories.Contains(PrecacheVertexTypeWithParams))
+
+			FPSOPrecacheEntry* CurrentEntry = FindPrecacheEntry(PrecacheVertexTypeWithParams);			
+			if (CurrentEntry == nullptr || !CurrentEntry->CompilingGraphEvents.IsEmpty())
 			{
 				MissingVFs.Add(VFType);
 			}
@@ -2823,11 +2843,27 @@ FGraphEventArray FMaterial::CollectPSOs(ERHIFeatureLevel::Type InFeatureLevel, c
 				FPrecacheVertexTypeWithParams PrecacheVertexTypeWithParams;
 				PrecacheVertexTypeWithParams.VertexFactoryType = VFType;
 				PrecacheVertexTypeWithParams.PrecachePSOParams = PreCacheParams;
-				if (PrecachedPSOVertexFactories.Contains(PrecacheVertexTypeWithParams))
-					continue;
 
-				ActualMissingVFs.Add(VFType);
-				PrecachedPSOVertexFactories.Add(PrecacheVertexTypeWithParams);
+				FPSOPrecacheEntry* CurrentEntry = FindPrecacheEntry(PrecacheVertexTypeWithParams);
+				if (CurrentEntry == nullptr)
+				{
+					ActualMissingVFs.Add(VFType);
+				}
+				else if (!CurrentEntry->CompilingGraphEvents.IsEmpty())
+				{
+					// trim the current list of open compile events
+					for (int32 Index = 0; Index < CurrentEntry->CompilingGraphEvents.Num(); ++Index)
+					{
+						if (CurrentEntry->CompilingGraphEvents[Index]->IsComplete())
+						{
+							CurrentEntry->CompilingGraphEvents.RemoveAtSwap(Index);
+							Index--;
+						}
+					}
+
+					// add the current active compile events
+					GraphEvents.Append(CurrentEntry->CompilingGraphEvents);
+				}
 			}
 		}
 
@@ -2854,11 +2890,42 @@ FGraphEventArray FMaterial::CollectPSOs(ERHIFeatureLevel::Type InFeatureLevel, c
 			else
 			{				
 				GraphEvents = GameThreadShaderMap->CollectPSOs(InFeatureLevel, this, ActualMissingVFs, PreCacheParams);
+				for (const FVertexFactoryType* VFType : ActualMissingVFs)
+				{
+					AddPrecachedPSOVertexFactoryType(VFType, PreCacheParams, GraphEvents);
+				}
 			}
 		}
 	}
 
 	return GraphEvents;
+}
+
+void FMaterial::AddPrecachedPSOVertexFactoryType(const FVertexFactoryType* VertexFactoryType, const FPSOPrecacheParams& PreCacheParams, const FGraphEventArray& PSOCompileEvents)
+{
+	FPrecacheVertexTypeWithParams PrecacheVertexTypeWithParams;
+	PrecacheVertexTypeWithParams.VertexFactoryType = VertexFactoryType;
+	PrecacheVertexTypeWithParams.PrecachePSOParams = PreCacheParams;
+
+	FRWScopeLock WriteLock(PrecachePSOVFLock, SLT_Write);
+
+	for (FPSOPrecacheEntry& Entry : PrecachedPSOVertexFactories)
+	{
+		if (Entry.PrecacheVertexTypeWithParams == PrecacheVertexTypeWithParams)
+		{
+			// Already found, then merge the outstanding compile events
+			for (FGraphEventRef CompileEvent : PSOCompileEvents)
+			{
+				Entry.CompilingGraphEvents.AddUnique(CompileEvent);
+			}
+
+			return;
+		}
+	}
+
+	FPSOPrecacheEntry& NewEntry = PrecachedPSOVertexFactories[PrecachedPSOVertexFactories.AddDefaulted(1)];
+	NewEntry.PrecacheVertexTypeWithParams = PrecacheVertexTypeWithParams;
+	NewEntry.CompilingGraphEvents = PSOCompileEvents;
 }
 
 #if WITH_EDITOR

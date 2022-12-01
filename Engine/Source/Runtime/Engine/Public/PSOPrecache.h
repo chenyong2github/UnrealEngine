@@ -166,6 +166,11 @@ extern ENGINE_API bool IsComponentPSOPrecachingEnabled();
 extern ENGINE_API bool IsResourcePSOPrecachingEnabled();
 
 /**
+ * Delay component proxy creation when it's requested PSOs are still precaching
+ */
+extern ENGINE_API bool ProxyCreationWhenPSOReady();
+
+/**
  * Try and create PSOs for all the given initializers and return an optional array of graph events of async compiling PSOs
  */
 extern FGraphEventArray PrecachePSOs(const TArray<FPSOPrecacheData>& PSOInitializers);

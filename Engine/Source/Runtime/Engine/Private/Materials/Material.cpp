@@ -566,7 +566,15 @@ void UMaterialInterface::InitDefaultMaterials()
 			}
 		}
 
-		// Now precache PSOs for all the default materials
+		RecursionLevel--;
+#if USE_EVENT_DRIVEN_ASYNC_LOAD_AT_BOOT_TIME
+		bInitialized = !GEventDrivenLoaderEnabled || RecursionLevel == 0;
+#else
+		bInitialized = true;
+#endif
+
+		// Now precache PSOs for all the default materials after the default materials are marked initialize
+		// PSO precaching can request default materials so they have to marked as initialized to avoid endless recursion
 		if (PipelineStateCache::IsPSOPrecachingEnabled())
 		{
 			FPSOPrecacheParams PrecachePSOParams;
@@ -587,13 +595,6 @@ void UMaterialInterface::InitDefaultMaterials()
 				}
 			}
 		}
-
-		RecursionLevel--;
-#if USE_EVENT_DRIVEN_ASYNC_LOAD_AT_BOOT_TIME
-		bInitialized = !GEventDrivenLoaderEnabled || RecursionLevel == 0;
-#else
-		bInitialized = true;
-#endif
 	}
 }
 

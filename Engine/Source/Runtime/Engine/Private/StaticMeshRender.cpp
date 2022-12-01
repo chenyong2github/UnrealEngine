@@ -2484,6 +2484,12 @@ FPrimitiveSceneProxy* UStaticMeshComponent::CreateSceneProxy()
 		return nullptr;
 	}
 
+	if (IsPSOPrecaching())
+	{
+		UE_LOG(LogStaticMesh, Verbose, TEXT("Skipping CreateSceneProxy for StaticMeshComponent %s (Static mesh component PSOs are still compiling)"), *GetFullName());
+		return nullptr;
+	}
+
 	// Is Nanite supported, and is there built Nanite data for this static mesh?
 	if (ShouldCreateNaniteProxy() 
 	#if WITH_EDITORONLY_DATA
