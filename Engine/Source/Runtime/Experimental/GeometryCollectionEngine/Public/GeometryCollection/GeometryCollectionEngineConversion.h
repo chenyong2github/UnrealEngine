@@ -35,6 +35,15 @@ public:
 	static int32 AppendMaterials(const TArray<UMaterialInterface*>& Materials, UGeometryCollection* GeometryCollectionObject, bool bAddInteriorCopy);
 
 	/**
+	 * Appends instanced mesh indices 
+	 * @param GeometryCollectionObject geometry collection to add to 
+	 * @param FromTransformIndex transform index to start from 
+	 * @param StaticMesh  static mesh to add reference to 
+	 * @param Materials materials correcponding to the static mesh instance to get the index from 
+	 */
+	static void AppendAutoInstanceMeshIndices(UGeometryCollection* GeometryCollectionObject, int32 FromTransformIndex, const UStaticMesh* StaticMesh, const TArray<UMaterialInterface*>& Materials);
+
+	/**
 	 * Appends a MeshDescription to a GeometryCollection.
 	 * @param MeshDescription : Const mesh description to read vertex/normals/index data from
 	 * @param Name : A name to use for the Mesh, e.g. from the source UObject's GetName()

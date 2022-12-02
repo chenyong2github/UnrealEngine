@@ -30,6 +30,7 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "MeshDescriptionBuilder.h"
 #include "VertexConnectedComponents.h"
+#include "GeometryCollection/Facades/CollectionInstancedMeshFacade.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(UGeometryCollectionConversionLogging, Log, All);
@@ -457,7 +458,30 @@ int32 FGeometryCollectionEngineConversion::AppendMaterials(const TArray<UMateria
 	return MaterialStart;
 }
 
-bool FGeometryCollectionEngineConversion::AppendStaticMesh(const UStaticMesh* StaticMesh, const TArray<UMaterialInterface*>& Materials, 
+void FGeometryCollectionEngineConversion::AppendAutoInstanceMeshIndices(UGeometryCollection* GeometryCollectionObject, int32 FromTransformIndex, const UStaticMesh* StaticMesh, const TArray<UMaterialInterface*>& Materials)
+{
+	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
+	if (GeometryCollectionPtr)
+	{
+		using namespace GeometryCollection::Facades;
+		FCollectionInstancedMeshFacade InstancedMeshFacade(*GeometryCollectionPtr);
+
+		const int32 NewNumOfTransforms = GeometryCollectionPtr->NumElements(FGeometryCollection::TransformGroup);
+		if (NewNumOfTransforms > FromTransformIndex)
+		{
+			// create the schema if necessary
+			InstancedMeshFacade.DefineSchema();
+	
+			const int32 AutoInstanceMeshIndex = GeometryCollectionObject->FindOrAddAutoInstanceMesh(*StaticMesh, Materials);
+			for (int32 TransformIndex = FromTransformIndex; TransformIndex < NewNumOfTransforms; TransformIndex++)
+			{
+				InstancedMeshFacade.SetIndex(TransformIndex, AutoInstanceMeshIndex);
+			}
+		}
+	}
+}
+
+bool FGeometryCollectionEngineConversion::AppendStaticMesh(const UStaticMesh* StaticMesh, const TArray<UMaterialInterface*>& Materials,
 	const FTransform& StaticMeshTransform, UGeometryCollection* GeometryCollectionObject, bool bReindexMaterials,
 	bool bAddInternalMaterials, bool bSplitComponents)
 {
@@ -476,18 +500,7 @@ bool FGeometryCollectionEngineConversion::AppendStaticMesh(const UStaticMesh* St
 	{
 		AppendMaterials(Materials, GeometryCollectionObject, bAddInternalMaterials);
 
-		// add index to the auto instanced meshes array
-		const int32 NewNumOfTransforms = GeometryCollection->NumElements(FGeometryCollection::TransformGroup);
-		if (NewNumOfTransforms > OriginalNumOfTransforms)
-		{
-			TManagedArray<int32>& AutoInstanceMeshIndices = GeometryCollection->AddAttribute<int32>("AutoInstanceMeshIndex", FGeometryCollection::TransformGroup);
-			const int32 AutoInstanceMeshIndex = GeometryCollectionObject->FindOrAddAutoInstanceMesh(*StaticMesh, Materials);
-
-			for (int32 TransformIndex = OriginalNumOfTransforms; TransformIndex < NewNumOfTransforms; TransformIndex++)
-			{
-				AutoInstanceMeshIndices[TransformIndex] = AutoInstanceMeshIndex;
-			}
-		}
+		AppendAutoInstanceMeshIndices(GeometryCollectionObject, OriginalNumOfTransforms, StaticMesh, Materials);
 
 		return true;
 	}
@@ -960,26 +973,30 @@ void FGeometryCollectionEngineConversion::AppendGeometryCollectionInstancedMeshe
 	TSharedPtr<const FGeometryCollection, ESPMode::ThreadSafe> SourceGeometryCollectionPtr = SourceGeometryCollectionObject->GetGeometryCollection();
 	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> TargetGeometryCollectionPtr = TargetGeometryCollectionObject->GetGeometryCollection();
 
+	using namespace GeometryCollection::Facades;
+
 	if (SourceGeometryCollectionPtr && TargetGeometryCollectionPtr)
 	{
-		if (const TManagedArray<int32>* SourceAutoInstanceMeshIndices = SourceGeometryCollectionPtr->FindAttribute<int32>("AutoInstanceMeshIndex", FGeometryCollection::TransformGroup))
-		{
-			TManagedArray<int32>& TargetAutoInstanceMeshIndices = TargetGeometryCollectionPtr->AddAttribute<int32>("AutoInstanceMeshIndex", FGeometryCollection::TransformGroup);
+		const FCollectionInstancedMeshFacade SourceInstancedMeshFacade(*SourceGeometryCollectionPtr);
+		FCollectionInstancedMeshFacade TargetInstancedMeshFacade(*TargetGeometryCollectionPtr);
 
-			for (int32 SourceTransformIndex = 0; SourceTransformIndex < SourceAutoInstanceMeshIndices->Num(); SourceTransformIndex++)
+		TargetInstancedMeshFacade.DefineSchema();
+
+		const int32 NumSourceIndices = SourceInstancedMeshFacade.GetNumIndices();
+		for (int32 SourceTransformIndex = 0; SourceTransformIndex < NumSourceIndices; SourceTransformIndex++)
+		{
+			int32 TargetInstancedMeshIndex = INDEX_NONE;
+			if (SourceInstancedMeshFacade.IsValid())
 			{
-				const int32 TargettransformIndex = TargetTransformStartIndex + SourceTransformIndex;
-				TargetAutoInstanceMeshIndices[TargettransformIndex] = INDEX_NONE;
-				if (SourceAutoInstanceMeshIndices)
+				const int32 SourceAutoInstanceIndex = SourceInstancedMeshFacade.GetIndex(SourceTransformIndex);
+				if (SourceAutoInstanceIndex != INDEX_NONE)
 				{
-					const int32 SourceAutoInstanceIndex = (*SourceAutoInstanceMeshIndices)[SourceTransformIndex];
-					if (SourceAutoInstanceIndex != INDEX_NONE)
-					{
-						const FGeometryCollectionAutoInstanceMesh& SourceAutoInstanceMesh = SourceGeometryCollectionObject->GetAutoInstanceMesh(SourceAutoInstanceIndex);
-						TargetAutoInstanceMeshIndices[TargettransformIndex] = TargetGeometryCollectionObject->FindOrAddAutoInstanceMesh(SourceAutoInstanceMesh);
-					}
+					const FGeometryCollectionAutoInstanceMesh& SourceAutoInstanceMesh = SourceGeometryCollectionObject->GetAutoInstanceMesh(SourceAutoInstanceIndex);
+					TargetInstancedMeshIndex = TargetGeometryCollectionObject->FindOrAddAutoInstanceMesh(SourceAutoInstanceMesh);
 				}
 			}
+			const int32 TargetTransformIndex = TargetTransformStartIndex + SourceTransformIndex;
+			TargetInstancedMeshFacade.SetIndex(TargetTransformIndex, TargetInstancedMeshIndex);
 		}
 	}
 }

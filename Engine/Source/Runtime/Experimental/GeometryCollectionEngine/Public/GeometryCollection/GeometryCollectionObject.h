@@ -56,6 +56,8 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionAutoInstanceMesh
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "AutoInstance")
 	TArray<TObjectPtr<UMaterialInterface>> Materials;
+
+	bool operator ==(const FGeometryCollectionAutoInstanceMesh& Other) const;
 };
 
 USTRUCT(BlueprintType)
@@ -359,7 +361,7 @@ public:
 	void Reset();
 
 	/** Reset the collection from another set of attributes and materials. */
-	void ResetFrom(const FManagedArrayCollection& InCollection, const TArray<UMaterial*>& InMaterials);
+	void ResetFrom(const FManagedArrayCollection& InCollection, const TArray<UMaterial*>& InMaterials, bool bHasInternalMaterials);
 	
 	int32 AppendGeometry(const UGeometryCollection & Element, bool ReindexAllMaterials = false, const FTransform& TransformRoot = FTransform::Identity);
 	int32 NumElements(const FName& Group) const;
@@ -398,7 +400,7 @@ public:
 	void ReindexMaterialSections();
 
 	/** appends the standard materials to this UObject */
-	void InitializeMaterials();
+	void InitializeMaterials(bool bHasInternalMaterials = true);
 
 
 	/** Returns true if there is anything to render */

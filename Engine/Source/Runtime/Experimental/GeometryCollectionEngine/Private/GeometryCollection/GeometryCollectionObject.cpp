@@ -387,7 +387,7 @@ void UGeometryCollection::Reset()
 	}
 }
 
-void UGeometryCollection::ResetFrom(const FManagedArrayCollection& InCollection, const TArray<UMaterial*>& InMaterials)
+void UGeometryCollection::ResetFrom(const FManagedArrayCollection& InCollection, const TArray<UMaterial*>& InMaterials, bool bHasInternalMaterials)
 {
 	if (GeometryCollection.IsValid())
 	{
@@ -399,7 +399,7 @@ void UGeometryCollection::ResetFrom(const FManagedArrayCollection& InCollection,
 		UpdateConvexGeometry();
 				
 		Materials.Append(InMaterials);
-		InitializeMaterials();
+		InitializeMaterials(bHasInternalMaterials);
 	}
 }
 
@@ -479,82 +479,109 @@ void UGeometryCollection::ReindexMaterialSections()
 	InvalidateCollection();
 }
 
-void UGeometryCollection::InitializeMaterials()
+void UGeometryCollection::InitializeMaterials(bool bHasInternalMaterials)
 {
 	Modify();
 
 	// Last Material is the selection one
 	UMaterialInterface* BoneSelectedMaterial = LoadObject<UMaterialInterface>(nullptr, GetSelectedMaterialPath(), nullptr, LOAD_None, nullptr);
 
-	TManagedArray<int32>& MaterialID = GeometryCollection->MaterialID;
+	TManagedArray<int32>& MaterialIDs = GeometryCollection->MaterialID;
 
 	// normally we filter out instances of the selection material ID, but if it's actually used on any face we have to keep it
 	bool bBoneSelectedMaterialIsUsed = false;
-	for (int32 FaceIdx = 0; FaceIdx < MaterialID.Num(); ++FaceIdx)
+	for (int32 FaceIdx = 0; FaceIdx < MaterialIDs.Num(); ++FaceIdx)
 	{
-		int32 FaceMaterialID = MaterialID[FaceIdx];
+		int32 FaceMaterialID = MaterialIDs[FaceIdx];
 		if (FaceMaterialID < Materials.Num() && Materials[FaceMaterialID] == BoneSelectedMaterial)
 		{
 			bBoneSelectedMaterialIsUsed = true;
 			break;
 		}
 	}
-	
-	// We're assuming that all materials are arranged in pairs, so first we collect these.
-	using FMaterialPair = TPair<UMaterialInterface*, UMaterialInterface*>;
-	TSet<FMaterialPair> MaterialSet;
-	for (int32 MaterialIndex = 0; MaterialIndex < Materials.Num(); ++MaterialIndex)
+
+	TArray<UMaterialInterface*> FinalMaterials;
+	if (bHasInternalMaterials)
 	{
-		UMaterialInterface* ExteriorMaterial = Materials[MaterialIndex];
-		if (ExteriorMaterial == BoneSelectedMaterial && !bBoneSelectedMaterialIsUsed) // skip unused bone selected material
+		// We're assuming that all materials are arranged in pairs, so first we collect these.
+		using FMaterialPair = TPair<UMaterialInterface*, UMaterialInterface*>;
+		TSet<FMaterialPair> MaterialSet;
+		for (int32 MaterialIndex = 0; MaterialIndex < Materials.Num(); ++MaterialIndex)
 		{
-			continue;
-		}
-		
-		// If we have an odd number of materials, the last material duplicates itself.
-		UMaterialInterface* InteriorMaterial = Materials[MaterialIndex];
-		while (++MaterialIndex < Materials.Num())
-		{
-			if (Materials[MaterialIndex] == BoneSelectedMaterial && !bBoneSelectedMaterialIsUsed) // skip bone selected material
+			UMaterialInterface* ExteriorMaterial = Materials[MaterialIndex];
+			if (ExteriorMaterial == BoneSelectedMaterial && !bBoneSelectedMaterialIsUsed) // skip unused bone selected material
 			{
 				continue;
 			}
-			InteriorMaterial = Materials[MaterialIndex];
-			break;
+
+			// If we have an odd number of materials, the last material duplicates itself.
+			UMaterialInterface* InteriorMaterial = Materials[MaterialIndex];
+			while (++MaterialIndex < Materials.Num())
+			{
+				if (Materials[MaterialIndex] == BoneSelectedMaterial && !bBoneSelectedMaterialIsUsed) // skip bone selected material
+				{
+					continue;
+				}
+				InteriorMaterial = Materials[MaterialIndex];
+				break;
+			}
+
+			MaterialSet.Add(FMaterialPair(ExteriorMaterial, InteriorMaterial));
 		}
 
-		MaterialSet.Add(FMaterialPair(ExteriorMaterial, InteriorMaterial));
-	}
-	
-	// create the final material array only containing unique materials
-	// alternating exterior and interior materials
-	TMap<UMaterialInterface*, int32> ExteriorMaterialPtrToArrayIndex;
-	TMap<UMaterialInterface*, int32> InteriorMaterialPtrToArrayIndex;
-	TArray<UMaterialInterface*> FinalMaterials;
-	for (const FMaterialPair& Curr : MaterialSet)
-	{
-		// Add base material
-		TTuple< UMaterialInterface*, int32> BaseTuple(Curr.Key, FinalMaterials.Add(Curr.Key));
-		ExteriorMaterialPtrToArrayIndex.Add(BaseTuple);
-
-		// Add interior material
-		TTuple< UMaterialInterface*, int32> InteriorTuple(Curr.Value, FinalMaterials.Add(Curr.Value));
-		InteriorMaterialPtrToArrayIndex.Add(InteriorTuple);
-	}
-
-	// Reassign material ID for each face given the new consolidated array of materials
-	for (int32 Material = 0; Material < MaterialID.Num(); ++Material)
-	{
-		if (MaterialID[Material] < Materials.Num())
+		// create the final material array only containing unique materials
+		// alternating exterior and interior materials
+		TMap<UMaterialInterface*, int32> ExteriorMaterialPtrToArrayIndex;
+		TMap<UMaterialInterface*, int32> InteriorMaterialPtrToArrayIndex;
+		for (const FMaterialPair& Curr : MaterialSet)
 		{
-			UMaterialInterface* OldMaterialPtr = Materials[MaterialID[Material]];
-			if (MaterialID[Material] % 2 == 0)
+			// Add base material
+			TTuple< UMaterialInterface*, int32> BaseTuple(Curr.Key, FinalMaterials.Add(Curr.Key));
+			ExteriorMaterialPtrToArrayIndex.Add(BaseTuple);
+
+			// Add interior material
+			TTuple< UMaterialInterface*, int32> InteriorTuple(Curr.Value, FinalMaterials.Add(Curr.Value));
+			InteriorMaterialPtrToArrayIndex.Add(InteriorTuple);
+		}
+
+		// Reassign material ID for each face given the new consolidated array of materials
+		for (int32 Material = 0; Material < MaterialIDs.Num(); ++Material)
+		{
+			if (MaterialIDs[Material] < Materials.Num())
 			{
-				MaterialID[Material] = *ExteriorMaterialPtrToArrayIndex.Find(OldMaterialPtr);
+				UMaterialInterface* OldMaterialPtr = Materials[MaterialIDs[Material]];
+				if (MaterialIDs[Material] % 2 == 0)
+				{
+					MaterialIDs[Material] = *ExteriorMaterialPtrToArrayIndex.Find(OldMaterialPtr);
+				}
+				else
+				{
+					MaterialIDs[Material] = *InteriorMaterialPtrToArrayIndex.Find(OldMaterialPtr);
+				}
 			}
-			else
+		}
+	}
+	else
+	{
+		// simple deduping process
+		for (int32 MaterialIndex = 0; MaterialIndex < Materials.Num(); ++MaterialIndex)
+		{
+			UMaterialInterface* Material = Materials[MaterialIndex];
+			if (Material == BoneSelectedMaterial && !bBoneSelectedMaterialIsUsed) // skip unused bone selected material
 			{
-				MaterialID[Material] = *InteriorMaterialPtrToArrayIndex.Find(OldMaterialPtr);
+				continue;
+			}
+			FinalMaterials.AddUnique(Material);
+		}
+
+		// Reassign material ID for each face given the new consolidated array of materials
+		for (int32 MaterialIDIndex = 0; MaterialIDIndex < MaterialIDs.Num(); MaterialIDIndex++)
+		{
+			const int32 OldMaterialID = MaterialIDs[MaterialIDIndex];
+			if (Materials.IsValidIndex(OldMaterialID))
+			{
+				UMaterialInterface* Material = Materials[OldMaterialID];
+				MaterialIDs[MaterialIDIndex] = FinalMaterials.Find(Material);
 			}
 		}
 	}
@@ -1200,6 +1227,11 @@ void UGeometryCollection::RemoveExemplars(const TArray<int32>& SortedRemovalIndi
 	}
 }
 
+bool FGeometryCollectionAutoInstanceMesh::operator ==(const FGeometryCollectionAutoInstanceMesh& Other) const
+{
+	return (StaticMesh == Other.StaticMesh) && (Materials == Other.Materials);
+}
+
 /** find or add a auto instance mesh and return its index */
 const FGeometryCollectionAutoInstanceMesh& UGeometryCollection::GetAutoInstanceMesh(int32 AutoInstanceMeshIndex) const
 {
@@ -1209,62 +1241,15 @@ const FGeometryCollectionAutoInstanceMesh& UGeometryCollection::GetAutoInstanceM
 /**  find or add a auto instance mesh from another one and return its index */
 int32 UGeometryCollection::FindOrAddAutoInstanceMesh(const FGeometryCollectionAutoInstanceMesh& AutoInstanecMesh)
 {
-	int32 ReturnedIndex = INDEX_NONE;
-
-	for (int32 MeshIndex = 0; MeshIndex < AutoInstanceMeshes.Num(); MeshIndex++)
-	{
-		const FGeometryCollectionAutoInstanceMesh& Mesh = AutoInstanceMeshes[MeshIndex];
-		if (Mesh.StaticMesh == AutoInstanecMesh.StaticMesh && Mesh.Materials == AutoInstanecMesh.Materials)
-		{
-			ReturnedIndex = MeshIndex;
-			break;
-		}
-	}
-	if (ReturnedIndex == INDEX_NONE)
-	{
-		ReturnedIndex = AutoInstanceMeshes.Add(AutoInstanecMesh);
-	}
-	return ReturnedIndex;
+	return AutoInstanceMeshes.AddUnique(AutoInstanecMesh);
 }
 
 int32 UGeometryCollection::FindOrAddAutoInstanceMesh(const UStaticMesh& StaticMesh, const TArray<UMaterialInterface*>& MeshMaterials)
 {
-	int32 ReturnedIndex = INDEX_NONE;
-
-	FSoftObjectPath StaticMeshSoftPath(&StaticMesh);
-
-	for (int32 MeshIndex = 0; MeshIndex < AutoInstanceMeshes.Num(); MeshIndex++)
-	{
-		const FGeometryCollectionAutoInstanceMesh& Mesh = AutoInstanceMeshes[MeshIndex];
-		if (Mesh.StaticMesh == StaticMeshSoftPath)
-		{
-			if (Mesh.Materials.Num() == MeshMaterials.Num())
-			{
-				bool MaterialAreAllTheSame = true;
-				for (int32 MaterialIndex = 0; MaterialIndex < MeshMaterials.Num(); MaterialIndex++)
-				{
-					if (Mesh.Materials[MaterialIndex] != MeshMaterials[MaterialIndex])
-					{
-						MaterialAreAllTheSame = false;
-						break;
-					}
-				}
-				if (MaterialAreAllTheSame)
-				{
-					ReturnedIndex = MeshIndex;
-					break;
-				}
-			}
-		}
-	}
-	if (ReturnedIndex == INDEX_NONE)
-	{
-		FGeometryCollectionAutoInstanceMesh NewMesh;
-		NewMesh.StaticMesh = StaticMeshSoftPath;
-		NewMesh.Materials = MeshMaterials;
-		ReturnedIndex = AutoInstanceMeshes.Emplace(NewMesh);
-	}
-	return ReturnedIndex;
+	FGeometryCollectionAutoInstanceMesh NewMesh;
+	NewMesh.StaticMesh = FSoftObjectPath(&StaticMesh);
+	NewMesh.Materials = MeshMaterials;
+	return AutoInstanceMeshes.AddUnique(NewMesh);
 }
 
 FGuid UGeometryCollection::GetIdGuid() const

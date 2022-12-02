@@ -54,6 +54,7 @@
 #include "GeometryCollection/GeometryCollectionEngineRemoval.h"
 #include "GeometryCollection/Facades/CollectionAnchoringFacade.h"
 #include "GeometryCollection/Facades/CollectionRemoveOnBreakFacade.h"
+#include "GeometryCollection/Facades/CollectionInstancedMeshFacade.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCollectionComponent)
 
@@ -3973,13 +3974,15 @@ void UGeometryCollectionComponent::RegisterToISMPool()
 						// fisrt count the instance per mesh 
 						TArray<int32> InstanceCounts;
 						InstanceCounts.AddZeroed(RestCollection->AutoInstanceMeshes.Num());
-						const TManagedArray<int32>* AutoInstanceMeshIndices = RestCollection->GetGeometryCollection()->FindAttribute<int32>("AutoInstanceMeshIndex", FGeometryCollection::TransformGroup);
+
 						const TManagedArray<TSet<int32>>& Children = RestCollection->GetGeometryCollection()->Children;
-						if (AutoInstanceMeshIndices)
+
+						const GeometryCollection::Facades::FCollectionInstancedMeshFacade InstancedMeshFacade(*RestCollection->GetGeometryCollection());
+						if (InstancedMeshFacade.IsValid())
 						{
-							for (int32 TransformIndex = 0; TransformIndex < AutoInstanceMeshIndices->Num(); TransformIndex++)
+							for (int32 TransformIndex = 0; TransformIndex < InstancedMeshFacade.GetNumIndices(); TransformIndex++)
 							{
-								const int32 AutoInstanceMeshIndex = (*AutoInstanceMeshIndices)[TransformIndex];
+								const int32 AutoInstanceMeshIndex = InstancedMeshFacade.GetIndex(TransformIndex);
 								if (Children[TransformIndex].Num() == 0)
 								{
 									InstanceCounts[AutoInstanceMeshIndex]++;
@@ -4066,12 +4069,12 @@ void UGeometryCollectionComponent::RefreshISMPoolInstances()
 				{
 					if (RestCollection->GetGeometryCollection())
 					{
-						const TManagedArray<int32>* AutoInstanceMeshIndices = RestCollection->GetGeometryCollection()->FindAttribute<int32>("AutoInstanceMeshIndex", FGeometryCollection::TransformGroup);
 						const TManagedArray<TSet<int32>>& Children = RestCollection->GetGeometryCollection()->Children;
-						if (AutoInstanceMeshIndices)
+
+						const GeometryCollection::Facades::FCollectionInstancedMeshFacade InstancedMeshFacade(*RestCollection->GetGeometryCollection());
+						if (InstancedMeshFacade.IsValid())
 						{
 							const int32 NumTransforms = RestCollection->NumElements(FGeometryCollection::TransformAttribute);
-							ensure(AutoInstanceMeshIndices->Num() == NumTransforms);
 
 							CalculateGlobalMatrices();
 
@@ -4111,7 +4114,7 @@ void UGeometryCollectionComponent::RefreshISMPoolInstances()
 									InstanceTransforms.Reset(NumTransforms); // Allocate for worst case
 									for (int32 TransformIndex = 0; TransformIndex < NumTransforms; TransformIndex++)
 									{
-										const int32 AutoInstanceMeshIndex = (*AutoInstanceMeshIndices)[TransformIndex];
+										const int32 AutoInstanceMeshIndex = InstancedMeshFacade.GetIndex(TransformIndex);
 										if (AutoInstanceMeshIndex == MeshIndex && Children[TransformIndex].Num() == 0)
 										{
 											InstanceTransforms.Add(FTransform(GlobalMatrices[TransformIndex]) * ComponentTransform);

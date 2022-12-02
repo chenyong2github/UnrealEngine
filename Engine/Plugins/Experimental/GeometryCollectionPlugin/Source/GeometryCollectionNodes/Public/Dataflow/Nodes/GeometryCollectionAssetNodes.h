@@ -27,6 +27,10 @@ public:
 	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Materials", DisplayName = "Materials"))
 	TArray<TObjectPtr<UMaterial>> Materials;
 
+	/** array of instanced meshes*/
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "InstancedMeshes", DisplayName = "InstancedMeshes"))
+	TArray<FGeometryCollectionAutoInstanceMesh> InstancedMeshes;
+
 	FGeometryCollectionTerminalDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowTerminalNode(InParam, InGuid)
 	{
@@ -34,6 +38,8 @@ public:
 		RegisterOutputConnection(&Collection, &Collection);
 		RegisterInputConnection(&Materials);
 		RegisterOutputConnection(&Materials, &Materials);
+		RegisterInputConnection(&InstancedMeshes);
+		RegisterOutputConnection(&InstancedMeshes, &InstancedMeshes);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context) const override;
@@ -108,6 +114,10 @@ public:
 	/** Geometry collection newly created */
 	UPROPERTY(meta = (DataflowOutput, DisplayName = "Materials"))
 	TArray<TObjectPtr<UMaterial>> Materials;
+
+	/** array of instanced meshes*/
+	UPROPERTY(meta = (DataflowOutput, DisplayName = "InstancedMeshes"))
+	TArray<FGeometryCollectionAutoInstanceMesh> InstancedMeshes;
 };
 
 namespace Dataflow
