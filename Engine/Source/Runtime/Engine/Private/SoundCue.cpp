@@ -412,9 +412,14 @@ void USoundCue::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyCha
 }
 #endif // WITH_EDITOR
 
-void USoundCue::RecursiveFindAttenuation( USoundNode* Node, TArray<class USoundNodeAttenuation*> &OutNodes )
+void USoundCue::RecursiveFindAttenuation(USoundNode* Node, TArray<USoundNodeAttenuation*> &OutNodes)
 {
 	RecursiveFindNode<USoundNodeAttenuation>( Node, OutNodes );
+}
+
+void USoundCue::RecursiveFindAttenuation(const USoundNode* Node, TArray<const USoundNodeAttenuation*>& OutNodes) const
+{
+	RecursiveFindNode<USoundNodeAttenuation>(Node, OutNodes);
 }
 
 void USoundCue::RecursiveFindAllNodes( USoundNode* Node, TArray<class USoundNode*> &OutNodes )

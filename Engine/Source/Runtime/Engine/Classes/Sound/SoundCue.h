@@ -24,6 +24,7 @@ class UEdGraph;
 
 class USoundCue;
 class USoundNode;
+class USoundNodeAttenuation;
 struct FActiveSound;
 struct FSoundParseParameters;
 
@@ -293,10 +294,8 @@ public:
 	// This is used to cache the quality level if it has not been cached yet.
 	static void CacheQualityLevel();
 
-	/**
-	 * Instantiate certain functions to work around a linker issue
-	 */
-	void RecursiveFindAttenuation( USoundNode* Node, TArray<class USoundNodeAttenuation*> &OutNodes );
+	void RecursiveFindAttenuation(USoundNode* Node, TArray<USoundNodeAttenuation*> &OutNodes);
+	void RecursiveFindAttenuation(const USoundNode* Node, TArray<const USoundNodeAttenuation*>& OutNodes) const;
 
 #if WITH_EDITOR
 	/** Create the basic sound graph */
