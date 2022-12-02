@@ -13,13 +13,10 @@ class IUIFrameworkWidgetTreeOwner
 {
 public:
 	/** The widget tree. */
-	virtual FUIFrameworkWidgetTree& GetWidgetTree();
+	virtual FUIFrameworkWidgetTree& GetWidgetTree() = 0;
 
 	/** The object that will be used to create the UserWidget. */
-	virtual FUIFrameworkWidgetOwner GetWidgetOwner() const
-	{
-		PURE_VIRTUAL(IUIFrameworkWidgetTreeOwner::GetWidgetOwner, return {};)
-	}
+	virtual FUIFrameworkWidgetOwner GetWidgetOwner() const = 0;
 
 	/** A widget was added to the tree. */
 	virtual void LocalWidgetWasAddedToTree(const FUIFrameworkWidgetTreeEntry& Entry)
