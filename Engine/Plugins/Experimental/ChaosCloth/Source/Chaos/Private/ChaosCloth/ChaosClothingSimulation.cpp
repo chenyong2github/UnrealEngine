@@ -262,6 +262,10 @@ FClothingSimulation::FClothingSimulation()
 	, bUseGravityOverride(false)
 	, GravityOverride(ChaosClothingSimulationDefault::Gravity)
 	, MaxDistancesMultipliers(ChaosClothingSimulationDefault::MaxDistancesMultipliers)
+#if WITH_EDITOR
+	, DebugClothMaterial(nullptr)
+	, DebugClothMaterialVertex(nullptr)
+#endif
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	, StepCount(0)
 	, ResetCount(0)
