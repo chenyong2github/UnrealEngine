@@ -10,6 +10,7 @@
 #include "PipelineStateCache.h"
 #include "ShaderCompilerCore.h"
 #include "RenderUtils.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 IMPLEMENT_TYPE_LAYOUT(FVertexFactoryShaderParameters);
 
@@ -153,6 +154,12 @@ FVertexFactoryType::~FVertexFactoryType()
 
 	check(NumVertexFactories > 0u);
 	--NumVertexFactories;
+}
+
+bool FVertexFactoryType::CheckManualVertexFetchSupport(ERHIFeatureLevel::Type InFeatureLevel)
+{
+	check(InFeatureLevel != ERHIFeatureLevel::Num);
+	return (InFeatureLevel > ERHIFeatureLevel::ES3_1) && RHISupportsManualVertexFetch(GShaderPlatformForFeatureLevel[InFeatureLevel]);
 }
 
 /** Calculates a Hash based on this vertex factory type's source code and includes */

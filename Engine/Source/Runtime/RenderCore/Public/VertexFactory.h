@@ -382,9 +382,10 @@ public:
 
 	bool SupportsManualVertexFetch(ERHIFeatureLevel::Type InFeatureLevel) const 
 	{
-		check(InFeatureLevel != ERHIFeatureLevel::Num);
-		return HasFlags(EVertexFactoryFlags::SupportsManualVertexFetch) && (InFeatureLevel > ERHIFeatureLevel::ES3_1) && RHISupportsManualVertexFetch(GMaxRHIShaderPlatform);
+		return HasFlags(EVertexFactoryFlags::SupportsManualVertexFetch) && CheckManualVertexFetchSupport(InFeatureLevel);
 	}
+
+	static RENDERCORE_API bool CheckManualVertexFetchSupport(ERHIFeatureLevel::Type InFeatureLevel);
 
 	// Hash function.
 	friend uint32 GetTypeHash(const FVertexFactoryType* Type)

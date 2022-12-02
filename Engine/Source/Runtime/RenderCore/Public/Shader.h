@@ -1725,10 +1725,7 @@ public:
 	bool IsMaterialTypePipeline() const { return Stages[0]->GetMaterialShaderType() != nullptr; }
 	bool IsMeshMaterialTypePipeline() const { return Stages[0]->GetMeshMaterialShaderType() != nullptr; }
 
-	FORCEINLINE bool ShouldOptimizeUnusedOutputs(EShaderPlatform Platform) const
-	{
-		return bShouldOptimizeUnusedOutputs && RHISupportsShaderPipelines(Platform);
-	}
+	bool ShouldOptimizeUnusedOutputs(EShaderPlatform Platform) const;
 
 	/** Calculates a Hash based on this shader pipeline type stages' source code and includes */
 	const FSHAHash& GetSourceHash(EShaderPlatform ShaderPlatform) const;
@@ -2056,18 +2053,14 @@ public:
 	{
 		inline FHashedName operator()(const FShaderPipeline* InShaderPipeline) { return InShaderPipeline->TypeName; }
 	};
+
 	/** Default constructor. */
-	explicit FShaderMapContent(EShaderPlatform InPlatform)
-		: ShaderHash(128u), ShaderPlatformName(FDataDrivenShaderPlatformInfo::GetName(InPlatform).ToString())
-	{}
+	explicit FShaderMapContent(EShaderPlatform InPlatform);
 
 	/** Destructor ensures pipelines cleared up. */
-	~FShaderMapContent()
-	{
-		Empty();
-	}
+	~FShaderMapContent();
 
-	EShaderPlatform GetShaderPlatform() const { return FDataDrivenShaderPlatformInfo::GetShaderPlatformFromName(FName(ShaderPlatformName)); };
+	EShaderPlatform GetShaderPlatform() const;
 
 	void Validate(const FShaderMapBase& InShaderMap) const;
 

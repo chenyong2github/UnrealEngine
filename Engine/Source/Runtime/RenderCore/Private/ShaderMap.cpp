@@ -22,6 +22,7 @@
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "Misc/ScopeRWLock.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #if WITH_EDITORONLY_DATA
 #include "Interfaces/IShaderFormat.h"
@@ -296,6 +297,20 @@ void FShaderMapBase::DestroyContent()
 static uint16 MakeShaderHash(const FHashedName& TypeName, int32 PermutationId)
 {
 	return (uint16)CityHash128to64({ TypeName.GetHash(), (uint64)PermutationId });
+}
+
+FShaderMapContent::FShaderMapContent(EShaderPlatform InPlatform)
+	: ShaderHash(128u), ShaderPlatformName(FDataDrivenShaderPlatformInfo::GetName(InPlatform).ToString())
+{}
+
+FShaderMapContent::~FShaderMapContent()
+{
+	Empty();
+}
+
+EShaderPlatform FShaderMapContent::GetShaderPlatform() const
+{
+	return FDataDrivenShaderPlatformInfo::GetShaderPlatformFromName(FName(ShaderPlatformName));
 }
 
 FShader* FShaderMapContent::GetShader(const FHashedName& TypeName, int32 PermutationId) const

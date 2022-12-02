@@ -26,6 +26,7 @@
 #include "Misc/ScopeRWLock.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "Misc/LargeWorldRenderPosition.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #if WITH_EDITORONLY_DATA
 #include "Interfaces/IShaderFormat.h"
@@ -1076,6 +1077,11 @@ const FShaderPipelineType* FShaderPipelineType::GetShaderPipelineTypeByName(cons
 {
 	FShaderPipelineType** FoundType = GetNameToTypeMap().Find(Name);
 	return FoundType ? *FoundType : nullptr;
+}
+
+bool FShaderPipelineType::ShouldOptimizeUnusedOutputs(EShaderPlatform Platform) const
+{
+	return bShouldOptimizeUnusedOutputs && RHISupportsShaderPipelines(Platform);
 }
 
 const FSHAHash& FShaderPipelineType::GetSourceHash(EShaderPlatform ShaderPlatform) const
