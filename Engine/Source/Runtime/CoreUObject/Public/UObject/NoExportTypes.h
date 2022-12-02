@@ -47,6 +47,7 @@
 #include "Math/RandomStream.h"
 #include "Math/RangeBound.h"
 #include "Math/Interval.h"
+#include "Math/Sphere.h"
 
 #include "Internationalization/PolyglotTextData.h"
 
@@ -778,6 +779,52 @@ struct FRotator
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Rotator, SaveGame, meta=(DisplayName="X"))
 	FLargeWorldCoordinatesReal Roll;
 };
+
+
+
+/**
+ * 3D Sphere represented by Center and Radius.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Sphere.h
+ * @note FSphere3f is not currently exposed as a Blueprint type
+ */
+USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+struct FSphere3f
+{
+	UPROPERTY(EditAnywhere, Category = Sphere, SaveGame)
+	FVector3f Center;
+
+	UPROPERTY(EditAnywhere, Category = Sphere, SaveGame, meta = (DisplayName = "Radius"))
+	float W;
+};
+/**
+ * 3D Sphere represented by Center and Radius.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Sphere.h
+ * @note FSphere3d is not currently exposed as a Blueprint type
+ */
+USTRUCT(immutable, noexport, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+struct FSphere3d
+{
+	UPROPERTY(EditAnywhere, Category = Sphere, SaveGame)
+	FVector3d Center;
+
+	UPROPERTY(EditAnywhere, Category = Sphere, SaveGame, meta = (DisplayName = "Radius"))
+	double W;
+};
+/**
+ * 3D Sphere represented by Center and Radius.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Sphere.h
+ */
+USTRUCT(immutable, noexport, BlueprintType, IsAlwaysAccessible, HasDefaults, HasNoOpConstructor, IsCoreType)
+struct FSphere
+{
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sphere, SaveGame)
+	FVector Center;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sphere, SaveGame, meta = (DisplayName = "Radius"))
+	FLargeWorldCoordinatesReal W;
+};
+
+
 
 /**
  * Quaternion.

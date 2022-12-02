@@ -22,6 +22,7 @@
 #include "UObject/SoftObjectPath.h"
 #include "Math/Box2D.h"
 #include "Math/Ray.h"
+#include "Math/Sphere.h"
 #include "Math/InterpCurvePoint.h"
 #include "UObject/ReleaseObjectVersion.h"
 
@@ -350,6 +351,23 @@ UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Ray3f);
 UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Ray3d);
 UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Ray);
 
+
+template<typename T>
+struct TSphere3StructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
+{
+	enum
+	{
+		WithIdenticalViaEquality = true,
+		WithNoInitConstructor = true,
+		WithZeroConstructor = true,
+		WithSerializeFromMismatchedTag = true,
+	};
+};
+template<> struct TStructOpsTypeTraits<FSphere3f> : public TSphere3StructOpsTypeTraits<FSphere3f> {};
+template<> struct TStructOpsTypeTraits<FSphere3d> : public TSphere3StructOpsTypeTraits<FSphere3d> {};
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Sphere3f);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Sphere3d);
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Sphere); 
 
 template<>
 struct TStructOpsTypeTraits<FInterpCurvePointFloat> : public TStructOpsTypeTraitsBase2<FInterpCurvePointFloat>

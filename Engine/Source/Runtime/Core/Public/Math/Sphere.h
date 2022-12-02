@@ -92,7 +92,6 @@ public:
 	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
 	explicit TSphere(const TSphere<FArg>& From) : TSphere<T>(TVector<T>(From.Center), T(From.W)) {}
 
-
 	/**
 	 * Check whether two spheres are the same within specified tolerance.
 	 *
@@ -104,6 +103,47 @@ public:
 	{
 		return Center.Equals(Sphere.Center, Tolerance) && FMath::Abs(W - Sphere.W) <= Tolerance;
 	}
+
+	/**
+	* Compares two spheres for equality.
+	*
+	* @param Other The other sphere to compare with.
+	* @return true if the spheres are equal, false otherwise.
+	*/
+	bool operator==(const TSphere<T>& Other) const
+	{
+		return Center == Other.Center && W == Other.W;
+	}
+
+	/**
+	 * Compares two spheres for inequality.
+	 *
+	 * @param Other The other sphere to compare with.
+	 * @return true if the spheres are not equal, false otherwise.
+	 */
+	bool operator!=(const TSphere<T>& Other) const
+	{
+		return !(*this == Other);
+	}
+
+	/**
+	 * Gets the result of addition to this bounding volume.
+	 *
+	 * @param Other The other volume to add to this.
+	 * @return A new bounding volume.
+	 */
+	TSphere<T> operator+(const TSphere<T>& Other) const
+	{
+		return TSphere<T>(*this) += Other;
+	}
+
+	/**
+	 * Adds to this sphere to include a new bounding volume.
+	 *
+	 * @param Other the bounding volume to increase the bounding volume to.
+	 * @return Reference to this bounding volume after resizing to include the other bounding volume.
+	 */
+	TSphere<T>& operator+=(const TSphere<T>& Other);
 
 	/**
 	 * Check whether sphere is inside of another.
@@ -172,25 +212,25 @@ public:
 	}
 
 	/**
-	 * Adds to this bounding box to include a new bounding volume.
-	 *
-	 * @param Other the bounding volume to increase the bounding volume to.
-	 * @return Reference to this bounding volume after resizing to include the other bounding volume.
-	 */
-	TSphere<T>& operator+=(const TSphere<T>& Other);
-
-	/**
-	 * Gets the result of addition to this bounding volume.
-	 *
-	 * @param Other The other volume to add to this.
-	 * @return A new bounding volume.
-	 */
-	TSphere operator+(const TSphere<T>& Other) const
+	* Get a textual representation of the sphere.
+	*
+	* @return Text describing the sphere.
+	*/
+	FString ToString() const
 	{
-		return TSphere(*this) += Other;
+		return FString::Printf(TEXT("Center=(%s), Radius=(%s)"), *Center.ToString(), *W.ToString());
 	}
-};
 
+	// Note: TSphere is usually written via binary serialization. This function exists for SerializeFromMismatchedTag conversion usage. 
+	bool Serialize(FArchive& Ar)
+	{
+		Ar << *this;
+		return true;
+	}
+
+	bool SerializeFromMismatchedTag(FName StructTag, FArchive& Ar);
+
+};
 
 /**
  * Serializes the given sphere from or into the specified archive.
@@ -318,13 +358,25 @@ template<> CORE_API TSphere<double>::TSphere(const TSphere<double>* Spheres, int
 
 UE_DECLARE_LWC_TYPE(Sphere, 3);
 
-//template<> struct TCanBulkSerialize<FSphere3f> { enum { Value = true }; };
-//template<> struct TIsPODType<FSphere3f> { enum { Value = true }; };
+template<> struct TCanBulkSerialize<FSphere3f> { enum { Value = true }; };
+template<> struct TIsPODType<FSphere3f> { enum { Value = true }; };
 template<> struct TIsUECoreVariant<FSphere3f> { enum { Value = true }; };
 
-//template<> struct TCanBulkSerialize<FSphere3d> { enum { Value = false }; };	// LWC_TODO: This can be done (via versioning) once LWC is fixed to on.
-//template<> struct TIsPODType<FSphere3d> { enum { Value = true }; };
+template<> struct TCanBulkSerialize<FSphere3d> { enum { Value = true }; };
+template<> struct TIsPODType<FSphere3d> { enum { Value = true }; };
 template<> struct TIsUECoreVariant<FSphere3d> { enum { Value = true }; };
+
+template<>
+inline bool FSphere3f::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, Sphere, Sphere3f, Sphere3d);
+}
+
+template<>
+inline bool FSphere3d::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, Sphere, Sphere3d, Sphere3f);
+}
 
 
 /* FMath inline functions
