@@ -148,6 +148,17 @@ FRHIParameterBatcher::FRHIParameterBatcher()
 {
 	bEnabled = GRHICommandParameterBatching != 0;
 }
+
+FRHIParameterBatcher::FRHIParameterBatcher(const FBoundShaderStateInput& InBoundShaderStateInput, FRHIComputeShader* InBoundComputeShaderRHI)
+{
+	AllBatchedShaders[SF_Vertex] = InBoundShaderStateInput.GetVertexShader();
+	AllBatchedShaders[SF_Mesh] = InBoundShaderStateInput.GetMeshShader();
+	AllBatchedShaders[SF_Amplification] = InBoundShaderStateInput.GetAmplificationShader();
+	AllBatchedShaders[SF_Pixel] = InBoundShaderStateInput.GetPixelShader();
+	AllBatchedShaders[SF_Geometry] = InBoundShaderStateInput.GetGeometryShader();
+	AllBatchedShaders[SF_Compute] = InBoundComputeShaderRHI;
+}
+
 FRHIParameterBatcher::FRHIParameterBatcher(FRHIParameterBatcher&&) = default;
 FRHIParameterBatcher::~FRHIParameterBatcher()
 {
@@ -231,7 +242,8 @@ FRHICommandListBase::FRHICommandListBase(FRHIGPUMask InGPUMask, ERecordingThread
 {}
 
 FRHICommandListBase::FRHICommandListBase(FPersistentState&& InPersistentState)
-	: DispatchEvent  (FGraphEvent::CreateGraphEvent())
+	: ParameterBatcher(InPersistentState.BoundShaderInput, InPersistentState.BoundComputeShaderRHI)
+	, DispatchEvent(FGraphEvent::CreateGraphEvent())
 	, PersistentState(MoveTemp(InPersistentState))
 {
 	DispatchEvent->SetDebugName(TEXT("FRHICommandListBase::DispatchEvent"));

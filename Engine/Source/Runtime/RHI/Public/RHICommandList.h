@@ -442,12 +442,13 @@ protected:
 		checkSlow(InShader);
 		const EShaderFrequency Frequency = InShader->GetFrequency();
 		checkSlow(Frequency < SF_NumStandardFrequencies);
-		checkSlow(AllBatchedShaders[Frequency] != nullptr);
+		check(AllBatchedShaders[Frequency] == InShader);
 		return AllBatchedShaderParameters[Frequency];
 	}
 
 public:
 	FRHIParameterBatcher();
+	FRHIParameterBatcher(const FBoundShaderStateInput& InBoundShaderStateInput, FRHIComputeShader* InBoundComputeShaderRHI);
 	FRHIParameterBatcher(FRHIParameterBatcher&&);
 	~FRHIParameterBatcher();
 
