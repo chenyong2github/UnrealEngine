@@ -4053,6 +4053,11 @@ namespace ObjectTools
 							NewPackage->SetPackageFlags(PKG_DisallowExport);
 						}
 
+						if (OldPackage->HasAnyPackageFlags(PKG_NewlyCreated))
+						{
+							NewPackage->SetPackageFlags(PKG_NewlyCreated);
+						}
+
 						NewPackage->SetIsExternallyReferenceable(OldPackage->IsExternallyReferenceable());
 
 						// When renaming a World Composition map, make sure to properly initialize WorldTileInfo
