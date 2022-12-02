@@ -93,18 +93,18 @@ void FInputDeviceDebugTools::OnShowDebugDeviceProperties(UCanvas* Canvas)
 	}
 
 	// Sort the active properties by their owning Platform User
-	static TMap<FPlatformUserId, TArray<const UInputDeviceSubsystem::FActiveDeviceProperty*>> PlatformUserDebugStrings;
+	static TMap<FPlatformUserId, TArray<const FActiveDeviceProperty*>> PlatformUserDebugStrings;
 	{
 		PlatformUserDebugStrings.Empty();
 
-		for (const UInputDeviceSubsystem::FActiveDeviceProperty& ActiveProperty : System->ActiveProperties)
+		for (const FActiveDeviceProperty& ActiveProperty : System->ActiveProperties)
 		{
 			PlatformUserDebugStrings.FindOrAdd(ActiveProperty.PlatformUser).Emplace(&ActiveProperty);
 		}
 	}	
 
 	// Actually display the debug information	
-	for (TPair<FPlatformUserId, TArray<const UInputDeviceSubsystem::FActiveDeviceProperty*>> Pair : PlatformUserDebugStrings)
+	for (TPair<FPlatformUserId, TArray<const FActiveDeviceProperty*>> Pair : PlatformUserDebugStrings)
 	{
 		const FString PlatUserLabel = FString::Printf(TEXT("Platform User %d has %d active Device Properties"),
 			Pair.Key.GetInternalId(),
@@ -113,7 +113,7 @@ void FInputDeviceDebugTools::OnShowDebugDeviceProperties(UCanvas* Canvas)
 		DisplayDebugManager.SetDrawColor(FColor::Yellow);
 		DisplayDebugManager.DrawString(PlatUserLabel);
 
-		for (const UInputDeviceSubsystem::FActiveDeviceProperty* ActiveProperty: Pair.Value)
+		for (const FActiveDeviceProperty* ActiveProperty: Pair.Value)
 		{
 			// Draw the name of the property
 			DisplayDebugManager.SetDrawColor(FColor::White);

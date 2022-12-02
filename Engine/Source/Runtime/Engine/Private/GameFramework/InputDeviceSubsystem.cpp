@@ -96,13 +96,28 @@ public:
 ////////////////////////////////////////////////////////
 // FActiveDeviceProperty
 
+uint32 GetTypeHash(const FActiveDeviceProperty& InProp)
+{
+	return InProp.PropertyHandle.GetTypeHash();
+}
+
+bool operator==(const FActiveDeviceProperty& ActiveProp, const FInputDevicePropertyHandle& Handle)
+{
+	return ActiveProp.PropertyHandle == Handle;
+}
+
+bool operator!=(const FActiveDeviceProperty& ActiveProp, const FInputDevicePropertyHandle& Handle)
+{
+	return ActiveProp.PropertyHandle != Handle;
+}
+
 // The property handles are the only things that matter when comparing, they will always be unique.
-bool UInputDeviceSubsystem::FActiveDeviceProperty::operator==(const UInputDeviceSubsystem::FActiveDeviceProperty& Other) const
+bool FActiveDeviceProperty::operator==(const FActiveDeviceProperty& Other) const
 {
 	return PropertyHandle == Other.PropertyHandle;
 }
 
-bool UInputDeviceSubsystem::FActiveDeviceProperty::operator!=(const UInputDeviceSubsystem::FActiveDeviceProperty& Other) const
+bool FActiveDeviceProperty::operator!=(const FActiveDeviceProperty& Other) const
 {
 	return PropertyHandle != Other.PropertyHandle;
 }
