@@ -82,6 +82,8 @@ void UPCGSubsystem::Deinitialize()
 	delete GraphExecutor;
 	GraphExecutor = nullptr;
 
+	PCGWorldActor = nullptr;
+
 	Super::Deinitialize();
 }
 

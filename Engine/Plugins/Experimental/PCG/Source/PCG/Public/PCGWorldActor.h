@@ -18,8 +18,8 @@ public:
 	APCGWorldActor(const FObjectInitializer& ObjectInitializer);
 
 	//~Begin AActor Interface
-	virtual void PostLoad() override;
-	virtual void BeginDestroy() override;
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 #if WITH_EDITOR	
 	virtual bool CanChangeIsSpatiallyLoadedFlag() const { return false; }

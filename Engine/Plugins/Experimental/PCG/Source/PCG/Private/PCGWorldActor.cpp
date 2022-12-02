@@ -31,16 +31,16 @@ void APCGWorldActor::BeginCacheForCookedPlatformData(const ITargetPlatform* Targ
 }
 #endif
 
-void APCGWorldActor::PostLoad()
+void APCGWorldActor::BeginPlay()
 {
-	Super::PostLoad();
+	Super::BeginPlay();
 	RegisterToSubsystem();
 }
 
-void APCGWorldActor::BeginDestroy()
+void APCGWorldActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	UnregisterFromSubsystem();
-	Super::BeginDestroy();
+	Super::EndPlay(EndPlayReason);
 }
 
 #if WITH_EDITOR
