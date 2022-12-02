@@ -32,9 +32,16 @@ FPBDLongRangeConstraintsBase::FPBDLongRangeConstraintsBase(
 	const TConstArrayView<FRealSingle>& StiffnessMultipliers,
 	const TConstArrayView<FRealSingle>& ScaleMultipliers,
 	const FSolverVec2& InStiffness,
-	const FSolverVec2& InScale)
+	const FSolverVec2& InScale,
+	FSolverReal MaxStiffness)
 	: Tethers(InTethers)
-	, Stiffness(InStiffness, StiffnessMultipliers, InParticleCount)
+	, Stiffness(
+		InStiffness,
+		StiffnessMultipliers,
+		InParticleCount,
+		FPBDStiffness::DefaultTableSize,
+		FPBDStiffness::DefaultParameterFitBase,
+		MaxStiffness)
 	, TetherScale(InScale, ScaleMultipliers, InParticleCount)
 	, ParticleOffset(InParticleOffset)
 {

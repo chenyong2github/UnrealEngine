@@ -10,7 +10,7 @@ namespace Chaos::Softs
 
 // Stiffness is in kg/s^2
 static const FSolverReal XPBDSpringMinStiffness = (FSolverReal)1e-4; // Stiffness below this will be considered 0 since all of our calculations are actually based on 1 / stiffness.
-static const FSolverReal XPBDSpringMaxStiffness = (FSolverReal)1e7; 
+static const FSolverReal XPBDSpringMaxStiffness = (FSolverReal)1e7;
 
 class CHAOS_API FXPBDSpringConstraints final : public FPBDSpringConstraintsBase
 {
@@ -20,7 +20,7 @@ class CHAOS_API FXPBDSpringConstraints final : public FPBDSpringConstraintsBase
 	using Base::Stiffness;
 
 public:
-	template<int32 Valence>
+	template<int32 Valence, TEMPLATE_REQUIRES(Valence >= 2 && Valence <= 4)>
 	FXPBDSpringConstraints(
 		const FSolverParticles& Particles,
 		int32 ParticleOffset,
@@ -28,15 +28,22 @@ public:
 		const TArray<TVector<int32, Valence>>& InConstraints,
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
 		const FSolverVec2& InStiffness,
-		bool bTrimKinematicConstraints = false,
-		typename TEnableIf<Valence >= 2 && Valence <= 4>::Type* = nullptr)
-		: Base(Particles, ParticleOffset, ParticleCount, InConstraints, StiffnessMultipliers, InStiffness, bTrimKinematicConstraints)
+		bool bTrimKinematicConstraints = false)
+		: Base(
+			Particles,
+			ParticleOffset,
+			ParticleCount,
+			InConstraints,
+			StiffnessMultipliers,
+			InStiffness,
+			bTrimKinematicConstraints,
+			XPBDSpringMaxStiffness)
 		, DampingRatio(FSolverVec2::ZeroVector)
 	{
 		Lambdas.Init((FSolverReal)0., Constraints.Num());
 		InitColor(Particles);
 	}
-	template<int32 Valence>
+	template<int32 Valence, TEMPLATE_REQUIRES(Valence >= 2 && Valence <= 4)>
 	FXPBDSpringConstraints(
 		const FSolverParticles& Particles,
 		int32 ParticleOffset,
@@ -46,10 +53,22 @@ public:
 		const TConstArrayView<FRealSingle>& DampingMultipliers,
 		const FSolverVec2& InStiffness,
 		const FSolverVec2& InDampingRatio,
-		bool bTrimKinematicConstraints = false,
-		typename TEnableIf<Valence >= 2 && Valence <= 4>::Type* = nullptr)
-		: Base(Particles, ParticleOffset, ParticleCount, InConstraints, StiffnessMultipliers, InStiffness, bTrimKinematicConstraints)
-		, DampingRatio(InDampingRatio, DampingMultipliers, TConstArrayView<TVec2<int32>>(Constraints), ParticleOffset, ParticleCount)
+		bool bTrimKinematicConstraints = false)
+		: Base(
+			Particles,
+			ParticleOffset,
+			ParticleCount,
+			InConstraints,
+			StiffnessMultipliers,
+			InStiffness,
+			bTrimKinematicConstraints,
+			XPBDSpringMaxStiffness)
+		, DampingRatio(
+			InDampingRatio,
+			DampingMultipliers,
+			TConstArrayView<TVec2<int32>>(Constraints),
+			ParticleOffset,
+			ParticleCount)
 	{
 		Lambdas.Init((FSolverReal)0., Constraints.Num());
 		InitColor(Particles);
@@ -60,10 +79,10 @@ public:
 	void Init() const { for (FSolverReal& Lambda : Lambdas) { Lambda = (FSolverReal)0.; } }
 
 	// Update stiffness values
-	void SetProperties(const FSolverVec2& InStiffness, const FSolverVec2& InDampingRatio = (FSolverReal)0.f)
+	void SetProperties(const FSolverVec2& InStiffness, const FSolverVec2& InDampingRatio = FSolverVec2::ZeroVector)
 	{ 
-		Stiffness.SetWeightedValueUnclamped(InStiffness); 
-		DampingRatio.SetWeightedValueUnclamped(InDampingRatio);
+		Stiffness.SetWeightedValue(InStiffness, XPBDSpringMaxStiffness);
+		DampingRatio.SetWeightedValue(InDampingRatio);
 	}
 	
 	// Update stiffness table, as well as the simulation stiffness exponent

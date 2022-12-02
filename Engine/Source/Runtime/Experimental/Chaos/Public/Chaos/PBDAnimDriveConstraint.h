@@ -71,8 +71,8 @@ namespace Chaos::Softs
 		// Set stiffness offset and range, as well as the simulation stiffness exponent
 		inline void ApplyProperties(const FSolverReal Dt, const int32 NumIterations)
 		{
-			Stiffness.ApplyValues(Dt, NumIterations);
-			Damping.ApplyValues(Dt, NumIterations);
+			Stiffness.ApplyPBDValues(Dt, NumIterations);
+			Damping.ApplyPBDValues(Dt, NumIterations);
 		}
 
 		inline void Apply(FSolverParticles& InParticles, const FSolverReal Dt) const

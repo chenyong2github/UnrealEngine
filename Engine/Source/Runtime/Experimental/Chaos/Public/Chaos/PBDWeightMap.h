@@ -54,13 +54,14 @@ public:
 	 * The weight map table only gets updated after ApplyValues is called.
 	 * Low and high values are clamped between [0,1]
 	 */
-	void SetWeightedValue(const FSolverVec2& InWeightedValue) { WeightedValue = InWeightedValue.ClampAxes((FSolverReal)0., (FSolverReal)1.); bIsDirty = true; }
+	void SetWeightedValue(const FSolverVec2& InWeightedValue) { WeightedValue = InWeightedValue; bIsDirty = true; }
 
 	/**
 	 * Set the low and high values of the weight map.
 	 * The weight map table only gets updated after ApplyValues is called.
 	 * Low and high values are not clamped. Commonly used for XPBD Stiffness values which are not [0,1]
 	 */
+	UE_DEPRECATED(5.2, "Use SetWeightedValue.")
 	void SetWeightedValueUnclamped(const FSolverVec2& InWeightedValue) { WeightedValue = InWeightedValue; bIsDirty = true; }
 
 	/**
@@ -111,7 +112,7 @@ inline FPBDWeightMap::FPBDWeightMap(
 	const TConstArrayView<FRealSingle>& Multipliers,
 	int32 ParticleCount,
 	int32 TableSize)
-	: WeightedValue(InWeightedValue.ClampAxes((FSolverReal)0., (FSolverReal)1.))
+	: WeightedValue(InWeightedValue)
 {
 	check(TableSize > 0 && TableSize < 256);  // The Stiffness lookup table is restricted to uint8 sized indices
 
@@ -147,7 +148,7 @@ inline FPBDWeightMap::FPBDWeightMap(
 	int32 ParticleCount,
 	int32 TableSize,
 	typename TEnableIf<Valence >= 2 && Valence <= 4>::Type*)
-	: WeightedValue(InWeightedValue.ClampAxes((FSolverReal)0., (FSolverReal)1.))
+	: WeightedValue(InWeightedValue)
 {
 	check(TableSize > 0 && TableSize < 256);  // The Stiffness lookup table is restricted to uint8 sized indices
 

@@ -15,6 +15,9 @@ namespace Chaos::Softs
 class CHAOS_API FPBDLongRangeConstraintsBase
 {
 public:
+	static constexpr FSolverReal MinTetherScale = (FSolverReal)0.01;
+	static constexpr FSolverReal MaxTetherScale = (FSolverReal)10.;
+
 	enum class EMode : uint8
 	{
 		Euclidean,
@@ -36,7 +39,8 @@ public:
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
 		const TConstArrayView<FRealSingle>& ScaleMultipliers,
 		const FSolverVec2& InStiffness = FSolverVec2::UnitVector,
-		const FSolverVec2& InScale = FSolverVec2::UnitVector);
+		const FSolverVec2& InScale = FSolverVec2::UnitVector,
+		FSolverReal MaxStiffness = FPBDStiffness::DefaultPBDMaxStiffness);
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS  // For ScaleIndices and ScaleTable
 	virtual ~FPBDLongRangeConstraintsBase() {}
@@ -45,17 +49,25 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	// Return the stiffness input values used by the constraint
 	FSolverVec2 GetStiffness() const { return Stiffness.GetWeightedValue(); }
 
+	// Set the stiffness and scale values used by the constraint
+	void SetProperties(const FSolverVec2& InStiffness, const FSolverVec2& InScale)
+	{
+		Stiffness.SetWeightedValue(InStiffness);
+		TetherScale.SetWeightedValue(InScale.ClampAxes(MinTetherScale, MaxTetherScale));
+	}
+
 	// Set the stiffness input values used by the constraint
+	UE_DEPRECATED(5.2, "Use SetProperties instead.")
 	void SetStiffness(const FSolverVec2& InStiffness) { Stiffness.SetWeightedValue(InStiffness); }
 
 	// Set the scale low and high value of the scale weight map
-	void SetScale(const FSolverVec2& InScale) { TetherScale.SetWeightedValueUnclamped(InScale.ClampAxes((FSolverReal)0.01, (FSolverReal)10.)); }
+	UE_DEPRECATED(5.2, "Use SetProperties instead.")
+	void SetScale(const FSolverVec2& InScale) { TetherScale.SetWeightedValue(InScale.ClampAxes(MinTetherScale, MaxTetherScale)); }
 
-public:
 	// Set stiffness offset and range, as well as the simulation stiffness exponent
 	void ApplyProperties(const FSolverReal Dt, const int32 NumIterations)
 	{
-		Stiffness.ApplyValues(Dt, NumIterations);
+		Stiffness.ApplyPBDValues(Dt, NumIterations);
 		TetherScale.ApplyValues();
 	}
 

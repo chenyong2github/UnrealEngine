@@ -27,20 +27,28 @@ public:
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
 		const TConstArrayView<FRealSingle>& BucklingStiffnessMultipliers,
 		const FPropertyCollectionConstAdapter& PropertyCollection,
-		bool bTrimKinematicConstraints = false)
+		bool bTrimKinematicConstraints = false,
+		FSolverReal MaxStiffness = FPBDStiffness::DefaultPBDMaxStiffness)
 		: Constraints(bTrimKinematicConstraints ? TrimKinematicConstraints(InConstraints, InParticles): MoveTemp(InConstraints))
 		, ConstraintSharedEdges(ExtractConstraintSharedEdges(Constraints))
-		, Stiffness(FSolverVec2(GetWeightedFloatBendingStiffness(PropertyCollection, 1.f)).ClampAxes((FSolverReal)0., (FSolverReal)1.),
+		, Stiffness(FSolverVec2(GetWeightedFloatBendingStiffness(PropertyCollection, 1.f)),
 			StiffnessMultipliers,
 			TConstArrayView<TVec2<int32>>(ConstraintSharedEdges),
 			ParticleOffset,
-			ParticleCount)
-		, BucklingRatio(FMath::Clamp(GetBucklingRatio(PropertyCollection, 0.f), (FSolverReal)0., (FSolverReal)1.))
-		, BucklingStiffness(FSolverVec2(GetWeightedFloatBucklingStiffness(PropertyCollection, 1.f)).ClampAxes((FSolverReal)0., (FSolverReal)1.),
+			ParticleCount,
+			FPBDStiffness::DefaultTableSize,
+			FPBDStiffness::DefaultParameterFitBase,
+			MaxStiffness)
+		, BucklingRatio((FSolverReal)FMath::Clamp(GetBucklingRatio(PropertyCollection, 0.f), 0.f, 1.f))
+		, BucklingStiffness(
+			FSolverVec2(GetWeightedFloatBucklingStiffness(PropertyCollection, 1.f)),
 			BucklingStiffnessMultipliers,
 			TConstArrayView<TVec2<int32>>(ConstraintSharedEdges),
 			ParticleOffset,
-			ParticleCount)
+			ParticleCount,
+			FPBDStiffness::DefaultTableSize,
+			FPBDStiffness::DefaultParameterFitBase,
+			MaxStiffness)
 	{
 		for (const TVec4<int32>& Constraint : Constraints)
 		{
@@ -61,12 +69,29 @@ public:
 		const FSolverVec2& InStiffness,
 		const FSolverReal InBucklingRatio,
 		const FSolverVec2& InBucklingStiffness,
-		bool bTrimKinematicConstraints = false)
+		bool bTrimKinematicConstraints = false,
+		FSolverReal MaxStiffness = FPBDStiffness::DefaultPBDMaxStiffness)
 		: Constraints(bTrimKinematicConstraints ? TrimKinematicConstraints(InConstraints, InParticles): MoveTemp(InConstraints))
 		, ConstraintSharedEdges(ExtractConstraintSharedEdges(Constraints))
-		, Stiffness(InStiffness, StiffnessMultipliers, TConstArrayView<TVec2<int32>>(ConstraintSharedEdges), ParticleOffset, ParticleCount)
+		, Stiffness(
+			InStiffness,
+			StiffnessMultipliers,
+			TConstArrayView<TVec2<int32>>(ConstraintSharedEdges),
+			ParticleOffset,
+			ParticleCount,
+			FPBDStiffness::DefaultTableSize,
+			FPBDStiffness::DefaultParameterFitBase,
+			MaxStiffness)
 		, BucklingRatio(InBucklingRatio)
-		, BucklingStiffness(InBucklingStiffness, BucklingStiffnessMultipliers, TConstArrayView<TVec2<int32>>(ConstraintSharedEdges), ParticleOffset, ParticleCount)
+		, BucklingStiffness(
+			InBucklingStiffness,
+			BucklingStiffnessMultipliers,
+			TConstArrayView<TVec2<int32>>(ConstraintSharedEdges),
+			ParticleOffset,
+			ParticleCount,
+			FPBDStiffness::DefaultTableSize,
+			FPBDStiffness::DefaultParameterFitBase,
+			MaxStiffness)
 	{
 		for (const TVec4<int32>& Constraint : Constraints)
 		{
@@ -102,7 +127,7 @@ public:
 	{
 		if (IsBendingStiffnessMutable(PropertyCollection))
 		{
-			Stiffness.SetWeightedValue(FSolverVec2(GetWeightedFloatBendingStiffness(PropertyCollection)).ClampAxes((FSolverReal)0., (FSolverReal)1.));
+			Stiffness.SetWeightedValue(FSolverVec2(GetWeightedFloatBendingStiffness(PropertyCollection)));
 		}
 		if (IsBucklingRatioMutable(PropertyCollection))
 		{
@@ -110,20 +135,24 @@ public:
 		}
 		if (IsBucklingStiffnessMutable(PropertyCollection))
 		{
-			BucklingStiffness.SetWeightedValue(FSolverVec2(GetWeightedFloatBucklingStiffness(PropertyCollection)).ClampAxes((FSolverReal)0., (FSolverReal)1.));
+			BucklingStiffness.SetWeightedValue(FSolverVec2(GetWeightedFloatBucklingStiffness(PropertyCollection)));
 		}
 	}
 
 	// Update stiffness values
 	void SetProperties(const FSolverVec2& InStiffness, const FSolverReal InBucklingRatio, const FSolverVec2& InBucklingStiffness)
 	{ 
-		Stiffness.SetWeightedValue(InStiffness.ClampAxes((FSolverReal)0., (FSolverReal)1.));
+		Stiffness.SetWeightedValue(InStiffness);
 		BucklingRatio = FMath::Clamp(InBucklingRatio, (FSolverReal)0., (FSolverReal)1.);
-		BucklingStiffness.SetWeightedValue(InBucklingStiffness.ClampAxes((FSolverReal)0., (FSolverReal)1.));
+		BucklingStiffness.SetWeightedValue(InBucklingStiffness);
 	}
 
 	// Update stiffness table, as well as the simulation stiffness exponent
-	void ApplyProperties(const FSolverReal Dt, const int32 NumIterations) { Stiffness.ApplyValues(Dt, NumIterations); BucklingStiffness.ApplyValues(Dt, NumIterations); }
+	void ApplyProperties(const FSolverReal Dt, const int32 NumIterations)
+	{
+		Stiffness.ApplyPBDValues(Dt, NumIterations);
+		BucklingStiffness.ApplyPBDValues(Dt, NumIterations);
+	}
 
 	UE_DEPRECATED(5.1, "Use SetProperties instead.")
 	void SetStiffness(FSolverReal InStiffness) { SetProperties(FSolverVec2(InStiffness), 0.f, 1.f); }

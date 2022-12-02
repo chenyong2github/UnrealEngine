@@ -28,8 +28,7 @@ public:
 	}
 
 	FPBDBendingConstraints(const FSolverParticles& InParticles, TArray<TVec4<int32>>&& InConstraints, const FSolverReal InStiffness = (FSolverReal)1.)
-	    : Base(InParticles, MoveTemp(InConstraints), InStiffness) {}
-
+		: Base(InParticles, MoveTemp(InConstraints), InStiffness) {}
 
 	virtual ~FPBDBendingConstraints() override {}
 

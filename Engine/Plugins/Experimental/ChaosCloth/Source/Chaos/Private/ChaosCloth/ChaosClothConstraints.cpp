@@ -701,8 +701,7 @@ void FClothConstraints::SetLongRangeAttachmentProperties(const Softs::FSolverVec
 {
 	if (LongRangeConstraints)
 	{
-		LongRangeConstraints->SetStiffness(TetherStiffness);
-		LongRangeConstraints->SetScale(TetherScale);
+		LongRangeConstraints->SetProperties(TetherStiffness, TetherScale);
 	}
 }
 

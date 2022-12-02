@@ -15,7 +15,7 @@ namespace Chaos::Softs
 class FPBDSpringConstraintsBase
 {
 public:
-	template<int32 Valence>
+	template<int32 Valence, TEMPLATE_REQUIRES(Valence >= 2 && Valence <= 4)>
 	FPBDSpringConstraintsBase(
 		const FSolverParticles& Particles,
 		int32 ParticleOffset,
@@ -24,13 +24,21 @@ public:
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
 		const FSolverVec2& InStiffness,
 		bool bTrimKinematicConstraints = false,
-		typename TEnableIf<Valence >= 2 && Valence <= 4>::Type* = nullptr)
+		FSolverReal MaxStiffness = FPBDStiffness::DefaultPBDMaxStiffness)
 		: Constraints(TrimConstraints(InConstraints, 
 			[&Particles, bTrimKinematicConstraints](int32 Index0, int32 Index1)
 			{
 				return bTrimKinematicConstraints && Particles.InvM(Index0) == (FSolverReal)0. && Particles.InvM(Index1) == (FSolverReal)0.;
 			}))
-		, Stiffness(InStiffness, StiffnessMultipliers, TConstArrayView<TVec2<int32>>(Constraints), ParticleOffset, ParticleCount)
+		, Stiffness(
+			InStiffness,
+			StiffnessMultipliers,
+			TConstArrayView<TVec2<int32>>(Constraints),
+			ParticleOffset,
+			ParticleCount,
+			FPBDStiffness::DefaultTableSize,
+			FPBDStiffness::DefaultParameterFitBase,
+			MaxStiffness)
 	{
 		// Update distances
 		Dists.Reset(Constraints.Num());
@@ -46,10 +54,10 @@ public:
 	{}
 
 	// Update stiffness values
-	void SetProperties(const FSolverVec2& InStiffness) { Stiffness.SetWeightedValue(InStiffness.ClampAxes((FSolverReal)0., (FSolverReal)1.)); }
+	void SetProperties(const FSolverVec2& InStiffness) { Stiffness.SetWeightedValue(InStiffness); }
 
 	// Update stiffness table, as well as the simulation stiffness exponent
-	inline void ApplyProperties(const FSolverReal Dt, const int32 NumIterations) { Stiffness.ApplyValues(Dt, NumIterations); }
+	inline void ApplyProperties(const FSolverReal Dt, const int32 NumIterations) { Stiffness.ApplyPBDValues(Dt, NumIterations); }
 
 	const TArray<TVec2<int32>>& GetConstraints() const { return Constraints; }
 

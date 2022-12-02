@@ -21,6 +21,9 @@ class FPBDStiffness final : public FPBDWeightMap
 {
 public:
 	static constexpr FSolverReal ParameterFrequency = (FSolverReal)120.;  // 60Hz @ 2 iterations as a root for all stiffness values TODO: Make this a global solver parameter
+	static constexpr FSolverReal DefaultPBDMaxStiffness = (FSolverReal)1.;
+	static constexpr FSolverReal DefaultParameterFitBase = (FSolverReal)1.e3;
+	static constexpr int32 DefaultTableSize = 16;
 
 	/**
 	 * Weightmap particle constructor. 
@@ -29,27 +32,42 @@ public:
 		const FSolverVec2& InWeightedValue,
 		const TConstArrayView<FRealSingle>& Multipliers = TConstArrayView<FRealSingle>(),
 		int32 ParticleCount = 0,  // A value of 0 also disables the map
-		int32 TableSize = 16,  // Size of the lookup table, can't be more than 256 values, the larger the table the longer it takes to apply changes to the stiffness values
-		FSolverReal InParameterFitBase = (FSolverReal)1.e3);  // Logarithm base to use in the stiffness parameter fit function
+		int32 TableSize = DefaultTableSize,  // Size of the lookup table, can't be more than 256 values, the larger the table the longer it takes to apply changes to the stiffness values
+		FSolverReal InParameterFitBase = DefaultParameterFitBase,  // Logarithm base to use in the PBD stiffness parameter fit function
+		FSolverReal InMaxStiffness = DefaultPBDMaxStiffness);
 
 	/**
 	 * Weightmap constraint constructor. 
 	 */
-	template<int32 Valence>
+	template<int32 Valence, TEMPLATE_REQUIRES(Valence >= 2 && Valence <= 4)>
 	inline FPBDStiffness(
 		const FSolverVec2& InWeightedValue,
 		const TConstArrayView<FRealSingle>& Multipliers = TConstArrayView<FRealSingle>(),
 		const TConstArrayView<TVector<int32, Valence>>& Constraints = TConstArrayView<TVector<int32, Valence>>(),
 		int32 ParticleOffset = INDEX_NONE, // Constraints have usually a particle offset added to them compared to the weight maps that always starts at index 0
 		int32 ParticleCount = 0,  // A value of 0 also disables the map
-		int32 TableSize = 16,  // Size of the lookup table, can't be more than 256 values, the larger the table the longer it takes to apply changes to the stiffness values
-		FSolverReal InParameterFitBase = (FSolverReal)1.e3,  // Logarithm base to use in the stiffness parameter fit function
-		typename TEnableIf<Valence >= 2 && Valence <= 4>::Type* = nullptr);  // Prevents incorrect valence, the value is actually unused
+		int32 TableSize = DefaultTableSize,  // Size of the lookup table, can't be more than 256 values, the larger the table the longer it takes to apply changes to the stiffness values
+		FSolverReal InParameterFitBase = DefaultParameterFitBase,  // Logarithm base to use in the PBD stiffness parameter fit function
+		FSolverReal MaxStiffness = DefaultPBDMaxStiffness);
 
 	~FPBDStiffness() {}
 
+	/**
+	 * Set the low and high values of the weight map.
+	 * The weight map table only gets updated after ApplyValues is called.
+	 * Low and high values are clamped between [0, MaxStiffness]
+	 */
+	void SetWeightedValue(const FSolverVec2& InWeightedValue, FSolverReal MaxStiffness = DefaultPBDMaxStiffness)
+	{
+		FPBDWeightMap::SetWeightedValue(InWeightedValue.ClampAxes((FSolverReal)0., MaxStiffness));
+	}
+
 	/** Update the weight map table with the current simulation parameters. */
-	inline void ApplyValues(const FSolverReal Dt, const int32 NumIterations);
+	inline void ApplyPBDValues(const FSolverReal Dt, const int32 NumIterations);
+
+	/** Update the weight map table with the current simulation parameters. */
+	UE_DEPRECATED(5.2, "Use ApplyPBDValues() instead.")
+	void ApplyValues(const FSolverReal Dt, const int32 NumIterations) { ApplyPBDValues(Dt, NumIterations); }
 
 	/** Update the weight map table with the current simulation parameters. */
 	inline void ApplyXPBDValues(const FSolverReal MaxStiffnesss);
@@ -67,14 +85,16 @@ FPBDStiffness::FPBDStiffness(
 	const TConstArrayView<FRealSingle>& Multipliers,
 	int32 ParticleCount,
 	int32 TableSize,
-	FSolverReal InParameterFitBase)
-	: FPBDWeightMap(InWeightedValue, Multipliers, ParticleCount, TableSize)
+	FSolverReal InParameterFitBase,
+	FSolverReal MaxStiffness)
+	: FPBDWeightMap(FSolverVec2::ZeroVector, Multipliers, ParticleCount, TableSize)
 	, ParameterFitBase(InParameterFitBase)
 	, ParameterFitLogBase(FMath::Loge(InParameterFitBase))
 {
+	SetWeightedValue(InWeightedValue, MaxStiffness);
 }
 
-template<int32 Valence>
+template<int32 Valence, typename TEnableIf<Valence >= 2 && Valence <= 4, int>::type>
 FPBDStiffness::FPBDStiffness(
 	const FSolverVec2& InWeightedValue,
 	const TConstArrayView<FRealSingle>& Multipliers,
@@ -83,11 +103,12 @@ FPBDStiffness::FPBDStiffness(
 	int32 ParticleCount,
 	int32 TableSize,
 	FSolverReal InParameterFitBase,
-	typename TEnableIf<Valence >= 2 && Valence <= 4>::Type*)
-	: FPBDWeightMap(InWeightedValue, Multipliers, Constraints, ParticleOffset, ParticleCount, TableSize)
+	FSolverReal MaxStiffness)
+	: FPBDWeightMap(FSolverVec2::ZeroVector, Multipliers, Constraints, ParticleOffset, ParticleCount, TableSize)
 	, ParameterFitBase(InParameterFitBase)
 	, ParameterFitLogBase(FMath::Loge(InParameterFitBase))
 {
+	SetWeightedValue(InWeightedValue, MaxStiffness);
 }
 
 static inline FSolverReal CalcExponentialParameterFit(const FSolverReal ParameterFitBase, const FSolverReal ParameterFitLogBase, const FSolverReal InValue)
@@ -99,7 +120,7 @@ static inline FSolverReal CalcExponentialParameterFit(const FSolverReal Paramete
 	return (FMath::Exp(ParameterFitLogBase * InValue) - (FSolverReal)1.) / (ParameterFitBase - (FSolverReal)1.);
 }
 
-void FPBDStiffness::ApplyValues(const FSolverReal Dt, const int32 NumIterations)
+void FPBDStiffness::ApplyPBDValues(const FSolverReal Dt, const int32 NumIterations)
 {
 	SCOPE_CYCLE_COUNTER(STAT_PBD_StiffnessApplyValues);
 
@@ -136,13 +157,13 @@ void FPBDStiffness::ApplyValues(const FSolverReal Dt, const int32 NumIterations)
 		bIsDirty = true;
 	}
 
-	FPBDWeightMap::ApplyValues(SimulationValue);  // Note, this still needs to be called even when not dirty for dealing with any change in values
+	FPBDWeightMap::ApplyValues(SimulationValue);  // Note, this still needs to be called even when not dirty for dealing with any change in weights
 }
 
 void FPBDStiffness::ApplyXPBDValues(const FSolverReal MaxStiffness)
 {
 	SCOPE_CYCLE_COUNTER(STAT_PBD_StiffnessApplyValues);
-	
+
 	auto SimulationValue = [this, MaxStiffness](const FSolverReal InValue)->FSolverReal
 		{
 			// Do not apply exponential to XPBDStiffnesses. They are authored in terms of true stiffness values (e.g., kg/s^2), not exponential compliance
@@ -155,7 +176,7 @@ void FPBDStiffness::ApplyXPBDValues(const FSolverReal MaxStiffness)
 		bIsDirty = true;
 	}
 
-	FPBDWeightMap::ApplyValues(SimulationValue);  // Note, this still needs to be called even when not dirty for dealing with any change in values
+	FPBDWeightMap::ApplyValues(SimulationValue);  // Note, this still needs to be called even when not dirty for dealing with any change in weights
 }
 
 }  // End namespace Chaos::Softs

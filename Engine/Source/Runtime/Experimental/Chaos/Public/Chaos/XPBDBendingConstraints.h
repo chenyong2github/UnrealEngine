@@ -10,7 +10,7 @@ namespace Chaos::Softs
 
 // Stiffness is in kg cm^2 / rad^2 s^2
 static const FSolverReal XPBDBendMinStiffness = (FSolverReal)1e-4; // Stiffness below this will be considered 0 since all of our calculations are actually based on 1 / stiffness.
-static const FSolverReal XPBDBendMaxStiffness = (FSolverReal)1e7; 
+static const FSolverReal XPBDBendMaxStiffness = (FSolverReal)1e7;
 
 class CHAOS_API FXPBDBendingConstraints final : public FPBDBendingConstraintsBase
 {
@@ -31,7 +31,18 @@ public:
 		const FSolverReal InBucklingRatio,
 		const FSolverVec2& InBucklingStiffness,
 		bool bTrimKinematicConstraints = false)
-		: Base(InParticles, ParticleOffset, ParticleCount, MoveTemp(InConstraints), StiffnessMultipliers, BucklingStiffnessMultipliers, InStiffness, InBucklingRatio, InBucklingStiffness, bTrimKinematicConstraints)
+		: Base(
+			InParticles,
+			ParticleOffset,
+			ParticleCount,
+			MoveTemp(InConstraints),
+			StiffnessMultipliers,
+			BucklingStiffnessMultipliers,
+			InStiffness,
+			InBucklingRatio,
+			InBucklingStiffness,
+			bTrimKinematicConstraints,
+			XPBDBendMaxStiffness)
 		, DampingRatio(FSolverVec2::ZeroVector)
 	{
 		Lambdas.Init((FSolverReal)0., Constraints.Num());
@@ -50,7 +61,18 @@ public:
 		const FSolverVec2& InBucklingStiffness,
 		const FSolverVec2& InDampingRatio,
 		bool bTrimKinematicConstraints = false)
-		: Base(InParticles, ParticleOffset, ParticleCount, MoveTemp(InConstraints), StiffnessMultipliers, BucklingStiffnessMultipliers, InStiffness, InBucklingRatio, InBucklingStiffness, bTrimKinematicConstraints)
+		: Base(
+			InParticles,
+			ParticleOffset,
+			ParticleCount,
+			MoveTemp(InConstraints),
+			StiffnessMultipliers,
+			BucklingStiffnessMultipliers,
+			InStiffness,
+			InBucklingRatio,
+			InBucklingStiffness,
+			bTrimKinematicConstraints,
+			XPBDBendMaxStiffness)
 		, DampingRatio(InDampingRatio, DampingMultipliers, TConstArrayView<TVec2<int32>>(ConstraintSharedEdges), ParticleOffset, ParticleCount)
 	{
 		Lambdas.Init((FSolverReal)0., Constraints.Num());
@@ -69,14 +91,18 @@ public:
 	// Update stiffness values
 	void SetProperties(const FSolverVec2& InStiffness, const FSolverReal InBucklingRatio, const FSolverVec2& InBucklingStiffness, const FSolverVec2& InDampingRatio = FSolverVec2::ZeroVector)
 	{
-		Stiffness.SetWeightedValueUnclamped(InStiffness);
+		Stiffness.SetWeightedValue(InStiffness, XPBDBendMaxStiffness);
 		BucklingRatio = InBucklingRatio;
-		BucklingStiffness.SetWeightedValueUnclamped(InBucklingStiffness);
-		DampingRatio.SetWeightedValueUnclamped(InDampingRatio);
+		BucklingStiffness.SetWeightedValue(InBucklingStiffness, XPBDBendMaxStiffness);
+		DampingRatio.SetWeightedValue(InDampingRatio);
 	}
 
 	// Update stiffness table, as well as the simulation stiffness exponent
-	void ApplyProperties(const FSolverReal Dt, const int32 NumIterations) { Stiffness.ApplyXPBDValues(XPBDBendMaxStiffness); BucklingStiffness.ApplyXPBDValues(XPBDBendMaxStiffness); DampingRatio.ApplyValues(); }
+	void ApplyProperties(const FSolverReal /*Dt*/, const int32 /*NumIterations*/)
+	{
+		Stiffness.ApplyXPBDValues(XPBDBendMaxStiffness);
+		BucklingStiffness.ApplyXPBDValues(XPBDBendMaxStiffness);
+		DampingRatio.ApplyValues(); }
 
 	void Apply(FSolverParticles& Particles, const FSolverReal Dt) const;
 

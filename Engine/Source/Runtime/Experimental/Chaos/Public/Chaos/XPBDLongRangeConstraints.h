@@ -28,7 +28,16 @@ public:
 		const TConstArrayView<FRealSingle>& ScaleMultipliers,
 		const FSolverVec2& InStiffness = FSolverVec2::UnitVector,
 		const FSolverVec2& InScale = FSolverVec2::UnitVector)
-	    : FPBDLongRangeConstraintsBase(Particles, InParticleOffset, InParticleCount, InTethers, StiffnessMultipliers, ScaleMultipliers, InStiffness, InScale)
+	    : FPBDLongRangeConstraintsBase(
+			Particles,
+			InParticleOffset,
+			InParticleCount,
+			InTethers,
+			StiffnessMultipliers,
+			ScaleMultipliers,
+			InStiffness,
+			InScale,
+			XPBDLongRangeMaxStiffness)
 	{
 		NumTethers = 0;
 		for (const TConstArrayView<FTether>& TetherBatch : Tethers)
@@ -40,8 +49,15 @@ public:
 
 	virtual ~FXPBDLongRangeConstraints() override {}
 
+	// Set the stiffness and scale values used by the constraint
+	void SetProperties(const FSolverVec2& InStiffness, const FSolverVec2& InScale)
+	{
+		Stiffness.SetWeightedValue(InStiffness, XPBDLongRangeMaxStiffness);
+		TetherScale.SetWeightedValue(InScale.ClampAxes(Base::MinTetherScale, Base::MaxTetherScale));
+	}
+
 	// Set stiffness offset and range, as well as the simulation stiffness exponent
-	void ApplyProperties(const FSolverReal Dt, const int32 NumIterations)
+	void ApplyProperties(const FSolverReal /*Dt*/, const int32 /*NumIterations*/)
 	{
 		Stiffness.ApplyXPBDValues(XPBDLongRangeMaxStiffness);
 		TetherScale.ApplyValues();
