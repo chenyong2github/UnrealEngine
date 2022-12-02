@@ -157,7 +157,7 @@ FPrimitiveSceneInfoCompact::FPrimitiveSceneInfoCompact(FPrimitiveSceneInfo* InPr
 	VisibilityId = PrimitiveSceneInfo->Proxy->GetVisibilityId();
 }
 
-FPrimitiveSceneInfo::FPrimitiveSceneInfo(UPrimitiveComponent* InComponent,FScene* InScene):
+FPrimitiveSceneInfo::FPrimitiveSceneInfo(UPrimitiveComponent* InComponent, FScene* InScene) :
 	Proxy(InComponent->SceneProxy),
 	PrimitiveComponentId(InComponent->ComponentId),
 	RegistrationSerialNumber(InComponent->RegistrationSerialNumber),
@@ -253,7 +253,7 @@ bool FPrimitiveSceneInfo::IsCachedRayTracingGeometryValid() const
 	if (CachedRayTracingGeometry)
 	{
 		// TODO: Doesn't take Nanite Ray Tracing into account
-		//check(CachedRayTracingGeometry->RayTracingGeometryRHI == CachedRayTracingInstance.GeometryRHI);
+		check(CachedRayTracingGeometry->RayTracingGeometryRHI == CachedRayTracingInstance.GeometryRHI);
 		return CachedRayTracingGeometry->IsValid();
 	}
 
@@ -1005,18 +1005,20 @@ void FPrimitiveSceneInfo::UpdateCachedRayTracingInstance(FPrimitiveSceneInfo* Sc
 
 		SceneInfo->UpdateCachedRayTracingInstanceWorldBounds(SceneProxy->GetLocalToWorld());
 
-		SceneInfo->CachedRayTracingInstance.GeometryRHI = CachedRayTracingInstance.Geometry->RayTracingGeometryRHI;
-
 		SceneInfo->CachedRayTracingGeometry = CachedRayTracingInstance.Geometry;
 
 		if (Nanite::GetRayTracingMode() != Nanite::ERayTracingMode::Fallback && SceneProxy->IsNaniteMesh())
 		{
-			FRHIRayTracingGeometry* NaniteRayTracingGeometry = Nanite::GRayTracingManager.GetRayTracingGeometry(SceneInfo);
+			SceneInfo->CachedRayTracingInstance.GeometryRHI = Nanite::GRayTracingManager.GetRayTracingGeometry(SceneInfo);
 
-			if (NaniteRayTracingGeometry != nullptr)
-			{
-				SceneInfo->CachedRayTracingInstance.GeometryRHI = NaniteRayTracingGeometry;
-			}
+			// nanite ray tracing geometry might not be ready yet
+			// if not ready, this pointer will be patched as soon as it is
+		}
+		else
+		{
+			checkf(CachedRayTracingInstance.Geometry, TEXT("Cached ray tracing instances must have valid geometries.")); // unless using nanite ray tracing
+
+			SceneInfo->CachedRayTracingInstance.GeometryRHI = CachedRayTracingInstance.Geometry->RayTracingGeometryRHI;
 		}
 
 		// At this point (in AddToScene()) PrimitiveIndex has been set

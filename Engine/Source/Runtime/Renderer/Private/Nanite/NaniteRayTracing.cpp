@@ -255,7 +255,7 @@ namespace Nanite
 
 		Data->Primitives.Add(SceneInfo);
 
-		if (Data->RayTracingGeometryRHI)
+		if ((GetRayTracingMode() != ERayTracingMode::Fallback) && Data->RayTracingGeometryRHI)
 		{
 			// Patch CachedRayTracingInstance here since CacheRayTracingPrimitives(...) is called before Primitive is added to Nanite::FRayTracingManager
 			SceneInfo->CachedRayTracingInstance.GeometryRHI = Data->RayTracingGeometryRHI;
@@ -496,6 +496,8 @@ namespace Nanite
 
 	void FRayTracingManager::Update()
 	{
+		const bool bUsingNaniteRayTracing = GetRayTracingMode() != ERayTracingMode::Fallback;
+
 		// process PendingRemoves
 		{
 			TSet<uint32> StillPendingRemoves;
@@ -553,7 +555,10 @@ namespace Nanite
 
 				for (auto& Primitive : Data.Primitives)
 				{
-					Primitive->CachedRayTracingInstance.GeometryRHI = Data.RayTracingGeometryRHI;
+					if (bUsingNaniteRayTracing)
+					{
+						Primitive->CachedRayTracingInstance.GeometryRHI = Data.RayTracingGeometryRHI;
+					}
 
 					auto NaniteProxy = static_cast<Nanite::FSceneProxyBase*>(Primitive->Proxy);
 					NaniteProxy->SetRayTracingDataOffset(Data.AuxiliaryDataOffset);
@@ -654,7 +659,10 @@ namespace Nanite
 
 						for (auto& Primitive : Data.Primitives)
 						{
-							Primitive->CachedRayTracingInstance.GeometryRHI = Data.RayTracingGeometryRHI;
+							if (bUsingNaniteRayTracing)
+							{
+								Primitive->CachedRayTracingInstance.GeometryRHI = Data.RayTracingGeometryRHI;
+							}
 
 							auto NaniteProxy = static_cast<Nanite::FSceneProxyBase*>(Primitive->Proxy);
 							NaniteProxy->SetRayTracingDataOffset(Data.AuxiliaryDataOffset);

@@ -688,17 +688,6 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 		}
 	}
 
-	int32 ValidLODIndex = GetFirstValidRaytracingGeometryLODIndex();
-	if (ValidLODIndex != INDEX_NONE && RenderData->LODResources[ValidLODIndex].RayTracingGeometry.Initializer.GeometryType == RTGT_Procedural)
-	{
-		// Currently we only support 1 material when using procedural ray tracing primitive
-		CachedRayTracingMaterials.SetNum(1);
-	}
-	else
-	{
-		CachedRayTracingMaterials.SetNum(MaterialSections.Num());
-	}
-
 	if (IsRayTracingAllowed())
 	{
 		CoarseMeshStreamingHandle = (Nanite::CoarseMeshStreamingHandle)Component->GetStaticMesh()->GetStreamingIndex();
@@ -1622,6 +1611,12 @@ bool FSceneProxy::HasRayTracingRepresentation() const
 
 int32 FSceneProxy::GetFirstValidRaytracingGeometryLODIndex() const
 {
+	if (GetRayTracingMode() != ERayTracingMode::Fallback)
+	{
+		// NaniteRayTracing always uses LOD0
+		return 0;
+	}
+
 	int32 NumLODs = RenderData->LODResources.Num();
 	int LODIndex = 0;
 
@@ -1678,6 +1673,8 @@ void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringCont
 		return;
 	}
 
+	const bool bUsingNaniteRayTracing = GetRayTracingMode() != ERayTracingMode::Fallback;
+
 	// try and find the first valid RT geometry index
 	int32 ValidLODIndex = GetFirstValidRaytracingGeometryLODIndex();
 	if (ValidLODIndex == INDEX_NONE)
@@ -1687,8 +1684,16 @@ void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringCont
 
 	// Setup a new instance
 	FRayTracingInstance& RayTracingInstance = OutRayTracingInstances.Emplace_GetRef();
-	RayTracingInstance.Geometry = &RenderData->LODResources[ValidLODIndex].RayTracingGeometry;
-	RayTracingInstance.bApplyLocalBoundsTransform = RayTracingInstance.Geometry->RayTracingGeometryRHI->GetInitializer().GeometryType == RTGT_Procedural;
+	if (bUsingNaniteRayTracing)
+	{
+		RayTracingInstance.Geometry = nullptr;
+		RayTracingInstance.bApplyLocalBoundsTransform = false;
+	}
+	else
+	{
+		RayTracingInstance.Geometry = &RenderData->LODResources[ValidLODIndex].RayTracingGeometry;
+		RayTracingInstance.bApplyLocalBoundsTransform = RayTracingInstance.Geometry->RayTracingGeometryRHI->GetInitializer().GeometryType == RTGT_Procedural;
+	}
 
 	const int32 InstanceCount = InstanceSceneData.Num();
 	if (CachedRayTracingInstanceTransforms.Num() != InstanceCount || !bCachedRayTracingInstanceTransformsValid)
@@ -1714,8 +1719,8 @@ void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringCont
 	const int32 ValidLODIndexForMaterials = GetRayTracingMode() != ERayTracingMode::Fallback ? 0 : ValidLODIndex;
 	
 	// Currently we only support 1 material when using procedural ray tracing primitive
-	const bool bProcedural = RayTracingInstance.Geometry->Initializer.GeometryType == RTGT_Procedural;
-	const int32 NumRayTracingMaterialEntries = bProcedural ? 1 : RenderData->LODResources[ValidLODIndexForMaterials].Sections.Num();
+	const bool bProcedural = RayTracingInstance.Geometry && RayTracingInstance.Geometry->Initializer.GeometryType == RTGT_Procedural;
+	const int32 NumRayTracingMaterialEntries = bProcedural ? 1 : RenderData->LODResources[ValidLODIndex].Sections.Num();
 
 	// Setup the cached materials again when the LOD changes
 	if (NumRayTracingMaterialEntries != CachedRayTracingMaterials.Num() || ValidLODIndex != CachedRayTracingMaterialsLODIndex)
@@ -1723,13 +1728,13 @@ void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringCont
 		CachedRayTracingMaterials.Reset();
 		CachedRayTracingMaterials.SetNum(NumRayTracingMaterialEntries);
 
-		const bool bUseNaniteVertexFactory = GetRayTracingMode() != ERayTracingMode::Fallback;
-		SetupRayTracingMaterials(ValidLODIndexForMaterials, CachedRayTracingMaterials, bUseNaniteVertexFactory);
+		SetupRayTracingMaterials(ValidLODIndex, CachedRayTracingMaterials, bUsingNaniteRayTracing);
 		CachedRayTracingMaterialsLODIndex = ValidLODIndex;
 
 		// Request rebuild
 		CachedRayTracingInstanceMaskAndFlags.Mask = 0;
 	}
+
 	RayTracingInstance.MaterialsView = CachedRayTracingMaterials;
 
 	if (CachedRayTracingInstanceMaskAndFlags.Mask == 0)
@@ -1767,6 +1772,8 @@ ERayTracingPrimitiveFlags FSceneProxy::GetCachedRayTracingInstance(FRayTracingIn
 		return ERayTracingPrimitiveFlags::Excluded;
 	}
 
+	const bool bUsingNaniteRayTracing = GetRayTracingMode() != ERayTracingMode::Fallback;
+
 	// try and find the first valid RT geometry index
 	int32 ValidLODIndex = GetFirstValidRaytracingGeometryLODIndex();
 	if (ValidLODIndex == INDEX_NONE)
@@ -1776,8 +1783,16 @@ ERayTracingPrimitiveFlags FSceneProxy::GetCachedRayTracingInstance(FRayTracingIn
 		return (CoarseMeshStreamingHandle != INDEX_NONE) ? ERayTracingPrimitiveFlags::Streaming : ERayTracingPrimitiveFlags::Excluded;
 	}
 
-	RayTracingInstance.Geometry = &RenderData->LODResources[ValidLODIndex].RayTracingGeometry;
-	RayTracingInstance.bApplyLocalBoundsTransform = RayTracingInstance.Geometry->RayTracingGeometryRHI->GetInitializer().GeometryType == RTGT_Procedural;
+	if (bUsingNaniteRayTracing)
+	{
+		RayTracingInstance.Geometry = nullptr;
+		RayTracingInstance.bApplyLocalBoundsTransform = false;
+	}
+	else
+	{
+		RayTracingInstance.Geometry = &RenderData->LODResources[ValidLODIndex].RayTracingGeometry;
+		RayTracingInstance.bApplyLocalBoundsTransform = RayTracingInstance.Geometry->RayTracingGeometryRHI->GetInitializer().GeometryType == RTGT_Procedural;
+	}
 
 	checkf(SupportsInstanceDataBuffer() && InstanceSceneData.Num() <= GetPrimitiveSceneInfo()->GetNumInstanceSceneDataEntries(),
 		TEXT("Primitives using ERayTracingPrimitiveFlags::CacheInstances require instance transforms available in GPUScene"));
@@ -1785,21 +1800,17 @@ ERayTracingPrimitiveFlags FSceneProxy::GetCachedRayTracingInstance(FRayTracingIn
 	RayTracingInstance.NumTransforms = InstanceSceneData.Num();
 	// When ERayTracingPrimitiveFlags::CacheInstances is used, instance transforms are copied from GPUScene while building ray tracing instance buffer.
 
-	// When we are running with NaniteRT we need to force materials to come from LOD0.
-	// TODO: Figure out a better place to do it.
-	int32 ValidLODIndexForMaterials = GetRayTracingMode() != ERayTracingMode::Fallback ? 0 : ValidLODIndex;
-	if (RayTracingInstance.Geometry->Initializer.GeometryType == RTGT_Procedural)
+	if (RayTracingInstance.Geometry && RayTracingInstance.Geometry->Initializer.GeometryType == RTGT_Procedural)
 	{
 		// Currently we only support 1 material when using procedural ray tracing primitive
 		RayTracingInstance.Materials.SetNum(1);
 	}
 	else
 	{
-		RayTracingInstance.Materials.SetNum(RayTracingMaterialProxiesPerLOD[ValidLODIndexForMaterials].Num());
+		RayTracingInstance.Materials.SetNum(RayTracingMaterialProxiesPerLOD[ValidLODIndex].Num());
 	}
 
-	const bool bUseNaniteVertexFactory = GetRayTracingMode() != ERayTracingMode::Fallback;
-	SetupRayTracingMaterials(ValidLODIndexForMaterials, RayTracingInstance.Materials, bUseNaniteVertexFactory);
+	SetupRayTracingMaterials(ValidLODIndex, RayTracingInstance.Materials, bUsingNaniteRayTracing);
 
 	const bool bIsRayTracingFarField = IsRayTracingFarField();
 

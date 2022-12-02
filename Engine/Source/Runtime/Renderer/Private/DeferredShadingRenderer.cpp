@@ -1368,25 +1368,28 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 			{
 				const int32 PrimitiveIndex = RelevantPrimitive.PrimitiveIndex;
 				FPrimitiveSceneInfo* SceneInfo = Scene.Primitives[PrimitiveIndex];
+				FPrimitiveSceneProxy* SceneProxy = Scene.PrimitiveSceneProxies[PrimitiveIndex];
 				ERayTracingPrimitiveFlags Flags = Scene.PrimitiveRayTracingFlags[PrimitiveIndex];
 
 				if (EnumHasAnyFlags(Flags, ERayTracingPrimitiveFlags::CacheInstances))
 				{
-					if (Nanite::GetRayTracingMode() != Nanite::ERayTracingMode::Fallback)
-					{
-						FPrimitiveSceneProxy* SceneProxy = Scene.PrimitiveSceneProxies[PrimitiveIndex];
-
-						if (SceneProxy->IsNaniteMesh())
-						{
-							Nanite::GRayTracingManager.AddVisiblePrimitive(SceneInfo);
-						}
-					}
-
 					// For primitives with ERayTracingPrimitiveFlags::CacheInstances flag we only cache the instance/mesh commands of the current LOD
 					// (see FPrimitiveSceneInfo::UpdateCachedRayTracingInstance(...) and CacheRayTracingPrimitive(...))
 					const int32 LODIndex = 0;
 
-					if (!SceneInfo->IsCachedRayTracingGeometryValid())
+					const bool bUsingNaniteRayTracing = (Nanite::GetRayTracingMode() != Nanite::ERayTracingMode::Fallback) && SceneProxy->IsNaniteMesh();
+
+					if (bUsingNaniteRayTracing)
+					{
+						Nanite::GRayTracingManager.AddVisiblePrimitive(SceneInfo);
+
+						if (SceneInfo->CachedRayTracingInstance.GeometryRHI == nullptr)
+						{
+							// Nanite ray tracing geometry not ready yet, doesn't include primitive in ray tracing scene
+							continue;
+						}
+					}
+					else if (!SceneInfo->IsCachedRayTracingGeometryValid())
 					{
 						// cached instance is not valid (eg: was streamed out) need to invalidate for next frame
 						ProxiesWithDirtyCachedInstance.Add(Scene.PrimitiveSceneProxies[PrimitiveIndex]);
