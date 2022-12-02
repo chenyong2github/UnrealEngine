@@ -1661,19 +1661,7 @@ void FWidgetBlueprintEditor::UpdatePreview(UBlueprint* InBlueprint, bool bInForc
 				PreviewUserWidget->SetPlayerContext(FLocalPlayerContext(Player));
 			}
 
-			UWidgetTree* LatestWidgetTree = PreviewBlueprint->WidgetTree;
-
-			// If there is no RootWidget, we look for a WidgetTree in the parents classes until we find one.
-			if (LatestWidgetTree->RootWidget == nullptr)
-			{
-				UWidgetBlueprintGeneratedClass* BGClass = PreviewUserWidget->GetWidgetTreeOwningClass();
-				// If we find a class that owns the widget tree, just make sure it's not our current class, that would imply we've removed all the widgets
-				// from this current tree, and if we use this classes compiled tree it's going to be the outdated old version.
-				if (BGClass && BGClass != PreviewBlueprint->GeneratedClass)
-				{
-					LatestWidgetTree = BGClass->GetWidgetTreeArchetype();
-				}
-			}
+			UWidgetTree* LatestWidgetTree = FWidgetBlueprintEditorUtils::FindLatestWidgetTree(PreviewBlueprint, PreviewUserWidget);
 
 			TMap<FName, UWidget*> NamedSlotContentToMerge;
 			UWidgetBlueprint* WidgetBPIt = PreviewBlueprint;

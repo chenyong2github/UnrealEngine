@@ -2028,6 +2028,24 @@ FString FWidgetBlueprintEditorUtils::FindNextValidName(UWidgetTree* WidgetTree, 
 	return Name;
 }
 
+UWidgetTree* FWidgetBlueprintEditorUtils::FindLatestWidgetTree(UWidgetBlueprint* Blueprint, UUserWidget* UserWidget)
+{
+	UWidgetTree* LatestWidgetTree = Blueprint->WidgetTree;
+
+	// If there is no RootWidget, we look for a WidgetTree in the parents classes until we find one.
+	if (LatestWidgetTree->RootWidget == nullptr)
+	{
+		UWidgetBlueprintGeneratedClass* BGClass = UserWidget->GetWidgetTreeOwningClass();
+		// If we find a class that owns the widget tree, just make sure it's not our current class, that would imply we've removed all the widgets
+		// from this current tree, and if we use this classes compiled tree it's going to be the outdated old version.
+		if (BGClass && BGClass != Blueprint->GeneratedClass)
+		{
+			LatestWidgetTree = BGClass->GetWidgetTreeArchetype();
+		}
+	}
+	return LatestWidgetTree;
+}
+
 int32 FWidgetBlueprintEditorUtils::UpdateHittestGrid(FHittestGrid& HitTestGrid, TSharedRef<SWindow> Window, float Scale, FVector2D DrawSize, float DeltaTime)
 {
 	FSlateApplication::Get().InvalidateAllWidgets(false);
