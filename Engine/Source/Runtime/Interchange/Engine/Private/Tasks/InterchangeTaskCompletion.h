@@ -88,7 +88,8 @@ namespace UE
 			}
 			static FORCEINLINE ESubsequentsMode::Type GetSubsequentsMode()
 			{
-				return ESubsequentsMode::FireAndForget;
+				//In case we need to know when the task is done we need track subsequent to get a valid FGraphEventRef when we create the task
+				return ESubsequentsMode::TrackSubsequents;
 			}
 
 			FORCEINLINE TStatId GetStatId() const

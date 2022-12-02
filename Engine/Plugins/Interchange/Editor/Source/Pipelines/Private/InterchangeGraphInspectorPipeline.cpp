@@ -3,9 +3,11 @@
 
 #include "CoreMinimal.h"
 
+#include "CoreGlobals.h"
 #include "Framework/Application/SlateApplication.h"
 #include "InterchangeSourceData.h"
 #include "Interfaces/IMainFrameModule.h"
+#include "Misc/App.h"
 #include "Misc/Paths.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "SInterchangeGraphInspectorWindow.h"
@@ -17,6 +19,12 @@
 
 void UInterchangeGraphInspectorPipeline::ExecutePreImportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainer, const TArray<UInterchangeSourceData*>& SourceDatas)
 {
+	//Do not pop dialog if we are unattended or doing automation
+	if (FApp::IsUnattended() || IsRunningCommandlet())
+	{
+		return;
+	}
+
 	//Create and show the graph inspector UI dialog
 	TSharedPtr<SWindow> ParentWindow;
 	if (FModuleManager::Get().IsModuleLoaded("MainFrame"))

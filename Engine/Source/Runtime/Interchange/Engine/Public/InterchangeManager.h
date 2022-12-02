@@ -242,8 +242,13 @@ namespace UE
 
 			void SendAnalyticImportEndData();
 			void ReleaseTranslatorsSource();
+
+			/**
+			 * Wait synchronously after graph parsing task is done and return the GraphEventArray up to the completion TaskGraphEvent
+			 */
+			FGraphEventArray GetCompletionTaskGraphEvent();
+
 			void InitCancel();
-			void CancelAndWaitUntilDoneSynchronously();
 
 			void CleanUp();
 		};
@@ -520,14 +525,15 @@ protected:
 	/**
 	 * This function cancel all task and finish them has fast as possible.
 	 * We use this if the user cancel the work or if the editor is exiting.
-	 * @note - This is a blocking call until the tasks are completed.
+	 * @note - This is a asynchronous call, tasks will be completed (cancel) soon.
 	 */
 	void CancelAllTasks();
 
 	/**
-	 * Same has CancelAllTasks, but will wait all task are done before exiting the function
+	 * Wait synchronously that all tasks are done
 	 */
-	void CancelAllTasksSynchronously();
+	void WaitUntilAllTasksDone(bool bCancel);
+
 
 	/**
 	 * If we set the mode to active we will setup the timer and add the thread that will block the GC.
