@@ -917,7 +917,7 @@ namespace Horde.Build.Agents
 		/// <returns>Hourly rate of running the given agent</returns>
 		public async ValueTask<double?> GetRateAsync(AgentId agentId)
 		{
-			RedisStringKey<double> key = $"agent-rate/{agentId}";
+			RedisKey key = $"agent-rate/{agentId}";
 
 			// Try to get the current value
 			RedisValue value = await _redisService.GetDatabase().StringGetAsync(key);

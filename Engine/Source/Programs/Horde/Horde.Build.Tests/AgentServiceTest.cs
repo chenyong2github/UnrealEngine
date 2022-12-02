@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using Horde.Build.Agents;
 using Horde.Build.Jobs;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.AspNetCore.Mvc;
@@ -52,6 +53,29 @@ public class AgentServiceTest : TestSetup
 		Assert.IsTrue(AgentService.AuthorizeSession(agent, GetUser(agent)));
 		await Clock.AdvanceAsync(TimeSpan.FromMinutes(20));
 		Assert.IsFalse(AgentService.AuthorizeSession(agent, GetUser(agent)));
+	}
+	
+	[TestMethod]
+	public async Task GetAgentRateTest()
+	{
+		IAgent agent1 = await AgentService.CreateAgentAsync("agent1", true, null);
+		IAgent agent2 = await AgentService.CreateAgentAsync("agent2", true, null);
+		await AgentService.CreateSessionAsync(agent1, AgentStatus.Ok, new List<string>() { "aws-instance-type=c5.24xlarge", "osfamily=windows" }, new Dictionary<string, int>(), "test");
+		await AgentService.CreateSessionAsync(agent2, AgentStatus.Ok, new List<string>() { "aws-instance-type=c4.4xLARge", "osfamily=WinDowS" }, new Dictionary<string, int>(), "test");
+		
+		List<AgentRateConfig> agentRateConfigs = new()
+		{
+			new AgentRateConfig() { Condition = "aws-instance-type == 'c5.24xlarge' && osfamily == 'windows'", Rate = 200, },
+			new AgentRateConfig() { Condition = "aws-instance-type == 'c4.4xlarge' && osfamily == 'windows'", Rate = 300 }
+			
+		};
+		await AgentService.UpdateRateTableAsync(agentRateConfigs);
+		
+		double? rate1 = await AgentService.GetRateAsync(agent1.Id);
+		Assert.AreEqual(200, rate1!.Value, 0.1);
+		
+		double? rate2 = await AgentService.GetRateAsync(agent2.Id);
+		Assert.AreEqual(300, rate2!.Value, 0.1);
 	}
 
 	private static ClaimsPrincipal GetUser(IAgent agent)
