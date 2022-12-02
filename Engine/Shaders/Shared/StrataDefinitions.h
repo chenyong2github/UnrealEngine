@@ -36,6 +36,9 @@
 // The default thickness of a layer is considered to be 0.01 centimeter = 0.1 millimeter
 #define STRATA_LAYER_DEFAULT_THICKNESS_CM	0.01f
 
+// Min Fuzz Roughness to avoid numerical issue
+#define STRATA_MIN_FUZZ_ROUGHNESS 0.02f
+
 #define STRATA_BASE_PASS_MRT_OUTPUT_COUNT	3
 
 #define STRATA_SSS_DATA_UINT_COUNT		2

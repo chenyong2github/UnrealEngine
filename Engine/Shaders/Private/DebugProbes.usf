@@ -132,6 +132,7 @@ void WriteOutMaterial(
 		/*flaot SecondRoughnessAsSimpleClearCoat*/0.0f,
 		/*float FuzzAmount						*/0.0f,
 		/*float3 FuzzColor						*/0.0f,
+		/*float FuzzRoughness					*/0.0f,
 		/*float Thickness						*/0.0f,
 		/*bool bIsThinSurface					*/false,
 		/*uint SharedLocalBasisIndex			*/SharedLocalBasisIndex,

@@ -119,6 +119,7 @@ FStrataData CreateLegacySlab(
 		In.SecondRoughnessAsSimpleClearCoat ? 1.0f : 0.0f,	// SecondRoughnessAsSimpleClearCoat
 		In.FuzzAmount,										// FuzzAmount
 		In.FuzzColor,										// FuzzColor
+		In.Roughness,										// FuzzRoughness
 		In.Thickness,
 		In.bIsThinSurface,
 		In.SharedLocalBasisIndex, SharedLocalBasisTypes);

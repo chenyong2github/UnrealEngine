@@ -611,17 +611,18 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 			BRANCH
 			if (BSDF_GETHASFUZZ(BSDFContext.BSDF))
 			{
-				const float FuzzAmount = SLAB_FUZZ_AMOUNT(BSDFContext.BSDF);
+				const float  FuzzAmount = SLAB_FUZZ_AMOUNT(BSDFContext.BSDF);
 				const float3 FuzzF0  = SLAB_FUZZ_COLOR(BSDFContext.BSDF);
+				const float  FuzzF90 = 1.0f;
+				const float  FuzzRoughness = MakeRoughnessSafe(SLAB_FUZZ_ROUGHNESS(BSDFContext.BSDF), STRATA_MIN_FUZZ_ROUGHNESS);
 
-				const float ClothF90 = 1.0f;
-				FBxDFEnergyTerms EnergyTerms = ComputeClothEnergyTerms(SafeRoughness, BSDFContext.Context.NoV, FuzzF0, ClothF90);
+				FBxDFEnergyTerms EnergyTerms = ComputeClothEnergyTerms(FuzzRoughness, BSDFContext.Context.NoV, FuzzF0, FuzzF90);
 
 				// The specular and diffuse components below the fuzz are only attenuated linearly according to the amount of fuzz.
 				const float3 Cloth_DirectionalAlbedo_SpecularTransmission = lerp(1.0, ComputeEnergyPreservation(EnergyTerms), FuzzAmount);
 
 				// Charlie cloth modle for D and Ashikhmin for visibility (more efficient than Charlie).
-				float ClothD = D_Charlie(SafeRoughness, BSDFContext.Context.NoH);
+				float ClothD   = D_Charlie(FuzzRoughness, BSDFContext.Context.NoH);
 				float ClothVis = Vis_Ashikhmin(BSDFContext.Context.NoV, AreaLightContext.NoL);
 				float3 ClothF  = F_Schlick(FuzzF0, BSDFContext.Context.VoH);
 				float3 ClothSpecularPathValue = (ClothD * ClothVis) * ClothF * ComputeEnergyConservation(EnergyTerms);
@@ -1459,11 +1460,12 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 			BRANCH
 			if (BSDF_GETHASFUZZ(BSDFContext.BSDF))
 			{
-				const float FuzzAmount = SLAB_FUZZ_AMOUNT(BSDFContext.BSDF);
+				const float  FuzzAmount = SLAB_FUZZ_AMOUNT(BSDFContext.BSDF);
 				const float3 FuzzF0 = SLAB_FUZZ_COLOR(BSDFContext.BSDF);
+				const float  FuzzF90 = 1.0f;
+				const float  FuzzRoughness = MakeRoughnessSafe(SLAB_FUZZ_ROUGHNESS(BSDFContext.BSDF), STRATA_MIN_FUZZ_ROUGHNESS);
 
-				const float ClothF90 = 1.0f;
-				const FBxDFEnergyTermsRGB ClothEnergyTerms = ComputeClothEnergyTermsRGB(SafeRoughness, BSDFContext.Context.NoV, FuzzF0, ClothF90);
+				const FBxDFEnergyTermsRGB ClothEnergyTerms = ComputeClothEnergyTermsRGB(FuzzRoughness, BSDFContext.Context.NoV, FuzzF0, FuzzF90);
 
 				// The specular and diffuse components below the fuzz are only attenuated linearly according to the amount of fuzz.
 				const float Cloth_DirectionalAlbedo_SpecularTransmission = lerp(1.0, ComputeEnergyPreservation(ClothEnergyTerms), FuzzAmount);

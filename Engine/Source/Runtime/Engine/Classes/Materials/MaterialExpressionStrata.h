@@ -278,10 +278,10 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 	FExpressionInput SecondRoughnessWeight;
 
 	/**
-	 * The slab thickness. (type = float, centimeters, default = 0.01 centimeter = 0.1 millimeter)
+	 * Controls how rough the Fuzz layer is. Roughness of 0 is smooth and 1 is rough. If FuzzRoughness Is not connected, the Roughness input will be used instead. (type = float, unit = unitless, defaults to 0.5)
 	 */
 	UPROPERTY()
-	FExpressionInput Thickness; // TODO: Remove
+	FExpressionInput FuzzRoughness;
 
 	/**
 	 * The amount of fuzz on top of the surface used to simulate cloth-like appearance.
@@ -318,6 +318,7 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 
 	bool HasEdgeColor() const;
 	bool HasFuzz() const;
+	bool HasFuzzRoughness() const;
 	bool HasSecondRoughness() const;
 	bool HasSSS() const;
 	bool HasSSSProfile() const;

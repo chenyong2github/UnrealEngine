@@ -471,6 +471,7 @@ struct FStrataBSDF
 // Fuzz to simulate cloth
 #define SLAB_FUZZ_COLOR(X)				X.VGPRs[4].xyz
 #define SLAB_FUZZ_AMOUNT(X)				X.VGPRs[4].w
+#define SLAB_FUZZ_ROUGHNESS(X)			X.VGPRs[2].w
 
 ///////////////////////////////////////////////////////////////////////////////
 // Volumetric BSDF members
@@ -532,10 +533,16 @@ uint   PackRGBA8(float4 rgba);
 float4 UnpackRGBA8(uint rgba);
 uint   Pack10F(float Value);
 float  Unpack10F(uint Value);
+uint   PackR6(float Value, float Dither);
+float  UnpackR6(uint Value);
+uint   PackR7(float Value, float Dither);
+float  UnpackR7(uint Value);
 uint   PackR11G11B10F(float3 rgb);
 float3 UnpackR11G11B10F(uint rgb);
 uint   PackR10G10B10F(float3 rgb);
 float3 UnpackR10G10B10F(uint rgb);
+uint   PackR7G7B6Gamma2(float3 rgb, float Dither);
+float3 UnpackR7G7B6Gamma2(uint rgb);
 uint   PackColorLinearToGamma2AlphaLinear(float4 rgba);
 float4 UnpackColorGamma2ToLinearAlphaLinear(uint rgba);
 uint   StrataPackNormal(in float3 Normal);
@@ -957,6 +964,21 @@ uint StrataSubsurfaceProfileIdTo8bits(float In)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+// Fuzz
+
+uint PackFuzz(half3 InColor, half InAmount, half InRoughness, half InDither)
+{
+	return PackR7G7B6Gamma2(InColor, InDither) | (PackR6(InAmount, InDither) << 20) | (PackR6(InRoughness, InDither) << 26);
+}
+
+void UnpackFuzz(uint In, inout half3 OutColor, inout half OutAmount, inout half OutRoughness)
+{
+	OutColor     = UnpackR7G7B6Gamma2(In & 0xFFFFF);
+	OutAmount    = UnpackR6((In >> 20) & 0x3F);
+	OutRoughness = UnpackR6((In >> 26) & 0x3F);
+}
+
+///////////////////////////////////////////////////////////////////////////////
 // Misc
 
 // Return true if a BSDF has a custom area light integrator
@@ -1344,7 +1366,7 @@ FStrataData GetStrataSlabBSDF(
 	float SSSProfileID, float3 SSSMFP, float SSSMFPScale, float SSSPhaseAnisotropy, float UseSSSDiffusion,
 	float3 Emissive, 
 	float SecondRoughness, float SecondRoughnessWeight, float SecondRoughnessAsSimpleClearCoat,
-	float FuzzAmount, float3 FuzzColor,
+	float FuzzAmount, float3 FuzzColor, float FuzzRoughness,
 	float ThicknessCm,
 	bool bIsThinSurface,
 	uint SharedLocalBasisIndex, inout uint SharedLocalBasisTypes)
@@ -1460,6 +1482,7 @@ FStrataData GetStrataSlabBSDF(
 
 	SLAB_FUZZ_AMOUNT		(StrataData.InlinedBSDF)		= FuzzAmount;
 	SLAB_FUZZ_COLOR			(StrataData.InlinedBSDF)		= FuzzColor;
+	SLAB_FUZZ_ROUGHNESS		(StrataData.InlinedBSDF)		= FuzzRoughness;
 
 #endif // !STRATA_FASTPATH
 
@@ -2186,6 +2209,7 @@ FStrataData StrataHorizontalMixingParameterBlending(FStrataData Background, FStr
 	SLAB_ROUGHNESS(ResultBSDF) =		lerp(SLAB_ROUGHNESS(BackgroundBSDF),			SLAB_ROUGHNESS(ForegroundBSDF),				ForegroundOtherMixFactor);
 	SLAB_ANISOTROPY(ResultBSDF) =		lerp(SLAB_ANISOTROPY(BackgroundBSDF),			SLAB_ANISOTROPY(ForegroundBSDF),			ForegroundOtherMixFactor);
 	SLAB_FUZZ_AMOUNT(ResultBSDF) =		lerp(SLAB_FUZZ_AMOUNT(BackgroundBSDF),			SLAB_FUZZ_AMOUNT(ForegroundBSDF),			ForegroundOtherMixFactor);
+	SLAB_FUZZ_ROUGHNESS(ResultBSDF)	=	lerp(SLAB_FUZZ_ROUGHNESS(BackgroundBSDF),		SLAB_FUZZ_ROUGHNESS(ForegroundBSDF),		ForegroundOtherMixFactor);
 	SLAB_HAZINESS(ResultBSDF) =			LerpHazinessParameterBlending(BackgroundBSDF,	ForegroundBSDF,								ForegroundOtherMixFactor);
 	
 
@@ -2286,6 +2310,7 @@ FStrataData StrataAddParameterBlending(FStrataData A, FStrataData B, float AMixF
 	SLAB_ROUGHNESS(ResultBSDF) =		lerp(SLAB_ROUGHNESS(BBSDF),						SLAB_ROUGHNESS(ABSDF),						AMixFactor);
 	SLAB_ANISOTROPY(ResultBSDF) =		lerp(SLAB_ANISOTROPY(BBSDF),					SLAB_ANISOTROPY(ABSDF),						AMixFactor);
 	SLAB_FUZZ_AMOUNT(ResultBSDF) =		lerp(SLAB_FUZZ_AMOUNT(BBSDF),					SLAB_FUZZ_AMOUNT(ABSDF),					AMixFactor);
+	SLAB_FUZZ_ROUGHNESS(ResultBSDF) =	lerp(SLAB_FUZZ_ROUGHNESS(BBSDF),				SLAB_FUZZ_ROUGHNESS(ABSDF),					AMixFactor);
 	SLAB_HAZINESS(ResultBSDF) =			LerpHazinessParameterBlending(BBSDF,			ABSDF,										AMixFactor);
 
 	if (BSDF_GETSSSTYPE(ResultBSDF) == SSS_TYPE_DIFFUSION_PROFILE)
@@ -2398,6 +2423,7 @@ FStrataBSDF StrataVerticalLayeringParameterBlending(in FStrataBSDF TopBSDF, in F
 		
 	SLAB_ROUGHNESS(ResultBSDF) =		lerp(SLAB_ROUGHNESS(TopBSDF),					SLAB_ROUGHNESS(BaseBSDF),	TopToBottomLerp);
 	SLAB_FUZZ_AMOUNT(ResultBSDF) =		lerp(SLAB_FUZZ_AMOUNT(TopBSDF),					SLAB_FUZZ_AMOUNT(BaseBSDF), TopToBottomLerp);
+	SLAB_FUZZ_ROUGHNESS(ResultBSDF) =	lerp(SLAB_FUZZ_ROUGHNESS(TopBSDF),				SLAB_FUZZ_ROUGHNESS(BaseBSDF),TopToBottomLerp);
 	SLAB_HAZINESS(ResultBSDF) =			LerpHazinessParameterBlending(TopBSDF,			BaseBSDF,					TopToBottomLerp);
 
 	// Anisotropy is disabled with vertical blending. 
@@ -2576,6 +2602,7 @@ void SanitizeStrataSlab(inout FStrataBSDF BSDF)
 
 	SLAB_FUZZ_AMOUNT(BSDF) = saturate(SLAB_FUZZ_AMOUNT(BSDF));
 	SLAB_FUZZ_COLOR(BSDF) = saturate(SLAB_FUZZ_COLOR(BSDF));
+	SLAB_FUZZ_ROUGHNESS(BSDF) = saturate(SLAB_FUZZ_ROUGHNESS(BSDF));
 }
 
 void SanitizeStrataHair(inout FStrataBSDF BSDF)
@@ -3133,6 +3160,19 @@ float UnpackR7(uint Value)
 	return float(Value & 0x7F) * (1.0f / 127.0f);
 }
 
+uint PackR6(float Value, float Dither)
+{
+	const float CenteredDither = Dither - 0.5f;
+	const float Dither7bits = CenteredDither * 1.0f / 63.0f;
+	const float DitheredValue = DitherIfNonBlack(saturate(Value), Dither7bits);
+	return uint(DitheredValue * 63.0f);
+}
+
+float UnpackR6(uint Value)
+{
+	return float(Value & 0x3F) * (1.0f / 63.0f);
+}
+
 // Simple Octahedral from "A Survey of Efficient Representations for Independent Unit Vectors" http://jcgt.org/published/0003/02/01/
 float SignNotZero(in float k)
 {
@@ -3428,6 +3468,7 @@ void StrataConvertFromDBuffer(
 		0.f,				// SecondRoughnessAsSimpleClearCoat
 		0.f,				// FuzzAmount
 		0.f,				// FuzzColor
+		In.Roughness,		// FuzzRoughness
 		DefaultThicknessCm,
 		false,				// bIsThinSurface,
 		SharedLocalBasisIndex,
@@ -3817,6 +3858,7 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 				SLAB_FUZZ_COLOR(OutBSDF)	= UnpackR7G7B6Gamma2(PackedFuzzColor20bits);
 				SLAB_FUZZ_AMOUNT(OutBSDF)	= UnpackR8(PackedFuzzAmount8bits);
 				SLAB_ROUGHNESS(OutBSDF)		= StrataUnpackTopLayerData(StrataHeader.PackedTopLayerData).Roughness;
+				SLAB_FUZZ_ROUGHNESS(OutBSDF)= SLAB_ROUGHNESS(OutBSDF);
 			#endif
 
 				// Force a BSDF state to be a single layer on top.
@@ -4028,7 +4070,7 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 
 		if (BSDF_GETHASFUZZ(OutBSDF))
 		{
-			StrataLoad_ColorGamma2ToLinearAlphaLinear(StrataBuffer, StrataAddressing, SLAB_FUZZ_COLOR(OutBSDF), SLAB_FUZZ_AMOUNT(OutBSDF));
+			UnpackFuzz((StrataLoadUint1(StrataBuffer, StrataAddressing)), SLAB_FUZZ_COLOR(OutBSDF), SLAB_FUZZ_AMOUNT(OutBSDF), SLAB_FUZZ_ROUGHNESS(OutBSDF));
 		}
 
 		if (BSDF_GETHASTRANSABOVE(OutBSDF))

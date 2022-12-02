@@ -326,7 +326,7 @@ void PackStrataOut(
 						OptimisedModeMask |= SingleHasClearCoat;
 					}
 				}
-				if (BSDF_GETHASFUZZ(BSDF))
+				if (BSDF_GETHASFUZZ(BSDF) && SLAB_ROUGHNESS(BSDF) == SLAB_FUZZ_ROUGHNESS(BSDF))
 				{
 					OptimisedModeMask |= SingleHasCloth;
 				}
@@ -564,7 +564,7 @@ void PackStrataOut(
 							const uint PackedF020Bits		= PackR7G7B6Gamma2(	SLAB_F0(BSDF)				, Dither);
 							const uint PackedFuzzColor20bits= PackR7G7B6Gamma2(	SLAB_FUZZ_COLOR(BSDF)		, Dither);
 							const uint PackedFuzzAmount8bits= PackR8(			SLAB_FUZZ_AMOUNT(BSDF));
-							// Roughness is stored in the TopLayer texture.
+							// Roughness is stored in the TopLayer texture. Fuzz roughness is identical to slab roughness in this path.
 
 							// MRT0 
 							#if (32 - (HEADER_SINGLEENCODING_BIT_COUNT + HEADER_SINGLE_OPTLEGACYMODE_BIT_COUNT)) < 8
@@ -775,7 +775,7 @@ void PackStrataOut(
 
 							if (BSDF_GETHASFUZZ(BSDF))
 							{
-								STRATA_STORE_UINT1(PackColorLinearToGamma2AlphaLinear(float4(SLAB_FUZZ_COLOR(BSDF), SLAB_FUZZ_AMOUNT(BSDF))));
+								STRATA_STORE_UINT1(PackFuzz(SLAB_FUZZ_COLOR(BSDF), SLAB_FUZZ_AMOUNT(BSDF), SLAB_FUZZ_ROUGHNESS(BSDF), Dither));
 							}
 
 							if (BSDF_GETHASTRANSABOVE(BSDF))

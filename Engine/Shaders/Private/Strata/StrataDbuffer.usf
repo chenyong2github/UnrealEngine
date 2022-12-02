@@ -248,7 +248,7 @@ void MainCS(
 
 				if (BSDF_GETHASFUZZ(BSDF))
 				{
-					MaterialTextureArrayUAV[uint3(PixelCoord, RWOffset)] = PackColorLinearToGamma2AlphaLinear(float4(FuzzColor, SLAB_FUZZ_AMOUNT(BSDF)));
+					MaterialTextureArrayUAV[uint3(PixelCoord, RWOffset)] = PackFuzz(FuzzColor, SLAB_FUZZ_AMOUNT(BSDF), SLAB_FUZZ_ROUGHNESS(BSDF), Dither);
 					RWOffset++;
 				}
 			}

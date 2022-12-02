@@ -22511,10 +22511,11 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 
 	const bool bHasEdgeColor = HasEdgeColor();
 	const bool bHasFuzz = HasFuzz();
+	const bool bHasFuzzRoughness = HasFuzzRoughness();
 	const bool bHasSecondRoughness = HasSecondRoughness();
 	const bool bHasMFPPluggedIn = HasMFPPluggedIn();
-	int32 SSSProfileCodeChunk = INDEX_NONE;
 	const bool bHasSSS = HasSSS();
+	int32 SSSProfileCodeChunk = INDEX_NONE;
 	if (bHasSSS)
 	{
 		SSSProfileCodeChunk = Compiler->ForceCast(Compiler->ScalarParameter(GetSubsurfaceProfileParameterName(), 1.0f), MCT_Float1);
@@ -22559,6 +22560,7 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 		Compiler->Constant(0.0f),										// SecondRoughnessAsSimpleClearCoat
 		CompileWithDefaultFloat1(Compiler, FuzzAmount, 0.0f),
 		CompileWithDefaultFloat3(Compiler, FuzzColor, 0.0f, 0.0f, 0.0f),
+		bHasFuzzRoughness ? CompileWithDefaultFloat1(Compiler, FuzzRoughness, 0.5f) : RoughnessCodeChunk,
 		ThicknesCodeChunk,
 		NormalCodeChunk,
 		TangentCodeChunk,
@@ -22585,7 +22587,7 @@ const TArray<FExpressionInput*> UMaterialExpressionStrataSlabBSDF::GetInputs()
 	Result.Add(&EmissiveColor);
 	Result.Add(&SecondRoughness);
 	Result.Add(&SecondRoughnessWeight);
-	Result.Add(&Thickness);
+	Result.Add(&FuzzRoughness);
 	Result.Add(&FuzzAmount);
 	Result.Add(&FuzzColor);
 	return Result;
@@ -22657,7 +22659,7 @@ uint32 UMaterialExpressionStrataSlabBSDF::GetInputType(int32 InputIndex)
 	}
 	else if (InputIndex == 13)
 	{
-		return MCT_Float1; // Thickness
+		return MCT_Float1; // FuzzRoughness
 	}
 	else if (InputIndex == 14)
 	{
@@ -22728,7 +22730,7 @@ FName UMaterialExpressionStrataSlabBSDF::GetInputName(int32 InputIndex) const
 	}
 	else if (InputIndex == 13)
 	{
-		return TEXT("Thickness (DEPRECATED)");
+		return TEXT("Fuzz Roughness");
 	}
 	else if (InputIndex == 14)
 	{
@@ -22824,6 +22826,11 @@ bool UMaterialExpressionStrataSlabBSDF::HasFuzz() const
 	return FuzzAmount.IsConnected();
 }
 
+bool UMaterialExpressionStrataSlabBSDF::HasFuzzRoughness() const
+{
+	return FuzzRoughness.IsConnected();
+}
+
 bool UMaterialExpressionStrataSlabBSDF::HasSecondRoughness() const
 {
 	return SecondRoughnessWeight.IsConnected();
@@ -22867,12 +22874,13 @@ int32 UMaterialExpressionStrataSimpleClearCoatBSDF::Compile(class FMaterialCompi
 	int32 ThicknessCodeChunk = Compiler->StrataThicknessStackGetThicknessCode(StrataOperator.ThicknessIndex);
 	check(ThicknessCodeChunk != INDEX_NONE);
 
+	int32 RoughnessCodeChunk = CompileWithDefaultFloat1(Compiler, Roughness, 0.5f);
+
 	int32 OutputCodeChunk = Compiler->StrataSlabBSDF(
 		CompileWithDefaultFloat3(Compiler, DiffuseAlbedo, 0.18f, 0.18f, 0.18f),		// DiffuseAlbedo
 		CompileWithDefaultFloat3(Compiler, F0, DefaultF0, DefaultF0, DefaultF0),	// F0
-		Compiler->Constant3(1.0f, 1.0f, 1.0f),					// F90
-		
-		CompileWithDefaultFloat1(Compiler, Roughness, 0.5f),
+		Compiler->Constant3(1.0f, 1.0f, 1.0f),					// F90		
+		RoughnessCodeChunk,										// Roughness
 		Compiler->Constant(0.0f),								// Anisotropy
 		Compiler->Constant(0.0f),								// SSSProfile
 		Compiler->Constant3(0.0f, 0.0f, 0.0f),					// SSSMFP
@@ -22885,6 +22893,7 @@ int32 UMaterialExpressionStrataSimpleClearCoatBSDF::Compile(class FMaterialCompi
 		Compiler->Constant(1.0f),								// SecondRoughnessAsSimpleClearCoat == true for UMaterialExpressionStrataSimpleClearCoatBSDF
 		Compiler->Constant(0.0f),								// FuzzAmount
 		Compiler->Constant3(0.0f, 0.0f, 0.0f),					// FuzzColor
+		RoughnessCodeChunk,										// FuzzRoughness
 		ThicknessCodeChunk,										// Thickness
 		NormalCodeChunk,
 		NullTangentCodeChunk,
