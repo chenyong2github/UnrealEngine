@@ -104,7 +104,6 @@ void FMediaPlateEditorModule::Tick(float DeltaTime)
 			if (MediaPlate->IsMediaPlatePlaying())
 			{
 				bIsMediaPlatePlaying = true;
-				break;
 			}
 		}
 
