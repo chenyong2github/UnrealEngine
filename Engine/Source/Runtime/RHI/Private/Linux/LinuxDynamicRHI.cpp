@@ -6,6 +6,7 @@
 #include "Modules/ModuleManager.h"
 #include "Misc/ConfigCacheIni.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 FDynamicRHI* PlatformCreateDynamicRHI()
 {
