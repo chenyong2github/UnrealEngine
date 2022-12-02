@@ -2,6 +2,20 @@
 
 #include "ControlRigLog.h"
 
+#if WITH_EDITOR
+TArray<FControlRigLog::FLogEntry> FControlRigLog::GetEntries(EMessageSeverity::Type InSeverity, bool bIncludeHigherSeverity)
+{
+	return Entries.FilterByPredicate([InSeverity, bIncludeHigherSeverity](const FControlRigLog::FLogEntry& Entry)
+	{
+		if (bIncludeHigherSeverity)
+		{
+			return Entry.Severity <= InSeverity;
+		}
+		return Entry.Severity == InSeverity;
+	});
+}
+#endif
+
 void FControlRigLog::Reset()
 {
 #if WITH_EDITOR

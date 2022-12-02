@@ -29,6 +29,8 @@ public:
 	};
 	TArray<FLogEntry> Entries;
 	TMap<FString, bool> KnownMessages;
+
+	TArray<FLogEntry> GetEntries(EMessageSeverity::Type InSeverity = EMessageSeverity::Info, bool bIncludeHigherSeverity = true);
 #endif
 
 	virtual void Reset();
