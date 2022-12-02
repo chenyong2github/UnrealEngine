@@ -15,6 +15,11 @@ enum class EPCGAttributePropertySelection
 	PointProperty,
 };
 
+/**
+* Blueprint class to allow to select an attribute or a property.
+* It will handle the logic and can only be modified using the blueprint library defined below.
+* Also has a custom detail view in the PCGEditor plugin.
+*/
 USTRUCT(BlueprintType)
 struct PCG_API FPCGAttributePropertySelector
 {

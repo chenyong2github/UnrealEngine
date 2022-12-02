@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "PCGGraphDetails.h"
+#include "Details/PCGGraphDetails.h"
 #include "PCGGraph.h"
 
 #include "Widgets/DeclarativeSyntaxSupport.h"

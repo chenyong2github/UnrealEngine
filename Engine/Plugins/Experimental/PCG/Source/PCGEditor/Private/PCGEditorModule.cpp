@@ -4,18 +4,25 @@
 
 #include "AssetTypeActions/PCGGraphAssetTypeActions.h"
 #include "AssetTypeActions/PCGSettingsAssetTypeActions.h"
-#include "PCGComponentDetails.h"
+#include "PCGComponent.h"
 #include "PCGEditorCommands.h"
 #include "PCGEditorGraphNodeFactory.h"
 #include "PCGEditorSettings.h"
 #include "PCGEditorStyle.h"
 #include "PCGEditorUtils.h"
-#include "PCGGraphDetails.h"
-#include "PCGBlueprintSettingsDetails.h"
+#include "PCGGraph.h"
 #include "PCGSubsystem.h"
-#include "PCGVolumeDetails.h"
+#include "PCGVolume.h"
 #include "PCGVolumeFactory.h"
 #include "PCGWorldActor.h"
+
+#include "Details/PCGBlueprintSettingsDetails.h"
+#include "Details/PCGComponentDetails.h"
+#include "Details/PCGGraphDetails.h"
+#include "Details/PCGVolumeDetails.h"
+#include "Details/PCGAttributePropertySelectorDetails.h"
+#include "Elements/PCGExecuteBlueprint.h"
+#include "Metadata/PCGAttributePropertySelector.h"
 
 #include "EdGraphUtilities.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -75,10 +82,12 @@ bool FPCGEditorModule::SupportsDynamicReloading()
 void FPCGEditorModule::RegisterDetailsCustomizations()
 {
 	FPropertyEditorModule& PropertyEditor = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	PropertyEditor.RegisterCustomClassLayout("PCGComponent", FOnGetDetailCustomizationInstance::CreateStatic(&FPCGComponentDetails::MakeInstance));
-	PropertyEditor.RegisterCustomClassLayout("PCGGraph", FOnGetDetailCustomizationInstance::CreateStatic(&FPCGGraphDetails::MakeInstance));
-	PropertyEditor.RegisterCustomClassLayout("PCGBlueprintSettings", FOnGetDetailCustomizationInstance::CreateStatic(&FPCGBlueprintSettingsDetails::MakeInstance));
-	PropertyEditor.RegisterCustomClassLayout("PCGVolume", FOnGetDetailCustomizationInstance::CreateStatic(&FPCGVolumeDetails::MakeInstance));
+	PropertyEditor.RegisterCustomClassLayout(UPCGBlueprintSettings::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FPCGBlueprintSettingsDetails::MakeInstance));
+	PropertyEditor.RegisterCustomClassLayout(UPCGComponent::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FPCGComponentDetails::MakeInstance));
+	PropertyEditor.RegisterCustomClassLayout(UPCGGraph::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FPCGGraphDetails::MakeInstance));
+	PropertyEditor.RegisterCustomClassLayout(APCGVolume::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FPCGVolumeDetails::MakeInstance));
+
+	PropertyEditor.RegisterCustomPropertyTypeLayout(FPCGAttributePropertySelector::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FPCGAttributePropertySelectorDetails::MakeInstance));
 }
 
 void FPCGEditorModule::UnregisterDetailsCustomizations()
@@ -86,10 +95,12 @@ void FPCGEditorModule::UnregisterDetailsCustomizations()
 	if (FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
 	{
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-		PropertyModule.UnregisterCustomClassLayout("PCGComponent");
-		PropertyModule.UnregisterCustomClassLayout("PCGGraph");
-		PropertyModule.UnregisterCustomClassLayout("PCGBlueprintSettings");
-		PropertyModule.UnregisterCustomClassLayout("PCGVolume");
+		PropertyModule.UnregisterCustomClassLayout(UPCGBlueprintSettings::StaticClass()->GetFName());
+		PropertyModule.UnregisterCustomClassLayout(UPCGComponent::StaticClass()->GetFName());
+		PropertyModule.UnregisterCustomClassLayout(UPCGGraph::StaticClass()->GetFName());
+		PropertyModule.UnregisterCustomClassLayout(APCGVolume::StaticClass()->GetFName());
+
+		PropertyModule.UnregisterCustomPropertyTypeLayout(FPCGAttributePropertySelector::StaticStruct()->GetFName());
 		PropertyModule.NotifyCustomizationModuleChanged();
 	}
 }

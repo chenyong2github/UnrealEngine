@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "PCGBlueprintSettingsDetails.h"
+#include "Details/PCGBlueprintSettingsDetails.h"
 
 #include "DetailLayoutBuilder.h"
 //#include "ObjectDetailsTools.h"

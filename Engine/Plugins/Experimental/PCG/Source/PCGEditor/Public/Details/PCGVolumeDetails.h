@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "PCGComponentDetails.h"
+#include "Details/PCGComponentDetails.h"
 
 class FPCGVolumeDetails : public FPCGComponentDetails
 {

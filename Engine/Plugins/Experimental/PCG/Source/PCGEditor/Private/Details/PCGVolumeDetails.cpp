@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "PCGVolumeDetails.h"
+#include "Details/PCGVolumeDetails.h"
 
 #include "PCGComponent.h"
 #include "PCGVolume.h"
