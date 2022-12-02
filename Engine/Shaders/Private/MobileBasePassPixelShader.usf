@@ -175,7 +175,7 @@ void GetSkyLighting(half3 SkyLightColor, half3 WorldNormal, bool bEvaluateBackfa
 		IndirectIrradiance += Luminance(OutSkyDiffuseLighting);
 
 	#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
-		OutWaterDiffuseIndirectLuminance += SkyDiffuse;
+		OutWaterDiffuseIndirectLuminance += OutSkyDiffuseLighting;
 	#endif
 
 	#if SHADINGMODEL_REQUIRES_BACKFACE_LIGHTING
