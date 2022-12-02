@@ -26,6 +26,7 @@
 #include "UObject/UObjectIterator.h"
 #include "Protocols/AudioCaptureProtocol.h"
 #include "Misc/DateTime.h"
+#include "RenderUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneCapture)
 

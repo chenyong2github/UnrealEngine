@@ -1842,3 +1842,45 @@ RENDERCORE_API bool AllowTranslucencyPerObjectShadows(const FStaticShaderPlatfor
 {
 	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && GAllowTranslucencyShadowsInProject != 0;
 }
+
+bool IsRayTracingEnabled()
+{
+	bool bRayTracingEnabled = true;
+	extern RENDERCORE_API ERayTracingMode GRayTracingMode;
+	static const auto RayTracingEnableCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Raytracing.Enable"));
+	if (GRayTracingMode == ERayTracingMode::Dynamic && RayTracingEnableCVar)
+	{
+		bRayTracingEnabled = RayTracingEnableCVar->GetValueOnAnyThread() != 0;
+	}
+
+	return IsRayTracingAllowed() && bRayTracingEnabled;
+}
+
+bool IsRayTracingAllowed()
+{
+	checkf(GIsRHIInitialized, TEXT("IsRayTracingAllowed() may only be called once RHI is initialized."));
+
+#if DO_CHECK && WITH_EDITOR
+	{
+		// This function must not be called while cooking
+		if (IsRunningCookCommandlet())
+		{
+			return false;
+		}
+	}
+#endif // DO_CHECK && WITH_EDITOR
+
+	extern RENDERCORE_API ERayTracingMode GRayTracingMode;
+	return (int32)GRayTracingMode >= (int32)ERayTracingMode::Enabled;
+}
+
+bool IsRayTracingEnabled(EShaderPlatform ShaderPlatform)
+{
+	return IsRayTracingEnabled() && RHISupportsRayTracing(ShaderPlatform);
+}
+
+ERayTracingMode GetRayTracingMode()
+{
+	extern RENDERCORE_API ERayTracingMode GRayTracingMode;
+	return IsRayTracingAllowed() ? GRayTracingMode : ERayTracingMode::Disabled;
+}

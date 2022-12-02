@@ -858,3 +858,66 @@ RENDERCORE_API bool DoesRuntimeSupportOnePassPointLightShadows(EShaderPlatform P
  * Read-only switch to check if translucency per object shadows are enabled.
  */
 RENDERCORE_API bool AllowTranslucencyPerObjectShadows(const FStaticShaderPlatform &Platform);
+
+
+/**Note, this should only be used when a platform requires special shader compilation for 32 bit pixel format render targets.
+Does not replace pixel format associations across the board**/
+
+FORCEINLINE bool PlatformRequires128bitRT(EPixelFormat PixelFormat)
+{
+	switch (PixelFormat)
+	{
+	case PF_R32_FLOAT:
+	case PF_G32R32F:
+	case PF_A32B32G32R32F:
+		return FDataDrivenShaderPlatformInfo::GetRequiresExplicit128bitRT(GMaxRHIShaderPlatform);
+	default:
+		return false;
+	}
+}
+
+FORCEINLINE bool IsRayTracingEnabledForProject(EShaderPlatform ShaderPlatform)
+{
+	if (RHISupportsRayTracing(ShaderPlatform))
+	{
+		extern RENDERCORE_API TBitArray<TInlineAllocator<EShaderPlatform::SP_NumPlatforms / 8>> GRayTracingPlatformMask;
+		return (GRayTracingPlatformMask[(int)ShaderPlatform]);
+	}
+	else
+	{
+		return false;
+	}
+}
+
+FORCEINLINE bool ShouldCompileRayTracingShadersForProject(EShaderPlatform ShaderPlatform)
+{
+	if (RHISupportsRayTracingShaders(ShaderPlatform))
+	{
+		return IsRayTracingEnabledForProject(ShaderPlatform);
+	}
+	else
+	{
+		return false;
+	}
+}
+
+FORCEINLINE bool ShouldCompileRayTracingCallableShadersForProject(EShaderPlatform ShaderPlatform)
+{
+	return RHISupportsRayTracingCallableShaders(ShaderPlatform) && ShouldCompileRayTracingShadersForProject(ShaderPlatform);
+}
+
+// Returns `true` when running on RT-capable machine, RT support is enabled for the project and by game graphics options and RT is enabled with r.Raytracing.Enable
+// This function may only be called at runtime, never during cooking.
+extern RENDERCORE_API bool IsRayTracingEnabled();
+
+// Returns 'true' when running on RT-capable machine, RT support is enabled for the project and by game graphics options and ShaderPlatform supports RT and RT is enabled with r.Raytracing.Enable
+// This function may only be called at runtime, never during cooking.
+RENDERCORE_API bool IsRayTracingEnabled(EShaderPlatform ShaderPlatform);
+
+// Returns 'true' when running on RT-capable machine, RT support is enabled for the project and by game graphics options
+// This function may only be called at runtime, never during cooking.
+extern RENDERCORE_API bool IsRayTracingAllowed();
+
+// Returns the ray tracing mode if ray tracing is allowed.
+// This function may only be called at runtime, never during cooking.
+extern RENDERCORE_API ERayTracingMode GetRayTracingMode();

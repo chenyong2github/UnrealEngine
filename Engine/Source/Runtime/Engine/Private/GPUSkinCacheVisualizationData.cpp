@@ -4,6 +4,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Materials/Material.h"
 #include "Misc/ConfigCacheIni.h"
+#include "RenderUtils.h"
 
 #define LOCTEXT_NAMESPACE "FGPUSkinCacheVisualizationData"
 

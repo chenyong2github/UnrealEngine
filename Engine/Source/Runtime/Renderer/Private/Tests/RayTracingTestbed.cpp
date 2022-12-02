@@ -16,6 +16,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRayTracingTestbed, "System.Renderer.RayTracing
 #include "RayTracingPayloadType.h"
 #include "GlobalShader.h"
 #include "Containers/DynamicRHIResourceArray.h"
+#include "RenderUtils.h"
 
 // HINT: Execute this test via console command in editor: Automation RunTest System.Renderer.RayTracing.BasicRayTracing
 bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
