@@ -7871,7 +7871,10 @@ bool FPakPlatformFile::Unmount(const TCHAR* InPakFilename)
 		}
 	}
 
-	RemoveCachedPakSignaturesFile(*UnmountedPak->GetFilename());
+	if (UnmountedPak)
+	{
+		RemoveCachedPakSignaturesFile(*UnmountedPak->GetFilename());
+	}
 
 	if (IoDispatcherFileBackend.IsValid())
 	{
