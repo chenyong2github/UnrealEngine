@@ -345,6 +345,7 @@ namespace Chaos
 
 	FCookHelper::FCookHelper(UBodySetup* InSetup)
 		: SourceSetup(InSetup)
+		, bCanceled(false)
 	{
 		check(SourceSetup);
 		EPhysXMeshCookFlags TempFlags = static_cast<EPhysXMeshCookFlags>(0);
@@ -353,6 +354,8 @@ namespace Chaos
 
 	void FCookHelper::Cook()
 	{
+		if (bCanceled) return;
+
 		Cooking::BuildConvexMeshes(SimpleImplicits, CookInfo);
 		Cooking::BuildTriangleMeshes(ComplexImplicits, FaceRemap, VertexRemap, CookInfo);
 

@@ -498,12 +498,32 @@ void UBodySetup::CreatePhysicsMeshesAsync(FOnAsyncPhysicsCookFinished OnAsyncPhy
 
 void UBodySetup::AbortPhysicsMeshAsyncCreation()
 {
-	// TODO Chaos - support async cook abort
+	check(IsInGameThread());
+
+	// If we have a current cook helper we will ask it to cancel, null our ref to it, and ignore any results it produces.
+	// Note that CreatePhysicsMeshesAsync, AbortPhysicsMeshAsyncCreation and FinishCreatePhysicsMeshesAsync all run on the game thread.
+	// After this function returns we could safely call CreatePhysicsMeshesAsync again on this body from the game thread.
+	if (CurrentCookHelper)
+	{
+		CurrentCookHelper->CancelCookAsync();
+		CurrentCookHelper = nullptr;
+	}
 }
 
 void UBodySetup::FinishCreatePhysicsMeshesAsync(FAsyncCookHelper* AsyncPhysicsCookHelper, FOnAsyncPhysicsCookFinished OnAsyncPhysicsCookFinished)
 {
-	// Ensure we haven't gotten multiple cooks going
+	check(IsInGameThread());
+
+	// If a canceled CookHelper finishes delete it.
+	if (AsyncPhysicsCookHelper && AsyncPhysicsCookHelper->WasCanceled())
+	{
+		// CurrentCookHelper could be null or it could be a new FAsyncCookHelper, but it should never be a canceled cook helper.
+		check(CurrentCookHelper != AsyncPhysicsCookHelper);
+		delete AsyncPhysicsCookHelper;
+		return;
+	}
+
+	// Un-canceled cooks should match the CurrentCookHelper.
 	// Then clear it
 	check(CurrentCookHelper == AsyncPhysicsCookHelper);
 	CurrentCookHelper = nullptr;
