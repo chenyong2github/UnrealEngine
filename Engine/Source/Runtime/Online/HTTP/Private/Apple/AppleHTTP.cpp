@@ -431,13 +431,15 @@ void FAppleHttpRequest::FinishedRequest()
 {
 	UE_LOG(LogHttp, Verbose, TEXT("FAppleHttpRequest::FinishedRequest()"));
 	ElapsedTime = (float)(FPlatformTime::Seconds() - StartRequestTime);
-	if( Response.IsValid() && Response->IsReady() && !Response->HadError())
+	FHttpManager& HttpManager = FHttpModule::Get().GetHttpManager();
+	if (Response.IsValid() && Response->IsReady() && !Response->HadError())
 	{
 		UE_LOG(LogHttp, Verbose, TEXT("Request succeeded"));
 		CompletionStatus = EHttpRequestStatus::Succeeded;
 
 		// TODO: Try to broadcast OnHeaderReceived when we receive headers instead of here at the end
 		BroadcastResponseHeadersReceived();
+		HttpManager.BroadcastHttpRequestCompleted(Request);
 		OnProcessRequestComplete().ExecuteIfBound(SharedThis(this), Response, true);
 	}
 	else
@@ -451,6 +453,7 @@ void FAppleHttpRequest::FinishedRequest()
 		}
 
 		Response = nullptr;
+		HttpManager.BroadcastHttpRequestCompleted(Request);
 		OnProcessRequestComplete().ExecuteIfBound(SharedThis(this), nullptr, false);
 	}
 
@@ -458,9 +461,9 @@ void FAppleHttpRequest::FinishedRequest()
 	CleanupRequest();
 
 	// Remove from global list since processing is now complete
-	if (FHttpModule::Get().GetHttpManager().IsValidRequest(this))
+	if (HttpManager.IsValidRequest(this))
 	{
-		FHttpModule::Get().GetHttpManager().RemoveRequest(SharedThis(this));
+		HttpManager.RemoveRequest(SharedThis(this));
 	}
 }
 

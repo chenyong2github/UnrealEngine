@@ -380,6 +380,7 @@ bool FHttpManager::Tick(float DeltaSeconds)
 			FHttpRequestRef CompletedRequestRef = CompletedRequest->AsShared();
 			Requests.Remove(CompletedRequestRef);
 			CompletedRequest->FinishRequest();
+			BroadcastHttpRequestCompleted(CompletedRequestRef);
 		}
 	}
 	// keep ticking
@@ -396,7 +397,9 @@ void FHttpManager::AddRequest(const FHttpRequestRef& Request)
 	FScopeLock ScopeLock(&RequestLock);
 	check(!bFlushing);
 	Requests.Add(Request);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS // Valid direct access of RequestAddedDelegate
 	RequestAddedDelegate.ExecuteIfBound(Request);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FHttpManager::RemoveRequest(const FHttpRequestRef& Request)
@@ -438,6 +441,18 @@ bool FHttpManager::IsValidRequest(const IHttpRequest* RequestPtr) const
 	return bResult;
 }
 
+void FHttpManager::SetRequestAddedDelegate(const FHttpManagerRequestAddedDelegate& Delegate)
+{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS // Valid direct access of RequestAddedDelegate
+	RequestAddedDelegate = Delegate;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+void FHttpManager::SetRequestCompletedDelegate(const FHttpManagerRequestCompletedDelegate& Delegate)
+{
+	RequestCompletedDelegate = Delegate;
+}
+
 void FHttpManager::DumpRequests(FOutputDevice& Ar) const
 {
 	FScopeLock ScopeLock(&RequestLock);
@@ -453,4 +468,9 @@ void FHttpManager::DumpRequests(FOutputDevice& Ar) const
 bool FHttpManager::SupportsDynamicProxy() const
 {
 	return false;
+}
+
+void FHttpManager::BroadcastHttpRequestCompleted(const FHttpRequestRef& Request)
+{
+	RequestCompletedDelegate.ExecuteIfBound(Request);
 }

@@ -37,11 +37,16 @@ ENUM_RANGE_BY_COUNT(EHttpFlushReason, EHttpFlushReason::Count)
 const TCHAR* LexToString(const EHttpFlushReason& FlushReason);
 
 /**
- * Delegate called when an Http request added
- *
- * @param Request Http request that start things
+ * Delegate called when an Http request added. Intended to be used for analytics. Called from the thread that adds the HTTP request.
+ * @param Request Http request that was added
  */
 DECLARE_DELEGATE_OneParam(FHttpManagerRequestAddedDelegate, const FHttpRequestRef& /*Request*/);
+
+/**
+ * Delegate called when an Http request completes. Intended to be used for analytics. Called from the game thread.
+ * @param Request Http request that completed
+ */
+DECLARE_DELEGATE_OneParam(FHttpManagerRequestCompletedDelegate, const FHttpRequestRef& /*Request*/);
 
 /**
  * Manages Http request that are currently being processed
@@ -77,7 +82,11 @@ public:
 	void AddRequest(const FHttpRequestRef& Request);
 
 	/** Delegate that will get called once request added */
+	UE_DEPRECATED(5.2, "Direct access to RequestAddedDelegate is deprecated. Please use SetRequestAddedDelegate")
 	FHttpManagerRequestAddedDelegate RequestAddedDelegate;
+
+	void SetRequestAddedDelegate(const FHttpManagerRequestAddedDelegate& Delegate);
+	void SetRequestCompletedDelegate(const FHttpManagerRequestCompletedDelegate& Delegate);
 
 	/**
 	 * Removes an Http request instance from the manager
@@ -240,6 +249,9 @@ protected:
 	// This variable is set to true in Flush(EHttpFlushReason), and prevents new Http requests from being launched
 	bool bFlushing;
 
+	/** Delegate that will get called when a request completes */
+	FHttpManagerRequestCompletedDelegate RequestCompletedDelegate;
+
 	struct FHttpFlushTimeLimit
 	{
 		/**
@@ -270,4 +282,10 @@ PACKAGE_SCOPE:
 
 	/** Used to lock access to add/remove/find requests */
 	static FCriticalSection RequestLock;
+	/**
+	 * Broadcast that a non-threaded HTTP request is complete.
+	 * Called automatically internally for threaded requests.
+	 * Called explicitly by non-threaded requests
+	 */
+	void BroadcastHttpRequestCompleted(const FHttpRequestRef& Request);
 };
