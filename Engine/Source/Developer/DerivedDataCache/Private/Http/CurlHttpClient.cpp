@@ -3,7 +3,7 @@
 #include "HttpClient.h"
 
 #include "Async/InheritedContext.h"
-#include "Containers/DepletableMpscQueue.h"
+#include "Containers/ConsumeAllMpmcQueue.h"
 #include "Containers/LockFreeList.h"
 #include "Containers/StringView.h"
 #include "HAL/Event.h"
@@ -197,7 +197,7 @@ private:
 		EThreadCommandType Type;
 	};
 
-	TDepletableMpscQueue<FThreadCommand> ThreadCommands;
+	TConsumeAllMpmcQueue<FThreadCommand> ThreadCommands;
 	FThread Thread;
 	std::atomic<bool> bThreadStarting;
 	std::atomic<bool> bThreadStopping;
@@ -456,7 +456,7 @@ bool FCurlHttpConnectionPool::BeginAsyncRequest(FCurlHttpResponse* Response)
 	{
 		return false;
 	}
-	if (ThreadCommands.EnqueueAndReturnWasEmpty(FThreadCommand{Response, EThreadCommandType::Begin}))
+	if (ThreadCommands.ProduceItem(FThreadCommand{Response, EThreadCommandType::Begin}) == EConsumeAllMpmcQueueResult::WasEmpty)
 	{
 		AssertMultiCodeOk(curl_multi_wakeup(CurlMulti));
 	}
@@ -469,7 +469,7 @@ bool FCurlHttpConnectionPool::BeginAsyncRequest(FCurlHttpResponse* Response)
 
 void FCurlHttpConnectionPool::CancelAsyncRequest(FCurlHttpResponse* Response)
 {
-	if (ThreadCommands.EnqueueAndReturnWasEmpty(FThreadCommand{Response, EThreadCommandType::Cancel}))
+	if (ThreadCommands.ProduceItem(FThreadCommand{Response, EThreadCommandType::Cancel}) == EConsumeAllMpmcQueueResult::WasEmpty)
 	{
 		AssertMultiCodeOk(curl_multi_wakeup(CurlMulti));
 	}
@@ -479,7 +479,7 @@ void FCurlHttpConnectionPool::ThreadLoop()
 {
 	while (!ThreadCommands.IsEmpty() || !bThreadStopping.load(std::memory_order_relaxed))
 	{
-		ThreadCommands.Deplete([this](FThreadCommand Command)
+		ThreadCommands.ConsumeAllFifo([this](FThreadCommand Command)
 		{
 			if (CURL* Curl = Command.Response->GetCurl())
 			{

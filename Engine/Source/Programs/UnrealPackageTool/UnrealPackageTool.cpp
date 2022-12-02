@@ -2,7 +2,7 @@
 
 #include "Async/ParallelFor.h"
 #include "Containers/Array.h"
-#include "Containers/DepletableMpscQueue.h"
+#include "Containers/ConsumeAllMpmcQueue.h"
 #include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
 #include "HAL/PlatformFile.h"
@@ -88,13 +88,13 @@ public:
 			EPackageExtension Extension = FPackagePath::ParseExtension(Path);
 			if (Extension == EPackageExtension::Asset || Extension == EPackageExtension::Map)
 			{
-				PackagePaths.Enqueue(Path);
+				PackagePaths.ProduceItem(Path);
 			}
 		}
 		return true;
 	}
 
-	TDepletableMpscQueue<FString> PackagePaths;
+	TConsumeAllMpmcQueue<FString> PackagePaths;
 };
 
 void ScanPackage(const FParams& Params, const TCHAR* Path)
@@ -131,7 +131,7 @@ void Main(const FParams& Params)
 	}, EParallelForFlags::Unbalanced);
 
 	TArray<FString> PackagePaths;
-	Visitor.PackagePaths.Deplete([&PackagePaths](FString PackagePath)
+	Visitor.PackagePaths.ConsumeAllLifo([&PackagePaths](FString PackagePath)
 	{
 		PackagePaths.Emplace(MoveTemp(PackagePath));
 	});

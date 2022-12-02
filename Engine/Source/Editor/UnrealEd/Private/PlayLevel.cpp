@@ -121,7 +121,7 @@
 #include "IAssetViewport.h"
 #include "IPIEAuthorizer.h"
 #include "Features/IModularFeatures.h"
-#include "Containers/DepletableMpscQueue.h"
+#include "Containers/DepletableMpmcQueue.h"
 #include "TickableEditorObject.h"
 
 DEFINE_LOG_CATEGORY(LogPlayLevel);
@@ -215,7 +215,7 @@ private:
 		}
 	}
 
-	UE::TDepletableMpscQueue<FLine> QueuedLines;
+	UE::TDepletableMpmcQueue<FLine> QueuedLines;
 };
 
 void UEditorEngine::EndPlayMap()

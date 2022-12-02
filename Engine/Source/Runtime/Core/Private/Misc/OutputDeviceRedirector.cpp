@@ -3,7 +3,8 @@
 #include "Misc/OutputDeviceRedirector.h"
 
 #include "Containers/BitArray.h"
-#include "Containers/DepletableMpscQueue.h"
+#include "Containers/DepletableMpmcQueue.h"
+#include "Containers/ConsumeAllMpmcQueue.h"
 #include "Experimental/ConcurrentLinearAllocator.h"
 #include "HAL/Event.h"
 #include "HAL/PlatformProcess.h"
@@ -115,7 +116,7 @@ struct FOutputDeviceRedirectorState
 	uint8 OutputDevicesLockPadding[CalculateRedirectorCacheLinePadding(sizeof(OutputDevicesLock) + sizeof(OutputDevicesLockState))]{};
 
 	/** A queue of lines logged by non-primary threads. */
-	TDepletableMpscQueue<FOutputDeviceLine, FOutputDeviceLinearAllocator> BufferedLines;
+	TDepletableMpmcQueue<FOutputDeviceLine, FOutputDeviceLinearAllocator> BufferedLines;
 	uint8 BufferedLinesPadding[CalculateRedirectorCacheLinePadding(sizeof(BufferedLines))]{};
 
 	/** Array of output devices to redirect to from the primary thread. */
@@ -135,7 +136,7 @@ struct FOutputDeviceRedirectorState
 	FRWLock ThreadLock;
 
 	/** A queue of events to trigger when the dedicated primary thread is idle. */
-	TDepletableMpscQueue<FEvent*, FOutputDeviceLinearAllocator> ThreadIdleEvents;
+	TConsumeAllMpmcQueue<FEvent*, FOutputDeviceLinearAllocator> ThreadIdleEvents;
 
 	/** An event to wake the dedicated primary thread to process buffered lines. */
 	std::atomic<FEvent*> ThreadWakeEvent = nullptr;
@@ -436,7 +437,7 @@ void FOutputDeviceRedirectorState::ThreadLoop()
 				FlushBufferedLines();
 			}
 		}
-		ThreadIdleEvents.Deplete([](FEvent* Event) { Event->Trigger(); });
+		ThreadIdleEvents.ConsumeAllLifo([](FEvent* Event) { Event->Trigger(); });
 	}
 }
 
@@ -501,7 +502,7 @@ void FOutputDeviceRedirector::FlushThreadedLogs(EOutputDeviceRedirectorFlushOpti
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(FOutputDeviceRedirector::FlushThreadedLogs);
 			FEventRef IdleEvent(EEventMode::ManualReset);
-			if (State->ThreadIdleEvents.EnqueueAndReturnWasEmpty(IdleEvent.Get()))
+			if (State->ThreadIdleEvents.ProduceItem(IdleEvent.Get()) == UE::EConsumeAllMpmcQueueResult::WasEmpty)
 			{
 				WakeEvent->Trigger();
 			}

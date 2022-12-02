@@ -81,6 +81,12 @@ namespace UE
 			return ConsumeAll<true>(Consumer);
 		}
 
+		// the result can be relied upon only in special cases (e.g. debug checks), as the state can change concurrently. use with caution 
+		bool IsEmpty() const
+		{
+			return Head.load(std::memory_order_relaxed) == nullptr;
+		}
+
 	private:
 		template<bool bReverse, typename F>
 		inline EConsumeAllMpmcQueueResult ConsumeAll(const F& Consumer)
