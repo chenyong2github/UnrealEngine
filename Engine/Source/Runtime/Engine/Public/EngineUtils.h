@@ -82,6 +82,8 @@ struct HActor : public HHitProxy
 	}
 
 	ENGINE_API virtual FTypedElementHandle GetElementHandle() const override;
+
+	ENGINE_API bool AlwaysAllowsTranslucentPrimitives() const override;
 };
 
 //

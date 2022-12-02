@@ -32,6 +32,10 @@ AControlRigShapeActor::AControlRigShapeActor(const FObjectInitializer& ObjectIni
 	StaticMeshComponent->HitProxyPriority = HPP_Wireframe;
 #endif
 
+#if WITH_EDITOR
+	StaticMeshComponent->bAlwaysAllowTranslucentSelect = true;
+#endif
+
 	RootComponent = ActorRootComponent;
 	StaticMeshComponent->SetupAttachment(RootComponent);
 	StaticMeshComponent->bCastStaticShadow = false;

@@ -59,6 +59,15 @@ FTypedElementHandle HActor::GetElementHandle() const
 	return FTypedElementHandle();
 }
 
+bool HActor::AlwaysAllowsTranslucentPrimitives() const
+{
+#if WITH_EDITOR
+	return PrimComponent->bAlwaysAllowTranslucentSelect;
+#endif
+
+	return false;
+}
+
 #if !UE_BUILD_SHIPPING
 FContentComparisonHelper::FContentComparisonHelper()
 {

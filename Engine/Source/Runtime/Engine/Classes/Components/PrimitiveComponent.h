@@ -657,7 +657,10 @@ protected:
 	uint8 bHasNoStreamableTextures : 1;
 
 #if WITH_EDITOR
-	bool bIgnoreBoundsForEditorFocus = false;
+	uint8 bIgnoreBoundsForEditorFocus : 1;
+
+public:
+	uint8 bAlwaysAllowTranslucentSelect : 1;
 #endif
 
 public:

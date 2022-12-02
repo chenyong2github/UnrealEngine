@@ -354,6 +354,12 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 	bReplicatePhysicsToAutonomousProxy = true;
 
 	bReceiveMobileCSMShadows = true;
+
+#if WITH_EDITOR
+	bIgnoreBoundsForEditorFocus = false;
+	bAlwaysAllowTranslucentSelect = false;
+#endif
+
 #if WITH_EDITORONLY_DATA
 	bEnableAutoLODGeneration = true;
 	HitProxyPriority = HPP_World;
