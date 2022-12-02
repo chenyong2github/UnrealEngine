@@ -307,6 +307,18 @@ void FRenderResource::UpdateRHI()
 	}
 }
 
+FRenderResource::FRenderResource()
+	: ListIndex(INDEX_NONE)
+	, FeatureLevel(ERHIFeatureLevel::Num)
+{
+}
+
+FRenderResource::FRenderResource(ERHIFeatureLevel::Type InFeatureLevel)
+	: ListIndex(INDEX_NONE)
+	, FeatureLevel(InFeatureLevel)
+{
+}
+
 FRenderResource::~FRenderResource()
 {
 	checkf(ResourceState == ERenderResourceState::Default, TEXT(" Invalid Resource State: %s"), ResourceState == ERenderResourceState::BatchReleased ? TEXT("BatchReleased") : TEXT("Deleted"));
@@ -316,6 +328,33 @@ FRenderResource::~FRenderResource()
 		// Deleting an initialized FRenderResource will result in a crash later since it is still linked
 		UE_LOG(LogRendererCore, Fatal,TEXT("A FRenderResource was deleted without being released first!"));
 	}
+}
+
+FBufferRHIRef FRenderResource::CreateRHIBufferInternal(
+	const TCHAR* InDebugName,
+	uint32 ResourceCount,
+	EBufferUsageFlags InBufferUsageFlags,
+	FResourceArrayInterface* ResourceArray,
+	bool bRenderThread,
+	bool bWithoutNativeResource)
+{
+	const uint32 SizeInBytes = ResourceArray ? ResourceArray->GetResourceDataSize() : 0;
+	FRHIResourceCreateInfo CreateInfo(InDebugName, ResourceArray);
+	CreateInfo.bWithoutNativeResource = bWithoutNativeResource;
+
+	FBufferRHIRef Buffer;
+	if (bRenderThread)
+	{
+		Buffer = RHICreateVertexBuffer(SizeInBytes, InBufferUsageFlags, CreateInfo);
+	}
+	else
+	{
+		FRHIAsyncCommandList CommandList;
+		Buffer = CommandList->CreateBuffer(SizeInBytes, InBufferUsageFlags | EBufferUsageFlags::VertexBuffer, 0, ERHIAccess::SRVMask, CreateInfo);
+	}
+
+	Buffer->SetOwnerName(GetOwnerName());
+	return Buffer;
 }
 
 void FRenderResource::SetOwnerName(const FName& InOwnerName)
@@ -438,6 +477,94 @@ void ReleaseResourceAndFlush(FRenderResource* Resource)
 	FlushRenderingCommands();
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// FTextureSamplerStateCache
+
+class FTextureSamplerStateCache : public FRenderResource
+{
+public:
+	TMap<FSamplerStateInitializerRHI, FRHISamplerState*> Samplers;
+
+	virtual void ReleaseRHI() override
+	{
+		for (auto Pair : Samplers)
+		{
+			Pair.Value->Release();
+		}
+		Samplers.Empty();
+	}
+};
+
+TGlobalResource<FTextureSamplerStateCache> GTextureSamplerStateCache;
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// FTexture
+
+FTexture::FTexture() = default;
+FTexture::~FTexture() = default;
+
+uint32 FTexture::GetSizeX() const
+{
+	return 0;
+}
+
+uint32 FTexture::GetSizeY() const
+{
+	return 0;
+}
+
+uint32 FTexture::GetSizeZ() const
+{
+	return 0;
+}
+
+void FTexture::ReleaseRHI()
+{
+	TextureRHI.SafeRelease();
+	SamplerStateRHI.SafeRelease();
+	DeferredPassSamplerStateRHI.SafeRelease();
+}
+
+FString FTexture::GetFriendlyName() const
+{
+	return TEXT("FTexture");
+}
+
+FRHISamplerState* FTexture::GetOrCreateSamplerState(const FSamplerStateInitializerRHI& Initializer)
+{
+	// This sampler cache is supposed to be used only from RT
+	// Add a lock here if it's used from multiple threads
+	check(IsInRenderingThread());
+
+	FRHISamplerState** Found = GTextureSamplerStateCache.Samplers.Find(Initializer);
+	if (Found)
+	{
+		return *Found;
+	}
+
+	FSamplerStateRHIRef NewState = RHICreateSamplerState(Initializer);
+
+	// Add an extra reference so we don't have TRefCountPtr in the maps
+	NewState->AddRef();
+	GTextureSamplerStateCache.Samplers.Add(Initializer, NewState);
+	return NewState;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// FTextureWithSRV
+
+FTextureWithSRV::FTextureWithSRV() = default;
+FTextureWithSRV::~FTextureWithSRV() = default;
+
+void FTextureWithSRV::ReleaseRHI()
+{
+	ShaderResourceViewRHI.SafeRelease();
+	FTexture::ReleaseRHI();
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// FTextureReference
+
 FTextureReference::FTextureReference()
 	: TextureReferenceRHI(NULL)
 {
@@ -499,11 +626,107 @@ FString FTextureReference::GetFriendlyName() const
 	return TEXT("FTextureReference");
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// FVertexBuffer
+
+FVertexBuffer::FVertexBuffer() = default;
+FVertexBuffer::~FVertexBuffer() = default;
+
+void FVertexBuffer::ReleaseRHI()
+{
+	VertexBufferRHI.SafeRelease();
+}
+
+FString FVertexBuffer::GetFriendlyName() const
+{
+	return TEXT("FVertexBuffer");
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// FVertexBufferWithSRV
+
+FVertexBufferWithSRV::FVertexBufferWithSRV() = default;
+FVertexBufferWithSRV::~FVertexBufferWithSRV() = default;
+
+void FVertexBufferWithSRV::ReleaseRHI()
+{
+	ShaderResourceViewRHI.SafeRelease();
+	UnorderedAccessViewRHI.SafeRelease();
+	FVertexBuffer::ReleaseRHI();
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// FNullColorVertexBuffer
+
+FNullColorVertexBuffer::FNullColorVertexBuffer() = default;
+FNullColorVertexBuffer::~FNullColorVertexBuffer() = default;
+
+void FNullColorVertexBuffer::InitRHI()
+{
+	// create a static vertex buffer
+	FRHIResourceCreateInfo CreateInfo(TEXT("FNullColorVertexBuffer"));
+
+	VertexBufferRHI = RHICreateBuffer(sizeof(uint32) * 4, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
+	uint32* Vertices = (uint32*)RHILockBuffer(VertexBufferRHI, 0, sizeof(uint32) * 4, RLM_WriteOnly);
+	Vertices[0] = FColor(255, 255, 255, 255).DWColor();
+	Vertices[1] = FColor(255, 255, 255, 255).DWColor();
+	Vertices[2] = FColor(255, 255, 255, 255).DWColor();
+	Vertices[3] = FColor(255, 255, 255, 255).DWColor();
+	RHIUnlockBuffer(VertexBufferRHI);
+	VertexBufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FColor), PF_R8G8B8A8);
+}
+
+void FNullColorVertexBuffer::ReleaseRHI()
+{
+	VertexBufferSRV.SafeRelease();
+	FVertexBuffer::ReleaseRHI();
+}
+
 /** The global null color vertex buffer, which is set with a stride of 0 on meshes without a color component. */
 TGlobalResource<FNullColorVertexBuffer> GNullColorVertexBuffer;
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// FNullVertexBuffer
+
+FNullVertexBuffer::FNullVertexBuffer() = default;
+FNullVertexBuffer::~FNullVertexBuffer() = default;
+
+void FNullVertexBuffer::InitRHI()
+{
+	// create a static vertex buffer
+	FRHIResourceCreateInfo CreateInfo(TEXT("FNullVertexBuffer"));
+	VertexBufferRHI = RHICreateBuffer(sizeof(FVector3f), BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
+	FVector3f* LockedData = (FVector3f*)RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector3f), RLM_WriteOnly);
+	*LockedData = FVector3f(0.0f);
+	RHIUnlockBuffer(VertexBufferRHI);
+
+	VertexBufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FColor), PF_R8G8B8A8);
+}
+
+void FNullVertexBuffer::ReleaseRHI()
+{
+	VertexBufferSRV.SafeRelease();
+	FVertexBuffer::ReleaseRHI();
+}
+
 /** The global null vertex buffer, which is set with a stride of 0 on meshes */
 TGlobalResource<FNullVertexBuffer> GNullVertexBuffer;
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// FIndexBuffer
+
+FIndexBuffer::FIndexBuffer() = default;
+FIndexBuffer::~FIndexBuffer() = default;
+
+void FIndexBuffer::ReleaseRHI()
+{
+	IndexBufferRHI.SafeRelease();
+}
+
+FString FIndexBuffer::GetFriendlyName() const
+{
+	return TEXT("FIndexBuffer");
+}
 
 /*------------------------------------------------------------------------------
 	FGlobalDynamicVertexBuffer implementation.
@@ -993,41 +1216,4 @@ void FMipBiasFade::SetNewMipCount( float ActualMipCount, float TargetMipCount, d
 			MipCountFadingRate = -1.0f / (GMipFadeSettings[FadeSetting].FadeOutSpeed * MipCountDelta);
 		}
 	}
-}
-
-class FTextureSamplerStateCache : public FRenderResource
-{
-public:
-	TMap<FSamplerStateInitializerRHI, FRHISamplerState*> Samplers;
-
-	virtual void ReleaseRHI() override
-	{
-		for (auto Pair : Samplers)
-		{
-			Pair.Value->Release();
-		}
-		Samplers.Empty();
-	}
-};
-
-TGlobalResource<FTextureSamplerStateCache> GTextureSamplerStateCache;
-
-FRHISamplerState* FTexture::GetOrCreateSamplerState(const FSamplerStateInitializerRHI& Initializer)
-{
-	// This sampler cache is supposed to be used only from RT
-	// Add a lock here if it's used from multiple threads
-	check(IsInRenderingThread());
-	
-	FRHISamplerState** Found = GTextureSamplerStateCache.Samplers.Find(Initializer);
-	if (Found)
-	{
-		return *Found;
-	}
-	
-	FSamplerStateRHIRef NewState = RHICreateSamplerState(Initializer);
-	
-	// Add an extra reference so we don't have TRefCountPtr in the maps
-	NewState->AddRef();
-	GTextureSamplerStateCache.Samplers.Add(Initializer, NewState);
-	return NewState;
 }
