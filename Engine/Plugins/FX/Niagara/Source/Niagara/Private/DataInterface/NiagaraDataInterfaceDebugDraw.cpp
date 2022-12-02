@@ -3042,8 +3042,8 @@ bool UNiagaraDataInterfaceDebugDraw::PerInstanceTick(void* PerInstanceData, FNia
 {
 #if NIAGARA_COMPUTEDEBUG_ENABLED
 	FNDIDebugDrawInstanceData_GameThread* InstanceData = reinterpret_cast<FNDIDebugDrawInstanceData_GameThread*>(PerInstanceData);
-	InstanceData->LineBuffer.Reset(OverrideMaxLineInstances);
-	InstanceData->OverrideMaxLineInstances = OverrideMaxLineInstances;
+	InstanceData->LineBuffer.Reset();
+	InstanceData->OverrideMaxLineInstances = FMath::Min<uint32>(OverrideMaxLineInstances, TNumericLimits<int32>::Max());
 #endif
 	return false;
 }
