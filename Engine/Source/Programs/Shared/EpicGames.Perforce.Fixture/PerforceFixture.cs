@@ -40,6 +40,7 @@ public class ChangelistFixture
 	
 	public int Number { get; }
 	public string Description { get; }
+	public bool IsShelved { get; }
 	
 	/// <summary>
 	/// List of files in stream as how they would appear locally on disk, when synced to this changelist
@@ -47,11 +48,12 @@ public class ChangelistFixture
 	/// </summary>
 	public IReadOnlyList<DepotFileFixture> StreamFiles { get; }
 
-	public ChangelistFixture(int number, string description, List<DepotFileFixture> streamFiles)
+	public ChangelistFixture(int number, string description, List<DepotFileFixture> streamFiles, bool isShelved = false)
 	{
 		Number = number;
 		Description = description;
 		StreamFiles = streamFiles;
+		IsShelved = isShelved;
 	}
 
 	/// <summary>
@@ -114,14 +116,14 @@ public class ChangelistFixture
 			Console.WriteLine("Expected ------------------------------------------------------");
 			foreach ((string depotFile, int rev) in expectedList)
 			{
-				Console.WriteLine($"{depotFile,-20} | {rev,5}");
+				Console.WriteLine($"{depotFile,-30} | {rev,5}");
 			}
 			
 			Console.WriteLine("");
 			Console.WriteLine("Actual --------------------------------------------------------");
 			foreach ((string depotFile, int rev) in actualList)
 			{
-				Console.WriteLine($"{depotFile,-20} | {rev,5}");
+				Console.WriteLine($"{depotFile,-30} | {rev,5}");
 			}
 
 			Assert.Fail("Files in stream does not match files in client's have table");
@@ -170,19 +172,20 @@ public class ChangelistFixture
 public class StreamFixture
 {
 	public string Root { get; }
-	public IEnumerable<ChangelistFixture> Changelists { get; }
+	public IEnumerable<ChangelistFixture> Changelists => _changelists.Where(x => !x.IsShelved);
+	private readonly IReadOnlyList<ChangelistFixture> _changelists;
 
 	public StreamFixture(string root, IReadOnlyList<ChangelistFixture> changelists)
 	{
 		Root = root;
-		Changelists = changelists;
+		_changelists = changelists;
 	}
 
 	public ChangelistFixture LatestChangelist => Changelists.Last();
 
 	public ChangelistFixture GetChangelist(int changeNum)
 	{
-		foreach (ChangelistFixture changelist in Changelists)
+		foreach (ChangelistFixture changelist in _changelists)
 		{
 			if (changelist.Number == changeNum)
 			{
@@ -253,6 +256,15 @@ public class PerforceFixture
 					new("//Foo/Main/Data/data.txt", "Data/data.txt", "This is change data.txt #1", 1),
 					new("//Foo/Main/Data/moredata.txt", "Data/moredata.txt", "This is change moredata.txt #1", 1),
 				}),
+			new(8, "A shelved CL", // Assumes base CL is 7
+				new List<DepotFileFixture>()
+				{
+					new("//Foo/Main/main.h", "main.h", "This is change main.h #3", 3),
+					new("//Foo/Main/shared.h", "shared.h", "This is change common.h #1", 1),
+					new("//Foo/Main/shelved.cpp", "shelved.cpp", "This is change shelved.cpp #1", 1),
+					new("//Foo/Main/Data/data.txt", "Data/data.txt", "This is change data.txt #1", 1),
+					new("//Foo/Main/Data/moredata.txt", "Data/moredata.txt", "This is change moredata.txt #1", 1),
+				}, true),
 		});
 
 	public static string CalcMd5(string content)

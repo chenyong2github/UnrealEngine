@@ -141,6 +141,20 @@ public class ManagedWorkspaceTest : BasePerforceFixtureTest
 		Stream.LatestChangelist.AssertDepotFiles(SyncDir);
 		await Stream.LatestChangelist.AssertHaveTableAsync(PerforceConnection, useHaveTable);
 	}
+	
+	[TestMethod]
+	[DataRow(true, DisplayName = "With have-table")]
+	[DataRow(false, DisplayName = "Without have-table")]
+	public async Task Unshelve(bool useHaveTable)
+	{
+		ManagedWorkspace ws = await GetManagedWorkspace();
+		await SyncAsync(ws, 7, useHaveTable);
+		await ws.UnshelveAsync(PerforceConnection, 8, CancellationToken.None);
+		Stream.GetChangelist(8).AssertDepotFiles(SyncDir);
+		
+		// Have-table still correspond to CL 7 as CL 8 is shelved, only p4 printed to workspace
+		await Stream.GetChangelist(7).AssertHaveTableAsync(PerforceConnection, useHaveTable);
+	}
 
 	private async Task<ManagedWorkspace> GetManagedWorkspace()
 	{

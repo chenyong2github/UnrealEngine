@@ -102,5 +102,15 @@ p4 submit -d "Some updates to main"
 echo "This is change moredata.txt #1" > $CLIENT_ROOT/Data/moredata.txt && p4 add $CLIENT_ROOT/Data/moredata.txt
 p4 submit -d "Add more data"
 
+# Changelist #8
+p4 change -i << EOF
+Change: new
+Description: A shelved CL
+EOF
+echo "This is change shelved.cpp #1" > $CLIENT_ROOT/shelved.cpp && p4 add -c 8 $CLIENT_ROOT/shelved.cpp
+p4 edit -c 8 main.h && echo "This is change main.h #3" > $CLIENT_ROOT/main.h
+p4 delete -c 8 main.cpp
+p4 shelve -c 8
+
 # Stop server running in background
 kill "$(pidof p4d)"
