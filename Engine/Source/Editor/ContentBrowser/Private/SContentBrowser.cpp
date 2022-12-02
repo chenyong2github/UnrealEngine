@@ -3271,6 +3271,10 @@ bool SContentBrowser::HandleDeleteCommandCanExecute() const
 		// ... but the asset view still takes precedence over an unfocused path view unless it has no selection
 		return AssetContextMenu->CanExecuteDelete();
 	}
+	else if (FavoritePathViewPtr->GetSelectedFolderItems().Num() > 0)
+	{
+		return true;
+	}
 	else if (PathViewPtr->GetSelectedFolderItems().Num() > 0)
 	{
 		return PathContextMenu->CanExecuteDelete();
@@ -3314,9 +3318,50 @@ void SContentBrowser::HandleDeleteCommandExecute()
 		// ... but the asset view still takes precedence over an unfocused path view unless it has no selection
 		AssetContextMenu->ExecuteDelete();
 	}
+	else if (FavoritePathViewPtr->GetSelectedFolderItems().Num() > 0)
+	{
+		HandleDeleteFavorite(PathContextMenu->GetParentContent());
+	}
 	else if (PathViewPtr->GetSelectedFolderItems().Num() > 0)
 	{
 		PathContextMenu->ExecuteDelete();
+	}
+}
+
+void SContentBrowser::HandleDeleteFavorite(TSharedPtr<SWidget> ParentWidget)
+{
+	TArray<FContentBrowserItem> SelectedFolders = FavoritePathViewPtr->GetSelectedFolderItems();
+	if (ParentWidget.IsValid() && SelectedFolders.Num() > 0)
+	{
+		FText Prompt;
+		if (SelectedFolders.Num() == 1)
+		{
+			Prompt = FText::Format(LOCTEXT("FavoriteDeleteConfirm_Single", "Remove favorite '{0}'?"), SelectedFolders[0].GetDisplayName());
+		}
+		else
+		{
+			Prompt = FText::Format(LOCTEXT("FavoriteDeleteConfirm_Multiple", "Remove {0} favorites?"), SelectedFolders.Num());
+		}
+
+		// Spawn a confirmation dialog since this is potentially a highly destructive operation
+		ContentBrowserUtils::DisplayConfirmationPopup(
+			Prompt,
+			LOCTEXT("FavoriteRemoveConfirm_Yes", "Remove"),
+			LOCTEXT("FavoriteRemoveConfirm_No", "Cancel"),
+			ParentWidget.ToSharedRef(),
+			FOnClicked::CreateLambda([this, SelectedFolders]() -> FReply
+			{
+				for (const FContentBrowserItem& Folder : SelectedFolders)
+				{
+					ContentBrowserUtils::RemoveFavoriteFolder(Folder.GetVirtualPath().ToString());
+				}
+
+				GConfig->Flush(false, GEditorPerProjectIni);
+				FavoritePathViewPtr->Populate();
+
+				return FReply::Handled();
+			})
+		);
 	}
 }
 

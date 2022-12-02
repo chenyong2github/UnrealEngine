@@ -429,6 +429,9 @@ private:
 	/** Handler for Delete */
 	void HandleDeleteCommandExecute();
 
+	/** Handler for deleting a favorite using a keybind. */
+	void HandleDeleteFavorite(TSharedPtr<SWidget> ParentWidget);
+
 	/** Handler for opening assets or folders */
 	void HandleOpenAssetsOrFoldersCommandExecute();
 

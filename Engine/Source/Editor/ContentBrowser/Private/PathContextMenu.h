@@ -96,6 +96,9 @@ public:
 	/** Handler for when "Delete" is selected and the delete was confirmed */
 	FReply ExecuteDeleteFolderConfirmed();
 
+	/** Get the parent widget for which this menu was summoned. */
+	TSharedPtr<SWidget> GetParentContent() const { return ParentContent.Pin(); }
+
 private:
 	/** Get tooltip for delete */
 	FText GetDeleteToolTip() const;
