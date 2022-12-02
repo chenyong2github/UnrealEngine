@@ -112,6 +112,11 @@ public:
 		/** Custom widget placed before the buttons */
 		SLATE_NAMED_SLOT(FArguments, BeforeButtons)
 
+		/** HAlign to use for Button Box slot (default: HAlign_Left) */
+		SLATE_ARGUMENT(EHorizontalAlignment, HAlignButtonBox)
+
+		/** VAlign to use for Button Box  slot (default: VAlign_Center) */
+		SLATE_ARGUMENT(EVerticalAlignment, VAlignButtonBox)
 
 		/** Padding to apply to the widget embedded in the window, i.e. to all widgets contained in the window (default: {4,4,4,4} )*/
 		SLATE_ATTRIBUTE(FMargin, RootPadding)

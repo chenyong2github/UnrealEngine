@@ -50,7 +50,8 @@ void SCustomDialog::Construct(const FArguments& InArgs)
 				]
 				
 				+ SVerticalBox::Slot()
-				.VAlign(VAlign_Center)
+				.VAlign(InArgs._VAlignButtonBox)
+				.HAlign(InArgs._HAlignButtonBox)
 				.AutoHeight()
 				.Padding(InArgs._ButtonAreaPadding)
 				[
