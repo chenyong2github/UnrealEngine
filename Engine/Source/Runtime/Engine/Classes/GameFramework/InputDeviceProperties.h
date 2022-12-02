@@ -133,7 +133,7 @@ protected:
 	* to be the max time range.
 	*/
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Info")
-	float PropertyDuration = 0.1f;
+	float PropertyDuration = 0.0f;
 };
 
 template<class TDataLayout>

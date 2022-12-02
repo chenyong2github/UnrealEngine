@@ -280,7 +280,7 @@ void UInputDeviceSubsystem::Tick(float InDeltaTime)
 
 		// If the property has run past it's duration, reset it and remove it from our active properties
 		// Don't remove properties that are looping, because the user desires them to keep playing
-		if (!ActiveProp.bLooping && ActiveProp.EvaluatedDuration > ActiveProp.Property->GetDuration())
+		if (!ActiveProp.bLooping && ActiveProp.EvaluatedDuration > ActiveProp.Property->GetDuration() && ActiveProp.bHasBeenAppliedAtLeastOnce)
 		{
 			ActiveProp.Property->ResetDeviceProperty(ActiveProp.PlatformUser);
 			PropertiesPendingRemoval.Remove(ActiveProp.PropertyHandle);
@@ -292,6 +292,9 @@ void UInputDeviceSubsystem::Tick(float InDeltaTime)
 		{
 			ActiveProp.Property->EvaluateDeviceProperty(ActiveProp.PlatformUser, DeltaTime, ActiveProp.EvaluatedDuration);
 			ActiveProp.Property->ApplyDeviceProperty(ActiveProp.PlatformUser);
+
+			// Track that this property has now successfully been applied at least once
+			ActiveProp.bHasBeenAppliedAtLeastOnce = true;
 		}
 	}
 

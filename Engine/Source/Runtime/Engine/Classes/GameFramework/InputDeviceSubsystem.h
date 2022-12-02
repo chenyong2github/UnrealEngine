@@ -108,6 +108,15 @@ protected:
 
 		/** If true, then this device property will be played even if the game world is paused. */
 		bool bPlayWhilePaused = false;
+
+		/**
+		 * This is set to true when this device property has been applied.
+		 * All device properties should be applied at least one time, no matter what.
+		 * This handles cases where the evaluation time is longer then the duration of a property.
+		 * I.e., your property is set to a duration of 0.1, but you get a delta time of .12 seconds for some reason
+		 * (choppy frames, low perf client, debugging, etc). 
+		 */
+		bool bHasBeenAppliedAtLeastOnce = false;
 	};
 
 public:
