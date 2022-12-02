@@ -157,10 +157,10 @@ void FDisplayMetrics::RebuildDisplayMetrics( FDisplayMetrics& OutDisplayMetrics 
 	// Apply the debug safe zones
 	OutDisplayMetrics.ApplyDefaultSafeZones();
 
-	float Inset_Left = -1.0f;
-	float Inset_Top = -1.0f;
-	float Inset_Right = -1.0f;
-	float Inset_Bottom = -1.0f;
+	double Inset_Left = -1.0f;
+	double Inset_Top = -1.0f;
+	double Inset_Right = -1.0f;
+	double Inset_Bottom = -1.0f;
 
 	bool bIsPortrait = FAndroidWindow::IsPortraitOrientation();
 

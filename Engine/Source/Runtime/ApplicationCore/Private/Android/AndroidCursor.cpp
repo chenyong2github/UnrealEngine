@@ -21,11 +21,11 @@ void FAndroidCursor::ComputeUIScaleFactor()
 
 	if (ScreenWidth > ScreenHeight)
 	{
-		UIScaleFactor = (ScreenRect.Bottom - ScreenRect.Top) / (float)ScreenHeight;
+		UIScaleFactor = (float)(ScreenRect.Bottom - ScreenRect.Top) / (float)ScreenHeight;
 	}
 	else
 	{
-		UIScaleFactor = (ScreenRect.Right - ScreenRect.Left) / (float)ScreenWidth;
+		UIScaleFactor = (float)(ScreenRect.Right - ScreenRect.Left) / (float)ScreenWidth;
 	}
 }
 

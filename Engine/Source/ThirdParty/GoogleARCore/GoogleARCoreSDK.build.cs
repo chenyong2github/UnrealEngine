@@ -20,6 +20,7 @@ public class GoogleARCoreSDK : ModuleRules
 		if (Target.Platform == UnrealTargetPlatform.Android)
 		{
 			PublicAdditionalLibraries.Add(ARCoreSDKBaseLibPath + "arm64-v8a/libarcore_sdk_c.so");
+			PublicAdditionalLibraries.Add(ARCoreSDKBaseLibPath + "x86_64/libarcore_sdk_c.so");
 		}
 		else if(Target.Platform == UnrealTargetPlatform.IOS)
 		{

@@ -146,7 +146,7 @@ static hwcpipe::HWCPipe* GHWCPipe = nullptr;
 static void UpdateGPUStats();
 
 
-static float GAndroidCPUStatsUpdateRate = 0.100;
+static float GAndroidCPUStatsUpdateRate = 0.100f;
 static FAutoConsoleVariableRef CVarAndroidCollectCPUStatsRate(
 	TEXT("Android.CPUStatsUpdateRate"),
 	GAndroidCPUStatsUpdateRate,

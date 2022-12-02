@@ -194,7 +194,7 @@ static float GetWindowUpscaleFactor()
 
 	FPlatformRect ScreenRect = FAndroidWindow::GetScreenRect();
 
-	const float CalculatedScaleFactor = FVector2D(ScreenRect.Right - ScreenRect.Left, ScreenRect.Bottom - ScreenRect.Top).Size() / FVector2D(SurfaceWidth, SurfaceHeight).Size();
+	const float CalculatedScaleFactor = (float)(FVector2D(ScreenRect.Right - ScreenRect.Left, ScreenRect.Bottom - ScreenRect.Top).Size() / FVector2D(SurfaceWidth, SurfaceHeight).Size());
 
 	return CalculatedScaleFactor;
 }
@@ -220,7 +220,7 @@ EScreenPhysicalAccuracy FAndroidApplicationMisc::ComputePhysicalScreenDensity(in
 	{
 		if ( Device.IsMatch(MyDeviceModel) )
 		{
-			OutScreenDensity = Device.Density * GetWindowUpscaleFactor();
+			OutScreenDensity = (int32)((float)Device.Density * GetWindowUpscaleFactor());
 			return EScreenPhysicalAccuracy::Truth;
 		}
 	}
@@ -235,14 +235,14 @@ EScreenPhysicalAccuracy FAndroidApplicationMisc::ComputePhysicalScreenDensity(in
 	LexFromString(xdpi, *DPIValues[0]);
 	LexFromString(ydpi, *DPIValues[1]);
 
-	OutScreenDensity = ( xdpi + ydpi ) / 2.0f;
+	OutScreenDensity = (int32)(( xdpi + ydpi ) / 2.0f);
 
 	if ( OutScreenDensity <= 0 || OutScreenDensity > 2000 )
 	{
 		return EScreenPhysicalAccuracy::Unknown;
 	}
 
-	OutScreenDensity *= GetWindowUpscaleFactor();
+	OutScreenDensity = (int32)((float)OutScreenDensity * GetWindowUpscaleFactor());
 	return EScreenPhysicalAccuracy::Approximation;
 #else
 	// @todo Lumin: implement this on Lumin probably

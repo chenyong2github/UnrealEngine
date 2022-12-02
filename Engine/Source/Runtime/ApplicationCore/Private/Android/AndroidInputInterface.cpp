@@ -392,7 +392,7 @@ void FAndroidInputInterface::UpdateVibeMotors()
 	}
 }
 
-static uint32 CharMap[] =
+static TCHAR CharMap[] =
 {
 	0,
 	0,
@@ -619,7 +619,7 @@ static uint32 CharMap[] =
 	0
 };
 
-static uint32 CharMapShift[] =
+static TCHAR CharMapShift[] =
 {
 	0,
 	0,
@@ -1220,7 +1220,7 @@ void FAndroidInputInterface::SendControllerEvents()
 	for (int32 MessageIndex = 0; MessageIndex < FMath::Min(DeferredMessageQueueLastEntryIndex, MAX_DEFERRED_MESSAGE_QUEUE_SIZE); ++MessageIndex)
 	{
 		const FDeferredAndroidMessage& DeferredMessage = DeferredMessages[MessageIndex];
-		const int32 Char = DeferredMessage.KeyEventData.modifier & AMETA_SHIFT_ON ? CharMapShift[DeferredMessage.KeyEventData.keyId] : CharMap[DeferredMessage.KeyEventData.keyId];
+		const TCHAR Char = DeferredMessage.KeyEventData.modifier & AMETA_SHIFT_ON ? CharMapShift[DeferredMessage.KeyEventData.keyId] : CharMap[DeferredMessage.KeyEventData.keyId];
 		
 		switch (DeferredMessage.messageType)
 		{

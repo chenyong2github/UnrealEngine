@@ -67,10 +67,10 @@ void FAndroidPlatformMemory::Init()
 	const FPlatformMemoryConstants& MemoryConstants = FPlatformMemory::GetConstants();
 	FPlatformMemoryStats MemoryStats = GetStats();
 	UE_LOG(LogInit, Log, TEXT("Memory total: Physical=%.2fMB (%dGB approx) Available=%.2fMB PageSize=%.1fKB"), 
-		float(MemoryConstants.TotalPhysical/1024.0/1024.0),
+		float((double)MemoryConstants.TotalPhysical/1024.0/1024.0),
 		MemoryConstants.TotalPhysicalGB, 
-		float(MemoryStats.AvailablePhysical/1024.0/1024.0),
-		float(MemoryConstants.PageSize/1024.0)
+		float((double)MemoryStats.AvailablePhysical/1024.0/1024.0),
+		float((double)MemoryConstants.PageSize/1024.0)
 		);
 }
 
