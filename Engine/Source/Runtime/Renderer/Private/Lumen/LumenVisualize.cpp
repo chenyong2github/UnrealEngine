@@ -483,7 +483,7 @@ void SetupVisualizeParameters(
 	const FViewInfo& View, 
 	const FIntRect& ViewRect, 
 	FRDGTextureRef ColorGradingTexture,
-	FRDGTextureRef EyeAdaptationTexture,
+	FRDGBufferRef EyeAdaptationBuffer,
 	int32 VisualizeMode, 
 	int32 VisualizeTileIndex, 
 	FLumenVisualizeSceneSoftwareRayTracingParameters& VisualizeParameters)
@@ -501,7 +501,7 @@ void SetupVisualizeParameters(
 		CommonParameters.PreviewConeAngle = PreviewConeAngle;
 		CommonParameters.TanPreviewConeAngle = FMath::Tan(PreviewConeAngle);
 		CommonParameters.VisualizeHiResSurface = GVisualizeLumenSceneHiResSurface ? 1 : 0;
-		CommonParameters.Tonemap = (EyeAdaptationTexture != nullptr && ColorGradingTexture != nullptr) ? 1 : 0;
+		CommonParameters.Tonemap = (EyeAdaptationBuffer != nullptr && ColorGradingTexture != nullptr) ? 1 : 0;
 		CommonParameters.VisualizeMode = VisualizeMode;
 
 		CommonParameters.InputViewOffset = ViewRect.Min;
@@ -510,12 +510,7 @@ void SetupVisualizeParameters(
 		CommonParameters.OutputViewSize = ViewRect.Size();
 		CommonParameters.ColorGradingLUT = ColorGradingTexture;
 		CommonParameters.ColorGradingLUTSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-		CommonParameters.EyeAdaptationTexture = EyeAdaptationTexture;
-
-		if (!CommonParameters.EyeAdaptationTexture)
-		{
-			CommonParameters.EyeAdaptationTexture = FRDGSystemTextures::Get(GraphBuilder).Black;
-		}
+		CommonParameters.EyeAdaptationBuffer = GraphBuilder.CreateSRV(EyeAdaptationBuffer);
 
 		if (!CommonParameters.ColorGradingLUT)
 		{
@@ -603,14 +598,14 @@ void VisualizeLumenScene(
 	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	FScreenPassTexture Output,
 	FRDGTextureRef ColorGradingTexture,
-	FRDGTextureRef EyeAdaptationTexture,
+	FRDGBufferRef EyeAdaptationBuffer,
 	int32 VisualizeMode,
 	int32 VisualizeTileIndex)
 {
 	FRDGTextureUAVRef SceneColorUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(Output.Texture));
 
 	FLumenVisualizeSceneSoftwareRayTracingParameters VisualizeParameters;
-	SetupVisualizeParameters(GraphBuilder, View, Output.ViewRect, ColorGradingTexture, EyeAdaptationTexture, VisualizeMode, VisualizeTileIndex, VisualizeParameters);
+	SetupVisualizeParameters(GraphBuilder, View, Output.ViewRect, ColorGradingTexture, EyeAdaptationBuffer, VisualizeMode, VisualizeTileIndex, VisualizeParameters);
 
 	FLumenCardTracingParameters TracingParameters;
 	GetLumenCardTracingParameters(GraphBuilder, View, *Scene->GetLumenSceneData(View), FrameTemporaries, GVisualizeLumenSceneSurfaceCacheFeedback != 0, TracingParameters);
@@ -765,7 +760,7 @@ FScreenPassTexture AddVisualizeLumenScenePass(FRDGBuilder& GraphBuilder, const F
 
 				for (int32 TileIndex = 0; TileIndex < LumenVisualize::NumOverviewTilesPerRow; ++TileIndex)
 				{
-					VisualizeLumenScene(Scene, GraphBuilder, View, FrameTemporaries, Output, Inputs.ColorGradingTexture, Inputs.EyeAdaptationTexture, VisualizeTiles[TileIndex].Mode, TileIndex);	
+					VisualizeLumenScene(Scene, GraphBuilder, View, FrameTemporaries, Output, Inputs.ColorGradingTexture, Inputs.EyeAdaptationBuffer, VisualizeTiles[TileIndex].Mode, TileIndex);	
 				}
 
 				AddDrawCanvasPass(GraphBuilder, RDG_EVENT_NAME("LumenVisualizeLabels"), View, FScreenPassRenderTarget(Output, ERenderTargetLoadAction::ELoad),
@@ -789,7 +784,7 @@ FScreenPassTexture AddVisualizeLumenScenePass(FRDGBuilder& GraphBuilder, const F
 			}
 			else
 			{
-				VisualizeLumenScene(Scene, GraphBuilder, View, FrameTemporaries, Output, Inputs.ColorGradingTexture, Inputs.EyeAdaptationTexture, VisualizeMode, /*VisualizeTileIndex*/ -1);
+				VisualizeLumenScene(Scene, GraphBuilder, View, FrameTemporaries, Output, Inputs.ColorGradingTexture, Inputs.EyeAdaptationBuffer, VisualizeMode, /*VisualizeTileIndex*/ -1);
 			}
 		}
 	}

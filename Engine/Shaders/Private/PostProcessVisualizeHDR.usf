@@ -9,7 +9,7 @@
 #include "MiniFontCommon.ush"
 
 // the prior frame's eye adaptation settings
-Texture2D EyeAdaptationTexture;
+StructuredBuffer<float4> EyeAdaptationBuffer;
 
 Texture2D SceneColorTexture;
 SamplerState SceneColorSampler;
@@ -192,11 +192,11 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 	float2 ViewLocalUV = float2(UVAndScreenPos.z * 0.5f + 0.5f, 0.5f - 0.5f * UVAndScreenPos.w);
 
 	// retrieve the exposure scale and target exposure scale from the eye-adaptation buffer.
-	float EyeAdaptationResult = EyeAdaptationTexture.Load(int3(0, 0, 0)).r;
-	float EyeAdaptationTarget = EyeAdaptationTexture.Load(int3(0, 0, 0)).g;
+	float EyeAdaptationResult = EyeAdaptationBuffer[0].r;
+	float EyeAdaptationTarget = EyeAdaptationBuffer[0].g;
 
-	float EyeAdaptationAverageSceneLuminance = EyeAdaptationTexture.Load(int3(0, 0, 0)).z;
-	float EyeAdaptationExposureBiasOnly = EyeAdaptationTexture.Load(int3(0, 0, 0)).w;
+	float EyeAdaptationAverageSceneLuminance = EyeAdaptationBuffer[0].z;
+	float EyeAdaptationExposureBiasOnly = EyeAdaptationBuffer[0].w;
 	float EyeAdaptationResultWithoutExposureBias = EyeAdaptationResult / EyeAdaptationExposureBiasOnly;
 
 	int2 OutputViewportCenter = (int2)(Output_ViewportMin + Output_ViewportSize / 2);

@@ -122,7 +122,6 @@ public:
 		SHADER_PARAMETER(FVector4f, HistoryBufferUVMinMax)
 		SHADER_PARAMETER(FVector4f, ScreenPosToHistoryBufferUV)
 
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptationTexture)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, EyeAdaptationBuffer)
 
 		// Inputs
@@ -788,14 +787,7 @@ FTAAOutputs AddTemporalAAPass(
 
 		PassParameters->GBufferVelocityTextureSRV = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(PassParameters->GBufferVelocityTexture));
 
-		if (View.GetFeatureLevel() <= ERHIFeatureLevel::ES3_1)
-		{
-			PassParameters->EyeAdaptationBuffer = GraphBuilder.CreateSRV(GetEyeAdaptationBuffer(GraphBuilder, View));
-		}
-		else
-		{
-			PassParameters->EyeAdaptationTexture = GetEyeAdaptationTexture(GraphBuilder, View);
-		}
+		PassParameters->EyeAdaptationBuffer = GraphBuilder.CreateSRV(GetEyeAdaptationBuffer(GraphBuilder, View));
 	};
 
 	if (bIsComputePass)

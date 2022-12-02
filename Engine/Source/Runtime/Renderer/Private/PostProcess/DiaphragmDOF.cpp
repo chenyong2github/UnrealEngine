@@ -870,7 +870,7 @@ class FDiaphragmDOFReduceCS : public FDiaphragmDOFShader
 		SHADER_PARAMETER(float, NeighborCompareMaxColor)
 		SHADER_PARAMETER(float, CocSqueeze)
 		
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptationTexture)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, EyeAdaptationBuffer)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDOFCommonShaderParameters, CommonParameters)
 
 		SHADER_PARAMETER(FVector4f, GatherInputSize)
@@ -1964,7 +1964,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			PassParameters->NeighborCompareMaxColor = CVarScatterNeighborCompareMaxColor.GetValueOnRenderThread();
 			PassParameters->CocSqueeze = CocModel.Squeeze;
 			
-			PassParameters->EyeAdaptationTexture = GetEyeAdaptationTexture(GraphBuilder, View);
+			PassParameters->EyeAdaptationBuffer = GraphBuilder.CreateSRV(GetEyeAdaptationBuffer(GraphBuilder, View));
 			PassParameters->CommonParameters = CommonParameters;
 
 			PassParameters->GatherInputSize = FVector4f(SrcSize.X, SrcSize.Y, 1.0f / SrcSize.X, 1.0f / SrcSize.Y);
@@ -2025,7 +2025,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 				(PreprocessViewSize.X - 0.5f) / GatherInputExtent.X,
 				(PreprocessViewSize.Y - 0.5f) / GatherInputExtent.Y);
 
-			PassParameters->EyeAdaptationTexture = GetEyeAdaptationTexture(GraphBuilder, View);
+			PassParameters->EyeAdaptationBuffer = GraphBuilder.CreateSRV(GetEyeAdaptationBuffer(GraphBuilder, View));
 			PassParameters->CommonParameters = CommonParameters;
 
 			float InputMipLevelPow2 = 1 << InputMipLevel;

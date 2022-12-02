@@ -21,7 +21,7 @@ public:
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HDRSceneColorTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistogramTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptationTexture)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, EyeAdaptationBuffer)
 		SHADER_PARAMETER_SAMPLER(SamplerState, HDRSceneColorSampler)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorSampler)
 		SHADER_PARAMETER_TEXTURE(Texture2D, MiniFontTexture)
@@ -65,7 +65,7 @@ FScreenPassTexture AddVisualizeHDRPass(FRDGBuilder& GraphBuilder, const FViewInf
 	check(Inputs.SceneColor.IsValid());
 	check(Inputs.SceneColorBeforeTonemap.IsValid());
 	check(Inputs.HistogramTexture);
-	check(Inputs.EyeAdaptationTexture);
+	check(Inputs.EyeAdaptationBuffer);
 	check(Inputs.EyeAdaptationParameters);
 
 	FScreenPassRenderTarget Output = Inputs.OverrideOutput;
@@ -92,7 +92,7 @@ FScreenPassTexture AddVisualizeHDRPass(FRDGBuilder& GraphBuilder, const FViewInf
 	PassParameters->HDRSceneColorTexture = Inputs.SceneColorBeforeTonemap.Texture;
 	PassParameters->HDRSceneColorSampler = BilinearClampSampler;
 	PassParameters->HistogramTexture = Inputs.HistogramTexture;
-	PassParameters->EyeAdaptationTexture = Inputs.EyeAdaptationTexture;
+	PassParameters->EyeAdaptationBuffer = GraphBuilder.CreateSRV(Inputs.EyeAdaptationBuffer);
 	PassParameters->EyeAdaptation = *Inputs.EyeAdaptationParameters;
 	PassParameters->OutputDevice = GetTonemapperOutputDeviceParameters(*View.Family);
 	PassParameters->MiniFontTexture = GetMiniFontTexture();

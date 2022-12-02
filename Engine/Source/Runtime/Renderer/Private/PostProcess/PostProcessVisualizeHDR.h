@@ -15,7 +15,7 @@ struct FVisualizeHDRInputs
 	FScreenPassTexture SceneColorBeforeTonemap;
 
 	FRDGTextureRef HistogramTexture = nullptr;
-	FRDGTextureRef EyeAdaptationTexture = nullptr;
+	FRDGBufferRef EyeAdaptationBuffer = nullptr;
 
 	const FEyeAdaptationParameters* EyeAdaptationParameters = nullptr;
 };

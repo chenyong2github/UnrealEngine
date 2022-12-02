@@ -167,7 +167,7 @@ class FDiffuseIndirectCompositePS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, OutSubSurfaceSceneColor)
 
 		SHADER_PARAMETER(FVector2f, BufferUVToOutputPixelPosition)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptation)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, EyeAdaptation)
 		SHADER_PARAMETER_RDG_TEXTURE_ARRAY(Texture2D<uint>, CompressedMetadata, [2])
 
 		RENDER_TARGET_BINDING_SLOTS()
@@ -1178,7 +1178,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 			}
 
 			PassParameters->BufferUVToOutputPixelPosition = BufferExtent;
-			PassParameters->EyeAdaptation = GetEyeAdaptationTexture(GraphBuilder, View);
+			PassParameters->EyeAdaptation = GraphBuilder.CreateSRV(GetEyeAdaptationBuffer(GraphBuilder, View));
 			LumenReflections::SetupCompositeParameters(PassParameters->ReflectionsCompositeParameters);
 			PassParameters->ScreenBentNormalParameters = ScreenBentNormalParameters;
 			PassParameters->bLumenSupportBackfaceDiffuse = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen && DenoiserOutputs.Textures[1] != SystemTextures.Black;

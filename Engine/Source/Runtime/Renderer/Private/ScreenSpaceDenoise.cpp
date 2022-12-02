@@ -833,7 +833,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSSDCommonParameters, )
 
 	SHADER_PARAMETER_RDG_TEXTURE_ARRAY(Texture2D<uint>, CompressedMetadata, [kCompressedMetadataTextures])
 
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptationTexture)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, EyeAdaptationBuffer)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, TileClassificationTexture)
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 
@@ -1578,7 +1578,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 		CommonParameters.SceneTextures = SceneTextures;
 		CommonParameters.Strata = Strata::BindStrataGlobalUniformParameters(View);
 		CommonParameters.ViewUniformBuffer = View.ViewUniformBuffer;
-		CommonParameters.EyeAdaptationTexture = GetEyeAdaptationTexture(GraphBuilder, View);
+		CommonParameters.EyeAdaptationBuffer = GraphBuilder.CreateSRV(GetEyeAdaptationBuffer(GraphBuilder, View));
 
 		// Remove dependency of the velocity buffer on camera cut, given it's going to be ignored by the shaders.
 		if (View.bCameraCut || !CommonParameters.SceneTextures.GBufferVelocityTexture)

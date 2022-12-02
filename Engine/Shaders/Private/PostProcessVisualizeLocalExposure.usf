@@ -7,7 +7,7 @@
 #include "DeferredShadingCommon.ush"
 #include "TonemapCommon.ush"
 
-Texture2D EyeAdaptationTexture;
+StructuredBuffer<float4> EyeAdaptationBuffer;
 
 Texture2D HDRSceneColorTexture;
 
@@ -26,7 +26,7 @@ float4 MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition
 	float2 UV = UVAndScreenPos.xy;
 	int2 PixelPos = (int2)SvPosition.xy;
 
-	float2 ExposureScaleMiddleGrey = EyeAdaptationTexture.Load(int3(0, 0, 0)).xw;
+	float2 ExposureScaleMiddleGrey = EyeAdaptationBuffer[0].xw;
 
 	float4 SceneColor = Texture2DSample(HDRSceneColorTexture, TextureSampler, UV) * View.OneOverPreExposure;
 

@@ -14,7 +14,7 @@ struct FVisualizeLocalExposureInputs
 	FScreenPassTexture SceneColor;
 	FScreenPassTexture HDRSceneColor;
 
-	FRDGTextureRef EyeAdaptationTexture = nullptr;
+	FRDGBufferRef EyeAdaptationBuffer = nullptr;
 
 	FRDGTextureRef LumBilateralGridTexture = nullptr;
 	FRDGTextureRef BlurredLumTexture = nullptr;

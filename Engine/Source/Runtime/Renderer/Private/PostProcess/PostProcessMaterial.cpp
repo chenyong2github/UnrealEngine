@@ -476,14 +476,7 @@ FScreenPassTexture AddPostProcessMaterialPass(
 	FPostProcessMaterialParameters* PostProcessMaterialParameters = GraphBuilder.AllocParameters<FPostProcessMaterialParameters>();
 	PostProcessMaterialParameters->SceneTextures = Inputs.SceneTextures;
 	PostProcessMaterialParameters->View = View.ViewUniformBuffer;
-	if (bMobilePlatform)
-	{
-		PostProcessMaterialParameters->EyeAdaptationBuffer = GraphBuilder.CreateSRV(GetEyeAdaptationBuffer(GraphBuilder, View));
-	}
-	else
-	{
-		PostProcessMaterialParameters->EyeAdaptationTexture = GetEyeAdaptationTexture(GraphBuilder, View);
-	}
+	PostProcessMaterialParameters->EyeAdaptationBuffer = GraphBuilder.CreateSRV(GetEyeAdaptationBuffer(GraphBuilder, View));
 	PostProcessMaterialParameters->PostProcessOutput = GetScreenPassTextureViewportParameters(OutputViewport);
 	PostProcessMaterialParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 

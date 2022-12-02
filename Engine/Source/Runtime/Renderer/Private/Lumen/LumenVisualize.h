@@ -22,7 +22,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenVisualizeSceneParameters, )
 	SHADER_PARAMETER(int32, VisualizeHiResSurface)
 	SHADER_PARAMETER(int32, Tonemap)
 	SHADER_PARAMETER(int32, VisualizeMode)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptationTexture)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, EyeAdaptationBuffer)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture3D, ColorGradingLUT)
 	SHADER_PARAMETER_SAMPLER(SamplerState, ColorGradingLUTSampler)
 END_SHADER_PARAMETER_STRUCT()
@@ -59,7 +59,7 @@ struct FVisualizeLumenSceneInputs
 	FScreenPassTexture SceneDepth;
 
 	FRDGTextureRef ColorGradingTexture = nullptr;
-	FRDGTextureRef EyeAdaptationTexture = nullptr;
+	FRDGBufferRef EyeAdaptationBuffer = nullptr;
 
 	// [Required] Used when scene textures are required by the material.
 	FSceneTextureShaderParameters SceneTextures;
