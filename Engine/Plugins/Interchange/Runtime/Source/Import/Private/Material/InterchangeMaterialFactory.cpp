@@ -1012,6 +1012,27 @@ void UInterchangeMaterialFactory::SetupMaterialInstance(UMaterialInstance* Mater
 
 		switch(UInterchangeShaderPortsAPI::GetInputType(MaterialFactoryNode, InputName))
 		{
+#if WITH_EDITORONLY_DATA
+		case UE::Interchange::EAttributeTypes::Bool:
+		    {
+				bool bInstanceValue;
+				FGuid Uid;
+				if(MaterialInstance->GetStaticSwitchParameterValue(ParameterName, bInstanceValue, Uid))
+				{
+					bool bInputValue = false;
+					MaterialFactoryNode->GetBooleanAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(InputName), bInputValue);
+
+					if(bInputValue != bInstanceValue)
+					{
+						if(UMaterialInstanceConstant* MaterialInstanceConstant = Cast<UMaterialInstanceConstant>(MaterialInstance))
+						{
+							MaterialInstanceConstant->SetStaticSwitchParameterValueEditorOnly(ParameterName, bInputValue);
+						}
+					}
+				}
+		    }
+		    break;
+#endif // #if WITH_EDITORONLY_DATA
 		case UE::Interchange::EAttributeTypes::Float:
 			{
 				float InstanceValue;

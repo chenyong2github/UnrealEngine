@@ -9,12 +9,12 @@
 #include "InterchangeDatasmithMaterialPipeline.generated.h"
 
 class UMaterialInterface;
-class UInterchangeDatasmithMaterialNode;
 class UInterchangeDatasmithPbrMaterialNode;
 class UInterchangeFactoryBaseNode;
 class UInterchangeMaterialFactoryNode;
 class UInterchangeMaterialInstanceFactoryNode;
 class UInterchangeShaderGraphNode;
+class UInterchangeMaterialInstanceNode;
 
 UCLASS(BlueprintType, Experimental)
 class DATASMITHINTERCHANGE_API UInterchangeDatasmithMaterialPipeline : public UInterchangeGenericMaterialPipeline
@@ -34,7 +34,7 @@ protected:
 	}
 
 private:
-	void PreImportMaterialNode(UInterchangeBaseNodeContainer* NodeContainer, UInterchangeDatasmithMaterialNode* MaterialNode);
+	void PreImportMaterialNode(UInterchangeBaseNodeContainer* NodeContainer, UInterchangeMaterialInstanceNode* MaterialNode);
 	void PostImportMaterialInstanceFactoryNode(const UInterchangeBaseNodeContainer* NodeContainer, UInterchangeMaterialInstanceFactoryNode* FactoryNode, UMaterialInterface* CreatedMaterial);
 	void UpdateMaterialFactoryNodes(const TArray<UInterchangeShaderNode*>& ShaderNodes);
 };

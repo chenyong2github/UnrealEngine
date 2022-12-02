@@ -17,6 +17,7 @@
 #include "InterchangeMaterialFactoryNode.h"
 #include "InterchangeTexture2DNode.h"
 #include "InterchangeTexture2DFactoryNode.h"
+#include "InterchangeMaterialInstanceNode.h"
 
 #include "Materials/MaterialFunction.h"
 #include "Materials/MaterialInstanceConstant.h"
@@ -33,13 +34,13 @@ void UInterchangeDatasmithMaterialPipeline::ExecutePreImportPipeline(UInterchang
 {
 	using namespace UE::DatasmithInterchange;
 
-	TArray< UInterchangeDatasmithMaterialNode*> InstancedMaterials;
+	TArray<UInterchangeMaterialInstanceNode*> InstancedMaterials;
 	TArray<UInterchangeShaderNode*> ShaderNodes;
 
 	//Find all translated node we need for this pipeline
 	NodeContainer->IterateNodes([&](const FString& NodeUid, UInterchangeBaseNode* Node)
 		{
-			if (UInterchangeDatasmithMaterialNode* MaterialNode = Cast<UInterchangeDatasmithMaterialNode>(Node))
+			if (UInterchangeMaterialInstanceNode* MaterialNode = Cast<UInterchangeMaterialInstanceNode>(Node))
 			{
 				InstancedMaterials.Add(MaterialNode);
 			}
@@ -53,7 +54,7 @@ void UInterchangeDatasmithMaterialPipeline::ExecutePreImportPipeline(UInterchang
 
 	UpdateMaterialFactoryNodes(ShaderNodes);
 
-	for (UInterchangeDatasmithMaterialNode* MaterialNode : InstancedMaterials)
+	for (UInterchangeMaterialInstanceNode* MaterialNode : InstancedMaterials)
 	{
 		PreImportMaterialNode(NodeContainer, MaterialNode);
 	}
@@ -86,11 +87,11 @@ void UInterchangeDatasmithMaterialPipeline::ExecutePostImportPipeline(const UInt
 	}
 }
 
-void UInterchangeDatasmithMaterialPipeline::PreImportMaterialNode(UInterchangeBaseNodeContainer* NodeContainer, UInterchangeDatasmithMaterialNode* MaterialNode)
+void UInterchangeDatasmithMaterialPipeline::PreImportMaterialNode(UInterchangeBaseNodeContainer* NodeContainer, UInterchangeMaterialInstanceNode* MaterialNode)
 {
-	FString ParentPath = MaterialNode->GetParentPath();
+	FString ParentPath;	
 
-	if (ParentPath.IsEmpty())
+	if(!MaterialNode->GetCustomParent(ParentPath) || ParentPath.IsEmpty())
 	{
 		return;
 	}
@@ -99,22 +100,26 @@ void UInterchangeDatasmithMaterialPipeline::PreImportMaterialNode(UInterchangeBa
 
 	FString PackagePath;
 
-	if (MaterialNode->GetMaterialType() == EDatasmithReferenceMaterialType::Custom && FPackageName::DoesPackageExist(ParentPath))
+	int32 MaterialType;
+	if (MaterialNode->GetInt32Attribute(MaterialUtils::MaterialTypeAttrName, MaterialType))
 	{
-		PackagePath = ParentPath;
-	}
-	else
-	{
-		FString Host(FDatasmithReferenceMaterialManager::Get().GetHostFromString(ParentPath));
-
-		if (TSharedPtr<FDatasmithReferenceMaterialSelector> MaterialSelector = FDatasmithReferenceMaterialManager::Get().GetSelector(*Host))
+		if (EDatasmithReferenceMaterialType(MaterialType) == EDatasmithReferenceMaterialType::Custom && FPackageName::DoesPackageExist(ParentPath))
 		{
-			PackagePath = MaterialSelector->GetMaterialPath(MaterialNode->GetMaterialType());
+			PackagePath = ParentPath;
 		}
 		else
 		{
-			//FText FailReason = FText::Format(LOCTEXT("NoSelectorForHost", "No Material selector found for Host {0}. Skipping material {1} ..."), FText::FromString(Host), FText::FromString(MaterialElement.GetName()));
-			//ImportContext.LogError(FailReason);
+			FString Host(FDatasmithReferenceMaterialManager::Get().GetHostFromString(ParentPath));
+
+			if (TSharedPtr<FDatasmithReferenceMaterialSelector> MaterialSelector = FDatasmithReferenceMaterialManager::Get().GetSelector(*Host))
+			{
+				PackagePath = MaterialSelector->GetMaterialPath(EDatasmithReferenceMaterialType(MaterialType));
+			}
+			else
+			{
+				//FText FailReason = FText::Format(LOCTEXT("NoSelectorForHost", "No Material selector found for Host {0}. Skipping material {1} ..."), FText::FromString(Host), FText::FromString(MaterialElement.GetName()));
+				//ImportContext.LogError(FailReason);
+			}
 		}
 	}
 
@@ -196,11 +201,14 @@ void UInterchangeDatasmithMaterialPipeline::PreImportMaterialNode(UInterchangeBa
 		}
 	}
 
-	if (MaterialNode->GetMaterialType() != EDatasmithReferenceMaterialType::Custom)
+	if (EDatasmithReferenceMaterialType(MaterialType) != EDatasmithReferenceMaterialType::Custom)
 	{
-		MaterialFactoryNode->AddStringAttribute(UInterchangeDatasmithMaterialNode::MaterialParentAttrName, MaterialNode->GetParentPath());
-		MaterialFactoryNode->AddInt32Attribute(UInterchangeDatasmithMaterialNode::MaterialTypeAttrName, (int32)MaterialNode->GetMaterialType());
-		MaterialFactoryNode->AddInt32Attribute(UInterchangeDatasmithMaterialNode::MaterialQualityAttrName, (int32)MaterialNode->GetMaterialQuality());
+		MaterialFactoryNode->AddStringAttribute(MaterialUtils::MaterialParentAttrName, ParentPath);
+		MaterialFactoryNode->AddInt32Attribute(MaterialUtils::MaterialTypeAttrName, MaterialType);
+		if(int32 MaterialQuality; MaterialNode->GetInt32Attribute(MaterialUtils::MaterialQualityAttrName, MaterialQuality))
+		{
+			MaterialFactoryNode->AddInt32Attribute(MaterialUtils::MaterialQualityAttrName, MaterialQuality);
+		}
 	}
 }
 
@@ -210,7 +218,7 @@ void UInterchangeDatasmithMaterialPipeline::PostImportMaterialInstanceFactoryNod
 
 #if WITH_EDITOR
 	FString SelectorName;
-	if (FactoryNode->GetStringAttribute(UInterchangeDatasmithMaterialNode::MaterialParentAttrName, SelectorName))
+	if (FactoryNode->GetStringAttribute(MaterialUtils::MaterialParentAttrName, SelectorName))
 	{
 		if (!SelectorName.IsEmpty())
 		{
@@ -219,8 +227,8 @@ void UInterchangeDatasmithMaterialPipeline::PostImportMaterialInstanceFactoryNod
 			int32 MaterialType;
 			int32 MaterialQuality;
 
-			ensure(FactoryNode->GetInt32Attribute(UInterchangeDatasmithMaterialNode::MaterialTypeAttrName, MaterialType));
-			ensure(FactoryNode->GetInt32Attribute(UInterchangeDatasmithMaterialNode::MaterialQualityAttrName, MaterialQuality));
+			ensure(FactoryNode->GetInt32Attribute(MaterialUtils::MaterialTypeAttrName, MaterialType));
+			ensure(FactoryNode->GetInt32Attribute(MaterialUtils::MaterialQualityAttrName, MaterialQuality));
 
 			if (TSharedPtr<FDatasmithReferenceMaterialSelector> MaterialSelector = FDatasmithReferenceMaterialManager::Get().GetSelector(*Host))
 			{

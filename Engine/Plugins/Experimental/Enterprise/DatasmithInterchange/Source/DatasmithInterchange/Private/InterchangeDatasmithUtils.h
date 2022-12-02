@@ -14,7 +14,6 @@ class IDatasmithBaseAnimationElement;
 class IDatasmithBaseMaterialElement;
 class IDatasmithLevelVariantSetsElement;
 class IDatasmithVariantSetElement;
-class UInterchangeDatasmithMaterialNode;
 
 namespace UE::Interchange
 {

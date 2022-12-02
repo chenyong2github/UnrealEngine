@@ -28,10 +28,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Misc/PackageName.h"
 #include "UObject/ObjectRedirector.h"
-
-const FName UInterchangeDatasmithMaterialNode::MaterialTypeAttrName(TEXT("Datasmith:ReferenceMaterial:MaterialType"));
-const FName UInterchangeDatasmithMaterialNode::MaterialQualityAttrName(TEXT("Datasmith:ReferenceMaterial:MaterialQuality"));
-const FName UInterchangeDatasmithMaterialNode::MaterialParentAttrName(TEXT("Datasmith:ReferenceMaterial:MaterialParent"));
+#include "InterchangeMaterialInstanceNode.h"
 
 const FName UInterchangeDatasmithPbrMaterialNode::ShadingModelAttrName(TEXT("Datasmith:UEPbrMaterial:ShadingModel"));
 const FName UInterchangeDatasmithPbrMaterialNode::BlendModeAttrName(TEXT("Datasmith:UEPbrMaterial:BlendMode"));
@@ -43,6 +40,10 @@ namespace UE::DatasmithInterchange::MaterialUtils
 {
 	const FName MaterialFunctionPathAttrName(TEXT("Datasmith:Material:FunctionCall:MaterialFunctionPath"));
 	const FName DefaultOutputIndexAttrName(TEXT("Datasmith:MaterialExpression:DefaultOutputIndex"));
+
+	const FName MaterialTypeAttrName(TEXT("Datasmith:ReferenceMaterial:MaterialType"));
+	const FName MaterialQualityAttrName(TEXT("Datasmith:ReferenceMaterial:MaterialQuality"));
+	const FName MaterialParentAttrName(TEXT("Datasmith:ReferenceMaterial:MaterialParent"));
 
 	class FPbrMaterialHelper
 	{
@@ -123,12 +124,12 @@ namespace UE::DatasmithInterchange::MaterialUtils
 		EBlendMode GetUEPbrImportBlendMode();
 	};
 
-	bool BuildMaterialNode(IDatasmithMaterialInstanceElement& MaterialElement, UInterchangeDatasmithMaterialNode& MaterialNode)
+	bool BuildMaterialNode(IDatasmithMaterialInstanceElement& MaterialElement, UInterchangeMaterialInstanceNode& MaterialNode)
 	{
 		using namespace UE::Interchange::Materials;
 
-		MaterialNode.SetMaterialType(MaterialElement.GetMaterialType());
-		MaterialNode.SetMaterialQuality(MaterialElement.GetQuality());
+		MaterialNode.AddInt32Attribute(MaterialTypeAttrName, int32(MaterialElement.GetMaterialType()));
+		MaterialNode.AddInt32Attribute(MaterialQualityAttrName, int32(MaterialElement.GetQuality()));
 
 
 		UInterchangeBaseNodeContainer* NodeContainer = Cast<UInterchangeBaseNodeContainer>(MaterialNode.GetOuter());
@@ -138,7 +139,7 @@ namespace UE::DatasmithInterchange::MaterialUtils
 		for (int Index = 0; Index < MaterialElement.GetPropertiesCount(); ++Index)
 		{
 			const TSharedPtr< IDatasmithKeyValueProperty > Property = MaterialElement.GetProperty(Index);
-			const FName InputValueKey = UInterchangeShaderPortsAPI::MakeInputValueKey(FDatasmithUtils::SanitizeObjectName(Property->GetName()));
+			const FString InputValueKey = FDatasmithUtils::SanitizeObjectName(Property->GetName());
 
 			switch (Property->GetPropertyType())
 			{
@@ -147,31 +148,31 @@ namespace UE::DatasmithInterchange::MaterialUtils
 					FLinearColor LinearColor;
 					LinearColor.InitFromString(Property->GetValue());
 
-					MaterialNode.AddLinearColorAttribute(InputValueKey, LinearColor);
+					MaterialNode.AddVectorParameterValue(InputValueKey, LinearColor);
 					break;
 				}
 
 				case EDatasmithKeyValuePropertyType::Float:
 				{
-					MaterialNode.AddFloatAttribute(InputValueKey, FCString::Atof(Property->GetValue()));
+					MaterialNode.AddScalarParameterValue(InputValueKey, FCString::Atof(Property->GetValue()));
 					break;
 				}
 
 				case EDatasmithKeyValuePropertyType::Bool:
 				{
-					MaterialNode.AddBooleanAttribute(InputValueKey, FString(Property->GetValue()).ToBool());
+					MaterialNode.AddStaticSwitchParameterValue(InputValueKey, FString(Property->GetValue()).ToBool());
 					break;
 				}
 
 				case EDatasmithKeyValuePropertyType::Integer:
 				{
-					MaterialNode.AddInt32Attribute(InputValueKey, FCString::Atoi(Property->GetValue()));
+					MaterialNode.AddInt32Attribute(UInterchangeShaderPortsAPI::MakeInputValueKey(InputValueKey), FCString::Atoi(Property->GetValue()));
 					break;
 				}
 
 				case EDatasmithKeyValuePropertyType::Texture:
 				{
-					MaterialNode.AddStringAttribute(InputValueKey, Property->GetValue());
+					MaterialNode.AddTextureParameterValue(InputValueKey, Property->GetValue());
 					break;
 				}
 
@@ -186,14 +187,6 @@ namespace UE::DatasmithInterchange::MaterialUtils
 
 		return true;
 	}
-
-	bool BuildMaterialNode(IDatasmithMaterialElement& MaterialElement, UInterchangeDatasmithMaterialNode& MaterialNode)
-	{
-		using namespace UE::Interchange::Materials;
-
-		return false;
-	}
-
 
 	FPbrMaterialHelper::FPbrMaterialHelper(UInterchangeShaderNode& MaterialNode, IDatasmithUEPbrMaterialElement& InMaterialElement)
 		: NodeContainer(*Cast<UInterchangeBaseNodeContainer>(MaterialNode.GetOuter()))
@@ -760,13 +753,6 @@ namespace UE::DatasmithInterchange::MaterialUtils
 		return true;
 	}
 
-	bool BuildMaterialNode(IDatasmithDecalMaterialElement& MaterialElement, UInterchangeDatasmithMaterialNode& MaterialNode)
-	{
-		using namespace UE::Interchange::Materials;
-
-		return false;
-	}
-
 	void ProcessDependencies(IDatasmithUEPbrMaterialElement& MaterialElement, TArray<TSharedPtr<IDatasmithBaseMaterialElement>>& OutMaterialElements, TMap<FString, TSharedPtr<IDatasmithBaseMaterialElement>>& MaterialsToSort)
 	{
 		for (int32 ExpressionIndex = 0; ExpressionIndex < MaterialElement.GetExpressionsCount(); ExpressionIndex++)
@@ -905,7 +891,7 @@ namespace UE::DatasmithInterchange::MaterialUtils
 		{
 			if (MaterialElement->IsA(EDatasmithElementType::MaterialInstance))
 			{
-				UInterchangeDatasmithMaterialNode* MaterialNode = NewObject< UInterchangeDatasmithMaterialNode >(&NodeContainer);
+				UInterchangeMaterialInstanceNode* MaterialNode = NewObject<UInterchangeMaterialInstanceNode>(&NodeContainer);
 				const FString MaterialNodeUid = NodeUtils::MaterialPrefix + FDatasmithUtils::SanitizeObjectName(MaterialElement->GetName());
 				MaterialNode->InitializeNode(MaterialNodeUid, *FDatasmithUtils::SanitizeObjectName(MaterialElement->GetLabel()), EInterchangeNodeContainerType::TranslatedAsset);
 

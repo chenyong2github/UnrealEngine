@@ -18,61 +18,6 @@ class IDatasmithBaseMaterialElement;
 class UInterchangeBaseNodeContainer;
 
 UCLASS(BlueprintType, Experimental)
-class DATASMITHINTERCHANGE_API UInterchangeDatasmithMaterialNode : public UInterchangeBaseNode
-{
-	GENERATED_BODY()
-
-public:
-	/**
-	 * Return the node type name of the class, we use this when reporting error
-	 */
-	virtual FString GetTypeName() const override
-	{
-		const FString TypeName = TEXT("DatasmithMaterialNode");
-		return TypeName;
-	}
-
-	void SetMaterialType(EDatasmithReferenceMaterialType MaterialType)
-	{
-		AddInt32Attribute(MaterialTypeAttrName, (int32)MaterialType);
-	}
-
-	EDatasmithReferenceMaterialType GetMaterialType()
-	{
-		int32 AttributeValue;
-		return GetInt32Attribute(MaterialTypeAttrName, AttributeValue) ? (EDatasmithReferenceMaterialType)AttributeValue : EDatasmithReferenceMaterialType::Opaque;
-	}
-
-	void SetMaterialQuality(EDatasmithReferenceMaterialQuality MaterialQuality)
-	{
-		AddInt32Attribute(MaterialQualityAttrName, (int32)MaterialQuality);
-	}
-
-	EDatasmithReferenceMaterialQuality GetMaterialQuality()
-	{
-		int32 AttributeValue;
-		return GetInt32Attribute(MaterialQualityAttrName, AttributeValue) ? (EDatasmithReferenceMaterialQuality)AttributeValue : EDatasmithReferenceMaterialQuality::High;
-	}
-
-	void SetParentPath(const TCHAR* InSelectorName)
-	{
-		AddStringAttribute(MaterialParentAttrName, InSelectorName ? InSelectorName : FString());
-	}
-
-	FString GetParentPath()
-	{
-		FString AttributeValue;
-		return GetStringAttribute(MaterialParentAttrName, AttributeValue) ? AttributeValue : FString();
-	}
-
-public:
-	// TODO: See if it is not more appropriate to use IMPLEMENT_NODE_ATTRIBUTE_GETTER/SETTER defines
-	static const FName MaterialTypeAttrName;
-	static const FName MaterialQualityAttrName;
-	static const FName MaterialParentAttrName;
-};
-
-UCLASS(BlueprintType, Experimental)
 class DATASMITHINTERCHANGE_API UInterchangeDatasmithPbrMaterialNode : public UInterchangeShaderGraphNode
 {
 	GENERATED_BODY()
@@ -183,6 +128,10 @@ namespace UE::DatasmithInterchange::MaterialUtils
 {
 	extern const FName DefaultOutputIndexAttrName;
 	extern const FName MaterialFunctionPathAttrName;
+
+	extern const FName MaterialTypeAttrName;
+	extern const FName MaterialQualityAttrName;
+	extern const FName MaterialParentAttrName;
 
 	void ProcessMaterialElements(TArray<TSharedPtr<IDatasmithBaseMaterialElement>>& InOutMaterialElements);
 	UInterchangeBaseNode* AddMaterialNode(const TSharedPtr<IDatasmithBaseMaterialElement>& MaterialElement, UInterchangeBaseNodeContainer& NodeContainer);

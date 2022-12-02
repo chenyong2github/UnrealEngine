@@ -26,6 +26,7 @@
 #include "InterchangeLightNode.h"
 #include "InterchangeManager.h"
 #include "InterchangeMaterialDefinitions.h"
+#include "InterchangeMaterialInstanceNode.h"
 #include "InterchangeMeshNode.h"
 #include "InterchangeShaderGraphNode.h"
 #include "InterchangeSceneNode.h"
@@ -172,14 +173,14 @@ bool UInterchangeDatasmithTranslator::Translate(UInterchangeBaseNodeContainer& B
 
 				if (MaterialElement->IsA(EDatasmithElementType::MaterialInstance))
 				{
-					UInterchangeDatasmithMaterialNode* ReferenceMaterialNode = Cast<UInterchangeDatasmithMaterialNode>(MaterialNode);
-					if (ReferenceMaterialNode->GetMaterialType() == EDatasmithReferenceMaterialType::Custom)
+					UInterchangeMaterialInstanceNode* ReferenceMaterialNode = Cast<UInterchangeMaterialInstanceNode>(MaterialNode);
+					if (int32 MaterialType; ReferenceMaterialNode->GetInt32Attribute(MaterialUtils::MaterialTypeAttrName, MaterialType) && EDatasmithReferenceMaterialType(MaterialType) == EDatasmithReferenceMaterialType::Custom)
 					{
-						ReferenceMaterialNode->SetParentPath(static_cast<IDatasmithMaterialInstanceElement&>(*MaterialElement).GetCustomMaterialPathName());
+						ReferenceMaterialNode->SetCustomParent(static_cast<IDatasmithMaterialInstanceElement&>(*MaterialElement).GetCustomMaterialPathName());
 					}
 					else
 					{
-						ReferenceMaterialNode->SetParentPath(HostName);
+						ReferenceMaterialNode->SetCustomParent(HostName);
 					}
 				}
 			}
