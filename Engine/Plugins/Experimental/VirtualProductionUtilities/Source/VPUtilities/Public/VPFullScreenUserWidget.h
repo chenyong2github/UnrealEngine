@@ -6,6 +6,7 @@
 #include "Blueprint/UserWidget.h"
 #include "Components/WidgetComponent.h"
 #include "CompositingElement.h"
+#include "Templates/NonNullPointer.h"
 #include "VPFullScreenUserWidget.generated.h"
 
 class FWidgetRenderer;
@@ -24,7 +25,6 @@ class UWorld;
 #if WITH_EDITOR
 class SLevelViewport;
 #endif
-
 
 UENUM(BlueprintType)
 enum class EVPWidgetDisplayType : uint8
@@ -45,7 +45,6 @@ struct FVPFullScreenUserWidget_Viewport
 {
 	GENERATED_BODY()
 
-public:
 	FVPFullScreenUserWidget_Viewport();
 	bool Display(UWorld* World, UUserWidget* Widget, float InDPIScale);
 	void Hide(UWorld* World);
@@ -73,8 +72,10 @@ struct FVPFullScreenUserWidget_PostProcess
 {
 	GENERATED_BODY()
 
-public:
 	FVPFullScreenUserWidget_PostProcess();
+
+	void SetCustomPostProcessSettingsSource(TWeakObjectPtr<UObject> InCustomPostProcessSettingsSource);
+	
 	bool Display(UWorld* World, UUserWidget* Widget, bool bInRenderToTextureOnly, float InDPIScale);
 	void Hide(UWorld* World);
 	void Tick(UWorld* World, float DeltaSeconds);
@@ -82,7 +83,7 @@ public:
 	TSharedPtr<SVirtualWindow> VPUTILITIES_API GetSlateWindow() const;
 
 private:
-	bool CreatePostProcessComponent(UWorld* World);
+	bool InitPostProcessComponent(UWorld* World);
 	void ReleasePostProcessComponent();
 
 	bool CreateRenderer(UWorld* World, UUserWidget* Widget, float InDPIScale);
@@ -94,6 +95,8 @@ private:
 
 	void RegisterHitTesterWithViewport(UWorld* World);
 	void UnRegisterHitTesterWithViewport();
+
+	FPostProcessSettings* GetPostProcessSettings() const;
 
 public:
 	/**
@@ -153,6 +156,7 @@ public:
 	/** If set, use this viewport instead of GetFirstActiveLevelViewport() */
 	TWeakPtr<SLevelViewport> TargetViewport;
 #endif
+	
 private:
 	/** Post process component used to add the material to the post process chain. */
 	UPROPERTY(Transient)
@@ -179,6 +183,12 @@ private:
 
 	/** Only render to the UTextureRenderTarget2D - do not output to the final viewport. */
 	bool bRenderToTextureOnly;
+	
+	/**
+	 * Optional. Some object that contains a FPostProcessSettings property. These settings will be used for PostProcessMaterialInstance.
+	 * E.g. VCam uses this to use post process from a specific cine camera.
+	 */
+	TWeakObjectPtr<UObject> CustomPostProcessSettingsSource;
 };
 
 /**
@@ -208,6 +218,14 @@ public:
 	virtual void Tick(float DeltaTime);
 
 	void SetDisplayTypes(EVPWidgetDisplayType InEditorDisplayType, EVPWidgetDisplayType InGameDisplayType, EVPWidgetDisplayType InPIEDisplayType);
+	
+	/**
+	 * If using EVPWidgetDisplayType::PostProcess, you can specify a custom post process settings that should be modified.
+	 * By default, a new post process component is added to AWorldSettings.
+	 *
+	 * @param InCustomPostProcessSettingsSource An object containing a FPostProcessSettings UPROPERTY()
+	 */
+	void SetCustomPostProcessSettingsSource(TWeakObjectPtr<UObject> InCustomPostProcessSettingsSource);
 
 protected:
 	void InitWidget();

@@ -154,6 +154,10 @@ void UVCamOutputProviderBase::CreateUMG()
 	UMGWidget->SetDisplayTypes(DisplayType, DisplayType, DisplayType);
 	UMGWidget->PostProcessDisplayType.bReceiveHardwareInput = true;
 
+	// The post process material created by EVPWidgetDisplayType::PostProcess should affect only our VCam, not the entire world.
+	// This allows you to have multiple virtual camera in the world affect different viewports.
+	UMGWidget->SetCustomPostProcessSettingsSource(TargetCamera.Get());
+
 #if WITH_EDITOR
 	UMGWidget->SetAllTargetViewports(GetTargetLevelViewport());
 #endif
@@ -239,6 +243,8 @@ void UVCamOutputProviderBase::NotifyWidgetOfComponentChange() const
 {
 	if (UMGWidget && UMGWidget->IsDisplayed())
 	{
+		UMGWidget->SetCustomPostProcessSettingsSource(TargetCamera.Get());
+		
 		UUserWidget* DisplayedWidget = UMGWidget->GetWidget();
 		if (IsValid(DisplayedWidget))
 		{

@@ -314,7 +314,19 @@ FVPFullScreenUserWidget_PostProcess::FVPFullScreenUserWidget_PostProcess()
 	, PostProcessMaterialInstance(nullptr)
 	, WidgetRenderer(nullptr)
 	, CurrentWidgetDrawSize(FIntPoint::ZeroValue)
+{}
+
+void FVPFullScreenUserWidget_PostProcess::SetCustomPostProcessSettingsSource(TWeakObjectPtr<UObject> InCustomPostProcessSettingsSource)
 {
+	CustomPostProcessSettingsSource = InCustomPostProcessSettingsSource;
+	
+	const bool bIsRunning = PostProcessMaterialInstance != nullptr;
+	if (bIsRunning)
+	{
+		// Save us from creating another struct member: PostProcessMaterialInstance is always created with UWorld as outer.
+		UWorld* World = CastChecked<UWorld>(PostProcessMaterialInstance->GetOuter());
+		InitPostProcessComponent(World);
+	}
 }
 
 bool FVPFullScreenUserWidget_PostProcess::Display(UWorld* World, UUserWidget* Widget, bool bInRenderToTextureOnly, float InDPIScale)
@@ -324,7 +336,7 @@ bool FVPFullScreenUserWidget_PostProcess::Display(UWorld* World, UUserWidget* Wi
 	bool bOk = CreateRenderer(World, Widget, InDPIScale);
 	if (!bRenderToTextureOnly)
 	{
-		bOk &= CreatePostProcessComponent(World);
+		bOk &= InitPostProcessComponent(World);
 	}
 
 	return bOk;
@@ -350,17 +362,21 @@ TSharedPtr<SVirtualWindow> FVPFullScreenUserWidget_PostProcess::GetSlateWindow()
 	return SlateWindow;
 }
 
-bool FVPFullScreenUserWidget_PostProcess::CreatePostProcessComponent(UWorld* World)
+bool FVPFullScreenUserWidget_PostProcess::InitPostProcessComponent(UWorld* World)
 {
 	ReleasePostProcessComponent();
 	if (World && PostProcessMaterial)
 	{
-		AWorldSettings* WorldSetting = World->GetWorldSettings();
-		PostProcessComponent = NewObject<UPostProcessComponent>(WorldSetting, NAME_None, RF_Transient);
-		PostProcessComponent->bEnabled = true;
-		PostProcessComponent->bUnbound = true;
-		PostProcessComponent->RegisterComponent();
-
+		const bool bUseExternalPostProcess = CustomPostProcessSettingsSource.IsValid();
+		if (!bUseExternalPostProcess)
+		{
+			AWorldSettings* WorldSetting = World->GetWorldSettings();
+			PostProcessComponent = NewObject<UPostProcessComponent>(WorldSetting, NAME_None, RF_Transient);
+			PostProcessComponent->bEnabled = true;
+			PostProcessComponent->bUnbound = true;
+			PostProcessComponent->RegisterComponent();
+		}
+		
 		PostProcessMaterialInstance = UMaterialInstanceDynamic::Create(PostProcessMaterial, World);
 
 		// set the parameter immediately
@@ -368,9 +384,12 @@ bool FVPFullScreenUserWidget_PostProcess::CreatePostProcessComponent(UWorld* Wor
 		PostProcessMaterialInstance->SetVectorParameterValue(NAME_TintColorAndOpacity, PostProcessTintColorAndOpacity);
 		PostProcessMaterialInstance->SetScalarParameterValue(NAME_OpacityFromTexture, PostProcessOpacityFromTexture);
 
-		PostProcessComponent->Settings.WeightedBlendables.Array.SetNumZeroed(1);
-		PostProcessComponent->Settings.WeightedBlendables.Array[0].Weight = 1.f;
-		PostProcessComponent->Settings.WeightedBlendables.Array[0].Object = PostProcessMaterialInstance;
+		if (FPostProcessSettings* const PostProcessSettings = GetPostProcessSettings())
+		{
+			PostProcessSettings->WeightedBlendables.Array.SetNumZeroed(1);
+			PostProcessSettings->WeightedBlendables.Array[0].Weight = 1.f;
+			PostProcessSettings->WeightedBlendables.Array[0].Object = PostProcessMaterialInstance;
+		}
 	}
 
 	return PostProcessComponent && PostProcessMaterialInstance;
@@ -378,10 +397,28 @@ bool FVPFullScreenUserWidget_PostProcess::CreatePostProcessComponent(UWorld* Wor
 
 void FVPFullScreenUserWidget_PostProcess::ReleasePostProcessComponent()
 {
-	if (PostProcessComponent)
+	const bool bIsRunning = PostProcessMaterialInstance != nullptr;
+	if (!bIsRunning)
+	{
+		return;
+	}
+	
+	const bool bNeedsToResetExternalSettings = CustomPostProcessSettingsSource.IsValid();
+	if (FPostProcessSettings* Settings = GetPostProcessSettings()
+		; bNeedsToResetExternalSettings && Settings)
+	{
+		const int32 Index = Settings->WeightedBlendables.Array.IndexOfByPredicate([this](const FWeightedBlendable& Blendable){ return Blendable.Object == PostProcessMaterialInstance; });
+		if (Index != INDEX_NONE)
+		{
+			Settings->WeightedBlendables.Array.RemoveAt(Index);
+		}
+	}
+	// CustomPostProcessSettingsSource may have gone stale
+	else if (PostProcessComponent)
 	{
 		PostProcessComponent->UnregisterComponent();
 	}
+	
 	PostProcessComponent = nullptr;
 	PostProcessMaterialInstance = nullptr;
 }
@@ -627,6 +664,32 @@ void FVPFullScreenUserWidget_PostProcess::UnRegisterHitTesterWithViewport()
 	CustomHitTestPath.Reset();
 }
 
+FPostProcessSettings* FVPFullScreenUserWidget_PostProcess::GetPostProcessSettings() const
+{
+	if (PostProcessComponent)
+	{
+		return &PostProcessComponent->Settings;
+	}
+
+	if (!CustomPostProcessSettingsSource.IsValid())
+	{
+		UE_LOG(LogVPUtilities, Warning, TEXT("CustomPostProcessSettingsSource has become stale"))
+		return nullptr;
+	}
+
+	// The easiest way without overcomplicating the API with an additional callback would be to look for the first struct property.
+	// We could always extend our API to accept a callback that extracts the FPostProcessSettings from the UObject instead.
+	for (TFieldIterator<FStructProperty> StructIt(CustomPostProcessSettingsSource.Get()->GetClass()); StructIt; ++StructIt)
+	{
+		if (StructIt->Struct == FPostProcessSettings::StaticStruct())
+		{
+			return StructIt->ContainerPtrToValuePtr<FPostProcessSettings>(CustomPostProcessSettingsSource.Get());
+		}
+	}
+
+	return nullptr;
+}
+
 /////////////////////////////////////////////////////
 // UVPFullScreenUserWidget
 
@@ -810,6 +873,11 @@ void UVPFullScreenUserWidget::SetDisplayTypes(EVPWidgetDisplayType InEditorDispl
 	EditorDisplayType = InEditorDisplayType;
 	GameDisplayType = InGameDisplayType;
 	PIEDisplayType = InPIEDisplayType;
+}
+
+void UVPFullScreenUserWidget::SetCustomPostProcessSettingsSource(TWeakObjectPtr<UObject> InCustomPostProcessSettingsSource)
+{
+	PostProcessDisplayType.SetCustomPostProcessSettingsSource(InCustomPostProcessSettingsSource);
 }
 
 void UVPFullScreenUserWidget::InitWidget()
