@@ -6,7 +6,8 @@
 
 float2 ComputeBufferUVDistortion(
 	in FMaterialPixelParameters MaterialParameters, in FPixelMaterialInputs PixelMaterialInputs, in ViewState ResolvedView,
-	in half3 WorldNormal, in float4 DistortionParameters, in float2 ScreenUV, in FMaterialRefractionData RefractionData, in bool TryToClip, in uint EyeIndex)
+	in half3 WorldNormal, in float InMaterialIOR,
+	in float4 DistortionParameters, in float2 ScreenUV, in FMaterialRefractionData RefractionData, in bool TryToClip, in uint EyeIndex)
 {
 	half3 ViewNormal = normalize(TransformWorldVectorToView(WorldNormal));
 
@@ -14,12 +15,23 @@ float2 ComputeBufferUVDistortion(
 	half3 ViewVertexNormal = TransformTangentVectorToView(MaterialParameters, float3(0, 0, 1));
 	// Treat refraction of 1 as no refraction, to be consistent with IOR mode
 	float2 ViewportUVDistortion = (ViewVertexNormal.xy - ViewNormal.xy) * (GetMaterialRefractionPixelNormalStrength(RefractionData) - 1);
+
 #elif REFRACTION_USE_INDEX_OF_REFRACTION
 	// we assume the camera is in air
 	float AirIOR = 1.0f;
-	float2 ViewportUVDistortion = ViewNormal.xy * (GetMaterialRefractionIOR(RefractionData) - AirIOR);
+#if REFRACTION_ROOT_NODE_OVERRIDES_DEFAULT || STRATA_OPTIMIZED_UNLIT
+	float MaterialIOR = GetMaterialRefractionIOR(RefractionData);
+#else
+	float MaterialIOR = InMaterialIOR;
+#endif
+	float2 ViewportUVDistortion = ViewNormal.xy * (MaterialIOR - AirIOR);
+
 #elif REFRACTION_USE_2D_OFFSET
 	float2 ViewportUVDistortion = GetMaterialRefraction2DOffset(RefractionData);
+
+#elif REFRACTION_USE_NONE
+	float2 ViewportUVDistortion = 0.0f;
+
 #else
 #error Unkown refraction mode.
 #endif

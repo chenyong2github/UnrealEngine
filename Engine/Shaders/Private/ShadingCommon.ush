@@ -102,7 +102,7 @@ float F0ToDielectricSpecular(float F0)
 
 float F0RGBToDielectricSpecular(float3 F0)
 {
-	return F0ToDielectricSpecular(max(F0.r, max(F0.g, F0.b)));
+	return F0ToDielectricSpecular(max3(F0.r, F0.g, F0.b));
 }
 
 half DielectricSpecularToF0(half Specular)
@@ -114,6 +114,11 @@ half DielectricSpecularToF0(half Specular)
 float DielectricF0ToIor(float F0)
 {
 	return 2.0f / (1.0f - sqrt(F0)) - 1.0f;
+}
+
+float DielectricF0RGBToIor(float3 F0)
+{
+	return DielectricF0ToIor(max3(F0.r, F0.g, F0.b));
 }
 
 float DielectricIorToF0(float Ior)

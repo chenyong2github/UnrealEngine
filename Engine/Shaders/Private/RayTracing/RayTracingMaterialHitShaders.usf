@@ -297,6 +297,8 @@ void GetMaterialPayload(
 	Payload.Radiance += EmissiveLuminance;
 	Payload.TranslatedWorldPos = LWCToFloat(LWCAdd(MaterialParameters.AbsoluteWorldPosition, ResolvedView.PreViewTranslation));
 
+	// STRATA_TODO Payload.Ior when available (accounting for REFRACTION_USE_INDEX_OF_REFRACTION and REFRACTION_ROOT_NODE_OVERRIDES_DEFAULT)
+
 	// Opacity
 	Payload.Opacity = TotalCoverage;
 	#if MATERIALBLENDING_MASKED
@@ -312,14 +314,19 @@ void GetMaterialPayload(
 {
 	// Store the results in local variables and reuse instead of calling the functions multiple times.
 	half3 BaseColor = GetMaterialBaseColor(PixelMaterialInputs);
-#if MATERIALBLENDING_TRANSLUCENT && REFRACTION_USE_INDEX_OF_REFRACTION
-	half IOR = GetMaterialRefractionIOR(GetMaterialRefraction(PixelMaterialInputs));
-#else
-	half IOR = 1;
-#endif
 	half  Metallic = GetMaterialMetallic(PixelMaterialInputs);
 	half  Specular = GetMaterialSpecular(PixelMaterialInputs);
 	half Roughness = GetMaterialRoughness(PixelMaterialInputs);
+#if MATERIALBLENDING_TRANSLUCENT && REFRACTION_USE_INDEX_OF_REFRACTION
+	#if REFRACTION_ROOT_NODE_OVERRIDES_DEFAULT
+	half IOR = GetMaterialRefractionIOR(GetMaterialRefraction(PixelMaterialInputs));
+	#else
+	half3 F0 = ComputeF0(Specular, BaseColor, Metallic);
+	half IOR = DielectricF0RGBToIor(F0);
+	#endif
+#else
+	half IOR = 1;
+#endif
 
 	/**
 	 * Set material attributes for full materials

@@ -78,6 +78,8 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 
 #else  // !SINGLE_LAYER_WATER_MOBILE_SHADING
 
+		float IorWater = DielectricF0ToIor(DielectricSpecularToF0(Specular)); // Wrong if metal is set to >1. But we still keep refraction on the water surface nonetheless.
+
 		ViewportUV = clamp(ViewportUV, SceneWithoutSingleLayerWaterMinUV, SceneWithoutSingleLayerWaterMaxUV);
 
 		float PixelSceneDeviceZ = WaterSampleSceneDepthWithoutWater(
@@ -92,7 +94,7 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 		FMaterialRefractionData RefractionData = GetMaterialRefraction(PixelMaterialInputs);
 		float2 BufferUVDistortion = ComputeBufferUVDistortion(
 			MaterialParameters, PixelMaterialInputs, ResolvedView,
-			MaterialParameters.WorldNormal,
+			MaterialParameters.WorldNormal, IorWater,
 			DistortionParams, ViewportUV, RefractionData, false, EyeIndex);
 		PostProcessUVDistortion(MaterialParameters, PixelMaterialInputs, PixelSceneDepth, BufferUVDistortion, RefractionData);
 		// Also reduce refraction according to water thickness
@@ -158,8 +160,7 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 			DirLightPhaseValue = IsotropicPhase();
 #else
 			float IorFrom = 1.0f; // assumes we come from air
-			float IorTo   = DielectricF0ToIor(DielectricSpecularToF0(Specular)); // Wrong if metal is set to >1. But we still keep refraction on the water surface nonetheless.
-			const float relativeIOR = IorFrom / IorTo;
+			const float relativeIOR = IorFrom / IorWater;
 			float3 UnderWaterRayDir = 0.0f;
 			if (WaterRefract(MaterialParameters.CameraVector, MaterialParameters.WorldNormal, relativeIOR, UnderWaterRayDir))
 			{

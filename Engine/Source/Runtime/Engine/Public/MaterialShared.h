@@ -1844,6 +1844,7 @@ public:
 	virtual enum EBlendMode GetBlendMode() const = 0;
 	virtual enum EStrataBlendMode GetStrataBlendMode() const = 0;
 	ENGINE_API virtual enum ERefractionMode GetRefractionMode() const;
+	virtual bool GetRootNodeOverridesDefaultRefraction() const = 0;
 	virtual FMaterialShadingModelField GetShadingModels() const = 0;
 	virtual bool IsShadingModelFromMaterialExpression() const = 0;
 	virtual enum ETranslucencyLightingMode GetTranslucencyLightingMode() const { return TLM_VolumetricNonDirectional; };
@@ -2904,6 +2905,7 @@ public:
 	ENGINE_API virtual enum EBlendMode GetBlendMode() const override;
 	ENGINE_API virtual enum EStrataBlendMode GetStrataBlendMode() const override;
 	ENGINE_API virtual enum ERefractionMode GetRefractionMode() const override;
+	ENGINE_API virtual bool GetRootNodeOverridesDefaultRefraction() const override;
 	ENGINE_API virtual uint32 GetMaterialDecalResponse() const override;
 	ENGINE_API virtual bool HasBaseColorConnected() const override;
 	ENGINE_API virtual bool HasNormalConnected() const override;

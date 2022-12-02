@@ -114,6 +114,21 @@ void Main(
 		Sigma = RefractionLobeStat.Sigma;
 	}
 
+	// We accumulate F0 only from the top layer to evaluate the material F0 used to evaluate distortion
+	float3 TopF0 = 0.0f;
+	STRATA_UNROLL_N(STRATA_CLAMPED_BSDF_COUNT)
+	for (int BSDFIdx = 0; BSDFIdx < StrataTree.BSDFCount; ++BSDFIdx)
+	{
+	#define BSDF StrataTree.BSDFs[BSDFIdx]
+		const bool bIsVisible = StrataIsBSDFVisible(BSDF);
+		if (bIsVisible)
+		{
+			TopF0 += BSDF.TopLayerDataWeight * StrataGetBSDFSpecularF0(BSDF);
+		}
+	#undef BSDF
+	}
+	TopF0 = SanitizeF0(TopF0);	// Sanitize, in case a Add node has been used
+
 	// Write out variance (as this is more linear to accumulate than roughness)
 	OutVariance = float4(Sigma, 0.0f, 0.0f, 0.0f);
 
@@ -123,18 +138,25 @@ void Main(
 	// Compute UV distortion
 	float2 BufferUVDistortion = ComputeBufferUVDistortion(
 		MaterialParameters, PixelMaterialInputs, ResolvedView,
-		RefractionWorldNormal, DistortionParams, ScreenUV, RefractionData, TryToClip, EyeIndex);
+		RefractionWorldNormal, DielectricF0RGBToIor(TopF0),
+		DistortionParams, ScreenUV, RefractionData, TryToClip, EyeIndex);
 
 	// Sample depth at distortion offset
 	float2 DistortBufferUV = ScreenUV + BufferUVDistortion;
 
 #else // STRATA_ENABLED
 
+	float3 BaseColor = GetMaterialBaseColor(PixelMaterialInputs);
+	float  Metallic = GetMaterialMetallic(PixelMaterialInputs);
+	float  Specular = GetMaterialSpecular(PixelMaterialInputs);
+	float3 F0 = ComputeF0(Specular, BaseColor, Metallic);
+	float MaterialIOR = DielectricF0RGBToIor(F0);
 
 	// Compute UV distortion
 	float2 BufferUVDistortion = ComputeBufferUVDistortion(
 		MaterialParameters, PixelMaterialInputs, ResolvedView,
-		MaterialParameters.WorldNormal, DistortionParams, ScreenUV, RefractionData, true, EyeIndex);
+		MaterialParameters.WorldNormal, MaterialIOR,
+		DistortionParams, ScreenUV, RefractionData, true, EyeIndex);
 
 	// Sample depth at distortion offset
 	float2 DistortBufferUV = ScreenUV + BufferUVDistortion;

@@ -724,6 +724,12 @@ public:
 	uint8 bUsesDistortion : 1;
 
 	/** 
+	 * Indicates that the material do not use the material physically based refraction (e.g. IOR from reflectivity F0), but overrides it for artistic purposes.
+	 */
+	 UPROPERTY()
+	uint8 bRootNodeOverridesDefaultDistortion : 1;
+
+	/** 
 	 * Indicates that the material and its instances can be used with clothing
 	 * This will result in the shaders required to support clothing being compiled which will increase shader compile time and memory usage.
 	 */
@@ -953,9 +959,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = PostProcessMaterial, AdvancedDisplay, meta = (EditCondition = "bEnableStencilTest"))
 	uint8 StencilRefValue = 0;
 
+	UPROPERTY()
+	TEnumAsByte<enum ERefractionMode> RefractionMode_DEPRECATED;
+
 	/** Controls how the Refraction input is interpreted and how the refraction offset into scene color is computed for this material. */
 	UPROPERTY(EditAnywhere, Category=Refraction)
-	TEnumAsByte<enum ERefractionMode> RefractionMode;
+	TEnumAsByte<enum ERefractionMode> RefractionMethod;
 
 	/** If multiple nodes with the same  type are inserted at the same point, this defined order and if they get combined, only used if domain is PostProcess */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PostProcessMaterial, meta = (DisplayName = "Blendable Priority"))
@@ -1827,6 +1836,8 @@ public:
 private:
 #if WITH_EDITOR
 	static FMaterialCompilationFinished MaterialCompilationFinishedEvent;
+
+	bool IsRefractionPinPluggedIn(const UMaterialEditorOnlyData* EditorOnly);
 #endif // WITH_EDITOR
 
 	friend class FLightmassMaterialProxy;

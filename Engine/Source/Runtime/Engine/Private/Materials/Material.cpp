@@ -1002,6 +1002,8 @@ UMaterial::UMaterial(const FObjectInitializer& ObjectInitializer)
 	bAllowDevelopmentShaderCompile = true;
 	bIsMaterialEditorStatsMaterial = false;
 
+	RefractionMethod = RM_None;
+
 #if WITH_EDITORONLY_DATA
 	MaterialGraph = NULL;
 #endif //WITH_EDITORONLY_DATA
@@ -3940,6 +3942,37 @@ void UMaterial::PostLoad()
 	}
 #endif // #if WITH_EDITOR
 
+#if WITH_EDITOR
+	// Before, refraction was only enabled when the refraction pin was plugged in.
+	// Now it is enabled only when not OFF. Otherwise:
+	//    - if plugged the pin override the physically based material refraction
+	//    - if unplugged the refraction is converted from the material F0.
+	if (UE5MainVer < FUE5MainStreamObjectVersion::MaterialRefractionModeNone)
+	{
+		const bool bRefractionPinPluggedIn = IsRefractionPinPluggedIn(EditorOnly);
+
+		// Update to the new variable, accounting for the old default value.
+		RefractionMethod = RefractionMode_DEPRECATED;
+
+		if (!bRefractionPinPluggedIn)
+		{
+			// The root node refraction pin was not plugged in so set refraction mode as none.
+			// We do this for all domains and blending modes (translucent, opaque, etc).
+			RefractionMethod = RM_None;
+			bRootNodeOverridesDefaultDistortion = false;
+
+			// Need to mutate since UPROPERTY like bUsesDistortion is changed and shaders need to recompile.
+			static FGuid MaterialRefractionModeOFFConversionGuid(TEXT("094C0316-EA95-4B39-A3FA-CA126A92989B"));
+			ReleaseResourcesAndMutateDDCKey(MaterialRefractionModeOFFConversionGuid);
+		}
+		else
+		{
+			// Keep the current refraction mode and notify that it is overriden on the root node.
+			bRootNodeOverridesDefaultDistortion = true;
+		}
+	}
+#endif // WITH_EDITOR
+
 	STAT(double MaterialLoadTime = 0);
 	{
 		SCOPE_SECONDS_COUNTER(MaterialLoadTime);
@@ -4445,52 +4478,9 @@ void UMaterial::PostEditChangePropertyInternal(FPropertyChangedEvent& PropertyCh
 
 	const UMaterialEditorOnlyData* EditorOnly = GetEditorOnlyData();
 
-	// check for distortion in material 
-	{
-		bUsesDistortion = false;
-
-		// check for a distortion value
-		if (EditorOnly->Refraction.Expression
-			|| (EditorOnly->Refraction.UseConstant && FMath::Abs(EditorOnly->Refraction.Constant - 1.0f) >= UE_KINDA_SMALL_NUMBER))
-		{
-			bUsesDistortion = true;
-		}
-
-		// check the material attributes for refraction expressions as well
-		if (EditorOnly->MaterialAttributes.Expression)
-		{
-			// The node that possibly sets the refraction attribute can be anywhere in the sub-graph that eventually connects
-			// to the material output expression. We need to look for any node of type [Make/Set]MaterialAttributes in this subgraph
-			// and check whether it writes to the Refraction attribute.
-			TArray<UMaterialExpression*> Expressions;
-			EditorOnly->MaterialAttributes.Expression->GetAllInputExpressions(Expressions);
-
-			for (int32 ExprIndex = 0; ExprIndex < Expressions.Num() && !bUsesDistortion; ++ExprIndex)
-			{
-				// Case when node is a MakeMaterialAttributes
-				UMaterialExpressionMakeMaterialAttributes* MakeAttributeExpression = Cast<UMaterialExpressionMakeMaterialAttributes>(Expressions[ExprIndex]);
-				if (MakeAttributeExpression && MakeAttributeExpression->Refraction.Expression)
-				{
-					bUsesDistortion = true;
-				}
-
-				// Case when node is a SetMaterialAttributes
-				UMaterialExpressionSetMaterialAttributes* SetAttributeExpression = Cast<UMaterialExpressionSetMaterialAttributes>(Expressions[ExprIndex]);
-				if (!bUsesDistortion && SetAttributeExpression)
-				{
-					for (int32 InputIndex = 0; InputIndex < SetAttributeExpression->Inputs.Num(); InputIndex++)
-					{
-						FName InputName = SetAttributeExpression->GetInputName(InputIndex);
-						if (InputName == TEXT("Refraction"))
-						{
-							bUsesDistortion = true;
-							break;
-						}
-					}
-				}
-			}
-		}
-	}
+	// Check for distortion in material 
+	bUsesDistortion = RefractionMethod != RM_None;
+	bRootNodeOverridesDefaultDistortion = bUsesDistortion ? IsRefractionPinPluggedIn(EditorOnly) : false;
 
 	//If we can be sure this material would be the same opaque as it is masked then allow it to be assumed opaque.
 	bCanMaskedBeAssumedOpaque = !EditorOnly->OpacityMask.Expression && !(EditorOnly->OpacityMask.UseConstant && EditorOnly->OpacityMask.Constant < 0.999f) && !bUseMaterialAttributes;
@@ -6874,6 +6864,55 @@ void UMaterial::GetLightingGuidChain(bool bIncludeTextures, TArray<FGuid>& OutGu
 	Super::GetLightingGuidChain(bIncludeTextures, OutGuids);
 #endif
 }
+
+#if WITH_EDITOR
+bool UMaterial::IsRefractionPinPluggedIn(const UMaterialEditorOnlyData* EditorOnly)
+{
+	// check for a distortion value
+	if (EditorOnly->Refraction.Expression
+		|| (EditorOnly->Refraction.UseConstant && FMath::Abs(EditorOnly->Refraction.Constant - 1.0f) >= UE_KINDA_SMALL_NUMBER))
+	{
+		return true;
+	}
+
+	// check the material attributes for refraction expressions as well
+	if (EditorOnly->MaterialAttributes.Expression)
+	{
+		// The node that possibly sets the refraction attribute can be anywhere in the sub-graph that eventually connects
+		// to the material output expression. We need to look for any node of type [Make/Set]MaterialAttributes in this subgraph
+		// and check whether it writes to the Refraction attribute.
+
+		// For that we use GetAllExpressionsInMaterialAndFunctionsOfType which truly parse all functions.  
+		// It however do not check if the node is really connected to the graph so it can be over conservative.
+
+		TArray<UMaterialExpressionMakeMaterialAttributes*> MakeAttributeExpressions;
+		GetAllExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionMakeMaterialAttributes>(MakeAttributeExpressions);
+		for (UMaterialExpressionMakeMaterialAttributes* MakeAttributeExpression : MakeAttributeExpressions)
+		{
+			if (MakeAttributeExpression && MakeAttributeExpression->Refraction.Expression)
+			{
+				return true;
+			}
+		}
+
+		TArray<UMaterialExpressionSetMaterialAttributes*> SetMaterialAttributesExpressions;
+		GetAllExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionSetMaterialAttributes>(SetMaterialAttributesExpressions);
+		for (UMaterialExpressionSetMaterialAttributes* SetMaterialAttributesExpression : SetMaterialAttributesExpressions)
+		{
+			for (int32 InputIndex = 0; InputIndex < SetMaterialAttributesExpression->Inputs.Num(); InputIndex++)
+			{
+				FName InputName = SetMaterialAttributesExpression->GetInputName(InputIndex);
+				if (InputName == TEXT("Refraction"))
+				{
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+#endif // WITH_EDITOR
 
 UMaterialEditorOnlyData::UMaterialEditorOnlyData()
 {

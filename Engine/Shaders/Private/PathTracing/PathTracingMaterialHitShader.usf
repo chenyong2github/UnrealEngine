@@ -30,6 +30,20 @@
 #include "/Engine/Private/PathTracing/Material/PathTracingFresnel.ush"
 #include "/Engine/Private/PathTracing/Material/PathTracingThinGlass.ush"
 
+float GetRefractionIor(FPixelMaterialInputs PixelMaterialInputs)
+{
+#if REFRACTION_ROOT_NODE_OVERRIDES_DEFAULT || STRATA_OPTIMIZED_UNLIT
+	float Ior = GetMaterialRefractionIOR(GetMaterialRefraction(PixelMaterialInputs));
+#else
+	float3 BaseColor = GetMaterialBaseColor(PixelMaterialInputs);
+	float  Metallic = GetMaterialMetallic(PixelMaterialInputs);
+	float  Specular = GetMaterialSpecular(PixelMaterialInputs);
+	float3 F0 = ComputeF0(Specular, BaseColor, Metallic);
+	float Ior = DielectricF0RGBToIor(F0);
+#endif
+	Ior = Ior == 0.0 ? 1.0 : Ior;
+	return Ior;
+}
 
 RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	FPackedPathTracingPayload, PackedPayload,
@@ -117,15 +131,14 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 
 	// Store the results in local variables and reuse instead of calling the functions multiple times.
 	half3 BaseColor = GetMaterialBaseColor(PixelMaterialInputs);
-#if MATERIALBLENDING_TRANSLUCENT && REFRACTION_USE_INDEX_OF_REFRACTION
-	Payload.Ior = GetMaterialRefractionIOR(GetMaterialRefraction(PixelMaterialInputs));
-	Payload.Ior = (Payload.Ior == 0.0) ? 1.0 : Payload.Ior;
-#else
-	Payload.Ior = 1;
-#endif
 	half  Metallic = GetMaterialMetallic(PixelMaterialInputs);
 	half  Specular = GetMaterialSpecular(PixelMaterialInputs);
 	half Roughness = GetMaterialRoughness(PixelMaterialInputs);
+#if MATERIALBLENDING_TRANSLUCENT && REFRACTION_USE_INDEX_OF_REFRACTION
+	Payload.Ior = GetRefractionIor(PixelMaterialInputs);
+#else
+	Payload.Ior = 1;
+#endif
 
 #if !SIMPLIFIED_MATERIAL_SHADER
 
@@ -486,12 +499,13 @@ RAY_TRACING_ENTRY_ANY_HIT(PathTracingMaterialAHS,
 	// Assume Payload.ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT
 	float3 Transmission = GetThinTranslucentMaterialOutput0(MaterialParameters);
 	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
+
 #if REFRACTION_USE_INDEX_OF_REFRACTION && !SIMPLIFIED_MATERIAL_SHADER
-	float Ior = GetMaterialRefractionIOR(GetMaterialRefraction(PixelMaterialInputs));
-	Ior = Ior == 0 ? 1.0 : Ior;
+	float Ior = GetRefractionIor(PixelMaterialInputs);
 #else
 	float Ior = 1.0;
 #endif
+
 	float3 Transparency = 1 - Opacity;
 	float3 V = WorldRayDirection();
 	float3 N = normalize(MaterialParameters.WorldNormal);
@@ -534,8 +548,7 @@ RAY_TRACING_ENTRY_ANY_HIT(PathTracingMaterialAHS,
 	
 	// Is refraction enabled?
 #if !SIMPLIFIED_MATERIAL_SHADER && MATERIAL_SHADINGMODEL_DEFAULT_LIT && REFRACTION_USE_INDEX_OF_REFRACTION
-	float Ior = GetMaterialRefractionIOR(GetMaterialRefraction(PixelMaterialInputs));
-	Ior = Ior == 0.0 ? 1.0 : Ior;
+	float Ior = GetRefractionIor(PixelMaterialInputs);
 	int ShadingModelID = GetMaterialShadingModel(PixelMaterialInputs);
 	if (Transparency > 0 && ShadingModelID == SHADINGMODELID_DEFAULT_LIT && Ior != 1.0)
 	{

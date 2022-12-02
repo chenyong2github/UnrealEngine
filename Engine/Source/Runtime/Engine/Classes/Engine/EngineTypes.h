@@ -371,13 +371,15 @@ UENUM()
 enum ERefractionMode
 {
 	/** 
+	 * By default, when the root node refraction pin is unplugged, relies on the material IOR evaluated from F0.
 	 * Refraction is computed based on the camera vector entering a medium whose index of refraction is defined by the Refraction material input.  
 	 * The new medium's surface is defined by the material's normal.  With this mode, a flat plane seen from the side will have a constant refraction offset.
 	 * This is a physical model of refraction but causes reading outside the scene color texture so is a poor fit for large refractive surfaces like water.
 	 */
 	RM_IndexOfRefraction UMETA(DisplayName="Index Of Refraction"),
 
-	/** 
+	/**
+	 * By default, when the root node refraction pin is unplugged, no refraction will appear.
 	 * The refraction offset into Scene Color is computed based on the difference between the per-pixel normal and the per-vertex normal.  
 	 * With this mode, a material whose normal is the default (0, 0, 1) will never cause any refraction.  This mode is only valid with tangent space normals.
 	 * The refraction material input scales the offset, although a value of 1.0 maps to no refraction, and a value of 2 maps to a scale of 1.0 on the offset.
@@ -386,9 +388,15 @@ enum ERefractionMode
 	RM_PixelNormalOffset UMETA(DisplayName="Pixel Normal Offset"),
 
 	/**
+	 * By default, when the root node refraction pin is unplugged, no refraction will appear.
 	 * Explicit 2D screen offset. This offset is independent of screen resolution and aspect ratio. The user is in charge of any strength and fading.
 	 */
 	RM_2DOffset UMETA(DisplayName = "2D Offset"),
+
+	/**
+	 * Refraction is disabled.
+	 */
+	RM_None UMETA(DisplayName = "None"),
 };
 
 /**

@@ -798,7 +798,7 @@ void FMaterial::GetStaticParameterSet(EShaderPlatform Platform, FStaticParameter
 
 ERefractionMode FMaterial::GetRefractionMode() const 
 { 
-	return RM_IndexOfRefraction; 
+	return RM_None;
 }
 
 const FMaterialCachedExpressionData& FMaterial::GetCachedExpressionData() const
@@ -1760,7 +1760,12 @@ EStrataBlendMode FMaterialResource::GetStrataBlendMode() const
 
 ERefractionMode FMaterialResource::GetRefractionMode() const
 {
-	return Material->RefractionMode;
+	return Material->RefractionMethod;
+}
+
+bool FMaterialResource::GetRootNodeOverridesDefaultRefraction() const
+{
+	return Material->bRootNodeOverridesDefaultDistortion;
 }
 
 FMaterialShadingModelField FMaterialResource::GetShadingModels() const 
@@ -2335,10 +2340,12 @@ void FMaterial::SetupMaterialEnvironment(
 	case RM_IndexOfRefraction:	OutEnvironment.SetDefine(TEXT("REFRACTION_USE_INDEX_OF_REFRACTION"),	TEXT("1")); break;
 	case RM_PixelNormalOffset:	OutEnvironment.SetDefine(TEXT("REFRACTION_USE_PIXEL_NORMAL_OFFSET"),	TEXT("1")); break;
 	case RM_2DOffset:			OutEnvironment.SetDefine(TEXT("REFRACTION_USE_2D_OFFSET"),				TEXT("1")); break;
+	case RM_None:				OutEnvironment.SetDefine(TEXT("REFRACTION_USE_NONE"),					TEXT("1")); break;
 	default: 
 		UE_LOG(LogMaterial, Warning, TEXT("Unknown material refraction mode: %u  Setting to RM_IndexOfRefraction"),(int32)GetRefractionMode());
 		OutEnvironment.SetDefine(TEXT("REFRACTION_USE_INDEX_OF_REFRACTION"),TEXT("1"));
 	}
+	OutEnvironment.SetDefine(TEXT("REFRACTION_ROOT_NODE_OVERRIDES_DEFAULT"), GetRootNodeOverridesDefaultRefraction() ? 1 : 0);
 
 	OutEnvironment.SetDefine(TEXT("USE_DITHERED_LOD_TRANSITION_FROM_MATERIAL"), IsDitheredLODTransition());
 	OutEnvironment.SetDefine(TEXT("MATERIAL_TWOSIDED"), IsTwoSided());

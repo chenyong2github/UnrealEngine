@@ -313,6 +313,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Add ThinSurface instance override support
 		MaterialInstanceBasePropertyOverridesThinSurface,
 
+		// Add refraction mode None, converted from legacy when the refraction pin is not plugged.
+		MaterialRefractionModeNone,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
