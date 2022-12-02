@@ -8,6 +8,7 @@
 #include "LandscapeRender.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "RayTracingGeometry.h"
 
 namespace GPULightmass
 {

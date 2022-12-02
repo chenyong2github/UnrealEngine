@@ -6,6 +6,7 @@
 
 #include "RenderGraphBuilder.h"
 #include "RHI.h"
+#include "RayTracingGeometry.h"
 
 DECLARE_GPU_STAT(SkinnedGeometryBuildBLAS);
 DECLARE_GPU_STAT(SkinnedGeometryUpdateBLAS);

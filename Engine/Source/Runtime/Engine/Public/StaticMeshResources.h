@@ -39,6 +39,7 @@
 #include "WeightedRandomSampler.h"
 #include "PerPlatformProperties.h"
 #include "RayTracingInstance.h"
+#include "RayTracingGeometry.h"
 
 class FDistanceFieldVolumeData;
 class UBodySetup;

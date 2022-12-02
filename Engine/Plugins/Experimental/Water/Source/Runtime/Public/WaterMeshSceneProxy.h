@@ -9,6 +9,7 @@
 #include "WaterInstanceDataBuffer.h"
 #include "WaterQuadTree.h"
 #include "WaterVertexFactory.h"
+#include "RayTracingGeometry.h"
 
 class UWaterMeshComponent;
 

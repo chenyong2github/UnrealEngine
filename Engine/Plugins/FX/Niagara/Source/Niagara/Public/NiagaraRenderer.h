@@ -17,6 +17,7 @@ NiagaraRenderer.h: Base class for Niagara render modules
 #include "SceneView.h"
 #include "NiagaraCutoutVertexBuffer.h"
 #include "NiagaraBoundsCalculator.h"
+#include "RayTracingGeometry.h"
 
 class FNiagaraDataSet;
 class FNiagaraSceneProxy;

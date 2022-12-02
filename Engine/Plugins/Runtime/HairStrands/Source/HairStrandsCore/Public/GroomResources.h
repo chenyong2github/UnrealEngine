@@ -8,6 +8,7 @@
 #include "HairStrandsDatas.h"
 #include "HairCardsDatas.h"
 #include "RenderResource.h"
+#include "RayTracingGeometry.h"
 #include "HairStrandsInterface.h"
 #include "HairStrandsMeshProjection.h"
 

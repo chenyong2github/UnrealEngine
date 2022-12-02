@@ -6,6 +6,7 @@
 #include "Stats/Stats.h"
 #include "Containers/ResourceArray.h"
 #include "RenderResource.h"
+#include "RayTracingGeometry.h"
 #include "PrimitiveViewRelevance.h"
 #include "PrimitiveSceneProxy.h"
 #include "Materials/MaterialInterface.h"

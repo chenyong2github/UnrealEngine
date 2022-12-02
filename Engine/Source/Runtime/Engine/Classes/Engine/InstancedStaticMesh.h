@@ -12,6 +12,7 @@
 #include "HAL/IConsoleManager.h"
 #include "RenderingThread.h"
 #include "RenderResource.h"
+#include "RayTracingGeometry.h"
 #include "PrimitiveViewRelevance.h"
 #include "ShaderParameters.h"
 #include "SceneView.h"

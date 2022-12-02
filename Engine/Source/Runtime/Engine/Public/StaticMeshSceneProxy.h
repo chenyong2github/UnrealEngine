@@ -10,6 +10,7 @@
 #include "PrimitiveSceneProxy.h"
 #include "RayTracingInstance.h"
 #include "SceneManagement.h"
+#include "RayTracingGeometry.h"
 
 class FLocalVertexFactoryUniformShaderParameters;
 class FRawStaticIndexBuffer;

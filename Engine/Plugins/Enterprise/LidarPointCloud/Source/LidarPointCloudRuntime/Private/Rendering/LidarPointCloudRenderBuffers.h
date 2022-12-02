@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "RenderResource.h"
+#include "RayTracingGeometry.h"
 #include "VertexFactory.h"
 #include "LidarPointCloudShared.h"
 #include "HAL/ThreadSafeBool.h"

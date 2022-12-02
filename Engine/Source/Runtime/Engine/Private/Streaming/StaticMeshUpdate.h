@@ -11,7 +11,7 @@ StaticMeshUpdate.h: Helpers to stream in and out static mesh LODs.
 #include "Async/AsyncFileHandle.h"
 #include "IO/IoDispatcher.h"
 #include "RenderAssetUpdate.h"
-#include "RenderResource.h"
+#include "RayTracingGeometry.h"
 
 /**
 * A context used to update or proceed with the next update step.

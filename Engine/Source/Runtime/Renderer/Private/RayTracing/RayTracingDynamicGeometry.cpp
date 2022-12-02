@@ -4,6 +4,7 @@
 #include "ScenePrivate.h"
 #include "RayTracingDynamicGeometryCollection.h"
 #include "RayTracingInstance.h"
+#include "RayTracingGeometry.h"
 
 #if RHI_RAYTRACING
 

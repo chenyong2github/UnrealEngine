@@ -6,7 +6,8 @@
 #include "RHIResources.h"
 #include "RHICommandList.h"
 
-#include "RenderResource.h"
+#include "RayTracingGeometry.h"
+#include "RenderUtils.h"
 
 #if RHI_RAYTRACING
 
