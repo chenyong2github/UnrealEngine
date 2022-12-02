@@ -331,7 +331,6 @@ void SOpenVDBComponentPicker::RefreshUIFromData()
 {
 	for (const TSharedPtr<FOpenVDBGridInfo>& Grid : *OpenVDBGridInfo)
 	{
-		printf("%i\n", Grid->Index);
 		if (Grid->Index == PackedData->SourceGridIndex[ComponentIndex] && Grid->ComponentIndex == PackedData->SourceComponentIndex[ComponentIndex])
 		{
 			GridComboBox->SetSelectedItem(Grid);
