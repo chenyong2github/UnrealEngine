@@ -61,6 +61,11 @@ void FMeshDeformerCustomization::CustomizeHeader(
 		SNew(SObjectPropertyEntryBox)
 		.PropertyHandle(InPropertyHandle)
 		.AllowedClass(UMeshDeformer::StaticClass())
+
+		// Disable filtering for now because of slow asset loading. 
+		// This is due to kernel compilation happening in PostLoad().
+		// Need to implement deferred compilation on demand and can then re-enable here.
+#if 0 
 		.OnShouldFilterAsset_Lambda([OwnerClass](FAssetData const& AssetData)
 		{
 			// Filter depending on whether the PrimaryBindingClass matches our owning object.
@@ -84,5 +89,6 @@ void FMeshDeformerCustomization::CustomizeHeader(
 
 			return bHideEntry;
 		})
+#endif
 	];
 }
