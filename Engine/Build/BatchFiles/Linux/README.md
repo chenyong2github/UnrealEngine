@@ -93,7 +93,7 @@ being the default. You can now just type
 
 to build the editor. Alternatively, build the following targets:
 
-    make CrashReportClient ShaderCompileWorker UnrealLightmass UnrealPak UnrealEditor
+    make CrashReportClient ShaderCompileWorker UnrealLightmass InterchangeWorker UnrealPak UnrealEditor
 
 If you intend to develop the editor, you can build a debug configuration of it:
 

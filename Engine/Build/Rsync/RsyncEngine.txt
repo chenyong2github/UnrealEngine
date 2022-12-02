@@ -162,6 +162,7 @@ protect /Saved/
 + /Source/Programs/UnrealHeaderTool/
 + /Source/Programs/UnrealHeaderTool/**.def
 + /Source/Programs/UnrealLightmass/
++ /Source/Programs/InterchangeWorker/
 - /Source/Programs/**/bin/
 - /Source/Programs/**/obj/
 - /Source/Programs/*/

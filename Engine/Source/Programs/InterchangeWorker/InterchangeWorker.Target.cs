@@ -4,6 +4,7 @@ using UnrealBuildTool;
 using System.Collections.Generic;
 
 [SupportedPlatforms(UnrealPlatformClass.Desktop)]
+[SupportedConfigurations(UnrealTargetConfiguration.Debug, UnrealTargetConfiguration.Development)]
 public class InterchangeWorkerTarget : TargetRules
 {
 	public InterchangeWorkerTarget(TargetInfo Target) : base(Target)

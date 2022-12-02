@@ -23,6 +23,7 @@ const TCHAR* FWorkspace::DefaultBuildTargets[] =
 	TEXT("ShaderCompileWorker Win64 Development, 0.8"),
 	TEXT("UnrealLightmass Win64 Development, 0.9"),
 	TEXT("CrashReportClient Win64 Shipping, 1.0"),
+	TEXT("InterchangeWorker Win64 Development, 1.0"),
 };
 
 const FWorkspaceSyncCategory FWorkspace::DefaultSyncCategories[] =
