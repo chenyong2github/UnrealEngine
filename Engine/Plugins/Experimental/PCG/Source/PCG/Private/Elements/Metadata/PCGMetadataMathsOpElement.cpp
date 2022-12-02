@@ -8,7 +8,6 @@
 #include "Metadata/PCGMetadata.h"
 #include "Metadata/PCGMetadataAttribute.h"
 #include "Metadata/PCGMetadataAttributeTpl.h"
-#include "Metadata/PCGMetadataEntryKeyIterator.h"
 #include "Elements/Metadata/PCGMetadataElementCommon.h"
 
 #include "Elements/Metadata/PCGMetadataMaths.inl"
@@ -162,22 +161,19 @@ void UPCGMetadataMathsSettings::PostLoad()
 #if WITH_EDITOR
 	if (Input1AttributeName_DEPRECATED != NAME_None)
 	{
-		InputSource1.Selection = EPCGAttributePropertySelection::Attribute;
-		InputSource1.AttributeName = Input1AttributeName_DEPRECATED;
+		InputSource1.SetAttributeName(Input1AttributeName_DEPRECATED);
 		Input1AttributeName_DEPRECATED = NAME_None;
 	}
 
 	if (Input2AttributeName_DEPRECATED != NAME_None)
 	{
-		InputSource2.Selection = EPCGAttributePropertySelection::Attribute;
-		InputSource2.AttributeName = Input2AttributeName_DEPRECATED;
+		InputSource2.SetAttributeName(Input2AttributeName_DEPRECATED);
 		Input2AttributeName_DEPRECATED = NAME_None;
 	}
 
 	if (Input3AttributeName_DEPRECATED != NAME_None)
 	{
-		InputSource3.Selection = EPCGAttributePropertySelection::Attribute;
-		InputSource3.AttributeName = Input3AttributeName_DEPRECATED;
+		InputSource3.SetAttributeName(Input3AttributeName_DEPRECATED);
 		Input3AttributeName_DEPRECATED = NAME_None;
 	}
 #endif // WITH_EDITOR

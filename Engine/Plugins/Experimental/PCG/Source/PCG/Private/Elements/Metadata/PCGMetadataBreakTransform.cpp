@@ -37,8 +37,7 @@ void UPCGMetadataBreakTransformSettings::PostLoad()
 #if WITH_EDITOR
 	if (InputAttributeName_DEPRECATED != NAME_None)
 	{
-		InputSource.Selection = EPCGAttributePropertySelection::Attribute;
-		InputSource.AttributeName = InputAttributeName_DEPRECATED;
+		InputSource.SetAttributeName(InputAttributeName_DEPRECATED);
 		InputAttributeName_DEPRECATED = NAME_None;
 	}
 #endif // WITH_EDITOR
