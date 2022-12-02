@@ -15,10 +15,14 @@
 UENUM()
 enum class EMVVMBlueprintViewModelContextCreationType : uint8
 {
-	Manual,	// The viewmodel will be assigned later.
-	CreateInstance, // A new instance of the viewmodel will be created when the widget is created.
-	GlobalViewModelCollection, // The viewmodel exists and is added to the MVVMSubsystem. It will be fetched there.
-	PropertyPath, // The viewmodel will be fetched by evaluating a function or a property path.
+	// The viewmodel will be assigned later.
+	Manual,
+	// A new instance of the viewmodel will be created when the widget is created.
+	CreateInstance,
+	// The viewmodel exists and is added to the MVVMSubsystem. It will be fetched there.
+	GlobalViewModelCollection,
+	// The viewmodel will be fetched by evaluating a function or a property path.
+	PropertyPath,
 };
 
 /**

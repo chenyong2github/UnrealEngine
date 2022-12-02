@@ -261,8 +261,10 @@ public:
 	/** */
 	enum class EConversionFunctionType
 	{
-		Simple, 	// accept an single argument and returns a single property
-		Complex,	// returns a single property. The argument are fetch from inside the function 
+		// accept an single argument and returns a single property
+		Simple,
+		// returns a single property. The argument are fetch from inside the function 
+		Complex,
 	};
 
 	/** Fetch the FProperty and UFunction. */
