@@ -799,11 +799,13 @@ private:
 		/** Get the last frame average scene luminance (used for exposure compensation curve) */
 		float GetLastAverageSceneLuminance() const { return LastAverageSceneLuminance; }
 
+		UE_DEPRECATED(5.2, "Use GetCurrentBuffer() instead.")
 		const TRefCountPtr<IPooledRenderTarget>& GetCurrentTexture() const
 		{
 			return GetTexture(CurrentBufferIndex);
 		}
 
+		UE_DEPRECATED(5.2, "Use GetCurrentBuffer() instead.")
 		const TRefCountPtr<IPooledRenderTarget>& GetCurrentTexture(FRDGBuilder& GraphBuilder)
 		{
 			return GetOrCreateTexture(GraphBuilder, CurrentBufferIndex);
@@ -846,6 +848,7 @@ private:
 		float LastExposure = 0;
 		float LastAverageSceneLuminance = 0; // 0 means invalid. Used for Exposure Compensation Curve.
 
+		UE_DEPRECATED(5.2, "Use ExposureBufferData instead.")
 		TRefCountPtr<IPooledRenderTarget> PooledRenderTarget[NUM_BUFFERS];
 
 		TRefCountPtr<FRDGPooledBuffer> ExposureBufferData[NUM_BUFFERS];
@@ -1170,20 +1173,23 @@ public:
 	 */
 	bool IsShadowOccluded(FSceneViewState::FProjectedShadowKey ShadowKey, int32 NumBufferedFrames) const;
 
-	/**
-	* Retrieve a single-pixel render targets with intra-frame state for use in eye adaptation post processing.
-	*/
+	UE_DEPRECATED(5.2, "Use GetCurrentEyeAdaptationBuffer() instead.")
 	IPooledRenderTarget* GetCurrentEyeAdaptationTexture() const override final
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		IPooledRenderTarget* Texture = EyeAdaptationManager.GetCurrentTexture().GetReference();
 		check(bValidEyeAdaptationTexture && Texture);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return Texture;
 	}
 
+	UE_DEPRECATED(5.2, "Use GetCurrentEyeAdaptationTexture() instead.")
 	IPooledRenderTarget* GetCurrentEyeAdaptationTexture(FRDGBuilder& GraphBuilder)
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		bValidEyeAdaptationTexture = true;
 		return EyeAdaptationManager.GetCurrentTexture(GraphBuilder).GetReference();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	FRDGPooledBuffer* GetCurrentEyeAdaptationBuffer() const override final
@@ -1302,7 +1308,9 @@ public:
 		HZBOcclusionTests.ReleaseDynamicRHI();
 		EyeAdaptationManager.SafeRelease();
 		OcclusionFeedback.ReleaseResource();
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		bValidEyeAdaptationTexture = false;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		bValidEyeAdaptationBuffer = false;
 	}
 

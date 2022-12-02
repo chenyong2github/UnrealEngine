@@ -563,6 +563,16 @@ void AddCopyEyeAdaptationDataToTexturePass(FRDGBuilder& GraphBuilder, const FGlo
 		FIntVector(1, 1, 1));
 }
 
+FRDGTextureRef AddCopyEyeAdaptationDataToTexturePass(FRDGBuilder& GraphBuilder, const FViewInfo& View)
+{
+	const FRDGTextureDesc TextureDesc = FRDGTextureDesc::Create2D(FIntPoint(1, 1), PF_A32B32G32R32F, FClearValueBinding::None, TexCreate_UAV | TexCreate_ShaderResource);
+	FRDGTextureRef OutputTexture = GraphBuilder.CreateTexture(TextureDesc, TEXT("EyeAdaptationTexture"));
+
+	AddCopyEyeAdaptationDataToTexturePass(GraphBuilder, View.ShaderMap, GetEyeAdaptationBuffer(GraphBuilder, View), OutputTexture);
+
+	return OutputTexture;
+}
+
 //////////////////////////////////////////////////////////////////////////
 //! Setup
 //////////////////////////////////////////////////////////////////////////
@@ -909,10 +919,12 @@ FRDGBufferRef AddBasicEyeAdaptationPass(
 		PassParameters,
 		FIntVector(1, 1, 1));
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	{
 		FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(View.GetEyeAdaptationTexture(GraphBuilder), ERDGTextureFlags::MultiFrame);
 		AddCopyEyeAdaptationDataToTexturePass(GraphBuilder, View.ShaderMap, OutputBuffer, OutputTexture);
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	View.EnqueueEyeAdaptationExposureBufferReadback(GraphBuilder);
 
@@ -936,7 +948,9 @@ void FSceneViewState::FEyeAdaptationManager::SafeRelease()
 	for (int32 Index = 0; Index < NUM_BUFFERS; Index++)
 	{
 		ExposureBufferData[Index].SafeRelease();
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		PooledRenderTarget[Index].SafeRelease();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	for (int32 Index = 0; Index < ExposureReadbackBuffers.Num(); ++Index)
@@ -952,13 +966,17 @@ void FSceneViewState::FEyeAdaptationManager::SafeRelease()
 const TRefCountPtr<IPooledRenderTarget>& FSceneViewState::FEyeAdaptationManager::GetTexture(uint32 TextureIndex) const
 {
 	check(0 <= TextureIndex && TextureIndex < NUM_BUFFERS);
+	
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return PooledRenderTarget[TextureIndex];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 const TRefCountPtr<IPooledRenderTarget>& FSceneViewState::FEyeAdaptationManager::GetOrCreateTexture(FRDGBuilder& GraphBuilder, uint32 TextureIndex)
 {
 	check(0 <= TextureIndex && TextureIndex < NUM_BUFFERS);
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// Create texture if needed.
 	if (!PooledRenderTarget[TextureIndex].IsValid())
 	{
@@ -969,6 +987,7 @@ const TRefCountPtr<IPooledRenderTarget>& FSceneViewState::FEyeAdaptationManager:
 	}
 
 	return PooledRenderTarget[TextureIndex];
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 const TRefCountPtr<FRDGPooledBuffer>& FSceneViewState::FEyeAdaptationManager::GetBuffer(uint32 BufferIndex) const

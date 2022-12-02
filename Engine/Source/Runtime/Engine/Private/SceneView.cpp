@@ -2708,7 +2708,9 @@ bool FSceneView::HasValidEyeAdaptationTexture() const
 {
 	if (EyeAdaptationViewState)
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return EyeAdaptationViewState->HasValidEyeAdaptationTexture();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	return false;
 }
@@ -2727,7 +2729,9 @@ IPooledRenderTarget* FSceneView::GetEyeAdaptationTexture() const
 	checkf(FeatureLevel > ERHIFeatureLevel::ES3_1, TEXT("EyeAdaptation Texture is only available on SM5 and above."));
 	if (EyeAdaptationViewState)
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return EyeAdaptationViewState->GetCurrentEyeAdaptationTexture();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	return nullptr;
 }

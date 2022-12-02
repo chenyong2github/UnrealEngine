@@ -878,10 +878,12 @@ uint64 FPersistentSkyAtmosphereData::GetGPUSizeBytes(bool bLogSizes) const
 uint64 FSceneViewState::FEyeAdaptationManager::GetGPUSizeBytes(bool bLogSizes) const
 {
 	uint64 TotalSize = 0;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	for (int32 TargetIndex = 0; TargetIndex < UE_ARRAY_COUNT(PooledRenderTarget); TargetIndex++)
 	{
 		TotalSize += GetRenderTargetGPUSizeBytes(PooledRenderTarget[TargetIndex], bLogSizes);
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	for (int32 BufferIndex = 0; BufferIndex < UE_ARRAY_COUNT(ExposureBufferData); BufferIndex++)
 	{
 		TotalSize += GetBufferGPUSizeBytes(ExposureBufferData[BufferIndex], bLogSizes);

@@ -231,11 +231,18 @@ public:
 	 */
 	virtual uint32 GetDistanceFieldTemporalSampleIndex() const = 0;
 
-	/** Tells if the eye adaptation texture / buffer exists without attempting to allocate it. */
-	bool HasValidEyeAdaptationTexture() const { return bValidEyeAdaptationTexture; }
+	UE_DEPRECATED(5.2, "Use HasValidEyeAdaptationBuffer() instead.")
+	bool HasValidEyeAdaptationTexture() const
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return bValidEyeAdaptationTexture;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	/** Tells if the eye adaptation buffer exists without attempting to allocate it. */
 	bool HasValidEyeAdaptationBuffer() const { return bValidEyeAdaptationBuffer; }
 
-	/** Returns the eye adaptation texture (SM5+ only). */
+	UE_DEPRECATED(5.2, "Use GetCurrentEyeAdaptationBuffer() instead.")
 	virtual IPooledRenderTarget* GetCurrentEyeAdaptationTexture() const = 0;
 
 	/** Returns the eye adaptation buffer. */
@@ -285,6 +292,7 @@ protected:
 	// Don't allow direct deletion of the view state, Destroy should be called instead.
 	virtual ~FSceneViewStateInterface() {}
 
+	UE_DEPRECATED(5.2, "Use bValidEyeAdaptationBuffer instead.")
 	uint8 bValidEyeAdaptationTexture : 1;
 	uint8 bValidEyeAdaptationBuffer : 1;
 

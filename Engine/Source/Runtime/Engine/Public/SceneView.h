@@ -1608,11 +1608,14 @@ public:
 	/** Current ray tracing debug visualization mode */
 	FName CurrentRayTracingDebugVisualizationMode;
 #endif
-	/** Tells if the eye adaptation texture / buffer exists without attempting to allocate it. */
+
+	UE_DEPRECATED(5.2, "Use HasValidEyeAdaptationBuffer() instead.")
 	bool HasValidEyeAdaptationTexture() const;
+
+	/** Tells if the eye adaptation buffer exists without attempting to allocate it. */
 	bool HasValidEyeAdaptationBuffer() const;
 
-	/** Returns the eye adaptation texture (SM5+ only) or null if it doesn't exist. */
+	UE_DEPRECATED(5.2, "Use GetEyeAdaptationBuffer() instead.")
 	IPooledRenderTarget* GetEyeAdaptationTexture() const;
 
 	/** Returns the eye adaptation buffer or null if it doesn't exist. */

@@ -2227,7 +2227,9 @@ IPooledRenderTarget* FViewInfo::GetEyeAdaptationTexture(FRDGBuilder& GraphBuilde
 
 	if (FSceneViewState* EffectiveViewState = GetEyeAdaptationViewState())
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return EffectiveViewState->GetCurrentEyeAdaptationTexture(GraphBuilder);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	return nullptr;
 }

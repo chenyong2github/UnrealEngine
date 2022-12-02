@@ -38,8 +38,5 @@ END_SHADER_PARAMETER_STRUCT()
 /** Constructs lighting channel parameters from the scene context. */
 FSceneLightingChannelParameters GetSceneLightingChannelParameters(FRDGBuilder& GraphBuilder, FRDGTextureRef LightingChannelsTexture);
 
-/** Returns a render graph texture resource reference onto the eye adaptation or fallback. */
-RENDERER_API FRDGTextureRef GetEyeAdaptationTexture(FRDGBuilder& GraphBuilder, const FSceneView& View);
-
 /** Returns a render graph buffer resource reference onto the eye adaptation or fallback. */
 RENDERER_API FRDGBufferRef GetEyeAdaptationBuffer(FRDGBuilder& GraphBuilder, const FSceneView& View);

@@ -127,3 +127,9 @@ FRDGBufferRef AddBasicEyeAdaptationPass(
 	const FEyeAdaptationParameters& EyeAdaptationParameters,
 	FScreenPassTexture SceneColor,
 	FRDGBufferRef EyeAdaptationBuffer);
+
+/**
+* Helper function to get current eye adaptation in a texture.
+* Should only be used by external plugins that require eye adaptation data in texture format.
+*/
+RENDERER_API FRDGTextureRef AddCopyEyeAdaptationDataToTexturePass(FRDGBuilder& GraphBuilder, const FViewInfo& View);
