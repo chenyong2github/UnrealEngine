@@ -16,8 +16,6 @@
 #include "MuT/ASTOpConstantBool.h"
 #include "MuT/ASTOpImageCompose.h"
 #include "MuT/ASTOpImageMipmap.h"
-#include "MuT/ASTOpImageLayer.h"
-#include "MuT/ASTOpImageLayerColor.h"
 #include "MuT/ASTOpImageMultiLayer.h"
 #include "MuT/ASTOpImagePatch.h"
 #include "MuT/ASTOpImagePixelFormat.h"
@@ -282,12 +280,122 @@ namespace mu
 
         //-------------------------------------------------------------------------------------
         case OP_TYPE::IM_PIXELFORMAT:
-		case OP_TYPE::IM_SWIZZLE:
-		case OP_TYPE::IM_LAYER:
-		{
+        case OP_TYPE::IM_SWIZZLE:
+        {
 			check(false); // moved to its own operation class
 			break;
 		}
+
+
+        //-------------------------------------------------------------------------------------
+        case OP_TYPE::IM_LAYER:
+        {
+            auto baseAt = children[op.args.ImageLayer.base].child();
+
+            // Plain masks optimization
+            auto maskAt = children[op.args.ImageLayer.mask].child();
+            if ( maskAt )
+            {
+                FVector4f colour;
+                if ( maskAt->IsImagePlainConstant( colour ))
+                {
+                    if ( colour.IsNearlyZero3(UE_SMALL_NUMBER) )
+                    {
+                        // If the mask is black, we can skip the entire operation
+                        at = children[op.args.ImageLayer.base].child();
+                    }
+                    else if ( colour.Equals( FVector4f(1,1,1,1), UE_SMALL_NUMBER ) )
+                    {
+                        // If the mask is white, we can remove it
+                        auto nop = mu::Clone<ASTOpFixed>(this);
+                        nop->op.args.ImageLayer.mask = 0;
+                        at = nop;
+                    }
+                }
+            }
+
+            // Introduce crop if mask is constant and smaller than the base
+            FImageRect sourceMaskUsage;
+            FImageDesc maskDesc;
+            bool validUsageRect = false;
+            if (!at && maskAt)
+            {
+                //MUTABLE_CPUPROFILER_SCOPE(EvaluateAreasForCrop);
+
+                validUsageRect = maskAt->GetNonBlackRect(sourceMaskUsage);
+                if (validUsageRect)
+                {
+					check(sourceMaskUsage.size[0] > 0);
+					check(sourceMaskUsage.size[1] > 0);
+					
+					FGetImageDescContext context;
+                    maskDesc = maskAt->GetImageDesc( false, &context );
+                }
+            }
+
+            if (!at && maskAt && validUsageRect)
+            {
+                // Adjust for compressed blocks (4), and some extra mips (2 more mips, which is 4)
+                constexpr int blockSize = 4 * 4;
+
+                FImageRect maskUsage;
+                maskUsage.min[0] = (sourceMaskUsage.min[0]/blockSize)*blockSize;
+                maskUsage.min[1] = (sourceMaskUsage.min[1]/blockSize)*blockSize;
+                vec2<uint16> minOffset = sourceMaskUsage.min - maskUsage.min;
+                maskUsage.size[0] = ((sourceMaskUsage.size[0]+minOffset[0]+blockSize-1)/blockSize)*blockSize;
+                maskUsage.size[1] = ((sourceMaskUsage.size[1]+minOffset[1]+blockSize-1)/blockSize)*blockSize;
+
+                // Is it worth?
+                float ratio = float(maskUsage.size[0]*maskUsage.size[1])
+                        / float(maskDesc.m_size[0]*maskDesc.m_size[1]);
+                float acceptableCropRatio = options.m_acceptableCropRatio;
+                if (ratio<acceptableCropRatio)
+                {
+					check(maskUsage.size[0] > 0);
+					check(maskUsage.size[1] > 0);
+
+                    Ptr<ASTOpFixed> cropMask = new ASTOpFixed();
+                    cropMask->op.type = OP_TYPE::IM_CROP;
+                    cropMask->SetChild( cropMask->op.args.ImageCrop.source, children[op.args.ImageLayer.mask].child() );
+                    cropMask->op.args.ImageCrop.minX = maskUsage.min[0];
+                    cropMask->op.args.ImageCrop.minY = maskUsage.min[1];
+                    cropMask->op.args.ImageCrop.sizeX = maskUsage.size[0];
+                    cropMask->op.args.ImageCrop.sizeY = maskUsage.size[1];
+
+                    Ptr<ASTOpFixed> cropBlended = new ASTOpFixed();
+                    cropBlended->op.type = OP_TYPE::IM_CROP;
+                    cropBlended->SetChild( cropBlended->op.args.ImageCrop.source, children[op.args.ImageLayer.blended].child() );
+                    cropBlended->op.args.ImageCrop.minX = maskUsage.min[0];
+                    cropBlended->op.args.ImageCrop.minY = maskUsage.min[1];
+                    cropBlended->op.args.ImageCrop.sizeX = maskUsage.size[0];
+                    cropBlended->op.args.ImageCrop.sizeY = maskUsage.size[1];
+
+                    Ptr<ASTOpFixed> cropBase = new ASTOpFixed();
+                    cropBase->op.type = OP_TYPE::IM_CROP;
+                    cropBase->SetChild( cropBase->op.args.ImageCrop.source, children[op.args.ImageLayer.base].child() );
+                    cropBase->op.args.ImageCrop.minX = maskUsage.min[0];
+                    cropBase->op.args.ImageCrop.minY = maskUsage.min[1];
+                    cropBase->op.args.ImageCrop.sizeX = maskUsage.size[0];
+                    cropBase->op.args.ImageCrop.sizeY = maskUsage.size[1];
+
+                    Ptr<ASTOpFixed> newLayer = new ASTOpFixed();
+                    newLayer->op.type = op.type;
+					newLayer->op.args.ImageLayer.blendType = op.args.ImageLayer.blendType;
+					newLayer->op.args.ImageLayer.flags = op.args.ImageLayer.flags;
+					newLayer->SetChild( newLayer->op.args.ImageLayer.base, cropBase );
+                    newLayer->SetChild( newLayer->op.args.ImageLayer.blended, cropBlended );
+                    newLayer->SetChild( newLayer->op.args.ImageLayer.mask, cropMask );
+
+                    Ptr<ASTOpImagePatch> patch = new ASTOpImagePatch();
+                    patch->base = baseAt;
+                    patch->patch = newLayer;
+                    patch->location = maskUsage.min;
+                    at = patch;
+                }
+            }
+
+            break;
+        }
 
         default:
             break;
@@ -507,16 +615,16 @@ namespace mu
         case OP_TYPE::IM_LAYER:
         {
             // We move the op down the arguments
-            auto nop = mu::Clone<ASTOpImageLayer>(at);
+            auto nop = mu::Clone<ASTOpFixed>(at);
 
-            auto aOp = nop->base.child();
-            nop->base = Visit(aOp, currentCropOp);
+            auto aOp = nop->children[nop->op.args.ImageLayer.base].child();
+            nop->SetChild(nop->op.args.ImageLayer.base, Visit(aOp, currentCropOp));
 
-            auto bOp = nop->blend.child();
-            nop->blend = Visit(bOp, currentCropOp);
+            auto bOp = nop->children[nop->op.args.ImageLayer.blended].child();
+            nop->SetChild(nop->op.args.ImageLayer.blended, Visit(bOp, currentCropOp));
 
-            auto mOp = nop->mask.child();
-            nop->mask = Visit(mOp, currentCropOp);
+            auto mOp = nop->children[nop->op.args.ImageLayer.mask].child();
+            nop->SetChild(nop->op.args.ImageLayer.mask, Visit(mOp, currentCropOp));
 
             newAt = nop;
             break;
@@ -525,13 +633,13 @@ namespace mu
         case OP_TYPE::IM_LAYERCOLOUR:
         {
             // We move the op down the arguments
-            auto nop = mu::Clone<ASTOpImageLayerColor>(at);
+            auto nop = mu::Clone<ASTOpFixed>(at);
 
-            auto aOp = nop->base.child();
-            nop->base = Visit(aOp, currentCropOp);
+            auto aOp = nop->children[nop->op.args.ImageLayerColour.base].child();
+            nop->SetChild(nop->op.args.ImageLayerColour.base, Visit(aOp, currentCropOp));
 
-            auto mOp = nop->mask.child();
-            nop->mask = Visit(mOp, currentCropOp);
+            auto mOp = nop->children[nop->op.args.ImageLayerColour.mask].child();
+            nop->SetChild(nop->op.args.ImageLayerColour.mask, Visit(mOp, currentCropOp));
 
             newAt = nop;
             break;
@@ -851,6 +959,248 @@ namespace mu
 
             break;
         }
+
+        //-------------------------------------------------------------------------------------
+        case OP_TYPE::IM_LAYER:
+        {
+            // Layer effects may be worth sinking down switches and conditionals, to be able
+            // to apply extra optimisations
+            auto baseAt = children[op.args.ImageLayer.base].child();
+            auto blendAt = children[op.args.ImageLayer.blended].child();
+            auto maskAt = children[op.args.ImageLayer.mask].child();
+
+            // Promote conditions from the base
+            OP_TYPE baseType = baseAt->GetOpType();
+            switch ( baseType )
+            {
+            // Seems to cause operation explosion in optimizer in bandit model.
+            // moved to generic sink in the default.
+//            case OP_TYPE::IM_CONDITIONAL:
+//            {
+//                m_modified = true;
+
+//                OP op = program.m_code[baseAt];
+
+//                OP aOp = program.m_code[at];
+//                aOp.args.ImageLayer.base = program.m_code[baseAt].args.Conditional.yes;
+//                op.args.Conditional.yes = program.AddOp( aOp );
+
+//                OP bOp = program.m_code[at];
+//                bOp.args.ImageLayer.base = program.m_code[baseAt].args.Conditional.no;
+//                op.args.Conditional.no = program.AddOp( bOp );
+
+//                at = program.AddOp( op );
+//                break;
+//            }
+
+            case OP_TYPE::IM_SWITCH:
+            {
+                // Disabled:
+                // It seems to cause data explosion in optimizer in some models. Because
+                // all switch branches become unique constants
+
+//                // See if the blended has an identical switch, to optimise it too
+//                auto baseSwitch = dynamic_cast<const ASTOpSwitch*>( baseAt.get() );
+//                auto blendedSwitch = dynamic_cast<const ASTOpSwitch*>( blendAt.get() );
+//                auto maskSwitch = dynamic_cast<const ASTOpSwitch*>( maskAt.get() );
+
+//                bool blendedToo = baseSwitch->IsCompatibleWith( blendedSwitch );
+//                bool maskToo = baseSwitch->IsCompatibleWith( maskSwitch );
+
+//                // Move the layer operation down all the paths
+//                auto nop = mu::Clone<ASTOpSwitch>(baseSwitch);
+
+//                if (nop->def)
+//                {
+//                    auto defOp = mu::Clone<ASTOpFixed>(this);
+//                    defOp->SetChild( defOp->op.args.ImageLayer.base, nop->def );
+//                    if (blendedToo)
+//                    {
+//                        defOp->SetChild( defOp->op.args.ImageLayer.blended, blendedSwitch->def );
+//                    }
+//                    if (maskToo)
+//                    {
+//                        defOp->SetChild( defOp->op.args.ImageLayer.mask, maskSwitch->def );
+//                    }
+//                    nop->def = defOp;
+//                }
+
+//                for ( size_t v=0; v<nop->cases.Num(); ++v )
+//                {
+//                    if ( nop->cases[v].branch )
+//                    {
+//                        auto bOp = mu::Clone<ASTOpFixed>(this);
+//                        bOp->SetChild( bOp->op.args.ImageLayer.base, nop->cases[v].branch );
+
+//                        if (blendedToo)
+//                        {
+//                            bOp->SetChild( bOp->op.args.ImageLayer.blended, blendedSwitch->FindBranch( nop->cases[v].condition ) );
+//                        }
+
+//                        if (maskToo)
+//                        {
+//                            bOp->SetChild( bOp->op.args.ImageLayer.mask, maskSwitch->FindBranch( nop->cases[v].condition ) );
+//                        }
+
+//                        nop->cases[v].branch = bOp;
+//                    }
+//                }
+
+//                at = nop;
+                break;
+            }
+
+            default:
+            {
+                // Try generic base sink
+//                OP templateOp = program.m_code[at];
+
+//                CloneNeutralPartialTreeVisitor neutral;
+//                OP_TYPE supportedOps[] = {
+//                    OP_TYPE::IM_CONDITIONAL,
+//                    OP_TYPE::NONE
+//                };
+//                auto newRoot = neutral.Apply
+//                         (
+//                            program.m_code[at].args.ImageLayer.base, program,
+//                            DT_IMAGE, supportedOps,
+//                            &templateOp, &templateOp.args.ImageLayer.base);
+
+//                // If there is a change
+//                if (newRoot!=program.m_code[at].args.ImageLayer.base)
+//                {
+//                    m_modified = true;
+//                    at = newRoot;
+//                }
+
+                break;
+            }
+
+            }
+
+            break;
+        }
+
+
+
+		//-------------------------------------------------------------------------------------
+        case OP_TYPE::IM_LAYERCOLOUR:
+		{
+			// Layer effects may be worth sinking down switches and conditionals, to be able
+			// to apply extra optimisations
+			auto baseAt = children[op.args.ImageLayerColour.base].child();
+			auto maskAt = children[op.args.ImageLayerColour.mask].child();
+
+			// Promote conditions from the base
+			OP_TYPE baseType = baseAt->GetOpType();
+			switch (baseType)
+			{
+				// Seems to cause operation explosion in optimizer in bandit model.
+				// moved to generic sink in the default.
+	//            case OP_TYPE::IM_CONDITIONAL:
+	//            {
+	//                m_modified = true;
+
+	//                OP op = program.m_code[baseAt];
+
+	//                OP aOp = program.m_code[at];
+	//                aOp.args.ImageLayerColour.base = program.m_code[baseAt].args.Conditional.yes;
+	//                op.args.Conditional.yes = program.AddOp( aOp );
+
+	//                OP bOp = program.m_code[at];
+	//                bOp.args.ImageLayerColour.base = program.m_code[baseAt].args.Conditional.no;
+	//                op.args.Conditional.no = program.AddOp( bOp );
+
+	//                at = program.AddOp( op );
+	//                break;
+	//            }
+
+			case OP_TYPE::IM_SWITCH:
+			{
+				// Warning:
+				// It seems to cause data explosion in optimizer in some models. Because
+				// all switch branches become unique constants
+
+                // See if the blended has an identical switch, to optimise it too
+				const ASTOpSwitch* baseSwitch = dynamic_cast<const ASTOpSwitch*>( baseAt.get() );
+
+                // Mask not supported yet
+				if (maskAt)
+				{
+					break;
+				}
+
+                // Move the layer operation down base paths
+                Ptr<ASTOpSwitch> nop = mu::Clone<ASTOpSwitch>(baseSwitch);
+
+                if (nop->def)
+                {
+					Ptr<ASTOpFixed> defOp = mu::Clone<ASTOpFixed>(this);
+                    defOp->SetChild( defOp->op.args.ImageLayerColour.base, nop->def );
+                    nop->def = defOp;
+                }
+
+                for ( int32 v=0; v<nop->cases.Num(); ++v )
+                {
+                    if ( nop->cases[v].branch )
+                    {
+                        Ptr<ASTOpFixed> bOp = mu::Clone<ASTOpFixed>(this);
+                        bOp->SetChild( bOp->op.args.ImageLayerColour.base, nop->cases[v].branch );
+                        nop->cases[v].branch = bOp;
+                    }
+                }
+
+                at = nop;
+				break;
+			}
+
+			case OP_TYPE::IM_DISPLACE:
+			{
+				// Mask not supported yet. If there is a mask it wouldn't be correct to sink
+				// unless the mask was a similar displace.
+				if (maskAt)
+				{
+					break;
+				}
+
+				Ptr<ASTOpFixed> NewDisplace = mu::Clone<ASTOpFixed>(baseAt);
+
+				Ptr<ASTOp> sourceOp = NewDisplace->children[NewDisplace->op.args.ImageDisplace.source].child();
+				Ptr<ASTOpFixed> NewSource = mu::Clone<ASTOpFixed>(this);
+				NewSource->SetChild(NewSource->op.args.ImageLayerColour.base, sourceOp);
+				NewDisplace->SetChild(NewDisplace->op.args.ImageDisplace.source, NewSource);
+
+				at = NewDisplace;
+				break;
+			}
+
+			case OP_TYPE::IM_RASTERMESH:
+			{
+				// Mask not supported yet. If there is a mask it wouldn't be correct to sink.				
+				if (maskAt)
+				{
+					break;
+				}
+
+				Ptr<ASTOpFixed> NewRaster = mu::Clone<ASTOpFixed>(baseAt);
+
+				Ptr<ASTOp> sourceOp = NewRaster->children[NewRaster->op.args.ImageRasterMesh.image].child();
+				Ptr<ASTOpFixed> NewSource = mu::Clone<ASTOpFixed>(this);
+				NewSource->SetChild(NewSource->op.args.ImageLayerColour.base, sourceOp);
+				NewRaster->SetChild(NewRaster->op.args.ImageRasterMesh.image, NewSource);
+
+				at = NewRaster;
+				break;
+			}
+
+
+			default:
+				break;
+
+			}
+
+			break;
+		}
 
 
         //-----------------------------------------------------------------------------------------
@@ -1235,16 +1585,16 @@ namespace mu
 
 			case OP_TYPE::IM_LAYER:
 			{
-				auto nop = mu::Clone<ASTOpImageLayer>(at);
+				auto nop = mu::Clone<ASTOpFixed>(at);
 
-				auto aOp = nop->base.child();
-				nop->base = Visit(aOp, currentSinkingOp);
+				auto aOp = nop->children[nop->op.args.ImageLayer.base].child();
+				nop->SetChild(nop->op.args.ImageLayer.base, Visit(aOp, currentSinkingOp));
 
-				auto bOp = nop->blend.child();
-				nop->blend = Visit(bOp, currentSinkingOp);
+				auto bOp = nop->children[nop->op.args.ImageLayer.blended].child();
+				nop->SetChild(nop->op.args.ImageLayer.blended, Visit(bOp, currentSinkingOp));
 
-				auto mOp = nop->mask.child();
-				nop->mask = Visit(mOp, currentSinkingOp);
+				auto mOp = nop->children[nop->op.args.ImageLayer.mask].child();
+				nop->SetChild(nop->op.args.ImageLayer.mask, Visit(mOp, currentSinkingOp));
 
 				newAt = nop;
 				break;
@@ -1252,13 +1602,13 @@ namespace mu
 
 			case OP_TYPE::IM_LAYERCOLOUR:
 			{
-				auto nop = mu::Clone<ASTOpImageLayerColor>(at);
+				auto nop = mu::Clone<ASTOpFixed>(at);
 
-				auto aOp = nop->base.child();
-				nop->base = Visit(aOp, currentSinkingOp);
+				auto aOp = nop->children[nop->op.args.ImageLayerColour.base].child();
+				nop->SetChild(nop->op.args.ImageLayerColour.base, Visit(aOp, currentSinkingOp));
 
-				auto mOp = nop->mask.child();
-				nop->mask = Visit(mOp, currentSinkingOp);
+				auto mOp = nop->children[nop->op.args.ImageLayerColour.mask].child();
+				nop->SetChild(nop->op.args.ImageLayer.mask, Visit(mOp, currentSinkingOp));
 
 				newAt = nop;
 				break;
@@ -1524,22 +1874,24 @@ namespace mu
 
             case OP_TYPE::IM_LAYER:
             {
-                Ptr<ASTOpImageLayer> newOp = mu::Clone<ASTOpImageLayer>(sourceAt);
+                Ptr<ASTOpFixed> newOp = mu::Clone<ASTOpFixed>(sourceAt);
 
                 Ptr<ASTOpFixed> baseOp = mu::Clone<ASTOpFixed>(this);
-                baseOp->SetChild( baseOp->op.args.ImageResize.source, newOp->base );
-                newOp->base = baseOp;
+                baseOp->SetChild( baseOp->op.args.ImageResize.source,
+                        newOp->children[newOp->op.args.ImageLayer.base] );
+                newOp->SetChild( newOp->op.args.ImageLayer.base, baseOp );
 
                 Ptr<ASTOpFixed> blendOp = mu::Clone<ASTOpFixed>(this);
-                blendOp->SetChild( blendOp->op.args.ImageResize.source, newOp->blend );
-                newOp->blend = blendOp;
+                blendOp->SetChild( blendOp->op.args.ImageResize.source,
+                        newOp->children[newOp->op.args.ImageLayer.blended] );
+                newOp->SetChild( newOp->op.args.ImageLayer.blended, blendOp );
 
-                auto maskAt = newOp->mask.child();
+                auto maskAt = newOp->children[newOp->op.args.ImageLayer.mask].child();
                 if (maskAt)
                 {
                     Ptr<ASTOpFixed> maskOp = mu::Clone<ASTOpFixed>(this);
                     maskOp->SetChild( maskOp->op.args.ImageResize.source, maskAt );
-                    newOp->mask = maskOp;
+                    newOp->SetChild( newOp->op.args.ImageLayer.mask, maskOp );
                 }
 
                 at = newOp;
@@ -1548,18 +1900,19 @@ namespace mu
 
             case OP_TYPE::IM_LAYERCOLOUR:
             {
-                Ptr<ASTOpImageLayerColor> newOp = mu::Clone<ASTOpImageLayerColor>(sourceAt);
+                Ptr<ASTOpFixed> newOp = mu::Clone<ASTOpFixed>(sourceAt);
 
                 Ptr<ASTOpFixed> baseOp = mu::Clone<ASTOpFixed>(this);
-                baseOp->SetChild( baseOp->op.args.ImageResize.source, newOp->base );
-                newOp->base = baseOp;
+                baseOp->SetChild( baseOp->op.args.ImageResize.source,
+                        newOp->children[newOp->op.args.ImageLayerColour.base] );
+                newOp->SetChild( newOp->op.args.ImageLayerColour.base, baseOp );
 
-                auto maskAt = newOp->mask.child();
+                auto maskAt = newOp->children[newOp->op.args.ImageLayerColour.mask].child();
                 if (maskAt)
                 {
                     Ptr<ASTOpFixed> maskOp = mu::Clone<ASTOpFixed>(this);
                     maskOp->SetChild( maskOp->op.args.ImageResize.source, maskAt );
-                    newOp->mask = maskOp;
+                    newOp->SetChild( newOp->op.args.ImageLayerColour.mask, maskOp );
                 }
 
                 at = newOp;

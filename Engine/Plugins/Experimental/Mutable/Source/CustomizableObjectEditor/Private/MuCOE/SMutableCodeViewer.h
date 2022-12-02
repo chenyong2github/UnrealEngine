@@ -235,7 +235,6 @@ private:
 	const TArray<mu::OP_TYPE> ExpensiveOperationTypes
 	{
 		mu::OP_TYPE::IM_PIXELFORMAT,
-		mu::OP_TYPE::IM_SWIZZLE,
 		mu::OP_TYPE::ME_PROJECT,
 	};
 	

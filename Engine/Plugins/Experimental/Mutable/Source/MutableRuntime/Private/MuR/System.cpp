@@ -462,10 +462,10 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    ImagePtrConst System::BuildParameterAdditionalImage( const Ptr<const Model>& pModel,
-                                                         const Ptr<const Parameters>& pParams,
-                                                         int32 parameter,
-                                                         int32 ImageIndex )
+    ImagePtrConst System::BuildParameterAdditionalImage( const ModelPtrConst& pModel,
+                                                         const ParametersPtrConst& pParams,
+                                                         int parameter,
+                                                         int image )
     {
 		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
 		MUTABLE_CPUPROFILER_SCOPE(BuildParameterAdditionalImage);
@@ -474,10 +474,11 @@ namespace mu
 			&&
 			parameter < (int)pModel->GetPrivate()->m_program.m_parameters.Num());
 
-		const FParameterDesc& param = pModel->GetPrivate()->m_program.m_parameters[parameter];
-		check(ImageIndex >= 0 && ImageIndex < (int)param.m_descImages.Num());
+		const FParameterDesc& param =
+			pModel->GetPrivate()->m_program.m_parameters[parameter];
+		check(image >= 0 && image < (int)param.m_descImages.Num());
 
-		OP::ADDRESS imageAddress = param.m_descImages[ImageIndex];
+		OP::ADDRESS imageAddress = param.m_descImages[image];
 
 		ImagePtrConst pResult;
 

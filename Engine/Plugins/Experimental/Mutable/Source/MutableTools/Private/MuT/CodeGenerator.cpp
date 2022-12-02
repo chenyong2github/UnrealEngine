@@ -20,8 +20,6 @@
 #include "MuT/ASTOpImageCompose.h"
 #include "MuT/ASTOpImageMipmap.h"
 #include "MuT/ASTOpImagePixelFormat.h"
-#include "MuT/ASTOpImageLayer.h"
-#include "MuT/ASTOpImageLayerColor.h"
 #include "MuT/ASTOpInstanceAdd.h"
 #include "MuT/ASTOpMeshBindShape.h"
 #include "MuT/ASTOpMeshClipDeform.h"
@@ -84,11 +82,137 @@
 #include "MuT/NodeSurfaceVariation.h"
 #include "MuT/NodeSurfaceVariationPrivate.h"
 #include "MuT/TablePrivate.h"
+#include "MuT/TaskManager.h"
 #include "Trace/Detail/Channel.h"
 
 
 namespace mu
 {
+
+    void PartialOptimise( Ptr<ASTOp>& lastCompOp, const CompilerOptions::Private* options )
+    {
+        if (!lastCompOp) return;
+
+        MUTABLE_CPUPROFILER_SCOPE(PartialOptimise);
+
+        //UE_LOG(LogMutableCore, Verbose, " Begin partial optimisation.");
+
+        ASTOpList roots;
+        roots.Add( lastCompOp );
+
+        //size_t initialOps = ASTOp::CountNodes(roots);
+        //(void)initialOps;
+
+        //AXE_INT_VALUE("Mutable", Verbose, "ast size", (int64_t)ASTOp::CountNodes(roots));
+        //UE_LOG(LogMutableCore, Verbose, " - duplicated data remover");
+        DuplicatedDataRemoverAST( roots );
+        //AXE_INT_VALUE("Mutable", Verbose, "ast size", (int64_t)ASTOp::CountNodes(roots));
+
+        //UE_LOG(LogMutableCore, Verbose, " - duplicated code remover");
+        DuplicatedCodeRemoverAST( roots );
+        //AXE_INT_VALUE("Mutable", Verbose, "ast size", (int64_t)ASTOp::CountNodes(roots));
+
+        //UE_LOG(LogMutableCore, Verbose, " - size optimiser");
+        SizeOptimiserAST( roots );
+        //AXE_INT_VALUE("Mutable", Verbose, "ast size", (int64_t)ASTOp::CountNodes(roots));
+
+        //UE_LOG(LogMutableCore, Verbose, " - semantic optimiser");
+        SemanticOptimiserAST( roots, options->m_optimisationOptions );
+        //AXE_INT_VALUE("Mutable", Verbose, "ast size", (int64_t)ASTOp::CountNodes(roots));
+
+        //UE_LOG(LogMutableCore, Verbose, " - sink optimiser");
+        SinkOptimiserAST( roots, options->m_optimisationOptions );
+        //AXE_INT_VALUE("Mutable", Verbose, "ast size", (int64_t)ASTOp::CountNodes(roots));
+
+        // Image size operations are treated separately
+        //UE_LOG(LogMutableCore, Verbose, " - size optimiser");
+        SizeOptimiserAST( roots );
+        //AXE_INT_VALUE("Mutable", Verbose, "ast size", (int64_t)ASTOp::CountNodes(roots));
+
+        //UE_LOG(LogMutableCore, Verbose, " - semantic optimiser");
+        SemanticOptimiserAST( roots, options->m_optimisationOptions );
+        //AXE_INT_VALUE("Mutable", Verbose, "ast size", (int64_t)ASTOp::CountNodes(roots));
+
+        //UE_LOG(LogMutableCore, Verbose, " - duplicated data remover");
+        DuplicatedDataRemoverAST( roots );
+        //AXE_INT_VALUE("Mutable", Verbose, "ast size", (int64_t)ASTOp::CountNodes(roots));
+
+        //UE_LOG(LogMutableCore, Verbose, " - duplicated code remover");
+        DuplicatedCodeRemoverAST( roots );
+        //AXE_INT_VALUE("Mutable", Verbose, "ast size", (int64_t)ASTOp::CountNodes(roots));
+
+        // Constant subtree generation
+        ConstantGeneratorAST( options, *roots.begin(), nullptr );
+
+        //UE_LOG(LogMutableCore, Verbose, " - duplicated data remover");
+        DuplicatedDataRemoverAST( roots );
+        //AXE_INT_VALUE("Mutable", Verbose, "ast size", (int64_t)ASTOp::CountNodes(roots));
+
+        //UE_LOG(LogMutableCore, Verbose, " - duplicated code remover");
+        DuplicatedCodeRemoverAST( roots );
+        //AXE_INT_VALUE("Mutable", Verbose, "ast size", (int64_t)ASTOp::CountNodes(roots));
+
+        //UE_LOG(LogMutableCore, Verbose, " - logic optimiser");
+        LocalLogicOptimiserAST( roots );
+        //AXE_INT_VALUE("Mutable", Verbose, "ast size", (int64_t)ASTOp::CountNodes(roots));
+
+        //size_t finalOps = ASTOp::CountNodes(roots);
+        //(void)finalOps;
+
+        //lastCompOp = *roots.begin();
+
+        //UE_LOG(LogMutableCore, Verbose, " End partial optimisation.");
+
+        //UE_LOG(LogMutableCore, Verbose,
+        //        "Partial optimisation from %6d to %6d", int64_t(initialOps), int64_t(finalOps) );
+
+        lastCompOp = roots[0];
+    }
+
+
+    //---------------------------------------------------------------------------------------------
+    class OptimizeTask : public TaskManager::Task
+    {
+    public:
+        // input
+        Ptr<ASTOp> m_source;
+        CompilerOptions::Private* m_options;
+
+        std::shared_timed_mutex* m_codeAccessMutex = nullptr;
+
+    private:
+
+        // output
+        Ptr<ASTOp> m_result;
+
+    public:
+
+        // mu::Task interface
+        void Run() override
+        {
+            // This runs in a random thread
+
+            // Clone the tree
+            m_codeAccessMutex->lock_shared();
+            m_result = ASTOp::DeepClone( m_source );
+            m_codeAccessMutex->unlock_shared();
+
+            // Optimise
+            PartialOptimise( m_result, m_options );
+        }
+
+
+        // TaskManager::Task interface
+        void Complete() override
+        {
+            // This runs in the main thread
+            m_codeAccessMutex->lock();
+            ASTOp::Replace( m_source, m_result );
+            m_codeAccessMutex->unlock();
+        }
+
+    };
+
 
     //---------------------------------------------------------------------------------------------
     //---------------------------------------------------------------------------------------------
@@ -105,9 +229,11 @@ namespace mu
     }
 
     //---------------------------------------------------------------------------------------------
-    void CodeGenerator::GenerateRoot(const NodePtrConst pNode )
+    void CodeGenerator::GenerateRoot(const NodePtrConst pNode, TaskManager* taskManager )
     {
         MUTABLE_CPUPROFILER_SCOPE(Generate);
+
+        m_pTaskManager = taskManager;
 
 //        UE_LOG(LogMutableCore,Warning,"astop %9u#  %9u+  %9u- generate root start", size_t(ASTOp::s_count), size_t(ASTOp::s_created), size_t(ASTOp::s_destroyed) );
 
@@ -159,6 +285,22 @@ namespace mu
         m_currentParents.Empty();
         m_currentObject.Empty();
         m_additionalComponents.clear();
+
+
+//        UE_LOG(LogMutableCore,Warning,"astop %9u#  %9u+  %9u- after cache clear", size_t(ASTOp::s_count), size_t(ASTOp::s_created), size_t(ASTOp::s_destroyed) );
+
+        // Complete pending tasks
+        {
+            if (m_pTaskManager)
+            {
+                UE_LOG(LogMutableCore,Verbose,TEXT("Waiting for remaining code generation tasks..."));
+                MUTABLE_CPUPROFILER_SCOPE(PendingTasks);
+                m_pTaskManager->CompleteTasks();
+                UE_LOG(LogMutableCore,Verbose, TEXT("End code generation tasks"));
+            }
+        }
+
+        m_pTaskManager = nullptr;
 
 //        UE_LOG(LogMutableCore,Warning,"astop %9u#  %9u+  %9u- exiting generate root", size_t(ASTOp::s_count), size_t(ASTOp::s_created), size_t(ASTOp::s_destroyed) );
 	}
@@ -418,14 +560,15 @@ namespace mu
          {
              MUTABLE_CPUPROFILER_SCOPE(PatchBlend);
 
-             Ptr<ASTOpImageLayer> op = new ASTOpImageLayer();
-			 op->blendType = pPatch->GetPrivate()->m_blendType;
-             op->base = blockAd;
+             Ptr<ASTOpFixed> op = new ASTOpFixed();
+			 op->op.type = OP_TYPE::IM_LAYER;
+			 op->op.args.ImageLayer.blendType = uint8_t(pPatch->GetPrivate()->m_blendType);
+             op->SetChild(op->op.args.ImageLayer.base, blockAd );
 
              // When we patch from edit nodes, we want to apply it to all the channels.
              // \todo: since we can choose the patch function, maybe we want to be able to
              // select this as well.
-             op->Flags = pPatch->GetPrivate()->m_applyToAlpha
+             op->op.args.ImageLayer.flags = pPatch->GetPrivate()->m_applyToAlpha
                      ? OP::ImageLayerArgs::F_APPLY_TO_ALPHA
                      : 0;
 
@@ -447,7 +590,7 @@ namespace mu
                      FImageSize( (uint16)m_imageState.Last().m_imageRect.size[0],
                                  (uint16)m_imageState.Last().m_imageRect.size[1] )
                  );
-             op->blend = blend;
+             op->SetChild(op->op.args.ImageLayer.blended, blend );
 
              NodeImage* pMask = pPatch->GetPrivate()->m_pMask.get();
              Ptr<ASTOp> mask;
@@ -468,7 +611,7 @@ namespace mu
                      FImageSize( (uint16)m_imageState.Last().m_imageRect.size[0],
                                  (uint16)m_imageState.Last().m_imageRect.size[1] )
                  );
-             op->mask = mask;
+             op->SetChild(op->op.args.ImageLayer.mask, mask );
 
              blendAd = op;
          }
@@ -1258,6 +1401,22 @@ namespace mu
                         imageAd = fop;
                     }
 
+                    // if (imageAd && m_compilerOptions->m_enablePartialOptimise)
+                    // {
+                    //     if (m_pTaskManager->HasRunner())
+                    //     {
+                    //         OptimizeTask* ot = new OptimizeTask;
+                    //         ot->m_optimizationOptions = &m_compilerOptions->m_optimisationOptions;
+                    //         ot->m_source = imageAd;
+                    //         ot->m_codeAccessMutex = &m_codeAccessMutex;
+                    //         m_pTaskManager->AddTask(ot);
+                    //     }
+                    //     else
+                    //     {
+                    //         PartialOptimise(imageAd, m_compilerOptions->m_optimisationOptions);
+                    //     }
+                    // }
+
                     Ptr<ASTOpInstanceAdd> op = new ASTOpInstanceAdd();
                     op->type = OP_TYPE::IN_ADDIMAGE;
                     op->instance = lastSurfOp;
@@ -1592,6 +1751,22 @@ namespace mu
                             imageAd = fop;
                         }
 
+                        // if (imageAd && m_compilerOptions->m_enablePartialOptimise)
+                        // {
+                        //     if (m_pTaskManager->HasRunner())
+                        //     {                            
+                        //         OptimizeTask* ot = new OptimizeTask;
+                        //         ot->m_optimizationOptions = &m_compilerOptions->m_optimisationOptions;
+                        //         ot->m_source = imageAd;
+                        //         ot->m_codeAccessMutex = &m_codeAccessMutex;
+                        //         m_pTaskManager->AddTask(ot);
+                        //     }
+                        //     else
+                        //     {
+                        //         PartialOptimise(imageAd, m_compilerOptions->m_optimisationOptions);
+                        //     }
+                        // }
+
                         op->value = imageAd;
 
                         // Name
@@ -1674,6 +1849,25 @@ namespace mu
                 lastSurfOp = op;
             }
         }
+
+
+        // Partial optimisation of the code generated so far
+        if (lastSurfOp && m_compilerOptions->m_enablePartialOptimise)
+        {
+            if (m_pTaskManager->IsConcurrencyEnabled())
+            {
+                OptimizeTask* t = new OptimizeTask;
+                t->m_options = m_compilerOptions;
+                t->m_source = lastSurfOp;
+                t->m_codeAccessMutex = &m_codeAccessMutex;
+                m_pTaskManager->AddTask(t);
+            }
+            else
+            {
+                PartialOptimise(lastSurfOp, m_compilerOptions);
+            }
+        }
+
 
         result.surfaceOp = lastSurfOp;
         targetSurface->resultSurfaceOp = lastSurfOp;
@@ -1763,7 +1957,22 @@ namespace mu
                 // We add the merge op even for the first mesh, so that we set the surface id.
                 {
                     Ptr<ASTOp> added = its.resultMeshOp;
- 
+                    // if (added && m_compilerOptions->m_enablePartialOptimise)
+                    // {
+                    //     if (m_pTaskManager->HasRunner())
+                    //     {
+                    //         OptimizeTask* t = new OptimizeTask;
+                    //         t->m_optimizationOptions = &m_compilerOptions->m_optimisationOptions;
+                    //         t->m_source = added;
+                    //         t->m_codeAccessMutex = &m_codeAccessMutex;
+                    //         m_pTaskManager->AddTask(t);
+                    //     }
+                    //     else
+                    //     {
+                    //         PartialOptimise( added, m_compilerOptions->m_optimisationOptions );
+                    //     }
+                    // }
+
                     Ptr<ASTOpFixed> mop = new ASTOpFixed();
                     mop->op.type = OP_TYPE::ME_MERGE;
                     mop->SetChild(mop->op.args.MeshMerge.base, lastMeshOp );

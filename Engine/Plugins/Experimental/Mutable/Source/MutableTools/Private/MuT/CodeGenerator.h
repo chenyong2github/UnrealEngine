@@ -42,6 +42,7 @@
 #include "MuT/Visitor.h"
 #include "Templates/TypeHash.h"
 
+#include <shared_mutex>
 #include <utility>
 
 
@@ -108,6 +109,7 @@ namespace mu
 	class NodeScalarVariation;
 	class NodeStringConstant;
 	class NodeStringParameter;
+	class TaskManager;
 	struct OBJECT_STATE;
 	struct FProgram;
 
@@ -132,7 +134,7 @@ namespace mu
         CodeGenerator( CompilerOptions::Private* options );
 
         //! Data will be stored in m_states
-        void GenerateRoot( const NodePtrConst pNode );
+        void GenerateRoot( const NodePtrConst pNode, TaskManager* );
 
 	protected:
 
@@ -349,6 +351,8 @@ namespace mu
 
 
     private:
+
+        std::shared_timed_mutex m_codeAccessMutex;
 
 		//! Generate the key with all the relevant state that is used in generation of operations for a node.
 		FVisitedKeyMap GetCurrentCacheKey(const NodePtrConst& InNode) const
@@ -668,6 +672,8 @@ namespace mu
         void GenerateSurface( FSurfaceGenerationResult& result,
                               NodeSurfaceNewPtrConst node,
                               const TArray<FirstPassGenerator::SURFACE::EDIT>& edits );
+
+        TaskManager* m_pTaskManager = nullptr;
     };
 
 

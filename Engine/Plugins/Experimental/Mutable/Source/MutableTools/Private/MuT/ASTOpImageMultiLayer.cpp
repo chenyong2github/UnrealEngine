@@ -55,7 +55,7 @@ namespace mu
 	//-------------------------------------------------------------------------------------------------
 	uint64 ASTOpImageMultiLayer::Hash() const
 	{
-		uint64 res = std::hash<OP_TYPE>()(GetOpType());
+		uint64 res = std::hash<OP_TYPE>()(OP_TYPE::IM_MULTILAYER);
 		hash_combine(res, base.child().get());
 		hash_combine(res, blend.child().get());
 		hash_combine(res, mask.child().get());
@@ -97,7 +97,7 @@ namespace mu
 		if (!linkedAddress)
 		{
 			OP::ImageMultiLayerArgs args;
-			FMemory::Memzero(&args, sizeof(args));
+			memset(&args, 0, sizeof(args));
 
 			args.blendType = (uint8)blendType;
 			args.blendTypeAlpha = (uint8)blendTypeAlpha;
@@ -112,8 +112,8 @@ namespace mu
 			}
 
 			linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
-			program.m_opAddress.Add((uint32)program.m_byteCode.Num());
-			AppendCode(program.m_byteCode, GetOpType());
+			program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
+			AppendCode(program.m_byteCode, OP_TYPE::IM_MULTILAYER);
 			AppendCode(program.m_byteCode, args);
 		}
 	}

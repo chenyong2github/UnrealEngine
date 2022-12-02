@@ -50,7 +50,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     const FImageFormatData& GetImageFormatData( EImageFormat format )
     {
-        check( format < EImageFormat::IF_COUNT );
+        check( uint8(format) < int8(EImageFormat::IF_COUNT) );
         return s_imageFormatData[ uint8(format) ];
     }
 
@@ -65,10 +65,9 @@ namespace mu
     Image::Image( uint32_t sizeX, uint32_t sizeY, uint32_t lods, EImageFormat format )
     {
 		MUTABLE_CPUPROFILER_SCOPE(NewImage)
-			LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
 
-        check(format != EImageFormat::IF_NONE);
-		check(format < EImageFormat::IF_COUNT);
+        check( format!= EImageFormat::IF_NONE );
+		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
 
         m_format = format;
         m_size = FImageSize( (uint16)sizeX, (uint16)sizeY );
@@ -76,8 +75,8 @@ namespace mu
         m_internalId = 0;
 
         const FImageFormatData& fdata = GetImageFormatData( format );
-        int32 PixelsPerBlock = fdata.m_pixelsPerBlockX*fdata.m_pixelsPerBlockY;
-        if (PixelsPerBlock)
+        int pixelsPerBlock = fdata.m_pixelsPerBlockX*fdata.m_pixelsPerBlockY;
+        if ( pixelsPerBlock )
         {
 			int32 DataSize = CalculateDataSize();
             m_data.SetNum( DataSize );
