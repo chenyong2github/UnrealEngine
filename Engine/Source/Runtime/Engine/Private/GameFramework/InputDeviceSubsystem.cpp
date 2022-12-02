@@ -96,31 +96,15 @@ public:
 ////////////////////////////////////////////////////////
 // FActiveDeviceProperty
 
-/** Active properties can just use the hash of their Property Device handle for a fast and unique lookup */
-uint32 GetTypeHash(const FActiveDeviceProperty& InProp)
-{
-	return InProp.PropertyHandle.GetTypeHash();
-}
-
 // The property handles are the only things that matter when comparing, they will always be unique.
-bool FActiveDeviceProperty::operator==(const FActiveDeviceProperty& Other) const
+bool UInputDeviceSubsystem::FActiveDeviceProperty::operator==(const UInputDeviceSubsystem::FActiveDeviceProperty& Other) const
 {
 	return PropertyHandle == Other.PropertyHandle;
 }
 
-bool FActiveDeviceProperty::operator!=(const FActiveDeviceProperty& Other) const
+bool UInputDeviceSubsystem::FActiveDeviceProperty::operator!=(const UInputDeviceSubsystem::FActiveDeviceProperty& Other) const
 {
 	return PropertyHandle != Other.PropertyHandle;
-}
-
-bool operator==(const FActiveDeviceProperty& ActiveProp, const FInputDevicePropertyHandle& Handle)
-{
-	return ActiveProp.PropertyHandle == Handle;
-}
-
-bool operator!=(const FActiveDeviceProperty& ActiveProp, const FInputDevicePropertyHandle& Handle)
-{
-	return ActiveProp.PropertyHandle != Handle;
 }
 
 ////////////////////////////////////////////////////////

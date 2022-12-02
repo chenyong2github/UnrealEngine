@@ -14,47 +14,6 @@ ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogInputDeviceProperties, Log, All);
 class UInputDeviceProperty;
 class APlayerController;
 
-/** Contains a pointer to an active device property and keeps track of how long it has been evaluated for */
-USTRUCT()
-struct ENGINE_API FActiveDeviceProperty
-{
-	GENERATED_BODY()
-
-	/** Active properties can just use the hash of their FInputDevicePropertyHandle for a fast and unique lookup */
-	ENGINE_API friend uint32 GetTypeHash(const FActiveDeviceProperty& InProp);
-
-	bool operator==(const FActiveDeviceProperty& Other) const;
-	bool operator!=(const FActiveDeviceProperty& Other) const;
-	ENGINE_API friend bool operator==(const FActiveDeviceProperty& ActiveProp, const FInputDevicePropertyHandle& Handle);
-	ENGINE_API friend bool operator!=(const FActiveDeviceProperty& ActiveProp, const FInputDevicePropertyHandle& Handle);
-	
-	/** The active device property */
-	UPROPERTY(Transient)
-	TObjectPtr<UInputDeviceProperty> Property = nullptr;
-
-	/** How long this property has been evaluated for. DeltaTime is added to this on tick */
-	double EvaluatedDuration = 0.0;
-
-	/** The platform user that is actively receiving this device property */
-	FPlatformUserId PlatformUser = PLATFORMUSERID_NONE;
-
-	/** The handle of this active property. */
-	FInputDevicePropertyHandle PropertyHandle = FInputDevicePropertyHandle::InvalidHandle;
-
-	/**
-	* If true, then when the InputDeviceProperty is done being evaluated and has fulfilled its duration, then 
-	* it will have it's Reset function called. Set this to false if you want your device property to stay 
-	* in it's ending state. 
-	*/
-	bool bRemoveAfterEvaluationTime = true;
-
-	/** If true, then this device property will ignore dilated delta time and use the Applications delta time instead */
-	bool bIgnoreTimeDilation = false;
-
-	/** If true, then this device property will be played even if the game world is paused. */
-	bool bPlayWhilePaused = false;
-};
-
 /** Parameters for the UInputDeviceSubsystem::SetDeviceProperty function */
 USTRUCT(BlueprintType)
 struct ENGINE_API FSetDevicePropertyParams
@@ -109,6 +68,56 @@ class ENGINE_API UInputDeviceSubsystem : public UEngineSubsystem, public FTickab
 	friend class FInputDeviceDebugTools;
 	
 	GENERATED_BODY()
+
+protected:
+
+	/** Contains a pointer to an active device property and keeps track of how long it has been evaluated for */
+	struct FActiveDeviceProperty
+	{		
+		/** Active properties can just use the hash of their FInputDevicePropertyHandle for a fast and unique lookup */
+		friend uint32 GetTypeHash(const UInputDeviceSubsystem::FActiveDeviceProperty& InProp)
+		{
+			return InProp.PropertyHandle.GetTypeHash();
+		}
+
+		friend bool operator==(const UInputDeviceSubsystem::FActiveDeviceProperty& ActiveProp, const FInputDevicePropertyHandle& Handle)
+		{
+			return ActiveProp.PropertyHandle == Handle;
+		}
+
+		friend bool operator!=(const UInputDeviceSubsystem::FActiveDeviceProperty& ActiveProp, const FInputDevicePropertyHandle& Handle)
+		{
+			return ActiveProp.PropertyHandle != Handle;
+		}
+
+		bool operator==(const UInputDeviceSubsystem::FActiveDeviceProperty& Other) const;
+		bool operator!=(const UInputDeviceSubsystem::FActiveDeviceProperty& Other) const;
+
+		/** The active device property */	
+		TObjectPtr<UInputDeviceProperty> Property = nullptr;
+
+		/** How long this property has been evaluated for. DeltaTime is added to this on tick */
+		double EvaluatedDuration = 0.0;
+
+		/** The platform user that is actively receiving this device property */
+		FPlatformUserId PlatformUser = PLATFORMUSERID_NONE;
+
+		/** The handle of this active property. */
+		FInputDevicePropertyHandle PropertyHandle = FInputDevicePropertyHandle::InvalidHandle;
+
+		/**
+		* If true, then when the InputDeviceProperty is done being evaluated and has fulfilled its duration, then
+		* it will have it's Reset function called. Set this to false if you want your device property to stay
+		* in it's ending state.
+		*/
+		bool bRemoveAfterEvaluationTime = true;
+
+		/** If true, then this device property will ignore dilated delta time and use the Applications delta time instead */
+		bool bIgnoreTimeDilation = false;
+
+		/** If true, then this device property will be played even if the game world is paused. */
+		bool bPlayWhilePaused = false;
+	};
 
 public:
 
@@ -205,8 +214,7 @@ protected:
 	/**
 	* Array of currently active input device properties that will be evaluated on tick
 	*/
-	UPROPERTY(Transient)
-	TSet<FActiveDeviceProperty> ActiveProperties;
+	TSet<UInputDeviceSubsystem::FActiveDeviceProperty> ActiveProperties;
 
 	/**
 	 * Set of property handles the properties that are currently pending manual removal.
