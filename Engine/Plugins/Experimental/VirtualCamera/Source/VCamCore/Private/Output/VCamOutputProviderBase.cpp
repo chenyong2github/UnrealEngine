@@ -154,10 +154,6 @@ void UVCamOutputProviderBase::CreateUMG()
 	UMGWidget->SetDisplayTypes(DisplayType, DisplayType, DisplayType);
 	UMGWidget->PostProcessDisplayType.bReceiveHardwareInput = true;
 
-	// The post process material created by EVPWidgetDisplayType::PostProcess should affect only our VCam, not the entire world.
-	// This allows you to have multiple virtual camera in the world affect different viewports.
-	UMGWidget->SetCustomPostProcessSettingsSource(TargetCamera.Get());
-
 #if WITH_EDITOR
 	UMGWidget->SetAllTargetViewports(GetTargetLevelViewport());
 #endif
@@ -179,6 +175,18 @@ void UVCamOutputProviderBase::ApplyOverrideResolutionForViewport(EVCamTargetView
 	if (const TSharedPtr<FSceneViewport> TargetSceneViewport = GetSceneViewport(Viewport))
 	{
 		TargetSceneViewport->SetFixedViewportSize(OverrideResolution.X, OverrideResolution.Y);
+	}
+}
+
+void UVCamOutputProviderBase::ReapplyOverrideResolution(EVCamTargetViewportID Viewport)
+{
+	if (bUseOverrideResolution)
+	{
+		ApplyOverrideResolutionForViewport(Viewport);
+	}
+	else
+	{
+		RestoreOverrideResolutionForViewport(Viewport);
 	}
 }
 
@@ -463,13 +471,9 @@ void UVCamOutputProviderBase::PostEditChangeProperty(FPropertyChangedEvent& Prop
 			}
 			ApplyOverrideResolutionForViewport(TargetViewport);
 		}
-		else if (PropertyName == NAME_OverrideResolution)
+		else if (PropertyName == NAME_OverrideResolution || PropertyName == NAME_bUseOverrideResolution)
 		{
-			ApplyOverrideResolutionForViewport(TargetViewport);
-		}
-		else if (PropertyName == NAME_bUseOverrideResolution)
-		{
-			RestoreOverrideResolutionForViewport(TargetViewport);
+			ReapplyOverrideResolution(TargetViewport);
 		}
 	}
 

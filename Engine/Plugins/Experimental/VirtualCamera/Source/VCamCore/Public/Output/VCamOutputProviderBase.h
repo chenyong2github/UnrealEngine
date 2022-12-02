@@ -136,6 +136,8 @@ protected:
 	/** Applies OverrideResolution to the passed in viewport - bUseOverrideResolution was already checked. */
 	void ApplyOverrideResolutionForViewport(EVCamTargetViewportID Viewport);
 
+	void ReapplyOverrideResolution(EVCamTargetViewportID Viewport);
+
 	void DisplayUMG();
 	void DestroyUMG();
 
