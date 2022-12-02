@@ -448,14 +448,9 @@ bool FMetalStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTarge
 		mtlpp::RenderPassDescriptor RenderPass = FMetalRenderPassDescriptorPool::Get().CreateDescriptor();
 	
 		// if we need to do queries, write to the supplied query buffer
-		if (IsFeatureLevelSupported(GMaxRHIShaderPlatform, ERHIFeatureLevel::ES3_1))
 		{
 			VisibilityResults = QueryBuffer;
 			RenderPass.SetVisibilityResultBuffer(QueryBuffer ? QueryBuffer->Buffer : nil);
-		}
-		else
-		{
-			VisibilityResults = NULL;
 		}
 		
 		if (QueryBuffer != VisibilityResults)

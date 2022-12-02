@@ -14,7 +14,6 @@
 #include "ShaderCore.h"
 #include "ShaderParameterUtils.h"
 #include "ShaderParameters.h"
-#include "DataDrivenShaderPlatformInfo.h"
 
 class FPointerTableBase;
 
@@ -27,11 +26,6 @@ public:
 		: FGlobalShader( Initializer )
 	{
 	}
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
-	}
 };
 
 class FHdrCustomResolve2xPS : public FGlobalShader
@@ -43,11 +37,6 @@ public:
 		: FGlobalShader( Initializer )
 	{
 		Tex.Bind(Initializer.ParameterMap, TEXT("Tex"), SPF_Mandatory);
-	}
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
 	}
 
 	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS)
@@ -75,11 +64,6 @@ public:
 		: FGlobalShader( Initializer )
 	{
 		Tex.Bind(Initializer.ParameterMap, TEXT("Tex"), SPF_Mandatory);
-	}
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
 	}
 
 	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS)
@@ -110,11 +94,6 @@ public:
 		Tex.Bind(Initializer.ParameterMap, TEXT("Tex"), SPF_Mandatory);
 	}
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
-	}
-
 	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS)
 	{
 		FRHIPixelShader* PixelShaderRHI = RHICmdList.GetBoundPixelShader();
@@ -142,11 +121,6 @@ public:
 		Tex.Bind(Initializer.ParameterMap, TEXT("Tex"), SPF_Mandatory);
 		FMaskTex.Bind(Initializer.ParameterMap, TEXT("FMaskTex"), SPF_Optional);
 	}
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
-	}	
 
 	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS, FRHIShaderResourceView* FMaskSRV)
 	{
@@ -179,11 +153,6 @@ public:
 		FMaskTex.Bind(Initializer.ParameterMap, TEXT("FMaskTex"), SPF_Optional);
 	}
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
-	}
-
 	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS, FRHIShaderResourceView* FMaskSRV)
 	{
 		FRHIPixelShader* PixelShaderRHI = RHICmdList.GetBoundPixelShader();
@@ -214,11 +183,6 @@ public:
 	{
 		Tex.Bind(Initializer.ParameterMap, TEXT("Tex"), SPF_Mandatory);
 		FMaskTex.Bind(Initializer.ParameterMap, TEXT("FMaskTex"), SPF_Optional);
-	}
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
 	}
 
 	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS, FRHIShaderResourceView* FMaskSRV)

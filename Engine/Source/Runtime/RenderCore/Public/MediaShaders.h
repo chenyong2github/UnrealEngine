@@ -159,12 +159,6 @@ class FMediaShadersVS
 	DECLARE_EXPORTED_SHADER_TYPE(FMediaShadersVS, Global, RENDERCORE_API);
 
 public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
-	}
-
 	/** Default constructor. */
 	FMediaShadersVS() { }
 
@@ -188,12 +182,6 @@ class FAYUVConvertPS
 	DECLARE_EXPORTED_SHADER_TYPE(FAYUVConvertPS, Global, RENDERCORE_API);
 
 public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
-	}
-
 	FAYUVConvertPS() { }
 
 	FAYUVConvertPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -215,12 +203,6 @@ class FBMPConvertPS
 	DECLARE_EXPORTED_SHADER_TYPE(FBMPConvertPS, Global, RENDERCORE_API);
 
 public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
-	}
-
 	FBMPConvertPS() { }
 
 	FBMPConvertPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -244,12 +226,6 @@ class FNV12ConvertPS
 	DECLARE_EXPORTED_SHADER_TYPE(FNV12ConvertPS, Global, RENDERCORE_API);
 
 public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
-	}
-
 	FNV12ConvertPS() { }
 
 	FNV12ConvertPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -274,11 +250,6 @@ class FNV12ConvertAsBytesPS
 
 public:
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
-	}
-
 	FNV12ConvertAsBytesPS() { }
 
 	FNV12ConvertAsBytesPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -302,12 +273,6 @@ class FNV21ConvertPS
 	DECLARE_EXPORTED_SHADER_TYPE(FNV21ConvertPS, Global, RENDERCORE_API);
 
 public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
-	}
-
 	FNV21ConvertPS() { }
 
 	FNV21ConvertPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -401,12 +366,6 @@ class FRGBConvertPS
 	DECLARE_EXPORTED_SHADER_TYPE(FRGBConvertPS, Global, RENDERCORE_API);
 
 public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
-	}
-
 	FRGBConvertPS() { }
 
 	FRGBConvertPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -433,12 +392,6 @@ class FYCbCrConvertPS
 	DECLARE_EXPORTED_SHADER_TYPE(FYCbCrConvertPS, Global, RENDERCORE_API);
 
 public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
-	}
-
 	FYCbCrConvertPS() { }
 
 	FYCbCrConvertPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -453,12 +406,6 @@ class FYCbCrConvertPS_4x4Matrix : public FYCbCrConvertPS
     DECLARE_EXPORTED_SHADER_TYPE(FYCbCrConvertPS_4x4Matrix, Global, RENDERCORE_API);
     
 public:
-    
-    static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-    {
-        return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
-    }
-    
     FYCbCrConvertPS_4x4Matrix() { }
     
     FYCbCrConvertPS_4x4Matrix(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -481,12 +428,6 @@ class FUYVYConvertPS
 	DECLARE_EXPORTED_SHADER_TYPE(FUYVYConvertPS, Global, RENDERCORE_API);
 
 public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
-	}
-
 	FUYVYConvertPS() { }
 
 	FUYVYConvertPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -509,12 +450,6 @@ class FYUVConvertPS
 	DECLARE_EXPORTED_SHADER_TYPE(FYUVConvertPS, Global, RENDERCORE_API);
 
 public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
-	}
-
 	FYUVConvertPS() { }
 
 	FYUVConvertPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -537,12 +472,6 @@ class FYUVv210ConvertPS
 	DECLARE_EXPORTED_SHADER_TYPE(FYUVv210ConvertPS, Global, RENDERCORE_API);
 
 public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
-	}
-
 	FYUVv210ConvertPS() { }
 
 	FYUVv210ConvertPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -564,12 +493,6 @@ class FYUVY416ConvertPS
 	DECLARE_EXPORTED_SHADER_TYPE(FYUVY416ConvertPS, Global, RENDERCORE_API);
 
 public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
-	}
-
 	FYUVY416ConvertPS() { }
 
 	FYUVY416ConvertPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -594,12 +517,6 @@ class FYUY2ConvertPS
 	DECLARE_EXPORTED_SHADER_TYPE(FYUY2ConvertPS, Global, RENDERCORE_API);
 
 public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
-	}
-
 	FYUY2ConvertPS() { }
 
 	FYUY2ConvertPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -624,12 +541,6 @@ class FYVYUConvertPS
 	DECLARE_EXPORTED_SHADER_TYPE(FYVYUConvertPS, Global, RENDERCORE_API);
 
 public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
-	}
-
 	FYVYUConvertPS() { }
 
 	FYVYUConvertPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -651,12 +562,6 @@ class FRGB8toY8ConvertPS
 	DECLARE_EXPORTED_SHADER_TYPE(FRGB8toY8ConvertPS, Global, RENDERCORE_API);
 
 public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
-	}
-
 	FRGB8toY8ConvertPS() { }
 
 	FRGB8toY8ConvertPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -676,12 +581,6 @@ class FReadTextureExternalPS
 	DECLARE_EXPORTED_SHADER_TYPE(FReadTextureExternalPS, Global, RENDERCORE_API);
 
 public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
-	}
-
 	FReadTextureExternalPS() { }
 
 	FReadTextureExternalPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -718,12 +617,6 @@ public:
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
-	}
-
 	UE_DEPRECATED(5.1, "SetParameters has been deprecated while moving to a RDG based pipeline. Please use AllocateAndSetParameters instead.")
 	void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> RGBATexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool LinearToSrgb)
 	{
@@ -737,7 +630,7 @@ public:
 /**
  * Pixel shader to convert RGB 10 bits to YUV v210
  */
-	class RENDERCORE_API FRGB10toYUVv210ConvertPS : public FGlobalShader
+class RENDERCORE_API FRGB10toYUVv210ConvertPS : public FGlobalShader
 {
 public:
 
@@ -752,12 +645,6 @@ public:
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
-	}
-
 	UE_DEPRECATED(5.1, "SetParameters has been deprecated while moving to a RDG based pipeline. Please use AllocateAndSetParameters instead.")
 	void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> RGBATexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool LinearToSrgb)
 	{
@@ -790,12 +677,6 @@ public:
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		FPermutationDomain PermutationVector(Parameters.PermutationId);
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
-	}
-
 	UE_DEPRECATED(5.1, "SetParameters has been deprecated while moving to a RDG based pipeline. Please use AllocateAndSetParameters instead.")
 	void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> RGBATexture)
 	{

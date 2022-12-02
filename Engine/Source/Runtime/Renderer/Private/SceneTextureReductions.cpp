@@ -83,7 +83,7 @@ class FHZBBuildCS : public FGlobalShader
 			return false;
 		}
 
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
+		return true;
 	}
 };
 

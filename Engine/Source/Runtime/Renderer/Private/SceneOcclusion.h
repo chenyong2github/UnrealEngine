@@ -46,8 +46,6 @@ class FOcclusionQueryVS : public FGlobalShader
 {
 	DECLARE_SHADER_TYPE(FOcclusionQueryVS,Global);
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1); }
-
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		static auto* MobileUseHWsRGBEncodingCVAR = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.UseHWsRGBEncoding"));
@@ -106,8 +104,6 @@ class FOcclusionQueryPS : public FGlobalShader
 {
 	DECLARE_SHADER_TYPE(FOcclusionQueryPS, Global);
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1); }
-
 	FOcclusionQueryPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
 		FGlobalShader(Initializer) {}
 	FOcclusionQueryPS() {}

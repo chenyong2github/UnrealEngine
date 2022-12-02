@@ -95,7 +95,7 @@ namespace FXConsoleVariables
  */
 inline bool SupportsGPUParticles(EShaderPlatform Platform)
 {
-	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::ES3_1) || IsPCPlatform(Platform); // For editor mobile preview 
+	return true; // For editor mobile preview 
 }
 
 /*

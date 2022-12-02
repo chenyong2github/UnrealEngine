@@ -1373,7 +1373,6 @@ void FMetalContext::SetRenderPassInfo(const FRHIRenderPassInfo& RenderTargetsInf
 #endif
 	
 	bool bSet = false;
-	if (IsFeatureLevelSupported( GMaxRHIShaderPlatform, ERHIFeatureLevel::ES3_1 ))
 	{
 		// @todo Improve the way we handle binding a dummy depth/stencil so we can get pure UAV raster operations...
 		const bool bNeedsDepthStencilForUAVRaster = RenderTargetsInfo.GetNumColorRenderTargets() == 0 && !RenderTargetsInfo.DepthStencilRenderTarget.DepthStencilTarget;

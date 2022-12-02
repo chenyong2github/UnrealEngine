@@ -62,7 +62,7 @@ inline bool IsParticleCollisionModeSupported(EShaderPlatform InPlatform, EPartic
 	switch (InCollisionShaderMode)
 	{
 	case PCM_None:
-		return IsFeatureLevelSupported(InPlatform, ERHIFeatureLevel::ES3_1);
+		return true;
 	case PCM_DepthBuffer:
 		return IsFeatureLevelSupported(InPlatform, ERHIFeatureLevel::SM5);
 	case PCM_DistanceField:
