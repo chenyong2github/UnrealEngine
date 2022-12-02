@@ -21,7 +21,7 @@ bool UStateTreeConditionBlueprintBase::TestCondition(FStateTreeExecutionContext&
 {
 	if (bHasTestCondition)
 	{
-		FScopedCurrentContext(*this, Context);
+		FScopedCurrentContext ScopedContext(*this, Context);
 		return ReceiveTestCondition();
 	}
 	return false;

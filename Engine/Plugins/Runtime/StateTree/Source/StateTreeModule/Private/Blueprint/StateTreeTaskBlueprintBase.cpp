@@ -29,7 +29,7 @@ EStateTreeRunStatus UStateTreeTaskBlueprintBase::EnterState(FStateTreeExecutionC
 {
 	if (bHasEnterState)
 	{
-		FScopedCurrentContext(*this, Context);
+		FScopedCurrentContext ScopedContext(*this, Context);
 		return ReceiveEnterState(Transition);
 	}
 	return EStateTreeRunStatus::Running;
@@ -39,7 +39,7 @@ void UStateTreeTaskBlueprintBase::ExitState(FStateTreeExecutionContext& Context,
 {
 	if (bHasExitState)
 	{
-		FScopedCurrentContext(*this, Context);
+		FScopedCurrentContext ScopedContext(*this, Context);
 		ReceiveExitState(Transition);
 	}
 }
@@ -48,7 +48,7 @@ void UStateTreeTaskBlueprintBase::StateCompleted(FStateTreeExecutionContext& Con
 {
 	if (bHasStateCompleted)
 	{
-		FScopedCurrentContext(*this, Context);
+		FScopedCurrentContext ScopedContext(*this, Context);
 		ReceiveStateCompleted(CompletionStatus, CompletedActiveStates);
 	}
 }
@@ -57,7 +57,7 @@ EStateTreeRunStatus UStateTreeTaskBlueprintBase::Tick(FStateTreeExecutionContext
 {
 	if (bHasTick)
 	{
-		FScopedCurrentContext(*this, Context);
+		FScopedCurrentContext ScopedContext(*this, Context);
 		return ReceiveTick(DeltaTime);
 	}
 	return EStateTreeRunStatus::Running;

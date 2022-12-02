@@ -10,10 +10,17 @@
 
 UWorld* UStateTreeNodeBlueprintBase::GetWorld() const
 {
-	// The items are duplicated as the StateTreeExecution context as outer, so this should be essentially the same as GetWorld() on StateTree context.
+	// The items are duplicated as the State Tree execution context as outer, so this should be essentially the same as GetWorld() on StateTree context.
 	// The CDO is used by the BP editor to check for certain functionality, make it return nullptr so that the GetWorld() passes as overridden. 
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
+		if (CurrentContext != nullptr)
+		{
+			if (CurrentContext->GetOwner() != nullptr)
+			{
+				return CurrentContext->GetOwner()->GetWorld();
+			}
+		}
 		if (UObject* Outer = GetOuter())
 		{
 			return Outer->GetWorld();

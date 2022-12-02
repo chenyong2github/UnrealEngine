@@ -22,7 +22,7 @@ void UStateTreeEvaluatorBlueprintBase::TreeStart(FStateTreeExecutionContext& Con
 {
 	if (bHasTreeStart)
 	{
-		FScopedCurrentContext(*this, Context);
+		FScopedCurrentContext ScopedContext(*this, Context);
 		ReceiveTreeStart();
 	}
 }
@@ -31,7 +31,7 @@ void UStateTreeEvaluatorBlueprintBase::TreeStop(FStateTreeExecutionContext& Cont
 {
 	if (bHasTreeStop)
 	{
-		FScopedCurrentContext(*this, Context);
+		FScopedCurrentContext ScopedContext(*this, Context);
 		ReceiveTreeStop();
 	}
 }
@@ -40,7 +40,7 @@ void UStateTreeEvaluatorBlueprintBase::Tick(FStateTreeExecutionContext& Context,
 {
 	if (bHasTick)
 	{
-		FScopedCurrentContext(*this, Context);
+		FScopedCurrentContext ScopedContext(*this, Context);
 		ReceiveTick(DeltaTime);
 	}
 }
