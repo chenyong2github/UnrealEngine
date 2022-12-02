@@ -2703,7 +2703,7 @@ bool FSceneRenderer::RenderVolumetricCloud(
 					CloudRC.NoiseFrameIndexModPattern = VRT.GetNoiseFrameIndexModPattern();
 
 					check(VRT.GetMode() != 0 || CloudRC.bCloudDebugViewModeEnabled || HalfResolutionDepthCheckerboardMinMaxTexture);
-					CloudRC.SceneDepthZ = (VRT.GetMode() == 0 || VRT.GetMode() == 1 || VRT.GetMode() == 3) ? HalfResolutionDepthCheckerboardMinMaxTexture : SceneDepthZ;
+					CloudRC.SceneDepthZ = (VRT.GetMode() == 0 || VRT.GetMode() == 1) ? HalfResolutionDepthCheckerboardMinMaxTexture : SceneDepthZ;
 					CloudRC.SceneDepthMinAndMax = bShouldVolumetricCloudTraceWithMinMaxDepth ? QuarterResolutionDepthMinMaxTexture : SceneDepthZ;
 				}
 				else

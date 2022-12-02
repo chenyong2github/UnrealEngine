@@ -888,7 +888,8 @@ TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBas
 		BasePassParameters.VolumetricCloudDepthSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		if (IsVolumetricRenderTargetEnabled() && View.ViewState)
 		{
-			if (View.ViewState->VolumetricCloudRenderTarget.GetMode() == 1)
+			int32 VRTMode = View.ViewState->VolumetricCloudRenderTarget.GetMode();
+			if (VRTMode == 1 || VRTMode == 3)
 			{
 				FRDGTextureRef VolumetricReconstructRT = View.ViewState->VolumetricCloudRenderTarget.GetOrCreateVolumetricTracingRT(GraphBuilder);
 				if (VolumetricReconstructRT)
