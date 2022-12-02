@@ -175,6 +175,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skeletal Meshes", meta = (SubCategory = "Build"))
 	float MorphThresholdPosition = 0.015f;
 
+	/**
+	 * The maximum number of bone influences to allow each vertex in this mesh to use.
+	 * If set higher than the limit determined by the project settings, it has no effect.
+	 * If set to 0, the value is taken from the DefaultBoneInfluenceLimit project setting.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Skeletal Meshes", meta = (SubCategory = "Build"))
+	int32 BoneInfluenceLimit = 0;
+
 	virtual void AdjustSettingsForContext(EInterchangePipelineContext ImportType, TObjectPtr<UObject> ReimportAsset) override;
 
 	virtual void PreDialogCleanup(const FName PipelineStackName) override;

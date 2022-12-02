@@ -503,6 +503,7 @@ UInterchangeSkeletalMeshFactoryNode* UInterchangeGenericMeshPipeline::CreateSkel
 	SkeletalMeshFactoryNode->SetCustomThresholdTangentNormal(ThresholdTangentNormal);
 	SkeletalMeshFactoryNode->SetCustomThresholdUV(ThresholdUV);
 	SkeletalMeshFactoryNode->SetCustomMorphThresholdPosition(MorphThresholdPosition);
+	SkeletalMeshFactoryNode->SetCustomBoneInfluenceLimit(BoneInfluenceLimit);
 
 	return SkeletalMeshFactoryNode;
 }
