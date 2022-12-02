@@ -118,7 +118,7 @@ public:
 #endif
 
 	//possible bindingID
-	UPROPERTY(EditAnywhere, Category = "Binding")
+	UPROPERTY(BlueprintReadOnly, Category = "Binding")
 	FMovieSceneObjectBindingID ConstraintBindingID;
 protected:
 	FHandleModifiedEvent OnHandleModified;
