@@ -357,6 +357,9 @@ TArray<TSharedRef<FInternetAddr>> ISocketSubsystem::GetLocalBindAddresses()
 bool ISocketSubsystem::GetLocalAdapterAddresses(TArray<TSharedPtr<FInternetAddr>>& OutAddresses)
 {
 	FString HostName;
+
+	UE_LOG(LogSockets, Warning, TEXT("Falling back to generic GetLocalAdapterAddresses implementation. Consider implementing a Platform specific version."));
+
 	// Attempt to get a hostname so that we can look it up in order to get an idea of adapters that we might have 
 	// (or the addresses that are tied to us). This is a fallback implementation for platforms that do not have this implemented.
 	// Platforms are encouraged to implement this themselves.

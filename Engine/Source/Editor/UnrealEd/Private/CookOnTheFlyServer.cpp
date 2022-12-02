@@ -652,6 +652,10 @@ bool UCookOnTheFlyServer::StartCookOnTheFly(FCookOnTheFlyStartupOptions InCookOn
 		{
 			UE_LOG(LogCook, Display, TEXT("Unreal Network File Server is ready for client connections on %s!"), *ListenAddresses[0]->ToString(true));
 		}
+		else
+		{
+			UE_LOG(LogCook, Fatal, TEXT("Unable to get any ListenAddresses for Unreal Network file server!"));
+		}
 	}
 	else
 	{
