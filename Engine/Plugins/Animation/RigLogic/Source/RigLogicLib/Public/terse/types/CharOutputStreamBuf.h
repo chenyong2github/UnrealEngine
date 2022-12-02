@@ -29,7 +29,7 @@ class CharOutputStreamBuf : public std::streambuf {
         }
 
         ~CharOutputStreamBuf() {
-            sync();
+            CharOutputStreamBuf::sync();
         }
 
         std::streamsize xsputn(const CharType* source, std::streamsize size) override {
