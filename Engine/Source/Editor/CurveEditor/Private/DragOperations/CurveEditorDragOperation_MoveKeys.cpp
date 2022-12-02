@@ -130,7 +130,9 @@ void FCurveEditorDragOperation_MoveKeys::OnDrag(FVector2D InitialPosition, FVect
 		}
 
 		Curve->SetKeyPositions(KeyData.Handles, NewKeyPositionScratch, EPropertyChangeType::Interactive);
-		KeyData.LastDraggedKeyPositions = NewKeyPositionScratch;
+
+		// Make sure the last dragged key positions are up to date
+		Curve->GetKeyPositions(KeyData.Handles, KeyData.LastDraggedKeyPositions);
 	}
 }
 
@@ -196,7 +198,7 @@ void FCurveEditorDragOperation_MoveKeys::OnEndDrag(FVector2D InitialPosition, FV
 					{
 						if (KeyInRange != MaxKeyHandle)
 						{
-							KeysToRemove.Add(KeyInRange);
+							KeysToRemove.AddUnique(KeyInRange);
 						}
 					}
 				}
