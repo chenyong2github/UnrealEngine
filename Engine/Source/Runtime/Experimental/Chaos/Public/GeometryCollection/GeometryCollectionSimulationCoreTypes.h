@@ -281,6 +281,7 @@ struct FSimulationParameters
 	bool Simulating;
 
 	FTransform WorldTransform;
+	FTransform PrevWorldTransform;
 
 	bool EnableClustering;
 	int32 ClusterGroupIndex;
