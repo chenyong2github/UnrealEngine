@@ -35,53 +35,45 @@ namespace {
 	}
 }
 
-void AddDrawOCIOScreenPass(
-	FRHICommandListImmediate& InRHICmdList
-	, const ERHIFeatureLevel::Type InFeatureLevel
-	, FOpenColorIOTransformResource* InShaderResource
-	, const TSortedMap<int32, FTextureResource*>& InTextureResources
-	, FTextureRHIRef InputSpaceColorTexture
-	, FTextureRHIRef OutputSpaceColorTexture
-	, FIntPoint OutputResolution)
+// static
+void FOpenColorIORendering::AddPass_RenderThread(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	const FScreenPassTexture& Input,
+	const FScreenPassRenderTarget& Output,
+	const FOpenColorIORenderPassResources& InPassResource,
+	float InGamma)
 {
 	check(IsInRenderingThread());
 
-	FRDGBuilder GraphBuilder(InRHICmdList);
+	const FScreenPassTextureViewport InputViewport(Input);
+	const FScreenPassTextureViewport OutputViewport(Output);
 
-	FRDGTextureRef InputTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(InputSpaceColorTexture->GetTexture2D(), TEXT("OCIOInputTexture")));
-	FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(OutputSpaceColorTexture->GetTexture2D(), TEXT("OCIORenderTargetTexture")));
-	FScreenPassTextureViewport Viewport = FScreenPassTextureViewport(OutputTexture);
-	FScreenPassRenderTarget ScreenPassRenderTarget = FScreenPassRenderTarget(OutputTexture, FIntRect(FIntPoint::ZeroValue, OutputResolution), ERenderTargetLoadAction::EClear);
-	FViewInfo DummyView = CreateDummyViewInfo(ScreenPassRenderTarget.ViewRect);
-
-	if (InShaderResource != nullptr)
+	if (InPassResource.ShaderResource != nullptr)
 	{
-		TShaderRef<FOpenColorIOPixelShader> OCIOPixelShader = InShaderResource->GetShader<FOpenColorIOPixelShader>();
+		TShaderRef<FOpenColorIOPixelShader> OCIOPixelShader = InPassResource.ShaderResource->GetShader<FOpenColorIOPixelShader>();
 
 		FOpenColorIOPixelShaderParameters* Parameters = GraphBuilder.AllocParameters<FOpenColorIOPixelShaderParameters>();
-		Parameters->InputTexture = InputTexture;
+		Parameters->InputTexture = Input.Texture;
 		Parameters->InputTextureSampler = TStaticSamplerState<>::GetRHI();
-		OpenColorIOBindTextureResources(Parameters, InTextureResources);
-		// Set Gamma to 1., since we do not have any display parameters or requirement for Gamma.
-		Parameters->Gamma = 1.0;
-		Parameters->RenderTargets[0] = ScreenPassRenderTarget.GetRenderTargetBinding();
+		OpenColorIOBindTextureResources(Parameters, InPassResource.TextureResources);
+		Parameters->Gamma = InGamma;
+		Parameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 
-		AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("DrawOCIOScreenPass"), DummyView, Viewport, Viewport, OCIOPixelShader, Parameters);
+		AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("OpenColorIOPass"), View, OutputViewport, InputViewport, OCIOPixelShader, Parameters);
 	}
 	else
 	{
-		TShaderMapRef<FOpenColorIOErrorPassPS> OCIOPixelShader(GetGlobalShaderMap(InFeatureLevel));
-
+		// Fallback error pass, printing OCIO error message indicators across the viewport. (Helpful to quickly identify an OCIO config issue on nDisplay for example.)
+		TShaderMapRef<FOpenColorIOErrorPassPS> OCIOPixelShader(View.ShaderMap);
 		FOpenColorIOErrorShaderParameters* Parameters = GraphBuilder.AllocParameters<FOpenColorIOErrorShaderParameters>();
-		Parameters->InputTexture = InputTexture;
+		Parameters->InputTexture = Input.Texture;
 		Parameters->InputTextureSampler = TStaticSamplerState<>::GetRHI();
 		Parameters->MiniFontTexture = OpenColorIOGetMiniFontTexture();
-		Parameters->RenderTargets[0] = ScreenPassRenderTarget.GetRenderTargetBinding();
+		Parameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 
-		AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("DrawOCIOErrorScreenPass"), DummyView, Viewport, Viewport, OCIOPixelShader, Parameters);
+		AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("OpenColorIOErrorPass"), View, OutputViewport, InputViewport, OCIOPixelShader, Parameters);
 	}
-
-	GraphBuilder.Execute();
 }
 
 // static
@@ -133,16 +125,24 @@ bool FOpenColorIORendering::ApplyColorTransform(UWorld* InWorld, const FOpenColo
 	}
 	
 	ENQUEUE_RENDER_COMMAND(ProcessColorSpaceTransform)(
-		[FeatureLevel, InputResource, OutputResource, ShaderResource, TextureResources = MoveTemp(TransformTextureResources)](FRHICommandListImmediate& RHICmdList)
+		[InputResource, OutputResource, ShaderResource, TextureResources = MoveTemp(TransformTextureResources)](FRHICommandListImmediate& RHICmdList)
 		{
-			AddDrawOCIOScreenPass(
-				RHICmdList,
-				FeatureLevel,
-				ShaderResource,
-				TextureResources,
-				InputResource->TextureRHI,
-				OutputResource->TextureRHI,
-				FIntPoint(OutputResource->GetSizeX(), OutputResource->GetSizeY()));
+			FRDGBuilder GraphBuilder(RHICmdList);
+
+			FRDGTextureRef InputTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(InputResource->TextureRHI, TEXT("OCIOInputTexture")));
+			FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(OutputResource->TextureRHI, TEXT("OCIORenderTargetTexture")));
+			FIntPoint  OutputResolution = FIntPoint(OutputResource->GetSizeX(), OutputResource->GetSizeY());
+			FScreenPassRenderTarget Output = FScreenPassRenderTarget(OutputTexture, FIntRect(FIntPoint::ZeroValue, OutputResolution), ERenderTargetLoadAction::EClear);
+
+			AddPass_RenderThread(
+				GraphBuilder,
+				CreateDummyViewInfo(Output.ViewRect),
+				FScreenPassTexture(InputTexture),
+				Output,
+				FOpenColorIORenderPassResources{ ShaderResource, TextureResources},
+				1.0f); // Set Gamma to 1., since we do not have any display parameters or requirement for Gamma.
+
+			GraphBuilder.Execute();
 		}
 	);
 

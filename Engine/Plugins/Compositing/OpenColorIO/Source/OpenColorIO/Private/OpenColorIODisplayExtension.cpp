@@ -8,15 +8,9 @@
 #include "OpenColorIOColorTransform.h"
 #include "OpenColorIODisplayManager.h"
 #include "OpenColorIOModule.h"
-#include "SceneView.h"
 
-#include "GlobalShader.h"
 #include "OpenColorIOShader.h"
-#include "PipelineStateCache.h"
-#include "RenderTargetPool.h"
 #include "Shader.h"
-#include "ShaderParameters.h"
-#include "ShaderParameterStruct.h"
 
 #include "RHI.h"
 #include "SceneView.h"
@@ -125,40 +119,19 @@ FScreenPassTexture FOpenColorIODisplayExtension::PostProcessPassAfterTonemap_Ren
 		Output = FScreenPassRenderTarget::CreateFromInput(GraphBuilder, SceneColor, ViewInfo.GetOverwriteLoadAction(), TEXT("OCIORenderTarget"));
 	}
 
-	const FScreenPassTextureViewport InputViewport(SceneColor);
-	const FScreenPassTextureViewport OutputViewport(Output);
+	const float EngineDisplayGamma = View.Family->RenderTarget->GetDisplayGamma();
+	// There is a special case where post processing and tonemapper are disabled. In this case tonemapper applies a static display Inverse of Gamma which defaults to 2.2.
+	// In the case when Both PostProcessing and ToneMapper are disabled we apply gamma manually. In every other case we apply inverse gamma before applying OCIO.
+	float DisplayGamma = (View.Family->EngineShowFlags.Tonemapper == 0) || (View.Family->EngineShowFlags.PostProcessing == 0) ? DefaultDisplayGamma : DefaultDisplayGamma / EngineDisplayGamma;
 
-	if (CachedResourcesRenderThread.ShaderResource)
-	{
-		TShaderRef<FOpenColorIOPixelShader> OCIOPixelShader = CachedResourcesRenderThread.ShaderResource->GetShader<FOpenColorIOPixelShader>();
-
-		const float DisplayGamma = View.Family->RenderTarget->GetDisplayGamma();
-
-		FOpenColorIOPixelShaderParameters* Parameters = GraphBuilder.AllocParameters<FOpenColorIOPixelShaderParameters>();
-		Parameters->InputTexture = SceneColor.Texture;
-		Parameters->InputTextureSampler = TStaticSamplerState<>::GetRHI();
-		OpenColorIOBindTextureResources(Parameters, CachedResourcesRenderThread.TextureResources);
-
-		// There is a special case where post processing and tonemapper are disabled. In this case tonemapper applies a static display Inverse of Gamma which defaults to 2.2.
-		// In the case when Both PostProcessing and ToneMapper are disabled we apply gamma manually. In every other case we apply inverse gamma before applying OCIO.
-		Parameters->Gamma = (View.Family->EngineShowFlags.Tonemapper == 0) || (View.Family->EngineShowFlags.PostProcessing == 0) ? DefaultDisplayGamma : DefaultDisplayGamma / DisplayGamma;
-		Parameters->RenderTargets[0] = Output.GetRenderTargetBinding();
-
-		AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("OCIODisplayLook"), ViewInfo, OutputViewport, InputViewport, OCIOPixelShader, Parameters);
-	}
-	else
-	{
-		// Fallback error pass, printing OCIO error message indicators across the viewport. (Helpful to quickly identify an OCIO config issue on nDisplay for example.)
-		TShaderMapRef<FOpenColorIOErrorPassPS> OCIOPixelShader(ViewInfo.ShaderMap);
-		FOpenColorIOErrorShaderParameters* Parameters = GraphBuilder.AllocParameters<FOpenColorIOErrorShaderParameters>();
-		Parameters->InputTexture = SceneColor.Texture;
-		Parameters->InputTextureSampler = TStaticSamplerState<>::GetRHI();
-		Parameters->MiniFontTexture = OpenColorIOGetMiniFontTexture();
-		Parameters->RenderTargets[0] = Output.GetRenderTargetBinding();
-
-		AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("OCIODisplayLookError"), ViewInfo, OutputViewport, InputViewport, OCIOPixelShader, Parameters);
-	}
-
+	FOpenColorIORendering::AddPass_RenderThread(
+		GraphBuilder,
+		ViewInfo,
+		SceneColor,
+		Output,
+		CachedResourcesRenderThread,
+		DisplayGamma
+	);
 
 	return MoveTemp(Output);
 }

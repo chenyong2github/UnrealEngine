@@ -6,13 +6,12 @@
 
 #include "CoreMinimal.h"
 #include "OpenColorIOColorSpace.h"
+#include "OpenColorIORendering.h"
 #include "UObject/GCObject.h"
 
 
 class FViewportClient;
-class FOpenColorIOTransformResource;
 class FSceneViewFamily;
-class FTextureResource;
 
 #define OPENCOLORIO_SCENE_VIEW_EXTENSION_PRIORITY 100
 
@@ -62,14 +61,8 @@ public:
 	static float DefaultDisplayGamma;
 private:
 
-	struct FCachedRenderResource
-	{
-		FOpenColorIOTransformResource* ShaderResource = nullptr;
-		TSortedMap<int32, FTextureResource*> TextureResources;
-	};
-
-	/** Cached resources required to apply conversion for render thread */
-	FCachedRenderResource CachedResourcesRenderThread;
+	/** Cached pass resources required to apply conversion for render thread */
+	FOpenColorIORenderPassResources CachedResourcesRenderThread;
 
 	/** Configuration to apply during post render callback */
 	FOpenColorIODisplayConfiguration DisplayConfiguration;
