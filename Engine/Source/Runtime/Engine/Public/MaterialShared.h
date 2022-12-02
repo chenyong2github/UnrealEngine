@@ -984,6 +984,7 @@ public:
 
 	/** Appends string representations of this Id to a key string. */
 	void AppendKeyString(FString& KeyString) const;
+	void AppendStaticParametersString(FString& ParamsString) const;
 
 	const TArray<FStaticSwitchParameter> &GetStaticSwitchParameters() const 					{ return StaticSwitchParameters; }
 	const TArray<FStaticComponentMaskParameter> &GetStaticComponentMaskParameters() const 		{ return StaticComponentMaskParameters; }

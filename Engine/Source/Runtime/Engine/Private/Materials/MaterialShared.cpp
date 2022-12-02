@@ -2699,7 +2699,7 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 FString FMaterial::GetUniqueAssetName(EShaderPlatform Platform, const FMaterialShaderMapId& ShaderMapId) const
 {
 	FString ToHash = GetAssetPath().GetPlainNameString();
-	ShaderMapId.AppendKeyString(ToHash);
+	ShaderMapId.AppendStaticParametersString(ToHash);
 	uint64 Hash = CityHash64((const char*)*ToHash, ToHash.Len());
 	return FString::Printf(TEXT("%s_%llx"), *GetAssetName(), Hash);
 }

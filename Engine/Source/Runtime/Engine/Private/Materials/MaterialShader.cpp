@@ -1010,6 +1010,22 @@ void FMaterialShaderMapId::UpdateFromParameterSet(const FStaticParameterSet& Sta
 
 uint32 GetTypeHash(FPlatformTypeLayoutParameters Params) { return HashCombine(Params.Flags, Params.MaxFieldAlignment); }
 
+void FMaterialShaderMapId::AppendStaticParametersString(FString& ParamsString) const
+{
+	for (const FStaticSwitchParameter& StaticSwitchParameter : StaticSwitchParameters)
+	{
+		StaticSwitchParameter.AppendKeyString(ParamsString);
+	}
+	for (const FStaticComponentMaskParameter& StaticComponentMaskParameter : StaticComponentMaskParameters)
+	{
+		StaticComponentMaskParameter.AppendKeyString(ParamsString);
+	}
+	for (const FStaticTerrainLayerWeightParameter& StaticTerrainLayerWeightParameter : TerrainLayerWeightParameters)
+	{
+		StaticTerrainLayerWeightParameter.AppendKeyString(ParamsString);
+	}
+}
+
 void FMaterialShaderMapId::AppendKeyString(FString& KeyString) const
 {
 	check(IsContentValid());
@@ -1026,18 +1042,8 @@ void FMaterialShaderMapId::AppendKeyString(FString& KeyString) const
 
 	LayoutParams.AppendKeyString(KeyString);
 
-	for (const FStaticSwitchParameter& StaticSwitchParameter : StaticSwitchParameters)
-	{
-		StaticSwitchParameter.AppendKeyString(KeyString);
-	}
-	for (const FStaticComponentMaskParameter& StaticComponentMaskParameter : StaticComponentMaskParameters)
-	{
-		StaticComponentMaskParameter.AppendKeyString(KeyString);
-	}
-	for (const FStaticTerrainLayerWeightParameter& StaticTerrainLayerWeightParameter : TerrainLayerWeightParameters)
-	{
-		StaticTerrainLayerWeightParameter.AppendKeyString(KeyString);
-	}
+	AppendStaticParametersString(KeyString);
+
 	if (MaterialLayersId)
 	{
 		MaterialLayersId->AppendKeyString(KeyString);
