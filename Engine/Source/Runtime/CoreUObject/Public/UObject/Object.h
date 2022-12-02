@@ -313,7 +313,7 @@ public:
 #endif
 
 	/**
-	 * Called to defer loading a subobject to its top-level container object. Usefull with the package override
+	 * Called to defer loading a subobject to its top-level container object. Useful with the package override
 	 * feature, where an object might not be saved in the same package as its outer, especially if the the top-level
 	 * object does lazy loading of these objects.
 	 * 
