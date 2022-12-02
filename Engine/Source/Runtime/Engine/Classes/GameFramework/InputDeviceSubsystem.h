@@ -21,25 +21,17 @@ struct ENGINE_API FSetDevicePropertyParams
 	GENERATED_BODY()
 
 	FSetDevicePropertyParams();
-
-	FSetDevicePropertyParams(TSubclassOf<UInputDeviceProperty> InPropertyClass, const FPlatformUserId InUserId, const bool bInRemoveAfterEvaluationTime = true);
-	
-	/** The device property to set */
-	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "Input Devices")
-	TSubclassOf<UInputDeviceProperty> DevicePropertyClass;
 	
 	/** The Platform User whose device's should receive the device property */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input Devices")
 	FPlatformUserId UserId;
 
 	/**
-	* If true, then when the InputDeviceProperty is done being evaluated and has fulfilled its duration, then
-	* it will have it's Reset function called and be removed as an active property. 
-	* 
-	* Set this to false if you want your device property to keep being applied without regards to it's duration.
+	* If true, then the input device property will not be removed after it's evaluation time has completed.
+	* Instead, it will remain active until manually removed with a RemoveDeviceProperty call.
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input Devices")
-	bool bRemoveAfterEvaluationTime = true;
+	bool bLooping = false;
 
 	/** If true, then this device property will ignore dilated delta time and use the Applications delta time instead */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input Devices")
@@ -106,11 +98,10 @@ protected:
 		FInputDevicePropertyHandle PropertyHandle = FInputDevicePropertyHandle::InvalidHandle;
 
 		/**
-		* If true, then when the InputDeviceProperty is done being evaluated and has fulfilled its duration, then
-		* it will have it's Reset function called. Set this to false if you want your device property to stay
-		* in it's ending state.
+		* If true, then the input device property will not be removed after it's evaluation time has completed.
+		* Instead, it will remain active until manually removed with a RemoveDeviceProperty call.
 		*/
-		bool bRemoveAfterEvaluationTime = true;
+		bool bLooping = false;
 
 		/** If true, then this device property will ignore dilated delta time and use the Applications delta time instead */
 		bool bIgnoreTimeDilation = false;
@@ -144,10 +135,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Input Devices")
 	static APlayerController* GetPlayerControllerFromInputDevice(const FInputDeviceId DeviceId);
 
-	/** Set the given device property, which will start the evaluation and application of it to the given platform user. */
-	UFUNCTION(BlueprintCallable, Category = "Input Devices", meta = (AutoCreateRefTerm = "Params"))
-	FInputDevicePropertyHandle SetDeviceProperty(const FSetDevicePropertyParams& Params);
+	/**
+	 * Starts tracking the given device property as an "Active" property. This means that the property will be evaluted and applied to its platform user
+	 *
+	 * NOTE: This does NOT make a new instance of the given property. If you pass in the same object before it is completely
+	 * evaluated, then you see undesired effects.
+	 */
+	FInputDevicePropertyHandle ActivateDeviceProperty(UInputDeviceProperty* Property, const FSetDevicePropertyParams& Params);
 
+	/** Spawn a new instance of the given device property class and activate it. */
+	UFUNCTION(BlueprintCallable, Category = "Input Devices", meta = (AutoCreateRefTerm = "Params", ReturnDisplayName = "Device Property Handle"))
+	FInputDevicePropertyHandle ActivateDevicePropertyOfClass(TSubclassOf<UInputDeviceProperty> PropertyClass, const FSetDevicePropertyParams& Params);
+	
 	/** Returns a pointer to the active input device property with the given handle. Returns null if the property doesn't exist */
 	UFUNCTION(BlueprintCallable, Category = "Input Devices", meta=(ReturnDisplayName="Device Property"))
 	UInputDeviceProperty* GetActiveDeviceProperty(const FInputDevicePropertyHandle Handle) const;
@@ -155,6 +154,10 @@ public:
 	/** Returns true if the property associated with the given handle is currently active, and it is not pending removal */
 	UFUNCTION(BlueprintCallable, Category = "Input Devices", meta = (ReturnDisplayName = "Is Property Active"))
 	bool IsPropertyActive(const FInputDevicePropertyHandle Handle) const;
+	
+	/** Returns true if the given UInputDeviceProperty object is already being evaluated. */
+	//UFUNCTION(BlueprintCallable, Category = "Input Devices", meta = (ReturnDisplayName = "Is Property Active"))
+	//bool IsDevicePropertyActive(UInputDeviceProperty* Property) const;
 
 	/**
 	* Remove a single device property based on it's handle
@@ -212,7 +215,7 @@ protected:
 #endif
 	
 	/**
-	* Array of currently active input device properties that will be evaluated on tick
+	* Set of currently active input device properties that will be evaluated on tick
 	*/
 	TSet<UInputDeviceSubsystem::FActiveDeviceProperty> ActiveProperties;
 

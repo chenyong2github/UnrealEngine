@@ -116,14 +116,6 @@ FSetDevicePropertyParams::FSetDevicePropertyParams()
 
 }
 
-FSetDevicePropertyParams::FSetDevicePropertyParams(TSubclassOf<UInputDeviceProperty> InPropertyClass, const FPlatformUserId InUserId, const bool bInRemoveAfterEvaluationTime /* = true */)
-	: DevicePropertyClass(InPropertyClass)
-	, UserId(InUserId)
-	, bRemoveAfterEvaluationTime(bInRemoveAfterEvaluationTime)
-{
-	
-}
-
 ////////////////////////////////////////////////////////
 // UInputDeviceSubsystem
 
@@ -280,11 +272,11 @@ void UInputDeviceSubsystem::Tick(float InDeltaTime)
 		ActiveProp.EvaluatedDuration += DeltaTime;
 
 		// If the property has run past it's duration, reset it and remove it from our active properties
-		// Only do this if it is marked as 'bRemoveAfterEvaluationTime' so that you can keep device properties set
-		// without having to worry about duration. 
-		if (ActiveProp.bRemoveAfterEvaluationTime && ActiveProp.EvaluatedDuration > ActiveProp.Property->GetDuration())
+		// Don't remove properties that are looping, because the user desires them to keep playing
+		if (!ActiveProp.bLooping && ActiveProp.EvaluatedDuration > ActiveProp.Property->GetDuration())
 		{
 			ActiveProp.Property->ResetDeviceProperty(ActiveProp.PlatformUser);
+			PropertiesPendingRemoval.Remove(ActiveProp.PropertyHandle);
 			It.RemoveCurrent();
 			continue;
 		}
@@ -293,11 +285,12 @@ void UInputDeviceSubsystem::Tick(float InDeltaTime)
 		{
 			ActiveProp.Property->EvaluateDeviceProperty(ActiveProp.PlatformUser, DeltaTime, ActiveProp.EvaluatedDuration);
 			ActiveProp.Property->ApplyDeviceProperty(ActiveProp.PlatformUser);
-		}		 
+		}
 	}
 
-	// After we are done ticking, there should be no properties pending removal
-	ensure(PropertiesPendingRemoval.IsEmpty());
+	// If there are still properties pending removal, then they have already been removed by the loop
+	// above. Empty out the pending removal set to start fresh next frame.
+	PropertiesPendingRemoval.Empty();
 }
 
 APlayerController* UInputDeviceSubsystem::GetPlayerControllerFromPlatformUser(const FPlatformUserId UserId)
@@ -333,27 +326,23 @@ APlayerController* UInputDeviceSubsystem::GetPlayerControllerFromInputDevice(con
 	return GetPlayerControllerFromPlatformUser(IPlatformInputDeviceMapper::Get().GetUserForInputDevice(DeviceId));
 }
 
-FInputDevicePropertyHandle UInputDeviceSubsystem::SetDeviceProperty(const FSetDevicePropertyParams& Params)
+FInputDevicePropertyHandle UInputDeviceSubsystem::ActivateDeviceProperty(UInputDeviceProperty* Property, const FSetDevicePropertyParams& Params)
 {
-	if (!Params.DevicePropertyClass)
+	if (!Property)
 	{
-		UE_LOG(LogInputDeviceProperties, Error, TEXT("Invalid DevicePropertyClass passed into SetDeviceProperty! Nothing will happen."));
+		UE_LOG(LogInputDeviceProperties, Error, TEXT("Invalid Property passed into ActivateDeviceProperty! Nothing will happen."));
 		return FInputDevicePropertyHandle::InvalidHandle;
 	}
-		
+
 	FInputDevicePropertyHandle OutHandle = FInputDevicePropertyHandle::AcquireValidHandle();
 
-	if (ensureAlwaysMsgf(OutHandle.IsValid(), TEXT("Unable to acquire a valid input device property handle!")))
+	if (ensureMsgf(OutHandle.IsValid(), TEXT("Unable to acquire a valid input device property handle! The input device property cannot be activated")))
 	{
 		FActiveDeviceProperty ActiveProp = {};
-
-		// Spawn an instance of this device property		
-		ActiveProp.Property = NewObject<UInputDeviceProperty>(/* Outer = */ this, /* Class */ Params.DevicePropertyClass);
-		ensure(ActiveProp.Property);
-
+		ActiveProp.Property = Property;
 		ActiveProp.PlatformUser = Params.UserId;
 		ActiveProp.PropertyHandle = OutHandle;
-		ActiveProp.bRemoveAfterEvaluationTime = Params.bRemoveAfterEvaluationTime;	
+		ActiveProp.bLooping = Params.bLooping;
 		ActiveProp.bIgnoreTimeDilation = Params.bIgnoreTimeDilation;
 		ActiveProp.bPlayWhilePaused = Params.bPlayWhilePaused;
 
@@ -361,6 +350,18 @@ FInputDevicePropertyHandle UInputDeviceSubsystem::SetDeviceProperty(const FSetDe
 	}
 
 	return OutHandle;
+}
+
+FInputDevicePropertyHandle UInputDeviceSubsystem::ActivateDevicePropertyOfClass(TSubclassOf<UInputDeviceProperty> PropertyClass, const FSetDevicePropertyParams& Params)
+{
+	if (!PropertyClass)
+	{
+		UE_LOG(LogInputDeviceProperties, Error, TEXT("Invalid PropertyClass passed into ActivateDeviceProperty! Nothing will happen."));
+		return FInputDevicePropertyHandle::InvalidHandle;
+	}
+
+	// Spawn a new instance of the given device property and activate it as normal
+	return ActivateDeviceProperty(NewObject<UInputDeviceProperty>(/* Outer = */ this, /* Class */ PropertyClass), Params);
 }
 
 UInputDeviceProperty* UInputDeviceSubsystem::GetActiveDeviceProperty(const FInputDevicePropertyHandle Handle) const

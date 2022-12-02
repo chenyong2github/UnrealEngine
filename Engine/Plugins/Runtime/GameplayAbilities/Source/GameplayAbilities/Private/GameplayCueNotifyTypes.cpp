@@ -862,13 +862,12 @@ bool FGameplayCueNotify_InputDevicePropertyInfo::SetDeviceProperties(const FGame
 		{
 			FSetDevicePropertyParams Params = {};
 			Params.UserId = TargetPC->GetPlatformUserId();
-			Params.bRemoveAfterEvaluationTime = true;
+			
 			if (ensure(Params.UserId.IsValid()))
 			{
 				for (TSubclassOf<UInputDeviceProperty> PropClass : DeviceProperties)
 				{
-					Params.DevicePropertyClass = PropClass;
-					FInputDevicePropertyHandle Handle = System->SetDeviceProperty(Params);
+					FInputDevicePropertyHandle Handle = System->ActivateDevicePropertyOfClass(PropClass, Params);
 					ensure(Handle.IsValid());
 				}
 				return true;
