@@ -163,8 +163,15 @@ bool UInputDeviceSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 	{
 		return false;
 	}
+
+	// There is a setting to turn off this subsystem entirely.
+	const bool bShouldCreate = GetDefault<UInputSettings>()->bEnableInputDeviceSubsystem;
+	if (!bShouldCreate)
+	{
+		UE_LOG(LogInputDeviceProperties, Log, TEXT("UInputSettings::bEnableInputDeviceSubsystem is false, the Input Device Subsystem will NOT be created!"));
+	}
 	
-	return Super::ShouldCreateSubsystem(Outer);
+	return bShouldCreate && Super::ShouldCreateSubsystem(Outer);
 }
 
 UWorld* UInputDeviceSubsystem::GetTickableGameObjectWorld() const

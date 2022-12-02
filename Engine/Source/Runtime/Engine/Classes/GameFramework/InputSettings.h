@@ -79,6 +79,15 @@ class ENGINE_API UInputSettings
 	uint8 bFilterInputByPlatformUser:1;
 
 	/**
+	 * If true, then the input device subsystem will be allowed to Initalize when the engine boots.
+	 * NOTE: For this setting to take effect, and editor restart is required.
+	 * 
+	 * @see UInputDeviceSubsystem
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Input")
+	uint8 bEnableInputDeviceSubsystem:1;
+
+	/**
 	 * If true, then the Player Controller will have it's Pressed Keys flushed when the input mode is changed
 	 * to Game and UI mode or the game viewport loses focus. The default behavior is true.
 	 * 

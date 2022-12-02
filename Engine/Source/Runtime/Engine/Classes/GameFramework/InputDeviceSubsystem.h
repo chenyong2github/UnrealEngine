@@ -112,6 +112,12 @@ protected:
 
 public:
 
+	/**
+	 * Returns a pointer to the Input Device Engine Subsystem if it is available.
+	 * 
+	 * NOTE: This may be null if the bEnableInputDeviceSubsystem flag in UInputSettings
+	 * is set to false!
+	 */
 	static UInputDeviceSubsystem* Get();
 
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
@@ -153,11 +159,7 @@ public:
 	
 	/** Returns true if the property associated with the given handle is currently active, and it is not pending removal */
 	UFUNCTION(BlueprintCallable, Category = "Input Devices", meta = (ReturnDisplayName = "Is Property Active"))
-	bool IsPropertyActive(const FInputDevicePropertyHandle Handle) const;
-	
-	/** Returns true if the given UInputDeviceProperty object is already being evaluated. */
-	//UFUNCTION(BlueprintCallable, Category = "Input Devices", meta = (ReturnDisplayName = "Is Property Active"))
-	//bool IsDevicePropertyActive(UInputDeviceProperty* Property) const;
+	bool IsPropertyActive(const FInputDevicePropertyHandle Handle) const;	
 
 	/**
 	* Remove a single device property based on it's handle
