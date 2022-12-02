@@ -536,8 +536,8 @@ private:
 };
 
 /** 
- *	UNiagaraEmitter stores the attributes of an FNiagaraEmitterInstance
- *	that need to be serialized and are used for its initialization 
+ *	Niagara Emitters are particle spawners that can be reused for different effects by putting them into Niagara Systems.
+ *	Emitters render their particles using different renderers, such as Sprite Renderers or Mesh Renderers to produce different effects.
  */
 UCLASS(MinimalAPI)
 class UNiagaraEmitter : public UObject, public INiagaraParameterDefinitionsSubscriber, public FNiagaraVersionedObject

@@ -220,7 +220,8 @@ struct NIAGARA_API FNiagaraSystemScalabilityOverrides
 };
 
 
-/** Container for multiple emitters that combine together to create a particle system effect.*/
+/** A Niagara System contains multiple Niagara Emitters to create various effects.
+ * Niagara Systems can be placed in the world, unlike Emitters, and expose User Parameters to configure an effect at runtime.*/
 UCLASS(BlueprintType, meta= (LoadBehavior = "LazyOnDemand"))
 class NIAGARA_API UNiagaraSystem : public UFXSystemAsset, public INiagaraParameterDefinitionsSubscriber
 {

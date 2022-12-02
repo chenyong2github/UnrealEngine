@@ -2,6 +2,7 @@
 
 #include "NiagaraEditorStyle.h"
 
+#include "ClassIconFinder.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Styling/SlateStyleMacros.h"
 #include "Styling/AppStyle.h"
@@ -413,8 +414,8 @@ void FNiagaraEditorStyle::InitEmitterDetails()
 void FNiagaraEditorStyle::InitAssetColors()
 {
 	// Asset colors
-	Set("NiagaraEditor.AssetColors.System", FLinearColor(1.0f, 0.0f, 0.0f));
-	Set("NiagaraEditor.AssetColors.Emitter", FLinearColor(1.0f, 0.3f, 0.0f));
+	Set("NiagaraEditor.AssetColors.System", FLinearColor(FColor(1, 202, 252)));
+	Set("NiagaraEditor.AssetColors.Emitter", FLinearColor(FColor(241, 99, 6)));
 	Set("NiagaraEditor.AssetColors.Script", FLinearColor(1.0f, 1.0f, 0.0f));
 	Set("NiagaraEditor.AssetColors.ParameterCollection", FLinearColor(1.0f, 1.0f, 0.3f));
 	Set("NiagaraEditor.AssetColors.ParameterCollectionInstance", FLinearColor(1.0f, 1.0f, 0.7f));
@@ -434,12 +435,18 @@ void FNiagaraEditorStyle::InitThumbnails()
 
 void FNiagaraEditorStyle::InitClassIcon()
 {
+	Set("ClassThumbnail.NiagaraEmitter", new IMAGE_BRUSH_SVG("Icons/Classes/NiagaraEmitter_64", Icon64x64));
+	Set("ClassThumbnail.NiagaraSystem", new IMAGE_BRUSH_SVG("Icons/Classes/NiagaraSystem_64", Icon64x64));
+
+	Set("ClassIcon.NiagaraEmitter", new IMAGE_BRUSH_SVG("Icons/Classes/NiagaraEmitter_16", Icon16x16));
+	Set("ClassIcon.NiagaraSystem", new IMAGE_BRUSH_SVG("Icons/Classes/NiagaraSystem_16", Icon16x16));
+	Set("ClassIcon.NiagaraActor", new IMAGE_BRUSH_SVG("Icons/Classes/NiagaraSystem_16", Icon16x16));
 	// Renderer class icons
-	Set("ClassIcon.NiagaraSpriteRendererProperties", new IMAGE_BRUSH("Icons/Renderers/renderer_sprite", Icon16x16));
-	Set("ClassIcon.NiagaraMeshRendererProperties", new IMAGE_BRUSH("Icons/Renderers/renderer_mesh", Icon16x16));
-	Set("ClassIcon.NiagaraRibbonRendererProperties", new IMAGE_BRUSH("Icons/Renderers/renderer_ribbon", Icon16x16));
-	Set("ClassIcon.NiagaraLightRendererProperties", new IMAGE_BRUSH("Icons/Renderers/renderer_light", Icon16x16));
-	Set("ClassIcon.NiagaraRendererProperties", new IMAGE_BRUSH("Icons/Renderers/renderer_default", Icon16x16));
+	Set("ClassIcon.NiagaraSpriteRendererProperties", new IMAGE_BRUSH("Icons/Classes/renderer_sprite", Icon16x16));
+	Set("ClassIcon.NiagaraMeshRendererProperties", new IMAGE_BRUSH("Icons/Classes/renderer_mesh", Icon16x16));
+	Set("ClassIcon.NiagaraRibbonRendererProperties", new IMAGE_BRUSH("Icons/Classes/renderer_ribbon", Icon16x16));
+	Set("ClassIcon.NiagaraLightRendererProperties", new IMAGE_BRUSH("Icons/Classes/renderer_light", Icon16x16));
+	Set("ClassIcon.NiagaraRendererProperties", new IMAGE_BRUSH("Icons/Classes/renderer_default", Icon16x16));
 }
 
 void FNiagaraEditorStyle::InitStackIcons()
