@@ -220,6 +220,17 @@ struct DATAFLOWCORE_API FDataflowNode
 		return nullptr;
 	}
 
+	template<class T>
+	T* AsType()
+	{
+		FName TargetType = T::StaticType();
+		if (IsA(TargetType))
+		{
+			return (T*)this;
+		}
+		return nullptr;
+	}
+
 
 private:
 	virtual TArray<Dataflow::FRenderingParameter> GetRenderParametersImpl() const { return TArray<Dataflow::FRenderingParameter>(); }

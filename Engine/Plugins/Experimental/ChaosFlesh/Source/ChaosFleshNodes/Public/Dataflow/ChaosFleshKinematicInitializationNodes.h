@@ -85,32 +85,6 @@ public:
 
 
 USTRUCT(meta = (DataflowFlesh))
-struct FSelectionSetDataflowNode : public FDataflowNode
-{
-	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FSelectionSetDataflowNode, "SelectionSet", "Flesh", "")
-
-public:
-	typedef TArray<int32> DataType;
-
-	UPROPERTY(EditAnywhere, Category = "Dataflow")
-	FString Indices = FString("1 2 3");
-
-	UPROPERTY(meta = (DataflowOutput, DisplayName = "SelectionSet"))
-	TArray<int32> IndicesOut;
-
-	FSelectionSetDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
-	{
-		RegisterOutputConnection(&IndicesOut);
-	}
-
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-};
-
-
-
-USTRUCT(meta = (DataflowFlesh))
 struct FSetVerticesKinematicDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()

@@ -2,20 +2,20 @@
 
 #include "Dataflow/DataflowGraphEditor.h"
 
+#include "BoneDragDropOp.h"
 #include "Dataflow/DataflowEditorToolkit.h"
 #include "Dataflow/DataflowEngine.h"
 #include "Dataflow/DataflowSNodeFactories.h"
-#include "BoneDragDropOp.h"
-#include "IStructureDetailsView.h"
 #include "Dataflow/DataflowSCommentNode.h"
 #include "Dataflow/DataflowNodeParameters.h"
-
+#include "Dataflow/DataflowXml.h"
+#include "Dataflow/DataflowSNode.h"
+#include "Dataflow/DataflowSelectionNodes.h"
 #include "Dataflow/DataflowSchema.h"
-
-DEFINE_LOG_CATEGORY_STATIC(SDataflowGraphEditorLog, Log, All);
+#include "HAL/PlatformApplicationMisc.h"
+#include "IStructureDetailsView.h"
 
 #define LOCTEXT_NAMESPACE "DataflowGraphEditor"
-
 
 void SDataflowGraphEditor::Construct(const FArguments& InArgs, UObject* InAssetOwner)
 {
@@ -146,9 +146,65 @@ void SDataflowGraphEditor::OnSelectedNodesChanged(const TSet<UObject*>& NewSelec
 	OnSelectionChangedMulticast.Broadcast(NewSelection);
 }
 
+FReply SDataflowGraphEditor::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	if (InKeyEvent.GetKey() == EKeys::LeftControl)
+	{
+		LeftControlKeyDown = true;
+	}
+	if (InKeyEvent.GetKey() == EKeys::RightControl)
+	{
+		RightControlKeyDown = true;
+	}
+	if (InKeyEvent.GetKey() == EKeys::V)
+	{
+		VKeyDown = true;
+	}
+	return SGraphEditor::OnKeyUp(MyGeometry, InKeyEvent);
+}
+
+
+FReply SDataflowGraphEditor::OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	// process paste
+	if ( (VKeyDown && LeftControlKeyDown) || (VKeyDown && RightControlKeyDown) )
+	{
+		if (InKeyEvent.GetKey() == EKeys::LeftControl
+			|| InKeyEvent.GetKey() == EKeys::RightControl
+			|| InKeyEvent.GetKey() == EKeys::V)
+		{
+			FString XmlBuffer;
+			FPlatformApplicationMisc::ClipboardPaste(XmlBuffer);
+			FDataflowXmlRead Xml(this); 
+			if (Xml.LoadFromBuffer(XmlBuffer))
+			{
+				Xml.ParseXmlFile();
+			}
+		}
+	}
+
+	if (InKeyEvent.GetKey() == EKeys::LeftControl)
+	{
+		LeftControlKeyDown = false;
+	}
+	if (InKeyEvent.GetKey() == EKeys::RightControl)
+	{
+		RightControlKeyDown = false;
+	}
+	if (InKeyEvent.GetKey() == EKeys::V)
+	{
+		VKeyDown = false;
+	}
+	if (InKeyEvent.GetKey() == EKeys::LeftControl)
+	{
+		return FReply::Unhandled();
+	}
+	return SGraphEditor::OnKeyUp(MyGeometry, InKeyEvent);
+}
+
+
 FReply SDataflowGraphEditor::OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 {
-	UE_LOG(SDataflowGraphEditorLog, All, TEXT("SDataflowGraphEditor::OnDragOver"));
 	if (TSharedPtr<FBoneDragDropOp> SchemeDragDropOp = DragDropEvent.GetOperationAs<FBoneDragDropOp>())
 	{
 		return FReply::Handled();
@@ -163,7 +219,6 @@ FReply SDataflowGraphEditor::OnDrop(const FGeometry& MyGeometry, const FDragDrop
 	{
 		if (OnDragDropEventCallback)
 		{
-			UE_LOG(SDataflowGraphEditorLog, All, TEXT("SDataflowGraphEditor::OnDrop"));
 			OnDragDropEventCallback(MyGeometry,DragDropEvent);
 		}
 	}
@@ -202,6 +257,30 @@ void SDataflowGraphEditor::CreateComment()
 
 	TSharedPtr<FAssetSchemaAction_Dataflow_CreateCommentNode_DataflowEdNode> CommentAction = FAssetSchemaAction_Dataflow_CreateCommentNode_DataflowEdNode::CreateAction(Graph, InGraphEditor);
 	CommentAction->PerformAction(Graph, nullptr, GetGraphEditor()->GetPasteLocation(), false);
+}
+
+void SDataflowGraphEditor::CreateVertexSelectionNode(const FString & InArray)
+{
+	UDataflow* Graph = DataflowAsset.Get();
+	const TSharedPtr<SGraphEditor>& InGraphEditor = SharedThis(GetGraphEditor());
+
+	if (TSharedPtr<FAssetSchemaAction_Dataflow_CreateNode_DataflowEdNode> NodeAction = FAssetSchemaAction_Dataflow_CreateNode_DataflowEdNode::CreateAction(Graph, "FSelectionSetDataflowNode"))
+	{
+		if (UEdGraphNode* NewEdNode = NodeAction->PerformAction(Graph, nullptr, GetGraphEditor()->GetPasteLocation(), false))
+		{
+			FDataflowAssetEdit Edit = Graph->EditDataflow();
+			if (Dataflow::FGraph* DataflowGraph = Edit.GetGraph())
+			{
+				if (TSharedPtr<FDataflowNode> Node = DataflowGraph->FindBaseNode(((UDataflowEdNode*)NewEdNode)->DataflowNodeGuid))
+				{
+					if (FSelectionSetDataflowNode * SelectionNode = Node->AsType<FSelectionSetDataflowNode>())
+					{
+						SelectionNode->Indices = InArray;
+					}
+				}
+			}
+		}
+	}
 }
 
 void SDataflowGraphEditor::AlignTop()

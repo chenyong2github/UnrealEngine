@@ -55,6 +55,8 @@ public:
 	FOnSelectionChangedMulticast OnSelectionChangedMulticast;
 
 	// SWidget overrides
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	virtual FReply OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
 	virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
 	//virtual void OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
@@ -75,6 +77,9 @@ public:
 
 	/** */
 	void CreateComment();
+
+	/** */
+	void CreateVertexSelectionNode(const FString& InArray);
 
 	/** */
 	void AlignTop();
@@ -126,4 +131,8 @@ private:
 
 	/** The details view that responds to this widget. */
 	TSharedPtr<IStructureDetailsView> DetailsView;
+
+	bool VKeyDown = false;
+	bool LeftControlKeyDown = false;
+	bool RightControlKeyDown = false;
 };

@@ -22,7 +22,6 @@ namespace Dataflow
 	void RegisterChaosFleshKinematicInitializationNodes()
 	{
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FKinematicInitializationDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSelectionSetDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FKinematicTetrahedralBindingsDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSetVerticesKinematicDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FBinVerticesDataflowNode);
@@ -235,26 +234,6 @@ void FSetVerticesKinematicDataflowNode::Evaluate(Dataflow::FContext& Context, co
 			}	
 		}
 		SetValue<DataType>(Context, InCollection, &Collection);
-	}
-}
-
-
-void FSelectionSetDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<DataType>(&IndicesOut))
-	{
-		TArray<int32> IntArray;
-		TArray<FString> StrArray;
-		Indices.ParseIntoArray(StrArray, *FString(" "));
-		for (FString Elem : StrArray)
-		{
-			if (FCString::IsNumeric(*Elem))
-			{
-				IntArray.Add(FCString::Atoi(*Elem));
-			}
-		}
-
-		Out->SetValue<DataType>(IntArray, Context);
 	}
 }
 
