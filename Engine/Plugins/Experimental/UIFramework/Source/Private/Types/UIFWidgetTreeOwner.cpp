@@ -6,5 +6,6 @@
 
 FUIFrameworkWidgetTree& IUIFrameworkWidgetTreeOwner::GetWidgetTree()
 {
-	PURE_VIRTUAL(IUIFrameworkWidgetTreeOwner::GetWidgetTree, static FUIFrameworkWidgetTree Tmp; return Tmp;)
+	static FUIFrameworkWidgetTree Tmp;
+	PURE_VIRTUAL(IUIFrameworkWidgetTreeOwner::GetWidgetTree, return Tmp;)
 }
