@@ -332,6 +332,7 @@ FRenderResource::~FRenderResource()
 
 FBufferRHIRef FRenderResource::CreateRHIBufferInternal(
 	const TCHAR* InDebugName,
+	const FName& InOwnerName,
 	uint32 ResourceCount,
 	EBufferUsageFlags InBufferUsageFlags,
 	FResourceArrayInterface* ResourceArray,
@@ -353,7 +354,7 @@ FBufferRHIRef FRenderResource::CreateRHIBufferInternal(
 		Buffer = CommandList->CreateBuffer(SizeInBytes, InBufferUsageFlags | EBufferUsageFlags::VertexBuffer, 0, ERHIAccess::SRVMask, CreateInfo);
 	}
 
-	Buffer->SetOwnerName(GetOwnerName());
+	Buffer->SetOwnerName(InOwnerName);
 	return Buffer;
 }
 

@@ -159,7 +159,7 @@ protected:
 		FResourceArrayInterface* RESTRICT ResourceArray = InOutResourceObject ? InOutResourceObject->GetResourceArray() : nullptr;
 		if (ResourceCount != 0)
 		{
-			Buffer = CreateRHIBufferInternal(InDebugName, ResourceCount, InBufferUsageFlags, ResourceArray, bRenderThread, InOutResourceObject == nullptr);
+			Buffer = CreateRHIBufferInternal(InDebugName, GetOwnerName(), ResourceCount, InBufferUsageFlags, ResourceArray, bRenderThread, InOutResourceObject == nullptr);
 			if (!bRenderThread)
 			{
 				return Buffer;
@@ -179,6 +179,7 @@ protected:
 private:
 	static FBufferRHIRef CreateRHIBufferInternal(
 		const TCHAR* InDebugName,
+		const FName& InOwnerName,
 		uint32 ResourceCount,
 		EBufferUsageFlags InBufferUsageFlags,
 		FResourceArrayInterface* ResourceArray,
