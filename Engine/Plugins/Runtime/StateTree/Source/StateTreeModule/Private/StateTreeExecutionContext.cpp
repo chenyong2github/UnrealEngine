@@ -109,8 +109,8 @@ bool FStateTreeExecutionContext::AreExternalDataViewsValid() const
 
 void FStateTreeExecutionContext::UpdateLinkedStateParameters(const FCompactStateTreeState& State, const uint16 ParameterInstanceIndex)
 {
-	const FStateTreeDataView StateParamsInstance = InstanceData.GetMutableStruct(ParameterInstanceIndex);
-	const FCompactStateTreeParameters& StateParams = StateParamsInstance.GetMutable<FCompactStateTreeParameters>();
+	FStateTreeDataView StateParamsInstance = InstanceData.GetMutableStruct(ParameterInstanceIndex);
+	FCompactStateTreeParameters& StateParams = StateParamsInstance.GetMutable<FCompactStateTreeParameters>();
 
 	// Update parameters if the state has any.
 	if (StateParams.Parameters.IsValid())
@@ -146,7 +146,7 @@ void FStateTreeExecutionContext::UpdateSubtreeStateParameters(const FCompactStat
 		// Set view to default parameters.
 		const FConstStructView ParamInstance = StateTree.DefaultInstanceData.GetStruct(State.ParameterInstanceIndex.Get()); // These are used as const, so get them from the tree initial values.
 		const FStateTreeDataView ParamInstanceView(ParamInstance.GetScriptStruct(), const_cast<uint8*>(ParamInstance.GetMemory())); 
-		const FCompactStateTreeParameters& Params = ParamInstanceView.GetMutable<FCompactStateTreeParameters>();
+		FCompactStateTreeParameters& Params = ParamInstanceView.GetMutable<FCompactStateTreeParameters>();
 		DataViews[State.ParameterDataViewIndex.Get()] = FStateTreeDataView(Params.Parameters.GetMutableValue());
 	}
 }
@@ -339,10 +339,10 @@ EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime)
 		return Exec->TreeRunStatus;
 	}
 
-	// Update the gated transition time.
-	if (Exec->GatedTransitionIndex.IsValid())
+	// Update the delayed transitions.
+	for (FStateTreeTransitionDelayedState& DelayedState : Exec->DelayedTransitions)
 	{
-		Exec->GatedTransitionTime -= DeltaTime;
+		DelayedState.TimeLeft -= DeltaTime;
 	}
 	
 	// Tick global evaluators.
@@ -686,10 +686,7 @@ void FStateTreeExecutionContext::ExitState(const FStateTreeTransitionResult& Tra
 		return;
 	}
 
-	// Reset transition delay
 	FStateTreeExecutionState& Exec = GetExecState();
-	Exec.GatedTransitionIndex = FStateTreeIndex16::Invalid;
-	Exec.GatedTransitionTime = 0.0f;
 
 	// On target branch means that the state is the target of current transition or child of it.
 	// States which were active before and will remain active, but are not on target branch will not get
@@ -760,6 +757,13 @@ void FStateTreeExecutionContext::ExitState(const FStateTreeTransitionResult& Tra
 	{
 		const FStateTreeStateHandle CurrentHandle = ExitedStates[Index];
 		const FCompactStateTreeState& State = StateTree.States[CurrentHandle.Index];
+
+		// Remove any delayed transitions that belong to this state.
+		Exec.DelayedTransitions.RemoveAllSwap(
+			[Begin = State.TransitionsBegin, End = State.TransitionsBegin + State.TransitionsNum](const FStateTreeTransitionDelayedState& DelayedState)
+			{
+				return DelayedState.TransitionIndex.Get() >= Begin && DelayedState.TransitionIndex.Get() < End;
+			});
 		
 		CurrentTransition.CurrentState = CurrentHandle;
 		CurrentTransition.ChangeType = ExitedStateChangeType[Index];
@@ -1120,35 +1124,58 @@ FString FStateTreeExecutionContext::DebugGetEventsAsString() const
 	return Result;
 }
 
+bool FStateTreeExecutionContext::SelectTransition(FStateTreeInstanceData& SharedInstanceData, FStateTreeExecutionState& Exec,
+		const int16 StateIndex, const FCompactStateTreeState& State, const FCompactStateTransition& Transition, FStateTreeTransitionResult& OutTransition)
+{
+	if (Transition.Type == EStateTreeTransitionType::GotoState || Transition.Type == EStateTreeTransitionType::NextState)
+	{
+		OutTransition.TargetState = Transition.State;
+		OutTransition.NextActiveStates.Reset();
+
+		if (SelectState(SharedInstanceData, Transition.State, OutTransition.NextActiveStates))
+		{
+			STATETREE_LOG(Verbose, TEXT("Transition on state '%s' (%s) -[%s]-> state '%s'"),
+				*GetSafeStateName(Exec.ActiveStates.Last()), *State.Name.ToString(), *GetSafeStateName(Transition.State), *GetSafeStateName(OutTransition.NextActiveStates.Last()));
+			return true;
+		}
+		
+		return  false;
+	}
+	
+	if (Transition.Type == EStateTreeTransitionType::Succeeded || Transition.Type == EStateTreeTransitionType::Failed)
+	{
+		// Tree succeeded or failed.
+		// If we are on a linked state, find the first parent linked state and mark that as completed, continue to find completion transitions.
+		const FStateTreeStateHandle ParentLinkedState = GetParentLinkedStateHandle(Exec.ActiveStates, StateIndex);
+		if (ParentLinkedState.IsValid())
+		{
+			STATETREE_LOG(Verbose, TEXT("Compled subtree '%s' from state '%s' (%s): %s"),
+				*GetSafeStateName(ParentLinkedState), *GetSafeStateName(Exec.ActiveStates.Last()), *State.Name.ToString(), *UEnum::GetDisplayValueAsText(Transition.Type).ToString());
+			Exec.CompletedStateHandle = ParentLinkedState;
+			Exec.LastTickStatus = Transition.Type == EStateTreeTransitionType::Succeeded ? EStateTreeRunStatus::Succeeded : EStateTreeRunStatus::Failed;
+			return TriggerTransitions(SharedInstanceData, OutTransition);
+		}
+		
+		STATETREE_LOG(Verbose, TEXT("Stop tree execution from state '%s' (%s): %s"),
+			*GetSafeStateName(Exec.ActiveStates.Last()), *State.Name.ToString(), *UEnum::GetDisplayValueAsText(Transition.Type).ToString());
+
+		const FStateTreeStateHandle NextState = Transition.Type == EStateTreeTransitionType::Succeeded ? FStateTreeStateHandle::Succeeded : FStateTreeStateHandle::Failed; 
+		OutTransition.TargetState = NextState;
+		OutTransition.NextActiveStates = FStateTreeActiveStates(NextState);
+		return true;
+	}
+
+	return false;
+}
+
 bool FStateTreeExecutionContext::TriggerTransitions(FStateTreeInstanceData& SharedInstanceData, FStateTreeTransitionResult& OutTransition)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_TriggerTransition);
 
 	FStateTreeExecutionState& Exec = GetExecState();
 
-	int32 StateStartIndex = Exec.ActiveStates.Num() - 1;
-
-	// On succeed/failed we will start looking for transition start at the first state that was completed.
-	auto GetLastCompletedStateIndex = [&Exec]() -> int32
-	{
-		const int32 Index = Exec.ActiveStates.IndexOfReverse(Exec.CompletedStateHandle);
-		return Index != INDEX_NONE ? Index : (Exec.ActiveStates.Num() - 1);
-	};
-	
-	EStateTreeTransitionTrigger CompletionTrigger = EStateTreeTransitionTrigger::None;
-	if (Exec.LastTickStatus == EStateTreeRunStatus::Succeeded)
-	{
-		StateStartIndex = GetLastCompletedStateIndex();
-		CompletionTrigger = EStateTreeTransitionTrigger::OnStateSucceeded;
-	}
-	else if (Exec.LastTickStatus == EStateTreeRunStatus::Failed)
-	{
-		StateStartIndex = GetLastCompletedStateIndex();
-		CompletionTrigger = EStateTreeTransitionTrigger::OnStateFailed;
-	}
-
 	STATETREE_CLOG(!EventsToProcess.IsEmpty(), Verbose, TEXT("Trigger transitions with events [%s]"), *DebugGetEventsAsString());
-	
+
 	auto HasEvent = [this](const FGameplayTag QueriedTag)
 	{
 		if (EventsToProcess.IsEmpty())
@@ -1164,99 +1191,120 @@ bool FStateTreeExecutionContext::TriggerTransitions(FStateTreeInstanceData& Shar
 
 	OutTransition.CurrentActiveStates = Exec.ActiveStates;
 
-	// Walk towards root and check all transitions along the way.
-	for (int32 StateIndex = StateStartIndex; StateIndex >= 0; StateIndex--)
+	//
+	// Check tick and event based transitions first.
+	//
+	for (int32 StateIndex = Exec.ActiveStates.Num() - 1; StateIndex >= 0; StateIndex--)
 	{
 		const FCompactStateTreeState& State = StateTree.States[Exec.ActiveStates[StateIndex].Index];
-		
 		for (uint8 i = 0; i < State.TransitionsNum; i++)
 		{
 			// All transition conditions must pass
 			const int16 TransitionIndex = State.TransitionsBegin + i;
 			const FCompactStateTransition& Transition = StateTree.Transitions[TransitionIndex];
 
-			const bool bShouldCheck = EnumHasAnyFlags(Transition.Trigger, CompletionTrigger)
-									|| Transition.Trigger == EStateTreeTransitionTrigger::OnTick
-									|| (Transition.Trigger == EStateTreeTransitionTrigger::OnEvent && HasEvent(Transition.EventTag));
-			
-			if (bShouldCheck && TestAllConditions(SharedInstanceData, Transition.ConditionsBegin, Transition.ConditionsNum))
+			if (Transition.Trigger == EStateTreeTransitionTrigger::OnTick
+				|| (Transition.Trigger == EStateTreeTransitionTrigger::OnEvent && HasEvent(Transition.EventTag)))
 			{
-				// If a transition has delay, we stop testing other transitions, but the transition will not pass the condition until the delay time passes.
-				if (Transition.GateDelay > 0)
+				// If delay has passed, allow to trigger the transition even if conditions do not pass.
+				FStateTreeTransitionDelayedState* DelayedState = Transition.HasDelay() ? Exec.FindDelayedTransition(FStateTreeIndex16(TransitionIndex)) : nullptr;
+				const bool bDelayCompleted = DelayedState != nullptr && DelayedState->TimeLeft <= 0.0f;
+
+				if (bDelayCompleted || TestAllConditions(SharedInstanceData, Transition.ConditionsBegin, Transition.ConditionsNum))
 				{
-					if ((int32)Exec.GatedTransitionIndex.Get() != TransitionIndex)
+					// If the transitions is delayed, set up the delay. 
+					if (Transition.HasDelay())
 					{
-						Exec.GatedTransitionIndex = FStateTreeIndex16(TransitionIndex);
-						Exec.GatedTransitionTime = FMath::RandRange(0.0f, Transition.GateDelay * 0.1f); // TODO: we need variance too.
-						BeginGatedTransition(Exec);
-						STATETREE_LOG(Verbose, TEXT("Gated transition triggered from '%s' (%s) -> '%s' %.1fs"), *GetSafeStateName(Exec.ActiveStates.Last()), *State.Name.ToString(), *GetSafeStateName(Transition.State), Exec.GatedTransitionTime);
+						if (DelayedState == nullptr)
+						{
+							DelayedState = &Exec.DelayedTransitions.AddDefaulted_GetRef();
+							
+							DelayedState->TransitionIndex = FStateTreeIndex16(TransitionIndex);
+							DelayedState->TimeLeft = Transition.Delay.GetRandomDuration();
+							BeginDelayedTransition(*DelayedState);
+							STATETREE_LOG(Verbose, TEXT("Delayed transition triggered from '%s' (%s) -> '%s' %.1fs"),
+								*GetSafeStateName(Exec.ActiveStates.Last()), *State.Name.ToString(), *GetSafeStateName(Transition.State), DelayedState->TimeLeft);
+							// Fall through to handle 0 delay.
+						}
+						check(DelayedState);
+
+						// We get here if the transitions re-triggers, or delay has completed.
+						// In case of re-trigger, we will just ignore it during the delay. 
+						if (DelayedState->TimeLeft > 0.0f)
+						{
+							continue;
+						}
+
+						STATETREE_LOG(Verbose, TEXT("Passed delayed transition from '%s' (%s) -> '%s'"),
+							*GetSafeStateName(Exec.ActiveStates.Last()), *State.Name.ToString(), *GetSafeStateName(Transition.State));
+
+						// The transition passed the delay, and remove it from the queue, and try trigger it.
+						Exec.DelayedTransitions.RemoveAllSwap([TransitionIndex](const FStateTreeTransitionDelayedState& DelayedState)
+							{
+								return DelayedState.TransitionIndex.Get() == TransitionIndex;
+							});
 					}
 
-					// Keep on updating current state, until we have tried to trigger
-					if (Exec.GatedTransitionTime > 0.0f)
+					if (Transition.Type == EStateTreeTransitionType::NotSet)
 					{
+						// NotSet is no-operation, but can be used to mask a transition at parent state. Returning unset keeps updating current state.
 						return false;
 					}
 
-					STATETREE_LOG(Verbose, TEXT("Passed gated transition from '%s' (%s) -> '%s'"), *GetSafeStateName(Exec.ActiveStates.Last()), *State.Name.ToString(), *GetSafeStateName(Transition.State));
-				}
-				
-				if (Transition.Type == EStateTreeTransitionType::GotoState || Transition.Type == EStateTreeTransitionType::NextState)
-				{
-					OutTransition.TargetState = Transition.State;
-					OutTransition.NextActiveStates.Reset();
-
-					if (SelectState(SharedInstanceData, Transition.State, OutTransition.NextActiveStates))
+					if (SelectTransition(SharedInstanceData, Exec, StateIndex, State, Transition, OutTransition))
 					{
-						STATETREE_LOG(Verbose, TEXT("Transition on state '%s' (%s) -[%s]-> state '%s'"), *GetSafeStateName(Exec.ActiveStates.Last()), *State.Name.ToString(), *GetSafeStateName(Transition.State), *GetSafeStateName(OutTransition.NextActiveStates.Last()));
 						return true;
 					}
 				}
-				else if (Transition.Type == EStateTreeTransitionType::NotSet)
-				{
-					// NotSet is no-operation, but can be used to mask a transition at parent state. Returning unset keeps updating current state.
-					return false;
-				}
-				else
-				{
-					// Tree succeeded or failed.
-					// If we are on a linked state, find the first parent linked state and mark that as completed, continue to find completion transitions.
-					const FStateTreeStateHandle ParentLinkedState = GetParentLinkedStateHandle(Exec.ActiveStates, StateIndex);
-					if (ParentLinkedState.IsValid())
-					{
-						STATETREE_LOG(Verbose, TEXT("Compled subtree '%s' from state '%s' (%s): %s"),
-							*GetSafeStateName(ParentLinkedState), *GetSafeStateName(Exec.ActiveStates.Last()), *State.Name.ToString(), *UEnum::GetDisplayValueAsText(Transition.Type).ToString());
-						Exec.CompletedStateHandle = ParentLinkedState;
-						Exec.LastTickStatus = Transition.Type == EStateTreeTransitionType::Succeeded ? EStateTreeRunStatus::Succeeded : EStateTreeRunStatus::Failed;
-						return TriggerTransitions(SharedInstanceData, OutTransition);
-					}
-					
-					STATETREE_LOG(Verbose, TEXT("Stop tree execution from state '%s' (%s): %s"),
-						*GetSafeStateName(Exec.ActiveStates.Last()), *State.Name.ToString(), *UEnum::GetDisplayValueAsText(Transition.Type).ToString());
-
-					const FStateTreeStateHandle NextState = Transition.Type == EStateTreeTransitionType::Succeeded ? FStateTreeStateHandle::Succeeded : FStateTreeStateHandle::Failed; 
-					OutTransition.TargetState = NextState;
-					OutTransition.NextActiveStates = FStateTreeActiveStates(NextState);
-					return true;
-				}
-			}
-			else if ((int32)Exec.GatedTransitionIndex.Get() == TransitionIndex)
-			{
-				// If the current transition was gated transition, reset it if the condition failed.
-				Exec.GatedTransitionIndex = FStateTreeIndex16::Invalid;
-				Exec.GatedTransitionTime = 0.0f;
 			}
 		}
 	}
 
+	//
+	// Check state completion transitions.
+	//
 	if (Exec.LastTickStatus != EStateTreeRunStatus::Running)
 	{
-		// Could not trigger completion transition, jump back to start.
-		static const FStateTreeStateHandle RootState = FStateTreeStateHandle(0);
-		OutTransition.TargetState = RootState;
-		return SelectState(SharedInstanceData, RootState, OutTransition.NextActiveStates);
-	}
+		// Start from the last completed state.
+		const int32 StateStartIndex = Exec.CompletedStateHandle.IsValid() ? Exec.ActiveStates.IndexOfReverse(Exec.CompletedStateHandle) : (Exec.ActiveStates.Num() - 1);
+		const EStateTreeTransitionTrigger CompletionTrigger = Exec.LastTickStatus == EStateTreeRunStatus::Succeeded ? EStateTreeTransitionTrigger::OnStateSucceeded : EStateTreeTransitionTrigger::OnStateFailed;
 
+		check(StateStartIndex >= 0 && StateStartIndex < Exec.ActiveStates.Num());
+		
+		// Check completion transitions
+		for (int32 StateIndex = StateStartIndex; StateIndex >= 0; StateIndex--)
+		{
+			const FCompactStateTreeState& State = StateTree.States[Exec.ActiveStates[StateIndex].Index];
+			for (uint8 i = 0; i < State.TransitionsNum; i++)
+			{
+				// All transition conditions must pass
+				const int16 TransitionIndex = State.TransitionsBegin + i;
+				const FCompactStateTransition& Transition = StateTree.Transitions[TransitionIndex];
+
+				if (EnumHasAnyFlags(Transition.Trigger, CompletionTrigger))
+				{
+					if (TestAllConditions(SharedInstanceData, Transition.ConditionsBegin, Transition.ConditionsNum))
+					{
+						// No delay allowed on completion conditions. 
+						
+						if (SelectTransition(SharedInstanceData, Exec, StateIndex, State, Transition, OutTransition))
+						{
+							return true;
+						}
+					}
+				}
+			}
+		}
+
+		if (Exec.LastTickStatus != EStateTreeRunStatus::Running)
+		{
+			// Could not trigger completion transition, jump back to start.
+			static const FStateTreeStateHandle RootState = FStateTreeStateHandle(0);
+			OutTransition.TargetState = RootState;
+			return SelectState(SharedInstanceData, RootState, OutTransition.NextActiveStates);
+		}
+	}
+	
 	// No transition triggered, keep on updating current state.
 	return false;
 }

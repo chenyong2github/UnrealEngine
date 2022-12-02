@@ -30,8 +30,10 @@ struct STATETREEMODULE_API FStateTreeCustomVersion
 		IndexTypes,
 		// Added events.
 		AddedEvents,
-		// Added events.
+		// Testing mishap
 		AddedFoo,
+		// Changed transition delay
+		TransitionDelay,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

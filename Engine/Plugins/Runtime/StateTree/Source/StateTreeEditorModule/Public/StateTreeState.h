@@ -49,7 +49,7 @@ struct STATETREEEDITORMODULE_API FStateTreeTransition
 	FStateTreeTransition() = default;
 	FStateTreeTransition(const EStateTreeTransitionTrigger InTrigger, const EStateTreeTransitionType InType, const UStateTreeState* InState = nullptr);
 	FStateTreeTransition(const EStateTreeTransitionTrigger InTrigger, const FGameplayTag InEventTag, const EStateTreeTransitionType InType, const UStateTreeState* InState = nullptr);
-
+	
 	template<typename T, typename... TArgs>
 	TStateTreeEditorNode<T>& AddCondition(TArgs&&... InArgs)
 	{
@@ -64,20 +64,32 @@ struct STATETREEEDITORMODULE_API FStateTreeTransition
 		return static_cast<TStateTreeEditorNode<T>&>(CondNode);
 	}
 
-	UPROPERTY(EditDefaultsOnly, Category = Transition)
+	/** When to try trigger the transition. */
+	UPROPERTY(EditDefaultsOnly, Category = "Transition")
 	EStateTreeTransitionTrigger Trigger = EStateTreeTransitionTrigger::OnStateCompleted;
 
-	UPROPERTY(EditDefaultsOnly, Category = Transition)
+	/** Tag of the State Tree event that triggers the transition. */
+	UPROPERTY(EditDefaultsOnly, Category = "Transition")
 	FGameplayTag EventTag;
 
-	UPROPERTY(EditDefaultsOnly, Category = Transition, meta = (DisplayName="Transition To"))
+	/** Transition target state. */
+	UPROPERTY(EditDefaultsOnly, Category = "Transition", meta=(DisplayName="Transition To"))
 	FStateTreeStateLink State;
 
-	// Gate delay in seconds.
-	UPROPERTY(EditDefaultsOnly, Category = Transition, meta = (UIMin = "0", ClampMin = "0", UIMax = "25", ClampMax = "25"))
-	float GateDelay = 0.0f;
+	/** Delay the triggering of the transition. */
+	UPROPERTY(EditDefaultsOnly, Category = "Transition")
+	bool bDelayTransition = false;
 
-	UPROPERTY(EditDefaultsOnly, Category = Transition, meta = (BaseStruct = "/Script/StateTreeModule.StateTreeConditionBase", BaseClass = "/Script/StateTreeModule.StateTreeConditionBlueprintBase"))
+	/** Transition delay duration in seconds. */
+	UPROPERTY(EditDefaultsOnly, Category = "Transition", meta = (EditCondition = "bDelayTransition", UIMin = "0", ClampMin = "0", UIMax = "25", ClampMax = "25", ForceUnits="s"))
+	float DelayDuration = 0.0f;
+
+	/** Transition delay random variance in seconds. */
+	UPROPERTY(EditDefaultsOnly, Category = "Transition", meta = (EditCondition = "bDelayTransition", UIMin = "0", ClampMin = "0", UIMax = "25", ClampMax = "25", ForceUnits="s"))
+	float DelayRandomVariance = 0.0f;
+
+	/** Conditions that must pass so that the transition can be triggered. */
+	UPROPERTY(EditDefaultsOnly, Category = "Transition", meta = (BaseStruct = "/Script/StateTreeModule.StateTreeConditionBase", BaseClass = "/Script/StateTreeModule.StateTreeConditionBlueprintBase"))
 	TArray<FStateTreeEditorNode> Conditions;
 };
 
@@ -119,7 +131,8 @@ public:
 	void UpdateParametersFromLinkedSubtree();
 #endif
 
-	UStateTreeState* GetNextSiblingState() const;
+	const UStateTreeState* GetRootState() const;
+	const UStateTreeState* GetNextSiblingState() const;
 
 	// StateTree Builder API
 

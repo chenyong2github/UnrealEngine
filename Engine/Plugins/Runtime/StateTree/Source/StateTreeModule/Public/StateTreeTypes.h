@@ -118,10 +118,10 @@ enum class EStateTreeTransitionTrigger : uint8
 	/** Try trigger transition when a state failed. */
     OnStateFailed = 0x2,
 
-	/** Try trigger transition each StateTree tick. */
+	/** Try trigger transition each State Tree tick. */
     OnTick = 0x4,
 	
-	/** Try trigger transition on specific event. */
+	/** Try trigger transition on specific State Tree event. */
 	OnEvent = 0x8,
 
 	MAX
@@ -402,6 +402,68 @@ struct STATETREEMODULE_API FStateTreeActiveStates
 };
 
 /**
+ * Time duration with random variance. Stored compactly as two uint16s, which gives time range of about 650 seconds.
+ * The variance is symmetric (+-) around the specified duration.
+ */
+USTRUCT()
+struct STATETREEMODULE_API FStateTreeRandomTimeDuration
+{
+	GENERATED_BODY()
+
+	/** Reset duration to empty. */
+	void Reset()
+	{
+		Duration = 0;
+		RandomVariance = 0;
+	}
+
+	/** Sets the time duration with random variance. */
+	void Set(const float InDuration, const float InRandomVariance)
+	{
+		Duration = Quantize(InDuration);
+    	RandomVariance = Quantize(InRandomVariance);
+	}
+
+	/** @return the fixed duration. */
+	float GetDuration() const
+    {
+		return Duration / Scale;
+    }
+
+	/** @return the maximum random variance. */
+	float GetRandomVariance() const
+	{
+		return Duration / Scale;
+	}
+
+	/** @return True of the duration is empty (always returns 0). */
+	bool IsEmpty() const { return Duration == 0 && RandomVariance == 0; }
+	
+	/** @return Returns random duration around Duration, varied by +-RandomVariation. */
+	float GetRandomDuration() const
+	{
+		const int32 MinVal = FMath::Max(0, static_cast<int32>(Duration) - static_cast<int32>(RandomVariance));
+		const int32 MaxVal = static_cast<int32>(Duration) + static_cast<int32>(RandomVariance);
+		return FMath::RandRange(MinVal, MaxVal) / Scale;
+	}
+	
+protected:
+
+	static constexpr float Scale = 100.0f;
+
+	uint16 Quantize(const float Value) const
+	{
+		return (uint16)FMath::Clamp(FMath::RoundToInt32(Value * Scale), 0, (int32)MAX_uint16);
+	}
+	
+	UPROPERTY(EditDefaultsOnly, Category = Default)
+	uint16 Duration = 0;
+
+	UPROPERTY(EditDefaultsOnly, Category = Default)
+	uint16 RandomVariance = 0;
+};
+
+/**
  * Describes a state tree transition. Source is the state where the transition started, Target describes the state where the transition pointed at,
  * and Next describes the selected state. The reason Transition and Next are different is that Transition state can be a selector state,
  * in which case the children will be visited until a leaf state is found, which will be the next state.
@@ -447,6 +509,12 @@ struct STATETREEMODULE_API FCompactStateTransition
 {
 	GENERATED_BODY()
 
+	/** @return True if the transition has delay. */
+	bool HasDelay() const
+	{
+		return !Delay.IsEmpty();
+	}
+	
 	/** Transition event tag, used when trigger type is event. */
 	UPROPERTY()
 	FGameplayTag EventTag;
@@ -459,6 +527,10 @@ struct STATETREEMODULE_API FCompactStateTransition
 	UPROPERTY()
 	FStateTreeStateHandle State = FStateTreeStateHandle::Invalid;
 
+	/** Transition delay. */
+	UPROPERTY()
+	FStateTreeRandomTimeDuration Delay;
+	
 	/** Type of the transition. */
 	UPROPERTY()
 	EStateTreeTransitionType Type = EStateTreeTransitionType::NotSet;
@@ -466,10 +538,6 @@ struct STATETREEMODULE_API FCompactStateTransition
 	/* Type of the transition trigger. */
 	UPROPERTY()
 	EStateTreeTransitionTrigger Trigger = EStateTreeTransitionTrigger::None;
-
-	/** The time the conditions need to hold true for the transition to become active, in tenths of a seconds. */
-	UPROPERTY()
-	uint8 GateDelay = 0;
 
 	/** Number of conditions to test. */
 	UPROPERTY()

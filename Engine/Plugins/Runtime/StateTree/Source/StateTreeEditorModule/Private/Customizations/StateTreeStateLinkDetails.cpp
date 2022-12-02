@@ -178,7 +178,7 @@ TSharedRef<SWidget> FStateTreeStateLinkDetails::OnGetStateContent() const
 
 	if (CachedNames.Num() > 0)
 	{
-		MenuBuilder.BeginSection(FName(), LOCTEXT("TransitionGotoState", "Goto State"));
+		MenuBuilder.BeginSection(FName(), LOCTEXT("TransitionGotoState", "Go to State"));
 
 		for (int32 Idx = 0; Idx < CachedNames.Num(); Idx++)
 		{
@@ -186,7 +186,7 @@ TSharedRef<SWidget> FStateTreeStateLinkDetails::OnGetStateContent() const
 			Args.Add(TEXT("StateName"), FText::FromName(CachedNames[Idx]));
 
 			FUIAction ItemAction(FExecuteAction::CreateSP(const_cast<FStateTreeStateLinkDetails*>(this), &FStateTreeStateLinkDetails::OnStateComboChange, Idx));
-			MenuBuilder.AddMenuEntry(FText::FromName(CachedNames[Idx]), FText::Format(LOCTEXT("TransitionGotoStateTooltip", "Goto State {StateName}."), Args), FSlateIcon(), ItemAction);
+			MenuBuilder.AddMenuEntry(FText::FromName(CachedNames[Idx]), FText::Format(LOCTEXT("TransitionGotoStateTooltip", "Go to State {StateName}."), Args), FSlateIcon(), ItemAction);
 		}
 
 		MenuBuilder.EndSection();
@@ -201,7 +201,7 @@ FText FStateTreeStateLinkDetails::GetCurrentStateDesc() const
 
 	if (TransitionType == EStateTreeTransitionType::NotSet)
 	{
-		return LOCTEXT("TransitionNotSet", "None");
+		return LOCTEXT("TransitionBlock", "Block Transition");
 	}
 	else if (TransitionType == EStateTreeTransitionType::NextState)
 	{

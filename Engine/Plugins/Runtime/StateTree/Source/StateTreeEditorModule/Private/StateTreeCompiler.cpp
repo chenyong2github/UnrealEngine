@@ -560,13 +560,31 @@ bool FStateTreeCompiler::CreateStateTransitions()
 			CompactTransition.Trigger = Transition.Trigger;
 			CompactTransition.EventTag = Transition.EventTag;
 			CompactTransition.Type = Transition.State.Type;
-			CompactTransition.GateDelay = (uint8)FMath::Clamp(FMath::CeilToInt(Transition.GateDelay * 10.0f), 0, 255);
+			if (Transition.bDelayTransition)
+			{
+				CompactTransition.Delay.Set(Transition.DelayDuration, Transition.DelayRandomVariance);
+			}
+
+			if (EnumHasAnyFlags(Transition.Trigger, EStateTreeTransitionTrigger::OnStateCompleted))
+			{
+				// Completion transitions cannot have delay.
+				CompactTransition.Delay.Reset();
+
+				// Completion transitions must have valid target state.
+				if (CompactTransition.Type == EStateTreeTransitionType::NotSet)
+				{
+					Log.Reportf(EMessageSeverity::Error,
+						TEXT("State completion transition to '%s' must have transition to valid state, 'None' not accepted."),
+						*Transition.State.Name.ToString());
+				}
+			}
+			
 			CompactTransition.State = FStateTreeStateHandle::Invalid;
 			if (!ResolveTransitionState(*SourceState, Transition.State, CompactTransition.State))
 			{
 				return false;
 			}
-			// Note: Unset transition is allowed here. It can be used to mask a transition at parent.
+			
 			const int32 ConditionsBegin = Nodes.Num();
 			if (const auto Validation = UE::StateTree::Compiler::IsValidCount16(ConditionsBegin); Validation.DidFail())
 			{

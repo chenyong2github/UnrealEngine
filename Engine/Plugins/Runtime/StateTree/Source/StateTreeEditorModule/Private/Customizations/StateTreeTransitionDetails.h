@@ -9,6 +9,7 @@
 class IPropertyHandle;
 class UStateTree;
 class UStateTreeState;
+enum class EStateTreeTransitionTrigger : uint8;
 
 /**
  * Type customization for FStateTreeTransition.
@@ -28,10 +29,15 @@ private:
 
 	FText GetDescription() const;
 
+	EStateTreeTransitionTrigger GetTrigger() const;
+	bool GetDelayTransition() const;
+	
 	TSharedPtr<IPropertyHandle> TriggerProperty;
 	TSharedPtr<IPropertyHandle> EventTagProperty;
 	TSharedPtr<IPropertyHandle> StateProperty;
-	TSharedPtr<IPropertyHandle> GateDelayProperty;
+	TSharedPtr<IPropertyHandle> DelayTransitionProperty;
+	TSharedPtr<IPropertyHandle> DelayDurationProperty;
+	TSharedPtr<IPropertyHandle> DelayRandomVarianceProperty;
 	TSharedPtr<IPropertyHandle> ConditionsProperty;
 
 	class IPropertyUtilities* PropUtils;

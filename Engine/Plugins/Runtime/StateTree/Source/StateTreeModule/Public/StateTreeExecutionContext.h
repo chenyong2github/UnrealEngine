@@ -14,10 +14,22 @@ struct FStateTreeTaskBase;
 struct FStateTreeConditionBase;
 struct FStateTreeEvent;
 
+struct STATETREEMODULE_API FStateTreeTransitionDelayedState
+{
+	FStateTreeIndex16 TransitionIndex = FStateTreeIndex16::Invalid;
+	float TimeLeft = 0.0f;
+};
+
 USTRUCT()
 struct STATETREEMODULE_API FStateTreeExecutionState
 {
 	GENERATED_BODY()
+
+	/** @returns Delayed transition state for a specific transition, or nullptr if it does not exists. */
+	FStateTreeTransitionDelayedState* FindDelayedTransition(const FStateTreeIndex16 TransitionIndex)
+	{
+		return DelayedTransitions.FindByPredicate([TransitionIndex](const FStateTreeTransitionDelayedState& State){ return State.TransitionIndex == TransitionIndex; });
+	}
 
 	/** Currently active states */
 	FStateTreeActiveStates ActiveStates;
@@ -37,9 +49,6 @@ struct STATETREEMODULE_API FStateTreeExecutionState
 	/** Running status of the instance */
 	EStateTreeRunStatus TreeRunStatus = EStateTreeRunStatus::Unset;
 
-	/** Delayed transition handle, if exists */
-	FStateTreeIndex16 GatedTransitionIndex = FStateTreeIndex16::Invalid;
-
 	/** Handle of the state that was first to report state completed (success or failure), used to trigger completion transitions. */
 	FStateTreeStateHandle CompletedStateHandle = FStateTreeStateHandle::Invalid;
 
@@ -47,7 +56,7 @@ struct STATETREEMODULE_API FStateTreeExecutionState
 	uint16 StateChangeCount = 0;
 
 	/** Running time of the delayed transition */
-	float GatedTransitionTime = 0.0f;
+	TArray<FStateTreeTransitionDelayedState> DelayedTransitions;
 };
 
 /**
@@ -273,8 +282,11 @@ protected:
 	/** @return Prefix that will be used by STATETREE_LOG and STATETREE_CLOG, empty by default. */
 	virtual FString GetInstanceDescription() const;
 
-	/** Callback when gated transition is triggered. Contexts that are event based can use this to trigger a future event. */
-	virtual void BeginGatedTransition(const FStateTreeExecutionState& Exec) {};
+	UE_DEPRECATED(5.2, "Use BeginDelayedTransition() instead.")
+	virtual void BeginGatedTransition(const FStateTreeExecutionState& Exec) final {};
+	
+	/** Callback when delayed transition is triggered. Contexts that are event based can use this to trigger a future event. */
+	virtual void BeginDelayedTransition(const FStateTreeTransitionDelayedState& DelayedState) {};
 
 	void UpdateInstanceData(const FStateTreeActiveStates& CurrentActiveStates, const FStateTreeActiveStates& NextActiveStates);
 
@@ -318,6 +330,13 @@ protected:
 	 * @return True if all conditions pass.
 	 */
 	bool TestAllConditions(FStateTreeInstanceData& SharedInstanceData, const int32 ConditionsOffset, const int32 ConditionsNum);
+
+	/**
+	 * Tries to select a state pointed by the specified transition. The OutTransition is filled on successful selection.
+	 * @return true of the state selection succeeds.
+	 */
+	bool SelectTransition(FStateTreeInstanceData& SharedInstanceData, FStateTreeExecutionState& Exec,
+			const int16 StateIndex, const FCompactStateTreeState& State, const FCompactStateTransition& Transition, FStateTreeTransitionResult& OutTransition);
 
 	/**
 	 * Triggers transitions based on current run status. CurrentStatus is used to select which transitions events are triggered.

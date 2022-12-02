@@ -15,11 +15,11 @@ FMassStateTreeExecutionContext::FMassStateTreeExecutionContext(UObject& InOwner,
 {
 }
 
-void FMassStateTreeExecutionContext::BeginGatedTransition(const FStateTreeExecutionState& Exec)
+void FMassStateTreeExecutionContext::BeginDelayedTransition(const FStateTreeTransitionDelayedState& DelayedState)
 {
 	if (SignalSubsystem != nullptr && Entity.IsSet())
 	{
 		// Tick again after the games time has passed to see if the condition still holds true.
-		SignalSubsystem->DelaySignalEntity(UE::Mass::Signals::DelayedTransitionWakeup, Entity, Exec.GatedTransitionTime + KINDA_SMALL_NUMBER);
+		SignalSubsystem->DelaySignalEntity(UE::Mass::Signals::DelayedTransitionWakeup, Entity, DelayedState.TimeLeft + KINDA_SMALL_NUMBER);
 	}
 }

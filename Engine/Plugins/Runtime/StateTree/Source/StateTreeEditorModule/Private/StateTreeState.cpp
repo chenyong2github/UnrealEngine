@@ -194,6 +194,38 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 					}
 				}
 			}
+			else if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd)
+			{
+				if (MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UStateTreeState, Transitions))
+				{
+					const int32 TransitionsIndex = PropertyChangedEvent.GetArrayIndex(MemberProperty->GetFName().ToString());
+					if (Transitions.IsValidIndex(TransitionsIndex))
+					{
+						// Set default transition on newly created states.
+						FStateTreeTransition& Transition = Transitions[TransitionsIndex];
+						Transition.Trigger = EStateTreeTransitionTrigger::OnStateCompleted;
+						const UStateTreeState* RootState = GetRootState();
+						Transition.State.Set(RootState ? RootState : this);
+					}
+				}
+			}
+			else
+			{
+				if (MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UStateTreeState, Transitions))
+				{
+					const int32 TransitionsIndex = PropertyChangedEvent.GetArrayIndex(MemberProperty->GetFName().ToString());
+					if (Transitions.IsValidIndex(TransitionsIndex))
+					{
+						FStateTreeTransition& Transition = Transitions[TransitionsIndex];
+
+						if (EnumHasAnyFlags(Transition.Trigger, EStateTreeTransitionTrigger::OnStateCompleted))
+						{
+							// Reset delay on completion transitions
+							Transition.bDelayTransition = false;
+						}
+					}
+				}
+			}
 		}
 	}
 }
@@ -236,7 +268,17 @@ void UStateTreeState::UpdateParametersFromLinkedSubtree()
 
 #endif
 
-UStateTreeState* UStateTreeState::GetNextSiblingState() const
+const UStateTreeState* UStateTreeState::GetRootState() const
+{
+	const UStateTreeState* RootState = this;
+	while (RootState->Parent != nullptr)
+	{
+		RootState = RootState->Parent;
+	}
+	return RootState;
+}
+
+const UStateTreeState* UStateTreeState::GetNextSiblingState() const
 {
 	if (!Parent)
 	{
