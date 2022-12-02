@@ -180,6 +180,85 @@ FConvexVolume FCameraRectangle::FrustumAsConvexVolume() const
 	return OutFrustum;
 }
 
+
+
+
+
+// ---------------------------------------
+
+FInputRayHit URectangleMarqueeInteraction::CanBeginClickDragSequence(const FInputDeviceRay& PressPos)
+{
+	return FInputRayHit(TNumericLimits<float>::Max());
+}
+
+void URectangleMarqueeInteraction::OnClickPress(const FInputDeviceRay& PressPos)
+{
+	if (!PressPos.bHas2D)
+	{
+		bIsDragging = false;
+		return;
+	}
+
+	CameraRectangle.RectangleStartRay = PressPos;
+	CameraRectangle.RectangleEndRay = PressPos;
+	CameraRectangle.Initialize();
+
+	OnDragRectangleStarted.Broadcast();
+	// consider broadcasting OnDragRectangleChanged as well here, and set bIsDragging=true here...
+}
+
+void URectangleMarqueeInteraction::OnClickDrag(const FInputDeviceRay& DragPos)
+{
+	if (!DragPos.bHas2D)
+	{
+		return;
+	}
+
+	// should probably threshold based on movement here, ie if 2D position is the same, do not 
+	// need to post an update... (no guarantees that this isn't called continuously w/ same DragPos!)
+
+	bIsDragging = true;
+	CameraRectangle.RectangleEndRay = DragPos;
+	CameraRectangle.Initialize();
+	
+	OnDragRectangleChanged.Broadcast(CameraRectangle);
+}
+
+void URectangleMarqueeInteraction::OnClickRelease(const FInputDeviceRay& ReleasePos)
+{
+	bIsDragging = false;
+	OnDragRectangleFinished.Broadcast(CameraRectangle, false);
+}
+
+void URectangleMarqueeInteraction::OnTerminateDragSequence()
+{
+	bIsDragging = false;
+	OnDragRectangleFinished.Broadcast(CameraRectangle, true);
+}
+
+
+void URectangleMarqueeInteraction::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI)
+{
+	CurrentCameraState = RenderAPI->GetCameraState();
+
+	EViewInteractionState State = RenderAPI->GetViewInteractionState();
+	bool bThisViewHasFocus = !!(State & EViewInteractionState::Focused);
+	if (bThisViewHasFocus && bIsDragging)
+	{
+		FVector2D Start = CameraRectangle.RectangleStartRay.ScreenPosition;
+		FVector2D Curr = CameraRectangle.RectangleEndRay.ScreenPosition;
+		FCanvasBoxItem BoxItem(Start / Canvas->GetDPIScale(), (Curr - Start) / Canvas->GetDPIScale());
+		BoxItem.SetColor(FLinearColor::White);
+		Canvas->DrawItem(BoxItem);
+	}
+}
+
+
+
+
+
+
+
 // ---------------------------------------
 
 void URectangleMarqueeMechanic::Setup(UInteractiveTool* ParentToolIn)

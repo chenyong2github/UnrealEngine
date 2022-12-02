@@ -145,15 +145,25 @@ public:
 	TSharedPtr<FUICommandInfo> BeginPolyModelTool_CutFaces;
 
 
+	// old selection state actions
 	TSharedPtr<FUICommandInfo> BeginSelectionAction_ToVertexType;
 	TSharedPtr<FUICommandInfo> BeginSelectionAction_ToEdgeType;
 	TSharedPtr<FUICommandInfo> BeginSelectionAction_ToFaceType;
-
 	TSharedPtr<FUICommandInfo> BeginSelectionAction_ToObjectType;
 	TSharedPtr<FUICommandInfo> BeginSelectionAction_ToTriangleType;
 	TSharedPtr<FUICommandInfo> BeginSelectionAction_ToPolygroupType;
 
+	TSharedPtr<FUICommandInfo> MeshSelectionModeAction_NoSelection;
+	TSharedPtr<FUICommandInfo> MeshSelectionModeAction_MeshTriangles;
+	TSharedPtr<FUICommandInfo> MeshSelectionModeAction_MeshVertices;
+	TSharedPtr<FUICommandInfo> MeshSelectionModeAction_MeshEdges;
+	TSharedPtr<FUICommandInfo> MeshSelectionModeAction_GroupFaces;
+	TSharedPtr<FUICommandInfo> MeshSelectionModeAction_GroupCorners;
+	TSharedPtr<FUICommandInfo> MeshSelectionModeAction_GroupEdges;
+
+
 	TSharedPtr<FUICommandInfo> BeginSelectionAction_Delete;
+	TSharedPtr<FUICommandInfo> BeginSelectionAction_Extrude;
 
 	// For connecting ModelingMode with UVEditor plugin
 	TSharedPtr<FUICommandInfo> LaunchUVEditor;

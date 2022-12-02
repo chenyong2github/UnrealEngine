@@ -69,6 +69,15 @@ FModelingToolsEditorModeToolkit::FModelingToolsEditorModeToolkit()
 
 FModelingToolsEditorModeToolkit::~FModelingToolsEditorModeToolkit()
 {
+	if (IsHosted())
+	{
+		if (SelectionPaletteOverlayWidget.IsValid())
+		{
+			GetToolkitHost()->RemoveViewportOverlayWidget(SelectionPaletteOverlayWidget.ToSharedRef());
+			SelectionPaletteOverlayWidget.Reset();
+		}
+	}
+
 	UModelingToolsEditorModeSettings* Settings = GetMutableDefault<UModelingToolsEditorModeSettings>();
 	Settings->OnModified.Remove(AssetSettingsModifiedHandle);
 	GetScriptableEditorMode()->GetInteractiveToolsContext(EToolsContextScope::EdMode)->OnToolNotificationMessage.RemoveAll(this);
@@ -165,7 +174,22 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 
 	UpdateObjectCreationOptionsFromSettings();
 
-	SAssignNew(ViewportOverlayWidget, SHorizontalBox)
+	MakeToolShutdownOverlayWidget();
+
+	const UModelingToolsEditorModeSettings* ModelingModeSettings = GetDefault<UModelingToolsEditorModeSettings>();
+	bool bEnableSelectionUI = ModelingModeSettings && ModelingModeSettings->bEnablePersistentSelections;
+	if ( bEnableSelectionUI )
+	{
+		MakeSelectionPaletteOverlayWidget();
+		GetToolkitHost()->AddViewportOverlayWidget(SelectionPaletteOverlayWidget.ToSharedRef());
+	}
+}
+
+
+
+void FModelingToolsEditorModeToolkit::MakeToolShutdownOverlayWidget()
+{
+	SAssignNew(ToolShutdownViewportOverlayWidget, SHorizontalBox)
 
 	+SHorizontalBox::Slot()
 	.HAlign(HAlign_Center)
@@ -531,8 +555,7 @@ static const FName LODToolsTabName(TEXT("LODs"));
 static const FName BakingToolsTabName(TEXT("Baking"));
 static const FName ModelingFavoritesTabName(TEXT("Favorites"));
 
-static const FName SelectionModesTabName(TEXT("SelectionModes"));
-static const FName SelectionActionsTabName(TEXT("SelectionActions"));
+static const FName SelectionActionsTabName(TEXT("Selection"));
 
 
 const TArray<FName> FModelingToolsEditorModeToolkit::PaletteNames_Standard = { PrimitiveTabName, CreateTabName, PolyModelingTabName, TriModelingTabName, DeformTabName, TransformTabName, MeshProcessingTabName, VoxToolsTabName, AttributesTabName, UVTabName, BakingToolsTabName, VolumesTabName, LODToolsTabName };
@@ -557,8 +580,6 @@ void FModelingToolsEditorModeToolkit::GetToolPaletteNames(TArray<FName>& Palette
 			PaletteNames.Insert(SelectionActionsTabName, 0);
 			ExistingNames.Add(SelectionActionsTabName);
 		}
-
-		PaletteNames.Insert(SelectionModesTabName, 0);
 	}
 
 	bool bEnablePrototypes = (CVarEnablePrototypeModelingTools.GetValueOnGameThread() > 0);
@@ -629,7 +650,7 @@ void FModelingToolsEditorModeToolkit::GetToolPaletteNames(TArray<FName>& Palette
 
 
 FText FModelingToolsEditorModeToolkit::GetToolPaletteDisplayName(FName Palette) const
-{ 
+{
 	return FText::FromName(Palette);
 }
 
@@ -654,16 +675,6 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class
 				UE_LOG(LogTemp, Display, TEXT("ModelingMode: could not find Favorited Tool %s"), *ToolName);
 			}
 		}
-	}
-	else if (PaletteIndex == SelectionModesTabName)
-	{
-		ToolbarBuilder.AddToolBarButton(Commands.BeginSelectionAction_ToObjectType);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginSelectionAction_ToTriangleType);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginSelectionAction_ToPolygroupType);
-
-		ToolbarBuilder.AddToolBarButton(Commands.BeginSelectionAction_ToVertexType);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginSelectionAction_ToEdgeType);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginSelectionAction_ToFaceType);
 	}
 	else if (PaletteIndex == SelectionActionsTabName)
 	{
@@ -1018,22 +1029,22 @@ void FModelingToolsEditorModeToolkit::InvokeUI()
 
 void FModelingToolsEditorModeToolkit::ForceToolPaletteRebuild()
 {
+	// disabling this for now because it resets the expand/contract state of all the palettes...
 
-	UGeometrySelectionManager* SelectionManager = Cast<UModelingToolsEditorMode>(GetScriptableEditorMode())->GetSelectionManager();
-	if (SelectionManager)
-	{
-		bool bHasActiveSelection = SelectionManager->HasSelection();
-
-		if (bShowActiveSelectionActions != bHasActiveSelection)
-		{
-			bShowActiveSelectionActions = bHasActiveSelection;
-			this->RebuildModeToolPalette();
-		}
-	}
-	else
-	{
-		bShowActiveSelectionActions = false;
-	}
+	//UGeometrySelectionManager* SelectionManager = Cast<UModelingToolsEditorMode>(GetScriptableEditorMode())->GetSelectionManager();
+	//if (SelectionManager)
+	//{
+	//	bool bHasActiveSelection = SelectionManager->HasSelection();
+	//	if (bShowActiveSelectionActions != bHasActiveSelection)
+	//	{
+	//		bShowActiveSelectionActions = bHasActiveSelection;
+	//		this->RebuildModeToolPalette();
+	//	}
+	//}
+	//else
+	//{
+	//	bShowActiveSelectionActions = false;
+	//}
 }
 
 
@@ -1084,7 +1095,7 @@ void FModelingToolsEditorModeToolkit::OnToolStarted(UInteractiveToolManager* Man
 	ActiveToolIcon = FModelingToolsEditorModeStyle::Get()->GetOptionalBrush(ActiveToolIconName);
 
 
-	GetToolkitHost()->AddViewportOverlayWidget(ViewportOverlayWidget.ToSharedRef());
+	GetToolkitHost()->AddViewportOverlayWidget(ToolShutdownViewportOverlayWidget.ToSharedRef());
 
 	// disable LOD level picker once Tool is active
 	AssetLODMode->SetEnabled(false);
@@ -1105,7 +1116,7 @@ void FModelingToolsEditorModeToolkit::OnToolEnded(UInteractiveToolManager* Manag
 {
 	if (IsHosted())
 	{
-		GetToolkitHost()->RemoveViewportOverlayWidget(ViewportOverlayWidget.ToSharedRef());
+		GetToolkitHost()->RemoveViewportOverlayWidget(ToolShutdownViewportOverlayWidget.ToSharedRef());
 	}
 
 	ModeDetailsView->SetObject(nullptr);
@@ -1134,11 +1145,11 @@ void FModelingToolsEditorModeToolkit::OnActiveViewportChanged(TSharedPtr<IAssetV
 		// Check first to see if this changed because the old viewport was deleted and if not, remove our hud
 		if (OldViewport)	
 		{
-			GetToolkitHost()->RemoveViewportOverlayWidget(ViewportOverlayWidget.ToSharedRef(), OldViewport);
+			GetToolkitHost()->RemoveViewportOverlayWidget(ToolShutdownViewportOverlayWidget.ToSharedRef(), OldViewport);
 		}
 
 		// Add the hud to the new viewport
-		GetToolkitHost()->AddViewportOverlayWidget(ViewportOverlayWidget.ToSharedRef(), NewViewport);
+		GetToolkitHost()->AddViewportOverlayWidget(ToolShutdownViewportOverlayWidget.ToSharedRef(), NewViewport);
 	}
 }
 

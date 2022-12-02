@@ -55,6 +55,11 @@ public:
 	 */
 	virtual void Initialize(IClickBehaviorTarget* ClickTarget, IClickDragBehaviorTarget* DragTarget);
 
+	/**
+	 * Change the Drag BehaviorTarget
+	 */
+	virtual void SetDragTarget(IClickDragBehaviorTarget* DragTarget);
+
 
 	/**
 	 * WantsCapture() will only return capture request if this function returns true (or is null)

@@ -12,13 +12,21 @@ void USingleClickOrDragInputBehavior::Initialize(IClickBehaviorTarget* ClickTarg
 	this->DragTarget = DragTargetIn;
 }
 
+void USingleClickOrDragInputBehavior::SetDragTarget(IClickDragBehaviorTarget* DragTargetIn)
+{
+	if ( ensure(!bInDrag) )
+	{
+		this->DragTarget = DragTargetIn;
+	}
+}
+
 
 FInputCaptureRequest USingleClickOrDragInputBehavior::WantsCapture(const FInputDeviceState& Input)
 {
 	bImmediatelyBeginDragInBeginCapture = false;
 	if (IsPressed(Input) && (ModifierCheckFunc == nullptr || ModifierCheckFunc(Input)) )
 	{
-		FInputRayHit ClickHitResult = ClickTarget->IsHitByClick(GetDeviceRay(Input));
+		FInputRayHit ClickHitResult = (ClickTarget) ? ClickTarget->IsHitByClick(GetDeviceRay(Input)) : FInputRayHit();
 		if (ClickHitResult.bHit)
 		{
 			return FInputCaptureRequest::Begin(this, EInputCaptureSide::Any, ClickHitResult.HitDepth);
@@ -39,8 +47,14 @@ FInputCaptureRequest USingleClickOrDragInputBehavior::WantsCapture(const FInputD
 
 FInputCaptureUpdate USingleClickOrDragInputBehavior::BeginCapture(const FInputDeviceState& Input, EInputCaptureSide eSide)
 {
-	Modifiers.UpdateModifiers(Input, ClickTarget);
-	Modifiers.UpdateModifiers(Input, DragTarget);
+	if ( ClickTarget != nullptr )
+	{
+		Modifiers.UpdateModifiers(Input, ClickTarget);
+	}
+	if ( DragTarget != nullptr )
+	{
+		Modifiers.UpdateModifiers(Input, DragTarget);
+	}
 
 	ensure(Input.IsFromDevice(EInputDevices::Mouse));	// todo: handle other devices
 	MouseDownPosition2D = Input.Mouse.Position2D;	
@@ -62,8 +76,14 @@ FInputCaptureUpdate USingleClickOrDragInputBehavior::BeginCapture(const FInputDe
 
 FInputCaptureUpdate USingleClickOrDragInputBehavior::UpdateCapture(const FInputDeviceState& Input, const FInputCaptureData& Data)
 {
-	Modifiers.UpdateModifiers(Input, ClickTarget);
-	Modifiers.UpdateModifiers(Input, DragTarget);
+	if ( ClickTarget != nullptr )
+	{
+		Modifiers.UpdateModifiers(Input, ClickTarget);
+	}
+	if ( DragTarget != nullptr )
+	{
+		Modifiers.UpdateModifiers(Input, DragTarget);
+	}
 
 	// check if mouse has moved far enough that we want to swap to drag behavior
 	if (bInDrag == false)
@@ -74,11 +94,14 @@ FInputCaptureUpdate USingleClickOrDragInputBehavior::UpdateCapture(const FInputD
 			FInputDeviceState StartInput = Input;
 			StartInput.Mouse.Position2D = MouseDownPosition2D;		// attempt to reconstruct the input state that would have existed in WantsCapture/BeginCapture
 			StartInput.Mouse.WorldRay = MouseDownRay;
-			FInputRayHit DragHitResult = DragTarget->CanBeginClickDragSequence(GetDeviceRay(StartInput));
-			if (DragHitResult.bHit)
+			if ( DragTarget )
 			{
-				bInDrag = true;
-				OnClickDragPressInternal(StartInput, CaptureSide);
+				FInputRayHit DragHitResult = DragTarget->CanBeginClickDragSequence(GetDeviceRay(StartInput));
+				if (DragHitResult.bHit)
+				{
+					bInDrag = true;
+					OnClickDragPressInternal(StartInput, CaptureSide);
+				}
 			}
 		}
 	}
@@ -92,7 +115,7 @@ FInputCaptureUpdate USingleClickOrDragInputBehavior::UpdateCapture(const FInputD
 		}
 		else   // click path
 		{
-			if (ClickTarget->IsHitByClick(GetDeviceRay(Input)).bHit)
+			if (ClickTarget && ClickTarget->IsHitByClick(GetDeviceRay(Input)).bHit )
 			{
 				OnClickedInternal(Input, Data);
 			}
@@ -115,7 +138,10 @@ void USingleClickOrDragInputBehavior::ForceEndCapture(const FInputCaptureData& d
 {
 	if (bInDrag)
 	{
-		DragTarget->OnTerminateDragSequence();
+		if ( DragTarget )
+		{
+			DragTarget->OnTerminateDragSequence();
+		}
 		bInDrag = false;
 	}
 
@@ -125,23 +151,35 @@ void USingleClickOrDragInputBehavior::ForceEndCapture(const FInputCaptureData& d
 
 void USingleClickOrDragInputBehavior::OnClickedInternal(const FInputDeviceState& input, const FInputCaptureData& data)
 {
-	ClickTarget->OnClicked(GetDeviceRay(input));
+	if ( ClickTarget )
+	{
+		ClickTarget->OnClicked(GetDeviceRay(input));
+	}
 }
 
 
 
 void USingleClickOrDragInputBehavior::OnClickDragPressInternal(const FInputDeviceState& Input, EInputCaptureSide Side)
 {
-	DragTarget->OnClickPress(GetDeviceRay(Input));
+	if ( DragTarget )
+	{
+		DragTarget->OnClickPress(GetDeviceRay(Input));
+	}
 }
 
 void USingleClickOrDragInputBehavior::OnClickDragInternal(const FInputDeviceState& Input, const FInputCaptureData& Data)
 {
-	DragTarget->OnClickDrag(GetDeviceRay(Input));
+	if ( DragTarget )
+	{
+		DragTarget->OnClickDrag(GetDeviceRay(Input));
+	}
 }
 
 void USingleClickOrDragInputBehavior::OnClickDragReleaseInternal(const FInputDeviceState& Input, const FInputCaptureData& Data)
 {
-	DragTarget->OnClickRelease(GetDeviceRay(Input));
+	if ( DragTarget )
+	{
+		DragTarget->OnClickRelease(GetDeviceRay(Input));
+	}
 }
 

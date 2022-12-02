@@ -9,7 +9,10 @@
 #include "SceneQueries/SceneSnappingManager.h"
 
 #include "BaseBehaviors/SingleClickBehavior.h"
+#include "BaseBehaviors/SingleClickOrDragBehavior.h"
 #include "BaseBehaviors/MouseHoverBehavior.h"
+
+#include "Mechanics/RectangleMarqueeMechanic.h"
 
 
 using namespace UE::Geometry;
@@ -24,18 +27,30 @@ void UModelingSelectionInteraction::Initialize(
 	CanChangeSelectionCallback = MoveTemp(CanChangeSelectionCallbackIn);
 	ExternalHitCaptureCallback = MoveTemp(ExternalHitCaptureCallbackIn);
 
+	// set up rectangle marquee interaction
+	RectangleMarqueeInteraction = NewObject<URectangleMarqueeInteraction>(this);
+	RectangleMarqueeInteraction->OnDragRectangleFinished.AddUObject(this, &UModelingSelectionInteraction::OnMarqueeRectangleFinished);
+
+	// set up path selection interaction
+	PathSelectionInteraction = NewObject<UPathSelectionInteraction>(this);
+	PathSelectionInteraction->Setup(this);
+
 	// create click behavior and set ourselves as click target
-	ClickBehavior = NewObject<USingleClickInputBehavior>();
-	ClickBehavior->Modifiers.RegisterModifier(AddToSelectionModifier, FInputDeviceState::IsShiftKeyDown);
-	ClickBehavior->Modifiers.RegisterModifier(ToggleSelectionModifier, FInputDeviceState::IsCtrlKeyDown);
-	ClickBehavior->Initialize(this);
+	ClickOrDragBehavior = NewObject<USingleClickOrDragInputBehavior>();
+	ClickOrDragBehavior->Modifiers.RegisterModifier(AddToSelectionModifier, FInputDeviceState::IsShiftKeyDown);
+	ClickOrDragBehavior->Modifiers.RegisterModifier(ToggleSelectionModifier, FInputDeviceState::IsCtrlKeyDown);
+	ClickOrDragBehavior->bBeginDragIfClickTargetNotHit = false;
+	ClickOrDragBehavior->Initialize(this, PathSelectionInteraction);
 
 	HoverBehavior = NewObject<UMouseHoverBehavior>(this);
 	HoverBehavior->Initialize(this);
 
 	BehaviorSet = NewObject<UInputBehaviorSet>();
-	BehaviorSet->Add(ClickBehavior, this);
+	BehaviorSet->Add(ClickOrDragBehavior, this);
 	BehaviorSet->Add(HoverBehavior, this);
+
+	// configure drag mode of ClickOrDragBehavior
+	UpdateActiveDragMode();
 
 	TransformProxy = NewObject<UTransformProxy>(this);
 	// todo: make this repositionable etc. Maybe make this function a delegate? or allow caller to provide the gizmo?
@@ -68,6 +83,38 @@ void UModelingSelectionInteraction::Shutdown()
 }
 
 
+void UModelingSelectionInteraction::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI)
+{
+	if (RectangleMarqueeInteraction)
+	{
+		RectangleMarqueeInteraction->DrawHUD(Canvas, RenderAPI);
+	}
+}
+
+void UModelingSelectionInteraction::SetActiveDragMode(EModelingSelectionInteraction_DragMode NewMode)
+{
+	if (ActiveDragMode != NewMode)
+	{
+		ActiveDragMode = NewMode;
+		UpdateActiveDragMode();
+	}
+}
+
+void UModelingSelectionInteraction::UpdateActiveDragMode()
+{
+	if (ActiveDragMode == EModelingSelectionInteraction_DragMode::PathInteraction)
+	{
+		ClickOrDragBehavior->SetDragTarget(PathSelectionInteraction);
+	}
+	else if (ActiveDragMode == EModelingSelectionInteraction_DragMode::RectangleMarqueeInteraction)
+	{
+		ClickOrDragBehavior->SetDragTarget(RectangleMarqueeInteraction);
+	}
+	else
+	{
+		ClickOrDragBehavior->SetDragTarget(nullptr);
+	}
+}
 
 
 void UModelingSelectionInteraction::OnUpdateModifierState(int ModifierID, bool bIsOn)
@@ -196,6 +243,18 @@ void UModelingSelectionInteraction::OnClicked(const FInputDeviceRay& ClickPos)
 		return;
 	}
 
+	FGeometrySelectionUpdateConfig UpdateConfig = GetActiveSelectionUpdateConfig();
+
+	FGeometrySelectionUpdateResult Result;
+	SelectionManager->UpdateSelectionViaRaycast(
+		ClickPos.WorldRay,
+		UpdateConfig,
+		Result);
+}
+
+
+FGeometrySelectionUpdateConfig UModelingSelectionInteraction::GetActiveSelectionUpdateConfig() const
+{
 	FGeometrySelectionUpdateConfig UpdateConfig;
 	UpdateConfig.ChangeType = EGeometrySelectionChangeType::Replace;
 	if (bAddToSelectionEnabled)
@@ -206,15 +265,8 @@ void UModelingSelectionInteraction::OnClicked(const FInputDeviceRay& ClickPos)
 	{
 		UpdateConfig.ChangeType = EGeometrySelectionChangeType::Remove;
 	}
-
-	FGeometrySelectionUpdateResult Result;
-	SelectionManager->UpdateSelectionViaRaycast(
-		ClickPos.WorldRay,
-		UpdateConfig,
-		Result);
+	return UpdateConfig;
 }
-
-
 
 
 
@@ -365,8 +417,78 @@ void UModelingSelectionInteraction::ApplyPendingTransformInteractions()
 		}
 	}
 
-
-
-
 	bGizmoUpdatePending = false;
+}
+
+
+
+void UModelingSelectionInteraction::OnMarqueeRectangleFinished(const FCameraRectangle& Rectangle, bool bCancelled)
+{
+
+}
+
+
+
+
+void UPathSelectionInteraction::Setup(UModelingSelectionInteraction* SelectionInteractionIn)
+{
+
+	SelectionInteraction = SelectionInteractionIn;
+}
+
+
+FInputRayHit UPathSelectionInteraction::CanBeginClickDragSequence(const FInputDeviceRay& PressPos)
+{
+	if (SelectionInteraction->GetSelectionManager()->CanBeginTrackedSelectionChange())
+	{
+		return SelectionInteraction->IsHitByClick(PressPos);
+	}
+	return FInputRayHit();
+}
+
+void UPathSelectionInteraction::OnClickPress(const FInputDeviceRay& PressPos)
+{
+	FGeometrySelectionUpdateConfig UpdateConfig = SelectionInteraction->GetActiveSelectionUpdateConfig();
+	UGeometrySelectionManager* SelectionManager = SelectionInteraction->GetSelectionManager();
+
+	bool bInitialClear = false;
+	if (UpdateConfig.ChangeType == EGeometrySelectionChangeType::Replace)
+	{
+		bInitialClear = true;
+		UpdateConfig.ChangeType = EGeometrySelectionChangeType::Add;
+	}
+
+	if (SelectionManager->BeginTrackedSelectionChange(UpdateConfig, bInitialClear))
+	{
+		FGeometrySelectionUpdateResult Result;
+		SelectionManager->AccumulateSelectionUpdate_Raycast(PressPos.WorldRay, Result);
+	}
+}
+
+void UPathSelectionInteraction::OnClickDrag(const FInputDeviceRay& DragPos)
+{
+	UGeometrySelectionManager* SelectionManager = SelectionInteraction->GetSelectionManager();
+	if (SelectionManager->IsInTrackedSelectionChange())
+	{
+		FGeometrySelectionUpdateResult Result;
+		SelectionManager->AccumulateSelectionUpdate_Raycast(DragPos.WorldRay, Result);		
+	}
+}
+
+void UPathSelectionInteraction::OnClickRelease(const FInputDeviceRay& ReleasePos)
+{
+	UGeometrySelectionManager* SelectionManager = SelectionInteraction->GetSelectionManager();
+	if (SelectionManager->IsInTrackedSelectionChange())
+	{
+		SelectionManager->EndTrackedSelectionChange();
+	}
+}
+
+void UPathSelectionInteraction::OnTerminateDragSequence()
+{
+	UGeometrySelectionManager* SelectionManager = SelectionInteraction->GetSelectionManager();
+	if (SelectionManager->IsInTrackedSelectionChange())
+	{
+		SelectionManager->EndTrackedSelectionChange();
+	}
 }

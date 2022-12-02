@@ -7,11 +7,28 @@
 #include "InputBehaviorSet.h"
 #include "BaseGizmos/TransformGizmoUtil.h"
 #include "FrameTypes.h"
+#include "Mechanics/RectangleMarqueeMechanic.h"
+#include "Mechanics/PolyLassoMarqueeMechanic.h"
+#include "Selections/GeometrySelection.h"
 #include "ModelingSelectionInteraction.generated.h"
 
 class UGeometrySelectionManager;
 class USingleClickInputBehavior;
+class USingleClickOrDragInputBehavior;
 class UMouseHoverBehavior;
+class URectangleMarqueeMechanic;
+class UPathSelectionInteraction;
+class FCanvas;
+class IToolsContextRenderAPI;
+
+
+UENUM()
+enum class EModelingSelectionInteraction_DragMode : uint8
+{
+	NoDragInteraction = 0,
+	PathInteraction = 1,
+	RectangleMarqueeInteraction = 2
+};
 
 /**
  * UModelingSelectionInteraction provides element-level selection behavior (ie mesh triangles/edges/vertices)
@@ -49,6 +66,23 @@ public:
 
 	virtual void Shutdown();
 
+	UGeometrySelectionManager* GetSelectionManager() { return SelectionManager; }
+	UE::Geometry::FGeometrySelectionUpdateConfig GetActiveSelectionUpdateConfig() const;
+
+	virtual void DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI);
+
+
+	//
+	// Support for drag-style interactions
+	//
+
+	EModelingSelectionInteraction_DragMode GetActiveDragMode() const { return ActiveDragMode; }
+	void SetActiveDragMode(EModelingSelectionInteraction_DragMode NewMode);
+
+	//
+	// Support for transformation of selected geometry
+	//
+
 	// this needs to be called from EdMode tick or rendering, to avoid mouse-interrupt priority issues
 	virtual void ApplyPendingTransformInteractions();
 
@@ -58,10 +92,11 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnEndTransformInteraction);
 	FOnEndTransformInteraction OnTransformEnd;
 
-public:
-	// click-to-select behavior
+
+protected:
+	// click-to-select behavior, various drag behaviors
 	UPROPERTY()
-	TObjectPtr<USingleClickInputBehavior> ClickBehavior;
+	TObjectPtr<USingleClickOrDragInputBehavior> ClickOrDragBehavior;
 
 	// mouse hover behavior
 	UPROPERTY()
@@ -151,5 +186,44 @@ protected:
 	void OnBeginGizmoTransform(UTransformProxy* Proxy);
 	void OnEndGizmoTransform(UTransformProxy* Proxy);
 	void OnGizmoTransformChanged(UTransformProxy* Proxy, FTransform Transform);
+
+
+protected:
+	EModelingSelectionInteraction_DragMode ActiveDragMode = EModelingSelectionInteraction_DragMode::PathInteraction;
+	void UpdateActiveDragMode();
+
+	UPROPERTY()
+	TObjectPtr<URectangleMarqueeInteraction> RectangleMarqueeInteraction;
+
+	void OnMarqueeRectangleFinished(const FCameraRectangle& Rectangle, bool bCancelled);
+
+	UPROPERTY()
+	TObjectPtr<UPathSelectionInteraction> PathSelectionInteraction;
+};
+
+
+
+/**
+ * UPathSelectionInteraction is a simple drag-interaction for Selection, which essentially just
+ * selects/deselects any element hit by the cursor. 
+ * 
+ * Currently no attempt is made to (eg) subsample, so a fast-moving cursor will skip over some faces.
+ */
+UCLASS()
+class UPathSelectionInteraction : public UObject, public IClickDragBehaviorTarget
+{
+	GENERATED_BODY()
+public:
+	void Setup(UModelingSelectionInteraction* SelectionInteraction);
+
+protected:
+	UPROPERTY()
+	TWeakObjectPtr<UModelingSelectionInteraction> SelectionInteraction = nullptr;
+
+	virtual FInputRayHit CanBeginClickDragSequence(const FInputDeviceRay& PressPos) override;
+	virtual void OnClickPress(const FInputDeviceRay& PressPos) override;
+	virtual void OnClickDrag(const FInputDeviceRay& DragPos) override;
+	virtual void OnClickRelease(const FInputDeviceRay& ReleasePos) override;
+	virtual void OnTerminateDragSequence() override;
 
 };

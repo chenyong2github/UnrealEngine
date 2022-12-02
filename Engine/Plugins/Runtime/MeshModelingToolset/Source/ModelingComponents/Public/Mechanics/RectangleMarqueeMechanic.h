@@ -118,7 +118,6 @@ struct MODELINGCOMPONENTS_API FCameraRectangle
  *
  * Attach to the mechanic's delegates and use the passed rectangle to test against your geometry. 
  */
-
 UCLASS()
 class MODELINGCOMPONENTS_API URectangleMarqueeMechanic : public UInteractionMechanic, public IClickDragBehaviorTarget
 {
@@ -221,4 +220,55 @@ private:
 	bool bIsEnabled;
 	bool bIsDragging;
 	bool bIsOnDragRectangleChangedDeferred;
+};
+
+
+
+
+
+/*
+ * URectangleMarqueeInteraction is a simplified version of URectangleMarqueeMechanic that is not a UInteractionMechanic,
+ * which requires a base Tool/ToolManager. This variant does not create it's own InputBehavior, but is still a 
+ * ClickDragBehaviorTarget. 
+ * 
+ * DrawHUD() must be called by the owning code. 
+ */
+UCLASS()
+class MODELINGCOMPONENTS_API URectangleMarqueeInteraction : public UObject, public IClickDragBehaviorTarget
+{
+	GENERATED_BODY()
+
+public:
+
+	virtual void DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI);
+
+	/**
+	 * OnDragRectangleStarted is called when user starts dragging a new rectangle.
+	 */
+	FSimpleMulticastDelegate OnDragRectangleStarted;
+
+	/**
+	 * OnDragRectangleChanged is called as the user drags the other corner of the rectangle around.
+	 */
+	DECLARE_MULTICAST_DELEGATE_OneParam(OnDragRectangleChangedEvent, const FCameraRectangle&);
+	OnDragRectangleChangedEvent OnDragRectangleChanged;
+
+	/**
+	 * OnDragRectangleFinished is called once the user lets go of the mouse button after dragging out a rectangle.
+	 * bCancelled flag is true when the drag finishes due to a disabling of the mechanic or due to a TerminateDragSequence call, rather than a normal drag completion.
+	 */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(OnDragRectangleFinishedEvent, const FCameraRectangle&, bool bCancelled);
+	OnDragRectangleFinishedEvent OnDragRectangleFinished;
+	
+protected:
+	FViewCameraState CurrentCameraState;
+	FCameraRectangle CameraRectangle;
+
+	virtual FInputRayHit CanBeginClickDragSequence(const FInputDeviceRay& PressPos) override;
+	virtual void OnClickPress(const FInputDeviceRay& PressPos) override;
+	virtual void OnClickDrag(const FInputDeviceRay& DragPos) override;
+	virtual void OnClickRelease(const FInputDeviceRay& ReleasePos) override;
+	virtual void OnTerminateDragSequence() override;
+
+	bool bIsDragging = false;
 };

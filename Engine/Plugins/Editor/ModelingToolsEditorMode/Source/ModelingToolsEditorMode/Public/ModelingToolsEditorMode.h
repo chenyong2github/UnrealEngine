@@ -66,10 +66,25 @@ public:
 	//////////////////
 
 
+	//
+	// Selection System configuration, this will likely move elsewhere
+	//
+
 	virtual UGeometrySelectionManager* GetSelectionManager() const
 	{
 		return SelectionManager;
 	}
+	virtual UModelingSelectionInteraction* GetSelectionInteraction() const
+	{
+		return SelectionInteraction;
+	}
+
+	UPROPERTY()
+	bool bEnableVolumeElementSelection = false;
+
+	UPROPERTY()
+	bool bEnableStaticMeshElementSelection = false;
+
 
 protected:
 	virtual void BindCommands() override;
@@ -104,9 +119,10 @@ protected:
 	bool GetGeometrySelectionChangesAllowed() const;
 	bool TestForEditorGizmoHit(const FInputDeviceRay&) const;
 
-	void UpdateSelectionManagerOnEditorSelectionChange();
+	void UpdateSelectionManagerOnEditorSelectionChange(bool bEnteringMode = false);
 
 	void OnToolsContextRender(IToolsContextRenderAPI* RenderAPI);
+	void OnToolsContextDrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI);
 
 	void ModelingModeShortcutRequested(EModelingModeActionCommands Command);
 	void FocusCameraAtCursorHotkey();

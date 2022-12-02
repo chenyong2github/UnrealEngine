@@ -80,7 +80,12 @@ private:
 	void UpdateActiveToolProperties();
 	void InvalidateCachedDetailPanelState(UObject* ChangedObject);
 
-	TSharedPtr<SWidget> ViewportOverlayWidget;
+	TSharedPtr<SWidget> ToolShutdownViewportOverlayWidget;
+	void MakeToolShutdownOverlayWidget();
+
+	TSharedPtr<SWidget> SelectionPaletteOverlayWidget;
+	void MakeSelectionPaletteOverlayWidget();
+
 
 	TSharedPtr<STextBlock> ModeWarningArea;
 	TSharedPtr<STextBlock> ModeHeaderArea;
@@ -112,10 +117,5 @@ private:
 	TSharedPtr<STextComboBox> AssetLODMode;
 
 	bool bFirstInitializeAfterModeSetup = true;
-
-
-	bool bShowActiveSelectionActions = false;
-
-
-	// custom accept/cancel/complete handlers
+	bool bShowActiveSelectionActions = true;
 };

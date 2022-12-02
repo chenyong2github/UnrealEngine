@@ -145,8 +145,8 @@ public:
 	// Selection
 	//
 
-	/** If true, selections will be tracked between tools, and visualized with outlines. This feature is Experimental, disabled by default. */
-	UPROPERTY(config, EditAnywhere, Category = "Modeling Mode|Selection")
+	/** If true, Mesh Selection System (Experimental) will be enabled. */
+	UPROPERTY(config, EditAnywhere, Category = "Modeling Mode|Selection", meta = (DisplayName="Enable Mesh Selection UI"))
 	bool bEnablePersistentSelections = false;
 
 	DECLARE_MULTICAST_DELEGATE_TwoParams(UModelingToolsEditorModeSettingsModified, UObject*, FProperty*);
