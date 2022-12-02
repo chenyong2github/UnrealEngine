@@ -85,13 +85,6 @@ void UColorInputDeviceProperty::EvaluateDeviceProperty_Implementation(const FPla
 	}
 }
 
-void UColorInputDeviceProperty::ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser)
-{
-	// Disabling the light will reset the color
-	InternalProperty.bEnable = false;
-	ApplyDeviceProperty(PlatformUser);
-}
-
 FInputDeviceProperty* UColorInputDeviceProperty::GetInternalDeviceProperty()
 {
 	return &InternalProperty;
@@ -128,9 +121,18 @@ void UColorInputDeviceCurveProperty::EvaluateDeviceProperty_Implementation(const
 
 void UColorInputDeviceCurveProperty::ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser)
 {
-	// Disabling the light will reset the color
-	InternalProperty.bEnable = false;
-	ApplyDeviceProperty(PlatformUser);
+	bool bReset = ColorData.bResetAfterCompletion;
+	if (const FDeviceColorCurveData* Data = GetDeviceSpecificData<FDeviceColorCurveData>(PlatformUser, DeviceOverrideData))
+	{
+		bReset = Data->bResetAfterCompletion;
+	}
+
+	if (bReset)
+	{
+		// Disabling the light will reset the color
+    	InternalProperty.bEnable = false;
+    	ApplyDeviceProperty(PlatformUser);
+	}	
 }
 
 FInputDeviceProperty* UColorInputDeviceCurveProperty::GetInternalDeviceProperty()

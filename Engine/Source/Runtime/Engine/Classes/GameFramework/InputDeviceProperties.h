@@ -173,7 +173,8 @@ struct FDeviceColorData
 };
 
 /**
-* Set the color of an Input Device to a static color. 
+* Set the color of an Input Device to a static color. This will NOT reset the device color when the property
+* is done evaluating. You can think of this as a "One Shot" effect, where you set the device property color.
 * 
 * NOTE: This property has platform specific implementations and may behave differently per platform.
 * See the docs for more details on each platform.
@@ -186,7 +187,6 @@ class UColorInputDeviceProperty : public UInputDeviceProperty
 public:
 
 	virtual void EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const float DeltaTime, const float Duration) override;
-	virtual void ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser) override;
 	virtual FInputDeviceProperty* GetInternalDeviceProperty() override;
 
 	/** Default color data that will be used by default. Device Specific overrides will be used when the current input device matches */
@@ -216,6 +216,10 @@ struct FDeviceColorCurveData
 	/** True if the light should be enabled at all */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Color")
 	bool bEnable = true;
+
+	/** If true, the light color will be reset to "off" after the curve values are finished evaluating. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Color")
+	bool bResetAfterCompletion = true;
 
 	/** The color the device light should be */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Color")
