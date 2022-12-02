@@ -81,12 +81,13 @@ namespace Horde.Build.Tests
 			
 			Assert.AreEqual(0, JobTaskSource.GetQueueForTesting().Count);
 			await JobTaskSource.TickAsync(CancellationToken.None);
-			Assert.AreEqual(0, JobTaskSource.GetQueueForTesting().Count);
+			Assert.AreEqual(1, JobTaskSource.GetQueueForTesting().Count);
 
-			IJob job = (await JobService.GetJobAsync(fixture.Job1.Id))!;
-			Assert.AreEqual(JobStepBatchError.NoAgentsOnline, job.Batches[0].Error);
-			
-			Assert.IsFalse(_eventReceived);
+			Assert.AreEqual(fixture.Job1.Id, JobTaskSource.GetQueueForTesting().Min!.Id.Item1);
+			Assert.AreEqual(JobStepBatchState.Ready, JobTaskSource.GetQueueForTesting().Min!.Batch.State);
+
+			Assert.IsTrue(_eventReceived);
+			Assert.IsFalse(_eventPoolHasAgentsOnline!.Value);
 		}
 		
 		[TestMethod]
