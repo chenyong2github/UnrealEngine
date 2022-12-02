@@ -104,6 +104,9 @@ private:
 	 */
 	TArray<TSharedRef<FCustomClassFilterData>> CustomClassFilters;
 
+	/** The built in custom filters created by this instance */
+	TArray<TSharedRef<FFilterBase<const ISceneOutlinerTreeItem&>>> BuiltInCustomFilters;
+
 	/* A map of the categories the Outliner filter bar will have */
 	TMap<FName, TSharedPtr<FFilterCategory>> FilterBarCategories;
 
