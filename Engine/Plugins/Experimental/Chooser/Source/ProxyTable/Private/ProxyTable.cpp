@@ -3,8 +3,8 @@
 
 UObjectChooser_LookupProxy::UObjectChooser_LookupProxy(const FObjectInitializer& ObjectInitializer)
 {
-	// ProxyTable = ObjectInitializer.CreateDefaultSubobject<UChooserParameterProxyTable_ContextProperty>(this, "InputValue");
-	// ProxyTable.GetObject()->SetFlags(RF_Transactional);
+	ProxyTable = ObjectInitializer.CreateDefaultSubobject<UChooserParameterProxyTable_ContextProperty>(this, "InputValue");
+	ProxyTable.GetObject()->SetFlags(RF_Transactional);
 }
 
 static UObject* FindProxyObject(const UProxyTable* Table, FName Key, const UObject* ContextObject)
