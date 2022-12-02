@@ -221,7 +221,7 @@ static TAutoConsoleVariable<int32> CVarForceLODShadow(
 bool GPauseRenderingRealtimeClock;
 
 /** Global realtime clock for the rendering thread. */
-FTimer GRenderingRealtimeClock;
+FRenderTimer GRenderingRealtimeClock;
 
 FInputLatencyTimer GInputLatencyTimer( 2.0f );
 
