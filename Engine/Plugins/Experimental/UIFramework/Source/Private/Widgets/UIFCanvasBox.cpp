@@ -101,15 +101,10 @@ void UUIFrameworkCanvasBox::AddWidget(FUIFrameworkCanvasBoxSlot InEntry)
 	{
 		FFrame::KismetExecutionMessage(TEXT("The widget is invalid. It can't be added."), ELogVerbosity::Warning, "InvalidWidgetToAdd");
 	}
-	else if (GetPlayerComponent() && InEntry.AuthorityGetWidget()->GetPlayerComponent() && GetPlayerComponent() != InEntry.AuthorityGetWidget()->GetPlayerComponent())
-	{
-		check(GetPlayerComponent()->GetOwner()->HasAuthority());
-		FFrame::KismetExecutionMessage(TEXT("The widget was created for another player. It can't be removed on this player."), ELogVerbosity::Warning, "InvalidPlayerParentOnRemovedWidget");
-	}
 	else
 	{
 		// Reset the widget to make sure the id is set and it may have been duplicated during the attach
-		InEntry.AuthoritySetWidget(FUIFrameworkModule::AuthorityAttachWidget(GetPlayerComponent(), this, InEntry.AuthorityGetWidget()));
+		InEntry.AuthoritySetWidget(FUIFrameworkModule::AuthorityAttachWidget(this, InEntry.AuthorityGetWidget()));
 		AddEntry(InEntry);
 	}
 }
@@ -120,18 +115,14 @@ void UUIFrameworkCanvasBox::RemoveWidget(UUIFrameworkWidget* Widget)
 	{
 		FFrame::KismetExecutionMessage(TEXT("The widget is invalid. It can't be removed."), ELogVerbosity::Warning, "InvalidWidgetToRemove");
 	}
+	else if (Widget->AuthorityGetParent().IsParentValid() && Widget->AuthorityGetParent().IsWidget() && Widget->AuthorityGetParent().AsWidget() == this)
+	{
+		FFrame::KismetExecutionMessage(TEXT("The widget was created for another widget. It can't be removed on this player."), ELogVerbosity::Warning, "InvalidPlayerParentOnRemovedWidget");
+	}
 	else
 	{
-		if (GetPlayerComponent() && GetPlayerComponent() != Widget->GetPlayerComponent())
-		{
-			check(GetPlayerComponent()->GetOwner()->HasAuthority());
-			FFrame::KismetExecutionMessage(TEXT("The widget was created for another player. It can't be removed on this player."), ELogVerbosity::Warning, "InvalidPlayerParentOnRemovedWidget");
-		}
-		else
-		{
-			FUIFrameworkModule::AuthorityDetachWidgetFromParent(Widget);
-			RemoveEntry(Widget);
-		}
+		FUIFrameworkModule::AuthorityDetachWidgetFromParent(Widget);
+		RemoveEntry(Widget);
 	}
 }
 
@@ -153,25 +144,32 @@ void UUIFrameworkCanvasBox::LocalAddChild(FUIFrameworkWidgetId ChildId)
 	bool bIsAdded = false;
 	if (FUIFrameworkCanvasBoxSlot* CanvasEntry = FindEntry(ChildId))
 	{
-		check(GetPlayerComponent());
-		if (UUIFrameworkWidget* ChildWidget = GetPlayerComponent()->GetWidgetTree().FindWidgetById(ChildId))
+		if (FUIFrameworkWidgetTree* WidgetTree = GetWidgetTree())
 		{
-			UWidget* ChildUMGWidget = ChildWidget->LocalGetUMGWidget();
-			if (ensure(ChildUMGWidget))
+			if (UUIFrameworkWidget* ChildWidget = WidgetTree->FindWidgetById(ChildId))
 			{
-				UCanvasPanelSlot* CanvasSlot = CastChecked<UCanvasPanel>(LocalGetUMGWidget())->AddChildToCanvas(ChildUMGWidget);
-				checkf(CanvasSlot, TEXT("CanvasPanel should be able to receive slot"));
-
-				CanvasEntry->LocalAquireWidget();
+				UWidget* ChildUMGWidget = ChildWidget->LocalGetUMGWidget();
+				if (ensure(ChildUMGWidget))
 				{
-					FAnchorData AnchorData;
-					AnchorData.Anchors = CanvasEntry->Anchors;
-					AnchorData.Offsets = CanvasEntry->Offsets;
-					AnchorData.Alignment = CanvasEntry->Alignment;
-					CanvasSlot->SetLayout(AnchorData);
+					UCanvasPanelSlot* CanvasSlot = CastChecked<UCanvasPanel>(LocalGetUMGWidget())->AddChildToCanvas(ChildUMGWidget);
+					checkf(CanvasSlot, TEXT("CanvasPanel should be able to receive slot"));
+
+					CanvasEntry->LocalAquireWidget();
+					{
+						FAnchorData AnchorData;
+						AnchorData.Anchors = CanvasEntry->Anchors;
+						AnchorData.Offsets = CanvasEntry->Offsets;
+						AnchorData.Alignment = CanvasEntry->Alignment;
+						CanvasSlot->SetLayout(AnchorData);
+					}
+					CanvasSlot->SetZOrder(CanvasEntry->ZOrder);
+					CanvasSlot->SetAutoSize(CanvasEntry->bSizeToContent);
 				}
-				CanvasSlot->SetZOrder(CanvasEntry->ZOrder);
-				CanvasSlot->SetAutoSize(CanvasEntry->bSizeToContent);
+			}
+			else
+			{
+				UE_LOG(LogUIFramework, Log, TEXT("The widget '%" INT64_FMT "' doesn't exist in the WidgetTree."), ChildId.GetKey());
+				Super::LocalAddChild(ChildId);
 			}
 		}
 		else

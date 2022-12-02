@@ -30,7 +30,7 @@ int32 UUIFrameworkWidget::GetFunctionCallspace(UFunction* Function, FFrame* Stac
 		// This handles absorbing authority/cosmetic
 		return GEngine->GetGlobalFunctionCallspace(Function, this, Stack);
 	}
-	if (AActor* OwnerActor = GetPlayerComponent() ? GetPlayerComponent()->GetOwner() : nullptr)
+	if (AActor* OwnerActor = Cast<AActor>(GetOuter()))
 	{
 		return OwnerActor->GetFunctionCallspace(Function, Stack);
 	}
@@ -42,7 +42,7 @@ bool UUIFrameworkWidget::CallRemoteFunction(UFunction* Function, void* Parameter
 	check(!HasAnyFlags(RF_ClassDefaultObject));
 
 	bool bProcessed = false;
-	AActor* OwnerActor = GetPlayerComponent() ? GetPlayerComponent()->GetOwner() : nullptr;
+	AActor* OwnerActor = Cast<AActor>(GetOuter());
 	FWorldContext* const Context = OwnerActor ? GEngine->GetWorldContextFromWorld(OwnerActor->GetWorld()) : nullptr;
 	if (Context)
 	{
@@ -70,13 +70,18 @@ void UUIFrameworkWidget::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, Visibility, Params);
 }
 
+FUIFrameworkWidgetTree* UUIFrameworkWidget::GetWidgetTree() const
+{
+	return WidgetTreeOwner ? &WidgetTreeOwner->GetWidgetTree() : nullptr;
+}
+
 void UUIFrameworkWidget::LocalAddChild(FUIFrameworkWidgetId ChildId)
 {
 	// By default we should remove the widget from its previous parent.
 	//Adding a widget to a new slot will automatically remove it from its previous parent.
-	if (OwnerPlayerComponent)
+	if (FUIFrameworkWidgetTree* WidgetTree = GetWidgetTree())
 	{
-		if (UUIFrameworkWidget* Widget = OwnerPlayerComponent->GetWidgetTree().FindWidgetById(ChildId))
+		if (UUIFrameworkWidget* Widget = WidgetTree->FindWidgetById(ChildId))
 		{
 			if (UWidget* UMGWidget = Widget->LocalGetUMGWidget())
 			{
@@ -86,14 +91,30 @@ void UUIFrameworkWidget::LocalAddChild(FUIFrameworkWidgetId ChildId)
 	}
 }
 
-void UUIFrameworkWidget::LocalCreateUMGWidget(UUIFrameworkPlayerComponent* InOwner)
+void UUIFrameworkWidget::LocalCreateUMGWidget(TNonNullPtr<IUIFrameworkWidgetTreeOwner> InOwner)
 {
-	OwnerPlayerComponent = InOwner;
+	WidgetTreeOwner = InOwner;
 	if (UClass* Class = WidgetClass.Get())
 	{
 		if (Class->IsChildOf(UUserWidget::StaticClass()))
 		{
-			LocalUMGWidget = CreateWidget(OwnerPlayerComponent->GetPlayerController(), Class);
+			FUIFrameworkWidgetOwner UserWidgetOwner = WidgetTreeOwner->GetWidgetOwner();
+			if (UserWidgetOwner.PlayerController)
+			{
+				LocalUMGWidget = CreateWidget(UserWidgetOwner.PlayerController, Class);
+			}
+			else if (UserWidgetOwner.GameInstance)
+			{
+				LocalUMGWidget = CreateWidget(UserWidgetOwner.GameInstance, Class);
+			}
+			else if (UserWidgetOwner.World)
+			{
+				LocalUMGWidget = CreateWidget(UserWidgetOwner.World, Class);
+			}
+			else
+			{
+				ensureAlwaysMsgf(false, TEXT("There are no valid UserWidget owner."));
+			}
 		}
 		else
 		{
@@ -114,7 +135,7 @@ void UUIFrameworkWidget::LocalDestroyUMGWidget()
 		LocalUMGWidget->ReleaseSlateResources(true);
 	}
 	LocalUMGWidget = nullptr;
-	OwnerPlayerComponent = nullptr;
+	WidgetTreeOwner = nullptr;
 }
 
 

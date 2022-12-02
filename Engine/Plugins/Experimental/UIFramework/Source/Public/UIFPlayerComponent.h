@@ -125,11 +125,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "UI Framework")
 	void RemoveWidget(UUIFrameworkWidget* Widget);
-
-	FUIFrameworkWidgetTree& GetWidgetTree()
-	{
-		return WidgetTree;
-	}
 	
 	const FUIFrameworkGameLayerSlotList& GetRootList() const
 	{
@@ -160,6 +155,8 @@ public:
 
 	void AuthorityRemoveChild(UUIFrameworkWidget* Widget);
 
+	virtual FUIFrameworkWidgetTree& GetWidgetTree() override;
+	virtual FUIFrameworkWidgetOwner GetWidgetOwner() const override;
 	virtual void LocalWidgetWasAddedToTree(const FUIFrameworkWidgetTreeEntry& Entry) override;
 	virtual void LocalWidgetRemovedFromTree(const FUIFrameworkWidgetTreeEntry& Entry) override;
 	virtual void LocalRemoveWidgetRootFromTree(const UUIFrameworkWidget* Widget) override;

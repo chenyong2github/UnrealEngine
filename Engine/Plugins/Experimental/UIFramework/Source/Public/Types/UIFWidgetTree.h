@@ -6,6 +6,7 @@
 #include "UObject/SoftObjectPtr.h"
 #include "Net/Serialization/FastArraySerializer.h"
 #include "Types/UIFWidgetId.h"
+#include "Types/UIFWidgetTreeOwner.h"
 
 #include "UIFWidgetTree.generated.h"
 
@@ -14,6 +15,7 @@
 #endif
 
 struct FReplicationFlags;
+struct FUIFrameworkWidgetTree;
 struct FUIFrameworkWidgetTreeEntry;
 class AActor;
 class FOutBunch;
@@ -23,25 +25,6 @@ class UUIFrameworkWidget;
 #if UE_UIFRAMEWORK_WITH_DEBUG
 class UWidget;
 #endif
-
-class IUIFrameworkWidgetTreeOwner
-{
-public:
-	/** A widget was added to the tree. */
-	virtual void LocalWidgetWasAddedToTree(const FUIFrameworkWidgetTreeEntry& Entry)
-	{
-	}
-
-	/** A widget was removed to the tree. */
-	virtual void LocalWidgetRemovedFromTree(const FUIFrameworkWidgetTreeEntry& Entry)
-	{
-	}
-
-	/** Remove the widget (and the child) from the server. */
-	virtual void LocalRemoveWidgetRootFromTree(const UUIFrameworkWidget* Widget)
-	{
-	}
-};
 
 /**
  *
@@ -68,6 +51,8 @@ struct UIFRAMEWORK_API FUIFrameworkWidgetTreeEntry : public FFastArraySerializer
 
 	UPROPERTY()
 	FUIFrameworkWidgetId ChildId;
+
+	FString GetDebugString();
 };
 
 
@@ -112,7 +97,7 @@ public:
 	 * Remove the widget and all of its children and grand-children from the tree.
 	 * It will clean all the parent relationship from the tree.
 	 */
-	void AuthorityRemoveWidget(UUIFrameworkWidget* Widget);
+	void AuthorityRemoveWidgetAndChildren(UUIFrameworkWidget* Widget);
 
 	/**
 	 * The widget was removed from the client and the Authority is not aware of it.

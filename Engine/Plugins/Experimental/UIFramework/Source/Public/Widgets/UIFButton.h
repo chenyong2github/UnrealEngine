@@ -36,8 +36,11 @@ protected:
 	virtual void LocalOnUMGWidgetCreated() override;
 
 private:
+	UFUNCTION()
+	void HandleClick();
+
 	UFUNCTION(Server, Reliable)
-	void ServerClick();
+	void ServerClick(APlayerController* PlayerController);
 
 	UFUNCTION()
 	void OnRep_Slot();

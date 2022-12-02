@@ -16,6 +16,7 @@
 #include "GameFramework/Actor.h"
 #include "GameFramework/PlayerController.h"
 #include "Net/UnrealNetwork.h"
+#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(UIFWidgetTree)
 
@@ -87,6 +88,11 @@ bool FUIFrameworkWidgetTreeEntry::IsParentValid() const
 bool FUIFrameworkWidgetTreeEntry::IsChildValid() const
 {
 	return Child && Child->GetWidgetId() == ChildId;
+}
+
+FString FUIFrameworkWidgetTreeEntry::GetDebugString()
+{
+	return FString::Printf(TEXT("%s %s"), Parent ? *Parent->GetName() : TEXT("<none>"), Child ? *Child->GetName() : TEXT("<none>"));
 }
 
 /**
@@ -209,6 +215,21 @@ void FUIFrameworkWidgetTree::AuthorityAddWidget(UUIFrameworkWidget* Parent, UUIF
 
 void FUIFrameworkWidgetTree::AuthorityAddChildInternal(UUIFrameworkWidget* Parent, UUIFrameworkWidget* Child, bool bFirst)
 {
+	Child->WidgetTreeOwner = Owner;
+	check(bFirst || Parent->WidgetTreeOwner == Owner);
+
+	bool bOuterIsDifferent = Child->GetOuter() != ReplicatedOwner;
+	if (bOuterIsDifferent)
+	{
+		//if (Child->GetOuter() == GetTransientPackage())
+		{
+			//If the outer is the transient package, then there are no replication owner yetand it safe to rename it with the correct new outer.
+			//If the Outer is not the transient, then the widget got replicated with another player.There are no "reset" and we should duplicate and delete the object.
+			//For now only do the rename.It works but it is not the best.
+			Child->Rename(nullptr, ReplicatedOwner);
+		}
+	}
+
 	if (int32* PreviousEntryIndexPtr = AuthorityIndexByWidgetMap.Find(Child))
 	{
 		check(Entries.IsValidIndex(*PreviousEntryIndexPtr));
@@ -218,6 +239,11 @@ void FUIFrameworkWidgetTree::AuthorityAddChildInternal(UUIFrameworkWidget* Paren
 			// Same child, different parent. Need to build a new entry for replication.
 			PreviousEntry = FUIFrameworkWidgetTreeEntry(Parent, Child);
 			MarkItemDirty(PreviousEntry);
+		}
+
+		if (bOuterIsDifferent)
+		{
+			AuthorityAddChildRecursiveInternal(Child);
 		}
 	}
 	else
@@ -255,22 +281,42 @@ void FUIFrameworkWidgetTree::AuthorityAddChildRecursiveInternal(UUIFrameworkWidg
 		});
 }
 
-void FUIFrameworkWidgetTree::AuthorityRemoveWidget(UUIFrameworkWidget* Widget)
+void FUIFrameworkWidgetTree::AuthorityRemoveWidgetAndChildren(UUIFrameworkWidget* Widget)
 {
-	check(Widget);
-
-	if (AuthorityRemoveChildRecursiveInternal(Widget))
+	if (ensure(Widget))
 	{
-		MarkArrayDirty();
-		AuthorityOnWidgetRemoved.Broadcast(Widget);
+		if (AuthorityRemoveChildRecursiveInternal(Widget))
+		{
+			MarkArrayDirty();
+			AuthorityOnWidgetRemoved.Broadcast(Widget);
+		}
 	}
 }
 
+//void FUIFrameworkWidgetTree::AuthorityReplaceWidget(UUIFrameworkWidget* OldWidget, UUIFrameworkWidget* NewWidget)
+//{
+//	bool bHasReplaced = false;
+//	for (FUIFrameworkWidgetTreeEntry& Entry : Entries)
+//	{
+//		if (Entry.Child == OldWidget)
+//		{
+//			bHasReplaced = true;
+//		}
+//		if (Entry.Parent == OldWidget)
+//		{
+//			bHasReplaced = true;
+//		}
+//	}
+//
+//	if (bHasReplaced)
+//	{
+//
+//	}
+//}
+
 void FUIFrameworkWidgetTree::LocalRemoveRoot(const UUIFrameworkWidget* Widget)
 {
-	check(Widget);
-
-	if (ensure(Owner))
+	if (ensure(Owner && Widget))
 	{
 		Owner->LocalRemoveWidgetRootFromTree(Widget);
 	}
@@ -278,6 +324,7 @@ void FUIFrameworkWidgetTree::LocalRemoveRoot(const UUIFrameworkWidget* Widget)
 
 bool FUIFrameworkWidgetTree::AuthorityRemoveChildRecursiveInternal(UUIFrameworkWidget* Widget)
 {
+	Widget->WidgetTreeOwner = nullptr;
 	if (int32* PreviousEntryIndexPtr = AuthorityIndexByWidgetMap.Find(Widget))
 	{
 		check(Entries.IsValidIndex(*PreviousEntryIndexPtr));

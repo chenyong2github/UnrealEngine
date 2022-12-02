@@ -46,16 +46,6 @@ void UUIFrameworkButton::SetContent(FUIFrameworkSimpleSlot InEntry)
 		{
 			FUIFrameworkModule::AuthorityDetachWidgetFromParent(Slot.AuthorityGetWidget());
 		}
-
-		if (InEntry.AuthorityGetWidget())
-		{
-			UUIFrameworkPlayerComponent* PreviousOwner = InEntry.AuthorityGetWidget()->GetPlayerComponent();
-			if (PreviousOwner != nullptr && GetPlayerComponent() != nullptr && PreviousOwner != GetPlayerComponent())
-			{
-				Slot.AuthoritySetWidget(nullptr);
-				FFrame::KismetExecutionMessage(TEXT("The widget was created for another player. It can't be added."), ELogVerbosity::Warning, "InvalidPlayerParent");
-			}
-		}
 	}
 
 	Slot = InEntry;
@@ -63,7 +53,7 @@ void UUIFrameworkButton::SetContent(FUIFrameworkSimpleSlot InEntry)
 	if (bWidgetIsDifferent && Slot.AuthorityGetWidget())
 	{
 		// Reset the widget to make sure the id is set and it may have been duplicated during the attach
-		Slot.AuthoritySetWidget(FUIFrameworkModule::AuthorityAttachWidget(GetPlayerComponent(), this, Slot.AuthorityGetWidget()));
+		Slot.AuthoritySetWidget(FUIFrameworkModule::AuthorityAttachWidget(this, Slot.AuthorityGetWidget()));
 	}
 
 	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Slot, this);
@@ -92,16 +82,16 @@ void UUIFrameworkButton::LocalOnUMGWidgetCreated()
 {
 	Super::LocalOnUMGWidgetCreated();
 	UButton* Button = CastChecked<UButton>(LocalGetUMGWidget());
-	Button->OnClicked.AddUniqueDynamic(this, &ThisClass::ServerClick);
+	Button->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleClick);
 }
 
 
 void UUIFrameworkButton::LocalAddChild(FUIFrameworkWidgetId ChildId)
 {
-	if (ChildId == Slot.GetWidgetId())
+	FUIFrameworkWidgetTree* WidgetTree = GetWidgetTree();
+	if (ChildId == Slot.GetWidgetId() && WidgetTree)
 	{
-		check(GetPlayerComponent());
-		if (UUIFrameworkWidget* ChildWidget = GetPlayerComponent()->GetWidgetTree().FindWidgetById(ChildId))
+		if (UUIFrameworkWidget* ChildWidget = WidgetTree->FindWidgetById(ChildId))
 		{
 			UWidget* ChildUMGWidget = ChildWidget->LocalGetUMGWidget();
 			if (ensure(ChildUMGWidget))
@@ -124,15 +114,18 @@ void UUIFrameworkButton::LocalAddChild(FUIFrameworkWidgetId ChildId)
 	}
 }
 
-void UUIFrameworkButton::ServerClick_Implementation()
+void UUIFrameworkButton::HandleClick()
 {
-	if (GetPlayerComponent())
-	{
-		FUIFrameworkClickEventArgument Argument;
-		Argument.PlayerController = GetPlayerComponent()->GetPlayerController();
-		Argument.Sender = this;
-		OnClick.Broadcast(Argument);
-	}
+	// todo the click event should send the userid
+	ServerClick(Cast<APlayerController>(GetOuter()));
+}
+
+void UUIFrameworkButton::ServerClick_Implementation(APlayerController* PlayerController)
+{
+	FUIFrameworkClickEventArgument Argument;
+	Argument.PlayerController = PlayerController;
+	Argument.Sender = this;
+	OnClick.Broadcast(Argument);
 }
 
 void UUIFrameworkButton::OnRep_Slot()

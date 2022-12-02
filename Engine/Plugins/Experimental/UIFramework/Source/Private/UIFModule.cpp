@@ -13,78 +13,129 @@ namespace UE::UIFramework::Private
 	static TSubclassOf<UUIFrameworkPresenter> Director;
 }
 
-UUIFrameworkWidget* FUIFrameworkModule::AuthorityAttachWidget(UUIFrameworkPlayerComponent* ReplicationOwner, FUIFrameworkParentWidget Parent, UUIFrameworkWidget* Child)
+// UIFrameworkWidget has 
+//	1. a WidgetTree owner (UUIFrameworkPlayerComponent/IUIFrameworkWidgetTreeOwner) [authority/local]
+//		set by the WidgetTree when they are added or removed from the tree
+//  2. a replication Outer / GetOuter (APlayerController or transient if not added yet) [authority/local]
+//		set by the WidgetTree when they are added
+//  3. a wrapper object (VerseUIWidget) [authority]
+//		set by the VerseUIWidget on creation
+//	4. a parent widget [authority]
+//		set by FUIFrameworkModule::AuthorityAttachWidget or FUIFrameworkModule::AuthorityDetachWidgetFromParent
+
+UUIFrameworkWidget* FUIFrameworkModule::AuthorityAttachWidget(FUIFrameworkParentWidget Parent, UUIFrameworkWidget* Child)
 {
-	check(Child);
-	check(Parent.IsParentValid());
-
-	if (Child->AuthorityGetParent().IsParentValid())
+	if (ensure(Child && Parent.IsParentValid()))
 	{
-		AuthorityDetachWidgetFromParent(Child);
-	}
-
-	UObject* ParentOuter = Parent.IsPlayerComponent() ? Parent.AsPlayerComponent()->GetOuter() : Parent.AsWidget()->GetOuter();
-	if (ParentOuter != Child->GetOuter())
-	{
-		if (Child->GetOuter() == GetTransientPackage())
+		// If re-parenting on itself or already attach
+		if (Parent == Child || Child->AuthorityGetParent() == Parent)
 		{
-			// Recursive Rename to change the outer
-			// To the operation recursively to child
+			return Child;
+		}
+
+		// Remove from previous parent.
+		if (Child->AuthorityGetParent().IsParentValid())
+		{
+			bool bHasSameWidgetTree = false;
+			if (Parent.IsPlayerComponent())
+			{
+				bHasSameWidgetTree = &Parent.AsPlayerComponent()->GetWidgetTree() == Child->GetWidgetTree();
+			}
+			else
+			{
+				check(Parent.IsWidget());
+				bHasSameWidgetTree = Parent.AsWidget()->GetWidgetTree() == Child->GetWidgetTree();
+			}
+			AuthorityDetachWidgetFromParentInternal(Child, bHasSameWidgetTree);
+		}
+
+		Child->AuthorityParent = Parent;
+
+		// If the parent in the WidgetTree or the parent a root, then add it to the WidgetTree
+		if (Parent.IsPlayerComponent())
+		{
+			Parent.AsPlayerComponent()->GetWidgetTree().AuthorityAddRoot(Child);
+		}
+		else if (FUIFrameworkWidgetTree* WidgetTree = Parent.AsWidget()->GetWidgetTree())
+		{
+			WidgetTree->AuthorityAddWidget(Child->AuthorityParent.AsWidget(), Child);
 		}
 	}
 
-	bool bDifferentReplicationOwner = ReplicationOwner != Child->OwnerPlayerComponent;
-
-	Child->AuthorityParent = Parent;
-	Child->OwnerPlayerComponent = ReplicationOwner;
-
-	if (ReplicationOwner)
-	{
-		if (Child->AuthorityParent.IsWidget())
-		{
-			ReplicationOwner->GetWidgetTree().AuthorityAddWidget(Child->AuthorityParent.AsWidget(), Child);
-		}
-		else
-		{
-			check(Child->AuthorityParent.IsPlayerComponent());
-			ReplicationOwner->GetWidgetTree().AuthorityAddRoot(Child);
-		}
-	}
-
-	if (bDifferentReplicationOwner)
-	{
-		AuthoritySetParentReplicationOwnerRecursive(Child);
-	}
 	return Child;
 }
 
-void FUIFrameworkModule::AuthoritySetParentReplicationOwnerRecursive(UUIFrameworkWidget* Widget)
-{
-	Widget->AuthorityForEachChildren([Widget](UUIFrameworkWidget* Child)
-		{
-			if (Child != nullptr)
-			{
-				check(Child->AuthorityGetParent().IsWidget() && Child->AuthorityGetParent().AsWidget() == Widget);
-				Child->OwnerPlayerComponent = Widget->OwnerPlayerComponent;
-				Child->AuthorityParent = FUIFrameworkParentWidget(Widget);
-				AuthoritySetParentReplicationOwnerRecursive(Child);
-			}
-		});
-}
+//void FUIFrameworkModule::AuthoritySetParentReplicationOwnerRecursive(UUIFrameworkWidget* Widget)
+//{
+	//Widget->AuthorityForEachChildren([Widget](UUIFrameworkWidget* Child)
+	//	{
+	//		if (Child != nullptr)
+	//		{
+	//			check(Child->AuthorityGetParent().IsWidget() && Child->AuthorityGetParent().AsWidget() == Widget);
+	//			//Child->OwnerPlayerComponent = Widget->OwnerPlayerComponent;
+	//			Child->AuthorityParent = FUIFrameworkParentWidget(Widget);
+	//			AuthoritySetParentReplicationOwnerRecursive(Child);
+	//		}
+	//	});
+//}
 
-bool FUIFrameworkModule::AuthorityCanWidgetBeAttached(UUIFrameworkPlayerComponent* ReplicationOwner, UUIFrameworkWidget* Parent, UUIFrameworkWidget* Child)
+//UUIFrameworkWidget* FUIFrameworkModule::AuthorityRenameRecursive(UUIFrameworkPlayerComponent* ReplicationOwner, UUIFrameworkWidget* Widget, UObject* NewOuter)
+//{
+	//if (NewOuter != Widget->GetOuter())
+	//{
+	//	if (Widget->GetOuter() == GetTransientPackage())
+	//	{
+	//		// If the outer is the transient package, then there are no replication owner yet and it safe to just rename it with the correct new owner.
+	//		Widget->Rename(nullptr, NewOuter);
+	//	}
+	//	else
+	//	{
+	//		// The widget change owner, we need to create a new one to replicate it correctly.
+	//		UUIFrameworkWidget* NewWidget = DuplicateObject<UUIFrameworkWidget>(Widget, NewOuter);
+	//		// Replace all instance in the widget tree
+	//		ReplicationOwner->GetWidgetTree()->AuthorityReplaceWidget(Widget, NewWidget);
+	//		// Notify it's owner
+	//		if (Widget->AuthorityGetWrapper())
+	//		{
+	//			Widget->AuthorityGetWrapper()->ReplaceWidget(Widget, NewWidget);
+	//		}
+	//		Widget = NewWidget;
+	//	}
+
+	//	Widget->AuthorityForEachChildren([ReplicationOwner, NewOuter](UUIFrameworkWidget* Child)
+	//		{
+	//			if (Child != nullptr)
+	//			{
+	//				AuthorityRenameRecursive(ReplicationOwner, Child, NewOuter);
+	//			}
+	//		});
+	//}
+//	return Widget;
+//}
+
+bool FUIFrameworkModule::AuthorityCanWidgetBeAttached(FUIFrameworkParentWidget Parent, UUIFrameworkWidget* Child)
 {
-	return true;
+	return Child && Parent.IsParentValid() && Parent != Child;
 }
 
 void FUIFrameworkModule::AuthorityDetachWidgetFromParent(UUIFrameworkWidget* Child)
 {
+	AuthorityDetachWidgetFromParentInternal(Child, false);
+}
+
+void FUIFrameworkModule::AuthorityDetachWidgetFromParentInternal(UUIFrameworkWidget* Child, bool bTemporary)
+{
 	check(Child);
-	if (Child->OwnerPlayerComponent)
+
+	// If it's in the WidgetTree, we need to remove it.
+	if (!bTemporary && Child->WidgetTreeOwner)
 	{
-		Child->OwnerPlayerComponent->GetWidgetTree().AuthorityRemoveWidget(Child);
+		//bTemporary: we do not want to remove and re-add the same widget if it's not needed. 
+		//Removing them would cause the local to recreate them instead of re-parenting them.
+		Child->WidgetTreeOwner->GetWidgetTree().AuthorityRemoveWidgetAndChildren(Child);
 	}
 
+	// Notify the widget that we removed a child.
 	if (Child->AuthorityGetParent().IsParentValid())
 	{
 		if (Child->AuthorityGetParent().IsWidget())
@@ -97,6 +148,8 @@ void FUIFrameworkModule::AuthorityDetachWidgetFromParent(UUIFrameworkWidget* Chi
 			Child->AuthorityGetParent().AsPlayerComponent()->AuthorityRemoveChild(Child);
 		}
 	}
+
+	Child->AuthorityParent = FUIFrameworkParentWidget();
 }
 
 void FUIFrameworkModule::SetPresenterClass(TSubclassOf<UUIFrameworkPresenter> InDirector)

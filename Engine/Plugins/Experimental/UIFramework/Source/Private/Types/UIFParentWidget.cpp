@@ -34,3 +34,8 @@ UUIFrameworkPlayerComponent* FUIFrameworkParentWidget::AsPlayerComponent() const
 {
 	return CastChecked<UUIFrameworkPlayerComponent>(Parent);
 }
+
+bool FUIFrameworkParentWidget::operator== (const UUIFrameworkWidget* Other) const
+{
+	return Other == Parent && bIsParentAWidget;
+}

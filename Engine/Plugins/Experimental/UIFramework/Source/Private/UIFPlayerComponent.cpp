@@ -160,17 +160,9 @@ void UUIFrameworkPlayerComponent::AddWidget(FUIFrameworkGameLayerSlot InEntry)
 	}
 	else
 	{
-		UUIFrameworkPlayerComponent* PreviousOwner = InEntry.AuthorityGetWidget()->GetPlayerComponent();
-		if (PreviousOwner != nullptr && PreviousOwner != this)
-		{
-			FFrame::KismetExecutionMessage(TEXT("The widget was created for another player. It can't be added."), ELogVerbosity::Warning, "InvalidPlayerParent");
-		}
-		else
-		{
-			// Reset the widget to make sure the id is set and it may have been duplicated during the attach
-			InEntry.AuthoritySetWidget(FUIFrameworkModule::AuthorityAttachWidget(this, this, InEntry.AuthorityGetWidget()));
-			RootList.AddEntry(InEntry);
-		}
+		// Reset the widget to make sure the id is set and it may have been duplicated during the attach
+		InEntry.AuthoritySetWidget(FUIFrameworkModule::AuthorityAttachWidget(this, InEntry.AuthorityGetWidget()));
+		RootList.AddEntry(InEntry);
 	}
 }
 
@@ -185,15 +177,16 @@ void UUIFrameworkPlayerComponent::RemoveWidget(UUIFrameworkWidget* Widget)
 	}
 	else
 	{
-		UUIFrameworkPlayerComponent* PreviousOwner = Widget->GetPlayerComponent();
-		if (PreviousOwner != this)
+		if (Widget->GetWidgetTreeOwner() != this)
 		{
-			FFrame::KismetExecutionMessage(TEXT("The widget was created for another player. It can't be removed on this player."), ELogVerbosity::Warning, "InvalidPlayerParentOnRemovedWidget");
+			FFrame::KismetExecutionMessage(TEXT("The widget was not added on this player. It can't be removed on this player."), ELogVerbosity::Warning, "InvalidPlayerParentOnRemovedWidget");
 		}
 		else
 		{
-			FUIFrameworkModule::AuthorityDetachWidgetFromParent(Widget);
-			RootList.RemoveEntry(Widget);
+			if (RootList.RemoveEntry(Widget))
+			{
+				FUIFrameworkModule::AuthorityDetachWidgetFromParent(Widget);
+			}
 		}
 	}
 }
@@ -204,6 +197,17 @@ void UUIFrameworkPlayerComponent::AuthorityRemoveChild(UUIFrameworkWidget* Widge
 	RootList.RemoveEntry(Widget);
 }
 
+FUIFrameworkWidgetTree& UUIFrameworkPlayerComponent::GetWidgetTree()
+{
+	return WidgetTree;
+}
+
+FUIFrameworkWidgetOwner UUIFrameworkPlayerComponent::GetWidgetOwner() const
+{
+	FUIFrameworkWidgetOwner Owner;
+	Owner.PlayerController = GetPlayerController();
+	return Owner;
+}
 
 void UUIFrameworkPlayerComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
@@ -346,7 +350,7 @@ void UUIFrameworkPlayerComponent::ServerRemoveWidgetRootFromTree_Implementation(
 {
 	if (UUIFrameworkWidget* Widget = GetWidgetTree().FindWidgetById(WidgetId))
 	{
-		GetWidgetTree().AuthorityRemoveWidget(Widget);
+		GetWidgetTree().AuthorityRemoveWidgetAndChildren(Widget);
 	}
 }
 

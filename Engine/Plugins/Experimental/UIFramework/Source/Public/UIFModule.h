@@ -22,8 +22,8 @@ public:
 	 * If the ReplicationOwner cannot be changed, a duplicate of the widget will be created and the AuthorityOnReattachWidgets will be broadcast.
 	 * This function is recursive if the owner changed.
 	 */
-	static UUIFrameworkWidget* AuthorityAttachWidget(UUIFrameworkPlayerComponent* ReplicationOwner, FUIFrameworkParentWidget Parent, UUIFrameworkWidget* Child);
-	static bool AuthorityCanWidgetBeAttached(UUIFrameworkPlayerComponent* ReplicationOwner, UUIFrameworkWidget* Parent, UUIFrameworkWidget* Child);
+	static UUIFrameworkWidget* AuthorityAttachWidget(FUIFrameworkParentWidget Parent, UUIFrameworkWidget* Child);
+	static bool AuthorityCanWidgetBeAttached(FUIFrameworkParentWidget Parent, UUIFrameworkWidget* Child);
 	/**
 	 * Will remove the widget from the tree and the replication owner.
 	 */
@@ -34,5 +34,7 @@ public:
 	static TSubclassOf<UUIFrameworkPresenter> GetPresenterClass();
 
 private:
-	static void AuthoritySetParentReplicationOwnerRecursive(UUIFrameworkWidget* Widget);
+	static void AuthorityDetachWidgetFromParentInternal(UUIFrameworkWidget* Child, bool bTemporary);
+	//static UUIFrameworkWidget* AuthorityRenameRecursive(UUIFrameworkPlayerComponent* ReplicationOwner, UUIFrameworkWidget* Widget, UObject* NewOuter);
+	//static void AuthoritySetParentReplicationOwnerRecursive(UUIFrameworkWidget* Widget);
 };

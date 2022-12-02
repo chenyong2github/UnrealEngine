@@ -36,7 +36,7 @@ void UUIFrameworkSimpleButton::LocalOnUMGWidgetCreated()
 {
 	UUIFrameworkSimpleButtonUserWidget* UserWidget = CastChecked<UUIFrameworkSimpleButtonUserWidget>(LocalGetUMGWidget());
 	UserWidget->TextBlock->SetText(Text);
-	UserWidget->Button->OnClicked.AddUniqueDynamic(this, &ThisClass::ServerClick);
+	UserWidget->Button->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleClick);
 }
 
 
@@ -56,13 +56,17 @@ void UUIFrameworkSimpleButton::OnRep_Text()
 }
 
 
-void UUIFrameworkSimpleButton::ServerClick_Implementation()
+void UUIFrameworkSimpleButton::HandleClick()
 {
-	if (GetPlayerComponent())
-	{
-		FUIFrameworkClickEventArgument Argument;
-		Argument.PlayerController = GetPlayerComponent()->GetPlayerController();
-		Argument.Sender = this;
-		OnClick.Broadcast(Argument);
-	}
+	// todo the click event should send the userid
+	ServerClick(Cast<APlayerController>(GetOuter()));
+}
+
+
+void UUIFrameworkSimpleButton::ServerClick_Implementation(APlayerController* PlayerController)
+{
+	FUIFrameworkClickEventArgument Argument;
+	Argument.PlayerController = PlayerController;
+	Argument.Sender = this;
+	OnClick.Broadcast(Argument);
 }

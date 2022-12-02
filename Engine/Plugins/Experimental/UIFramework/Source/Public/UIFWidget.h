@@ -4,6 +4,7 @@
 
 #include "Components/SlateWrapperTypes.h"
 #include "Components/Widget.h"
+#include "Templates/NonNullPointer.h"
 #include "Types/UIFParentWidget.h"
 #include "Types/UIFWidgetId.h"
 #include "UObject/SoftObjectPtr.h"
@@ -11,6 +12,9 @@
 #include "UIFWidget.generated.h"
 
 class FUIFrameworkModule;
+class UUIFrameworkWidget;
+struct FUIFrameworkWidgetTree;
+class IUIFrameworkWidgetTreeOwner;
 
 /**
  *
@@ -24,6 +28,9 @@ class UUIFrameworkWidgetWrapperInterface : public UInterface
 class IUIFrameworkWidgetWrapperInterface
 {
 	GENERATED_BODY()
+
+public:
+	virtual void ReplaceWidget(UUIFrameworkWidget* OldWidget, UUIFrameworkWidget* NewWidget) {}
 };
 
 /**
@@ -33,7 +40,9 @@ UCLASS(Abstract, BlueprintType)
 class UIFRAMEWORK_API UUIFrameworkWidget : public UObject
 {
 	GENERATED_BODY()
+
 	friend FUIFrameworkModule;
+	friend FUIFrameworkWidgetTree;
 
 private:
 	UPROPERTY(BlueprintReadWrite, ReplicatedUsing = "OnRep_IsEnabled", Getter = "IsEnabled", Setter="SetEnabled", Category = "UI Framework", meta = (AllowPrivateAccess = "true"))
@@ -67,10 +76,12 @@ public:
 		return Id;
 	}
 
-	UUIFrameworkPlayerComponent* GetPlayerComponent() const
+	IUIFrameworkWidgetTreeOwner* GetWidgetTreeOwner() const
 	{
-		return OwnerPlayerComponent;
+		return WidgetTreeOwner;
 	}
+
+	FUIFrameworkWidgetTree* GetWidgetTree() const;
 
 	TSoftClassPtr<UWidget> GetUMGWidgetClass() const
 	{
@@ -93,7 +104,7 @@ public:
 		return LocalUMGWidget;
 	}
 
-	void LocalCreateUMGWidget(UUIFrameworkPlayerComponent* Owner);
+	void LocalCreateUMGWidget(TNonNullPtr<IUIFrameworkWidgetTreeOwner> Owner);
 	virtual void LocalAddChild(FUIFrameworkWidgetId ChildId);
 	void LocalDestroyUMGWidget();
 
@@ -128,12 +139,11 @@ private:
 	FUIFrameworkWidgetId Id = FUIFrameworkWidgetId::MakeNew();
 
 	//~ Authority
-	UPROPERTY(Transient, DuplicateTransient)
+	UPROPERTY(Transient)
 	TScriptInterface<IUIFrameworkWidgetWrapperInterface> Wrapper;
 
 	//~ Authority and Local
-	UPROPERTY(Transient)
-	TObjectPtr<UUIFrameworkPlayerComponent> OwnerPlayerComponent = nullptr;
+	IUIFrameworkWidgetTreeOwner* WidgetTreeOwner = nullptr;
 
 	//~ AuthorityOnly
 	UPROPERTY(Transient)

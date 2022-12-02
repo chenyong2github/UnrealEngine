@@ -33,8 +33,11 @@ private:
 	UFUNCTION()
 	void OnRep_Text();
 
+	UFUNCTION()
+	void HandleClick();
+
 	UFUNCTION(Server, Reliable)
-	void ServerClick();
+	void ServerClick(APlayerController* PlayerController);
 
 private:
 	UPROPERTY(ReplicatedUsing=OnRep_Text)
