@@ -105,36 +105,6 @@ void UForceFeedbackEffect::GetValues(const float EvalTime, FForceFeedbackValues&
 	}
 }
 
-void UForceFeedbackEffect::SetDeviceProperties(const FPlatformUserId PlatformUser, const float DeltaTime, const float EvalTime)
-{
-	for (TObjectPtr<UInputDeviceProperty> DeviceProp : DeviceProperties)
-	{
-		if (DeviceProp)
-		{
-			if (EvalTime > DeviceProp->GetDuration())
-			{
-				DeviceProp->ResetDeviceProperty(PlatformUser);
-			}
-			else
-			{
-				DeviceProp->EvaluateDeviceProperty(PlatformUser, DeltaTime, EvalTime);
-				DeviceProp->ApplyDeviceProperty(PlatformUser);
-			}			
-		}
-	}
-}
-
-void UForceFeedbackEffect::ResetDeviceProperties(const FPlatformUserId PlatformUser)
-{
-	for (TObjectPtr<UInputDeviceProperty> DeviceProp : DeviceProperties)
-	{
-		if (DeviceProp)
-		{
-			DeviceProp->ResetDeviceProperty(PlatformUser);
-		}
-	}
-}
-
 const TArray<FForceFeedbackChannelDetails>& UForceFeedbackEffect::GetCurrentChannelDetails(const FPlatformUserId PlatformUser) const
 {	
 	if (const UInputDeviceSubsystem* SubSystem = UInputDeviceSubsystem::Get())
@@ -148,6 +118,11 @@ const TArray<FForceFeedbackChannelDetails>& UForceFeedbackEffect::GetCurrentChan
 	}
 
 	return ChannelDetails;
+}
+
+FActiveForceFeedbackEffect::~FActiveForceFeedbackEffect()
+{
+	ResetDeviceProperties();
 }
 
 void FActiveForceFeedbackEffect::GetValues(FForceFeedbackValues& Values) const
@@ -172,13 +147,18 @@ bool FActiveForceFeedbackEffect::Update(const float DeltaTime, FForceFeedbackVal
 	}
 
 	const float EffectDuration = ForceFeedbackEffect->GetDuration();
-	const float DevicePropDuration = ForceFeedbackEffect->GetTotalDevicePropertyDuration();
+
+	// If this is the first time that we are playing the effect
+	if (!bActivatedDeviceProperties)
+	{
+		ActivateDeviceProperties();
+	}
 
 	PlayTime += (Parameters.bIgnoreTimeDilation ? FApp::GetDeltaTime() : DeltaTime);
 
 	// If the play time is longer then the force feedback effect curve's last key value, 
 	// or if there are still device properties that need to be evaluated
-	if (PlayTime > EffectDuration && PlayTime > DevicePropDuration && (!Parameters.bLooping || (EffectDuration == 0.0f && DevicePropDuration == 0.0f)))
+	if (PlayTime > EffectDuration && (!Parameters.bLooping || (EffectDuration == 0.0f)))
 	{
 		return false;
 	}
@@ -186,23 +166,43 @@ bool FActiveForceFeedbackEffect::Update(const float DeltaTime, FForceFeedbackVal
 	if (PlayTime <= EffectDuration || Parameters.bLooping)
 	{
 		GetValues(Values);
-	}	
-	
-	// Update device properties if we can
-	if (PlayTime <= DevicePropDuration)
-	{
-		// Set any input device properties associated with this effect
-		const float EvalTime = PlayTime - DevicePropDuration * FMath::FloorToFloat(PlayTime / DevicePropDuration);
-		ForceFeedbackEffect->SetDeviceProperties(PlatformUser, DeltaTime, EvalTime);
-	}	
+	}
 
 	return true;
 }
 
+void FActiveForceFeedbackEffect::ActivateDeviceProperties()
+{
+	if (ensure(ForceFeedbackEffect))
+	{
+		if (UInputDeviceSubsystem* System = UInputDeviceSubsystem::Get())
+		{
+			for (TObjectPtr<UInputDeviceProperty> DeviceProp : ForceFeedbackEffect->DeviceProperties)
+			{
+				if (ensure(DeviceProp))
+				{
+					FSetDevicePropertyParams Params = {};
+					Params.bIgnoreTimeDilation = Parameters.bIgnoreTimeDilation;
+					Params.UserId = PlatformUser;
+					Params.bPlayWhilePaused = Parameters.bPlayWhilePaused;
+					Params.bLooping = Parameters.bLooping;
+					ActiveDeviceProperties.Emplace(System->ActivateDeviceProperty(DeviceProp, Params));
+				}
+			}
+		}
+
+		bActivatedDeviceProperties = true;
+	}	
+}
+
 void FActiveForceFeedbackEffect::ResetDeviceProperties()
 {
-	if (ForceFeedbackEffect)
+	if (!ActiveDeviceProperties.IsEmpty())
 	{
-		ForceFeedbackEffect->ResetDeviceProperties(PlatformUser);
+		if (UInputDeviceSubsystem* System = UInputDeviceSubsystem::Get())
+		{
+			System->RemoveDevicePropertyHandles(ActiveDeviceProperties);
+			ActiveDeviceProperties.Empty();
+		}
 	}
 }

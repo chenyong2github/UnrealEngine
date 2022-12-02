@@ -6,6 +6,7 @@
 #include "UObject/Object.h"
 #include "Curves/CurveFloat.h"
 #include "ForceFeedbackParameters.h"
+#include "GameFramework/InputDevicePropertyHandle.h"
 #include "ForceFeedbackEffect.generated.h"
 
 class UForceFeedbackEffect;
@@ -55,10 +56,18 @@ struct ENGINE_API FActiveForceFeedbackEffect
 	/** The platform user that should receive this effect */
 	FPlatformUserId PlatformUser = PLATFORMUSERID_NONE;
 
+	/** Set to true after this force feedback effect has activated it's device properties */
+	bool bActivatedDeviceProperties;
+
+	/** Array of device properties that have been activated by this force feedback effect */
+	UPROPERTY()
+	TSet<FInputDevicePropertyHandle> ActiveDeviceProperties;
+
 	FActiveForceFeedbackEffect()
 		: ForceFeedbackEffect(nullptr)
 		, PlayTime(0.f)
 		, PlatformUser(PLATFORMUSERID_NONE)
+		, bActivatedDeviceProperties(false)
 	{
 	}
 
@@ -67,11 +76,17 @@ struct ENGINE_API FActiveForceFeedbackEffect
 		, Parameters(InParameters)
 		, PlayTime(0.f)
 		, PlatformUser(InPlatformUser)
+		, bActivatedDeviceProperties(false)
 	{
 	}
 
+	~FActiveForceFeedbackEffect();
+
 	// Updates the final force feedback values based on this effect.  Returns true if the effect should continue playing, false if it is finished.
 	bool Update(float DeltaTime, FForceFeedbackValues& Values);
+
+	// Activates all the device properties with the input device subsystem
+	void ActivateDeviceProperties();
 
 	/** Reset any device properties that may need to be after the duration of this effect has ended. */
 	void ResetDeviceProperties();
@@ -125,11 +140,6 @@ class UForceFeedbackEffect : public UObject
 	float GetTotalDevicePropertyDuration();
 
 	void GetValues(const float EvalTime, FForceFeedbackValues& Values, const FPlatformUserId PlatformUser, float ValueMultiplier = 1.f) const;
-
-	void SetDeviceProperties(const FPlatformUserId PlatformUser, const float DeltaTime, const float EvalTime);
-
-	/** Reset any device properties that may need to be after the duration of this effect has ended. */
-	void ResetDeviceProperties(const FPlatformUserId PlatformUser);
 
 	/**
 	 * Returns the channel details that should currently be used for the given platform.

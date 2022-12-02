@@ -142,6 +142,7 @@ void FAssetTypeActions_ForceFeedbackEffect::PlayEffect(UForceFeedbackEffect* Eff
 		PreviewForceFeedbackEffect.ForceFeedbackEffect = Effect;
 		PreviewForceFeedbackEffect.PlayTime = 0.f;
 		PreviewForceFeedbackEffect.PlatformUser = IPlatformInputDeviceMapper::Get().GetPrimaryPlatformUser();
+		PreviewForceFeedbackEffect.ActivateDeviceProperties();
 	}
 	else
 	{

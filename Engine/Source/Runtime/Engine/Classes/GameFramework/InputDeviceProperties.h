@@ -32,8 +32,6 @@ UCLASS(Abstract, Blueprintable, BlueprintType, EditInlineNew, CollapseCategories
 class ENGINE_API UInputDeviceProperty : public UObject
 {
 	friend class UInputDeviceSubsystem;
-	// TODO: Make force feedback effects just use the subsystem instead of ticking stuff themselves
-	friend class UForceFeedbackEffect;
 
 	GENERATED_BODY()
 public:
