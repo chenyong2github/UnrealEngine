@@ -8,6 +8,7 @@
 #include "MetalResources.h"
 #include "MetalViewport.h"
 #include "RHICore.h"
+#include "BoundShaderStateHistory.h"
 
 #define UE_METAL_RHI_SUPPORT_CLEAR_UAV_WITH_BLIT_ENCODER	1
 

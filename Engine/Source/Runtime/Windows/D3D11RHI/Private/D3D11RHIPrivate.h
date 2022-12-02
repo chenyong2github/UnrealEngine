@@ -17,6 +17,7 @@
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
 #include "HDRHelper.h"
+#include "BoundShaderStateHistory.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogD3D11RHI, Log, All);
 
