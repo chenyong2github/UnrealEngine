@@ -8,6 +8,8 @@
 #include "Elements/Metadata/PCGMetadataElementCommon.h"
 #include "Helpers/PCGSettingsHelpers.h"
 #include "Metadata/PCGMetadata.h"
+#include "Metadata/Accessors/PCGAttributeAccessor.h"
+#include "Metadata/Accessors/PCGAttributeAccessorHelpers.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadataOpElementBase)
 
@@ -80,8 +82,10 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 
 	// Gathering all the inputs metadata
 	TArray<const UPCGMetadata*> SourceMetadata;
+	TArray<const FPCGMetadataAttributeBase*> SourceAttribute;
 	TArray<FPCGTaggedData> InputTaggedData;
 	SourceMetadata.SetNum(NumberOfInputs);
+	SourceAttribute.SetNum(NumberOfInputs);
 	InputTaggedData.SetNum(NumberOfInputs);
 
 	for (uint32 i = 0; i < NumberOfInputs; ++i)
@@ -113,12 +117,19 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 	}
 
 	FOperationData OperationData;
-	OperationData.InputIterators.SetNum(NumberOfInputs);
+	OperationData.InputAccessors.SetNum(NumberOfInputs);
+	OperationData.InputKeys.SetNum(NumberOfInputs);
 	TArray<int32> NumberOfElements;
 	NumberOfElements.SetNum(NumberOfInputs);
 
 	OperationData.MostComplexInputType = (uint16)EPCGMetadataTypes::Unknown;
 	OperationData.NumberOfElementsToProcess = -1;
+
+	bool bNoOperationNeeded = false;
+
+	// Use this name to forward it to the output if needed.
+	// Only set it if the first input is an attribute.
+	FName InputName = NAME_None;
 
 	for (uint32 i = 0; i < NumberOfInputs; ++i)
 	{
@@ -132,21 +143,30 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 		}
 
 		FPCGAttributePropertySelector InputSource = Settings->GetInputSource(i);
+		// Make sure to update it to transform it into a property if needed.
+		// TODO: Remove when it will be handled in the UI widget logic.
+		InputSource.Update();
 
 		if (InputSource.Selection == EPCGAttributePropertySelection::Attribute && InputSource.AttributeName == NAME_None)
 		{
 			InputSource.AttributeName = SourceMetadata[i]->GetLatestAttributeNameOrNone();
 		}
 
-		OperationData.InputIterators[i] = PCGMetadataAttributeWrapper::CreateIteratorWrapper(InputTaggedData[i].Data, InputSource);
+		if (i == 0 && InputSource.Selection == EPCGAttributePropertySelection::Attribute)
+		{
+			InputName = InputSource.AttributeName;
+		}
 
-		if (!OperationData.InputIterators[i].IsValid())
+		OperationData.InputAccessors[i] = PCGAttributeAccessorHelpers::CreateConstAccessor(InputTaggedData[i].Data, InputSource);
+		OperationData.InputKeys[i] = PCGAttributeAccessorHelpers::CreateConstKeys(InputTaggedData[i].Data, InputSource);
+
+		if (!OperationData.InputAccessors[i].IsValid() || !OperationData.InputKeys[i].IsValid())
 		{
 			PCGE_LOG(Error, "Attribute/Property %s does not exist for input %d", *InputSource.GetName().ToString(), i);
 			return true;
 		}
 
-		uint16 AttributeTypeId = OperationData.InputIterators[i].GetType();
+		uint16 AttributeTypeId = OperationData.InputAccessors[i]->GetUnderlyingType();
 
 		// Then verify that the type is OK
 		bool bHasSpecialRequirement = false;
@@ -170,11 +190,20 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 			}
 		}
 
-		NumberOfElements[i] = OperationData.InputIterators[i].Num();
+		NumberOfElements[i] = OperationData.InputKeys[i]->GetNum();
 
 		if (OperationData.NumberOfElementsToProcess == -1)
 		{
 			OperationData.NumberOfElementsToProcess = NumberOfElements[i];
+		}
+
+		// There is nothing to do if one input doesn't have any element to process.
+		// Therefore mark that we have nothing to do and early out.
+		if (NumberOfElements[i] == 0)
+		{
+			PCGE_LOG(Verbose, "No elements in input %d.", i);
+			bNoOperationNeeded = true;
+			break;
 		}
 
 		// Verify that the number of elements makes sense
@@ -183,16 +212,42 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 			PCGE_LOG(Error, "Mismatch between the number of elements in input 0 (%d) and in input %d (%d).", OperationData.NumberOfElementsToProcess, i, NumberOfElements[i]);
 			return true;
 		}
+
+		if (InputSource.Selection == EPCGAttributePropertySelection::Attribute)
+		{
+			SourceAttribute[i] = SourceMetadata[i]->GetConstAttribute(InputSource.GetName());
+		}
+		else
+		{
+			SourceAttribute[i] = nullptr;
+		}
 	}
+
+	// If no operation is needed, just forward input 0
+	if (bNoOperationNeeded)
+	{
+		for (uint32 OutputIndex = 0; OutputIndex < Settings->GetOutputPinNum(); ++OutputIndex)
+		{
+			FPCGTaggedData& OutputData = Outputs.Add_GetRef(InputTaggedData[0]);
+			OutputData.Pin = Settings->GetOutputPinLabel(OutputIndex);
+		}
+
+		return true;
+	}
+
 
 	// At this point, we verified everything, so we can go forward with the computation, depending on the most complex type
 	// So first forward outputs and create the attribute
-	OperationData.OutputIterators.SetNum(Settings->GetOutputPinNum());
+	OperationData.OutputAccessors.SetNum(Settings->GetOutputPinNum());
+	OperationData.OutputKeys.SetNum(Settings->GetOutputPinNum());
 
 	FPCGAttributePropertySelector OutputTarget = Settings->OutputTarget;
+	// Make sure to update it to transform it into a property if needed.
+	OutputTarget.Update();
+
 	if (OutputTarget.Selection == EPCGAttributePropertySelection::Attribute && OutputTarget.AttributeName == NAME_None)
 	{
-		OutputTarget.AttributeName = OperationData.InputIterators[0].GetWrapper().GetName();
+		OutputTarget.AttributeName = InputName;
 	}
 
 	auto CreateAttribute = [&](uint32 OutputIndex, auto DummyOutValue) -> bool
@@ -206,57 +261,50 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 
 		FName OutputName = OutputTarget.GetName();
 
-		bool bShouldClearOrCreateAttribute = false;
-		bool bShouldCopyEntryMap = false;
-
-		if (UPCGPointData* PointData = Cast<UPCGPointData>(InputTaggedData[0].Data))
+		if (OutputTarget.Selection == EPCGAttributePropertySelection::Attribute)
 		{
-			int16 PropertyType = -1;
-			if (PCGMetadataAttributeWrapper::IsPropertyWithType(InputTaggedData[0].Data, OutputName, &PropertyType))
-			{
-				// We matched a property, check if the output type is valid
-				if (!PCG::Private::IsBroadcastable(PCG::Private::MetadataTypes<AttributeType>::Id, PropertyType))
-				{
-					PCGE_LOG(Error, "Property %s cannot be broadcasted to match types for input", *OutputName.ToString());
-					return false;
-				}
-			}
-			else
-			{
-				// Otherwise it is an attribute, we will create a clean one, so output type will match.
-				bShouldClearOrCreateAttribute = true;
-			}
-		}
-		else
-		{
-			// If it is not a point data, we will only deal with attributes, and the entry map will be necessary.
-			bShouldClearOrCreateAttribute = true;
-			bShouldCopyEntryMap = true;
-		}
-
-		PCGMetadataElementCommon::DuplicateTaggedData(InputTaggedData[0], OutputData, OutMetadata);
-		if (bShouldClearOrCreateAttribute)
-		{
-			AttributeType DefaultValue{};
-			OperationData.InputIterators[0].GetWrapper().Get<AttributeType>(PCGInvalidEntryKey, DefaultValue);
-
-			FPCGMetadataAttributeBase* OutputAttribute = PCGMetadataElementCommon::ClearOrCreateAttribute(OutMetadata, OutputName, DefaultValue);
-
+			// In case of attribute, there is no point of failure before duplicating. So duplicate, create the attribute and then the accessor.
+			PCGMetadataElementCommon::DuplicateTaggedData(InputTaggedData[0], OutputData, OutMetadata);
+			FPCGMetadataAttributeBase* OutputAttribute = PCGMetadataElementCommon::ClearOrCreateAttribute(OutMetadata, OutputName, AttributeType{});
 			if (!OutputAttribute)
 			{
 				return false;
 			}
 
-			if (bShouldCopyEntryMap)
+			// And copy the mapping from the original attribute, if it is not points
+			if (!InputTaggedData[0].Data->IsA<UPCGPointData>() && SourceMetadata[0] && SourceAttribute[0])
 			{
-				PCGMetadataElementCommon::CopyEntryToValueKeyMap(SourceMetadata[0], OperationData.InputIterators[0].GetWrapper().GetAttribute(), OutputAttribute);
+				PCGMetadataElementCommon::CopyEntryToValueKeyMap(SourceMetadata[0], SourceAttribute[0], OutputAttribute);
+			}
+
+			OperationData.OutputAccessors[OutputIndex] = PCGAttributeAccessorHelpers::CreateAccessor(Cast<UPCGData>(OutputData.Data), OutputTarget);
+		}
+		else if (OutputTarget.Selection == EPCGAttributePropertySelection::PointProperty)
+		{
+			// In case of property, we need to validate that the property can accept the output type. Verify this before duplicating.
+			OperationData.OutputAccessors[OutputIndex] = PCGAttributeAccessorHelpers::CreateAccessor(Cast<UPCGData>(OutputData.Data), OutputTarget);
+
+			if (OperationData.OutputAccessors[OutputIndex].IsValid())
+			{
+				// We matched a property, check if the output type is valid
+				if (!PCG::Private::IsBroadcastable(PCG::Private::MetadataTypes<AttributeType>::Id, OperationData.OutputAccessors[OutputIndex]->GetUnderlyingType()))
+				{
+					PCGE_LOG(Error, "Property %s cannot be broadcasted to match types for input", *OutputName.ToString());
+					return false;
+				}
+
+				PCGMetadataElementCommon::DuplicateTaggedData(InputTaggedData[0], OutputData, OutMetadata);
 			}
 		}
 
-		// Cast to use the non-const version of this method.
-		OperationData.OutputIterators[OutputIndex] = PCGMetadataAttributeWrapper::CreateIteratorWrapper(Cast<UPCGData>(OutputData.Data), OutputTarget);
+		if (!OperationData.OutputAccessors[OutputIndex].IsValid())
+		{
+			return false;
+		}
 
-		return OperationData.OutputIterators[OutputIndex].IsValid();
+		OperationData.OutputKeys[OutputIndex] = PCGAttributeAccessorHelpers::CreateKeys(Cast<UPCGData>(OutputData.Data), OutputTarget);
+
+		return OperationData.OutputKeys[OutputIndex].IsValid();
 	};
 
 	auto CreateAllSameAttributes = [&](auto DummyOutValue) -> bool

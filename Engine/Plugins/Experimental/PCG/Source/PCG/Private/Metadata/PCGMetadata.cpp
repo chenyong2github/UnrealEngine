@@ -3,7 +3,7 @@
 #include "Metadata/PCGMetadata.h"
 
 #include "Misc/ScopeRWLock.h"
-#include "Metadata/PCGMetadataAttributeWrapper.h"
+#include "Helpers/PCGPropertyHelpers.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadata)
 
@@ -490,7 +490,7 @@ namespace PCGMetadata
 				});
 		};
 
-		return PCGMetadataAttributeWrapper::GetPropertyValueWithCallback(DataPtr, InProperty, CreateAttributeAndSet);
+		return PCGPropertyHelpers::GetPropertyValueWithCallback(DataPtr, InProperty, CreateAttributeAndSet);
 	}
 }
 
@@ -504,9 +504,9 @@ bool UPCGMetadata::SetAttributeFromDataProperty(FName AttributeName, PCGMetadata
 	return PCGMetadata::SetAttributeFromPropertyHelper<void>(*this, AttributeName, EntryKey, Data, InProperty, bCreate);
 }
 
-void UPCGMetadata::CopyExistingAttribute(FName AttributeToCopy, FName NewAttributeName, bool bKeepParent)
+bool UPCGMetadata::CopyExistingAttribute(FName AttributeToCopy, FName NewAttributeName, bool bKeepParent)
 {
-	CopyAttribute(AttributeToCopy, NewAttributeName, bKeepParent, /*bCopyEntries=*/true, /*bCopyValues=*/true);
+	return CopyAttribute(AttributeToCopy, NewAttributeName, bKeepParent, /*bCopyEntries=*/true, /*bCopyValues=*/true) != nullptr;
 }
 
 FPCGMetadataAttributeBase* UPCGMetadata::CopyAttribute(FName AttributeToCopy, FName NewAttributeName, bool bKeepParent, bool bCopyEntries, bool bCopyValues)
@@ -551,12 +551,12 @@ FPCGMetadataAttributeBase* UPCGMetadata::CopyAttribute(const FPCGMetadataAttribu
 	return NewAttribute;
 }
 
-void UPCGMetadata::RenameAttribute(FName AttributeToRename, FName NewAttributeName)
+bool UPCGMetadata::RenameAttribute(FName AttributeToRename, FName NewAttributeName)
 {
 	if (!FPCGMetadataAttributeBase::IsValidName(NewAttributeName))
 	{
 		UE_LOG(LogPCG, Error, TEXT("New attribute name %s is not valid"), *NewAttributeName.ToString());
-		return;
+		return false;
 	}
 
 	bool bRenamed = false;
@@ -576,6 +576,8 @@ void UPCGMetadata::RenameAttribute(FName AttributeToRename, FName NewAttributeNa
 	{
 		UE_LOG(LogPCG, Warning, TEXT("Attribute %s does not exist and therefore cannot be renamed"), *AttributeToRename.ToString());
 	}
+
+	return bRenamed;
 }
 
 void UPCGMetadata::ClearAttribute(FName AttributeToClear)

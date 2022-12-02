@@ -154,11 +154,11 @@ public:
 
 	/** Copy attribute */
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
-	void CopyExistingAttribute(FName AttributeToCopy, FName NewAttributeName, bool bKeepParent = true);
+	bool CopyExistingAttribute(FName AttributeToCopy, FName NewAttributeName, bool bKeepParent = true);
 
 	/** Rename attribute */
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
-	void RenameAttribute(FName AttributeToRename, FName NewAttributeName);
+	bool RenameAttribute(FName AttributeToRename, FName NewAttributeName);
 
 	/** Clear/Reinit attribute */
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")

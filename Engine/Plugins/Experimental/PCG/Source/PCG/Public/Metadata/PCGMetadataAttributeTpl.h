@@ -3,10 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Metadata/PCGMetadataAttribute.h"
-#include "Metadata/PCGMetadataAttributeTraits.h"
+
+#include "PCGModule.h"
 
 #include "Helpers/PCGMetadataHelpers.h"
+#include "Metadata/PCGMetadataAttribute.h"
+#include "Metadata/PCGMetadataAttributeTraits.h"
 
 class UPCGMetadata;
 
@@ -551,23 +553,13 @@ namespace PCGMetadataAttribute
 {
 	inline FPCGMetadataAttributeBase* AllocateEmptyAttributeFromType(int16 TypeId)
 	{
-#define AllocatePCGMetadataAttributeOnType(Type) case PCG::Private::MetadataTypes<Type>::Id : { return new FPCGMetadataAttribute<Type>(); } break;
 
 		switch (TypeId)
 		{
-			AllocatePCGMetadataAttributeOnType(float);
-			AllocatePCGMetadataAttributeOnType(double);
-			AllocatePCGMetadataAttributeOnType(int32);
-			AllocatePCGMetadataAttributeOnType(int64);
-			AllocatePCGMetadataAttributeOnType(FVector);
-			AllocatePCGMetadataAttributeOnType(FVector2D);
-			AllocatePCGMetadataAttributeOnType(FVector4);
-			AllocatePCGMetadataAttributeOnType(FQuat);
-			AllocatePCGMetadataAttributeOnType(FTransform);
-			AllocatePCGMetadataAttributeOnType(FString);
-			AllocatePCGMetadataAttributeOnType(bool);
-			AllocatePCGMetadataAttributeOnType(FRotator);
-			AllocatePCGMetadataAttributeOnType(FName);
+
+#define PCG_ALLOCATEEMPTY_DECL(T) case PCG::Private::MetadataTypes<T>::Id: return new FPCGMetadataAttribute<T>();
+		PCG_FOREACH_SUPPORTEDTYPES(PCG_ALLOCATEEMPTY_DECL)
+#undef PCG_ALLOCATEEMPTY_DECL
 
 		default:
 			return nullptr;
@@ -583,32 +575,11 @@ namespace PCGMetadataAttribute
 
 		switch (TypeId)
 		{
-		case (uint16)EPCGMetadataTypes::Integer32:
-			return Callback(int32{});
-		case (uint16)EPCGMetadataTypes::Integer64:
-			return Callback(int64{});
-		case (uint16)EPCGMetadataTypes::Float:
-			return Callback(float{});
-		case (uint16)EPCGMetadataTypes::Double:
-			return Callback(double{});
-		case (uint16)EPCGMetadataTypes::Vector2:
-			return Callback(FVector2D{});
-		case (uint16)EPCGMetadataTypes::Vector:
-			return Callback(FVector{});
-		case (uint16)EPCGMetadataTypes::Vector4:
-			return Callback(FVector4{});
-		case (uint16)EPCGMetadataTypes::Quaternion:
-			return Callback(FQuat{});
-		case (uint16)EPCGMetadataTypes::Transform:
-			return Callback(FTransform{});
-		case (uint16)EPCGMetadataTypes::String:
-			return Callback(FString{});
-		case (uint16)EPCGMetadataTypes::Boolean:
-			return Callback(bool{});
-		case (uint16)EPCGMetadataTypes::Rotator:
-			return Callback(FRotator{});
-		case (uint16)EPCGMetadataTypes::Name:
-			return Callback(FName{});
+
+#define PCG_CALLBACKWITHRIGHTTYPE_DECL(T) case (uint16)(PCG::Private::MetadataTypes<T>::Id): return Callback(T{});
+		PCG_FOREACH_SUPPORTEDTYPES(PCG_CALLBACKWITHRIGHTTYPE_DECL)
+#undef PCG_CALLBACKWITHRIGHTTYPE_DECL
+
 		default:
 		{
 			// ReturnType{} is invalid if ReturnType is void

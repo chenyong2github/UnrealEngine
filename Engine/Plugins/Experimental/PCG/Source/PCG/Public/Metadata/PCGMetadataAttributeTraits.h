@@ -28,6 +28,21 @@ enum class EPCGMetadataTypes : uint8
 	Unknown = 255
 };
 
+// Convenient macro to avoid duplicating a lot of code with all our supported types.
+#define PCG_FOREACH_SUPPORTEDTYPES(MACRO) \
+	MACRO(int32)      \
+	MACRO(int64)      \
+	MACRO(float)      \
+	MACRO(double)     \
+	MACRO(FVector2D)  \
+	MACRO(FVector)    \
+	MACRO(FVector4)   \
+	MACRO(FQuat)      \
+	MACRO(FRotator)   \
+	MACRO(FName)      \
+	MACRO(FString)    \
+	MACRO(FTransform)
+
 namespace PCG
 {
 	namespace Private
@@ -55,6 +70,17 @@ namespace PCG
 		PCGMetadataGenerateDataTypes(FName, Name);
 
 #undef PCGMetadataGenerateDataTypes
+
+		constexpr inline bool IsPCGType(uint16 TypeId)
+		{
+			return TypeId < (uint16)EPCGMetadataTypes::Count;
+		}
+
+		template <typename T>
+		constexpr inline bool IsPCGType()
+		{
+			return IsPCGType(MetadataTypes<T>::Id);
+		}
 
 		// Verify if the TypeId is a type known by PCG and matches any types provided in the template.
 		// Example: IsOfTypes<FVector2D, FVector, FVector4>(TypeId);

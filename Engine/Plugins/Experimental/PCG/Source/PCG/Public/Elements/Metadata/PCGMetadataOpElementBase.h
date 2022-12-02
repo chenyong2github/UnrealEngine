@@ -7,7 +7,9 @@
 
 #include "Metadata/PCGMetadataAttribute.h"
 #include "Metadata/PCGMetadataAttributeTpl.h"
-#include "Metadata/PCGMetadataAttributeWrapper.h"
+#include "Metadata/PCGAttributePropertySelector.h"
+#include "Metadata/Accessors/IPCGAttributeAccessor.h"
+#include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
 
 #include "Containers/StaticArray.h"
 
@@ -113,6 +115,7 @@ public:
 	EPCGMetadataSettingsBaseMode Mode_DEPRECATED = EPCGMetadataSettingsBaseMode::Inferred;
 #endif // WITH_EDITORONLY_DATA
 
+	static constexpr uint32 MaxNumberOfInputs = 4;
 	static constexpr uint32 MaxNumberOfOutputs = 4;
 
 #if WITH_EDITORONLY_DATA
@@ -132,243 +135,271 @@ public:
 		uint16 OutputType;
 		const UPCGMetadataSettingsBase* Settings = nullptr;
 
-		TArray<FPCGPropertyAttributeIterator> InputIterators;
-		TArray<FPCGPropertyAttributeIterator> OutputIterators;
+		TArray<TUniquePtr<const IPCGAttributeAccessorKeys>> InputKeys;
+		TArray<TUniquePtr<IPCGAttributeAccessorKeys>> OutputKeys;
+
+		TArray<TUniquePtr<const IPCGAttributeAccessor>> InputAccessors;
+		TArray<TUniquePtr<IPCGAttributeAccessor>> OutputAccessors;
+
+		template <int32 NbInputs, int32 NbOutputs>
+		void Validate();
 	};
 
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
 
-	virtual bool DoOperation(FOperationData& OperationData) const = 0;
+	virtual bool DoOperation(FOperationData& InOperationData) const = 0;
+
+	/**
+	* Generic method to factorise all the boilerplate code for a variable number of inputs/outputs
+	*/
+	template <typename... InputTypes, typename... Callbacks>
+	inline bool DoNAryOp(FOperationData& InOperationData, TTuple<Callbacks...>&& InCallbacks) const;
 
 	/* All operations can have a fixed number of inputs and a variable number of outputs.
 	* Each output need to have its own callback, all taking the exact number of "const InType&" as input
 	* and each can return a different output type.
 	*/
 	template <typename InType, typename... Callbacks>
-	bool DoUnaryOp(FOperationData& OperationData, Callbacks&& ...InCallbacks) const;
+	bool DoUnaryOp(FOperationData& InOperationData, Callbacks&& ...InCallbacks) const;
 
 	template <typename InType1, typename InType2, typename... Callbacks>
-	bool DoBinaryOp(FOperationData& OperationData, Callbacks&& ...InCallbacks) const;
+	bool DoBinaryOp(FOperationData& InOperationData, Callbacks&& ...InCallbacks) const;
 
 	template <typename InType1, typename InType2, typename InType3, typename... Callbacks>
-	bool DoTernaryOp(FOperationData& OperationData, Callbacks&& ...InCallbacks) const;
+	bool DoTernaryOp(FOperationData& InOperationData, Callbacks&& ...InCallbacks) const;
 
 	template <typename InType1, typename InType2, typename InType3, typename InType4, typename... Callbacks>
-	bool DoQuaternaryOp(FOperationData& OperationData, Callbacks&& ...InCallbacks) const;
+	bool DoQuaternaryOp(FOperationData& InOperationData, Callbacks&& ...InCallbacks) const;
 };
 
-template <typename InType, typename... Callbacks>
-inline bool FPCGMetadataElementBase::DoUnaryOp(FOperationData& OperationData, Callbacks&& ...InCallbacks) const
+template <int32 NbInputs, int32 NbOutputs>
+inline void FPCGMetadataElementBase::FOperationData::Validate()
 {
-	check(OperationData.InputIterators[0].IsValid());
+	check(OutputKeys.Num() == NbOutputs);
 
-	const uint32 NumOutputs = OperationData.OutputIterators.Num();
-	constexpr uint32 NumCallbacks = (uint32)sizeof...(InCallbacks);
-	check(NumOutputs == NumCallbacks);
-
-	InType DefaultValue{};
-	if (OperationData.InputIterators[0].GetWrapper().Get<InType>(PCGInvalidEntryKey, DefaultValue))
+	for (int32 i = 0; i < NbInputs; ++i)
 	{
-		// Fold expressions. It will un-roll the packed argument "InCallbacks", and we can use "InCallbacks" as the current unrolled argument.
-		// In this case, we have multiple callbacks that all take "const InType&" as input, but can return different outputs.
-		// We use this return value to know in which type we need to cast our attribute.
-		uint32 j = 0;
-		([&]
-		{
-			check(j < NumOutputs);
-			auto OutValue = InCallbacks(DefaultValue);
-			typedef decltype(OutValue) OutType;
-
-			OperationData.OutputIterators[j++].GetWrapper().Set<OutType>(PCGInvalidEntryKey, OutValue);
-		} (), ...);
+		check(InputAccessors[i].IsValid());
+		check(InputKeys[i].IsValid());
 	}
 
-	InType Value{};
-
-	for (int32 i = 0; i < OperationData.NumberOfElementsToProcess; ++i)
+	for (int32 j = 0; j < NbOutputs; ++j)
 	{
-		if (OperationData.InputIterators[0].GetAndAdvance<InType>(Value))
-		{
-			uint32 j = 0;
-			([&]
-			{
-				check(j < NumOutputs);
-				auto OutValue = InCallbacks(Value);
-				typedef decltype(OutValue) OutType;
+		check(OutputAccessors[j].IsValid());
+		check(OutputKeys[j].IsValid());
+	}
+}
 
-				OperationData.OutputIterators[j++].SetAndAdvance<OutType>(OutValue);
-			} (), ...);
+/**
+* Heavy templated code to factorize the gathering of inputs, the application of callbacks and the set of outputs.
+* Note that the order of calls is from the bottom to the top: Operation -> Gather -> Apply.
+* So start at the bottom!
+*/
+namespace PCG
+{
+namespace Private
+{
+namespace NAryOperation
+{
+	/**
+	* Empty struct to pack/unpack types in templates.
+	*/
+	template <typename... T>
+	struct Signature {};
+
+	constexpr int32 DefaultChunkSize = 256;
+
+	/**
+	* Set of options to know if we need to use the default key + flags for get and set.
+	*/
+	struct Options
+	{
+		EPCGAttributeAccessorFlags GetFlags;
+		EPCGAttributeAccessorFlags SetFlags;
+		bool bUseDefaultKey = false;
+	};
+
+	/**
+	* Finally we call our callback with the packed input values from InArgs, and set the output value in its accessor.
+	* We use OutputIndex to know which callback to get (and therefore which output to set).
+	* Note that we go in reverse order, and stop when OutputIndex is negative.
+	*/
+	template<int OutputIndex, typename ...Callbacks, typename ...Args>
+	bool Apply(FPCGMetadataElementBase::FOperationData& InOperationData, int32 StartIndex, int32 Range, const Options& InOptions, const TTuple<Callbacks...>& InCallbacks, Args&& ...InArgs)
+	{
+		if constexpr (OutputIndex < 0)
+		{
+			return true;
+		}
+		else
+		{
+			if (Range <= 0)
+			{
+				return true;
+			}
+
+			// First compute the first element to get its type.
+			// We use argument unpacking, since our InArgs contains all the arrays with our values.
+			// If in InArgs we have TArray<int>& IntValues, TArray<float>& FloatValues, the unpack will do:
+			// (IntValues[0], FloatValues[0])
+			auto OutValue = InCallbacks.template Get<OutputIndex>()(InArgs[0]...);
+			using OutType = decltype(OutValue);
+
+			TArray<OutType, TInlineAllocator<DefaultChunkSize>> OutValues;
+			OutValues.SetNum(Range);
+			OutValues[0] = OutValue;
+
+			for (int32 i = 1; i < Range; ++i)
+			{
+				OutValues[i] = InCallbacks.template Get<OutputIndex>()(InArgs[i]...);
+			}
+
+			bool bSuccess = true;
+			TArrayView<const OutType> OutValuesView(OutValues);
+
+			if (InOptions.bUseDefaultKey)
+			{
+				FPCGAttributeAccessorKeysEntries DefaultAccessorKey(PCGInvalidEntryKey);
+				bSuccess = InOperationData.OutputAccessors[OutputIndex]->SetRange(OutValuesView, /*Index=*/0, DefaultAccessorKey, InOptions.SetFlags);
+			}
+			else
+			{
+				bSuccess = InOperationData.OutputAccessors[OutputIndex]->SetRange(OutValuesView, StartIndex, *InOperationData.OutputKeys[OutputIndex], InOptions.SetFlags);
+			}
+
+			if (!bSuccess)
+			{
+				return false;
+			}
+
+			return Apply<OutputIndex - 1>(InOperationData, StartIndex, Range, InOptions, InCallbacks, std::forward<Args>(InArgs)...);
 		}
 	}
 
+	/**
+	* When Signature doesn't have any templated types anymore (Signature<>), we got all our input values packed in "InArgs", so it's time to compute our operation and set the outputs.
+	* To do so, we use Apply templated with the LastOutputIndex, and go backwards (last output to first output).
+	*/
+	template <typename... Callbacks, typename... Args>
+	bool Gather(FPCGMetadataElementBase::FOperationData& InOperationData, int32 StartIndex, int32 Range, const Options& InOptions, const TTuple<Callbacks...>& InCallbacks, int InputIndex, Signature<> S, Args&& ...InArgs)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(PCG::Private::NAryOperation::Apply);
+
+		constexpr int LastOutputIndex = (int)sizeof...(Callbacks) - 1;
+		return Apply<LastOutputIndex>(InOperationData, StartIndex, Range, InOptions, InCallbacks, std::forward<Args>(InArgs)...);
+	}
+
+	/**
+	* The idea of gather is to pack all the input values at the end of the function call.
+	* We use InputType, from our Signature struct to extract the current InputType, get a range of values from our accessor (using the InputIndex)
+	* then call Gather recursively, with the rest of our input types in Signature, InputIndex incremented by one and our newly InputValues moved at the end and packed into InArgs.
+	* We specialize the case where Signature is empty, meaning we got all our input values.
+	* 
+	* For example, if InputTypes = <int, float>, we have 3 calls:
+	* Gather(InOperationData, StartIndex, Range, InOptions, InCallbacks, 0, Signature<int, float>);
+	* Gather(InOperationData, StartIndex, Range, InOptions, InCallbacks, 1, Signature<float>, IntValues);
+	* Gather(InOperationData, StartIndex, Range, InOptions, InCallbacks, 2, Signature<>, IntValues, FloatValues);
+	*/
+	template <typename... Callbacks, typename InputType, typename... InputTypes, typename... Args>
+	bool Gather(FPCGMetadataElementBase::FOperationData& InOperationData, int32 StartIndex, int32 Range, const Options& InOptions, const TTuple<Callbacks...>& InCallbacks, int InputIndex, Signature<InputType, InputTypes...> S, Args&& ...InArgs)
+	{
+		bool bSuccess = true;
+
+		TArray<InputType, TInlineAllocator<DefaultChunkSize>> InputValues;
+		InputValues.SetNum(Range);
+		if (InOptions.bUseDefaultKey)
+		{
+			FPCGAttributeAccessorKeysEntries DefaultAccessorKey(PCGInvalidEntryKey);
+			bSuccess = InOperationData.InputAccessors[InputIndex]->GetRange<InputType>(InputValues, /*Index=*/0, DefaultAccessorKey, InOptions.GetFlags);
+		}
+		else
+		{
+			bSuccess = InOperationData.InputAccessors[InputIndex]->GetRange<InputType>(InputValues, StartIndex, *InOperationData.InputKeys[InputIndex], InOptions.GetFlags);
+		}
+
+		if (!bSuccess)
+		{
+			return false;
+		}
+
+		return Gather(InOperationData, StartIndex, Range, InOptions, InCallbacks, InputIndex + 1, Signature<InputTypes...>(), std::forward<Args>(InArgs)..., std::move(InputValues));
+	}
+
+	/**
+	* First we need to gather all our input values.
+	* We use an index, starting at 0, and also use our empty struct to pack all our input types.
+	*/
+	template <typename... InputTypes, typename... Callbacks>
+	bool Operation(FPCGMetadataElementBase::FOperationData& InOperationData, int32 StartIndex, int32 Range, const Options& InOptions, const TTuple<Callbacks...>& InCallbacks)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(PCG::Private::NAryOperation::Operation);
+		return Gather(InOperationData, StartIndex, Range, InOptions, InCallbacks, 0, Signature<InputTypes...>());
+	}
+}
+}
+}
+
+template <typename... InputTypes, typename... Callbacks>
+inline bool FPCGMetadataElementBase::DoNAryOp(FOperationData& InOperationData, TTuple<Callbacks...>&& InCallbacks) const
+{
+	// If nothing to do, exit immediatly
+	if (InOperationData.NumberOfElementsToProcess == 0)
+	{
+		return true;
+	}
+
+	// Validate that all is good
+	constexpr uint32 NbInputs = (uint32)sizeof...(InputTypes);
+	constexpr uint32 NbOutputs = (uint32)sizeof...(Callbacks);
+
+	static_assert(NbInputs <= UPCGMetadataSettingsBase::MaxNumberOfInputs);
+	static_assert(NbOutputs <= UPCGMetadataSettingsBase::MaxNumberOfOutputs);
+
+	InOperationData.Validate<NbInputs, NbOutputs>();
+
+	EPCGAttributeAccessorFlags Flags = EPCGAttributeAccessorFlags::AllowBroadcast;
+
+	// First set the default value
+	PCG::Private::NAryOperation::Options Options{ Flags, Flags | EPCGAttributeAccessorFlags::AllowSetDefaultValue, true };
+	PCG::Private::NAryOperation::Operation<InputTypes...>(InOperationData, /*StartIndex=*/0, /*Range=*/1, Options, InCallbacks);
+
+	// Then iterate over all the values
+	Options.SetFlags = Flags;
+	Options.bUseDefaultKey = false;
+
+	const int32 NumberOfIterations = (InOperationData.NumberOfElementsToProcess + PCG::Private::NAryOperation::DefaultChunkSize - 1) / PCG::Private::NAryOperation::DefaultChunkSize;
+
+	for (int32 i = 0; i < NumberOfIterations; ++i)
+	{
+		int32 StartIndex = i * PCG::Private::NAryOperation::DefaultChunkSize;
+		int32 Range = FMath::Min(InOperationData.NumberOfElementsToProcess - StartIndex, PCG::Private::NAryOperation::DefaultChunkSize);
+		PCG::Private::NAryOperation::Operation<InputTypes...>(InOperationData, StartIndex, Range, Options, InCallbacks);
+	}
+
 	return true;
+}
+
+template <typename InType, typename... Callbacks>
+inline bool FPCGMetadataElementBase::DoUnaryOp(FOperationData& InOperationData, Callbacks&& ...InCallbacks) const
+{
+	return DoNAryOp<InType>(InOperationData, ForwardAsTuple(std::forward<Callbacks>(InCallbacks)...));
 }
 
 template <typename InType1, typename InType2, typename... Callbacks>
-inline bool FPCGMetadataElementBase::DoBinaryOp(FOperationData& OperationData, Callbacks&& ...InCallbacks) const
+inline bool FPCGMetadataElementBase::DoBinaryOp(FOperationData& InOperationData, Callbacks&& ...InCallbacks) const
 {
-	check(OperationData.InputIterators[0].IsValid());
-	check(OperationData.InputIterators[1].IsValid());
-
-	const uint32 NumOutputs = OperationData.OutputIterators.Num();
-	constexpr uint32 NumCallbacks = (uint32)sizeof...(InCallbacks);
-	check(NumOutputs == NumCallbacks);
-
-	InType1 DefaultValue1{};
-	InType2 DefaultValue2{};
-
-	if (OperationData.InputIterators[0].GetWrapper().Get<InType1>(PCGInvalidEntryKey, DefaultValue1) &&
-		OperationData.InputIterators[1].GetWrapper().Get<InType2>(PCGInvalidEntryKey, DefaultValue2))
-	{
-		// Fold expression, cf. Unary op
-		uint32 j = 0;
-		([&]
-		{
-			check(j < NumOutputs);
-			auto OutValue = InCallbacks(DefaultValue1, DefaultValue2);
-			typedef decltype(OutValue) OutType;
-
-			OperationData.OutputIterators[j++].GetWrapper().Set<OutType>(PCGInvalidEntryKey, OutValue);
-		} (), ...);
-	}
-
-	InType1 Value1{};
-	InType2 Value2{};
-
-	for (int32 i = 0; i < OperationData.NumberOfElementsToProcess; ++i)
-	{
-		if (OperationData.InputIterators[0].GetAndAdvance<InType1>(Value1) &&
-			OperationData.InputIterators[1].GetAndAdvance<InType2>(Value2))
-		{
-			uint32 j = 0;
-			([&]
-			{
-				check(j < NumOutputs);
-				auto OutValue = InCallbacks(Value1, Value2);
-				typedef decltype(OutValue) OutType;
-
-				OperationData.OutputIterators[j++].SetAndAdvance<OutType>(OutValue);
-			} (), ...);
-		}
-	}
-
-	return true;
+	return DoNAryOp<InType1, InType2>(InOperationData, ForwardAsTuple(std::forward<Callbacks>(InCallbacks)...));
 }
 
 template <typename InType1, typename InType2, typename InType3, typename... Callbacks>
-inline bool FPCGMetadataElementBase::DoTernaryOp(FOperationData& OperationData, Callbacks&& ...InCallbacks) const
+inline bool FPCGMetadataElementBase::DoTernaryOp(FOperationData& InOperationData, Callbacks&& ...InCallbacks) const
 {
-	check(OperationData.InputIterators[0].IsValid());
-	check(OperationData.InputIterators[1].IsValid());
-	check(OperationData.InputIterators[2].IsValid());
-
-	const uint32 NumOutputs = OperationData.OutputIterators.Num();
-	constexpr uint32 NumCallbacks = (uint32)sizeof...(InCallbacks);
-	check(NumOutputs == NumCallbacks);
-
-	InType1 DefaultValue1{};
-	InType2 DefaultValue2{};
-	InType3 DefaultValue3{};
-
-	if (OperationData.InputIterators[0].GetWrapper().Get<InType1>(PCGInvalidEntryKey, DefaultValue1) &&
-		OperationData.InputIterators[1].GetWrapper().Get<InType2>(PCGInvalidEntryKey, DefaultValue2) &&
-		OperationData.InputIterators[2].GetWrapper().Get<InType3>(PCGInvalidEntryKey, DefaultValue3))
-	{
-		// Fold expression, cf. Unary op
-		uint32 j = 0;
-		([&]
-		{
-			check(j < NumOutputs);
-			auto OutValue = InCallbacks(DefaultValue1, DefaultValue2, DefaultValue3);
-			typedef decltype(OutValue) OutType;
-
-			OperationData.OutputIterators[j++].GetWrapper().Set<OutType>(PCGInvalidEntryKey, OutValue);
-		} (), ...);
-	}
-
-	InType1 Value1{};
-	InType2 Value2{};
-	InType3 Value3{};
-
-	for (int32 i = 0; i < OperationData.NumberOfElementsToProcess; ++i)
-	{
-		if (OperationData.InputIterators[0].GetAndAdvance<InType1>(Value1) &&
-			OperationData.InputIterators[1].GetAndAdvance<InType2>(Value2) &&
-			OperationData.InputIterators[2].GetAndAdvance<InType3>(Value3))
-		{
-			uint32 j = 0;
-			([&]
-			{
-				check(j < NumOutputs);
-				auto OutValue = InCallbacks(Value1, Value2, Value3);
-				typedef decltype(OutValue) OutType;
-
-				OperationData.OutputIterators[j++].SetAndAdvance<OutType>(OutValue);
-			} (), ...);
-		}
-	}
-
-	return true;
+	return DoNAryOp<InType1, InType2, InType3>(InOperationData, ForwardAsTuple(std::forward<Callbacks>(InCallbacks)...));
 }
 
 template <typename InType1, typename InType2, typename InType3, typename InType4, typename... Callbacks>
-inline bool FPCGMetadataElementBase::DoQuaternaryOp(FOperationData& OperationData, Callbacks&& ...InCallbacks) const
+inline bool FPCGMetadataElementBase::DoQuaternaryOp(FOperationData& InOperationData, Callbacks&& ...InCallbacks) const
 {
-	check(OperationData.InputIterators[0].IsValid());
-	check(OperationData.InputIterators[1].IsValid());
-	check(OperationData.InputIterators[2].IsValid());
-	check(OperationData.InputIterators[3].IsValid());
-
-	const uint32 NumOutputs = OperationData.OutputIterators.Num();
-	constexpr uint32 NumCallbacks = (uint32)sizeof...(InCallbacks);
-	check(NumOutputs == NumCallbacks);
-
-	InType1 DefaultValue1{};
-	InType2 DefaultValue2{};
-	InType3 DefaultValue3{};
-	InType4 DefaultValue4{};
-	
-	if (OperationData.InputIterators[0].GetWrapper().Get<InType1>(PCGInvalidEntryKey, DefaultValue1) &&
-		OperationData.InputIterators[1].GetWrapper().Get<InType2>(PCGInvalidEntryKey, DefaultValue2) &&
-		OperationData.InputIterators[2].GetWrapper().Get<InType3>(PCGInvalidEntryKey, DefaultValue3) &&
-		OperationData.InputIterators[3].GetWrapper().Get<InType4>(PCGInvalidEntryKey, DefaultValue4))
-	{
-		// Fold expression, cf. Unary op
-		uint32 j = 0;
-		([&]
-		{
-			check(j < NumOutputs);
-			auto OutValue = InCallbacks(DefaultValue1, DefaultValue2, DefaultValue3, DefaultValue4);
-			typedef decltype(OutValue) OutType;
-
-			OperationData.OutputIterators[j++].GetWrapper().Set<OutType>(PCGInvalidEntryKey, OutValue);
-		} (), ...);
-	}
-
-	InType1 Value1{};
-	InType2 Value2{};
-	InType3 Value3{};
-	InType4 Value4{};
-
-	for (int32 i = 0; i < OperationData.NumberOfElementsToProcess; ++i)
-	{
-		if (OperationData.InputIterators[0].GetAndAdvance<InType1>(Value1) &&
-			OperationData.InputIterators[1].GetAndAdvance<InType2>(Value2) &&
-			OperationData.InputIterators[2].GetAndAdvance<InType3>(Value3) &&
-			OperationData.InputIterators[3].GetAndAdvance<InType4>(Value4))
-		{
-			uint32 j = 0;
-			([&]
-			{
-				check(j < NumOutputs);
-				auto OutValue = InCallbacks(Value1, Value2, Value3, Value4);
-				typedef decltype(OutValue) OutType;
-
-				OperationData.OutputIterators[j++].SetAndAdvance<OutType>(OutValue);
-			} (), ...);
-		}
-	}
-
-	return true;
+	return DoNAryOp<InType1, InType2, InType3, InType4>(InOperationData, ForwardAsTuple(std::forward<Callbacks>(InCallbacks)...));
 }

@@ -7,6 +7,8 @@
 
 #include "PCGPoint.generated.h"
 
+class IPCGAttributeAccessor;
+
 UENUM()
 enum class EPCGPointProperties : uint8
 {
@@ -78,50 +80,6 @@ public:
 	using PointCustomPropertyGetter = TFunction<bool(const FPCGPoint&, void*)>;
 	using PointCustomPropertySetter = TFunction<bool(FPCGPoint&, const void*)>;
 
-	struct PointCustomPropertyGetterSetter
-	{
-	public:
-		PointCustomPropertyGetterSetter() = default;
-
-		PointCustomPropertyGetterSetter(const PointCustomPropertyGetter& InGetter, const PointCustomPropertySetter& InSetter, int16 InType, FName InName);
-
-		template<typename T>
-		bool Get(const FPCGPoint& Point, T& OutValue) const
-		{
-			if (PCG::Private::IsOfTypes<T>(Type))
-			{
-				return Getter(Point, &OutValue);
-			}
-			else
-			{
-				return false;
-			}
-		}
-
-		template<typename T>
-		bool Set(FPCGPoint& Point, const T& InValue)
-		{
-			if (PCG::Private::IsOfTypes<T>(Type))
-			{
-				return Setter(Point, &InValue);
-			}
-			else
-			{
-				return false;
-			}
-		}
-
-		bool IsValid() const { return Type >= 0 && Type < (int16)EPCGMetadataTypes::Count; }
-		int16 GetType() const { return Type; }
-		FName GetName() const { return Name; }
-
-	private:
-		PointCustomPropertyGetter Getter = [](const FPCGPoint&, void*) { return false; };
-		PointCustomPropertySetter Setter = [](FPCGPoint&, const void*) { return false; };
-		int16 Type = -1;
-		FName Name = NAME_None;
-	};
-
 	static bool HasCustomPropertyGetterSetter(FName Name);
-	static PointCustomPropertyGetterSetter CreateCustomPropertyGetterSetter(FName Name);
+	static TUniquePtr<IPCGAttributeAccessor> CreateCustomPropertyAccessor(FName Name);
 };
