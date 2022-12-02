@@ -247,6 +247,12 @@ public:
 		return nullptr;
 	}
 
+	/** Get if has changed and then reset it, this can be used for caching*/
+	virtual bool HasChangedAndResetTest()
+	{
+		return true;
+	}
+
 	/**
 	* Get the Object and the name to be used to store the curve model color (see UCurveEditorSettings). By default
 	* this is the owning object and the intent name, but it can be overriden, for example for Sequencer it may be the bound object
@@ -357,9 +363,13 @@ public:
 
 	/**
 	 */
-	FORCEINLINE void SetColor(const FLinearColor& InColor)
+	FORCEINLINE void SetColor(const FLinearColor& InColor, bool bInModify = true)
 	{
 		Color = InColor;
+		if (bInModify)
+		{
+			Modify(); //will make sure the cache get's recreated
+		}
 	}
 
 	/**

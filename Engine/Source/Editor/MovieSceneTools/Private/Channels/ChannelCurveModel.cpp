@@ -38,6 +38,7 @@ FChannelCurveModel<ChannelType, ChannelValue, KeyType>::FChannelCurveModel(TMovi
 	ChannelHandle = InChannel;
 	WeakSection = OwningSection;
 	WeakSequencer = InWeakSequencer;
+	LastSignature = OwningSection->GetSignature();
 
 	if (FMovieSceneChannelProxy* ChannelProxy = InChannel.GetChannelProxy())
 	{
@@ -69,6 +70,7 @@ void FChannelCurveModel<ChannelType, ChannelValue, KeyType>::Modify()
 	{
 		Section->Modify();
 	}
+	LastSignature.Invalidate();
 }
 
 
@@ -439,6 +441,8 @@ void FChannelCurveModel<ChannelType, ChannelValue, KeyType>::FixupCurve()
 		OnDestroyHandle = NewChannelProxy->OnDestroy.AddRaw(this, &FChannelCurveModel<ChannelType, ChannelValue, KeyType>::FixupCurve);
 	}
 }
+
+
 template <class ChannelType, class ChannelValue, class KeyType>
 void FChannelCurveModel<ChannelType, ChannelValue, KeyType>::GetCurveColorObjectAndName(UObject** OutObject, FString& OutName) const
 {

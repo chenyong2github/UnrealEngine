@@ -38,6 +38,7 @@ void SCurveViewerPanel::Construct(const FArguments& InArgs, TSharedRef<FCurveEdi
 	CurveThickness = InArgs._CurveThickness;
 
 	InCurveEditor->SetView(SharedThis(this));
+	CachedValues.CachedTangentVisibility = InCurveEditor->GetSettings()->GetTangentVisibility();
 
 	for (const TPair<FCurveModelID, TUniquePtr<FCurveModel>>& CurvePair : InCurveEditor->GetCurves())
 	{
@@ -45,12 +46,6 @@ void SCurveViewerPanel::Construct(const FArguments& InArgs, TSharedRef<FCurveEdi
 	}
 
 	SetClipping(EWidgetClipping::ClipToBounds);
-}
-
-void SCurveViewerPanel::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
-{
-	CachedDrawParams.Reset();
-	GetCurveDrawParams(CachedDrawParams);
 }
 
 int32 SCurveViewerPanel::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const

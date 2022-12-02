@@ -24,6 +24,7 @@
 #include "Templates/Tuple.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+#include "CurveEditorSettings.h"
 
 class FCurveEditor;
 class FCurveModel;
@@ -117,7 +118,6 @@ protected:
 
 	// SWidget Interface
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 BaseLayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
-	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	virtual void OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual void OnMouseLeave(const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
@@ -190,9 +190,6 @@ protected:
 	FLinearColor BackgroundTint;
 
 private:
-
-	/** Curve draw parameters that are re-generated on tick. We generate them once and then they're used in multiple places per frame. */
-	TArray<FCurveDrawParams> CachedDrawParams;
 
 	/** (Optional) the current drag operation */
 	TOptional<FCurveEditorDelayedDrag> DragOperation;

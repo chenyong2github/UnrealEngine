@@ -17,12 +17,14 @@
 #include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+#include "CurveEditorSettings.h"
 
 class FCurveEditor;
 class FSlateRect;
 class FText;
 class SCurveEditorPanel;
 struct FCurveDrawParams;
+class FCurveModel;
 
 /**
  * This is the base widget type for all views that exist on a curve editor panel. A view may contain 0 or more curves (stored in CurveInfoByID).
@@ -207,7 +209,12 @@ protected:
 	/** Gets info about the curves being drawn. Converts actual curves into an abstract series of lines/points/handles/etc. */
 	void GetCurveDrawParams(TArray<FCurveDrawParams>& OutDrawParams) const;
 
+	/** Get it for just one curve*/
+	void GetCurveDrawParam(TSharedPtr<FCurveEditor>& CurveEditor, const FCurveModelID& ModelID, FCurveModel* CurveModel,
+		double InputMin, double InputMax, FCurveDrawParams& OutDrawParam) const;
+
 	// ~SWidget interface
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	virtual FVector2D ComputeDesiredSize(float LayoutScaleMultiplier) const override;
 
 private:
@@ -270,4 +277,38 @@ protected:
 	 * @note: Should only be added to or removed from in AddCurve/RemoveCurve. Derived types must only change the FCurveInfo contained within this map.
 	 */
 	TSortedMap<FCurveModelID, FCurveInfo, TInlineAllocator<1>> CurveInfoByID;
+
+	/** Flag enum signifying how the curve cache has changed since it was last generated
+	Note for a data change it may only effect certain data(curves) not every drawn curve*/
+	enum class ECurveCacheFlags : uint8
+	{
+		CheckCurves = 0,       // The cache may be valid need to check each curve to see if they are still valid
+		All = 1 << 0,		   // Get all
+	};
+	/** Curve cache flags that change based upon data or view getting modified*/
+	ECurveCacheFlags CurveCacheFlags;
+
+	/** Curve draw parameters that are re-generated on tick if the cache has changed. We generate them once and then they're used in multiple places per frame. */
+	TArray<FCurveDrawParams> CachedDrawParams;
+
+	/** Set of Cached values we need to check each tick to see if we need to redo cache*/
+	struct FCachedValuesToCheck
+	{
+		/** Serial number cached from FCurveEditor::GetActiveCurvesSerialNumber() on tick */
+		uint32 CachedActiveCurvesSerialNumber;
+
+		/** Serial number bached from CurveEditorSelecstion::GetSerialNumber */
+		uint32 CachedSelectionSerialNumber;
+
+		/** Cached Tangent Visibility*/
+		ECurveEditorTangentVisibility CachedTangentVisibility;
+
+		/** Cached input and output min max values to see if we need to recalc curves, though we need to poll it's safer*/
+		double CachedInputMin, CachedInputMax, CachedOutputMin, CachedOutputMax;
+
+		/** Cached Geometry Size*/
+		FVector2D CachedGeometrySize;
+	};
+
+	FCachedValuesToCheck CachedValues;
 };

@@ -32,6 +32,7 @@ struct FKeyDrawInfo
 };
 
 
+
 /**
  * Structure that defines the necessary data for painting a given curve point
  */
@@ -122,3 +123,4 @@ private:
 	/** Immutable dummy key draw info to return */
 	FKeyDrawInfo InvalidDrawInfo;
 };
+

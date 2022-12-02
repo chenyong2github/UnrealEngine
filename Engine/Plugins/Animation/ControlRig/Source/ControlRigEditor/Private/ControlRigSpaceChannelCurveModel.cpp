@@ -31,10 +31,30 @@ FControlRigSpaceChannelCurveModel::FControlRigSpaceChannelCurveModel(TMovieScene
 	}
 
 	WeakSection = OwningSection;
+	LastSignature = OwningSection->GetSignature();
 	WeakSequencer = InWeakSequencer;
 	SupportedViews = ViewID;
 
 	Color = STrackAreaView::BlendDefaultTrackColor(OwningSection->GetTypedOuter<UMovieSceneTrack>()->GetColorTint());
+}
+
+bool FControlRigSpaceChannelCurveModel::HasChangedAndResetTest()
+{
+	if (UMovieSceneSection* Section = WeakSection.Get())
+	{
+		if (Section->GetSignature() != LastSignature)
+		{
+			LastSignature = Section->GetSignature();
+			return true;
+		}
+		return false;
+	}
+	return true;
+}
+
+UObject* FControlRigSpaceChannelCurveModel::GetOwningObject() const 
+{
+	return WeakSection.Get();
 }
 
 FControlRigSpaceChannelCurveModel::~FControlRigSpaceChannelCurveModel()

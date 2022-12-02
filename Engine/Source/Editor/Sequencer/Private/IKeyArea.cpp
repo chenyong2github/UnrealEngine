@@ -330,7 +330,7 @@ TUniquePtr<FCurveModel> IKeyArea::CreateCurveEditorModel(TSharedRef<ISequencer> 
 			CurveModel->SetLongIntentionName(LongIntentName);
 			if (Color.IsSet())
 			{
-				CurveModel->SetColor(Color.GetValue());
+				CurveModel->SetColor(Color.GetValue(),false);
 			}
 
 			//Use editor preference color if it's been set, this function is const so we can't set just Color optional

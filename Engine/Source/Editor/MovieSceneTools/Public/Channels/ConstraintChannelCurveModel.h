@@ -65,7 +65,10 @@ public:
 	virtual void RemoveKeys(TArrayView<const FKeyHandle> InKeys) override;
 
 	virtual void CreateKeyProxies(TArrayView<const FKeyHandle> InKeyHandles, TArrayView<UObject*> OutObjects) override;
-
+	
+	virtual UObject* GetOwningObject() const override;
+	virtual bool HasChangedAndResetTest() override;
+	
 	//FKeyBarCurveModel
 	virtual void BuildContextMenu(const FCurveEditor& CurveEditor, FMenuBuilder& MenuBuilder, TOptional<FCurvePointHandle> ClickedPoint);
 	virtual TArray<FKeyBarCurveModel::FBarRange> FindRanges();
@@ -81,6 +84,7 @@ private:
 private:
 	mutable TMovieSceneChannelHandle<FMovieSceneConstraintChannel> ChannelHandle;
 	TWeakObjectPtr<UMovieSceneSection> WeakSection;
+	FGuid LastSignature;
 	TWeakPtr<ISequencer> WeakSequencer;
 	TWeakObjectPtr<UTickableConstraint> Constraint;
 

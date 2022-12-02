@@ -21,6 +21,7 @@
 #include "SCurveEditorPanel.h"
 #include "Templates/Tuple.h"
 #include "Templates/UnrealTemplate.h"
+TAutoConsoleVariable<bool> CVarUseCurveCache(TEXT("CurveEditor.UseCurveCache"), true, TEXT("When true we cache curve values, when false we always regenerate."));
 
 SCurveEditorView::SCurveEditorView()
 	: bPinned(0)
@@ -28,7 +29,13 @@ SCurveEditorView::SCurveEditorView()
 	, bFixedOutputBounds(0)
 	, bAutoSize(1)
 	, bAllowEmpty(0)
-{}
+{
+	CurveCacheFlags = ECurveCacheFlags::All;
+	CachedValues.CachedActiveCurvesSerialNumber = 0xFFFFFFFF;
+	CachedValues.CachedSelectionSerialNumber = 0xFFFFFFFF;
+	CachedValues.CachedGeometrySize.X = -1.;
+	CachedValues.CachedGeometrySize.Y = -1;
+}
 
 FVector2D SCurveEditorView::ComputeDesiredSize(float LayoutScaleMultiplier) const
 {
@@ -153,152 +160,240 @@ void SCurveEditorView::GetCurveDrawParams(TArray<FCurveDrawParams>& OutDrawParam
 	double InputMin = 0, InputMax = 1;
 	GetInputBounds(InputMin, InputMax);
 
-	ECurveEditorTangentVisibility TangentVisibility = CurveEditor->GetSettings()->GetTangentVisibility();
-	OutDrawParams.Reserve(CurveInfoByID.Num());
+	OutDrawParams.Reset(CurveInfoByID.Num());
 
 	for (const TTuple<FCurveModelID, FCurveInfo>& Pair : CurveInfoByID)
 	{
+		FCurveDrawParams Params(Pair.Key);
+
 		FCurveModel* CurveModel = CurveEditor->FindCurve(Pair.Key);
 		if (!ensureAlways(CurveModel))
 		{
 			continue;
 		}
 
-		FCurveEditorScreenSpace CurveSpace = GetCurveSpace(Pair.Key);
+		GetCurveDrawParam(CurveEditor, Pair.Key, CurveModel,InputMin, InputMax, Params);
+		OutDrawParams.Add(MoveTemp(Params));
+	}
+}
 
-		const float DisplayRatio = (CurveSpace.PixelsPerOutput() / CurveSpace.PixelsPerInput());
+void SCurveEditorView::GetCurveDrawParam(TSharedPtr<FCurveEditor>& CurveEditor,const FCurveModelID& ModelID, FCurveModel* CurveModel, 
+	double InputMin, double InputMax, FCurveDrawParams& Params) const
+{
 
-		const FKeyHandleSet* SelectedKeys = CurveEditor->GetSelection().GetAll().Find(Pair.Key);
+	FCurveEditorScreenSpace CurveSpace = GetCurveSpace(ModelID);
+	const float DisplayRatio = (CurveSpace.PixelsPerOutput() / CurveSpace.PixelsPerInput());
 
-		// Create a new set of Curve Drawing Parameters to represent this particular Curve
-		FCurveDrawParams Params(Pair.Key);
-		Params.Color = CurveModel->GetColor();
-		Params.bKeyDrawEnabled = CurveModel->IsKeyDrawEnabled();
+	const FKeyHandleSet* SelectedKeys = CurveEditor->GetSelection().GetAll().Find(ModelID);
 
-		// Gather the display metrics to use for each key type. This allows a Curve Model to override
-		// whether or not the curve supports Keys, Arrive/Leave Tangents, etc. If the Curve Model doesn't
-		// support a particular capability we can skip drawing them.
-		CurveModel->GetKeyDrawInfo(ECurvePointType::ArriveTangent, FKeyHandle::Invalid(), Params.ArriveTangentDrawInfo);
-		CurveModel->GetKeyDrawInfo(ECurvePointType::LeaveTangent, FKeyHandle::Invalid(), Params.LeaveTangentDrawInfo);
+	// Create a new set of Curve Drawing Parameters to represent this particular Curve
+	Params.Color = CurveModel->GetColor();
+	Params.bKeyDrawEnabled = CurveModel->IsKeyDrawEnabled();
 
-		// Gather the interpolating points in input/output space
-		TArray<TTuple<double, double>> InterpolatingPoints;
+	// Gather the display metrics to use for each key type. This allows a Curve Model to override
+	// whether or not the curve supports Keys, Arrive/Leave Tangents, etc. If the Curve Model doesn't
+	// support a particular capability we can skip drawing them.
+	CurveModel->GetKeyDrawInfo(ECurvePointType::ArriveTangent, FKeyHandle::Invalid(), Params.ArriveTangentDrawInfo);
+	CurveModel->GetKeyDrawInfo(ECurvePointType::LeaveTangent, FKeyHandle::Invalid(), Params.LeaveTangentDrawInfo);
 
-		CurveModel->DrawCurve(*CurveEditor, CurveSpace, InterpolatingPoints);
-		Params.InterpolatingPoints.Reserve(InterpolatingPoints.Num());
+	// Gather the interpolating points in input/output space
+	TArray<TTuple<double, double>> InterpolatingPoints;
 
-		// An Input Offset allows for a fixed offset to all keys, such as displaying them in the middle of a frame instead of at the start.
-		double InputOffset = CurveModel->GetInputDisplayOffset();
+	CurveModel->DrawCurve(*CurveEditor, CurveSpace, InterpolatingPoints);
+	Params.InterpolatingPoints.Reset(InterpolatingPoints.Num());
 
-		// Convert the interpolating points to screen space
-		for (TTuple<double, double> Point : InterpolatingPoints)
+	// An Input Offset allows for a fixed offset to all keys, such as displaying them in the middle of a frame instead of at the start.
+	double InputOffset = CurveModel->GetInputDisplayOffset();
+
+	// Convert the interpolating points to screen space
+	for (TTuple<double, double> Point : InterpolatingPoints)
+	{
+		Params.InterpolatingPoints.Add(
+			FVector2D(
+				CurveSpace.SecondsToScreen(Point.Get<0>() + InputOffset),
+				CurveSpace.ValueToScreen(Point.Get<1>())
+			)
+		);
+	}
+
+	TArray<FKeyHandle> VisibleKeys;
+	CurveModel->GetKeys(*CurveEditor, InputMin, InputMax, TNumericLimits<double>::Lowest(), TNumericLimits<double>::Max(), VisibleKeys);
+
+	if (VisibleKeys.Num())
+	{
+		ECurveEditorTangentVisibility TangentVisibility = CurveEditor->GetSettings()->GetTangentVisibility();
+
+		TArray<FKeyPosition> AllKeyPositions;
+		TArray<FKeyAttributes> AllKeyAttributes;
+
+		AllKeyPositions.SetNum(VisibleKeys.Num());
+		AllKeyAttributes.SetNum(VisibleKeys.Num());
+		Params.Points.Reset(VisibleKeys.Num());
+
+		CurveModel->GetKeyPositions(VisibleKeys, AllKeyPositions);
+		CurveModel->GetKeyAttributes(VisibleKeys, AllKeyAttributes);
+		for (int32 Index = 0; Index < VisibleKeys.Num(); ++Index)
 		{
-			Params.InterpolatingPoints.Add(
-				FVector2D(
-					CurveSpace.SecondsToScreen(Point.Get<0>() + InputOffset),
-					CurveSpace.ValueToScreen(Point.Get<1>())
-				)
-			);
-		}
+			const FKeyHandle      KeyHandle = VisibleKeys[Index];
+			const FKeyPosition& KeyPosition = AllKeyPositions[Index];
+			const FKeyAttributes& Attributes = AllKeyAttributes[Index];
 
-		TArray<FKeyHandle> VisibleKeys;
-		CurveModel->GetKeys(*CurveEditor, InputMin, InputMax, TNumericLimits<double>::Lowest(), TNumericLimits<double>::Max(), VisibleKeys);
+			bool bShowTangents = TangentVisibility == ECurveEditorTangentVisibility::AllTangents ||
+				(TangentVisibility == ECurveEditorTangentVisibility::SelectedKeys && SelectedKeys &&
+					(SelectedKeys->Contains(VisibleKeys[Index], ECurvePointType::Any)));
 
-		if (VisibleKeys.Num())
-		{
-			TArray<FKeyPosition> AllKeyPositions;
-			TArray<FKeyAttributes> AllKeyAttributes;
+			float TimeScreenPos = CurveSpace.SecondsToScreen(KeyPosition.InputValue + InputOffset);
+			float ValueScreenPos = CurveSpace.ValueToScreen(KeyPosition.OutputValue);
 
-			AllKeyPositions.SetNum(VisibleKeys.Num());
-			AllKeyAttributes.SetNum(VisibleKeys.Num());
+			// Add this key
+			FCurvePointInfo Key(KeyHandle);
+			Key.ScreenPosition = FVector2D(TimeScreenPos, ValueScreenPos);
+			Key.LayerBias = 2;
 
-			CurveModel->GetKeyPositions(VisibleKeys, AllKeyPositions);
-			CurveModel->GetKeyAttributes(VisibleKeys, AllKeyAttributes);
+			// Add draw info for the specific key
+			CurveModel->GetKeyDrawInfo(ECurvePointType::Key, KeyHandle, /*Out*/ Key.DrawInfo);
+			Params.Points.Add(Key);
 
-			for (int32 Index = 0; Index < VisibleKeys.Num(); ++Index)
+			if (bShowTangents && Attributes.HasArriveTangent())
 			{
-				const FKeyHandle      KeyHandle = VisibleKeys[Index];
-				const FKeyPosition&   KeyPosition = AllKeyPositions[Index];
-				const FKeyAttributes& Attributes = AllKeyAttributes[Index];
+				float ArriveTangent = Attributes.GetArriveTangent();
 
-				bool bShowTangents = TangentVisibility == ECurveEditorTangentVisibility::AllTangents || 
-					(TangentVisibility == ECurveEditorTangentVisibility::SelectedKeys && SelectedKeys && 
-					 (SelectedKeys->Contains(VisibleKeys[Index], ECurvePointType::Any) ) );
+				FCurvePointInfo ArriveTangentPoint(KeyHandle);
+				ArriveTangentPoint.Type = ECurvePointType::ArriveTangent;
 
-				float TimeScreenPos = CurveSpace.SecondsToScreen(KeyPosition.InputValue + InputOffset);
-				float ValueScreenPos = CurveSpace.ValueToScreen(KeyPosition.OutputValue);
 
-				// Add this key
-				FCurvePointInfo Key(KeyHandle);
-				Key.ScreenPosition = FVector2D(TimeScreenPos, ValueScreenPos);
-				Key.LayerBias = 2;
-
-				// Add draw info for the specific key
-				CurveModel->GetKeyDrawInfo(ECurvePointType::Key, KeyHandle, /*Out*/ Key.DrawInfo);
-				Params.Points.Add(Key);
-
-				if (bShowTangents && Attributes.HasArriveTangent())
+				if (Attributes.HasTangentWeightMode() && Attributes.HasArriveTangentWeight() &&
+					(Attributes.GetTangentWeightMode() == RCTWM_WeightedBoth || Attributes.GetTangentWeightMode() == RCTWM_WeightedArrive))
 				{
-					float ArriveTangent = Attributes.GetArriveTangent();
+					FVector2D TangentOffset = CurveEditor::ComputeScreenSpaceTangentOffset(CurveSpace, ArriveTangent, -Attributes.GetArriveTangentWeight());
+					ArriveTangentPoint.ScreenPosition = Key.ScreenPosition + TangentOffset;
+				}
+				else
+				{
+					float PixelLength = 60.0f;
+					ArriveTangentPoint.ScreenPosition = Key.ScreenPosition + CurveEditor::GetVectorFromSlopeAndLength(ArriveTangent * -DisplayRatio, -PixelLength);
+				}
+				ArriveTangentPoint.LineDelta = Key.ScreenPosition - ArriveTangentPoint.ScreenPosition;
+				ArriveTangentPoint.LayerBias = 1;
 
-					FCurvePointInfo ArriveTangentPoint(KeyHandle);
-					ArriveTangentPoint.Type = ECurvePointType::ArriveTangent;
+				// Add draw info for the specific tangent
+				FKeyDrawInfo TangentDrawInfo;
+				CurveModel->GetKeyDrawInfo(ECurvePointType::ArriveTangent, KeyHandle, /*Out*/ ArriveTangentPoint.DrawInfo);
 
+				Params.Points.Add(ArriveTangentPoint);
+			}
 
-					if (Attributes.HasTangentWeightMode() && Attributes.HasArriveTangentWeight() &&
-						(Attributes.GetTangentWeightMode() == RCTWM_WeightedBoth || Attributes.GetTangentWeightMode() == RCTWM_WeightedArrive))
-					{
-						FVector2D TangentOffset = CurveEditor::ComputeScreenSpaceTangentOffset(CurveSpace, ArriveTangent, -Attributes.GetArriveTangentWeight());
-						ArriveTangentPoint.ScreenPosition = Key.ScreenPosition + TangentOffset;
-					}
-					else
-					{
-						float PixelLength = 60.0f;
-						ArriveTangentPoint.ScreenPosition = Key.ScreenPosition + CurveEditor::GetVectorFromSlopeAndLength(ArriveTangent * -DisplayRatio, -PixelLength);
-					}
-					ArriveTangentPoint.LineDelta = Key.ScreenPosition - ArriveTangentPoint.ScreenPosition;
-					ArriveTangentPoint.LayerBias = 1;
+			if (bShowTangents && Attributes.HasLeaveTangent())
+			{
+				float LeaveTangent = Attributes.GetLeaveTangent();
 
-					// Add draw info for the specific tangent
-					FKeyDrawInfo TangentDrawInfo;
-					CurveModel->GetKeyDrawInfo(ECurvePointType::ArriveTangent, KeyHandle, /*Out*/ ArriveTangentPoint.DrawInfo);
+				FCurvePointInfo LeaveTangentPoint(KeyHandle);
+				LeaveTangentPoint.Type = ECurvePointType::LeaveTangent;
 
-					Params.Points.Add(ArriveTangentPoint);
+				if (Attributes.HasTangentWeightMode() && Attributes.HasLeaveTangentWeight() &&
+					(Attributes.GetTangentWeightMode() == RCTWM_WeightedBoth || Attributes.GetTangentWeightMode() == RCTWM_WeightedLeave))
+				{
+					FVector2D TangentOffset = CurveEditor::ComputeScreenSpaceTangentOffset(CurveSpace, LeaveTangent, Attributes.GetLeaveTangentWeight());
+
+					LeaveTangentPoint.ScreenPosition = Key.ScreenPosition + TangentOffset;
+				}
+				else
+				{
+					float PixelLength = 60.0f;
+					LeaveTangentPoint.ScreenPosition = Key.ScreenPosition + CurveEditor::GetVectorFromSlopeAndLength(LeaveTangent * -DisplayRatio, PixelLength);
+
 				}
 
-				if (bShowTangents && Attributes.HasLeaveTangent())
+				LeaveTangentPoint.LineDelta = Key.ScreenPosition - LeaveTangentPoint.ScreenPosition;
+				LeaveTangentPoint.LayerBias = 1;
+
+				// Add draw info for the specific tangent
+				FKeyDrawInfo TangentDrawInfo;
+				CurveModel->GetKeyDrawInfo(ECurvePointType::LeaveTangent, KeyHandle, /*Out*/ LeaveTangentPoint.DrawInfo);
+
+				Params.Points.Add(LeaveTangentPoint);
+			}
+		}
+	}
+}
+
+void SCurveEditorView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
+	check(CurveEditor.IsValid());
+	const bool bUseCurveCache = CVarUseCurveCache.GetValueOnGameThread();
+
+	if (bUseCurveCache)
+	{
+		//if number of curves have changed, just redo all
+		if (CurveEditor->GetActiveCurvesSerialNumber() != CachedValues.CachedActiveCurvesSerialNumber)
+		{
+			CachedValues.CachedActiveCurvesSerialNumber = CurveEditor->GetActiveCurvesSerialNumber();
+			CurveCacheFlags = ECurveCacheFlags::All;
+		}
+		if (CachedValues.CachedTangentVisibility != CurveEditor->GetSettings()->GetTangentVisibility())
+		{
+			CachedValues.CachedTangentVisibility = CurveEditor->GetSettings()->GetTangentVisibility();
+			CurveCacheFlags = ECurveCacheFlags::All;
+		}
+		if (CachedValues.CachedSelectionSerialNumber != CurveEditor->GetSelection().GetSerialNumber())
+		{
+			CachedValues.CachedSelectionSerialNumber = CurveEditor->GetSelection().GetSerialNumber();
+			CurveCacheFlags = ECurveCacheFlags::All;
+		}
+
+		//Only get view values if we need to since we will reset them every time we get all
+		if (CurveCacheFlags != ECurveCacheFlags::All)
+		{
+			if (OutputMin != CachedValues.CachedOutputMin || OutputMax != CachedValues.CachedOutputMax)
+			{
+				CurveCacheFlags = ECurveCacheFlags::All;
+			}
+			else if (CachedValues.CachedGeometrySize != GetCachedGeometry().GetLocalSize())
+			{
+				CurveCacheFlags = ECurveCacheFlags::All;
+			}
+			else
+			{
+				double InputMin = 0, InputMax = 1;
+				GetInputBounds(InputMin, InputMax);
+				if (InputMin != CachedValues.CachedInputMin || InputMax != CachedValues.CachedInputMax)
 				{
-					float LeaveTangent = Attributes.GetLeaveTangent();
-
-					FCurvePointInfo LeaveTangentPoint(KeyHandle);
-					LeaveTangentPoint.Type = ECurvePointType::LeaveTangent;
-
-					if (Attributes.HasTangentWeightMode() && Attributes.HasLeaveTangentWeight() &&
-						(Attributes.GetTangentWeightMode() == RCTWM_WeightedBoth || Attributes.GetTangentWeightMode() == RCTWM_WeightedLeave))
-					{
-						FVector2D TangentOffset = CurveEditor::ComputeScreenSpaceTangentOffset(CurveSpace, LeaveTangent, Attributes.GetLeaveTangentWeight());
-
-						LeaveTangentPoint.ScreenPosition = Key.ScreenPosition + TangentOffset;
-					}
-					else
-					{
-						float PixelLength = 60.0f;
-						LeaveTangentPoint.ScreenPosition = Key.ScreenPosition + CurveEditor::GetVectorFromSlopeAndLength(LeaveTangent * -DisplayRatio, PixelLength);
-
-					}
-
-					LeaveTangentPoint.LineDelta = Key.ScreenPosition - LeaveTangentPoint.ScreenPosition;
-					LeaveTangentPoint.LayerBias = 1;
-
-					// Add draw info for the specific tangent
-					FKeyDrawInfo TangentDrawInfo;
-					CurveModel->GetKeyDrawInfo(ECurvePointType::LeaveTangent, KeyHandle, /*Out*/ LeaveTangentPoint.DrawInfo);
-
-					Params.Points.Add(LeaveTangentPoint);
+					CurveCacheFlags = ECurveCacheFlags::All;
 				}
 			}
 		}
+		if (CurveCacheFlags == ECurveCacheFlags::All)
+		{
+			CachedValues.CachedOutputMin = OutputMin;
+			CachedValues.CachedOutputMax = OutputMax;
+			GetInputBounds(CachedValues.CachedInputMin, CachedValues.CachedInputMax);
+			CachedValues.CachedGeometrySize = GetCachedGeometry().GetLocalSize();
 
-		OutDrawParams.Add(MoveTemp(Params));
+			CachedDrawParams.Reset();
+			GetCurveDrawParams(CachedDrawParams);
+			CurveCacheFlags = ECurveCacheFlags::CheckCurves;
+		}
+		else if (CurveCacheFlags == ECurveCacheFlags::CheckCurves)
+		{
+			for (FCurveDrawParams& Params : CachedDrawParams)
+			{
+				FCurveModel* CurveModel = CurveEditor->FindCurve(Params.GetID());
+				if (CurveModel->HasChangedAndResetTest())
+				{
+					GetCurveDrawParam(CurveEditor, Params.GetID(), CurveModel, CachedValues.CachedInputMin, CachedValues.CachedInputMax, Params);
+				}
+			}
+		}
+	}
+	else
+	{
+		CachedValues.CachedOutputMin = OutputMin;
+		CachedValues.CachedOutputMax = OutputMax;
+		GetInputBounds(CachedValues.CachedInputMin, CachedValues.CachedInputMax);
+		CachedValues.CachedGeometrySize = GetCachedGeometry().GetLocalSize();
+
+		CachedDrawParams.Reset();
+		GetCurveDrawParams(CachedDrawParams);
 	}
 }

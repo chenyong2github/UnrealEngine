@@ -50,10 +50,30 @@ FConstraintChannelCurveModel::FConstraintChannelCurveModel(TMovieSceneChannelHan
 	}
 
 	WeakSection = OwningSection;
+	LastSignature = OwningSection->GetSignature();
 	WeakSequencer = InWeakSequencer;
 	SupportedViews = ViewID;
 	Constraint = nullptr;
 	Color = STrackAreaView::BlendDefaultTrackColor(OwningSection->GetTypedOuter<UMovieSceneTrack>()->GetColorTint());
+}
+
+UObject* FConstraintChannelCurveModel::GetOwningObject() const
+{
+	return WeakSection.Get();
+}
+
+bool FConstraintChannelCurveModel::HasChangedAndResetTest()
+{
+	if (UMovieSceneSection* Section = WeakSection.Get())
+	{
+		if (Section->GetSignature() != LastSignature)
+		{
+			LastSignature = Section->GetSignature();
+			return true;
+		}
+		return false;
+	}
+	return true;
 }
 
 FConstraintChannelCurveModel::~FConstraintChannelCurveModel()

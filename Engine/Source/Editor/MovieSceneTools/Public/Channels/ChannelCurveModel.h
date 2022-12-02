@@ -21,6 +21,7 @@
 #include "UObject/UnrealType.h"
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
+#include "Misc/Guid.h"
 
 class FCurveEditor;
 class FString;
@@ -66,6 +67,20 @@ public:
 	{
 		return WeakSection.Get();
 	}
+	virtual bool HasChangedAndResetTest() override
+	{
+		if (UMovieSceneSection* Section = WeakSection.Get())
+		{
+			if (Section->GetSignature() != LastSignature)
+			{
+				LastSignature = Section->GetSignature();
+				return true;
+			}
+			return false;
+		}
+		return true;
+	}
+
 	virtual void GetCurveColorObjectAndName(UObject** OutObject, FString& OutName) const override;
 
 protected:
@@ -87,4 +102,5 @@ private:
 	TWeakObjectPtr<UMovieSceneSection> WeakSection;
 	TWeakPtr<ISequencer> WeakSequencer;
 	FDelegateHandle OnDestroyHandle;
+	FGuid LastSignature;
 };

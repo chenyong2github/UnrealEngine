@@ -18,6 +18,7 @@ void FCurveModel::SetKeyAttributes(TArrayView<const FKeyHandle> InKeys, const FK
 	}
 
 	SetKeyAttributes(InKeys, ExpandedAttributes);
+	Modify();
 }
 
 TOptional<FKeyHandle> FCurveModel::AddKey(const FKeyPosition& NewKeyPosition, const FKeyAttributes& InAttributes)
@@ -28,6 +29,5 @@ TOptional<FKeyHandle> FCurveModel::AddKey(const FKeyPosition& NewKeyPosition, co
 
 	TArrayView<TOptional<FKeyHandle>> Handles = MakeArrayView(&Handle, 1);
 	AddKeys(TArrayView<const FKeyPosition>(&NewKeyPosition, 1), TArrayView<const FKeyAttributes>(&InAttributes, 1), &Handles);
-
 	return Handle;
 }
