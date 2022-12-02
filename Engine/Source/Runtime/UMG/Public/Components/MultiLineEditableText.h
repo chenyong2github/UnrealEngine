@@ -28,13 +28,13 @@ public:
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnMultiLineEditableTextCommittedEvent, const FText&, Text, ETextCommit::Type, CommitMethod);
 
 public:
-	/** The text content for this editable text box widget */
 	UE_DEPRECATED(5.1, "Direct access to Text is deprecated. Please use the getter or setter.")
+	/** The text content for this editable text box widget */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintGetter = "GetText", BlueprintSetter = "SetText", FieldNotify, Category = Content, meta = (MultiLine = "true"))
 	FText Text;
 
-	/** Hint text that appears when there is no text in the text box */
 	UE_DEPRECATED(5.1, "Direct access to HintText is deprecated. Please use the getter or setter.")
+	/** Hint text that appears when there is no text in the text box */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintGetter = "GetHintText", BlueprintSetter = "SetHintText", Category = Content, meta = (MultiLine = "true"))
 	FText HintText;
 
@@ -47,28 +47,28 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetWidgetStyle, Category="Style", meta=(ShowOnlyInnerProperties))
 	FTextBlockStyle WidgetStyle;
 
-	/** Sets the Text as Readonly to prevent it from being modified interactively by the user */
 	UE_DEPRECATED(5.1, "Direct access to IsReadOnly is deprecated. Please use the getter or setter.")
+	/** Sets the Text as Readonly to prevent it from being modified interactively by the user */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = GetIsReadOnly, Setter = SetIsReadOnly, BlueprintSetter = "SetIsReadOnly", Category = Appearance)
 	bool bIsReadOnly;
 
-	/** Whether to select all text when the user clicks to give focus on the widget */
 	UE_DEPRECATED(5.1, "Direct access to SelectAllTextWhenFocused is deprecated. Please use the getter or setter.")
+	/** Whether to select all text when the user clicks to give focus on the widget */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = Behavior, AdvancedDisplay)
 	bool SelectAllTextWhenFocused;
 
-	/** Whether to clear text selection when focus is lost */
 	UE_DEPRECATED(5.1, "Direct access to ClearTextSelectionOnFocusLoss is deprecated. Please use the getter or setter.")
+	/** Whether to clear text selection when focus is lost */
 	UPROPERTY(EditAnywhere, Category = Behavior, AdvancedDisplay)
 	bool ClearTextSelectionOnFocusLoss;
 
-	/** Whether to allow the user to back out of changes when they press the escape key */
 	UE_DEPRECATED(5.1, "Direct access to RevertTextOnEscape is deprecated. Please use the getter or setter.")
+	/** Whether to allow the user to back out of changes when they press the escape key */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = Behavior, AdvancedDisplay)
 	bool RevertTextOnEscape;
 
-	/** Whether to clear keyboard focus when pressing enter to commit changes */
 	UE_DEPRECATED(5.1, "Direct access to ClearKeyboardFocusOnCommit is deprecated. Please use the getter or setter.")
+	/** Whether to clear keyboard focus when pressing enter to commit changes */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = Behavior, AdvancedDisplay)
 	bool ClearKeyboardFocusOnCommit;
 

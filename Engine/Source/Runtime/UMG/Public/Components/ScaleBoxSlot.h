@@ -20,19 +20,19 @@ class UMG_API UScaleBoxSlot : public UPanelSlot
 
 public:
 #if WITH_EDITORONLY_DATA
-	/** The padding area between the slot and the content it contains. */
 	UE_DEPRECATED(5.1, "Padding is not used.")
+	/** The padding area between the slot and the content it contains. */
 	UPROPERTY()
 	FMargin Padding_DEPRECATED;
 #endif
 
-	/** The alignment of the object horizontally. */
 	UE_DEPRECATED(5.1, "Direct access to HorizontalAlignment is deprecated. Please use the getter or setter.")
+	/** The alignment of the object horizontally. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Setter, Category="Layout|ScaleBox Slot")
 	TEnumAsByte<EHorizontalAlignment> HorizontalAlignment;
 
-	/** The alignment of the object vertically. */
 	UE_DEPRECATED(5.1, "Direct access to VerticalAlignment is deprecated. Please use the getter or setter.")
+	/** The alignment of the object vertically. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Setter, Category="Layout|ScaleBox Slot" )
 	TEnumAsByte<EVerticalAlignment> VerticalAlignment;
 

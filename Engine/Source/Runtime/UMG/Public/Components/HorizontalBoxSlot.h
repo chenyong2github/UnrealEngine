@@ -22,13 +22,13 @@ private:
 
 public:
 	
-	/** How much space this slot should occupy in the direction of the panel. */
 	UE_DEPRECATED(5.1, "Direct access to Size is deprecated. Please use the getter or setter.")
+	/** How much space this slot should occupy in the direction of the panel. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Setter, BlueprintSetter = "SetSize", Category = "Layout|Horizontal Box Slot")
 	FSlateChildSize Size;
 
-	/** The amount of padding between the slots parent and the content. */
 	UE_DEPRECATED(5.1, "Direct access to Padding is deprecated. Please use the getter or setter.")
+	/** The amount of padding between the slots parent and the content. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Setter, BlueprintSetter = "SetPadding", Category = "Layout|Horizontal Box Slot")
 	FMargin Padding;
 

@@ -28,8 +28,8 @@ class UMG_API USlider : public UWidget
 	GENERATED_UCLASS_BODY()
 
 public:
-	/** The volume value to display. */
 	UE_DEPRECATED(5.1, "Direct access to Value is deprecated. Please use the getter or setter.")
+	/** The volume value to display. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, FieldNotify, BlueprintGetter="GetValue", BlueprintSetter="SetValue", Category="Appearance", meta=(UIMin="0", UIMax="1"))
 	float Value;
 
@@ -37,44 +37,44 @@ public:
 	UPROPERTY()
 	FGetFloat ValueDelegate;
 
-	/** The minimum value the slider can be set to. */
 	UE_DEPRECATED(5.1, "Direct access to MinValue is deprecated. Please use the getter or setter.")
+	/** The minimum value the slider can be set to. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetMinValue", Category="Appearance")
 	float MinValue;
 
-	/** The maximum value the slider can be set to. */
 	UE_DEPRECATED(5.1, "Direct access to MaxValue is deprecated. Please use the getter or setter.")
+	/** The maximum value the slider can be set to. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetMaxValue", Category="Appearance")
 	float MaxValue;
 
 public:
-	/** The progress bar style */
 	UE_DEPRECATED(5.1, "Direct access to WidgetStyle is deprecated. Please use the getter or setter.")
+	/** The progress bar style */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category="Style", meta=( DisplayName="Style" ))
 	FSliderStyle WidgetStyle;
 
-	/** The slider's orientation. */
 	UE_DEPRECATED(5.1, "Direct access to Orientation is deprecated. Please use the getter or setter.")
+	/** The slider's orientation. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category=Appearance)
 	TEnumAsByte<EOrientation> Orientation;
 
-	/** The color to draw the slider bar in. */
 	UE_DEPRECATED(5.1, "Direct access to SliderBarColor is deprecated. Please use the getter or setter.")
+	/** The color to draw the slider bar in. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetSliderBarColor", Category="Appearance")
 	FLinearColor SliderBarColor;
 
-	/** The color to draw the slider handle in. */
 	UE_DEPRECATED(5.1, "Direct access to SliderHandleColor is deprecated. Please use the getter or setter.")
+	/** The color to draw the slider handle in. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetSliderHandleColor", Category="Appearance")
 	FLinearColor SliderHandleColor;
 
-	/** Whether the slidable area should be indented to fit the handle. */
 	UE_DEPRECATED(5.1, "Direct access to IndentHandle is deprecated. Please use the getter or setter.")
+	/** Whether the slidable area should be indented to fit the handle. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter="HasIndentHandle", Setter, BlueprintSetter="SetIndentHandle", Category="Appearance", AdvancedDisplay)
 	bool IndentHandle;
 
-	/** Whether the handle is interactive or fixed. */
 	UE_DEPRECATED(5.1, "Direct access to Locked is deprecated. Please use the getter or setter.")
+	/** Whether the handle is interactive or fixed. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter="IsLocked", Setter, BlueprintSetter="SetLocked", Category="Appearance", AdvancedDisplay)
 	bool Locked;
 
@@ -86,8 +86,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Appearance, AdvancedDisplay)
 	bool RequiresControllerLock;
 
-	/** The amount to adjust the value by, when using a controller or keyboard */
 	UE_DEPRECATED(5.1, "Direct access to StepSize is deprecated. Please use the getter or setter.")
+	/** The amount to adjust the value by, when using a controller or keyboard */
 	UPROPERTY(EditAnywhere,BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetStepSize", Category="Appearance", meta=(UIMin="0", UIMax="1"))
 	float StepSize;
 

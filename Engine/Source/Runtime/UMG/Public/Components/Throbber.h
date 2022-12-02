@@ -22,28 +22,28 @@ class UMG_API UThrobber : public UWidget
 
 public:
 	
-	/** How many pieces there are */
 	UE_DEPRECATED(5.1, "Direct access to NumberOfPieces is deprecated. Please use the getter or setter.")
+	/** How many pieces there are */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetNumberOfPieces", Category=Appearance, meta=( ClampMin="1", ClampMax="25", UIMin="1", UIMax="25" ))
 	int32 NumberOfPieces;
 
-	/** Should the pieces animate horizontally? */
 	UE_DEPRECATED(5.1, "Direct access to bAnimateHorizontally is deprecated. Please use the getter or setter.")
+	/** Should the pieces animate horizontally? */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter="IsAnimateHorizontally", Setter="SetAnimateHorizontally", BlueprintSetter = "SetAnimateHorizontally", Category = Appearance)
 	bool bAnimateHorizontally;
 
-	/** Should the pieces animate vertically? */
 	UE_DEPRECATED(5.1, "Direct access to bAnimateVertically is deprecated. Please use the getter or setter.")
+	/** Should the pieces animate vertically? */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter="IsAnimateVertically", Setter="SetAnimateVertically", BlueprintSetter="SetAnimateVertically", Category = Appearance)
 	bool bAnimateVertically;
 
-	/** Should the pieces animate their opacity? */
 	UE_DEPRECATED(5.1, "Direct access to bAnimateOpacity is deprecated. Please use the getter or setter.")
+	/** Should the pieces animate their opacity? */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter="IsAnimateOpacity", Setter="SetAnimateOpacity", BlueprintSetter="SetAnimateOpacity", Category = Appearance)
 	bool bAnimateOpacity;
 
-	/** The animated pieces. */
 	UE_DEPRECATED(5.1, "Direct access to Image is deprecated. Please use the getter or setter.")
+	/** The animated pieces. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category=Appearance)
 	FSlateBrush Image;
 

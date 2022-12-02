@@ -24,13 +24,13 @@ class UMG_API UWindowTitleBarArea : public UContentWidget
 
 public:
 
-	/** Should the title bar area diaplay window minimize/maximize/close buttons. */
 	UE_DEPRECATED(5.2, "Direct access to bWindowButtonsEnabled is deprecated. Please use the getter or setter.")
+	/** Should the title bar area diaplay window minimize/maximize/close buttons. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "IsWindowButtonsEnabled", Setter = "SetWindowButtonsEnabled", Category = "Interaction", meta = (DisplayName = "Window Buttons Enabled"))
 	bool bWindowButtonsEnabled;
 
-	/** Should double clicking the title bar area toggle fullscreen instead of maximizing the window. */
 	UE_DEPRECATED(5.2, "Direct access to bDoubleClickTogglesFullscreen is deprecated. Please use the getter or setter.")
+	/** Should double clicking the title bar area toggle fullscreen instead of maximizing the window. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "IsDoubleClickTogglesFullscreen", Setter = "SetDoubleClickTogglesFullscreen", Category = "Interaction", meta = (DisplayName = "Toggle Fullscreen"))
 	bool bDoubleClickTogglesFullscreen;
 

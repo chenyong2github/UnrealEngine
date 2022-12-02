@@ -22,23 +22,23 @@ class UMG_API UGridSlot : public UPanelSlot
 
 public:
 
-	/** The padding area between the slot and the content it contains. */
 	UE_DEPRECATED(5.1, "Direct access to Padding is deprecated. Please use the getter or setter.")
+	/** The padding area between the slot and the content it contains. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetPadding", Category="Layout|Grid Slot")
 	FMargin Padding;
 
-	/** The alignment of the object horizontally. */
 	UE_DEPRECATED(5.1, "Direct access to HorizontalAlignment is deprecated. Please use the getter or setter.")
+	/** The alignment of the object horizontally. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetHorizontalAlignment", Category="Layout|Grid Slot")
 	TEnumAsByte<EHorizontalAlignment> HorizontalAlignment;
 
-	/** The alignment of the object vertically. */
 	UE_DEPRECATED(5.1, "Direct access to VerticalAlignment is deprecated. Please use the getter or setter.")
+	/** The alignment of the object vertically. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetVerticalAlignment", Category="Layout|Grid Slot")
 	TEnumAsByte<EVerticalAlignment> VerticalAlignment;
 	
-	/** The row index of the cell this slot is in */
 	UE_DEPRECATED(5.1, "Direct access to Row is deprecated. Please use the getter or setter.")
+	/** The row index of the cell this slot is in */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetRow", meta=( UIMin = "0" ), Category="Layout|Grid Slot")
 	int32 Row;
 	
@@ -47,8 +47,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetRowSpan", Category="Layout|Grid Slot")
 	int32 RowSpan;
 
-	/** The column index of the cell this slot is in */
 	UE_DEPRECATED(5.1, "Direct access to Column is deprecated. Please use the getter or setter.")
+	/** The column index of the cell this slot is in */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetColumn", meta=( UIMin = "0" ), Category="Layout|Grid Slot")
 	int32 Column;
 
@@ -57,13 +57,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetColumnSpan", Category="Layout|Grid Slot")
 	int32 ColumnSpan;
 
-	/** Positive values offset this cell to be hit-tested and drawn on top of others. Default is 0; i.e. no offset. */
 	UE_DEPRECATED(5.1, "Direct access to Layer is deprecated. Please use the getter or setter.")
+	/** Positive values offset this cell to be hit-tested and drawn on top of others. Default is 0; i.e. no offset. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetLayer", Category="Layout|Grid Slot")
 	int32 Layer;
 
-	/** Offset this slot's content by some amount; positive values offset to lower right */
 	UE_DEPRECATED(5.1, "Direct access to Nudge is deprecated. Please use the getter or setter.")
+	/** Offset this slot's content by some amount; positive values offset to lower right */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetNudge", Category="Layout|Grid Slot")
 	FVector2D Nudge;
 

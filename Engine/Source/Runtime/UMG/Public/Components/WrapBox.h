@@ -24,28 +24,28 @@ class UMG_API UWrapBox : public UPanelWidget
 	GENERATED_UCLASS_BODY()
 
 public:
-	/** The inner slot padding goes between slots sharing borders */
 	UE_DEPRECATED(5.1, "Direct access to InnerSlotPadding is deprecated. Please use the getter or setter.")
+	/** The inner slot padding goes between slots sharing borders */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter = "SetInnerSlotPadding", Category = "Content Layout")
 	FVector2D InnerSlotPadding;
 
-	/** When this size is exceeded, elements will start appearing on the next line. */
 	UE_DEPRECATED(5.1, "Direct access to WrapSize is deprecated. Please use the getter or setter.")
+	/** When this size is exceeded, elements will start appearing on the next line. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = "Content Layout", meta=(EditCondition = "bExplicitWrapSize"))
 	float WrapSize;
 
-	/** Use explicit wrap size whenever possible. It greatly simplifies layout calculations and reduces likelihood of "wiggling UI" */
 	UE_DEPRECATED(5.1, "Direct access to bExplicitWrapSize is deprecated. Please use the getter or setter.")
+	/** Use explicit wrap size whenever possible. It greatly simplifies layout calculations and reduces likelihood of "wiggling UI" */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter="UseExplicitWrapSize", Setter = "SetExplicitWrapSize", Category = "Content Layout")
 	bool bExplicitWrapSize;
 
-	/** The alignment of each line of wrapped content. */
 	UE_DEPRECATED(5.1, "Direct access to HorizontalAlignment is deprecated. Please use the getter or setter.")
+	/** The alignment of each line of wrapped content. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter = "SetHorizontalAlignment", Category = "Content Layout")
 	TEnumAsByte<EHorizontalAlignment> HorizontalAlignment;
 
-	/** Determines if the Wrap Box should arranges the widgets left-to-right or top-to-bottom */
 	UE_DEPRECATED(5.1, "Direct access to Orientation is deprecated. Please use the getter or setter.")
+	/** Determines if the Wrap Box should arranges the widgets left-to-right or top-to-bottom */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = "Content Layout")
 	TEnumAsByte<EOrientation> Orientation = EOrientation::Orient_Horizontal;
 

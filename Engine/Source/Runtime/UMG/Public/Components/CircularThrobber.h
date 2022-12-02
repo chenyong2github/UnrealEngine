@@ -25,23 +25,23 @@ class UMG_API UCircularThrobber : public UWidget
 
 public:
 
-	/** How many pieces there are */
 	UE_DEPRECATED(5.2, "Direct access to NumberOfPieces is deprecated. Please use the getter or setter.")
+	/** How many pieces there are */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetNumberOfPieces", Category = Appearance, meta = (ClampMin = "1", ClampMax = "25", UIMin = "1", UIMax = "25"))
 	int32 NumberOfPieces;
 
-	/** The amount of time for a full circle (in seconds) */
 	UE_DEPRECATED(5.2, "Direct access to Period is deprecated. Please use the getter or setter.")
+	/** The amount of time for a full circle (in seconds) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetPeriod", Category=Appearance, meta=( ClampMin="0", UIMin="0" ))
 	float Period;
 
-	/** The radius of the circle. If the throbber is a child of Canvas Panel, the 'Size to Content' option must be enabled in order to set Radius. */
 	UE_DEPRECATED(5.2, "Direct access to Radius is deprecated. Please use the getter or setter.")
+	/** The radius of the circle. If the throbber is a child of Canvas Panel, the 'Size to Content' option must be enabled in order to set Radius. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetRadius", Category=Appearance, meta=(EditCondition="bEnableRadius"))
 	float Radius;
 
-	/** The throbber image. */
 	UE_DEPRECATED(5.2, "Direct access to Image is deprecated. Please use the getter or setter.")
+	/** The throbber image. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category=Appearance)
 	FSlateBrush Image;
 

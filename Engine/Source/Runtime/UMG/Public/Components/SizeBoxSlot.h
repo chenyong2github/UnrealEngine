@@ -19,8 +19,8 @@ class UMG_API USizeBoxSlot : public UPanelSlot
 	GENERATED_UCLASS_BODY()
 
 public:
-	/** The padding area between the slot and the content it contains. */
 	UE_DEPRECATED(5.1, "Direct access to Padding is deprecated. Please use the getter or setter.")
+	/** The padding area between the slot and the content it contains. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Setter, BlueprintSetter="SetPadding", Category="Layout|SizeBox Slot")
 	FMargin Padding;
 
@@ -29,13 +29,13 @@ private:
 	TWeakPtr<SBox> SizeBox;
 
 public:
-	/** The alignment of the object horizontally. */
 	UE_DEPRECATED(5.1, "Direct access to HorizontalAlignment is deprecated. Please use the getter or setter.")
+	/** The alignment of the object horizontally. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Setter, BlueprintSetter="SetHorizontalAlignment", Category="Layout|SizeBox Slot")
 	TEnumAsByte<EHorizontalAlignment> HorizontalAlignment;
 
-	/** The alignment of the object vertically. */
 	UE_DEPRECATED(5.1, "Direct access to VerticalAlignment is deprecated. Please use the getter or setter.")
+	/** The alignment of the object vertically. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Setter, BlueprintSetter="SetVerticalAlignment", Category="Layout|SizeBox Slot")
 	TEnumAsByte<EVerticalAlignment> VerticalAlignment;
 

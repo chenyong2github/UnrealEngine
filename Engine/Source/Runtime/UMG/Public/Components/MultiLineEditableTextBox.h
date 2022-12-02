@@ -29,13 +29,13 @@ public:
 
 public:
 	
-	/** The text content for this editable text box widget */
 	UE_DEPRECATED(5.1, "Direct access to Text is deprecated. Please use the getter or setter.")
+	/** The text content for this editable text box widget */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintGetter = "GetText", BlueprintSetter = "SetText", Category = Content, meta=(MultiLine="true"))
 	FText Text;
 
-	/** Hint text that appears when there is no text in the text box */
 	UE_DEPRECATED(5.1, "Direct access to HintText is deprecated. Please use the getter or setter.")
+	/** Hint text that appears when there is no text in the text box */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintGetter = "GetHintText", BlueprintSetter = "SetHintText", Category = Content, meta = (MultiLine = "true"))
 	FText HintText;
 
@@ -49,14 +49,14 @@ public:
 	FEditableTextBoxStyle WidgetStyle;
 
 #if WITH_EDITORONLY_DATA
-	/** The text style */
 	UE_DEPRECATED(5.1, "TextStyle has been deprecated as it was mainly duplicated information already available inside WidgetStyle. Please use the WidgetStyle.TextStyle instead.")
+	/** The text style */
 	UPROPERTY(meta=(DisplayName="Text Style"))
 	FTextBlockStyle TextStyle_DEPRECATED;
 #endif
 
-	/** Sets the Text as Readonly to prevent it from being modified interactively by the user */
 	UE_DEPRECATED(5.1, "Direct access to IsReadOnly is deprecated. Please use the getter or setter.")
+	/** Sets the Text as Readonly to prevent it from being modified interactively by the user */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = GetIsReadOnly, Setter = SetIsReadOnly, Category = Appearance)
 	bool bIsReadOnly;
 

@@ -61,11 +61,11 @@ protected:
 	//~ End UWidget interface
 
 protected:
+	UE_DEPRECATED(5.2, "Direct access to bCanCache is deprecated. Please use the getter or setter.")
 	/**
 	 * Should the invalidation panel cache the widgets?  Making this false makes it so the invalidation
 	 * panel stops acting like an invalidation panel, just becomes a simple container widget.
 	 */
-	UE_DEPRECATED(5.2, "Direct access to bCanCache is deprecated. Please use the getter or setter.")
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "GetCanCache", Setter = "SetCanCache", BlueprintGetter = "GetCanCache", BlueprintSetter = "SetCanCache", Category = "Caching")
 	bool bCanCache;
 

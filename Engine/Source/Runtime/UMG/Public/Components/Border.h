@@ -31,23 +31,23 @@ class UMG_API UBorder : public UContentWidget
 	GENERATED_UCLASS_BODY()
 
 public:
-	/** The alignment of the content horizontally. */
 	UE_DEPRECATED(5.1, "Direct access to HorizontalAlignment is deprecated. Please use the getter or setter.")
+	/** The alignment of the content horizontally. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetHorizontalAlignment", Category="Content")
 	TEnumAsByte<EHorizontalAlignment> HorizontalAlignment;
 
-	/** The alignment of the content vertically. */
 	UE_DEPRECATED(5.1, "Direct access to VerticalAlignment is deprecated. Please use the getter or setter.")
+	/** The alignment of the content vertically. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetVerticalAlignment", Category="Content")
 	TEnumAsByte<EVerticalAlignment> VerticalAlignment;
 
-	/** Whether or not to show the disabled effect when this border is disabled */
 	UE_DEPRECATED(5.1, "Direct access to bShowEffectWhenDisabled is deprecated. Please use the getter or setter.")
+	/** Whether or not to show the disabled effect when this border is disabled */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter="GetShowEffectWhenDisabled", Setter="SetShowEffectWhenDisabled", BlueprintSetter="SetShowEffectWhenDisabled", Category="Appearance", AdvancedDisplay)
 	uint8 bShowEffectWhenDisabled:1;
 
-	/** Color and opacity multiplier of content in the border */
 	UE_DEPRECATED(5.1, "Direct access to ContentColorAndOpacity is deprecated. Please use the getter or setter.")
+	/** Color and opacity multiplier of content in the border */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetContentColorAndOpacity", Category="Content", meta=( sRGB="true" ))
 	FLinearColor ContentColorAndOpacity;
 
@@ -55,8 +55,8 @@ public:
 	UPROPERTY()
 	FGetLinearColor ContentColorAndOpacityDelegate;
 
-	/** The padding area between the slot and the content it contains. */
 	UE_DEPRECATED(5.1, "Direct access to Padding is deprecated. Please use the getter or setter.")
+	/** The padding area between the slot and the content it contains. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetPadding", Category="Content")
 	FMargin Padding;
 
@@ -68,8 +68,8 @@ public:
 	UPROPERTY()
 	FGetSlateBrush BackgroundDelegate;
 
-	/** Color and opacity of the actual border image */
 	UE_DEPRECATED(5.1, "Direct access to BrushColor is deprecated. Please use the getter or setter.")
+	/** Color and opacity of the actual border image */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetBrushColor", Category="Appearance", meta = (sRGB="true"))
 	FLinearColor BrushColor;
 
@@ -77,13 +77,13 @@ public:
 	UPROPERTY()
 	FGetLinearColor BrushColorDelegate;
 
+	UE_DEPRECATED(5.1, "Direct access to DesiredSizeScale is deprecated. Please use the getter or setter.")
 	/**
 	 * Scales the computed desired size of this border and its contents. Useful
 	 * for making things that slide open without having to hard-code their size.
 	 * Note: if the parent widget is set up to ignore this widget's desired size,
 	 * then changing this value will have no effect.
 	 */
-	UE_DEPRECATED(5.1, "Direct access to DesiredSizeScale is deprecated. Please use the getter or setter.")
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetDesiredSizeScale", Category="Appearance")
 	FVector2D DesiredSizeScale;
 

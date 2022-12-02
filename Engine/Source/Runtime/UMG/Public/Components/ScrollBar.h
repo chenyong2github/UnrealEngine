@@ -18,33 +18,33 @@ class UMG_API UScrollBar : public UWidget
 
 public:
 
-	/** Style of the scrollbar */
 	UE_DEPRECATED(5.2, "Direct access to WidgetStyle is deprecated. Please use the getter or setter.")
+	/** Style of the scrollbar */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category="Style", meta=( DisplayName="Style" ))
 	FScrollBarStyle WidgetStyle;
 
-	/**  */
 	UE_DEPRECATED(5.2, "Direct access to bAlwaysShowScrollbar is deprecated. Please use the getter or setter.")
+	/**  */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "IsAlwaysShowScrollbar", Setter = "SetAlwaysShowScrollbar", Category = "Behavior")
 	bool bAlwaysShowScrollbar;
 
-	/**  */
 	UE_DEPRECATED(5.2, "Direct access to bAlwaysShowScrollbarTrack is deprecated. Please use the getter or setter.")
+	/**  */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "IsAlwaysShowScrollbarTrack", Setter = "SetAlwaysShowScrollbarTrack", Category = "Behavior")
 	bool bAlwaysShowScrollbarTrack;
 
-	/**  */
 	UE_DEPRECATED(5.2, "Direct access to Orientation is deprecated. Please use the getter. Note that the orientation of a scrollbar is only set at construction and is not modifiable at runtime.")
+	/**  */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter, Category="Behavior")
 	TEnumAsByte<EOrientation> Orientation;
 
-	/** The thickness of the scrollbar thumb */
 	UE_DEPRECATED(5.2, "Direct access to Thickness is deprecated. Please use the getter or setter.")
+	/** The thickness of the scrollbar thumb */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category="Behavior")
 	FVector2D Thickness;
 
-	/** The margin around the scrollbar */
 	UE_DEPRECATED(5.2, "Direct access to Padding is deprecated. Please use the getter or setter.")
+	/** The margin around the scrollbar */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = "Behavior")
 	FMargin Padding;
 

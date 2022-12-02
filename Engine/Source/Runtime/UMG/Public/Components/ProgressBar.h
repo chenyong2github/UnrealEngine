@@ -23,33 +23,33 @@ class UMG_API UProgressBar : public UWidget
 	GENERATED_UCLASS_BODY()
 	
 public:
-	/** The progress bar style */
 	UE_DEPRECATED(5.1, "Direct access to WidgetStyle is deprecated. Please use the getter or setter.")
+	/** The progress bar style */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category="Style", meta=( DisplayName="Style" ))
 	FProgressBarStyle WidgetStyle;
 
-	/** Used to determine the fill position of the progress bar ranging 0..1 */
 	UE_DEPRECATED(5.1, "Direct access to Percent is deprecated. Please use the getter or setter.")
+	/** Used to determine the fill position of the progress bar ranging 0..1 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, FieldNotify, Getter, Setter, BlueprintSetter="SetPercent", Category="Progress", meta = (UIMin = "0", UIMax = "1"))
 	float Percent;
 
-	/** Defines the direction in which the progress bar fills */
 	UE_DEPRECATED(5.1, "Direct access to BarFillType is deprecated. Please use the getter or setter.")
+	/** Defines the direction in which the progress bar fills */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category="Progress")
 	TEnumAsByte<EProgressBarFillType::Type> BarFillType;
 
-	/** Defines the visual style of the progress bar fill - scale or mask */
 	UE_DEPRECATED(5.1, "Direct access to BarFillStyle is deprecated. Please use the getter or setter.")
+	/** Defines the visual style of the progress bar fill - scale or mask */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category="Progress")
 	TEnumAsByte<EProgressBarFillStyle::Type> BarFillStyle;
 	
-	/** */
 	UE_DEPRECATED(5.1, "Direct access to bIsMarquee is deprecated. Please use the getter or setter.")
+	/** */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, FieldNotify, Getter="UseMarquee", Setter="SetIsMarquee", BlueprintSetter="SetIsMarquee", Category="Progress")
 	bool bIsMarquee;
 
-	/** */
 	UE_DEPRECATED(5.1, "Direct access to BorderPadding is deprecated. Please use the getter or setter.")
+	/** */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category="Progress")
 	FVector2D BorderPadding;
 
@@ -57,8 +57,8 @@ public:
 	UPROPERTY()
 	FGetFloat PercentDelegate;
 
-	/** Fill Color and Opacity */
 	UE_DEPRECATED(5.1, "Direct access to FillColorAndOpacity is deprecated. Please use the getter or setter.")
+	/** Fill Color and Opacity */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, FieldNotify, Getter, Setter, BlueprintSetter="SetFillColorAndOpacity", Category="Appearance")
 	FLinearColor FillColorAndOpacity;
 

@@ -22,18 +22,18 @@ class UMG_API UUniformGridPanel : public UPanelWidget
 
 public:
 
-	/** Padding given to each slot */
 	UE_DEPRECATED(5.1, "Direct access to SlotPadding is deprecated. Please use the getter or setter.")
+	/** Padding given to each slot */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetSlotPadding", Category="Child Layout")
 	FMargin SlotPadding;
 
-	/** The minimum desired width of the slots */
 	UE_DEPRECATED(5.1, "Direct access to MinDesiredSlotWidth is deprecated. Please use the getter or setter.")
+	/** The minimum desired width of the slots */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetMinDesiredSlotWidth", Category="Child Layout")
 	float MinDesiredSlotWidth;
 
-	/** The minimum desired height of the slots */
 	UE_DEPRECATED(5.1, "Direct access to MinDesiredSlotHeight is deprecated. Please use the getter or setter.")
+	/** The minimum desired height of the slots */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetMinDesiredSlotHeight", Category="Child Layout")
 	float MinDesiredSlotHeight;
 

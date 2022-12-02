@@ -20,23 +20,23 @@ class UMG_API UVerticalBoxSlot : public UPanelSlot
 
 public:
 	
-	/** How much space this slot should occupy in the direction of the panel. */
 	UE_DEPRECATED(5.1, "Direct access to Size is deprecated. Please use the getter or setter.")
+	/** How much space this slot should occupy in the direction of the panel. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Setter, BlueprintSetter="SetSize", Category="Layout|Vertical Box Slot", meta = (DisplayAfter = "Padding"))
 	FSlateChildSize Size;
 
-	/** The padding area between the slot and the content it contains. */
 	UE_DEPRECATED(5.1, "Direct access to Padding is deprecated. Please use the getter or setter.")
+	/** The padding area between the slot and the content it contains. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Setter, BlueprintSetter="SetPadding", Category="Layout|Vertical Box Slot")
 	FMargin Padding;
 
-	/** The alignment of the object horizontally. */
 	UE_DEPRECATED(5.1, "Direct access to HorizontalAlignment is deprecated. Please use the getter or setter.")
+	/** The alignment of the object horizontally. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Setter, BlueprintSetter="SetHorizontalAlignment", Category="Layout|Vertical Box Slot")
 	TEnumAsByte<EHorizontalAlignment> HorizontalAlignment;
 
-	/** The alignment of the object vertically. */
 	UE_DEPRECATED(5.1, "Direct access to VerticalAlignment is deprecated. Please use the getter or setter.")
+	/** The alignment of the object vertically. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Setter, BlueprintSetter="SetVerticalAlignment", Category="Layout|Vertical Box Slot")
 	TEnumAsByte<EVerticalAlignment> VerticalAlignment;
 

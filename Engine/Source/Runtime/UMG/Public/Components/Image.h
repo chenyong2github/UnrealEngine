@@ -33,8 +33,8 @@ class UMG_API UImage : public UWidget
 
 public:
 
-	/** Image to draw */
 	UE_DEPRECATED(5.2, "Direct access to Brush is deprecated. Please use the getter or setter.")
+	/** Image to draw */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter = "SetBrush", FieldNotify, Category=Appearance)
 	FSlateBrush Brush;
 
@@ -42,8 +42,8 @@ public:
 	UPROPERTY()
 	FGetSlateBrush BrushDelegate;
 
-	/** Color and opacity */
 	UE_DEPRECATED(5.2, "Direct access to ColorAndOpacity is deprecated. Please use the getter or setter.")
+	/** Color and opacity */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter = "SetColorAndOpacity", Category=Appearance, meta=( sRGB="true") )
 	FLinearColor ColorAndOpacity;
 
@@ -51,8 +51,8 @@ public:
 	UPROPERTY()
 	FGetLinearColor ColorAndOpacityDelegate;
 
-	/** Flips the image if the localization's flow direction is RightToLeft */
 	UE_DEPRECATED(5.2, "Direct access to bFlipForRightToLeftFlowDirection is deprecated. Please use the getter or setter.")
+	/** Flips the image if the localization's flow direction is RightToLeft */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "ShouldFlipForRightToLeftFlowDirection", Setter = "SetFlipForRightToLeftFlowDirection", Category = "Localization")
 	bool bFlipForRightToLeftFlowDirection;
 

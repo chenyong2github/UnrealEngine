@@ -261,8 +261,8 @@ public:
 	UPROPERTY()
 	FGetBool bIsEnabledDelegate;
 
-	/** Tooltip text to show when the user hovers over the widget with the mouse */
 	UE_DEPRECATED(5.1, "Direct access to ToolTipText is deprecated. Please use the getter or setter.")
+	/** Tooltip text to show when the user hovers over the widget with the mouse */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetToolTipText", Category="Behavior", meta=(MultiLine=true))
 	FText ToolTipText;
 
@@ -270,8 +270,8 @@ public:
 	UPROPERTY()
 	FGetText ToolTipTextDelegate;
 
-	/** Tooltip widget to show when the user hovers over the widget with the mouse */
 	UE_DEPRECATED(5.1, "Direct access to ToolTipWidget is deprecated. Please use the getter or setter.")
+	/** Tooltip widget to show when the user hovers over the widget with the mouse */
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Getter="GetToolTip", Setter="SetToolTip", BlueprintSetter="SetToolTip", Category="Behavior", AdvancedDisplay)
 	TObjectPtr<UWidget> ToolTipWidget;
 
@@ -286,21 +286,21 @@ public:
 
 public:
 
-	/** The render transform of the widget allows for arbitrary 2D transforms to be applied to the widget. */
 	UE_DEPRECATED(5.1, "Direct access to RenderTransform is deprecated. Please use the getter or setter.")
+	/** The render transform of the widget allows for arbitrary 2D transforms to be applied to the widget. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetRenderTransform", Category="Render Transform", meta = (DisplayName = "Transform"))
 	FWidgetTransform RenderTransform;
 
+	UE_DEPRECATED(5.1, "Direct access to RenderTransformPivot is deprecated. Please use the getter or setter.")
 	/**
 	 * The render transform pivot controls the location about which transforms are applied.  
 	 * This value is a normalized coordinate about which things like rotations will occur.
 	 */
-	UE_DEPRECATED(5.1, "Direct access to RenderTransformPivot is deprecated. Please use the getter or setter.")
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetRenderTransformPivot", Category="Render Transform", meta=( DisplayName="Pivot" ))
 	FVector2D RenderTransformPivot;
 
-	/** Allows you to set a new flow direction */
 	UE_DEPRECATED(5.1, "Direct access to FlowDirectionPreference is deprecated. Please use the getter or setter.")
+	/** Allows you to set a new flow direction */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category="Localization")
 	EFlowDirectionPreference FlowDirectionPreference;
 
@@ -315,8 +315,8 @@ public:
 	UPROPERTY(Transient)
 	uint8 bCreatedByConstructionScript:1;
 
-	/** Sets whether this widget can be modified interactively by the user */
 	UE_DEPRECATED(5.1, "Direct access to bIsEnabled is deprecated. Please use the getter or setter.")
+	/** Sets whether this widget can be modified interactively by the user */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, FieldNotify, Getter="GetIsEnabled", Setter="SetIsEnabled", BlueprintGetter="GetIsEnabled", BlueprintSetter="SetIsEnabled", Category="Behavior")
 	uint8 bIsEnabled:1;
 
@@ -399,11 +399,12 @@ public:
 	uint8 bLockedInDesigner:1;
 #endif
 
-	/** The cursor to show when the mouse is over the widget */
 	UE_DEPRECATED(5.1, "Direct access to Cursor is deprecated. Please use the getter or setter.")
+	/** The cursor to show when the mouse is over the widget */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetCursor", Category="Behavior", AdvancedDisplay, meta = (editcondition = "bOverride_Cursor"))
 	TEnumAsByte<EMouseCursor::Type> Cursor;
 
+	UE_DEPRECATED(5.1, "Direct access to Clipping is deprecated. Please use the getter or setter.")
 	/**
 	 * Controls how the clipping behavior of this widget.  Normally content that overflows the
 	 * bounds of the widget continues rendering.  Enabling clipping prevents that overflowing content
@@ -413,17 +414,16 @@ public:
 	 * performance cost to clipping.  Do not enable clipping unless a panel actually needs to prevent
 	 * content from showing up outside its bounds.
 	 */
-	UE_DEPRECATED(5.1, "Direct access to Clipping is deprecated. Please use the getter or setter.")
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category="Clipping")
 	EWidgetClipping Clipping;
 
-	/** The visibility of the widget */
 	UE_DEPRECATED(5.1, "Direct access to Visibility is deprecated. Please use the getter or setter.")
+	/** The visibility of the widget */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, FieldNotify, Getter, Setter, BlueprintGetter="GetVisibility", BlueprintSetter="SetVisibility", Category="Behavior")
 	ESlateVisibility Visibility;
 
-	/** The opacity of the widget */
 	UE_DEPRECATED(5.1, "Direct access to RenderOpacity is deprecated. Please use the getter or setter.")
+	/** The opacity of the widget */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintGetter="GetRenderOpacity", BlueprintSetter="SetRenderOpacity", Category="Behavior")
 	float RenderOpacity;
 

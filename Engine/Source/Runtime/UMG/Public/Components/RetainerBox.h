@@ -33,21 +33,22 @@ protected:
 	bool bRetainRender = true;
 
 public:
+	UE_DEPRECATED(5.2, "Direct access to RenderOnInvalidation is deprecated. Please use the getter.")
 	/**
 	 * Should this widget redraw the contents it has every time it receives an invalidation request
 	 * from it's children, similar to the invalidation panel.
 	 */
-	UE_DEPRECATED(5.2, "Direct access to RenderOnInvalidation is deprecated. Please use the getter.")
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter = "IsRenderOnInvalidation", Category = "Render Rules", meta = (EditCondition = bRetainRender))
 	bool RenderOnInvalidation;
 
+	UE_DEPRECATED(5.2, "Direct access to RenderOnPhase is deprecated. Please use the getter.")
 	/**
 	 * Should this widget redraw the contents it has every time the phase occurs.
 	 */
-	UE_DEPRECATED(5.2, "Direct access to RenderOnPhase is deprecated. Please use the getter.")
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter = "IsRenderOnPhase", Category = "Render Rules", meta = (EditCondition = bRetainRender))
 	bool RenderOnPhase;
 
+	UE_DEPRECATED(5.2, "Direct access to Phase is deprecated. Please use the getter.")
 	/**
 	 * The Phase this widget will draw on.
 	 *
@@ -55,10 +56,10 @@ public:
 	 * If the Phase were 0, and the PhaseCount were 2, this retainer would draw a fresh frame every
 	 * other frame.  So in a 60Hz game, the UI would render at 30Hz.
 	 */
-	UE_DEPRECATED(5.2, "Direct access to Phase is deprecated. Please use the getter.")
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter, Category="Render Rules", meta=(UIMin=0, ClampMin=0))
 	int32 Phase;
 
+	UE_DEPRECATED(5.2, "Direct access to PhaseCount is deprecated. Please use the getter.")
 	/**
 	 * The PhaseCount controls how many phases are possible know what to modulus the current frame 
 	 * count by to determine if this is the current frame to draw the widget on.
@@ -67,7 +68,6 @@ public:
 	 * If the Phase were 0, and the PhaseCount were 2, this retainer would draw a fresh frame every 
 	 * other frame.  So in a 60Hz game, the UI would render at 30Hz.
 	 */
-	UE_DEPRECATED(5.2, "Direct access to PhaseCount is deprecated. Please use the getter.")
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter, Category="Render Rules", meta=(UIMin=1, ClampMin=1))
 	int32 PhaseCount;
 
@@ -144,6 +144,7 @@ public:
 
 protected:
 
+	UE_DEPRECATED(5.2, "Direct access to EffectMaterial is deprecated. Please use the getter or setter.")
 	/**
 	 * The effect to optionally apply to the render target.  We will set the texture sampler based on the name
 	 * set in the @TextureParameter property.
@@ -152,14 +153,13 @@ protected:
 	 * and make sure to multiply the alpha you're apply across the surface to the color and the alpha of the render target, otherwise
 	 * you won't see the expected color.
 	 */
-	UE_DEPRECATED(5.2, "Direct access to EffectMaterial is deprecated. Please use the getter or setter.")
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "GetEffectMaterialInterface", Setter, BlueprintSetter = "SetEffectMaterial", Category = "Effect")
 	TObjectPtr<UMaterialInterface> EffectMaterial;
 
+	UE_DEPRECATED(5.2, "Direct access to TextureParameter is deprecated. Please use the getter or setter.")
 	/**
 	 * The texture sampler parameter of the @EffectMaterial, that we'll set to the render target.
 	 */
-	UE_DEPRECATED(5.2, "Direct access to TextureParameter is deprecated. Please use the getter or setter.")
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter = "SetTextureParameter", Category="Effect")
 	FName TextureParameter;
 

@@ -21,23 +21,23 @@ class UMG_API UUniformGridSlot : public UPanelSlot
 
 public:
 
-	/** The alignment of the object horizontally. */
 	UE_DEPRECATED(5.1, "Direct access to HorizontalAlignment is deprecated. Please use the getter or setter.")
+	/** The alignment of the object horizontally. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Setter, BlueprintSetter="SetHorizontalAlignment", Category="Layout|Uniform Grid Slot")
 	TEnumAsByte<EHorizontalAlignment> HorizontalAlignment;
 
-	/** The alignment of the object vertically. */
 	UE_DEPRECATED(5.1, "Direct access to VerticalAlignment is deprecated. Please use the getter or setter.")
+	/** The alignment of the object vertically. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Setter, BlueprintSetter="SetVerticalAlignment", Category="Layout|Uniform Grid Slot")
 	TEnumAsByte<EVerticalAlignment> VerticalAlignment;
 	
-	/** The row index of the cell this slot is in */
 	UE_DEPRECATED(5.1, "Direct access to Row is deprecated. Please use the getter or setter.")
+	/** The row index of the cell this slot is in */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Setter, BlueprintSetter="SetRow", meta=( UIMin = "0" ), Category="Layout|Uniform Grid Slot")
 	int32 Row;
 	
-	/** The column index of the cell this slot is in */
 	UE_DEPRECATED(5.1, "Direct access to Column is deprecated. Please use the getter or setter.")
+	/** The column index of the cell this slot is in */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Setter, BlueprintSetter="SetColumn", meta=( UIMin = "0" ), Category="Layout|Uniform Grid Slot")
 	int32 Column;
 

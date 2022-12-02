@@ -22,8 +22,8 @@ class UMG_API USpacer : public UWidget
 
 public:
 
-	/** The size of the spacer */
 	UE_DEPRECATED(5.1, "Direct access to Size is deprecated. Please use the getter or setter.")
+	/** The size of the spacer */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetSize", Category="Appearance")
 	FVector2D Size;
 

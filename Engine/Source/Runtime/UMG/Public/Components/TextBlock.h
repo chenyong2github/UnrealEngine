@@ -25,8 +25,8 @@ class UMG_API UTextBlock : public UTextLayoutWidget
 	GENERATED_UCLASS_BODY()
 
 public:
-	/** The text to display */
 	UE_DEPRECATED(5.1, "Direct access to Text is deprecated. Please use the getter or setter.")
+	/** The text to display */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintGetter="GetText", BlueprintSetter="SetText", Category="Content", meta = (MultiLine = "true"))
 	FText Text;
 	
@@ -34,8 +34,8 @@ public:
 	UPROPERTY()
 	FGetText TextDelegate;
 
-	/** The color of the text */
 	UE_DEPRECATED(5.1, "Direct access to ColorAndOpacity is deprecated. Please use the getter or setter.")
+	/** The color of the text */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetColorAndOpacity", Category="Appearance")
 	FSlateColor ColorAndOpacity;
 
@@ -43,23 +43,23 @@ public:
 	UPROPERTY()
 	FGetSlateColor ColorAndOpacityDelegate;
 	
-	/** The font to render the text with */
 	UE_DEPRECATED(5.1, "Direct access to Font is deprecated. Please use the getter or setter.")
+	/** The font to render the text with */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetFont", Category="Appearance")
 	FSlateFontInfo Font;
 
-	/** The brush to strike through text with */
 	UE_DEPRECATED(5.1, "Direct access to StrikeBrush is deprecated. Please use the getter or setter.")
+	/** The brush to strike through text with */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetStrikeBrush", Category="Appearance")
 	FSlateBrush StrikeBrush;
 
-	/** The direction the shadow is cast */
 	UE_DEPRECATED(5.1, "Direct access to ShadowOffset is deprecated. Please use the getter or setter.")
+	/** The direction the shadow is cast */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetShadowOffset", Category="Appearance")
 	FVector2D ShadowOffset;
 
-	/** The color of the shadow */
 	UE_DEPRECATED(5.1, "Direct access to ShadowColorAndOpacity is deprecated. Please use the getter or setter.")
+	/** The color of the shadow */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetShadowColorAndOpacity", Category="Appearance", meta=( DisplayName="Shadow Color" ))
 	FLinearColor ShadowColorAndOpacity;
 
@@ -67,8 +67,8 @@ public:
 	UPROPERTY()
 	FGetLinearColor ShadowColorAndOpacityDelegate;
 
-	/** The minimum desired size for the text */
 	UE_DEPRECATED(5.1, "Direct access to MinDesiredWidth is deprecated. Please use the getter or setter.")
+	/** The minimum desired size for the text */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetMinDesiredWidth", Category="Appearance")
 	float MinDesiredWidth;
 
@@ -76,13 +76,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Performance", AdvancedDisplay)
 	bool bWrapWithInvalidationPanel;
 
-	/** The text transformation policy to apply to this text block. */
 	UE_DEPRECATED(5.1, "Direct access to TextTransformPolicy is deprecated. Please use the getter or setter.")
+	/** The text transformation policy to apply to this text block. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetTextTransformPolicy", Category="Appearance", meta=(DisplayName="Transform Policy"))
 	ETextTransformPolicy TextTransformPolicy;
 
-	/** Sets what happens to text that is clipped and doesn't fit within the clip rect for this widget */
 	UE_DEPRECATED(5.1, "Direct access to TextOverflowPolicy is deprecated. Please use the getter or setter.")
+	/** Sets what happens to text that is clipped and doesn't fit within the clip rect for this widget */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetTextOverflowPolicy", Category="Clipping", AdvancedDisplay, meta = (DisplayName="Overflow Policy"))
 	ETextOverflowPolicy TextOverflowPolicy;
 

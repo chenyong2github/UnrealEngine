@@ -49,8 +49,8 @@ public:
 
 public:
 
-	/** If this safe zone should pad for the left side of the screen's safe zone */
 	UE_DEPRECATED(5.2, "Direct access to PadLeft is deprecated. Please use the getter or setter.")
+	/** If this safe zone should pad for the left side of the screen's safe zone */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = "SafeZone")
 	bool PadLeft;
 
