@@ -499,6 +499,9 @@ public:
 	bool FullScreen = false;
 
 	UPROPERTY()
+	bool RenderHeadless = false;
+
+	UPROPERTY()
 	bool TextureShare = false;
 
 	UPROPERTY()

@@ -12,36 +12,18 @@
 #include "Cluster/Failover/IDisplayClusterFailoverNodeController.h"
 #include "Config/IPDisplayClusterConfigManager.h"
 
+#include "DisplayClusterConfigurationStrings.h"
 #include "DisplayClusterConfigurationTypes.h"
 
 #include "Misc/DisplayClusterGlobals.h"
 #include "Misc/DisplayClusterLog.h"
 
-#include "Interfaces/IPv4/IPv4Endpoint.h"
-
 
 FDisplayClusterRenderSyncService::FDisplayClusterRenderSyncService()
 	: FDisplayClusterService(FString("SRV_RS"))
 {
-	// Get list of cluster node IDs
-	TArray<FString> NodeIds;
-	GDisplayCluster->GetPrivateClusterMgr()->GetNodeIds(NodeIds);
-
-	// Network settings from config data
-	const FDisplayClusterConfigurationNetworkSettings& NetworkSettings = GDisplayCluster->GetConfigMgr()->GetConfig()->Cluster->Network;
-
-	// Instantiate service barriers
-	BarrierSwap = FDisplayClusterBarrierFactory::CreateBarrier(NodeIds, NetworkSettings.RenderSyncBarrierTimeout, TEXT("RenderSync_barrier"));
-
-	// Put the barriers into an aux container
-	ServiceBarriers.Emplace(BarrierSwap->GetName(), &BarrierSwap);
-
-	// Subscribe for barrier timeout events
-	for (TPair<FString, TUniquePtr<IDisplayClusterBarrier>*>& BarrierIt : ServiceBarriers)
-	{
-		(*BarrierIt.Value)->OnBarrierTimeout().AddRaw(this, &FDisplayClusterRenderSyncService::ProcessBarrierTimeout);
-	}
-
+	// Perform barriers initialization depending on current circumstances
+	InitializeBarriers();
 	// Subscribe for SessionClosed events
 	OnSessionClosed().AddRaw(this, &FDisplayClusterRenderSyncService::ProcessSessionClosed);
 }
@@ -49,11 +31,7 @@ FDisplayClusterRenderSyncService::FDisplayClusterRenderSyncService()
 FDisplayClusterRenderSyncService::~FDisplayClusterRenderSyncService()
 {
 	// Unsubscribe from barrier timeout events
-	for (TPair<FString, TUniquePtr<IDisplayClusterBarrier>*>& BarrierIt : ServiceBarriers)
-	{
-		(*BarrierIt.Value)->OnBarrierTimeout().RemoveAll(this);
-	}
-
+	UnsubscribeFromAllBarrierEvents();
 	// Unsubscribe from SessionClosed notifications
 	OnSessionClosed().RemoveAll(this);
 
@@ -64,10 +42,7 @@ FDisplayClusterRenderSyncService::~FDisplayClusterRenderSyncService()
 bool FDisplayClusterRenderSyncService::Start(const FString& Address, const uint16 Port)
 {
 	// Activate all barriers
-	for (TPair<FString, TUniquePtr<IDisplayClusterBarrier>*>& BarrierIt : ServiceBarriers)
-	{
-		(*BarrierIt.Value)->Activate();
-	}
+	ActivateAllBarriers();
 
 	return FDisplayClusterServer::Start(Address, Port);
 }
@@ -75,10 +50,7 @@ bool FDisplayClusterRenderSyncService::Start(const FString& Address, const uint1
 bool FDisplayClusterRenderSyncService::Start(TSharedPtr<FDisplayClusterTcpListener>& ExternalListener)
 {
 	// Activate all barriers
-	for (TPair<FString, TUniquePtr<IDisplayClusterBarrier>*>& BarrierIt : ServiceBarriers)
-	{
-		(*BarrierIt.Value)->Activate();
-	}
+	ActivateAllBarriers();
 
 	return FDisplayClusterServer::Start(ExternalListener);
 }
@@ -86,10 +58,7 @@ bool FDisplayClusterRenderSyncService::Start(TSharedPtr<FDisplayClusterTcpListen
 void FDisplayClusterRenderSyncService::Shutdown()
 {
 	// Deactivate all barriers
-	for (TPair<FString, TUniquePtr<IDisplayClusterBarrier>*>& BarrierIt : ServiceBarriers)
-	{
-		(*BarrierIt.Value)->Deactivate();
-	}
+	DeactivateAllBarriers();
 
 	return FDisplayClusterServer::Shutdown();
 }
@@ -103,10 +72,7 @@ FString FDisplayClusterRenderSyncService::GetProtocolName() const
 void FDisplayClusterRenderSyncService::KillSession(const FString& NodeId)
 {
 	// Before killing the session on the parent level, we need to unregister this node from the barriers
-	for (TPair<FString, TUniquePtr<IDisplayClusterBarrier>*>& BarrierIt : ServiceBarriers)
-	{
-		(*BarrierIt.Value)->UnregisterSyncNode(NodeId);
-	}
+	UnregisterClusterNode(NodeId);
 
 	// Now do the session related job
 	FDisplayClusterServer::KillSession(NodeId);
@@ -128,10 +94,7 @@ void FDisplayClusterRenderSyncService::ProcessSessionClosed(const FDisplayCluste
 		if (!NodeId.IsEmpty())
 		{
 			// We have to unregister the node that just disconnected from all barriers
-			for (TPair<FString, TUniquePtr<IDisplayClusterBarrier>*>& BarrierIt : ServiceBarriers)
-			{
-				(*BarrierIt.Value)->UnregisterSyncNode(NodeId);
-			}
+			UnregisterClusterNode(NodeId);
 
 			// Notify others about node fail
 			OnNodeFailed().Broadcast(NodeId, ENodeFailType::ConnectionLost);
@@ -142,18 +105,12 @@ void FDisplayClusterRenderSyncService::ProcessSessionClosed(const FDisplayCluste
 // Callbck on barrier timeout
 void FDisplayClusterRenderSyncService::ProcessBarrierTimeout(const FString& BarrierName, const TArray<FString>& NodesTimedOut)
 {
-	// We have to unregister the node that just timed out from all barriers
-	for (TPair<FString, TUniquePtr<IDisplayClusterBarrier>*>& BarrierIt : ServiceBarriers)
-	{
-		for (const FString& NodeId : NodesTimedOut)
-		{
-			(*BarrierIt.Value)->UnregisterSyncNode(NodeId);
-		}
-	}
-
-	// Notify others about timeout
 	for (const FString& NodeId : NodesTimedOut)
 	{
+		// We have to unregister the node that just timed out from all barriers
+		UnregisterClusterNode(NodeId);
+
+		// Notify others about timeout
 		OnNodeFailed().Broadcast(NodeId, ENodeFailType::BarrierTimeOut);
 	}
 }
@@ -187,9 +144,10 @@ TSharedPtr<FDisplayClusterPacketInternal> FDisplayClusterRenderSyncService::Proc
 	TSharedPtr<FDisplayClusterPacketInternal> Response = MakeShared<FDisplayClusterPacketInternal>(Request->GetName(), DisplayClusterRenderSyncStrings::TypeResponse, Request->GetProtocol());
 
 	// Dispatch the packet
-	if (Request->GetName().Equals(DisplayClusterRenderSyncStrings::WaitForSwapSync::Name, ESearchCase::IgnoreCase))
+	if (Request->GetName().Equals(DisplayClusterRenderSyncStrings::SyncOnBarrier::Name, ESearchCase::IgnoreCase))
 	{
-		const EDisplayClusterCommResult CommResult = WaitForSwapSync();
+		// Process command
+		const EDisplayClusterCommResult CommResult = SyncOnBarrier();
 		Response->SetCommResult(CommResult);
 
 		return Response;
@@ -205,11 +163,138 @@ TSharedPtr<FDisplayClusterPacketInternal> FDisplayClusterRenderSyncService::Proc
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterProtocolRenderSync
 //////////////////////////////////////////////////////////////////////////////////////////////
-EDisplayClusterCommResult FDisplayClusterRenderSyncService::WaitForSwapSync()
+EDisplayClusterCommResult FDisplayClusterRenderSyncService::SyncOnBarrier()
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(nD SRV_RS::WaitForSwapSync);
+	TRACE_CPUPROFILER_EVENT_SCOPE(nD SRV_RS::SyncOnBarrier);
+	
+	const FString NodeId = GetSessionInfoCache().NodeId.Get("");
 
-	const FString CachedNodeId = GetSessionInfoCache().NodeId.Get("");
-	BarrierSwap->Wait(CachedNodeId);
+	IDisplayClusterBarrier* Barrier = GetBarrierForNode(NodeId);
+	if (ensureMsgf(Barrier, TEXT("%s could not find a barrier for node '%s'"), *GetName(), *NodeId))
+	{
+		Barrier->Wait(NodeId);
+	}
+
 	return EDisplayClusterCommResult::Ok;
+}
+
+void FDisplayClusterRenderSyncService::InitializeBarriers()
+{
+	// Get configuration data
+	const UDisplayClusterConfigurationData* const Config = GDisplayCluster->GetPrivateConfigMgr()->GetConfig();
+	if (!Config)
+	{
+		UE_LOG(LogDisplayClusterNetwork, Error, TEXT("%s - No configuartion data, can't initialize barriers"), *GetName());
+		return;
+	}
+
+	// Get list of cluster node IDs (runtime nodes)
+	TArray<FString> RuntimeNodeIds;
+	GDisplayCluster->GetPrivateClusterMgr()->GetNodeIds(RuntimeNodeIds);
+
+	// Filter nodes that are expected to present in runtime
+	const TMap<FString, TObjectPtr<UDisplayClusterConfigurationClusterNode>> RuntimeNodeCfgs = Config->Cluster->Nodes.FilterByPredicate(
+		[RuntimeNodeIds](const TPair<FString, TObjectPtr<UDisplayClusterConfigurationClusterNode>>& Pair)
+		{
+			return RuntimeNodeIds.Contains(Pair.Key);
+		});
+
+	// Build sync groups (this one is an aux mapping of policy IDs to their node IDs)
+	TMap<FString, TArray<FString>> SyncGroups;
+	for (const TPair<FString, TObjectPtr<UDisplayClusterConfigurationClusterNode>>& RuntimeNodeCfg : RuntimeNodeCfgs)
+	{
+		FString SyncPolicyId;
+
+		// Headless nodes always use the same policy
+		if (RuntimeNodeCfg.Value->bRenderHeadless)
+		{
+			SyncPolicyId = DisplayClusterConfigurationStrings::config::cluster::render_sync::HeadlessRenderingSyncPolicy;
+		}
+#if 0 // Not implemented yet
+		// Individual sync policy
+		else if(NodeCfgIt.Value->bOverrideSyncPolicy)
+		{
+			SyncPolicyId = NodeCfgIt.Value->Sync.RenderSyncPolicy.Type;
+		}
+#endif
+		// Then default sync policy
+		else
+		{
+			SyncPolicyId = Config->Cluster->Sync.RenderSyncPolicy.Type;
+		}
+
+		// To prevent any case related issues caused by manual .ndisplay file editing. We won't
+		// need it once we refactor all the IDs to be FName's.
+		SyncPolicyId.ToLowerInline();
+
+		// Create new sync group if not yet available
+		TArray<FString>* NodesInSyncGroup = SyncGroups.Find(SyncPolicyId);
+		if (!NodesInSyncGroup)
+		{
+			NodesInSyncGroup = &SyncGroups.Emplace(SyncPolicyId);
+		}
+
+		// Assign this cluster node to the specific sync group
+		NodesInSyncGroup->Add(RuntimeNodeCfg.Key);
+		// Update node-policy mapping
+		NodeToPolicyMap.Emplace(RuntimeNodeCfg.Key, SyncPolicyId);
+	}
+
+	// Finally, initialize barriers for every sync group
+	for (const TPair<FString, TArray<FString>>& SyncGroup : SyncGroups)
+	{
+		const FString BarrierName = SyncGroup.Key + TEXT("_barrier");
+
+		// Instantiate the barrier
+		TUniquePtr<IDisplayClusterBarrier> Barrier = FDisplayClusterBarrierFactory::CreateBarrier(SyncGroup.Value, Config->Cluster->Network.RenderSyncBarrierTimeout, BarrierName);
+		// Subscribe for barrier timeout events
+		Barrier->OnBarrierTimeout().AddRaw(this, &FDisplayClusterRenderSyncService::ProcessBarrierTimeout);
+		// Store barrier instance
+		PolicyToBarrierMap.Emplace(SyncGroup.Key, MoveTemp(Barrier));
+	}
+}
+
+void FDisplayClusterRenderSyncService::ActivateAllBarriers()
+{
+	for (TPair<FString, TUniquePtr<IDisplayClusterBarrier>>& PolicyToBarrierIt : PolicyToBarrierMap)
+	{
+		PolicyToBarrierIt.Value->Activate();
+	}
+}
+
+void FDisplayClusterRenderSyncService::DeactivateAllBarriers()
+{
+	for (TPair<FString, TUniquePtr<IDisplayClusterBarrier>>& PolicyToBarrierIt : PolicyToBarrierMap)
+	{
+		PolicyToBarrierIt.Value->Deactivate();
+	}
+}
+
+void FDisplayClusterRenderSyncService::UnsubscribeFromAllBarrierEvents()
+{
+	for (TPair<FString, TUniquePtr<IDisplayClusterBarrier>>& PolicyToBarrierIt : PolicyToBarrierMap)
+	{
+		PolicyToBarrierIt.Value->OnBarrierTimeout().RemoveAll(this);
+	}
+}
+
+IDisplayClusterBarrier* FDisplayClusterRenderSyncService::GetBarrierForNode(const FString& NodeId) const
+{
+	if (const FString* const Policy = NodeToPolicyMap.Find(NodeId))
+	{
+		if (const TUniquePtr<IDisplayClusterBarrier>* const Barrier = PolicyToBarrierMap.Find(*Policy))
+		{
+			return Barrier->Get();
+		}
+	}
+
+	return nullptr;
+}
+
+void FDisplayClusterRenderSyncService::UnregisterClusterNode(const FString& NodeId)
+{
+	if (IDisplayClusterBarrier* Barrier = GetBarrierForNode(NodeId))
+	{
+		Barrier->UnregisterSyncNode(NodeId);
+	}
 }

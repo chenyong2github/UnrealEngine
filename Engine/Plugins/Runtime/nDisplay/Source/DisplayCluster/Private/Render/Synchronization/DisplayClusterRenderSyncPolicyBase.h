@@ -29,7 +29,7 @@ public:
 
 public:
 	// Performs Ethernet barrier syncrhonization with other nodes in the cluster
-	void SyncBarrierRenderThread();
+	void SyncOnBarrier();
 
 	// Returns policy configuration parameters
 	const TMap<FString, FString>& GetParameters() const

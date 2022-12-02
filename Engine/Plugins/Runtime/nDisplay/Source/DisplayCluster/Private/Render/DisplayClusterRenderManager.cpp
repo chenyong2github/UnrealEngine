@@ -582,15 +582,32 @@ TSharedPtr<IDisplayClusterRenderSyncPolicy> FDisplayClusterRenderManager::Create
 		return nullptr;
 	}
 
-	// Create sync policy specified in a config file
-	const FString SyncPolicyType = ConfigData->Cluster->Sync.RenderSyncPolicy.Type;
+	FString SyncPolicyType;
+	TMap<FString, FString>* SyncPolicyParams = nullptr;
 
+	// Always use 'none' sync policy while rendering headless
+	if (FParse::Param(FCommandLine::Get(), TEXT("RenderOffscreen")))
+	{
+		SyncPolicyType   = DisplayClusterConfigurationStrings::config::cluster::render_sync::HeadlessRenderingSyncPolicy;
+		SyncPolicyParams = nullptr;
+		UE_LOG(LogDisplayClusterRender, Log, TEXT("Headless rendering requested. Using '%s' sync policy."), *SyncPolicyType);
+	}
+	// Otherwise use sync policy from config
+	else
+	{
+		SyncPolicyType   = ConfigData->Cluster->Sync.RenderSyncPolicy.Type;
+		SyncPolicyParams = &ConfigData->Cluster->Sync.RenderSyncPolicy.Parameters;
+		UE_LOG(LogDisplayClusterRender, Log, TEXT("Requested sync policy is '%s'"), *SyncPolicyType);
+	}
+
+	// Instantiate policy instance
 	TSharedPtr<IDisplayClusterRenderSyncPolicy> NewSyncPolicy;
 	if (SyncPolicyFactories.Contains(SyncPolicyType))
 	{
 		UE_LOG(LogDisplayClusterRender, Log, TEXT("A factory for the requested synchronization policy <%s> was found"), *SyncPolicyType);
-		NewSyncPolicy = SyncPolicyFactories[SyncPolicyType]->Create(SyncPolicyType, ConfigData->Cluster->Sync.RenderSyncPolicy.Parameters);
+		NewSyncPolicy = SyncPolicyFactories[SyncPolicyType]->Create(SyncPolicyType, SyncPolicyParams ? *SyncPolicyParams : TMap<FString, FString>());
 	}
+	// Fallback if requested policy is not available
 	else
 	{
 		const FString DefaultPolicy = DisplayClusterConfigurationStrings::config::cluster::render_sync::EthernetBarrier;

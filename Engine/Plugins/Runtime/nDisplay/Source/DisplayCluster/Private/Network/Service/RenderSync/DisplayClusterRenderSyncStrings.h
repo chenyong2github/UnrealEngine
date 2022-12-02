@@ -15,8 +15,8 @@ namespace DisplayClusterRenderSyncStrings
 
 	constexpr static auto ArgumentsDefaultCategory = "RS";
 
-	namespace WaitForSwapSync
+	namespace SyncOnBarrier
 	{
-		constexpr static auto Name = "WaitForSwapSync";
+		constexpr static auto Name = "SyncOnBarrier";
 	};
 };

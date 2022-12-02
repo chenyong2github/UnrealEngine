@@ -208,7 +208,7 @@ bool FDisplayClusterRenderSyncPolicyNvidia::SynchronizeClusterRendering(int32& I
 	if (bNvDiagPresent)
 	{
 		UE_LOG(LogDisplayClusterRenderSync, VeryVerbose, TEXT("NVAPI DIAG: wait start"));
-		SyncBarrierRenderThread();
+		SyncOnBarrier();
 		UE_LOG(LogDisplayClusterRenderSync, VeryVerbose, TEXT("NVAPI DIAG: wait end"));
 
 		// Disable barrier when it reaches the set limit.
@@ -332,14 +332,14 @@ bool FDisplayClusterRenderSyncPolicyNvidia::InitializeNvidiaSwapLock()
 		// upcoming V-blank. Normally, the barrier synchronization takes up to 500 microseconds which is about 3% of frame time.
 		// So the probability of a situation where some nodes left the barrier before V-blank while others after is really low.
 		// However, it's still possible. And cluster restart should likely be successfull.
-		SyncBarrierRenderThread();
+		SyncOnBarrier();
 
 		// Assuming all the nodes in the right place and have some time before V-blank. Let's wait untill it happend.
 		WaitForVBlank();
 
 		// We don't really know either we're at the very beginning of V-blank interval or in the end. Let's spend some time
 		// on the barrier to let V-blank interval over.
-		SyncBarrierRenderThread();
+		SyncOnBarrier();
 
 		// Yes, the task scheduler can break the logic above by allocating CPU resources to this thread like 20ms later which
 		// makes us behind of the next V-blank for 60Hz output. And we probably should play around thread priorities to reduce

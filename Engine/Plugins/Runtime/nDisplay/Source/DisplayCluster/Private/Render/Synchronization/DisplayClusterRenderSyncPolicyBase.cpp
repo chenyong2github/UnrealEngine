@@ -40,11 +40,11 @@ bool FDisplayClusterRenderSyncPolicyBase::Initialize()
 	return true;
 }
 
-void FDisplayClusterRenderSyncPolicyBase::SyncBarrierRenderThread()
+void FDisplayClusterRenderSyncPolicyBase::SyncOnBarrier()
 {
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(nDisplay SyncPolicyBase::SyncBarrier);
-		GDisplayCluster->GetPrivateClusterMgr()->GetClusterNodeController()->WaitForSwapSync();
+		GDisplayCluster->GetPrivateClusterMgr()->GetClusterNodeController()->SyncOnBarrier();
 	}
 }
 

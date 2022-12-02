@@ -6,8 +6,8 @@
 
 
 /**
- * Rendering synchronization protocol. Used to synchronize everything we need
- * on the render thread.
+ * Rendering synchronization protocol.
+ * Used to synchronize frame presentation on RHI thread.
  */
 class IDisplayClusterProtocolRenderSync
 {
@@ -15,6 +15,6 @@ public:
 	virtual ~IDisplayClusterProtocolRenderSync() = default;
 
 public:
-	// Swap sync barrier
-	virtual EDisplayClusterCommResult WaitForSwapSync() = 0;
+	// Synchronize RHI threads on a network barrier
+	virtual EDisplayClusterCommResult SyncOnBarrier() = 0;
 };

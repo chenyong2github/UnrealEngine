@@ -92,10 +92,10 @@ EDisplayClusterCommResult FDisplayClusterClusterNodeCtrlSecondary::GetNativeInpu
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterProtocolRenderSync
 //////////////////////////////////////////////////////////////////////////////////////////////
-EDisplayClusterCommResult FDisplayClusterClusterNodeCtrlSecondary::WaitForSwapSync()
+EDisplayClusterCommResult FDisplayClusterClusterNodeCtrlSecondary::SyncOnBarrier()
 {
 	checkSlow(RenderSyncClient.IsValid());
-	const EDisplayClusterCommResult CommResult = RenderSyncClient->WaitForSwapSync();
+	const EDisplayClusterCommResult CommResult = RenderSyncClient->SyncOnBarrier();
 	GDisplayCluster->GetPrivateClusterMgr()->GetFailoverNodeController()->HandleCommResult(CommResult);
 	return CommResult;
 }

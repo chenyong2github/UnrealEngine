@@ -84,6 +84,9 @@ namespace DisplayClusterConfigurationStrings
 				static constexpr const TCHAR* Nvidia            = TEXT("nvidia");
 				static constexpr const TCHAR* NvidiaSwapBarrier = TEXT("swap_barrier");
 				static constexpr const TCHAR* NvidiaSwapGroup   = TEXT("swap_group");
+
+				// Always use 'none' for headless rendering
+				static constexpr const TCHAR* HeadlessRenderingSyncPolicy = None;
 			}
 		}
 

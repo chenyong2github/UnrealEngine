@@ -52,11 +52,11 @@ bool FDisplayClusterRenderSyncClient::Connect(const FString& Address, const uint
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterProtocolRenderSync
 //////////////////////////////////////////////////////////////////////////////////////////////
-EDisplayClusterCommResult FDisplayClusterRenderSyncClient::WaitForSwapSync()
+EDisplayClusterCommResult FDisplayClusterRenderSyncClient::SyncOnBarrier()
 {
 	static const TSharedPtr<FDisplayClusterPacketInternal> Request(
 		new FDisplayClusterPacketInternal(
-			DisplayClusterRenderSyncStrings::WaitForSwapSync::Name,
+			DisplayClusterRenderSyncStrings::SyncOnBarrier::Name,
 			DisplayClusterRenderSyncStrings::TypeRequest,
 			DisplayClusterRenderSyncStrings::ProtocolName)
 	);

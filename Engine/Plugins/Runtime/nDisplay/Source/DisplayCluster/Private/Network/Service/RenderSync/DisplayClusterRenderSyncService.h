@@ -55,12 +55,33 @@ private:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProtocolRenderSync
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual EDisplayClusterCommResult WaitForSwapSync() override;
+	virtual EDisplayClusterCommResult SyncOnBarrier() override;
 
 private:
-	// Swap sync barrier
-	TUniquePtr<IDisplayClusterBarrier> BarrierSwap;
+	// Initializes barriers based on available nodes and their sync policies
+	void InitializeBarriers();
 
-	// Auxiliary container that keeps all the barriers
-	TMap<FString, TUniquePtr<IDisplayClusterBarrier>*> ServiceBarriers;
+	// Activates all service barriers
+	void ActivateAllBarriers();
+	// Deactivates all service barriers
+	void DeactivateAllBarriers();
+
+	// Unsubscribe from all events of all internal barriers
+	void UnsubscribeFromAllBarrierEvents();
+
+	// Returns barrier of a node's sync group
+	IDisplayClusterBarrier* GetBarrierForNode(const FString& NodeId) const;
+
+	// Unregister cluster node from a barrier
+	void UnregisterClusterNode(const FString& NodeId);
+
+private:
+	// We can now use different sync policies within the same cluster. Since each policy may
+	// have its own synchronization logic, mainly barriers utilization, we need to have
+	// individual sync barriers for every sync group. A sync group is a list of nodes that
+	// use the same sync policy.
+	TMap<FString, TUniquePtr<IDisplayClusterBarrier>> PolicyToBarrierMap;
+
+	// Node ID to sync policy ID (or sync group) mapping
+	TMap<FString, FString> NodeToPolicyMap;
 };

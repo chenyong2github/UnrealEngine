@@ -15,7 +15,7 @@ bool FDisplayClusterRenderSyncPolicyEthernetBarrier::SynchronizeClusterRendering
 	// Wait unless the frame is rendered
 	WaitForFrameCompletion();
 	// Sync on the network barrier
-	SyncBarrierRenderThread();
+	SyncOnBarrier();
 	// Ask engine to present the frame
 	return true;
 }
