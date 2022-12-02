@@ -343,7 +343,7 @@ TUniquePtr<FCurveModel> IKeyArea::CreateCurveEditorModel(TSharedRef<ISequencer> 
 				TOptional<FLinearColor> SettingColor = Settings->GetCustomColor(Object->GetClass(), Name);
 				if (SettingColor.IsSet())
 				{
-					CurveModel->SetColor(SettingColor.GetValue());
+					CurveModel->SetColor(SettingColor.GetValue(),false);
 				}
 			}
 		}
