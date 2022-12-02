@@ -2035,7 +2035,7 @@ namespace mu
     {
         Ptr<ASTOp> result = at;
 
-        check( size[0]>0 && size[1]>0 );
+        //check( size[0]>0 && size[1]>0 );
 
         if ( at->GetImageDesc().m_size != size )
         {
