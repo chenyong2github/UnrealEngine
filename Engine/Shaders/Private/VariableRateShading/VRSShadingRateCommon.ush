@@ -1,0 +1,12 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+// Taken from d3d12.h
+#define D3D12_SHADING_RATE_1X1 0x0
+#define D3D12_SHADING_RATE_1X2 0x1
+#define D3D12_SHADING_RATE_2X1 0x4
+#define D3D12_SHADING_RATE_2X2 0x5
+
+#define MAX_D3D12_SHADING_RATE_BITS 4
+#define CONSERVATIVE_SHADING_RATE_SHIFT MAX_D3D12_SHADING_RATE_BITS

@@ -2,6 +2,7 @@
 
 #include "VariableRateShadingImageManager.h"
 #include "FixedFoveationImageGenerator.h"
+#include "ContrastAdaptiveImageGenerator.h"
 #include "StereoRenderTargetManager.h"
 #include "GlobalShader.h"
 #include "ShaderParameterUtils.h"
@@ -24,8 +25,9 @@ FVariableRateShadingImageManager::FVariableRateShadingImageManager()
 	: FRenderResource()
 {
 	ImageGenerators.Add(MakeUnique<FFixedFoveationImageGenerator>());
+	ImageGenerators.Add(MakeUnique<FContrastAdaptiveImageGenerator>());
 
-	// TODO: Add more generators
+	// TODO: Add more generators or allow registration from plugins
 }
 
 FVariableRateShadingImageManager::~FVariableRateShadingImageManager() {}
@@ -41,12 +43,6 @@ static EDisplayOutputFormat GetDisplayOutputFormat(const FViewInfo& View)
 	return (EDisplayOutputFormat)Parameters.OutputDevice;
 }
 
-static bool IsHDR10(const EDisplayOutputFormat& OutputFormat)
-{
-	return OutputFormat == EDisplayOutputFormat::HDR_ACES_1000nit_ST2084 ||
-		OutputFormat == EDisplayOutputFormat::HDR_ACES_2000nit_ST2084;
-}
-
 bool FVariableRateShadingImageManager::IsVRSSupportedByRHI()
 {
 	return GRHISupportsAttachmentVariableRateShading && GRHIVariableRateShadingEnabled && GRHIAttachmentVariableRateShadingEnabled && FDataDrivenShaderPlatformInfo::GetSupportsVariableRateShading(GMaxRHIShaderPlatform);
@@ -54,7 +50,9 @@ bool FVariableRateShadingImageManager::IsVRSSupportedByRHI()
 
 bool FVariableRateShadingImageManager::IsVRSCompatibleWithOutputType(const EDisplayOutputFormat& OutputFormat)
 {
-	return OutputFormat == EDisplayOutputFormat::SDR_sRGB || IsHDR10(OutputFormat);
+	return OutputFormat == EDisplayOutputFormat::SDR_sRGB
+		|| OutputFormat == EDisplayOutputFormat::HDR_ACES_1000nit_ST2084
+		|| OutputFormat == EDisplayOutputFormat::HDR_ACES_2000nit_ST2084;
 }
 
 bool FVariableRateShadingImageManager::IsVRSCompatibleWithView(const FViewInfo& ViewInfo)
@@ -188,4 +186,18 @@ TRefCountPtr<IPooledRenderTarget> FVariableRateShadingImageManager::GetMobileVar
 	}
 
 	return MobileHMDFixedFoveationOverrideImage;
+}
+
+// Temporary passthrough for CAS debug overlay, pending that functionality being moved to the manager
+void FVariableRateShadingImageManager::CASDebugPreview(FRDGBuilder& GraphBuilder, const FSceneViewFamily& ViewFamily, FRDGTextureRef OutputSceneColor)
+{
+	// Get the first CAS generator present and call its debug function
+	for (TUniquePtr<IVariableRateShadingImageGenerator>& Generator : ImageGenerators)
+	{
+		if (EnumHasAllFlags(Generator->GetType(), FVariableRateShadingImageManager::EVRSSourceType::ContrastAdaptiveShading))
+		{
+			((FContrastAdaptiveImageGenerator*) Generator.Get())->VRSDebugPreview(GraphBuilder, ViewFamily, OutputSceneColor);
+			break;
+		}
+	}
 }

@@ -4071,6 +4071,11 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	// After AddPostProcessingPasses in case of Lumen Visualizations writing to feedback
 	FinishGatheringLumenSurfaceCacheFeedback(GraphBuilder, Views[0], LumenFrameTemporaries);
 
+	if (ViewFamily.bResolveScene && ViewFamilyTexture)
+	{
+		GVRSImageManager.CASDebugPreview(GraphBuilder, ViewFamily, ViewFamilyTexture);
+	}
+
 	GEngine->GetPostRenderDelegateEx().Broadcast(GraphBuilder);
 
 #if RHI_RAYTRACING

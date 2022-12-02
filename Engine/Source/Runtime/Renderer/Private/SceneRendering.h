@@ -1157,6 +1157,9 @@ struct FPreviousViewInfo
 	// History for denoising all lights penumbra at once.
 	FScreenSpaceDenoiserHistory PolychromaticPenumbraHarmonicsHistory;
 
+	// History for the final back buffer luminance
+	TRefCountPtr<IPooledRenderTarget> LuminanceHistory;
+
 	// Mobile bloom setup eye adaptation surface.
 	TRefCountPtr<IPooledRenderTarget> MobileBloomSetup_EyeAdaptation;
 

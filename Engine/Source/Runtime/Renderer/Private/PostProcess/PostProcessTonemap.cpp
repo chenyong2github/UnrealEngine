@@ -19,6 +19,8 @@
 #include "Math/Halton.h"
 #include "SystemTextures.h"
 #include "HDRHelper.h"
+#include "VariableRateShadingImageManager.h"
+
 
 bool SupportsFilmGrain(EShaderPlatform Platform)
 {
@@ -61,6 +63,11 @@ TAutoConsoleVariable<int32> CVarFilmGrainCacheTextureConstants(
 
 const int32 GTonemapComputeTileSizeX = 8;
 const int32 GTonemapComputeTileSizeY = 8;
+
+struct FOutputLuminance
+{
+	FRDGTextureRef Texture = nullptr;
+};
 
 namespace TonemapperPermutation
 {
@@ -137,11 +144,13 @@ FCommonDomain BuildCommonPermutationDomain(const FViewInfo& View, bool bGammaOnl
 class FTonemapperColorFringeDim       : SHADER_PERMUTATION_BOOL("USE_COLOR_FRINGE");
 class FTonemapperGrainQuantizationDim : SHADER_PERMUTATION_BOOL("USE_GRAIN_QUANTIZATION");
 class FTonemapperOutputDeviceDim      : SHADER_PERMUTATION_ENUM_CLASS("DIM_OUTPUT_DEVICE", EDisplayOutputFormat);
+class FTonemapperOutputLuminance	  : SHADER_PERMUTATION_BOOL("OUTPUT_LUMINANCE");
 
 using FDesktopDomain = TShaderPermutationDomain<
 	FCommonDomain,
 	FTonemapperColorFringeDim,
 	FTonemapperGrainQuantizationDim,
+	FTonemapperOutputLuminance,
 	FTonemapperOutputDeviceDim>;
 
 FDesktopDomain RemapPermutation(FDesktopDomain PermutationVector, ERHIFeatureLevel::Type FeatureLevel)
@@ -165,6 +174,13 @@ FDesktopDomain RemapPermutation(FDesktopDomain PermutationVector, ERHIFeatureLev
 
 		PermutationVector.Set<FTonemapperColorFringeDim>(true);
 	}
+
+	// If we're going down a slow path, don't bother with VRS either to keep shader permutations down
+	if (!FVariableRateShadingImageManager::IsVRSCompatibleWithOutputType(PermutationVector.Get<FTonemapperOutputDeviceDim>()) || bFallbackToSlowest)
+	{
+		PermutationVector.Set<FTonemapperOutputLuminance>(false);
+	}
+
 
 	// You most likely need Bloom anyway.
 	CommonPermutationVector.Set<FTonemapperBloomDim>(true);
@@ -216,6 +232,8 @@ bool ShouldCompileDesktopPermutation(const FGlobalShaderPermutationParameters& P
 
 } // namespace TonemapperPermutation
 } // namespace
+
+RDG_REGISTER_BLACKBOARD_STRUCT(FOutputLuminance);
 
 FTonemapperOutputDeviceParameters GetTonemapperOutputDeviceParameters(const FSceneViewFamily& Family)
 {
@@ -417,6 +435,7 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FTonemapParameters, Tonemap)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWOutputTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWOutputLuminance)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -832,17 +851,54 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 
 		DesktopPermutationVector.Set<TonemapperPermutation::FTonemapperOutputDeviceDim>(EDisplayOutputFormat(CommonParameters.OutputDevice.OutputDevice));
 
+		DesktopPermutationVector.Set<TonemapperPermutation::FTonemapperOutputLuminance>(FVariableRateShadingImageManager::IsVRSCompatibleWithView(View));
+
 		DesktopPermutationVector = TonemapperPermutation::RemapPermutation(DesktopPermutationVector, View.GetFeatureLevel());
 	}
 
 	// Override output might not support UAVs.
 	const bool bComputePass = (Output.Texture->Desc.Flags & TexCreate_UAV) == TexCreate_UAV ? View.bUseComputePasses : false;
 
+	FRDGTextureRef OutputLuminance = {};
+	const bool bOutputLuminance = DesktopPermutationVector.Get<TonemapperPermutation::FTonemapperOutputLuminance>();
+	if (bOutputLuminance)
+	{
+		// Due to the way split-screen shares the same render target for all views, make sure
+		// that we use the same texture for saving out the luminance as well to keep the memory
+		// footprint small
+		auto CachedOuputLuminance = GraphBuilder.Blackboard.Get<FOutputLuminance>();
+		if (CachedOuputLuminance == nullptr)
+		{
+			auto NewOutputLuminance = &GraphBuilder.Blackboard.Create<FOutputLuminance>();
+			auto OutputSize = Output.Texture->Desc.GetSize();
+			const FIntPoint SDROutputSize = FIntPoint(OutputSize.X, OutputSize.Y);
+			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+				SDROutputSize,
+				PF_R8,
+				FClearValueBinding::Black,
+				bComputePass ? TexCreate_UAV : TexCreate_RenderTargetable);
+			OutputLuminance = NewOutputLuminance->Texture = GraphBuilder.CreateTexture(Desc, TEXT("Final Luminance"));
+		}
+		else
+		{
+			OutputLuminance = CachedOuputLuminance->Texture;
+		}
+	}
+
 	if (bComputePass)
 	{
 		FTonemapCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTonemapCS::FParameters>();
 		PassParameters->Tonemap = CommonParameters;
 		PassParameters->RWOutputTexture = GraphBuilder.CreateUAV(Output.Texture);
+
+		if (OutputLuminance)
+		{
+			PassParameters->RWOutputLuminance = GraphBuilder.CreateUAV(OutputLuminance);
+		}
+		else
+		{
+			check(DesktopPermutationVector.Get<TonemapperPermutation::FTonemapperOutputLuminance>() == false);
+		}
 
 		TShaderMapRef<FTonemapCS> ComputeShader(View.ShaderMap, DesktopPermutationVector);
 
@@ -858,6 +914,11 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 		FTonemapPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTonemapPS::FParameters>();
 		PassParameters->Tonemap = CommonParameters;
 		PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
+
+		if (OutputLuminance)
+		{
+			PassParameters->RenderTargets[1] = FRenderTargetBinding(OutputLuminance, ERenderTargetLoadAction::ELoad);
+		}
 
 		TShaderMapRef<FTonemapVS> VertexShader(View.ShaderMap);
 		TShaderMapRef<FTonemapPS> PixelShader(View.ShaderMap, DesktopPermutationVector);
@@ -885,6 +946,11 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), PassParameters->Tonemap);
 			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 		});
+
+		if (OutputLuminance && View.ViewState)
+		{
+			GraphBuilder.QueueTextureExtraction(OutputLuminance, &View.ViewState->PrevFrameViewInfo.LuminanceHistory);
+		}
 	}
 
 	return MoveTemp(Output);
