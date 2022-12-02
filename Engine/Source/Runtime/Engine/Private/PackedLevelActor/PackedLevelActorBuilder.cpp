@@ -417,6 +417,7 @@ bool FPackedLevelActorBuilder::CreateOrUpdateBlueprintFromPacked(APackedLevelAct
 		{
 			BP->SimpleConstructionScript->RemoveNodeAndPromoteChildren(Node);
 		}
+		FKismetEditorUtilities::GenerateBlueprintSkeleton(BP,true);
 	}
 	else
 	{
