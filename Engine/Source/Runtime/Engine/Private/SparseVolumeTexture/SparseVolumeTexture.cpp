@@ -43,6 +43,13 @@ void FSparseVolumeAssetHeader::Serialize(FArchive& Ar)
 		Ar << PageTableVolumeResolution;
 		Ar << TileDataVolumeResolution;
 		Ar << SourceVolumeResolution;
+
+		uint32 FormatAsUint = (uint32)PackedDataAFormat;
+		Ar << FormatAsUint;
+		if (Ar.IsLoading())
+		{
+			PackedDataAFormat = static_cast<EPixelFormat>(FormatAsUint);
+		}
 	}
 	else
 	{
@@ -57,7 +64,16 @@ void FSparseVolumeRawSource::Serialize(FArchive& Ar)
 
 	if (Version == 0)
 	{
-		Ar << DensityGridIndex;
+		uint32 FormatAsUint = (uint32)PackedDataA.Format;
+		Ar << FormatAsUint;
+		if (Ar.IsLoading())
+		{
+			PackedDataA.Format = static_cast<ESparseVolumePackedDataFormat>(FormatAsUint);
+		}
+		Ar << PackedDataA.SourceGridIndex;
+		Ar << PackedDataA.SourceComponentIndex;
+		Ar << PackedDataA.bRescaleInputForUnorm;
+
 		Ar << SourceAssetFile;
 	}
 	else
@@ -233,7 +249,7 @@ void UStaticSparseVolumeTexture::ConvertRawSourceDataToSparseVolumeTextureRuntim
 		// Then, cook the runtime data and serialize it out.
 		const bool bSuccess = ConvertOpenVDBToSparseVolumeTextureDelegate.IsBound() && ConvertOpenVDBToSparseVolumeTextureDelegate.Execute(
 			SparseVolumeRawSource.SourceAssetFile,
-			SparseVolumeRawSource.DensityGridIndex,
+			SparseVolumeRawSource.PackedDataA,
 			&StaticFrame.SparseVolumeTextureRuntime.Header,
 			&StaticFrame.SparseVolumeTextureRuntime.DensityPage,
 			&StaticFrame.SparseVolumeTextureRuntime.DensityData,
@@ -402,7 +418,7 @@ void FSparseVolumeTextureSceneProxy::InitRHI()
 
 	// Tile data
 	{
-		EPixelFormat VoxelFormat = PF_R8;
+		EPixelFormat VoxelFormat = SparseVolumeTextureRuntime->Header.PackedDataAFormat;
 		FIntVector3 TileDataVolumeResolution = SparseVolumeTextureRuntime->Header.TileDataVolumeResolution;
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create3D(TEXT("SparseVolumeTexture.TileData.RHITexture"),
@@ -536,7 +552,7 @@ void UAnimatedSparseVolumeTexture::ConvertRawSourceDataToSparseVolumeTextureRunt
 		// Then, cook the runtime data and serialize it out.
 		const bool bSuccess = ConvertOpenVDBToSparseVolumeTextureDelegate.IsBound() && ConvertOpenVDBToSparseVolumeTextureDelegate.Execute(
 			SparseVolumeRawSource.SourceAssetFile,
-			SparseVolumeRawSource.DensityGridIndex,
+			SparseVolumeRawSource.PackedDataA,
 			&Frame.SparseVolumeTextureRuntime.Header,
 			&Frame.SparseVolumeTextureRuntime.DensityPage,
 			&Frame.SparseVolumeTextureRuntime.DensityData,

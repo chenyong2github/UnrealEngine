@@ -35,6 +35,9 @@ class USparseVolumeTextureViewerComponent : public UPrimitiveComponent
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Asset Preview", meta = (UIMin = 0.0, UIMax = 1.0, ClampMin = 0.0, ClampMax = 1.0, EditCondition = "!bAnimate"))
 	float AnimationFrame;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Asset Preview", meta = (UIMin = 0, UIMax = 4, ClampMin = 0, ClampMax = 3))
+	int32 ComponentToVisualize;
+
 	//~ Begin UPrimitiveComponent Interface.
 	virtual bool SupportsStaticLighting() const override { return false; }
 	//~ End UPrimitiveComponent Interface.

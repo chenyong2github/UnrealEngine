@@ -29,6 +29,7 @@ USparseVolumeTextureViewerComponent::USparseVolumeTextureViewerComponent(const F
 	, SparseVolumeTexturePreview(nullptr)
 	, bAnimate(false)
 	, AnimationFrame(0.0f)
+	, ComponentToVisualize(0)
 	, SparseVolumeTextureViewerSceneProxy(nullptr)
 {
 	PrimaryComponentTick.bCanEverTick = true;
@@ -163,13 +164,16 @@ void USparseVolumeTextureViewerComponent::SendRenderTransformCommand()
 		FBoxSphereBounds ComponentBounds = CalcBounds(ToWorldMat);
 
 		FMatrix44f ToLocalMat = FMatrix44f(FTranslationMatrix(-ToWorldMat.GetTranslation()) * FRotationMatrix(FRotator(GetComponentToWorld().GetRotation().Inverse())) * FScaleMatrix(ComponentBounds.BoxExtent.Reciprocal()));
+		
+		uint32 CompToVisualize = (uint32)ComponentToVisualize;
 
 		FSparseVolumeTextureViewerSceneProxy* SVTViewerSceneProxy = SparseVolumeTextureViewerSceneProxy;
 		ENQUEUE_RENDER_COMMAND(FUpdateSparseVolumeTextureViewerProxyTransformCommand)(
-			[SVTViewerSceneProxy, ComponentBounds, ToLocalMat](FRHICommandList& RHICmdList)
+			[SVTViewerSceneProxy, ComponentBounds, ToLocalMat, CompToVisualize](FRHICommandList& RHICmdList)
 			{
 				SVTViewerSceneProxy->VolumeWorldBounds = ComponentBounds;
 				SVTViewerSceneProxy->WorldToLocal = ToLocalMat;
+				SVTViewerSceneProxy->ComponentToVisualize = CompToVisualize;
 			});
 	}
 }

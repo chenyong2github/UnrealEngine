@@ -45,6 +45,7 @@ float3 VolumeBoundMaxWorld;
 float4 WorldToLocal0;
 float4 WorldToLocal1;
 float4 WorldToLocal2;
+uint ComponentToVisualize;
 
 
 Texture3D<float4> SparseVolumeTexture;
@@ -180,7 +181,7 @@ void VisualizeSparseVolumeTexturePS(
 
 				const float4 VoxelData = SparseVolumeTexture.Load(int4(VoxelCoord, 0));
 
-				const float Density = VoxelData.x;
+				const float Density = VoxelData[ComponentToVisualize];
 				if (Density > 0.0f)
 
 				{

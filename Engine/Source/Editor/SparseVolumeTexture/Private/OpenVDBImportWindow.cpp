@@ -13,7 +13,7 @@
 #include "IDocumentation.h"
 #include "Editor.h"
 #include "SparseVolumeTextureOpenVDBUtility.h"
-#include "OpenVDBImportOptions.h"
+#include "SparseVolumeTexture/SparseVolumeTexture.h"
 
 #define LOCTEXT_NAMESPACE "SOpenVDBImportWindow"
 
@@ -22,10 +22,26 @@ static FText GetGridComboBoxItemText(TSharedPtr<FOpenVDBGridInfo> InItem)
 	return InItem ? FText::FromString(InItem->DisplayString) : LOCTEXT("NoneGrid", "<None>");
 };
 
+static FText GetFormatComboBoxItemText(TSharedPtr<ESparseVolumePackedDataFormat> InItem)
+{
+	const TCHAR* FormatStr = TEXT("<None>");
+	if (InItem)
+	{
+		switch (*InItem)
+		{
+		case ESparseVolumePackedDataFormat::Unorm8: FormatStr = TEXT("8bit unorm"); break;
+		case ESparseVolumePackedDataFormat::Float16: FormatStr = TEXT("16bit float"); break;
+		case ESparseVolumePackedDataFormat::Float32: FormatStr = TEXT("32bit float"); break;
+		}
+	}
+	return FText::FromString(FormatStr);
+}
+
 void SOpenVDBImportWindow::Construct(const FArguments& InArgs)
 {
-	ImportOptions = InArgs._ImportOptions;
+	PackedDataA = InArgs._PackedDataA;
 	OpenVDBGridInfo = InArgs._OpenVDBGridInfo;
+	OpenVDBSupportedTargetFormats = InArgs._OpenVDBSupportedTargetFormats;
 	WidgetWindow = InArgs._WidgetWindow;
 
 	TSharedPtr<SBox> ImportTypeDisplay;
@@ -109,7 +125,11 @@ void SOpenVDBImportWindow::Construct(const FArguments& InArgs)
 		.AutoHeight()
 		.Padding(2)
 		[
-			CreateGridSelector(DensityGridComboBox, DensityGridCheckBox, ImportOptions->Density, LOCTEXT("DensityGridIndex", "Density"))
+			SAssignNew(PackedDataAConfigurator, SOpenVDBPackedDataConfigurator)
+			.PackedData(PackedDataA)
+			.OpenVDBGridInfo(OpenVDBGridInfo)
+			.OpenVDBSupportedTargetFormats(OpenVDBSupportedTargetFormats)
+			.PackedDataName(LOCTEXT("OpenVDBImportWindow_PackedDataA", "Packed Data A"))
 		]
 	);
 
@@ -190,7 +210,16 @@ EActiveTimerReturnType SOpenVDBImportWindow::SetFocusPostConstruct(double InCurr
 
 bool SOpenVDBImportWindow::CanImport() const
 {
-	return DensityGridCheckBox->IsChecked();
+	const FUintVector4& GridIndices = PackedDataA->SourceGridIndex;
+	const FUintVector4& ComponentIndices = PackedDataA->SourceComponentIndex;
+	if ((GridIndices.X != INDEX_NONE && ComponentIndices.X != INDEX_NONE)
+		|| (GridIndices.Y != INDEX_NONE && ComponentIndices.Y != INDEX_NONE)
+		|| (GridIndices.Z != INDEX_NONE && ComponentIndices.Z != INDEX_NONE)
+		|| (GridIndices.W != INDEX_NONE && ComponentIndices.W != INDEX_NONE))
+	{
+		return true;
+	}
+	return false;
 }
 
 FReply SOpenVDBImportWindow::OnResetToDefaultClick()
@@ -208,122 +237,252 @@ void SOpenVDBImportWindow::SetDefaultGridAssignment()
 {
 	check(OpenVDBGridInfo);
 
-	auto SetDefaultGrid = [](const TArray<TSharedPtr<FOpenVDBGridInfo>>& Grids, const FString& Name, EOpenVDBGridFormat Format, 
-		TSharedPtr<SComboBox<TSharedPtr<FOpenVDBGridInfo>>> ComboBox, TSharedPtr<SCheckBox> CheckBox, FOpenVDBImportChannel& Channel)
-	{
-		TSharedPtr<FOpenVDBGridInfo> SelectedGrid = nullptr;
-		// Search by name first...
-		for (auto& Grid : Grids)
-		{
-			if (Grid->Name == Name)
-			{
-				SelectedGrid = Grid;
-				break;
-			}
-		}
+	PackedDataA->Format = ESparseVolumePackedDataFormat::Float32;
+	PackedDataA->SourceGridIndex = FUintVector4(INDEX_NONE);
+	PackedDataA->SourceComponentIndex = FUintVector4(INDEX_NONE);
+	PackedDataA->bRescaleInputForUnorm = false;
 
-		// ...and if that fails, just take the first grid with matching format.
-		if (!SelectedGrid)
+	const TCHAR* SearchNames[] = { TEXT("density"), TEXT("heat"), TEXT("temperature"), TEXT("motion") };
+
+	uint32 CurrentOutputComponent = 0;
+	for (const TCHAR* SearchName : SearchNames)
+	{
+		for (uint32 InputComponent = 0; InputComponent < 4; ++InputComponent)
 		{
-			for (auto& Grid : Grids)
+			for (const TSharedPtr<FOpenVDBGridInfo>& Grid : *OpenVDBGridInfo)
 			{
-				if (Grid->Format == Format)
+				if (Grid->Name == SearchName && Grid->ComponentIndex == InputComponent)
 				{
-					SelectedGrid = Grid;
+					PackedDataA->SourceGridIndex[CurrentOutputComponent] = Grid->Index;
+					PackedDataA->SourceComponentIndex[CurrentOutputComponent] = Grid->ComponentIndex;
+					++CurrentOutputComponent;
 					break;
 				}
 			}
 		}
+	}
 
-		if (SelectedGrid)
-		{
-			const bool bImport = SelectedGrid->Name == Name; // disable importing this grid if the name doesn't match
-			ComboBox->SetSelectedItem(SelectedGrid);
-			CheckBox->SetIsChecked(bImport);
-			Channel.Name = SelectedGrid->Name;
-			Channel.Index = SelectedGrid->Index;
-			Channel.bImport = bImport;
-		}
-		else
-		{
-			ComboBox->ClearSelection();
-			CheckBox->SetIsChecked(false);
-			Channel.Name.Reset();
-			Channel.Index = INDEX_NONE;
-			Channel.bImport = false;
-		}
-	};
-
-	SetDefaultGrid(*OpenVDBGridInfo, TEXT("density"), EOpenVDBGridFormat::Float, DensityGridComboBox, DensityGridCheckBox, ImportOptions->Density);
+	PackedDataAConfigurator->RefreshUIFromData();
 }
 
-TSharedRef<SWidget> SOpenVDBImportWindow::CreateGridSelector(TSharedPtr<SComboBox<TSharedPtr<FOpenVDBGridInfo>>>& ComboBox, TSharedPtr<SCheckBox>& CheckBox, FOpenVDBImportChannel& Channel, const FText& Label)
+void SOpenVDBComponentPicker::Construct(const FArguments& InArgs)
 {
-	return
-		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
-		.VAlign(VAlign_Center)
-		.AutoWidth()
-		.Padding(2.0f)
-		[
-			SAssignNew(CheckBox, SCheckBox)
-			.IsChecked(true)
-			.OnCheckStateChanged_Lambda([&Channel](ECheckBoxState CheckBoxState)
-			{
-				Channel.bImport = CheckBoxState == ECheckBoxState::Checked;
-			})
-		]
+	PackedData = InArgs._PackedData;
+	ComponentIndex = InArgs._ComponentIndex;
+	OpenVDBGridInfo = InArgs._OpenVDBGridInfo;
+	
+	check(ComponentIndex < 4);
+	const TCHAR* ComponentLabels[] = { TEXT("X"), TEXT("Y"), TEXT("Z"), TEXT("W") };
 
-		+ SHorizontalBox::Slot()
-		.VAlign(VAlign_Center)
-		.FillWidth(1.0f)
-		.Padding(2.0f)
+	this->ChildSlot
 		[
-			SNew(STextBlock)
-			.Text(Label)
-		]
-
-		+ SHorizontalBox::Slot()
-		.FillWidth(1.0f)
-		.VAlign(VAlign_Center)
-		.Padding(2.0f)
-		[
-			SNew(SBox)
-			.WidthOverride(300.0f)
+			SNew(SHorizontalBox)
+			
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.FillWidth(1.0f)
+			.Padding(2.0f)
 			[
-				SAssignNew(ComboBox, SComboBox<TSharedPtr<FOpenVDBGridInfo>>)
-				.OptionsSource(OpenVDBGridInfo)
-				.IsEnabled_Lambda([&CheckBox]()
-				{
-					return CheckBox->IsChecked();
-				})
-				.OnGenerateWidget_Lambda([](TSharedPtr<FOpenVDBGridInfo> InItem)
-				{
-					return SNew(STextBlock)
-					.Text(GetGridComboBoxItemText(InItem));
-				})
-				.OnSelectionChanged_Lambda([&Channel](TSharedPtr<FOpenVDBGridInfo> InItem, ESelectInfo::Type)
-				{
-					if (InItem)
-					{
-						Channel.Name = InItem->Name;
-						Channel.Index = InItem->Index;
-					}
-					else
-					{
-						Channel.Name.Reset();
-						Channel.Index = INDEX_NONE;
-					}
-				})
+				SNew(STextBlock)
+				.Text(FText::FromString(ComponentLabels[ComponentIndex]))
+			]
+
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			.VAlign(VAlign_Center)
+			.Padding(2.0f)
+			[
+				SNew(SBox)
+				.WidthOverride(300.0f)
 				[
-					SNew(STextBlock)
-					.Text_Lambda([&ComboBox]()
+					SAssignNew(GridComboBox, SComboBox<TSharedPtr<FOpenVDBGridInfo>>)
+					.OptionsSource(OpenVDBGridInfo)
+					.OnGenerateWidget_Lambda([](TSharedPtr<FOpenVDBGridInfo> InItem)
 					{
-						return GetGridComboBoxItemText(ComboBox->GetSelectedItem());
+						return SNew(STextBlock)
+						.Text(GetGridComboBoxItemText(InItem));
 					})
+					.OnSelectionChanged_Lambda([this](TSharedPtr<FOpenVDBGridInfo> InItem, ESelectInfo::Type)
+					{
+						if (InItem)
+						{
+							PackedData->SourceGridIndex[ComponentIndex] = InItem->Index;
+							PackedData->SourceComponentIndex[ComponentIndex] = InItem->ComponentIndex;
+						}
+						else
+						{
+							PackedData->SourceGridIndex[ComponentIndex] = INDEX_NONE;
+							PackedData->SourceComponentIndex[ComponentIndex] = INDEX_NONE;
+						}
+					})
+					[
+						SNew(STextBlock)
+						.Text_Lambda([this]()
+						{
+							return GetGridComboBoxItemText(GridComboBox->GetSelectedItem());
+						})
+					]
 				]
 			]
 		];
+}
+
+void SOpenVDBComponentPicker::RefreshUIFromData()
+{
+	for (const TSharedPtr<FOpenVDBGridInfo>& Grid : *OpenVDBGridInfo)
+	{
+		printf("%i\n", Grid->Index);
+		if (Grid->Index == PackedData->SourceGridIndex[ComponentIndex] && Grid->ComponentIndex == PackedData->SourceComponentIndex[ComponentIndex])
+		{
+			GridComboBox->SetSelectedItem(Grid);
+			break;
+		}
+	}
+}
+
+void SOpenVDBPackedDataConfigurator::Construct(const FArguments& InArgs)
+{
+	PackedData = InArgs._PackedData;
+	OpenVDBSupportedTargetFormats = InArgs._OpenVDBSupportedTargetFormats;
+
+	for (uint32 ComponentIndex = 0; ComponentIndex < 4; ++ComponentIndex)
+	{
+		ComponentPickers[ComponentIndex] =
+			SNew(SOpenVDBComponentPicker)
+			.PackedData(PackedData)
+			.ComponentIndex(ComponentIndex)
+			.OpenVDBGridInfo(InArgs._OpenVDBGridInfo);
+	}
+
+	this->ChildSlot
+		[
+			SNew(SVerticalBox)
+			
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(2)
+			[
+				SNew(SHorizontalBox)
+
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.FillWidth(1.0f)
+				.Padding(2.0f)
+				[
+					SNew(STextBlock)
+					.Text(InArgs._PackedDataName)
+				]
+
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.0f)
+				.VAlign(VAlign_Center)
+				.Padding(2.0f)
+				[
+					SNew(SBox)
+					.WidthOverride(50.0f)
+					[
+						SAssignNew(FormatComboBox, SComboBox<TSharedPtr<ESparseVolumePackedDataFormat>>)
+						.OptionsSource(OpenVDBSupportedTargetFormats)
+						.OnGenerateWidget_Lambda([](TSharedPtr<ESparseVolumePackedDataFormat> InItem)
+						{
+							return SNew(STextBlock)
+							.Text(GetFormatComboBoxItemText(InItem));
+						})
+						.OnSelectionChanged_Lambda([this](TSharedPtr<ESparseVolumePackedDataFormat> InItem, ESelectInfo::Type)
+						{
+							PackedData->Format = InItem ? *InItem : ESparseVolumePackedDataFormat::Float32;
+						})
+						[
+							SNew(STextBlock)
+							.Text_Lambda([this]()
+							{
+								return GetFormatComboBoxItemText(FormatComboBox->GetSelectedItem());
+							})
+						]
+					]
+				]
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Right)
+				.AutoWidth()
+				.Padding(2.0f)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("UnormRescaleCheckBoxLabel", "Unorm Rescale"))
+				]
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Right)
+				.AutoWidth()
+				.Padding(2.0f)
+				[
+					SAssignNew(RescaleUnormCheckBox, SCheckBox)
+					.OnCheckStateChanged_Lambda([this](ECheckBoxState CheckBoxState)
+					{
+							PackedData->bRescaleInputForUnorm = CheckBoxState == ECheckBoxState::Checked;
+					})
+					.IsEnabled_Lambda([this]()
+					{
+						return PackedData->Format == ESparseVolumePackedDataFormat::Unorm8;
+					})
+					.ToolTipText(LOCTEXT("UnormRescaleCheckBoxTooltip", "Rescales input values for unorm formats into the [0-1] range instead of clamping values outside this range."))
+					.IsChecked(false)
+				]
+			]
+
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(2)
+			[
+				SNew(SBorder)
+				.Padding(FMargin(3))
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+				[
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(2)
+					[
+						ComponentPickers[0]->AsShared()
+					]
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(2)
+					[
+						ComponentPickers[1]->AsShared()
+					]
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(2)
+					[
+						ComponentPickers[2]->AsShared()
+					]
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(2)
+					[
+						ComponentPickers[3]->AsShared()
+					]
+				]
+			]
+		];
+}
+
+void SOpenVDBPackedDataConfigurator::RefreshUIFromData()
+{
+	for (auto& Format : *OpenVDBSupportedTargetFormats)
+	{
+		if (*Format == PackedData->Format)
+		{
+			FormatComboBox->SetSelectedItem(Format);
+			break;
+		}
+	}
+	for (uint32 i = 0; i < 4; ++i)
+	{
+		ComponentPickers[i]->RefreshUIFromData();
+	}
+	RescaleUnormCheckBox->SetIsChecked(PackedData->bRescaleInputForUnorm);
 }
 
 #undef LOCTEXT_NAMESPACE

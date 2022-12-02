@@ -16,7 +16,6 @@
 
 #include "Editor.h"
 
-#include "OpenVDBImportOptions.h"
 #include "OpenVDBImportWindow.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Interfaces/IMainFrameModule.h"
@@ -194,7 +193,9 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 				OpenVDBData.VolumeActiveDim.X, OpenVDBData.VolumeActiveDim.Y, OpenVDBData.VolumeActiveDim.Z);
 
 			FSparseVolumeRawSource SparseVolumeRawSource{};
-			SparseVolumeRawSource.DensityGridIndex = DensityGridIndex;
+			SparseVolumeRawSource.PackedDataA.Format = ESparseVolumePackedDataFormat::Unorm8;
+			SparseVolumeRawSource.PackedDataA.SourceGridIndex = FUintVector4(0, INDEX_NONE, INDEX_NONE, INDEX_NONE);
+			SparseVolumeRawSource.PackedDataA.SourceComponentIndex = FUintVector4(0, INDEX_NONE, INDEX_NONE, INDEX_NONE);
 			SparseVolumeRawSource.SourceAssetFile = MoveTemp(LoadedFile);
 			LoadedFile.Reset();
 
@@ -223,6 +224,12 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 		// Load file and get info about each contained grid
 		TArray<uint8> LoadedFile;
 		TArray<TSharedPtr<FOpenVDBGridInfo>> GridInfoPtrs;
+		TArray<TSharedPtr<ESparseVolumePackedDataFormat>> SupportedFormats =
+		{ 
+			MakeShared<ESparseVolumePackedDataFormat>(ESparseVolumePackedDataFormat::Float32),
+			MakeShared<ESparseVolumePackedDataFormat>(ESparseVolumePackedDataFormat::Float16),
+			MakeShared<ESparseVolumePackedDataFormat>(ESparseVolumePackedDataFormat::Unorm8)
+		};
 		{
 			if (!FFileHelper::LoadFileToArray(LoadedFile, *Filename))
 			{
@@ -238,7 +245,18 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 			}
 
 			// Convert to array of TSharedPtr. SComboBox requires this.
-			GridInfoPtrs.Empty(GridInfo.Num());
+			GridInfoPtrs.Empty(GridInfo.Num() + 1);
+			
+			// We need a <None> option to leave channels empty
+			FOpenVDBGridInfo NoneGridInfo;
+			NoneGridInfo.Index = INDEX_NONE;
+			NoneGridInfo.ComponentIndex = INDEX_NONE;
+			NoneGridInfo.Format = EOpenVDBGridFormat::Float;
+			NoneGridInfo.Name = TEXT("<None>");
+			NoneGridInfo.DisplayString = TEXT("<None>");
+			
+			GridInfoPtrs.Add(MakeShared<FOpenVDBGridInfo>(NoneGridInfo));
+			
 			for (auto& Grid : GridInfo)
 			{
 				GridInfoPtrs.Add(MakeShared<FOpenVDBGridInfo>(Grid));
@@ -246,7 +264,7 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 		}
 
 		// Show import dialog
-		FOpenVDBImportOptions ImportOptions{};
+		FSparseVolumeRawSourcePackedData PackedDataA{};
 		{
 			TSharedPtr<SWindow> ParentWindow;
 
@@ -282,8 +300,9 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 			Window->SetContent
 			(
 				SAssignNew(OpenVDBOptionWindow, SOpenVDBImportWindow)
-				.ImportOptions(&ImportOptions)
+				.PackedDataA(&PackedDataA)
 				.OpenVDBGridInfo(&GridInfoPtrs)
+				.OpenVDBSupportedTargetFormats(&SupportedFormats)
 				.WidgetWindow(Window)
 				.FullPath(FText::FromString(Filename))
 				.MaxWindowHeight(ImportWindowHeight)
@@ -302,10 +321,8 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 		FScopedSlowTask ImportTask(1.0f, LOCTEXT("ImportingVDBStatic", "Importing static OpenVDB"));
 		ImportTask.MakeDialog(true);
 
-		uint32 DensityGridIndex = ImportOptions.Density.Index;
-
 		FSparseVolumeRawSource SparseVolumeRawSource{};
-		SparseVolumeRawSource.DensityGridIndex = DensityGridIndex;
+		SparseVolumeRawSource.PackedDataA = PackedDataA;
 		SparseVolumeRawSource.SourceAssetFile = MoveTemp(LoadedFile);
 		LoadedFile.Reset();
 

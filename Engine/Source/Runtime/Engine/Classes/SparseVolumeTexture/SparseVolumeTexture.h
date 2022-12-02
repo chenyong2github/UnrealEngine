@@ -19,7 +19,7 @@ namespace UE { namespace Shader	{ enum class EValueType : uint8; } }
 
 DECLARE_DELEGATE_RetVal_EightParams(bool, FConvertOpenVDBToSparseVolumeTextureDelegate, 
 	TArray<uint8>& SourceFile,
-	uint32 GridIndex,
+	struct FSparseVolumeRawSourcePackedData& PackedData,
 	struct FSparseVolumeAssetHeader* OutHeader,
 	TArray<uint32>* OutDensityPage,
 	TArray<uint8>* OutDensityData,
@@ -29,11 +29,19 @@ DECLARE_DELEGATE_RetVal_EightParams(bool, FConvertOpenVDBToSparseVolumeTextureDe
 
 ENGINE_API FConvertOpenVDBToSparseVolumeTextureDelegate& OnConvertOpenVDBToSparseVolumeTexture();
 
+enum class ESparseVolumePackedDataFormat : uint8
+{
+	Unorm8 = 0,
+	Float16 = 1,
+	Float32 = 2,
+};
+
 struct ENGINE_API FSparseVolumeAssetHeader
 {
 	FIntVector3 PageTableVolumeResolution;
 	FIntVector3 TileDataVolumeResolution;
 	FIntVector3 SourceVolumeResolution;
+	EPixelFormat PackedDataAFormat;
 
 	// The current data format version for the header.
 	static const uint32 kVersion = 0;
@@ -47,16 +55,26 @@ struct ENGINE_API FSparseVolumeAssetHeader
 		: PageTableVolumeResolution(FIntVector3(0, 0, 0))
 		, TileDataVolumeResolution(FIntVector3(0, 0, 0))
 		, SourceVolumeResolution(FIntVector3(0, 0, 0))
+		, PackedDataAFormat(PF_Unknown)
 		, Version(kVersion)
 	{
 	}
 };
 
+// Describes how the grids of a source asset map to the components of a float4 of packed data in a SVT
+struct ENGINE_API FSparseVolumeRawSourcePackedData
+{
+	ESparseVolumePackedDataFormat Format;
+	FUintVector4 SourceGridIndex;
+	FUintVector4 SourceComponentIndex; // [0-3]
+	bool bRescaleInputForUnorm; // Just clamps to the [0-1] range if this is false
+};
+
 // The structure represent the source asset in high quality. It is used to cook the runtime data
 struct ENGINE_API FSparseVolumeRawSource
 {
-	uint32						DensityGridIndex;
-	TArray<uint8>				SourceAssetFile;
+	FSparseVolumeRawSourcePackedData PackedDataA;
+	TArray<uint8> SourceAssetFile;
 
 	// The current data format version for the raw source data.
 	static const uint32 kVersion = 0;
@@ -67,8 +85,7 @@ struct ENGINE_API FSparseVolumeRawSource
 	void Serialize(FArchive& Ar);
 
 	FSparseVolumeRawSource()
-		: DensityGridIndex()
-		, Version(kVersion)
+		: Version(kVersion)
 	{
 	}
 };

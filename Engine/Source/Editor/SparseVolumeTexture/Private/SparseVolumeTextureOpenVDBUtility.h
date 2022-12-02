@@ -19,14 +19,16 @@ struct FOpenVDBData
 enum class EOpenVDBGridFormat : uint8
 {
 	Float = 0,
+	Double = 1,
 };
 
 struct FOpenVDBGridInfo
 {
 	uint32 Index;
+	uint32 ComponentIndex;
 	EOpenVDBGridFormat Format;
 	FString Name;
-	FString DisplayString; // Contains both Name and Format
+	FString DisplayString; // Contains Name and Format and component in source grid
 };
 
 bool IsOpenVDBDataValid(FOpenVDBData& OpenVDBData, const FString& Filename);
@@ -37,7 +39,7 @@ bool GetOpenVDBGridInfo(TArray<uint8>& SourceFile, const FString& Filename, TArr
 
 bool ConvertOpenVDBToSparseVolumeTexture(
 	TArray<uint8>& SourceFile,
-	uint32 GridIndex,
+	struct FSparseVolumeRawSourcePackedData& PackedData,
 	struct FSparseVolumeAssetHeader* OutHeader,
 	TArray<uint32>* OutDensityPage,
 	TArray<uint8>* OutDensityData,
