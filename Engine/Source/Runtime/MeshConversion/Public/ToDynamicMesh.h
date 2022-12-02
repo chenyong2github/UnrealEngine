@@ -303,6 +303,11 @@ public:
 *		const TArray<ColorIDType>& GetColorIDs() const;
 *		FVector4f GetColor(ColorIDType ID) const;
 *		bool GetColorTri(const TriIDType& TID, ColorIDType& NID0, ColorIDType& NID1, ColorIDType& NID2) const;
+* 
+*       // weight maps information
+*	    int32 NumWeightMapLayers() const;
+*       float GetVertexWeight(int32 WeightMapIndex, int32 SrcVertID) const;
+*	    FName GetWeightMapName(int32 WeightMapIndex) const;
 *	};
 *
 */
