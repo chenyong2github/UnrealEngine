@@ -12,9 +12,11 @@
 #include "Engine/SkeletalMesh.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/SkinnedMeshComponent.h"
 #include "Components/BrushComponent.h"
 #include "Components/DynamicMeshComponent.h"
 #include "ConversionUtils/VolumeToDynamicMesh.h"
+#include "ConversionUtils/SkinnedMeshToDynamicMesh.h"
 #include "Physics/ComponentCollisionUtil.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SceneUtilityFunctions)
@@ -40,7 +42,35 @@ UDynamicMesh* UGeometryScriptLibrary_SceneUtilityFunctions::CopyMeshFromComponen
 {
 	Outcome = EGeometryScriptOutcomePins::Failure;
 
-	if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component))
+	if (USkinnedMeshComponent* SkinnedMeshComponent = Cast<USkinnedMeshComponent>(Component))
+	{
+		LocalToWorld = SkinnedMeshComponent->GetComponentTransform();
+
+		const int32 NumLODs = SkinnedMeshComponent->GetNumLODs();
+		const int32 RequestedLOD = Options.RequestedLOD.LODIndex;
+		if (RequestedLOD < 0 || RequestedLOD > NumLODs - 1)
+		{
+			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyMeshFromComponent_MissingSkinnedMeshComponentLOD", "CopyMeshFromComponent: SkinnedMeshComponent requested LOD does not exist"));
+		}
+		else
+		{ 
+			USkinnedAsset* SkinnedAsset = SkinnedMeshComponent->GetSkinnedAsset();
+			if (SkinnedAsset)
+			{
+				FDynamicMesh3 NewMesh;
+				UE::Conversion::SkinnedMeshComponentToDynamicMesh(*SkinnedMeshComponent, NewMesh, RequestedLOD, Options.bWantTangents);
+				NewMesh.DiscardTriangleGroups();
+				ToDynamicMesh->SetMesh(MoveTemp(NewMesh));
+				Outcome = EGeometryScriptOutcomePins::Success;
+			}
+			else
+			{
+				UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CopyMeshFromComponent_MissingSkinnedAsset", "CopyMeshFromComponent: SkinnedMeshComponent has a null SkinnedAsset"));
+			}
+		}
+
+	}
+	else if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component))
 	{
 		LocalToWorld = StaticMeshComponent->GetComponentTransform();
 		UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
