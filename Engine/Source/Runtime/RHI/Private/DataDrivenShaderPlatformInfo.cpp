@@ -362,8 +362,19 @@ void FGenericDataDrivenShaderPlatformInfo::UpdatePreviewPlatforms()
 				Infos[ShaderPlatform].bSupportsLumenGI &= Infos[EditorSPForPreviewMaxFeatureLevel].bSupportsLumenGI;
 				Infos[ShaderPlatform].bSupportsUInt64ImageAtomics &= Infos[EditorSPForPreviewMaxFeatureLevel].bSupportsUInt64ImageAtomics;
 				Infos[ShaderPlatform].bSupportsGen5TemporalAA &= Infos[EditorSPForPreviewMaxFeatureLevel].bSupportsGen5TemporalAA;
+				// Support for stereo features requires extra consideration. The editor may not use the same technique as the preview platform,
+				// particularly MobileMultiView may be substituted by a fallback path. In order to avoid inundating real mobile platforms
+				// with the properties needed for the desktop MMV fallback path, override them here with the editor ones to make MMV preview possible
+				if (Infos[ShaderPlatform].bSupportsMobileMultiView && !Infos[EditorSPForPreviewMaxFeatureLevel].bSupportsMobileMultiView)
+				{
+					Infos[ShaderPlatform].bSupportsInstancedStereo = Infos[EditorSPForPreviewMaxFeatureLevel].bSupportsInstancedStereo;
+					Infos[ShaderPlatform].bSupportsVertexShaderLayer = Infos[EditorSPForPreviewMaxFeatureLevel].bSupportsVertexShaderLayer;
+				}
+				else
+				{
+					Infos[ShaderPlatform].bSupportsInstancedStereo &= Infos[EditorSPForPreviewMaxFeatureLevel].bSupportsInstancedStereo;
+				}
 				Infos[ShaderPlatform].bSupportsMobileMultiView &= Infos[EditorSPForPreviewMaxFeatureLevel].bSupportsMobileMultiView;
-				Infos[ShaderPlatform].bSupportsInstancedStereo &= Infos[EditorSPForPreviewMaxFeatureLevel].bSupportsInstancedStereo;
 				Infos[ShaderPlatform].bSupportsManualVertexFetch &= Infos[EditorSPForPreviewMaxFeatureLevel].bSupportsManualVertexFetch;
 				Infos[ShaderPlatform].bSupportsRenderTargetWriteMask = false;
 				Infos[ShaderPlatform].bSupportsIntrinsicWaveOnce = false;

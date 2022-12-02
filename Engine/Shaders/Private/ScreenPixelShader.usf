@@ -6,7 +6,23 @@
 
 #include "Common.ush"
 
-Texture2D InTexture;
+#ifndef SCREEN_PS_FROM_SLICE0
+	#define SCREEN_PS_FROM_SLICE0   0
+#endif
+
+#if SCREEN_PS_FROM_SLICE0
+	Texture2DArray InTexture;
+
+	// if source is an array, we only need the first slice
+	#define TexOrArr2DSample(Tex, S, UV)			Tex.Sample(S, float3(UV.x, UV.y, 0))
+	#define TexOrArr2DSampleLevel(Tex, S, UV, L)	Tex.SampleLevel(S, float3(UV.x, UV.y, 0), L)
+#else
+	Texture2D InTexture;
+
+	#define TexOrArr2DSample(Tex, S, UV)			Texture2DSample(Tex, S, UV)
+	#define TexOrArr2DSampleLevel(Tex, S, UV, L)	Texture2DSampleLevel(Tex, S, UV, L)
+#endif
+
 SamplerState InTextureSampler;
 int MipLevel;
 
@@ -15,7 +31,7 @@ void Main(
 	out float4 OutColor : SV_Target0
 	)
 {
-	OutColor = Texture2DSample(InTexture, InTextureSampler, Input.UV);
+	OutColor = TexOrArr2DSample(InTexture, InTextureSampler, Input.UV);
 }
 
 void MainInvertAlpha(
@@ -23,7 +39,7 @@ void MainInvertAlpha(
 	out float4 OutColor : SV_Target0
 	)
 {
-	OutColor = Texture2DSample(InTexture, InTextureSampler, Input.UV);
+	OutColor = TexOrArr2DSample(InTexture, InTextureSampler, Input.UV);
 	OutColor.a = 1.f - OutColor.a;
 }
 
@@ -32,7 +48,7 @@ void MainsRGBSource(
 	out float4 OutColor : SV_Target0
 	)
 {
-	OutColor = Texture2DSample(InTexture, InTextureSampler, Input.UV);
+	OutColor = TexOrArr2DSample(InTexture, InTextureSampler, Input.UV);
 	OutColor.rgb = pow( OutColor.rgb, 1.0f / 2.2f );
 }
 
@@ -41,7 +57,7 @@ void MainMipLevel(
 	out float4 OutColor : SV_Target0
 	)
 {
-	OutColor = Texture2DSampleLevel(InTexture, InTextureSampler, Input.UV, MipLevel);
+	OutColor = TexOrArr2DSampleLevel(InTexture, InTextureSampler, Input.UV, MipLevel);
 }
 
 void MainsRGBSourceMipLevel(
@@ -49,6 +65,6 @@ void MainsRGBSourceMipLevel(
 	out float4 OutColor : SV_Target0
 	)
 {
-	OutColor = Texture2DSampleLevel(InTexture, InTextureSampler, Input.UV, MipLevel);
+	OutColor = TexOrArr2DSampleLevel(InTexture, InTextureSampler, Input.UV, MipLevel);
 	OutColor.rgb = pow( OutColor.rgb, 1.0f / 2.2f );
 }

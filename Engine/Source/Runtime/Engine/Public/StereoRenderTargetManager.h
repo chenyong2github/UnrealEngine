@@ -11,6 +11,7 @@ StereoRenderTargetManager.h: Abstract interface returned from IStereoRendering t
 
 class FRHITexture;
 enum class ETextureCreateFlags : uint64;
+enum EShaderPlatform : uint16;
 typedef TRefCountPtr<FRHITexture> FTexture2DRHIRef;
 
 /** 
@@ -104,6 +105,13 @@ public:
 	 * @return							true, if HDR information is available for the stereo device
 	 */
 	virtual bool HDRGetMetaDataForStereo(EDisplayOutputFormat& OutDisplayOutputFormat, EDisplayColorGamut& OutDisplayColorGamut, bool& OutbHDRSupported) { return false; }
+
+	/**
+	 * In the editor, we may switch between preview shader platforms, which support various single-pass rendering methods
+	 * (e.g. InstancedStereo or MobileMultiView). Sometimes RT managers have their own state that depends on the method, so this
+	 * API provides them with the possibility to reconfigure it
+	 */
+	virtual bool ReconfigureForShaderPlatform(EShaderPlatform NewShaderPlatform) { return false; };
 
 	static EPixelFormat GetStereoLayerPixelFormat() { return PF_B8G8R8A8; }
 };

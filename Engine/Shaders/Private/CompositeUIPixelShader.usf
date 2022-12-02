@@ -84,10 +84,25 @@ void GenerateLUTPS(
 Texture2D<uint> UIWriteMaskTexture;
 #endif
 
+#ifndef DISPLAY_MAPPING_PS_FROM_ARRAY
+	#define DISPLAY_MAPPING_PS_FROM_ARRAY 0
+#endif // DISPLAY_MAPPING_PS_FROM_ARRAY
+
+#if DISPLAY_MAPPING_PS_FROM_ARRAY
+	// if source is an array, we only need the first slice
+	#define TextureOrArray2D						Texture2DArray
+	#define TexOrArr2DSample(Tex, S, UV)			Tex.Sample(S, float3(UV.x, UV.y, 0))
+	#define TexOrArr2DSampleLevel(Tex, S, UV, L)	Tex.SampleLevel(S, float3(UV.x, UV.y, 0), L)
+#else
+	#define TextureOrArray2D						Texture2D
+	#define TexOrArr2DSample(Tex, S, UV)			Texture2DSample(Tex, S, UV)
+	#define TexOrArr2DSampleLevel(Tex, S, UV, L)	Texture2DSampleLevel(Tex, S, UV, L)
+#endif
+
 Texture2D UITexture;
 SamplerState UISampler;
 
-Texture2D SceneTexture;
+TextureOrArray2D SceneTexture;
 SamplerState SceneSampler;
 
 Texture3D ColorSpaceLUT;
@@ -127,7 +142,7 @@ void HDRBackBufferConvertPS(
 	)
 {
 	OutColor = 0;
-	float3 SceneColor = Texture2DSample(SceneTexture, SceneSampler, Input.UV).xyz ;
+	float3 SceneColor = TexOrArr2DSample(SceneTexture, SceneSampler, Input.UV).xyz ;
 	SceneColor = ST2084ToLinear( SceneColor ) / ScRGBScaleFactor; 
 	OutColor.rgb = SceneColor;
 }
@@ -140,7 +155,7 @@ void HDREditorConvert(
 	)
 {
 	OutColor = 0;
-	float3 SceneColor = Texture2DSample(SceneTexture, SceneSampler, Input.UV).xyz ;
+	float3 SceneColor = TexOrArr2DSample(SceneTexture, SceneSampler, Input.UV).xyz ;
 
 	// Get color into Rec2020 space
 	SceneColor = sRGBToLinear( SceneColor) ;
@@ -252,7 +267,7 @@ void Main(
 	}
 #endif
 
-	float3 SceneColor = Texture2DSample(SceneTexture, SceneSampler, Input.UV).xyz;
+	float3 SceneColor = TexOrArr2DSample(SceneTexture, SceneSampler, Input.UV).xyz;
 	SceneColor = ComputeHDRSceneColor(SceneColor);
 	OutColor.xyz = ComposeUIAndScene(SceneColor.xyz, UIColor, UILevel);
 
@@ -336,7 +351,7 @@ void DisplayMappingPS(
 	out float4 OutColor : SV_Target0
 	)
 {
-	const float4 SceneColor = Texture2DSampleLevel(SceneTexture, SceneSampler, Input.UV, 0) ;
+	const float4 SceneColor = TexOrArr2DSampleLevel(SceneTexture, SceneSampler, Input.UV, 0);
 	OutColor = SceneColor;
 
 	float3 LinearSceneColor = pow(SceneColor.rgb, 2.2);
@@ -374,7 +389,7 @@ void BlitUIToHDRPS(
 	}
 #endif
 
-	float3 SceneColor = Texture2DSample(SceneTexture, UISampler, Input.UV).xyz;
+	float3 SceneColor = TexOrArr2DSample(SceneTexture, UISampler, Input.UV).xyz;
 	SceneColor = ComputeHDRSceneColor(SceneColor);
 	OutColor.xyz = ComposeUIAndScene(SceneColor.xyz, UIColor, UILevel) / ScRGBScaleFactor;
 	OutColor.a = 1;

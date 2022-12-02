@@ -4797,7 +4797,7 @@ void FRendererModule::RenderPostOpaqueExtensions(
 			RenderParameters.ColorTexture = SceneTextures.Color.Target;
 			RenderParameters.DepthTexture = SceneTextures.Depth.Target;
 			RenderParameters.NormalTexture = SceneTextures.GBufferA;
-			RenderParameters.VelocityTexture = SceneTextures.Velocity;
+			RenderParameters.VelocityTexture = SceneTextures.Velocity.Target;
 			RenderParameters.SmallDepthTexture = SceneTextures.SmallDepth;
 			RenderParameters.ViewUniformBuffer = View.ViewUniformBuffer;
 			RenderParameters.SceneTexturesUniformParams = SceneTextures.UniformBuffer;
@@ -5229,6 +5229,33 @@ BEGIN_SHADER_PARAMETER_STRUCT(FResolveSceneColorParameters, )
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
+namespace
+{
+	template<typename ShaderType>
+	void TSetColorResolveShader(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, const FViewInfo& View, bool bArrayResolve, FRHITexture* SceneColorTargetableRHI)
+	{
+		TShaderMapRef<ShaderType> ShaderRef(View.ShaderMap);
+		FRHIPixelShader* Shader = ShaderRef.GetPixelShader();
+		check(Shader);
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = Shader;
+		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
+		ShaderRef->SetParameters(RHICmdList, SceneColorTargetableRHI);
+	}
+
+	template<typename ShaderType, typename ShaderArrayType>
+	void TChooseColorResolveShader(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, const FViewInfo& View, bool bArrayResolve, FRHITexture* SceneColorTargetableRHI)
+	{
+		if (UNLIKELY(bArrayResolve))
+		{
+			TSetColorResolveShader<ShaderArrayType>(RHICmdList, GraphicsPSOInit, View, bArrayResolve, SceneColorTargetableRHI);
+		}
+		else
+		{
+			TSetColorResolveShader<ShaderType>(RHICmdList, GraphicsPSOInit, View, bArrayResolve, SceneColorTargetableRHI);
+		}
+	}
+}
+
 void AddResolveSceneColorPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureMSAA SceneColor)
 {
 	check(SceneColor.IsValid());
@@ -5299,13 +5326,18 @@ void AddResolveSceneColorPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 		}
 		else
 		{
+			bool bArrayResolve = SceneColorTargetableRHI->GetDesc().IsTextureArray();
+
 			TShaderMapRef<FHdrCustomResolveVS> VertexShader(View.ShaderMap);
+			TShaderMapRef<FHdrCustomResolveArrayVS> VertexArrayShader(View.ShaderMap);
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = bArrayResolve ? VertexArrayShader.GetVertexShader() : VertexShader.GetVertexShader();
 			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 			if (SceneColorFMaskRHI)
 			{
+				checkf(!bArrayResolve, TEXT("Array MSAA resolve is not supported for the FMask path"));
+
 				if (NumSamples == 2)
 				{
 					TShaderMapRef<FHdrCustomResolveFMask2xPS> PixelShader(View.ShaderMap);
@@ -5340,27 +5372,15 @@ void AddResolveSceneColorPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 			{
 				if (NumSamples == 2)
 				{
-					TShaderMapRef<FHdrCustomResolve2xPS> PixelShader(View.ShaderMap);
-					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-
-					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
-					PixelShader->SetParameters(RHICmdList, SceneColorTargetableRHI);
+					TChooseColorResolveShader<FHdrCustomResolve2xPS, FHdrCustomResolveArray2xPS>(RHICmdList, GraphicsPSOInit, View, bArrayResolve, SceneColorTargetableRHI);
 				}
 				else if (NumSamples == 4)
 				{
-					TShaderMapRef<FHdrCustomResolve4xPS> PixelShader(View.ShaderMap);
-					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-
-					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
-					PixelShader->SetParameters(RHICmdList, SceneColorTargetableRHI);
+					TChooseColorResolveShader<FHdrCustomResolve4xPS, FHdrCustomResolveArray4xPS>(RHICmdList, GraphicsPSOInit, View, bArrayResolve, SceneColorTargetableRHI);
 				}
 				else if (NumSamples == 8)
 				{
-					TShaderMapRef<FHdrCustomResolve8xPS> PixelShader(View.ShaderMap);
-					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-
-					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
-					PixelShader->SetParameters(RHICmdList, SceneColorTargetableRHI);
+					TChooseColorResolveShader<FHdrCustomResolve8xPS, FHdrCustomResolveArray8xPS>(RHICmdList, GraphicsPSOInit, View, bArrayResolve, SceneColorTargetableRHI);
 				}
 				else
 				{
@@ -5393,6 +5413,17 @@ BEGIN_SHADER_PARAMETER_STRUCT(FResolveSceneDepthParameters, )
 	RDG_TEXTURE_ACCESS(SceneDepth, ERHIAccess::SRVGraphics)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
+
+namespace
+{
+	template<typename ShaderType>
+	FRHIPixelShader* GetDepthResolveShader(const FViewInfo& View, int32& OutTextureIndex)
+	{
+		TShaderMapRef<ShaderType> ShaderRef(View.ShaderMap);
+		OutTextureIndex = ShaderRef->UnresolvedSurface.GetBaseIndex();
+		return ShaderRef.GetPixelShader();
+	};
+}
 
 void AddResolveSceneDepthPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureMSAA SceneDepth)
 {
@@ -5439,37 +5470,53 @@ void AddResolveSceneDepthPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 
 		RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, DepthExtent.X, DepthExtent.Y, 1.0f);
 
-		TShaderMapRef<FResolveVS> ResolveVertexShader(View.ShaderMap);
-		TShaderMapRef<FResolveDepthPS> ResolvePixelShaderAny(View.ShaderMap);
-		TShaderMapRef<FResolveDepth2XPS> ResolvePixelShader2X(View.ShaderMap);
-		TShaderMapRef<FResolveDepth4XPS> ResolvePixelShader4X(View.ShaderMap);
-		TShaderMapRef<FResolveDepth8XPS> ResolvePixelShader8X(View.ShaderMap);
+		bool bArrayResolve = SourceTextureRHI->GetDesc().IsTextureArray();
+		ensureMsgf(!bArrayResolve || RHISupportsVertexShaderLayer(View.GetShaderPlatform()) && GRHISupportsArrayIndexFromAnyShader,
+			TEXT("Resolving scene depth array requires support for outputting SV_RenderTargetArrayIndex from any shader."));
 
-		int32 TextureIndex = -1;
-		FRHIPixelShader* ResolvePixelShader;
-		switch (NumSamples)
+		/** Chooses one of many ResolvePS variants */
+		auto ChoosePixelShader = [](const FViewInfo& View, bool bIsArrayResolve, int32 NumSamples, int32& OutTextureIndex) -> FRHIPixelShader*
 		{
-		case 2:
-			TextureIndex = ResolvePixelShader2X->UnresolvedSurface.GetBaseIndex();
-			ResolvePixelShader = ResolvePixelShader2X.GetPixelShader();
-			break;
-		case 4:
-			TextureIndex = ResolvePixelShader4X->UnresolvedSurface.GetBaseIndex();
-			ResolvePixelShader = ResolvePixelShader4X.GetPixelShader();
-			break;
-		case 8:
-			TextureIndex = ResolvePixelShader8X->UnresolvedSurface.GetBaseIndex();
-			ResolvePixelShader = ResolvePixelShader8X.GetPixelShader();
-			break;
-		default:
-			ensureMsgf(false, TEXT("Unsupported depth resolve for samples: %i.  Dynamic loop method isn't supported on all platforms.  Please add specific case."), NumSamples);
-			TextureIndex = ResolvePixelShaderAny->UnresolvedSurface.GetBaseIndex();
-			ResolvePixelShader = ResolvePixelShaderAny.GetPixelShader();
-			break;
-		}
+			if (LIKELY(!bIsArrayResolve))
+			{
+				switch (NumSamples)
+				{
+					case 2:
+						return GetDepthResolveShader<FResolveDepth2XPS>(View, OutTextureIndex);
+					case 4:
+						return GetDepthResolveShader<FResolveDepth4XPS>(View, OutTextureIndex);
+					case 8:
+						return GetDepthResolveShader<FResolveDepth8XPS>(View, OutTextureIndex);
+					default:
+						ensureMsgf(false, TEXT("Unsupported depth resolve for samples: %i.  Dynamic loop method isn't supported on all platforms.  Please add specific case."), NumSamples);
+						return GetDepthResolveShader<FResolveDepthPS>(View, OutTextureIndex);
+				}
+			}
+			else
+			{
+				switch (NumSamples)
+				{
+					case 2:
+						return GetDepthResolveShader<FResolveDepthArray2XPS>(View, OutTextureIndex);
+					case 4:
+						return GetDepthResolveShader<FResolveDepthArray4XPS>(View, OutTextureIndex);
+					case 8:
+						return GetDepthResolveShader<FResolveDepthArray8XPS>(View, OutTextureIndex);
+					default:
+						ensureMsgf(false, TEXT("Unsupported depth resolve for samples: %i (texture array case).  Dynamic loop method isn't supported on all platforms.  Please add specific case."), NumSamples);
+						return GetDepthResolveShader<FResolveDepthPS>(View, OutTextureIndex);
+				}
+			}
+			// unreachable
+		};
+
+		TShaderMapRef<FResolveVS> ResolveVertexShader(View.ShaderMap);
+		TShaderMapRef<FResolveArrayVS> ResolveArrayVertexShader(View.ShaderMap);
+		int32 TextureIndex = -1;
+		FRHIPixelShader* ResolvePixelShader = ChoosePixelShader(View, bArrayResolve, NumSamples, TextureIndex);
 
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GEmptyVertexDeclaration.VertexDeclarationRHI;
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = ResolveVertexShader.GetVertexShader();
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = bArrayResolve ? ResolveArrayVertexShader.GetVertexShader() : ResolveVertexShader.GetVertexShader();
 		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ResolvePixelShader;
 		GraphicsPSOInit.PrimitiveType = PT_TriangleStrip;
 
@@ -5480,7 +5527,7 @@ void AddResolveSceneDepthPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 		ResolveVertexShader->SetParameters(RHICmdList, ResolveRect, ResolveRect, DepthExtent.X, DepthExtent.Y);
 
 		RHICmdList.SetStreamSource(0, nullptr, 0);
-		RHICmdList.DrawPrimitive(0, 2, 1);
+		RHICmdList.DrawPrimitive(0, 2, bArrayResolve ? 2 : 1);
 	});
 }
 

@@ -32,7 +32,7 @@ public:
 	}
 		
 	FResolveDepthPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
-	FGlobalShader(Initializer)
+		FGlobalShader(Initializer)
 	{
 		UnresolvedSurface.Bind(Initializer.ParameterMap,TEXT("UnresolvedSurface"), SPF_Mandatory);
 	}
@@ -45,7 +45,7 @@ public:
 	LAYOUT_FIELD(FShaderResourceParameter, UnresolvedSurface);
 };
 
-class FResolveDepth2XPS : public FGlobalShader
+class FResolveDepth2XPS : public FResolveDepthPS
 {
 	DECLARE_EXPORTED_SHADER_TYPE(FResolveDepth2XPS, Global, RENDERCORE_API);
 public:
@@ -54,26 +54,18 @@ public:
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FResolveDepthPS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("DEPTH_RESOLVE_NUM_SAMPLES"), 2);
 	}
 
 	FResolveDepth2XPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
-		FGlobalShader(Initializer)
+		FResolveDepthPS(Initializer)
 	{
-		UnresolvedSurface.Bind(Initializer.ParameterMap, TEXT("UnresolvedSurface"), SPF_Mandatory);
 	}
 	FResolveDepth2XPS() {}
-
-	void SetParameters(FRHICommandList& RHICmdList, FParameter)
-	{
-	}
-
-	LAYOUT_FIELD(FShaderResourceParameter, UnresolvedSurface);
 };
 
-
-class FResolveDepth4XPS : public FGlobalShader
+class FResolveDepth4XPS : public FResolveDepthPS
 {
 	DECLARE_EXPORTED_SHADER_TYPE(FResolveDepth4XPS, Global, RENDERCORE_API);
 public:
@@ -82,26 +74,19 @@ public:
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FResolveDepthPS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("DEPTH_RESOLVE_NUM_SAMPLES"), 4);
 	}
 
 	FResolveDepth4XPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
-		FGlobalShader(Initializer)
+		FResolveDepthPS(Initializer)
 	{
-		UnresolvedSurface.Bind(Initializer.ParameterMap, TEXT("UnresolvedSurface"), SPF_Mandatory);
 	}
 	FResolveDepth4XPS() {}
-
-	void SetParameters(FRHICommandList& RHICmdList, FParameter)
-	{
-	}
-
-	LAYOUT_FIELD(FShaderResourceParameter, UnresolvedSurface);
 };
 
 
-class FResolveDepth8XPS : public FGlobalShader
+class FResolveDepth8XPS : public FResolveDepthPS
 {
 	DECLARE_EXPORTED_SHADER_TYPE(FResolveDepth8XPS, Global, RENDERCORE_API);
 public:
@@ -112,22 +97,98 @@ public:
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FResolveDepthPS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("DEPTH_RESOLVE_NUM_SAMPLES"), 8);
 	}
 
 	FResolveDepth8XPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
-		FGlobalShader(Initializer)
+		FResolveDepthPS(Initializer)
 	{
-		UnresolvedSurface.Bind(Initializer.ParameterMap, TEXT("UnresolvedSurface"), SPF_Mandatory);
 	}
 	FResolveDepth8XPS() {}
+};
 
-	void SetParameters(FRHICommandList& RHICmdList, FParameter)
+class FResolveDepthArrayPS : public FResolveDepthPS
+{
+	DECLARE_EXPORTED_SHADER_TYPE(FResolveDepthArrayPS, Global, RENDERCORE_API);
+public:
+
+	typedef FDummyResolveParameter FParameter;
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
+		FResolveDepthPS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("DEPTH_RESOLVE_TEXTUREARRAY"), 1);
 	}
 
-	LAYOUT_FIELD(FShaderResourceParameter, UnresolvedSurface);
+	FResolveDepthArrayPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
+		FResolveDepthPS(Initializer)
+	{
+	}
+	FResolveDepthArrayPS() {}
+};
+
+class FResolveDepthArray2XPS : public FResolveDepthArrayPS
+{
+	DECLARE_EXPORTED_SHADER_TYPE(FResolveDepthArray2XPS, Global, RENDERCORE_API);
+public:
+
+	typedef FDummyResolveParameter FParameter;
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FResolveDepthArrayPS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("DEPTH_RESOLVE_NUM_SAMPLES"), 2);
+	}
+
+	FResolveDepthArray2XPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
+		FResolveDepthArrayPS(Initializer)
+	{
+	}
+	FResolveDepthArray2XPS() {}
+};
+
+class FResolveDepthArray4XPS : public FResolveDepthArrayPS
+{
+	DECLARE_EXPORTED_SHADER_TYPE(FResolveDepthArray4XPS, Global, RENDERCORE_API);
+public:
+
+	typedef FDummyResolveParameter FParameter;
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FResolveDepthArrayPS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("DEPTH_RESOLVE_NUM_SAMPLES"), 4);
+	}
+
+	FResolveDepthArray4XPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
+		FResolveDepthArrayPS(Initializer)
+	{
+	}
+	FResolveDepthArray4XPS() {}
+};
+
+
+class FResolveDepthArray8XPS : public FResolveDepthArrayPS
+{
+	DECLARE_EXPORTED_SHADER_TYPE(FResolveDepthArray8XPS, Global, RENDERCORE_API);
+public:
+
+	typedef FDummyResolveParameter FParameter;
+
+	static bool ShouldCache(EShaderPlatform Platform) { return GetMaxSupportedFeatureLevel(Platform) >= ERHIFeatureLevel::SM5; }
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FResolveDepthArrayPS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("DEPTH_RESOLVE_NUM_SAMPLES"), 8);
+	}
+
+	FResolveDepthArray8XPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
+		FResolveDepthArrayPS(Initializer)
+	{
+	}
+	FResolveDepthArray8XPS() {}
 };
 
 class FResolveSingleSamplePS : public FGlobalShader
@@ -143,7 +204,7 @@ public:
 	}
 	
 	FResolveSingleSamplePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
-	FGlobalShader(Initializer)
+		FGlobalShader(Initializer)
 	{
 		UnresolvedSurface.Bind(Initializer.ParameterMap,TEXT("UnresolvedSurface"), SPF_Mandatory);
 		SingleSampleIndex.Bind(Initializer.ParameterMap,TEXT("SingleSampleIndex"), SPF_Mandatory);
@@ -178,4 +239,29 @@ public:
 
 	LAYOUT_FIELD(FShaderParameter, PositionMinMax);
 	LAYOUT_FIELD(FShaderParameter, UVMinMax);
+};
+
+class FResolveArrayVS : public FResolveVS
+{
+	DECLARE_EXPORTED_SHADER_TYPE(FResolveArrayVS, Global, RENDERCORE_API);
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return true; }
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FResolveVS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("DEPTH_RESOLVE_TEXTUREARRAY"), 1);
+	}
+
+	FResolveArrayVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FResolveVS(Initializer)
+	{
+	}
+	FResolveArrayVS() {}
+
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, const FResolveRect& SrcBounds, const FResolveRect& DstBounds, uint32 DstSurfaceWidth, uint32 DstSurfaceHeight)
+	{
+		return FResolveVS::SetParameters(RHICmdList, SrcBounds, DstBounds, DstSurfaceWidth, DstSurfaceHeight);
+	}
 };

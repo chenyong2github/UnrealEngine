@@ -90,6 +90,39 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, InTextureSampler);
 };
 
+/**
+ * A pixel shader for rendering a textured screen element, taking only the first slice of the array
+ */
+class FScreenFromSlice0PS : public FScreenPS
+{
+	DECLARE_EXPORTED_SHADER_TYPE(FScreenFromSlice0PS, Global, ENGINE_API);
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return true; }
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FScreenPS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("SCREEN_PS_FROM_SLICE0"), 1);
+	}
+
+	FScreenFromSlice0PS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
+		FScreenPS(Initializer)
+	{
+	}
+	FScreenFromSlice0PS() {}
+
+	void SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture)
+	{
+		FScreenPS::SetParameters(RHICmdList, Texture);
+	}
+
+	void SetParameters(FRHICommandList& RHICmdList, FRHISamplerState* SamplerStateRHI, FRHITexture* TextureRHI)
+	{
+		FScreenPS::SetParameters(RHICmdList, SamplerStateRHI, TextureRHI);
+	}
+};
+
 
 /**
  * A pixel shader for rendering a textured screen element.

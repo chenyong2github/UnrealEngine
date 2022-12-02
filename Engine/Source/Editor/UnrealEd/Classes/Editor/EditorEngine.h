@@ -3181,6 +3181,9 @@ private:
 	/** Gets the init values for worlds opened via Map_Load in the editor */
 	UWorld::InitializationValues GetEditorWorldInitializationValues() const;
 
+	/** Logic that needs to run on change of effective shader platform (can happen via both SetPreviewPlatform and ToggleFeatureLevelPreview). */
+	void OnEffectivePreviewShaderPlatformChange();
+
 public:
 	// Launcher Worker
 	TSharedPtr<class ILauncherWorker> LauncherWorker;

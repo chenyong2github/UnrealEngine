@@ -34,6 +34,7 @@
 #include "HDRHelper.h"
 #include "Shader.h"
 #include "ScreenRendering.h"
+#include "StereoRenderUtils.h"
 #include "DefaultStereoLayers.h"
 
 #if WITH_EDITOR
@@ -1223,18 +1224,7 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 
 	bSpaceAccellerationSupported = IsExtensionEnabled(XR_EPIC_SPACE_ACCELERATION_NAME);
 
-	static const auto CVarMobileMultiView = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView"));
-	static const auto CVarMobileHDR = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileHDR"));
-	const bool bMobileHDR = (CVarMobileHDR && CVarMobileHDR->GetValueOnAnyThread() != 0);
-	const bool bMobileMultiView = !bMobileHDR && (CVarMobileMultiView && CVarMobileMultiView->GetValueOnAnyThread() != 0);
-#if PLATFORM_HOLOLENS
-	bIsMobileMultiViewEnabled = bMobileMultiView && GRHISupportsArrayIndexFromAnyShader;
-#else
-	bIsMobileMultiViewEnabled = bMobileMultiView && RHISupportsMobileMultiView(GMaxRHIShaderPlatform);
-#endif
-
-	static const auto CVarPropagateAlpha = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.PostProcessing.PropagateAlpha"));
-	bProjectionLayerAlphaEnabled = !IsMobilePlatform(GMaxRHIShaderPlatform) && CVarPropagateAlpha->GetValueOnAnyThread() != 0;
+	ReconfigureForShaderPlatform(GMaxRHIShaderPlatform);
 
 	// Enumerate the viewport configurations
 	uint32 ConfigurationCount;
@@ -1337,6 +1327,17 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 FOpenXRHMD::~FOpenXRHMD()
 {
 	DestroySession();
+}
+
+bool FOpenXRHMD::ReconfigureForShaderPlatform(EShaderPlatform NewShaderPlatform)
+{
+	UE::StereoRenderUtils::FStereoShaderAspects Aspects(NewShaderPlatform);
+	bIsMobileMultiViewEnabled = Aspects.IsMobileMultiViewEnabled();
+
+	static const auto CVarPropagateAlpha = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.PostProcessing.PropagateAlpha"));
+	bProjectionLayerAlphaEnabled = !IsMobilePlatform(NewShaderPlatform) && CVarPropagateAlpha->GetValueOnAnyThread() != 0;
+
+	return true;
 }
 
 const FOpenXRHMD::FPipelinedFrameState& FOpenXRHMD::GetPipelinedFrameStateForThread() const
@@ -2076,7 +2077,8 @@ bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 
 	if (Format == PF_A2B10G10R10 && !RenderBridge->Support10BitSwapchain())
 	{
 		UE_LOG(LogHMD, Warning, TEXT("Requesting 10 bit swapchain, but not supported: fall back to 8bpc"));
-		Format = PF_R8G8B8A8;
+		// Match the default logic in GetDefaultMobileSceneColorLowPrecisionFormat() in SceneTexturesConfig.cpp
+		Format = IsStandaloneStereoOnlyDevice() ? PF_R8G8B8A8 : PF_B8G8R8A8;
 	}
 
 	FClearValueBinding ClearColor = FClearValueBinding::Transparent;
@@ -2101,12 +2103,12 @@ bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 
 	LastActualColorSwapchainFormat = ActualFormat;
 
 	// TODO: Pass in known depth parameters (format + flags)? Do we know that at viewport setup time?
-	AllocateDepthTextureInternal(Index, SizeX, SizeY, NumSamples);
+	AllocateDepthTextureInternal(Index, SizeX, SizeY, NumSamples, OutTargetableTexture->GetDesc().ArraySize);
 
 	return true;
 }
 
-void FOpenXRHMD::AllocateDepthTextureInternal(uint32 Index, uint32 SizeX, uint32 SizeY, uint32 NumSamples)
+void FOpenXRHMD::AllocateDepthTextureInternal(uint32 Index, uint32 SizeX, uint32 SizeY, uint32 NumSamples, uint32 InArraySize)
 {
 	// TODO: Allocate depth texture by checking bNeedReAllocatedDepth
 
@@ -2123,7 +2125,7 @@ void FOpenXRHMD::AllocateDepthTextureInternal(uint32 Index, uint32 SizeX, uint32
 	FXRSwapChainPtr& DepthSwapchain = PipelinedLayerStateRendering.DepthSwapchain;
 	const FRHITexture2D* const DepthSwapchainTexture = DepthSwapchain == nullptr ? nullptr : DepthSwapchain->GetTexture2DArray() ? DepthSwapchain->GetTexture2DArray() : DepthSwapchain->GetTexture2D();
 	if (DepthSwapchain == nullptr || DepthSwapchainTexture == nullptr || 
-		DepthSwapchainTexture->GetSizeX() != SizeX || DepthSwapchainTexture->GetSizeY() != SizeY)
+		DepthSwapchainTexture->GetSizeX() != SizeX || DepthSwapchainTexture->GetSizeY() != SizeY || DepthSwapchainTexture->GetDesc().ArraySize != InArraySize)
 	{
 		// We're only creating a 1x target here, but we don't know whether it'll be the targeted texture
 		// or the resolve texture. Because of this, we unify the input flags.
@@ -2140,7 +2142,7 @@ void FOpenXRHMD::AllocateDepthTextureInternal(uint32 Index, uint32 SizeX, uint32
 		constexpr uint32 NumMipsExpected = 1;
 
 		uint8 UnusedActualFormat = 0;
-		DepthSwapchain = RenderBridge->CreateSwapchain(Session, PF_DepthStencil, UnusedActualFormat, SizeX, SizeY, bIsMobileMultiViewEnabled ? 2 : 1, NumMipsExpected, NumSamplesExpected, UnifiedCreateFlags, FClearValueBinding::DepthFar);
+		DepthSwapchain = RenderBridge->CreateSwapchain(Session, PF_DepthStencil, UnusedActualFormat, SizeX, SizeY, InArraySize, NumMipsExpected, NumSamplesExpected, UnifiedCreateFlags, FClearValueBinding::DepthFar);
 		if (!DepthSwapchain)
 		{
 			return;
@@ -3015,8 +3017,9 @@ FIntPoint FOpenXRHMD::GetIdealRenderTargetSize() const
 FIntRect FOpenXRHMD::GetFullFlatEyeRect_RenderThread(FTexture2DRHIRef EyeTexture) const
 {
 	FVector2D SrcNormRectMin(0.05f, 0.2f);
-	FVector2D SrcNormRectMax(0.45f, 0.8f);
-	if (GetDesiredNumberOfViews(bStereoEnabled) > 2)
+	// with MMV, each eye occupies the whole RT layer, so we don't need to limit the source rect to the left half of the RT.
+	FVector2D SrcNormRectMax(bIsMobileMultiViewEnabled ? 0.95f : 0.45f, 0.8f);
+	if (!bIsMobileMultiViewEnabled && GetDesiredNumberOfViews(bStereoEnabled) > 2)
 	{
 		SrcNormRectMin.X /= 2;
 		SrcNormRectMax.X /= 2;
@@ -3029,6 +3032,9 @@ class FDisplayMappingPS : public FGlobalShader
 {
 	DECLARE_SHADER_TYPE(FDisplayMappingPS, Global);
 public:
+
+	class FArraySource : SHADER_PERMUTATION_BOOL("DISPLAY_MAPPING_PS_FROM_ARRAY");
+	using FPermutationDomain = TShaderPermutationDomain<FArraySource>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -3249,17 +3255,34 @@ void FOpenXRHMD::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, 
 
 		bNeedsDisplayMapping &= (GMaxRHIFeatureLevel > ERHIFeatureLevel::ES3_1);
 
+		bool bIsArraySource = SrcTexture->GetDesc().IsTextureArray();
+
 		if (bNeedsDisplayMapping)
 		{
-			TShaderMapRef<FDisplayMappingPS> DisplayMappingPSRef(ShaderMap);
+			FDisplayMappingPS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FDisplayMappingPS::FArraySource>(bIsArraySource);
+
+			TShaderMapRef<FDisplayMappingPS> DisplayMappingPSRef(ShaderMap, PermutationVector);
+
+			ensureMsgf(!bIsArraySource, TEXT("Stub implementation for array source exists, but this path is not fully supported because post-processing not working with MMV"));
+
 			DisplayMappingPS = DisplayMappingPSRef.GetShader();
 			PixelShader = DisplayMappingPSRef;
 		}
 		else
 		{
-			TShaderMapRef<FScreenPS> ScreenPSRef(ShaderMap);
-			ScreenPS = ScreenPSRef.GetShader();
-			PixelShader = ScreenPSRef;
+			if (LIKELY(!bIsArraySource))
+			{
+				TShaderMapRef<FScreenPS> ScreenPSRef(ShaderMap);
+				ScreenPS = ScreenPSRef.GetShader();
+				PixelShader = ScreenPSRef;
+			}
+			else
+			{
+				TShaderMapRef<FScreenFromSlice0PS> ScreenPSRef(ShaderMap);
+				ScreenPS = ScreenPSRef.GetShader();
+				PixelShader = ScreenPSRef;
+			}
 		}
 
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;

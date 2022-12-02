@@ -257,6 +257,7 @@
 #include "LevelEditorDragDropHandler.h"
 #include "IProjectExternalContentInterface.h"
 #include "IDocumentation.h"
+#include "StereoRenderTargetManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditor, Log, All);
 
@@ -7751,6 +7752,18 @@ void UEditorEngine::OnSceneMaterialsModified()
 {
 }
 
+void UEditorEngine::OnEffectivePreviewShaderPlatformChange()
+{
+	if (XRSystem.IsValid() && StereoRenderingDevice.IsValid())
+	{
+		IStereoRenderTargetManager* StereoRenderTargetManager = StereoRenderingDevice->GetRenderTargetManager();
+		if (StereoRenderTargetManager)
+		{
+			StereoRenderTargetManager->ReconfigureForShaderPlatform(PreviewPlatform.ShaderPlatform);
+		}
+	}
+}
+
 void UEditorEngine::SetPreviewPlatform(const FPreviewPlatformInfo& NewPreviewPlatform, bool bSaveSettings)
 {
 	// Get the requested preview platform, make sure it is valid.
@@ -7760,6 +7773,7 @@ void UEditorEngine::SetPreviewPlatform(const FPreviewPlatformInfo& NewPreviewPla
 	check(NewPreviewPlatform.PreviewShaderFormatName.IsNone() || MaxFeatureLevel == NewPreviewPlatform.PreviewFeatureLevel);
 
 	const bool bChangedPreviewShaderPlatform = NewPreviewPlatform.ShaderPlatform != PreviewPlatform.ShaderPlatform;
+	const bool bChangedEffectiveShaderPlatform = bChangedPreviewShaderPlatform && (PreviewPlatform.bPreviewFeatureLevelActive || NewPreviewPlatform.bPreviewFeatureLevelActive);
 	const ERHIFeatureLevel::Type EffectiveFeatureLevel = NewPreviewPlatform.GetEffectivePreviewFeatureLevel();
 
 	if (NewPreviewPlatform.PreviewShaderFormatName != NAME_None)
@@ -7778,6 +7792,11 @@ void UEditorEngine::SetPreviewPlatform(const FPreviewPlatformInfo& NewPreviewPla
 		MaterialShaderQualitySettings->SetPreviewPlatform(PreviewPlatform.PreviewShaderFormatName);
 
 		UStaticMesh::OnLodStrippingQualityLevelChanged(nullptr);
+
+		if (bChangedEffectiveShaderPlatform)
+		{
+			OnEffectivePreviewShaderPlatformChange();
+		}
 	}
 
 	constexpr bool bUpdateProgressDialog = true;
@@ -7889,7 +7908,7 @@ void UEditorEngine::ToggleFeatureLevelPreview()
 	}
 
 	Scalability::ApplyCachedQualityLevelForShaderPlatform(GetActiveShaderPlatform());
-
+	OnEffectivePreviewShaderPlatformChange();
 	PreviewPlatformChanged.Broadcast();
 
 	UStaticMesh::OnLodStrippingQualityLevelChanged(nullptr);
