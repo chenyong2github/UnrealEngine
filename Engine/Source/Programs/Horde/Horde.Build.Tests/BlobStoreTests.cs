@@ -58,7 +58,7 @@ namespace Horde.Build.Tests
 				int index;
 				if (!locatorToIndex.TryGetValue(locator, out index))
 				{
-					BundleImport import = new BundleImport(locator, new List<(int, IoHash)> { (0, IoHash.Zero) });
+					BundleImport import = new BundleImport(locator, new int[] { 0 });
 					imports.Add(import);
 					locatorToIndex.Add(locator, imports.Count - 1);
 				}
@@ -129,15 +129,15 @@ namespace Horde.Build.Tests
 			for(int idx = 0; idx < 2; idx++)
 			{
 				RefName refName = new RefName("hello");
-				await store.WriteRefTargetAsync(refName, new RefTarget(bundle3.Header.Exports[0].Hash, new NodeLocator(locator3, 0)));
-				RefTarget refTarget = await store.ReadRefTargetAsync(refName);
-				Assert.AreEqual(locator3, refTarget.Locator.Blob);
+				await store.WriteRefTargetAsync(refName, new NodeLocator(locator3, 0));
+				NodeLocator refTarget = await store.ReadRefTargetAsync(refName);
+				Assert.AreEqual(locator3, refTarget.Blob);
 			}
 
 			RefName refName2 = new RefName("hello2");
 
-			RefTarget refTargetId2 = await store.WriteRefAsync(refName2, CreateTestBundle(input3, new BlobLocator[] { locator1, locator2 }), 0);
-			Blob refTarget2 = await ReadBlobAsync(store, refTargetId2.Locator.Blob);
+			NodeLocator refTargetId2 = await store.WriteRefAsync(refName2, CreateTestBundle(input3, new BlobLocator[] { locator1, locator2 }), 0);
+			Blob refTarget2 = await ReadBlobAsync(store, refTargetId2.Blob);
 			Assert.IsTrue(refTarget2.Data.Span.SequenceEqual(input3));
 			Assert.IsTrue(refTarget2.References.SequenceEqual(new BlobLocator[] { locator1, locator2 }));
 		}
@@ -149,7 +149,7 @@ namespace Horde.Build.Tests
 
 			Bundle bundle1 = CreateTestBundle(new byte[] { 1, 2, 3 }, Array.Empty<BlobLocator>());
 			BlobLocator locator1 = await store.WriteBundleAsync(bundle1);
-			RefTarget target = new RefTarget(bundle1.Header.Exports[0].Hash, new NodeLocator(locator1, 0));
+			NodeLocator target = new NodeLocator(locator1, 0);
 
 			await store.WriteRefTargetAsync("test-ref-1", target);
 			await store.WriteRefTargetAsync("test-ref-2", target, new RefOptions { Lifetime = TimeSpan.FromMinutes(30.0), Extend = true });

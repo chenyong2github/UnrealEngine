@@ -55,11 +55,6 @@ namespace Horde.Build.Storage
 		public int ExportIdx { get; set; }
 
 		/// <summary>
-		/// Hash of the target node
-		/// </summary>
-		public IoHash Hash { get; set; }
-
-		/// <summary>
 		/// Options for the ref
 		/// </summary>
 		public RefOptions? Options { get; set; }
@@ -81,18 +76,12 @@ namespace Horde.Build.Storage
 		public int ExportIdx { get; set; }
 
 		/// <summary>
-		/// Hash of the target node
-		/// </summary>
-		public IoHash Hash { get; set; }
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ReadRefResponse(RefTarget target)
+		public ReadRefResponse(NodeLocator target)
 		{
-			Blob = target.Locator.Blob;
-			ExportIdx = target.Locator.ExportIdx;
-			Hash = target.Hash;
+			Blob = target.Blob;
+			ExportIdx = target.ExportIdx;
 		}
 	}
 
@@ -249,7 +238,7 @@ namespace Horde.Build.Storage
 			}
 
 			IStorageClient client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
-			RefTarget target = new RefTarget(request.Hash, new NodeLocator(request.Blob, request.ExportIdx));
+			NodeLocator target = new NodeLocator(request.Blob, request.ExportIdx);
 			await client.WriteRefTargetAsync(refName, target, request.Options, cancellationToken);
 
 			return Ok();
@@ -272,8 +261,8 @@ namespace Horde.Build.Storage
 
 			IStorageClient client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
 
-			RefTarget? target = await client.TryReadRefTargetAsync(refName, cancellationToken: cancellationToken);
-			if (target == null)
+			NodeLocator target = await client.TryReadRefTargetAsync(refName, cancellationToken: cancellationToken);
+			if (!target.IsValid())
 			{
 				return NotFound();
 			}

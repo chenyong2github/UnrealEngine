@@ -482,7 +482,7 @@ namespace Horde.Agent.Commands.Bundles
 			return 0;
 		}
 
-		static async Task<DirectoryState> RealizeAsync(TreeReader reader, TreeNodeRef<DirectoryNode> directoryRef, DirectoryReference dirPath, DirectoryState? directoryState, bool clean, ILogger logger)
+		static async Task<DirectoryState> RealizeAsync(TreeReader reader, DirectoryNodeRef directoryRef, DirectoryReference dirPath, DirectoryState? directoryState, bool clean, ILogger logger)
 		{
 			DirectoryReference.CreateDirectory(dirPath);
 
@@ -529,7 +529,7 @@ namespace Horde.Agent.Commands.Bundles
 			return newState;
 		}
 
-		static async Task<FileState> CheckoutFileAsync(TreeReader reader, TreeNodeRef<FileNode> fileRef, FileInfo fileInfo, ILogger logger)
+		static async Task<FileState> CheckoutFileAsync(TreeReader reader, FileEntry fileRef, FileInfo fileInfo, ILogger logger)
 		{
 			logger.LogInformation("Updating {File} to {Hash}", fileInfo, fileRef.Hash);
 			FileNode fileNode = await fileRef.ExpandAsync(reader);
@@ -588,10 +588,10 @@ namespace Horde.Agent.Commands.Bundles
 				rootNode = await tip.Contents.ExpandCopyAsync(reader);
 			}
 
-			TreeNodeRef<DirectoryNode> rootRef = new TreeNodeRef<DirectoryNode>(rootNode);
+			DirectoryNodeRef rootRef = new DirectoryNodeRef(rootNode);
 
 			List<(DirectoryNode, FileInfo, FileState)> files = new List<(DirectoryNode, FileInfo, FileState)>();
-			List<(TreeNodeRef<DirectoryNode>, DirectoryState)> directories = new List<(TreeNodeRef<DirectoryNode>, DirectoryState)>();
+			List<(DirectoryNodeRef, DirectoryState)> directories = new List<(DirectoryNodeRef, DirectoryState)>();
 			await UpdateTreeAsync(reader, rootRef, rootDir, oldState, newState, files, directories);
 
 			TreeWriter writer = new TreeWriter(store);
@@ -608,7 +608,7 @@ namespace Horde.Agent.Commands.Bundles
 			}
 			await store.WriteNodeAsync(workspaceState.Branch, newTip);
 
-			foreach ((TreeNodeRef<DirectoryNode> directoryRef, DirectoryState directoryState) in directories)
+			foreach ((DirectoryNodeRef directoryRef, DirectoryState directoryState) in directories)
 			{
 				directoryState.Hash = directoryRef.Hash;
 			}
@@ -627,7 +627,7 @@ namespace Horde.Agent.Commands.Bundles
 			return 0;
 		}
 
-		private async Task UpdateTreeAsync(TreeReader reader, TreeNodeRef<DirectoryNode> rootRef, DirectoryReference rootDir, DirectoryState? oldState, DirectoryState newState, List<(DirectoryNode, FileInfo, FileState)> files, List<(TreeNodeRef<DirectoryNode>, DirectoryState)> directories)
+		private async Task UpdateTreeAsync(TreeReader reader, DirectoryNodeRef rootRef, DirectoryReference rootDir, DirectoryState? oldState, DirectoryState newState, List<(DirectoryNode, FileInfo, FileState)> files, List<(DirectoryNodeRef, DirectoryState)> directories)
 		{
 			directories.Add((rootRef, newState));
 

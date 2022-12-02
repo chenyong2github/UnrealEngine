@@ -32,14 +32,19 @@ namespace EpicGames.Horde.Storage
 		int Length { get; }
 
 		/// <summary>
+		/// Hash of the node being deserialized
+		/// </summary>
+		IoHash Hash { get; }
+
+		/// <summary>
 		/// References to other nodes
 		/// </summary>
-		IReadOnlyDictionary<IoHash, NodeLocator> References { get; }
+		IReadOnlyList<NodeLocator> References { get; }
 
 		/// <summary>
 		/// Reads a reference to another node
 		/// </summary>
-		RefTarget ReadRefTarget();
+		NodeLocator ReadNodeLocator();
 	}
 
 	/// <summary>
@@ -140,7 +145,7 @@ namespace EpicGames.Horde.Storage
 			public readonly BundleHeader Header;
 			public readonly int[] PacketOffsets;
 			public readonly ExportInfo[] Exports;
-			public readonly RefTarget[] References;
+			public readonly NodeLocator[] References;
 			public readonly TypeInfo?[] Types;
 
 			public BundleInfo(BlobLocator locator, BundleHeader header, int headerLength, TypeInfo?[] types)
@@ -168,20 +173,20 @@ namespace EpicGames.Horde.Storage
 					packetOffset += packet.EncodedLength;
 				}
 
-				References = new RefTarget[header.Imports.Sum(x => x.Exports.Count) + header.Exports.Count];
+				References = new NodeLocator[header.Imports.Sum(x => x.Exports.Count) + header.Exports.Count];
 
 				int referenceIdx = 0;
 				foreach (BundleImport import in header.Imports)
 				{
-					foreach ((int importExportIdx, IoHash importExportHash) in import.Exports)
+					foreach (int importExportIdx in import.Exports)
 					{
 						NodeLocator importLocator = new NodeLocator(import.Locator, importExportIdx);
-						References[referenceIdx++] = new RefTarget(importExportHash, importLocator);
+						References[referenceIdx++] = importLocator;
 					}
 				}
 				for (int idx = 0; idx < header.Exports.Count; idx++)
 				{
-					References[referenceIdx++] = new RefTarget(header.Exports[idx].Hash, new NodeLocator(locator, idx));
+					References[referenceIdx++] = new NodeLocator(locator, idx);
 				}
 
 				Types = types;
@@ -227,14 +232,16 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		class NodeReader : MemoryReader, ITreeNodeReader
 		{
-			readonly IReadOnlyDictionary<IoHash, NodeLocator> _refs;
+			readonly IReadOnlyList<NodeLocator> _refs;
+			readonly IoHash _hash;
 			readonly BundleType _type;
 			readonly int _length;
 
-			public NodeReader(ReadOnlyMemory<byte> data, IReadOnlyDictionary<IoHash, NodeLocator> refs, BundleType type)
+			public NodeReader(ReadOnlyMemory<byte> data, IoHash hash, IReadOnlyList<NodeLocator> refs, BundleType type)
 				: base(data)
 			{
 				_refs = refs;
+				_hash = hash;
 				_type = type;
 				_length = data.Length;
 			}
@@ -243,12 +250,14 @@ namespace EpicGames.Horde.Storage
 
 			public int Length => _length;
 
-			public IReadOnlyDictionary<IoHash, NodeLocator> References => _refs;
+			public IoHash Hash => _hash;
 
-			public RefTarget ReadRefTarget()
+			public IReadOnlyList<NodeLocator> References => _refs;
+
+			public NodeLocator ReadNodeLocator()
 			{
-				IoHash hash = this.ReadIoHash();
-				return new RefTarget(hash, _refs[hash]);
+				int idx = (int)this.ReadUnsignedVarInt();
+				return _refs[idx];
 			}
 		}
 
@@ -536,7 +545,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="locator"></param>
 		/// <param name="cancellationToken"></param>
 		/// <returns></returns>
-		async Task<BundleHeader> ReadBundleHeaderAsync(BlobLocator locator, CancellationToken cancellationToken = default)
+		public async Task<BundleHeader> ReadBundleHeaderAsync(BlobLocator locator, CancellationToken cancellationToken = default)
 		{
 			BundleInfo info = await GetBundleInfoAsync(locator, cancellationToken);
 			return info.Header;
@@ -688,11 +697,11 @@ namespace EpicGames.Horde.Storage
 			ExportInfo exportInfo = bundleInfo.Exports[locator.ExportIdx];
 			ReadOnlyMemory<byte> packetData = await ReadBundlePacketAsync(bundleInfo, exportInfo.PacketIdx, cancellationToken);
 
-			Dictionary<IoHash, NodeLocator> refs = new Dictionary<IoHash, NodeLocator>(export.References.Count);
+			List<NodeLocator> refs = new List<NodeLocator>(export.References.Count);
 			for (int idx = 0; idx < export.References.Count; idx++)
 			{
-				RefTarget reference = bundleInfo.References[export.References[idx]];
-				refs.Add(reference.Hash, reference.Locator);
+				NodeLocator reference = bundleInfo.References[export.References[idx]];
+				refs.Add(reference);
 			}
 
 			ReadOnlyMemory<byte> nodeData = packetData.Slice(exportInfo.Offset, export.Length);
@@ -703,7 +712,7 @@ namespace EpicGames.Horde.Storage
 				throw new InvalidOperationException($"No registered serializer for type {bundleInfo.Header.Types[export.TypeIdx].Guid}");
 			}
 
-			return typeInfo.Deserialize(new NodeReader(nodeData, refs, typeInfo.BundleType));
+			return typeInfo.Deserialize(new NodeReader(nodeData, export.Hash, refs, typeInfo.BundleType));
 		}
 
 		/// <summary>
@@ -718,17 +727,6 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <summary>
-		/// Reads a node from a bundle
-		/// </summary>
-		/// <param name="target">Locator for the node</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>Node data read from the given bundle</returns>
-		public async ValueTask<TNode> ReadNodeAsync<TNode>(RefTarget target, CancellationToken cancellationToken = default) where TNode : TreeNode
-		{
-			return (TNode)await ReadNodeAsync(target.Locator, cancellationToken);
-		}
-
-		/// <summary>
 		/// Reads data for a ref from the store, along with the node's contents.
 		/// </summary>
 		/// <param name="name">The ref name</param>
@@ -737,12 +735,12 @@ namespace EpicGames.Horde.Storage
 		/// <returns>Node for the given ref, or null if it does not exist</returns>
 		public async Task<TNode?> TryReadNodeAsync<TNode>(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default) where TNode : TreeNode
 		{
-			RefTarget? refTarget = await _store.TryReadRefTargetAsync(name, cacheTime, cancellationToken);
-			if (refTarget == null)
+			NodeLocator refTarget = await _store.TryReadRefTargetAsync(name, cacheTime, cancellationToken);
+			if (!refTarget.IsValid())
 			{
 				return null;
 			}
-			return await ReadNodeAsync<TNode>(refTarget.Locator, cancellationToken);
+			return await ReadNodeAsync<TNode>(refTarget, cancellationToken);
 		}
 
 		/// <summary>
@@ -754,8 +752,8 @@ namespace EpicGames.Horde.Storage
 		/// <returns>Node for the given ref, or null if it does not exist</returns>
 		public async Task<TreeNodeRef<TNode>?> TryReadNodeRefAsync<TNode>(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default) where TNode : TreeNode
 		{
-			RefTarget? refTarget = await _store.TryReadRefTargetAsync(name, cacheTime, cancellationToken);
-			if (refTarget == null)
+			NodeLocator refTarget = await _store.TryReadRefTargetAsync(name, cacheTime, cancellationToken);
+			if (!refTarget.IsValid())
 			{
 				return null;
 			}

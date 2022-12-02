@@ -107,8 +107,8 @@ namespace EpicGames.Horde.Tests
 				types.Add(new BundleType(Guid.NewGuid(), 0));
 
 				List<BundleImport> imports = new List<BundleImport>();
-				imports.Add(new BundleImport(new BlobLocator("import1"), new (int, IoHash)[] { (5, IoHash.Compute(Encoding.UTF8.GetBytes("blob1"))) }));
-				imports.Add(new BundleImport(new BlobLocator("import2"), new (int, IoHash)[] { (6, IoHash.Compute(Encoding.UTF8.GetBytes("blob2"))) }));
+				imports.Add(new BundleImport(new BlobLocator("import1"), new[] { 5 }));
+				imports.Add(new BundleImport(new BlobLocator("import2"), new[] { 6 }));
 
 				List<BundleExport> exports = new List<BundleExport>();
 				exports.Add(new BundleExport(0, IoHash.Compute(Encoding.UTF8.GetBytes("export1")), 2, new int[] { 1, 2 }));
@@ -138,11 +138,10 @@ namespace EpicGames.Horde.Tests
 
 				for (int importIdx = 0; importIdx < oldImport.Exports.Count; importIdx++)
 				{
-					(int Index, IoHash Hash) oldExport = oldImport.Exports[importIdx];
-					(int Index, IoHash Hash) newExport = newImport.Exports[importIdx];
+					int oldExportIdx = oldImport.Exports[importIdx];
+					int newExportIdx = newImport.Exports[importIdx];
 
-					Assert.AreEqual(oldExport.Hash, newExport.Hash);
-					Assert.AreEqual(oldExport.Index, newExport.Index);
+					Assert.AreEqual(oldExportIdx, newExportIdx);
 				}
 			}
 
@@ -185,8 +184,8 @@ namespace EpicGames.Horde.Tests
 			Assert.AreEqual(1, store.Blobs.Count);
 
 			// Check the ref
-			RefTarget refTarget = await store.ReadRefTargetAsync(refName);
-			Bundle bundle = await store.ReadBundleAsync(refTarget.Locator.Blob);
+			NodeLocator refTarget = await store.ReadRefTargetAsync(refName);
+			Bundle bundle = await store.ReadBundleAsync(refTarget.Blob);
 			Assert.AreEqual(0, bundle.Header.Imports.Count);
 			Assert.AreEqual(3, bundle.Header.Exports.Count);
 

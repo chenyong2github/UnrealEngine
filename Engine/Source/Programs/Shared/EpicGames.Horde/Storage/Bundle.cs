@@ -7,6 +7,7 @@ using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -366,6 +367,19 @@ namespace EpicGames.Horde.Storage
 			writer.WriteUnsignedVarInt(Version);
 		}
 
+		/// <summary>
+		/// Parse a span of characters as a bundle type
+		/// </summary>
+		/// <param name="text">Text to parse</param>
+		/// <returns>The parsed bundle type</returns>
+		public static BundleType Parse(ReadOnlySpan<char> text)
+		{
+			int hashIdx = text.IndexOf('#');
+			Guid guid = Guid.Parse(text.Slice(0, hashIdx));
+			int version = Int32.Parse(text.Slice(hashIdx + 1), NumberStyles.None, CultureInfo.InvariantCulture);
+			return new BundleType(guid, version);
+		}
+
 		/// <inheritdoc/>
 		public override bool Equals(object? obj) => obj is BundleType type && Equals(type);
 
@@ -376,6 +390,9 @@ namespace EpicGames.Horde.Storage
 		public bool Equals(BundleType? type) => type is object && Guid == type.Guid && Version == type.Version;
 
 		/// <inheritdoc/>
+		public override string ToString() => $"{Guid}#{Version}";
+
+		/// <inheritdoc/>
 		public static bool operator ==(BundleType lhs, BundleType rhs) => lhs.Equals(rhs);
 
 		/// <inheritdoc/>
@@ -383,7 +400,7 @@ namespace EpicGames.Horde.Storage
 	}
 
 	/// <summary>
-	/// Reference to another tree pack object
+	/// Reference to nodes in another bundle
 	/// </summary>
 	public class BundleImport
 	{
@@ -393,14 +410,14 @@ namespace EpicGames.Horde.Storage
 		public BlobLocator Locator { get; }
 
 		/// <summary>
-		/// Indexes of referenced nodes exported from this bundle
+		/// Entries for each node
 		/// </summary>
-		public IReadOnlyList<(int, IoHash)> Exports { get; }
+		public IReadOnlyList<int> Exports { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BundleImport(BlobLocator locator, IReadOnlyList<(int, IoHash)> exports)
+		public BundleImport(BlobLocator locator, IReadOnlyList<int> exports)
 		{
 			Locator = locator;
 			Exports = exports;
@@ -413,17 +430,7 @@ namespace EpicGames.Horde.Storage
 		internal BundleImport(IMemoryReader reader)
 		{
 			Locator = reader.ReadBlobLocator();
-
-			int count = (int)reader.ReadUnsignedVarInt();
-
-			(int, IoHash)[] exports = new (int, IoHash)[count];
-			for (int idx = 0; idx < count; idx++)
-			{
-				int index = (int)reader.ReadUnsignedVarInt();
-				IoHash hash = reader.ReadIoHash();
-				exports[idx] = (index, hash);
-			}
-			Exports = exports;
+			Exports = reader.ReadVariableLengthArray(() => (int)reader.ReadUnsignedVarInt());
 		}
 
 		/// <summary>
@@ -433,14 +440,7 @@ namespace EpicGames.Horde.Storage
 		public void Write(IMemoryWriter writer)
 		{
 			writer.WriteBlobLocator(Locator);
-
-			writer.WriteUnsignedVarInt(Exports.Count);
-			for(int idx = 0; idx < Exports.Count; idx++)
-			{
-				(int index, IoHash hash) = Exports[idx];
-				writer.WriteUnsignedVarInt(index);
-				writer.WriteIoHash(hash);
-			}
+			writer.WriteVariableLengthArray(Exports, x => writer.WriteUnsignedVarInt(x));
 		}
 	}
 

@@ -65,9 +65,9 @@ namespace EpicGames.Horde.Storage.Nodes
 		public long Length => (Target == null) ? _cachedLength : Target.Length;
 
 		/// <summary>
-		/// SHA1 hash of this file, with Git prefix
+		/// Hash of the target node
 		/// </summary>
-		public Sha1Hash GitHash { get; set; }
+		public IoHash Hash { get; private set; }
 
 		/// <summary>
 		/// Cached length of this node
@@ -101,7 +101,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// Serialize this entry
 		/// </summary>
 		/// <param name="writer"></param>
-		public new void Serialize(ITreeNodeWriter writer)
+		protected override void Serialize(IMemoryWriter writer)
 		{
 			base.Serialize(writer);
 
@@ -141,6 +141,7 @@ namespace EpicGames.Horde.Storage.Nodes
 			base.OnCollapse();
 
 			_cachedLength = Target!.Length;
+			Hash = Target!.Hash;
 		}
 
 		/// <inheritdoc/>
@@ -148,24 +149,72 @@ namespace EpicGames.Horde.Storage.Nodes
 	}
 
 	/// <summary>
-	/// Entry for a directory within a directory node
+	/// Reference to a directory node, including the target hash and length
 	/// </summary>
-	public class DirectoryEntry : TreeNodeRef<DirectoryNode>
+	public class DirectoryNodeRef : TreeNodeRef<DirectoryNode>
 	{
-		/// <summary>
-		/// Name of this directory
-		/// </summary>
-		public Utf8String Name { get; }
-
 		/// <summary>
 		/// Length of this directory tree
 		/// </summary>
 		public long Length => (Target == null) ? _cachedLength : Target.Length;
 
 		/// <summary>
+		/// Hash of the target node
+		/// </summary>
+		public IoHash Hash { get; private set; }
+
+		/// <summary>
 		/// Cached value for the length of this tree
 		/// </summary>
-		readonly long _cachedLength;
+		long _cachedLength;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public DirectoryNodeRef(DirectoryNode node)
+			: base(node)
+		{
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="reader"></param>
+		public DirectoryNodeRef(ITreeNodeReader reader)
+			: base(reader)
+		{
+			_cachedLength = (long)reader.ReadUnsignedVarInt();
+		}
+
+		/// <summary>
+		/// Serialize this directory entry to disk
+		/// </summary>
+		/// <param name="writer"></param>
+		protected override void Serialize(IMemoryWriter writer)
+		{
+			base.Serialize(writer);
+			writer.WriteUnsignedVarInt((ulong)Length);
+		}
+
+		/// <inheritdoc/>
+		protected override void OnCollapse()
+		{
+			base.OnCollapse();
+
+			Hash = Target!.Hash;
+			_cachedLength = Target!.Length;
+		}
+	}
+
+	/// <summary>
+	/// Entry for a directory within a directory node
+	/// </summary>
+	public class DirectoryEntry : DirectoryNodeRef
+	{
+		/// <summary>
+		/// Name of this directory
+		/// </summary>
+		public Utf8String Name { get; }
 
 		/// <summary>
 		/// Constructor
@@ -185,26 +234,23 @@ namespace EpicGames.Horde.Storage.Nodes
 		}
 
 		/// <summary>
-		/// 
+		/// Deserializing constructor
 		/// </summary>
 		/// <param name="reader"></param>
 		public DirectoryEntry(ITreeNodeReader reader)
 			: base(reader)
 		{
 			Name = reader.ReadUtf8String();
-			_cachedLength = (long)reader.ReadUnsignedVarInt();
 		}
 
 		/// <summary>
 		/// Serialize this directory entry to disk
 		/// </summary>
 		/// <param name="writer"></param>
-		public new void Serialize(ITreeNodeWriter writer)
+		protected override void Serialize(IMemoryWriter writer)
 		{
 			base.Serialize(writer);
-
 			writer.WriteUtf8String(Name);
-			writer.WriteUnsignedVarInt((ulong)Length);
 		}
 
 		/// <inheritdoc/>
@@ -305,13 +351,13 @@ namespace EpicGames.Horde.Storage.Nodes
 			writer.WriteUnsignedVarInt(Files.Count);
 			foreach (FileEntry fileEntry in _nameToFileEntry.Values)
 			{
-				fileEntry.Serialize(writer);
+				writer.WriteRef(fileEntry);
 			}
 
 			writer.WriteUnsignedVarInt(Directories.Count);
 			foreach (DirectoryEntry directoryEntry in _nameToDirectoryEntry.Values)
 			{
-				directoryEntry.Serialize(writer);
+				writer.WriteRef(directoryEntry);
 			}
 		}
 

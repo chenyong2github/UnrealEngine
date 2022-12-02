@@ -107,7 +107,7 @@ namespace EpicGames.Horde.Logs
 			writer.WriteUnsignedVarInt(LineCount);
 			writer.WriteUnsignedVarInt((ulong)Length);
 			writer.WriteRef(IndexRef);
-			writer.WriteList(TextChunkRefs, x => x.Serialize(writer));
+			writer.WriteList(TextChunkRefs, x => writer.WriteRef(x));
 			writer.WriteBoolean(Complete);
 		}
 
@@ -269,7 +269,7 @@ namespace EpicGames.Horde.Logs
 		/// <param name="writer">Writer for the output nodes</param>
 		/// <param name="complete">Whether the log is complete</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public async Task<RefTarget> FlushAsync(TreeWriter writer, bool complete, CancellationToken cancellationToken)
+		public async Task<NodeLocator> FlushAsync(TreeWriter writer, bool complete, CancellationToken cancellationToken)
 		{
 			// Capture the new data that needs to be written
 			IReadOnlyList<LogChunkNode> writeTextChunks;
@@ -299,10 +299,7 @@ namespace EpicGames.Horde.Logs
 
 			LogNode newRoot = new LogNode(_format, lineCount, length, newJsonChunkRefs, new TreeNodeRef<LogIndexNode>(newIndex), complete);
 
-			IoHash newRootHash = await writer.WriteAsync(new TreeNodeRef(newRoot), cancellationToken);
-			await writer.FlushAsync(cancellationToken);
-
-			NodeLocator newRootLocator = writer.GetLocator(newRootHash);
+			NodeLocator newRootLocator = await writer.FlushAsync(newRoot, cancellationToken);
 
 			// Update the new state
 			lock (_lockObject)
@@ -313,7 +310,7 @@ namespace EpicGames.Horde.Logs
 				_indexTextBuilder.Remove(writeIndexTextChunks.Count);
 			}
 
-			return new RefTarget(newRootHash, newRootLocator);
+			return newRootLocator;
 		}
 	}
 

@@ -87,8 +87,8 @@ namespace EpicGames.Horde.Tests
 			}
 
 			// Flush it to storage, and read the finished log node
-			RefTarget target = await builder.FlushAsync(new TreeWriter(_store), true, CancellationToken.None);
-			LogNode log = await _reader.ReadNodeAsync<LogNode>(target.Locator);
+			NodeLocator target = await builder.FlushAsync(new TreeWriter(_store), true, CancellationToken.None);
+			LogNode log = await _reader.ReadNodeAsync<LogNode>(target);
 
 			// Read the data back out and check it's the same
 			byte[] readData = new byte[_data.Length];
@@ -129,10 +129,10 @@ namespace EpicGames.Horde.Tests
 			{
 				builder.WriteData(Encoding.UTF8.GetBytes(lines[lineIdx]));
 			}
-			RefTarget rootNodeLocator = await builder.FlushAsync(new TreeWriter(_store), true, CancellationToken.None);
+			NodeLocator rootNodeLocator = await builder.FlushAsync(new TreeWriter(_store), true, CancellationToken.None);
 
 			// Read it back in and test the index
-			LogNode rootNode = await _reader.ReadNodeAsync<LogNode>(rootNodeLocator.Locator);
+			LogNode rootNode = await _reader.ReadNodeAsync<LogNode>(rootNodeLocator);
 			LogIndexNode index = await rootNode.IndexRef.ExpandAsync(_reader);
 		
 			for (int lineIdx = 0; lineIdx < lines.Length; lineIdx++)

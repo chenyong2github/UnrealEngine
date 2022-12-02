@@ -6,7 +6,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace Horde.Agent.Commands.Bundles
@@ -27,8 +26,8 @@ namespace Horde.Agent.Commands.Bundles
 
 			if (BlobId == null)
 			{
-				RefTarget locator = await store.ReadRefTargetAsync(RefName);
-				BlobId = locator.Locator.Blob;
+				NodeLocator locator = await store.ReadRefTargetAsync(RefName);
+				BlobId = locator.Blob;
 			}
 
 			logger.LogInformation("Summary for blob {BlobId}", BlobId.Value);
@@ -44,9 +43,9 @@ namespace Horde.Agent.Commands.Bundles
 			foreach (BundleImport import in header.Imports)
 			{
 				logger.LogInformation("  From blob {BlobId} ({NumExports} nodes)", import.Locator, import.Exports.Count);
-				foreach ((int exportIdx, IoHash exportHash) in import.Exports)
+				foreach (int exportIdx in import.Exports)
 				{
-					logger.LogInformation("    [{Index}] IMP {BlobId}:{ExportIdx} = {ExportHash}", refIdx, import.Locator, exportIdx, exportHash);
+					logger.LogInformation("    [{Index}] IMP {BlobId}:{ExportIdx}", refIdx, import.Locator, exportIdx);
 					refIdx++;
 				}
 			}

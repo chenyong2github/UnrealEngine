@@ -55,7 +55,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Contents of the tree at this commit
 		/// </summary>
-		public TreeNodeRef<DirectoryNode> Contents { get; set; }
+		public DirectoryNodeRef Contents { get; set; }
 
 		/// <summary>
 		/// Metadata for this commit, keyed by arbitrary GUID
@@ -71,7 +71,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="message">Message for the commit</param>
 		/// <param name="time">The commit time</param>
 		/// <param name="contents">Contents of the tree at this commit</param>
-		public CommitNode(int number, TreeNodeRef<CommitNode>? parent, string author, string message, DateTime time, TreeNodeRef<DirectoryNode> contents)
+		public CommitNode(int number, TreeNodeRef<CommitNode>? parent, string author, string message, DateTime time, DirectoryNodeRef contents)
 		{
 			Number = number;
 			Parent = parent;
@@ -95,7 +95,7 @@ namespace EpicGames.Horde.Storage.Nodes
 			CommitterId = reader.ReadOptionalString();
 			Message = reader.ReadString();
 			Time = reader.ReadDateTime();
-			Contents = reader.ReadRef<DirectoryNode>();
+			Contents = new DirectoryNodeRef(reader);
 			Metadata = reader.ReadDictionary(() => reader.ReadGuid(), () => reader.ReadRef());
 		}
 

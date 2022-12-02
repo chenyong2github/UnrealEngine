@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using EpicGames.Serialization;
 
 namespace EpicGames.Horde.Storage
 {
@@ -13,27 +13,22 @@ namespace EpicGames.Horde.Storage
 	/// 
 	/// Refs may be in the following states:
 	///  * In storage 
-	///      * Hash and Locator are valid, Target is null, IsDirty() returns false.
+	///      * Locator is valid, Target is null, IsDirty() returns false.
 	///      * Writing or calling Collapse() is a no-op.
 	///  * In memory and target was expanded, has not been modified 
-	///      * Hash and Locator are valid, Target is valid, IsDirty() returns false.
+	///      * Locator is valid, Target is valid, IsDirty() returns false.
 	///      * Writing or calling Collapse() on a ref transitions it to the "in storage" state.
 	///  * In memory and target is new
-	///      * Hash and Locator are invalid, Target is valid, IsDirty() returns true.
+	///      * Locator is invalid, Target is valid, IsDirty() returns true.
 	///      * Writing a ref transitions it to the "in storage" state. Calling Collapse is a no-op.
 	///  * In memory but target has been modified
-	///      * Hash and Locator are set but may not reflect the current node state, Target is valid, IsDirty() returns true. 
+	///      * Locator is set but may not reflect the current node state, Target is valid, IsDirty() returns true. 
 	///      * Writing a ref transitions it to the "in storage" state. Calling Collapse is a no-op.
 	///      
 	/// The <see cref="OnCollapse"/> and <see cref="OnExpand"/> methods allow overriden implementations to cache information about the target.
 	/// </summary>
 	public class TreeNodeRef
 	{
-		/// <summary>
-		/// Hash of the referenced node. Invalid for nodes in memory.
-		/// </summary>
-		public IoHash Hash { get; private set; }
-
 		/// <summary>
 		/// Locator for the blob containing this node. Invalid for nodes in memory.
 		/// </summary>
@@ -54,20 +49,19 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <summary>
-		/// Creates a reference to a node in memory.
+		/// Creates a reference to a node in storage.
 		/// </summary>
-		/// <param name="target">Node to reference</param>
-		public TreeNodeRef(RefTarget target)
+		/// <param name="locator">Node to reference</param>
+		public TreeNodeRef(NodeLocator locator)
 		{
-			Hash = target.Hash;
-			Locator = target.Locator;
+			Locator = locator;
 		}
 
 		/// <summary>
 		/// Deserialization constructor
 		/// </summary>
 		/// <param name="reader"></param>
-		public TreeNodeRef(ITreeNodeReader reader) : this(reader.ReadRefTarget())
+		public TreeNodeRef(ITreeNodeReader reader) : this(reader.ReadNodeLocator())
 		{
 		}
 
@@ -87,44 +81,45 @@ namespace EpicGames.Horde.Storage
 				throw new InvalidOperationException("Cannot mark a ref as dirty without having expanded it.");
 			}
 
-			Hash = default;
 			Locator = default;
 		}
 
 		/// <summary>
 		/// Updates the hash and revision number for the ref.
 		/// </summary>
-		/// <param name="hash">Hash of the node</param>
 		/// <returns></returns>
-		internal void MarkAsPendingWrite(IoHash hash)
+		internal void MarkAsPendingWrite()
 		{
-			Hash = hash;
 			OnCollapse();
 		}
 
 		/// <summary>
 		/// Update the reference to refer to a location in storage.
 		/// </summary>
-		/// <param name="hash">Hash of the node</param>
 		/// <param name="locator">Location of the node</param>
 		/// <param name="revision">Revision number that was written</param>
-		internal void MarkAsWritten(IoHash hash, NodeLocator locator, uint revision)
+		internal void MarkAsWritten(NodeLocator locator, uint revision)
 		{
-			if (Hash == hash)
+			Locator = locator;
+			if (Target != null && Target.Revision == revision)
 			{
-				Locator = locator;
-				if (Target != null && Target.Revision == revision)
-				{
-					Target = null;
-				}
+				Target = null;
 			}
 		}
+
+		/// <summary>
+		/// Internal helper method to allow implementations of <see cref="ITreeNodeWriter"/> to call <see cref="Serialize(IMemoryWriter)"/>.
+		/// </summary>
+		/// <param name="writer"></param>
+		internal void SerializeInternal(IMemoryWriter writer) => Serialize(writer);
 
 		/// <summary>
 		/// Serialize the node to the given writer
 		/// </summary>
 		/// <param name="writer"></param>
-		public void Serialize(ITreeNodeWriter writer) => writer.WriteRef(this);
+		protected virtual void Serialize(IMemoryWriter writer)
+		{
+		}
 
 		/// <summary>
 		/// Resolve this reference to a concrete node
@@ -192,7 +187,7 @@ namespace EpicGames.Horde.Storage
 		/// Constructor
 		/// </summary>
 		/// <param name="target">The referenced node</param>
-		public TreeNodeRef(RefTarget target) : base(target)
+		public TreeNodeRef(NodeLocator target) : base(target)
 		{
 		}
 

@@ -21,17 +21,17 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Imported nodes
 		/// </summary>
-		public IReadOnlyDictionary<IoHash, TreeNodeRef> References { get; }
+		public IReadOnlyList<TreeNodeRef> References { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="obj">The compact binary object</param>
-		/// <param name="references">Map of attachment hash to node locator</param>
-		public CbNode(CbObject obj, IReadOnlyDictionary<IoHash, NodeLocator> references)
+		/// <param name="references">List of references to attachments</param>
+		public CbNode(CbObject obj, IReadOnlyList<TreeNodeRef> references)
 		{
 			Object = obj;
-			References = references.ToDictionary(x => x.Key, x => new TreeNodeRef(new RefTarget(x.Key, x.Value)));
+			References = references;
 		}
 
 		/// <summary>
@@ -41,7 +41,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		public CbNode(ITreeNodeReader reader)
 		{
 			Object = new CbObject(reader.ReadFixedLengthBytes(reader.Length));
-			References = reader.References.ToDictionary(x => x.Key, x => new TreeNodeRef(new RefTarget(x.Key, x.Value)));
+			References = reader.References.ConvertAll(x => new TreeNodeRef(x));
 		}
 
 		/// <inheritdoc/>
@@ -51,6 +51,6 @@ namespace EpicGames.Horde.Storage.Nodes
 		}
 
 		/// <inheritdoc/>
-		public override IEnumerable<TreeNodeRef> EnumerateRefs() => References.Values;
+		public override IEnumerable<TreeNodeRef> EnumerateRefs() => References;
 	}
 }

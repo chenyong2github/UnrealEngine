@@ -420,7 +420,7 @@ namespace Horde.Build.Perforce
 
 			// Create the commit node
 			ChangeRecord changeRecord = await perforce.GetChangeAsync(GetChangeOptions.None, change, cancellationToken);
-			CommitNode commitNode = new CommitNode(change, parentRef, changeRecord.User ?? "Unknown", changeRecord.Description ?? String.Empty, changeRecord.Date, new TreeNodeRef<DirectoryNode>(root));
+			CommitNode commitNode = new CommitNode(change, parentRef, changeRecord.User ?? "Unknown", changeRecord.Description ?? String.Empty, changeRecord.Date, new DirectoryNodeRef(root));
 			await writer.WriteAsync(refName, commitNode, options.RefOptions, cancellationToken); 
 		}
 
