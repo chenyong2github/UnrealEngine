@@ -5,10 +5,13 @@
 #include "PCGData.h"
 #include "PCGParamData.h"
 #include "Data/PCGPointData.h"
+#include "Elements/Metadata/PCGMetadataElementCommon.h"
+#include "Helpers/PCGSettingsHelpers.h"
 #include "Metadata/PCGMetadata.h"
 #include "Metadata/PCGMetadataAttribute.h"
-#include "Metadata/PCGMetadataEntryKeyIterator.h"
-#include "Helpers/PCGSettingsHelpers.h"
+#include "Metadata/Accessors/IPCGAttributeAccessor.h"
+#include "Metadata/Accessors/PCGAttributeAccessorHelpers.h"
+#include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGAttributeSelectElement)
 
@@ -68,62 +71,53 @@ namespace PCGAttributeSelectElement
 	}
 
 	template <typename T, bool bIsMin, int Axis>
-	bool MinMaxSelect(IPCGMetadataEntryIterator& Iterator, const FPCGMetadataAttribute<T>* InAttribute, const T& InAxis, T& OutValue, int32& OutIndex)
+	bool MinMaxSelect(const IPCGAttributeAccessorKeys& Keys, const IPCGAttributeAccessor& Accessor, const T& InAxis, T& OutValue, int32& OutIndex)
 	{
-		// Can't have a repeat iterator
-		check(!Iterator.IsRepeat());
-
 		// Will be int or double
 		using CompareType = decltype(Projection<T, Axis>(T{}, InAxis));
 
 		CompareType MinMaxValue{};
+		bool bFirstValue = true;
 
-		int32 NumberOfEntries = 0;
-		for (; !Iterator.IsEnd(); ++Iterator)
-		{
-			T AttributeValue = InAttribute->GetValueFromItemKey(*Iterator);
-			CompareType CurrentValue = Projection<T, Axis>(AttributeValue, InAxis);
-
-			if constexpr (bIsMin)
+		return PCGMetadataElementCommon::ApplyOnAccessor<T>(Keys, Accessor, [&OutValue, &OutIndex, &bFirstValue, &MinMaxValue, &InAxis](const T& InValue, int32 InIndex)
 			{
-				if (NumberOfEntries == 0 || CurrentValue < MinMaxValue)
-				{
-					MinMaxValue = CurrentValue;
-					OutValue = AttributeValue;
-					OutIndex = NumberOfEntries;
-				}
-			}
-			else
-			{
-				if (NumberOfEntries == 0 || CurrentValue > MinMaxValue)
-				{
-					MinMaxValue = CurrentValue;
-					OutValue = AttributeValue;
-					OutIndex = NumberOfEntries;
-				}
-			}
+				CompareType CurrentValue = Projection<T, Axis>(InValue, InAxis);
 
-			++NumberOfEntries;
-		}
+				if constexpr (bIsMin)
+				{
+					if (bFirstValue || CurrentValue < MinMaxValue)
+					{
+						MinMaxValue = CurrentValue;
+						OutValue = InValue;
+						OutIndex = InIndex;
+					}
+				}
+				else
+				{
+					if (bFirstValue || CurrentValue > MinMaxValue)
+					{
+						MinMaxValue = CurrentValue;
+						OutValue = InValue;
+						OutIndex = InIndex;
+					}
+				}
 
-		return NumberOfEntries != 0;
+				bFirstValue = false;
+			});
 	}
 
 	template <typename T, int Axis>
-	bool MedianSelect(IPCGMetadataEntryIterator& Iterator, const FPCGMetadataAttribute<T>* InAttribute, const T& InAxis, T& OutValue, int32& OutIndex)
+	bool MedianSelect(const IPCGAttributeAccessorKeys& Keys, const IPCGAttributeAccessor& Accessor, const T& InAxis, T& OutValue, int32& OutIndex)
 	{
-		// Can't have a repeat iterator
-		check(!Iterator.IsRepeat());
-
 		// Will be int or double
 		using CompareType = decltype(Projection<T, Axis>(T{}, InAxis));
 
 		struct Item
 		{
-			Item(int32 InIndex, CompareType InCompareValue, T&& InAttributeValue)
+			Item(int32 InIndex, CompareType InCompareValue, const T& InAttributeValue)
 				: Index(InIndex)
 				, CompareValue(InCompareValue)
-				, AttributeValue(Forward<T>(InAttributeValue)) 
+				, AttributeValue(InAttributeValue)
 			{}
 
 			int32 Index;
@@ -131,47 +125,61 @@ namespace PCGAttributeSelectElement
 			T AttributeValue;
 		};
 
-		int32 NumberOfEntries = 0;
-		TArray<Item> Items;
-		for (; !Iterator.IsEnd(); ++Iterator)
-		{
-			T AttributeValue = InAttribute->GetValueFromItemKey(*Iterator);
-			CompareType CurrentValue = Projection<T, Axis>(AttributeValue, InAxis);
-
-			Items.Emplace(NumberOfEntries++, MoveTemp(CurrentValue), MoveTemp(AttributeValue));
-		}
+		const int32 NumberOfEntries = Keys.GetNum();
 
 		if (NumberOfEntries == 0)
 		{
 			return false;
 		}
 
-		Algo::Sort(Items, [](const Item& A, const Item& B) -> bool { return A.CompareValue < B.CompareValue; });
+		TArray<Item> CompareItems;
+		CompareItems.Reserve(NumberOfEntries);
+
+		PCGMetadataElementCommon::ApplyOnAccessor<T>(Keys, Accessor, [&CompareItems, &InAxis](const T& InValue, int32 InIndex)
+			{
+				CompareItems.Emplace(InIndex, Projection<T, Axis>(InValue, InAxis), InValue);
+			});
+
+		// TODO: Use a better algo than just sorting.
+		Algo::Sort(CompareItems, [](const Item& A, const Item& B) -> bool { return A.CompareValue < B.CompareValue; });
 
 		// Since we need to return an index, we can't do the mean on 2 values if the number of entries is even, since it will yield a value that might not exist in the original dataset.
 		// In this case we arbitrarily chose one entry.
 		const int32 Index = NumberOfEntries / 2;
-		OutValue = Items[Index].AttributeValue;
-		OutIndex = Items[Index].Index;
+		OutIndex = CompareItems[Index].Index;
+		OutValue = CompareItems[Index].AttributeValue;
 
 		return true;
 	}
 
 	template <typename T, int Axis>
-	inline bool DispatchOperation(IPCGMetadataEntryIterator& Iterator, const FPCGMetadataAttribute<T>* InAttribute, const T& InAxis, EPCGAttributeSelectOperation Operation, T& OutValue, int32& OutIndex)
+	inline bool DispatchOperation(const IPCGAttributeAccessorKeys& Keys, const IPCGAttributeAccessor& Accessor, const T& InAxis, EPCGAttributeSelectOperation Operation, T& OutValue, int32& OutIndex)
 	{
 		switch (Operation)
 		{
 		case EPCGAttributeSelectOperation::Min:
-			return PCGAttributeSelectElement::MinMaxSelect<T, /*bIsMin=*/true, Axis>(Iterator, InAttribute, InAxis, OutValue, OutIndex);
+			return PCGAttributeSelectElement::MinMaxSelect<T, /*bIsMin=*/true, Axis>(Keys, Accessor, InAxis, OutValue, OutIndex);
 		case EPCGAttributeSelectOperation::Max:
-			return PCGAttributeSelectElement::MinMaxSelect<T, /*bIsMin=*/false, Axis>(Iterator, InAttribute, InAxis, OutValue, OutIndex);
+			return PCGAttributeSelectElement::MinMaxSelect<T, /*bIsMin=*/false, Axis>(Keys, Accessor, InAxis, OutValue, OutIndex);
 		case EPCGAttributeSelectOperation::Median:
-			return PCGAttributeSelectElement::MedianSelect<T, Axis>(Iterator, InAttribute, InAxis, OutValue, OutIndex);
+			return PCGAttributeSelectElement::MedianSelect<T, Axis>(Keys, Accessor, InAxis, OutValue, OutIndex);
 		default:
 			return false;
 		}
 	}
+}
+
+void UPCGAttributeSelectSettings::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITOR
+	if (InputAttributeName_DEPRECATED != NAME_None)
+	{
+		InputSource.SetAttributeName(InputAttributeName_DEPRECATED);
+		InputAttributeName_DEPRECATED = NAME_None;
+	}
+#endif
 }
 
 #if WITH_EDITOR
@@ -183,9 +191,9 @@ FName UPCGAttributeSelectSettings::GetDefaultNodeName() const
 
 FName UPCGAttributeSelectSettings::AdditionalTaskName() const
 {
-	if (const UEnum* EnumOpPtr = FindObject<UEnum>(nullptr, TEXT("/Script/PCG.EPCGAttributeSelectOperation"), true))
+	if (const UEnum* EnumOpPtr = StaticEnum<EPCGAttributeSelectOperation>())
 	{
-		if (const UEnum* EnumAxisPtr = FindObject<UEnum>(nullptr, TEXT("/Script/PCG.EPCGAttributeSelectAxis"), true))
+		if (const UEnum* EnumAxisPtr = StaticEnum<EPCGAttributeSelectAxis>())
 		{
 			const FString OperationName = EnumOpPtr->GetNameStringByValue(static_cast<int>(Operation));
 			FString AxisName;
@@ -196,6 +204,12 @@ FName UPCGAttributeSelectSettings::AdditionalTaskName() const
 			else
 			{
 				AxisName = EnumAxisPtr->GetNameStringByValue(static_cast<int>(Axis));
+			}
+
+			FName InputAttributeName = InputSource.GetName();
+			if (InputAttributeName == NAME_None)
+			{
+				InputAttributeName = FName(TEXT("LastAttribute"));
 			}
 
 			if (InputAttributeName != OutputAttributeName && OutputAttributeName != NAME_None)
@@ -272,25 +286,25 @@ bool FPCGAttributeSelectElement::ExecuteInternal(FPCGContext* Context) const
 		return true;
 	}
 
-	if (!SpatialData->Metadata->HasAttribute(Settings->InputAttributeName))
+	FPCGAttributePropertySelector InputSource = Settings->InputSource;
+	if (InputSource.Selection == EPCGAttributePropertySelection::Attribute && InputSource.AttributeName == NAME_None && SpatialData->Metadata)
 	{
-		PCGE_LOG(Error, "Input metadata doesn't have attribute \"%s\"", *Settings->InputAttributeName.ToString());
-		return true;
+		InputSource.SetAttributeName(SpatialData->Metadata->GetLatestAttributeNameOrNone());
 	}
 
-	const FPCGMetadataAttributeBase* InputAttribute = SpatialData->Metadata->GetConstAttribute(Settings->InputAttributeName);
-	const FName OutputAttributeName = (Settings->OutputAttributeName == NAME_None) ? Settings->InputAttributeName : Settings->OutputAttributeName;
+	const FName OutputAttributeName = (Settings->OutputAttributeName == NAME_None) ? InputSource.GetName() : Settings->OutputAttributeName;
 	UPCGParamData* OutputParamData = NewObject<UPCGParamData>();
 
-	FPCGMetadataAttributeBase* OutputAttribute = OutputParamData->Metadata->CopyAttribute(InputAttribute, OutputAttributeName, /*bKeepParent=*/ false, /*bCopyEntries=*/ false, /*bCopyValues=*/ false);
+	TUniquePtr<const IPCGAttributeAccessor> Accessor = PCGAttributeAccessorHelpers::CreateConstAccessor(PointData, InputSource);
+	TUniquePtr<const IPCGAttributeAccessorKeys> Keys = PCGAttributeAccessorHelpers::CreateConstKeys(PointData, InputSource);
 
-	if (!OutputAttribute)
+	if (!Accessor.IsValid() || !Keys.IsValid())
 	{
-		PCGE_LOG(Error, "Error while creating target attribute %s", *OutputAttributeName.ToString());
+		PCGE_LOG(Error, "Input attribute/property doesn't exists");
 		return true;
 	}
 
-	auto DoOperation = [&](auto DummyValue) -> int32
+	auto DoOperation = [this, &Accessor, &Keys, &Settings, OutputAttributeName, OutputParamData, Context](auto DummyValue) -> int32
 	{
 		using AttributeType = decltype(DummyValue);
 
@@ -301,14 +315,18 @@ bool FPCGAttributeSelectElement::ExecuteInternal(FPCGContext* Context) const
 		}
 		else
 		{
-			const FPCGMetadataAttribute<AttributeType>* TypedInputAttribute = static_cast<const FPCGMetadataAttribute<AttributeType>*>(InputAttribute);
-			FPCGMetadataAttribute<AttributeType>* TypedOutputAttribute = static_cast<FPCGMetadataAttribute<AttributeType>*>(OutputAttribute);
-
 			bool bSuccess = false;
-			const bool bIsRepeat = false;
 			AttributeType OutputValue{};
 			AttributeType Axis{};
 			int32 OutputIndex = -1;
+
+			FPCGMetadataAttribute<AttributeType>* NewAttribute = static_cast<FPCGMetadataAttribute<AttributeType>*>(
+				OutputParamData->Metadata->CreateAttribute<AttributeType>(OutputAttributeName, OutputValue, /*bAllowInterpolation=*/ true, /*bOverrideParent=*/false));
+
+			if (!NewAttribute)
+			{
+				return -1;
+			}
 
 			// First we need to verify if the axis we want to project on is valid for dimension of our vector type.
 			// If it is a scalar, we won't project anything.
@@ -343,36 +361,25 @@ bool FPCGAttributeSelectElement::ExecuteInternal(FPCGContext* Context) const
 				}
 			}
 
-			// Then create our iterator depending if it is a point data or a spatial data
-			TUniquePtr<IPCGMetadataEntryIterator> Iterator;
-			if (PointData)
-			{
-				Iterator = MakeUnique<FPCGMetadataEntryPointIterator>(PointData, bIsRepeat);
-			}
-			else
-			{
-				Iterator = MakeUnique<FPCGMetadataEntryAttributeIterator>(*InputAttribute, bIsRepeat);
-			}
-
 			// Finally dispatch the operation depending on the axis.
 			// If the axis is X, Y, Z or W, the projection is overkill (Dot product), so use templates to 
 			// indicate which coordinate we should take. If the axis value is -1, it will do the projection with the custom axis, passed as parameter.
 			switch (Settings->Axis)
 			{
 			case EPCGAttributeSelectAxis::X:
-				bSuccess = PCGAttributeSelectElement::DispatchOperation<AttributeType, 0>(*Iterator, TypedInputAttribute, Axis, Settings->Operation, OutputValue, OutputIndex);
+				bSuccess = PCGAttributeSelectElement::DispatchOperation<AttributeType, 0>(*Keys, *Accessor, Axis, Settings->Operation, OutputValue, OutputIndex);
 				break;
 			case EPCGAttributeSelectAxis::Y:
-				bSuccess = PCGAttributeSelectElement::DispatchOperation<AttributeType, 1>(*Iterator, TypedInputAttribute, Axis, Settings->Operation, OutputValue, OutputIndex);
+				bSuccess = PCGAttributeSelectElement::DispatchOperation<AttributeType, 1>(*Keys, *Accessor, Axis, Settings->Operation, OutputValue, OutputIndex);
 				break;
 			case EPCGAttributeSelectAxis::Z:
-				bSuccess = PCGAttributeSelectElement::DispatchOperation<AttributeType, 2>(*Iterator, TypedInputAttribute, Axis, Settings->Operation, OutputValue, OutputIndex);
+				bSuccess = PCGAttributeSelectElement::DispatchOperation<AttributeType, 2>(*Keys, *Accessor, Axis, Settings->Operation, OutputValue, OutputIndex);
 				break;
 			case EPCGAttributeSelectAxis::W:
-				bSuccess = PCGAttributeSelectElement::DispatchOperation<AttributeType, 3>(*Iterator, TypedInputAttribute, Axis, Settings->Operation, OutputValue, OutputIndex);
+				bSuccess = PCGAttributeSelectElement::DispatchOperation<AttributeType, 3>(*Keys, *Accessor, Axis, Settings->Operation, OutputValue, OutputIndex);
 				break;
 			case EPCGAttributeSelectAxis::CustomAxis:
-				bSuccess = PCGAttributeSelectElement::DispatchOperation<AttributeType, -1>(*Iterator, TypedInputAttribute, Axis, Settings->Operation, OutputValue, OutputIndex);
+				bSuccess = PCGAttributeSelectElement::DispatchOperation<AttributeType, -1>(*Keys, *Accessor, Axis, Settings->Operation, OutputValue, OutputIndex);
 				break;
 			default:
 				break;
@@ -380,8 +387,8 @@ bool FPCGAttributeSelectElement::ExecuteInternal(FPCGContext* Context) const
 
 			if (bSuccess)
 			{
-				TypedOutputAttribute->SetDefaultValue(OutputValue);
-				TypedOutputAttribute->SetValueFromValueKey(OutputParamData->Metadata->AddEntry(), PCGDefaultValueKey);
+				NewAttribute->SetDefaultValue(OutputValue);
+				NewAttribute->SetValue(OutputParamData->Metadata->AddEntry(), OutputValue);
 			}
 			else
 			{
@@ -393,7 +400,7 @@ bool FPCGAttributeSelectElement::ExecuteInternal(FPCGContext* Context) const
 		}
 	};
 
-	int32 OutputIndex = PCGMetadataAttribute::CallbackWithRightType(InputAttribute->GetTypeId(), DoOperation);
+	int32 OutputIndex = PCGMetadataAttribute::CallbackWithRightType(Accessor->GetUnderlyingType(), DoOperation);
 	if (OutputIndex < 0)
 	{
 		return true;

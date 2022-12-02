@@ -22,7 +22,7 @@ namespace PCGMetadataElementCommon
 		else if (const UPCGParamData* ParamsInput = Cast<const UPCGParamData>(InTaggedData.Data))
 		{
 			UPCGParamData* NewParamData = NewObject<UPCGParamData>();
-			NewParamData->Metadata->Initialize(ParamsInput->Metadata);
+			NewParamData->Metadata->InitializeAsCopy(ParamsInput->Metadata);
 
 			OutTaggedData.Data = NewParamData;
 

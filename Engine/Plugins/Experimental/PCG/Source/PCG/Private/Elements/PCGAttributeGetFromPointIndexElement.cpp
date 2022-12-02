@@ -6,9 +6,12 @@
 #include "PCGHelpers.h"
 #include "PCGParamData.h"
 #include "Data/PCGPointData.h"
+#include "Helpers/PCGSettingsHelpers.h"
 #include "Metadata/PCGMetadata.h"
 #include "Metadata/PCGMetadataAttribute.h"
-#include "Helpers/PCGSettingsHelpers.h"
+#include "Metadata/Accessors/IPCGAttributeAccessor.h"
+#include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
+#include "Metadata/Accessors/PCGAttributeAccessorHelpers.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGAttributeGetFromPointIndexElement)
 
@@ -18,6 +21,19 @@ FName UPCGAttributeGetFromPointIndexSettings::GetDefaultNodeName() const
 	return TEXT("GetAttributeFromPointIndex");
 }
 #endif
+
+void UPCGAttributeGetFromPointIndexSettings::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITOR
+	if (InputAttributeName_DEPRECATED != NAME_None)
+	{
+		InputSource.SetAttributeName(InputAttributeName_DEPRECATED);
+		InputAttributeName_DEPRECATED = NAME_None;
+	}
+#endif
+}
 
 TArray<FPCGPinProperties> UPCGAttributeGetFromPointIndexSettings::InputPinProperties() const
 {
@@ -94,38 +110,57 @@ bool FPCGAttributeGetFromPointIndexElement::ExecuteInternal(FPCGContext* Context
 		Output.Pin = PCGAttributeGetFromPointIndexConstants::OutputPointLabel;
 	}
 
-	if (PointData->Metadata && PointData->Metadata->HasAttribute(Settings->InputAttributeName))
+	FPCGAttributePropertySelector InputSource = Settings->InputSource;
+	if (InputSource.Selection == EPCGAttributePropertySelection::Attribute && InputSource.AttributeName == NAME_None)
 	{
-		const FPCGMetadataAttributeBase* Attribute = PointData->Metadata->GetConstAttribute(Settings->InputAttributeName);
+		InputSource.SetAttributeName(PointData->Metadata->GetLatestAttributeNameOrNone());
+	}
+
+	FName OutputAttributeName = (Settings->OutputAttributeName == NAME_None) ? InputSource.GetName() : Settings->OutputAttributeName;
+
+	TUniquePtr<const IPCGAttributeAccessor> Accessor = PCGAttributeAccessorHelpers::CreateConstAccessor(PointData, InputSource);
+	FPCGAttributeAccessorKeysPoints PointKey(Point);
+
+	if (Accessor.IsValid())
+	{
 		UPCGParamData* OutputParamData = NewObject<UPCGParamData>();
 
-		auto ExtractAttribute = [this, Context, AttributeName = Settings->InputAttributeName, &Point, &OutputParamData, Attribute](auto DummyValue) -> bool
+		auto ExtractAttribute = [this, Context, OutputAttributeName, &OutputParamData, &Accessor, &PointKey](auto DummyValue) -> bool
 		{
 			using AttributeType = decltype(DummyValue);
 
-			const FPCGMetadataAttribute<AttributeType>* TypedAttribute = static_cast<const FPCGMetadataAttribute<AttributeType>*>(Attribute);
+			AttributeType Value{};
 
-			FPCGMetadataAttributeBase* NewAttributeBase =
-				OutputParamData->Metadata->CreateAttribute<AttributeType>(AttributeName, TypedAttribute->GetValueFromItemKey(Point.MetadataEntry), TypedAttribute->AllowsInterpolation(), /*bOverrideParent=*/false);
-
-			if (!NewAttributeBase)
+			// Should never fail, as OutputType == Accessor->UnderlyingType
+			if (!ensure(Accessor->Get<AttributeType>(Value, PointKey)))
 			{
-				PCGE_LOG(Error, "Error while creating target attribute %s", *AttributeName.ToString());
 				return false;
 			}
 
-			PCGMetadataEntryKey EntryKey = OutputParamData->Metadata->AddEntry();
-			NewAttributeBase->SetValueFromValueKey(EntryKey, PCGDefaultValueKey);
+			FPCGMetadataAttribute<AttributeType>* NewAttribute = static_cast<FPCGMetadataAttribute<AttributeType>*>(
+				OutputParamData->Metadata->CreateAttribute<AttributeType>(OutputAttributeName, Value, /*bAllowInterpolation=*/true, /*bOverrideParent=*/false));
+
+			if (!NewAttribute)
+			{
+				PCGE_LOG(Error, "Error while creating target attribute %s", *OutputAttributeName.ToString());
+				return false;
+			}
+
+			NewAttribute->SetValue(OutputParamData->Metadata->AddEntry(), Value);
 
 			return true;
 		};
 
-		if (PCGMetadataAttribute::CallbackWithRightType(Attribute->GetTypeId(), ExtractAttribute))
+		if (PCGMetadataAttribute::CallbackWithRightType(Accessor->GetUnderlyingType(), ExtractAttribute))
 		{
 			FPCGTaggedData& Output = Outputs.Emplace_GetRef();
 			Output.Data = OutputParamData;
 			Output.Pin = PCGAttributeGetFromPointIndexConstants::OutputAttributeLabel;
 		}
+	}
+	else
+	{
+		PCGE_LOG(Warning, "Can't find attribute/property %s in input", *InputSource.GetName().ToString());
 	}
 
 	return true;

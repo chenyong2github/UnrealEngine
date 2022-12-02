@@ -7,6 +7,13 @@
 
 #include "PCGAttributeFilterElement.generated.h"
 
+UENUM()
+enum class EPCGAttributeFilterOperation
+{
+	KeepSelectedAttributes,
+	DeleteSelectedAttributes
+};
+
 /**
 * Filter the attributes from a given input metadata.
 * Will remove all attributes that are not listed in AttributesToKeep.
@@ -20,6 +27,10 @@ class PCG_API UPCGAttributeFilterSettings : public UPCGSettings
 	GENERATED_BODY()
 
 public:
+	//~Begin UObject interface
+	virtual void PostLoad() override;
+	//~End UObject interface
+
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override;
@@ -31,7 +42,15 @@ public:
 	//~End UPCGSettings interface
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	TArray<FName> AttributesToKeep;
+	EPCGAttributeFilterOperation Operation = EPCGAttributeFilterOperation::KeepSelectedAttributes;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	FString SelectedAttributes;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	TArray<FName> AttributesToKeep_DEPRECATED;
+#endif // WITH_EDITORONLY_DATA
 
 protected:
 	virtual FPCGElementPtr CreateElement() const override;

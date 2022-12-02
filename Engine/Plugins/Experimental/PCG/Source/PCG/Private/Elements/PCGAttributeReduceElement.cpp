@@ -5,17 +5,20 @@
 #include "PCGData.h"
 #include "PCGParamData.h"
 #include "Data/PCGPointData.h"
+#include "Elements/Metadata/PCGMetadataElementCommon.h"
+#include "Helpers/PCGSettingsHelpers.h"
 #include "Metadata/PCGMetadata.h"
 #include "Metadata/PCGMetadataAttribute.h"
-#include "Metadata/PCGMetadataEntryKeyIterator.h"
-#include "Helpers/PCGSettingsHelpers.h"
+#include "Metadata/Accessors/IPCGAttributeAccessor.h"
+#include "Metadata/Accessors/PCGAttributeAccessorHelpers.h"
+#include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGAttributeReduceElement)
 
 namespace PCGAttributeReduceElement
 {
 	template <typename T>
-	bool Average(IPCGMetadataEntryIterator& Iterator, const FPCGMetadataAttribute<T>* InAttribute, T& OutValue)
+	bool Average(const IPCGAttributeAccessorKeys& Keys, const IPCGAttributeAccessor& Accessor, T& OutValue)
 	{
 		if constexpr (!PCG::Private::MetadataTraits<T>::CanSubAdd || !PCG::Private::MetadataTraits<T>::CanInterpolate)
 		{
@@ -23,28 +26,24 @@ namespace PCGAttributeReduceElement
 		}
 		else
 		{
-			// Can't have a repeat iterator
-			check(!Iterator.IsRepeat());
-
-			int32 NumberOfEntries = 0;
 			OutValue = PCG::Private::MetadataTraits<T>::ZeroValue();
-			for (; !Iterator.IsEnd(); ++Iterator)
+
+			bool bSuccess = PCGMetadataElementCommon::ApplyOnAccessor<T>(Keys, Accessor, [&OutValue](const T& InValue, int32)
+				{
+					OutValue = PCG::Private::MetadataTraits<T>::Add(OutValue, InValue);
+				});
+
+			if (bSuccess)
 			{
-				OutValue = PCG::Private::MetadataTraits<T>::Add(OutValue, InAttribute->GetValueFromItemKey(*Iterator));
-				++NumberOfEntries;
+				OutValue = PCG::Private::MetadataTraits<T>::WeightedSum(PCG::Private::MetadataTraits<T>::ZeroValue(), OutValue, 1.0f / Keys.GetNum());
 			}
 
-			if (NumberOfEntries != 0)
-			{
-				OutValue = PCG::Private::MetadataTraits<T>::WeightedSum(PCG::Private::MetadataTraits<T>::ZeroValue(), OutValue, 1.0f / NumberOfEntries);
-			}
-
-			return true;
+			return bSuccess;
 		}
 	}
 
 	template <typename T, bool bIsMin>
-	bool MinMax(IPCGMetadataEntryIterator& Iterator, const FPCGMetadataAttribute<T>* InAttribute, T& OutValue)
+	bool MinMax(const IPCGAttributeAccessorKeys& Keys, const IPCGAttributeAccessor& Accessor, T& OutValue)
 	{
 		if constexpr (!PCG::Private::MetadataTraits<T>::CanMinMax)
 		{
@@ -52,33 +51,28 @@ namespace PCGAttributeReduceElement
 		}
 		else
 		{
-			// Can't have a repeat iterator
-			check(!Iterator.IsRepeat());
+			OutValue = PCG::Private::MetadataTraits<T>::ZeroValue();
+			bool bFirstValue = true;
 
-			int32 NumberOfEntries = 0;
-			for (; !Iterator.IsEnd(); ++Iterator)
-			{
-				T AttributeValue = InAttribute->GetValueFromItemKey(*Iterator);
-
-				if (NumberOfEntries == 0)
+			return PCGMetadataElementCommon::ApplyOnAccessor<T>(Keys, Accessor, [&OutValue, &bFirstValue](const T& InValue, int32)
 				{
-					OutValue = AttributeValue;
-				}
-				else
-				{
-					if constexpr (bIsMin)
+					if (bFirstValue)
 					{
-						OutValue = PCG::Private::MetadataTraits<T>::Min(OutValue, AttributeValue);
+						OutValue = InValue;
+						bFirstValue = false;
 					}
 					else
 					{
-						OutValue = PCG::Private::MetadataTraits<T>::Max(OutValue, AttributeValue);
+						if constexpr (bIsMin)
+						{
+							OutValue = PCG::Private::MetadataTraits<T>::Min(OutValue, InValue);
+						}
+						else
+						{
+							OutValue = PCG::Private::MetadataTraits<T>::Max(OutValue, InValue);
+						}
 					}
-				}
-				++NumberOfEntries;
-			}
-
-			return true;
+				});
 		}
 	}
 }
@@ -90,11 +84,30 @@ FName UPCGAttributeReduceSettings::GetDefaultNodeName() const
 }
 #endif
 
+void UPCGAttributeReduceSettings::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITOR
+	if (InputAttributeName_DEPRECATED != NAME_None)
+	{
+		InputSource.SetAttributeName(InputAttributeName_DEPRECATED);
+		InputAttributeName_DEPRECATED = NAME_None;
+	}
+#endif
+}
+
 FName UPCGAttributeReduceSettings::AdditionalTaskName() const
 {
-	if (const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("/Script/PCG.EPCGAttributeReduceOperation"), true))
+	if (const UEnum* EnumPtr = StaticEnum<EPCGAttributeReduceOperation>())
 	{
 		const FString OperationName = EnumPtr->GetNameStringByValue(static_cast<int>(Operation));
+
+		FName InputAttributeName = InputSource.GetName();
+		if (InputAttributeName == NAME_None)
+		{
+			InputAttributeName = FName(TEXT("LastAttribute"));
+		}
 
 		if (InputAttributeName != OutputAttributeName && OutputAttributeName != NAME_None)
 		{
@@ -157,64 +170,52 @@ bool FPCGAttributeReduceElement::ExecuteInternal(FPCGContext* Context) const
 		return true;
 	}
 
-	if (!SpatialData->Metadata)
-	{
-		PCGE_LOG(Error, "Input data doesn't have metadata");
-		return true;
-	}
-
-	if (!SpatialData->Metadata->HasAttribute(Settings->InputAttributeName))
-	{
-		PCGE_LOG(Error, "Input metadata doesn't have attribute \"%s\"", *Settings->InputAttributeName.ToString());
-		return true;
-	}
-
 	const UPCGPointData* PointData = Cast<UPCGPointData>(SpatialData);
 
-	const FPCGMetadataAttributeBase* InputAttribute = SpatialData->Metadata->GetConstAttribute(Settings->InputAttributeName);
-	const FName OutputAttributeName = (Settings->OutputAttributeName == NAME_None) ? Settings->InputAttributeName : Settings->OutputAttributeName;
-	UPCGParamData* OutputParamData = NewObject<UPCGParamData>();
-	
-	FPCGMetadataAttributeBase* OutputAttribute = OutputParamData->Metadata->CopyAttribute(InputAttribute, OutputAttributeName, /*bKeepParent=*/ false, /*bCopyEntries=*/ false, /*bCopyValues=*/ false);
-
-	if (!OutputAttribute)
+	FPCGAttributePropertySelector InputSource = Settings->InputSource;
+	if (InputSource.Selection == EPCGAttributePropertySelection::Attribute && InputSource.AttributeName == NAME_None && SpatialData->Metadata)
 	{
-		PCGE_LOG(Error, "Error while creating target attribute %s", *OutputAttributeName.ToString());
+		InputSource.SetAttributeName(SpatialData->Metadata->GetLatestAttributeNameOrNone());
+	}
+
+	const FName OutputAttributeName = (Settings->OutputAttributeName == NAME_None) ? InputSource.GetName() : Settings->OutputAttributeName;
+	UPCGParamData* OutputParamData = NewObject<UPCGParamData>();
+
+	TUniquePtr<const IPCGAttributeAccessor> Accessor = PCGAttributeAccessorHelpers::CreateConstAccessor(PointData, InputSource);
+	TUniquePtr<const IPCGAttributeAccessorKeys> Keys = PCGAttributeAccessorHelpers::CreateConstKeys(PointData, InputSource);
+
+	if (!Accessor.IsValid() || !Keys.IsValid())
+	{
+		PCGE_LOG(Error, "Input attribute/property doesn't exists");
 		return true;
 	}
 
-	auto DoOperation = [InputAttribute, OutputAttribute, Operation = Settings->Operation, SpatialData, PointData, OutputParamData](auto DummyValue) -> bool
+	auto DoOperation = [&Accessor, &Keys, Operation = Settings->Operation, OutputParamData, OutputAttributeName](auto DummyValue) -> bool
 	{
 		using AttributeType = decltype(DummyValue);
 
 		bool bSuccess = false;
-		const bool bIsRepeat = false;
-
-		const FPCGMetadataAttribute<AttributeType>* TypedInputAttribute = static_cast<const FPCGMetadataAttribute<AttributeType>*>(InputAttribute);
-		FPCGMetadataAttribute<AttributeType>* TypedOutputAttribute = static_cast<FPCGMetadataAttribute<AttributeType>*>(OutputAttribute);
 
 		AttributeType OutputValue{};
 
-		TUniquePtr<IPCGMetadataEntryIterator> Iterator;
-		if (PointData)
+		FPCGMetadataAttribute<AttributeType>* NewAttribute = static_cast<FPCGMetadataAttribute<AttributeType>*>(
+			OutputParamData->Metadata->CreateAttribute<AttributeType>(OutputAttributeName, OutputValue, /*bAllowInterpolation=*/ true, /*bOverrideParent=*/false));
+
+		if (!NewAttribute)
 		{
-			Iterator = MakeUnique<FPCGMetadataEntryPointIterator>(PointData, bIsRepeat);
-		}
-		else
-		{
-			Iterator = MakeUnique<FPCGMetadataEntryAttributeIterator>(*InputAttribute, bIsRepeat);
+			return false;
 		}
 
 		switch (Operation)
 		{
 		case EPCGAttributeReduceOperation::Average:
-			bSuccess = PCGAttributeReduceElement::Average<AttributeType>(*Iterator, TypedInputAttribute, OutputValue);
+			bSuccess = PCGAttributeReduceElement::Average<AttributeType>(*Keys, *Accessor, OutputValue);
 			break;
 		case EPCGAttributeReduceOperation::Max:
-			bSuccess = PCGAttributeReduceElement::MinMax<AttributeType, /*bIsMin*/false>(*Iterator, TypedInputAttribute, OutputValue);
+			bSuccess = PCGAttributeReduceElement::MinMax<AttributeType, /*bIsMin*/false>(*Keys, *Accessor, OutputValue);
 			break;
 		case EPCGAttributeReduceOperation::Min:
-			bSuccess = PCGAttributeReduceElement::MinMax<AttributeType, /*bIsMin*/true>(*Iterator, TypedInputAttribute, OutputValue);
+			bSuccess = PCGAttributeReduceElement::MinMax<AttributeType, /*bIsMin*/true>(*Keys, *Accessor, OutputValue);
 			break;
 		default:
 			break;
@@ -222,16 +223,16 @@ bool FPCGAttributeReduceElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (bSuccess)
 		{
-			TypedOutputAttribute->SetDefaultValue(OutputValue);
-			TypedOutputAttribute->SetValueFromValueKey(OutputParamData->Metadata->AddEntry(), PCGDefaultValueKey);
+			NewAttribute->SetDefaultValue(OutputValue);
+			NewAttribute->SetValue(OutputParamData->Metadata->AddEntry(), OutputValue);
 		}
 
 		return bSuccess;
 	};
 
-	if (!PCGMetadataAttribute::CallbackWithRightType(InputAttribute->GetTypeId(), DoOperation))
+	if (!PCGMetadataAttribute::CallbackWithRightType(Accessor->GetUnderlyingType(), DoOperation))
 	{
-		PCGE_LOG(Error, "Operation was not compatible with the attribute type.");
+		PCGE_LOG(Error, "Operation was not compatible with the attribute type or couldn't create attribute %s.", *OutputAttributeName.ToString());
 		return true;
 	}
 

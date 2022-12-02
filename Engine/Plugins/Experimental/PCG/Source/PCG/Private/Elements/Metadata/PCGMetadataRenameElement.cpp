@@ -1,12 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/Metadata/PCGMetadataRenameElement.h"
+
 #include "Data/PCGSpatialData.h"
+#include "Elements/Metadata/PCGMetadataElementCommon.h"
 #include "Helpers/PCGSettingsHelpers.h"
 #include "Metadata/PCGMetadata.h"
 #include "Metadata/PCGMetadataAttribute.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadataRenameElement)
+
+TArray<FPCGPinProperties> UPCGMetadataRenameSettings::InputPinProperties() const
+{
+	TArray<FPCGPinProperties> PinProperties;
+	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Any, /*bInAllowMultipleConnections=*/ true);
+	PinProperties.Emplace(PCGPinConstants::DefaultParamsLabel, EPCGDataType::Param, /*bInAllowMultipleConnections=*/ false);
+
+	return PinProperties;
+}
 
 TArray<FPCGPinProperties> UPCGMetadataRenameSettings::OutputPinProperties() const
 {
@@ -28,9 +39,9 @@ bool FPCGMetadataRenameElement::ExecuteInternal(FPCGContext* Context) const
 	const UPCGMetadataRenameSettings* Settings = Context->GetInputSettings<UPCGMetadataRenameSettings>();
 	check(Settings);
 
-	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
-	TArray<FPCGTaggedData> AllParams = Context->InputData.GetAllParams();
-	UPCGParamData* Params = Context->InputData.GetParams();
+	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputsByPin(PCGPinConstants::DefaultInputLabel);
+	TArray<FPCGTaggedData> InputParams = Context->InputData.GetInputsByPin(PCGPinConstants::DefaultParamsLabel);
+	const UPCGParamData* Params = InputParams.IsEmpty() ? nullptr : Cast<const UPCGParamData>(InputParams[0].Data);
 
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 	
@@ -49,18 +60,23 @@ bool FPCGMetadataRenameElement::ExecuteInternal(FPCGContext* Context) const
 	{
 		FPCGTaggedData& Output = Outputs.Add_GetRef(Input);
 
-		const UPCGSpatialData* SpatialInput = Cast<const UPCGSpatialData>(Input.Data);
-		if (!SpatialInput)
-		{
-			continue;
-		}
+		const UPCGMetadata* Metadata = nullptr;
 
-		// If the data has a metadata & the attribute to rename, then duplicate the data
-		// otherwise, keep it as is.
-		const UPCGMetadata* Metadata = SpatialInput->Metadata;
+		if (const UPCGSpatialData* SpatialInput = Cast<const UPCGSpatialData>(Input.Data))
+		{
+			Metadata = SpatialInput->Metadata;
+			Output.Data = SpatialInput;
+		}
+		else if (const UPCGParamData* ParamInput = Cast<UPCGParamData>(Input.Data))
+		{
+			Metadata = ParamInput->Metadata;
+			Output.Data = ParamInput;
+		}
 
 		if (!Metadata)
 		{
+			UE_LOG(LogPCG, Warning, TEXT("Input is not supported, only supports spatial and params"));
+			Output.Data = nullptr;
 			continue;
 		}
 
@@ -71,46 +87,13 @@ bool FPCGMetadataRenameElement::ExecuteInternal(FPCGContext* Context) const
 			continue;
 		}
 
-		//TODO: this might require to execute on the main thread
-		UPCGSpatialData* NewSpatialData = Cast<UPCGSpatialData>(StaticDuplicateObject(SpatialInput, const_cast<UPCGSpatialData*>(SpatialInput), FName()));
-		NewSpatialData->InitializeFromData(SpatialInput);
-		NewSpatialData->Metadata->RenameAttribute(LocalAttributeToRename, NewAttributeName);
+		UPCGMetadata* NewMetadata = nullptr;
+		PCGMetadataElementCommon::DuplicateTaggedData(Input, Output, NewMetadata);
 
-		Output.Data = NewSpatialData;
-	}
-
-	for (const FPCGTaggedData& ParamTaggedData : AllParams)
-	{
-		FPCGTaggedData& Output = Outputs.Add_GetRef(ParamTaggedData);
-
-		const UPCGParamData* InputParams = Cast<const UPCGParamData>(ParamTaggedData.Data);
-		if (!InputParams)
+		if (!NewMetadata || !NewMetadata->RenameAttribute(LocalAttributeToRename, NewAttributeName))
 		{
-			continue;
+			UE_LOG(LogPCG, Warning, TEXT("Failed to rename attribute from %s to %s"), *LocalAttributeToRename.ToString(), *NewAttributeName.ToString());
 		}
-		
-		const UPCGMetadata* Metadata = InputParams->Metadata;
-
-		if (!Metadata)
-		{
-			continue;
-		}
-
-		const FName LocalAttributeToRename = ((AttributeToRename != NAME_None) ? AttributeToRename : Metadata->GetLatestAttributeNameOrNone());
-
-		if (!Metadata->HasAttribute(LocalAttributeToRename))
-		{
-			continue;
-		}
-
-		//TODO: this might require to execute on the main thread
-		UPCGParamData* NewParams = Cast<UPCGParamData>(StaticDuplicateObject(InputParams, const_cast<UPCGParamData*>(InputParams), FName()));
-		// Note: we will not parent the metadata here to ensure that the 0th entry is present on this metadata
-		// We will instead do a copy (and keep its parent, etc.)
-		NewParams->Metadata->InitializeAsCopy(Metadata);
-		NewParams->Metadata->RenameAttribute(LocalAttributeToRename, NewAttributeName);
-
-		Output.Data = NewParams;
 	}
 
 	// Pass-through settings

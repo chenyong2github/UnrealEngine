@@ -6,6 +6,9 @@
 #include "Metadata/PCGMetadata.h"
 #include "Metadata/PCGMetadataAttribute.h"
 #include "Metadata/PCGMetadataAttributeTpl.h"
+#include "Metadata/PCGMetadataAttributeTpl.h"
+#include "Metadata/Accessors/IPCGAttributeAccessor.h"
+#include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
 
 struct FPCGTaggedData;
 
@@ -37,5 +40,48 @@ namespace PCGMetadataElementCommon
 		Metadata->CreateAttribute<T>(DestinationAttribute, DefaultValue, /*bAllowsInterpolation=*/true, /*bOverrideParent=*/false);
 
 		return static_cast<FPCGMetadataAttribute<T>*>(Metadata->GetMutableAttribute(DestinationAttribute));
+	}
+
+	constexpr int32 DefaultChunkSize = 256;
+
+	/**
+	* Iterate over the full range of the keys, calling the callback with values get from the accessor.
+	* ChunkSize influence the max number of values to get in one go with GetRange.
+	* Callback should have a signature: void(const T&, int32)
+	* Return false if it process nothing.
+	*/
+	template <typename T, typename Func>
+	bool ApplyOnAccessor(const IPCGAttributeAccessorKeys& Keys, const IPCGAttributeAccessor& Accessor, Func&& Callback, const int32 ChunkSize = DefaultChunkSize)
+	{
+		const int32 NumberOfEntries = Keys.GetNum();
+
+		if (NumberOfEntries == 0)
+		{
+			return false;
+		}
+
+		TArray<T, TInlineAllocator<DefaultChunkSize>> TempValues;
+		TempValues.SetNum(ChunkSize);
+
+		const int32 NumberOfIterations = (NumberOfEntries + ChunkSize - 1) / ChunkSize;
+
+		for (int32 i = 0; i < NumberOfIterations; ++i)
+		{
+			const int32 StartIndex = i * ChunkSize;
+			const int32 Range = FMath::Min(NumberOfEntries - StartIndex, ChunkSize);
+			TArrayView<T> View(TempValues.GetData(), Range);
+
+			if (!Accessor.GetRange(View, StartIndex, Keys))
+			{
+				return false;
+			}
+
+			for (int32 j = 0; j < Range; ++j)
+			{
+				Callback(TempValues[j], StartIndex + j);
+			}
+		}
+
+		return true;
 	}
 }

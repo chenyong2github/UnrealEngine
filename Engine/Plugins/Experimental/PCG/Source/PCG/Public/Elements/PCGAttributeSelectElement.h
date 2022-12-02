@@ -4,6 +4,7 @@
 
 #include "PCGElement.h"
 #include "PCGSettings.h"
+#include "Metadata/PCGAttributePropertySelector.h"
 
 #include "PCGAttributeSelectElement.generated.h"
 
@@ -32,8 +33,8 @@ enum class EPCGAttributeSelectAxis
 };
 
 /**
-* Take all the entries/points from the input and perform a select operation on the given attribute on the given axis 
-* (if the attribute is a vector) and output the result into a ParamData.
+* Take all the entries/points from the input and perform a select operation on the given attribute/property on the given axis 
+* (if the attribute/property is a vector) and output the result into a ParamData.
 * It will also output the selected point if the input is a PointData.
 * 
 * Only support vector attributes and scalar attributes.
@@ -42,7 +43,7 @@ enum class EPCGAttributeSelectAxis
 * 
 * In case of the median operation, and the number of elements is even, we arbitrarily chose a point (Index = Num / 2)
 *
-* If the OutputAttributeName is None, we will use InputAttributeName.
+* If the OutputAttributeName is None, we will use InputSource.GetName().
 */
 UCLASS(BlueprintType, ClassGroup = (Procedural))
 class PCG_API UPCGAttributeSelectSettings : public UPCGSettings
@@ -50,6 +51,10 @@ class PCG_API UPCGAttributeSelectSettings : public UPCGSettings
 	GENERATED_BODY()
 
 public:
+	//~Begin UObject interface
+	virtual void PostLoad() override;
+	//~End UObject interface
+
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override;
@@ -63,7 +68,7 @@ public:
 	//~End UPCGSettings interface
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	FName InputAttributeName = NAME_None;
+	FPCGAttributePropertySelector InputSource;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	FName OutputAttributeName = NAME_None;
@@ -76,6 +81,11 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Axis == EPCGAttributeSelectAxis::CustomAxis", EditConditionHides))
 	FVector4 CustomAxis = FVector4::Zero();
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	FName InputAttributeName_DEPRECATED = NAME_None;
+#endif // WITH_EDITORONLY_DATA
 
 protected:
 	virtual FPCGElementPtr CreateElement() const override;

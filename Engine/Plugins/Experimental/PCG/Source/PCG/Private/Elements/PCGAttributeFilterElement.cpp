@@ -15,6 +15,41 @@ namespace PCGAttributeFilterConstants
 	const FName NodeName = TEXT("FilterAttribute");
 }
 
+namespace PCGAttributeFilterSettings
+{
+	TArray<FString> GenerateNameArray(const FString& InString)
+	{
+		TArray<FString> Result;
+		InString.ParseIntoArrayWS(Result, TEXT(","));
+		return Result;
+	}
+}
+
+void UPCGAttributeFilterSettings::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITOR
+	if (!AttributesToKeep_DEPRECATED.IsEmpty())
+	{
+		SelectedAttributes.Empty();
+		Operation = EPCGAttributeFilterOperation::KeepSelectedAttributes;
+		// Can't use FString::Join since it is an array of FName
+		for (int i = 0; i < AttributesToKeep_DEPRECATED.Num(); ++i)
+		{
+			if (i != 0)
+			{
+				SelectedAttributes += TEXT(",");
+			}
+
+			SelectedAttributes += AttributesToKeep_DEPRECATED[i].ToString();
+		}
+
+		AttributesToKeep_DEPRECATED.Empty();
+	}
+#endif // WITH_EDITOR
+}
+
 #if WITH_EDITOR
 FName UPCGAttributeFilterSettings::GetDefaultNodeName() const
 {
@@ -24,14 +59,28 @@ FName UPCGAttributeFilterSettings::GetDefaultNodeName() const
 
 FName UPCGAttributeFilterSettings::AdditionalTaskName() const
 {
+	TArray<FString> AttributesToKeep = PCGAttributeFilterSettings::GenerateNameArray(SelectedAttributes);
+
+	FString NodeName = PCGAttributeFilterConstants::NodeName.ToString();
+
+	switch (Operation)
+	{
+	case EPCGAttributeFilterOperation::KeepSelectedAttributes:
+		NodeName += TEXT(" (Keep)");
+		break;
+	case EPCGAttributeFilterOperation::DeleteSelectedAttributes:
+		NodeName += TEXT(" (Delete)");
+		break;
+	}
+
 	// If we filter only one attribute, show its name
 	if (AttributesToKeep.Num() == 1)
 	{
-		return FName(FString::Printf(TEXT("%s: %s"), *PCGAttributeFilterConstants::NodeName.ToString(), *AttributesToKeep[0].ToString()));
+		return FName(FString::Printf(TEXT("%s: %s"), *NodeName, *AttributesToKeep[0]));
 	}
 	else
 	{
-		return NAME_None;
+		return FName(NodeName);
 	}
 }
 
@@ -56,6 +105,8 @@ bool FPCGAttributeFilterElement::ExecuteInternal(FPCGContext* Context) const
 
 	const UPCGAttributeFilterSettings* Settings = Context->GetInputSettings<UPCGAttributeFilterSettings>();
 
+	const bool bAddAttributesFromParent = (Settings->Operation == EPCGAttributeFilterOperation::DeleteSelectedAttributes);
+
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputsByPin(PCGPinConstants::DefaultInputLabel);
 
 	for (const FPCGTaggedData& InputTaggedData : Inputs)
@@ -72,7 +123,7 @@ bool FPCGAttributeFilterElement::ExecuteInternal(FPCGContext* Context) const
 
 			UPCGSpatialData* NewSpatialData = InputSpatialData->DuplicateData(/*bInitializeFromThisData=*/false);
 			Metadata = NewSpatialData->Metadata;
-			NewSpatialData->Metadata->Initialize(ParentMetadata, /*bAddAttributesFromParent=*/false);
+			NewSpatialData->Metadata->Initialize(ParentMetadata, bAddAttributesFromParent);
 
 			// No need to inherit metadata since we already initialized it.
 			NewSpatialData->InitializeFromData(InputSpatialData, /*InMetadataParentOverride=*/ nullptr, /*bInheritMetadata=*/ false);
@@ -86,7 +137,7 @@ bool FPCGAttributeFilterElement::ExecuteInternal(FPCGContext* Context) const
 			UPCGParamData* NewParamData = NewObject<UPCGParamData>();
 			Metadata = NewParamData->Metadata;
 
-			Metadata->Initialize(InputParamData->Metadata, /*bAddAttributesFromParent=*/false);
+			Metadata->Initialize(InputParamData->Metadata, bAddAttributesFromParent);
 			OutputData = NewParamData;
 		}
 		else
@@ -95,10 +146,20 @@ bool FPCGAttributeFilterElement::ExecuteInternal(FPCGContext* Context) const
 			continue;
 		}
 
-		// Then add each attribute in the list explicitly
-		for (const FName& AttributeName : Settings->AttributesToKeep)
+		TArray<FString> AttributesToKeep = PCGAttributeFilterSettings::GenerateNameArray(Settings->SelectedAttributes);
+
+		// Then add/remove each attribute in the list explicitly
+		for (const FString& AttributeName : AttributesToKeep)
 		{
-			Metadata->AddAttribute(ParentMetadata, AttributeName);
+			switch (Settings->Operation)
+			{
+			case EPCGAttributeFilterOperation::KeepSelectedAttributes:
+				Metadata->AddAttribute(ParentMetadata, FName(AttributeName));
+				break;
+			case EPCGAttributeFilterOperation::DeleteSelectedAttributes:
+				Metadata->DeleteAttribute(FName(AttributeName));
+				break;
+			}
 		}
 
 		TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
