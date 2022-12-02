@@ -163,13 +163,6 @@ void SetResourcesFromTables(TBinder&& Binder, FRHIShader const& Shader, FShaderR
 
 #endif // DO_CHECK
 
-		// Samplers
-		EnumerateUniformBufferResources<FRHISamplerState>(Buffer, BufferIndex, SRT.SamplerMap.GetData(),
-			[&](FRHISamplerState* Sampler, uint8 Index)
-			{
-				Binder.SetSampler(Sampler, Index);
-			});
-
 		// Textures
 		EnumerateUniformBufferResources<FRHITexture>(Buffer, BufferIndex, SRT.TextureMap.GetData(),
 			[&](FRHITexture* Texture, uint8 Index)
@@ -205,6 +198,13 @@ void SetResourcesFromTables(TBinder&& Binder, FRHIShader const& Shader, FShaderR
 				}
 #endif
 				Binder.SetSRV(SRV, Index);
+			});
+
+		// Samplers
+		EnumerateUniformBufferResources<FRHISamplerState>(Buffer, BufferIndex, SRT.SamplerMap.GetData(),
+			[&](FRHISamplerState* Sampler, uint8 Index)
+			{
+				Binder.SetSampler(Sampler, Index);
 			});
 
 		// UAVs
