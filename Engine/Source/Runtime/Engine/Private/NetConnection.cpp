@@ -4840,6 +4840,13 @@ void UNetConnection::FlushDormancyForObject(AActor* DormantActor, UObject* Repli
 		constexpr bool bUseDefaultState = false; 
 		ObjectReplicatorRef->InitWithObject(ReplicatedObject, this, bUseDefaultState);
 
+#if UE_REPLICATED_OBJECT_REFCOUNTING
+		if (Driver && DormantActor != ReplicatedObject)
+		{
+			Driver->GetNetworkObjectList().AddSubObjectChannelReference(DormantActor, ReplicatedObject, this);
+		}
+#endif
+
 		// Flush the must be mapped GUIDs, the initialization may add them, but they're phantom and will be remapped when actually sending
 		if (UPackageMapClient* PackageMapClient = CastChecked<UPackageMapClient>(PackageMap))
 		{
@@ -5057,6 +5064,17 @@ void UNetConnection::RemoveDormantReplicator(AActor* Actor, UObject* Object)
 	const FObjectKey ObjectKey = Object;
 
 	DormantReplicatorSet.RemoveStoredReplicator(Actor, ObjectKey);
+
+#if UE_REPLICATED_OBJECT_REFCOUNTING
+	// If this is a subobject (and not the main actor) remove the reference
+	if (Object != Actor)
+	{
+		if (Driver)
+		{
+			Driver->GetNetworkObjectList().RemoveSubObjectChannelReference(Actor, Object, this);
+		}
+	}
+#endif
 }
 
 void UNetConnection::ExecuteOnAllDormantReplicators(UE::Net::FExecuteForEachDormantReplicator ExecuteFunction)
@@ -5073,13 +5091,42 @@ void UNetConnection::CleanupDormantReplicatorsForActor(AActor* Actor)
 {
 	if (Actor)
 	{
+#if UE_REPLICATED_OBJECT_REFCOUNTING
+		if (Driver)
+		{
+			TArray<TWeakObjectPtr<UObject>, TInlineAllocator<16>> RemovedObjects;
+			UE::Net::FExecuteForEachDormantReplicator ExecuteFunction = [&RemovedObjects](AActor* OwnerActor, FObjectKey ObjectKey, const TSharedRef<FObjectReplicator>& ReplicatorRef)
+			{
+				if (OwnerActor != ReplicatorRef->GetObject())
+				{
+					RemovedObjects.Add(ReplicatorRef->GetWeakObjectPtr());
+				}
+			};
+
+			DormantReplicatorSet.ForEachDormantReplicatorOfActor(Actor, ExecuteFunction);
+
+			Driver->GetNetworkObjectList().RemoveMultipleSubObjectChannelReference(Actor, RemovedObjects, this);
+		}
+#endif
+
 		DormantReplicatorSet.CleanupAllReplicatorsOfActor(Actor);
 	}
 }
 
 void UNetConnection::CleanupStaleDormantReplicators()
 {
+#if UE_REPLICATED_OBJECT_REFCOUNTING
+	if (Driver)	
+	{
+		DormantReplicatorSet.CleanupStaleObjects(Driver->GetNetworkObjectList(), this);
+	}
+	else
+	{
+		DormantReplicatorSet.CleanupStaleObjects();
+	}
+#else
 	DormantReplicatorSet.CleanupStaleObjects();
+#endif
 }
 
 void UNetConnection::SetPendingCloseDueToReplicationFailure()

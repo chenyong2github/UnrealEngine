@@ -3,6 +3,7 @@
 #include "Net/NetDormantHolder.h"
 
 #include "Net/DataReplication.h"
+#include "Engine/NetworkObjectList.h"
 
 namespace UE::Net::Private
 {
@@ -136,6 +137,46 @@ void FDormantReplicatorHolder::CleanupStaleObjects()
 			ActorSetIt.RemoveCurrent();
 		}
 	}
+}
+
+void FDormantReplicatorHolder::CleanupStaleObjects(FNetworkObjectList& NetworkObjectList, UObject* ReferenceOwner)
+{
+#if UE_REPLICATED_OBJECT_REFCOUNTING
+	TArray<TWeakObjectPtr<UObject>, TInlineAllocator<16>> CleanedUpObjects;
+
+	for (FActorReplicatorSet::TIterator ActorSetIt = ActorReplicatorSet.CreateIterator(); ActorSetIt; ++ActorSetIt)
+	{
+		for (FActorDormantReplicators::FObjectReplicatorSet::TIterator ReplicatorSetIt = ActorSetIt->DormantReplicators.CreateIterator(); ReplicatorSetIt; ++ReplicatorSetIt)
+		{
+			FDormantObjectReplicator& DormantReplicator = *ReplicatorSetIt;
+			TWeakObjectPtr<UObject> DormantObjectPtr = DormantReplicator.Replicator->GetWeakObjectPtr();
+
+			if (!DormantObjectPtr.IsValid())
+			{
+				// If it's a subobject
+				if (ActorSetIt->OwnerActor != DormantReplicator.Replicator->GetObject())
+				{
+					CleanedUpObjects.Add(DormantObjectPtr);
+				}
+
+				ReplicatorSetIt.RemoveCurrent();
+			}
+		}
+
+		if (ActorSetIt->DormantReplicators.IsEmpty())
+		{
+			ActorSetIt.RemoveCurrent();
+		}
+
+		if (CleanedUpObjects.Num() > 0)
+		{
+			NetworkObjectList.RemoveMultipleSubObjectChannelReference(ActorSetIt->OwnerActor, CleanedUpObjects, ReferenceOwner);
+			CleanedUpObjects.Reset();
+		}
+	}
+#else
+	CleanupStaleObjects();
+#endif
 }
 
 void FDormantReplicatorHolder::ForEachDormantReplicator(UE::Net::FExecuteForEachDormantReplicator Function)

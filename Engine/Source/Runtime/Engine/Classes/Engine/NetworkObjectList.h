@@ -11,12 +11,13 @@ class FArchive;
 #ifndef UE_REPLICATED_OBJECT_REFCOUNTING
 	// Allows every network actor to keep track of the number of channels an individual subobject was replicated. 
 	// Not needed on clients so its compiled out to reduce memory usage.
-	#define UE_REPLICATED_OBJECT_REFCOUNTING 0
+	#define UE_REPLICATED_OBJECT_REFCOUNTING WITH_SERVER_CODE
 #endif
 
 #ifndef DO_REPLICATED_OBJECT_CHANNELREF_CHECKS
 	// Run additional code to validate any errors in the SubObject channel refcounting at the cost of extra memory usage and cpu overhead.
-	#define DO_REPLICATED_OBJECT_CHANNELREF_CHECKS (UE_REPLICATED_OBJECT_REFCOUNTING && WITH_SERVER_CODE && !UE_BUILD_SHIPPING) // will be disabled in Test builds after a few days.
+	// Temp: will be disabled from Test builds after a few days.
+	#define DO_REPLICATED_OBJECT_CHANNELREF_CHECKS (UE_REPLICATED_OBJECT_REFCOUNTING && WITH_SERVER_CODE && !UE_BUILD_SHIPPING) 
 #endif
 
 /** Indicates the status of a replicated subobject replicated by actor channels. */
@@ -52,14 +53,25 @@ struct FNetworkObjectInfo
 	* @warning: internal net driver time, not related to WorldSettings.TimeSeconds */
 	double LastNetUpdateTimestamp;
 
+
+	/**
+	* Key definitions for TSet/TMap that works with invalidated weak pointers
+	*/
+	struct FNetConnectionKeyFuncs : BaseKeyFuncs<TWeakObjectPtr<UNetConnection>, const TWeakObjectPtr<UNetConnection>&, false>
+	{
+		static KeyInitType GetSetKey(const ElementInitType& Element)	{ return Element; }
+		static bool Matches(KeyInitType A, KeyInitType B)				{ return A.HasSameIndexAndSerialNumber(B); }
+		static uint32 GetKeyHash(KeyInitType Key)						{ return GetTypeHash(Key); }
+	};
+
 	/** List of connections that this actor is dormant on */
-	TSet<TWeakObjectPtr<UNetConnection>> DormantConnections;
+	TSet<TWeakObjectPtr<UNetConnection>, FNetConnectionKeyFuncs> DormantConnections;
 
 	/** A list of connections that this actor has recently been dormant on, but the actor doesn't have a channel open yet.
 	*  These need to be differentiated from actors that the client doesn't know about, but there's no explicit list for just those actors.
 	*  (this list will be very transient, with connections being moved off the DormantConnections list, onto this list, and then off once the actor has a channel again)
 	*/
-	TSet<TWeakObjectPtr<UNetConnection>> RecentlyDormantConnections;
+	TSet<TWeakObjectPtr<UNetConnection>, FNetConnectionKeyFuncs> RecentlyDormantConnections;
 
 	/** 
 	* Keeps track of the number of channels that have replicated a subobject.
@@ -77,8 +89,11 @@ struct FNetworkObjectInfo
 		ENetSubObjectStatus Status = ENetSubObjectStatus::Active;
 
 #if DO_REPLICATED_OBJECT_CHANNELREF_CHECKS
-		/** Debug array to keep track of every individual channel */
-		TArray<UObject*> RegisteredChannels;
+		/** 
+		* Debug array to keep track of every individual references. Helps to trigger an ensure early if something wrong is detected.
+		* Consists of UActorChannel for active replicators or UNetConnection's for dormant replicators
+		*/
+		TArray<UObject*> RegisteredOwners;
 #endif
 		inline bool operator==(const FSubObjectChannelReference& rhs) const { return SubObjectPtr.HasSameIndexAndSerialNumber(rhs.SubObjectPtr); }
 		inline bool operator==(const TWeakObjectPtr<UObject>& rhs) const { return SubObjectPtr.HasSameIndexAndSerialNumber(rhs); }
@@ -101,25 +116,15 @@ struct FNetworkObjectInfo
 		}
 	};
 
+	/** 
+	* Key definitions for TSet/TMap that works with invalided weak pointers 
+	*/
 	struct FSubObjectChannelRefKeyFuncs : BaseKeyFuncs<FSubObjectChannelReference, const TWeakObjectPtr<UObject>&, false>
 	{
-		static KeyInitType GetSetKey(ElementInitType Element)
-		{
-			return Element.SubObjectPtr;
-		}
-
-		static bool Matches(KeyInitType A, KeyInitType B)
-		{
-			return A.HasSameIndexAndSerialNumber(B);
-		}
-
-		static uint32 GetKeyHash(KeyInitType Key)
-		{
-			// Probably should use a better has like FObjectKey but can't access the internals of the WeakPtr.
-			return GetTypeHash(Key);
-		}
+		static KeyInitType GetSetKey(const ElementInitType& Element)	{ return Element.SubObjectPtr; }
+		static bool Matches(KeyInitType A, KeyInitType B)				{ return A.HasSameIndexAndSerialNumber(B); }
+		static uint32 GetKeyHash(KeyInitType Key)						{ return GetTypeHash(Key); }
 	};
-
 
 #if UE_REPLICATED_OBJECT_REFCOUNTING
 	/** The set of active replicated subobjects for an actor */
@@ -296,16 +301,30 @@ public:
 	* Called when a channel starts replicating a subobject for the first time.
 	* Used to keep track of the number of channels having an active reference to a specific subobject
 	*/
-	void AddSubObjectChannelReference(AActor* OwnerActor, UObject* ReplicatedSubObject, UActorChannel* ReferencingChannel);
+	void AddSubObjectChannelReference(AActor* OwnerActor, UObject* ReplicatedSubObject, UObject* ReferenceOwner);
 
 	/** Called when a channel stops replicating a subobject. */
-	void RemoveSubObjectChannelReference(AActor* OwnerActor, const TWeakObjectPtr<UObject>& ReplicatedSubObject, UActorChannel* ReferencingChannel);
+	void RemoveSubObjectChannelReference(AActor* OwnerActor, const TWeakObjectPtr<UObject>& ReplicatedSubObject, UObject* ReferenceOwner);
+
+	/** Called when multiple subobjects need to remove their reference from either the active or inactive list */
+	void RemoveMultipleSubObjectChannelReference(AActor* OwnerActor, const TArray< TWeakObjectPtr<UObject>, TInlineAllocator<16> >& SubObjectsToRemove, UObject* ReferenceOwner);
 
 	/** Called when multiple subobjects that were flagged torn off or delete have removed their channel reference */
-	void RemoveMultipleInvalidSubObjectChannelReference(FNetworkObjectInfo* ActorNetInfo, const TArray< TWeakObjectPtr<UObject>, TInlineAllocator<16> >& SubObjectsToRemove, UActorChannel* ReferencingChannel);
+	void RemoveMultipleInvalidSubObjectChannelReference(FNetworkObjectInfo* ActorNetInfo, const TArray< TWeakObjectPtr<UObject>, TInlineAllocator<16> >& SubObjectsToRemove, UObject* ReferenceOwner);
 
 	/** Called when multiple subobjects that were still considered active have removed their channel reference */
-	void RemoveMultipleActiveSubObjectChannelReference(FNetworkObjectInfo* ActorNetInfo, const TArray< TWeakObjectPtr<UObject>, TInlineAllocator<16> >& SubObjectsToRemove, UActorChannel* ReferencingChannel);
+	void RemoveMultipleActiveSubObjectChannelReference(FNetworkObjectInfo* ActorNetInfo, const TArray< TWeakObjectPtr<UObject>, TInlineAllocator<16> >& SubObjectsToRemove, UObject* ReferenceOwner);
+
+	/** 
+	* Keep track of the transfer of ownership from the channel to the connection when the actor becomes dormant.
+	* This is only needed to ensure the debug reference tracking is up to date.
+	* No actual logic is modified here.
+	*/
+#if DO_REPLICATED_OBJECT_CHANNELREF_CHECKS
+	void SwapMultipleReferencesForDormancy(AActor* OwnerActor, const TArray< TWeakObjectPtr<UObject>, TInlineAllocator<16> >& SubObjectsToSwap, UActorChannel* PreviousChannelRefOwner, UNetConnection* NewConnectionRefOwner);
+	void SwapReferenceForDormancy(AActor* OwnerActor, UObject* ReplicatedSubObject, UNetConnection* PreviousConnectionRefOwner, UActorChannel* NewChannelRefOwner);
+#endif 
+
 #endif //#if UE_REPLICATED_OBJECT_REFCOUNTING
 
 private:
@@ -314,8 +333,14 @@ private:
 #if UE_REPLICATED_OBJECT_REFCOUNTING
 	void InvalidateSubObject(AActor* Actor, UObject* SubObject, ENetSubObjectStatus InvalidStatus);
 
-	bool HandleRemoveActiveSubObjectRef(FNetworkObjectInfo* ActorNetInfo, AActor* OwnerActor, const TWeakObjectPtr<UObject>& ReplicatedSubObject, UActorChannel* ReferencingChannel);
-	bool HandleRemoveInvalidSubObjectRef(FNetworkObjectInfo* ActorNetInfo, AActor* OwnerActor, const TWeakObjectPtr<UObject>& ReplicatedSubObject, UActorChannel* ReferencingChannel);
+	void HandleRemoveAnySubObjectChannelRef(FNetworkObjectInfo* ActorNetInfo, const TWeakObjectPtr<UObject>& ReplicatedSubObject, UObject* ReferenceOwner);
+	bool HandleRemoveActiveSubObjectRef(FNetworkObjectInfo* ActorNetInfo, const TWeakObjectPtr<UObject>& ReplicatedSubObject, UObject* ReferenceOwner);
+	bool HandleRemoveInvalidSubObjectRef(FNetworkObjectInfo* ActorNetInfo, const TWeakObjectPtr<UObject>& ReplicatedSubObject, UObject* ReferenceOwner);
+#endif
+
+
+#if DO_REPLICATED_OBJECT_CHANNELREF_CHECKS
+	void HandleSwapReferenceForDormancy(FNetworkObjectInfo* ActorNetInfo, const TWeakObjectPtr<UObject>& SubObjectPtr, UObject* PreviousRefOwner, UObject* NewRefOwner);
 #endif
 
 	FNetworkObjectSet AllNetworkObjects;

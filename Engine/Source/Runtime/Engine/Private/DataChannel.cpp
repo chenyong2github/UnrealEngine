@@ -2254,6 +2254,16 @@ int64 UActorChannel::Close(EChannelCloseReason Reason)
 
 void UActorChannel::CleanupReplicators(const bool bKeepReplicators)
 {
+#if UE_REPLICATED_OBJECT_REFCOUNTING
+	TArray<TWeakObjectPtr<UObject>, TInlineAllocator<16>> ReferencesToRemove;
+#endif
+
+#if DO_REPLICATED_OBJECT_CHANNELREF_CHECKS
+    // The reference swap is only needed when we keep track of individual references since the refcount stays identical.
+    // So we only keep track of swapped objects when we run with the checks enabled.
+	TArray<TWeakObjectPtr<UObject>, TInlineAllocator<16>> ReferencesToSwap;
+#endif
+
 	// Cleanup or save replicators
 	for (auto CompIt = ReplicationMap.CreateIterator(); CompIt; ++CompIt)
 	{
@@ -2264,6 +2274,14 @@ void UActorChannel::CleanupReplicators(const bool bKeepReplicators)
 		if (bKeepReplicators && ObjectReplicatorRef->GetObject() != nullptr)
 		{
 			LLM_SCOPE_BYTAG(NetConnection);
+
+#if DO_REPLICATED_OBJECT_CHANNELREF_CHECKS
+			// Ignore the main actor's replicator
+			if (Actor != ObjectReplicatorRef->ObjectPtr)
+			{
+				ReferencesToSwap.Add(ObjectReplicatorRef->GetWeakObjectPtr());
+			}
+#endif
 
 			// If we want to keep the replication state of the actor/sub-objects around, transfer ownership to the connection
 			// This way, if this actor opens another channel on this connection, we can reclaim or use this replicator to compare state, etc.
@@ -2284,12 +2302,26 @@ void UActorChannel::CleanupReplicators(const bool bKeepReplicators)
 			// Ignore the main actor's replicator
 			if (Actor != ObjectReplicatorRef->ObjectPtr)
 			{
-				Connection->Driver->GetNetworkObjectList().RemoveSubObjectChannelReference(Actor, ObjectReplicatorRef->GetWeakObjectPtr(), this);
+				ReferencesToRemove.Add(ObjectReplicatorRef->GetWeakObjectPtr());
 			}
 #endif
 			ObjectReplicatorRef->CleanUp();
 		}
 	}
+
+#if UE_REPLICATED_OBJECT_REFCOUNTING
+	if (ReferencesToRemove.Num() > 0)
+	{
+		Connection->Driver->GetNetworkObjectList().RemoveMultipleSubObjectChannelReference(Actor, ReferencesToRemove, this);
+	}
+#endif
+
+#if DO_REPLICATED_OBJECT_CHANNELREF_CHECKS
+	if (ReferencesToSwap.Num() > 0)
+	{
+		Connection->Driver->GetNetworkObjectList().SwapMultipleReferencesForDormancy(Actor, ReferencesToSwap, this, Connection);
+	}
+#endif
 
 	ReplicationMap.Empty();
 
@@ -4952,6 +4984,20 @@ TSharedRef<FObjectReplicator>& UActorChannel::CreateReplicator(UObject* Obj, boo
 	if (bCheckDormantReplicators)
 	{
 		NewReplicator = Connection->FindAndRemoveDormantReplicator(Actor, Obj);
+
+#if DO_REPLICATED_OBJECT_CHANNELREF_CHECKS
+		if (NewReplicator.IsValid())
+		{
+			// If this is a subobject (and not the main actor) swap the reference from the NetConnection to this channel
+			if (Obj != Actor)
+			{
+				if (UNetDriver* NetDriver = Connection->GetDriver())
+				{
+					NetDriver->GetNetworkObjectList().SwapReferenceForDormancy(Actor, Obj, Connection, this);
+				}
+			}
+		}
+#endif
 	}
 	else
 	{
@@ -4970,21 +5016,23 @@ TSharedRef<FObjectReplicator>& UActorChannel::CreateReplicator(UObject* Obj, boo
 		NewReplicator = Connection->CreateReplicatorForNewActorChannel(Obj);
 
 		UE_LOG(LogNetTraffic, Log, TEXT("CreateReplicator - creating new replicator for (0x%p) %s - Replicator (0x%p)"), Obj, *Obj->GetName(), NewReplicator.Get());
+
+#if UE_REPLICATED_OBJECT_REFCOUNTING
+		// If this is a subobject (and not the main actor) add a reference
+		if (Obj != Actor)
+		{
+			if (UNetDriver* NetDriver = Connection->GetDriver())
+			{
+				NetDriver->GetNetworkObjectList().AddSubObjectChannelReference(Actor, Obj, this);
+			}
+		}
+#endif
 	}
 
 	// Add to the replication map
 	TSharedRef<FObjectReplicator>& NewRef = ReplicationMap.Add(Obj, NewReplicator.ToSharedRef());
 
-#if UE_REPLICATED_OBJECT_REFCOUNTING
-	// If this is a subobject (and not the main actor) add a reference
-	if (Obj != Actor)
-	{
-		if (UNetDriver* NetDriver = Connection->GetDriver())
-		{
-			NetDriver->GetNetworkObjectList().AddSubObjectChannelReference(Actor, Obj, this);
-		}
-	}
-#endif
+
 
 	// Start replicating with this replicator
 	NewRef->StartReplicating(this);

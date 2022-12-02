@@ -8,6 +8,7 @@
 
 class AActor;
 class FObjectReplicator;
+class FNetworkObjectList;
 
 namespace UE::Net
 {
@@ -140,6 +141,15 @@ struct FDormantReplicatorHolder
 	* Iterate over all the stored object replicators and destroy any that are tied to a replicated object that is now considered invalid.
 	*/
 	void CleanupStaleObjects();
+
+	/**
+	* Iterate over all the stored object replicators and destroy any that are tied to a replicated object that is now considered invalid.
+	* This version will decrement the subobject references stored in the networkobject list too.
+	* 
+	* @param FNetworkObjectList The netdriver's network object list
+	* @param ReferenceOwner The connection owner that is storing those dormant objects
+	*/
+	void CleanupStaleObjects(FNetworkObjectList& NetworkObjectList, UObject* ReferenceOwner);
 
 	/** 
 	* Execute the passed function on each dormant replicator we are holding
