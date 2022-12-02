@@ -616,6 +616,8 @@ FArchive& operator<<(FArchive& Ar, FPoseSearchIndexBase& Index)
 		Ar.Serialize(&Index.Assets[0], Index.Assets.Num() * Index.Assets.GetTypeSize());
 	}
 
+	Ar << Index.MinCostAddend;
+
 	return Ar;
 }
 
