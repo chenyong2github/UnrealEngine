@@ -27,30 +27,30 @@ namespace ERHIFeatureLevel
 		 * Feature level defined by the capabilities of DX10 Shader Model 4.
 		 * SUPPORT FOR THIS FEATURE LEVEL HAS BEEN ENTIRELY REMOVED.
 		 */
-		 SM4_REMOVED,
+		SM4_REMOVED,
 
-		 /**
-		  * Feature level defined by the capabilities of DX11 Shader Model 5.
-		  *   Compute shaders with shared memory, group sync, UAV writes, integer atomics
-		  *   Indirect drawing
-		  *   Pixel shaders with UAV writes
-		  *   Cubemap arrays
-		  *   Read-only depth or stencil views (eg read depth buffer as SRV while depth test and stencil write)
-		  * Tessellation is not considered part of Feature Level SM5 and has a separate capability flag.
-		  */
-		  SM5,
+		/**
+		 * Feature level defined by the capabilities of DX11 Shader Model 5.
+		 *   Compute shaders with shared memory, group sync, UAV writes, integer atomics
+		 *   Indirect drawing
+		 *   Pixel shaders with UAV writes
+		 *   Cubemap arrays
+		 *   Read-only depth or stencil views (eg read depth buffer as SRV while depth test and stencil write)
+		 * Tessellation is not considered part of Feature Level SM5 and has a separate capability flag.
+		 */
+		SM5,
 
-		  /**
-		   * Feature level defined by the capabilities of DirectX 12 hardware feature level 12_2 with Shader Model 6.5
-		   *   Raytracing Tier 1.1
-		   *   Mesh and Amplification shaders
-		   *   Variable rate shading
-		   *   Sampler feedback
-		   *   Resource binding tier 3
-		   */
-		   SM6,
+		/**
+		 * Feature level defined by the capabilities of DirectX 12 hardware feature level 12_2 with Shader Model 6.5
+		 *   Raytracing Tier 1.1
+		 *   Mesh and Amplification shaders
+		 *   Variable rate shading
+		 *   Sampler feedback
+		 *   Resource binding tier 3
+		 */
+		SM6,
 
-		   Num
+		Num
 	};
 };
 DECLARE_INTRINSIC_TYPE_LAYOUT(ERHIFeatureLevel::Type);
