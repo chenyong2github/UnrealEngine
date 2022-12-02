@@ -4264,13 +4264,12 @@ void FRecastTileGenerator::MarkDynamicArea(const FAreaNavModifier& Modifier, con
 			if (ReplaceIDPtr)
 			{
 				dtReplaceCylinderArea(Layer, LayerRecastOrig, TileConfig.cs, TileConfig.ch,
-					&(RecastPos.X), CylinderData.Radius, CylinderData.Height, AreaID, *ReplaceIDPtr);
+					&(RecastPos.X), CylinderData.Radius, CylinderData.Height, IntCastChecked<unsigned char>(AreaID), IntCastChecked<unsigned char>(*ReplaceIDPtr));
 			}
 			else
 			{
 				dtMarkCylinderArea(Layer, LayerRecastOrig, TileConfig.cs, TileConfig.ch,
-					&(RecastPos.X), CylinderData.Radius, CylinderData.Height, AreaID);
-			}
+					&(RecastPos.X), CylinderData.Radius, CylinderData.Height, IntCastChecked<unsigned char>(AreaID));			}
 		}
 		break;
 
@@ -4291,12 +4290,12 @@ void FRecastTileGenerator::MarkDynamicArea(const FAreaNavModifier& Modifier, con
 			if (ReplaceIDPtr)
 			{
 				dtReplaceBoxArea(Layer, LayerRecastOrig, TileConfig.cs, TileConfig.ch,
-					&(RecastPos.X), &(RecastExtent.X), AreaID, *ReplaceIDPtr);
+					&(RecastPos.X), &(RecastExtent.X), IntCastChecked<unsigned char>(AreaID), IntCastChecked<unsigned char>(*ReplaceIDPtr));
 			}
 			else
 			{
 				dtMarkBoxArea(Layer, LayerRecastOrig, TileConfig.cs, TileConfig.ch,
-					&(RecastPos.X), &(RecastExtent.X), AreaID);
+					&(RecastPos.X), &(RecastExtent.X), IntCastChecked<unsigned char>(AreaID));
 			}
 		}
 		break;
@@ -4338,12 +4337,12 @@ void FRecastTileGenerator::MarkDynamicArea(const FAreaNavModifier& Modifier, con
 				if (ReplaceIDPtr)
 				{
 					dtReplaceConvexArea(Layer, LayerRecastOrig, TileConfig.cs, TileConfig.ch,
-						ConvexCoords.GetData(), ConvexVerts.Num(), ConvexData.MinZ, ConvexData.MaxZ, AreaID, *ReplaceIDPtr);
+						ConvexCoords.GetData(), ConvexVerts.Num(), ConvexData.MinZ, ConvexData.MaxZ, IntCastChecked<unsigned char>(AreaID), IntCastChecked<unsigned char>(*ReplaceIDPtr));
 				}
 				else
 				{
 					dtMarkConvexArea(Layer, LayerRecastOrig, TileConfig.cs, TileConfig.ch,
-						ConvexCoords.GetData(), ConvexVerts.Num(), ConvexData.MinZ, ConvexData.MaxZ, AreaID);
+						ConvexCoords.GetData(), ConvexVerts.Num(), ConvexData.MinZ, ConvexData.MaxZ, IntCastChecked<unsigned char>(AreaID));
 				}
 			}
 		}
@@ -4355,7 +4354,7 @@ void FRecastTileGenerator::MarkDynamicArea(const FAreaNavModifier& Modifier, con
 
 uint32 FRecastTileGenerator::GetUsedMemCount() const
 {
-	uint32 TotalMemory = 0;
+	SIZE_T TotalMemory = 0;
 	TotalMemory += InclusionBounds.GetAllocatedSize();
 	TotalMemory += Modifiers.GetAllocatedSize();
 	TotalMemory += OffmeshLinks.GetAllocatedSize();
@@ -4392,7 +4391,7 @@ uint32 FRecastTileGenerator::GetUsedMemCount() const
 		TotalMemory += NavigationData[i].DataSize;
 	}
 
-	return TotalMemory;
+	return IntCastChecked<uint32>(TotalMemory);
 }
 
 void FRecastTileGenerator::AddReferencedObjects(FReferenceCollector& Collector)
@@ -4434,7 +4433,7 @@ void CheckTileIndicesInValidRange(const TNavStatArray<FBox>& NavigableAreas, con
 
 int32 CalculateMaxTilesCount(const TNavStatArray<FBox>& NavigableAreas, FVector::FReal TileSizeInWorldUnits, FVector::FReal AvgLayersPerGridCell, const uint32 NavMeshVersion)
 {
-	int32 GridCellsCount = 0;
+	int64 GridCellsCount = 0;
 	for (int32 Index = 0; Index < NavigableAreas.Num(); ++Index)
 	{
 		const FBox& AreaBounds = NavigableAreas[Index];
@@ -4469,21 +4468,21 @@ int32 CalculateMaxTilesCount(const TNavStatArray<FBox>& NavigableAreas, FVector:
 		if (NavMeshVersion >= NAVMESHVER_MAXTILES_COUNT_CHANGE)
 		{
 			// Keep this as an integer division to avoid imprecision between platforms and targets (since MaxTilesCount is compared with stored data).
-			const int32 TileSizeUU = (int32)TileSizeInWorldUnits;
-			const int32 XSize = (FMath::CeilToInt(RCBox.GetSize().X) / TileSizeUU) + 1;
-			const int32 YSize = (FMath::CeilToInt(RCBox.GetSize().Z) / TileSizeUU) + 1;
+			const int64 TileSizeUU = (int64)TileSizeInWorldUnits;
+			const int64 XSize = (FMath::CeilToInt(RCBox.GetSize().X) / TileSizeUU) + 1;
+			const int64 YSize = (FMath::CeilToInt(RCBox.GetSize().Z) / TileSizeUU) + 1;
 			GridCellsCount += (XSize*YSize);
 		}
 		else
 		{
 			// Support old navmesh versions
-			int32 XSize = FMath::CeilToInt(RCBox.GetSize().X/TileSizeInWorldUnits) + 1;
-			int32 YSize = FMath::CeilToInt(RCBox.GetSize().Z/TileSizeInWorldUnits) + 1;
+			int64 XSize = FMath::CeilToInt(RCBox.GetSize().X/TileSizeInWorldUnits) + 1;
+			int64 YSize = FMath::CeilToInt(RCBox.GetSize().Z/TileSizeInWorldUnits) + 1;
 			GridCellsCount+= (XSize*YSize);
 		}
 	}
 	
-	return FMath::CeilToInt(GridCellsCount * AvgLayersPerGridCell);
+	return IntCastChecked<int32>(FMath::CeilToInt(GridCellsCount * AvgLayersPerGridCell));
 }
 } // UE::NavMesh::Private
 
@@ -4818,7 +4817,7 @@ void FRecastNavMeshGenerator::CalcPolyRefBits(ARecastNavMesh* NavMeshOwner, int3
 {
 	static const int32 TotalBits = (sizeof(dtPolyRef) * 8);
 #if USE_64BIT_ADDRESS
-	MaxTileBits = NavMeshOwner ? FMath::CeilToFloat(FMath::Log2(static_cast<float>(NavMeshOwner->GetTileNumberHardLimit()))) : 20;
+	MaxTileBits = NavMeshOwner ? static_cast<int32>(FMath::CeilToFloat(FMath::Log2(static_cast<float>(NavMeshOwner->GetTileNumberHardLimit())))) : 20;
 	MaxPolyBits = FMath::Min<int32>(32, (TotalBits - DT_MIN_SALT_BITS) - MaxTileBits);
 #else
 	MaxTileBits = 14;
@@ -6805,7 +6804,7 @@ void FRecastNavMeshGenerator::GrabDebugSnapshot(struct FVisualLogEntry* Snapshot
 							continue;
 						}
 
-						const uint8 AreaId = NavData->GetAreaID(AreaMod.GetAreaClass());
+						const uint8 AreaId = IntCastChecked<uint8>(NavData->GetAreaID(AreaMod.GetAreaClass()));
 						const UClass* AreaClass = NavData->GetAreaClass(AreaId);
 						const UNavArea* DefArea = AreaClass ? ((UClass*)AreaClass)->GetDefaultObject<UNavArea>() : NULL;
 						const FColor PolygonColor = AreaClass != FNavigationSystem::GetDefaultWalkableArea() ? (DefArea ? DefArea->DrawColor : NavData->GetConfig().Color) : FColorList::Cyan;
@@ -6958,7 +6957,7 @@ void FRecastNavMeshGenerator::ExportNavigationData(const FString& FileName) cons
 						if (ShapeType == ENavigationShapeType::Convex || ShapeType == ENavigationShapeType::InstancedConvex)
 						{
 							FAreaExportData ExportInfo;
-							ExportInfo.AreaId = NavData->GetAreaID(AreaMod.GetAreaClass());
+							ExportInfo.AreaId = IntCastChecked<uint8>(NavData->GetAreaID(AreaMod.GetAreaClass()));
 
 							auto AddAreaExportDataFunc = [&](const FConvexNavAreaData& InConvexNavAreaData)
 							{

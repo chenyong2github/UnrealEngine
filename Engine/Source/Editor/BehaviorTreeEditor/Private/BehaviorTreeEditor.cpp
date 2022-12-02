@@ -423,7 +423,7 @@ FText FBehaviorTreeEditor::HandleGetDebugKeyValue(const FName& InKeyName, bool b
 	return FText();
 }
 
-float FBehaviorTreeEditor::HandleGetDebugTimeStamp(bool bUseCurrentState) const
+double FBehaviorTreeEditor::HandleGetDebugTimeStamp(bool bUseCurrentState) const
 {
 	if(IsDebuggerReady())
 	{

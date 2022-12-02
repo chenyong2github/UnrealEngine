@@ -17,7 +17,7 @@ FGameplayDebuggerCategory::FGameplayDebuggerCategory() :
 	bHasAuthority(true),
 	bIsEnabled(true),
 	CategoryId(INDEX_NONE),
-	LastCollectDataTime(-FLT_MAX)
+	LastCollectDataTime(-MAX_dbl)
 {
 }
 
@@ -81,7 +81,7 @@ void FGameplayDebuggerCategory::DrawCategory(APlayerController* OwnerPC, FGamepl
 
 	if (bShowUpdateTimer && bHasAuthority)
 	{
-		const float GameTime = World->GetTimeSeconds();
+		const double GameTime = World->GetTimeSeconds();
 		CanvasContext.Printf(TEXT("%sNext update in: {yellow}%.0fs"), *CategoryPrefix, CollectDataInterval - (GameTime - LastCollectDataTime));
 	}
 
@@ -137,14 +137,14 @@ bool FGameplayDebuggerCategory::IsLocationInViewCone(const FVector& ViewLocation
 {
 	const UGameplayDebuggerUserSettings* Settings = GetDefault<UGameplayDebuggerUserSettings>();
 	const FVector DirToEntity = TargetLocation - ViewLocation;
-	const float DistanceToEntitySq = DirToEntity.SquaredLength();
+	const FVector::FReal DistanceToEntitySq = DirToEntity.SquaredLength();
 	if (DistanceToEntitySq > FMath::Square(Settings->MaxViewDistance))
 	{
 		return false;
 	}
 
-	const float ViewDot = FVector::DotProduct(DirToEntity.GetSafeNormal(), ViewDirection);
-	const float MinViewDirDot = FMath::Cos(FMath::DegreesToRadians(Settings->MaxViewAngle));
+	const FVector::FReal ViewDot = FVector::DotProduct(DirToEntity.GetSafeNormal(), ViewDirection);
+	const FVector::FReal MinViewDirDot = FMath::Cos(FMath::DegreesToRadians(Settings->MaxViewAngle));
 	if (ViewDot < MinViewDirDot)
 	{
 		return false;

@@ -36,8 +36,8 @@ FBehaviorTreeDebugger::FBehaviorTreeDebugger()
 	StepBackIntoIdx = INDEX_NONE;
 	StepBackOverIdx = INDEX_NONE;
 	StepOutIdx = INDEX_NONE;
-	SavedTimestamp = 0.0f;
-	CurrentTimestamp = 0.0f;
+	SavedTimestamp = 0.;
+	CurrentTimestamp = 0.;
 
 	FEditorDelegates::BeginPIE.AddRaw(this, &FBehaviorTreeDebugger::OnBeginPIE);
 	FEditorDelegates::EndPIE.AddRaw(this, &FBehaviorTreeDebugger::OnEndPIE);
@@ -228,7 +228,7 @@ void FBehaviorTreeDebugger::Tick(float DeltaTime)
 		if (ActiveStepIndex == LatestStepIndex)
 		{
 			TArray<FString> RuntimeDescriptions;
-			TreeInstance->StoreDebuggerRuntimeValues(RuntimeDescriptions, ShowInstance.RootNode, DebuggerInstanceIndex);
+			TreeInstance->StoreDebuggerRuntimeValues(RuntimeDescriptions, ShowInstance.RootNode, IntCastChecked<uint16>(DebuggerInstanceIndex));
 
 			UpdateAssetRuntimeDescription(RuntimeDescriptions, RootNode.Get());
 		}
@@ -1189,7 +1189,7 @@ void FBehaviorTreeDebugger::UpdateDebuggerViewOnTick()
 #if USE_BEHAVIORTREE_DEBUGGER
 	if (IsDebuggerRunning() && TreeInstance.IsValid())
 	{
-		const float GameTime = GEditor && GEditor->PlayWorld ? GEditor->PlayWorld->GetTimeSeconds() : 0.0f;
+		const double GameTime = GEditor && GEditor->PlayWorld ? GEditor->PlayWorld->GetTimeSeconds() : 0.;
 		CurrentTimestamp = GameTime;
 
 		TreeInstance->StoreDebuggerBlackboard(CurrentValues);
@@ -1227,7 +1227,7 @@ FText FBehaviorTreeDebugger::FindValueForKey(const FName& InKeyName, bool bUseCu
 #endif
 }
 
-float FBehaviorTreeDebugger::GetTimeStamp(bool bUseCurrentState) const
+double FBehaviorTreeDebugger::GetTimeStamp(bool bUseCurrentState) const
 {
 	return bUseCurrentState ? CurrentTimestamp : SavedTimestamp;
 }

@@ -317,13 +317,13 @@ void FEnvQueryTestDetails::BuildScoreEquationValues()
 
 void FEnvQueryTestDetails::OnFilterTestChange(int32 Index)
 {
-	uint8 EnumValue = Index;
+	const uint8 EnumValue = IntCastChecked<uint8>(Index);
 	FilterTypeHandle->SetValue(EnumValue);
 }
 
 void FEnvQueryTestDetails::OnScoreEquationChange(int32 Index)
 {
-	uint8 EnumValue = Index;
+	const uint8 EnumValue = IntCastChecked<uint8>(Index);
 	ScoreEquationHandle->SetValue(EnumValue);
 }
 
@@ -361,14 +361,14 @@ void FEnvQueryTestDetails::BuildScoreClampingTypeValues(bool bBuildMinValues, TA
 void FEnvQueryTestDetails::OnClampMinTestChange(int32 Index)
 {
 	check(ClampMinTypeHandle.IsValid());
-	uint8 EnumValue = Index;
+	const uint8 EnumValue = IntCastChecked<uint8>(Index);
 	ClampMinTypeHandle->SetValue(EnumValue);
 }
 
 void FEnvQueryTestDetails::OnClampMaxTestChange(int32 Index)
 {
 	check(ClampMaxTypeHandle.IsValid());
-	uint8 EnumValue = Index;
+	const uint8 EnumValue = IntCastChecked<uint8>(Index);
 	ClampMaxTypeHandle->SetValue(EnumValue);
 }
 

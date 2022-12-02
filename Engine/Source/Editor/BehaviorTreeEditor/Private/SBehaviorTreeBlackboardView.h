@@ -42,7 +42,7 @@ DECLARE_DELEGATE_RetVal(bool, FOnIsDebuggerPaused);
 DECLARE_DELEGATE_RetVal(bool, FOnGetDisplayCurrentState);
 
 /** Delegate used to get the debugger's current timestamp */
-DECLARE_DELEGATE_RetVal_OneParam(float, FOnGetDebugTimeStamp, bool /* bUseCurrentState */);
+DECLARE_DELEGATE_RetVal_OneParam(double, FOnGetDebugTimeStamp, bool /* bUseCurrentState */);
 
 /** Delegate for when a blackboard key changes (added, removed, renamed) */
 DECLARE_DELEGATE_TwoParams(FOnBlackboardKeyChanged, UBlackboardData* /*InBlackboardData*/, FBlackboardEntry* const /*InKey*/);

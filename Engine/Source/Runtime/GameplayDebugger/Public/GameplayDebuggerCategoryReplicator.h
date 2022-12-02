@@ -102,7 +102,7 @@ struct FGameplayDebuggerDebugActor
 	FName ActorName;
 
 	UPROPERTY()
-	int32 SyncCounter = 0;
+	int16 SyncCounter = 0;
 };
 
 USTRUCT()
@@ -178,7 +178,7 @@ public:
 	FName GetDebugActorName() const { return DebugActor.ActorName; }
 
 	/** get sync counter, increased with every change of DebugActor */
-	int32 GetDebugActorCounter() const { return DebugActor.SyncCounter; }
+	int16 GetDebugActorCounter() const { return DebugActor.SyncCounter; }
 
 	/** get view point information */
 	bool GetViewPoint(FVector& OutViewLocation, FVector& OutViewDirection) const;

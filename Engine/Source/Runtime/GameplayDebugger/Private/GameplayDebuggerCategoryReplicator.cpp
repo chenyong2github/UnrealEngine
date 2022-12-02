@@ -354,7 +354,7 @@ bool FGameplayDebuggerNetPack::NetDeltaSerialize(FNetDeltaSerializeInfo& DeltaPa
 			uint8 BaseFlags = SavedCategory.bIsEnabled;
 			uint8 ShouldUpdateTextLines = bMissingOldState || (OldState->CategoryStates[Idx].TextLinesRepCounter != NewState->CategoryStates[Idx].TextLinesRepCounter);
 			uint8 ShouldUpdateShapes = bMissingOldState || (OldState->CategoryStates[Idx].ShapesRepCounter != NewState->CategoryStates[Idx].ShapesRepCounter);
-			uint8 NumDataPacks = SavedCategory.DataPacks.Num();
+			uint8 NumDataPacks = IntCastChecked<uint8>(SavedCategory.DataPacks.Num());
 
 			Writer << SavedCategory.CategoryName;
 
@@ -848,7 +848,7 @@ void AGameplayDebuggerCategoryReplicator::PostNetReceive()
 
 void AGameplayDebuggerCategoryReplicator::CollectCategoryData(bool bForce)
 {
-	const float GameTime = GetWorld()->GetTimeSeconds();
+	const double GameTime = GetWorld()->GetTimeSeconds();
 
 #if ENABLE_VISUAL_LOG
 	const FVisualLogger& VLogger = FVisualLogger::Get();

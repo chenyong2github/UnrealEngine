@@ -21,8 +21,8 @@ public:
 	struct FStatData : public TSharedFromThis<FStatData, ESPMode::ThreadSafe>
 	{
 		FName QueryName;
-		float WorstTime;
-		float AverageTime;
+		double WorstTime;
+		double AverageTime;
 		float AverageLoad;
 		int32 NumRuns;
 		bool bIsHighlighted;

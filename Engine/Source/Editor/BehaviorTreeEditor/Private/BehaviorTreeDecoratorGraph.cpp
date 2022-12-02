@@ -64,7 +64,7 @@ void UBehaviorTreeDecoratorGraph::CollectDecoratorDataWorker(const UBehaviorTree
 		}
 	}
 
-	FBTDecoratorLogic LogicOp(Node->GetOperationType(), LinkedNodes.Num());
+	FBTDecoratorLogic LogicOp(IntCastChecked<uint8>((int32)Node->GetOperationType()), IntCastChecked<uint16>(LinkedNodes.Num()));
 
 	// special case: invalid
 	if (LogicOp.Operation == EBTDecoratorLogic::Invalid)
@@ -79,7 +79,7 @@ void UBehaviorTreeDecoratorGraph::CollectDecoratorDataWorker(const UBehaviorTree
 		UBTDecorator* DecoratorInstance = DecoratorNode ? (UBTDecorator*)DecoratorNode->NodeInstance : NULL;
 		if (DecoratorInstance)
 		{
-			LogicOp.Number = DecoratorInstances.Add(DecoratorInstance);
+			LogicOp.Number = IntCastChecked<uint16>(DecoratorInstances.Add(DecoratorInstance));
 			DecoratorOperations.Add(LogicOp);
 		}
 	}
@@ -138,8 +138,8 @@ UBehaviorTreeDecoratorGraphNode* UBehaviorTreeDecoratorGraph::SpawnMissingNodeWo
 
 	if (GraphNode)
 	{
-		GraphNode->NodePosX = ParentGraphNode->NodePosX - 300.0f;
-		GraphNode->NodePosY = ParentGraphNode->NodePosY + ChildIdx * 100.0f;
+		GraphNode->NodePosX = ParentGraphNode->NodePosX - 300;
+		GraphNode->NodePosY = ParentGraphNode->NodePosY + ChildIdx * 100;
 	}
 
 	for (int32 Idx = 0; Idx < NumSteps; Idx++)

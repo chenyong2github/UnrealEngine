@@ -344,7 +344,7 @@ void UGameplayDebuggerLocalController::DrawCategoryHeader(int32 CategoryId, TSha
 		Category->GetNumDataPacks() > 0)
 	{
 		// collect brief data pack status, detailed info is displayed only when ShouldDrawReplicationStatus is true
-		const int32 CurrentSyncCounter = CachedReplicator->GetDebugActorCounter();
+		const int16 CurrentSyncCounter = CachedReplicator->GetDebugActorCounter();
 
 		DataPackDesc = TEXT("{white} ver[");
 		bool bIsPrevOutdated = false;
@@ -514,9 +514,9 @@ void UGameplayDebuggerLocalController::OnActivationPressed()
 {
 	if (CachedReplicator)
 	{
-		const float HoldTimeThr = 0.2f * (FApp::UseFixedTimeStep() ? (FApp::GetFixedDeltaTime() * 60.0f) : 1.0f);
+		const double HoldTimeThr = 0. * (FApp::UseFixedTimeStep() ? (FApp::GetFixedDeltaTime() * 60.) : 1.);
 
-		CachedReplicator->GetWorldTimerManager().SetTimer(StartSelectingActorHandle, this, &UGameplayDebuggerLocalController::OnStartSelectingActor, HoldTimeThr);
+		CachedReplicator->GetWorldTimerManager().SetTimer(StartSelectingActorHandle, this, &UGameplayDebuggerLocalController::OnStartSelectingActor, static_cast<float>(HoldTimeThr));
 	}
 }
 
@@ -684,11 +684,11 @@ void UGameplayDebuggerLocalController::OnSelectActorTick()
 		}
 
 		const UGameplayDebuggerUserSettings* Settings = GetDefault<UGameplayDebuggerUserSettings>();
-		const float MaxScanDistance = Settings->MaxViewDistance;
-		const float MinViewDirDot = FMath::Cos(FMath::DegreesToRadians(Settings->MaxViewAngle));
+		const FVector::FReal MaxScanDistance = Settings->MaxViewDistance;
+		const FVector::FReal MinViewDirDot = FMath::Cos(FMath::DegreesToRadians(Settings->MaxViewAngle));
 
 		AActor* BestCandidate = nullptr;
-		float BestScore = MinViewDirDot;
+		FVector::FReal BestScore = MinViewDirDot;
 
 		for (APawn* TestPawn : TActorRange<APawn>(OwnerPC->GetWorld()))
 		{
@@ -697,18 +697,18 @@ void UGameplayDebuggerLocalController::OnSelectActorTick()
 				TestPawn != OwnerPC->GetPawn())
 			{
 				FVector DirToPawn = (TestPawn->GetActorLocation() - ViewLocation);
-				float DistToPawn = DirToPawn.Size();
+				FVector::FReal DistToPawn = DirToPawn.Size();
 				if (FMath::IsNearlyZero(DistToPawn))
 				{
 					DirToPawn = ViewDirection;
-					DistToPawn = 1.0f;
+					DistToPawn = 1.;
 				}
 				else
 				{
 					DirToPawn /= DistToPawn;
 				}
 
-				const float ViewDot = FVector::DotProduct(ViewDirection, DirToPawn);
+				const FVector::FReal ViewDot = FVector::DotProduct(ViewDirection, DirToPawn);
 				if (DistToPawn < MaxScanDistance && ViewDot > BestScore)
 				{
 					BestScore = ViewDot;

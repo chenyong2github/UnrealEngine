@@ -173,14 +173,14 @@ void FEnvTraceDataCustomization::OnTraceChannelChanged()
 		ETraceTypeQuery TraceTypeValue = (ETraceTypeQuery)TraceChannelValue;
 		ECollisionChannel CollisionChannelValue = UEngineTypes::ConvertToCollisionChannel(TraceTypeValue);
 
-		uint8 SerializedChannelValue = CollisionChannelValue;
+		uint8 SerializedChannelValue = IntCastChecked<uint8>((int)CollisionChannelValue);
 		PropTraceChannelSerialized->SetValue(SerializedChannelValue);
 	}
 }
 
 void FEnvTraceDataCustomization::OnTraceModeChanged(int32 Index)
 {
-	ActiveMode = Index;
+	ActiveMode = IntCastChecked<uint8>(Index);
 	PropTraceMode->SetValue(ActiveMode);
 }
 

@@ -222,7 +222,7 @@ struct ENGINE_API FVisualLogEntry
 	// custom element
 	void AddElement(const FVisualLogShapeElement& Element);
 	// NavAreaMesh
-	void AddElement(const TArray<FVector>& ConvexPoints, float MinZ, float MaxZ, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color = FColor::White, const FString& Description = TEXT(""));
+	void AddElement(const TArray<FVector>& ConvexPoints, FVector::FReal MinZ, FVector::FReal MaxZ, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color = FColor::White, const FString& Description = TEXT(""));
 	// 3d Mesh
 	void AddElement(const TArray<FVector>& Vertices, const TArray<int32>& Indices, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color = FColor::White, const FString& Description = TEXT(""));
 	// 2d convex

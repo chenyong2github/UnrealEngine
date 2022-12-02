@@ -146,7 +146,7 @@ protected:
 	}
 
 	/** [AUTH] force data collection on next update */
-	void ForceImmediateCollect() { LastCollectDataTime = -FLT_MAX; }
+	void ForceImmediateCollect() { LastCollectDataTime = -MAX_dbl; }
 
 	/** update interval, 0 = each tick */
 	float CollectDataInterval;
@@ -182,7 +182,7 @@ private:
 	int32 CategoryId;
 
 	/** timestamp of last update */
-	float LastCollectDataTime;
+	double LastCollectDataTime;
 
 	/** name of debugger category (auto assigned during category registration) */
 	FName CategoryName;

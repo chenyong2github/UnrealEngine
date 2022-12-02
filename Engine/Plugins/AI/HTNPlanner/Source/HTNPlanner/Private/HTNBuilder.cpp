@@ -76,10 +76,10 @@ bool FHTNBuilder_Domain::Compile()
 
 		Domain.TaskNameMap.Add(It->Key, (CurrentAddress - CompiledData) / sizeof(uint8));
 
-		Task->ActionID = PrimitiveTaskBuilder.ActionID;
+		Task->ActionID = IntCastChecked<FHTNPolicy::FActionID>(PrimitiveTaskBuilder.ActionID);
 		Task->Parameter = PrimitiveTaskBuilder.Parameter;
 		const int32 EffectsNum = PrimitiveTaskBuilder.Effects.Num();
-		Task->EffectsCount = EffectsNum;
+		Task->EffectsCount = IntCastChecked<uint8>(EffectsNum);
 
 		CurrentAddress += sizeof(FHTNPrimitiveTask);
 
@@ -101,7 +101,7 @@ bool FHTNBuilder_Domain::Compile()
 		Domain.TaskNameMap.Add(It->Key, (CurrentAddress - CompiledData) / sizeof(uint8));
 
 		const int32 MethodsCount = CompositeTaskBuilder.Methods.Num();
-		Task->MethodsCount = MethodsCount;
+		Task->MethodsCount = IntCastChecked<uint8>(MethodsCount);
 
 		CurrentAddress += sizeof(FHTNCompositeTask);
 
@@ -116,8 +116,8 @@ bool FHTNBuilder_Domain::Compile()
 				const FHTNBuilder_Method& MethodBuilder = CompositeTaskBuilder.Methods[MethodIndex];
 
 				FHTNMethod* Method = new (&Task->Methods[MethodIndex]) FHTNMethod();
-				Method->ConditionsCount = MethodBuilder.Conditions.Num();
-				Method->TasksCount = MethodBuilder.Tasks.Num();
+				Method->ConditionsCount = IntCastChecked<uint8>(MethodBuilder.Conditions.Num());
+				Method->TasksCount = IntCastChecked<uint8>(MethodBuilder.Tasks.Num());
 
 				if (Method->ConditionsCount > 0)
 				{

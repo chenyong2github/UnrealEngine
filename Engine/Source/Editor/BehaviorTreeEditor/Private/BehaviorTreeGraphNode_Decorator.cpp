@@ -47,6 +47,6 @@ void UBehaviorTreeGraphNode_Decorator::CollectDecoratorData(TArray<UBTDecorator*
 	{
 		UBTDecorator* DecoratorNode = (UBTDecorator*)NodeInstance;
 		const int32 InstanceIdx = NodeInstances.Add(DecoratorNode);
-		Operations.Add(FBTDecoratorLogic(EBTDecoratorLogic::Test, InstanceIdx));
+		Operations.Add(FBTDecoratorLogic(EBTDecoratorLogic::Test, IntCastChecked<uint16>(InstanceIdx)));
 	}
 }

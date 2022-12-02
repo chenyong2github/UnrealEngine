@@ -558,7 +558,7 @@ void SGraphNode_BehaviorTree::UpdateGraphNode()
 					.Visibility(this, &SGraphNode_BehaviorTree::GetDragOverMarkerVisibility)
 					[
 						SNew(SBox)
-						.HeightOverride(4)
+						.HeightOverride(4.f)
 					]
 				]
 

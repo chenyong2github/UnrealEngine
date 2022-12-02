@@ -95,7 +95,7 @@ public:
 	FText FindValueForKey(const FName& InKeyName, bool bUseCurrentState) const;
 
 	/** Gets the timestamp to be displayed, either current or saved */
-	float GetTimeStamp(bool bUseCurrentState) const;
+	double GetTimeStamp(bool bUseCurrentState) const;
 
 	/** Delegate fired when the debugged blackboard is changed */
 	DECLARE_EVENT_OneParam(FBehaviorTreeDebugger, FOnDebuggedBlackboardChanged, UBlackboardData*);
@@ -154,8 +154,8 @@ private:
 	TMap<FName, FString> CurrentValues;
 
 	/** Debugger timestamps */
-	float SavedTimestamp;
-	float CurrentTimestamp;
+	double SavedTimestamp;
+	double CurrentTimestamp;
 
 	/** set value of DebuggerInstanceIndex variable */
 	void UpdateDebuggerInstance();

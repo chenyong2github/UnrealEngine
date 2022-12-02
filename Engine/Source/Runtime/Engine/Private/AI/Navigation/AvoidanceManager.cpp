@@ -247,7 +247,7 @@ void UAvoidanceManager::UpdateRVO_Internal(int32 inAvoidanceUID, const FNavAvoid
 {
 	if (FNavAvoidanceData* existingData = AvoidanceObjects.Find(inAvoidanceUID))
 	{
-		float OverrideWeightTime = existingData->OverrideWeightTime;		//Hold onto this one value
+		double OverrideWeightTime = existingData->OverrideWeightTime;		//Hold onto this one value
 		*existingData = inAvoidanceData;
 		existingData->OverrideWeightTime = OverrideWeightTime;
 	}

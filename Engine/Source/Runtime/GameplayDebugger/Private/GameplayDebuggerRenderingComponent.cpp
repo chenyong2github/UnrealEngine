@@ -67,13 +67,13 @@ public:
 private:
 	uint32 GetAllocatedSizeInternal(void) const
 	{
-		uint32 Size = FDebugRenderSceneProxy::GetAllocatedSize() + ChildProxies.GetAllocatedSize();
+		SIZE_T Size = FDebugRenderSceneProxy::GetAllocatedSize() + ChildProxies.GetAllocatedSize();
 		for (int32 Idx = 0; Idx < ChildProxies.Num(); Idx++)
 		{
 			Size += ChildProxies[Idx]->GetMemoryFootprint();
 		}
 
-		return Size;
+		return IntCastChecked<uint32>(Size);
 	}
 
 protected:

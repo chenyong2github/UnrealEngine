@@ -507,10 +507,10 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 		auto LerpColor = [](FColor A, FColor B, float T) -> FColor
 		{
 			return FColor(
-				FMath::RoundToInt(float(A.R) * (1.f - T) + float(B.R) * T),
-				FMath::RoundToInt(float(A.G) * (1.f - T) + float(B.G) * T),
-				FMath::RoundToInt(float(A.B) * (1.f - T) + float(B.B) * T),
-				FMath::RoundToInt(float(A.A) * (1.f - T) + float(B.A) * T));
+				static_cast<uint8>(FMath::RoundToInt(float(A.R) * (1.f - T) + float(B.R) * T)),
+				static_cast<uint8>(FMath::RoundToInt(float(A.G) * (1.f - T) + float(B.G) * T)),
+				static_cast<uint8>(FMath::RoundToInt(float(A.B) * (1.f - T) + float(B.B) * T)),
+				static_cast<uint8>(FMath::RoundToInt(float(A.A) * (1.f - T) + float(B.A) * T)));
 		};
 
 		TArray<FColor> TileBuildTimeColors;
@@ -925,8 +925,8 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 						int32 Rank = 0;
 						if (Range != 0.)
 						{
-							Rank = FRecastDebugGeometry::BuildTimeBucketsCount * ((DebugData->BuildTime - NavMeshGeometry.MinTileBuildTime) / Range);
-							Rank = FMath::Clamp(Rank, 0, FRecastDebugGeometry::BuildTimeBucketsCount-1);
+							const double RankCalc = FRecastDebugGeometry::BuildTimeBucketsCount * ((DebugData->BuildTime - NavMeshGeometry.MinTileBuildTime) / Range);
+							Rank = static_cast<int32>(FMath::Clamp<double>(RankCalc, 0., FRecastDebugGeometry::BuildTimeBucketsCount-1));
 						}
 
 						DebugLabels.Add(FDebugText(Pair.Value + NavMeshDrawOffset, FString::Printf(TEXT("%.2f ms\n%.2f comp + %.2f nav\n%i tri"),

@@ -383,7 +383,7 @@ protected:
 	}
 
 	/** Sets up parameter data view for a linked state and copies bound properties. */
-	void UpdateLinkedStateParameters(const FCompactStateTreeState& State, const uint16 ParameterInstanceIndex);
+	void UpdateLinkedStateParameters(const FCompactStateTreeState& State, const int32 ParameterInstanceIndex);
 
 	/** Sets up parameter data view for subtree state. */
 	void UpdateSubtreeStateParameters(const FCompactStateTreeState& State);

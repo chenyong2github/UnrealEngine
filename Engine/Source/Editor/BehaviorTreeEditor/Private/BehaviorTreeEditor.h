@@ -185,7 +185,7 @@ public:
 	FText HandleGetDebugKeyValue(const FName& InKeyName, bool bUseCurrentState) const;
 
 	/** Delegate handler for retrieving timestamp to display */
-	float HandleGetDebugTimeStamp(bool bUseCurrentState) const;
+	double HandleGetDebugTimeStamp(bool bUseCurrentState) const;
 
 	/** Delegate handler for when the debugged blackboard changes */
 	void HandleDebuggedBlackboardChanged(UBlackboardData* InObject);

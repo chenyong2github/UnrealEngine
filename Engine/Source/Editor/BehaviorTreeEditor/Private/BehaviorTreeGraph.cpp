@@ -346,7 +346,7 @@ namespace BTGraphHelpers
 			}
 			else if (MyCompositeNode)
 			{
-				MyCompositeNode->SetDecoratorData(RootNode, ChildIdx);
+				MyCompositeNode->SetDecoratorData(RootNode, IntCastChecked<uint8>(ChildIdx));
 
 				FIntIntPair RangeData;
 				RangeData.FirstIdx = DecoratorInstances.Num();
@@ -369,7 +369,7 @@ namespace BTGraphHelpers
 			DecoratorInstances[i]->InitializeNode(RootNode, *ExecutionIndex, 0, TreeDepth);
 			if (bInitializeNodes)
 			{
-				DecoratorInstances[i]->InitializeParentLink(ChildIdx);
+				DecoratorInstances[i]->InitializeParentLink(IntCastChecked<uint8>(ChildIdx));
 				*ExecutionIndex += 1;
 
 				// make sure that flow abort mode matches - skip for root level nodes
@@ -399,7 +399,7 @@ namespace BTGraphHelpers
 		{
 			if (NumNodes > 1)
 			{
-				FBTDecoratorLogic LogicOp(EBTDecoratorLogic::And, NumNodes);
+				FBTDecoratorLogic LogicOp(EBTDecoratorLogic::And, IntCastChecked<uint16>(NumNodes));
 				DecoratorOperations.Insert(LogicOp, 0);
 			}
 		}
@@ -432,7 +432,7 @@ namespace BTGraphHelpers
 			}
 			else if (MyCompositeNode)
 			{
-				MyCompositeNode->SetDecoratorData(RootNode, ChildIdx);
+				MyCompositeNode->SetDecoratorData(RootNode, IntCastChecked<uint8>(ChildIdx));
 
 				FIntIntPair RangeData;
 				RangeData.FirstIdx = DecoratorInstances.Num();
@@ -447,7 +447,7 @@ namespace BTGraphHelpers
 		for (int32 i = 0; i < DecoratorInstances.Num(); i++)
 		{
 			DecoratorInstances[i]->InitializeNode(RootNode, ExecutionIndex, 0, TreeDepth);
-			DecoratorInstances[i]->InitializeParentLink(ChildIdx);
+			DecoratorInstances[i]->InitializeParentLink(IntCastChecked<uint8>(ChildIdx));
 			ExecutionIndex++;
 		}
 
@@ -594,7 +594,7 @@ namespace BTGraphHelpers
 				UBTTask_RunBehavior* SubtreeTask = Cast<UBTTask_RunBehavior>(TaskInstance);
 				if (SubtreeTask)
 				{
-					*ExecutionIndex += SubtreeTask->GetInjectedNodesCount();
+					*ExecutionIndex += IntCastChecked<uint16>(SubtreeTask->GetInjectedNodesCount());
 				}
 
 				// collect services (task node)
@@ -613,7 +613,7 @@ namespace BTGraphHelpers
 							}
 
 							ServiceInstance->InitializeNode(RootNode, *ExecutionIndex, 0, TreeDepth);
-							ServiceInstance->InitializeParentLink(ChildIdx);
+							ServiceInstance->InitializeParentLink(IntCastChecked<uint8>(ChildIdx));
 							*ExecutionIndex += 1;
 
 							TaskInstance->Services.Add(ServiceInstance);
@@ -722,7 +722,7 @@ namespace BTGraphHelpers
 				UBTTask_RunBehavior* SubtreeTask = Cast<UBTTask_RunBehavior>(TaskInstance);
 				if (SubtreeTask)
 				{
-					*ExecutionIndex += SubtreeTask->GetInjectedNodesCount();
+					*ExecutionIndex += IntCastChecked<uint16>(SubtreeTask->GetInjectedNodesCount());
 				}
 
 				// collect services: task
@@ -843,8 +843,8 @@ namespace BTGraphHelpers
 		if (GraphNode)
 		{
 			const int32 ParentSubNodes = ParentGraphNode->Services.Num() + ParentGraphNode->Decorators.Num();
-			GraphNode->NodePosX = ParentGraphNode->NodePosX + ChildIdx * 400.0f;
-			GraphNode->NodePosY = ParentGraphNode->NodePosY + (ParentDecoratorCount + ParentSubNodes + 1) * 75.0f;
+			GraphNode->NodePosX = ParentGraphNode->NodePosX + ChildIdx * 400;
+			GraphNode->NodePosY = ParentGraphNode->NodePosY + (ParentDecoratorCount + ParentSubNodes + 1) * 75;
 			GraphNode->NodeInstance = Node;
 		}
 
@@ -1028,7 +1028,7 @@ void UBehaviorTreeGraph::SpawnMissingNodesForParallel()
 					UBehaviorTreeGraphNode* MainTaskNode = Cast<UBehaviorTreeGraphNode>(MainTaskPin->LinkedTo[0]->GetOwningNode());
 					if (MainTaskNode)
 					{
-						const int32 Width = MainTaskNode->DEPRECATED_NodeWidget.IsValid() ? MainTaskNode->DEPRECATED_NodeWidget.Pin()->GetDesiredSize().X : 200;
+						const int32 Width = MainTaskNode->DEPRECATED_NodeWidget.IsValid() ? static_cast<int32>(MainTaskNode->DEPRECATED_NodeWidget.Pin()->GetDesiredSize().X) : 200;
 						XOffset = MainTaskNode->NodePosX - ParallelNode->NodePosX + Width + 20;
 					}
 				}
@@ -1038,7 +1038,7 @@ void UBehaviorTreeGraph::SpawnMissingNodesForParallel()
 				WaitTaskNode->ClassData = FGraphNodeClassData(UBTTask_Wait::StaticClass(), "");
 				NodeBuilder.Finalize();
 
-				const int32 ParentHeight = ParallelNode->DEPRECATED_NodeWidget.IsValid() ? ParallelNode->DEPRECATED_NodeWidget.Pin()->GetDesiredSize().Y : 200;
+				const int32 ParentHeight = ParallelNode->DEPRECATED_NodeWidget.IsValid() ? static_cast<int32>(ParallelNode->DEPRECATED_NodeWidget.Pin()->GetDesiredSize().Y) : 200;
 				WaitTaskNode->NodePosX = ParallelNode->NodePosX + XOffset;
 				WaitTaskNode->NodePosY = ParallelNode->NodePosY + ParentHeight + 20;
 
@@ -1217,11 +1217,10 @@ namespace BTAutoArrangeHelpers
 				if (GraphNode && BBoxTree.Children.Num() > 0)
 				{
 					AutoArrangeNodes(GraphNode, BBoxTree.Children[BBoxIndex], PosX, PosY + GraphNode->DEPRECATED_NodeWidget.Pin()->GetDesiredSize().Y * 2.5f);
-					GraphNode->DEPRECATED_NodeWidget.Pin()->MoveTo(FVector2D(BBoxTree.Children[BBoxIndex].SubGraphBBox.X / 2 - GraphNode->DEPRECATED_NodeWidget.Pin()->GetDesiredSize().X / 2 + PosX, PosY), NodeFilter);
-					PosX += BBoxTree.Children[BBoxIndex].SubGraphBBox.X + 20;
+					GraphNode->DEPRECATED_NodeWidget.Pin()->MoveTo(FVector2D(BBoxTree.Children[BBoxIndex].SubGraphBBox.X / 2.f - GraphNode->DEPRECATED_NodeWidget.Pin()->GetDesiredSize().X / 2.f + PosX, PosY), NodeFilter);
+					PosX += BBoxTree.Children[BBoxIndex].SubGraphBBox.X + 20.f;
 					BBoxIndex++;
 				}
-
 			}
 		}
 	}
@@ -1246,7 +1245,7 @@ namespace BTAutoArrangeHelpers
 
 					GetNodeSizeInfo(GraphNode, ChildBounds);
 
-					LevelWidth += ChildBounds.SubGraphBBox.X + 20;
+					LevelWidth += ChildBounds.SubGraphBBox.X + 20.f;
 					if (ChildBounds.SubGraphBBox.Y > LevelHeight)
 					{
 						LevelHeight = ChildBounds.SubGraphBBox.Y;
@@ -1285,7 +1284,7 @@ void UBehaviorTreeGraph::AutoArrange()
 	BTAutoArrangeHelpers::GetNodeSizeInfo(RootNode, BBoxTree);
 	BTAutoArrangeHelpers::AutoArrangeNodes(RootNode, BBoxTree, 0, RootNode->DEPRECATED_NodeWidget.Pin()->GetDesiredSize().Y * 2.5f);
 
-	RootNode->NodePosX = BBoxTree.SubGraphBBox.X / 2 - RootNode->DEPRECATED_NodeWidget.Pin()->GetDesiredSize().X / 2;
+	RootNode->NodePosX = static_cast<int32>(BBoxTree.SubGraphBBox.X / 2.f - RootNode->DEPRECATED_NodeWidget.Pin()->GetDesiredSize().X / 2.f);
 	RootNode->NodePosY = 0;
 
 	RootNode->DEPRECATED_NodeWidget.Pin()->GetOwnerPanel()->ZoomToFit(/*bOnlySelection=*/ false);

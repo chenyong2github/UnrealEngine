@@ -238,7 +238,7 @@ void SGraphNode_EnvironmentQuery::UpdateGraphNode()
 									.AutoHeight()
 									.Padding(0,0,0,2)
 									[
-										SNew(SBox).HeightOverride(4)
+										SNew(SBox).HeightOverride(4.f)
 										[
 											// weight bar
 											SNew(SProgressBar)

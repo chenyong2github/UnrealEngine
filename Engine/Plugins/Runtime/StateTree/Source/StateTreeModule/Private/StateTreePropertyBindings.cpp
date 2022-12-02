@@ -100,7 +100,7 @@ bool FStateTreePropertyBindings::ResolvePath(const UStruct* Struct, const FState
 		}
 		Indirection.ArrayIndex = FStateTreeIndex16(Segment->ArrayIndex.IsValid() ? Segment->ArrayIndex.Get() : 0);
 		Indirection.Type = Segment->Type;
-		Indirection.Offset = Property->GetOffset_ForInternal() + Property->ElementSize * Indirection.ArrayIndex.Get();
+		Indirection.Offset = IntCastChecked<uint16>(Property->GetOffset_ForInternal() + Property->ElementSize * Indirection.ArrayIndex.Get());
 
 		// Check to see if it is an array access first.
 		if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))

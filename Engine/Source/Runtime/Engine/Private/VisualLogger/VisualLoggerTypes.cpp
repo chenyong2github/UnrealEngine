@@ -315,11 +315,11 @@ void FVisualLogEntry::AddElement(const FVector& Base, float HalfHeight, float Ra
 	ElementsToDraw.Add(Element);
 }
 
-void FVisualLogEntry::AddElement(const TArray<FVector>& ConvexPoints, float MinZ, float MaxZ, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color, const FString& Description)
+void FVisualLogEntry::AddElement(const TArray<FVector>& ConvexPoints, FVector::FReal MinZ, FVector::FReal MaxZ, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color, const FString& Description)
 {
 	FVisualLogShapeElement Element(Description, Color, 0, CategoryName);
 	Element.Points.Reserve(1 + ConvexPoints.Num());
-	Element.Points.Add(FVector(MinZ, MaxZ, 0));
+	Element.Points.Add(FVector(MinZ, MaxZ, 0.));
 	Element.Points.Append(ConvexPoints);
 	Element.Type = EVisualLoggerShapeElement::NavAreaMesh;
 	Element.Verbosity = Verbosity;

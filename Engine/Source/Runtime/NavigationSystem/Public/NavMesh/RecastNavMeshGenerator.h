@@ -108,8 +108,8 @@ struct FRecastVoxelCache
 {
 	struct FTileInfo
 	{
-		int16 TileX;
-		int16 TileY;
+		int32 TileX;
+		int32 TileY;
 		int32 NumSpans;
 		FTileInfo* NextTile;
 		rcSpanCache* SpanData;

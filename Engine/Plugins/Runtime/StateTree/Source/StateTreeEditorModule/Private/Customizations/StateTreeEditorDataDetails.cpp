@@ -104,7 +104,7 @@ void FStateTreeEditorDataDetails::CustomizeDetails(IDetailLayoutBuilder& DetailB
 					[
 						SNew(SBorder)
 						.Padding(FMargin(6, 1))
-						.BorderImage(new FSlateRoundedBoxBrush(FStyleColors::Hover, 6))
+						.BorderImage(new FSlateRoundedBoxBrush(FStyleColors::Hover, 6.f))
 						[
 							SNew(STextBlock)
 							.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.Node.Operand")

@@ -28,7 +28,7 @@ struct FHTNTestBase : public FAITestBase
 		for (int32 WSIndex = 0; WSIndex < int32(EMockHTNWorldState::MAX); ++WSIndex)
 		{
 			// setting every key to it's numerical index value
-			WorldState.SetValueUnsafe(WSIndex, WSIndex);
+			WorldState.SetValueUnsafe(static_cast<FHTNPolicy::FWSKey>(WSIndex), WSIndex);
 		}
 	}
 
@@ -369,7 +369,7 @@ struct FAITest_HTNWorldRepresentation : public FHTNTestBase
 		for (int32 WSIndex = 0; WSIndex < int32(EMockHTNWorldState::MAX); ++WSIndex)
 		{
 			FHTNPolicy::FWSValue Value;
-			AITEST_TRUE("Retrieving known values from the WorldState instance", WorldState.GetValue(WSIndex, Value) && Value == FHTNPolicy::DefaultValue);
+			AITEST_TRUE("Retrieving known values from the WorldState instance", WorldState.GetValue(static_cast<FHTNPolicy::FWSKey>(WSIndex), Value) && Value == FHTNPolicy::DefaultValue);
 		}
 
 		PopulateWorldState();
@@ -378,7 +378,7 @@ struct FAITest_HTNWorldRepresentation : public FHTNTestBase
 		for (int32 WSIndex = 0; WSIndex < int32(EMockHTNWorldState::MAX); ++WSIndex)
 		{
 			FHTNPolicy::FWSValue Value;
-			AITEST_TRUE("Retrieving known values from the WorldState instance", WorldState.GetValue(WSIndex, Value) && Value == WSIndex);
+			AITEST_TRUE("Retrieving known values from the WorldState instance", WorldState.GetValue(static_cast<FHTNPolicy::FWSKey>(WSIndex), Value) && Value == WSIndex);
 
 			for (int32 OpIndex = 0; OpIndex < int32(EHTNWorldStateCheck::MAX); ++OpIndex)
 			{
@@ -530,7 +530,7 @@ struct FAITest_HTNCustomWSCheck : public FHTNTestBase
 
 		FHTNBuilder_CompositeTask& CompositeTaskBuilder = DomainBuilder.AddCompositeTask(NAME_None);	// root
 		{
-			FHTNBuilder_Method& MethodsBuilder = CompositeTaskBuilder.AddMethod(FHTNCondition(0, CustomCheckID));
+			FHTNBuilder_Method& MethodsBuilder = CompositeTaskBuilder.AddMethod(FHTNCondition(0, IntCastChecked<FHTNPolicy::FWSOperationID>(CustomCheckID)));
 			MethodsBuilder.AddTask(TEXT("Task1"));
 		}
 		FHTNBuilder_PrimitiveTask& PrimitiveTask = DomainBuilder.AddPrimitiveTask(TEXT("Task1"));
@@ -568,8 +568,8 @@ struct FAITest_HTNCustomWSOperation : public FHTNTestBase
 			MethodsBuilder.AddTask(TEXT("Task1"));
 		}
 		FHTNBuilder_PrimitiveTask& PrimitiveTask = DomainBuilder.AddPrimitiveTask(TEXT("Task1"));
-		PrimitiveTask.AddEffect(FHTNEffect(0, CustomOperationID));
-		PrimitiveTask.AddEffect(FHTNEffect(2, CustomOperationID));
+		PrimitiveTask.AddEffect(FHTNEffect(0, IntCastChecked<FHTNPolicy::FWSOperationID>(CustomOperationID)));
+		PrimitiveTask.AddEffect(FHTNEffect(2, IntCastChecked<FHTNPolicy::FWSOperationID>(CustomOperationID)));
 
 		DomainBuilder.Compile();
 

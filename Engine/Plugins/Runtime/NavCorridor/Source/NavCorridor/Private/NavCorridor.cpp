@@ -1488,7 +1488,7 @@ FNavCorridorLocation FNavCorridor::FindNearestLocationOnPath(const FVector Locat
 		if (SectionDistanceSq < NearestDistanceSq)
 		{
 			NearestDistanceSq = SectionDistanceSq;
-			Result.T = UV.Y;
+			Result.T = static_cast<float>(UV.Y);
 			Result.Location = FMath::Lerp(CurrPortal.Location, NextPortal.Location, Result.T);
 			Result.PortalIndex = PortalIndex;
 
@@ -1539,7 +1539,7 @@ FNavCorridorLocation FNavCorridor::AdvancePathLocation(const FNavCorridorLocatio
 		const FReal SectionLength = FVector::Distance(NextPortal.Location, CurrPortal.Location);
 		const FReal LeftoverDistance = AdvanceDistance - DistanceSoFar;
 		Result.PortalIndex = Portals.Num() - 2;
-		Result.T = 1.0 + FloatCastChecked<float>(LeftoverDistance / SectionLength, /* Precision */ 1. / 256.); // T will be > 1
+		Result.T = static_cast<float>(1. + (LeftoverDistance / SectionLength)); // T will be > 1
 		Result.Location = FMath::Lerp(CurrPortal.Location, NextPortal.Location, Result.T);
 	}
 	

@@ -159,7 +159,7 @@ void FGameplayDebuggerShape::Draw(UWorld* World, FGameplayDebuggerCanvasContext&
 	case EGameplayDebuggerShape::Point:
 		if (ShapeData.Num() == 2 && ShapeData[1].X > 0)
 		{
-			DrawDebugSphere(World, ShapeData[0], ShapeData[1].X, 16, Color, bPersistent, LifeTime, DepthPriority);
+			DrawDebugSphere(World, ShapeData[0], static_cast<float>(ShapeData[1].X), 16, Color, bPersistent, LifeTime, DepthPriority);
 			DescLocation = ShapeData[0];
 		}
 		break;
@@ -167,7 +167,7 @@ void FGameplayDebuggerShape::Draw(UWorld* World, FGameplayDebuggerCanvasContext&
 	case EGameplayDebuggerShape::Segment:
 		if (ShapeData.Num() == 3 && ShapeData[2].X > 0)
 		{
-			DrawDebugLine(World, ShapeData[0], ShapeData[1], Color, bPersistent, LifeTime, DepthPriority, ShapeData[2].X);
+			DrawDebugLine(World, ShapeData[0], ShapeData[1], Color, bPersistent, LifeTime, DepthPriority, static_cast<float>(ShapeData[2].X));
 			DescLocation = (ShapeData[0] + ShapeData[1]) * 0.5f;
 		}
 		break;
@@ -175,7 +175,7 @@ void FGameplayDebuggerShape::Draw(UWorld* World, FGameplayDebuggerCanvasContext&
 	case EGameplayDebuggerShape::Arrow:
 		if (ShapeData.Num() == 3 && ShapeData[2].X > 0)
 		{
-			DrawDebugDirectionalArrow(World, ShapeData[0], ShapeData[1], ShapeData[2].Y, Color, bPersistent, LifeTime, DepthPriority, ShapeData[2].X);
+			DrawDebugDirectionalArrow(World, ShapeData[0], ShapeData[1], ShapeData[2].Y, Color, bPersistent, LifeTime, DepthPriority, static_cast<float>(ShapeData[2].X));
 			DescLocation = (ShapeData[0] + ShapeData[1]) * 0.5f;
 		}
 		break;
@@ -192,7 +192,7 @@ void FGameplayDebuggerShape::Draw(UWorld* World, FGameplayDebuggerCanvasContext&
 		if (ShapeData.Num() == 3 && ShapeData[2].X > 0)
 		{
 			const float DefaultConeAngle = 0.25f; // ~ 15 degrees
-			DrawDebugCone(World, ShapeData[0], ShapeData[1], ShapeData[2].X, DefaultConeAngle, DefaultConeAngle, 16, Color, bPersistent, LifeTime, DepthPriority);
+			DrawDebugCone(World, ShapeData[0], ShapeData[1], static_cast<float>(ShapeData[2].X), DefaultConeAngle, DefaultConeAngle, 16, Color, bPersistent, LifeTime, DepthPriority);
 			DescLocation = ShapeData[0];
 		}
 		break;
@@ -200,7 +200,7 @@ void FGameplayDebuggerShape::Draw(UWorld* World, FGameplayDebuggerCanvasContext&
 	case EGameplayDebuggerShape::Cylinder:
 		if (ShapeData.Num() == 2)
 		{
-			DrawDebugCylinder(World, ShapeData[0] - FVector(0, 0, ShapeData[1].Z), ShapeData[0] + FVector(0, 0, ShapeData[1].Z), ShapeData[1].X, 16, Color, bPersistent, LifeTime, DepthPriority);
+			DrawDebugCylinder(World, ShapeData[0] - FVector(0, 0, ShapeData[1].Z), ShapeData[0] + FVector(0, 0, ShapeData[1].Z), static_cast<float>(ShapeData[1].X), 16, Color, bPersistent, LifeTime, DepthPriority);
 			DescLocation = ShapeData[0];
 		}
 		break;
@@ -209,7 +209,7 @@ void FGameplayDebuggerShape::Draw(UWorld* World, FGameplayDebuggerCanvasContext&
 		if (ShapeData.Num() == 3)
 		{
 			const FMatrix Axes = FRotationMatrix::MakeFromX(ShapeData[1]);
-			DrawDebugCircle(World, ShapeData[0], ShapeData[2].X, 32, Color, bPersistent, LifeTime, DepthPriority, ShapeData[2].Y, Axes.GetUnitAxis(EAxis::Y), Axes.GetUnitAxis(EAxis::Z), false);
+			DrawDebugCircle(World, ShapeData[0], static_cast<float>(ShapeData[2].X), 32, Color, bPersistent, LifeTime, DepthPriority, ShapeData[2].Y, Axes.GetUnitAxis(EAxis::Y), Axes.GetUnitAxis(EAxis::Z), false);
 			DescLocation = ShapeData[0];
 		}
 		break;
@@ -217,7 +217,7 @@ void FGameplayDebuggerShape::Draw(UWorld* World, FGameplayDebuggerCanvasContext&
 	case EGameplayDebuggerShape::Capsule:
 		if (ShapeData.Num() == 2)
 		{
-			DrawDebugCapsule(World, ShapeData[0], ShapeData[1].Z, ShapeData[1].X, FQuat::Identity, Color, bPersistent, LifeTime, DepthPriority);
+			DrawDebugCapsule(World, ShapeData[0], static_cast<float>(ShapeData[1].Z), static_cast<float>(ShapeData[1].X), FQuat::Identity, Color, bPersistent, LifeTime, DepthPriority);
 			DescLocation = ShapeData[0];
 		}
 		break;
@@ -415,8 +415,8 @@ FGameplayDebuggerCanvasContext::FGameplayDebuggerCanvasContext(UCanvas* InCanvas
 	{
 		Canvas = InCanvas;
 		Font = InFont;
-		CursorX = DefaultX = InCanvas->SafeZonePadX;
-		CursorY = DefaultY = InCanvas->SafeZonePadY;
+		CursorX = DefaultX = static_cast<float>(InCanvas->SafeZonePadX);
+		CursorY = DefaultY = static_cast<float>(InCanvas->SafeZonePadY);
 	}
 	else
 	{

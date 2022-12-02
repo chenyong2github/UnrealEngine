@@ -107,7 +107,7 @@ bool FStateTreeExecutionContext::AreExternalDataViewsValid() const
 	return bResult;
 }
 
-void FStateTreeExecutionContext::UpdateLinkedStateParameters(const FCompactStateTreeState& State, const uint16 ParameterInstanceIndex)
+void FStateTreeExecutionContext::UpdateLinkedStateParameters(const FCompactStateTreeState& State, const int32 ParameterInstanceIndex)
 {
 	FStateTreeDataView StateParamsInstance = InstanceData.GetMutableStruct(ParameterInstanceIndex);
 	FCompactStateTreeParameters& StateParams = StateParamsInstance.GetMutable<FCompactStateTreeParameters>();

@@ -137,8 +137,8 @@ bool FStateTreePropertyBindingCompiler::CompileBatch(const FStateTreeBindableStr
 	{
 		FStateTreePropCopyBatch& Batch = PropertyBindings->CopyBatches.AddDefaulted_GetRef();
 		Batch.TargetStruct = TargetStruct;
-		Batch.BindingsBegin = BindingsBegin;
-		Batch.BindingsEnd = BindingsEnd;
+		Batch.BindingsBegin = IntCastChecked<uint16>(BindingsBegin);
+		Batch.BindingsEnd = IntCastChecked<uint16>(BindingsEnd);
 		OutBatchIndex = PropertyBindings->CopyBatches.Num() - 1;
 	}
 
