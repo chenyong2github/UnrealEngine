@@ -81,6 +81,14 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "User Interface")
 	void SetWidgetSlot(UWidget* Widget, FGameViewportWidgetSlot Slot);
 
+	/** */
+	DECLARE_EVENT_TwoParams(UGameViewportSubsystem, FWidgetAddedEvent, UWidget*, ULocalPlayer*);
+	FWidgetAddedEvent OnWidgetAdded;
+
+	/** */
+	DECLARE_EVENT_OneParam(UGameViewportSubsystem, FWidgetRemovedEvent, UWidget*);
+	FWidgetRemovedEvent OnWidgetRemoved;
+
 public:
 	/**
 	 * Helper function to set the position in the viewport for the Slot.

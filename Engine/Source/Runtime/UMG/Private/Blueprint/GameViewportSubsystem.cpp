@@ -179,6 +179,7 @@ void UGameViewportSubsystem::AddToScreen(UWidget* Widget, ULocalPlayer* Player, 
 		// displaying below any built-in controls, like the virtual joysticks on mobile builds.
 		ViewportClient->AddViewportWidgetContent(FullScreenCanvas, Slot.ZOrder + 10);
 	}
+	OnWidgetAdded.Broadcast(Widget, Player);
 }
 
 void UGameViewportSubsystem::RemoveWidget(UWidget* Widget)
@@ -188,6 +189,8 @@ void UGameViewportSubsystem::RemoveWidget(UWidget* Widget)
 		FSlotInfo SlotInfo;
 		ViewportWidgets.RemoveAndCopyValue(Widget, SlotInfo);
 		RemoveWidgetInternal(Widget, SlotInfo.FullScreenWidget, SlotInfo.LocalPlayer);
+
+		OnWidgetRemoved.Broadcast(Widget);
 	}
 }
 
