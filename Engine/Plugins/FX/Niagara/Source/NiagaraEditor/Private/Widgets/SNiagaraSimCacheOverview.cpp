@@ -1,4 +1,6 @@
-﻿#include "SNiagaraSimCacheOverview.h"
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "SNiagaraSimCacheOverview.h"
 
 #include "SNiagaraSimCacheTreeView.h"
 
