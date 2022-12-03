@@ -16,6 +16,11 @@ namespace Horde.Build.Utilities
 		readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
 
 		/// <summary>
+		/// Accessor for the inner task
+		/// </summary>
+		public Task Task => _task;
+
+		/// <summary>
 		/// Constructor. Note that the task does not start until <see cref="Start"/> is called.
 		/// </summary>
 		/// <param name="runTask"></param>

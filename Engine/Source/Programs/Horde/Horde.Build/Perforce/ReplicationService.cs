@@ -13,7 +13,6 @@ using Horde.Build.Storage;
 using Horde.Build.Streams;
 using Horde.Build.Utilities;
 using HordeCommon;
-using Microsoft.AspNetCore.SignalR.Protocol;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -103,7 +102,6 @@ namespace Horde.Build.Perforce
 						}
 					}
 
-					_logger.LogInformation("Replicating {NumStreams} streams", streamIdToTask.Count);
 					await Task.Delay(TimeSpan.FromMinutes(1.0), cancellationToken);
 				}
 			}
@@ -115,13 +113,22 @@ namespace Horde.Build.Perforce
 
 		async Task RunReplicationGuardedAsync(IStream stream, CancellationToken cancellationToken)
 		{
-			try
+			for (; ; )
 			{
-				await RunReplicationAsync(stream, cancellationToken);
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Exception running replication for {StreamId}: {Message}", stream.Id, ex.Message);
+				try
+				{
+					await RunReplicationAsync(stream, cancellationToken);
+				}
+				catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+				{
+					break;
+				}
+				catch (Exception ex)
+				{
+					_logger.LogError(ex, "Exception running replication for {StreamId}: {Message}", stream.Id, ex.Message);
+				}
+
+				await Task.Delay(TimeSpan.FromSeconds(20.0), cancellationToken);
 			}
 		}
 
