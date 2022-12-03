@@ -22,6 +22,11 @@ namespace EpicGames.Horde.Storage
 		public uint Revision { get; private set; }
 
 		/// <summary>
+		/// Hash when deserialized
+		/// </summary>
+		public IoHash Hash { get; internal set; }
+
+		/// <summary>
 		/// Default constructor
 		/// </summary>
 		protected TreeNode()
@@ -32,9 +37,9 @@ namespace EpicGames.Horde.Storage
 		/// Serialization constructor. Leaves the revision number zeroed by default.
 		/// </summary>
 		/// <param name="reader"></param>
-		protected TreeNode(IMemoryReader reader)
+		protected TreeNode(ITreeNodeReader reader)
 		{
-			_ = reader;
+			Hash = reader.Hash;
 		}
 
 		/// <summary>
@@ -42,6 +47,7 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		protected void MarkAsDirty()
 		{
+			Hash = IoHash.Zero;
 			Revision++;
 		}
 
