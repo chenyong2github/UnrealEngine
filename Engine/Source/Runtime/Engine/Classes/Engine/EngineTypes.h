@@ -2702,13 +2702,43 @@ struct FSkeletalMeshBuildSettings
 	}
 };
 
+USTRUCT(BlueprintType)
+struct FMeshDisplacementMap
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Displacement)
+	TObjectPtr<class UTexture2D> Texture = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = Displacement)
+	float Magnitude = 0.0f;
+
+	UPROPERTY(EditAnywhere, Category = Displacement)
+	float Center = 0.0f;
+
+	FMeshDisplacementMap()
+	{}
+
+	bool operator==(const FMeshDisplacementMap& Other) const
+	{
+		return Texture		== Other.Texture
+			&& Magnitude	== Other.Magnitude
+			&& Center		== Other.Center;
+	}
+
+	bool operator!=(const FMeshDisplacementMap& Other) const
+	{
+		return !(*this == Other);
+	}
+};
+
 /**
  * Settings applied when building Nanite data.
  */
 USTRUCT(BlueprintType)
 struct FMeshNaniteSettings
 {
-	GENERATED_BODY()
+	GENERATED_USTRUCT_BODY()
 
 	/** If true, Nanite data will be generated. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NaniteSettings)
@@ -2720,56 +2750,52 @@ struct FMeshNaniteSettings
 
 	/** Position Precision. Step size is 2^(-PositionPrecision) cm. MIN_int32 is auto. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NaniteSettings)
-	int32 PositionPrecision;
+	int32 PositionPrecision = MIN_int32;
 
 	/** How much of the resource should always be resident (In KB). Approximate due to paging. 0: Minimum size (single page). MAX_uint32: Entire mesh.*/
 	UPROPERTY(EditAnywhere, Category = NaniteSettings)
-	uint32 TargetMinimumResidencyInKB;
+	uint32 TargetMinimumResidencyInKB = 0;
 	
 	/** Percentage of triangles to keep from source mesh. 1.0 = no reduction, 0.0 = no triangles. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NaniteSettings)
-	float KeepPercentTriangles;
+	float KeepPercentTriangles = 1.0f;
 
 	/** Reduce until at least this amount of error is reached relative to size of the mesh */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NaniteSettings)
-	float TrimRelativeError;
+	float TrimRelativeError = 0.0f;
 	
 	/** Percentage of triangles to keep from source mesh for fallback. 1.0 = no reduction, 0.0 = no triangles. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NaniteSettings)
-	float FallbackPercentTriangles;
+	float FallbackPercentTriangles = 1.0f;
 
 	/** Reduce until at least this amount of error is reached relative to size of the mesh */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NaniteSettings)
-	float FallbackRelativeError;
+	float FallbackRelativeError = 1.0f;
 
-	/** Default settings. */
+	/** UV channel used to sample displacement maps  */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NaniteSettings)
+	int32 DisplacementUVChannel = 0;
+
+	UPROPERTY(EditAnywhere, Category = NaniteSettings)
+	TArray<FMeshDisplacementMap> DisplacementMaps;
+
 	FMeshNaniteSettings()
 	: bEnabled(false)
 	, bPreserveArea(false)
-	, PositionPrecision(MIN_int32)
-	, TargetMinimumResidencyInKB(0)
-	, KeepPercentTriangles(1.0f)
-	, TrimRelativeError(0.0f)
-	, FallbackPercentTriangles(1.0f)
-	, FallbackRelativeError(1.0f)
-	{
-	}
-
-	FMeshNaniteSettings(const FMeshNaniteSettings& Other)
-	: bEnabled(Other.bEnabled)
-	, bPreserveArea(Other.bPreserveArea)
-	, PositionPrecision(Other.PositionPrecision)
-	, TargetMinimumResidencyInKB(Other.TargetMinimumResidencyInKB)
-	, KeepPercentTriangles(Other.KeepPercentTriangles)
-	, TrimRelativeError(Other.TrimRelativeError)
-	, FallbackPercentTriangles(Other.FallbackPercentTriangles)
-	, FallbackRelativeError(Other.FallbackRelativeError)
-	{
-	}
+	{}
 
 	/** Equality operator. */
 	bool operator==(const FMeshNaniteSettings& Other) const
 	{
+		if( DisplacementMaps.Num() != Other.DisplacementMaps.Num() )
+			return false;
+
+		for( int32 i = 0; i < DisplacementMaps.Num(); i++ )
+		{
+			if( DisplacementMaps[i] != Other.DisplacementMaps[i] )
+				return false;
+		}
+
 		return bEnabled == Other.bEnabled
 			&& bPreserveArea == Other.bPreserveArea
 			&& PositionPrecision == Other.PositionPrecision
@@ -2777,7 +2803,8 @@ struct FMeshNaniteSettings
 			&& KeepPercentTriangles == Other.KeepPercentTriangles
 			&& TrimRelativeError == Other.TrimRelativeError
 			&& FallbackPercentTriangles == Other.FallbackPercentTriangles
-			&& FallbackRelativeError == Other.FallbackRelativeError;
+			&& FallbackRelativeError == Other.FallbackRelativeError
+			&& DisplacementUVChannel == Other.DisplacementUVChannel;
 	}
 
 	/** Inequality operator. */

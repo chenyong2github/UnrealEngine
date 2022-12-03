@@ -75,6 +75,7 @@
 #include "StaticMeshCompiler.h"
 #include "AssetCompilingManager.h"
 #include "ObjectCacheContext.h"
+#include "Engine/Texture2D.h"
 
 #include "DerivedDataCache.h"
 #include "DerivedDataRequestOwner.h"
@@ -2447,6 +2448,21 @@ static void SerializeNaniteSettingsForDDC(FArchive& Ar, FMeshNaniteSettings& Nan
 	Ar << NaniteSettings.TrimRelativeError;
 	Ar << NaniteSettings.FallbackPercentTriangles;
 	Ar << NaniteSettings.FallbackRelativeError;
+	Ar << NaniteSettings.DisplacementUVChannel;
+
+	for( auto& DisplacementMap : NaniteSettings.DisplacementMaps )
+	{
+		if (IsValid(DisplacementMap.Texture))
+		{
+			FGuid TextureId = DisplacementMap.Texture->Source.GetId();
+			Ar << TextureId;
+			Ar << DisplacementMap.Texture->AddressX;
+			Ar << DisplacementMap.Texture->AddressY;
+		}
+
+		Ar << DisplacementMap.Magnitude;
+		Ar << DisplacementMap.Center;
+	}
 }
 
 static void SerializeReductionSettingsForDDC(FArchive& Ar, FMeshReductionSettings& ReductionSettings)

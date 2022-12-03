@@ -482,6 +482,13 @@ static void CalculateCompressedNaniteDiskSize(FResources& Resources, int32& OutU
 }
 #endif
 
+void TessellateAndDisplace(
+	TArray< FStaticMeshBuildVertex >& Verts,
+	TArray< uint32 >& Indexes,
+	TArray< int32 >& MaterialIndexes,
+	const FBounds3f& MeshBounds,
+	const FMeshNaniteSettings& Settings );
+
 static bool BuildNaniteData(
 	FResources& Resources,
 	IBuilderModule::FVertexMeshData& InputMeshData,
@@ -509,6 +516,17 @@ static bool BuildNaniteData(
 		Channel &= Vert.Color.G;
 		Channel &= Vert.Color.B;
 		Channel &= Vert.Color.A;
+	}
+	
+	if( MeshTriangleCounts.Num() == 1 && Settings.TrimRelativeError != 0.0f )
+	{
+		uint32 Time0 = FPlatformTime::Cycles();
+
+		TessellateAndDisplace( InputMeshData.Vertices, InputMeshData.TriangleIndices, MaterialIndexes, VertexBounds, Settings );
+		MeshTriangleCounts[0] = InputMeshData.TriangleIndices.Num() / 3;
+
+		uint32 Time1 = FPlatformTime::Cycles();
+		UE_LOG( LogStaticMesh, Log, TEXT("Adaptive tessellate [%.2fs], tris: %i"), FPlatformTime::ToMilliseconds( Time1 - Time0 ) / 1000.0f, MeshTriangleCounts[0] );
 	}
 
 	Resources.NumInputTriangles	= InputMeshData.TriangleIndices.Num() / 3;

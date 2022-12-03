@@ -18,6 +18,7 @@ static FVector3f UserGetDisplacement(
 	const FLerpVert& Vert0,
 	const FLerpVert& Vert1,
 	const FLerpVert& Vert2,
+	int32 MaterialIndex,
 	TArrayView< Nanite::FDisplacementMap > DisplacementMaps )
 {
 	int32 DisplacementIndex = FMath::FloorToInt( Vert0.UVs[1].X );
@@ -54,6 +55,7 @@ static FVector2f UserGetErrorBounds(
 	const FVector3f& Displacement0,
 	const FVector3f& Displacement1,
 	const FVector3f& Displacement2,
+	int32 MaterialIndex,
 	TArrayView< Nanite::FDisplacementMap > DisplacementMaps )
 {
 #if 1
@@ -261,13 +263,15 @@ bool DisplaceNaniteMesh(
 		[&](const FVector3f& Barycentrics,
 			const FLerpVert& Vert0,
 			const FLerpVert& Vert1,
-			const FLerpVert& Vert2 )
+			const FLerpVert& Vert2,
+			int32 MaterialIndex )
 		{
 			return UserGetDisplacement(
 				Barycentrics,
 				Vert0,
 				Vert1,
 				Vert2,
+				MaterialIndex,
 				DisplacementMaps );
 		},
 		[&](const FVector3f Barycentrics[3],
@@ -276,7 +280,8 @@ bool DisplaceNaniteMesh(
 			const FLerpVert& Vert2,
 			const FVector3f& Displacement0,
 			const FVector3f& Displacement1,
-			const FVector3f& Displacement2 )
+			const FVector3f& Displacement2,
+			int32 MaterialIndex )
 		{
 			return UserGetErrorBounds(
 				Barycentrics,
@@ -286,6 +291,7 @@ bool DisplaceNaniteMesh(
 				Displacement0,
 				Displacement1,
 				Displacement2,
+				MaterialIndex,
 				DisplacementMaps );
 		} );
 

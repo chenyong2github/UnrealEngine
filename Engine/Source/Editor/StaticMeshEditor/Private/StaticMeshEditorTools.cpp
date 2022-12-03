@@ -5347,6 +5347,49 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 		];
 	}
 
+	{
+		NaniteSettingsCategory.AddCustomRow( LOCTEXT("DisplacementUVChannel", "Displacement UV Channel") )
+
+		.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([this, NaniteEnabledCheck]() -> bool {return NaniteEnabledCheck->IsChecked() && IsHiResDataEmpty(); })))
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Text(LOCTEXT("DisplacementUVChannel", "Displacement UV Channel"))
+			.ToolTipText(LOCTEXT("DisplacementUVChannelTooltip", "UV channel to use when sampling displacement maps."))
+		]
+		.ValueContent()
+		.VAlign(VAlign_Center)
+		[
+			SNew(SSpinBox<int32>)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.MinValue(0)
+			.MaxValue(4)
+			.Value(this, &FNaniteSettingsLayout::GetDisplacementUVChannel)
+			.OnValueChanged(this, &FNaniteSettingsLayout::OnDisplacementUVChannelChanged)
+		];
+	}
+
+	{
+		TSharedPtr<FStructOnScope> TempNaniteSettings = MakeShared<FStructOnScope>(FMeshNaniteSettings::StaticStruct());
+		FMeshNaniteSettings::StaticStruct()->CopyScriptStruct(TempNaniteSettings->GetStructMemory(), &NaniteSettings, 1);
+		IDetailPropertyRow* MapsRow = NaniteSettingsCategory.AddExternalStructureProperty(TempNaniteSettings, GET_MEMBER_NAME_CHECKED(FMeshNaniteSettings, DisplacementMaps));
+		MapsRow->GetPropertyHandle()->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda(
+			[this, TempNaniteSettings] 
+			{
+				FMeshNaniteSettings* TempSettings = (FMeshNaniteSettings*)TempNaniteSettings->GetStructMemory();
+				NaniteSettings.DisplacementMaps = TempSettings->DisplacementMaps;
+			}
+		));
+		MapsRow->GetPropertyHandle()->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateLambda(
+			[this, TempNaniteSettings] 
+			{
+				FMeshNaniteSettings* TempSettings = (FMeshNaniteSettings*)TempNaniteSettings->GetStructMemory();
+				NaniteSettings.DisplacementMaps = TempSettings->DisplacementMaps;
+			}
+		));
+	}
+
 	//Nanite import button
 	{
 		NaniteSettingsCategory.AddCustomRow(LOCTEXT("NaniteHiResButtons", "Nanite Hi Res buttons"))
@@ -5652,6 +5695,16 @@ float FNaniteSettingsLayout::GetFallbackRelativeError() const
 void FNaniteSettingsLayout::OnFallbackRelativeErrorChanged(float NewValue)
 {
 	NaniteSettings.FallbackRelativeError = NewValue;
+}
+
+int32 FNaniteSettingsLayout::GetDisplacementUVChannel() const
+{
+	return NaniteSettings.DisplacementUVChannel;
+}
+
+void FNaniteSettingsLayout::OnDisplacementUVChannelChanged(int32 NewValue)
+{
+	NaniteSettings.DisplacementUVChannel = NewValue;
 }
 
 FString FNaniteSettingsLayout::GetHiResSourceFilename() const

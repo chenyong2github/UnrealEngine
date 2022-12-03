@@ -22,7 +22,8 @@ class FAdaptiveTessellator
 		const FVector3f&,	// Barycentrics,
 		const FLerpVert&,	// Vert0,
 		const FLerpVert&,	// Vert1,
-		const FLerpVert&	// Vert2,
+		const FLerpVert&,	// Vert2,
+		int32				// MaterialIndex
 	) >;
 
 	using FBoundsFunc = TFunctionRef< FVector2f ( 
@@ -32,7 +33,8 @@ class FAdaptiveTessellator
 		const FLerpVert&,	// Vert2,
 		const FVector3f&,	// Displacement0,
 		const FVector3f&,	// Displacement1,
-		const FVector3f&	// Displacement2,
+		const FVector3f&,	// Displacement2,
+		int32				// MaterialIndex
 	) >;
 
 public:

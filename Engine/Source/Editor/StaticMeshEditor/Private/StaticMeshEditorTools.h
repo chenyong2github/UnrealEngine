@@ -736,6 +736,9 @@ private:
 	float GetFallbackRelativeError() const;
 	void OnFallbackRelativeErrorChanged(float NewValue);
 
+	int32 GetDisplacementUVChannel() const;
+	void OnDisplacementUVChannelChanged(int32 NewValue);
+
 	FString GetHiResSourceFilename() const;
 	void SetHiResSourceFilename(const FString& NewSourceFile);
 
