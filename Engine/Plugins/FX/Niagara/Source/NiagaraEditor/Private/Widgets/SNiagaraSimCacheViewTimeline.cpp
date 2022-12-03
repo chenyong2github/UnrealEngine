@@ -34,7 +34,7 @@ int32 SNiagaraSimCacheViewTimeline::OnPaint(const FPaintArgs& Args, const FGeome
 	{
 		const FSlateBrush* BoxBrush = FAppStyle::GetBrush("Sequencer.Section.BackgroundTint");
 		const FLinearColor BoxTints[2] = { FLinearColor(0.5f, 0.5f, 0.5f, 1.0f), FLinearColor(0.3f, 0.3f, 0.3f, 1.0f) };
-		const FLinearColor CurrentTint(0.5f, 0.5f, 1.0f, 1.0f);
+		const FLinearColor CurrentTint(0.2f, 0.2f, 1.0f, 1.0f);
 		if (NumFrames > 0)
 		{
 			const float UStep = AllottedGeometry.Size.X / float(NumFrames);

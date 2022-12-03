@@ -728,6 +728,59 @@ void FNiagaraEditorStyle::InitHierarchyEditor()
 	Set("NiagaraEditor.HierarchyEditor.ButtonStyle", ButtonStyle);
 }
 
+void FNiagaraEditorStyle::InitSimCacheEditor()
+{
+	const FSlateColor SelectionColor = FAppStyle::GetSlateColor("SelectionColor");
+	const FSlateColor SelectionColor_Inactive = FAppStyle::GetSlateColor("SelectionColor_Inactive");
+	const FSlateColor DefaultForeground = FAppStyle::GetSlateColor("DefaultForeground");
+	const FLinearColor SystemBackground = FLinearColor(0.05f, 0.05f, 0.05f);
+
+	Set("NiagaraEditor.SimCache.SystemItem", FTableRowStyle()
+		.SetEvenRowBackgroundBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, SystemBackground))
+		.SetEvenRowBackgroundHoveredBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor_Inactive))
+		.SetOddRowBackgroundBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, SystemBackground))
+		.SetOddRowBackgroundHoveredBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor_Inactive))
+		.SetSelectorFocusedBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, SystemBackground))
+		.SetActiveBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor))
+		.SetActiveHoveredBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor))
+		.SetInactiveBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor_Inactive))
+		.SetInactiveHoveredBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor_Inactive)));
+
+	Set("NiagaraEditor.SimCache.EmitterItem", FTableRowStyle()
+		.SetEvenRowBackgroundBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, SystemBackground))
+		.SetEvenRowBackgroundHoveredBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor_Inactive))
+		.SetOddRowBackgroundBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, SystemBackground))
+		.SetOddRowBackgroundHoveredBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor_Inactive))
+		.SetSelectorFocusedBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, SystemBackground))
+		.SetActiveBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor))
+		.SetActiveHoveredBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor))
+		.SetInactiveBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor_Inactive))
+		.SetInactiveHoveredBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor_Inactive)));
+
+	Set("NiagaraEditor.SimCache.ComponentItem", FTableRowStyle()
+		.SetEvenRowBackgroundBrush(FSlateNoResource())
+		.SetEvenRowBackgroundHoveredBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor_Inactive))
+		.SetOddRowBackgroundBrush(FSlateNoResource())
+		.SetOddRowBackgroundHoveredBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor_Inactive))
+		.SetSelectorFocusedBrush(FSlateNoResource())
+		.SetActiveBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor))
+		.SetActiveHoveredBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor))
+		.SetInactiveBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor_Inactive))
+		.SetInactiveHoveredBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor_Inactive)));
+
+	const FLinearColor NormalColor(0.15, 0.15, 0.15, 1);
+
+	Set ("NiagaraEditor.SimCache.FilterToggleStyle", FCheckBoxStyle()
+		.SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
+		.SetUncheckedImage( FSlateRoundedBoxBrush( NormalColor, 2.0f) )
+		.SetUncheckedHoveredImage(FSlateRoundedBoxBrush( FStyleColors::PrimaryHover, 2.0f))
+		.SetUncheckedPressedImage(FSlateRoundedBoxBrush( FStyleColors::PrimaryPress, 2.0f))
+		.SetCheckedImage(FSlateRoundedBoxBrush(FStyleColors::Select, 2.0f))
+		.SetCheckedHoveredImage(FSlateRoundedBoxBrush(FStyleColors::Select, 2.0f))
+		.SetCheckedPressedImage(FSlateRoundedBoxBrush(FStyleColors::Select, 2.0f))
+		);
+}
+
 FNiagaraEditorStyle::FNiagaraEditorStyle() : FSlateStyleSet("NiagaraEditorStyle")
 {
 	SetContentRoot(FPaths::EnginePluginsDir() / TEXT("FX/Niagara/Content/Slate"));
@@ -763,6 +816,7 @@ FNiagaraEditorStyle::FNiagaraEditorStyle() : FSlateStyleSet("NiagaraEditorStyle"
 	InitViewportStyle();
 	InitScratchStyle();
 	InitHierarchyEditor();
+	InitSimCacheEditor();
 }
 
 void FNiagaraEditorStyle::InitScratchStyle()

@@ -38,8 +38,9 @@ protected:
 
 private:
 	TSharedRef<SDockTab> SpawnTab_SimCacheSpreadsheet(const FSpawnTabArgs& Args);
-	TSharedRef<SDockTab>  SpawnTab_SimCacheViewport(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_SimCacheViewport(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_PreviewSettings(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_Overview(const FSpawnTabArgs& Args);
 
 	// The sim cache being viewed.
 	TWeakObjectPtr <UNiagaraSimCache> SimCache;
@@ -56,4 +57,5 @@ private:
 	static const FName NiagaraSimCacheSpreadsheetTabId;
 	static const FName NiagaraSimCacheViewportTabId;
 	static const FName NiagaraSimCachePreviewSettingsTabId;
+	static const FName NiagaraSimCacheOverviewTabId;
 };

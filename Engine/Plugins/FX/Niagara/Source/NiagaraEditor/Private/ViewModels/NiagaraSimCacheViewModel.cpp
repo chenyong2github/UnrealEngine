@@ -6,8 +6,8 @@
 #include "NiagaraEditorCommon.h"
 #include "NiagaraDebuggerCommon.h"
 #include "Serialization/MemoryReader.h"
+#include "SNiagaraSimCacheTreeView.h"
 #include "Serialization/ObjectAndNameAsStringProxyArchive.h"
-#include "UObject/Package.h"
 #include "UObject/Package.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSimCacheViewModel"
@@ -31,8 +31,11 @@ void FNiagaraSimCacheViewModel::Initialize(TWeakObjectPtr<UNiagaraSimCache> SimC
 	}
 
 	WeakSimCache = SimCache;
+	UpdateComponentInfos();
 	UpdateCachedFrame();
 	SetupPreviewComponentAndInstance();
+	
+	OnSimCacheChangedDelegate.Broadcast();
 	OnViewDataChangedDelegate.Broadcast(true);
 }
 
@@ -47,6 +50,9 @@ void FNiagaraSimCacheViewModel::UpdateSimCache(const FNiagaraSystemSimCacheCaptu
 		FMemoryReader ArReader(Reply.SimCacheData);
 		FObjectAndNameAsStringProxyArchive ProxyArReader(ArReader, false);
 		SimCache->Serialize(ProxyArReader);
+		bComponentFilterActive = false;
+		UpdateComponentInfos();
+		
 	}
 	else
 	{
@@ -81,7 +87,7 @@ void FNiagaraSimCacheViewModel::SetupPreviewComponentAndInstance()
 
 FText FNiagaraSimCacheViewModel::GetComponentText(const FName ComponentName, const int32 InstanceIndex) const
 {
-	const FComponentInfo* ComponentInfo = ComponentInfos.FindByPredicate([ComponentName](const FComponentInfo& FoundInfo) { return FoundInfo.Name == ComponentName; });
+	const FComponentInfo* ComponentInfo = ComponentInfos->FindByPredicate([ComponentName](const FComponentInfo& FoundInfo) { return FoundInfo.Name == ComponentName; });
 
 	if (ComponentInfo)
 	{
@@ -118,6 +124,15 @@ FText FNiagaraSimCacheViewModel::GetComponentText(const FName ComponentName, con
 	return LOCTEXT("Error", "Error");
 }
 
+void FNiagaraSimCacheViewModel::SetComponentFilterActive(bool bNewActive)
+{
+	if(bNewActive != bComponentFilterActive)
+	{
+		bComponentFilterActive = bNewActive;
+		OnViewDataChangedDelegate.Broadcast(true);
+	}
+}
+
 int32 FNiagaraSimCacheViewModel::GetNumFrames() const
 {
 	UNiagaraSimCache* SimCache = WeakSimCache.Get();
@@ -145,7 +160,10 @@ void FNiagaraSimCacheViewModel::SetEmitterIndex(const int32 InEmitterIndex)
 {
 	EmitterIndex = InEmitterIndex;
 	UpdateCachedFrame();
-	OnViewDataChangedDelegate.Broadcast(false);
+	UpdateCurrentEntries();
+	bComponentFilterActive = false;
+	OnBufferChangedDelegate.Broadcast();
+	OnViewDataChangedDelegate.Broadcast(true);
 }
 
 bool FNiagaraSimCacheViewModel::IsCacheValid()
@@ -171,13 +189,25 @@ FNiagaraSimCacheViewModel::FOnViewDataChanged& FNiagaraSimCacheViewModel::OnView
 	return OnViewDataChangedDelegate;
 }
 
+FNiagaraSimCacheViewModel::FOnSimCacheChanged& FNiagaraSimCacheViewModel::OnSimCacheChanged()
+{
+	return OnSimCacheChangedDelegate;
+}
+
+FNiagaraSimCacheViewModel::FOnBufferChanged& FNiagaraSimCacheViewModel::OnBufferChanged()
+{
+	return OnBufferChangedDelegate;
+}
+
 void FNiagaraSimCacheViewModel::OnCacheModified(UNiagaraSimCache* SimCache)
 {
 	if ( UNiagaraSimCache* ThisSimCache = WeakSimCache.Get() )
 	{
 		if ( ThisSimCache == SimCache )
 		{
+			UpdateComponentInfos();
 			UpdateCachedFrame();
+			OnSimCacheChangedDelegate.Broadcast();
 			OnViewDataChangedDelegate.Broadcast(true);
 		}
 	}
@@ -186,10 +216,10 @@ void FNiagaraSimCacheViewModel::OnCacheModified(UNiagaraSimCache* SimCache)
 void FNiagaraSimCacheViewModel::UpdateCachedFrame()
 {
 	NumInstances = 0;
-	ComponentInfos.Empty();
 	FloatComponents.Empty();
 	HalfComponents.Empty();
 	Int32Components.Empty();
+	
 
 	UNiagaraSimCache* SimCache = WeakSimCache.Get();
 	if (SimCache == nullptr)
@@ -207,31 +237,14 @@ void FNiagaraSimCacheViewModel::UpdateCachedFrame()
 		return;
 	}
 
-	FoundFloatComponents = 0;
-	FoundHalfComponents = 0;
-	FoundInt32Components = 0;
-
 	NumInstances = EmitterIndex == INDEX_NONE ? 1 : SimCache->GetEmitterNumInstances(EmitterIndex, FrameIndex);
 	const FName EmitterName = EmitterIndex == INDEX_NONE ? NAME_None : SimCache->GetEmitterName(EmitterIndex);
+	// Cached frame data needs to match the component info being viewed. Update here so they match.
+	ComponentInfos = EmitterIndex == INDEX_NONE ? &SystemComponentInfos : &EmitterComponentInfos[EmitterIndex];
 
 	SimCache->ForEachEmitterAttribute(EmitterIndex,
 		[&](const FNiagaraSimCacheVariable& Variable)
 		{
-			// Build component info
-			const FNiagaraTypeDefinition& TypeDef = Variable.Variable.GetType();
-			if (TypeDef.IsEnum())
-			{
-				FComponentInfo& ComponentInfo = ComponentInfos.AddDefaulted_GetRef();
-				ComponentInfo.Name = Variable.Variable.GetName();
-				ComponentInfo.ComponentOffset = FoundInt32Components++;
-				ComponentInfo.bIsInt32 = true;
-				ComponentInfo.Enum = TypeDef.GetEnum();
-			}
-			else
-			{
-				BuildComponentInfos(Variable.Variable.GetName(), TypeDef.GetScriptStruct());
-			}
-
 			// Pull in data
 			SimCache->ReadAttribute(FloatComponents, HalfComponents, Int32Components, Variable.Variable.GetName(), EmitterName, FrameIndex);
 
@@ -240,7 +253,209 @@ void FNiagaraSimCacheViewModel::UpdateCachedFrame()
 	);
 }
 
-void FNiagaraSimCacheViewModel::BuildComponentInfos(const FName Name, const UScriptStruct* Struct)
+void FNiagaraSimCacheViewModel::UpdateComponentInfos()
+{
+	SystemComponentInfos.Empty();
+	EmitterComponentInfos.Empty();
+	FoundFloatComponents = 0;
+	FoundHalfComponents = 0;
+	FoundInt32Components = 0;
+	
+	UNiagaraSimCache* SimCache = WeakSimCache.Get();
+	if (SimCache == nullptr)
+	{
+		return;
+	}
+	
+	
+	SimCache->ForEachEmitterAttribute(INDEX_NONE,
+		[&](const FNiagaraSimCacheVariable& Variable)
+		{
+			// Build component info
+			const FNiagaraTypeDefinition& TypeDef = Variable.Variable.GetType();
+			if (TypeDef.IsEnum())
+			{
+				FComponentInfo& ComponentInfo = SystemComponentInfos.AddDefaulted_GetRef();
+				ComponentInfo.Name = Variable.Variable.GetName();
+				ComponentInfo.ComponentOffset = FoundInt32Components++;
+				ComponentInfo.bIsInt32 = true;
+				ComponentInfo.Enum = TypeDef.GetEnum();
+			}
+			else
+			{
+				BuildComponentInfos(Variable.Variable.GetName(), TypeDef.GetScriptStruct(), SystemComponentInfos);
+			}
+
+			return true;
+		}
+	);
+
+	for (int32 i = 0; i < SimCache->GetNumEmitters(); ++i)
+	{
+		TArray<FComponentInfo>& CurrentComponentInfos = EmitterComponentInfos.AddDefaulted_GetRef();
+
+		FoundFloatComponents = 0;
+		FoundHalfComponents = 0;
+		FoundInt32Components = 0;
+		
+		SimCache->ForEachEmitterAttribute(i,
+		[&](const FNiagaraSimCacheVariable& Variable)
+			{
+				// Build component info
+				const FNiagaraTypeDefinition& TypeDef = Variable.Variable.GetType();
+				if (TypeDef.IsEnum())
+				{
+					FComponentInfo& ComponentInfo = CurrentComponentInfos.AddDefaulted_GetRef();
+					ComponentInfo.Name = Variable.Variable.GetName();
+					ComponentInfo.ComponentOffset = FoundInt32Components++;
+					ComponentInfo.bIsInt32 = true;
+					ComponentInfo.Enum = TypeDef.GetEnum();
+				}
+				else
+				{
+					BuildComponentInfos(Variable.Variable.GetName(), TypeDef.GetScriptStruct(), CurrentComponentInfos);
+				}
+
+				return true;
+			}
+		);
+	}
+}
+
+void FNiagaraSimCacheViewModel::BuildTreeItemChildren(TSharedPtr<FNiagaraSimCacheTreeItem> InTreeItem, TWeakPtr<SNiagaraSimCacheTreeView> OwningTreeView)
+{
+	FNiagaraSimCacheTreeItem* TreeItem = InTreeItem.Get();
+	UNiagaraSimCache* SimCache = WeakSimCache.Get();
+
+	if(TreeItem && SimCache)
+	{
+		int32 BufferIndex = TreeItem->GetBufferIndex();
+		
+		SimCache->ForEachEmitterAttribute(BufferIndex,
+	[&](const FNiagaraSimCacheVariable& Variable)
+			{
+				FNiagaraTypeDefinition TypeDef = Variable.Variable.GetType();
+			
+
+				TSharedRef<FNiagaraSimCacheComponentTreeItem> CurrentItem = MakeShared<FNiagaraSimCacheComponentTreeItem>(OwningTreeView);
+				
+				CurrentItem->SetDisplayName(FText::FromName(Variable.Variable.GetName()));
+				CurrentItem->SetFilterName(Variable.Variable.GetName().ToString());
+				CurrentItem->TypeDef = TypeDef;
+				CurrentItem->BufferIndex = TreeItem->GetBufferIndex();
+				//CurrentItem->RootItem = TreeItem;
+
+				TreeItem->AddChild(CurrentItem);
+				
+				if(!TypeDef.IsEnum() && !FNiagaraTypeDefinition::IsScalarDefinition(TypeDef))
+				{
+					RecursiveBuildTreeItemChildren(TreeItem, CurrentItem, TypeDef, OwningTreeView);
+				}
+				return true;
+			}
+		);
+		
+	}
+}
+
+void FNiagaraSimCacheViewModel::RecursiveBuildTreeItemChildren(FNiagaraSimCacheTreeItem* Root,
+	TSharedRef<FNiagaraSimCacheComponentTreeItem> Parent, FNiagaraTypeDefinition TypeDefinition, TWeakPtr<SNiagaraSimCacheTreeView> OwningTreeView)
+{
+	UScriptStruct* Struct = TypeDefinition.GetScriptStruct();
+
+	for (TFieldIterator<FProperty> PropertyIt(Struct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+	{
+		FProperty* Property = *PropertyIt;
+		TSharedRef<FNiagaraSimCacheComponentTreeItem> CurrentItem = MakeShared<FNiagaraSimCacheComponentTreeItem> (OwningTreeView);
+		
+		FString PropertyName = Property->GetName();
+		
+		CurrentItem->SetDisplayName(FText::FromString(PropertyName));
+		CurrentItem->SetFilterName(Parent->GetFilterName().Append(".").Append(PropertyName));
+		CurrentItem->SetBufferIndex(Root->GetBufferIndex());
+		//CurrentItem->RootItem = Root;
+
+		Parent->AddChild(CurrentItem);
+
+		if(Property->IsA(FStructProperty::StaticClass()))
+		{
+			const FStructProperty* StructProperty = CastFieldChecked<FStructProperty>(Property);
+			UScriptStruct* FriendlyStruct = FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(StructProperty->Struct, ENiagaraStructConversion::Simulation);
+			FNiagaraTypeDefinition StructTypeDef = FNiagaraTypeDefinition(FriendlyStruct);
+			CurrentItem->TypeDef = StructTypeDef;
+			RecursiveBuildTreeItemChildren(Root, CurrentItem, StructTypeDef, OwningTreeView);
+		}
+		else if (Property->IsA(FNumericProperty::StaticClass()))
+		{
+			if(Property->IsA(FIntProperty::StaticClass()))
+			{
+				CurrentItem->TypeDef = FNiagaraTypeDefinition::GetIntDef();
+			}
+			else if (Property->IsA(FFloatProperty::StaticClass()))
+			{
+				CurrentItem->TypeDef = FNiagaraTypeDefinition::GetFloatDef();
+			}
+		}
+		else if (Property->IsA(FBoolProperty::StaticClass()))
+		{
+			CurrentItem->TypeDef = FNiagaraTypeDefinition::GetBoolDef();
+		}
+	}
+}
+
+void FNiagaraSimCacheViewModel::BuildEntries(TWeakPtr<SNiagaraSimCacheTreeView> OwningTreeView)
+{
+	RootEntries.Empty();
+	BufferEntries.Empty();
+	
+	const TSharedRef<FNiagaraSimCacheTreeItem> SharedSystemTreeItem = MakeShared<FNiagaraSimCacheTreeItem>(OwningTreeView);
+	const TSharedRef<FNiagaraSimCacheOverviewSystemItem> SharedSystemBufferItem = MakeShared<FNiagaraSimCacheOverviewSystemItem>();
+
+	SharedSystemTreeItem->SetDisplayName(LOCTEXT("SystemInstance", "System Instance"));
+	SharedSystemBufferItem->SetDisplayName(LOCTEXT("SystemInstance", "System Instance"));
+
+	RootEntries.Add(SharedSystemTreeItem);
+	BufferEntries.Add(SharedSystemBufferItem);
+		
+	BuildTreeItemChildren(SharedSystemTreeItem, OwningTreeView);
+		
+	for(int32 i = 0; i < GetNumEmitterLayouts(); i++)
+	{
+		const TSharedRef<FNiagaraSimCacheEmitterTreeItem> CurrentEmitterItem = MakeShared<FNiagaraSimCacheEmitterTreeItem>(OwningTreeView);
+		const TSharedRef<FNiagaraSimCacheOverviewEmitterItem> CurrentEmitterBufferItem = MakeShared<FNiagaraSimCacheOverviewEmitterItem>();
+		
+		CurrentEmitterItem->SetDisplayName(FText::FromName(GetEmitterLayoutName(i)));
+		CurrentEmitterBufferItem->SetDisplayName(FText::FromName(GetEmitterLayoutName(i)));
+		
+		CurrentEmitterItem->SetBufferIndex(i);
+		CurrentEmitterBufferItem->SetBufferIndex(i);
+
+		RootEntries.Add(CurrentEmitterItem);
+		BufferEntries.Add(CurrentEmitterBufferItem);
+
+		BuildTreeItemChildren(CurrentEmitterItem, OwningTreeView);
+	}
+
+	UpdateCurrentEntries();
+}
+
+void FNiagaraSimCacheViewModel::UpdateCurrentEntries()
+{
+	CurrentRootEntries.Empty();
+	CurrentRootEntries.Add(RootEntries[EmitterIndex + 1]);
+}
+
+TArray<TSharedRef<FNiagaraSimCacheTreeItem>>* FNiagaraSimCacheViewModel::GetCurrentRootEntries()
+{
+	return &CurrentRootEntries;
+}
+
+TArray<TSharedRef<FNiagaraSimCacheOverviewItem>>* FNiagaraSimCacheViewModel::GetBufferEntries()
+{
+	return &BufferEntries;
+}
+
+void FNiagaraSimCacheViewModel::BuildComponentInfos(const FName Name, const UScriptStruct* Struct, TArray<FComponentInfo>& InComponentInfos)
 {
 	int32 NumProperties = 0;
 	for (TFieldIterator<FProperty> PropertyIt(Struct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
@@ -254,21 +469,21 @@ void FNiagaraSimCacheViewModel::BuildComponentInfos(const FName Name, const UScr
 		const FName PropertyName = NumProperties > 1 ? FName(*FString::Printf(TEXT("%s.%s"), *Name.ToString(), *Property->GetName())) : Name;
 		if (Property->IsA(FFloatProperty::StaticClass()))
 		{
-			FComponentInfo& ComponentInfo = ComponentInfos.AddDefaulted_GetRef();
+			FComponentInfo& ComponentInfo = InComponentInfos.AddDefaulted_GetRef();
 			ComponentInfo.Name = PropertyName;
 			ComponentInfo.ComponentOffset = FoundFloatComponents++;
 			ComponentInfo.bIsFloat = true;
 		}
 		else if (Property->IsA(FUInt16Property::StaticClass()))
 		{
-			FComponentInfo& ComponentInfo = ComponentInfos.AddDefaulted_GetRef();
+			FComponentInfo& ComponentInfo = InComponentInfos.AddDefaulted_GetRef();
 			ComponentInfo.Name = PropertyName;
 			ComponentInfo.ComponentOffset = FoundHalfComponents++;
 			ComponentInfo.bIsHalf = true;
 		}
 		else if (Property->IsA(FIntProperty::StaticClass()))
 		{
-			FComponentInfo& ComponentInfo = ComponentInfos.AddDefaulted_GetRef();
+			FComponentInfo& ComponentInfo = InComponentInfos.AddDefaulted_GetRef();
 			ComponentInfo.Name = PropertyName;
 			ComponentInfo.ComponentOffset = FoundInt32Components++;
 			ComponentInfo.bIsInt32 = true;
@@ -276,7 +491,7 @@ void FNiagaraSimCacheViewModel::BuildComponentInfos(const FName Name, const UScr
 		}
 		else if (Property->IsA(FBoolProperty::StaticClass()))
 		{
-			FComponentInfo& ComponentInfo = ComponentInfos.AddDefaulted_GetRef();
+			FComponentInfo& ComponentInfo = InComponentInfos.AddDefaulted_GetRef();
 			ComponentInfo.Name = PropertyName;
 			ComponentInfo.ComponentOffset = FoundInt32Components++;
 			ComponentInfo.bIsInt32 = true;
@@ -284,7 +499,7 @@ void FNiagaraSimCacheViewModel::BuildComponentInfos(const FName Name, const UScr
 		}
 		else if (Property->IsA(FEnumProperty::StaticClass()))
 		{
-			FComponentInfo& ComponentInfo = ComponentInfos.AddDefaulted_GetRef();
+			FComponentInfo& ComponentInfo = InComponentInfos.AddDefaulted_GetRef();
 			ComponentInfo.Name = PropertyName;
 			ComponentInfo.ComponentOffset = FoundInt32Components++;
 			ComponentInfo.bIsInt32 = true;
@@ -293,7 +508,7 @@ void FNiagaraSimCacheViewModel::BuildComponentInfos(const FName Name, const UScr
 		else if (Property->IsA(FStructProperty::StaticClass()))
 		{
 			const FStructProperty* StructProperty = CastFieldChecked<FStructProperty>(Property);
-			BuildComponentInfos(PropertyName, FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(StructProperty->Struct, ENiagaraStructConversion::Simulation));
+			BuildComponentInfos(PropertyName, FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(StructProperty->Struct, ENiagaraStructConversion::Simulation), InComponentInfos);
 		}
 		else
 		{

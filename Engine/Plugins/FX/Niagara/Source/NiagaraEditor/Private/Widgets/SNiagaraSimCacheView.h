@@ -19,6 +19,7 @@ public:
 
 	using FBufferSelectionInfo = TPair<int32, FText>;
 
+	bool IsStringFilterEnabled() const;
 	void Construct(const FArguments& InArgs);
 
 	TSharedRef<ITableRow> MakeRowWidget(const TSharedPtr<int32> RowIndexPtr, const TSharedRef<STableViewBase>& OwnerTable) const;
@@ -39,9 +40,10 @@ public:
 
 	void OnComponentFilterChange(const FText& InFilter);
 
-	void OnSimCacheChanged(const FAssetData& InAsset);
+	void OnSimCacheChanged();
 
 	void OnViewDataChanged(const bool bFullRefresh);
+	void OnBufferChanged();
 
 private:
 	void GenerateColumns();
@@ -54,5 +56,5 @@ private:
 	TSharedPtr<SHeaderRow>						HeaderRowWidget;
 	TSharedPtr<SListView<TSharedPtr<int32>>>	ListViewWidget;
 
-	TArray<FString>								ComponentFilterArray;
+	TArray<FString>								StringFilterArray;
 };
