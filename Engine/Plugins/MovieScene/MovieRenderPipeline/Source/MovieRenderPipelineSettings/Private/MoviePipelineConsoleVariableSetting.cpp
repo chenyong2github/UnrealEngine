@@ -1,10 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MoviePipelineConsoleVariableSetting.h"
+
 #include "MovieRenderPipelineCoreModule.h"
 #include "HAL/IConsoleManager.h"
 #include "Engine/World.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Misc/DefaultValueHelper.h"
+#include "Sections/MovieSceneConsoleVariableTrackInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineConsoleVariableSetting)
 
@@ -50,12 +53,13 @@ void UMoviePipelineConsoleVariableSetting::ApplyCVarSettings(const bool bOverrid
 {
 	if (bOverrideValues)
 	{
+		MergeConsoleVariables();
 		PreviousConsoleVariableValues.Reset();
-		PreviousConsoleVariableValues.SetNumZeroed(ConsoleVariables.Num());
+		PreviousConsoleVariableValues.SetNumZeroed(MergedConsoleVariables.Num());
 	}
 
 	int32 Index = 0;
-	for(const TPair<FString, float>& KVP : ConsoleVariables)
+	for(const TPair<FString, float>& KVP : MergedConsoleVariables)
 	{
 		// We don't use the shared macro here because we want to soft-warn the user instead of tripping an ensure over missing cvar values.
 		const FString TrimmedCvar = KVP.Key.TrimStartAndEnd();
@@ -97,6 +101,45 @@ void UMoviePipelineConsoleVariableSetting::ApplyCVarSettings(const bool bOverrid
 			UE_LOG(LogMovieRenderPipeline, Log, TEXT("Executing Console Command \"%s\" after shot ends."), *Command);
 			UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), Command, nullptr);
 		}
+	}
+}
+
+void UMoviePipelineConsoleVariableSetting::MergeConsoleVariables()
+{
+	MergedConsoleVariables.Reset();
+	
+	// Merge in the presets
+	for (const TScriptInterface<IMovieSceneConsoleVariableTrackInterface>& Preset : ConsoleVariablePresets)
+	{
+		if (!Preset)
+		{
+			UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Invalid CVar preset specified. Ignoring."));
+			continue;
+		}
+		
+		const bool bOnlyIncludeChecked = true;
+		TArray<TTuple<FString, FString>> PresetCVars;
+		Preset->GetConsoleVariablesForTrack(bOnlyIncludeChecked, PresetCVars);
+		
+		for (const TTuple<FString, FString>& CVarPair : PresetCVars)
+		{
+			float CVarFloatValue = 0.0f;
+			if (FDefaultValueHelper::ParseFloat(CVarPair.Value, CVarFloatValue))
+			{
+				MergedConsoleVariables.Add(CVarPair.Key, CVarFloatValue);
+			}
+			else
+			{
+				UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Failed to apply CVar \"%s\" (from preset \"%s\") because value could not be parsed into a float. Ignoring."),
+					*CVarPair.Key, *Preset.GetObject()->GetName());
+			}
+		}
+	}
+	
+	// Merge in the overrides
+	for (const TPair<FString, float>& KVP : ConsoleVariables)
+	{
+		MergedConsoleVariables.Add(KVP);
 	}
 }
 

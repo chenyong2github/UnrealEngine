@@ -4,6 +4,8 @@
 #include "MoviePipelineSetting.h"
 #include "MoviePipelineConsoleVariableSetting.generated.h"
 
+class IMovieSceneConsoleVariableTrackInterface;
+
 UCLASS(BlueprintType)
 class MOVIERENDERPIPELINESETTINGS_API UMoviePipelineConsoleVariableSetting : public UMoviePipelineSetting
 {
@@ -22,6 +24,16 @@ protected:
 	void ApplyCVarSettings(const bool bOverrideValues);
 
 public:
+	// Note that the interface is used here instead of directly using UConsoleVariablesAsset in order to not
+	// depend on the Console Variables Editor.
+	/**
+	 * An array of presets from the Console Variables Editor. The preset cvars will be applied (in the order they are
+	 * specified) before any of the cvars in "Console Variables". In other words, cvars in "Console Variables" will
+	 * take precedence over the cvars coming from these presets.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
+	TArray<TScriptInterface<IMovieSceneConsoleVariableTrackInterface>> ConsoleVariablePresets;
+	
 	/** 
 	* An array of key/value pairs for console variable name and the value you wish to set for that cvar.
 	* The existing value will automatically be cached and restored afterwards.
@@ -45,5 +57,12 @@ public:
 	TArray<FString> EndConsoleCommands;
 
 private:
+	/** Merge together preset and override cvars into MergedConsoleVariables. Discards result of a prior merge (if any). */
+	void MergeConsoleVariables();
+
+private:
 	TArray<float> PreviousConsoleVariableValues;
+
+	/** Merged result of preset cvars and override cvars. */
+	TMap<FString, float> MergedConsoleVariables;
 };
