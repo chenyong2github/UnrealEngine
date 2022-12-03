@@ -7110,9 +7110,14 @@ void VerifyGlobalShaders(EShaderPlatform Platform, const ITargetPlatform* Target
 				{
 					if (bErrorOnMissing)
 					{
-						UE_LOG(LogShaders, Fatal, TEXT("Missing global shader %s's permutation %i, Please make sure cooking was successful."),
-							GlobalShaderType->GetName(), PermutationId);
-					}
+                        if (IsMetalPlatform(GMaxRHIShaderPlatform))
+                        {
+                            check(IsInGameThread());
+                            FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NoGlobalShader_Error", "Missing shader permutation. Please make sure cooking was successful and refer to Engine log for details."));
+                        }
+                            UE_LOG(LogShaders, Fatal, TEXT("Missing global shader %s's permutation %i, Please make sure cooking was successful."),
+                                GlobalShaderType->GetName(), PermutationId);
+                    }
 					else
 					{
 #if WITH_EDITOR
