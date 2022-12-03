@@ -353,7 +353,7 @@ void LumenTranslucencyReflectionsMarkUsedProbes(
 			}
 
 			PassParameters->View.InstancedView = TUniformBufferRef<FInstancedViewUniformShaderParameters>::CreateUniformBufferImmediate(
-				reinterpret_cast<const FInstancedViewUniformShaderParameters&>(DownsampledTranslucencyViewParameters),
+				reinterpret_cast<const FInstancedViewUniformShaderParameters&>(LocalInstancedViewUniformShaderParameters),
 				UniformBuffer_SingleFrame);
 		}
 	}
