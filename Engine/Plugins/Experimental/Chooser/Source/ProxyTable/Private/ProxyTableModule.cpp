@@ -2,4 +2,4 @@
 
 #include "Modules/ModuleManager.h"
 
-IMPLEMENT_MODULE(FDefaultModuleImpl, ProxyTableModule);
+IMPLEMENT_MODULE(FDefaultModuleImpl, ProxyTable);
