@@ -9,14 +9,14 @@ namespace Horde.Build.Utilities
 	/// <summary>
 	/// Runs a task in the background and allows stopping it on demand
 	/// </summary>
-	public sealed class BackgroundTask : IDisposable
+	public sealed class BackgroundTask : IDisposable, IAsyncDisposable
 	{
 		readonly Func<CancellationToken, Task> _runTask;
 		Task _task = Task.CompletedTask;
 		readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
 
 		/// <summary>
-		/// Constructor
+		/// Constructor. Note that the task does not start until <see cref="Start"/> is called.
 		/// </summary>
 		/// <param name="runTask"></param>
 		public BackgroundTask(Func<CancellationToken, Task> runTask)
@@ -33,6 +33,25 @@ namespace Horde.Build.Utilities
 				StopAsync().Wait();
 			}
 			_cancellationTokenSource.Dispose();
+		}
+
+		/// <inheritdoc/>
+		public async ValueTask DisposeAsync()
+		{
+			await StopAsync();
+			_cancellationTokenSource.Dispose();
+		}
+
+		/// <summary>
+		/// Creates and starts a new background task instance
+		/// </summary>
+		/// <param name="runTask"></param>
+		/// <returns></returns>
+		public static BackgroundTask StartNew(Func<CancellationToken, Task> runTask)
+		{
+			BackgroundTask task = new BackgroundTask(runTask);
+			task.Start();
+			return task;
 		}
 
 		/// <summary>
@@ -53,13 +72,16 @@ namespace Horde.Build.Utilities
 		/// <returns></returns>
 		public async Task StopAsync()
 		{
-			try
+			if (!_task.IsCompleted)
 			{
-				_cancellationTokenSource.Cancel();
-				await _task;
-			}
-			catch (OperationCanceledException)
-			{
+				try
+				{
+					_cancellationTokenSource.Cancel();
+					await _task;
+				}
+				catch (OperationCanceledException)
+				{
+				}
 			}
 		}
 	}
