@@ -38,9 +38,6 @@ public:
 	//~End UPCGSettings interface
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	bool bKeepExistingAttributes = false;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	FName OutputAttributeName = NAME_None;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
@@ -91,6 +88,11 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Type == EPCGMetadataTypes::Name && !bFromSourceParam", EditConditionHides))
 	FName NameValue = NAME_None;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	bool bKeepExistingAttributes_DEPRECATED = false;
+#endif // WITH_EDITORONLY_DATA
 
 protected:
 	virtual FPCGElementPtr CreateElement() const override;

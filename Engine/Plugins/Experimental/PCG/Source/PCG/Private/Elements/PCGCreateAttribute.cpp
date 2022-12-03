@@ -217,7 +217,7 @@ bool FPCGCreateAttributeElement::ExecuteInternal(FPCGContext* Context) const
 		if (const UPCGSpatialData* InputSpatialData = Cast<UPCGSpatialData>(InputData))
 		{
 			UPCGSpatialData* NewSpatialData = InputSpatialData->DuplicateData(/*bInitializeFromData=*/false);
-			NewSpatialData->InitializeFromData(InputSpatialData, /*InMetadataParentOverride=*/ nullptr, /*bInheritMetadata=*/true, /*bInheritMetadata=*/ Settings->bKeepExistingAttributes);
+			NewSpatialData->InitializeFromData(InputSpatialData, /*InMetadataParentOverride=*/ nullptr, /*bInheritMetadata=*/true);
 
 			OutputData = NewSpatialData;
 			Metadata = NewSpatialData->Metadata;
@@ -226,12 +226,12 @@ bool FPCGCreateAttributeElement::ExecuteInternal(FPCGContext* Context) const
 		{
 			// If we can reuse input data, it is safe to const_cast, as it was created by ourselves above.
 			UPCGParamData* NewParamData = bCanReuseInputData ? const_cast<UPCGParamData*>(InputParamData) : NewObject<UPCGParamData>();
-			NewParamData->Metadata->Initialize(bCanReuseInputData ? nullptr : InputParamData->Metadata, Settings->bKeepExistingAttributes);
+			NewParamData->Metadata->InitializeAsCopy(bCanReuseInputData ? nullptr : InputParamData->Metadata);
 
 			OutputData = NewParamData;
 			Metadata = NewParamData->Metadata;
 
-			// In case of param data, we want to add a new entry too
+			// In case of param data, we want to add a new entry too, if needed
 			bShouldAddNewEntry = true;
 		}
 		else
@@ -267,7 +267,9 @@ bool FPCGCreateAttributeElement::ExecuteInternal(FPCGContext* Context) const
 		// Add a new entry if it is a param data and not from source (because entries are already copied)
 		if (bShouldAddNewEntry && !Settings->bFromSourceParam)
 		{
-			PCGMetadataEntryKey EntryKey = Metadata->AddEntry();
+			// If the metadata is empty, we need to add a new entry, so set it to PCGInvalidEntryKey.
+			// Otherwise, use the entry key 0.
+			PCGMetadataEntryKey EntryKey = Metadata->GetItemCountForChild() == 0 ? PCGInvalidEntryKey : 0;
 			SetAttribute(Settings, Attribute, Metadata, EntryKey, nullptr);
 		}
 	}
