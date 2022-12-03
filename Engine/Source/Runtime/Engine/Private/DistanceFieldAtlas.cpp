@@ -372,6 +372,32 @@ void FDistanceFieldAsyncQueue::FinishAllCompilation()
 	BlockUntilAllBuildsComplete(); 
 }
 
+void FDistanceFieldAsyncQueue::FinishCompilationForObjects(TArrayView<UObject* const> InObjects)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDistanceFieldAsyncQueue::FinishCompilationForObjects);
+
+	TSet<UStaticMesh*> StaticMeshes;
+	for (UObject* Object : InObjects)
+	{
+		if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(Object))
+		{
+			StaticMeshes.Add(StaticMesh);
+		}
+		else if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Object))
+		{
+			if (StaticMeshComponent->GetStaticMesh())
+			{
+				StaticMeshes.Add(StaticMeshComponent->GetStaticMesh());
+			}
+		}
+	}
+
+	for (UStaticMesh* StaticMesh : StaticMeshes)
+	{
+		BlockUntilBuildComplete(StaticMesh, false);
+	}
+}
+
 bool FDistanceFieldAsyncQueue::IsTaskInvalid(FAsyncDistanceFieldTask* Task) const
 {
 	return (Task->StaticMesh && Task->StaticMesh->IsUnreachable()) || (Task->GenerateSource && Task->GenerateSource->IsUnreachable());
@@ -464,6 +490,8 @@ void FDistanceFieldAsyncQueue::StartBackgroundTask(FAsyncDistanceFieldTask* Task
 
 void FDistanceFieldAsyncQueue::ProcessPendingTasks()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDistanceFieldAsyncQueue::ProcessPendingTasks);
+
 	FScopeLock Lock(&CriticalSection);
 
 	for (auto It = PendingTasks.CreateIterator(); It; ++It)

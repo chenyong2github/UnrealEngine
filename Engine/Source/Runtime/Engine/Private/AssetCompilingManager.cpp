@@ -422,6 +422,47 @@ void FAssetCompilingManager::FinishAllCompilation()
 }
 
 /**
+ * Finish compilation of the requested objects.
+ */
+void FAssetCompilingManager::FinishCompilationForObjects(TArrayView<UObject* const> InObjects)
+{
+#if WITH_EDITOR
+	if (InObjects.Num())
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FAssetCompilingManager::FinishCompilationForObjects);
+
+		for (IAssetCompilingManager* AssetCompilingManager : AssetCompilingManagers)
+		{
+			AssetCompilingManager->FinishCompilationForObjects(InObjects);
+		}
+
+		bool bAreObjectsStillCompiling = false;
+		for (const UObject* Object : InObjects)
+		{
+			if (const IInterface_AsyncCompilation* AsyncCompilationInterface = Cast<IInterface_AsyncCompilation>(Object))
+			{
+				if (AsyncCompilationInterface->IsCompiling())
+				{
+					bAreObjectsStillCompiling = true;
+
+					ensureMsgf(false,
+						TEXT("A finish compilation has been requested on %s but it is still being compiled, this might indicate a missing implementation of IAssetCompilingManager::FinishCompilationForObjects"),
+						*Object->GetFullName());
+
+					break;
+				}
+			}
+		}
+
+		if (bAreObjectsStillCompiling)
+		{
+			FinishAllCompilation();
+		}
+	}
+#endif
+}
+
+/**
  * Cancel any pending work and blocks until it is safe to shut down.
  */
 void FAssetCompilingManager::Shutdown()

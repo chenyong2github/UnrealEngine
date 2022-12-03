@@ -82,6 +82,8 @@ private:
 	int32 GetNumRemainingAssets() const override;
 	void ProcessAsyncTasks(bool bLimitExecutionTime = false) override;
 
+	void FinishCompilationForObjects(TArrayView<UObject* const> InObjects) override;
+
 	friend class FAssetCompilingManager;
 	
 	bool bHasShutdown = false;

@@ -87,6 +87,9 @@ private:
 	TArrayView<FName> GetDependentTypeNames() const override;
 	int32 GetNumRemainingAssets() const override;
 
+	/** Handle generic finish compilation */
+	void FinishCompilationForObjects(TArrayView<UObject* const> InObjects) override;
+
 	void UpdateCompilationNotification();
 	void PostCompilation(TArrayView<USoundWave* const> InCompiledSoundWaves);
 	void PostCompilation(USoundWave* SoundWave);

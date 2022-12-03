@@ -384,9 +384,35 @@ void FSkinnedAssetCompilingManager::FinishAllCompilation()
 	}
 }
 
+void FSkinnedAssetCompilingManager::FinishCompilationForObjects(TArrayView<UObject* const> InObjects)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FSkinnedAssetCompilingManager::FinishCompilationForObjects);
+
+	TSet<USkinnedAsset*> SkinnedAssets;
+	for (UObject* Object : InObjects)
+	{
+		if (USkinnedAsset* SkinnedAsset = Cast<USkinnedAsset>(Object))
+		{
+			SkinnedAssets.Add(SkinnedAsset);
+		}
+		else if (USkinnedMeshComponent* SkinnedMeshComponent = Cast<USkinnedMeshComponent>(Object))
+		{
+			if (SkinnedMeshComponent->GetSkinnedAsset())
+			{
+				SkinnedAssets.Add(SkinnedMeshComponent->GetSkinnedAsset());
+			}
+		}
+	}
+
+	if (SkinnedAssets.Num())
+	{
+		FinishCompilation(SkinnedAssets.Array());
+	}
+}
+
 void FSkinnedAssetCompilingManager::Reschedule()
 {
-	
+
 }
 
 void FSkinnedAssetCompilingManager::ProcessSkinnedAssets(bool bLimitExecutionTime, int32 MinBatchSize)

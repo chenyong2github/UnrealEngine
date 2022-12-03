@@ -275,6 +275,25 @@ void FTextureCompilingManager::AddTextures(TArrayView<UTexture* const> InTexture
 	TRACE_COUNTER_SET(QueuedTextureCompilation, GetNumRemainingTextures());
 }
 
+void FTextureCompilingManager::FinishCompilationForObjects(TArrayView<UObject* const> InObjects)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FTextureCompilingManager::FinishCompilationForObjects);
+
+	TSet<UTexture*> Textures;
+	for (UObject* Object : InObjects)
+	{
+		if (UTexture* Texture = Cast<UTexture>(Object))
+		{
+			Textures.Add(Texture);
+		}
+	}
+
+	if (Textures.Num())
+	{
+		FinishCompilation(Textures.Array());
+	}
+}
+
 void FTextureCompilingManager::FinishCompilation(TArrayView<UTexture* const> InTextures)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FTextureCompilingManager::FinishCompilation);

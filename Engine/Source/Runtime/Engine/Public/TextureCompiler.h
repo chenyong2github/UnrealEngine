@@ -83,6 +83,9 @@ private:
 
 	FTextureCompilingManager();
 
+	/** Handle generic finish compilation */
+	void FinishCompilationForObjects(TArrayView<UObject* const> InObjects) override;
+
 	FName GetAssetTypeName() const override;
 	FTextFormat GetAssetNameFormat() const override;
 	TArrayView<FName> GetDependentTypeNames() const override;

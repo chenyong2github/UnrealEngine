@@ -399,6 +399,8 @@ void FCardRepresentationAsyncQueue::StartBackgroundTask(FAsyncCardRepresentation
 
 void FCardRepresentationAsyncQueue::ProcessPendingTasks()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FCardRepresentationAsyncQueue::ProcessPendingTasks);
+
 	FScopeLock Lock(&CriticalSection);
 
 	for (auto It = PendingTasks.CreateIterator(); It; ++It)
@@ -501,8 +503,36 @@ void FCardRepresentationAsyncQueue::RescheduleBackgroundTask(FAsyncCardRepresent
 	}
 }
 
+void FCardRepresentationAsyncQueue::FinishCompilationForObjects(TArrayView<UObject* const> InObjects)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FCardRepresentationAsyncQueue::FinishCompilationForObjects);
+
+	TSet<UStaticMesh*> StaticMeshes;
+	for (UObject* Object : InObjects)
+	{
+		if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(Object))
+		{
+			StaticMeshes.Add(StaticMesh);
+		}
+		else if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Object))
+		{
+			if (StaticMeshComponent->GetStaticMesh())
+			{
+				StaticMeshes.Add(StaticMeshComponent->GetStaticMesh());
+			}
+		}
+	}
+
+	for (UStaticMesh* StaticMesh : StaticMeshes)
+	{
+		BlockUntilBuildComplete(StaticMesh, false);
+	}
+}
+
 void FCardRepresentationAsyncQueue::BlockUntilBuildComplete(UStaticMesh* InStaticMesh, bool bWarnIfBlocked)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FCardRepresentationAsyncQueue::BlockUntilBuildComplete);
+
 	// We will track the wait time here, but only the cycles used.
 	// This function is called whether or not an async task is pending, 
 	// so we have to look elsewhere to properly count how many resources have actually finished building.

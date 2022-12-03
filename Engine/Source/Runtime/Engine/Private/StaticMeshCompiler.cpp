@@ -588,6 +588,32 @@ void FStaticMeshCompilingManager::FinishAllCompilation()
 	}
 }
 
+void FStaticMeshCompilingManager::FinishCompilationForObjects(TArrayView<UObject* const> InObjects)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshCompilingManager::FinishCompilationForObjects);
+
+	TSet<UStaticMesh*> StaticMeshes;
+	for (UObject* Object : InObjects)
+	{
+		if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(Object))
+		{
+			StaticMeshes.Add(StaticMesh);
+		}
+		else if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Object))
+		{
+			if (StaticMeshComponent->GetStaticMesh())
+			{
+				StaticMeshes.Add(StaticMeshComponent->GetStaticMesh());
+			}
+		}
+	}
+
+	if (StaticMeshes.Num())
+	{
+		FinishCompilation(StaticMeshes.Array());
+	}
+}
+
 void FStaticMeshCompilingManager::Reschedule()
 {
 	if (RegisteredStaticMesh.Num() > 1)

@@ -311,6 +311,25 @@ void FSoundWaveCompilingManager::FinishAllCompilation()
 	}
 }
 
+void FSoundWaveCompilingManager::FinishCompilationForObjects(TArrayView<UObject* const> InObjects)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FSoundWaveCompilingManager::FinishCompilationForObjects);
+
+	TSet<USoundWave*> SoundWaves;
+	for (UObject* Object : InObjects)
+	{
+		if (USoundWave* SoundWave = Cast<USoundWave>(Object))
+		{
+			SoundWaves.Add(SoundWave);
+		}
+	}
+
+	if (SoundWaves.Num())
+	{
+		FinishCompilation(SoundWaves.Array());
+	}
+}
+
 void FSoundWaveCompilingManager::ProcessSoundWaves(bool bLimitExecutionTime, int32 MaximumPriority)
 {
 	using namespace SoundWaveCompilingManagerImpl;

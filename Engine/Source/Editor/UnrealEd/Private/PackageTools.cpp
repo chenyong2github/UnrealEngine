@@ -54,6 +54,8 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UObjectIterator.h"
 
+#include "AssetCompilingManager.h"
+
 #include "ShaderCompiler.h"
 #include "DistanceFieldAtlas.h"
 #include "MeshCardRepresentation.h"
@@ -74,57 +76,35 @@ FDelegateHandle UPackageTools::ReachabilityCallbackHandle;
 namespace
 {
 
-/** 
- * Utility function that checks each UObject inside of the given UPackage to see if it is waiting 
- * on async compilation.
- * 
- * @return true if the package contains at least one UObject that has compilation work running, otherwise false.
- */
-static bool IsPackageCompiling(const UPackage* Package)
-{
-	bool bIsCompiling = false;
-	ForEachObjectWithPackage(Package, [&bIsCompiling](const UObject* Object)
-	{
-		const IInterface_AsyncCompilation* AsyncCompilationIF = Cast<IInterface_AsyncCompilation>(Object);
-		if (AsyncCompilationIF != nullptr && AsyncCompilationIF->IsCompiling())
-		{
-			bIsCompiling = true;
-			return false;
-		}
-		else
-		{
-			return true;
-		}
-	});
-
-	return bIsCompiling;
-}
-
 /**
- * Utility function that checks all of the provided packages to see if any
- * of them contain assets that currently have async compilation work running.
- * If there are assets that are waiting on async compilation work then we 
- * wait on all currently outstanding work to finish before returning.
+ * Utility function that gathers all async compilable objects from given packages
+ * and flush them to make sure there is no remaining async work trying to load data
+ * from said packages.
  */
 static void FlushAsyncCompilation(const TSet<UPackage*>& PackagesToUnload)
 {
-	bool bHasAsyncCompilationWork = false;
+	TArray<UObject*> ObjectsToFinish;
+
 	for (const UPackage* Package : PackagesToUnload)
 	{
-		if (IsPackageCompiling(Package))
+		ForEachObjectWithPackage(Package, [&ObjectsToFinish](UObject* Object)
 		{
-			bHasAsyncCompilationWork = true;
-			break;
-		}
+			if (const IInterface_AsyncCompilation* AsyncCompilationIF = Cast<IInterface_AsyncCompilation>(Object))
+			{
+				ObjectsToFinish.Add(Object);
+			}
+
+			return true;
+		});
 	}
 
-	if (bHasAsyncCompilationWork)
+	if (ObjectsToFinish.Num())
 	{
-		FAssetCompilingManager::Get().FinishAllCompilation();
+		FAssetCompilingManager::Get().FinishCompilationForObjects(ObjectsToFinish);
 	}
 }
 
-}
+} // anonymous namespace
 
 UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

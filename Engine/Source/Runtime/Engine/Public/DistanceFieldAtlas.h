@@ -412,6 +412,9 @@ private:
 	/** Cancel or finish any work for the given task. */
 	void CancelAndDeleteTask(const TSet<FAsyncDistanceFieldTask*>& Tasks);
 
+	/** Handle generic finish compilation */
+	void FinishCompilationForObjects(TArrayView<UObject* const> InObjects) override;
+
 	/** Return whether the task has become invalid and should be cancelled (i.e. reference unreachable objects) */
 	bool IsTaskInvalid(FAsyncDistanceFieldTask* Task) const;
 

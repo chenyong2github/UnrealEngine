@@ -394,6 +394,9 @@ private:
 	/** Cancel or finish any work for the given task. */
 	void CancelAndDeleteTask(const TSet<FAsyncCardRepresentationTask*>& Tasks);
 
+	/** Handle generic finish compilation */
+	void FinishCompilationForObjects(TArrayView<UObject* const> InObjects) override;
+
 	/** Return whether the task has become invalid and should be canceled (i.e. reference unreachable objects) */
 	bool IsTaskInvalid(FAsyncCardRepresentationTask* Task) const;
 

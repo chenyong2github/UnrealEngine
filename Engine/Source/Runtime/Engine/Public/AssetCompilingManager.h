@@ -53,6 +53,11 @@ struct IAssetCompilingManager
 	ENGINE_API virtual int32 GetNumRemainingAssets() const = 0;
 
 	/**
+	 * Blocks until completion of the requested objects.
+	 */
+	ENGINE_API virtual void FinishCompilationForObjects(TArrayView<UObject* const> InObjects) {} /* Optional for backward compatibility */
+
+	/**
 	 * Blocks until completion of all assets.
 	 */
 	ENGINE_API virtual void FinishAllCompilation() = 0;
@@ -105,6 +110,11 @@ public:
 	 * Blocks until completion of all assets.
 	 */
 	ENGINE_API void FinishAllCompilation();
+
+	/**
+	 * Finish compilation of the requested objects.
+	 */
+	ENGINE_API void FinishCompilationForObjects(TArrayView<UObject* const> InObjects);
 
 	/**
 	 * Cancel any pending work and blocks until it is safe to shut down.

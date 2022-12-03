@@ -82,6 +82,9 @@ private:
 	/** Called once per frame, fetches completed tasks and applies them to the scene. */
 	void ProcessAsyncTasks(bool bLimitExecutionTime = false) override;
 
+	/** Handle generic finish compilation */
+	void FinishCompilationForObjects(TArrayView<UObject* const> InObjects) override;
+
 	bool bHasShutdown = false;
 	TSet<TWeakObjectPtr<UStaticMesh>> RegisteredStaticMesh;
 	FAsyncCompilationNotification Notification;
