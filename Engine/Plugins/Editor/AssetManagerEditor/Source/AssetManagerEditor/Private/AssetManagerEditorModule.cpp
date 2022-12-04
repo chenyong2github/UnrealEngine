@@ -1202,13 +1202,16 @@ bool FAssetManagerEditorModule::GetStringValueForCustomColumn(const FAssetData& 
 		case EPrimaryAssetCookRule::AlwaysCook: 
 			OutValue = TEXT("Always");
 			return true;
-		case EPrimaryAssetCookRule::DevelopmentAlwaysCook:
-			OutValue = TEXT("DevelopmentAlways");
+		case EPrimaryAssetCookRule::DevelopmentAlwaysProductionUnknownCook:
+			OutValue = TEXT("DevelopmentAlwaysProductionUnknown");
 			return true;
-		case EPrimaryAssetCookRule::DevelopmentCook: 
-			OutValue = TEXT("Development");
+		case EPrimaryAssetCookRule::DevelopmentAlwaysProductionNeverCook:
+			OutValue = TEXT("DevelopmentAlwaysProductionNever");
 			return true;
-		case EPrimaryAssetCookRule::NeverCook: 
+		case EPrimaryAssetCookRule::ProductionNeverCook:
+			OutValue = TEXT("ProductionNeverCook");
+			return true;
+		case EPrimaryAssetCookRule::NeverCook:
 			OutValue = TEXT("Never");
 			return true;
 		}
@@ -1291,11 +1294,14 @@ bool FAssetManagerEditorModule::GetDisplayTextForCustomColumn(const FAssetData& 
 		case EPrimaryAssetCookRule::AlwaysCook:
 			OutValue = LOCTEXT("AlwaysCook", "Always");
 			return true;
-		case EPrimaryAssetCookRule::DevelopmentAlwaysCook:
-			OutValue = LOCTEXT("DevelopmentAlwaysCook", "DevelopmentAlways");
+		case EPrimaryAssetCookRule::DevelopmentAlwaysProductionUnknownCook:
+			OutValue = LOCTEXT("DevelopmentAlwaysProductionUnknownCook", "DevelopmentAlwaysProductionUnknown");
 			return true;
-		case EPrimaryAssetCookRule::DevelopmentCook:
-			OutValue = LOCTEXT("DevelopmentCook", "Development");
+		case EPrimaryAssetCookRule::DevelopmentAlwaysProductionNeverCook:
+			OutValue = LOCTEXT("DevelopmentAlwaysProductionNeverCook", "DevelopmentAlwaysProductionNever");
+			return true;
+		case EPrimaryAssetCookRule::ProductionNeverCook:
+			OutValue = LOCTEXT("ProductionNeverCook", "ProductionNever");
 			return true;
 		case EPrimaryAssetCookRule::NeverCook:
 			OutValue = LOCTEXT("NeverCook", "Never");

@@ -387,6 +387,9 @@ public:
 
 	/** Returns list of PrimaryAssetIds that manage a package. Will optionally recurse up the management chain */
 	virtual bool GetPackageManagers(FName PackageName, bool bRecurseToParents, TSet<FPrimaryAssetId>& ManagerSet) const;
+	/** Returns PrimaryAssetIds that manage a package, with property describing the reference (direct or indirect). */
+	virtual bool GetPackageManagers(FName PackageName, bool bRecurseToParents,
+		TMap<FPrimaryAssetId, UE::AssetRegistry::EDependencyProperty>& Managers) const;
 
 
 	// GENERAL ASSET UTILITY FUNCTIONS
@@ -524,6 +527,15 @@ public:
 
 	/** Returns cook rule for a package name using Management rules, games should override this to take into account their individual workflows */
 	virtual EPrimaryAssetCookRule GetPackageCookRule(FName PackageName) const;
+
+	/**
+	 * Helper function for GetPackageCookRule. Given the list of Managers that manage a package, calculate the unioned cookrule for the
+	 * package. @see FPrimaryAssetCookRuleUnion::UnionWith. If two managers are in conflict (e.g. one is CookAlways, the other is
+	 * ProductionNeverCook), the higher-priority will win. If they have the same priority, the NeverCook rule will win, and the managers
+	 * will be reported in the OutConflictIds field.
+	 */
+	EPrimaryAssetCookRule CalculateCookRuleUnion(const TMap<FPrimaryAssetId, UE::AssetRegistry::EDependencyProperty>& Managers,
+		TOptional<TPair<FPrimaryAssetId, FPrimaryAssetId>>* OutConflictIds) const;
 
 	UE_DEPRECATED(5.0, "Use version that takes ICookInfo instead")
 	virtual bool VerifyCanCookPackage(FName PackageName, bool bLogError = true) const;

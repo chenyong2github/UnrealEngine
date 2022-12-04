@@ -2,35 +2,67 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/PrimaryAssetId.h"
 #include "AssetRegistry/AssetIdentifier.h"
-#include "EngineTypes.h"
-#include "AssetManagerTypes.generated.h"
+#include "Containers/Array.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "Misc/EnumClassFlags.h"
+#include "Misc/Optional.h"
+#include "Templates/Tuple.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/PrimaryAssetId.h"
+#include "UObject/SoftObjectPtr.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetBundleData.h"
+#include "CoreMinimal.h"
 #endif
+
+#include "AssetManagerTypes.generated.h"
 
 /** Rule about when to cook/ship a primary asset */
 UENUM()
 enum class EPrimaryAssetCookRule : uint8
 {
-	/** Nothing is known about this asset specifically. It will cook if something else depends on it. */
+	/** Nothing is known about this asset specifically. It will cook in both Development and Production if something else depends on it. */
 	Unknown,
 
 	/** Asset should never be cooked/shipped in any situation. An error will be generated if something depends on it. */
 	NeverCook,
 
 	/** Asset will be cooked in development if something else depends on it, but will never be cooked in a production build. */
-	DevelopmentCook,
+	ProductionNeverCook,
+	/** Legacy name equivalent to Production Never Cook */
+	DevelopmentCook=ProductionNeverCook,
 
 	/** Asset will always be cooked in development, but should never be cooked in a production build. */
-	DevelopmentAlwaysCook,
+	DevelopmentAlwaysProductionNeverCook,
+	/** Legacy name equivalent to DevelopmentAlwaysProductionNeverCook */
+	DevelopmentAlwaysCook = DevelopmentAlwaysProductionNeverCook,
+
+	/**
+	 * Asset will always be cooked in development; nothing is known about whether it should cook in Production. It will cook
+	 * in production if something else depends on it.
+	 */
+	DevelopmentAlwaysProductionUnknownCook,
 
 	/** Asset will always be cooked, in both production and development. */
 	AlwaysCook,
+};
+
+/** The production levels referenced by values of EPrimaryAssetCookRule. */
+enum class EPrimaryAssetProductionLevel
+{
+	Development = 0,
+	Production,
+	Count
 };
 
 /** Structure defining rules for what to do with assets, this is defined per type and can be overridden per asset */
@@ -261,4 +293,55 @@ struct FAssetManagerSearchRules
 
 	/** Returns true if there are any rules set that need to be verified */
 	ENGINE_API bool AreRulesSet() const;
+};
+
+/** Merges CookRules from multiple managers to decide the final CookRule for an asset they manage. */
+struct FPrimaryAssetCookRuleUnion
+{
+	/**
+	 * Add the information from another manager to the Union.
+	 *
+	 * @param CookRule The CookRule in the manager's FPrimaryAssetRules. CookRules that add references (AlwaysCook,
+	 * DevelopmentAlwaysCook) apply an inclusion for their production level (Production or Development) and all lower
+	 * levels. (e.g. AlwaysCooked applies an inclusion for both Production and Development). CookRules that add
+	 * exclusions (NeverCook, ProductionNeverCook, DevelopmentAlwaysProductionNeverCook) apply an exclusion for their
+	 * production level and all higher levels (e.g. NeverCooked applies an exclusion for both Production and
+	 * Development.) Inclusions for each level are unioned, and exclusions for each level are unioned.
+	 *
+	 * @param bDirectReference Whether the manager's reference to the asset being managed is direct. Inclusions
+	 * (AlwaysCook, DevelopmentAlwaysCook) apply transitively - both direct and indirect references apply the
+	 * inclusion. Exclusions (NeverCook, ProductionNeverCook, DevelopmentAlwaysProductionNeverCook) apply only to
+	 * direct references. e.g. 
+	 * PrimaryAssetId A has DevelopmentAlwaysProductionNeverCook
+	 * A -> B
+	 * B -> C
+	 * B == DevelopmentAlwaysProductionNeverCook
+	 * C == DevelopmentAlwaysProductionUnknownCook
+	 *
+	 * @param Id Record of the Manager that has the reference to the asset, used for error feedback if there is
+	 * a conflict.
+	 *
+	 * @param Priority The Manager's Priority. In the case of a conflict between two managers (one excluding and one
+	 * including at the same level), if the priorities are different this is not an error, and the exclusion or
+	 * inclusion directive from the higher-priority mangager will be kept. If the priorities are equal, the exclusion
+	 * will be kept and a conflict result will be returned from GetRule.
+	 */
+	ENGINE_API void UnionWith(EPrimaryAssetCookRule CookRule, bool bDirectReference, const FPrimaryAssetId& Id, int32 Priority);
+
+	/**
+	 * Get the result of the unions up to this point. If OutConflictIds is non-null, it will be cleared if there
+	 * are no conflicts, and will be set to the Ids that have a conflict between inclusion and exclusion.
+	 */
+	ENGINE_API EPrimaryAssetCookRule GetRule(TOptional<TTuple<FPrimaryAssetId, FPrimaryAssetId>>* OutConflictIds);
+
+private:
+	struct FAssignmentInfo
+	{
+		FPrimaryAssetId Id;
+		int32 Priority = -1;
+		bool bSet = false;
+	};
+
+	FAssignmentInfo InclusionByLevel[(int32)EPrimaryAssetProductionLevel::Count];
+	FAssignmentInfo ExclusionByLevel[(int32)EPrimaryAssetProductionLevel::Count];
 };

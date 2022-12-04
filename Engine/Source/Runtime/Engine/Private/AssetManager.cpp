@@ -18,6 +18,7 @@
 #include "UObject/LinkerLoad.h"
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/UObjectHash.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/FileHelper.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/Paths.h"
@@ -3417,36 +3418,65 @@ bool UAssetManager::GetManagedPackageList(FPrimaryAssetId PrimaryAssetId, TArray
 
 bool UAssetManager::GetPackageManagers(FName PackageName, bool bRecurseToParents, TSet<FPrimaryAssetId>& ManagerSet) const
 {
+	TMap<FPrimaryAssetId, UE::AssetRegistry::EDependencyProperty> Managers;
+	bool bFoundAny = GetPackageManagers(PackageName, bRecurseToParents, Managers);
+	for (TPair<FPrimaryAssetId, UE::AssetRegistry::EDependencyProperty>& Pair : Managers)
+	{
+		ManagerSet.Add(Pair.Key);
+	}
+	return bFoundAny;
+}
+
+bool UAssetManager::GetPackageManagers(FName PackageName, bool bRecurseToParents,
+	TMap<FPrimaryAssetId, UE::AssetRegistry::EDependencyProperty>& Managers) const
+{
 	IAssetRegistry& AssetRegistry = GetAssetRegistry();
+	auto UnionManageProperties = [](UE::AssetRegistry::EDependencyProperty A, UE::AssetRegistry::EDependencyProperty B)
+	{
+		return A | B;
+	};
 
 	bool bFoundAny = false;
-	TArray<FAssetIdentifier> ReferencingPrimaryAssets;
+	TArray<FAssetDependency> ReferencingPrimaryAssets;
 	ReferencingPrimaryAssets.Reserve(128);
 
 	AssetRegistry.GetReferencers(PackageName, ReferencingPrimaryAssets, UE::AssetRegistry::EDependencyCategory::Manage);
 
 	for (int32 IdentifierIndex = 0; IdentifierIndex < ReferencingPrimaryAssets.Num(); IdentifierIndex++)
 	{
-		FPrimaryAssetId PrimaryAssetId = ReferencingPrimaryAssets[IdentifierIndex].GetPrimaryAssetId();
-		if (PrimaryAssetId.IsValid())
+		FAssetDependency& AssetDependency = ReferencingPrimaryAssets[IdentifierIndex];
+		FPrimaryAssetId PrimaryAssetId = AssetDependency.AssetId.GetPrimaryAssetId();
+		if (!PrimaryAssetId.IsValid())
 		{
-			bFoundAny = true;
-			ManagerSet.Add(PrimaryAssetId);
+			continue;
+		}
+		bFoundAny = true;
+		UE::AssetRegistry::EDependencyProperty& ExistingProperties = Managers.FindOrAdd(PrimaryAssetId, UE::AssetRegistry::EDependencyProperty::None);
+		ExistingProperties = UnionManageProperties(ExistingProperties, AssetDependency.Properties);
 
-			if (bRecurseToParents)
+		if (bRecurseToParents)
+		{
+			const TArray<FPrimaryAssetId>* ManagementParents = ManagementParentMap.Find(PrimaryAssetId);
+			if (ManagementParents)
 			{
-				const TArray<FPrimaryAssetId> *ManagementParents = ManagementParentMap.Find(PrimaryAssetId);
-
-				if (ManagementParents)
+				// AssetDependency can be invalidated because we are modifying the array it is in. Copy its data now before we modify the array.
+				UE::AssetRegistry::EDependencyCategory IndirectCategory = AssetDependency.Category;
+				UE::AssetRegistry::EDependencyProperty IndirectProperties = AssetDependency.Properties;
+				EnumRemoveFlags(IndirectProperties, UE::AssetRegistry::EDependencyProperty::Direct);
+				for (const FPrimaryAssetId& Manager : *ManagementParents)
 				{
-					for (const FPrimaryAssetId& Manager : *ManagementParents)
+					// Call FindOrAdd with -1 so we can use value != -1 to decide whether it already existed
+					UE::AssetRegistry::EDependencyProperty& ExistingParent = Managers.FindOrAdd(Manager,
+						(UE::AssetRegistry::EDependencyProperty)-1);
+					if (ExistingParent == (UE::AssetRegistry::EDependencyProperty)-1)
 					{
-						if (!ManagerSet.Contains(Manager))
-						{
-							ManagerSet.Add(Manager);
-							// Add to end of list to recurse into the parent
-							ReferencingPrimaryAssets.Add(Manager);
-						}
+						ExistingParent = UE::AssetRegistry::EDependencyProperty::None;
+						// Add to end of list to recurse into the parent.
+						FAssetDependency& Added = ReferencingPrimaryAssets.Emplace_GetRef();
+						Added.AssetId = Manager;
+						Added.Category = IndirectCategory;
+						// Set the parent's property equal to the child's properties, but change it to Indirect
+						Added.Properties = IndirectProperties;
 					}
 				}
 			}
@@ -3973,7 +4003,7 @@ void UAssetManager::ModifyCook(TArray<FName>& PackagesToCook, TArray<FName>& Pac
 				bTargetPlatformsAllowDevelopmentObjects ? TargetPlatform : TargetPlatforms[0];
 			UE_LOG(LogAssetManager, Error,
 				TEXT("Cooking platform %s and %s in a single cook is not supported, because they have different values for AllowsDevelopmentObjects. ")
-				TEXT("This cook session will use AllowsDevelopmentObjects = true, which will add packages to platform % s that should not be present."),
+				TEXT("This cook session will use AllowsDevelopmentObjects = true, which will add packages to platform %s that should not be present."),
 				*TargetPlatforms[0]->PlatformName(), *TargetPlatform->PlatformName(),
 				*PlatformThatDoesNotAllow->PlatformName());
 			bTargetPlatformsAllowDevelopmentObjects = true;
@@ -3987,6 +4017,8 @@ void UAssetManager::ModifyCook(TArray<FName>& PackagesToCook, TArray<FName>& Pac
 	TArray<FPrimaryAssetTypeInfo> TypeList;
 
 	GetPrimaryAssetTypeInfoList(TypeList);
+
+	bool bIncludeDevelopmentAssets = !bOnlyCookProductionAssets || bTargetPlatformsAllowDevelopmentObjects;
 
 	// Get package names in the libraries that we care about for cooking. Only get ones that are needed in production
 	for (const FPrimaryAssetTypeInfo& TypeInfo : TypeList)
@@ -4023,9 +4055,10 @@ void UAssetManager::ModifyCook(TArray<FName>& PackagesToCook, TArray<FName>& Pac
 		for (FName PackageName : AssetPackages)
 		{
 			EPrimaryAssetCookRule CookRule = GetPackageCookRule(PackageName);
-
-			// Treat DevAlwaysCook as AlwaysCook, may get excluded in VerifyCanCookPackage
-			bool bAlwaysCook = (CookRule == EPrimaryAssetCookRule::AlwaysCook || CookRule == EPrimaryAssetCookRule::DevelopmentAlwaysCook);
+			bool bAlwaysCook = CookRule == EPrimaryAssetCookRule::AlwaysCook ||
+				(bIncludeDevelopmentAssets && (
+					CookRule == EPrimaryAssetCookRule::DevelopmentAlwaysProductionUnknownCook ||
+					CookRule == EPrimaryAssetCookRule::DevelopmentAlwaysProductionNeverCook));
 			bool bCanCook = VerifyCanCookPackage(nullptr, PackageName, false);
 
 			if (bAlwaysCook && bCanCook && !TypeInfo.bIsEditorOnly)
@@ -4125,34 +4158,155 @@ bool UAssetManager::ShouldCookForPlatform(const UPackage* Package, const ITarget
 EPrimaryAssetCookRule UAssetManager::GetPackageCookRule(FName PackageName) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UAssetManager::GetPackageCookRule);
-	FPrimaryAssetRules BestRules;
-	FPrimaryAssetId BestId;
-	TSet<FPrimaryAssetId> Managers;
+
+	TMap<FPrimaryAssetId, UE::AssetRegistry::EDependencyProperty> Managers;
 	GetPackageManagers(PackageName, true, Managers);
 
-	for (const FPrimaryAssetId& PrimaryAssetId : Managers)
+	TOptional<TTuple<FPrimaryAssetId, FPrimaryAssetId>> ConflictIds;
+	EPrimaryAssetCookRule CookRule = CalculateCookRuleUnion(Managers, &ConflictIds);
+	if (ConflictIds)
 	{
-		FPrimaryAssetRules Rules = GetPrimaryAssetRules(PrimaryAssetId);
+		UE_LOG(LogAssetManager, Error, TEXT("GetPackageCookRule: Conflicting Cook Rule for package %s! %s and %s have the same priority and disagree."),
+			*PackageName.ToString(), *ConflictIds->Get<0>().ToString(), *ConflictIds->Get<1>().ToString());
+	}
 
-		if (Rules.CookRule != EPrimaryAssetCookRule::Unknown && Rules.CookRule != BestRules.CookRule)
+	return CookRule;
+}
+
+EPrimaryAssetCookRule UAssetManager::CalculateCookRuleUnion(const TMap<FPrimaryAssetId, UE::AssetRegistry::EDependencyProperty>& Managers,
+	TOptional<TPair<FPrimaryAssetId, FPrimaryAssetId>>* OutConflictIds) const
+{
+	FPrimaryAssetCookRuleUnion Union;
+	for (const TPair<FPrimaryAssetId, UE::AssetRegistry::EDependencyProperty>& Pair : Managers)
+	{
+		FPrimaryAssetRules Rules = GetPrimaryAssetRules(Pair.Key);
+		bool bDirect = EnumHasAllFlags(Pair.Value, UE::AssetRegistry::EDependencyProperty::Direct);
+		Union.UnionWith(Rules.CookRule, bDirect, Pair.Key, Rules.Priority);
+	}
+
+	return Union.GetRule(OutConflictIds);
+}
+
+void FPrimaryAssetCookRuleUnion::UnionWith(EPrimaryAssetCookRule CookRule, bool bDirectReference, const FPrimaryAssetId& Id, int32 Priority)
+{
+	auto MarkExcluded = [this, bDirectReference, &Id, Priority](EPrimaryAssetProductionLevel LowestLevelToExclude)
+	{
+		// Exclusion only applies to direct references
+		if (bDirectReference)
 		{
-			if (BestRules.CookRule == EPrimaryAssetCookRule::Unknown || Rules.Priority > BestRules.Priority)
+			for (int32 LevelInt = (int32)LowestLevelToExclude; LevelInt < (int32)EPrimaryAssetProductionLevel::Count; ++LevelInt)
 			{
-				BestRules = Rules;
-				BestId = PrimaryAssetId;
-			}
-			else
-			{
-				// Lower priority, ignore
-				if (BestRules.Priority == Rules.Priority)
+				FAssignmentInfo& Info = ExclusionByLevel[LevelInt];
+				if (!Info.bSet || Info.Priority < Priority)
 				{
-					UE_LOG(LogAssetManager, Error, TEXT("GetPackageCookRule: Conflicting Cook Rule for package %s! %s and %s have the same priority and disagree."), *PackageName.ToString(), *PrimaryAssetId.ToString(), *BestId.ToString());
+					Info.bSet = true;
+					Info.Priority = Priority;
+					Info.Id = Id;
 				}
 			}
 		}
+	};
+	auto MarkIncluded = [this, &Id, Priority](EPrimaryAssetProductionLevel HighestLevelToInclude)
+	{
+		// Referenced applies to direct and indirect references
+		for (int32 LevelInt = 0; LevelInt <= (int32)HighestLevelToInclude; ++LevelInt)
+		{
+			FAssignmentInfo& Info = InclusionByLevel[LevelInt];
+			if (!Info.bSet || Info.Priority < Priority)
+			{
+				Info.bSet = true;
+				Info.Priority = Priority;
+				Info.Id = Id;
+			}
+		}
+	};
+
+	switch (CookRule)
+	{
+	case EPrimaryAssetCookRule::Unknown:
+		// Managers with CookRule Unknown are only used to define Chunks for assets that other managers include
+		// and do not affect whether the Asset should be cooked
+		break;
+	case EPrimaryAssetCookRule::NeverCook:
+		// Managers with NeverCook require that the asset is NOT cooked in production or development builds,
+		// but only for direct references
+		MarkExcluded(EPrimaryAssetProductionLevel::Development);
+		break;
+	case EPrimaryAssetCookRule::ProductionNeverCook:
+		// Managers with ProductionNeverCook (1) do not imply the asset should be cooked for development but
+		// (2) DO require that the asset is NOT cooked in production builds, but only for direct references
+		MarkExcluded(EPrimaryAssetProductionLevel::Production);
+		break;
+	case EPrimaryAssetCookRule::DevelopmentAlwaysProductionNeverCook:
+		// Managers with DevelopmentAlwaysProductionNeverCook (1) require the asset should be cooked in development builds
+		// (2) require that the asset is NOT cooked in production builds, but only for direct references
+		MarkIncluded(EPrimaryAssetProductionLevel::Development);
+		MarkExcluded(EPrimaryAssetProductionLevel::Production);
+		break;
+	case EPrimaryAssetCookRule::DevelopmentAlwaysProductionUnknownCook:
+		// Managers with DevelopmentAlwaysProductionUnknownCook (1) require the asset should be cooked in development builds
+		// (2) imply neither inclusion nor exclusion for production builds
+		MarkIncluded(EPrimaryAssetProductionLevel::Development);
+		break;
+	case EPrimaryAssetCookRule::AlwaysCook:
+		// Managers with AlwaysCook (1) require the asset should be cooked in production and development
+		MarkIncluded(EPrimaryAssetProductionLevel::Production);
+		break;
+	default:
+		checkNoEntry();
+		break;
+	}
+}
+
+EPrimaryAssetCookRule FPrimaryAssetCookRuleUnion::GetRule(TOptional<TTuple<FPrimaryAssetId, FPrimaryAssetId>>* OutConflictId)
+{
+	if (OutConflictId)
+	{
+		OutConflictId->Reset();
 	}
 
-	return BestRules.CookRule;
+	FAssignmentInfo& ProdInclusion= InclusionByLevel[(int32)EPrimaryAssetProductionLevel::Production];
+	FAssignmentInfo& ProdExclusion= ExclusionByLevel[(int32)EPrimaryAssetProductionLevel::Production];
+	FAssignmentInfo& DevInclusion = InclusionByLevel[(int32)EPrimaryAssetProductionLevel::Development];
+	FAssignmentInfo& DevExclusion = ExclusionByLevel[(int32)EPrimaryAssetProductionLevel::Development];
+	if (DevExclusion.bSet && (!DevInclusion.bSet || DevInclusion.Priority <= DevExclusion.Priority))
+	{
+		if (DevInclusion.bSet && DevInclusion.Priority == DevExclusion.Priority)
+		{
+			OutConflictId->Emplace(DevExclusion.Id, DevInclusion.Id);
+		}
+		return EPrimaryAssetCookRule::NeverCook;
+	}
+
+	if (ProdExclusion.bSet && (!ProdInclusion.bSet || ProdInclusion.Priority <= ProdExclusion.Priority))
+	{
+		if (ProdInclusion.bSet && ProdInclusion.Priority == ProdExclusion.Priority)
+		{
+			OutConflictId->Emplace(ProdExclusion.Id, ProdInclusion.Id);
+		}
+
+		if (!DevInclusion.bSet)
+		{
+			return EPrimaryAssetCookRule::ProductionNeverCook;
+		}
+		else
+		{
+			return EPrimaryAssetCookRule::DevelopmentAlwaysProductionNeverCook;
+		}
+	}
+
+	if (!DevInclusion.bSet)
+	{
+		return EPrimaryAssetCookRule::Unknown;
+	}
+	else if (!ProdInclusion.bSet)
+	{
+		return EPrimaryAssetCookRule::DevelopmentAlwaysProductionUnknownCook;
+	}
+	else
+	{
+		return EPrimaryAssetCookRule::AlwaysCook;
+	}
 }
 
 static FString GetInstigatorChainString(UE::Cook::ICookInfo* CookInfo, FName PackageName)
@@ -4200,12 +4354,12 @@ bool UAssetManager::VerifyCanCookPackage(FName PackageName, bool bLogError) cons
 		
 		bRetVal = false;
 	}
-	else if ((CookRule == EPrimaryAssetCookRule::DevelopmentCook || CookRule == EPrimaryAssetCookRule::DevelopmentAlwaysCook)
+	else if ((CookRule == EPrimaryAssetCookRule::ProductionNeverCook || CookRule == EPrimaryAssetCookRule::DevelopmentAlwaysProductionNeverCook)
 		&& bOnlyCookProductionAssets && !bTargetPlatformsAllowDevelopmentObjects)
 	{
 		if (bLogError)
 		{
-			UE_LOG(LogAssetManager, Warning, TEXT("Package %s is set to Development, but bOnlyCookProductionAssets is true! Instigators: %s"),
+			UE_LOG(LogAssetManager, Warning, TEXT("Package %s is set to ProductionNeverCook, and bOnlyCookProductionAssets is true, but something is trying to cook it! Instigators: %s"),
 				*PackageName.ToString(), *GetInstigatorChainString(CookInfo, PackageName));
 		}
 
