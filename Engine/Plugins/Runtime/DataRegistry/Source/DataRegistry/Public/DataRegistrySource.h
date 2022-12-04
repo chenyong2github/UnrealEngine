@@ -4,6 +4,8 @@
 
 #include "AssetRegistry/AssetData.h"
 #include "DataRegistry.h"
+#include "Templates/SubclassOf.h"
+
 #include "DataRegistrySource.generated.h"
 
 /** Specifies a source for DataRegistry items, which is an interface that provides asynchronous access to individual structs */
