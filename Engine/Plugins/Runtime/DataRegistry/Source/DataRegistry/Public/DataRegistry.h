@@ -3,6 +3,8 @@
 #pragma once
 
 #include "DataRegistryTypes.h"
+#include "Engine/TimerHandle.h"
+
 #include "DataRegistry.generated.h"
 
 class UDataRegistrySource;

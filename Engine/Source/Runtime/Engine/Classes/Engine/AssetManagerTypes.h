@@ -23,6 +23,7 @@
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetBundleData.h"
 #include "CoreMinimal.h"
+#include "EngineTypes.h"
 #endif
 
 #include "AssetManagerTypes.generated.h"
