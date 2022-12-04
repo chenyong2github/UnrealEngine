@@ -101,6 +101,7 @@ void FLooseCookedPackageWriter::AsyncSave(FRecord& Record, const FCommitPackageI
 	CollectForSaveLinkerAdditionalDataRecords(Record, Context);
 	CollectForSaveAdditionalFileRecords(Record, Context);
 	CollectForSaveExportsFooter(Record, Context);
+	CollectForSaveExportsPackageTrailer(Record, Context);
 	CollectForSaveExportsBuffers(Record, Context);
 
 	AsyncSaveOutputFiles(Record, Context);
@@ -132,6 +133,15 @@ void FLooseCookedPackageWriter::CompleteExportsArchiveForDiff(const FPackageInfo
 
 	uint32 FooterData = PACKAGE_FILE_TAG;
 	ExportsArchive << FooterData;
+
+	for (FPackageTrailerRecord& PackageTrailer : Record.PackageTrailers)
+	{
+		if (PackageTrailer.Info.MultiOutputIndex == Info.MultiOutputIndex)
+		{
+			ExportsArchive.Serialize(const_cast<void*>(PackageTrailer.Buffer.GetData()),
+				PackageTrailer.Buffer.GetSize());
+		}
+	}
 }
 
 
@@ -212,9 +222,24 @@ void FLooseCookedPackageWriter::CollectForSaveExportsFooter(FRecord& Record, FCo
 	}
 }
 
-void FLooseCookedPackageWriter::AddToExportsSize(int64& ExportsSize)
+int64 FLooseCookedPackageWriter::GetExportsFooterSize()
 {
-	ExportsSize += sizeof(uint32); // Footer size
+	return sizeof(uint32);
+}
+
+void FLooseCookedPackageWriter::CollectForSaveExportsPackageTrailer(FRecord& Record, FCommitContext& Context)
+{
+	if (Record.bCompletedExportsArchiveForDiff)
+	{
+		// Already Added in CompleteExportsArchiveForDiff
+		return;
+	}
+
+	for (FPackageTrailerRecord& PackageTrailer : Record.PackageTrailers)
+	{
+		Context.ExportsBuffers[PackageTrailer.Info.MultiOutputIndex].Add(
+			FExportBuffer{ PackageTrailer.Buffer, TArray<FFileRegion>() });
+	}
 }
 
 void FLooseCookedPackageWriter::CollectForSaveExportsBuffers(FRecord& Record, FCommitContext& Context)

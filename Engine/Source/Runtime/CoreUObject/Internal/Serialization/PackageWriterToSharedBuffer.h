@@ -6,7 +6,6 @@
 #include "HAL/CriticalSection.h"
 #include "Memory/SharedBuffer.h"
 #include "Misc/AssertionMacros.h"
-#include "Misc/Optional.h"
 #include "Serialization/PackageWriter.h"
 #include "Templates/UniquePtr.h"
 
@@ -24,6 +23,7 @@ public:
 		const FIoBuffer& FileData);
 	COREUOBJECT_API void WriteLinkerAdditionalData(const IPackageWriter::FLinkerAdditionalDataInfo& Info,
 		const FIoBuffer& Data, const TArray<FFileRegion>& FileRegions);
+	COREUOBJECT_API void WritePackageTrailer(const IPackageWriter::FPackageTrailerInfo& Info, const FIoBuffer& Data);
 
 	struct FWritePackage
 	{
@@ -48,6 +48,11 @@ public:
 		FSharedBuffer Buffer;
 		TArray<FFileRegion> Regions;
 	};
+	struct FPackageTrailer
+	{
+		IPackageWriter::FPackageTrailerInfo Info;
+		FSharedBuffer Buffer;
+	};
 	struct FPackage
 	{
 		/** TPackageWriterToSharedBuffer can allocate FPackage subclasses, so the base needs a virtual destructor. */
@@ -61,7 +66,8 @@ public:
 		TArray<FWritePackage> Packages;
 		TArray<FBulkData> BulkDatas;
 		TArray<FAdditionalFile> AdditionalFiles;
-		TArray<FLinkerAdditionalData>  LinkerAdditionalDatas;
+		TArray<FLinkerAdditionalData> LinkerAdditionalDatas;
+		TArray<FPackageTrailer> PackageTrailers;
 	};
 
 	/** Get the Record created by BeginPackage for the given PackageName; assert that it is valid */
@@ -91,6 +97,7 @@ public:
 	using FBulkDataRecord = FPackageWriterRecords::FBulkData;
 	using FAdditionalFileRecord = FPackageWriterRecords::FAdditionalFile;
 	using FLinkerAdditionalDataRecord = FPackageWriterRecords::FLinkerAdditionalData;
+	using FPackageTrailerRecord = FPackageWriterRecords::FPackageTrailer;
 	using FPackageRecord = FPackageWriterRecords::FPackage;
 
 	virtual void BeginPackage(const IPackageWriter::FBeginPackageInfo& Info) override
@@ -116,6 +123,10 @@ public:
 		const FIoBuffer& Data, const TArray<FFileRegion>& FileRegions) override
 	{
 		Records.WriteLinkerAdditionalData(Info, Data, FileRegions);
+	}
+	virtual void WritePackageTrailer(const IPackageWriter::FPackageTrailerInfo& Info, const FIoBuffer& Data) override
+	{
+		Records.WritePackageTrailer(Info, Data);
 	}
 	virtual void CommitPackage(IPackageWriter::FCommitPackageInfo&& Info) override
 	{

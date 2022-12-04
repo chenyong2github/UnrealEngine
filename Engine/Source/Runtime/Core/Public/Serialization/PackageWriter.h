@@ -156,12 +156,19 @@ public:
 	/** Write separate data written by UObjects via FLinkerSave::AdditionalDataToAppend. */
 	virtual void WriteLinkerAdditionalData(const FLinkerAdditionalDataInfo& Info, const FIoBuffer& Data, const TArray<FFileRegion>& FileRegions) = 0;
 
-	/** Increase the referenced ExportsSize by the size in bytes of the data that will be added on to it during
-	 * commit before writing to disk. Used for accurate disk size reporting on the UPackage and AssetRegistry.
-	 */
-	virtual void AddToExportsSize(int64& InOutExportsSize)
+	/** Report the size of the Footer that is added after Exports and BulkData but before the PackageTrailer */ 
+	virtual int64 GetExportsFooterSize()
 	{
+		return 0;
 	}
+
+	struct FPackageTrailerInfo
+	{
+		FName PackageName;
+		uint16 MultiOutputIndex = 0;
+	};
+	/** Write the PackageTrailer, a separate segment for some bulkdata that is written the end of the file. */
+	virtual void WritePackageTrailer(const FPackageTrailerInfo& Info, const FIoBuffer& Data) = 0;
 
 	/** Create the FLargeMemoryWriter to which the Header and Exports are written during the save. */
 	COREUOBJECT_API virtual TUniquePtr<FLargeMemoryWriter> CreateLinkerArchive(FName PackageName, UObject* Asset);

@@ -37,9 +37,13 @@ public:
 	{
 		Inner->WriteLinkerAdditionalData(Info, Data, FileRegions);
 	}
-	virtual void AddToExportsSize(int64& ExportsSize) override
+	virtual void WritePackageTrailer(const FPackageTrailerInfo& Info, const FIoBuffer& Data) override
 	{
-		Inner->AddToExportsSize(ExportsSize);
+		Inner->WritePackageTrailer(Info, Data);
+	}
+	virtual int64 GetExportsFooterSize() override
+	{
+		return Inner->GetExportsFooterSize();
 	}
 	virtual TUniquePtr<FLargeMemoryWriter> CreateLinkerArchive(FName PackageName, UObject* Asset) override;
 	virtual bool IsPreSaveCompleted() const override
@@ -159,9 +163,13 @@ public:
 	{
 		Inner->WriteLinkerAdditionalData(Info, Data, FileRegions);
 	}
-	virtual void AddToExportsSize(int64& ExportsSize) override
+	virtual void WritePackageTrailer(const FPackageTrailerInfo& Info, const FIoBuffer& Data) override
 	{
-		Inner->AddToExportsSize(ExportsSize);
+		Inner->WritePackageTrailer(Info, Data);
+	}
+	virtual int64 GetExportsFooterSize() override
+	{
+		return Inner->GetExportsFooterSize();
 	}
 	virtual TUniquePtr<FLargeMemoryWriter> CreateLinkerArchive(FName PackageName, UObject* Asset) override
 	{

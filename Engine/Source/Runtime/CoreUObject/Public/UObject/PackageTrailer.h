@@ -281,7 +281,18 @@ public:
 	 * @return True if the builder was created and appended successfully and false if any error was encountered
 	 */
 	[[nodiscard]] bool BuildAndAppendTrailer(FLinkerSave* Linker, FArchive& DataArchive);
-	
+
+	/**
+	 * @param ExportsArchive	The linker associated with the package being written to disk.
+	 * @param DataArchive		The archive where the package data has been written to. This is where the FPackageTrailer will be written to
+	 * @param InOutPackageFileOffset The offset at which the trailer is written in the package file. In this function version,
+	 *        DataArchive might be an archive for the entire package file, or it might be a separate archive solely for the package trailer.
+	 *        The caller must provide the initial value with the accumulated offset, and the function will increment this value by how many
+	 *        bytes are written to DataArchive.
+	 * @return True if the builder was created and appended successfully and false if any error was encountered
+	 */
+	[[nodiscard]] bool BuildAndAppendTrailer(FLinkerSave* Linker, FArchive& DataArchive, int64& InOutPackageFileOffset);
+
 	/** Returns if the builder has any payload entries or not */
 	[[nodiscard]] bool IsEmpty() const;
 

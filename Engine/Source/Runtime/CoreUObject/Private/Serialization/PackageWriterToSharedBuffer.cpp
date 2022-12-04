@@ -43,6 +43,15 @@ void FPackageWriterRecords::WritePackageData(const IPackageWriter::FPackageInfo&
 	checkf(DataSize > 0, TEXT("IPackageWriter->WritePackageData must not be called with an empty ExportsArchive"));
 	checkf(static_cast<uint64>(DataSize) >= Info.HeaderSize,
 		TEXT("IPackageWriter->WritePackageData must not be called with HeaderSize > ExportsArchive.TotalSize"));
+	if (Record.Packages.FindByPredicate(
+		[&Info](const FWritePackage& Existing) { return Existing.Info.MultiOutputIndex == Info.MultiOutputIndex; }))
+	{
+		UE_LOG(LogPackageWriter, Error,
+			TEXT("PackageWriter->WritePackageData called more than once for package (Package: %s). Ignoring second value."),
+			*Info.PackageName.ToString());
+		return;
+	}
+
 	FSharedBuffer Buffer = FSharedBuffer::TakeOwnership(ExportsArchive.ReleaseOwnership(), DataSize,
 		FMemory::Free);
 	Record.Packages.Insert(FWritePackage{ Info, MoveTemp(Buffer), FileRegions }, Info.MultiOutputIndex);
@@ -77,6 +86,20 @@ void FPackageWriterRecords::WriteLinkerAdditionalData(const IPackageWriter::FLin
 	FPackage& Record = FindRecordChecked(Info.PackageName);
 	Record.LinkerAdditionalDatas.Add(
 		FLinkerAdditionalData{ Info, IoBufferToSharedBuffer(Data), FileRegions });
+}
+
+void FPackageWriterRecords::WritePackageTrailer(const IPackageWriter::FPackageTrailerInfo& Info, const FIoBuffer& Data)
+{
+	FPackage& Record = FindRecordChecked(Info.PackageName);
+	if (Record.PackageTrailers.FindByPredicate([&Info](const FPackageTrailer& Existing) { return Existing.Info.MultiOutputIndex == Info.MultiOutputIndex; }))
+	{
+		UE_LOG(LogPackageWriter, Error,
+			TEXT("PackageWriter->WritePackageTrailer called more than once for package (Package: %s). Ignoring second value."),
+			*Info.PackageName.ToString());
+		return;
+	}
+
+	Record.PackageTrailers.Emplace(FPackageTrailer { Info, IoBufferToSharedBuffer(Data) });
 }
 
 FPackageWriterRecords::FPackage& FPackageWriterRecords::FindRecordChecked(FName InPackageName) const

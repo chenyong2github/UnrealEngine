@@ -203,7 +203,7 @@ FBlake3Hash GGlobalConstructClassesHash;
 int64 GMaxBulkDataSize = -1;
 
 // Change to a new guid when EditorDomain needs to be invalidated
-const TCHAR* EditorDomainVersion = TEXT("6D2972C7108F4366A13B7886DEDE68D5");
+const TCHAR* EditorDomainVersion = TEXT("74B1CEDEF6774CC89F3A45BEA18B9B8B");
 
 // Identifier of the CacheBuckets for EditorDomain tables
 const TCHAR* EditorDomainPackageBucketName = TEXT("EditorDomainPackage");
@@ -1569,7 +1569,7 @@ public:
 	/** Deserialize the CustomVersions out of the PackageFileSummary that was serialized into the header */
 	bool TryGetClassesAndVersions(TArray<FName>& OutImportedClasses, FCustomVersionContainer& OutVersions)
 	{
-		FMemoryReaderView HeaderArchive(WritePackageRecord.Buffer.GetView());
+		FMemoryReaderView HeaderArchive(SavedRecord.Packages[0].Buffer.GetView());
 		FPackageReader PackageReader;
 		if (!PackageReader.OpenPackageFile(&HeaderArchive))
 		{
@@ -1628,9 +1628,8 @@ protected:
 		}
 		
 		// EditorDomain save does not support multi package outputs
-		check(Record.Packages.Num() == 1);
+		checkf(Record.Packages.Num() == 1, TEXT("Multioutput not supported"));
 		FPackageWriterRecords::FWritePackage& Package = Record.Packages[0];
-		WritePackageRecord = Package;
 
 		TArray<FSharedBuffer> AttachmentBuffers;
 		for (const FFileRegion& FileRegion : Package.Regions)
@@ -1683,6 +1682,15 @@ protected:
 				TEXT("Expects all LinkerAdditionalData to be in a region."));
 			BulkDataSize += AdditionalRecord.Buffer.GetSize();
 		}
+		checkf(Record.PackageTrailers.Num() <= 1, TEXT("MultiOutput not supported"));
+		if (Record.PackageTrailers.Num() == 1)
+		{
+			FPackageTrailerRecord& PackageTrailer = Record.PackageTrailers[0];
+			const uint8* BufferStart = reinterpret_cast<const uint8*>(PackageTrailer.Buffer.GetData());
+			int64 BufferSize = PackageTrailer.Buffer.GetSize();
+			AttachmentBuffers.Add(FSharedBuffer::MakeView(BufferStart, BufferSize));
+			BulkDataSize += BufferSize;
+		}
 
 		// We use a counter for ValueIds rather than hashes of the Attachments. We do this because
 		// some attachments may be identical, and Attachments are not allowed to have identical ValueIds.
@@ -1709,12 +1717,15 @@ protected:
 			Attachments.Add(FAttachment{ Buffer, IntToValueId(AttachmentIndex++) });
 			FileSize += Buffer.GetSize();
 		}
-		WritePackageRecord = MoveTemp(Package);
+
+		// Our Attachments are views into SharedBuffers that are stored on the Record. Keep those SharedBuffers
+		// alive until we are done with them. We also need access to Record.Packages[0] later.
+		SavedRecord = MoveTemp(Record);
 	}
 
 private:
 	TArray<FAttachment> Attachments;
-	FPackageWriterRecords::FWritePackage WritePackageRecord;
+	FPackageWriterRecords::FPackage SavedRecord;
 	uint64 FileSize = 0;
 	uint64 BulkDataSize = 0;
 };

@@ -289,6 +289,12 @@ bool FPackageTrailerBuilder::UpdatePayloadAsLocal(const FIoHash& Identifier, FCo
 
 bool FPackageTrailerBuilder::BuildAndAppendTrailer(FLinkerSave* Linker, FArchive& DataArchive)
 {
+	int64 CurrentOffset = DataArchive.Tell();
+	return BuildAndAppendTrailer(Linker, DataArchive, CurrentOffset);
+}
+
+bool FPackageTrailerBuilder::BuildAndAppendTrailer(FLinkerSave* Linker, FArchive& DataArchive, int64& InOutPackageFileOffset)
+{
 	// Note that we do not serialize containers directly as we want a file format that is 
 	// 100% under our control. This will allow people to create external scripts that can
 	// parse and manipulate the trailer without needing to worry that we might change how
@@ -348,34 +354,35 @@ bool FPackageTrailerBuilder::BuildAndAppendTrailer(FLinkerSave* Linker, FArchive
 
 	// Now that we have the complete trailer we can serialize it to the archive
 
-	Trailer.TrailerPositionInFile = DataArchive.Tell();
+	Trailer.TrailerPositionInFile = InOutPackageFileOffset;
 
+	const int64 TrailerPositionInDataArchive = DataArchive.Tell();
 	DataArchive << Trailer.Header;
 
-	checkf((Trailer.TrailerPositionInFile + Trailer.Header.HeaderLength) == DataArchive.Tell(), 
+	checkf((TrailerPositionInDataArchive + Trailer.Header.HeaderLength) == DataArchive.Tell(),
 		TEXT("Header length was calculated as %d bytes but we wrote %" INT64_FMT " bytes!"), 
 		Trailer.Header.HeaderLength, 
-		DataArchive.Tell() - Trailer.TrailerPositionInFile);
+		DataArchive.Tell() - TrailerPositionInDataArchive);
 
-	const int64 PayloadPosInFile = DataArchive.Tell();
+	const int64 PayloadPosInDataArchive = DataArchive.Tell();
 
 	for (TPair<FIoHash, LocalEntry>& It : LocalEntries)
 	{
 		DataArchive << It.Value.Payload;
 	}
 
-	checkf((PayloadPosInFile + Trailer.Header.PayloadsDataLength) == DataArchive.Tell(), 
+	checkf((PayloadPosInDataArchive + Trailer.Header.PayloadsDataLength) == DataArchive.Tell(),
 		TEXT("Total payload length was calculated as %" INT64_FMT " bytes but we wrote %" INT64_FMT " bytes!"), 
 		Trailer.Header.PayloadsDataLength, 
-		DataArchive.Tell() - PayloadPosInFile);
+		DataArchive.Tell() - PayloadPosInDataArchive);
 
 	FPackageTrailer::FFooter Footer = Trailer.CreateFooter();
 	DataArchive << Footer;
 
-	checkf((Trailer.TrailerPositionInFile + Footer.TrailerLength) == DataArchive.Tell(), 
+	checkf((TrailerPositionInDataArchive + Footer.TrailerLength) == DataArchive.Tell(),
 		TEXT("Trailer length was calculated as %" INT64_FMT " bytes but we wrote %" INT64_FMT " bytes!"), 
 		Footer.TrailerLength, 
-		DataArchive.Tell() - Trailer.TrailerPositionInFile);
+		DataArchive.Tell() - TrailerPositionInDataArchive);
 
 	// Invoke any registered callbacks and pass in the trailer, this allows the callbacks to poll where 
 	// in the output archive the payload has been stored.
@@ -388,7 +395,8 @@ bool FPackageTrailerBuilder::BuildAndAppendTrailer(FLinkerSave* Linker, FArchive
 	}
 
 	// Minor sanity check that ::GetTrailerLength works
-	check(CalculateTrailerLength() == (DataArchive.Tell() - Trailer.TrailerPositionInFile) || DataArchive.IsError());
+	check(CalculateTrailerLength() == (DataArchive.Tell() - TrailerPositionInDataArchive) || DataArchive.IsError());
+	InOutPackageFileOffset += DataArchive.Tell() - TrailerPositionInDataArchive;
 
 	return !DataArchive.IsError();
 }

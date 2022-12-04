@@ -51,7 +51,7 @@ public:
 	}
 
 	virtual void BeginPackage(const FBeginPackageInfo& Info) override;
-	virtual void AddToExportsSize(int64& ExportsSize) override;
+	virtual int64 GetExportsFooterSize() override;
 
 	virtual FDateTime GetPreviousCookTime() const override;
 	virtual void Initialize(const FCookInfo& Info) override;
@@ -131,6 +131,7 @@ private:
 	void CollectForSaveLinkerAdditionalDataRecords(FRecord& Record, FCommitContext& Context);
 	void CollectForSaveAdditionalFileRecords(FRecord& Record, FCommitContext& Context);
 	void CollectForSaveExportsFooter(FRecord& Record, FCommitContext& Context);
+	void CollectForSaveExportsPackageTrailer(FRecord& Record, FCommitContext& Context);
 	void CollectForSaveExportsBuffers(FRecord& Record, FCommitContext& Context);
 	void AsyncSaveOutputFiles(FRecord& Record, FCommitContext& Context);
 	void UpdateManifest(FRecord& Record);

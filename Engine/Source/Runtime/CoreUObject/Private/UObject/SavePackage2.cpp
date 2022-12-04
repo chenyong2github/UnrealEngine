@@ -61,7 +61,7 @@ static FAutoConsoleVariableRef CVar_FixupStandaloneFlags(
 	TEXT("If non-zero, when the UAsset of a package is missing RF_Standalone, the flag is added. If zero, the flags are not changed and the save fails.")
 );
 
-ESavePackageResult WriteAdditionalFiles(FSaveContext& SaveContext, FScopedSlowTask& SlowTask, int64 LinkerSize);
+ESavePackageResult WriteAdditionalFiles(FSaveContext& SaveContext, FScopedSlowTask& SlowTask, int64& VirtualExportsFileOffset);
 
 ESavePackageResult ReturnSuccessOrCancel()
 {
@@ -905,7 +905,8 @@ ESavePackageResult CreateLinker(FSaveContext& SaveContext)
 			{
 				if (const FLinkerLoad* LinkerLoad = FLinkerLoad::FindExistingLinkerForPackage(SaveContext.GetPackage()))
 				{
-					if (const UE::FPackageTrailer* Trailer = LinkerLoad->GetPackageTrailer())
+					const UE::FPackageTrailer* Trailer = LinkerLoad->GetPackageTrailer();
+					if (Trailer && Trailer->GetNumPayloads(UE::EPayloadStorageType::Any) > 0)
 					{
 						SaveContext.GetLinker()->PackageTrailerBuilder = UE::FPackageTrailerBuilder::CreateReferenceToTrailer(*Trailer, SaveContext.GetPackage()->GetName());
 					}
@@ -1901,7 +1902,7 @@ ESavePackageResult WriteExports(FStructuredArchive::FRecord& StructuredArchiveRo
 	return Linker->IsError() ? ESavePackageResult::Error : ReturnSuccessOrCancel();
 }
 
-[[nodiscard]] ESavePackageResult BuildAndWriteTrailer(FStructuredArchive::FRecord& StructuredArchiveRoot, FSaveContext& SaveContext)
+[[nodiscard]] ESavePackageResult BuildAndWriteTrailer(IPackageWriter* PackageWriter, FStructuredArchive::FRecord& StructuredArchiveRoot, FSaveContext& SaveContext, int64& InOutCurrentOffset)
 {
 	SaveContext.GetLinker()->Summary.PayloadTocOffset = INDEX_NONE;
 
@@ -1917,10 +1918,25 @@ ESavePackageResult WriteExports(FStructuredArchive::FRecord& StructuredArchiveRo
 
 		checkf(SaveContext.IsTextFormat() == false, TEXT("Attempting to build a package trailer for text based asset '%s', this is not supported!"), *SaveContext.GetPackage()->GetName());
 
-		SaveContext.GetLinker()->Summary.PayloadTocOffset = SaveContext.GetLinker()->Tell();
-		if (!SaveContext.GetLinker()->PackageTrailerBuilder->BuildAndAppendTrailer(SaveContext.GetLinker(), *SaveContext.GetLinker()))
+		SaveContext.GetLinker()->Summary.PayloadTocOffset = InOutCurrentOffset;
+		if (!PackageWriter)
 		{
-			return ESavePackageResult::Error;
+			if (!SaveContext.GetLinker()->PackageTrailerBuilder->BuildAndAppendTrailer(SaveContext.GetLinker(), *SaveContext.GetLinker(), InOutCurrentOffset))
+			{
+				return ESavePackageResult::Error;
+			}
+		}
+		else
+		{
+			FLargeMemoryWriter TrailerData(0, true /* IsPersistent */);
+			if (!SaveContext.GetLinker()->PackageTrailerBuilder->BuildAndAppendTrailer(SaveContext.GetLinker(), TrailerData, InOutCurrentOffset))
+			{
+				return ESavePackageResult::Error;
+			}
+
+			IPackageWriter::FPackageTrailerInfo TrailerInfo;
+			TrailerInfo.PackageName = SaveContext.GetPackage()->GetFName();
+			PackageWriter->WritePackageTrailer(TrailerInfo, FIoBuffer(FIoBuffer::AssumeOwnership, TrailerData.ReleaseOwnership(), TrailerData.TotalSize()));
 		}
 
 		SaveContext.GetLinker()->PackageTrailerBuilder.Reset();
@@ -2411,53 +2427,55 @@ ESavePackageResult SaveHarvestedRealms(FSaveContext& SaveContext, ESaveRealm Har
 	}
 
 	IPackageWriter* PackageWriter = SaveContext.GetPackageWriter();
+	const int64 EndOfExportsOffset = SaveContext.GetLinker()->Tell();
+	// When not using a PackageWriter, VirtualExportsFileOffset is identical to the offset in the
+	// Exports archive: SaveContext.GetLinker()->Tell. When using a PackageWriter however, additional
+	// blobs such as bulkdata are not written into the exports archive, they are stored as separate archives
+	// in the PackageWriter. But various structs need to know the "offset" in the combined file that would
+	// be created by appending all of these blobs after the exports. VirtualExportsFileOffset holds that value.
+	int64 VirtualExportsFileOffset = EndOfExportsOffset;
+	SaveContext.Result = WriteAdditionalFiles(SaveContext, SlowTask, VirtualExportsFileOffset /* In/Out */);
+	if (SaveContext.Result != ESavePackageResult::Success)
+	{
+		return SaveContext.Result;
+	}
+
+	// Write out a tag at the end of the exports and AdditionalFiles
 	if (PackageWriter)
 	{
-		const int64 ExportsSize = SaveContext.GetLinker()->Tell();
-		SaveContext.Result = WriteAdditionalFiles(SaveContext, SlowTask, ExportsSize);
-		checkf(SaveContext.GetLinker()->Tell() == ExportsSize, TEXT("The writing of additional files is not allowed to append to the LinkerSave when using a PackageWriter."));
-		if (SaveContext.Result != ESavePackageResult::Success)
-		{
-			return SaveContext.Result;
-		}
+		VirtualExportsFileOffset += PackageWriter->GetExportsFooterSize();
 	}
 	else
 	{
-		// AdditionalFiles are appended to the Linker's archive, and so must be appended before we can calculate the full size of the Package
-		SaveContext.Result = WriteAdditionalFiles(SaveContext, SlowTask, -1);
-		if (SaveContext.Result != ESavePackageResult::Success)
+		if (!SaveContext.IsTextFormat())
 		{
-			return SaveContext.Result;
+			uint32 Tag = PACKAGE_FILE_TAG;
+			StructuredArchiveRoot.GetUnderlyingArchive() << Tag;
+			VirtualExportsFileOffset += sizeof(Tag);
 		}
 	}
 
-	// Write out a tag to the end of the package
-	if (PackageWriter == nullptr && !SaveContext.IsTextFormat())
-	{
-		uint32 Tag = PACKAGE_FILE_TAG;
-		StructuredArchiveRoot.GetUnderlyingArchive() << Tag;
-	}
 
 	// Now that the package is written out we can write the package trailer that is appended
 	// to the file. This should be the last thing written to the file!
 	SlowTask.EnterProgressFrame();
-	SaveContext.Result = BuildAndWriteTrailer(StructuredArchiveRoot, SaveContext);
+	SaveContext.Result = BuildAndWriteTrailer(PackageWriter, StructuredArchiveRoot, SaveContext, VirtualExportsFileOffset);
 	if (SaveContext.Result != ESavePackageResult::Success)
 	{
 		return SaveContext.Result;
 	}	
-
-	int64 ExportsSize = SaveContext.GetLinker()->Tell();
 	if (PackageWriter)
 	{
-		PackageWriter->AddToExportsSize(ExportsSize);
+		checkf(SaveContext.GetLinker()->Tell() == EndOfExportsOffset,
+			TEXT("The writing of additional files is not allowed to append to the LinkerSave when using a PackageWriter."));
 	}
+
 	// Store the package header and export size of the non optional realm
 	if (SaveContext.GetCurrentHarvestingRealm() != ESaveRealm::Optional)
 	{
-		SaveContext.PackageHeaderAndExportSize = ExportsSize;
+		SaveContext.PackageHeaderAndExportSize = VirtualExportsFileOffset;
 	}
-	SaveContext.TotalPackageSizeUncompressed += ExportsSize;
+	SaveContext.TotalPackageSizeUncompressed += VirtualExportsFileOffset;
 	for (const FSavePackageOutputFile& File : SaveContext.AdditionalPackageFiles)
 	{
 		SaveContext.TotalPackageSizeUncompressed += File.DataSize;
@@ -2582,19 +2600,18 @@ ESavePackageResult InnerSave(FSaveContext& SaveContext)
  * @param SaveContext The context for the overall save, including data about the additional payloads
  * @param LinkerSize If the Linker has finished writing, this is the size of the Linker's archive: Linker->Tell(). Otherwise it is -1.
  */
-ESavePackageResult WriteAdditionalFiles(FSaveContext& SaveContext, FScopedSlowTask& SlowTask, int64 LinkerSize)
+ESavePackageResult WriteAdditionalFiles(FSaveContext& SaveContext, FScopedSlowTask& SlowTask, int64& VirtualExportsFileOffset)
 {
 	// Save Bulk Data
 	SlowTask.EnterProgressFrame();
-	int64 DataStartOffset = LinkerSize >= 0 ? LinkerSize : SaveContext.GetLinker()->Tell();
-	SaveContext.Result = SavePackageUtilities::SaveBulkData(SaveContext.GetLinker(), DataStartOffset,
+	SaveContext.Result = SavePackageUtilities::SaveBulkData(SaveContext.GetLinker(), VirtualExportsFileOffset,
 		SaveContext.GetPackage(), SaveContext.GetFilename(), SaveContext.GetTargetPlatform(),
 		SaveContext.GetSavePackageContext(), SaveContext.GetSaveArgs().SaveFlags, SaveContext.IsTextFormat(),
 		SaveContext.TotalPackageSizeUncompressed,
 		SaveContext.GetCurrentHarvestingRealm() == ESaveRealm::Optional);
 
 	// Add any pending data blobs to the end of the file by invoking the callbacks
-	ESavePackageResult Result = SavePackageUtilities::AppendAdditionalData(*SaveContext.GetLinker(), DataStartOffset, SaveContext.GetSavePackageContext());
+	ESavePackageResult Result = SavePackageUtilities::AppendAdditionalData(*SaveContext.GetLinker(), VirtualExportsFileOffset, SaveContext.GetSavePackageContext());
 	if (Result != ESavePackageResult::Success)
 	{
 		return Result;

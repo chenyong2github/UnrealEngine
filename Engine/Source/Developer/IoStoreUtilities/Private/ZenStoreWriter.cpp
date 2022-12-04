@@ -352,6 +352,12 @@ void FZenStoreWriter::WriteLinkerAdditionalData(const FLinkerAdditionalDataInfo&
 	checkNoEntry();
 }
 
+void FZenStoreWriter::WritePackageTrailer(const FPackageTrailerInfo& Info, const FIoBuffer& Data)
+{
+	// PackageTrailers are not yet implemented in this writer; it is only used for EditorBulkData which is not used in cooked content
+	checkNoEntry();
+}
+
 void FZenStoreWriter::Initialize(const FCookInfo& Info)
 {
 	CookMode = Info.CookMode;
