@@ -36,7 +36,15 @@ UObject* USkeletonFromStaticMeshFactory::FactoryCreateNew(
 	)
 {
 	static const FVector RootBoneRelativePosition(0.5, 0.5, 0.0);
-	return FStaticToSkeletalMeshConverter::CreateSkeletonFromStaticMesh(InParent, InName, InFlags, StaticMesh, RootBoneRelativePosition);
+
+	USkeleton* Skeleton = NewObject<USkeleton>(InParent, InName, InFlags);
+	
+	if (!FStaticToSkeletalMeshConverter::InitializeSkeletonFromStaticMesh(Skeleton, StaticMesh, RootBoneRelativePosition))
+	{
+		return nullptr;
+	}
+
+	return Skeleton;
 }
 
 
@@ -60,14 +68,21 @@ UObject* USkeletalMeshFromStaticMeshFactory::FactoryCreateNew(
 	FFeedbackContext* InWarn
 	)
 {
-	USkeletalMesh* SkeletalMesh = FStaticToSkeletalMeshConverter::CreateSkeletalMeshFromStaticMesh(
-		InParent, InName, InFlags, StaticMesh, ReferenceSkeleton, BindBoneName);
-
+	USkeletalMesh* SkeletalMesh = NewObject<USkeletalMesh>(InParent, InName, InFlags);
+	
+	if (!FStaticToSkeletalMeshConverter::InitializeSkeletalMeshFromStaticMesh(SkeletalMesh, StaticMesh, ReferenceSkeleton, BindBoneName))
+	{
+		return nullptr;
+	}
+	
 	// Update the skeletal mesh and the skeleton so that their ref skeletons are in sync and the skeleton's preview mesh
 	// is the one we just created.
 	SkeletalMesh->SetSkeleton(Skeleton);
-	Skeleton->SetPreviewMesh(SkeletalMesh);
 	Skeleton->MergeAllBonesToBoneTree(SkeletalMesh);
+	if (!Skeleton->GetPreviewMesh())
+	{
+		Skeleton->SetPreviewMesh(SkeletalMesh);
+	}
 	
 	return SkeletalMesh;
 }
@@ -94,6 +109,23 @@ USkeleton* UStaticMeshToSkeletalMeshConvertOptions::GetSkeleton(
 	}
 }
 
+
+void UStaticMeshToSkeletalMeshConvertOptions::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (PropertyChangedEvent.Property)
+	{
+		const FName PropertyName = PropertyChangedEvent.Property->GetFName();
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UStaticMeshToSkeletalMeshConvertOptions, Skeleton) ||
+			PropertyName == GET_MEMBER_NAME_CHECKED(UStaticMeshToSkeletalMeshConvertOptions, SkeletalMesh))
+		{
+			(void)SkeletonProviderChanged.ExecuteIfBound();
+		}
+	}
+}
+
+
 static bool ConvertSingleMeshToSkeletalMeshInteractive(
 	UStaticMesh* InStaticMesh,
 	TArray<UObject*>& OutObjectsAdded
@@ -101,6 +133,17 @@ static bool ConvertSingleMeshToSkeletalMeshInteractive(
 {
 	UStaticMeshToSkeletalMeshConvertOptions* Options = NewObject<UStaticMeshToSkeletalMeshConvertOptions>();
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+	// If the object paths don't resolve properly, the details view will still show something, which will be invalidated
+	// later.
+	if (Cast<USkeleton>(Options->Skeleton.ResolveObject()) == nullptr)
+	{
+		Options->Skeleton.Reset();
+	}
+	if (Cast<USkeletalMesh>(Options->SkeletalMesh.ResolveObject()) == nullptr)
+	{
+		Options->SkeletalMesh.Reset();
+	}
 
 	FDetailsViewArgs DetailsViewArgs;
 	DetailsViewArgs.bAllowSearch = false;
@@ -117,6 +160,11 @@ static bool ConvertSingleMeshToSkeletalMeshInteractive(
 	.Buttons({
 		SCustomDialog::FButton(LOCTEXT("DialogButtonConvert", "Convert")),
 		SCustomDialog::FButton(LOCTEXT("DialogButtonCancel", "Cancel"))
+	});
+
+	Options->SkeletonProviderChanged.BindLambda([DetailsView]()
+	{
+		DetailsView->ForceRefresh();
 	});
 
 	if (OptionsDialog->ShowModal() != 0)

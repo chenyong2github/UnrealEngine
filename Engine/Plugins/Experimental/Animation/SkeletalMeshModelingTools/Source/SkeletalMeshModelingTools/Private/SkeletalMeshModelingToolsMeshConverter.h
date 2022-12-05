@@ -93,17 +93,22 @@ public:
 	UPROPERTY(EditAnywhere, Config, Category="Import")
 	EReferenceSkeletonImportOption SkeletonImportOption = EReferenceSkeletonImportOption::CreateNew;
 
-	UPROPERTY(EditAnywhere, Config, Category="Import", Meta=(AllowedClasses="/Script/Engine.Skeleton", EditCondition="ImportOption==EReferenceSkeletonImportOption::UseExistingSkeleton", EditConditionHides))
+	UPROPERTY(EditAnywhere, Config, Category="Import", Meta=(AllowedClasses="/Script/Engine.Skeleton", EditCondition="SkeletonImportOption==EReferenceSkeletonImportOption::UseExistingSkeleton", EditConditionHides))
 	FSoftObjectPath Skeleton;
 
-	UPROPERTY(EditAnywhere, Config, Category="Import", Meta=(AllowedClasses="/Script/Engine.SkeletalMesh", EditCondition="ImportOption==EReferenceSkeletonImportOption::UseExistingSkeletalMesh", EditConditionHides))
+	UPROPERTY(EditAnywhere, Config, Category="Import", Meta=(AllowedClasses="/Script/Engine.SkeletalMesh", EditCondition="SkeletonImportOption==EReferenceSkeletonImportOption::UseExistingSkeletalMesh", EditConditionHides))
 	FSoftObjectPath SkeletalMesh;
 
-	UPROPERTY(EditAnywhere, Config, Category="Import", meta=(EditCondition="ImportOption!=EReferenceSkeletonImportOption::CreateNew", EditConditionHides))
+	UPROPERTY(EditAnywhere, Config, Category="Import", meta=(EditCondition="SkeletonImportOption!=EReferenceSkeletonImportOption::CreateNew", EditConditionHides))
 	FBoneReference BindingBoneName;
 
 	// IBoneReferenceSkeletonProvider implementation.
 	virtual USkeleton* GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle) override;
+	
+	// UObject overrides.
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+
+	FSimpleDelegate SkeletonProviderChanged;
 };
 
 

@@ -25,53 +25,69 @@ static const FName RootBoneName("Root");
 static const TCHAR* JointBaseName(TEXT("Joint"));
 
 
-USkeleton* FStaticToSkeletalMeshConverter::CreateSkeletonFromStaticMesh(
-	UObject *InOuter,
-	const FName InName,
-	const EObjectFlags InFlags,
+bool FStaticToSkeletalMeshConverter::InitializeSkeletonFromStaticMesh(
+	USkeleton* InSkeleton,
 	const UStaticMesh* InStaticMesh,
 	const FVector& InRelativeRootPosition
 	)
 {
-	if (!ensure(InStaticMesh))
+	if (!ensure(InSkeleton))
 	{
-		return nullptr;
+		return false;
 	}
 	
+	if (InSkeleton->GetReferenceSkeleton().GetNum() == 0)
+	{
+		UE_LOG(LogStaticToSkeletalMeshConverter, Error, TEXT("Skeleton '%s' is not empty"), *InSkeleton->GetPathName());
+		return false;
+	}
+	
+	if (!ensure(InStaticMesh))
+	{
+		return false;
+	}
+
 	const FBox Bounds = InStaticMesh->GetBoundingBox();
 	const FVector RootPosition = Bounds.Min + (Bounds.Max - Bounds.Min) * InRelativeRootPosition;
 	FTransform RootTransform(FTransform::Identity);
 	RootTransform.SetTranslation(RootPosition);
 
-	USkeleton* Skeleton = NewObject<USkeleton>(InOuter, InName, InFlags);
-
-	FReferenceSkeletonModifier Modifier(Skeleton);
+	FReferenceSkeletonModifier Modifier(InSkeleton);
 	Modifier.Add(FMeshBoneInfo(RootBoneName, RootBoneName.ToString(), INDEX_NONE), RootTransform);
 
-	return Skeleton;
+	return true;
 }
 
 
-USkeleton* FStaticToSkeletalMeshConverter::CreateSkeletonFromStaticMesh(
-	UObject *InOuter,
-	const FName InName,
-	const EObjectFlags InFlags,
+bool FStaticToSkeletalMeshConverter::InitializeSkeletonFromStaticMesh(
+	USkeleton* InSkeleton,
 	const UStaticMesh* InStaticMesh,
 	const FVector& InRelativeRootPosition,
 	const FVector& InRelativeEndEffectorPosition,
 	const int32 InIntermediaryJointCount
 	)
 {
-	if (FMath::IsNearlyZero(FVector::DistSquared(InRelativeEndEffectorPosition, InRelativeRootPosition)))
+	if (!ensure(InSkeleton))
 	{
-		return CreateSkeletonFromStaticMesh(InOuter, InName, InFlags, InStaticMesh, InRelativeRootPosition);
+		return false;
+	}
+	
+	if (InSkeleton->GetReferenceSkeleton().GetNum() == 0)
+	{
+		UE_LOG(LogStaticToSkeletalMeshConverter, Error, TEXT("Skeleton '%s' is not empty"), *InSkeleton->GetPathName());
+		return false;
 	}
 
 	if (!ensure(InStaticMesh))
 	{
-		return nullptr;
+		return false;
 	}
 	
+	if (FMath::IsNearlyZero(FVector::DistSquared(InRelativeEndEffectorPosition, InRelativeRootPosition)))
+	{
+		return InitializeSkeletonFromStaticMesh(InSkeleton, InStaticMesh, InRelativeRootPosition);
+	}
+
 	const FBox Bounds = InStaticMesh->GetBoundingBox();
 	const FVector RootPosition = Bounds.Min + (Bounds.Max - Bounds.Min) * InRelativeRootPosition;
 	const FVector EndEffectorPosition = Bounds.Min + (Bounds.Max - Bounds.Min) * InRelativeEndEffectorPosition;
@@ -83,8 +99,7 @@ USkeleton* FStaticToSkeletalMeshConverter::CreateSkeletonFromStaticMesh(
 	ParentTransform.SetTranslation(RootPosition);
 	ParentTransform.SetRotation(Rotation);
 
-	USkeleton* Skeleton = NewObject<USkeleton>(InOuter, InName, InFlags);
-	FReferenceSkeletonModifier Modifier(Skeleton);
+	FReferenceSkeletonModifier Modifier(InSkeleton);
 	Modifier.Add(FMeshBoneInfo(RootBoneName, RootBoneName.ToString(), INDEX_NONE), ParentTransform);
 
 	for (int32 JointIndex = 0; JointIndex <= InIntermediaryJointCount; JointIndex++)
@@ -98,7 +113,7 @@ USkeleton* FStaticToSkeletalMeshConverter::CreateSkeletonFromStaticMesh(
 		ParentTransform = PointTransform;
 	}
 
-	return Skeleton;
+	return true;
 }
 
 static void CopyBuildSettings(
@@ -168,9 +183,57 @@ static void CopyReductionSettings(
 
 
 static bool AddLODFromMeshDescription(
+	const FMeshDescription& InMeshDescription,
+	USkeletalMesh* InSkeletalMesh,
+	IMeshUtilities& InMeshUtilities
+	)
+{
+	FSkeletalMeshModel* ImportedModels = InSkeletalMesh->GetImportedModel();
+	const int32 LODIndex = ImportedModels->LODModels.Num(); 
+	ImportedModels->LODModels.Add(new FSkeletalMeshLODModel);
+	if (!ensure(ImportedModels->LODModels.Num() == InSkeletalMesh->GetLODNum()))
+	{
+		return false;
+	}
+	
+	FSkeletalMeshLODModel& SkeletalMeshModel = ImportedModels->LODModels.Last(); 
+	
+	FSkeletalMeshImportData SkeletalMeshImportGeometry = FSkeletalMeshImportData::CreateFromMeshDescription(InMeshDescription);
+
+	// We need at least one set of texture coordinates. Always.
+	SkeletalMeshModel.NumTexCoords = FMath::Max<uint32>(1, SkeletalMeshImportGeometry.NumTexCoords);
+	
+	// Data needed by BuildSkeletalMesh
+	TArray<FVector3f> LODPoints;
+	TArray<SkeletalMeshImportData::FMeshWedge> LODWedges;
+	TArray<SkeletalMeshImportData::FMeshFace> LODFaces;
+	TArray<SkeletalMeshImportData::FVertInfluence> LODInfluences;
+	TArray<int32> LODPointToRawMap;
+	SkeletalMeshImportGeometry.CopyLODImportData( LODPoints, LODWedges, LODFaces, LODInfluences, LODPointToRawMap );
+
+	IMeshUtilities::MeshBuildOptions BuildOptions;
+	BuildOptions.TargetPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
+	BuildOptions.FillOptions(InSkeletalMesh->GetLODInfoArray().Last().BuildSettings);
+
+	TArray<FText> WarningMessages;
+	if (!InMeshUtilities.BuildSkeletalMesh(SkeletalMeshModel, InSkeletalMesh->GetPathName(), InSkeletalMesh->GetRefSkeleton(), LODInfluences, LODWedges, LODFaces, LODPoints, LODPointToRawMap, BuildOptions, &WarningMessages, nullptr))
+	{
+		for(const FText& Message: WarningMessages)
+		{
+			UE_LOG(LogStaticToSkeletalMeshConverter, Warning, TEXT("%s"), *Message.ToString());
+		}
+		return false;
+	}
+	
+	InSkeletalMesh->SaveLODImportedData(LODIndex, SkeletalMeshImportGeometry);
+	
+	return true;
+}
+
+
+static bool AddLODFromStaticMeshSourceModel(
 	const FStaticMeshSourceModel& InStaticMeshSourceModel,
 	USkeletalMesh* InSkeletalMesh,
-	const int32 InLODIndex,
 	const FBoneIndexType InBoneIndex,
 	IMeshUtilities& InMeshUtilities
 	)
@@ -182,10 +245,6 @@ static bool AddLODFromMeshDescription(
 	CopyBuildSettings(InStaticMeshSourceModel.BuildSettings, SkeletalLODInfo.BuildSettings);
 	CopyReductionSettings(InStaticMeshSourceModel.ReductionSettings, SkeletalLODInfo.ReductionSettings);
 
-	FSkeletalMeshModel* ImportedModels = InSkeletalMesh->GetImportedModel();
-	ImportedModels->LODModels.Add(new FSkeletalMeshLODModel);
-	FSkeletalMeshLODModel& SkeletalMeshModel = ImportedModels->LODModels.Last(); 
-	
 	if (InStaticMeshSourceModel.IsMeshDescriptionValid())
 	{
 		FMeshDescription SkeletalMeshGeometry;
@@ -207,101 +266,88 @@ static bool AddLODFromMeshDescription(
 			SkinWeights.Set(VertexID, RootBinding);
 		}
 
-		FSkeletalMeshImportData SkeletalMeshImportGeometry = FSkeletalMeshImportData::CreateFromMeshDescription(SkeletalMeshGeometry);
-
-		// We need at least one set of texture coordinates. Always.
-		SkeletalMeshModel.NumTexCoords = FMath::Max<uint32>(1, SkeletalMeshImportGeometry.NumTexCoords);
-		
-		// Data needed by BuildSkeletalMesh
-		TArray<FVector3f> LODPoints;
-		TArray<SkeletalMeshImportData::FMeshWedge> LODWedges;
-		TArray<SkeletalMeshImportData::FMeshFace> LODFaces;
-		TArray<SkeletalMeshImportData::FVertInfluence> LODInfluences;
-		TArray<int32> LODPointToRawMap;
-		SkeletalMeshImportGeometry.CopyLODImportData( LODPoints, LODWedges, LODFaces, LODInfluences, LODPointToRawMap );
-
-		IMeshUtilities::MeshBuildOptions BuildOptions;
-		BuildOptions.TargetPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
-		BuildOptions.FillOptions(SkeletalLODInfo.BuildSettings);
-
-		TArray<FText> WarningMessages;
-		if (!InMeshUtilities.BuildSkeletalMesh(SkeletalMeshModel, InSkeletalMesh->GetPathName(), InSkeletalMesh->GetRefSkeleton(), LODInfluences, LODWedges, LODFaces, LODPoints, LODPointToRawMap, BuildOptions, &WarningMessages, nullptr))
+		if (!AddLODFromMeshDescription(SkeletalMeshGeometry, InSkeletalMesh, InMeshUtilities))
 		{
-			for(const FText& Message: WarningMessages)
-			{
-				UE_LOG(LogStaticToSkeletalMeshConverter, Warning, TEXT("%s"), *Message.ToString());
-			}
 			return false;
 		}
-		
-		InSkeletalMesh->SaveLODImportedData(InLODIndex, SkeletalMeshImportGeometry);
 	}
 	else
 	{
+		FSkeletalMeshModel* ImportedModels = InSkeletalMesh->GetImportedModel();
+		const int32 LODIndex = ImportedModels->LODModels.Num(); 
+		ImportedModels->LODModels.Add(new FSkeletalMeshLODModel);
+			
 		FSkeletalMeshUpdateContext UpdateContext;
 		UpdateContext.SkeletalMesh = InSkeletalMesh;
 		
-		FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, InLODIndex, GetTargetPlatformManagerRef().GetRunningTargetPlatform());
+		FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, LODIndex, GetTargetPlatformManagerRef().GetRunningTargetPlatform());
 	}
 	
 	return true;
 }
 
 
-
-USkeletalMesh* FStaticToSkeletalMeshConverter::CreateSkeletalMeshFromStaticMesh(
-	UObject *InOuter,
-	const FName InName,
-	const EObjectFlags InFlags,
+bool FStaticToSkeletalMeshConverter::InitializeSkeletalMeshFromStaticMesh(
+	USkeletalMesh* InSkeletalMesh,
 	const UStaticMesh* InStaticMesh,
 	const FReferenceSkeleton& InReferenceSkeleton,
 	const FName InBindBone 
 )
 {
+	if (!ensure(InSkeletalMesh))
+	{
+		return false;
+	}
+
+	if (!InSkeletalMesh->GetImportedModel()->LODModels.IsEmpty())
+	{
+		UE_LOG(LogStaticToSkeletalMeshConverter, Error, TEXT("Skeletal mesh '%s' is not empty"), *InSkeletalMesh->GetPathName());
+		return false;
+	}
+
 	if (!ensure(InStaticMesh))
 	{
-		return nullptr;
+		return false;
 	}
 
 	int32 BoneIndex = 0;
 	if (!InBindBone.IsNone())
 	{
 		BoneIndex = InReferenceSkeleton.FindRawBoneIndex(InBindBone);
-		if (!ensure(BoneIndex != INDEX_NONE))
+		if (BoneIndex == INDEX_NONE)
 		{
-			return nullptr;
+			UE_LOG(LogStaticToSkeletalMeshConverter, Error, TEXT("Bone '%s' not found in skeleton."), *InBindBone.ToString());
+			return false;
 		}
 	}
 
-	USkeletalMesh* SkeletalMesh = NewObject<USkeletalMesh>(InOuter, InName, InFlags);
-
 	// This ensures that the render data gets built before we return, by calling PostEditChange when we fall out of scope.
-	FScopedSkeletalMeshPostEditChange ScopedPostEditChange( SkeletalMesh );
-	SkeletalMesh->PreEditChange( nullptr );
-	SkeletalMesh->SetRefSkeleton(InReferenceSkeleton);
+	FScopedSkeletalMeshPostEditChange ScopedPostEditChange( InSkeletalMesh );
+	InSkeletalMesh->PreEditChange( nullptr );
+	InSkeletalMesh->SetRefSkeleton(InReferenceSkeleton);
 	
 	// Calculate the initial pose from the reference skeleton.
-	SkeletalMesh->CalculateInvRefMatrices();
+	InSkeletalMesh->CalculateInvRefMatrices();
 
 	IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>( "MeshUtilities" );
 	
 	// Copy the LODs and LOD settings over (as close as we can).
-	for (int32 Index = 0; Index < InStaticMesh->GetNumSourceModels(); Index++)
+	bool bFirstSourceModel = true;
+	for (const FStaticMeshSourceModel& StaticMeshSourceModel: InStaticMesh->GetSourceModels())
 	{
-		const FStaticMeshSourceModel& StaticMeshSourceModel = InStaticMesh->GetSourceModel(Index);
-		
-		if (!AddLODFromMeshDescription(
-			StaticMeshSourceModel, SkeletalMesh, Index, static_cast<FBoneIndexType>(BoneIndex), MeshUtilities))
+		if (!AddLODFromStaticMeshSourceModel(
+			StaticMeshSourceModel, InSkeletalMesh, static_cast<FBoneIndexType>(BoneIndex), MeshUtilities))
 		{
 			// If we didn't get a model for LOD index 0, we don't have a mesh. Bail out.
-			if (Index == 0)
+			if (bFirstSourceModel)
 			{
-				return nullptr;
+				return false;
 			}
 
 			// Otherwise, we have a model, so let's continue with what we have.
 			break;
 		}
+		bFirstSourceModel = false;
 	}
 	
 	// Convert the materials over.
@@ -315,14 +361,158 @@ USkeletalMesh* FStaticToSkeletalMeshConverter::CreateSkeletalMeshFromStaticMesh(
 		Materials.Add(Material);
 	}
 
-	SkeletalMesh->SetMaterials(Materials);
+	InSkeletalMesh->SetMaterials(Materials);
 	
 	// Set the bounds from the static mesh, including the extensions, otherwise it won't render properly (among other things).
-	SkeletalMesh->SetImportedBounds( InStaticMesh->GetBounds() );
-	SkeletalMesh->SetPositiveBoundsExtension(InStaticMesh->GetPositiveBoundsExtension());
-	SkeletalMesh->SetNegativeBoundsExtension(InStaticMesh->GetNegativeBoundsExtension());
+	InSkeletalMesh->SetImportedBounds( InStaticMesh->GetBounds() );
+	InSkeletalMesh->SetPositiveBoundsExtension(InStaticMesh->GetPositiveBoundsExtension());
+	InSkeletalMesh->SetNegativeBoundsExtension(InStaticMesh->GetNegativeBoundsExtension());
 
-	return SkeletalMesh;
+	return true;
+}
+
+
+static bool ValidateSkinWeightAttribute(
+	const FMeshDescription& InMeshDescription,
+	const FReferenceSkeleton& InReferenceSkeleton
+	)
+{
+	using namespace UE::AnimationCore;
+	FSkeletalMeshConstAttributes MeshAttributes{InMeshDescription};
+
+	TArray<FName> Profiles = MeshAttributes.GetSkinWeightProfileNames(); 
+	if (Profiles.IsEmpty())
+	{
+		UE_LOG(LogStaticToSkeletalMeshConverter, Error, TEXT("Mesh description doesn't have a skin weight attribute."));
+		return false;
+	}
+
+	FBoneIndexType BoneIndexMax = static_cast<FBoneIndexType>(InReferenceSkeleton.GetRawBoneNum());
+		
+	// We use the first profile. Usually that's the default profile, unless we have nothing but alternate profiles.
+	FSkinWeightsVertexAttributesConstRef VertexSkinWeights = MeshAttributes.GetVertexSkinWeights(Profiles[0]);
+	for (const FVertexID VertexID: InMeshDescription.Vertices().GetElementIDs())
+	{
+		for (FBoneWeight BoneWeight: VertexSkinWeights.Get(VertexID))
+		{
+			if (BoneWeight.GetBoneIndex() >= BoneIndexMax)
+			{
+				UE_LOG(LogStaticToSkeletalMeshConverter, Error, TEXT("Mesh description's skin weight refers to a non-existent bone (%d of %d)."), BoneWeight.GetBoneIndex(), BoneIndexMax);
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+
+bool FStaticToSkeletalMeshConverter::InitializeSkeletalMeshFromMeshDescriptions(
+	USkeletalMesh* InSkeletalMesh,
+	TArrayView<const FMeshDescription*> InMeshDescriptions,
+	TConstArrayView<FSkeletalMaterial> InMaterials,
+	const FReferenceSkeleton& InReferenceSkeleton,
+	const bool bInRecomputeNormals,
+	const bool bInRecomputeTangents
+)	
+{
+	if (!ensure(InSkeletalMesh))
+	{
+		return false;
+	}
+
+	if (!InSkeletalMesh->GetImportedModel()->LODModels.IsEmpty())
+	{
+		UE_LOG(LogStaticToSkeletalMeshConverter, Error, TEXT("Skeletal mesh '%s' is not empty"), *InSkeletalMesh->GetPathName());
+		return false;
+	}
+
+	if (InMeshDescriptions.IsEmpty())
+	{
+		UE_LOG(LogStaticToSkeletalMeshConverter, Error, TEXT("No mesh descriptions given"));
+		return false;
+	}
+
+	// Ensure all mesh descriptions have a skin weight attribute.
+	for (const FMeshDescription* MeshDescription: InMeshDescriptions)
+	{
+		if (!ValidateSkinWeightAttribute(*MeshDescription, InReferenceSkeleton))
+		{
+			return false;
+		}
+	}
+
+	// Set the materials before we start converting. We'll add dummy materials afterward if there are more sections
+	// than materials in any of the LODs. Not the best system, but the best we have for now.
+	InSkeletalMesh->SetMaterials(TArray<FSkeletalMaterial>{InMaterials});
+
+	// This ensures that the render data gets built before we return, by calling PostEditChange when we fall out of scope.
+	{
+		FScopedSkeletalMeshPostEditChange ScopedPostEditChange( InSkeletalMesh );
+		InSkeletalMesh->PreEditChange( nullptr );
+		InSkeletalMesh->SetRefSkeleton(InReferenceSkeleton);
+		
+		// Calculate the initial pose from the reference skeleton.
+		InSkeletalMesh->CalculateInvRefMatrices();
+
+		IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>( "MeshUtilities" );
+		bool bFirstSourceModel = true;
+		
+		for (const FMeshDescription* MeshDescription: InMeshDescriptions)
+		{
+			// Add default LOD build settings.
+			FSkeletalMeshLODInfo& SkeletalLODInfo = InSkeletalMesh->AddLODInfo();
+
+			SkeletalLODInfo.BuildSettings.bRecomputeNormals = bInRecomputeNormals;
+			SkeletalLODInfo.BuildSettings.bRecomputeTangents = bInRecomputeTangents;
+
+			if (!AddLODFromMeshDescription(*MeshDescription, InSkeletalMesh, MeshUtilities))
+			{
+				// If we didn't get a model for LOD index 0, we don't have a mesh. Bail out.
+				if (bFirstSourceModel)
+				{
+					return false;
+				}
+
+				// Otherwise, we have a model, so let's continue with what we have.
+				break;
+			}
+			bFirstSourceModel = false;
+		}
+	}
+
+	// Compute the bbox, now that we have the model mesh generated. 
+	FBox3f BoundingBox{ForceInit};
+	int32 MaxSectionCount = 0;
+	for (const FSkeletalMeshLODModel& MeshModel: InSkeletalMesh->GetImportedModel()->LODModels)
+	{
+		MaxSectionCount = FMath::Max(MaxSectionCount, MeshModel.Sections.Num());
+
+		// Compute the overall bbox.
+		for (const FSkelMeshSection& Section: MeshModel.Sections)
+		{
+			for (const FSoftSkinVertex& Vertex: Section.SoftVertices)
+			{
+				BoundingBox += Vertex.Position;
+			}
+		}
+	}
+
+	// If we're short on materials, compared to sections, add dummy materials to fill in the gap. Not ideal, but
+	// best we can do for now.
+	const TArray<FSkeletalMaterial>& ExistingMaterials = InSkeletalMesh->GetMaterials();
+	if (MaxSectionCount > ExistingMaterials.Num())
+	{
+		TArray<FSkeletalMaterial> NewMaterials{ExistingMaterials};
+		for (int32 Index = ExistingMaterials.Num(); Index < MaxSectionCount; Index++)
+		{
+			NewMaterials.Add(FSkeletalMaterial{});
+		}
+		InSkeletalMesh->SetMaterials(NewMaterials);
+	}
+
+	InSkeletalMesh->SetImportedBounds( FBox3d{BoundingBox} );
+
+	return true;
 }
 
 #endif
