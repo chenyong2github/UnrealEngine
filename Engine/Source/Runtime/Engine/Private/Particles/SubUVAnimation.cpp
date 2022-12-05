@@ -41,6 +41,15 @@ void FSubUVDerivedData::Serialize(FStructuredArchive::FSlot Slot)
 	Slot << BoundingGeometry;
 }
 
+FSubUVBoundingGeometryBuffer::FSubUVBoundingGeometryBuffer() = default;
+
+FSubUVBoundingGeometryBuffer::FSubUVBoundingGeometryBuffer(TArray<FVector2f>* InVertices)
+{
+	Vertices = InVertices;
+}
+
+FSubUVBoundingGeometryBuffer::~FSubUVBoundingGeometryBuffer() = default;
+
 void FSubUVBoundingGeometryBuffer::InitRHI()
 {
 	const uint32 SizeInBytes = Vertices->Num() * Vertices->GetTypeSize();
@@ -52,6 +61,12 @@ void FSubUVBoundingGeometryBuffer::InitRHI()
 		VertexBufferRHI = RHICreateVertexBuffer(SizeInBytes, BUF_ShaderResource | BUF_Static, CreateInfo);
 		ShaderResourceView = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FVector2f), PF_G32R32F);
 	}
+}
+
+void FSubUVBoundingGeometryBuffer::ReleaseRHI()
+{
+	FVertexBuffer::ReleaseRHI();
+	ShaderResourceView.SafeRelease();
 }
 
 USubUVAnimation::USubUVAnimation(const FObjectInitializer& ObjectInitializer)

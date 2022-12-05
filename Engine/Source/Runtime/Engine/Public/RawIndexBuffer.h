@@ -374,6 +374,16 @@ public:
 	}
 
 protected:
+	static ENGINE_API FBufferRHIRef CreateRHIIndexBufferInternal(
+		const TCHAR* InDebugName,
+		const FName& InOwnerName,
+		int32 IndexCount,
+		size_t IndexSize,
+		FResourceArrayInterface* ResourceArray,
+		bool bNeedSRV,
+		bool bRenderThread
+	);
+
 	// guaranteed only to be valid if the vertex buffer is valid and the buffer was created with the SRV flags
 	FShaderResourceViewRHIRef SRVValue;
 };
@@ -548,35 +558,19 @@ private:
 	{
 		if (CachedNumIndices)
 		{
-			// Create the index buffer.
-			FRHIResourceCreateInfo CreateInfo(sizeof(INDEX_TYPE) == 4 ? TEXT("FRawStaticIndexBuffer32") : TEXT("FRawStaticIndexBuffer16"), &Indices);
-			EBufferUsageFlags Flags = EBufferUsageFlags::Static;
-
-			if (IsSRVNeeded())
-			{
-				// BUF_ShaderResource is needed for SkinCache RecomputeSkinTangents
-				Flags |= EBufferUsageFlags::ShaderResource;
-			}
-
 			// Need to cache number of indices from the source array *before* RHICreateIndexBuffer is called
 			// because it will empty the source array.
 			CachedNumIndices = Indices.Num();
 
-			FBufferRHIRef Ret;
-			const uint32 Size = CachedNumIndices * sizeof(INDEX_TYPE);
-			CreateInfo.bWithoutNativeResource = !Size;
-			if (bRenderThread)
-			{
-				Ret = RHICreateIndexBuffer(sizeof(INDEX_TYPE), Size, Flags, CreateInfo);
-			}
-			else
-			{
-				FRHIAsyncCommandList CommandList;
-				Ret = CommandList->CreateBuffer(Size, Flags | EBufferUsageFlags::IndexBuffer, sizeof(INDEX_TYPE), ERHIAccess::SRVMask, CreateInfo);
-			}
-
-			Ret->SetOwnerName(GetOwnerName());
-			return Ret;
+			return CreateRHIIndexBufferInternal(
+				sizeof(INDEX_TYPE) == 4 ? TEXT("FRawStaticIndexBuffer32") : TEXT("FRawStaticIndexBuffer16"),
+				GetOwnerName(),
+				Indices.Num(),
+				sizeof(INDEX_TYPE),
+				&Indices,
+				IsSRVNeeded(),
+				bRenderThread
+			);
 		}
 		return nullptr;
 	}

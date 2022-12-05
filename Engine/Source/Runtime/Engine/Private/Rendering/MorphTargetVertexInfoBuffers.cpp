@@ -5,8 +5,12 @@
 #include "Rendering/SkeletalMeshLODRenderData.h"
 #include "Animation/MorphTarget.h"
 #include "RHI.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 extern int32 GSkinCacheRecomputeTangents;
+
+FMorphTargetVertexInfoBuffers::FMorphTargetVertexInfoBuffers() = default;
+FMorphTargetVertexInfoBuffers::~FMorphTargetVertexInfoBuffers() = default;
 
 void FMorphTargetVertexInfoBuffers::InitRHI()
 {
@@ -52,6 +56,20 @@ const float FMorphTargetVertexInfoBuffers::CalculatePositionPrecision(float Targ
 {
 	const float UnrealUnitPerMeter = 100.0f;
 	return TargetPositionErrorTolerance * 2.0f * 1e-6f * UnrealUnitPerMeter;	// * 2.0 because correct rounding guarantees error is at most half of the cell size.
+}
+
+void FMorphTargetVertexInfoBuffers::ResetCPUData()
+{
+	MorphData.Empty();
+	MaximumValuePerMorph.Empty();
+	MinimumValuePerMorph.Empty();
+	BatchStartOffsetPerMorph.Empty();
+	BatchesPerMorph.Empty();
+	NumTotalBatches = 0;
+	PositionPrecision = 0.0f;
+	TangentZPrecision = 0.0f;
+	bResourcesInitialized = false;
+	bIsMorphCPUDataValid = false;
 }
 
 void FMorphTargetVertexInfoBuffers::ValidateVertexBuffers(bool bMorphTargetsShouldBeValid)

@@ -7,6 +7,8 @@
 #include "RawIndexBuffer.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Modules/ModuleManager.h"
+#include "RenderingThread.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #if WITH_EDITOR
 #include "MeshUtilities.h"
@@ -440,6 +442,43 @@ void FRawStaticIndexBuffer::Discard()
 {
     IndexStorage.SetAllowCPUAccess(false);
     IndexStorage.Discard();
+}
+
+FBufferRHIRef FRawStaticIndexBuffer16or32Interface::CreateRHIIndexBufferInternal(
+	const TCHAR* InDebugName,
+	const FName& InOwnerName,
+	int32 IndexCount,
+	size_t IndexSize,
+	FResourceArrayInterface* ResourceArray,
+	bool bNeedSRV,
+	bool bRenderThread
+)
+{
+	// Create the index buffer.
+	FRHIResourceCreateInfo CreateInfo(InDebugName, ResourceArray);
+	EBufferUsageFlags Flags = EBufferUsageFlags::Static;
+
+	if (bNeedSRV)
+	{
+		// BUF_ShaderResource is needed for SkinCache RecomputeSkinTangents
+		Flags |= EBufferUsageFlags::ShaderResource;
+	}
+
+	FBufferRHIRef Ret;
+	const uint32 Size = IndexCount * IndexSize;
+	CreateInfo.bWithoutNativeResource = !Size;
+	if (bRenderThread)
+	{
+		Ret = RHICreateIndexBuffer(IndexSize, Size, Flags, CreateInfo);
+	}
+	else
+	{
+		FRHIAsyncCommandList CommandList;
+		Ret = CommandList->CreateBuffer(Size, Flags | EBufferUsageFlags::IndexBuffer, IndexSize, ERHIAccess::SRVMask, CreateInfo);
+	}
+
+	Ret->SetOwnerName(InOwnerName);
+	return Ret;
 }
 
 /*-----------------------------------------------------------------------------

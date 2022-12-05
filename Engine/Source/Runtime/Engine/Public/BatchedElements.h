@@ -16,6 +16,7 @@
 #include "SceneView.h"
 #include "StaticBoundShaderState.h"
 #include "PipelineStateCache.h"
+#include "Containers/DynamicRHIResourceArray.h"
 
 struct FBatchedPoint;
 struct FMeshPassProcessorRenderState;

@@ -3,39 +3,39 @@
 #pragma once
 
 #include "RenderResource.h"
+#include "Containers/DynamicRHIResourceArray.h"
 
 struct FSkelMeshRenderSection;
 class UMorphTarget;
 
-class FMorphTargetVertexInfoBuffers : public FRenderResource
+class ENGINE_API FMorphTargetVertexInfoBuffers : public FRenderResource
 {
 public:
-	ENGINE_API FMorphTargetVertexInfoBuffers() : NumTotalBatches(0)
-	{
-	}
+	FMorphTargetVertexInfoBuffers();
+	~FMorphTargetVertexInfoBuffers();
 
-	ENGINE_API void InitMorphResources(EShaderPlatform ShaderPlatform, const TArray<FSkelMeshRenderSection>& RenderSections, const TArray<UMorphTarget*>& MorphTargets, int NumVertices, int32 LODIndex, float TargetPositionErrorTolerance);
+	void InitMorphResources(EShaderPlatform ShaderPlatform, const TArray<FSkelMeshRenderSection>& RenderSections, const TArray<UMorphTarget*>& MorphTargets, int NumVertices, int32 LODIndex, float TargetPositionErrorTolerance);
 
 	inline bool IsMorphResourcesInitialized() const { return bResourcesInitialized; }
 	inline bool IsRHIIntialized() const { return bRHIIntialized; }
 	inline bool IsMorphCPUDataValid() const{ return bIsMorphCPUDataValid; }
 	
-	ENGINE_API bool GetEmptyMorphCPUDataOnInitRHI() const { return bEmptyMorphCPUDataOnInitRHI; }
-	ENGINE_API void SetEmptyMorphCPUDataOnInitRHI(bool bEmpty) { bEmptyMorphCPUDataOnInitRHI = bEmpty; }
+	bool GetEmptyMorphCPUDataOnInitRHI() const { return bEmptyMorphCPUDataOnInitRHI; }
+	void SetEmptyMorphCPUDataOnInitRHI(bool bEmpty) { bEmptyMorphCPUDataOnInitRHI = bEmpty; }
 
-	ENGINE_API virtual void InitRHI() override;
-	ENGINE_API virtual void ReleaseRHI() override;
+	virtual void InitRHI() override;
+	virtual void ReleaseRHI() override;
 
 	UE_DEPRECATED(5.2, "GetMaximumThreadGroupSize will be removed as it is no longer used.")
-	static ENGINE_API uint32 GetMaximumThreadGroupSize();
+	static uint32 GetMaximumThreadGroupSize();
 
-	ENGINE_API uint32 GetNumBatches(uint32 index = UINT_MAX) const
+	uint32 GetNumBatches(uint32 index = UINT_MAX) const
 	{
 		check(index == UINT_MAX || index < (uint32)BatchesPerMorph.Num());
 		return index != UINT_MAX ? BatchesPerMorph[index] : NumTotalBatches;
 	}
 
-	ENGINE_API uint32 GetNumMorphs() const
+	uint32 GetNumMorphs() const
 	{
 		return BatchesPerMorph.Num();
 	}
@@ -76,19 +76,7 @@ public:
 	FShaderResourceViewRHIRef MorphDataSRV;
 
 protected:
-	void ResetCPUData()
-	{
-		MorphData.Empty();
-		MaximumValuePerMorph.Empty();
-		MinimumValuePerMorph.Empty();
-		BatchStartOffsetPerMorph.Empty();
-		BatchesPerMorph.Empty();
-		NumTotalBatches = 0;
-		PositionPrecision = 0.0f;
-		TangentZPrecision = 0.0f;
-		bResourcesInitialized = false;
-		bIsMorphCPUDataValid = false;
-	}
+	void ResetCPUData();
 
 	void ValidateVertexBuffers(bool bMorphTargetsShouldBeValid);
 	void Serialize(FArchive& Ar);
@@ -102,9 +90,9 @@ protected:
 	TArray<uint32> BatchStartOffsetPerMorph;
 	TArray<uint32> BatchesPerMorph;
 	
-	uint32 NumTotalBatches;
-	float PositionPrecision;
-	float TangentZPrecision;
+	uint32 NumTotalBatches = 0;
+	float PositionPrecision = 0.0f;
+	float TangentZPrecision = 0.0f;
 
 	bool bIsMorphCPUDataValid = false;
 	bool bResourcesInitialized = false;
