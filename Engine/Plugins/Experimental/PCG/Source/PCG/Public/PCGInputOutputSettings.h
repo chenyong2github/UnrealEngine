@@ -56,8 +56,19 @@ protected:
 	virtual FPCGElementPtr CreateElement() const override { return MakeShared<FPCGInputOutputElement>(); }
 	// ~End UPCGSettings interface
 
-	const TArray<FName>& StaticLabels() const { return bIsInput ? StaticInLabels : StaticOutLabels; }
-	const TArray<FName>& StaticAdvancedLabels() const { return bIsInput ? StaticAdvancedInLabels : StaticAdvancedOutLabels; }
+	struct FLabelAndTooltip
+	{
+		explicit FLabelAndTooltip(FName InLabel, FText InTooltip = FText::GetEmpty())
+			: Label(InLabel), Tooltip(InTooltip)
+		{
+		}
+
+		FName Label;
+		FText Tooltip;
+	};
+
+	const TArray<FLabelAndTooltip>& StaticLabels() const { return bIsInput ? StaticInLabels : StaticOutLabels; }
+	const TArray<FLabelAndTooltip>& StaticAdvancedLabels() const { return bIsInput ? StaticAdvancedInLabels : StaticAdvancedOutLabels; }
 
 	TArray<FPCGPinProperties> GetPinProperties() const;
 
@@ -71,10 +82,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Input")
 	bool bShowAdvancedPins = false;
 
-	TArray<FName> StaticInLabels;
-	TArray<FName> StaticAdvancedInLabels;
-	TArray<FName> StaticOutLabels;
-	TArray<FName> StaticAdvancedOutLabels;
+	TArray<FLabelAndTooltip> StaticInLabels;
+	TArray<FLabelAndTooltip> StaticAdvancedInLabels;
+	TArray<FLabelAndTooltip> StaticOutLabels;
+	TArray<FLabelAndTooltip> StaticAdvancedOutLabels;
 
 	bool bIsInput = false;
 };

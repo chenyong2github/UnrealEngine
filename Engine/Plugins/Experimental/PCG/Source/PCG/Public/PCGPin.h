@@ -16,7 +16,7 @@ struct PCG_API FPCGPinProperties
 	GENERATED_BODY()
 
 	FPCGPinProperties() = default;
-	explicit FPCGPinProperties(const FName& InLabel, EPCGDataType InAllowedTypes = EPCGDataType::Any, bool bInAllowMultipleConnections = true);
+	explicit FPCGPinProperties(const FName& InLabel, EPCGDataType InAllowedTypes = EPCGDataType::Any, bool bInAllowMultipleConnections = true, const FText& InTooltip = FText::GetEmpty());
 
 	bool operator==(const FPCGPinProperties& Other) const;
 
@@ -28,6 +28,9 @@ struct PCG_API FPCGPinProperties
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	bool bAllowMultipleConnections = true;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	FText Tooltip;
 };
 
 UCLASS(ClassGroup = (Procedural))

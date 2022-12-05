@@ -474,19 +474,22 @@ void UPCGEditorGraphNodeBase::GetPinHoverText(const UEdGraphPin& Pin, FString& H
 
 	const FText DataTypeText = PinTypeToText(Pin.PinType.PinCategory, MatchingPin);
 	const FText DataSubtypeText = PinTypeToText(Pin.PinType.PinSubCategory, MatchingPin);
+	const FText Description = (MatchingPin && !MatchingPin->Properties.Tooltip.IsEmpty()) ? MatchingPin->Properties.Tooltip : FText::FromName(MatchingPin->Properties.Label);
 
 	if (MatchingPin != nullptr && bIsInputPin)
 	{
 		const FText AdditionalInfo = MatchingPin->Properties.bAllowMultipleConnections ? FText(LOCTEXT("SupportsMultiInput", "Supports multiple inputs")) : FText(LOCTEXT("SingleInputOnly", "Supports only one input"));
 
-		HoverTextOut = FText::Format(LOCTEXT("PinHoverToolTipFull", "Type: {0}\nSubtype: {1}\nAdditional information: {2}"),
+		HoverTextOut = FText::Format(LOCTEXT("PinHoverToolTipFull", "{0}\n\nType: {1}\nSubtype: {2}\nAdditional information: {3}"),
+			Description,
 			DataTypeText,
 			DataSubtypeText,
 			AdditionalInfo).ToString();
 	}
 	else
 	{
-		HoverTextOut = FText::Format(LOCTEXT("PinHoverToolTipPartial", "Type: {0}\nSubtype: {1}"),
+		HoverTextOut = FText::Format(LOCTEXT("PinHoverToolTipPartial", "{0}\n\nType: {1}\nSubtype: {2}"),
+			Description,
 			DataTypeText,
 			DataSubtypeText).ToString();
 	}
