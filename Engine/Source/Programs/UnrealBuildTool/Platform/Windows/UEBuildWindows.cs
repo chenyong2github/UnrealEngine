@@ -400,6 +400,14 @@ namespace UnrealBuildTool
 		public bool bOptimizeGlobalData = true;
 
 		/// <summary>
+		/// If specified along with -PGOProfile, then /FASTGENPROFILE will be used instead of /GENPROFILE. 
+		/// This usually means that the PGO data is generated faster, but the resulting data may not yield as efficient optimizations during -PGOOptimize
+		/// </summary>
+		[XmlConfigFile(Category = "WindowsPlatform")]
+		[CommandLine("-PGOFastGen")]
+		public bool bUseFastGenProfile = false;
+
+		/// <summary>
 		/// (Experimental) Appends the -ftime-trace argument to the command line for Clang to output a JSON file containing a timeline for the compile. 
 		/// See http://aras-p.info/blog/2019/01/16/time-trace-timeline-flame-chart-profiler-for-Clang/ for more info.
 		/// </summary>
@@ -725,6 +733,11 @@ namespace UnrealBuildTool
 		public bool bOptimizeGlobalData
 		{
 			get { return Inner.bOptimizeGlobalData; }
+		}
+
+		public bool bUseFastGenProfile
+		{
+			get { return Inner.bUseFastGenProfile; }
 		}
 
 		public bool bClangTimeTrace

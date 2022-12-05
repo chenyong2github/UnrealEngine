@@ -441,6 +441,52 @@ static void PureCallHandler()
 	}
 }
 
+#if ENABLE_PGO_PROFILE
+void PGO_WriteFile()
+{
+	// NB. Using pgosweep.exe means the PGC file will be writable as soon as the title exits & we can control where it is written.
+	// Not using PgoAutoSweep because a) it calls MessageBox() when it encounters an error which would break unattended automation,
+	// and b) it only takes a file name fragment not a full path, so it would be necessary to sweep, find the file and then move it where we want it.
+
+	static uint32 FileCounter = 0;
+
+	// Get the current running process's full path
+	TCHAR ExeFilePath[MAX_PATH + 1];
+	GetModuleFileNameW(NULL, ExeFilePath, MAX_PATH + 1);
+	FString ExeFileName = FPaths::GetCleanFilename(ExeFilePath);
+	FString ExeFolder = FPaths::GetPath(ExeFilePath);
+	FString ExeFileNameWithoutExtension = FPaths::GetBaseFilename(ExeFilePath);
+
+	// Get PGC output directory, defaulting to the exe location but can sweep to the project saved dir so Gauntlet can collect it
+	bool bSweepToSaveDir = FParse::Param(FCommandLine::Get(), TEXT("PGOSweepToSaveDir"));
+	FString OutputDirectory = bSweepToSaveDir  ?  FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("PGO"))  :  ExeFolder;
+
+	// Find next unique PGC file name
+	FString OutputFilePath;
+	do
+	{
+		FString PGCFileName = FString::Printf(TEXT("%s!%d.pgc"), *ExeFileNameWithoutExtension, ++FileCounter);
+		OutputFilePath = FPaths::Combine(OutputDirectory, PGCFileName).Replace(TEXT("/"), TEXT("\\"));
+	} while (GetFileAttributesW(*OutputFilePath) != INVALID_FILE_ATTRIBUTES);
+
+	// Launch PGOSweep & wait for it to finish
+	FString PGOSweepPath = FPaths::Combine(ExeFolder, TEXT("pgosweep.exe"));
+	FString CommandLine = FString::Printf(TEXT("/pid:%d \"%s\" \"%s\""), ::GetCurrentProcessId(), ExeFilePath, *OutputFilePath);
+
+	const bool bLaunchDetached = true;
+	const bool bLaunchHidden = true;
+	const bool bLaunchReallyHidden = bLaunchHidden;
+	FProcHandle ProcHandle = FPlatformProcess::CreateProc(*PGOSweepPath, *CommandLine, bLaunchDetached, bLaunchHidden, bLaunchReallyHidden, nullptr, 0, nullptr, nullptr, nullptr);
+	FPlatformProcess::WaitForProc(ProcHandle);
+	int32 ExitCode = 0;
+	if (FPlatformProcess::GetProcReturnCode(ProcHandle, &ExitCode))
+	{
+		UE_LOG(LogWindows, Log, TEXT("pgosweep.exe exit code %d"), ExitCode);
+	}
+}
+#endif //ENABLE_PGO_PROFILE
+
+
 /*-----------------------------------------------------------------------------
 	SHA-1 functions.
 -----------------------------------------------------------------------------*/
@@ -957,6 +1003,13 @@ void FWindowsPlatformMisc::RequestExit( bool Force )
 void FWindowsPlatformMisc::RequestExitWithStatus(bool Force, uint8 ReturnCode)
 {
 	UE_LOG(LogWindows, Log, TEXT("FPlatformMisc::RequestExitWithStatus(%i, %i)"), Force, ReturnCode);
+
+#if ENABLE_PGO_PROFILE
+	// save current PGO profiling data and terminate immediately
+	PGO_WriteFile();
+	TerminateProcess(GetCurrentProcess(), 0);
+	return;
+#endif
 
 	RequestEngineExit(TEXT("Win RequestExit"));
 	FCoreDelegates::ApplicationWillTerminateDelegate.Broadcast();

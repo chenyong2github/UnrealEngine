@@ -1733,6 +1733,22 @@ namespace UnrealBuildTool
 					TargetFileToSourceFile[FileReference.Combine(ExeDir, ASanDebugRuntimeDLL)] = FileReference.Combine(ASanRuntimeDir, ASanDebugRuntimeDLL);
 				}
 			}
+
+			// copy PGO support binaries for Windows from $(VC_PGO_RunTime_Dir)
+			if (Target.bPGOProfile && Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
+			{
+				string[] PGOFiles = {
+					"pgort140.dll",
+					"pgosweep.exe",
+				};
+				foreach (string PGOFile in PGOFiles)
+				{			
+					FileReference SrcFile = FileReference.Combine(EnvVars.ToolChainDir, "bin", "Hostx64", "x64", PGOFile);
+					FileReference DstFile = FileReference.Combine(ExeDir, PGOFile);
+					TargetFileToSourceFile[DstFile] = SrcFile;
+					RuntimeDependencies.Add( new RuntimeDependency(DstFile, StagedFileType.NonUFS));
+				}
+			}
 		}
 
 		public virtual FileReference GetApplicationIcon(FileReference? ProjectFile)
@@ -2293,19 +2309,26 @@ namespace UnrealBuildTool
 				// Copy the files there and make them writable...
 				Logger.LogInformation("...copying the profile guided optimization files to output directory...");
 
-				string[] PGDFiles = Directory.GetFiles(LinkEnvironment.PGODirectory!, "*.pgd");
+				// prefer a PGD file that matches the output file
+				string PGDFile = Path.Combine( LinkEnvironment.PGODirectory!, LinkEnvironment.PGOFilenamePrefix + ".pgd");
+				if (!File.Exists(PGDFile))
+				{
+					string[] PGDFiles = Directory.GetFiles(LinkEnvironment.PGODirectory!, "*.pgd");
+					if (PGDFiles.Length > 1)
+					{
+						throw new BuildException("More than one .pgd file found in \"{0}\" and \"{1}\" not found ", LinkEnvironment.PGODirectory, PGDFile);
+					}
+					else if (PGDFiles.Length == 0)
+					{
+						Logger.LogWarning("No .pgd files found in \"{PgoDir}\".", LinkEnvironment.PGODirectory);
+						return false;
+					}
+
+					PGDFile = PGDFiles.First();
+				}
+
+
 				string[] PGCFiles = Directory.GetFiles(LinkEnvironment.PGODirectory!, "*.pgc");
-
-				if (PGDFiles.Length > 1)
-				{
-					throw new BuildException("More than one .pgd file found in \"{0}\".", LinkEnvironment.PGODirectory);
-				}
-				else if (PGDFiles.Length == 0)
-				{
-					Logger.LogWarning("No .pgd files found in \"{PgoDir}\".", LinkEnvironment.PGODirectory);
-					return false;
-				}
-
 				if (PGCFiles.Length == 0)
 				{
 					Logger.LogWarning("No .pgc files found in \"{PgoDir}\".", LinkEnvironment.PGODirectory);
@@ -2316,7 +2339,6 @@ namespace UnrealBuildTool
 				Directory.CreateDirectory(LinkEnvironment.OutputDirectory!.FullName);
 
 				// Copy the .pgd to the linker output directory, renaming it to match the PGO filename prefix.
-				string PGDFile = PGDFiles.First();
 				string DestPGDFile = Path.Combine(LinkEnvironment.OutputDirectory.FullName, LinkEnvironment.PGOFilenamePrefix + ".pgd");
 				Logger.LogInformation("{Source} -> {Target}", PGDFile, DestPGDFile);
 				File.Copy(PGDFile, DestPGDFile, true);
@@ -2364,7 +2386,14 @@ namespace UnrealBuildTool
 				//Arguments.Add("/GENPROFILE:PGD=" + Path.Combine(LinkEnvironment.PGODirectory, LinkEnvironment.PGOFilenamePrefix + ".pgd"));
 				Arguments.Add("/LTCG");
 				//Arguments.Add("/GENPROFILE:PGD=" + LinkEnvironment.PGOFilenamePrefix + ".pgd");
-				Arguments.Add("/GENPROFILE");
+				if (Target.WindowsPlatform.bUseFastGenProfile)
+				{
+					Arguments.Add("/FASTGENPROFILE");
+				}
+				else
+				{
+					Arguments.Add("/GENPROFILE");
+				}
 				Log.TraceInformationOnce("Enabling Profile Guided Optimization (PGO). Linking will take a while.");
 			}
 		}
