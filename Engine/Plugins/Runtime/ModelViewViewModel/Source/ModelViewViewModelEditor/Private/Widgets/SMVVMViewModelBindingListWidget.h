@@ -56,14 +56,17 @@ namespace UE::MVVM
 	};
 
 	/**
- *
- */
+	 *
+	 */
 	class FFieldExpander_Bindable : public UE::PropertyViewer::FFieldExpander_Default
 	{
 	public:
 		FFieldExpander_Bindable();
 		virtual TOptional<const UStruct*> GetExpandedFunction(const UFunction* Function) const override;
 	};
+
+	/** Genereate the icon for the binding type. */
+	TSharedRef<SWidget> ConstructFieldPreSlot(const UWidgetBlueprint* WidgetBlueprint, UE::PropertyViewer::SPropertyViewer::FHandle Handle, const FFieldVariant FieldPath);
 
 	/** 
 	 * 
@@ -108,8 +111,9 @@ namespace UE::MVVM
 	private:
 		using SPropertyViewer = UE::PropertyViewer::SPropertyViewer;
 
-		void HandleSelectionChanged(SPropertyViewer::FHandle ViewModel, TArrayView<const FFieldVariant> Path, ESelectInfo::Type SelectionType);
-		void HandleDoubleClicked(SPropertyViewer::FHandle ViewModel, TArrayView<const FFieldVariant> Path);
+		TSharedPtr<SWidget> HandleGetPreSlot(SPropertyViewer::FHandle Handle, TArrayView<const FFieldVariant> Path);
+		void HandleSelectionChanged(SPropertyViewer::FHandle Handle, TArrayView<const FFieldVariant> Path, ESelectInfo::Type SelectionType);
+		void HandleDoubleClicked(SPropertyViewer::FHandle Handle, TArrayView<const FFieldVariant> Path);
 
 		FMVVMBlueprintPropertyPath CreateBlueprintPropertyPath(SPropertyViewer::FHandle Handle, TArrayView<const FFieldVariant> Path) const;
 

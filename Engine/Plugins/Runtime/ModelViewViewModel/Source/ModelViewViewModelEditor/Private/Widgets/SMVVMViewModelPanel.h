@@ -40,6 +40,7 @@ private:
 	TSharedRef<SWidget> MakeAddMenu();
 	void HandleCancelAddMenu();
 	void HandleAddMenuViewModel(const UClass* SelectedClass);
+	TSharedPtr<SWidget> HandleGetPreSlot(UE::PropertyViewer::SPropertyViewer::FHandle Handle, TArrayView<const FFieldVariant> FieldPath);
 	bool HandleCanEditViewmodelList() const;
 	FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 	TSharedRef<SWidget> HandleGenerateContainer(UE::PropertyViewer::SPropertyViewer::FHandle ContainerHandle, TOptional<FText> DisplayName);
@@ -66,6 +67,7 @@ private:
 	TSharedPtr<SPositiveActionButton> AddMenuButton;
 	TSharedPtr<UE::PropertyViewer::SPropertyViewer> ViewModelTreeView;
 	TUniquePtr<FFieldIterator_Bindable> FieldIterator;
+	TUniquePtr<UE::PropertyViewer::FFieldExpander_Default> FieldExpander;
 	TSharedPtr<FUICommandList> CommandList;
 	TSharedPtr<IStructureDetailsView> PropertyView;
 

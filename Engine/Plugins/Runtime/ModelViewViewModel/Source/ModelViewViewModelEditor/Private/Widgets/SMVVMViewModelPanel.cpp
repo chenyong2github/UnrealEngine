@@ -50,7 +50,8 @@ void SMVVMViewModelPanel::Construct(const FArguments& InArgs, TSharedPtr<FWidget
 
 	WeakBlueprintEditor = WidgetBlueprintEditor;
 	WeakBlueprintView = CurrentBlueprintView;
-	FieldIterator = MakeUnique<FFieldIterator_Bindable>(WidgetBlueprint, EFieldVisibility::Notify);
+	FieldIterator = MakeUnique<FFieldIterator_Bindable>(WidgetBlueprint, EFieldVisibility::None);
+	FieldExpander = MakeUnique<FFieldExpander_Bindable>();
 
 	if (CurrentBlueprintView)
 	{
@@ -66,6 +67,8 @@ void SMVVMViewModelPanel::Construct(const FArguments& InArgs, TSharedPtr<FWidget
 		.bShowFieldIcon(true)
 		.bSanitizeName(true)
 		.FieldIterator(FieldIterator.Get())
+		.FieldExpander(FieldExpander.Get())
+		.OnGetPreSlot(this, &SMVVMViewModelPanel::HandleGetPreSlot)
 		.OnContextMenuOpening(this, &SMVVMViewModelPanel::HandleContextMenuOpening)
 		.OnSelectionChanged(this, &SMVVMViewModelPanel::HandleSelectionChanged)
 		.OnGenerateContainer(this, &SMVVMViewModelPanel::HandleGenerateContainer)
@@ -275,6 +278,23 @@ bool SMVVMViewModelPanel::HandleCanEditViewmodelList() const
 }
 
 
+TSharedPtr<SWidget> SMVVMViewModelPanel::HandleGetPreSlot(UE::PropertyViewer::SPropertyViewer::FHandle Handle, TArrayView<const FFieldVariant> FieldPath)
+{
+	if (FieldPath.Num() > 0)
+	{
+		UWidgetBlueprint* WidgetBlueprint = nullptr;
+		if (TSharedPtr<FWidgetBlueprintEditor> WidgetBlueprintEditor = WeakBlueprintEditor.Pin())
+		{
+			WidgetBlueprint = WidgetBlueprintEditor->GetWidgetBlueprintObj();
+		}
+
+		return ConstructFieldPreSlot(WidgetBlueprint, Handle, FieldPath.Last());
+	}
+
+	return TSharedPtr<SWidget>();
+}
+
+
 TSharedRef<SWidget> SMVVMViewModelPanel::HandleGenerateContainer(UE::PropertyViewer::SPropertyViewer::FHandle ContainerHandle, TOptional<FText> DisplayName)
 {
 	if (const FGuid* VMGuidPtr = PropertyViewerHandles.Find(ContainerHandle))
@@ -468,6 +488,7 @@ void SMVVMViewModelPanel::HandleSelectionChanged(UE::PropertyViewer::SPropertyVi
 		if (const FGuid* VMGuidPtr = PropertyViewerHandles.Find(ContainerHandle))
 		{
 			SelectedViewModelGuid = *VMGuidPtr;
+
 			if (UMVVMBlueprintView* BlueprintView = WeakBlueprintView.Get())
 			{
 				if (FMVVMBlueprintViewModelContext* ViewModelContext = BlueprintView->FindViewModel(SelectedViewModelGuid))

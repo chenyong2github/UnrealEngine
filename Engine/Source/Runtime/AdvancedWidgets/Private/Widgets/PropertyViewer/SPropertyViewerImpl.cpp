@@ -39,7 +39,6 @@ namespace UE::PropertyViewer::Private
 /** 
  * Column name 
  */
-static FName ColumnName_FieldPreWidget = "FieldPreWidget";
 static FName ColumnName_Field = "Field";
 static FName ColumnName_PropertyValue = "FieldValue";
 static FName ColumnName_FieldPostWidget = "FieldPostWidget";
@@ -795,21 +794,12 @@ void FPropertyViewerImpl::SetSelection(SPropertyViewer::FHandle Identifier, TArr
 TSharedRef<SWidget> FPropertyViewerImpl::CreateTree(bool bHasPreWidget, bool bShowPropertyValue, bool bHasPostWidget, ESelectionMode::Type SelectionMode)
 {
 	TSharedPtr<SHeaderRow> HeaderRowWidget;
-	if (bHasPreWidget || bShowPropertyValue || bHasPostWidget)
+	if (bShowPropertyValue || bHasPostWidget)
 	{
 		bUseRows = true;
 
 		HeaderRowWidget = SNew(SHeaderRow)
 		.Visibility(EVisibility::Collapsed);
-
-		if (bHasPreWidget)
-		{
-			HeaderRowWidget->AddColumn(
-				SHeaderRow::FColumn::FArguments()
-				.ColumnId(ColumnName_FieldPreWidget)
-				.DefaultLabel(LOCTEXT("PropertyPreWidget", ""))
-			);
-		}
 
 		HeaderRowWidget->AddColumn(
 			SHeaderRow::FColumn::FArguments()
@@ -897,6 +887,13 @@ TSharedRef<ITableRow> FPropertyViewerImpl::HandleGenerateRow(TSharedPtr<FTreeNod
 {
 	FText HighlightText = SearchFilter ? SearchFilter->GetRawFilterText() : FText::GetEmpty();
 
+	TSharedPtr<SWidget> PreWidget;
+	if (OnGetPreSlot.IsBound())
+	{
+		TSharedPtr<FContainer> OwnerContainer = Item->GetOwnerContainer();
+		PreWidget = OnGetPreSlot.Execute(OwnerContainer.IsValid() ? OwnerContainer->GetIdentifier() : SPropertyViewer::FHandle(), Item->GetFieldPath());
+	}
+
 	TSharedPtr<SWidget> ItemWidget;
 	if (TSharedPtr<FContainer> ContainerPin = Item->GetContainer())
 	{
@@ -966,21 +963,45 @@ TSharedRef<ITableRow> FPropertyViewerImpl::HandleGenerateRow(TSharedPtr<FTreeNod
 		{
 			if (ColumnName == ColumnName_Field)
 			{
-				return SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
+				TSharedRef<SHorizontalBox> Stack = SNew(SHorizontalBox);
+
+				TSharedPtr<FPropertyViewerImpl> PropertyViewOwnerPin = PropertyViewOwner.Pin();
+				TSharedPtr<SWidget> PreWidget;
+				if (PropertyViewOwnerPin && PropertyViewOwnerPin->OnGetPreSlot.IsBound())
+				{
+					if (TSharedPtr<FTreeNode> ItemPin = Item.Pin())
+					{						
+						TSharedPtr<FContainer> OwnerContainer = ItemPin->GetOwnerContainer();
+						PreWidget = PropertyViewOwnerPin->OnGetPreSlot.Execute(OwnerContainer.IsValid() ? OwnerContainer->GetIdentifier() : SPropertyViewer::FHandle(), ItemPin->GetFieldPath());
+					}
+				}
+
+				Stack->AddSlot()
 				.AutoWidth()
 				[
 					SNew(SExpanderArrow, SharedThis(this))
 					.IndentAmount(16)
 					.ShouldDrawWires(true)
-				]
-				+SHorizontalBox::Slot()
+				];
+
+				if (PreWidget)
+				{
+					Stack->AddSlot()
+					.AutoWidth()
+					[
+						PreWidget.ToSharedRef()
+					];
+				}
+
+				Stack->AddSlot()
 				.AutoWidth()
 				.Padding(2.0f, 0.0f)
 				.VAlign(VAlign_Center)
 				[
 					FieldWidget.ToSharedRef()
 				];
+
+				return Stack;
 			}
 
 			if (ColumnName == ColumnName_PropertyValue)
@@ -1035,21 +1056,17 @@ TSharedRef<ITableRow> FPropertyViewerImpl::HandleGenerateRow(TSharedPtr<FTreeNod
 				}
 			}
 
-			if (ColumnName == ColumnName_FieldPreWidget || ColumnName == ColumnName_FieldPostWidget)
+			if (ColumnName == ColumnName_FieldPostWidget)
 			{
 				TSharedPtr<FTreeNode> ItemPin = Item.Pin();
 				TSharedPtr<FPropertyViewerImpl> PropertyViewOwnerPin = PropertyViewOwner.Pin();
 				if (ItemPin && PropertyViewOwnerPin)
 				{
-					SPropertyViewer::FGetFieldWidget& OnGetWidget = (ColumnName == ColumnName_FieldPreWidget) ? PropertyViewOwnerPin->OnGetPreSlot : PropertyViewOwnerPin->OnGetPostSlot;
-					TSharedPtr<SWidget> PreWidget;
-
 					TSharedPtr<FContainer> OwnerContainer = ItemPin->GetOwnerContainer();
-					PreWidget = OnGetWidget.Execute(OwnerContainer.IsValid() ? OwnerContainer->GetIdentifier() : SPropertyViewer::FHandle(), ItemPin->GetFieldPath());
-
-					if (PreWidget)
+					TSharedPtr<SWidget> PostWidget = PropertyViewOwnerPin->OnGetPostSlot.Execute(OwnerContainer.IsValid() ? OwnerContainer->GetIdentifier() : SPropertyViewer::FHandle(), ItemPin->GetFieldPath());
+					if (PostWidget)
 					{
-						return PreWidget.ToSharedRef();
+						return PostWidget.ToSharedRef();
 					}
 				}
 			}
@@ -1072,6 +1089,27 @@ TSharedRef<ITableRow> FPropertyViewerImpl::HandleGenerateRow(TSharedPtr<FTreeNod
 	}
 
 	using SSimpleRowType = STableRow<TSharedPtr<FTreeNode>>;
+
+	if (PreWidget)
+	{
+		return SNew(SSimpleRowType, OwnerTable)
+			.Padding(0.0f)
+			.Content()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					PreWidget.ToSharedRef()
+				]
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.f)
+				[
+					FieldWidget
+				]
+			];
+	}
+
 	return SNew(SSimpleRowType, OwnerTable)
 		.Padding(0.0f)
 		.Content()

@@ -99,6 +99,7 @@ void SMVVMSelectViewModel::Construct(const FArguments& InArgs, const UWidgetBlue
 						[
 							SAssignNew(BindingListWidget, SSourceBindingList, WidgetBlueprint)
 							.EnableSelection(false)
+							.FieldVisibilityFlags(EFieldVisibility::None)
 						]
 					]
 				]

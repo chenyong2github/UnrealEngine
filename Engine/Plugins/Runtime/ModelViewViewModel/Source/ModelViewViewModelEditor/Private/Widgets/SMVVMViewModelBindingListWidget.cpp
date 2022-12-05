@@ -16,10 +16,15 @@
 #include "MVVMEditorSubsystem.h"
 #include "MVVMSubsystem.h"
 #include "MVVMViewModelBase.h"
+#include "Styling/MVVMEditorStyle.h"
 #include "Types/MVVMAvailableBinding.h"
 #include "Types/MVVMFieldVariant.h"
 #include "WidgetBlueprint.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Images/SLayeredImage.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/PropertyViewer/SPropertyViewer.h"
+#include "Widgets/SNullWidget.h"
 
 #define LOCTEXT_NAMESPACE "SSourceBindingList"
 
@@ -250,6 +255,56 @@ TOptional<const UStruct*> FFieldExpander_Bindable::GetExpandedFunction(const UFu
 	return TOptional<const UStruct*>();
 }
 
+TSharedRef<SWidget> ConstructFieldPreSlot(const UWidgetBlueprint* WidgetBlueprint, UE::PropertyViewer::SPropertyViewer::FHandle Handle, const FFieldVariant FieldPath)
+{
+	TSharedRef<SWidget> ImageWidget = SNullWidget::NullWidget;
+	TSubclassOf<UObject> AccessorClass = WidgetBlueprint ? WidgetBlueprint->SkeletonGeneratedClass : nullptr;
+	FMVVMAvailableBinding Binding = GEngine->GetEngineSubsystem<UMVVMSubsystem>()->GetAvailableBindingForVariant(FMVVMConstFieldVariant(FieldPath), AccessorClass);
+	if (Binding.IsValid())
+	{
+		const FSlateBrush* Brush = nullptr;
+		const FLinearColor ImageColor = FLinearColor(1.0f, 1.0f, 1.0, 0.5f);
+		if (Binding.HasNotify() && Binding.IsReadable() && Binding.IsWritable())
+		{
+			Brush = FMVVMEditorStyle::Get().GetBrush("BindingMode.TwoWay");
+		}
+		else if (Binding.HasNotify() && Binding.IsReadable())
+		{
+			Brush = FMVVMEditorStyle::Get().GetBrush("BindingMode.OneWayToSource");
+		}
+		else if (Binding.IsWritable() && Binding.IsReadable())
+		{
+			ImageWidget = SNew(SLayeredImage, FMVVMEditorStyle::Get().GetBrush("BindingMode.OneWay"), ImageColor)
+				.Image(FMVVMEditorStyle::Get().GetBrush("BindingMode.OneTime"))
+				.ColorAndOpacity(ImageColor);
+		}
+		else if (Binding.IsWritable())
+		{
+			Brush = FMVVMEditorStyle::Get().GetBrush("BindingMode.OneWay");
+		}
+		else if (Binding.IsReadable())
+		{
+			Brush = FMVVMEditorStyle::Get().GetBrush("BindingMode.OneTime");
+		}
+
+		if (Brush)
+		{
+			ImageWidget = SNew(SImage)
+				.Image(Brush)
+				.ColorAndOpacity(ImageColor);
+		}
+	}
+
+	return SNew(SBox)
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		.WidthOverride(16.0f)
+		.HeightOverride(16.0f)
+		[
+			ImageWidget
+		];
+}
+
 /** */
 void SSourceBindingList::Construct(const FArguments& InArgs, const UWidgetBlueprint* InWidgetBlueprint)
 {
@@ -268,6 +323,7 @@ void SSourceBindingList::Construct(const FArguments& InArgs, const UWidgetBluepr
 		.bSanitizeName(true)
 		.SelectionMode(InArgs._EnableSelection ? ESelectionMode::Single : ESelectionMode::None)
 		.bShowSearchBox(InArgs._ShowSearchBox)
+		.OnGetPreSlot(this, &SSourceBindingList::HandleGetPreSlot)
 		.OnSelectionChanged(this, &SSourceBindingList::HandleSelectionChanged)
 		.OnDoubleClicked(this, &SSourceBindingList::HandleDoubleClicked);
 
@@ -477,6 +533,15 @@ FMVVMBlueprintPropertyPath SSourceBindingList::CreateBlueprintPropertyPath(SProp
 		}
 	}
 	return PropertyPath;
+}
+
+TSharedPtr<SWidget> SSourceBindingList::HandleGetPreSlot(SPropertyViewer::FHandle Handle, TArrayView<const FFieldVariant> FieldPath)
+{
+	if (FieldPath.Num() > 0)
+	{
+		return ConstructFieldPreSlot(WidgetBlueprint.Get(), Handle, FieldPath.Last());
+	}
+	return TSharedPtr<SWidget>();
 }
 
 void SSourceBindingList::HandleSelectionChanged(SPropertyViewer::FHandle Handle, TArrayView<const FFieldVariant> FieldPath, ESelectInfo::Type SelectionType)
