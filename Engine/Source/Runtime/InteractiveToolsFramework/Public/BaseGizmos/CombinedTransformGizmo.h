@@ -35,7 +35,7 @@ class FTransformGizmoTransformChange;
  * The static factory method ::ConstructDefault3AxisGizmo() creates and initializes an 
  * Actor suitable for use in a standard 3-axis Transformation Gizmo.
  */
-UCLASS(Transient)
+UCLASS(Transient, NotPlaceable, Hidden, NotBlueprintable, NotBlueprintType)
 class INTERACTIVETOOLSFRAMEWORK_API ACombinedTransformGizmoActor : public AGizmoActor
 {
 	GENERATED_BODY()

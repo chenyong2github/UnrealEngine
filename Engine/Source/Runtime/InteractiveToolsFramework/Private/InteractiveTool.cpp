@@ -189,6 +189,11 @@ void UInteractiveToolPropertySet::SaveRestoreProperties(UInteractiveTool* Restor
 		// if this is the first time we have seen this property set, then we don't have any values to Restore
 		return;
 	}
+	if (PropertyCache == nullptr)
+	{
+		// if for whatever reason a valid PropertyCache could not be returned, just abort
+		return;
+	}
 	for ( FProperty* Prop : TFieldRange<FProperty>(GetClass()) )
 	{
 #if WITH_EDITOR
@@ -205,6 +210,35 @@ void UInteractiveToolPropertySet::SaveRestoreProperties(UInteractiveTool* Restor
 		}
 	}
 }
+
+
+TObjectPtr<UInteractiveToolPropertySet> UInteractiveToolPropertySet::GetDynamicPropertyCache(const FString& CacheIdentifier, bool& bWasCreatedOut)
+{
+	bWasCreatedOut = false;
+	UInteractiveToolPropertySet* CDO = GetMutableDefault<UInteractiveToolPropertySet>(GetClass());
+	TObjectPtr<UInteractiveToolPropertySet>* Found = CDO->CachedPropertiesMap.Find(CacheIdentifier);
+	if (Found == nullptr)
+	{
+		TObjectPtr<UInteractiveToolPropertySet> NewPropCache = NewObject<UInteractiveToolPropertySet>((UObject*)GetTransientPackage(), GetClass());
+		ensure(NewPropCache != nullptr);
+		CDO->CachedPropertiesMap.Add(CacheIdentifier, NewPropCache);
+		bWasCreatedOut = true;
+		return NewPropCache;
+	}
+
+	if ( ensure(*Found != nullptr) == false )
+	{
+		// this case seems to occur sometimes for Blueprintable Tools, uncertain why, but perhaps this ensure will help to find it
+		TObjectPtr<UInteractiveToolPropertySet> NewPropCache = NewObject<UInteractiveToolPropertySet>((UObject*)GetTransientPackage(), GetClass());
+		ensure(NewPropCache != nullptr);
+		CDO->CachedPropertiesMap[CacheIdentifier] = NewPropCache;
+		bWasCreatedOut = true;
+		return NewPropCache;
+	}
+
+	return *Found;
+}
+
 
 void UInteractiveTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 {

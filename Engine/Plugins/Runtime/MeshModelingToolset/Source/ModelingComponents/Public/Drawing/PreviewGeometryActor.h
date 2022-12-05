@@ -12,7 +12,7 @@
 /**
  * An actor suitable for attaching components used to draw preview elements, such as LineSetComponent and TriangleSetComponent.
  */
-UCLASS()
+UCLASS(Transient, NotPlaceable, Hidden, NotBlueprintable, NotBlueprintType)
 class MODELINGCOMPONENTS_API APreviewGeometryActor : public AInternalToolFrameworkActor
 {
 	GENERATED_BODY()

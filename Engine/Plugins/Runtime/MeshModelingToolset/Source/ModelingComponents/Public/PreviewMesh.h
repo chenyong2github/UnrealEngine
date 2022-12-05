@@ -22,7 +22,7 @@ PREDECLARE_GEOMETRY(template<typename RealType> class TMeshTangents);
  * We use this AInternalToolFrameworkActor subclass so that we can identify such objects
  * at higher levels (for example to prevent them from being deleted in the Editor)
  */
-UCLASS()
+UCLASS(Transient, NotPlaceable, Hidden, NotBlueprintable, NotBlueprintType)
 class MODELINGCOMPONENTS_API APreviewMeshActor : public AInternalToolFrameworkActor
 {
 	GENERATED_BODY()

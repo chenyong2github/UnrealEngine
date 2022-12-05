@@ -39,7 +39,8 @@ class UInteractiveToolManager;
 struct FPropertyChangedEvent;
 
 /** Passed to UInteractiveTool::Shutdown to indicate how Tool should shut itself down*/
-enum class EToolShutdownType
+UENUM(BlueprintType)
+enum class EToolShutdownType : uint8
 {
 	/** Tool cleans up and exits. Pass this to tools that do not have Accept/Cancel options. */
 	Completed = 0,
@@ -299,20 +300,7 @@ protected:
 	 * @param bWasCreatedOut true is returned here if this is the first time the object was seen
 	 * @return instance of the current subclass that can be used to save/restore values
 	 */
-	TObjectPtr<UInteractiveToolPropertySet> GetDynamicPropertyCache(const FString& CacheIdentifier, bool& bWasCreatedOut)
-	{
-		bWasCreatedOut = false;
-		UInteractiveToolPropertySet* CDO = GetMutableDefault<UInteractiveToolPropertySet>(GetClass());
-		TObjectPtr<UInteractiveToolPropertySet>* Found = CDO->CachedPropertiesMap.Find(CacheIdentifier);
-		if (Found == nullptr)
-		{
-			TObjectPtr<UInteractiveToolPropertySet> NewPropCache = NewObject<UInteractiveToolPropertySet>((UObject*)GetTransientPackage(), GetClass());
-			CDO->CachedPropertiesMap.Add(CacheIdentifier, NewPropCache);
-			bWasCreatedOut = true;
-			return NewPropCache;
-		}
-		return *Found;
-	}
+	TObjectPtr<UInteractiveToolPropertySet> GetDynamicPropertyCache(const FString& CacheIdentifier, bool& bWasCreatedOut);
 
 public:
 #if WITH_EDITOR
@@ -325,11 +313,11 @@ public:
 #endif
 
 protected:
-	UPROPERTY()
+	UPROPERTY(Transient, DuplicateTransient, NonTransactional, SkipSerialization)
 	TMap<FString, TObjectPtr<UInteractiveToolPropertySet>> CachedPropertiesMap;
 
 	// Controls whether a property set is shown in the UI.  Transient so that disabling a PropertySet in one tool doesn't disable it in others.
-	UPROPERTY(meta=(TransientToolProperty))
+	UPROPERTY(Transient, DuplicateTransient, SkipSerialization, meta=(TransientToolProperty))
 	bool bIsPropertySetEnabled = true;
 
 	friend class UInteractiveTool;	// so that tool can enable/disable
@@ -484,11 +472,11 @@ public:
 protected:
 
 	/** The current set of InputBehaviors provided by this Tool */
-	UPROPERTY()
+	UPROPERTY(Transient, DuplicateTransient, NonTransactional, SkipSerialization)
 	TObjectPtr<UInputBehaviorSet> InputBehaviors;
 
 	/** The current set of Property UObjects provided by this Tool. May contain pointer to itself. */
-	UPROPERTY()
+	UPROPERTY(Transient, DuplicateTransient, NonTransactional, SkipSerialization)
 	TArray<TObjectPtr<UObject>> ToolPropertyObjects;
 
 	/**
@@ -551,6 +539,16 @@ protected:
 	virtual void UpdateAcceptWarnings(EAcceptWarning Warning);
 
 
+
+protected:
+	/**
+	 * Allow the Tool to do any necessary processing on Tick
+	 * @param DeltaTime the time delta since last tick
+	 */
+	virtual void OnTick(float DeltaTime){};
+
+
+
 	//
 	// Action support/system
 	//
@@ -558,14 +556,6 @@ protected:
 	// by overloading RegisterActions(). Then external systems can use GetActionSet() to
 	// find out what Actions your Tool supports, and ExecuteAction() to run those actions.
 	//
-
-private:
-	/**
-	 * Allow the Tool to do any necessary processing on Tick
-	 * @param DeltaTime the time delta since last tick
-	 */
-	virtual void OnTick(float DeltaTime){};
-
 public:
 	/**
 	 * Get the internal Action Set for this Tool. The action set is created and registered on-demand.

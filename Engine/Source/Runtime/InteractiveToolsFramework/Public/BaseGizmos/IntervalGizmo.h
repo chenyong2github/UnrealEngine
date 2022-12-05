@@ -23,7 +23,7 @@ class UGizmoViewContext;
 
 
 /**
- *  AIntervalGizmoActor is an Actor type intended to be used with UIntervalGizmo,
+ * AIntervalGizmoActor is an Actor type intended to be used with UIntervalGizmo,
  * as the in-scene visual representation of the Gizmo.
  *
  * FIntervalGizmoActorFactory returns an instance of this Actor type (or a subclass).
@@ -31,7 +31,7 @@ class UGizmoViewContext;
  * If a particular sub-Gizmo is not required, simply set that UProperty to null.
 
  */
-UCLASS(Transient)
+UCLASS(Transient, NotPlaceable, Hidden, NotBlueprintable, NotBlueprintType)
 class INTERACTIVETOOLSFRAMEWORK_API AIntervalGizmoActor : public AGizmoActor
 {
 	GENERATED_BODY()

@@ -17,7 +17,6 @@ class UEdMode;
 class IDetailsView;
 struct FDetailsViewArgs;
 class FAssetEditorModeUILayer;
-enum class EToolShutdownType;
 class SBorder;
 
 /**

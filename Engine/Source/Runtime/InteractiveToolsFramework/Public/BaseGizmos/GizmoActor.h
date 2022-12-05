@@ -19,7 +19,7 @@ class UGizmoViewContext;
  * Currently this does not involve any special functionality, but a set of static functions
  * are provided to create default Components commonly used in Gizmos.
  */
-UCLASS(Transient)
+UCLASS(Transient, NotPlaceable, Hidden, NotBlueprintable, NotBlueprintType)
 class INTERACTIVETOOLSFRAMEWORK_API AGizmoActor : public AInternalToolFrameworkActor
 {
 	GENERATED_BODY()
