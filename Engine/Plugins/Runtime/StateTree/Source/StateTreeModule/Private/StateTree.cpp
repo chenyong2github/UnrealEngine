@@ -220,10 +220,34 @@ bool UStateTree::Link()
 			UE_LOG(LogStateTree, Error, TEXT("%s: StartTree does not have instance data. Please recompile the StateTree asset."), *GetName());
 			return false;
 		}
-		
+
 		// Update property bag structs before resolving binding.
 		const TArrayView<FStateTreeBindableStructDesc> SourceStructs = PropertyBindings.GetSourceStructs();
 		const TArrayView<FStateTreePropCopyBatch> CopyBatches = PropertyBindings.GetCopyBatches();
+
+		
+		// Reconcile out of date classes.
+		for (FStateTreeBindableStructDesc& SourceStruct : SourceStructs)
+		{
+			if (const UClass* SourceClass = Cast<UClass>(SourceStruct.Struct))
+			{
+				if (SourceClass->HasAnyClassFlags(CLASS_NewerVersionExists))
+				{
+					SourceStruct.Struct = SourceClass->GetAuthoritativeClass();
+				}
+			}
+		}
+		for (FStateTreePropCopyBatch& CopyBatch : CopyBatches)
+		{
+			if (const UClass* TargetClass = Cast<UClass>(CopyBatch.TargetStruct.Struct))
+			{
+				if (TargetClass->HasAnyClassFlags(CLASS_NewerVersionExists))
+				{
+					CopyBatch.TargetStruct.Struct = TargetClass->GetAuthoritativeClass();
+				}
+			}
+		}
+
 
 		if (ParametersDataViewIndex.IsValid() && SourceStructs.IsValidIndex(ParametersDataViewIndex.Get()))
 		{

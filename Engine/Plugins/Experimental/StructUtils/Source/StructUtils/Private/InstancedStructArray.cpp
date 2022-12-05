@@ -539,6 +539,27 @@ bool FInstancedStructArray::Serialize(FArchive& Ar)
 				Ar.Seek(FinalOffset);	// Reset archive to its position
 			}
 		}
+		else if (Ar.IsCountingMemory() || Ar.IsModifyingWeakAndStrongReferences())
+		{
+			// Report item types
+			for (int32 Index = 0; Index < NumItems; Index++)
+			{
+				const FItem& Item = GetItem(Index);
+				UScriptStruct* NonConstStruct = const_cast<UScriptStruct*>(Item.ScriptStruct);
+				Ar << NonConstStruct;
+			}
+
+			// Report item values
+			for (int32 Index = 0; Index < NumItemsSerialized; Index++)
+			{
+				const FItem& Item = GetItem(Index);
+				UScriptStruct* NonConstStruct = const_cast<UScriptStruct*>(Item.ScriptStruct);
+				if (NonConstStruct != nullptr)
+				{
+					NonConstStruct->SerializeItem(Ar, Memory + Item.Offset, /* Defaults */ nullptr);
+				}
+			}
+		}
 	}
 
 	return true;

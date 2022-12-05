@@ -220,6 +220,17 @@ bool FInstancedStruct::Serialize(FArchive& Ar)
 		Ar << SerialSize;
 		Ar.Seek(FinalOffset);	// Reset archive to its position
 	}
+	else if (Ar.IsCountingMemory() || Ar.IsModifyingWeakAndStrongReferences())
+	{
+		// Report type
+		Ar << NonConstStruct;
+	
+		// Report value
+		if (NonConstStruct != nullptr && ensureMsgf(GetMutableMemory() != nullptr, TEXT("A valid script struct should always have allocated memory")))
+		{
+			NonConstStruct->SerializeItem(Ar, GetMutableMemory(), /* Defaults */ nullptr);
+		}
+	}
 
 	return true;
 }

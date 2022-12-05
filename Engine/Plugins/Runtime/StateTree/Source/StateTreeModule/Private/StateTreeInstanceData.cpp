@@ -2,8 +2,43 @@
 
 #include "StateTreeInstanceData.h"
 #include "UObject/UnrealType.h"
+#include "StateTreeTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeInstanceData)
+
+namespace UE::StateTree
+{
+
+	/**
+	 * Duplicates object, and tries to covert old BP classes (REINST_*) to their newer version.
+	 */
+	UObject* DuplicateNodeInstance(const UObject& Instance, UObject& InOwner)
+	{
+		const UClass* InstanceClass = Instance.GetClass();
+		if (InstanceClass->HasAnyClassFlags(CLASS_NewerVersionExists))
+		{
+			const UClass* AuthoritativeClass = InstanceClass->GetAuthoritativeClass();
+			UObject* NewInstance = NewObject<UObject>(&InOwner, AuthoritativeClass);
+
+			// Try to copy the values over using serialization
+			TArray<uint8> Data;
+			FMemoryWriter Writer(Data);
+			UObject& NonConstInstance = const_cast<UObject&>(Instance);
+			NonConstInstance.Serialize(Writer);
+
+			FMemoryReader Reader(Data);
+			NewInstance->Serialize(Reader);
+				
+			UE_LOG(LogStateTree, Warning, TEXT("FStateTreeInstanceData: Duplicating '%s' with old class '%s' as '%s', potential data loss."),
+				*GetFullNameSafe(&Instance), *GetNameSafe(InstanceClass), *GetNameSafe(AuthoritativeClass));
+
+			return NewInstance;
+		}
+
+		return DuplicateObject(&Instance, &InOwner);
+	}
+
+} // UE::StateTree
 
 //----------------------------------------------------------------//
 //  FStateTreeInstanceData
@@ -195,8 +230,7 @@ void FStateTreeInstanceData::CopyFrom(UObject& InOwner, const FStateTreeInstance
 	{
 		if (ensure(Instance != nullptr))
 		{
-			ensure(Instance->GetClass()->HasAnyClassFlags(CLASS_NewerVersionExists) == false);
-			Storage.InstanceObjects.Add(DuplicateObject(Instance, &InOwner));
+			Storage.InstanceObjects.Add(UE::StateTree::DuplicateNodeInstance(*Instance, InOwner));
 		}
 	}
 }
@@ -224,8 +258,7 @@ void FStateTreeInstanceData::Append(UObject& InOwner, TConstArrayView<FInstanced
 	{
 		if (ensure(Instance != nullptr))
 		{
-			ensure(Instance->GetClass()->HasAnyClassFlags(CLASS_NewerVersionExists) == false);
-			Storage.InstanceObjects.Add(DuplicateObject(Instance, &InOwner));
+			Storage.InstanceObjects.Add(UE::StateTree::DuplicateNodeInstance(*Instance, InOwner));
 		}
 	}
 }
@@ -241,8 +274,7 @@ void FStateTreeInstanceData::Append(UObject& InOwner, TConstArrayView<FConstStru
 	{
 		if (ensure(Instance != nullptr))
 		{
-			ensure(Instance->GetClass()->HasAnyClassFlags(CLASS_NewerVersionExists) == false);
-			Storage.InstanceObjects.Add(DuplicateObject(Instance, &InOwner));
+			Storage.InstanceObjects.Add(UE::StateTree::DuplicateNodeInstance(*Instance, InOwner));
 		}
 	}
 }
@@ -271,4 +303,3 @@ void FStateTreeInstanceData::Reset()
 	Storage.InstanceObjects.Reset();
 	Storage.EventQueue.Reset();
 }
-
