@@ -279,7 +279,7 @@ UE::Core::FVersePath UObjectBaseUtility::GetVersePath() const
 		AlreadyLogged.Add(VerseModule, &bAlreadyInSet);
 		if (!bAlreadyInSet)
 		{
-			UE_LOG(LogCore, Warning, TEXT("Unable to make a VersePath from %s"), *GetPathName());
+			UE_LOG(LogCore, Display, TEXT("Unable to make a VersePath from %s"), *GetPathName());
 		}
 #endif
 	}

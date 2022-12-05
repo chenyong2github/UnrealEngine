@@ -4063,10 +4063,12 @@ namespace UnrealBuildTool
 			if (Rules.bUseVerse)
 			{
 				GlobalCompileEnvironment.Definitions.Add("WITH_VERSE=1");
+				GlobalCompileEnvironment.Definitions.Add("UE_USE_VERSE_PATHS=1");
 			}
 			else
 			{
 				GlobalCompileEnvironment.Definitions.Add("WITH_VERSE=0");
+				GlobalCompileEnvironment.Definitions.Add("UE_USE_VERSE_PATHS=0");
 			}
 
 			if (Rules.bCompileWithStatsWithoutEngine)

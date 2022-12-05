@@ -94,6 +94,4 @@ FORCEINLINE uint32 UE::Core::GetTypeHash(const FVersePath& VersePath)
 	return GetTypeHash(VersePath.PathString);
 }
 
-CORE_API FString UE::Core::MangleGuidToVerseIdent(const FString& Guid);
-
 #endif // #if UE_USE_VERSE_PATHS

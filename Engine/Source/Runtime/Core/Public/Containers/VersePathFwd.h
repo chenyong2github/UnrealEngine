@@ -25,7 +25,7 @@ namespace UE::Core
 
 	uint32 GetTypeHash(const FVersePath& VersePath);
 
-	FString MangleGuidToVerseIdent(const FString& Guid);
+	CORE_API FString MangleGuidToVerseIdent(const FString& Guid);
 }
 
 #endif // #if UE_USE_VERSE_PATHS
