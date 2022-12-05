@@ -22,14 +22,24 @@ namespace UE
 			FSdfPathImpl() = default;
 
 #if USE_USD_SDK
+
+#if ENABLE_USD_DEBUG_PATH
+			FString DebugPath;
+#endif
 			explicit FSdfPathImpl( const pxr::SdfPath& InSdfPath )
 				: PxrSdfPath( InSdfPath )
 			{
+#if ENABLE_USD_DEBUG_PATH
+				DebugPath = FString(ANSI_TO_TCHAR(PxrSdfPath.Get().GetString().c_str()));
+#endif
 			}
 
 			explicit FSdfPathImpl( pxr::SdfPath&& InSdfPath )
 				: PxrSdfPath( MoveTemp( InSdfPath ) )
 			{
+#if ENABLE_USD_DEBUG_PATH
+				DebugPath = FString(ANSI_TO_TCHAR(PxrSdfPath.Get().GetString().c_str()));
+#endif
 			}
 
 			TUsdStore< pxr::SdfPath > PxrSdfPath;

@@ -32,6 +32,7 @@ namespace UnrealBuildTool.Rules
 				PublicDependencyModuleNames.Add("Python3");
 
 				PublicDefinitions.Add("USE_USD_SDK=1");
+				PublicDefinitions.Add("ENABLE_USD_DEBUG_PATH=0");
 
 				var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
 				var PythonSourceTPSDir = Path.Combine(EngineDir, "Source", "ThirdParty", "Python3", Target.Platform.ToString());

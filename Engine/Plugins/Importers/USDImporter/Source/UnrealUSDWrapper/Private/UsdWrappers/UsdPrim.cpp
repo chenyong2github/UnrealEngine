@@ -30,14 +30,24 @@ namespace UE
 			FUsdPrimImpl() = default;
 
 #if USE_USD_SDK
+
+#if ENABLE_USD_DEBUG_PATH
+			FSdfPath DebugPath;
+#endif
 			explicit FUsdPrimImpl( const pxr::UsdPrim& InUsdPrim )
 				: PxrUsdPrim( InUsdPrim )
 			{
+#if ENABLE_USD_DEBUG_PATH
+				DebugPath = PxrUsdPrim.Get().GetPrimPath();
+#endif
 			}
 
 			explicit FUsdPrimImpl( pxr::UsdPrim&& InUsdPrim )
 				: PxrUsdPrim( MoveTemp( InUsdPrim ) )
 			{
+#if ENABLE_USD_DEBUG_PATH
+				DebugPath = PxrUsdPrim.Get().GetPrimPath();
+#endif
 			}
 
 			TUsdStore< pxr::UsdPrim > PxrUsdPrim;
