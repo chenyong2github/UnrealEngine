@@ -78,8 +78,15 @@ public:
 	/** Return the world added event. */
 	virtual FWorldPartitionCreated& OnWorldPartitionCreated() override { return WorldPartitionCreatedEvent; }
 
+	/** Return the commandlet pre-execution event */
+	virtual FOnPreExecuteCommandlet& OnPreExecuteCommandlet() override { return OnPreExecuteCommandletEvent; }
+
 	/** Return the commandlet execution event */
 	virtual FOnExecuteCommandlet& OnExecuteCommandlet() override { return OnExecuteCommandletEvent; }
+
+	/** Return the commandlet post-execution event */
+	virtual FOnPostExecuteCommandlet& OnPostExecuteCommandlet() override { return OnPostExecuteCommandletEvent; }
+
 
 	/**
 	 * Creates a Content Bundle Browser widget
@@ -133,5 +140,7 @@ private:
 
 	FWorldPartitionCreated WorldPartitionCreatedEvent;
 
+	FOnPreExecuteCommandlet OnPreExecuteCommandletEvent;
 	FOnExecuteCommandlet OnExecuteCommandletEvent;
+	FOnPostExecuteCommandlet OnPostExecuteCommandletEvent;
 };

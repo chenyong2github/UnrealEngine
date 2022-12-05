@@ -541,7 +541,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 			InstancingContext.AddPathMapping(
 				FSoftObjectPath(*FString::Format(TEXT("{0}.{1}"), {PackageName.ToString(), FPackageName::GetShortName(PackageName)})),
 				FSoftObjectPath(GetWorld())
-				);
+			);
 		}
 
 		ActorDescContainer = RegisterActorDescContainer(PackageName);
@@ -561,6 +561,11 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 				}
 
 				ActorDescIterator->bIsForcedNonSpatiallyLoaded = !IsStreamingEnabled();
+
+				if (ForceLoadedActors)
+				{
+					ForceLoadedActors->AddActors({ ActorDescIterator->GetGuid() });
+				}
 
 				if (bIsEditor && !bIsCooking)
 				{
@@ -755,6 +760,20 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 bool UWorldPartition::IsInitialized() const
 {
 	return InitState == EWorldPartitionInitState::Initialized;
+}
+
+void UWorldPartition::Update()
+{
+#if WITH_EDITOR
+	UWorld* OuterWorld = GetTypedOuter<UWorld>();
+	check(OuterWorld);
+	check(!OuterWorld->IsInstanced());
+
+	ForEachActorDescContainer([](UActorDescContainer* InActorDescContainer)
+	{
+		InActorDescContainer->Update();
+	});
+#endif
 }
 
 bool UWorldPartition::SupportsStreaming() const
@@ -1071,6 +1090,11 @@ void UWorldPartition::OnActorDescAdded(FWorldPartitionActorDesc* NewActorDesc)
 
 	HashActorDesc(NewActorDesc);
 
+	if (ForceLoadedActors)
+	{
+		ForceLoadedActors->AddActors({ NewActorDesc->GetGuid() });
+	}
+
 	if (WorldPartitionEditor)
 	{
 		WorldPartitionEditor->Refresh();
@@ -1080,6 +1104,11 @@ void UWorldPartition::OnActorDescAdded(FWorldPartitionActorDesc* NewActorDesc)
 void UWorldPartition::OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc)
 {	
 	UnhashActorDesc(ActorDesc);
+
+	if (ForceLoadedActors)
+	{
+		ForceLoadedActors->RemoveActors({ ActorDesc->GetGuid() });
+	}
 		
 	if (WorldPartitionEditor)
 	{
@@ -1186,11 +1215,6 @@ void UWorldPartition::HashActorDesc(FWorldPartitionActorDesc* ActorDesc)
 	EditorHash->HashActor(ActorHandle);
 
 	bShouldCheckEnableStreamingWarning = IsMainWorldPartition();
-
-	if (ForceLoadedActors)
-	{
-		ForceLoadedActors->AddActors({ ActorDesc->GetGuid() });
-	}
 }
 
 void UWorldPartition::UnhashActorDesc(FWorldPartitionActorDesc* ActorDesc)
@@ -1200,11 +1224,6 @@ void UWorldPartition::UnhashActorDesc(FWorldPartitionActorDesc* ActorDesc)
 
 	FWorldPartitionHandle ActorHandle(this, ActorDesc->GetGuid());
 	EditorHash->UnhashActor(ActorHandle);
-
-	if (ForceLoadedActors)
-	{
-		ForceLoadedActors->RemoveActors({ ActorDesc->GetGuid() });
-	}
 }
 #endif
 
@@ -1743,6 +1762,11 @@ bool UWorldPartition::UnregisterActorDescContainer(UActorDescContainer* InActorD
 		}
 
 		UnpinActors(ActorGuids);
+
+		if (ForceLoadedActors)
+		{
+			ForceLoadedActors->RemoveActors(ActorGuids);
+		}
 
 		OnActorDescContainerUnregistered.Broadcast(InActorDescContainer);
 

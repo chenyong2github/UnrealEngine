@@ -9,7 +9,6 @@
 #include "UObject/LinkerInstancingContext.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "WorldPartition/WorldPartition.h"
-#include "WorldPartition/WorldPartitionLog.h"
 #include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartition/WorldPartitionActorDescUtils.h"
 #include "UObject/ObjectSaveContext.h"
@@ -88,6 +87,73 @@ void UActorDescContainer::Initialize(const FInitializeParams& InitParams)
 	RegisterEditorDelegates();
 
 	bContainerInitialized = true;
+#endif
+}
+
+void UActorDescContainer::Update()
+{
+	check(World);
+
+#if WITH_EDITOR
+	check(bContainerInitialized);
+	TArray<FAssetData> Assets;
+
+	const FString ContainerExternalActorsPath = GetExternalActorPath();
+
+	// Do a synchronous scan of the level external actors path.			
+	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+	AssetRegistry.ScanPathsSynchronous({ ContainerExternalActorsPath }, /*bForceRescan*/false, /*bIgnoreDenyListScanFilters*/false);
+
+	FARFilter Filter;
+	Filter.bRecursivePaths = true;
+	Filter.bIncludeOnlyOnDiskAssets = true;
+	Filter.PackagePaths.Add(*ContainerExternalActorsPath);
+
+	AssetRegistry.GetAssets(Filter, Assets);
+
+	TSet<FGuid> ActorGuids;
+	for (const FAssetData& Asset : Assets)
+	{
+		TUniquePtr<FWorldPartitionActorDesc> NewActorDesc = FWorldPartitionActorDescUtils::GetActorDescriptorFromAssetData(Asset);
+
+		if (NewActorDesc.IsValid() && NewActorDesc->GetNativeClass().IsValid())
+		{
+			ActorGuids.Add(NewActorDesc->GetGuid());
+
+			if (TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = GetActorDescriptor(NewActorDesc->GetGuid()))
+			{
+				if (!NewActorDesc->Equals((*ExistingActorDesc).Get()))
+				{
+					OnActorDescUpdating(ExistingActorDesc->Get());
+					FWorldPartitionActorDescUtils::UpdateActorDescriptorFromActorDescriptor(NewActorDesc, *ExistingActorDesc);
+					OnActorDescUpdated(ExistingActorDesc->Get());
+				}
+			}
+			else
+			{
+				FWorldPartitionActorDesc* ActorDescPtr = NewActorDesc.Release();
+				AddActorDescriptor(ActorDescPtr);
+				OnActorDescAdded(ActorDescPtr);
+			}
+		}
+	}
+
+	TArray<FGuid> ActorDescsToRemove;
+	for (FActorDescList::TIterator<> ActorDescIt(this); ActorDescIt; ++ActorDescIt)
+	{
+		if (!ActorGuids.Contains(ActorDescIt->GetGuid()))
+		{
+			ActorDescsToRemove.Add(ActorDescIt->GetGuid());
+		}
+	}
+
+	for (const FGuid& ActorDescGuidToRemove : ActorDescsToRemove)
+	{
+		if (FWorldPartitionActorDesc* ActorDesc = GetActorDesc(ActorDescGuidToRemove))
+		{
+			RemoveActor(ActorDescGuidToRemove);
+		}
+	}
 #endif
 }
 
@@ -185,7 +251,7 @@ void UActorDescContainer::OnObjectPreSave(UObject* Object, FObjectPreSaveContext
 				{
 					// Existing actor
 					OnActorDescUpdating(ExistingActorDesc->Get());
-					FWorldPartitionActorDescUtils::UpdateActorDescriptorFomActor(Actor, *ExistingActorDesc);
+					FWorldPartitionActorDescUtils::UpdateActorDescriptorFromActor(Actor, *ExistingActorDesc);
 					OnActorDescUpdated(ExistingActorDesc->Get());
 				}
 				else

@@ -326,21 +326,24 @@ static bool UnloadCurrentMap(bool bAskSaveContentPackages, FString& MapPackageNa
 	return true;
 }
 
-static void RescanAssetsAndLoadMap(const FString& MapToLoad)
+static void RescanAssets(const FString& MapToScan)
 {
 	// Force a directory watcher tick for the asset registry to get notified of the changes
 	FDirectoryWatcherModule& DirectoryWatcherModule = FModuleManager::Get().LoadModuleChecked<FDirectoryWatcherModule>(TEXT("DirectoryWatcher"));
 	DirectoryWatcherModule.Get()->Tick(-1.0f);
 
-	// Force update before loading converted map
+	// Force update
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
 
-	TArray<FString> ExternalObjectsPaths = ULevel::GetExternalObjectsPaths(MapToLoad);
+	TArray<FString> ExternalObjectsPaths = ULevel::GetExternalObjectsPaths(MapToScan);
 
-	AssetRegistry.ScanModifiedAssetFiles({ MapToLoad });
+	AssetRegistry.ScanModifiedAssetFiles({ MapToScan });
 	AssetRegistry.ScanPathsSynchronous(ExternalObjectsPaths, true);
+}
 
+static void LoadMap(const FString& MapToLoad)
+{
 	FEditorFileUtils::LoadMap(MapToLoad);
 
 	UWorld* World = GEditor->GetEditorWorldContext().World();
@@ -505,7 +508,8 @@ bool FWorldPartitionEditorModule::ConvertMap(const FString& InLongPackageName)
 				MapToLoad += UWorldPartitionConvertCommandlet::GetConversionSuffix(DefaultConvertOptions->bOnlyMergeSubLevels);
 			}
 
-			RescanAssetsAndLoadMap(MapToLoad);
+			RescanAssets(MapToLoad);
+			LoadMap(MapToLoad);
 		}
 		else if (bCancelled)
 		{
@@ -593,8 +597,11 @@ bool FWorldPartitionEditorModule::BuildMinimap(const FRunBuilderParams& InParams
 
 bool FWorldPartitionEditorModule::Build(const FRunBuilderParams& InParams)
 {
-	FString MapPackage = InParams.World->GetPackage()->GetName();
-	if (!UnloadCurrentMap(/*bAskSaveContentPackages=*/true, MapPackage))
+	FRunBuilderParams ParamsCopy(InParams);
+	OnPreExecuteCommandletEvent.Broadcast(ParamsCopy);
+
+	FString MapPackage = ParamsCopy.World->GetPackage()->GetName();
+	if (ParamsCopy.bUnloadMap && !UnloadCurrentMap(/*bAskSaveContentPackages=*/true, MapPackage))
 	{
 		return false;
 	}
@@ -605,15 +612,15 @@ bool FWorldPartitionEditorModule::Build(const FRunBuilderParams& InParams)
 	TStringBuilder<512> CommandletArgsBuilder;
 	CommandletArgsBuilder.Append(MapPackage);
 	CommandletArgsBuilder.Append(" -run=WorldPartitionBuilderCommandlet -Builder=");
-	CommandletArgsBuilder.Append(InParams.BuilderClass->GetName());
+	CommandletArgsBuilder.Append(ParamsCopy.BuilderClass->GetName());
 		
-	if (!InParams.ExtraArgs.IsEmpty())
+	if (!ParamsCopy.ExtraArgs.IsEmpty())
 	{
 		CommandletArgsBuilder.Append(" ");
-		CommandletArgsBuilder.Append(InParams.ExtraArgs);
+		CommandletArgsBuilder.Append(ParamsCopy.ExtraArgs);
 	}
 
-	const FText OperationDescription = InParams.OperationDescription.IsEmptyOrWhitespace() ? LOCTEXT("BuildProgress", "Building...") : InParams.OperationDescription;
+	const FText OperationDescription = ParamsCopy.OperationDescription.IsEmptyOrWhitespace() ? LOCTEXT("BuildProgress", "Building...") : ParamsCopy.OperationDescription;
 
 	int32 Result;
 	bool bCancelled;
@@ -622,8 +629,19 @@ bool FWorldPartitionEditorModule::Build(const FRunBuilderParams& InParams)
 	FString CommandletArgs(CommandletArgsBuilder.ToString());
 	RunCommandletAsExternalProcess(CommandletArgs, OperationDescription, Result, bCancelled, CommandletOutput);
 
-	// Reload map
-	RescanAssetsAndLoadMap(MapPackage);
+	RescanAssets(MapPackage);
+
+	if (ParamsCopy.bUnloadMap)
+	{
+		LoadMap(MapPackage);
+	}
+	else
+	{
+		if (UWorldPartition* WorldPartition = ParamsCopy.World->GetWorldPartition())
+		{
+			WorldPartition->Update();
+		}
+	}
 
 	if (bCancelled)
 	{
@@ -634,8 +652,9 @@ bool FWorldPartitionEditorModule::Build(const FRunBuilderParams& InParams)
 		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("BuildFailed", "Build failed! See log for details."));
 	}
 
-	const bool bSuccess = !bCancelled && Result == 0;
-	return bSuccess;
+	OnPostExecuteCommandletEvent.Broadcast();
+
+	return !bCancelled && Result == 0;
 }
 
 bool FWorldPartitionEditorModule::BuildLandscapeSplineMeshes(UWorld* InWorld)

@@ -240,6 +240,7 @@ public:
 
 	void Initialize(UWorld* World, const FTransform& InTransform);
 	bool IsInitialized() const;
+	void Update();
 	void Uninitialize();
 
 	bool SupportsStreaming() const;

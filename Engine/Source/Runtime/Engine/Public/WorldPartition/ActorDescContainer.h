@@ -44,6 +44,7 @@ public:
 	UE_DEPRECATED(5.1, "UActorDescContainer::Initialize is deprecated, UActorDescContainer::Initialize with UActorDescContainer::FInitializeParams should be used instead.")
 	void Initialize(UWorld* World, FName InPackageName);
 	void Initialize(const FInitializeParams& InitParams);
+	void Update();
 	void Uninitialize();
 	
 	virtual UWorld* GetWorld() const override;

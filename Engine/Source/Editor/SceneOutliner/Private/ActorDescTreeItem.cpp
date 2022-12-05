@@ -353,7 +353,7 @@ bool FActorDescTreeItem::ShouldShowPinnedState() const
 
 bool FActorDescTreeItem::GetPinnedState() const
 {
-	if (ActorDescHandle.IsValid())
+	if (ActorDescHandle.IsValid() && ActorDescHandle->GetContainer())
 	{
 		UWorldPartition* WorldPartition = ActorDescHandle->GetContainer()->GetWorld()->GetWorldPartition();
 		return WorldPartition ? WorldPartition->IsActorPinned(GetGuid()) : false;

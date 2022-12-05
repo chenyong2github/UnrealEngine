@@ -130,11 +130,16 @@ void FWorldPartitionActorDescUtils::AppendAssetDataTagsFromActor(const AActor* I
 	OutTags.Add(UObject::FAssetRegistryTag(NAME_ActorMetaData, ActorMetaData, UObject::FAssetRegistryTag::TT_Hidden));
 }
 
-void FWorldPartitionActorDescUtils::UpdateActorDescriptorFomActor(const AActor* InActor, TUniquePtr<FWorldPartitionActorDesc>& ActorDesc)
+void FWorldPartitionActorDescUtils::UpdateActorDescriptorFromActor(const AActor* InActor, TUniquePtr<FWorldPartitionActorDesc>& OutActorDesc)
 {
 	TUniquePtr<FWorldPartitionActorDesc> NewActorDesc(InActor->CreateActorDesc());
-	NewActorDesc->TransferFrom(ActorDesc.Get());
-	ActorDesc = MoveTemp(NewActorDesc);
+	UpdateActorDescriptorFromActorDescriptor(NewActorDesc, OutActorDesc);
+}
+
+void FWorldPartitionActorDescUtils::UpdateActorDescriptorFromActorDescriptor(TUniquePtr<FWorldPartitionActorDesc>& InActorDesc, TUniquePtr<FWorldPartitionActorDesc>& OutActorDesc)
+{
+	InActorDesc->TransferFrom(OutActorDesc.Get());
+	OutActorDesc = MoveTemp(InActorDesc);
 }
 
 void FWorldPartitionActorDescUtils::ReplaceActorDescriptorPointerFromActor(const AActor* InOldActor, AActor* InNewActor, FWorldPartitionActorDesc* InActorDesc)
