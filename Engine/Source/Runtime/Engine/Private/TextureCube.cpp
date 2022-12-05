@@ -457,6 +457,7 @@ public:
 		TextureCubeRHI = RHICreateTexture(Desc);
 
 		TextureRHI = TextureCubeRHI;
+		TextureRHI->SetOwnerName(GetOwnerName());
 		TextureRHI->SetName(Owner->GetFName());
 		RHIBindDebugLabelName(TextureRHI, *Name);
 		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI,TextureRHI);

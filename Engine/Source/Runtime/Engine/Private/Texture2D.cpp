@@ -1358,6 +1358,8 @@ void FVirtualTexture2DResource::InitRHI()
 #if WITH_EDITOR
 	InitializeEditorResources(VirtualTexture);
 #endif
+
+	TextureRHI->SetOwnerName(GetOwnerName());
 }
 
 #if WITH_EDITOR

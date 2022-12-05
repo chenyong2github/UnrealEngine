@@ -190,6 +190,7 @@ void FStreamableTextureResource::InitRHI()
 	// Update mip-level fading.
 	MipBiasFade.SetNewMipCount( State.NumRequestedLODs, State.NumRequestedLODs, LastRenderTime, MipFadeSetting );
 
+	TextureRHI->SetOwnerName(GetOwnerName());
 	TextureRHI->SetName(TextureName);
 	RHIBindDebugLabelName(TextureRHI, *TextureName.ToString());
 
@@ -230,6 +231,7 @@ void FStreamableTextureResource::FinalizeStreaming(FRHITexture* InTextureRHI)
 	}
 
 	TextureRHI = InTextureRHI;
+	TextureRHI->SetOwnerName(GetOwnerName());
 	if (ensure(TextureReferenceRHI.IsValid()))
 	{
 		RHIUpdateTextureReference(TextureReferenceRHI, TextureRHI);

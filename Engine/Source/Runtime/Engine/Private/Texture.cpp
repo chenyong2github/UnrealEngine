@@ -345,6 +345,8 @@ void UTexture::UpdateResource()
 			{
 				NewResource->SetTextureReference(TextureReference.TextureReferenceRHI);
 			});
+
+			NewResource->SetOwnerName(FName(GetPathName()));
 			BeginInitResource(NewResource);
 			// Now that the resource is ready for streaming, bind it to the streamer.
 			LinkStreaming();
