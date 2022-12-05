@@ -34,6 +34,10 @@ namespace Horde.Agent.Commands.Workspace
 		[CommandLine("-PreferNativeClient")]
 		[Description("Prefer to use native Perforce client (instead of launching separate p4 process)")]
 		protected bool PreferNativeClient { get; set; } = false;
+		
+		[CommandLine("-UseHaveTable")]
+		[Description("Use have-table for syncing")]
+		string UseHaveTable { get; set; } = "true";
 
 		public override void Configure(CommandLineArguments arguments, ILogger logger)
 		{
@@ -62,10 +66,11 @@ namespace Horde.Agent.Commands.Workspace
 			PerforceSettings settings = new(ServerAndPort, UserName) { PreferNativeClient = PreferNativeClient };
 			using IPerforceConnection perforce = await PerforceConnection.CreateAsync(settings, logger);
 			InfoRecord info = await perforce.GetInfoAsync(InfoOptions.ShortOutput, CancellationToken.None);
+			bool useHaveTable = UseHaveTable.Equals("true", StringComparison.Ordinal);
 
 			using Logging.HordeLoggerProvider loggerProvider = new ();
 			ILogger repoLogger = loggerProvider.CreateLogger("Repository");
-			ManagedWorkspace repo = await ManagedWorkspace.LoadOrCreateAsync(info.ClientHost!, BaseDir, Overwrite, repoLogger, CancellationToken.None);
+			ManagedWorkspace repo = await ManagedWorkspace.LoadOrCreateAsync(info.ClientHost!, BaseDir, Overwrite, useHaveTable, repoLogger, CancellationToken.None);
 			await ExecuteAsync(perforce, repo, logger);
 			return 0;
 		}

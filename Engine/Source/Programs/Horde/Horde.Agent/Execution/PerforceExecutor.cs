@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -9,6 +10,7 @@ using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Web;
 using EpicGames.Core;
 using EpicGames.Perforce;
 using EpicGames.Perforce.Managed;
@@ -34,7 +36,6 @@ namespace Horde.Agent.Execution
 
 		protected WorkspaceInfo? _autoSdkWorkspace;
 		protected WorkspaceInfo _workspace;
-		private bool _useHaveTable = true;
 
 		public PerforceExecutor(ISession session, string jobId, string batchId, string agentTypeName, AgentWorkspace? autoSdkWorkspaceInfo, AgentWorkspace workspaceInfo, DirectoryReference rootDir, IHttpClientFactory httpClientFactory)
 			: base(session, jobId, batchId, agentTypeName, httpClientFactory)
@@ -49,57 +50,50 @@ namespace Horde.Agent.Execution
 		public override async Task InitializeAsync(ILogger logger, CancellationToken cancellationToken)
 		{
 			await base.InitializeAsync(logger, cancellationToken);
-			
-			int index = _additionalArguments.FindIndex(x => x.Contains("-SyncWithoutHaveTable", StringComparison.OrdinalIgnoreCase));
-			if (index >= 0)
-			{
-				logger.LogInformation("Syncing without have table");
-				_additionalArguments.RemoveAt(index);
-				_useHaveTable = false;
-			}
 
-			// Setup and sync the autosdk workspace
+			// Setup and sync the AutoSDK workspace
 			if (_autoSdkWorkspaceInfo != null)
 			{
-				using (IScope scope = GlobalTracer.Instance.BuildSpan("Workspace").WithResourceName("AutoSDK").StartActive())
+				using IScope _ = GlobalTracer.Instance.BuildSpan("Workspace").WithResourceName("AutoSDK").StartActive();
+				
+				bool useHaveTable = ShouldUseHaveTable(_autoSdkWorkspaceInfo.Method);
+				_autoSdkWorkspace = await Utility.WorkspaceInfo.SetupWorkspaceAsync(_autoSdkWorkspaceInfo, _rootDir, useHaveTable, logger, cancellationToken);
+
+				DirectoryReference legacyDir = DirectoryReference.Combine(_autoSdkWorkspace.MetadataDir, "HostWin64");
+				if (DirectoryReference.Exists(legacyDir))
 				{
-					_autoSdkWorkspace = await Utility.WorkspaceInfo.SetupWorkspaceAsync(_autoSdkWorkspaceInfo, _rootDir, logger, cancellationToken);
-
-					DirectoryReference legacyDir = DirectoryReference.Combine(_autoSdkWorkspace.MetadataDir, "HostWin64");
-					if (DirectoryReference.Exists(legacyDir))
+					try
 					{
-						try
-						{
-							FileUtils.ForceDeleteDirectory(legacyDir);
-						}
-						catch(Exception ex)
-						{
-							logger.LogInformation(ex, "Unable to delete {Dir}", legacyDir);
-						}
+						FileUtils.ForceDeleteDirectory(legacyDir);
 					}
-
-					int autoSdkChangeNumber = await _autoSdkWorkspace.GetLatestChangeAsync(cancellationToken);
-
-					string syncText = $"Synced to CL {autoSdkChangeNumber}";
-
-					FileReference syncFile = FileReference.Combine(_autoSdkWorkspace.MetadataDir, "Synced.txt");
-					if (!FileReference.Exists(syncFile) || FileReference.ReadAllText(syncFile) != syncText)
+					catch(Exception ex)
 					{
-						FileReference.Delete(syncFile);
-
-						FileReference autoSdkCacheFile = FileReference.Combine(_autoSdkWorkspace.MetadataDir, "Contents.dat");
-						await WorkspaceInfo.UpdateLocalCacheMarker(autoSdkCacheFile, autoSdkChangeNumber, -1);
-						await _autoSdkWorkspace.SyncAsync(autoSdkChangeNumber, -1, autoSdkCacheFile, true, cancellationToken);
-
-						await FileReference.WriteAllTextAsync(syncFile, syncText);
+						logger.LogInformation(ex, "Unable to delete {Dir}", legacyDir);
 					}
+				}
+
+				int autoSdkChangeNumber = await _autoSdkWorkspace.GetLatestChangeAsync(cancellationToken);
+
+				string syncText = $"Synced to CL {autoSdkChangeNumber}";
+
+				FileReference syncFile = FileReference.Combine(_autoSdkWorkspace.MetadataDir, "Synced.txt");
+				if (!FileReference.Exists(syncFile) || FileReference.ReadAllText(syncFile) != syncText)
+				{
+					FileReference.Delete(syncFile);
+
+					FileReference autoSdkCacheFile = FileReference.Combine(_autoSdkWorkspace.MetadataDir, "Contents.dat");
+					await WorkspaceInfo.UpdateLocalCacheMarker(autoSdkCacheFile, autoSdkChangeNumber, -1);
+					await _autoSdkWorkspace.SyncAsync(autoSdkChangeNumber, -1, autoSdkCacheFile, cancellationToken);
+
+					await FileReference.WriteAllTextAsync(syncFile, syncText);
 				}
 			}
 
 			using (IScope scope = GlobalTracer.Instance.BuildSpan("Workspace").WithResourceName(_workspaceInfo.Identifier).StartActive())
 			{
 				// Sync the regular workspace
-				_workspace = await Utility.WorkspaceInfo.SetupWorkspaceAsync(_workspaceInfo, _rootDir, logger, cancellationToken);
+				bool useHaveTable = ShouldUseHaveTable(_workspaceInfo.Method);
+				_workspace = await Utility.WorkspaceInfo.SetupWorkspaceAsync(_workspaceInfo, _rootDir, useHaveTable, logger, cancellationToken);
 
 				// Figure out the change to build
 				if (_job.Change == 0)
@@ -115,7 +109,7 @@ namespace Horde.Agent.Execution
 
 				// Sync the workspace
 				int syncPreflightChange = (_job.ClonedPreflightChange != 0) ? _job.ClonedPreflightChange : _job.PreflightChange;
-				await _workspace.SyncAsync(_job.Change, syncPreflightChange, null, _useHaveTable, cancellationToken);
+				await _workspace.SyncAsync(_job.Change, syncPreflightChange, null, cancellationToken);
 
 				// Remove any cached BuildGraph manifests
 				DirectoryReference manifestDir = DirectoryReference.Combine(_workspace.WorkspaceDir, "Engine", "Saved", "BuildGraph");
@@ -233,7 +227,7 @@ namespace Horde.Agent.Execution
 			await _workspace.CleanAsync(cancellationToken);
 		}
 
-		public static async Task ConformAsync(DirectoryReference rootDir, IList<AgentWorkspace> pendingWorkspaces, bool removeUntrackedFiles, bool useHaveTable, ILogger logger, CancellationToken cancellationToken)
+		public static async Task ConformAsync(DirectoryReference rootDir, IList<AgentWorkspace> pendingWorkspaces, bool removeUntrackedFiles, ILogger logger, CancellationToken cancellationToken)
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("Conform").StartActive();
 			scope.Span.SetTag("workspaces", String.Join(',', pendingWorkspaces.Select(x => x.Identifier)));
@@ -249,7 +243,8 @@ namespace Horde.Agent.Execution
 			List<WorkspaceInfo> workspaces = new List<WorkspaceInfo>();
 			foreach (AgentWorkspace pendingWorkspace in pendingWorkspaces)
 			{
-				WorkspaceInfo workspace = await Utility.WorkspaceInfo.SetupWorkspaceAsync(pendingWorkspace, rootDir, logger, cancellationToken);
+				bool useHaveTable = ShouldUseHaveTable(pendingWorkspace.Method);
+				WorkspaceInfo workspace = await Utility.WorkspaceInfo.SetupWorkspaceAsync(pendingWorkspace, rootDir, useHaveTable, logger, cancellationToken);
 				workspaces.Add(workspace);
 			}
 
@@ -383,13 +378,13 @@ namespace Horde.Agent.Execution
 					if (populateRequests.Count == 1 && !firstWorkspace.RemoveUntrackedFiles && !removeUntrackedFiles)
 					{
 						await firstWorkspace.CleanAsync(cancellationToken);
-						syncFuncs.Add(() => firstWorkspace.SyncAsync(-1, -1, null, useHaveTable, cancellationToken));
+						syncFuncs.Add(() => firstWorkspace.SyncAsync(-1, -1, null, cancellationToken));
 					}
 					else
 					{
 						ManagedWorkspace repository = firstWorkspace.Repository;
-						Tuple<int, StreamSnapshot>[] streamStates = await repository.PopulateCleanAsync(populateRequests, useHaveTable, cancellationToken);
-						syncFuncs.Add(() => repository.PopulateSyncAsync(populateRequests, streamStates, false, useHaveTable, cancellationToken));
+						Tuple<int, StreamSnapshot>[] streamStates = await repository.PopulateCleanAsync(populateRequests, cancellationToken);
+						syncFuncs.Add(() => repository.PopulateSyncAsync(populateRequests, streamStates, false, cancellationToken));
 					}
 				}
 				foreach (Func<Task> syncFunc in syncFuncs)
@@ -404,6 +399,37 @@ namespace Horde.Agent.Execution
 					perforceConnection.Dispose();
 				}
 			}
+		}
+
+		/// <summary>
+		/// Parse a text string as a query string to determine use of have table
+		/// </summary>
+		/// <param name="method">Method text string from workspace config</param>
+		/// <returns>True if have table should be enabled</returns>
+		public static bool ShouldUseHaveTable(string? method)
+		{
+			const string NameKey = "name";
+			const string ManagedWorkspaceValue = "managedWorkspace";
+			const string UseHaveTableKey = "useHaveTable";
+			
+			if (method == null)
+			{
+				return true;
+			}
+
+			NameValueCollection nameValues = HttpUtility.ParseQueryString(method);
+			string? name = nameValues[NameKey];
+			string? useHaveTable = nameValues[UseHaveTableKey];
+			
+			if (name != null && name.Equals(ManagedWorkspaceValue, StringComparison.OrdinalIgnoreCase))
+			{
+				if (useHaveTable != null && useHaveTable.Equals("false", StringComparison.OrdinalIgnoreCase))
+				{
+					return false;
+				}
+			}
+
+			return true;
 		}
 	}
 

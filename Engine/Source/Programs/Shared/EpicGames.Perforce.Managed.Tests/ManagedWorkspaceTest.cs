@@ -32,10 +32,10 @@ public class ManagedWorkspaceTest : BasePerforceFixtureTest
 	[DataRow(false, DisplayName = "Without have-table")]
 	public async Task SyncSingleChangelist(bool useHaveTable)
 	{
-		ManagedWorkspace ws = await GetManagedWorkspace();
+		ManagedWorkspace ws = await GetManagedWorkspace(useHaveTable);
 		await AssertHaveTableFileCount(0);
 
-		await SyncAsync(ws, 6, useHaveTable);
+		await SyncAsync(ws, 6);
 		Stream.GetChangelist(6).AssertDepotFiles(SyncDir);
 		await Stream.GetChangelist(6).AssertHaveTableAsync(PerforceConnection, useHaveTable);
 	}
@@ -43,7 +43,7 @@ public class ManagedWorkspaceTest : BasePerforceFixtureTest
 	[TestMethod]
 	public async Task SyncBackwardsToOlderChangelistRemoveUntracked()
 	{
-		ManagedWorkspace ws = await GetManagedWorkspace();
+		ManagedWorkspace ws = await GetManagedWorkspace(true);
 
 		await SyncAsync(ws, 6, removeUntracked: false);
 		Stream.GetChangelist(6).AssertDepotFiles(SyncDir);
@@ -63,38 +63,20 @@ public class ManagedWorkspaceTest : BasePerforceFixtureTest
 	[DataRow(false, DisplayName = "Without have-table")]
 	public async Task SyncBackwardsToOlderChangelist(bool useHaveTable)
 	{
-		ManagedWorkspace ws = await GetManagedWorkspace();
+		ManagedWorkspace ws = await GetManagedWorkspace(useHaveTable);
 
-		await SyncAsync(ws, 6, useHaveTable);
+		await SyncAsync(ws, 6);
 		Stream.GetChangelist(6).AssertDepotFiles(SyncDir);
 		await Stream.GetChangelist(6).AssertHaveTableAsync(PerforceConnection, useHaveTable);
 		
-		await SyncAsync(ws, 7, useHaveTable);
+		await SyncAsync(ws, 7);
 		Stream.GetChangelist(7).AssertDepotFiles(SyncDir);
 		await Stream.GetChangelist(7).AssertHaveTableAsync(PerforceConnection, useHaveTable);
 		
 		// Go back one changelist
-		await SyncAsync(ws, 6, useHaveTable);
+		await SyncAsync(ws, 6);
 		Stream.GetChangelist(6).AssertDepotFiles(SyncDir);
 		await Stream.GetChangelist(6).AssertHaveTableAsync(PerforceConnection, useHaveTable);
-	}
-
-	[TestMethod]
-	public async Task SyncMixingUseOfHaveTable()
-	{
-		ManagedWorkspace ws = await GetManagedWorkspace();
-
-		await SyncAsync(ws, 1, useHaveTable: false);
-		Stream.GetChangelist(1).AssertDepotFiles(SyncDir);
-		await AssertHaveTableFileCount(0);
-		
-		await SyncAsync(ws, 2, useHaveTable: true);
-		Stream.GetChangelist(2).AssertDepotFiles(SyncDir);
-		await Stream.GetChangelist(2).AssertHaveTableAsync(PerforceConnection);
-		
-		await SyncAsync(ws, 3, useHaveTable: false);
-		Stream.GetChangelist(3).AssertDepotFiles(SyncDir);
-		await Stream.GetChangelist(2).AssertHaveTableAsync(PerforceConnection); // Have table should only match what was synced previously
 	}
 
 	[TestMethod]
@@ -102,7 +84,7 @@ public class ManagedWorkspaceTest : BasePerforceFixtureTest
 	[DataRow(false, DisplayName = "Without have-table")]
 	public async Task SyncUsingCacheFiles(bool useHaveTable)
 	{
-		ManagedWorkspace ws = await GetManagedWorkspace();
+		ManagedWorkspace ws = await GetManagedWorkspace(useHaveTable);
 
 		FileReference GetCacheFilePath(int changeNumber)
 		{
@@ -112,7 +94,7 @@ public class ManagedWorkspaceTest : BasePerforceFixtureTest
 		// Sync and create a new cache file per change number
 		foreach (ChangelistFixture cl in Stream.Changelists)
 		{
-			await SyncAsync(ws, cl.Number, useHaveTable: useHaveTable, cacheFile: GetCacheFilePath(cl.Number));
+			await SyncAsync(ws, cl.Number, cacheFile: GetCacheFilePath(cl.Number));
 			cl.AssertDepotFiles(SyncDir);
 			await cl.AssertHaveTableAsync(PerforceConnection, useHaveTable);
 		}
@@ -120,7 +102,7 @@ public class ManagedWorkspaceTest : BasePerforceFixtureTest
 		// Sync again but using the cache files created above
 		foreach (ChangelistFixture cl in Stream.Changelists.Reverse())
 		{
-			await SyncAsync(ws, cl.Number, useHaveTable: useHaveTable, cacheFile: GetCacheFilePath(cl.Number));
+			await SyncAsync(ws, cl.Number, cacheFile: GetCacheFilePath(cl.Number));
 			cl.AssertDepotFiles(SyncDir);
 			await cl.AssertHaveTableAsync(PerforceConnection, useHaveTable);
 		}
@@ -131,13 +113,13 @@ public class ManagedWorkspaceTest : BasePerforceFixtureTest
 	[DataRow(false, DisplayName = "Without have-table")]
 	public async Task Populate(bool useHaveTable)
 	{
-		ManagedWorkspace ws = await GetManagedWorkspace();
+		ManagedWorkspace ws = await GetManagedWorkspace(useHaveTable);
 
 		List<PopulateRequest> populateRequests = new ()
 		{
 			new PopulateRequest(PerforceConnection, StreamName, new List<string>())
 		};
-		await ws.PopulateAsync(populateRequests, false, useHaveTable, CancellationToken.None);
+		await ws.PopulateAsync(populateRequests, false, CancellationToken.None);
 		Stream.LatestChangelist.AssertDepotFiles(SyncDir);
 		await Stream.LatestChangelist.AssertHaveTableAsync(PerforceConnection, useHaveTable);
 	}
@@ -147,8 +129,8 @@ public class ManagedWorkspaceTest : BasePerforceFixtureTest
 	[DataRow(false, DisplayName = "Without have-table")]
 	public async Task Unshelve(bool useHaveTable)
 	{
-		ManagedWorkspace ws = await GetManagedWorkspace();
-		await SyncAsync(ws, 7, useHaveTable);
+		ManagedWorkspace ws = await GetManagedWorkspace(useHaveTable);
+		await SyncAsync(ws, 7);
 		await ws.UnshelveAsync(PerforceConnection, 8, CancellationToken.None);
 		Stream.GetChangelist(8).AssertDepotFiles(SyncDir);
 		
@@ -156,16 +138,16 @@ public class ManagedWorkspaceTest : BasePerforceFixtureTest
 		await Stream.GetChangelist(7).AssertHaveTableAsync(PerforceConnection, useHaveTable);
 	}
 
-	private async Task<ManagedWorkspace> GetManagedWorkspace()
+	private async Task<ManagedWorkspace> GetManagedWorkspace(bool useHaveTable)
 	{
-		ManagedWorkspace ws = await ManagedWorkspace.CreateAsync(Environment.MachineName, TempDir, _mwLogger, CancellationToken.None);
+		ManagedWorkspace ws = await ManagedWorkspace.CreateAsync(Environment.MachineName, TempDir, useHaveTable, _mwLogger, CancellationToken.None);
 		await ws.SetupAsync(PerforceConnection, StreamName, CancellationToken.None);
 		return ws;
 	}
 	
-	private async Task SyncAsync(ManagedWorkspace managedWorkspace, int changeNumber, bool useHaveTable = true, FileReference? cacheFile = null, bool removeUntracked = true)
+	private async Task SyncAsync(ManagedWorkspace managedWorkspace, int changeNumber, FileReference? cacheFile = null, bool removeUntracked = true)
 	{
-		await managedWorkspace.SyncAsync(PerforceConnection, StreamName, changeNumber, Array.Empty<string>(), removeUntracked, false, useHaveTable, cacheFile, CancellationToken.None);
+		await managedWorkspace.SyncAsync(PerforceConnection, StreamName, changeNumber, Array.Empty<string>(), removeUntracked, false, cacheFile, CancellationToken.None);
 	}
 	
 	private async Task AssertHaveTableFileCount(int expected)

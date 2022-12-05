@@ -136,11 +136,6 @@ namespace EpicGames.Perforce.Managed
 		const string DataFileName = "Repository.dat";
 		
 		/// <summary>
-		/// Suffix added to client names that doesn't update the have table (syncing with -p option)
-		/// </summary>
-		const string NoHaveTableSuffix = "-NoHaveTable";
-
-		/// <summary>
 		/// Name of the host
 		/// </summary>
 		readonly string _hostName;
@@ -159,6 +154,15 @@ namespace EpicGames.Perforce.Managed
 		/// The log output device
 		/// </summary>
 		readonly ILogger _logger;
+
+		/// <summary>
+		/// Use the client's have table when syncing.
+		/// 
+		/// When set to false, updates to the have table will be prevented through use of "sync -p".
+		/// Actual files to sync will gathered through "fstat".
+		/// This puts less strain on the Perforce server and can improve sync performance.
+		/// </summary>
+		readonly bool _useHaveTable;
 
 		/// <summary>
 		/// The root directory for the stash
@@ -201,12 +205,14 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="hostName">Name of the current host</param>
 		/// <param name="nextSequenceNumber">The next sequence number for operations</param>
 		/// <param name="baseDir">The root directory for the stash</param>
+		/// <param name="useHaveTable">Use the client's have table when syncing</param>
 		/// <param name="logger">The log output device</param>
-		private ManagedWorkspace(string hostName, uint nextSequenceNumber, DirectoryReference baseDir, ILogger logger)
+		private ManagedWorkspace(string hostName, uint nextSequenceNumber, DirectoryReference baseDir, bool useHaveTable, ILogger logger)
 		{
 			// Save the Perforce settings
 			_hostName = hostName;
 			_nextSequenceNumber = nextSequenceNumber;
+			_useHaveTable = useHaveTable;
 			_logger = logger;
 
 			// Get all the directories
@@ -229,16 +235,17 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="hostName">Name of the current machine. Will be automatically detected from the host settings if not present.</param>
 		/// <param name="baseDir">The base directory for the repository</param>
 		/// <param name="overwrite">Whether to allow overwriting a repository that's not up to date</param>
+		/// <param name="useHaveTable">Use the client's have table when syncing</param>
 		/// <param name="logger">The logging interface</param>
 		/// <param name="cancellationToken">Cancellation token for this operation</param>
 		/// <returns></returns>
-		public static async Task<ManagedWorkspace> LoadOrCreateAsync(string hostName, DirectoryReference baseDir, bool overwrite, ILogger logger, CancellationToken cancellationToken)
+		public static async Task<ManagedWorkspace> LoadOrCreateAsync(string hostName, DirectoryReference baseDir, bool overwrite, bool useHaveTable, ILogger logger, CancellationToken cancellationToken)
 		{
 			if (Exists(baseDir))
 			{
 				try
 				{
-					return await LoadAsync(hostName, baseDir, logger, cancellationToken);
+					return await LoadAsync(hostName, baseDir, useHaveTable, logger, cancellationToken);
 				}
 				catch (Exception ex)
 				{
@@ -253,7 +260,7 @@ namespace EpicGames.Perforce.Managed
 				}
 			}
 
-			return await CreateAsync(hostName, baseDir, logger, cancellationToken);
+			return await CreateAsync(hostName, baseDir, useHaveTable, logger, cancellationToken);
 		}
 		/*
 				public static PerforceConnection GetPerforceConnection(PerforceConnection Perforce)
@@ -286,10 +293,11 @@ namespace EpicGames.Perforce.Managed
 		/// </summary>
 		/// <param name="hostName">Name of the current machine.</param>
 		/// <param name="baseDir">The base directory for the repository</param>
+		/// <param name="useHaveTable">Use the client's have table when syncing</param>
 		/// <param name="logger">The log output device</param>
 		/// <param name="cancellationToken">Cancellation token for this operation</param>
 		/// <returns>New repository instance</returns>
-		public static async Task<ManagedWorkspace> CreateAsync(string hostName, DirectoryReference baseDir, ILogger logger, CancellationToken cancellationToken)
+		public static async Task<ManagedWorkspace> CreateAsync(string hostName, DirectoryReference baseDir, bool useHaveTable, ILogger logger, CancellationToken cancellationToken)
 		{
 			logger.LogInformation("Creating repository at {Location}...", baseDir);
 
@@ -297,7 +305,7 @@ namespace EpicGames.Perforce.Managed
 			DirectoryReference.CreateDirectory(baseDir);
 			FileUtils.ForceDeleteDirectoryContents(baseDir);
 
-			ManagedWorkspace repo = new ManagedWorkspace(hostName, 1, baseDir, logger);
+			ManagedWorkspace repo = new ManagedWorkspace(hostName, 1, baseDir, useHaveTable, logger);
 			await repo.SaveAsync(TransactionState.Clean, cancellationToken);
 			repo.CreateCacheHierarchy();
 
@@ -337,9 +345,10 @@ namespace EpicGames.Perforce.Managed
 		/// </summary>
 		/// <param name="hostName">Name of the current host. Will be obtained from a 'p4 info' call if not specified</param>
 		/// <param name="baseDir">The base directory for the repository</param>
+		/// <param name="useHaveTable">Use the client's have table when syncing</param> 
 		/// <param name="logger">The log output device</param>
 		/// <param name="cancellationToken">Cancellation token for this command</param>
-		public static async Task<ManagedWorkspace> LoadAsync(string hostName, DirectoryReference baseDir, ILogger logger, CancellationToken cancellationToken)
+		public static async Task<ManagedWorkspace> LoadAsync(string hostName, DirectoryReference baseDir, bool useHaveTable, ILogger logger, CancellationToken cancellationToken)
 		{
 			if (!Exists(baseDir))
 			{
@@ -361,7 +370,7 @@ namespace EpicGames.Perforce.Managed
 			bool requiresRepair = reader.ReadBoolean();
 			uint nextSequenceNumber = reader.ReadUInt32();
 
-			ManagedWorkspace repo = new ManagedWorkspace(hostName, nextSequenceNumber, baseDir, logger);
+			ManagedWorkspace repo = new (hostName, nextSequenceNumber, baseDir, useHaveTable, logger);
 			repo._requiresRepair = requiresRepair;
 
 			int numTrackedFiles = reader.ReadInt32();
@@ -783,10 +792,9 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="view">View of the workspace</param>
 		/// <param name="removeUntracked">Whether to remove untracked files from the workspace</param>
 		/// <param name="fakeSync">Whether to simulate the syncing operation rather than actually getting files from the server</param>
-		/// <param name="useHaveTable">Whether to update have table on the server during sync</param>
 		/// <param name="cacheFile">If set, uses the given file to cache the contents of the workspace. This can improve sync times when multiple machines sync the same workspace.</param>
 		/// <param name="cancellationToken">Cancellation token</param>
-		public async Task SyncAsync(IPerforceConnection perforce, string streamName, int changeNumber, IReadOnlyList<string> view, bool removeUntracked, bool fakeSync, bool useHaveTable, FileReference? cacheFile, CancellationToken cancellationToken)
+		public async Task SyncAsync(IPerforceConnection perforce, string streamName, int changeNumber, IReadOnlyList<string> view, bool removeUntracked, bool fakeSync, FileReference? cacheFile, CancellationToken cancellationToken)
 		{
 			Stopwatch timer = Stopwatch.StartNew();
 			if (changeNumber == -1)
@@ -798,7 +806,7 @@ namespace EpicGames.Perforce.Managed
 				_logger.LogInformation("Syncing to {StreamName} at CL {CL}", streamName, changeNumber);
 			}
 
-			using (_logger.WithProperty("useHaveTable", useHaveTable).BeginScope())
+			using (_logger.WithProperty("useHaveTable", _useHaveTable).BeginScope())
 			using (_logger.BeginIndentScope("  "))
 			{
 				// Update the client to the current stream
@@ -810,7 +818,7 @@ namespace EpicGames.Perforce.Managed
 					changeNumber = await GetLatestClientChangeAsync(perforce, cancellationToken);
 				}
 
-				if (useHaveTable)
+				if (_useHaveTable)
 				{
 					// Revert any open files
 					await RevertInternalAsync(perforce, cancellationToken);
@@ -829,7 +837,7 @@ namespace EpicGames.Perforce.Managed
 				StreamSnapshot? contents;
 				if (cacheFile == null)
 				{
-					if (useHaveTable)
+					if (_useHaveTable)
 					{
 						contents = await FindClientContentsAsync(perforce, changeNumber, cancellationToken);						
 					}
@@ -843,13 +851,13 @@ namespace EpicGames.Perforce.Managed
 					contents = await TryLoadClientContentsAsync(cacheFile, streamName, cancellationToken);
 					if (contents == null)
 					{
-						contents = await FindAndSaveClientContentsAsync(perforce, streamName, changeNumber, cacheFile, useHaveTable, cancellationToken);
+						contents = await FindAndSaveClientContentsAsync(perforce, streamName, changeNumber, cacheFile, cancellationToken);
 					}
 				}
 
 				// Sync all the appropriate files
 				await RemoveFilesFromWorkspaceAsync(contents, cancellationToken);
-				await AddFilesToWorkspaceAsync(perforce, contents, fakeSync, useHaveTable, cancellationToken);
+				await AddFilesToWorkspaceAsync(perforce, contents, fakeSync, cancellationToken);
 			}
 
 			_logger.LogInformation("Completed in {ElapsedTime}s", $"{timer.Elapsed.TotalSeconds:0.0}");
@@ -955,20 +963,20 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Populates the cache with the head revision of the given streams.
 		/// </summary>
-		public async Task PopulateAsync(List<PopulateRequest> requests, bool fakeSync, bool useHaveTable, CancellationToken cancellationToken)
+		public async Task PopulateAsync(List<PopulateRequest> requests, bool fakeSync, CancellationToken cancellationToken)
 		{
 			_logger.LogInformation("Populating with {NumStreams} streams", requests.Count);
 			using (_logger.BeginIndentScope("  "))
 			{
-				Tuple<int, StreamSnapshot>[] streamState = await PopulateCleanAsync(requests, useHaveTable, cancellationToken);
-				await PopulateSyncAsync(requests, streamState, fakeSync, useHaveTable, cancellationToken);
+				Tuple<int, StreamSnapshot>[] streamState = await PopulateCleanAsync(requests, cancellationToken);
+				await PopulateSyncAsync(requests, streamState, fakeSync, cancellationToken);
 			}
 		}
 
 		/// <summary>
 		/// Perform the clean part of a populate command
 		/// </summary>
-		public async Task<Tuple<int, StreamSnapshot>[]> PopulateCleanAsync(List<PopulateRequest> requests, bool useHaveTable, CancellationToken cancellationToken)
+		public async Task<Tuple<int, StreamSnapshot>[]> PopulateCleanAsync(List<PopulateRequest> requests, CancellationToken cancellationToken)
 		{
 			// Revert all changes in each of the unique clients
 			foreach (PopulateRequest request in requests)
@@ -1001,7 +1009,7 @@ namespace EpicGames.Perforce.Managed
 					int changeNumber = await GetLatestClientChangeAsync(request.PerforceClient, cancellationToken);
 					_logger.LogInformation("Latest change is CL {CL}", changeNumber);
 
-					if (useHaveTable)
+					if (_useHaveTable)
 					{
 						await UpdateClientHaveTableAsync(request.PerforceClient, changeNumber, request.View, cancellationToken);
 
@@ -1071,7 +1079,7 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Perform the sync part of a populate command
 		/// </summary>
-		public async Task PopulateSyncAsync(List<PopulateRequest> requests, Tuple<int, StreamSnapshot>[] streamState, bool fakeSync, bool useHaveTable, CancellationToken cancellationToken)
+		public async Task PopulateSyncAsync(List<PopulateRequest> requests, Tuple<int, StreamSnapshot>[] streamState, bool fakeSync, CancellationToken cancellationToken)
 		{
 			// Sync all the new files
 			for (int idx = 0; idx < requests.Count; idx++)
@@ -1082,7 +1090,7 @@ namespace EpicGames.Perforce.Managed
 
 				using (_logger.BeginIndentScope("  "))
 				{
-					if (useHaveTable)
+					if (_useHaveTable)
 					{
 						await DeleteClientAsync(request.PerforceClient, cancellationToken);
 						await UpdateClientAsync(request.PerforceClient, streamName, cancellationToken);
@@ -1093,7 +1101,7 @@ namespace EpicGames.Perforce.Managed
 
 					StreamSnapshot contents = streamState[idx].Item2;
 					await RemoveFilesFromWorkspaceAsync(contents, cancellationToken);
-					await AddFilesToWorkspaceAsync(request.PerforceClient, contents, fakeSync, useHaveTable, cancellationToken);
+					await AddFilesToWorkspaceAsync(request.PerforceClient, contents, fakeSync, cancellationToken);
 				}
 			}
 
@@ -1128,22 +1136,12 @@ namespace EpicGames.Perforce.Managed
 				_createdClients.Remove(clientName);
 			}
 
-			await DeleteAsync(GetClientName(perforceClient, true));
-			await DeleteAsync(GetClientName(perforceClient, false));
+			await DeleteAsync(perforceClient.Settings.ClientName!);
 		}
 
-		private static string GetClientName(IPerforceConnection perforceClient, bool useHaveTable)
+		private async Task<ClientRecord> GetOrCreateClientAsync(IPerforceConnection perforceClient, string streamName, CancellationToken cancellationToken)
 		{
-			if (!useHaveTable)
-			{
-				return perforceClient.Settings.ClientName + NoHaveTableSuffix;
-			}
-			return perforceClient.Settings.ClientName!;
-		}
-		
-		private async Task<ClientRecord> GetOrCreateClientAsync(IPerforceConnection perforceClient, string streamName, bool useHaveTable, CancellationToken cancellationToken)
-		{
-			string clientName = GetClientName(perforceClient, useHaveTable);
+			string clientName = perforceClient.Settings.ClientName!;//GetClientName(perforceClient, useHaveTable);
 			if (_createdClients.TryGetValue(clientName, out ClientRecord? client) && client.Stream == streamName)
 			{
 				return client;
@@ -1160,7 +1158,7 @@ namespace EpicGames.Perforce.Managed
 				
 				// Partitioned and read-only types store their have table separately on the server, compared to normal (writeable) clients
 				// Clients that sync without updating the have table cannot submit so they're marked as read-only. 
-				client.Type = useHaveTable ? "partitioned" : "readonly";
+				client.Type = _useHaveTable ? "partitioned" : "readonly";
 
 				using IPerforceConnection perforce = await perforceClient.WithoutClientAsync();
 
@@ -1186,9 +1184,7 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="cancellationToken">Cancellation token</param>
 		private async Task UpdateClientAsync(IPerforceConnection perforceClient, string streamName, CancellationToken cancellationToken)
 		{
-			// Ensure a client exists both with and without have table use, using the correct stream
-			await GetOrCreateClientAsync(perforceClient, streamName, true, cancellationToken);
-			await GetOrCreateClientAsync(perforceClient, streamName, false, cancellationToken);
+			await GetOrCreateClientAsync(perforceClient, streamName, cancellationToken);
 
 			// Update the config file with the name of the client
 			FileReference configFile = FileReference.Combine(_baseDir, "p4.ini");
@@ -1637,12 +1633,11 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="basePath">Base path for the stream</param>
 		/// <param name="changeNumber">The change number being synced. This must be specified in order to get the digest at the correct revision.</param>
 		/// <param name="cacheFile">Location of the file to save the cached contents</param>
-		/// <param name="useHaveTable">Whether to update the have table during sync</param>
 		/// <param name="cancellationToken">Cancellation token</param>
 		/// <returns>Contents of the workspace</returns>
-		private async Task<StreamSnapshotFromMemory> FindAndSaveClientContentsAsync(IPerforceConnection perforceClient, Utf8String basePath, int changeNumber, FileReference cacheFile, bool useHaveTable, CancellationToken cancellationToken)
+		private async Task<StreamSnapshotFromMemory> FindAndSaveClientContentsAsync(IPerforceConnection perforceClient, Utf8String basePath, int changeNumber, FileReference cacheFile, CancellationToken cancellationToken)
 		{
-			StreamSnapshotFromMemory contents = useHaveTable
+			StreamSnapshotFromMemory contents = _useHaveTable
 				? await FindClientContentsAsync(perforceClient, changeNumber, cancellationToken)
 				: await FindClientContentsWithoutHaveTableAsync(perforceClient, basePath.ToString(), changeNumber, cancellationToken);
 
@@ -1804,9 +1799,8 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="client">The client connection</param>
 		/// <param name="stream">Contents of the stream</param>
 		/// <param name="fakeSync">Whether to simulate the sync operation, rather than actually syncing files</param>
-		/// <param name="useHaveTable">Whether to update the have table during sync</param>
 		/// <param name="cancellationToken">Cancellation token</param>
-		private async Task AddFilesToWorkspaceAsync(IPerforceConnection client, StreamSnapshot stream, bool fakeSync, bool useHaveTable, CancellationToken cancellationToken)
+		private async Task AddFilesToWorkspaceAsync(IPerforceConnection client, StreamSnapshot stream, bool fakeSync, CancellationToken cancellationToken)
 		{
 			// Make sure the repair flag is reset
 			await RunOptionalRepairAsync(cancellationToken);
@@ -1914,7 +1908,7 @@ namespace EpicGames.Perforce.Managed
 							{
 								(int batchBeginIdx, int batchEndIdx) = batches[nextBatchIdx];
 
-								Task task = Task.Run(() => SyncBatch(client, filesToSync, batchBeginIdx, batchEndIdx, fakeSync, useHaveTable, cancellationToken), cancellationToken);
+								Task task = Task.Run(() => SyncBatch(client, filesToSync, batchBeginIdx, batchEndIdx, fakeSync, cancellationToken), cancellationToken);
 								tasks[task] = nextBatchIdx++;
 							}
 
@@ -1966,10 +1960,9 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="beginIdx">First file to sync</param>
 		/// <param name="endIdx">Index of the last file to sync (exclusive)</param>
 		/// <param name="fakeSync">Whether to fake a sync</param>
-		/// <param name="useHaveTable">Whether to update the have table during sync</param>
 		/// <param name="cancellationToken">Cancellation token for the request</param>
 		/// <returns>Async task</returns>
-		async Task SyncBatch(IPerforceConnection client, WorkspaceFileToSync[] filesToSync, int beginIdx, int endIdx, bool fakeSync, bool useHaveTable, CancellationToken cancellationToken)
+		async Task SyncBatch(IPerforceConnection client, WorkspaceFileToSync[] filesToSync, int beginIdx, int endIdx, bool fakeSync, CancellationToken cancellationToken)
 		{
 			if (fakeSync)
 			{
@@ -1991,7 +1984,7 @@ namespace EpicGames.Perforce.Managed
 					}
 				}
 
-				if (useHaveTable)
+				if (_useHaveTable)
 				{
 					using PerforceConnection clientWithFileList = new (client.Settings, client.Logger);
 					clientWithFileList.GlobalOptions.Add($"-x\"{syncFileName}\"");
@@ -2001,7 +1994,7 @@ namespace EpicGames.Perforce.Managed
 				{
 					// Ensure a client with an empty have table is used to not interfere with the DoNotUpdateHaveList option.
 					using PerforceConnection clientWithFileList = new (client.Settings, client.Logger);
-					clientWithFileList.ClientName = GetClientName(client, false);
+					clientWithFileList.ClientName = client.Settings.ClientName!;
 					clientWithFileList.GlobalOptions.Add($"-x\"{syncFileName}\"");
 					await clientWithFileList.SyncAsync(SyncOptions.DoNotUpdateHaveList | SyncOptions.FullDepotSyntax, -1, Array.Empty<string>(), cancellationToken).ToListAsync(cancellationToken);
 				}

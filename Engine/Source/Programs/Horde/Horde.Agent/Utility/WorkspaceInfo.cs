@@ -118,10 +118,11 @@ namespace Horde.Agent.Utility
 		/// </summary>
 		/// <param name="workspace">The workspace definition</param>
 		/// <param name="rootDir">Root directory for storing the workspace</param>
+		/// <param name="useHaveTable">Use the client's have table when syncing</param>
 		/// <param name="logger">Logger output</param>
 		/// <param name="cancellationToken">Cancellation token</param>
 		/// <returns>New workspace info</returns>
-		public static async Task<WorkspaceInfo> SetupWorkspaceAsync(AgentWorkspace workspace, DirectoryReference rootDir, ILogger logger, CancellationToken cancellationToken)
+		public static async Task<WorkspaceInfo> SetupWorkspaceAsync(AgentWorkspace workspace, DirectoryReference rootDir, bool useHaveTable, ILogger logger, CancellationToken cancellationToken)
 		{
 			// Fill in the default credentials iff they are not set
 			string? serverAndPort = String.IsNullOrEmpty(workspace.ServerAndPort)? null : workspace.ServerAndPort;
@@ -153,7 +154,7 @@ namespace Horde.Agent.Utility
 					logger.LogInformation("Using locally logged in session for {UserName}", userName);
 				}
 			}
-			return await SetupWorkspaceAsync(perforce, workspace.Stream, workspace.Identifier, workspace.View, !workspace.Incremental, rootDir, logger, cancellationToken);
+			return await SetupWorkspaceAsync(perforce, workspace.Stream, workspace.Identifier, workspace.View, !workspace.Incremental, rootDir, useHaveTable, logger, cancellationToken);
 		}
 
 		/// <summary>
@@ -165,10 +166,11 @@ namespace Horde.Agent.Utility
 		/// <param name="view">View for this workspace</param>
 		/// <param name="removeUntrackedFiles">Whether untracked files should be removed when cleaning this workspace</param>
 		/// <param name="rootDir">Root directory for storing the workspace</param>
+		/// <param name="useHaveTable">Use the client's have table when syncing</param>
 		/// <param name="logger">Logger output</param>
 		/// <param name="cancellationToken">Cancellation token</param>
 		/// <returns>New workspace info</returns>
-		public static async Task<WorkspaceInfo> SetupWorkspaceAsync(IPerforceConnection perforce, string streamName, string identifier, IList<string> view, bool removeUntrackedFiles, DirectoryReference rootDir, ILogger logger, CancellationToken cancellationToken)
+		public static async Task<WorkspaceInfo> SetupWorkspaceAsync(IPerforceConnection perforce, string streamName, string identifier, IList<string> view, bool removeUntrackedFiles, DirectoryReference rootDir, bool useHaveTable, ILogger logger, CancellationToken cancellationToken)
 		{
 			// Get the host name, and fill in any missing metadata about the connection
 			InfoRecord info = await perforce.GetInfoAsync(InfoOptions.ShortOutput, cancellationToken);
@@ -177,6 +179,11 @@ namespace Horde.Agent.Utility
 			if(hostName == null)
 			{
 				throw new Exception("Unable to determine Perforce host name");
+			}
+			
+			if (!useHaveTable)
+			{
+				logger.LogInformation("Skipping use of have table");
 			}
 
 			// replace invalid characters in the workspace identifier with a '+' character
@@ -211,7 +218,7 @@ namespace Horde.Agent.Utility
 			DirectoryReference workspaceDir = DirectoryReference.Combine(metadataDir, "Sync");
 
 			// Create the repository
-			ManagedWorkspace newRepository = await ManagedWorkspace.LoadOrCreateAsync(hostName, metadataDir, true, logger, cancellationToken);
+			ManagedWorkspace newRepository = await ManagedWorkspace.LoadOrCreateAsync(hostName, metadataDir, true, useHaveTable, logger, cancellationToken);
 			if (removeUntrackedFiles)
 			{
 				await newRepository.DeleteClientAsync(perforceClient, cancellationToken);
@@ -295,12 +302,11 @@ namespace Horde.Agent.Utility
 		/// <param name="change">The changelist to sync to</param>
 		/// <param name="preflightChange">Change to preflight, or 0</param>
 		/// <param name="cacheFile">Path to the cache file to use</param>
-		/// <param name="useHaveTable">Whether to update have table during sync</param>
 		/// <param name="cancellationToken">Cancellation token</param>
 		/// <returns>Async task</returns>
-		public async Task SyncAsync(int change, int preflightChange, FileReference? cacheFile, bool useHaveTable, CancellationToken cancellationToken)
+		public async Task SyncAsync(int change, int preflightChange, FileReference? cacheFile, CancellationToken cancellationToken)
 		{
-			await Repository.SyncAsync(PerforceClient, StreamName, change, View, RemoveUntrackedFiles, false, useHaveTable, cacheFile, cancellationToken);
+			await Repository.SyncAsync(PerforceClient, StreamName, change, View, RemoveUntrackedFiles, false, cacheFile, cancellationToken);
 
 			// Purge the cache for incremental workspaces
 			if (!RemoveUntrackedFiles)

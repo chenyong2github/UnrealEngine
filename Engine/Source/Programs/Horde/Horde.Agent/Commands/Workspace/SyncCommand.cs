@@ -52,7 +52,7 @@ namespace Horde.Agent.Commands.Workspace
 			List<string> expandedFilters = ExpandFilters(Filters);
 
 			using IPerforceConnection perforceClient = await perforce.WithClientAsync(ClientName);
-			await repo.SyncAsync(perforceClient, StreamName, changeNumber, expandedFilters, !IncrementalSync, FakeSync, true, CacheFile, CancellationToken.None);
+			await repo.SyncAsync(perforceClient, StreamName, changeNumber, expandedFilters, !IncrementalSync, FakeSync, CacheFile, CancellationToken.None);
 
 			if (PreflightChange != -1)
 			{

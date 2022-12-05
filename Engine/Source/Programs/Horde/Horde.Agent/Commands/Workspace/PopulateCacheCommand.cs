@@ -26,15 +26,9 @@ namespace Horde.Agent.Commands.Workspace
 		[CommandLine("-FakeSync")]
 		[Description("Simulates the sync without actually fetching any files")]
 		bool FakeSync { get; set; } = false;
-		
-		[CommandLine("-UseHaveTable")]
-		[Description("Update the have-table")]
-		string UseHaveTable { get; set; } = "true";
 
 		protected override async Task ExecuteAsync(IPerforceConnection perforce, ManagedWorkspace repo, ILogger logger)
 		{
-			bool useHaveTable = UseHaveTable.Equals("true", StringComparison.Ordinal);
-
 			List<string> expandedFilters = ExpandFilters(Filters);
 
 			List<PopulateRequest> populateRequests = new List<PopulateRequest>();
@@ -50,7 +44,7 @@ namespace Horde.Agent.Commands.Workspace
 				populateRequests.Add(new PopulateRequest(perforceClient, clientAndStreamParam.Substring(idx + 1), expandedFilters));
 			}
 
-			await repo.PopulateAsync(populateRequests, FakeSync, useHaveTable, CancellationToken.None);
+			await repo.PopulateAsync(populateRequests, FakeSync, CancellationToken.None);
 		}
 	}
 }
