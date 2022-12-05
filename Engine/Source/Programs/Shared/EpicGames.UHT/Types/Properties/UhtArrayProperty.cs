@@ -206,6 +206,14 @@ namespace EpicGames.UHT.Types
 					this.LogError("Replicated arrays with MemoryImageAllocators are not yet supported");
 				}
 			}
+
+			if (ValueProperty is UhtStructProperty structProperty)
+			{
+				if (structProperty.ScriptStruct == outerStruct)
+				{
+					this.LogError($"'Struct' recursion via arrays is unsupported for properties.");
+				}
+			}
 		}
 
 		/// <inheritdoc/>

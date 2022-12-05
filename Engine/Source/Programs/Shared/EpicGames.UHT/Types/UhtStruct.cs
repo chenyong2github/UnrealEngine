@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
+using System.Threading;
 using EpicGames.Core;
 using EpicGames.UHT.Parsers;
 using EpicGames.UHT.Tables;
@@ -111,6 +112,14 @@ namespace EpicGames.UHT.Types
 		public UhtStruct? SuperStruct => Super;
 
 		/// <summary>
+		/// Stack used to test to see if we are recursing in a ScanForInstanceReferenced call
+		/// </summary>
+		private readonly ThreadLocal<List<UhtType>> _scanForInstanceReferencedStack = new ThreadLocal<List<UhtType>>(() =>
+		{
+			return new List<UhtType>();
+		});
+
+		/// <summary>
 		/// Construct a new instance
 		/// </summary>
 		/// <param name="outer">Outer type</param>
@@ -166,7 +175,32 @@ namespace EpicGames.UHT.Types
 		/// </summary>
 		/// <param name="deepScan">If true, the ScanForInstancedReferenced method on the properties will also be called.</param>
 		/// <returns></returns>
-		public virtual bool ScanForInstancedReferenced(bool deepScan)
+		public bool ScanForInstancedReferenced(bool deepScan)
+		{
+			List<UhtType> scanForInstanceReferencedStack = _scanForInstanceReferencedStack.Value!;
+			if (scanForInstanceReferencedStack.Contains(this))
+			{
+				return false;
+			}
+
+			scanForInstanceReferencedStack.Add(this);
+			try
+			{
+				return ScanForInstancedReferencedInternal(deepScan);
+			}
+			finally 
+			{
+				scanForInstanceReferencedStack.RemoveAt(scanForInstanceReferencedStack.Count - 1);
+			}
+		}
+
+		/// <summary>
+		/// Check properties to see if any instances are referenced.
+		/// This method does NOT cache the result.
+		/// </summary>
+		/// <param name="deepScan">If true, the ScanForInstancedReferenced method on the properties will also be called.</param>
+		/// <returns></returns>
+		protected virtual bool ScanForInstancedReferencedInternal(bool deepScan)
 		{
 			foreach (UhtType type in Children)
 			{

@@ -1970,6 +1970,16 @@ void FUnrealScriptStructDefinitionInfo::PostParseFinalizeInternal(EPostParseFina
 				}
 			}
 		}
+
+		// check for internal struct recursion via arrays
+		for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : GetProperties())
+		{
+			const FPropertyBase& PropertyBase = PropertyDef->GetPropertyBase();
+			if (PropertyBase.ArrayType == EArrayType::Dynamic && PropertyBase.Type == EPropertyType::CPT_Struct && PropertyBase.TypeDef == this)
+			{
+				Throwf(TEXT("'Struct' recursion via arrays is unsupported for properties."));
+			}
+		}
 		break;
 
 	case EPostParseFinalizePhase::Phase2:
