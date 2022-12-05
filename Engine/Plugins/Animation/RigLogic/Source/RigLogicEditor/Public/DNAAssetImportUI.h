@@ -22,10 +22,10 @@ public:
 
 	/** Skeletal mesh to use for imported DNA asset. When importing DNA, leaving this as "None" will generate new skeletal mesh. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Mesh, meta = (ImportType = "DNAAsset"))
-		TObjectPtr<class USkeletalMesh> SkeletalMesh;
+	TObjectPtr<class USkeletalMesh> SkeletalMesh;
 
 	UFUNCTION(BlueprintCallable, Category = Miscellaneous)
-		void ResetToDefault();
+	void ResetToDefault();
 
 	/** UObject Interface */
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
@@ -46,5 +46,5 @@ public:
 
 	/* The DNA file name */
 	UPROPERTY(VisibleAnywhere, Transient, Category = DNAFileInformation, meta = (ImportType = "DNAAsset", DisplayName = "File Name"))
-		FString FileName;
+	FString FileName;
 };
