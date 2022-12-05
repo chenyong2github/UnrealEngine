@@ -1312,7 +1312,7 @@ void USplineMeshComponent::PostEditChangeProperty(FPropertyChangedEvent& Propert
 		Utilities->HandleActorModified(GetOwner());
 	}
 
-	if (MemberPropertyThatChanged->GetFName() == GET_MEMBER_NAME_CHECKED(USplineMeshComponent, bNeverNeedsCookedCollisionData))
+	if (MemberPropertyThatChanged && (MemberPropertyThatChanged->GetFName() == GET_MEMBER_NAME_CHECKED(USplineMeshComponent, bNeverNeedsCookedCollisionData)))
 	{
 		// TODO [jonathan.bard] : this is currently needed because Setter doesn't correctly do its job in the details panel but eventually this could be removed : 
 		SetbNeverNeedsCookedCollisionData(bNeverNeedsCookedCollisionData);

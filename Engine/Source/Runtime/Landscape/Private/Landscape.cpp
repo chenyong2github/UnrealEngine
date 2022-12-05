@@ -2993,14 +2993,21 @@ void ALandscapeProxy::Serialize(FArchive& Ar)
 		}
 	}
 
-	// Fixup Nanite meshes which were using the wrong material and didn't have proper UVs :
-	// Also remove cooked collision data from Nanite landscape meshes, since collisions are handled by ULandscapeHeighfieldCollisionComponent :
-	if (Ar.IsLoading() 
-		&& ((Ar.CustomVer(FFortniteReleaseBranchCustomObjectVersion::GUID) < FFortniteReleaseBranchCustomObjectVersion::FixupNaniteLandscapeMeshes)
-			|| (Ar.CustomVer(FFortniteReleaseBranchCustomObjectVersion::GUID) < FFortniteReleaseBranchCustomObjectVersion::RemoveUselessLandscapeMeshesCookedCollisionData)))
+	if (Ar.IsLoading())
 	{
-		// This will force the Nanite meshes to be properly regenerated during the next save :
-		InvalidateNaniteRepresentation(/* bCheckContentId = */ false);
+		// Fixup Nanite meshes which were using the wrong material and didn't have proper UVs :
+		if (Ar.CustomVer(FFortniteReleaseBranchCustomObjectVersion::GUID) < FFortniteReleaseBranchCustomObjectVersion::FixupNaniteLandscapeMeshes)
+		{
+			// This will force the Nanite meshes to be properly regenerated during the next save :
+			InvalidateNaniteRepresentation(/* bCheckContentId = */ false);
+		}
+
+		// Remove cooked collision data from Nanite landscape meshes, since collisions are handled by ULandscapeHeighfieldCollisionComponent :		
+		if (Ar.CustomVer(FFortniteReleaseBranchCustomObjectVersion::GUID) < FFortniteReleaseBranchCustomObjectVersion::RemoveUselessLandscapeMeshesCookedCollisionData)
+		{
+			// This will force the Nanite meshes to be properly regenerated during the next save :
+			InvalidateNaniteRepresentation(/* bCheckContentId = */ false);
+		}
 	}
 #endif
 }
