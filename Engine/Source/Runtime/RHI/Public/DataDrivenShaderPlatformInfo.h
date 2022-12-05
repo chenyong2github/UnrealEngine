@@ -109,6 +109,7 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bSupportsSceneDataCompressedTransforms : 1;
 	uint32 bIsPreviewPlatform : 1;
 	uint32 bSupportsSwapchainUAVs : 1;
+	uint32 bSupportsClipDistance : 1;
 
 #if WITH_EDITOR
 	FText FriendlyName;
@@ -732,6 +733,12 @@ public:
 	static FORCEINLINE_DEBUGGABLE const uint32 GetEnablesHLSL2021ByDefault(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].EnablesHLSL2021ByDefault;
+	}
+	
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsClipDistance(const FStaticShaderPlatform Platform)
+	{
+		check(IsValid(Platform));
+		return Infos[Platform].bSupportsClipDistance;
 	}
 
 #if WITH_EDITOR
