@@ -3,6 +3,7 @@
 using System;
 using System.Diagnostics;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
@@ -11,6 +12,7 @@ using EpicGames.Horde.Storage.Backends;
 using EpicGames.Horde.Storage.Nodes;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Horde.Agent.Commands.Bundles
 {
@@ -43,11 +45,29 @@ namespace Horde.Agent.Commands.Bundles
 		{
 			public IMemoryCache Cache { get; }
 			public IStorageClient Store { get; }
-
-			public HttpStorageClientOwner(Uri baseUri, ILogger logger)
+			readonly IOptions<AgentSettings> _settings;
+			readonly NamespaceId _namespaceId;
+		
+			public HttpStorageClientOwner(IOptions<AgentSettings> settings, NamespaceId namespaceId, ILogger logger)
 			{
 				Cache = new MemoryCache(new MemoryCacheOptions());
-				Store = new HttpStorageClient(() => new HttpClient { BaseAddress = baseUri }, () => new HttpClient(), logger);
+				Store = new HttpStorageClient(CreateDefaultClient, () => new HttpClient(), logger);
+				_settings = settings;
+				_namespaceId = namespaceId;
+			}
+
+			HttpClient CreateDefaultClient()
+			{
+				ServerProfile profile = _settings.Value.GetCurrentServerProfile();
+
+				HttpClient client = new HttpClient();
+				client.BaseAddress = new Uri(profile.Url, $"api/v1/storage/{_namespaceId}/");
+				if (!String.IsNullOrEmpty(profile.Token))
+				{
+					client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", profile.Token);
+				}
+
+				return client;
 			}
 
 			public void Dispose()
@@ -61,20 +81,24 @@ namespace Horde.Agent.Commands.Bundles
 		[CommandLine("-Http")]
 		public bool Http { get; set; }
 
-		[CommandLine("-Server=", Description = "Server to read from")]
-		public string Server { get; set; } = "https://localhost:5001";
-
 		[CommandLine("-Namespace=", Description = "Namespace to use for storage")]
 		public NamespaceId NamespaceId { get; set; } = new NamespaceId("default");
 
 		[CommandLine("-StorageDir=", Description = "Overrides the default storage server with a local directory")]
 		public DirectoryReference StorageDir { get; set; } = DirectoryReference.Combine(Program.AppDir, "bundles");
 
+		readonly IOptions<AgentSettings> _settings;
+
+		public BundleCommandBase(IOptions<AgentSettings> settings)
+		{
+			_settings = settings;
+		}
+
 		protected IStorageClientOwner CreateStorageClient(ILogger logger)
 		{
 			if (Http)
 			{
-				return new HttpStorageClientOwner(new Uri($"{Server}/api/v1/storage/{NamespaceId}/"), logger);
+				return new HttpStorageClientOwner(_settings, NamespaceId, logger);
 			}
 			else
 			{
@@ -91,6 +115,11 @@ namespace Horde.Agent.Commands.Bundles
 
 		[CommandLine("-InputDir=", Required = true)]
 		public DirectoryReference InputDir { get; set; } = null!;
+
+		public CreateCommand(IOptions<AgentSettings> settings)
+			: base(settings)
+		{
+		}
 
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{

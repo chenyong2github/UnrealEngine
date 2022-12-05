@@ -7,6 +7,7 @@ using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Nodes;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Horde.Agent.Commands.Bundles
 {
@@ -18,6 +19,11 @@ namespace Horde.Agent.Commands.Bundles
 
 		[CommandLine("-OutputDir=", Required = true)]
 		public DirectoryReference OutputDir { get; set; } = null!;
+
+		public ExtractCommand(IOptions<AgentSettings> settings)
+			: base(settings)
+		{
+		}
 
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{

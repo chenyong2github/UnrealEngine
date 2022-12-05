@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Horde.Agent.Commands.Bundles
 {
@@ -18,6 +19,11 @@ namespace Horde.Agent.Commands.Bundles
 
 		[CommandLine("-Blob=")]
 		public BlobLocator? BlobId { get; set; }
+
+		public DumpCommand(IOptions<AgentSettings> settings)
+			: base(settings)
+		{
+		}
 
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{

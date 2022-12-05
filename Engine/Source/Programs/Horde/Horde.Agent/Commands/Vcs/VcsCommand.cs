@@ -12,6 +12,7 @@ using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Nodes;
 using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Horde.Agent.Commands.Bundles
 {
@@ -184,6 +185,12 @@ namespace Horde.Agent.Commands.Bundles
 
 		const string DataDir = ".horde";
 		const string StateFileName = "state.dat";
+
+		protected VcsCommand(IOptions<AgentSettings> settings)
+			: base(settings)
+		{
+			NamespaceId = new NamespaceId("horde-perforce");
+		}
 
 		protected IStorageClientOwner CreateStorageClient(DirectoryReference rootDir, ILogger logger)
 		{
@@ -372,11 +379,33 @@ namespace Horde.Agent.Commands.Bundles
 				}
 			}
 		}
+
+		protected static async Task<CommitNode?> GetCommitAsync(TreeReader reader, RefName branchName, int change = 0)
+		{
+			CommitNode tip = await reader.ReadNodeAsync<CommitNode>(branchName);
+			if (change != 0)
+			{
+				while (tip.Number != change)
+				{
+					if (tip.Parent == null || tip.Number < change)
+					{
+						return null;
+					}
+					tip = await tip.Parent.ExpandAsync(reader);
+				}
+			}
+			return tip;
+		}
 	}
 
 	[Command("Vcs", "Init", "Initialize a directory for VCS-like operations")]
 	class VcsInitCommand : VcsCommand
 	{
+		public VcsInitCommand(IOptions<AgentSettings> settings)
+			: base(settings)
+		{
+		}
+
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
 			BaseDir ??= DirectoryReference.GetCurrentDirectory();
@@ -391,6 +420,11 @@ namespace Horde.Agent.Commands.Bundles
 	{
 		[CommandLine(Prefix = "-Name=", Required = true)]
 		public string Name { get; set; } = "";
+
+		public VcsBranchCommand(IOptions<AgentSettings> settings)
+			: base(settings)
+		{
+		}
 
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
@@ -433,6 +467,11 @@ namespace Horde.Agent.Commands.Bundles
 		[CommandLine("-Force")]
 		public bool Force { get; set; }
 
+		public VcsCheckoutCommand(IOptions<AgentSettings> settings)
+			: base(settings)
+		{
+		}
+
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
 			DirectoryReference rootDir = FindRootDir();
@@ -461,18 +500,11 @@ namespace Horde.Agent.Commands.Bundles
 			IStorageClient store = owner.Store;
 			TreeReader reader = new TreeReader(owner.Store, owner.Cache, logger);
 
-			CommitNode tip = await reader.ReadNodeAsync<CommitNode>(branchName);
-			if (Change != 0)
+			CommitNode? tip = await GetCommitAsync(reader, branchName, Change);
+			if (tip == null)
 			{
-				while (tip.Number != Change)
-				{
-					if (tip.Parent == null || tip.Number < Change)
-					{
-						logger.LogError("Unable to find change {Change}", Change);
-						return 1;
-					}
-					tip = await tip.Parent.ExpandAsync(reader);
-				}
+				logger.LogError("Unable to find change {Change}", Change);
+				return 1;
 			}
 
 			workspaceState.Tree = await RealizeAsync(reader, tip.Contents, rootDir, newState, Clean, logger);
@@ -482,7 +514,7 @@ namespace Horde.Agent.Commands.Bundles
 			return 0;
 		}
 
-		static async Task<DirectoryState> RealizeAsync(TreeReader reader, DirectoryNodeRef directoryRef, DirectoryReference dirPath, DirectoryState? directoryState, bool clean, ILogger logger)
+		protected static async Task<DirectoryState> RealizeAsync(TreeReader reader, DirectoryNodeRef directoryRef, DirectoryReference dirPath, DirectoryState? directoryState, bool clean, ILogger logger)
 		{
 			DirectoryReference.CreateDirectory(dirPath);
 
@@ -539,6 +571,42 @@ namespace Horde.Agent.Commands.Bundles
 		}
 	}
 
+	[Command("vcs", "clone", "Initialize a directory for VCS-like operations")]
+	class VcsCloneCommand : VcsCheckoutCommand
+	{
+		public VcsCloneCommand(IOptions<AgentSettings> settings)
+			: base(settings)
+		{
+		}
+
+		public override async Task<int> ExecuteAsync(ILogger logger)
+		{
+			BaseDir ??= DirectoryReference.GetCurrentDirectory();
+			await InitAsync(BaseDir);
+			logger.LogInformation("Initialized in {RootDir}", BaseDir);
+
+			WorkspaceState workspaceState = new WorkspaceState();
+
+			RefName branchName = new RefName(Branch ?? "ue5-main");
+
+			using IStorageClientOwner owner = CreateStorageClient(BaseDir, logger);
+			IStorageClient store = owner.Store;
+			TreeReader reader = new TreeReader(owner.Store, owner.Cache, logger);
+
+			CommitNode? tip = await GetCommitAsync(reader, branchName, Change);
+			if (tip == null)
+			{
+				logger.LogError("Unable to find change {Change}", Change);
+				return 1;
+			}
+
+			workspaceState.Tree = await RealizeAsync(reader, tip.Contents, BaseDir, null, true, logger);
+			await WriteStateAsync(BaseDir, workspaceState);
+
+			return 0;
+		}
+	}
+
 	[Command("vcs", "commit", "Commits data to the VCS store")]
 	class VcsCommitCommand : VcsCommand
 	{
@@ -547,6 +615,11 @@ namespace Horde.Agent.Commands.Bundles
 
 		[CommandLine("-Message=")]
 		public string? Message { get; set; }
+
+		public VcsCommitCommand(IOptions<AgentSettings> settings)
+			: base(settings)
+		{
+		}
 
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
@@ -664,6 +737,11 @@ namespace Horde.Agent.Commands.Bundles
 		[CommandLine("-Count")]
 		public int Count { get; set; } = 20;
 
+		public VcsLogCommand(IOptions<AgentSettings> settings)
+			: base(settings)
+		{
+		}
+
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
 			DirectoryReference rootDir = FindRootDir();
@@ -704,6 +782,11 @@ namespace Horde.Agent.Commands.Bundles
 	[Command("Vcs", "Status", "Find status of local files")]
 	class VcsStatusCommand : VcsCommand
 	{
+		public VcsStatusCommand(IOptions<AgentSettings> settings)
+			: base(settings)
+		{
+		}
+
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
 			DirectoryReference rootDir = FindRootDir();
