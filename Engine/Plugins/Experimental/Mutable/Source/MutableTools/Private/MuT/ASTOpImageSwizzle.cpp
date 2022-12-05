@@ -242,6 +242,11 @@ namespace mu
 			}
 		}
 
+		if (!channelSourceAt)
+		{
+			return at;
+		}
+
 		OP_TYPE sourceType = channelSourceAt->GetOpType();
 
 		if (bAllChannelsAreTheSame && channelSourceAt)
