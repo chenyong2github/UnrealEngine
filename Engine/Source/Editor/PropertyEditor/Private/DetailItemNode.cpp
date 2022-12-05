@@ -246,6 +246,14 @@ TSharedRef< ITableRow > FDetailItemNode::GenerateWidgetForTableView( const TShar
 			.AddMetaData<FTagMetaData>(TagMeta)
 			.InnerCategory(true);
 	}
+	else if (Customization.HasGroup() && Customization.DetailGroup->GetDisplayMode() == EDetailGroupDisplayMode::Category)
+	{
+		return
+			SNew(SDetailCategoryTableRow, AsShared(), OwnerTable)
+			.DisplayName(Customization.DetailGroup->GetGroupDisplayName())
+			.AddMetaData<FTagMetaData>(TagMeta)
+			.InnerCategory(true);
+	}
 	else
 	{
 		return

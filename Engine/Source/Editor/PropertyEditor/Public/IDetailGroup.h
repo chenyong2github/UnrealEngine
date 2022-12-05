@@ -2,22 +2,29 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "PropertyHandle.h"
+#include "DetailCategoryBuilder.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
 
 class FDetailWidgetRow;
 class IDetailPropertyRow;
+class IPropertyHandle;
 
 /**
- * A group in the details panel that can have children                                                              
+ * How the group should be formatted - either as a minor group, or identically to a major subcategory.
  */
-class IDetailGroup
+enum class EDetailGroupDisplayMode
+{
+	Group,
+	Category
+};
+
+/**
+ * A group in the details panel that can have children
+ */
+class IDetailGroup : public IDetailLayoutRow
 {
 public:
-	/**
-	* Delegate called when user press the Group Reset ui
-	*/
-	DECLARE_MULTICAST_DELEGATE(FDetailGroupReset);
 
 	virtual ~IDetailGroup(){}
 
@@ -38,14 +45,14 @@ public:
 	 * 
 	 * @return a new row for adding widgets
 	 */
-	virtual class FDetailWidgetRow& AddWidgetRow() = 0;
+	virtual FDetailWidgetRow& AddWidgetRow() = 0;
 
 	/**
 	 * Adds a new row for a property
 	 *
 	 * @return an interface for customizing the appearance of the property row
 	 */
-	virtual class IDetailPropertyRow& AddPropertyRow( TSharedRef<IPropertyHandle> PropertyHandle ) = 0;
+	virtual IDetailPropertyRow& AddPropertyRow(TSharedRef<IPropertyHandle> PropertyHandle) = 0;
 
 	/**
 	 * Adds a group to the category
@@ -68,11 +75,15 @@ public:
 	 */
 	virtual bool GetExpansionState() const = 0;
 
-
 	/**
 	* Permit resetting the properties in this group
 	*/
 	virtual void EnableReset(bool InValue) = 0;
+
+	/**
+	* Delegate called when user press the Group Reset ui
+	*/
+	DECLARE_MULTICAST_DELEGATE(FDetailGroupReset);
 
 	/**
 	* Return the delegate called when user press the Group Reset ui
@@ -88,4 +99,7 @@ public:
 	* Return the property row associated with the specified property handle
 	*/
 	virtual TSharedPtr<IDetailPropertyRow> FindPropertyRow(TSharedRef<IPropertyHandle> PropertyHandle) const = 0;
+
+	/** Specify whether this group should be formatted to display like a subcategory */
+	virtual void SetDisplayMode(EDetailGroupDisplayMode Mode) = 0;
 };

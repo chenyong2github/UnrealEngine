@@ -15,10 +15,10 @@
 
 class IDetailPropertyRow;
 
-class FDetailGroup : public IDetailGroup, public IDetailLayoutRow, public TSharedFromThis<FDetailGroup>
+class FDetailGroup : public IDetailGroup, public TSharedFromThis<FDetailGroup>
 {
 public:
-	FDetailGroup( const FName InGroupName, TSharedRef<FDetailCategoryImpl> InParentCategory, const FText& InLocalizedDisplayName, const bool bStartExpanded = false );
+	FDetailGroup( const FName InGroupName, TSharedRef<FDetailCategoryImpl> InParentCategory, const FText& InLocalizedDisplayName, const bool bInStartExpanded = false );
 
 	/** IDetailGroup interface */     
 	virtual FDetailWidgetRow& HeaderRow() override;
@@ -29,26 +29,33 @@ public:
 
 	virtual void ToggleExpansion( bool bExpand ) override;
 	virtual bool GetExpansionState() const override;
+	virtual void SetDisplayMode(EDetailGroupDisplayMode Mode) override;
 
 	/** IDetailLayoutRow interface */
-	virtual FName GetRowName() const override { return GetGroupName(); }
+	virtual FName GetRowName() const override { return GroupName; }
 	virtual TOptional<FResetToDefaultOverride> GetCustomResetToDefault() const override;
 
 	TSharedPtr<FDetailPropertyRow> GetHeaderPropertyRow() const;
 	TSharedPtr<FPropertyNode> GetHeaderPropertyNode() const;
 
 	/** @return The name of the group */
-	virtual FName GetGroupName() const override { return GroupName; }
+	virtual FName GetGroupName() const override { return GetRowName(); }
 
+	/** @return The localized display name of the group */
+	const FText& GetGroupDisplayName() const { return LocalizedDisplayName; }
+	
 	/** Whether or not the group has columns */
 	bool HasColumns() const;
 
 	/** @return true if this row should be ticked */
 	bool RequiresTick() const;
 
-	/** @return true is this row should start expanded */
+	/** @return true if this row should start expanded */
 	bool ShouldStartExpanded() const { return bStartExpanded; }
 
+	/** @return the display mode that this group should use */
+	EDetailGroupDisplayMode GetDisplayMode() const { return DisplayMode; }
+	
 	/** 
 	 * @return The visibility of this group
 	 */
@@ -122,9 +129,11 @@ private:
 	/** Name identifier of this group */
 	FName GroupName;
 	/** Whether the detail group should start expanded or not */
-	bool bStartExpanded;
+	bool bStartExpanded : 1;
 	/** Permit resetting all the properties in the group */
-	bool ResetEnabled;
+	bool bResetEnabled : 1;
+	/** Whether the detail group should appear like it's a subcategory or not */
+	EDetailGroupDisplayMode DisplayMode;
 	/**	Delegate called when user press the Group Reset ui */
 	FDetailGroupReset OnDetailGroupReset;
 };

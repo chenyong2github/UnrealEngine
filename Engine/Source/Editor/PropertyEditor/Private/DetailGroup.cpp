@@ -13,7 +13,8 @@ FDetailGroup::FDetailGroup( const FName InGroupName, TSharedRef<FDetailCategoryI
 	, LocalizedDisplayName( InLocalizedDisplayName )
 	, GroupName( InGroupName )
 	, bStartExpanded( bInStartExpanded )
-	, ResetEnabled(false)
+	, bResetEnabled( false )
+	, DisplayMode( EDetailGroupDisplayMode::Group )
 {
 
 }
@@ -109,6 +110,11 @@ TOptional<FResetToDefaultOverride> FDetailGroup::GetCustomResetToDefault() const
 		return HeaderCustomization->PropertyRow->GetCustomResetToDefault();
 	}
 	return TOptional<FResetToDefaultOverride>();
+}
+
+void FDetailGroup::SetDisplayMode(EDetailGroupDisplayMode Mode)
+{
+	DisplayMode = Mode;
 }
 
 TSharedPtr<FDetailPropertyRow> FDetailGroup::GetHeaderPropertyRow() const
@@ -237,7 +243,7 @@ TSharedRef<SWidget> FDetailGroup::MakeNameWidget()
 
 void FDetailGroup::OnResetClicked()
 {
-	if (ResetEnabled)
+	if (bResetEnabled)
 	{
 		TArray<TSharedPtr<IPropertyHandle>> PropertyHandles;
 
@@ -255,7 +261,7 @@ void FDetailGroup::OnResetClicked()
 
 bool FDetailGroup::IsResetVisible() const
 {
-	if (ResetEnabled)
+	if (bResetEnabled)
 	{
 		TArray<TSharedPtr<IPropertyHandle>> PropertyHandles;
 
@@ -276,7 +282,7 @@ bool FDetailGroup::IsResetVisible() const
 
 void FDetailGroup::EnableReset(bool InValue)
 {
-	ResetEnabled = InValue;
+	bResetEnabled = InValue;
 }
 
 bool FDetailGroup::GetAllChildrenPropertyHandles(TArray<TSharedPtr<IPropertyHandle>>& PropertyHandles) const
