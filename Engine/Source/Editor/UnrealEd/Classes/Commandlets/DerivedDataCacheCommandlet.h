@@ -43,6 +43,13 @@ class UDerivedDataCacheCommandlet : public UCommandlet
 		 * expensive on some objects
 		 */
 		double LastTimeTested = 0.;
+
+		/**
+		 * If true, we wait to launch additional platforms until the first platform completes.
+		 * This is specifically so that shared linear texture encoding can reuse the base texture encode - otherwise
+		 * both platforms try to fetch and build the base texture at the same time and benefits are limited.
+		 */
+		bool bFirstPlatformIsSolo = false;
 	};
 	TMap<UObject*, FCachingData> CachingObjects;
 	TSet<FName>    ProcessedPackages;
@@ -50,6 +57,7 @@ class UDerivedDataCacheCommandlet : public UCommandlet
 	TArray<const ITargetPlatform*> Platforms;
 	double FinishCacheTime = 0.0;
 	double BeginCacheTime = 0.0;
+	bool bSharedLinearTextureEncodingEnabled = false;
 
 	class FPackageListener;
 	TUniquePtr<FPackageListener> PackageListener;
