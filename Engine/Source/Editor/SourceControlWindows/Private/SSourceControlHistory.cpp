@@ -9,6 +9,7 @@
 #include "SourceControlWindows.h"
 #include "SourceControlHelpers.h"
 #include "ISourceControlModule.h"
+#include "SSourceControlCommon.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/Object.h"
 #include "UObject/Package.h"
@@ -602,25 +603,10 @@ public:
 		}
 		else if (ColumnName == TEXT("Description"))
 		{
-			// Cut down the description to a single line for the list view
-			FString SingleLineDescription = RevisionListItem->Description;
-			int32 NewLinePos;
-			if (SingleLineDescription.FindChar(TCHAR('\n'), NewLinePos))
-			{
-				SingleLineDescription.LeftInline(NewLinePos, false);
-			}
-
-			// Trim any trailing new-line characters from the description for the tooltip
-			FString TooltipDescription = RevisionListItem->Description;
-			while(TooltipDescription.Len() && FChar::IsLinebreak(TooltipDescription[TooltipDescription.Len() - 1]))
-			{
-				TooltipDescription.RemoveAt(TooltipDescription.Len() - 1, 1, false);
-			}
-
 			return
 				SNew(STextBlock)
-				.Text(FText::FromString(SingleLineDescription))
-				.ToolTipText(FText::FromString(TooltipDescription));
+				.Text(SSourceControlCommon::GetSingleLineChangelistDescription(FText::FromString(RevisionListItem->Description)))
+				.ToolTipText(FText::FromString(RevisionListItem->Description));
 		}
 		else
 		{

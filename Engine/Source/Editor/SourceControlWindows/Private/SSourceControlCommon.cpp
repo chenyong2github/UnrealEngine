@@ -379,6 +379,21 @@ FText GetDefaultMultipleAsset()
 	return LOCTEXT("SourceCOntrol_ManyAssetType", "Multiple Assets");
 }
 
+FText GetSingleLineChangelistDescription(const FText& InFullDescription)
+{
+	FString DescriptionTextAsString = InFullDescription.ToString();
+	DescriptionTextAsString.TrimStartInline();
+
+	int32 NewlineStartIndex = INDEX_NONE;
+	DescriptionTextAsString.FindChar(TCHAR('\n'), NewlineStartIndex);
+	if (NewlineStartIndex != INDEX_NONE)
+	{
+		DescriptionTextAsString.LeftInline(NewlineStartIndex);
+	}
+
+	return InFullDescription.IsCultureInvariant() ? FText::AsCultureInvariant(DescriptionTextAsString) : FText::FromString(DescriptionTextAsString);
+}
+
 /** Wraps the execution of a changelist operations with a slow task. */
 void ExecuteChangelistOperationWithSlowTaskWrapper(const FText& Message, const TFunction<void()>& ChangelistTask)
 {

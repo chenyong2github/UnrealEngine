@@ -88,13 +88,13 @@ public:
 
 	FText GetChangelistText() const;
 	FText GetChangelistDescriptionText() const;
+	FText GetChangelistDescriptionSingleLineText() const;
 
 	static void PopulateSearchString(const FChangelistTreeItem& Item, TArray<FString>& OutStrings);
 
 protected:
 	//~ Begin STableRow Interface.
 	virtual FReply OnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent) override;
-	static FString GetChangelistDescription(const FChangelistTreeItem& Item);
 
 private:
 	/** The info about the widget that we are visualizing. */

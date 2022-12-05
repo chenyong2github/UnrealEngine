@@ -90,7 +90,7 @@ void SChangelistTableRow::Construct(const FArguments& InArgs, const TSharedRef<S
 			.AutoWidth()
 			[
 				SNew(STextBlock)
-				.Text(this, &SChangelistTableRow::GetChangelistDescriptionText)
+				.Text(this, &SChangelistTableRow::GetChangelistDescriptionSingleLineText)
 				.HighlightText(InArgs._HighlightText)
 			]
 		], InOwner);
@@ -99,7 +99,7 @@ void SChangelistTableRow::Construct(const FArguments& InArgs, const TSharedRef<S
 void SChangelistTableRow::PopulateSearchString(const FChangelistTreeItem& Item, TArray<FString>& OutStrings)
 {
 	OutStrings.Emplace(Item.GetDisplayText().ToString()); // The changelist number
-	OutStrings.Emplace(GetChangelistDescription(Item));   // The changelist description.
+	OutStrings.Emplace(Item.GetDescriptionText().ToString());   // The changelist description.
 }
 
 FText SChangelistTableRow::GetChangelistText() const
@@ -109,17 +109,12 @@ FText SChangelistTableRow::GetChangelistText() const
 
 FText SChangelistTableRow::GetChangelistDescriptionText() const
 {
-	return FText::FromString(GetChangelistDescription(*TreeItem));
+	return TreeItem->GetDescriptionText();
 }
 
-FString SChangelistTableRow::GetChangelistDescription(const FChangelistTreeItem& Item)
+FText SChangelistTableRow::GetChangelistDescriptionSingleLineText() const
 {
-	FString DescriptionString = Item.GetDescriptionText().ToString();
-	// Here we'll both remove \r\n (when edited from the dialog) and \n (when we get it from the SCC)
-	DescriptionString.ReplaceInline(TEXT("\r"), TEXT(""));
-	DescriptionString.ReplaceInline(TEXT("\n"), TEXT(" "));
-	DescriptionString.TrimEndInline();
-	return DescriptionString;
+	return SSourceControlCommon::GetSingleLineChangelistDescription(TreeItem->GetDescriptionText());
 }
 
 FReply SChangelistTableRow::OnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent)

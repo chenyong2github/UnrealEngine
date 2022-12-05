@@ -365,6 +365,11 @@ namespace SSourceControlCommon
 	FText GetDefaultUnknownAssetType();
 	FText GetDefaultMultipleAsset();
 
+	/**
+	 * returns the first non-whitespace line, or an empty FText if InFullDescription is empty or only whitespace
+	 */
+	FText GetSingleLineChangelistDescription(const FText& InFullDescription);
+
 	void ExecuteChangelistOperationWithSlowTaskWrapper(const FText& Message, const TFunction<void()>& ChangelistTask);
 	void ExecuteUncontrolledChangelistOperationWithSlowTaskWrapper(const FText& Message, const TFunction<void()>& UncontrolledChangelistTask);
 	void DisplaySourceControlOperationNotification(const FText& Message, SNotificationItem::ECompletionState CompletionState);
