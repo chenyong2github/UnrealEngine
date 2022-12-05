@@ -2,16 +2,16 @@
 
 using System.Threading.Tasks;
 using EpicGames.Core;
+using EpicGames.Horde.Storage;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace Horde.Agent.Commands.Vcs
 {
-	[Command("Vcs", "Init", "Initialize a directory for VCS-like operations")]
+	[Command("vcs", "init", "Initialize a directory for VCS-like operations")]
 	class VcsInitCommand : VcsBase
 	{
-		public VcsInitCommand(IOptions<AgentSettings> settings)
-			: base(settings)
+		public VcsInitCommand(IStorageClientFactory storageClientFactory)
+			: base(storageClientFactory)
 		{
 		}
 

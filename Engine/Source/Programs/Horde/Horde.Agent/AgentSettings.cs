@@ -192,6 +192,11 @@ namespace Horde.Agent
 		public bool EnableNewLogger { get; set; }
 
 		/// <summary>
+		/// Option to use a local storage client rather than connecting through the server. Primarily for convenience when debugging / iterating locally.
+		/// </summary>
+		public bool UseLocalStorageClient { get; set; }
+
+		/// <summary>
 		/// Key/value properties in addition to those set internally by the agent
 		/// </summary>
 		public Dictionary<string, string> Properties { get; } = new();

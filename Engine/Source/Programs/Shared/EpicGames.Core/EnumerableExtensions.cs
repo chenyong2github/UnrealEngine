@@ -94,5 +94,46 @@ namespace EpicGames.Core
 
 			return maxElement;
 		}
+
+		/// <summary>
+		/// Zips two dictionaries, returning a sequence of keys with the old and new values (or null if they have been removed).
+		/// </summary>
+		/// <typeparam name="TKey">Common key between the two dictionaries</typeparam>
+		/// <typeparam name="TOldValue">Type of values in the first dictionary</typeparam>
+		/// <typeparam name="TNewValue">Type of values in the second dictionary</typeparam>
+		/// <param name="oldDictionary">The first dictionary</param>
+		/// <param name="newDictionary">The second dictionary</param>
+		/// <returns>Sequence of key/value pairs from each dictionary</returns>
+		public static IEnumerable<(TKey, TOldValue?, TNewValue?)> Zip<TKey, TOldValue, TNewValue>(this IReadOnlyDictionary<TKey, TOldValue>? oldDictionary, IReadOnlyDictionary<TKey, TNewValue>? newDictionary)
+			where TKey : notnull
+			where TOldValue : class
+			where TNewValue : class
+		{
+			if (newDictionary != null)
+			{
+				foreach ((TKey key, TNewValue newValue) in newDictionary)
+				{
+					TOldValue? oldValue;
+					if (oldDictionary == null || !oldDictionary.TryGetValue(key, out oldValue))
+					{
+						yield return (key, null, newValue);
+					}
+					else
+					{
+						yield return (key, oldValue, newValue);
+					}
+				}
+			}
+			if (oldDictionary != null)
+			{
+				foreach ((TKey key, TOldValue oldValue) in oldDictionary)
+				{
+					if (newDictionary == null || !newDictionary.ContainsKey(key))
+					{
+						yield return (key, oldValue, null);
+					}
+				}
+			}
+		}
 	}
 }

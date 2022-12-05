@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Nodes;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -12,8 +13,8 @@ namespace Horde.Agent.Commands.Vcs
 	[Command("vcs", "clone", "Initialize a directory for VCS-like operations")]
 	class VcsCloneCommand : VcsCheckoutCommand
 	{
-		public VcsCloneCommand(IOptions<AgentSettings> settings)
-			: base(settings)
+		public VcsCloneCommand(IStorageClientFactory storageClientFactory)
+			: base(storageClientFactory)
 		{
 		}
 
@@ -27,9 +28,10 @@ namespace Horde.Agent.Commands.Vcs
 
 			RefName branchName = new RefName(Branch ?? "ue5-main");
 
-			using IStorageClientOwner owner = CreateStorageClient(BaseDir, logger);
-			IStorageClient store = owner.Store;
-			TreeReader reader = new TreeReader(owner.Store, owner.Cache, logger);
+			IStorageClient store = CreateStorageClient();
+
+			using MemoryCache cache = new MemoryCache(new MemoryCacheOptions());
+			TreeReader reader = new TreeReader(store, cache, logger);
 
 			CommitNode? tip = await GetCommitAsync(reader, branchName, Change);
 			if (tip == null)

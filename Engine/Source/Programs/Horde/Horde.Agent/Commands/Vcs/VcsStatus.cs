@@ -2,16 +2,16 @@
 
 using System.Threading.Tasks;
 using EpicGames.Core;
+using EpicGames.Horde.Storage;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace Horde.Agent.Commands.Vcs
 {
 	[Command("Vcs", "Status", "Find status of local files")]
 	class VcsStatusCommand : VcsBase
 	{
-		public VcsStatusCommand(IOptions<AgentSettings> settings)
-			: base(settings)
+		public VcsStatusCommand(IStorageClientFactory storageClientFactory)
+			: base(storageClientFactory)
 		{
 		}
 

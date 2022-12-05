@@ -197,6 +197,8 @@ namespace Horde.Agent
 			services.AddSingleton<IServerLoggerFactory, ServerLoggerFactory>();
 			services.AddHostedService<WorkerService>();
 
+			services.AddSingleton<IStorageClientFactory, StorageClientFactory>();
+
 			// Allow commands to augment the service collection for their own DI service providers
 			services.AddSingleton<DefaultServices>(x => new DefaultServices(config, services));
 

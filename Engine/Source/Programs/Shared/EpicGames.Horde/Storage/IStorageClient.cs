@@ -199,6 +199,19 @@ namespace EpicGames.Horde.Storage
 	}
 
 	/// <summary>
+	/// Allows creating storage clients for different namespaces
+	/// </summary>
+	public interface IStorageClientFactory
+	{
+		/// <summary>
+		/// Creates a storage client for the given namespace
+		/// </summary>
+		/// <param name="namespaceId">Namespace to manipulate</param>
+		/// <returns>Storage client instance</returns>
+		IStorageClient Create(NamespaceId namespaceId);
+	}
+
+	/// <summary>
 	/// Extension methods for <see cref="IStorageClient"/>
 	/// </summary>
 	public static class StorageClientExtensions

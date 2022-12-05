@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Nodes;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -16,8 +17,8 @@ namespace Horde.Agent.Commands.Vcs
 		[CommandLine("-Count")]
 		public int Count { get; set; } = 20;
 
-		public VcsLogCommand(IOptions<AgentSettings> settings)
-			: base(settings)
+		public VcsLogCommand(IStorageClientFactory storageClientFactory)
+			: base(storageClientFactory)
 		{
 		}
 
@@ -27,9 +28,10 @@ namespace Horde.Agent.Commands.Vcs
 
 			WorkspaceState workspaceState = await ReadStateAsync(rootDir);
 
-			using IStorageClientOwner owner = CreateStorageClient(rootDir, logger);
-			IStorageClient store = owner.Store;
-			TreeReader reader = new TreeReader(owner.Store, owner.Cache, logger);
+			IStorageClient store = CreateStorageClient();
+
+			using MemoryCache cache = new MemoryCache(new MemoryCacheOptions());
+			TreeReader reader = new TreeReader(store, cache, logger);
 
 			List<CommitNode> commits = new List<CommitNode>();
 

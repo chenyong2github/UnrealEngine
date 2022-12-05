@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Nodes;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -26,8 +27,8 @@ namespace Horde.Agent.Commands.Vcs
 		[CommandLine("-Force")]
 		public bool Force { get; set; }
 
-		public VcsCheckoutCommand(IOptions<AgentSettings> settings)
-			: base(settings)
+		public VcsCheckoutCommand(IStorageClientFactory storageClientFactory)
+			: base(storageClientFactory)
 		{
 		}
 
@@ -55,9 +56,10 @@ namespace Horde.Agent.Commands.Vcs
 
 			RefName branchName = (Branch != null) ? new RefName(Branch) : workspaceState.Branch;
 
-			using IStorageClientOwner owner = CreateStorageClient(rootDir, logger);
-			IStorageClient store = owner.Store;
-			TreeReader reader = new TreeReader(owner.Store, owner.Cache, logger);
+			IStorageClient store = CreateStorageClient();
+
+			using MemoryCache cache = new MemoryCache(new MemoryCacheOptions());
+			TreeReader reader = new TreeReader(store, cache, logger);
 
 			CommitNode? tip = await GetCommitAsync(reader, branchName, Change);
 			if (tip == null)
@@ -80,7 +82,7 @@ namespace Horde.Agent.Commands.Vcs
 			DirectoryState newState = new DirectoryState();
 
 			DirectoryNode directoryNode = await directoryRef.ExpandAsync(reader);
-			foreach ((Utf8String name, DirectoryEntry? subDirEntry, DirectoryState? subDirState) in Zip(directoryNode.NameToDirectory, directoryState?.Directories))
+			foreach ((Utf8String name, DirectoryEntry? subDirEntry, DirectoryState? subDirState) in EnumerableExtensions.Zip(directoryNode.NameToDirectory, directoryState?.Directories))
 			{
 				DirectoryReference subDirPath = DirectoryReference.Combine(dirPath, name.ToString());
 				if (subDirEntry == null)
@@ -96,7 +98,7 @@ namespace Horde.Agent.Commands.Vcs
 				}
 			}
 
-			foreach ((Utf8String name, FileEntry? fileEntry, FileState? fileState) in Zip(directoryNode.NameToFile, directoryState?.Files))
+			foreach ((Utf8String name, FileEntry? fileEntry, FileState? fileState) in EnumerableExtensions.Zip(directoryNode.NameToFile, directoryState?.Files))
 			{
 				FileReference filePath = FileReference.Combine(dirPath, name.ToString());
 				if (fileEntry == null)

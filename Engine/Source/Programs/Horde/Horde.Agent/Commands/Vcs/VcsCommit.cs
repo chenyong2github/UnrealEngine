@@ -8,8 +8,8 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Nodes;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace Horde.Agent.Commands.Vcs
 {
@@ -22,8 +22,8 @@ namespace Horde.Agent.Commands.Vcs
 		[CommandLine("-Message=")]
 		public string? Message { get; set; }
 
-		public VcsCommitCommand(IOptions<AgentSettings> settings)
-			: base(settings)
+		public VcsCommitCommand(IStorageClientFactory storageClientFactory)
+			: base(storageClientFactory)
 		{
 		}
 
@@ -50,9 +50,10 @@ namespace Horde.Agent.Commands.Vcs
 
 			PrintDelta(oldState, newState, logger);
 
-			using IStorageClientOwner owner = CreateStorageClient(rootDir, logger);
-			IStorageClient store = owner.Store;
-			TreeReader reader = new TreeReader(owner.Store, owner.Cache, logger);
+			IStorageClient store = CreateStorageClient();
+
+			using MemoryCache cache = new MemoryCache(new MemoryCacheOptions());
+			TreeReader reader = new TreeReader(store, cache, logger);
 
 			CommitNode? tip = await reader.TryReadNodeAsync<CommitNode>(workspaceState.Branch);
 			TreeNodeRef<CommitNode>? tipRef = (tip == null) ? null : new TreeNodeRef<CommitNode>(tip);
@@ -111,7 +112,7 @@ namespace Horde.Agent.Commands.Vcs
 			directories.Add((rootRef, newState));
 
 			DirectoryNode root = await rootRef.ExpandAsync(reader);
-			foreach ((Utf8String name, DirectoryState? oldSubDirState, DirectoryState? newSubDirState) in Zip(oldState?.Directories, newState.Directories))
+			foreach ((Utf8String name, DirectoryState? oldSubDirState, DirectoryState? newSubDirState) in EnumerableExtensions.Zip(oldState?.Directories, newState.Directories))
 			{
 				if (newSubDirState == null)
 				{
@@ -123,7 +124,7 @@ namespace Horde.Agent.Commands.Vcs
 				}
 			}
 
-			foreach ((Utf8String name, FileState? oldFileState, FileState? newFileState) in Zip(oldState?.Files, newState.Files))
+			foreach ((Utf8String name, FileState? oldFileState, FileState? newFileState) in EnumerableExtensions.Zip(oldState?.Files, newState.Files))
 			{
 				if (newFileState == null)
 				{

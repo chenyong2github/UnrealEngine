@@ -9,17 +9,18 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Nodes;
-using Horde.Agent.Commands.Bundles;
 using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace Horde.Agent.Commands.Vcs
 {
-	abstract class VcsBase : BundleCommandBase
+	abstract class VcsBase : Command
 	{
 		[CommandLine("-BaseDir=")]
 		public DirectoryReference? BaseDir { get; set; }
+
+		[CommandLine("-Namespace=")]
+		public NamespaceId NamespaceId { get; set; } = new NamespaceId("horde-perforce");
 
 		protected class FileState
 		{
@@ -151,52 +152,17 @@ namespace Horde.Agent.Commands.Vcs
 			}
 		}
 
-		public static IEnumerable<(TKey, TOldValue?, TNewValue?)> Zip<TKey, TOldValue, TNewValue>(IReadOnlyDictionary<TKey, TOldValue>? oldDictionary, IReadOnlyDictionary<TKey, TNewValue>? newDictionary)
-			where TKey : notnull 
-			where TOldValue : class 
-			where TNewValue : class
-		{
-			if (newDictionary != null)
-			{
-				foreach ((TKey key, TNewValue newValue) in newDictionary)
-				{
-					TOldValue? oldValue;
-					if (oldDictionary == null || !oldDictionary.TryGetValue(key, out oldValue))
-					{
-						yield return (key, null, newValue);
-					}
-					else
-					{
-						yield return (key, oldValue, newValue);
-					}
-				}
-			}
-			if (oldDictionary != null)
-			{
-				foreach ((TKey key, TOldValue oldValue) in oldDictionary)
-				{
-					if (newDictionary == null || !newDictionary.ContainsKey(key))
-					{
-						yield return (key, oldValue, null);
-					}
-				}
-			}
-		}
-
 		const string DataDir = ".horde";
 		const string StateFileName = "state.dat";
 
-		protected VcsBase(IOptions<AgentSettings> settings)
-			: base(settings)
+		readonly IStorageClientFactory _storageClientFactory;
+
+		protected VcsBase(IStorageClientFactory storageClientFactory)
 		{
-			NamespaceId = new NamespaceId("horde-perforce");
+			_storageClientFactory = storageClientFactory;
 		}
 
-		protected IStorageClientOwner CreateStorageClient(DirectoryReference rootDir, ILogger logger)
-		{
-			StorageDir = DirectoryReference.Combine(rootDir, DataDir, "bundles");
-			return base.CreateStorageClient(logger);
-		}
+		protected IStorageClient CreateStorageClient() => _storageClientFactory.Create(NamespaceId);
 
 		protected static async Task<WorkspaceState> ReadStateAsync(DirectoryReference rootDir)
 		{
@@ -298,7 +264,7 @@ namespace Horde.Agent.Commands.Vcs
 
 		protected static void RemoveAddedFiles(DirectoryState oldState, DirectoryState newState)
 		{
-			List<(Utf8String, DirectoryState?, DirectoryState?)> directoryDeltas = Zip(oldState.Directories, newState.Directories).ToList();
+			List<(Utf8String, DirectoryState?, DirectoryState?)> directoryDeltas = EnumerableExtensions.Zip(oldState.Directories, newState.Directories).ToList();
 			foreach ((Utf8String name, DirectoryState? oldSubDirState, _) in directoryDeltas)
 			{
 				if (oldSubDirState == null)
@@ -307,7 +273,7 @@ namespace Horde.Agent.Commands.Vcs
 				}
 			}
 
-			List<(Utf8String, FileState?, FileState?)> fileDeltas = Zip(oldState.Files, newState.Files).ToList();
+			List<(Utf8String, FileState?, FileState?)> fileDeltas = EnumerableExtensions.Zip(oldState.Files, newState.Files).ToList();
 			foreach ((Utf8String name, FileState? oldFileState, _) in fileDeltas)
 			{
 				if (oldFileState == null)
@@ -324,7 +290,7 @@ namespace Horde.Agent.Commands.Vcs
 				return newState;
 			}
 
-			foreach ((_, DirectoryState? oldSubDirState, DirectoryState? newSubDirState) in Zip(oldState.Directories, newState.Directories))
+			foreach ((_, DirectoryState? oldSubDirState, DirectoryState? newSubDirState) in EnumerableExtensions.Zip(oldState.Directories, newState.Directories))
 			{
 				if (oldSubDirState == null || newSubDirState == null || oldSubDirState != DedupTrees(oldSubDirState, newSubDirState))
 				{
@@ -332,7 +298,7 @@ namespace Horde.Agent.Commands.Vcs
 				}
 			}
 
-			foreach ((_, FileState? oldFileState, FileState? newFileState) in Zip(oldState.Files, newState.Files))
+			foreach ((_, FileState? oldFileState, FileState? newFileState) in EnumerableExtensions.Zip(oldState.Files, newState.Files))
 			{
 				if (oldFileState != newFileState)
 				{
@@ -347,7 +313,7 @@ namespace Horde.Agent.Commands.Vcs
 
 		static void PrintDelta(string prefix, DirectoryState oldState, DirectoryState newState, ILogger logger)
 		{
-			foreach ((Utf8String name, DirectoryState? oldSubDirState, DirectoryState? newSubDirState) in Zip(oldState.Directories, newState.Directories))
+			foreach ((Utf8String name, DirectoryState? oldSubDirState, DirectoryState? newSubDirState) in EnumerableExtensions.Zip(oldState.Directories, newState.Directories))
 			{
 				if (oldSubDirState == null)
 				{
@@ -363,7 +329,7 @@ namespace Horde.Agent.Commands.Vcs
 				}
 			}
 
-			foreach ((Utf8String name, FileState? oldFileState, FileState? newFileState) in Zip(oldState.Files, newState.Files))
+			foreach ((Utf8String name, FileState? oldFileState, FileState? newFileState) in EnumerableExtensions.Zip(oldState.Files, newState.Files))
 			{
 				if (oldFileState == null)
 				{
@@ -397,9 +363,4 @@ namespace Horde.Agent.Commands.Vcs
 			return tip;
 		}
 	}
-
-
-
-
-
 }

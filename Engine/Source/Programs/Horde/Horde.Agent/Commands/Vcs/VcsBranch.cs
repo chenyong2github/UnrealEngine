@@ -14,8 +14,8 @@ namespace Horde.Agent.Commands.Vcs
 		[CommandLine(Prefix = "-Name=", Required = true)]
 		public string Name { get; set; } = "";
 
-		public VcsBranchCommand(IOptions<AgentSettings> settings)
-			: base(settings)
+		public VcsBranchCommand(IStorageClientFactory storageClientFactory)
+			: base(storageClientFactory)
 		{
 		}
 
@@ -25,8 +25,7 @@ namespace Horde.Agent.Commands.Vcs
 
 			WorkspaceState workspaceState = await ReadStateAsync(rootDir);
 
-			using IStorageClientOwner owner = CreateStorageClient(rootDir, logger);
-			IStorageClient store = owner.Store;
+			IStorageClient store = CreateStorageClient();
 
 			RefName branchName = new RefName(Name);
 			if (await store.HasRefAsync(branchName))

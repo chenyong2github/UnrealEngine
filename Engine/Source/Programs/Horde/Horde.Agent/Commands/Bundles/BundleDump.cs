@@ -2,48 +2,104 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.IO;
+using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace Horde.Agent.Commands.Bundles
 {
 	[Command("bundle", "dump", "Dumps the contents of a bundle")]
-	internal class DumpCommand : BundleCommandBase
+	internal class BundleDump : Command
 	{
+		[CommandLine("-Namespace=", Description = "Namespace to use for storage")]
+		public NamespaceId NamespaceId { get; set; } = new NamespaceId("default");
+
 		[CommandLine("-Ref=")]
-		public RefName RefName { get; set; } = DefaultRefName;
+		public RefName? RefName { get; set; }
 
 		[CommandLine("-Blob=")]
 		public BlobLocator? BlobId { get; set; }
 
-		public DumpCommand(IOptions<AgentSettings> settings)
-			: base(settings)
+		[CommandLine("-File=")]
+		public string? File { get; set; }
+
+		[CommandLine("-Verbose")]
+		public bool Verbose { get; set; }
+
+		readonly IStorageClientFactory _storageClientFactory;
+
+		public BundleDump(IStorageClientFactory storageClientFactory)
 		{
+			_storageClientFactory = storageClientFactory;
 		}
 
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
-			using IStorageClientOwner storeOwner = CreateStorageClient(logger);
-			IStorageClient store = storeOwner.Store;
-
-			if (BlobId == null)
+			Bundle bundle;
+			if (File != null)
 			{
-				NodeLocator locator = await store.ReadRefTargetAsync(RefName);
-				BlobId = locator.Blob;
+				FileReference Location = new FileReference(File);
+				byte[] bytes = await FileReference.ReadAllBytesAsync(Location);
+				bundle = new Bundle(new MemoryReader(bytes));
+				logger.LogInformation("Summary for blob {Location}", Location);
+			}
+			else if (BlobId != null)
+			{
+				IStorageClient store = _storageClientFactory.Create(NamespaceId);
+				bundle = await store.ReadBundleAsync(BlobId.Value);
+				logger.LogInformation("Summary for blob {BlobId}", BlobId.Value);
+			}
+			else if (RefName != null)
+			{
+				IStorageClient store = _storageClientFactory.Create(NamespaceId);
+
+				NodeLocator locator = await store.ReadRefTargetAsync(RefName.Value);
+				logger.LogInformation("Ref {RefName} -> {Locator}", RefName.Value, locator);
+
+				bundle = await store.ReadBundleAsync(locator.Blob);
+				logger.LogInformation("Summary for blob {BlobId}", locator.Blob);
+			}
+			else
+			{
+				logger.LogError("No blob specified - use -File/Blob/Ref=...");
+				return 1;
 			}
 
-			logger.LogInformation("Summary for blob {BlobId}", BlobId.Value);
-			Bundle bundle = await store.ReadBundleAsync(BlobId.Value);
-
 			BundleHeader header = bundle.Header;
+
+			Dictionary<Guid, string> typeIdToName = new Dictionary<Guid, string>();
+
+			TreeReaderOptions options = new TreeReaderOptions();
+			foreach (Type type in options.Types)
+			{
+				TreeNodeAttribute? attribute = type.GetCustomAttribute<TreeNodeAttribute>();
+				if (attribute != null)
+				{
+					typeIdToName.Add(Guid.Parse(attribute.Guid), type.Name);
+				}
+			}
+
+			string[] types = new string[header.Types.Count];
+			for (int idx = 0; idx < header.Types.Count; idx++)
+			{
+				string? name;
+				if (!typeIdToName.TryGetValue(header.Types[idx].Guid, out name))
+				{
+					name = header.Types[idx].Guid.ToString();
+				}
+				types[idx] = $"{name} v{header.Types[idx].Version}";
+			}
+
 			int packetStart = 0;
 
 			logger.LogInformation("");
 			logger.LogInformation("Imports: {NumImports}", header.Imports.Count);
+
+			List<string> nodeNames = new List<string>();
 
 			int refIdx = 0;
 			foreach (BundleImport import in header.Imports)
@@ -51,7 +107,11 @@ namespace Horde.Agent.Commands.Bundles
 				logger.LogInformation("  From blob {BlobId} ({NumExports} nodes)", import.Locator, import.Exports.Count);
 				foreach (int exportIdx in import.Exports)
 				{
-					logger.LogInformation("    [{Index}] IMP {BlobId}:{ExportIdx}", refIdx, import.Locator, exportIdx);
+					nodeNames.Add($"IMP {import.Locator}#{exportIdx}");
+					if (Verbose)
+					{
+						logger.LogInformation("    [{Index}] IMP {ExportIdx}", refIdx, exportIdx);
+					}
 					refIdx++;
 				}
 			}
@@ -61,11 +121,22 @@ namespace Horde.Agent.Commands.Bundles
 
 			int packetIdx = 0;
 			int packetOffset = 0;
-			foreach (BundleExport export in header.Exports)
+			for(int exportIdx = 0; exportIdx < header.Exports.Count; exportIdx++)
 			{
-				string refs = (export.References.Count == 0) ? "[ ]" : $"[ {String.Join(", ", export.References.Select(x => x.ToString()))} ]";
-				logger.LogInformation("  [{Index}] EXP {ExportHash} (length: {NumBytes:n0}, packet: {PacketIdx}, refs: {Refs})", refIdx, export.Hash, export.Length, packetIdx, refs);
+				BundleExport export = header.Exports[exportIdx];
+				logger.LogInformation("  [{Index}] EXP {ExportHash} (type: {Type}, length: {NumBytes:n0}, packet: {PacketIdx})", refIdx, export.Hash, types[export.TypeIdx], export.Length, packetIdx);
+
+				nodeNames.Add($"EXP {exportIdx}");
 				refIdx++;
+
+				if (Verbose)
+				{
+					for (int idx = 0; idx < export.References.Count; idx++)
+					{
+						int nodeIdx = export.References[idx];
+						logger.LogInformation("            REF {RefIdx,-3} -> {NodeIdx,-3} ({RefName})", idx, nodeIdx, nodeNames[nodeIdx]);
+					}
+				}
 
 				packetOffset += export.Length;
 				if(packetOffset >= header.Packets[packetIdx].DecodedLength)
