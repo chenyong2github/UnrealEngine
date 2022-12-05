@@ -330,8 +330,7 @@ UDynamicMesh*  UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshToStaticMesh(
 
 		// Setting to prevent the standard static mesh reduction from running and replacing the render LOD.
 		FStaticMeshSourceModel& ThisSourceModel = ToStaticMeshAsset->GetSourceModel(UseLODIndex);
-		ThisSourceModel.ReductionSettings.PercentTriangles = 1.f;
-		ThisSourceModel.ReductionSettings.PercentVertices = 1.f;
+		ThisSourceModel.ResetReductionSetting();
 
 		if (Options.bApplyNaniteSettings)
 		{

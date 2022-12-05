@@ -2376,11 +2376,43 @@ void UStaticMesh::GetLODGroupsDisplayNames(TArray<FText>& OutLODGroupsDisplayNam
 	RunningPlatform->GetStaticMeshLODSettings().GetLODGroupDisplayNames(OutLODGroupsDisplayNames);
 }
 
-bool UStaticMesh::IsReductionActive(int32 LODIndex) const
+bool UStaticMesh::IsReductionActive(int32 LodIndex) const
 {
-	FMeshReductionSettings ReductionSettings = GetReductionSettings(LODIndex);
-	IMeshReduction* ReductionModule = FModuleManager::Get().LoadModuleChecked<IMeshReductionManagerModule>("MeshReductionInterface").GetStaticMeshReductionInterface();
-	return ReductionModule->IsReductionActive(ReductionSettings);
+	//Invalid LOD are not reduced
+	if (!IsSourceModelValid(LodIndex))
+	{
+		return false;
+	}
+
+	bool bReductionActive = false;
+	if (IMeshReduction* ReductionModule = FModuleManager::Get().LoadModuleChecked<IMeshReductionManagerModule>("MeshReductionInterface").GetStaticMeshReductionInterface())
+	{
+		FMeshReductionSettings ReductionSettings = GetReductionSettings(LodIndex);
+		const FStaticMeshSourceModel& SrcModel = GetSourceModel(LodIndex);
+		uint32 LODTriNumber = SrcModel.CacheMeshDescriptionTrianglesCount;
+		uint32 LODVertexNumber = SrcModel.CacheMeshDescriptionVerticesCount;
+		bReductionActive = ReductionModule->IsReductionActive(ReductionSettings, LODVertexNumber, LODTriNumber);
+	}
+	return bReductionActive;
+}
+
+bool UStaticMesh::IsReductionActive(int32 LodIndex, const FMeshDescription& MeshDescription) const
+{
+	//Invalid LOD are not reduced
+	if (!IsSourceModelValid(LodIndex))
+	{
+		return false;
+	}
+	bool bReductionActive = false;
+	if (IMeshReduction* ReductionModule = FModuleManager::Get().LoadModuleChecked<IMeshReductionManagerModule>("MeshReductionInterface").GetStaticMeshReductionInterface())
+	{
+		FStaticMeshSourceModel* MutableSourceModel = const_cast<FStaticMeshSourceModel*>(&GetSourceModel(LodIndex));
+		MutableSourceModel->CacheMeshDescriptionVerticesCount = FStaticMeshOperations::GetUniqueVertexCount(MeshDescription);
+		MutableSourceModel->CacheMeshDescriptionTrianglesCount = MeshDescription.Triangles().Num();
+		FMeshReductionSettings ReductionSettings = GetReductionSettings(LodIndex);
+		bReductionActive = ReductionModule->IsReductionActive(ReductionSettings, MutableSourceModel->CacheMeshDescriptionVerticesCount, MutableSourceModel->CacheMeshDescriptionTrianglesCount);
+	}
+	return bReductionActive;
 }
 
 FMeshReductionSettings UStaticMesh::GetReductionSettings(int32 LODIndex) const
@@ -2470,7 +2502,9 @@ static void SerializeReductionSettingsForDDC(FArchive& Ar, FMeshReductionSetting
 	// Note: this serializer is only used to build the mesh DDC key, no versioning is required
 	Ar << ReductionSettings.TerminationCriterion;
 	Ar << ReductionSettings.PercentTriangles;
+	Ar << ReductionSettings.MaxNumOfTriangles;
 	Ar << ReductionSettings.PercentVertices;
+	Ar << ReductionSettings.MaxNumOfVerts;
 	Ar << ReductionSettings.MaxDeviation;
 	Ar << ReductionSettings.PixelError;
 	Ar << ReductionSettings.WeldingThreshold;
@@ -4140,9 +4174,7 @@ bool UStaticMesh::SetCustomLOD(const UStaticMesh* SourceStaticMesh, int32 Destin
 		//Make sure an imported mesh do not get reduce if there was no mesh data before reimport.
 		//In this case we have a generated LOD convert to a custom LOD
 		FStaticMeshSourceModel& SrcModel = GetSourceModel(DestinationLodIndex);
-		SrcModel.ReductionSettings.MaxDeviation = 0.0f;
-		SrcModel.ReductionSettings.PercentTriangles = 1.0f;
-		SrcModel.ReductionSettings.PercentVertices = 1.0f;
+		SrcModel.ResetReductionSetting();
 	}
 	else
 	{

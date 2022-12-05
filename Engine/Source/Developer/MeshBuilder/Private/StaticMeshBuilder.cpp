@@ -407,6 +407,8 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 		if (bIsMeshDescriptionValid)
 		{
 			MeshDescriptionHelper.SetupRenderMeshDescription(StaticMesh, MeshDescriptions[LodIndex], false, true);
+			//Get back the reduction status once we apply all build settings, vertex count can change depending on the build settings
+			bUseReduction = StaticMesh->IsReductionActive(LodIndex, MeshDescriptions[LodIndex]);
 		}
 		else
 		{

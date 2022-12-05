@@ -2559,4 +2559,161 @@ void FStaticMeshOperations::ApplyTransform(FMeshDescription& MeshDescription, co
 	}
 }
 
+namespace UE::Private
+{
+	class FPrivateVertexInfo
+	{
+	public:
+		FVector3f			Position;
+		FVector3f			Normal;
+		FVector3f			Tangents[2];
+		FLinearColor		Color;
+		FVector2f			TexCoords[MAX_MESH_TEXTURE_COORDS_MD];
+
+		void Validate()
+		{
+			Normal.Normalize();
+			Tangents[0] -= (Tangents[0] | Normal) * Normal;
+			Tangents[0].Normalize();
+			Tangents[1] -= (Tangents[1] | Normal) * Normal;
+			Tangents[1] -= (Tangents[1] | Tangents[0]) * Tangents[0];
+			Tangents[1].Normalize();
+			Color = Color.GetClamped();
+		}
+
+		bool Equals(const FPrivateVertexInfo& Other) const
+		{
+			constexpr float UVEpsilon = 1.0f / 1024.0f;
+			if (!Position.Equals(Other.Position, UE_THRESH_POINTS_ARE_SAME) ||
+				!Tangents[0].Equals(Other.Tangents[0], UE_THRESH_NORMALS_ARE_SAME) ||
+				!Tangents[1].Equals(Other.Tangents[1], UE_THRESH_NORMALS_ARE_SAME) ||
+				!Normal.Equals(Other.Normal, UE_THRESH_NORMALS_ARE_SAME) ||
+				!Color.Equals(Other.Color))
+			{
+				return false;
+			}
+
+			// UVs
+			for (int32 UVIndex = 0; UVIndex < MAX_MESH_TEXTURE_COORDS_MD; UVIndex++)
+			{
+				if (!TexCoords[UVIndex].Equals(Other.TexCoords[UVIndex], UVEpsilon))
+				{
+					return false;
+				}
+			}
+
+			return true;
+		}
+	};
+}
+
+int32 FStaticMeshOperations::GetUniqueVertexCount(const FMeshDescription& MeshDescription)
+{
+	constexpr uint32 NumTexCoords = MAX_MESH_TEXTURE_COORDS_MD;
+	FOverlappingCorners OverlappingCorners;
+	FStaticMeshOperations::FindOverlappingCorners(OverlappingCorners, MeshDescription, UE_THRESH_POINTS_ARE_SAME);
+	TArray< UE::Private::FPrivateVertexInfo > Verts;
+	Verts.Reserve(MeshDescription.Vertices().Num());
+	TMap< int32, int32 > VertsMap;
+	int32 NumFaces = MeshDescription.Triangles().Num();
+	int32 NumWedges = NumFaces * 3;
+	const FStaticMeshConstAttributes MeshAttribute(MeshDescription);
+	TVertexAttributesConstRef<FVector3f> VertexPositions = MeshAttribute.GetVertexPositions();
+	TVertexInstanceAttributesConstRef<FVector3f> VertexNormals = MeshAttribute.GetVertexInstanceNormals();
+	TVertexInstanceAttributesConstRef<FVector3f> VertexTangents = MeshAttribute.GetVertexInstanceTangents();
+	TVertexInstanceAttributesConstRef<float> VertexBinormalSigns = MeshAttribute.GetVertexInstanceBinormalSigns();
+	TVertexInstanceAttributesConstRef<FVector4f> VertexColors = MeshAttribute.GetVertexInstanceColors();
+	TVertexInstanceAttributesConstRef<FVector2f> VertexUVs = MeshAttribute.GetVertexInstanceUVs();
+
+	int32 WedgeIndex = 0;
+	for (const FTriangleID TriangleID : MeshDescription.Triangles().GetElementIDs())
+	{
+		TArrayView<const FVertexID> VertexIDs = MeshDescription.GetTriangleVertices(TriangleID);
+
+		FVector3f CornerPositions[3];
+		for (int32 TriVert = 0; TriVert < 3; ++TriVert)
+		{
+			const FVertexID VertexID = VertexIDs[TriVert];
+			CornerPositions[TriVert] = VertexPositions[VertexID];
+		}
+
+		// Don't process degenerate triangles.
+		if (CornerPositions[0].Equals(CornerPositions[1], UE_THRESH_POINTS_ARE_SAME) ||
+			CornerPositions[0].Equals(CornerPositions[2], UE_THRESH_POINTS_ARE_SAME) ||
+			CornerPositions[1].Equals(CornerPositions[2], UE_THRESH_POINTS_ARE_SAME))
+		{
+			WedgeIndex += 3;
+			continue;
+		}
+
+		for (int32 TriVert = 0; TriVert < 3; ++TriVert, ++WedgeIndex)
+		{
+			const FVertexInstanceID VertexInstanceID = MeshDescription.GetTriangleVertexInstance(TriangleID, TriVert);
+			const FVector3f& VertexPosition = CornerPositions[TriVert];
+			UE::Private::FPrivateVertexInfo NewVert;
+			NewVert.Position = CornerPositions[TriVert];
+			NewVert.Tangents[0] = VertexTangents[VertexInstanceID];
+			NewVert.Normal = VertexNormals[VertexInstanceID];
+			NewVert.Tangents[1] = FVector3f(0.0f);
+			if (!NewVert.Normal.IsNearlyZero(SMALL_NUMBER) && !NewVert.Tangents[0].IsNearlyZero(SMALL_NUMBER))
+			{
+				NewVert.Tangents[1] = FVector3f::CrossProduct(NewVert.Normal, NewVert.Tangents[0]).GetSafeNormal() * VertexBinormalSigns[VertexInstanceID];
+			}
+
+			// Fix bad tangents
+			NewVert.Tangents[0] = NewVert.Tangents[0].ContainsNaN() ? FVector3f::ZeroVector : NewVert.Tangents[0];
+			NewVert.Tangents[1] = NewVert.Tangents[1].ContainsNaN() ? FVector3f::ZeroVector : NewVert.Tangents[1];
+			NewVert.Normal = NewVert.Normal.ContainsNaN() ? FVector3f::ZeroVector : NewVert.Normal;
+			NewVert.Color = FLinearColor(VertexColors[VertexInstanceID]);
+
+			for (int32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++)
+			{
+				if (UVIndex < VertexUVs.GetNumChannels())
+				{
+					NewVert.TexCoords[UVIndex] = VertexUVs.Get(VertexInstanceID, UVIndex);
+				}
+				else
+				{
+					NewVert.TexCoords[UVIndex] = FVector2f::ZeroVector;
+				}
+			}
+
+			// Make sure this vertex is valid from the start
+			NewVert.Validate();
+
+			//Never add duplicated vertex instance
+			//Use WedgeIndex since OverlappingCorners has been built based on that
+			const TArray<int32>& DupVerts = OverlappingCorners.FindIfOverlapping(WedgeIndex);
+
+			int32 Index = INDEX_NONE;
+			for (int32 k = 0; k < DupVerts.Num(); k++)
+			{
+				if (DupVerts[k] >= WedgeIndex)
+				{
+					// the verts beyond me haven't been placed yet, so these duplicates are not relevant
+					break;
+				}
+
+				int32* Location = VertsMap.Find(DupVerts[k]);
+				if (Location)
+				{
+					UE::Private::FPrivateVertexInfo& FoundVert = Verts[*Location];
+
+					if (NewVert.Equals(FoundVert))
+					{
+						Index = *Location;
+						break;
+					}
+				}
+			}
+			if (Index == INDEX_NONE)
+			{
+				Index = Verts.Add(NewVert);
+				VertsMap.Add(WedgeIndex, Index);
+			}
+		}
+	}
+	return Verts.Num();
+}
+
 #undef LOCTEXT_NAMESPACE

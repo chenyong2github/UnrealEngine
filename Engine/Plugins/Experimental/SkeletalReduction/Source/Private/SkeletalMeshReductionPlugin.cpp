@@ -71,6 +71,11 @@ public:
 		return false;
 	}
 
+	virtual bool IsReductionActive(const struct FMeshReductionSettings& ReductionSettings, uint32 NumVertices, uint32 NumTriangles) const
+	{
+		return false;
+	}
+
 	virtual bool IsReductionActive(const FSkeletalMeshOptimizationSettings &ReductionSettings) const
 	{
 		return IsReductionActive(ReductionSettings, 0, 0);

@@ -1252,7 +1252,9 @@ bool FMeshReductionSettingsLayout::UseNativeToolLayout() const
 EVisibility FMeshReductionSettingsLayout::GetTriangleCriterionVisibility() const
 {
 	EVisibility VisibilityValue;
-	if (!bUseQuadricSimplifier || ReductionSettings.TerminationCriterion != EStaticMeshReductionTerimationCriterion::Vertices)
+	if (!bUseQuadricSimplifier
+		|| ReductionSettings.TerminationCriterion == EStaticMeshReductionTerimationCriterion::Triangles
+		|| ReductionSettings.TerminationCriterion == EStaticMeshReductionTerimationCriterion::Any)
 	{
 		VisibilityValue =  EVisibility::Visible;
 	}
@@ -1268,7 +1270,9 @@ EVisibility FMeshReductionSettingsLayout::GetTriangleCriterionVisibility() const
 EVisibility FMeshReductionSettingsLayout::GetVertexCriterionVisibility() const
 {
 	EVisibility VisibilityValue;
-	if (!bUseQuadricSimplifier || ReductionSettings.TerminationCriterion != EStaticMeshReductionTerimationCriterion::Triangles)
+	if (!bUseQuadricSimplifier
+		|| ReductionSettings.TerminationCriterion == EStaticMeshReductionTerimationCriterion::Vertices
+		|| ReductionSettings.TerminationCriterion == EStaticMeshReductionTerimationCriterion::Any)
 	{
 		VisibilityValue = EVisibility::Visible;
 	}
@@ -1327,29 +1331,75 @@ void FMeshReductionSettingsLayout::GenerateChildContent( IDetailChildrenBuilder&
 			.OnValueCommitted(this, &FMeshReductionSettingsLayout::OnPercentTrianglesCommitted)
 		]
 		.Visibility(TAttribute<EVisibility>(this, &FMeshReductionSettingsLayout::GetTriangleCriterionVisibility));
-
+		
+		if (bUseQuadricSimplifier)
+		{
+			ChildrenBuilder.AddCustomRow( LOCTEXT("MaxTrianglesPercentage_Row", "Max Number of Triangles") )
+			.RowTag("MaxPercentTriangles")
+			.NameContent()
+			[
+				SNew(STextBlock)
+				.Font( IDetailLayoutBuilder::GetDetailFont() )
+				.Text(LOCTEXT("MaxTrianglesPercentage", "Max Triangles Count"))
+				.ToolTipText(LOCTEXT("MaxTrianglesPercentage_ToolTip", "The maximum number of triangles to retain when using percentage criterion."))
+			]
+			.ValueContent()
+			[
+				SNew(SSpinBox<uint32>)
+				.Font( IDetailLayoutBuilder::GetDetailFont() )
+				.MinValue(2)
+				.MaxValue(MAX_uint32)
+				.Value(this, &FMeshReductionSettingsLayout::GetMaxNumOfPercentTriangles)
+				.OnValueChanged(this, &FMeshReductionSettingsLayout::OnMaxNumOfPercentTrianglesChanged)
+				.OnValueCommitted(this, &FMeshReductionSettingsLayout::OnMaxNumOfPercentTrianglesCommitted)
+			]
+			.Visibility(TAttribute<EVisibility>(this, &FMeshReductionSettingsLayout::GetTriangleCriterionVisibility));
+		}
 	}
 
 	if (bUseQuadricSimplifier)
 	{
+		//Percent vertices
 		ChildrenBuilder.AddCustomRow(LOCTEXT("PercentVertices", "Percent Vertices"))
 			.NameContent()
 			[
 				SNew(STextBlock)
 				.Font(IDetailLayoutBuilder::GetDetailFont())
-			.Text(LOCTEXT("PercentVertices", "Percent Vertices"))
+				.Text(LOCTEXT("PercentVertices", "Percent Vertices"))
 			]
-		.ValueContent()
+			.ValueContent()
 			[
 				SNew(SSpinBox<float>)
 				.Font(IDetailLayoutBuilder::GetDetailFont())
-			.MinValue(0.0f)
-			.MaxValue(100.0f)
-			.Value(this, &FMeshReductionSettingsLayout::GetPercentVertices)
-			.OnValueChanged(this, &FMeshReductionSettingsLayout::OnPercentVerticesChanged)
-			.OnValueCommitted(this, &FMeshReductionSettingsLayout::OnPercentVerticesCommitted)
+				.MinValue(0.0f)
+				.MaxValue(100.0f)
+				.Value(this, &FMeshReductionSettingsLayout::GetPercentVertices)
+				.OnValueChanged(this, &FMeshReductionSettingsLayout::OnPercentVerticesChanged)
+				.OnValueCommitted(this, &FMeshReductionSettingsLayout::OnPercentVerticesCommitted)
 			]
 		.Visibility(TAttribute<EVisibility>(this, &FMeshReductionSettingsLayout::GetVertexCriterionVisibility));
+
+		//Max percent absolute vertices
+		ChildrenBuilder.AddCustomRow( LOCTEXT("MaxVerticesPercentage_Row", "Max Number of Vertices") )
+			.RowTag("MaxVertices")
+			.NameContent()
+			[
+				SNew(STextBlock)
+				.Font( IDetailLayoutBuilder::GetDetailFont() )
+				.Text(LOCTEXT("MaxVerticesPercentage", "Max Vertices Count"))
+				.ToolTipText(LOCTEXT("MaxVerticesPercentage_ToolTip", "The maximum number of Vertices to retain when using percentage criterion."))
+			]
+			.ValueContent()
+			[
+				SNew(SSpinBox<uint32>)
+				.Font( IDetailLayoutBuilder::GetDetailFont() )
+				.MinValue(2)
+				.MaxValue(MAX_uint32)
+				.Value(this, &FMeshReductionSettingsLayout::GetMaxNumOfPercentVertices)
+				.OnValueChanged(this, &FMeshReductionSettingsLayout::OnMaxNumOfPercentVerticesChanged)
+				.OnValueCommitted(this, &FMeshReductionSettingsLayout::OnMaxNumOfPercentVerticesCommitted)
+			]
+			.Visibility(TAttribute<EVisibility>(this, &FMeshReductionSettingsLayout::GetVertexCriterionVisibility));
 
 	}
 
@@ -1600,9 +1650,19 @@ float FMeshReductionSettingsLayout::GetPercentTriangles() const
 	return ReductionSettings.PercentTriangles * 100.0f; // Display fraction as percentage.
 }
 
+uint32 FMeshReductionSettingsLayout::GetMaxNumOfPercentTriangles() const
+{
+	return ReductionSettings.MaxNumOfTriangles;
+}
+
 float FMeshReductionSettingsLayout::GetPercentVertices() const
 {
 	return ReductionSettings.PercentVertices * 100.0f; // Display fraction as percentage.
+}
+
+uint32 FMeshReductionSettingsLayout::GetMaxNumOfPercentVertices() const
+{
+	return ReductionSettings.MaxNumOfVerts;
 }
 
 float FMeshReductionSettingsLayout::GetMaxDeviation() const
@@ -1659,6 +1719,35 @@ void FMeshReductionSettingsLayout::OnPercentVerticesCommitted(float NewValue, ET
 		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.ReductionSettings"), TEXT("PercentVertices"), FString::Printf(TEXT("%.1f"), NewValue));
 	}
 	OnPercentVerticesChanged(NewValue);
+}
+
+void FMeshReductionSettingsLayout::OnMaxNumOfPercentTrianglesChanged(uint32 NewValue)
+{
+	ReductionSettings.MaxNumOfTriangles = NewValue;
+}
+
+void FMeshReductionSettingsLayout::OnMaxNumOfPercentTrianglesCommitted(uint32 NewValue, ETextCommit::Type TextCommitType)
+{
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.ReductionSettings"), TEXT("MaxNumOfTrianglesPercentage"), FString::Printf(TEXT("%d"), NewValue));
+	}
+	OnMaxNumOfPercentTrianglesChanged(NewValue);
+}
+
+
+void FMeshReductionSettingsLayout::OnMaxNumOfPercentVerticesChanged(uint32 NewValue)
+{
+	ReductionSettings.MaxNumOfVerts = NewValue;
+}
+
+void FMeshReductionSettingsLayout::OnMaxNumOfPercentVerticesCommitted(uint32 NewValue, ETextCommit::Type TextCommitType)
+{
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.ReductionSettings"), TEXT("MaxNumOfVertsPercentage"), FString::Printf(TEXT("%d"), NewValue));
+	}
+	OnMaxNumOfPercentVerticesChanged(NewValue);
 }
 
 void FMeshReductionSettingsLayout::OnMaxDeviationChanged(float NewValue)

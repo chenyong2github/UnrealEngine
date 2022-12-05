@@ -261,9 +261,11 @@ private:
 
 	// used by native tool and simplygon
 	float GetPercentTriangles() const;
+	uint32 GetMaxNumOfPercentTriangles() const;
 
 	// used by native quadric simplifier
 	float GetPercentVertices() const;
+	uint32 GetMaxNumOfPercentVertices() const;
 
 	// used by simplygon only
 	float GetMaxDeviation() const;
@@ -275,10 +277,15 @@ private:
 	// used by native tool and simplygon
 	void OnPercentTrianglesChanged(float NewValue);
 	void OnPercentTrianglesCommitted(float NewValue, ETextCommit::Type TextCommitType);
+	void OnMaxNumOfPercentTrianglesChanged(uint32 NewValue);
+	void OnMaxNumOfPercentTrianglesCommitted(uint32 NewValue, ETextCommit::Type TextCommitType);
 
 	// Used by native code only
 	void OnPercentVerticesChanged(float NewValue);
 	void OnPercentVerticesCommitted(float NewValue, ETextCommit::Type TextCommitType);
+	void OnMaxNumOfPercentVerticesChanged(uint32 NewValue);
+	void OnMaxNumOfPercentVerticesCommitted(uint32 NewValue, ETextCommit::Type TextCommitType);
+	
 
 	//used by simplygon only
 	void OnMaxDeviationChanged(float NewValue);

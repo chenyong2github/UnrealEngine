@@ -490,9 +490,7 @@ void UInterchangeStaticMeshFactory::SetupSourceModelsSettings(UStaticMesh& Stati
 		// Make sure that mesh descriptions for added LODs are kept as is when the mesh is built
 		if (LodIndex >= PreviousLodCount)
 		{
-			SrcModel.ReductionSettings.MaxDeviation = 0.0f;
-			SrcModel.ReductionSettings.PercentTriangles = 1.0f;
-			SrcModel.ReductionSettings.PercentVertices = 1.0f;
+			SrcModel.ResetReductionSetting();
 		}
 
 		if (!bIsAReimport && LodMeshDescriptions.IsValidIndex(LodIndex))

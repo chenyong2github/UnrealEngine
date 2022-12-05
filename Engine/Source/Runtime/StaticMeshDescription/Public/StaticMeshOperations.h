@@ -182,4 +182,10 @@ public:
 
 	/** Transforms the MeshDescription data using the provided transform. */
 	static void ApplyTransform(FMeshDescription& MeshDescription, const FTransform& Transform);
+
+	/**
+	 * Return the number of unique vertices, unique vertices are the result of welding all similar vertex instances (position, UV, tangent space, color,...)
+	 * 
+	 */
+	static int32 GetUniqueVertexCount(const FMeshDescription& MeshDescription);
 };

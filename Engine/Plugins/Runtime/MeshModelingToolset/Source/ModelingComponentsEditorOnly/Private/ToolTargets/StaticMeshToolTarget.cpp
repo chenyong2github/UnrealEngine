@@ -311,8 +311,7 @@ void UStaticMeshToolTarget::CommitMeshDescription(UStaticMesh* StaticMeshIn, con
 
 		// configure build settings to prevent the standard static mesh reduction from running and replacing the render LOD.
 		FStaticMeshSourceModel& ThisSourceModel = StaticMeshIn->GetSourceModel((int32)EditingLODIn);
-		ThisSourceModel.ReductionSettings.PercentTriangles = 1.f;
-		ThisSourceModel.ReductionSettings.PercentVertices = 1.f;
+		ThisSourceModel.ResetReductionSetting();
 	}
 
 	StaticMeshIn->PostEditChange();

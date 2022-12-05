@@ -726,11 +726,15 @@ TSharedPtr<FExistingStaticMeshData> StaticMeshImportUtils::SaveExistingStaticMes
 		FExistingLODMeshData& ExistingLODData = ExistingMeshDataPtr->ExistingLODData[SourceModelIndex];
 		ExistingLODData.ExistingBuildSettings = SourceModel.BuildSettings;
 		ExistingLODData.ExistingReductionSettings = SourceModel.ReductionSettings;
+		ExistingLODData.ExisitingMeshTrianglesCount = SourceModel.CacheMeshDescriptionTrianglesCount;
+		ExistingLODData.ExisitingMeshVerticesCount = SourceModel.CacheMeshDescriptionVerticesCount;
 		if (bIsReimportCustomLODOverGeneratedLOD && (SourceModelIndex == LodIndex))
 		{
 			//Reset the reduction
 			ExistingLODData.ExistingReductionSettings.PercentTriangles = 1.0f;
+			ExistingLODData.ExistingReductionSettings.MaxNumOfTriangles = MAX_uint32;
 			ExistingLODData.ExistingReductionSettings.PercentVertices = 1.0f;
+			ExistingLODData.ExistingReductionSettings.MaxNumOfVerts = MAX_uint32;
 			ExistingLODData.ExistingReductionSettings.MaxDeviation = 0.0f;
 		}
 		ExistingLODData.ExistingScreenSize = SourceModel.ScreenSize;
@@ -802,8 +806,9 @@ TSharedPtr<FExistingStaticMeshData> StaticMeshImportUtils::SaveExistingStaticMes
 }
 
 // Helper to find if some reduction settings are active
-bool IsReductionActive(const FMeshReductionSettings& ReductionSettings)
+bool IsReductionActive(const FExistingLODMeshData& ExisitingLodMeshData)
 {
+	const FMeshReductionSettings& ReductionSettings = ExisitingLodMeshData.ExistingReductionSettings;
 	bool bUseQuadricSimplier = true;
 	{
 		// Are we using our tool, or simplygon?  The tool is only changed during editor restarts
@@ -813,9 +818,28 @@ bool IsReductionActive(const FMeshReductionSettings& ReductionSettings)
 		VersionString.ParseIntoArray(SplitVersionString, TEXT("_"), true);
 		bUseQuadricSimplier = SplitVersionString[0].Equals("QuadricMeshReduction");
 	}
-	const bool bVertTermination = (bUseQuadricSimplier) && (ReductionSettings.TerminationCriterion != EStaticMeshReductionTerimationCriterion::Triangles) && (ReductionSettings.PercentVertices < 1.0f);
-	const bool bTriTermination = ReductionSettings.TerminationCriterion != EStaticMeshReductionTerimationCriterion::Vertices && (ReductionSettings.PercentTriangles < 1.0f);
-	return bTriTermination || bVertTermination || (ReductionSettings.MaxDeviation > 0.0f);
+	if (!bUseQuadricSimplier)
+	{
+		return (ReductionSettings.MaxDeviation > 0.0f)
+			|| (ReductionSettings.TerminationCriterion == EStaticMeshReductionTerimationCriterion::Triangles && (ReductionSettings.PercentTriangles < 1.0f));
+	}
+	
+	switch (ReductionSettings.TerminationCriterion)
+	{
+	case EStaticMeshReductionTerimationCriterion::Triangles:
+		return (ReductionSettings.PercentTriangles < 1.0f) || ReductionSettings.MaxNumOfTriangles < ExisitingLodMeshData.ExisitingMeshTrianglesCount;
+		break;
+	case EStaticMeshReductionTerimationCriterion::Vertices:
+		return (ReductionSettings.PercentVertices < 1.0f) || ReductionSettings.MaxNumOfVerts < ExisitingLodMeshData.ExisitingMeshVerticesCount;
+		break;
+	case EStaticMeshReductionTerimationCriterion::Any:
+		return (ReductionSettings.PercentTriangles < 1.0f)
+			|| ReductionSettings.MaxNumOfTriangles < ExisitingLodMeshData.ExisitingMeshTrianglesCount
+			|| (ReductionSettings.PercentVertices < 1.0f)
+			|| ReductionSettings.MaxNumOfVerts < ExisitingLodMeshData.ExisitingMeshVerticesCount;
+		break;
+	}
+	return false;
 }
 
 /* This function is call before building the mesh when we do a re-import*/
@@ -853,7 +877,7 @@ void StaticMeshImportUtils::RestoreExistingMeshSettings(const FExistingStaticMes
 			}
 			FMeshDescription* LODMeshDescription = NewMesh->GetMeshDescription(i);
 			bool bSwapFromGeneratedToImported = !ExistingMesh->ExistingLODData[i].ExistingMeshDescription.IsValid() && (LODMeshDescription && LODMeshDescription->Polygons().Num() > 0);
-			bool bWasReduced = IsReductionActive(ExistingMesh->ExistingLODData[i].ExistingReductionSettings);
+			bool bWasReduced = IsReductionActive(ExistingMesh->ExistingLODData[i]);
 
 			FStaticMeshSourceModel& SourceModel = NewMesh->GetSourceModel(i);
 			if (!bSwapFromGeneratedToImported && bWasReduced)
@@ -872,7 +896,7 @@ void StaticMeshImportUtils::RestoreExistingMeshSettings(const FExistingStaticMes
 		{
 			FMeshDescription* LODMeshDescription = NewMesh->GetMeshDescription(LODIndex);
 			bool bSwapFromGeneratedToImported = !ExistingMesh->ExistingLODData[LODIndex].ExistingMeshDescription.IsValid() && (LODMeshDescription && LODMeshDescription->Polygons().Num() > 0);
-			bool bWasReduced = IsReductionActive(ExistingMesh->ExistingLODData[LODIndex].ExistingReductionSettings);
+			bool bWasReduced = IsReductionActive(ExistingMesh->ExistingLODData[LODIndex]);
 
 			FStaticMeshSourceModel& SourceModel = NewMesh->GetSourceModel(LODIndex);
 			if (!bSwapFromGeneratedToImported && bWasReduced)
@@ -1091,7 +1115,7 @@ void StaticMeshImportUtils::RestoreExistingMeshData(const TSharedPtr<const FExis
 		FMeshDescription* LODMeshDescription = NewMesh->GetMeshDescription(i);
 		//Restore the reduction settings only if the existing data was a using reduction. Because we can set some value if we reimport from existing rawmesh to auto generated.
 		bool bSwapFromGeneratedToImported = !ExistingMeshDataPtr->ExistingLODData[i].ExistingMeshDescription.IsValid() && (LODMeshDescription && LODMeshDescription->Polygons().Num() > 0);
-		bool bWasReduced = IsReductionActive(ExistingMeshDataPtr->ExistingLODData[i].ExistingReductionSettings);
+		bool bWasReduced = IsReductionActive(ExistingMeshDataPtr->ExistingLODData[i]);
 		if ( !bSwapFromGeneratedToImported && bWasReduced)
 		{
 			SourceModel.ReductionSettings = ExistingMeshDataPtr->ExistingLODData[i].ExistingReductionSettings;
@@ -1132,7 +1156,7 @@ void StaticMeshImportUtils::RestoreExistingMeshData(const TSharedPtr<const FExis
 
 			
 			//When re-importing the asset, do not touch the LOD that was imported from file, the material array is keep intact so the section should still be valid.
-			bool NoRemapForThisLOD = LodLevel == INDEX_NONE && i != 0 && !NewMesh->GetSourceModel(i).bImportWithBaseMesh && !IsReductionActive(NewMesh->GetSourceModel(i).ReductionSettings);
+			bool NoRemapForThisLOD = LodLevel == INDEX_NONE && i != 0 && !NewMesh->GetSourceModel(i).bImportWithBaseMesh && !NewMesh->IsReductionActive(i);
 
 			FStaticMeshLODResources& LOD = NewMesh->GetRenderData()->LODResources[i];
 			

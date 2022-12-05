@@ -781,23 +781,7 @@ int32 UStaticMeshEditorSubsystem::SetLodFromStaticMesh(UStaticMesh* DestinationS
 	// Base the reduction on the new lod
 	DestinationMeshSourceModel.ReductionSettings.BaseLODModel = DestinationLodIndex;
 
-	// Fragile. If a public function emerge to determine if a reduction will be used please consider using it and remove this code.
-	bool bDoesSourceLodUseReduction = false;
-	switch (SourceMeshSourceModel.ReductionSettings.TerminationCriterion)
-	{
-	case EStaticMeshReductionTerimationCriterion::Triangles:
-		bDoesSourceLodUseReduction = !FMath::IsNearlyEqual(SourceMeshSourceModel.ReductionSettings.PercentTriangles, 100.f);
-		break;
-	case EStaticMeshReductionTerimationCriterion::Vertices:
-		bDoesSourceLodUseReduction = !FMath::IsNearlyEqual(SourceMeshSourceModel.ReductionSettings.PercentVertices, 100.f);
-		break;
-	case EStaticMeshReductionTerimationCriterion::Any:
-		bDoesSourceLodUseReduction = !(FMath::IsNearlyEqual(SourceMeshSourceModel.ReductionSettings.PercentTriangles, 100.f) && FMath::IsNearlyEqual(SourceMeshSourceModel.ReductionSettings.PercentVertices, 100.f));
-		break;
-	default:
-		break;
-	}
-	bDoesSourceLodUseReduction |= SourceMeshSourceModel.ReductionSettings.MaxDeviation > 0.f;
+	bool bDoesSourceLodUseReduction = SourceStaticMesh->IsReductionActive(SourceLodIndex);
 
 
 	int32 BaseSourceLodIndex = bDoesSourceLodUseReduction ? SourceMeshSourceModel.ReductionSettings.BaseLODModel : SourceLodIndex;

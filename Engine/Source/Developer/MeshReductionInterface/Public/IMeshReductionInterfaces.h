@@ -56,6 +56,8 @@ public:
 	*	Returns true if mesh reduction is active. Active mean there will be a reduction of the vertices or triangle number
 	*/
 	virtual bool IsReductionActive(const struct FMeshReductionSettings &ReductionSettings) const = 0;
+	virtual bool IsReductionActive(const struct FMeshReductionSettings& ReductionSettings, uint32 NumVertices, uint32 NumTriangles) const = 0;
+
 	virtual bool IsReductionActive(const struct FSkeletalMeshOptimizationSettings &ReductionSettings) const = 0;
 	virtual bool IsReductionActive(const struct FSkeletalMeshOptimizationSettings &ReductionSettings, uint32 NumVertices, uint32 NumTriangles) const = 0;
 };

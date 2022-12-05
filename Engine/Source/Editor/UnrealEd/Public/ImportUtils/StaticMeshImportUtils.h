@@ -32,6 +32,8 @@ struct FExistingLODMeshData
 {
 	FMeshBuildSettings				ExistingBuildSettings;
 	FMeshReductionSettings			ExistingReductionSettings;
+	uint32							ExisitingMeshTrianglesCount;
+	uint32							ExisitingMeshVerticesCount;
 	TUniquePtr<FMeshDescription>	ExistingMeshDescription;
 	TArray<FStaticMaterial>			ExistingMaterials;
 	FPerPlatformFloat				ExistingScreenSize;

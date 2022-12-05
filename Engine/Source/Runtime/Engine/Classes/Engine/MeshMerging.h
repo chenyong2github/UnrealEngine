@@ -30,9 +30,9 @@ namespace EMeshFeatureImportance
 UENUM()
 enum class EStaticMeshReductionTerimationCriterion : uint8
 {
-	Triangles,
-	Vertices,
-	Any
+	Triangles UMETA(DisplayName = "Triangles", ToolTip = "Triangle percent criterion will be used for simplification."),
+	Vertices UMETA(DisplayName = "Vertice", ToolTip = "Vertice percent criterion will be used for simplification."),
+	Any UMETA(DisplayName = "First Percent Satisfied", ToolTip = "Simplification will continue until either Triangle or Vertex count criteria is met."),
 };
 
 /** Settings used to reduce a mesh. */
@@ -41,13 +41,21 @@ struct FMeshReductionSettings
 {
 	GENERATED_USTRUCT_BODY()
 
-	/** Percentage of triangles to keep. 1.0 = no reduction, 0.0 = no triangles. */
+	/** Percentage of triangles to keep. 1.0 = no reduction, 0.0 = no triangles. (Triangles criterion properties) */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ReductionSettings)
 	float PercentTriangles;
 
-	/** Percentage of vertices to keep. 1.0 = no reduction, 0.0 = no vertices. */
+	/** The maximum number of triangles to retain when using percentage termination criterion. (Triangles criterion properties) */
+	UPROPERTY(EditAnywhere, Category = ReductionMethod, meta = (DisplayName = "Max Triangle Count", ClampMin = 2, UIMin = "2"))
+	uint32 MaxNumOfTriangles;
+
+	/** Percentage of vertices to keep. 1.0 = no reduction, 0.0 = no vertices. (Vertices criterion properties) */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ReductionSettings)
 	float PercentVertices;
+
+	/** The maximum number of vertices to retain when using percentage termination criterion. (Vertices criterion properties) */
+	UPROPERTY(EditAnywhere, Category = ReductionMethod, meta = (DisplayName = "Max Vertex Count", ClampMin = 4, UIMin = "4"))
+	uint32 MaxNumOfVerts;
 
 	/** The maximum distance in object space by which the reduced mesh may deviate from the original mesh. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ReductionSettings)
@@ -110,7 +118,9 @@ struct FMeshReductionSettings
 	/** Default settings. */
 	FMeshReductionSettings()
 		: PercentTriangles(1.0f)
+		, MaxNumOfTriangles(MAX_uint32)
 		, PercentVertices(1.0f)
+		, MaxNumOfVerts(MAX_uint32)
 		, MaxDeviation(0.0f)
 		, PixelError(8.0f)
 		, WeldingThreshold(0.0f)
@@ -132,7 +142,9 @@ struct FMeshReductionSettings
 
 	FMeshReductionSettings(const FMeshReductionSettings& Other)
 		: PercentTriangles(Other.PercentTriangles)
+		, MaxNumOfTriangles(Other.MaxNumOfTriangles)
 		, PercentVertices(Other.PercentVertices)
+		, MaxNumOfVerts(Other.MaxNumOfVerts)
 		, MaxDeviation(Other.MaxDeviation)
 		, PixelError(Other.PixelError)
 		, WeldingThreshold(Other.WeldingThreshold)
@@ -159,6 +171,8 @@ struct FMeshReductionSettings
 			TerminationCriterion == Other.TerminationCriterion
 			&& PercentVertices == Other.PercentVertices
 			&& PercentTriangles == Other.PercentTriangles
+			&& MaxNumOfTriangles == Other.MaxNumOfTriangles
+			&& MaxNumOfVerts == Other.MaxNumOfVerts
 			&& MaxDeviation == Other.MaxDeviation
 			&& PixelError == Other.PixelError
 			&& WeldingThreshold == Other.WeldingThreshold

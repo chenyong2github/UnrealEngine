@@ -146,6 +146,7 @@ public:
 	 */
 	ENGINE_API void ClearMeshDescription();
 
+	ENGINE_API void ResetReductionSetting();
 #endif
 
 public:
@@ -156,6 +157,12 @@ public:
 	/** Reduction settings to apply when building render data. */
 	UPROPERTY(EditAnywhere, Category=ReductionSettings)
 	FMeshReductionSettings ReductionSettings; 
+
+	UPROPERTY()
+	uint32 CacheMeshDescriptionTrianglesCount = MAX_uint32;
+	
+	UPROPERTY()
+	uint32 CacheMeshDescriptionVerticesCount = MAX_uint32;
 
 	UPROPERTY()
 	float LODDistance_DEPRECATED;
