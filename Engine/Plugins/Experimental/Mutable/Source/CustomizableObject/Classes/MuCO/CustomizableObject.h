@@ -209,6 +209,9 @@ struct FCompilationOptions
 	// Used to reduce the number of notifications when compiling objects
 	bool bSilentCompilation = true;
 
+	/** Force a very big number on the mips to skip during compilation. Useful to debug special cooks of the data. */
+	bool bForceLargeLODBias = false;
+
 };
 
 

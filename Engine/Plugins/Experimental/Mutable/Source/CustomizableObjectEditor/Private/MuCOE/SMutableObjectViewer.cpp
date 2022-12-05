@@ -402,6 +402,19 @@ TSharedRef<SWidget> SMutableObjectViewer::GenerateCompileOptionsMenuContent()
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);
+
+		// Debug LODBias
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ForceLargeLODBias", "Force a large texture LODBias."),
+			LOCTEXT("ForceLargeLODBiasTooltip", "This is useful to test compilation of special cook modes."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([this]() { CompileOptions.bForceLargeLODBias = !CompileOptions.bForceLargeLODBias; }),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this]() { return CompileOptions.bForceLargeLODBias; })),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
 	}
 	MenuBuilder.EndSection();
 

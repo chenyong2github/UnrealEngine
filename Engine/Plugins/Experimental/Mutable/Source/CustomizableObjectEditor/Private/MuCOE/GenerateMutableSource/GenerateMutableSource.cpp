@@ -1367,6 +1367,12 @@ int32 ComputeLODBias(const FMutableGraphGenerationContext& GenerationContext, co
 {
 	int32 LODBias = 0;
 
+	if (GenerationContext.Options.bForceLargeLODBias)
+	{
+		// This seems to be the highest LODBias we get during cook.
+		return 11;
+	}
+
 	// We used to calculate the lod bias directly from the group like this:
 	//int LODBias = 0;
 	//if (LODSettings.TextureLODGroups.IsValidIndex(ReferenceTexture->LODGroup))
