@@ -311,7 +311,7 @@ public:
 		MorphVertexBuffers[1] = FMorphVertexBuffer(InSkelMeshRenderData, InLOD, InFeatureLevel);
 	}
 
-	void InitResources();
+	void InitResources(const FName& OwnerName);
 	void ReleaseResources();
 	SIZE_T GetResourceSize() const;
 	void EnableDoubleBuffer();
