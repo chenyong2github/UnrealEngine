@@ -16,7 +16,7 @@ public:
 	{
 		FString BaseDir;
 
-		const TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("NNX"));
+		const TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("NNE"));
 		
 		if (Plugin.IsValid())
 		{
