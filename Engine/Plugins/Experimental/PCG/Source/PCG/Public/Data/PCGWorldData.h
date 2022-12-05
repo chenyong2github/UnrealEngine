@@ -32,6 +32,7 @@ struct FPCGWorldVolumetricQueryParams
 	TEnumAsByte<ECollisionChannel> CollisionChannel = ECC_WorldStatic;
 };
 
+/** Queries volume for presence of world collision or not. Can be used to voxelize environment. */
 UCLASS(BlueprintType, ClassGroup = (Procedural))
 class PCG_API UPCGWorldVolumetricData : public UPCGVolumeData
 {
@@ -42,6 +43,8 @@ public:
 
 	//~Begin UPCGSpatialData interface
 	virtual bool SamplePoint(const FTransform& Transform, const FBox& Bounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const override;
+	// TODO not sure what this would mean. Without a direction, this means perhaps finding closest point on any collision surface? Should we implement this disabled?
+	//virtual bool ProjectPoint(const FTransform& InTransform, const FBox& InBounds, const FPCGProjectionParams& InParams, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const;
 protected:
 	virtual UPCGSpatialData* CopyInternal() const override;
 	//~End UPCGSpatialData interface
@@ -96,6 +99,7 @@ struct FPCGWorldRayHitQueryParams
 	//bool bUseMetadataFromLandscape = true;
 };
 
+/** Executes collision queries against world collision. */
 UCLASS(BlueprintType, ClassGroup = (Procedural))
 class PCG_API UPCGWorldRayHitData : public UPCGSurfaceData
 {

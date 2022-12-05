@@ -327,6 +327,16 @@ FPCGPoint UPCGPointData::GetPoint(int32 Index) const
 
 bool UPCGPointData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
+	// Run a projection but don't change the point transform. There is a large overlap in code/functionality so this shares one code path.
+	FPCGProjectionParams Params{};
+	Params.bProjectPositions = Params.bProjectRotations = Params.bProjectScales = Params.bProjectColors = false;
+
+	// The ProjectPoint implementation in this class returns true if the query point is overlapping the point data, which is what SamplePoint should return, so forward the return value.
+	return ProjectPoint(InTransform, InBounds, Params, OutPoint, OutMetadata);
+}
+
+bool UPCGPointData::ProjectPoint(const FTransform& InTransform, const FBox& InBounds, const FPCGProjectionParams& InParams, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
+{
 	//TRACE_CPUPROFILER_EVENT_SCOPE(UPCGPointData::SamplePoint);
 	if (bOctreeIsDirty)
 	{
@@ -414,11 +424,35 @@ bool UPCGPointData::SamplePoint(const FTransform& InTransform, const FBox& InBou
 	}
 
 	// Finally, apply changes to point
-	WeightedQuat.Normalize();
+	
+	if (InParams.bProjectPositions)
+	{
+		OutPoint.Transform.SetLocation(bSampleInVolume ? WeightedPosition : InTransform.GetLocation());
+	}
+	else
+	{
+		OutPoint.Transform.SetLocation(InTransform.GetLocation());
+	}
 
-	OutPoint.Transform.SetRotation(WeightedQuat);
-	OutPoint.Transform.SetScale3D(WeightedScale);
-	OutPoint.Transform.SetLocation(bSampleInVolume ? WeightedPosition : InTransform.GetLocation());
+	if (InParams.bProjectRotations)
+	{
+		WeightedQuat.Normalize();
+		OutPoint.Transform.SetRotation(WeightedQuat);
+	}
+	else
+	{
+		OutPoint.Transform.SetRotation(InTransform.GetRotation());
+	}
+
+	if (InParams.bProjectScales)
+	{
+		OutPoint.Transform.SetScale3D(WeightedScale);
+	}
+	else
+	{
+		OutPoint.Transform.SetScale3D(InTransform.GetScale3D());
+	}
+
 	OutPoint.Density = WeightedDensity;
 	OutPoint.BoundsMin = WeightedBoundsMin;
 	OutPoint.BoundsMax = WeightedBoundsMax;

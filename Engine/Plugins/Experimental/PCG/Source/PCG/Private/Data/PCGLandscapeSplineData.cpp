@@ -165,6 +165,10 @@ bool UPCGLandscapeSplineData::SamplePoint(const FTransform& InTransform, const F
 {
 	// TODO : add metadata support on poly lines
 	// TODO : add support for bounds
+
+	// This does not move the query point, but does not take into account the Z axis at all - so this is inherently a projection. There's some
+	// things that need double checking but we should look at incorporating the Z axis into the calculation.
+
 	const ULandscapeSplinesComponent* SplinePtr = Spline.Get();
 	check(SplinePtr);
 
@@ -228,27 +232,4 @@ UPCGSpatialData* UPCGLandscapeSplineData::CopyInternal() const
 	NewLandscapeSplineData->Spline = Spline;
 
 	return NewLandscapeSplineData;
-}
-
-UPCGProjectionData* UPCGLandscapeSplineData::ProjectOn(const UPCGSpatialData* InOther, const FPCGProjectionParams& InParams) const
-{
-	if (InOther->GetDimension() == 2)
-	{
-		UPCGLandscapeSplineProjectionData* SplineProjectionData = NewObject<UPCGLandscapeSplineProjectionData>();
-		SplineProjectionData->Initialize(this, InOther, InParams);
-		return SplineProjectionData;
-	}
-	else
-	{
-		return Super::ProjectOn(InOther, InParams);
-	}
-}
-
-UPCGSpatialData* UPCGLandscapeSplineProjectionData::CopyInternal() const
-{
-	UPCGLandscapeSplineProjectionData* NewProjectionData = NewObject<UPCGLandscapeSplineProjectionData>();
-
-	CopyBaseProjectionClass(NewProjectionData);
-
-	return NewProjectionData;
 }

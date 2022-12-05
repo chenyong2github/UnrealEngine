@@ -24,6 +24,8 @@ void UPCGWorldVolumetricData::Initialize(UWorld* InWorld, const FBox& InBounds)
 
 bool UPCGWorldVolumetricData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
+	// This is a pure implementation.
+
 	check(World.IsValid());
 
 	FCollisionObjectQueryParams ObjectQueryParams(QueryParams.CollisionChannel);
@@ -152,6 +154,8 @@ void UPCGWorldRayHitData::Initialize(UWorld* InWorld, const FBox& InBounds)
 
 bool UPCGWorldRayHitData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
+	// TODO: This seems to be a projection - along a direction. I suspect that UPCGWorldVolumetricData is the SamplePoint(), and this is the ProjectPoint() (in a direction)?
+
 	check(World.IsValid());
 
 	// Todo: consider prebuilding this

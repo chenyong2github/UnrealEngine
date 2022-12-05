@@ -82,6 +82,8 @@ bool UPCGSplineData::SamplePoint(const FTransform& InTransform, const FBox& InBo
 	// TODO: support metadata
 	// TODO: support proper bounds
 
+	// This is a pure SamplePoint implementation.
+	
 	// Find nearest point on spline
 	const FVector InPosition = InTransform.GetLocation();
 	float NearestPointKey = Spline->FindInputKeyClosestToWorldLocation(InPosition);

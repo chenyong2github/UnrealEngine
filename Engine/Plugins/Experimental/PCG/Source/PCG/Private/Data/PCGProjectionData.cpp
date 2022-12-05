@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Data/PCGProjectionData.h"
+
+#include "Data/PCGLandscapeSplineData.h"
+#include "Data/PCGSplineData.h"
 #include "Helpers/PCGAsync.h"
 #include "Metadata/PCGMetadataAccessor.h"
 
@@ -144,8 +147,22 @@ bool UPCGProjectionData::RequiresCollapseToSample() const
 	// intersected with a volume) rather than only checking if the immediate projection source is a particular type. A concrete example of this
 	// failing would be the In and Actor graph input pins which can be backed by composite networks.
 	
-	// It is however trivial if we are not actually moving anything around..
-	return ProjectionParams.bProjectPositions;
+	// Sampling is trivial if we are not actually moving anything around..
+	bool bRequiresCollapse = ProjectionParams.bProjectPositions;
+
+	// Projection of a spline onto a surface is currently easy to sample - don't need a collapse. If projection direction exposed, will need to check that.
+	if (Cast<UPCGSplineData>(Source) != nullptr && Target->GetDimension() == 2)
+	{
+		bRequiresCollapse = false;
+	}
+
+	// Projection of a landscape spline onto a surface is currently easy to sample - don't need a collapse. If projection direction exposed, will need to check that.
+	if (Cast<UPCGLandscapeSplineData>(Source) != nullptr && Target->GetDimension() == 2)
+	{
+		bRequiresCollapse = false;
+	}
+	
+	return bRequiresCollapse;
 }
 
 const UPCGPointData* UPCGProjectionData::CreatePointData(FPCGContext* Context) const
@@ -194,9 +211,9 @@ const UPCGPointData* UPCGProjectionData::CreatePointData(FPCGContext* Context) c
 
 		FPCGPoint PointFromTarget;
 #if WITH_EDITORONLY_DATA
-		if (!Target->SamplePoint(SourcePoint.Transform, SourcePoint.GetLocalBounds(), PointFromTarget, TempTargetMetadata) && !bKeepZeroDensityPoints)
+		if (!Target->ProjectPoint(SourcePoint.Transform, SourcePoint.GetLocalBounds(), ProjectionParams, PointFromTarget, TempTargetMetadata) && !bKeepZeroDensityPoints)
 #else
-		if (!Target->SamplePoint(SourcePoint.Transform, SourcePoint.GetLocalBounds(), PointFromTarget, TempTargetMetadata))
+		if (!Target->ProjectPoint(SourcePoint.Transform, SourcePoint.GetLocalBounds(), ProjectionParams, PointFromTarget, TempTargetMetadata))
 #endif
 		{
 			return false;
@@ -207,8 +224,12 @@ const UPCGPointData* UPCGProjectionData::CreatePointData(FPCGContext* Context) c
 		// Assign metadata key and copy values
 		UPCGMetadataAccessorHelpers::InitializeMetadata(OutPoint, PointData->Metadata, SourcePoint);
 
-		ApplyProjectionResult(PointFromTarget, OutPoint);
-
+		// Apply projection result. Some of the params are already used inside ProjectPoint, so we are just applying the remaining bits that ProjectPoint() did not have access to.
+		// TODO this would be cleaner if there was a ProjectPoint that took an FPCGPoint
+		OutPoint.Transform = PointFromTarget.Transform;
+		OutPoint.Color = ProjectionParams.bProjectColors ? (PointFromTarget.Color * SourcePoint.Color) : SourcePoint.Color;
+		OutPoint.Density *= PointFromTarget.Density;
+		
 		if (PointData->Metadata && TempTargetMetadata && PointFromTarget.MetadataEntry != PCGInvalidEntryKey)
 		{
 			// Merge metadata to produce final attribute values

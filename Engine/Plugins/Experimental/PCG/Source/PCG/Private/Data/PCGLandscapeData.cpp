@@ -107,6 +107,14 @@ FBox UPCGLandscapeData::GetStrictBounds() const
 
 bool UPCGLandscapeData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
+	// SamplePoint actually does a projection for this data, so lets make it explicit and delegate to a project function.
+	// TODO fixup samplers and other things that rely on this behavior and then fix this code.
+	FPCGProjectionParams Params{};
+	return ProjectPoint(InTransform, InBounds, Params, OutPoint, OutMetadata);
+}
+
+bool UPCGLandscapeData::ProjectPoint(const FTransform& InTransform, const FBox& InBounds, const FPCGProjectionParams& InParams, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
+{
 	//TRACE_CPUPROFILER_EVENT_SCOPE(UPCGLandscapeData::SamplePoint);
 	if (!LandscapeCache)
 	{
@@ -143,6 +151,22 @@ bool UPCGLandscapeData::SamplePoint(const FTransform& InTransform, const FBox& I
 		else
 		{
 			LandscapeCacheEntry->GetInterpolatedPoint(ComponentLocalPoint, OutPoint, bUseMetadata ? OutMetadata : nullptr);
+		}
+
+		// Respect projection settings
+		if (!InParams.bProjectPositions)
+		{
+			OutPoint.Transform.SetLocation(InTransform.GetLocation());
+		}
+		
+		if (!InParams.bProjectRotations)
+		{
+			OutPoint.Transform.SetRotation(InTransform.GetRotation());
+		}
+
+		if (!InParams.bProjectScales)
+		{
+			OutPoint.Transform.SetScale3D(InTransform.GetScale3D());
 		}
 
 		return true;

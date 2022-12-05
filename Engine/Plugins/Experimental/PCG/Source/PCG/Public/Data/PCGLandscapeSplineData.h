@@ -34,7 +34,6 @@ public:
 	//~Begin UPCGSpatialData interface
 	virtual FBox GetBounds() const override;
 	virtual bool SamplePoint(const FTransform& Transform, const FBox& Bounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const override;
-	virtual UPCGProjectionData* ProjectOn(const UPCGSpatialData* InOther, const FPCGProjectionParams& InParams = FPCGProjectionParams()) const override;
 protected:
 	virtual UPCGSpatialData* CopyInternal() const override;
 	//~End UPCGSpatialData interface
@@ -42,23 +41,4 @@ protected:
 protected:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = SourceData)
 	TWeakObjectPtr<ULandscapeSplinesComponent> Spline;
-};
-
-/* The projection of a landscape spline onto a surface. */
-UCLASS(BlueprintType, ClassGroup = (Procedural))
-class PCG_API UPCGLandscapeSplineProjectionData : public UPCGProjectionData
-{
-	GENERATED_BODY()
-public:
-	//~Begin UPCGSpatialData interface
-	// It is easy to determine if a point lies on a top-down projection onto a surface. No need to convert to points.
-	// NOTE: It will be less easy if the projection is not straight downwards, as the landscape will 'shadow' the projection. This could be detected
-	// here.
-	virtual bool RequiresCollapseToSample() const override { return false; }
-	//~End UPCGSpatialData interface
-
-protected:
-	//~Begin UPCGSpatialData interface
-	virtual UPCGSpatialData* CopyInternal() const override;
-	//~End UPCGSpatialData interface
 };

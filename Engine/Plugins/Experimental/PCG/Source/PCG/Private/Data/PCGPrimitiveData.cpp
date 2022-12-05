@@ -19,6 +19,8 @@ void UPCGPrimitiveData::Initialize(UPrimitiveComponent* InPrimitive)
 
 bool UPCGPrimitiveData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
+	// Pure implementation
+
 	FCollisionShape CollisionShape;
 	CollisionShape.SetBox(FVector3f(InBounds.GetExtent() * InTransform.GetScale3D()));
 

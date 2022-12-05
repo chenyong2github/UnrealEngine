@@ -62,6 +62,9 @@ bool UPCGVolumeData::SamplePoint(const FTransform& InTransform, const FBox& InBo
 	//TRACE_CPUPROFILER_EVENT_SCOPE(UPCGVolumeData::SamplePoint);
 	// TODO: add metadata
 	// TODO: consider bounds
+
+	// This is a pure implementation
+
 	const FVector InPosition = InTransform.GetLocation();
 	if (PCGHelpers::IsInsideBounds(GetBounds(), InPosition))
 	{

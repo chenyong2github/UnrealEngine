@@ -132,6 +132,12 @@ bool UPCGBaseTextureData::SamplePoint(const FTransform& InTransform, const FBox&
 {
 	// TODO: add metadata support
 	// TODO: add sampling along the bounds
+
+	// TODO: needs unpicking of sample vs projection. I believe the below is a projection.. But semantics are slightly different.
+	// 1 - We have some information telling us the 'z' size of the surface allowing us to reject points that would be too far from the surface, maybe including some density falloff by distance
+	// 2 - We suppose that the surface has an infinite 'z' size, in which case the sampling is basically the same as the sampling, except that it does not change the position
+	// 3 - The surface is infinitesimal - we'll return something if and only if the point overlaps with the projected position
+
 	if (!IsValid())
 	{
 		return false;

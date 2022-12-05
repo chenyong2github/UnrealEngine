@@ -84,6 +84,34 @@ FVector UPCGSpatialData::TransformPosition(const FVector& InPosition) const
 	}
 }
 
+bool UPCGSpatialData::ProjectPoint(const FTransform& InTransform, const FBox& InBounds, const FPCGProjectionParams& InParams, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
+{
+	// Fallback implementation - calls SamplePoint because SamplePoint was being used for projection previously.
+	
+	// TODO This is a crutch until we implement ProjectPoint everywhere
+
+	const bool bResult = SamplePoint(InTransform, InBounds, OutPoint, OutMetadata);
+
+	// Respect the projection params that we can at this point given our available data (InTransform)
+
+	if (!InParams.bProjectPositions)
+	{
+		OutPoint.Transform.SetLocation(InTransform.GetLocation());
+	}
+
+	if (!InParams.bProjectRotations)
+	{
+		OutPoint.Transform.SetRotation(InTransform.GetRotation());
+	}
+
+	if (!InParams.bProjectScales)
+	{
+		OutPoint.Transform.SetScale3D(InTransform.GetScale3D());
+	}
+
+	return bResult;
+}
+
 UPCGIntersectionData* UPCGSpatialData::IntersectWith(const UPCGSpatialData* InOther) const
 {
 	UPCGIntersectionData* IntersectionData = NewObject<UPCGIntersectionData>();
