@@ -96,6 +96,11 @@ struct FHLODSubActor
 
 		return Lhs.ActorGuid < Rhs.ActorGuid;
 	}
+
+	friend uint32 GetTypeHash(const FHLODSubActor& Key)
+	{
+		return HashCombine(GetTypeHash(Key.ActorGuid), GetTypeHash(Key.ContainerID));
+	}
 		
 	UPROPERTY()
 	FGuid ActorGuid;
