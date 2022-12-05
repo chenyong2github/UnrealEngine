@@ -44,11 +44,7 @@ public:
 		// DNA Asset file informations
 		// Transient value that are set everytime we show the options dialog. These are information only and should be string.
 
-	/* The DNA file version */
-	UPROPERTY(VisibleAnywhere, Transient, Category = DNAFileInformation, meta = (ImportType = "DNAAsset", DisplayName = "File Version"))
-		FString FileVersion;
-
-	/* The file creator information */
-	UPROPERTY(VisibleAnywhere, Transient, Category = DNAFileInformation, meta = (ImportType = "DNAAsset", DisplayName = "File Creator"))
-		FString FileCreator;
+	/* The DNA file name */
+	UPROPERTY(VisibleAnywhere, Transient, Category = DNAFileInformation, meta = (ImportType = "DNAAsset", DisplayName = "File Name"))
+		FString FileName;
 };

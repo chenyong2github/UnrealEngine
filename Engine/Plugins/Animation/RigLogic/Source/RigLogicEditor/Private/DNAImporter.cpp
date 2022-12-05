@@ -52,7 +52,10 @@ FDNAAssetImportOptions* GetImportOptions(FDNAImporter * DNAImporter, UDNAAssetIm
 			}
 		}
 
+		DNAImporter->SetDNAFileName(*FPaths::GetCleanFilename(FullPath));
+
 		//This option must always be the same value has the skeletalmesh one.
+		
 
 		//////////////////////////////////////////////////////////////////////////
 		// Set the information section data
@@ -60,8 +63,7 @@ FDNAAssetImportOptions* GetImportOptions(FDNAImporter * DNAImporter, UDNAAssetIm
 		//Make sure the file is open to be able to read the header before showing the options
 		//If the file is already open it will simply return false.
 		// do analytics on getting DNA data
-		ImportUI->FileVersion = DNAImporter->GetDNAFileVersion();
-		ImportUI->FileCreator = DNAImporter->GetDNAFileCreator();
+		ImportUI->FileName = DNAImporter->GetDNAFileName();
 
 		TSharedPtr<SWindow> ParentWindow;
 
