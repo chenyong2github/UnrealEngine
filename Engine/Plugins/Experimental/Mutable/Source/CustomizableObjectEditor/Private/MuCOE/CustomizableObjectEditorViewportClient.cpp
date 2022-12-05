@@ -374,6 +374,7 @@ void GizmoRTSProxy::ProjectorParameterChanged(UCustomizableObjectNodeProjectorPa
 			{
 				Value.Position = Node->DefaultValue.Position;
 				Value.Direction = Node->DefaultValue.Direction;
+				Value.Scale = Node->DefaultValue.Scale;
 				Value.Up = Node->DefaultValue.Up;
 				Node->ParameterSetModified = -1;
 				break;

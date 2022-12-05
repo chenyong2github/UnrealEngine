@@ -1813,7 +1813,7 @@ void FCustomizableObjectEditor::Tick( float InDeltaTime )
 			ResetProjectorVisibilityNoUpdate();
 		}
 
-		if (SelectedGraphNodesChanged && !SelectedProjectorParameterNotNode)
+		if (SelectedGraphNodesChanged && !SelectedProjectorParameterNotNode || PreviewInstance && PreviewInstance->TempUpdateGizmoInViewport)
 		{
 			ManagingProjector = true;
 			Viewport->ResetProjectorVisibility(false);
