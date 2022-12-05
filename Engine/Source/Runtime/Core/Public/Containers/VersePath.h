@@ -67,6 +67,8 @@ public:
 	CORE_API static bool IsValidDomain(const TCHAR* String, int32 Len);
 	CORE_API static bool IsValidSubpath(const TCHAR* String);
 	CORE_API static bool IsValidSubpath(const TCHAR* String, int32 Len);
+	CORE_API static bool IsValidIdent(const TCHAR* String);
+	CORE_API static bool IsValidIdent(const TCHAR* String, int32 Len);
 
 private:
 	FString PathString;
@@ -91,5 +93,7 @@ FORCEINLINE uint32 UE::Core::GetTypeHash(const FVersePath& VersePath)
 {
 	return GetTypeHash(VersePath.PathString);
 }
+
+CORE_API FString UE::Core::MangleGuidToVerseIdent(const FString& Guid);
 
 #endif // #if UE_USE_VERSE_PATHS

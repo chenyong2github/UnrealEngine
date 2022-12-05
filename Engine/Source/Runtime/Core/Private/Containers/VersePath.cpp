@@ -170,7 +170,16 @@ namespace UE::VersePath::Private
 	template <typename EndType>
 	bool IsValidSubpath(const TCHAR* Ptr, EndType End)
 	{
-		bool bResult = UE::VersePath::Private::ParsePath(Ptr, End);
+		bool bResult = UE::VersePath::Private::ParseSubpath(Ptr, End);
+
+		// Make sure the entire string was parsed.
+		return bResult && Ptr == End;
+	}
+
+	template <typename EndType>
+	bool IsValidIdent(const TCHAR* Ptr, EndType End)
+	{
+		bool bResult = UE::VersePath::Private::ParseIdent(Ptr, End);
 
 		// Make sure the entire string was parsed.
 		return bResult && Ptr == End;
@@ -223,12 +232,22 @@ bool UE::Core::FVersePath::IsValidDomain(const TCHAR* String, int32 Len)
 
 bool UE::Core::FVersePath::IsValidSubpath(const TCHAR* String)
 {
-	return UE::VersePath::Private::IsValidVersePath(String, UE::VersePath::Private::FNullTerminal{});
+	return UE::VersePath::Private::IsValidSubpath(String, UE::VersePath::Private::FNullTerminal{});
 }
 
 bool UE::Core::FVersePath::IsValidSubpath(const TCHAR* String, int32 Len)
 {
 	return UE::VersePath::Private::IsValidSubpath(String, String + Len);
+}
+
+bool UE::Core::FVersePath::IsValidIdent(const TCHAR* String)
+{
+	return UE::VersePath::Private::IsValidIdent(String, UE::VersePath::Private::FNullTerminal{});
+}
+
+bool UE::Core::FVersePath::IsValidIdent(const TCHAR* String, int32 Len)
+{
+	return UE::VersePath::Private::IsValidIdent(String, String + Len);
 }
 
 bool UE::Core::FVersePath::TryMake(FVersePath& OutPath, const FString& Path)
@@ -255,6 +274,15 @@ bool UE::Core::FVersePath::TryMake(FVersePath& OutPath, FString&& Path)
 	TCHAR* OutPathPtr = OutPath.PathString.GetCharArray().GetData();
 	UE::VersePath::Private::NormalizeDomainCase(OutPathPtr, OutPathPtr + OutPath.PathString.Len());
 	return true;
+}
+
+FString UE::Core::MangleGuidToVerseIdent(const FString& Guid)
+{
+	FString Ident = TEXT("_") + Guid;
+	Ident.ReplaceInline(TEXT("-"), TEXT(""), ESearchCase::CaseSensitive);
+	Ident.ReplaceInline(TEXT("{"), TEXT(""), ESearchCase::CaseSensitive);
+	Ident.ReplaceInline(TEXT("}"), TEXT(""), ESearchCase::CaseSensitive);
+	return Ident;
 }
 
 #endif // #if UE_USE_VERSE_PATHS
