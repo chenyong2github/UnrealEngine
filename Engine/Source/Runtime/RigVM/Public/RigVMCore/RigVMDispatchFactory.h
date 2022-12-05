@@ -164,6 +164,12 @@ protected:
 
 	virtual TArray<FRigVMExecuteArgument> GetExecuteArguments_Impl(const FRigVMDispatchContext& InContext) const { return TArray<FRigVMExecuteArgument>(); }
 
+	static bool CopyProperty(
+		const FProperty* InTargetProperty,
+		uint8* InTargetPtr,
+		const FProperty* InSourceProperty,
+		const uint8* InSourcePtr);
+
 	template <
 	typename T,
 	typename TEnableIf<TRigVMIsBaseStructure<T>::Value, T>::Type* = nullptr

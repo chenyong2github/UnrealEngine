@@ -119,11 +119,6 @@ void FRigVMDispatch_SelectInt32::Execute(FRigVMExtendedExecuteContext& InContext
 
 #if WITH_EDITOR
 	check(Handles[0].IsInt32());
-	for(int32 Case = 0; Case < NumCases; Case++)
-	{
-		const FProperty* PropertyB = Handles[1 + Case].GetResolvedProperty(); 
-		check(Property->SameType(PropertyB));
-	}
 #endif
 
 	int32 Index = *(const int32*)Handles[0].GetData();
@@ -142,6 +137,10 @@ void FRigVMDispatch_SelectInt32::Execute(FRigVMExtendedExecuteContext& InContext
 
 	const uint8* Input = InputHandle.GetData();
 	uint8* Result = Handles.Last().GetData();
-	Property->CopyCompleteValue(Result, Input);
+
+	// copy property performs compatibility check and will report accordingly
+	(void)CopyProperty(
+		Handles.Last().GetProperty(), Result,
+		InputHandle.GetProperty(), Input);
 }
 

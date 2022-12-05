@@ -63,10 +63,6 @@ void FRigVMDispatch_If::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMM
 
 #if WITH_EDITOR
 	check(Handles[0].IsBool());
-	const FProperty* PropertyB = Handles[2].GetResolvedProperty(); 
-	const FProperty* PropertyC = Handles[3].GetResolvedProperty(); 
-	check(Property->SameType(PropertyB));
-	check(Property->SameType(PropertyC));
 #endif
 
 	const bool& Condition = *(const bool*)Handles[0].GetData();
@@ -79,6 +75,9 @@ void FRigVMDispatch_If::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMM
 
 	const uint8* Input = InputHandle.GetData();
 	uint8* Result = Handles[3].GetData();
-	Property->CopyCompleteValue(Result, Input);
+
+	(void)CopyProperty(
+		Handles[3].GetProperty(), Result,
+		InputHandle.GetProperty(), Input);
 }
 

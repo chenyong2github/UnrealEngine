@@ -3,7 +3,7 @@
 #include "RigVMCore/RigVMDispatchFactory.h"
 #include "RigVMCore/RigVMRegistry.h"
 #include "RigVMCore/RigVMStruct.h"
-#include "RigVMStringUtils.h"
+#include "RigVMCore/RigVMMemoryStorage.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMDispatchFactory)
 
@@ -223,6 +223,12 @@ FString FRigVMDispatchFactory::GetPermutationNameImpl(const FRigVMTemplateTypeMa
 	const FString TypePairStrings = FRigVMTemplate::GetStringFromArgumentTypes(InTypes);
 	static constexpr TCHAR Format[] = TEXT("%s::%s");
 	return FString::Printf(Format, *GetFactoryName().ToString(), *TypePairStrings);
+}
+
+bool FRigVMDispatchFactory::CopyProperty(const FProperty* InTargetProperty, uint8* InTargetPtr,
+	const FProperty* InSourceProperty, const uint8* InSourcePtr)
+{
+	return URigVMMemoryStorage::CopyProperty(InTargetProperty, InTargetPtr, InSourceProperty, InSourcePtr);
 }
 
 const FRigVMTemplate* FRigVMDispatchFactory::GetTemplate() const
