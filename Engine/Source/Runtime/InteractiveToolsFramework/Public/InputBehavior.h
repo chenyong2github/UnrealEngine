@@ -79,13 +79,13 @@ struct INTERACTIVETOOLSFRAMEWORK_API FInputCaptureRequest
 	EInputCaptureSide Side;
 
 	/** Depth along hit-test ray */
-	float HitDepth;
+	double HitDepth;
 
 	/** Owner of the requesting behavior. Behavior doesn't know this, so this is initialized to null */
 	void* Owner;
 
 
-	FInputCaptureRequest(EInputCaptureRequestType type, UInputBehavior* behavior, EInputCaptureSide whichSide, float hitDepth = TNumericLimits<float>::Max() )
+	FInputCaptureRequest(EInputCaptureRequestType type, UInputBehavior* behavior, EInputCaptureSide whichSide, double hitDepth = TNumericLimits<double>::Max() )
 	{
 		this->Type = type;
 		this->Source = behavior;
@@ -95,7 +95,7 @@ struct INTERACTIVETOOLSFRAMEWORK_API FInputCaptureRequest
 	}
 
 	/** Create a Begin-capture request */
-	static FInputCaptureRequest Begin(UInputBehavior* behavior, EInputCaptureSide whichSide, float hitDepth = TNumericLimits<float>::Max() )
+	static FInputCaptureRequest Begin(UInputBehavior* behavior, EInputCaptureSide whichSide, double hitDepth = TNumericLimits<double>::Max() )
 	{
 		return FInputCaptureRequest(EInputCaptureRequestType::Begin, behavior, whichSide, hitDepth);
 	}
@@ -103,7 +103,7 @@ struct INTERACTIVETOOLSFRAMEWORK_API FInputCaptureRequest
 	/** Create an ignore-capture request */
 	static FInputCaptureRequest Ignore() 
 	{
-		return FInputCaptureRequest(EInputCaptureRequestType::Ignore, nullptr, EInputCaptureSide::Any, TNumericLimits<float>::Max() );
+		return FInputCaptureRequest(EInputCaptureRequestType::Ignore, nullptr, EInputCaptureSide::Any, TNumericLimits<double>::Max() );
 	}
 
 	friend bool operator<(const FInputCaptureRequest& l, const FInputCaptureRequest& r);
