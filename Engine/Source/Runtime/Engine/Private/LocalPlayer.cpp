@@ -167,7 +167,7 @@ class AGameStateBase* FLocalPlayerContext::GetGameState() const
 	else
 	{
 		ULocalPlayer* LocalPlayerPtr = GetLocalPlayer();
-		if (UWorld* LocalPlayerWorld = LocalPlayerPtr->GetWorld())
+		if (UWorld* LocalPlayerWorld = LocalPlayerPtr ? LocalPlayerPtr->GetWorld() : nullptr)
 		{
 			GameState = LocalPlayerWorld->GetGameState();
 		}
