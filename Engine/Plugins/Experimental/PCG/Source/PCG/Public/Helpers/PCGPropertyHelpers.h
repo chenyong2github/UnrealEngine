@@ -77,7 +77,7 @@ inline decltype(auto) PCGPropertyHelpers::GetPropertyValueWithCallback(const Obj
 	{
 		using Type = decltype(Dummy);
 		Type Value{};
-		FPCGAttributeAccessorKeysGeneric Key(const_cast<ObjectType*>(InObject));
+		FPCGAttributeAccessorKeysSingleObjectPtr<ObjectType> Key(InObject);
 
 		if (PropertyAccessor->Get<Type>(Value, Key))
 		{
@@ -122,7 +122,8 @@ inline bool PCGPropertyHelpers::SetPropertyValueFromCallback(ObjectType* InObjec
 	{
 		using Type = decltype(Dummy);
 		Type Value{};
-		FPCGAttributeAccessorKeysGeneric Key(InObject);
+		FPCGAttributeAccessorKeysSingleObjectPtr<ObjectType> Key(InObject);
+
 		if (InFunc(Value))
 		{
 			return PropertyAccessor->Set<Type>(Value, Key);

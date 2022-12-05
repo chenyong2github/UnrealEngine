@@ -64,15 +64,15 @@ TUniquePtr<IPCGAttributeAccessor> PCGAttributeAccessorHelpers::CreatePropertyAcc
 	}
 	else if (const FBoolProperty* BoolProperty = CastField<FBoolProperty>(InProperty))
 	{
-		return MakeUnique<FPCGPropertyAccessor<bool>>(InProperty);
+		return MakeUnique<FPCGPropertyAccessor<bool, FBoolProperty>>(BoolProperty);
 	}
 	else if (const FStrProperty* StringProperty = CastField<FStrProperty>(InProperty))
 	{
-		return MakeUnique<FPCGPropertyAccessor<FString>>(InProperty);
+		return MakeUnique<FPCGPropertyAccessor<FString, FStrProperty>>(StringProperty);
 	}
 	else if (const FNameProperty* NameProperty = CastField<FNameProperty>(InProperty))
 	{
-		return MakeUnique<FPCGPropertyAccessor<FName>>(InProperty);
+		return MakeUnique<FPCGPropertyAccessor<FName, FNameProperty>>(NameProperty);
 	}
 	else if (const FEnumProperty* EnumProperty = CastField<FEnumProperty>(InProperty))
 	{
@@ -82,27 +82,27 @@ TUniquePtr<IPCGAttributeAccessor> PCGAttributeAccessorHelpers::CreatePropertyAcc
 	{
 		if (StructProperty->Struct == TBaseStructure<FVector>::Get())
 		{
-			return MakeUnique<FPCGPropertyAccessor<FVector>>(InProperty);
+			return MakeUnique<FPCGPropertyStructAccessor<FVector>>(StructProperty);
 		}
 		else if (StructProperty->Struct == TBaseStructure<FVector4>::Get())
 		{
-			return MakeUnique<FPCGPropertyAccessor<FVector4>>(InProperty);
+			return MakeUnique<FPCGPropertyStructAccessor<FVector4>>(StructProperty);
 		}
 		else if (StructProperty->Struct == TBaseStructure<FQuat>::Get())
 		{
-			return MakeUnique<FPCGPropertyAccessor<FQuat>>(InProperty);
+			return MakeUnique<FPCGPropertyStructAccessor<FQuat>>(StructProperty);
 		}
 		else if (StructProperty->Struct == TBaseStructure<FTransform>::Get())
 		{
-			return MakeUnique<FPCGPropertyAccessor<FTransform>>(InProperty);
+			return MakeUnique<FPCGPropertyStructAccessor<FTransform>>(StructProperty);
 		}
 		else if (StructProperty->Struct == TBaseStructure<FRotator>::Get())
 		{
-			return MakeUnique<FPCGPropertyAccessor<FRotator>>(InProperty);
+			return MakeUnique<FPCGPropertyStructAccessor<FRotator>>(StructProperty);
 		}
 		else if (StructProperty->Struct == TBaseStructure<FVector2D>::Get())
 		{
-			return MakeUnique<FPCGPropertyAccessor<FVector2D>>(InProperty);
+			return MakeUnique<FPCGPropertyStructAccessor<FVector2D>>(StructProperty);
 		}
 		else if (StructProperty->Struct == TBaseStructure<FSoftObjectPath>::Get())
 		{

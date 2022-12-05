@@ -184,6 +184,36 @@ protected:
 
 /////////////////////////////////////////////////////////////////
 
+/**
+* Unique Key around a single object.
+* Necessary if ObjectType is void, but keep a template version for completeness.
+* Useful when you want to use the accessors Get/Set methods on a single object.
+*/
+template <typename ObjectType>
+class FPCGAttributeAccessorKeysSingleObjectPtr : public IPCGAttributeAccessorKeys
+{
+public:
+	FPCGAttributeAccessorKeysSingleObjectPtr(ObjectType* InPtr)
+		: IPCGAttributeAccessorKeys(/*bInReadOnly=*/ false)
+		, Ptr(InPtr)
+	{}
+
+	FPCGAttributeAccessorKeysSingleObjectPtr(const ObjectType* InPtr)
+		: IPCGAttributeAccessorKeys(/*bInReadOnly=*/ true)
+		, Ptr(const_cast<ObjectType*>(InPtr))
+	{}
+
+	virtual int32 GetNum() const override { return 1; }
+
+protected:
+	virtual bool GetGenericObjectKeys(int32 InStart, TArrayView<void*>& OutObjects) override;
+	virtual bool GetGenericObjectKeys(int32 InStart, TArrayView<const void*>& OutObjects) const override;
+
+	ObjectType* Ptr = nullptr;
+};
+
+/////////////////////////////////////////////////////////////////
+
 template <typename ObjectType>
 inline bool IPCGAttributeAccessorKeys::GetKeys(int32 InStart, TArrayView<ObjectType*>& OutKeys)
 {
@@ -276,4 +306,36 @@ template <typename ObjectType>
 bool FPCGAttributeAccessorKeysGeneric<ObjectType>::GetGenericObjectKeys(int32 InStart, TArrayView<const void*>& OutObjects) const
 {
 	return PCGAttributeAccessorKeys::GetKeys(Objects, InStart, OutObjects, [](const ObjectType& Obj) -> const ObjectType* { return &Obj; });
+}
+
+template <typename ObjectType>
+bool FPCGAttributeAccessorKeysSingleObjectPtr<ObjectType>::GetGenericObjectKeys(int32 InStart, TArrayView<void*>& OutObjects)
+{
+	if (Ptr == nullptr)
+	{
+		return false;
+	}
+
+	for (int32 i = 0; i < OutObjects.Num(); ++i)
+	{
+		OutObjects[i] = Ptr;
+	}
+
+	return true;
+}
+
+template <typename ObjectType>
+bool FPCGAttributeAccessorKeysSingleObjectPtr<ObjectType>::GetGenericObjectKeys(int32 InStart, TArrayView<const void*>& OutObjects) const
+{
+	if (Ptr == nullptr)
+	{
+		return false;
+	}
+
+	for (int32 i = 0; i < OutObjects.Num(); ++i)
+	{
+		OutObjects[i] = Ptr;
+	}
+
+	return true;
 }

@@ -132,20 +132,20 @@ private:
 };
 
 /**
-* Templated accessor class for generic properties. Will wrap around a property.
+* Templated accessor class for struct properties. Will wrap around a struct property.
 * Do not instanciate it manually, use PCGAttributeAccessorHelpers::CreatePropertyAccessor.
 * WARNING: Getting the address of the underlying data from a container using this property
 * should point to a "T" object in memory, otherwise it is UD.
 * Key supported: Generic object
 */
 template <typename T>
-class FPCGPropertyAccessor : public IPCGAttributeAccessorT<FPCGPropertyAccessor<T>>
+class FPCGPropertyStructAccessor : public IPCGAttributeAccessorT<FPCGPropertyStructAccessor<T>>
 {
 public:
 	using Type = T;
-	using Super = IPCGAttributeAccessorT<FPCGPropertyAccessor<T>>;
+	using Super = IPCGAttributeAccessorT<FPCGPropertyStructAccessor<T>>;
 
-	FPCGPropertyAccessor(const FProperty* InProperty)
+	FPCGPropertyStructAccessor(const FStructProperty* InProperty)
 		: Super(/*bInReadOnly=*/ false)
 		, Property(InProperty)
 	{
@@ -170,7 +170,48 @@ public:
 	}
 
 private:
-	const FProperty* Property = nullptr;
+	const FStructProperty* Property = nullptr;
+};
+
+/**
+* Templated accessor class for properties that has a (Get/Set)PropertyValue. Will wrap around a property.
+* For example String/Name/Bool
+* Do not instanciate it manually, use PCGAttributeAccessorHelpers::CreatePropertyAccessor.
+* Key supported: Generic object
+*/
+template <typename T, typename PropertyType>
+class FPCGPropertyAccessor : public IPCGAttributeAccessorT<FPCGPropertyAccessor<T, PropertyType>>
+{
+public:
+	using Type = T;
+	using Super = IPCGAttributeAccessorT<FPCGPropertyAccessor<T, PropertyType>>;
+
+	FPCGPropertyAccessor(const PropertyType* InProperty)
+		: Super(/*bInReadOnly=*/ false)
+		, Property(InProperty)
+	{
+		static_assert(PCG::Private::IsPCGType<T>());
+		check(Property);
+	}
+
+	bool GetRangeImpl(TArrayView<T> OutValues, int32 Index, const IPCGAttributeAccessorKeys& Keys) const
+	{
+		return PCGPropertyAccessor::IterateGet(Property, OutValues, Index, Keys, [this](const void* PropertyAddressData) -> T
+			{
+				return Property->GetPropertyValue(PropertyAddressData);
+			});
+	}
+
+	bool SetRangeImpl(TArrayView<const T> InValues, int32 Index, IPCGAttributeAccessorKeys& Keys, EPCGAttributeAccessorFlags)
+	{
+		return PCGPropertyAccessor::IterateSet(Property, InValues, Index, Keys, [this](void* PropertyAddressData, const T& Value) -> void
+			{
+				Property->SetPropertyValue(PropertyAddressData, Value);
+			});
+	}
+
+private:
+	const PropertyType* Property = nullptr;
 };
 
 /**
