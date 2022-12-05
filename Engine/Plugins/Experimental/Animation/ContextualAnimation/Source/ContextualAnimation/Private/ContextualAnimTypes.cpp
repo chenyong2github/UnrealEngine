@@ -369,7 +369,11 @@ FContextualAnimSceneBindings::FContextualAnimSceneBindings(const UContextualAnim
 	SceneAsset = &InSceneAsset;
 	SectionIdx = InSectionIdx;
 	AnimSetIdx = InAnimSetIdx;
+	GenerateUniqueId();
+}
 
+void FContextualAnimSceneBindings::GenerateUniqueId()
+{
 	static uint8 IncrementID = 0;
 	IncrementID = IncrementID < UINT8_MAX ? IncrementID + 1 : 0;
 	Id = IncrementID;
@@ -390,10 +394,38 @@ void FContextualAnimSceneBindings::Reset()
 	SceneInstancePtr.Reset();
 }
 
+void FContextualAnimSceneBindings::Clear()
+{
+	Data.Reset();
+	SceneInstancePtr.Reset();
+}
+
 const FContextualAnimSceneBinding* FContextualAnimSceneBindings::GetSyncLeader() const
 {
 	//@TODO: Return first secondary binding as sync leader for now. This may have to be explicitly defined, either in the SceneAsset or when creating the bindings.
 	return Data.FindByPredicate([this](const FContextualAnimSceneBinding& Item) { return GetRoleFromBinding(Item) != SceneAsset->GetPrimaryRole(); });
+}
+
+bool FContextualAnimSceneBindings::BindActorToRole(AActor& ActorRef, FName Role)
+{
+	if(const FContextualAnimSceneBinding* Binding = FindBindingByRole(Role))
+	{
+		UE_LOG(LogContextualAnim, Warning, TEXT("FContextualAnimSceneBindings::BindActorToRole. Failed to bind Actor: '%s' to Role: '%s'. Reason: %s already bound"), 
+			*GetNameSafe(&ActorRef), *Role.ToString(), *GetNameSafe(Binding->GetActor()));
+		return false;
+	}
+
+	const FContextualAnimTrack* AnimTrackPtr = SceneAsset->GetAnimTrack(SectionIdx, AnimSetIdx, Role);
+	if(AnimTrackPtr == nullptr)
+	{
+		UE_LOG(LogContextualAnim, Warning, TEXT("FContextualAnimSceneBindings::BindActorToRole. Failed to bind Actor: '%s' to Role: '%s'. Reason: Can't find valid AnimTrack for it. SceneAsset: %s SectionIdx: %d AnimSetIdx: %d"),
+			*GetNameSafe(&ActorRef), *Role.ToString(), *GetNameSafe(SceneAsset.Get()), SectionIdx, AnimSetIdx);
+		return false;
+	}
+
+	Data.Add(FContextualAnimSceneBinding(FContextualAnimSceneBindingContext(&ActorRef), *AnimTrackPtr));
+
+	return true;
 }
 
 const FContextualAnimTrack& FContextualAnimSceneBindings::GetAnimTrackFromBinding(const FContextualAnimSceneBinding& Binding) const

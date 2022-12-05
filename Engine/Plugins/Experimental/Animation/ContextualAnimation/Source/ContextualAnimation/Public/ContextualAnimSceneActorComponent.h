@@ -83,9 +83,13 @@ protected:
 	UPROPERTY(Transient)
 	TArray<FContextualAnimIKTarget> IKTargets;
 
-	/** Value of AllowPhysicsRotationDuringAnimRootMotion property for this actor before we join an scene, so we can restore it once the interaction ends */
-	UPROPERTY(Transient)
-	bool bAllowPhysicsRotationDuringAnimRootMotionBackup = false;
+	struct FRotationProperties
+	{
+		bool bAllowPhysicsRotationDuringAnimRootMotion = false;
+		bool bUseControllerDesiredRotation = false;
+		bool bOrientRotationToMovement = false;
+	};
+	FRotationProperties RotationPropertiesBackup;
 
 	void UpdateIKTargets();
 

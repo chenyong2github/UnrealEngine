@@ -68,6 +68,8 @@ bool UContextualAnimSceneActorComponent::StartContextualAnimScene(const FContext
 		{
 			RepBindings = InBindings;
 			MARK_PROPERTY_DIRTY_FROM_NAME(UContextualAnimSceneActorComponent, RepBindings, this);
+
+			GetOwner()->ForceNetUpdate();
 		}
 
 		return true;
@@ -78,8 +80,8 @@ bool UContextualAnimSceneActorComponent::StartContextualAnimScene(const FContext
 
 void UContextualAnimSceneActorComponent::OnRep_Bindings(const FContextualAnimSceneBindings& LastRepBindings)
 {
-	// @TODO: This need more investigation but for now it prevents an issue caused by this OnRep_ triggering even when there is no (obvious) changein the data
-	if(RepBindings.GetID() == LastRepBindings.GetID())
+	// @TODO: This need more investigation but for now it prevents an issue caused by this OnRep_ triggering even when there is no (obvious) change in the data
+	if(RepBindings.GetID() == LastRepBindings.GetID() && RepBindings.IsValid() && LastRepBindings.IsValid())
 	{
 		UE_LOG(LogContextualAnim, Warning, TEXT("%-21s UContextualAnimSceneActorComponent::OnRep_Bindings Actor: %s RepBindings Id: %d LastRepBindings Id: %d"),
 			*UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()), *GetNameSafe(GetOwner()), RepBindings.GetID(), LastRepBindings.GetID());
@@ -87,8 +89,8 @@ void UContextualAnimSceneActorComponent::OnRep_Bindings(const FContextualAnimSce
 		return;
 	}
 
-	UE_LOG(LogContextualAnim, Verbose, TEXT("%-21s UContextualAnimSceneActorComponent::OnRep_Bindings Actor: %s RepBindings Id: %d Bindings Id: %d"),
-		*UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()), *GetNameSafe(GetOwner()), RepBindings.GetID(), Bindings.GetID());
+	UE_LOG(LogContextualAnim, Verbose, TEXT("%-21s UContextualAnimSceneActorComponent::OnRep_Bindings Actor: %s RepBindings Id: %d Num: %d Bindings Id: %d Num: %d"),
+		*UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()), *GetNameSafe(GetOwner()), RepBindings.GetID(), RepBindings.Num(), Bindings.GetID(), Bindings.Num());
 
 	// The owner of this component started an interaction on the server
 	if (RepBindings.IsValid())
@@ -118,7 +120,10 @@ void UContextualAnimSceneActorComponent::OnRep_Bindings(const FContextualAnimSce
 		// In this case we don't want to tell everyone else to also leave the scene since there is very common for the initiator, 
 		// specially if is player character, to end the animation earlier for responsiveness
 		// It is more likely this will do nothing since we listen to montage end also on Simulated Proxies to 'predict' the end of the interaction.
-		LeaveScene();
+		if(RepBindings.GetID() == Bindings.GetID())
+		{
+			LeaveScene();
+		}
 	}
 }
 
@@ -196,8 +201,12 @@ void UContextualAnimSceneActorComponent::OnJoinedScene(const FContextualAnimScen
 		// Prevent physics rotation. During the interaction we want to be fully root motion driven
 		if (UCharacterMovementComponent* MovementComp = GetOwner()->FindComponentByClass<UCharacterMovementComponent>())
 		{
-			bAllowPhysicsRotationDuringAnimRootMotionBackup = MovementComp->bAllowPhysicsRotationDuringAnimRootMotion;
+			RotationPropertiesBackup.bAllowPhysicsRotationDuringAnimRootMotion = MovementComp->bAllowPhysicsRotationDuringAnimRootMotion;
+			RotationPropertiesBackup.bUseControllerDesiredRotation = MovementComp->bUseControllerDesiredRotation;
+			RotationPropertiesBackup.bOrientRotationToMovement = MovementComp->bOrientRotationToMovement;
 			MovementComp->bAllowPhysicsRotationDuringAnimRootMotion = false;
+			MovementComp->bUseControllerDesiredRotation = false;
+			MovementComp->bOrientRotationToMovement = false;
 		}
 
 		OnJoinedSceneDelegate.Broadcast(this);
@@ -226,7 +235,9 @@ void UContextualAnimSceneActorComponent::OnLeftScene()
 		// Restore bAllowPhysicsRotationDuringAnimRootMotion
 		if (UCharacterMovementComponent* MovementComp = GetOwner()->FindComponentByClass<UCharacterMovementComponent>())
 		{
-			MovementComp->bAllowPhysicsRotationDuringAnimRootMotion = bAllowPhysicsRotationDuringAnimRootMotionBackup;
+			MovementComp->bAllowPhysicsRotationDuringAnimRootMotion = RotationPropertiesBackup.bAllowPhysicsRotationDuringAnimRootMotion;
+			MovementComp->bUseControllerDesiredRotation = RotationPropertiesBackup.bUseControllerDesiredRotation;
+			MovementComp->bOrientRotationToMovement = RotationPropertiesBackup.bOrientRotationToMovement;
 		}
 
 		OnLeftSceneDelegate.Broadcast(this);
@@ -244,8 +255,8 @@ void UContextualAnimSceneActorComponent::JoinScene(const FContextualAnimSceneBin
 
 	if (const FContextualAnimSceneBinding* Binding = InBindings.FindBindingByActor(GetOwner()))
 	{
-		UE_LOG(LogContextualAnim, Verbose, TEXT("%-21s UContextualAnimSceneActorComponent::JoinScene Actor: %s InBindings Id: %d Section: %d Asset: %s"),
-			*UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()), *GetNameSafe(GetOwner()), InBindings.GetID(), InBindings.GetSectionIdx(), *GetNameSafe(InBindings.GetSceneAsset()));
+		UE_LOG(LogContextualAnim, Verbose, TEXT("%-21s UContextualAnimSceneActorComponent::JoinScene Actor: %s Role: %s InBindings Id: %d Section: %d Asset: %s"),
+			*UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()), *GetNameSafe(GetOwner()), *InBindings.GetRoleFromBinding(*Binding).ToString(), InBindings.GetID(), InBindings.GetSectionIdx(), *GetNameSafe(InBindings.GetSceneAsset()));
 
 		Bindings = InBindings;
 
@@ -272,8 +283,12 @@ void UContextualAnimSceneActorComponent::JoinScene(const FContextualAnimSceneBin
 		// Prevent physics rotation. During the interaction we want to be fully root motion driven
 		if (UCharacterMovementComponent* MovementComp = GetOwner()->FindComponentByClass<UCharacterMovementComponent>())
 		{
-			bAllowPhysicsRotationDuringAnimRootMotionBackup = MovementComp->bAllowPhysicsRotationDuringAnimRootMotion;
+			RotationPropertiesBackup.bAllowPhysicsRotationDuringAnimRootMotion = MovementComp->bAllowPhysicsRotationDuringAnimRootMotion;
+			RotationPropertiesBackup.bUseControllerDesiredRotation = MovementComp->bUseControllerDesiredRotation;
+			RotationPropertiesBackup.bOrientRotationToMovement = MovementComp->bOrientRotationToMovement;
 			MovementComp->bAllowPhysicsRotationDuringAnimRootMotion = false;
+			MovementComp->bUseControllerDesiredRotation = false;
+			MovementComp->bOrientRotationToMovement = false;
 
 			//@TODO: Temp solution that assumes these interactions are not locally predicted and that is ok to be in flying mode during the entire animation
 			if (AnimTrack.bRequireFlyingMode && MovementComp->MovementMode != MOVE_Flying)
@@ -290,8 +305,9 @@ void UContextualAnimSceneActorComponent::LeaveScene()
 {
 	if (const FContextualAnimSceneBinding* Binding = Bindings.FindBindingByActor(GetOwner()))
 	{
-		UE_LOG(LogContextualAnim, Verbose, TEXT("%-21s UContextualAnimSceneActorComponent::LeaveScene Actor: %s Current Bindings Id: %d Section: %d Asset: %s"),
-			*UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()), *GetNameSafe(GetOwner()), Bindings.GetID(), Bindings.GetSectionIdx(), *GetNameSafe(Bindings.GetSceneAsset()));
+		UE_LOG(LogContextualAnim, Verbose, TEXT("%-21s UContextualAnimSceneActorComponent::LeaveScene Actor: %s Role: %s Current Bindings Id: %d Section: %d Asset: %s"),
+			*UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()), *GetNameSafe(GetOwner()), *Bindings.GetRoleFromBinding(*Binding).ToString(),
+			Bindings.GetID(), Bindings.GetSectionIdx(), *GetNameSafe(Bindings.GetSceneAsset()));
 
 		const FContextualAnimTrack& AnimTrack = Bindings.GetAnimTrackFromBinding(*Binding);
 
@@ -314,7 +330,7 @@ void UContextualAnimSceneActorComponent::LeaveScene()
 		{
 			SkelMeshComp->OnTickPose.RemoveAll(this);
 		}
-
+		
 		// Restore collision between actors
 		// Note that this assumes that we are the only one disabling the collision between these actors. 
 		// We might want to add a more robust mechanism to avoid overriding a request to disable collision that may have been set by another system
@@ -323,7 +339,9 @@ void UContextualAnimSceneActorComponent::LeaveScene()
 		// Restore bAllowPhysicsRotationDuringAnimRootMotion
 		if (UCharacterMovementComponent* MovementComp = GetOwner()->FindComponentByClass<UCharacterMovementComponent>())
 		{
-			MovementComp->bAllowPhysicsRotationDuringAnimRootMotion = bAllowPhysicsRotationDuringAnimRootMotionBackup;
+			MovementComp->bAllowPhysicsRotationDuringAnimRootMotion = RotationPropertiesBackup.bAllowPhysicsRotationDuringAnimRootMotion;
+			MovementComp->bUseControllerDesiredRotation = RotationPropertiesBackup.bUseControllerDesiredRotation;
+			MovementComp->bOrientRotationToMovement = RotationPropertiesBackup.bOrientRotationToMovement;
 
 			//@TODO: Temp solution that assumes these interactions are not locally predicted and that is ok to be in flying mode during the entire animation
 			if (AnimTrack.bRequireFlyingMode && MovementComp->MovementMode == MOVE_Flying)
@@ -354,8 +372,10 @@ void UContextualAnimSceneActorComponent::OnMontageBlendingOut(UAnimMontage* Mont
 				// Rep empty bindings if we were the initiator of this interaction.
 				if(RepBindings.IsValid())
 				{
-					RepBindings.Reset();
+					RepBindings.Clear();
 					MARK_PROPERTY_DIRTY_FROM_NAME(UContextualAnimSceneActorComponent, RepBindings, this);
+
+					GetOwner()->ForceNetUpdate();
 				}
 
 				//@TODO: Replicate this event separately for each other member of the interaction
