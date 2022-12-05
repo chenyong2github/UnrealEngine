@@ -46,7 +46,7 @@ public:
 
 	/** Density values outside of the input range will be unaffected by the remapping */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	bool bExcludeValuesOutsideInputRange = true;
+	bool bExcludeValuesOutsideInputRange = false;
 };
 
 class FPCGDensityRemapElement : public FPCGPointProcessingElementBase
