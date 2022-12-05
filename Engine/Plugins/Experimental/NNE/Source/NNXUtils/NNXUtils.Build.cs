@@ -13,7 +13,7 @@ public class NNXUtils : ModuleRules
 
 		PublicIncludePaths.AddRange(
 			new string[] {
-				Path.GetFullPath(Path.Combine(EngineDirectory, "Plugins/Experimental/NNX/Source/NNXCore/Private")),
+				Path.GetFullPath(Path.Combine(EngineDirectory, "Plugins/Experimental/NNE/Source/NNXCore/Private")),
 			}
 		);
 
