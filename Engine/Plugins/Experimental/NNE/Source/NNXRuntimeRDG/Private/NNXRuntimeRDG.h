@@ -65,7 +65,9 @@ public:
 	FRDGBufferRef GetBuffer() const { return Buffer; }
 };
 
+using FTensorRDGRef = FTensorRDG*;
 using FTensorRDGArray = TArray<FTensorRDG, TInlineAllocator<16>>;
+using FTensorRDGRefArray = TArray<FTensorRDGRef, TInlineAllocator<64>>;
 using FIntArray = TArray<int32, TInlineAllocator<16>>;
 
 class FMLRuntimeRDG : public IRuntime
@@ -115,17 +117,22 @@ protected:
 
 	//Tensor indices for models
 	TArray<int32>				IntermediateTensorIndices;
+	TArray<int32>				WeightTensorIndices;
 	TArray<int32>				InputTensorIndices;
 	TArray<int32>				OutputTensorIndices;
 	
 	//Tensor indices by operator
 	TArray<TArray<uint32>>		OperatorInputTensorIndices;
 	TArray<TArray<uint32>>		OperatorOutputTensorIndices;
-	
+
 	//RDG Tensors
-	FTensorRDGArray				AllTensorRDGs;
+	FTensorRDGRefArray			AllTensorRDGs;
+	FTensorRDGArray				InputTensorRDGs;
+	FTensorRDGArray				OutputTensorRDGs;
+	FTensorRDGArray				IntermediateTensorRDGs;
+	FTensorRDGArray				WeightTensorRDGs;
 	
-	TArray<FReadbackEntry> 		Readbacks;
+	TArray<FReadbackEntry>		Readbacks;
 	bool						bUseManualTransitions;
 };
 

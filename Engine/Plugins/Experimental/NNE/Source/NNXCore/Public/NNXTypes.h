@@ -231,13 +231,31 @@ class FTensor : public FTensorDescBase
 {
 protected:
 	FTensorShape Shape;
-	uint32 Volume = 0;
+	TArray<uint8> PreparedData;
 	uint64 DataSize = 0;
+	uint32 Volume = 0;
 
 public:
 	const FTensorShape& GetShape() const
 	{
 		return Shape;
+	}
+
+	TConstArrayView<uint8> GetPreparedData() const
+	{
+		return PreparedData;
+	}
+
+	void SetPreparedData(TConstArrayView<uint8> Data)
+	{
+		check(Data.Num() == DataSize);
+		PreparedData.Empty();
+		PreparedData.Append(Data);
+	}
+
+	bool HasPreparedData()
+	{
+		return !PreparedData.IsEmpty();
 	}
 
 	uint32 GetVolume() const

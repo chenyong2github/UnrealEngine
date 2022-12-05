@@ -12,7 +12,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 	using FElementWiseVariadicConstants = UE::NNEHlslShaders::Internal::FElementWiseVariadicConstants;
 
 	void AddOneVariadicOpPass(FRDGBuilder& GraphBuilder, 
-		TConstArrayView<NNX::FTensorRDG> InputTensors,
+		TConstArrayView<NNX::FTensorRDGRef> InputTensors,
 		const NNX::FTensorRDG& OutputTensor,
 		bool OutputAsInput,
 		EMLElementWiseVariadicOperatorType OpType,
@@ -28,7 +28,8 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 		for (int32 i = 0; i < InputTensors.Num(); ++i)
 		{
-			InputsSRV[i] = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InputTensors[i].GetBuffer(), PF_R32_FLOAT));
+			check(InputTensors[i] != nullptr);
+			InputsSRV[i] = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InputTensors[i]->GetBuffer(), PF_R32_FLOAT));
 		}
 
 		// Set parameters
@@ -40,18 +41,18 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		Params->Input2 = InputsSRV[2];
 		Params->Input3 = InputsSRV[3];
 		Params->Output = OutputUAV;
-		FillTensorStrideForBroadcastShaderParameters(InputTensors[0], OutputTensor.GetShape().Rank(), Params->InputTensorInfo, 0);
+		FillTensorStrideForBroadcastShaderParameters(*InputTensors[0], OutputTensor.GetShape().Rank(), Params->InputTensorInfo, 0);
 		if (InputTensors.Num() >= 2)
 		{
-			FillTensorStrideForBroadcastShaderParameters(InputTensors[1], OutputTensor.GetShape().Rank(), Params->InputTensorInfo, 1);
+			FillTensorStrideForBroadcastShaderParameters(*InputTensors[1], OutputTensor.GetShape().Rank(), Params->InputTensorInfo, 1);
 		}
 		if (InputTensors.Num() >= 3)
 		{
-			FillTensorStrideForBroadcastShaderParameters(InputTensors[2], OutputTensor.GetShape().Rank(), Params->InputTensorInfo, 2);
+			FillTensorStrideForBroadcastShaderParameters(*InputTensors[2], OutputTensor.GetShape().Rank(), Params->InputTensorInfo, 2);
 		}
 		if (InputTensors.Num() >= 4)
 		{
-			FillTensorStrideForBroadcastShaderParameters(InputTensors[3], OutputTensor.GetShape().Rank(), Params->InputTensorInfo, 3);
+			FillTensorStrideForBroadcastShaderParameters(*InputTensors[3], OutputTensor.GetShape().Rank(), Params->InputTensorInfo, 3);
 		}
 		FillTensorStrideShaderParameters(OutputTensor, Params->OutputTensorInfo, 0);
 		Params->Num = OutputTensor.GetVolume();
@@ -136,15 +137,16 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			return true;
 		}
 
-		virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<NNX::FTensorRDG> InInputTensors, TConstArrayView<NNX::FTensorRDG> InOutputTensors) override
+		virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<NNX::FTensorRDGRef> InInputTensors, TConstArrayView<NNX::FTensorRDGRef> InOutputTensors) override
 		{
 			check(InInputTensors.Num() > 0);
 			check(InOutputTensors.Num() == 1);
+			check(InOutputTensors[0] != nullptr);
 
 			RDG_EVENT_SCOPE(GraphBuilder, "NNI.Operator.Hlsl.ElementWise.Variadic");
 			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNIOperatorElementWiseVariadic);
 
-			NNX::FTensorRDG PassInputTensors[FElementWiseVariadicConstants::MAX_NUM_INPUT];
+			NNX::FTensorRDGRef PassInputTensors[FElementWiseVariadicConstants::MAX_NUM_INPUT];
 			for (int32 InputOffset = 0; InputOffset < InInputTensors.Num(); InputOffset += FElementWiseVariadicConstants::MAX_NUM_INPUT)
 			{
 				uint32 NumInputLeftToHandle = InInputTensors.Num() - InputOffset;
@@ -155,6 +157,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 				for (uint32 i = 0; i < NumInputForPass; ++i)
 				{
+					check(InInputTensors[InputOffset + i] != nullptr);
 					PassInputTensors[i] = InInputTensors[InputOffset + i];
 				}
 
@@ -165,7 +168,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			
 				AddOneVariadicOpPass(GraphBuilder,
 					MakeArrayView(PassInputTensors, NumInputForPass),
-					InOutputTensors[0],
+					*InOutputTensors[0],
 					!bIsFirstPass,
 					OpType, Scale);
 			}

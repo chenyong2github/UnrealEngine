@@ -97,17 +97,21 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			return true;
 		}
 
-		virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<NNX::FTensorRDG> InputTensors, TConstArrayView<NNX::FTensorRDG> OutputTensors) override
+		virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<NNX::FTensorRDGRef> InputTensors, TConstArrayView<NNX::FTensorRDGRef> OutputTensors) override
 		{
 			using namespace UE::NNEHlslShaders::Internal;
 
 			check(InputTensors.Num() == 3);
 			check(OutputTensors.Num() == 1);
+			check(InputTensors[0] != nullptr);
+			check(InputTensors[1] != nullptr);
+			check(InputTensors[2] != nullptr);
+			check(OutputTensors[0] != nullptr);
 
-			const NNX::FTensorRDG& Input = InputTensors[0];
-			const NNX::FTensorRDG& Scale = InputTensors[1];
-			const NNX::FTensorRDG& Bias = InputTensors[2];
-			const NNX::FTensorRDG& Output = OutputTensors[0];
+			const NNX::FTensorRDG& Input = *InputTensors[0];
+			const NNX::FTensorRDG& Scale = *InputTensors[1];
+			const NNX::FTensorRDG& Bias = *InputTensors[2];
+			const NNX::FTensorRDG& Output = *OutputTensors[0];
 
 			// Set parameters
 			TInstanceNormalizationCS::FParameters* Parameters = GraphBuilder.AllocParameters<TInstanceNormalizationCS::FParameters>();

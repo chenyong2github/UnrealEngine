@@ -110,7 +110,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			return true;
 		}
 
-		virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<NNX::FTensorRDG> InputTensors, TConstArrayView<NNX::FTensorRDG> OutputTensors) override
+		virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<NNX::FTensorRDGRef> InputTensors, TConstArrayView<NNX::FTensorRDGRef> OutputTensors) override
 		{
 			using namespace UE::NNEHlslShaders::Internal;
 
@@ -119,16 +119,20 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 			check(InputTensors.Num() >= 2 && InputTensors.Num() <= 3);
 			check(OutputTensors.Num() == 1);
+			check(InputTensors[0] != nullptr);
+			check(InputTensors[1] != nullptr);
+			check(OutputTensors[0] != nullptr);
 
-			const NNX::FTensorRDG& Input = InputTensors[0];
-			const NNX::FTensorRDG& Weights = InputTensors[1];
-			const NNX::FTensorRDG& Output = OutputTensors[0];
+			const NNX::FTensorRDG& Input = *InputTensors[0];
+			const NNX::FTensorRDG& Weights = *InputTensors[1];
+			const NNX::FTensorRDG& Output = *OutputTensors[0];
 			const NNX::FTensorRDG* Bias = nullptr;
 			bool HasBias = false;
 
 			if (InputTensors.Num() == 3) {
 				HasBias = true;
-				Bias = &(InputTensors[2]);
+				check(InputTensors[2] != nullptr);
+				Bias = InputTensors[2];
 			}
 
 			check(Input.GetShape().Rank() > 2);

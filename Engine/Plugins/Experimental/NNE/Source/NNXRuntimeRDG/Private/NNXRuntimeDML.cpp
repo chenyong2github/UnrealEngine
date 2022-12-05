@@ -334,7 +334,7 @@ class FMLOperatorDml : public FMLOperatorRDG
 public:
 
 	virtual bool Initialize(FDeviceContextDml* DevCtx, TArrayView<const FTensor> InputTensors, TArrayView<const FTensor> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) = 0;
-	virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<FTensorRDG> InInputTensors, TConstArrayView<FTensorRDG> InOutputTensors) = 0;
+	virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<FTensorRDGRef> InInputTensors, TConstArrayView<FTensorRDGRef> InOutputTensors) = 0;
 
 protected:
 
@@ -646,14 +646,16 @@ public:
 	//
 	//
 	//
-	virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<FTensorRDG> InInputTensors, TConstArrayView<FTensorRDG> InOutputTensors) override
+	virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<FTensorRDGRef> InInputTensors, TConstArrayView<FTensorRDGRef> InOutputTensors) override
 	{
 		ID3D12DynamicRHI* DynamicRHI = GetID3D12DynamicRHI();
 
 		FMLElementWiseUnaryParameters* Params = GraphBuilder.AllocParameters<FMLElementWiseUnaryParameters>();
 
-		Params->Input = InInputTensors[0].GetBuffer();
-		Params->Output = InOutputTensors[0].GetBuffer();
+		check(InInputTensors[0] != nullptr);
+		check(InOutputTensors[0] != nullptr);
+		Params->Input = InInputTensors[0]->GetBuffer();
+		Params->Output = InOutputTensors[0]->GetBuffer();
 		Params->Alpha = Alpha;
 		Params->Beta = Beta;
 		Params->Gamma = Gamma;
@@ -884,15 +886,18 @@ public:
 	//
 	//
 	//
-	virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<FTensorRDG> InInputTensors, TConstArrayView<FTensorRDG> InOutputTensors) override
+	virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<FTensorRDGRef> InInputTensors, TConstArrayView<FTensorRDGRef> InOutputTensors) override
 	{
 		ID3D12DynamicRHI* DynamicRHI = GetID3D12DynamicRHI();
 
 		FMLElementWiseBinaryParameters* Params = GraphBuilder.AllocParameters<FMLElementWiseBinaryParameters>();
 
-		Params->LHSInput = InInputTensors[0].GetBuffer();
-		Params->RHSInput = InInputTensors[1].GetBuffer();
-		Params->Output = InOutputTensors[0].GetBuffer();
+		check(InInputTensors[0] != nullptr);
+		check(InInputTensors[1] != nullptr);
+		check(InOutputTensors[0] != nullptr);
+		Params->LHSInput = InInputTensors[0]->GetBuffer();
+		Params->RHSInput = InInputTensors[1]->GetBuffer();
+		Params->Output = InOutputTensors[0]->GetBuffer();
 		Params->Num = Num;
 
 		GraphBuilder.AddPass(
@@ -1067,7 +1072,7 @@ public:
 	//
 	//
 	//
-	virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<FTensorRDG> InInputTensors, TConstArrayView<FTensorRDG> InOutputTensors) override
+	virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<FTensorRDGRef> InInputTensors, TConstArrayView<FTensorRDGRef> InOutputTensors) override
 	{
 		ID3D12DynamicRHI* DynamicRHI = GetID3D12DynamicRHI();
 
@@ -1076,10 +1081,14 @@ public:
 
 		FMLGemmParameters* Params = GraphBuilder.AllocParameters<FMLGemmParameters>();
 
-		Params->A = InInputTensors[0].GetBuffer();
-		Params->B = InInputTensors[1].GetBuffer();
-		Params->C = bIsUsingBias ? InInputTensors[2].GetBuffer() : nullptr;
-		Params->Y = InOutputTensors[0].GetBuffer();
+		check(InInputTensors[0] != nullptr);
+		check(InInputTensors[1] != nullptr);
+		check(!bIsUsingBias || InInputTensors[2] != nullptr);
+		check(InOutputTensors[0] != nullptr);
+		Params->A = InInputTensors[0]->GetBuffer();
+		Params->B = InInputTensors[1]->GetBuffer();
+		Params->C = bIsUsingBias ? InInputTensors[2]->GetBuffer() : nullptr;
+		Params->Y = InOutputTensors[0]->GetBuffer();
 
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("FMLGemmDml_Transition"),
@@ -1545,10 +1554,10 @@ void FMLInferenceModelDml::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder
 	check(AllTensorRDGs.Num() == AllShapes.Num());
 
 	static constexpr int32 MaxExpectedInput = 10;
-	TArray<FTensorRDG, TInlineAllocator<MaxExpectedInput>> InputTensors;
+	TArray<FTensorRDGRef, TInlineAllocator<MaxExpectedInput>> InputTensors;
 
 	static constexpr int32 MaxExpectedOutput = 2;
-	TArray<FTensorRDG, TInlineAllocator<MaxExpectedOutput>> OutputTensors;
+	TArray<FTensorRDGRef, TInlineAllocator<MaxExpectedOutput>> OutputTensors;
 
 	// Add passes for all operators
 	for (int32 Idx = 0; Idx < Operators.Num(); ++Idx)

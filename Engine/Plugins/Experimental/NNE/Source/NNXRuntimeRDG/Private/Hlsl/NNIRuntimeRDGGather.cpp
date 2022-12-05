@@ -81,20 +81,23 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			return true;
 		}
 
-		virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<NNX::FTensorRDG> InputTensors, TConstArrayView<NNX::FTensorRDG> OutputTensors) override
+		virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<NNX::FTensorRDGRef> InputTensors, TConstArrayView<NNX::FTensorRDGRef> OutputTensors) override
 		{
 			using namespace UE::NNEHlslShaders::Internal;
 
 			check(InputTensors.Num() == 2)
 			check(OutputTensors.Num() == 1)
-			check(OutputTensors[0].GetShape().Rank() <= FGatherConstants::MAX_NUM_DIMENSIONS)
-			check(InputTensors[0].GetShape().Rank() > 0)
-			check(InputTensors[1].GetShape().Rank() > 0)
-			check(InputTensors[0].GetShape().Rank() + (InputTensors[1].GetShape().Rank() - 1) <= FGatherConstants::MAX_NUM_DIMENSIONS)
+			check(InputTensors[0] != nullptr);
+			check(InputTensors[1] != nullptr);
+			check(OutputTensors[0] != nullptr);
+			check(OutputTensors[0]->GetShape().Rank() <= FGatherConstants::MAX_NUM_DIMENSIONS)
+			check(InputTensors[0]->GetShape().Rank() > 0)
+			check(InputTensors[1]->GetShape().Rank() > 0)
+			check(InputTensors[0]->GetShape().Rank() + (InputTensors[1]->GetShape().Rank() - 1) <= FGatherConstants::MAX_NUM_DIMENSIONS)
 
-			const NNX::FTensorRDG& Data = InputTensors[0];
-			const NNX::FTensorRDG& Indices = InputTensors[1];
-			const NNX::FTensorRDG& Output = OutputTensors[0];
+			const NNX::FTensorRDG& Data = *InputTensors[0];
+			const NNX::FTensorRDG& Indices = *InputTensors[1];
+			const NNX::FTensorRDG& Output = *OutputTensors[0];
 
 			// Set parameters
 			TGatherCS::FParameters* Parameters = GraphBuilder.AllocParameters<TGatherCS::FParameters>();

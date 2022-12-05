@@ -164,6 +164,15 @@ int FMLInferenceModelHlsl::RunShapeInference()
 		checkCode(AllInitializedShapes[InputTensorModelIndex] = true);
 	}
 
+	//Prime shape inference with model weights
+	for (int32 i = 0; i < WeightTensorIndices.Num(); ++i)
+	{
+		const int32 WeightTensorModelIndex = WeightTensorIndices[i];
+
+		AllShapes[WeightTensorModelIndex] = WeightTensorRDGs[i].GetShape();
+		checkCode(AllInitializedShapes[WeightTensorModelIndex] = true);
+	}
+
 	// Run shape inference on all operators
 	for (int32 Idx = 0; Idx < Operators.Num(); ++Idx)
 	{
@@ -237,10 +246,10 @@ void FMLInferenceModelHlsl::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilde
 	check(AllTensorRDGs.Num() == AllShapes.Num());
 
 	static constexpr int32 MaxExpectedInput = 10;
-	TArray<FTensorRDG, TInlineAllocator<MaxExpectedInput>> InputTensors;
+	TArray<FTensorRDGRef, TInlineAllocator<MaxExpectedInput>> InputTensors;
 
 	static constexpr int32 MaxExpectedOutput = 2;
-	TArray<FTensorRDG, TInlineAllocator<MaxExpectedOutput>> OutputTensors;
+	TArray<FTensorRDGRef, TInlineAllocator<MaxExpectedOutput>> OutputTensors;
 
 	// Add passes for all operators
 	for (int32 Idx = 0; Idx < Operators.Num(); ++Idx)

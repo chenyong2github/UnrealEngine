@@ -99,7 +99,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			return true;
 		}
 
-		virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<NNX::FTensorRDG> InputTensors, TConstArrayView<NNX::FTensorRDG> OutputTensors) override
+		virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<NNX::FTensorRDGRef> InputTensors, TConstArrayView<NNX::FTensorRDGRef> OutputTensors) override
 		{
 			using namespace UE::NNEHlslShaders::Internal;
 
@@ -109,15 +109,18 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 			check(InputTensors.Num() >= 2 && InputTensors.Num() <= 3);
 			check(OutputTensors.Num() == 1);
-
-			const NNX::FTensorRDG& InputA = InputTensors[0];
-			const NNX::FTensorRDG& InputB = InputTensors[1];
-			const NNX::FTensorRDG& Output = OutputTensors[0];
+			check(InputTensors[0] != nullptr);
+			check(InputTensors[1] != nullptr);
+			check(OutputTensors[0] != nullptr);
+			const NNX::FTensorRDG& InputA = *InputTensors[0];
+			const NNX::FTensorRDG& InputB = *InputTensors[1];
+			const NNX::FTensorRDG& Output = *OutputTensors[0];
 			const NNX::FTensorRDG* InputC = nullptr;
 
 			if (InputTensors.Num() == 3)
 			{
-				InputC = &(InputTensors[2]);
+				check(InputTensors[2] != nullptr);
+				InputC = InputTensors[2];
 			}
 			
 			// Set parameters
