@@ -40,6 +40,10 @@
 		{
 			"Name": "AudioSynesthesia",
 			"Enabled": true
+		},
+		{
+			"Name": "AudioWidgets",
+			"Enabled" :  true
 		}
 	]
 }

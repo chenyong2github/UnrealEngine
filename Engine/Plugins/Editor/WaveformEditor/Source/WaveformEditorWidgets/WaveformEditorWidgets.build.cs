@@ -14,6 +14,7 @@ namespace UnrealBuildTool.Rules
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
 					"AudioExtensions",
+					"AudioWidgets",
 					"ContentBrowser",
 					"Core",
 					"CoreUObject",

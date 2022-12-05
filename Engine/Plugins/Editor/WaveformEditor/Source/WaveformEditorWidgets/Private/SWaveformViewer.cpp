@@ -2,6 +2,7 @@
 
 #include "SWaveformViewer.h"
 
+#include "TimeSeriesDrawingUtils.h"
 #include "WaveformEditorRenderData.h"
 #include "WaveformEditorSlateTypes.h"
 
@@ -155,7 +156,7 @@ void SWaveformViewer::Tick(const FGeometry& AllottedGeometry, const double InCur
 
 		if (WaveformDrawMode == EWaveformDrawMode::BinnedPeaks)
 		{
-			WaveformDrawingUtils::GetBinnedPeaksFromWaveformRawData(CachedPeaks, CachedPixelWidth, SampleData.GetData(), RenderData->GetNumSamples(), RenderData->GetSampleRate(), RenderData->GetNumChannels(), DisplayRange.GetLowerBoundValue(), DisplayRange.GetUpperBoundValue());
+			TimeSeriesDrawingUtils::GroupInterleavedSampledTSIntoMinMaxBins(CachedPeaks, CachedPixelWidth, SampleData.GetData(), RenderData->GetNumSamples(), RenderData->GetSampleRate(), RenderData->GetNumChannels(), DisplayRange.GetLowerBoundValue(), DisplayRange.GetUpperBoundValue());
 			GenerateWaveformBinsCoordinates(CachedBinsDrawCoordinates, CachedPeaks, AllottedGeometry);
 		}
 		else
@@ -181,7 +182,7 @@ void SWaveformViewer::Tick(const FGeometry& AllottedGeometry, const double InCur
 	}
 }
 
-void SWaveformViewer::GenerateWaveformBinsCoordinates(TArray<FSamplesBinCoordinates>& OutDrawCoordinates, const TArray<WaveformDrawingUtils::SampleRange>& InWaveformPeaks, const FGeometry& InAllottedGeometry, const float VerticalZoomFactor /*= 1.f*/)
+void SWaveformViewer::GenerateWaveformBinsCoordinates(TArray<FSamplesBinCoordinates>& OutDrawCoordinates, const TArray<WaveformViewerWidget::SampleRange>& InWaveformPeaks, const FGeometry& InAllottedGeometry, const float VerticalZoomFactor /*= 1.f*/)
 {
 	const int NChannels = RenderData->GetNumChannels();
 
@@ -205,7 +206,7 @@ void SWaveformViewer::GenerateWaveformBinsCoordinates(TArray<FSamplesBinCoordina
 		for (uint32 Pixel = 0; Pixel < PixelWidth; ++Pixel)
 		{
 			uint32 PeakIndex = Pixel * NChannels + Channel;
-			const WaveformDrawingUtils::SampleRange& SamplePeaks = InWaveformPeaks[PeakIndex];
+			const WaveformViewerWidget::SampleRange& SamplePeaks = InWaveformPeaks[PeakIndex];
 
 			const float SampleMaxScaled = SamplePeaks.GetUpperBoundValue() * HeightScale > MinScaledSamplePeakValue ? SamplePeaks.GetUpperBoundValue() * HeightScale : MinWaveformBinHeight;
 			const float SampleMinScaled = SamplePeaks.GetLowerBoundValue() * HeightScale < -1 * MinScaledSamplePeakValue ? SamplePeaks.GetLowerBoundValue() * HeightScale : -1.f * MinWaveformBinHeight;

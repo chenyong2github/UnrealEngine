@@ -4,11 +4,15 @@
 
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateWidgetStyleAsset.h"
-#include "WaveformDrawingUtils.h"
 #include "WaveformEditorGridData.h"
 #include "WaveformEditorSlateTypes.h"
 #include "WaveformEditorTransportCoordinator.h"
 #include "Widgets/SLeafWidget.h"
+
+namespace WaveformViewerWidget
+{
+	typedef TRange<int16> SampleRange;
+}
 
 class FWaveformEditorRenderData;
 struct FWaveformEditorWidgetStyleBase;
@@ -62,7 +66,7 @@ private:
 	virtual FVector2D ComputeDesiredSize(float) const override;
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
-	void GenerateWaveformBinsCoordinates(TArray<FSamplesBinCoordinates>& OutDrawCoordinates, const TArray<WaveformDrawingUtils::SampleRange>& InWaveformPeaks, const FGeometry& InAllottedGeometry, const float VerticalZoomFactor = 1.f);
+	void GenerateWaveformBinsCoordinates(TArray<FSamplesBinCoordinates>& OutDrawCoordinates, const TArray<WaveformViewerWidget::SampleRange>& InWaveformPeaks, const FGeometry& InAllottedGeometry, const float VerticalZoomFactor = 1.f);
 	void GenerateWaveformSamplesCoordinates(TArray<FVector2D>& OutDrawCoordinates, const FGeometry& InAllottedGeometry, const float VerticalZoomFactor = 1.f);
 	void DrawGridLines(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32& LayerId) const;
 
@@ -92,7 +96,7 @@ private:
 
 	uint32 CachedPixelWidth = 0; 
 	float CachedPixelHeight = 0.f;
-	TArray<WaveformDrawingUtils::SampleRange> CachedPeaks;
+	TArray<WaveformViewerWidget::SampleRange> CachedPeaks;
 	TArray<FSamplesBinCoordinates> CachedBinsDrawCoordinates;
 	TArray<FVector2D> CachedSampleDrawCoordinates;
 
