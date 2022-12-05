@@ -21,6 +21,7 @@
 #include "TextureResource.h"
 
 const FGuid& GetTextureDerivedDataVersion();
+const FGuid& GetTextureSLEDerivedDataVersion();
 void GetTextureDerivedMipKey(int32 MipIndex, const FTexture2DMipMap& Mip, const FString& KeySuffix, FString& OutKey);
 
 template <typename ValueType>
@@ -308,6 +309,11 @@ FCbObject SaveTextureBuildSettings(const UTexture& Texture, const FTextureBuildS
 	Writer.BeginObject();
 
 	Writer.AddUuid("BuildVersion", GetTextureDerivedDataVersion());
+
+	if (BuildSettings.bAffectedBySharedLinearEncoding)
+	{
+		Writer.AddUuid("SharedLinearEncodingVersion", GetTextureSLEDerivedDataVersion());
+	}
 	
 	if (Texture.CompressionCacheId.IsValid())
 	{

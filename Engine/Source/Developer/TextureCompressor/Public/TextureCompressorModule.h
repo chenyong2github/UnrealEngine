@@ -232,6 +232,10 @@ struct FTextureBuildSettings
 	// If the target format is a tiled format and can leverage reusing the linear encoding, this is not nullptr.
 	const ITextureTiler* Tiler = nullptr;
 
+	// If shared linear is enabled _at all_ and this texture in involved with that _at all_ then we set
+	// this so we can segregate the derived data keys.
+	bool bAffectedBySharedLinearEncoding = false;
+
 	static constexpr uint32 MaxTextureResolutionDefault = TNumericLimits<uint32>::Max();
 
 	/** Default settings. */
