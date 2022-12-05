@@ -239,6 +239,18 @@ void FSequenceInstance::Update(UMovieSceneEntitySystemLinker* Linker, const FMov
 	SequenceUpdater->Update(Linker, RootInstanceHandle, GetPlayer(), InContext);
 }
 
+bool FSequenceInstance::CanFinishImmediately(UMovieSceneEntitySystemLinker* Linker) const
+{
+	if (SequenceUpdater)
+	{
+		check(RootInstanceHandle == InstanceHandle);
+
+		return SequenceUpdater->CanFinishImmediately(Linker, RootInstanceHandle);
+	}
+
+	return true;
+}
+
 void FSequenceInstance::Finish(UMovieSceneEntitySystemLinker* Linker)
 {
 	if (IsRootSequence() && !bHasEverUpdated)

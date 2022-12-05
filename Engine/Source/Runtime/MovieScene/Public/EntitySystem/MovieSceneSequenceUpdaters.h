@@ -87,6 +87,16 @@ public:
 
 
 	/**
+	 * Returns whether this instance can be finished immediately without any last update.
+	 *
+	 * @param Linker              The linker that owns this sequence instance
+	 * @param RootInstanceHandle  The handle to the root instance
+	 * @return                    Whether the instance can be finished immediately
+	 */
+	virtual bool CanFinishImmediately(UMovieSceneEntitySystemLinker* InLinker, FRootInstanceHandle RootInstanceHandle) const = 0;
+
+
+	/**
 	 * Called before evaluation when this updater's sequence is no longer required to be evaluated
 	 *
 	 * @param InLinker         The linker that is evaluating this sequence

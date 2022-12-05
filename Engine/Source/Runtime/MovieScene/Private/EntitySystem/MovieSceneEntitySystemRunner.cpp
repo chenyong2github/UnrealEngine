@@ -234,10 +234,10 @@ bool FMovieSceneEntitySystemRunner::QueueFinalUpdateImpl(FInstanceHandle InInsta
 	// 2. we're not in the middle of an update loop 
 	// 3. the instance has no current updates
 	//
-	const bool bHasAnyEntities = !Instance.Ledger.IsEmpty();
+	const bool bCanFinishImmediately = Instance.CanFinishImmediately(Linker);
 	const ERunnerFlushState UnsafeDestroyMask = ERunnerFlushState::Everything & ~(ERunnerFlushState::PostEvaluation | ERunnerFlushState::End);
 	const bool bSafeToDestroyNow = !EnumHasAnyFlags(FlushState, UnsafeDestroyMask);
-	if (!bHasAnyEntities && bSafeToDestroyNow && !HasQueuedUpdates(InInstanceHandle))
+	if (bCanFinishImmediately && bSafeToDestroyNow && !HasQueuedUpdates(InInstanceHandle))
 	{
 		Instance.Finish(Linker);
 		Instance.PostEvaluation(Linker);

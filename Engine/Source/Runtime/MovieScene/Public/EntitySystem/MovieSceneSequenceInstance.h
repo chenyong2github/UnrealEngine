@@ -83,6 +83,15 @@ public:
 
 
 	/**
+	 * Returns whether this instance can be finished immediately without any last update.
+	 *
+	 * @param Linker     The linker that owns this sequence instance
+	 * @return           Whether the instance can be finished immediately
+	 */
+	bool CanFinishImmediately(UMovieSceneEntitySystemLinker* Linker) const;
+
+
+	/**
 	 * Mark this instance as finished, causing all its entities to be unlinked and the instance to become inactive at the end of the next update.
 	 *
 	 * @param Linker     The linker that owns this sequence instance
