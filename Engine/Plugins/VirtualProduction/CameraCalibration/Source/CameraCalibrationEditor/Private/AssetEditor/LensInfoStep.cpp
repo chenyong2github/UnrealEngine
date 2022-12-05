@@ -25,17 +25,17 @@ void ULensInfoStep::Initialize(TWeakPtr<FCameraCalibrationStepsController> InCam
 
 TSharedRef<SWidget> ULensInfoStep::BuildUI()
 {
+	FPropertyEditorModule& PropertyEditor = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
+
+	ULensFile* LensFile = CameraCalibrationStepsController.Pin()->GetLensFile();
+
 	FStructureDetailsViewArgs LensInfoStructDetailsView;
 	FDetailsViewArgs DetailArgs;
 	DetailArgs.bAllowSearch = false;
 	DetailArgs.bShowScrollBar = true;
 
-	FPropertyEditorModule& PropertyEditor = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
-
-	ULensFile* LensFile = CameraCalibrationStepsController.Pin()->GetLensFile();
-	TSharedRef<FStructOnScope> StructOnScope = MakeShared<FStructOnScope>(FLensInfo::StaticStruct(), reinterpret_cast<uint8*>(&LensFile->LensInfo));
-
-	TSharedPtr<IStructureDetailsView> LensInfoStructureDetailsView = PropertyEditor.CreateStructureDetailView(DetailArgs, LensInfoStructDetailsView, StructOnScope);
+	TSharedRef<FStructOnScope> LensInfoStructOnScope = MakeShared<FStructOnScope>(FLensInfo::StaticStruct(), reinterpret_cast<uint8*>(&LensFile->LensInfo));
+	TSharedPtr<IStructureDetailsView> LensInfoStructureDetailsView = PropertyEditor.CreateStructureDetailView(DetailArgs, LensInfoStructDetailsView, LensInfoStructOnScope);
 
 	LensInfoStructureDetailsView->GetOnFinishedChangingPropertiesDelegate().AddLambda([&](const FPropertyChangedEvent& PropertyChangedEvent)
 	{
@@ -45,6 +45,13 @@ TSharedRef<SWidget> ULensInfoStep::BuildUI()
 			OnSaveLensInformation();
 		}
 	});
+
+	FStructureDetailsViewArgs SimulcamInfoStructDetailsView;
+
+	TSharedRef<FStructOnScope> SimulcamInfoStructOnScope = MakeShared<FStructOnScope>(FSimulcamInfo::StaticStruct(), reinterpret_cast<uint8*>(&LensFile->SimulcamInfo));
+	TSharedPtr<IStructureDetailsView> SimulcamInfoStructureDetailsView = PropertyEditor.CreateStructureDetailView(DetailArgs, SimulcamInfoStructDetailsView, SimulcamInfoStructOnScope);
+
+	SimulcamInfoStructureDetailsView->GetDetailsView()->SetIsPropertyEditingEnabledDelegate(FIsPropertyEditingEnabled::CreateLambda([]() { return false; }));
 
 	TSharedPtr<SWidget> StepWidget = 
 		SNew(SVerticalBox)
@@ -64,6 +71,14 @@ TSharedRef<SWidget> ULensInfoStep::BuildUI()
 				.OnResetToDefault(FSimpleDelegate::CreateUObject(this, &ULensInfoStep::ResetToDefault))
 				.DiffersFromDefault(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateUObject(this, &ULensInfoStep::DiffersFromDefault)))
 			]
+		]
+	
+		+ SVerticalBox::Slot() // Simulcam information structure
+		.AutoHeight()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			[ SimulcamInfoStructureDetailsView->GetWidget().ToSharedRef() ]
 		];
 	
 

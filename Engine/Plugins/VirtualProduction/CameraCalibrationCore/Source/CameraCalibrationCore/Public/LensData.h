@@ -47,13 +47,39 @@ public:
 	TSubclassOf<ULensModel> LensModel;
 
 	/** Width and height of the calibrated camera's sensor, in millimeters */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens Info")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Info")
 	FVector2D SensorDimensions = FVector2D(23.76f, 13.365f);
 
-	/** Camera image size, in pixels */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens Info")
+	/** 
+	  * Resolution of the original footage that was captured by the camera (not necessarily the resolution of the media source).
+	  * For example, the original footage might have been 4320x1746, but to transmit that image over SDI, it might have been scaled and fit into a 4096x2160 frame.
+	  * In this case, the "Image Resolution" should be set to 4320x1746, while the "Media Resolution" will read 4096x2160.
+	  */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera Info", meta = (DisplayName = "Image Resolution"))
 	FIntPoint ImageDimensions = FIntPoint(1920, 1080);
 
+};
+
+/**
+ * Information about the simulcam composition
+ */
+USTRUCT(BlueprintType)
+struct CAMERACALIBRATIONCORE_API FSimulcamInfo
+{
+	GENERATED_BODY()
+
+public:
+	/** Resolution of the selected Media Source */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media Info")
+	FIntPoint MediaResolution = FIntPoint(0, 0);
+
+	/** Aspect ratio of the media plate in the simulcam composition, which was set to match the aspect ratio of the selected Media Source */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulcam Info")
+	float MediaPlateAspectRatio = 0.0f;
+
+	/** Aspect ratio of the CG layer in the simulcam composition, which was set to match the aspect ratio of the selected Camera Actor */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulcam Info", meta = (DisplayName = "CG Layer Aspect Ratio"))
+	float CGLayerAspectRatio = 0.0f;
 };
 
 /**

@@ -183,6 +183,8 @@ bool FCameraCalibrationStepsController::OnTick(float DeltaTime)
 		LensFileEvaluationInputs = LensComponent->GetLensFileEvaluationInputs();
 	}
 
+	bool bCompElementsResized = false;
+
 	// Compare the current dimensions of the playing media track to the comp's render resolution to determine if the comp needs to be resized
 	if (MediaPlayer.IsValid())
 	{
@@ -200,6 +202,69 @@ bool FCameraCalibrationStepsController::OnTick(float DeltaTime)
 				// Resize the parent comp and its output render target to match the incoming media dimensions
 				RenderTarget->ResizeTarget(MediaDimensions.X, MediaDimensions.Y);
 				Comp->SetRenderResolution(MediaDimensions);
+
+				bCompElementsResized = true;
+			}
+		}
+
+		if (ULensFile* LensFilePtr = GetLensFile())
+		{
+			LensFilePtr->SimulcamInfo.MediaResolution = MediaDimensions;
+			LensFilePtr->SimulcamInfo.MediaPlateAspectRatio = (MediaDimensions.Y != 0) ? (float)MediaDimensions.X / (float)MediaDimensions.Y : 0.0f;
+		}
+	}
+
+	// Compare the aspect ratio of the selected camera to the cg layer's aspect ratio to determine if the cg layer needs to be resized
+	if (CineCameraComponent.Get())
+	{
+		const float CameraAspectRatio = CineCameraComponent->Filmback.SensorAspectRatio;
+
+		FIntPoint CGResolution = CGLayer->GetRenderResolution();
+		const float CGLayerAspectRatio = (CGResolution.Y != 0) ? (float)CGResolution.X / (float)CGResolution.Y : 0.0f;
+
+		constexpr float Tolerance = 0.01;
+		if (!FMath::IsNearlyEqual(CameraAspectRatio, CGLayerAspectRatio, Tolerance))
+		{
+			CGResolution.X = CGResolution.Y * CameraAspectRatio;
+
+			CGLayer->ResolutionSource = EInheritedSourceType::Override;
+			CGLayer->SetRenderResolution(CGResolution);
+
+			bCompElementsResized = true;
+		}
+
+		if (ULensFile* LensFilePtr = GetLensFile())
+		{
+			LensFilePtr->SimulcamInfo.CGLayerAspectRatio = CameraAspectRatio;
+		}
+	}
+
+	// If either the CG or the Media was resized, then recompute the aspect ratio correction for the comp material
+	if (bCompElementsResized)
+	{
+		if (MaterialPass.IsValid())
+		{
+			const float MediaAspectRatio = (MediaPlateRenderTarget->SizeY != 0) ? (float)MediaPlateRenderTarget->SizeX / (float)MediaPlateRenderTarget->SizeY : 0.0f;
+
+			const FIntPoint CGResolution = CGLayer->GetRenderResolution();
+			const float CGLayerAspectRatio = (CGResolution.Y != 0) ? (float)CGResolution.X / (float)CGResolution.Y : 0.0f;
+
+			if (CGLayerAspectRatio > MediaAspectRatio)
+			{
+				const float AspectRatioCorrection = (MediaAspectRatio != 0.0f) ? CGLayerAspectRatio / MediaAspectRatio : 1.0f;
+				MaterialPass->Material.SetScalarOverride(TEXT("AspectRatioCorrection_H"), 1.0f);
+				MaterialPass->Material.SetScalarOverride(TEXT("AspectRatioCorrection_V"), AspectRatioCorrection);
+			}
+			else if (MediaAspectRatio > CGLayerAspectRatio)
+			{
+				const float AspectRatioCorrection = (CGLayerAspectRatio != 0.0f) ? MediaAspectRatio / CGLayerAspectRatio : 1.0f;
+				MaterialPass->Material.SetScalarOverride(TEXT("AspectRatioCorrection_H"), AspectRatioCorrection);
+				MaterialPass->Material.SetScalarOverride(TEXT("AspectRatioCorrection_V"), 1.0f);
+			}
+			else
+			{
+				MaterialPass->Material.SetScalarOverride(TEXT("AspectRatioCorrection_H"), 1.0f);
+				MaterialPass->Material.SetScalarOverride(TEXT("AspectRatioCorrection_V"), 1.0f);
 			}
 		}
 	}
@@ -714,7 +779,7 @@ void FCameraCalibrationStepsController::CreateMediaPlateOutput()
 	URenderTargetCompositingOutput* RTOutput = Cast<URenderTargetCompositingOutput>(MediaPlate->CreateNewOutputPass(
 		TEXT("MediaPlateOutput"),
 		URenderTargetCompositingOutput::StaticClass())
-	);
+		);
 
 	if (!RTOutput)
 	{
@@ -727,7 +792,7 @@ void FCameraCalibrationStepsController::CreateMediaPlateOutput()
 	MediaPlateRenderTarget = NewObject<UTextureRenderTarget2D>(
 		GetTransientPackage(),
 		MakeUniqueObjectName(GetTransientPackage(), UTextureRenderTarget2D::StaticClass())
-	);
+		);
 
 	if (!MediaPlateRenderTarget.IsValid())
 	{
@@ -735,7 +800,7 @@ void FCameraCalibrationStepsController::CreateMediaPlateOutput()
 		Cleanup();
 		return;
 	}
-	
+
 	MediaPlateRenderTarget->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RGBA8;
 	MediaPlateRenderTarget->ClearColor = FLinearColor::Black;
 	MediaPlateRenderTarget->bAutoGenerateMips = false;
@@ -812,6 +877,14 @@ void FCameraCalibrationStepsController::SetWiperWeight(float InWeight)
 void FCameraCalibrationStepsController::SetCamera(ACameraActor* InCamera)
 {
 	Camera = InCamera;
+
+	TInlineComponentArray<UCineCameraComponent*> CameraComponents;
+	InCamera->GetComponents(CameraComponents);
+
+	if (CameraComponents.Num() > 0)
+	{
+		CineCameraComponent = CameraComponents[0];
+	}
 
 	// Update the Comp with this camera
 	if (Comp.IsValid())

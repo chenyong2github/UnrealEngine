@@ -287,6 +287,9 @@ private:
 	/** The currently selected camera */
 	TWeakObjectPtr<ACameraActor> Camera;
 
+	/** The currently selected camera's camera component */
+	TWeakObjectPtr<UCineCameraComponent> CineCameraComponent;
+
 	/** The delegate for the core ticker callback */
 	FTSTicker::FDelegateHandle TickerHandle;
 
