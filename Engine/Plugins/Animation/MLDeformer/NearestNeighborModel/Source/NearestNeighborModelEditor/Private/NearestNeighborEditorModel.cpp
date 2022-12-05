@@ -486,6 +486,8 @@ namespace UE::NearestNeighborModel
 		}
 		InitTestMLDeformerPreviousWeights();
 		GetNearestNeighborModel()->ValidateMorphTargetData();
+
+		GetNearestNeighborModel()->UpdateInputMultipliers();
 	}
 
 	uint8 FNearestNeighborEditorModel::InitMorphTargets()

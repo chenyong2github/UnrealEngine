@@ -100,22 +100,38 @@ TArray<uint32> AddConstant(const TArray<uint32> &InArr, uint32 Constant)
 	return OutArr;
 }
 
-void UNearestNeighborModel::ClipInputs(float* InputPtr, int NumInputs)
+TArray<float> UNearestNeighborModel::ClipInputs(const TArray<float>& Inputs) const
 {
-	if(InputsMin.Num() == NumInputs && InputsMax.Num() == NumInputs)
+	TArray<float> Result = Inputs;
+	ClipInputs(Result.GetData(), Result.Num());
+	return Result;
+}
+
+void UNearestNeighborModel::ClipInputs(float* InputPtr, int NumInputs) const
+{
+	if(InputsMin.Num() >= NumInputs && InputsMax.Num() >= NumInputs)
 	{
 		for(int32 i = 0; i < NumInputs; i++)
 		{
-			if (InputPtr[i] > InputsMax[i])
+			float Max = InputsMax[i];
+			float Min = InputsMin[i];
+			if (bUseInputMultipliers && i / 3 < InputMultipliers.Num())
 			{
-				InputPtr[i] = InputsMax[i];
+				const float Multiplier = InputMultipliers[i / 3][i % 3];
+				Max *= Multiplier;
+				Min *= Multiplier;	
 			}
-			if (InputPtr[i] < InputsMin[i])
+
+			if (InputPtr[i] > Max)
 			{
-				InputPtr[i] = InputsMin[i];
+				InputPtr[i] = Max;
+			}
+			if (InputPtr[i] < Min)
+			{
+				InputPtr[i] = Min;
 			}
 		}
-	}	
+	}
 }
 
 int32 UNearestNeighborModel::GetTotalNumPCACoeffs() const
@@ -176,6 +192,20 @@ void UNearestNeighborModel::UpdateNetworkOutputDim()
 	for (int32 i = 0; i < GetNumParts(); i++)
 	{
 		OutputDim += ClothPartData[i].PCACoeffNum; 
+	}
+}
+
+void UNearestNeighborModel::UpdateInputMultipliers()
+{
+	if (bUseInputMultipliers)
+	{
+		const int32 NumMultipliers = InputMultipliers.Num();
+		const int32 NumBones = GetBoneIncludeList().Num();
+		InputMultipliers.SetNum(NumBones);
+		for (int32 Index = NumMultipliers; Index < NumBones; Index++)
+		{
+			InputMultipliers[Index] = FVector3f(1.f, 1.f, 1.f);
+		}
 	}
 }
 

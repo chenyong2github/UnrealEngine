@@ -221,7 +221,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Nearest Neighbor Model")
 	void SetNeighborOffsets(int32 PartId, const TArray<float>& NeighborOffsets) { ClothPartData[PartId].NeighborOffsets = NeighborOffsets; }
 
-	void ClipInputs(float* InputPtr, int NumInputs);
+	UFUNCTION(BlueprintPure, Category = "Nearest Neighbor Model")
+	TArray<float> ClipInputs(const TArray<float>& Input) const;
+
+	void ClipInputs(float* InputPtr, int NumInputs) const;
 
 	bool CheckPCAData(int32 PartId) const;
 
@@ -244,6 +247,7 @@ public:
 	void UpdatePCACoeffNums();
 	void UpdateNetworkSize();
 	void UpdateMorphTargetSize();
+	void UpdateInputMultipliers();
 
 	void InvalidateClothPartData() { bClothPartDataValid = false; bNearestNeighborDataValid = false; bMorphTargetDataValid = false; }
 	void ValidateClothPartData() { bClothPartDataValid = true; }
@@ -370,13 +374,19 @@ protected:
 #endif
 
 public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debugging")
+	bool bUseInputMultipliers = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debugging")
+	TArray<FVector3f> InputMultipliers;
+
 	UPROPERTY()
 	TArray<FClothPartData> ClothPartData;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Network Inputs")
+	UPROPERTY(BlueprintReadWrite, Category = "Network IO")
 	TArray<float> InputsMin;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Network Inputs")
+	UPROPERTY(BlueprintReadWrite, Category = "Network IO")
 	TArray<float> InputsMax;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "KMeans Pose Generator")
