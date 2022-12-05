@@ -6,16 +6,7 @@
 #include "MassProcessorDependencySolver.h"
 #include "MassEntityTestTypes.h"
 
-// D:\p4\Starship_review\Engine\Source\Runtime\NavigationSystem\Public\NavigationSystem.h
-//#include "MassNavigationSubsystem.h"
-
 #define LOCTEXT_NAMESPACE "MassTest"
-
-//template<>
-//struct TMassExternalSystemGetter<FMassEntityManager>
-//{
-//	
-//};
 
 namespace FMassSystemRequirementTest
 {
@@ -23,8 +14,11 @@ namespace FMassSystemRequirementTest
 struct FSystemRequirementTestBase : FEntityTestBase
 {
 	using Super = FEntityTestBase;
+	UWorld* World = nullptr;
+
 	virtual bool SetUp() override
 	{		
+		World = FAITestHelpers::GetWorld();
 		return Super::SetUp();
 	}
 };	

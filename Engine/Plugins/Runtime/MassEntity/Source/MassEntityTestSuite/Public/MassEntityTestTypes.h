@@ -13,7 +13,6 @@
 #include "MassEntityTestTypes.generated.h"
 
 
-class UWorld;
 struct FMassEntityManager;
 
 USTRUCT()
@@ -192,7 +191,6 @@ public:
 struct MASSENTITYTESTSUITE_API FExecutionTestBase : FAITestBase
 {
 	TSharedPtr<FMassEntityManager> EntityManager;
-	UWorld* World = nullptr;
 
 	virtual bool SetUp() override;
 };

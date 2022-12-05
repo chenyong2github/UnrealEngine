@@ -19,9 +19,7 @@ struct FExecution_Setup : FExecutionTestBase
 {
 	virtual bool InstantTest() override
 	{
-		AITEST_NOT_NULL("World needs to exist for the test to be performed", World);
 		AITEST_NOT_NULL("EntitySubsystem needs to be created for the test to be performed", EntityManager.Get());
-
 		return true;
 	}
 };
