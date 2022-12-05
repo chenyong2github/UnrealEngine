@@ -358,6 +358,7 @@
 
 // Type macros for Uniform Buffer code generation.
 // Hides the platform specific 'half' and 'fixed' support but has to extend to all types and dimensions
+#if (FEATURE_LEVEL == FEATURE_LEVEL_ES3_1)
 	#define UB_INT(Dim)         int##Dim
 	#define UB_UINT(Dim)        uint##Dim
 	#define UB_FLOAT(Dim)       float##Dim
@@ -371,8 +372,8 @@
 	#define UB_FIXED_FLOAT(Dim) float##Dim
 #endif
 
-// Use interpolator for platforms that do not support ClipDistance
-#if !PLATFORM_SUPPORTS_CLIP_DISTANCE
+// On mobile use interpolator for ClipDistance as it does not work/supported on all mobile platforms
+#if (FEATURE_LEVEL == FEATURE_LEVEL_ES3_1)
 #define SV_ClipDistance OUTCLIPDIST
 #endif
 
