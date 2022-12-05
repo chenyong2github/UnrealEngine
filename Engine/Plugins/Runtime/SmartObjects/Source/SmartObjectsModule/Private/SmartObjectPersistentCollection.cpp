@@ -17,6 +17,21 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectPersistentCollection)
 
+namespace UE::SmartObjects
+{
+	struct FEntryFinder
+	{
+		FEntryFinder(const FSmartObjectHandle& InHandle) : Handle(InHandle)
+		{}
+
+		bool operator()(const FSmartObjectCollectionEntry& ExistingEntry) const
+		{
+			return ExistingEntry.GetHandle() == Handle;
+		}
+
+		const FSmartObjectHandle Handle;
+	};
+}
 
 struct FSmartObjectHandleFactory
 {
@@ -194,42 +209,67 @@ uint32 GetTypeHash(const FSmartObjectContainer& Container)
 	return Hash;
 }
 
-FSmartObjectCollectionEntry* FSmartObjectContainer::AddSmartObject(USmartObjectComponent& SOComponent, bool& bAlreadyInCollection)
+FSmartObjectCollectionEntry* FSmartObjectContainer::AddSmartObject(USmartObjectComponent& SOComponent, bool& bOutAlreadyInCollection)
 {
+	// marking as `false` until an actual entry is found. 
+	bOutAlreadyInCollection = false;
+
 	const UWorld* World = Owner ? Owner->GetWorld() : (const UWorld*)nullptr;
 	if (World == nullptr)
 	{
-		UE_VLOG_UELOG(Owner, LogSmartObject, Error, TEXT("'%s' can't be registered to collection '%s': no associated world"),
-			*GetFullNameSafe(&SOComponent), *GetFullNameSafe(Owner));
+		UE_VLOG_UELOG(Owner, LogSmartObject, Error, TEXT("'%s' can't be registered to collection '%s': no associated world")
+			, *GetFullNameSafe(&SOComponent), *GetFullNameSafe(Owner));
 		return nullptr;
 	}
-
-	const FSoftObjectPath ObjectPath = &SOComponent;
-	const FSmartObjectHandle Handle = FSmartObjectHandleFactory::CreateSOHandle(*World, ObjectPath);
-
-	SOComponent.SetRegisteredHandle(Handle);
-
-	FSmartObjectCollectionEntry* Entry = CollectionEntries.FindByPredicate([Handle](const FSmartObjectCollectionEntry& ExistingEntry)
-		{
-			return ExistingEntry.GetHandle() == Handle;
-		});
-
-	if (Entry != nullptr)
+	else if (SOComponent.GetRegisteredHandle().IsValid())
 	{
-		UE_VLOG_UELOG(Owner, LogSmartObject, VeryVerbose, TEXT("'%s[%s]' already registered to collection '%s'"),
-			*GetFullNameSafe(&SOComponent), *LexToString(Handle), *GetFullNameSafe(Owner));
-		bAlreadyInCollection = true;
+		FSmartObjectCollectionEntry* Entry = CollectionEntries.FindByPredicate(UE::SmartObjects::FEntryFinder(SOComponent.GetRegisteredHandle()));
+		
+		UE_CVLOG_UELOG(Entry == nullptr, Owner, LogSmartObject, Warning, TEXT("%s: Attempting to add '%s' to collection '%s', but it already seems registered with a different container. Adding a single SmartObjectComponent to multiple collections is not supported.")
+			, ANSI_TO_TCHAR(__FUNCTION__), *GetFullNameSafe(&SOComponent), *GetFullNameSafe(Owner));
 
+		bOutAlreadyInCollection = (Entry != nullptr);
 		return Entry;
+	}
+
+	const FSoftObjectPath SmartObjectPath = &SOComponent;
+	check(World);
+	const FSmartObjectHandle Handle = FSmartObjectHandleFactory::CreateSOHandle(*World, SmartObjectPath);
+
+	if (const FSoftObjectPath* ExistingSmartObjectPath = RegisteredIdToObjectMap.Find(Handle))
+	{
+		ensureMsgf(*ExistingSmartObjectPath == SmartObjectPath, TEXT("There's already an entry for a given handle that points to a different SmartObject. New SmartObject %s, Existing one %s")
+			, *ExistingSmartObjectPath->ToString(), *SmartObjectPath.ToString());
+
+		FSmartObjectCollectionEntry* Entry = CollectionEntries.FindByPredicate(UE::SmartObjects::FEntryFinder(Handle));
+
+		if (ensureMsgf(Entry, TEXT("An Entry is expected to be found since the handle has already been found in the RegisteredIdToObjectMap")))
+		{
+			UE_VLOG_UELOG(Owner, LogSmartObject, VeryVerbose, TEXT("'%s[%s]' already registered to collection '%s'")
+				, *GetFullNameSafe(&SOComponent), *LexToString(Handle), *GetFullNameSafe(Owner));
+
+			bOutAlreadyInCollection = true;
+			return Entry;
+		}
 	}
 
 	const USmartObjectDefinition* Definition = SOComponent.GetDefinition();
 	ensureMsgf(Definition != nullptr, TEXT("Shouldn't reach this point with an invalid definition asset"));
-	uint32 DefinitionIndex = Definitions.AddUnique(Definition);
+
+	return AddSmartObjectInternal(Handle, *Definition, SOComponent);
+}
+
+FSmartObjectCollectionEntry* FSmartObjectContainer::AddSmartObjectInternal(const FSmartObjectHandle Handle, const USmartObjectDefinition& Definition, const USmartObjectComponent& SOComponent)
+{
+	// this function is not supposed to be called without checking if a given smart object is already present in the collection first
+	checkSlow(RegisteredIdToObjectMap.Find(Handle) == nullptr);
+		
+	const uint32 DefinitionIndex = Definitions.AddUnique(&Definition);
 
 	UE_VLOG_UELOG(Owner, LogSmartObject, Verbose, TEXT("Adding '%s[%s]' to collection '%s'"), *GetFullNameSafe(&SOComponent), *LexToString(Handle), *GetFullNameSafe(Owner));
 	const int32 NewEntryIndex = CollectionEntries.Emplace(Handle, SOComponent, DefinitionIndex);
-	RegisteredIdToObjectMap.Add(Handle, ObjectPath);
+
+	RegisteredIdToObjectMap.Add(Handle, CollectionEntries[NewEntryIndex].GetPath());
 
 	Bounds += CollectionEntries[NewEntryIndex].GetBounds();
 
@@ -259,7 +299,7 @@ bool FSmartObjectContainer::RemoveSmartObject(USmartObjectComponent& SOComponent
 		RegisteredIdToObjectMap.Remove(Handle);
 	}
 
-	SOComponent.SetRegisteredHandle(FSmartObjectHandle::Invalid);
+	SOComponent.InvalidateRegisteredHandle();
 
 	return Index != INDEX_NONE;
 }
@@ -274,10 +314,7 @@ bool FSmartObjectContainer::UpdateSmartObject(const USmartObjectComponent& SOCom
 		return false;
 	}
 
-	FSmartObjectCollectionEntry* UpdatedEntry = CollectionEntries.FindByPredicate([SOHandle](const FSmartObjectCollectionEntry& ExistingEntry)
-		{
-			return ExistingEntry.GetHandle() == SOHandle;
-		});
+	FSmartObjectCollectionEntry* UpdatedEntry = CollectionEntries.FindByPredicate(UE::SmartObjects::FEntryFinder(SOHandle));
 
 	if (!ensureMsgf(UpdatedEntry, TEXT("FSmartObjectContainer.RegisteredIdToObjectMap contains the handle, but there's no entry for it. This is pretty serious.")))
 	{
@@ -587,12 +624,46 @@ void ASmartObjectPersistentCollection::RebuildCollection()
 
 void ASmartObjectPersistentCollection::AppendToCollection(const TConstArrayView<USmartObjectComponent*> InComponents)
 {
-	bool bDummyAlreadyInCollection = false;
-	for (USmartObjectComponent* const Component : InComponents)
+	UWorld* World = GetWorld();
+	check(World);
+
+	for (int ComponentIndex = 0; ComponentIndex < InComponents.Num(); ++ComponentIndex)
 	{
+		USmartObjectComponent* const Component = InComponents[ComponentIndex];
+
 		if (Component != nullptr)
 		{
-			SmartObjectContainer.AddSmartObject(*Component, bDummyAlreadyInCollection);
+			if (Component->GetRegisteredHandle().IsValid() == false || Component->GetRegisterationType() == ESmartObjectRegistrationType::Dynamic)
+			{
+				Component->InvalidateRegisteredHandle();
+
+				const FSoftObjectPath SmartObjectPath = Component;
+				const USmartObjectDefinition* Definition = Component->GetDefinition();
+				check(Definition);
+
+				const FSmartObjectHandle Handle = FSmartObjectHandleFactory::CreateSOHandle(*World, SmartObjectPath);
+
+				const FSmartObjectCollectionEntry* Entry = SmartObjectContainer.AddSmartObjectInternal(Handle, *Definition, *Component);
+				check(Entry);
+				Component->SetRegisteredHandle(Entry->GetHandle(), ESmartObjectRegistrationType::WithCollection);
+			}
+			// costly tests below, but we only perform these when WITH_EDITOR
+			else if (InComponents.IsValidIndex(ComponentIndex + 1) 
+				&& MakeArrayView(&InComponents[ComponentIndex + 1], InComponents.Num() - (ComponentIndex + 1)).Find(Component) != INDEX_NONE)
+			{
+				UE_VLOG_UELOG(Owner, LogSmartObject, Warning, TEXT("%s: found '%s' duplicates while adding component array to %s.")
+					, ANSI_TO_TCHAR(__FUNCTION__), *GetFullNameSafe(Component), *GetFullName());
+			}
+			else if (FSmartObjectCollectionEntry* Entry = SmartObjectContainer.CollectionEntries.FindByPredicate(UE::SmartObjects::FEntryFinder(Component->GetRegisteredHandle())))
+			{
+				UE_VLOG_UELOG(Owner, LogSmartObject, Warning, TEXT("%s: Attempting to add '%s' to collection '%s', but it has already been added previously.")
+					, ANSI_TO_TCHAR(__FUNCTION__), *GetFullNameSafe(Component), *GetFullName());
+			}
+			else
+			{
+				UE_VLOG_UELOG(Owner, LogSmartObject, Warning, TEXT("%s: Attempting to add '%s' to collection '%s', but it has already been added to a different container.")
+					, ANSI_TO_TCHAR(__FUNCTION__), *GetFullNameSafe(Component), *GetFullName());
+			}
 		}
 	}
 
@@ -606,6 +677,13 @@ void ASmartObjectPersistentCollection::ResetCollection(const int32 ExpectedNumEl
 	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("Reseting collection '%s'"), *GetFullName());
 
 	SmartObjectContainer.Bounds = FBox(ForceInitToZero);
+	for (FSmartObjectCollectionEntry& Entry : SmartObjectContainer.CollectionEntries)
+	{
+		if (USmartObjectComponent* Component = Entry.GetComponent())
+		{
+			Component->InvalidateRegisteredHandle();
+		}
+	}
 	SmartObjectContainer.CollectionEntries.Reset(ExpectedNumElements);
 	SmartObjectContainer.RegisteredIdToObjectMap.Empty(ExpectedNumElements);
 	SmartObjectContainer.Definitions.Reset();

@@ -15,7 +15,7 @@ FBoxSphereBounds USmartObjectSubsystemRenderingComponent::CalcBounds(const FTran
 {
 	if (const USmartObjectSubsystem* Subsystem = UWorld::GetSubsystem<USmartObjectSubsystem>(GetWorld()))
 	{
-		return Subsystem->GetSmartObjectContainer().Bounds;
+		return Subsystem->GetSmartObjectContainer().GetBounds();
 	}
 	return FBox(ForceInit);
 }

@@ -11,13 +11,15 @@ class USmartObjectDefinition;
 class USmartObjectComponent;
 class USmartObjectContainerRenderingComponent;
 struct FSmartObjectContainer;
+class USmartObjectSubsystem;
+class ASmartObjectPersistentCollection;
 
 /** Struct representing a unique registered component in the collection actor */
 USTRUCT()
 struct SMARTOBJECTSMODULE_API FSmartObjectCollectionEntry
 {
 	GENERATED_BODY()
-public:
+
 	FSmartObjectCollectionEntry() = default;
 	FSmartObjectCollectionEntry(const FSmartObjectHandle SmartObjectHandle, const USmartObjectComponent& SmartObjectComponent, const uint32 DefinitionIndex);
 
@@ -29,6 +31,11 @@ public:
 	FBox GetWorldBounds() const { return Bounds.MoveTo(Transform.GetLocation()); }
 	uint32 GetDefinitionIndex() const { return DefinitionIdx; }
 	const FGameplayTagContainer& GetTags() const { return Tags; }
+
+#if WITH_EDITORONLY_DATA
+	/** Created new FSmartObjectHandle based on entry's contents. Required due to changes in how the handle is calculated. */
+	void RecreateHandle(const UWorld& World);
+#endif // WITH_EDITORONLY_DATA
 
 	friend FString LexToString(const FSmartObjectCollectionEntry& CollectionEntry)
 	{
@@ -77,7 +84,7 @@ struct SMARTOBJECTSMODULE_API FSmartObjectContainer
 	 * @param bAlreadyInCollection Output parameter to indicate if an existing entry was returned instead of a newly created one.
 	 * @return Pointer to the created or existing entry. An unset value indicates a registration error.
 	 */
-	FSmartObjectCollectionEntry* AddSmartObject(USmartObjectComponent& SOComponent, bool& bAlreadyInCollection);
+	FSmartObjectCollectionEntry* AddSmartObject(USmartObjectComponent& SOComponent, bool& bOutAlreadyInCollection);
 	bool RemoveSmartObject(USmartObjectComponent& SOComponent);
 	
 #if WITH_EDITORONLY_DATA
@@ -93,6 +100,9 @@ struct SMARTOBJECTSMODULE_API FSmartObjectContainer
 
 	TConstArrayView<FSmartObjectCollectionEntry> GetEntries() const { return CollectionEntries; }
 
+	void SetBounds(const FBox& InBounds) { Bounds = InBounds; }
+	const FBox& GetBounds() const { return Bounds; }
+
 	bool IsEmpty() const { return CollectionEntries.Num() == 0; }
 
 	void Append(const FSmartObjectContainer& Other);
@@ -102,6 +112,13 @@ struct SMARTOBJECTSMODULE_API FSmartObjectContainer
 
 	/** Note that this implementation is only expected to be used in the editor - it's pretty slow */
 	friend SMARTOBJECTSMODULE_API uint32 GetTypeHash(const FSmartObjectContainer& Instance);
+
+protected:
+	friend USmartObjectSubsystem;
+	friend ASmartObjectPersistentCollection;
+
+	// assumes SOComponent to not be part of the collection yet
+	FSmartObjectCollectionEntry* AddSmartObjectInternal(const FSmartObjectHandle Handle, const USmartObjectDefinition& Definition, const USmartObjectComponent& SOComponent);
 
 	UPROPERTY(VisibleAnywhere, Category = SmartObject)
 	FBox Bounds = FBox(ForceInitToZero);

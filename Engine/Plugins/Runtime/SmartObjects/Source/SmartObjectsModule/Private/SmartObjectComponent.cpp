@@ -145,6 +145,19 @@ void USmartObjectComponent::BeginPlay()
 	}
 }
 
+void USmartObjectComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{	
+	if (EndPlayReason == EEndPlayReason::Destroyed && GetRegisteredHandle().IsValid())
+	{
+		if (USmartObjectSubsystem* Subsystem = USmartObjectSubsystem::GetCurrent(GetWorld()))
+		{
+			Subsystem->UnregisterSmartObjectInternal(*this, ESmartObjectUnregistrationMode::DestroyRuntimeInstance);
+		}
+	}
+
+	Super::EndPlay(EndPlayReason);
+}
+
 FBox USmartObjectComponent::GetSmartObjectBounds() const
 {
 	FBox BoundingBox(ForceInitToZero);
@@ -156,6 +169,21 @@ FBox USmartObjectComponent::GetSmartObjectBounds() const
 	}
 
 	return BoundingBox;
+}
+
+void USmartObjectComponent::SetRegisteredHandle(const FSmartObjectHandle Value, const ESmartObjectRegistrationType InRegistrationType)
+{
+	ensure(Value.IsValid());
+	ensure(RegisteredHandle.IsValid() == false || RegisteredHandle == Value);
+	RegisteredHandle = Value;
+	ensure(RegistrationType == ESmartObjectRegistrationType::None && InRegistrationType != ESmartObjectRegistrationType::None);
+	RegistrationType = InRegistrationType;
+}
+
+void USmartObjectComponent::InvalidateRegisteredHandle()
+{
+	RegisteredHandle = FSmartObjectHandle::Invalid;
+	RegistrationType = ESmartObjectRegistrationType::None;
 }
 
 void USmartObjectComponent::OnRuntimeInstanceCreated(FSmartObjectRuntime& RuntimeInstance)

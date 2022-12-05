@@ -10,6 +10,14 @@
 class UAbilitySystemComponent;
 struct FSmartObjectRuntime;
 
+enum class ESmartObjectRegistrationType : uint8
+{
+	None, // corresponds to "not registered"
+	WithCollection,
+	Dynamic
+};
+
+
 UCLASS(Blueprintable, ClassGroup = Gameplay, meta = (BlueprintSpawnableComponent), config = Game, HideCategories = (Activation, AssetUserData, Collision, Cooking, HLOD, Lighting, LOD, Mobile, Mobility, Navigation, Physics, RayTracing, Rendering, Tags, TextureStreaming))
 class SMARTOBJECTSMODULE_API USmartObjectComponent : public USceneComponent
 {
@@ -27,8 +35,10 @@ public:
 
 	bool GetCanBePartOfCollection() const { return bCanBePartOfCollection; }
 
+	ESmartObjectRegistrationType GetRegisterationType() const { return RegistrationType; }
 	FSmartObjectHandle GetRegisteredHandle() const { return RegisteredHandle; }
-	void SetRegisteredHandle(const FSmartObjectHandle Value) { RegisteredHandle = Value; }
+	void SetRegisteredHandle(const FSmartObjectHandle Value, const ESmartObjectRegistrationType InRegistrationType);
+	void InvalidateRegisteredHandle();
 
 	void OnRuntimeInstanceCreated(FSmartObjectRuntime& RuntimeInstance);
 	void OnRuntimeInstanceDestroyed();
@@ -46,6 +56,7 @@ protected:
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void PostInitProperties() override;
 
 #if WITH_EDITOR
@@ -65,6 +76,8 @@ protected:
 	/** RegisteredHandle != FSmartObjectHandle::Invalid when registered into a collection by SmartObjectSubsystem */
 	UPROPERTY(Transient, VisibleAnywhere, Category = SmartObject)
 	FSmartObjectHandle RegisteredHandle;
+
+	ESmartObjectRegistrationType RegistrationType = ESmartObjectRegistrationType::None;
 
 	FDelegateHandle OnComponentTagsModifiedHandle;
 	bool bInstanceTagsDelegateBound = false;

@@ -130,7 +130,7 @@ void USmartObjectSubsystem::OnWorldComponentsUpdated(UWorld& World)
 		// instance. Note that we use the World-calculated bounds only for editor worlds, since Runtime SmartObjectContainer's 
 		// bounds will rely on existing SmartObjectCollections. In editor we use world's size to not resize the 
 		// USmartObjectSpacePartition with SO operations
-		SmartObjectContainer.Bounds = ComputeBounds(World);
+		SmartObjectContainer.SetBounds(ComputeBounds(World));
 
 		InitializeRuntime();
 	}
@@ -443,32 +443,30 @@ bool USmartObjectSubsystem::RegisterSmartObjectInternal(USmartObjectComponent& S
 		*GetFullNameSafe(SmartObjectComponent.GetOwner()),
 		*GetFullNameSafe(SmartObjectComponent.GetDefinition()));
 
-	// Main collection may not assigned until world components are updated (active level set and actors registered)
-	// In this case objects will be part of the loaded collection or collection will be rebuilt from registered components
+	// until the runtime is initialized we're not ready to register SmartObject. We collect them in PendingSmartObjectRegistration
+	// and process them in InitializeRuntime call.
 	if (bRuntimeInitialized)
 	{
 		const UWorld& World = GetWorldRef();
 
-		bool bAlreadyInCollection = false;
-		const FSmartObjectCollectionEntry* Entry = SmartObjectContainer.AddSmartObject(SmartObjectComponent, bAlreadyInCollection);
-
-#if WITH_EDITOR
-		if (Entry != nullptr && !bAlreadyInCollection)
+		if (SmartObjectComponent.GetRegisteredHandle().IsValid())
 		{
-			OnMainCollectionDirtied.Broadcast();
+			// Simply bind the newly available component to its active runtime instance
+			BindComponentToSimulation(SmartObjectComponent);
 		}
-#endif
-
-		// At runtime we only consider registrations after collection was pushed to the simulation. All existing entries were added on WorldBeginPlay
-		if (World.IsGameWorld() && Entry != nullptr)
+		else
 		{
-			if (bAlreadyInCollection)
+			bool bAlreadyInCollection = false;
+			if (const FSmartObjectCollectionEntry* Entry = SmartObjectContainer.AddSmartObject(SmartObjectComponent, bAlreadyInCollection))
 			{
-				// Simply bind the newly available component to its active runtime instance
-				BindComponentToSimulation(SmartObjectComponent);
-			}
-			else
-			{
+#if WITH_EDITOR
+				if (!bAlreadyInCollection)
+				{
+					OnMainCollectionDirtied.Broadcast();
+				}
+#endif
+				SmartObjectComponent.SetRegisteredHandle(Entry->GetHandle(), ESmartObjectRegistrationType::Dynamic);
+			
 				// This is a new entry added after runtime initialization, mark it as a runtime entry (lifetime is tied to the component)
 				AddComponentToSimulation(SmartObjectComponent, *Entry);
 				RuntimeCreatedEntries.Add(SmartObjectComponent.GetRegisteredHandle());
@@ -481,7 +479,8 @@ bool USmartObjectSubsystem::RegisterSmartObjectInternal(USmartObjectComponent& S
 	}
 	else
 	{
-		UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("%s not added to collection since Main Collection is not set yet. Storing SOComponent instance for registration once a collection is set."), *GetNameSafe(SmartObjectComponent.GetOwner()));	
+		UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("%s not added to collection since InitializeRuntime has not been called yet. Storing SOComponent instance for registration during InitializeRuntime call.")
+			, *GetNameSafe(SmartObjectComponent.GetOwner()));
 		PendingSmartObjectRegistration.Add(&SmartObjectComponent);
 	}
 
@@ -511,28 +510,23 @@ bool USmartObjectSubsystem::UnregisterSmartObjectInternal(USmartObjectComponent&
 	if (bRuntimeInitialized)
 	{
 		const UWorld& World = GetWorldRef();
-		bool bRemoveFromCollection = true;
 
-		// At runtime, only entries created outside the initial collection are removed from simulation and collection
-		if (World.IsGameWorld()
-			&& SmartObjectComponent.GetRegisteredHandle().IsValid()) // Make sure component was registered to simulation (e.g. Valid associated definition)
-		{
-			bRemoveFromCollection = RuntimeCreatedEntries.Remove(SmartObjectComponent.GetRegisteredHandle()) != 0
-				|| UnregistrationMode == ESmartObjectUnregistrationMode::DestroyRuntimeInstance;
-			if (bRemoveFromCollection)
-			{
-				RemoveComponentFromSimulation(SmartObjectComponent);
-			}
-			else
-			{
-				// Unbind the component from its associated runtime instance
-				UnbindComponentFromSimulation(SmartObjectComponent);
-			}
-		}
+		ensure(SmartObjectComponent.GetRegisteredHandle().IsValid());
 
-		if (bRemoveFromCollection)
+		// a dynamically added SmartObject, i.e. not added as a part of a collection. 
+		// in this case we want to remove all traces of it
+		if (RuntimeCreatedEntries.Remove(SmartObjectComponent.GetRegisteredHandle()) != 0
+			// or requested removal of all traces
+			|| UnregistrationMode == ESmartObjectUnregistrationMode::DestroyRuntimeInstance)
 		{
+			RemoveComponentFromSimulation(SmartObjectComponent);
 			SmartObjectContainer.RemoveSmartObject(SmartObjectComponent);
+		}
+		// otherwise we keep all the runtime entries in place - those will be removed along with the collection that has added them 
+		else
+		{
+			// Unbind the component from its associated runtime instance
+			UnbindComponentFromSimulation(SmartObjectComponent);
 		}
 
 		RegisteredSOComponents.Remove(&SmartObjectComponent);
@@ -1356,7 +1350,9 @@ ESmartObjectCollectionRegistrationResult USmartObjectSubsystem::RegisterCollecti
 	SmartObjectContainer.Append(InCollection.GetSmartObjectContainer());
 	RegisteredCollections.Add(&InCollection);
 
-	if (EntityManager)
+	// We want to add the new collection to the "simulation" only if the Runtime part of the subsystem has been initialized.
+	// SmartObjectContainer is added to simulation in one go in InitializeRuntime.
+	if (bRuntimeInitialized && EntityManager)
 	{
 		AddContainerToSimulation(InCollection.GetSmartObjectContainer());
 	}
@@ -1382,13 +1378,18 @@ void USmartObjectSubsystem::UnregisterCollection(ASmartObjectPersistentCollectio
 		{
 			for (const FSmartObjectCollectionEntry& Entry : InCollection.GetSmartObjectContainer().GetEntries())
 			{
-				FSmartObjectRuntime SORuntime = RuntimeSmartObjects.FindAndRemoveChecked(Entry.GetHandle());
-				if (USmartObjectComponent* SOComponent = Entry.GetComponent())
+				FSmartObjectRuntime SORuntime;
+				// even though we did add this entry to RuntimeSmartObjects at some point it could have been removed 
+				// when the smart object in question got disabled or removed
+				if (RuntimeSmartObjects.RemoveAndCopyValue(Entry.GetHandle(), SORuntime))
 				{
-					UnbindComponentFromSimulationInternal(*SOComponent, SORuntime);
-					SOComponent->SetRegisteredHandle(FSmartObjectHandle::Invalid);
+					if (USmartObjectComponent* SOComponent = Entry.GetComponent())
+					{
+						UnbindComponentFromSimulationInternal(*SOComponent, SORuntime);
+						SOComponent->InvalidateRegisteredHandle();
+					}
+					DestroyRuntimeInstanceInternal(Entry.GetHandle(), SORuntime, *EntityManager.Get());
 				}
-				DestroyRuntimeInstanceInternal(Entry.GetHandle(), SORuntime, *EntityManager.Get());
 			}
 		}
 		
@@ -1396,13 +1397,18 @@ void USmartObjectSubsystem::UnregisterCollection(ASmartObjectPersistentCollectio
 	}
 	else
 	{
-		UE_VLOG_UELOG(&InCollection, LogSmartObject, Verbose, TEXT("Ignoring unregistration of collection '%s' since this is not the main collection."), *InCollection.GetFullName());
+		UE_VLOG_UELOG(&InCollection, LogSmartObject, Verbose, TEXT("Ignoring unregistration of collection '%s' since this is not one of the previously registered collections."), *InCollection.GetFullName());
 		return;
 	}
 }
 
 void USmartObjectSubsystem::AddContainerToSimulation(const FSmartObjectContainer& InSmartObjectContainer)
 {
+	if (!ensureMsgf(bRuntimeInitialized, TEXT("%s called before InitializeRuntime, this is not expected to happen."), ANSI_TO_TCHAR(__FUNCTION__)))
+	{
+		return;
+	}
+
 	for (const FSmartObjectCollectionEntry& Entry : InSmartObjectContainer.GetEntries())
 	{
 		const USmartObjectDefinition* Definition = InSmartObjectContainer.GetDefinitionForEntry(Entry);
@@ -1418,7 +1424,7 @@ void USmartObjectSubsystem::AddContainerToSimulation(const FSmartObjectContainer
 		if (Component != nullptr)
 		{
 			// When component is available we add it to the simulation along with its collection entry to create the runtime instance and bound them together.
-			Component->SetRegisteredHandle(Entry.GetHandle());
+			Component->SetRegisteredHandle(Entry.GetHandle(), ESmartObjectRegistrationType::WithCollection);
 			AddComponentToSimulation(*Component, Entry, /*bCommitChanges=*/false);
 		}
 		else
@@ -1472,13 +1478,15 @@ void USmartObjectSubsystem::InitializeRuntime(const TSharedPtr<FMassEntityManage
 	// Initialize spatial representation structure
 	checkfSlow(*SpacePartitionClass != nullptr, TEXT("Partition class is expected to be valid since we use the plugins default in OnWorldComponentsUpdated."));
 	SpacePartition = NewObject<USmartObjectSpacePartition>(this, SpacePartitionClass);
-	SpacePartition->SetBounds(SmartObjectContainer.Bounds);
-
-	AddContainerToSimulation(SmartObjectContainer);
+	SpacePartition->SetBounds(SmartObjectContainer.GetBounds());
 
 	// Note that we use our own flag instead of relying on World.HasBegunPlay() since world might not be marked
 	// as BegunPlay immediately after subsystem OnWorldBeingPlay gets called (e.g. waiting game mode to be ready on clients)
-	bRuntimeInitialized = true;
+	// Setting bRuntimeInitialized at this point since the following code assumes the SpatialPartition has been created 
+	// and EntityManager cached. 
+	bRuntimeInitialized = true; 
+	
+	AddContainerToSimulation(SmartObjectContainer);
 
 	UE_CVLOG_UELOG(PendingSmartObjectRegistration.Num() > 0, this, LogSmartObject, VeryVerbose, TEXT("SmartObjectSubsystem: Handling %d pending registrations during runtime initialization."), PendingSmartObjectRegistration.Num());	
 
@@ -1731,6 +1739,13 @@ void USmartObjectSubsystem::IterativelyBuildCollections()
 #if WITH_EDITORONLY_DATA
 void USmartObjectSubsystem::CreatePersistentCollectionFromDeprecatedData(UWorld& World, const ADEPRECATED_SmartObjectCollection& DeprecatedCollection)
 {
+	if (DeprecatedCollection.CollectionEntries.Num() == 0)
+	{
+		// we ignore the empty deprecated collections - we used to always create these even if no smart objects were being used
+		// and an empty collection is an indication of such a case. No point in creating a replacement for such a collection.
+		return;
+	}
+
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.OverrideLevel = DeprecatedCollection.GetLevel();
 
