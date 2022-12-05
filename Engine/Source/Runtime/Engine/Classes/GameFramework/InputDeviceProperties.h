@@ -164,6 +164,10 @@ struct FDeviceColorData
 	/** True if the light should be enabled at all */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Color")
 	bool bEnable = true;
+	
+	/** If true, the light color will be reset to "off" after this property has been evaluated. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Color")
+	bool bResetAfterCompletion = false;
 
 	/** The color to set the light on  */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Color")
@@ -185,6 +189,7 @@ class UColorInputDeviceProperty : public UInputDeviceProperty
 public:
 
 	virtual void EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId, const float DeltaTime, const float Duration) override;
+	virtual void ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId) override;
 	virtual FInputDeviceProperty* GetInternalDeviceProperty() override;
 
 	/** Default color data that will be used by default. Device Specific overrides will be used when the current input device matches */

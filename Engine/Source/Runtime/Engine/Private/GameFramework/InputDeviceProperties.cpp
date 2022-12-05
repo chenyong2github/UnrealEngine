@@ -85,6 +85,22 @@ void UColorInputDeviceProperty::EvaluateDeviceProperty_Implementation(const FPla
 	}
 }
 
+void UColorInputDeviceProperty::ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId)
+{
+	bool bReset = ColorData.bResetAfterCompletion;
+	if (const FDeviceColorData* Data = GetDeviceSpecificData<FDeviceColorData>(PlatformUser, DeviceId, DeviceOverrideData))
+	{
+		bReset = Data->bResetAfterCompletion;
+	}
+
+	if (bReset)
+	{
+		// Disabling the light will reset the color
+		InternalProperty.bEnable = false;
+		ApplyDeviceProperty(PlatformUser, DeviceId);
+	}
+}
+
 FInputDeviceProperty* UColorInputDeviceProperty::GetInternalDeviceProperty()
 {
 	return &InternalProperty;
