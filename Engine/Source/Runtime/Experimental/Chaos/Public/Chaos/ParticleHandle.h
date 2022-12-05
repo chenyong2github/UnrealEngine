@@ -1569,7 +1569,7 @@ public:
 
 	FVec3& P()
 	{
-		if (MHandle->CastToRigidParticle())
+		if (IsDynamic())
 		{
 			return MHandle->CastToRigidParticle()->P();
 		}
@@ -1579,7 +1579,7 @@ public:
 
 	const FVec3& P() const
 	{
-		if (MHandle->CastToRigidParticle())
+		if (IsDynamic())
 		{
 			return MHandle->CastToRigidParticle()->P();
 		}
@@ -1589,7 +1589,7 @@ public:
 
 	FRotation3& Q()
 	{
-		if (MHandle->CastToRigidParticle())
+		if (IsDynamic())
 		{
 			return MHandle->CastToRigidParticle()->Q();
 		}
@@ -1599,7 +1599,7 @@ public:
 
 	const FRotation3& Q() const
 	{
-		if (MHandle->CastToRigidParticle())
+		if (IsDynamic())
 		{
 			return MHandle->CastToRigidParticle()->Q();
 		}
@@ -1610,7 +1610,7 @@ public:
 	// World-space center of mass position
 	const FVec3 XCom() const
 	{
-		if (MHandle->CastToRigidParticle())
+		if (IsDynamic())
 		{
 			return MHandle->CastToRigidParticle()->XCom();
 		}
@@ -1618,7 +1618,7 @@ public:
 	}
 	const FVec3 PCom() const
 	{
-		if (MHandle->CastToRigidParticle())
+		if (IsDynamic())
 		{
 			return MHandle->CastToRigidParticle()->PCom();
 		}
@@ -1628,7 +1628,7 @@ public:
 	// World-space center of mass rotation
 	const FRotation3 RCom() const
 	{ 
-		if (MHandle->CastToRigidParticle())
+		if (IsDynamic())
 		{
 			return MHandle->CastToRigidParticle()->RCom();
 		}
@@ -1636,7 +1636,7 @@ public:
 	}
 	const FRotation3 QCom() const
 	{ 
-		if (MHandle->CastToRigidParticle())
+		if (IsDynamic())
 		{
 			return MHandle->CastToRigidParticle()->QCom();
 		}
@@ -1654,7 +1654,7 @@ public:
 
 	void SetTransformPQCom(const FVec3& InPCom, const FRotation3& InQCom)
 	{ 
-		if (MHandle->CastToRigidParticle())
+		if (IsDynamic())
 		{
 			MHandle->CastToRigidParticle()->SetTransformPQCom(InPCom, InQCom);
 		}
@@ -1671,7 +1671,7 @@ public:
 
 	FRigidTransform3 GetTransformPQ() const
 	{
-		if (MHandle->CastToRigidParticle())
+		if (IsDynamic())
 		{
 			return MHandle->CastToRigidParticle()->GetTransformPQ();
 		}
@@ -1680,7 +1680,7 @@ public:
 
 	FRigidTransform3 GetTransformXRCom() const
 	{
-		if (MHandle->CastToRigidParticle())
+		if (IsDynamic())
 		{
 			return MHandle->CastToRigidParticle()->GetTransformXRCom();
 		}
@@ -1689,11 +1689,49 @@ public:
 
 	FRigidTransform3 GetTransformPQCom() const
 	{
-		if (MHandle->CastToRigidParticle())
+		if (IsDynamic())
 		{
 			return MHandle->CastToRigidParticle()->GetTransformPQCom();
 		}
 		return GetTransformXR();
+	}
+
+	/**
+	 * Convert a particle-relative position into a com-relative position
+	 */
+	FVec3 GetComRelativePosition(const FVec3& P)
+	{
+		if (IsDynamic())
+		{
+			FPBDRigidParticleHandle* Rigid = MHandle->CastToRigidParticle();
+			return Rigid->RotationOfMass().UnrotateVector(P - Rigid->CenterOfMass());
+		}
+		return P;
+	}
+
+	/**
+	 * Convert a particle-relative rotation into a com-relative rotation
+	 */
+	FRotation3 GetComRelativeRotation(const FRotation3& Q)
+	{
+		if (IsDynamic())
+		{
+			FPBDRigidParticleHandle* Rigid = MHandle->CastToRigidParticle();
+			return Rigid->RotationOfMass().Inverse() * Q;
+		}
+		return Q;
+	}
+
+	/**
+	 * Convert a particle-relative transform into a com-relative transform
+	 */
+	FRigidTransform3 GetComRelativeTransform(const FRigidTransform3& T)
+	{
+		if (IsDynamic())
+		{
+			return FRigidTransform3(GetComRelativePosition(T.GetLocation()), GetComRelativeRotation(T.GetRotation()));
+		}
+		return T;
 	}
 
 	const FVec3& VSmooth() const
@@ -1718,7 +1756,7 @@ public:
 
 	const FVec3& Acceleration() const
 	{ 
-		if (IsDynamic())
+		if (MHandle->CastToRigidParticle())
 		{
 			return MHandle->CastToRigidParticle()->Acceleration();
 		}
@@ -1727,7 +1765,7 @@ public:
 	}
 	const FVec3& AngularAcceleration() const
 	{ 
-		if (IsDynamic())
+		if (MHandle->CastToRigidParticle())
 		{
 			return MHandle->CastToRigidParticle()->AngularAcceleration();
 		}
@@ -1784,12 +1822,9 @@ public:
 
 	const TVec3<FRealSingle> I() const
 	{ 
-		if (auto RigidHandle = MHandle->CastToRigidParticle())
+		if (IsDynamic())
 		{
-			if (IsDynamic())
-			{
-				return RigidHandle->I();
-			}
+			return MHandle->CastToRigidParticle()->I();
 		}
 
 		return TVec3<FRealSingle>(0);
@@ -1797,12 +1832,9 @@ public:
 
 	const TVec3<FRealSingle> InvI() const
 	{ 
-		if (auto RigidHandle = MHandle->CastToRigidParticle())
+		if (IsDynamic())
 		{
-			if (IsDynamic())
-			{
-				return MHandle->CastToRigidParticle()->InvI();
-			}
+			return MHandle->CastToRigidParticle()->InvI();
 		}
 
 		return TVec3<FRealSingle>(0);
@@ -1810,12 +1842,9 @@ public:
 
 	FReal M() const
 	{
-		if (auto RigidHandle = MHandle->CastToRigidParticle())
+		if (IsDynamic())
 		{
-			if (IsDynamic())
-			{
-				return MHandle->CastToRigidParticle()->M();
-			}
+			return MHandle->CastToRigidParticle()->M();
 		}
 
 		return (FReal)0;
@@ -1823,12 +1852,9 @@ public:
 
 	FReal InvM() const
 	{
-		if (auto RigidHandle = MHandle->CastToRigidParticle())
+		if (IsDynamic())
 		{
-			if (IsDynamic())
-			{
-				return MHandle->CastToRigidParticle()->InvM();
-			}
+			return MHandle->CastToRigidParticle()->InvM();
 		}
 
 		return (FReal)0;
@@ -1836,29 +1862,45 @@ public:
 
 	FVec3 CenterOfMass() const
 	{
-		if (auto RigidHandle = MHandle->CastToRigidParticle())
+		if (IsDynamic())
 		{
-			return RigidHandle->CenterOfMass();
+			return MHandle->CastToRigidParticle()->CenterOfMass();
 		}
 
 		return FVec3(0);
 	}
 
+	void SetCenterOfMass(const FVec3& InCom)
+	{
+		if (IsDynamic())
+		{
+			MHandle->CastToRigidParticle()->SetCenterOfMass(InCom);
+		}
+	}
+
 	FRotation3 RotationOfMass() const
 	{
-		if (auto RigidHandle = MHandle->CastToRigidParticle())
+		if (IsDynamic())
 		{
-			return RigidHandle->RotationOfMass();
+			return MHandle->CastToRigidParticle()->RotationOfMass();
 		}
 
 		return FRotation3::FromIdentity();
 	}
 
+	void SetRotationOfMass(const FRotation3& InRom)
+	{
+		if (IsDynamic())
+		{
+			MHandle->CastToRigidParticle()->SetRotationOfMass(InRom);
+		}
+	}
+
 	TVec3<FRealSingle> InvIConditioning() const
 	{ 
-		if (auto RigidHandle = MHandle->CastToRigidParticle())
+		if (IsDynamic())
 		{
-			return RigidHandle->InvIConditioning();
+			return MHandle->CastToRigidParticle()->InvIConditioning();
 		}
 
 		return TVec3<FRealSingle>(1);
@@ -1874,9 +1916,9 @@ public:
 
 	TVec3<FRealSingle> ConditionedInvI() const
 	{ 
-		if (auto RigidHandle = MHandle->CastToRigidParticle())
+		if (IsDynamic())
 		{
-			return RigidHandle->ConditionedInvI();
+			return MHandle->CastToRigidParticle()->ConditionedInvI();
 		}
 
 		return TVec3<FRealSingle>(0);
@@ -1884,9 +1926,9 @@ public:
 
 	TVec3<FRealSingle> ConditionedI() const
 	{ 
-		if (auto RigidHandle = MHandle->CastToRigidParticle())
+		if (IsDynamic())
 		{
-			return RigidHandle->ConditionedI();
+			return MHandle->CastToRigidParticle()->ConditionedI();
 		}
 
 		return TVec3<FRealSingle>(0);

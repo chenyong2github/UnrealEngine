@@ -689,6 +689,69 @@ namespace ChaosTest {
 		JointConstraint_DisableOneConstrainedParticle<FPBDRigidsEvolutionGBF>();
 	}
 
+	// Create a kinematic-dynamic particle chain with a center of mass offset on the kinematic
+	// and verify that the joint offsets are used correctly. The two particles are arranged vertically
+	// with the joint between them, the center of mass offset should not affect behaviour.
+	//
+	// NOTE: We create both particles as dynamics and then change one to be kinematic so that we
+	// can alter its mass properties.
+	//
+	GTEST_TEST(JointTests, TestJointCoMOffset)
+	{
+		const int32 NumIterations = 1;
+		const FReal Gravity = 980;
+		FJointConstraintsTest<FPBDRigidsEvolutionGBF> Test(NumIterations, Gravity);
+
+		Test.ParticlePositions =
+		{
+			{ (FReal)0, (FReal)0, (FReal)0 },
+			{ (FReal)0, (FReal)0, (FReal)1000 },
+		};
+		Test.ParticleSizes =
+		{
+			{ (FReal)100, (FReal)100, (FReal)100 },
+			{ (FReal)100, (FReal)100, (FReal)100 },
+		};
+		Test.ParticleMasses =
+		{
+			(FReal)1000,
+			(FReal)1000,
+		};
+
+		Test.JointPositions =
+		{
+			{ (FReal)0, (FReal)0, (FReal)500 },
+		};
+		Test.JointParticleIndices =
+		{
+			{ 0, 1 },
+		};
+
+		Test.Create();
+
+		// Move the center of mass of the soon-to-be kinematic
+		Test.GetParticle(0)->CastToRigidParticle()->SetCenterOfMass(FVec3(0, 0, -100));
+		EXPECT_NEAR((Test.GetParticle(0)->CastToRigidParticle()->CenterOfMass() - FVec3(0, 0, -100)).Size(), 0, UE_KINDA_SMALL_NUMBER);
+
+		// Make the root body kinematic
+		Test.Evolution.SetParticleObjectState(Test.GetParticle(0)->CastToRigidParticle(), EObjectStateType::Kinematic);
+
+		// The kinematic will now report zero center of mass via the GenericParticle API, but internally it will still be set
+		EXPECT_NEAR(FGenericParticleHandle(Test.GetParticle(0))->CenterOfMass().Size(), 0, UE_KINDA_SMALL_NUMBER);
+		EXPECT_NEAR((Test.GetParticle(0)->CastToRigidParticle()->CenterOfMass() - FVec3(0, 0, -100)).Size(), 0, UE_KINDA_SMALL_NUMBER);
+
+		const FReal Dt = 0.01f;
+		for (int32 i = 0; i < 100; ++i)
+		{
+			Test.Evolution.AdvanceOneTimeStep(Dt);
+			Test.Evolution.EndFrame(Dt);
+
+			// Neither particle should have moved
+			EXPECT_LT((Test.GetParticle(0)->X() - Test.ParticlePositions[0]).Size(), (FReal)0.1);
+			EXPECT_LT((Test.GetParticle(1)->X() - Test.ParticlePositions[1]).Size(), (FReal)0.1);
+		}
+	}
+
 	// Check that constraints end up in the same island when graph is fully connected
 	GTEST_TEST(JointTests, TestJointConstraintGraph_Connected)
 	{
