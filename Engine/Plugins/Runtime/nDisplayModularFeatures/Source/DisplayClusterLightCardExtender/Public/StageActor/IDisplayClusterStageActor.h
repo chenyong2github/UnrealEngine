@@ -56,6 +56,10 @@ public:
 	virtual void SetScale(const FVector2D& InScale) = 0;
 	virtual FVector2D GetScale() const = 0;
 
+	virtual void SetAlwaysFlushToWall(bool bInAlwaysFlushToWall) { }
+	virtual bool IsAlwaysFlushToWall() const { return false; }
+
+
 	/** Return property names defined for this stage actor for use in property notifies */
 	virtual const TSet<FName>& GetPositionalPropertyNames() const;
 

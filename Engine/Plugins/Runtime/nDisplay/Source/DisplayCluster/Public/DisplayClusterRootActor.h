@@ -29,11 +29,13 @@
 class IDisplayClusterConfiguratorBlueprintEditor;
 #endif
 
+class IDisplayClusterStageActor;
 class USceneComponent;
 class UDisplayClusterConfigurationData;
 class UDisplayClusterCameraComponent;
 class UDisplayClusterOriginComponent;
 class UDisplayClusterPreviewComponent;
+class UDisplayClusterStageGeometryComponent;
 class UDisplayClusterSyncTickComponent;
 class UProceduralMeshComponent;
 
@@ -119,6 +121,15 @@ protected:
 	void UpdateLightCardPositions();
 
 public:
+	UFUNCTION(BlueprintCallable, Category = "NDisplay")
+	bool GetFlushPositionAndNormal(const FVector& WorldPosition, FVector& OutPosition, FVector& OutNormal);
+
+	UFUNCTION(BlueprintCallable, Category = "NDisplay")
+	bool MakeStageActorFlushToWall(const TScriptInterface<IDisplayClusterStageActor>& StageActor, double DesiredOffsetFromFlush = 0.0f);
+
+	UFUNCTION(BlueprintGetter)
+	UDisplayClusterStageGeometryComponent* GetStageGeometryComponent() const { return StageGeometryComponent; }
+
 	UFUNCTION(BlueprintGetter)
 	UDisplayClusterCameraComponent* GetDefaultCamera() const;
 
@@ -261,6 +272,10 @@ private:
 	 */
 	UPROPERTY()
 	TObjectPtr<UDisplayClusterSyncTickComponent> SyncTickComponent;
+
+	/** Component that stores the stage's geometry map, which is used to make objects flush with the stage's walls and ceilings */
+	UPROPERTY()
+	TObjectPtr<UDisplayClusterStageGeometryComponent> StageGeometryComponent;
 
 private:
 	// Current operation mode
@@ -481,7 +496,10 @@ protected:
 
 	/** Called when the asset has been reloaded in the editor. */
 	void HandleAssetReload(const EPackageReloadPhase InPackageReloadPhase, FPackageReloadedEvent* InPackageReloadedEvent);
-	
+
+	/** Raised when any object is moved within a level. Used to update the stage's geometry map if any of its components have been moved */
+	void OnEndObjectMovement(UObject& InObject);
+
 private:
 
 	/** Flag to indicate if the user is currently interacting with a subobject of CurrentConfigData. */

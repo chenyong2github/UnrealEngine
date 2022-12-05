@@ -67,69 +67,7 @@ public:
 		double Inclination = 0; // radians    0 to PI (when conforming)
 		double Azimuth = 0;     // radians  -PI to PI (when conforming)
 	};
-
-private:
-	/** Custom render target that stores the normal data for the stage */
-	class FNormalMap : public FRenderTarget
-	{
-	public:
-		/** The size of the normal map */
-		static const int32 NormalMapSize;
-
-		/**
-		 * The field of view to render the normal map with. Using the azimuthal projection,
-		 * this is set so that the entire 360 degree scene is rendered
-		 */
-		static const float NormalMapFOV;
-
-		/** Initializes the normal map render target using the specified scene view options */
-		void Init(const FSceneViewInitOptions& InSceneViewInitOptions);
-
-		/** Releases the normal map render target's resources */
-		void Release();
-
-		/** Gets the size of the render target */
-		virtual FIntPoint GetSizeXY() const override { return FIntPoint(SizeX, SizeY); }
-
-		/** Gets a reference to the normal map data array, which stores the normal vector in the RGB components (color = 0.5 * Normal + 0.5) and the depth in the A component */
-		TArray<FFloat16Color>& GetCachedNormalData() { return CachedNormalData; }
-
-		/** Gets the normal vector and distance at the specified world location. The normal and distance are bilinearly interpolated from the nearest pixels in the normal map */
-		bool GetNormalAndDistanceAtPosition(FVector Position, FVector& OutNormal, float& OutDistance) const;
-
-		/** Morphs the vertices of the specified prodedural mesh to match the normal map */
-		void MorphProceduralMesh(UProceduralMeshComponent* InProceduralMeshComponent) const;
-
-		/** Generates a texture object that can be used to visualize the normal map */
-		UTexture2D* GenerateNormalMapTexture(const FString& TextureName);
-
-		/** Gets the normal map visualization texture, or null if it hasn't been generated */
-		UTexture2D* GetNormalMapTexture() const { return NormalMapTexture.IsValid() ? NormalMapTexture.Get() : nullptr; }
-
-	public:
-		/** True if this is currently waiting for a render to complete. */
-		bool bIsPendingRender = true;
-
-		/** The canvas currently being used to render this map. */
-		TSharedPtr<FCanvas> Canvas;
-
-	private:
-		/** The view matrices used when the normal map was last rendered */
-		FViewMatrices ViewMatrices;
-
-		/** The cached normal map data from the last normal map render */
-		TArray<FFloat16Color> CachedNormalData;
-
-		/** A texture that contains the normal map, for visualization purposes */
-		TWeakObjectPtr<UTexture2D> NormalMapTexture;
-
-		/** The width of the normal map. */
-		uint32 SizeX = 0;
-
-		/** The height of the normal map. */
-		uint32 SizeY = 0;
-	};
-
+	
 public:
 	/** Create a projection helper that automatically creates its own preview renderer for normal map generation. */
 	DISPLAYCLUSTERSCENEPREVIEW_API FDisplayClusterLightCardEditorHelper();
@@ -383,9 +321,6 @@ private:
 	void InternalDragActors(const TArray<FDisplayClusterWeakStageActorPtr>& Actors, const FIntPoint& PixelPos, const FSceneView& View,
 		ECoordinateSystem CoordinateSystem, const FVector& DragWidgetOffset, EAxisList::Type DragAxis, FDisplayClusterWeakStageActorPtr PrimaryActor);
 
-	/** Gets the scene view init options to use when rendering the normal map cache */
-	void GetNormalMapSceneViewInitOptions(const FVector& ViewDirection, FSceneViewInitOptions& OutViewInitOptions);
-
 	/** Sets the actor position to the given spherical coordinates */
 	void SetActorCoordinates(const FDisplayClusterWeakStageActorPtr& Actor, const FSphericalCoordinates& SphericalCoords) const;
 
@@ -406,9 +341,6 @@ private:
 
 	/** Update the normal map mesh. Only call this once both maps are valid. */
 	void UpdateNormalMapMesh();
-
-	/** Renders the viewport's normal map and stores the texture data to be used later */
-	bool RenderNormalMap(FNormalMap& NormalMap, bool bIsNorthMap);
 
 	/** Called when a world beings cleanup. We destroy our preview scene if the world containing the root actor is cleaned up. */
 	void OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources);
@@ -446,12 +378,6 @@ private:
 
 	/** The component of the root actor that is acting as the projection origin. Can be either the root component (stage origin) or a view origin component */
 	TWeakObjectPtr<USceneComponent> ProjectionOriginComponent;
-
-	/** The render target used to render a map of the screens' normals for the northern hemisphere of the view */
-	FNormalMap NorthNormalMap;
-
-	/** The render target used to render a map of the screens' normals for the southern hemisphere of the view */
-	FNormalMap SouthNormalMap;
 
 	/** The projection mode of the view this is helping. */
 	EDisplayClusterMeshProjectionType ProjectionMode;

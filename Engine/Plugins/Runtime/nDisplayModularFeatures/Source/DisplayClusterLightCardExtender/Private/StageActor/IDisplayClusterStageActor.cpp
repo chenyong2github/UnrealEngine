@@ -137,6 +137,11 @@ void IDisplayClusterStageActor::UpdatePositionalParamsFromTransform()
 		Actor->GetTransform(), GetOrigin(), GetRadialOffset());
 
 		SetPositionalParams(PositionalParams);
+
+		if (IsAlwaysFlushToWall())
+		{
+			// TODO: Implement this once there is a way to determine which root actor owns this stage actor. 
+		}
 	}
 }
 

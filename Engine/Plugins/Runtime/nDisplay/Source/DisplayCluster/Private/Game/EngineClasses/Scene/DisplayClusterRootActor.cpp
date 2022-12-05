@@ -43,6 +43,7 @@
 #include "Game/EngineClasses/Scene/DisplayClusterRootActorInitializer.h"
 
 #include "Algo/MaxElement.h"
+#include "Components/DisplayClusterStageGeometryComponent.h"
 #include "UObject/Package.h"
 
 #if WITH_EDITOR
@@ -81,6 +82,8 @@ ADisplayClusterRootActor::ADisplayClusterRootActor(const FObjectInitializer& Obj
 
 	// A helper component to trigger nDisplay Tick() during Tick phase
 	SyncTickComponent = CreateDefaultSubobject<UDisplayClusterSyncTickComponent>(TEXT("DisplayClusterSyncTick"));
+
+	StageGeometryComponent = CreateDefaultSubobject<UDisplayClusterStageGeometryComponent>(TEXT("DisplayClusterStageGeometry"));
 
 	// Default nDisplay camera
 	DefaultViewPoint = CreateDefaultSubobject<UDisplayClusterCameraComponent>(TEXT("DefaultViewPoint"));
@@ -577,6 +580,8 @@ void ADisplayClusterRootActor::InitializeRootActor()
 		ViewportManager = MakeUnique<FDisplayClusterViewportManager>();
 	}
 
+	StageGeometryComponent->Invalidate();
+
 	// Packaged, PIE and -game runtime
 	if (IsRunningGameOrPIE())
 	{
@@ -696,6 +701,55 @@ void ADisplayClusterRootActor::UpdateLightCardPositions()
 			}
 		}
 	}
+}
+
+bool ADisplayClusterRootActor::GetFlushPositionAndNormal(const FVector& WorldPosition, FVector& OutPosition, FVector& OutNormal)
+{
+	const FVector StagePosition = GetCommonViewPoint()->GetComponentLocation();
+	const FVector Direction = (WorldPosition - StagePosition).GetSafeNormal();
+
+	float Distance;
+	FVector Normal;
+
+	if (StageGeometryComponent->GetStageDistanceAndNormal(Direction, Distance, Normal))
+	{
+		OutPosition = Distance * Direction + GetCommonViewPoint()->GetComponentLocation();
+
+		// Normal is returned in the local "radial basis", meaning that the x axis of the basis points radially inwards.
+		// Convert this to world coordinates using the radial basis made from the world direction (no need to account
+		// for root actor rotation here since Direction is already in world coordinates)
+		const FMatrix RadialBasis = FRotationMatrix::MakeFromX(Direction);
+		OutNormal = RadialBasis.TransformVector(Normal);
+		return true;
+	}
+
+	return false;
+}
+
+bool ADisplayClusterRootActor::MakeStageActorFlushToWall(const TScriptInterface<IDisplayClusterStageActor>& StageActor, double DesiredOffsetFromFlush)
+{
+	if (StageActor.GetObject() && !StageActor->IsUVActor())
+	{
+		FVector Position;
+		FVector Normal;
+		if (GetFlushPositionAndNormal(StageActor->GetStageActorTransform().GetLocation(), Position, Normal))
+		{
+			const FTransform StageActorTransform = StageActor->GetOrigin();
+			const FVector LocalPosition = StageActorTransform.InverseTransformPosition(Position);
+			const FVector LocalNormal = FRotationMatrix::MakeFromX(LocalPosition.GetSafeNormal()).InverseTransformVector(StageActorTransform.InverseTransformVectorNoScale(Normal));
+			const FRotator Rotation = FRotationMatrix::MakeFromX(-LocalNormal).Rotator();
+			const float Distance = FMath::Max(FMath::Min(LocalPosition.Length(), StageGeometryComponent->GetStageBoundingRadius()) + DesiredOffsetFromFlush, 0);
+
+			StageActor->SetDistanceFromCenter(Distance);
+			StageActor->SetPitch(Rotation.Pitch);
+			StageActor->SetYaw(Rotation.Yaw);
+
+			StageActor->UpdateStageActorTransform();
+			return true;
+		}
+	}
+
+	return false;
 }
 
 bool ADisplayClusterRootActor::IsBlueprint() const

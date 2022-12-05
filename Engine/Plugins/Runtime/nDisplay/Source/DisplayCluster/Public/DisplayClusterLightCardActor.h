@@ -111,7 +111,7 @@ public:
 	// ~Begin IDisplayClusterStageActor interface
 	/** Updates the Light Card transform based on its positional properties (Lat, Long, etc.) */
 	virtual void UpdateStageActorTransform() override;
-	
+
 	/**
 	 * Gets the transform in world space of the light card component
 	 */
@@ -149,6 +149,8 @@ public:
 	virtual void SetScale(const FVector2D& InScale) override;
 	virtual FVector2D GetScale() const override;
 
+	virtual void SetAlwaysFlushToWall(bool bInAlwaysFlushToWall) override { bAlwaysFlushToWall = bInAlwaysFlushToWall; }
+	virtual bool IsAlwaysFlushToWall() const override { return bAlwaysFlushToWall; }
 	virtual void SetUVCoordinates(const FVector2D& InUVCoordinates) override;
 	virtual FVector2D GetUVCoordinates() const override;
 
@@ -189,6 +191,10 @@ public:
 	/** Used by the flush constraint to offset the location of the light card form the wall */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Orientation", meta = (EditCondition = "!bIsUVLightCard", HideEditConditionToggle, EditConditionHides))
 	double RadialOffset;
+
+	/** Indicates whether the light card is always made to be flush to a stage wall or not */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Orientation", meta = (EditCondition = "!bIsUVLightCard", HideEditConditionToggle, EditConditionHides))
+	bool bAlwaysFlushToWall;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance")
 	EDisplayClusterLightCardMask Mask;

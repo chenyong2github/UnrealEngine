@@ -55,6 +55,7 @@
 #include "TextureResource.h"
 #include "UnrealEdGlobals.h"
 #include "UnrealWidget.h"
+#include "Components/DisplayClusterStageGeometryComponent.h"
 #include "Widgets/Docking/SDockTab.h"
 
 
@@ -1611,6 +1612,10 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 				}
 			
 				PreviewWorld->GetCurrentLevel()->AddLoadedActor(RootActorProxy.Get());
+
+				// Draw the geometry map for the proxy stage actor immediately to avoid a race condition where the geometry map could render
+				// before the actor location changes propagate to its component proxies, resulting in an inaccurate proxy geometry map
+				RootActorProxy->GetStageGeometryComponent()->Invalidate(true);
 
 				// Spawned actor will take the transform values from the template, so manually reset them to zero here
 				RootActorProxy->SetActorLocation(FVector::ZeroVector);

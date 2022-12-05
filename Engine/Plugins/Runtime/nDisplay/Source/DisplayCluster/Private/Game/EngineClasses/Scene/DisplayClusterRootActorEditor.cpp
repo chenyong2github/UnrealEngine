@@ -41,6 +41,7 @@
 #include "Render/Viewport/IDisplayClusterViewport.h"
 #include "Render/Viewport/DisplayClusterViewportManager.h"
 #include "TextureResource.h"
+#include "Components/DisplayClusterStageGeometryComponent.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IN-EDITOR STUFF
@@ -100,6 +101,11 @@ void ADisplayClusterRootActor::Constructor_Editor()
 	ResetPreviewInternals_Editor();
 
 	FCoreUObjectDelegates::OnPackageReloaded.AddUObject(this, &ADisplayClusterRootActor::HandleAssetReload);
+
+	if (GEditor)
+	{
+		GEditor->OnEndObjectMovement().AddUObject(this, &ADisplayClusterRootActor::OnEndObjectMovement);
+	}
 }
 
 void ADisplayClusterRootActor::Destructor_Editor()
@@ -108,6 +114,11 @@ void ADisplayClusterRootActor::Destructor_Editor()
 	OnPreviewDestroyed.Unbind();
 
 	FCoreUObjectDelegates::OnPackageReloaded.RemoveAll(this);
+
+	if (GEditor)
+	{
+		GEditor->OnEndObjectMovement().RemoveAll(this);
+	}
 }
 
 void ADisplayClusterRootActor::Tick_Editor(float DeltaSeconds)
@@ -177,6 +188,8 @@ void ADisplayClusterRootActor::RerunConstructionScripts_Editor()
 
 	// Reset preview components before DCRA rebuild
 	ResetPreviewComponents_Editor(false);
+
+	StageGeometryComponent->Invalidate();
 }
 
 void ADisplayClusterRootActor::EnableEditorRender(bool bValue)
@@ -829,6 +842,15 @@ void ADisplayClusterRootActor::HandleAssetReload(const EPackageReloadPhase InPac
 		// actor, but the preview components are already detached and never have DestroyComponent called on them.
 		// This causes the package to keep references around and cause a crash during the reload.
 		BeginDestroy_Editor();
+	}
+}
+
+void ADisplayClusterRootActor::OnEndObjectMovement(UObject& InObject)
+{
+	// If any of this stage actor's components have been moved, invalidate the stage geometry map
+	if (InObject.IsA<USceneComponent>() && Cast<USceneComponent>(&InObject)->GetOwner() == this)
+	{
+		StageGeometryComponent->Invalidate();
 	}
 }
 

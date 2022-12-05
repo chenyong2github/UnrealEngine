@@ -52,6 +52,7 @@ ADisplayClusterLightCardActor::ADisplayClusterLightCardActor(const FObjectInitia
 	, Yaw(0.f)
 	, Scale(FVector2D(1.f))
 	, RadialOffset(-0.5)
+	, bAlwaysFlushToWall(true)
 	, Mask(EDisplayClusterLightCardMask::Circle)
 	, Texture(nullptr)
 	, Color(FLinearColor(1.f, 1.f, 1.f, 1.f))
@@ -154,11 +155,18 @@ void ADisplayClusterLightCardActor::PostEditChangeProperty(FPropertyChangedEvent
 		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Longitude) ||
 		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Latitude) ||
 		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Spin) ||
+		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Pitch) ||
+		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Yaw) ||
 		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, RadialOffset) ||
 		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Scale) ||
 		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, bIsUVLightCard)))
 	{
 		UpdateStageActorTransform();
+
+		if (bAlwaysFlushToWall && RootActorOwner.IsValid())
+		{
+			RootActorOwner->MakeStageActorFlushToWall(this);
+		}
 	}
 
 	if (PropertyChangedEvent.Property && (
@@ -566,7 +574,7 @@ void ADisplayClusterLightCardActor::AddToLightCardLayer(ADisplayClusterRootActor
 
 void ADisplayClusterLightCardActor::UpdateStageActorTransform()
 {
-	// If the light card is in UV space, set the spring arm's trasform to be zero, effectively removing it from the transform hierarchy
+	// If the light card is in UV space, set the spring arm's transform to be zero, effectively removing it from the transform hierarchy
 	// This allows the light card to be positioned with the actor's cartesian coordinates instead of longitude and latitude
 	if (bIsUVLightCard)
 	{
@@ -600,7 +608,12 @@ FTransform ADisplayClusterLightCardActor::GetStageActorTransform(bool bRemoveOri
 {
 	FTransform Transform;
 
-	FVector Position = LightCardComponent->GetComponentLocation();
+	const FVector ForwardVector = (GetActorRotation().Quaternion() * FRotator(-Latitude, Longitude, 0.0).Quaternion()).RotateVector(-FVector::ForwardVector);
+	constexpr float DistanceFactor = 0.99f;
+	FVector Position = bIsUVLightCard ?
+		FVector(DistanceFactor * UVPlaneDefaultDistance, -UVPlaneDefaultSize * (0.5 - UVCoordinates.X), UVPlaneDefaultSize * (0.5 - UVCoordinates.Y)) :
+		GetActorLocation() + DistanceFromCenter * ForwardVector;
+
 	if (bRemoveOrigin)
 	{
 		Position -= GetActorLocation();

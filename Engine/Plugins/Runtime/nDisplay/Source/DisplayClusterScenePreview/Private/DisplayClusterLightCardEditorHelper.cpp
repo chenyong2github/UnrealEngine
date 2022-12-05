@@ -14,10 +14,10 @@
 #include "StageActor/DisplayClusterStageActorTemplate.h"
 
 #include "CanvasTypes.h"
-#include "ImageUtils.h"
 #include "KismetProceduralMeshLibrary.h"
 #include "PreviewScene.h"
 #include "ProceduralMeshComponent.h"
+#include "Components/DisplayClusterStageGeometryComponent.h"
 #include "Containers/ArrayView.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/Texture2D.h"
@@ -158,165 +158,6 @@ bool FDisplayClusterLightCardEditorHelper::FSphericalCoordinates::IsPointingAtPo
 		|| FMath::IsNearlyEqual(CoordsConformed.Inclination, PI, Margin);
 }
 
-//////////////////////////////////////////////////////////////////////////
-// FNormalMap
-
-const int32 FDisplayClusterLightCardEditorHelper::FNormalMap::NormalMapSize = 512;
-const float FDisplayClusterLightCardEditorHelper::FNormalMap::NormalMapFOV = 2.0f * FMath::RadiansToDegrees(FMath::Atan(0.55 * PI)); // Equation for FOV from desired angle from north pole;
-
-void FDisplayClusterLightCardEditorHelper::FNormalMap::Init(const FSceneViewInitOptions& InSceneViewInitOptions)
-{
-	SizeX = InSceneViewInitOptions.GetViewRect().Width();
-	SizeY = InSceneViewInitOptions.GetViewRect().Height();
-
-	ViewMatrices = FViewMatrices(InSceneViewInitOptions);
-
-	if (NormalMapTexture.IsValid())
-	{
-		NormalMapTexture->MarkAsGarbage();
-		NormalMapTexture = nullptr;
-	}
-
-	ENQUEUE_RENDER_COMMAND(InitRHIResourcesCommand)([this](FRHICommandListImmediate& RHICmdList)
-		{
-			const FRHITextureCreateDesc Desc =
-				FRHITextureCreateDesc::Create2D(TEXT("NormalMapTexture"))
-				.SetExtent(SizeX, SizeY)
-				.SetFormat(PF_FloatRGBA)
-				.SetClearValue(FClearValueBinding::Black)
-				.SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
-				.SetInitialState(ERHIAccess::SRVMask);
-
-			RenderTargetTextureRHI = RHICreateTexture(Desc);
-		});
-}
-
-void FDisplayClusterLightCardEditorHelper::FNormalMap::Release()
-{
-	ENQUEUE_RENDER_COMMAND(ReleaseRHIResourcesCommand)([this](FRHICommandListImmediate& RHICmdList)
-		{
-			RenderTargetTextureRHI.SafeRelease();
-		});
-}
-
-bool FDisplayClusterLightCardEditorHelper::FNormalMap::GetNormalAndDistanceAtPosition(FVector Position, FVector& OutNormal, float& OutDistance) const
-{
-	auto GetPixel = [this](uint32 InX, uint32 InY)
-	{
-		uint32 ClampedX = FMath::Clamp(InX, (uint32)0, SizeX - 1);
-		uint32 ClampedY = FMath::Clamp(InY, (uint32)0, SizeY - 1);
-
-		return CachedNormalData[ClampedY * SizeX + ClampedX].GetFloats();
-	};
-
-	const FVector ViewPos = FVector(ViewMatrices.GetViewMatrix().TransformFVector4(FVector4(Position, 1)));
-	const FVector ProjectedViewPos = FDisplayClusterMeshProjectionRenderer::ProjectViewPosition(ViewPos, EDisplayClusterMeshProjectionType::Azimuthal);
-
-	const FVector4 ScreenPos = ViewMatrices.GetProjectionMatrix().TransformFVector4(FVector4(ProjectedViewPos, 1));
-
-	if (ScreenPos.W != 0.0)
-	{
-		const float InvW = (ScreenPos.W > 0.0f ? 1.0f : -1.0f) / ScreenPos.W;
-		const float Y = (GProjectionSignY > 0.0f) ? ScreenPos.Y : 1.0f - ScreenPos.Y;
-		const FVector2D PixelPos = FVector2D((0.5f + ScreenPos.X * 0.5f * InvW) * SizeX, (0.5f - Y * 0.5f * InvW) * SizeY);
-
-		// Perform a bilinear interpolation on the computed pixel position to ensure a continuous normal regardless of the resolution of the normal map
-		const uint32 PixelX = FMath::Floor(PixelPos.X - 0.5f);
-		const uint32 PixelY = FMath::Floor(PixelPos.Y - 0.5f);
-		const float PixelXFrac = FMath::Frac(PixelPos.X);
-		const float PixelYFrac = FMath::Frac(PixelPos.X);
-
-		FLinearColor NormalData;
-		NormalData = FMath::Lerp(
-			FMath::Lerp(GetPixel(PixelX, PixelY), GetPixel(PixelX + 1, PixelY), PixelXFrac),
-			FMath::Lerp(GetPixel(PixelX, PixelY + 1), GetPixel(PixelX + 1, PixelY + 1), PixelXFrac),
-			PixelYFrac);
-
-		const FVector NormalVector = 2.f * FVector(NormalData.R, NormalData.G, NormalData.B) - 1.f;
-		OutNormal = NormalVector.GetSafeNormal();
-
-		// Make sure the depth value is not 0, as that will cause a divide by zero when transformed, resulting in an NaN distance being returned
-		const float Depth = FMath::Max(0.001f, NormalData.A);
-
-		FVector4 DepthPos = ViewMatrices.GetInvProjectionMatrix().TransformFVector4(FVector4(ScreenPos.X * InvW, ScreenPos.Y * InvW, Depth, 1.0f));
-		DepthPos /= DepthPos.W;
-
-		const FVector UnprojectedDepthPos = FDisplayClusterMeshProjectionRenderer::UnprojectViewPosition(DepthPos, EDisplayClusterMeshProjectionType::Azimuthal);
-		OutDistance = UnprojectedDepthPos.Length();
-
-		return true;
-	}
-	else
-	{
-		OutNormal = FVector::ZeroVector;
-		OutDistance = 0.0;
-		return false;
-	}
-}
-
-void FDisplayClusterLightCardEditorHelper::FNormalMap::MorphProceduralMesh(UProceduralMeshComponent* InProceduralMeshComponent) const
-{
-	const FVector ViewOrigin = ViewMatrices.GetViewOrigin();
-	const FVector ViewDirection = ViewMatrices.GetViewMatrix().TransformVector(FVector::ZAxisVector);
-	const float MaxAngle = 1.0f / ViewMatrices.GetProjectionMatrix().M[0][0];
-
-	FProcMeshSection& Section = *InProceduralMeshComponent->GetProcMeshSection(0);
-
-	for (int32 Index = 0; Index < Section.ProcVertexBuffer.Num(); ++Index)
-	{
-		FProcMeshVertex& Vertex = Section.ProcVertexBuffer[Index];
-
-		const FVector VertexPosition = Vertex.Position;
-		const FVector VertexWorldPosition = VertexPosition + ViewOrigin;
-		const FVector VertexDirection = Vertex.Position.GetSafeNormal();
-		const float VertexAngle = FMath::Acos(VertexDirection | ViewDirection);
-
-		if (VertexAngle < MaxAngle)
-		{
-			FVector Normal;
-			float Depth;
-			GetNormalAndDistanceAtPosition(VertexWorldPosition, Normal, Depth);
-
-			const FVector NewPosition = VertexDirection * Depth;
-			Vertex.Position = NewPosition;
-
-			const FMatrix RadialBasis = FRotationMatrix::MakeFromX(VertexDirection);
-
-			const FVector WorldNormal = RadialBasis.TransformVector(Normal);
-			Vertex.Normal = WorldNormal;
-		}
-	}
-
-	InProceduralMeshComponent->SetProcMeshSection(0, Section);
-}
-
-UTexture2D* FDisplayClusterLightCardEditorHelper::FNormalMap::GenerateNormalMapTexture(const FString& TextureName)
-{
-	if (NormalMapTexture.IsValid())
-	{
-		NormalMapTexture->MarkAsGarbage();
-		NormalMapTexture = nullptr;
-	}
-
-	if (CachedNormalData.Num())
-	{
-		FCreateTexture2DParameters Params;
-		Params.bDeferCompression = true;
-
-		TArray<FColor> Bitmap;
-		Bitmap.AddZeroed(CachedNormalData.Num());
-
-		for (int32 Index = 0; Index < CachedNormalData.Num(); ++Index)
-		{
-			Bitmap[Index] = CachedNormalData[Index].GetFloats().ToFColor(false);
-		}
-
-		NormalMapTexture = FImageUtils::CreateTexture2D(SizeX, SizeY, Bitmap, GetTransientPackage(), TextureName, RF_Transient, Params);
-	}
-
-	return GetNormalMapTexture();
-}
-
 
 //////////////////////////////////////////////////////////////////////////
 // FDisplayClusterLightCardEditorHelper
@@ -398,16 +239,13 @@ void FDisplayClusterLightCardEditorHelper::SetLevelInstanceRootActor(ADisplayClu
 
 const UTexture2D* FDisplayClusterLightCardEditorHelper::GetNormalMapTexture(bool bShowNorthMap)
 {
-	FNormalMap& NormalMap = bShowNorthMap ? NorthNormalMap : SouthNormalMap;
-	UTexture2D* NormalMapTexture = NormalMap.GetNormalMapTexture();
-
-	if (!NormalMapTexture)
+	if (ADisplayClusterRootActor* RootActor = UpdateRootActor())
 	{
-		const FString TextureName = bShowNorthMap ? TEXT("DisplayClusterLightCardEditorHelper.NorthNormalMap") : TEXT("DisplayClusterLightCardEditorHelper.SouthNormalMap");
-		NormalMapTexture = NormalMap.GenerateNormalMapTexture(TextureName);
+		UTexture2D* NormalMapTexture = bShowNorthMap ? RootActor->GetStageGeometryComponent()->GetNorthGeometryMapTexture() : RootActor->GetStageGeometryComponent()->GetSouthGeometryMapTexture();
+		return NormalMapTexture;
 	}
 
-	return NormalMapTexture;
+	return nullptr;
 }
 
 void FDisplayClusterLightCardEditorHelper::MoveActorsToPixel(
@@ -644,20 +482,9 @@ bool FDisplayClusterLightCardEditorHelper::CalculateNormalAndPositionInDirection
 	}
 	else
 	{
-		const FVector Position = InViewOrigin + InDirection; // We fabricate a position in the right direction
-
 		float Distance;
 
-		// We find the normal and distance from origin
-		if (Position.Z < InViewOrigin.Z)
-		{
-			SouthNormalMap.GetNormalAndDistanceAtPosition(Position, OutRelativeNormal, Distance);
-		}
-		else
-		{
-			NorthNormalMap.GetNormalAndDistanceAtPosition(Position, OutRelativeNormal, Distance);
-		}
-
+		CachedRootActor->GetStageGeometryComponent()->GetStageDistanceAndNormal(InDirection, Distance, OutRelativeNormal);
 		Distance = CalculateFinalLightCardDistance(Distance, InDesiredDistanceFromFlush);
 
 		// Calculate world position
@@ -1222,7 +1049,7 @@ FDisplayClusterLightCardEditorHelper::FSphericalCoordinates FDisplayClusterLight
 	FSphericalCoordinates DeltaCoords;
 
 	// If we are in a cartesian coordinate system and are constraining to an axis, perform the constraint calculations in
-	// cartesian coordinates, then convert to spherical coordinates at the end. Otherwise, perform all calculations in spherical coodinates
+	// cartesian coordinates, then convert to spherical coordinates at the end. Otherwise, perform all calculations in spherical coordinates
 	if (CoordinateSystem == ECoordinateSystem::Cartesian && DragAxis != EAxisList::Type::XYZ)
 	{
 		// For consistency, project the cursor direction vector onto the sphere the light card is currently on. Gives a good balance of approximating
@@ -1257,19 +1084,11 @@ FDisplayClusterLightCardEditorHelper::FSphericalCoordinates FDisplayClusterLight
 	}
 	else
 	{
-		FVector Normal;
-		float Distance;
+		FVector FlushPosition;
+		FVector FlushNormal;
 
-		// If the light card is in the southern hemisphere of the view origin, use the southern normal map; otherwise, use the north normal map
-		if (LightCardLocation.Z < 0.0f)
-		{
-			SouthNormalMap.GetNormalAndDistanceAtPosition(Actor->GetStageActorTransform(true).GetTranslation(), Normal, Distance);
-		}
-		else
-		{
-			NorthNormalMap.GetNormalAndDistanceAtPosition(Actor->GetStageActorTransform(true).GetTranslation(), Normal, Distance);
-		}
-
+		CachedRootActor->GetFlushPositionAndNormal(Actor->GetStageActorTransform().GetTranslation(), FlushPosition, FlushNormal);
+		const float Distance = (FlushPosition - CachedRootActor->GetCommonViewPoint()->GetComponentLocation()).Size();
 		const FSphericalCoordinates RequestedCoords(LocalDirection * Distance);
 
 		DeltaCoords = RequestedCoords - ActorCoords;
@@ -1347,36 +1166,16 @@ void FDisplayClusterLightCardEditorHelper::InternalMoveActorTo(
 		return;
 	}
 
-	const FVector Origin = GetProjectionOrigin();
-	const FVector LightCardPosition = Origin + Position.AsCartesian();
-
-	FVector DesiredNormal;
-	float DesiredDistance;
-
-	// If the light card is in the southern hemisphere of the view origin, use the southern normal map; otherwise, use the north normal map
-	if (LightCardPosition.Z < Origin.Z)
-	{
-		SouthNormalMap.GetNormalAndDistanceAtPosition(LightCardPosition, DesiredNormal, DesiredDistance);
-	}
-	else
-	{
-		NorthNormalMap.GetNormalAndDistanceAtPosition(LightCardPosition, DesiredNormal, DesiredDistance);
-	}
-
 	// Remove actor rotation from the position before setting the coordinate. Note that we don't need to do this for the normal map,
 	// which already takes the root actor rotation into account as part of its view matrix.
 	const FQuat RootRotation = CachedRootActor->GetTransform().GetRotation().Inverse();
 	const FVector InverseRotatedPosition = RootRotation.RotateVector(Position.AsCartesian());
-
+	
 	SetActorCoordinates(Actor, FSphericalCoordinates(InverseRotatedPosition));
-	
-	const double FinalDistance = CalculateFinalLightCardDistance(DesiredDistance);
-	Actor->SetDistanceFromCenter(FinalDistance);
+	Actor->UpdateStageActorTransform();
 
-	const FRotator Rotation = FRotationMatrix::MakeFromX(-DesiredNormal).Rotator();
-	
-	Actor->SetPitch(Rotation.Pitch);
-	Actor->SetYaw(Rotation.Yaw);
+	ADisplayClusterRootActor* RootActor = (Actor->IsProxy() || !LevelInstanceRootActor.IsValid()) ? CachedRootActor.Get() : LevelInstanceRootActor.Get();
+	RootActor->MakeStageActorFlushToWall(Actor.AsActor());
 
 #if WITH_EDITOR
 	if (!Actor->IsProxy())
@@ -1503,84 +1302,6 @@ void FDisplayClusterLightCardEditorHelper::InternalDragActors(const TArray<FDisp
 	}
 }
 
-void FDisplayClusterLightCardEditorHelper::GetNormalMapSceneViewInitOptions(const FVector& ViewDirection, FSceneViewInitOptions& OutViewInitOptions)
-{
-	OutViewInitOptions.ViewLocation = ProjectionOriginComponent.IsValid() ? ProjectionOriginComponent->GetComponentLocation() : FVector::ZeroVector;
-	OutViewInitOptions.ViewRotation = ViewDirection.Rotation();
-	OutViewInitOptions.ViewOrigin = OutViewInitOptions.ViewLocation;
-
-	if (ADisplayClusterRootActor* RootActor = UpdateRootActor())
-	{
-		OutViewInitOptions.ViewRotation = FRotator(RootActor->GetActorRotation().Quaternion() * OutViewInitOptions.ViewRotation.Quaternion());
-	}
-
-	OutViewInitOptions.SetViewRectangle(FIntRect(0, 0, FNormalMap::NormalMapSize, FNormalMap::NormalMapSize));
-
-	AWorldSettings* WorldSettings = nullptr;
-	ADisplayClusterRootActor* RootActor = UpdateRootActor();
-
-	if (RootActor && RootActor->GetWorld())
-	{
-		WorldSettings = RootActor->GetWorld()->GetWorldSettings();
-	}
-
-	if (WorldSettings != nullptr)
-	{
-		OutViewInitOptions.WorldToMetersScale = WorldSettings->WorldToMeters;
-	}
-
-	// Rotate view 90 degrees
-	OutViewInitOptions.ViewRotationMatrix = FInverseRotationMatrix(OutViewInitOptions.ViewRotation) * FMatrix(
-		FPlane(0, 0, 1, 0),
-		FPlane(1, 0, 0, 0),
-		FPlane(0, 1, 0, 0),
-		FPlane(0, 0, 0, 1));
-
-	const float MinZ = GNearClippingPlane;
-	const float MaxZ = FMath::Max(RootActorBoundingRadius, MinZ);
-
-	// Avoid zero ViewFOV's which cause divide by zero's in projection matrix
-	const float MatrixFOV = FMath::Max(0.001f, FNormalMap::NormalMapFOV) * (float)PI / 360.0f;
-
-	const float XAxisMultiplier = 1.0f;
-	const float YAxisMultiplier = 1.0f;
-
-	if ((bool)ERHIZBuffer::IsInverted)
-	{
-		OutViewInitOptions.ProjectionMatrix = FReversedZPerspectiveMatrix(
-			MatrixFOV,
-			MatrixFOV,
-			XAxisMultiplier,
-			YAxisMultiplier,
-			MinZ,
-			MaxZ);
-	}
-	else
-	{
-		OutViewInitOptions.ProjectionMatrix = FPerspectiveMatrix(
-			MatrixFOV,
-			MatrixFOV,
-			XAxisMultiplier,
-			YAxisMultiplier,
-			MinZ,
-			MaxZ);
-	}
-
-	OutViewInitOptions.FOV = FNormalMap::NormalMapFOV;
-
-#if WITH_EDITOR
-	if (ViewportClient.IsValid())
-	{
-		FEditorViewportClient& ViewportClientRef = *ViewportClient.Pin().Get();
-
-		OutViewInitOptions.SceneViewStateInterface = ViewportClientRef.ViewState.GetReference();
-		OutViewInitOptions.ViewElementDrawer = &ViewportClientRef;
-		OutViewInitOptions.OverrideFarClippingPlaneDistance = ViewportClientRef.GetFarClipPlaneOverride();
-		OutViewInitOptions.EditorViewBitflag = (uint64)1 << ViewportClientRef.ViewIndex; // send the bit for this view - each actor will check it's visibility bits against this
-	}
-#endif
-}
-
 void FDisplayClusterLightCardEditorHelper::SetActorCoordinates(const FDisplayClusterWeakStageActorPtr& Actor, const FSphericalCoordinates& SphericalCoords) const
 {
 	Actor->SetDistanceFromCenter(SphericalCoords.Radius);
@@ -1700,15 +1421,7 @@ bool FDisplayClusterLightCardEditorHelper::UpdateNormalMaps()
 	// Update this so we render from the latest projection point
 	UpdateProjectionOriginComponent();
 
-	if (!RenderNormalMap(NorthNormalMap, true))
-	{
-		return false;
-	}
-
-	if (!RenderNormalMap(SouthNormalMap, false))
-	{
-		return false;
-	}
+	RootActor->GetStageGeometryComponent()->Invalidate(true);
 
 	bNormalMapInvalid = false;
 	UpdateNormalMapMesh();
@@ -1763,68 +1476,8 @@ void FDisplayClusterLightCardEditorHelper::UpdateNormalMapMesh()
 			}
 		}
 
-		NorthNormalMap.MorphProceduralMesh(NormalMapMeshComponent.Get());
-		SouthNormalMap.MorphProceduralMesh(NormalMapMeshComponent.Get());
+		CachedRootActor->GetStageGeometryComponent()->MorphProceduralMesh(NormalMapMeshComponent.Get());
 	}
-}
-
-bool FDisplayClusterLightCardEditorHelper::RenderNormalMap(FNormalMap& NormalMap, bool bIsNorthMap)
-{
-	ADisplayClusterRootActor* RootActor = UpdateRootActor();
-	if (!RootActor)
-	{
-		return false;
-	}
-
-	UWorld* World = RootActor->GetWorld();
-	if (!World)
-	{
-		return false;
-	}
-
-	// Rotate the normal map's direction to account for the actor's world rotation
-	FRotator InverseRootRotation = RootActor->GetTransform().Rotator().GetInverse();
-	FVector NormalMapDirection = InverseRootRotation.RotateVector(bIsNorthMap ? FVector::UpVector : FVector::DownVector);
-
-	// Only render primitive components from the stage actor for the normal map
-	FDisplayClusterMeshProjectionPrimitiveFilter PrimitiveFilter;
-	PrimitiveFilter.ShouldRenderPrimitiveDelegate = FDisplayClusterMeshProjectionPrimitiveFilter::FPrimitiveFilter::CreateWeakLambda(
-		RootActor, [RootActor](const UPrimitiveComponent* PrimitiveComponent)
-		{
-			return PrimitiveComponent->GetOwner() == RootActor;
-		});
-
-	FDisplayClusterMeshProjectionRenderSettings RenderSettings;
-	RenderSettings.RenderType = EDisplayClusterMeshProjectionOutput::Normals;
-	RenderSettings.ProjectionType = EDisplayClusterMeshProjectionType::Azimuthal;
-	RenderSettings.PrimitiveFilter = PrimitiveFilter;
-	RenderSettings.NormalCorrectionMatrix = FMatrix44f(FRotationMatrix::Make(InverseRootRotation));
-
-#if WITH_EDITOR
-	if (ViewportClient.IsValid())
-	{
-		const FEditorViewportClient& ViewportClientRef = *ViewportClient.Pin().Get();
-		RenderSettings.EngineShowFlags = ViewportClientRef.EngineShowFlags;
-	}
-#endif
-
-	FSceneViewInitOptions ViewInitOptions;
-	GetNormalMapSceneViewInitOptions(NormalMapDirection, RenderSettings.ViewInitOptions);
-
-	NormalMap.Init(RenderSettings.ViewInitOptions);
-
-	NormalMap.Canvas = MakeShared<FCanvas>(&NormalMap, nullptr, World, World->Scene->GetFeatureLevel(), FCanvas::CDM_DeferDrawing, 1.0f);
-	NormalMap.Canvas->Clear(FLinearColor::Black);
-
-	IDisplayClusterScenePreview::Get().Render(RendererId, RenderSettings, *NormalMap.Canvas);
-	NormalMap.Canvas->Flush_GameThread();
-
-	NormalMap.ReadFloat16Pixels(NormalMap.GetCachedNormalData());
-	NormalMap.Release();
-
-	FlushRenderingCommands();
-
-	return true;
 }
 
 void FDisplayClusterLightCardEditorHelper::OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources)
