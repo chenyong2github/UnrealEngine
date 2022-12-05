@@ -1012,12 +1012,12 @@ FCardPageRenderData::FCardPageRenderData(
 
 void FCardPageRenderData::UpdateViewMatrices(const FViewInfo& MainView)
 {
-	ensureMsgf(FVector3f::DotProduct(CardWorldOBB.AxisX, FVector3f::CrossProduct(CardWorldOBB.AxisY, CardWorldOBB.AxisZ)) < 0.0f, TEXT("Card has wrong handedness"));
+	ensureMsgf(FVector::DotProduct(CardWorldOBB.AxisX, FVector::CrossProduct(CardWorldOBB.AxisY, CardWorldOBB.AxisZ)) < 0.0f, TEXT("Card has wrong handedness"));
 
 	FMatrix ViewRotationMatrix = FMatrix::Identity;
-	ViewRotationMatrix.SetColumn(0, (FVector)CardWorldOBB.AxisX);
-	ViewRotationMatrix.SetColumn(1, (FVector)CardWorldOBB.AxisY);
-	ViewRotationMatrix.SetColumn(2, (FVector)-CardWorldOBB.AxisZ);
+	ViewRotationMatrix.SetColumn(0, CardWorldOBB.AxisX);
+	ViewRotationMatrix.SetColumn(1, CardWorldOBB.AxisY);
+	ViewRotationMatrix.SetColumn(2, -CardWorldOBB.AxisZ);
 
 	FVector ViewLocation(CardWorldOBB.Origin);
 	FVector FaceLocalExtent(CardWorldOBB.Extent);
@@ -1285,11 +1285,11 @@ public:
 
 				// Rough card min resolution test
 				float CardMaxDistanceSq = MaxDistanceFromCamera * MaxDistanceFromCamera;
-				float DistanceSquared = FLT_MAX;
+				float DistanceSquared = FLT_MAX; // LWC_TODO
 
 				for (FVector ViewOrigin : ViewOrigins)
 				{
-					DistanceSquared = FMath::Min(DistanceSquared, ComputeSquaredDistanceFromBoxToPoint(FVector(PrimitiveGroup.WorldSpaceBoundingBox.Min), FVector(PrimitiveGroup.WorldSpaceBoundingBox.Max), ViewOrigin));
+					DistanceSquared = FMath::Min(DistanceSquared, ComputeSquaredDistanceFromBoxToPoint(FVector(PrimitiveGroup.WorldSpaceBoundingBox.Min), FVector(PrimitiveGroup.WorldSpaceBoundingBox.Max), ViewOrigin)); // LWC_TODO
 				}
 				
 				const float MaxCardExtent = PrimitiveGroup.WorldSpaceBoundingBox.GetExtent().GetMax();
@@ -1387,11 +1387,11 @@ public:
 					const FLumenCard& LumenCard = LumenCards[CardIndex];
 
 					float CardMaxDistance = MaxDistanceFromCamera;
-					float ViewerDistance = FLT_MAX;
+					float ViewerDistance = FLT_MAX; // LWC_TODO
 
 					for (FVector ViewOrigin : ViewOrigins)
 					{
-						ViewerDistance = FMath::Min(ViewerDistance, FMath::Max(FMath::Sqrt(LumenCard.WorldOBB.ComputeSquaredDistanceToPoint((FVector3f)ViewOrigin)), 100.0f));
+						ViewerDistance = FMath::Min(ViewerDistance, FMath::Max(FMath::Sqrt(LumenCard.WorldOBB.ComputeSquaredDistanceToPoint(ViewOrigin)), 100.0f));
 					}
 
 					// Compute resolution based on its largest extent

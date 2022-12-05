@@ -103,9 +103,9 @@ public:
 	FLumenCard();
 	~FLumenCard();
 
-	FLumenCardOBB LocalOBB;
-	FLumenCardOBB WorldOBB;
-	FLumenCardOBB MeshCardsOBB;
+	FLumenCardOBBf LocalOBB;
+	FLumenCardOBBd WorldOBB;
+	FLumenCardOBBf MeshCardsOBB;
 
 	bool bVisible = false;
 	bool bHeightfield = false;
@@ -139,7 +139,7 @@ public:
 		int32 InMeshCardsIndex,
 		uint8 InIndexInBuildData);
 
-	void SetTransform(const FMatrix44f& LocalToWorld, const FLumenMeshCards& MeshCards);
+	void SetTransform(const FMatrix& LocalToWorld, const FLumenMeshCards& MeshCards);
 
 	void UpdateMinMaxAllocatedLevel();
 
@@ -204,7 +204,7 @@ public:
 	int32 MeshCardsIndex = -1;
 	int32 HeightfieldIndex = -1;
 
-	FRenderBounds WorldSpaceBoundingBox;
+	FRenderBounds WorldSpaceBoundingBox; // LWC_TODO
 	Experimental::FHashElementId RayTracingGroupMapElementId;
 	float CardResolutionScale = 1.0f;
 

@@ -36,7 +36,7 @@ public:
 	FIntRect CardCaptureAtlasRect;
 	FIntRect SurfaceCacheAtlasRect;
 
-	FLumenCardOBB CardWorldOBB;
+	FLumenCardOBBd CardWorldOBB;
 
 	FViewMatrices ViewMatrices;
 	FMatrix ProjectionMatrixUnadjustedForRHI;

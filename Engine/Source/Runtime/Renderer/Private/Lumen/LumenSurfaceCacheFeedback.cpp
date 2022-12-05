@@ -467,11 +467,11 @@ void FLumenSceneData::UpdateSurfaceCacheFeedback(const TArray<FVector, TInlineAl
 				}
 				else
 				{
-					float DistanceSquared = FLT_MAX;
+					float DistanceSquared = FLT_MAX; // LWC_TODO
 
 					for (FVector CameraOrigin : LumenSceneCameraOrigins)
 					{
-						DistanceSquared = FMath::Min(DistanceSquared, Card.WorldOBB.ComputeSquaredDistanceToPoint((FVector3f)CameraOrigin));
+						DistanceSquared = FMath::Min(DistanceSquared, Card.WorldOBB.ComputeSquaredDistanceToPoint(CameraOrigin));
 					}
 					float Distance = FMath::Sqrt(DistanceSquared);
 

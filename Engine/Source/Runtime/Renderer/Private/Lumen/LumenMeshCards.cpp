@@ -170,9 +170,9 @@ public:
 	{
 		// Note: layout must match GetLumenCardData in usf
 
-		OutData[0] = FVector4f(Card.WorldOBB.AxisX[0], Card.WorldOBB.AxisY[0], Card.WorldOBB.AxisZ[0], Card.WorldOBB.Origin.X);
-		OutData[1] = FVector4f(Card.WorldOBB.AxisX[1], Card.WorldOBB.AxisY[1], Card.WorldOBB.AxisZ[1], Card.WorldOBB.Origin.Y);
-		OutData[2] = FVector4f(Card.WorldOBB.AxisX[2], Card.WorldOBB.AxisY[2], Card.WorldOBB.AxisZ[2], Card.WorldOBB.Origin.Z);
+		OutData[0] = FVector4f(Card.WorldOBB.AxisX[0], Card.WorldOBB.AxisY[0], Card.WorldOBB.AxisZ[0], Card.WorldOBB.Origin.X); // LWC_TODO
+		OutData[1] = FVector4f(Card.WorldOBB.AxisX[1], Card.WorldOBB.AxisY[1], Card.WorldOBB.AxisZ[1], Card.WorldOBB.Origin.Y); // LWC_TODO
+		OutData[2] = FVector4f(Card.WorldOBB.AxisX[2], Card.WorldOBB.AxisY[2], Card.WorldOBB.AxisZ[2], Card.WorldOBB.Origin.Z); // LWC_TODO
 
 		const FIntPoint ResLevelBias = Card.ResLevelToResLevelXYBias();
 		const uint32 LightingChannelMask = InPrimitiveGroup ? InPrimitiveGroup->LightingChannelMask : UINT32_MAX;
@@ -233,9 +233,9 @@ void FLumenMeshCardsGPUData::FillData(const FLumenMeshCards& RESTRICT MeshCards,
 {
 	// Note: layout must match GetLumenMeshCardsData in usf
 	const FVector WorldOrigin = MeshCards.LocalToWorld.GetOrigin();
-	OutData[0] = FVector4f(FVector4(MeshCards.WorldToLocalRotation.GetScaledAxis(EAxis::X), WorldOrigin.X));
-	OutData[1] = FVector4f(FVector4(MeshCards.WorldToLocalRotation.GetScaledAxis(EAxis::Y), WorldOrigin.Y));
-	OutData[2] = FVector4f(FVector4(MeshCards.WorldToLocalRotation.GetScaledAxis(EAxis::Z), WorldOrigin.Z));
+	OutData[0] = FVector4f(FVector4(MeshCards.WorldToLocalRotation.GetScaledAxis(EAxis::X), WorldOrigin.X)); // LWC_TODO
+	OutData[1] = FVector4f(FVector4(MeshCards.WorldToLocalRotation.GetScaledAxis(EAxis::Y), WorldOrigin.Y)); // LWC_TODO
+	OutData[2] = FVector4f(FVector4(MeshCards.WorldToLocalRotation.GetScaledAxis(EAxis::Z), WorldOrigin.Z)); // LWC_TODO
 
 	uint32 PackedData[4];
 	PackedData[0] = MeshCards.FirstCardIndex;
@@ -903,7 +903,7 @@ void FLumenSceneData::UpdateMeshCards(const FMatrix& LocalToWorld, int32 MeshCar
 			const uint32 CardIndex = MeshCardsInstance.FirstCardIndex + LocalCardIndex;
 			FLumenCard& Card = Cards[CardIndex];
 
-			Card.SetTransform(FMatrix44f(LocalToWorld), MeshCardsInstance);		// LWC_TODO: Precision loss
+			Card.SetTransform(LocalToWorld, MeshCardsInstance);
 
 			CardIndicesToUpdateInBuffer.Add(CardIndex);
 		}
@@ -991,14 +991,14 @@ void FLumenCard::Initialize(
 	AxisAlignedDirectionIndex = CardBuildData.AxisAlignedDirectionIndex;
 	bHeightfield = InMeshCardsInstance.bHeightfield;
 
-	SetTransform(FMatrix44f(LocalToWorld), InMeshCardsInstance);		// LWC_TODO: Precision loss?
+	SetTransform(LocalToWorld, InMeshCardsInstance);
 
 	CardAspect = WorldOBB.Extent.X / WorldOBB.Extent.Y;
 }
 
-void FLumenCard::SetTransform(const FMatrix44f& LocalToWorld, const FLumenMeshCards& MeshCards)
+void FLumenCard::SetTransform(const FMatrix& LocalToWorld, const FLumenMeshCards& MeshCards)
 {
-	WorldOBB = LocalOBB.Transform(LocalToWorld);
+	WorldOBB = FLumenCardOBBd(LocalOBB).Transform(LocalToWorld);
 
 	MeshCardsOBB.AxisX = FVector4f(MeshCards.WorldToLocalRotation.TransformVector(FVector(WorldOBB.AxisX)));
 	MeshCardsOBB.AxisY = FVector4f(MeshCards.WorldToLocalRotation.TransformVector(FVector(WorldOBB.AxisY)));

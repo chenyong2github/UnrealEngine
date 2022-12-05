@@ -35,96 +35,121 @@ namespace MeshCardRepresentation
 	extern ENGINE_API int32 GetDebugSurfelDirection();
 };
 
-class FLumenCardOBB
+template<typename T>
+class TLumenCardOBB
 {
 public:
-	FVector3f Origin;
-	FVector3f AxisX;
-	FVector3f AxisY;
-	FVector3f AxisZ;
-	FVector3f Extent;
+	UE::Math::TVector<T> Origin;
+	UE::Math::TVector<T> AxisX;
+	UE::Math::TVector<T> AxisY;
+	UE::Math::TVector<T> AxisZ;
+	UE::Math::TVector<T> Extent;
+
+	/** Default constructor (no initialization). */
+	TLumenCardOBB() { }
+
+	/**
+	 * Creates and initializes a new OBB with zeros
+	 *
+	 * Use enum value EForceInit::ForceInit to force OBB initialization.
+	 */
+	explicit TLumenCardOBB(EForceInit)
+	{
+		Reset();
+	}
+
+	// Conversion from other type.
+	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+	explicit TLumenCardOBB(const TLumenCardOBB<FArg>& From)
+	{
+		Origin = UE::Math::TVector<T>(From.Origin);
+		AxisX = UE::Math::TVector<T>(From.AxisX);
+		AxisY = UE::Math::TVector<T>(From.AxisY);
+		AxisZ = UE::Math::TVector<T>(From.AxisZ);
+		Extent = UE::Math::TVector<T>(From.Extent);
+	}
 
 	void Reset()
 	{
-		Origin = FVector3f::ZeroVector;
-		AxisX = FVector3f::ZeroVector;
-		AxisY = FVector3f::ZeroVector;
-		AxisZ = FVector3f::ZeroVector;
-		Extent = FVector3f::ZeroVector;
+		Origin = UE::Math::TVector<T>::ZeroVector;
+		AxisX = UE::Math::TVector<T>::ZeroVector;
+		AxisY = UE::Math::TVector<T>::ZeroVector;
+		AxisZ = UE::Math::TVector<T>::ZeroVector;
+		Extent = UE::Math::TVector<T>::ZeroVector;
 	}
 
-	FVector3f GetDirection() const
+	UE::Math::TVector<T> GetDirection() const
 	{
 		return AxisZ;
 	}
 
-	FMatrix44f GetCardToLocal() const
+	UE::Math::TMatrix<T> GetCardToLocal() const
 	{
-		FMatrix44f CardToLocal;
+		UE::Math::TMatrix<T> CardToLocal;
 		CardToLocal.SetIdentity();
 		CardToLocal.SetAxes(&AxisX, &AxisY, &AxisZ, &Origin);
 		return CardToLocal;
 	}
 
-	inline FVector3f RotateCardToLocal(FVector3f Vector3) const
+	inline UE::Math::TVector<T> RotateCardToLocal(UE::Math::TVector<T> Vector3) const
 	{
 		return Vector3.X * AxisX + Vector3.Y * AxisY + Vector3.Z * AxisZ;
 	}
 
-	inline FVector3f RotateLocalToCard(FVector3f Vector3) const
+	inline UE::Math::TVector<T> RotateLocalToCard(UE::Math::TVector<T> Vector3) const
 	{
-		return FVector3f(Vector3 | AxisX, Vector3 | AxisY, Vector3 | AxisZ);
+		return UE::Math::TVector<T>(Vector3 | AxisX, Vector3 | AxisY, Vector3 | AxisZ);
 	}
 
-	inline FVector3f TransformLocalToCard(FVector3f LocalPosition) const
+	inline UE::Math::TVector<T> TransformLocalToCard(UE::Math::TVector<T> LocalPosition) const
 	{
-		FVector3f Offset = LocalPosition - Origin;
-		return FVector3f(Offset | AxisX, Offset | AxisY, Offset | AxisZ);
+		UE::Math::TVector<T> Offset = LocalPosition - Origin;
+		return UE::Math::TVector<T>(Offset | AxisX, Offset | AxisY, Offset | AxisZ);
 	}
 
-	inline FVector3f TransformCardToLocal(FVector3f CardPosition) const
+	inline UE::Math::TVector<T> TransformCardToLocal(UE::Math::TVector<T> CardPosition) const
 	{
 		return Origin + CardPosition.X * AxisX + CardPosition.Y * AxisY + CardPosition.Z * AxisZ;
 	}
 
-	float ComputeSquaredDistanceToPoint(FVector3f WorldPosition) const
+	T ComputeSquaredDistanceToPoint(UE::Math::TVector<T> WorldPosition) const
 	{
-		FVector3f CardPositon = TransformLocalToCard(WorldPosition);
+		UE::Math::TVector<T> CardPositon = TransformLocalToCard(WorldPosition);
 		return ::ComputeSquaredDistanceFromBoxToPoint(-Extent, Extent, CardPositon);
 	}
 
-	FLumenCardOBB Transform(FMatrix44f LocalToWorld) const
+	TLumenCardOBB<T> Transform(UE::Math::TMatrix<T> LocalToWorld) const
 	{
-		FLumenCardOBB WorldOBB;
+		TLumenCardOBB<T> WorldOBB;
 		WorldOBB.Origin = LocalToWorld.TransformPosition(Origin);
 
-		const FVector3f ScaledXAxis = LocalToWorld.TransformVector(AxisX);
-		const FVector3f ScaledYAxis = LocalToWorld.TransformVector(AxisY);
-		const FVector3f ScaledZAxis = LocalToWorld.TransformVector(AxisZ);
-		const float XAxisLength = ScaledXAxis.Size();
-		const float YAxisLength = ScaledYAxis.Size();
-		const float ZAxisLength = ScaledZAxis.Size();
+		const UE::Math::TVector<T> ScaledXAxis = LocalToWorld.TransformVector(AxisX);
+		const UE::Math::TVector<T> ScaledYAxis = LocalToWorld.TransformVector(AxisY);
+		const UE::Math::TVector<T> ScaledZAxis = LocalToWorld.TransformVector(AxisZ);
+		const T XAxisLength = ScaledXAxis.Size();
+		const T YAxisLength = ScaledYAxis.Size();
+		const T ZAxisLength = ScaledZAxis.Size();
 
 		// #lumen_todo: fix axisX flip cascading into entire card code
 		WorldOBB.AxisY = ScaledYAxis / FMath::Max(YAxisLength, UE_DELTA);
 		WorldOBB.AxisZ = ScaledZAxis / FMath::Max(ZAxisLength, UE_DELTA);
-		WorldOBB.AxisX = FVector3f::CrossProduct(WorldOBB.AxisZ, WorldOBB.AxisY);
-		FVector3f::CreateOrthonormalBasis(WorldOBB.AxisX, WorldOBB.AxisY, WorldOBB.AxisZ);
+		WorldOBB.AxisX = UE::Math::TVector<T>::CrossProduct(WorldOBB.AxisZ, WorldOBB.AxisY);
+		UE::Math::TVector<T>::CreateOrthonormalBasis(WorldOBB.AxisX, WorldOBB.AxisY, WorldOBB.AxisZ);
 
-		WorldOBB.Extent = Extent * FVector3f(XAxisLength, YAxisLength, ZAxisLength);
+		WorldOBB.Extent = Extent * UE::Math::TVector<T>(XAxisLength, YAxisLength, ZAxisLength);
 		WorldOBB.Extent.Z = FMath::Max(WorldOBB.Extent.Z, 1.0f);
 
 		return WorldOBB;
 	}
 
-	FBox GetBox() const
+	UE::Math::TBox<T> GetBox() const
 	{
-		FVector BoxMin(AxisX.GetAbs() * -Extent.X + AxisY.GetAbs() * -Extent.Y + AxisZ.GetAbs() * -Extent.Z + Origin);
-		FVector BoxMax(AxisX.GetAbs() * +Extent.X + AxisY.GetAbs() * +Extent.Y + AxisZ.GetAbs() * +Extent.Z + Origin);
-		return FBox(BoxMin, BoxMax);
+		UE::Math::TVector<T> BoxMin(AxisX.GetAbs() * -Extent.X + AxisY.GetAbs() * -Extent.Y + AxisZ.GetAbs() * -Extent.Z + Origin);
+		UE::Math::TVector<T> BoxMax(AxisX.GetAbs() * +Extent.X + AxisY.GetAbs() * +Extent.Y + AxisZ.GetAbs() * +Extent.Z + Origin);
+		return UE::Math::TBox<T>(BoxMin, BoxMax);
 	}
 
-	friend FArchive& operator<<(FArchive& Ar, FLumenCardOBB& Data)
+	friend FArchive& operator<<(FArchive& Ar, TLumenCardOBB<T>& Data)
 	{
 		Ar << Data.AxisX;
 		Ar << Data.AxisY;
@@ -135,10 +160,13 @@ public:
 	}
 };
 
+using FLumenCardOBBf = TLumenCardOBB<float>;
+using FLumenCardOBBd = TLumenCardOBB<double>;
+
 class FLumenCardBuildData
 {
 public:
-	FLumenCardOBB OBB;
+	FLumenCardOBBf OBB;
 	uint8 AxisAlignedDirectionIndex;
 
 	friend FArchive& operator<<(FArchive& Ar, FLumenCardBuildData& Data)
