@@ -11,23 +11,11 @@ namespace GeometryCollection::Facades
 	/**
 	 * Provides an API to read and manipulate hierarchy in a managed array collection
 	 */
-	class CHAOS_API FTransformFacade
+	class CHAOS_API FCollectionTransformFacade
 	{
-		FManagedArrayCollection& Self;
-
 	public:
-
-		// Group
-		static const FName TransformGroup;
-
-		// Attributes
-		static const FName ParentAttribute;
-		static const FName ChildrenAttribute;
-		static const FName TransformAttribute;
-
-
-		FTransformFacade(FManagedArrayCollection& InCollection);
-		FTransformFacade(const FManagedArrayCollection& InCollection);
+		FCollectionTransformFacade(FManagedArrayCollection& InCollection);
+		FCollectionTransformFacade(const FManagedArrayCollection& InCollection);
 
 		/** Create the facade attributes. */
 		void DefineSchema() {}
@@ -36,29 +24,49 @@ namespace GeometryCollection::Facades
 		bool IsValid() const;
 
 		/** Is the facade defined constant. */
-		bool IsConst() const { return Parent.IsConst(); }
+		bool IsConst() const { return ParentAttribute.IsConst(); }
 
 		/** Get the root index */
-		TSet<int32> GetRootIndices() const;
+		TArray<int32> GetRootIndices() const;
 
 		/**
 		* Return the parent indices from the collection. Null if not initialized.
 		*/
-		const TManagedArray< int32 >* GetParents() const { return Parent.Find(); }
+		const TManagedArray< int32 >* GetParents() const { return ParentAttribute.Find(); }
 
 		/**
 		* Return the child indicesfrom the collection. Null if not initialized.
 		*/
-		const TManagedArray< TSet<int32> >* FindChildren() const { return Children.Find(); }
+		const TManagedArray< TSet<int32> >* FindChildren() const { return ChildrenAttribute.Find(); }
 
 		/**
 		* Return the child indicesfrom the collection. Null if not initialized.
 		*/
-		const TManagedArray< FTransform >* FindTransforms() const { return Transform.Find(); }
+		const TManagedArray< FTransform >* FindTransforms() const { return TransformAttribute.Find(); }
+
+		/**
+		* Return array of transforms for transforming from bone space to collection space
+		* Vertex(inCollectionSpace) = TransformComputed.TransformPosition(Vertex(inBoneSpace));
+		*/
+		TArray<FTransform> ComputeCollectionSpaceTransforms() const;
+
+		/**
+		* Return the child indicesfrom the collection. Null if not initialized.
+		*/
+		FTransform ComputeCollectionSpaceTransform(int32 BoneIdx) const;
+
+		/** Transforms the pivot of a collection */
+		void SetPivot(const FTransform& InTransform);
+
+		/** Transforms collection */
+		void Transform(const FTransform& InTransform);
+
+		/** Transforms selected bones in the collection */
+		void Transform(const FTransform& InTransform, const TArray<int32>& InSelection);
 
 	private:
-		TManagedArrayAccessor<int32>		Parent;
-		TManagedArrayAccessor<TSet<int32>>	Children;
-		TManagedArrayAccessor<FTransform>	Transform;
+		TManagedArrayAccessor<int32>		ParentAttribute;
+		TManagedArrayAccessor<TSet<int32>>	ChildrenAttribute;
+		TManagedArrayAccessor<FTransform>	TransformAttribute;
 	};
 }

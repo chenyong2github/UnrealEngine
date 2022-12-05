@@ -22,5 +22,12 @@
 		}
 	],
 	"Plugins": [
+		{
+			"Name": "PlanarCut",
+			"Enabled": true
+		}
 	]
 }
+
+
+

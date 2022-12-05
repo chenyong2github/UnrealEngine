@@ -33,6 +33,26 @@ void FDataflowSelection::AsArray(TArray<int32>& SelectionArr) const
 	}
 }
 
+TArray<int32> FDataflowSelection::AsArray() const
+{
+	TArray<int32> SelectionArr;
+
+	TBitArray<>::FConstIterator It(SelectionArray);
+	while (It)
+	{
+		int32 Index = It.GetIndex();
+
+		if (SelectionArray[Index])
+		{
+			SelectionArr.Add(Index);
+		}
+
+		++It;
+	}
+
+	return SelectionArr;
+}
+
 void FDataflowSelection::SetFromArray(const TArray<int32>& SelectionArr)
 {
 	SelectionArray.Init(false, SelectionArray.Num());

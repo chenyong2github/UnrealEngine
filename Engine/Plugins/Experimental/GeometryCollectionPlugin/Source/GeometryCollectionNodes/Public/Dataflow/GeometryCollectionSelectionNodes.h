@@ -6,7 +6,8 @@
 #include "Dataflow/DataflowEngine.h"
 #include "GeometryCollection/ManagedArrayCollection.h"
 #include "Dataflow/DataflowSelection.h"
-
+#include "Math/MathFwd.h"
+#include "Math/Sphere.h"
 #include "GeometryCollectionSelectionNodes.generated.h"
 
 
@@ -213,10 +214,10 @@ struct FCollectionTransformSelectionRandomDataflowNode : public FDataflowNode
 public:
 	/** If true, it always generates the same result for the same RandomSeed */
 	UPROPERTY(EditAnywhere, Category = "Random")
-	bool Deterministic = false;
+	bool bDeterministic = false;
 
 	/** Seed for the random generation, only used if Deterministic is on */
-	UPROPERTY(EditAnywhere, Category = "Random", meta = (DataflowInput, EditCondition = "Deterministic"))
+	UPROPERTY(EditAnywhere, Category = "Random", meta = (DataflowInput, EditCondition = "bDeterministic"))
 	float RandomSeed = 0.f;
 
 	/** Bones get selected if RandomValue > RandomThreshold */
@@ -375,10 +376,10 @@ public:
 
 	/** Sets the random generation to deterministic */
 	UPROPERTY(EditAnywhere, Category = "Random")
-	bool Deterministic = false;
+	bool bDeterministic = false;
 
 	/** Seed value for the random generation */
-	UPROPERTY(EditAnywhere, Category = "Random", meta = (DataflowInput, EditCondition = "Deterministic"))
+	UPROPERTY(EditAnywhere, Category = "Random", meta = (DataflowInput, EditCondition = "bDeterministic"))
 	float RandomSeed = 0.f;
 
 	FCollectionTransformSelectionByPercentageDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
@@ -598,6 +599,18 @@ public:
 };
 
 
+UENUM(BlueprintType)
+enum class ERangeSettingEnum : uint8
+{
+	/** Values for selection must be inside of the specified range */
+	Dataflow_RangeSetting_InsideRange UMETA(DisplayName = "Inside Range"),
+	/** Values for selection must be outside of the specified range */
+	Dataflow_RangeSetting_OutsideRange UMETA(DisplayName = "Outside Range"),
+	//~~~
+	//256th entry
+	Dataflow_Max                UMETA(Hidden)
+};
+
 /**
  *
  * Selects pieces based on their size
@@ -621,6 +634,14 @@ public:
 	/** Maximum size for the selection */
 	UPROPERTY(EditAnywhere, Category = "Size", meta = (UIMin = 0.f, UIMax = 1000000000.f))
 	float SizeMax = 1000.f;
+
+	/** Values for the selection has to be inside or outside [Min, Max] range */
+	UPROPERTY(EditAnywhere, Category = "Size")
+	ERangeSettingEnum RangeSetting = ERangeSettingEnum::Dataflow_RangeSetting_InsideRange;
+
+	/** If true then range includes Min and Max values */
+	UPROPERTY(EditAnywhere, Category = "Size")
+	bool bInclusive = true;
 
 	/** Array of the selected bone indicies */
 	UPROPERTY(meta = (DataflowOutput, DisplayName = "TransformSelection"))
@@ -665,6 +686,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Volume", meta = (UIMin = 0.f, UIMax = 1000000000.f))
 	float VolumeMax = 1000.f;
 
+	/** Values for the selection has to be inside or outside [Min, Max] range */
+	UPROPERTY(EditAnywhere, Category = "Volume")
+	ERangeSettingEnum RangeSetting = ERangeSettingEnum::Dataflow_RangeSetting_InsideRange;
+
+	/** If true then range includes Min and Max values */
+	UPROPERTY(EditAnywhere, Category = "Volume")
+	bool bInclusive = true;
+
 	/** Array of the selected bone indicies */
 	UPROPERTY(meta = (DataflowOutput, DisplayName = "TransformSelection"))
 	FDataflowTransformSelection TransformSelection;
@@ -676,6 +705,368 @@ public:
 		RegisterInputConnection(&VolumeMin);
 		RegisterInputConnection(&VolumeMax);
 		RegisterOutputConnection(&TransformSelection);
+		RegisterOutputConnection(&Collection, &Collection);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+
+UENUM(BlueprintType)
+enum class ESelectSubjectTypeEnum : uint8
+{
+	/** InBox must contain the vertices of the bone */
+	Dataflow_SelectSubjectType_Vertices UMETA(DisplayName = "Vertices"),
+	/** InBox must contain the BoundingBox of the bone */
+	Dataflow_SelectSubjectType_BoundingBox UMETA(DisplayName = "BoundingBox"),
+	/** InBox must contain the centroid of the bone */
+	Dataflow_SelectSubjectType_Centroid UMETA(DisplayName = "Centroid"),
+	//~~~
+	//256th entry
+	Dataflow_Max                UMETA(Hidden)
+};
+
+/**
+ *
+ * Selects bones if their Vertices/BoundingBox/Centroid in a box
+ *
+ */
+USTRUCT(meta = (DataflowGeometryCollection))
+struct FCollectionTransformSelectionInBoxDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FCollectionTransformSelectionInBoxDataflowNode, "CollectionTransformSelectInBox", "GeometryCollection|Selection", "")
+
+public:
+	/** GeometryCollection for the selection */
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Collection", DataflowIntrinsic))
+	FManagedArrayCollection Collection;
+
+	/** Box to contain Vertices/BoundingBox/Centroid */
+	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
+	FBox Box;
+
+	/** Transform for the box */
+	UPROPERTY(EditAnywhere, Category = "Select")
+	FTransform Transform;
+
+	/** Subject (Vertices/BoundingBox/Centroid) to check against box */
+	UPROPERTY(EditAnywhere, Category = "Select", DisplayName = "Type to Check in Box")
+	ESelectSubjectTypeEnum Type = ESelectSubjectTypeEnum::Dataflow_SelectSubjectType_Centroid;
+
+	/** If true all the vertices of the piece must be inside of box */
+	UPROPERTY(EditAnywhere, Category = "Select", meta = (EditCondition = "Type == ESelectSubjectTypeEnum::Dataflow_SelectSubjectType_Vertices"))
+	bool bAllVerticesMustContainedInBox = true;
+
+	/** Array of the selected bone indicies */
+	UPROPERTY(meta = (DataflowOutput, DisplayName = "TransformSelection"))
+	FDataflowTransformSelection TransformSelection;
+
+	FCollectionTransformSelectionInBoxDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&Collection);
+		RegisterInputConnection(&Box);
+		RegisterInputConnection(&Transform);
+		RegisterOutputConnection(&TransformSelection);
+		RegisterOutputConnection(&Collection, &Collection);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+
+/**
+ *
+ * Selects bones if their Vertices/BoundingBox/Centroid in a sphere
+ *
+ */
+USTRUCT(meta = (DataflowGeometryCollection))
+struct FCollectionTransformSelectionInSphereDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FCollectionTransformSelectionInSphereDataflowNode, "CollectionTransformSelectInSphere", "GeometryCollection|Selection", "")
+
+public:
+	/** GeometryCollection for the selection */
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Collection", DataflowIntrinsic))
+	FManagedArrayCollection Collection;
+
+	/** Sphere to contain Vertices/BoundingBox/Centroid */
+	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
+	FSphere Sphere;
+
+	/** Transform for the sphere */
+	UPROPERTY(EditAnywhere, Category = "Select")
+	FTransform Transform;
+
+	/** Subject (Vertices/BoundingBox/Centroid) to check against box */
+	UPROPERTY(EditAnywhere, Category = "Select", DisplayName = "Type to Check in Sphere")
+	ESelectSubjectTypeEnum Type = ESelectSubjectTypeEnum::Dataflow_SelectSubjectType_Centroid;
+
+	/** If true all the vertices of the piece must be inside of box */
+	UPROPERTY(EditAnywhere, Category = "Select", meta = (EditCondition = "Type == ESelectSubjectTypeEnum::Dataflow_SelectSubjectType_Vertices"))
+	bool bAllVerticesMustContainedInSphere = true;
+
+	/** Array of the selected bone indicies */
+	UPROPERTY(meta = (DataflowOutput, DisplayName = "TransformSelection"))
+	FDataflowTransformSelection TransformSelection;
+
+	FCollectionTransformSelectionInSphereDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&Collection);
+		RegisterInputConnection(&Sphere);
+		RegisterInputConnection(&Transform);
+		RegisterOutputConnection(&TransformSelection);
+		RegisterOutputConnection(&Collection, &Collection);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+
+/**
+ *
+ * Selects bones by a float attribute
+ *
+ */
+USTRUCT(meta = (DataflowGeometryCollection))
+struct FCollectionTransformSelectionByFloatAttrDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FCollectionTransformSelectionByFloatAttrDataflowNode, "CollectionTransformSelectByFloatAttribute", "GeometryCollection|Selection", "")
+
+public:
+	/** GeometryCollection for the selection */
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Collection", DataflowIntrinsic))
+	FManagedArrayCollection Collection;
+
+	/** Group name for the attr */
+	UPROPERTY(VisibleAnywhere, Category = "Attribute", meta = (DisplayName = "Group"))
+	FString GroupName = FString("Transform");
+
+	/** Attribute name */
+	UPROPERTY(EditAnywhere, Category = "Attribute", meta = (DisplayName = "Attribute"))
+	FString AttrName = FString("");
+
+	/** Minimum value for the selection */
+	UPROPERTY(EditAnywhere, Category = "Attribute", meta = (UIMin = 0.f, UIMax = 1000000000.f))
+	float Min = 0.f;
+
+	/** Maximum value for the selection */
+	UPROPERTY(EditAnywhere, Category = "Attribute", meta = (UIMin = 0.f, UIMax = 1000000000.f))
+	float Max = 1000.f;
+
+	/** Values for the selection has to be inside or outside [Min, Max] range */
+	UPROPERTY(EditAnywhere, Category = "Attribute")
+	ERangeSettingEnum RangeSetting = ERangeSettingEnum::Dataflow_RangeSetting_InsideRange;
+
+	/** If true then range includes Min and Max values */
+	UPROPERTY(EditAnywhere, Category = "Attribute")
+	bool bInclusive = true;
+
+	/** Array of the selected bone indicies */
+	UPROPERTY(meta = (DataflowOutput, DisplayName = "TransformSelection"))
+	FDataflowTransformSelection TransformSelection;
+
+	FCollectionTransformSelectionByFloatAttrDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&Collection);
+		RegisterInputConnection(&Min);
+		RegisterInputConnection(&Max);
+		RegisterOutputConnection(&TransformSelection);
+		RegisterOutputConnection(&Collection, &Collection);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+
+/**
+ *
+ * Selects bones by an int attribute
+ *
+ */
+USTRUCT(meta = (DataflowGeometryCollection))
+struct FCollectionTransformSelectionByIntAttrDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FCollectionTransformSelectionByIntAttrDataflowNode, "CollectionTransformSelectByIntAttribute", "GeometryCollection|Selection", "")
+
+public:
+	/** GeometryCollection for the selection */
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Collection", DataflowIntrinsic))
+	FManagedArrayCollection Collection;
+
+	/** Group name for the attr */
+	UPROPERTY(VisibleAnywhere, Category = "Attribute", meta = (DisplayName = "Group"))
+	FString GroupName = FString("Transform");
+
+	/** Attribute name */
+	UPROPERTY(EditAnywhere, Category = "Attribute", meta = (DisplayName = "Attribute"))
+	FString AttrName = FString("");
+
+	/** Minimum value for the selection */
+	UPROPERTY(EditAnywhere, Category = "Attribute", meta = (UIMin = 0, UIMax = 1000000000))
+	int32 Min = 0;
+
+	/** Maximum value for the selection */
+	UPROPERTY(EditAnywhere, Category = "Attribute", meta = (UIMin = 0, UIMax = 1000000000))
+	int32 Max = 1000;
+
+	/** Values for the selection has to be inside or outside [Min, Max] range */
+	UPROPERTY(EditAnywhere, Category = "Attribute")
+	ERangeSettingEnum RangeSetting = ERangeSettingEnum::Dataflow_RangeSetting_InsideRange;
+
+	/** If true then range includes Min and Max values */
+	UPROPERTY(EditAnywhere, Category = "Attribute")
+	bool bInclusive = true;
+
+	/** Transform selection including the new indicies */
+	UPROPERTY(meta = (DataflowOutput, DisplayName = "TransformSelection"))
+	FDataflowTransformSelection TransformSelection;
+
+	FCollectionTransformSelectionByIntAttrDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&Collection);
+		RegisterInputConnection(&Min);
+		RegisterInputConnection(&Max);
+		RegisterOutputConnection(&TransformSelection);
+		RegisterOutputConnection(&Collection, &Collection);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+
+/**
+ *
+ * Selects specified vertices in the GeometryCollection by using a
+ * space separated list
+ *
+ */
+USTRUCT(meta = (DataflowGeometryCollection))
+struct FCollectionVertexSelectionCustomDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FCollectionVertexSelectionCustomDataflowNode, "CollectionVertexSelectCustom", "GeometryCollection|Selection", "")
+
+public:
+	/** GeometryCollection for the selection */
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Collection", DataflowIntrinsic))
+	FManagedArrayCollection Collection;
+
+	/** Space separated list of vertex indicies to specify the selection */
+	UPROPERTY(EditAnywhere, Category = "Selection")
+	FString VertexIndicies = FString();
+
+	/** Vertex selection including the new indicies */
+	UPROPERTY(meta = (DataflowOutput, DisplayName = "VertexSelection"))
+	FDataflowVertexSelection VertexSelection;
+
+	FCollectionVertexSelectionCustomDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&Collection);
+		RegisterInputConnection(&VertexIndicies);
+		RegisterOutputConnection(&VertexSelection);
+		RegisterOutputConnection(&Collection, &Collection);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+
+/**
+ *
+ * Selects specified faces in the GeometryCollection by using a
+ * space separated list
+ *
+ */
+USTRUCT(meta = (DataflowGeometryCollection))
+struct FCollectionFaceSelectionCustomDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FCollectionFaceSelectionCustomDataflowNode, "CollectionFaceSelectCustom", "GeometryCollection|Selection", "")
+
+public:
+	/** GeometryCollection for the selection */
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Collection", DataflowIntrinsic))
+	FManagedArrayCollection Collection;
+
+	/** Space separated list of face indicies to specify the selection */
+	UPROPERTY(EditAnywhere, Category = "Selection")
+	FString FaceIndicies = FString();
+
+	/** Face selection including the new indicies */
+	UPROPERTY(meta = (DataflowOutput, DisplayName = "FaceSelection"))
+	FDataflowFaceSelection FaceSelection;
+
+	FCollectionFaceSelectionCustomDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&Collection);
+		RegisterInputConnection(&FaceIndicies);
+		RegisterOutputConnection(&FaceSelection);
+		RegisterOutputConnection(&Collection, &Collection);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+
+/**
+ *
+ * Converts Vertex/Face/Transform selection into Vertex/Face/Transform selection
+ *
+ */
+USTRUCT(meta = (DataflowGeometryCollection))
+struct FCollectionSelectionConvertDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FCollectionSelectionConvertDataflowNode, "CollectionSelectionConvert", "GeometryCollection|Selection", "")
+
+public:
+	/** GeometryCollection for the selection */
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Collection", DataflowIntrinsic))
+	FManagedArrayCollection Collection;
+
+	/** Transform selection including the new indicies */
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "TransformSelection", DisplayName = "TransformSelection"))
+	FDataflowTransformSelection TransformSelection;
+
+	/** Face selection including the new indicies */
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "FaceSelection", DisplayName = "FaceSelection"))
+	FDataflowFaceSelection FaceSelection;
+
+	/** Vertex selection including the new indicies */
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "VertexSelection", DisplayName = "VertexSelection"))
+	FDataflowVertexSelection VertexSelection;
+	
+	/** If true then for converting vertex/face selection to transform selection all vertex/face must be selected for selecting the associated transform */
+	UPROPERTY(EditAnywhere, Category = "Selection")
+	bool bAllElementsMustBeSelected = false;
+
+	FCollectionSelectionConvertDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&Collection);
+		RegisterInputConnection(&VertexSelection);
+		RegisterInputConnection(&FaceSelection);
+		RegisterInputConnection(&TransformSelection);
+		RegisterOutputConnection(&TransformSelection, &TransformSelection);
+		RegisterOutputConnection(&FaceSelection, &FaceSelection);
+		RegisterOutputConnection(&VertexSelection, &VertexSelection);
 		RegisterOutputConnection(&Collection, &Collection);
 	}
 

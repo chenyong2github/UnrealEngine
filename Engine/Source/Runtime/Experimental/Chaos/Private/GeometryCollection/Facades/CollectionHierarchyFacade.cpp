@@ -50,6 +50,11 @@ namespace Chaos::Facades
 		return INDEX_NONE;
 	}
 
+	TArray<int32> FCollectionHierarchyFacade::GetRootIndices() const
+	{
+		return GetRootIndices(ParentAttribute);
+	}
+
 	void FCollectionHierarchyFacade::GenerateLevelAttribute()
 	{
 		check(!IsConst());
@@ -103,9 +108,9 @@ namespace Chaos::Facades
 		}
 	}
 
-	TSet<int32> FCollectionHierarchyFacade::GetRootIndices(const TManagedArrayAccessor<int32>& ParentAttribute)
+	TArray<int32> FCollectionHierarchyFacade::GetRootIndices(const TManagedArrayAccessor<int32>& ParentAttribute)
 	{
-		TSet<int32> Roots;
+		TArray<int32> Roots;
 		if (ParentAttribute.IsValid())
 		{
 			const TManagedArray<int32>& Parents = ParentAttribute.Get();
@@ -117,6 +122,7 @@ namespace Chaos::Facades
 				}
 			}
 		}
+
 		return Roots;
 	}
 }

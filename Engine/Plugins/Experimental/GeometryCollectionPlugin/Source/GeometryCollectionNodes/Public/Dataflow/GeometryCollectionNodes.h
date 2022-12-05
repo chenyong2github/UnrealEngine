@@ -8,6 +8,7 @@
 #include "DynamicMesh/DynamicMesh3.h"
 #include "UDynamicMesh.h"
 #include "Dataflow/DataflowSelection.h"
+#include "Math/MathFwd.h"
 
 #include "GeometryCollectionNodes.generated.h"
 
@@ -24,7 +25,7 @@ USTRUCT(meta = (DataflowGeometryCollection))
 struct FGetCollectionAssetDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FGetCollectionAssetDataflowNode, "GetCollectionAsset", "GeometryCollection", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FGetCollectionAssetDataflowNode, "GetCollectionAsset", "GeometryCollection|Asset", "")
 
 public:
 	typedef FManagedArrayCollection DataType;
@@ -487,10 +488,44 @@ public:
  *
  */
 USTRUCT()
+struct FMakeSphereDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FMakeSphereDataflowNode, "MakeSphere", "Generators|Sphere", "")
+
+public:
+	UPROPERTY(EditAnywhere, Category = "Sphere", meta = (DataflowInput));
+	FVector Center = FVector(0.f);
+
+	UPROPERTY(EditAnywhere, Category = "Sphere", meta = (DataflowInput));
+	float Radius = 0.f;
+
+	UPROPERTY(meta = (DataflowOutput));
+	FSphere Sphere;
+
+	FMakeSphereDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&Center);
+		RegisterInputConnection(&Radius);
+		RegisterOutputConnection(&Sphere);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+
+/**
+ *
+ * Description for this node
+ *
+ */
+USTRUCT()
 struct FMakeLiteralFloatDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-		DATAFLOW_NODE_DEFINE_INTERNAL(FMakeLiteralFloatDataflowNode, "MakeLiteralFloat", "Math|Float", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FMakeLiteralFloatDataflowNode, "MakeLiteralFloat", "Math|Float", "")
 
 public:
 	UPROPERTY(EditAnywhere, Category = "Float");
@@ -981,7 +1016,8 @@ USTRUCT(meta = (DataflowGeometryCollection))
 struct FExplodedViewDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FExplodedViewDataflowNode, "ExplodedView", "Fracture|Utilities", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FExplodedViewDataflowNode, "ExplodedView", "GeometryCollection|Fracture|Utilities", "")
+	DATAFLOW_NODE_RENDER_TYPE(FGeometryCollection::StaticType(), "Collection")
 
 public:
 	UPROPERTY(meta = (DataflowInput, DataflowOutput))
@@ -1291,10 +1327,10 @@ public:
  *
  */
 USTRUCT(meta = (DataflowGeometryCollection))
-struct FGetBoundingBoxesDataflowNode : public FDataflowNode
+struct FGetBoundingBoxesFromCollectionDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FGetBoundingBoxesDataflowNode, "GetBoundingBoxes", "GeometryCollection", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FGetBoundingBoxesFromCollectionDataflowNode, "GetBoundingBoxesFromCollection", "GeometryCollection|Utilities", "")
 
 public:
 	/** Input Collection */
@@ -1309,7 +1345,7 @@ public:
 	UPROPERTY(meta = (DataflowOutput))
 	TArray<FBox> BoundingBoxes;
 
-	FGetBoundingBoxesDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+	FGetBoundingBoxesFromCollectionDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
 	{
 		RegisterInputConnection(&Collection);
@@ -1328,10 +1364,10 @@ public:
  *
  */
 USTRUCT(meta = (DataflowGeometryCollection))
-struct FGetCentroidsDataflowNode : public FDataflowNode
+struct FGetCentroidsFromCollectionDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FGetCentroidsDataflowNode, "GetCentroids", "GeometryCollection", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FGetCentroidsFromCollectionDataflowNode, "GetCentroidsFromCollection", "GeometryCollection|Utilities", "")
 
 public:
 	/** Input Collection */
@@ -1346,7 +1382,7 @@ public:
 	UPROPERTY(meta = (DataflowOutput))
 	TArray<FVector> Centroids = TArray<FVector>();
 
-	FGetCentroidsDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+	FGetCentroidsFromCollectionDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
 	{
 		RegisterInputConnection(&Collection);
@@ -1551,7 +1587,7 @@ USTRUCT(meta = (DataflowGeometryCollection))
 struct FRemoveOnBreakDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FRemoveOnBreakDataflowNode, "RemoveOnBreak", "GeometryCollection", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FRemoveOnBreakDataflowNode, "RemoveOnBreak", "GeometryCollection|Utilities", "")
 
 public:
 	/** Collection to set theremoval data on */
@@ -1614,7 +1650,7 @@ USTRUCT(meta = (DataflowGeometryCollection))
 struct FSetAnchorStateDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FSetAnchorStateDataflowNode, "SetAnchorState", "GeometryCollection", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FSetAnchorStateDataflowNode, "SetAnchorState", "GeometryCollection|Utilities", "")
 
 public:
 	/** What anchor state to set on selected bones */
@@ -1667,7 +1703,7 @@ USTRUCT(meta = (DataflowGeometryCollection))
 struct FProximityDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FProximityDataflowNode, "Proximity", "GeometryCollection", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FProximityDataflowNode, "Proximity", "GeometryCollection|Utilities", "")
 
 public:
 	/** Which method to use to decide whether a given piece of geometry is in proximity with another */
@@ -1690,6 +1726,289 @@ public:
 		: FDataflowNode(InParam, InGuid)
 	{
 		RegisterInputConnection(&Collection);
+		RegisterOutputConnection(&Collection, &Collection);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+
+/**
+ *
+ * Sets pivot for Collection
+ *
+ */
+USTRUCT(meta = (DataflowGeometryCollection))
+struct FCollectionSetPivotDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FCollectionSetPivotDataflowNode, "SetPivot", "GeometryCollection|Utilities", "")
+
+public:
+	/** Collection for the pivot change */
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Collection", DataflowIntrinsic))
+	FManagedArrayCollection Collection;
+
+	/** Pivot transform */
+	UPROPERTY(EditAnywhere, Category = "Pivot", meta = (DataflowInput))
+	FTransform Transform;
+
+	FCollectionSetPivotDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&Collection);
+		RegisterInputConnection(&Transform);
+		RegisterOutputConnection(&Collection, &Collection);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+
+UENUM(BlueprintType)
+enum class EStandardGroupNameEnum : uint8
+{
+	/** Transform group */
+	Dataflow_EStandardGroupNameEnum_Transform UMETA(DisplayName = "Transform"),
+	/** Geometry group */
+	Dataflow_EStandardGroupNameEnum_Geometry UMETA(DisplayName = "Geometry"),
+	/** Faces group */
+	Dataflow_EStandardGroupNameEnum_Faces UMETA(DisplayName = "Faces"),
+	/** Vertices group */
+	Dataflow_EStandardGroupNameEnum_Vertices UMETA(DisplayName = "Vertices"),
+	/** Material group */
+	Dataflow_EStandardGroupNameEnum_Material UMETA(DisplayName = "Material"),
+	/** Breaking group */
+	Dataflow_EStandardGroupNameEnum_Breaking UMETA(DisplayName = "Breaking"),
+	/** User specified group */
+	Dataflow_EStandardGroupNameEnum_Custom UMETA(DisplayName = "Custom"),
+	//~~~
+	//256th entry
+	Dataflow_Max                UMETA(Hidden)
+};
+
+UENUM(BlueprintType)
+enum class ECustomAttributeTypeEnum : uint8
+{
+	/** Int custom attribute type */
+	Dataflow_CustomAttributeType_Int UMETA(DisplayName = "Int"),
+	/** Float custom attribute type */
+	Dataflow_CustomAttributeType_Float UMETA(DisplayName = "Float"),
+	/** Bool custom attribute type */
+	Dataflow_CustomAttributeType_Bool UMETA(DisplayName = "Bool"),
+	/** Vector custom attribute type */
+	Dataflow_CustomAttributeType_Vector UMETA(DisplayName = "Vector"),
+	//~~~
+	//256th entry
+	Dataflow_Max                UMETA(Hidden)
+};
+
+/**
+ *
+ * Adds custom attribute to Collection
+ *
+ */
+USTRUCT(meta = (DataflowGeometryCollection))
+struct FAddCustomCollectionAttributeDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FAddCustomCollectionAttributeDataflowNode, "AddCustomCollectionAttribute", "GeometryCollection|Utilities", "")
+
+public:
+	/** Collection for the custom attribute */
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Collection", DataflowIntrinsic))
+	FManagedArrayCollection Collection;
+
+	/** Standard group names */
+	UPROPERTY(EditAnywhere, Category = "Attribute", meta = (DisplayName = "Group"))
+	EStandardGroupNameEnum GroupName = EStandardGroupNameEnum::Dataflow_EStandardGroupNameEnum_Transform;
+
+	/** User specified group name */
+	UPROPERTY(EditAnywhere, Category = "Attribute", meta = (DisplayName = "Custom Group", EditCondition = "GroupName == EStandardGroupNameEnum::Dataflow_EStandardGroupNameEnum_Custom"))
+	FString CustomGroupName = FString("");
+
+	/** Attribute name */
+	UPROPERTY(EditAnywhere, Category = "Attribute", meta = (DisplayName = "Attribute"))
+	FString AttrName = FString("");
+
+	/** Attribute type */
+	UPROPERTY(EditAnywhere, Category = "Attribute", meta = (DisplayName = "Attribute Type"));
+	ECustomAttributeTypeEnum CustomAttributeType = ECustomAttributeTypeEnum::Dataflow_CustomAttributeType_Float;
+
+	/** Number of elements for the attribute */
+	UPROPERTY(EditAnywhere, Category = "Attribute", meta = (DisplayName = "Number of Elements"));
+	int32 NumElements = 0;
+
+	FAddCustomCollectionAttributeDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&Collection);
+		RegisterInputConnection(&NumElements);
+		RegisterOutputConnection(&Collection, &Collection);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+
+/**
+ *
+ * Returns number of elements in a group in a Collection
+ *
+ */
+USTRUCT(meta = (DataflowGeometryCollection))
+struct FGetNumElementsInCollectionGroupDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FGetNumElementsInCollectionGroupDataflowNode, "GetNumElementsInCollectionGroup", "GeometryCollection|Utilities", "")
+
+public:
+	/** Collection for the custom attribute */
+	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
+	FManagedArrayCollection Collection;
+
+	/** Standard group names */
+	UPROPERTY(EditAnywhere, Category = "Attribute", meta = (DisplayName = "Group"))
+	EStandardGroupNameEnum GroupName = EStandardGroupNameEnum::Dataflow_EStandardGroupNameEnum_Transform;
+
+	/** User specified group name */
+	UPROPERTY(EditAnywhere, Category = "Attribute", meta = (DisplayName = "Custom Group", EditCondition = "GroupName == EStandardGroupNameEnum::Dataflow_EStandardGroupNameEnum_Custom"))
+	FString CustomGroupName = FString("");
+
+	/** Number of elements for the attribute */
+	UPROPERTY(meta = (DataflowOutput));
+	int32 NumElements = 0;
+
+	FGetNumElementsInCollectionGroupDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&Collection);
+		RegisterOutputConnection(&NumElements);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+
+/**
+ *
+ * Get attribute data from a Collection
+ *
+ */
+USTRUCT(meta = (DataflowGeometryCollection))
+struct FGetCollectionAttributeDataTypedDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FGetCollectionAttributeDataTypedDataflowNode, "GetCollectionAttributeDataTyped", "GeometryCollection|Utilities", "")
+
+public:
+	/** Collection for the custom attribute */
+	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
+	FManagedArrayCollection Collection;
+
+	/** Standard group names */
+	UPROPERTY(EditAnywhere, Category = "Attribute", meta = (DisplayName = "Group"))
+	EStandardGroupNameEnum GroupName = EStandardGroupNameEnum::Dataflow_EStandardGroupNameEnum_Transform;
+
+	/** User specified group name */
+	UPROPERTY(EditAnywhere, Category = "Attribute", meta = (DisplayName = "Custom Group", EditCondition = "GroupName == EStandardGroupNameEnum::Dataflow_EStandardGroupNameEnum_Custom"))
+	FString CustomGroupName = FString("");
+
+	/** Attribute name */
+	UPROPERTY(EditAnywhere, Category = "Attribute", meta = (DisplayName = "Attribute"))
+	FString AttrName = FString("");
+
+	/** Bool type attribute data */
+	UPROPERTY(meta = (DataflowOutput));
+	TArray<bool> BoolAttributeData;
+
+	/** Float type attribute data */
+	UPROPERTY(meta = (DataflowOutput));
+	TArray<float> FloatAttributeData;
+
+	/** Int type attribute data */
+	UPROPERTY(meta = (DataflowOutput));
+	TArray<int32> IntAttributeData;
+
+	/** Vector type attribute data */
+	UPROPERTY(meta = (DataflowOutput));
+	TArray<FVector> VectorAttributeData;
+
+	FGetCollectionAttributeDataTypedDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&Collection);
+		RegisterOutputConnection(&BoolAttributeData);
+		RegisterOutputConnection(&FloatAttributeData);
+		RegisterOutputConnection(&IntAttributeData);
+		RegisterOutputConnection(&VectorAttributeData);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+
+/**
+ *
+ * Set attribute data in a Collection
+ *
+ */
+USTRUCT(meta = (DataflowGeometryCollection))
+struct FSetCollectionAttributeDataTypedDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FSetCollectionAttributeDataTypedDataflowNode, "SetCollectionAttributeDataTyped", "GeometryCollection|Utilities", "")
+
+public:
+	/** Collection for the custom attribute */
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Collection", DataflowIntrinsic))
+	FManagedArrayCollection Collection;
+
+	/** Standard group names */
+	UPROPERTY(EditAnywhere, Category = "Attribute", meta = (DisplayName = "Group"))
+	EStandardGroupNameEnum GroupName = EStandardGroupNameEnum::Dataflow_EStandardGroupNameEnum_Transform;
+
+	/** User specified group name */
+	UPROPERTY(EditAnywhere, Category = "Attribute", meta = (DisplayName = "Custom Group", EditCondition = "GroupName == EStandardGroupNameEnum::Dataflow_EStandardGroupNameEnum_Custom"))
+	FString CustomGroupName = FString("");
+
+	/** Attribute name */
+	UPROPERTY(EditAnywhere, Category = "Attribute", meta = (DisplayName = "Attribute"))
+	FString AttrName = FString("");
+
+	/** Bool type attribute data */
+	UPROPERTY(meta = (DataflowInput));
+	TArray<bool> BoolAttributeData;
+
+	/** Float type attribute data */
+	UPROPERTY(meta = (DataflowInput));
+	TArray<float> FloatAttributeData;
+
+	/** Int type attribute data */
+	UPROPERTY(meta = (DataflowInput));
+	TArray<int32> IntAttributeData;
+
+	/** Vector type attribute data */
+	UPROPERTY(meta = (DataflowInput));
+	TArray<FVector> VectorAttributeData;
+
+	/** If yes then create attribute if it doesn't exist */
+//	UPROPERTY(EditAnywhere, Category = "Attribute", meta = (DisplayName = "Attribute"))
+//	FString AttrName = FString("");
+
+	FSetCollectionAttributeDataTypedDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&Collection);
+		RegisterInputConnection(&BoolAttributeData);
+		RegisterInputConnection(&FloatAttributeData);
+		RegisterInputConnection(&IntAttributeData);
+		RegisterInputConnection(&VectorAttributeData);
 		RegisterOutputConnection(&Collection, &Collection);
 	}
 

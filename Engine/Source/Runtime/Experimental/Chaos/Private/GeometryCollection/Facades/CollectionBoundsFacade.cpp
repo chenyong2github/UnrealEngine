@@ -7,12 +7,15 @@
 #include "GeometryCollection/Facades/CollectionBoundsFacade.h"
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/Facades/CollectionHierarchyFacade.h"
+#include "GeometryCollection/Facades/CollectionTransformFacade.h"
 
 namespace GeometryCollection::Facades
 {
 
 	FBoundsFacade::FBoundsFacade(FManagedArrayCollection& InCollection)
-		: BoundingBoxAttribute(InCollection,"BoundingBox", FGeometryCollection::GeometryGroup)
+		: ConstCollection(InCollection)
+		, Collection(&InCollection)
+		, BoundingBoxAttribute(InCollection,"BoundingBox", FGeometryCollection::GeometryGroup)
 		, VertexAttribute(InCollection,"Vertex", FGeometryCollection::VerticesGroup, FGeometryCollection::VerticesGroup)
 		, BoneMapAttribute(InCollection,"BoneMap", FGeometryCollection::VerticesGroup)
 		, TransformToGeometryIndexAttribute(InCollection,"TransformToGeometryIndex", FTransformCollection::TransformGroup)
@@ -20,7 +23,9 @@ namespace GeometryCollection::Facades
 	{}
 
 	FBoundsFacade::FBoundsFacade(const FManagedArrayCollection& InCollection)
-		: BoundingBoxAttribute(InCollection, "BoundingBox", FGeometryCollection::GeometryGroup)
+		: ConstCollection(InCollection)
+		, Collection(nullptr)
+		, BoundingBoxAttribute(InCollection, "BoundingBox", FGeometryCollection::GeometryGroup)
 		, VertexAttribute(InCollection, "Vertex", FGeometryCollection::VerticesGroup, FGeometryCollection::VerticesGroup)
 		, BoneMapAttribute(InCollection, "BoneMap", FGeometryCollection::VerticesGroup)
 		, TransformToGeometryIndexAttribute(InCollection, "TransformToGeometryIndex", FTransformCollection::TransformGroup)
@@ -80,22 +85,89 @@ namespace GeometryCollection::Facades
 		}
 	}
 
-	FBox FBoundsFacade::GetBoundingBox()
+	TArray<FVector> FBoundsFacade::GetCentroids() const
 	{
-		const TSet<int32>& RootIndices = Chaos::Facades::FCollectionHierarchyFacade::GetRootIndices(ParentAttribute);
+		TArray<FVector> Centroids;
 
-		const TManagedArray<FBox>& BoundingBoxArr = BoundingBoxAttribute.Get();
-
-		FBox BoundingBox;
-		BoundingBox.Init();
-
-		for (auto& Idx : RootIndices)
+		if (IsValid())
 		{
-			BoundingBox += BoundingBoxArr[Idx];
+			const TManagedArray<FBox>& BoundingBoxes = BoundingBoxAttribute.Get();
+
+			for (int32 Idx = 0; Idx < BoundingBoxes.Num(); ++Idx)
+			{
+				Centroids.Add(BoundingBoxes[Idx].GetCenter());
+			}
+		}
+		
+		return Centroids;
+	}
+
+	FBox FBoundsFacade::GetBoundingBox() const
+	{
+		FBox BoundingBox;
+
+		if (IsValid())
+		{
+			const TArray<int32>& RootIndices = Chaos::Facades::FCollectionHierarchyFacade::GetRootIndices(ParentAttribute);
+
+			const TManagedArray<FBox>& BoundingBoxArr = BoundingBoxAttribute.Get();
+
+			BoundingBox.Init();
+
+			for (int32 Idx : RootIndices)
+			{
+				BoundingBox += BoundingBoxArr[Idx];
+			}
 		}
 
 		return BoundingBox;
 	}
+
+	FBox FBoundsFacade::GetBoundingBoxInCollectionSpace() const
+	{
+		FBox BoundingBox;
+
+		if (IsValid())
+		{
+			const TArray<int32>& RootIndices = Chaos::Facades::FCollectionHierarchyFacade::GetRootIndices(ParentAttribute);
+
+			const TManagedArray<FBox>& BoundingBoxArr = BoundingBoxAttribute.Get();
+
+			GeometryCollection::Facades::FCollectionTransformFacade TransformFacade(ConstCollection);
+
+			BoundingBox.Init();
+
+			for (int32 Idx : RootIndices)
+			{
+				const FTransform CollectionSpaceTransform = TransformFacade.ComputeCollectionSpaceTransform(Idx);
+				const FBox BoundingBoxInCollectionSpace = BoundingBoxArr[Idx].TransformBy(CollectionSpaceTransform);
+
+				BoundingBox += BoundingBoxInCollectionSpace;
+			}
+		}
+
+		return BoundingBox;
+	}
+
+	TArray<FVector> FBoundsFacade::GetBoundingBoxVertexPositions(const FBox& InBox)
+	{
+		FVector Min = InBox.Min;
+		FVector Max = InBox.Max;
+		FVector Extent(Max.X - Min.X, Max.Y - Min.Y, Max.Z - Min.Z);
+
+		TArray<FVector> Vertices;
+		Vertices.Add(Min);
+		Vertices.Add({ Min.X + Extent.X, Min.Y, Min.Z });
+		Vertices.Add({ Min.X + Extent.X, Min.Y + Extent.Y, Min.Z });
+		Vertices.Add({ Min.X, Min.Y + Extent.Y, Min.Z });
+		Vertices.Add({ Min.X, Min.Y, Min.Z + Extent.Z });
+		Vertices.Add({ Min.X + Extent.X, Min.Y, Min.Z + Extent.Z });
+		Vertices.Add(Max);
+		Vertices.Add({ Min.X, Min.Y + Extent.Y, Min.Z + Extent.Z });
+
+		return Vertices;
+	}
+
 }; // GeometryCollection::Facades
 
 

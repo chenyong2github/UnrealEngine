@@ -18,13 +18,16 @@ struct DATAFLOWCORE_API FDataflowSelection
 	void SetSelected(int32 Idx) { SelectionArray[Idx] = true; }
 	void SetNotSelected(int32 Idx) { SelectionArray[Idx] = false; }
 	void AsArray(TArray<int32>& SelectionArr) const;
+	TArray<int32> AsArray() const;
 	void SetFromArray(const TArray<int32>& SelectionArr);
 	void AND(const FDataflowSelection& Other, FDataflowSelection& Result) const;
 	void OR(const FDataflowSelection& Other, FDataflowSelection& Result) const;
 	void XOR(const FDataflowSelection& Other, FDataflowSelection& Result) const;
 	void Invert() { SelectionArray.BitwiseNOT(); }
 	void SetWithMask(const bool Value, const FDataflowSelection& Mask);
+
 private:
+
 	TBitArray<> SelectionArray;
 };
 
@@ -33,3 +36,18 @@ struct DATAFLOWCORE_API FDataflowTransformSelection : public FDataflowSelection
 {
 	GENERATED_USTRUCT_BODY()
 };
+
+
+USTRUCT()
+struct DATAFLOWCORE_API FDataflowVertexSelection : public FDataflowSelection
+{
+	GENERATED_USTRUCT_BODY()
+};
+
+
+USTRUCT()
+struct DATAFLOWCORE_API FDataflowFaceSelection : public FDataflowSelection
+{
+	GENERATED_USTRUCT_BODY()
+};
+

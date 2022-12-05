@@ -44,13 +44,25 @@ namespace GeometryCollection::Facades
 		/** BoundingBox access */
 		const TManagedArray< FBox >& GetBoundingBoxes() const { return BoundingBoxAttribute.Get(); }
 
+		/** Centroids (Centers of BoundingBoxes) access */
+		TArray<FVector> GetCentroids() const;
+
 		/** BoundingBox for the whole collection */
-		FBox GetBoundingBox();
+		FBox GetBoundingBox() const;
+
+		/** BoundingBox for the whole collection in Collection space */
+		FBox GetBoundingBoxInCollectionSpace() const;
+
+		/** Returns the positions of the vertices of an FBox */
+		static TArray<FVector> GetBoundingBoxVertexPositions(const FBox& InBox);
 
 		/** TransformToGeometryIndex Access */
 		const TManagedArray< int32 >& GetTransformToGeometryIndex() const { return TransformToGeometryIndexAttribute.Get(); }
 
-private:
+	private:
+		const FManagedArrayCollection& ConstCollection;
+		FManagedArrayCollection* Collection = nullptr;
+
 		TManagedArrayAccessor<FBox>			BoundingBoxAttribute;
 		TManagedArrayAccessor<FVector3f>	VertexAttribute;
 		TManagedArrayAccessor<int32>		BoneMapAttribute;

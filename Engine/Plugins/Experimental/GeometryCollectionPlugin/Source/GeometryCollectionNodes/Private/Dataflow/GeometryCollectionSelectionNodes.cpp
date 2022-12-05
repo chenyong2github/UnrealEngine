@@ -27,6 +27,7 @@
 #include "GeometryCollection/GeometryCollectionProximityUtility.h"
 #include "FractureEngineClustering.h"
 #include "FractureEngineSelection.h"
+#include "GeometryCollection/Facades/CollectionTransformSelectionFacade.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCollectionSelectionNodes)
 
@@ -55,6 +56,13 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCollectionTransformSelectionClusterDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCollectionTransformSelectionBySizeDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCollectionTransformSelectionByVolumeDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCollectionTransformSelectionInBoxDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCollectionTransformSelectionInSphereDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCollectionTransformSelectionByFloatAttrDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCollectionTransformSelectionByIntAttrDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCollectionVertexSelectionCustomDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCollectionFaceSelectionCustomDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCollectionSelectionConvertDataflowNode);
 
 		// GeometryCollection|Selection
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY_NODE_COLORS_BY_CATEGORY("GeometryCollection|Selection", FLinearColor(1.f, 1.f, 0.05f), CDefaultNodeBodyTintColor);
@@ -68,10 +76,12 @@ void FCollectionTransformSelectionAllDataflowNode::Evaluate(Dataflow::FContext& 
 	{
 		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 
-		int32 NumTransforms = InCollection.NumElements(FGeometryCollection::TransformGroup);
+		GeometryCollection::Facades::FCollectionTransformSelectionFacade TransformSelectionFacade(InCollection);
+		const TArray<int32>& SelectionArr = TransformSelectionFacade.SelectAll();
 
 		FDataflowTransformSelection NewTransformSelection;
-		NewTransformSelection.Initialize(NumTransforms, true);
+		NewTransformSelection.Initialize(InCollection.NumElements(FGeometryCollection::TransformGroup), false);
+		NewTransformSelection.SetFromArray(SelectionArr);
 
 		SetValue<FDataflowTransformSelection>(Context, NewTransformSelection, &TransformSelection);
 	}
@@ -263,10 +273,12 @@ void FCollectionTransformSelectionNoneDataflowNode::Evaluate(Dataflow::FContext&
 	{
 		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 
-		int32 NumTransforms = InCollection.NumElements(FGeometryCollection::TransformGroup);
+		GeometryCollection::Facades::FCollectionTransformSelectionFacade TransformSelectionFacade(InCollection);
+		const TArray<int32>& SelectionArr = TransformSelectionFacade.SelectNone();
 
 		FDataflowTransformSelection NewTransformSelection;
-		NewTransformSelection.Initialize(NumTransforms, false);
+		NewTransformSelection.Initialize(InCollection.NumElements(FGeometryCollection::TransformGroup), false);
+		NewTransformSelection.SetFromArray(SelectionArr);
 
 		SetValue<FDataflowTransformSelection>(Context, NewTransformSelection, &TransformSelection);
 	}
@@ -297,37 +309,15 @@ void FCollectionTransformSelectionRandomDataflowNode::Evaluate(Dataflow::FContex
 	{
 		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 
-		int32 NumTransforms = InCollection.NumElements(FGeometryCollection::TransformGroup);
-
-		FDataflowTransformSelection NewTransformSelection;
-		NewTransformSelection.Initialize(NumTransforms, false);
-
 		float RandomSeedVal = GetValue<float>(Context, &RandomSeed);
 		float RandomThresholdVal = GetValue<float>(Context, &RandomThreshold);
 
-		FRandomStream Stream(RandomSeedVal);
+		GeometryCollection::Facades::FCollectionTransformSelectionFacade TransformSelectionFacade(InCollection);
+		const TArray<int32>& SelectionArr = TransformSelectionFacade.SelectRandom(bDeterministic, RandomSeedVal, RandomThresholdVal);
 
-		for (int32 Idx = 0; Idx < NumTransforms; ++Idx)
-		{
-			if (Deterministic)
-			{
-				float RandomVal = Stream.FRandRange(0.f, 1.f);
-
-				if (RandomVal > RandomThresholdVal)
-				{
-					NewTransformSelection.SetSelected(Idx);
-				}
-			}
-			else
-			{
-				float RandomVal = FMath::FRandRange(0.f, 1.f);
-
-				if (RandomVal > RandomThresholdVal)
-				{
-					NewTransformSelection.SetSelected(Idx);
-				}
-			}
-		}
+		FDataflowTransformSelection NewTransformSelection;
+		NewTransformSelection.Initialize(InCollection.NumElements(FGeometryCollection::TransformGroup), false);
+		NewTransformSelection.SetFromArray(SelectionArr);
 
 		SetValue<FDataflowTransformSelection>(Context, NewTransformSelection, &TransformSelection);
 	}
@@ -345,24 +335,14 @@ void FCollectionTransformSelectionRootDataflowNode::Evaluate(Dataflow::FContext&
 	{
 		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 
-		if (InCollection.HasGroup(FGeometryCollection::TransformGroup) &&
-			InCollection.HasAttribute("Parent", FGeometryCollection::TransformGroup))
-		{
-			TArray<int32> RootBones;
-			FFractureEngineSelection::GetRootBones(InCollection, RootBones);
+		GeometryCollection::Facades::FCollectionTransformSelectionFacade TransformSelectionFacade(InCollection);
+		const TArray<int32>& SelectionArr = TransformSelectionFacade.SelectRootBones();
 
-			int32 NumTransforms = InCollection.NumElements(FGeometryCollection::TransformGroup);
+		FDataflowTransformSelection NewTransformSelection;
+		NewTransformSelection.Initialize(InCollection.NumElements(FGeometryCollection::TransformGroup), false);
+		NewTransformSelection.SetFromArray(SelectionArr);
 
-			FDataflowTransformSelection NewTransformSelection;
-			NewTransformSelection.Initialize(NumTransforms, false);
-			NewTransformSelection.SetFromArray(RootBones);
-
-			SetValue<FDataflowTransformSelection>(Context, NewTransformSelection, &TransformSelection);
-		}
-		else
-		{
-			SetValue<FDataflowTransformSelection>(Context, FDataflowTransformSelection(), &TransformSelection);
-		}
+		SetValue<FDataflowTransformSelection>(Context, NewTransformSelection, &TransformSelection);
 	}
 	else if (Out->IsA<FManagedArrayCollection>(&Collection))
 	{
@@ -430,7 +410,11 @@ void FCollectionTransformSelectionParentDataflowNode::Evaluate(Dataflow::FContex
 		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		FDataflowTransformSelection InTransformSelection = GetValue<FDataflowTransformSelection>(Context, &TransformSelection);
 
-		FFractureEngineSelection::SelectParent(InCollection, InTransformSelection);
+		GeometryCollection::Facades::FCollectionTransformSelectionFacade TransformSelectionFacade(InCollection);
+		TArray<int32> SelectionArr = InTransformSelection.AsArray();
+		TransformSelectionFacade.SelectParent(SelectionArr);
+
+		InTransformSelection.SetFromArray(SelectionArr);
 		
 		SetValue<FDataflowTransformSelection>(Context, InTransformSelection, &TransformSelection);
 	}
@@ -451,8 +435,11 @@ void FCollectionTransformSelectionByPercentageDataflowNode::Evaluate(Dataflow::F
 		int32 InPercentage = GetValue<int32>(Context, &Percentage);
 		float InRandomSeed = GetValue<float>(Context, &RandomSeed);
 
-		FFractureEngineSelection::SelectByPercentage(InTransformSelection, InPercentage, Deterministic, InRandomSeed);
+		TArray<int32> SelectionArr = InTransformSelection.AsArray();
 
+		GeometryCollection::Facades::FCollectionTransformSelectionFacade::SelectByPercentage(SelectionArr, InPercentage, bDeterministic, InRandomSeed);
+
+		InTransformSelection.SetFromArray(SelectionArr);
 		SetValue<FDataflowTransformSelection>(Context, InTransformSelection, &TransformSelection);
 	}
 }
@@ -465,7 +452,11 @@ void FCollectionTransformSelectionChildrenDataflowNode::Evaluate(Dataflow::FCont
 		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		FDataflowTransformSelection InTransformSelection = GetValue<FDataflowTransformSelection>(Context, &TransformSelection);
 
-		FFractureEngineSelection::SelectChildren(InCollection, InTransformSelection);
+		GeometryCollection::Facades::FCollectionTransformSelectionFacade TransformSelectionFacade(InCollection);
+		TArray<int32> SelectionArr = InTransformSelection.AsArray();
+
+		TransformSelectionFacade.SelectChildren(SelectionArr);
+		InTransformSelection.SetFromArray(SelectionArr);
 
 		SetValue<FDataflowTransformSelection>(Context, InTransformSelection, &TransformSelection);
 	}
@@ -484,7 +475,11 @@ void FCollectionTransformSelectionSiblingsDataflowNode::Evaluate(Dataflow::FCont
 		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		FDataflowTransformSelection InTransformSelection = GetValue<FDataflowTransformSelection>(Context, &TransformSelection);
 
-		FFractureEngineSelection::SelectSiblings(InCollection, InTransformSelection);
+		GeometryCollection::Facades::FCollectionTransformSelectionFacade TransformSelectionFacade(InCollection);
+		TArray<int32> SelectionArr = InTransformSelection.AsArray();
+
+		TransformSelectionFacade.SelectSiblings(SelectionArr);
+		InTransformSelection.SetFromArray(SelectionArr);
 
 		SetValue<FDataflowTransformSelection>(Context, InTransformSelection, &TransformSelection);
 	}
@@ -503,7 +498,11 @@ void FCollectionTransformSelectionLevelDataflowNode::Evaluate(Dataflow::FContext
 		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		FDataflowTransformSelection InTransformSelection = GetValue<FDataflowTransformSelection>(Context, &TransformSelection);
 
-		FFractureEngineSelection::SelectLevel(InCollection, InTransformSelection);
+		GeometryCollection::Facades::FCollectionTransformSelectionFacade TransformSelectionFacade(InCollection);
+		TArray<int32> SelectionArr = InTransformSelection.AsArray();
+
+		TransformSelectionFacade.SelectLevel(SelectionArr);
+		InTransformSelection.SetFromArray(SelectionArr);
 
 		SetValue<FDataflowTransformSelection>(Context, InTransformSelection, &TransformSelection);
 	}
@@ -522,13 +521,13 @@ void FCollectionTransformSelectionContactDataflowNode::Evaluate(Dataflow::FConte
 		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		FDataflowTransformSelection InTransformSelection = GetValue<FDataflowTransformSelection>(Context, &TransformSelection);
 
-		if (TUniquePtr<FGeometryCollection> GeomCollection = TUniquePtr<FGeometryCollection>(InCollection.NewCopy<FGeometryCollection>()))
-		{
-			FFractureEngineSelection::SelectContact(*GeomCollection, InTransformSelection);
-		}
+		GeometryCollection::Facades::FCollectionTransformSelectionFacade TransformSelectionFacade(InCollection);
+		TArray<int32> SelectionArr = InTransformSelection.AsArray();
+
+		TransformSelectionFacade.SelectLevel(SelectionArr);
+		InTransformSelection.SetFromArray(SelectionArr);
 
 		SetValue<FDataflowTransformSelection>(Context, InTransformSelection, &TransformSelection);
-		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
 	}
 	else if (Out->IsA<FManagedArrayCollection>(&Collection))
 	{
@@ -544,12 +543,12 @@ void FCollectionTransformSelectionLeafDataflowNode::Evaluate(Dataflow::FContext&
 	{
 		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 
-		FDataflowTransformSelection NewTransformSelection;
+		GeometryCollection::Facades::FCollectionTransformSelectionFacade TransformSelectionFacade(InCollection);
+		const TArray<int32>& SelectionArr = TransformSelectionFacade.SelectLeaf();
 
-		if (TUniquePtr<FGeometryCollection> GeomCollection = TUniquePtr<FGeometryCollection>(InCollection.NewCopy<FGeometryCollection>()))
-		{
-			FFractureEngineSelection::SelectLeaf(*GeomCollection, NewTransformSelection);
-		}
+		FDataflowTransformSelection NewTransformSelection;
+		NewTransformSelection.Initialize(InCollection.NumElements(FGeometryCollection::TransformGroup), false);
+		NewTransformSelection.SetFromArray(SelectionArr);
 
 		SetValue<FDataflowTransformSelection>(Context, NewTransformSelection, &TransformSelection);
 	}
@@ -567,16 +566,12 @@ void FCollectionTransformSelectionClusterDataflowNode::Evaluate(Dataflow::FConte
 	{
 		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 
-		const int32 NumTransforms = InCollection.NumElements(FGeometryCollection::TransformGroup);
+		GeometryCollection::Facades::FCollectionTransformSelectionFacade TransformSelectionFacade(InCollection);
+		const TArray<int32>& SelectionArr = TransformSelectionFacade.SelectCluster();
 
-		// TODO: Convert FractureEngine API to use only FManagedArrayCollection
 		FDataflowTransformSelection NewTransformSelection;
-		NewTransformSelection.Initialize(NumTransforms, false);
-
-		if (TUniquePtr<FGeometryCollection> GeomCollection = TUniquePtr<FGeometryCollection>(InCollection.NewCopy<FGeometryCollection>()))
-		{
-			FFractureEngineSelection::SelectCluster(*GeomCollection, NewTransformSelection);			
-		}
+		NewTransformSelection.Initialize(InCollection.NumElements(FGeometryCollection::TransformGroup), false);
+		NewTransformSelection.SetFromArray(SelectionArr);
 
 		SetValue<FDataflowTransformSelection>(Context, NewTransformSelection, &TransformSelection);
 	}
@@ -595,13 +590,14 @@ void FCollectionTransformSelectionBySizeDataflowNode::Evaluate(Dataflow::FContex
 		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		float InSizeMin = GetValue<float>(Context, &SizeMin);
 		float InSizeMax = GetValue<float>(Context, &SizeMax);
+		bool bInsideRange = RangeSetting == ERangeSettingEnum::Dataflow_RangeSetting_InsideRange;
+
+		GeometryCollection::Facades::FCollectionTransformSelectionFacade TransformSelectionFacade(InCollection);
+		const TArray<int32>& SelectionArr = TransformSelectionFacade.SelectBySize(InSizeMin, InSizeMax, bInclusive, bInsideRange);
 
 		FDataflowTransformSelection NewTransformSelection;
-
-		if (TUniquePtr<FGeometryCollection> GeomCollection = TUniquePtr<FGeometryCollection>(InCollection.NewCopy<FGeometryCollection>()))
-		{
-			FFractureEngineSelection::SelectBySize(*GeomCollection, NewTransformSelection, InSizeMin, InSizeMax);
-		}
+		NewTransformSelection.Initialize(InCollection.NumElements(FGeometryCollection::TransformGroup), false);
+		NewTransformSelection.SetFromArray(SelectionArr);
 
 		SetValue<FDataflowTransformSelection>(Context, NewTransformSelection, &TransformSelection);
 	}
@@ -620,13 +616,14 @@ void FCollectionTransformSelectionByVolumeDataflowNode::Evaluate(Dataflow::FCont
 		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		float InVolumeMin = GetValue<float>(Context, &VolumeMin);
 		float InVolumeMax = GetValue<float>(Context, &VolumeMax);
+		bool bInsideRange = RangeSetting == ERangeSettingEnum::Dataflow_RangeSetting_InsideRange;
+
+		GeometryCollection::Facades::FCollectionTransformSelectionFacade TransformSelectionFacade(InCollection);
+		const TArray<int32>& SelectionArr = TransformSelectionFacade.SelectByVolume(InVolumeMin, InVolumeMax, bInclusive, bInsideRange);
 
 		FDataflowTransformSelection NewTransformSelection;
-
-		if (TUniquePtr<FGeometryCollection> GeomCollection = TUniquePtr<FGeometryCollection>(InCollection.NewCopy<FGeometryCollection>()))
-		{
-			FFractureEngineSelection::SelectByVolume(*GeomCollection, NewTransformSelection, InVolumeMin, InVolumeMax);
-		}
+		NewTransformSelection.Initialize(InCollection.NumElements(FGeometryCollection::TransformGroup), false);
+		NewTransformSelection.SetFromArray(SelectionArr);
 
 		SetValue<FDataflowTransformSelection>(Context, NewTransformSelection, &TransformSelection);
 	}
@@ -638,3 +635,352 @@ void FCollectionTransformSelectionByVolumeDataflowNode::Evaluate(Dataflow::FCont
 }
 
 
+void FCollectionTransformSelectionInBoxDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<FDataflowTransformSelection>(&TransformSelection))
+	{
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		const FBox& InBox = GetValue<FBox>(Context, &Box);
+		const FTransform& InTransform = GetValue<FTransform>(Context, &Transform);
+
+		GeometryCollection::Facades::FCollectionTransformSelectionFacade TransformSelectionFacade(InCollection);
+
+		TArray<int32> SelectionArr;
+		if (Type == ESelectSubjectTypeEnum::Dataflow_SelectSubjectType_Vertices)
+		{
+			SelectionArr = TransformSelectionFacade.SelectVerticesInBox(InBox, InTransform, bAllVerticesMustContainedInBox);
+		}
+		else if (Type == ESelectSubjectTypeEnum::Dataflow_SelectSubjectType_BoundingBox)
+		{
+			SelectionArr = TransformSelectionFacade.SelectBoundingBoxInBox(InBox, InTransform);
+		}
+		else if (Type == ESelectSubjectTypeEnum::Dataflow_SelectSubjectType_Centroid)
+		{
+			SelectionArr = TransformSelectionFacade.SelectCentroidInBox(InBox, InTransform);
+		}
+
+		FDataflowTransformSelection NewTransformSelection;
+		NewTransformSelection.Initialize(InCollection.NumElements(FGeometryCollection::TransformGroup), false);
+		NewTransformSelection.SetFromArray(SelectionArr);
+
+		SetValue<FDataflowTransformSelection>(Context, NewTransformSelection, &TransformSelection);
+	}
+	else if (Out->IsA<FManagedArrayCollection>(&Collection))
+	{
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+	}
+}
+
+
+void FCollectionTransformSelectionInSphereDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<FDataflowTransformSelection>(&TransformSelection))
+	{
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		const FSphere& InSphere = GetValue<FSphere>(Context, &Sphere);
+		const FTransform& InTransform = GetValue<FTransform>(Context, &Transform);
+
+		GeometryCollection::Facades::FCollectionTransformSelectionFacade TransformSelectionFacade(InCollection);
+
+		TArray<int32> SelectionArr;
+		if (Type == ESelectSubjectTypeEnum::Dataflow_SelectSubjectType_Vertices)
+		{
+			SelectionArr = TransformSelectionFacade.SelectVerticesInSphere(InSphere, InTransform, bAllVerticesMustContainedInSphere);
+		}
+		else if (Type == ESelectSubjectTypeEnum::Dataflow_SelectSubjectType_BoundingBox)
+		{
+			SelectionArr = TransformSelectionFacade.SelectBoundingBoxInSphere(InSphere, InTransform);
+		}
+		else if (Type == ESelectSubjectTypeEnum::Dataflow_SelectSubjectType_Centroid)
+		{
+			SelectionArr = TransformSelectionFacade.SelectCentroidInSphere(InSphere, InTransform);
+		}
+
+		FDataflowTransformSelection NewTransformSelection;
+		NewTransformSelection.Initialize(InCollection.NumElements(FGeometryCollection::TransformGroup), false);
+		NewTransformSelection.SetFromArray(SelectionArr);
+
+		SetValue<FDataflowTransformSelection>(Context, NewTransformSelection, &TransformSelection);
+	}
+	else if (Out->IsA<FManagedArrayCollection>(&Collection))
+	{
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+	}
+}
+
+
+void FCollectionTransformSelectionByFloatAttrDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<FDataflowTransformSelection>(&TransformSelection))
+	{
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		float InMin = GetValue<float>(Context, &Min);
+		float InMax = GetValue<float>(Context, &Max);
+		bool bInsideRange = RangeSetting == ERangeSettingEnum::Dataflow_RangeSetting_InsideRange;
+
+		GeometryCollection::Facades::FCollectionTransformSelectionFacade TransformSelectionFacade(InCollection);
+		const TArray<int32>& SelectionArr = TransformSelectionFacade.SelectByFloatAttribute(GroupName, AttrName, InMin, InMax, bInclusive, bInsideRange);
+
+		FDataflowTransformSelection NewTransformSelection;
+		NewTransformSelection.Initialize(InCollection.NumElements(FGeometryCollection::TransformGroup), false);
+		NewTransformSelection.SetFromArray(SelectionArr);
+
+		SetValue<FDataflowTransformSelection>(Context, NewTransformSelection, &TransformSelection);
+	}
+	else if (Out->IsA<FManagedArrayCollection>(&Collection))
+	{
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+	}
+}
+
+
+void FCollectionTransformSelectionByIntAttrDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<FDataflowTransformSelection>(&TransformSelection))
+	{
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		int32 InMin = GetValue<int32>(Context, &Min);
+		int32 InMax = GetValue<int32>(Context, &Max);
+		bool bInsideRange = RangeSetting == ERangeSettingEnum::Dataflow_RangeSetting_InsideRange;
+
+		GeometryCollection::Facades::FCollectionTransformSelectionFacade TransformSelectionFacade(InCollection);
+		const TArray<int32>& SelectionArr = TransformSelectionFacade.SelectByIntAttribute(GroupName, AttrName, InMin, InMax, bInclusive, bInsideRange);
+
+		FDataflowTransformSelection NewTransformSelection;
+		NewTransformSelection.Initialize(InCollection.NumElements(FGeometryCollection::TransformGroup), false);
+		NewTransformSelection.SetFromArray(SelectionArr);
+
+		SetValue<FDataflowTransformSelection>(Context, NewTransformSelection, &TransformSelection);
+	}
+	else if (Out->IsA<FManagedArrayCollection>(&Collection))
+	{
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+	}
+}
+
+
+void FCollectionVertexSelectionCustomDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<FDataflowVertexSelection>(&VertexSelection))
+	{
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+
+		if (InCollection.HasGroup(FGeometryCollection::VerticesGroup))
+		{
+			const int32 NumVertices = InCollection.NumElements(FGeometryCollection::VerticesGroup);
+
+			FDataflowVertexSelection NewVertexSelection;
+			NewVertexSelection.Initialize(NumVertices, false);
+
+			const FString InVertexIndicies = GetValue<FString>(Context, &VertexIndicies);
+
+			TArray<FString> Indicies;
+			InVertexIndicies.ParseIntoArray(Indicies, TEXT(" "), true);
+
+			for (FString IndexStr : Indicies)
+			{
+				if (IndexStr.IsNumeric())
+				{
+					int32 Index = FCString::Atoi(*IndexStr);
+					if (Index >= 0 && Index < NumVertices)
+					{
+						NewVertexSelection.SetSelected(Index);
+					}
+					else
+					{
+						// ERROR: INVALID INDEX
+						FString ErrorStr = "Invalid specified index found.";
+						UE_LOG(LogTemp, Error, TEXT("[Dataflow ERROR] %s"), *ErrorStr);
+					}
+				}
+			}
+
+			SetValue<FDataflowVertexSelection>(Context, NewVertexSelection, &VertexSelection);
+		}
+		else
+		{
+			SetValue<FDataflowVertexSelection>(Context, FDataflowVertexSelection(), &VertexSelection);
+		}
+	}
+	else if (Out->IsA<FManagedArrayCollection>(&Collection))
+	{
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+	}
+}
+
+
+void FCollectionFaceSelectionCustomDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<FDataflowFaceSelection>(&FaceSelection))
+	{
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+
+		if (InCollection.HasGroup(FGeometryCollection::GeometryGroup))
+		{
+			const int32 NumFaces = InCollection.NumElements(FGeometryCollection::FacesGroup);
+
+			FDataflowFaceSelection NewFaceSelection;
+			NewFaceSelection.Initialize(NumFaces, false);
+
+			const FString InFaceIndicies = GetValue<FString>(Context, &FaceIndicies);
+
+			TArray<FString> Indicies;
+			InFaceIndicies.ParseIntoArray(Indicies, TEXT(" "), true);
+
+			for (FString IndexStr : Indicies)
+			{
+				if (IndexStr.IsNumeric())
+				{
+					int32 Index = FCString::Atoi(*IndexStr);
+					if (Index >= 0 && Index < NumFaces)
+					{
+						NewFaceSelection.SetSelected(Index);
+					}
+					else
+					{
+						// ERROR: INVALID INDEX
+						FString ErrorStr = "Invalid specified index found.";
+						UE_LOG(LogTemp, Error, TEXT("[Dataflow ERROR] %s"), *ErrorStr);
+					}
+				}
+			}
+
+			SetValue<FDataflowFaceSelection>(Context, NewFaceSelection, &FaceSelection);
+		}
+		else
+		{
+			SetValue<FDataflowFaceSelection>(Context, FDataflowFaceSelection(), &FaceSelection);
+		}
+	}
+	else if (Out->IsA<FManagedArrayCollection>(&Collection))
+	{
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+	}
+}
+
+
+void FCollectionSelectionConvertDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<FDataflowTransformSelection>(&TransformSelection))
+	{
+		if (IsConnected<FDataflowVertexSelection>(&VertexSelection))
+		{
+			const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+			const FDataflowVertexSelection& InVertexSelection = GetValue<FDataflowVertexSelection>(Context, &VertexSelection);
+
+			GeometryCollection::Facades::FCollectionTransformSelectionFacade TransformSelectionFacade(InCollection);
+			const TArray<int32>& SelectionArr = TransformSelectionFacade.ConvertVertexSelectionToTransformSelection(InVertexSelection.AsArray(), bAllElementsMustBeSelected);
+
+			FDataflowTransformSelection NewTransformSelection;
+			NewTransformSelection.Initialize(InCollection.NumElements(FGeometryCollection::TransformGroup), false);
+			NewTransformSelection.SetFromArray(SelectionArr);
+
+			SetValue<FDataflowTransformSelection>(Context, NewTransformSelection, &TransformSelection);
+		}
+		else if (IsConnected<FDataflowFaceSelection>(&FaceSelection))
+		{
+			const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+			const FDataflowFaceSelection& InFaceSelection = GetValue<FDataflowFaceSelection>(Context, &FaceSelection);
+
+			GeometryCollection::Facades::FCollectionTransformSelectionFacade TransformSelectionFacade(InCollection);
+			const TArray<int32>& SelectionArr = TransformSelectionFacade.ConvertFaceSelectionToTransformSelection(InFaceSelection.AsArray(), bAllElementsMustBeSelected);
+
+			FDataflowTransformSelection NewTransformSelection;
+			NewTransformSelection.Initialize(InCollection.NumElements(FGeometryCollection::TransformGroup), false);
+			NewTransformSelection.SetFromArray(SelectionArr);
+
+			SetValue<FDataflowTransformSelection>(Context, NewTransformSelection, &TransformSelection);
+		}
+		else if (IsConnected<FDataflowTransformSelection>(&TransformSelection))
+		{
+			// Passthrough
+			const FDataflowTransformSelection& InTransformSelection = GetValue<FDataflowTransformSelection>(Context, &TransformSelection);
+			SetValue<FDataflowTransformSelection>(Context, InTransformSelection, &TransformSelection);
+		}
+	}
+	else if (Out->IsA<FDataflowFaceSelection>(&FaceSelection))
+	{
+		if (IsConnected<FDataflowVertexSelection>(&VertexSelection))
+		{
+			const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+			const FDataflowVertexSelection& InVertexSelection = GetValue<FDataflowVertexSelection>(Context, &VertexSelection);
+
+			GeometryCollection::Facades::FCollectionTransformSelectionFacade TransformSelectionFacade(InCollection);
+			const TArray<int32>& SelectionArr = TransformSelectionFacade.ConvertVertexSelectionToFaceSelection(InVertexSelection.AsArray(), bAllElementsMustBeSelected);
+
+			FDataflowFaceSelection NewFaceSelection;
+			NewFaceSelection.Initialize(InCollection.NumElements(FGeometryCollection::FacesGroup), false);
+			NewFaceSelection.SetFromArray(SelectionArr);
+
+			SetValue<FDataflowFaceSelection>(Context, NewFaceSelection, &FaceSelection);
+		}
+		else if (IsConnected<FDataflowFaceSelection>(&FaceSelection))
+		{
+			// Passthrough
+			const FDataflowFaceSelection& InFaceSelection = GetValue<FDataflowFaceSelection>(Context, &FaceSelection);
+			SetValue<FDataflowFaceSelection>(Context, InFaceSelection, &InFaceSelection);
+		}
+		else if (IsConnected<FDataflowTransformSelection>(&TransformSelection))
+		{
+			const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+			const FDataflowTransformSelection& InTransformSelection = GetValue<FDataflowTransformSelection>(Context, &TransformSelection);
+
+			GeometryCollection::Facades::FCollectionTransformSelectionFacade TransformSelectionFacade(InCollection);
+			const TArray<int32>& SelectionArr = TransformSelectionFacade.ConvertTransformSelectionToFaceSelection(InTransformSelection.AsArray());
+
+			FDataflowFaceSelection NewFaceSelection;
+			NewFaceSelection.Initialize(InCollection.NumElements(FGeometryCollection::FacesGroup), false);
+			NewFaceSelection.SetFromArray(SelectionArr);
+
+			SetValue<FDataflowFaceSelection>(Context, NewFaceSelection, &FaceSelection);
+		}
+	}
+	else if (Out->IsA<FDataflowVertexSelection>(&VertexSelection))
+	{
+		if (IsConnected<FDataflowVertexSelection>(&VertexSelection))
+		{
+			// Passthrough
+			const FDataflowVertexSelection& InVertexSelection = GetValue<FDataflowVertexSelection>(Context, &VertexSelection);
+			SetValue<FDataflowVertexSelection>(Context, InVertexSelection, &VertexSelection);
+		}
+		else if (IsConnected<FDataflowFaceSelection>(&FaceSelection))
+		{
+			const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+			const FDataflowFaceSelection& InFaceSelection = GetValue<FDataflowFaceSelection>(Context, &FaceSelection);
+
+			GeometryCollection::Facades::FCollectionTransformSelectionFacade TransformSelectionFacade(InCollection);
+			const TArray<int32>& SelectionArr = TransformSelectionFacade.ConvertFaceSelectionToVertexSelection(InFaceSelection.AsArray());
+
+			FDataflowVertexSelection NewVertexSelection;
+			NewVertexSelection.Initialize(InCollection.NumElements(FGeometryCollection::VerticesGroup), false);
+			NewVertexSelection.SetFromArray(SelectionArr);
+
+			SetValue<FDataflowVertexSelection>(Context, NewVertexSelection, &VertexSelection);
+		}
+		else if (IsConnected<FDataflowTransformSelection>(&TransformSelection))
+		{
+			const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+			const FDataflowTransformSelection& InTransformSelection = GetValue<FDataflowTransformSelection>(Context, &TransformSelection);
+
+			GeometryCollection::Facades::FCollectionTransformSelectionFacade TransformSelectionFacade(InCollection);
+			const TArray<int32>& SelectionArr = TransformSelectionFacade.ConvertTransformSelectionToVertexSelection(InTransformSelection.AsArray());
+
+			FDataflowVertexSelection NewVertexSelection;
+			NewVertexSelection.Initialize(InCollection.NumElements(FGeometryCollection::VerticesGroup), false);
+			NewVertexSelection.SetFromArray(SelectionArr);
+
+			SetValue<FDataflowVertexSelection>(Context, NewVertexSelection, &VertexSelection);
+		}
+	}
+	else if (Out->IsA<FManagedArrayCollection>(&Collection))
+	{
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+	}
+}

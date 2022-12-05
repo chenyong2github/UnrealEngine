@@ -15,7 +15,8 @@ namespace UnrealBuildTool.Rules
 				{
 					"Chaos",
 					"Core",
-					"DataflowCore"
+					"DataflowCore",
+					"PlanarCut"
 				}
 				);
 

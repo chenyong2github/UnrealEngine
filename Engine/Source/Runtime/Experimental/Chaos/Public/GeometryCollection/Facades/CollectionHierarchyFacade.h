@@ -41,6 +41,9 @@ namespace Chaos::Facades
 		/** Get the root index */
 		int32 GetRootIndex() const;
 
+		/** Get the root indicies */
+		TArray<int32> GetRootIndices() const;
+
 		/** 
 		* Update level attribute for all elements (and create it if it is missing ) 
 		* @Param PersistencePolicy whether to make the attribute persistent or keep the existing state
@@ -49,7 +52,7 @@ namespace Chaos::Facades
 
 	public:
 		/** Get the root indicies */
-		static TSet<int32> GetRootIndices(const TManagedArrayAccessor<int32>& ParentAttribute);
+		static TArray<int32> GetRootIndices(const TManagedArrayAccessor<int32>& ParentAttribute);
 
 	private:
 		TManagedArrayAccessor<int32>		ParentAttribute;

@@ -9,10 +9,11 @@
 namespace GeometryCollection::Facades
 {
 
-	class CHAOS_API FMeshFacade
+	class CHAOS_API FCollectionMeshFacade
 	{
 	public:
-		FMeshFacade(FManagedArrayCollection& InCollection);
+		FCollectionMeshFacade(FManagedArrayCollection& InCollection);
+		FCollectionMeshFacade(const FManagedArrayCollection& InCollection);
 
 		/**
 		 * returns true if all the necessary attributes are present
@@ -25,22 +26,42 @@ namespace GeometryCollection::Facades
 		 */
 		void DefineSchema();
 
-		TManagedArrayAccessor<FVector3f> Vertex;
-		TManagedArrayAccessor<FVector3f> TangentU;
-		TManagedArrayAccessor<FVector3f> TangentV;
-		TManagedArrayAccessor<FVector3f> Normal;
-		TManagedArrayAccessor<TArray<FVector2f>> UVs;
-		TManagedArrayAccessor<FLinearColor> Color;
-		TManagedArrayAccessor<int32> BoneMap;
-		TManagedArrayAccessor<int32> VertexStart;
-		TManagedArrayAccessor<int32> VertexCount;
+		/**
+		 * Returns the vertex indicies for the bone
+		 */
+		const TArray<int32> GetVertexIndices(int32 BoneIdx) const;
 
-		TManagedArrayAccessor<FIntVector> Indices;
-		TManagedArrayAccessor<bool> Visible;
-		TManagedArrayAccessor<int32> MaterialIndex;
-		TManagedArrayAccessor<int32> MaterialID;
-		TManagedArrayAccessor<int32> FaceStart;
-		TManagedArrayAccessor<int32> FaceCount;
+		/**
+		 * Returns the vertex positions for the bone in bone space
+		 */
+		const TArrayView<const FVector3f> GetVertexPositions(int32 BoneIdx) const;
+
+		/**
+		 * Returns the face indices for the bone
+		 */
+		const TArray<int32> GetFaceIndices(int32 BoneIdx) const;
+
+		/**
+		 * Returns the vertex indices of the face for the bone
+		 */
+//		const TArrayView<FIntVector> GetFaceVertexIndices(int32 BoneIdx) const;
+
+		TManagedArrayAccessor<int32> TransformToGeometryIndexAttribute;
+		TManagedArrayAccessor<FVector3f> VertexAttribute;
+		TManagedArrayAccessor<FVector3f> TangentUAttribute;
+		TManagedArrayAccessor<FVector3f> TangentVAttribute;
+		TManagedArrayAccessor<FVector3f> NormalAttribute;
+		TManagedArrayAccessor<TArray<FVector2f>> UVsAttribute;
+		TManagedArrayAccessor<FLinearColor> ColorAttribute;
+		TManagedArrayAccessor<int32> BoneMapAttribute;
+		TManagedArrayAccessor<int32> VertexStartAttribute;
+		TManagedArrayAccessor<int32> VertexCountAttribute;
+		TManagedArrayAccessor<FIntVector> IndicesAttribute;
+		TManagedArrayAccessor<bool> VisibleAttribute;
+		TManagedArrayAccessor<int32> MaterialIndexAttribute;
+		TManagedArrayAccessor<int32> MaterialIDAttribute;
+		TManagedArrayAccessor<int32> FaceStartAttribute;
+		TManagedArrayAccessor<int32> FaceCountAttribute;
 	};
 
 }
