@@ -21,8 +21,14 @@ bool UStateTreeConditionBlueprintBase::TestCondition(FStateTreeExecutionContext&
 {
 	if (bHasTestCondition)
 	{
-		FScopedCurrentContext ScopedContext(*this, Context);
-		return ReceiveTestCondition();
+		// Cache the owner and event queue for the duration the condition is evaluated.
+		SetCachedEventQueueFromContext(Context);
+
+		const bool bResult = ReceiveTestCondition();
+
+		ClearCachedEventQueue();
+
+		return bResult;
 	}
 	return false;
 }

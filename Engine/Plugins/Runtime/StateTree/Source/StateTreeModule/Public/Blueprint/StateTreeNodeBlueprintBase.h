@@ -4,6 +4,7 @@
 
 #include "StateTreeTypes.h"
 #include "StateTreeEvents.h"
+#include "StateTreeExecutionContext.h"
 #include "StateTreeNodeBlueprintBase.generated.h"
 
 struct FStateTreeLinker;
@@ -42,21 +43,15 @@ protected:
 	virtual UWorld* GetWorld() const override;
 	AActor* GetOwnerActor(const FStateTreeExecutionContext& Context) const;
 
-	struct FScopedCurrentContext
-	{
-		FScopedCurrentContext(const UStateTreeNodeBlueprintBase& InNode, FStateTreeExecutionContext& Context) :
-			Node(InNode)
-		{
-			Node.CurrentContext = &Context;
-		}
-
-		~FScopedCurrentContext()
-		{
-			Node.CurrentContext = nullptr;
-		}
-		const UStateTreeNodeBlueprintBase& Node;
-	};
+	/** These methods are const as they set mutable variables and need to be called from a const method. */
+	void SetCachedEventQueueFromContext(const FStateTreeExecutionContext& Context) const;
+	void ClearCachedEventQueue() const;
 	
-	/** Cached execution context during Tick() and other functions. */
-	mutable FStateTreeExecutionContext* CurrentContext = nullptr;
+private:
+	/** Cached instance data while the node is active. */
+	mutable FStateTreeEventQueue* CachedEventQueue = nullptr;
+
+	/** Cached owner while the node is active. */
+	UPROPERTY()
+	mutable TObjectPtr<UObject> CachedOwner = nullptr; 
 };

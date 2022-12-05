@@ -27,9 +27,11 @@ UStateTreeTaskBlueprintBase::UStateTreeTaskBlueprintBase(const FObjectInitialize
 
 EStateTreeRunStatus UStateTreeTaskBlueprintBase::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition)
 {
+	// Task became active, cache event queue and owner.
+	SetCachedEventQueueFromContext(Context);
+	
 	if (bHasEnterState)
 	{
-		FScopedCurrentContext ScopedContext(*this, Context);
 		return ReceiveEnterState(Transition);
 	}
 	return EStateTreeRunStatus::Running;
@@ -39,16 +41,17 @@ void UStateTreeTaskBlueprintBase::ExitState(FStateTreeExecutionContext& Context,
 {
 	if (bHasExitState)
 	{
-		FScopedCurrentContext ScopedContext(*this, Context);
 		ReceiveExitState(Transition);
 	}
+
+	// Task became inactive, clear cached event queue and owner.
+	ClearCachedEventQueue();
 }
 
 void UStateTreeTaskBlueprintBase::StateCompleted(FStateTreeExecutionContext& Context, const EStateTreeRunStatus CompletionStatus, const FStateTreeActiveStates& CompletedActiveStates)
 {
 	if (bHasStateCompleted)
 	{
-		FScopedCurrentContext ScopedContext(*this, Context);
 		ReceiveStateCompleted(CompletionStatus, CompletedActiveStates);
 	}
 }
@@ -57,7 +60,6 @@ EStateTreeRunStatus UStateTreeTaskBlueprintBase::Tick(FStateTreeExecutionContext
 {
 	if (bHasTick)
 	{
-		FScopedCurrentContext ScopedContext(*this, Context);
 		return ReceiveTick(DeltaTime);
 	}
 	return EStateTreeRunStatus::Running;

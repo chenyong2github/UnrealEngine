@@ -14,12 +14,9 @@ UWorld* UStateTreeNodeBlueprintBase::GetWorld() const
 	// The CDO is used by the BP editor to check for certain functionality, make it return nullptr so that the GetWorld() passes as overridden. 
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
-		if (CurrentContext != nullptr)
+		if (CachedOwner != nullptr)
 		{
-			if (CurrentContext->GetOwner() != nullptr)
-			{
-				return CurrentContext->GetOwner()->GetWorld();
-			}
+			return CachedOwner->GetWorld();
 		}
 		if (UObject* Outer = GetOuter())
 		{
@@ -40,13 +37,25 @@ AActor* UStateTreeNodeBlueprintBase::GetOwnerActor(const FStateTreeExecutionCont
 	return Cast<AActor>(Context.GetOwner());
 }
 
+void UStateTreeNodeBlueprintBase::SetCachedEventQueueFromContext(const FStateTreeExecutionContext& Context) const
+{
+	CachedEventQueue = &Context.GetMutableEventQueue();
+	CachedOwner = Context.GetOwner();
+}
+
+void UStateTreeNodeBlueprintBase::ClearCachedEventQueue() const
+{
+	CachedEventQueue = nullptr;
+	CachedOwner = nullptr;
+}
+
 void UStateTreeNodeBlueprintBase::SendEvent(const FStateTreeEvent& Event)
 {
-	if (CurrentContext == nullptr)
+	if (CachedEventQueue == nullptr || CachedOwner == nullptr)
 	{
-		UE_VLOG_UELOG(this, LogStateTree, Error, TEXT("Trying to call SendEvent() outside StateTree tick. Use SendEvent() on UStateTreeComponent instead for sending signals externally."));
+		UE_VLOG_UELOG(this, LogStateTree, Error, TEXT("Trying to call SendEvent() while node is not active. Use SendEvent() on UStateTreeComponent instead for sending signals externally."));
 		return;
 	}
-	CurrentContext->SendEvent(Event.Tag, Event.Payload, Event.Origin);
+	CachedEventQueue->SendEvent(CachedOwner, Event.Tag, Event.Payload, Event.Origin);
 }
 
