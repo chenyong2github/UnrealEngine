@@ -731,7 +731,14 @@ bool FImgMediaPlayer::SetRate(float Rate)
 
 void FImgMediaPlayer::SetBlockingPlaybackHint(bool FacadeWillUseBlockingPlayback)
 {
-	PlaybackIsBlocking = FacadeWillUseBlockingPlayback;
+	if (PlaybackIsBlocking != FacadeWillUseBlockingPlayback)
+	{
+		PlaybackIsBlocking = FacadeWillUseBlockingPlayback;
+		if (Loader.IsValid() && IsInitialized())
+		{
+			Loader->SetIsPlaybackBlocking(PlaybackIsBlocking);
+		}
+	}
 }
 
 /* IMediaSamples interface
@@ -792,7 +799,7 @@ IMediaSamples::EFetchBestSampleResult FImgMediaPlayer::FetchBestVideoSampleForTi
 	if (Loader.IsValid() && IsInitialized() && (CurrentState != EMediaState::Stopped))
 	{
 		// See if we have any samples in the specified time range.
-		SampleResult = Loader->FetchBestVideoSampleForTimeRange(TimeRange, OutSample, ShouldLoop, CurrentRate, PlaybackIsBlocking);
+		SampleResult = Loader->FetchBestVideoSampleForTimeRange(TimeRange, OutSample, ShouldLoop, CurrentRate);
 		Scheduler->TickInput(FTimespan::Zero(), FTimespan::MinValue());
 		if (SampleResult == IMediaSamples::EFetchBestSampleResult::Ok)
 		{

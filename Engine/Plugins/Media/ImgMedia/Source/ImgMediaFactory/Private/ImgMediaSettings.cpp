@@ -10,6 +10,7 @@
 
 UImgMediaSettings::UImgMediaSettings()
 	: DefaultFrameRate(24, 1)
+	, BandwidthThrottlingEnabled(true)
 	, CacheBehindPercentage(25)
 	, CacheSizeGB(1.0f)
 	, CacheThreads(2)

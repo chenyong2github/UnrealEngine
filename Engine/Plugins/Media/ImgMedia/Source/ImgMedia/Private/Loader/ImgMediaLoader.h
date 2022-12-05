@@ -156,10 +156,9 @@ public:
 	 * @param OutSample will be filled in with the sample if found.
 	 * @param bIsLoopingEnabled True if we can loop.
 	 * @param PlayRate How fast we are playing.
-	 * @param Facade does use blocking playback to fetch samples
 	 * @return True if successful.
 	 */
-	IMediaSamples::EFetchBestSampleResult FetchBestVideoSampleForTimeRange(const TRange<FMediaTimeStamp>& TimeRange, TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& OutSample, bool bIsLoopingEnabled, float PlayRate, bool bPlaybackIsBlocking);
+	IMediaSamples::EFetchBestSampleResult FetchBestVideoSampleForTimeRange(const TRange<FMediaTimeStamp>& TimeRange, TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& OutSample, bool bIsLoopingEnabled, float PlayRate);
 
 	/**
 	 * Checks to see if a sample is available at the specificed time.
@@ -356,6 +355,11 @@ public:
 	void ResetFetchLogic();
 
 	/**
+	 * Tell the loader if playback is blocking.
+	 */
+	void SetIsPlaybackBlocking(bool bIsBlocking);
+
+	/**
 	 * Handler for when the (owning) player's state changes to EMediaState::Paused.
 	 */
 	void HandlePause();
@@ -508,6 +512,24 @@ protected:
 	 */
 	bool GetNumberAtEndOfString(int32& Number, const FString& String) const;
 
+	/**
+	 * Convert FrameIndex to a frame that fits with our skipping logic.
+	 * E.g. if SkipFramesLevel is 2, then this will return frames 4 frames apart.
+	 * E.g. FrameIndex	Return value
+	 *		0			3
+	 *		1			3
+	 *		2			3
+	 *		3			3
+	 *		4			7
+	 *		5			7
+	 */
+	int32 GetSkipFrame(int32 FrameIndex);
+
+	/**
+	 * Updates how we throttle bandwidth depending on current settings.
+	 */
+	void UpdateBandwidthThrottling();
+
 private:
 
 	/** Critical section for synchronizing access to Frames. */
@@ -603,6 +625,27 @@ private:
 
 	/** Settings for the smart cache. */
 	FImgMediaLoaderSmartCacheSettings SmartCacheSettings;
+	/** True if the player is using blocked playback. */
+	bool bIsPlaybackBlocking;
+
+	/** If we want to throttle bandwidth when there is not enough bandwidth. */
+	bool bIsBandwidthThrottlingEnabled;
+	/** If we can skip frames to throttle bandwidth. */
+	bool bIsSkipFramesEnabled;
+	/** Keeps a count so we can raise/lower the skip level when this gets too high/low. */
+	int32 SkipFramesCounter;
+	/**
+	 * The current level of skipping.
+	 * The frame increment to the next frame is 1 << SkipFramesLevel.
+	 * So level 0 -> next frame is +1, i.e. the next frame, i.e. no skipping.
+	 *    level 1 -> next frame is +2, i.e. we skip 1 frame.
+	 *    level 2 -> next frame is +4, i.e. we skip 3 frames.
+	 */
+	int32 SkipFramesLevel;
+	/** When SkipFramesCounter is greater than this, then increase SkipFramesLevel. */
+	const int32 SkipFramesCounterRaiseLevelThreshold = 10;
+	/** When SkipFramesLevel changes, the value of SkipFramesCounter will reset to this. */
+	const int32 SkipFramesCounterNewLevelValue = 5;
 
 #if WITH_EDITOR
 	/** Bandwidth estimation. */

@@ -26,6 +26,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=General)
 	FFrameRate DefaultFrameRate;
 
+	/** If there is not enough bandwidth to play the media, then lower it (for example by skipping frames) to try and get playback. */
+	UPROPERTY(config, EditAnywhere, Category = General)
+	bool BandwidthThrottlingEnabled;
+
 public:
 
 	/** Percentage of cache to use for frames behind the play head (default = 25%). */
