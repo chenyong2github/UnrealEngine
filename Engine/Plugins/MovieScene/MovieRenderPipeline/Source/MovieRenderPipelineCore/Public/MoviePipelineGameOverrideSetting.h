@@ -138,6 +138,7 @@ private:
 	int32 PreviousNeverMuteNonRealtimeAudio;
 	int32 PreviousSkyLightRealTimeReflectionCaptureTimeSlice;
 	int32 PreviousVolumetricRenderTarget;
+	int32 PreviousVolumetricRenderTargetMode;
 	int32 PreviousIgnoreStreamingPerformance;
 	int32 PreviousStreamingManagerSyncState;
 #if WITH_EDITOR
