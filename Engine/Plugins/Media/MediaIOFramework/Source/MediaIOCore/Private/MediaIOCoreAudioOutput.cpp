@@ -18,12 +18,12 @@ DEFINE_LOG_CATEGORY_STATIC(LogMediaIOAudioOutput, Log, All);
 #define LOCTEXT_NAMESPACE "MediaIOAudioOutput"
 
 FMediaIOAudioOutput::FMediaIOAudioOutput(Audio::FPatchOutputStrongPtr InPatchOutput, const FAudioOptions& InAudioOptions)
-	: PatchOutput(MoveTemp(InPatchOutput))
-    , NumInputChannels(InAudioOptions.InNumInputChannels)
+    : NumInputChannels(InAudioOptions.InNumInputChannels)
     , NumOutputChannels(InAudioOptions.InNumOutputChannels)
     , TargetFrameRate(InAudioOptions.InTargetFrameRate)
     , MaxSampleLatency(InAudioOptions.InMaxSampleLatency)
     , OutputSampleRate(InAudioOptions.InOutputSampleRate)
+	, PatchOutput(MoveTemp(InPatchOutput))
 {
 	NumSamplesPerFrame = FMath::CeilToInt(NumInputChannels * OutputSampleRate / TargetFrameRate.AsDecimal());
 }
@@ -49,6 +49,7 @@ Audio::FAlignedFloatBuffer FMediaIOAudioOutput::GetFloatBuffer(uint32 NumSamples
 	FloatBuffer.SetNumZeroed(NumSamplesToPop);
 
 	const int32 NumPopped = GetAudioBuffer(NumSamplesToPop, FloatBuffer.GetData());
+	FloatBuffer.SetNum(NumPopped);
 
 	return FloatBuffer;
 }
@@ -74,14 +75,17 @@ FMediaIOAudioCapture::~FMediaIOAudioCapture()
 
 void FMediaIOAudioCapture::OnNewSubmixBuffer(const USoundSubmix* InOwningSubmix, float* InAudioData, int32 InNumSamples, int32 InNumChannels, const int32 InSampleRate, double InAudioClock)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMediaIOAudioCapture::OnNewSubmixBuffer);
+
 	check(InOwningSubmix);
 	if (InOwningSubmix->GetFName() == PrimarySubmixName)
 	{
 		if (ensureMsgf(NumChannels == InNumChannels, TEXT("Expected %d channels from submix buffer but got %d instead."), NumChannels, InNumChannels))
 		{
 			int32 NumPushed = AudioSplitter.PushAudio(InAudioData, InNumSamples);
-			if (InNumSamples != NumPushed)
+			if (InNumSamples != NumPushed && NumPushed != -1)
 			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(FMediaIOAudioCapture::OnNewSubmixBuffer::BufferOverrun);
 				UE_LOG(LogMediaIOAudioOutput, Verbose, TEXT("Pushed samples mismatch, Incoming samples: %d, Pushed samples: %d"), InNumSamples, NumPushed);
 			}
 		}

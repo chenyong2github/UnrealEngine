@@ -534,7 +534,7 @@ namespace AJA
 
 			if (InAudioBufferSize > AudioBufferSize)
 			{
-				UE_LOG(LogTemp, Error, TEXT("SetAudioFrameData: Can't set the audio. The buffer is invalid or the buffer size is not the same as the AJA Audio Format for output channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
+				UE_LOG(LogTemp, Error, TEXT("SetAudioFrameData: Can't set the audio. The buffer size is not the same as the AJA Audio Format for output channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
 				return false;
 			}
 
@@ -548,15 +548,11 @@ namespace AJA
 			AJA_CHECK(AvailableWritingFrame->Audio[AudioBufferSize] == AJA_TEST_MEMORY_END_TAG);
 #endif
 
-			if (InAudioBufferSize == 0)
-			{
-				memset(AvailableWritingFrame->AudioBuffer, 0, AudioBufferSize);
-				InAudioBufferSize = AudioBufferSize;
-			}
-			else if(InAudioBuffer)
+			if (InAudioBuffer && InAudioBufferSize != 0)
 			{
 				memcpy(AvailableWritingFrame->AudioBuffer, InAudioBuffer, InAudioBufferSize);
 			}
+
 
 			AvailableWritingFrame->bAudioLineFilled = true;
 			AvailableWritingFrame->CopiedAudioBufferSize = InAudioBufferSize;
@@ -751,7 +747,7 @@ namespace AJA
 				AJA_CHECK(Device->GetCard()->GetFrameRate(FrameRate, Channel));
 				NumSamplesPerFrame = ::GetAudioSamplesPerFrame(FrameRate, NTV2_AUDIO_48K);
 
-				if (AudioBufferSize > 0)
+				if (ensureMsgf(AudioBufferSize > 0, TEXT("Audio could not be initialized.")))
 				{
 					AJAAutoLock AutoLock(&FrameLock);
 					for (Frame* IttFrame : AllFrames)
@@ -766,11 +762,13 @@ namespace AJA
 						memset(IttFrame->AudioBuffer, 0, AudioBufferSize);
 					}
 
-					// Start audio output if a valid audio system is set (If UseAudio was true)
-					bResult &= GetDevice().StartAudioOutput(AudioSystem);
-					if (bResult == false)
+					if (GetOptions().bUseAutoCirculating)
 					{
-						UE_LOG(LogTemp, Error, TEXT("ConfigureAudio: Could not start audio output for audio system %d for channel %d on device %S."), uint32_t(AudioSystem), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
+						bResult &= GetDevice().StartAudioOutput(AudioSystem);
+						if (bResult == false)
+						{
+							UE_LOG(LogTemp, Error, TEXT("ConfigureAudio: Could not start audio output for audio system %d for channel %d on device %S."), uint32_t(AudioSystem), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
+						}
 					}
 				}
 			}
@@ -1173,63 +1171,9 @@ namespace AJA
 						}
 					}
 
-					if (UseAudio())
+					if (UseAudio() && AvailableReadingFrame->CopiedAudioBufferSize)
 					{
-						bool bAudioSuccess = true;
-						
-						ULWord AbsoluteAudioOffset = 0;
-						ULWord AudioWrapOffset = 0;
-						ULWord AudioLastOut = 0;
-
-						bAudioSuccess &= GetDevice().GetAudioMemoryOffset(CurrentAudioWriteOffset, AbsoluteAudioOffset, AudioSystem);
-						bAudioSuccess &= GetDevice().GetAudioWrapAddress(AudioWrapOffset);
-						bAudioSuccess &= GetDevice().ReadAudioLastOut(AudioLastOut);
-						
-						if (bAudioSuccess)
-						{
-							ULWord* AudioBuffer = reinterpret_cast<ULWord*>(AvailableReadingFrame->AudioBuffer);
-							if (CurrentAudioWriteOffset + AvailableReadingFrame->CopiedAudioBufferSize < AudioWrapOffset)
-							{
-								// Simplest case, just write the whole data to the SDRAM.
-								bRunning &= GetDevice().DMAWriteAudio(AudioSystem, AudioBuffer, CurrentAudioWriteOffset, AvailableReadingFrame->CopiedAudioBufferSize);
-								CurrentAudioWriteOffset += AvailableReadingFrame->CopiedAudioBufferSize;
-							}
-							else
-							{
-								// Audio data will wrap, so write in two parts.
-								ULWord BytesUntilBufferEnd = AudioBufferSize - CurrentAudioWriteOffset;
-								LWord RemainingBytes = AvailableReadingFrame->CopiedAudioBufferSize - BytesUntilBufferEnd;
-								// We might technically have space remaining, but we can't write there since it's too close to the wrap address.
-								if (RemainingBytes < 0)
-								{
-									RemainingBytes = 0;
-								}
-
-								bAudioSuccess &= GetDevice().DMAWriteAudio(AudioSystem, AudioBuffer, CurrentAudioWriteOffset, BytesUntilBufferEnd);
-								if (RemainingBytes >= 0)
-								{
-									bAudioSuccess &= GetDevice().DMAWriteAudio(AudioSystem, AudioBuffer + BytesUntilBufferEnd, 0, RemainingBytes);
-								}
-								CurrentAudioWriteOffset = RemainingBytes;
-							}
-
-							AudioLastOut = 0;
-							if (GetDevice().ReadAudioLastOut(AudioLastOut) && abs(LWord(CurrentAudioWriteOffset - AudioLastOut)) <= NumSamplesPerFrame)
-							{
-								UE_LOG(LogTemp, Warning,  TEXT("PingPong: Audio play head is catching up to write head for channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
-							}
-
-							bool bAudioRunning = false;
-							if (GetDevice().IsAudioOutputRunning(AudioSystem, bAudioRunning) && !bAudioRunning)
-							{
-								UE_LOG(LogTemp, Warning,  TEXT("PingPong: Audio output option is true but the audio output is not running for channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
-							}
-						}
-						else
-						{
-							bAudioSuccess = false;
-						}
-
+						bRunning &= Thread_HandleAudio(TEXT("PingPong"), AvailableReadingFrame);
 					}
 
 					if (!bRunning)
@@ -1274,6 +1218,12 @@ namespace AJA
 				}
 				else if (GetOptions().bDisplayWarningIfDropFrames)
 				{
+					if (UseAudio())
+					{
+						Thread_HandleLostFrameAudio();
+					}
+
+					TRACE_CPUPROFILER_EVENT_SCOPE(OutputChannel::NoFramesAvailable);
 					UE_LOG(LogTemp, Warning,  TEXT("PingPong: No frames are available for channel %d on device %S.\n"), uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
 				}
 			}
@@ -1339,6 +1289,194 @@ namespace AJA
 				UE_LOG(LogTemp, Error, TEXT("INTERLACED TEST - The lines has swap color. %d\n"), InterlacedTest_FrameCounter);
 			}
 			++InterlacedTest_FrameCounter;
+		}
+
+		bool OutputChannelThread::Thread_GetAudioOffset(int32& OutAudioOffset)
+		{
+			bool bSuccess = true;
+			ULWord AudioWrapOffset = 0;
+			ULWord PlayHeadPosition = 0;
+
+			bSuccess &= GetDevice().GetAudioWrapAddress(AudioWrapOffset);
+			bSuccess &= GetDevice().ReadAudioLastOut(PlayHeadPosition);
+
+			// Calculate audio offset
+			if (CurrentAudioWriteOffset > PlayHeadPosition)
+			{
+				OutAudioOffset = CurrentAudioWriteOffset - PlayHeadPosition;
+			}
+			else
+			{
+				OutAudioOffset = (AudioWrapOffset - PlayHeadPosition) + CurrentAudioWriteOffset;
+			}
+
+			return bSuccess;
+		}
+
+
+		bool OutputChannelThread::Thread_GetAudioOffsetInSeconds(double& OutAudioOffset)
+		{
+			int32 OffsetInBytes = 0;
+			if (Thread_GetAudioOffset(OffsetInBytes))
+			{
+				OutAudioOffset = (OffsetInBytes / sizeof(int32)) / 48000.f / Options.NumberOfAudioChannel;
+				return true;
+			}
+
+			return false;
+		}
+
+		bool OutputChannelThread::Thread_GetAudioOffsetInSamples(int32& OutAudioOffset)
+		{
+			int32 OffsetInBytes = 0;
+			if (Thread_GetAudioOffset(OffsetInBytes))
+			{
+				OutAudioOffset = FMath::RoundToInt32((float)OffsetInBytes / Options.NumberOfAudioChannel / sizeof(int32));
+				return true;
+			}
+
+			return false;
+		}
+
+
+		bool OutputChannelThread::Thread_TransferAudioBuffer(uint8* InBuffer, int32 InBufferSize)
+		{
+			bool bSuccess = true;
+
+			ULWord AudioWrapOffset = 0;
+			ULWord WriteHeadPosition = 0;
+			ULWord PlayHeadPosition = 0;
+
+			bSuccess &= GetDevice().GetAudioWrapAddress(AudioWrapOffset);
+
+			if (CurrentAudioWriteOffset + InBufferSize < AudioWrapOffset)
+			{
+				// Simplest case, just write the whole data to the SDRAM.
+				bSuccess &= GetDevice().DMAWriteAudio(AudioSystem, reinterpret_cast<ULWord*>(InBuffer), CurrentAudioWriteOffset, InBufferSize);
+				CurrentAudioWriteOffset += InBufferSize;
+			}
+			else
+			{
+				// Audio data will wrap, so write in two parts.
+				ULWord BytesUntilBufferEnd = AudioWrapOffset - CurrentAudioWriteOffset;
+				LWord RemainingBytes = InBufferSize - BytesUntilBufferEnd;
+				// We might technically have space remaining, but we can't write there since it's too close to the wrap address.
+				if (RemainingBytes < 0)
+				{
+					RemainingBytes = 0;
+				}
+
+				bSuccess &= GetDevice().DMAWriteAudio(AudioSystem, reinterpret_cast<ULWord*>(InBuffer), CurrentAudioWriteOffset, BytesUntilBufferEnd);
+				if (RemainingBytes > 0)
+				{
+					bSuccess &= GetDevice().DMAWriteAudio(AudioSystem, reinterpret_cast<ULWord*>(InBuffer) + BytesUntilBufferEnd, 0, RemainingBytes);
+				}
+
+				CurrentAudioWriteOffset = RemainingBytes;
+			}
+
+			return bSuccess;
+		}
+
+		bool OutputChannelThread::Thread_HandleAudio(const FString& OutputMethod, Frame* AvailableReadingFrame)
+		{
+			bool bAudioTransferWasSuccessful = true;
+
+			bool bAudioSuccess = true;
+
+			bool bAudioOutputRunning = false;
+			bAudioSuccess &= GetDevice().IsAudioOutputRunning(AudioSystem, bAudioOutputRunning);
+
+			bool bIsPaused = false;
+			bAudioSuccess &= GetDevice().GetAudioOutputPause(AudioSystem, bIsPaused);
+
+			if (bIsPaused && bAudioOutputRunning && !Thread_ShouldPauseAudioOutput())
+			{
+				UE_LOG(LogTemp, Verbose, TEXT("%s: Resuming audio output."), *OutputMethod);
+				bool bPausePlayback = false;
+				bAudioSuccess &= GetDevice().SetAudioOutputPause(AudioSystem, bPausePlayback);
+				bIsPaused = true;
+			}
+			else if (!bAudioOutputRunning)
+			{
+				// Only offset the start ptr if this is the first time we're starting the audio output.
+
+				ULWord WrapOffset = 0;
+				bAudioSuccess &= GetDevice().GetAudioWrapAddress(WrapOffset);
+
+				int32 NumOffsetFrames = 1;
+				int32 InitialOffset = Options.NumberOfAudioChannel * NumSamplesPerFrame * NumOffsetFrames * sizeof(int32);
+
+				CurrentAudioWriteOffset = InitialOffset;
+
+				UE_LOG(LogTemp, Verbose, TEXT("%s: Starting audio output."), *OutputMethod);
+				bAudioSuccess &= GetDevice().StartAudioOutput(AudioSystem); // This resets the playhead to 0, we have to override that to something closer to the write head in order to reduce audio delay
+			}
+
+			if (bAudioSuccess)
+			{
+				double OffsetInSeconds = 0;
+				bAudioSuccess &= Thread_GetAudioOffsetInSeconds(OffsetInSeconds);
+				bAudioSuccess &= GetDevice().ReadAudioLastOut(AudioPlayheadLastPosition, AudioSystem);
+				UE_LOG(LogTemp, Verbose, TEXT("%s: Play head: %d, Write Head: %d, Offset: %f"), *OutputMethod, AudioPlayheadLastPosition, CurrentAudioWriteOffset, OffsetInSeconds);
+
+				bAudioTransferWasSuccessful &= Thread_TransferAudioBuffer(AvailableReadingFrame->AudioBuffer, AvailableReadingFrame->CopiedAudioBufferSize);
+
+				int32 OffsetInSamples = 0;
+				bAudioSuccess &= Thread_GetAudioOffsetInSamples(OffsetInSamples);
+
+				if (bAudioSuccess && Thread_ShouldPauseAudioOutput())
+				{
+					UE_LOG(LogTemp, Warning, TEXT("%s: Audio play head is catching up to write head for channel %d on device %S.\n"), *OutputMethod, uint32_t(Channel) + 1, GetDevice().GetDisplayName().c_str());
+
+					bool bPausePlayout = true;
+					GetDevice().SetAudioOutputPause(AudioSystem, bPausePlayout);
+
+					UE_LOG(LogTemp, Verbose, TEXT("%s Pausing audio output because the play head is catching up to the write head. Last playhead position: %d"), *OutputMethod, AudioPlayheadLastPosition);
+				}
+			}
+			else
+			{
+				UE_LOG(LogTemp, Verbose, TEXT("%s Audio output failed."), *OutputMethod);
+			}
+
+			return bAudioTransferWasSuccessful;
+		}
+
+		bool OutputChannelThread::Thread_HandleLostFrameAudio()
+		{
+			bool bAudioSuccess = true;
+			bool bAudioOutputRunning = false;
+			bAudioSuccess &= GetDevice().IsAudioOutputRunning(AudioSystem, bAudioOutputRunning);
+
+			if (bAudioOutputRunning)
+			{
+				// When dropping frames, we have to keep writing audio data or else the play head will catch up to the write head which will induce a delay
+				int32 OffsetInSeconds = 0;
+				bAudioSuccess &= Thread_GetAudioOffsetInSamples(OffsetInSeconds);
+
+				if (bAudioSuccess && Thread_ShouldPauseAudioOutput())
+				{
+					constexpr bool bPausePlayout = true;
+					bAudioSuccess &= GetDevice().SetAudioOutputPause(AudioSystem, bPausePlayout);
+					UE_LOG(LogTemp, Warning, TEXT("Pausing audio output. Last playhead position: %d"), AudioPlayheadLastPosition);
+				}
+			}
+
+			return bAudioSuccess;
+		}
+
+		bool OutputChannelThread::Thread_ShouldPauseAudioOutput()
+		{
+			int32 AudioBufferZoneInFrames = 1;
+			int32 OffsetInSamples = 0;
+			Thread_GetAudioOffsetInSamples(OffsetInSamples);
+
+			if (OffsetInSamples <= (int32) NumSamplesPerFrame * AudioBufferZoneInFrames)
+			{
+				return true;
+			}
+			return false;
 		}
 	}
 }

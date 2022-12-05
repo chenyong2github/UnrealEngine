@@ -29,6 +29,7 @@ public class AjaCore : ModuleRules
 			new string[] {
 				"Core",
 				"RHI",
+				"Engine"
 			});
 
 		bDisableStaticAnalysis = true;

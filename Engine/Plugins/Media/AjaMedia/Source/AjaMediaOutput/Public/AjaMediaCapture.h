@@ -110,4 +110,6 @@ private:
 
 	/** Handle for the delegate used to clean up AJA on editor shutdown. */
 	FDelegateHandle CanCloseEditorDelegateHandle;
+
+	mutable int32 AudioSamplesSentLastFrame = 0;
 };

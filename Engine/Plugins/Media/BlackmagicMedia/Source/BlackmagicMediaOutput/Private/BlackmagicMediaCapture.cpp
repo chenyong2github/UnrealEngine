@@ -760,7 +760,7 @@ void UBlackmagicMediaCapture::OutputAudio_RenderingThread(const FCaptureBaseData
 		
 		if (AudioBitDepth == EBlackmagicMediaOutputAudioBitDepth::Signed_32Bits)
 		{
-			TArray<int32> AudioBuffer = AudioOutput->GetAudioSamples<int32>(NumSamplesToPull);
+			TArray<int32> AudioBuffer = AudioOutput->GetAllAudioSamples<int32>();
 			AudioSamples.AudioBuffer = reinterpret_cast<uint8_t*>(AudioBuffer.GetData());
 			AudioSamples.NumAudioSamples = AudioBuffer.Num() / NumOutputChannels;
 			AudioSamples.AudioBufferLength = AudioBuffer.Num() * sizeof(int32);
@@ -768,7 +768,7 @@ void UBlackmagicMediaCapture::OutputAudio_RenderingThread(const FCaptureBaseData
 		}
 		else if (AudioBitDepth == EBlackmagicMediaOutputAudioBitDepth::Signed_16Bits)
 		{
-			TArray<int16> AudioBuffer = AudioOutput->GetAudioSamples<int16>(NumSamplesToPull);
+			TArray<int16> AudioBuffer = AudioOutput->GetAllAudioSamples<int16>();
 			AudioSamples.AudioBuffer = reinterpret_cast<uint8_t*>(AudioBuffer.GetData());
 			AudioSamples.NumAudioSamples = AudioBuffer.Num() / NumOutputChannels;
 			AudioSamples.AudioBufferLength = AudioBuffer.Num() * sizeof(int16);

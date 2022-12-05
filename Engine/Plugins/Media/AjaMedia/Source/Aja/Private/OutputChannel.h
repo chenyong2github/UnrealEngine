@@ -79,6 +79,15 @@ namespace AJA
 			void Thread_PushAvailableReadingFrame(Frame* InCurrentReadingFrame);
 			void ThreadLock_PingPongOutputLoop_Memset0(Frame* InCurrentReadingFrame);
 
+			/** Get the number of bytes separating the audio write and play head. */
+			bool Thread_GetAudioOffset(int32& OutAudioOffset);
+			bool Thread_GetAudioOffsetInSeconds(double& OutAudioOffset);
+			bool Thread_GetAudioOffsetInSamples(int32& OutAudioOffset);
+			bool Thread_TransferAudioBuffer(uint8* InBuffer, int32 InBufferSize);
+			bool Thread_HandleAudio(const FString& OutputMethod, Frame* AvailableReadingFrame);
+			bool Thread_HandleLostFrameAudio();
+			bool Thread_ShouldPauseAudioOutput();
+
 			struct Frame
 			{
 				Frame();
@@ -127,6 +136,7 @@ namespace AJA
 
 			ULWord CurrentAudioWriteOffset = 0;
 			int32_t NumSamplesPerFrame = 0;
+			ULWord AudioPlayheadLastPosition = 0;
 		};
 	}
 }

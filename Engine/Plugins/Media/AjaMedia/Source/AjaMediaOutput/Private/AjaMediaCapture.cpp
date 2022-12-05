@@ -637,7 +637,9 @@ void UAjaMediaCapture::OutputAudio_RenderingThread(const AJA::AJAOutputFrameBuff
 	if (bOutputAudio)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UAjaMediaCapture::OnFrameCaptured_RenderingThread::SetAudio);
-		TArray<int32> AudioSamples = AudioOutput->GetAudioSamples<int32>();
+
+		int32 NumSamplesToPull = FMath::RoundToInt32(48000.f * AudioOutput->NumInputChannels / FrameRate.AsDecimal());
+		TArray<int32> AudioSamples = AudioOutput->GetAudioSamples<int32>(NumSamplesToPull);
 		OutputChannel->SetAudioFrameData(FrameBuffer, reinterpret_cast<uint8*>(AudioSamples.GetData()), AudioSamples.Num() * sizeof(int32));
 	}
 }
