@@ -6,7 +6,7 @@
 #include "StateTreeTypes.h"
 #include "StateTreeSchema.h"
 #include "InstancedStruct.h"
-#include "InstancedStructArray.h"
+#include "InstancedStructContainer.h"
 #include "StateTreePropertyBindings.h"
 #include "StateTreeInstanceData.h"
 #include "Misc/ScopeRWLock.h"
@@ -166,7 +166,7 @@ private:
 
 	/** Evaluators, Tasks, and Condition nodes. */
 	UPROPERTY()
-	FInstancedStructArray Nodes;
+	FInstancedStructContainer Nodes;
 
 	/** Default node instance data (e.g. evaluators, tasks). */
 	UPROPERTY()

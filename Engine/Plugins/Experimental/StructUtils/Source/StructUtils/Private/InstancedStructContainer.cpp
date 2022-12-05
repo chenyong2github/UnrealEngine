@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "InstancedStructArray.h"
+#include "InstancedStructContainer.h"
 #include "StructUtilsTypes.h"
 #include "Serialization/PropertyLocalizationDataGathering.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(InstancedStructArray)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(InstancedStructContainer)
 
 // From InstancedStruct.cpp to support localization.
 namespace UE::StructUtils::Private
@@ -18,17 +18,17 @@ namespace UE::StructUtils::Private
 } // UE::StructUtils::Private
 
 
-FInstancedStructArray::FInstancedStructArray()
+FInstancedStructContainer::FInstancedStructContainer()
 {
 	UE::StructUtils::Private::RegisterForLocalization();
 }
 
-FInstancedStructArray::FInstancedStructArray(const FInstancedStructArray& InOther)
+FInstancedStructContainer::FInstancedStructContainer(const FInstancedStructContainer& InOther)
 {
 	Append(InOther);
 }
 
-FInstancedStructArray::FInstancedStructArray(FInstancedStructArray&& InOther)
+FInstancedStructContainer::FInstancedStructContainer(FInstancedStructContainer&& InOther)
 	: Memory(InOther.Memory)
 	, AllocatedSize(InOther.AllocatedSize)
 	, NumItems(InOther.NumItems)
@@ -38,7 +38,7 @@ FInstancedStructArray::FInstancedStructArray(FInstancedStructArray&& InOther)
 	InOther.NumItems = 0;
 }
 
-FInstancedStructArray& FInstancedStructArray::operator=(const FInstancedStructArray& InOther)
+FInstancedStructContainer& FInstancedStructContainer::operator=(const FInstancedStructContainer& InOther)
 {
 	if (this != &InOther)
 	{
@@ -48,7 +48,7 @@ FInstancedStructArray& FInstancedStructArray::operator=(const FInstancedStructAr
 	return *this;
 }
 
-FInstancedStructArray& FInstancedStructArray::operator=(FInstancedStructArray&& InOther)
+FInstancedStructContainer& FInstancedStructContainer::operator=(FInstancedStructContainer&& InOther)
 {
 	if (this != &InOther)
 	{
@@ -65,7 +65,7 @@ FInstancedStructArray& FInstancedStructArray::operator=(FInstancedStructArray&& 
 	return *this;
 }
 
-FInstancedStructArray& FInstancedStructArray::operator=(TConstArrayView<FInstancedStruct> InItems)
+FInstancedStructContainer& FInstancedStructContainer::operator=(TConstArrayView<FInstancedStruct> InItems)
 {
 	Reset();
 	TArray<FConstStructView> Views;
@@ -78,7 +78,7 @@ FInstancedStructArray& FInstancedStructArray::operator=(TConstArrayView<FInstanc
 	return *this;
 }
 
-FInstancedStructArray& FInstancedStructArray::operator=(TConstArrayView<FConstStructView> InItems)
+FInstancedStructContainer& FInstancedStructContainer::operator=(TConstArrayView<FConstStructView> InItems)
 {
 	Reset();
 	InsertAt(0, InItems);
@@ -86,7 +86,7 @@ FInstancedStructArray& FInstancedStructArray::operator=(TConstArrayView<FConstSt
 }
 
 
-void FInstancedStructArray::Append(const FInstancedStructArray& Other)
+void FInstancedStructContainer::Append(const FInstancedStructContainer& Other)
 {
 	TArray<FConstStructView> Views;
 	for (int32 Index = 0; Index < Other.Num(); Index++)
@@ -96,7 +96,7 @@ void FInstancedStructArray::Append(const FInstancedStructArray& Other)
 	InsertAt(NumItems, Views);
 }
 
-void FInstancedStructArray::Append(TConstArrayView<FInstancedStruct> NewItemValues)
+void FInstancedStructContainer::Append(TConstArrayView<FInstancedStruct> NewItemValues)
 {
 	TArray<FConstStructView> Views;
 	Views.Reserve(NewItemValues.Num());
@@ -107,12 +107,12 @@ void FInstancedStructArray::Append(TConstArrayView<FInstancedStruct> NewItemValu
 	InsertAt(NumItems, Views);
 }
 
-void FInstancedStructArray::Append(TConstArrayView<FConstStructView> NewItemValues)
+void FInstancedStructContainer::Append(TConstArrayView<FConstStructView> NewItemValues)
 {
 	InsertAt(NumItems, NewItemValues);
 }
 
-void FInstancedStructArray::InsertAt(const int32 InsertAtIndex, const FInstancedStructArray& Other)
+void FInstancedStructContainer::InsertAt(const int32 InsertAtIndex, const FInstancedStructContainer& Other)
 {
 	TArray<FConstStructView> Views;
 	for (int32 Index = 0; Index < Other.Num(); Index++)
@@ -122,7 +122,7 @@ void FInstancedStructArray::InsertAt(const int32 InsertAtIndex, const FInstanced
 	InsertAt(InsertAtIndex, Views);
 }
 
-void FInstancedStructArray::InsertAt(const int32 InsertAtIndex, TConstArrayView<FInstancedStruct> NewItemValues)
+void FInstancedStructContainer::InsertAt(const int32 InsertAtIndex, TConstArrayView<FInstancedStruct> NewItemValues)
 {
 	TArray<FConstStructView> Views;
 	Views.Reserve(NewItemValues.Num());
@@ -133,7 +133,7 @@ void FInstancedStructArray::InsertAt(const int32 InsertAtIndex, TConstArrayView<
 	InsertAt(InsertAtIndex, Views);
 }
 
-void FInstancedStructArray::InsertAt(const int32 InsertAtIndex, TConstArrayView<FConstStructView> ValuesToInsert)
+void FInstancedStructContainer::InsertAt(const int32 InsertAtIndex, TConstArrayView<FConstStructView> ValuesToInsert)
 {
 	checkSlow((ValuesToInsert.Num() >= 0) & (InsertAtIndex >= 0) & (InsertAtIndex <= NumItems));
 
@@ -245,7 +245,7 @@ void FInstancedStructArray::InsertAt(const int32 InsertAtIndex, TConstArrayView<
 	}
 }
 
-void FInstancedStructArray::RemoveAt(const int32 RemoveAtIndex, const int32 Count)
+void FInstancedStructContainer::RemoveAt(const int32 RemoveAtIndex, const int32 Count)
 {
 	checkSlow((Count >= 0) & (RemoveAtIndex >= 0) & (RemoveAtIndex + Count <= NumItems));
 
@@ -298,7 +298,7 @@ void FInstancedStructArray::RemoveAt(const int32 RemoveAtIndex, const int32 Coun
 	NumItems -= Count;
 }
 
-void FInstancedStructArray::ReserveBytes(const int32 NumBytes, const int32 MinAlignment)
+void FInstancedStructContainer::ReserveBytes(const int32 NumBytes, const int32 MinAlignment)
 {
 	if (NumBytes > AllocatedSize || !IsAligned(Memory, MinAlignment))
 	{
@@ -324,7 +324,7 @@ void FInstancedStructArray::ReserveBytes(const int32 NumBytes, const int32 MinAl
 	}
 }
 
-void FInstancedStructArray::SetNum(const int32 NewNum)
+void FInstancedStructContainer::SetNum(const int32 NewNum)
 {
 	checkSlow(NewNum >= 0 && NewNum <= NumItems);
 
@@ -339,7 +339,7 @@ void FInstancedStructArray::SetNum(const int32 NewNum)
 	NumItems = NewNum;
 }
 
-void FInstancedStructArray::Reset()
+void FInstancedStructContainer::Reset()
 {
 	// Destruct items
 	for (int32 Index = 0; Index < NumItems; Index++)
@@ -353,7 +353,7 @@ void FInstancedStructArray::Reset()
 	NumItems = 0;
 }
 
-void FInstancedStructArray::Empty()
+void FInstancedStructContainer::Empty()
 {
 	Reset();
 
@@ -363,7 +363,7 @@ void FInstancedStructArray::Empty()
 	AllocatedSize = 0;
 }
 
-void FInstancedStructArray::AddStructReferencedObjects(class FReferenceCollector& Collector) const
+void FInstancedStructContainer::AddStructReferencedObjects(class FReferenceCollector& Collector) const
 {
 	for (int32 Index = 0; Index < NumItems; Index++)
 	{
@@ -375,7 +375,7 @@ void FInstancedStructArray::AddStructReferencedObjects(class FReferenceCollector
 	}
 }
 
-bool FInstancedStructArray::Identical(const FInstancedStructArray* Other, uint32 PortFlags) const
+bool FInstancedStructContainer::Identical(const FInstancedStructContainer* Other, uint32 PortFlags) const
 {
 	if (Other == nullptr)
 	{
@@ -428,7 +428,7 @@ bool FInstancedStructArray::Identical(const FInstancedStructArray* Other, uint32
 	return bResult;
 }
 
-bool FInstancedStructArray::Serialize(FArchive& Ar)
+bool FInstancedStructContainer::Serialize(FArchive& Ar)
 {
 	enum class EVersion : uint8
 	{
@@ -494,7 +494,7 @@ bool FInstancedStructArray::Serialize(FArchive& Ar)
 					// In this case we manually seek in the archive to skip its serialized content. 
 					// We don't want to rely on TaggedSerialization that will mark an error in the archive that
 					// may cause other serialization to fail (e.g. FArchive& operator<<(FArchive& Ar, TArray& A))
-					UE_LOG(LogCore, Warning, TEXT("Unable to find serialized UScriptStruct -> Advance %u bytes in the archive and reset to empty FInstancedStructArray"), SerialSize);
+					UE_LOG(LogCore, Warning, TEXT("Unable to find serialized UScriptStruct -> Advance %u bytes in the archive and reset to empty FInstancedStructContainer"), SerialSize);
 					Ar.Seek(Ar.Tell() + SerialSize);
 				}
 				else if (NonConstStruct != nullptr)
@@ -565,7 +565,7 @@ bool FInstancedStructArray::Serialize(FArchive& Ar)
 	return true;
 }
 
-void FInstancedStructArray::GetPreloadDependencies(TArray<UObject*>& OutDeps) const
+void FInstancedStructContainer::GetPreloadDependencies(TArray<UObject*>& OutDeps) const
 {
 	for (int32 Index = 0; Index < NumItems; Index++)
 	{

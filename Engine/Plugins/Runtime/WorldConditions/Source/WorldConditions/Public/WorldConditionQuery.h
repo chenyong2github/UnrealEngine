@@ -3,7 +3,7 @@
 #pragma once
 
 #include "InstancedStruct.h"
-#include "InstancedStructArray.h"
+#include "InstancedStructContainer.h"
 #include "StructView.h"
 #include "WorldConditionBase.h"
 #include "WorldConditionTypes.h"
@@ -96,7 +96,7 @@ public:
 
 	/** All the conditions of the world conditions. */
 	UPROPERTY()
-	FInstancedStructArray Conditions;
+	FInstancedStructContainer Conditions;
 
 	/** Schema used to create the conditions. */
 	UPROPERTY()
@@ -323,6 +323,8 @@ struct WORLDCONDITIONS_API FWorldConditionQueryState
 	 * @return Invalidation handle.	
 	 */
 	FWorldConditionResultInvalidationHandle GetInvalidationHandle(const FWorldConditionBase& Condition) const;
+
+	const UObject* GetOwner() const { return Owner; }
 	
 protected:
 

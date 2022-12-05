@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AITestsCommon.h"
-#include "InstancedStructArray.h"
+#include "InstancedStructContainer.h"
 #include "StructUtilsTestTypes.h"
 #include "Serialization/ObjectAndNameAsStringProxyArchive.h"
 #include "Serialization/MemoryWriter.h"
@@ -9,14 +9,14 @@
 
 #define LOCTEXT_NAMESPACE "StructUtilsTests"
 
-namespace FInstancedStructArrayTest
+namespace FInstancedStructContainerTest
 {
 
-struct FTest_BasicInstancedStructArray : FAITestBase
+struct FTest_BasicInstancedStructContainer : FAITestBase
 {
 	virtual bool InstantTest() override
 	{
-		FInstancedStructArray Array;
+		FInstancedStructContainer Array;
 
 		TArray<FConstStructView> TestStructs;
 		TestStructs.Add(TBaseStructure<FTestStructSimple>::Get());
@@ -53,7 +53,7 @@ struct FTest_BasicInstancedStructArray : FAITestBase
 		Array.SetNum(2);
 		AITEST_TRUE(TEXT("Should have 2 items"), Array.Num() == 2);
 
-		FInstancedStructArray Array2;
+		FInstancedStructContainer Array2;
 		Array2.Append({ TBaseStructure<FQuat>::Get(), TBaseStructure<FTestStructSimple1>::Get() });
 		Array.InsertAt(1, Array2);
 		AITEST_TRUE(TEXT("Should have 4 items"), Array.Num() == 4);
@@ -75,13 +75,13 @@ struct FTest_BasicInstancedStructArray : FAITestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FTest_BasicInstancedStructArray, "System.StructUtils.InstancedStructArray.Basic");
+IMPLEMENT_AI_INSTANT_TEST(FTest_BasicInstancedStructContainer, "System.StructUtils.InstancedStructContainer.Basic");
 
-struct FTest_SerializeInstancedStructArray : FAITestBase
+struct FTest_SerializeInstancedStructContainer : FAITestBase
 {
 	virtual bool InstantTest() override
 	{
-		FInstancedStructArray Array;
+		FInstancedStructContainer Array;
 
 		TArray<FInstancedStruct> TestInstanced;
 		TestInstanced.AddDefaulted_GetRef().InitializeAs<FTransform>();
@@ -106,7 +106,7 @@ struct FTest_SerializeInstancedStructArray : FAITestBase
 		const bool bLoadResult = Array.Serialize(ReaderProxy);
 		AITEST_TRUE(TEXT("Loading to same array should succeed"), bLoadResult);
 
-		FInstancedStructArray Array2;
+		FInstancedStructContainer Array2;
 		FMemoryReader Reader2(Memory);
 		FObjectAndNameAsStringProxyArchive ReaderProxy2(Reader2, /*bInLoadIfFindFails*/true);
 		const bool bLoadResult2 = Array2.Serialize(ReaderProxy2);
@@ -117,8 +117,8 @@ struct FTest_SerializeInstancedStructArray : FAITestBase
 		return true;
 	}
 };
-IMPLEMENT_AI_INSTANT_TEST(FTest_SerializeInstancedStructArray, "System.StructUtils.InstancedStructArray.Serialize");
+IMPLEMENT_AI_INSTANT_TEST(FTest_SerializeInstancedStructContainer, "System.StructUtils.InstancedStructContainer.Serialize");
 
-} // FInstancedStructArrayTest
+} // FInstancedStructContainerTest
 
 #undef LOCTEXT_NAMESPACE

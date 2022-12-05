@@ -4,7 +4,7 @@
 
 #include "InstancedStruct.h"
 #include "StructView.h"
-#include "InstancedStructArray.generated.h"
+#include "InstancedStructContainer.generated.h"
 
 /**
  * Array of heterogeneous structs. Can be used as a property, supports serialization,
@@ -25,28 +25,60 @@
  */
 
 USTRUCT()
-struct STRUCTUTILS_API FInstancedStructArray
+struct STRUCTUTILS_API FInstancedStructContainer
 {
 	GENERATED_BODY()
 
-	FInstancedStructArray();
-	FInstancedStructArray(const FInstancedStructArray& InOther);
-	FInstancedStructArray(FInstancedStructArray&& InOther);
-	
-	~FInstancedStructArray() { Empty(); }
+private:
 
-	FInstancedStructArray& operator=(const FInstancedStructArray& InOther);
-	FInstancedStructArray& operator=(FInstancedStructArray&& InOther);
-	FInstancedStructArray& operator=(TConstArrayView<FInstancedStruct> InItems);
-	FInstancedStructArray& operator=(TConstArrayView<FConstStructView> InItems);
+	/** Struct describing an item in the array. */
+	struct FItem
+	{
+		FItem() = default;
+		FItem(const UScriptStruct* InScriptStruct, const int32 InOffset) : ScriptStruct(InScriptStruct), Offset(InOffset) {}
+
+		int32 GetStructureSize() const
+		{
+			return ScriptStruct != nullptr ? ScriptStruct->GetStructureSize() : 0;
+		}
+
+		int32 GetMinAlignment() const
+		{
+			return ScriptStruct != nullptr ? ScriptStruct->GetMinAlignment() : 1;
+		}
+
+		int32 GetEndOffset() const
+		{
+			return Offset + GetStructureSize();
+		}
+
+		const UScriptStruct* ScriptStruct = nullptr;
+		int32 Offset = 0;
+	};
+
+public:
+	
+	/** How much memory is used to store info about each item. */
+	static constexpr int32 OverheadPerItem = sizeof(FItem);
+	
+	FInstancedStructContainer();
+	FInstancedStructContainer(const FInstancedStructContainer& InOther);
+	FInstancedStructContainer(FInstancedStructContainer&& InOther);
+	
+	~FInstancedStructContainer() { Empty(); }
+
+	FInstancedStructContainer& operator=(const FInstancedStructContainer& InOther);
+	FInstancedStructContainer& operator=(FInstancedStructContainer&& InOther);
+	FInstancedStructContainer& operator=(TConstArrayView<FInstancedStruct> InItems);
+	FInstancedStructContainer& operator=(TConstArrayView<FConstStructView> InItems);
 
 	/** Appends items to the array. */
-	void Append(const FInstancedStructArray& Other);
+	void Append(const FInstancedStructContainer& Other);
 	void Append(TConstArrayView<FInstancedStruct> NewItemValues);
 	void Append(TConstArrayView<FConstStructView> NewItemValues);
 
 	/** Insert new items at specified location. */
-	void InsertAt(const int32 InsertAtIndex, const FInstancedStructArray& Other);
+	void InsertAt(const int32 InsertAtIndex, const FInstancedStructContainer& Other);
 	void InsertAt(const int32 InsertAtIndex, TConstArrayView<FInstancedStruct> ValuesToInsert);
 	void InsertAt(const int32 InsertAtIndex, TConstArrayView<FConstStructView> ValuesToInsert);
 
@@ -76,9 +108,17 @@ struct STRUCTUTILS_API FInstancedStructArray
 
 	/** @return true of the index is in valid range to the array. */
 	bool IsValidIndex(const int32 Index) const { return Index >= 0 && Index < NumItems; }
-	
+
 	/** @return view to the struct at specified index. */
-	FStructView operator[](const int32 Index) const
+	FConstStructView operator[](const int32 Index) const
+	{
+		check(IsValid() && IsValidIndex(Index));
+		const FItem& Item = GetItem(Index);
+		return FConstStructView(Item.ScriptStruct, Memory + Item.Offset);
+	}
+
+	/** @return view to the struct at specified index. */
+	FStructView operator[](const int32 Index)
 	{
 		check(IsValid() && IsValidIndex(Index));
 		const FItem& Item = GetItem(Index);
@@ -87,36 +127,11 @@ struct STRUCTUTILS_API FInstancedStructArray
 
 	/** Type traits */
 	void AddStructReferencedObjects(class FReferenceCollector& Collector) const;
-	bool Identical(const FInstancedStructArray* Other, uint32 PortFlags) const;
+	bool Identical(const FInstancedStructContainer* Other, uint32 PortFlags) const;
 	bool Serialize(FArchive& Ar);
 	void GetPreloadDependencies(TArray<UObject*>& OutDeps) const;
 
 private:
-
-	/** Struct describing an item in the array. */
-	struct FItem
-	{
-		FItem() = default;
-		FItem(const UScriptStruct* InScriptStruct, const int32 InOffset) : ScriptStruct(InScriptStruct), Offset(InOffset) {}
-
-		int32 GetStructureSize() const
-		{
-			return ScriptStruct != nullptr ? ScriptStruct->GetStructureSize() : 0;
-		}
-
-		int32 GetMinAlignment() const
-		{
-			return ScriptStruct != nullptr ? ScriptStruct->GetMinAlignment() : 1;
-		}
-
-		int32 GetEndOffset() const
-		{
-			return Offset + GetStructureSize();
-		}
-
-		const UScriptStruct* ScriptStruct = nullptr;
-		int32 Offset = 0;
-	};
 
 	/** Default minimum alignment for any allocation. Pointer sized to prevent trivial allocations due to alignment. */
 	static constexpr int32 DefaultMinAlignment = alignof(void*);
@@ -150,7 +165,7 @@ private:
 };
 
 template<>
-struct TStructOpsTypeTraits<FInstancedStructArray> : public TStructOpsTypeTraitsBase2<FInstancedStructArray>
+struct TStructOpsTypeTraits<FInstancedStructContainer> : public TStructOpsTypeTraitsBase2<FInstancedStructContainer>
 {
 	enum
 	{

@@ -1575,7 +1575,7 @@ void FStateTreeExecutionContext::DebugPrintInternalLayout()
 	DebugString += FString::Printf(TEXT("\nItems(%d)\n"), StateTree.Nodes.Num());
 	for (int32 Index = 0; Index < StateTree.Nodes.Num(); Index++)
 	{
-		const FStructView Node = StateTree.Nodes[Index];
+		const FConstStructView Node = StateTree.Nodes[Index];
 		DebugString += FString::Printf(TEXT("  %s\n"), Node.IsValid() ? *Node.GetScriptStruct()->GetName() : TEXT("null"));
 	}
 

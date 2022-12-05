@@ -505,9 +505,8 @@ TArray<FStateTreeMemoryUsage> UStateTree::CalculateEstimatedMemoryUsage() const
 	FStateTreeMemoryUsage& InstanceMemUsage = MemoryUsages[InstanceMemUsageIndex];
 	// FStateTreeInstanceData overhead.
 	InstanceMemUsage.EstimatedMemoryUsage += sizeof(FStateTreeInstanceData);
-	// FInstancedStructArray overhead.
-	constexpr int32 ItemSize = 16; // sizeof(FInstancedStructArray::FItem);
-	InstanceMemUsage.EstimatedMemoryUsage += TreeMemUsage.NodeCount * ItemSize;
+	// FInstancedStructContainer overhead.
+	InstanceMemUsage.EstimatedMemoryUsage += TreeMemUsage.NodeCount * FInstancedStructContainer::OverheadPerItem;
 
 	TreeMemUsage.EstimatedMemoryUsage += InstanceMemUsage.EstimatedMemoryUsage;
 	

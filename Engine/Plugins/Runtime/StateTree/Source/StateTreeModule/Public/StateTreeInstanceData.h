@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "InstancedStructArray.h"
+#include "InstancedStructContainer.h"
 #include "InstancedStruct.h"
 #include "StructView.h"
 #include "StateTreeEvents.h"
@@ -36,7 +36,7 @@ struct STATETREEMODULE_API FStateTreeInstanceStorage
 	bool IsValidStructIndex(const int32 Index) const { return InstanceStructs.IsValidIndex(Index); }
 	
 	/** @return mutable view to the struct at specified index. */
-	FStructView GetMutableStruct(const int32 Index) const { return InstanceStructs[Index]; }
+	FStructView GetMutableStruct(const int32 Index) { return InstanceStructs[Index]; }
 
 	/** @return const view to the struct at specified index. */
 	FConstStructView GetStruct(const int32 Index) const { return InstanceStructs[Index]; }
@@ -51,12 +51,15 @@ struct STATETREEMODULE_API FStateTreeInstanceStorage
 	const UObject* GetObject(const int32 Index) const { return InstanceObjects[Index]; }
 
 	/** @return reference to the event queue. */
-	FStateTreeEventQueue& GetEventQueue();
+	FStateTreeEventQueue& GetMutableEventQueue() { return EventQueue; }
+
+	/** @return reference to the event queue. */
+	const FStateTreeEventQueue& GetEventQueue() const { return EventQueue; }
 	
 protected:
 	/** Struct instances */
 	UPROPERTY()
-	FInstancedStructArray InstanceStructs;
+	FInstancedStructContainer InstanceStructs;
 
 	/** Object instances. */
 	UPROPERTY()
@@ -112,7 +115,7 @@ struct STATETREEMODULE_API FStateTreeInstanceData
 	bool IsValidStructIndex(const int32 Index) const { return GetStorage().InstanceStructs.IsValidIndex(Index); }
 	
 	/** @return mutable view to the struct at specified index. */
-	FStructView GetMutableStruct(const int32 Index) { return GetStorage().InstanceStructs[Index]; }
+	FStructView GetMutableStruct(const int32 Index) { return GetMutableStorage().InstanceStructs[Index]; }
 
 	/** @return const view to the struct at specified index. */
 	FConstStructView GetStruct(const int32 Index) const { return GetStorage().InstanceStructs[Index]; }
@@ -121,7 +124,7 @@ struct STATETREEMODULE_API FStateTreeInstanceData
 	int32 NumObjects() const { return GetStorage().InstanceObjects.Num(); }
 
 	/** @return pointer to an instance object   */
-	UObject* GetMutableObject(const int32 Index) { return GetStorage().InstanceObjects[Index]; }
+	UObject* GetMutableObject(const int32 Index) { return GetMutableStorage().InstanceObjects[Index]; }
 
 	/** @return const pointer to an instance object   */
 	const UObject* GetObject(const int32 Index) const { return GetStorage().InstanceObjects[Index]; }
@@ -134,8 +137,8 @@ struct STATETREEMODULE_API FStateTreeInstanceData
 	FStateTreeEventQueue& GetMutableEventQueue();
 	const FStateTreeEventQueue& GetEventQueue() const;
 
-	const FStateTreeInstanceStorage& GetStorage() const;
 	FStateTreeInstanceStorage& GetMutableStorage();
+	const FStateTreeInstanceStorage& GetStorage() const;
 
 	int32 GetEstimatedMemoryUsage() const;
 	int32 GetNumItems() const;
@@ -152,7 +155,7 @@ protected:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(meta = (DeprecatedProperty))
-	FInstancedStructArray InstanceStructs_DEPRECATED;
+	FInstancedStructContainer InstanceStructs_DEPRECATED;
 
 	UPROPERTY(meta = (DeprecatedProperty))
 	TArray<TObjectPtr<UObject>> InstanceObjects_DEPRECATED;
