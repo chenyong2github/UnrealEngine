@@ -18,6 +18,7 @@
 #include "PixelShaderUtils.h"
 #include "Lumen/LumenSceneRendering.h"
 #include "Strata/Strata.h"
+#include "VariableRateShadingImageManager.h"
 
 DECLARE_CYCLE_STAT(TEXT("NaniteBasePass"), STAT_CLP_NaniteBasePass, STATGROUP_ParallelCommandListMarkers);
 
@@ -668,6 +669,7 @@ void DrawBasePass(
 				ERenderTargetLoadAction::ELoad,
 				MaterialDepthStencil
 			);
+			PassParams.RenderTargets.ShadingRateTexture = GVRSImageManager.GetVariableRateShadingImage(GraphBuilder, View, FVariableRateShadingImageManager::EVRSPassType::NaniteEmitGBufferPass, nullptr);
 		}
 
 		GraphBuilder.AddSetupTask([ParamsAndInfo, &MaterialCommands, &MaterialPassCommands, VisibilityResults = RasterResults.VisibilityResults /* Intentional copy */]
@@ -682,7 +684,6 @@ void DrawBasePass(
 		});
 
 		TShaderMapRef<FNaniteIndirectMaterialVS> NaniteVertexShader(View.ShaderMap);
-
 		const bool bParallelDispatch = GRHICommandList.UseParallelAlgorithms() && CVarParallelBasePassBuild.GetValueOnRenderThread() != 0 && FParallelMeshDrawCommandPass::IsOnDemandShaderCreationEnabled();
 
 		if (bParallelDispatch)

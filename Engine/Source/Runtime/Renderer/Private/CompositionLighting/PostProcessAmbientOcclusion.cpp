@@ -10,6 +10,7 @@
 #include "ScenePrivate.h"
 #include "Strata/Strata.h"
 #include "ClearQuad.h"
+#include "VariableRateShadingImageManager.h"
 
 DECLARE_GPU_STAT_NAMED(SSAOSetup, TEXT("ScreenSpace AO Setup") );
 DECLARE_GPU_STAT_NAMED(SSAO, TEXT("ScreenSpace AO") );
@@ -918,6 +919,7 @@ void AddAmbientOcclusionPass(
 		PassParameters->SharedParameters = MoveTemp(SharedParameters);
 		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 		PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
+		PassParameters->RenderTargets.ShadingRateTexture = GVRSImageManager.GetVariableRateShadingImage(GraphBuilder, View, FVariableRateShadingImageManager::EVRSPassType::SSAO, nullptr);
 		if (bDepthBoundsTestEnabled)
 		{
 			PassParameters->RenderTargets.DepthStencil = DepthStencilBinding;

@@ -24,6 +24,7 @@
 #include "PipelineStateCache.h"
 #include "ClearQuad.h"
 #include "HairStrands/HairStrandsData.h"
+#include "VariableRateShadingImageManager.h"
 
 /**
  * A vertex shader for projecting a light function onto the scene.
@@ -338,6 +339,7 @@ bool FDeferredShadingSceneRenderer::RenderLightFunctionForMaterial(
 			PassParameters->HairOnlyDepthTexture = (View.HairStrandsViewData.bIsValid && View.HairStrandsViewData.VisibilityData.HairOnlyDepthTexture) ? View.HairStrandsViewData.VisibilityData.HairOnlyDepthTexture : GSystemTextures.GetDepthDummy(GraphBuilder);
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(ScreenShadowMaskTexture, bLightAttenuationCleared ? ERenderTargetLoadAction::ELoad : ERenderTargetLoadAction::ENoAction);
 			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneTextures.Depth.Target, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilWrite);
+			PassParameters->RenderTargets.ShadingRateTexture = GVRSImageManager.GetVariableRateShadingImage(GraphBuilder, View, FVariableRateShadingImageManager::EVRSPassType::LightFunctions, nullptr);
 
 			// If render shadow mask for hair strands, then swap depth to hair only depth
 			if (bUseHairStrands)

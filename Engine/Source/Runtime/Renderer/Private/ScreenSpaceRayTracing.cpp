@@ -7,7 +7,7 @@
 #include "ScenePrivate.h"
 #include "SceneTextureParameters.h"
 #include "Strata/Strata.h"
-
+#include "VariableRateShadingImageManager.h"
 
 static TAutoConsoleVariable<int32> CVarSSRQuality(
 	TEXT("r.SSR.Quality"),
@@ -1104,6 +1104,7 @@ void RenderScreenSpaceReflections(
 	SetSSRParameters(&PassParameters->SSRPassCommonParameter);
 	PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 	PassParameters->RenderTargets = RenderTargets;
+	PassParameters->RenderTargets.ShadingRateTexture = GVRSImageManager.GetVariableRateShadingImage(GraphBuilder, View, FVariableRateShadingImageManager::EVRSPassType::SSR, nullptr);
 
 	TShaderMapRef<FScreenSpaceReflectionsPS> PixelShader(View.ShaderMap, PermutationVector);
 

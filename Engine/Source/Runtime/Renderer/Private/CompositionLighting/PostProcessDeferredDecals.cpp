@@ -13,6 +13,7 @@
 #include "VelocityRendering.h"
 #include "VisualizeTexture.h"
 #include "RenderCore.h"
+#include "VariableRateShadingImageManager.h"
 
 static TAutoConsoleVariable<float> CVarStencilSizeThreshold(
 	TEXT("r.Decal.StencilSizeThreshold"),
@@ -152,6 +153,7 @@ void GetDeferredDecalPassParameters(
 	FRDGTextureRef DepthTexture = Textures.Depth.Target;
 
 	FRenderTargetBindingSlots& RenderTargets = PassParameters.RenderTargets;
+	PassParameters.RenderTargets.ShadingRateTexture = GVRSImageManager.GetVariableRateShadingImage(GraphBuilder, View, FVariableRateShadingImageManager::EVRSPassType::Decals, nullptr);
 
 	uint32 ColorTargetIndex = 0;
 
