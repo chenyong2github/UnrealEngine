@@ -241,7 +241,8 @@ FReply FIKRetargetPoseExporter::ImportPoseAsset() const
 	PoseAsset->GetFullPose(IndexOfPoseToImport, LocalBoneTransformFromPose);
 
 	// create a new retarget pose to store the data from the selected retarget pose asset
-	FIKRetargetPose NewPose;
+	const FName NewPoseName = ControllerPtr->AssetController->CreateRetargetPose(FName(PoseAsset->GetName()), SourceOrTarget);
+	FIKRetargetPose& NewPose = ControllerPtr->AssetController->GetRetargetPoses(SourceOrTarget)[NewPoseName];
 	
 	// iterate over all bones in the reference skeleton and compare against bone in the pose asset
 	// store sparse set of deltas in the new retarget pose 
@@ -275,9 +276,6 @@ FReply FIKRetargetPoseExporter::ImportPoseAsset() const
 			NewPose.SetDeltaRotationForBone(BoneName, DeltaRotation);
 		}
 	}
-
-	// store the retarget pose in the retarget asset
-	ControllerPtr->AssetController->AddRetargetPose(FName(PoseAsset->GetName()), &NewPose, SourceOrTarget);
 
 	// update view with new pose
 	ControllerPtr->RefreshAllViews();
@@ -512,8 +510,11 @@ FReply FIKRetargetPoseExporter::OnImportPoseFromSequence()
 	FrameOfSequenceToImport = FMath::Clamp(FrameOfSequenceToImport, 0, AnimSequence->GetNumberOfSampledKeys());
 	UAnimPoseExtensions::GetAnimPoseAtFrame(AnimSequence, FrameOfSequenceToImport, EvaluationOptions, ImportedPose);
 
+	// create a new retarget pose to hold imported data
+	const FName NewPose = ControllerPtr->AssetController->CreateRetargetPose(FName(ImportedPoseName.ToString()), SourceOrTarget);
+
 	// record delta pose for all bones being retargeted
-	FIKRetargetPose ImportedRetargetPose;
+	FIKRetargetPose& ImportedRetargetPose = ControllerPtr->AssetController->GetRetargetPoses(SourceOrTarget)[NewPose];
 	
 	// get all imported bone transforms and record them in the retarget pose
 	FReferenceSkeleton& RefSkeleton = Mesh->GetRefSkeleton();
@@ -572,11 +573,8 @@ FReply FIKRetargetPoseExporter::OnImportPoseFromSequence()
 		}
 	}
 
-	// store the newly imported retarget pose in the asset
-	ControllerPtr->AssetController->AddRetargetPose( FName(ImportedPoseName.ToString()), &ImportedRetargetPose, SourceOrTarget);
-
 	// notify user of new pose
-	const FText Message = FText::Format(LOCTEXT("ImportSuccess", "Imported pose from animation sequence: {0}"), ImportedPoseName);
+	const FText Message = FText::Format(LOCTEXT("ImportSuccess", "Imported new retarget pose: {0}"), FText::FromName(NewPose));
 	NotifyUser(Message, SNotificationItem::CS_Success);
 	return FReply::Unhandled();
 }

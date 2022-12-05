@@ -32,7 +32,7 @@ FBoundIKRig::FBoundIKRig(UIKRigDefinition* InIKRig, const FIKRetargetEditorContr
 {
 	check(InIKRig);
 	IKRig = InIKRig;
-	UIKRigController* IKRigController = UIKRigController::GetIKRigController(InIKRig);
+	UIKRigController* IKRigController = UIKRigController::GetController(InIKRig);
 	ReInitIKDelegateHandle = IKRigController->OnIKRigNeedsInitialized().AddSP(&InController, &FIKRetargetEditorController::HandleIKRigNeedsInitialized);
 	AddedChainDelegateHandle = IKRigController->OnRetargetChainAdded().AddSP(&InController, &FIKRetargetEditorController::HandleRetargetChainAdded);
 	RemoveChainDelegateHandle = IKRigController->OnRetargetChainRemoved().AddSP(&InController, &FIKRetargetEditorController::HandleRetargetChainRemoved);
@@ -42,7 +42,7 @@ FBoundIKRig::FBoundIKRig(UIKRigDefinition* InIKRig, const FIKRetargetEditorContr
 void FBoundIKRig::UnBind() const
 {
 	check(IKRig);
-	UIKRigController* IKRigController = UIKRigController::GetIKRigController(IKRig);
+	UIKRigController* IKRigController = UIKRigController::GetController(IKRig);
 	IKRigController->OnIKRigNeedsInitialized().Remove(ReInitIKDelegateHandle);
 	IKRigController->OnRetargetChainAdded().Remove(AddedChainDelegateHandle);
 	IKRigController->OnRetargetChainRemoved().Remove(RemoveChainDelegateHandle);
@@ -140,8 +140,7 @@ void FIKRetargetEditorController::Initialize(TSharedPtr<FIKRetargetEditor> InEdi
 	LastSelectedItem = ERetargetSelectionType::NONE;
 
 	// clean the asset before editing
-	AssetController->CleanChainMapping();
-	AssetController->CleanPoseLists();
+	AssetController->CleanAsset();
 
 	// bind callbacks when SOURCE or TARGET IK Rigs are modified
 	BindToIKRigAssets();
@@ -266,20 +265,20 @@ void FIKRetargetEditorController::HandleIKRigNeedsInitialized(UIKRigDefinition* 
 void FIKRetargetEditorController::HandleRetargetChainAdded(UIKRigDefinition* ModifiedIKRig) const
 {
 	check(ModifiedIKRig)
-	AssetController->OnRetargetChainAdded(ModifiedIKRig);
+	AssetController->HandleRetargetChainAdded(ModifiedIKRig);
 	RefreshAllViews();
 }
 
 void FIKRetargetEditorController::HandleRetargetChainRenamed(UIKRigDefinition* ModifiedIKRig, FName OldName, FName NewName) const
 {
 	check(ModifiedIKRig)
-	AssetController->OnRetargetChainRenamed(ModifiedIKRig, OldName, NewName);
+	AssetController->HandleRetargetChainRenamed(ModifiedIKRig, OldName, NewName);
 }
 
-void FIKRetargetEditorController::HandleRetargetChainRemoved(UIKRigDefinition* ModifiedIKRig, const FName& InChainRemoved) const
+void FIKRetargetEditorController::HandleRetargetChainRemoved(UIKRigDefinition* ModifiedIKRig, const FName InChainRemoved) const
 {
 	check(ModifiedIKRig)
-	AssetController->OnRetargetChainRemoved(ModifiedIKRig, InChainRemoved);
+	AssetController->HandleRetargetChainRemoved(ModifiedIKRig, InChainRemoved);
 	RefreshAllViews();
 }
 
@@ -338,7 +337,10 @@ void FIKRetargetEditorController::HandlePreviewMeshReplaced(ERetargetSourceOrTar
 	}
 
 	// re-initializes the anim instances running in the viewport
-	Editor.Pin()->SetupAnimInstance();
+	if (SourceAnimInstance)
+	{
+		Editor.Pin()->SetupAnimInstance();	
+	}
 
 	// continue playing where we left off
 	PlaybackManager->ResumePlayback();
@@ -442,19 +444,20 @@ bool FIKRetargetEditorController::GetCameraTargetForSelection(FSphere& OutTarget
 			const TArray<FName>& SelectedChainNames = GetSelectedChains();
 			for (const FName SelectedChainName : SelectedChainNames)
 			{
-				const URetargetChainSettings* ChainMap = AssetController->GetChainMappingByTargetChainName(SelectedChainName);
-				if (!ChainMap)
+				const FName SourceChain = AssetController->GetSourceChain(SelectedChainName);
+				if (SourceChain == NAME_None)
 				{
 					continue;
 				}
 
-				const FName& ChainName = SourceOrTarget == ERetargetSourceOrTarget::Target ? SelectedChainName : ChainMap->SourceChain;
+				const FName& ChainName = SourceOrTarget == ERetargetSourceOrTarget::Target ? SelectedChainName : SourceChain;
 				if (ChainName == NAME_None)
 				{
 					continue;
 				}
 
-				const FBoneChain* BoneChain = IKRig->GetRetargetChainByName(ChainName);
+				const UIKRigController* RigController = UIKRigController::GetController(IKRig);
+				const FBoneChain* BoneChain = RigController->GetRetargetChainByName(ChainName);
 				if (!BoneChain)
 				{
 					continue;
@@ -1049,8 +1052,6 @@ void FIKRetargetEditorController::SetRetargeterMode(ERetargeterOutputMode Mode)
 			OutputMode = ERetargeterOutputMode::RunRetarget;
 			SourceAnimInstance->SetRetargetMode(ERetargeterOutputMode::RunRetarget);
 			TargetAnimInstance->SetRetargetMode(ERetargeterOutputMode::RunRetarget);
-			// force a reinitialization in case retarget pose was edited
-			AssetController->BroadcastNeedsReinitialized();
 			PlaybackManager->ResumePlayback();
 			break;
 
@@ -1198,7 +1199,7 @@ bool FIKRetargetEditorController::CanCreatePose() const
 FReply FIKRetargetEditorController::CreateNewPose() const
 {
 	const FName NewPoseName = FName(NewPoseEditableText.Get()->GetText().ToString());
-	AssetController->AddRetargetPose(NewPoseName, nullptr, GetSourceOrTarget());
+	AssetController->CreateRetargetPose(NewPoseName, GetSourceOrTarget());
 	NewPoseWindow->RequestDestroyWindow();
 	RefreshPoseList();
 	return FReply::Handled();
@@ -1277,9 +1278,9 @@ void FIKRetargetEditorController::HandleDuplicatePose()
 
 FReply FIKRetargetEditorController::CreateDuplicatePose() const
 {
-	const FIKRetargetPose& PoseToDuplicate = AssetController->GetCurrentRetargetPose(CurrentlyEditingSourceOrTarget);
+	const FName PoseToDuplicate = AssetController->GetCurrentRetargetPoseName(CurrentlyEditingSourceOrTarget);
 	const FName NewPoseName = FName(NewPoseEditableText.Get()->GetText().ToString());
-	AssetController->AddRetargetPose(NewPoseName, &PoseToDuplicate, GetSourceOrTarget());
+	AssetController->DuplicateRetargetPose(PoseToDuplicate, NewPoseName, GetSourceOrTarget());
 	NewPoseWindow->RequestDestroyWindow();
 	RefreshPoseList();
 	return FReply::Handled();
@@ -1427,8 +1428,9 @@ FReply FIKRetargetEditorController::RenamePose() const
 {
 	const FName NewPoseName = FName(NewNameEditableText.Get()->GetText().ToString());
 	RenamePoseWindow->RequestDestroyWindow();
-	
-	AssetController->RenameCurrentRetargetPose(NewPoseName, GetSourceOrTarget());
+
+	const FName CurrentPoseName = AssetController->GetCurrentRetargetPoseName(GetSourceOrTarget());
+	AssetController->RenameRetargetPose(CurrentPoseName, NewPoseName, GetSourceOrTarget());
 	RefreshPoseList();
 	return FReply::Handled();
 }
@@ -1447,6 +1449,9 @@ void FIKRetargetEditorController::AddReferencedObjects(FReferenceCollector& Coll
 	{
 		Collector.AddReferencedObject(Pair.Value);
 	}
+
+	Collector.AddReferencedObject(SourceAnimInstance);
+	Collector.AddReferencedObject(TargetAnimInstance);
 }
 
 void FIKRetargetEditorController::RenderSkeleton(FPrimitiveDrawInterface* PDI, ERetargetSourceOrTarget InSourceOrTarget) const

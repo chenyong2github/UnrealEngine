@@ -287,8 +287,9 @@ const FBoneChain* UIKRigDefinition::GetRetargetChainByName(FName ChainName) cons
 	return nullptr;
 }
 
+/** IInterface_PreviewMeshProvider interface */
 void UIKRigDefinition::SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDirty)
-{	
+{
 	PreviewSkeletalMesh = PreviewMesh;
 }
 
@@ -296,6 +297,7 @@ USkeletalMesh* UIKRigDefinition::GetPreviewMesh() const
 {
 	return PreviewSkeletalMesh.LoadSynchronous();
 }
+/** END IInterface_PreviewMeshProvider interface */
 
 #undef LOCTEXT_NAMESPACE
 

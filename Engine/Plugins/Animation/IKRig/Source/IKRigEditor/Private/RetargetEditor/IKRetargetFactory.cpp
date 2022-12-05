@@ -2,16 +2,9 @@
 
 #include "RetargetEditor/IKRetargetFactory.h"
 #include "Retargeter/IKRetargeter.h"
-#include "IKRigEditor.h"
 #include "AssetTypeCategories.h"
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
-#include "Editor.h"
-#include "Styling/AppStyle.h"
-#include "RetargetEditor/IKRetargeterController.h"
-#include "Widgets/SWindow.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Engine/SkeletalMesh.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(IKRetargetFactory)
 

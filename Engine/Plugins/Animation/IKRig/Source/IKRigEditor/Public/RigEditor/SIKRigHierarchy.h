@@ -188,7 +188,7 @@ public:
 		const FName& ItemName,
 		IKRigTreeElementType ItemType,
 		const bool bReplace);
-	void GetSelectedBoneChains(TArray<FBoneChain>& OutChains);
+	void GetSelectedBoneChains(TArray<FBoneChain>& OutChains) const;
 	TArray<TSharedPtr<FIKRigTreeElement>> GetSelectedItems() const;
 	bool HasSelectedItems() const;
 	/** END selection state queries */

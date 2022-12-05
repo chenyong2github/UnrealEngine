@@ -21,6 +21,11 @@ void FIKRigInputSkeleton::Initialize(const USkeletalMesh* SkeletalMesh)
 {
 	Reset();
 
+	if (!SkeletalMesh)
+	{
+		return;
+	}
+	
 	SkeletalMeshName = FName(SkeletalMesh->GetName());
 	const FReferenceSkeleton& RefSkeleton = SkeletalMesh->GetRefSkeleton();
 	const TArray<FMeshBoneInfo>& BoneInfo = RefSkeleton.GetRefBoneInfo();
@@ -368,9 +373,11 @@ void FIKRigSkeleton::GetChainsInList(const TArray<int32>& SelectedBones, TArray<
     		}
     	}
 
+    	const FName ChainName = NAME_None;
     	const FName StartBoneName = GetBoneNameFromIndex(ChainStart);
     	const FName EndBoneName = GetBoneNameFromIndex(ChainEnd);
-    	OutChains.Add(FBoneChain(NAME_None, StartBoneName, EndBoneName));	
+    	const FName GoalName = NAME_None;
+    	OutChains.Add(FBoneChain(ChainName, StartBoneName, EndBoneName, GoalName));	
     }
 }
 

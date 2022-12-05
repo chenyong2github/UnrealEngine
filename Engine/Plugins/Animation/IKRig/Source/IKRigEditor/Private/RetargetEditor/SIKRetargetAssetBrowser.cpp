@@ -170,9 +170,9 @@ FReply SIKRetargetAssetBrowser::OnExportButtonClicked()
 	}
 
 	// actually run the retarget
-	FIKRetargetBatchOperation BatchOperation;
-	BatchOperation.RunRetarget(BatchContext);
-
+	const TStrongObjectPtr<UIKRetargetBatchOperation> BatchOperation(NewObject<UIKRetargetBatchOperation>());
+	BatchOperation->RunRetarget(BatchContext);
+	
 	return FReply::Handled();
 }
 

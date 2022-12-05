@@ -576,8 +576,8 @@ bool SRetargetAnimAssetsWindow::CanApply() const
 FReply SRetargetAnimAssetsWindow::OnApply()
 {
 	CloseWindow();
-	FIKRetargetBatchOperation BatchOperation;
-	BatchOperation.RunRetarget(BatchContext);
+	const TStrongObjectPtr<UIKRetargetBatchOperation> BatchOperation(NewObject<UIKRetargetBatchOperation>());
+	BatchOperation->RunRetarget(BatchContext);
 	return FReply::Handled();
 }
 

@@ -888,7 +888,7 @@ void FRetargetChainSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder&
 			const FName SourceChainName = FName(*InString.Get());
 			for (TWeakObjectPtr<URetargetChainSettings> ChainMapSettings : ChainSettingsObjects)
 			{
-				Controller->AssetController->SetSourceChainForTargetChain(ChainMapSettings.Get(), SourceChainName);
+				Controller->AssetController->SetSourceChain(SourceChainName, ChainMapSettings->TargetChain);
 			}
 		})
 		[

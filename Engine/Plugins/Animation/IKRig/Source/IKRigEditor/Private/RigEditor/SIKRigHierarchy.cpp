@@ -64,7 +64,7 @@ TWeakObjectPtr< UObject > FIKRigTreeElement::GetObject() const
 	case IKRigTreeElementType::GOAL:
 		return Controller->AssetController->GetGoal(GoalName);
 	case IKRigTreeElementType::SOLVERGOAL:
-		if (const UIKRigSolver* SolverWithEffector = Controller->AssetController->GetSolver(EffectorIndex))
+		if (const UIKRigSolver* SolverWithEffector = Controller->AssetController->GetSolverAtIndex(EffectorIndex))
 		{
 			return SolverWithEffector->GetGoalSettings(EffectorGoalName);
 		}
@@ -589,7 +589,7 @@ void SIKRigHierarchy::ReplaceItemInSelection(const FText& OldName, const FText& 
 	}
 }
 
-void SIKRigHierarchy::GetSelectedBoneChains(TArray<FBoneChain>& OutChains)
+void SIKRigHierarchy::GetSelectedBoneChains(TArray<FBoneChain>& OutChains) const
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
@@ -618,9 +618,10 @@ void SIKRigHierarchy::GetSelectedBoneChains(TArray<FBoneChain>& OutChains)
 	// add goals (if there are any on the end bone of the chain)
 	for (FBoneChain& Chain : OutChains)
 	{
-		if (const UIKRigEffectorGoal* Goal = Controller->AssetController->GetGoalForBone(Chain.EndBone.BoneName))
+		const FName GoalName = Controller->AssetController->GetGoalNameForBone(Chain.EndBone.BoneName);
+		if (GoalName != NAME_None)
 		{
-			Chain.IKGoalName = Goal->GoalName;
+			Chain.IKGoalName = GoalName;
 		}
 	}
 }
@@ -645,7 +646,7 @@ bool SIKRigHierarchy::IsElementConnectedToSolver(TWeakPtr<FIKRigTreeElement> InT
 		return false; // not a valid solver index
 	}
 
-	const UIKRigSolver* Solver = AssetController->GetSolver(SolverIndex);
+	const UIKRigSolver* Solver = AssetController->GetSolverAtIndex(SolverIndex);
 	if (TreeElement->ElementType == IKRigTreeElementType::BONE)
 	{
 		// is this bone affected by this solver?
@@ -959,18 +960,17 @@ void SIKRigHierarchy::ConnectSelectedGoalsToSelectedSolvers(bool bConnect)
 	for (const TSharedPtr<FIKRigTreeElement>& GoalElement : SelectedGoals)
 	{
 		const FName GoalName = GoalElement->GoalName;
-		const int32 GoalIndex = AssetController->GetGoalIndex(GoalName);
-		check(GoalIndex != INDEX_NONE);
-		const UIKRigEffectorGoal& EffectorGoal = *AssetController->GetGoal(GoalIndex);
+		const UIKRigEffectorGoal* Goal = AssetController->GetGoal(GoalName);
+		check(Goal);
 		for (const TSharedPtr<FSolverStackElement>& SolverElement : SelectedSolvers)
 		{
 			if (bConnect)
 			{
-				AssetController->ConnectGoalToSolver(EffectorGoal, SolverElement->IndexInStack);	
+				AssetController->ConnectGoalToSolver(Goal->GoalName, SolverElement->IndexInStack);	
 			}
 			else
 			{
-				AssetController->DisconnectGoalFromSolver(EffectorGoal.GoalName, SolverElement->IndexInStack);	
+				AssetController->DisconnectGoalFromSolver(Goal->GoalName, SolverElement->IndexInStack);	
 			}
 		}
 	}
@@ -1061,7 +1061,7 @@ bool SIKRigHierarchy::CanSetRootBoneOnSolvers()
 	Controller->GetSelectedSolvers(SelectedSolvers);
 	for (const TSharedPtr<FSolverStackElement>& Solver : SelectedSolvers)
 	{
-		if (AssetController->GetSolver(Solver->IndexInStack)->RequiresRootBone())
+		if (AssetController->GetSolverAtIndex(Solver->IndexInStack)->RequiresRootBone())
 		{
 			return true;
 		}
@@ -1123,7 +1123,7 @@ bool SIKRigHierarchy::CanSetEndBoneOnSolvers() const
 	Controller->GetSelectedSolvers(SelectedSolvers);
 	for (const TSharedPtr<FSolverStackElement>& Solver : SelectedSolvers)
 	{
-		if (AssetController->GetSolver(Solver->IndexInStack)->RequiresEndBone())
+		if (AssetController->GetSolverAtIndex(Solver->IndexInStack)->RequiresEndBone())
 		{
 			return true;
 		}

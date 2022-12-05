@@ -10,6 +10,7 @@
 #if WITH_EDITOR
 #include "SAdvancedTransformInputBox.h"
 #endif
+
 #include "IKRigDefinition.generated.h"
 
 class IPropertyHandle;
@@ -128,18 +129,22 @@ public:
 #endif
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct IKRIG_API FBoneChain
 {
 	GENERATED_BODY()
 
 	FBoneChain() = default;
 	
-	FBoneChain(FName InName, const FName& InStartBone, const FName& InEndBone)
+	FBoneChain(
+		FName InName, 
+		const FName InStartBone,
+		const FName InEndBone,
+		const FName InGoalName)
 		: ChainName(InName)
 		, StartBone(InStartBone)
 		, EndBone(InEndBone)
-		, IKGoalName(NAME_None)
+		, IKGoalName(InGoalName)
 	{}
 
 	UPROPERTY(EditAnywhere, Category = BoneChain)
@@ -188,8 +193,39 @@ public:
 	UPROPERTY(AssetRegistrySearchable, EditAnywhere, Category = PreviewMesh)
 	TSoftObjectPtr<USkeletalMesh> PreviewSkeletalMesh;
 
-#if WITH_EDITORONLY_DATA
+	/** runtime, read-only access to skeleton data */
+	const FIKRigSkeleton& GetSkeleton() const { return Skeleton; };
 	
+	/** runtime, read-only access to array of Goals, all modifications must go through UIKRigController */
+	const TArray<UIKRigEffectorGoal*>& GetGoalArray() const { return Goals; };
+
+	/** runtime, read-only access to array of Solvers, all modifications must go through UIKRigController */
+	const TArray<UIKRigSolver*>& GetSolverArray() const { return Solvers; };
+
+	/** runtime, read-only access to Retarget Definition, all modifications must go through UIKRigController */
+	const TArray<FBoneChain>& GetRetargetChains() const { return RetargetDefinition.BoneChains; };
+
+	/** runtime, read-only access to Retarget Root, all modifications must go through UIKRigController */
+	const FName& GetRetargetRoot() const { return RetargetDefinition.RootBone; };
+
+	/** runtime, read-only access to read a bone chain, all modifications must go through UIKRigController */
+	const FBoneChain* GetRetargetChainByName(FName ChainName) const;
+
+	/** UObject */
+	virtual void Serialize(FArchive& Ar) override;
+	/** END UObject */
+	
+	/** IInterface_PreviewMeshProvider interface */
+	virtual void SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDirty = true) override;
+	virtual USkeletalMesh* GetPreviewMesh() const override;
+	/** END IInterface_PreviewMeshProvider interface */
+
+#if WITH_EDITOR
+	/* Get name of Preview Mesh property */
+	static const FName GetPreviewMeshPropertyName();
+#endif
+
+#if WITH_EDITORONLY_DATA
 	/**The size of the Bones in the editor viewport. This is set by callbacks from the viewport Character>Bones menu*/
 	UPROPERTY()
 	float BoneSize = 2.0f;
@@ -206,46 +242,16 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Viewport Goal Settings",  meta = (ClampMin = "0.01", UIMin = "0.0", UIMax = "10.0"))
 	float GoalThickness = 0.7f;
 
-	/** The controller responsible for managing this asset's data (all editor mutation goes through this) */
+	/** The controller responsible for managing this asset's data (all mutation goes through this) */
 	UPROPERTY(Transient)
-	TObjectPtr<UObject> Controller;
-
+	mutable TObjectPtr<UObject> Controller;
 #endif
 
-	/** UObject */
-	virtual void Serialize(FArchive& Ar) override;
-	/** END UObject */
+private:
 	
 	/** hierarchy and bone-pose transforms */
 	UPROPERTY()
 	FIKRigSkeleton Skeleton;
-	
-	/** read-only access to array of Goals, all modifications must go through UIKRigController */
-	const TArray<UIKRigEffectorGoal*>& GetGoalArray() const { return Goals; };
-
-	/** read-only access to array of Solvers, all modifications must go through UIKRigController */
-	const TArray<UIKRigSolver*>& GetSolverArray() const { return Solvers; };
-
-	/** runtime, read-only access to Retarget Definition, all modifications must go through UIKRigController */
-	const TArray<FBoneChain>& GetRetargetChains() const { return RetargetDefinition.BoneChains; };
-
-	/** runtime, read-only access to a FBoneChain by name. Returns nullptr if not found. */
-	const FBoneChain* GetRetargetChainByName(FName ChainName) const;
-
-	/** runtime, read-only access to Retarget Root */
-	const FName& GetRetargetRoot() const { return RetargetDefinition.RootBone; };
-	
-	/** IInterface_PreviewMeshProvider interface */
-	virtual void SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDirty = true) override;
-	virtual USkeletalMesh* GetPreviewMesh() const override;
-	/** END IInterface_PreviewMeshProvider interface */
-
-#if WITH_EDITOR
-	/* Get name of Preview Mesh property */
-	static const FName GetPreviewMeshPropertyName();
-#endif
-	
-private:
 
 	/** goals, used as effectors by solvers that support them */
 	UPROPERTY()

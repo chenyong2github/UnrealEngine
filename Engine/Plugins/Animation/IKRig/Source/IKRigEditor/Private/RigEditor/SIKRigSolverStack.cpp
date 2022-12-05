@@ -75,12 +75,11 @@ void SIKRigSolverStackItem::Construct(
 					.IsChecked_Lambda([InSolverStack, InStackElement]() -> ECheckBoxState
 					{
 						bool bEnabled = true;
-						if (InSolverStack.IsValid() && InSolverStack->EditorController.IsValid())
+						if (InSolverStack.IsValid() &&
+							InSolverStack->EditorController.IsValid() &&
+							InSolverStack->EditorController.Pin().IsValid())
 						{
-							if (const UIKRigSolver* Solver = InSolverStack->EditorController.Pin()->AssetController->GetSolver(InStackElement->IndexInStack))
-							{
-								bEnabled = Solver->IsEnabled();
-							}
+							bEnabled = InSolverStack->EditorController.Pin()->AssetController->GetSolverEnabled(InStackElement->IndexInStack);
 						}
 						return bEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 					})
@@ -188,7 +187,7 @@ UIKRigSolver* SIKRigSolverStackItem::GetSolver() const
 		return nullptr;
 	}
 	const int32 SolverIndex = StackElement.Pin()->IndexInStack;
-	return SolverStack.Pin()->EditorController.Pin()->AssetController->GetSolver(SolverIndex);
+	return SolverStack.Pin()->EditorController.Pin()->AssetController->GetSolverAtIndex(SolverIndex);
 }
 
 TSharedRef<FIKRigSolverStackDragDropOp> FIKRigSolverStackDragDropOp::New(TWeakPtr<FSolverStackElement> InElement)
@@ -392,7 +391,7 @@ void SIKRigSolverStack::RefreshStackView()
 	const int32 NumSolvers = AssetController->GetNumSolvers();
 	for (int32 i=0; i<NumSolvers; ++i)
 	{
-		const UIKRigSolver* Solver = AssetController->GetSolver(i);
+		const UIKRigSolver* Solver = AssetController->GetSolverAtIndex(i);
 		const FText DisplayName = Solver ? FText::FromString(AssetController->GetSolverUniqueName(i)) : UnknownSolverTxt;
 		TSharedPtr<FSolverStackElement> SolverItem = FSolverStackElement::Make(DisplayName, i);
 		ListViewItems.Add(SolverItem);

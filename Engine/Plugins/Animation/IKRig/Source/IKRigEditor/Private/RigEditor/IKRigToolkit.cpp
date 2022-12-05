@@ -83,9 +83,6 @@ void FIKRigEditorToolkit::InitAssetEditor(
 
 	ExtendToolbar();
 	RegenerateMenusAndToolbars();
-
-	// ignored if hierarchy / mesh already imported into IK Rig asset
-	EditorController->PromptUserToAssignMesh();
 }
 
 void FIKRigEditorToolkit::OnClose()
@@ -192,16 +189,12 @@ void FIKRigEditorToolkit::HandleOnPreviewSceneSettingsCustomized(IDetailLayoutBu
 
 void FIKRigEditorToolkit::PostUndo(bool bSuccess)
 {
-	EditorController->ClearOutputLog();
 	EditorController->AssetController->BroadcastNeedsReinitialized();
-	EditorController->RefreshAllViews();
 }
 
 void FIKRigEditorToolkit::PostRedo(bool bSuccess)
 {
-	EditorController->ClearOutputLog();
 	EditorController->AssetController->BroadcastNeedsReinitialized();
-	EditorController->RefreshAllViews();
 }
 
 void FIKRigEditorToolkit::HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene)
@@ -224,7 +217,7 @@ void FIKRigEditorToolkit::HandlePreviewSceneCreated(const TSharedRef<IPersonaPre
 
 	// set the skeletal mesh on the component
 	// NOTE: this must be done AFTER setting the AnimInstance so that the correct root anim node is loaded
-	USkeletalMesh* Mesh = EditorController->AssetController->GetAsset()->GetPreviewMesh();
+	USkeletalMesh* Mesh = EditorController->AssetController->GetSkeletalMesh();
 	EditorController->SkelMeshComponent->SetSkeletalMesh(Mesh);
 
 	// apply mesh to the preview scene

@@ -17,6 +17,7 @@
 #include "Misc/TextFilterExpressionEvaluator.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Retargeter/IKRetargetSettings.h"
+#include "RigEditor/IKRigController.h"
 
 #define LOCTEXT_NAMESPACE "SIKRigRetargetChains"
 
@@ -170,7 +171,7 @@ void SIKRetargetChainMapRow::OnSourceChainComboSelectionChanged(TSharedPtr<FStri
 	}
 
 	const FName SourceChainName = FName(*InName.Get());
-	RetargeterController->SetSourceChainForTargetChain(ChainMapElement.Pin()->ChainMap.Get(), SourceChainName);
+	RetargeterController->SetSourceChain(SourceChainName, ChainMapElement.Pin()->ChainMap->TargetChain);
 }
 
 FText SIKRetargetChainMapRow::GetSourceChainName() const
@@ -198,7 +199,8 @@ FText SIKRetargetChainMapRow::GetTargetIKGoalName() const
 		return FText(); 
 	}
 
-	const FBoneChain* Chain = IKRig->GetRetargetChainByName(ChainMapElement.Pin()->ChainMap->TargetChain);
+	const UIKRigController* RigController = UIKRigController::GetController(IKRig);
+	const FBoneChain* Chain = RigController->GetRetargetChainByName(ChainMapElement.Pin()->ChainMap->TargetChain);
 	if (!Chain)
 	{
 		return FText(); 
@@ -475,7 +477,8 @@ void SIKRetargetChainMapList::RefreshView()
 			return false;
 		}
 
-		const FBoneChain* Chain = IKRig->GetRetargetChainByName(TargetChainName);
+		const UIKRigController* RigController = UIKRigController::GetController(IKRig);
+		const FBoneChain* Chain = RigController->GetRetargetChainByName(TargetChainName);
 		if (!Chain)
 		{
 			return false;
@@ -489,7 +492,7 @@ void SIKRetargetChainMapList::RefreshView()
 
 	// refresh items
 	ListViewItems.Reset();
-	const TArray<TObjectPtr<URetargetChainSettings>>& ChainMappings = AssetController->GetChainMappings();
+	const TArray<URetargetChainSettings*>& ChainMappings = AssetController->GetAllChainSettings();
 	for (const TObjectPtr<URetargetChainSettings> ChainMap : ChainMappings)
 	{
 		// apply text filter to items
@@ -765,7 +768,6 @@ void SIKRetargetChainMapList::AutoMapChains(const EAutoMapChainType AutoMapType,
 	}
 
 	Controller->ClearOutputLog();
-	RetargeterController->CleanChainMapping();
 	RetargeterController->AutoMapChains(AutoMapType, bForceRemap);
 	Controller->HandleRetargeterNeedsInitialized();
 }

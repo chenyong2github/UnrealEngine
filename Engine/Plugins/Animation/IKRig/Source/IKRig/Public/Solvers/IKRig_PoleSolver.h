@@ -64,6 +64,7 @@ public:
 	virtual void SetRootBone(const FName& RootBoneName) override;
 	// end bone can be set on this solver
 	virtual void SetEndBone(const FName& EndBoneName) override;
+	virtual FName GetEndBone() const override;
 	virtual bool RequiresEndBone() const override { return true; };
 	/** END UIKRigSolver interface */
 #endif

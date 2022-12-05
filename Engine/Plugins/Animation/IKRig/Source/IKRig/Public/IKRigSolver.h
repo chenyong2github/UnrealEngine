@@ -85,6 +85,9 @@ public:
 	//** ROOT BONE (optional, implement if your solver requires a end bone) */
 	/** override to support SETTING END BONE for the solver */
 	virtual void SetEndBone(const FName& EndBoneName){};
+	/** override to support GETTING END BONE of the solver */
+	virtual FName GetEndBone() const { return NAME_None; };
+	/** override and return true if this solver requires an end bone to be specified */
 	virtual bool RequiresEndBone() const { return false; };
 	//** END ROOT BONE */
 

@@ -785,9 +785,12 @@ void UAnimationSequencerDataModel::GenerateLegacyCurveData()
 									const FAnimationCurveIdentifier CurveId(FloatCurve.Name, ERawCurveTrackTypes::RCT_Float);
 									if (!RetainFloatCurves || !FloatCurve.Name.DisplayName.ToString().Contains(SequencerSuffix))
 									{
-										const FAnimationCurveMetaData& CurveMetaData = CurveIdentifierToMetaData.FindChecked(CurveId);
-										FloatCurve.SetCurveTypeFlags(CurveMetaData.Flags);
-										FloatCurve.Color = CurveMetaData.Color;
+										if (CurveIdentifierToMetaData.Contains(CurveId))
+										{
+											const FAnimationCurveMetaData& CurveMetaData = CurveIdentifierToMetaData.FindChecked(CurveId);
+											FloatCurve.SetCurveTypeFlags(CurveMetaData.Flags);
+											FloatCurve.Color = CurveMetaData.Color;
+										}
 									}							
 
 									if (const FScalarParameterNameAndCurve* ScalarCurve = ScalarCurves.FindByPredicate([Element](FScalarParameterNameAndCurve Curve)

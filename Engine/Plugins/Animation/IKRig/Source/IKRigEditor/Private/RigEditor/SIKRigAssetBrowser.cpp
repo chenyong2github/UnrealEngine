@@ -10,6 +10,7 @@
 #include "Animation/PoseAsset.h"
 #include "RigEditor/IKRigController.h"
 #include "RigEditor/IKRigEditorController.h"
+#include "Engine/SkeletalMesh.h"
 
 #define LOCTEXT_NAMESPACE "IKRigAssetBrowser"
 
@@ -142,8 +143,15 @@ bool SIKRigAssetBrowser::OnShouldFilterAsset(const struct FAssetData& AssetData)
 		return true;
 	}
 
+	// get skeletal mesh
+	USkeletalMesh* SkeletalMesh = Controller->AssetController->GetSkeletalMesh();
+	if (!SkeletalMesh)
+	{
+		return true;
+	}
+	
 	// get skeleton
-	USkeleton* DesiredSkeleton = Controller->AssetController->GetSkeleton();;
+	USkeleton* DesiredSkeleton = SkeletalMesh->GetSkeleton();
 	if (!DesiredSkeleton)
 	{
 		return true;

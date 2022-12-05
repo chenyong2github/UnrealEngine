@@ -37,9 +37,9 @@ void UIKRigProcessor::Initialize(
 	bTriedToInitialize = true;
 
 	// copy skeleton data from the actual skeleton we want to run on
-	Skeleton.SetInputSkeleton(SkeletalMesh, InRigAsset->Skeleton.ExcludedBones);
+	Skeleton.SetInputSkeleton(SkeletalMesh, InRigAsset->GetSkeleton().ExcludedBones);
 	
-	if (InRigAsset->Skeleton.BoneNames.IsEmpty())
+	if (InRigAsset->GetSkeleton().BoneNames.IsEmpty())
 	{
 		Log.LogError(FText::Format(
 			LOCTEXT("NoSkeleton", "Trying to initialize IK Rig, '{0}' that has no skeleton."),
@@ -213,20 +213,20 @@ bool UIKRigProcessor::IsIKRigCompatibleWithSkeleton(
 
 	// now we validate that hierarchy matches for all required bones...
 	bool bAllParentsValid = true;
-	
+	const FIKRigSkeleton& AssetSkeleton = InRigAsset->GetSkeleton();
 	for (const FName& RequiredBone : RequiredBones)
 	{
 		const int32 InputBoneIndex = InputSkeleton.BoneNames.Find(RequiredBone);
-		const int32 AssetBoneIndex = InRigAsset->Skeleton.BoneNames.Find(RequiredBone);
+		const int32 AssetBoneIndex = AssetSkeleton.BoneNames.Find(RequiredBone);
 
 		// we shouldn't get this far otherwise due to early return above...
 		check(InputBoneIndex != INDEX_NONE && AssetBoneIndex != INDEX_NONE)
 
 		// validate that input skeleton hierarchy is as expected
-		const int32 AssetParentIndex = InRigAsset->Skeleton.ParentIndices[AssetBoneIndex];
-		if (InRigAsset->Skeleton.BoneNames.IsValidIndex(AssetParentIndex)) // root bone has no parent
+		const int32 AssetParentIndex = AssetSkeleton.ParentIndices[AssetBoneIndex];
+		if (AssetSkeleton.BoneNames.IsValidIndex(AssetParentIndex)) // root bone has no parent
 		{
-			const FName& AssetParentName = InRigAsset->Skeleton.BoneNames[AssetParentIndex];
+			const FName& AssetParentName = AssetSkeleton.BoneNames[AssetParentIndex];
 			const int32 InputParentIndex = InputSkeleton.ParentIndices[InputBoneIndex];
 			if (!InputSkeleton.BoneNames.IsValidIndex(InputParentIndex))
 			{

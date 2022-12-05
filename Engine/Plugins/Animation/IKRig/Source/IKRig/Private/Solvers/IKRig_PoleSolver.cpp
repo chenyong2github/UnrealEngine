@@ -260,6 +260,11 @@ void UIKRig_PoleSolver::SetEndBone(const FName& EndBoneName)
 	EndName = EndBoneName;
 }
 
+FName UIKRig_PoleSolver::GetEndBone() const
+{
+	return EndName;
+}
+
 #endif
 
 void UIKRig_PoleSolver::GatherChildren(const int32 BoneIndex, const FIKRigSkeleton& InSkeleton, TArray<int32>& OutChildren)

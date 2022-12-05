@@ -288,7 +288,7 @@ const FReferenceSkeleton& SIKRigRetargetChainRow::GetReferenceSkeleton() const
 		return DummySkeleton; 
 	}
 
-	USkeletalMesh* SkeletalMesh = Controller->AssetController->GetAsset()->GetPreviewMesh();
+	USkeletalMesh* SkeletalMesh = Controller->AssetController->GetSkeletalMesh();
 	if (SkeletalMesh == nullptr)
 	{
 		return DummySkeleton;
@@ -747,15 +747,14 @@ void SIKRigRetargetChainList::MirrorSelectedChains() const
 		MirroredChain.ChainName = UMirrorDataTable::GetSettingsMirrorName(MirroredChain.ChainName);
 		MirroredChain.StartBone = IKRigSkeleton.BoneNames[MirroredIndices[0]];
 		MirroredChain.EndBone = IKRigSkeleton.BoneNames[MirroredIndices.Last()];
-		const UIKRigEffectorGoal* GoalOnMirroredBone = AssetController->GetGoalForBone(MirroredChain.EndBone.BoneName);
-		if (GoalOnMirroredBone)
+		const FName GoalOnMirroredBone = AssetController->GetGoalNameForBone(MirroredChain.EndBone.BoneName);
+		if (GoalOnMirroredBone != NAME_None)
 		{
-			MirroredChain.IKGoalName = GoalOnMirroredBone->GoalName;
+			MirroredChain.IKGoalName = GoalOnMirroredBone;
 		}
 
 		const FName NewChainName = Controller.PromptToAddNewRetargetChain(MirroredChain);
 		const FBoneChain* NewChain = AssetController->GetRetargetChainByName(NewChainName);
-		
 		if (!NewChain)
 		{
 			// user cancelled mirroring the chain
@@ -764,17 +763,17 @@ void SIKRigRetargetChainList::MirrorSelectedChains() const
 		
 		// check old bone has a goal, and the new bone also has a goal
 		// so we can connect the new goal to the same solver(s)
-		const UIKRigEffectorGoal* GoalOnOldChain = AssetController->GetGoalForBone(Chain->EndBone.BoneName);
+		const FName GoalOnOldChainName = AssetController->GetGoalNameForBone(Chain->EndBone.BoneName);
 		const UIKRigEffectorGoal* GoalOnNewChain = AssetController->GetGoal(NewChain->IKGoalName);
-		if (GoalOnOldChain && GoalOnNewChain)
+		if (GoalOnOldChainName != NAME_None && GoalOnNewChain)
 		{
 			// connect to the same solvers
 			const TArray<UIKRigSolver*>& AllSolvers =  AssetController->GetSolverArray();
 			for (int32 SolverIndex=0; SolverIndex<AllSolvers.Num(); ++SolverIndex)
 			{
-				if (AssetController->IsGoalConnectedToSolver(GoalOnOldChain->GoalName, SolverIndex))
+				if (AssetController->IsGoalConnectedToSolver(GoalOnOldChainName, SolverIndex))
 				{
-					AssetController->ConnectGoalToSolver(*GoalOnNewChain, SolverIndex);
+					AssetController->ConnectGoalToSolver(GoalOnNewChain->GoalName, SolverIndex);
 				}
 				else
 				{

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "IDetailCustomization.h"
-#include "IKRetargeterController.h"
+#include "RetargetEditor/IKRetargeterController.h"
 #include "Retargeter/IKRetargetProcessor.h"
 
 #include "IKRetargetDetails.generated.h"

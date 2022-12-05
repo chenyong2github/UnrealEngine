@@ -242,7 +242,7 @@ void FIKRigEditMode::GetBoneColors(
 			// record which bones in the skeleton are affected by this solver
 			const FIKRigSkeleton& Skeleton = Processor->GetSkeleton();
 			const UIKRigController* AssetController = Controller->AssetController;
-			if(const UIKRigSolver* SelectedSolver = AssetController->GetSolver(SelectedSolvers[0].Get()->IndexInStack))
+			if(const UIKRigSolver* SelectedSolver = AssetController->GetSolverAtIndex(SelectedSolvers[0].Get()->IndexInStack))
 			{
 				for (int32 BoneIndex=0; BoneIndex < Skeleton.BoneNames.Num(); ++BoneIndex)
 				{

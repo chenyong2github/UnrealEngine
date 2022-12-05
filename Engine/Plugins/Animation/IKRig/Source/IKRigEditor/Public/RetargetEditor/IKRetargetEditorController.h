@@ -101,7 +101,7 @@ public:
 	/** callback when IK Rig asset's retarget chain has been renamed */
 	void HandleRetargetChainRenamed(UIKRigDefinition* ModifiedIKRig, FName OldName, FName NewName) const;
 	/** callback when IK Rig asset's retarget chain has been removed */
-	void HandleRetargetChainRemoved(UIKRigDefinition* ModifiedIKRig, const FName& InChainRemoved) const;
+	void HandleRetargetChainRemoved(UIKRigDefinition* ModifiedIKRig, const FName InChainRemoved) const;
 	/** callback when IK Retargeter asset requires reinitialization */
 	void HandleRetargeterNeedsInitialized() const;
 	FDelegateHandle RetargeterReInitDelegateHandle;
@@ -132,9 +132,9 @@ public:
 	/** viewport anim instance */
 	UIKRetargetAnimInstance* GetAnimInstance(const ERetargetSourceOrTarget SourceOrTarget) const;
 	UPROPERTY(transient, NonTransactional)
-	TWeakObjectPtr<class UIKRetargetAnimInstance> SourceAnimInstance;
+	TObjectPtr<UIKRetargetAnimInstance> SourceAnimInstance;
 	UPROPERTY(transient, NonTransactional)
-	TWeakObjectPtr<class UIKRetargetAnimInstance> TargetAnimInstance;
+	TObjectPtr<UIKRetargetAnimInstance> TargetAnimInstance;
 	
 	/** store pointers to various tabs of UI,
 	 * have to manage access to these because they can be null if the tabs are closed */
@@ -322,19 +322,19 @@ private:
 	TSharedPtr<SWindow> IKRigPickerWindow;
 
 	/** the current output mode of the retargeter */
-	ERetargeterOutputMode OutputMode;
+	ERetargeterOutputMode OutputMode = ERetargeterOutputMode::RunRetarget;
 	/** slider value to blend between reference pose and retarget pose */
 	float RetargetPosePreviewBlend = 1.0f;
 	
 	/** which skeleton are we editing / viewing? */
-	ERetargetSourceOrTarget CurrentlyEditingSourceOrTarget;
+	ERetargetSourceOrTarget CurrentlyEditingSourceOrTarget = ERetargetSourceOrTarget::Target;
 
 	/** current selection set */
-	bool bIsRootSelected;
-	UPrimitiveComponent* SelectedMesh;
+	bool bIsRootSelected = false;
+	UPrimitiveComponent* SelectedMesh = nullptr;
 	TArray<FName> SelectedChains;
 	TMap<ERetargetSourceOrTarget, TArray<FName>> SelectedBoneNames;
-	ERetargetSelectionType LastSelectedItem;
+	ERetargetSelectionType LastSelectedItem = ERetargetSelectionType::NONE;
 	UPROPERTY()
 	TMap<FName,TObjectPtr<UIKRetargetBoneDetails>> AllBoneDetails;
 
