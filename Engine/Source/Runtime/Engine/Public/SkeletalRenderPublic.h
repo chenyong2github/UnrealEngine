@@ -15,6 +15,7 @@
 #include "Components/SkinnedMeshComponent.h"
 #include "MeshUVChannelInfo.h"
 #include "SkeletalMeshTypes.h"
+#include "RenderMath.h"
 
 class FPrimitiveDrawInterface;
 class FVertexFactory;

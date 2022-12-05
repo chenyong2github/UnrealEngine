@@ -11,6 +11,7 @@
 #include "RenderGraphResourcePool.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
 #include "RenderCore.h"
+#include "PackedNormal.h"
 
 #if WITH_EDITOR
 #include "Misc/CoreMisc.h"

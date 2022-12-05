@@ -9,6 +9,7 @@
 #include "MeshBatch.h"
 #include "ShaderParameterUtils.h"
 #include "MeshMaterialShader.h"
+#include "PackedNormal.h"
 
 /*-----------------------------------------------------------------------------
 FGeometryCacheVertexFactoryShaderParameters

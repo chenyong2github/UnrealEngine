@@ -7,6 +7,7 @@
 #include "Components.h"
 #include "Containers/DynamicRHIResourceArray.h"
 #include "Rendering/StaticMeshVertexBuffer.h"
+#include "RenderMath.h"
 
 struct FSoftSkinVertex;
 

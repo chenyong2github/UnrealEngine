@@ -8,6 +8,7 @@
 #include "PackedNormal.h"
 #include "Components.h"
 #include "Math/Vector2DHalf.h"
+#include "RenderMath.h"
 
 class FVertexFactory;
 class FStaticMeshVertexDataInterface;
