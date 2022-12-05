@@ -7,6 +7,7 @@
 #include "Algo/Count.h"
 #include "Animation/Rig.h"
 #include "RigVMModel/Nodes/RigVMDispatchNode.h"
+#include "RigVMStringUtils.h"
 
 static constexpr TCHAR RigVM_CommaSeparator[] = TEXT(", ");
 static constexpr TCHAR RigVM_NewLineFormat[] = TEXT("\r\n");
@@ -31,8 +32,9 @@ static constexpr TCHAR RigVM_DefineEntryNameFormat[] = TEXT("const FName U{0}::E
 static constexpr TCHAR RigVM_DeclareBlockNameFormat[] = TEXT("\tstatic const FName BlockName_{0};");
 static constexpr TCHAR RigVM_DefineBlockNameFormat[] = TEXT("const FName U{0}::BlockName_{1} = TEXT(\"{2}\");");
 static constexpr TCHAR RigVM_DefineConstFormatNoDefault[] = TEXT("\tstatic const {0} {1};");
-static constexpr TCHAR RigVM_DefineStructConstFormat[] = TEXT("\tstatic const {0} {1} = URigVMNativized::GetStructConstant<{0}>(TEXT(\"{2}\"));");
-static constexpr TCHAR RigVM_DefineStructArrayConstFormat[] = TEXT("\tstatic const {0} {1} = URigVMNativized::GetStructArrayConstant<{2}>(TEXT(\"{3}\"));");
+static constexpr TCHAR RigVM_StructConstantArrayArrayValue[] = TEXT("URigVMNativized::GetStructArrayArrayConstant<{0}>(TEXT(\"{1}\"))");
+static constexpr TCHAR RigVM_StructConstantArrayValue[] = TEXT("URigVMNativized::GetStructArrayConstant<{0}>(TEXT(\"{1}\"))");
+static constexpr TCHAR RigVM_StructConstantValue[] = TEXT("URigVMNativized::GetStructConstant<{0}>(TEXT(\"{1}\"))");
 static constexpr TCHAR RigVM_DefineConstFormat[] = TEXT("\tstatic const {0} {1} = {2};");
 static constexpr TCHAR RigVM_NameNoneFormat[] = TEXT("FName(NAME_None)");
 static constexpr TCHAR RigVM_EmptyStringFormat[] = TEXT("FString()");
@@ -146,24 +148,6 @@ FString FRigVMCodeGenerator::DumpIncludes(bool bLog)
 	{
 		Lines.Add(Format(RigVM_IncludeBracketFormat, Include));
 	}
-	return DumpLines(Lines, bLog);
-}
-
-FString FRigVMCodeGenerator::DumpWrappedArrayTypes(bool bLog)
-{
-	FStringArray Lines;
-	for(const FString& WrappedArrayType : WrappedArrayCPPTypes)
-	{
-		if (!Lines.IsEmpty())
-		{
-			Lines.Add(FString());
-		}
-
-		const FString TypeName = GetMappedArrayTypeName(WrappedArrayType);
-		const FString Line = Format(RigVM_WrappedArrayTypeFormat, *ModuleName.ToUpper(), *TypeName, *WrappedArrayType);
-		Lines.Add(Line);
-	}
-
 	return DumpLines(Lines, bLog);
 }
 
@@ -290,9 +274,15 @@ FString FRigVMCodeGenerator::DumpProperties(bool bForHeader, int32 InInstruction
 
 			FString BaseCPPType = CPPType;
 			bool bIsArray = RigVMTypeUtils::IsArrayType(CPPType);
+			bool bIsDoubleArray = false;
 			if (bIsArray)
 			{
 				BaseCPPType = RigVMTypeUtils::BaseTypeFromArrayType(CPPType);
+				bIsDoubleArray = RigVMTypeUtils::IsArrayType(BaseCPPType);
+				if (bIsDoubleArray)
+				{
+					BaseCPPType = RigVMTypeUtils::BaseTypeFromArrayType(BaseCPPType);
+				}
 			}
 			
 			FString DefaultValue = Property.DefaultValue;
@@ -300,68 +290,44 @@ FString FRigVMCodeGenerator::DumpProperties(bool bForHeader, int32 InInstruction
 			{
 				// The const definition of a slice should have the element type
 				OperandName += TEXT("_Const");
-				CPPType = BaseCPPType;
-				bIsArray = false;
+				if (bIsDoubleArray)
+				{
+					CPPType = RigVMTypeUtils::ArrayTypeFromBaseType(BaseCPPType);
+					bIsArray = true;
+					bIsDoubleArray = false;
+				}
+				else
+				{
+					CPPType = BaseCPPType;
+					bIsArray = RigVMTypeUtils::IsArrayType(CPPType);
+					if (bIsArray)
+					{
+						BaseCPPType = RigVMTypeUtils::BaseTypeFromArrayType(BaseCPPType);
+					}
+				}
 				DefaultValue = DefaultValue.LeftChop(1);
 				DefaultValue = DefaultValue.RightChop(1);
-			}			
+			}
+			DefaultValue = SanitizeValue(DefaultValue, CPPType, PropertyInfo.Description.CPPTypeObject);
 
 			if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Property.CPPTypeObject))
 			{
-				DefaultValue = DefaultValue.ReplaceCharWithEscapedChar();
-
 				if(DefaultValue.IsEmpty())
 				{
 					Lines.Add(Format(
 						RigVM_DefineConstFormatNoDefault,
 						*CPPType,
-						*GetOperandName(Operand, false)
+						*OperandName
 					));
 				}
 				else
 				{
-					if(const TStructConstGenerator* StructConstGenerator = GetStructConstGenerators().Find(*BaseCPPType))
-					{
-						if(bIsArray)
-						{
-							FStringArray DefaultValues = URigVMPin::SplitDefaultValue(DefaultValue);
-							for(int32 DefaultValueIndex = 0; DefaultValueIndex < DefaultValues.Num(); DefaultValueIndex++)
-							{
-								DefaultValues[DefaultValueIndex] = (*StructConstGenerator)(DefaultValues[DefaultValueIndex]); 
-							}
-							DefaultValue = Format(RigVM_CurlyBracesFormat, FString::Join(DefaultValues, RigVM_CommaSeparator));
-						}
-						else
-						{
-							DefaultValue = (*StructConstGenerator)(DefaultValue);
-						}
-						
-						Lines.Add(Format(
-							RigVM_DefineConstFormat,
-							*CPPType,
-							*OperandName,
-							*DefaultValue
-						));
-					}
-					else if (bIsArray)
-					{
-						Lines.Add(Format(
-							RigVM_DefineStructArrayConstFormat,
-							*CPPType,
-							*OperandName,
-							*BaseCPPType,
-							*DefaultValue
-						));
-					}
-					else
-					{
-						Lines.Add(Format(
-							RigVM_DefineStructConstFormat,
-							*CPPType,
-							*OperandName,
-							*DefaultValue
-						));
-					}
+					Lines.Add(Format(
+						RigVM_DefineConstFormat,
+						*CPPType,
+						*OperandName,
+						*DefaultValue
+					));
 				}
 			}
 			else if (const UEnum* Enum = Cast<UEnum>(Property.CPPTypeObject))
@@ -377,40 +343,10 @@ FString FRigVMCodeGenerator::DumpProperties(bool bForHeader, int32 InInstruction
 				{
 					CPPType = RigVMTypeUtils::ArrayTypeFromBaseType(BaseCPPType);
 				}
-
-				FStringArray DefaultValues;
-				if (bIsArray)
+				if (bIsDoubleArray)
 				{
-					DefaultValues = URigVMPin::SplitDefaultValue(DefaultValue);
+					CPPType = RigVMTypeUtils::ArrayTypeFromBaseType(CPPType);
 				}
-				else
-				{
-					DefaultValues.Add(DefaultValue);
-				}
-
-				for(int32 DefaultValueIndex = 0; DefaultValueIndex < DefaultValues.Num(); DefaultValueIndex++)
-				{
-					if (DefaultValues[DefaultValueIndex].IsNumeric())
-					{
-						const int64 EnumIndex = FCString::Atoi64(*DefaultValues[DefaultValueIndex]);
-						const FString EnumName = Enum->GetNameStringByValue(EnumIndex);
-						DefaultValues[DefaultValueIndex] = Enum->GenerateFullEnumName(*EnumName);
-					}
-					else if (!UEnum::IsFullEnumName(*DefaultValues[DefaultValueIndex]))
-					{
-						DefaultValues[DefaultValueIndex] = Enum->GenerateFullEnumName(*DefaultValues[DefaultValueIndex]);
-					}
-				}
-				
-				if (bIsArray)
-				{
-					DefaultValue = Format(RigVM_CurlyBracesFormat, *FString::Join(DefaultValues, TEXT(",")));
-				}
-				else
-				{
-					DefaultValue = DefaultValues[0];
-				}
-
 
 				if(DefaultValue.IsEmpty())
 				{
@@ -437,42 +373,10 @@ FString FRigVMCodeGenerator::DumpProperties(bool bForHeader, int32 InInstruction
 				if (bIsArray)
 				{
 					bUseConstExpr = false;
-					
-					if (DefaultValue.StartsWith(TEXT("(")) && DefaultValue.EndsWith(TEXT(")")))
-					{
-						DefaultValue = Format(RigVM_CurlyBracesFormat, *DefaultValue.Mid(1, DefaultValue.Len() - 2));
-					}
-				}
-
-				if (BaseCPPType == RigVMTypeUtils::BoolType)
-				{
-					DefaultValue.ToLowerInline();
 				}
 
 				if (CPPType == RigVMTypeUtils::FNameType || CPPType == RigVMTypeUtils::FStringType)
 				{
-					if(DefaultValue.IsEmpty())
-					{
-						if(CPPType == RigVMTypeUtils::FNameType)
-						{
-							DefaultValue = RigVM_NameNoneFormat;
-						}
-						else
-						{
-							DefaultValue = RigVM_EmptyStringFormat;
-						}
-					}
-					else
-					{
-						if (DefaultValue.StartsWith(TEXT("\"")) && DefaultValue.EndsWith(TEXT("\"")))
-						{
-							DefaultValue = Format(RigVM_TextFormat, *DefaultValue);
-						}
-						else
-						{
-							DefaultValue = Format(RigVM_QuotedTextFormat, *DefaultValue);
-						}
-					}
 					bUseConstExpr = false;
 				}
 
@@ -509,8 +413,9 @@ FString FRigVMCodeGenerator::DumpProperties(bool bForHeader, int32 InInstruction
 				Lines.Add(Line);
 			}
 			else
-			{				
-				const FString Line = Format(RigVM_MemberPropertyFormat, *MappedType, *SanitizeName(Property.Name.ToString(), Property.CPPType), PropertyInfo.Description.DefaultValue);
+			{
+				const FString DefaultValue = SanitizeValue(PropertyInfo.Description.DefaultValue, Property.CPPType, Property.CPPTypeObject);
+				const FString Line = Format(RigVM_MemberPropertyFormat, *MappedType, *SanitizeName(Property.Name.ToString(), Property.CPPType), DefaultValue);
 				Lines.Add(Line);
 			}
 		}
@@ -525,8 +430,9 @@ FString FRigVMCodeGenerator::DumpDispatches(bool bLog)
 
 	if(!Dispatches.IsEmpty())
 	{
-		for(const FRigVMDispatchInfo& Info : Dispatches)
+		for(const TPair<FString, FRigVMDispatchInfo>& Pair : Dispatches)
 		{
+			const FRigVMDispatchInfo& Info = Pair.Value;
 			const FString FunctionName = Info.Function->GetName();
 			const FRigVMDispatchFactory* Factory = Info.Function->Factory;
 
@@ -850,11 +756,11 @@ FString FRigVMCodeGenerator::DumpInstructions(const FString& InPrefix, const TAr
 				else if(Function->Factory)
 				{
 					FString DispatchName;
-					for(const FRigVMDispatchInfo& Info : Dispatches)
+					for(const TPair<FString, FRigVMDispatchInfo>& Pair : Dispatches)
 					{
-						if(Info.Function == Function)
+						if(Pair.Value.Function == Function)
 						{
-							DispatchName = Info.Name;
+							DispatchName = Pair.Value.Name;
 							break;
 						}
 					}
@@ -1205,12 +1111,7 @@ FString FRigVMCodeGenerator::DumpHeader(bool bLog)
 	Lines.Add(DumpIncludes());
 	Lines.Add(Format(RigVM_GeneratedIncludeFormat, *ClassName));
 	Lines.Emplace();
-	if(WrappedArrayCPPTypes.Num() > 0)
-	{
-		Lines.Add(DumpWrappedArrayTypes());
-		Lines.Emplace();
-	}
-
+	
 	Lines.Add(Format(RigVM_UClassDefinitionFormat, *ModuleName.ToUpper(), *ClassName));
 	Lines.Add(Format(RigVM_GetVMHashFormat, FString::Printf(TEXT("%lu"), VM->GetVMHash())));
 	Lines.Add(Format(RigVM_GetEntryNamesFormat, *FString::Join(FormattedEntries, RigVM_CommaSeparator)));
@@ -1385,7 +1286,6 @@ void FRigVMCodeGenerator::Reset()
 	Dispatches.Reset();
 	RequiredUProperties.Reset();
 	InstructionGroups.Reset();
-	WrappedArrayCPPTypes.Reset();
 	MappedCPPTypes.Reset();
 	Properties.Reset();
 	PropertyNameToIndex.Reset();
@@ -1494,7 +1394,17 @@ void FRigVMCodeGenerator::ParseRequiredUProperties()
 				const FString FunctionName = Function->GetName();
 				const int32 PermutationIndex = Factory->GetTemplate()->FindPermutation(Function); 
 				check(PermutationIndex != INDEX_NONE);
+
+				for(const FRigVMFunctionArgument& Argument : Function->Arguments)
+				{
+					AddRequiredUProperty(Argument.Type);
+				}
+				
 				const FString DispatchKey = Format(RigVM_DispatchKeyFormat, Factory->GetFactoryName().ToString(), PermutationIndex);
+				if (Dispatches.Contains(DispatchKey))
+				{
+					continue;
+				}
 
 				FRigVMDispatchContext Context;
 				if(URigVMDispatchNode* DispatchNode = Cast<URigVMDispatchNode>(ByteCode.GetSubjectForInstruction(InstructionIndex)))
@@ -1502,12 +1412,7 @@ void FRigVMCodeGenerator::ParseRequiredUProperties()
 					Context = DispatchNode->GetDispatchContext();
 				}
 
-				Dispatches.Add({DispatchKey, Function, Context});
-
-				for(const FRigVMFunctionArgument& Argument : Function->Arguments)
-				{
-					AddRequiredUProperty(Argument.Type);
-				}
+				Dispatches.Add(DispatchKey, {DispatchKey, Function, Context});
 			}
 		}
 	}
@@ -1586,21 +1491,6 @@ void FRigVMCodeGenerator::ParseProperty(ERigVMMemoryType InMemoryType, const FPr
 
 		const int32 LookupIndex = Properties.Add(Info);
 		PropertyNameToIndex.Add(Info.Description.Name, LookupIndex);
-
-		// if this property is a nested array, we need to inject out wrapped types
-		if(PropertyDescription.Containers.Num() > 1)
-		{
-			check(PropertyDescription.Containers[0] == EPinContainerType::Array);
-			check(PropertyDescription.Containers[1] == EPinContainerType::Array);
-
-			FString BaseElementType = RigVMTypeUtils::BaseTypeFromArrayType(PropertyDescription.CPPType);
-			BaseElementType = RigVMTypeUtils::BaseTypeFromArrayType(BaseElementType);
-			WrappedArrayCPPTypes.AddUnique(BaseElementType);
-			
-			const FString ArrayArray = RigVMTypeUtils::ArrayTypeFromBaseType(RigVMTypeUtils::ArrayTypeFromBaseType(BaseElementType));
-			const FString MappedType = RigVMTypeUtils::ArrayTypeFromBaseType(GetMappedArrayTypeName(BaseElementType));
-			MappedCPPTypes.Add(ArrayArray, FMappedType(MappedType, TEXT(".Array")));
-		}
 	}
 }
 
@@ -2033,7 +1923,7 @@ FString FRigVMCodeGenerator::GetOperandName(const FRigVMOperand& InOperand, bool
 		while(!RemainingSegmentPath.IsEmpty() && (CurrentProperty != nullptr))
 		{
 			FString Left, Right;
-			if(!URigVMPin::SplitPinPathAtStart(RemainingSegmentPath, Left, Right))
+			if(!RigVMStringUtils::SplitPinPathAtStart(RemainingSegmentPath, Left, Right))
 			{
 				Left = RemainingSegmentPath;
 				Right.Reset();
@@ -2142,6 +2032,168 @@ FString FRigVMCodeGenerator::SanitizeName(const FString& InName, const FString& 
 	}
 
 	return Name;
+}
+
+FString FRigVMCodeGenerator::SanitizeValue(const FString& InValue, const FString& InCPPType, const UObject* InCPPTypeObject)
+{
+	FString DefaultValue = InValue;
+	FString CPPType = InCPPType;
+	FString BaseCPPType = CPPType;
+	bool bIsArray = RigVMTypeUtils::IsArrayType(CPPType);
+	bool bIsDoubleArray = false;
+	if (bIsArray)
+	{
+		BaseCPPType = RigVMTypeUtils::BaseTypeFromArrayType(CPPType);
+		bIsDoubleArray = RigVMTypeUtils::IsArrayType(BaseCPPType);
+		if (bIsDoubleArray)
+		{
+			BaseCPPType = RigVMTypeUtils::BaseTypeFromArrayType(BaseCPPType);			
+		}
+	}
+	
+	if (const UScriptStruct* ScriptStruct = Cast<UScriptStruct>(InCPPTypeObject))
+	{
+		DefaultValue = DefaultValue.ReplaceCharWithEscapedChar();
+
+		if(!DefaultValue.IsEmpty())
+		{
+			if(const TStructConstGenerator* StructConstGenerator = GetStructConstGenerators().Find(*BaseCPPType))
+			{
+				if (bIsDoubleArray)
+				{
+					FStringArray ArrayDefaultValues = RigVMStringUtils::SplitDefaultValue(DefaultValue);
+					for(int32 ArrayDefaultValueIndex = 0; ArrayDefaultValueIndex < ArrayDefaultValues.Num(); ArrayDefaultValueIndex++)
+					{
+						FStringArray DefaultValues = RigVMStringUtils::SplitDefaultValue(ArrayDefaultValues[ArrayDefaultValueIndex]);
+						for(int32 DefaultValueIndex = 0; DefaultValueIndex < DefaultValues.Num(); DefaultValueIndex++)
+						{
+							DefaultValues[DefaultValueIndex] = (*StructConstGenerator)(DefaultValues[DefaultValueIndex]); 
+						}
+						ArrayDefaultValues[ArrayDefaultValueIndex] = Format(RigVM_CurlyBracesFormat, FString::Join(DefaultValues, RigVM_CommaSeparator));
+					}
+					DefaultValue = Format(RigVM_CurlyBracesFormat, FString::Join(ArrayDefaultValues, RigVM_CommaSeparator));
+				}
+				else if(bIsArray)
+				{
+					FStringArray DefaultValues = RigVMStringUtils::SplitDefaultValue(DefaultValue);
+					for(int32 DefaultValueIndex = 0; DefaultValueIndex < DefaultValues.Num(); DefaultValueIndex++)
+					{
+						DefaultValues[DefaultValueIndex] = (*StructConstGenerator)(DefaultValues[DefaultValueIndex]); 
+					}
+					DefaultValue = Format(RigVM_CurlyBracesFormat, FString::Join(DefaultValues, RigVM_CommaSeparator));
+				}
+				else
+				{
+					DefaultValue = (*StructConstGenerator)(DefaultValue);
+				}
+			}
+			else
+			{
+				if (bIsDoubleArray)
+				{
+					DefaultValue = Format(RigVM_StructConstantArrayArrayValue, *BaseCPPType, *DefaultValue);
+				}
+				else if(bIsArray)
+				{
+					DefaultValue = Format(RigVM_StructConstantArrayValue, *BaseCPPType, *DefaultValue);
+				}
+				else
+				{
+					DefaultValue = Format(RigVM_StructConstantValue, *BaseCPPType, *DefaultValue);
+				}
+			}
+		}
+	}
+	else if (const UEnum* Enum = Cast<UEnum>(InCPPTypeObject))
+	{
+		BaseCPPType = Enum->GetName();
+		if (Enum->GetCppForm() == UEnum::ECppForm::Namespaced)
+		{
+			BaseCPPType += RigVM_EnumTypeSuffixFormat;
+		}
+		
+		CPPType = BaseCPPType;
+		if (bIsArray)
+		{
+			CPPType = RigVMTypeUtils::ArrayTypeFromBaseType(BaseCPPType);
+		}
+
+		FStringArray DefaultValues;
+		if (bIsArray)
+		{
+			DefaultValues = RigVMStringUtils::SplitDefaultValue(DefaultValue);
+		}
+		else
+		{
+			DefaultValues.Add(DefaultValue);
+		}
+
+		for(int32 DefaultValueIndex = 0; DefaultValueIndex < DefaultValues.Num(); DefaultValueIndex++)
+		{
+			if (DefaultValues[DefaultValueIndex].IsNumeric())
+			{
+				const int64 EnumIndex = FCString::Atoi64(*DefaultValues[DefaultValueIndex]);
+				const FString EnumName = Enum->GetNameStringByValue(EnumIndex);
+				DefaultValues[DefaultValueIndex] = Enum->GenerateFullEnumName(*EnumName);
+			}
+			else if (!UEnum::IsFullEnumName(*DefaultValues[DefaultValueIndex]))
+			{
+				DefaultValues[DefaultValueIndex] = Enum->GenerateFullEnumName(*DefaultValues[DefaultValueIndex]);
+			}
+		}
+		
+		if (bIsArray)
+		{
+			DefaultValue = Format(RigVM_CurlyBracesFormat, *FString::Join(DefaultValues, TEXT(",")));
+		}
+		else
+		{
+			DefaultValue = DefaultValues[0];
+		}
+	}
+	else
+	{
+		if (bIsArray)
+		{
+			if (DefaultValue.StartsWith(TEXT("(")) && DefaultValue.EndsWith(TEXT(")")))
+			{
+				DefaultValue = Format(RigVM_CurlyBracesFormat, *DefaultValue.Mid(1, DefaultValue.Len() - 2));
+			}
+		}
+
+		if (BaseCPPType == RigVMTypeUtils::BoolType)
+		{
+			DefaultValue.ToLowerInline();
+		}
+
+		if (CPPType == RigVMTypeUtils::FNameType || CPPType == RigVMTypeUtils::FStringType)
+		{
+			if(DefaultValue.IsEmpty())
+			{
+				if(CPPType == RigVMTypeUtils::FNameType)
+				{
+					DefaultValue = RigVM_NameNoneFormat;
+				}
+				else
+				{
+					DefaultValue = RigVM_EmptyStringFormat;
+				}
+			}
+			else
+			{
+				if (DefaultValue.StartsWith(TEXT("\"")) && DefaultValue.EndsWith(TEXT("\"")))
+				{
+					DefaultValue = Format(RigVM_TextFormat, *DefaultValue);
+				}
+				else
+				{
+					DefaultValue = Format(RigVM_QuotedTextFormat, *DefaultValue);
+				}
+			}
+		}
+	}
+
+	return DefaultValue;
 }
 
 FRigVMPropertyDescription FRigVMCodeGenerator::GetPropertyForOperand(const FRigVMOperand& InOperand) const
@@ -2438,7 +2490,7 @@ const TMap<FName, FRigVMCodeGenerator::TStructConstGenerator>& FRigVMCodeGenerat
 	{
 		static FStringArray SplitIntoArray(const FString& InValue)
 		{
-			return URigVMPin::SplitDefaultValue(InValue);
+			return RigVMStringUtils::SplitDefaultValue(InValue);
 		}
 		
 		static FStringMap SplitIntoMap(const FString& InValue)

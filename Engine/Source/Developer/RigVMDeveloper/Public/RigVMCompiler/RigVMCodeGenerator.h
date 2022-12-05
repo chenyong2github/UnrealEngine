@@ -22,7 +22,6 @@ public:
 	}
 
 	FString DumpIncludes(bool bLog = false);
-	FString DumpWrappedArrayTypes(bool bLog = false);
 	FString DumpExternalVariables(bool bForHeader, bool bLog = false);
 	FString DumpEntries(bool bForHeader, bool bLog = false);
 	FString DumpBlockNames(bool bForHeader, bool bLog = false);
@@ -103,6 +102,7 @@ private:
 	FString GetOperandCPPType(const FRigVMOperand& InOperand) const;
 	FString GetOperandCPPBaseType(const FRigVMOperand& InOperand) const;
 	static FString SanitizeName(const FString& InName, const FString& CPPType = FString()); 
+	static FString SanitizeValue(const FString& InValue, const FString& CPPType, const UObject* CPPTypeObject); 
 	FRigVMPropertyDescription GetPropertyForOperand(const FRigVMOperand& InOperand) const;
 	const FRigVMPropertyPathDescription& GetPropertyPathForOperand(const FRigVMOperand& InOperand) const;
 	int32 GetPropertyIndex(const FRigVMPropertyDescription& InProperty) const;
@@ -246,10 +246,9 @@ private:
 		FRigVMDispatchContext Context;
 	};
 	
-	TArray<FRigVMDispatchInfo> Dispatches;
+	TMap<FString, FRigVMDispatchInfo> Dispatches;
 	TMap<TRigVMTypeIndex,TTuple<FString,FString>> RequiredUProperties;
 	TArray<FInstructionGroup> InstructionGroups;
-	FStringArray WrappedArrayCPPTypes;
 	TMap<FString, FMappedType> MappedCPPTypes;
 	TArray<FPropertyInfo> Properties;
 	TMap<FName, int32> PropertyNameToIndex;

@@ -371,6 +371,36 @@ public:
 		return Value;
 	}
 
+	template <
+		typename T,
+		typename TEnableIf<TRigVMIsBaseStructure<T>::Value, T>::Type* = nullptr
+	>
+	static TArray<TArray<T>> GetStructArrayArrayConstant(const FString& InDefaultValue)
+	{
+		TArray<TArray<T>> Value;
+		if(!InDefaultValue.IsEmpty())
+		{
+			FErrorPipe ErrorPipe;
+			TBaseStructure<T>::Get()->ImportText(*InDefaultValue, &Value, nullptr, PPF_None, &ErrorPipe, FString());
+		}
+		return Value;
+	}
+
+	template <
+		typename T,
+		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type* = nullptr
+	>
+	static TArray<TArray<T>> GetStructArrayArrayConstant(const FString& InDefaultValue)
+	{
+		TArray<TArray<T>> Value;
+		if(!InDefaultValue.IsEmpty())
+		{
+			FErrorPipe ErrorPipe;
+			T::StaticStruct()->ImportText(*InDefaultValue, &Value, nullptr, PPF_None, &ErrorPipe, FString());
+		}
+		return Value;
+	}
+
 protected:
 	
 	class FTransformSetter

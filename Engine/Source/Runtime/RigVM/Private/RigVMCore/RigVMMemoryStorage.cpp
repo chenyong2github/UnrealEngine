@@ -178,7 +178,7 @@ FRigVMPropertyDescription::FRigVMPropertyDescription(const FProperty* InProperty
 	if(CPPTypeObject == nullptr && Property != nullptr)
 	{
 		const FProperty* ValueProperty = Property;
-		if(const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(ValueProperty))
+		while(const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(ValueProperty))
 		{
 			ValueProperty = ArrayProperty->Inner;
 		}
