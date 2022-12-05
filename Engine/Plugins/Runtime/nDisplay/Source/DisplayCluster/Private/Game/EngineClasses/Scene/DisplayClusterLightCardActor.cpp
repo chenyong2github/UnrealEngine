@@ -560,6 +560,8 @@ void ADisplayClusterLightCardActor::AddToLightCardLayer(ADisplayClusterRootActor
 		// Likely -game and we need to add the layer directly
 		Layers.AddUnique(LightCardLayerName);
 	}
+
+	SetRootActorOwner(InRootActor);
 }
 
 void ADisplayClusterLightCardActor::UpdateStageActorTransform()
