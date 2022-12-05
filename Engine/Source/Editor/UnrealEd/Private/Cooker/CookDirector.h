@@ -66,14 +66,14 @@ public:
 	 * Assign the given requests out to CookWorkers (or keep on local COTFS), return the list of assignments.
 	 * Input requests have been sorted by leaf to root load order.
 	 */
-	void AssignRequests(TArrayView<UE::Cook::FPackageData*> Requests, TArray<FWorkerId>& OutAssignments,
+	void AssignRequests(TArrayView<FPackageData*> Requests, TArray<FWorkerId>& OutAssignments,
 		TMap<FPackageData*, TArray<FPackageData*>>&& RequestGraph);
 	/** Notify the CookWorker that owns the cook of the package that the Director wants to take it back. */
 	void RemoveFromWorker(FPackageData& PackageData);
 	/** Periodic tick function. Sends/Receives messages to CookWorkers. */
 	void TickFromSchedulerThread();
 	/** Periodic display function, called from CookOnTheFlyServer.UpdateDisplay. */
-	void UpdateDisplayDiagnostics();
+	void UpdateDisplayDiagnostics() const;
 	/** Called when the COTFS Server has detected all packages are complete. Tells the CookWorkers to flush messages and exit. */
 	void PumpCookComplete(bool& bOutCompleted);
 	/** Called when a session ends. The Director blocks on shutdown of all CookWorkers and returns state to before session started. */
@@ -135,6 +135,7 @@ private:
 		virtual void Stop() override;
 		FCookDirector& Director;
 	};
+	class FRetractionHandler;
 
 private:
 	/** Helper for constructor parsing. */
@@ -170,7 +171,7 @@ private:
 	/** Get the commandline to launch a worker process with. */
 	FString GetWorkerCommandLine(FWorkerId WorkerId, int32 ProfileId);
 	/** Calls the configured LoadBalanceAlgorithm. Input Requests have been sorted by leaf to root load order. */
-	void LoadBalance(TConstArrayView<TRefCountPtr<FCookWorkerServer>> Workers, TArrayView<FPackageData*> Requests,
+	void LoadBalance(TConstArrayView<FWorkerId> SortedWorkers, TArrayView<FPackageData*> Requests,
 		TMap<FPackageData*, TArray<FPackageData*>>&& RequestGraph, TArray<FWorkerId>& OutAssignments);
 
 	/** Move the given worker from active workers to the list of workers shutting down. */
@@ -182,13 +183,21 @@ private:
 	void SetWorkersStalled(bool bInWorkersStalled);
 	/** Callback for CookStats system to log our stats. */
 	void LogCookStats(FCookStatsManager::AddStatFuncRef AddStat);
+	void TickRetractionFromSchedulerThread(bool bAnyIdle, int32 BusiestNumAssignments);
 	void HandleRetractionMessage(FMPCollectorServerMessageContext& Context, bool bReadSuccessful,
 		FRetractionResultsMessage&& Message);
+	void AssignRequests(TArray<FWorkerId>&& InWorkers, TArray<TRefCountPtr<FCookWorkerServer>>& InRemoteWorkers, 
+		TArrayView<FPackageData*> Requests, TArray<FWorkerId>& OutAssignments,
+		TMap<FPackageData*, TArray<FPackageData*>>&& RequestGraph);
 
+	TArray<TRefCountPtr<FCookWorkerServer>> CopyRemoteWorkers() const;
+	void DisplayRemainingPackages() const;
+	FString GetDisplayName(const FWorkerId& WorkerId, int32 PreferredWidth = -1) const;
+	FString GetDisplayName(const FCookWorkerServer& RemoteWorker, int32 PreferredWidth=-1) const;
 
 private:
 	// Synchronization primitives that can be used from any thread
-	FCriticalSection CommunicationLock;
+	mutable FCriticalSection CommunicationLock;
 	FEventRef ShutdownEvent {EEventMode::ManualReset};
 
 	// Data only accessible from the SchedulerThread
@@ -226,6 +235,7 @@ private:
 	// Data shared between SchedulerThread and CommunicationThread that can only be accessed inside CommunicationLock
 	TMap<int32, TRefCountPtr<FCookWorkerServer>> RemoteWorkers;
 	TMap<FCookWorkerServer*, TRefCountPtr<FCookWorkerServer>> ShuttingDownWorkers;
+	TUniquePtr<FRetractionHandler> RetractionHandler;
 	bool bWorkersActive = false;
 
 	friend class UE::Cook::FCookWorkerServer;

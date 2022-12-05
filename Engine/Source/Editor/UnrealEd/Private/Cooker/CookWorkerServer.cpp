@@ -70,13 +70,13 @@ void FCookWorkerServer::AppendAssignments(TArrayView<FPackageData*> Assignments,
 	PackagesToAssign.Append(Assignments);
 }
 
-void FCookWorkerServer::AbortAssignments(TSet<FPackageData*>& OutPendingPackages, ECookDirectorThread TickThread)
+void FCookWorkerServer::AbortAllAssignments(TSet<FPackageData*>& OutPendingPackages, ECookDirectorThread TickThread)
 {
 	FCommunicationScopeLock ScopeLock(this, TickThread, ETickAction::Queue);
-	AbortAssignmentsInLock(OutPendingPackages);
+	AbortAllAssignmentsInLock(OutPendingPackages);
 }
 
-void FCookWorkerServer::AbortAssignmentsInLock(TSet<FPackageData*>& OutPendingPackages)
+void FCookWorkerServer::AbortAllAssignmentsInLock(TSet<FPackageData*>& OutPendingPackages)
 {
 	if (PendingPackages.Num())
 	{
@@ -88,7 +88,7 @@ void FCookWorkerServer::AbortAssignmentsInLock(TSet<FPackageData*>& OutPendingPa
 			{
 				PackageNames.Add(PackageData->GetPackageName());
 			}
-			SendMessage(FAbortPackagesMessage(MoveTemp(PackageNames)));
+			SendMessageInLock(FAbortPackagesMessage(MoveTemp(PackageNames)));
 		}
 		OutPendingPackages.Append(MoveTemp(PendingPackages));
 		PendingPackages.Empty();
@@ -97,28 +97,43 @@ void FCookWorkerServer::AbortAssignmentsInLock(TSet<FPackageData*>& OutPendingPa
 	PackagesToAssign.Empty();
 }
 
-void FCookWorkerServer::AbortAssignment(FPackageData& PackageData, ECookDirectorThread TickThread)
+void FCookWorkerServer::AbortAssignment(FPackageData& PackageData, ECookDirectorThread TickThread,
+	ENotifyRemote NotifyRemote)
+{
+	TArray<FPackageData*> PackageDatas;
+	AbortAssignments(PackageDatas, TickThread, NotifyRemote);
+}
+
+void FCookWorkerServer::AbortAssignments(TConstArrayView<FPackageData*> PackageDatas, ECookDirectorThread TickThread,
+	ENotifyRemote NotifyRemote)
 {
 	FCommunicationScopeLock ScopeLock(this, TickThread, ETickAction::Queue);
 
-	if (PendingPackages.Remove(&PackageData))
+	TArray<FName> PackageNamesToMessage;
+	bool bSignalRemote = ConnectStatus == EConnectStatus::Connected && NotifyRemote == ENotifyRemote::NotifyRemote;
+	for (FPackageData* PackageData : PackageDatas)
 	{
-		if (ConnectStatus == EConnectStatus::Connected)
+		if (PendingPackages.Remove(PackageData))
 		{
-			TArray<FName> PackageNames;
-			PackageNames.Add(PackageData.GetPackageName());
-			SendMessage(FAbortPackagesMessage(MoveTemp(PackageNames)));
+			if (bSignalRemote)
+			{
+				PackageNamesToMessage.Add(PackageData->GetPackageName());
+			}
 		}
-	}
 
-	PackagesToAssign.Remove(&PackageData);
+		PackagesToAssign.Remove(PackageData);
+	}
+	if (!PackageNamesToMessage.IsEmpty())
+	{
+		SendMessageInLock(FAbortPackagesMessage(MoveTemp(PackageNamesToMessage)));
+	}
 }
 
 void FCookWorkerServer::AbortWorker(TSet<FPackageData*>& OutPendingPackages, ECookDirectorThread TickThread)
 {
 	FCommunicationScopeLock ScopeLock(this, TickThread, ETickAction::Tick);
 
-	AbortAssignmentsInLock(OutPendingPackages);
+	AbortAllAssignmentsInLock(OutPendingPackages);
 	switch (ConnectStatus)
 	{
 	case EConnectStatus::Uninitialized: // Fall through
@@ -128,7 +143,7 @@ void FCookWorkerServer::AbortWorker(TSet<FPackageData*>& OutPendingPackages, ECo
 	case EConnectStatus::Connected: // Fall through
 	case EConnectStatus::PumpingCookComplete:
 	{
-		SendMessage(FAbortWorkerMessage(FAbortWorkerMessage::EType::Abort));
+		SendMessageInLock(FAbortWorkerMessage(FAbortWorkerMessage::EType::Abort));
 		SendToState(EConnectStatus::WaitForDisconnect);
 		break;
 	}
@@ -160,6 +175,12 @@ void FCookWorkerServer::SendToState(EConnectStatus TargetStatus)
 		break;
 	}
 	ConnectStatus = TargetStatus;
+}
+
+bool FCookWorkerServer::IsConnected() const
+{
+	FScopeLock CommunicationScopeLock(&CommunicationLock);
+	return ConnectStatus == EConnectStatus::Connected;
 }
 
 bool FCookWorkerServer::IsShuttingDown() const
@@ -213,7 +234,7 @@ bool FCookWorkerServer::TryHandleConnectMessage(FWorkerConnectMessage& Message, 
 	HandleReceiveMessagesInternal();
 	const FInitialConfigMessage& InitialConfigMessage = Director.GetInitialConfigMessage();
 	OrderedSessionPlatforms = InitialConfigMessage.GetOrderedSessionPlatforms();
-	SendMessage(InitialConfigMessage);
+	SendMessageInLock(InitialConfigMessage);
 	return true;
 }
 
@@ -257,7 +278,7 @@ void FCookWorkerServer::TickCommunication(ECookDirectorThread TickThread)
 				}
 				UE_LOG(LogCook, Error, TEXT("CookWorker process of CookWorkerServer %d failed to finalize its cook within %.0f seconds; we will tell it to shutdown."),
 					ProfileId, WaitForPumpCompleteTimeout);
-				SendMessage(FAbortWorkerMessage(FAbortWorkerMessage::EType::Abort));
+				SendMessageInLock(FAbortWorkerMessage(FAbortWorkerMessage::EType::Abort));
 				SendToState(EConnectStatus::WaitForDisconnect);
 			}
 			break;
@@ -289,7 +310,7 @@ void FCookWorkerServer::SignalCookComplete(ECookDirectorThread TickThread)
 		SendToState(EConnectStatus::LostConnection);
 		break;
 	case EConnectStatus::Connected:
-		SendMessage(FAbortWorkerMessage(FAbortWorkerMessage::EType::CookComplete));
+		SendMessageInLock(FAbortWorkerMessage(FAbortWorkerMessage::EType::CookComplete));
 		SendToState(EConnectStatus::PumpingCookComplete);
 		break;
 	default:
@@ -411,7 +432,7 @@ void FCookWorkerServer::SendPendingPackages()
 	}
 	PendingPackages.Append(PackagesToAssign);
 	PackagesToAssign.Empty();
-	SendMessage(FAssignPackagesMessage(MoveTemp(AssignDatas)));
+	SendMessageInLock(FAssignPackagesMessage(MoveTemp(AssignDatas)));
 }
 
 void FCookWorkerServer::PumpReceiveMessages()
@@ -453,7 +474,7 @@ void FCookWorkerServer::HandleReceiveMessagesInternal()
 				LogCook, Error, TEXT("CookWorkerServer %d remote process shut down unexpectedly. Assigned packages will be returned to the director."),
 				ProfileId);
 
-			SendMessage(FAbortWorkerMessage(FAbortWorkerMessage::AbortAcknowledge));
+			SendMessageInLock(FAbortWorkerMessage(FAbortWorkerMessage::AbortAcknowledge));
 			SendToState(EConnectStatus::WaitForDisconnect);
 			ReceiveMessages.Reset();
 			break;
@@ -536,7 +557,13 @@ void FCookWorkerServer::HandleReceivedPackagePlatformMessages(FPackageData& Pack
 	}
 }
 
-void FCookWorkerServer::SendMessage(const UE::CompactBinaryTCP::IMessage& Message)
+void FCookWorkerServer::SendMessage(const UE::CompactBinaryTCP::IMessage& Message, ECookDirectorThread TickThread)
+{
+	FCommunicationScopeLock ScopeLock(this, TickThread, ETickAction::Tick);
+	SendMessageInLock(Message);
+}
+
+void FCookWorkerServer::SendMessageInLock(const UE::CompactBinaryTCP::IMessage& Message)
 {
 	if (TickState.TickAction == ETickAction::Tick)
 	{

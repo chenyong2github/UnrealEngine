@@ -1044,6 +1044,8 @@ private:
 	/** Construct the on-stack data for StartCook functions, based on the CookWorker's configuration */
 	FBeginCookContext CreateCookWorkerContext();
 	void CookAsCookWorkerFinished();
+	/** Return the best packages to retract and give to other workers -the ones with least effort spent so far. */
+	void GetPackagesToRetract(int32 NumToRetract, TArray<FName>& OutRetractionPackages);
 
 	//////////////////////////////////////////////////////////////////////////
 	// general functions

@@ -32,6 +32,12 @@ namespace UE::Cook { struct FWorkerConnectMessage; }
 namespace UE::Cook
 {
 
+enum class ENotifyRemote
+{
+	NotifyRemote,
+	LocalOnly,
+};
+
 /** Class in a Director process that communicates over a Socket with FCookWorkerClient in a CookWorker process. */
 class FCookWorkerServer : public FThreadSafeRefCountedObject
 {
@@ -44,17 +50,24 @@ public:
 
 	/** Add the given assignments for the CookWorker. They will be sent during Tick */
 	void AppendAssignments(TArrayView<FPackageData*> Assignments, ECookDirectorThread TickThread);
-	/** Remove assignment of the package from local state and from the connected Client. */
-	void AbortAssignment(FPackageData& PackageData, ECookDirectorThread TickThread);
+	/** Remove assignment of the package from local state and optionally from the connected Client. */
+	void AbortAssignment(FPackageData& PackageData, ECookDirectorThread TickThread,
+		ENotifyRemote NotifyRemote = ENotifyRemote::NotifyRemote);
+	void AbortAssignments(TConstArrayView<FPackageData*> PackageData, ECookDirectorThread TickThread,
+		ENotifyRemote = ENotifyRemote::NotifyRemote);
+
 	/**
-	 * Remove assignment of the all assigned packages from local state and from the connected Client.
-	 * Report all packages that were unassigned.
+	 * Remove assignment of all assigned packages from local state and from the connected Client.
+	 * Report all packages that were removed.
 	 */
-	void AbortAssignments(TSet<FPackageData*>& OutPendingPackages, ECookDirectorThread TickThread);
-	/** AbortAssignments and tell the connected Client to gracefully terminate. Report all packages that were unassigned. */
+	void AbortAllAssignments(TSet<FPackageData*>& OutPendingPackages, ECookDirectorThread TickThread);
+	/** AbortAllAssignments and tell the connected Client to gracefully terminate. Report all packages that were unassigned. */
 	void AbortWorker(TSet<FPackageData*>& OutPendingPackages, ECookDirectorThread TickThread);
 	/** Take over the Socket for a CookWorker that has just connected. */
 	bool TryHandleConnectMessage(FWorkerConnectMessage& Message, FSocket* InSocket, TArray<UE::CompactBinaryTCP::FMarshalledMessage>&& OtherPacketMessages, ECookDirectorThread TickThread);
+
+	/** Send the message immediately to the Socket. If cannot complete immediately, it will be finished during Tick. */
+	void SendMessage(const UE::CompactBinaryTCP::IMessage& Message, ECookDirectorThread TickThread);
 
 	/** Periodic Tick function to send and receive messages to the Client. */
 	void TickCommunication(ECookDirectorThread TickThread);
@@ -66,6 +79,8 @@ public:
 	 */
 	void HandleReceiveMessages(ECookDirectorThread TickThread);
 
+	/** Is this done connecting and not yet shutting down? */
+	bool IsConnected() const;
 	/** Is this either shutting down or completed shutdown of its remote Client? */
 	bool IsShuttingDown() const;
 	/** Is this executing the portion of graceful shutdown where it waits for the CookWorker to transfer remaining messages? */
@@ -126,10 +141,10 @@ private:
 	void SendPendingPackages();
 	/** Helper for Tick, pump receive messages from a connected Client. */
 	void PumpReceiveMessages();
-	/** The main implementation of AbortAssignments, only callable from inside the lock. */
-	void AbortAssignmentsInLock(TSet<FPackageData*>& OutPendingPackages);
+	/** The main implementation of AbortAllAssignments, only callable from inside the lock. */
+	void AbortAllAssignmentsInLock(TSet<FPackageData*>& OutPendingPackages);
 	/** Send the message immediately to the Socket. If cannot complete immediately, it will be finished during Tick. */
-	void SendMessage(const UE::CompactBinaryTCP::IMessage& Message);
+	void SendMessageInLock(const UE::CompactBinaryTCP::IMessage& Message);
 	/** Send this into the given state. Update any state-dependent variables. */
 	void SendToState(EConnectStatus TargetStatus);
 	/** Close the connection and connection resources to the remote process. Does not kill the process. */

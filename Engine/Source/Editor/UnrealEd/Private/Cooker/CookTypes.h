@@ -145,6 +145,7 @@ namespace UE::Cook
 		OnlyEditorOnly,
 		CookCanceled,
 		MultiprocessAssignmentError,
+		RetractedByCookDirector,
 	};
 
 	/** The type of callback for External Requests that needs to be executed within the Scheduler's lock. */
@@ -338,7 +339,10 @@ namespace UE::Cook
 		bool IsRemote() const { return Id != InvalidId && Id != LocalId; }
 		uint8 GetRemoteIndex() const { check(IsRemote()); return Id - 1U; }
 		uint8 GetLocalOrRemoteIndex() const { check(IsValid()); return Id; }
+		bool operator==(const FWorkerId& Other) const { return Id == Other.Id; }
+		bool operator!=(const FWorkerId& Other) const { return Id != Other.Id; }
 		bool operator<(const FWorkerId& Other) const { return Id < Other.Id; }
+		inline friend int32 GetTypeHash(const FWorkerId& WorkerId) { return WorkerId.Id; }
 
 	private:
 		constexpr explicit FWorkerId(uint8 InId) : Id(InId) {}

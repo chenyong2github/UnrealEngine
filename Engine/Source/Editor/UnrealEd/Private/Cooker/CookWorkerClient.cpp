@@ -35,6 +35,11 @@ FCookWorkerClient::FCookWorkerClient(UCookOnTheFlyServer& InCOTFS)
 		{
 			HandleRetractionMessage(Context, bReadSuccessful, MoveTemp(Message));
 		}, TEXT("HandleRetractionMessage")));
+	Register(new IMPCollectorCbClientMessage<FAbortPackagesMessage>([this]
+	(FMPCollectorClientMessageContext& Context, bool bReadSuccessful, FAbortPackagesMessage&& Message)
+		{
+			HandleAbortPackagesMessage(Context, bReadSuccessful, MoveTemp(Message));
+		}, TEXT("HandleAbortPackagesMessage")));
 }
 
 FCookWorkerClient::~FCookWorkerClient()
@@ -133,6 +138,10 @@ void FCookWorkerClient::DoneWithInitialSettings()
 
 void FCookWorkerClient::ReportDemoteToIdle(const FPackageData& PackageData, ESuppressCookReason Reason)
 {
+	if (Reason == ESuppressCookReason::RetractedByCookDirector)
+	{
+		return;
+	}
 	FPackageRemoteResult& Result = PendingResults.Emplace_GetRef();
 	Result.PackageName = PackageData.GetPackageName();
 	Result.SuppressCookReason = Reason;
@@ -661,10 +670,44 @@ void FCookWorkerClient::TickCollectors(FTickStackData& StackData, bool bFlush)
 	NextTickCollectorsTimeSeconds = FPlatformTime::Seconds() + TickCollectorsPeriodSeconds;
 }
 
+void FCookWorkerClient::HandleAbortPackagesMessage(FMPCollectorClientMessageContext& Context, bool bReadSuccessful,
+	FAbortPackagesMessage&& Message)
+{
+	if (!bReadSuccessful)
+	{
+		LogInvalidMessage(TEXT("AbortPackagesMessage"));
+	}
+	for (FName PackageName : Message.PackageNames)
+	{
+		FPackageData* PackageData = COTFS.PackageDatas->FindPackageDataByPackageName(PackageName);
+		if (PackageData)
+		{
+			COTFS.DemoteToIdle(*PackageData, ESendFlags::QueueAddAndRemove, ESuppressCookReason::RetractedByCookDirector);
+		}
+	}
+}
+
 void FCookWorkerClient::HandleRetractionMessage(FMPCollectorClientMessageContext& Context, bool bReadSuccessful,
 	FRetractionRequestMessage&& Message)
 {
+	if (!bReadSuccessful)
+	{
+		LogInvalidMessage(TEXT("RetractionRequestMessage"));
+		return;
+	}
 
+	TArray<FName> PackageNames;
+	COTFS.GetPackagesToRetract(Message.RequestedCount, PackageNames);
+	for (FName PackageName : PackageNames)
+	{
+		FPackageData* PackageData = COTFS.PackageDatas->FindPackageDataByPackageName(PackageName);
+		check(PackageData);
+		COTFS.DemoteToIdle(*PackageData, ESendFlags::QueueAddAndRemove, ESuppressCookReason::RetractedByCookDirector);
+	}
+
+	FRetractionResultsMessage ResultsMessage;
+	ResultsMessage.ReturnedPackages = MoveTemp(PackageNames);
+	SendMessage(ResultsMessage);
 }
 
 } // namespace UE::Cook

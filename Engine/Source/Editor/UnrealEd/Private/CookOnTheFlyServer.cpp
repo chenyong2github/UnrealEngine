@@ -9578,6 +9578,72 @@ void UCookOnTheFlyServer::CookAsCookWorkerFinished()
 	LogCookWorkerStats();
 }
 
+void UCookOnTheFlyServer::GetPackagesToRetract(int32 NumToRetract, TArray<FName>& OutRetractionPackages)
+{
+	using namespace UE::Cook;
+	OutRetractionPackages.Reset(NumToRetract);
+	if (OutRetractionPackages.Num() >= NumToRetract)
+	{
+		return;
+	}
+
+	FRequestQueue& RequestQueue = PackageDatas->GetRequestQueue();
+	TArray<FPackageData*> PoppedPackages;
+	if (!RequestQueue.IsReadyRequestsEmpty())
+	{
+		while (!RequestQueue.IsReadyRequestsEmpty())
+		{
+			PoppedPackages.Add(RequestQueue.PopReadyRequest());
+		}
+		for (FPackageData* PackageData : PoppedPackages)
+		{
+			if (OutRetractionPackages.Num() < NumToRetract)
+			{
+				OutRetractionPackages.Add(PackageData->GetPackageName());
+			}
+			RequestQueue.AddReadyRequest(PackageData);
+		}
+	}
+	if (OutRetractionPackages.Num() >= NumToRetract)
+	{
+		return;
+	}
+
+	FLoadPrepareQueue& LoadPrepareQueue = PackageDatas->GetLoadPrepareQueue();
+	for (FPackageData* PackageData : LoadPrepareQueue.EntryQueue)
+	{
+		OutRetractionPackages.Add(PackageData->GetPackageName());
+		if (OutRetractionPackages.Num() >= NumToRetract)
+		{
+			return;
+		}
+	}
+	for (FPackageData* PackageData : LoadPrepareQueue.PreloadingQueue)
+	{
+		OutRetractionPackages.Add(PackageData->GetPackageName());
+		if (OutRetractionPackages.Num() >= NumToRetract)
+		{
+			return;
+		}
+	}
+	for (FPackageData* PackageData : PackageDatas->GetLoadReadyQueue())
+	{
+		OutRetractionPackages.Add(PackageData->GetPackageName());
+		if (OutRetractionPackages.Num() >= NumToRetract)
+		{
+			return;
+		}
+	}
+	for (FPackageData* PackageData : PackageDatas->GetSaveQueue())
+	{
+		OutRetractionPackages.Add(PackageData->GetPackageName());
+		if (OutRetractionPackages.Num() >= NumToRetract)
+		{
+			return;
+		}
+	}
+}
+
 void UCookOnTheFlyServer::ShutdownCookAsCookWorker()
 {
 	if (IsDirectorCookByTheBook())
