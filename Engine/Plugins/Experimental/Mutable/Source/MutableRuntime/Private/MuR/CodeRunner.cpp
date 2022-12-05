@@ -3925,7 +3925,7 @@ namespace mu
 
         case OP_TYPE::IM_MAKEGROWMAP:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageMakeGrowMapArgs>(item.At);
+			OP::ImageMakeGrowMapArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageMakeGrowMapArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -3957,7 +3957,7 @@ namespace mu
 
         case OP_TYPE::IM_DISPLACE:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageDisplaceArgs>(item.At);
+			OP::ImageDisplaceArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageDisplaceArgs>(item.At);
             switch (item.Stage)
             {
             case 0:
@@ -3977,7 +3977,7 @@ namespace mu
 				// is resolution sensitive (pixel offsets). If the size doesn't match, scale the source, apply 
 				// displacement and then unscale it.
 				FImageSize OriginalSourceScale = pSource->GetSize();
-				if (OriginalSourceScale != pMap->GetSize())
+				if (OriginalSourceScale.x()>0 && OriginalSourceScale.y()>0 && OriginalSourceScale != pMap->GetSize())
 				{
 					MUTABLE_CPUPROFILER_SCOPE(ImageResize_EmergencyHackForDisplacementStep1);
 					pSource = ImageResizeLinear(0, pSource.get(), pMap->GetSize());
@@ -3988,12 +3988,15 @@ namespace mu
 				//ImagePtr pNew = new Image(pSource->GetSizeX(), pSource->GetSizeY(), 1, pSource->GetFormat());
 				Ptr<Image> pNew = mu::CloneOrTakeOver(pSource.get());
 
-                ImageDisplace( pNew.get(), pSource.get(), pMap.get() );
-
-				if (OriginalSourceScale != pNew->GetSize())
+				if (OriginalSourceScale.x() > 0 && OriginalSourceScale.y() > 0)
 				{
-					MUTABLE_CPUPROFILER_SCOPE(ImageResize_EmergencyHackForDisplacementStep2);
-					pNew = ImageResizeLinear(0, pNew.get(), OriginalSourceScale);
+					ImageDisplace(pNew.get(), pSource.get(), pMap.get());
+
+					if (OriginalSourceScale != pNew->GetSize())
+					{
+						MUTABLE_CPUPROFILER_SCOPE(ImageResize_EmergencyHackForDisplacementStep2);
+						pNew = ImageResizeLinear(0, pNew.get(), OriginalSourceScale);
+					}
 				}
 
                 GetMemory().SetImage( item, pNew );

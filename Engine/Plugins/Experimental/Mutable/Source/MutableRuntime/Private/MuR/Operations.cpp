@@ -247,24 +247,6 @@ namespace mu
             break;
 
         //-------------------------------------------------------------------------------------
-        case OP_TYPE::IM_LAYER:
-            f(&op.args.ImageLayer.base );
-            if ( op.args.ImageLayer.mask )
-            {
-                f(&op.args.ImageLayer.mask );
-            }
-            f(&op.args.ImageLayer.blended );
-            break;
-
-        case OP_TYPE::IM_LAYERCOLOUR:
-            f(&op.args.ImageLayerColour.base );
-            if ( op.args.ImageLayerColour.mask )
-            {
-                f(&op.args.ImageLayerColour.mask );
-            }
-            f(&op.args.ImageLayerColour.colour );
-            break;
-
         case OP_TYPE::IM_RESIZE:
             f(&op.args.ImageResize.source );
             break;

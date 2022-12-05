@@ -277,10 +277,12 @@ namespace mu
 		case OP_TYPE::IM_CONSTANT:
 		{
 			Ptr<const Image> pImage = static_cast<const Image*>(GetValue().get());
-			check(pImage->m_size[0] > 0);
-			check(pImage->m_size[1] > 0);
-
-			if (pImage->m_flags & Image::IF_IS_PLAIN_COLOUR_VALID)
+			if ( (pImage->m_size[0] <= 0) || (pImage->m_size[1] <= 0) )
+			{
+				res = true;
+				colour = FVector4f(0.0f,0.0f,0.0f,1.0f);
+			}
+			else if (pImage->m_flags & Image::IF_IS_PLAIN_COLOUR_VALID)
 			{
 				if (pImage->m_flags & Image::IF_IS_PLAIN_COLOUR)
 				{

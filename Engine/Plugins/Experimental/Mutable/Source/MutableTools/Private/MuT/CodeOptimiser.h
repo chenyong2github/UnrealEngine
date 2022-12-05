@@ -8,7 +8,6 @@
 #include "MuR/CodeVisitor.h"
 #include "MuT/CompilerPrivate.h"
 #include "MuT/AST.h"
-#include "MuT/TaskManager.h"
 
 #include <memory>
 
@@ -24,7 +23,7 @@ namespace mu
         CodeOptimiser( CompilerOptionsPtr options, vector<STATE_COMPILATION_DATA>& states );
 
         //! Optimise the virtual machine code, using several transforms.
-        void OptimiseAST( TaskManager* );
+        void OptimiseAST();
 
     private:
 
@@ -39,12 +38,11 @@ namespace mu
         int m_optimizeIterationsLeft=0;
 
         //! Full optimisation pass
-        void FullOptimiseAST( ASTOpList& roots,
-                              TaskManager* pTaskManager );
+        void FullOptimiseAST( ASTOpList& roots );
 
         //! Optimise the code of a model for a specific state, generating new instructions and
         //! state information.
-        void OptimiseStatesAST( TaskManager* pTaskManager );
+        void OptimiseStatesAST();
 
     };
 
@@ -102,8 +100,7 @@ namespace mu
     //! ConstantGenerator replaces constant subtrees of operations with an equivalent single
 	//! constant value operation. 
     //---------------------------------------------------------------------------------------------
-    extern bool ConstantGeneratorAST( const CompilerOptions::Private* options, Ptr<ASTOp>& root,
-                                      TaskManager* pTaskManager );
+    extern bool ConstantGeneratorAST( const CompilerOptions::Private* options, Ptr<ASTOp>& root );
 
     //---------------------------------------------------------------------------------------------
     //! \TODO: shapes, projectors, others? but not switches (they must be unique)

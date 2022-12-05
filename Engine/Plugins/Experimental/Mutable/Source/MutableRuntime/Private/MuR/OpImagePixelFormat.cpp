@@ -41,9 +41,15 @@ ImagePtr ImagePixelFormat( int imageCompressionQuality, const Image* pBase,
 
     ImagePtr result = new Image( (uint16)resultSize[0], (uint16)resultSize[1], resultLODCount, targetFormat );
 	result->m_flags = pBase->m_flags;
+
+	if (pBase->GetSizeX()<=0 ||pBase->GetSizeY()<=0)
+	{
+		return result;
+	}
+
 	bool bSuccess = ImagePixelFormatInPlace( imageCompressionQuality, result.get(), pBase, onlyLOD );
 	int32 OriginalDataSize = FMath::Max(result->m_data.Num(), pBase->m_data.Num());
-	int32 ExcessDataSize = OriginalDataSize * 4;
+	int32 ExcessDataSize = OriginalDataSize * 4 + 4;
 	while (!bSuccess)
     {
 		MUTABLE_CPUPROFILER_SCOPE(Recompression_OutOfSpace);

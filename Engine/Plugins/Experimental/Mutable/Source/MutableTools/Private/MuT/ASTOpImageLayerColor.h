@@ -17,14 +17,13 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	//!
 	//---------------------------------------------------------------------------------------------
-	class ASTOpImageMultiLayer : public ASTOp
+	class ASTOpImageLayerColor : public ASTOp
 	{
 	public:
 
 		ASTChild base;
-		ASTChild blend;
+		ASTChild color;
 		ASTChild mask;
-		FRangeData range;
 
 		/** Blend type used for the colour channels. */
 		EBlendType blendType = EBlendType::BT_NONE;
@@ -32,16 +31,13 @@ namespace mu
 		/** Blend type used for the alpha channel if any. */
 		EBlendType blendTypeAlpha = EBlendType::BT_NONE;
 
-		/** If true, use the alpha channel of the blended image as mask. Mask should be null.*/
-		bool bUseMaskFromBlended = false;
-
 	public:
 
-		ASTOpImageMultiLayer();
-		ASTOpImageMultiLayer(const ASTOpImageMultiLayer&) = delete;
-		~ASTOpImageMultiLayer();
+		ASTOpImageLayerColor();
+		ASTOpImageLayerColor(const ASTOpImageLayerColor&) = delete;
+		~ASTOpImageLayerColor();
 
-		OP_TYPE GetOpType() const override { return OP_TYPE::IM_MULTILAYER; }
+		OP_TYPE GetOpType() const override { return OP_TYPE::IM_LAYERCOLOUR; }
 		uint64 Hash() const override;
 		bool IsEqual(const ASTOp& otherUntyped) const override;
 		Ptr<ASTOp> Clone(MapChildFuncRef mapChild) const override;
@@ -50,6 +46,8 @@ namespace mu
 		FImageDesc GetImageDesc(bool returnBestOption, FGetImageDescContext* context) const override;
 		void GetLayoutBlockSize(int* pBlockX, int* pBlockY) override;
 		Ptr<ImageSizeExpression> GetImageSizeExpression() const override;
+		Ptr<ASTOp> OptimiseSink(const FModelOptimizationOptions&, FOptimizeSinkContext&) const;
+
 	};
 
 }

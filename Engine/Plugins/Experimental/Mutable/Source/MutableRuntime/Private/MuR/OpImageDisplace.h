@@ -43,12 +43,11 @@ namespace mu
 		int32 MipCount = pResult->GetLODCount();
 		int32 SizeX = pResult->GetSizeX();
 		int32 SizeY = pResult->GetSizeY();
-		check( SizeX>0 && SizeY>0 );
-
-        //if (SizeX<4 || SizeY<4)
-        //{
-        //    return;
-        //}
+		
+		if (SizeX <= 0 || SizeY <= 0)
+		{
+			return;
+		}
 
 		FMemory::Memset( pResult->GetData(), MutableEncodeOffset( 0, 0 ), pResult->CalculatePixelCount() );
 

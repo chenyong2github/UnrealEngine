@@ -22,6 +22,8 @@
 #include "MuT/ASTOpConditional.h"
 #include "MuT/ASTOpConstantResource.h"
 #include "MuT/ASTOpImageMipmap.h"
+#include "MuT/ASTOpImageLayer.h"
+#include "MuT/ASTOpImageLayerColor.h"
 #include "MuT/ASTOpImageMultiLayer.h"
 #include "MuT/ASTOpImageNormalComposite.h"
 #include "MuT/ASTOpImagePixelFormat.h"
@@ -299,10 +301,9 @@ namespace mu
 		
 		MUTABLE_CPUPROFILER_SCOPE(NodeImageLayer);
 
-        Ptr<ASTOpFixed> op = new ASTOpFixed();
+        Ptr<ASTOpImageLayer> op = new ASTOpImageLayer();
 
-		op->op.type = OP_TYPE::IM_LAYER;
-        op->op.args.ImageLayer.blendType = uint8(node.m_type);
+        op->blendType = node.m_type;
 
         // Base image
         Ptr<ASTOp> base;
@@ -317,12 +318,12 @@ namespace mu
                                              node.m_errorContext );
         }
 
+		FImageSize TargetSize((uint16)m_imageState.Last().m_imageRect.size[0],(uint16)m_imageState.Last().m_imageRect.size[1]);
+
 		EImageFormat baseFormat = base->GetImageDesc().m_format;
         //base = GenerateImageFormat( base, EImageFormat::IF_RGB_UBYTE );
-        base = GenerateImageSize
-                ( base, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],
-                                   (uint16)m_imageState.Last().m_imageRect.size[1]) );
-        op->SetChild( op->op.args.ImageLayer.base, base);
+        base = GenerateImageSize( base, TargetSize);
+        op->base = base;
 
         // Mask of the effect
         Ptr<ASTOp> mask = 0;
@@ -330,11 +331,9 @@ namespace mu
         {
             mask = Generate( pMask );
             mask = GenerateImageFormat( mask, EImageFormat::IF_L_UBYTE );
-            mask = GenerateImageSize
-                    ( mask, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],
-                                       (uint16)m_imageState.Last().m_imageRect.size[1]) );
+            mask = GenerateImageSize( mask, TargetSize);
         }
-        op->SetChild( op->op.args.ImageLayer.mask, mask);
+        op->mask = mask;
 
         // Image to apply
         Ptr<ASTOp> blended = 0;
@@ -349,10 +348,8 @@ namespace mu
         }
         //blended = GenerateImageFormat( blended, EImageFormat::IF_RGB_UBYTE );
         blended = GenerateImageFormat( blended, baseFormat );
-        blended = GenerateImageSize
-                ( blended, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],
-                                      (uint16)m_imageState.Last().m_imageRect.size[1]) );
-        op->SetChild( op->op.args.ImageLayer.blended, blended);
+        blended = GenerateImageSize( blended, TargetSize);
+        op->blend = blended;
 
         result.op = op;
     }
@@ -365,9 +362,8 @@ namespace mu
 		
 		MUTABLE_CPUPROFILER_SCOPE(NodeImageLayerColour);
 
-        Ptr<ASTOpFixed> op = new ASTOpFixed();
-		op->op.type = OP_TYPE::IM_LAYERCOLOUR;
-		op->op.args.ImageLayerColour.blendType = uint8(node.m_type);
+        Ptr<ASTOpImageLayerColor> op = new ASTOpImageLayerColor();
+		op->blendType = node.m_type;
 
         // Base image
         Ptr<ASTOp> base;
@@ -381,9 +377,8 @@ namespace mu
             base = GenerateMissingImageCode( "Layer base image", EImageFormat::IF_RGB_UBYTE, node.m_errorContext );
         }
         base = GenerateImageFormat( base, EImageFormat::IF_RGB_UBYTE );
-        base = GenerateImageSize
-                ( base, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],(uint16)m_imageState.Last().m_imageRect.size[1]) );
-        op->SetChild( op->op.args.ImageLayerColour.base, base);
+        base = GenerateImageSize( base, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],(uint16)m_imageState.Last().m_imageRect.size[1]) );
+        op->base = base;
 
         // Mask of the effect
         Ptr<ASTOp> mask = 0;
@@ -391,10 +386,9 @@ namespace mu
         {
             mask = Generate( pMask );
             mask = GenerateImageFormat( mask, EImageFormat::IF_L_UBYTE );
-            mask = GenerateImageSize
-                    ( mask, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],(uint16)m_imageState.Last().m_imageRect.size[1]) );
+            mask = GenerateImageSize( mask, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],(uint16)m_imageState.Last().m_imageRect.size[1]) );
         }
-        op->SetChild( op->op.args.ImageLayerColour.mask, mask);
+        op->mask = mask;
 
         // Colour to apply
         Ptr<ASTOp> colour = 0;
@@ -407,7 +401,7 @@ namespace mu
             // This argument is required
             colour = GenerateMissingColourCode( "Layer colour", node.m_errorContext );
         }
-        op->SetChild( op->op.args.ImageLayerColour.colour, colour);
+        op->color = colour;
 
         result.op = op;
     }
@@ -2035,17 +2029,18 @@ namespace mu
     {
         Ptr<ASTOp> result = at;
 
-        //check( size[0]>0 && size[1]>0 );
-
-        if ( at->GetImageDesc().m_size != size )
-        {
-            Ptr<ASTOpFixed> op = new ASTOpFixed();
-            op->op.type = OP_TYPE::IM_RESIZE;
-            op->SetChild( op->op.args.ImageResize.source,at);
-            op->op.args.ImageResize.size[0] = size[0];
-            op->op.args.ImageResize.size[1] = size[1];
-            result = op;
-        }
+		if (size[0] > 0 && size[1] > 0)
+		{
+			if (at->GetImageDesc().m_size != size)
+			{
+				Ptr<ASTOpFixed> op = new ASTOpFixed();
+				op->op.type = OP_TYPE::IM_RESIZE;
+				op->SetChild(op->op.args.ImageResize.source, at);
+				op->op.args.ImageResize.size[0] = size[0];
+				op->op.args.ImageResize.size[1] = size[1];
+				result = op;
+			}
+		}
 
         return result;
     }

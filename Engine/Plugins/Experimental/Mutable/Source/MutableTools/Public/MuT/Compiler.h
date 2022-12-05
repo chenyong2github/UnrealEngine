@@ -68,12 +68,6 @@ namespace mu
         void SetConstReductionEnabled( bool bEnabled );
 
         //!
-        void SetEnablePartialOptimisation( bool bEnabled );
-
-		//!
-		void SetEnableConcurrency(bool bEnabled);
-
-        //!
         void SetOptimisationMaxIteration( int maxIterations );
 
         //!
