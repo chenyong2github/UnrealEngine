@@ -542,9 +542,9 @@ void FTraceInsightsModule::StartAnalysisForTrace(uint32 InTraceId, bool InAutoQu
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTraceInsightsModule::StartAnalysisForLastLiveSession()
+void FTraceInsightsModule::StartAnalysisForLastLiveSession(float InRetryTime)
 {
-	FInsightsManager::Get()->LoadLastLiveSession();
+	FInsightsManager::Get()->LoadLastLiveSession(InRetryTime);
 	UpdateAppTitle();
 }
 

@@ -51,7 +51,7 @@ public:
 
 	virtual TSharedPtr<const TraceServices::IAnalysisSession> GetAnalysisSession() const override;
 	virtual void StartAnalysisForTrace(uint32 InTraceId, bool InAutoQuit = false) override;
-	virtual void StartAnalysisForLastLiveSession() override;
+	virtual void StartAnalysisForLastLiveSession(float RetryTime = 1.0f) override;
 	virtual void StartAnalysisForTraceFile(const TCHAR* InTraceFile, bool InAutoQuit = false) override;
 
 	virtual void ShutdownUserInterface() override;

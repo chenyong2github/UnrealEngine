@@ -209,8 +209,11 @@ public:
 
 	/**
 	 * Starts analysis of the last live session. Called when the application starts in "Viewer" mode.
+	 * On failure, if InRetryTime is > 0, retry connecting every frame for RetryTime seconds 
+	 * 
+	 * @param InRetryTime How many seconds to retry connecting asyncronously
 	 */
-	virtual void StartAnalysisForLastLiveSession() = 0;
+	virtual void StartAnalysisForLastLiveSession(float InRetryTime = 1.0f) = 0;
 
 	/**
 	 * Starts analysis of the specified *.utrace file. Called when the application starts in "Viewer" mode.

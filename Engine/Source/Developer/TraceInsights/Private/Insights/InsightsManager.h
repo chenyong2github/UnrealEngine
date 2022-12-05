@@ -269,9 +269,10 @@ public:
 
 	/**
 	 * Creates a new analysis session instance and loads the latest available trace that is live.
-	 * Replaces the current analysis session.
+	 * Replaces the current analysis session.  On failure, if InRetryTime is > 0, will retry connecting every frame for RetryTime seconds 
+	 * @param InRetryTime - On failure, how many seconds to retry connecting during FInsightsManager::Tick
 	 */
-	void LoadLastLiveSession();
+	void LoadLastLiveSession(float InRetryTime = 1.0f);
 
 	/**
 	 * Creates a new analysis session instance using the specified trace id.
@@ -457,6 +458,7 @@ private:
 	bool bIsAnalysisComplete = false;
 	bool bSessionAnalysisCompletedAutoQuit = false;
 
+	float RetryLoadLastLiveSessionTimer = 0.0f;
 	bool bIsAutoLoadLiveSessionEnabled = false;
 	TSet<uint32> AutoLoadedTraceIds; // list of trace ids for the auto loaded live sessions
 

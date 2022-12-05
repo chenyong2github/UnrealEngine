@@ -497,6 +497,19 @@ FInsightsSettings& FInsightsManager::GetSettings()
 
 bool FInsightsManager::Tick(float DeltaTime)
 {
+	if (RetryLoadLastLiveSessionTimer > 0.0f)
+	{
+		LoadLastLiveSession(0.0f);
+		if (Session)
+		{
+			RetryLoadLastLiveSessionTimer = 0.0f;
+		}
+		else
+		{
+			RetryLoadLastLiveSessionTimer -= DeltaTime;
+		}
+	}
+	
 	AutoLoadLiveSession();
 
 	UpdateSessionDuration();
@@ -834,7 +847,7 @@ void FInsightsManager::AutoLoadLiveSession()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FInsightsManager::LoadLastLiveSession()
+void FInsightsManager::LoadLastLiveSession(float RetryTime)
 {
 	ResetSession();
 
@@ -851,6 +864,11 @@ void FInsightsManager::LoadLastLiveSession()
 		{
 			LoadTrace(SessionInfo->GetTraceId());
 		}
+	}
+
+	if (Session == nullptr && RetryTime > 0)
+	{
+		RetryLoadLastLiveSessionTimer = RetryTime;
 	}
 }
 
