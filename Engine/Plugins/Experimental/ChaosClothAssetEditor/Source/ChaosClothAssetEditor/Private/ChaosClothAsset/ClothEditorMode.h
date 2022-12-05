@@ -159,7 +159,6 @@ private:
 	void UpdateSimulationMeshes();
 
 	// Simulation controls
-	bool bIsSimulationSuspended = false;
 	bool bShouldResetSimulation = false;
 	bool bHardReset = false;
 	bool bShouldClearTeleportFlag = false;

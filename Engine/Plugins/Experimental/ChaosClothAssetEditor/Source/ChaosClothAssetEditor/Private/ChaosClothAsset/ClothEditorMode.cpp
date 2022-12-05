@@ -623,17 +623,28 @@ void UChaosClothAssetEditorMode::HardResetSimulation()
 
 void UChaosClothAssetEditorMode::SuspendSimulation()
 {
-	bIsSimulationSuspended = true;
+	if (ClothComponent)
+	{
+		ClothComponent->SuspendSimulation();
+	}
 }
 
 void UChaosClothAssetEditorMode::ResumeSimulation()
 {
-	bIsSimulationSuspended = false;
+	if (ClothComponent)
+	{
+		ClothComponent->ResumeSimulation();
+	}
 }
 
 bool UChaosClothAssetEditorMode::IsSimulationSuspended() const
 {
-	return bIsSimulationSuspended;
+	if (ClothComponent)
+	{
+		return ClothComponent->IsSimulationSuspended();
+	}
+
+	return false;
 }
 
 UDataflowComponent* UChaosClothAssetEditorMode::GetDataflowComponent() const
@@ -669,8 +680,6 @@ void UChaosClothAssetEditorMode::ModeTick(float DeltaTime)
 	}
 
 
-	bool bShouldTickPreviewWorld = !bIsSimulationSuspended;
-
 	if (bShouldClearTeleportFlag)
 	{
 		ClothComponent->ResetTeleportMode();
@@ -690,10 +699,9 @@ void UChaosClothAssetEditorMode::ModeTick(float DeltaTime)
 
 		bShouldResetSimulation = false;
 		bShouldClearTeleportFlag = true;		// clear the flag next tick
-		bShouldTickPreviewWorld = true;
 	}
 
-	if (PreviewWorld && bShouldTickPreviewWorld)
+	if (PreviewWorld)
 	{
 		PreviewWorld->Tick(ELevelTick::LEVELTICK_All, DeltaTime);
 	}
