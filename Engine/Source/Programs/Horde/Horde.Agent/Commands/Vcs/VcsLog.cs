@@ -12,12 +12,12 @@ using Microsoft.Extensions.Options;
 namespace Horde.Agent.Commands.Vcs
 {
 	[Command("Vcs", "Log", "Print a history of commits")]
-	class VcsLogCommand : VcsBase
+	class VcsLog : VcsBase
 	{
 		[CommandLine("-Count")]
 		public int Count { get; set; } = 20;
 
-		public VcsLogCommand(IStorageClientFactory storageClientFactory)
+		public VcsLog(IStorageClientFactory storageClientFactory)
 			: base(storageClientFactory)
 		{
 		}

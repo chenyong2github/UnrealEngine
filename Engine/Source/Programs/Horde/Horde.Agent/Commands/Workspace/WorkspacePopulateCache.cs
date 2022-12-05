@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging;
 namespace Horde.Agent.Commands.Workspace
 {
 	[Command("Workspace", "PopulateCache", "Populates the cache with the head revision of the given streams")]
-	class PopulateCacheCommand : WorkspaceCommand
+	class WorkspacePopulateCache : WorkspaceBase
 	{
 		[CommandLine("-ClientAndStream=")]
 		[Description("Specifies client and stream pairs, in the format Client:Stream")]

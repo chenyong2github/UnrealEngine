@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 namespace Horde.Agent.Commands.Workspace
 {
 	[Command("Workspace", "Dump", "Dumps the contents of the repository to the log for analysis")]
-	class Dump : WorkspaceCommand
+	class WorkspaceDump : WorkspaceBase
 	{
 		protected override Task ExecuteAsync(IPerforceConnection perforce, ManagedWorkspace repo, ILogger logger)
 		{

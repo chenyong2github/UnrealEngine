@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Horde.Agent.Commands.Workspace
 {
-	abstract class WorkspaceCommand : Command
+	abstract class WorkspaceBase : Command
 	{
 		[CommandLine("-Server")]
 		[Description("Specifies the Perforce server and port")]

@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 namespace Horde.Agent.Commands.Workspace
 {
 	[Command("Workspace", "Status", "Prints information about the state of the cache and workspace")]
-	class StatusCommand : WorkspaceCommand
+	class WorkspaceStatus : WorkspaceBase
 	{
 		protected override Task ExecuteAsync(IPerforceConnection perforce, ManagedWorkspace repo, ILogger logger)
 		{

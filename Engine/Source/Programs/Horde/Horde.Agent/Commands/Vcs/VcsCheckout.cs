@@ -8,12 +8,11 @@ using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Nodes;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace Horde.Agent.Commands.Vcs
 {
 	[Command("vcs", "checkout", "Checkout a particular branch/change")]
-	class VcsCheckoutCommand : VcsBase
+	class VcsCheckout : VcsBase
 	{
 		[CommandLine("-Branch")]
 		public string? Branch { get; set; }
@@ -27,7 +26,7 @@ namespace Horde.Agent.Commands.Vcs
 		[CommandLine("-Force")]
 		public bool Force { get; set; }
 
-		public VcsCheckoutCommand(IStorageClientFactory storageClientFactory)
+		public VcsCheckout(IStorageClientFactory storageClientFactory)
 			: base(storageClientFactory)
 		{
 		}

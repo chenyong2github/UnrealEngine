@@ -6,14 +6,13 @@ using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Nodes;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace Horde.Agent.Commands.Vcs
 {
 	[Command("vcs", "clone", "Initialize a directory for VCS-like operations")]
-	class VcsCloneCommand : VcsCheckoutCommand
+	class VcsClone : VcsCheckout
 	{
-		public VcsCloneCommand(IStorageClientFactory storageClientFactory)
+		public VcsClone(IStorageClientFactory storageClientFactory)
 			: base(storageClientFactory)
 		{
 		}

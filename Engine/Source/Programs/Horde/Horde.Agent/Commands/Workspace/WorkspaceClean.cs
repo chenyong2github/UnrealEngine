@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 namespace Horde.Agent.Commands.Workspace
 {
 	[Command("Workspace", "Clean", "Cleans all modified files from the workspace.")]
-	class CleanCommand : WorkspaceCommand
+	class WorkspaceClean : WorkspaceBase
 	{
 		[CommandLine("-Incremental")]
 		[Description("Performs an incremental sync, without removing intermediates")]

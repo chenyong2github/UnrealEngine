@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 namespace Horde.Agent.Commands.Workspace
 {
 	[Command("Workspace", "Clear", "Empties the staging directory of any files, returning them to the cache")]
-	class ClearCommand : WorkspaceCommand
+	class WorkspaceClear : WorkspaceBase
 	{
 		protected override Task ExecuteAsync(IPerforceConnection perforce, ManagedWorkspace repo, ILogger logger)
 		{

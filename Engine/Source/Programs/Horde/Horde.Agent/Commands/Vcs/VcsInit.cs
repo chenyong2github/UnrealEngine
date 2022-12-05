@@ -8,9 +8,9 @@ using Microsoft.Extensions.Logging;
 namespace Horde.Agent.Commands.Vcs
 {
 	[Command("vcs", "init", "Initialize a directory for VCS-like operations")]
-	class VcsInitCommand : VcsBase
+	class VcsInit : VcsBase
 	{
-		public VcsInitCommand(IStorageClientFactory storageClientFactory)
+		public VcsInit(IStorageClientFactory storageClientFactory)
 			: base(storageClientFactory)
 		{
 		}

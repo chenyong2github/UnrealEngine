@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 namespace Horde.Agent.Commands.Workspace
 {
 	[Command("Workspace", "PurgeCache", "Shrink the size of the cache to the given size")]
-	class PurgeCacheCommand : WorkspaceCommand
+	class WorkspacePurgeCache : WorkspaceBase
 	{
 		[CommandLine("-Size=")]
 		string? SizeParam { get; set; } = null;

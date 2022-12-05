@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 namespace Horde.Agent.Commands.Workspace
 {
 	[Command("Workspace", "Sync", "Syncs the files for a particular stream and changelist")]
-	class SyncCommand : WorkspaceCommand
+	class WorkspaceSync : WorkspaceBase
 	{
 		[CommandLine("-Client=", Required = true)]
 		[Description("Name of the client to sync. Will be created if it does not exist.")]

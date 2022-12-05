@@ -14,7 +14,7 @@ using Microsoft.Extensions.Logging;
 namespace Horde.Agent.Commands.Vcs
 {
 	[Command("vcs", "commit", "Commits data to the VCS store")]
-	class VcsCommitCommand : VcsBase
+	class VcsCommit : VcsBase
 	{
 		[CommandLine("-User=")]
 		public string UserName { get; set; } = Environment.UserName;
@@ -22,7 +22,7 @@ namespace Horde.Agent.Commands.Vcs
 		[CommandLine("-Message=")]
 		public string? Message { get; set; }
 
-		public VcsCommitCommand(IStorageClientFactory storageClientFactory)
+		public VcsCommit(IStorageClientFactory storageClientFactory)
 			: base(storageClientFactory)
 		{
 		}

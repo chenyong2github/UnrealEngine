@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 namespace Horde.Agent.Commands.Workspace
 {
 	[Command("Workspace", "RepairCache", "Checks the integrity of the cache, and removes any invalid files")]
-	class RepairCommand : WorkspaceCommand
+	class WorkspaceRepair : WorkspaceBase
 	{
 		protected override Task ExecuteAsync(IPerforceConnection perforce, ManagedWorkspace repo, ILogger logger)
 		{

@@ -4,17 +4,16 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace Horde.Agent.Commands.Vcs
 {
 	[Command("vcs", "branch", "Switch to a new branch")]
-	class VcsBranchCommand : VcsBase
+	class VcsBranch : VcsBase
 	{
 		[CommandLine(Prefix = "-Name=", Required = true)]
 		public string Name { get; set; } = "";
 
-		public VcsBranchCommand(IStorageClientFactory storageClientFactory)
+		public VcsBranch(IStorageClientFactory storageClientFactory)
 			: base(storageClientFactory)
 		{
 		}
