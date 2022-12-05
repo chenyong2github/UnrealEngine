@@ -105,8 +105,22 @@ public:
 	 */
 	IRISCORE_API bool PollObjectReferences(const void* RESTRICT SrcData);
 
+	struct FCallRepNotifiesParameters
+	{
+		// Previous state if requested
+		const FPropertyReplicationState* PreviousState = nullptr;
+
+		// This is an init state
+		bool bIsInit = false;
+
+		// Only call repnotify if value differs from local value
+		bool bOnlyCallIfDiffersFromLocal = false;
+	};
+
+
 	/** Invoke repnotifies for all dirty members */
-	IRISCORE_API void CallRepNotifies(void* RESTRICT DstData, const FPropertyReplicationState* PreviousState, bool bIsInit) const;
+	IRISCORE_API void CallRepNotifies(void* RESTRICT DstData, const FCallRepNotifiesParameters& Params) const;
+	inline void CallRepNotifies(void* RESTRICT DstData, const FPropertyReplicationState* PreviousState, bool bIsInit) const;
 
 	/** Debug output state to FString */
 	IRISCORE_API FString ToString(bool bIncludeAll = true) const;
@@ -140,5 +154,14 @@ private:
 	uint8* StateBuffer;
 	uint32 bOwnState : 1;
 };
+
+void FPropertyReplicationState::CallRepNotifies(void* RESTRICT DstData, const FPropertyReplicationState* PreviousState, bool bIsInit) const
+{
+	FCallRepNotifiesParameters Params; 
+
+	Params.PreviousState = PreviousState;
+	Params.bIsInit = bIsInit;
+	CallRepNotifies(DstData, Params);
+}
 
 }

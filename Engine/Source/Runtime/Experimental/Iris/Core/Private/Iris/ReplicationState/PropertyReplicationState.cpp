@@ -11,6 +11,9 @@
 #include "Iris/Core/IrisLog.h"
 #include "UObject/PropertyPortFlags.h"
 #include "Containers/StringFwd.h"
+#include "Iris/Core/IrisDebugging.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogIrisRepNotify, Warning, All);
 
 namespace UE::Net
 {
@@ -300,7 +303,7 @@ bool FPropertyReplicationState::PollObjectReferences(const void* RESTRICT SrcSta
 	return IsDirty();
 }
 
-void FPropertyReplicationState::CallRepNotifies(void* RESTRICT DstData, const FPropertyReplicationState* PreviousState, bool bIsInit) const
+void FPropertyReplicationState::CallRepNotifies(void* RESTRICT DstData, const FCallRepNotifiesParameters& Params) const
 {
 	// $IRIS TODO: Rewrite this to iterate over change mask instead of iterating over all members and querying the mask
 	// Note, we need to use a NetBitStreamReader and the changemask descriptor since each member might have different number of bits.
@@ -334,16 +337,42 @@ void FPropertyReplicationState::CallRepNotifies(void* RESTRICT DstData, const FP
 				const uint32 ExternalMemberOffset = MemberDescriptors[MemberIt].ExternalMemberOffset;
 				
 				UObject* Object = reinterpret_cast<UObject*>(DstData);
-				const uint8* PrevValuePtr = PreviousState ? PreviousState->StateBuffer + ExternalMemberOffset : nullptr;
-				const uint8* ValuePtr = StateBuffer + ExternalMemberOffset;
+				const uint8* PrevValuePtr = Params.PreviousState ? Params.PreviousState->StateBuffer + ExternalMemberOffset : nullptr;
+				const uint8* ValuePtr = StateBuffer + ExternalMemberOffset;				
 
-				// If it is the first time we apply state data, we only call repnotify if the value differs from the default
-				if (!bIsInit || !Private::InternalCompareMember(Descriptor, MemberIt, ValuePtr, PrevValuePtr))
+				bool bShouldCallRepNotify = false;
+				if (Params.bOnlyCallIfDiffersFromLocal)
 				{
+					// We try to be backwards compatible and respect RepNotify_Always/RepNotify_Changed unless it is the intial state where we only will call the repnotify of the received value differs from the local one.
+					bShouldCallRepNotify = Params.bIsInit ? !Private::InternalCompareMember(Descriptor, MemberIt, ValuePtr, PrevValuePtr) : EnumHasAnyFlags(Descriptor->MemberTraitsDescriptors[MemberIt].Traits, EReplicationStateMemberTraits::HasRepNotifyAlways) || !Private::InternalCompareMember(Descriptor, MemberIt, ValuePtr, PrevValuePtr);
+				}
+				else
+				{
+					// Trust data from server and call RepNotify without doing additonal compare unless it is the inital state.
+					bShouldCallRepNotify = !Params.bIsInit || !Private::InternalCompareMember(Descriptor, MemberIt, ValuePtr, PrevValuePtr);
+				}
+
+				if (bShouldCallRepNotify)
+				{
+					// We only want to call RepNotify once for c-arrays
 					LastPropertyWithRepNotify = Property;
-					UE_LOG(LogIris, VeryVerbose, TEXT("Calling RepNotify. Object: %s, Function: %s"), *Object->GetFullName(), ToCStr(RepNotifyFunction->GetName()));
 					Object->ProcessEvent(const_cast<UFunction*>(RepNotifyFunction), const_cast<uint8*>(PrevValuePtr));
 				}
+
+#if !UE_BUILD_SHIPPING
+				if (UE_LOG_ACTIVE(LogIrisRepNotify, Verbose) && IrisDebugHelper::FilterDebuggedObject(Object))
+				{
+					const bool bIsRepNotifyAlways = EnumHasAnyFlags(Descriptor->MemberTraitsDescriptors[MemberIt].Traits, EReplicationStateMemberTraits::HasRepNotifyAlways);
+					if (bShouldCallRepNotify)
+					{
+						UE_LOG(LogIrisRepNotify, Verbose, TEXT("Calling RepNotify. Object: %s, Function: %s IsInit: %d IsRepAlways: %d"), *Object->GetFullName(), ToCStr(RepNotifyFunction->GetName()), Params.bIsInit, bIsRepNotifyAlways);
+					}
+					else
+					{
+						UE_LOG(LogIrisRepNotify, VeryVerbose, TEXT("Skipping RepNotify. Object: %s, Function: %s IsInit: %d IsRepAlways: %d"), *Object->GetFullName(), ToCStr(RepNotifyFunction->GetName()), Params.bIsInit, bIsRepNotifyAlways);
+					}					
+				}
+#endif
 			}
 		}
 	}

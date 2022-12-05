@@ -22,13 +22,16 @@ namespace UE::Net::IrisDebugHelper
 IRISCORE_API uint64 Init();
 
 /** Trigger a breakpoint and return true if the object contains the current debug name */
-bool BreakOnObjectName(UObject* Object);
+IRISCORE_API bool BreakOnObjectName(UObject* Object);
 
 /** Trigger a breakpoint and return true if the NetRefHandle is the current debug NetRefHandle */
-bool BreakOnNetRefHandle(FNetRefHandle NetRefHandle);
+IRISCORE_API bool BreakOnNetRefHandle(FNetRefHandle NetRefHandle);
 
 /** Trigger a breakpoint and return true if the name contains the debug RPC string */
-bool BreakOnRPCName(FName RPCName);
+IRISCORE_API bool BreakOnRPCName(FName RPCName);
+
+/** Returns true if the object name contains the current debug name, will return true if no debug name is set */
+IRISCORE_API bool FilterDebuggedObject(UObject* Object);
 
 /** Output state data to StringBuilder for the specified Handle */
 void NetObjectStateToString(FStringBuilderBase& StringBuilder, FNetRefHandle RefHandle);

@@ -6,9 +6,18 @@
 #include "Iris/ReplicationState/ReplicationStateDescriptorBuilder.h"
 #include "Iris/Core/IrisProfiler.h"
 #include "Iris/Core/IrisLog.h"
+#include "HAL/IConsoleManager.h"
 
 namespace UE::Net
 {
+
+static bool bUsePrevReceivedStateForOnReps = true;
+static FAutoConsoleVariableRef CVarUsePrevReceivedStateForOnReps(
+		TEXT("net.Iris.UsePrevReceivedStateForOnReps"),
+		bUsePrevReceivedStateForOnReps,
+		TEXT("If true OnReps will use the previous received state when doing onreps and not do any compares, if set to false we will copy the local state and do a compare before issuing onreps"
+		));
+
 
 FPropertyReplicationFragment::FPropertyReplicationFragment(EReplicationFragmentTraits InTraits, UObject* InOwner, const FReplicationStateDescriptor* InDescriptor)
 : FReplicationFragment(InTraits)
@@ -24,7 +33,8 @@ FPropertyReplicationFragment::FPropertyReplicationFragment(EReplicationFragmentT
 	{
 		if (EnumHasAnyFlags(InDescriptor->Traits, EReplicationStateTraits::HasRepNotifies))
 		{
-			if (EnumHasAnyFlags(InDescriptor->Traits, EReplicationStateTraits::KeepPreviousState))
+			// We need to store the previous state if the onreps require this information or we are not using the previous received state received for onreps as we need to store the local state before overwriting the current state
+			if (!bUsePrevReceivedStateForOnReps || EnumHasAnyFlags(InDescriptor->Traits, EReplicationStateTraits::KeepPreviousState))
 			{
 				PrevReplicationState = MakeUnique<FPropertyReplicationState>(InDescriptor);
 
@@ -82,10 +92,16 @@ void FPropertyReplicationFragment::CallRepNotifies(FReplicationStateApplyContext
 
 	if (PrevReplicationState || !Context.bIsInit)
 	{
-		ReceivedState.CallRepNotifies(Owner, PrevReplicationState.Get(), Context.bIsInit);
+		FPropertyReplicationState::FCallRepNotifiesParameters Params;
+		Params.PreviousState = PrevReplicationState.Get();
+		Params.bIsInit = Context.bIsInit;
+		Params.bOnlyCallIfDiffersFromLocal = !bUsePrevReceivedStateForOnReps;
+
+		ReceivedState.CallRepNotifies(Owner, Params);
 
 		// We keep a copy of the previous state for RepNotifies that need the value
-		if (PrevReplicationState)
+		// If we rely on received data for the onreps, we just copy the received state, otherwise we must store the local state before applying received data.
+		if (bUsePrevReceivedStateForOnReps && PrevReplicationState)
 		{
 			*PrevReplicationState = ReceivedState;
 		}
@@ -102,6 +118,13 @@ void FPropertyReplicationFragment::CallRepNotifies(FReplicationStateApplyContext
 void FPropertyReplicationFragment::ApplyReplicatedState(FReplicationStateApplyContext& Context) const
 {
 	IRIS_PROFILER_SCOPE(PropertyReplicationFragment_ApplyReplicatedState);
+
+	// If we do not rely on received data to issue rep notifies we need to store a copy of the local state before we apply the new received state.
+	if (!bUsePrevReceivedStateForOnReps && PrevReplicationState)
+	{
+		// This could use a partial poll instead only polling RepNotify properties.
+		PrevReplicationState->PollPropertyReplicationState(Owner);
+	}
 
 	// Create a wrapping property replication state, cheap as we are simply injecting the already constructed state
 	const FPropertyReplicationState ReceivedState(Context.Descriptor, Context.StateBufferData.ExternalStateBuffer);

@@ -69,6 +69,16 @@ bool BreakOnObjectName(UObject* Object)
 	return false;
 }
 
+bool FilterDebuggedObject(UObject* Object)
+{
+	if (IrisDebugHelperInternal::GIrisDebugName.IsEmpty() || GetNameSafe(Object).Contains(IrisDebugHelperInternal::GIrisDebugName))
+	{
+		return true;
+	}
+
+	return false;
+}
+
 bool BreakOnNetRefHandle(FNetRefHandle NetRefHandle)
 {
 	if (IrisDebugHelperInternal::GIrisDebugNetRefHandle.IsValid() && IrisDebugHelperInternal::GIrisDebugNetRefHandle == NetRefHandle)
