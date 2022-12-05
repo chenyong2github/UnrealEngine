@@ -123,7 +123,7 @@ void FMediaPlateEditorModule::MediaPlateStartedPlayback(TObjectPtr<UMediaPlateCo
 {
 	if (MediaPlate != nullptr)
 	{
-		ActiveMediaPlates.Add(MediaPlate);
+		ActiveMediaPlates.AddUnique(MediaPlate);
 	}
 }
 
