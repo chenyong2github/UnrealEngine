@@ -16,6 +16,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSamplingFunctions::ComputePointSampling
 	UDynamicMesh* TargetMesh,
 	FGeometryScriptMeshPointSamplingOptions Options,
 	TArray<FTransform>& Samples,
+	FGeometryScriptIndexList& TriangleIDs,
 	UGeometryScriptDebug* Debug)
 {
 	if (TargetMesh == nullptr)
@@ -37,9 +38,15 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSamplingFunctions::ComputePointSampling
 		Sampler.ComputePoissonSampling(ReadMesh);
 	});
 
-	for (FFrame3d Frame : Sampler.Samples)
+	TriangleIDs.Reset(EGeometryScriptIndexType::Triangle);
+	TArray<int>& IndexList = *TriangleIDs.List;
+	int32 NumSamples = Sampler.Samples.Num();
+	for ( int32 k = 0; k < NumSamples; ++k )
 	{
+		const FFrame3d& Frame = Sampler.Samples[k];
 		Samples.Add( Frame.ToFTransform() );
+
+		IndexList.Add( Sampler.TriangleIDs[k] );
 	}
 
 	return TargetMesh;
@@ -52,6 +59,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSamplingFunctions::ComputeNonUniformPoi
 	FGeometryScriptNonUniformPointSamplingOptions NonUniformOptions,
 	TArray<FTransform>& Samples,
 	TArray<double>& SampleRadii,
+	FGeometryScriptIndexList& TriangleIDs,
 	UGeometryScriptDebug* Debug)
 {
 	if (TargetMesh == nullptr)
@@ -79,10 +87,15 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSamplingFunctions::ComputeNonUniformPoi
 		Sampler.ComputePoissonSampling(ReadMesh);
 	});
 
-	for ( int32 k = 0; k < Sampler.Samples.Num(); ++k)
+	TriangleIDs.Reset(EGeometryScriptIndexType::Triangle);
+	TArray<int>& IndexList = *TriangleIDs.List;
+	int32 NumSamples = Sampler.Samples.Num();
+	for ( int32 k = 0; k < NumSamples; ++k )
 	{
-		Samples.Add( Sampler.Samples[k].ToFTransform());
-		SampleRadii.Add( Sampler.Radii[k] );
+		Samples.Add( Sampler.Samples[k].ToFTransform() );
+		SampleRadii.Add( Sampler.Radii[k]);
+
+		IndexList.Add( Sampler.TriangleIDs[k] );
 	}
 
 	return TargetMesh;
@@ -99,6 +112,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSamplingFunctions::ComputeVertexWeighte
 	FGeometryScriptScalarList VertexWeights,
 	TArray<FTransform>& Samples,
 	TArray<double>& SampleRadii,
+	FGeometryScriptIndexList& TriangleIDs,
 	UGeometryScriptDebug* Debug)
 {
 	if (TargetMesh == nullptr)
@@ -135,10 +149,15 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSamplingFunctions::ComputeVertexWeighte
 		Sampler.ComputePoissonSampling(ReadMesh);
 	});
 
-	for ( int32 k = 0; k < Sampler.Samples.Num(); ++k)
+	TriangleIDs.Reset(EGeometryScriptIndexType::Triangle);
+	TArray<int>& IndexList = *TriangleIDs.List;
+	int32 NumSamples = Sampler.Samples.Num();
+	for ( int32 k = 0; k < NumSamples; ++k )
 	{
-		Samples.Add( Sampler.Samples[k].ToFTransform());
-		SampleRadii.Add( Sampler.Radii[k] );
+		Samples.Add( Sampler.Samples[k].ToFTransform() );
+		SampleRadii.Add( Sampler.Radii[k]);
+
+		IndexList.Add( Sampler.TriangleIDs[k] );
 	}
 
 	return TargetMesh;

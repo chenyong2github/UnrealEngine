@@ -39,6 +39,12 @@ FVector UGeometryScriptLibrary_RayFunctions::GetRayPoint(const FRay& Ray, double
 	return Ray.PointAt(Distance);
 }
 
+void UGeometryScriptLibrary_RayFunctions::GetRayStartEnd(const FRay& Ray, double StartDistance, double EndDistance, FVector& StartPoint, FVector& EndPoint)
+{
+	StartPoint = Ray.PointAt(StartDistance);
+	EndPoint = Ray.PointAt(EndDistance == 0 ? TNumericLimits<float>::Max() : EndDistance );
+}
+
 double UGeometryScriptLibrary_RayFunctions::GetRayParameter(const FRay& Ray, const FVector& Point)
 {
 	return Ray.GetParameter(Point);
@@ -82,6 +88,12 @@ FBox UGeometryScriptLibrary_BoxFunctions::MakeBoxFromCenterSize(const FVector& C
 	FVector Extents( FMathd::Max(0, Dimensions.X * 0.5), FMathd::Max(0, Dimensions.Y * 0.5), FMathd::Max(0, Dimensions.Z * 0.5) );
 	return FBox(Center - Extents, Center + Extents);
 }
+
+FBox UGeometryScriptLibrary_BoxFunctions::MakeBoxFromCenterExtents(const FVector& Center, const FVector& Extents)
+{
+	return FBox(Center - Extents, Center + Extents);
+}
+
 
 void UGeometryScriptLibrary_BoxFunctions::GetBoxCenterSize(const FBox& Box, FVector& Center, FVector& Dimensions)
 {

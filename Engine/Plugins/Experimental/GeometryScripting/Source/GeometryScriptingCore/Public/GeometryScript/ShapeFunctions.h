@@ -43,6 +43,15 @@ public:
 	GetRayPoint(const FRay& Ray, double Distance);
 
 	/**
+	 * Get two points along the ray. 
+	 * @param StartPoint returned as Origin + StartDistance*Direction
+	 * @param EndPoint returned as Origin + EndDistance*Direction, Unless EndDistance = 0, then MaxFloat is used as the Distance
+	 */
+	UFUNCTION(BlueprintPure, Category = "GeometryScript|Shapes|Ray", meta=(ScriptMethod, StartDistance="0", EndDistance = "0"))
+	static void 
+	GetRayStartEnd(const FRay& Ray, double StartDistance, double EndDistance, FVector& StartPoint, FVector& EndPoint);
+
+	/**
 	 * Project the given Point onto the closest point along the Ray, and return the Ray Parameter/Distance at that Point
 	 */
 	UFUNCTION(BlueprintPure, Category = "GeometryScript|Shapes|Ray", meta=(ScriptMethod))
@@ -102,6 +111,13 @@ public:
 	MakeBoxFromCenterSize(const FVector& Center, const FVector& Dimensions);
 
 	/**
+	 * Create a Box from a Center point and X/Y/Z Extents (Extents are half-dimensions)
+	 */
+	UFUNCTION(BlueprintPure, Category = "GeometryScript|Shapes|Box")
+	static UPARAM(DisplayName="Box") FBox 
+	MakeBoxFromCenterExtents(const FVector& Center, const FVector& Extents);
+
+	/**
 	 * Get the Center point and X/Y/Z Dimensions of a Box (full dimensions, not Extents)
 	 */
 	UFUNCTION(BlueprintPure, Category = "GeometryScript|Shapes|Box", meta=(ScriptMethod))
@@ -114,7 +130,8 @@ public:
 	 * 7 is the Max corner, and 4/5/6 are -Z/-Y/-X from the Max corner.
 	 */
 	UFUNCTION(BlueprintPure, Category = "GeometryScript|Shapes|Box", meta=(ScriptMethod))
-	static FVector GetBoxCorner(const FBox& Box, int CornerIndex);
+	static UPARAM(DisplayName="Corner Point") FVector 
+	GetBoxCorner(const FBox& Box, int CornerIndex);
 
 	/**
 	 * Get the position of the center of a face of the Box. Faces are indexed from 0 to 5,
@@ -122,7 +139,8 @@ public:
 	 * @param FaceNormal returned Normal vector of the identified face
 	 */
 	UFUNCTION(BlueprintPure, Category = "GeometryScript|Shapes|Box", meta=(ScriptMethod))
-	static FVector GetBoxFaceCenter(const FBox& Box, int FaceIndex, FVector& FaceNormal);
+	static UPARAM(DisplayName="Center Point") FVector 
+	GetBoxFaceCenter(const FBox& Box, int FaceIndex, FVector& FaceNormal);
 
 	/**
 	 * Get the Volume and Surface Area of a Box
@@ -135,39 +153,45 @@ public:
 	 * Dimensions will be clamped to the center point if any of ExpandBy are larger than half the box size
 	 */
 	UFUNCTION(BlueprintPure, Category = "GeometryScript|Shapes|Box", meta=(ScriptMethod))
-	static FBox GetExpandedBox(const FBox& Box, const FVector& ExpandBy);
+	static UPARAM(DisplayName="Expanded Box") FBox 
+	GetExpandedBox(const FBox& Box, const FVector& ExpandBy);
 
 	/**
 	 * Apply the input Transform to the corners of the input Box, and return the new Box containing those points
 	 */
 	UFUNCTION(BlueprintPure, Category = "GeometryScript|Shapes|Box", meta=(ScriptMethod))
-	static FBox GetTransformedBox(const FBox& Box, const FTransform& Transform);
+	static UPARAM(DisplayName="Transformed Box") FBox 
+	GetTransformedBox(const FBox& Box, const FTransform& Transform);
 
 	/**
 	 * Test if Box1 and Box2 intersect
 	 */
 	UFUNCTION(BlueprintPure, Category = "GeometryScript|Shapes|Box", meta=(ScriptMethod))
-	static bool TestBoxBoxIntersection(const FBox& Box1, const FBox& Box2);
+	static UPARAM(DisplayName="Intersects") bool 
+	TestBoxBoxIntersection(const FBox& Box1, const FBox& Box2);
 
 	/**
 	 * Find the Box formed by the intersection of Box1 and Box2
 	 * @param bIsIntersecting if the boxes do not intersect, this will be returned as false, otherwise true
 	 */
 	UFUNCTION(BlueprintPure, Category = "GeometryScript|Shapes|Box", meta=(ScriptMethod))
-	static FBox FindBoxBoxIntersection(const FBox& Box1, const FBox& Box2, bool& bIsIntersecting);
+	static UPARAM(DisplayName="Intersection Box") FBox 
+	FindBoxBoxIntersection(const FBox& Box1, const FBox& Box2, bool& bIsIntersecting);
 
 	/**
 	 * Calculate the minimum distance between Box1 and Box2
 	 */
 	UFUNCTION(BlueprintPure, Category = "GeometryScript|Shapes|Box", meta=(ScriptMethod))
-	static double GetBoxBoxDistance(const FBox& Box1, const FBox& Box2);
+	static UPARAM(DisplayName="Distance") double 
+	GetBoxBoxDistance(const FBox& Box1, const FBox& Box2);
 
 	/**
 	 * Test if a Point is inside the Box, returning true if so, otherwise false
 	 * @param bConsiderOnBoxAsInside if true, a point lying on the box face is considered "inside", otherwise it is considered "outside"
 	 */
 	UFUNCTION(BlueprintPure, Category = "GeometryScript|Shapes|Box", meta=(ScriptMethod))
-	static bool TestPointInsideBox(const FBox& Box, const FVector& Point, bool bConsiderOnBoxAsInside = true);
+	static UPARAM(DisplayName="Is Inside") bool 
+	TestPointInsideBox(const FBox& Box, const FVector& Point, bool bConsiderOnBoxAsInside = true);
 
 	/**
 	 * Find the point on the faces of the Box that is closest to the input Point.
@@ -175,19 +199,22 @@ public:
 	 * @param bIsInside if the Point is inside the Box, this will return as true, otherwise false
 	 */
 	UFUNCTION(BlueprintPure, Category = "GeometryScript|Shapes|Box", meta=(ScriptMethod))
-	static FVector FindClosestPointOnBox(const FBox& Box, const FVector& Point, bool& bIsInside);
+	static UPARAM(DisplayName="Closest Point") FVector 
+	FindClosestPointOnBox(const FBox& Box, const FVector& Point, bool& bIsInside);
 
 	/**
 	 * Calculate the minimum distance between the Box and the Point
 	 */
 	UFUNCTION(BlueprintPure, Category = "GeometryScript|Shapes|Box", meta=(ScriptMethod))
-	static double GetBoxPointDistance(const FBox& Box, const FVector& Point);
+	static UPARAM(DisplayName="Distance") double 
+	GetBoxPointDistance(const FBox& Box, const FVector& Point);
 
 	/**
 	 * Check if the Box intersects a Sphere defined by the SphereCenter and SphereRadius
 	 */
 	UFUNCTION(BlueprintPure, Category = "GeometryScript|Shapes|Box", meta=(ScriptMethod))
-	static bool TestBoxSphereIntersection(const FBox& Box, const FVector& SphereCenter, double SphereRadius);
+	static UPARAM(DisplayName="Intersects") bool 
+	TestBoxSphereIntersection(const FBox& Box, const FVector& SphereCenter, double SphereRadius);
 
 };
 

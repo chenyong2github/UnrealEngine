@@ -634,11 +634,14 @@ void FMeshSurfacePointSampling::ComputePoissonSampling(const FDynamicMesh3& Mesh
 
 	Samples.Reset();
 	Radii.Reset();
+	TriangleIDs.Reset();
+	BarycentricCoords.Reset();
 	auto AddSampleFunc = [&](FVector3d Position, int TriangleID, double Radius)
-		{
-			Samples.Add(FFrame3d(Position, Mesh.GetTriNormal(TriangleID)));
-			Radii.Add(Radius);
-		};
+	{
+		Samples.Add(FFrame3d(Position, Mesh.GetTriNormal(TriangleID)));
+		Radii.Add(Radius);
+		TriangleIDs.Add(TriangleID);
+	};
 
 	if (MaxSampleRadius > SampleRadius)
 	{
@@ -674,6 +677,18 @@ void FMeshSurfacePointSampling::ComputePoissonSampling(const FDynamicMesh3& Mesh
 	{
 		UELocal::UniformMeshPointSampling<FDynamicMesh3>(Mesh, AddSampleFunc,
 			SampleRadius, MaxSamples, SubSampleDensity, RandomSeed, MaxSubSamplePoints, Progress );
+	}
+
+	if (bComputeBarycentrics)
+	{
+		FVector3d A,B,C;
+		int32 N = Samples.Num();
+		BarycentricCoords.SetNum(N);
+		for (int32 k = 0; k < N; ++k)
+		{
+			Mesh.GetTriVertices(TriangleIDs[k], A, B, C);
+			BarycentricCoords[k] = VectorUtil::BarycentricCoords( Samples[k].Origin, A, B, C);
+		}
 	}
 
 	Result.SetSuccess(true, Progress);

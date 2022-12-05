@@ -90,6 +90,8 @@ public:
 	/** If true, weights are inverted */
 	bool bInvertWeights = false;
 
+	/** If true, barycentric coordinates output array will be populated */
+	bool bComputeBarycentrics = false;
 
 	//
 	// TODO: when MaxSamples is set, it would be useful to be able to use Weight to modulate
@@ -110,6 +112,11 @@ public:
 	/** Radius of each Sample Point, length is the same as Samples array */
 	TArray<double> Radii;
 
+	/** Triangle that contains each Sample Point, length is the same as Samples array */
+	TArray<int32> TriangleIDs;
+
+	/** Barycentric Coordinates of each Sample Point in it's respective Triangle. Only computed if bComputeBarycentrics = true */
+	TArray<FVector3d> BarycentricCoords;
 
 public:
 

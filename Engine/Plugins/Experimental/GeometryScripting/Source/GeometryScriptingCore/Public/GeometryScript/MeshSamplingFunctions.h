@@ -103,6 +103,8 @@ public:
 	 * Compute a set of sample points lying on the surface of TargetMesh based on the provided sampling Options.
 	 * Samples are approximately uniformly distributed, and non-overlapping relative to the provided Options.SamplingRadius,
 	 * ie the distance between any pair of samples if >= 2*SamplingRadius.
+	 * @param Samples output list of sample points. Transform Location is sample position, Rotation orients Z with the triangle normal
+	 * @param TriangleIDs TriangleID that contains each sample point. Length is the same as Samples array.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshSampling", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
@@ -110,6 +112,7 @@ public:
 		UDynamicMesh* TargetMesh, 
 		FGeometryScriptMeshPointSamplingOptions Options,
 		TArray<FTransform>& Samples,
+		FGeometryScriptIndexList& TriangleIDs,
 		UGeometryScriptDebug* Debug = nullptr);
 
 	/**
@@ -125,6 +128,7 @@ public:
 		FGeometryScriptNonUniformPointSamplingOptions NonUniformOptions,
 		TArray<FTransform>& Samples,
 		TArray<double>& SampleRadii,
+		FGeometryScriptIndexList& TriangleIDs,
 		UGeometryScriptDebug* Debug = nullptr);
 
 	/**
@@ -142,6 +146,7 @@ public:
 		FGeometryScriptScalarList VertexWeights,
 		TArray<FTransform>& Samples,
 		TArray<double>& SampleRadii,
+		FGeometryScriptIndexList& TriangleIDs,
 		UGeometryScriptDebug* Debug = nullptr);
 
 };
