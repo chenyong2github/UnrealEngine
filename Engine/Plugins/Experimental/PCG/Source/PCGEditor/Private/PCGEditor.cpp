@@ -1211,7 +1211,8 @@ void FPCGEditor::OnToggleEnabled()
 	if (GraphEditorWidget.IsValid())
 	{
 		const FScopedTransaction Transaction(*FPCGEditorCommon::ContextIdentifier, LOCTEXT("PCGEditorToggleEnableTransactionMessage", "PCG Editor: Toggle Enable Nodes"), nullptr);
-		
+
+		bool bChanged = false;
 		for (UObject* Object : GraphEditorWidget->GetSelectedNodes())
 		{
 			UPCGEditorGraphNodeBase* PCGEditorGraphNode = Cast<UPCGEditorGraphNodeBase>(Object);
@@ -1232,13 +1233,18 @@ void FPCGEditor::OnToggleEnabled()
 				continue;
 			}
 
-			//const bool bNewCheckState = CheckState != ECheckBoxState::Checked;
 			if (PCGSettingsInterface->bEnabled != bNewCheckState)
 			{
 				PCGSettingsInterface->Modify();
 				PCGSettingsInterface->bEnabled = bNewCheckState;
 				PCGNode->OnNodeChangedDelegate.Broadcast(PCGNode, EPCGChangeType::Settings);
+				bChanged = true;
 			}
+		}
+		
+		if (bChanged)
+		{
+			GraphEditorWidget->NotifyGraphChanged();	
 		}
 	}
 }
