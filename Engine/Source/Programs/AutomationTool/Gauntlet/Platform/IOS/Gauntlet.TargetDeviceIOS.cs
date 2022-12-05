@@ -269,7 +269,7 @@ namespace Gauntlet
 				throw new DeviceException("AppInstance is of incorrect type!");
 			}
 
-			string CommandLine = IOSApp.CommandLine.Replace("\"", "\\\"");
+			string CommandLine = IOSApp.CommandLine.Replace("\"", "\\\\\"");
 			
 			Log.Info("Launching {0} on {1}", App.Name, ToString());
 			Log.Verbose("\t{0}", CommandLine);
