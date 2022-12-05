@@ -42,35 +42,31 @@ void FBlackmagicMediaOutputModule::StartupModule()
 			}
 		}
 
+
 		if (bIsGPUTextureTransferAvailable)
 		{
-			ENQUEUE_RENDER_COMMAND(BlackmagicMediaCaptureInitialize)(
-				[this](FRHICommandListImmediate& RHICmdList) mutable
+			if (!GDynamicRHI)
+			{
+				return;
+			}
+
+			auto GetRHI = []()
+			{
+				switch (RHIGetInterfaceType())
 				{
-					if (!GDynamicRHI)
-					{
-						return;
-					}
+				case ERHIInterfaceType::D3D12: return BlackmagicDesign::ERHI::D3D12;
+				case ERHIInterfaceType::Vulkan: return BlackmagicDesign::ERHI::Vulkan;
+				default: return BlackmagicDesign::ERHI::Invalid;
+				}
+			};
 
-					auto GetRHI = []()
-					{
-						switch (RHIGetInterfaceType())
-						{
-						case ERHIInterfaceType::D3D11: return BlackmagicDesign::ERHI::D3D11;
-						case ERHIInterfaceType::D3D12: return BlackmagicDesign::ERHI::D3D12;
-						case ERHIInterfaceType::Vulkan: return BlackmagicDesign::ERHI::Vulkan;
-						default: return BlackmagicDesign::ERHI::Invalid;
-						}
-					};
+			BlackmagicDesign::FInitializeDMAArgs Args;
+			BlackmagicDesign::ERHI RHI = GetRHI();
+			Args.RHI = RHI;
+			Args.RHIDevice = GDynamicRHI->RHIGetNativeDevice();
+			Args.RHICommandQueue = GDynamicRHI->RHIGetNativeGraphicsQueue();
 
-					BlackmagicDesign::FInitializeDMAArgs Args;
-					BlackmagicDesign::ERHI RHI = GetRHI();
-					Args.RHI = RHI;
-					Args.RHIDevice = GDynamicRHI->RHIGetNativeDevice();
-					Args.RHICommandQueue = GDynamicRHI->RHIGetNativeGraphicsQueue();
-
-					bIsGPUTextureTransferAvailable = BlackmagicDesign::InitializeDMA(Args);
-				});
+			bIsGPUTextureTransferAvailable = BlackmagicDesign::InitializeDMA(Args);
 		}
 	};
 
@@ -79,11 +75,7 @@ void FBlackmagicMediaOutputModule::StartupModule()
 	{
 		if (bIsGPUTextureTransferAvailable)
 		{
-			ENQUEUE_RENDER_COMMAND(BlackmagicMediaCaptureUninitialize)(
-				[](FRHICommandListImmediate& RHICmdList) mutable
-				{
-					BlackmagicDesign::UninitializeDMA();
-				});
+			BlackmagicDesign::UninitializeDMA();
 		}
 	};
 

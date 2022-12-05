@@ -26,7 +26,6 @@
 #include "Misc/App.h"
 #include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
-#include "RenderingThread.h"
 
 #include <unordered_map>
 
@@ -170,71 +169,63 @@ void FGPUTextureTransferModule::InitializeTextureTransfer()
 		return;
 	}
 
-	ENQUEUE_RENDER_COMMAND(InitializeGPUTextureTransfer)(
-	[this](FRHICommandListImmediate& RHICmdList) mutable
+	if (!GDynamicRHI)
 	{
-		if (!GDynamicRHI)
-		{
-			return;
-		}
+		return;
+	}
 
-		UE::GPUTextureTransfer::TextureTransferPtr TextureTransfer;
+	UE::GPUTextureTransfer::TextureTransferPtr TextureTransfer;
 
-		UE::GPUTextureTransfer::ERHI RHI = ConvertRHI(RHIGetInterfaceType());
+	UE::GPUTextureTransfer::ERHI RHI = ConvertRHI(RHIGetInterfaceType());
 
-		switch (RHI)
-		{
-		case UE::GPUTextureTransfer::ERHI::D3D11:
-			TextureTransfer = MakeShared<UE::GPUTextureTransfer::Private::FD3D11TextureTransfer>();
-			break;
-		case UE::GPUTextureTransfer::ERHI::D3D12:
-			TextureTransfer = MakeShared<UE::GPUTextureTransfer::Private::FD3D12TextureTransfer>();
-			break;
-		case UE::GPUTextureTransfer::ERHI::Vulkan:
-			TextureTransfer = MakeShared<UE::GPUTextureTransfer::Private::FVulkanTextureTransfer>();
-			break;
-		default:
-			ensureAlways(false);
-			break;
-		}
+	switch (RHI)
+	{
+	case UE::GPUTextureTransfer::ERHI::D3D11:
+		TextureTransfer = MakeShared<UE::GPUTextureTransfer::Private::FD3D11TextureTransfer>();
+		break;
+	case UE::GPUTextureTransfer::ERHI::D3D12:
+		TextureTransfer = MakeShared<UE::GPUTextureTransfer::Private::FD3D12TextureTransfer>();
+		break;
+	case UE::GPUTextureTransfer::ERHI::Vulkan:
+		TextureTransfer = MakeShared<UE::GPUTextureTransfer::Private::FVulkanTextureTransfer>();
+		break;
+	default:
+		ensureAlways(false);
+		break;
+	}
 
-		UE::GPUTextureTransfer::FInitializeDMAArgs InitializeArgs;
-		InitializeArgs.RHI = RHI;
-		InitializeArgs.RHIDevice = GDynamicRHI->RHIGetNativeDevice();
-		InitializeArgs.RHICommandQueue = GDynamicRHI->RHIGetNativeGraphicsQueue();
+	UE::GPUTextureTransfer::FInitializeDMAArgs InitializeArgs;
+	InitializeArgs.RHI = RHI;
+	InitializeArgs.RHIDevice = GDynamicRHI->RHIGetNativeDevice();
+	InitializeArgs.RHICommandQueue = GDynamicRHI->RHIGetNativeGraphicsQueue();
 #if VULKAN_PLATFORM
-		if (RHI == UE::GPUTextureTransfer::ERHI::Vulkan)
-		{
-			IVulkanDynamicRHI* DynRHI = GetIVulkanDynamicRHI();
-			InitializeArgs.VulkanInstance = DynRHI->RHIGetVkInstance();
-			FMemory::Memcpy(InitializeArgs.RHIDeviceUUID, DynRHI->RHIGetVulkanDeviceUUID(), 16);
-		}
+	if (RHI == UE::GPUTextureTransfer::ERHI::Vulkan)
+	{
+		IVulkanDynamicRHI* DynRHI = GetIVulkanDynamicRHI();
+		InitializeArgs.VulkanInstance = DynRHI->RHIGetVkInstance();
+		FMemory::Memcpy(InitializeArgs.RHIDeviceUUID, DynRHI->RHIGetVulkanDeviceUUID(), 16);
+	}
 #endif
 
-		const uint8 RHIIndex = static_cast<uint8>(RHI);
-		UE_LOG(LogGPUTextureTransfer, Display, TEXT("Initializing GPU Texture transfer"));
-		if (TextureTransfer->Initialize(InitializeArgs))
-		{
-			TransferObjects[RHIIndex] = TextureTransfer;
-		}
-	});
+	const uint8 RHIIndex = static_cast<uint8>(RHI);
+	UE_LOG(LogGPUTextureTransfer, Display, TEXT("Initializing GPU Texture transfer"));
+	if (TextureTransfer->Initialize(InitializeArgs))
+	{
+		TransferObjects[RHIIndex] = TextureTransfer;
+	}
 #endif // DVP_SUPPORTED_PLATFORM
 }
 
 void FGPUTextureTransferModule::UninitializeTextureTransfer()
 {
 #if DVP_SUPPORTED_PLATFORM
-	ENQUEUE_RENDER_COMMAND(UninitializeGPUTextureTransfer)(
-		[this](FRHICommandListImmediate& RHICmdList) mutable
+	for (uint8 RhiIt = 1; RhiIt < RHI_MAX; RhiIt++)
+	{
+		if (const UE::GPUTextureTransfer::TextureTransferPtr& TextureTransfer = TransferObjects[RhiIt])
 		{
-			for (uint8 RhiIt = 1; RhiIt < RHI_MAX; RhiIt++)
-			{
-				if (const UE::GPUTextureTransfer::TextureTransferPtr& TextureTransfer = TransferObjects[RhiIt])
-				{
-					TextureTransfer->Uninitialize();
-				}
-			}
-		});
+			TextureTransfer->Uninitialize();
+		}
+	}
 #endif
 }
 

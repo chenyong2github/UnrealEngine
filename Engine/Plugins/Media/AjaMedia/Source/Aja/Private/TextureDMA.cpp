@@ -46,7 +46,7 @@ namespace AJA
 	{
 		UE::GPUTextureTransfer::FInitializeDMAArgs GPUArgs;
 		GPUArgs.RHICommandQueue = Args.RHICommandQueue;
-
+		
 		switch (Args.RHI)
 		{
 		case ERHI::D3D11:
@@ -58,8 +58,10 @@ namespace AJA
 		case ERHI::Vulkan:
 			GPUArgs.RHI = UE::GPUTextureTransfer::ERHI::Vulkan;
 			break;
+		case ERHI::Invalid:
+			//Fallthrough
 		default:
-			checkNoEntry();
+			GPUArgs.RHI = UE::GPUTextureTransfer::ERHI::Invalid;
 			break;
 		}
 

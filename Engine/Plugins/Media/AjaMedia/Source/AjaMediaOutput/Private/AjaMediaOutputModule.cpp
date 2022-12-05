@@ -44,43 +44,38 @@ void FAjaMediaOutputModule::StartupModule()
 
 		if (bIsGPUTextureTransferAvailable)
 		{
-			ENQUEUE_RENDER_COMMAND(AjaMediaCaptureInitialize)(
-				[this](FRHICommandListImmediate& RHICmdList) mutable
+			if (!GDynamicRHI)
+			{
+				return;
+			}
+
+			auto GetRHI = []()
+			{
+				switch (RHIGetInterfaceType())
 				{
-					if (!GDynamicRHI)
-					{
-						return;
-					}
+				case ERHIInterfaceType::D3D12: return AJA::ERHI::D3D12;
+				case ERHIInterfaceType::Vulkan: return AJA::ERHI::Vulkan;
+				default: return AJA::ERHI::Invalid;
+				}
+			};
 
-					auto GetRHI = []()
-					{
-						switch (RHIGetInterfaceType())
-						{
-						case ERHIInterfaceType::D3D11: return AJA::ERHI::D3D11;
-						case ERHIInterfaceType::D3D12: return AJA::ERHI::D3D12;
-						case ERHIInterfaceType::Vulkan: return AJA::ERHI::Vulkan;
-						default: return AJA::ERHI::Invalid;
-						}
-					};
+			AJA::FInitializeDMAArgs Args;
+			AJA::ERHI RHI = GetRHI();
+			Args.RHI = RHI;
+			/* Re-enable when adding vulkan support
+			if (RHI == AJA::ERHI::Vulkan)
+			{
+				FVulkanDynamicRHI* vkDynamicRHI = GetDynamicRHI<FVulkanDynamicRHI>();
+				Args.InVulkanInstance = vkDynamicRHI->GetInstance();
 
-					AJA::FInitializeDMAArgs Args;
-					AJA::ERHI RHI = GetRHI();
-					Args.RHI = RHI;
-					/* Re-enable when adding vulkan support
-					if (RHI == AJA::ERHI::Vulkan)
-					{
-						FVulkanDynamicRHI* vkDynamicRHI = GetDynamicRHI<FVulkanDynamicRHI>();
-						Args.InVulkanInstance = vkDynamicRHI->GetInstance();
+				FMemory::Memcpy(Args.InRHIDeviceUUID, vkDynamicRHI->GetDevice()->GetDeviceIdProperties().deviceUUID, 16);
+			}
+			*/
+			Args.RHIDevice = GDynamicRHI->RHIGetNativeDevice();
+			Args.RHICommandQueue = GDynamicRHI->RHIGetNativeGraphicsQueue();
 
-						FMemory::Memcpy(Args.InRHIDeviceUUID, vkDynamicRHI->GetDevice()->GetDeviceIdProperties().deviceUUID, 16);
-					}
-					*/
-					Args.RHIDevice = GDynamicRHI->RHIGetNativeDevice();
-					Args.RHICommandQueue = GDynamicRHI->RHIGetNativeGraphicsQueue();
-
-					UE_LOG(LogAjaMediaOutput, Display, TEXT("Initializing GPU Texture transfer from AJA"));
-					bIsGPUTextureTransferAvailable = AJA::InitializeDMA(Args);
-				});
+			UE_LOG(LogAjaMediaOutput, Display, TEXT("Initializing GPU Texture transfer from AJA"));
+			bIsGPUTextureTransferAvailable = AJA::InitializeDMA(Args);
 		}
 	};
 	
@@ -88,11 +83,7 @@ void FAjaMediaOutputModule::StartupModule()
 	{
 		if (bIsGPUTextureTransferAvailable)
 		{
-			ENQUEUE_RENDER_COMMAND(AjaMediaOutputModuleUninitialize)(
-				[](FRHICommandListImmediate& RHICmdList) mutable
-				{
-					AJA::UninitializeDMA();
-				});
+			AJA::UninitializeDMA();
 		}
 	};
 
