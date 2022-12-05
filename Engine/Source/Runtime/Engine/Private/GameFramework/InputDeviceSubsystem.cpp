@@ -127,8 +127,11 @@ bool FActiveDeviceProperty::operator!=(const FActiveDeviceProperty& Other) const
 
 FSetDevicePropertyParams::FSetDevicePropertyParams()
 	: UserId(FSlateApplicationBase::SlateAppPrimaryPlatformUser)
+	// Set this Device Id to NONE by default. The subsystem will detect this being invalid and fall back 
+	// to the default device for the given platform user. This will let the default behavior of the system be 
+	// consistent, while still allowing for setting specific input devices if desired.
+	, DeviceId(INPUTDEVICEID_NONE)
 {
-
 }
 
 ////////////////////////////////////////////////////////
@@ -275,7 +278,7 @@ void UInputDeviceSubsystem::Tick(float InDeltaTime)
 		
 		if (PropertiesPendingRemoval.Contains(ActiveProp.PropertyHandle))
 		{
-			ActiveProp.Property->ResetDeviceProperty(ActiveProp.PlatformUser);
+			ActiveProp.Property->ResetDeviceProperty(ActiveProp.PlatformUser, ActiveProp.DeviceId);
 			It.RemoveCurrent();
 			PropertiesPendingRemoval.Remove(ActiveProp.PropertyHandle);
 			continue;
@@ -297,7 +300,7 @@ void UInputDeviceSubsystem::Tick(float InDeltaTime)
 		// Don't remove properties that are looping, because the user desires them to keep playing
 		if (!ActiveProp.bLooping && ActiveProp.EvaluatedDuration > ActiveProp.Property->GetDuration() && ActiveProp.bHasBeenAppliedAtLeastOnce)
 		{
-			ActiveProp.Property->ResetDeviceProperty(ActiveProp.PlatformUser);
+			ActiveProp.Property->ResetDeviceProperty(ActiveProp.PlatformUser, ActiveProp.DeviceId);
 			PropertiesPendingRemoval.Remove(ActiveProp.PropertyHandle);
 			It.RemoveCurrent();
 			continue;
@@ -305,8 +308,8 @@ void UInputDeviceSubsystem::Tick(float InDeltaTime)
 		// Otherwise, we can evaluate and apply it as normal
 		else
 		{
-			ActiveProp.Property->EvaluateDeviceProperty(ActiveProp.PlatformUser, DeltaTime, ActiveProp.EvaluatedDuration);
-			ActiveProp.Property->ApplyDeviceProperty(ActiveProp.PlatformUser);
+			ActiveProp.Property->EvaluateDeviceProperty(ActiveProp.PlatformUser, ActiveProp.DeviceId, DeltaTime, ActiveProp.EvaluatedDuration);
+			ActiveProp.Property->ApplyDeviceProperty(ActiveProp.PlatformUser, ActiveProp.DeviceId);
 
 			// Track that this property has now successfully been applied at least once
 			ActiveProp.bHasBeenAppliedAtLeastOnce = true;
@@ -359,6 +362,12 @@ FInputDevicePropertyHandle UInputDeviceSubsystem::ActivateDeviceProperty(UInputD
 		return FInputDevicePropertyHandle::InvalidHandle;
 	}
 
+	if (!Params.UserId.IsValid())
+	{
+		UE_LOG(LogInputDeviceProperties, Error, TEXT("Invalid Platform User Id '%d' given to ActivateDeviceProperty! Nothing will happen."), Params.UserId.GetInternalId());
+		return FInputDevicePropertyHandle::InvalidHandle;
+	}
+
 	FInputDevicePropertyHandle OutHandle = FInputDevicePropertyHandle::AcquireValidHandle();
 
 	if (ensureMsgf(OutHandle.IsValid(), TEXT("Unable to acquire a valid input device property handle! The input device property cannot be activated")))
@@ -366,11 +375,17 @@ FInputDevicePropertyHandle UInputDeviceSubsystem::ActivateDeviceProperty(UInputD
 		FActiveDeviceProperty ActiveProp = {};
 		ActiveProp.Property = Property;
 		ActiveProp.PlatformUser = Params.UserId;
+
+		// If a valid input device was not given, then set this property on the default device for the user.
+		ActiveProp.DeviceId = 
+			Params.DeviceId.IsValid() ? Params.DeviceId : IPlatformInputDeviceMapper::Get().GetPrimaryInputDeviceForUser(Params.UserId);		
+
 		ActiveProp.PropertyHandle = OutHandle;
 		ActiveProp.bLooping = Params.bLooping;
 		ActiveProp.bIgnoreTimeDilation = Params.bIgnoreTimeDilation;
 		ActiveProp.bPlayWhilePaused = Params.bPlayWhilePaused;
 
+		// Keep track of this new active property. Placing it in this set will have it updated on this subsystem's Tick
 		ActiveProperties.Add(ActiveProp);
 	}
 
@@ -438,7 +453,7 @@ void UInputDeviceSubsystem::RemoveAllDeviceProperties()
 	{
 		if (ActiveProperty.Property)
 		{
-			ActiveProperty.Property->ResetDeviceProperty(ActiveProperty.PlatformUser);
+			ActiveProperty.Property->ResetDeviceProperty(ActiveProperty.PlatformUser, ActiveProperty.DeviceId);
 		}		
 	}
 	

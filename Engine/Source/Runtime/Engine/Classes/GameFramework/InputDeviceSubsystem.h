@@ -26,6 +26,15 @@ struct ENGINE_API FSetDevicePropertyParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input Devices")
 	FPlatformUserId UserId;
 
+	/** 
+	* The Input Device that should receive the device property. If nothing is specified here,
+	* then the Platform User's default input device will be used. 
+	* 
+	* The default input device is obtained from IPlatformInputDeviceMapper::GetPrimaryInputDeviceForUser
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input Devices")
+	FInputDeviceId DeviceId;
+
 	/**
 	* If true, then the input device property will not be removed after it's evaluation time has completed.
 	* Instead, it will remain active until manually removed with a RemoveDeviceProperty call.
@@ -72,6 +81,9 @@ struct ENGINE_API FActiveDeviceProperty
 
 	/** The platform user that is actively receiving this device property */
 	FPlatformUserId PlatformUser = PLATFORMUSERID_NONE;
+
+	/** The input device id that should receive this property. */
+	FInputDeviceId DeviceId = INPUTDEVICEID_NONE;
 
 	/** The handle of this active property. */
 	FInputDevicePropertyHandle PropertyHandle = FInputDevicePropertyHandle::InvalidHandle;

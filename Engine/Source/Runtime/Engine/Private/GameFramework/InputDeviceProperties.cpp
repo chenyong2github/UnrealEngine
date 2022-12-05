@@ -17,12 +17,12 @@ UInputDeviceProperty::UInputDeviceProperty(const FObjectInitializer& ObjectIniti
 	RecalculateDuration();
 }
 
-void UInputDeviceProperty::ApplyDeviceProperty(const FPlatformUserId UserId)
+void UInputDeviceProperty::ApplyDeviceProperty(const FPlatformUserId UserId, const FInputDeviceId DeviceId)
 {
-	UInputDeviceProperty::ApplyDeviceProperty_Internal(UserId, GetInternalDeviceProperty());
+	UInputDeviceProperty::ApplyDeviceProperty_Internal(UserId, DeviceId, GetInternalDeviceProperty());
 }
 
-void UInputDeviceProperty::ApplyDeviceProperty_Internal(const FPlatformUserId UserId, FInputDeviceProperty* RawProperty)
+void UInputDeviceProperty::ApplyDeviceProperty_Internal(const FPlatformUserId UserId, const FInputDeviceId DeviceId, FInputDeviceProperty* RawProperty)
 {
 	if (ensure(RawProperty))
 	{
@@ -30,7 +30,7 @@ void UInputDeviceProperty::ApplyDeviceProperty_Internal(const FPlatformUserId Us
 		if (InputInterface)
 		{
 			int32 ControllerId = INDEX_NONE;
-			IPlatformInputDeviceMapper::Get().RemapUserAndDeviceToControllerId(UserId, ControllerId);
+			IPlatformInputDeviceMapper::Get().RemapUserAndDeviceToControllerId(UserId, ControllerId, DeviceId);
 
 			// TODO_BH: Refactor input interface to take an FPlatformUserId directly (UE-158881)
 			InputInterface->SetDeviceProperty(ControllerId, RawProperty);
@@ -56,12 +56,12 @@ void UInputDeviceProperty::PostEditChangeChainProperty(FPropertyChangedChainEven
 }
 #endif	// WITH_EDITOR
 
-void UInputDeviceProperty::EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const float DeltaTime, const float Duration)
+void UInputDeviceProperty::EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId, const float DeltaTime, const float Duration)
 {
 
 }
 
-void UInputDeviceProperty::ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser)
+void UInputDeviceProperty::ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId)
 {
 
 }
@@ -69,10 +69,10 @@ void UInputDeviceProperty::ResetDeviceProperty_Implementation(const FPlatformUse
 ///////////////////////////////////////////////////////////////////////
 // UColorInputDeviceProperty
 
-void UColorInputDeviceProperty::EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const float DeltaTime, const float Duration)
+void UColorInputDeviceProperty::EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId, const float DeltaTime, const float Duration)
 {
 	// Check for an override on the current input device
-	if (const FDeviceColorData* Data = GetDeviceSpecificData<FDeviceColorData>(PlatformUser, DeviceOverrideData))
+	if (const FDeviceColorData* Data = GetDeviceSpecificData<FDeviceColorData>(PlatformUser, DeviceId, DeviceOverrideData))
 	{
 		InternalProperty.bEnable = Data->bEnable;
 		InternalProperty.Color = Data->LightColor;
@@ -93,10 +93,10 @@ FInputDeviceProperty* UColorInputDeviceProperty::GetInternalDeviceProperty()
 ///////////////////////////////////////////////////////////////////////
 // UColorInputDeviceCurveProperty
 
-void UColorInputDeviceCurveProperty::EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const float DeltaTime, const float Duration)
+void UColorInputDeviceCurveProperty::EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId, const float DeltaTime, const float Duration)
 {
 	// Check for an override on the current input device
-	if (const FDeviceColorCurveData* Data = GetDeviceSpecificData<FDeviceColorCurveData>(PlatformUser, DeviceOverrideData))
+	if (const FDeviceColorCurveData* Data = GetDeviceSpecificData<FDeviceColorCurveData>(PlatformUser, DeviceId, DeviceOverrideData))
 	{
 		InternalProperty.bEnable = Data->bEnable;
 
@@ -119,10 +119,10 @@ void UColorInputDeviceCurveProperty::EvaluateDeviceProperty_Implementation(const
 	}
 }
 
-void UColorInputDeviceCurveProperty::ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser)
+void UColorInputDeviceCurveProperty::ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId)
 {
 	bool bReset = ColorData.bResetAfterCompletion;
-	if (const FDeviceColorCurveData* Data = GetDeviceSpecificData<FDeviceColorCurveData>(PlatformUser, DeviceOverrideData))
+	if (const FDeviceColorCurveData* Data = GetDeviceSpecificData<FDeviceColorCurveData>(PlatformUser, DeviceId, DeviceOverrideData))
 	{
 		bReset = Data->bResetAfterCompletion;
 	}
@@ -131,7 +131,7 @@ void UColorInputDeviceCurveProperty::ResetDeviceProperty_Implementation(const FP
 	{
 		// Disabling the light will reset the color
     	InternalProperty.bEnable = false;
-    	ApplyDeviceProperty(PlatformUser);
+    	ApplyDeviceProperty(PlatformUser, DeviceId);
 	}	
 }
 
@@ -178,13 +178,13 @@ FInputDeviceProperty* UInputDeviceTriggerEffect::GetInternalDeviceProperty()
 	return &ResetProperty;
 }
 
-void UInputDeviceTriggerEffect::ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser)
+void UInputDeviceTriggerEffect::ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId)
 {
 	if (BaseTriggerData.bResetUponCompletion)
 	{
 		// Pass in our reset property
 		ResetProperty.AffectedTriggers = BaseTriggerData.AffectedTriggers;
-		ApplyDeviceProperty_Internal(PlatformUser, &ResetProperty);
+		ApplyDeviceProperty_Internal(PlatformUser, DeviceId, &ResetProperty);
 	}	
 }
 
@@ -221,13 +221,13 @@ int32 UInputDeviceTriggerFeedbackProperty::GetStrengthValue(const FDeviceTrigger
 	return 0;
 }
 
-void UInputDeviceTriggerFeedbackProperty::EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const float DeltaTime, const float Duration)
+void UInputDeviceTriggerFeedbackProperty::EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId, const float DeltaTime, const float Duration)
 {		
 	InternalProperty.AffectedTriggers = BaseTriggerData.AffectedTriggers;
 
 	const FDeviceTriggerFeedbackData* DataToUse = &TriggerData;
 
-	if (const FDeviceTriggerFeedbackData* OverrideData = GetDeviceSpecificData<FDeviceTriggerFeedbackData>(PlatformUser, DeviceOverrideData))
+	if (const FDeviceTriggerFeedbackData* OverrideData = GetDeviceSpecificData<FDeviceTriggerFeedbackData>(PlatformUser, DeviceId, DeviceOverrideData))
 	{
 		DataToUse = OverrideData;
 	}
@@ -282,11 +282,11 @@ UInputDeviceTriggerResistanceProperty::UInputDeviceTriggerResistanceProperty()
 	PropertyDuration = 1.0f;
 }
 
-void UInputDeviceTriggerResistanceProperty::EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const float DeltaTime, const float Duration)
+void UInputDeviceTriggerResistanceProperty::EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId, const float DeltaTime, const float Duration)
 {
 	InternalProperty.AffectedTriggers = BaseTriggerData.AffectedTriggers;
 
-	if (const FDeviceTriggerTriggerResistanceData* Data = GetDeviceSpecificData<FDeviceTriggerTriggerResistanceData>(PlatformUser, DeviceOverrideData))
+	if (const FDeviceTriggerTriggerResistanceData* Data = GetDeviceSpecificData<FDeviceTriggerTriggerResistanceData>(PlatformUser, DeviceId, DeviceOverrideData))
 	{
 		InternalProperty.StartPosition = Data->StartPosition;
 		InternalProperty.StartStrengh = Data->StartStrengh;
@@ -317,11 +317,11 @@ UInputDeviceTriggerVibrationProperty::UInputDeviceTriggerVibrationProperty()
 	PropertyDuration = 1.0f;
 }
 
-void UInputDeviceTriggerVibrationProperty::EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const float DeltaTime, const float Duration)
+void UInputDeviceTriggerVibrationProperty::EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId, const float DeltaTime, const float Duration)
 {
 	const FDeviceTriggerTriggerVibrationData* DataToUse = &TriggerData;
 
-	if (const FDeviceTriggerTriggerVibrationData* OverrideData = GetDeviceSpecificData<FDeviceTriggerTriggerVibrationData>(PlatformUser, DeviceOverrideData))
+	if (const FDeviceTriggerTriggerVibrationData* OverrideData = GetDeviceSpecificData<FDeviceTriggerTriggerVibrationData>(PlatformUser, DeviceId, DeviceOverrideData))
 	{
 		DataToUse = OverrideData;
 	}
