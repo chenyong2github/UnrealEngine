@@ -5,7 +5,7 @@ using System.IO;
 using EpicGames.Core;
 using System.Runtime.CompilerServices;
 
-[SupportedPlatforms(UnrealPlatformClass.Desktop)]
+[SupportedPlatforms("Win64")]
 public class TextureShareSDKTarget : TargetRules
 {
 	private void ImplPostBuildCopy(string SrcPath, string DestPath)

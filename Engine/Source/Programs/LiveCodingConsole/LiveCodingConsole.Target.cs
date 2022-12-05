@@ -3,6 +3,7 @@
 using UnrealBuildTool;
 using System.Collections.Generic;
 
+[SupportedPlatforms("Win64")]
 public class LiveCodingConsoleTarget : TargetRules
 {
 	public LiveCodingConsoleTarget(TargetInfo Target) : base(Target)

@@ -230,6 +230,16 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Determines if a platform needs a single Target object, even if it wants separate compiling and linking
+		/// (one case would be Deploying will combine the Link output into one unit)
+		/// </summary>
+		/// <param name="InArchitectures">Architectures that are being built</param>
+		public virtual bool NeedsSingleTargetForMultiArchitecture(IEnumerable<string> InArchitectures)
+		{
+			return CanCompileArchitecturesInSinglePass(InArchitectures) || CanLinkArchitecturesInSinglePass(InArchitectures);
+		}
+
+		/// <summary>
 		/// Get the default architecture for a project. This may be overriden on the command line to UBT.
 		/// </summary>
 		/// <param name="ProjectFile">Optional project to read settings from </param>
@@ -237,6 +247,28 @@ namespace UnrealBuildTool
 		{
 			// by default, use an empty architecture (which is really just a modifer to the platform for some paths/names)
 			return "";
+		}
+
+		/// <summary>
+		/// Get the default architecture for a project. This may be overriden on the command line to UBT.
+		/// </summary>
+		/// <param name="ProjectFile">Optional project to read settings from </param>
+		/// <param name="TargetName">Optional name of project, can be useful for programs, etc that have no projectfile</param>
+		public virtual IEnumerable<string> GetProjectArchitectures(FileReference? ProjectFile, string? TargetName=null)
+		{
+			// by default, use an empty architecture (which is really just a modifer to the platform for some paths/names)
+			return new string[] { GetDefaultArchitecture(ProjectFile) };
+		}
+
+		/// <summary>
+		/// Convert user specified architecture strings to what the platform wants
+		/// </summary>
+		/// <param name="Architecture"></param>
+		/// <returns></returns>
+		public virtual string FixupArchitecture(string Architecture)
+		{
+			// @todo can we combine with GetFolderNameForArchitecture maybe?
+			return Architecture;
 		}
 
 		/// <summary>

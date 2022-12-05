@@ -3,6 +3,7 @@
 using UnrealBuildTool;
 using System.Collections.Generic;
 
+[SupportedPlatforms("Win64")]
 public class ZenDashboardTarget : TargetRules
 {
 	public ZenDashboardTarget(TargetInfo Target) : base(Target)

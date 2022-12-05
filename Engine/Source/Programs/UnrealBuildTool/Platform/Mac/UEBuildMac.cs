@@ -3,10 +3,14 @@
 
 using System;
 using System.Collections.Generic;
+using System.Configuration;
+using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -240,7 +244,102 @@ namespace UnrealBuildTool
 		{
 			// by default use Intel.
 			return MacExports.DefaultArchitecture;
-		}		
+		}
+
+		private List<string>? CachedProjectArches = null;
+		private FileReference? CachedArchesProject = null;
+		private string? CachedArchesTarget = null;
+		public override IEnumerable<string> GetProjectArchitectures(FileReference? ProjectFile, string? TargetName)
+		{
+			// use the cached one if it's valid
+			if (CachedProjectArches != null && ProjectFile == CachedArchesProject && TargetName == CachedArchesTarget)
+			{
+				return CachedProjectArches;
+			}
+
+			bool bIsEditor = false;
+			//// get project ini from ProjetFile, or if null, then try to get it from the target rules
+			//DirectoryReference? ProjectDir = null;
+			if (TargetName != null)
+			{
+				RulesAssembly EngineAsm = RulesCompiler.CreateEngineRulesAssembly(Unreal.IsEngineInstalled(), false, false, Log.Logger);
+				TargetRules? Rules = EngineAsm.CreateTargetRules(TargetName, UnrealTargetPlatform.Mac, UnrealTargetConfiguration.Development, "", ProjectFile, null, Log.Logger);
+				bIsEditor = Rules.Type == TargetType.Editor;
+			}
+
+			ConfigHierarchy EngineIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ProjectFile?.Directory, UnrealTargetPlatform.Mac);
+
+			// get values from project ini
+			string SupportKey = bIsEditor ? "EditorTargetArchitecture" : "TargetArchitecture";
+			string DefaultKey = bIsEditor ? "EditorDefaultArchitecture" : "DefaultArchitecture";
+			string SupportedArchitecture;
+			string DefaultArchitecture;
+			EngineIni.GetString("/Script/MacTargetPlatform.MacTargetSettings", SupportKey, out SupportedArchitecture);
+			EngineIni.GetString("/Script/MacTargetPlatform.MacTargetSettings", DefaultKey, out DefaultArchitecture);
+			SupportedArchitecture = SupportedArchitecture.ToLower();
+			DefaultArchitecture = DefaultArchitecture.ToLower();
+
+			bool bSupportsArm64 = SupportedArchitecture.Contains("universal") || SupportedArchitecture.Contains("apple");
+			bool bSupportsX86 = SupportedArchitecture.Contains("universal") || SupportedArchitecture.Contains("intel");
+
+			// make sure we found a good value
+			if (!bSupportsArm64 && !bSupportsX86)
+			{
+				throw new BuildException($"Unknown {DefaultKey} value found ('{DefaultArchitecture}') in .ini");
+			}
+
+			// choose a supported architecture(s) based on desired type
+			List<string> Architectures = new();
+			if (DefaultArchitecture.Equals("all", StringComparison.InvariantCultureIgnoreCase))
+			{
+				if (bSupportsArm64)
+				{
+					Architectures.Add("arm64");
+				}
+				if (bSupportsX86)
+				{
+					Architectures.Add("x86_64");
+				}
+			}
+			else if (DefaultArchitecture.Equals("host", StringComparison.InvariantCultureIgnoreCase))
+			{
+				if (MacExports.IsRunningOnAppleArchitecture && bSupportsArm64)
+				{
+					Architectures.Add("arm64");
+				}
+				else
+				{
+					Architectures.Add("x86_64");
+				}
+			}
+			else if (DefaultArchitecture.Contains("apple"))
+			{
+				if (!bSupportsArm64)
+				{
+					throw new BuildException($"{DefaultKey} is set to {DefaultArchitecture}, but AppleSilicon is not a supported architecture");
+				}
+				Architectures.Add("arm64");
+			}
+			else if (DefaultArchitecture.Contains("intel"))
+			{
+				if (!bSupportsArm64)
+				{
+					throw new BuildException($"{DefaultKey} is set to {DefaultArchitecture}, but Intel is not a supported architecture");
+				}
+				Architectures.Add("x86_64");
+			}
+			else
+			{
+				throw new BuildException($"Unknown {DefaultKey} value found ('{DefaultArchitecture}') in .ini");
+			}
+
+
+			CachedProjectArches = Architectures;
+			CachedArchesProject = ProjectFile;
+			CachedArchesTarget = TargetName;
+
+			return CachedProjectArches;
+		}
 
 		/// <summary>
 		/// Determines if the given name is a build product for a target.

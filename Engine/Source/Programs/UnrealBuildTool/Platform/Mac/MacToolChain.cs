@@ -544,7 +544,6 @@ namespace UnrealBuildTool
 				foreach (string Arch in ArchStrings)
 				{
 					LinkEnvironment ArchEnvironment = new LinkEnvironment(LinkEnvironment, Arch);
-					ArchEnvironment.InputFiles = LinkEnvironment.InputFiles.Where(x => x.FullName.Contains($"/{Arch}/")).ToList();
 					if (!bBuildImportLibraryOnly)
 					{
 						ArchEnvironment.OutputFilePaths = LinkEnvironment.OutputFilePaths.Select(x => new FileReference($"{LinkEnvironment.IntermediateDirectory}/{Path.GetFileName(x.FullName)}_{Arch}")).ToList();

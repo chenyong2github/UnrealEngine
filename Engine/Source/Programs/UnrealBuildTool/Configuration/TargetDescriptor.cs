@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using System.Runtime.InteropServices;
 
 namespace UnrealBuildTool
 {
@@ -362,64 +363,85 @@ namespace UnrealBuildTool
 					}
 				}
 
-				// Parse the architecture parameter, or get the default for the platform
-				List<string> Architectures = new List<string>(Arguments.GetValues("-Architecture=", '+'));
-
 				UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(Platform);
-				if (Architectures.Count == 0)
-				{
-					Architectures.Add(BuildPlatform.GetDefaultArchitecture(ProjectFile));
-				}
-				else
-				{
-					// If the platform can do these in a single pass then turn them back into a single + separate string.
-					// It is now responsible for splitting them as necessary.
-					if (BuildPlatform.CanCompileArchitecturesInSinglePass(Architectures) || BuildPlatform.CanLinkArchitecturesInSinglePass(Architectures))
-					{ 
-						Architectures = new List<string> { string.Join("+", Architectures.OrderBy(S => S)) };
-					}
-				}				
 
-				foreach(string Architecture in Architectures)
+				// Parse the architecture parameter, or get the default for the platform (and letting the platform clean it up
+				IEnumerable<string> ParamArchitectures = Arguments.GetValues("-Architecture=", '+')
+					.Union(Arguments.GetValues("-Architectures=", '+'))
+					.Select(x => BuildPlatform.FixupArchitecture(x));
+
+				foreach(UnrealTargetConfiguration Configuration in Configurations)
 				{
-					foreach(UnrealTargetConfiguration Configuration in Configurations)
+					// Create all the target descriptors for targets specified by type
+					foreach(string TargetTypeString in Arguments.GetValues("-TargetType="))
 					{
-						// Create all the target descriptors for targets specified by type
-						foreach(string TargetTypeString in Arguments.GetValues("-TargetType="))
+						TargetType TargetType;
+						if(!Enum.TryParse(TargetTypeString, out TargetType))
 						{
-							TargetType TargetType;
-							if(!Enum.TryParse(TargetTypeString, out TargetType))
-							{
-								throw new BuildException("Invalid target type '{0}'", TargetTypeString);
-							}
-
-							if (ProjectFile == null)
-							{
-								TargetNames.Add(RulesCompiler.CreateEngineRulesAssembly(bUsePrecompiled, bSkipRulesCompile, bForceRulesCompile, Logger).GetTargetNameByType(TargetType, Platform, Configuration, Architecture, null, Logger));
-							}
-							else
-							{
-								TargetNames.Add(RulesCompiler.CreateProjectRulesAssembly(ProjectFile, bUsePrecompiled, bSkipRulesCompile, bForceRulesCompile, Logger).GetTargetNameByType(TargetType, Platform, Configuration, Architecture, ProjectFile, Logger));
-							}
+							throw new BuildException("Invalid target type '{0}'", TargetTypeString);
 						}
 
-						// Make sure we could parse something
-						if (TargetNames.Count == 0)
+						if (ProjectFile == null)
 						{
-							throw new BuildException("No target name was specified on the command-line.");
+							TargetNames.Add(RulesCompiler.CreateEngineRulesAssembly(bUsePrecompiled, bSkipRulesCompile, bForceRulesCompile, Logger).GetTargetNameByType(TargetType, Platform, Configuration, "", null, Logger));
 						}
+						else
+						{
+							TargetNames.Add(RulesCompiler.CreateProjectRulesAssembly(ProjectFile, bUsePrecompiled, bSkipRulesCompile, bForceRulesCompile, Logger).GetTargetNameByType(TargetType, Platform, Configuration, "", ProjectFile, Logger));
+						}
+					}
 
-						// Create all the target descriptors
-						foreach(string TargetName in TargetNames)
+					// Make sure we could parse something
+					if (TargetNames.Count == 0)
+					{
+						throw new BuildException("No target name was specified on the command-line.");
+					}
+
+					// Create all the target descriptors
+					foreach(string TargetName in TargetNames)
+					{
+						FileReference? TargetProjectFile = ProjectFile;
+						IEnumerable<string> Architectures;
+						if (ParamArchitectures.Count() == 0)
 						{
 							// If a project file was not specified see if we can find one
-							if (ProjectFile == null && NativeProjects.TryGetProjectForTarget(TargetName, Logger, out ProjectFile))
+							if (TargetProjectFile == null && NativeProjects.TryGetProjectForTarget(TargetName, Logger, out TargetProjectFile))
 							{
-								Logger.LogDebug("Found project file for {TargetName} - {ProjectFile}", TargetName, ProjectFile);
+								Logger.LogDebug("Found project file for {TargetName} - {ProjectFile}", TargetName, TargetProjectFile);
 							}
+							// Programs can have a .uproject without finding a matching .Target (since the source and metadata directories are split up)
+							if (TargetProjectFile == null)
+							{
+								// find one with a matching name
+								TargetProjectFile = NativeProjects.EnumerateProjectFiles(Log.Logger)
+									.Where(x => x.GetFileNameWithoutAnyExtensions().Equals(TargetName, StringComparison.InvariantCultureIgnoreCase))
+									.FirstOrDefault();
+							}
+							// ask the platform what achitectures it wants for this project
+							Architectures = BuildPlatform.GetProjectArchitectures(TargetProjectFile, TargetName);
+						}
+						else
+						{
+							Architectures = ParamArchitectures;
+						}
 
-							// Create the target descriptor
-							TargetDescriptors.Add(new TargetDescriptor(ProjectFile, TargetName, Platform, Configuration, Architecture, Arguments));
+						// Make sure we could at least one (even if it's "", the default)
+						if (Architectures.Count() == 0)
+						{
+							throw new BuildException($"Architecture(s) could be determined for platform {Platform}");
+						}
+
+						// If the platform can do these in a single pass then turn them back into a single + separate string.
+						// It is now responsible for splitting them as necessary.
+						if (BuildPlatform.NeedsSingleTargetForMultiArchitecture(Architectures))
+						{
+							Architectures = new List<string> { string.Join("+", Architectures.OrderBy(S => S)) };
+						}
+
+						// Create the target descriptor for each architecture
+						foreach (string Architecture in Architectures)
+						{
+							TargetDescriptors.Add(new TargetDescriptor(TargetProjectFile, TargetName, Platform, Configuration, Architecture, Arguments));
 						}
 					}
 				}

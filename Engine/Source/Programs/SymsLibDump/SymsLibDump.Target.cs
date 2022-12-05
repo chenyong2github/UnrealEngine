@@ -3,7 +3,7 @@
 using UnrealBuildTool;
 using System.Collections.Generic;
 
-[SupportedPlatforms(UnrealPlatformClass.Desktop)]
+[SupportedPlatforms("Win64", "Linux")]
 public class SymsLibDumpTarget : TargetRules
 {
 	public SymsLibDumpTarget(TargetInfo Target) : base(Target)

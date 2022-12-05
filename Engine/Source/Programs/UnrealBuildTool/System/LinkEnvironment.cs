@@ -421,10 +421,19 @@ namespace UnrealBuildTool
 			}
 		}
 
+		/// <summary>
+		/// Construct a LinkEnvironment from another, and filter it down to only files/dependencies that apply to the given architecture
+		/// </summary>
+		/// <param name="Other">Parent LinkEnvironment to start with that may have been created from multiple architectures (arch1+arch2)</param>
+		/// <param name="OverrideArchitecture">The single architecture to filter down to</param>
 		public LinkEnvironment(LinkEnvironment Other, string OverrideArchitecture)
 			: this(Other)
 		{
 			Architecture = OverrideArchitecture;
+
+			// filter the input files 
+			string IntermediateDirPart = UEBuildPlatform.GetBuildPlatform(Platform).GetFolderNameForArchitecture(OverrideArchitecture);
+			InputFiles = Other.InputFiles.Where(x => x.Location.ContainsName(IntermediateDirPart, 0)).ToList();
 
 			if (DependenciesToSkipPerArchitecture.Count() > 0)
 			{

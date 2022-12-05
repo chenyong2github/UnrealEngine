@@ -1,9 +1,10 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
 using System.Collections.Generic;
 
 [SupportedConfigurations(UnrealTargetConfiguration.Debug, UnrealTargetConfiguration.Development, UnrealTargetConfiguration.Shipping)]
+[SupportedPlatforms("Win64")]
 public class BootstrapPackagedGameTarget : TargetRules
 {
 	public BootstrapPackagedGameTarget(TargetInfo Target) : base(Target)
