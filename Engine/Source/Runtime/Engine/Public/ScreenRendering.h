@@ -14,6 +14,7 @@
 #include "GlobalShader.h"
 #include "ShaderParameterUtils.h"
 #include "SceneView.h"
+#include "StereoRenderUtils.h"
 
 struct FScreenVertex
 {
@@ -98,7 +99,15 @@ class FScreenFromSlice0PS : public FScreenPS
 	DECLARE_EXPORTED_SHADER_TYPE(FScreenFromSlice0PS, Global, ENGINE_API);
 public:
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return true; }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{ 
+		if (FScreenPS::ShouldCompilePermutation(Parameters))
+		{
+			UE::StereoRenderUtils::FStereoShaderAspects Aspects(Parameters.Platform);
+			return Aspects.IsMobileMultiViewEnabled();
+		}
+		return false;
+	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{

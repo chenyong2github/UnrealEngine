@@ -12,6 +12,7 @@
 #include "ShaderCore.h"
 #include "ShaderParameters.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "StereoRenderUtils.h"
 
 class FPointerTableBase;
 class FRHICommandList;
@@ -115,6 +116,16 @@ public:
 
 	typedef FDummyResolveParameter FParameter;
 
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		if (FResolveDepthPS::ShouldCompilePermutation(Parameters))
+		{
+			UE::StereoRenderUtils::FStereoShaderAspects Aspects(Parameters.Platform);
+			return Aspects.IsMobileMultiViewEnabled();
+		}
+		return false;
+	}
+
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FResolveDepthPS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -135,6 +146,11 @@ public:
 
 	typedef FDummyResolveParameter FParameter;
 
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return FResolveDepthArrayPS::ShouldCompilePermutation(Parameters);
+	}
+
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FResolveDepthArrayPS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -154,6 +170,11 @@ class FResolveDepthArray4XPS : public FResolveDepthArrayPS
 public:
 
 	typedef FDummyResolveParameter FParameter;
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return FResolveDepthArrayPS::ShouldCompilePermutation(Parameters);
+	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -177,6 +198,11 @@ public:
 	typedef FDummyResolveParameter FParameter;
 
 	static bool ShouldCache(EShaderPlatform Platform) { return GetMaxSupportedFeatureLevel(Platform) >= ERHIFeatureLevel::SM5; }
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return FResolveDepthArrayPS::ShouldCompilePermutation(Parameters);
+	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -246,7 +272,15 @@ class FResolveArrayVS : public FResolveVS
 	DECLARE_EXPORTED_SHADER_TYPE(FResolveArrayVS, Global, RENDERCORE_API);
 public:
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return true; }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		if (FResolveVS::ShouldCompilePermutation(Parameters))
+		{
+			UE::StereoRenderUtils::FStereoShaderAspects Aspects(Parameters.Platform);
+			return Aspects.IsMobileMultiViewEnabled();
+		}
+		return false;
+	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{

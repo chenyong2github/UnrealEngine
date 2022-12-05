@@ -15,6 +15,7 @@
 #include "ShaderParameterUtils.h"
 #include "ShaderParameters.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "StereoRenderUtils.h"
 
 class FPointerTableBase;
 
@@ -37,6 +38,16 @@ public:
 	FHdrCustomResolveArrayVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FHdrCustomResolveVS(Initializer)
 	{
+	}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		if (FHdrCustomResolveVS::ShouldCompilePermutation(Parameters))
+		{
+			UE::StereoRenderUtils::FStereoShaderAspects Aspects(Parameters.Platform);
+			return Aspects.IsMobileMultiViewEnabled();
+		}
+		return false;
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -146,7 +157,12 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return FHdrCustomResolve2xPS::ShouldCompilePermutation(Parameters);
+		if (FHdrCustomResolve2xPS::ShouldCompilePermutation(Parameters))
+		{
+			UE::StereoRenderUtils::FStereoShaderAspects Aspects(Parameters.Platform);
+			return Aspects.IsMobileMultiViewEnabled();
+		}
+		return false;
 	}
 
 	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS)
