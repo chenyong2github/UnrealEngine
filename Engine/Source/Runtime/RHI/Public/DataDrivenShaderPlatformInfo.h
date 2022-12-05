@@ -764,10 +764,6 @@ public:
 using FDataDrivenShaderPlatformInfo = FGenericDataDrivenShaderPlatformInfo;
 #endif
 
-
-
-
-
 inline bool IsPCPlatform(const FStaticShaderPlatform Platform)
 {
 	return FDataDrivenShaderPlatformInfo::GetIsPC(Platform);
@@ -777,11 +773,6 @@ inline bool IsPCPlatform(const FStaticShaderPlatform Platform)
 inline bool IsMobilePlatform(const FStaticShaderPlatform Platform)
 {
 	return FDataDrivenShaderPlatformInfo::GetMaxFeatureLevel(Platform) == ERHIFeatureLevel::ES3_1;
-}
-
-inline bool IsCustomPlatform(const FStaticShaderPlatform Platform)
-{
-	return (Platform >= EShaderPlatform::SP_CUSTOM_PLATFORM_FIRST) && (Platform < EShaderPlatform::SP_CUSTOM_PLATFORM_LAST);
 }
 
 inline bool IsOpenGLPlatform(const FStaticShaderPlatform Platform)

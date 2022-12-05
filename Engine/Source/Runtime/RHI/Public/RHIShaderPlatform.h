@@ -170,3 +170,9 @@ extern RHI_API FString LexToString(EShaderPlatform Platform, bool bError = true)
 
 // The maximum shader platform available on this system
 extern RHI_API EShaderPlatform GMaxRHIShaderPlatform;
+
+inline bool IsCustomPlatform(const FStaticShaderPlatform Platform)
+{
+	return (Platform >= SP_CUSTOM_PLATFORM_FIRST && Platform < SP_CUSTOM_PLATFORM_LAST);
+}
+
