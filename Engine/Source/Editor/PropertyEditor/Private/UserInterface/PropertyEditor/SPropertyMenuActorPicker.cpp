@@ -192,7 +192,7 @@ void SPropertyMenuActorPicker::OnActorSelected( AActor* InActor )
 {
 	FText OutErrorMsg;
 
-	if (IsValid(InActor) && !FName::IsValidXName(InActor->GetName(), "aeoiu",  &OutErrorMsg))
+	if (IsValid(InActor) && !FName::IsValidXName(InActor->GetName(), INVALID_NAME_CHARACTERS,  &OutErrorMsg))
 	{
 		FFormatNamedArguments Args;
 		Args.Add("ActorName", FText::FromString(FName::SanitizeWhitespace(InActor->GetName())));
