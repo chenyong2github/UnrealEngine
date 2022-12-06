@@ -698,6 +698,15 @@ void UNiagaraDataInterfaceNeighborGrid3D::DestroyPerInstanceData(void* PerInstan
 	);
 }
 
+void FNiagaraDataInterfaceProxyNeighborGrid3D::ResetData(const FNDIGpuComputeResetContext& Context)
+{	
+	FNDINeighborGrid3DInstanceData_RT* ProxyData = SystemInstancesToProxyData_RT.Find(Context.GetSystemInstanceID());
+
+	FRDGBuilder& GraphBuilder = Context.GetGraphBuilder();
+	AddClearUAVPass(GraphBuilder, ProxyData->NeighborhoodBuffer.GetOrCreateUAV(GraphBuilder), -1);
+	AddClearUAVPass(GraphBuilder, ProxyData->NeighborhoodCountBuffer.GetOrCreateUAV(GraphBuilder), 0);
+}
+
 void FNiagaraDataInterfaceProxyNeighborGrid3D::PreStage(const FNDIGpuComputePreStageContext& Context)
 {
 	FRDGBuilder& GraphBuilder = Context.GetGraphBuilder();
@@ -707,7 +716,7 @@ void FNiagaraDataInterfaceProxyNeighborGrid3D::PreStage(const FNDIGpuComputePreS
 		ProxyData.ResizeBuffers(GraphBuilder);
 	}
 
-	if (Context.IsOutputStage() && ProxyData.NeighborhoodBuffer.IsValid())
+	if (Context.IsOutputStage() && ProxyData.NeighborhoodBuffer.IsValid() && ProxyData.ClearBeforeNonIterationStage)
 	{
 		RDG_RHI_EVENT_SCOPE(GraphBuilder, NiagaraNeighborGrid3DClearNeighborInfo);
 		AddClearUAVPass(GraphBuilder, ProxyData.NeighborhoodBuffer.GetOrCreateUAV(GraphBuilder), -1);

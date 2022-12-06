@@ -29,6 +29,8 @@ struct FNDINeighborGrid3DInstanceData_RT
 {
 	void ResizeBuffers(FRDGBuilder& GraphBuilder);
 
+	bool ClearBeforeNonIterationStage = true;
+
 	FIntVector	NumCells = FIntVector::ZeroValue;
 	float		CellSize = 0.0f;
 	uint32		MaxNeighborsPerCell = 0;
@@ -41,6 +43,7 @@ struct FNDINeighborGrid3DInstanceData_RT
 
 struct FNiagaraDataInterfaceProxyNeighborGrid3D : public FNiagaraDataInterfaceProxyRW
 {	
+	virtual void ResetData(const FNDIGpuComputeResetContext& Context) override;
 	virtual void PreStage(const FNDIGpuComputePreStageContext& Context) override;
 	virtual void PostSimulate(const FNDIGpuComputePostSimulateContext& Context) override;
 

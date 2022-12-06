@@ -18,6 +18,8 @@ using FGrid2DBuffer = FNiagaraPooledRWTexture;
 
 struct FGrid2DCollectionRWInstanceData_GameThread
 {
+	bool ClearBeforeNonIterationStage = true;
+
 	FIntPoint NumCells = FIntPoint(EForceInit::ForceInitToZero);
 	int32 NumAttributes = 0;
 	FVector2D CellSize = FVector2D::ZeroVector;
@@ -50,6 +52,8 @@ struct FGrid2DCollectionRWInstanceData_GameThread
 
 struct FGrid2DCollectionRWInstanceData_RenderThread
 {
+	bool ClearBeforeNonIterationStage = true;
+
 	FIntPoint NumCells = FIntPoint(EForceInit::ForceInitToZero);
 	int32 NumAttributes = 0;
 	FVector2D CellSize = FVector2D::ZeroVector;
@@ -76,7 +80,7 @@ struct FGrid2DCollectionRWInstanceData_RenderThread
 	// overrides the render thread data, which in this case is for a grid reader
 	FNiagaraDataInterfaceProxy* OtherProxy = nullptr;
 
-	void BeginSimulate(FRDGBuilder& GraphBuilder);
+	void BeginSimulate(FRDGBuilder& GraphBuilder, bool RequiresBuffering);
 	void EndSimulate();
 };
 

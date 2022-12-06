@@ -47,6 +47,7 @@ UNiagaraDataInterfaceRWBase::UNiagaraDataInterfaceRWBase(FObjectInitializer cons
 
 UNiagaraDataInterfaceGrid3D::UNiagaraDataInterfaceGrid3D(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, ClearBeforeNonIterationStage(true)
 	, NumCells(3, 3, 3)
 	, CellSize(1.)
 	, NumCellsMaxAxis(10)
@@ -251,7 +252,9 @@ bool UNiagaraDataInterfaceGrid3D::Equals(const UNiagaraDataInterface* Other) con
 	}
 	const UNiagaraDataInterfaceGrid3D* OtherTyped = CastChecked<const UNiagaraDataInterfaceGrid3D>(Other);
 
-	return OtherTyped->NumCells == NumCells &&
+	return 
+		OtherTyped->ClearBeforeNonIterationStage == ClearBeforeNonIterationStage &&
+		OtherTyped->NumCells == NumCells &&
 		FMath::IsNearlyEqual(OtherTyped->CellSize, CellSize) &&		
 		OtherTyped->WorldBBoxSize.Equals(WorldBBoxSize) && 
 		OtherTyped->SetResolutionMethod == SetResolutionMethod && 
@@ -469,7 +472,7 @@ bool UNiagaraDataInterfaceGrid3D::CopyToInternal(UNiagaraDataInterface* Destinat
 
 	UNiagaraDataInterfaceGrid3D* OtherTyped = CastChecked<UNiagaraDataInterfaceGrid3D>(Destination);
 
-
+	OtherTyped->ClearBeforeNonIterationStage = ClearBeforeNonIterationStage;
 	OtherTyped->NumCells = NumCells;
 	OtherTyped->CellSize = CellSize;
 	OtherTyped->SetResolutionMethod = SetResolutionMethod;
@@ -483,6 +486,7 @@ bool UNiagaraDataInterfaceGrid3D::CopyToInternal(UNiagaraDataInterface* Destinat
 
 UNiagaraDataInterfaceGrid2D::UNiagaraDataInterfaceGrid2D(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, ClearBeforeNonIterationStage(true)
 	, NumCellsX(3)
 	, NumCellsY(3)
 	, NumCellsMaxAxis(3)
@@ -721,6 +725,7 @@ bool UNiagaraDataInterfaceGrid2D::Equals(const UNiagaraDataInterface* Other) con
 	const UNiagaraDataInterfaceGrid2D* OtherTyped = CastChecked<const UNiagaraDataInterfaceGrid2D>(Other);
 
 	return 
+		OtherTyped->ClearBeforeNonIterationStage == ClearBeforeNonIterationStage &&
 		OtherTyped->NumCellsX == NumCellsX &&
 		OtherTyped->NumCellsY == NumCellsY &&
 		OtherTyped->NumAttributes == NumAttributes &&
@@ -956,7 +961,7 @@ bool UNiagaraDataInterfaceGrid2D::CopyToInternal(UNiagaraDataInterface* Destinat
 
 	UNiagaraDataInterfaceGrid2D* OtherTyped = CastChecked<UNiagaraDataInterfaceGrid2D>(Destination);
 
-
+	OtherTyped->ClearBeforeNonIterationStage = ClearBeforeNonIterationStage;
 	OtherTyped->NumCellsX = NumCellsX;
 	OtherTyped->NumCellsY = NumCellsY;
 	OtherTyped->NumAttributes = NumAttributes;

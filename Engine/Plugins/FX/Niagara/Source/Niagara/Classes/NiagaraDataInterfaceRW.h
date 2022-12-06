@@ -114,6 +114,12 @@ class NIAGARA_API UNiagaraDataInterfaceGrid3D : public UNiagaraDataInterfaceRWBa
 	GENERATED_UCLASS_BODY()
 
 public:
+
+	// Option to clear the buffer prior to a stage where the iteration count does not match the grid resolution.  Useful for stages where one wants to do sparse writes
+	// and accumulate values.
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Grid")
+	bool ClearBeforeNonIterationStage;
+
 	// Number of cells
 	UPROPERTY(EditAnywhere, Category = "Grid", meta=(EditCondition = "false", EditConditionHides))
 	FIntVector NumCells;
@@ -164,6 +170,12 @@ class NIAGARA_API UNiagaraDataInterfaceGrid2D : public UNiagaraDataInterfaceRWBa
 	GENERATED_UCLASS_BODY()
 
 public:
+
+	// Option to clear the buffer prior to a stage where the iteration count does not match the grid resolution.  Useful for stages where one wants to do sparse writes
+	// and accumulate values.
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Grid")
+	bool ClearBeforeNonIterationStage;
+
 	// Number of cells in X
 	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "false", EditConditionHides))
 	int32 NumCellsX;

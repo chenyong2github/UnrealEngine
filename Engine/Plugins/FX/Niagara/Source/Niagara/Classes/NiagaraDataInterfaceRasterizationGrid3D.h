@@ -20,6 +20,9 @@ class RasterizationGrid3DRWInstanceData
 {
 public:
 	void ResizeBuffers();
+	
+	bool ClearBeforeNonIterationStage = true;
+
 	int32 TotalNumAttributes = 0;
 	FIntVector NumCells = FIntVector::ZeroValue;
 	FIntVector NumTiles = FIntVector::ZeroValue;
@@ -35,6 +38,7 @@ public:
 
 struct FNiagaraDataInterfaceProxyRasterizationGrid3D : public FNiagaraDataInterfaceProxyRW
 {	
+	virtual void ResetData(const FNDIGpuComputeResetContext& Context) override;
 	virtual void PreStage(const FNDIGpuComputePreStageContext& Context) override;
 	virtual void PostSimulate(const FNDIGpuComputePostSimulateContext& Context) override;
 

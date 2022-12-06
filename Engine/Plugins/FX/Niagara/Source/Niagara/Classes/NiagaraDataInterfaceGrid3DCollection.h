@@ -18,6 +18,8 @@ using FGrid3DBuffer = FNiagaraPooledRWTexture;
 
 struct FGrid3DCollectionRWInstanceData_GameThread
 {
+	bool ClearBeforeNonIterationStage = true;
+
 	FIntVector NumCells = FIntVector::ZeroValue;
 	FIntVector NumTiles = FIntVector::ZeroValue;
 	int32 TotalNumAttributes = 0;
@@ -53,6 +55,8 @@ struct FGrid3DCollectionRWInstanceData_GameThread
 struct FGrid3DCollectionRWInstanceData_RenderThread
 {
 	FName SourceDIName;
+
+	bool ClearBeforeNonIterationStage = true;
 
 	FIntVector NumCells = FIntVector(1, 1, 1);
 	FIntVector NumTiles = FIntVector(1, 1, 1);

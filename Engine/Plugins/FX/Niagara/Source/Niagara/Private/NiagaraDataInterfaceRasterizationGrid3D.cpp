@@ -938,6 +938,8 @@ bool UNiagaraDataInterfaceRasterizationGrid3D::InitPerInstanceData(void* PerInst
 //	check(InstanceData->NumTiles.Y > 0);
 //	check(InstanceData->NumTiles.Z > 0);
 
+	InstanceData->ClearBeforeNonIterationStage = ClearBeforeNonIterationStage;
+
 	// @todo-threadsafety. This would be a race but I'm taking a ref here. Not ideal in the long term.
 	// Push Updates to Proxy.
 	ENQUEUE_RENDER_COMMAND(FUpdateData)(
@@ -945,6 +947,8 @@ bool UNiagaraDataInterfaceRasterizationGrid3D::InitPerInstanceData(void* PerInst
 	{
 		check(!RT_Proxy->SystemInstancesToProxyData.Contains(InstanceID));
 		RasterizationGrid3DRWInstanceData* TargetData = &RT_Proxy->SystemInstancesToProxyData.Add(InstanceID);
+		
+		TargetData->ClearBeforeNonIterationStage = RT_InstanceData.ClearBeforeNonIterationStage;
 		TargetData->TotalNumAttributes = RT_TotalNumAttributes;
 		TargetData->NumCells = RT_NumCells;		
 		TargetData->NumTiles = RT_InstanceData.NumTiles;
@@ -1102,6 +1106,19 @@ void UNiagaraDataInterfaceRasterizationGrid3D::DestroyPerInstanceData(void* PerI
 	);
 }
 
+void FNiagaraDataInterfaceProxyRasterizationGrid3D::ResetData(const FNDIGpuComputeResetContext& Context)
+{	
+	RasterizationGrid3DRWInstanceData* ProxyData = SystemInstancesToProxyData.Find(Context.GetSystemInstanceID());
+	if (!ProxyData)
+	{
+		return;
+	}
+
+	FRDGBuilder& GraphBuilder = Context.GetGraphBuilder();
+	const FUintVector4 ResetValue(ProxyData->ResetValue, ProxyData->ResetValue, ProxyData->ResetValue, ProxyData->ResetValue);
+	AddClearUAVPass(GraphBuilder, ProxyData->RasterizationTexture.GetOrCreateUAV(GraphBuilder), ResetValue);
+}
+
 void FNiagaraDataInterfaceProxyRasterizationGrid3D::PreStage(const FNDIGpuComputePreStageContext& Context)
 {
 	using namespace NDIRasterizationGrid3DLocal;
@@ -1151,7 +1168,7 @@ void FNiagaraDataInterfaceProxyRasterizationGrid3D::PreStage(const FNDIGpuComput
 		InstanceData.PerAttributeData.Initialize(TEXT("Grid3D::PerAttributeData"), sizeof(FVector4f), PerAttributeData.Num(), EPixelFormat::PF_A32B32G32R32F, BUF_Static, &PerAttributeData);
 	}
 
-	if (Context.IsOutputStage() && NumTotalCells > 0)
+	if (Context.IsOutputStage() && NumTotalCells > 0 && InstanceData.ClearBeforeNonIterationStage)
 	{
 		FRDGBuilder& GraphBuilder = Context.GetGraphBuilder();
 		const FUintVector4 ResetValue(InstanceData.ResetValue, InstanceData.ResetValue, InstanceData.ResetValue, InstanceData.ResetValue);

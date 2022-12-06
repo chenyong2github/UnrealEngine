@@ -1860,6 +1860,8 @@ bool UNiagaraDataInterfaceGrid2DCollection::InitPerInstanceData(void* PerInstanc
 	}
 #endif
 
+	InstanceData->ClearBeforeNonIterationStage = ClearBeforeNonIterationStage;
+
 	// Push Updates to Proxy.
 	FNiagaraDataInterfaceProxyGrid2DCollectionProxy* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyGrid2DCollectionProxy>();
 	ENQUEUE_RENDER_COMMAND(FUpdateData)(
@@ -1867,6 +1869,8 @@ bool UNiagaraDataInterfaceGrid2DCollection::InitPerInstanceData(void* PerInstanc
 	{
 		check(!RT_Proxy->SystemInstancesToProxyData_RT.Contains(InstanceID));
 		FGrid2DCollectionRWInstanceData_RenderThread* TargetData = &RT_Proxy->SystemInstancesToProxyData_RT.Add(InstanceID);
+
+		TargetData->ClearBeforeNonIterationStage = RT_InstanceData.ClearBeforeNonIterationStage;
 
 		TargetData->NumCells = RT_InstanceData.NumCells;
 		TargetData->NumAttributes = RT_InstanceData.NumAttributes;
@@ -2533,12 +2537,12 @@ bool FGrid2DCollectionRWInstanceData_GameThread::UpdateTargetTexture(ENiagaraGpu
 	return false;
 }
 
-void FGrid2DCollectionRWInstanceData_RenderThread::BeginSimulate(FRDGBuilder& GraphBuilder)
+void FGrid2DCollectionRWInstanceData_RenderThread::BeginSimulate(FRDGBuilder& GraphBuilder, bool RequiresBuffering)
 {
 	for (TUniquePtr<FGrid2DBuffer>& Buffer : Buffers)
 	{
 		check(Buffer.IsValid());
-		if (Buffer.Get() != CurrentData)
+		if (Buffer.Get() != CurrentData || !RequiresBuffering)
 		{
 			DestinationData = Buffer.Get();
 			break;
@@ -2552,6 +2556,9 @@ void FGrid2DCollectionRWInstanceData_RenderThread::BeginSimulate(FRDGBuilder& Gr
 
 		const FRDGTextureDesc TextureDesc = FRDGTextureDesc::Create2DArray(NumCells, PixelFormat, FClearValueBinding::Black, ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV, NumAttributes);
 		DestinationData->Initialize(GraphBuilder, TEXT("FGrid2DBuffer"), TextureDesc);
+
+		// This destination buffer will sometimes have old data in it.  Force it to clear.
+		AddClearUAVPass(GraphBuilder, DestinationData->GetOrCreateUAV(GraphBuilder), FVector4f(ForceInitToZero));
 	}
 }
 
@@ -2584,29 +2591,21 @@ void FNiagaraDataInterfaceProxyGrid2DCollectionProxy::PreStage(const FNDIGpuComp
 		FGrid2DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.GetSystemInstanceID());
 
 		FRDGBuilder& GraphBuilder = Context.GetGraphBuilder();
-		ProxyData->BeginSimulate(GraphBuilder);
+		ProxyData->BeginSimulate(GraphBuilder, Context.IsInputStage());
+		
+		// If there is an output DI and the stage dispatch count is different from the grid resolution, then we want to consider it for a pre-stage UAV clear.
+		// This is to enable the most common use case of scattered writes to temporary buffers		
+		const FNiagaraSimStageData& SimStageData = Context.GetSimStageData();
 
-		// If we don't have an iteration stage, then we should manually clear the buffer to make sure there is no residual data.  If we are doing something like rasterizing particles into a grid, we want it to be clear before
-		// we start.  If a user wants to access data from the previous stage, then they can read from the current data.
+		FIntVector ElementCount = SimStageData.ElementCountXYZ;
 
-		// #todo(dmp): we might want to expose an option where we have buffers that are write only and need a clear (ie: no buffering like the neighbor grid).  They would be considered transient perhaps?  It'd be more
-		// memory efficient since it would theoretically not require any double buffering.
-
-		// #todo(dmp): for now, if there is an output DI that is NOT an iteration DI AND if both the iteration DI and this DI have the same total number of instances, do not do the UAV clear prior to the stage.
-		// this isn't optimal, but should work to some degree to reduce overhead in cases where we have multiple grids of the same resolution being processed/written to in 1 stage
-		if (!Context.IsIterationStage())
+		if (SimStageData.AlternateIterationSource != nullptr)
 		{
-			FNiagaraDataInterfaceProxyRW* IterationInterface = Context.GetSimStageData().AlternateIterationSource;
-			if (IterationInterface != nullptr)
-			{
-				const FIntVector ElementCount = IterationInterface->GetElementCount(Context.GetSystemInstanceID());				
+			ElementCount = SimStageData.AlternateIterationSource->GetElementCount(Context.GetSystemInstanceID());
+		}	
 
-				if (ElementCount.X == ProxyData->NumCells.X && ElementCount.Y == ProxyData->NumCells.Y)
-				{
-					return;
-				}
-			}
-
+		if (ProxyData->ClearBeforeNonIterationStage && (ElementCount.X != ProxyData->NumCells.X || ElementCount.Y != ProxyData->NumCells.Y))
+		{
 			AddClearUAVPass(GraphBuilder, ProxyData->DestinationData->GetOrCreateUAV(GraphBuilder), FVector4f(ForceInitToZero));
 		}
 	}

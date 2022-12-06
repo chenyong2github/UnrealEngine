@@ -3496,6 +3496,8 @@ bool UNiagaraDataInterfaceGrid3DCollection::InitPerInstanceData(void* PerInstanc
 	}
 #endif
 
+	InstanceData->ClearBeforeNonIterationStage = ClearBeforeNonIterationStage;
+
 	// Push Updates to Proxy.
 	FNiagaraDataInterfaceProxyGrid3DCollectionProxy* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyGrid3DCollectionProxy>();
 	ENQUEUE_RENDER_COMMAND(FUpdateData)(
@@ -3505,6 +3507,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::InitPerInstanceData(void* PerInstanc
 			FGrid3DCollectionRWInstanceData_RenderThread* TargetData = &RT_Proxy->SystemInstancesToProxyData_RT.Add(InstanceID);
 
 			TargetData->SourceDIName = RT_Proxy->SourceDIName;
+
+			TargetData->ClearBeforeNonIterationStage = RT_InstanceData.ClearBeforeNonIterationStage;
+
 			TargetData->NumCells = RT_InstanceData.NumCells;
 			TargetData->NumTiles = RT_InstanceData.NumTiles;
 			TargetData->TotalNumAttributes = RT_InstanceData.TotalNumAttributes;
@@ -4107,6 +4112,9 @@ void FGrid3DCollectionRWInstanceData_RenderThread::BeginSimulate(FRDGBuilder& Gr
 		StringBuilder.Append("Grid3DCollection");
 
 		DestinationData->Initialize(GraphBuilder, *StringBuilder, TextureDesc);
+
+		// This destination buffer will sometimes have old data in it.  Force it to clear.
+		AddClearUAVPass(GraphBuilder, DestinationData->GetOrCreateUAV(GraphBuilder), FVector4f(ForceInitToZero));
 	}
 }
 
@@ -4140,28 +4148,20 @@ void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PreStage(const FNDIGpuComp
 		FRDGBuilder& GraphBuilder = Context.GetGraphBuilder();
 		ProxyData->BeginSimulate(GraphBuilder, Context.IsInputStage());
 
-		// If we don't have an iteration stage, then we should manually clear the buffer to make sure there is no residual data.  If we are doing something like rasterizing particles into a grid, we want it to be clear before
-		// we start.  If a user wants to access data from the previous stage, then they can read from the current data.
+		// If there is an output DI and the stage dispatch count is different from the grid resolution, then we want to consider it for a pre-stage UAV clear.
+		// This is to enable the most common use case of scattered writes to temporary buffers				
+		const FNiagaraSimStageData& SimStageData = Context.GetSimStageData();
 
-		// #todo(dmp): we might want to expose an option where we have buffers that are write only and need a clear (ie: no buffering like the neighbor grid).  They would be considered transient perhaps?  It'd be more
-		// memory efficient since it would theoretically not require any double buffering.
+		FIntVector ElementCount = SimStageData.ElementCountXYZ;
 
-		// #todo(dmp): for now, if there is an output DI that is NOT an iteration DI AND if both the iteration DI and this DI have the same total number of instances, do not do the UAV clear prior to the stage.
-		// this isn't optimal, but should work to some degree to reduce overhead in cases where we have multiple grids of the same resolution being processed/written to in 1 stage
-		if (!Context.IsIterationStage())
+		if (SimStageData.AlternateIterationSource != nullptr)
 		{
-			FNiagaraDataInterfaceProxyRW* IterationInterface = Context.GetSimStageData().AlternateIterationSource;
-			if (IterationInterface != nullptr)
-			{
-				const FIntVector ElementCount = IterationInterface->GetElementCount(Context.GetSystemInstanceID());
-				const uint64 TotalNumInstances = ElementCount.X * ElementCount.Y * ElementCount.Z;
+			ElementCount = SimStageData.AlternateIterationSource->GetElementCount(Context.GetSystemInstanceID());
+		}
 
-				if (ElementCount.X == ProxyData->NumCells.X && ElementCount.Y == ProxyData->NumCells.Y && ElementCount.Z == ProxyData->NumCells.Z)
-				{
-					return;
-				}
-			}
-
+		if (ProxyData->ClearBeforeNonIterationStage && 
+			(ElementCount.X != ProxyData->NumCells.X || ElementCount.Y != ProxyData->NumCells.Y || ElementCount.Z != ProxyData->NumCells.Z))
+		{
 			AddClearUAVPass(GraphBuilder, ProxyData->DestinationData->GetOrCreateUAV(GraphBuilder), FVector4f(ForceInitToZero));
 		}
 	}
