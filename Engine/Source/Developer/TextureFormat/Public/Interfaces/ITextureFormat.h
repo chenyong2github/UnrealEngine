@@ -301,6 +301,10 @@ public:
 
 /**
  * Interface for texture compression modules.
+ * 
+ * Note that if you add any virtual functions to this, they almost certainly need to be plumbed through
+ * ChildTextureFormat! This is why the Format is passed around - ChildTextureFormat needs it to resolve to
+ * the base format.
  */
 class ITextureFormat
 {
@@ -335,7 +339,7 @@ public:
 	/**
 	 * @returns true in case Compress can handle other than RGBA32F image formats
 	 */
-	virtual bool CanAcceptNonF32Source() const
+	virtual bool CanAcceptNonF32Source(FName Format) const
 	{
 		return false;
 	}

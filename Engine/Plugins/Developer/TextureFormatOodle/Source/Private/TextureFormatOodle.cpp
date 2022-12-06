@@ -846,7 +846,8 @@ public:
 	}
 	
 	// increment this to invalidate Derived Data Cache to recompress everything
-	#define DDC_OODLE_TEXTURE_VERSION 16
+	// 16->17 incremented due to incorrect routing of CanAcceptNonF32Source. We are the only thing it's true for.
+	#define DDC_OODLE_TEXTURE_VERSION 17
 
 	virtual uint16 GetVersion(FName Format, const FTextureBuildSettings* InBuildSettings) const override
 	{
@@ -998,7 +999,7 @@ public:
 		}
 	}
 
-	bool CanAcceptNonF32Source() const override
+	bool CanAcceptNonF32Source(FName Format) const override
 	{
 		return true;
 	}

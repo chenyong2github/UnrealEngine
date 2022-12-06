@@ -169,6 +169,11 @@ public:
 		return GetBaseFormatObject(Format)->SupportsEncodeSpeed(Format);
 	}
 
+	virtual bool CanAcceptNonF32Source(FName Format) const override
+	{
+		return GetBaseFormatObject(Format)->CanAcceptNonF32Source(Format);
+	}
+
 	virtual FName GetEncoderName(FName Format) const override
 	{
 		return GetBaseFormatObject(Format)->GetEncoderName(Format);
