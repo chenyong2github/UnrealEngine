@@ -197,7 +197,9 @@ FSmartObjectRuntime* USmartObjectSubsystem::AddCollectionEntryToSimulation(const
 		return nullptr;
 	}
 
-	if (!ensureMsgf(RuntimeSmartObjects.Find(Handle) == nullptr, TEXT("Handle '%s' already registered in runtime simulation"), *LexToString(Handle)))
+	// @todo temporarily commenting out the ensure while the proper fix is being developed.
+	//if (!ensureMsgf(RuntimeSmartObjects.Find(Handle) == nullptr, TEXT("Handle '%s' already registered in runtime simulation"), *LexToString(Handle)))
+	if (RuntimeSmartObjects.Find(Handle) != nullptr)
 	{
 		return nullptr;
 	}
