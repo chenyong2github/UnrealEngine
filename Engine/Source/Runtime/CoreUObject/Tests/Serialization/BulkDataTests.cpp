@@ -2,6 +2,7 @@
 
 #if WITH_LOW_LEVEL_TESTS
 
+#include "IO/IoDispatcher.h"
 #include "TestHarness.h"
 #include "TestMacros/Assertions.h"
 #include "Memory/SharedBuffer.h"
