@@ -41,9 +41,9 @@
 #include "Components/SpotLightComponent.h"
 #include "ControlRigObjectBinding.h"
 #include "CoreMinimal.h"
+#include "Framework/Notifications/NotificationManager.h"
 #include "GeometryCacheComponent.h"
 #include "GeometryCacheTrackUSD.h"
-#include "Framework/Notifications/NotificationManager.h"
 #include "GroomCache.h"
 #include "GroomComponent.h"
 #include "HAL/IConsoleManager.h"
@@ -73,6 +73,7 @@
 #include "Tracks/MovieSceneSkeletalAnimationTrack.h"
 #include "Tracks/MovieSceneSubTrack.h"
 #include "Tracks/MovieSceneVisibilityTrack.h"
+#include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
 #include "Widgets/Notifications/SNotificationList.h"
 

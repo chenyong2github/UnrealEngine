@@ -45,6 +45,7 @@
 #include "GroomCache.h"
 #include "InstancedFoliageActor.h"
 #include "LandscapeProxy.h"
+#include "Misc/PackageName.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
 #if WITH_EDITOR
