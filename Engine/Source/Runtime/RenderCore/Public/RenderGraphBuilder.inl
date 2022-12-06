@@ -405,44 +405,55 @@ inline void FRDGBuilder::AddDispatchHint()
 	}
 }
 
-template <typename TaskLambda>
-void FRDGBuilder::AddSetupTask(TaskLambda&& Task)
+template <typename TaskLambdaType>
+UE::Tasks::FTask FRDGBuilder::AddSetupTask(TaskLambdaType&& TaskLambda, bool bCondition)
 {
-	if (bParallelExecuteEnabled)
+	UE::Tasks::FTask Task;
+
+	if (bParallelExecuteEnabled && bCondition)
 	{
-		ParallelSetupEvents.Emplace(UE::Tasks::Launch(TEXT("FRDGBuilder::AddSetupTask"), [Task = MoveTemp(Task)]
+		Task = UE::Tasks::Launch(TEXT("FRDGBuilder::AddSetupTask"), [TaskLambda = MoveTemp(TaskLambda)]
 		{
 			FTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
-			Task();
-		}));
+			TaskLambda();
+		});
+
+		ParallelSetupEvents.Emplace(Task);
 	}
 	else
 	{
-		Task();
+		TaskLambda();
 	}
+
+	return Task;
 }
 
-template <typename TaskLambda>
-void FRDGBuilder::AddCommandListSetupTask(TaskLambda&& Task)
+template <typename TaskLambdaType>
+UE::Tasks::FTask FRDGBuilder::AddCommandListSetupTask(TaskLambdaType&& TaskLambda, bool bCondition)
 {
-	if (bParallelExecuteEnabled)
+	UE::Tasks::FTask Task;
+
+	if (bParallelExecuteEnabled && bCondition)
 	{
 		FRHICommandList* RHICmdListTask = new FRHICommandList(FRHIGPUMask::All());
 
-		ParallelSetupEvents.Emplace(UE::Tasks::Launch(TEXT("FRDGBuilder::AddCommandListSetupTask"), [Task = MoveTemp(Task), RHICmdListTask]
+		Task = UE::Tasks::Launch(TEXT("FRDGBuilder::AddCommandListSetupTask"), [TaskLambda = MoveTemp(TaskLambda), RHICmdListTask]
 		{
 			FTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
 			RHICmdListTask->SwitchPipeline(ERHIPipeline::Graphics);
-			Task(*RHICmdListTask);
+			TaskLambda(*RHICmdListTask);
 			RHICmdListTask->FinishRecording();
-		}));
+		});
 
+		ParallelSetupEvents.Emplace(Task);
 		RHICmdList.QueueAsyncCommandListSubmit(RHICmdListTask);
 	}
 	else
 	{
-		Task(RHICmdList);
+		TaskLambda(RHICmdList);
 	}
+
+	return Task;
 }
 
 inline const TRefCountPtr<IPooledRenderTarget>& FRDGBuilder::GetPooledTexture(FRDGTextureRef Texture) const
