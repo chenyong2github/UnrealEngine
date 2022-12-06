@@ -1,0 +1,19 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+
+RWTexture2D<uint> RWOutputTexture;
+Texture2D<uint> SourceTexture_1;
+Texture2D<uint> SourceTexture_2;
+
+
+[numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, 1)]
+void CombineShadingRateTextures(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	const uint2 TexelCoord = DispatchThreadId.xy;
+	uint ShadingRateOut = 0;
+	
+	ShadingRateOut = max(SourceTexture_1[TexelCoord], SourceTexture_2[TexelCoord]);
+	
+	RWOutputTexture[TexelCoord] = ShadingRateOut;
+}

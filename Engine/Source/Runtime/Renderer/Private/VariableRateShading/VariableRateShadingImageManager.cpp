@@ -21,6 +21,48 @@
 
 TGlobalResource<FVariableRateShadingImageManager> GVRSImageManager;
 
+/**
+ * Shaders
+ */
+
+constexpr int32 kCombineGroupSize = FComputeShaderUtils::kGolden2DGroupSize;
+
+class FCombineShadingRateTexturesCS : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FCombineShadingRateTexturesCS);
+	SHADER_USE_PARAMETER_STRUCT(FCombineShadingRateTexturesCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, RWOutputTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, SourceTexture_1)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, SourceTexture_2)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, SourceTexture_3)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, SourceTexture_4)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return FDataDrivenShaderPlatformInfo::GetSupportsVariableRateShading(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), kCombineGroupSize);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), kCombineGroupSize);
+	}
+
+};
+
+IMPLEMENT_GLOBAL_SHADER(FCombineShadingRateTexturesCS, "/Engine/Private/VariableRateShading/VRSShadingRateCombine.usf", "CombineShadingRateTextures", SF_Compute);
+
+
+/**
+ * Public functions
+ */
+
 FVariableRateShadingImageManager::FVariableRateShadingImageManager()
 	: FRenderResource()
 {
@@ -65,6 +107,11 @@ bool FVariableRateShadingImageManager::IsVRSCompatibleWithView(const FViewInfo& 
 	return IsVRSSupportedByRHI() && !ViewInfo.bIsSceneCapture && IsVRSCompatibleWithOutputType(GetDisplayOutputFormat(ViewInfo));
 }
 
+FIntPoint FVariableRateShadingImageManager::GetSRITileSize()
+{
+	return FIntPoint(GRHIVariableRateShadingImageTileMinWidth, GRHIVariableRateShadingImageTileMinHeight);
+}
+
 FRDGTextureRef FVariableRateShadingImageManager::GetVariableRateShadingImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, FVariableRateShadingImageManager::EVRSPassType PassType,
 	const TArray<TRefCountPtr<IPooledRenderTarget>>* ExternalVRSSources, FVariableRateShadingImageManager::EVRSSourceType VRSTypesToExclude)
 {
@@ -88,19 +135,49 @@ FRDGTextureRef FVariableRateShadingImageManager::GetVariableRateShadingImage(FRD
 		if (Image)
 		{
 			InternalVRSSources.Add(Image);
-			break; // No need to generate more than one until we support combining
 		}
 	}
 
-	// TODO: Combine internal and external images with adjustable logic (min, max, priority, etc.)
+	// If we have more than one internal source, combine the first available two
+	// TODO: Support combining more textures
+	if (InternalVRSSources.Num() > 1)
+	{
+		FIntPoint ViewSize = ViewInfo.UnscaledViewRect.Scale(ViewInfo.Family->SecondaryViewFraction).Size();
+		const FIntPoint TileSize = GetSRITileSize();
 
-	// For now, only one source can be used
-	// Once CAS is added, source will be chosen by CVar, for now it defaults to the only available generator (fixed foveation)
-	// We fall back on the first available external source if no internal source is available
-	if (InternalVRSSources.Num() > 0)
+		// Create texture to hold shading rate image
+		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+			ViewSize / TileSize,
+			GRHIVariableRateShadingImageFormat,
+			FClearValueBinding::None,
+			TexCreate_Foveation | TexCreate_UAV);
+
+		FRDGTextureRef CombinedShadingRateTexture = GraphBuilder.CreateTexture(Desc, TEXT("CombinedShadingRateTexture"));
+
+		FCombineShadingRateTexturesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCombineShadingRateTexturesCS::FParameters>();
+		PassParameters->SourceTexture_2 = InternalVRSSources[0];
+		PassParameters->SourceTexture_1 = InternalVRSSources[1];
+		PassParameters->RWOutputTexture = GraphBuilder.CreateUAV(CombinedShadingRateTexture);
+
+		TShaderMapRef<FCombineShadingRateTexturesCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("CombineShadingRateImages"),
+			ERDGPassFlags::AsyncCompute | ERDGPassFlags::NeverCull,
+			ComputeShader,
+			PassParameters,
+			FComputeShaderUtils::GetGroupCount(ViewSize, TileSize));
+
+		return CombinedShadingRateTexture;
+	}
+	else if (InternalVRSSources.Num() == 1)
 	{
 		return InternalVRSSources[0];
 	}
+
+	// Fall back on external sources only if we have no internal ones
+	// TODO: Combine external sources as well
 	else if (ExternalVRSSources && ExternalVRSSources->Num() > 0)
 	{
 		return GraphBuilder.RegisterExternalTexture((*ExternalVRSSources)[0]);

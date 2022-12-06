@@ -423,11 +423,6 @@ namespace ESRIPreviewType
 	}
 };
 
-static FIntPoint GetSRITileSize()
-{
-	return FIntPoint(GRHIVariableRateShadingImageTileMinWidth, GRHIVariableRateShadingImageTileMinHeight);
-}
-
 static const TCHAR* ShadingRateTextureName = TEXT("ShadingRateTexture");
 static const TCHAR* ScaledShadingRateTextureName = TEXT("ScaledShadingRateTexture");
 static const TCHAR* ScaledConservativeShadingRateTextureName = TEXT("ConservativeScaledShadingRateTexture");
@@ -460,7 +455,7 @@ struct RENDERER_API FVRSTextures
 private:
 	static FRDGTextureDesc CreateSRIDesc(const FSceneViewFamily& ViewFamily, bool bIsForDynResScaled)
 	{
-		FIntPoint TileSize = GetSRITileSize();
+		FIntPoint TileSize = FVariableRateShadingImageManager::GetSRITileSize();
 		FIntPoint ViewTargetExtents = (bIsForDynResScaled)
 			? FSceneTexturesConfig::Get().Extent
 			: ViewFamily.RenderTarget->GetSizeXY();
@@ -519,7 +514,7 @@ bool AddCreateShadingRateImagePass(
 	{
 		FCalculateShadingRateImageCS::FPermutationDomain PermutationVector;
 
-		const FIntPoint TileSize = GetSRITileSize();
+		const FIntPoint TileSize = FVariableRateShadingImageManager::GetSRITileSize();
 		PermutationVector.Set<FCalculateShadingRateImageCS::FThreadGroupX>(TileSize.X);
 		PermutationVector.Set<FCalculateShadingRateImageCS::FThreadGroupY>(TileSize.Y);
 
@@ -567,7 +562,7 @@ void AddPrepareImageBasedVRSPass(
 	const FVRSTextures& VRSTextures = FVRSTextures::Get(GraphBuilder);
 	FRDGTextureRef VariableRateShadingImage = VRSTextures.ConstructedSRI;
 
-	FIntPoint TileSize = GetSRITileSize();
+	FIntPoint TileSize = FVariableRateShadingImageManager::GetSRITileSize();
 
 	FIntPoint TextureSize = VRSTextures.ScaledSRI->Desc.Extent;
 	FVector2f TextureDimensions(TextureSize.X, TextureSize.Y);
@@ -708,7 +703,7 @@ void FContrastAdaptiveImageGenerator::VRSDebugPreview(FRDGBuilder& GraphBuilder,
 
 		EScreenPassDrawFlags DrawFlags = EScreenPassDrawFlags::AllowHMDHiddenAreaMask;
 
-		FIntRect ScaledSrcRect = FIntRect::DivideAndRoundUp(SrcViewRect, GetSRITileSize());
+		FIntRect ScaledSrcRect = FIntRect::DivideAndRoundUp(SrcViewRect, FVariableRateShadingImageManager::GetSRITileSize());
 
 		const FScreenPassTextureViewport InputViewport = FScreenPassTextureViewport(PreviewTexture, ScaledSrcRect);
 		const FScreenPassTextureViewport OutputViewport(OutputSceneColor, DestViewRect);
