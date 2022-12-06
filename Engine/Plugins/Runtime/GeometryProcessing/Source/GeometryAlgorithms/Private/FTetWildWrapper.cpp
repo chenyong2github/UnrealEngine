@@ -64,7 +64,9 @@ namespace
 				Params.values_sizing_field[Idx] = InParams.SizingFieldValues[Idx];
 			}
 		}
+		Params.ideal_edge_length = InParams.IdealEdgeLength;
 		Params.eps_rel = InParams.EpsRel;
+		Params.max_its = InParams.MaxIts;
 		Params.stop_energy = InParams.StopEnergy;
 		Params.coarsen = InParams.bCoarsen;
 		Params.manifold_surface = InParams.bExtractManifoldBoundarySurface;

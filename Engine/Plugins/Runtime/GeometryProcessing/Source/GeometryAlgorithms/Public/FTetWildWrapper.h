@@ -33,8 +33,14 @@ namespace UE::Geometry::FTetWild
 		TArray<FIntVector4> SizingFieldTets;
 		TArray<double> SizingFieldValues;
 
+		// Ideal edge length
+		double IdealEdgeLength = 0.05;
+
 		// Relative tolerance, controlling how closely the mesh must follow the input surface
 		double EpsRel = 1e-3;
+
+		// Maximum number of optimization iterations
+		int32 MaxIts = 80;
 		// Energy at which to stop optimizing tet quality and accept the result
 		double StopEnergy = 10;
 
