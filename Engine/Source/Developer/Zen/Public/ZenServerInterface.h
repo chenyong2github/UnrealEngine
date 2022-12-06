@@ -68,6 +68,53 @@ namespace UE::Zen
 {
 
 class FZenServiceInstance;
+class FZenLocalServiceRunContext;
+
+UE_API bool TryGetLocalServiceRunContext(FZenLocalServiceRunContext& OutContext);
+
+class FZenLocalServiceRunContext
+{
+public:
+	FString GetExecutable() const { return Executable; }
+	FString GetCommandlineArguments() const { return CommandlineArguments; }
+	FString GetWorkingDirectory() const { return WorkingDirectory; }
+	FString GetDataPath() const { return DataPath; }
+	bool GetShowConsole() const { return bShowConsole; }
+
+	friend inline bool operator==(FZenLocalServiceRunContext LHS, FZenLocalServiceRunContext RHS)
+	{
+		return (LHS.Executable == RHS.Executable) && (LHS.CommandlineArguments == RHS.CommandlineArguments) && (LHS.WorkingDirectory == RHS.WorkingDirectory) && (LHS.DataPath == RHS.DataPath);
+	}
+
+private:
+	FString Executable;
+	FString CommandlineArguments;
+	FString WorkingDirectory;
+	FString DataPath;
+	bool bShowConsole;
+
+	bool ReadFromJson(FJsonObject& JsonObject);
+	void WriteToJson(TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>& Writer) const;
+
+	bool ReadFromJsonFile(const TCHAR* Filename);
+	bool WriteToJsonFile(const TCHAR* Filename) const;
+
+	friend class FZenServiceInstance;
+	friend UE_API bool TryGetLocalServiceRunContext(FZenLocalServiceRunContext& OutContext);
+};
+
+UE_API bool IsLocalServiceRunning(const TCHAR* DataPath, uint16* OutPort = nullptr);
+UE_API FProcHandle StartLocalService(const FZenLocalServiceRunContext& Context, const TCHAR* TransientArgs = nullptr);
+UE_API bool StopLocalService(const TCHAR* DataPath, double MaximumWaitDurationSeconds = 5.0);
+
+UE_API FString GetLocalServiceInstallPath();
+UE_API FString GetLocalServiceInstallVersion(bool bDetailed = true);
+UE_API FString GetLocalInstallUtilityPath();
+
+struct FGCStatus
+{
+	FString Description;
+};
 
 /**
  * Type used to declare usage of a Zen server instance whether the shared default instance or a unique non-default instance.
@@ -125,10 +172,13 @@ public:
 	inline const TCHAR* GetHostName() const { return *HostName; }
 	inline uint16 GetPort() const { return Port; }
 	inline const FServiceSettings& GetServiceSettings() const { return Settings; }
-	UE_API bool GetStats(FZenStats& Stats);
 	UE_API bool IsServiceRunning();
 	UE_API bool IsServiceReady();
 	UE_API bool IsServiceRunningLocally() const { return bIsRunningLocally; }
+
+	UE_API bool GetStats(FZenStats& Stats);
+	UE_API bool GetGCStatus(FGCStatus& Status);
+	UE_API bool RequestGC(const bool* OverrideCollectSmallObjects = nullptr, const uint32* OverrideMaxCacheDuration = nullptr);
 
 	static UE_API uint16 GetAutoLaunchedPort();
 
@@ -139,6 +189,11 @@ private:
 	FString ConditionalUpdateLocalInstall();
 	static bool AutoLaunch(const FServiceAutoLaunchSettings& InSettings, FString&& ExecutablePath, FString& OutHostName, uint16& OutPort);
 	void OnAnalyticsEvent(TArray<FAnalyticsEventAttribute>& Attributes);
+
+	mutable TPimplPtr<class FZenHttpRequest> GCStatusHttpRequest;
+	mutable TFuture<TOptional<FGCStatus>> GCStatusRequest;
+	mutable TOptional<FGCStatus> LastGCStatus;
+	mutable uint64 LastGCStatusTime = 0;
 
 	mutable TPimplPtr<class FZenHttpRequest> StatsHttpRequest;
 	mutable TFuture<FZenStats> StatsRequest;
