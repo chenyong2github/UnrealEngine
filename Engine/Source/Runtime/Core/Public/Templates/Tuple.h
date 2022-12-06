@@ -648,7 +648,7 @@ namespace UE::Core::Private::Tuple
 		template <typename TupleType>
 		FORCEINLINE static uint32 Do(uint32 Hash, const TupleType& Tuple)
 		{
-			return TGetTupleHashHelper<ArgToCombine + 1, ArgCount>::Do(HashCombineFast(Hash, GetTypeHash(Tuple.template Get<ArgToCombine>())), Tuple);
+			return TGetTupleHashHelper<ArgToCombine + 1, ArgCount>::Do(HashCombineFast(Hash, GetTypeHashHelper(Tuple.template Get<ArgToCombine>())), Tuple);
 		}
 	};
 
