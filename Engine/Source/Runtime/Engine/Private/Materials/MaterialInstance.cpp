@@ -2024,6 +2024,8 @@ void UMaterialInstance::InitStaticPermutation(EMaterialShaderPrecompileMode Prec
 	FMaterial::DeferredDeleteArray(ResourcesToFree);
 }
 
+EStrataBlendMode ConvertLegacyToStrataBlendMode(EBlendMode InBlendMode, FMaterialShadingModelField InShadingModels, const UMaterialInterface* InMaterial);
+
 void UMaterialInstance::UpdateOverridableBaseProperties()
 {
 	//Parents base property overrides have to be cached by now.
@@ -4265,7 +4267,7 @@ EBlendMode UMaterialInstance::GetBlendMode() const
 
 EStrataBlendMode UMaterialInstance::GetStrataBlendMode() const
 {
-	return Parent ? Parent->GetStrataBlendMode() : SBM_Opaque;
+	return ConvertLegacyToStrataBlendMode(BlendMode, ShadingModels, this);
 }
 
 FMaterialShadingModelField UMaterialInstance::GetShadingModels() const
