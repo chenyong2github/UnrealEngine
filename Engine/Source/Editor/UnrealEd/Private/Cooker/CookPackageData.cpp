@@ -727,12 +727,32 @@ void FPackageData::OnEnterAssignedToWorker()
 {
 }
 
+void FPackageData::SetWorkerAssignment(FWorkerId InWorkerAssignment, ESendFlags SendFlags)
+{
+	if (WorkerAssignment.IsValid())
+	{
+		checkf(InWorkerAssignment.IsInvalid(), TEXT("Package %s is being assigned to worker %d while it is already assigned to worker %d."),
+			*GetPackageName().ToString(), WorkerAssignment.GetRemoteIndex(), WorkerAssignment.GetRemoteIndex());
+		if (EnumHasAnyFlags(SendFlags, ESendFlags::QueueRemove))
+		{
+			PackageDatas.GetCookOnTheFlyServer().NotifyRemovedFromWorker(*this);
+		}
+		WorkerAssignment = FWorkerId::Invalid();
+	}
+	else
+	{
+		if (InWorkerAssignment.IsValid())
+		{
+			checkf(GetState() == EPackageState::AssignedToWorker, TEXT("Package %s is being assigned to worker %d while in a state other than AssignedToWorker. This is invalid."),
+				*GetPackageName().ToString(), GetWorkerAssignment().GetRemoteIndex());
+		}
+		WorkerAssignment = InWorkerAssignment;
+	}
+}
+
 void FPackageData::OnExitAssignedToWorker()
 {
-	if (GetWorkerAssignment().IsValid())
-	{
-		PackageDatas.GetCookOnTheFlyServer().NotifyRemovedFromWorker(*this);
-	}
+	SetWorkerAssignment(FWorkerId::Invalid());
 }
 
 void FPackageData::OnEnterLoadPrepare()

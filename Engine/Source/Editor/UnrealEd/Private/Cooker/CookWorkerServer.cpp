@@ -100,7 +100,8 @@ void FCookWorkerServer::AbortAllAssignmentsInLock(TSet<FPackageData*>& OutPendin
 void FCookWorkerServer::AbortAssignment(FPackageData& PackageData, ECookDirectorThread TickThread,
 	ENotifyRemote NotifyRemote)
 {
-	TArray<FPackageData*> PackageDatas;
+	TArray<FPackageData*, TInlineAllocator<1>> PackageDatas;
+	PackageDatas.Add(&PackageData);
 	AbortAssignments(PackageDatas, TickThread, NotifyRemote);
 }
 
@@ -595,7 +596,7 @@ void FCookWorkerServer::RecordResults(FPackageResultsMessage& Message)
 				ProfileId, *Result.PackageName.ToString());
 			continue;
 		}
-		PackageData->SetWorkerAssignment(FWorkerId::Invalid());
+		PackageData->SetWorkerAssignment(FWorkerId::Invalid(), ESendFlags::QueueNone);
 
 		// MPCOOKTODO: Refactor FSaveCookedPackageContext::FinishPlatform and ::FinishPackage so we can call them from here
 		// to reduce duplication

@@ -484,8 +484,11 @@ public:
 
 	/** For MultiProcessCooks, Get the id of the worker this Package is assigned to; InvalidId means owned by local. */
 	FWorkerId GetWorkerAssignment() const { return WorkerAssignment; }
-	/** Set the id of the worker this Package is assigned to. */
-	void SetWorkerAssignment(FWorkerId InWorkerAssignment) { WorkerAssignment = InWorkerAssignment; }
+	/**
+	 * Set the id of the worker this Package is assigned to. If value changes from Valid to Invalid and SendFlags
+	 * includes QueueRemove, also calls NotifyRemovedFromWorker.
+	 */
+	void SetWorkerAssignment(FWorkerId InWorkerAssignment, ESendFlags SendFlags = ESendFlags::QueueAddAndRemove);
 	/** Get the workerid that is the only worker allowed to cook this package; InvalidId means no constraint. */
 	FWorkerId GetWorkerAssignmentConstraint() const { return WorkerAssignmentConstraint; }
 	/** Set the workerid that is the only worker allowed to cook this package; default is InvalidId; */
