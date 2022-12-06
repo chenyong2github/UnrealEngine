@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NNEModelData.h"
+#include "NNECoreModelData.h"
 
 #include "NNXCore.h"
 #include "NNXRuntimeFormat.h"

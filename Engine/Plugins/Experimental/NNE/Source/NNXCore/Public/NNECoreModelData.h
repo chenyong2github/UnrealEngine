@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-#include "NNEModelData.generated.h"
+#include "NNECoreModelData.generated.h"
 
 UCLASS(BlueprintType, Category = "NNE - Neural Network Engine")
 class NNXCORE_API UNNEModelData : public UObject

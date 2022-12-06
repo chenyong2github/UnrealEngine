@@ -5,9 +5,17 @@
 #include "CoreMinimal.h"
 
 #include "NNXRuntime.h"
-#include "NNEModelData.h"
+#include "NNECoreModelData.h"
 
-#include "NNEModel.generated.h"
+#include "NNECoreModel.generated.h"
+
+UENUM(BlueprintType, Category = "NNE - Neural Network Engine")
+enum FNNETaskPriority
+{
+	Low     UMETA(DisplayName = "Low"),
+	Normal  UMETA(DisplayName = "Normal"),
+	High	UMETA(DisplayName = "High"),
+};
 
 USTRUCT(BlueprintType, Category = "NNE - Neural Network Engine")
 struct FNNETensor
@@ -22,6 +30,8 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "NNE - Neural Network Engine")
 	TArray<float> Data = TArray<float>();
 };
+
+DECLARE_DYNAMIC_DELEGATE_TwoParams(FNNEModelOnAsyncResult, const TArray<FNNETensor>&, Output, bool, Success);
 
 UCLASS(BlueprintType, Category = "NNE - Neural Network Engine")
 class NNXCORE_API UNNEModel : public UObject
@@ -63,10 +73,11 @@ public:
 
 	/**
 	 * Sets the input and output tensors.
-	 * If changes are made to the shape or data sizes inside the passed tensors, this function must be called again. 
+	 * If changes are made to the shape or memory inside the passed tensors, this function must be called again. 
+	 * Calls shape inference internally, avoid multiple calls if the input memory and shape does not change.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "NNE - Neural Network Engine")
-	bool SetInputOutput(const TArray<FNNETensor>& Input, UPARAM(ref) TArray<FNNETensor>& Output);
+	bool SetInput(const TArray<FNNETensor>& Input);
 	
 public:
 
@@ -74,15 +85,34 @@ public:
 	 * Synchroneous call to run the model.
 	 * Requires the runtime to be selected with SetRuntime(...) first.
 	 * If an RDG runtime is selected, data will be up and downloaded to and from the GPU.
-	 * Upon successful return of this function, the data inside the output tensors passed to SetInputOutput will contain the resulting data.
+	 * Upon successful return of this function, the data inside the output tensors will contain the resulting data.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "NNE - Neural Network Engine")
-	bool RunSync();
+	bool RunSync(UPARAM(ref) TArray<FNNETensor>& Output);
+
+	/**
+	 * Asynchroneous call to run the model.
+	 * Requires the runtime to be selected with SetRuntime(...) first.
+	 * If an RDG runtime is selected, data will be up and downloaded to and from the GPU.
+	 * Upon successful return of this function, the inference is run on a background task 
+	 */
+	UFUNCTION(BlueprintCallable, Category = "NNE - Neural Network Engine")
+	bool RunAsync(FNNETaskPriority TaskPriority, FNNEModelOnAsyncResult OnAsyncResult);
+
+public:
+
+	/**
+	 * Returns true while an async call is running in the background.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "NNE - Neural Network Engine")
+	bool IsRunning();
 	
 private:
 
-	TUniquePtr<NNX::FMLInferenceModel> Model;
+	TSharedPtr<NNX::FMLInferenceModel> Model;
 
 	TArray<NNX::FMLTensorBinding> InputBindings;
-	TArray<NNX::FMLTensorBinding> OutputBindings;
+	TArray<NNX::FTensorShape> InputShapes;
+
+	TSharedPtr<bool> IsAsyncRunning;
 };
