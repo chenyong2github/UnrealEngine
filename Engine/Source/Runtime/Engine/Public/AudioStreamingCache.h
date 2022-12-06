@@ -32,9 +32,18 @@ public:
 	struct FChunkKey
 	{
 	public:
-		FChunkKey() {};
+		FChunkKey() = default;
 
-		FChunkKey(const FChunkKey& Other);
+		FChunkKey(const FChunkKey& Other) = default;
+
+		FChunkKey(
+			  const FName& InSoundWaveName
+			, const FObjectKey& InSoundWaveObjectKey
+			, uint32 InChunkIndex
+#if WITH_EDITOR
+			, uint32 InChunkRevision = 0
+#endif // #if WITH_EDITOR
+		);
 
 		FChunkKey(
 			  const FSoundWavePtr& InSoundWave
@@ -44,32 +53,19 @@ public:
 #endif // #if WITH_EDITOR
 		);
 
-		FChunkKey& operator=(const FChunkKey& Other);
+		FChunkKey& operator=(const FChunkKey& Other) = default;
 
-
-	private:
-		TWeakPtr<FSoundWaveData, ESPMode::ThreadSafe> SoundWaveWeakPtr;
 
 	public:
 		FName SoundWaveName = FName();
-		uint32 ChunkIndex = INDEX_NONE;
 		FObjectKey ObjectKey = FObjectKey();
+		uint32 ChunkIndex = INDEX_NONE;
 
 #if WITH_EDITOR
 		// This is used in the editor to invalidate stale compressed chunks.
 		uint32 ChunkRevision = 0;
 #endif
-		inline bool operator==(const FChunkKey& Other) const;
-
-		bool IsChunkStale();
-		bool IsSoundWaveValid() const { return SoundWaveWeakPtr.Pin().IsValid(); }
-		// Forward FSoundWaveProxy interface
-		ESoundWaveLoadingBehavior GetLoadingBehavior() const;
-		FStreamedAudioChunk& GetChunk(uint32 InChunkIndex) const;
-		uint32 GetNumChunks() const;
-		bool IsRetainingAudio() const;
-		void ReleaseCompressedAudio();
-		bool WasLoadingBehaviorOverridden() const;
+		bool operator==(const FChunkKey& Other) const;
 
 		/** Hash function */
 		friend uint32 GetTypeHash(const FChunkKey& InChunkKey)
@@ -115,12 +111,12 @@ public:
 
 	// Places chunk in cache, or puts this chunk back at the top of the cache if it's already loaded. Returns the static lookup ID of the chunk in the cache on success,
 	// or InvalidAudioStreamCacheLookupID on failiure.
-	uint64 AddOrTouchChunk(const FChunkKey& InKey, TFunction<void(EAudioChunkLoadResult) > OnLoadCompleted, ENamedThreads::Type CallbackThread, bool bNeededForPlayback);
+	uint64 AddOrTouchChunk(const FChunkKey& InKey, const TSharedPtr<FSoundWaveData>& InSoundWavePtr, TFunction<void(EAudioChunkLoadResult) > OnLoadCompleted, ENamedThreads::Type CallbackThread, bool bNeededForPlayback);
 
 	// Returns the chunk asked for, or an empty TArrayView if that chunk is not loaded.
 	// InOutCacheLookupID can optionally be set as a cache offset to use directly rather than searching the cache for a matching chunk.
 	// InOutCacheLookupID will be set to the offset the chunk is in the cache, which can be used for faster lookup in the future.
-	TArrayView<uint8> GetChunk(const FChunkKey& InKey, bool bBlockForLoadCompletion, bool bNeededForPlayback, uint64& InOutCacheLookupID);
+	TArrayView<uint8> GetChunk(const FChunkKey& InKey, const TSharedPtr<FSoundWaveData>& InSoundWavePtr, bool bBlockForLoadCompletion, bool bNeededForPlayback, uint64& InOutCacheLookupID);
 
 	// add an additional reference for a chunk.
 	void AddNewReferenceToChunk(const FChunkKey& InKey);
@@ -160,7 +156,7 @@ public:
 	FString FlushCacheMissLog();
 
 	// Static helper function to make sure a chunk is withing the bounds of a USoundWave.
-	static bool IsKeyValid(const FChunkKey& InKey);
+	static bool DoesKeyContainValidChunkIndex(const FChunkKey& InKey, const FSoundWaveData& InSoundWaveData);
 
 	// interface with the cache id lookup map
 	uint64 GetCacheLookupIDForChunk(const FChunkKey& InChunkKey) const;
@@ -257,6 +253,7 @@ private:
 			bWasCacheMiss = false;
 			AverageLocationInCacheWhenNeeded = 0.0f;
 		}
+
 	};
 #endif
 
@@ -273,7 +270,9 @@ private:
 		uint32 ChunkDataSize;
 		FCacheElement* MoreRecentElement;
 		FCacheElement* LessRecentElement;
-		uint64 CacheLookupID;
+		uint64 CacheLookupID = InvalidAudioStreamCacheLookupID;
+
+		TWeakPtr<FSoundWaveData, ESPMode::ThreadSafe> SoundWaveWeakPtr;
 
 		FThreadSafeBool bIsLoaded;
 		
@@ -291,7 +290,7 @@ private:
 		FCacheElementDebugInfo DebugInfo;
 #endif
 
-		FCacheElement(uint32 MaxChunkSize, uint32 InCacheIndex)
+		FCacheElement(uint32 InCacheIndex)
 			: ChunkData(nullptr)
 			, ChunkDataSize(0)
 			, MoreRecentElement(nullptr)
@@ -342,15 +341,8 @@ private:
 		}
 
 #if DEBUG_STREAM_CACHE
-		bool IsBeingPlayed() const
-		{
-			const int32 NumActiveConsumers = NumConsumers.GetValue();
-
-			// if we 2 or more consumers, this chunk is being rendered.
-			// if we have 1 consumer, and we aren't Retained, then this chunk is being rendered
-			return (NumActiveConsumers > 1)
-				|| (NumActiveConsumers && (DebugInfo.LoadingBehavior != ESoundWaveLoadingBehavior::RetainOnLoad));
-		}
+		bool IsBeingPlayed() const;
+		void UpdateDebugInfoLoadingBehavior();
 #endif
 
 		bool CanEvictChunk() const
@@ -358,14 +350,26 @@ private:
 			return !IsInUse() && !IsLoadInProgress();
 		}
 
+		uint32 GetNumChunks() const;
+		FStreamedAudioChunk* GetChunk(uint32 InChunkIndex) const;
+
+#if WITH_EDITOR
+		bool IsChunkStale();
+#endif
+		void ReleaseRetainedAudioOnSoundWave();
+		bool IsSoundWaveRetainingAudio() const;
+
 		~FCacheElement()
 		{
 			WaitForAsyncLoadCompletion(true);
 
 			if(NumConsumers.GetValue() != 0)
 			{
+				/** TODO: This is failing because of `Key.GetLoadingBehavior()`. We could get this from the FSoundWaveData or
+				 * store it, or ignore it here. 
 				UE_LOG(LogAudioStreamCaching, Error, TEXT("Tried to destroy streaming cache while the cached data was in use! (Sound: %s - Loading Behavior: %s - Chunk Index: %i)")
 					, *Key.SoundWaveName.ToString(), EnumToString(Key.GetLoadingBehavior()), Key.ChunkIndex);
+				*/
 			}
 			else if (ChunkData)
 			{
@@ -424,7 +428,7 @@ private:
 	void TouchElement(FCacheElement* InElement);
 
 	// Inserts a new element into the cache, potentially evicting the oldest element in the cache.
-	FCacheElement* InsertChunk(const FChunkKey& InKey);
+	FCacheElement* InsertChunk(const FChunkKey& InKey, const TSharedPtr<FSoundWaveData>& InSoundWaveWeakPtr);
 
 	// This is called once we have more than one chunk in our cache:
 	void SetUpLeastRecentChunk();
@@ -543,7 +547,4 @@ protected:
 
 	/** Audio chunk caches. These are set up on initialization. */
 	TArray<FAudioChunkCache> CacheArray;
-
-	
-
 };

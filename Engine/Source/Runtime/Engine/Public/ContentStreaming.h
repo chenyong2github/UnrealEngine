@@ -8,13 +8,14 @@
 
 #include "Async/TaskGraphInterfaces.h"
 #include "CoreMinimal.h"
-#include "UObject/WeakObjectPtr.h"
 #include "RenderedTextureStats.h"
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "CanvasTypes.h"
 #include "UnrealClient.h"
 #endif
 #include "Serialization/BulkData.h"
+#include "UObject/ObjectKey.h"
+#include "UObject/WeakObjectPtr.h"
 
 class AActor;
 class FSoundSource;
@@ -136,14 +137,15 @@ private:
 	const uint8*  CachedData;
 	int32 CachedDataNumBytes;
 
-	TWeakPtr<FSoundWaveData, ESPMode::ThreadSafe> CorrespondingWave;
 	FName CorrespondingWaveName;
+	FObjectKey CorrespondingWaveObjectKey;
 
 	// The index of this chunk in the sound wave's full set of chunks of compressed audio.
 	int32 ChunkIndex;
 
 #if WITH_EDITOR
-	uint32 ChunkGeneration;
+	TWeakPtr<FSoundWaveData, ESPMode::ThreadSafe> CorrespondingWave;
+	uint32 ChunkRevision;
 #endif
 
 	friend struct IAudioStreamingManager;

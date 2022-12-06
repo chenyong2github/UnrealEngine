@@ -1926,15 +1926,6 @@ void USoundWave::BeginDestroy()
 	// Flush any async results so we don't leak them in the DDC
 	FlushAsyncLoadingDataFormats();
 #endif
-
-	// the FSoundWaveDataPtr is not able to release the handle itself
-	// (weakptr that is already invalid in ~FSoundWaveData)
-	// so we need to Release our handle to the chunk in the streaming cache
-	// if we are the last one holding a refernce to SoundWaveDataPtr
-	if (SoundWaveDataPtr.GetSharedReferenceCount() == 1)
-	{
-		ReleaseCompressedAudio();
-	}
 }
 
 void USoundWave::InitAudioResource(FByteBulkData& CompressedData)
@@ -4082,14 +4073,6 @@ FSoundWaveProxy::FSoundWaveProxy(USoundWave* InWave)
 
 FSoundWaveProxy::~FSoundWaveProxy()
 {
-	// the FSoundWaveDataPtr is not able to release the handle itself
-	// (weakptr that is already invalid in ~FSoundWaveData)
-	// so we need to Release our handle to the chunk in the streaming cache
-	// if we are the last one holding a refernce to SoundWaveDataPtr
-	if (SoundWaveDataPtr.GetSharedReferenceCount() == 1)
-	{
-		ReleaseCompressedAudio();
-	}
 }
 
 
