@@ -213,6 +213,8 @@ public:
 
 	FColor GetSkinCacheVisualizationDebugColor(const FName& GPUSkinCacheVisualizationMode, uint32 SectionIndex) const;
 
+	FName GetAssetPathName() const;
+
 #if RHI_RAYTRACING
 	/** Retrieve ray tracing geometry from the underlying mesh object */
 	virtual FRayTracingGeometry* GetRayTracingGeometry() { return nullptr; }
@@ -325,4 +327,8 @@ protected:
 
 	/** Component ID to which belong this  mesh object  */
 	uint32 ComponentId;
+
+#if RHI_ENABLE_RESOURCE_INFO
+	FName AssetPathName;
+#endif
 };

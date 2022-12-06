@@ -64,6 +64,9 @@ FSkeletalMeshObject::FSkeletalMeshObject(USkinnedMeshComponent* InMeshComponent,
 ,	StatId(InMeshComponent->GetSkinnedAsset()->GetStatID(true))
 ,	FeatureLevel(InFeatureLevel)
 ,	ComponentId(InMeshComponent->ComponentId.PrimIDValue)
+#if RHI_ENABLE_RESOURCE_INFO
+,	AssetPathName(InMeshComponent->GetSkinnedAsset()->GetPathName())
+#endif
 {
 	check(SkeletalMeshRenderData);
 
@@ -231,6 +234,15 @@ float FSkeletalMeshObject::GetScreenSize(int32 LODIndex) const
 		return SkeletalMeshLODInfo[LODIndex].ScreenSize.Default;
 	}
 	return 0.f;
+}
+
+FName FSkeletalMeshObject::GetAssetPathName() const
+{
+#if RHI_ENABLE_RESOURCE_INFO
+	return AssetPathName;
+#else
+	return NAME_None;
+#endif
 }
 
 /*-----------------------------------------------------------------------------
