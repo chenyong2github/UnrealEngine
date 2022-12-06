@@ -295,7 +295,7 @@ UObject* UMaterialExpressionLandscapeLayerBlend::GetReferencedTexture() const
 #if WITH_EDITOR
 void UMaterialExpressionLandscapeLayerBlend::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(FString(TEXT("Layer Blend")));
+	OutCaptions.Add(FString(TEXT("Landscape Layer Blend")));
 }
 
 void UMaterialExpressionLandscapeLayerBlend::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)

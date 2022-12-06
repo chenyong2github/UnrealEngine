@@ -56,9 +56,20 @@ UObject* UMaterialExpressionLandscapeLayerSample::GetReferencedTexture() const
 }
 
 #if WITH_EDITOR
+FString UMaterialExpressionLandscapeLayerSample::GetEditableName() const
+{
+	return ParameterName.ToString();
+}
+
+void UMaterialExpressionLandscapeLayerSample::SetEditableName(const FString& NewName)
+{
+	ParameterName = *NewName;
+}
+
 void UMaterialExpressionLandscapeLayerSample::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(FString::Printf(TEXT("Sample '%s'"), *ParameterName.ToString()));
+	OutCaptions.Add(TEXT("Landscape Layer Sample"));
+	OutCaptions.Add(FString::Printf(TEXT("'%s'"), *ParameterName.ToString()));
 }
 
 bool UMaterialExpressionLandscapeLayerSample::MatchesSearchQuery(const TCHAR* SearchQuery)

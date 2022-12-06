@@ -1245,7 +1245,7 @@ int32 UMaterialExpressionLandscapeGrassOutput::Compile(class FMaterialCompiler* 
 
 void UMaterialExpressionLandscapeGrassOutput::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("Grass"));
+	OutCaptions.Add(TEXT("Landscape Grass"));
 }
 
 const TArray<FExpressionInput*> UMaterialExpressionLandscapeGrassOutput::GetInputs()

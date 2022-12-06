@@ -86,9 +86,19 @@ UObject* UMaterialExpressionLandscapeLayerSwitch::GetReferencedTexture() const
 }
 
 #if WITH_EDITOR
+FString UMaterialExpressionLandscapeLayerSwitch::GetEditableName() const
+{
+	return ParameterName.ToString();
+}
+
+void UMaterialExpressionLandscapeLayerSwitch::SetEditableName(const FString& NewName)
+{
+	ParameterName = *NewName;
+}
+
 void UMaterialExpressionLandscapeLayerSwitch::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("Layer Switch"));
+	OutCaptions.Add(TEXT("Landscape Layer Switch"));
 	OutCaptions.Add(FString::Printf(TEXT("'%s'"), *ParameterName.ToString()));
 }
 

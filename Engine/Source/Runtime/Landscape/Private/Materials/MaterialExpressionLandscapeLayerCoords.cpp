@@ -85,7 +85,7 @@ int32 UMaterialExpressionLandscapeLayerCoords::Compile(class FMaterialCompiler* 
 
 void UMaterialExpressionLandscapeLayerCoords::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(FString(TEXT("LandscapeCoords")));
+	OutCaptions.Add(FString(TEXT("Landscape Coords")));
 }
 #endif // WITH_EDITOR
 
