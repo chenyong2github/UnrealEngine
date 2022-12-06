@@ -10,17 +10,14 @@
 #include "Dom/JsonObject.h"
 #include "HoloLensTargetPlatform.h"
 
-#pragma warning(push)
-#pragma warning(disable:4265 4459 6101)
-
 #include "Serialization/JsonSerializer.h"
 
 #include "Windows/WindowsHWrapper.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Windows/AllowWindowsPlatformAtomics.h"
 
+THIRD_PARTY_INCLUDES_START
 #define sealed final 
-
 #include <windows.h>
 #include <wrl/client.h>
 #include <wrl/event.h>
@@ -30,7 +27,7 @@
 #include <Windows.foundation.h>
 #include <Windows.foundation.collections.h>
 #undef sealed  
-#pragma warning(pop)
+THIRD_PARTY_INCLUDES_END
 
 #include <vector>
 #include <memory>

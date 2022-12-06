@@ -18,12 +18,10 @@
 #include "Serialization/JsonSerializer.h"
 #include "Misc/ScopeLock.h"
 
-#pragma warning(push)
-#pragma warning(disable:4265 4459)
-
+THIRD_PARTY_INCLUDES_START
 #include <wrl/client.h>
 #include <wrl/wrappers/corewrappers.h>
-#pragma warning(pop)
+THIRD_PARTY_INCLUDES_END
 
 #include <shlwapi.h>
 
