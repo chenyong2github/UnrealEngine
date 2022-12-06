@@ -133,6 +133,11 @@ void UMaterialGraphNode_Comment::PostPlacedNewNode()
 		NodeWidth = MaterialExpressionComment->SizeX;
 		NodeHeight = MaterialExpressionComment->SizeY;
 		CommentColor = MaterialExpressionComment->CommentColor;
+		bCommentBubbleVisible_InDetailsPanel = MaterialExpressionComment->bCommentBubbleVisible_InDetailsPanel;
+		bCommentBubbleVisible = MaterialExpressionComment->bCommentBubbleVisible_InDetailsPanel;
+		bCommentBubblePinned = MaterialExpressionComment->bCommentBubbleVisible_InDetailsPanel;
+		MoveMode = MaterialExpressionComment->bGroupMode ? ECommentBoxMode::GroupMovement : ECommentBoxMode::NoGroupMovement;
+		bColorCommentBubble = MaterialExpressionComment->bColorCommentBubble;
 	}
 }
 

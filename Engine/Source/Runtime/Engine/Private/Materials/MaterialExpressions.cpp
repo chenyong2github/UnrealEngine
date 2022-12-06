@@ -11636,6 +11636,10 @@ UMaterialExpressionComment::UMaterialExpressionComment(const FObjectInitializer&
 	: Super(ObjectInitializer)
 	, CommentColor(FLinearColor::White)
 	, FontSize(18)
+	, bCommentBubbleVisible_InDetailsPanel(false)
+	, bColorCommentBubble(false)
+	, bGroupMode(true)
+
 {
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
@@ -11684,6 +11688,33 @@ void UMaterialExpressionComment::PostEditChangeProperty(FPropertyChangedEvent& P
 			{
 				GraphNode->Modify();
 				CastChecked<UMaterialGraphNode_Comment>(GraphNode)->FontSize = FontSize;
+			}
+		}
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(UMaterialExpressionComment, bColorCommentBubble))
+		{
+			if (GraphNode)
+			{
+				GraphNode->Modify();
+				CastChecked<UMaterialGraphNode_Comment>(GraphNode)->bColorCommentBubble = bColorCommentBubble;
+			}
+		}
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(UMaterialExpressionComment, bCommentBubbleVisible_InDetailsPanel))
+		{
+			if (GraphNode)
+			{
+				GraphNode->Modify();
+				UMaterialGraphNode_Comment* CommentNode = CastChecked<UMaterialGraphNode_Comment>(GraphNode);
+				CommentNode->bCommentBubbleVisible_InDetailsPanel = bCommentBubbleVisible_InDetailsPanel;
+				CommentNode->bCommentBubbleVisible = bCommentBubbleVisible_InDetailsPanel;
+				CommentNode->bCommentBubblePinned = bCommentBubbleVisible_InDetailsPanel;
+			}
+		}
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(UMaterialExpressionComment, bGroupMode))
+		{
+			if (GraphNode)
+			{
+				GraphNode->Modify();
+				CastChecked<UMaterialGraphNode_Comment>(GraphNode)->MoveMode = bGroupMode ? ECommentBoxMode::GroupMovement : ECommentBoxMode::NoGroupMovement;
 			}
 		}
 

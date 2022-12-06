@@ -32,6 +32,18 @@ class UMaterialExpressionComment : public UMaterialExpression
 	UPROPERTY(EditAnywhere, Category=MaterialExpressionComment, meta=(ClampMin=1, ClampMax=1000))
 	int32 FontSize;
 
+	/** Whether to show a zoom-invariant comment bubble when zoomed out (making the comment readable at any distance). */
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionComment, meta=(DisplayName="Show Bubble When Zoomed"))
+	uint32 bCommentBubbleVisible_InDetailsPanel:1;
+
+	/** Whether to use Comment Color to color the background of the comment bubble shown when zoomed out. */
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionComment, meta=(DisplayName="Color Bubble", EditCondition=bCommentBubbleVisible_InDetailsPanel))
+	uint32 bColorCommentBubble:1;
+
+	/** Whether the comment should move any fully enclosed nodes around when it is moved */
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionComment)
+	bool bGroupMode;
+	
 	//~ Begin UObject Interface
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;

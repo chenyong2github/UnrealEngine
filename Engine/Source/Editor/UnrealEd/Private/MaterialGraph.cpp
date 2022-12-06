@@ -726,7 +726,10 @@ void UMaterialGraph::LinkMaterialExpressionsFromGraph()
 						|| Comment->Text != CommentNode->NodeComment
 						|| Comment->SizeX != CommentNode->NodeWidth
 						|| Comment->SizeY != CommentNode->NodeHeight
-						|| Comment->CommentColor != CommentNode->CommentColor)
+						|| Comment->CommentColor != CommentNode->CommentColor
+						|| Comment->bCommentBubbleVisible_InDetailsPanel != CommentNode->bCommentBubbleVisible_InDetailsPanel
+						|| Comment->bGroupMode != (CommentNode->MoveMode == ECommentBoxMode::GroupMovement)
+						|| Comment->bColorCommentBubble != CommentNode->bColorCommentBubble)
 					{
 						Comment->Modify();
 
@@ -737,6 +740,9 @@ void UMaterialGraph::LinkMaterialExpressionsFromGraph()
 						Comment->SizeX = CommentNode->NodeWidth;
 						Comment->SizeY = CommentNode->NodeHeight;
 						Comment->CommentColor = CommentNode->CommentColor;
+						Comment->bCommentBubbleVisible_InDetailsPanel = CommentNode->bCommentBubbleVisible_InDetailsPanel;
+						Comment->bGroupMode = (CommentNode->MoveMode == ECommentBoxMode::GroupMovement);
+						Comment->bColorCommentBubble = CommentNode->bColorCommentBubble;
 					}
 				}
 			}
