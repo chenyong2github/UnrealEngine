@@ -213,7 +213,8 @@ public:
 
 	FColor GetSkinCacheVisualizationDebugColor(const FName& GPUSkinCacheVisualizationMode, uint32 SectionIndex) const;
 
-	FName GetAssetPathName() const;
+	/** Helper function to return the asset path name, optionally joined with the LOD index if LODIndex > -1. */
+	FName GetAssetPathName(int32 LODIndex = -1) const;
 
 #if RHI_RAYTRACING
 	/** Retrieve ray tracing geometry from the underlying mesh object */

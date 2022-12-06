@@ -1553,8 +1553,7 @@ bool FGPUSkinCache::ProcessEntry(
 			}
 		}
 
-		const FName OwnerName(FString::Printf(TEXT("%s [LOD%d]"), *Skin->GetAssetPathName().ToString(), LODIndex));
-		FRWBuffersAllocation* NewPositionAllocation = TryAllocBuffer(TotalNumVertices, WithTangents, bEntryUseIntermediateTangents, InterAccumTangentBufferSize, RHICmdList, OwnerName);
+		FRWBuffersAllocation* NewPositionAllocation = TryAllocBuffer(TotalNumVertices, WithTangents, bEntryUseIntermediateTangents, InterAccumTangentBufferSize, RHICmdList, Skin->GetAssetPathName(LODIndex));
 		if (!NewPositionAllocation)
 		{
 			if (GSkinCachePrintMemorySummary > 0)

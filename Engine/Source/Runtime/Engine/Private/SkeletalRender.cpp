@@ -236,10 +236,17 @@ float FSkeletalMeshObject::GetScreenSize(int32 LODIndex) const
 	return 0.f;
 }
 
-FName FSkeletalMeshObject::GetAssetPathName() const
+FName FSkeletalMeshObject::GetAssetPathName(int32 LODIndex) const
 {
 #if RHI_ENABLE_RESOURCE_INFO
-	return AssetPathName;
+	if (LODIndex > -1)
+	{
+		return FName(FString::Printf(TEXT("%s [LOD%d]"), *AssetPathName.ToString(), LODIndex));
+	}
+	else
+	{
+		return AssetPathName;
+	}
 #else
 	return NAME_None;
 #endif
