@@ -16,7 +16,7 @@ namespace UE::LinkerLoad
 
 /// @brief Finds LoadBehavior meta data recursively
 /// @return Eager by default in not found
-static EImportBehavior FindLoadBehavior(const UClass& Class)
+EImportBehavior FindLoadBehavior(const UClass& Class)
 {
 	//Package class can't have meta data because of UHT
 	if (&Class == UPackage::StaticClass())
@@ -24,10 +24,10 @@ static EImportBehavior FindLoadBehavior(const UClass& Class)
 		return EImportBehavior::LazyOnDemand;
 	}
 
-	static const FName Name_LoadBehavior("LoadBehavior");
+	static const FName Name_LoadBehavior(TEXT("LoadBehavior"));
 	if (const FString* LoadBehaviorMeta = Class.FindMetaData(Name_LoadBehavior))
 	{
-		if (*LoadBehaviorMeta == "LazyOnDemand")
+		if (*LoadBehaviorMeta == TEXT("LazyOnDemand"))
 		{
 			return EImportBehavior::LazyOnDemand;
 		}

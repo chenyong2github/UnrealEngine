@@ -312,7 +312,9 @@ bool UObject::Rename( const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags
 				NewOuter->MarkPackageDirty();
 			}
 		}
-
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+		ObjectHandle_Private::UpdateRenamedObject(*this, NewName, NewOuter);
+#endif
 		LowLevelRename(NewName, NewOuter);
 	}
 

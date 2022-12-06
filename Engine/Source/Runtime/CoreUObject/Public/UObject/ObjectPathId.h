@@ -14,6 +14,15 @@
 class FLinkerTables;
 class UObject;
 struct FObjectImport;
+class FObjectPathId;
+struct FObjectRef;
+struct FPackedObjectRef;
+
+namespace ObjectHandle_Private
+{
+	void UpdateRenamedObject(const UObject& Obj, FName NewName, UObject* NewOuter);
+	static FObjectRef MakeObjectRef(FPackedObjectRef PackedObjectRef);
+}
 
 // Declared in the header so the type exists in debug info for debugger visualization, not a public part of the API.
 namespace UE::ObjectPath::Private
@@ -30,6 +39,7 @@ namespace UE::ObjectPath::Private
 		};
 
 		FStoredObjectPath(TConstArrayView<FMinimalName> InNames);
+		FStoredObjectPath(const FMinimalName* Parent, int32 NumParent, const FMinimalName* Child, int32 NumChild);
 		~FStoredObjectPath();
 		FStoredObjectPath(const FStoredObjectPath&) = delete;
 		FStoredObjectPath(FStoredObjectPath&&);
@@ -37,6 +47,7 @@ namespace UE::ObjectPath::Private
 		FStoredObjectPath& operator=(FStoredObjectPath&&);
 
 		TConstArrayView<FMinimalName> GetView() const;
+		const FMinimalName* GetData() const { return NumElements > NumInlineElements ? Long : &Short[0]; }
 	};
 }
 
@@ -63,20 +74,25 @@ public:
 	COREUOBJECT_API explicit FObjectPathId(const UObject* Object);
 	COREUOBJECT_API FObjectPathId(const FObjectImport& Import, const FLinkerTables& LinkerTables);
 
-	enum EInvalid {Invalid = 0};
-	explicit COREUOBJECT_API FObjectPathId(EInvalid): PathId(static_cast<uint64>(EPathId::FlagSimple))
+	enum EInvalid { Invalid = 0 };
+
+	explicit COREUOBJECT_API FObjectPathId(EInvalid)
+		: Index(0)
+		, Number(SimpleNameMask | WeakObjectMask)
 	{
 	}
-
+	
 	COREUOBJECT_API static FName MakeImportPathIdAndPackageName(const FObjectImport& Import, const FLinkerTables& LinkerTables, FObjectPathId& OutPathId);
 
 	explicit FObjectPathId(FWideStringView StringPath);
 	explicit FObjectPathId(FAnsiStringView StringPath);
 
 	FObjectPathId& operator=(const FObjectPathId& Other) = default;
-	inline bool operator==(const FObjectPathId& Other) const { return PathId == Other.PathId; }
-	inline bool IsNone() const { return PathId == static_cast<uint64>(EPathId::None); }
-	inline bool IsValid() const { return PathId != static_cast<uint64>(EPathId::FlagSimple); }
+	inline bool operator==(const FObjectPathId& Other) const { return Index == Other.Index && Number == Other.Number; }
+	inline bool IsNone() const { return Index == 0 && Number == 0; }
+	inline bool IsValid() const { return Number != (SimpleNameMask | WeakObjectMask); }
+	inline bool IsSimple() const { return IsValid() && Number & SimpleNameMask; }
+	inline bool IsWeakObj() const { return IsValid() && Number & WeakObjectMask; }
 
 	// @TODO: OBJPTR: Is there a better interface to output the resolved name without:
 	// 		 1) Requiring multiple lookups in the table in case of complex paths
@@ -86,16 +102,26 @@ public:
 	COREUOBJECT_API void Resolve(ResolvedNameContainerType& OutContainer) const;
 
 private:
-	enum class EPathId : uint64
-	{
-		None = 0,
-		FlagSimple = 0x01,
-	};
 
-	uint64 PathId = static_cast<uint64>(EPathId::None);
+	FMinimalName GetSimpleName() const;
+	void MakeWeakObjPtr(const UObject& Object);
+	const UE::ObjectPath::Private::FStoredObjectPath& GetStoredPath() const;
+	FWeakObjectPtr GetWeakObjPtr() const;
+
+	template <typename NameProducerType>
+	void StoreObjectPathId(NameProducerType& NameProducer);
+
+	friend void ObjectHandle_Private::UpdateRenamedObject(const UObject& Obj, FName NewName, UObject* NewOuter);
+	friend FObjectRef ObjectHandle_Private::MakeObjectRef(FPackedObjectRef PackedObjectRef);
+	
+	static constexpr uint32 WeakObjectMask = ~((~0u) >> 1);       //most significant bit
+	static constexpr uint32 SimpleNameMask = WeakObjectMask >> 1; //second most significant bits
+
+	uint32 Index = 0;
+	uint32 Number = 0;
 
 	friend FORCEINLINE uint32 GetTypeHash(FObjectPathId Value)
 	{
-		return GetTypeHash(Value.PathId);
+		return HashCombineFast(GetTypeHash(Value.Index), GetTypeHash(Value.Number));
 	}
 };

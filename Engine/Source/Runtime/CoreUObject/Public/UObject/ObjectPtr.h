@@ -216,7 +216,6 @@ public:
 private:
 	friend FORCEINLINE uint32 GetTypeHash(const FObjectPtr& Object)
 	{
-		Object.Get();
 		return GetTypeHash(Object.Handle);
 	}
 
