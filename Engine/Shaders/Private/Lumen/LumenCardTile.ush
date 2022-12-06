@@ -113,8 +113,8 @@ uint2 PackLightTileForLightPass(FLightTileForLightPass Tile)
 	return PackedTile;
 }
 
-float4x4 WorldToClip[2];
-float4 PreViewTranslation[2];
+float4x4 WorldToClip[2]; // LUMEN_LWC_TODO
+float4 PreViewTranslation[2]; // LUMEN_LWC_TODO
 
 uint GetCardViewIndex(FLumenCardPageData CardPage, FLumenCardData Card, float2 UVMin, float2 UVMax, uint NumViews, bool bPrioritizeWhenInFrustum)
 {
@@ -129,8 +129,8 @@ uint GetCardViewIndex(FLumenCardPageData CardPage, FLumenCardData Card, float2 U
 	
 	if (NumViews > 1)
 	{
-		float View0Distance = length(CardPageWorldCenter - -PreViewTranslation[0].xyz);
-		float View1Distance = length(CardPageWorldCenter - -PreViewTranslation[1].xyz);
+		float View0Distance = length(CardPageWorldCenter + PreViewTranslation[0].xyz);
+		float View1Distance = length(CardPageWorldCenter + PreViewTranslation[1].xyz);
 
 #define IN_FRUSTUM_DISTANCE 1
 #if IN_FRUSTUM_DISTANCE

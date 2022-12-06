@@ -150,12 +150,11 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 				#if !ENABLE_HEIGHTFIELD_PROJECTION_BIAS
 				if (Card.bHeightfield)
 				{
-					float3 WorldCameraOrigin = LWCHackToFloat(PrimaryView.WorldCameraOrigin);
-					ReceiverBias = CalculateDistanceBasedHeightfieldBias(HeightfieldShadowReceiverBias, WorldPosition, WorldCameraOrigin);
+					ReceiverBias = CalculateDistanceBasedHeightfieldBias(HeightfieldShadowReceiverBias, TranslatedWorldPosition, PrimaryView.TranslatedWorldCameraOrigin);
 				}
 				#endif
 
-				Ray.Origin = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, HardwareRayTracingShadowRayBias + ReceiverBias) + LWCHackToFloat(PrimaryView.PreViewTranslation); // LUMEN_LWC_TODO
+				Ray.Origin = GetCardWorldPositionForShadowing(TranslatedWorldPosition, L, WorldNormal, HardwareRayTracingShadowRayBias + ReceiverBias);
 				Ray.Direction = L;
 #endif
 

@@ -138,12 +138,11 @@ void LumenSceneDirectLightingNonRayTracedShadowsCS(
 			ShadowMaskRay.bShadowFactorComplete = false;
 			bool bVSMValid = false;
 
-			const float4 PostProjectionPosition = mul(float4(WorldPosition, 1.0), LWCHackToFloat(PrimaryView.WorldToClip));
+			const float4 PostProjectionPosition = mul(float4(TranslatedWorldPosition, 1.0), PrimaryView.TranslatedWorldToClip);
 			float ReceiverBias = 0.0f;
 			if (Card.bHeightfield)
 			{
-				float3 WorldCameraOrigin = LWCHackToFloat(PrimaryView.WorldCameraOrigin);
-				ReceiverBias = CalculateDistanceBasedHeightfieldBias(HeightfieldShadowReceiverBias, WorldPosition, WorldCameraOrigin);
+				ReceiverBias = CalculateDistanceBasedHeightfieldBias(HeightfieldShadowReceiverBias, TranslatedWorldPosition, PrimaryView.TranslatedWorldCameraOrigin);
 			}
 
 			// Shadow maps are culled so only query points inside the view frustum are valid

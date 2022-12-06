@@ -29,13 +29,13 @@ FDeferredLightData GetLumenDirectLightingLightData(uint LightIndex, float3 PreVi
 float3 GetIrradianceForLight(
 	uint LightIndex,
 	FLumenSurfaceCacheData SurfaceCacheData,
-	float3 PreViewTranslation,
+	float3 PreViewTranslation, // LUMEN_LWC_TODO
 	float ShadowFactor)
 {
 	FDeferredLightData LightData = GetLumenDirectLightingLightData(LightIndex, PreViewTranslation);
 
 	float3 WorldNormal = SurfaceCacheData.WorldNormal;
-	float3 WorldPosition = SurfaceCacheData.WorldPosition;
+	float3 WorldPosition = SurfaceCacheData.WorldPosition; // LUMEN_LWC_TODO
 	float3 TranslatedWorldPosition = WorldPosition + PreViewTranslation;
 
 	float3 LightColor = LightData.Color;

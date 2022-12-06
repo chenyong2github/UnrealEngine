@@ -389,12 +389,6 @@ void SetCardPageIndexIndirectArgsCS(uint3 DispatchThreadId : SV_DispatchThreadID
 RWStructuredBuffer<uint> RWQuadAllocator;
 RWStructuredBuffer<uint> RWQuadData;
 
-void GetCardAABB(FLumenCardData LumenCardData, out float3 WorldCardCenter, out float3 WorldCardExtent)
-{
-	WorldCardCenter = LumenCardData.Origin;
-	WorldCardExtent = mul(abs(LumenCardData.WorldToLocalRotation), LumenCardData.LocalExtent);
-}
-
 StructuredBuffer<uint> CardPageIndexAllocator;
 StructuredBuffer<uint> CardPageIndexData;
 
