@@ -198,6 +198,12 @@ namespace ClothCollectionOutlinerHelpers
 		case FManagedArrayCollection::EArrayType::FInt32Type:
 			ValueAsString = AttributeValueToString<int32>(ClothCollection, AttributeName, GroupName, AttributeArrayIndex);
 			break;
+		case FManagedArrayCollection::EArrayType::FInt32ArrayType:
+			ValueAsString = AttributeValueToString<TArray<int32>>(ClothCollection, AttributeName, GroupName, AttributeArrayIndex);
+			break;
+		case FManagedArrayCollection::EArrayType::FFloatArrayType:
+			ValueAsString = AttributeValueToString<TArray<float>>(ClothCollection, AttributeName, GroupName, AttributeArrayIndex);
+			break;
 		default:
 			ensure(false);
 			ValueAsString = "(Unknown Data Type)";
