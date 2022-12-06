@@ -12,12 +12,17 @@
 #include "Components/ExternalMorphSet.h"
 #include "MLDeformerComponent.h"
 #include "MLDeformerEditorToolkit.h"
+#include "MLDeformerAsset.h"
 #include "NeuralNetwork.h"
 #include "GeometryCache.h"
 #include "GeometryCacheComponent.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Animation/MorphTarget.h"
 #include "Animation/AnimSequence.h"
+#include "PackageTools.h"
+#include "ObjectTools.h"
+#include "UObject/SavePackage.h"
+
 
 #define LOCTEXT_NAMESPACE "NearestNeighborEditorModel"
 
@@ -393,8 +398,63 @@ namespace UE::NearestNeighborModel
 		return EUpdateResult::ERROR;
 	}
 
+	// write a function to return an animation sequence and a boolean
+
+	template<typename T>
+	T* CreateObjectInstance(const FString& PackageName)
+	{
+		// Parent package to place new mesh
+		UPackage* Package = nullptr;
+		FString NewPackageName = PackageName;
+		const FString ObjectName = FPaths::GetBaseFilename(PackageName);
+
+		// Setup package name and create one accordingly
+		NewPackageName = UPackageTools::SanitizePackageName(NewPackageName);
+		Package = CreatePackage(*NewPackageName);
+
+		const FString SanitizedObjectName = ObjectTools::SanitizeObjectName(ObjectName);
+
+		T* ExistingTypedObject = FindObject<T>(Package, *SanitizedObjectName);
+		UObject* ExistingObject = FindObject<UObject>(Package, *SanitizedObjectName);
+
+		if (ExistingTypedObject != nullptr)
+		{
+			ExistingTypedObject->PreEditChange(nullptr);
+		}
+		else if (ExistingObject != nullptr)
+		{
+			// Replacing an object.  Here we go!
+			// Delete the existing object
+			const bool bDeleteSucceeded = ObjectTools::DeleteSingleObject(ExistingObject);
+
+			if (bDeleteSucceeded)
+			{
+				// Force GC so we can cleanly create a new asset (and not do an 'in place' replacement)
+				CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
+
+				// Create a package for each mesh
+				Package = CreatePackage(*NewPackageName);
+			}
+			else
+			{
+				// failed to delete
+				UE_LOG(LogNearestNeighborModel, Error, TEXT("Failed to delete existing object %s"), *SanitizedObjectName);
+				return nullptr;
+			}
+		}
+
+		if (Package == nullptr)
+		{
+			UE_LOG(LogNearestNeighborModel, Error, TEXT("Failed to create package %s"), *NewPackageName);
+			return nullptr;
+		}
+
+		return NewObject<T>(Package, FName(*SanitizedObjectName),  RF_Public | RF_Standalone);
+	}
+
 	void FNearestNeighborEditorModel::KMeansClusterPoses()
 	{
+		KMeansClusterResult = EUpdateResult::SUCCESS;
 		UNearestNeighborModel *NearestNeighborModel = static_cast<UNearestNeighborModel*>(Model);
 		check(NearestNeighborModel != nullptr);
 
@@ -402,22 +462,149 @@ namespace UE::NearestNeighborModel
 		if(NeuralNetwork && NeuralNetwork->IsLoaded())
 		{
 			const FString SavePath = GetTrainedNetworkOnnxFile();
-			if (!FPaths::FileExists(SavePath) || !NearestNeighborModel->GetUseFileCache())
+			if (FPaths::DirectoryExists(FPaths::GetPath(SavePath)))
 			{
 				UE_LOG(LogNearestNeighborModel, Display, TEXT("Saving to %s"), *SavePath);
 				NeuralNetwork->Save(SavePath);
+			}
+			else
+			{
+				UE_LOG(LogNearestNeighborModel, Error, TEXT("Path %s does not exist."), *FPaths::GetPath(SavePath));
+				KMeansClusterResult |= EUpdateResult::ERROR;
+				return;
 			}
 		}
 		else
 		{
 			UE_LOG(LogNearestNeighborModel, Warning, TEXT("Network is not available. Nothing will be done."));
+			KMeansClusterResult |= EUpdateResult::WARNING;
 			return;
+		}
+		if (NearestNeighborModel->KMeansPartId >= NearestNeighborModel->GetNumParts())
+		{
+			UE_LOG(LogNearestNeighborModel, Error, TEXT("KMeansPartId %d is out of range [0, %d). Nothing will be done."), NearestNeighborModel->KMeansPartId, NearestNeighborModel->GetNumParts());
+			KMeansClusterResult |= EUpdateResult::ERROR;
+			return;
+		}
+		if (NearestNeighborModel->SourceAnims.Num() == 0)
+		{
+			UE_LOG(LogNearestNeighborModel, Error, TEXT("No source anims found."));
+			KMeansClusterResult |= EUpdateResult::ERROR;
+			return;
+		}
+		for (int32 i = 0; i < NearestNeighborModel->SourceAnims.Num(); i++)
+		{
+			if (NearestNeighborModel->SourceAnims[i] == nullptr)
+			{
+				UE_LOG(LogNearestNeighborModel, Error, TEXT("Source anim %d is null."), i);
+				KMeansClusterResult |= EUpdateResult::ERROR;
+				return;
+			}
 		}
 
 		UNearestNeighborTrainingModel *TrainingModel = InitTrainingModel<UNearestNeighborTrainingModel>(this);
 		check(TrainingModel != nullptr);
-		TrainingModel->KmeansClusterPoses();
+		KMeansClusterResult |= TrainingModel->KmeansClusterPoses(NearestNeighborModel->KMeansPartId);
+		if (HasError(KMeansClusterResult))
+		{
+			return;
+		}
 		ResetSamplerData();
+		TArray<int32> KmeansResults = TrainingModel->KmeansResults;
+
+		const FString PackageName = GetTestMLDeformerComponent()->GetDeformerAsset()->GetPackage()->GetName();
+		const FString DirName = FPackageName::GetLongPackagePath(PackageName);
+		const FString FileName = FPaths::GetBaseFilename(PackageName);
+		const FString SavePath = FString::Printf(TEXT("%s/%s_PartId_%d"), *DirName, *FileName, NearestNeighborModel->KMeansPartId);
+
+		TPair<UAnimSequence*, uint8> AnimAndFlag = CreateAnimOfClusterCenters(SavePath, KmeansResults);
+		UAnimSequence* Anim = AnimAndFlag.Get<0>();
+		KMeansClusterResult |= AnimAndFlag.Get<1>();
+		if (HasError(KMeansClusterResult))
+		{
+			return;
+		}
+
+		UPackage* Package = Anim->GetPackage();
+		const bool bSaveSucced = UPackage::SavePackage(Package, Anim, *SavePath, FSavePackageArgs());
+
+		KmeansResults.Reset();
+	}
+
+	TPair<UAnimSequence*, uint8> FNearestNeighborEditorModel::CreateAnimOfClusterCenters(const FString& PackageName, const TArray<int32>& KmeansResults)
+	{
+		uint8 ReturnCode = EUpdateResult::SUCCESS;
+		UNearestNeighborModel *NearestNeighborModel = static_cast<UNearestNeighborModel*>(Model);
+
+		if (KmeansResults.Num() != NearestNeighborModel->NumClusters * 2)
+		{
+			UE_LOG(LogNearestNeighborModel, Error, TEXT("KmeansClusterPoses returned %d clusters whereas %d are expected."), KmeansResults.Num() / 2, NearestNeighborModel->NumClusters);
+			return TTuple<UAnimSequence*, uint8>(nullptr, EUpdateResult::ERROR);
+		}
+
+		const UAnimSequence* DefaultAnim = NearestNeighborModel->SourceAnims[0];
+
+		UAnimSequence* Anim = CreateObjectInstance<UAnimSequence>(PackageName);
+		if (Anim == nullptr)
+		{
+			return TTuple<UAnimSequence*, uint8>(nullptr, EUpdateResult::ERROR);
+		}
+
+		Anim->SetSkeleton(DefaultAnim->GetSkeleton());
+		IAnimationDataController& Controller = Anim->GetController();
+		Controller.OpenBracket(LOCTEXT("CreateNewAnim_Bracket", "Create New Anim"));
+		Controller.InitializeModel();
+		Anim->ResetAnimation();
+		Anim->SetPreviewMesh(NearestNeighborModel->GetSkeletalMesh());
+		const IAnimationDataModel* AnimData = Anim->GetDataModel();
+		const int32 NumKeys = NearestNeighborModel->NumClusters;
+		Controller.SetNumberOfFrames(NumKeys - 1);
+		Controller.SetFrameRate(FFrameRate(30, 1));
+
+		const TArray<FBoneAnimationTrack>& DefaultTracks = DefaultAnim->GetDataModel()->GetBoneAnimationTracks();
+		const int32 NumTracks = DefaultTracks.Num();
+		for (int32 TrackIndex = 0; TrackIndex < NumTracks; TrackIndex++)
+		{
+			const FName TrackName = DefaultTracks[TrackIndex].Name;
+			TArray<FVector3f> PosKeys;
+			TArray<FQuat4f> RotKeys;
+			TArray<FVector3f> ScaleKeys;
+			PosKeys.SetNum(NumKeys);
+			RotKeys.SetNum(NumKeys);
+			ScaleKeys.SetNum(NumKeys);
+			for (int32 KeyIndex = 0; KeyIndex < NumKeys; KeyIndex++)
+			{
+				const int32 PickedAnimId = KmeansResults[KeyIndex * 2];
+				const int32 PickedFrame = KmeansResults[KeyIndex * 2 + 1];
+				if (PickedAnimId < 0 || PickedAnimId >= NearestNeighborModel->SourceAnims.Num())
+				{
+					UE_LOG(LogNearestNeighborModel, Error, TEXT("CreateAnimOfClusterCenters: PickedAnimId %d is out of range."), PickedAnimId);
+					return TTuple<UAnimSequence*, uint8>(nullptr, EUpdateResult::ERROR);
+				}
+
+				const UAnimSequence* PickedAnim = NearestNeighborModel->SourceAnims[PickedAnimId];
+				if (PickedAnim == nullptr)
+				{
+					UE_LOG(LogNearestNeighborModel, Error, TEXT("CreateAnimOfClusterCenters: PickedAnim %d is null."), PickedAnimId);
+					return TTuple<UAnimSequence*, uint8>(nullptr, EUpdateResult::ERROR);
+				}
+				const FBoneAnimationTrack& Track = PickedAnim->GetDataModel()->GetBoneTrackByName(TrackName);
+				const FRawAnimSequenceTrack& RawTrack = Track.InternalTrackData;
+				if (PickedFrame < 0 || PickedFrame >= RawTrack.PosKeys.Num())
+				{
+					UE_LOG(LogNearestNeighborModel, Error, TEXT("CreateAnimOfClusterCenters: PickedFrame %d is out of range[0, %d)."), PickedFrame, RawTrack.PosKeys.Num());
+					return TTuple<UAnimSequence*, uint8>(nullptr, EUpdateResult::ERROR);
+				}
+				PosKeys[KeyIndex] = RawTrack.PosKeys[PickedFrame];
+				RotKeys[KeyIndex] = RawTrack.RotKeys[PickedFrame];
+				ScaleKeys[KeyIndex] = RawTrack.ScaleKeys[PickedFrame];
+			}
+			Controller.AddBoneTrack(TrackName);
+			Controller.SetBoneTrackKeys(TrackName, PosKeys, RotKeys, ScaleKeys);
+		}
+		Controller.NotifyPopulated();
+		Controller.CloseBracket();
+		return MakeTuple(Anim, ReturnCode);
 	}
 
 	void FNearestNeighborEditorModel::AddFloatArrayToDeltaArray(const TArray<float>& FloatArr, const TArray<uint32>& VertexMap, TArray<FVector3f>& DeltaArr, int32 DeltaArrayOffset, float ScaleFactor)

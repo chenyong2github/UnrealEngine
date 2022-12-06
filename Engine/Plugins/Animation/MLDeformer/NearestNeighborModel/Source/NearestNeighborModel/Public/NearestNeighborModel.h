@@ -372,8 +372,19 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "File Cache")
 	bool bRecomputePCA = true;
 #endif
-
+	
 public:
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "KMeans Pose Generator")
+	TArray<TObjectPtr<UAnimSequence>> SourceAnims;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "KMeans Pose Generator", meta = (ClampMin = "1"))
+	int32 NumClusters;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "KMeans Pose Generator")
+	int32 KMeansPartId = 0;
+#endif
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debugging")
 	bool bUseInputMultipliers = false;
 
@@ -388,12 +399,6 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, Category = "Network IO")
 	TArray<float> InputsMax;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "KMeans Pose Generator")
-	TArray<TObjectPtr<UAnimSequence>> SourceSkeletons;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "KMeans Pose Generator", meta = (ClampMin = "1"))
-	int32 NumClusters;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nearest Neighbors", META = (ClampMin = "0", ClampMax = "1"))
 	float DecayFactor = 0.85f;

@@ -47,13 +47,13 @@ public:
 	int32 GetPartNumNeighbors(const int32 PartId) const;
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "Python")
-	void KmeansClusterPoses() const;
+	int32 KmeansClusterPoses(const int32 PartId) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Python")
-	void SampleKmeansAnim(const int32 SkeletonId);
+	bool SampleKmeansAnim(const int32 SkeletonId);
 
 	UFUNCTION(BlueprintCallable, Category = "Python")
-	void SampleKmeansFrame(const int32 Frame);
+	bool SampleKmeansFrame(const int32 Frame);
 
 	UFUNCTION(BlueprintPure, Category = "Python")
 	int32 GetKmeansNumAnims() const;
@@ -68,6 +68,9 @@ public:
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Training Data")
 	TArray<float> PartSampleDeltas;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Training Data")
+	TArray<int32> KmeansResults;
 
 	UNearestNeighborModel* NearestNeighborModel = nullptr;
 };

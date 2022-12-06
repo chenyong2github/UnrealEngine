@@ -193,7 +193,7 @@ namespace UE::NearestNeighborModel
 
 		BuildSubMeshNames();
 		TSharedRef<IPropertyHandle> ClothPartDataPropertyHandle = DetailBuilder.GetProperty(UNearestNeighborModel::GetClothPartEditorDataPropertyName());
-		if (ClothPartDataPropertyHandle->AsArray().IsValid())
+		if (ClothPartDataPropertyHandle->AsArray().IsValid() && !SubMeshNames.IsEmpty())
 		{
 			TSharedRef<FDetailArrayBuilder> PropertyBuilder = MakeShared<FDetailArrayBuilder>(ClothPartDataPropertyHandle, true, false, true);
 			PropertyBuilder->OnGenerateArrayElementWidget(FOnGenerateArrayElementWidget::CreateSP(this, &FNearestNeighborModelDetails::GenerateClothPartElementWidget));
@@ -206,8 +206,9 @@ namespace UE::NearestNeighborModel
 		NearestNeighborCategoryBuilder->AddProperty(UNearestNeighborModel::GetUsePartOnlyMeshPropertyName());
 		NearestNeighborCategoryBuilder->AddProperty(UNearestNeighborModel::GetNearestNeighborDataPropertyName());
 
-		KMeansCategoryBuilder->AddProperty(GET_MEMBER_NAME_STRING_CHECKED(UNearestNeighborModel, SourceSkeletons));
+		KMeansCategoryBuilder->AddProperty(GET_MEMBER_NAME_STRING_CHECKED(UNearestNeighborModel, SourceAnims));
 		KMeansCategoryBuilder->AddProperty(GET_MEMBER_NAME_STRING_CHECKED(UNearestNeighborModel, NumClusters));
+		KMeansCategoryBuilder->AddProperty(GET_MEMBER_NAME_STRING_CHECKED(UNearestNeighborModel, KMeansPartId));
 		KMeansCategoryBuilder->AddCustomRow(FText::FromString(""))
 			.WholeRowContent()
 			[
@@ -217,6 +218,11 @@ namespace UE::NearestNeighborModel
 				.OnClicked_Lambda([this]
 				{
 					NearestNeighborEditorModel->KMeansClusterPoses();
+					EditorModel->GetEditor()->GetModelDetailsView()->ForceRefresh();
+					if (NearestNeighborEditorModel->GetKMeansClusterResult() == EUpdateResult::SUCCESS)
+					{
+						UE_LOG(LogNearestNeighborModel, Display, TEXT("Cluster succeeded."));
+					}
 					return FReply::Handled();
 				})
 			];
@@ -235,13 +241,18 @@ namespace UE::NearestNeighborModel
 				{
 					NearestNeighborEditorModel->OnMorphTargetUpdate();
 					EditorModel->GetEditor()->GetModelDetailsView()->ForceRefresh();
+					if (NearestNeighborEditorModel->GetMorphTargetUpdateResult() == EUpdateResult::SUCCESS)
+					{
+						UE_LOG(LogNearestNeighborModel, Display, TEXT("Update succeeded."));
+					}
 					return FReply::Handled();
 				})
 			];
-		AddUpdateResultText(MorphTargetCategoryBuilder, NearestNeighborEditorModel->GetMorphTargetUpdateResult());
+		AddActionResultText(MorphTargetCategoryBuilder, NearestNeighborEditorModel->GetMorphTargetUpdateResult(), TEXT("Update"));
+		AddActionResultText(KMeansCategoryBuilder, NearestNeighborEditorModel->GetKMeansClusterResult(), TEXT("KMeans"));
 	}
 
-	void FNearestNeighborModelDetails::AddUpdateResultText(IDetailCategoryBuilder* CategoryBuilder, uint8 Result)
+	void FNearestNeighborModelDetails::AddActionResultText(IDetailCategoryBuilder* CategoryBuilder, uint8 Result, const FString& ActionName)
 	{
 		CategoryBuilder->AddCustomRow(FText::FromString("UpdateResultError"))
 			.Visibility((Result & EUpdateResult::ERROR) != 0 ? EVisibility::Visible : EVisibility::Collapsed)
@@ -252,7 +263,7 @@ namespace UE::NearestNeighborModel
 				[
 					SNew(SWarningOrErrorBox)
 					.MessageStyle(EMessageStyle::Error)
-					.Message(FText::FromString(TEXT("Update failed with errors. Please check Output Log (LogNearestNeighborModel, LogPython) for details.")))
+					.Message(FText::FromString(ActionName + TEXT(" failed with errors. Please check Output Log (LogNearestNeighborModel, LogPython) for details.")))
 				]
 			];
 		CategoryBuilder->AddCustomRow(FText::FromString("UpdateResultWarning"))
@@ -264,13 +275,9 @@ namespace UE::NearestNeighborModel
 				[
 					SNew(SWarningOrErrorBox)
 					.MessageStyle(EMessageStyle::Warning)
-					.Message(FText::FromString(TEXT("Update finished with warnings. Please check Output Log (LogNearestNeighborModel, LogPython) for details.")))
+					.Message(FText::FromString(ActionName + TEXT(" finished with warnings. Please check Output Log (LogNearestNeighborModel, LogPython) for details.")))
 				]
 			];
-		if (Result == EUpdateResult::SUCCESS)
-		{
-			UE_LOG(LogNearestNeighborModel, Display, TEXT("Update succeeded."));
-		}
 	}
 
 	void FNearestNeighborModelDetails::BuildSubMeshNames()

@@ -8,6 +8,7 @@
 class UNearestNeighborModel;
 class IPropertyHandle;
 class IDetailChildrenBuilder;
+class FDetailWidgetRow;
 
 namespace UE::NearestNeighborModel
 {
@@ -27,7 +28,7 @@ namespace UE::NearestNeighborModel
 		virtual void CreateCategories() override;
 
 		virtual bool UpdateMemberPointers(const TArray<TWeakObjectPtr<UObject>>& Objects) override;
-		virtual void AddUpdateResultText(IDetailCategoryBuilder* CategoryBuilder, uint8 Result);
+		virtual void AddActionResultText(IDetailCategoryBuilder* CategoryBuilder, uint8 Result, const FString& ActionName);
 
 		void GenerateClothPartElementWidget(TSharedRef<IPropertyHandle> PropertyHandle, int32 ArrayIndex, IDetailChildrenBuilder& ChildrenBuilder);
 
