@@ -118,6 +118,17 @@ public:
 		return Image[LinearIndex];
 	}
 
+	TArrayView64<PixelType> GetImageBuffer()
+	{
+		TArray64<PixelType>& Buffer = Image.GridValues();
+		return TArrayView64<PixelType>(Buffer.GetData(), Buffer.Num());
+	}
+
+	TConstArrayView64<PixelType> GetImageBuffer() const
+	{
+		const TArray64<PixelType>& Buffer = Image.GridValues();
+		return TConstArrayView64<PixelType>(Buffer.GetData(), Buffer.Num());
+	}
 
 	/**
 	 * Set the Pixel at the given X/Y coordinates to the given PixelType

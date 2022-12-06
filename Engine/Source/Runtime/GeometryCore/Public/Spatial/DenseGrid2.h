@@ -129,6 +129,10 @@ public:
 		return Buffer[X + DimensionX * Y];
 	}
 
+	TArray64<ElemType>& GridValues()
+	{
+		return Buffer;
+	}
 	const TArray64<ElemType>& GridValues() const
 	{
 		return Buffer;

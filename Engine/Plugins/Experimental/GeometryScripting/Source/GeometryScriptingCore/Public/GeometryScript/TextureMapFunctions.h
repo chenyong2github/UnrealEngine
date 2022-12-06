@@ -57,5 +57,18 @@ public:
 		FGeometryScriptColorList& ColorList,
 		UGeometryScriptDebug* Debug = nullptr);
 
+	/**
+	 * Sample the the given TextureMap at the list of UV positions and return the color at each position in ColorList output.
+	 * This function fetches GPU data before sampling so, depending on your application, it can be inefficient and slow!
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|TextureUtils")
+	static void 
+	SampleTextureRenderTarget2DAtUVPositions(  
+		FGeometryScriptUVList UVList, 
+		UTextureRenderTarget2D* Texture,
+		FGeometryScriptSampleTextureOptions SampleOptions,
+		FGeometryScriptColorList& ColorList,
+		UGeometryScriptDebug* Debug = nullptr);
+
 
 };
