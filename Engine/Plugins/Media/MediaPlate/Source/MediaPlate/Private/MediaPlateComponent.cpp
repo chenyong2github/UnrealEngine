@@ -231,7 +231,7 @@ void UMediaPlateComponent::Open()
 			{
 				MediaSource = MediaPlaylist->Get(0);
 			}
-			bIsPlaying = PlayMediaSource(MediaSource);
+			bIsPlaying = PlayMediaSource(MediaSource, bPlayOnOpen);
 		}
 
 		// Did anything play?
@@ -262,7 +262,7 @@ bool UMediaPlateComponent::Next()
 			UMediaSource* NextSource = MediaPlaylist->GetNext(PlaylistIndex);
 			if (NextSource != nullptr)
 			{
-				bIsSuccessful = PlayMediaSource(NextSource);
+				bIsSuccessful = PlayMediaSource(NextSource, true);
 			}
 		}
 	}
@@ -301,7 +301,7 @@ bool UMediaPlateComponent::Previous()
 			UMediaSource* NextSource = MediaPlaylist->GetPrevious(PlaylistIndex);
 			if (NextSource != nullptr)
 			{
-				bIsSuccessful = PlayMediaSource(NextSource);
+				bIsSuccessful = PlayMediaSource(NextSource, true);
 			}
 		}
 	}
@@ -423,7 +423,7 @@ void UMediaPlateComponent::UnregisterWithMediaTextureTracker()
 	}
 }
 
-bool UMediaPlateComponent::PlayMediaSource(UMediaSource* InMediaSource)
+bool UMediaPlateComponent::PlayMediaSource(UMediaSource* InMediaSource, bool bInPlayOnOpen)
 {
 	bool bIsPlaying = false;
 
@@ -440,7 +440,7 @@ bool UMediaPlateComponent::PlayMediaSource(UMediaSource* InMediaSource)
 			// Play the source.
 			FMediaPlayerOptions Options;
 			Options.SeekTime = FTimespan::FromSeconds(StartTime);
-			Options.PlayOnOpen = bPlayOnOpen ? EMediaPlayerOptionBooleanOverride::Enabled :
+			Options.PlayOnOpen = bInPlayOnOpen ? EMediaPlayerOptionBooleanOverride::Enabled :
 				EMediaPlayerOptionBooleanOverride::Disabled;
 			Options.Loop = (bLoop && (bIsPlaylist == false)) ?
 				EMediaPlayerOptionBooleanOverride::Enabled : EMediaPlayerOptionBooleanOverride::Disabled;

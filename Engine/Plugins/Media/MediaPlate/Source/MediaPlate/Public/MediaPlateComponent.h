@@ -327,9 +327,10 @@ private:
 	 * Plays a media source.
 	 * 
 	 * @param	InMediaSource		Media source to play.
+	 * @param	bInPlayOnOpen		True to play, false to just open.
 	 * @return	True if we played anything.
 	 */
-	bool PlayMediaSource(UMediaSource* InMediaSource);
+	bool PlayMediaSource(UMediaSource* InMediaSource, bool bInPlayOnOpen);
 
 	/**
 	 * If the player is currently active, then this will set the aspect ratio
