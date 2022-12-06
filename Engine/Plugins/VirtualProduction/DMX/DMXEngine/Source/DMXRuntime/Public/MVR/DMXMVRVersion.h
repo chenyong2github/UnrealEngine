@@ -10,7 +10,7 @@ struct DMXRUNTIME_API FDMXMVRVersion
 {
 	static const int32 MajorVersion = 1;
 
-	static const int32 MinorVersion = 4;
+	static const int32 MinorVersion = 5;
 
 	static const FString GetMajorVersionAsString();
 	static const FString GetMinorVersionAsString();

@@ -27,11 +27,20 @@ FDMXPortReferenceCustomizationBase::FDMXPortReferenceCustomizationBase()
 
 void FDMXPortReferenceCustomizationBase::CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
-	HeaderRow
-	.NameContent()
-	[
-		StructPropertyHandle->CreatePropertyNameWidget()
-	];
+	constexpr TCHAR ShowOnlyInnerPropertiesMetaDataSpecifier[] = TEXT("ShowOnlyInnerProperties");
+	bool bShowHeader = !StructPropertyHandle->HasMetaData(ShowOnlyInnerPropertiesMetaDataSpecifier);
+	if (bShowHeader)
+	{
+		HeaderRow
+			.NameContent()
+			[
+				StructPropertyHandle->CreatePropertyNameWidget()
+			]
+			.ValueContent()
+			[
+				StructPropertyHandle->CreatePropertyValueWidget()
+			];
+	}
 }
 
 void FDMXPortReferenceCustomizationBase::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)

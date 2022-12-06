@@ -36,7 +36,7 @@ public:
 	 * Does not merge, clears previous entries. 
 	 * Returns false if not a valid MVR General Scene Description Xml 
 	 */
-	bool InitializeFromGeneralSceneDescriptionXml(const TSharedRef<FXmlFile>& GeneralSceneDescriptionXml);
+	UE_NODISCARD bool InitializeFromGeneralSceneDescriptionXml(const TSharedRef<FXmlFile>& GeneralSceneDescriptionXml);
 
 	/** Creates a DMX Xml Node as per MVR standard, returns nullptr if the Xml File cannot be created. */
 	TSharedPtr<FXmlFile> CreateXmlFile();

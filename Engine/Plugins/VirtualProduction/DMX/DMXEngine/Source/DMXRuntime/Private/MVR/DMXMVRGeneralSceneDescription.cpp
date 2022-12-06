@@ -59,9 +59,12 @@ UDMXMVRFixtureNode* UDMXMVRGeneralSceneDescription::FindFixtureNode(const FGuid&
 UDMXMVRGeneralSceneDescription* UDMXMVRGeneralSceneDescription::CreateFromXmlFile(TSharedRef<FXmlFile> GeneralSceneDescriptionXml, UObject* Outer, FName Name, EObjectFlags Flags)
 {
 	UDMXMVRGeneralSceneDescription* GeneralSceneDescription = NewObject<UDMXMVRGeneralSceneDescription>(Outer, Name, Flags);
-	GeneralSceneDescription->ParseGeneralSceneDescriptionXml(GeneralSceneDescriptionXml);
+	if (GeneralSceneDescription->ParseGeneralSceneDescriptionXml(GeneralSceneDescriptionXml))
+	{
+		return GeneralSceneDescription;
+	}
 
-	return GeneralSceneDescription;
+	return nullptr;
 }
 #endif // WITH_EDITOR
 
@@ -223,11 +226,11 @@ void UDMXMVRGeneralSceneDescription::WriteFixturePatchToGeneralSceneDescription(
 #endif // WITH_EDITOR
 
 #if WITH_EDITOR
-void UDMXMVRGeneralSceneDescription::ParseGeneralSceneDescriptionXml(const TSharedRef<FXmlFile>& GeneralSceneDescriptionXml)
+bool UDMXMVRGeneralSceneDescription::ParseGeneralSceneDescriptionXml(const TSharedRef<FXmlFile>& GeneralSceneDescriptionXml)
 {
 	checkf(RootNode, TEXT("Unexpected: MVR General Scene Description Root Node is invalid."));
 
-	RootNode->InitializeFromGeneralSceneDescriptionXml(GeneralSceneDescriptionXml);
+	return RootNode->InitializeFromGeneralSceneDescriptionXml(GeneralSceneDescriptionXml);
 }
 #endif // WITH_EDITOR
 
