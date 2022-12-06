@@ -19,6 +19,12 @@ namespace UnrealBuildTool.Rules
 					"SlateCore",
 					"UnrealEd",
 				});
+			
+			PrivateIncludePathModuleNames.AddRange(
+				new string[]
+				{
+					"LevelEditor",
+				});
 		}
 	}
 }

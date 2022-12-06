@@ -24,7 +24,7 @@
 #include "UI/CameraCalibrationMenuEntry.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
-
+#include "LevelEditorOutlinerSettings.h"
 
 #define LOCTEXT_NAMESPACE "CameraCalibrationEditor"
 
@@ -72,10 +72,8 @@ void FCameraCalibrationEditorModule::StartupModule()
 const FPlacementCategoryInfo* FCameraCalibrationEditorModule::GetVirtualProductionCategoryRegisteredInfo() const
 {
 	IPlacementModeModule& PlacementModeModule = IPlacementModeModule::Get();
-
-	static const FName VirtualProductionName = TEXT("VirtualProduction");
-
-	if (const FPlacementCategoryInfo* RegisteredInfo = PlacementModeModule.GetRegisteredPlacementCategory(VirtualProductionName))
+	
+	if (const FPlacementCategoryInfo* RegisteredInfo = PlacementModeModule.GetRegisteredPlacementCategory(FLevelEditorOutlinerBuiltInCategories::VirtualProduction()))
 	{
 		return RegisteredInfo;
 	}
@@ -84,14 +82,14 @@ const FPlacementCategoryInfo* FCameraCalibrationEditorModule::GetVirtualProducti
 		FPlacementCategoryInfo Info(
 			LOCTEXT("VirtualProductionCategoryName", "Virtual Production"),
 			FSlateIcon(FCameraCalibrationEditorStyle::Get().GetStyleSetName(), "PlacementBrowser.Icons.VirtualProduction"),
-			VirtualProductionName,
+			FLevelEditorOutlinerBuiltInCategories::VirtualProduction(),
 			TEXT("PMVirtualProduction"),
 			25
 		);
 
 		IPlacementModeModule::Get().RegisterPlacementCategory(Info);
 
-		return PlacementModeModule.GetRegisteredPlacementCategory(VirtualProductionName);
+		return PlacementModeModule.GetRegisteredPlacementCategory(FLevelEditorOutlinerBuiltInCategories::VirtualProduction());
 	}
 }
 

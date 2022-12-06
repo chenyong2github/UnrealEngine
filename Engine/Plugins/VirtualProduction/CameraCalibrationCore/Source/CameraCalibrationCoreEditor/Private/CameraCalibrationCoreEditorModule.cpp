@@ -16,6 +16,7 @@
 #include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
+#include "LevelEditorOutlinerSettings.h"
 
 LLM_DEFINE_TAG(CameraCalibrationCore_CameraCalibrationCoreEditor);
 #define LOCTEXT_NAMESPACE "CameraCalibrationCoreEditor"
@@ -73,9 +74,7 @@ const FPlacementCategoryInfo* FCameraCalibrationCoreEditorModule::GetVirtualProd
 {
 	IPlacementModeModule& PlacementModeModule = IPlacementModeModule::Get();
 
-	static const FName VirtualProductionName = TEXT("VirtualProduction");
-
-	if (const FPlacementCategoryInfo* RegisteredInfo = PlacementModeModule.GetRegisteredPlacementCategory(VirtualProductionName))
+	if (const FPlacementCategoryInfo* RegisteredInfo = PlacementModeModule.GetRegisteredPlacementCategory(FLevelEditorOutlinerBuiltInCategories::VirtualProduction()))
 	{
 		return RegisteredInfo;
 	}
@@ -84,14 +83,14 @@ const FPlacementCategoryInfo* FCameraCalibrationCoreEditorModule::GetVirtualProd
 		FPlacementCategoryInfo Info(
 			LOCTEXT("VirtualProductionCategoryName", "Virtual Production"),
 			FSlateIcon(FCameraCalibrationCoreEditorStyle::Get().GetStyleSetName(), "PlacementBrowser.Icons.VirtualProduction"),
-			VirtualProductionName,
+			FLevelEditorOutlinerBuiltInCategories::VirtualProduction(),
 			TEXT("PMVirtualProduction"),
 			25 // Determines where the category shows up in the list with respect to the others.
 		);
 
 		IPlacementModeModule::Get().RegisterPlacementCategory(Info);
 
-		return PlacementModeModule.GetRegisteredPlacementCategory(VirtualProductionName);
+		return PlacementModeModule.GetRegisteredPlacementCategory(FLevelEditorOutlinerBuiltInCategories::VirtualProduction());
 	}
 }
 

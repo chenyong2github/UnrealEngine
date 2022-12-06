@@ -52,7 +52,4 @@ private:
 
 	/** UI Handler for virtual scouting. */
 	TStrongObjectPtr<UVPCustomUIHandler> CustomUIHandler;
-
-	/** Unique Handle for the Virtual Production Placement Mode Category */
-	static const FName PlacementModeCategoryHandle;
 };

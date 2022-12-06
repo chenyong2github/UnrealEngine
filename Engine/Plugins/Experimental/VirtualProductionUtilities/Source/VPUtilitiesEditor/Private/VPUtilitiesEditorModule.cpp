@@ -25,6 +25,7 @@
 #include "VPUtilitiesEditorStyle.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
+#include "LevelEditorOutlinerSettings.h"
 
 LLM_DEFINE_TAG(VirtualProductionUtilities_VPUtilitiesEditor);
 #define LOCTEXT_NAMESPACE "VPUtilitiesEditor"
@@ -32,7 +33,6 @@ LLM_DEFINE_TAG(VirtualProductionUtilities_VPUtilitiesEditor);
 DEFINE_LOG_CATEGORY(LogVPUtilitiesEditor);
 
 const FName FVPUtilitiesEditorModule::VPRoleNotificationBarIdentifier = TEXT("VPRoles");
-const FName FVPUtilitiesEditorModule::PlacementModeCategoryHandle = TEXT("VirtualProduction");
 
 void FVPUtilitiesEditorModule::StartupModule()
 {
@@ -83,7 +83,7 @@ const FPlacementCategoryInfo* FVPUtilitiesEditorModule::GetVirtualProductionPlac
 	{
 		IPlacementModeModule& PlacmentModeModule = IPlacementModeModule::Get();
 
-		if (const FPlacementCategoryInfo* RegisteredInfo = PlacmentModeModule.GetRegisteredPlacementCategory(PlacementModeCategoryHandle))
+		if (const FPlacementCategoryInfo* RegisteredInfo = PlacmentModeModule.GetRegisteredPlacementCategory(FLevelEditorOutlinerBuiltInCategories::VirtualProduction()))
 		{
 			return RegisteredInfo;
 		}
@@ -92,7 +92,7 @@ const FPlacementCategoryInfo* FVPUtilitiesEditorModule::GetVirtualProductionPlac
 			FPlacementCategoryInfo Info(
 				LOCTEXT("VirtualProductionCategoryName", "Virtual Production"),
 				FSlateIcon(FVPUtilitiesEditorStyle::GetStyleSetName(), "PlacementBrowser.Icons.VirtualProduction"),
-				PlacementModeCategoryHandle,
+				FLevelEditorOutlinerBuiltInCategories::VirtualProduction(),
 				TEXT("PMVirtualProduction"),
 				25
 			);
@@ -101,7 +101,7 @@ const FPlacementCategoryInfo* FVPUtilitiesEditorModule::GetVirtualProductionPlac
 
 			// This will return nullptr if the Register above failed so we don't need to explicitly check
 			// RegisterPlacementCategory's return value.
-			return PlacmentModeModule.GetRegisteredPlacementCategory(PlacementModeCategoryHandle);
+			return PlacmentModeModule.GetRegisteredPlacementCategory(FLevelEditorOutlinerBuiltInCategories::VirtualProduction());
 		}
 	}
 

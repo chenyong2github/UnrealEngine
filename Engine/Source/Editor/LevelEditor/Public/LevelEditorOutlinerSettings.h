@@ -19,16 +19,16 @@ class FCustomClassFilterData;
 /** Structure of built-in filter categories. Defined as functions to enable external use without linkage */
 struct FLevelEditorOutlinerBuiltInCategories
 {
-	static FName Common()			{ static FName Name("Essential");		return Name; }
-	static FName Basic()			 { static FName Name("Basic");			return Name; }
-	static FName Animation()		 { static FName Name("Animation");		return Name; }
-	static FName Audio()			 { static FName Name("Audio");			return Name; }
-	static FName Geometry()			 { static FName Name("Geometry");		return Name; }
-	static FName Lights()			 { static FName Name("Lights");			return Name; }
-	static FName Environment()		 { static FName Name("Environment");	return Name; }
-	static FName Visual()			 { static FName Name("Visual");			return Name; }
-	static FName Volumes()			 { static FName Name("Volumes");		return Name; }
-	static FName VirtualProduction() { static FName Name("VP");				return Name; }
+	static FName Common()			 { static FName Name("Essential");			return Name; }
+	static FName Basic()			 { static FName Name("Basic");				return Name; }
+	static FName Animation()		 { static FName Name("Animation");			return Name; }
+	static FName Audio()			 { static FName Name("Audio");				return Name; }
+	static FName Geometry()			 { static FName Name("Geometry");			return Name; }
+	static FName Lights()			 { static FName Name("Lights");				return Name; }
+	static FName Environment()		 { static FName Name("Environment");		return Name; }
+	static FName Visual()			 { static FName Name("Visual");				return Name; }
+	static FName Volumes()			 { static FName Name("Volumes");			return Name; }
+	static FName VirtualProduction() { static FName Name("VirtualProduction");	return Name; }
 };
 
 /** Helper class to manage initalization options specific to the Level Editor Outliners
