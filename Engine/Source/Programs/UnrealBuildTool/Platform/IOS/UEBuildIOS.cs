@@ -737,7 +737,14 @@ namespace UnrealBuildTool
 		{
 			return "arm64";
 		}
-		
+
+		public override bool IsX86Architecture(string Architecture)
+		{
+			return false;
+		}
+
+
+
 		public override List<FileReference> FinalizeBinaryPaths(FileReference BinaryName, FileReference? ProjectFile, ReadOnlyTargetRules Target)
 		{
 			List<FileReference> BinaryPaths = new List<FileReference>();

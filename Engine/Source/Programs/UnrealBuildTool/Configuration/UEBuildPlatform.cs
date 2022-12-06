@@ -265,10 +265,30 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Architecture"></param>
 		/// <returns></returns>
-		public virtual string FixupArchitecture(string Architecture)
+		public virtual string ConvertToPlatformArchitecture(string Architecture)
 		{
-			// @todo can we combine with GetFolderNameForArchitecture maybe?
 			return Architecture;
+		}
+
+		/// <summary>
+		/// Convert user specified architecture strings to what the platform wants
+		/// </summary>
+		/// <param name="Architecture"></param>
+		/// <returns></returns>
+		public virtual string ConvertToReadableArchitecture(string Architecture)
+		{
+			return Architecture;
+		}
+
+		/// <summary>
+		/// Convert user specified architecture strings to what the platform wants
+		/// </summary>
+		/// <param name="Architecture"></param>
+		/// <returns></returns>
+		public virtual bool IsX86Architecture(string Architecture)
+		{
+			// most platforms are x86
+			return true;
 		}
 
 		/// <summary>

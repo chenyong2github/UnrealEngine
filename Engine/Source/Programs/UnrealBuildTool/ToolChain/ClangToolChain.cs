@@ -1022,7 +1022,8 @@ namespace UnrealBuildTool
 			CompileAction.CommandDescription = IsAnalyzing(CompileEnvironment) ? "Analyze" : "Compile";
 			if (CompileEnvironment.Architecture != "")
 			{
-				CompileAction.CommandDescription += $" [{CompileEnvironment.Architecture}]";
+				string ReadableArch = UEBuildPlatform.GetBuildPlatform(CompileEnvironment.Platform).ConvertToReadableArchitecture(CompileEnvironment.Architecture);
+				CompileAction.CommandDescription += $" [{ReadableArch}]";
 			}
 			CompileAction.StatusDescription = Path.GetFileName(SourceFile.AbsolutePath);
 			CompileAction.bIsGCCCompiler = true;

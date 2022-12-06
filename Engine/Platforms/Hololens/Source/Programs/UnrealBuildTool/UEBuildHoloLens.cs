@@ -345,6 +345,11 @@ namespace UnrealBuildTool
 			return WindowsArchitecture.x64.ToString();
 		}
 
+		public override bool IsX86Architecture(string Architecture)
+		{
+			return Architecture == WindowsArchitecture.x64.ToString();
+		}
+
 		/// <summary>
 		/// Get the extension to use for the given binary type
 		/// </summary>

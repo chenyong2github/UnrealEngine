@@ -178,6 +178,11 @@ namespace UnrealBuildTool
 			return BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Linux;
 		}
 
+		public override bool IsX86Architecture(string Architecture)
+		{
+			return Architecture == "-x64";
+		}
+
 		public override bool IsBuildProduct(string FileName, string[] NamePrefixes, string[] NameSuffixes)
 		{
 			return IsBuildProductWithArch(FileName, NamePrefixes, NameSuffixes, ".so")

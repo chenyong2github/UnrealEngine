@@ -208,38 +208,59 @@ namespace UnrealBuildTool
 			}
 		}
 
-
-		/// <summary>
-		/// Returns true since we can do this on Mac (with some caveats, that may necessitate this being an option)
-		/// </summary>
-		/// <param name="InArchitectures">Architectures that are being built</param>
 		public override bool CanCompileArchitecturesInSinglePass(IEnumerable<string> InArchitectures)
 		{
 			return false;
 		}
 
-		/// <summary>
-		/// Returns true since we can do this on Mac (with some caveats, that may necessitate this being an option)
-		/// </summary>
-		/// <param name="InArchitectures">Architectures that are being built</param>
 		public override bool CanLinkArchitecturesInSinglePass(IEnumerable<string> InArchitectures)
 		{
 			return true;
 		}
 
-		/// <summary>
-		/// Allows the platform to override whether the architecture name should be appended to the name of binaries.
-		/// </summary>
-		/// <returns>True if the architecture name should be appended to the binary</returns>
 		public override bool RequiresArchitectureSuffix()
 		{
 			return false;
 		}
 
-		/// <summary>
-		/// Get the default architecture for a project. This may be overriden on the command line to UBT.
-		/// </summary>
-		/// <param name="ProjectFile">Optional project to read settings from </param>
+		public override string ConvertToPlatformArchitecture(string Architecture)
+		{
+			switch (Architecture.ToLower())
+			{
+				case "x86_64":
+				case "x64":
+				case "intel":
+				case "x86":
+					return MacExports.IntelArchitecture;
+
+				case "arm64":
+				case "arm":
+				case "apple":
+				case "applesilicon":
+				case "m1":
+					return MacExports.AppleArchitecture;
+			}
+			throw new BuildException($"Unknown architecture {Architecture}");
+		}
+
+		public override string ConvertToReadableArchitecture(string Architecture)
+		{
+			if (Architecture == MacExports.IntelArchitecture)
+			{
+				return "Intel";
+			}
+			if (Architecture == MacExports.AppleArchitecture)
+			{
+				return "Apple";
+			}
+			return Architecture;
+		}
+
+		public override bool IsX86Architecture(string Architecture)
+		{
+			return Architecture == MacExports.IntelArchitecture;
+		}
+
 		public override string GetDefaultArchitecture(FileReference? ProjectFile)
 		{
 			// by default use Intel.

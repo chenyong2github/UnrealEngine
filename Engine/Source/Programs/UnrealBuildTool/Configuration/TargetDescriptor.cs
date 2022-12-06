@@ -368,7 +368,7 @@ namespace UnrealBuildTool
 				// Parse the architecture parameter, or get the default for the platform (and letting the platform clean it up
 				IEnumerable<string> ParamArchitectures = Arguments.GetValues("-Architecture=", '+')
 					.Union(Arguments.GetValues("-Architectures=", '+'))
-					.Select(x => BuildPlatform.FixupArchitecture(x));
+					.Select(x => BuildPlatform.ConvertToPlatformArchitecture(x));
 
 				foreach(UnrealTargetConfiguration Configuration in Configurations)
 				{

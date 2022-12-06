@@ -189,20 +189,19 @@ namespace UnrealBuildTool
 			}
 		}
 
-		/// <summary>
-		/// Get name for architecture-specific directories (can be shorter than architecture name itself)
-		/// </summary>
+		public override string ConvertToReadableArchitecture(string Architecture)
+		{
+			return IsX86Architecture(Architecture) ? "x64" : "arm64";
+		}
+
+		public override bool IsX86Architecture(string Architecture)
+		{
+			return Architecture == "x86_64-unknown-linux-gnu";
+		}
+
 		public override string GetFolderNameForArchitecture(string Architecture)
 		{
-			// shorten the string (heuristically)
-			uint Sum = 0;
-			int Len = Architecture.Length;
-			for (int Index = 0; Index < Len; ++Index)
-			{
-				Sum += (uint)(Architecture[Index]);
-				Sum <<= 1;	// allowed to overflow
-			}
-			return Sum.ToString("X");
+			return ConvertToReadableArchitecture(Architecture);
 		}
 
 		public override void ResetTarget(TargetRules Target)
