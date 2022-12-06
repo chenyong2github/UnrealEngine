@@ -19,11 +19,11 @@ FRigUnit_AimBoneMath_Execute()
 		return;
 	}
 
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
+	if (!bIsInitialized)
 	{
 		PrimaryCachedSpace.Reset();
 		SecondaryCachedSpace.Reset();
-		return;
+		bIsInitialized = true;
 	}
 
 	if ((Weight <= SMALL_NUMBER) || (Primary.Weight <= SMALL_NUMBER && Secondary.Weight <= SMALL_NUMBER))
@@ -183,7 +183,8 @@ FRigUnit_AimBone_Execute()
 		DebugSettings,
 		CachedBoneIndex,
 		PrimaryCachedSpace,
-		SecondaryCachedSpace);
+		SecondaryCachedSpace,
+		bIsInitialized);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_AimBone::GetUpgradeInfo() const
@@ -219,12 +220,12 @@ FRigUnit_AimItem_Execute()
 		return;
 	}
 
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
+	if (!bIsInitialized)
 	{
 		CachedItem.Reset();
 		PrimaryCachedSpace.Reset();
 		SecondaryCachedSpace.Reset();
-		return;
+		bIsInitialized = true;
 	}
 
 	if (!CachedItem.UpdateCache(Item, Hierarchy))
@@ -249,7 +250,8 @@ FRigUnit_AimItem_Execute()
 		Transform,
 		DebugSettings,
 		PrimaryCachedSpace,
-		SecondaryCachedSpace);
+		SecondaryCachedSpace,
+		bIsInitialized);
 
 	Hierarchy->SetGlobalTransform(CachedItem, Transform);
 }
@@ -264,11 +266,12 @@ FRigUnit_AimConstraintLocalSpaceOffset_Execute()
 		return;
 	}
 	
-	if(ExecuteContext.UnitContext.State == EControlRigState::Init)
+	if(!bIsInitialized)
 	{
 		WorldUpSpaceCache.Reset();
 		ChildCache.Reset();
 		ParentCaches.Reset();
+		bIsInitialized = true;
 	}
 	
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
@@ -390,7 +393,8 @@ FRigUnit_AimConstraintLocalSpaceOffset_Execute()
 					InitialAimResult,
 					DummyDebugSettings,
 					PrimaryCachedSpace,
-					SecondaryCachedSpace);
+					SecondaryCachedSpace,
+					bIsInitialized);
 
 				FTransform ChildParentInitialGlobalTransform = Hierarchy->GetParentTransformByIndex(ChildCache, true);
 				FQuat MixedInitialLocalRotation = ChildParentInitialGlobalTransform.GetRotation().Inverse() * InitialAimResult.GetRotation();
@@ -458,7 +462,8 @@ FRigUnit_AimConstraintLocalSpaceOffset_Execute()
 				AimResult,
 				AdvancedSettings.DebugSettings,
 				PrimaryCachedSpace,
-				WorldUpSpaceCache);	
+				WorldUpSpaceCache,
+				bIsInitialized);	
 
 			// handle filtering, performed in local space
 			FTransform ChildParentGlobalTransform = Hierarchy->GetParentTransformByIndex(ChildCache, false);

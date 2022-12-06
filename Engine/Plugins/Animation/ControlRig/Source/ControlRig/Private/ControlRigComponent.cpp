@@ -1655,7 +1655,7 @@ FName UControlRigComponent::GetComponentNameWithinActor(UActorComponent* InCompo
 	return ComponentProperty;
 }
 
-void UControlRigComponent::HandleControlRigInitializedEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName)
+void UControlRigComponent::HandleControlRigInitializedEvent(UControlRig* InControlRig, const FName& InEventName)
 {
 #if WITH_EDITOR
 	if (bUpdateInEditor)
@@ -1670,7 +1670,7 @@ void UControlRigComponent::HandleControlRigInitializedEvent(UControlRig* InContr
 	}
 }
 
-void UControlRigComponent::HandleControlRigPreConstructionEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName)
+void UControlRigComponent::HandleControlRigPreConstructionEvent(UControlRig* InControlRig, const FName& InEventName)
 {
 	TArray<USkeletalMeshComponent*> ComponentsToTick;
 
@@ -1720,7 +1720,7 @@ void UControlRigComponent::HandleControlRigPreConstructionEvent(UControlRig* InC
 	}
 }
 
-void UControlRigComponent::HandleControlRigPostConstructionEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName)
+void UControlRigComponent::HandleControlRigPostConstructionEvent(UControlRig* InControlRig, const FName& InEventName)
 {
 #if WITH_EDITOR
 	if (bUpdateInEditor)
@@ -1735,7 +1735,7 @@ void UControlRigComponent::HandleControlRigPostConstructionEvent(UControlRig* In
 	}
 }
 
-void UControlRigComponent::HandleControlRigPreForwardsSolveEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName)
+void UControlRigComponent::HandleControlRigPreForwardsSolveEvent(UControlRig* InControlRig, const FName& InEventName)
 {
 #if WITH_EDITOR
 	if (bUpdateInEditor)
@@ -1750,7 +1750,7 @@ void UControlRigComponent::HandleControlRigPreForwardsSolveEvent(UControlRig* In
 	}
 }
 
-void UControlRigComponent::HandleControlRigPostForwardsSolveEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName)
+void UControlRigComponent::HandleControlRigPostForwardsSolveEvent(UControlRig* InControlRig, const FName& InEventName)
 {
 #if WITH_EDITOR
 	if (bUpdateInEditor)
@@ -1765,7 +1765,7 @@ void UControlRigComponent::HandleControlRigPostForwardsSolveEvent(UControlRig* I
 	}
 }
 
-void UControlRigComponent::HandleControlRigExecutedEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName)
+void UControlRigComponent::HandleControlRigExecutedEvent(UControlRig* InControlRig, const FName& InEventName)
 {
 	TransferOutputs();
 }

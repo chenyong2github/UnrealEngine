@@ -13,17 +13,6 @@
 #include "Components/SceneComponent.h"
 #include "RigUnitContext.generated.h"
 
-/** Current state of rig
-*	What  state Control Rig currently is
-*/
-UENUM()
-enum class EControlRigState : uint8
-{
-	Init,
-	Update,
-	Invalid,
-};
-
 /**
  * The type of interaction happening on a rig
  */
@@ -61,9 +50,6 @@ struct FRigUnitContext
 		, DrawInterface(nullptr)
 		, DrawContainer(nullptr)
 		, DataSourceRegistry(nullptr)
-		, DeltaTime(0.f)
-		, AbsoluteTime(0.f)
-		, State(EControlRigState::Invalid)
 		, InteractionType((uint8)EControlRigInteractionType::None)
 		, ElementsBeingInteracted()
 		, ToWorldSpaceTransform(FTransform::Identity)
@@ -87,18 +73,6 @@ struct FRigUnitContext
 
 	/** The registry to access data source */
 	const UAnimationDataSourceRegistry* DataSourceRegistry;
-
-	/** The current delta time */
-	float DeltaTime;
-
-	/** The current delta time */
-	float AbsoluteTime;
-
-	/** The current frames per second */
-	float FramesPerSecond;
-
-	/** Current execution context */
-	EControlRigState State;
 
 	/** The current hierarchy settings */
 	FRigHierarchySettings HierarchySettings;

@@ -1038,7 +1038,7 @@ void SControlRigStackView::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 	}
 }
 
-void SControlRigStackView::HandleControlRigInitializedEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName)
+void SControlRigStackView::HandleControlRigInitializedEvent(UControlRig* InControlRig, const FName& InEventName)
 {
 	TGuardValue<bool> SuspendControllerSelection(bSuspendControllerSelection, true);
 

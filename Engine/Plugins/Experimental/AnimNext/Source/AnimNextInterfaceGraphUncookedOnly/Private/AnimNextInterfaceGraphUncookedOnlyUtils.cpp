@@ -36,15 +36,6 @@ void FUtils::Compile(UAnimNextInterfaceGraph* InGraph)
 
 	InGraph->VMRuntimeSettings = EditorData->VMRuntimeSettings;
 
-	FRigUnitContext InitContext;
-	InitContext.State = EControlRigState::Init;
-
-	FRigUnitContext UpdateContext = InitContext;
-	UpdateContext.State = EControlRigState::Update;
-
-	void* InitContextPtr = &InitContext;
-	void* UpdateContextPtr = &UpdateContext;
-
 	EditorData->CompileLog.Messages.Reset();
 	EditorData->CompileLog.NumErrors = EditorData->CompileLog.NumWarnings = 0;
 

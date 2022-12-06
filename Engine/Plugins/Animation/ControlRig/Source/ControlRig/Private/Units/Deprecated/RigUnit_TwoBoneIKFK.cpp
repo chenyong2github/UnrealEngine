@@ -11,7 +11,7 @@ FRigUnit_TwoBoneIKFK_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
+	if (!bIsInitialized)
 	{
 		URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 		if (Hierarchy)
@@ -56,66 +56,65 @@ FRigUnit_TwoBoneIKFK_Execute()
 				}
 			}
 		}
+		bIsInitialized = true;
 	}
-	else  if (ExecuteContext.UnitContext.State == EControlRigState::Update)
+
+	if (StartJointIndex != INDEX_NONE && MidJointIndex != INDEX_NONE && EndJointIndex != INDEX_NONE)
 	{
-		if (StartJointIndex != INDEX_NONE && MidJointIndex != INDEX_NONE && EndJointIndex != INDEX_NONE)
+		FTransform StartJointTransform;
+		FTransform MidJointTransform;
+		FTransform EndJointTransform;
+
+		// FK only
+		if (FMath::IsNearlyZero(IKBlend))
 		{
-			FTransform StartJointTransform;
-			FTransform MidJointTransform;
-			FTransform EndJointTransform;
-
-			// FK only
-			if (FMath::IsNearlyZero(IKBlend))
-			{
-				StartJointTransform = StartJointFKTransform;
-				MidJointTransform = MidJointFKTransform;
-				EndJointTransform = EndJointFKTransform;
-			}
-			// IK only
-			else if (FMath::IsNearlyEqual(IKBlend, 1.f))
-			{
-				// update transform before going through IK
-				const URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
-				check(Hierarchy);
-
-				StartJointIKTransform = Hierarchy->GetGlobalTransform(StartJointIndex);
-				MidJointIKTransform = Hierarchy->GetGlobalTransform(MidJointIndex);
-				EndJointIKTransform = Hierarchy->GetGlobalTransform(EndJointIndex);
-
-				AnimationCore::SolveTwoBoneIK(StartJointIKTransform, MidJointIKTransform, EndJointIKTransform, PoleTarget, EndEffector.GetLocation(), UpperLimbLength, LowerLimbLength, false, 1.0f, 1.05f);
-				EndJointIKTransform.SetRotation(EndEffector.GetRotation());
-
-				StartJointTransform = StartJointIKTransform;
-				MidJointTransform = MidJointIKTransform;
-				EndJointTransform = EndJointIKTransform;
-			}
-			else
-			{
-				// update transform before going through IK
-				const URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
-				check(Hierarchy);
-
-				StartJointIKTransform = Hierarchy->GetGlobalTransform(StartJointIndex);
-				MidJointIKTransform = Hierarchy->GetGlobalTransform(MidJointIndex);
-				EndJointIKTransform = Hierarchy->GetGlobalTransform(EndJointIndex);
-
-				AnimationCore::SolveTwoBoneIK(StartJointIKTransform, MidJointIKTransform, EndJointIKTransform, PoleTarget, EndEffector.GetLocation(), UpperLimbLength, LowerLimbLength, false, 1.0f, 1.05f);
-				EndJointIKTransform.SetRotation(EndEffector.GetRotation());
-
-				StartJointTransform.Blend(StartJointFKTransform, StartJointIKTransform, IKBlend);
-				MidJointTransform.Blend(MidJointFKTransform, MidJointIKTransform, IKBlend);
-				EndJointTransform.Blend(MidJointFKTransform, EndJointIKTransform, IKBlend);
-			}
-
-			URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
-			check(Hierarchy);
-			Hierarchy->SetGlobalTransform(StartJointIndex, StartJointTransform);
-			Hierarchy->SetGlobalTransform(MidJointIndex, MidJointTransform);
-			Hierarchy->SetGlobalTransform(EndJointIndex, EndJointTransform);
-
-			PreviousFKIKBlend = IKBlend;
+			StartJointTransform = StartJointFKTransform;
+			MidJointTransform = MidJointFKTransform;
+			EndJointTransform = EndJointFKTransform;
 		}
+		// IK only
+		else if (FMath::IsNearlyEqual(IKBlend, 1.f))
+		{
+			// update transform before going through IK
+			const URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
+			check(Hierarchy);
+
+			StartJointIKTransform = Hierarchy->GetGlobalTransform(StartJointIndex);
+			MidJointIKTransform = Hierarchy->GetGlobalTransform(MidJointIndex);
+			EndJointIKTransform = Hierarchy->GetGlobalTransform(EndJointIndex);
+
+			AnimationCore::SolveTwoBoneIK(StartJointIKTransform, MidJointIKTransform, EndJointIKTransform, PoleTarget, EndEffector.GetLocation(), UpperLimbLength, LowerLimbLength, false, 1.0f, 1.05f);
+			EndJointIKTransform.SetRotation(EndEffector.GetRotation());
+
+			StartJointTransform = StartJointIKTransform;
+			MidJointTransform = MidJointIKTransform;
+			EndJointTransform = EndJointIKTransform;
+		}
+		else
+		{
+			// update transform before going through IK
+			const URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
+			check(Hierarchy);
+
+			StartJointIKTransform = Hierarchy->GetGlobalTransform(StartJointIndex);
+			MidJointIKTransform = Hierarchy->GetGlobalTransform(MidJointIndex);
+			EndJointIKTransform = Hierarchy->GetGlobalTransform(EndJointIndex);
+
+			AnimationCore::SolveTwoBoneIK(StartJointIKTransform, MidJointIKTransform, EndJointIKTransform, PoleTarget, EndEffector.GetLocation(), UpperLimbLength, LowerLimbLength, false, 1.0f, 1.05f);
+			EndJointIKTransform.SetRotation(EndEffector.GetRotation());
+
+			StartJointTransform.Blend(StartJointFKTransform, StartJointIKTransform, IKBlend);
+			MidJointTransform.Blend(MidJointFKTransform, MidJointIKTransform, IKBlend);
+			EndJointTransform.Blend(MidJointFKTransform, EndJointIKTransform, IKBlend);
+		}
+
+		URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
+		check(Hierarchy);
+		Hierarchy->SetGlobalTransform(StartJointIndex, StartJointTransform);
+		Hierarchy->SetGlobalTransform(MidJointIndex, MidJointTransform);
+		Hierarchy->SetGlobalTransform(EndJointIndex, EndJointTransform);
+
+		PreviousFKIKBlend = IKBlend;
 	}
 }
 

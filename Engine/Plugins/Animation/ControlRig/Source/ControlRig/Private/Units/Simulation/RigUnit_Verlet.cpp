@@ -8,11 +8,6 @@
 FRigUnit_VerletIntegrateVector_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		bInitialized = false;
-		return;
-	}
 
 	if (!bInitialized)
 	{
@@ -20,17 +15,16 @@ FRigUnit_VerletIntegrateVector_Execute()
 		Position = Point.Position = Target;
 		Velocity = Acceleration = Point.LinearVelocity = FVector::ZeroVector;
 		bInitialized = true;
-		return;
 	}
 
 	Point.LinearDamping = Damp;
-	if (ExecuteContext.UnitContext.DeltaTime > SMALL_NUMBER)
+	if (ExecuteContext.GetDeltaTime() > SMALL_NUMBER)
 	{
-		float U = FMath::Clamp<float>(Blend * ExecuteContext.UnitContext.DeltaTime, 0.f, 1.f);
-		const FVector CombinedForce = (Target - Point.Position) * FMath::Max(Strength, 0.0001f) + Force * ExecuteContext.UnitContext.DeltaTime * 60.f;
+		float U = FMath::Clamp<float>(Blend * ExecuteContext.GetDeltaTime(), 0.f, 1.f);
+		const FVector CombinedForce = (Target - Point.Position) * FMath::Max(Strength, 0.0001f) + Force * ExecuteContext.GetDeltaTime() * 60.f;
 		const FVector PreviousVelocity = Point.LinearVelocity;
-		Point = Point.IntegrateVerlet(CombinedForce, Blend, ExecuteContext.UnitContext.DeltaTime);
-		Acceleration = (Point.LinearVelocity - PreviousVelocity) / ExecuteContext.UnitContext.DeltaTime;
+		Point = Point.IntegrateVerlet(CombinedForce, Blend, ExecuteContext.GetDeltaTime());
+		Acceleration = (Point.LinearVelocity - PreviousVelocity) / ExecuteContext.GetDeltaTime();
 		Position = Point.Position;
 		Velocity = Point.LinearVelocity;
 	}

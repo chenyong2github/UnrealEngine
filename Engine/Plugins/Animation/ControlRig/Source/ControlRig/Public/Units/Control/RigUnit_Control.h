@@ -17,6 +17,7 @@ struct CONTROLRIG_API FRigUnit_Control : public FRigUnit
 		: Transform(FEulerTransform::Identity)
 		, Base(FTransform::Identity)
 		, Result(FTransform::Identity)
+		, bIsInitialized(false)
 	{
 	}
 
@@ -65,4 +66,7 @@ struct CONTROLRIG_API FRigUnit_Control : public FRigUnit
 
 	RIGVM_METHOD()
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
+
+	UPROPERTY()
+ 	bool bIsInitialized;
 };

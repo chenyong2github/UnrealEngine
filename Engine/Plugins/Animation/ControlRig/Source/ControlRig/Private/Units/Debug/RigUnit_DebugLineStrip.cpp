@@ -35,10 +35,6 @@ FRigVMStructUpgradeInfo FRigUnit_DebugLineStrip::GetUpgradeInfo() const
 FRigUnit_DebugLineStripItemSpace_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		return;
-	}
 
 	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled)
 	{

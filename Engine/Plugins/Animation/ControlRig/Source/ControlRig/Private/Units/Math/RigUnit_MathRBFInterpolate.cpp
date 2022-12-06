@@ -170,7 +170,6 @@ static uint64 HashValues(std::initializer_list<uint64> Values, uint64 Seed)
 
 template<typename T>
 void FRigUnit_MathRBFInterpolateQuatBase::GetInterpolatedWeights(
-	EControlRigState State,
 	FRigUnit_MathRBFInterpolateQuatWorkData& WorkData,
 	const TArrayView<const T>& Targets,
 	const FQuat &Input,
@@ -193,7 +192,7 @@ void FRigUnit_MathRBFInterpolateQuatBase::GetInterpolatedWeights(
 	FRigUnit_MathRBFQuatWeightFunctor WeightFunc(
 		DistanceFunction, SmoothingFunction, FMath::DegreesToRadians(SmoothingAngle), TwistAxis);
 
-	if (State == EControlRigState::Init)
+	if (WorkData.Targets.Num() != Quats.Num())
 	{
 		WorkData.Targets = Quats;
 		WorkData.Hash = HashTargets(TArrayView<const FQuat>(Quats.GetData(), Quats.Num()));
@@ -234,7 +233,6 @@ uint64 FRigUnit_MathRBFInterpolateQuatBase::HashTargets(const TArrayView<const F
 
 template<typename T>
 void FRigUnit_MathRBFInterpolateVectorBase::GetInterpolatedWeights(
-	EControlRigState State,
 	FRigUnit_MathRBFInterpolateVectorWorkData& WorkData,
 	const TArrayView<const T>& Targets,
 	const FVector& Input,
@@ -256,7 +254,7 @@ void FRigUnit_MathRBFInterpolateVectorBase::GetInterpolatedWeights(
 	FRigUnit_MathRBFVectorWeightFunctor WeightFunc(
 		DistanceFunction, SmoothingFunction, SmoothingRadius);
 
-	if (State == EControlRigState::Init)
+	if (WorkData.Targets.Num() != Vectors.Num())
 	{
 		WorkData.Targets = Vectors;
 		WorkData.Hash = HashTargets(TArrayView<const FVector>(Vectors.GetData(), Vectors.Num()));
@@ -301,7 +299,7 @@ FRigUnit_MathRBFInterpolateQuatFloat_Execute()
 	const TArrayView<const FMathRBFInterpolateQuatFloat_Target> TargetsView(Targets.GetData(), Targets.Num());
 	TArray<float> Weights;
 	GetInterpolatedWeights<FMathRBFInterpolateQuatFloat_Target>(
-		ExecuteContext.UnitContext.State, WorkData, TargetsView, Input,  
+		WorkData, TargetsView, Input,  
 		DistanceFunction, SmoothingFunction, SmoothingAngle, 
 		bNormalizeOutput, TwistAxis, Weights);
 
@@ -320,7 +318,7 @@ FRigUnit_MathRBFInterpolateQuatVector_Execute()
 	const TArrayView<const FMathRBFInterpolateQuatVector_Target> TargetsView(Targets.GetData(), Targets.Num());
 	TArray<float> Weights;
 	GetInterpolatedWeights<FMathRBFInterpolateQuatVector_Target>(
-		ExecuteContext.UnitContext.State, WorkData, TargetsView, Input,
+		WorkData, TargetsView, Input,
 		DistanceFunction, SmoothingFunction, SmoothingAngle, 
 		bNormalizeOutput, TwistAxis, Weights);
 
@@ -339,7 +337,7 @@ FRigUnit_MathRBFInterpolateQuatColor_Execute()
 	const TArrayView<const FMathRBFInterpolateQuatColor_Target> TargetsView(Targets.GetData(), Targets.Num());
 	TArray<float> Weights;
 	GetInterpolatedWeights<FMathRBFInterpolateQuatColor_Target>(
-		ExecuteContext.UnitContext.State, WorkData, TargetsView, Input,
+		WorkData, TargetsView, Input,
 		DistanceFunction, SmoothingFunction, SmoothingAngle, 
 		bNormalizeOutput, TwistAxis, Weights);
 
@@ -357,7 +355,7 @@ FRigUnit_MathRBFInterpolateQuatQuat_Execute()
 	const TArrayView<const FMathRBFInterpolateQuatQuat_Target> TargetsView(Targets.GetData(), Targets.Num());
 	TArray<float> Weights;
 	GetInterpolatedWeights<FMathRBFInterpolateQuatQuat_Target>(
-		ExecuteContext.UnitContext.State, WorkData, TargetsView, Input,
+		WorkData, TargetsView, Input,
 		DistanceFunction, SmoothingFunction, SmoothingAngle,
 		bNormalizeOutput, TwistAxis, Weights);
 	
@@ -377,7 +375,7 @@ FRigUnit_MathRBFInterpolateQuatXform_Execute()
 	const TArrayView<const FMathRBFInterpolateQuatXform_Target> TargetsView(Targets.GetData(), Targets.Num());
 	TArray<float> Weights;
 	GetInterpolatedWeights<FMathRBFInterpolateQuatXform_Target>(
-		ExecuteContext.UnitContext.State, WorkData, TargetsView, Input,
+		WorkData, TargetsView, Input,
 		DistanceFunction, SmoothingFunction, SmoothingAngle,
 		bNormalizeOutput, TwistAxis, Weights);
 
@@ -407,7 +405,7 @@ FRigUnit_MathRBFInterpolateVectorFloat_Execute()
 	const TArrayView<const FMathRBFInterpolateVectorFloat_Target> TargetsView(Targets.GetData(), Targets.Num());
 	TArray<float> Weights;
 	GetInterpolatedWeights<FMathRBFInterpolateVectorFloat_Target>(
-		ExecuteContext.UnitContext.State, WorkData, TargetsView, Input,
+		WorkData, TargetsView, Input,
 		DistanceFunction, SmoothingFunction, SmoothingRadius, 
 		bNormalizeOutput, Weights);
 
@@ -426,7 +424,7 @@ FRigUnit_MathRBFInterpolateVectorVector_Execute()
 	const TArrayView<const FMathRBFInterpolateVectorVector_Target> TargetsView(Targets.GetData(), Targets.Num());
 	TArray<float> Weights;
 	GetInterpolatedWeights<FMathRBFInterpolateVectorVector_Target>(
-		ExecuteContext.UnitContext.State, WorkData, TargetsView, Input,
+		WorkData, TargetsView, Input,
 		DistanceFunction, SmoothingFunction, SmoothingRadius, 
 		bNormalizeOutput, Weights);
 
@@ -445,7 +443,7 @@ FRigUnit_MathRBFInterpolateVectorColor_Execute()
 	const TArrayView<const FMathRBFInterpolateVectorColor_Target> TargetsView(Targets.GetData(), Targets.Num());
 	TArray<float> Weights;
 	GetInterpolatedWeights<FMathRBFInterpolateVectorColor_Target>(
-		ExecuteContext.UnitContext.State, WorkData, TargetsView, Input,
+		WorkData, TargetsView, Input,
 		DistanceFunction, SmoothingFunction, SmoothingRadius, 
 		bNormalizeOutput, Weights);
 
@@ -464,7 +462,7 @@ FRigUnit_MathRBFInterpolateVectorQuat_Execute()
 	const TArrayView<const FMathRBFInterpolateVectorQuat_Target> TargetsView(Targets.GetData(), Targets.Num());
 	TArray<float> Weights;
 	GetInterpolatedWeights<FMathRBFInterpolateVectorQuat_Target>(
-		ExecuteContext.UnitContext.State, WorkData, TargetsView, Input,
+		WorkData, TargetsView, Input,
 		DistanceFunction, SmoothingFunction, SmoothingRadius, 
 		bNormalizeOutput, Weights);
 
@@ -484,7 +482,7 @@ FRigUnit_MathRBFInterpolateVectorXform_Execute()
 	const TArrayView<const FMathRBFInterpolateVectorXform_Target> TargetsView(Targets.GetData(), Targets.Num());
 	TArray<float> Weights;
 	GetInterpolatedWeights<FMathRBFInterpolateVectorXform_Target>(
-		ExecuteContext.UnitContext.State, WorkData, TargetsView, Input,
+		WorkData, TargetsView, Input,
 		DistanceFunction, SmoothingFunction, SmoothingRadius, 
 		bNormalizeOutput, Weights);
 

@@ -2191,7 +2191,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 
 										TSharedPtr<FDelegateHandle> RunOnceHandle = MakeShareable(new FDelegateHandle);
 										*(RunOnceHandle.Get()) = ControlRig->OnExecuted_AnyThread().AddLambda(
-											[RunOnceHandle, EventName, PreviousEventQueue](UControlRig* InRig, const EControlRigState InState, const FName& InEventName)
+											[RunOnceHandle, EventName, PreviousEventQueue](UControlRig* InRig, const FName& InEventName)
 											{
 												if(InEventName == EventName)
 												{

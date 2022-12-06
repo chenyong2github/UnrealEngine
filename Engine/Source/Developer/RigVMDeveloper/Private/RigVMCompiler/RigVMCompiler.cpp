@@ -15,6 +15,7 @@
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "RigVMModel/RigVMClient.h"
 #include "Algo/Count.h"
+#include "String/Join.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMCompiler)
 
@@ -3458,6 +3459,20 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 				const FProperty* Property = UnitStruct->FindPropertyByName(Pin->GetFName());
 				check(Property);
 
+				JoinedDefaultValue.Reset();
+					
+				FStructOnScope StructOnScope(UnitStruct);
+				const FRigVMStruct* StructMemory = (const FRigVMStruct*)StructOnScope.GetStructMemory();
+				const uint8* PropertyMemory = Property->ContainerPtrToValuePtr<uint8>(StructMemory);
+				
+				Property->ExportText_Direct(
+					JoinedDefaultValue,
+					PropertyMemory,
+					PropertyMemory,
+					nullptr,
+					PPF_None,
+					nullptr);
+
 				if (!Property->HasMetaData(FRigVMStruct::SingletonMetaName))
 				{
 					bValidHiddenPin = true;
@@ -3469,6 +3484,7 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 				if(const FRigVMDispatchFactory* Factory = DispatchNode->GetFactory())
 				{
 					bValidHiddenPin = !Factory->HasArgumentMetaData(Pin->GetFName(), FRigVMStruct::SingletonMetaName);
+					JoinedDefaultValue = Factory->GetArgumentDefaultValue(Pin->GetFName(), Pin->GetTypeIndex());
 				}
 			}
 

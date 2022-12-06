@@ -16,24 +16,17 @@ FRigUnit_SpringInterp_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
  
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
+	// Clamp to avoid large time deltas.
+	float RemainingTime = FMath::Min(ExecuteContext.GetDeltaTime(), RigUnitSpringInterpConstants::MaxTimeStep);
+
+	Result = Current;
+	while (RemainingTime >= RigUnitSpringInterpConstants::FixedTimeStep)
 	{
-		SpringState.Reset();
+		Result = UKismetMathLibrary::FloatSpringInterp(Result, Target, SpringState, Stiffness, CriticalDamping, RigUnitSpringInterpConstants::FixedTimeStep, Mass);
+		RemainingTime -= RigUnitSpringInterpConstants::FixedTimeStep;
 	}
-	else
-	{
-		// Clamp to avoid large time deltas.
-		float RemainingTime = FMath::Min(ExecuteContext.UnitContext.DeltaTime, RigUnitSpringInterpConstants::MaxTimeStep);
- 
-		Result = Current;
-		while (RemainingTime >= RigUnitSpringInterpConstants::FixedTimeStep)
-		{
-			Result = UKismetMathLibrary::FloatSpringInterp(Result, Target, SpringState, Stiffness, CriticalDamping, RigUnitSpringInterpConstants::FixedTimeStep, Mass);
-			RemainingTime -= RigUnitSpringInterpConstants::FixedTimeStep;
-		}
- 
-		Result = UKismetMathLibrary::FloatSpringInterp(Result, Target, SpringState, Stiffness, CriticalDamping, RemainingTime, Mass);
-	}
+
+	Result = UKismetMathLibrary::FloatSpringInterp(Result, Target, SpringState, Stiffness, CriticalDamping, RemainingTime, Mass);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_SpringInterp::GetUpgradeInfo() const
@@ -46,24 +39,17 @@ FRigUnit_SpringInterpVector_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
  
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
+	// Clamp to avoid large time deltas.
+	float RemainingTime = FMath::Min(ExecuteContext.GetDeltaTime(), RigUnitSpringInterpConstants::MaxTimeStep);
+
+	Result = Current;
+	while (RemainingTime >= RigUnitSpringInterpConstants::FixedTimeStep)
 	{
-		SpringState.Reset();
+		Result = UKismetMathLibrary::VectorSpringInterp(Result, Target, SpringState, Stiffness, CriticalDamping, RigUnitSpringInterpConstants::FixedTimeStep, Mass);
+		RemainingTime -= RigUnitSpringInterpConstants::FixedTimeStep;
 	}
-	else
-	{
-		// Clamp to avoid large time deltas.
-		float RemainingTime = FMath::Min(ExecuteContext.UnitContext.DeltaTime, RigUnitSpringInterpConstants::MaxTimeStep);
- 
-		Result = Current;
-		while (RemainingTime >= RigUnitSpringInterpConstants::FixedTimeStep)
-		{
-			Result = UKismetMathLibrary::VectorSpringInterp(Result, Target, SpringState, Stiffness, CriticalDamping, RigUnitSpringInterpConstants::FixedTimeStep, Mass);
-			RemainingTime -= RigUnitSpringInterpConstants::FixedTimeStep;
-		}
- 
-		Result = UKismetMathLibrary::VectorSpringInterp(Result, Target, SpringState, Stiffness, CriticalDamping, RemainingTime, Mass);
-	}
+
+	Result = UKismetMathLibrary::VectorSpringInterp(Result, Target, SpringState, Stiffness, CriticalDamping, RemainingTime, Mass);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_SpringInterpVector::GetUpgradeInfo() const
@@ -76,89 +62,64 @@ FRigUnit_SpringInterpV2_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
+	// Treat the input as a frequency in Hz
+	float AngularFrequency = Strength * 2.0f * PI;
+	float Stiffness = AngularFrequency * AngularFrequency;
+	float AdjustedTarget = Target;
+	if (!FMath::IsNearlyZero(Stiffness))
 	{
-		SpringState.Reset();
-		Result = Target;
+		AdjustedTarget += Force / (Stiffness * RigUnitSpringInterpConstants::Mass);
 	}
 	else
 	{
-		// Treat the input as a frequency in Hz
-		float AngularFrequency = Strength * 2.0f * PI;
-		float Stiffness = AngularFrequency * AngularFrequency;
-		float AdjustedTarget = Target;
-		if (!FMath::IsNearlyZero(Stiffness))
-		{
-			AdjustedTarget += Force / (Stiffness * RigUnitSpringInterpConstants::Mass);
-		}
-		else
-		{
-			SpringState.Velocity += Force * (ExecuteContext.UnitContext.DeltaTime / RigUnitSpringInterpConstants::Mass);
-		}
-		SimulatedResult = UKismetMathLibrary::FloatSpringInterp(
-			bUseCurrentInput ? Current : SimulatedResult, AdjustedTarget, SpringState, Stiffness, CriticalDamping,
-			ExecuteContext.UnitContext.DeltaTime, RigUnitSpringInterpConstants::Mass, TargetVelocityAmount, 
-			false, 0.0f, 0.0f, !bUseCurrentInput || bInitializeFromTarget);
-
-		Result = SimulatedResult;
-		Velocity = SpringState.Velocity;
+		SpringState.Velocity += Force * (ExecuteContext.GetDeltaTime() / RigUnitSpringInterpConstants::Mass);
 	}
+	SimulatedResult = UKismetMathLibrary::FloatSpringInterp(
+		bUseCurrentInput ? Current : SimulatedResult, AdjustedTarget, SpringState, Stiffness, CriticalDamping,
+		ExecuteContext.GetDeltaTime(), RigUnitSpringInterpConstants::Mass, TargetVelocityAmount, 
+		false, 0.0f, 0.0f, !bUseCurrentInput || bInitializeFromTarget);
+
+	Result = SimulatedResult;
+	Velocity = SpringState.Velocity;
 }
 
 FRigUnit_SpringInterpVectorV2_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
+	// Treat the input as a frequency in Hz
+	float AngularFrequency = Strength * 2.0f * PI;
+	float Stiffness = AngularFrequency * AngularFrequency;
+	FVector AdjustedTarget = Target;
+	if (!FMath::IsNearlyZero(Stiffness))
 	{
-		SpringState.Reset();
-		Result = Target;
+		AdjustedTarget += Force / (Stiffness * RigUnitSpringInterpConstants::Mass);
 	}
 	else
 	{
-		// Treat the input as a frequency in Hz
-		float AngularFrequency = Strength * 2.0f * PI;
-		float Stiffness = AngularFrequency * AngularFrequency;
-		FVector AdjustedTarget = Target;
-		if (!FMath::IsNearlyZero(Stiffness))
-		{
-			AdjustedTarget += Force / (Stiffness * RigUnitSpringInterpConstants::Mass);
-		}
-		else
-		{
-			SpringState.Velocity += Force * (ExecuteContext.UnitContext.DeltaTime / RigUnitSpringInterpConstants::Mass);
-		}
-		SimulatedResult = UKismetMathLibrary::VectorSpringInterp(
-			bUseCurrentInput ? Current : SimulatedResult, AdjustedTarget, SpringState, Stiffness, CriticalDamping,
-			ExecuteContext.UnitContext.DeltaTime, RigUnitSpringInterpConstants::Mass, TargetVelocityAmount,
-			false, FVector(), FVector(), !bUseCurrentInput || bInitializeFromTarget);
-		Result = SimulatedResult;
+		SpringState.Velocity += Force * (ExecuteContext.GetDeltaTime() / RigUnitSpringInterpConstants::Mass);
 	}
-	Velocity = SpringState.Velocity;
+	SimulatedResult = UKismetMathLibrary::VectorSpringInterp(
+		bUseCurrentInput ? Current : SimulatedResult, AdjustedTarget, SpringState, Stiffness, CriticalDamping,
+		ExecuteContext.GetDeltaTime(), RigUnitSpringInterpConstants::Mass, TargetVelocityAmount,
+		false, FVector(), FVector(), !bUseCurrentInput || bInitializeFromTarget);
+	Result = SimulatedResult;
 }
 
 FRigUnit_SpringInterpQuaternionV2_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		SpringState.Reset();
-		Result = Target;
-	}
-	else
-	{
-		// Treat the input as a frequency in Hz
-		float AngularFrequency = Strength * 2.0f * PI;
-		float Stiffness = AngularFrequency * AngularFrequency;
-		SpringState.AngularVelocity += Torque * (ExecuteContext.UnitContext.DeltaTime / RigUnitSpringInterpConstants::Mass);
-		SimulatedResult = UKismetMathLibrary::QuaternionSpringInterp(
-			bUseCurrentInput ? Current : SimulatedResult, Target, SpringState, Stiffness, CriticalDamping,
-			ExecuteContext.UnitContext.DeltaTime, RigUnitSpringInterpConstants::Mass, TargetVelocityAmount, 
-			!bUseCurrentInput || bInitializeFromTarget);
-		Result = SimulatedResult;
-		AngularVelocity = SpringState.AngularVelocity;
-	}
+	// Treat the input as a frequency in Hz
+	float AngularFrequency = Strength * 2.0f * PI;
+	float Stiffness = AngularFrequency * AngularFrequency;
+	SpringState.AngularVelocity += Torque * (ExecuteContext.GetDeltaTime() / RigUnitSpringInterpConstants::Mass);
+	SimulatedResult = UKismetMathLibrary::QuaternionSpringInterp(
+		bUseCurrentInput ? Current : SimulatedResult, Target, SpringState, Stiffness, CriticalDamping,
+		ExecuteContext.GetDeltaTime(), RigUnitSpringInterpConstants::Mass, TargetVelocityAmount, 
+		!bUseCurrentInput || bInitializeFromTarget);
+	Result = SimulatedResult;
+	AngularVelocity = SpringState.AngularVelocity;
 }
 
 

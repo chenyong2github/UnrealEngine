@@ -25,6 +25,9 @@ struct CONTROLRIG_API FRigUnit : public FRigVMStruct
 	/** Returns the label of this unit */
 	virtual FString GetUnitLabel() const { return FString(); }
 
+	/** initialize logic for this rig unit */
+	virtual void Initialize() {}
+
 	/** Execute logic for this rig unit */
 	virtual void Execute() {}
 

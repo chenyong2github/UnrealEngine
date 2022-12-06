@@ -9,10 +9,6 @@
 FRigUnit_DebugTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		return;
-	}
 
 	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled)
 	{
@@ -96,10 +92,6 @@ FRigVMStructUpgradeInfo FRigUnit_DebugTransformMutable::GetUpgradeInfo() const
 FRigUnit_DebugTransformMutableItemSpace_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		return;
-	}
 
 	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled)
 	{
@@ -136,10 +128,6 @@ FRigUnit_DebugTransformMutableItemSpace_Execute()
 FRigUnit_DebugTransformArrayMutable_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		return;
-	}
 
 	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled)
 	{
@@ -207,10 +195,6 @@ FRigVMStructUpgradeInfo FRigUnit_DebugTransformArrayMutable::GetUpgradeInfo() co
 FRigUnit_DebugTransformArrayMutableItemSpace_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		return;
-	}
 
 	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled || Transforms.Num() == 0)
 	{

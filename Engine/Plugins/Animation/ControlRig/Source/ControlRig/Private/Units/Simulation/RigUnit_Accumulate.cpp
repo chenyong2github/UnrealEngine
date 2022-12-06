@@ -8,13 +8,15 @@
 FRigUnit_AccumulateFloatAdd_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
+	if (!bIsInitialized)
 	{
 		Result = AccumulatedValue = InitialValue;
+		bIsInitialized = true;
 	}
-	else if(bIntegrateDeltaTime)
+	
+	if(bIntegrateDeltaTime)
 	{
-		Result = AccumulatedValue = AccumulatedValue + Increment * ExecuteContext.UnitContext.DeltaTime;
+		Result = AccumulatedValue = AccumulatedValue + Increment * ExecuteContext.GetDeltaTime();
 	}
 	else
 	{
@@ -25,13 +27,15 @@ FRigUnit_AccumulateFloatAdd_Execute()
 FRigUnit_AccumulateVectorAdd_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
+	if (!bIsInitialized)
 	{
 		Result = AccumulatedValue = InitialValue;
+		bIsInitialized = true;
 	}
-	else if (bIntegrateDeltaTime)
+	
+	if (bIntegrateDeltaTime)
 	{
-		Result = AccumulatedValue = AccumulatedValue + Increment * ExecuteContext.UnitContext.DeltaTime;
+		Result = AccumulatedValue = AccumulatedValue + Increment * ExecuteContext.GetDeltaTime();
 	}
 	else
 	{
@@ -42,177 +46,167 @@ FRigUnit_AccumulateVectorAdd_Execute()
 FRigUnit_AccumulateFloatMul_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
+	if (!bIsInitialized)
 	{
 		Result = AccumulatedValue = InitialValue;
+		bIsInitialized = true;
 	}
-	else
+
+	float Factor = Multiplier;
+	if (bIntegrateDeltaTime)
 	{
-		float Factor = Multiplier;
-		if (bIntegrateDeltaTime)
-		{
-			Factor = FMath::Lerp<float>(1.f, Factor, ExecuteContext.UnitContext.DeltaTime);
-		}
-		Result = AccumulatedValue = AccumulatedValue * Factor;
+		Factor = FMath::Lerp<float>(1.f, Factor, ExecuteContext.GetDeltaTime());
 	}
+	Result = AccumulatedValue = AccumulatedValue * Factor;
 }
 
 FRigUnit_AccumulateVectorMul_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
+	if (!bIsInitialized)
 	{
 		Result = AccumulatedValue = InitialValue;
+		bIsInitialized = true;
 	}
-	else
+
+	FVector Factor = Multiplier;
+	if (bIntegrateDeltaTime)
 	{
-		FVector Factor = Multiplier;
-		if (bIntegrateDeltaTime)
-		{
-			Factor = FMath::Lerp<FVector>(FVector::OneVector, Factor, ExecuteContext.UnitContext.DeltaTime);
-		}
-		Result = AccumulatedValue = AccumulatedValue * Factor;
+		Factor = FMath::Lerp<FVector>(FVector::OneVector, Factor, ExecuteContext.GetDeltaTime());
 	}
+	Result = AccumulatedValue = AccumulatedValue * Factor;
 }
 
 FRigUnit_AccumulateQuatMul_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
+	if (!bIsInitialized)
 	{
 		Result = AccumulatedValue = InitialValue;
+		bIsInitialized = true;
+	}
+
+	FQuat Factor = Multiplier;
+	if (bIntegrateDeltaTime)
+	{
+		Factor = FQuat::Slerp(FQuat::Identity, Factor, ExecuteContext.GetDeltaTime());
+	}
+	if (bFlipOrder)
+	{
+		Result = AccumulatedValue = Factor * AccumulatedValue;
 	}
 	else
 	{
-		FQuat Factor = Multiplier;
-		if (bIntegrateDeltaTime)
-		{
-			Factor = FQuat::Slerp(FQuat::Identity, Factor, ExecuteContext.UnitContext.DeltaTime);
-		}
-		if (bFlipOrder)
-		{
-			Result = AccumulatedValue = Factor * AccumulatedValue;
-		}
-		else
-		{
-			Result = AccumulatedValue = AccumulatedValue * Factor;
-		}
+		Result = AccumulatedValue = AccumulatedValue * Factor;
 	}
 }
 
 FRigUnit_AccumulateTransformMul_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
+	if (!bIsInitialized)
 	{
 		Result = AccumulatedValue = InitialValue;
+		bIsInitialized = true;
+	}
+
+	FTransform Factor = Multiplier;
+	if (bIntegrateDeltaTime)
+	{
+		Factor.SetTranslation(FMath::Lerp<FVector>(FVector::OneVector, Factor.GetTranslation(), ExecuteContext.GetDeltaTime()));
+		Factor.SetRotation(FQuat::Slerp(FQuat::Identity, Factor.GetRotation(), ExecuteContext.GetDeltaTime()));
+		Factor.SetScale3D(FMath::Lerp<FVector>(FVector::OneVector, Factor.GetScale3D(), ExecuteContext.GetDeltaTime()));
+	}
+	if (bFlipOrder)
+	{
+		Result = AccumulatedValue = Factor * AccumulatedValue;
 	}
 	else
 	{
-		FTransform Factor = Multiplier;
-		if (bIntegrateDeltaTime)
-		{
-			Factor.SetTranslation(FMath::Lerp<FVector>(FVector::OneVector, Factor.GetTranslation(), ExecuteContext.UnitContext.DeltaTime));
-			Factor.SetRotation(FQuat::Slerp(FQuat::Identity, Factor.GetRotation(), ExecuteContext.UnitContext.DeltaTime));
-			Factor.SetScale3D(FMath::Lerp<FVector>(FVector::OneVector, Factor.GetScale3D(), ExecuteContext.UnitContext.DeltaTime));
-		}
-		if (bFlipOrder)
-		{
-			Result = AccumulatedValue = Factor * AccumulatedValue;
-		}
-		else
-		{
-			Result = AccumulatedValue = AccumulatedValue * Factor;
-		}
+		Result = AccumulatedValue = AccumulatedValue * Factor;
 	}
 }
 
 FRigUnit_AccumulateFloatLerp_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
+	if (!bIsInitialized)
 	{
 		Result = AccumulatedValue = InitialValue;
+		bIsInitialized = true;
 	}
-	else
-	{
-		Result = AccumulatedValue = FMath::Lerp<float>(AccumulatedValue, TargetValue, FMath::Clamp<float>(bIntegrateDeltaTime ? ExecuteContext.UnitContext.DeltaTime * Blend : Blend, 0.f, 1.f));
-	}
+
+	Result = AccumulatedValue = FMath::Lerp<float>(AccumulatedValue, TargetValue, FMath::Clamp<float>(bIntegrateDeltaTime ? ExecuteContext.GetDeltaTime() * Blend : Blend, 0.f, 1.f));
 }
 
 FRigUnit_AccumulateVectorLerp_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
+	if (!bIsInitialized)
 	{
 		Result = AccumulatedValue = InitialValue;
+		bIsInitialized = true;
 	}
-	else
-	{
-		Result = AccumulatedValue = FMath::Lerp<FVector>(AccumulatedValue, TargetValue, FMath::Clamp<float>(bIntegrateDeltaTime ? ExecuteContext.UnitContext.DeltaTime * Blend : Blend, 0.f, 1.f));
-	}
+
+	Result = AccumulatedValue = FMath::Lerp<FVector>(AccumulatedValue, TargetValue, FMath::Clamp<float>(bIntegrateDeltaTime ? ExecuteContext.GetDeltaTime() * Blend : Blend, 0.f, 1.f));
 }
 
 FRigUnit_AccumulateQuatLerp_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
+	if (!bIsInitialized)
 	{
 		Result = AccumulatedValue = InitialValue;
+		bIsInitialized = true;
 	}
-	else
-	{
-		Result = AccumulatedValue = FQuat::Slerp(AccumulatedValue, TargetValue, FMath::Clamp<float>(bIntegrateDeltaTime ? ExecuteContext.UnitContext.DeltaTime * Blend : Blend, 0.f, 1.f));
-	}
+
+	Result = AccumulatedValue = FQuat::Slerp(AccumulatedValue, TargetValue, FMath::Clamp<float>(bIntegrateDeltaTime ? ExecuteContext.GetDeltaTime() * Blend : Blend, 0.f, 1.f));
 }
 
 FRigUnit_AccumulateTransformLerp_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
+	if (!bIsInitialized)
 	{
 		Result = AccumulatedValue = InitialValue;
+		bIsInitialized = true;
 	}
-	else
-	{
-		float B = FMath::Clamp<float>(bIntegrateDeltaTime ? ExecuteContext.UnitContext.DeltaTime * Blend : Blend, 0.f, 1.f);
-		AccumulatedValue.SetTranslation(FMath::Lerp<FVector>(AccumulatedValue.GetTranslation(), TargetValue.GetTranslation(), B));
-		AccumulatedValue.SetRotation(FQuat::Slerp(AccumulatedValue.GetRotation(), TargetValue.GetRotation(), B));
-		AccumulatedValue.SetScale3D(FMath::Lerp<FVector>(AccumulatedValue.GetScale3D(), TargetValue.GetScale3D(), B));
-		Result = AccumulatedValue;
-	}
+
+	float B = FMath::Clamp<float>(bIntegrateDeltaTime ? ExecuteContext.GetDeltaTime() * Blend : Blend, 0.f, 1.f);
+	AccumulatedValue.SetTranslation(FMath::Lerp<FVector>(AccumulatedValue.GetTranslation(), TargetValue.GetTranslation(), B));
+	AccumulatedValue.SetRotation(FQuat::Slerp(AccumulatedValue.GetRotation(), TargetValue.GetRotation(), B));
+	AccumulatedValue.SetScale3D(FMath::Lerp<FVector>(AccumulatedValue.GetScale3D(), TargetValue.GetScale3D(), B));
+	Result = AccumulatedValue;
 }
 
 FRigUnit_AccumulateFloatRange_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
+	if (!bIsInitialized)
 	{
 		Minimum = AccumulatedMinimum = Maximum = AccumulatedMaximum = Value;
+		bIsInitialized = true;
 	}
-	else
-	{
-		Minimum = AccumulatedMinimum = FMath::Min(AccumulatedMinimum, Value);
-		Maximum = AccumulatedMaximum = FMath::Max(AccumulatedMaximum, Value);
-	}
+
+	Minimum = AccumulatedMinimum = FMath::Min(AccumulatedMinimum, Value);
+	Maximum = AccumulatedMaximum = FMath::Max(AccumulatedMaximum, Value);
 }
 
 FRigUnit_AccumulateVectorRange_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
+	if (!bIsInitialized)
 	{
 		Minimum = AccumulatedMinimum = Maximum = AccumulatedMaximum = Value;
+		bIsInitialized = true;
 	}
-	else
-	{
-		Minimum.X = AccumulatedMinimum.X = FMath::Min(AccumulatedMinimum.X, Value.X);
-		Minimum.Y = AccumulatedMinimum.Y = FMath::Min(AccumulatedMinimum.Y, Value.Y);
-		Minimum.Z = AccumulatedMinimum.Z = FMath::Min(AccumulatedMinimum.Z, Value.Z);
-		Maximum.X = AccumulatedMaximum.X = FMath::Max(AccumulatedMaximum.X, Value.X);
-		Maximum.Y = AccumulatedMaximum.Y = FMath::Max(AccumulatedMaximum.Y, Value.Y);
-		Maximum.Z = AccumulatedMaximum.Z = FMath::Max(AccumulatedMaximum.Z, Value.Z);
-	}
+
+	Minimum.X = AccumulatedMinimum.X = FMath::Min(AccumulatedMinimum.X, Value.X);
+	Minimum.Y = AccumulatedMinimum.Y = FMath::Min(AccumulatedMinimum.Y, Value.Y);
+	Minimum.Z = AccumulatedMinimum.Z = FMath::Min(AccumulatedMinimum.Z, Value.Z);
+	Maximum.X = AccumulatedMaximum.X = FMath::Max(AccumulatedMaximum.X, Value.X);
+	Maximum.Y = AccumulatedMaximum.Y = FMath::Max(AccumulatedMaximum.Y, Value.Y);
+	Maximum.Z = AccumulatedMaximum.Z = FMath::Max(AccumulatedMaximum.Z, Value.Z);
 }
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -220,7 +214,7 @@ FRigUnit_AccumulateVectorRange_Execute()
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_AccumulateFloatAdd)
 {
-	ExecuteContext.UnitContext.DeltaTime = 0.5f;
+	ExecuteContext.SetDeltaTime(0.5f);
 
 	Unit.Increment = 1.f;
 	InitAndExecute();
@@ -240,7 +234,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_AccumulateFloatAdd)
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_AccumulateVectorAdd)
 {
 	using TFloat = decltype(Unit.Result.X);
-	ExecuteContext.UnitContext.DeltaTime = 0.5f;
+	ExecuteContext.SetDeltaTime(0.5f);
 
 	Unit.Increment = FVector(1.0f, 0.f, 0.f);
 	InitAndExecute();

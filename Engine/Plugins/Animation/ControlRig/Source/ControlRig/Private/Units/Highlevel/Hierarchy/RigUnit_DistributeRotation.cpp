@@ -106,14 +106,13 @@ FRigUnit_DistributeRotationForItemArray_Execute()
 		}
 	}
 
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init || (CachedItems.Num() > 0 && CachedItems.Num() != Items.Num()))
+	if (CachedItems.Num() > 0 && CachedItems.Num() != Items.Num())
 	{
 		CachedItems.Reset();
 		ItemRotationA.Reset();
 		ItemRotationB.Reset();
 		ItemRotationT.Reset();
 		ItemLocalTransforms.Reset();
-		return;
 	}
 
 	if (CachedItems.Num() == 0)
@@ -295,7 +294,6 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_DistributeRotation)
 	Rotation.Ratio = 0.5f;
 	Unit.Rotations.Add(Rotation);
 
-	Init();
 	Execute();
 
 	AddErrorIfFalse(Unit.WorkData.ItemRotationA[0] == 0, TEXT("unexpected bone a"));

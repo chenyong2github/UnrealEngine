@@ -11,25 +11,10 @@ FRigUnit_SetCurveValue_Execute()
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (ExecuteContext.UnitContext.State)
+		const FRigElementKey Key(Curve, ERigElementType::Curve);
+		if (CachedCurveIndex.UpdateCache(Key, Hierarchy))
 		{
-			case EControlRigState::Init:
-			{
-				CachedCurveIndex.Reset();
-				// fall through to update
-			}
-			case EControlRigState::Update:
-			{
-				const FRigElementKey Key(Curve, ERigElementType::Curve);
-				if (CachedCurveIndex.UpdateCache(Key, Hierarchy))
-				{
-					Hierarchy->SetCurveValueByIndex(CachedCurveIndex, Value);
-				}
-			}
-			default:
-			{
-				break;
-			}
+			Hierarchy->SetCurveValueByIndex(CachedCurveIndex, Value);
 		}
 	}
 }
@@ -46,14 +31,14 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetCurveValue)
 	Hierarchy->ResetCurveValues();
 	Unit.Curve = TEXT("CurveA");
 	Unit.Value = 3.0f;
-	InitAndExecute();
+	Execute();
 
 	AddErrorIfFalse(Hierarchy->GetCurveValue(CurveA) == 3.f, TEXT("unexpected value"));
 
 	Hierarchy->ResetCurveValues();
 	Unit.Curve = TEXT("CurveB");
 	Unit.Value = 13.0f;
-	InitAndExecute();
+	Execute();
 
 	AddErrorIfFalse(Hierarchy->GetCurveValue(CurveB) == 13.f, TEXT("unexpected value"));
 

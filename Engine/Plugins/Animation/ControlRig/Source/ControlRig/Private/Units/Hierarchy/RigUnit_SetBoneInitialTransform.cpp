@@ -14,35 +14,20 @@ FRigUnit_SetBoneInitialTransform_Execute()
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (ExecuteContext.UnitContext.State)
+		const FRigElementKey Key(Bone, ERigElementType::Bone);
+		if (!CachedBone.UpdateCache(Key, Hierarchy))
 		{
-			case EControlRigState::Init:
-			{
-				CachedBone.Reset();
-				break;
-			}
-			case EControlRigState::Update:
-			{
-				const FRigElementKey Key(Bone, ERigElementType::Bone);
-				if (!CachedBone.UpdateCache(Key, Hierarchy))
-				{
-					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Bone '%s' is not valid."), *Bone.ToString());
-					return;
-				}
+			UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Bone '%s' is not valid."), *Bone.ToString());
+			return;
+		}
 
-				if (Space == EBoneGetterSetterMode::LocalSpace)
-				{
-					Hierarchy->SetInitialLocalTransform(CachedBone, Transform);
-				}
-				else
-				{
-					Hierarchy->SetInitialGlobalTransform(CachedBone, Transform);
-				}
-			}
-			default:
-			{
-				break;
-			}
+		if (Space == EBoneGetterSetterMode::LocalSpace)
+		{
+			Hierarchy->SetInitialLocalTransform(CachedBone, Transform);
+		}
+		else
+		{
+			Hierarchy->SetInitialGlobalTransform(CachedBone, Transform);
 		}
 	}
 }

@@ -86,12 +86,11 @@ void SControlRigAnimAttributeView::StopObservingCurrentControlRig()
 
 void SControlRigAnimAttributeView::HandleControlRigPostForwardSolve(
 	UControlRig* InControlRig,
-	const EControlRigState InState,
 	const FName& InEventName) const
 {
 	if (IsValid(InControlRig) && ensure(InControlRig == ControlRigBeingDebuggedPtr))
 	{
-		if (InState == EControlRigState::Update && InEventName == FRigUnit_BeginExecution::EventName)
+		if (InEventName == FRigUnit_BeginExecution::EventName)
 		{
 			if (const USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(InControlRig->OuterSceneComponent.Get()))
 			{

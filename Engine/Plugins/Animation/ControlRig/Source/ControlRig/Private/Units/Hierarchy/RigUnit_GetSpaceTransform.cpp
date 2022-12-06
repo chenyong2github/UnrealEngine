@@ -12,38 +12,24 @@ FRigUnit_GetSpaceTransform_Execute()
 	const URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (ExecuteContext.UnitContext.State)
+		if (CachedSpaceIndex.UpdateCache(FRigElementKey(Space, ERigElementType::Null), Hierarchy))
 		{
-			case EControlRigState::Init:
+			switch (SpaceType)
 			{
-				CachedSpaceIndex.Reset();
-			}
-			case EControlRigState::Update:
-			{
-				if (CachedSpaceIndex.UpdateCache(FRigElementKey(Space, ERigElementType::Null), Hierarchy))
+				case EBoneGetterSetterMode::GlobalSpace:
 				{
-					switch (SpaceType)
-					{
-						case EBoneGetterSetterMode::GlobalSpace:
-						{
-							Transform = Hierarchy->GetGlobalTransform(CachedSpaceIndex);
-							break;
-						}
-						case EBoneGetterSetterMode::LocalSpace:
-						{
-							Transform = Hierarchy->GetLocalTransform(CachedSpaceIndex);
-							break;
-						}
-						default:
-						{
-							break;
-						}
-					}
+					Transform = Hierarchy->GetGlobalTransform(CachedSpaceIndex);
+					break;
 				}
-			}
-			default:
-			{
-				break;
+				case EBoneGetterSetterMode::LocalSpace:
+				{
+					Transform = Hierarchy->GetLocalTransform(CachedSpaceIndex);
+					break;
+				}
+				default:
+				{
+					break;
+				}
 			}
 		}
 	}

@@ -13,23 +13,21 @@ FRigUnit_AlphaInterp_Execute()
 	ScaleBiasClamp.bClampResult = bClampResult;
 	ScaleBiasClamp.bInterpResult = bInterpResult;
 
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
+	if (ScaleBiasClamp.bInitialized)
 	{
 		ScaleBiasClamp.Reinitialize();
 	}
-	else
-	{
-		ScaleBiasClamp.InRange = InRange;
-		ScaleBiasClamp.OutRange = OutRange;
-		ScaleBiasClamp.ClampMin = ClampMin;
-		ScaleBiasClamp.ClampMax = ClampMax;
-		ScaleBiasClamp.Scale = Scale;
-		ScaleBiasClamp.Bias = Bias;
-		ScaleBiasClamp.InterpSpeedIncreasing = InterpSpeedIncreasing;
-		ScaleBiasClamp.InterpSpeedDecreasing = InterpSpeedDecreasing;
 
-		Result = ScaleBiasClamp.ApplyTo(Value, ExecuteContext.UnitContext.DeltaTime);
-	}
+	ScaleBiasClamp.InRange = InRange;
+	ScaleBiasClamp.OutRange = OutRange;
+	ScaleBiasClamp.ClampMin = ClampMin;
+	ScaleBiasClamp.ClampMax = ClampMax;
+	ScaleBiasClamp.Scale = Scale;
+	ScaleBiasClamp.Bias = Bias;
+	ScaleBiasClamp.InterpSpeedIncreasing = InterpSpeedIncreasing;
+	ScaleBiasClamp.InterpSpeedDecreasing = InterpSpeedDecreasing;
+
+	Result = ScaleBiasClamp.ApplyTo(Value, ExecuteContext.GetDeltaTime());
 }
 
 FString FRigUnit_AlphaInterp::ProcessPinLabelForInjection(const FString& InLabel) const
@@ -63,25 +61,23 @@ FRigUnit_AlphaInterpVector_Execute()
 	ScaleBiasClamp.bClampResult = bClampResult;
 	ScaleBiasClamp.bInterpResult = bInterpResult;
 
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
+	if (ScaleBiasClamp.bInitialized)
 	{
 		ScaleBiasClamp.Reinitialize();
 	}
-	else
-	{
-		ScaleBiasClamp.InRange = InRange;
-		ScaleBiasClamp.OutRange = OutRange;
-		ScaleBiasClamp.ClampMin = ClampMin;
-		ScaleBiasClamp.ClampMax = ClampMax;
-		ScaleBiasClamp.Scale = Scale;
-		ScaleBiasClamp.Bias = Bias;
-		ScaleBiasClamp.InterpSpeedIncreasing = InterpSpeedIncreasing;
-		ScaleBiasClamp.InterpSpeedDecreasing = InterpSpeedDecreasing;
 
-		Result.X = ScaleBiasClamp.ApplyTo(Value.X, ExecuteContext.UnitContext.DeltaTime);
-		Result.Y = ScaleBiasClamp.ApplyTo(Value.Y, ExecuteContext.UnitContext.DeltaTime);
-		Result.Z = ScaleBiasClamp.ApplyTo(Value.Z, ExecuteContext.UnitContext.DeltaTime);
-	}
+	ScaleBiasClamp.InRange = InRange;
+	ScaleBiasClamp.OutRange = OutRange;
+	ScaleBiasClamp.ClampMin = ClampMin;
+	ScaleBiasClamp.ClampMax = ClampMax;
+	ScaleBiasClamp.Scale = Scale;
+	ScaleBiasClamp.Bias = Bias;
+	ScaleBiasClamp.InterpSpeedIncreasing = InterpSpeedIncreasing;
+	ScaleBiasClamp.InterpSpeedDecreasing = InterpSpeedDecreasing;
+
+	Result.X = ScaleBiasClamp.ApplyTo(Value.X, ExecuteContext.GetDeltaTime());
+	Result.Y = ScaleBiasClamp.ApplyTo(Value.Y, ExecuteContext.GetDeltaTime());
+	Result.Z = ScaleBiasClamp.ApplyTo(Value.Z, ExecuteContext.GetDeltaTime());
 }
 
 FString FRigUnit_AlphaInterpVector::ProcessPinLabelForInjection(const FString& InLabel) const
@@ -115,24 +111,22 @@ FRigUnit_AlphaInterpQuat_Execute()
 	ScaleBiasClamp.bClampResult = bClampResult;
 	ScaleBiasClamp.bInterpResult = bInterpResult;
 
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
+	if (ScaleBiasClamp.bInitialized)
 	{
 		ScaleBiasClamp.Reinitialize();
 	}
-	else
-	{
-		ScaleBiasClamp.InRange = InRange;
-		ScaleBiasClamp.OutRange = OutRange;
-		ScaleBiasClamp.ClampMin = ClampMin;
-		ScaleBiasClamp.ClampMax = ClampMax;
-		ScaleBiasClamp.Scale = Scale;
-		ScaleBiasClamp.Bias = Bias;
-		ScaleBiasClamp.InterpSpeedIncreasing = InterpSpeedIncreasing;
-		ScaleBiasClamp.InterpSpeedDecreasing = InterpSpeedDecreasing;
 
-		const float T = ScaleBiasClamp.ApplyTo(1.f, ExecuteContext.UnitContext.DeltaTime);
-		Result = FQuat::Slerp(FQuat::Identity, Value, T);
-	}
+	ScaleBiasClamp.InRange = InRange;
+	ScaleBiasClamp.OutRange = OutRange;
+	ScaleBiasClamp.ClampMin = ClampMin;
+	ScaleBiasClamp.ClampMax = ClampMax;
+	ScaleBiasClamp.Scale = Scale;
+	ScaleBiasClamp.Bias = Bias;
+	ScaleBiasClamp.InterpSpeedIncreasing = InterpSpeedIncreasing;
+	ScaleBiasClamp.InterpSpeedDecreasing = InterpSpeedDecreasing;
+
+	const float T = ScaleBiasClamp.ApplyTo(1.f, ExecuteContext.GetDeltaTime());
+	Result = FQuat::Slerp(FQuat::Identity, Value, T);
 }
 
 FString FRigUnit_AlphaInterpQuat::ProcessPinLabelForInjection(const FString& InLabel) const

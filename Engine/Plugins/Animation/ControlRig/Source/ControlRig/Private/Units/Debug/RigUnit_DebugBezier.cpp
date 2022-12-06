@@ -29,10 +29,6 @@ FRigVMStructUpgradeInfo FRigUnit_DebugBezier::GetUpgradeInfo() const
 FRigUnit_DebugBezierItemSpace_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		return;
-	}
 
 	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled)
 	{

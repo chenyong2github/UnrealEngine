@@ -2919,7 +2919,7 @@ bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAni
 	}
 	SourceBones.ResetTransforms();
 	SourceCurves.ResetValues();
-	ControlRig->Execute(EControlRigState::Update, TEXT("Setup"));
+	ControlRig->Execute(TEXT("Setup"));
 	*/
 	const IAnimationDataModel* DataModel = AnimSequence->GetDataModel();
 	const FAnimationCurveData& CurveData = DataModel->GetCurveData();
@@ -2984,9 +2984,9 @@ bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAni
 		if (Index == 0)
 		{
 			//to make sure the first frame looks good we need to do this first. UE-100069
-			ControlRig->Execute(EControlRigState::Update, FRigUnit_InverseExecution::EventName);
+			ControlRig->Execute(FRigUnit_InverseExecution::EventName);
 		}
-		ControlRig->Execute(EControlRigState::Update, FRigUnit_InverseExecution::EventName);
+		ControlRig->Execute(FRigUnit_InverseExecution::EventName);
 
 		const ERichCurveInterpMode InterpMode = bKeyReduce ? RCIM_Cubic : RCIM_Linear;
 		RecordControlRigKey(FrameNumber, Index == 0, InterpMode);

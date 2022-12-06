@@ -14,36 +14,21 @@ FRigUnit_SetSpaceInitialTransform_Execute()
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (ExecuteContext.UnitContext.State)
+		const FRigElementKey SpaceKey(SpaceName, ERigElementType::Null);
+		if (!CachedSpaceIndex.UpdateCache(SpaceKey, Hierarchy))
 		{
-			case EControlRigState::Init:
-			{
-				CachedSpaceIndex.Reset();
-				break;
-			}
-			case EControlRigState::Update:
-			{
-				const FRigElementKey SpaceKey(SpaceName, ERigElementType::Null);
-				if (!CachedSpaceIndex.UpdateCache(SpaceKey, Hierarchy))
-				{
-					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Space '%s' is not valid."), *SpaceName.ToString());
-					return;
-				}
-
-				FTransform InitialTransform = Transform;
-				if (Space == EBoneGetterSetterMode::GlobalSpace)
-				{
-					const FTransform ParentTransform = Hierarchy->GetParentTransformByIndex(CachedSpaceIndex, true);
-					InitialTransform = InitialTransform.GetRelativeTransform(ParentTransform);
-				}
-
-				Hierarchy->SetInitialLocalTransform(CachedSpaceIndex, InitialTransform);
-			}
-			default:
-			{
-				break;
-			}
+			UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Space '%s' is not valid."), *SpaceName.ToString());
+			return;
 		}
+
+		FTransform InitialTransform = Transform;
+		if (Space == EBoneGetterSetterMode::GlobalSpace)
+		{
+			const FTransform ParentTransform = Hierarchy->GetParentTransformByIndex(CachedSpaceIndex, true);
+			InitialTransform = InitialTransform.GetRelativeTransform(ParentTransform);
+		}
+
+		Hierarchy->SetInitialLocalTransform(CachedSpaceIndex, InitialTransform);
 	}
 }
 

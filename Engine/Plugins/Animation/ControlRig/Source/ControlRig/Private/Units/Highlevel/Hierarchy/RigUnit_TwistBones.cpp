@@ -7,12 +7,6 @@
 
 FRigUnit_TwistBones_Execute()
 {
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		WorkData.CachedItems.Reset();
-		return;
-	}
-
 	FRigElementKeyCollection Items;
 	if(WorkData.CachedItems.Num() == 0)
 	{
@@ -53,12 +47,6 @@ FRigUnit_TwistBonesPerItem_Execute()
 	TArray<FCachedRigElement>& CachedItems = WorkData.CachedItems;
 	TArray<float>& ItemRatios = WorkData.ItemRatios;
 	TArray<FTransform>& ItemTransforms = WorkData.ItemTransforms;
-
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		CachedItems.Reset();
-		return;
-	}
 
 	if (CachedItems.Num() == 0 && Items.Num() > 0)
 	{

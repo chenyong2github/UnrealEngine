@@ -18,68 +18,51 @@ FRigUnit_GetTransform_Execute()
 
 	if (URigHierarchy* Hierarchy = ExecuteContext.Hierarchy)
 	{
-		switch (ExecuteContext.UnitContext.State)
+		if (!CachedIndex.UpdateCache(Item, Hierarchy))
 		{
-			case EControlRigState::Init:
+			UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Item '%s' is not valid."), *Item.ToString());
+		}
+		else
+		{
+			if(bInitial)
 			{
-				CachedIndex.Reset();
-				// there is no "break;" here because an old node, Transform Constrtaint,
-				// still caches data during init stage. Thus, if a it takes a GetTransform
-				// as input, that GetTransform needs to execute and output a valid transform					
-			}
-			case EControlRigState::Update:
-			{
-				if (!CachedIndex.UpdateCache(Item, Hierarchy))
+				switch (Space)
 				{
-					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Item '%s' is not valid."), *Item.ToString());
-				}
-				else
-				{
-					if(bInitial || ExecuteContext.UnitContext.State == EControlRigState::Init)
+					case EBoneGetterSetterMode::GlobalSpace:
 					{
-						switch (Space)
-						{
-							case EBoneGetterSetterMode::GlobalSpace:
-							{
-								Transform = Hierarchy->GetInitialGlobalTransform(CachedIndex);
-								break;
-							}
-							case EBoneGetterSetterMode::LocalSpace:
-							{
-								Transform = Hierarchy->GetInitialLocalTransform(CachedIndex);
-								break;
-							}
-							default:
-							{
-								break;
-							}
-						}
+						Transform = Hierarchy->GetInitialGlobalTransform(CachedIndex);
+						break;
 					}
-					else
+					case EBoneGetterSetterMode::LocalSpace:
 					{
-						switch (Space)
-						{
-							case EBoneGetterSetterMode::GlobalSpace:
-							{
-								Transform = Hierarchy->GetGlobalTransform(CachedIndex);
-								break;
-							}
-							case EBoneGetterSetterMode::LocalSpace:
-							{
-								Transform = Hierarchy->GetLocalTransform(CachedIndex);
-								break;
-							}
-							default:
-							{
-								break;
-							}
-						}
+						Transform = Hierarchy->GetInitialLocalTransform(CachedIndex);
+						break;
+					}
+					default:
+					{
+						break;
 					}
 				}
 			}
-			default:
+			else
 			{
-				break;
+				switch (Space)
+				{
+					case EBoneGetterSetterMode::GlobalSpace:
+					{
+						Transform = Hierarchy->GetGlobalTransform(CachedIndex);
+						break;
+					}
+					case EBoneGetterSetterMode::LocalSpace:
+					{
+						Transform = Hierarchy->GetLocalTransform(CachedIndex);
+						break;
+					}
+					default:
+					{
+						break;
+					}
+				}
 			}
 		}
 	}

@@ -9,10 +9,6 @@
 FRigUnit_DebugPoint_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		return;
-	}
 
 	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled)
 	{
@@ -62,10 +58,6 @@ FRigVMStructUpgradeInfo FRigUnit_DebugPoint::GetUpgradeInfo() const
 FRigUnit_DebugPointMutable_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		return;
-	}
 
 	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled)
 	{

@@ -239,7 +239,7 @@ protected:
 
 	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
 	void HandleVMCompiledEvent(UObject* InCompiledObject, URigVM* InVM);
-	void HandleControlRigExecutedEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName);
+	void HandleControlRigExecutedEvent(UControlRig* InControlRig, const FName& InEventName);
 	void HandleControlRigExecutionHalted(const int32 InstructionIndex, UObject* InNode, const FName& InEntryName);
 	void SetHaltedNode(URigVMNode* Node);
 
@@ -494,8 +494,8 @@ protected:
 
 	FDelegateHandle PropertyChangedHandle;
 
-	void OnPreConstruction_AnyThread(UControlRig* InRig, const EControlRigState InState, const FName& InEventName);
-	void OnPostConstruction_AnyThread(UControlRig* InRig, const EControlRigState InState, const FName& InEventName);
+	void OnPreConstruction_AnyThread(UControlRig* InRig, const FName& InEventName);
+	void OnPostConstruction_AnyThread(UControlRig* InRig, const FName& InEventName);
 
 	bool bIsConstructionEventRunning;
 	uint32 LastHierarchyHash;

@@ -16,14 +16,6 @@ FRigUnit_SphericalPoseReader_Execute()
 		return;
 	}
 
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		DriverCache.Reset();
-		OptionalParentCache.Reset();
-		bCachedInitTransforms = false;
-		return;
-	}
-
 	if (!DriverCache.UpdateCache(DriverItem, Hierarchy))
 	{
 		return;

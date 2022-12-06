@@ -14,26 +14,11 @@ FRigUnit_GetControlVisibility_Execute()
 	const URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (ExecuteContext.UnitContext.State)
+		if (CachedControlIndex.UpdateCache(Item, Hierarchy))
 		{
-			case EControlRigState::Init:
+			if(const FRigControlElement* ControlElement = Hierarchy->Get<FRigControlElement>(CachedControlIndex))
 			{
-				CachedControlIndex.Reset();
-			}
-			case EControlRigState::Update:
-			{
-				if (CachedControlIndex.UpdateCache(Item, Hierarchy))
-				{
-					if(const FRigControlElement* ControlElement = Hierarchy->Get<FRigControlElement>(CachedControlIndex))
-					{
-						bVisible = ControlElement->Settings.bShapeVisible;
-					}
-				}
-				break;
-			}
-			default:
-			{
-				break;
+				bVisible = ControlElement->Settings.bShapeVisible;
 			}
 		}
 	}
@@ -45,60 +30,45 @@ FRigUnit_SetControlVisibility_Execute()
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (ExecuteContext.UnitContext.State)
+		TArray<FRigElementKey> Keys;
+
+		if (Item.IsValid())
 		{
-			case EControlRigState::Init:
+			if (Item.Type != ERigElementType::Control)
 			{
-				CachedControlIndices.Reset();
+				return;
 			}
-			case EControlRigState::Update:
+
+			Keys.Add(Item);
+		}
+		else if (!Pattern.IsEmpty())
+		{
+			Hierarchy->ForEach<FRigControlElement>([&Keys, Pattern](FRigControlElement* ControlElement) -> bool
 			{
-				TArray<FRigElementKey> Keys;
-
-				if (Item.IsValid())
+				if (ControlElement->GetName().ToString().Contains(Pattern, ESearchCase::CaseSensitive))
 				{
-					if (Item.Type != ERigElementType::Control)
-					{
-						return;
-					}
+					Keys.Add(ControlElement->GetKey());
+				}
+				return true;
+			});
+		}
 
-					Keys.Add(Item);
-				}
-				else if (!Pattern.IsEmpty())
-				{
-					Hierarchy->ForEach<FRigControlElement>([&Keys, Pattern](FRigControlElement* ControlElement) -> bool
-					{
-						if (ControlElement->GetName().ToString().Contains(Pattern, ESearchCase::CaseSensitive))
-						{
-							Keys.Add(ControlElement->GetKey());
-						}
-						return true;
-					});
-				}
+		if (CachedControlIndices.Num() != Keys.Num())
+		{
+			CachedControlIndices.Reset();
+			CachedControlIndices.SetNumZeroed(Keys.Num());
+		}
 
-				if (CachedControlIndices.Num() != Keys.Num())
-				{
-					CachedControlIndices.Reset();
-					CachedControlIndices.SetNumZeroed(Keys.Num());
-				}
+		for (int32 Index = 0; Index < Keys.Num(); Index++)
+		{
+			CachedControlIndices[Index].UpdateCache(Keys[Index], Hierarchy);
+		}
 
-				for (int32 Index = 0; Index < Keys.Num(); Index++)
-				{
-					CachedControlIndices[Index].UpdateCache(Keys[Index], Hierarchy);
-				}
-
-				for (const FCachedRigElement& CachedControlIndex : CachedControlIndices)
-				{
-					if (CachedControlIndex.IsValid())
-					{
-						Hierarchy->SetControlVisibility(CachedControlIndex, bVisible);
-					}
-				}
-				break;
-			}
-			default:
+		for (const FCachedRigElement& CachedControlIndex : CachedControlIndices)
+		{
+			if (CachedControlIndex.IsValid())
 			{
-				break;
+				Hierarchy->SetControlVisibility(CachedControlIndex, bVisible);
 			}
 		}
 	}

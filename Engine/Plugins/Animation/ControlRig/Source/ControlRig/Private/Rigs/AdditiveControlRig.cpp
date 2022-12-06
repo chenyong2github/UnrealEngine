@@ -93,7 +93,6 @@ void UAdditiveControlRig::Initialize(bool bInitRigUnits /*= true*/)
 		return;
 	}
 
-	Execute(EControlRigState::Init, FRigUnit_BeginExecution::EventName);
 	FRigUnitContext DefaultContext;
 	ExecuteUnits(DefaultContext, FRigUnit_PrepareForExecution::EventName);
 }

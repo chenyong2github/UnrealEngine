@@ -16,6 +16,7 @@ struct CONTROLRIG_API FRigUnit_DeltaFromPreviousFloat : public FRigUnit_SimBase
 	FRigUnit_DeltaFromPreviousFloat()
 	{
 		Value = Delta = PreviousValue = Cache = 0.f;
+		bIsInitialized = false;
 	}
 
 	RIGVM_METHOD()
@@ -32,6 +33,9 @@ struct CONTROLRIG_API FRigUnit_DeltaFromPreviousFloat : public FRigUnit_SimBase
 
 	UPROPERTY()
 	float Cache;
+
+	UPROPERTY()
+	bool bIsInitialized;
 };
 
 /**
@@ -45,6 +49,7 @@ struct CONTROLRIG_API FRigUnit_DeltaFromPreviousVector : public FRigUnit_SimBase
 	FRigUnit_DeltaFromPreviousVector()
 	{
 		Value = Delta = PreviousValue = Cache = FVector::ZeroVector;
+		bIsInitialized = false;
 	}
 
 	RIGVM_METHOD()
@@ -61,6 +66,9 @@ struct CONTROLRIG_API FRigUnit_DeltaFromPreviousVector : public FRigUnit_SimBase
 
 	UPROPERTY()
 	FVector Cache;
+
+	UPROPERTY()
+	bool bIsInitialized;
 };
 
 /**
@@ -74,6 +82,7 @@ struct CONTROLRIG_API FRigUnit_DeltaFromPreviousQuat : public FRigUnit_SimBase
 	FRigUnit_DeltaFromPreviousQuat()
 	{
 		Value = Delta = PreviousValue = Cache = FQuat::Identity;
+		bIsInitialized = false;
 	}
 
 	RIGVM_METHOD()
@@ -90,6 +99,9 @@ struct CONTROLRIG_API FRigUnit_DeltaFromPreviousQuat : public FRigUnit_SimBase
 
 	UPROPERTY()
 	FQuat Cache;
+
+	UPROPERTY()
+	bool bIsInitialized;
 };
 
 /**
@@ -103,6 +115,7 @@ struct CONTROLRIG_API FRigUnit_DeltaFromPreviousTransform : public FRigUnit_SimB
 	FRigUnit_DeltaFromPreviousTransform()
 	{
 		Value = Delta = PreviousValue = Cache = FTransform::Identity;
+		bIsInitialized = false;
 	}
 
 	RIGVM_METHOD()
@@ -119,4 +132,7 @@ struct CONTROLRIG_API FRigUnit_DeltaFromPreviousTransform : public FRigUnit_SimB
 
 	UPROPERTY()
 	FTransform Cache;
+
+	UPROPERTY()
+	bool bIsInitialized;
 };

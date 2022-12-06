@@ -17,7 +17,10 @@ struct CONTROLRIG_API FRigUnit_Timeline : public FRigUnit_SimBase
 	{
 		Speed = 1.f;
 		Time = AccumulatedValue = 0.f;
+		bIsInitialized = false;
 	}
+
+	virtual void Initialize() override { bIsInitialized = false; }
 
 	RIGVM_METHOD()
 	virtual void Execute() override;
@@ -30,6 +33,9 @@ struct CONTROLRIG_API FRigUnit_Timeline : public FRigUnit_SimBase
 
 	UPROPERTY()
 	float AccumulatedValue;
+
+	UPROPERTY()
+	bool bIsInitialized;
 };
 
 /**
@@ -48,7 +54,10 @@ struct CONTROLRIG_API FRigUnit_TimeLoop : public FRigUnit_SimBase
 		Absolute = Relative = FlipFlop = AccumulatedAbsolute = AccumulatedRelative = 0.f;
 		NumIterations = 0;
 		Even = false;
+		bIsInitialized = false;
 	}
+
+	virtual void Initialize() override { bIsInitialized = false; }
 
 	RIGVM_METHOD()
 	virtual void Execute() override;
@@ -91,4 +100,7 @@ struct CONTROLRIG_API FRigUnit_TimeLoop : public FRigUnit_SimBase
 
 	UPROPERTY()
 	int32 NumIterations;
+
+	UPROPERTY()
+	bool bIsInitialized;
 };

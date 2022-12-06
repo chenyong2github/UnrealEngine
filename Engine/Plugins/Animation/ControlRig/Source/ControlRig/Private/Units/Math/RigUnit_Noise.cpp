@@ -8,29 +8,19 @@
 FRigUnit_NoiseFloat_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		Time = 0.f;
-		return;
-	}
 
 	const float Noise = FMath::PerlinNoise1D(Value * Frequency + Time) + 0.5f;
 	Result = FMath::Lerp<float>(Minimum, Maximum, Noise);
-	Time = Time + Speed * ExecuteContext.UnitContext.DeltaTime;
+	Time = Time + Speed * ExecuteContext.GetDeltaTime();
 }
 
 FRigUnit_NoiseDouble_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		Time = 0.f;
-		return;
-	}
 
 	const double Noise = double(FMath::PerlinNoise1D(Value * Frequency + Time)) + 0.5;
 	Result = FMath::Lerp<double>(Minimum, Maximum, Noise);
-	Time = Time + Speed * ExecuteContext.UnitContext.DeltaTime;
+	Time = Time + Speed * ExecuteContext.GetDeltaTime();
 }
 
 FRigUnit_NoiseVector_Execute()
@@ -55,11 +45,6 @@ FRigVMStructUpgradeInfo FRigUnit_NoiseVector::GetUpgradeInfo() const
 FRigUnit_NoiseVector2_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		Time = FVector::ZeroVector;
-		return;
-	}
 
 	const double NoiseX = double(FMath::PerlinNoise1D(Value.X * Frequency.X + Time.X)) + 0.5;
 	const double NoiseY = double(FMath::PerlinNoise1D(Value.Y * Frequency.Y + Time.Y)) + 0.5;
@@ -67,6 +52,6 @@ FRigUnit_NoiseVector2_Execute()
 	Result.X = FMath::Lerp<double>(Minimum, Maximum, NoiseX);
 	Result.Y = FMath::Lerp<double>(Minimum, Maximum, NoiseY);
 	Result.Z = FMath::Lerp<double>(Minimum, Maximum, NoiseZ);
-	Time = Time + Speed * ExecuteContext.UnitContext.DeltaTime;
+	Time = Time + Speed * ExecuteContext.GetDeltaTime();
 }
 

@@ -35,6 +35,7 @@ struct CONTROLRIG_API FRigUnit_EndProfilingTimer : public FRigUnit_DebugBaseMuta
 		AccumulatedTime = 0.f;
 		MeasurementsLeft = 0;
 		Prefix = TEXT("Timer");
+		bIsInitialized = false;
 	}
 
 	RIGVM_METHOD()
@@ -51,4 +52,7 @@ struct CONTROLRIG_API FRigUnit_EndProfilingTimer : public FRigUnit_DebugBaseMuta
 
 	UPROPERTY()
 	int32 MeasurementsLeft;
+
+	UPROPERTY()
+	bool bIsInitialized;
 };

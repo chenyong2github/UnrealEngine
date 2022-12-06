@@ -23,6 +23,8 @@ struct CONTROLRIG_API FRigUnit_TimeOffsetFloat : public FRigUnit_SimBase
 		UpperBound = 0;
 	}
 
+	virtual void Initialize() override { Buffer.Reset(); }
+
 	RIGVM_METHOD()
 	virtual void Execute() override;
 	
@@ -76,6 +78,8 @@ struct CONTROLRIG_API FRigUnit_TimeOffsetVector : public FRigUnit_SimBase
 		UpperBound = 0;
 	}
 
+	virtual void Initialize() override { Buffer.Reset(); }
+
 	RIGVM_METHOD()
 	virtual void Execute() override;
 	
@@ -128,6 +132,8 @@ struct CONTROLRIG_API FRigUnit_TimeOffsetTransform : public FRigUnit_SimBase
 		LastInsertIndex = 0;
 		UpperBound = 0;
 	}
+
+	virtual void Initialize() override { Buffer.Reset(); }
 
 	RIGVM_METHOD()
 	virtual void Execute() override;

@@ -32,7 +32,6 @@ bool UAnimNextInterfaceGraph::GetDataImpl(const UE::AnimNext::Interface::FContex
 	if(RigVM)
 	{
 		FRigUnitContext RigUnitContext;
-		RigUnitContext.State = EControlRigState::Update;
 		FAnimNextInterfaceUnitContext AnimNextInterfaceUnitContext(this, Context, bResult);
 		bResult &=
 			(RigVM->Execute(TArray<URigVMMemoryStorage*>(), FRigUnit_AnimNextInterfaceBeginExecution::EventName) != ERigVMExecuteResult::Failed);

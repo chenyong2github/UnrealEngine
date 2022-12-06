@@ -8,12 +8,6 @@
 
 FRigUnit_SlideChain_Execute()
 {
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		WorkData.CachedItems.Reset();
-		return;
-	}
-
 	FRigElementKeyCollection Items;
 	if(WorkData.CachedItems.Num() == 0)
 	{
@@ -67,12 +61,6 @@ FRigUnit_SlideChainItemArray_Execute()
 	TArray<FCachedRigElement>& CachedItems = WorkData.CachedItems;
 	TArray<FTransform>& Transforms = WorkData.Transforms;
 	TArray<FTransform>& BlendedTransforms = WorkData.BlendedTransforms;
-
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		CachedItems.Reset();
-		return;
-	}
 
 	if(CachedItems.Num() == 0 && Items.Num() > 1)
 	{

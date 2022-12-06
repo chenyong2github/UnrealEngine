@@ -109,10 +109,6 @@ private:
 	/** true if the rig itself should increase the AbsoluteTime */
 	bool bAccumulateTime;
 
-	/** Latest state being processed */
-	EControlRigState LatestExecutedState;
-
-	
 public:
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
@@ -181,6 +177,9 @@ public:
 
 	/** Initialize things for the ControlRig */
 	virtual void Initialize(bool bInitRigUnits = true);
+
+	/** Initialize the VM */
+	virtual bool InitializeVM(const FName& InEventName);
 
 	/** Evaluate at Any Thread */
 	virtual void Evaluate_AnyThread();
@@ -303,7 +302,7 @@ public:
 
 	/** Execute */
 	UFUNCTION(BlueprintCallable, Category = "Control Rig")
-	bool Execute(const EControlRigState State, const FName& InEventName);
+	bool Execute(const FName& InEventName);
 
 	/** ExecuteUnits */
 	virtual bool ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEventName);
@@ -448,7 +447,7 @@ public:
 
 	bool IsCurveControl(const FRigControlElement* InControlElement) const;
 
-	DECLARE_EVENT_ThreeParams(UControlRig, FControlRigExecuteEvent, class UControlRig*, const EControlRigState, const FName&);
+	DECLARE_EVENT_TwoParams(UControlRig, FControlRigExecuteEvent, class UControlRig*, const FName&);
 	FControlRigExecuteEvent& OnInitialized_AnyThread() { return InitializedEvent; }
 #if WITH_EDITOR
 	FControlRigExecuteEvent& OnPreConstructionForUI_AnyThread() { return PreConstructionForUIEvent; }
@@ -512,15 +511,6 @@ protected:
 	UPROPERTY()
 	TObjectPtr<URigVM> VM;
 
-	// this is only used by the CDO
-	// and stores an initialized VM per hash.
-	UPROPERTY(transient)
-	TMap<uint32, TObjectPtr<URigVM>> InitializedVMSnapshots;
-	uint32 CachedMemoryHash = 0;
-
-	// computes the hash used to store / find VM snapshots
-	uint32 GetHashForInitializeVMSnapShot();
-	
 	UPROPERTY()
 	TObjectPtr<URigHierarchy> DynamicHierarchy;
 
@@ -736,8 +726,8 @@ private:
 
 	void CopyPoseFromOtherRig(UControlRig* Subject);
 	void HandleInteractionRigControlModified(UControlRig* Subject, FRigControlElement* Control, const FRigControlModifiedContext& Context);
-	void HandleInteractionRigInitialized(UControlRig* Subject, EControlRigState State, const FName& EventName);
-	void HandleInteractionRigExecuted(UControlRig* Subject, EControlRigState State, const FName& EventName);
+	void HandleInteractionRigInitialized(UControlRig* Subject, const FName& EventName);
+	void HandleInteractionRigExecuted(UControlRig* Subject, const FName& EventName);
 	void HandleInteractionRigControlSelected(UControlRig* Subject, FRigControlElement* InControl, bool bSelected, bool bInverted);
 
 

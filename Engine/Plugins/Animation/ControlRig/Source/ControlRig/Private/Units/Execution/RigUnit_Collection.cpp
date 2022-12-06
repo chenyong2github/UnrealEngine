@@ -57,17 +57,11 @@ FRigUnit_CollectionChainArray_Execute()
 		{
 			if (ExecuteContext.Hierarchy->GetIndex(FirstItem) == INDEX_NONE)
 			{
-				if(ExecuteContext.UnitContext.State != EControlRigState::Init)
-				{
-					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("First Item '%s' is not valid."), *FirstItem.ToString());
-				}
+				UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("First Item '%s' is not valid."), *FirstItem.ToString());
 			}
 			if (ExecuteContext.Hierarchy->GetIndex(LastItem) == INDEX_NONE)
 			{
-				if(ExecuteContext.UnitContext.State != EControlRigState::Init)
-				{
-					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Last Item '%s' is not valid."), *LastItem.ToString());
-				}
+				UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Last Item '%s' is not valid."), *LastItem.ToString());
 			}
 		}
 		ExecuteContext.Hierarchy->AddCachedCollection(Hash, Collection);

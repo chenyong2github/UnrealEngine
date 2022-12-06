@@ -8,9 +8,11 @@
 FRigUnit_Control_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
+
+	if (!bIsInitialized)
 	{
 		Transform.FromFTransform(InitTransform);
+		bIsInitialized = true;
 	}
 
 	Result = StaticGetResultantTransform(Transform, Base, Filter);

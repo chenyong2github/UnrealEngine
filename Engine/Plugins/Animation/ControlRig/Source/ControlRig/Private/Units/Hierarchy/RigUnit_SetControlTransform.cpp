@@ -13,26 +13,10 @@ FRigUnit_SetControlBool_Execute()
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (ExecuteContext.UnitContext.State)
+		const FRigElementKey Key(Control, ERigElementType::Control);
+		if (CachedControlIndex.UpdateCache(Key, Hierarchy))
 		{
-			case EControlRigState::Init:
-			{
-				CachedControlIndex.Reset();
-				break;
-			}
-			case EControlRigState::Update:
-			{
-				const FRigElementKey Key(Control, ERigElementType::Control);
-				if (CachedControlIndex.UpdateCache(Key, Hierarchy))
-				{
-					Hierarchy->SetControlValue(CachedControlIndex, FRigControlValue::Make<bool>(BoolValue));
-				}
-				break;
-			}
-			default:
-			{
-				break;
-			}
+			Hierarchy->SetControlValue(CachedControlIndex, FRigControlValue::Make<bool>(BoolValue));
 		}
 	}
 }
@@ -45,22 +29,11 @@ FRigUnit_SetMultiControlBool_Execute()
 	{
 		CachedControlIndices.SetNum(Entries.Num());
 
-		switch (ExecuteContext.UnitContext.State)
+		for (int32 EntryIndex = 0; EntryIndex < Entries.Num(); EntryIndex++)
 		{
-			case EControlRigState::Update:
-			{
-				for (int32 EntryIndex = 0; EntryIndex < Entries.Num(); EntryIndex++)
-				{
-					bool BoolValue = Entries[EntryIndex].BoolValue;
+			bool BoolValue = Entries[EntryIndex].BoolValue;
 
-					FRigUnit_SetControlBool::StaticExecute(ExecuteContext, Entries[EntryIndex].Control, BoolValue, CachedControlIndices[EntryIndex]);
-				}
-				break;
-			}
-			default:
-			{
-				break;
-			}
+			FRigUnit_SetControlBool::StaticExecute(ExecuteContext, Entries[EntryIndex].Control, BoolValue, CachedControlIndices[EntryIndex]);
 		}
 	}
 }
@@ -71,33 +44,17 @@ FRigUnit_SetControlFloat_Execute()
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (ExecuteContext.UnitContext.State)
+		const FRigElementKey Key(Control, ERigElementType::Control);
+		if (CachedControlIndex.UpdateCache(Key, Hierarchy))
 		{
-			case EControlRigState::Init:
+			if(FMath::IsNearlyEqual((float)Weight, 1.f))
 			{
-				CachedControlIndex.Reset();
-				break;
+				Hierarchy->SetControlValue(CachedControlIndex, FRigControlValue::Make<float>(FloatValue));
 			}
-			case EControlRigState::Update:
+			else
 			{
-				const FRigElementKey Key(Control, ERigElementType::Control);
-				if (CachedControlIndex.UpdateCache(Key, Hierarchy))
-				{
-					if(FMath::IsNearlyEqual((float)Weight, 1.f))
-					{
-						Hierarchy->SetControlValue(CachedControlIndex, FRigControlValue::Make<float>(FloatValue));
-					}
-					else
-					{
-						float PreviousValue = Hierarchy->GetControlValue(CachedControlIndex).Get<float>();
-						Hierarchy->SetControlValue(CachedControlIndex, FRigControlValue::Make<float>(FMath::Lerp<float>(PreviousValue, FloatValue, FMath::Clamp<float>(Weight, 0.f, 1.f))));
-					}
-				}
-				break;
-			}
-			default:
-			{
-				break;
+				float PreviousValue = Hierarchy->GetControlValue(CachedControlIndex).Get<float>();
+				Hierarchy->SetControlValue(CachedControlIndex, FRigControlValue::Make<float>(FMath::Lerp<float>(PreviousValue, FloatValue, FMath::Clamp<float>(Weight, 0.f, 1.f))));
 			}
 		}
 	}
@@ -111,22 +68,11 @@ FRigUnit_SetMultiControlFloat_Execute()
 	{ 
 		CachedControlIndices.SetNum(Entries.Num());
 	 
-		switch (ExecuteContext.UnitContext.State)
+		for (int32 EntryIndex = 0; EntryIndex < Entries.Num(); EntryIndex++)
 		{
-			case EControlRigState::Update:
-			{ 
-				for (int32 EntryIndex = 0; EntryIndex < Entries.Num(); EntryIndex++)
-				{
-					float FloatValue = Entries[EntryIndex].FloatValue;
+			float FloatValue = Entries[EntryIndex].FloatValue;
 
-					FRigUnit_SetControlFloat::StaticExecute(ExecuteContext, Entries[EntryIndex].Control, Weight, FloatValue, CachedControlIndices[EntryIndex]); 
-				}
-				break;
-			}
-			default:
-			{
-				break;
-			}
+			FRigUnit_SetControlFloat::StaticExecute(ExecuteContext, Entries[EntryIndex].Control, Weight, FloatValue, CachedControlIndices[EntryIndex]); 
 		}
 	}
 }
@@ -137,33 +83,17 @@ FRigUnit_SetControlInteger_Execute()
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (ExecuteContext.UnitContext.State)
+		const FRigElementKey Key(Control, ERigElementType::Control);
+		if (CachedControlIndex.UpdateCache(Key, Hierarchy))
 		{
-			case EControlRigState::Init:
+			if(FMath::IsNearlyEqual((float)Weight, 1.f))
 			{
-				CachedControlIndex.Reset();
-				break;
+				Hierarchy->SetControlValue(CachedControlIndex, FRigControlValue::Make<int32>(IntegerValue));
 			}
-			case EControlRigState::Update:
+			else
 			{
-				const FRigElementKey Key(Control, ERigElementType::Control);
-				if (CachedControlIndex.UpdateCache(Key, Hierarchy))
-				{
-					if(FMath::IsNearlyEqual((float)Weight, 1.f))
-					{
-						Hierarchy->SetControlValue(CachedControlIndex, FRigControlValue::Make<int32>(IntegerValue));
-					}
-					else
-					{
-						int32 PreviousValue = Hierarchy->GetControlValue(CachedControlIndex).Get<int32>();
-						Hierarchy->SetControlValue(CachedControlIndex, FRigControlValue::Make<int32>((int32)FMath::Lerp<float>((float)PreviousValue, (float)IntegerValue, FMath::Clamp<float>(Weight, 0.f, 1.f))));
-					}
-				}
-				break;
-			}
-			default:
-			{
-				break;
+				int32 PreviousValue = Hierarchy->GetControlValue(CachedControlIndex).Get<int32>();
+				Hierarchy->SetControlValue(CachedControlIndex, FRigControlValue::Make<int32>((int32)FMath::Lerp<float>((float)PreviousValue, (float)IntegerValue, FMath::Clamp<float>(Weight, 0.f, 1.f))));
 			}
 		}
 	}
@@ -177,22 +107,11 @@ FRigUnit_SetMultiControlInteger_Execute()
 	{
 		CachedControlIndices.SetNum(Entries.Num());
 
-		switch (ExecuteContext.UnitContext.State)
+		for (int32 EntryIndex = 0; EntryIndex < Entries.Num(); EntryIndex++)
 		{
-			case EControlRigState::Update:
-			{
-				for (int32 EntryIndex = 0; EntryIndex < Entries.Num(); EntryIndex++)
-				{
-					int32 IntegerValue = Entries[EntryIndex].IntegerValue;
+			int32 IntegerValue = Entries[EntryIndex].IntegerValue;
 
-					FRigUnit_SetControlInteger::StaticExecute(ExecuteContext, Entries[EntryIndex].Control, Weight, IntegerValue, CachedControlIndices[EntryIndex]);
-				}
-				break;
-			}
-			default:
-			{
-				break;
-			}
+			FRigUnit_SetControlInteger::StaticExecute(ExecuteContext, Entries[EntryIndex].Control, Weight, IntegerValue, CachedControlIndices[EntryIndex]);
 		}
 	}
 }
@@ -203,34 +122,18 @@ FRigUnit_SetControlVector2D_Execute()
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (ExecuteContext.UnitContext.State)
+		const FRigElementKey Key(Control, ERigElementType::Control);
+		if (CachedControlIndex.UpdateCache(Key, Hierarchy))
 		{
-			case EControlRigState::Init:
+			const FVector3f CurrentValue(Vector.X, Vector.Y, 0.f);
+			if(FMath::IsNearlyEqual((float)Weight, 1.f))
 			{
-				CachedControlIndex.Reset();
-				break;
+				Hierarchy->SetControlValue(CachedControlIndex, FRigControlValue::Make<FVector3f>(CurrentValue));
 			}
-			case EControlRigState::Update:
+			else
 			{
-				const FRigElementKey Key(Control, ERigElementType::Control);
-				if (CachedControlIndex.UpdateCache(Key, Hierarchy))
-				{
-					const FVector3f CurrentValue(Vector.X, Vector.Y, 0.f);
-					if(FMath::IsNearlyEqual((float)Weight, 1.f))
-					{
-						Hierarchy->SetControlValue(CachedControlIndex, FRigControlValue::Make<FVector3f>(CurrentValue));
-					}
-					else
-					{
-						const FVector3f PreviousValue = Hierarchy->GetControlValue(CachedControlIndex).Get<FVector3f>();
-						Hierarchy->SetControlValue(CachedControlIndex, FRigControlValue::Make<FVector3f>(FMath::Lerp<FVector3f>(PreviousValue, CurrentValue, FMath::Clamp<float>(Weight, 0.f, 1.f))));
-					}
-				}
-				break;
-			}
-			default:
-			{
-				break;
+				const FVector3f PreviousValue = Hierarchy->GetControlValue(CachedControlIndex).Get<FVector3f>();
+				Hierarchy->SetControlValue(CachedControlIndex, FRigControlValue::Make<FVector3f>(FMath::Lerp<FVector3f>(PreviousValue, CurrentValue, FMath::Clamp<float>(Weight, 0.f, 1.f))));
 			}
 		}
 	}
@@ -244,22 +147,11 @@ FRigUnit_SetMultiControlVector2D_Execute()
 	{
 		CachedControlIndices.SetNum(Entries.Num());
 
-		switch (ExecuteContext.UnitContext.State)
+		for (int32 EntryIndex = 0; EntryIndex < Entries.Num(); EntryIndex++)
 		{
-			case EControlRigState::Update:
-			{
-				for (int32 EntryIndex = 0; EntryIndex < Entries.Num(); EntryIndex++)
-				{
-					FVector2D Vector = Entries[EntryIndex].Vector;
+			FVector2D Vector = Entries[EntryIndex].Vector;
 
-					FRigUnit_SetControlVector2D::StaticExecute(ExecuteContext, Entries[EntryIndex].Control, Weight, Vector, CachedControlIndices[EntryIndex]);
-				}
-				break;
-			}
-			default:
-			{
-				break;
-			}
+			FRigUnit_SetControlVector2D::StaticExecute(ExecuteContext, Entries[EntryIndex].Control, Weight, Vector, CachedControlIndices[EntryIndex]);
 		}
 	}
 }
@@ -270,73 +162,58 @@ FRigUnit_SetControlVector_Execute()
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (ExecuteContext.UnitContext.State)
+		const FRigElementKey Key(Control, ERigElementType::Control);
+		if (CachedControlIndex.UpdateCache(Key, Hierarchy))
 		{
-			case EControlRigState::Init:
+			const ERigControlType ControlType = Hierarchy->GetChecked<FRigControlElement>(CachedControlIndex)->Settings.ControlType;
+			
+			FTransform Transform = FTransform::Identity;
+			if (Space == EBoneGetterSetterMode::GlobalSpace)
 			{
-				CachedControlIndex.Reset();
-				break;
+				Transform = Hierarchy->GetGlobalTransform(CachedControlIndex);
 			}
-			case EControlRigState::Update:
+
+			if (ControlType == ERigControlType::Position)
 			{
-				const FRigElementKey Key(Control, ERigElementType::Control);
-				if (CachedControlIndex.UpdateCache(Key, Hierarchy))
+				if(FMath::IsNearlyEqual((float)Weight, 1.f))
 				{
-					const ERigControlType ControlType = Hierarchy->GetChecked<FRigControlElement>(CachedControlIndex)->Settings.ControlType;
-					
-					FTransform Transform = FTransform::Identity;
-					if (Space == EBoneGetterSetterMode::GlobalSpace)
-					{
-						Transform = Hierarchy->GetGlobalTransform(CachedControlIndex);
-					}
-
-					if (ControlType == ERigControlType::Position)
-					{
-						if(FMath::IsNearlyEqual((float)Weight, 1.f))
-						{
-							Transform.SetLocation(Vector);
-						}
-						else
-						{
-							FVector PreviousValue = Transform.GetLocation();
-							Transform.SetLocation(FMath::Lerp<FVector>(PreviousValue, Vector, FMath::Clamp<float>(Weight, 0.f, 1.f)));
-						}
-					}
-					else if (ControlType == ERigControlType::Scale)
-					{
-						if(FMath::IsNearlyEqual((float)Weight, 1.f))
-						{
-							Transform.SetScale3D(Vector);
-						}
-						else
-						{
-							FVector PreviousValue = Transform.GetScale3D();
-							Transform.SetScale3D(FMath::Lerp<FVector>(PreviousValue, Vector, FMath::Clamp<float>(Weight, 0.f, 1.f)));
-						}
-					}
-
-					switch (Space)
-					{
-						case EBoneGetterSetterMode::GlobalSpace:
-						{
-							Hierarchy->SetGlobalTransform(CachedControlIndex, Transform);
-							break;
-						}
-						case EBoneGetterSetterMode::LocalSpace:
-						{
-							Hierarchy->SetLocalTransform(CachedControlIndex, Transform);
-							break;
-						}
-						default:
-						{
-							break;
-						}
-					}
+					Transform.SetLocation(Vector);
+				}
+				else
+				{
+					FVector PreviousValue = Transform.GetLocation();
+					Transform.SetLocation(FMath::Lerp<FVector>(PreviousValue, Vector, FMath::Clamp<float>(Weight, 0.f, 1.f)));
 				}
 			}
-			default:
+			else if (ControlType == ERigControlType::Scale)
 			{
-				break;
+				if(FMath::IsNearlyEqual((float)Weight, 1.f))
+				{
+					Transform.SetScale3D(Vector);
+				}
+				else
+				{
+					FVector PreviousValue = Transform.GetScale3D();
+					Transform.SetScale3D(FMath::Lerp<FVector>(PreviousValue, Vector, FMath::Clamp<float>(Weight, 0.f, 1.f)));
+				}
+			}
+
+			switch (Space)
+			{
+				case EBoneGetterSetterMode::GlobalSpace:
+				{
+					Hierarchy->SetGlobalTransform(CachedControlIndex, Transform);
+					break;
+				}
+				case EBoneGetterSetterMode::LocalSpace:
+				{
+					Hierarchy->SetLocalTransform(CachedControlIndex, Transform);
+					break;
+				}
+				default:
+				{
+					break;
+				}
 			}
 		}
 	}
@@ -348,58 +225,43 @@ FRigUnit_SetControlRotator_Execute()
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (ExecuteContext.UnitContext.State)
+		const FRigElementKey Key(Control, ERigElementType::Control);
+		if (CachedControlIndex.UpdateCache(Key, Hierarchy))
 		{
-			case EControlRigState::Init:
+			FTransform Transform = FTransform::Identity;
+			if (Space == EBoneGetterSetterMode::GlobalSpace)
 			{
-				CachedControlIndex.Reset();
-				break;
+				Transform = Hierarchy->GetGlobalTransform(CachedControlIndex);
 			}
-			case EControlRigState::Update:
+
+			FQuat Quat = FQuat(Rotator);
+			if (FMath::IsNearlyEqual((float)Weight, 1.f))
 			{
-				const FRigElementKey Key(Control, ERigElementType::Control);
-				if (CachedControlIndex.UpdateCache(Key, Hierarchy))
+				Transform.SetRotation(Quat);
+			}
+			else
+			{
+				FQuat PreviousValue = Transform.GetRotation();
+				Transform.SetRotation(FQuat::Slerp(PreviousValue, Quat, FMath::Clamp<float>(Weight, 0.f, 1.f)));
+			}
+			Transform.NormalizeRotation();
+
+			switch (Space)
+			{
+				case EBoneGetterSetterMode::GlobalSpace:
 				{
-					FTransform Transform = FTransform::Identity;
-					if (Space == EBoneGetterSetterMode::GlobalSpace)
-					{
-						Transform = Hierarchy->GetGlobalTransform(CachedControlIndex);
-					}
-
-					FQuat Quat = FQuat(Rotator);
-					if (FMath::IsNearlyEqual((float)Weight, 1.f))
-					{
-						Transform.SetRotation(Quat);
-					}
-					else
-					{
-						FQuat PreviousValue = Transform.GetRotation();
-						Transform.SetRotation(FQuat::Slerp(PreviousValue, Quat, FMath::Clamp<float>(Weight, 0.f, 1.f)));
-					}
-					Transform.NormalizeRotation();
-
-					switch (Space)
-					{
-						case EBoneGetterSetterMode::GlobalSpace:
-						{
-							Hierarchy->SetGlobalTransform(CachedControlIndex, Transform);
-							break;
-						}
-						case EBoneGetterSetterMode::LocalSpace:
-						{
-							Hierarchy->SetLocalTransform(CachedControlIndex, Transform);
-							break;
-						}
-						default:
-						{
-							break;
-						}
-					}
+					Hierarchy->SetGlobalTransform(CachedControlIndex, Transform);
+					break;
 				}
-			}
-			default:
-			{
-				break;
+				case EBoneGetterSetterMode::LocalSpace:
+				{
+					Hierarchy->SetLocalTransform(CachedControlIndex, Transform);
+					break;
+				}
+				default:
+				{
+					break;
+				}
 			}
 		}
 	}
@@ -413,22 +275,11 @@ FRigUnit_SetMultiControlRotator_Execute()
 	{
 		CachedControlIndices.SetNum(Entries.Num());
 
-		switch (ExecuteContext.UnitContext.State)
+		for (int32 EntryIndex = 0; EntryIndex < Entries.Num(); EntryIndex++)
 		{
-			case EControlRigState::Update:
-			{
-				for (int32 EntryIndex = 0; EntryIndex < Entries.Num(); EntryIndex++)
-				{
-					FRotator Rotator = Entries[EntryIndex].Rotator;
+			FRotator Rotator = Entries[EntryIndex].Rotator;
 
-					FRigUnit_SetControlRotator::StaticExecute(ExecuteContext, Entries[EntryIndex].Control, Weight, Rotator, Entries[EntryIndex].Space , CachedControlIndices[EntryIndex]);
-				}
-				break;
-			}
-			default:
-			{
-				break;
-			}
+			FRigUnit_SetControlRotator::StaticExecute(ExecuteContext, Entries[EntryIndex].Control, Weight, Rotator, Entries[EntryIndex].Space , CachedControlIndices[EntryIndex]);
 		}
 	}
 }
@@ -439,56 +290,41 @@ FRigUnit_SetControlTransform_Execute()
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (ExecuteContext.UnitContext.State)
+		const FRigElementKey Key(Control, ERigElementType::Control);
+		if (CachedControlIndex.UpdateCache(Key, Hierarchy))
 		{
-			case EControlRigState::Init:
+			switch (Space)
 			{
-				CachedControlIndex.Reset();
-				break;
-			}
-			case EControlRigState::Update:
-			{
-				const FRigElementKey Key(Control, ERigElementType::Control);
-				if (CachedControlIndex.UpdateCache(Key, Hierarchy))
+				case EBoneGetterSetterMode::GlobalSpace:
 				{
-					switch (Space)
+					if(FMath::IsNearlyEqual((float)Weight, 1.f))
 					{
-						case EBoneGetterSetterMode::GlobalSpace:
-						{
-							if(FMath::IsNearlyEqual((float)Weight, 1.f))
-							{
-								Hierarchy->SetGlobalTransform(CachedControlIndex, Transform);
-							}
-							else
-							{
-								FTransform PreviousTransform = Hierarchy->GetGlobalTransform(CachedControlIndex);
-								Hierarchy->SetGlobalTransform(CachedControlIndex, FControlRigMathLibrary::LerpTransform(PreviousTransform, Transform, FMath::Clamp<float>(Weight, 0.f, 1.f)));
-							}
-							break;
-						}
-						case EBoneGetterSetterMode::LocalSpace:
-						{
-							if(FMath::IsNearlyEqual((float)Weight, 1.f))
-							{
-								Hierarchy->SetLocalTransform(CachedControlIndex, Transform);
-							}
-							else
-							{
-								FTransform PreviousTransform = Hierarchy->GetLocalTransform(CachedControlIndex);
-								Hierarchy->SetLocalTransform(CachedControlIndex, FControlRigMathLibrary::LerpTransform(PreviousTransform, Transform, FMath::Clamp<float>(Weight, 0.f, 1.f)));
-							}
-							break;
-						}
-						default:
-						{
-							break;
-						}
+						Hierarchy->SetGlobalTransform(CachedControlIndex, Transform);
 					}
+					else
+					{
+						FTransform PreviousTransform = Hierarchy->GetGlobalTransform(CachedControlIndex);
+						Hierarchy->SetGlobalTransform(CachedControlIndex, FControlRigMathLibrary::LerpTransform(PreviousTransform, Transform, FMath::Clamp<float>(Weight, 0.f, 1.f)));
+					}
+					break;
 				}
-			}
-			default:
-			{
-				break;
+				case EBoneGetterSetterMode::LocalSpace:
+				{
+					if(FMath::IsNearlyEqual((float)Weight, 1.f))
+					{
+						Hierarchy->SetLocalTransform(CachedControlIndex, Transform);
+					}
+					else
+					{
+						FTransform PreviousTransform = Hierarchy->GetLocalTransform(CachedControlIndex);
+						Hierarchy->SetLocalTransform(CachedControlIndex, FControlRigMathLibrary::LerpTransform(PreviousTransform, Transform, FMath::Clamp<float>(Weight, 0.f, 1.f)));
+					}
+					break;
+				}
+				default:
+				{
+					break;
+				}
 			}
 		}
 	}
@@ -536,7 +372,6 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetMultiControlBool)
 	Unit.Entries.Add(Entry);
 	AddErrorIfFalse(Unit.Entries.Num() == 2, TEXT("unexpected number of entries"));
 
-	Init();
 	Execute();
 
 	AddErrorIfFalse(Hierarchy->GetControlValue(FRigElementKey(TEXT("Control1"), ERigElementType::Control), ERigControlValueType::Current).Get<bool>() == true, TEXT("unexpected control value"));
@@ -569,7 +404,6 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetMultiControlFloat)
 	Unit.Entries.Add(Entry);
 	AddErrorIfFalse(Unit.Entries.Num() == 2, TEXT("unexpected number of entries"));
 
-	Init();
 	Execute();
 
 	AddErrorIfFalse(Hierarchy->GetControlValue(FRigElementKey(TEXT("Control1"), ERigElementType::Control), ERigControlValueType::Current).Get<float>() == 10.0f, TEXT("unexpected control value"));
@@ -630,7 +464,6 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetMultiControlInteger)
 	Unit.Entries.Add(Entry);
 	AddErrorIfFalse(Unit.Entries.Num() == 2, TEXT("unexpected number of entries"));
 
-	Init();
 	Execute();
 
 	AddErrorIfFalse(Hierarchy->GetControlValue(FRigElementKey(TEXT("Control1"), ERigElementType::Control), ERigControlValueType::Current).Get<int32>() == 10, TEXT("unexpected control value"));
@@ -663,7 +496,6 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetMultiControlVector2D)
 	Unit.Entries.Add(Entry);
 	AddErrorIfFalse(Unit.Entries.Num() == 2, TEXT("unexpected number of entries"));
 
-	Init();
 	Execute();
 
 	const FVector3f TempValue1 = Hierarchy->GetControlValue(FRigElementKey(TEXT("Control1"), ERigElementType::Control), ERigControlValueType::Current).Get<FVector3f>();
@@ -700,7 +532,6 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetMultiControlRotator)
 	Unit.Entries.Add(Entry);
 	AddErrorIfFalse(Unit.Entries.Num() == 2, TEXT("unexpected number of entries"));
 
-	Init();
 	Execute(); 
 
 	const FVector TempValue1 = (FVector)Hierarchy->GetControlValue(FRigElementKey(TEXT("Control1"), ERigElementType::Control), ERigControlValueType::Current).Get<FVector3f>();

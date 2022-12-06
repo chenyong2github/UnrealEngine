@@ -232,7 +232,7 @@ bool UControlRigTestData::Record(UControlRig* InControlRig, double InRecordingDu
 	{
 		InControlRig->RequestInit();
 		PreConstructionHandle = InControlRig->OnPreConstruction_AnyThread().AddLambda(
-			[this](UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName)
+			[this](UControlRig* InControlRig, const FName& InEventName)
 			{
 				Initial.Store(InControlRig, true);
 			}
@@ -240,7 +240,7 @@ bool UControlRigTestData::Record(UControlRig* InControlRig, double InRecordingDu
 	}
 
 	PreForwardHandle = InControlRig->OnPreForwardsSolve_AnyThread().AddLambda(
-		[this](UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName)
+		[this](UControlRig* InControlRig, const FName& InEventName)
 		{
 			FControlRigTestDataFrame Frame;
 			Frame.Store(InControlRig);
@@ -254,7 +254,7 @@ bool UControlRigTestData::Record(UControlRig* InControlRig, double InRecordingDu
 	);
 
 	PostForwardHandle = InControlRig->OnPostForwardsSolve_AnyThread().AddLambda(
-		[this](UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName)
+		[this](UControlRig* InControlRig, const FName& InEventName)
 		{
 			FControlRigTestDataFrame Frame;
 			Frame.Store(InControlRig);
@@ -297,14 +297,14 @@ bool UControlRigTestData::SetupReplay(UControlRig* InControlRig, bool bGroundTru
 	
 	InControlRig->RequestInit();
 	PreConstructionHandle = InControlRig->OnPreConstruction_AnyThread().AddLambda(
-		[this](UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName)
+		[this](UControlRig* InControlRig, const FName& InEventName)
 		{
 			Initial.Restore(InControlRig, true);
 		}
 	);
 
 	PreForwardHandle = InControlRig->OnPreForwardsSolve_AnyThread().AddLambda(
-		[this](UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName)
+		[this](UControlRig* InControlRig, const FName& InEventName)
 		{
 			// loop the animation data
 			if(InControlRig->GetAbsoluteTime() < GetTimeRange().X - SMALL_NUMBER ||
@@ -325,7 +325,7 @@ bool UControlRigTestData::SetupReplay(UControlRig* InControlRig, bool bGroundTru
 	);
 
 	PostForwardHandle = InControlRig->OnPostForwardsSolve_AnyThread().AddLambda(
-		[this](UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName)
+		[this](UControlRig* InControlRig, const FName& InEventName)
 		{
 			const FRigPose CurrentPose = InControlRig->GetHierarchy()->GetPose();
 

@@ -7,12 +7,6 @@
 
 FRigUnit_FitChainToCurve_Execute()
 {
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		WorkData.CachedItems.Reset();
-		return;
-	}
-
 	FRigElementKeyCollection Items;
 	if(WorkData.CachedItems.Num() == 0)
 	{
@@ -96,12 +90,6 @@ FRigUnit_FitChainToCurveItemArray_Execute()
 	TArray<int32>& ItemRotationB = WorkData.ItemRotationB;
 	TArray<float>& ItemRotationT = WorkData.ItemRotationT;
 	TArray<FTransform>& ItemLocalTransforms = WorkData.ItemLocalTransforms;
-
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		CachedItems.Reset();
-		return;
-	}
 
 	if(CachedItems.Num() == 0 && Items.Num() > 1)
 	{

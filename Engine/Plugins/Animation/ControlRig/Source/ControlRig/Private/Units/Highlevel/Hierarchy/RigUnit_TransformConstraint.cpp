@@ -110,54 +110,40 @@ FRigUnit_TransformConstraintPerItem_Execute()
 		}
 	};
 
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
+	if (Hierarchy)
 	{
-		ConstraintData.Reset();
-		ConstraintDataToTargets.Reset();
-		URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
-		
-		if (Hierarchy)
+		if ((ConstraintData.Num() != Targets.Num()))
 		{
 			SetupConstraintData();
 		}
-	}
-	else if (ExecuteContext.UnitContext.State == EControlRigState::Update)
-	{
-		URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
-		if (Hierarchy)
+
+		if (Item.IsValid())
 		{
-			if ((ConstraintData.Num() != Targets.Num()))
+			const int32 TargetNum = Targets.Num();
+			if (TargetNum > 0 && ConstraintData.Num() > 0)
 			{
-				SetupConstraintData();
-			}
-
-			if (Item.IsValid())
-			{
-				const int32 TargetNum = Targets.Num();
-				if (TargetNum > 0 && ConstraintData.Num() > 0)
+				for (int32 ConstraintIndex= 0; ConstraintIndex< ConstraintData.Num(); ++ConstraintIndex)
 				{
-					for (int32 ConstraintIndex= 0; ConstraintIndex< ConstraintData.Num(); ++ConstraintIndex)
+					// for now just try translate
+					const int32* TargetIndexPtr = ConstraintDataToTargets.Find(ConstraintIndex);
+					if (TargetIndexPtr)
 					{
-						// for now just try translate
-						const int32* TargetIndexPtr = ConstraintDataToTargets.Find(ConstraintIndex);
-						if (TargetIndexPtr)
-						{
-							const int32 TargetIndex = *TargetIndexPtr;
-							ConstraintData[ConstraintIndex].CurrentTransform = Targets[TargetIndex].Transform;
-							ConstraintData[ConstraintIndex].Weight = Targets[TargetIndex].Weight;
-						}
+						const int32 TargetIndex = *TargetIndexPtr;
+						ConstraintData[ConstraintIndex].CurrentTransform = Targets[TargetIndex].Transform;
+						ConstraintData[ConstraintIndex].Weight = Targets[TargetIndex].Weight;
 					}
-
-					FTransform InputBaseTransform = UtilityHelpers::GetBaseTransformByMode(BaseTransformSpace, [Hierarchy](const FRigElementKey& Item) { return Hierarchy->GetGlobalTransform(Item); },
-							Hierarchy->GetFirstParent(Item), BaseItem, BaseTransform);
-
-					FTransform SourceTransform = Hierarchy->GetGlobalTransform(Item);
-
-					// @todo: ignore maintain offset for now
-					FTransform ConstrainedTransform = AnimationCore::SolveConstraints(SourceTransform, InputBaseTransform, ConstraintData);
-
-					Hierarchy->SetGlobalTransform(Item, ConstrainedTransform);
 				}
+
+				FTransform InputBaseTransform = UtilityHelpers::GetBaseTransformByMode(BaseTransformSpace, [Hierarchy](const FRigElementKey& Item) { return Hierarchy->GetGlobalTransform(Item); },
+						Hierarchy->GetFirstParent(Item), BaseItem, BaseTransform);
+
+				FTransform SourceTransform = Hierarchy->GetGlobalTransform(Item);
+
+				// @todo: ignore maintain offset for now
+				FTransform ConstrainedTransform = AnimationCore::SolveConstraints(SourceTransform, InputBaseTransform, ConstraintData);
+
+				Hierarchy->SetGlobalTransform(Item, ConstrainedTransform);
 			}
 		}
 	}
@@ -195,12 +181,6 @@ FRigUnit_ParentConstraint_Execute()
 		return;
 	}
 
-	if(ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		ChildCache.Reset();
-		ParentCaches.Reset();
-	}
-	
  	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;	
 	if (Hierarchy)
 	{
@@ -634,12 +614,6 @@ FRigUnit_PositionConstraintLocalSpaceOffset_Execute()
 	if (Weight < KINDA_SMALL_NUMBER)
 	{
 		return;
-	}
-
-	if(ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		ChildCache.Reset();
-		ParentCaches.Reset();
 	}
 
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;	
@@ -1118,12 +1092,6 @@ FRigUnit_RotationConstraintLocalSpaceOffset_Execute()
 		return;
 	}
 	
-	if(ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		ChildCache.Reset();
-		ParentCaches.Reset();
-	}
-
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;	
 	if (Hierarchy)
 	{
@@ -1731,12 +1699,6 @@ FRigUnit_ScaleConstraintLocalSpaceOffset_Execute()
 		return;
 	}
 	
-	if(ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		ChildCache.Reset();
-		ParentCaches.Reset();
-	}
-
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;	
 	if (Hierarchy)
 	{

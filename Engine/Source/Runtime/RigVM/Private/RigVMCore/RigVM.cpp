@@ -1553,12 +1553,13 @@ bool URigVM::ShouldHaltAtInstruction(const FName& InEventName, const uint16 Inst
 }
 #endif
 
-bool URigVM::Initialize(TArrayView<URigVMMemoryStorage*> Memory, bool bInitializeMemory)
+bool URigVM::Initialize(TArrayView<URigVMMemoryStorage*> Memory)
 {
 	if (ExecutingThreadId != INDEX_NONE)
 	{
 		ensureMsgf(ExecutingThreadId == FPlatformTLS::GetCurrentThreadId(), TEXT("RigVM::Initialize from multiple threads (%d and %d)"), ExecutingThreadId, (int32)FPlatformTLS::GetCurrentThreadId());
 	}
+	
 	CopyDeferredVMIfRequired();
 	TGuardValue<int32> GuardThreadId(ExecutingThreadId, FPlatformTLS::GetCurrentThreadId());
 
@@ -1577,189 +1578,40 @@ bool URigVM::Initialize(TArrayView<URigVMMemoryStorage*> Memory, bool bInitializ
 		Memory = LocalMemory;
 	}
 
-	CacheMemoryHandlesIfRequired(Memory);
-
-	if(!bInitializeMemory)
+	// re-initialize work memory from CDO
+	if(URigVMMemoryStorage* WorkMemory = Memory[(int32)ERigVMMemoryType::Work])
 	{
-		return true;
-	}
-	
-	FRigVMByteCode& ByteCode = GetByteCode();
-	TArray<const FRigVMFunction*>& Functions = GetFunctions();
-	TArray<const FRigVMDispatchFactory*>& Factories = GetFactories();
-
-#if WITH_EDITOR
-	TArray<FName>& FunctionNames = GetFunctionNames();
-#endif
-
-	Context.Reset();
-	Context.SliceOffsets.AddZeroed(Instructions.Num());
-	FRigVMExecuteContext& ContextPublicData = Context.GetPublicData<>();
-
-	TGuardValue<URigVM*> VMInContext(Context.VM, this);
-	
-	while (Instructions.IsValidIndex(ContextPublicData.InstructionIndex))
-	{
-		const FRigVMInstruction& Instruction = Instructions[ContextPublicData.InstructionIndex];
-
-		switch (Instruction.OpCode)
+		if(!WorkMemory->HasAnyFlags(RF_ClassDefaultObject))
 		{
-			case ERigVMOpCode::Execute_0_Operands:
-			case ERigVMOpCode::Execute_1_Operands:
-			case ERigVMOpCode::Execute_2_Operands:
-			case ERigVMOpCode::Execute_3_Operands:
-			case ERigVMOpCode::Execute_4_Operands:
-			case ERigVMOpCode::Execute_5_Operands:
-			case ERigVMOpCode::Execute_6_Operands:
-			case ERigVMOpCode::Execute_7_Operands:
-			case ERigVMOpCode::Execute_8_Operands:
-			case ERigVMOpCode::Execute_9_Operands:
-			case ERigVMOpCode::Execute_10_Operands:
-			case ERigVMOpCode::Execute_11_Operands:
-			case ERigVMOpCode::Execute_12_Operands:
-			case ERigVMOpCode::Execute_13_Operands:
-			case ERigVMOpCode::Execute_14_Operands:
-			case ERigVMOpCode::Execute_15_Operands:
-			case ERigVMOpCode::Execute_16_Operands:
-			case ERigVMOpCode::Execute_17_Operands:
-			case ERigVMOpCode::Execute_18_Operands:
-			case ERigVMOpCode::Execute_19_Operands:
-			case ERigVMOpCode::Execute_20_Operands:
-			case ERigVMOpCode::Execute_21_Operands:
-			case ERigVMOpCode::Execute_22_Operands:
-			case ERigVMOpCode::Execute_23_Operands:
-			case ERigVMOpCode::Execute_24_Operands:
-			case ERigVMOpCode::Execute_25_Operands:
-			case ERigVMOpCode::Execute_26_Operands:
-			case ERigVMOpCode::Execute_27_Operands:
-			case ERigVMOpCode::Execute_28_Operands:
-			case ERigVMOpCode::Execute_29_Operands:
-			case ERigVMOpCode::Execute_30_Operands:
-			case ERigVMOpCode::Execute_31_Operands:
-			case ERigVMOpCode::Execute_32_Operands:
-			case ERigVMOpCode::Execute_33_Operands:
-			case ERigVMOpCode::Execute_34_Operands:
-			case ERigVMOpCode::Execute_35_Operands:
-			case ERigVMOpCode::Execute_36_Operands:
-			case ERigVMOpCode::Execute_37_Operands:
-			case ERigVMOpCode::Execute_38_Operands:
-			case ERigVMOpCode::Execute_39_Operands:
-			case ERigVMOpCode::Execute_40_Operands:
-			case ERigVMOpCode::Execute_41_Operands:
-			case ERigVMOpCode::Execute_42_Operands:
-			case ERigVMOpCode::Execute_43_Operands:
-			case ERigVMOpCode::Execute_44_Operands:
-			case ERigVMOpCode::Execute_45_Operands:
-			case ERigVMOpCode::Execute_46_Operands:
-			case ERigVMOpCode::Execute_47_Operands:
-			case ERigVMOpCode::Execute_48_Operands:
-			case ERigVMOpCode::Execute_49_Operands:
-			case ERigVMOpCode::Execute_50_Operands:
-			case ERigVMOpCode::Execute_51_Operands:
-			case ERigVMOpCode::Execute_52_Operands:
-			case ERigVMOpCode::Execute_53_Operands:
-			case ERigVMOpCode::Execute_54_Operands:
-			case ERigVMOpCode::Execute_55_Operands:
-			case ERigVMOpCode::Execute_56_Operands:
-			case ERigVMOpCode::Execute_57_Operands:
-			case ERigVMOpCode::Execute_58_Operands:
-			case ERigVMOpCode::Execute_59_Operands:
-			case ERigVMOpCode::Execute_60_Operands:
-			case ERigVMOpCode::Execute_61_Operands:
-			case ERigVMOpCode::Execute_62_Operands:
-			case ERigVMOpCode::Execute_63_Operands:
-			case ERigVMOpCode::Execute_64_Operands:
+			if(const URigVMMemoryStorageGeneratorClass* MemoryClass = Cast<URigVMMemoryStorageGeneratorClass>(WorkMemory->GetClass()))
 			{
-				const FRigVMExecuteOp& Op = ByteCode.GetOpAt<FRigVMExecuteOp>(Instruction);
-				int32 OperandCount = FirstHandleForInstruction[ContextPublicData.InstructionIndex + 1] - FirstHandleForInstruction[ContextPublicData.InstructionIndex];
-				FRigVMMemoryHandleArray OpHandles;
-				if(OperandCount > 0)
+				if(URigVMMemoryStorage* WorkMemoryCDO = MemoryClass->GetDefaultObject<URigVMMemoryStorage>())
 				{
-					OpHandles = FRigVMMemoryHandleArray(&CachedMemoryHandles[FirstHandleForInstruction[ContextPublicData.InstructionIndex]], OperandCount);
-				}
-#if WITH_EDITOR
-				ContextPublicData.FunctionName = FunctionNames[Op.FunctionIndex];
-#endif
-				Context.Factory = Factories[Op.FunctionIndex];
-
-				// find out the largest slice count
-				int32 MaxSliceCount = 1;
-
-				const bool bContainsLazyValue = OpHandles.ContainsByPredicate([](const FRigVMMemoryHandle& Handle)
-				{
-					return Handle.IsLazy();
-				});
-
-				if(!bContainsLazyValue)
-				{
-					Context.BeginSlice(MaxSliceCount);
-					for (int32 SliceIndex = 0; SliceIndex < MaxSliceCount; SliceIndex++)
+					for(const FProperty* Property : MemoryClass->LinkedProperties)
 					{
-						(*Functions[Op.FunctionIndex]->FunctionPtr)(Context, OpHandles);
-						Context.IncrementSlice();
-					}
-					Context.EndSlice();
-				}
-				break;
-			}
-			case ERigVMOpCode::Zero:
-			case ERigVMOpCode::BoolFalse:
-			case ERigVMOpCode::BoolTrue:
-			{
-				break;
-			}
-			case ERigVMOpCode::Copy:
-			{
-				const FRigVMCopyOp& Op = ByteCode.GetOpAt<FRigVMCopyOp>(Instruction);
+						Property->CopyCompleteValue_InContainer(WorkMemory, WorkMemoryCDO);
+#if UE_RIGVM_DEBUG_EXECUTION
+						FString DefaultValue;
+						const uint8* PropertyMemory = Property->ContainerPtrToValuePtr<uint8>(WorkMemory);
+						Property->ExportText_Direct(
+							DefaultValue,
+							PropertyMemory,
+							PropertyMemory,
+							nullptr,
+							PPF_None,
+							nullptr);
 
-				FRigVMMemoryHandle& SourceHandle = CachedMemoryHandles[FirstHandleForInstruction[ContextPublicData.InstructionIndex]];
-				FRigVMMemoryHandle& TargetHandle = CachedMemoryHandles[FirstHandleForInstruction[ContextPublicData.InstructionIndex] + 1];
-				URigVMMemoryStorage::CopyProperty(TargetHandle, SourceHandle);
-				break;
-			}
-			case ERigVMOpCode::Increment:
-			case ERigVMOpCode::Decrement:
-			case ERigVMOpCode::Equals:
-			case ERigVMOpCode::NotEquals:
-			case ERigVMOpCode::JumpAbsolute:
-			case ERigVMOpCode::JumpForward:
-			case ERigVMOpCode::JumpBackward:
-			case ERigVMOpCode::JumpAbsoluteIf:
-			case ERigVMOpCode::JumpForwardIf:
-			case ERigVMOpCode::JumpBackwardIf:
-			case ERigVMOpCode::ChangeType:
-			case ERigVMOpCode::BeginBlock:
-			case ERigVMOpCode::EndBlock:
-			case ERigVMOpCode::Exit:
-			case ERigVMOpCode::ArrayGetNum:
-			case ERigVMOpCode::ArraySetNum:
-			case ERigVMOpCode::ArrayAppend:
-			case ERigVMOpCode::ArrayClone:
-			case ERigVMOpCode::ArrayGetAtIndex:
-			case ERigVMOpCode::ArraySetAtIndex:
-			case ERigVMOpCode::ArrayInsert:
-			case ERigVMOpCode::ArrayRemove:
-			case ERigVMOpCode::ArrayAdd:
-			case ERigVMOpCode::ArrayFind:
-			case ERigVMOpCode::ArrayIterator:
-			case ERigVMOpCode::ArrayUnion:
-			case ERigVMOpCode::ArrayDifference:
-			case ERigVMOpCode::ArrayIntersection:
-			case ERigVMOpCode::ArrayReverse:
-			case ERigVMOpCode::InvokeEntry:
-			case ERigVMOpCode::JumpToBranch:
-			{
-				break;
-			}
-			case ERigVMOpCode::Invalid:
-			{
-				ensure(false);
-				return false;
+						UE_LOG(LogRigVM, Warning, TEXT("Property %s defaults to '%s'."), *Property->GetName(), *DefaultValue);
+						UE_LOG(LogRigVM, Warning, TEXT("Property %s defaults to '%s'."), *Property->GetName(), *DefaultValue);
+#endif
+					}
+				}
 			}
 		}
-		ContextPublicData.InstructionIndex++;
 	}
 	
+	CacheMemoryHandlesIfRequired(Memory);
+
 	return true;
 }
 

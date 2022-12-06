@@ -131,6 +131,12 @@ struct CONTROLRIG_API FRigUnit_MultiFABRIK : public FRigUnit_HighlevelBaseMutabl
 		Precision = 1.f;
 		MaxIterations = 4;
 		bPropagateToChildren = true;
+		bIsInitialized = false;
+	}
+
+	virtual void Initialize() override
+	{
+		bIsInitialized = false;
 	}
 
 	/**
@@ -164,4 +170,7 @@ struct CONTROLRIG_API FRigUnit_MultiFABRIK : public FRigUnit_HighlevelBaseMutabl
 
 	UPROPERTY(transient)
 	FRigUnit_MultiFABRIK_WorkData WorkData;
+
+	UPROPERTY(transient)
+	bool bIsInitialized;
 };

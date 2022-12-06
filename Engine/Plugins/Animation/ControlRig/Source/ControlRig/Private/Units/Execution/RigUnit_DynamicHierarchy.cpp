@@ -15,8 +15,7 @@ bool FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(
 	bool bAllowOnlyConstructionEvent,
 	FString* OutErrorMessage)
 {
-	if((InExecuteContext.UnitContext.State != EControlRigState::Update) ||
-		(InExecuteContext.Hierarchy == nullptr))
+	if(InExecuteContext.Hierarchy == nullptr)
 	{
 		return false;
 	}
@@ -213,7 +212,7 @@ FRigVMStructUpgradeInfo FRigUnit_HierarchyGetParentWeights::GetUpgradeInfo() con
 
 FRigUnit_HierarchyGetParentWeightsArray_Execute()
 {
-	if((ExecuteContext.UnitContext.State != EControlRigState::Update) || (ExecuteContext.Hierarchy == nullptr))
+	if(ExecuteContext.Hierarchy == nullptr)
 	{
 		return;
 	}

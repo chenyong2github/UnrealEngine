@@ -65,8 +65,8 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<UControlRigValidationPass>> Passes;
 
-	void OnControlRigInitialized(UControlRig* Subject, EControlRigState State, const FName& EventName);
-	void OnControlRigExecuted(UControlRig* Subject, EControlRigState State, const FName& EventName);
+	void OnControlRigInitialized(UControlRig* Subject, const FName& EventName);
+	void OnControlRigExecuted(UControlRig* Subject, const FName& EventName);
 
 	FControlRigValidationContext ValidationContext;
 	TWeakObjectPtr<UControlRig> WeakControlRig;

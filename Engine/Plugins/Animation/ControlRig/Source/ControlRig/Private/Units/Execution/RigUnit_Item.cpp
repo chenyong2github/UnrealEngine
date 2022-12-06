@@ -11,25 +11,7 @@ FRigUnit_ItemExists_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	Exists = false;
-
-	switch (ExecuteContext.UnitContext.State)
-	{
-		case EControlRigState::Init:
-		{
-			CachedIndex.Reset();
-			// fall through to update
-		}
-		case EControlRigState::Update:
-		{
-			Exists = CachedIndex.UpdateCache(Item, ExecuteContext.Hierarchy);
-	    	break;
-	    }
-	    default:
-	    {
-	    	break;
-	    }
-	}
+	Exists = CachedIndex.UpdateCache(Item, ExecuteContext.Hierarchy);
 }
 
 FRigUnit_ItemReplace_Execute()

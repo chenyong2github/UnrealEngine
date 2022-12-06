@@ -21,6 +21,8 @@ struct CONTROLRIG_API FRigUnit_KalmanFloat : public FRigUnit_SimBase
 		LastInsertIndex = 0;
 	}
 
+	virtual void Initialize() override { Buffer.Reset(); }
+
 	RIGVM_METHOD()
 	virtual void Execute() override;
 
@@ -55,6 +57,8 @@ struct CONTROLRIG_API FRigUnit_KalmanVector : public FRigUnit_SimBase
 		BufferSize = 16;
 		LastInsertIndex = 0;
 	}
+	
+	virtual void Initialize() override { Buffer.Reset(); }
 
 	RIGVM_METHOD()
 	virtual void Execute() override;
@@ -90,6 +94,8 @@ struct CONTROLRIG_API FRigUnit_KalmanTransform : public FRigUnit_SimBase
 		BufferSize = 16;
 		LastInsertIndex = 0;
 	}
+
+	virtual void Initialize() override { Buffer.Reset(); }
 
 	RIGVM_METHOD()
 	virtual void Execute() override;

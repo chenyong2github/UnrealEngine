@@ -277,7 +277,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	Unit.ExecuteContext.Hierarchy = Hierarchy;
 
 	//Test
-	InitAndExecute();
+	Execute();
 	TSharedPtr<FSharedRigRuntimeContext> SharedRigRuntimeContext = Test.GetSharedRigRuntimeContext(Test.GetData()->SkelMeshComponent->GetSkeletalMeshAsset());
 	//Assert
 	AddErrorIfFalse(

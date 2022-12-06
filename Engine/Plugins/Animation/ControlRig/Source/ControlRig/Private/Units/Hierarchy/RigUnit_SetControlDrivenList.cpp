@@ -16,26 +16,10 @@ FRigUnit_GetControlDrivenList_Execute()
 	const URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (ExecuteContext.UnitContext.State)
+		if (CachedControlIndex.UpdateCache(FRigElementKey(Control, ERigElementType::Control), Hierarchy))
 		{
-			case EControlRigState::Init:
-			{
-				CachedControlIndex.Reset();
-				break;
-			}
-			case EControlRigState::Update:
-			{
-				if (CachedControlIndex.UpdateCache(FRigElementKey(Control, ERigElementType::Control), Hierarchy))
-				{
-					const FRigControlElement* ControlElement = Hierarchy->GetChecked<FRigControlElement>(CachedControlIndex);
-					Driven = ControlElement->Settings.DrivenControls;
-				}
-				break;
-			}
-			default:
-			{
-				break;
-			}
+			const FRigControlElement* ControlElement = Hierarchy->GetChecked<FRigControlElement>(CachedControlIndex);
+			Driven = ControlElement->Settings.DrivenControls;
 		}
 	}
 }
@@ -46,30 +30,14 @@ FRigUnit_SetControlDrivenList_Execute()
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (ExecuteContext.UnitContext.State)
+		if (CachedControlIndex.UpdateCache(FRigElementKey(Control, ERigElementType::Control), Hierarchy))
 		{
-			case EControlRigState::Init:
+			FRigControlElement* ControlElement = Hierarchy->GetChecked<FRigControlElement>(CachedControlIndex);
+			if(ControlElement->Settings.DrivenControls != Driven)
 			{
-				CachedControlIndex.Reset();
-				break;
-			}
-			case EControlRigState::Update:
-			{
-				if (CachedControlIndex.UpdateCache(FRigElementKey(Control, ERigElementType::Control), Hierarchy))
-				{
-					FRigControlElement* ControlElement = Hierarchy->GetChecked<FRigControlElement>(CachedControlIndex);
-					if(ControlElement->Settings.DrivenControls != Driven)
-					{
-						Swap(ControlElement->Settings.DrivenControls, ControlElement->Settings.PreviouslyDrivenControls);
-						ControlElement->Settings.DrivenControls = Driven;
-						Hierarchy->Notify(ERigHierarchyNotification::ControlDrivenListChanged, ControlElement);
-					}
-				}
-				break;
-			}
-			default:
-			{
-				break;
+				Swap(ControlElement->Settings.DrivenControls, ControlElement->Settings.PreviouslyDrivenControls);
+				ControlElement->Settings.DrivenControls = Driven;
+				Hierarchy->Notify(ERigHierarchyNotification::ControlDrivenListChanged, ControlElement);
 			}
 		}
 	}

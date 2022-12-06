@@ -210,7 +210,7 @@ public:
 	}
 
 	// Initializes all execute ops and their memory.
-	virtual bool Initialize(TArrayView<URigVMMemoryStorage*> Memory, bool bInitializeMemory = true);
+	virtual bool Initialize(TArrayView<URigVMMemoryStorage*> Memory);
 
 	// Executes the VM.
 	// You can optionally provide external memory to the execution

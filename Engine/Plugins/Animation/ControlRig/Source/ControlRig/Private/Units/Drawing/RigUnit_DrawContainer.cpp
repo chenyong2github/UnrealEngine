@@ -14,24 +14,17 @@ FRigUnit_DrawContainerGetInstruction_Execute()
     	return;
     }
 	
-	switch(ExecuteContext.UnitContext.State)
+	int32 Index = ExecuteContext.UnitContext.DrawContainer->GetIndex(InstructionName);
+	if (Index != INDEX_NONE)
 	{
-		case EControlRigState::Update:
-		{
-			int32 Index = ExecuteContext.UnitContext.DrawContainer->GetIndex(InstructionName);
-			if (Index != INDEX_NONE)
-			{
-				const FControlRigDrawInstruction& Instruction = (*ExecuteContext.UnitContext.DrawContainer)[Index];
-				Color = Instruction.Color;
-				Transform = Instruction.Transform;
-			}
-			else
-			{
-				Color = FLinearColor::Red;
-				Transform = FTransform::Identity;
-			}
-			break;
-		}
+		const FControlRigDrawInstruction& Instruction = (*ExecuteContext.UnitContext.DrawContainer)[Index];
+		Color = Instruction.Color;
+		Transform = Instruction.Transform;
+	}
+	else
+	{
+		Color = FLinearColor::Red;
+		Transform = FTransform::Identity;
 	}
 }
 
@@ -50,18 +43,11 @@ FRigUnit_DrawContainerSetThickness_Execute()
 		return;
 	}
 
-	switch (ExecuteContext.UnitContext.State)
+	int32 Index = ExecuteContext.UnitContext.DrawContainer->GetIndex(InstructionName);
+	if (Index != INDEX_NONE)
 	{
-		case EControlRigState::Update:
-		{
-			int32 Index = ExecuteContext.UnitContext.DrawContainer->GetIndex(InstructionName);
-			if (Index != INDEX_NONE)
-			{
-				FControlRigDrawInstruction& Instruction = (*ExecuteContext.UnitContext.DrawContainer)[Index];
-				Instruction.Thickness = Thickness;
-			}
-			break;
-		}
+		FControlRigDrawInstruction& Instruction = (*ExecuteContext.UnitContext.DrawContainer)[Index];
+		Instruction.Thickness = Thickness;
 	}
 }
 
@@ -80,18 +66,11 @@ FRigUnit_DrawContainerSetColor_Execute()
 		return;
 	}
 
-	switch (ExecuteContext.UnitContext.State)
+	int32 Index = ExecuteContext.UnitContext.DrawContainer->GetIndex(InstructionName);
+	if (Index != INDEX_NONE)
 	{
-		case EControlRigState::Update:
-		{
-			int32 Index = ExecuteContext.UnitContext.DrawContainer->GetIndex(InstructionName);
-			if (Index != INDEX_NONE)
-			{
-				FControlRigDrawInstruction& Instruction = (*ExecuteContext.UnitContext.DrawContainer)[Index];
-				Instruction.Color = Color;
-			}
-			break;
-		}
+		FControlRigDrawInstruction& Instruction = (*ExecuteContext.UnitContext.DrawContainer)[Index];
+		Instruction.Color = Color;
 	}
 }
 
@@ -110,18 +89,11 @@ FRigUnit_DrawContainerSetTransform_Execute()
 		return;
 	}
 
-	switch (ExecuteContext.UnitContext.State)
+	int32 Index = ExecuteContext.UnitContext.DrawContainer->GetIndex(InstructionName);
+	if (Index != INDEX_NONE)
 	{
-		case EControlRigState::Update:
-		{
-			int32 Index = ExecuteContext.UnitContext.DrawContainer->GetIndex(InstructionName);
-			if (Index != INDEX_NONE)
-			{
-				FControlRigDrawInstruction& Instruction = (*ExecuteContext.UnitContext.DrawContainer)[Index];
-				Instruction.Transform = Transform;
-			}
-			break;
-		}
+		FControlRigDrawInstruction& Instruction = (*ExecuteContext.UnitContext.DrawContainer)[Index];
+		Instruction.Transform = Transform;
 	}
 }
 

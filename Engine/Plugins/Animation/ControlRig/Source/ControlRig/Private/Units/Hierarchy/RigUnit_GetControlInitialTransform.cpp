@@ -12,43 +12,29 @@ FRigUnit_GetControlInitialTransform_Execute()
 	const URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (ExecuteContext.UnitContext.State)
+		const FRigElementKey Key(Control, ERigElementType::Control); 
+		if (!CachedControlIndex.UpdateCache(Key, Hierarchy))
 		{
-			case EControlRigState::Init:
+			UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Control '%s' is not valid."), *Control.ToString());
+		}
+		else
+		{
+			switch (Space)
 			{
-				CachedControlIndex.Reset();
-			}
-			case EControlRigState::Update:
-			{
-				const FRigElementKey Key(Control, ERigElementType::Control); 
-				if (!CachedControlIndex.UpdateCache(Key, Hierarchy))
+				case EBoneGetterSetterMode::GlobalSpace:
 				{
-					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Control '%s' is not valid."), *Control.ToString());
+					Transform = Hierarchy->GetInitialGlobalTransform(CachedControlIndex);
+					break;
 				}
-				else
+				case EBoneGetterSetterMode::LocalSpace:
 				{
-					switch (Space)
-					{
-						case EBoneGetterSetterMode::GlobalSpace:
-						{
-							Transform = Hierarchy->GetInitialGlobalTransform(CachedControlIndex);
-							break;
-						}
-						case EBoneGetterSetterMode::LocalSpace:
-						{
-							Transform = Hierarchy->GetInitialLocalTransform(CachedControlIndex);
-							break;
-						}
-						default:
-						{
-							break;
-						}
-					}
+					Transform = Hierarchy->GetInitialLocalTransform(CachedControlIndex);
+					break;
 				}
-			}
-			default:
-			{
-				break;
+				default:
+				{
+					break;
+				}
 			}
 		}
 	}

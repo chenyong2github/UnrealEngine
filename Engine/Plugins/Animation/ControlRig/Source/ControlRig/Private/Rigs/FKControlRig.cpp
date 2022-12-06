@@ -106,13 +106,6 @@ FName UFKControlRig::GetControlTargetName(const FName& InName, const ERigElement
 
 bool UFKControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEventName)
 {
-	if (InOutContext.State != EControlRigState::Update)
-	{
-		// we don't need any initialization so
-		// it's fine to consider this done here and return true.
-		return true;
-	}
-
 #if WITH_EDITOR
 	if(URigHierarchy* Hierarchy = GetHierarchy())
 	{
@@ -307,9 +300,6 @@ void UFKControlRig::Initialize(bool bInitRigUnits /*= true*/)
 		const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
 		CreateRigElements(RefSkeleton, (Skeleton) ? Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName) : nullptr);
 	}
-
-	// execute init
-	Execute(EControlRigState::Init, FRigUnit_BeginExecution::EventName);
 }
 
 TArray<FName> UFKControlRig::GetControlNames()

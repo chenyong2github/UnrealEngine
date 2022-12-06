@@ -8,13 +8,13 @@
 FRigUnit_Timeline_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
+	if (!bIsInitialized)
 	{
 		Time = AccumulatedValue = 0.f;
-		return;
+		bIsInitialized = true;
 	}
 
-	Time = AccumulatedValue = AccumulatedValue + ExecuteContext.UnitContext.DeltaTime * Speed;
+	Time = AccumulatedValue = AccumulatedValue + ExecuteContext.GetDeltaTime() * Speed;
 }
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -22,7 +22,7 @@ FRigUnit_Timeline_Execute()
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_Timeline)
 {
-	ExecuteContext.UnitContext.DeltaTime = 1.f;
+	ExecuteContext.SetDeltaTime(1.f);
 	InitAndExecute();
 	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Time, 1.f), TEXT("unexpected time"));
 	InitAndExecute();
@@ -42,16 +42,16 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_Timeline)
 FRigUnit_TimeLoop_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
+	if (!bIsInitialized)
 	{
 		Absolute = Relative = FlipFlop = AccumulatedAbsolute = AccumulatedRelative = 0.f;
 		NumIterations = 0;
 		Even = false;
-		return;
+		bIsInitialized = true;
 	}
 
 	const float DurationClamped = FMath::Max(Duration, 0.0001f);
-	const float Increment = ExecuteContext.UnitContext.DeltaTime * Speed;
+	const float Increment = ExecuteContext.GetDeltaTime() * Speed;
 	Absolute = AccumulatedAbsolute = AccumulatedAbsolute + Increment;
 
 	AccumulatedRelative = AccumulatedRelative + Increment;

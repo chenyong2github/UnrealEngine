@@ -85,18 +85,11 @@ FRigUnit_MathBoolToggled_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if(ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		Initialized = false;
-		LastValue = Value;
-		Toggled = false;
-		return;
-	}
-
 	if(!Initialized)
 	{
 		Initialized = true;
 		Toggled = false;
+		LastValue = Value;
 	}
 	else
 	{
@@ -110,14 +103,7 @@ FRigUnit_MathBoolFlipFlop_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if(ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		Result = LastValue = !StartValue;
-		TimeLeft = 0.f;
-		return;
-	}
-
-	TimeLeft = TimeLeft - ExecuteContext.UnitContext.DeltaTime;
+	TimeLeft = TimeLeft - ExecuteContext.GetDeltaTime();
 	if (TimeLeft <= 0.f)
 	{
 		LastValue = !LastValue;
@@ -131,14 +117,6 @@ FRigUnit_MathBoolOnce_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if(ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		Result = false;
-		LastValue = true;
-		TimeLeft = 0.f;
-		return;
-	}
-
 	if(!Result && LastValue)
 	{
 		TimeLeft = Duration;
@@ -146,7 +124,7 @@ FRigUnit_MathBoolOnce_Execute()
 
 	Result = LastValue;
 
-	TimeLeft -= ExecuteContext.UnitContext.DeltaTime;
+	TimeLeft -= ExecuteContext.GetDeltaTime();
 	if(TimeLeft <= 0.f)
 	{
 		LastValue = false;

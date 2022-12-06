@@ -23,7 +23,10 @@ struct CONTROLRIG_API FRigUnit_AccumulateFloatAdd : public FRigUnit_AccumulateBa
 	{
 		InitialValue = Increment = Result = AccumulatedValue = 0.f;
 		bIntegrateDeltaTime = false;
+		bIsInitialized = false;
 	}
+
+	virtual void Initialize() override { bIsInitialized = false; }
 
 	RIGVM_METHOD()
 	virtual void Execute() override;
@@ -42,6 +45,9 @@ struct CONTROLRIG_API FRigUnit_AccumulateFloatAdd : public FRigUnit_AccumulateBa
 
 	UPROPERTY()
 	float AccumulatedValue;
+
+	UPROPERTY()
+	bool bIsInitialized;
 };
 
 /**
@@ -56,7 +62,10 @@ struct CONTROLRIG_API FRigUnit_AccumulateVectorAdd : public FRigUnit_AccumulateB
 	{
 		InitialValue = Increment = Result = AccumulatedValue = FVector::ZeroVector;
 		bIntegrateDeltaTime = false;
+		bIsInitialized = false;
 	}
+
+	virtual void Initialize() override { bIsInitialized = false; }
 
 	RIGVM_METHOD()
 	virtual void Execute() override;
@@ -75,6 +84,9 @@ struct CONTROLRIG_API FRigUnit_AccumulateVectorAdd : public FRigUnit_AccumulateB
 
 	UPROPERTY()
 	FVector AccumulatedValue;
+
+	UPROPERTY()
+	bool bIsInitialized;
 };
 
 /**
@@ -89,7 +101,10 @@ struct CONTROLRIG_API FRigUnit_AccumulateFloatMul : public FRigUnit_AccumulateBa
 	{
 		InitialValue = Multiplier = Result = AccumulatedValue = 1.f;
 		bIntegrateDeltaTime = false;
+		bIsInitialized = false;
 	}
+
+	virtual void Initialize() override { bIsInitialized = false; }
 
 	RIGVM_METHOD()
 	virtual void Execute() override;
@@ -108,6 +123,9 @@ struct CONTROLRIG_API FRigUnit_AccumulateFloatMul : public FRigUnit_AccumulateBa
 
 	UPROPERTY()
 	float AccumulatedValue;
+
+	UPROPERTY()
+	bool bIsInitialized;
 };
 
 /**
@@ -122,7 +140,10 @@ struct CONTROLRIG_API FRigUnit_AccumulateVectorMul : public FRigUnit_AccumulateB
 	{
 		InitialValue = Multiplier = Result = AccumulatedValue = FVector::OneVector;
 		bIntegrateDeltaTime = false;
+		bIsInitialized = false;
 	}
+
+	virtual void Initialize() override { bIsInitialized = false; }
 
 	RIGVM_METHOD()
 	virtual void Execute() override;
@@ -141,6 +162,9 @@ struct CONTROLRIG_API FRigUnit_AccumulateVectorMul : public FRigUnit_AccumulateB
 
 	UPROPERTY()
 	FVector AccumulatedValue;
+
+	UPROPERTY()
+	bool bIsInitialized;
 };
 
 /**
@@ -155,7 +179,10 @@ struct CONTROLRIG_API FRigUnit_AccumulateQuatMul : public FRigUnit_AccumulateBas
 	{
 		InitialValue = Multiplier = Result = AccumulatedValue = FQuat::Identity;
 		bIntegrateDeltaTime = bFlipOrder = false;
+		bIsInitialized = false;
 	}
+
+	virtual void Initialize() override { bIsInitialized = false; }
 
 	RIGVM_METHOD()
 	virtual void Execute() override;
@@ -177,6 +204,9 @@ struct CONTROLRIG_API FRigUnit_AccumulateQuatMul : public FRigUnit_AccumulateBas
 
 	UPROPERTY()
 	FQuat AccumulatedValue;
+
+	UPROPERTY()
+	bool bIsInitialized;
 };
 
 /**
@@ -191,7 +221,10 @@ struct CONTROLRIG_API FRigUnit_AccumulateTransformMul : public FRigUnit_Accumula
 	{
 		InitialValue = Multiplier = Result = AccumulatedValue = FTransform::Identity;
 		bIntegrateDeltaTime = bFlipOrder = false;
+		bIsInitialized = false;
 	}
+
+	virtual void Initialize() override { bIsInitialized = false; }
 
 	RIGVM_METHOD()
 	virtual void Execute() override;
@@ -213,6 +246,9 @@ struct CONTROLRIG_API FRigUnit_AccumulateTransformMul : public FRigUnit_Accumula
 
 	UPROPERTY()
 	FTransform AccumulatedValue;
+
+	UPROPERTY()
+	bool bIsInitialized;
 };
 
 /**
@@ -227,7 +263,10 @@ struct CONTROLRIG_API FRigUnit_AccumulateFloatLerp : public FRigUnit_AccumulateB
 	{
 		InitialValue = TargetValue = Blend = Result = AccumulatedValue = 0.f;
 		bIntegrateDeltaTime = false;
+		bIsInitialized = false;
 	}
+
+	virtual void Initialize() override { bIsInitialized = false; }
 
 	RIGVM_METHOD()
 	virtual void Execute() override;
@@ -249,6 +288,9 @@ struct CONTROLRIG_API FRigUnit_AccumulateFloatLerp : public FRigUnit_AccumulateB
 
 	UPROPERTY()
 	float AccumulatedValue;
+
+	UPROPERTY()
+	bool bIsInitialized;
 };
 
 /**
@@ -264,7 +306,10 @@ struct CONTROLRIG_API FRigUnit_AccumulateVectorLerp : public FRigUnit_Accumulate
 		InitialValue = TargetValue = Result = AccumulatedValue = FVector::ZeroVector;
 		Blend = 0.f;
 		bIntegrateDeltaTime = false;
+		bIsInitialized = false;
 	}
+
+	virtual void Initialize() override { bIsInitialized = false; }
 
 	RIGVM_METHOD()
 	virtual void Execute() override;
@@ -286,6 +331,9 @@ struct CONTROLRIG_API FRigUnit_AccumulateVectorLerp : public FRigUnit_Accumulate
 
 	UPROPERTY()
 	FVector AccumulatedValue;
+
+	UPROPERTY()
+	bool bIsInitialized;
 };
 
 /**
@@ -301,7 +349,10 @@ struct CONTROLRIG_API FRigUnit_AccumulateQuatLerp : public FRigUnit_AccumulateBa
 		InitialValue = TargetValue = Result = AccumulatedValue = FQuat::Identity;
 		Blend = 0.f;
 		bIntegrateDeltaTime = false;
+		bIsInitialized = false;
 	}
+
+	virtual void Initialize() override { bIsInitialized = false; }
 
 	RIGVM_METHOD()
 	virtual void Execute() override;
@@ -323,6 +374,9 @@ struct CONTROLRIG_API FRigUnit_AccumulateQuatLerp : public FRigUnit_AccumulateBa
 
 	UPROPERTY()
 	FQuat AccumulatedValue;
+
+	UPROPERTY()
+	bool bIsInitialized;
 };
 
 /**
@@ -338,7 +392,10 @@ struct CONTROLRIG_API FRigUnit_AccumulateTransformLerp : public FRigUnit_Accumul
 		InitialValue = TargetValue = Result = AccumulatedValue = FTransform::Identity;
 		Blend = 0.f;
 		bIntegrateDeltaTime = false;
+		bIsInitialized = false;
 	}
+
+	virtual void Initialize() override { bIsInitialized = false; }
 
 	RIGVM_METHOD()
 	virtual void Execute() override;
@@ -360,6 +417,9 @@ struct CONTROLRIG_API FRigUnit_AccumulateTransformLerp : public FRigUnit_Accumul
 
 	UPROPERTY()
 	FTransform AccumulatedValue;
+
+	UPROPERTY()
+	bool bIsInitialized;
 };
 
 /**
@@ -373,7 +433,10 @@ struct CONTROLRIG_API FRigUnit_AccumulateFloatRange : public FRigUnit_Accumulate
 	FRigUnit_AccumulateFloatRange()
 	{
 		Value = Minimum = Maximum = AccumulatedMinimum = AccumulatedMaximum = 0.f;
+		bIsInitialized = false;
 	}
+
+	virtual void Initialize() override { bIsInitialized = false; }
 
 	RIGVM_METHOD()
 	virtual void Execute() override;
@@ -392,6 +455,9 @@ struct CONTROLRIG_API FRigUnit_AccumulateFloatRange : public FRigUnit_Accumulate
 
 	UPROPERTY()
 	float AccumulatedMaximum;
+
+	UPROPERTY()
+	bool bIsInitialized;
 };
 
 /**
@@ -402,10 +468,13 @@ struct CONTROLRIG_API FRigUnit_AccumulateVectorRange : public FRigUnit_Accumulat
 {
 	GENERATED_BODY()
 
-		FRigUnit_AccumulateVectorRange()
+	FRigUnit_AccumulateVectorRange()
 	{
 		Value = Minimum = Maximum = AccumulatedMinimum = AccumulatedMaximum = FVector::ZeroVector;
+		bIsInitialized = false;
 	}
+
+	virtual void Initialize() override { bIsInitialized = false; }
 
 	RIGVM_METHOD()
 	virtual void Execute() override;
@@ -424,4 +493,7 @@ struct CONTROLRIG_API FRigUnit_AccumulateVectorRange : public FRigUnit_Accumulat
 
 	UPROPERTY()
 	FVector AccumulatedMaximum;
+
+	UPROPERTY()
+	bool bIsInitialized;
 };

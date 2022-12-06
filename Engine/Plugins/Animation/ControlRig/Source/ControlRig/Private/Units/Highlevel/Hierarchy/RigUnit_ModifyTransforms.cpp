@@ -14,96 +14,81 @@ FRigUnit_ModifyTransforms_Execute()
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (ExecuteContext.UnitContext.State)
+		if (CachedItems.Num() == 0)
 		{
-			case EControlRigState::Init:
+			CachedItems.SetNum(ItemToModify.Num());
+		}
+
+		float Minimum = FMath::Min<float>(WeightMinimum, WeightMaximum);
+		float Maximum = FMath::Max<float>(WeightMinimum, WeightMaximum);
+
+		if (Weight <= Minimum + SMALL_NUMBER || FMath::IsNearlyEqual(Minimum, Maximum))
+		{
+			return;
+		}
+
+		if (CachedItems.Num() == ItemToModify.Num())
+		{
+			float T = FMath::Clamp<float>((Weight - Minimum) / (Maximum - Minimum), 0.f, 1.f);
+			bool bNeedsBlend = T < 1.f - SMALL_NUMBER;
+
+			int32 EntryIndex = 0;
+			for (const FRigUnit_ModifyTransforms_PerItem& Entry : ItemToModify)
 			{
-				CachedItems.Reset();
-				return;
-			}
-			case EControlRigState::Update:
-			{
-				if (CachedItems.Num() == 0)
+				FCachedRigElement& CachedItem = CachedItems[EntryIndex];
+				if (!CachedItem.UpdateCache(Entry.Item, Hierarchy))
 				{
-					CachedItems.SetNum(ItemToModify.Num());
+					continue;
 				}
 
-				float Minimum = FMath::Min<float>(WeightMinimum, WeightMaximum);
-				float Maximum = FMath::Max<float>(WeightMinimum, WeightMaximum);
+				FTransform Transform = Entry.Transform;
 
-				if (Weight <= Minimum + SMALL_NUMBER || FMath::IsNearlyEqual(Minimum, Maximum))
+				switch (Mode)
 				{
-					return;
-				}
-
-				if (CachedItems.Num() == ItemToModify.Num())
-				{
-					float T = FMath::Clamp<float>((Weight - Minimum) / (Maximum - Minimum), 0.f, 1.f);
-					bool bNeedsBlend = T < 1.f - SMALL_NUMBER;
-
-					int32 EntryIndex = 0;
-					for (const FRigUnit_ModifyTransforms_PerItem& Entry : ItemToModify)
+					case EControlRigModifyBoneMode::OverrideLocal:
 					{
-						FCachedRigElement& CachedItem = CachedItems[EntryIndex];
-						if (!CachedItem.UpdateCache(Entry.Item, Hierarchy))
+						if (bNeedsBlend)
 						{
-							continue;
+							Transform = FControlRigMathLibrary::LerpTransform(Hierarchy->GetLocalTransform(CachedItem), Transform, T);
 						}
-
-						FTransform Transform = Entry.Transform;
-
-						switch (Mode)
+						Hierarchy->SetLocalTransform(CachedItem, Transform, true);
+						break;
+					}
+					case EControlRigModifyBoneMode::OverrideGlobal:
+					{
+						if (bNeedsBlend)
 						{
-							case EControlRigModifyBoneMode::OverrideLocal:
-							{
-								if (bNeedsBlend)
-								{
-									Transform = FControlRigMathLibrary::LerpTransform(Hierarchy->GetLocalTransform(CachedItem), Transform, T);
-								}
-								Hierarchy->SetLocalTransform(CachedItem, Transform, true);
-								break;
-							}
-							case EControlRigModifyBoneMode::OverrideGlobal:
-							{
-								if (bNeedsBlend)
-								{
-									Transform = FControlRigMathLibrary::LerpTransform(Hierarchy->GetGlobalTransform(CachedItem), Transform, T);
-								}
-								Hierarchy->SetGlobalTransform(CachedItem, Transform, true);
-								break;
-							}
-							case EControlRigModifyBoneMode::AdditiveLocal:
-							{
-								if (bNeedsBlend)
-								{
-									Transform = FControlRigMathLibrary::LerpTransform(FTransform::Identity, Transform, T);
-								}
-								Transform = Transform * Hierarchy->GetLocalTransform(CachedItem);
-								Hierarchy->SetLocalTransform(CachedItem, Transform, true);
-								break;
-							}
-							case EControlRigModifyBoneMode::AdditiveGlobal:
-							{
-								if (bNeedsBlend)
-								{
-									Transform = FControlRigMathLibrary::LerpTransform(FTransform::Identity, Transform, T);
-								}
-								Transform = Hierarchy->GetGlobalTransform(CachedItem) * Transform;
-								Hierarchy->SetGlobalTransform(CachedItem, Transform, true);
-								break;
-							}
-							default:
-							{
-								break;
-							}
+							Transform = FControlRigMathLibrary::LerpTransform(Hierarchy->GetGlobalTransform(CachedItem), Transform, T);
 						}
-						EntryIndex++;
+						Hierarchy->SetGlobalTransform(CachedItem, Transform, true);
+						break;
+					}
+					case EControlRigModifyBoneMode::AdditiveLocal:
+					{
+						if (bNeedsBlend)
+						{
+							Transform = FControlRigMathLibrary::LerpTransform(FTransform::Identity, Transform, T);
+						}
+						Transform = Transform * Hierarchy->GetLocalTransform(CachedItem);
+						Hierarchy->SetLocalTransform(CachedItem, Transform, true);
+						break;
+					}
+					case EControlRigModifyBoneMode::AdditiveGlobal:
+					{
+						if (bNeedsBlend)
+						{
+							Transform = FControlRigMathLibrary::LerpTransform(FTransform::Identity, Transform, T);
+						}
+						Transform = Hierarchy->GetGlobalTransform(CachedItem) * Transform;
+						Hierarchy->SetGlobalTransform(CachedItem, Transform, true);
+						break;
+					}
+					default:
+					{
+						break;
 					}
 				}
-			}
-			default:
-			{
-				break;
+				EntryIndex++;
 			}
 		}
 	}

@@ -14,26 +14,10 @@ FRigUnit_GetControlColor_Execute()
 	const URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (ExecuteContext.UnitContext.State)
+		if (CachedControlIndex.UpdateCache(FRigElementKey(Control, ERigElementType::Control), Hierarchy))
 		{
-			case EControlRigState::Init:
-			{
-				CachedControlIndex.Reset();
-				break;
-			}
-			case EControlRigState::Update:
-			{
-				if (CachedControlIndex.UpdateCache(FRigElementKey(Control, ERigElementType::Control), Hierarchy))
-				{
-					const FRigControlElement* ControlElement = Hierarchy->GetChecked<FRigControlElement>(CachedControlIndex);
-					Color = ControlElement->Settings.ShapeColor;
-				}
-				break;
-			}
-			default:
-			{
-				break;
-			}
+			const FRigControlElement* ControlElement = Hierarchy->GetChecked<FRigControlElement>(CachedControlIndex);
+			Color = ControlElement->Settings.ShapeColor;
 		}
 	}
 }
@@ -44,27 +28,11 @@ FRigUnit_SetControlColor_Execute()
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (ExecuteContext.UnitContext.State)
+		if (CachedControlIndex.UpdateCache(FRigElementKey(Control, ERigElementType::Control), Hierarchy))
 		{
-			case EControlRigState::Init:
-			{
-				CachedControlIndex.Reset();
-				break;
-			}
-			case EControlRigState::Update:
-			{
-				if (CachedControlIndex.UpdateCache(FRigElementKey(Control, ERigElementType::Control), Hierarchy))
-				{
-					FRigControlElement* ControlElement = Hierarchy->GetChecked<FRigControlElement>(CachedControlIndex);
-					ControlElement->Settings.ShapeColor = Color;
-					Hierarchy->Notify(ERigHierarchyNotification::ControlSettingChanged, ControlElement);
-				}
-				break;
-			}
-			default:
-			{
-				break;
-			}
+			FRigControlElement* ControlElement = Hierarchy->GetChecked<FRigControlElement>(CachedControlIndex);
+			ControlElement->Settings.ShapeColor = Color;
+			Hierarchy->Notify(ERigHierarchyNotification::ControlSettingChanged, ControlElement);
 		}
 	}
 }

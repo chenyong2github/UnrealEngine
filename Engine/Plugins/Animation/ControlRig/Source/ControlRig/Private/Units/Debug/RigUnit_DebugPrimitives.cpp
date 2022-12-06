@@ -37,10 +37,6 @@ FRigVMStructUpgradeInfo FRigUnit_DebugRectangle::GetUpgradeInfo() const
 FRigUnit_DebugRectangleItemSpace_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		return;
-	}
 
 	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled)
 	{
@@ -94,10 +90,6 @@ FRigVMStructUpgradeInfo FRigUnit_DebugArc::GetUpgradeInfo() const
 FRigUnit_DebugArcItemSpace_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		return;
-	}
 
 	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled)
 	{

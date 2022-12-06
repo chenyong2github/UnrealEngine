@@ -26,6 +26,7 @@ struct CONTROLRIG_API FRigUnit_TwoBoneIKFK : public FRigUnitMutable
 		, EndJointIndex(INDEX_NONE)
 		, UpperLimbLength(0.f)
 		, LowerLimbLength(0.f)
+		, bIsInitialized(false)
 	{}
 
 	UPROPERTY(EditAnywhere, Category = "TwoBoneIKFK", meta = (Input))
@@ -90,6 +91,9 @@ private:
 	
 	UPROPERTY(transient)
 	float LowerLimbLength;
+
+	UPROPERTY()
+	bool bIsInitialized;
 
 	RIGVM_METHOD()
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;

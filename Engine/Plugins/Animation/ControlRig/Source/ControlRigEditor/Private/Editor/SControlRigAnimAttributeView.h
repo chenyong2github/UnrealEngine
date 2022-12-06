@@ -8,7 +8,6 @@
 class FControlRigEditor;
 class UControlRigBlueprint;
 class UControlRig;
-enum class EControlRigState : uint8;
 
 class SAnimAttributeView;
 
@@ -29,7 +28,7 @@ class SControlRigAnimAttributeView : public SCompoundWidget
 	void StartObservingNewControlRig(UControlRig* InControlRig);
 	void StopObservingCurrentControlRig();
 
-	void HandleControlRigPostForwardSolve(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName) const;
+	void HandleControlRigPostForwardSolve(UControlRig* InControlRig, const FName& InEventName) const;
 	
 	TWeakPtr<FControlRigEditor> ControlRigEditor;
 	TWeakObjectPtr<UControlRigBlueprint> ControlRigBlueprint;

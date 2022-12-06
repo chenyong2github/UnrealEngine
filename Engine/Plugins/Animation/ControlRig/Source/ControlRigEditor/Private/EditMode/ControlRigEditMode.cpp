@@ -3712,14 +3712,12 @@ void FControlRigEditMode::OnControlModified(UControlRig* Subject, FRigControlEle
 	*/
 }
 
-void FControlRigEditMode::OnPreConstruction_AnyThread(UControlRig* InRig, const EControlRigState InState,
-	const FName& InEventName)
+void FControlRigEditMode::OnPreConstruction_AnyThread(UControlRig* InRig, const FName& InEventName)
 {
 	bIsConstructionEventRunning = true;
 }
 
-void FControlRigEditMode::OnPostConstruction_AnyThread(UControlRig* InRig, const EControlRigState InState,
-	const FName& InEventName)
+void FControlRigEditMode::OnPostConstruction_AnyThread(UControlRig* InRig, const FName& InEventName)
 {
 	bIsConstructionEventRunning = false;
 

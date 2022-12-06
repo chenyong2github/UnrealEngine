@@ -22,46 +22,32 @@ FRigUnit_PropagateTransform_Execute()
     	/*
     	 * This node doesn't do anything anymore now that the hierarchy is lazy
     	 *
-		switch (ExecuteContext.UnitContext.State)
+		if (!CachedIndex.UpdateCache(Item, Hierarchy))
 		{
-			case EControlRigState::Init:
+			UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Item '%s' is not valid."), *Item.ToString());
+		}
+		else
+		{
+			FRigBoneHierarchy& Bones = Hierarchy->BoneHierarchy;
+			int32 BoneIndex = CachedIndex.GetIndex();
+
+			if (bRecomputeGlobal)
 			{
-				CachedIndex.Reset();
+				Bones.RecalculateGlobalTransform(BoneIndex);
 			}
-			case EControlRigState::Update:
+			if (bApplyToChildren)
 			{
-				if (!CachedIndex.UpdateCache(Item, Hierarchy))
+				if (bRecursive)
 				{
-					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Item '%s' is not valid."), *Item.ToString());
+					Bones.PropagateTransform(BoneIndex);
 				}
 				else
 				{
-					FRigBoneHierarchy& Bones = Hierarchy->BoneHierarchy;
-					int32 BoneIndex = CachedIndex.GetIndex();
-
-					if (bRecomputeGlobal)
+					for (int32 Dependent : Bones[BoneIndex].Dependents)
 					{
-						Bones.RecalculateGlobalTransform(BoneIndex);
-					}
-					if (bApplyToChildren)
-					{
-						if (bRecursive)
-						{
-							Bones.PropagateTransform(BoneIndex);
-						}
-						else
-						{
-							for (int32 Dependent : Bones[BoneIndex].Dependents)
-							{
-								Bones.RecalculateGlobalTransform(Dependent);
-							}
-						}
+						Bones.RecalculateGlobalTransform(Dependent);
 					}
 				}
-			}
-			default:
-			{
-				break;
 			}
 		}
 		*/

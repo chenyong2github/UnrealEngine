@@ -12,68 +12,53 @@ FRigUnit_SetBoneTranslation_Execute()
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		switch (ExecuteContext.UnitContext.State)
+		const FRigElementKey Key(Bone, ERigElementType::Bone); 
+		if (!CachedBone.UpdateCache(Key, Hierarchy))
 		{
-			case EControlRigState::Init:
+			UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Bone '%s' is not valid."), *Bone.ToString());
+		}
+		else
+		{
+			switch (Space)
 			{
-				CachedBone.Reset();
-				// fall through to update
-			}
-			case EControlRigState::Update:
-			{
-				const FRigElementKey Key(Bone, ERigElementType::Bone); 
-				if (!CachedBone.UpdateCache(Key, Hierarchy))
+				case EBoneGetterSetterMode::GlobalSpace:
 				{
-					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Bone '%s' is not valid."), *Bone.ToString());
-				}
-				else
-				{
-					switch (Space)
+					FTransform Transform = Hierarchy->GetGlobalTransform(CachedBone);
+
+					if (FMath::IsNearlyEqual(Weight, 1.f))
 					{
-						case EBoneGetterSetterMode::GlobalSpace:
-						{
-							FTransform Transform = Hierarchy->GetGlobalTransform(CachedBone);
-
-							if (FMath::IsNearlyEqual(Weight, 1.f))
-							{
-								Transform.SetTranslation(Translation);
-							}
-							else
-							{
-								float T = FMath::Clamp<float>(Weight, 0.f, 1.f);
-								Transform.SetTranslation(FMath::Lerp<FVector>(Transform.GetTranslation(), Translation, T));
-							}
-
-							Hierarchy->SetGlobalTransform(CachedBone, Transform, bPropagateToChildren);
-							break;
-						}
-						case EBoneGetterSetterMode::LocalSpace:
-						{
-							FTransform Transform = Hierarchy->GetLocalTransform(CachedBone);
-
-							if (FMath::IsNearlyEqual(Weight, 1.f))
-							{
-								Transform.SetTranslation(Translation);
-							}
-							else
-							{
-								float T = FMath::Clamp<float>(Weight, 0.f, 1.f);
-								Transform.SetTranslation(FMath::Lerp<FVector>(Transform.GetTranslation(), Translation, T));
-							}
-
-							Hierarchy->SetLocalTransform(CachedBone, Transform, bPropagateToChildren);
-							break;
-						}
-						default:
-						{
-							break;
-						}
+						Transform.SetTranslation(Translation);
 					}
+					else
+					{
+						float T = FMath::Clamp<float>(Weight, 0.f, 1.f);
+						Transform.SetTranslation(FMath::Lerp<FVector>(Transform.GetTranslation(), Translation, T));
+					}
+
+					Hierarchy->SetGlobalTransform(CachedBone, Transform, bPropagateToChildren);
+					break;
 				}
-			}
-			default:
-			{
-				break;
+				case EBoneGetterSetterMode::LocalSpace:
+				{
+					FTransform Transform = Hierarchy->GetLocalTransform(CachedBone);
+
+					if (FMath::IsNearlyEqual(Weight, 1.f))
+					{
+						Transform.SetTranslation(Translation);
+					}
+					else
+					{
+						float T = FMath::Clamp<float>(Weight, 0.f, 1.f);
+						Transform.SetTranslation(FMath::Lerp<FVector>(Transform.GetTranslation(), Translation, T));
+					}
+
+					Hierarchy->SetLocalTransform(CachedBone, Transform, bPropagateToChildren);
+					break;
+				}
+				default:
+				{
+					break;
+				}
 			}
 		}
 	}

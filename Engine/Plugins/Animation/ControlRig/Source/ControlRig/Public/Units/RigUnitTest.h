@@ -76,17 +76,15 @@ public:
 		} \
 		virtual bool RunControlRigUnitTest(const FString& Parameters); \
 		virtual FString GetBeautifiedTestName() const override { return TEXT(CONTROLRIG_RIGUNIT_STRINGIFY(ControlRig.Units.TUnitStruct)); } \
-		void Init() \
+		void InitAndExecute() \
 		{ \
-			ExecuteContext.UnitContext.State = EControlRigState::Init; \
+			Unit.Initialize(); \
 			Unit.Execute(ExecuteContext); \
 		} \
 		void Execute() \
 		{ \
-			ExecuteContext.UnitContext.State = EControlRigState::Update; \
 			Unit.Execute(ExecuteContext); \
 		} \
-		void InitAndExecute() { Init(); Execute(); } \
 	}; \
 	namespace\
 	{\

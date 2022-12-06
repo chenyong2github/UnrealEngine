@@ -239,7 +239,9 @@ struct RIGVM_API FRigVMExecuteContext
 		{
 			(*RuntimeSettings.LogFunction)(InSeverity, this, InMessage);
 		}
+#if !UE_RIGVM_DEBUG_EXECUTION
 		else
+#endif
 		{
 			if(InSeverity == EMessageSeverity::Error)
 			{
@@ -273,6 +275,9 @@ struct RIGVM_API FRigVMExecuteContext
 
 	double GetAbsoluteTime() const { return AbsoluteTime; } 
 	void SetAbsoluteTime(double InAbsoluteTime) { AbsoluteTime = InAbsoluteTime; }
+
+	double GetFramesPerSecond() const { return FramesPerSecond; } 
+	void SetFramesPerSecond(double InFramesPerSecond) { FramesPerSecond = InFramesPerSecond; }
 	
 	FRigVMNameCache* GetNameCache() const { return NameCache; }
 
@@ -310,6 +315,8 @@ protected:
 	double DeltaTime;
 
 	double AbsoluteTime;
+
+	double FramesPerSecond;
 
 	FRigVMRuntimeSettings RuntimeSettings;
 

@@ -120,6 +120,11 @@ struct FRigUnit_RigLogic: public FRigUnitMutable
 {
 	GENERATED_BODY()
 
+	FRigUnit_RigLogic()
+		: Data()
+		, bIsInitialized(false)
+	{}
+
 public:
 #if WITH_DEV_AUTOMATION_TESTS
 	/** Allows accessing private Data property from unit tests **/
@@ -137,4 +142,8 @@ private:
 	// internal work data for the unit
 	UPROPERTY(transient)
 	FRigUnit_RigLogic_Data Data;
+
+	// flag to determine if the node has been initialized
+	UPROPERTY(transient)
+	bool bIsInitialized;
 };

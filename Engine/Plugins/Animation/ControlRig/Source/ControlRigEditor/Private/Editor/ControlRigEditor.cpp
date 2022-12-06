@@ -3234,7 +3234,7 @@ void FControlRigEditor::HandleVMCompiledEvent(UObject* InCompiledObject, URigVM*
 	UpdateGraphCompilerErrors();
 }
 
-void FControlRigEditor::HandleControlRigExecutedEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName)
+void FControlRigEditor::HandleControlRigExecutedEvent(UControlRig* InControlRig, const FName& InEventName)
 {
 	if (UControlRigBlueprint* ControlRigBP = GetControlRigBlueprint())
 	{
@@ -7196,14 +7196,12 @@ FString* FControlRigEditor::GetSnippetStorage(int32 InSnippetIndex)
 	return nullptr;
 }
 
-void FControlRigEditor::OnPreConstruction_AnyThread(UControlRig* InRig, const EControlRigState InState,
-	const FName& InEventName)
+void FControlRigEditor::OnPreConstruction_AnyThread(UControlRig* InRig, const FName& InEventName)
 {
 	bIsConstructionEventRunning = true;
 }
 
-void FControlRigEditor::OnPostConstruction_AnyThread(UControlRig* InRig, const EControlRigState InState,
-	const FName& InEventName)
+void FControlRigEditor::OnPostConstruction_AnyThread(UControlRig* InRig, const FName& InEventName)
 {
 	bIsConstructionEventRunning = false;
 	

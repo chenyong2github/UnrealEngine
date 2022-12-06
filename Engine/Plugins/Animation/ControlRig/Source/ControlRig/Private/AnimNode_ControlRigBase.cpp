@@ -614,7 +614,7 @@ void FAnimNode_ControlRigBase::CacheBones_AnyThread(const FAnimationCacheBonesCo
 		if(ControlRig->IsConstructionModeEnabled() ||
 			(ControlRig->IsConstructionRequired() && (bControlRigRequiresInitialization || bIsLODChange)))
 		{
-			ControlRig->Execute(EControlRigState::Update, FRigUnit_PrepareForExecution::EventName);
+			ControlRig->Execute(FRigUnit_PrepareForExecution::EventName);
 			bControlRigRequiresInitialization = false;
 		}
 
@@ -805,8 +805,7 @@ void FAnimNode_ControlRigBase::CacheBones_AnyThread(const FAnimationCacheBonesCo
 		{
 			// re-init only if this is the first run
 			// and restore control values
-			FControlRigControlScope Scope(ControlRig);
-			ControlRig->Execute(EControlRigState::Init, FRigUnit_BeginExecution::EventName);
+			ControlRig->RequestInit();
 			bControlRigRequiresInitialization = false;
 		}
 		

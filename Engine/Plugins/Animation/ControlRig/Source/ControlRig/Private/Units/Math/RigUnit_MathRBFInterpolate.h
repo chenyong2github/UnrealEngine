@@ -7,7 +7,6 @@
 
 #include "RigUnit_MathRBFInterpolate.generated.h"
 
-enum class EControlRigState : uint8;
 template<typename T> class TRBFInterpolator;
 struct CONTROLRIG_API FRigUnit_MathRBFQuatWeightFunctor;
 struct CONTROLRIG_API FRigUnit_MathRBFVectorWeightFunctor;
@@ -110,7 +109,6 @@ protected:
 	
 	template<typename T>
 	static void GetInterpolatedWeights(
-		EControlRigState State,
 		FRigUnit_MathRBFInterpolateQuatWorkData& WorkData,
 		const TArrayView<const T>& Targets,
 		const FQuat& Input,
@@ -152,7 +150,6 @@ struct CONTROLRIG_API FRigUnit_MathRBFInterpolateVectorBase :
 protected:
 	template<typename T>
 	static void GetInterpolatedWeights(
-		EControlRigState State,
 		FRigUnit_MathRBFInterpolateVectorWorkData& WorkData,
 		const TArrayView<const T>& Targets,
 		const FVector& Input,

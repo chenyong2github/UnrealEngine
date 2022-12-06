@@ -860,7 +860,7 @@ void SRigHierarchy::HandleSetObjectBeingDebugged(UObject* InObject)
 	RefreshTreeView();
 }
 
-void SRigHierarchy::OnPreConstruction_AnyThread(UControlRig* InRig, const EControlRigState InState, const FName& InEventName)
+void SRigHierarchy::OnPreConstruction_AnyThread(UControlRig* InRig, const FName& InEventName)
 {
 	if(InRig != ControlRigBeingDebuggedPtr.Get())
 	{
@@ -870,7 +870,7 @@ void SRigHierarchy::OnPreConstruction_AnyThread(UControlRig* InRig, const EContr
 	SelectionBeforeConstruction = InRig->GetHierarchy()->GetSelectedKeys();
 }
 
-void SRigHierarchy::OnPostConstruction_AnyThread(UControlRig* InRig, const EControlRigState InState, const FName& InEventName)
+void SRigHierarchy::OnPostConstruction_AnyThread(UControlRig* InRig, const FName& InEventName)
 {
 	if(InRig != ControlRigBeingDebuggedPtr.Get())
 	{

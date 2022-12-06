@@ -10,7 +10,7 @@ FRigUnit_Control_StaticMesh::FRigUnit_Control_StaticMesh()
 
 FRigUnit_Control_StaticMesh_Execute()
 {
-	FRigUnit_Control::StaticExecute(ExecuteContext, Transform, Base, InitTransform, Result, Filter);
+	FRigUnit_Control::StaticExecute(ExecuteContext, Transform, Base, InitTransform, Result, Filter, bIsInitialized);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_Control_StaticMesh::GetUpgradeInfo() const

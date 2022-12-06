@@ -20,19 +20,13 @@ float FRigUnit_Random_Helper(int32& Seed)
 FRigUnit_RandomFloat_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		LastSeed = BaseSeed = Seed;
-		TimeLeft = 0.f;
-		return;
-	}
 
 	if(Seed != BaseSeed)
 	{
 		LastSeed = BaseSeed = Seed;
 	}
 
-	TimeLeft = TimeLeft - ExecuteContext.UnitContext.DeltaTime;
+	TimeLeft = TimeLeft - ExecuteContext.GetDeltaTime();
 	if (TimeLeft > 0.f)
 	{
 		Result = LastResult;
@@ -48,19 +42,13 @@ FRigUnit_RandomFloat_Execute()
 FRigUnit_RandomVector_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		LastSeed = BaseSeed = Seed;
-		TimeLeft = 0.f;
-		return;
-	}
 
 	if(Seed != BaseSeed)
 	{
 		LastSeed = BaseSeed = Seed;
 	}
 
-	TimeLeft = TimeLeft - ExecuteContext.UnitContext.DeltaTime;
+	TimeLeft = TimeLeft - ExecuteContext.GetDeltaTime();
 	if (TimeLeft > 0.f)
 	{
 		Result = LastResult;

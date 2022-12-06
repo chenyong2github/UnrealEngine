@@ -77,12 +77,10 @@ FRigUnit_ItemHarmonics_Execute()
 	TArray<FCachedRigElement>& CachedItems = WorkData.CachedItems;
 	FVector& WaveTime = WorkData.WaveTime;
 
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init ||
-		CachedItems.Num() != Targets.Num())
+	if (CachedItems.Num() != Targets.Num())
 	{
 		CachedItems.Reset();
 		WaveTime = FVector::ZeroVector;
-		return;
 	}
 
 	for (int32 ItemIndex = 0; ItemIndex < Targets.Num(); ItemIndex++)
@@ -126,6 +124,6 @@ FRigUnit_ItemHarmonics_Execute()
 		}
 	}
 
-	WaveTime += WaveSpeed * ExecuteContext.UnitContext.DeltaTime;
+	WaveTime += WaveSpeed * ExecuteContext.GetDeltaTime();
 }
 

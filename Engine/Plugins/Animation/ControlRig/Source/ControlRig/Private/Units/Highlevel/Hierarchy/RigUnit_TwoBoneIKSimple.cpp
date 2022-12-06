@@ -75,15 +75,6 @@ FRigUnit_TwoBoneIKSimplePerItem_Execute()
 		return;
 	}
 
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		CachedItemAIndex.Reset();
-		CachedItemBIndex.Reset();
-		CachedEffectorItemIndex.Reset();
-		CachedPoleVectorSpaceIndex.Reset();
-		return;
-	}
-
 	if (!CachedItemAIndex.UpdateCache(ItemA, Hierarchy) ||
 		!CachedItemBIndex.UpdateCache(ItemB, Hierarchy))
 	{

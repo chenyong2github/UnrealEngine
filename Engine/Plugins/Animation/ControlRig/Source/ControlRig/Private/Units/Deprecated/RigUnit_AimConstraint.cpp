@@ -13,7 +13,7 @@ FRigUnit_AimConstraint_Execute()
 
 	TArray<FConstraintData>& ConstraintData = WorkData.ConstraintData;
 
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
+	if (ConstraintData.Num() != AimTargets.Num())
 	{
 		ConstraintData.Reset();
 
@@ -43,48 +43,46 @@ FRigUnit_AimConstraint_Execute()
 			}
 		}
 	}
-	else if (ExecuteContext.UnitContext.State == EControlRigState::Update)
+
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
+	if (Hierarchy)
 	{
-		URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
-		if (Hierarchy)
+		const FRigElementKey Key(Joint, ERigElementType::Bone); 
+		int32 BoneIndex = Hierarchy->GetIndex(Key);
+		if (BoneIndex != INDEX_NONE)
 		{
-			const FRigElementKey Key(Joint, ERigElementType::Bone); 
-			int32 BoneIndex = Hierarchy->GetIndex(Key);
-			if (BoneIndex != INDEX_NONE)
+			const int32 TargetNum = AimTargets.Num();
+			if (TargetNum > 0)
 			{
-				const int32 TargetNum = AimTargets.Num();
-				if (TargetNum > 0)
+				for (int32 ConstraintIndex= 0; ConstraintIndex< ConstraintData.Num(); ++ConstraintIndex)
 				{
-					for (int32 ConstraintIndex= 0; ConstraintIndex< ConstraintData.Num(); ++ConstraintIndex)
+					FAimConstraintDescription* AimConstraintDesc = ConstraintData[ConstraintIndex].Constraint.GetTypedConstraint<FAimConstraintDescription>();
+					AimConstraintDesc->LookAt_Axis = FAxis(AimVector);
+
+					if (UpTargets.IsValidIndex(ConstraintIndex))
 					{
-						FAimConstraintDescription* AimConstraintDesc = ConstraintData[ConstraintIndex].Constraint.GetTypedConstraint<FAimConstraintDescription>();
-						AimConstraintDesc->LookAt_Axis = FAxis(AimVector);
-
-						if (UpTargets.IsValidIndex(ConstraintIndex))
-						{
-							AimConstraintDesc->LookUp_Axis = FAxis(UpVector);
-							AimConstraintDesc->bUseLookUp = UpVector.Size() > 0.f;
-							AimConstraintDesc->LookUpTarget = UpTargets[ConstraintIndex].Transform.GetLocation();
-						}
-
-						ConstraintData[ConstraintIndex].CurrentTransform = AimTargets[ConstraintIndex].Transform;
-						ConstraintData[ConstraintIndex].Weight = AimTargets[ConstraintIndex].Weight;
+						AimConstraintDesc->LookUp_Axis = FAxis(UpVector);
+						AimConstraintDesc->bUseLookUp = UpVector.Size() > 0.f;
+						AimConstraintDesc->LookUpTarget = UpTargets[ConstraintIndex].Transform.GetLocation();
 					}
 
-					FTransform BaseTransform = FTransform::Identity;
-					int32 ParentIndex = Hierarchy->GetIndex(Hierarchy->GetFirstParent(Key));
-					if (ParentIndex != INDEX_NONE)
-					{
-						BaseTransform = Hierarchy->GetGlobalTransform(ParentIndex);
-					}
-
-					FTransform SourceTransform = Hierarchy->GetGlobalTransform(BoneIndex);
-
-					// @todo: ignore maintain offset for now
-					FTransform ConstrainedTransform = AnimationCore::SolveConstraints(SourceTransform, BaseTransform, ConstraintData);
-
-					Hierarchy->SetGlobalTransform(BoneIndex, ConstrainedTransform);
+					ConstraintData[ConstraintIndex].CurrentTransform = AimTargets[ConstraintIndex].Transform;
+					ConstraintData[ConstraintIndex].Weight = AimTargets[ConstraintIndex].Weight;
 				}
+
+				FTransform BaseTransform = FTransform::Identity;
+				int32 ParentIndex = Hierarchy->GetIndex(Hierarchy->GetFirstParent(Key));
+				if (ParentIndex != INDEX_NONE)
+				{
+					BaseTransform = Hierarchy->GetGlobalTransform(ParentIndex);
+				}
+
+				FTransform SourceTransform = Hierarchy->GetGlobalTransform(BoneIndex);
+
+				// @todo: ignore maintain offset for now
+				FTransform ConstrainedTransform = AnimationCore::SolveConstraints(SourceTransform, BaseTransform, ConstraintData);
+
+				Hierarchy->SetGlobalTransform(BoneIndex, ConstrainedTransform);
 			}
 		}
 	}

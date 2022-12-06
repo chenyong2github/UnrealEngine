@@ -298,7 +298,8 @@ struct CONTROLRIG_API FRigUnit_MathBoolFlipFlop : public FRigUnit_MathBoolBase
 	FRigUnit_MathBoolFlipFlop()
 	{
 		Duration = TimeLeft = 0.f;
-		Result = LastValue = StartValue = false;
+		StartValue = false;
+		Result = LastValue = !StartValue;
 	}
 
 	// The initial value to use for the flag
@@ -335,7 +336,8 @@ struct CONTROLRIG_API FRigUnit_MathBoolOnce : public FRigUnit_MathBoolBase
 	FRigUnit_MathBoolOnce()
 	{
 		Duration = TimeLeft = 0.f;
-		Result = LastValue = false;
+		Result = false;
+		LastValue = true;
 	}
 
 	/**

@@ -19,13 +19,6 @@ FRigUnit_SpringIK_Execute()
 	TArray<FTransform>& Transforms = WorkData.Transforms;
 	FCRSimPointContainer& Simulation = WorkData.Simulation;
 
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		CachedBones.Reset();
-		CachedPoleVector.Reset();
-		return;
-	}
-
 	if(CachedBones.Num() == 0)
 	{
 		Simulation.Reset();
@@ -215,7 +208,7 @@ FRigUnit_SpringIK_Execute()
 		}
 	}
 
-	Simulation.StepSemiExplicitEuler((bLiveSimulation ? ExecuteContext.UnitContext.DeltaTime : Simulation.TimeStep) * (float)FMath::Clamp<int32>(Iterations, 1, 32));
+	Simulation.StepSemiExplicitEuler((bLiveSimulation ? ExecuteContext.GetDeltaTime() : Simulation.TimeStep) * (float)FMath::Clamp<int32>(Iterations, 1, 32));
 
 	FVector AccumulatedTarget = FVector::ZeroVector;
 	FVector LastPrimaryTarget = FVector::ZeroVector;

@@ -10,24 +10,10 @@ FRigUnit_GetCurveValue_Execute()
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
     if (const URigHierarchy* Hierarchy = ExecuteContext.Hierarchy)
 	{
-		switch (ExecuteContext.UnitContext.State)
+		if(CachedCurveIndex.UpdateCache(FRigElementKey(Curve, ERigElementType::Curve), Hierarchy))
 		{
-			case EControlRigState::Init:
-			{
-				CachedCurveIndex.Reset();
-			}
-			case EControlRigState::Update:
-			{
-				if(CachedCurveIndex.UpdateCache(FRigElementKey(Curve, ERigElementType::Curve), Hierarchy))
-				{
-					Valid = Hierarchy->IsCurveValueSetByIndex(CachedCurveIndex);
-					Value = Hierarchy->GetCurveValueByIndex(CachedCurveIndex);
-				}
-			}
-			default:
-			{
-				break;
-			}
+			Valid = Hierarchy->IsCurveValueSetByIndex(CachedCurveIndex);
+			Value = Hierarchy->GetCurveValueByIndex(CachedCurveIndex);
 		}
 	}
 }
@@ -43,26 +29,26 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_GetCurveValue)
 
 	Unit.Curve = TEXT("Unknown");
 	Unit.Space = ECurveGetterSetterMode::GlobalSpace;
-	InitAndExecute();
+	Execute();
 	AddErrorIfFalse(Unit.Transform.GetTranslation().Equals(FVector(0.f, 0.f, 0.f)), TEXT("unexpected global transform"));
 	Unit.Space = ECurveGetterSetterMode::LocalSpace;
-	InitAndExecute();
+	Execute();
 	AddErrorIfFalse(Unit.Transform.GetTranslation().Equals(FVector(0.f, 0.f, 0.f)), TEXT("unexpected local transform"));
 
 	Unit.Curve = TEXT("Root");
 	Unit.Space = ECurveGetterSetterMode::GlobalSpace;
-	InitAndExecute();
+	Execute();
 	AddErrorIfFalse(Unit.Transform.GetTranslation().Equals(FVector(1.f, 0.f, 0.f)), TEXT("unexpected global transform"));
 	Unit.Space = ECurveGetterSetterMode::LocalSpace;
-	InitAndExecute();
+	Execute();
 	AddErrorIfFalse(Unit.Transform.GetTranslation().Equals(FVector(1.f, 0.f, 0.f)), TEXT("unexpected local transform"));
 
 	Unit.Curve = TEXT("CurveA");
 	Unit.Space = ECurveGetterSetterMode::GlobalSpace;
-	InitAndExecute();
+	Execute();
 	AddErrorIfFalse(Unit.Transform.GetTranslation().Equals(FVector(1.f, 2.f, 3.f)), TEXT("unexpected global transform"));
 	Unit.Space = ECurveGetterSetterMode::LocalSpace;
-	InitAndExecute();
+	Execute();
 	AddErrorIfFalse(Unit.Transform.GetTranslation().Equals(FVector(0.f, 2.f, 3.f)), TEXT("unexpected local transform"));
 	*/
 	return true;

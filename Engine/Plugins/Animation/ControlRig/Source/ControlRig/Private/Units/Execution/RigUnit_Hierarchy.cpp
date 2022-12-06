@@ -11,12 +11,6 @@ FRigUnit_HierarchyGetParent_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		CachedChild.Reset();
-		CachedParent.Reset();
-	}
-
 	if(CachedChild.IsIdentical(Child, ExecuteContext.Hierarchy))
 	{
 		Parent = CachedParent.GetKey();
@@ -56,12 +50,6 @@ FRigUnit_HierarchyGetParentsItemArray_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		CachedChild.Reset();
-		CachedParents.Reset();
-	}
-
 	if(!CachedChild.IsIdentical(Child, ExecuteContext.Hierarchy))
 	{
 		CachedParents.Reset();
@@ -94,12 +82,6 @@ FRigUnit_HierarchyGetParentsItemArray_Execute()
 FRigUnit_HierarchyGetChildren_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		CachedParent.Reset();
-		CachedChildren.Reset();
-	}
 
 	if(!CachedParent.IsIdentical(Parent, ExecuteContext.Hierarchy))
 	{
@@ -150,12 +132,6 @@ FRigVMStructUpgradeInfo FRigUnit_HierarchyGetSiblings::GetUpgradeInfo() const
 FRigUnit_HierarchyGetSiblingsItemArray_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		CachedItem.Reset();
-		CachedSiblings.Reset();
-	}
 
 	if(!CachedItem.IsIdentical(Item, ExecuteContext.Hierarchy))
 	{
@@ -490,11 +466,6 @@ bool FRigUnit_PoseGetDelta::AreCurvesEqual(float A, float B, float CurveU)
 
 FRigUnit_PoseGetTransform_Execute()
 {
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		CachedPoseElementIndex = CachedPoseHash = INDEX_NONE;
-	}
-
 	// set up defaults
 	Valid = false;
 	Transform = FTransform::Identity;
@@ -552,11 +523,6 @@ FRigUnit_PoseGetTransformArray_Execute()
 
 FRigUnit_PoseGetCurve_Execute()
 {
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init)
-	{
-		CachedPoseElementIndex = CachedPoseHash = INDEX_NONE;
-	}
-
 	// set up defaults
 	Valid = false;
 	CurveValue = 0.f;

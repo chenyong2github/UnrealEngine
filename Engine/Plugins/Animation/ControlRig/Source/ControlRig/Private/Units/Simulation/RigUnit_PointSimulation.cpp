@@ -10,13 +10,12 @@ FRigUnit_PointSimulation_Execute()
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 
-	float DeltaTime = ExecuteContext.UnitContext.DeltaTime;
+	float DeltaTime = ExecuteContext.GetDeltaTime();
 
 	FCRSimPointContainer& Simulation = WorkData.Simulation;
 	TArray<FCachedRigElement>& BoneIndices = WorkData.BoneIndices;
 
-	if (ExecuteContext.UnitContext.State == EControlRigState::Init ||
-		Simulation.Points.Num() != Points.Num() ||
+	if (Simulation.Points.Num() != Points.Num() ||
 		Simulation.Springs.Num() != Links.Num() ||
 		Simulation.Forces.Num() != Forces.Num() ||
 		Simulation.CollisionVolumes.Num() != CollisionVolumes.Num() ||
