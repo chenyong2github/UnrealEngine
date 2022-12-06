@@ -153,7 +153,7 @@ static bool GetLicenseHash(FSHAHash& LicenseHash)
 	if (FileReader)
 	{
 		// Create buffer for file input
-		uint32 BufferSize = FileReader->TotalSize();
+		uint32 BufferSize = IntCastChecked<uint32>(FileReader->TotalSize());
 		uint8* Buffer = (uint8*)FMemory::Malloc(BufferSize);
 		FileReader->Serialize(Buffer, BufferSize);
 
@@ -191,7 +191,7 @@ static bool GetLicenseHash(FSHAHash& LicenseHash)
 
 			if (LicenseEnd < BufferEnd)
 			{
-				int32 LicenseLength = LicenseEnd - LicenseStart;
+				int32 LicenseLength = IntCastChecked<int32>(LicenseEnd - LicenseStart);
 				FSHA1::HashBuffer(LicenseStart, LicenseLength, LicenseHash.Hash);
 				bLicenseValid = true;
 			}

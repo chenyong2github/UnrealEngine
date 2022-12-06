@@ -6,6 +6,7 @@ public class AndroidPlatformEditor : ModuleRules
 {
 	public AndroidPlatformEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
+		UnsafeTypeCastWarningLevel = WarningLevel.Error; 
 		BinariesSubFolder = "Android";
 
 		PrivateDependencyModuleNames.AddRange(

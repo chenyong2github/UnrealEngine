@@ -6,6 +6,7 @@ public class AndroidTargetPlatform : ModuleRules
 {
 	public AndroidTargetPlatform(ReadOnlyTargetRules Target) : base(Target)
 	{
+		UnsafeTypeCastWarningLevel = WarningLevel.Error;
 		BinariesSubFolder = "Android";
 
         PrivateDependencyModuleNames.AddRange(
