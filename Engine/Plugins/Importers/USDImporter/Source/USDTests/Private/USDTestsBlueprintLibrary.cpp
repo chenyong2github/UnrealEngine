@@ -2,6 +2,7 @@
 
 #include "USDTestsBlueprintLibrary.h"
 
+#include "USDInfoCache.h"
 #include "USDLog.h"
 #include "USDStageActor.h"
 

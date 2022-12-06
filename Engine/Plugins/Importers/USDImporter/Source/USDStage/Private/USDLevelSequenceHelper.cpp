@@ -13,10 +13,10 @@
 #include "USDMemory.h"
 #include "USDPrimConversion.h"
 #include "USDProjectSettings.h"
+#include "USDPrimTwin.h"
 #include "USDStageActor.h"
 #include "USDTypesConversion.h"
 #include "USDValueConversion.h"
-
 #include "UsdWrappers/SdfChangeBlock.h"
 #include "UsdWrappers/SdfLayer.h"
 #include "UsdWrappers/UsdAttribute.h"

@@ -2,10 +2,6 @@
 
 #include "USDStageImporter.h"
 
-#include "Components/StaticMeshComponent.h"
-#include "Engine/SkinnedAssetCommon.h"
-#include "PhysicsEngine/PhysicsAsset.h"
-#include "UObject/UObjectIterator.h"
 #include "USDAssetCache.h"
 #include "USDAssetImportData.h"
 #include "USDClassesModule.h"
@@ -13,12 +9,12 @@
 #include "USDErrorUtils.h"
 #include "USDGeomMeshConversion.h"
 #include "USDLog.h"
+#include "USDPrimTwin.h"
 #include "USDSchemasModule.h"
 #include "USDSchemaTranslator.h"
 #include "USDStageImportContext.h"
 #include "USDStageImportOptions.h"
 #include "USDTypesConversion.h"
-
 #include "UsdWrappers/SdfLayer.h"
 #include "UsdWrappers/UsdStage.h"
 #include "UsdWrappers/UsdTyped.h"
@@ -30,9 +26,11 @@
 #include "AssetToolsModule.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Dialogs/DlgPickPath.h"
 #include "Editor.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/Texture.h"
 #include "Engine/World.h"
@@ -52,9 +50,11 @@
 #include "Modules/ModuleManager.h"
 #include "ObjectTools.h"
 #include "PackageTools.h"
+#include "PhysicsEngine/PhysicsAsset.h"
 #include "Serialization/ArchiveReplaceObjectRef.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "UObject/StrongObjectPtr.h"
+#include "UObject/UObjectIterator.h"
 
 #define LOCTEXT_NAMESPACE "USDStageImporter"
 

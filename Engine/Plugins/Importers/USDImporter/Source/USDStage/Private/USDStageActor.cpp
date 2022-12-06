@@ -2,9 +2,6 @@
 
 #include "USDStageActor.h"
 
-#include "Engine/Blueprint.h"
-#include "Engine/BlueprintGeneratedClass.h"
-#include "Engine/Level.h"
 #include "UnrealUSDWrapper.h"
 #include "UObject/Package.h"
 #include "USDAssetCache.h"
@@ -22,6 +19,7 @@
 #include "USDListener.h"
 #include "USDLog.h"
 #include "USDPrimConversion.h"
+#include "USDPrimTwin.h"
 #include "USDSchemasModule.h"
 #include "USDSchemaTranslator.h"
 #include "USDSkelRootTranslator.h"
@@ -46,6 +44,8 @@
 #include "Components/SkyLightComponent.h"
 #include "Components/SpotLightComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/Blueprint.h"
+#include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/Engine.h"
 #include "Engine/Level.h"
 #include "Engine/Light.h"
@@ -1537,13 +1537,18 @@ void AUsdStageActor::SetMaterialPurpose(const FName& NewMaterialPurpose)
 	LoadUsdStage();
 }
 
-USDSTAGE_API void AUsdStageActor::SetRootMotionHandling(EUsdRootMotionHandling NewHandlingStrategy)
+void AUsdStageActor::SetRootMotionHandling( EUsdRootMotionHandling NewHandlingStrategy )
 {
 	const bool bMarkDirty = false;
 	Modify(bMarkDirty);
 
 	RootMotionHandling = NewHandlingStrategy;
 	LoadUsdStage();
+}
+
+float AUsdStageActor::GetTime() const
+{
+	return Time;
 }
 
 void AUsdStageActor::SetTime(float InTime)
@@ -1555,7 +1560,12 @@ void AUsdStageActor::SetTime(float InTime)
 	Refresh();
 }
 
-USceneComponent* AUsdStageActor::GetGeneratedComponent(const FString& PrimPath)
+ULevelSequence* AUsdStageActor::GetLevelSequence()
+{
+	return LevelSequence;
+}
+
+USceneComponent* AUsdStageActor::GetGeneratedComponent( const FString& PrimPath )
 {
 	const UE::FUsdStage& CurrentStage = static_cast<const AUsdStageActor*>(this)->GetUsdStage();
 	if (!CurrentStage)
@@ -2141,6 +2151,36 @@ void AUsdStageActor::ReloadAnimations()
 		}
 #endif // WITH_EDITOR
 	}
+}
+
+UUsdAssetCache* AUsdStageActor::GetAssetCache()
+{
+	return AssetCache;
+}
+
+TSharedPtr<FUsdInfoCache> AUsdStageActor::GetInfoCache()
+{
+	return InfoCache;
+}
+
+TMap<FString, TMap<FString, int32>> AUsdStageActor::GetMaterialToPrimvarToUVIndex()
+{
+	return MaterialToPrimvarToUVIndex;
+}
+
+const UsdUtils::FBlendShapeMap& AUsdStageActor::GetBlendShapeMap()
+{
+	return BlendShapesByPath;
+}
+
+FUsdListener& AUsdStageActor::GetUsdListener()
+{
+	return UsdListener;
+}
+
+const FUsdListener& AUsdStageActor::GetUsdListener() const
+{
+	return UsdListener;
 }
 
 #if WITH_EDITOR
