@@ -3468,7 +3468,14 @@ public:
 	{
 		//TRACE_CPUPROFILER_EVENT_SCOPE(Texture.BuildTexture);
 
-		if (BuildSettings.TextureFormat == nullptr)
+		const ITextureFormat* TextureFormat = nullptr;
+
+		ITextureFormatManagerModule* TFM = GetTextureFormatManager();
+		if (TFM)
+		{
+			TextureFormat = TFM->FindTextureFormat(BuildSettings.TextureFormatName);
+		}
+		if (TextureFormat == nullptr)
 		{
 			UE_LOG(LogTextureCompressor, Warning,
 				TEXT("Failed to find compressor for texture format '%s'. [%.*s]"),
@@ -3493,7 +3500,7 @@ public:
 
 		// allow to leave texture in sRGB in case compressor accepts other than non-F32 input source
 		// otherwise linearizing will force format to be RGBA32F
-		const bool bNeedLinearize = !BuildSettings.TextureFormat->CanAcceptNonF32Source() || AssociatedNormalSourceMips.Num() != 0;
+		const bool bNeedLinearize = !TextureFormat->CanAcceptNonF32Source() || AssociatedNormalSourceMips.Num() != 0;
 		if (!BuildTextureMips(SourceMips, BuildSettings, bNeedLinearize, IntermediateMipChain, DebugTexturePathName))
 		{
 			return false;
@@ -3574,7 +3581,7 @@ public:
 			OutMetadata->PreEncodeMipsHash = MipHashBuilder.Finalize();
 		}
 		
-		bool bCompressSucceeded = CompressMipChain(BuildSettings.TextureFormat, IntermediateMipChain, BuildSettings, bImageHasAlphaChannel, DebugTexturePathName,
+		bool bCompressSucceeded = CompressMipChain(TextureFormat, IntermediateMipChain, BuildSettings, bImageHasAlphaChannel, DebugTexturePathName,
 					OutTextureMips, OutNumMipsInTail, OutExtData);
 
 		return bCompressSucceeded;

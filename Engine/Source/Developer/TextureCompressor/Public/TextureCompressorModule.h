@@ -232,10 +232,6 @@ struct FTextureBuildSettings
 	// If the target format is a tiled format and can leverage reusing the linear encoding, this is not nullptr.
 	const ITextureTiler* Tiler = nullptr;
 
-	// Cached copy of the texture format. If the texture format isn't loaded or found, this can be nullptr. The build fails on this
-	// right before the actual texture build, so if you're prior to that, check it!
-	const ITextureFormat* TextureFormat = nullptr;
-
 	// If shared linear is enabled _at all_ and this texture in involved with that _at all_ then we set
 	// this so we can segregate the derived data keys.
 	bool bAffectedBySharedLinearEncoding = false;

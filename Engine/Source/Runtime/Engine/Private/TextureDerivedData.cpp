@@ -359,11 +359,19 @@ void GetTextureDerivedDataKeySuffix(const UTexture& Texture, const FTextureBuild
 	const FTextureBuildSettings& BuildSettings = BuildSettingsPerLayer[0];
 
 	// get the version for this texture's platform format
-	if (BuildSettingsPerLayer->TextureFormat != nullptr)
+	ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
+	const ITextureFormat* TextureFormat = NULL;
+	if (TPM)
 	{
-		Version = BuildSettingsPerLayer->TextureFormat->GetVersion(BuildSettings.TextureFormatName, BuildSettingsPerLayer);
+		TextureFormat = TPM->FindTextureFormat(BuildSettings.TextureFormatName);
+		if (TextureFormat)
+		{
+			Version = TextureFormat->GetVersion(BuildSettings.TextureFormatName, &BuildSettings);
+		}
+		// else error !?
 	}
-
+	// else error !?
+	
 	FString CompositeTextureStr;
 
 	if(IsValid(Texture.CompositeTexture) && Texture.CompositeTextureMode != CTM_Disabled)
@@ -380,7 +388,7 @@ void GetTextureDerivedDataKeySuffix(const UTexture& Texture, const FTextureBuild
 		*Texture.Source.GetIdString(),
 		*CompositeTextureStr,
 		(uint32)NUM_INLINE_DERIVED_MIPS,
-		(BuildSettingsPerLayer->TextureFormat == nullptr) ? TEXT("") : *BuildSettingsPerLayer->TextureFormat->GetDerivedDataKeyString(BuildSettings)
+		(TextureFormat == NULL) ? TEXT("") : *TextureFormat->GetDerivedDataKeyString(BuildSettings)
 		);
 
 	// Add key data for extra layers beyond the first
@@ -388,15 +396,21 @@ void GetTextureDerivedDataKeySuffix(const UTexture& Texture, const FTextureBuild
 	for (int32 LayerIndex = 1; LayerIndex < NumLayers; ++LayerIndex)
 	{
 		const FTextureBuildSettings& LayerBuildSettings = BuildSettingsPerLayer[LayerIndex];
-		uint16 LayerVersion = 0;
-		if (LayerBuildSettings.TextureFormat)
+		const ITextureFormat* LayerTextureFormat = NULL;
+		if (TPM)
 		{
-			LayerVersion = LayerBuildSettings.TextureFormat->GetVersion(LayerBuildSettings.TextureFormatName, &LayerBuildSettings);
+			LayerTextureFormat = TPM->FindTextureFormat(LayerBuildSettings.TextureFormatName);
+		}
+
+		uint16 LayerVersion = 0;
+		if (LayerTextureFormat)
+		{
+			LayerVersion = LayerTextureFormat->GetVersion(LayerBuildSettings.TextureFormatName, &LayerBuildSettings);
 		}
 		OutKeySuffix.Append(FString::Printf(TEXT("%s%d%s_"),
 			*LayerBuildSettings.TextureFormatName.GetPlainNameString(),
 			LayerVersion,
-			(LayerBuildSettings.TextureFormat == nullptr) ? TEXT("") : *LayerBuildSettings.TextureFormat->GetDerivedDataKeyString(LayerBuildSettings)));
+			(LayerTextureFormat == NULL) ? TEXT("") : *LayerTextureFormat->GetDerivedDataKeyString(LayerBuildSettings)));
 	}
 
 	if (BuildSettings.bVirtualStreamable)
@@ -647,61 +661,59 @@ static void FinalizeBuildSettingsForLayer(
 	}
 
 	// Now that we know the texture format, we can make decisions based on it.
-	ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
-	check(TPM != nullptr);
-	if (TPM == nullptr)
-	{
-		OutSettings.TextureFormat = nullptr;
-		return;
-	}
-
-	// Can be null with first finalize (at the end of GetTextureBuildSettings), however we expect
-	// to get a valid texture format before the build settings are used!
-	const ITextureFormat* TextureFormat = TPM->FindTextureFormat(OutSettings.TextureFormatName);
-	OutSettings.TextureFormat = TextureFormat;
 
 	bool bSupportsEncodeSpeed = false;
-	if (TextureFormat != nullptr)
 	{
-		bSupportsEncodeSpeed = TextureFormat->SupportsEncodeSpeed(OutSettings.TextureFormatName);
-
-		if (OutBuildResultMetadata)
+		ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
+		if (TPM)
 		{
-			OutBuildResultMetadata->Encoder = TextureFormat->GetEncoderName(OutSettings.TextureFormatName);
-			OutBuildResultMetadata->bIsValid = true;
-			OutBuildResultMetadata->bSupportsEncodeSpeed = bSupportsEncodeSpeed;
-		}
-			
-		static auto CVarSharedLinearTextureEncoding = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SharedLinearTextureEncoding"));
-		if (CVarSharedLinearTextureEncoding->GetValueOnAnyThread())
-		{
-			//
-			// We want to separate out textures involved in shared linear encoding in order to facilitate
-			// fixing bugs without invalidating the world (even though we expect the exact same data to
-			// get generated). However, virtual textures never tile, and so are exempt from this separation.
-			//
-			if (OutSettings.bVirtualStreamable == false)
+			// Can be null with first finalize (at the end of GetTextureBuildSettings)
+			const ITextureFormat* TextureFormat = TPM->FindTextureFormat(OutSettings.TextureFormatName);
+			if (TextureFormat)
 			{
-				OutSettings.bAffectedBySharedLinearEncoding = true;
-			}
+				bSupportsEncodeSpeed = TextureFormat->SupportsEncodeSpeed(OutSettings.TextureFormatName);
 
-			// Shared linear encoding can only work if the base texture format does not expect to
-			// do the tiling itself (SupportsTiling == false).
-			const FChildTextureFormat* ChildTextureFormat = TextureFormat->GetChildFormat();
-			if (ChildTextureFormat && ChildTextureFormat->GetBaseFormatObject(OutSettings.TextureFormatName)->SupportsTiling() == false)
-			{
-				OutSettings.Tiler = ChildTextureFormat->GetTiler();
-				if (OutSettings.Tiler && IsUsingNewDerivedData())
+				if (OutBuildResultMetadata)
 				{
-					// New derived data wants to treat everything as the base format and then have a separate tiling function
-					// afterwards.
-					OutSettings.TextureFormatName = ChildTextureFormat->GetBaseFormatName(OutSettings.TextureFormatName);
-					OutSettings.TextureFormat = ChildTextureFormat;
+					OutBuildResultMetadata->Encoder = TextureFormat->GetEncoderName(OutSettings.TextureFormatName);
+					OutBuildResultMetadata->bIsValid = true;
+					OutBuildResultMetadata->bSupportsEncodeSpeed = bSupportsEncodeSpeed;
 				}
-			}
-		} // end if sle enabled
-	} // end if texture format found.
-	
+			
+				
+				{
+					static auto CVarSharedLinearTextureEncoding = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SharedLinearTextureEncoding"));
+					if (CVarSharedLinearTextureEncoding->GetValueOnAnyThread())
+					{
+						//
+						// We want to separate out textures involved in shared linear encoding in order to facilitate
+						// fixing bugs without invalidating the world (even though we expect the exact same data to
+						// get generated). However, virtual textures never tile, and so are exempt from this separation.
+						//
+						if (OutSettings.bVirtualStreamable == false)
+						{
+							OutSettings.bAffectedBySharedLinearEncoding = true;
+						}
+
+						// Shared linear encoding can only work if the base texture format does not expect to
+						// do the tiling itself (SupportsTiling == false).
+						const FChildTextureFormat* ChildTextureFormat = TextureFormat->GetChildFormat();
+						if (ChildTextureFormat && ChildTextureFormat->GetBaseFormatObject(OutSettings.TextureFormatName)->SupportsTiling() == false)
+						{
+							OutSettings.Tiler = ChildTextureFormat->GetTiler();
+							if (OutSettings.Tiler && IsUsingNewDerivedData())
+							{
+								// New derived data wants to treat everything as the base format and then have a separate tiling function
+								// afterwards.
+								OutSettings.TextureFormatName = ChildTextureFormat->GetBaseFormatName(OutSettings.TextureFormatName);
+							}
+						}
+					} // end if enabled
+				} // end if ddc2
+			} // end if texture format found.
+		}
+	}
+
 	if (bSupportsEncodeSpeed)
 	{
 		FTextureEncodeSpeedOptions Options;
