@@ -165,7 +165,7 @@ FVTRequestPageResult FRuntimeVirtualTextureProducer::RequestPageData(
 }
 
 IVirtualTextureFinalizer* FRuntimeVirtualTextureProducer::ProducePageData(
-	FRHICommandListImmediate& RHICmdList,
+	FRHICommandList& RHICmdList,
 	ERHIFeatureLevel::Type FeatureLevel,
 	EVTProducePageFlags Flags,
 	const FVirtualTextureProducerHandle& ProducerHandle,

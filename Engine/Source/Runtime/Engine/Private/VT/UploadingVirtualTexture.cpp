@@ -133,7 +133,7 @@ FVTRequestPageResult FUploadingVirtualTexture::RequestPageData(const FVirtualTex
 	return StreamingManager->RequestTile(this, ProducerHandle, LayerMask, vLevel, (uint32)vAddress, Priority);
 }
 
-IVirtualTextureFinalizer* FUploadingVirtualTexture::ProducePageData(FRHICommandListImmediate& RHICmdList,
+IVirtualTextureFinalizer* FUploadingVirtualTexture::ProducePageData(FRHICommandList& RHICmdList,
 	ERHIFeatureLevel::Type FeatureLevel,
 	EVTProducePageFlags Flags,
 	const FVirtualTextureProducerHandle& ProducerHandle, uint8 LayerMask, uint8 vLevel, uint64 vAddress,

@@ -22,6 +22,7 @@
 #include "UObject/NameTypes.h"
 
 class FRDGBuilder;
+class FRHICommandList;
 class FRHICommandListImmediate;
 class FRHIShaderResourceView;
 class FRHITexture;
@@ -311,7 +312,7 @@ public:
 	* @param TargetLayers Array of 'FVTProduceTargetLayer' structs, gives location where each layer should write data
 	* @return a 'IVirtualTextureFinalizer' which must be finalized to complete the operation
 	*/
-	virtual IVirtualTextureFinalizer* ProducePageData(FRHICommandListImmediate& RHICmdList,
+	virtual IVirtualTextureFinalizer* ProducePageData(FRHICommandList& RHICmdList,
 		ERHIFeatureLevel::Type FeatureLevel,
 		EVTProducePageFlags Flags,
 		const FVirtualTextureProducerHandle& ProducerHandle, uint8 LayerMask, uint8 vLevel, uint64 vAddress,

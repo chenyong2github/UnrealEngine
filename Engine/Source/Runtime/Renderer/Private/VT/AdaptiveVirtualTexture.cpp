@@ -80,7 +80,7 @@ public:
 	}
 
 	virtual IVirtualTextureFinalizer* ProducePageData(
-		FRHICommandListImmediate& RHICmdList,
+		FRHICommandList& RHICmdList,
 		ERHIFeatureLevel::Type FeatureLevel,
 		EVTProducePageFlags Flags,
 		const FVirtualTextureProducerHandle& ProducerHandle,
