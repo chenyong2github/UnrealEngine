@@ -9,15 +9,15 @@ FRigUnit_DrawContainerGetInstruction_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-    if(ExecuteContext.UnitContext.DrawContainer == nullptr)
+    if(ExecuteContext.GetDrawContainer() == nullptr)
     {
     	return;
     }
 	
-	int32 Index = ExecuteContext.UnitContext.DrawContainer->GetIndex(InstructionName);
+	int32 Index = ExecuteContext.GetDrawContainer()->GetIndex(InstructionName);
 	if (Index != INDEX_NONE)
 	{
-		const FControlRigDrawInstruction& Instruction = (*ExecuteContext.UnitContext.DrawContainer)[Index];
+		const FRigVMDrawInstruction& Instruction = (*ExecuteContext.GetDrawContainer())[Index];
 		Color = Instruction.Color;
 		Transform = Instruction.Transform;
 	}
@@ -38,15 +38,15 @@ FRigUnit_DrawContainerSetThickness_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if (ExecuteContext.UnitContext.DrawContainer == nullptr)
+	if (ExecuteContext.GetDrawContainer() == nullptr)
 	{
 		return;
 	}
 
-	int32 Index = ExecuteContext.UnitContext.DrawContainer->GetIndex(InstructionName);
+	int32 Index = ExecuteContext.GetDrawContainer()->GetIndex(InstructionName);
 	if (Index != INDEX_NONE)
 	{
-		FControlRigDrawInstruction& Instruction = (*ExecuteContext.UnitContext.DrawContainer)[Index];
+		FRigVMDrawInstruction& Instruction = (*ExecuteContext.GetDrawContainer())[Index];
 		Instruction.Thickness = Thickness;
 	}
 }
@@ -61,15 +61,15 @@ FRigUnit_DrawContainerSetColor_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if (ExecuteContext.UnitContext.DrawContainer == nullptr)
+	if (ExecuteContext.GetDrawContainer() == nullptr)
 	{
 		return;
 	}
 
-	int32 Index = ExecuteContext.UnitContext.DrawContainer->GetIndex(InstructionName);
+	int32 Index = ExecuteContext.GetDrawContainer()->GetIndex(InstructionName);
 	if (Index != INDEX_NONE)
 	{
-		FControlRigDrawInstruction& Instruction = (*ExecuteContext.UnitContext.DrawContainer)[Index];
+		FRigVMDrawInstruction& Instruction = (*ExecuteContext.GetDrawContainer())[Index];
 		Instruction.Color = Color;
 	}
 }
@@ -84,15 +84,15 @@ FRigUnit_DrawContainerSetTransform_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if (ExecuteContext.UnitContext.DrawContainer == nullptr)
+	if (ExecuteContext.GetDrawContainer() == nullptr)
 	{
 		return;
 	}
 
-	int32 Index = ExecuteContext.UnitContext.DrawContainer->GetIndex(InstructionName);
+	int32 Index = ExecuteContext.GetDrawContainer()->GetIndex(InstructionName);
 	if (Index != INDEX_NONE)
 	{
-		FControlRigDrawInstruction& Instruction = (*ExecuteContext.UnitContext.DrawContainer)[Index];
+		FRigVMDrawInstruction& Instruction = (*ExecuteContext.GetDrawContainer())[Index];
 		Instruction.Transform = Transform;
 	}
 }

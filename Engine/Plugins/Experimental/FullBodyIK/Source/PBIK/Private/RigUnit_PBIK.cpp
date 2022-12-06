@@ -182,6 +182,6 @@ FRigUnit_PBIK_Execute()
 	}
 
 	// do all debug drawing
-	Debug.Draw(ExecuteContext.UnitContext.DrawInterface, &Solver);
+	Debug.Draw(ExecuteContext.GetDrawInterface(), &Solver);
 }
 

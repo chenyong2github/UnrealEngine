@@ -485,11 +485,11 @@ private:
 
 public:
 	
-	const FControlRigDrawInterface& GetDrawInterface() const { return DrawInterface; };
-	FControlRigDrawInterface& GetDrawInterface() { return DrawInterface; };
+	const FRigVMDrawInterface& GetDrawInterface() const { return DrawInterface; };
+	FRigVMDrawInterface& GetDrawInterface() { return DrawInterface; };
 
-	const FControlRigDrawContainer& GetDrawContainer() const { return DrawContainer; };
-	FControlRigDrawContainer& GetDrawContainer() { return DrawContainer; };
+	const FRigVMDrawContainer& GetDrawContainer() const { return DrawContainer; };
+	FRigVMDrawContainer& GetDrawContainer() { return DrawContainer; };
 
 	const FRigControlElementCustomization* GetControlCustomization(const FRigElementKey& InControl) const;
 	void SetControlCustomization(const FRigElementKey& InControl, const FRigControlElementCustomization& InCustomization);
@@ -526,7 +526,7 @@ protected:
 	TSharedPtr<IControlRigObjectBinding> ObjectBinding;
 
 #if WITH_EDITOR
-	FControlRigLog* ControlRigLog;
+	FRigVMLog* ControlRigLog;
 	bool bEnableControlRigLogging;
 #endif
 
@@ -587,10 +587,10 @@ private:
 #endif
 	
 	UPROPERTY()
-	FControlRigDrawContainer DrawContainer;
+	FRigVMDrawContainer DrawContainer;
 
 	/** The draw interface for the units to use */
-	FControlRigDrawInterface DrawInterface;
+	FRigVMDrawInterface DrawInterface;
 
 	/** The registry to access data source */
 	UPROPERTY(transient)

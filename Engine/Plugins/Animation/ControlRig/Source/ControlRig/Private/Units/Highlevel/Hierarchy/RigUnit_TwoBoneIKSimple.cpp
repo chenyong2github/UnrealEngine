@@ -145,14 +145,14 @@ FRigUnit_TwoBoneIKSimplePerItem_Execute()
 
 	FControlRigMathLibrary::SolveBasicTwoBoneIK(TransformA, TransformB, TransformC, PoleTarget, PrimaryAxis, SecondaryAxis, SecondaryAxisWeight, LengthA, LengthB, bEnableStretch, StretchStartRatio, StretchMaximumRatio);
 
-	if (ExecuteContext.UnitContext.DrawInterface != nullptr && DebugSettings.bEnabled)
+	if (ExecuteContext.GetDrawInterface() != nullptr && DebugSettings.bEnabled)
 	{
 		const FLinearColor Dark = FLinearColor(0.f, 0.2f, 1.f, 1.f);
 		const FLinearColor Bright = FLinearColor(0.f, 1.f, 1.f, 1.f);
-		ExecuteContext.UnitContext.DrawInterface->DrawLine(DebugSettings.WorldOffset, TransformA.GetLocation(), TransformB.GetLocation(), Dark);
-		ExecuteContext.UnitContext.DrawInterface->DrawLine(DebugSettings.WorldOffset, TransformB.GetLocation(), TransformC.GetLocation(), Dark);
-		ExecuteContext.UnitContext.DrawInterface->DrawLine(DebugSettings.WorldOffset, TransformB.GetLocation(), PoleTarget, Bright);
-		ExecuteContext.UnitContext.DrawInterface->DrawBox(DebugSettings.WorldOffset, FTransform(FQuat::Identity, PoleTarget, FVector(1.f, 1.f, 1.f) * DebugSettings.Scale * 0.1f), Bright);
+		ExecuteContext.GetDrawInterface()->DrawLine(DebugSettings.WorldOffset, TransformA.GetLocation(), TransformB.GetLocation(), Dark);
+		ExecuteContext.GetDrawInterface()->DrawLine(DebugSettings.WorldOffset, TransformB.GetLocation(), TransformC.GetLocation(), Dark);
+		ExecuteContext.GetDrawInterface()->DrawLine(DebugSettings.WorldOffset, TransformB.GetLocation(), PoleTarget, Bright);
+		ExecuteContext.GetDrawInterface()->DrawBox(DebugSettings.WorldOffset, FTransform(FQuat::Identity, PoleTarget, FVector(1.f, 1.f, 1.f) * DebugSettings.Scale * 0.1f), Bright);
 	}
 
 	if (Weight < 1.0f - SMALL_NUMBER)

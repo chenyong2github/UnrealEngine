@@ -38,7 +38,7 @@ FRigUnit_DebugRectangleItemSpace_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled)
+	if (ExecuteContext.GetDrawInterface() == nullptr || !bEnabled)
 	{
 		return;
 	}
@@ -49,7 +49,7 @@ FRigUnit_DebugRectangleItemSpace_Execute()
 		DrawTransform = DrawTransform * ExecuteContext.Hierarchy->GetGlobalTransform(Space);
 	}
 
-	ExecuteContext.UnitContext.DrawInterface->DrawRectangle(WorldOffset, DrawTransform, Scale, Color, Thickness);
+	ExecuteContext.GetDrawInterface()->DrawRectangle(WorldOffset, DrawTransform, Scale, Color, Thickness);
 }
 
 FRigUnit_DebugArc_Execute()
@@ -91,7 +91,7 @@ FRigUnit_DebugArcItemSpace_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled)
+	if (ExecuteContext.GetDrawInterface() == nullptr || !bEnabled)
 	{
 		return;
 	}
@@ -102,5 +102,5 @@ FRigUnit_DebugArcItemSpace_Execute()
 		DrawTransform = DrawTransform * ExecuteContext.Hierarchy->GetGlobalTransform(Space);
 	}
 
-	ExecuteContext.UnitContext.DrawInterface->DrawArc(WorldOffset, DrawTransform, Radius, FMath::DegreesToRadians(MinimumDegrees), FMath::DegreesToRadians(MaximumDegrees), Color, Thickness, Detail);
+	ExecuteContext.GetDrawInterface()->DrawArc(WorldOffset, DrawTransform, Radius, FMath::DegreesToRadians(MinimumDegrees), FMath::DegreesToRadians(MaximumDegrees), Color, Thickness, Detail);
 }

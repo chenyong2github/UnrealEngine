@@ -150,7 +150,7 @@ void UControlRigGraph::Serialize(FArchive& Ar)
 
 TArray<TSharedPtr<FString>> UControlRigGraph::EmptyElementNameList;
 
-void UControlRigGraph::CacheNameLists(URigHierarchy* InHierarchy, const FControlRigDrawContainer* DrawContainer, TArray<TSoftObjectPtr<UControlRigShapeLibrary>> ShapeLibraries)
+void UControlRigGraph::CacheNameLists(URigHierarchy* InHierarchy, const FRigVMDrawContainer* DrawContainer, TArray<TSoftObjectPtr<UControlRigShapeLibrary>> ShapeLibraries)
 {
 	if (UControlRigGraph* OuterGraph = Cast<UControlRigGraph>(GetOuter()))
 	{
@@ -189,7 +189,7 @@ void UControlRigGraph::CacheNameLists(URigHierarchy* InHierarchy, const FControl
 
 		LastHierarchyTopologyVersion = InHierarchy->GetTopologyVersion();
 	}
-	CacheNameList<FControlRigDrawContainer>(*DrawContainer, DrawingNameList);
+	CacheNameList<FRigVMDrawContainer>(*DrawContainer, DrawingNameList);
 
 	EntryNameList.Reset();
 	EntryNameList.Add(MakeShared<FString>(FName(NAME_None).ToString()));

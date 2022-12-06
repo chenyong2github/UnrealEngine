@@ -40,7 +40,7 @@ FRigUnit_LiveLinkEvaluteFrameAnimation_Execute()
 	}
 
 	// Debug Drawing if required
-	if (bDrawDebug && ExecuteContext.UnitContext.DrawInterface != nullptr)
+	if (bDrawDebug && ExecuteContext.GetDrawInterface() != nullptr)
 	{
 		/*
 		FRigBoneHierarchy DebugHierarchy;
@@ -120,7 +120,7 @@ FRigUnit_LiveLinkEvaluteFrameTransform_Execute()
 	}
 
 	// Debug Drawing if required
-	if (bDrawDebug && ExecuteContext.UnitContext.DrawInterface != nullptr)
+	if (bDrawDebug && ExecuteContext.GetDrawInterface() != nullptr)
 	{
 		// Rather than drawing as an axis guide, draw as a hierarchy with a dummy root bone which makes it clearer what the origin of the transform
 		// space is

@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ControlRigLog.h"
+#include "RigVMCore/RigVMLog.h"
 
 #if WITH_EDITOR
-TArray<FControlRigLog::FLogEntry> FControlRigLog::GetEntries(EMessageSeverity::Type InSeverity, bool bIncludeHigherSeverity)
+TArray<FRigVMLog::FLogEntry> FRigVMLog::GetEntries(EMessageSeverity::Type InSeverity, bool bIncludeHigherSeverity)
 {
-	return Entries.FilterByPredicate([InSeverity, bIncludeHigherSeverity](const FControlRigLog::FLogEntry& Entry)
+	return Entries.FilterByPredicate([InSeverity, bIncludeHigherSeverity](const FRigVMLog::FLogEntry& Entry)
 	{
 		if (bIncludeHigherSeverity)
 		{
@@ -16,7 +16,7 @@ TArray<FControlRigLog::FLogEntry> FControlRigLog::GetEntries(EMessageSeverity::T
 }
 #endif
 
-void FControlRigLog::Reset()
+void FRigVMLog::Reset()
 {
 #if WITH_EDITOR
 	Entries.Reset();
@@ -24,7 +24,7 @@ void FControlRigLog::Reset()
 #endif
 }
 
-void FControlRigLog::Report(EMessageSeverity::Type InSeverity, const FName& InOperatorName, int32 InInstructionIndex, const FString& InMessage)
+void FRigVMLog::Report(EMessageSeverity::Type InSeverity, const FName& InOperatorName, int32 InInstructionIndex, const FString& InMessage)
 {
 #if WITH_EDITOR
 

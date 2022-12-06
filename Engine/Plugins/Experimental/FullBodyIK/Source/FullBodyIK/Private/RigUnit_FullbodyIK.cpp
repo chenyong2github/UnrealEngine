@@ -346,7 +346,7 @@ FRigUnit_FullbodyIK_Execute()
 		///////////////////////////////////////////////////////////////////////////
 		// debug draw start
 		///////////////////////////////////////////////////////////////////////////
-		if (bDebugEnabled && ExecuteContext.UnitContext.DrawInterface != nullptr)
+		if (bDebugEnabled && ExecuteContext.GetDrawInterface() != nullptr)
 		{
 			const int32 DebugDataNum = DebugData.Num();
 			if (DebugData.Num() > 0)
@@ -395,12 +395,12 @@ FRigUnit_FullbodyIK_Execute()
 							if (Data.ParentLinkIndex != INDEX_NONE)
 							{
 								const FFBIKLinkData& ParentData = LocalLink[Data.ParentLinkIndex];
-								ExecuteContext.UnitContext.DrawInterface->DrawLine(Offset, Data.GetPreviousTransform().GetLocation(), ParentData.GetPreviousTransform().GetLocation(), DrawColor, LineThickness);
+								ExecuteContext.GetDrawInterface()->DrawLine(Offset, Data.GetPreviousTransform().GetLocation(), ParentData.GetPreviousTransform().GetLocation(), DrawColor, LineThickness);
 							}
 
 							if (DebugOption.bDrawDebugAxes)
 							{
-								ExecuteContext.UnitContext.DrawInterface->DrawAxes(Offset, Data.GetPreviousTransform(), DebugOption.DrawSize);
+								ExecuteContext.GetDrawInterface()->DrawAxes(Offset, Data.GetPreviousTransform(), DebugOption.DrawSize);
 							}
 						}
 					}
@@ -413,17 +413,17 @@ FRigUnit_FullbodyIK_Execute()
 							if (EffectorTarget.bPositionEnabled)
 							{
 								// draw effector target locations
-								ExecuteContext.UnitContext.DrawInterface->DrawBox(Offset, FTransform(EffectorTarget.Position), FLinearColor::Yellow, DebugOption.DrawSize);
+								ExecuteContext.GetDrawInterface()->DrawBox(Offset, FTransform(EffectorTarget.Position), FLinearColor::Yellow, DebugOption.DrawSize);
 							}
 
 							// draw effector link location
-							ExecuteContext.UnitContext.DrawInterface->DrawBox(Offset, LocalLink[Iter.Key()].GetPreviousTransform(), FLinearColor::Green, DebugOption.DrawSize);
+							ExecuteContext.GetDrawInterface()->DrawBox(Offset, LocalLink[Iter.Key()].GetPreviousTransform(), FLinearColor::Green, DebugOption.DrawSize);
 						}
 
 						for (int32 Index = 0; Index < DebugData[DebugIndex].TargetVectorSources.Num(); ++Index)
 						{
 							// draw arrow to the target
-							ExecuteContext.UnitContext.DrawInterface->DrawLine(Offset, DebugData[DebugIndex].TargetVectorSources[Index].GetLocation(), 
+							ExecuteContext.GetDrawInterface()->DrawLine(Offset, DebugData[DebugIndex].TargetVectorSources[Index].GetLocation(), 
 								DebugData[DebugIndex].TargetVectorSources[Index].GetLocation() + DebugData[DebugIndex].TargetVectors[Index], FLinearColor::Red);
 						}
 					}
@@ -446,7 +446,7 @@ FRigUnit_FullbodyIK_Execute()
 							{
 								FTransform ConstraintFrame = LinkData[*Found].GetTransform();
 								ConstraintFrame.ConcatenateRotation(FQuat(Constraints[Index].OffsetRotation));
-								ExecuteContext.UnitContext.DrawInterface->DrawAxes(Offset, ConstraintFrame, 2.f);
+								ExecuteContext.GetDrawInterface()->DrawAxes(Offset, ConstraintFrame, 2.f);
 							}
 						}
 					}
@@ -463,7 +463,7 @@ FRigUnit_FullbodyIK_Execute()
 						// base is parent transform but in their space, we can get there by inversing local ref rotation
 						FTransform BaseTransform = FTransform(LocalRefRotation).GetRelativeTransformReverse(RotationTransform);
 						BaseTransform.ConcatenateRotation(LimitConstraint.BaseFrameOffset);
-						ExecuteContext.UnitContext.DrawInterface->DrawAxes(Offset, BaseTransform, 5.f, 1.f);
+						ExecuteContext.GetDrawInterface()->DrawAxes(Offset, BaseTransform, 5.f, 1.f);
 
 						// current transform
 						const FQuat LocalRotation = BaseTransform.GetRotation().Inverse() * RotationTransform.GetRotation();
@@ -473,7 +473,7 @@ FRigUnit_FullbodyIK_Execute()
 						RotationTransform.SetLocation(BaseTransform.GetLocation());
 
 						// draw ref pose on their current transform
-						ExecuteContext.UnitContext.DrawInterface->DrawAxes(Offset, RotationTransform, 10.f, 1.f);
+						ExecuteContext.GetDrawInterface()->DrawAxes(Offset, RotationTransform, 10.f, 1.f);
 
 						FVector XAxis = BaseTransform.GetUnitAxis(EAxis::X);
 						FVector YAxis = BaseTransform.GetUnitAxis(EAxis::Y);
@@ -484,7 +484,7 @@ FRigUnit_FullbodyIK_Execute()
 							FTransform XAxisConeTM(YAxis, XAxis ^ YAxis, XAxis, BaseTransform.GetTranslation());
 							XAxisConeTM.SetRotation(FQuat(XAxis, 0.f) * XAxisConeTM.GetRotation());
 							XAxisConeTM.SetScale3D(FVector(30.f));
-							ExecuteContext.UnitContext.DrawInterface->DrawCone(Offset, XAxisConeTM, LimitConstraint.Limit.X, 0.0f, 24, false, FLinearColor::Red, GEngine->ConstraintLimitMaterialX->GetRenderProxy());
+							ExecuteContext.GetDrawInterface()->DrawCone(Offset, XAxisConeTM, LimitConstraint.Limit.X, 0.0f, 24, false, FLinearColor::Red, GEngine->ConstraintLimitMaterialX->GetRenderProxy());
 						}
 
 						if (LimitConstraint.bYLimitSet)
@@ -492,7 +492,7 @@ FRigUnit_FullbodyIK_Execute()
 							FTransform YAxisConeTM(ZAxis, YAxis ^ ZAxis, YAxis, BaseTransform.GetTranslation());
 							YAxisConeTM.SetRotation(FQuat(YAxis, 0.f) * YAxisConeTM.GetRotation());
 							YAxisConeTM.SetScale3D(FVector(30.f));
-							ExecuteContext.UnitContext.DrawInterface->DrawCone(Offset, YAxisConeTM, LimitConstraint.Limit.Y, 0.0f, 24, false, FLinearColor::Green, GEngine->ConstraintLimitMaterialY->GetRenderProxy());
+							ExecuteContext.GetDrawInterface()->DrawCone(Offset, YAxisConeTM, LimitConstraint.Limit.Y, 0.0f, 24, false, FLinearColor::Green, GEngine->ConstraintLimitMaterialY->GetRenderProxy());
 						}
 
 						if (LimitConstraint.bZLimitSet)
@@ -500,7 +500,7 @@ FRigUnit_FullbodyIK_Execute()
 							FTransform ZAxisConeTM(XAxis, ZAxis ^ XAxis, ZAxis, BaseTransform.GetTranslation());
 							ZAxisConeTM.SetRotation(FQuat(ZAxis, 0.f) * ZAxisConeTM.GetRotation());
 							ZAxisConeTM.SetScale3D(FVector(30.f));
-							ExecuteContext.UnitContext.DrawInterface->DrawCone(Offset, ZAxisConeTM, LimitConstraint.Limit.Z, 0.0f, 24, false, FLinearColor::Blue, GEngine->ConstraintLimitMaterialZ->GetRenderProxy());
+							ExecuteContext.GetDrawInterface()->DrawCone(Offset, ZAxisConeTM, LimitConstraint.Limit.Z, 0.0f, 24, false, FLinearColor::Blue, GEngine->ConstraintLimitMaterialZ->GetRenderProxy());
 						}
 					}
 
@@ -524,8 +524,8 @@ FRigUnit_FullbodyIK_Execute()
 						Positions.Add(JointTarget);
 						Positions.Add(RootTransform.GetLocation());
 
-						ExecuteContext.UnitContext.DrawInterface->DrawLines(Offset, Positions, FLinearColor::Gray, 1.2f);
-						ExecuteContext.UnitContext.DrawInterface->DrawLine(Offset, JointTransform.GetLocation(), JointTarget, FLinearColor::Red, 1.2f);
+						ExecuteContext.GetDrawInterface()->DrawLines(Offset, Positions, FLinearColor::Gray, 1.2f);
+						ExecuteContext.GetDrawInterface()->DrawLine(Offset, JointTransform.GetLocation(), JointTarget, FLinearColor::Red, 1.2f);
 					}
 				}
 			}

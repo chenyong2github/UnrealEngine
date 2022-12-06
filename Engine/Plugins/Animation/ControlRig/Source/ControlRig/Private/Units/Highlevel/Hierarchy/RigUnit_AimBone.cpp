@@ -48,17 +48,17 @@ FRigUnit_AimBoneMath_Execute()
 			}
 		}
 
-		if (ExecuteContext.UnitContext.DrawInterface != nullptr && DebugSettings.bEnabled)
+		if (ExecuteContext.GetDrawInterface() != nullptr && DebugSettings.bEnabled)
 		{
 			const FLinearColor Color = FLinearColor(0.f, 1.f, 1.f, 1.f);
 			if (Primary.Kind == EControlRigVectorKind::Direction)
 			{
-				ExecuteContext.UnitContext.DrawInterface->DrawLine(DebugSettings.WorldOffset, Result.GetLocation(), Result.GetLocation() + Target * DebugSettings.Scale, Color);
+				ExecuteContext.GetDrawInterface()->DrawLine(DebugSettings.WorldOffset, Result.GetLocation(), Result.GetLocation() + Target * DebugSettings.Scale, Color);
 			}
 			else
 			{
-				ExecuteContext.UnitContext.DrawInterface->DrawLine(DebugSettings.WorldOffset, Result.GetLocation(), Target, Color);
-				ExecuteContext.UnitContext.DrawInterface->DrawBox(DebugSettings.WorldOffset, FTransform(FQuat::Identity, Target, FVector(1.f, 1.f, 1.f) * DebugSettings.Scale * 0.1f), Color);
+				ExecuteContext.GetDrawInterface()->DrawLine(DebugSettings.WorldOffset, Result.GetLocation(), Target, Color);
+				ExecuteContext.GetDrawInterface()->DrawBox(DebugSettings.WorldOffset, FTransform(FQuat::Identity, Target, FVector(1.f, 1.f, 1.f) * DebugSettings.Scale * 0.1f), Color);
 			}
 		}
 
@@ -102,17 +102,17 @@ FRigUnit_AimBoneMath_Execute()
 			}
 		}
 
-		if (ExecuteContext.UnitContext.DrawInterface != nullptr && DebugSettings.bEnabled)
+		if (ExecuteContext.GetDrawInterface() != nullptr && DebugSettings.bEnabled)
 		{
 			const FLinearColor Color = FLinearColor(0.f, 0.2f, 1.f, 1.f);
 			if (Secondary.Kind == EControlRigVectorKind::Direction)
 			{
-				ExecuteContext.UnitContext.DrawInterface->DrawLine(DebugSettings.WorldOffset, Result.GetLocation(), Result.GetLocation() + Target * DebugSettings.Scale, Color);
+				ExecuteContext.GetDrawInterface()->DrawLine(DebugSettings.WorldOffset, Result.GetLocation(), Result.GetLocation() + Target * DebugSettings.Scale, Color);
 			}
 			else
 			{
-				ExecuteContext.UnitContext.DrawInterface->DrawLine(DebugSettings.WorldOffset, Result.GetLocation(), Target, Color);
-				ExecuteContext.UnitContext.DrawInterface->DrawBox(DebugSettings.WorldOffset, FTransform(FQuat::Identity, Target, FVector(1.f, 1.f, 1.f) * DebugSettings.Scale * 0.1f), Color);
+				ExecuteContext.GetDrawInterface()->DrawLine(DebugSettings.WorldOffset, Result.GetLocation(), Target, Color);
+				ExecuteContext.GetDrawInterface()->DrawBox(DebugSettings.WorldOffset, FTransform(FQuat::Identity, Target, FVector(1.f, 1.f, 1.f) * DebugSettings.Scale * 0.1f), Color);
 			}
 		}
 

@@ -29,7 +29,7 @@ FRigUnit_VisualDebugVectorItemSpace_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled)
+	if (ExecuteContext.GetDrawInterface() == nullptr || !bEnabled)
 	{
 		return;
 	}
@@ -44,12 +44,12 @@ FRigUnit_VisualDebugVectorItemSpace_Execute()
 	{
 		case ERigUnitVisualDebugPointMode::Point:
 		{
-			ExecuteContext.UnitContext.DrawInterface->DrawPoint(WorldOffset, Value, Thickness, Color);
+			ExecuteContext.GetDrawInterface()->DrawPoint(WorldOffset, Value, Thickness, Color);
 			break;
 		}
 		case ERigUnitVisualDebugPointMode::Vector:
 		{
-			ExecuteContext.UnitContext.DrawInterface->DrawLine(WorldOffset, FVector::ZeroVector, Value * Scale, Color, Thickness);
+			ExecuteContext.GetDrawInterface()->DrawLine(WorldOffset, FVector::ZeroVector, Value * Scale, Color, Thickness);
 			break;
 		}
 		default:
@@ -111,7 +111,7 @@ FRigUnit_VisualDebugTransformItemSpace_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled)
+	if (ExecuteContext.GetDrawInterface() == nullptr || !bEnabled)
 	{
 		return;
 	}
@@ -122,5 +122,5 @@ FRigUnit_VisualDebugTransformItemSpace_Execute()
 		WorldOffset = ExecuteContext.Hierarchy->GetGlobalTransform(Space);
 	}
 
-	ExecuteContext.UnitContext.DrawInterface->DrawAxes(WorldOffset, Value, Scale, Thickness);
+	ExecuteContext.GetDrawInterface()->DrawAxes(WorldOffset, Value, Scale, Thickness);
 }

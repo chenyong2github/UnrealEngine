@@ -29,7 +29,7 @@ public:
 	FControlRigValidationClearDelegate& OnClear() { return ClearDelegate;  }
 	FControlRigValidationReportDelegate& OnReport() { return ReportDelegate; }
 
-	FControlRigDrawInterface* GetDrawInterface() { return DrawInterface; }
+	FRigVMDrawInterface* GetDrawInterface() { return DrawInterface; }
 
 	FString GetDisplayNameForEvent(const FName& InEventName) const;
 
@@ -38,7 +38,7 @@ private:
 	FControlRigValidationClearDelegate ClearDelegate;;
 	FControlRigValidationReportDelegate ReportDelegate;
 
-	FControlRigDrawInterface* DrawInterface;
+	FRigVMDrawInterface* DrawInterface;
 
 	friend class UControlRigValidator;
 };

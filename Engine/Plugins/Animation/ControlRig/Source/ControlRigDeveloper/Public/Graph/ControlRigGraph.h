@@ -9,7 +9,6 @@
 #include "Rigs/RigHierarchyController.h"
 #include "RigVMModel/RigVMGraph.h"
 #include "RigVMCore/RigVM.h"
-#include "Drawing/ControlRigDrawContainer.h"
 #include "ControlRigGraph.generated.h"
 
 class UControlRigBlueprint;
@@ -66,7 +65,7 @@ public:
 		return GetElementNameList(ERigElementType::Curve);
 	}
 
-	void CacheNameLists(URigHierarchy* InHierarchy, const FControlRigDrawContainer* DrawContainer, TArray<TSoftObjectPtr<UControlRigShapeLibrary>> ShapeLibraries);
+	void CacheNameLists(URigHierarchy* InHierarchy, const FRigVMDrawContainer* DrawContainer, TArray<TSoftObjectPtr<UControlRigShapeLibrary>> ShapeLibraries);
 	const TArray<TSharedPtr<FString>>* GetElementNameList(ERigElementType InElementType = ERigElementType::Bone) const;
 	const TArray<TSharedPtr<FString>>* GetElementNameList(URigVMPin* InPin = nullptr) const;
 	const TArray<TSharedPtr<FString>> GetSelectedElementsNameList() const;

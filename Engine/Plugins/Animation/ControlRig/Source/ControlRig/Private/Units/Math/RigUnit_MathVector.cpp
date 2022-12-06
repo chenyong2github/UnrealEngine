@@ -433,7 +433,7 @@ FRigUnit_MathVectorClampSpatially_Execute()
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FControlRigMathLibrary::ClampSpatially(Value, Axis, Type, Minimum, Maximum, Space);
 
-	if (ExecuteContext.UnitContext.DrawInterface != nullptr && bDrawDebug)
+	if (ExecuteContext.GetDrawInterface() != nullptr && bDrawDebug)
 	{
 		switch (Type)
 		{
@@ -464,8 +464,8 @@ FRigUnit_MathVectorClampSpatially_Execute()
 					}
 				}
 
-				ExecuteContext.UnitContext.DrawInterface->DrawLine(Space, Points[0], Points[1], DebugColor, DebugThickness);
-				ExecuteContext.UnitContext.DrawInterface->DrawPoints(Space, Points, DebugThickness * 8.f, DebugColor);
+				ExecuteContext.GetDrawInterface()->DrawLine(Space, Points[0], Points[1], DebugColor, DebugThickness);
+				ExecuteContext.GetDrawInterface()->DrawPoints(Space, Points, DebugThickness * 8.f, DebugColor);
 
 				break;
 			}
@@ -491,9 +491,9 @@ FRigUnit_MathVectorClampSpatially_Execute()
 				}
 				if (Minimum > SMALL_NUMBER)
 				{
-					ExecuteContext.UnitContext.DrawInterface->DrawArc(Space, CircleTransform, Minimum, 0.f, PI * 2.f, DebugColor, DebugThickness, 16);
+					ExecuteContext.GetDrawInterface()->DrawArc(Space, CircleTransform, Minimum, 0.f, PI * 2.f, DebugColor, DebugThickness, 16);
 				}
-				ExecuteContext.UnitContext.DrawInterface->DrawArc(Space, CircleTransform, Maximum, 0.f, PI * 2.f, DebugColor, DebugThickness, 16);
+				ExecuteContext.GetDrawInterface()->DrawArc(Space, CircleTransform, Maximum, 0.f, PI * 2.f, DebugColor, DebugThickness, 16);
 				break;
 			}
 			default:
@@ -502,21 +502,21 @@ FRigUnit_MathVectorClampSpatially_Execute()
 				FTransform CircleTransform = FTransform::Identity;
 				if (Minimum > SMALL_NUMBER)
 				{
-					ExecuteContext.UnitContext.DrawInterface->DrawArc(Space, CircleTransform, Minimum, 0.f, PI * 2.f, DebugColor, DebugThickness, 16);
+					ExecuteContext.GetDrawInterface()->DrawArc(Space, CircleTransform, Minimum, 0.f, PI * 2.f, DebugColor, DebugThickness, 16);
 				}
-				ExecuteContext.UnitContext.DrawInterface->DrawArc(Space, CircleTransform, Maximum, 0.f, PI * 2.f, DebugColor, DebugThickness, 16);
+				ExecuteContext.GetDrawInterface()->DrawArc(Space, CircleTransform, Maximum, 0.f, PI * 2.f, DebugColor, DebugThickness, 16);
 				CircleTransform.SetRotation(FQuat(FVector(0.f, 1.f, 0.f), PI * 0.5f));
 				if (Minimum > SMALL_NUMBER)
 				{
-					ExecuteContext.UnitContext.DrawInterface->DrawArc(Space, CircleTransform, Minimum, 0.f, PI * 2.f, DebugColor, DebugThickness, 16);
+					ExecuteContext.GetDrawInterface()->DrawArc(Space, CircleTransform, Minimum, 0.f, PI * 2.f, DebugColor, DebugThickness, 16);
 				}
-				ExecuteContext.UnitContext.DrawInterface->DrawArc(Space, CircleTransform, Maximum, 0.f, PI * 2.f, DebugColor, DebugThickness, 16);
+				ExecuteContext.GetDrawInterface()->DrawArc(Space, CircleTransform, Maximum, 0.f, PI * 2.f, DebugColor, DebugThickness, 16);
 				CircleTransform.SetRotation(FQuat(FVector(1.f, 0.f, 0.f), PI * 0.5f));
 				if (Minimum > SMALL_NUMBER)
 				{
-					ExecuteContext.UnitContext.DrawInterface->DrawArc(Space, CircleTransform, Minimum, 0.f, PI * 2.f, DebugColor, DebugThickness, 16);
+					ExecuteContext.GetDrawInterface()->DrawArc(Space, CircleTransform, Minimum, 0.f, PI * 2.f, DebugColor, DebugThickness, 16);
 				}
-				ExecuteContext.UnitContext.DrawInterface->DrawArc(Space, CircleTransform, Maximum, 0.f, PI * 2.f, DebugColor, DebugThickness, 16);
+				ExecuteContext.GetDrawInterface()->DrawArc(Space, CircleTransform, Maximum, 0.f, PI * 2.f, DebugColor, DebugThickness, 16);
 				break;
 			}
 

@@ -4,12 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "DynamicMeshBuilder.h"
-#include "ControlRigDrawInstruction.generated.h"
+#include "RigVMDrawInstruction.generated.h"
 
 class FMaterialRenderProxy;
 
 UENUM()
-namespace EControlRigDrawSettings
+namespace ERigVMDrawSettings
 {
 	enum Primitive
 	{
@@ -21,7 +21,7 @@ namespace EControlRigDrawSettings
 }
 
 USTRUCT()
-struct CONTROLRIG_API FControlRigDrawInstruction
+struct RIGVM_API FRigVMDrawInstruction
 {
 	GENERATED_BODY()
 
@@ -29,7 +29,7 @@ struct CONTROLRIG_API FControlRigDrawInstruction
 	FName Name;
 
 	UPROPERTY(EditAnywhere, Category = "DrawInstruction")
-	TEnumAsByte<EControlRigDrawSettings::Primitive> PrimitiveType;
+	TEnumAsByte<ERigVMDrawSettings::Primitive> PrimitiveType;
 
 	UPROPERTY(EditAnywhere, Category = "DrawInstruction")
 	TArray<FVector> Positions;
@@ -48,15 +48,15 @@ struct CONTROLRIG_API FControlRigDrawInstruction
 	TArray<uint32> MeshIndices;
 	FMaterialRenderProxy* MaterialRenderProxy = nullptr;
 
-	FControlRigDrawInstruction()
+	FRigVMDrawInstruction()
 		: Name(NAME_None)
-		, PrimitiveType(EControlRigDrawSettings::Points)
+		, PrimitiveType(ERigVMDrawSettings::Points)
 		, Color(FLinearColor::Red)
 		, Thickness(0.f)
 		, Transform(FTransform::Identity)
 	{}
 
-	FControlRigDrawInstruction(EControlRigDrawSettings::Primitive InPrimitiveType, const FLinearColor& InColor, float InThickness = 0.f, FTransform InTransform = FTransform::Identity)
+	FRigVMDrawInstruction(ERigVMDrawSettings::Primitive InPrimitiveType, const FLinearColor& InColor, float InThickness = 0.f, FTransform InTransform = FTransform::Identity)
 		: Name(NAME_None)
 		, PrimitiveType(InPrimitiveType)
 		, Color(InColor)
@@ -68,7 +68,7 @@ struct CONTROLRIG_API FControlRigDrawInstruction
 	{
 		// if primitive type is dynamicmesh, we expect these data to be there. 
 		// otherwise, we can't draw
-		if (PrimitiveType == EControlRigDrawSettings::DynamicMesh)
+		if (PrimitiveType == ERigVMDrawSettings::DynamicMesh)
 		{
 			return MeshVerts.Num() != 0 && MeshIndices.Num() != 0 && MaterialRenderProxy != nullptr;
 		}

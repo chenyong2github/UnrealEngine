@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Drawing/ControlRigDrawContainer.h"
+#include "RigVMCore/RigVMDrawContainer.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigDrawContainer)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMDrawContainer)
 
-int32 FControlRigDrawContainer::GetIndex(const FName& InName) const
+int32 FRigVMDrawContainer::GetIndex(const FName& InName) const
 {
 	for (int32 Index = 0; Index < Instructions.Num(); ++Index)
 	{
@@ -16,7 +16,7 @@ int32 FControlRigDrawContainer::GetIndex(const FName& InName) const
 	return INDEX_NONE;
 }
 
-void FControlRigDrawContainer::Reset()
+void FRigVMDrawContainer::Reset()
 {
 	Instructions.Reset();
 }

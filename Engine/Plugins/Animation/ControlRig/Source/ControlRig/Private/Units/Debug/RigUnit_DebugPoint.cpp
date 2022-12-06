@@ -10,7 +10,7 @@ FRigUnit_DebugPoint_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled)
+	if (ExecuteContext.GetDrawInterface() == nullptr || !bEnabled)
 	{
 		return;
 	}
@@ -28,12 +28,12 @@ FRigUnit_DebugPoint_Execute()
 	{
 		case ERigUnitDebugPointMode::Point:
 		{
-			ExecuteContext.UnitContext.DrawInterface->DrawPoint(WorldOffset, DrawVector, Scale, Color);
+			ExecuteContext.GetDrawInterface()->DrawPoint(WorldOffset, DrawVector, Scale, Color);
 			break;
 		}
 		case ERigUnitDebugPointMode::Vector:
 		{
-			ExecuteContext.UnitContext.DrawInterface->DrawLine(WorldOffset, Center, DrawVector, Color, Thickness);
+			ExecuteContext.GetDrawInterface()->DrawLine(WorldOffset, Center, DrawVector, Color, Thickness);
 			break;
 		}
 	}
@@ -59,7 +59,7 @@ FRigUnit_DebugPointMutable_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled)
+	if (ExecuteContext.GetDrawInterface() == nullptr || !bEnabled)
 	{
 		return;
 	}
@@ -77,12 +77,12 @@ FRigUnit_DebugPointMutable_Execute()
 	{
 		case ERigUnitDebugPointMode::Point:
 		{
-			ExecuteContext.UnitContext.DrawInterface->DrawPoint(WorldOffset, DrawVector, Scale, Color);
+			ExecuteContext.GetDrawInterface()->DrawPoint(WorldOffset, DrawVector, Scale, Color);
 			break;
 		}
 		case ERigUnitDebugPointMode::Vector:
 		{
-			ExecuteContext.UnitContext.DrawInterface->DrawLine(WorldOffset, Center, DrawVector, Color, Thickness);
+			ExecuteContext.GetDrawInterface()->DrawLine(WorldOffset, Center, DrawVector, Color, Thickness);
 			break;
 		}
 	}

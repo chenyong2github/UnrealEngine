@@ -30,22 +30,46 @@ FRigUnit_DebugBezierItemSpace_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled)
-	{
-		return;
-	}
-
 	FTransform Transform = WorldOffset;
 	if (Space.IsValid())
 	{
 		Transform = Transform * ExecuteContext.Hierarchy->GetGlobalTransform(Space);
 	}
 
-	ExecuteContext.UnitContext.DrawInterface->DrawBezier(Transform, Bezier, MinimumU, MaximumU, Color, Thickness, Detail);
+	DrawBezier(ExecuteContext, Transform, Bezier, MinimumU, MaximumU, Color, Thickness, Detail);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_DebugBezierItemSpace::GetUpgradeInfo() const
 {
 	// this node is no longer supported
 	return FRigVMStructUpgradeInfo();
+}
+
+void FRigUnit_DebugBezierItemSpace::DrawBezier(const FControlRigExecuteContext& InContext, const FTransform& WorldOffset, const FCRFourPointBezier& InBezier, float MinimumU, float MaximumU, const FLinearColor& Color, float Thickness, int32 Detail)
+{
+	FRigVMDrawInterface* DrawInterface = InContext.GetDrawInterface();
+	if(DrawInterface == nullptr)
+	{
+		return;
+	}
+	
+	if (!DrawInterface->IsEnabled())
+	{
+		return;
+	}
+
+	int32 Count = FMath::Clamp<int32>(Detail, 4, 64);
+	FRigVMDrawInstruction Instruction(ERigVMDrawSettings::LineStrip, Color, Thickness, WorldOffset);
+	Instruction.Positions.SetNumUninitialized(Count);
+
+	float T = MinimumU;
+	float Step = (MaximumU - MinimumU) / float(Detail-1);
+	for(int32 Index=0;Index<Count;Index++)
+	{
+		FVector Tangent;
+		FControlRigMathLibrary::FourPointBezier(InBezier, T, Instruction.Positions[Index], Tangent);
+		T += Step;
+	}
+
+	DrawInterface->DrawInstruction(Instruction);
 }

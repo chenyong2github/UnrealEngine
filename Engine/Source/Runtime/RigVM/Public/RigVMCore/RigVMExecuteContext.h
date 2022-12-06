@@ -22,6 +22,9 @@
 #include "UObject/UnrealType.h"
 #include "RigVMCore/RigVMNameCache.h"
 #include "UObject/StructOnScope.h"
+#include "RigVMLog.h"
+#include "RigVMDrawInterface.h"
+#include "RigVMDrawContainer.h"
 
 #include "RigVMExecuteContext.generated.h"
 
@@ -226,8 +229,14 @@ struct RIGVM_API FRigVMExecuteContext
 		, InstructionIndex(0)
 		, DeltaTime(0.0)
 		, AbsoluteTime(0.0)
+		, FramesPerSecond(1.0 / 60.0)
 		, RuntimeSettings()
 		, NameCache(nullptr)
+#if WITH_EDITOR
+		, LogPtr(nullptr)
+#endif
+		, DrawInterfacePtr(nullptr)
+		, DrawContainerPtr(nullptr)
 	{
 	}
 
@@ -281,6 +290,18 @@ struct RIGVM_API FRigVMExecuteContext
 	
 	FRigVMNameCache* GetNameCache() const { return NameCache; }
 
+#if WITH_EDITOR
+	FRigVMLog* GetLog() const { return LogPtr; }
+	void SetLog(FRigVMLog* InLog) { LogPtr = InLog; }
+#endif
+
+	FRigVMDrawInterface* GetDrawInterface() const { return DrawInterfacePtr; }
+	void SetDrawInterface(FRigVMDrawInterface* InDrawInterface) { DrawInterfacePtr = InDrawInterface; }
+
+	const FRigVMDrawContainer* GetDrawContainer() const { return DrawContainerPtr; }
+	FRigVMDrawContainer* GetDrawContainer() { return DrawContainerPtr; }
+	void SetDrawContainer(FRigVMDrawContainer* InDrawContainer) { DrawContainerPtr = InDrawContainer; }
+
 	virtual void Initialize()
 	{
 		if(NameCache == nullptr)
@@ -321,6 +342,12 @@ protected:
 	FRigVMRuntimeSettings RuntimeSettings;
 
 	mutable FRigVMNameCache* NameCache;
+
+#if WITH_EDITOR
+	FRigVMLog* LogPtr;
+#endif
+	FRigVMDrawInterface* DrawInterfacePtr;
+	FRigVMDrawContainer* DrawContainerPtr;
 
 #if UE_RIGVM_DEBUG_EXECUTION
 	FString DebugMemoryString;

@@ -249,11 +249,6 @@ FRigUnit_PointSimulation_Execute()
 		Bezier.C = Simulation.GetPointInterpolated(2).Position;
 		Bezier.D = Simulation.GetPointInterpolated(3).Position;
 	}
-
-	if (ExecuteContext.UnitContext.DrawInterface != nullptr && DebugSettings.bEnabled)
-	{
-		ExecuteContext.UnitContext.DrawInterface->DrawPointSimulation(DebugSettings.WorldOffset, Simulation, DebugSettings.Color, DebugSettings.Scale, DebugSettings.CollisionScale, DebugSettings.bDrawPointsAsSpheres);
-	}
 }
 
 FRigVMStructUpgradeInfo FRigUnit_PointSimulation::GetUpgradeInfo() const

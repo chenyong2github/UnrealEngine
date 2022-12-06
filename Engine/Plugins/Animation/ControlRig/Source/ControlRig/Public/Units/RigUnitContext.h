@@ -5,12 +5,11 @@
 #include "CoreMinimal.h"
 #include "Rigs/RigHierarchyContainer.h"
 #include "Rigs/RigCurveContainer.h"
-#include "ControlRigLog.h"
 #include "AnimationDataSource.h"
 #include "Animation/AttributesRuntime.h"
-#include "Drawing/ControlRigDrawInterface.h"
 #include "GameFramework/Actor.h"
 #include "Components/SceneComponent.h"
+#include "RigVMCore/RigVMExecuteContext.h"
 #include "RigUnitContext.generated.h"
 
 /**
@@ -47,8 +46,6 @@ struct FRigUnitContext
 	/** default constructor */
 	FRigUnitContext()
 		: AnimAttributeContainer(nullptr)
-		, DrawInterface(nullptr)
-		, DrawContainer(nullptr)
 		, DataSourceRegistry(nullptr)
 		, InteractionType((uint8)EControlRigInteractionType::None)
 		, ElementsBeingInteracted()
@@ -56,21 +53,12 @@ struct FRigUnitContext
 		, OwningComponent(nullptr)
 		, OwningActor(nullptr)
 		, World(nullptr)
-#if WITH_EDITOR
-		, Log(nullptr)
-#endif
 	{
 	}
 
 	/** An external anim attribute container */
 	UE::Anim::FStackAttributeContainer* AnimAttributeContainer;
 	
-	/** The draw interface for the units to use */
-	FControlRigDrawInterface* DrawInterface;
-
-	/** The draw container for the units to use */
-	FControlRigDrawContainer* DrawContainer;
-
 	/** The registry to access data source */
 	const UAnimationDataSourceRegistry* DataSourceRegistry;
 
@@ -94,11 +82,6 @@ struct FRigUnitContext
 
 	/** The world this rig is running in */
 	const UWorld* World;
-
-#if WITH_EDITOR
-	/** A handle to the compiler log */
-	FControlRigLog* Log;
-#endif
 
 	/**
 	 * Returns a given data source and cast it to the expected class.
@@ -198,9 +181,9 @@ struct FControlRigExecuteContext : public FRigVMExecuteContext
 
 #if WITH_EDITOR
 #define UE_CONTROLRIG_RIGUNIT_REPORT(Severity, Format, ...) \
-if(ExecuteContext.UnitContext.Log != nullptr) \
+if(ExecuteContext.GetLog() != nullptr) \
 { \
-	ExecuteContext.UnitContext.Log->Report(EMessageSeverity::Severity, ExecuteContext.GetFunctionName(), ExecuteContext.GetInstructionIndex(), FString::Printf((Format), ##__VA_ARGS__)); \
+	ExecuteContext.GetLog()->Report(EMessageSeverity::Severity, ExecuteContext.GetFunctionName(), ExecuteContext.GetInstructionIndex(), FString::Printf((Format), ##__VA_ARGS__)); \
 }
 #define UE_CONTROLRIG_RIGUNIT_LOG_MESSAGE(Format, ...) UE_CONTROLRIG_RIGUNIT_REPORT(Info, (Format), ##__VA_ARGS__)
 #define UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(Format, ...) UE_CONTROLRIG_RIGUNIT_REPORT(Warning, (Format), ##__VA_ARGS__)

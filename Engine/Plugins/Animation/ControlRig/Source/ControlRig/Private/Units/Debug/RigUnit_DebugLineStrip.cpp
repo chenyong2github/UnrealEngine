@@ -36,7 +36,7 @@ FRigUnit_DebugLineStripItemSpace_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled)
+	if (ExecuteContext.GetDrawInterface() == nullptr || !bEnabled)
 	{
 		return;
 	}
@@ -50,11 +50,11 @@ FRigUnit_DebugLineStripItemSpace_Execute()
 		{
 			PointsTransformed.Add(Transform.TransformPosition(Point));
 		}
-		ExecuteContext.UnitContext.DrawInterface->DrawLineStrip(WorldOffset, PointsTransformed, Color, Thickness);
+		ExecuteContext.GetDrawInterface()->DrawLineStrip(WorldOffset, PointsTransformed, Color, Thickness);
 	}
 	else
 	{
-		ExecuteContext.UnitContext.DrawInterface->DrawLineStrip(WorldOffset, TArrayView<const FVector>(Points.GetData(), Points.Num()), Color, Thickness);
+		ExecuteContext.GetDrawInterface()->DrawLineStrip(WorldOffset, TArrayView<const FVector>(Points.GetData(), Points.Num()), Color, Thickness);
 	}
 }
 

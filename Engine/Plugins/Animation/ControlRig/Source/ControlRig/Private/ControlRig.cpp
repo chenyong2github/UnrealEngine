@@ -797,7 +797,7 @@ bool UControlRig::Execute(const FName& InEventName)
 	{
 		DrawInterface.Reset();
 	}
-	Context.DrawInterface = &DrawInterface;
+	PublicContext.SetDrawInterface(&DrawInterface);
 
 	// setup the animation attribute container
 	Context.AnimAttributeContainer = ExternalAnimAttributeContainer;
@@ -809,7 +809,7 @@ bool UControlRig::Execute(const FName& InEventName)
 	{
 		DrawContainer = CDO->DrawContainer;
 	}
-	Context.DrawContainer = &DrawContainer;
+	PublicContext.SetDrawContainer(&DrawContainer);
 
 	// setup the data source registry
 	Context.DataSourceRegistry = GetDataSourceRegistry();
@@ -911,7 +911,7 @@ bool UControlRig::Execute(const FName& InEventName)
 
 #if WITH_EDITOR
 	// setup the log and VM settings
-	Context.Log = ControlRigLog;
+	PublicContext.SetLog(ControlRigLog);
 	if (ControlRigLog != nullptr)
 	{
 		ControlRigLog->Reset();
@@ -1127,7 +1127,7 @@ bool UControlRig::Execute(const FName& InEventName)
 		}
 		else if(bIsEventLastInQueue)
 		{
-			for (const FControlRigLog::FLogEntry& Entry : ControlRigLog->Entries)
+			for (const FRigVMLog::FLogEntry& Entry : ControlRigLog->Entries)
 			{
 				if (Entry.FunctionName == NAME_None || Entry.InstructionIndex == INDEX_NONE || Entry.Message.IsEmpty())
 				{
@@ -1169,9 +1169,9 @@ bool UControlRig::Execute(const FName& InEventName)
 		HandleHierarchyEvent(GetHierarchy(), EventContext);
 	}
 
-	if (Context.DrawInterface && Context.DrawContainer && bIsEventLastInQueue) 
+	if (PublicContext.GetDrawInterface() && PublicContext.GetDrawContainer() && bIsEventLastInQueue) 
 	{
-		Context.DrawInterface->Instructions.Append(Context.DrawContainer->Instructions);
+		PublicContext.GetDrawInterface()->Instructions.Append(PublicContext.GetDrawContainer()->Instructions);
 
 		FRigHierarchyValidityBracket ValidityBracket(GetHierarchy());
 		
@@ -1185,7 +1185,7 @@ bool UControlRig::Execute(const FName& InEventName)
 				Settings.LimitEnabled.Contains(FRigControlLimitEnabled(true, true)))
 			{
 				FTransform Transform = GetHierarchy()->GetGlobalControlOffsetTransformByIndex(ControlElement->GetIndex());
-				FControlRigDrawInstruction Instruction(EControlRigDrawSettings::Lines, Settings.ShapeColor, 0.f, Transform);
+				FRigVMDrawInstruction Instruction(ERigVMDrawSettings::Lines, Settings.ShapeColor, 0.f, Transform);
 
 				switch (Settings.ControlType)
 				{
@@ -1272,7 +1272,7 @@ bool UControlRig::Execute(const FName& InEventName)
 							break;
 						}
 
-						Instruction.PrimitiveType = EControlRigDrawSettings::LineStrip;
+						Instruction.PrimitiveType = ERigVMDrawSettings::LineStrip;
 						FVector3f MinPos = Settings.MinimumValue.Get<FVector3f>();
 						FVector3f MaxPos = Settings.MaximumValue.Get<FVector3f>();
 
@@ -1390,7 +1390,7 @@ bool UControlRig::Execute(const FName& InEventName)
 
 				if (Instruction.Positions.Num() > 0)
 				{
-					DrawInterface.Instructions.Add(Instruction);
+					DrawInterface.DrawInstruction(Instruction);
 				}
 			}
 

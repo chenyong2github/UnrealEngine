@@ -10,6 +10,7 @@
 #include "AnimCustomInstanceHelper.h"
 #include "ControlRigObjectBinding.h"
 #include "SceneManagement.h"
+#include "Math/ControlRigMathLibrary.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigComponent)
 
@@ -223,11 +224,11 @@ FBoxSphereBounds UControlRigComponent::CalcBounds(const FTransform& LocalToWorld
 		// Get bounding box for the debug drawings if they are drawn 
 		if (bShowDebugDrawing)
 		{ 
-			const FControlRigDrawInterface& DrawInterface = ControlRig->GetDrawInterface();
+			const FRigVMDrawInterface& DrawInterface = ControlRig->GetDrawInterface();
 
 			for (int32 InstructionIndex = 0; InstructionIndex < DrawInterface.Num(); InstructionIndex++)
 			{
-				const FControlRigDrawInstruction& Instruction = DrawInterface[InstructionIndex];
+				const FRigVMDrawInstruction& Instruction = DrawInterface[InstructionIndex];
 
 				FTransform Transform = Instruction.Transform * GetComponentToWorld();
 				for (const FVector& Position : Instruction.Positions)
@@ -2007,11 +2008,11 @@ void FControlRigSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView
 
 			if (ControlRigComponent->bShowDebugDrawing)
 			{ 
-				const FControlRigDrawInterface& DrawInterface = ControlRigComponent->ControlRig->GetDrawInterface();
+				const FRigVMDrawInterface& DrawInterface = ControlRigComponent->ControlRig->GetDrawInterface();
 
 				for (int32 InstructionIndex = 0; InstructionIndex < DrawInterface.Num(); InstructionIndex++)
 				{
-					const FControlRigDrawInstruction& Instruction = DrawInterface[InstructionIndex];
+					const FRigVMDrawInstruction& Instruction = DrawInterface[InstructionIndex];
 					if (Instruction.Positions.Num() == 0)
 					{
 						continue;
@@ -2020,7 +2021,7 @@ void FControlRigSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView
 					FTransform InstructionTransform = Instruction.Transform * ControlRigComponent->GetComponentToWorld();
 					switch (Instruction.PrimitiveType)
 					{
-						case EControlRigDrawSettings::Points:
+						case ERigVMDrawSettings::Points:
 						{
 							for (const FVector& Point : Instruction.Positions)
 							{
@@ -2028,7 +2029,7 @@ void FControlRigSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView
 							}
 							break;
 						}
-						case EControlRigDrawSettings::Lines:
+						case ERigVMDrawSettings::Lines:
 						{
 							const TArray<FVector>& Points = Instruction.Positions;
 							PDI->AddReserveLines(SDPG_Foreground, Points.Num() / 2, false, Instruction.Thickness > SMALL_NUMBER);
@@ -2038,7 +2039,7 @@ void FControlRigSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView
 							}
 							break;
 						}
-						case EControlRigDrawSettings::LineStrip:
+						case ERigVMDrawSettings::LineStrip:
 						{
 							const TArray<FVector>& Points = Instruction.Positions;
 							PDI->AddReserveLines(SDPG_Foreground, Points.Num() - 1, false, Instruction.Thickness > SMALL_NUMBER);

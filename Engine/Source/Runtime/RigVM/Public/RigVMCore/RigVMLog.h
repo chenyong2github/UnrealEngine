@@ -5,12 +5,12 @@
 #include "CoreMinimal.h"
 #include "Logging/TokenizedMessage.h"
 
-struct CONTROLRIG_API FControlRigLog
+struct RIGVM_API FRigVMLog
 {
 public:
 
-	FControlRigLog() {}
-	virtual ~FControlRigLog() {}
+	FRigVMLog() {}
+	virtual ~FRigVMLog() {}
 
 #if WITH_EDITOR
 	struct FLogEntry

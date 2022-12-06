@@ -338,7 +338,7 @@ bool UControlRigTestData::SetupReplay(UControlRig* InControlRig, bool bGroundTru
 			const FRigPose& ExpectedPose = Frame.Pose;
 
 			// draw differences of the pose result of the rig onto the screen
-			FControlRigDrawInterface& DrawInterface = InControlRig->GetDrawInterface();
+			FRigVMDrawInterface& DrawInterface = InControlRig->GetDrawInterface();
 			for(const FRigPoseElement& ExpectedPoseElement : ExpectedPose)
 			{
 				const int32 CurrentPoseIndex = CurrentPose.GetIndex(ExpectedPoseElement.Index.GetKey());

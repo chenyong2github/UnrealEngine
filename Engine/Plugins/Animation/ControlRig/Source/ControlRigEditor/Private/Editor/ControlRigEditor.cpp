@@ -3332,7 +3332,7 @@ void FControlRigEditor::HandleControlRigExecutedEvent(UControlRig* InControlRig,
 								if(DebuggedControlRig->ControlRigLog)
 								{
 									DebuggedControlRig->ControlRigLog->Entries.Add(
-										FControlRigLog::FLogEntry(EMessageSeverity::Warning, InEventName, InstructionIndex, Message
+										FRigVMLog::FLogEntry(EMessageSeverity::Warning, InEventName, InstructionIndex, Message
 									));
 								}
 
@@ -6943,7 +6943,7 @@ void FControlRigEditor::UpdateGraphCompilerErrors()
 			}
 
 			// update the nodes' error messages
-			for (const FControlRigLog::FLogEntry& Entry : ControlRigLog.Entries)
+			for (const FRigVMLog::FLogEntry& Entry : ControlRigLog.Entries)
 			{
 				URigVMNode* ModelNode = Cast<URigVMNode>(ByteCode.GetSubjectForInstruction(Entry.InstructionIndex));
 				if (ModelNode == nullptr)

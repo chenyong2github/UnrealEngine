@@ -830,7 +830,7 @@ void FAnimNode_ControlRigBase::QueueControlRigDrawInstructions(UControlRig* Cont
 
 	if (ControlRig && Proxy)
 	{
-		for (const FControlRigDrawInstruction& Instruction : ControlRig->GetDrawInterface())
+		for (const FRigVMDrawInstruction& Instruction : ControlRig->GetDrawInterface())
 		{
 			if (!Instruction.IsValid())
 			{
@@ -840,7 +840,7 @@ void FAnimNode_ControlRigBase::QueueControlRigDrawInstructions(UControlRig* Cont
 			FTransform InstructionTransform = Instruction.Transform * Proxy->GetComponentTransform();
 			switch (Instruction.PrimitiveType)
 			{
-				case EControlRigDrawSettings::Points:
+				case ERigVMDrawSettings::Points:
 				{
 					for (const FVector& Point : Instruction.Positions)
 					{
@@ -848,7 +848,7 @@ void FAnimNode_ControlRigBase::QueueControlRigDrawInstructions(UControlRig* Cont
 					}
 					break;
 				}
-				case EControlRigDrawSettings::Lines:
+				case ERigVMDrawSettings::Lines:
 				{
 					const TArray<FVector>& Points = Instruction.Positions;
 
@@ -858,7 +858,7 @@ void FAnimNode_ControlRigBase::QueueControlRigDrawInstructions(UControlRig* Cont
 					}
 					break;
 				}
-				case EControlRigDrawSettings::LineStrip:
+				case ERigVMDrawSettings::LineStrip:
 				{
 					const TArray<FVector>& Points = Instruction.Positions;
 
@@ -869,7 +869,7 @@ void FAnimNode_ControlRigBase::QueueControlRigDrawInstructions(UControlRig* Cont
 					break;
 				}
 
-				case EControlRigDrawSettings::DynamicMesh:
+				case ERigVMDrawSettings::DynamicMesh:
 				{
 					// TODO: Add support for this if anyone is actually using it. Currently it is only defined and referenced in an unused API, DrawCone in Control Rig.
 					break;

@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Units/Highlevel/RigUnit_HighlevelBase.h"
-#include "Drawing/ControlRigDrawInterface.h"
 
 #include "Core/PBIKSolver.h"
 #include "Core/PBIKDebug.h"
@@ -27,7 +26,7 @@ struct FPBIKDebug
 	UPROPERTY(EditAnywhere, Category = Debug)
 	bool bDrawDebug = false;
 
-	void Draw(FControlRigDrawInterface* DrawInterface, FPBIKSolver* Solver) const
+	void Draw(FRigVMDrawInterface* DrawInterface, FPBIKSolver* Solver) const
 	{
 		if (!(DrawInterface && Solver && bDrawDebug))
 		{

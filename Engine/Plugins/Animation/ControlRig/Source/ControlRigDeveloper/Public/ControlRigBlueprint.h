@@ -18,7 +18,6 @@
 #include "RigVMModel/RigVMClient.h"
 #include "RigVMCompiler/RigVMCompiler.h"
 #include "ControlRigValidationPass.h"
-#include "Drawing/ControlRigDrawContainer.h"
 #include "RigVMCore/RigVMGraphFunctionDefinition.h"
 
 #if WITH_EDITOR
@@ -491,7 +490,7 @@ public:
 #endif
 
 	UPROPERTY(EditAnywhere, Category = "Drawing")
-	FControlRigDrawContainer DrawContainer;
+	FRigVMDrawContainer DrawContainer;
 
 #if WITH_EDITOR
 	/** Remove a transient / temporary control used to interact with a pin */

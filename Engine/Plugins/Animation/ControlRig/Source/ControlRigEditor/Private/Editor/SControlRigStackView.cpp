@@ -789,8 +789,8 @@ void SControlRigStackView::RefreshTreeView(URigVM* InVM)
 			UControlRig* ControlRig = ControlRigEditor.Pin()->ControlRig;
 			if(ControlRig && ControlRig->ControlRigLog)
 			{
-				const TArray<FControlRigLog::FLogEntry>& LogEntries = ControlRig->ControlRigLog->Entries;
-				for (const FControlRigLog::FLogEntry& LogEntry : LogEntries)
+				const TArray<FRigVMLog::FLogEntry>& LogEntries = ControlRig->ControlRigLog->Entries;
+				for (const FRigVMLog::FLogEntry& LogEntry : LogEntries)
 				{
 					if (Operators.Num() <= LogEntry.InstructionIndex)
 					{

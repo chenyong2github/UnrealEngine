@@ -31,7 +31,6 @@
 #include "ControlRigBlueprintGeneratedClass.h"
 #include "IControlRigObjectBinding.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "Drawing/ControlRigDrawInterface.h"
 #include "ControlRigBlueprint.h"
 #include "ControlRigGizmoActor.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -881,7 +880,7 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 						}
 					}
 				}
-				for (const FControlRigDrawInstruction& Instruction : ControlRig->DrawInterface)
+				for (const FRigVMDrawInstruction& Instruction : ControlRig->DrawInterface)
 				{
 					if (!Instruction.IsValid())
 					{
@@ -891,7 +890,7 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 					FTransform InstructionTransform = Instruction.Transform * ComponentTransform;
 					switch (Instruction.PrimitiveType)
 					{
-					case EControlRigDrawSettings::Points:
+					case ERigVMDrawSettings::Points:
 					{
 						for (const FVector& Point : Instruction.Positions)
 						{
@@ -899,7 +898,7 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 						}
 						break;
 					}
-					case EControlRigDrawSettings::Lines:
+					case ERigVMDrawSettings::Lines:
 					{
 						const TArray<FVector>& Points = Instruction.Positions;
 						PDI->AddReserveLines(SDPG_Foreground, Points.Num() / 2, false, Instruction.Thickness > SMALL_NUMBER);
@@ -909,7 +908,7 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 						}
 						break;
 					}
-					case EControlRigDrawSettings::LineStrip:
+					case ERigVMDrawSettings::LineStrip:
 					{
 						const TArray<FVector>& Points = Instruction.Positions;
 						PDI->AddReserveLines(SDPG_Foreground, Points.Num() - 1, false, Instruction.Thickness > SMALL_NUMBER);
@@ -920,7 +919,7 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 						break;
 					}
 
-					case EControlRigDrawSettings::DynamicMesh:
+					case ERigVMDrawSettings::DynamicMesh:
 					{
 						FDynamicMeshBuilder MeshBuilder(PDI->View->GetFeatureLevel());
 						MeshBuilder.AddVertices(Instruction.MeshVerts);

@@ -3,8 +3,20 @@
 #pragma once
 
 #include "RigUnit_DebugBase.h"
-#include "Drawing/ControlRigDrawInterface.h"
 #include "RigUnit_DebugHierarchy.generated.h"
+
+UENUM()
+namespace EControlRigDrawHierarchyMode
+{
+	enum Type
+	{
+		/** Draw as axes */
+		Axes,
+
+		/** MAX - invalid */
+		Max UMETA(Hidden),
+	};
+}
 
 /**
  * Draws vectors on each bone in the viewport across the entire hierarchy
@@ -40,6 +52,8 @@ struct CONTROLRIG_API FRigUnit_DebugHierarchy : public FRigUnit_DebugBaseMutable
 
 	UPROPERTY(meta = (Input))
 	bool bEnabled;
+
+	static void DrawHierarchy(const FControlRigExecuteContext& InContext, const FTransform& WorldOffset, URigHierarchy* Hierarchy, EControlRigDrawHierarchyMode::Type Mode, float Scale, const FLinearColor& Color, float Thickness, const FRigPose* InPose);
 };
 
 /**

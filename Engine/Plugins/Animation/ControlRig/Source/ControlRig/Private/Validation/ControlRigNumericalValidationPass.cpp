@@ -153,7 +153,7 @@ void UControlRigNumericalValidationPass::OnEvent(UControlRig* InControlRig, cons
 
 				if (InControlRig->GetHierarchy()->IsSelected(Key))
 				{
-					if (FControlRigDrawInterface* DrawInterface = InContext->GetDrawInterface())
+					if (FRigVMDrawInterface* DrawInterface = InContext->GetDrawInterface())
 					{
 						DrawInterface->DrawAxes(FTransform::Identity, A, 50.f);
 						DrawInterface->DrawAxes(FTransform::Identity, B, 50.f);

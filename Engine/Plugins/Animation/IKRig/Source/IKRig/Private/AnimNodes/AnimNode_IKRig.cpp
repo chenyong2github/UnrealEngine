@@ -6,7 +6,6 @@
 #include "IKRigDefinition.h"
 #include "IKRigSolver.h"
 #include "ActorComponents/IKRigInterface.h"
-#include "Drawing/ControlRigDrawInterface.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Algo/ForEach.h"
 #include "SceneManagement.h"

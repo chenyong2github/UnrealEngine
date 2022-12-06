@@ -138,7 +138,7 @@ FRigUnit_TangentFromControlRigSpline_Execute()
 
 FRigUnit_DrawControlRigSpline_Execute()
 {
-	if (ExecuteContext.UnitContext.DrawInterface == nullptr)
+	if (ExecuteContext.GetDrawInterface() == nullptr)
 	{
 		return;
 	}
@@ -157,7 +157,7 @@ FRigUnit_DrawControlRigSpline_Execute()
 #endif	
 
 	int32 Count = FMath::Clamp<int32>(Detail, 4, 64);
-	FControlRigDrawInstruction Instruction(EControlRigDrawSettings::LineStrip, Color, Thickness);
+	FRigVMDrawInstruction Instruction(ERigVMDrawSettings::LineStrip, Color, Thickness);
 	Instruction.Positions.SetNumUninitialized(Count);
 
 	float T = 0;
@@ -169,7 +169,7 @@ FRigUnit_DrawControlRigSpline_Execute()
 		T += Step;
 	}
 
-	ExecuteContext.UnitContext.DrawInterface->Instructions.Add(Instruction);
+	ExecuteContext.GetDrawInterface()->Instructions.Add(Instruction);
 }
 
 FRigUnit_GetLengthControlRigSpline_Execute()
@@ -618,10 +618,10 @@ FRigUnit_FitChainToSplineCurveItemArray_Execute()
 		}
 	}
 
-	if (ExecuteContext.UnitContext.DrawInterface != nullptr && DebugSettings.bEnabled)
+	if (ExecuteContext.GetDrawInterface() != nullptr && DebugSettings.bEnabled)
 	{
 		int32 Count = 64;
-		FControlRigDrawInstruction Instruction(EControlRigDrawSettings::LineStrip, DebugSettings.CurveColor, DebugSettings.Scale, DebugSettings.WorldOffset);
+		FRigVMDrawInstruction Instruction(ERigVMDrawSettings::LineStrip, DebugSettings.CurveColor, DebugSettings.Scale, DebugSettings.WorldOffset);
 		Instruction.Positions.SetNumUninitialized(Count);
 
 		float T = 0;
@@ -632,15 +632,15 @@ FRigUnit_FitChainToSplineCurveItemArray_Execute()
 			Instruction.Positions[Index] = Spline.PositionAtParam(T);
 			T += Step;
 		}
-		ExecuteContext.UnitContext.DrawInterface->Instructions.Add(Instruction);
+		ExecuteContext.GetDrawInterface()->Instructions.Add(Instruction);
 
 		for (auto Point : Spline.SplineData->GetControlPoints())
 		{
-			ExecuteContext.UnitContext.DrawInterface->DrawPoint(DebugSettings.WorldOffset, Point, DebugSettings.Scale * 6, DebugSettings.CurveColor);
+			ExecuteContext.GetDrawInterface()->DrawPoint(DebugSettings.WorldOffset, Point, DebugSettings.Scale * 6, DebugSettings.CurveColor);
 		}
 
-		ExecuteContext.UnitContext.DrawInterface->DrawLineStrip(DebugSettings.WorldOffset, CurvePositions, DebugSettings.SegmentsColor, DebugSettings.Scale);
-		ExecuteContext.UnitContext.DrawInterface->DrawPoints(DebugSettings.WorldOffset, CurvePositions, DebugSettings.Scale * 4.f, DebugSettings.SegmentsColor);
+		ExecuteContext.GetDrawInterface()->DrawLineStrip(DebugSettings.WorldOffset, CurvePositions, DebugSettings.SegmentsColor, DebugSettings.Scale);
+		ExecuteContext.GetDrawInterface()->DrawPoints(DebugSettings.WorldOffset, CurvePositions, DebugSettings.Scale * 4.f, DebugSettings.SegmentsColor);
 	}
 }
 

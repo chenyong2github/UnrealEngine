@@ -8,7 +8,6 @@
 #include "DragAndDrop/GraphNodeDragDropOp.h"
 #include "ControlRigDefines.h"
 #include "Units/RigUnitContext.h"
-#include "ControlRigLog.h"
 #include "IPersonaViewport.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "RigVMModel/RigVMGraph.h"
@@ -456,7 +455,7 @@ protected:
 	bool bExecutionControlRig;
 
 	/** The log to use for errors resulting from the init phase of the units */
-	FControlRigLog ControlRigLog;
+	FRigVMLog ControlRigLog;
 	/** Once the log is collected update the graph */
 	void UpdateGraphCompilerErrors();
 

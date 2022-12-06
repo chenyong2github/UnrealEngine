@@ -10,7 +10,7 @@ FRigUnit_DebugTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled)
+	if (ExecuteContext.GetDrawInterface() == nullptr || !bEnabled)
 	{
 		return;
 	}
@@ -25,18 +25,18 @@ FRigUnit_DebugTransform_Execute()
 	{
 		case ERigUnitDebugTransformMode::Axes:
 		{
-			ExecuteContext.UnitContext.DrawInterface->DrawAxes(WorldOffset, DrawTransform, Scale, Thickness);
+			ExecuteContext.GetDrawInterface()->DrawAxes(WorldOffset, DrawTransform, Scale, Thickness);
 			break;
 		}
 		case ERigUnitDebugTransformMode::Point:
 		{
-			ExecuteContext.UnitContext.DrawInterface->DrawPoint(WorldOffset, DrawTransform.GetLocation(), Scale, Color);
+			ExecuteContext.GetDrawInterface()->DrawPoint(WorldOffset, DrawTransform.GetLocation(), Scale, Color);
 			break;
 		}
 		case ERigUnitDebugTransformMode::Box:
 		{
 			DrawTransform.SetScale3D(DrawTransform.GetScale3D() * Scale);
-			ExecuteContext.UnitContext.DrawInterface->DrawBox(WorldOffset, DrawTransform, Color, Thickness);
+			ExecuteContext.GetDrawInterface()->DrawBox(WorldOffset, DrawTransform, Color, Thickness);
 			break;
 		}
 	}
@@ -93,7 +93,7 @@ FRigUnit_DebugTransformMutableItemSpace_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled)
+	if (ExecuteContext.GetDrawInterface() == nullptr || !bEnabled)
 	{
 		return;
 	}
@@ -108,18 +108,18 @@ FRigUnit_DebugTransformMutableItemSpace_Execute()
 	{
 		case ERigUnitDebugTransformMode::Axes:
 		{
-			ExecuteContext.UnitContext.DrawInterface->DrawAxes(WorldOffset, DrawTransform, Scale, Thickness);
+			ExecuteContext.GetDrawInterface()->DrawAxes(WorldOffset, DrawTransform, Scale, Thickness);
 			break;
 		}
 		case ERigUnitDebugTransformMode::Point:
 		{
-			ExecuteContext.UnitContext.DrawInterface->DrawPoint(WorldOffset, DrawTransform.GetLocation(), Scale, Color);
+			ExecuteContext.GetDrawInterface()->DrawPoint(WorldOffset, DrawTransform.GetLocation(), Scale, Color);
 			break;
 		}
 		case ERigUnitDebugTransformMode::Box:
 		{
 			DrawTransform.SetScale3D(DrawTransform.GetScale3D() * Scale);
-			ExecuteContext.UnitContext.DrawInterface->DrawBox(WorldOffset, DrawTransform, Color, Thickness);
+			ExecuteContext.GetDrawInterface()->DrawBox(WorldOffset, DrawTransform, Color, Thickness);
 			break;
 		}
 	}
@@ -129,7 +129,7 @@ FRigUnit_DebugTransformArrayMutable_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled)
+	if (ExecuteContext.GetDrawInterface() == nullptr || !bEnabled)
 	{
 		return;
 	}
@@ -157,18 +157,18 @@ FRigUnit_DebugTransformArrayMutable_Execute()
 		{
 			case ERigUnitDebugTransformMode::Axes:
 			{
-				ExecuteContext.UnitContext.DrawInterface->DrawAxes(WorldOffset, DrawTransform, Scale, Thickness);
+				ExecuteContext.GetDrawInterface()->DrawAxes(WorldOffset, DrawTransform, Scale, Thickness);
 				break;
 			}
 			case ERigUnitDebugTransformMode::Point:
 			{
-				ExecuteContext.UnitContext.DrawInterface->DrawPoint(WorldOffset, DrawTransform.GetLocation(), Scale, Color);
+				ExecuteContext.GetDrawInterface()->DrawPoint(WorldOffset, DrawTransform.GetLocation(), Scale, Color);
 				break;
 			}
 			case ERigUnitDebugTransformMode::Box:
 			{
 				DrawTransform.SetScale3D(DrawTransform.GetScale3D() * Scale);
-				ExecuteContext.UnitContext.DrawInterface->DrawBox(WorldOffset, DrawTransform, Color, Thickness);
+				ExecuteContext.GetDrawInterface()->DrawBox(WorldOffset, DrawTransform, Color, Thickness);
 				break;
 			}
 		}
@@ -196,7 +196,7 @@ FRigUnit_DebugTransformArrayMutableItemSpace_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled || Transforms.Num() == 0)
+	if (ExecuteContext.GetDrawInterface() == nullptr || !bEnabled || Transforms.Num() == 0)
 	{
 		return;
 	}
@@ -221,7 +221,7 @@ FRigUnit_DebugTransformArrayMutableItemSpace_Execute()
 		{
 			if(Transforms.IsValidIndex(ParentIndices[Index]))
 			{
-				ExecuteContext.UnitContext.DrawInterface->DrawLine(
+				ExecuteContext.GetDrawInterface()->DrawLine(
 					WorldOffset,
 					Transforms[Index].GetTranslation(),
 					Transforms[ParentIndices[Index]].GetTranslation(),

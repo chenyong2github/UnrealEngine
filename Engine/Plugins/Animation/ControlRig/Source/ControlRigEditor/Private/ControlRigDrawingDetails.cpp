@@ -12,8 +12,6 @@
 #include "DesktopPlatformModule.h"
 #include "Framework/Application/SlateApplication.h"
 #include "FbxImporter.h"
-#include "Drawing/ControlRigDrawContainer.h"
-#include "Drawing/ControlRigDrawInstruction.h"
 #include "ScopedTransaction.h"
 #include "Dialogs/Dialogs.h"
 #include "SKismetInspector.h"
@@ -185,8 +183,8 @@ void FControlRigDrawContainerDetails::ImportCurvesFromFBX(const FString& InFileP
 
 		for (fbxsdk::FbxNode* FbxCurveNode : FbxCurveNodes)
 		{
-			FControlRigDrawInstruction Instruction;
-			Instruction.PrimitiveType = InSettings.bMergeCurves ? EControlRigDrawSettings::Lines : EControlRigDrawSettings::LineStrip;
+			FRigVMDrawInstruction Instruction;
+			Instruction.PrimitiveType = InSettings.bMergeCurves ? ERigVMDrawSettings::Lines : ERigVMDrawSettings::LineStrip;
 			Instruction.Transform = UnFbx::FFbxDataConverter::ConvertTransform(FbxCurveNode->EvaluateGlobalTransform());
 			Instruction.Transform.SetLocation(Instruction.Transform.GetLocation() * InSettings.Scale);
 
@@ -287,7 +285,7 @@ void FControlRigDrawContainerDetails::ImportCurvesFromFBX(const FString& InFileP
 				}
 				Instruction.Positions.Reset();
 
-				if (Instruction.PrimitiveType == EControlRigDrawSettings::Lines)
+				if (Instruction.PrimitiveType == ERigVMDrawSettings::Lines)
 				{
 					Instruction.Positions.Reserve((Line.Num() - 1) * 2 + (LineIsClosed[LineIndex] ? 2 : 0));
 				}
@@ -304,7 +302,7 @@ void FControlRigDrawContainerDetails::ImportCurvesFromFBX(const FString& InFileP
 
 				if (LineIsClosed[LineIndex])
 				{
-					if (Instruction.PrimitiveType == EControlRigDrawSettings::Lines)
+					if (Instruction.PrimitiveType == ERigVMDrawSettings::Lines)
 					{
 						Instruction.Positions.Add(Instruction.Positions.Last());
 						Instruction.Positions.Add(Instruction.Positions[0]);

@@ -38,7 +38,7 @@ FRigUnit_DebugLineItemSpace_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if (ExecuteContext.UnitContext.DrawInterface == nullptr || !bEnabled)
+	if (ExecuteContext.GetDrawInterface() == nullptr || !bEnabled)
 	{
 		return;
 	}
@@ -51,5 +51,5 @@ FRigUnit_DebugLineItemSpace_Execute()
 		DrawB = Transform.TransformPosition(DrawB);
 	}
 
-	ExecuteContext.UnitContext.DrawInterface->DrawLine(WorldOffset, DrawA, DrawB, Color, Thickness);
+	ExecuteContext.GetDrawInterface()->DrawLine(WorldOffset, DrawA, DrawB, Color, Thickness);
 }

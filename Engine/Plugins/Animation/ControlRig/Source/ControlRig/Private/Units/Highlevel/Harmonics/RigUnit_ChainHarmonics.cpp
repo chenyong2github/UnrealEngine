@@ -215,7 +215,7 @@ FRigUnit_ChainHarmonicsPerItem_Execute()
 
 	Time = Time + Speed * ExecuteContext.GetDeltaTime();
 
-	if (ExecuteContext.UnitContext.DrawInterface != nullptr && bDrawDebug)
+	if (ExecuteContext.GetDrawInterface() != nullptr && bDrawDebug)
 	{
 		HierarchyLine.SetNum(Items.Num());
 		for (int32 Index = 0; Index < Items.Num(); Index++)
@@ -223,9 +223,9 @@ FRigUnit_ChainHarmonicsPerItem_Execute()
 			HierarchyLine[Index] = Hierarchy->GetGlobalTransform(Items[Index]).GetLocation();
 		}
 
-		ExecuteContext.UnitContext.DrawInterface->DrawLineStrip(DrawWorldOffset, HierarchyLine, FLinearColor::Yellow, 0.f);
-		ExecuteContext.UnitContext.DrawInterface->DrawLines(DrawWorldOffset, VelocityLines, FLinearColor(0.3f, 0.3f, 1.f), 0.f);
-		ExecuteContext.UnitContext.DrawInterface->DrawPoints(DrawWorldOffset, PendulumPosition, 3.f, FLinearColor::Blue);
+		ExecuteContext.GetDrawInterface()->DrawLineStrip(DrawWorldOffset, HierarchyLine, FLinearColor::Yellow, 0.f);
+		ExecuteContext.GetDrawInterface()->DrawLines(DrawWorldOffset, VelocityLines, FLinearColor(0.3f, 0.3f, 1.f), 0.f);
+		ExecuteContext.GetDrawInterface()->DrawPoints(DrawWorldOffset, PendulumPosition, 3.f, FLinearColor::Blue);
 		return;
 	}
 
