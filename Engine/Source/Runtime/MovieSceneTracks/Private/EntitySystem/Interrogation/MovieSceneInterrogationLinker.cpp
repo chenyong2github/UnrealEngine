@@ -667,6 +667,8 @@ void FSystemInterrogator::Reset()
 	EntityComponentField = FMovieSceneEntityComponentField();
 
 	Channels.Reset();
+	ExtraMetaData.Reset();
+
 	Linker->Reset();
 }
 
