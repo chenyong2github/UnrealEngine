@@ -10,9 +10,9 @@
 #include "Widgets/SWidget.h"
 #include "ZenServerInterface.h"
 
-class SZenCacheStatistics : public SCompoundWidget
+class SZenServiceStatus : public SCompoundWidget
 {
-	SLATE_BEGIN_ARGS(SZenCacheStatistics)
+	SLATE_BEGIN_ARGS(SZenServiceStatus)
 		: _ZenServiceInstance(nullptr)
 	{ }
 
@@ -23,10 +23,25 @@ class SZenCacheStatistics : public SCompoundWidget
 	void Construct(const FArguments& InArgs);
 
 private:
+	struct FState
+	{
+		UE::Zen::FZenLocalServiceRunContext RunContext;
+		FString Version;
+		UE::Zen::FGCStatus GCStatus;
+		uint16 LocalPort = 0;
+		bool bGotRunContext = false;
+		bool bIsRunning = false;
+	};
+	static constexpr uint32 NumState = 2;
+	FState State[NumState];
+	std::atomic<uint32> ActiveStateIndex = 0;
 
+
+	const FState& GetCurrentState() const;
 	TSharedRef<SWidget> GetGridPanel();
+	FReply ExploreDataPath_OnClicked();
 
-	EActiveTimerReturnType UpdateGridPanels(double InCurrentTime, float InDeltaTime);
+	EActiveTimerReturnType UpdateState(double InCurrentTime, float InDeltaTime);
 
 	SVerticalBox::FSlot* GridSlot = nullptr;
 	TAttribute<TSharedPtr<UE::Zen::FZenServiceInstance>> ZenServiceInstance;

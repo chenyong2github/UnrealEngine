@@ -10,16 +10,25 @@ public class ZenDashboard : ModuleRules
 			new string[]
 			{
 				"Core",
-				"CoreUObject",
 				"Json",
 				"Projects",
 				"ApplicationCore",
 				"Slate",
 				"SlateCore",
 				"StandaloneRenderer",
-				"Zen",
+				"Zen"
 				
 			});
+
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"UnixCommonStartup"
+				}
+			);
+		}
 
 		PublicIncludePaths.Add("Runtime/Launch/Public");
 		PrivateIncludePaths.Add("Runtime/Launch/Private");      // For LaunchEngineLoop.cpp include

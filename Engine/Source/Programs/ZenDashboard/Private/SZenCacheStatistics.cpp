@@ -11,19 +11,12 @@
 #include "Widgets/SBoxPanel.h"
 #include "Internationalization/FastDecimalFormat.h"
 
-#define LOCTEXT_NAMESPACE "ZenEditor"
+#define LOCTEXT_NAMESPACE "ZenDashboard"
 
-static FString SingleDecimalFormat(double Value)
+void SZenCacheStatistics::Construct(const FArguments& InArgs)
 {
-	const FNumberFormattingOptions NumberFormattingOptions = FNumberFormattingOptions()
-		.SetUseGrouping(true)
-		.SetMinimumFractionalDigits(1)
-		.SetMaximumFractionalDigits(1);
-	return FastDecimalFormat::NumberToString(Value, ExpressionParser::GetLocalizedNumberFormattingRules(), NumberFormattingOptions);
-};
+	ZenServiceInstance = InArgs._ZenServiceInstance;
 
-void SZenCacheStatisticsDialog::Construct(const FArguments& InArgs)
-{
 	this->ChildSlot
 	[
 		SNew(SVerticalBox)
@@ -37,10 +30,10 @@ void SZenCacheStatisticsDialog::Construct(const FArguments& InArgs)
 		]
 	];
 
-	RegisterActiveTimer(0.5f, FWidgetActiveTimerDelegate::CreateSP(this, &SZenCacheStatisticsDialog::UpdateGridPanels));
+	RegisterActiveTimer(0.5f, FWidgetActiveTimerDelegate::CreateSP(this, &SZenCacheStatistics::UpdateGridPanels));
 }
 
-EActiveTimerReturnType SZenCacheStatisticsDialog::UpdateGridPanels(double InCurrentTime, float InDeltaTime)
+EActiveTimerReturnType SZenCacheStatistics::UpdateGridPanels(double InCurrentTime, float InDeltaTime)
 {
 	(*GridSlot)
 	[
@@ -52,19 +45,23 @@ EActiveTimerReturnType SZenCacheStatisticsDialog::UpdateGridPanels(double InCurr
 	return EActiveTimerReturnType::Continue;
 }
 
-TSharedRef<SWidget> SZenCacheStatisticsDialog::GetGridPanel()
+TSharedRef<SWidget> SZenCacheStatistics::GetGridPanel()
 {
 	TSharedRef<SGridPanel> Panel = SNew(SGridPanel);
 
-#if UE_WITH_ZEN
-
 	UE::Zen::FZenStats ZenStats;
 
-	UE::Zen::GetDefaultServiceInstance().GetStats(ZenStats);
+	if (TSharedPtr<UE::Zen::FZenServiceInstance> ServiceInstance = ZenServiceInstance.Get())
+	{
+		ServiceInstance->GetStats(ZenStats);
+	}
+
+	const static FNumberFormattingOptions SingleDecimalFormatting = FNumberFormattingOptions()
+		.SetUseGrouping(true)
+		.SetMinimumFractionalDigits(1)
+		.SetMaximumFractionalDigits(1);
 
 	int32 Row = 0;
-	double SumTotalGetMB = 0.0;
-	double SumTotalPutMB = 0.0;
 
 	const float RowMargin = 0.0f;
 	const float TitleMargin = 10.0f;
@@ -72,9 +69,6 @@ TSharedRef<SWidget> SZenCacheStatisticsDialog::GetGridPanel()
 	const FSlateColor TitleColor = FStyleColors::AccentWhite;
 	const FSlateFontInfo TitleFont = FCoreStyle::GetDefaultFontStyle("Bold", 10);
 
-	const double CASDiskUsageMB = FUnitConversion::Convert(ZenStats.CASStats.Size.Total, EUnit::Bytes, EUnit::Megabytes);
-	const double CacheDiskUsageMB = FUnitConversion::Convert(ZenStats.CacheStats.Size.Disk, EUnit::Bytes, EUnit::Megabytes);
-	const double CacheMemoryUsageMB = FUnitConversion::Convert(ZenStats.CacheStats.Size.Memory, EUnit::Bytes, EUnit::Megabytes);
 
 	Panel->AddSlot(0, Row)
 	[
@@ -107,16 +101,9 @@ TSharedRef<SWidget> SZenCacheStatisticsDialog::GetGridPanel()
 	[
 		SNew(STextBlock)
 		.Margin(FMargin(ColumnMargin, RowMargin))
-		.Text_Lambda([CacheDiskUsageMB]
+		.Text_Lambda([DiskUsage = ZenStats.CacheStats.Size.Disk]
 		{
-			if (CacheDiskUsageMB > 1024.0)
-			{
-				return FText::FromString(SingleDecimalFormat(FUnitConversion::Convert(CacheDiskUsageMB, EUnit::Megabytes, EUnit::Gigabytes)) + TEXT(" GB"));
-			}
-			else
-			{
-				return FText::FromString(SingleDecimalFormat(CacheDiskUsageMB) + TEXT(" MB"));
-			}
+			return FText::AsMemory(DiskUsage, (DiskUsage > 1024) ? &SingleDecimalFormatting : nullptr, nullptr, EMemoryUnitStandard::IEC);
 		})
 	];
 
@@ -131,43 +118,10 @@ TSharedRef<SWidget> SZenCacheStatisticsDialog::GetGridPanel()
 	[
 		SNew(STextBlock)
 		.Margin(FMargin(ColumnMargin, RowMargin))
-		.Text_Lambda([CASDiskUsageMB]
+		.Text_Lambda([DiskUsage = ZenStats.CASStats.Size.Total]
 		{
-			if (CASDiskUsageMB > 1024.0)
-			{
-				return FText::FromString(SingleDecimalFormat(FUnitConversion::Convert(CASDiskUsageMB, EUnit::Megabytes, EUnit::Gigabytes)) + TEXT(" GB"));
-			}
-			else
-			{
-				return FText::FromString(SingleDecimalFormat(CASDiskUsageMB) + TEXT(" MB"));
-			}
+			return FText::AsMemory(DiskUsage, (DiskUsage > 1024) ? &SingleDecimalFormatting : nullptr, nullptr, EMemoryUnitStandard::IEC);
 		})
-	];
-
-	Row++;
-
-	Panel->AddSlot(0, Row)
-	[
-		SNew(STextBlock)
-		.Margin(FMargin(ColumnMargin, RowMargin))
-		.Text(LOCTEXT("MemoryUsage", "Memory Usage"))
-	];
-
-	Panel->AddSlot(1, Row)
-	[
-		SNew(STextBlock)
-		.Margin(FMargin(ColumnMargin, RowMargin))
-		.Text_Lambda([CacheMemoryUsageMB] 
-			{
-				if (CacheMemoryUsageMB > 1024.0)
-				{
-					return FText::FromString(SingleDecimalFormat(FUnitConversion::Convert(CacheMemoryUsageMB, EUnit::Megabytes, EUnit::Gigabytes)) + TEXT(" GB"));
-				}
-				else
-				{
-					return FText::FromString(SingleDecimalFormat(CacheMemoryUsageMB) + TEXT(" MB"));
-				}
-			})
 	];
 
 	Row++;
@@ -183,7 +137,11 @@ TSharedRef<SWidget> SZenCacheStatisticsDialog::GetGridPanel()
 	[
 		SNew(STextBlock)
 		.Margin(FMargin(ColumnMargin, RowMargin))
-		.Text_Lambda([ZenStats] { return FText::FromString(SingleDecimalFormat(ZenStats.CacheStats.HitRatio * 100.0) + TEXT(" %")); })
+		.Text_Lambda([CacheStats = ZenStats.CacheStats]
+		{
+			int64 CacheTotal = CacheStats.Hits + CacheStats.Misses;
+			return CacheTotal == 0 ? LOCTEXT("CacheNoHitRateValue", "-") : FText::AsPercent(CacheStats.HitRatio, &SingleDecimalFormatting);
+		})
 	];
 
 	Row++;
@@ -191,116 +149,138 @@ TSharedRef<SWidget> SZenCacheStatisticsDialog::GetGridPanel()
 	Panel->AddSlot(0, Row)
 	[
 		SNew(STextBlock)
-		.Margin(FMargin(ColumnMargin, TitleMargin, ColumnMargin, 0.0f))
-		.ColorAndOpacity(TitleColor)
-		.Font(TitleFont)
-		.Text(LOCTEXT("UpstreamServer", "Upstream Server"))
+		.Margin(FMargin(ColumnMargin, RowMargin))
+		.Text(LOCTEXT("CacheHitQuantity", "Hits"))
 	];
 
 	Panel->AddSlot(1, Row)
 	[
 		SNew(STextBlock)
-		.Margin(FMargin(ColumnMargin, TitleMargin, ColumnMargin, 0.0f))
-		.ColorAndOpacity(TitleColor)
-		.Font(TitleFont)
-		.Text(LOCTEXT("HitRate", "Hit Rate"))
+		.Margin(FMargin(ColumnMargin, RowMargin))
+		.Text_Lambda([CacheHits = ZenStats.CacheStats.Hits]
+		{
+			return FText::AsNumber(CacheHits);
+		})
 	];
 
-	Panel->AddSlot(2, Row)
-	[
-		SNew(STextBlock)
-		.Margin(FMargin(ColumnMargin, TitleMargin, ColumnMargin, 0.0f))
-		.ColorAndOpacity(TitleColor)
-		.Font(TitleFont)
-		.Text(LOCTEXT("Downloaded", "Downloaded"))
-	];
-
-	Panel->AddSlot(3, Row)
-	[
-		SNew(STextBlock)
-		.Margin(FMargin(ColumnMargin, TitleMargin, ColumnMargin, 0.0f))
-		.ColorAndOpacity(TitleColor)
-		.Font(TitleFont)
-		.Text(LOCTEXT("Uploaded", "Uploaded"))
-	];
-
-	Panel->AddSlot(4, Row)
-	[
-		SNew(STextBlock)
-		.Margin(FMargin(ColumnMargin, TitleMargin, ColumnMargin, 0.0f))
-		.ColorAndOpacity(TitleColor)
-		.Font(TitleFont)
-		.Text(LOCTEXT("URL", "URL"))
-	];
 	Row++;
-	
-	int32 EndpointIndex = 1;
 
-	for (const UE::Zen::FZenEndPointStats& EndpointStats : ZenStats.UpstreamStats.EndPointStats)
+	Panel->AddSlot(0, Row)
+		[
+			SNew(STextBlock)
+			.Margin(FMargin(ColumnMargin, RowMargin))
+		.Text(LOCTEXT("CacheMissQuantity", "Misses"))
+		];
+
+	Panel->AddSlot(1, Row)
+		[
+			SNew(STextBlock)
+			.Margin(FMargin(ColumnMargin, RowMargin))
+		.Text_Lambda([CacheMisses = ZenStats.CacheStats.Misses]
+			{
+				return FText::AsNumber(CacheMisses);
+			})
+		];
+
+	Row++;
+
+	if (!ZenStats.UpstreamStats.EndPointStats.IsEmpty())
 	{
 		Panel->AddSlot(0, Row)
 		[
 			SNew(STextBlock)
-			.Margin(FMargin(ColumnMargin, RowMargin))
-			.Text_Lambda([EndpointStats] { return FText::FromString(EndpointStats.Name); })
+			.Margin(FMargin(ColumnMargin, TitleMargin, ColumnMargin, 0.0f))
+			.ColorAndOpacity(TitleColor)
+			.Font(TitleFont)
+			.Text(LOCTEXT("UpstreamServer", "Upstream Server"))
 		];
 
 		Panel->AddSlot(1, Row)
 		[
 			SNew(STextBlock)
-			.Margin(FMargin(ColumnMargin, RowMargin))
-			.Text_Lambda([EndpointStats] { return FText::FromString(SingleDecimalFormat(EndpointStats.HitRatio * 100.0) + TEXT(" %")); })
+			.Margin(FMargin(ColumnMargin, TitleMargin, ColumnMargin, 0.0f))
+			.ColorAndOpacity(TitleColor)
+			.Font(TitleFont)
+			.Text(LOCTEXT("HitRate", "Hit Rate"))
 		];
 
 		Panel->AddSlot(2, Row)
 		[
 			SNew(STextBlock)
-			.Margin(FMargin(ColumnMargin, RowMargin))
-			.Text_Lambda([EndpointStats] 
-				{ 
-					if (EndpointStats.DownloadedMB> 1024.0)
-					{
-						return FText::FromString(SingleDecimalFormat(FUnitConversion::Convert(EndpointStats.DownloadedMB, EUnit::Megabytes, EUnit::Gigabytes) ) + TEXT(" GB")); 
-					}
-					else
-					{
-						return FText::FromString(SingleDecimalFormat(EndpointStats.DownloadedMB) + TEXT(" MB"));
-					}
-				})
-											
+			.Margin(FMargin(ColumnMargin, TitleMargin, ColumnMargin, 0.0f))
+			.ColorAndOpacity(TitleColor)
+			.Font(TitleFont)
+			.Text(LOCTEXT("Downloaded", "Downloaded"))
 		];
 
 		Panel->AddSlot(3, Row)
 		[
 			SNew(STextBlock)
-			.Margin(FMargin(ColumnMargin, RowMargin))
-			.Text_Lambda([EndpointStats]
-				{ 
-					if (EndpointStats.UploadedMB > 1024.0)
-					{
-						return FText::FromString(SingleDecimalFormat(FUnitConversion::Convert(EndpointStats.UploadedMB, EUnit::Megabytes, EUnit::Gigabytes) ) + TEXT(" GB")); 
-					}
-					else
-					{
-						return FText::FromString(SingleDecimalFormat(EndpointStats.UploadedMB) + TEXT(" MB"));
-					}
-				})
+			.Margin(FMargin(ColumnMargin, TitleMargin, ColumnMargin, 0.0f))
+			.ColorAndOpacity(TitleColor)
+			.Font(TitleFont)
+			.Text(LOCTEXT("Uploaded", "Uploaded"))
 		];
 
 		Panel->AddSlot(4, Row)
 		[
 			SNew(STextBlock)
-			.Margin(FMargin(ColumnMargin, RowMargin))
-			.Text_Lambda([EndpointStats] { return FText::FromString(EndpointStats.Url); })
+			.Margin(FMargin(ColumnMargin, TitleMargin, ColumnMargin, 0.0f))
+			.ColorAndOpacity(TitleColor)
+			.Font(TitleFont)
+			.Text(LOCTEXT("URL", "URL"))
 		];
-
-		SumTotalGetMB += EndpointStats.DownloadedMB;
-		SumTotalPutMB += EndpointStats.UploadedMB;
-
 		Row++;
-	}
 
-#endif
+		for (const UE::Zen::FZenEndPointStats& EndpointStats : ZenStats.UpstreamStats.EndPointStats)
+		{
+			Panel->AddSlot(0, Row)
+			[
+				SNew(STextBlock)
+				.Margin(FMargin(ColumnMargin, RowMargin))
+				.Text_Lambda([EndpointStats] { return FText::FromString(EndpointStats.Name); })
+			];
+
+			Panel->AddSlot(1, Row)
+			[
+				SNew(STextBlock)
+				.Margin(FMargin(ColumnMargin, RowMargin))
+				.Text_Lambda([EndpointStats] { return FText::AsPercent(EndpointStats.HitRatio, &SingleDecimalFormatting); })
+			];
+
+			Panel->AddSlot(2, Row)
+			[
+				SNew(STextBlock)
+				.Margin(FMargin(ColumnMargin, RowMargin))
+				.Text_Lambda([DownloadedMB = EndpointStats.DownloadedMB]
+					{
+						uint64 DownloadedBytes = DownloadedMB*1024*1024;
+						return FText::AsMemory(DownloadedBytes, (DownloadedBytes > 1024) ? &SingleDecimalFormatting : nullptr, nullptr, EMemoryUnitStandard::IEC);
+					})
+												
+			];
+
+			Panel->AddSlot(3, Row)
+			[
+				SNew(STextBlock)
+				.Margin(FMargin(ColumnMargin, RowMargin))
+				.Text_Lambda([UploadedMB = EndpointStats.UploadedMB]
+					{
+						uint64 UploadedBytes = UploadedMB*1024*1024;
+						return FText::AsMemory(UploadedBytes, (UploadedBytes > 1024) ? &SingleDecimalFormatting : nullptr, nullptr, EMemoryUnitStandard::IEC);
+					})
+			];
+
+			Panel->AddSlot(4, Row)
+			[
+				SNew(STextBlock)
+				.Margin(FMargin(ColumnMargin, RowMargin))
+				.Text_Lambda([EndpointStats] { return FText::FromString(EndpointStats.Url); })
+			];
+
+			Row++;
+		}
+	}
 
 	return Panel;
 }

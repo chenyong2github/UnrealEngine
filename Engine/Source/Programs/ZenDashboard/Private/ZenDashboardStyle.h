@@ -9,7 +9,7 @@ class FZenDashboardStyle
 {
 public:
 	/**
-	 * Set up specific styles for the crash report client app
+	 * Set up specific styles for the zen dashboard app
 	 */
 	static void Initialize();
 

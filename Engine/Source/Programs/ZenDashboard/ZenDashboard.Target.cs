@@ -13,21 +13,33 @@ public class ZenDashboardTarget : TargetRules
 		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 		LaunchModuleName = "ZenDashboard";
 
-		bBuildDeveloperTools = false;
-		bUseMallocProfiler = false;
+		bUseXGEController				= false;
+		bLoggingToMemoryEnabled			= true;
+		bUseLoggingInShipping			= true;
+		bCompileWithAccessibilitySupport= false;
+		bWithServerCode					= false;
+		bCompileNavmeshClusterLinks		= false;
+		bCompileNavmeshSegmentLinks		= false;
+		bCompileRecast					= false;
+		bCompileICU 					= false;
+		bWithLiveCoding					= false;
+		bBuildDeveloperTools			= false;
+		bUseMallocProfiler				= false;
+		bBuildWithEditorOnlyData		= false;
+		bCompileAgainstEngine			= false;
+		bCompileAgainstCoreUObject		= true;
+		bCompileAgainstApplicationCore	= true;
+		bUsesSlate						= true;
+		bForceDisableAutomationTests	= true;
 
-		// Editor-only data, however, is needed
-		bBuildWithEditorOnlyData = true;
-
-		// Currently this app is not linking against the engine, so we'll compile out references from Core to the rest of the engine
-		bCompileAgainstApplicationCore = true;
-		bCompileAgainstCoreUObject = true;
-		bCompileAgainstEngine = false;
-
-		// ICU is needed for regex during click to source code
-		bCompileICU = false;
-
-		// UnrealHeaderTool is a console application, not a Windows app (sets entry point to main(), instead of WinMain())
 		bIsBuildingConsoleApplication = false;
+
+		WindowsPlatform.bUseBundledDbgHelp = false;
+		WindowsPlatform.bPixProfilingEnabled = false;
+		WindowsPlatform.bMergeIdenticalCOMDATs = true;
+		WindowsPlatform.bStripUnreferencedSymbols = true;
+
+		GlobalDefinitions.Add("WITH_AUTOMATION_TESTS=0");
+		GlobalDefinitions.Add("WITH_AUTOMATION_WORKER=0");
 	}
 }
