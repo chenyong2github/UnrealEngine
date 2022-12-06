@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Containers/Array.h"
+#include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
 #include "CoreTypes.h"
 #include "HAL/CriticalSection.h"
@@ -16,6 +17,7 @@ namespace UE::Core::Private
 {
 	const TCHAR*   GetBindingType(const TCHAR* Ptr);
 	const FString& GetBindingType(const FString& Str);
+	const FStringView& GetBindingType(const FStringView& StringView);
 
 	// This is used to force the arguments of FString::Combine to implicitly convert (if necessary)
 	// to FString when calling CombineImpl(), allowing them to remain as temporaries on the stack
@@ -334,8 +336,17 @@ public:
 	/** Returns the directory for local files used in cloud emulation or support */
 	static FString CloudDir();
 
-	/** Returns the directory that contains subfolders for developer-specific content */
+	/**
+	 * Returns the directory that contains subfolders for developer-specific content
+	 * Example: "../../../ProjectName/Content/Developers
+	 */
 	static FString GameDevelopersDir();
+
+	/**
+	 * Returns the name of the subfolder for developer-specific content
+	 * Example: "Developers"
+	 */
+	static FStringView DevelopersFolderName();
 
 	/** Returns The folder name for the developer-specific directory for the current user */
 	static FString GameUserDeveloperFolderName();
@@ -637,6 +648,26 @@ public:
 		return CombineImpl<PathTypes...>(Forward<PathTypes>(InPaths)...);
 	}
 
+#if 0
+	FORCEINLINE static FString Combine(const FString& Path1, const FStringView& Path2)
+	{
+		const FStringView Paths[] = { InternalGetStringView(Path1), InternalGetStringView(Path2) };
+		FString Out;
+
+		CombineInternal(Out, Paths, UE_ARRAY_COUNT(Paths));
+		return Out;
+	}
+
+	FORCEINLINE static FString Combine(const FString& Path1, const TCHAR* PathMid, const FStringView& Path2)
+	{
+		const FStringView Paths[] = { InternalGetStringView(Path1), InternalGetStringView(PathMid), InternalGetStringView(Path2) };
+		FString Out;
+
+		CombineInternal(Out, Paths, UE_ARRAY_COUNT(Paths));
+		return Out;
+	}
+#endif
+
 	/**
 	 * Frees any memory retained by FPaths.
 	 */
@@ -644,7 +675,7 @@ public:
 
 protected:
 
-	static void CombineInternal(FString& OutPath, const TCHAR** Paths, int32 NumPaths);
+	static void CombineInternal(FString& OutPath, const FStringView* Paths, int32 NumPaths);
 
 private:
 	struct FStaticData;
@@ -652,21 +683,11 @@ private:
 	template <typename... PathTypes>
 	FORCEINLINE static FString CombineImpl(UE::Core::Private::TToStringType_T<std::decay_t<PathTypes>>... InPaths)
 	{
-		const TCHAR* Paths[] = { GetTCharPtr(InPaths)... };
+		const FStringView Paths[] = { FStringView(InPaths)... };
 		FString Out;
 		
 		CombineInternal(Out, Paths, UE_ARRAY_COUNT(Paths));
 		return Out;
-	}
-
-	FORCEINLINE static const TCHAR* GetTCharPtr(const TCHAR* Ptr)
-	{
-		return Ptr;
-	}
-
-	FORCEINLINE static const TCHAR* GetTCharPtr(const FString& Str)
-	{
-		return *Str;
 	}
 
 	/** Returns, if any, the value of the -userdir command line argument. This can be used to sandbox artifacts to a desired location */

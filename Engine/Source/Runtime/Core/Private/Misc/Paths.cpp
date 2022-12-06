@@ -481,7 +481,15 @@ FString FPaths::CloudDir()
 
 FString FPaths::GameDevelopersDir()
 {
-	return FPaths::ProjectContentDir() + TEXT("Developers/");
+	FString ContentDir = FPaths::ProjectContentDir();
+	FStringView DevelopersFolder = DevelopersFolderName();
+	return FString::Printf(TEXT("%.*s%.*s/"), ContentDir.Len(), *ContentDir,
+		DevelopersFolder.Len(), DevelopersFolder.GetData());
+}
+
+FStringView FPaths::DevelopersFolderName()
+{
+	return TEXTVIEW("Developers");
 }
 
 FString FPaths::GameUserDeveloperFolderName()
@@ -1589,23 +1597,23 @@ const FString& FPaths::GetRelativePathToRoot()
 	return StaticData.RelativePathToRoot;
 }
 
-void FPaths::CombineInternal(FString& OutPath, const TCHAR** Pathes, int32 NumPathes)
+void FPaths::CombineInternal(FString& OutPath, const FStringView* Paths, int32 NumPaths)
 {
-	check(Pathes != NULL && NumPathes > 0);
+	check(Paths != NULL && NumPaths > 0);
 
 	int32 OutStringSize = 0;
 
-	for (int32 i=0; i < NumPathes; ++i)
+	for (int32 i=0; i < NumPaths; ++i)
 	{
-		OutStringSize += FCString::Strlen(Pathes[i]) + 1;
+		OutStringSize += Paths[i].Len() + 1;
 	}
 
 	OutPath.Empty(OutStringSize);
-	OutPath += Pathes[0];
+	OutPath += Paths[0];
 	
-	for (int32 i=1; i < NumPathes; ++i)
+	for (int32 i=1; i < NumPaths; ++i)
 	{
-		OutPath /= Pathes[i];
+		OutPath /= Paths[i];
 	}
 }
 

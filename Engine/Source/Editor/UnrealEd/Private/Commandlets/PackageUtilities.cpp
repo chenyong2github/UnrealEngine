@@ -105,7 +105,14 @@ bool NormalizePackageNames( TArray<FString> PackageNames, TArray<FString>& Packa
 		IFileManager::Get().FindFiles( PackageNames, *PackageWildcard, true, false );
 	}
 
-	const FString DeveloperFolder = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*FPaths::GameDevelopersDir());
+	FString ProjectContentDir = FPaths::ProjectContentDir();
+	FStringView DevelopersFolderName = FPaths::DevelopersFolderName();
+	const FString DeveloperFolder = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(
+		*FPaths::Combine(ProjectContentDir, DevelopersFolderName));
+	const FString DeveloperExternalActorsFolder = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(
+		*FPaths::Combine(ProjectContentDir, FPackagePath::GetExternalActorsFolderName(), DevelopersFolderName));
+	const FString DeveloperExternalObjectsFolder = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(
+		*FPaths::Combine(ProjectContentDir, FPackagePath::GetExternalObjectsFolderName(), DevelopersFolderName));
 
 	if( PackageNames.Num() == 0 )
 	{
@@ -195,17 +202,16 @@ bool NormalizePackageNames( TArray<FString> PackageNames, TArray<FString>& Packa
 
 			FString Filename = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*PackagePathNames[PackageIndex]);
 			
-			if ( (PackageFilter&NORMALIZE_ExcludeDeveloperPackages) != 0 )
+			if ( (PackageFilter & NORMALIZE_ExcludeDeveloperPackages) != 0 || 
+				 (PackageFilter & NORMALIZE_ExcludeNonDeveloperPackages) != 0)
 			{
-				if (Filename.StartsWith(DeveloperFolder))
-				{
-					PackagePathNames.RemoveAt(PackageIndex);
-					continue;
-				}
-			}
-			else if ( (PackageFilter&NORMALIZE_ExcludeNonDeveloperPackages) != 0 )
-			{
-				if (!Filename.StartsWith(DeveloperFolder))
+				// Technically both flags present should mean exclude everything, but legacy behavior is to have
+				// excludedevelopers override excludenondevelopers.
+				bool bDevelopersFolderIncluded = !((PackageFilter & NORMALIZE_ExcludeDeveloperPackages) != 0);
+				bool bIsDeveloperFolder = Filename.StartsWith(DeveloperFolder) ||
+					Filename.StartsWith(DeveloperExternalActorsFolder) ||
+					Filename.StartsWith(DeveloperExternalObjectsFolder);
+				if (bDevelopersFolderIncluded != bIsDeveloperFolder)
 				{
 					PackagePathNames.RemoveAt(PackageIndex);
 					continue;

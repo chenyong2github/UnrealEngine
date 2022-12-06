@@ -302,7 +302,8 @@ void UDiffAssetRegistriesCommandlet::FillChangelists(FString Branch, FString CL,
 					FString PostContentPath;
 					if (DepotPathName.Split(BasePath, nullptr, &PostContentPath))
 					{
-						if (!PostContentPath.IsEmpty() && !PostContentPath.StartsWith(TEXT("Cinematics")) && !PostContentPath.StartsWith(TEXT("Developers")) && !PostContentPath.StartsWith(TEXT("Maps/Test_Maps")))
+						if (!PostContentPath.IsEmpty() && !PostContentPath.StartsWith(TEXT("Cinematics")) &&
+							!PostContentPath.StartsWith(FPaths::DevelopersFolderName()) && !PostContentPath.StartsWith(TEXT("Maps/Test_Maps")))
 						{
 							const FString PostContentPathWithoutExtension = FPaths::GetBaseFilename(PostContentPath, false);
 							const FString FullPackageName = AssetPath + PostContentPathWithoutExtension;
@@ -340,7 +341,8 @@ void UDiffAssetRegistriesCommandlet::FillChangelists(FString Branch, FString CL,
 					FString PostContentPath;
 					if (DepotPathName.Split(BasePath, nullptr, &PostContentPath))
 					{
-						if (!PostContentPath.IsEmpty() && !PostContentPath.StartsWith(TEXT("Cinematics")) && !PostContentPath.StartsWith(TEXT("Developers")) && !PostContentPath.StartsWith(TEXT("Maps/Test_Maps")))
+						if (!PostContentPath.IsEmpty() && !PostContentPath.StartsWith(TEXT("Cinematics")) &&
+							!PostContentPath.StartsWith(FPaths::DevelopersFolderName()) && !PostContentPath.StartsWith(TEXT("Maps/Test_Maps")))
 						{
 							const FString PostContentPathWithoutExtension = FPaths::GetBaseFilename(PostContentPath, false);
 							const FString FullPackageName = AssetPath + PostContentPathWithoutExtension;
