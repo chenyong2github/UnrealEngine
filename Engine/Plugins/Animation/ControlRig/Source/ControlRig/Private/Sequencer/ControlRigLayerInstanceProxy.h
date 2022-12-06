@@ -17,6 +17,7 @@ struct FAnimNode_ControlRigInputPose : public FAnimNode_Base
 
 	FAnimNode_ControlRigInputPose()
 		: InputProxy(nullptr)
+		, InputAnimInstance(nullptr)
 	{
 	}
 
