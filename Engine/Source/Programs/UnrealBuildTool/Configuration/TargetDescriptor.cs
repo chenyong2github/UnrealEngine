@@ -402,21 +402,23 @@ namespace UnrealBuildTool
 					{
 						FileReference? TargetProjectFile = ProjectFile;
 						IEnumerable<string> Architectures;
+
+						// If a project file was not specified see if we can find one
+						if (TargetProjectFile == null && NativeProjects.TryGetProjectForTarget(TargetName, Logger, out TargetProjectFile))
+						{
+							Logger.LogDebug("Found project file for {TargetName} - {ProjectFile}", TargetName, TargetProjectFile);
+						}
+						// Programs can have a .uproject without finding a matching .Target (since the source and metadata directories are split up)
+						if (TargetProjectFile == null)
+						{
+							// find one with a matching name
+							TargetProjectFile = NativeProjects.EnumerateProjectFiles(Log.Logger)
+								.Where(x => x.GetFileNameWithoutAnyExtensions().Equals(TargetName, StringComparison.InvariantCultureIgnoreCase))
+								.FirstOrDefault();
+						}
+
 						if (ParamArchitectures.Count() == 0)
 						{
-							// If a project file was not specified see if we can find one
-							if (TargetProjectFile == null && NativeProjects.TryGetProjectForTarget(TargetName, Logger, out TargetProjectFile))
-							{
-								Logger.LogDebug("Found project file for {TargetName} - {ProjectFile}", TargetName, TargetProjectFile);
-							}
-							// Programs can have a .uproject without finding a matching .Target (since the source and metadata directories are split up)
-							if (TargetProjectFile == null)
-							{
-								// find one with a matching name
-								TargetProjectFile = NativeProjects.EnumerateProjectFiles(Log.Logger)
-									.Where(x => x.GetFileNameWithoutAnyExtensions().Equals(TargetName, StringComparison.InvariantCultureIgnoreCase))
-									.FirstOrDefault();
-							}
 							// ask the platform what achitectures it wants for this project
 							Architectures = BuildPlatform.GetProjectArchitectures(TargetProjectFile, TargetName);
 						}
