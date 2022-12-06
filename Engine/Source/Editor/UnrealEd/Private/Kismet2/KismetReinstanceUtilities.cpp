@@ -2382,7 +2382,7 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(const TMap<UCla
 					if (OldActor != nullptr)
 					{
 						UObject* NewUObject = nullptr;
-						if (OldActor->GetLevel())
+						if (OldActor->GetLevel() && OldActor->GetWorld())
 						{
 							ReplaceActorHelper(OldActor, OldClass, NewUObject, NewClass, OldToNewInstanceMap, InOldToNewClassMap, ReinstancedObjectsWeakReferenceMap, ActorAttachmentData, ReplacementActors, bPreserveRootComponent, bSelectionChanged);
 						}
