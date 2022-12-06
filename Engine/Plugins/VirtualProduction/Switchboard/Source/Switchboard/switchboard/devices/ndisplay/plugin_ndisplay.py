@@ -297,7 +297,15 @@ class DevicenDisplay(DeviceUnreal):
             attr_name="render_api",
             nice_name="Render API",
             value="dx12",
-            possible_values=["dx11", "dx12", "vulkan"],
+            possible_values=[
+                "dx11",
+                "dx11 -sm5",
+                "dx11 -sm6",
+                "dx12", 
+                "dx12 -sm5", 
+                "dx12 -sm6", 
+                "vulkan"
+            ],
         ),
         'render_mode': OptionSetting(
             attr_name="render_mode",
