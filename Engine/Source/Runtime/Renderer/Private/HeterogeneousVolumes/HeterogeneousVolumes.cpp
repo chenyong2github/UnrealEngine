@@ -332,6 +332,7 @@ void FDeferredShadingSceneRenderer::RenderHeterogeneousVolumes(
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "HeterogeneousVolumes");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, HeterogeneousVolumesStat);
+	SCOPED_NAMED_EVENT(HeterogeneousVolumes, FColor::Emerald);
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{

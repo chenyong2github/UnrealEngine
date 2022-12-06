@@ -812,6 +812,7 @@ void FDeferredShadingSceneRenderer::DispatchAsyncLumenIndirectLightingWork(
 
 	LLM_SCOPE_BYTAG(Lumen);
 	RDG_EVENT_SCOPE(GraphBuilder, "DiffuseIndirectAndAO");
+	SCOPED_NAMED_EVENT(DispatchAsyncLumenIndirectLightingWork, FColor::Emerald);
 	
 	Outputs.DoneAsync(GLumenReflectionsAsyncCompute != 0);
 	Outputs.Resize(Views.Num());

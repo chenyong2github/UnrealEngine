@@ -1190,6 +1190,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 	}
 
 	RDG_EVENT_SCOPE(GraphBuilder, "FVirtualShadowMapArray::BuildPageAllocation");
+	SCOPED_NAMED_EVENT(FVirtualShadowMapArray_BuildPageAllocation, FColor::Emerald);
 
 	{
 		// Buffer for marking static invalidating instances for readback

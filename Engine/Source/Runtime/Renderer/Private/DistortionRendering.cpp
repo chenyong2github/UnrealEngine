@@ -489,6 +489,7 @@ void FDeferredShadingSceneRenderer::RenderDistortion(
 	}
 
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FSceneRenderer_RenderDistortion);
+	SCOPED_NAMED_EVENT(RenderDistortion, FColor::Emerald);
 	RDG_EVENT_SCOPE(GraphBuilder, "Distortion");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, Distortion);
 

@@ -1897,6 +1897,7 @@ void FSceneRenderer::RenderSkyAtmosphere(FRDGBuilder& GraphBuilder, const FMinim
 
 	RDG_EVENT_SCOPE(GraphBuilder, "SkyAtmosphere");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, SkyAtmosphere);
+	SCOPED_NAMED_EVENT(SkyAtmosphere, FColor::Emerald);
 
 	FSkyAtmosphereRenderSceneInfo& SkyInfo = *Scene->GetSkyAtmosphereSceneInfo();
 	const FSkyAtmosphereSceneProxy& SkyAtmosphereSceneProxy = SkyInfo.GetSkyAtmosphereSceneProxy();

@@ -478,6 +478,7 @@ static void InternalRenderHairComposition(
 	DECLARE_GPU_STAT(HairStrandsComposition);
 	RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsComposition");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsComposition);
+	SCOPED_NAMED_EVENT(HairStrandsComposition, FColor::Emerald);
 
 	{
 		{

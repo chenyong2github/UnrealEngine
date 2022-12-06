@@ -2578,6 +2578,7 @@ bool FSceneRenderer::RenderVolumetricCloud(
 		{
 			RDG_EVENT_SCOPE(GraphBuilder, "VolumetricCloud");
 			RDG_GPU_STAT_SCOPE(GraphBuilder, VolumetricCloud);
+			SCOPED_NAMED_EVENT(VolumetricCloud, FColor::Emerald);
 
 			FRDGTextureRef SceneDepthZ = SceneTextures.Depth.Resolve;
 

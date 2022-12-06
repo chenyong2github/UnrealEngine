@@ -68,6 +68,8 @@ void AddSimpleMeshPass(FRDGBuilder& GraphBuilder, PassParametersType* PassParame
 	AddMeshBatchesCallbackLambdaType AddMeshBatchesCallback,
 	PassPrologueLambdaType PassPrologueCallback)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(AddSimpleMeshPass);
+
 	// TODO: don't do this when the parameters are exclusive (optimization)
 	PassParametersType* PassParameters = GraphBuilder.AllocParameters<PassParametersType>();
 

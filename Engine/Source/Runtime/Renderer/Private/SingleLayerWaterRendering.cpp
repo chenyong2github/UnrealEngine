@@ -1244,6 +1244,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWater(
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "SingleLayerWater");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, SingleLayerWater);
+	SCOPED_NAMED_EVENT(SingleLayerWater, FColor::Emerald);
 
 	// Copy the texture to be available for the water surface to refract
 	SceneWithoutWaterTextures = AddCopySceneWithoutWaterPass(GraphBuilder, ViewFamily, Views, SceneTextures.Color.Resolve, SceneTextures.Depth.Resolve);
