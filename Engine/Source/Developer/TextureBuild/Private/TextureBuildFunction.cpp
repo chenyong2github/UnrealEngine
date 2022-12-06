@@ -163,6 +163,20 @@ static FTextureBuildSettings ReadBuildSettingsFromCompactBinary(const FCbObjectV
 	ReadCbField(Object["TextureAddressModeY"], BuildSettings.TextureAddressModeY);
 	ReadCbField(Object["TextureAddressModeZ"], BuildSettings.TextureAddressModeZ);
 
+	ITextureFormatManagerModule* TFM = GetTextureFormatManager();
+	if (TFM == nullptr)
+	{
+		UE_LOG(LogTextureBuildFunction, Error, TEXT("Texture Format Manager Module not found!"));
+	}
+	else
+	{
+		BuildSettings.TextureFormat = TFM->FindTextureFormat(BuildSettings.TextureFormatName);
+		if (BuildSettings.TextureFormat == nullptr)
+		{
+			UE_LOG(LogTextureBuildFunction, Error, TEXT("Texture Format %s not found!"), *BuildSettings.TextureFormatName.ToString());
+		}
+	}
+
 	return BuildSettings;
 }
 
@@ -317,20 +331,13 @@ void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 	}
 
 	const FTextureBuildSettings BuildSettings = ReadBuildSettingsFromCompactBinary(Settings["Build"].AsObjectView());
+	if (BuildSettings.TextureFormat == nullptr)
+	{
+		return; // we had an error reading the build settings.
+	}
 	
 	const uint16 RequiredTextureFormatVersion = Settings["FormatVersion"].AsUInt16();
-	const ITextureFormat* TextureFormat;
-	if (ITextureFormatManagerModule* TFM = GetTextureFormatManager())
-	{
-		TextureFormat = TFM->FindTextureFormat(BuildSettings.TextureFormatName);
-	}
-	else
-	{
-		UE_LOG(LogTextureBuildFunction, Error, TEXT("TextureFormatManager not found!"));
-		return;
-	}
-
-	const uint16 CurrentTextureFormatVersion = TextureFormat ? TextureFormat->GetVersion(BuildSettings.TextureFormatName, &BuildSettings) : 0;
+	const uint16 CurrentTextureFormatVersion = BuildSettings.TextureFormat->GetVersion(BuildSettings.TextureFormatName, &BuildSettings);
 	if (CurrentTextureFormatVersion != RequiredTextureFormatVersion)
 	{
 		UE_LOG(LogTextureBuildFunction, Error, TEXT("%s has version %hu when version %hu is required."),
