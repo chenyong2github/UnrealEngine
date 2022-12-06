@@ -24,7 +24,7 @@ public:
 	FName BoneName = NAME_None;
 };
 
-UCLASS(EditInlineNew)
+UCLASS(BlueprintType, EditInlineNew)
 class IKRIG_API UIKRig_LimbSolver : public UIKRigSolver
 {
 	GENERATED_BODY()

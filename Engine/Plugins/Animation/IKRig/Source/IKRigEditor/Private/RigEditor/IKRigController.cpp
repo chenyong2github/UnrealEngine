@@ -683,38 +683,6 @@ int32 UIKRigController::AddSolver(TSubclassOf<UIKRigSolver> InIKRigSolverClass) 
 	return SolverIndex;
 }
 
-int32 UIKRigController::AddSolver(const FString& InSolverClassPath) const
-{
-	if (InSolverClassPath.IsEmpty() || InSolverClassPath == FName(NAME_None).ToString())
-	{
-		UE_LOG(LogIKRigEditor, Warning, TEXT("Could not add solver to IK Rig. No solver class specified."));
-		return INDEX_NONE;
-	}
-
-	// account for class paths coming in fully qualified or just with class name
-	UPackage* Package = nullptr;
-	FString PackageName;
-	FString CPPTypeObjectName = InSolverClassPath;
-	if (InSolverClassPath.Split(TEXT("."), &PackageName, &CPPTypeObjectName))
-	{
-		Package = FindPackage(nullptr, *PackageName);
-	}
-
-	// first attempt to find object in specified package
-	UObject* Object = FindObject<UObject>(Package, *CPPTypeObjectName);
-	if (!Object)
-	{
-		// attempt to find object in ANY package
-		Object = FindFirstObject<UObject>(*InSolverClassPath, EFindFirstObjectOptions::NativeFirst | EFindFirstObjectOptions::EnsureIfAmbiguous);
-	}
-
-	// assign to subclass of base solver (null if cast fails)
-	//UClass* ObjClass = Object->GetClass();
-	const TSubclassOf<UIKRigSolver> SolverClass = CastChecked<UClass>(Object);
-	
-	return AddSolver(SolverClass);
-}
-
 bool UIKRigController::RemoveSolver(const int32 SolverIndex) const
 {
 	check(Asset)

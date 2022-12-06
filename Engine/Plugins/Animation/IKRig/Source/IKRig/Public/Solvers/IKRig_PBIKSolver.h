@@ -172,7 +172,7 @@ public:
 	}
 };
 
-UCLASS(EditInlineNew, config = Engine, hidecategories = UObject)
+UCLASS(BlueprintType, EditInlineNew, config = Engine, hidecategories = UObject)
 class IKRIG_API UIKRigPBIKSolver : public UIKRigSolver
 {
 	GENERATED_BODY()

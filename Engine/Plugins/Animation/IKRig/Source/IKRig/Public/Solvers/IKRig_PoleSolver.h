@@ -27,7 +27,7 @@ public:
 	float Alpha = 1.0f;
 };
 
-UCLASS(EditInlineNew)
+UCLASS(BlueprintType, EditInlineNew)
 class IKRIG_API UIKRig_PoleSolver : public UIKRigSolver
 {
 	GENERATED_BODY()

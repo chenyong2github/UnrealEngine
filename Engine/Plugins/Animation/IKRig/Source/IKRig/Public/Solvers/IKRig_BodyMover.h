@@ -26,7 +26,7 @@ public:
 	float InfluenceMultiplier = 1.0f;
 };
 
-UCLASS(EditInlineNew)
+UCLASS(BlueprintType, EditInlineNew)
 class IKRIG_API UIKRig_BodyMover : public UIKRigSolver
 {
 	GENERATED_BODY()
