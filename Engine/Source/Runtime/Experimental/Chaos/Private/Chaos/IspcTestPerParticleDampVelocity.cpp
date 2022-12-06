@@ -6,11 +6,11 @@
 #include "Misc/AutomationTest.h"
 #include "Chaos/PerParticleDampVelocity.h"
 
-using namespace Chaos;
-
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FIspcPerParticleDampVelocity, "Ispc.Physics.PerParticleDampVelocity", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FIspcPerParticleDampVelocity::RunTest(const FString& Parameters)
 {
+	using namespace Chaos;	
+	
 	// Chaos module doesn't let us include Engine.h, therefore we cannot call the console command.
 	bool InitialState = bChaos_DampVelocity_ISPC_Enabled;
 
