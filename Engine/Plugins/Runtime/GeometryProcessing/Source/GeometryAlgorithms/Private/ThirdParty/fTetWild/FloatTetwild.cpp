@@ -18,6 +18,8 @@
 #include "ThirdParty/fTetWild/Types.hpp"
 #include <fstream>
 
+#define LOCTEXT_NAMESPACE "FloatTetWild"
+
 namespace floatTetWild {
 
 bool tetrahedralization(
@@ -34,6 +36,8 @@ bool tetrahedralization(
 	bool skip_simplify,
 	FProgressCancel* Progress)
 {
+	FProgressCancel::FProgressScope ScopeInitAABBTree = FProgressCancel::CreateScopeTo(Progress, .05f, LOCTEXT("AABBInit", "Preparing Acceleration Structures"));
+
     if (input_vertices.empty() || input_faces.empty()) {
         return false;
     }
@@ -52,10 +56,13 @@ bool tetrahedralization(
 	{
 		return false;
 	}
+	ScopeInitAABBTree.Done();
 
     /////////////////////////////////////////////////
     // STEP 1: Preprocessing (mesh simplification) //
     /////////////////////////////////////////////////
+
+	FProgressCancel::FProgressScope ScopeInitSimplify = FProgressCancel::CreateScopeTo(Progress, .1f, LOCTEXT("SimplifyInit", "Creating Initial Simplified Mesh"));
     Mesh mesh;
     mesh.params = params;
     simplify(input_vertices, input_faces, input_tags, tree, mesh.params, skip_simplify);
@@ -65,10 +72,13 @@ bool tetrahedralization(
 	{
 		return false;
 	}
+	ScopeInitSimplify.Done();
 
     ///////////////////////////////////////
     // STEP 2: Volume tetrahedralization //
     ///////////////////////////////////////
+
+	FProgressCancel::FProgressScope ScopeInitTet = FProgressCancel::CreateScopeTo(Progress, .15f, LOCTEXT("TetInit", "Creating Initial Delaunay Mesh"));
     std::vector<bool> is_face_inserted(input_faces.size(), false);
 
     FloatTetDelaunay::tetrahedralize(input_vertices, input_faces, tree, mesh, is_face_inserted);
@@ -77,22 +87,26 @@ bool tetrahedralization(
 	{
 		return false;
 	}
+	ScopeInitTet.Done();
 
     /////////////////////
     // STEP 3: Cutting //
     /////////////////////
 
+	FProgressCancel::FProgressScope ScopeCutTet = FProgressCancel::CreateScopeTo(Progress, .2f, LOCTEXT("TetCutting", "Cutting Tetrahedra With Surface Mesh"));
 	insert_triangles(input_vertices, input_faces, input_tags, mesh, is_face_inserted, tree, false);
 
 	if (Progress && Progress->Cancelled())
 	{
 		return false;
 	}
+	ScopeCutTet.Done();
 
 	//////////////////////////////////////
     // STEP 4: Volume mesh optimization //
     //////////////////////////////////////
 
+	FProgressCancel::FProgressScope ScopeOptimizeTet = FProgressCancel::CreateScopeTo(Progress, .9f, LOCTEXT("TetCutting", "Optimizing Tetrahedra"));
     optimization(input_vertices, input_faces, input_tags, is_face_inserted, mesh, tree, {{1, 1, 1, 1}});
 
 	if (Progress && Progress->Cancelled())
@@ -109,11 +123,14 @@ bool tetrahedralization(
 	{
 		return false;
 	}
+	ScopeOptimizeTet.Done();
 
     /////////////////////////////////
     // STEP 5: Interior extraction //
     /////////////////////////////////
 
+	FProgressCancel::FProgressScope ScopeFilteringTets = FProgressCancel::CreateScopeTo(Progress, .95f, LOCTEXT("TetFilter", "Filtering Inside Tetrahedra"));
+	// Note: ScopeExtractResults is closed by the 
     if (boolean_op < 0) {
         if (params.smooth_open_boundary) {
             smooth_open_boundary(mesh, tree);
@@ -139,8 +156,10 @@ bool tetrahedralization(
 	{
 		return false;
 	}
+	ScopeFilteringTets.Done();
 
 	// Extract results
+	FProgressCancel::FProgressScope ScopeFinalize = FProgressCancel::CreateScopeTo(Progress, 1.0f, LOCTEXT("ExtractFinalTetrahedra", "Extracting Results"));
 
 	TArray<int> VIDMap;
 	VIDMap.Init(-1, mesh.tet_vertices.size());
@@ -206,8 +225,12 @@ bool tetrahedralization(
 			}
 		}
 	}
+	// Note: Closing this final scope could be omitted as the function end will also close it
+	ScopeFinalize.Done();
 
     return true;
 }
 
 }  // namespace floatTetWild
+
+#undef LOCTEXT_NAMESPACE

@@ -51,6 +51,7 @@ namespace UE::Geometry::FTetWild
 	 * @param InFaces		Surface mesh faces as indices into InVertices
 	 * @param OutVertices	Tet mesh vertices
 	 * @param OutTets		Tetrahedra as indices into OutVertices
+	 * @param Progress		Optional FProgressCancel object to support cancelling the computation and reporting progress
 	 * @return true if algorithm succeeded, false if it failed or was cancelled
 	 */
 	bool GEOMETRYALGORITHMS_API ComputeTetMesh(
