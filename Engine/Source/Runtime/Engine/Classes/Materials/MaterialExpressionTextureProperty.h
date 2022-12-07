@@ -13,7 +13,7 @@ class UTexture;
 
 /** Selects the texture property to output */
 UENUM()
-enum EMaterialExposedTextureProperty
+enum EMaterialExposedTextureProperty : int
 {
 	/* The texture's size. */
 	TMTM_TextureSize UMETA(DisplayName="Texture Size"),

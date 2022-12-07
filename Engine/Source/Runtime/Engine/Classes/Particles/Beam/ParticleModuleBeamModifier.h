@@ -25,7 +25,7 @@ struct FParticleEmitterInstance;
 
 /**	What to modify. */
 UENUM()
-enum BeamModifierType
+enum BeamModifierType : int
 {
 	/** Modify the source of the beam.				*/
 	PEB2MT_Source UMETA(DisplayName="Source"),

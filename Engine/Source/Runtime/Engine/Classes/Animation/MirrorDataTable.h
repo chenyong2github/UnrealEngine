@@ -11,7 +11,7 @@
 UENUM()
 namespace EMirrorRowType
 {
-	enum Type
+	enum Type : int
 	{
 		Bone,
 		AnimationNotify,
@@ -26,7 +26,7 @@ namespace EMirrorRowType
 UENUM()
 namespace EMirrorFindReplaceMethod
 {
-	enum Type
+	enum Type : int
 	{
 		/** Only find and replace matching strings at the start of the name  */
 		Prefix,

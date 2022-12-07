@@ -674,7 +674,7 @@ public:
 UENUM()
 namespace EPinHidingMode
 {
-	enum Type
+	enum Type : int
 	{
 		/** Never show this property as a pin, it is only editable in the details panel (default for everything but FPoseLink properties). */
 		NeverAsPin,

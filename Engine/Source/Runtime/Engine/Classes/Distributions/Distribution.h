@@ -12,7 +12,7 @@
 extern ENGINE_API uint32 GDistributionType;
 
 UENUM()
-enum DistributionParamMode
+enum DistributionParamMode : int
 {
 	DPM_Normal,
 	DPM_Abs,

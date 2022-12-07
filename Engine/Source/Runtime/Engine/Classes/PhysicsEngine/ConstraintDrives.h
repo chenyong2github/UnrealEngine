@@ -9,7 +9,7 @@
 UENUM()
 namespace EAngularDriveMode
 {
-	enum Type
+	enum Type : int
 	{
 		/** Spherical lerp between the current orientation/velocity and the target orientation/velocity. NOTE: This will NOT work if any angular constraints are set to Locked. */
 		SLERP,

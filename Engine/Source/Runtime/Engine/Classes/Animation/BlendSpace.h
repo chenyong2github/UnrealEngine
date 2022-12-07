@@ -41,7 +41,7 @@ public:
 
 /** Interpolation data types. */
 UENUM()
-enum EBlendSpaceAxis
+enum EBlendSpaceAxis : int
 {
 	BSA_None UMETA(DisplayName = "None"),
 	BSA_X UMETA(DisplayName = "Horizontal (X) Axis"),
@@ -435,7 +435,7 @@ struct FPerBoneInterpolation
 UENUM()
 namespace ENotifyTriggerMode
 {
-	enum Type
+	enum Type : int
 	{
 		AllAnimations UMETA(DisplayName="All Animations"),
 		HighestWeightedAnimation UMETA(DisplayName="Highest Weighted Animation"),

@@ -8,7 +8,7 @@
 #include "AnimNode_RefPose.generated.h"
 
 UENUM()
-enum ERefPoseType
+enum ERefPoseType : int
 {
 	EIT_LocalSpace, 
 	EIT_Additive

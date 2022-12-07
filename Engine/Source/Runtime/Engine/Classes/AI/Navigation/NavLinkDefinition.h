@@ -15,7 +15,7 @@ class UNavAreaBase;
 UENUM()
 namespace ENavLinkDirection
 {
-	enum Type
+	enum Type : int
 	{
 		BothWays,
 		LeftToRight,

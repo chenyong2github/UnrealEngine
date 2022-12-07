@@ -42,7 +42,7 @@ friend T* CastChecked(ElementType* InElement) \
 UENUM()
 namespace ERigTransformType
 {
-	enum Type
+	enum Type : int
 	{
 		InitialLocal,
 		CurrentLocal,

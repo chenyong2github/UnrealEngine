@@ -63,7 +63,7 @@ namespace ERecastPartitioning
 {
 	// keep in sync with rcRegionPartitioning enum!
 
-	enum Type
+	enum Type : int
 	{
 		Monotone,
 		Watershed,

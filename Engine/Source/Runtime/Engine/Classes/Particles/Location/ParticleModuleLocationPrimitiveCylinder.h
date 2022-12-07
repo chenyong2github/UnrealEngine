@@ -15,7 +15,7 @@
 struct FParticleEmitterInstance;
 
 UENUM()
-enum CylinderHeightAxis
+enum CylinderHeightAxis : int
 {
 	PMLPC_HEIGHTAXIS_X UMETA(DisplayName="X"),
 	PMLPC_HEIGHTAXIS_Y UMETA(DisplayName="Y"),

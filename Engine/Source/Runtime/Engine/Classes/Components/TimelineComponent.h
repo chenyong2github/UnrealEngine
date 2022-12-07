@@ -31,7 +31,7 @@ DECLARE_DELEGATE_OneParam( FOnTimelineLinearColorStatic, FLinearColor );
 
 /** Whether or not the timeline should be finished after the specified length, or the last keyframe in the tracks */
 UENUM()
-enum ETimelineLengthMode
+enum ETimelineLengthMode : int
 {
 	TL_TimelineLength,
 	TL_LastKeyFrame
@@ -41,7 +41,7 @@ enum ETimelineLengthMode
 UENUM(BlueprintType)
 namespace ETimelineDirection
 {
-	enum Type
+	enum Type : int
 	{
 		Forward,
 		Backward,

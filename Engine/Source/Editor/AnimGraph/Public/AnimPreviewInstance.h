@@ -15,7 +15,7 @@
 
 /** Enum to know how montage is being played */
 UENUM()
-enum EMontagePreviewType
+enum EMontagePreviewType : int
 {
 	/** Playing montage in usual way. */
 	EMPT_Normal, 

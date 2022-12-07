@@ -7,7 +7,7 @@
 #include "SoundGroups.generated.h"
 
 UENUM()
-enum ESoundGroup
+enum ESoundGroup : int
 {
 	SOUNDGROUP_Default UMETA(DisplayName="Default"),
 	SOUNDGROUP_Effects UMETA(DisplayName="Effects"),

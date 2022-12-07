@@ -13,7 +13,7 @@ struct FGenericWindowDefinition;
  */
 namespace EWindowMode
 {
-	enum Type
+	enum Type : int
 	{
 		/** The window is in true fullscreen mode */
 		Fullscreen,

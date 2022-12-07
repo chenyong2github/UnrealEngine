@@ -16,7 +16,7 @@ class UMaterialInstance;
 class UTexture2D;
 
 UENUM()
-enum ELandscapeGizmoType
+enum ELandscapeGizmoType : int
 {
 	LGT_None,
 	LGT_Height,

@@ -64,7 +64,7 @@ HEADMOUNTEDDISPLAY_API DECLARE_LOG_CATEGORY_EXTERN(LogLoadingSplash, Log, All);
 UENUM()
 namespace EOrientPositionSelector
 {
-	enum Type
+	enum Type : int
 	{
 		Orientation UMETA(DisplayName = "Orientation"),
 		Position UMETA(DisplayName = "Position"),
@@ -78,7 +78,7 @@ namespace EOrientPositionSelector
 UENUM()
 namespace EHMDTrackingOrigin
 {
-	enum Type
+	enum Type : int
 	{
 		Floor UMETA(DisplayName = "Floor Level"),
 		Eye UMETA(DisplayName = "Eye Level"),
@@ -92,7 +92,7 @@ namespace EHMDTrackingOrigin
 UENUM()
 namespace EHMDWornState
 {
-	enum Type
+	enum Type : int
 	{
 		Unknown UMETA(DisplayName = "Unknown"),
 		Worn UMETA(DisplayName = "Worn"),
@@ -107,7 +107,7 @@ namespace EHMDWornState
 UENUM(BlueprintType)
 namespace EXRDeviceConnectionResult
 {
-	enum Type
+	enum Type : int
 	{
 		NoTrackingSystem,
 		FeatureNotSupported,
@@ -123,7 +123,7 @@ namespace EXRDeviceConnectionResult
 UENUM(BlueprintType)
 namespace EXRSystemFlags
 {
-	enum Type
+	enum Type : int
 	{
 		NoFlags       = 0x00 UMETA(Hidden),
 		IsAR          = 0x01,

@@ -13,7 +13,7 @@
 // starting very early and support rendering as soon as it is started and the module containing the movie streamer for the platform must already be loaded
 
 UENUM()
-enum EMoviePlaybackType
+enum EMoviePlaybackType : int
 {
 	/** Normal playback mode.  Play each movie in the play list a single time */
 	MT_Normal UMETA(DisplayName="Normal Playback"),

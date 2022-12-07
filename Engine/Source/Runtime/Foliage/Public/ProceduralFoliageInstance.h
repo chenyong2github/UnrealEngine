@@ -14,7 +14,7 @@ struct FProceduralFoliageInstance;
 UENUM(BlueprintType)
 namespace ESimulationOverlap
 {
-	enum Type
+	enum Type : int
 	{
 		/*Instances overlap with collision*/
 		CollisionOverlap,
@@ -28,7 +28,7 @@ namespace ESimulationOverlap
 UENUM(BlueprintType)
 namespace ESimulationQuery
 {
-	enum Type
+	enum Type : int
 	{
 		None = 0 UMETA(Hidden),
 		/*Instances overlap with collision*/

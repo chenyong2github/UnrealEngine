@@ -21,7 +21,7 @@ class FReferenceCollector;
  * HPP_UI - the priority of the UI components such as the translation widget
  */
 UENUM()
-enum EHitProxyPriority
+enum EHitProxyPriority : int
 {
 	HPP_World = 0,
 	HPP_Wireframe = 1,

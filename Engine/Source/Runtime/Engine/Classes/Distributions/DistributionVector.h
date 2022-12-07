@@ -13,7 +13,7 @@
 struct FPropertyChangedEvent;
 
 UENUM()
-enum EDistributionVectorLockFlags
+enum EDistributionVectorLockFlags : int
 {
 	EDVLF_None UMETA(DisplayName="None"),
 	EDVLF_XY UMETA(DisplayName="XY"),
@@ -24,7 +24,7 @@ enum EDistributionVectorLockFlags
 };
 
 UENUM()
-enum EDistributionVectorMirrorFlags
+enum EDistributionVectorMirrorFlags : int
 {
 	EDVMF_Same UMETA(DisplayName="Same"),
 	EDVMF_Different UMETA(DisplayName="Different"),

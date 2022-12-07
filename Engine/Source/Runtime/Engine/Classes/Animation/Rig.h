@@ -67,7 +67,7 @@ struct FNode
 UENUM()
 namespace EControlConstraint
 {
-	enum Type
+	enum Type : int
 	{
 		/** Rotation constraint. */
 		Orientation,
@@ -83,7 +83,7 @@ namespace EControlConstraint
 UENUM()
 namespace EConstraintTransform
 {
-	enum Type
+	enum Type : int
 	{
 		/** Absolute value. */
 		Absolute,

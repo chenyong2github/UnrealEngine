@@ -10,7 +10,7 @@
 
 /** Specifies which shader generated offsets should included in the world position (displacement/WPO etc.) */
 UENUM()
-enum EWorldPositionIncludedOffsets
+enum EWorldPositionIncludedOffsets : int
 {
 	/** Absolute world position with all material shader offsets applied */
 	WPT_Default UMETA(DisplayName="Absolute World Position (Including Material Shader Offsets)"),

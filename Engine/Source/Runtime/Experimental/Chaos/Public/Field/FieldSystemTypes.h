@@ -6,7 +6,7 @@
 *
 */
 UENUM(BlueprintType)
-enum ESetMaskConditionType
+enum ESetMaskConditionType : int
 {
 	Field_Set_Always	        UMETA(DisplayName = "Set Always", ToolTip = "The particle output value will be equal to Interior-value if the particle position is inside a sphere / Exterior-value otherwise."),
 	Field_Set_IFF_NOT_Interior  UMETA(DisplayName = "Merge Interior", ToolTip = "The particle output value will be equal to Interior-value if the particle position is inside the sphere or if the particle input value is already Interior-Value / Exterior-value otherwise."),
@@ -20,7 +20,7 @@ enum ESetMaskConditionType
 *
 */
 UENUM(BlueprintType)
-enum EWaveFunctionType
+enum EWaveFunctionType : int
 {
 	Field_Wave_Cosine	 UMETA(DisplayName = "Cosine", ToolTip = "Cosine wave that will move in time."),
 	Field_Wave_Gaussian  UMETA(DisplayName = "Gaussian", ToolTip = "Gaussian wave that will move in time."),
@@ -35,7 +35,7 @@ enum EWaveFunctionType
 *
 */
 UENUM(BlueprintType)
-enum EFieldOperationType
+enum EFieldOperationType : int
 {
 	Field_Multiply  UMETA(DisplayName = "Multiply", ToolTip = "Multiply the fields output values : Output = Left * Right"),
 	Field_Divide    UMETA(DisplayName = "Divide", ToolTip = "Divide the fields output values : Output = Left / Right"),
@@ -50,7 +50,7 @@ enum EFieldOperationType
 *
 */
 UENUM(BlueprintType)
-enum EFieldCullingOperationType
+enum EFieldCullingOperationType : int
 {
 	Field_Culling_Inside  UMETA(DisplayName = "Inside", ToolTip = "Evaluate the input field if the result of the culling field is equal to 0"),
 	Field_Culling_Outside UMETA(DisplayName = "Outside", ToolTip = "Evaluate the input field if the result of the culling field is different from 0"),
@@ -64,7 +64,7 @@ enum EFieldCullingOperationType
 *
 */
 UENUM(BlueprintType)
-enum EFieldResolutionType
+enum EFieldResolutionType : int
 {
 	Field_Resolution_Minimal  UMETA(DisplayName = "Minimum", ToolTip = "Apply the field to all the active particles"),
 	Field_Resolution_DisabledParents  UMETA(DisplayName = "Parents", ToolTip = "Apply the field to all the parent particles"),
@@ -78,7 +78,7 @@ enum EFieldResolutionType
 *
 */
 UENUM(BlueprintType)
-enum EFieldFilterType
+enum EFieldFilterType : int
 {
 	Field_Filter_Dynamic  UMETA(DisplayName = "Dynamic", ToolTip = "Apply the field to all the dynamic particles"),
 	Field_Filter_Kinematic  UMETA(DisplayName = "Kinematic", ToolTip = "Apply the field to all the kinematic particles"),
@@ -95,7 +95,7 @@ enum EFieldFilterType
 *
 */
 UENUM(BlueprintType)
-enum EFieldObjectType
+enum EFieldObjectType : int
 {
 	Field_Object_Rigid  UMETA(DisplayName = "Rigid", ToolTip = "Apply the field to all the rigid particles"),
 	Field_Object_Cloth  UMETA(DisplayName = "Cloth", ToolTip = "Apply the field to all the cloth particles"),
@@ -111,7 +111,7 @@ enum EFieldObjectType
 *
 */
 UENUM(BlueprintType)
-enum EFieldPositionType
+enum EFieldPositionType : int
 {
 	Field_Position_CenterOfMass  UMETA(DisplayName = "CenterOfMass", ToolTip = "Apply the field to the particles center of mass position"),
 	Field_Position_PivotPoint  UMETA(DisplayName = "PivotPoint", ToolTip = "Apply the field to the particles pivot point position"),
@@ -124,7 +124,7 @@ enum EFieldPositionType
 *
 */
 UENUM(BlueprintType)
-enum EFieldFalloffType
+enum EFieldFalloffType : int
 {
 	Field_FallOff_None			UMETA(DisplayName = "None", ToolTip = "No falloff function is used"),
 	Field_Falloff_Linear		UMETA(DisplayName = "Linear", ToolTip = "The falloff function will be proportional to x"),
@@ -140,7 +140,7 @@ enum EFieldFalloffType
 *
 */
 UENUM(BlueprintType)
-enum EFieldPhysicsType
+enum EFieldPhysicsType : int
 {
 	Field_None						UMETA(Hidden),
 	Field_DynamicState				UMETA(DisplayName = "Dynamic State", ToolTip = "Set the dynamic state of a particle (static, dynamic, kinematic...)"),
@@ -169,7 +169,7 @@ enum EFieldPhysicsType
 
 // TODO : Refactor these 3 enums to be in sync with the GetFieldTargetTypes
 UENUM(BlueprintType)
-enum EFieldVectorType
+enum EFieldVectorType : int
 {
 	Vector_LinearForce				UMETA(DisplayName = "Linear Force", ToolTip = "Add a vector field to the particles linear force."),
 	Vector_LinearVelocity			UMETA(DisplayName = "Linear Velocity", ToolTip = "Add a vector field to the particles linear velocity."),
@@ -186,7 +186,7 @@ enum EFieldVectorType
 };
 
 UENUM(BlueprintType)
-enum EFieldScalarType
+enum EFieldScalarType : int
 {
 	Scalar_ExternalClusterStrain		UMETA(DisplayName = "External Strain", ToolTip = "Apply an external strain over the particles. If this strain is over the internal one, the cluster will break."),
 	Scalar_Kill   						UMETA(DisplayName = "Kill Particle", ToolTip = "Disable the particles for which the field will be higher than 0."),
@@ -200,7 +200,7 @@ enum EFieldScalarType
 };
 
 UENUM(BlueprintType)
-enum EFieldIntegerType
+enum EFieldIntegerType : int
 {
 	Integer_DynamicState				UMETA(DisplayName = "Dynamic State", ToolTip = "Set the dynamic state of a particle (static, dynamic, kinematic...)"),
 	Integer_ActivateDisabled			UMETA(DisplayName = "Activate Disabled", ToolTip = "Activate all the disabled particles for which the field value will be 0"),
@@ -214,7 +214,7 @@ enum EFieldIntegerType
 
 /** Defines the type of the output*/
 UENUM()
-enum EFieldOutputType
+enum EFieldOutputType : int
 {
 	/* Vector Field Type */
 	Field_Output_Vector UMETA(DisplayName = "Vector Field"),
@@ -387,7 +387,7 @@ inline CHAOS_API EFieldPhysicsType GetFieldPhysicsType(const FName& PhysicsName)
 *
 */
 UENUM(BlueprintType)
-enum EFieldPhysicsDefaultFields
+enum EFieldPhysicsDefaultFields : int
 {
 	Field_RadialIntMask				UMETA(DisplayName = "RadialIntMask"),
 	Field_RadialFalloff				UMETA(DisplayName = "RadialFalloff"),

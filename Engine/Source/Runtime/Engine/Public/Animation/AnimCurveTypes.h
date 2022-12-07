@@ -31,7 +31,7 @@ ENUM_RANGE_BY_COUNT(EAnimCurveType, EAnimCurveType::MaxAnimCurveType);
 
 /** This is curve flags that are saved in asset and **/
 UENUM(BlueprintType, meta=(Bitflags))
-enum EAnimAssetCurveFlags
+enum EAnimAssetCurveFlags : int
 {
 	AACF_NONE = 0 UMETA(Hidden),
 	// Used as morph target curve

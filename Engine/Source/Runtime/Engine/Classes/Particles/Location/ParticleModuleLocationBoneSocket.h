@@ -17,7 +17,7 @@ struct FModuleLocationBoneSocketInstancePayload;
 struct FParticleEmitterInstance;
 
 UENUM()
-enum ELocationBoneSocketSource
+enum ELocationBoneSocketSource : int
 {
 	BONESOCKETSOURCE_Bones,
 	BONESOCKETSOURCE_Sockets,
@@ -25,7 +25,7 @@ enum ELocationBoneSocketSource
 };
 
 UENUM()
-enum ELocationBoneSocketSelectionMethod
+enum ELocationBoneSocketSelectionMethod : int
 {
 	BONESOCKETSEL_Sequential,
 	BONESOCKETSEL_Random,

@@ -141,7 +141,7 @@ struct KISMET_API FFindInBlueprintSearchTags
 
 /** FiB data versioning */
 UENUM()
-enum EFiBVersion
+enum EFiBVersion : int
 {
 	FIB_VER_NONE = -1, // Unknown version (not set)
 

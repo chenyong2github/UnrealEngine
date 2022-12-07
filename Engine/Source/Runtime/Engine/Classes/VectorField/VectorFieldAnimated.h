@@ -17,7 +17,7 @@ struct FPropertyChangedEvent;
  * Operation used to construct the vector field from a 2D texture.
  */
 UENUM()
-enum EVectorFieldConstructionOp
+enum EVectorFieldConstructionOp : int
 {
 	VFCO_Extrude UMETA(DisplayName="Extrude"),
 	VFCO_Revolve UMETA(DisplayName="Revolve"),

@@ -15,7 +15,7 @@
 class ABrush;
 
 UENUM()
-enum ESheetAxis
+enum ESheetAxis : int
 {
 	AX_Horizontal,
 	AX_XAxis,

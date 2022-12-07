@@ -30,7 +30,7 @@ namespace EBlackboardKeyOperation
 UENUM()
 namespace EBasicKeyOperation
 {
-	enum Type
+	enum Type : int
 	{
 		Set				UMETA(DisplayName="Is Set"),
 		NotSet			UMETA(DisplayName="Is Not Set"),
@@ -40,7 +40,7 @@ namespace EBasicKeyOperation
 UENUM()
 namespace EArithmeticKeyOperation
 {
-	enum Type
+	enum Type : int
 	{
 		Equal			UMETA(DisplayName="Is Equal To"),
 		NotEqual		UMETA(DisplayName="Is Not Equal To"),
@@ -54,7 +54,7 @@ namespace EArithmeticKeyOperation
 UENUM()
 namespace ETextKeyOperation
 {
-	enum Type
+	enum Type : int
 	{
 		Equal			UMETA(DisplayName="Is Equal To"),
 		NotEqual		UMETA(DisplayName="Is Not Equal To"),

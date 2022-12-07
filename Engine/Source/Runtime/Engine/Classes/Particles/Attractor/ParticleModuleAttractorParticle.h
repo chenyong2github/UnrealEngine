@@ -13,7 +13,7 @@ class UParticleModuleTypeDataBase;
 struct FParticleEmitterInstance;
 
 UENUM()
-enum EAttractorParticleSelectionMethod
+enum EAttractorParticleSelectionMethod : int
 {
 	EAPSM_Random UMETA(DisplayName="Random"),
 	EAPSM_Sequential UMETA(DisplayName="Sequential"),

@@ -14,7 +14,7 @@ class UFont;
 class UMaterialInterface;
 
 UENUM()
-enum EHorizTextAligment
+enum EHorizTextAligment : int
 {
 	/**  */
 	EHTA_Left UMETA(DisplayName="Left"),
@@ -25,7 +25,7 @@ enum EHorizTextAligment
 };
 
 UENUM()
-enum EVerticalTextAligment
+enum EVerticalTextAligment : int
 {
 	/**  */
 	EVRTA_TextTop UMETA(DisplayName="Text Top"),

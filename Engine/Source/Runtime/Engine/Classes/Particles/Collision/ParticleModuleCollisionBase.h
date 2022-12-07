@@ -12,7 +12,7 @@
  *	Flags indicating what to do with the particle when MaxCollisions is reached
  */
 UENUM()
-enum EParticleCollisionComplete
+enum EParticleCollisionComplete : int
 {
 	/**	Kill the particle when MaxCollisions is reached		*/
 	EPCC_Kill UMETA(DisplayName="Kill"),

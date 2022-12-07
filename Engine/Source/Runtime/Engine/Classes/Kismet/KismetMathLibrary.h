@@ -23,7 +23,7 @@
 UENUM(BlueprintType)
 namespace EEasingFunc
 {
-	enum Type
+	enum Type : int
 	{
 		/** Simple linear interpolation. */
 		Linear,
@@ -74,7 +74,7 @@ namespace EEasingFunc
 UENUM(BlueprintType)
 namespace ELerpInterpolationMode
 {
-	enum Type
+	enum Type : int
 	{
 		/** Shortest Path or Quaternion interpolation for the rotation. */
 		QuatInterp,
@@ -91,7 +91,7 @@ namespace ELerpInterpolationMode
 UENUM(BlueprintType)
 namespace EMatrixColumns
 {
-	enum Type
+	enum Type : int
 	{
 		/** First Column. */
 		First,

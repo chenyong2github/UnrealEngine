@@ -14,7 +14,7 @@
 
 /** Provides rounding modes for converting numbers into localized text */
 UENUM(BlueprintType)
-enum ERoundingMode
+enum ERoundingMode : int
 {
 	/** Rounds to the nearest place, equidistant ties go to the value which is closest to an even value: 1.5 becomes 2, 0.5 becomes 0 */
 	HalfToEven,
@@ -43,7 +43,7 @@ enum class ETextGender : uint8
 UENUM(BlueprintType)
 namespace EFormatArgumentType
 {
-	enum Type
+	enum Type : int
 	{
 		Int,
 		UInt,

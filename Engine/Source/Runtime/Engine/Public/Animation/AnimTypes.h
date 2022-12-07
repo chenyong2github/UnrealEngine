@@ -46,7 +46,7 @@ ENGINE_API float GetTriggerTimeOffsetForType(EAnimEventTriggerOffsets::Type Offs
 
 /** Enum for specifying a specific axis of a bone */
 UENUM()
-enum EBoneAxis
+enum EBoneAxis : int
 {
 	BA_X UMETA(DisplayName = "X Axis"),
 	BA_Y UMETA(DisplayName = "Y Axis"),
@@ -56,7 +56,7 @@ enum EBoneAxis
 
 /** Enum for controlling which reference frame a controller is applied in. */
 UENUM(BlueprintType)
-enum EBoneControlSpace
+enum EBoneControlSpace : int
 {
 	/** Set absolute position of bone in world space. */
 	BCS_WorldSpace UMETA(DisplayName = "World Space"),
@@ -71,7 +71,7 @@ enum EBoneControlSpace
 
 /** Enum for specifying the source of a bone's rotation. */
 UENUM()
-enum EBoneRotationSource
+enum EBoneRotationSource : int
 {
 	/** Don't change rotation at all. */
 	BRS_KeepComponentSpaceRotation UMETA(DisplayName = "No Change (Preserve Existing Component Space Rotation)"),
@@ -85,7 +85,7 @@ enum EBoneRotationSource
 UENUM()
 namespace EMontageNotifyTickType
 {
-	enum Type
+	enum Type : int
 	{
 		/** Queue notifies, and trigger them at the end of the evaluation phase (faster). Not suitable for changing sections or montage position. */
 		Queued,
@@ -98,7 +98,7 @@ namespace EMontageNotifyTickType
 UENUM()
 namespace ENotifyFilterType
 {
-	enum Type
+	enum Type : int
 	{
 		/** No filtering. */
 		NoFiltering,
@@ -577,7 +577,7 @@ struct FAnimNotifyTrack
  * Indicates whether an animation is additive, and what kind.
  */
 UENUM()
-enum EAdditiveAnimationType
+enum EAdditiveAnimationType : int
 {
 	/** No additive. */
 	AAT_None  UMETA(DisplayName="No additive"),
@@ -591,7 +591,7 @@ enum EAdditiveAnimationType
 UENUM()
 namespace ECurveBlendOption
 {
-	enum Type
+	enum Type : int
 	{
 		/* Last pose that contains valid curve value override it. */
 		Override, // redirect from MaxWeight old legacy behavior
@@ -759,7 +759,7 @@ private:
 UENUM()
 namespace EAxisOption
 {
-	enum Type
+	enum Type : int
 	{
 		X,
 		Y,
@@ -806,7 +806,7 @@ struct FAxisOption
 UENUM()
 namespace EComponentType
 {
-	enum Type
+	enum Type : int
 	{
 		None = 0,
 		TranslationX,

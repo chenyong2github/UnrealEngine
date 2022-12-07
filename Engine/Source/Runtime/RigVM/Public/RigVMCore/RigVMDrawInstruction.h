@@ -11,7 +11,7 @@ class FMaterialRenderProxy;
 UENUM()
 namespace ERigVMDrawSettings
 {
-	enum Primitive
+	enum Primitive : int
 	{
 		Points,
 		Lines,

@@ -19,7 +19,7 @@ struct FPawnActionStack;
 UENUM()
 namespace EPawnSubActionTriggeringPolicy
 {
-	enum Type
+	enum Type : int
 	{
 		CopyBeforeTriggering,
 		ReuseInstances,
@@ -32,7 +32,7 @@ DECLARE_DELEGATE_TwoParams(FPawnActionEventDelegate, UPawnAction&, EPawnActionEv
 UENUM()
 namespace EPawnActionFailHandling
 {
-	enum Type
+	enum Type : int
 	{
 		RequireSuccess,
 		IgnoreFailure

@@ -6,7 +6,7 @@
 UENUM()
 namespace EAudioOutputTarget
 {
-	enum Type
+	enum Type : int
 	{
 		Speaker UMETA(ToolTip = "Sound plays only from speakers."),
 		Controller UMETA(ToolTip = "Sound plays only from controller if present."),

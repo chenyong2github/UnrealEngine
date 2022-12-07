@@ -18,7 +18,7 @@ class UStructCookedMetaData;
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnStructChanged, UUserDefinedStruct*);
 
 UENUM()
-enum EUserDefinedStructureStatus
+enum EUserDefinedStructureStatus : int
 {
 	/** Struct is in an unknown state. */
 	UDSS_UpToDate,

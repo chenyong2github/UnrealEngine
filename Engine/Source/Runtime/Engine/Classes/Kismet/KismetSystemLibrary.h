@@ -32,7 +32,7 @@ class UTexture2D;
 UENUM(BlueprintType)
 namespace EDrawDebugTrace
 {
-	enum Type
+	enum Type : int
 	{
 		None, 
 		ForOneFrame, 
@@ -45,7 +45,7 @@ namespace EDrawDebugTrace
 UENUM()
 namespace EMoveComponentAction
 {
-	enum Type
+	enum Type : int
 	{
 		/** Move to target over specified time. */
 		Move, 
@@ -59,7 +59,7 @@ namespace EMoveComponentAction
 UENUM()
 namespace EQuitPreference
 {
-	enum Type
+	enum Type : int
 	{
 		/** Exit the game completely. */
 		Quit,

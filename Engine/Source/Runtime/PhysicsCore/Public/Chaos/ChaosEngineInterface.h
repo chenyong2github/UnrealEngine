@@ -85,7 +85,7 @@ enum EPhysicalSurface : int
 
 /** Enum for controlling the falloff of strength of a radial impulse as a function of distance from Origin. */
 UENUM()
-enum ERadialImpulseFalloff
+enum ERadialImpulseFalloff : int
 {
 	/** Impulse is a constant strength, up to the limit of its range. */
 	RIF_Constant,
@@ -108,7 +108,7 @@ enum class ESleepFamily: uint8
 
 /** Specifies angular degrees of freedom */
 UENUM()
-enum EAngularConstraintMotion
+enum EAngularConstraintMotion : int
 {
 	/** No constraint against this axis. */
 	ACM_Free		UMETA(DisplayName="Free"),
@@ -124,7 +124,7 @@ enum EAngularConstraintMotion
 UENUM()
 namespace EConstraintFrame
 {
-enum Type
+enum Type : int
 {
 	Frame1,
 	Frame2
@@ -167,7 +167,7 @@ namespace PhysicsInterfaceTypes
 
 // LINEAR CCPT
 UENUM()
-enum EConstraintPlasticityType
+enum EConstraintPlasticityType : int
 {
 	/** */
 	CCPT_Free	UMETA(DisplayName = "Free"),
@@ -181,7 +181,7 @@ enum EConstraintPlasticityType
 
 // LINEAR DOF
 UENUM()
-enum ELinearConstraintMotion
+enum ELinearConstraintMotion : int
 {
 	/** No constraint against this axis. */
 	LCM_Free	UMETA(DisplayName="Free"),

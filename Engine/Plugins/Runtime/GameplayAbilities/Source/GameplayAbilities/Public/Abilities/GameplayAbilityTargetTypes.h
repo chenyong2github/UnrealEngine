@@ -26,7 +26,7 @@ UENUM(BlueprintType)
 namespace EGameplayTargetingConfirmation
 {
 	/** Describes how the targeting information is confirmed */
-	enum Type
+	enum Type : int
 	{
 		/** The targeting happens instantly without special logic or user input deciding when to 'fire' */
 		Instant,
@@ -166,7 +166,7 @@ UENUM(BlueprintType)
 namespace EGameplayAbilityTargetingLocationType
 {
 	/** What type of location calculation to use when an ability asks for our transform */
-	enum Type
+	enum Type : int
 	{
 		/** We report an actual raw transform. This is also the final fallback if other methods fail */
 		LiteralTransform		UMETA(DisplayName = "Literal Transform"),
@@ -641,7 +641,7 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FAbilityTargetDataSetDelegate, const FGamep
 UENUM()
 namespace EAbilityGenericReplicatedEvent
 {
-	enum Type
+	enum Type : int
 	{	
 		/** A generic confirmation to commit the ability */
 		GenericConfirm = 0,

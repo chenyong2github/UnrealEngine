@@ -545,7 +545,7 @@ private:
 UENUM()
 namespace EAnimGroupRole
 {
-	enum Type
+	enum Type : int
 	{
 		/** This node can be the leader, as long as it has a higher blend weight than the previous best leader. */
 		CanBeLeader,

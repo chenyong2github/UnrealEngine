@@ -24,7 +24,7 @@ enum class ETextShapingMethod : uint8;
 UENUM( BlueprintType )
 namespace ETextJustify
 {
-	enum Type
+	enum Type : int
 	{
 		/**
 		 * Justify the text logically to the left.

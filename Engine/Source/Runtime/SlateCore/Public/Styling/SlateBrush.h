@@ -20,7 +20,7 @@
 UENUM(BlueprintType)
 namespace ESlateBrushDrawType
 {
-	enum Type
+	enum Type : int
 	{
 		/** Don't do anything */
 		NoDrawType UMETA(DisplayName="None"),
@@ -46,7 +46,7 @@ namespace ESlateBrushDrawType
 UENUM(BlueprintType)
 namespace ESlateBrushTileType
 {
-	enum Type
+	enum Type : int
 	{
 		/** Just stretch */
 		NoTile,
@@ -69,7 +69,7 @@ namespace ESlateBrushTileType
 UENUM()
 namespace ESlateBrushMirrorType
 {
-	enum Type
+	enum Type : int
 	{
 		/** Don't mirror anything, just draw the texture as it is. */
 		NoMirror,
@@ -92,7 +92,7 @@ namespace ESlateBrushMirrorType
 UENUM()
 namespace ESlateBrushImageType
 {
-	enum Type
+	enum Type : int
 	{
 		/** No image is loaded.  Color only brushes, transparent brushes etc. */
 		NoImage,
@@ -115,7 +115,7 @@ namespace ESlateBrushImageType
 UENUM()
 namespace ESlateBrushRoundingType
 {
-	enum Type
+	enum Type : int
 	{
 		/** Use the specified Radius **/
 		FixedRadius, 

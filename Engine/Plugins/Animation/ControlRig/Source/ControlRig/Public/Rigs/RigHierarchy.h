@@ -25,7 +25,7 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FRigHierarchyMetadataChangedDelegate, const
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FRigHierarchyMetadataTagChangedDelegate, const FRigElementKey& /* Key */, const FName& /* Tag */, bool /* AddedOrRemoved */);
 
 UENUM()
-enum ERigTransformStackEntryType
+enum ERigTransformStackEntryType : int
 {
 	TransformPose,
 	ControlOffset,

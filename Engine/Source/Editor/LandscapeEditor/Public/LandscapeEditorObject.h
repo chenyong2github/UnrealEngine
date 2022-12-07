@@ -130,7 +130,7 @@ enum class ELandscapeConvertMode : int8
 UENUM()
 namespace EColorChannel
 {
-	enum Type
+	enum Type : int
 	{
 		Red,
 		Green,

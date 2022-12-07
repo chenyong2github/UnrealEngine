@@ -37,7 +37,7 @@ ENGINE_API int32 FillInlineShapeArray_AssumesLocked(PhysicsInterfaceTypes::FInli
 UENUM(BlueprintType)
 namespace EDOFMode
 {
-	enum Type
+	enum Type : int
 	{
 		/*Inherits the degrees of freedom from the project settings.*/
 		Default,

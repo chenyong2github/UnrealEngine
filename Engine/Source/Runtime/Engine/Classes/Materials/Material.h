@@ -64,7 +64,7 @@ struct FMaterialsWithDirtyUsageFlags
 
 /** Defines how the GBuffer channels are getting manipulated by a decal material pass. Actual index is used to control shader parameters so don't change order. */
 UENUM()
-enum EDecalBlendMode
+enum EDecalBlendMode : int
 {
 	/** Blend full material, updating the GBuffer, does not work for baked lighting. */
 	DBM_Translucent UMETA(DisplayName="Translucent"),
@@ -108,7 +108,7 @@ enum EDecalBlendMode
 
 /** Defines how the material reacts on DBuffer decals, later we can expose more variants between None and Default. */
 UENUM()
-enum EMaterialDecalResponse
+enum EMaterialDecalResponse : int
 {
 	/** Do not receive decals (Later we still can read the DBuffer channels to customize the effect, this frees up some interpolators). */
 	MDR_None UMETA(DisplayName="None"),
@@ -132,7 +132,7 @@ enum EMaterialDecalResponse
 
 /** Specifies which separate translucency pass to render in. */
 UENUM()
-enum EMaterialTranslucencyPass
+enum EMaterialTranslucencyPass : int
 {
 	/** Render after depth of field. */
 	MTP_BeforeDOF UMETA(DisplayName="Before DOF"),

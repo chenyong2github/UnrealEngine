@@ -35,7 +35,7 @@ enum ELabelAnchorMode : int
 
 
 UENUM()
-enum ELaunchModeType
+enum ELaunchModeType : int
 {
 	/** Runs the map on a specified device. */
 	LaunchMode_OnDevice,
@@ -43,7 +43,7 @@ enum ELaunchModeType
 
 
 UENUM()
-enum EPlayModeLocations
+enum EPlayModeLocations : int
 {
 	/** Spawns the player at the current camera location. */
 	PlayLocation_CurrentCameraLocation,
@@ -54,7 +54,7 @@ enum EPlayModeLocations
 
 
 UENUM()
-enum EPlayModeType
+enum EPlayModeType : int
 {
 	/** Runs from within the editor. */
 	PlayMode_InViewPort = 0,
@@ -104,7 +104,7 @@ enum EPlayNetMode : int
  * Determines whether to build the executable when launching on device. Note the equivalence between these settings and EProjectPackagingBuild.
  */
 UENUM()
-enum EPlayOnBuildMode
+enum EPlayOnBuildMode : int
 {
 	/** Always build. */
 	PlayOnBuild_Always UMETA(DisplayName="Always"),
@@ -121,7 +121,7 @@ enum EPlayOnBuildMode
 
 /* Configuration to use when launching on device. */
 UENUM()
-enum EPlayOnLaunchConfiguration
+enum EPlayOnLaunchConfiguration : int
 {
 	/** Launch on device with the same build configuration as the editor. */
 	LaunchConfig_Default UMETA(DisplayName = "Same as Editor"),

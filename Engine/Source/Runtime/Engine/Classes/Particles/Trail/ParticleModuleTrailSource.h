@@ -19,7 +19,7 @@ class UParticleSystemComponent;
 struct FParticleEmitterInstance;
 
 UENUM()
-enum ETrail2SourceMethod
+enum ETrail2SourceMethod : int
 {
 	/** Default	- use the emitter position. 
 	 *	This is the fallback for when other modes can't be resolved.

@@ -93,7 +93,7 @@ class IProjectExternalContentInterface;
 // Things to set in mapSetBrush.
 //
 UENUM()
-enum EMapSetBrushFlags				
+enum EMapSetBrushFlags : int
 {
 	/** Set brush color. */
 	MSB_BrushColor	= 1,
@@ -106,7 +106,7 @@ enum EMapSetBrushFlags
 };
 
 UENUM()
-enum EPasteTo
+enum EPasteTo : int
 {
 	PT_OriginalLocation	= 0,
 	PT_Here				= 1,

@@ -22,7 +22,7 @@ struct FDummySpacerCameraTypes
 UENUM()
 namespace ECameraAlphaBlendMode
 {
-	enum Type
+	enum Type : int
 	{
 		CABM_Linear UMETA(DisplayName="Linear"),
 		CABM_Cubic UMETA(DisplayName="Cubic")

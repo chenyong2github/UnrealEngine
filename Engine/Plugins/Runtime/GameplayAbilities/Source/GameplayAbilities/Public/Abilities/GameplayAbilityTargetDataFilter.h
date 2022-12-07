@@ -12,7 +12,7 @@
 UENUM(BlueprintType)
 namespace ETargetDataFilterSelf
 {
-	enum Type
+	enum Type : int
 	{
 		TDFS_Any 			UMETA(DisplayName = "Allow self or others"),
 		TDFS_NoSelf 		UMETA(DisplayName = "Filter self out"),

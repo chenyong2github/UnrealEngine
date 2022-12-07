@@ -38,7 +38,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogParticles, Log, All);
 
 /** Detail mode for scene component rendering. */
 UENUM()
-enum EParticleDetailMode 
+enum EParticleDetailMode : int
 {
 	PDM_Low UMETA(DisplayName = "Low"),
 	PDM_Medium UMETA(DisplayName = "Medium"),

@@ -24,7 +24,7 @@ namespace SkeletalMeshImportData
 }
 
 UENUM(BlueprintType)
-enum EFBXImportContentType
+enum EFBXImportContentType : int
 {
 	FBXICT_All UMETA(DisplayName = "Geometry and Skinning Weights.", ToolTip = "Import all fbx content: geometry, skinning and weights."),
 	FBXICT_Geometry UMETA(DisplayName = "Geometry Only", ToolTip = "Import the skeletal mesh geometry only (will create a default skeleton, or map the geometry to the existing one). Morph and LOD can be imported with it."),

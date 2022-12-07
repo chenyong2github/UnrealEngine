@@ -17,7 +17,7 @@ class FSkeletalMeshLODRenderData;
 struct FSkelMeshRenderSection;
 
 UENUM()
-enum ELocationSkelVertSurfaceSource
+enum ELocationSkelVertSurfaceSource : int
 {
 	VERTSURFACESOURCE_Vert UMETA(DisplayName="Vertices"),
 	VERTSURFACESOURCE_Surface UMETA(DisplayName="Surfaces"),

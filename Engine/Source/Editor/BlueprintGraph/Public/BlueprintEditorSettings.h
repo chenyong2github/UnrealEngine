@@ -35,7 +35,7 @@ struct FEditedDocumentInfo;
 struct FGuid;
 
 UENUM()
-enum ESaveOnCompile
+enum ESaveOnCompile : int
 {
 	SoC_Never UMETA(DisplayName="Never"),
 	SoC_SuccessOnly UMETA(DisplayName="On Success Only"),

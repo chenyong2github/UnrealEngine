@@ -235,7 +235,7 @@ struct TStructOpsTypeTraits< FEdGraphPinType > : public TStructOpsTypeTraitsBase
 };
 
 UENUM()
-enum EBlueprintPinStyleType
+enum EBlueprintPinStyleType : int
 {
 	BPST_Original UMETA(DisplayName="Circles, Grid, Diamond"),
 	BPST_VariantA UMETA(DisplayName="Directional Circles")

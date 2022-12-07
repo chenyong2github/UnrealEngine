@@ -19,7 +19,7 @@ namespace UnFbx
 
 /** Import mesh type */
 UENUM(BlueprintType)
-enum EFBXImportType
+enum EFBXImportType : int
 {
 	/** Select Static Mesh if you'd like to import static mesh. */
 	FBXIT_StaticMesh UMETA(DisplayName="Static Mesh"),

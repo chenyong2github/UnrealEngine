@@ -21,7 +21,7 @@
 class SRadialSlider;
 
 UENUM()
-enum EAudioRadialSliderLayout
+enum EAudioRadialSliderLayout : int
 {
 	/** Label above radial slider. */
 	Layout_LabelTop UMETA(DisplayName = "Label Top"),

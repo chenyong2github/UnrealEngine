@@ -19,7 +19,7 @@
 #include "AnimSequenceBase.generated.h"
 
 UENUM()
-enum ETypeAdvanceAnim
+enum ETypeAdvanceAnim : int
 {
 	ETAA_Default,
 	ETAA_Finished,

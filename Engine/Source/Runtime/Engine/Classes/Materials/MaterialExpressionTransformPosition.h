@@ -10,7 +10,7 @@
 #include "MaterialExpressionTransformPosition.generated.h"
 
 UENUM()
-enum EMaterialPositionTransformSource
+enum EMaterialPositionTransformSource : int
 {
 	/** Local space */
 	TRANSFORMPOSSOURCE_Local UMETA(DisplayName="Local Space"),

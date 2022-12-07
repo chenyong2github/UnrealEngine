@@ -38,7 +38,7 @@ enum class EMobileHDRMode
 
 /** Used by rendering project settings. */
 UENUM()
-enum EAntiAliasingMethod
+enum EAntiAliasingMethod : int
 {
 	AAM_None UMETA(DisplayName = "None"),
 	AAM_FXAA UMETA(DisplayName = "Fast Approximate Anti-Aliasing (FXAA)"),

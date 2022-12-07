@@ -16,7 +16,7 @@ struct FParticleEmitterInstance;
  *	The update method for the offset
  */
 UENUM()
-enum EParticleCameraOffsetUpdateMethod
+enum EParticleCameraOffsetUpdateMethod : int
 {
 	EPCOUM_DirectSet UMETA(DisplayName="Direct Set"),
 	EPCOUM_Additive UMETA(DisplayName="Additive"),

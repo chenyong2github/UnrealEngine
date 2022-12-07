@@ -17,7 +17,7 @@ class UDialogueWave;
 UENUM()
 namespace EGrammaticalGender
 {
-	enum Type
+	enum Type : int
 	{
 		Neuter		UMETA( DisplayName = "Neuter" ),
 		Masculine	UMETA( DisplayName = "Masculine" ),
@@ -29,7 +29,7 @@ namespace EGrammaticalGender
 UENUM()
 namespace EGrammaticalNumber
 {
-	enum Type
+	enum Type : int
 	{
 		Singular	UMETA( DisplayName = "Singular" ),
 		Plural		UMETA( DisplayName = "Plural" ),

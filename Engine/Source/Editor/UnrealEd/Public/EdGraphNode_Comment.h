@@ -31,7 +31,7 @@ typedef TArray<class UObject*> FCommentNodeSet;
 UENUM()
 namespace ECommentBoxMode
 {
-	enum Type
+	enum Type : int
 	{
 		/** This comment box will move any fully contained nodes when it moves. */
 		GroupMovement UMETA(DisplayName="Group Movement"),

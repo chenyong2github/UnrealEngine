@@ -93,7 +93,7 @@ struct ENGINE_API FEdGraphTerminalType
 
 /** Enum used to define which way data flows into or out of this pin. */
 UENUM()
-enum EEdGraphPinDirection
+enum EEdGraphPinDirection : int
 {
 	EGPD_Input,
 	EGPD_Output,
@@ -130,7 +130,7 @@ enum class EPinContainerType : uint8
 UENUM()
 namespace ENodeTitleType
 {
-	enum Type
+	enum Type : int
 	{
 		/** The full title, may be multiple lines. */
 		FullTitle,
@@ -149,7 +149,7 @@ namespace ENodeTitleType
 UENUM()
 namespace ENodeAdvancedPins
 {
-	enum Type
+	enum Type : int
 	{
 		/** No advanced pins. */
 		NoPins,

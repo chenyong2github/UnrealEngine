@@ -19,7 +19,7 @@ UENUM()
 /** Various ways to interpolate TAlphaBlend. */
 namespace EInterpolationBlend
 {
-	enum Type
+	enum Type : int
 	{
 		Linear,
 		Cubic,

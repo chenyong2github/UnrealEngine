@@ -18,7 +18,7 @@
 
 /** An enum for the types of data used in a PlatformInterfaceData struct. */
 UENUM()
-enum EPlatformInterfaceDataType
+enum EPlatformInterfaceDataType : int
 {
 	/** No data type specified. */
 	PIDT_None,

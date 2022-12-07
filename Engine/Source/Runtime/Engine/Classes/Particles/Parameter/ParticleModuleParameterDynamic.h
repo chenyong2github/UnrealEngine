@@ -26,7 +26,7 @@ class UParticleModuleTypeDataBase;
  *	Enumeration indicating the way a dynamic parameter should be set.
  */
 UENUM()
-enum EEmitterDynamicParameterValue
+enum EEmitterDynamicParameterValue : int
 {
 	/** UserSet - use the user set values in the distribution (the default) */
 	EDPV_UserSet,

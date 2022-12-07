@@ -14,7 +14,7 @@ class UInstancedStaticMeshComponent;
 UENUM()
 namespace EMeshFeatureImportance
 {
-	enum Type
+	enum Type : int
 	{
 		Off,
 		Lowest,
@@ -200,7 +200,7 @@ struct FMeshReductionSettings
 UENUM()
 namespace ELandscapeCullingPrecision
 {
-	enum Type
+	enum Type : int
 	{
 		High = 0 UMETA(DisplayName = "High memory intensity and computation time"),
 		Medium = 1 UMETA(DisplayName = "Medium memory intensity and computation time"),
@@ -211,7 +211,7 @@ namespace ELandscapeCullingPrecision
 UENUM()
 namespace EProxyNormalComputationMethod
 {
-	enum Type
+	enum Type : int
 	{
 		AngleWeighted = 0 UMETA(DisplayName = "Angle Weighted"),
 		AreaWeighted = 1 UMETA(DisplayName = "Area  Weighted"),

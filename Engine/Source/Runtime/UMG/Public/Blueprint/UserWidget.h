@@ -180,7 +180,7 @@ class UUMGSequencePlayer;
 UENUM(BlueprintType)
 namespace EUMGSequencePlayMode
 {
-	enum Type
+	enum Type : int
 	{
 		/** Animation plays and loops from the beginning to the end. */
 		Forward,

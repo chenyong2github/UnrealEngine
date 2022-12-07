@@ -31,7 +31,7 @@ class UTexture;
 template <typename ItemType> class SListView;
 
 UENUM()
-enum EPropertyEditorTestEnum
+enum EPropertyEditorTestEnum : int
 {	
 	/** This comment should appear above enum 1 */
 	PropertyEditorTest_Enum1 UMETA(Hidden),
@@ -59,7 +59,7 @@ enum class EPropertyEditorTestBitflags : uint8
 ENUM_CLASS_FLAGS(EPropertyEditorTestBitflags)
 
 UENUM()
-enum ArrayLabelEnum
+enum ArrayLabelEnum : int
 {
 	ArrayIndex0,
 	ArrayIndex1,

@@ -23,7 +23,7 @@ struct FPropertyChangedEvent;
 
 
 UENUM()
-enum ECustomizableObjectTextureLayerEffect
+enum ECustomizableObjectTextureLayerEffect : int
 {
 	COTLE_MODULATE			= 0 UMETA(DisplayName = "MODULATE"), 
 	COTLE_MULTIPLY				UMETA(DisplayName = "MULTIPLY"), 

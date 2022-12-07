@@ -16,7 +16,7 @@ struct FFrameCaptureViewExtension;
 
 /** Used by UCompositionGraphCaptureSettings. Matches gamut order in EDisplayColorGamut */
 UENUM(BlueprintType)
-enum EHDRCaptureGamut
+enum EHDRCaptureGamut : int
 {
 	HCGM_Rec709 UMETA(DisplayName = "Rec.709 / sRGB"),
 	HCGM_P3DCI UMETA(DisplayName = "P3 D65"),

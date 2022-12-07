@@ -14,7 +14,7 @@
 #include "InGameAdManager.generated.h"
 
 UENUM()
-enum EAdManagerDelegate
+enum EAdManagerDelegate : int
 {
 	AMD_ClickedBanner,
 	AMD_UserClosedAd,

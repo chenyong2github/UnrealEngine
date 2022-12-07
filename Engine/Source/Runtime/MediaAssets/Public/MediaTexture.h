@@ -23,7 +23,7 @@ class UMediaPlayer;
 
 
 UENUM()
-enum MediaTextureOutputFormat
+enum MediaTextureOutputFormat : int
 {
 	MTOF_Default					UMETA(DisplayName = "Default (sRGB)"),
 	MTOF_SRGB_LINOUT				UMETA(DisplayName = "sRGB (linear output)"),		// sRGB data, using sRGB texture formats; hence read as linear RGB
@@ -31,7 +31,7 @@ enum MediaTextureOutputFormat
 };
 
 UENUM()
-enum MediaTextureOrientation
+enum MediaTextureOrientation : int
 {
 	MTORI_Original					UMETA(DisplayName = "Original (as decoded)"),
 	MTORI_CW90						UMETA(DisplayName = "Clockwise 90deg"),

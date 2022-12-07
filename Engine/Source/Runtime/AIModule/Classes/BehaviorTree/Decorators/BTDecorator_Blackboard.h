@@ -21,7 +21,7 @@ struct FBlackboardEntry;
 UENUM()
 namespace EBTBlackboardRestart
 {
-	enum Type
+	enum Type : int
 	{
 		ValueChange		UMETA(DisplayName="On Value Change", ToolTip="Restart on every change of observed blackboard value"),
 		ResultChange	UMETA(DisplayName="On Result Change", ToolTip="Restart only when result of evaluated condition is changed"),

@@ -13,7 +13,7 @@ class UFont;
 UENUM()
 namespace EGraphAxisStyle
 {
-	enum Type
+	enum Type : int
 	{
 		Lines,
 		Notches,
@@ -25,7 +25,7 @@ namespace EGraphAxisStyle
 UENUM()
 namespace EGraphDataStyle
 {
-	enum Type
+	enum Type : int
 	{
 		Lines,
 		Filled,
@@ -35,7 +35,7 @@ namespace EGraphDataStyle
 UENUM()
 namespace ELegendPosition
 {
-	enum Type
+	enum Type : int
 	{
 		Outside,
 		Inside

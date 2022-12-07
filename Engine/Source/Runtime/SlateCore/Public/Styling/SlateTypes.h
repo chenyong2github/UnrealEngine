@@ -48,7 +48,7 @@ enum class ESlateParentWindowSearchMethod : uint8
 UENUM()
 namespace ESlateCheckBoxType
 {
-	enum Type
+	enum Type : int
 	{
 		/** Traditional check box with check button and label (or other content) */
 		CheckBox,

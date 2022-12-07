@@ -10,7 +10,7 @@
 #include "MaterialExpressionNoise.generated.h"
 
 UENUM()
-enum ENoiseFunction
+enum ENoiseFunction : int
 {
 	/** High quality for direct use and bumps 
 	 * ~77 instructions per level, 4 texture lookups

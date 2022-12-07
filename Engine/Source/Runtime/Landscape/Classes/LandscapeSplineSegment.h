@@ -119,7 +119,7 @@ struct FLandscapeSplineSegmentConnection
 
 // Deprecated
 UENUM()
-enum LandscapeSplineMeshOrientation
+enum LandscapeSplineMeshOrientation : int
 {
 	LSMO_XUp,
 	LSMO_YUp,

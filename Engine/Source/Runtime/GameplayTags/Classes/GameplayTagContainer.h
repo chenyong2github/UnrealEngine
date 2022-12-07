@@ -748,7 +748,7 @@ struct FGameplayTagCreationWidgetHelper
 UENUM()
 namespace EGameplayTagQueryExprType
 {
-	enum Type
+	enum Type : int
 	{
 		Undefined = 0,
 		AnyTagsMatch,

@@ -11,7 +11,7 @@
 UENUM()
 namespace ELoadLevelAtStartup
 {
-	enum Type
+	enum Type : int
 	{
 		None,
 		ProjectDefault,

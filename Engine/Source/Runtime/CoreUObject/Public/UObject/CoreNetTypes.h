@@ -13,7 +13,7 @@
 
 /** Secondary condition to check before considering the replication of a lifetime property. */
 UENUM(BlueprintType)
-enum ELifetimeCondition
+enum ELifetimeCondition : int
 {
 	COND_None = 0							UMETA(DisplayName = "None"),							// This property has no condition, and will send anytime it changes
 	COND_InitialOnly = 1					UMETA(DisplayName = "Initial Only"),					// This property will only attempt to send on the initial bunch

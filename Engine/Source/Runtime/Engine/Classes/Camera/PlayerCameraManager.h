@@ -26,7 +26,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAudioFadeChangeSignature, bool, 
  * @see FViewTargetTransitionParams, SetViewTarget 
  */
 UENUM()
-enum EViewTargetBlendFunction
+enum EViewTargetBlendFunction : int
 {
 	/** Camera does a simple linear interpolation. */
 	VTBlend_Linear,

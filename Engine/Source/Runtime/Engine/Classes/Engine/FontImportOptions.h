@@ -10,7 +10,7 @@
 
 /** Font character set type for importing TrueType fonts. */
 UENUM()
-enum EFontImportCharacterSet
+enum EFontImportCharacterSet : int
 {
 	FontICS_Default,
 	FontICS_Ansi,

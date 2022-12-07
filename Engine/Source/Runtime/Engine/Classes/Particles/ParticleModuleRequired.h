@@ -82,7 +82,7 @@ FORCEINLINE void AdjustParticleBaseSizeForUVFlipping(FVector& OutSize, EParticle
 }
 
 UENUM()
-enum EParticleSortMode
+enum EParticleSortMode : int
 {
 	PSORTMODE_None,
 	PSORTMODE_ViewProjDepth,
@@ -93,7 +93,7 @@ enum EParticleSortMode
 };
 
 UENUM()
-enum EEmitterNormalsMode
+enum EEmitterNormalsMode : int
 {
 	/** Default mode, normals are based on the camera facing geometry. */
 	ENM_CameraFacing,

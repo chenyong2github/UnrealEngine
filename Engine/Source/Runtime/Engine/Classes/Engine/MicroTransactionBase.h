@@ -14,7 +14,7 @@
 
 /** All the types of delegate callbacks that a MicroTransaction subclass may receive from C++. */
 UENUM()
-enum EMicroTransactionDelegate
+enum EMicroTransactionDelegate : int
 {
 	/**
 	 * Data:None
@@ -35,7 +35,7 @@ enum EMicroTransactionDelegate
 
 /** Result of a purchase. */
 UENUM()
-enum EMicroTransactionResult
+enum EMicroTransactionResult : int
 {
 	MTR_Succeeded,
 	MTR_Failed,

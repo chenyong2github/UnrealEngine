@@ -15,7 +15,7 @@ class UCameraShakeSourceComponent;
 UENUM()
 namespace ECameraProjectionMode
 {
-	enum Type
+	enum Type : int
 	{
 		Perspective,
 		Orthographic

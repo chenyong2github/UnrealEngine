@@ -15,7 +15,7 @@ class FSkeletalMeshLODModel;
 
 /** Enum specifying the reduction type to use when simplifying skeletal meshes with internal tool */
 UENUM()
-enum SkeletalMeshTerminationCriterion
+enum SkeletalMeshTerminationCriterion : int
 {
 	SMTC_NumOfTriangles UMETA(DisplayName = "Triangles", ToolTip = "Triangle count criterion will be used for simplification."),
 	SMTC_NumOfVerts UMETA(DisplayName = "Vertices", ToolTip = "Vertex cont criterion will be used for simplification."),
@@ -28,7 +28,7 @@ enum SkeletalMeshTerminationCriterion
 
 /** Enum specifying the reduction type to use when simplifying skeletal meshes with Simmplygon */
 UENUM()
-enum SkeletalMeshOptimizationType
+enum SkeletalMeshOptimizationType : int
 {
 	SMOT_NumOfTriangles UMETA(DisplayName = "Triangles", ToolTip = "Triangle requirement will be used for simplification."),
 	SMOT_MaxDeviation UMETA(DisplayName = "Accuracy", ToolTip = "Accuracy requirement will be used for simplification."),
@@ -38,7 +38,7 @@ enum SkeletalMeshOptimizationType
 
 /** Enum specifying the importance of properties when simplifying skeletal meshes. */
 UENUM()
-enum SkeletalMeshOptimizationImportance
+enum SkeletalMeshOptimizationImportance : int
 {
 	SMOI_Off UMETA(DisplayName = "Off"),
 	SMOI_Lowest UMETA(DisplayName = "Lowest"),

@@ -25,7 +25,7 @@ struct FBlendSampleData;
 struct FBoneContainer;
 
 enum class ECustomAttributeBlendType : uint8;
-enum EAdditiveAnimationType;
+enum EAdditiveAnimationType : int;
 
 struct FAnimatedBoneAttribute;
 struct FCompactPoseBoneIndex;

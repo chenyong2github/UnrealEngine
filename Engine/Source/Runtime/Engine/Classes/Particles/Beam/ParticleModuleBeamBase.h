@@ -16,7 +16,7 @@
 
 /** The method to use in determining the source/target. */
 UENUM()
-enum Beam2SourceTargetMethod
+enum Beam2SourceTargetMethod : int
 {
 	/** Default	- use the distribution. 
 	 *	This is the fallback for when other modes can't be resolved.
@@ -42,7 +42,7 @@ enum Beam2SourceTargetMethod
 
 /** The method to use in determining the source/target tangent. */
 UENUM()
-enum Beam2SourceTargetTangentMethod
+enum Beam2SourceTargetTangentMethod : int
 {
 	/** Direct - a direct line between source and target.				 */
 	PEB2STTM_Direct UMETA(DisplayName="Direct"),

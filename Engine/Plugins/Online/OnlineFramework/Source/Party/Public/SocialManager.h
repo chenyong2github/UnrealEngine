@@ -23,7 +23,7 @@ class FOnlineSessionSearchResult;
 class FPartyPlatformSessionManager;
 class USocialDebugTools;
 
-enum ETravelType;
+enum ETravelType : int;
 
 #define ABORT_DURING_SHUTDOWN() if (IsEngineExitRequested() || bShutdownPending) { UE_LOG(LogParty, Log, TEXT("%s - Received callback during shutdown: IsEngineExitRequested=%s, bShutdownPending=%s."), ANSI_TO_TCHAR(__FUNCTION__), *LexToString(IsEngineExitRequested()), *LexToString(bShutdownPending)); return; }
 

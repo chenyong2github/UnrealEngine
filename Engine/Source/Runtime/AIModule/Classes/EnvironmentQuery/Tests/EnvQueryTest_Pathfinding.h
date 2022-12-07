@@ -19,7 +19,7 @@ class UNavigationSystemV1;
 UENUM()
 namespace EEnvTestPathfinding
 {
-	enum Type
+	enum Type : int
 	{
 		PathExist,
 		PathCost,

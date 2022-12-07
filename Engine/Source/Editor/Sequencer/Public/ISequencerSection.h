@@ -44,7 +44,7 @@ namespace UE::Sequencer
 
 /** Enumerates which edge is being resized */
 UENUM()
-enum ESequencerSectionResizeMode
+enum ESequencerSectionResizeMode : int
 {
 	SSRM_LeadingEdge,
 	SSRM_TrailingEdge

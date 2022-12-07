@@ -19,7 +19,7 @@ class UObject;
 class UWidgetPaletteFavorites;
 
 UENUM()
-enum EDisplayOnCompile
+enum EDisplayOnCompile : int
 {
 	DoC_ErrorsOrWarnings,
 	DoC_ErrorsOnly,

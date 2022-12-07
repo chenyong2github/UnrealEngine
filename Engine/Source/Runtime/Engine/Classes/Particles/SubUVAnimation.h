@@ -36,14 +36,14 @@ public:
  * and when the particles using the texture will be few and large.
  */
 UENUM()
-enum ESubUVBoundingVertexCount
+enum ESubUVBoundingVertexCount : int
 {
 	BVC_FourVertices,
 	BVC_EightVertices
 };
 
 UENUM()
-enum EOpacitySourceMode
+enum EOpacitySourceMode : int
 {
 	OSM_Alpha,
 	OSM_ColorBrightness,

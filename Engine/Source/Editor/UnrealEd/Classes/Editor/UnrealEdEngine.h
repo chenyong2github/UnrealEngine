@@ -35,7 +35,7 @@ typedef FName FEditorModeID;
 struct FTypedElementSelectionOptions;
 
 UENUM()
-enum EPackageNotifyState
+enum EPackageNotifyState : int
 {
 	/** Updating the source control state of the package */
 	NS_Updating,

@@ -57,7 +57,7 @@ namespace PrimitiveComponentCVars
 
 /** Determines whether a Character can attempt to step up onto a component when they walk in to it. */
 UENUM()
-enum ECanBeCharacterBase
+enum ECanBeCharacterBase : int
 {
 	/** Character cannot step up onto this Component. */
 	ECB_No UMETA(DisplayName="No"),
@@ -75,7 +75,7 @@ enum ECanBeCharacterBase
 UENUM()
 namespace EHasCustomNavigableGeometry
 {
-	enum Type
+	enum Type : int
 	{
 		/** Primitive doesn't have custom navigation geometry, if collision is enabled then its convex/trimesh collision will be used for generating the navmesh */
 		No,

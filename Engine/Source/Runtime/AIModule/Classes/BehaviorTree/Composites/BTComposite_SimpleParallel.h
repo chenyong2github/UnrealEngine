@@ -21,7 +21,7 @@ namespace EBTParallelMode
 {
 	// keep in sync with DescribeFinishMode
 
-	enum Type
+	enum Type : int
 	{
 		AbortBackground UMETA(DisplayName="Immediate" , ToolTip="When main task finishes, immediately abort background tree."),
 		WaitForBackground UMETA(DisplayName="Delayed" , ToolTip="When main task finishes, wait for background tree to finish."),

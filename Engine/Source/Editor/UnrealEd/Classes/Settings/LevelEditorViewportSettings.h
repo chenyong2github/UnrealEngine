@@ -30,7 +30,7 @@ enum ERotationGridMode : int
  * Enumerates camera control types for the W, A, S and D keys.
  */
 UENUM()
-enum EWASDType
+enum EWASDType : int
 {
 	WASD_Always  UMETA(DisplayName="Use WASD for Camera Controls"),
 	WASD_RMBOnly UMETA(DisplayName="Use WASD only when a Mouse Button is Pressed"),
@@ -53,7 +53,7 @@ enum class ELandscapeFoliageEditorControlType : uint8
  * Units used by measuring tool
  */
 UENUM()
-enum EMeasuringToolUnits
+enum EMeasuringToolUnits : int
 {
 	MeasureUnits_Centimeters UMETA(DisplayName="Centimeters"),
 	MeasureUnits_Meters      UMETA(DisplayName="Meters"),

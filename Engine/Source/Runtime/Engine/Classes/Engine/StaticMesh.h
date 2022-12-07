@@ -223,7 +223,7 @@ struct FStaticMeshAsyncBuildTask : public FAsyncTask<FStaticMeshAsyncBuildWorker
 
 /** Optimization settings used to simplify mesh LODs. */
 UENUM()
-enum ENormalMode
+enum ENormalMode : int
 {
 	NM_PreserveSmoothingGroups,
 	NM_RecalculateNormals,
@@ -234,7 +234,7 @@ enum ENormalMode
 };
 
 UENUM()
-enum EImportanceLevel
+enum EImportanceLevel : int
 {
 	IL_Off,
 	IL_Lowest,
@@ -248,7 +248,7 @@ enum EImportanceLevel
 
 /** Enum specifying the reduction type to use when simplifying static meshes. */
 UENUM()
-enum EOptimizationType
+enum EOptimizationType : int
 {
 	OT_NumOfTriangles,
 	OT_MaxDeviation,

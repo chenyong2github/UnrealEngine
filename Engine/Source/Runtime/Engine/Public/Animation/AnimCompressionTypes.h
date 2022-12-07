@@ -31,7 +31,7 @@
  * Indicates animation data key format.
  */
 UENUM()
-enum AnimationKeyFormat
+enum AnimationKeyFormat : int
 {
 	AKF_ConstantKeyLerp,
 	AKF_VariableKeyLerp,

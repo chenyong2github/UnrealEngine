@@ -44,7 +44,7 @@ extern LANDSCAPE_API TAutoConsoleVariable<int32> CVarLandscapeSplineFalloffModul
 #endif
 
 UENUM()
-enum ELandscapeSetupErrors
+enum ELandscapeSetupErrors : int
 {
 	LSE_None,
 	/** No Landscape Info available. */
@@ -154,7 +154,7 @@ private:
 };
 
 UENUM()
-enum ELandscapeBlendMode
+enum ELandscapeBlendMode : int
 {
 	LSBM_AdditiveBlend,
 	LSBM_AlphaBlend,

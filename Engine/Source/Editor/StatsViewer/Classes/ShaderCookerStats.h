@@ -10,7 +10,7 @@
 
 
 UENUM()
-enum EShaderCookerStatsSets
+enum EShaderCookerStatsSets : int
 {
 	EShaderCookerStatsSets_Default				UMETA(DisplayName = "Default", ToolTip = "Shader Cooker Sets"),
 };

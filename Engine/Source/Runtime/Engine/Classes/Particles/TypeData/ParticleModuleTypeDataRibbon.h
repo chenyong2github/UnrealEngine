@@ -18,7 +18,7 @@ class UParticleSystemComponent;
 struct FParticleEmitterInstance;
 
 UENUM()
-enum ETrailsRenderAxisOption
+enum ETrailsRenderAxisOption : int
 {
 	Trails_CameraUp UMETA(DisplayName="Camera Up"),
 	Trails_SourceUp UMETA(DisplayName="Source Up"),

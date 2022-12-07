@@ -10,7 +10,7 @@
 #include "MaterialExpressionVectorNoise.generated.h"
 
 UENUM()
-enum EVectorNoiseFunction
+enum EVectorNoiseFunction : int
 {
 	/** Random color for each unit cell in 3D space.
 	  * RGB output range 0 to 1

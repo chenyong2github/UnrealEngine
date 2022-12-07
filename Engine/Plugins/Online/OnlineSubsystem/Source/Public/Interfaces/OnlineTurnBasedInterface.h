@@ -66,7 +66,7 @@ DECLARE_DELEGATE_TwoParams(FEndMatchSignature, FString, bool);   // bool Success
 UENUM(BlueprintType)
 namespace EMPMatchOutcome
 {
-    enum Outcome
+    enum Outcome : int
     {
         None,
         Quit,

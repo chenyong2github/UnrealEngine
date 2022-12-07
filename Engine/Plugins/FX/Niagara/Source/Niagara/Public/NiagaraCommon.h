@@ -903,7 +903,7 @@ enum class ENiagaraIterationSource : uint8
 };
 
 UENUM()
-enum ENiagaraBindingSource 
+enum ENiagaraBindingSource : int
 {
 	ImplicitFromSource = 0,
 	ExplicitParticles,
@@ -1520,7 +1520,7 @@ struct NIAGARA_API FSynchronizeWithParameterDefinitionsArgs
 UENUM()
 namespace ENiagaraGpuComputeTickStage
 {
-	enum Type
+	enum Type : int
 	{
 		PreInitViews,
 		PostInitViews,

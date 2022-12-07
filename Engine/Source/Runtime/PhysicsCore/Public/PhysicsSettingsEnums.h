@@ -13,7 +13,7 @@
 UENUM()
 namespace EFrictionCombineMode
 {
-	enum Type
+	enum Type : int
 	{
 		/** Uses the average value of the materials touching: (a+b)/2 */
 		Average = 0,	

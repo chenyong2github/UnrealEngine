@@ -72,7 +72,7 @@ struct ENGINE_API FChaosPhysicsSettings
 UENUM()
 namespace ESettingsDOF
 {
-	enum Type
+	enum Type : int
 	{
 		/** Allows for full 3D movement and rotation. */
 		Full3D,
@@ -88,7 +88,7 @@ namespace ESettingsDOF
 UENUM()
 namespace ESettingsLockedAxis
 {
-	enum Type
+	enum Type : int
 	{
 		/** No axis is locked. */
 		None,

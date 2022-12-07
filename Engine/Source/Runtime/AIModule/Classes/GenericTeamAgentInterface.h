@@ -11,7 +11,7 @@
 UENUM(BlueprintType)
 namespace ETeamAttitude
 {
-	enum Type
+	enum Type : int
 	{
 		Friendly,
 		Neutral,

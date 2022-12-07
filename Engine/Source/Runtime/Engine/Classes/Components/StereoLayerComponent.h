@@ -12,7 +12,7 @@ class UTexture;
 
 /** Used by IStereoLayer */
 UENUM()
-enum EStereoLayerType
+enum EStereoLayerType : int
 {
 	/** Location within the world */
 	SLT_WorldLocked		UMETA(DisplayName = "World Locked"),
@@ -28,7 +28,7 @@ enum EStereoLayerType
 
 /** The shape to use for the stereo layer.  Note that some shapes might not be supported on all platforms! */
 UENUM()
-enum EStereoLayerShape
+enum EStereoLayerShape : int
 {
 	/** Quad layer */
 	SLSH_QuadLayer		UMETA(DisplayName = "Quad Layer"),

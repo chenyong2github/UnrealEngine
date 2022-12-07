@@ -15,7 +15,7 @@ class UBehaviorTree;
 UENUM()
 namespace EPathExistanceQueryType
 {
-	enum Type
+	enum Type : int
 	{
 		NavmeshRaycast2D UMETA(ToolTip = "Really Fast"),
 		HierarchicalQuery UMETA(ToolTip = "Fast"),

@@ -27,7 +27,7 @@ struct FParticleEmitterInstance;
  *	The TypeData field is present to speed up finding the TypeData module.
  */
 UENUM()
-enum EModuleType
+enum EModuleType : int
 {
 	/** General - all emitter types can use it			*/
 	EPMT_General UMETA(DisplayName="General"),
@@ -55,7 +55,7 @@ enum EModuleType
  *	as the source points.
  */
 UENUM()
-enum EParticleSourceSelectionMethod
+enum EParticleSourceSelectionMethod : int
 {
 	/** Random		- select a particle at random		*/
 	EPSSM_Random UMETA(DisplayName="Random"),

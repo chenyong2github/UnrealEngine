@@ -73,7 +73,7 @@ UENUM(BlueprintType)
 namespace EBTNodeResult
 {
 	// keep in sync with DescribeNodeResult()
-	enum Type
+	enum Type : int
 	{
 		// finished as success
 		Succeeded,
@@ -127,7 +127,7 @@ namespace EBTFlowAbortMode
 {
 	// keep in sync with DescribeFlowAbortMode()
 
-	enum Type
+	enum Type : int
 	{
 		None				UMETA(DisplayName="Nothing"),
 		LowerPriority		UMETA(DisplayName="Lower Priority"),

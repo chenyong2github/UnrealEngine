@@ -11,7 +11,7 @@
 class UParticleSystemComponent;
 
 UENUM()
-enum EParticleScreenAlignment
+enum EParticleScreenAlignment : int
 {
 	PSA_FacingCameraPosition,
 	PSA_Square,

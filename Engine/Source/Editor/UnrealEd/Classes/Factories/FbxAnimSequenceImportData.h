@@ -18,7 +18,7 @@ b) As for FbxNode::GetAnimationInternval, this one will iterate through all prop
 
 /** Animation length type when importing */
 UENUM(BlueprintType)
-enum EFBXAnimationLengthImportType
+enum EFBXAnimationLengthImportType : int
 {
 	/** This option imports animation frames based on what is defined at the time of export */
 	FBXALIT_ExportedTime			UMETA(DisplayName = "Exported Time"),

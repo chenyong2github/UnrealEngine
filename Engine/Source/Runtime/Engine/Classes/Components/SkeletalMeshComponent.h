@@ -164,7 +164,7 @@ struct FAnimationEvaluationContext
 UENUM()
 namespace EKinematicBonesUpdateToPhysics
 {
-	enum Type
+	enum Type : int
 	{
 		/** Update any bones that are not simulating. */
 		SkipSimulatingBones,
@@ -176,7 +176,7 @@ namespace EKinematicBonesUpdateToPhysics
 UENUM()
 namespace EAnimationMode
 {
-	enum Type
+	enum Type : int
 	{
 		AnimationBlueprint UMETA(DisplayName="Use Animation Blueprint"), 
 		AnimationSingleNode UMETA(DisplayName="Use Animation Asset"), 
@@ -188,7 +188,7 @@ namespace EAnimationMode
 UENUM()
 namespace EPhysicsTransformUpdateMode
 {
-	enum Type
+	enum Type : int
 	{
 		SimulationUpatesComponentTransform,
 		ComponentTransformIsKinematic

@@ -75,7 +75,7 @@ extern const FName NAME_AnimGraph;
 UENUM()
 namespace EDrawDebugItemType
 {
-	enum Type
+	enum Type : int
 	{
 		DirectionalArrow,
 		Sphere,

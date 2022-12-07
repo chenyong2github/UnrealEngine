@@ -15,7 +15,7 @@ class USoundEffectSubmixPreset;
  *
  */
 UENUM()
-enum ReverbPreset
+enum ReverbPreset : int
 {
 	REVERB_Default,
 	REVERB_Bathroom,

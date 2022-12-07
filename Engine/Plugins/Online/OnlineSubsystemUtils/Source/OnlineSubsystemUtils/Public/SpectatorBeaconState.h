@@ -16,7 +16,7 @@ ONLINESUBSYSTEMUTILS_API DECLARE_LOG_CATEGORY_EXTERN(LogSpectatorBeacon, Log, Al
 UENUM()
 namespace ESpectatorReservationResult
 {
-	enum Type
+	enum Type : int
 	{
 		/** Empty state. */
 		NoResult,

@@ -14,7 +14,7 @@
 
 /** Enum for different usage cases of level streaming volumes. */
 UENUM()
-enum EStreamingVolumeUsage
+enum EStreamingVolumeUsage : int
 {
 	SVB_Loading,
 	SVB_LoadingAndVisibility,

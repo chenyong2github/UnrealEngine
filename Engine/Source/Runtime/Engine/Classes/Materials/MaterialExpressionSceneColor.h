@@ -12,7 +12,7 @@
 UENUM()
 namespace EMaterialSceneAttributeInputMode
 {
-	enum Type
+	enum Type : int
 	{
 		Coordinates,
 		OffsetFraction

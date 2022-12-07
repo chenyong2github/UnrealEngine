@@ -10,7 +10,7 @@
 
 /** Enum defining the object sets for this stats object */
 UENUM()
-enum ECookerStatsObjectSets
+enum ECookerStatsObjectSets : int
 {
 	CookerStatsObjectSets_Default UMETA(DisplayName="Default", ToolTip="View cooker statistics"),
 };

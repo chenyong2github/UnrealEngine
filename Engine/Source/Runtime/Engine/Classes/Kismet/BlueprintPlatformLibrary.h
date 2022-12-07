@@ -18,7 +18,7 @@ enum class EDeviceScreenOrientation : uint8;
 UENUM(BlueprintType)
 namespace EScreenOrientation
 {
-	enum Type
+	enum Type : int
 	{
 		/** The orientation is not known */
 		Unknown,
@@ -56,7 +56,7 @@ namespace EScreenOrientation
 UENUM(BlueprintType)
 namespace EApplicationState
 {
-	enum Type
+	enum Type : int
 	{
 		/** The Application was in an unknown state when receiving the notification */
 		Unknown,

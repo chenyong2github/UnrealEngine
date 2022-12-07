@@ -8,7 +8,7 @@
 #include "MaterialExpressionDBufferTexture.generated.h"
 
 UENUM()
-enum EDBufferTextureId
+enum EDBufferTextureId : int
 {
 	/** DBuffer A (Base Color). RGB is pre-multiplied by alpha. A is one minus alpha. */
 	DBT_A UMETA(DisplayName = "DBufferA (BaseColor)"),

@@ -15,7 +15,7 @@ class UTexture;
 
 /** Enum defining the object sets for this stats object */
 UENUM()
-enum ETextureObjectSets
+enum ETextureObjectSets : int
 {
 	TextureObjectSet_CurrentStreamingLevel	UMETA( DisplayName = "Current Streaming Level" , ToolTip = "Display texture statistics for the current streaming level" ),
 	TextureObjectSet_AllStreamingLevels		UMETA( DisplayName = "All Streaming Levels" , ToolTip = "Display texture statistics for all streaming levels" ),

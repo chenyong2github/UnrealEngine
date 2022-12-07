@@ -71,7 +71,7 @@
 UENUM()
 namespace ESearchCase
 {
-	enum Type
+	enum Type : int
 	{
 		CaseSensitive,
 		IgnoreCase,
@@ -85,7 +85,7 @@ namespace ESearchCase
 UENUM()
 namespace ESearchDir
 {
-	enum Type
+	enum Type : int
 	{
 		FromStart,
 		FromEnd,
@@ -99,7 +99,7 @@ namespace ESearchDir
 UENUM()
 namespace ELogTimes
 {
-	enum Type
+	enum Type : int
 	{
 		/** Do not display log timestamps. */
 		None UMETA(DisplayName = "None"),
@@ -119,7 +119,7 @@ namespace ELogTimes
 UENUM(meta=(ScriptName="AxisType"))
 namespace EAxis
 {
-	enum Type
+	enum Type : int
 	{
 		None,
 		X,
@@ -132,7 +132,7 @@ namespace EAxis
 UENUM()
 namespace EAxisList
 {
-	enum Type
+	enum Type : int
 	{
 		None = 0,
 		X = 1,
@@ -156,7 +156,7 @@ namespace EAxisList
 
 /** Describes shape of an interpolation curve (mirrored from InterpCurvePoint.h). */
 UENUM()
-enum EInterpCurveMode
+enum EInterpCurveMode : int
 {
 	/** A straight line between two keypoint values. */
 	CIM_Linear UMETA(DisplayName="Linear"),
@@ -186,7 +186,7 @@ enum EInterpCurveMode
  * @warning: The *Tools DLLs will also need to be recompiled if the ordering is changed, but should not need code changes.
  */
 UENUM()
-enum EPixelFormat
+enum EPixelFormat : int
 {
 	PF_Unknown,
 	PF_A32B32G32R32F,
@@ -298,7 +298,7 @@ enum EPixelFormat
 UENUM()
 namespace EMouseCursor
 {
-	enum Type
+	enum Type : int
 	{
 		/** Causes no mouse cursor to be visible. */
 		None,
@@ -411,7 +411,7 @@ enum class EPropertyAccessChangeNotifyMode : uint8
 UENUM(BlueprintType)
 namespace EAppReturnType
 {
-	enum Type
+	enum Type : int
 	{
 		No,
 		Yes,
@@ -434,7 +434,7 @@ namespace EAppMsgType
 	/**
 	 * Enumerates supported message dialog button types.
 	 */
-	enum Type
+	enum Type : int
 	{
 		Ok,
 		YesNo,
@@ -2164,7 +2164,7 @@ struct FPrimaryAssetId
 UENUM(BlueprintType)
 namespace ERangeBoundTypes
 {
-	enum Type
+	enum Type : int
 	{
 		/**
 		* The range excludes the bound.

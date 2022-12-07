@@ -79,7 +79,7 @@ private:
 };
 
 UENUM()
-enum ESkyLightSourceType
+enum ESkyLightSourceType : int
 {
 	/** Construct the sky light from the captured scene, anything further than SkyDistanceThreshold from the sky light position will be included. */
 	SLS_CapturedScene,

@@ -17,7 +17,7 @@ class UParticleLODLevel;
 UENUM()
 namespace EParticleCollisionResponse
 {
-	enum Type
+	enum Type : int
 	{
 		/** The particle will bounce off of the surface. */
 		Bounce,

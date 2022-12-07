@@ -22,7 +22,7 @@ class UGameplayAbility;
 UENUM(BlueprintType)
 namespace EGameplayAbilityActivationMode
 {
-	enum Type
+	enum Type : int
 	{
 		/** We are the authority activating this ability */
 		Authority,

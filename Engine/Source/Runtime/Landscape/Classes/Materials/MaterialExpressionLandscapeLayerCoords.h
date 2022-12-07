@@ -9,7 +9,7 @@
 #include "MaterialExpressionLandscapeLayerCoords.generated.h"
 
 UENUM()
-enum ETerrainCoordMappingType
+enum ETerrainCoordMappingType : int
 {
 	TCMT_Auto,
 	TCMT_XY,
@@ -19,7 +19,7 @@ enum ETerrainCoordMappingType
 };
 
 UENUM()
-enum ELandscapeCustomizedCoordType
+enum ELandscapeCustomizedCoordType : int
 {
 	/** Don't use customized UV, just use original UV. */
 	LCCT_None,

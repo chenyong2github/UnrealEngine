@@ -16,7 +16,7 @@ enum class EKeyGroupMode : uint8;
 enum class EMovieSceneKeyInterpolation : uint8;
 
 UENUM()
-enum ESequencerSpawnPosition
+enum ESequencerSpawnPosition : int
 {
 	/** Origin. */
 	SSP_Origin UMETA(DisplayName="Origin"),
@@ -26,7 +26,7 @@ enum ESequencerSpawnPosition
 };
 
 UENUM()
-enum ESequencerZoomPosition
+enum ESequencerZoomPosition : int
 {
 	/** Current Time. */
 	SZP_CurrentTime UMETA(DisplayName="Playhead"),
@@ -36,7 +36,7 @@ enum ESequencerZoomPosition
 };
 
 UENUM()
-enum ESequencerLoopMode
+enum ESequencerLoopMode : int
 {
 	/** No Looping. */
 	SLM_NoLoop UMETA(DisplayName="No Looping"),

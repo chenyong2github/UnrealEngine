@@ -13,7 +13,7 @@ class UMaterialInterface;
 UENUM()
 namespace ESpriteCollisionMode
 {
-	enum Type
+	enum Type : int
 	{
 		/** Should this have no collison and not participate in physics? */
 		None,
@@ -145,7 +145,7 @@ public:
 UENUM()
 namespace ESpritePolygonMode
 {
-	enum Type
+	enum Type : int
 	{
 		/** Use the bounding box of the source sprite (no optimization) */
 		SourceBoundingBox,
@@ -319,7 +319,7 @@ public:
 UENUM()
 namespace ESpritePivotMode
 {
-	enum Type
+	enum Type : int
 	{
 		Top_Left,
 		Top_Center,

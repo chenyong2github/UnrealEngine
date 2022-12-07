@@ -24,7 +24,7 @@ class FAssetThumbnailPool;
  * Types of primitives for drawing thumbnails of resources.
  */
 UENUM()
-enum EThumbnailPrimType
+enum EThumbnailPrimType : int
 {
 	TPT_None,
 	TPT_Sphere,

@@ -17,7 +17,7 @@ struct FParticleEmitterInstance;
 class UStaticMesh;
 
 UENUM()
-enum EMeshScreenAlignment
+enum EMeshScreenAlignment : int
 {
 	PSMA_MeshFaceCameraWithRoll UMETA(DisplayName="Face Camera With Roll"),
 	PSMA_MeshFaceCameraWithSpin UMETA(DisplayName="Face Camera With Spin"),
@@ -26,7 +26,7 @@ enum EMeshScreenAlignment
 };
 
 UENUM()
-enum EMeshCameraFacingUpAxis
+enum EMeshCameraFacingUpAxis : int
 {
 	CameraFacing_NoneUP UMETA(DisplayName="None"),
 	CameraFacing_ZUp UMETA(DisplayName="Z Up"),
@@ -37,7 +37,7 @@ enum EMeshCameraFacingUpAxis
 };
 
 UENUM()
-enum EMeshCameraFacingOptions
+enum EMeshCameraFacingOptions : int
 {
 	XAxisFacing_NoUp UMETA(DisplayName="X Axis Facing : No Up"),
 	XAxisFacing_ZUp UMETA(DisplayName="X Axis Facing : Z Up"),

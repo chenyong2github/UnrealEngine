@@ -66,7 +66,7 @@ enum EShaderPlatform : uint16;
 typedef TArray<FMaterialResource*> FMaterialResourceDeferredDeletionArray;
 
 UENUM(BlueprintType)
-enum EMaterialUsage
+enum EMaterialUsage : int
 {
 	MATUSAGE_SkeletalMesh,
 	MATUSAGE_ParticleSprites,

@@ -19,7 +19,7 @@ class UModel;
 
 /** Alignment types. */
 UENUM()
-enum ETexAlign
+enum ETexAlign : int
 {
 	/** When passed to functions it means "use whatever the aligners default is". */
 	TEXALIGN_None,

@@ -11,7 +11,7 @@
 
 // Note: The index is used to map the enum to different code in the shader
 UENUM()
-enum EDepthOfFieldFunctionValue
+enum EDepthOfFieldFunctionValue : int
 {
 	/** 0:in Focus .. 1:Near or Far. */
 	TDOF_NearAndFarMask,

@@ -10,7 +10,7 @@
 struct FMeshDescription;
 
 UENUM()
-enum ETextureSizingType
+enum ETextureSizingType : int
 {
 	TextureSizingType_UseSingleTextureSize UMETA(DisplayName = "Use TextureSize for all material properties"),
 	TextureSizingType_UseAutomaticBiasedSizes UMETA(DisplayName = "Use automatically biased texture sizes based on TextureSize"),
@@ -23,7 +23,7 @@ enum ETextureSizingType
 };
 
 UENUM()
-enum EMaterialMergeType
+enum EMaterialMergeType : int
 {
 	MaterialMergeType_Default,
 	MaterialMergeType_Simplygon

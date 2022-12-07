@@ -8,7 +8,7 @@
 #include "MaterialExpressionSpeedTree.generated.h"
 
 UENUM()
-enum ESpeedTreeGeometryType
+enum ESpeedTreeGeometryType : int
 {
 	STG_Branch		UMETA(DisplayName="Branch"),
 	STG_Frond		UMETA(DisplayName="Frond"),
@@ -18,7 +18,7 @@ enum ESpeedTreeGeometryType
 };
 
 UENUM()
-enum ESpeedTreeWindType
+enum ESpeedTreeWindType : int
 {
 	STW_None		UMETA(DisplayName="None"),
 	STW_Fastest		UMETA(DisplayName="Fastest"),
@@ -30,7 +30,7 @@ enum ESpeedTreeWindType
 };
 
 UENUM()
-enum ESpeedTreeLODType
+enum ESpeedTreeLODType : int
 {
 	STLOD_Pop		UMETA(DisplayName="Pop"),
 	STLOD_Smooth	UMETA(DisplayName="Smooth")

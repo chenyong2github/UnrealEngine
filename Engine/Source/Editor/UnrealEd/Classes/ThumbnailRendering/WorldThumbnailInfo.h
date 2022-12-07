@@ -15,7 +15,7 @@
 UENUM()
 namespace EOrthoThumbnailDirection
 {
-	enum Type
+	enum Type : int
 	{
 		Top,
 		Bottom,

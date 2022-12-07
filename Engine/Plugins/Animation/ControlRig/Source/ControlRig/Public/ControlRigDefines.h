@@ -35,7 +35,7 @@ enum class ETransformSpaceMode : uint8
 UENUM()
 namespace EControlRigClampSpatialMode
 {
-	enum Type
+	enum Type : int
 	{
 		Plane,
 		Cylinder,

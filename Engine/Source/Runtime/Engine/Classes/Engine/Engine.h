@@ -80,7 +80,7 @@ enum class EGetWorldErrorMode
  * Enumerates types of fully loaded packages.
  */
 UENUM()
-enum EFullyLoadPackageType
+enum EFullyLoadPackageType : int
 {
 	/** Load the packages when the map in Tag is loaded. */
 	FULLYLOAD_Map,

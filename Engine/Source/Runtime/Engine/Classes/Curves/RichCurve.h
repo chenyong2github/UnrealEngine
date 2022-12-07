@@ -11,7 +11,7 @@
 
 /** If using RCIM_Cubic, this enum describes how the tangents should be controlled in editor. */
 UENUM(BlueprintType)
-enum ERichCurveTangentMode
+enum ERichCurveTangentMode : int
 {
 	/** Automatically calculates tangents to create smooth curves between values. */
 	RCTM_Auto UMETA(DisplayName="Auto"),
@@ -26,7 +26,7 @@ enum ERichCurveTangentMode
 
 /** Enumerates tangent weight modes. */
 UENUM(BlueprintType)
-enum ERichCurveTangentWeightMode
+enum ERichCurveTangentWeightMode : int
 {
 	/** Don't take tangent weights into account. */
 	RCTWM_WeightedNone UMETA(DisplayName="None"),
@@ -40,7 +40,7 @@ enum ERichCurveTangentWeightMode
 
 /** Enumerates curve compression options. */
 UENUM()
-enum ERichCurveCompressionFormat
+enum ERichCurveCompressionFormat : int
 {
 	/** No keys are present */
 	RCCF_Empty UMETA(DisplayName = "Empty"),
@@ -63,7 +63,7 @@ enum ERichCurveCompressionFormat
 
 /** Enumerates key time compression options. */
 UENUM()
-enum ERichCurveKeyTimeCompressionFormat
+enum ERichCurveKeyTimeCompressionFormat : int
 {
 	/** Key time is quantized to 16 bits */
 	RCKTCF_uint16 UMETA(DisplayName = "uint16"),

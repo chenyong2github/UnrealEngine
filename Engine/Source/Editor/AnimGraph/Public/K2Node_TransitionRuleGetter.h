@@ -26,7 +26,7 @@ class UObject;
 UENUM()
 namespace ETransitionGetter
 {
-	enum Type
+	enum Type : int
 	{
 		AnimationAsset_GetCurrentTime,
 		AnimationAsset_GetLength,

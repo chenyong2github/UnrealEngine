@@ -108,7 +108,7 @@ struct FLightmassParameterizedMaterialSettings
 //	ELevelViewportType
 //
 UENUM()
-enum ELevelViewportType
+enum ELevelViewportType : int
 {
 	/** Top */
 	LVT_OrthoXY = 0,
@@ -130,7 +130,7 @@ enum ELevelViewportType
 };
 
 UENUM()
-enum EDestructiveAssetActions
+enum EDestructiveAssetActions : int
 {
 	AssetDelete = 0,
 	AssetRename = 1 << 0,

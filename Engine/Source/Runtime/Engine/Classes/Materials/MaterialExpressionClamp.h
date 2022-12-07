@@ -10,7 +10,7 @@
 #include "MaterialExpressionClamp.generated.h"
 
 UENUM()
-enum EClampMode
+enum EClampMode : int
 {
 	CMODE_Clamp,
 	CMODE_ClampMin,

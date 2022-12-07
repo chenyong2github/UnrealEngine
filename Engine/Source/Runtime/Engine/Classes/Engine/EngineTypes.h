@@ -39,7 +39,7 @@ enum { NumInlinedActorComponents = 24 };
 
 /** Enum describing how to constrain perspective view port FOV */
 UENUM()
-enum EAspectRatioAxisConstraint
+enum EAspectRatioAxisConstraint : int
 {
 	AspectRatio_MaintainYFOV UMETA(DisplayName="Maintain Y-Axis FOV"),
 	AspectRatio_MaintainXFOV UMETA(DisplayName="Maintain X-Axis FOV"),
@@ -167,7 +167,7 @@ struct ENGINE_API FDetachmentTransformRules
 UENUM()
 namespace EAttachLocation
 {
-	enum Type
+	enum Type : int
 	{
 		/** Keeps current relative transform as the relative transform to the new parent. */
 		KeepRelativeOffset,
@@ -188,7 +188,7 @@ namespace EAttachLocation
  * Elements with higher priority occlude elements with lower priority, disregarding distance.
  */
 UENUM()
-enum ESceneDepthPriorityGroup
+enum ESceneDepthPriorityGroup : int
 {
 	/** World scene DPG. */
 	SDPG_World,
@@ -199,7 +199,7 @@ enum ESceneDepthPriorityGroup
 
 /** Quality of indirect lighting for Movable primitives. This has a large effect on Indirect Lighting Cache update time. */
 UENUM()
-enum EIndirectLightingCacheQuality
+enum EIndirectLightingCacheQuality : int
 {
 	/** The indirect lighting cache will be disabled for this object, so no GI from stationary lights on movable objects. */
 	ILCQ_Off,
@@ -227,7 +227,7 @@ enum class ELightmapType : uint8
 
 /** Controls how occlusion from Distance Field Ambient Occlusion is combined with Screen Space Ambient Occlusion. */
 UENUM()
-enum EOcclusionCombineMode
+enum EOcclusionCombineMode : int
 {
 	/** Take the minimum occlusion value.  This is effective for avoiding over-occlusion from multiple methods, but can result in indoors looking too flat. */
 	OCM_Minimum,
@@ -246,7 +246,7 @@ enum EOcclusionCombineMode
  * @warning Check UMaterialInstance::Serialize if changed!!
  */
 UENUM(BlueprintType)
-enum EBlendMode
+enum EBlendMode : int
 {
 	BLEND_Opaque UMETA(DisplayName="Opaque"),
 	BLEND_Masked UMETA(DisplayName="Masked"),
@@ -262,7 +262,7 @@ enum EBlendMode
  * The blending mode for Strata materials
  */
 UENUM(BlueprintType)
-enum EStrataBlendMode
+enum EStrataBlendMode : int
 {
 	SBM_Opaque UMETA(DisplayName = "Opaque"),
 	SBM_Masked UMETA(DisplayName = "Masked"),
@@ -275,7 +275,7 @@ enum EStrataBlendMode
 
 /** The default float precision for material's pixel shaders on mobile devices*/
 UENUM()
-enum EMaterialFloatPrecisionMode
+enum EMaterialFloatPrecisionMode : int
 {
 	/** Uses project based precision mode setting */
 	MFPM_Default UMETA(DisplayName = "Default"),
@@ -290,7 +290,7 @@ enum EMaterialFloatPrecisionMode
 
 /** Controls where the sampler for different texture lookups comes from */
 UENUM()
-enum ESamplerSourceMode
+enum ESamplerSourceMode : int
 {
 	/** Get the sampler from the texture.  Every unique texture will consume a sampler slot, which are limited in number. */
 	SSM_FromTextureAsset UMETA(DisplayName="From texture asset"),
@@ -304,7 +304,7 @@ enum ESamplerSourceMode
 
 /** defines how MipValue is used */
 UENUM()
-enum ETextureMipValueMode
+enum ETextureMipValueMode : int
 {
 	/* Use hardware computed sample's mip level with automatic anisotropic filtering support. */
 	TMVM_None UMETA(DisplayName="None (use computed mip level)"),
@@ -323,7 +323,7 @@ enum ETextureMipValueMode
 
 /** Describes how to handle lighting of translucent objets */
 UENUM()
-enum ETranslucencyLightingMode
+enum ETranslucencyLightingMode : int
 {
 	/** 
 	 * Lighting will be calculated for a volume, without directionality.  Use this on particle effects like smoke and dust.
@@ -368,7 +368,7 @@ enum ETranslucencyLightingMode
 
 /** Determines how the refraction offset should be computed for the material. */
 UENUM()
-enum ERefractionMode
+enum ERefractionMode : int
 {
 	/** 
 	 * By default, when the root node refraction pin is unplugged, relies on the material IOR evaluated from F0.
@@ -405,7 +405,7 @@ enum ERefractionMode
 UENUM()
 namespace ETranslucentSortPolicy
 {
-	enum Type
+	enum Type : int
 	{
 		/** Sort based on distance from camera centerpoint to bounding sphere centerpoint. (Default, best for 3D games.) */
 		SortByDistance = 0,
@@ -422,7 +422,7 @@ namespace ETranslucentSortPolicy
 UENUM()
 namespace EDynamicGlobalIlluminationMethod
 {
-	enum Type
+	enum Type : int
 	{
 		/** No dynamic Global Illumination method will be used. Global Illumination can still be baked into lightmaps. */
 		None, 
@@ -445,7 +445,7 @@ namespace EDynamicGlobalIlluminationMethod
 UENUM()
 namespace EReflectionMethod
 {
-	enum Type
+	enum Type : int
 	{
 		/** No global reflection method will be used. Reflections can still come from Reflection Captures, Planar Reflections or a Skylight placed in the level. */
 		None, 
@@ -465,7 +465,7 @@ namespace EReflectionMethod
 UENUM()
 namespace EShadowMapMethod
 {
-	enum Type
+	enum Type : int
 	{
 		/** Render geometry into shadow depth maps for shadowing.  Requires manual setup of shadowing distances and only culls per-component, causing poor performance with high poly scenes.  Required to enable stationary baked shadows (but which is incompatible with Nanite geometry). */
 		ShadowMaps UMETA(DisplayName = "Shadow Maps"),
@@ -479,7 +479,7 @@ namespace EShadowMapMethod
 UENUM()
 namespace ECastRayTracedShadow 
 {
-	enum Type
+	enum Type : int
 	{
 		/** Ray traced shadows disabled for this light */
 		Disabled,
@@ -492,7 +492,7 @@ namespace ECastRayTracedShadow
 
 /** Specifies which component of the scene rendering should be output to the final render target. */
 UENUM()
-enum ESceneCaptureSource 
+enum ESceneCaptureSource : int
 { 
 	SCS_SceneColorHDR UMETA(DisplayName="SceneColor (HDR) in RGB, Inv Opacity in A"),
 	SCS_SceneColorHDRNoAlpha UMETA(DisplayName="SceneColor (HDR) in RGB, 0 in A"),
@@ -510,7 +510,7 @@ enum ESceneCaptureSource
 
 /** Specifies how scene captures are composited into render buffers */
 UENUM()
-enum ESceneCaptureCompositeMode
+enum ESceneCaptureCompositeMode : int
 { 
 	SCCM_Overwrite UMETA(DisplayName="Overwrite"),
 	SCCM_Additive UMETA(DisplayName="Additive"),
@@ -571,7 +571,7 @@ inline int32 GetFirstLightingChannelFromMask(uint8 Mask)
 UENUM()
 namespace EGBufferFormat
 {
-	enum Type
+	enum Type : int
 	{
 		/** Forces all GBuffers to 8 bits per channel. Intended as profiling for best performance. (Strata: Octahedral encoding as 2x11bits for simple and single materials, 2x16bits for complex materials) */
 		Force8BitsPerChannel = 0 UMETA(DisplayName = "Force 8 Bits Per Channel"),
@@ -586,7 +586,7 @@ namespace EGBufferFormat
 
 /** Controls the way that the width scale property affects animation trails. */
 UENUM()
-enum ETrailWidthMode
+enum ETrailWidthMode : int
 {
 	ETrailWidthMode_FromCentre UMETA(DisplayName = "From Centre"),
 	ETrailWidthMode_FromFirst UMETA(DisplayName = "From First Socket"),
@@ -597,7 +597,7 @@ enum ETrailWidthMode
 UENUM()
 namespace EParticleCollisionMode
 {
-	enum Type
+	enum Type : int
 	{
 		SceneDepth UMETA(DisplayName="Scene Depth"),
 		DistanceField UMETA(DisplayName="Distance Field")
@@ -609,7 +609,7 @@ namespace EParticleCollisionMode
  * @warning Check UMaterialInstance::Serialize if changed!
  */
 UENUM()
-enum EMaterialShadingModel
+enum EMaterialShadingModel : int
 {
 	MSM_Unlit					UMETA(DisplayName="Unlit"),
 	MSM_DefaultLit				UMETA(DisplayName="Default Lit"),
@@ -683,7 +683,7 @@ private:
  * Specifies the Strata runtime shading model summarized from the material graph
  */
 UENUM()
-enum EStrataShadingModel
+enum EStrataShadingModel : int
 {
 	SSM_Unlit					UMETA(DisplayName = "Unlit"),
 	SSM_DefaultLit				UMETA(DisplayName = "DefaultLit"),
@@ -754,7 +754,7 @@ private:
 
 /** Describes how textures are sampled for materials */
 UENUM(BlueprintType)
-enum EMaterialSamplerType
+enum EMaterialSamplerType : int
 {
 	SAMPLERTYPE_Color UMETA(DisplayName="Color"),
 	SAMPLERTYPE_Grayscale UMETA(DisplayName="Grayscale"),
@@ -785,7 +785,7 @@ inline bool IsVirtualSamplerType(EMaterialSamplerType Value)
 	return ((int32)Value >= (int32)SAMPLERTYPE_VirtualColor && (int32)Value <= (int32)SAMPLERTYPE_VirtualLinearGrayscale);
 }
 UENUM()
-enum EMaterialStencilCompare
+enum EMaterialStencilCompare : int
 {
 	MSC_Less			UMETA(DisplayName = "Less Than"),
 	MSC_LessEqual		UMETA(DisplayName = "Less Than or Equal"),
@@ -799,7 +799,7 @@ enum EMaterialStencilCompare
 };
 
 UENUM()
-enum EMaterialShadingRate
+enum EMaterialShadingRate : int
 {
 	MSR_1x1				UMETA(DisplayName = "1x1"),
 	MSR_2x1				UMETA(DisplayName = "2x1"),
@@ -814,7 +814,7 @@ enum EMaterialShadingRate
 
 /**	Lighting build quality enumeration */
 UENUM(BlueprintType)
-enum ELightingBuildQuality
+enum ELightingBuildQuality : int
 {
 	Quality_Preview		UMETA(DisplayName = "Preview"),
 	Quality_Medium		UMETA(DisplayName = "Medium"),
@@ -825,7 +825,7 @@ enum ELightingBuildQuality
 
 /** Movement modes for Characters. */
 UENUM(BlueprintType)
-enum EMovementMode
+enum EMovementMode : int
 {
 	/** None (movement is disabled). */
 	MOVE_None		UMETA(DisplayName="None"),
@@ -965,7 +965,7 @@ DECLARE_DELEGATE_OneParam(FOnPlasticDeformation, int32 /*ConstraintIndex*/);
  * @warning If you change this, change GetCollisionChannelFromOverlapFilter() to match 
  */
 UENUM(BlueprintType)
-enum EOverlapFilterOption
+enum EOverlapFilterOption : int
 {
 	/** Returns both overlaps with both dynamic and static components */
 	OverlapFilter_All UMETA(DisplayName="AllObjects"),
@@ -977,7 +977,7 @@ enum EOverlapFilterOption
 
 /** Specifies custom collision object types, overridable per game */
 UENUM(BlueprintType)
-enum EObjectTypeQuery
+enum EObjectTypeQuery : int
 {
 	ObjectTypeQuery1 UMETA(Hidden), 
 	ObjectTypeQuery2 UMETA(Hidden), 
@@ -1017,7 +1017,7 @@ enum EObjectTypeQuery
 
 /** Specifies custom collision trace types, overridable per game */
 UENUM(BlueprintType)
-enum ETraceTypeQuery
+enum ETraceTypeQuery : int
 {
 	TraceTypeQuery1 UMETA(Hidden), 
 	TraceTypeQuery2 UMETA(Hidden), 
@@ -1057,7 +1057,7 @@ enum ETraceTypeQuery
 
 /** Enum indicating how each type should respond */
 UENUM(BlueprintType, meta=(ScriptName="CollisionResponseType"))
-enum ECollisionResponse
+enum ECollisionResponse : int
 {
 	ECR_Ignore UMETA(DisplayName="Ignore"),
 	ECR_Overlap UMETA(DisplayName="Overlap"),
@@ -1067,7 +1067,7 @@ enum ECollisionResponse
 
 /** Interpolation method used by animation blending */
 UENUM()
-enum EFilterInterpolationType
+enum EFilterInterpolationType : int
 {
 	BSIT_Average UMETA(DisplayName = "Averaged"),
 	BSIT_Linear UMETA(DisplayName = "Linear"),
@@ -1383,7 +1383,7 @@ private:
 
 /** Enum used to indicate what type of timeline signature a function matches. */
 UENUM()
-enum ETimelineSigType
+enum ETimelineSigType : int
 {
 	ETS_EventSignature,
 	ETS_FloatSignature,
@@ -1397,7 +1397,7 @@ enum ETimelineSigType
 UENUM(BlueprintType)
 namespace ECollisionEnabled 
 { 
-	enum Type 
+	enum Type : int
 	{ 
 		/** Will not create any representation in the physics engine. Cannot be used for spatial queries (raycasts, sweeps, overlaps) or simulation (rigid body, constraints). Best performance possible (especially for moving objects) */
 		NoCollision UMETA(DisplayName="No Collision"), 
@@ -2119,7 +2119,7 @@ struct FSwarmDebugOptions
 
 /** Method for padding a light map in memory */
 UENUM()
-enum ELightMapPaddingType
+enum ELightMapPaddingType : int
 {
 	LMPT_NormalPadding,
 	LMPT_PrePadding,
@@ -2128,7 +2128,7 @@ enum ELightMapPaddingType
 
 /** Bit-field flags that affects storage (e.g. packing, streaming) and other info about a shadowmap. */
 UENUM()
-enum EShadowMapFlags
+enum EShadowMapFlags : int
 {
 	/** No flags. */
 	SMF_None			= 0,
@@ -2823,7 +2823,7 @@ struct FMeshNaniteSettings
 
 /** The network role of an actor on a local/remote network context */
 UENUM()
-enum ENetRole
+enum ENetRole : int
 {
 	/** No role at all. */
 	ROLE_None,
@@ -2838,7 +2838,7 @@ enum ENetRole
 
 /** Describes if an actor can enter a low network bandwidth dormant mode */
 UENUM(BlueprintType)
-enum ENetDormancy
+enum ENetDormancy : int
 {
 	/** This actor can never go network dormant. */
 	DORM_Never UMETA(DisplayName = "Never"),
@@ -2858,7 +2858,7 @@ enum ENetDormancy
 UENUM()
 namespace EAutoReceiveInput
 {
-	enum Type
+	enum Type : int
 	{
 		Disabled,
 		Player0,
@@ -2912,7 +2912,7 @@ namespace EEndPlayReason
  * @see UCharacterMovementComponent::GetWalkableFloorAngle(), UCharacterMovementComponent::SetWalkableFloorAngle()
  */
 UENUM(BlueprintType)
-enum EWalkableSlopeBehavior
+enum EWalkableSlopeBehavior : int
 {
 	/** Don't affect the walkable slope. Walkable slope angle will be ignored. */
 	WalkableSlope_Default		UMETA(DisplayName="Unchanged"),
@@ -3204,7 +3204,7 @@ struct ENGINE_API FSoftComponentReference : public FBaseComponentReference
 UENUM(BlueprintType)
 namespace EPhysicalMaterialMaskColor
 {
-	enum Type
+	enum Type : int
 	{
 		Red,
 		Green,
@@ -3222,7 +3222,7 @@ namespace EPhysicalMaterialMaskColor
 UENUM(BlueprintType)
 namespace EComponentMobility
 {
-	enum Type
+	enum Type : int
 	{
 		/**
 		 * Static objects cannot be moved or changed in game.
@@ -3274,7 +3274,7 @@ public:
 UENUM()
 namespace EComponentSocketType
 {
-	enum Type
+	enum Type : int
 	{
 		/** Not a valid socket or bone name. */
 		Invalid,

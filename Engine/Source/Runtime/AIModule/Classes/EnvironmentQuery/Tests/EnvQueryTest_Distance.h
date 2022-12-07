@@ -12,7 +12,7 @@
 UENUM()
 namespace EEnvTestDistance
 {
-	enum Type
+	enum Type : int
 	{
 		Distance3D,
 		Distance2D,

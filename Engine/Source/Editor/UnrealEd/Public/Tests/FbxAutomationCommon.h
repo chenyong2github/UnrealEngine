@@ -18,7 +18,7 @@ class UFbxImportUI;
 
 /** Import mesh type */
 UENUM()
-enum EFBXExpectedResultPreset
+enum EFBXExpectedResultPreset : int
 {
 	/** Data should contain the number of error [int0]. */
 	Error_Number,
@@ -92,7 +92,7 @@ enum EFBXExpectedResultPreset
 
 /** Import mesh type */
 UENUM()
-enum EFBXTestPlanActionType
+enum EFBXTestPlanActionType : int
 {
 	/*Normal import*/
 	Import,

@@ -9,7 +9,7 @@
 UENUM()
 namespace ESuggestProjVelocityTraceOption
 {
-	enum Type
+	enum Type : int
 	{
 		DoNotTrace,
 		TraceFullPath,

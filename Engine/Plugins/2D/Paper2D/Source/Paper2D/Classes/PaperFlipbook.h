@@ -34,7 +34,7 @@ public:
 UENUM()
 namespace EFlipbookCollisionMode
 {
-	enum Type
+	enum Type : int
 	{
 		/** The flipbook has no collision */
 		NoCollision,

@@ -33,7 +33,7 @@ enum class EOscillatorWaveform : uint8
 
 /** Shake start offset parameter */
 UENUM()
-enum EInitialOscillatorOffset
+enum EInitialOscillatorOffset : int
 {
 	/** Start with random offset (default). */
 	EOO_OffsetRandom UMETA(DisplayName = "Random"),

@@ -22,7 +22,7 @@ struct FPropertyChangedEvent;
 UENUM()
 namespace EClearSceneOptions
 {
-	enum Type
+	enum Type : int
 	{
 		NoClear = 0 UMETA(DisplayName="Do not clear",ToolTip="This option is fastest but can cause artifacts unless you render to every pixel. Make sure to use a skybox with this option!"),
 		HardwareClear = 1 UMETA(DisplayName="Hardware clear",ToolTip="Perform a full hardware clear before rendering. Most projects should use this option."),
@@ -37,7 +37,7 @@ namespace EClearSceneOptions
 UENUM()
 namespace ECompositingSampleCount
 {
-	enum Type
+	enum Type : int
 	{
 		One = 1 UMETA(DisplayName="No MSAA"),
 		Two = 2 UMETA(DisplayName="2x MSAA"),
@@ -53,7 +53,7 @@ namespace ECompositingSampleCount
 UENUM()
 namespace ECustomDepthStencil
 {
-	enum Type
+	enum Type : int
 	{
 		Disabled = 0,
 		Enabled = 1 UMETA(ToolTip="Depth buffer created immediately. Stencil disabled."),
@@ -69,7 +69,7 @@ namespace ECustomDepthStencil
 UENUM()
 namespace EEarlyZPass
 {
-	enum Type
+	enum Type : int
 	{
 		None = 0 UMETA(DisplayName="None"),
 		OpaqueOnly = 1 UMETA(DisplayName="Opaque meshes only"),
@@ -84,7 +84,7 @@ namespace EEarlyZPass
 UENUM()
 namespace EVelocityOutputPass
 {
-	enum Type
+	enum Type : int
 	{
 		DepthPass = 0 UMETA(DisplayName = "Write during depth pass"),
 		BasePass = 1 UMETA(DisplayName = "Write during base pass"),
@@ -98,7 +98,7 @@ namespace EVelocityOutputPass
 UENUM()
 namespace EVertexDeformationOutputsVelocity
 {
-	enum Type
+	enum Type : int
 	{
 		Off = 0 UMETA(ToolTip = "Always off"),
 		On = 1 UMETA(ToolTip = "Always on"),
@@ -113,7 +113,7 @@ namespace EVertexDeformationOutputsVelocity
 UENUM()
 namespace EAlphaChannelMode
 {
-	enum Type
+	enum Type : int
 	{
 		/** Disabled, reducing GPU cost to the minimum. (default). */
 		Disabled = 0 UMETA(DisplayName = "Disabled"),
@@ -141,7 +141,7 @@ namespace EAlphaChannelMode
 UENUM()
 namespace EAutoExposureMethodUI
 {
-	enum Type
+	enum Type : int
 	{
 		/** requires compute shader to construct 64 bin histogram */
 		AEM_Histogram  UMETA(DisplayName = "Auto Exposure Histogram"),
@@ -157,7 +157,7 @@ namespace EAutoExposureMethodUI
 UENUM()
 namespace EDefaultBackBufferPixelFormat
 {
-	enum Type
+	enum Type : int
 	{
 		DBBPF_B8G8R8A8 = 0				UMETA(DisplayName = "8bit RGBA"),
 		DBBPF_A16B16G16R16_DEPRECATED	UMETA(DisplayName = "DEPRECATED - 16bit RGBA", Hidden),
@@ -174,7 +174,7 @@ namespace EDefaultBackBufferPixelFormat
 UENUM()
 namespace EFixedFoveationLevels
 {
-	enum Type
+	enum Type : int
 	{
 		Disabled = 0 UMETA(DisplayName = "Disabled"),
 		Low = 1 UMETA(DisplayName = "Low"),
@@ -187,7 +187,7 @@ namespace EFixedFoveationLevels
 UENUM()
 namespace EMobileAntiAliasingMethod
 {
-	enum Type
+	enum Type : int
 	{
 		None = AAM_None UMETA(DisplayName = "None"),
 		FXAA = AAM_FXAA UMETA(DisplayName = "Fast Approximate Anti-Aliasing (FXAA)"),
@@ -201,7 +201,7 @@ namespace EMobileAntiAliasingMethod
 UENUM()
 namespace EMobileFloatPrecisionMode
 {
-	enum Type
+	enum Type : int
 	{
 		/** Half precision, except explict 'float' in .ush/.usf*/
 		Half = 0 UMETA(DisplayName = "Use Half-precision"),
@@ -215,7 +215,7 @@ namespace EMobileFloatPrecisionMode
 UENUM()
 namespace EMobileShadingPath
 {
-	enum Type
+	enum Type : int
 	{
 		/** The default shading path for mobile, supported on all devices. */
 		Forward = 0 UMETA(DisplayName = "Forward Shading"),
@@ -237,7 +237,7 @@ namespace EDefaultBackBufferPixelFormat
 UENUM()
 namespace EShaderCompressionFormat
 {
-	enum Type
+	enum Type : int
 	{
 		None = 0 UMETA(DisplayName = "Do not compress", ToolTip = "Fastest, but disk and memory footprint will be large"),
 		LZ4 = 1 UMETA(DisplayName = "LZ4", ToolTip = "Compressing using LZ4"),
@@ -249,7 +249,7 @@ namespace EShaderCompressionFormat
 UENUM()
 namespace ELumenSoftwareTracingMode
 {
-	enum Type
+	enum Type : int
 	{
 		DetailTracing = 1 UMETA(DisplayName = "Detail Tracing", ToolTip = "When using Software Ray Tracing, Lumen will trace against individual mesh's Distance Fields for highest quality.  Cost can be high in scenes with many overlapping instances."),
 		GlobalTracing = 0 UMETA(DisplayName = "Global Tracing", ToolTip = "When using Software Ray Tracing, Lumen will trace against the Global Distance Field for fastest traces."),
@@ -268,7 +268,7 @@ enum class ELumenRayLightingMode : uint8
 UENUM()
 namespace EWorkingColorSpace
 {
-	enum Type
+	enum Type : int
 	{
 		sRGB = 1 UMETA(DisplayName = "sRGB / Rec709", ToolTip = "sRGB / Rec709 (BT.709) color primaries, with D65 white point."),
 		Rec2020 = 2 UMETA(DisplayName = "Rec2020", ToolTip = "Rec2020 (BT.2020) primaries with D65 white point."),

@@ -10,7 +10,7 @@ UENUM()
 /** Root Bone Lock options when extracting Root Motion. */
 namespace ERootMotionRootLock
 {
-	enum Type
+	enum Type : int
 	{
 		/** Use reference pose root bone position. */
 		RefPose,
@@ -26,7 +26,7 @@ namespace ERootMotionRootLock
 UENUM()
 namespace ERootMotionMode
 {
-	enum Type
+	enum Type : int
 	{
 		/** Leave root motion in animation. */
 		NoRootMotionExtraction,
@@ -46,7 +46,7 @@ namespace ERootMotionMode
 * For an additive animation, indicates what the animation is relative to.
 */
 UENUM()
-enum EAdditiveBasePoseType
+enum EAdditiveBasePoseType : int
 {
 	/** Will be deprecated. */
 	ABPT_None UMETA(DisplayName = "None"),

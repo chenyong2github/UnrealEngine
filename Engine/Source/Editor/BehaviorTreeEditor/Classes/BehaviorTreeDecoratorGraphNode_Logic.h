@@ -19,7 +19,7 @@ class UObject;
 UENUM()
 namespace EDecoratorLogicMode
 {
-	enum Type
+	enum Type : int
 	{
 		Sink,
 		And,

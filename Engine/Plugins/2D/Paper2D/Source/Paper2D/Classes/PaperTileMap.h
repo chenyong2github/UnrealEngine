@@ -17,7 +17,7 @@ class UPaperTileSet;
 UENUM()
 namespace ETileMapProjectionMode
 {
-	enum Type
+	enum Type : int
 	{
 		/** Square tile layout */
 		Orthogonal,

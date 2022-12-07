@@ -13,7 +13,7 @@
 #include "CoreTypes.h"
 #include "Templates/UnrealTemplate.h"
 
-enum EAdditiveAnimationType;
+enum EAdditiveAnimationType : int;
 
 class UAnimationSettings;
 

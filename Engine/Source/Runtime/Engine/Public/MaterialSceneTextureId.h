@@ -13,7 +13,7 @@
 
 /** like EPassInputId but can expose more e.g. GBuffer */
 UENUM()
-enum ESceneTextureId
+enum ESceneTextureId : int
 {
 	/** Scene color, normal post process passes should use PostProcessInput0 */
 	PPI_SceneColor UMETA(DisplayName="SceneColor"),

@@ -14,7 +14,7 @@ class USkeletalMesh;
 class USkeletalMeshComponent;
 
 UENUM()
-enum EPhysAssetFitGeomType
+enum EPhysAssetFitGeomType : int
 {
 	EFG_Box					UMETA(DisplayName="Box"),
 	EFG_Sphyl				UMETA(DisplayName="Capsule"),
@@ -26,7 +26,7 @@ enum EPhysAssetFitGeomType
 };
 
 UENUM()
-enum EPhysAssetFitVertWeight
+enum EPhysAssetFitVertWeight : int
 {
 	EVW_AnyWeight			UMETA(DisplayName="Any Weight"),
 	EVW_DominantWeight		UMETA(DisplayName="Dominant Weight"),

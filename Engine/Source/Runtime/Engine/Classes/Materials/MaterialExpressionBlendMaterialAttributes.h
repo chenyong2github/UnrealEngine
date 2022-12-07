@@ -11,7 +11,7 @@
 UENUM()
 namespace EMaterialAttributeBlend
 {
-	enum Type
+	enum Type : int
 	{
 		Blend,
 		UseA,

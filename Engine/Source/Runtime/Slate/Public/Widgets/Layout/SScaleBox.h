@@ -17,7 +17,7 @@ class FSlateWindowElementList;
 UENUM(BlueprintType)
 namespace EStretchDirection
 {
-	enum Type
+	enum Type : int
 	{
 		/** Will scale the content up or down. */
 		Both,
@@ -31,7 +31,7 @@ namespace EStretchDirection
 UENUM(BlueprintType)
 namespace EStretch
 {
-	enum Type
+	enum Type : int
 	{
 		/** Does not scale the content. */
 		None,

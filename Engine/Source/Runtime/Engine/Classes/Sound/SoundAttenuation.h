@@ -19,7 +19,7 @@ class USpatializationPluginSourceSettingsBase;
 
 // This enumeration is deprecated
 UENUM()
-enum ESoundDistanceCalc
+enum ESoundDistanceCalc : int
 {
 	SOUNDDISTANCE_Normal,
 	SOUNDDISTANCE_InfiniteXYPlane,
@@ -29,7 +29,7 @@ enum ESoundDistanceCalc
 };
 
 UENUM()
-enum ESoundSpatializationAlgorithm
+enum ESoundSpatializationAlgorithm : int
 {
 	// Standard panning method for spatialization (linear or equal power method defined in project settings)
 	SPATIALIZATION_Default UMETA(DisplayName = "Panning"),

@@ -122,7 +122,7 @@ CORE_API const TCHAR* LexToString(EDateTimeStyle::Type InValue);
 /** Redeclared in KismetTextLibrary for meta-data extraction purposes, be sure to update there as well */
 namespace EFormatArgumentType
 {
-	enum Type
+	enum Type : int
 	{
 		Int,
 		UInt,
@@ -143,7 +143,7 @@ typedef TSharedRef<const FTextFormatPatternDefinition, ESPMode::ThreadSafe> FTex
 typedef TSharedPtr<const FTextFormatPatternDefinition, ESPMode::ThreadSafe> FTextFormatPatternDefinitionConstPtr;
 
 /** Redeclared in KismetTextLibrary for meta-data extraction purposes, be sure to update there as well */
-enum ERoundingMode
+enum ERoundingMode : int
 {
 	/** Rounds to the nearest place, equidistant ties go to the value which is closest to an even value: 1.5 becomes 2, 0.5 becomes 0 */
 	HalfToEven,

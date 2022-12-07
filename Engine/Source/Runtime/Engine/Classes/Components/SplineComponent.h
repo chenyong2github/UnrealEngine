@@ -16,7 +16,7 @@ class FSceneView;
 UENUM(BlueprintType)
 namespace ESplinePointType
 {
-	enum Type
+	enum Type : int
 	{
 		Linear,
 		Curve,
@@ -30,7 +30,7 @@ namespace ESplinePointType
 UENUM()
 namespace ESplineCoordinateSpace
 {
-	enum Type
+	enum Type : int
 	{
 		Local,
 		World

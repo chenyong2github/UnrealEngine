@@ -23,7 +23,7 @@
  *                         and want to have the highest settings
  */
 UENUM()
-enum TextureGroup
+enum TextureGroup : int
 {
 	TEXTUREGROUP_World UMETA(DisplayName="ini:World"),
 	TEXTUREGROUP_WorldNormalMap UMETA(DisplayName="ini:WorldNormalMap"),
@@ -93,7 +93,7 @@ enum TextureGroup
 };
 
 UENUM()
-enum TextureMipGenSettings
+enum TextureMipGenSettings : int
 {
 	/** Default for the "texture". */
 	TMGS_FromTextureGroup UMETA(DisplayName="FromTextureGroup"),
@@ -145,7 +145,7 @@ enum TextureMipGenSettings
 UENUM()
 namespace ETexturePowerOfTwoSetting
 {
-	enum Type
+	enum Type : int
 	{
 		/** Do not modify the texture dimensions. */
 		None,
@@ -218,7 +218,7 @@ enum class ETextureDownscaleOptions : uint8
 };
 
 UENUM()
-enum ETextureLossyCompressionAmount
+enum ETextureLossyCompressionAmount : int
 {
 	TLCA_Default		UMETA(DisplayName = "Default"),
 	TLCA_None			UMETA(DisplayName = "No lossy compression (Oodle RDO disabled)"),
@@ -267,7 +267,7 @@ enum class ETextureClass : uint8
 };
 
 UENUM()
-enum ECompositeTextureMode
+enum ECompositeTextureMode : int
 {
 	CTM_Disabled UMETA(DisplayName="Disabled"),
 	/** CompositingTexture needs to be a normal map with the same or larger size. */
@@ -286,7 +286,7 @@ enum ECompositeTextureMode
 };
 
 UENUM()
-enum ETextureSourceCompressionFormat
+enum ETextureSourceCompressionFormat : int
 {
 	TSCF_None	UMETA(DisplayName = "None"),
 	TSCF_PNG	UMETA(DisplayName = "PNG"),
@@ -297,7 +297,7 @@ enum ETextureSourceCompressionFormat
 
 // ETextureSourceFormat should map one-to-one to ImageCore ERawImageFormat::Type
 UENUM()
-enum ETextureSourceFormat
+enum ETextureSourceFormat : int
 {
 	TSF_Invalid,
 	TSF_G8,
@@ -326,7 +326,7 @@ enum ETextureSourceFormat
 
 // This needs to be mirrored in EditorFactories.cpp.
 UENUM()
-enum TextureCompressionSettings
+enum TextureCompressionSettings : int
 {
 	TC_Default					UMETA(DisplayName = "Default (DXT1/5, BC1/3 on DX11)"),
 	TC_Normalmap				UMETA(DisplayName = "Normalmap (DXT5, BC5 on DX11)"),

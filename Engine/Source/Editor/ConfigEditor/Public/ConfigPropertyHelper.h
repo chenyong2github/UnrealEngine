@@ -19,7 +19,7 @@ class FProperty;
 template <typename T> struct TObjectPtr;
 
 UENUM()
-enum EConfigFileSourceControlStatus
+enum EConfigFileSourceControlStatus : int
 {
 	CFSCS_Unknown UMETA(DisplayName=Unknown),
 	CFSCS_Writable UMETA(DisplayName = "Available to edit"),

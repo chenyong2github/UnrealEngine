@@ -244,7 +244,7 @@ enum struct EDeferredParamStrictness
 
 /** Defines the domain of a material. */
 UENUM()
-enum EMaterialDomain
+enum EMaterialDomain : int
 {
 	/** The material's attributes describe a 3d surface. */
 	MD_Surface UMETA(DisplayName = "Surface"),

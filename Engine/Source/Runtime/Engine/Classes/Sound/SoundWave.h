@@ -39,7 +39,7 @@ struct FSoundParseParameters;
 struct FPlatformAudioCookOverrides;
 
 UENUM()
-enum EDecompressionType
+enum EDecompressionType : int
 {
 	DTYPE_Setup,
 	DTYPE_Invalid,

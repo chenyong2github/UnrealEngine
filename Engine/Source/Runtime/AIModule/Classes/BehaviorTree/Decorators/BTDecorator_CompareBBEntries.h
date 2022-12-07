@@ -15,7 +15,7 @@ class UBlackboardComponent;
 UENUM()
 namespace EBlackBoardEntryComparison
 {
-	enum Type
+	enum Type : int
 	{
 		Equal			UMETA(DisplayName="Is Equal To"),
 		NotEqual		UMETA(DisplayName="Is Not Equal To")

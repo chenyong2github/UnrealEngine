@@ -10,7 +10,7 @@
 
 /** Enum defining the object sets for this stats object */
 UENUM()
-enum ELightingBuildInfoObjectSets
+enum ELightingBuildInfoObjectSets : int
 {
 	LightingBuildInfoObjectSets_Default				UMETA( DisplayName = "Default" , ToolTip = "View lighting build statistics" ),
 };

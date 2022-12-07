@@ -49,7 +49,7 @@ DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnTickPose, USkinnedMeshComponent* /*Ski
 
 /** The valid BoneVisibilityStates values; A bone is only visible if it is *exactly* 1 */
 UENUM()
-enum EBoneVisibilityStatus
+enum EBoneVisibilityStatus : int
 {
 	/** Bone is hidden because it's parent is hidden. */
 	BVS_HiddenByParent,
@@ -62,7 +62,7 @@ enum EBoneVisibilityStatus
 
 /** PhysicsBody options when bone is hidden */
 UENUM()
-enum EPhysBodyOp
+enum EPhysBodyOp : int
 {
 	/** Don't do anything. */
 	PBO_None,
@@ -108,7 +108,7 @@ namespace EMeshComponentUpdateFlag
 UENUM()
 namespace EBoneSpaces
 {
-	enum Type
+	enum Type : int
 	{
 		/** Set absolute position of bone in world space. */
 		WorldSpace		UMETA(DisplayName = "World Space"),

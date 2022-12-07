@@ -11,7 +11,7 @@
 class UTexture;
 
 UENUM()
-enum ETextureColorChannel
+enum ETextureColorChannel : int
 {
 	TCC_Red,
 	TCC_Green,

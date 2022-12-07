@@ -23,7 +23,7 @@ class FSlateWindowElementList;
 UENUM(BlueprintType)
 namespace EProgressBarFillType
 {
-	enum Type
+	enum Type : int
 	{
 		// will fill up from the left side to the right
 		LeftToRight,
@@ -48,7 +48,7 @@ namespace EProgressBarFillType
 UENUM(BlueprintType)
 namespace EProgressBarFillStyle
 {
-	enum Type
+	enum Type : int
 	{
 		// a mask is used to paint the fill image
 		Mask,

@@ -18,7 +18,7 @@ class UCurveTable;
 UENUM()
 namespace EEvaluateCurveTableResult
 {
-    enum Type
+    enum Type : int
     {
         /** Found the row successfully. */
         RowFound,

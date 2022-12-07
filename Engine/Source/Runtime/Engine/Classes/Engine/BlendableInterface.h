@@ -12,7 +12,7 @@ class UMaterialInterface;
 
 /** Where to place a material node in the post processing graph. */
 UENUM()
-enum EBlendableLocation
+enum EBlendableLocation : int
 {
 	/** Input0:former pass color, Input1:SeparateTranslucency. */
 	BL_AfterTonemapping UMETA(DisplayName="After Tonemapping"),

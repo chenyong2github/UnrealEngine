@@ -22,7 +22,7 @@ class UNavigationSystemConfig;
 class UAISystemBase;
 
 UENUM()
-enum EVisibilityAggressiveness
+enum EVisibilityAggressiveness : int
 {
 	VIS_LeastAggressive UMETA(DisplayName = "Least Aggressive"),
 	VIS_ModeratelyAggressive UMETA(DisplayName = "Moderately Aggressive"),
@@ -31,7 +31,7 @@ enum EVisibilityAggressiveness
 };
 
 UENUM()
-enum EVolumeLightingMethod
+enum EVolumeLightingMethod : int
 {
 	/** 
 	 * Lighting samples are computed in an adaptive grid which covers the entire Lightmass Importance Volume.  Higher density grids are used near geometry.

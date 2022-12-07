@@ -20,7 +20,7 @@ enum class EditConditionTestEnum
 };
 
 UENUM()
-enum EditConditionByteEnum
+enum EditConditionByteEnum : int
 {
 	First = 15,
 	Second = 31

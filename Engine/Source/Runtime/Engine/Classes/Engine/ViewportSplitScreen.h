@@ -18,7 +18,7 @@
 UENUM(BlueprintType)
 namespace ESplitScreenType
 {
-	enum Type
+	enum Type : int
 	{
 		// No split
 		None,

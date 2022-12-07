@@ -18,7 +18,7 @@ class UBodySetup;
 UENUM(BlueprintType)
 namespace ESplineMeshAxis
 {
-	enum Type
+	enum Type : int
 	{
 		X,
 		Y,

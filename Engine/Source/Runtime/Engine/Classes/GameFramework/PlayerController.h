@@ -72,7 +72,7 @@ DECLARE_STATS_GROUP(TEXT("PlayerController"), STATGROUP_PlayerController, STATCA
 UENUM()
 namespace EDynamicForceFeedbackAction
 {
-	enum Type
+	enum Type : int
 	{
 		Start,
 		Update,

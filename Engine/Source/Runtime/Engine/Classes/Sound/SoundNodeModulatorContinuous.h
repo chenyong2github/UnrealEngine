@@ -14,7 +14,7 @@ struct FSoundParseParameters;
 struct FWaveInstance;
 
 UENUM()
-enum ModulationParamMode
+enum ModulationParamMode : int
 {
 	MPM_Normal UMETA(DisplayName = "Normal" , Tooltip = "Clamps input value to the range (MinInput, MaxInput) then maps to the range (MinOutput, MaxOutput)"),
 	MPM_Abs UMETA(DisplayName = "Absolute" , Tooltip = "Same as Normal except that the input value is treated as an absolute value"),

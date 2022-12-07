@@ -9,7 +9,7 @@
 
 /** Method of interpolation between this key and the next. */
 UENUM(BlueprintType)
-enum ERichCurveInterpMode
+enum ERichCurveInterpMode : int
 {
 	/** Use linear interpolation between values. */
 	RCIM_Linear UMETA(DisplayName = "Linear"),
@@ -23,7 +23,7 @@ enum ERichCurveInterpMode
 
 /** Enumerates extrapolation options. */
 UENUM(BlueprintType)
-enum ERichCurveExtrapolation
+enum ERichCurveExtrapolation : int
 {
 	/** Repeat the curve without an offset. */
 	RCCE_Cycle UMETA(DisplayName = "Cycle"),

@@ -22,7 +22,7 @@ struct FBPVariableDescription;
 
 /** Distinguishes between different graph types. Graphs can have different properties; for example: functions have one entry point, ubergraphs can have multiples. */
 UENUM()
-enum EGraphType
+enum EGraphType : int
 {
 	GT_Function,
 	GT_Ubergraph,
@@ -34,7 +34,7 @@ enum EGraphType
 
 /** This is the type of response the graph editor should take when making a connection */
 UENUM()
-enum ECanCreateConnectionResponse
+enum ECanCreateConnectionResponse : int
 {
 	/** Make the connection; there are no issues (message string is displayed if not empty). */
 	CONNECT_RESPONSE_MAKE,

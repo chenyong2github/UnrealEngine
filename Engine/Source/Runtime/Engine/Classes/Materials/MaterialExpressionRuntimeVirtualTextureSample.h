@@ -13,7 +13,7 @@
  * Internally we will convert to ETextureMipValueMode which is used by internal APIs.
  */
 UENUM()
-enum ERuntimeVirtualTextureMipValueMode
+enum ERuntimeVirtualTextureMipValueMode : int
 {
 	/* 
 	 * Use default computed mip level. Takes into account UV scaling from using the WorldPosition pin.
@@ -46,7 +46,7 @@ enum ERuntimeVirtualTextureMipValueMode
  * Defines texture addressing behavior.
  */
 UENUM()
-enum ERuntimeVirtualTextureTextureAddressMode
+enum ERuntimeVirtualTextureTextureAddressMode : int
 {
 	/* Clamp mode. */
 	RVTTA_Clamp UMETA(DisplayName = "Clamp"),

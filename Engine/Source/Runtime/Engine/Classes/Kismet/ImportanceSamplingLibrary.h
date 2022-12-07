@@ -11,7 +11,7 @@
 UENUM(BlueprintType)
 namespace EImportanceWeight
 {
-	enum Type
+	enum Type : int
 	{
 		/** Importance from color luminance. */
 		Luminance,

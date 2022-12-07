@@ -15,7 +15,7 @@
 UENUM()
 namespace ENDISkelMesh_GpuMaxInfluences
 {
-	enum Type
+	enum Type : int
 	{
 		/** Allow up to 4 bones to be sampled. */
 		AllowMax4 = 0,
@@ -30,7 +30,7 @@ namespace ENDISkelMesh_GpuMaxInfluences
 UENUM()
 namespace ENDISkelMesh_GpuUniformSamplingFormat
 {
-	enum Type
+	enum Type : int
 	{
 		/** 64 bits per entry. Allow for the full int32 range of triangles (2 billion). */
 		Full = 0,
@@ -45,7 +45,7 @@ namespace ENDISkelMesh_GpuUniformSamplingFormat
 UENUM()
 namespace ENDISkelMesh_AdjacencyTriangleIndexFormat
 {
-	enum Type
+	enum Type : int
 	{
 		/** 32 bits per entry. Allow for the full int32 range of triangles (2 billion). */
 		Full = 0,
@@ -84,7 +84,7 @@ enum class ENiagaraDefaultGpuTranslucentLatency : uint8
 UENUM()
 namespace ENDICollisionQuery_AsyncGpuTraceProvider
 {
-	enum Type
+	enum Type : int
 	{
 		Default = 0 UMETA(DisplayName = "Project Default"),
 		HWRT = 1 UMETA(DisplayName = "HW Ray Tracing"),

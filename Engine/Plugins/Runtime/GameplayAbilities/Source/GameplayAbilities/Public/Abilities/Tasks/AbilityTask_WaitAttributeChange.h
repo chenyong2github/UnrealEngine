@@ -13,7 +13,7 @@ struct FGameplayEffectModCallbackData;
 UENUM()
 namespace EWaitAttributeChangeComparison
 {
-	enum Type
+	enum Type : int
 	{
 		None,
 		GreaterThan,

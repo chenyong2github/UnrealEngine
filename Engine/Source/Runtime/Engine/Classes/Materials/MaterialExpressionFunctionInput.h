@@ -15,7 +15,7 @@ struct FPropertyChangedEvent;
 
 /** Supported input types */
 UENUM(BlueprintType)
-enum EFunctionInputType
+enum EFunctionInputType : int
 {
 	FunctionInput_Scalar,
 	FunctionInput_Vector2,

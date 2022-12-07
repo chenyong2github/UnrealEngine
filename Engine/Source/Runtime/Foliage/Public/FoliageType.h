@@ -15,7 +15,7 @@
 class UStaticMesh;
 
 UENUM()
-enum FoliageVertexColorMask
+enum FoliageVertexColorMask : int
 {
 	FOLIAGEVERTEXCOLORMASK_Disabled UMETA(DisplayName="Disabled"),
 	FOLIAGEVERTEXCOLORMASK_Red		UMETA(DisplayName="Red"),

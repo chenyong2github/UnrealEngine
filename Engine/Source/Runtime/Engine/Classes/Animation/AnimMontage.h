@@ -123,7 +123,7 @@ struct FBranchingPoint : public FAnimLinkableElement
 UENUM()
 namespace EAnimNotifyEventType
 {
-	enum Type
+	enum Type : int
 	{
 		/** */
 		Begin,

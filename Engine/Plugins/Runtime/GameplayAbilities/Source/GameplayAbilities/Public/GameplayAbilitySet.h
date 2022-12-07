@@ -22,7 +22,7 @@ class UAbilitySystemComponent;
 UENUM(BlueprintType)
 namespace EGameplayAbilityInputBinds
 {
-	enum Type
+	enum Type : int
 	{
 		Ability1				UMETA(DisplayName = "Ability1 (LMB)"),
 		Ability2				UMETA(DisplayName = "Ability2 (RMB)"),

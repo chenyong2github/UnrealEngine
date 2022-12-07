@@ -14,7 +14,7 @@ class UStaticMeshComponent;
 
 /** Enum defining the object sets for this stats object */
 UENUM()
-enum EStaticMeshLightingInfoObjectSets
+enum EStaticMeshLightingInfoObjectSets : int
 {
 	StaticMeshLightingInfoObjectSets_CurrentLevel		UMETA( DisplayName = "Current Level" , ToolTip = "View static mesh lighting info for the current level" ),
 	StaticMeshLightingInfoObjectSets_SelectedLevels		UMETA( DisplayName = "Selected Levels" , ToolTip = "View lighting info for selected levels" ),

@@ -14,7 +14,7 @@ class UParticleModuleTypeDataBase;
 struct FParticleEmitterInstance;
 
 UENUM()
-enum EOrbitChainMode
+enum EOrbitChainMode : int
 {
 	/** Add the module values to the previous results						*/
 	EOChainMode_Add UMETA(DisplayName="Add"),

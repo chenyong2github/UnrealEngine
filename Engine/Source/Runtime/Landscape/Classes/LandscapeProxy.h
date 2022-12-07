@@ -213,7 +213,7 @@ enum class ELandscapeLayerDisplayMode : uint8
 UENUM()
 namespace ELandscapeLODFalloff
 {
-	enum Type
+	enum Type : int
 	{
 		/** Default mode. */
 		Linear			UMETA(DisplayName = "Linear"),

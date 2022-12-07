@@ -639,7 +639,7 @@ public:
 UENUM()
 namespace EEdGraphSchemaAction_K2Graph
 {
-	enum Type
+	enum Type : int
 	{
 		Graph,
 		Subgraph,

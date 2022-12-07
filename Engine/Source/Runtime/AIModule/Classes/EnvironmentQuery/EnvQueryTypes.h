@@ -55,7 +55,7 @@ DECLARE_FLOAT_COUNTER_STAT_EXTERN(TEXT("Avg Instance Response Time (ms)"), STAT_
 UENUM()
 namespace EEnvTestPurpose
 {
-	enum Type
+	enum Type : int
 	{
 		Filter UMETA(DisplayName="Filter Only"),
 		Score UMETA(DisplayName="Score Only"),
@@ -66,7 +66,7 @@ namespace EEnvTestPurpose
 UENUM()
 namespace EEnvTestFilterType
 {
-	enum Type
+	enum Type : int
 	{
 		/** For numeric tests. */
 		Minimum,
@@ -82,7 +82,7 @@ namespace EEnvTestFilterType
 UENUM()
 namespace EEnvTestScoreEquation
 {
-	enum Type
+	enum Type : int
 	{
 		Linear,
 		Square,
@@ -107,7 +107,7 @@ namespace EEnvTestScoreEquation
 UENUM()
 namespace EEnvTestWeight
 {
-	enum Type
+	enum Type : int
 	{
 		None,
 		Square,
@@ -121,7 +121,7 @@ namespace EEnvTestWeight
 UENUM()
 namespace EEnvTestCost
 {
-	enum Type
+	enum Type : int
 	{
 		/** Reading data, math operations (e.g. distance). */
 		Low,
@@ -135,7 +135,7 @@ namespace EEnvTestCost
 UENUM()
 namespace EEnvTestFilterOperator
 {
-	enum Type
+	enum Type : int
 	{
 		AllPass			UMETA(Tooltip = "All contexts must pass condition"),
 		AnyPass			UMETA(Tooltip = "At least one context must pass condition"),
@@ -145,7 +145,7 @@ namespace EEnvTestFilterOperator
 UENUM()
 namespace EEnvTestScoreOperator
 {
-	enum Type
+	enum Type : int
 	{
 		AverageScore	UMETA(Tooltip = "Use average score from all contexts"),
 		MinScore		UMETA(Tooltip = "Use minimum score from all contexts"),
@@ -166,7 +166,7 @@ namespace EEnvItemStatus
 UENUM(BlueprintType)
 namespace EEnvQueryStatus
 {
-	enum Type
+	enum Type : int
 	{
 		Processing,
 		Success,
@@ -180,7 +180,7 @@ namespace EEnvQueryStatus
 UENUM()
 namespace EEnvQueryRunMode
 {
-	enum Type
+	enum Type : int
 	{
 		SingleResult	UMETA(Tooltip="Pick first item with the best score", DisplayName="Single Best Item"),
 		RandomBest5Pct	UMETA(Tooltip="Pick random item with score 95% .. 100% of max", DisplayName="Single Random Item from Best 5%"),
@@ -192,7 +192,7 @@ namespace EEnvQueryRunMode
 UENUM()
 namespace EEnvQueryParam
 {
-	enum Type
+	enum Type : int
 	{
 		Float,
 		Int,
@@ -212,7 +212,7 @@ enum class EAIParamType : uint8
 UENUM()
 namespace EEnvQueryTrace
 {
-	enum Type
+	enum Type : int
 	{
 		None,
 		Navigation,
@@ -225,7 +225,7 @@ namespace EEnvQueryTrace
 UENUM()
 namespace EEnvTraceShape
 {
-	enum Type
+	enum Type : int
 	{
 		Line,
 		Box,
@@ -237,7 +237,7 @@ namespace EEnvTraceShape
 UENUM()
 namespace EEnvOverlapShape
 {
-	enum Type
+	enum Type : int
 	{
 		Box,
 		Sphere,
@@ -248,7 +248,7 @@ namespace EEnvOverlapShape
 UENUM(meta=(ScriptName="EnvDirectionType"))
 namespace EEnvDirection
 {
-	enum Type
+	enum Type : int
 	{
 		TwoPoints	UMETA(DisplayName="Two Points",ToolTip="Direction from location of one context to another."),
 		Rotation	UMETA(ToolTip="Context's rotation will be used as a direction."),
@@ -258,7 +258,7 @@ namespace EEnvDirection
 UENUM()
 namespace EEnvQueryTestClamping
 {
-	enum Type
+	enum Type : int
 	{
 		None,			
 		/** Clamp to value specified in test. */

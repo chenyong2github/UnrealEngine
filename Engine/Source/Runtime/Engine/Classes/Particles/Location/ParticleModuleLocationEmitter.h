@@ -18,7 +18,7 @@
 struct FParticleEmitterInstance;
 
 UENUM()
-enum ELocationEmitterSelectionMethod
+enum ELocationEmitterSelectionMethod : int
 {
 	ELESM_Random,
 	ELESM_Sequential,

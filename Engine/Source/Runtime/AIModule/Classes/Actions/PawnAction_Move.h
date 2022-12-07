@@ -16,7 +16,7 @@ class AAIController;
 UENUM()
 namespace EPawnActionMoveMode
 {
-	enum Type
+	enum Type : int
 	{
 		UsePathfinding,
 		StraightLine,

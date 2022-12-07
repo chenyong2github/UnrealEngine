@@ -39,7 +39,7 @@ template <typename KeyType, typename ValueType> struct TKeyValuePair;
 UENUM()
 namespace ESelfContextInfo
 {
-	enum Type
+	enum Type : int
 	{
 		Unspecified,
 		NotSelfContext,

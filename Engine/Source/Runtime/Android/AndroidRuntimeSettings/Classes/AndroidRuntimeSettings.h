@@ -17,7 +17,7 @@ namespace EAndroidScreenOrientation
 {
 	// IF THIS CHANGES, MAKE SURE TO UPDATE UEDeployAndroid.cs, ConvertOrientationIniValue()!
 
-	enum Type
+	enum Type : int
 	{
 		/** Portrait orientation (the display is taller than it is wide). */
 		Portrait,
@@ -51,7 +51,7 @@ namespace EAndroidDepthBufferPreference
 {
 	// IF THIS CHANGES, MAKE SURE TO UPDATE UEDeployAndroid.cs, ConvertDepthBufferIniValue()!
 
-	enum Type
+	enum Type : int
 	{
 		Default = 0 UMETA(DisplayName = "Default"),
 		Bits16 = 16 UMETA(DisplayName = "16-bit"),
@@ -64,7 +64,7 @@ namespace EAndroidDepthBufferPreference
 UENUM()
 namespace EAndroidInstallLocation
 {
-	enum Type
+	enum Type : int
 	{
 		/** Install your app only on internal device storage */
 		InternalOnly,
@@ -79,7 +79,7 @@ namespace EAndroidInstallLocation
 UENUM()
 namespace EOculusMobileDevice
 {
-	enum Type
+	enum Type : int
 	{
 		// 0 was the deprecated OculusGo
 
@@ -128,7 +128,7 @@ struct FGooglePlayLeaderboardMapping
 UENUM()
 namespace EAndroidAudio
 {
-	enum Type
+	enum Type : int
 	{
 		Default = 0 UMETA(DisplayName = "Default", ToolTip = "This option selects the default encoder."),
 		OGG = 1 UMETA(DisplayName = "Ogg Vorbis", ToolTip = "Selects Ogg Vorbis encoding."),
@@ -139,7 +139,7 @@ namespace EAndroidAudio
 UENUM()
 namespace EAndroidGraphicsDebugger
 {
-	enum Type
+	enum Type : int
 	{
 		None = 0 UMETA(DisplayName = "None"),
 		Mali = 1 UMETA(DisplayName = "Mali Graphics Debugger", ToolTip = "Configure for Mali Graphics Debugger."),

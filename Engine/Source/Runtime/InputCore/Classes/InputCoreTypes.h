@@ -240,7 +240,7 @@ UENUM(BlueprintType)
 namespace ETouchIndex
 {
 	// The number of entries in ETouchIndex must match the number of touch keys defined in EKeys and NUM_TOUCH_KEYS above
-	enum Type
+	enum Type : int
 	{
 		Touch1,
 		Touch2,
@@ -264,7 +264,7 @@ namespace ETouchIndex
 UENUM()
 namespace EConsoleForGamepadLabels
 {
-	enum Type
+	enum Type : int
 	{
 		None,
 		XBoxOne,
@@ -740,7 +740,7 @@ private:
 UENUM()
 namespace ETouchType
 {
-	enum Type
+	enum Type : int
 	{
 		Began,
 		Moved,

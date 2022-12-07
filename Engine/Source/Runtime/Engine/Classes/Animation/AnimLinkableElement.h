@@ -14,7 +14,7 @@ struct FAnimSegment;
 UENUM()
 namespace EAnimLinkMethod
 {
-	enum Type
+	enum Type : int
 	{
 		/** Element stays at a specific time without moving. */
 		Absolute,

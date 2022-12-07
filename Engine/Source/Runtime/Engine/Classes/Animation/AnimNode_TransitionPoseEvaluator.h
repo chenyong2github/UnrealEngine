@@ -13,7 +13,7 @@
 UENUM()
 namespace EEvaluatorDataSource
 {
-	enum Type
+	enum Type : int
 	{
 		EDS_SourcePose UMETA(DisplayName="Source Pose"),
 		EDS_DestinationPose UMETA(DisplayName="Destination Pose")
@@ -24,7 +24,7 @@ namespace EEvaluatorDataSource
 UENUM()
 namespace EEvaluatorMode
 {
-	enum Mode
+	enum Mode : int
 	{
 		/** DataSource is ticked and evaluated every frame. */
 		EM_Standard UMETA(DisplayName="Standard"),

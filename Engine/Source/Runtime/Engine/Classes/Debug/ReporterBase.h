@@ -12,7 +12,7 @@ class UCanvas;
 UENUM()
 namespace EReporterLineStyle
 {
-	enum Type
+	enum Type : int
 	{
 		Line,
 		Dash,

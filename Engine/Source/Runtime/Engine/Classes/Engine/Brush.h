@@ -13,7 +13,7 @@ class ULevel;
 //-----------------------------------------------------------------------------
 // Variables.
 UENUM()
-enum ECsgOper
+enum ECsgOper : int
 {
 	/** Active brush. (deprecated, do not use.) */
 	CSG_Active,
@@ -31,7 +31,7 @@ enum ECsgOper
 
 
 UENUM()
-enum EBrushType
+enum EBrushType : int
 {
 	/** Default/builder brush. */
 	Brush_Default UMETA(Hidden),

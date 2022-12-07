@@ -10,7 +10,7 @@
 UENUM()
 namespace EAFSActiveType
 {
-	enum Type
+	enum Type : int
 	{
 		None = 0 UMETA(DisplayName = "None"),
 		USBOnly = 1 UMETA(DisplayName = "USB only"),

@@ -200,7 +200,7 @@ ENGINE_API FString LexToString(EMaterialQualityLevel::Type QualityLevel);
 //	EMaterialProperty
 //
 UENUM(BlueprintType)
-enum EMaterialProperty
+enum EMaterialProperty : int
 {
 	MP_EmissiveColor = 0 UMETA(DisplayName = "Emissive"),
 	MP_Opacity UMETA(DisplayName = "Opacity"),

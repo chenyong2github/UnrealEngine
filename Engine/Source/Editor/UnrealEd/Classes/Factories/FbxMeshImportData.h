@@ -8,7 +8,7 @@
 #include "FbxMeshImportData.generated.h"
 
 UENUM(BlueprintType)
-enum EFBXNormalImportMethod
+enum EFBXNormalImportMethod : int
 {
 	FBXNIM_ComputeNormals UMETA(DisplayName="Compute Normals"),
 	FBXNIM_ImportNormals UMETA(DisplayName="Import Normals"),
@@ -19,7 +19,7 @@ enum EFBXNormalImportMethod
 UENUM(BlueprintType)
 namespace EFBXNormalGenerationMethod
 {
-	enum Type
+	enum Type : int
 	{
 		/** Use the legacy built in method to generate normals (faster in some cases) */
 		BuiltIn,
@@ -31,7 +31,7 @@ namespace EFBXNormalGenerationMethod
 UENUM(BlueprintType)
 namespace EVertexColorImportOption
 {
-	enum Type
+	enum Type : int
 	{
 		/** Import the static mesh using the vertex colors from the FBX file. */
 		Replace,

@@ -11,7 +11,7 @@
 UENUM(BlueprintType)
 namespace ESequenceEvalReinit
 {
-	enum Type
+	enum Type : int
 	{
 		/** Do not reset InternalTimeAccumulator */
 		NoReset,

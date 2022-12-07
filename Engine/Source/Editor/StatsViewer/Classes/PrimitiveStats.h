@@ -12,7 +12,7 @@ class AActor;
 
 /** Enum defining the object sets for this stats object */
 UENUM()
-enum EPrimitiveObjectSets
+enum EPrimitiveObjectSets : int
 {
 	PrimitiveObjectSets_AllObjects			UMETA( DisplayName = "All Objects" , ToolTip = "View primitive statistics for all objects in all levels" ),
 	PrimitiveObjectSets_CurrentLevel		UMETA( DisplayName = "Current Level" , ToolTip = "View primitive statistics for objects in the current level" ),

@@ -7,7 +7,7 @@
 UENUM()
 namespace EChannelMaskParameterColor
 {
-	enum Type
+	enum Type : int
 	{
 		Red,
 		Green,

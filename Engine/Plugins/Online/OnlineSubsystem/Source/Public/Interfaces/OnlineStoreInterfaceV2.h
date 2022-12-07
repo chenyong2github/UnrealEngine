@@ -30,7 +30,7 @@ typedef FString FUniqueCategoryId;
 UENUM(BlueprintType)
 namespace EInAppPurchaseState
 {
-	enum Type
+	enum Type : int
 	{
 		Unknown = 0 UMETA(DisplayName = "Unknown"),
 		Success UMETA(DisplayName = "Success"),

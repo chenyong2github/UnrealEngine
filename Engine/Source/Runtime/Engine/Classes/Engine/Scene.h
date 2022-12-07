@@ -24,7 +24,7 @@ struct FPostProcessSettings;
 
 /** Used by FPostProcessSettings Depth of Fields */
 UENUM()
-enum EDepthOfFieldMethod
+enum EDepthOfFieldMethod : int
 {
 	DOFM_BokehDOF UMETA(DisplayName="BokehDOF"),
 	DOFM_Gaussian UMETA(DisplayName="GaussianDOF"),
@@ -34,7 +34,7 @@ enum EDepthOfFieldMethod
 
 /** Used by FPostProcessSettings Auto Exposure */
 UENUM()
-enum EAutoExposureMethod
+enum EAutoExposureMethod : int
 {
 	/** requires compute shader to construct 64 bin histogram */
 	AEM_Histogram  UMETA(DisplayName = "Auto Exposure Histogram"),
@@ -46,7 +46,7 @@ enum EAutoExposureMethod
 };
 
 UENUM()
-enum EBloomMethod
+enum EBloomMethod : int
 {
 	/** Sum of Gaussian formulation */
 	BM_SOG  UMETA(DisplayName = "Standard"),
@@ -57,7 +57,7 @@ enum EBloomMethod
 
 /** Used by FPostProcessSettings to determine Temperature calculation method. */
 UENUM()
-enum ETemperatureMethod
+enum ETemperatureMethod : int
 {
 	TEMP_WhiteBalance UMETA(DisplayName = "White Balance"),
 	TEMP_ColorTemperature UMETA(DisplayName = "Color Temperature"),
@@ -118,7 +118,7 @@ enum class EReflectedAndRefractedRayTracedShadows : uint8
 UENUM()
 namespace EMobilePlanarReflectionMode
 {
-	enum Type
+	enum Type : int
 	{
 		Usual = 0 UMETA(DisplayName = "Usual", ToolTip = "The PlanarReflection actor works as usual on all platforms."),
 		MobilePPRExclusive = 1 UMETA(DisplayName = "MobilePPR Exclusive", ToolTip = "The PlanarReflection actor is only used for mobile pixel projection reflection, it will not affect PC/Console. MobileMSAA will be disabled as a side effect."),
@@ -129,7 +129,7 @@ namespace EMobilePlanarReflectionMode
 UENUM()
 namespace EMobilePixelProjectedReflectionQuality
 {
-	enum Type
+	enum Type : int
 	{
 		Disabled = 0 UMETA(DisplayName = "Disabled", ToolTip = "Disabled."),
 		BestPerformance = 1 UMETA(DisplayName = "Best Performance", ToolTip = "Best performance but may have some artifacts in some view angles."),

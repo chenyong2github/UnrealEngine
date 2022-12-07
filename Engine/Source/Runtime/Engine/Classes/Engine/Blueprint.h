@@ -35,7 +35,7 @@ struct FDiffResults;
  * Enumerates states a blueprint can be in.
  */
 UENUM()
-enum EBlueprintStatus
+enum EBlueprintStatus : int
 {
 	/** Blueprint is in an unknown state. */
 	BS_Unknown,
@@ -55,7 +55,7 @@ enum EBlueprintStatus
 
 /** Enumerates types of blueprints. */
 UENUM()
-enum EBlueprintType
+enum EBlueprintType : int
 {
 	/** Normal blueprint. */
 	BPTYPE_Normal				UMETA(DisplayName="Blueprint Class"),

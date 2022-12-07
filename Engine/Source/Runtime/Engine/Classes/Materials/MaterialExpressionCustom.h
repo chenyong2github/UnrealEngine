@@ -12,7 +12,7 @@
 struct FPropertyChangedEvent;
 
 UENUM()
-enum ECustomMaterialOutputType
+enum ECustomMaterialOutputType : int
 {
 	CMOT_Float1,
 	CMOT_Float2,

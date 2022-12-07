@@ -68,7 +68,7 @@ namespace FNavigationSystem
 UENUM()
 namespace ENavigationOptionFlag
 {
-	enum Type
+	enum Type : int
 	{
 		Default,
 		Enable UMETA(DisplayName = "Yes"),	// UHT was complaining when tried to use True as value instead of Enable
@@ -367,7 +367,7 @@ private:
 UENUM()
 namespace ENavPathEvent
 {
-	enum Type
+	enum Type : int
 	{
 		Cleared,
 		NewPath,
@@ -637,7 +637,7 @@ struct FNavigationRaycastWork : FRayStartEnd
 UENUM()
 namespace ENavigationQueryResult
 {
-	enum Type
+	enum Type : int
 	{
 		Invalid,
 		Error,

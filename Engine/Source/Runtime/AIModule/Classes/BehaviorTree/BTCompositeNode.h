@@ -33,7 +33,7 @@ namespace EBTDecoratorLogic
 {
 	// keep in sync with DescribeLogicOp() in BTCompositeNode.cpp
 
-	enum Type
+	enum Type : int
 	{
 		Invalid,
 		/** Test decorator conditions. */

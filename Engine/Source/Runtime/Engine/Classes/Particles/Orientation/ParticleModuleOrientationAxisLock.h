@@ -12,7 +12,7 @@ struct FParticleEmitterInstance;
 
 // Flags indicating lock
 UENUM()
-enum EParticleAxisLock
+enum EParticleAxisLock : int
 {
 	/** No locking to an axis...							*/
 	EPAL_NONE UMETA(DisplayName="None"),

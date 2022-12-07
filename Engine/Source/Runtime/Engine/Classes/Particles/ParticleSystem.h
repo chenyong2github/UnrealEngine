@@ -23,7 +23,7 @@ class UParticleEmitter;
  *	Enumeration indicating the method by which the system should be updated
  */
 UENUM()
-enum EParticleSystemUpdateMode
+enum EParticleSystemUpdateMode : int
 {
 	/** RealTime	- update via the delta time passed in				*/
 	EPSUM_RealTime UMETA(DisplayName="Real-Time"),
@@ -35,7 +35,7 @@ enum EParticleSystemUpdateMode
  *	ParticleSystemLODMethod
  */
 UENUM()
-enum ParticleSystemLODMethod
+enum ParticleSystemLODMethod : int
 {
 	// Automatically set the LOD level, checking every LODDistanceCheckTime seconds.
 	PARTICLESYSTEMLODMETHOD_Automatic UMETA(DisplayName="Automatic"),
@@ -49,7 +49,7 @@ enum ParticleSystemLODMethod
 
 /** Occlusion method enumeration */
 UENUM()
-enum EParticleSystemOcclusionBoundsMethod
+enum EParticleSystemOcclusionBoundsMethod : int
 {
 	/** Don't determine occlusion on this particle system */
 	EPSOBM_None UMETA(DisplayName="None"),

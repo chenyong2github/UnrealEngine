@@ -9,7 +9,7 @@
 #include "MaterialExpressionViewProperty.generated.h"
 
 UENUM()
-enum EMaterialExposedViewProperty
+enum EMaterialExposedViewProperty : int
 {	
 	/** Horizontal and vertical size of the view's buffer in pixels */
 	MEVP_BufferSize UMETA(DisplayName="Render Target Size"),

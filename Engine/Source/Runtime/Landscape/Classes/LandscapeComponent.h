@@ -367,7 +367,7 @@ static const uint32 DefaultSplineHash = 0xFFFFFFFF;
 #endif
 
 UENUM()
-enum ELandscapeClearMode
+enum ELandscapeClearMode : int
 {
 	Clear_Weightmap = 1 << 0 UMETA(DisplayName = "Paint"),
 	Clear_Heightmap = 1 << 1 UMETA(DisplayName = "Sculpt"),

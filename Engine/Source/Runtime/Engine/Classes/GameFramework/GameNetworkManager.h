@@ -10,7 +10,7 @@
 
 /** Describes which standby detection event occured so the game can take appropriate action. */
 UENUM()
-enum EStandbyType
+enum EStandbyType : int
 {
 	STDBY_Rx,
 	STDBY_Tx,

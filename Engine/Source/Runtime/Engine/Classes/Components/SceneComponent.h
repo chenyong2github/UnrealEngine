@@ -33,7 +33,7 @@ namespace ERHIFeatureLevel { enum Type : int; }
 
 /** Detail mode for scene component rendering, corresponds with the integer value of UWorld::GetDetailMode() */
 UENUM()
-enum EDetailMode
+enum EDetailMode : int
 {
 	DM_Low UMETA(DisplayName="Low"),
 	DM_Medium UMETA(DisplayName="Medium"),
@@ -43,7 +43,7 @@ enum EDetailMode
 
 /** The space for the transform */
 UENUM()
-enum ERelativeTransformSpace
+enum ERelativeTransformSpace : int
 {
 	/** World space transform. */
 	RTS_World,

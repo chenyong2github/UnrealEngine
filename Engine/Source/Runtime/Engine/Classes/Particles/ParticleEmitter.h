@@ -22,7 +22,7 @@ class UParticleSystemComponent;
 //	Burst emissions
 //~=============================================================================
 UENUM()
-enum EParticleBurstMethod
+enum EParticleBurstMethod : int
 {
 	EPBM_Instant UMETA(DisplayName="Instant"),
 	EPBM_Interpolated UMETA(DisplayName="Interpolated"),
@@ -33,7 +33,7 @@ enum EParticleBurstMethod
 //	SubUV-related
 //~=============================================================================
 UENUM()
-enum EParticleSubUVInterpMethod
+enum EParticleSubUVInterpMethod : int
 {
 	PSUVIM_None UMETA(DisplayName="None"),
 	PSUVIM_Linear UMETA(DisplayName="Linear"),
@@ -47,7 +47,7 @@ enum EParticleSubUVInterpMethod
 //	Cascade-related
 //~=============================================================================
 UENUM()
-enum EEmitterRenderMode
+enum EEmitterRenderMode : int
 {
 	ERM_Normal UMETA(DisplayName="Normal"),
 	ERM_Point UMETA(DisplayName="Point"),

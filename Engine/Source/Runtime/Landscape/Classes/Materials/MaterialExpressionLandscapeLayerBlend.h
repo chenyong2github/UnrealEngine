@@ -15,7 +15,7 @@ struct FPropertyChangedEvent;
 struct FMaterialParameterInfo;
 
 UENUM()
-enum ELandscapeLayerBlendType
+enum ELandscapeLayerBlendType : int
 {
 	LB_WeightBlend,
 	LB_AlphaBlend,

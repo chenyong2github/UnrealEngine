@@ -44,7 +44,7 @@ namespace EGameplayAbilityInstancingPolicy
 	 *	How the ability is instanced when executed. This limits what an ability can do in its implementation. For example, a NonInstanced
 	 *	Ability cannot have state. It is probably unsafe for an InstancedPerActor ability to have latent actions, etc.
 	 */
-	enum Type
+	enum Type : int
 	{
 		// This ability is never instanced. Anything that executes the ability is operating on the CDO.
 		NonInstanced,
@@ -61,7 +61,7 @@ UENUM(BlueprintType)
 namespace EGameplayAbilityNetExecutionPolicy
 {
 	/** Where does an ability execute on the network. Does a client "ask and predict", "ask and wait", "don't ask (just do it)" */
-	enum Type
+	enum Type : int
 	{
 		// Part of this ability runs predictively on the local client if there is one
 		LocalPredicted		UMETA(DisplayName = "Local Predicted"),
@@ -81,7 +81,7 @@ UENUM(BlueprintType)
 namespace EGameplayAbilityNetSecurityPolicy
 {
 	/** What protections does this ability have? Should the client be allowed to request changes to the execution of the ability? */
-	enum Type
+	enum Type : int
 	{
 		// No security requirements. Client or server can trigger execution and termination of this ability freely.
 		ClientOrServer			UMETA(DisplayName = "Client Or Server"),
@@ -101,7 +101,7 @@ UENUM(BlueprintType)
 namespace EGameplayAbilityReplicationPolicy
 {
 	/** How an ability replicates state/events to everyone on the network */
-	enum Type
+	enum Type : int
 	{
 		// We don't replicate the instance of the ability to anyone.
 		ReplicateNo			UMETA(DisplayName = "Do Not Replicate"),
@@ -115,7 +115,7 @@ UENUM(BlueprintType)
 namespace EGameplayAbilityTriggerSource
 {
 	/**	Defines what type of trigger will activate the ability, paired to a tag */
-	enum Type
+	enum Type : int
 	{
 		// Triggered from a gameplay event, will come with payload
 		GameplayEvent,

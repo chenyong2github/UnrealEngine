@@ -32,7 +32,7 @@ enum class ETransitionRequestOverwriteMode : uint8
 UENUM()
 namespace ETransitionBlendMode
 {
-	enum Type
+	enum Type : int
 	{
 		TBM_Linear UMETA(DisplayName="Linear"),
 		TBM_Cubic UMETA(DisplayName="Cubic")
@@ -43,7 +43,7 @@ namespace ETransitionBlendMode
 UENUM()
 namespace ETransitionLogicType
 {
-	enum Type
+	enum Type : int
 	{
 		TLT_StandardBlend UMETA(DisplayName="Standard Blend"),
 		TLT_Inertialization UMETA(DisplayName = "Inertialization"),

@@ -18,7 +18,7 @@ class URuntimeVirtualTexture;
 class USparseVolumeTexture;
 
 UENUM()
-enum EMaterialParameterAssociation
+enum EMaterialParameterAssociation : int
 {
 	LayerParameter,
 	BlendParameter,

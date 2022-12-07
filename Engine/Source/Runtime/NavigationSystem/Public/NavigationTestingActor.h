@@ -32,7 +32,7 @@ struct FNavTestTickHelper : FTickableGameObject
 UENUM()
 namespace ENavCostDisplay
 {
-	enum Type
+	enum Type : int
 	{
 		TotalCost,
 		HeuristicOnly,

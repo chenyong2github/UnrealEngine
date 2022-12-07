@@ -112,7 +112,7 @@ public:
 UENUM(BlueprintType)
 namespace ESlateSizeRule
 {
-	enum Type
+	enum Type : int
 	{
 		/** Only requests as much room as it needs based on the widgets desired size. */
 		Automatic,
@@ -170,7 +170,7 @@ struct FSlateChildSize
 UENUM( BlueprintType )
 namespace EVirtualKeyboardType
 {
-	enum Type
+	enum Type : int
 	{
 		Default,
 		Number,

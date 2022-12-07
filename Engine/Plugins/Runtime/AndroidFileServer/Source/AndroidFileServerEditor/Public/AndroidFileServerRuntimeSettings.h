@@ -15,7 +15,7 @@
 UENUM()
 namespace EAFSConnectionType
 {
-	enum Type
+	enum Type : int
 	{
 		USBOnly = 0 UMETA(DisplayName = "USB only"),
 		NetworkOnly = 1 UMETA(DisplayName = "Network only"),

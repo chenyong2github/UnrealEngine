@@ -10,7 +10,7 @@
 
 /** All the types of delegate callbacks that a CloudStorage subclass may receive from C++ */
 UENUM()
-enum ECloudStorageDelegate
+enum ECloudStorageDelegate : int
 {
 	// @todo: Fill in the result descriptions for these (and the other PI subclasses)
 	CSD_KeyValueReadComplete,

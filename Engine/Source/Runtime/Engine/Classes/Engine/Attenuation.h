@@ -26,7 +26,7 @@ enum class EAttenuationDistanceModel : uint8
 UENUM(BlueprintType)
 namespace EAttenuationShape
 {
-	enum Type
+	enum Type : int
 	{
 		Sphere,
 		Capsule,

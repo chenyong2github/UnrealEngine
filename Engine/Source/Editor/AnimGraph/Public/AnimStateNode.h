@@ -12,7 +12,7 @@ class UEdGraph;
 class UEdGraphPin;
 
 UENUM()
-enum EAnimStateType
+enum EAnimStateType : int
 {
 	AST_SingleAnimation UMETA(DisplayName="Single animation"),
 	AST_BlendGraph UMETA(DisplayName="Blend graph"),

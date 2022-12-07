@@ -16,7 +16,7 @@
 /** The possible twitter request methods */
 
 UENUM()
-enum ETwitterRequestMethod
+enum ETwitterRequestMethod : int
 {
 	TRM_Get,
 	TRM_Post,
@@ -25,7 +25,7 @@ enum ETwitterRequestMethod
 };
 
 UENUM()
-enum ETwitterIntegrationDelegate
+enum ETwitterIntegrationDelegate : int
 {
 	TID_AuthorizeComplete,
 	TID_TweetUIComplete,

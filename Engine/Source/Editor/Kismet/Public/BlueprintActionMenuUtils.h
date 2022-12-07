@@ -18,7 +18,7 @@ struct FEdGraphSchemaAction;
 UENUM()
 namespace EContextTargetFlags
 {
-	enum Type
+	enum Type : int
 	{
 		TARGET_Blueprint			= 0x00000001 UMETA(DisplayName="This Blueprint", ToolTip="Include functions and variables that belong to this Blueprint."),
 		TARGET_SubComponents		= 0x00000002 UMETA(DisplayName="Components", ToolTip="Include functions that belong to components of this Blueprint and/or the other target classes."),

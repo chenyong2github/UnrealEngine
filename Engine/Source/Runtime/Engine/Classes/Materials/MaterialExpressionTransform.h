@@ -10,7 +10,7 @@
 #include "MaterialExpressionTransform.generated.h"
 
 UENUM()
-enum EMaterialVectorCoordTransformSource
+enum EMaterialVectorCoordTransformSource : int
 {
 	/** Tangent space (relative to the surface) */
 	TRANSFORMSOURCE_Tangent UMETA(DisplayName="Tangent Space"),
@@ -37,7 +37,7 @@ enum EMaterialVectorCoordTransformSource
 };
 
 UENUM()
-enum EMaterialVectorCoordTransform
+enum EMaterialVectorCoordTransform : int
 {
 	/** Tangent space (relative to the surface) */
 	TRANSFORM_Tangent UMETA(DisplayName="Tangent Space"),

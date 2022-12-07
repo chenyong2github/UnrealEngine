@@ -54,7 +54,7 @@ namespace FAISystem
 UENUM()
 namespace EAIOptionFlag
 {
-	enum Type
+	enum Type : int
 	{
 		Default,
 		Enable UMETA(DisplayName = "Yes"),
@@ -117,7 +117,7 @@ namespace EAILogicResuming
 UENUM()
 namespace EPawnActionAbortState
 {
-	enum Type
+	enum Type : int
 	{
 		NeverStarted,
 		NotBeingAborted,
@@ -133,7 +133,7 @@ namespace EPawnActionAbortState
 UENUM()
 namespace EPawnActionResult
 {
-	enum Type
+	enum Type : int
 	{
 		NotStarted,
 		InProgress,
@@ -146,7 +146,7 @@ namespace EPawnActionResult
 UENUM()
 namespace EPawnActionEventType
 {
-	enum Type
+	enum Type : int
 	{
 		Invalid,
 		FailedToStart,
@@ -160,7 +160,7 @@ namespace EPawnActionEventType
 UENUM()
 namespace EAIRequestPriority
 {
-	enum Type
+	enum Type : int
 	{
 		/** Actions requested by Level Designers by placing AI-hinting elements on the map. */
 		SoftScript,
@@ -185,7 +185,7 @@ namespace EAIRequestPriority
 UENUM()
 namespace EAILockSource
 {
-	enum Type
+	enum Type : int
 	{
 		Animation,
 		Logic,

@@ -26,7 +26,7 @@ class ISequenceDataEventHandler;
 UENUM()
 namespace EMovieScenePlayerStatus
 {
-	enum Type
+	enum Type : int
 	{
 		Stopped,
 		Playing,

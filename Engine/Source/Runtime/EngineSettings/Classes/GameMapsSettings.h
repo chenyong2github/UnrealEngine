@@ -12,7 +12,7 @@
 UENUM()
 namespace ETwoPlayerSplitScreenType
 {
-	enum Type
+	enum Type : int
 	{
 		Horizontal,
 		Vertical
@@ -24,7 +24,7 @@ namespace ETwoPlayerSplitScreenType
 UENUM()
 namespace EThreePlayerSplitScreenType
 {
-	enum Type
+	enum Type : int
 	{
 		FavorTop,
 		FavorBottom,

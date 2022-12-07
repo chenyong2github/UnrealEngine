@@ -98,7 +98,7 @@ ENUM_CLASS_FLAGS(ECookByTheBookOptions);
 UENUM()
 namespace ECookMode
 {
-	enum Type
+	enum Type : int
 	{
 		/** Default mode, handles requests from network. */
 		CookOnTheFly,

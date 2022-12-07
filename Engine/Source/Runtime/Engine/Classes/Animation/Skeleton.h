@@ -68,7 +68,7 @@ struct FSkeletonToMeshLinkup
 UENUM()
 namespace EBoneTranslationRetargetingMode
 {
-	enum Type
+	enum Type : int
 	{
 		/** Use translation from animation data. */
 		Animation,
