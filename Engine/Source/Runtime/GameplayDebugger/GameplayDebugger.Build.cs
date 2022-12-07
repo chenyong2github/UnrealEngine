@@ -46,9 +46,20 @@ namespace UnrealBuildTool.Rules
 
 			SetupIrisSupport(Target);
 
-			if (Target.bUseGameplayDebugger)
+			if (Target.bUseGameplayDebuggerCore)
 			{
 				PrecompileForTargets = PrecompileTargetsType.Any;
+			}
+
+			if (Target.bUseGameplayDebugger || Target.bUseGameplayDebuggerCore)
+			{
+				PublicDefinitions.Add("WITH_GAMEPLAY_DEBUGGER_CORE=1");
+				PublicDefinitions.Add("WITH_GAMEPLAY_DEBUGGER=" + (Target.bUseGameplayDebugger ? 1 : 0));
+			}
+			else
+			{
+				PublicDefinitions.Add("WITH_GAMEPLAY_DEBUGGER_CORE=0");
+				PublicDefinitions.Add("WITH_GAMEPLAY_DEBUGGER=0");
 			}
 		}
 	}

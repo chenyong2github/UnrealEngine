@@ -267,6 +267,27 @@ namespace UnrealBuildTool
 	}
 
 	/// <summary>
+	/// Determines how the Gameplay Debugger plugin will be activated.
+	/// </summary>
+	public enum GameplayDebuggerOverrideState
+	{
+		/// <summary>
+		/// Default => Not overriden, default usage behavior.
+		/// </summary>
+		Default,
+
+		/// <summary>
+		/// Core => WITH_GAMEPLAY_DEBUGGER = 0 and WITH_GAMEPLAY_DEBUGGER_CORE = 1
+		/// </summary>
+		Core,
+
+		/// <summary>
+		/// Full => WITH_GAMEPLAY_DEBUGGER = 1 and WITH_GAMEPLAY_DEBUGGER_CORE = 1
+		/// </summary>
+		Full
+	}
+
+	/// <summary>
 	/// Utility class for EngineIncludeOrderVersion defines
 	/// </summary>
 	public class EngineIncludeOrderHelper
@@ -770,15 +791,51 @@ namespace UnrealBuildTool
 		public bool bCompilePython = true;
 
 		/// <summary>
-		/// Whether to compile with WITH_GAMEPLAY_DEBUGGER enabled and use GameplayDebugger.
+		/// Whether to compile with WITH_GAMEPLAY_DEBUGGER enabled with all Engine's default gameplay debugger categories.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
 		public bool bUseGameplayDebugger
 		{
-			get { return bUseGameplayDebuggerOverride ?? (bBuildDeveloperTools || (Configuration != UnrealTargetConfiguration.Test && Configuration != UnrealTargetConfiguration.Shipping)); }
-			set { bUseGameplayDebuggerOverride = value; }
+			get
+			{
+				if (UseGameplayDebuggerOverride == GameplayDebuggerOverrideState.Default)
+				{
+					return (bBuildDeveloperTools || (Configuration != UnrealTargetConfiguration.Test && Configuration != UnrealTargetConfiguration.Shipping));
+				}
+				else
+				{
+					return UseGameplayDebuggerOverride == GameplayDebuggerOverrideState.Full;
+				}
+			}
+			set
+			{
+				if (value)
+				{
+					UseGameplayDebuggerOverride = GameplayDebuggerOverrideState.Full;
+				}
+				else if (UseGameplayDebuggerOverride != GameplayDebuggerOverrideState.Core)
+				{
+					UseGameplayDebuggerOverride = GameplayDebuggerOverrideState.Default;
+				}
+			}
 		}
-		bool? bUseGameplayDebuggerOverride;
+
+		/// <summary>
+		/// Set to true when bUseGameplayDebugger is false but GameplayDebugger's core parts are required.
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bUseGameplayDebuggerCore
+		{
+			get { return (UseGameplayDebuggerOverride == GameplayDebuggerOverrideState.Core) || bUseGameplayDebugger; }
+			set
+			{
+				if (UseGameplayDebuggerOverride != GameplayDebuggerOverrideState.Full)
+				{
+					UseGameplayDebuggerOverride = value ? GameplayDebuggerOverrideState.Core : GameplayDebuggerOverrideState.Default;
+				}
+			}
+		}
+		GameplayDebuggerOverrideState UseGameplayDebuggerOverride;
 
 		/// <summary>
 		/// Whether to use Iris.
@@ -2804,7 +2861,12 @@ namespace UnrealBuildTool
 		{
 			get { return Inner.bUseGameplayDebugger; }
 		}
-		
+
+		public bool bUseGameplayDebuggerCore
+		{
+			get { return Inner.bUseGameplayDebuggerCore; }
+		}
+
 		public bool bUseIris
 		{
 			get { return Inner.bUseIris; }

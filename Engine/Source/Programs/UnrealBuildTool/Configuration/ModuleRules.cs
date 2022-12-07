@@ -1279,9 +1279,10 @@ namespace UnrealBuildTool
 		/// </summary>
 		public void SetupGameplayDebuggerSupport(ReadOnlyTargetRules Target, bool bAddAsPublicDependency = false)
 		{
-			if (Target.bUseGameplayDebugger)
+			if (Target.bUseGameplayDebugger || Target.bUseGameplayDebuggerCore)
 			{
-				PublicDefinitions.Add("WITH_GAMEPLAY_DEBUGGER=1");
+				PublicDefinitions.Add("WITH_GAMEPLAY_DEBUGGER_CORE=1");
+				PublicDefinitions.Add("WITH_GAMEPLAY_DEBUGGER=" + (Target.bUseGameplayDebugger ? 1 : 0));
 
 				if (bAddAsPublicDependency)
 				{
@@ -1302,6 +1303,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
+				PublicDefinitions.Add("WITH_GAMEPLAY_DEBUGGER_CORE=0");
 				PublicDefinitions.Add("WITH_GAMEPLAY_DEBUGGER=0");
 			}
 		}

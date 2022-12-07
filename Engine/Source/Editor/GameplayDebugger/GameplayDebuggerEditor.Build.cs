@@ -45,7 +45,7 @@ namespace UnrealBuildTool.Rules
 					});
 			}
 
-			if (Target.bUseGameplayDebugger)
+			if (Target.bUseGameplayDebuggerCore)
 			{
 				PrecompileForTargets = PrecompileTargetsType.Any;
 			}
