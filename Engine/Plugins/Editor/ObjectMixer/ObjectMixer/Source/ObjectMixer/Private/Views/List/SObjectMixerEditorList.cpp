@@ -1333,7 +1333,7 @@ void SObjectMixerEditorList::PropagatePropertyChangesToSelectedRows()
 			TSharedPtr<STreeView<FObjectMixerEditorListRowPtr>>,
 			const TArray<FObjectMixerEditorListRow::FPropertyPropagationInfo>&);
 	
-	static LambdaType RecursivelyRestoreTreeState = [](
+	static LambdaType RecursivelyPropagatePropertyChangesToSelectedRows = [](
 		const TArray<FObjectMixerEditorListRowPtr>& InObjects,
 		TSharedPtr<STreeView<FObjectMixerEditorListRowPtr>> InTreeViewPtr,
 		const TArray<FObjectMixerEditorListRow::FPropertyPropagationInfo>& InPendingPropertyPropagations)
@@ -1353,7 +1353,7 @@ void SObjectMixerEditorList::PropagatePropertyChangesToSelectedRows()
 					TreeViewItem->PropagateChangesToSimilarSelectedRowProperties(*PendingPropagation);
 				}
 
-			RecursivelyRestoreTreeState(
+			RecursivelyPropagatePropertyChangesToSelectedRows(
 				TreeViewItem->GetChildRows(), InTreeViewPtr, InPendingPropertyPropagations
 			);
 		}
@@ -1361,7 +1361,7 @@ void SObjectMixerEditorList::PropagatePropertyChangesToSelectedRows()
 
 	if (GetSelectedTreeViewItemCount() > 1)
 	{
-		RecursivelyRestoreTreeState(
+			RecursivelyPropagatePropertyChangesToSelectedRows(
 		   TreeViewRootObjects, TreeViewPtr, PendingPropertyPropagations
 	   );
 	}
