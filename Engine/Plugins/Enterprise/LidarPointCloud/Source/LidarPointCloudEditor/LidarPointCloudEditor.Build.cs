@@ -35,6 +35,7 @@ namespace UnrealBuildTool.Rules
                 "InteractiveToolsFramework",
                 "StatusBar",
                 "MeshDescription",
+                "StaticMeshDescription"
                 }
             );
         }
