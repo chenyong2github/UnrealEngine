@@ -73,10 +73,11 @@ public:
 	TObjectCacheIterator<UStaticMeshComponent>  GetStaticMeshComponents(UStaticMesh* InStaticMesh);
 	TObjectCacheIterator<UMaterialInterface>    GetMaterialsAffectedByTexture(UTexture* InTexture);
 	TObjectCacheIterator<UPrimitiveComponent>   GetPrimitivesAffectedByMaterial(UMaterialInterface* InMaterial);
+	TObjectCacheIterator<UPrimitiveComponent>   GetPrimitivesAffectedByMaterials(TArrayView<UMaterialInterface*> InMaterials);
 	TObjectCacheIterator<UTexture>              GetUsedTextures(UMaterialInterface* InMaterial);
 	TObjectCacheIterator<UMaterialInterface>    GetUsedMaterials(UPrimitiveComponent* InComponent);
+	TObjectCacheIterator<UMaterialInterface>    GetMaterialsAffectedByMaterials(TArrayView<UMaterialInterface*> InMaterials);
 
-	
 private:
 	friend class FObjectCacheContextScope;
 	FObjectCacheContext() = default;

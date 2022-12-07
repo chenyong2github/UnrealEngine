@@ -4912,44 +4912,24 @@ void FShaderCompilingManager::PropagateMaterialChangesToPrimitives(TMap<TRefCoun
 		return;
 	}
 
-	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderCompilingManager::PropagateMaterialChangesToPrimitives);
-
 	TSet<FSceneInterface*> ScenesToUpdate;
 	FObjectCacheContextScope ObjectCacheScope;
 	TIndirectArray<FComponentRecreateRenderStateContext> ComponentContexts;
-	for (UPrimitiveComponent* PrimitiveComponent : ObjectCacheScope.GetContext().GetPrimitiveComponents())
 	{
-		if (PrimitiveComponent->IsRenderStateCreated())
+		TRACE_CPUPROFILER_EVENT_SCOPE(FShaderCompilingManager::PropagateMaterialChangesToPrimitives);
+
+		TArray<UMaterialInterface*> UpdatedMaterials;
+		for (TMap<TRefCountPtr<FMaterial>, TRefCountPtr<FMaterialShaderMap>>::TConstIterator MaterialIt(MaterialsToUpdate); MaterialIt; ++MaterialIt)
 		{
-			bool bPrimitiveIsDependentOnMaterial = false;
+			FMaterial* UpdatedMaterial = MaterialIt.Key();
+			UpdatedMaterials.Add(UpdatedMaterial->GetMaterialInterface());
+		}
 
-			// Note: relying on GetUsedMaterials to be accurate, or else we won't propagate to the right primitives and the renderer will crash later
-			// FPrimitiveSceneProxy::VerifyUsedMaterial is used to make sure that all materials used for rendering are reported in GetUsedMaterials
-			TObjectCacheIterator<UMaterialInterface> UsedMaterials = ObjectCacheScope.GetContext().GetUsedMaterials(PrimitiveComponent);
-			if (!UsedMaterials.IsEmpty())
+		for (UPrimitiveComponent* PrimitiveComponent : ObjectCacheScope.GetContext().GetPrimitivesAffectedByMaterials(UpdatedMaterials))
+		{
+			if (PrimitiveComponent->IsRenderStateCreated() && PrimitiveComponent->SceneProxy)
 			{
-				for (TMap<TRefCountPtr<FMaterial>, TRefCountPtr<FMaterialShaderMap>>::TConstIterator MaterialIt(MaterialsToUpdate); MaterialIt; ++MaterialIt)
-				{
-					FMaterial* UpdatedMaterial = MaterialIt.Key();
-					UMaterialInterface* UpdatedMaterialInterface = UpdatedMaterial->GetMaterialInterface();
-
-					if (UpdatedMaterialInterface)
-					{
-						for (UMaterialInterface* TestMaterial : UsedMaterials)
-						{
-							if (TestMaterial && (TestMaterial == UpdatedMaterialInterface || TestMaterial->IsDependent(UpdatedMaterialInterface)))
-							{
-								bPrimitiveIsDependentOnMaterial = true;
-								break;
-							}
-						}
-					}
-				}
-
-				if (bPrimitiveIsDependentOnMaterial)
-				{
-					ComponentContexts.Add(new FComponentRecreateRenderStateContext(PrimitiveComponent, &ScenesToUpdate));
-				}
+				ComponentContexts.Add(new FComponentRecreateRenderStateContext(PrimitiveComponent, &ScenesToUpdate));
 			}
 		}
 	}

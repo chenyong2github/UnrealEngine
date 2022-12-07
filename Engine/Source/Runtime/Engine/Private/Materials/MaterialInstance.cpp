@@ -3170,6 +3170,11 @@ bool UMaterialInstance::SetParentInternal(UMaterialInterface* NewParent, bool Re
 			Parent = NewParent;
 			bSetParent = true;
 
+#if WITH_EDITOR
+			// Important to notify when the parent change for Material -> Material relationship update
+			FObjectCacheEventSink::NotifyReferencedTextureChanged_Concurrent(this);
+#endif
+
 			if( Parent )
 			{
 				// It is possible to set a material's parent while post-loading. In
