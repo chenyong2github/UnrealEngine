@@ -117,14 +117,8 @@ struct FBokehModel
 	void Compile(const FViewInfo& View);
 };
 
-
 /** Returns whether DOF is supported. */
-inline bool IsSupported(const FStaticShaderPlatform ShaderPlatform)
-{
-	// Only compile diaphragm DOF on platform it has been tested to ensure this is not blocking anyone else.
-	return FDataDrivenShaderPlatformInfo::GetSupportsDiaphragmDOF(ShaderPlatform);
-}
-
+RENDERER_API bool IsSupported(const FStaticShaderPlatform ShaderPlatform);
 
 /** Wire all DOF's passes according to view settings and cvars to convolve the scene color. */
 RENDERER_API FRDGTextureRef AddPasses(

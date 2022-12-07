@@ -20,6 +20,7 @@
 #include "PostProcess/TemporalAA.h"
 #include "SceneTextureParameters.h"
 #include "TranslucentRendering.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 // ---------------------------------------------------- Cvars
 
@@ -137,6 +138,12 @@ TAutoConsoleVariable<float> CVarScatterNeighborCompareMaxColor(
 
 
 // ---------------------------------------------------- COMMON
+
+bool DiaphragmDOF::IsSupported(const FStaticShaderPlatform ShaderPlatform)
+{
+	// Only compile diaphragm DOF on platform it has been tested to ensure this is not blocking anyone else.
+	return FDataDrivenShaderPlatformInfo::GetSupportsDiaphragmDOF(ShaderPlatform);
+}
 
 namespace
 {
@@ -399,7 +406,6 @@ FVector2f GenerateSaturatedAffineTransformation(float LowM, float HighM)
 // Affine transformtations that always return 0 or 1.
 const FVector2f kContantlyPassingAffineTransformation(0, 1);
 const FVector2f kContantlyBlockingAffineTransformation(0, 0);
-
 
 /** Base shader class for diaphragm DOF. */
 class FDiaphragmDOFShader : public FGlobalShader

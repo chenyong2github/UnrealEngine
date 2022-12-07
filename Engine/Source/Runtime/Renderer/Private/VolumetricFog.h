@@ -47,15 +47,8 @@ private:
 	FRDGTextureRef DefaultLightFunctionAtlasItemTexture;
 };
 
-inline bool DoesPlatformSupportVolumetricFog(const FStaticShaderPlatform Platform)
-{
-	return FDataDrivenShaderPlatformInfo::GetSupportsVolumetricFog(Platform);
-}
-
-inline bool DoesPlatformSupportVolumetricFogVoxelization(const FStaticShaderPlatform Platform)
-{
-	return DoesPlatformSupportVolumetricFog(Platform);
-}
+extern bool DoesPlatformSupportVolumetricFog(const FStaticShaderPlatform Platform);
+extern bool DoesPlatformSupportVolumetricFogVoxelization(const FStaticShaderPlatform Platform);
 
 extern bool ShouldRenderVolumetricFog(const FScene* Scene, const FSceneViewFamily& ViewFamily);
 extern const FProjectedShadowInfo* GetShadowForInjectionIntoVolumetricFog(const FVisibleLightInfo& VisibleLightInfo);

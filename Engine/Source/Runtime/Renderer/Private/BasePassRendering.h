@@ -575,25 +575,11 @@ class F128BitRTBasePassPS : public TBasePassPS<TUniformLightMapPolicy<LMP_NO_LIG
 {
 	DECLARE_SHADER_TYPE(F128BitRTBasePassPS, MeshMaterial);
 public:
+	F128BitRTBasePassPS();
+	F128BitRTBasePassPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 
-	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
-	{
-		return FDataDrivenShaderPlatformInfo::GetRequiresExplicit128bitRT(Parameters.Platform);		
-	}
-
-	static void ModifyCompilationEnvironment(const FMeshMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		OutEnvironment.SetRenderTargetOutputFormat(0, PF_A32B32G32R32F);
-		TBasePassPS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-	}
-
-	/** Initialization constructor. */
-	F128BitRTBasePassPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer): 
-		TBasePassPS<TUniformLightMapPolicy<LMP_NO_LIGHTMAP>, false, GBL_Default>(Initializer)
-	{}
-
-	/** Default constructor. */
-	F128BitRTBasePassPS() {}
+	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters);
+	static void ModifyCompilationEnvironment(const FMeshMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 };
 
 /**

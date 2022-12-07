@@ -19,12 +19,56 @@
 #include "VT/LightmapVirtualTexture.h"
 #include "UnrealEngine.h"
 #include "ColorSpace.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 static TAutoConsoleVariable<float> CVarLODTemporalLag(
 	TEXT("lod.TemporalLag"),
 	0.5f,
 	TEXT("This controls the the time lag for temporal LOD, in seconds."),
 	ECVF_Scalability | ECVF_Default);
+
+bool AreCompressedTransformsSupported()
+{
+	return FDataDrivenShaderPlatformInfo::GetSupportSceneDataCompressedTransforms(GMaxRHIShaderPlatform);
+}
+
+bool DoesPlatformSupportDistanceFields(const FStaticShaderPlatform Platform)
+{
+	return FDataDrivenShaderPlatformInfo::GetSupportsDistanceFields(Platform);
+}
+
+bool DoesPlatformSupportDistanceFieldShadowing(EShaderPlatform Platform)
+{
+	return DoesPlatformSupportDistanceFields(Platform);
+}
+
+bool DoesPlatformSupportDistanceFieldAO(EShaderPlatform Platform)
+{
+	return DoesPlatformSupportDistanceFields(Platform);
+}
+
+bool DoesProjectSupportDistanceFields()
+{
+	static const auto CVarGenerateDF = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
+	static const auto CVarDFIfNoHWRT = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DistanceFields.SupportEvenIfHardwareRayTracingSupported"));
+
+	return DoesPlatformSupportDistanceFields(GMaxRHIShaderPlatform)
+		&& CVarGenerateDF->GetValueOnAnyThread() != 0
+		&& (CVarDFIfNoHWRT->GetValueOnAnyThread() != 0 || !IsRayTracingAllowed());
+}
+
+bool ShouldAllPrimitivesHaveDistanceField(EShaderPlatform ShaderPlatform)
+{
+	return (DoesPlatformSupportDistanceFieldAO(ShaderPlatform) || DoesPlatformSupportDistanceFieldShadowing(ShaderPlatform))
+		&& IsUsingDistanceFields(ShaderPlatform)
+		&& DoesProjectSupportDistanceFields();
+}
+
+bool ShouldCompileDistanceFieldShaders(EShaderPlatform ShaderPlatform)
+{
+	return IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::SM5) && DoesPlatformSupportDistanceFieldAO(ShaderPlatform) && IsUsingDistanceFields(ShaderPlatform);
+}
+
 
 FTexture* FLightSceneProxy::GetIESTextureResource() const
 {

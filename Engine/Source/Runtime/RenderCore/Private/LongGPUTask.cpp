@@ -7,6 +7,12 @@
 #include "RenderUtils.h"
 #include "ClearQuad.h"
 
+FLongGPUTaskPS::FLongGPUTaskPS() = default;
+FLongGPUTaskPS::FLongGPUTaskPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+	: FGlobalShader(Initializer)
+{
+}
+
 IMPLEMENT_SHADER_TYPE(, FLongGPUTaskPS, TEXT("/Engine/Private/OneColorShader.usf"), TEXT("MainLongGPUTask"), SF_Pixel);
 
 int32 NumMeasuredIterationsToAchieve500ms = 0;

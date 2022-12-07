@@ -3,6 +3,19 @@
 #include "InstanceUniformShaderParameters.h"
 #include "PrimitiveSceneProxy.h"
 #include "PrimitiveSceneInfo.h"
+#include "DataDrivenShaderPlatformInfo.h"
+
+uint32 FInstanceSceneShaderData::GetDataStrideInFloat4s()
+{
+	if (FDataDrivenShaderPlatformInfo::GetSupportSceneDataCompressedTransforms(GMaxRHIShaderPlatform))
+	{
+		return CompressedTransformDataStrideInFloat4s;
+	}
+	else
+	{
+		return UnCompressedTransformDataStrideInFloat4s;
+	}
+}
 
 void FInstanceSceneShaderData::Build
 (

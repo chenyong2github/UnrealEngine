@@ -22,6 +22,7 @@
 #include "AnisotropyRendering.h"
 #include "Nanite/NaniteVisualize.h"
 #include "RenderCore.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 // Changing this causes a full shader recompile
 static TAutoConsoleVariable<int32> CVarSelectiveBasePassOutputs(
@@ -135,6 +136,22 @@ IMPLEMENT_BASEPASS_LIGHTMAPPED_SHADER_TYPE( TUniformLightMapPolicy<LMP_CACHED_PO
 IMPLEMENT_BASEPASS_LIGHTMAPPED_SHADER_TYPE( TUniformLightMapPolicy<LMP_LQ_LIGHTMAP>, TLightMapPolicyLQ );
 IMPLEMENT_BASEPASS_LIGHTMAPPED_SHADER_TYPE( TUniformLightMapPolicy<LMP_HQ_LIGHTMAP>, TLightMapPolicyHQ );
 IMPLEMENT_BASEPASS_LIGHTMAPPED_SHADER_TYPE( TUniformLightMapPolicy<LMP_DISTANCE_FIELD_SHADOWS_AND_HQ_LIGHTMAP>, TDistanceFieldShadowsAndLightMapPolicyHQ  );
+
+F128BitRTBasePassPS::F128BitRTBasePassPS() = default;
+F128BitRTBasePassPS::F128BitRTBasePassPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
+	TBasePassPS<TUniformLightMapPolicy<LMP_NO_LIGHTMAP>, false, GBL_Default>(Initializer)
+{}
+
+bool F128BitRTBasePassPS::ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
+{
+	return FDataDrivenShaderPlatformInfo::GetRequiresExplicit128bitRT(Parameters.Platform);
+}
+
+void F128BitRTBasePassPS::ModifyCompilationEnvironment(const FMeshMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+{
+	OutEnvironment.SetRenderTargetOutputFormat(0, PF_A32B32G32R32F);
+	TBasePassPS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+}
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(, F128BitRTBasePassPS, TEXT("/Engine/Private/BasePassPixelShader.usf"), TEXT("MainPS"), SF_Pixel);
 

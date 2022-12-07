@@ -24,6 +24,7 @@ VolumetricFog.cpp
 #include "GenerateConservativeDepthBuffer.h"
 #include "VirtualShadowMaps/VirtualShadowMapClipmap.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 int32 GVolumetricFog = 1;
 FAutoConsoleVariableRef CVarVolumetricFog(
@@ -757,6 +758,16 @@ class FVolumetricFogFinalIntegrationCS : public FGlobalShader
 };
 
 IMPLEMENT_GLOBAL_SHADER(FVolumetricFogFinalIntegrationCS, "/Engine/Private/VolumetricFog.usf", "FinalIntegrationCS", SF_Compute);
+
+bool DoesPlatformSupportVolumetricFog(const FStaticShaderPlatform Platform)
+{
+	return FDataDrivenShaderPlatformInfo::GetSupportsVolumetricFog(Platform);
+}
+
+bool DoesPlatformSupportVolumetricFogVoxelization(const FStaticShaderPlatform Platform)
+{
+	return DoesPlatformSupportVolumetricFog(Platform);
+}
 
 bool ShouldRenderVolumetricFog(const FScene* Scene, const FSceneViewFamily& ViewFamily)
 {

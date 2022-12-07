@@ -1111,42 +1111,17 @@ public:
 	}
 };
 
-inline bool DoesPlatformSupportDistanceFields(const FStaticShaderPlatform Platform)
-{
-	return FDataDrivenShaderPlatformInfo::GetSupportsDistanceFields(Platform);
-}
+ENGINE_API bool DoesPlatformSupportDistanceFields(const FStaticShaderPlatform Platform);
 
-inline bool DoesPlatformSupportDistanceFieldShadowing(EShaderPlatform Platform)
-{
-	return DoesPlatformSupportDistanceFields(Platform);
-}
+ENGINE_API bool DoesPlatformSupportDistanceFieldShadowing(EShaderPlatform Platform);
 
-inline bool DoesPlatformSupportDistanceFieldAO(EShaderPlatform Platform)
-{
-	return DoesPlatformSupportDistanceFields(Platform);
-}
+ENGINE_API bool DoesPlatformSupportDistanceFieldAO(EShaderPlatform Platform);
 
-inline bool DoesProjectSupportDistanceFields()
-{
-	static const auto CVarGenerateDF = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
-	static const auto CVarDFIfNoHWRT = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DistanceFields.SupportEvenIfHardwareRayTracingSupported"));
+ENGINE_API bool DoesProjectSupportDistanceFields();
 
-	return DoesPlatformSupportDistanceFields(GMaxRHIShaderPlatform)
-		&& CVarGenerateDF->GetValueOnAnyThread() != 0
-		&& (CVarDFIfNoHWRT->GetValueOnAnyThread() != 0 || !IsRayTracingAllowed());
-}
+ENGINE_API bool ShouldAllPrimitivesHaveDistanceField(EShaderPlatform ShaderPlatform);
 
-inline bool ShouldAllPrimitivesHaveDistanceField(EShaderPlatform ShaderPlatform)
-{
-	return (DoesPlatformSupportDistanceFieldAO(ShaderPlatform) || DoesPlatformSupportDistanceFieldShadowing(ShaderPlatform))
-		&& IsUsingDistanceFields(ShaderPlatform)
-		&& DoesProjectSupportDistanceFields();
-}
-
-inline bool ShouldCompileDistanceFieldShaders(EShaderPlatform ShaderPlatform)
-{
-	return IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::SM5) && DoesPlatformSupportDistanceFieldAO(ShaderPlatform) && IsUsingDistanceFields(ShaderPlatform);
-}
+ENGINE_API bool ShouldCompileDistanceFieldShaders(EShaderPlatform ShaderPlatform);
 
 /**
  * Centralized decision function to avoid diverging logic.

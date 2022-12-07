@@ -15,13 +15,7 @@
 class FLumenSceneData;
 class FLumenCardScene;
 
-inline bool DoesPlatformSupportLumenGI(EShaderPlatform Platform, bool bSkipProjectCheck = false)
-{
-	extern int32 GLumenSupported;
-	return (bSkipProjectCheck || GLumenSupported)
-		&& FDataDrivenShaderPlatformInfo::GetSupportsLumenGI(Platform)
-		&& !IsForwardShadingEnabled(Platform);
-}
+bool DoesPlatformSupportLumenGI(EShaderPlatform Platform, bool bSkipProjectCheck = false);
 
 class FCardPageRenderData
 {

@@ -98,17 +98,7 @@ private:
 
 public:
 
-	static uint32 GetDataStrideInFloat4s()
-	{
-		if (FDataDrivenShaderPlatformInfo::GetSupportSceneDataCompressedTransforms(GMaxRHIShaderPlatform))
-		{
-			return CompressedTransformDataStrideInFloat4s;
-		}
-		else
-		{
-			return UnCompressedTransformDataStrideInFloat4s;
-		}
-	}
+	static ENGINE_API uint32 GetDataStrideInFloat4s();
 
 	static uint32 GetEffectiveNumBytes()
 	{

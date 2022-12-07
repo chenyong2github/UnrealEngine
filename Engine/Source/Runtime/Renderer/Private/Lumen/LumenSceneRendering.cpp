@@ -22,6 +22,7 @@
 #include "DistanceFieldAmbientOcclusion.h"
 #include "HAL/LowLevelMemStats.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 int32 GLumenSupported = 1;
 FAutoConsoleVariableRef CVarLumenSupported(
@@ -384,6 +385,13 @@ bool Lumen::ShouldHandleSkyLight(const FScene* Scene, const FSceneViewFamily& Vi
 		&& Scene->GetFeatureLevel() >= ERHIFeatureLevel::SM5
 		&& !IsForwardShadingEnabled(Scene->GetShaderPlatform())
 		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling;
+}
+
+bool DoesPlatformSupportLumenGI(EShaderPlatform Platform, bool bSkipProjectCheck)
+{
+	return (bSkipProjectCheck || GLumenSupported)
+		&& FDataDrivenShaderPlatformInfo::GetSupportsLumenGI(Platform)
+		&& !IsForwardShadingEnabled(Platform);
 }
 
 bool DoesRuntimePlatformSupportLumen()

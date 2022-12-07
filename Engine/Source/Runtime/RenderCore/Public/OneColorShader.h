@@ -78,36 +78,16 @@ private:
 class RENDERCORE_API FOneColorPS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FOneColorPS);
+public:
 	SHADER_USE_PARAMETER_STRUCT(FOneColorPS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, RENDERCORE_API)
 		SHADER_PARAMETER_ARRAY(FLinearColor, DrawColorMRT, [MaxSimultaneousRenderTargets])
 		RENDER_TARGET_BINDING_SLOTS()
-	END_SHADER_PARAMETER_STRUCT()
+		END_SHADER_PARAMETER_STRUCT()
 
-	void FillParameters(FParameters& Parameters, const FLinearColor* Colors, int32 NumColors)
-	{
-		check(NumColors <= MaxSimultaneousRenderTargets);
-
-		int32 Index = 0;
-
-		for (; Index < NumColors; ++Index)
-		{
-			Parameters.DrawColorMRT[Index] = Colors[Index];
-		}
-
-		for (; Index < MaxSimultaneousRenderTargets; ++Index)
-		{
-			Parameters.DrawColorMRT[Index] = FLinearColor::Black;
-		}
-	}
-
-	static void SetColors(FRHICommandList& RHICmdList, const TShaderMapRef<FOneColorPS>& Shader, const FLinearColor* Colors, int32 NumColors)
-	{
-		FParameters Parameters;
-		Shader->FillParameters(Parameters, Colors, NumColors);
-		SetShaderParameters(RHICmdList, Shader, Shader.GetPixelShader(), Parameters);
-	}
+	void FillParameters(FParameters& Parameters, const FLinearColor* Colors, int32 NumColors);
+	static void SetColors(FRHICommandList& RHICmdList, const TShaderMapRef<FOneColorPS>& Shader, const FLinearColor* Colors, int32 NumColors);
 };
 
 /**
@@ -121,65 +101,25 @@ public:
 	class TOneColorPixelShaderNumOutputs : SHADER_PERMUTATION_RANGE_INT("NUM_OUTPUTS", 1, 8);
 	using FPermutationDomain = TShaderPermutationDomain<TOneColorPixelShaderNumOutputs, TOneColorPixelShader128bitRT>;
 
-	TOneColorPixelShaderMRT( )	{ }
-	TOneColorPixelShaderMRT(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-	:	FOneColorPS( Initializer )
-	{
-	}
+	TOneColorPixelShaderMRT();
+	TOneColorPixelShaderMRT(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		FPermutationDomain PermutationVector(Parameters.PermutationId);
-
-		if(PermutationVector.Get<TOneColorPixelShaderMRT::TOneColorPixelShaderNumOutputs>())
-		{
-			return (PermutationVector.Get<TOneColorPixelShaderMRT::TOneColorPixelShader128bitRT>() ? FDataDrivenShaderPlatformInfo::GetRequiresExplicit128bitRT(Parameters.Platform) : true);
-		}
-
-		return true;
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FOneColorPS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-
-		FPermutationDomain PermutationVector(Parameters.PermutationId);
-		if (PermutationVector.Get<TOneColorPixelShaderMRT::TOneColorPixelShader128bitRT>())
-		{
-			OutEnvironment.SetRenderTargetOutputFormat(0, PF_A32B32G32R32F);
-		}
-	}
-
-	static void SetColors(FRHICommandList& RHICmdList, const TShaderMapRef<TOneColorPixelShaderMRT>& Shader, const FLinearColor* Colors, int32 NumColors)
-	{
-		FParameters Parameters;
-		Shader->FillParameters(Parameters, Colors, NumColors);
-		SetShaderParameters(RHICmdList, Shader, Shader.GetPixelShader(), Parameters);
-	}
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
+	static void SetColors(FRHICommandList& RHICmdList, const TShaderMapRef<TOneColorPixelShaderMRT>& Shader, const FLinearColor* Colors, int32 NumColors);
 };
 
 /**
  * Compute shader for writing values
  */
-class FFillTextureCS : public FGlobalShader
+class RENDERCORE_API FFillTextureCS : public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FFillTextureCS,Global,RENDERCORE_API);
+	DECLARE_GLOBAL_SHADER(FFillTextureCS);
 public:
-	FFillTextureCS( )	{ }
-	FFillTextureCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-	:	FGlobalShader( Initializer )
-	{
-		FillValue.Bind( Initializer.ParameterMap, TEXT("FillValue"), SPF_Mandatory);
-		Params0.Bind( Initializer.ParameterMap, TEXT("Params0"), SPF_Mandatory);
-		Params1.Bind( Initializer.ParameterMap, TEXT("Params1"), SPF_Mandatory);
-		Params2.Bind( Initializer.ParameterMap, TEXT("Params2"), SPF_Optional);
-		FillTexture.Bind( Initializer.ParameterMap, TEXT("FillTexture"), SPF_Mandatory);
-	}
+	FFillTextureCS();
+	FFillTextureCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
-	}
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
 
 	LAYOUT_FIELD(FShaderParameter, FillValue);
 	LAYOUT_FIELD(FShaderParameter, Params0);	// Texture Width,Height (.xy); Use Exclude Rect 1 : 0 (.z)
@@ -188,21 +128,11 @@ public:
 	LAYOUT_FIELD(FShaderResourceParameter, FillTexture);
 };
 
-class FLongGPUTaskPS : public FGlobalShader
+class RENDERCORE_API FLongGPUTaskPS : public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FLongGPUTaskPS,Global,RENDERCORE_API);
+	DECLARE_GLOBAL_SHADER(FLongGPUTaskPS);
 public:
-	FLongGPUTaskPS( )	{ }
-	FLongGPUTaskPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-	:	FGlobalShader( Initializer )
-	{
-	}
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		// MLCHANGES BEGIN
-		return true;
-		// MLCHANGES END
-	}
+	FLongGPUTaskPS();
+	FLongGPUTaskPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 };
 

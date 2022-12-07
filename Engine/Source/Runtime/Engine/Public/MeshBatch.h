@@ -60,6 +60,8 @@ struct FMeshBatchElementDynamicIndexBuffer
 	}
 };
 
+ENGINE_API bool AreCompressedTransformsSupported();
+
 /**
  * Dynamic primitive/instance data for a mesh batch element.
  * 
@@ -117,7 +119,7 @@ struct FMeshBatchDynamicPrimitiveData
 
 		if (PayloadDataFlags & INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA)
 		{
-			if (FDataDrivenShaderPlatformInfo::GetSupportSceneDataCompressedTransforms(GMaxRHIShaderPlatform))
+			if (AreCompressedTransformsSupported())
 			{
 				Total += 2;
 			}
