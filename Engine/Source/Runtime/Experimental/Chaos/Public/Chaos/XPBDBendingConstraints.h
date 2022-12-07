@@ -46,7 +46,7 @@ public:
 		, DampingRatio(FSolverVec2::ZeroVector)
 	{
 		Lambdas.Init((FSolverReal)0., Constraints.Num());
-		InitColor(InParticles);
+		InitColor(InParticles, ParticleOffset, ParticleCount);
 	}
 
 	FXPBDBendingConstraints(const FSolverParticles& InParticles,
@@ -76,7 +76,7 @@ public:
 		, DampingRatio(InDampingRatio, DampingMultipliers, TConstArrayView<TVec2<int32>>(ConstraintSharedEdges), ParticleOffset, ParticleCount)
 	{
 		Lambdas.Init((FSolverReal)0., Constraints.Num());
-		InitColor(InParticles);
+		InitColor(InParticles, ParticleOffset, ParticleCount);
 	}
 
 	virtual ~FXPBDBendingConstraints() override {}
@@ -107,7 +107,7 @@ public:
 	void Apply(FSolverParticles& Particles, const FSolverReal Dt) const;
 
 private:
-	void InitColor(const FSolverParticles& InParticles);
+	void InitColor(const FSolverParticles& InParticles, const int32 ParticleOffset, const int32 ParticleCount);
 	void ApplyHelper(FSolverParticles& Particles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverReal ExpStiffnessValue, const FSolverReal ExpBucklingValue, const FSolverReal DampingRatioValue) const;
 
 private:
