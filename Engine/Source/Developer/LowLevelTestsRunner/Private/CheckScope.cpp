@@ -63,9 +63,15 @@ private:
 
 FCheckScope::FCheckScope(const ANSICHAR* Msg)
 	: DeviceError(new FCheckScopeOutputDeviceError(GError, Msg))
+#if !UE_BUILD_SHIPPING
 	, bIgnoreDebugger(GIgnoreDebugger)
+#else
+	, bIgnoreDebugger(false)
+#endif
 {
+#if !UE_BUILD_SHIPPING
 	GIgnoreDebugger = true;
+#endif
 	GError = DeviceError;
 }
 
@@ -76,7 +82,9 @@ FCheckScope::FCheckScope()
 
 FCheckScope::~FCheckScope()
 {
+#if !UE_BUILD_SHIPPING
 	GIgnoreDebugger = bIgnoreDebugger;
+#endif
 	GError = DeviceError->GetDeviceError();
 	delete DeviceError;
 }

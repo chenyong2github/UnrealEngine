@@ -23,6 +23,7 @@ FEnsureScope::FEnsureScope(const ANSICHAR* ExpectedMsg)
 FEnsureScope::FEnsureScope(TFunction<bool(const FEnsureHandlerArgs& Args)> EnsureFunc)
 	: Count(0)
 {
+#if DO_ENSURE
 	OldHandler = SetEnsureHandler([this, EnsureFunc](const FEnsureHandlerArgs& Args) -> bool
 		{
 			bool Handled = EnsureFunc(Args);
@@ -32,11 +33,14 @@ FEnsureScope::FEnsureScope(TFunction<bool(const FEnsureHandlerArgs& Args)> Ensur
 			}
 			return Handled;
 		});
+#endif
 }
 
 FEnsureScope::~FEnsureScope()
 {
+#if DO_ENSURE
 	SetEnsureHandler(OldHandler);
+#endif
 }
 
 }
