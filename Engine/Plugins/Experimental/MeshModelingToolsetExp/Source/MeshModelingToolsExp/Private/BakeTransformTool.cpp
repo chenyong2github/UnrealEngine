@@ -63,6 +63,7 @@ void UBakeTransformTool::Setup()
 
 	BasicProperties = NewObject<UBakeTransformToolProperties>(this);
 	AddToolPropertySource(BasicProperties);
+	BasicProperties->RestoreProperties(this);
 
 	FText AllTheWarnings = LOCTEXT("BakeTransformWarning", "WARNING: This Tool will Modify the selected StaticMesh Assets! If you do not wish to modify the original Assets, please make copies in the Content Browser first!");
 
@@ -108,6 +109,8 @@ void UBakeTransformTool::OnShutdown(EToolShutdownType ShutdownType)
 	{
 		UpdateAssets();
 	}
+
+	BasicProperties->SaveProperties(this);
 }
 
 
