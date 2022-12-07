@@ -115,7 +115,7 @@ void FGLTFDelayedMaterialTask::Process()
 				Builder.LogWarning(FString::Printf(TEXT("Failed to export %s for material %s"), *EmissiveProperty.ToString(), *Material->GetName()));
 			}
 
-			const FGLTFMaterialPropertyEx NormalProperty = JsonMaterial->ShadingModel == EGLTFJsonShadingModel::ClearCoat ? FGLTFMaterialPropertyEx(TEXT("ClearCoatBottomNormal")) : FGLTFMaterialPropertyEx(MP_Normal);
+			const FGLTFMaterialPropertyEx NormalProperty = JsonMaterial->ShadingModel == EGLTFJsonShadingModel::ClearCoat ? FGLTFMaterialPropertyEx::ClearCoatBottomNormal : FGLTFMaterialPropertyEx(MP_Normal);
 			if (IsPropertyNonDefault(NormalProperty))
 			{
 				if (!TryGetSourceTexture(JsonMaterial->NormalTexture, NormalProperty, DefaultColorInputMasks))
@@ -1504,7 +1504,7 @@ EGLTFMaterialPropertyGroup FGLTFDelayedMaterialTask::GetPropertyGroup(const FGLT
 		case MP_CustomData1:
 			return EGLTFMaterialPropertyGroup::ClearCoatRoughness;
 		case MP_CustomOutput:
-			if (Property.CustomOutput == TEXT("ClearCoatBottomNormal"))
+			if (Property == FGLTFMaterialPropertyEx::ClearCoatBottomNormal)
 			{
 				return EGLTFMaterialPropertyGroup::ClearCoatBottomNormal;
 			}

@@ -3,6 +3,9 @@
 #include "GLTFMaterialPropertyEx.h"
 #include "UObject/NameTypes.h"
 
+const FGLTFMaterialPropertyEx FGLTFMaterialPropertyEx::ClearCoatBottomNormal(TEXT("ClearCoatBottomNormal"));
+const FGLTFMaterialPropertyEx FGLTFMaterialPropertyEx::TransmittanceColor(TEXT("TransmittanceColor"));
+
 FString FGLTFMaterialPropertyEx::ToString() const
 {
 	if (!IsCustomOutput())

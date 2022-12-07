@@ -27,12 +27,12 @@ UMaterialInterface* FGLTFMaterialUtility::GetDefaultMaterial()
 
 bool FGLTFMaterialUtility::IsNormalMap(const FGLTFMaterialPropertyEx& Property)
 {
-	return Property == MP_Normal || Property == TEXT("ClearCoatBottomNormal");
+	return Property == MP_Normal || Property == FGLTFMaterialPropertyEx::ClearCoatBottomNormal;
 }
 
 bool FGLTFMaterialUtility::IsSRGB(const FGLTFMaterialPropertyEx& Property)
 {
-	return Property == MP_BaseColor || Property == MP_EmissiveColor || Property == MP_SubsurfaceColor || Property == TEXT("TransmittanceColor");
+	return Property == MP_BaseColor || Property == MP_EmissiveColor || Property == MP_SubsurfaceColor || Property == FGLTFMaterialPropertyEx::TransmittanceColor;
 }
 
 FGuid FGLTFMaterialUtility::GetAttributeID(const FGLTFMaterialPropertyEx& Property)
@@ -315,7 +315,10 @@ bool FGLTFMaterialUtility::NeedsMeshData(const UMaterialInterface* Material)
 			MP_AmbientOcclusion,
 			MP_CustomData0,
 			MP_CustomData1,
-			TEXT("ClearCoatBottomNormal"),
+			FGLTFMaterialPropertyEx::ClearCoatBottomNormal,
+			// TODO: add TransmittanceColor when supported
+			// TODO: add Refraction when supported
+			// TODO: add Specular when supported
 		};
 
 		bool bNeedsMeshData = false;

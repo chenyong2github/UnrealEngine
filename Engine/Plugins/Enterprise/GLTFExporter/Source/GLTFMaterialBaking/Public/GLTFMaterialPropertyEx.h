@@ -5,7 +5,7 @@
 #include "SceneTypes.h"
 
 /** Structure extending EMaterialProperty to allow detailed information about custom output */
-struct FGLTFMaterialPropertyEx
+struct GLTFMATERIALBAKING_API FGLTFMaterialPropertyEx
 {
 	FGLTFMaterialPropertyEx(EMaterialProperty Type = MP_MAX, const FName& CustomOutput = NAME_None)
 		: Type(Type)
@@ -42,11 +42,14 @@ struct FGLTFMaterialPropertyEx
 		return !Other.IsCustomOutput() ? GetTypeHash(Other.Type) : GetTypeHash(Other.CustomOutput);
 	}
 
-	GLTFMATERIALBAKING_API FString ToString() const;
+	FString ToString() const;
 
 	/** The material property */
 	EMaterialProperty Type;
 
 	/** The name of a specific custom output. Only used if property is MP_CustomOutput */
 	FName CustomOutput;
+
+	static const FGLTFMaterialPropertyEx ClearCoatBottomNormal;
+	static const FGLTFMaterialPropertyEx TransmittanceColor;
 };

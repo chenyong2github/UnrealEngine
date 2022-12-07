@@ -288,8 +288,8 @@ void FGLTFMaterialBakingModule::StartupModule()
 	PerPropertyFormat.Add(MP_CustomData1, PF_B8G8R8A8);
 	PerPropertyFormat.Add(MP_Refraction, PF_B8G8R8A8);
 	PerPropertyFormat.Add(MP_ShadingModel, PF_B8G8R8A8);
-	PerPropertyFormat.Add(TEXT("ClearCoatBottomNormal"), PF_B8G8R8A8);
-	PerPropertyFormat.Add(TEXT("TransmittanceColor"), PF_B8G8R8A8);
+	PerPropertyFormat.Add(FGLTFMaterialPropertyEx::ClearCoatBottomNormal, PF_B8G8R8A8);
+	PerPropertyFormat.Add(FGLTFMaterialPropertyEx::TransmittanceColor, PF_B8G8R8A8);
 
 	// Register callback for modified objects
 	FCoreUObjectDelegates::OnObjectModified.AddRaw(this, &FGLTFMaterialBakingModule::OnObjectModified);
@@ -789,7 +789,7 @@ void FGLTFMaterialBakingModule::SetLinearBake(bool bCorrectLinear)
 		PerPropertyColorSpace.Add(MP_BaseColor, EPropertyColorSpace::sRGB);
 		PerPropertyColorSpace.Add(MP_EmissiveColor, EPropertyColorSpace::sRGB);
 		PerPropertyColorSpace.Add(MP_SubsurfaceColor, EPropertyColorSpace::sRGB);
-		PerPropertyColorSpace.Add(TEXT("TransmittanceColor"), EPropertyColorSpace::sRGB);
+		PerPropertyColorSpace.Add(FGLTFMaterialPropertyEx::TransmittanceColor, EPropertyColorSpace::sRGB);
 	}
 	else
 	{
@@ -799,7 +799,7 @@ void FGLTFMaterialBakingModule::SetLinearBake(bool bCorrectLinear)
 		PerPropertyColorSpace.Add(MP_OpacityMask, EPropertyColorSpace::Linear);
 		PerPropertyColorSpace.Add(MP_Refraction, EPropertyColorSpace::Linear);
 		PerPropertyColorSpace.Add(MP_ShadingModel, EPropertyColorSpace::Linear);
-		PerPropertyColorSpace.Add(TEXT("ClearCoatBottomNormal"), EPropertyColorSpace::Linear);
+		PerPropertyColorSpace.Add(FGLTFMaterialPropertyEx::ClearCoatBottomNormal, EPropertyColorSpace::Linear);
 	}
 }
 
