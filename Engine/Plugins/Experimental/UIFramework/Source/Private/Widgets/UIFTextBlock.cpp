@@ -26,14 +26,15 @@ void UUIFrameworkTextBlock::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 	FDoRepLifetimeParams Params;
 	Params.bIsPushBased = true;
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, Text, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, Justification, Params);
 }
-
 
 void UUIFrameworkTextBlock::LocalOnUMGWidgetCreated()
 {
-	CastChecked<UTextBlock>(LocalGetUMGWidget())->SetText(Text);
+	UTextBlock* TextBlock = CastChecked<UTextBlock>(LocalGetUMGWidget());
+	TextBlock->SetText(Text);
+	TextBlock->SetJustification(Justification);
 }
-
 
 void UUIFrameworkTextBlock::SetText(FText InText)
 {
@@ -41,11 +42,27 @@ void UUIFrameworkTextBlock::SetText(FText InText)
 	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Text, this);
 }
 
+void UUIFrameworkTextBlock::SetJustification(ETextJustify::Type InJustification)
+{
+	if (Justification != InJustification)
+	{
+		Justification = InJustification;
+		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Justification, this);
+	}
+}
 
 void UUIFrameworkTextBlock::OnRep_Text()
 {
 	if (LocalGetUMGWidget())
 	{
 		CastChecked<UTextBlock>(LocalGetUMGWidget())->SetText(Text);
+	}
+}
+
+void UUIFrameworkTextBlock::OnRep_Justification()
+{
+	if (LocalGetUMGWidget())
+	{
+		CastChecked<UTextBlock>(LocalGetUMGWidget())->SetJustification(Justification);
 	}
 }

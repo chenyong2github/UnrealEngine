@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Framework/Text/TextLayout.h"
 #include "UIFWidget.h"
 
 #include "UIFTextBlock.generated.h"
@@ -27,6 +28,15 @@ public:
 	{
 		return Text;
 	}
+	
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "UI Framework")
+	void SetJustification(ETextJustify::Type Justification);
+
+	UFUNCTION(BlueprintCallable, Category = "UI Framework")
+	ETextJustify::Type GetJustification() const
+	{
+		return Justification;
+	}
 
 	virtual void LocalOnUMGWidgetCreated() override;
 
@@ -34,7 +44,13 @@ private:
 	UFUNCTION()
 	void OnRep_Text();
 
+	UFUNCTION()
+	void OnRep_Justification();
+
 private:
 	UPROPERTY(/*ExposeOnSpawn, */ReplicatedUsing=OnRep_Text)
 	FText Text;
+
+	UPROPERTY(ReplicatedUsing=OnRep_Justification)
+	TEnumAsByte<ETextJustify::Type> Justification;
 };
