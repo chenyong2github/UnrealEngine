@@ -21,13 +21,6 @@ TAutoConsoleVariable<int32> CVarLumenSceneUpdateViewOrigin(
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarLumenThreadGroupSize32(
-	TEXT("r.Lumen.ThreadGroupSize32"),
-	1,
-	TEXT("Whether to to prefer dispatches in groups of 32 threads on HW which supports it (instead of standard 64)."),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
 static TAutoConsoleVariable<int32> CVarLumenSceneSurfaceCacheAtlasSize(
 	TEXT("r.LumenScene.SurfaceCache.AtlasSize"),
 	4096,
