@@ -25,7 +25,8 @@ class CHAOS_API FPBDEvolution : public TArrayCollection
 		FSolverReal SelfCollisionsThickness = (FSolverReal)0.,
 		FSolverReal CoefficientOfFriction = (FSolverReal)0.,
 		FSolverReal Damping = (FSolverReal)0.04,
-		FSolverReal LocalDamping = (FSolverReal)0.);
+		FSolverReal LocalDamping = (FSolverReal)0.,
+		bool bDoQuasistatics = false);
 	~FPBDEvolution() {}
 
 	// Advance one time step. Filter the input time step if specified.
@@ -220,6 +221,7 @@ private:
 	FSolverReal MDamping;
 	FSolverReal MLocalDamping;
 	FSolverReal MTime;
+	bool bDoQuasistatics = false;
 };
 
 }  // End namespace Chaos::Softs

@@ -70,7 +70,13 @@ namespace Chaos::Softs
 		MObjects = TArrayCollectionArray<const UObject*>();
 		FSolverParticles LocalParticlesDummy;
 		FSolverRigidParticles RigidParticles;
-		Evolution.Reset(new FPBDEvolution(MoveTemp(LocalParticlesDummy), MoveTemp(RigidParticles), {}, Property.NumSolverIterations));
+		Evolution.Reset(new FPBDEvolution(MoveTemp(LocalParticlesDummy), MoveTemp(RigidParticles), {}, 
+			Property.NumSolverIterations, (FSolverReal)0.,
+			/*SelfCollisionsThickness = */(FSolverReal)0.,
+			/*CoefficientOfFriction = */(FSolverReal)0.,
+			/*FSolverReal Damping = */(FSolverReal)0.04,
+			/*FSolverReal LocalDamping = */(FSolverReal)0.,
+			Property.bDoQuasistatics));
 		Evolution->Particles().AddArray(&MObjects);
 		if (Property.bDoSelfCollision || Property.CacheToFile)
 		{
@@ -204,12 +210,9 @@ namespace Chaos::Softs
 
 				for (int32 vdx : BoundVerts)
 				{
-					if (BoneIndex != INDEX_NONE)
-					{
-						int32 ParticleIndex = Range[0] + vdx;
-						Evolution->Particles().InvM(ParticleIndex) = 0.f;
-						Evolution->Particles().PAndInvM(ParticleIndex).InvM = 0.f;
-					}
+					int32 ParticleIndex = Range[0] + vdx;
+					Evolution->Particles().InvM(ParticleIndex) = 0.f;
+					Evolution->Particles().PAndInvM(ParticleIndex).InvM = 0.f;
 				}
 			}
 		}
@@ -251,7 +254,7 @@ namespace Chaos::Softs
 
 			FXPBDCorotatedConstraints<FSolverReal, FSolverParticles>* CorotatedConstraint =
 				new FXPBDCorotatedConstraints<FSolverReal, FSolverParticles>(
-					Evolution->Particles(), Elements, /*bRecordMetric = */false, (FSolverReal)100000.0);
+					Evolution->Particles(), Elements, /*bRecordMetric = */false, (FSolverReal)1000000.0);
 
 			int32 InitIndex = Evolution->AddConstraintInitRange(1, true);
 			Evolution->ConstraintInits()[InitIndex] =
@@ -328,6 +331,7 @@ namespace Chaos::Softs
 						}
 
 						typedef GeometryCollection::Facades::FVertexBoneWeightsFacade FWeightsFacade;
+						bool bParticleTouched = false;
 						FWeightsFacade WeightsFacade(Rest);
 						if (WeightsFacade.IsValid())
 						{
@@ -337,6 +341,7 @@ namespace Chaos::Softs
 							{
 								if(FleshInputBuffer)
 								{
+									bParticleTouched = true;
 									TArray<int32> BoneIndices = WeightsFacade.GetBoneIndices()[ObjectVertexIndex];
 									TArray<float> BoneWeights = WeightsFacade.GetBoneWeights()[ObjectVertexIndex];
 
@@ -376,7 +381,7 @@ namespace Chaos::Softs
 								}
 							}
 						}
-						else
+						if (!bParticleTouched)
 						{
 							MParticles.X(Index) = GlobalTransform.TransformPosition(ChaosVert(Vertex[Index - Range[0]]));
 							MParticles.PAndInvM(Index).P = MParticles.X(Index);

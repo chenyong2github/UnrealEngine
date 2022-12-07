@@ -207,6 +207,7 @@ void UDeformableSolverComponent::Reset()
 		, bDoSelfCollision
 		, bUseGridBasedConstraints
 		, GridDx
+		, bDoQuasistatics
 		}));
 
 	

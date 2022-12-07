@@ -227,11 +227,12 @@ void FSetVerticesKinematicDataflowNode::Evaluate(Dataflow::FContext& Context, co
 					BoundWeights.Add(1.f);
 				}
 			}
-			if (BoundVerts.Num() > 0)
-			{
-				GeometryCollection::Facades::FKinematicBindingFacade Kinematics(InCollection);
-				Kinematics.AddKinematicBinding(Kinematics.SetBoneBindings(INDEX_NONE, BoundVerts, BoundWeights));
-			}	
+			
+		}
+		if (BoundVerts.Num() > 0)
+		{
+			GeometryCollection::Facades::FKinematicBindingFacade Kinematics(InCollection);
+			Kinematics.AddKinematicBinding(Kinematics.SetBoneBindings(INDEX_NONE, BoundVerts, BoundWeights));
 		}
 		SetValue<DataType>(Context, InCollection, &Collection);
 	}

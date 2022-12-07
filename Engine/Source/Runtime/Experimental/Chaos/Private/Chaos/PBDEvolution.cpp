@@ -80,7 +80,8 @@ FPBDEvolution::FPBDEvolution(
 	FSolverReal SelfCollisionThickness,
 	FSolverReal CoefficientOfFriction,
 	FSolverReal Damping,
-	FSolverReal LocalDamping)
+	FSolverReal LocalDamping,
+	bool bDoQuasistatics)
 	: MParticles(MoveTemp(InParticles))
 	, MParticlesActiveView(MParticles)
 	, MCollisionParticles(MoveTemp(InGeometryParticles))
@@ -96,6 +97,7 @@ FPBDEvolution::FPBDEvolution(
 	, MDamping(Damping)
 	, MLocalDamping(LocalDamping)
 	, MTime(0)
+	, bDoQuasistatics(bDoQuasistatics)
 {
 	// Add group arrays
 	TArrayCollection::AddArray(&MGroupGravityAccelerations);
@@ -270,47 +272,67 @@ void FPBDEvolution::PreIterationUpdate(
 			DampingIntegrated = Dt;
 		}
 
-		const int32 RangeSize = Range - Offset;
-		PhysicsParallelFor(RangeSize,
-			[this, &Offset, &ForceRule, &Gravity, &VelocityAndPressureField, &DampVelocityRule, DampingPowDt, DampingIntegrated, Dt](int32 i)
-			{
-				const int32 Index = Offset + i;
-				if (MParticles.InvM(Index) != (FSolverReal)0.)  // Process dynamic particles
+		if (bDoQuasistatics)
+		{
+			const int32 RangeSize = Range - Offset;
+			PhysicsParallelFor(RangeSize,
+				[this, &Offset, &ForceRule, &Gravity, &VelocityAndPressureField, &DampVelocityRule, DampingPowDt, DampingIntegrated, Dt](int32 i)
 				{
-					// Init forces with GravityForces
-					MParticles.Acceleration(Index) = Gravity;
-
-					// Force Rule
-					if (bForceRule)
+					const int32 Index = Offset + i;
+					if (MParticles.InvM(Index) != (FSolverReal)0.)  // Process dynamic particles
 					{
-						ForceRule(MParticles, Dt, Index); // F += M * A
+						MParticles.P(Index) = MParticles.X(Index);
 					}
-
-					// Velocity Field
-					if (bVelocityField)
+					else  // Process kinematic particles
 					{
-						VelocityAndPressureField.Apply(MParticles, Dt, Index);
+						MKinematicUpdate(MParticles, Dt, MTime, Index);
 					}
-
-					// Euler Step Velocity
-					MParticles.V(Index) += MParticles.Acceleration(Index) * Dt;
-
-					// Damp Velocity Rule
-					if (bDampVelocityRule)
-					{
-						DampVelocityRule.ApplyFast(MParticles, Dt, Index);
-					}
-
-					// Euler Step with point damping integration
-					MParticles.P(Index) = MParticles.X(Index) + MParticles.V(Index) * DampingIntegrated;
-
-					MParticles.V(Index) *= DampingPowDt;
-				}
-				else  // Process kinematic particles
+				}, RangeSize < MinParallelBatchSize);
+		} 
+		else
+		{
+			const int32 RangeSize = Range - Offset;
+			PhysicsParallelFor(RangeSize,
+				[this, &Offset, &ForceRule, &Gravity, &VelocityAndPressureField, &DampVelocityRule, DampingPowDt, DampingIntegrated, Dt](int32 i)
 				{
-					MKinematicUpdate(MParticles, Dt, MTime, Index);
-				}
-			}, RangeSize < MinParallelBatchSize);
+					const int32 Index = Offset + i;
+					if (MParticles.InvM(Index) != (FSolverReal)0.)  // Process dynamic particles
+					{
+						// Init forces with GravityForces
+						MParticles.Acceleration(Index) = Gravity;
+
+						// Force Rule
+						if (bForceRule)
+						{
+							ForceRule(MParticles, Dt, Index); // F += M * A
+						}
+
+						// Velocity Field
+						if (bVelocityField)
+						{
+							VelocityAndPressureField.Apply(MParticles, Dt, Index);
+						}
+
+						// Euler Step Velocity
+						MParticles.V(Index) += MParticles.Acceleration(Index) * Dt;
+
+						// Damp Velocity Rule
+						if (bDampVelocityRule)
+						{
+							DampVelocityRule.ApplyFast(MParticles, Dt, Index);
+						}
+
+						// Euler Step with point damping integration
+						MParticles.P(Index) = MParticles.X(Index) + MParticles.V(Index) * DampingIntegrated;
+
+						MParticles.V(Index) *= DampingPowDt;
+					}
+					else  // Process kinematic particles
+					{
+						MKinematicUpdate(MParticles, Dt, MTime, Index);
+					}
+				}, RangeSize < MinParallelBatchSize);
+		}
 	}
 }
 

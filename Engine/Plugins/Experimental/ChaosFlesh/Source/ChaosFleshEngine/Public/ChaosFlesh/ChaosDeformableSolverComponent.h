@@ -92,6 +92,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = Chaos)
 		float GridDx = 25.;
 
+	UPROPERTY(EditAnywhere, Category = Chaos)
+		bool bDoQuasistatics = false;
+
 	//UPROPERTY(EditAnywhere, Category = Chaos)
 	//	bool bWaitForParallelDeformableTask = true;
 
