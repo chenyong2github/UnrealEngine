@@ -25,22 +25,22 @@
 		{
 			"Name": "TakesCore",
 			"Type": "UncookedOnly",
-			"LoadingPhase": "PostEngineInit"
+			"LoadingPhase": "PostDefault"
 		},
 		{
 			"Name": "TakeTrackRecorders",
 			"Type": "UncookedOnly",
-			"LoadingPhase": "PostEngineInit"
+			"LoadingPhase": "PostDefault"
 		},
 		{
 			"Name": "TakeRecorderSources",
 			"Type": "UncookedOnly",
-			"LoadingPhase": "PostEngineInit"
+			"LoadingPhase": "PostDefault"
 		},
 		{
 			"Name": "TakeRecorder",
 			"Type": "UncookedOnly",
-			"LoadingPhase": "PostEngineInit"
+			"LoadingPhase": "PostDefault"
 		},
 		{
 			"Name": "TakeMovieScene",
