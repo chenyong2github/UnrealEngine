@@ -243,10 +243,6 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 
 		
 
-		//TODO(Uncoment this)
-		// //Result = FormatNode;
-		//if (TypedNodeParam->bForceFixedSize)
-		//{
 		mu::NodeImageResizePtr ResizeNode = new mu::NodeImageResize();
 		ResizeNode->SetBase(FormatNode);
 		ResizeNode->SetRelative(false);
@@ -270,7 +266,6 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 		}
 
 		Result = ResizeNode;
-		//}
 	}
 
 	else if (const UCustomizableObjectNodeMesh* TypedNodeMesh = Cast<UCustomizableObjectNodeMesh>(Node))
@@ -617,7 +612,26 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 		}
 
 		ImageNode->SetLayout(TypedNodeProject->Layout);
-		ImageNode->SetImageSize( FUintVector2(TypedNodeProject->TextureSizeX, TypedNodeProject->TextureSizeY) );
+		FUintVector2 TextureSize(TypedNodeProject->TextureSizeX, TypedNodeProject->TextureSizeY);
+
+		// Calculating Texture size using Reference texture parameters
+		if (TypedNodeProject->ReferenceTexture)
+		{
+			int32 LODBias = ComputeLODBias(GenerationContext, TypedNodeProject->ReferenceTexture, TypedNodeProject->ReferenceTexture->MaxTextureSize, nullptr, INDEX_NONE);
+
+			if (TextureSize.X > 0 && TextureSize.Y > 0)
+			{
+				TextureSize.X = TextureSize.X >> LODBias;
+				TextureSize.Y = TextureSize.Y >> LODBias;
+			}
+			else
+			{
+				TextureSize.X = TypedNodeProject->ReferenceTexture->GetImportedSize().X >> LODBias;
+				TextureSize.Y = TypedNodeProject->ReferenceTexture->GetImportedSize().Y >> LODBias;
+			}
+		}
+
+		ImageNode->SetImageSize(TextureSize);
 
 		if (const UEdGraphPin* ConnectedPin = FollowInputPin(*TypedNodeProject->AngleFadeStartPin()))
 		{

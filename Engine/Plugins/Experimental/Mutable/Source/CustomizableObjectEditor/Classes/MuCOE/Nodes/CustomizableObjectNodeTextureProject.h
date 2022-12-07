@@ -32,14 +32,21 @@ public:
 	UPROPERTY(EditAnywhere, Category = CustomizableObject)
 	int32 Layout = 0;
 
+	/** Set the width of the Texture. If the reference texture is not null, it overrdies the Size X property */
 	UPROPERTY(EditAnywhere, Category = CustomizableObject)
-	int32 TextureSizeX = 0; 
+	int32 TextureSizeX = 0;
 
+	/** Set the height of the Texture. If the reference texture is not null, it overrdies the Size Y property */
 	UPROPERTY(EditAnywhere, Category = CustomizableObject)
 	int32 TextureSizeY = 0;
 
 	UPROPERTY(EditAnywhere, Category = CustomizableObject)
 	int32 Textures = 0;
+
+	/** Reference Texture used to decide the texture properties of the mutable-generated textures
+	* connected to this material (e.g. LODBias, Size X,...). If null, mutable default texture properties will be applied. */
+	UPROPERTY(EditAnywhere, Category = CustomizableObject)
+	TObjectPtr<UTexture2D> ReferenceTexture = nullptr;
 
 	// UObject interface.
 	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
