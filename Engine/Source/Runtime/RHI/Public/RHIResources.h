@@ -25,6 +25,7 @@
 #include "Experimental/Containers/HazardPointer.h"
 #include "Containers/ConsumeAllMpmcQueue.h"
 #include "Misc/CoreDelegates.h"
+#include "RHIFwd.h"
 
 // RHI_WANT_RESOURCE_INFO should be controlled by the RHI module.
 #ifndef RHI_WANT_RESOURCE_INFO
@@ -553,6 +554,7 @@ static bool MatchRHIState(RHIState* LHSState, RHIState* RHSState)
 //
 
 typedef TArray<struct FVertexElement,TFixedAllocator<MaxVertexElementCount> > FVertexDeclarationElementList;
+
 class FRHIVertexDeclaration : public FRHIResource
 {
 public:
@@ -1698,13 +1700,6 @@ struct FRHITextureCreateDesc : public FRHITextureDesc
 	FResourceBulkDataInterface* BulkData = nullptr;
 };
 
-class FRHITexture;
-/*UE_DEPRECATED(5.1, "FRHITexture2D is deprecated, please use FRHITexture.")      */ typedef class FRHITexture FRHITexture2D;
-/*UE_DEPRECATED(5.1, "FRHITexture2DArray is deprecated, please use FRHITexture.") */ typedef class FRHITexture FRHITexture2DArray;
-/*UE_DEPRECATED(5.1, "FRHITexture3D is deprecated, please use FRHITexture.")      */ typedef class FRHITexture FRHITexture3D;
-/*UE_DEPRECATED(5.1, "FRHITextureCube is deprecated, please use FRHITexture.")    */ typedef class FRHITexture FRHITextureCube;
-
-
 class RHI_API FRHITexture : public FRHIViewableResource
 #if ENABLE_RHI_VALIDATION
 	, public RHIValidation::FTextureResource
@@ -2297,41 +2292,6 @@ public:
 	{}
 };
 
-typedef TRefCountPtr<FRHISamplerState> FSamplerStateRHIRef;
-typedef TRefCountPtr<FRHIRasterizerState> FRasterizerStateRHIRef;
-typedef TRefCountPtr<FRHIDepthStencilState> FDepthStencilStateRHIRef;
-typedef TRefCountPtr<FRHIBlendState> FBlendStateRHIRef;
-typedef TRefCountPtr<FRHIVertexDeclaration> FVertexDeclarationRHIRef;
-typedef TRefCountPtr<FRHIVertexShader> FVertexShaderRHIRef;
-typedef TRefCountPtr<FRHIMeshShader> FMeshShaderRHIRef;
-typedef TRefCountPtr<FRHIAmplificationShader> FAmplificationShaderRHIRef;
-typedef TRefCountPtr<FRHIPixelShader> FPixelShaderRHIRef;
-typedef TRefCountPtr<FRHIGeometryShader> FGeometryShaderRHIRef;
-typedef TRefCountPtr<FRHIComputeShader> FComputeShaderRHIRef;
-typedef TRefCountPtr<FRHIRayTracingShader>          FRayTracingShaderRHIRef;
-typedef TRefCountPtr<FRHIComputeFence>	FComputeFenceRHIRef;
-typedef TRefCountPtr<FRHIBoundShaderState> FBoundShaderStateRHIRef;
-typedef TRefCountPtr<const FRHIUniformBufferLayout> FUniformBufferLayoutRHIRef;
-typedef TRefCountPtr<FRHIUniformBuffer> FUniformBufferRHIRef;
-typedef TRefCountPtr<FRHIBuffer> FBufferRHIRef;
-typedef TRefCountPtr<FRHITexture> FTextureRHIRef;
-/*UE_DEPRECATED(5.1, "FTexture2DRHIRef is deprecated, please use FTextureRHIRef.")      */ typedef FTextureRHIRef FTexture2DRHIRef;
-/*UE_DEPRECATED(5.1, "FTexture2DArrayRHIRef is deprecated, please use FTextureRHIRef.") */ typedef FTextureRHIRef FTexture2DArrayRHIRef;
-/*UE_DEPRECATED(5.1, "FTexture3DRHIRef is deprecated, please use FTextureRHIRef.")      */ typedef FTextureRHIRef FTexture3DRHIRef;
-/*UE_DEPRECATED(5.1, "FTextureCubeRHIRef is deprecated, please use FTextureRHIRef.")    */ typedef FTextureRHIRef FTextureCubeRHIRef;
-typedef TRefCountPtr<FRHITextureReference> FTextureReferenceRHIRef;
-typedef TRefCountPtr<FRHIRenderQuery> FRenderQueryRHIRef;
-typedef TRefCountPtr<FRHIRenderQueryPool> FRenderQueryPoolRHIRef;
-typedef TRefCountPtr<FRHITimestampCalibrationQuery> FTimestampCalibrationQueryRHIRef;
-typedef TRefCountPtr<FRHIGPUFence>	FGPUFenceRHIRef;
-typedef TRefCountPtr<FRHIViewport> FViewportRHIRef;
-typedef TRefCountPtr<FRHIUnorderedAccessView> FUnorderedAccessViewRHIRef;
-typedef TRefCountPtr<FRHIShaderResourceView> FShaderResourceViewRHIRef;
-typedef TRefCountPtr<FRHIGraphicsPipelineState> FGraphicsPipelineStateRHIRef;
-typedef TRefCountPtr<FRHIComputePipelineState> FComputePipelineStateRHIRef;
-typedef TRefCountPtr<FRHIRayTracingPipelineState> FRayTracingPipelineStateRHIRef;
-
-
 /**
  * A type used only for printing a string for debugging/profiling.
  * Adds Number as a suffix to the printed string even if the base name includes a number, so may prints a string like: Base_1_1
@@ -2643,8 +2603,6 @@ protected:
 	ERayTracingGeometryInitializerType InitializedType = ERayTracingGeometryInitializerType::Rendering;
 };
 
-typedef TRefCountPtr<FRHIRayTracingGeometry>     FRayTracingGeometryRHIRef;
-
 /** Top level ray tracing acceleration structure (contains instances of meshes). */
 class FRHIRayTracingScene : public FRHIRayTracingAccelerationStructure
 {
@@ -2661,9 +2619,6 @@ public:
 
 	virtual uint32 GetLayerBufferOffset(uint32 LayerIndex) const = 0;
 };
-
-typedef TRefCountPtr<FRHIRayTracingScene>        FRayTracingSceneRHIRef;
-
 
 /* Generic staging buffer class used by FRHIGPUMemoryReadback
 * RHI specific staging buffers derive from this
@@ -2704,8 +2659,6 @@ public:
 	FBufferRHIRef ShadowBuffer;
 	uint32 Offset;
 };
-
-typedef TRefCountPtr<FRHIStagingBuffer>	FStagingBufferRHIRef;
 
 class FRHIRenderTargetView
 {
@@ -3026,8 +2979,6 @@ public:
 	virtual void OnReleaseThreadOwnership() {}
 };
 
-
-typedef TRefCountPtr<FRHICustomPresent> FCustomPresentRHIRef;
 
 // Templates to convert an FRHI*Shader to its enum
 template<typename TRHIShader> struct TRHIShaderToEnum {};
@@ -3673,8 +3624,6 @@ protected:
 	uint32 LibraryId;
 };
 
-typedef TRefCountPtr<FRHIShaderLibrary>	FRHIShaderLibraryRef;
-
 class FRHIPipelineBinaryLibrary : public FRHIResource
 {
 public:
@@ -3686,8 +3635,6 @@ public:
 protected:
 	EShaderPlatform Platform;
 };
-
-typedef TRefCountPtr<FRHIPipelineBinaryLibrary>	FRHIPipelineBinaryLibraryRef;
 
 enum class ERenderTargetActions : uint8
 {
