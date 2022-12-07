@@ -234,84 +234,6 @@ extern RENDERCORE_API void EndBatchedRelease();
  */
 extern RENDERCORE_API void ReleaseResourceAndFlush(FRenderResource* Resource);
 
-/** Used to declare a render resource that is initialized/released by static initialization/destruction. */
-template<class ResourceType>
-class TGlobalResource : public ResourceType
-{
-public:
-
-	/** Default constructor. */
-	TGlobalResource()
-	{
-		InitGlobalResource();
-	}
-
-	/** Initialization constructor: 1 parameter. */
-	template<typename T1>
-	explicit TGlobalResource(T1 Param1)
-		: ResourceType(Param1)
-	{
-		InitGlobalResource();
-	}
-
-	/** Initialization constructor: 2 parameters. */
-	template<typename T1, typename T2>
-	explicit TGlobalResource(T1 Param1, T2 Param2)
-		: ResourceType(Param1, Param2)
-	{
-		InitGlobalResource();
-	}
-
-	/** Initialization constructor: 3 parameters. */
-	template<typename T1, typename T2, typename T3>
-	explicit TGlobalResource(T1 Param1, T2 Param2, T3 Param3)
-		: ResourceType(Param1, Param2, Param3)
-	{
-		InitGlobalResource();
-	}
-
-	/** Destructor. */
-	virtual ~TGlobalResource()
-	{
-		ReleaseGlobalResource();
-	}
-
-private:
-
-	/**
-	 * Initialize the global resource.
-	 */
-	void InitGlobalResource()
-	{
-		if(IsInRenderingThread())
-		{
-			// If the resource is constructed in the rendering thread, directly initialize it.
-			((ResourceType*)this)->InitResource();
-		}
-		else
-		{
-			// If the resource is constructed outside of the rendering thread, enqueue a command to initialize it.
-			BeginInitResource((ResourceType*)this);
-		}
-	}
-
-	/**
-	 * Release the global resource.
-	 */
-	void ReleaseGlobalResource()
-	{
-		// This should be called in the rendering thread, or at shutdown when the rendering thread has exited.
-		// However, it may also be called at shutdown after an error, when the rendering thread is still running.
-		// To avoid a second error in that case we don't assert.
-#if 0
-		check(IsInRenderingThread());
-#endif
-
-		// Cleanup the resource.
-		((ResourceType*)this)->ReleaseResource();
-	}
-};
-
 enum EMipFadeSettings
 {
 	MipFade_Normal = 0,
@@ -485,7 +407,6 @@ public:
 	/** The texture reference's RHI resource. */
 	FTextureReferenceRHIRef	TextureReferenceRHI;
 
-
 private:
 	/** True if the texture reference has been initialized from the game thread. */
 	bool bInitialized_GameThread;
@@ -547,43 +468,6 @@ public:
 	FUnorderedAccessViewRHIRef UnorderedAccessViewRHI;
 };
 
-/**
-* A vertex buffer with a single color component.  This is used on meshes that don't have a color component
-* to keep from needing a separate vertex factory to handle this case.
-*/
-class RENDERCORE_API FNullColorVertexBuffer : public FVertexBuffer
-{
-public:
-	FNullColorVertexBuffer();
-	~FNullColorVertexBuffer();
-
-	virtual void InitRHI() override;
-	virtual void ReleaseRHI() override;
-
-	FShaderResourceViewRHIRef VertexBufferSRV;
-};
-
-/** The global null color vertex buffer, which is set with a stride of 0 on meshes without a color component. */
-extern RENDERCORE_API TGlobalResource<FNullColorVertexBuffer> GNullColorVertexBuffer;
-
-/**
-* A vertex buffer with a single zero float3 component.
-*/
-class RENDERCORE_API FNullVertexBuffer : public FVertexBuffer
-{
-public:
-	FNullVertexBuffer();
-	~FNullVertexBuffer();
-
-	virtual void InitRHI() override;
-	virtual void ReleaseRHI() override;
-
-	FShaderResourceViewRHIRef VertexBufferSRV;
-};
-
-/** The global null vertex buffer, which is set with a stride of 0 on meshes */
-extern RENDERCORE_API TGlobalResource<FNullVertexBuffer> GNullVertexBuffer;
-
 /** An index buffer resource. */
 class RENDERCORE_API FIndexBuffer : public FRenderResource
 {
@@ -598,152 +482,22 @@ public:
 	FBufferRHIRef IndexBufferRHI;
 };
 
-/**
- * A system for dynamically allocating GPU memory for vertices.
- */
-class RENDERCORE_API FGlobalDynamicVertexBuffer
+class RENDERCORE_API FBufferWithRDG : public FRenderResource
 {
 public:
-	/**
-	 * Information regarding an allocation from this buffer.
-	 */
-	struct FAllocation
-	{
-		/** The location of the buffer in main memory. */
-		uint8* Buffer;
-		/** The vertex buffer to bind for draw calls. */
-		FVertexBuffer* VertexBuffer;
-		/** The offset in to the vertex buffer. */
-		uint32 VertexOffset;
+	FBufferWithRDG();
+	FBufferWithRDG(const FBufferWithRDG& Other);
+	FBufferWithRDG& operator=(const FBufferWithRDG& Other);
+	~FBufferWithRDG() override;
 
-		/** Default constructor. */
-		FAllocation()
-			: Buffer(NULL)
-			, VertexBuffer(NULL)
-			, VertexOffset(0)
-		{
-		}
+	void ReleaseRHI() override;
 
-		/** Returns true if the allocation is valid. */
-		FORCEINLINE bool IsValid() const
-		{
-			return Buffer != NULL;
-		}
-	};
-
-	/** Default constructor. */
-	FGlobalDynamicVertexBuffer();
-
-	/** Destructor. */
-	~FGlobalDynamicVertexBuffer();
-
-	/**
-	 * Allocates space in the global vertex buffer.
-	 * @param SizeInBytes - The amount of memory to allocate in bytes.
-	 * @returns An FAllocation with information regarding the allocated memory.
-	 */
-	FAllocation Allocate(uint32 SizeInBytes);
-
-	/**
-	 * Commits allocated memory to the GPU.
-	 *		WARNING: Once this buffer has been committed to the GPU, allocations
-	 *		remain valid only until the next call to Allocate!
-	 */
-	void Commit();
-
-	/** Returns true if log statements should be made because we exceeded GMaxVertexBytesAllocatedPerFrame */
-	bool IsRenderAlarmLoggingEnabled() const;
-
-private:
-	/** The pool of vertex buffers from which allocations are made. */
-	struct FDynamicVertexBufferPool* Pool;
-
-	/** A total of all allocations made since the last commit. Used to alert about spikes in memory usage. */
-	size_t TotalAllocatedSinceLastCommit;
-};
-
-/**
- * A system for dynamically allocating GPU memory for indices.
- */
-class RENDERCORE_API FGlobalDynamicIndexBuffer
-{
-public:
-	/**
-	 * Information regarding an allocation from this buffer.
-	 */
-	struct FAllocation
-	{
-		/** The location of the buffer in main memory. */
-		uint8* Buffer = nullptr;
-		/** The vertex buffer to bind for draw calls. */
-		FIndexBuffer* IndexBuffer = nullptr;
-		/** The offset in to the index buffer. */
-		uint32 FirstIndex = 0;
-
-		/** Returns true if the allocation is valid. */
-		FORCEINLINE bool IsValid() const
-		{
-			return Buffer != NULL;
-		}
-	};
-
-	/** Information data with usage details to avoid passing around parameters. */
-	struct FAllocationEx : public FAllocation
-	{
-		FAllocationEx() = default;
-
-		FAllocationEx(const FAllocation& InRef, uint32 InNumIndices, uint32 InIndexStride) 
-			: FAllocation(InRef)
-			, NumIndices(InNumIndices)
-			, IndexStride(InIndexStride) 
-		{}
-
-		/** The number of indices allocated. */
-		uint32 NumIndices = 0;
-		/** The allocation stride (2 or 4 bytes). */
-		uint32 IndexStride = 0;
-		/** The maximum value of the indices used. */
-		uint32 MaxUsedIndex = 0;
-	};
-
-	/** Default constructor. */
-	FGlobalDynamicIndexBuffer();
-
-	/** Destructor. */
-	~FGlobalDynamicIndexBuffer();
-
-	/**
-	 * Allocates space in the global index buffer.
-	 * @param NumIndices - The number of indices to allocate.
-	 * @param IndexStride - The size of an index (2 or 4 bytes).
-	 * @returns An FAllocation with information regarding the allocated memory.
-	 */
-	FAllocation Allocate(uint32 NumIndices, uint32 IndexStride);
-
-	/**
-	 * Helper function to allocate.
-	 * @param NumIndices - The number of indices to allocate.
-	 * @returns an FAllocation with information regarding the allocated memory.
-	 */
-	template <typename IndexType>
-	FORCEINLINE FAllocationEx Allocate(uint32 NumIndices)
-	{
-		return FAllocationEx(Allocate(NumIndices, sizeof(IndexType)), NumIndices, sizeof(IndexType));
-	}
-
-	/**
-	 * Commits allocated memory to the GPU.
-	 *		WARNING: Once this buffer has been committed to the GPU, allocations
-	 *		remain valid only until the next call to Allocate!
-	 */
-	void Commit();
-
-private:
-	/** The pool of vertex buffers from which allocations are made. */
-	struct FDynamicIndexBufferPool* Pools[2];
+	TRefCountPtr<FRDGPooledBuffer> Buffer;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RayTracingGeometry.h"
 #include "RenderUtils.h"
 #endif
+
+#include "GlobalRenderResources.h"

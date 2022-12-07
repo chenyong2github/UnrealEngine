@@ -9,27 +9,14 @@
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "PackedNormal.h"
 #include "RenderMath.h"
+#include "GlobalRenderResources.h"
 #endif
 
 class FBufferWithRDG;
 class FRDGBuffer;
-class FRDGPooledBuffer;
 class FRDGTexture;
 class FRDGBuilder;
 struct IPooledRenderTarget;
-
-class RENDERCORE_API FBufferWithRDG : public FRenderResource
-{
-public:
-	FBufferWithRDG();
-	FBufferWithRDG(const FBufferWithRDG& Other);
-	FBufferWithRDG& operator=(const FBufferWithRDG& Other);
-	~FBufferWithRDG() override;
-
-	void ReleaseRHI() override;
-
-	TRefCountPtr<FRDGPooledBuffer> Buffer;
-};
 
 extern RENDERCORE_API void RenderUtilsInit();
 
@@ -70,149 +57,10 @@ static const FColor DebugUtilColor[NUM_DEBUG_UTIL_COLORS] =
 	FColor(19,25,126)
 };
 
-/** A global white texture. */
-extern RENDERCORE_API class FTexture* GWhiteTexture;
-extern RENDERCORE_API class FTextureWithSRV* GWhiteTextureWithSRV;
-
-/** A global black texture. */
-extern RENDERCORE_API class FTexture* GBlackTexture;
-extern RENDERCORE_API class FTextureWithSRV* GBlackTextureWithSRV;
-
-extern RENDERCORE_API class FTexture* GTransparentBlackTexture;
-extern RENDERCORE_API class FTextureWithSRV* GTransparentBlackTextureWithSRV;
-
-extern RENDERCORE_API class FVertexBufferWithSRV* GEmptyVertexBufferWithUAV;
-
-extern RENDERCORE_API class FVertexBufferWithSRV* GWhiteVertexBufferWithSRV;
-
-extern RENDERCORE_API class FBufferWithRDG* GWhiteVertexBufferWithRDG;
-
-/** A global black array texture. */
-extern RENDERCORE_API class FTexture* GBlackArrayTexture;
-
-/** A global black volume texture. */
-extern RENDERCORE_API class FTexture* GBlackVolumeTexture;
-
-/** A global black volume texture, with alpha=1. */
-extern RENDERCORE_API class FTexture* GBlackAlpha1VolumeTexture;
-
-/** A global black texture<uint> */
-extern RENDERCORE_API class FTexture* GBlackUintTexture;
-
-/** A global black volume texture<uint>  */
-extern RENDERCORE_API class FTexture* GBlackUintVolumeTexture;
-
-/** A global white cube texture. */
-extern RENDERCORE_API class FTexture* GWhiteTextureCube;
-
-/** A global black cube texture. */
-extern RENDERCORE_API class FTexture* GBlackTextureCube;
-
-/** A global black cube depth texture. */
-extern RENDERCORE_API class FTexture* GBlackTextureDepthCube;
-
-/** A global black cube array texture. */
-extern RENDERCORE_API class FTexture* GBlackCubeArrayTexture;
-
-/** A global texture that has a different solid color in each mip-level. */
-extern RENDERCORE_API class FTexture* GMipColorTexture;
-
-/** Number of mip-levels in 'GMipColorTexture' */
-extern RENDERCORE_API int32 GMipColorTextureMipLevels;
-
-// 4: 8x8 cubemap resolution, shader needs to use the same value as preprocessing
-extern RENDERCORE_API const uint32 GDiffuseConvolveMipLevel;
-
 #define NUM_CUBE_VERTICES 36
+
 /** The indices for drawing a cube. */
 extern RENDERCORE_API const uint16 GCubeIndices[36];
-
-class FCubeIndexBuffer : public FIndexBuffer
-{
-public:
-	/**
-	* Initialize the RHI for this rendering resource
-	*/
-	virtual void InitRHI() override
-	{
-		// create a static vertex buffer
-		FRHIResourceCreateInfo CreateInfo(TEXT("FCubeIndexBuffer"));
-		IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint16), sizeof(uint16) * NUM_CUBE_VERTICES, BUF_Static, CreateInfo);
-		void* VoidPtr = RHILockBuffer(IndexBufferRHI, 0, sizeof(uint16) * NUM_CUBE_VERTICES, RLM_WriteOnly);
-		FMemory::Memcpy(VoidPtr, GCubeIndices, NUM_CUBE_VERTICES * sizeof(uint16));
-		RHIUnlockBuffer(IndexBufferRHI);
-	}
-};
-extern RENDERCORE_API TGlobalResource<FCubeIndexBuffer> GCubeIndexBuffer;
-
-class FTwoTrianglesIndexBuffer : public FIndexBuffer
-{
-public:
-	/**
-	* Initialize the RHI for this rendering resource
-	*/
-	virtual void InitRHI() override
-	{
-		// create a static vertex buffer
-		FRHIResourceCreateInfo CreateInfo(TEXT("FTwoTrianglesIndexBuffer"));
-		IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint16), sizeof(uint16) * 6, BUF_Static, CreateInfo);
-		void* VoidPtr = RHILockBuffer(IndexBufferRHI, 0, sizeof(uint16) * 6, RLM_WriteOnly);
-		static const uint16 Indices[] = { 0, 1, 3, 0, 3, 2 };
-		FMemory::Memcpy(VoidPtr, Indices, 6 * sizeof(uint16));
-		RHIUnlockBuffer(IndexBufferRHI);
-	}
-};
-extern RENDERCORE_API TGlobalResource<FTwoTrianglesIndexBuffer> GTwoTrianglesIndexBuffer;
-
-class FScreenSpaceVertexBuffer : public FVertexBuffer
-{
-public:
-	/**
-	* Initialize the RHI for this rendering resource
-	*/
-	virtual void InitRHI() override
-	{
-		// create a static vertex buffer
-		FRHIResourceCreateInfo CreateInfo(TEXT("FScreenSpaceVertexBuffer"));
-		VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector2f) * 4, BUF_Static, CreateInfo);
-		void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector2f) * 4, RLM_WriteOnly);
-		static const FVector2f Vertices[4] =
-		{
-			FVector2f(-1,-1),
-			FVector2f(-1,+1),
-			FVector2f(+1,-1),
-			FVector2f(+1,+1),
-		};
-		FMemory::Memcpy(VoidPtr, Vertices, sizeof(FVector2f) * 4);
-		RHIUnlockBuffer(VertexBufferRHI);
-	}
-};
-
-extern RENDERCORE_API TGlobalResource<FScreenSpaceVertexBuffer> GScreenSpaceVertexBuffer;
-
-class FTileVertexDeclaration : public FRenderResource
-{
-public:
-	FVertexDeclarationRHIRef VertexDeclarationRHI;
-
-	/** Destructor. */
-	virtual ~FTileVertexDeclaration() {}
-
-	virtual void InitRHI()
-	{
-		FVertexDeclarationElementList Elements;
-		uint16 Stride = sizeof(FVector2f);
-		Elements.Add(FVertexElement(0, 0, VET_Float2, 0, Stride, false));
-		VertexDeclarationRHI = RHICreateVertexDeclaration(Elements);
-	}
-
-	virtual void ReleaseRHI()
-	{
-		VertexDeclarationRHI.SafeRelease();
-	}
-};
-
-extern RENDERCORE_API TGlobalResource<FTileVertexDeclaration> GTileVertexDeclaration;
 
 /**
  * Maps from an X,Y,Z cube vertex coordinate to the corresponding vertex index.
