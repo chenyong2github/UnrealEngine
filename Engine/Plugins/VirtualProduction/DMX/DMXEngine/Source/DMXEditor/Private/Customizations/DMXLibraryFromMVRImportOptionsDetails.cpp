@@ -54,7 +54,7 @@ void FDMXLibraryFromMVRImportOptionsDetails::CustomizeDetails(IDetailLayoutBuild
 			[
 				SNew(STextBlock)
 				.Font(DetailBuilder.GetDetailFont())
-				.Text(LOCTEXT("GeneratePortDisplayName", "Generate Input Port"))
+				.Text(LOCTEXT("GenerateInputPortDisplayName", "Generate Input Port"))
 			]
 			.ValueContent()
 			[
@@ -76,7 +76,7 @@ void FDMXLibraryFromMVRImportOptionsDetails::CustomizeDetails(IDetailLayoutBuild
 			[
 				SNew(STextBlock)
 				.Font(DetailBuilder.GetDetailFont())
-				.Text(LOCTEXT("GeneratePortDisplayName", "Generate Output Port"))
+				.Text(LOCTEXT("GenerateOutputPortDisplayName", "Generate Output Port"))
 			]
 			.ValueContent()
 			[

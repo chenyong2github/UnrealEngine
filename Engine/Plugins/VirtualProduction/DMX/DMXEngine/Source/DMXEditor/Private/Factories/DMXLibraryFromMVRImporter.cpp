@@ -88,8 +88,8 @@ namespace UE::DMX::DMXLibraryFromMVRImporter::Private
 			const FVector2D WindowPosition = (DisplayTopLeft + (DisplaySize - WindowSize) / 2.0f);
 			
 			const FText Caption = InOptions->bIsReimport ?
-				LOCTEXT("MVRSceneActorFactoryOptionsWindowCaption", "MVR Reimport Options") :
-				LOCTEXT("MVRSceneActorFactoryOptionsWindowCaption", "MVR Import Options");
+				LOCTEXT("ReimportWindowCaption", "MVR Reimport Options") :
+				LOCTEXT("ImportWindowCaption", "MVR Import Options");
 
 			const TSharedRef<SWindow> Window = SNew(SWindow)
 				.Title(Caption)
