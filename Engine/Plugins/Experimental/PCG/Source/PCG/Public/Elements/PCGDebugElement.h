@@ -35,6 +35,7 @@ class FPCGDebugElement : public FSimplePCGElement
 {
 public:
 	virtual bool IsCacheable(const UPCGSettings* InSettings) const override { return false; }
+	virtual bool CanExecuteOnlyOnMainThread(FPCGContext* Context) const { return true; }
 
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;	
