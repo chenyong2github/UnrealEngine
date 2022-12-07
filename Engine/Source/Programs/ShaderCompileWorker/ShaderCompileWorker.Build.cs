@@ -16,8 +16,7 @@ public class ShaderCompileWorker : ModuleRules
 				"TargetPlatform",
 				"ApplicationCore",
 				"TraceLog",
-				"ShaderCompilerCommon",
-				"Sockets",
+				"ShaderCompilerCommon"
 			});
 
 		PrivateIncludePathModuleNames.AddRange(

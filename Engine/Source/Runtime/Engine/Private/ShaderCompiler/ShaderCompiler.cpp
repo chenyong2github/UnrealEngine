@@ -1245,7 +1245,7 @@ namespace ShaderCompilerCookStats
 #endif
 
 // Make functions so the crash reporter can disambiguate the actual error because of the different callstacks
-namespace ShaderCompileWorkerError
+namespace SCWErrorCode
 {
 	void HandleGeneralCrash(const TCHAR* ExceptionInfo, const TCHAR* Callstack)
 	{
@@ -1306,16 +1306,6 @@ namespace ShaderCompileWorkerError
 	void HandleCrashInsidePlatformCompiler(const TCHAR* Data)
 	{
 		ModalErrorOrLog(FString::Printf(TEXT("Crash inside the platform compiler!\n%s"), Data));
-	}
-
-	void HandleBadInputFile(const TCHAR* Data)
-	{
-		ModalErrorOrLog(FString::Printf(TEXT("ShaderCompileWorker failed with bad-input-file exception:\n%s\n"), Data));
-	}
-
-	void HandleOutOfMemory(const TCHAR* ExceptionInfo, const TCHAR* Hostname)
-	{
-		ModalErrorOrLog(FString::Printf(TEXT("ShaderCompileWorker failed with out-of-memory exception on machine \"%s\"\n%s\n"), Hostname, ExceptionInfo));
 	}
 }
 
@@ -1861,22 +1851,17 @@ static void LogQueuedCompileJobs(const TArray<FShaderCommonCompileJobPtr>& Queue
 
 // Disable optimization for this crash handler to get full access to the entire stack frame when debugging a crash dump
 UE_DISABLE_OPTIMIZATION_SHIP
-static void HandleWorkerCrash(const TArray<FShaderCommonCompileJobPtr>& QueuedJobs, FArchive& OutputFile, int32 OutputVersion, int64 FileSize, FSCWErrorCode::ECode ErrorCode, int32 NumProcessedJobs, int32 CallstackLength, int32 ExceptionInfoLength, int32 HostnameLength)
+static void HandleWorkerCrash(const TArray<FShaderCommonCompileJobPtr>& QueuedJobs, FArchive& OutputFile, int32 OutputVersion, int64 FileSize, ESCWErrorCode ErrorCode, int32 NumProcessedJobs, int32 CallstackLength, int32 ExceptionInfoLength)
 {
 	TArray<TCHAR> Callstack;
 	Callstack.AddUninitialized(CallstackLength + 1);
 	OutputFile.Serialize(Callstack.GetData(), CallstackLength * sizeof(TCHAR));
-	Callstack[CallstackLength] = TEXT('\0');
+	Callstack[CallstackLength] = 0;
 
 	TArray<TCHAR> ExceptionInfo;
 	ExceptionInfo.AddUninitialized(ExceptionInfoLength + 1);
 	OutputFile.Serialize(ExceptionInfo.GetData(), ExceptionInfoLength * sizeof(TCHAR));
-	ExceptionInfo[ExceptionInfoLength] = TEXT('\0');
-
-	TArray<TCHAR> Hostname;
-	Hostname.AddUninitialized(HostnameLength + 1);
-	OutputFile.Serialize(Hostname.GetData(), HostnameLength * sizeof(TCHAR));
-	Hostname[HostnameLength] = TEXT('\0');
+	ExceptionInfo[ExceptionInfoLength] = 0;
 
 	// Store primary job information onto stack to make it part of a crash dump
 	static const int32 MaxNumCharsForSourcePaths = 8192;
@@ -1928,45 +1913,41 @@ static void HandleWorkerCrash(const TArray<FShaderCommonCompileJobPtr>& QueuedJo
 	switch (ErrorCode)
 	{
 	default:
-	case FSCWErrorCode::GeneralCrash:
+	case ESCWErrorCode::GeneralCrash:
+	{
 		LogQueuedCompileJobs(QueuedJobs, NumProcessedJobs);
-		ShaderCompileWorkerError::HandleGeneralCrash(ExceptionInfo.GetData(), Callstack.GetData());
+		SCWErrorCode::HandleGeneralCrash(ExceptionInfo.GetData(), Callstack.GetData());
+	}
+	break;
+	case ESCWErrorCode::BadShaderFormatVersion:
+		SCWErrorCode::HandleBadShaderFormatVersion(ExceptionInfo.GetData());
 		break;
-	case FSCWErrorCode::BadShaderFormatVersion:
-		ShaderCompileWorkerError::HandleBadShaderFormatVersion(ExceptionInfo.GetData());
+	case ESCWErrorCode::BadInputVersion:
+		SCWErrorCode::HandleBadInputVersion(ExceptionInfo.GetData());
 		break;
-	case FSCWErrorCode::BadInputVersion:
-		ShaderCompileWorkerError::HandleBadInputVersion(ExceptionInfo.GetData());
+	case ESCWErrorCode::BadSingleJobHeader:
+		SCWErrorCode::HandleBadSingleJobHeader(ExceptionInfo.GetData());
 		break;
-	case FSCWErrorCode::BadSingleJobHeader:
-		ShaderCompileWorkerError::HandleBadSingleJobHeader(ExceptionInfo.GetData());
+	case ESCWErrorCode::BadPipelineJobHeader:
+		SCWErrorCode::HandleBadPipelineJobHeader(ExceptionInfo.GetData());
 		break;
-	case FSCWErrorCode::BadPipelineJobHeader:
-		ShaderCompileWorkerError::HandleBadPipelineJobHeader(ExceptionInfo.GetData());
+	case ESCWErrorCode::CantDeleteInputFile:
+		SCWErrorCode::HandleCantDeleteInputFile(ExceptionInfo.GetData());
 		break;
-	case FSCWErrorCode::CantDeleteInputFile:
-		ShaderCompileWorkerError::HandleCantDeleteInputFile(ExceptionInfo.GetData());
+	case ESCWErrorCode::CantSaveOutputFile:
+		SCWErrorCode::HandleCantSaveOutputFile(ExceptionInfo.GetData());
 		break;
-	case FSCWErrorCode::CantSaveOutputFile:
-		ShaderCompileWorkerError::HandleCantSaveOutputFile(ExceptionInfo.GetData());
+	case ESCWErrorCode::NoTargetShaderFormatsFound:
+		SCWErrorCode::HandleNoTargetShaderFormatsFound(ExceptionInfo.GetData());
 		break;
-	case FSCWErrorCode::NoTargetShaderFormatsFound:
-		ShaderCompileWorkerError::HandleNoTargetShaderFormatsFound(ExceptionInfo.GetData());
+	case ESCWErrorCode::CantCompileForSpecificFormat:
+		SCWErrorCode::HandleCantCompileForSpecificFormat(ExceptionInfo.GetData());
 		break;
-	case FSCWErrorCode::CantCompileForSpecificFormat:
-		ShaderCompileWorkerError::HandleCantCompileForSpecificFormat(ExceptionInfo.GetData());
-		break;
-	case FSCWErrorCode::CrashInsidePlatformCompiler:
+	case ESCWErrorCode::CrashInsidePlatformCompiler:
 		LogQueuedCompileJobs(QueuedJobs, NumProcessedJobs);
-		ShaderCompileWorkerError::HandleCrashInsidePlatformCompiler(ExceptionInfo.GetData());
+		SCWErrorCode::HandleCrashInsidePlatformCompiler(ExceptionInfo.GetData());
 		break;
-	case FSCWErrorCode::BadInputFile:
-		ShaderCompileWorkerError::HandleBadInputFile(ExceptionInfo.GetData());
-		break;
-	case FSCWErrorCode::OutOfMemory:
-		ShaderCompileWorkerError::HandleOutOfMemory(ExceptionInfo.GetData(), Hostname.GetData());
-		break;
-	case FSCWErrorCode::Success:
+	case ESCWErrorCode::Success:
 		// Can't get here...
 		break;
 	}
@@ -1978,7 +1959,7 @@ void FShaderCompileUtilities::DoReadTaskResults(const TArray<FShaderCommonCompil
 {
 	if (OutputFile.TotalSize() == 0)
 	{
-		ShaderCompileWorkerError::HandleOutputFileEmpty(*OutputFile.GetArchiveName());
+		SCWErrorCode::HandleOutputFileEmpty(*OutputFile.GetArchiveName());
 	}
 
 	int32 OutputVersion = ShaderCompileWorkerOutputVersion;
@@ -1996,7 +1977,7 @@ void FShaderCompileUtilities::DoReadTaskResults(const TArray<FShaderCommonCompil
 	// Check for corrupted output file
 	if (FileSize > OutputFile.TotalSize())
 	{
-		ShaderCompileWorkerError::HandleOutputFileCorrupted(*OutputFile.GetArchiveName(), FileSize, OutputFile.TotalSize());
+		SCWErrorCode::HandleOutputFileCorrupted(*OutputFile.GetArchiveName(), FileSize, OutputFile.TotalSize());
 	}
 
 	int32 ErrorCode = 0;
@@ -2011,13 +1992,10 @@ void FShaderCompileUtilities::DoReadTaskResults(const TArray<FShaderCommonCompil
 	int32 ExceptionInfoLength = 0;
 	OutputFile << ExceptionInfoLength;
 
-	int32 HostnameLength = 0;
-	OutputFile << HostnameLength;
-
 	// Worker crashed
-	if (ErrorCode != FSCWErrorCode::Success)
+	if (ESCWErrorCode(ErrorCode) != ESCWErrorCode::Success)
 	{
-		HandleWorkerCrash(QueuedJobs, OutputFile, OutputVersion, FileSize, (FSCWErrorCode::ECode)ErrorCode, NumProcessedJobs, CallstackLength, ExceptionInfoLength, HostnameLength);
+		HandleWorkerCrash(QueuedJobs, OutputFile, OutputVersion, FileSize, ESCWErrorCode(ErrorCode), NumProcessedJobs, CallstackLength, ExceptionInfoLength);
 	}
 
 	TArray<FShaderCompileJob*> QueuedSingleJobs;
@@ -4658,16 +4636,13 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 
 	// Process compiled shader maps in FIFO order, in case a shader map has been enqueued multiple times,
 	// Which can happen if a material is edited while a background compile is going on
-	for (TMap<int32, FShaderMapFinalizeResults>::TIterator ShaderMapResultIter(CompiledShaderMaps); ShaderMapResultIter; ++ShaderMapResultIter)
+	for (TMap<int32, FShaderMapFinalizeResults>::TIterator ProcessIt(CompiledShaderMaps); ProcessIt; ++ProcessIt)
 	{
-		const uint32 CompilingId = ShaderMapResultIter.Key();
-
-		FShaderMapFinalizeResults& CompileResults = ShaderMapResultIter.Value();
-		TArray<FShaderCommonCompileJobPtr>& FinishedJobs = CompileResults.FinishedJobs;
-
+		const uint32 CompilingId = ProcessIt.Key();
+		FShaderMapFinalizeResults& CompileResults = ProcessIt.Value();
 		if (CompileResults.bSkipResultProcessing)
 		{
-			ShaderMapResultIter.RemoveCurrent();
+			ProcessIt.RemoveCurrent();
 			continue;
 		}
 
@@ -4679,11 +4654,12 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 
 			TArray<FString> Errors;
 			FString DumpedSource;
+			TArray<FShaderCommonCompileJobPtr>& ResultArray = CompileResults.FinishedJobs;
 
 			bool bSuccess = true;
-			for (int32 JobIndex = 0; JobIndex < FinishedJobs.Num(); JobIndex++)
+			for (int32 JobIndex = 0; JobIndex < ResultArray.Num(); JobIndex++)
 			{
-				FShaderCommonCompileJob& CurrentJob = *FinishedJobs[JobIndex];
+				FShaderCommonCompileJob& CurrentJob = *ResultArray[JobIndex];
 
 				if (FShaderCompileJob* SingleJob = CurrentJob.GetSingleShaderJob())
 				{
@@ -4705,17 +4681,17 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 			if (bSuccess)
 			{
 				int32 JobIndex = 0;
-				if (FinishedJobs.Num() > 0)
+				if (ResultArray.Num() > 0)
 				{
-					CompilingShaderMap->ProcessCompilationResults(FinishedJobs, JobIndex, TimeBudget);
+					CompilingShaderMap->ProcessCompilationResults(ResultArray, JobIndex, TimeBudget);
 					{
 						FScopeLock Lock(&CompileQueueSection);
 						for (int32 i = 0; i < JobIndex; ++i)
 						{
-							ReleaseJob(FinishedJobs[i]);
+							ReleaseJob(ResultArray[i]);
 						}
 					}
-					FinishedJobs.RemoveAt(0, JobIndex);
+					ResultArray.RemoveAt(0, JobIndex);
 				}
 
 				// Make a clone of the compiling shader map to use for rendering
@@ -4725,9 +4701,9 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 				TimeBudget -= (FPlatformTime::Seconds() - StartTime);
 			}
 
-			if (!bSuccess || FinishedJobs.Num() == 0)
+			if (!bSuccess || ResultArray.Num() == 0)
 			{
-				ShaderMapResultIter.RemoveCurrent();
+				ProcessIt.RemoveCurrent();
 			}
 
 #if DEBUG_INFINITESHADERCOMPILE
@@ -4860,24 +4836,33 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 				break;
 			}
 		}
-		else
+		else if (CompilingId == GlobalShaderMapId)
 		{
-			if (CompilingId == GlobalShaderMapId)
-			{
-				ProcessCompiledGlobalShaders(FinishedJobs);
-				PropagateGlobalShadersToAllPrimitives();
-			}
+			ProcessCompiledGlobalShaders(CompileResults.FinishedJobs);
+			
+			PropagateGlobalShadersToAllPrimitives();
 
-			// ShaderMap was removed from compiling list or is being used by another type of shader map which is maintaining a reference
-			// to the results, either way the job can be released
 			{
 				FScopeLock Lock(&CompileQueueSection);
-				for (FShaderCommonCompileJobPtr& Job : FinishedJobs)
+				for (auto& Job : CompileResults.FinishedJobs)
 				{
 					ReleaseJob(Job);
 				}
 			}
-			ShaderMapResultIter.RemoveCurrent();
+			ProcessIt.RemoveCurrent();
+		}
+		else
+		{
+			// ShaderMap was removed from compiling list or is being used by another type of shader map which is maintaining a reference
+			// to the results, either way the job can be released
+			{
+				FScopeLock Lock(&CompileQueueSection);
+				for (auto& Job : CompileResults.FinishedJobs)
+				{
+					ReleaseJob(Job);
+				}
+			}
+			ProcessIt.RemoveCurrent();
 		}
 	}
 

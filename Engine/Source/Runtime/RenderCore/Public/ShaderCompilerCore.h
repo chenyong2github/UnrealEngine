@@ -496,44 +496,21 @@ struct FShaderCompilerOutput
 	}
 };
 
-struct RENDERCORE_API FSCWErrorCode
+enum class ESCWErrorCode
 {
-	enum ECode : int32
-	{
-		NotSet = -1,
-		Success,
-		GeneralCrash,
-		BadShaderFormatVersion,
-		BadInputVersion,
-		BadSingleJobHeader,
-		BadPipelineJobHeader,
-		CantDeleteInputFile,
-		CantSaveOutputFile,
-		NoTargetShaderFormatsFound,
-		CantCompileForSpecificFormat,
-		CrashInsidePlatformCompiler,
-		BadInputFile,
-		OutOfMemory,
-	};
-
-	/**
-	Sets the global SCW error code if it hasn't been set before.
-	Call Reset first before setting a new value.
-	Returns true on success, otherwise the error code has already been set.
-	*/
-	static void Report(ECode Code, const FStringView& Info = {});
-
-	/** Resets the global SCW error code to NotSet. */
-	static void Reset();
-
-	/** Returns the global SCW error code. */
-	static ECode Get();
-
-	/** Returns the global SCW error code information string. Empty string if not set. */
-	static const FString& GetInfo();
-
-	/** Returns true if the SCW global error code has been set. Equivalent to 'Get() != NotSet'. */
-	static bool IsSet();
+	NotSet = -1,
+	Success,
+	GeneralCrash,
+	BadShaderFormatVersion,
+	BadInputVersion,
+	BadSingleJobHeader,
+	BadPipelineJobHeader,
+	CantDeleteInputFile,
+	CantSaveOutputFile,
+	NoTargetShaderFormatsFound,
+	CantCompileForSpecificFormat,
+	CrashInsidePlatformCompiler,
+	BadInputFile
 };
 
 UE_DEPRECATED(5.2, "Functionality has moved to UE::ShaderCompilerCommon::ShouldUseStableConstantBuffer")

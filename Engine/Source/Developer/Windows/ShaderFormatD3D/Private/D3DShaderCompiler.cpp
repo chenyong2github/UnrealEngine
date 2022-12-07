@@ -483,7 +483,7 @@ static HRESULT D3DCompileWrapper(
 #if !PLATFORM_SEH_EXCEPTIONS_DISABLED
 	__except(D3DExceptionFilter(bCatchException))
 	{
-		FSCWErrorCode::Report(FSCWErrorCode::CrashInsidePlatformCompiler);
+		GSCWErrorCode = ESCWErrorCode::CrashInsidePlatformCompiler;
 		return E_FAIL;
 	}
 #endif

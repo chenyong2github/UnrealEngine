@@ -15,7 +15,6 @@
 #include "RHIShaderFormatDefinitions.inl"
 #include "ShaderCompilerCommon.h"
 #include "Serialization/MemoryReader.h"
-#include "SocketSubsystem.h"
 
 #define DEBUG_USING_CONSOLE	0
 
@@ -36,7 +35,7 @@ inline bool IsUsingXGE()
 	return GXGEMode != EXGEMode::None;
 }
 
-static FSCWErrorCode::ECode GFailedErrorCode = FSCWErrorCode::Success;
+static ESCWErrorCode GFailedErrorCode = ESCWErrorCode::Success;
 
 static void OnXGEJobCompleted(const TCHAR* WorkingDirectory)
 {
@@ -49,10 +48,10 @@ static void OnXGEJobCompleted(const TCHAR* WorkingDirectory)
 }
 
 #if USING_CODE_ANALYSIS
-	UE_NORETURN static inline void ExitWithoutCrash(FSCWErrorCode::ECode ErrorCode, const FString& Message);
+	UE_NORETURN static inline void ExitWithoutCrash(ESCWErrorCode ErrorCode, const FString& Message);
 #endif
 
-static inline void ExitWithoutCrash(FSCWErrorCode::ECode ErrorCode, const FString& Message)
+static inline void ExitWithoutCrash(ESCWErrorCode ErrorCode, const FString& Message)
 {
 	GFailedErrorCode = ErrorCode;
 	FCString::Snprintf(GErrorExceptionDescription, sizeof(GErrorExceptionDescription), TEXT("%s"), *Message);
@@ -74,7 +73,7 @@ static const TArray<const IShaderFormat*>& GetShaderFormats()
 
 		if (!Modules.Num())
 		{
-			ExitWithoutCrash(FSCWErrorCode::NoTargetShaderFormatsFound, TEXT("No target shader formats found!"));
+			ExitWithoutCrash(ESCWErrorCode::NoTargetShaderFormatsFound, TEXT("No target shader formats found!"));
 		}
 
 		for (int32 Index = 0; Index < Modules.Num(); Index++)
@@ -190,14 +189,14 @@ static const IShaderFormat* FindShaderFormat(FName Name)
 
 
 /** Processes a compilation job. */
-static FORCENOINLINE void ProcessCompilationJob(const FShaderCompilerInput& Input,FShaderCompilerOutput& Output,const FString& WorkingDirectory)
+static void ProcessCompilationJob(const FShaderCompilerInput& Input,FShaderCompilerOutput& Output,const FString& WorkingDirectory)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ProcessCompilationJob);
 
 	const IShaderFormat* Compiler = FindShaderFormat(Input.ShaderFormat);
 	if (!Compiler)
 	{
-		ExitWithoutCrash(FSCWErrorCode::CantCompileForSpecificFormat, FString::Printf(TEXT("Can't compile shaders for format %s"), *Input.ShaderFormat.ToString()));
+		ExitWithoutCrash(ESCWErrorCode::CantCompileForSpecificFormat, FString::Printf(TEXT("Can't compile shaders for format %s"), *Input.ShaderFormat.ToString()));
 	}
 
 	// Apply the console variable values from the input environment before calling the platform shader compiler
@@ -259,20 +258,6 @@ static void UpdateFileSize(FArchive& OutputFile, int64 FileSizePosition)
 	OutputFile.Seek(Current);
 };
 
-static const TCHAR* GetLocalHostname(int32* OutHostnameLength = nullptr)
-{
-	static FString Hostname;
-	if (Hostname.IsEmpty())
-	{
-		ISocketSubsystem::Get()->GetHostName(Hostname);
-	}
-	if (OutHostnameLength)
-	{
-		*OutHostnameLength = Hostname.Len();
-	}
-	return *Hostname;
-}
-
 static int64 WriteOutputFileHeader(FArchive& OutputFile, int32 ErrorCode, int32 CallstackLength, const TCHAR* Callstack,
 	int32 ExceptionInfoLength, const TCHAR* ExceptionInfo)
 {
@@ -296,10 +281,6 @@ static int64 WriteOutputFileHeader(FArchive& OutputFile, int32 ErrorCode, int32 
 
 	OutputFile << ExceptionInfoLength;
 
-	int32 HostnameLength = 0;
-	const TCHAR* Hostname = GetLocalHostname(&HostnameLength);
-	OutputFile << HostnameLength;
-
 	if (CallstackLength > 0)
 	{
 		OutputFile.Serialize((void*)Callstack, CallstackLength * sizeof(TCHAR));
@@ -308,11 +289,6 @@ static int64 WriteOutputFileHeader(FArchive& OutputFile, int32 ErrorCode, int32 
 	if (ExceptionInfoLength > 0)
 	{
 		OutputFile.Serialize((void*)ExceptionInfo, ExceptionInfoLength * sizeof(TCHAR));
-	}
-
-	if (HostnameLength > 0)
-	{
-		OutputFile.Serialize((void*)Hostname, HostnameLength * sizeof(TCHAR));
 	}
 
 	UpdateFileSize(OutputFile, FileSizePosition);
@@ -485,7 +461,7 @@ private:
 			{
 				if (Pair.Value != *Found)
 				{
-					ExitWithoutCrash(FSCWErrorCode::BadShaderFormatVersion, FString::Printf(TEXT("Mismatched shader version for format %s: Found version %u but expected %u; did you forget to build ShaderCompilerWorker?"), *Pair.Key, *Found, Pair.Value));
+					ExitWithoutCrash(ESCWErrorCode::BadShaderFormatVersion, FString::Printf(TEXT("Mismatched shader version for format %s: Found version %u but expected %u; did you forget to build ShaderCompilerWorker?"), *Pair.Key, *Found, Pair.Value));
 				}
 			}
 		}
@@ -499,7 +475,7 @@ private:
 		*InputFilePtr << InputVersion;
 		if (ShaderCompileWorkerInputVersion != InputVersion)
 		{
-			ExitWithoutCrash(FSCWErrorCode::BadInputVersion, FString::Printf(TEXT("Exiting due to ShaderCompilerWorker expecting input version %d, got %d instead! Did you forget to build ShaderCompilerWorker?"), ShaderCompileWorkerInputVersion, InputVersion));
+			ExitWithoutCrash(ESCWErrorCode::BadInputVersion, FString::Printf(TEXT("Exiting due to ShaderCompilerWorker expecting input version %d, got %d instead! Did you forget to build ShaderCompilerWorker?"), ShaderCompileWorkerInputVersion, InputVersion));
 		}
 
 		FString CompressionFormatString;
@@ -516,7 +492,7 @@ private:
 
 			if (UncompressedDataSize == 0)
 			{
-				ExitWithoutCrash(FSCWErrorCode::BadInputFile, TEXT("Exiting due to bad input file to ShaderCompilerWorker (uncompressed size is 0)! Did you forget to build ShaderCompilerWorker?"));
+				ExitWithoutCrash(ESCWErrorCode::BadInputFile, TEXT("Exiting due to bad input file to ShaderCompilerWorker (uncompressed size is 0)! Did you forget to build ShaderCompilerWorker?"));
 				// unreachable
 				return;
 			}
@@ -526,7 +502,7 @@ private:
 			*InputFilePtr << CompressedData;
 			if (!FCompression::UncompressMemory(CompressionFormat, UncompressedData.GetData(), UncompressedDataSize, CompressedData.GetData(), CompressedData.Num()))
 			{
-				ExitWithoutCrash(FSCWErrorCode::BadInputFile, FString::Printf(TEXT("Exiting due to bad input file to ShaderCompilerWorker (cannot uncompress with the format %s)! Did you forget to build ShaderCompilerWorker?"), *CompressionFormatString));
+				ExitWithoutCrash(ESCWErrorCode::BadInputFile, FString::Printf(TEXT("Exiting due to bad input file to ShaderCompilerWorker (cannot uncompress with the format %s)! Did you forget to build ShaderCompilerWorker?"), *CompressionFormatString));
 				// unreachable
 				return;
 			}
@@ -739,7 +715,7 @@ private:
 			InputFile << SingleJobHeader;
 			if (ShaderCompileWorkerSingleJobHeader != SingleJobHeader)
 			{
-				ExitWithoutCrash(FSCWErrorCode::BadSingleJobHeader, FString::Printf(TEXT("Exiting due to ShaderCompilerWorker expecting job header %d, got %d instead! Did you forget to build ShaderCompilerWorker?"), ShaderCompileWorkerSingleJobHeader, SingleJobHeader));
+				ExitWithoutCrash(ESCWErrorCode::BadSingleJobHeader, FString::Printf(TEXT("Exiting due to ShaderCompilerWorker expecting job header %d, got %d instead! Did you forget to build ShaderCompilerWorker?"), ShaderCompileWorkerSingleJobHeader, SingleJobHeader));
 			}
 
 			int32 NumBatches = 0;
@@ -784,7 +760,7 @@ private:
 			InputFile << PipelineJobHeader;
 			if (ShaderCompileWorkerPipelineJobHeader != PipelineJobHeader)
 			{
-				ExitWithoutCrash(FSCWErrorCode::BadPipelineJobHeader, FString::Printf(TEXT("Exiting due to ShaderCompilerWorker expecting pipeline job header %d, got %d instead! Did you forget to build ShaderCompilerWorker?"), ShaderCompileWorkerSingleJobHeader, PipelineJobHeader));
+				ExitWithoutCrash(ESCWErrorCode::BadPipelineJobHeader, FString::Printf(TEXT("Exiting due to ShaderCompilerWorker expecting pipeline job header %d, got %d instead! Did you forget to build ShaderCompilerWorker?"), ShaderCompileWorkerSingleJobHeader, PipelineJobHeader));
 			}
 
 			int32 NumPipelines = 0;
@@ -898,7 +874,7 @@ private:
 
 			if (!bResult)
 			{
-				ExitWithoutCrash(FSCWErrorCode::CantDeleteInputFile, FString::Printf(TEXT("Couldn't delete input file %s, is it readonly?"), *InputFilePath));
+				ExitWithoutCrash(ESCWErrorCode::CantDeleteInputFile, FString::Printf(TEXT("Couldn't delete input file %s, is it readonly?"), *InputFilePath));
 			}
 		}
 
@@ -922,7 +898,7 @@ private:
 			
 		if (!OutputFilePtr)
 		{
-			ExitWithoutCrash(FSCWErrorCode::CantSaveOutputFile, FString::Printf(TEXT("Couldn't save output file %s"), *TempFilePath));
+			ExitWithoutCrash(ESCWErrorCode::CantSaveOutputFile, FString::Printf(TEXT("Couldn't save output file %s"), *TempFilePath));
 		}
 
 		return OutputFilePtr;
@@ -933,9 +909,7 @@ private:
 		TRACE_CPUPROFILER_EVENT_SCOPE(WriteToOutputArchive);
 
 		FArchive& OutputFile = *OutputFilePtr;
-		const int64 FileSizePosition = FSCWErrorCode::IsSet()
-			? WriteOutputFileHeader(OutputFile, FSCWErrorCode::Get(), 0, nullptr, FSCWErrorCode::GetInfo().Len(), *FSCWErrorCode::GetInfo())
-			: WriteOutputFileHeader(OutputFile, FSCWErrorCode::Success, 0, nullptr, 0, nullptr);
+		int64 FileSizePosition = WriteOutputFileHeader(OutputFile, (int32)ESCWErrorCode::Success, 0, nullptr, 0, nullptr);
 
 		{
 			int32 SingleJobHeader = ShaderCompileWorkerSingleJobHeader;
@@ -1413,21 +1387,21 @@ static int32 GuardedMainWrapper(int32 ArgC, TCHAR* ArgV[], const TCHAR* CrashOut
 		{
 			FArchive& OutputFile = *IFileManager::Get().CreateFileWriter(CrashOutputFile, FILEWRITE_EvenIfReadOnly);
 
-			if (GFailedErrorCode == FSCWErrorCode::Success)
+			if (GFailedErrorCode == ESCWErrorCode::Success)
 			{
-				if (FSCWErrorCode::IsSet())
+				if (GSCWErrorCode != ESCWErrorCode::NotSet)
 				{
 					// Use the value set inside the shader format
-					GFailedErrorCode = FSCWErrorCode::Get();
+					GFailedErrorCode = GSCWErrorCode;
 				}
 				else
 				{
 					// Something else failed before we could set the error code, so mark it as a General Crash
-					GFailedErrorCode = FSCWErrorCode::GeneralCrash;
+					GFailedErrorCode = ESCWErrorCode::GeneralCrash;
 				}
 			}
-
-			int64 FileSizePosition = WriteOutputFileHeader(OutputFile, GFailedErrorCode, ExceptionCallStack.Len(), *ExceptionCallStack,
+			
+			int64 FileSizePosition = WriteOutputFileHeader(OutputFile, (int32)GFailedErrorCode, ExceptionCallStack.Len(), *ExceptionCallStack,
 				ExceptionMsg.Len(), *ExceptionMsg);
 
 			int32 NumBatches = 0;

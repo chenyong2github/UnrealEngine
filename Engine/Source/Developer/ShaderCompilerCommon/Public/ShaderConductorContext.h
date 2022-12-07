@@ -246,3 +246,6 @@ namespace CrossCompiler
 	};
 
 }
+
+// Error code for SCW to help track down crashes
+extern SHADERCOMPILERCOMMON_API ESCWErrorCode GSCWErrorCode;
