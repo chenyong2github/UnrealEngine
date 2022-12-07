@@ -32,6 +32,8 @@ struct FGLTFMaterialUtility
 {
 	static UMaterialInterface* GetDefaultMaterial();
 
+	static bool IsClearCoatBottomNormalEnabled();
+
 #if WITH_EDITOR
 	static bool IsNormalMap(const FGLTFMaterialPropertyEx& Property);
 	static bool IsSRGB(const FGLTFMaterialPropertyEx& Property);
@@ -51,7 +53,7 @@ struct FGLTFMaterialUtility
 		return static_cast<const FMaterialInput<InputType>*>(ExpressionInput);
 	}
 
-	static const UMaterialExpressionCustomOutput* GetCustomOutputByName(const UMaterialInterface* Material, const FString& Name);
+	static const UMaterialExpressionCustomOutput* GetCustomOutputByName(const UMaterialInterface* Material, const FString& FunctionName);
 
 	static FGLTFPropertyBakeOutput BakeMaterialProperty(const FIntPoint& OutputSize, const FGLTFMaterialPropertyEx& Property, const UMaterialInterface* Material, int32 TexCoord, const FGLTFMeshData* MeshData = nullptr, const FGLTFIndexArray& MeshSectionIndices = {}, bool bFillAlpha = true, bool bAdjustNormalmaps = true);
 

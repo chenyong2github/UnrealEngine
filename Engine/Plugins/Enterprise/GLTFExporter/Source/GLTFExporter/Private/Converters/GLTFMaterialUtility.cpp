@@ -11,16 +11,21 @@
 #include "IGLTFMaterialBakingModule.h"
 #include "GLTFMaterialBakingStructures.h"
 #endif
+#include "Engine/RendererSettings.h"
 #include "Modules/ModuleManager.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Materials/MaterialExpressionCustomOutput.h"
-#include "Materials/MaterialExpressionClearCoatNormalCustomOutput.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
 
 UMaterialInterface* FGLTFMaterialUtility::GetDefaultMaterial()
 {
 	static UMaterial* DefaultMaterial = FGLTFProxyMaterialUtilities::GetBaseMaterial(EGLTFJsonShadingModel::Default);
 	return DefaultMaterial;
+}
+
+bool FGLTFMaterialUtility::IsClearCoatBottomNormalEnabled()
+{
+	return GetDefault<URendererSettings>()->bClearCoatEnableSecondNormal != 0;
 }
 
 #if WITH_EDITOR
@@ -73,22 +78,27 @@ const FExpressionInput* FGLTFMaterialUtility::GetInputForProperty(const UMateria
 {
 	if (Property.IsCustomOutput())
 	{
-		const UMaterialExpressionCustomOutput* CustomOutput = GetCustomOutputByName(Material, Property.CustomOutput.ToString());
-		return CustomOutput != nullptr ? &CastChecked<UMaterialExpressionClearCoatNormalCustomOutput>(CustomOutput)->Input : nullptr;
+		const FString FunctionName = Property.CustomOutput.ToString();
+		const UMaterialExpressionCustomOutput* CustomOutput = GetCustomOutputByName(Material, FunctionName);
+		if (CustomOutput == nullptr)
+		{
+			return nullptr;
+		}
+
+		// Assume custom outputs always have a single input (which is true for all supported custom outputs)
+		return const_cast<UMaterialExpressionCustomOutput*>(CustomOutput)->GetInput(0);
 	}
 
 	UMaterial* UnderlyingMaterial = const_cast<UMaterial*>(Material->GetMaterial());
 	return UnderlyingMaterial->GetExpressionInputForProperty(Property.Type);
 }
 
-const UMaterialExpressionCustomOutput* FGLTFMaterialUtility::GetCustomOutputByName(const UMaterialInterface* Material, const FString& Name)
+const UMaterialExpressionCustomOutput* FGLTFMaterialUtility::GetCustomOutputByName(const UMaterialInterface* Material, const FString& FunctionName)
 {
-	// TODO: should we also search inside material functions and attribute layers?
-
 	for (const TObjectPtr<UMaterialExpression>& Expression : Material->GetMaterial()->GetExpressions())
 	{
 		const UMaterialExpressionCustomOutput* CustomOutput = Cast<UMaterialExpressionCustomOutput>(Expression);
-		if (CustomOutput != nullptr && CustomOutput->GetDisplayName() == Name)
+		if (CustomOutput != nullptr && CustomOutput->GetFunctionName() == FunctionName)
 		{
 			return CustomOutput;
 		}

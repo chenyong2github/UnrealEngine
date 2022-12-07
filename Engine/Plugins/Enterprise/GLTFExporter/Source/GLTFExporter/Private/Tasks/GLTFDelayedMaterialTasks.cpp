@@ -225,8 +225,20 @@ void FGLTFDelayedMaterialTask::GetProxyParameters(FGLTFJsonMaterial& OutMaterial
 		GetProxyParameter(FGLTFProxyMaterialInfo::RoughnessFactor, OutMaterial.PBRMetallicRoughness.RoughnessFactor);
 		GetProxyParameter(FGLTFProxyMaterialInfo::MetallicRoughness, OutMaterial.PBRMetallicRoughness.MetallicRoughnessTexture);
 
-		GetProxyParameter(FGLTFProxyMaterialInfo::NormalScale, OutMaterial.NormalTexture.Scale);
-		GetProxyParameter(FGLTFProxyMaterialInfo::Normal, OutMaterial.NormalTexture);
+		if (HasProxyParameter(FGLTFProxyMaterialInfo::Normal.Texture))
+		{
+			if (OutMaterial.ShadingModel == EGLTFJsonShadingModel::ClearCoat && !FGLTFMaterialUtility::IsClearCoatBottomNormalEnabled())
+			{
+				Builder.LogWarning(FString::Printf(
+					TEXT("Proxy material %s won't be exported with (bottom) normal because ClearCoatEnableSecondNormal in project rendering settings is disabled"),
+					*Material->GetName()));
+			}
+			else
+			{
+				GetProxyParameter(FGLTFProxyMaterialInfo::NormalScale, OutMaterial.NormalTexture.Scale);
+				GetProxyParameter(FGLTFProxyMaterialInfo::Normal, OutMaterial.NormalTexture);
+			}
+		}
 
 		GetProxyParameter(FGLTFProxyMaterialInfo::OcclusionStrength, OutMaterial.OcclusionTexture.Strength);
 		GetProxyParameter(FGLTFProxyMaterialInfo::Occlusion, OutMaterial.OcclusionTexture);
@@ -856,23 +868,34 @@ bool FGLTFDelayedMaterialTask::TryGetEmissive(FGLTFJsonMaterial& OutMaterial, co
 
 bool FGLTFDelayedMaterialTask::IsPropertyNonDefault(const FGLTFMaterialPropertyEx& Property) const
 {
-	const bool bUseMaterialAttributes = Material->GetMaterial()->bUseMaterialAttributes;
-	if (bUseMaterialAttributes)
+	// Custom outputs are by definition standalone and never part of material attributes
+	if (!Property.IsCustomOutput())
 	{
-		// TODO: check if attribute property connected, i.e. Material->GetMaterial()->MaterialAttributes.IsConnected(Property)
-		return true;
+		const bool bUseMaterialAttributes = Material->GetMaterial()->bUseMaterialAttributes;
+		if (bUseMaterialAttributes)
+		{
+			// TODO: check if attribute property connected, i.e. Material->GetMaterial()->MaterialAttributes.IsConnected(Property)
+			return true;
+		}
 	}
 
 	const FExpressionInput* MaterialInput = FGLTFMaterialUtility::GetInputForProperty(Material, Property);
 	if (MaterialInput == nullptr)
 	{
-		// TODO: report error
 		return false;
 	}
 
 	const UMaterialExpression* Expression = MaterialInput->Expression;
 	if (Expression == nullptr)
 	{
+		return false;
+	}
+
+	if (Property == FGLTFMaterialPropertyEx::ClearCoatBottomNormal && !FGLTFMaterialUtility::IsClearCoatBottomNormalEnabled())
+	{
+		Builder.LogWarning(FString::Printf(
+			TEXT("Material %s won't be exported with clear coat bottom normal because ClearCoatEnableSecondNormal in project rendering settings is disabled"),
+			*Material->GetName()));
 		return false;
 	}
 
