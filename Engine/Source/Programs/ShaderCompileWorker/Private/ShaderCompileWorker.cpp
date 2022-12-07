@@ -307,27 +307,30 @@ static int64 WriteOutputFileHeader(FArchive& OutputFile, int32 ErrorCode, int32 
 	const TCHAR* Hostname = GetLocalHostname(&HostnameLength);
 	OutputFile << HostnameLength;
 
-	if (CallstackLength > 0)
+	if (ErrorCode != FSCWErrorCode::Success)
 	{
-		OutputFile.Serialize((void*)Callstack, CallstackLength * sizeof(TCHAR));
-	}
+		if (CallstackLength > 0)
+		{
+			OutputFile.Serialize((void*)Callstack, CallstackLength * sizeof(TCHAR));
+		}
 
-	if (ExceptionInfoLength > 0)
-	{
-		OutputFile.Serialize((void*)ExceptionInfo, ExceptionInfoLength * sizeof(TCHAR));
-	}
+		if (ExceptionInfoLength > 0)
+		{
+			OutputFile.Serialize((void*)ExceptionInfo, ExceptionInfoLength * sizeof(TCHAR));
+		}
 
-	if (HostnameLength > 0)
-	{
-		OutputFile.Serialize((void*)Hostname, HostnameLength * sizeof(TCHAR));
-	}
+		if (HostnameLength > 0)
+		{
+			OutputFile.Serialize((void*)Hostname, HostnameLength * sizeof(TCHAR));
+		}
 
-	// Store available and used physical memory of host machine on OOM error
-	if (ErrorCode == FSCWErrorCode::OutOfMemory)
-	{
-		uint64 AvailablePhysical = 0, UsedPhysical = 0;
-		GetMemoryStats(AvailablePhysical, UsedPhysical);
-		OutputFile << AvailablePhysical << UsedPhysical;
+		// Store available and used physical memory of host machine on OOM error
+		if (ErrorCode == FSCWErrorCode::OutOfMemory)
+		{
+			uint64 AvailablePhysical = 0, UsedPhysical = 0;
+			GetMemoryStats(AvailablePhysical, UsedPhysical);
+			OutputFile << AvailablePhysical << UsedPhysical;
+		}
 	}
 
 	UpdateFileSize(OutputFile, FileSizePosition);
