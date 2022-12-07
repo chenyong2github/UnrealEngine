@@ -18,22 +18,20 @@
 #include "Internationalization/Text.h"
 #include "Layout/Children.h"
 #include "Misc/Paths.h"
+#include "SourcesSearch.h"
 #include "SPathView.h"
+#include "SSearchToggleButton.h"
 #include "Styling/AppStyle.h"
 #include "Textures/SlateIcon.h"
 #include "UObject/NameTypes.h"
 
-class FExtender;
-class SWidget;
-
 #define LOCTEXT_NAMESPACE "ContentBrowser"
-
 
 void SPathPicker::Construct( const FArguments& InArgs )
 {
 	for (auto DelegateIt = InArgs._PathPickerConfig.SetPathsDelegates.CreateConstIterator(); DelegateIt; ++DelegateIt)
 	{
-		if ((*DelegateIt) != NULL)
+		if ((*DelegateIt) != nullptr)
 		{
 			(**DelegateIt) = FSetPathPickerPathsDelegate::CreateSP(this, &SPathPicker::SetPaths);
 		}
@@ -56,6 +54,7 @@ void SPathPicker::Construct( const FArguments& InArgs )
 		.AllowReadOnlyFolders(InArgs._PathPickerConfig.bAllowReadOnlyFolders)
 		.SelectionMode(ESelectionMode::Single)
 		.CustomFolderPermissionList(InArgs._PathPickerConfig.CustomFolderPermissionList)
+		.ShowFavorites(InArgs._PathPickerConfig.bShowFavorites)
 	];
 
 	const FString& DefaultPath = InArgs._PathPickerConfig.DefaultPath;
@@ -116,7 +115,7 @@ TSharedPtr<SWidget> SPathPicker::GetItemContextMenu(TArrayView<const FContentBro
 	return GetFolderContextMenu(SelectedPackagePaths, OnGetPathContextMenuExtender, OnCreateNewFolder);
 }
 
-TSharedPtr<SWidget> SPathPicker::GetFolderContextMenu(const TArray<FString> & SelectedPaths, FContentBrowserMenuExtender_SelectedPaths InMenuExtender, FOnCreateNewFolder InOnCreateNewFolder)
+TSharedPtr<SWidget> SPathPicker::GetFolderContextMenu(const TArray<FString>& SelectedPaths, FContentBrowserMenuExtender_SelectedPaths InMenuExtender, FOnCreateNewFolder InOnCreateNewFolder)
 {
 	UContentBrowserDataSubsystem* ContentBrowserData = IContentBrowserDataModule::Get().GetSubsystem();
 

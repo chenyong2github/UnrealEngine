@@ -61,7 +61,9 @@
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Layout/SSeparator.h"
+#include "Widgets/Layout/SSplitter.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/ITableRow.h"
@@ -236,17 +238,16 @@ void SPathView::Construct( const FArguments& InArgs )
 		);
 	}
 
-	ChildSlot
-	[
-		SNew(SVerticalBox)
+	TSharedRef<SVerticalBox> ContentBox = SNew(SVerticalBox);
 
-		+SVerticalBox::Slot()
+	if (!InArgs._ExternalSearch || InArgs._ShowTreeTitle)
+	{
+		ContentBox->AddSlot()
 		.AutoHeight()
 		[
 			SNew(SBorder)
 			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
 			.Padding(8.f)
-			.Visibility((!InArgs._ExternalSearch || InArgs._ShowTreeTitle) ? EVisibility::Visible : EVisibility::Collapsed)
 			[
 				SNew(SVerticalBox)
 
@@ -267,23 +268,57 @@ void SPathView::Construct( const FArguments& InArgs )
 					.Visibility(InArgs._ShowTreeTitle ? EVisibility::Visible : EVisibility::Collapsed)
 				]
 			]
-		]
+		];
+	}
 
-		// Separator
-		+SVerticalBox::Slot()
+	// Separator
+	if (InArgs._ShowSeparator)
+	{
+		ContentBox->AddSlot()
 		.AutoHeight()
 		.Padding(0, 0, 0, 1)
 		[
 			SNew(SSeparator)
-			.Visibility( ( InArgs._ShowSeparator) ? EVisibility::Visible : EVisibility::Collapsed )
-		]
-			
+		];
+	}
+
+	if (InArgs._ShowFavorites)
+	{
+		ContentBox->AddSlot()
+		.FillHeight(1.f)
+		[
+			SNew(SSplitter)
+			.Orientation(Orient_Vertical)
+			+ SSplitter::Slot()
+			.SizeRule_Lambda([this]()
+				{ 
+					return (FavoritesArea.IsValid() && FavoritesArea->IsExpanded()) ? SSplitter::ESizeRule::FractionOfParent : SSplitter::ESizeRule::SizeToContent;
+				})
+			.MinSize(24)
+			.Value(0.25f)
+			[
+				CreateFavoritesView()
+			]
+			+ SSplitter::Slot()
+			.Value(0.75f)
+			[
+				TreeViewPtr.ToSharedRef()
+			]
+		];
+	}
+	else
+	{
 		// Tree
-		+SVerticalBox::Slot()
+		ContentBox->AddSlot()
 		.FillHeight(1.f)
 		[
 			TreeViewPtr.ToSharedRef()
-		]
+		];
+	}
+
+	ChildSlot
+	[
+		ContentBox
 	];
 
 	CustomFolderPermissionList = InArgs._CustomFolderPermissionList;
@@ -2074,6 +2109,39 @@ void SPathView::UpdateLastExpandedPathsIfDirty()
 	}
 }
 
+TSharedRef<SWidget> SPathView::CreateFavoritesView()
+{
+	return SAssignNew(FavoritesArea, SExpandableArea)
+		.BorderImage(FAppStyle::Get().GetBrush("Brushes.Header"))
+		.BodyBorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
+		.HeaderPadding(FMargin(4.0f, 4.0f))
+		.Padding(0)
+		.AllowAnimatedTransition(false)
+		.InitiallyCollapsed(true)
+		.HeaderContent()
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("Favorites", "Favorites"))
+			.TextStyle(FAppStyle::Get(), "ButtonText")
+			.Font(FAppStyle::Get().GetFontStyle("NormalFontBold"))
+		]
+		.BodyContent()
+		[
+			SNew(SFavoritePathView)
+			.OnItemSelectionChanged(OnItemSelectionChanged)
+			.OnGetItemContextMenu(OnGetItemContextMenu)
+			.FocusSearchBoxWhenOpened(false)
+			.ShowTreeTitle(false)
+			.ShowSeparator(false)
+			.AllowClassesFolder(bAllowClassesFolder)
+			.AllowReadOnlyFolders(bAllowReadOnlyFolders)
+			.AllowContextMenu(bAllowContextMenu)
+			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserFavorites")))
+			.ExternalSearch(SearchPtr)
+		];
+}
+
+
 void SFavoritePathView::Construct(const FArguments& InArgs)
 {
 	SAssignNew(TreeViewPtr, STreeView< TSharedPtr<FTreeItem> >)
@@ -2088,9 +2156,16 @@ void SFavoritePathView::Construct(const FArguments& InArgs)
 		.ClearSelectionOnClick(false);
 
 	// Bind the favorites menu to update after folder changes
-	AssetViewUtils::OnFolderPathChanged().AddSP(this, &SFavoritePathView::FixupFavoritesFromExternalChange);
+	AssetViewUtils::OnFolderPathChanged().AddSP(this, &SFavoritePathView::FixupFavoritesFromExternalChange); 
+
+	OnFavoritesChangedHandle = FContentBrowserSingleton::Get().RegisterOnFavoritesChangedHandler(FSimpleDelegate::CreateSP(this, &SFavoritePathView::Populate, false));
 
 	SPathView::Construct(InArgs);
+}
+
+SFavoritePathView::~SFavoritePathView()
+{
+	FContentBrowserSingleton::Get().UnregisterOnFavoritesChangedDelegate(OnFavoritesChangedHandle);
 }
 
 void SFavoritePathView::Populate(const bool bIsRefreshingFilter)

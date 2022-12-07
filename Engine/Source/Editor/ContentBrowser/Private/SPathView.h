@@ -72,6 +72,7 @@ public:
 		, _AllowContextMenu(true)
 		, _AllowClassesFolder(false)
 		, _AllowReadOnlyFolders(true)
+		, _ShowFavorites(false)
 		, _SelectionMode( ESelectionMode::Multi )
 		{}
 
@@ -107,6 +108,9 @@ public:
 
 		/** If true, read only folders will be displayed */
 		SLATE_ARGUMENT( bool, AllowReadOnlyFolders )
+
+		/** If true, the favorites expander will be displayed */
+		SLATE_ARGUMENT(bool, ShowFavorites);
 
 		/** The selection mode for the tree view */
 		SLATE_ARGUMENT( ESelectionMode::Type, SelectionMode )
@@ -351,6 +355,9 @@ private:
 	/** Update the LastExpandedPath if required */
 	void UpdateLastExpandedPathsIfDirty();
 
+	/** Create a favorites view. */
+	TSharedRef<SWidget> CreateFavoritesView();
+
 protected:
 	/** A helper class to manage PreventTreeItemChangedDelegateCount by incrementing it when constructed (on the stack) and decrementing when destroyed */
 	class FScopedPreventTreeItemChangedDelegate
@@ -463,6 +470,9 @@ private:
 
 	/** Delegate to sort with */
 	FSortTreeItemChildrenDelegate SortOverride;
+
+	/** The favorites path view if one is set. */
+	TSharedPtr<SExpandableArea> FavoritesArea;
 };
 
 
@@ -473,6 +483,9 @@ private:
 class SFavoritePathView : public SPathView
 {
 public:
+
+	virtual ~SFavoritePathView();
+
 	/** Constructs this widget with InArgs */
 	virtual void Construct(const FArguments& InArgs) override;
 
@@ -501,4 +514,5 @@ private:
 
 private:
 	TArray<FString> RemovedByFolderMove;
+	FDelegateHandle OnFavoritesChangedHandle;
 };
