@@ -123,6 +123,7 @@ public:
 	virtual void PostChange(const UUserDefinedEnum* Enum, FEnumEditorUtils::EEnumEditorChangeInfo Info) override;
 
 #if WITH_PYTHON
+	void RunStartupScripts();
 
 #if WITH_EDITOR	
 	void OnPostEngineInit();
@@ -213,7 +214,7 @@ private:
 	FPyObjectPtr PyUnrealModule;
 	PyThreadState* PyMainThreadState = nullptr;
 	bool bInitialized;
-	bool bHasTicked;
+	bool bRanStartupScripts;
 #endif	// WITH_PYTHON
 
 	FSimpleMulticastDelegate OnPythonInitializedDelegate;
