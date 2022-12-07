@@ -241,16 +241,6 @@ struct REPLICATIONGRAPH_API FActorRepListRefView
 	{
 	}
 
-	UE_DEPRECATED(4.27, "This constructor is deprecated since the class does not hold FActorRepList's anymore. ")
-	FActorRepListRefView(FActorRepList& InRepList) 
-	{ 
-		RepList.Reserve(InRepList.Num);
-		for (int32 i = 0; i < InRepList.Num; ++i)
-		{
-			RepList.Add(InRepList.Data[i]);
-		}
-	}
-
 	/** Empties the array but does not deallocate the internal memory. Will be resized if the specified max size is bigger than the current max. */
 	void Reset(int32 ExpectedMaxSize=0)
 	{
@@ -261,12 +251,6 @@ struct REPLICATIONGRAPH_API FActorRepListRefView
 	void Reserve(int32 Size)
 	{
 		RepList.Reserve(Size);
-	}
-
-	UE_DEPRECATED(4.27, "PrepareForWrite is not needed before calling operations on the RepList anymore. Use Reserve or Reset if you want to preallocate the array to a specific size")
-	void PrepareForWrite(bool bResetContent=false)
-	{
-		// empty
 	}
 
 	bool ConditionalAdd(const FActorRepListType& NewElement)
@@ -282,12 +266,6 @@ struct REPLICATIONGRAPH_API FActorRepListRefView
 	void Add(const FActorRepListType& NewElement)
 	{
 		RepList.Add(NewElement);
-	}
-
-	UE_DEPRECATED(4.27, "Remove has been deprecated in favor of RemoveSlow/RemoveFast. RemoveFast is the default recommendation unless you need the list order to be stable or are removing elements inside a RangedFor iteration loop.")
-	bool Remove(const FActorRepListType& ElementToRemove)
-	{
-		return RemoveSlow(ElementToRemove);
 	}
 
 	/** Removes the element quickly but changes the list order */
@@ -343,12 +321,6 @@ struct REPLICATIONGRAPH_API FActorRepListRefView
 	TArray<FActorRepListType>::RangedForIteratorType end()				{ return RepList.end(); }
 	TArray<FActorRepListType>::RangedForConstIteratorType end() const	{ return RepList.end(); }
 
-	UE_DEPRECATED(4.27, "IsValid is deprecated now that you don't need to call PrepareForWrite before doing operations on the list. Use IsEmpty() if you need to skip doing operations on empty lists")
-	bool IsValid() const 
-	{ 
-		return true; 
-	}
-
 	bool IsEmpty() const
 	{
 		return RepList.Num() <= 0;
@@ -365,12 +337,6 @@ struct REPLICATIONGRAPH_API FActorRepListRefView
 		RepList.Empty();
 	}
 	
-	UE_DEPRECATED(4.27, "ResetToNull was renamed to TearDown")
-	void ResetToNull()
-	{ 
-		TearDown();
-	}
-
 	int32 IndexOf(const FActorRepListType& Value) const
 	{
 		return RepList.IndexOfByKey(Value);
@@ -421,12 +387,6 @@ private:
 
 /** A read only, non owning (ref counting) view to an actor replication list: essentially a raw pointer and the category of the list. These are only created *from* FActorRepListRefView */
 
-struct UE_DEPRECATED(4.27, "Replace this struct with the new FActorRepListConstView struct.")  FActorRepListRawView : public TActorRepListViewBase<FActorRepList*>
-{
-	/** Standard ctor: make raw view from ref view */
-	REPLICATIONGRAPH_API FActorRepListRawView(const FActorRepListRefView& Source) { /*deprecated*/ }
-};
-
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	// Intended to be called from immediate mode window while debugging
 	extern "C" DLLEXPORT void PrintRepListDetails(int32 PoolSize, int32 BlockIdx, int32 ListIdx);
@@ -434,10 +394,6 @@ struct UE_DEPRECATED(4.27, "Replace this struct with the new FActorRepListConstV
 	
 	void PrintRepListStatsAr(int32 mode, FOutputDevice& Ar=*GLog);	
 #endif
-
-/** To be called by projects to preallocate replication lists. This isn't strictly necessary: lists will be allocated on demand as well. */
-UE_DEPRECATED(4.27, "The RepList allocator is not used anymore so preallocating is not needed.")
-REPLICATIONGRAPH_API void PreAllocateRepList(int32 ListSize, int32 NumLists);
 
 // --------------------------------------------------------------------------------------------------------------------------------------------
 // --------------------------------------------------------------------------------------------------------------------------------------------

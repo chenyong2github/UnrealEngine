@@ -478,9 +478,6 @@ UNetReplicationGraphConnection* UReplicationGraph::CreateClientConnectionManager
 	// Give it an ID
 	const int32 NewConnectionNum = Connections.Num() + PendingConnections.Num();
 	NewConnectionManager->ConnectionOrderNum = NewConnectionNum;
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	NewConnectionManager->ConnectionId = NewConnectionNum;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Initialize it with us
 	NewConnectionManager->InitForGraph(this);
@@ -506,9 +503,6 @@ UNetReplicationGraphConnection* UReplicationGraph::FixGraphConnectionList(TArray
 			// Fix the ConnectionOrderNum
 			const int32 NewConnectionNum = ConnectionNum++;
 			CurrentGraphConnection->ConnectionOrderNum = NewConnectionNum;
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			CurrentGraphConnection->ConnectionId = NewConnectionNum;
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 		else
 		{
@@ -3890,19 +3884,6 @@ FORCEINLINE uint32 CalcDynamicReplicationPeriod(const float FinalPCT, const uint
 }
 
 static TArray<FColor> DynamicSpatialFrequencyDebugColorArray = { FColor::Red, FColor::Green, FColor::Blue, FColor::Cyan, FColor::Orange, FColor::Purple };
-
-void UReplicationGraphNode_DynamicSpatialFrequency::CalcFrequencyForActor(AActor* Actor, UReplicationGraph* RepGraph, UNetConnection* NetConnection, FGlobalActorReplicationInfo& GlobalInfo, FConnectionReplicationActorInfo& ConnectionInfo, FSettings& MySettings, const FNetViewerArray& Viewers, const uint32 FrameNum, int32 ExistingItemIndex)
-{
-	for (UNetReplicationGraphConnection* ConnectionManager : RepGraph->Connections)
-	{
-		if (ConnectionManager->NetConnection == NetConnection)
-		{
-			CalcFrequencyForActor(Actor, RepGraph, NetConnection, GlobalInfo, ConnectionManager->ActorInfoMap, MySettings, Viewers, FrameNum, ExistingItemIndex);
-			return;
-		}
-	}
-}
-
 
 void UReplicationGraphNode_DynamicSpatialFrequency::CalcFrequencyForActor(AActor* Actor, UReplicationGraph* RepGraph, UNetConnection* NetConnection, FGlobalActorReplicationInfo& GlobalInfo, FPerConnectionActorInfoMap& ConnectionMap, FSettings& MySettings, const FNetViewerArray& Viewers, const uint32 FrameNum, int32 ExistingItemIndex)
 {
