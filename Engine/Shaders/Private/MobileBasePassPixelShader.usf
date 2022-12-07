@@ -299,7 +299,7 @@ void Main(
 	ResolvedView = ResolveView();
 #endif
 
-#if USE_GLOBAL_CLIP_PLANE
+#if USE_GLOBAL_CLIP_PLANE && !PLATFORM_SUPPORTS_CLIP_DISTANCE
 	clip(BasePassInterpolants.OutClipDistance);
 #endif
 

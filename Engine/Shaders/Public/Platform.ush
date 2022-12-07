@@ -372,8 +372,8 @@
 	#define UB_FIXED_FLOAT(Dim) float##Dim
 #endif
 
-// On mobile use interpolator for ClipDistance as it does not work/supported on all mobile platforms
-#if (FEATURE_LEVEL == FEATURE_LEVEL_ES3_1)
+// Use interpolator for platforms that do not support ClipDistance
+#if !PLATFORM_SUPPORTS_CLIP_DISTANCE
 #define SV_ClipDistance OUTCLIPDIST
 #endif
 
