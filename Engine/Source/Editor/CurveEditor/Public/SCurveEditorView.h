@@ -25,6 +25,7 @@ class FText;
 class SCurveEditorPanel;
 struct FCurveDrawParams;
 class FCurveModel;
+class SRetainerWidget;
 
 /**
  * This is the base widget type for all views that exist on a curve editor panel. A view may contain 0 or more curves (stored in CurveInfoByID).
@@ -145,6 +146,9 @@ public:
 	 */
 	void ZoomAround(const FVector2D& Amount, double InputOrigin, double OutputOrigin);
 
+	/** This should be called every tick by an owning widget, to see if the cache is valid, which will then recreate it and invalidate widget*/
+	void CheckCacheAndInvalidateIfNeeded();
+
 public:
 
 	/**
@@ -213,8 +217,8 @@ protected:
 	void GetCurveDrawParam(TSharedPtr<FCurveEditor>& CurveEditor, const FCurveModelID& ModelID, FCurveModel* CurveModel,
 		double InputMin, double InputMax, FCurveDrawParams& OutDrawParam) const;
 
+
 	// ~SWidget interface
-	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	virtual FVector2D ComputeDesiredSize(float LayoutScaleMultiplier) const override;
 
 private:
@@ -311,4 +315,13 @@ protected:
 	};
 
 	FCachedValuesToCheck CachedValues;
+
+	/** Possible pointer to a retainer widget that we may need to force update*/
+	TSharedPtr<SRetainerWidget> RetainerWidget;
+
+public:
+	void SetRetainerWidget(TSharedPtr<SRetainerWidget>& InWidget)
+	{
+		RetainerWidget = InWidget;
+	}
 };

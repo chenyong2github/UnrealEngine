@@ -25,6 +25,7 @@
 #include "Rendering/RenderingCommon.h"
 #include "SCurveEditorPanel.h"
 #include "SCurveEditorView.h"
+#include "Slate/SRetainerWidget.h"
 #include "SlotBase.h"
 #include "Styling/AppStyle.h"
 #include "Styling/SlateBrush.h"
@@ -100,6 +101,15 @@ FVector2D SCurveEditorViewContainer::ComputeDesiredSize(float) const
 void SCurveEditorViewContainer::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	ExpandInputBounds(AllottedGeometry.GetLocalSize().X);
+
+	//we manually check the child views since we can't rely on ::Tick being called since the RetainerWidget will stop them if not actually rendering
+	for (TSharedPtr<SCurveEditorView>& View : Views)
+	{
+		if (View)
+		{
+			View->CheckCacheAndInvalidateIfNeeded();
+		}
+	}
 
 	if (CurveEditor->GetCurrentTool())
 	{
@@ -355,13 +365,19 @@ void SCurveEditorViewContainer::AddView(TSharedRef<SCurveEditorView> ViewToAdd)
 	Views.Add(ViewToAdd);
 	SVerticalBox::FSlot* SlotPointer = nullptr;
 	AddSlot()
-	.Expose(SlotPointer)
-	[
-		SNew(SBox)
-		.Padding(MakeAttributeSP(this, &SCurveEditorViewContainer::GetSlotPadding, InsertIndex))
-		.Clipping(EWidgetClipping::ClipToBounds)
+		.Expose(SlotPointer)
 		[
-			ViewToAdd
+		SAssignNew(RetainerWidget, SRetainerWidget)
+		.RenderOnPhase(false)
+		.RenderOnInvalidation(false)
+		.RenderWithLocalTransform(false)
+		[
+			SNew(SBox)
+			.Padding(MakeAttributeSP(this, &SCurveEditorViewContainer::GetSlotPadding, InsertIndex))
+			.Clipping(EWidgetClipping::ClipToBounds)
+			[
+				ViewToAdd
+			]
 		]
 	];
 
@@ -369,6 +385,8 @@ void SCurveEditorViewContainer::AddView(TSharedRef<SCurveEditorView> ViewToAdd)
 	{
 		SlotPointer->SetAutoHeight();
 	}
+
+	ViewToAdd->SetRetainerWidget(RetainerWidget);
 }
 
 void SCurveEditorViewContainer::Clear()

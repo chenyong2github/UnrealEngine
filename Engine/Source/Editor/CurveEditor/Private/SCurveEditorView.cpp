@@ -19,8 +19,10 @@
 #include "Math/Color.h"
 #include "Misc/AssertionMacros.h"
 #include "SCurveEditorPanel.h"
+#include "Slate/SRetainerWidget.h"
 #include "Templates/Tuple.h"
 #include "Templates/UnrealTemplate.h"
+
 TAutoConsoleVariable<bool> CVarUseCurveCache(TEXT("CurveEditor.UseCurveCache"), true, TEXT("When true we cache curve values, when false we always regenerate."));
 
 SCurveEditorView::SCurveEditorView()
@@ -317,7 +319,7 @@ void SCurveEditorView::GetCurveDrawParam(TSharedPtr<FCurveEditor>& CurveEditor,c
 	}
 }
 
-void SCurveEditorView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+void SCurveEditorView::CheckCacheAndInvalidateIfNeeded()
 {
 	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
 	check(CurveEditor.IsValid());
@@ -373,16 +375,26 @@ void SCurveEditorView::Tick(const FGeometry& AllottedGeometry, const double InCu
 			CachedDrawParams.Reset();
 			GetCurveDrawParams(CachedDrawParams);
 			CurveCacheFlags = ECurveCacheFlags::CheckCurves;
+			if (RetainerWidget)
+			{
+				RetainerWidget->RequestRender();
+			}
 		}
 		else if (CurveCacheFlags == ECurveCacheFlags::CheckCurves)
 		{
+			bool bSomethingChanged = false;
 			for (FCurveDrawParams& Params : CachedDrawParams)
 			{
 				FCurveModel* CurveModel = CurveEditor->FindCurve(Params.GetID());
 				if (CurveModel->HasChangedAndResetTest())
 				{
+					bSomethingChanged = true;
 					GetCurveDrawParam(CurveEditor, Params.GetID(), CurveModel, CachedValues.CachedInputMin, CachedValues.CachedInputMax, Params);
 				}
+			}
+			if (bSomethingChanged && RetainerWidget)
+			{
+				RetainerWidget->RequestRender();
 			}
 		}
 	}
@@ -395,5 +407,10 @@ void SCurveEditorView::Tick(const FGeometry& AllottedGeometry, const double InCu
 
 		CachedDrawParams.Reset();
 		GetCurveDrawParams(CachedDrawParams);
+
+		if (RetainerWidget)
+		{
+			RetainerWidget->RequestRender();
+		}
 	}
 }

@@ -18,6 +18,7 @@ public class CurveEditor : ModuleRules
 				"Slate",
 				"SlateCore",
 				"TimeManagement",
+				"UMG",
 				"UnrealEd",
 				"SequencerWidgets",
 				"ToolMenus",

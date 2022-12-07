@@ -22,6 +22,7 @@ class FSlateWindowElementList;
 class FWidgetStyle;
 class ITimeSliderController;
 class SCurveEditorView;
+class SRetainerWidget;
 struct FCurveEditorToolID;
 struct FFocusEvent;
 struct FGeometry;
@@ -95,8 +96,11 @@ private:
 	/** (Optional) the current drag operation */
 	TOptional<FCurveEditorDelayedDrag> DragOperation;
 
-	/** Array of views that may need their height updating on tick. */
+	/** Array of views whose cache may need to be updated and may need their height updating on tick. */
 	TArray<TSharedPtr<SCurveEditorView>> Views;
+
+	/** Possible pointer to a retainer widget that we may need to force update*/
+	TSharedPtr<SRetainerWidget> RetainerWidget;
 
 	/** 
 	 * Whether or not this widget caught an OnMouseDown notification 
