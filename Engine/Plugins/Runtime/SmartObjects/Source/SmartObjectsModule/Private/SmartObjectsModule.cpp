@@ -4,6 +4,7 @@
 
 #include "Modules/ModuleManager.h"
 #include "SmartObjectTypes.h"
+#include "ShowFlags.h"
 #include "UObject/CoreRedirects.h"
 
 #if WITH_GAMEPLAY_DEBUGGER && WITH_SMARTOBJECT_DEBUG
@@ -12,6 +13,11 @@
 #endif
 
 #define LOCTEXT_NAMESPACE "SmartObjects"
+
+namespace UE::SmartObjects
+{
+	TCustomShowFlag<> ShowSmartObjects(TEXT("SmartObjects"), false /*DefaultEnabled*/, SFG_Developer, LOCTEXT("ShowSmartObjects", "Smart Objects"));
+} // UE::SmartObjects
 
 class FSmartObjectsModule : public ISmartObjectsModule
 {

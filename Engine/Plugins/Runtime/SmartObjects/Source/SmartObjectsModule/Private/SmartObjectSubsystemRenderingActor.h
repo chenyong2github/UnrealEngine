@@ -17,7 +17,7 @@ public:
 		: USmartObjectDebugRenderingComponent(ObjectInitializer)
 	{
 #if UE_ENABLE_DEBUG_DRAWING
-		ViewFlagName = TEXT("Game");
+		ViewFlagName = TEXT("SmartObjects");
 #endif
 	}
 
