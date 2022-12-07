@@ -37,6 +37,8 @@
 #include "ContextualAnimSelectionCriterion.h"
 #include "ScopedTransaction.h"
 #include "UObject/Package.h"
+#include "Engine/StaticMesh.h"
+#include "Components/StaticMeshComponent.h"
 
 #define LOCTEXT_NAMESPACE "ContextualAnimViewModel"
 
