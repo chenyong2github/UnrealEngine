@@ -14,7 +14,7 @@ class UClass;
  * UScriptableToolSet represents a set of UScriptableInteractiveTool types.
  */
 UCLASS()
-class SCRIPTABLETOOLSFRAMEWORK_API UScriptableToolSet : public UObject
+class EDITORSCRIPTABLETOOLSFRAMEWORK_API UScriptableToolSet : public UObject
 {
 	GENERATED_BODY()
 
