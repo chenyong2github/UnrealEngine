@@ -103,6 +103,9 @@ public:
 		FXRSwapChainPtr ColorSwapchain;
 		FXRSwapChainPtr DepthSwapchain;
 		TArray<FXRSwapChainPtr> QuadSwapchains;
+
+		bool bBackgroundLayerVisible = true;
+		bool bSubmitBackgroundLayer = true;
 	};
 
 	class FVulkanExtensions : public IHeadMountedDisplayVulkanExtensions

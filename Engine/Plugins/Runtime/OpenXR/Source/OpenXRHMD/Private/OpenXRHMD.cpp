@@ -2403,7 +2403,7 @@ void FOpenXRHMD::DrawEmulatedQuadLayers_RenderThread(FRDGBuilder& GraphBuilder, 
 		RHICmdList.BeginRenderPass(RPInfo, TEXT("EmulatedStereoLayerRender"));
 		RHICmdList.SetViewport((float)RenderParams.Viewport.Min.X, (float)RenderParams.Viewport.Min.Y, 0.0f, (float)RenderParams.Viewport.Max.X, (float)RenderParams.Viewport.Max.Y, 1.0f);
 
-		if (bSplashIsShown || !IsBackgroundLayerVisible())
+		if (bSplashIsShown || !PipelinedLayerStateRendering.bBackgroundLayerVisible)
 		{
 			DrawClearQuad(RHICmdList, FLinearColor::Black);
 		}
@@ -2554,12 +2554,16 @@ void FOpenXRHMD::OnBeginRendering_GameThread()
 	bShouldWait = true;
 
 	ENQUEUE_RENDER_COMMAND(TransferFrameStateToRenderingThread)(
-		[this, GameFrameState = PipelinedFrameStateGame](FRHICommandListImmediate& RHICmdList) mutable
+		[this, GameFrameState = PipelinedFrameStateGame, bBackgroundLayerVisible = IsBackgroundLayerVisible()](FRHICommandListImmediate& RHICmdList) mutable
 		{
 			UE_CLOG(PipelinedFrameStateRendering.FrameState.predictedDisplayTime >= GameFrameState.FrameState.predictedDisplayTime,
 				LogHMD, VeryVerbose, TEXT("Predicted display time went backwards from %lld to %lld"), PipelinedFrameStateRendering.FrameState.predictedDisplayTime, GameFrameState.FrameState.predictedDisplayTime);
 
 			PipelinedFrameStateRendering = GameFrameState;
+
+			// If we are emulating layers, we still need to submit background layer since we composite into it
+			PipelinedLayerStateRendering.bBackgroundLayerVisible = bBackgroundLayerVisible;
+			PipelinedLayerStateRendering.bSubmitBackgroundLayer = bBackgroundLayerVisible || !bNativeWorldQuadLayerSupport;
 		});
 }
 
@@ -2894,7 +2898,7 @@ void FOpenXRHMD::OnFinishRendering_RHIThread()
 	{
 		TArray<const XrCompositionLayerBaseHeader*> Headers;
 		XrCompositionLayerProjection Layer = {};
-		if (IsBackgroundLayerVisible())
+		if (PipelinedLayerStateRHI.bSubmitBackgroundLayer)
 		{
 			Layer.type = XR_TYPE_COMPOSITION_LAYER_PROJECTION;
 			Layer.next = nullptr;
