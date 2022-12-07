@@ -49,7 +49,7 @@ LandscapeRender.cpp: New terrain rendering
 #include "NaniteSceneProxy.h"
 #include "Rendering/Texture2DResource.h"
 #include "RenderCore.h"
-
+#include "Algo/Transform.h"
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeUniformShaderParameters, "LandscapeParameters");
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeFixedGridUniformShaderParameters, "LandscapeFixedGrid");
@@ -958,18 +958,34 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	const bool bHasStaticLighting = ComponentLightInfo->GetLightMap() || ComponentLightInfo->GetShadowMap();
 
 	check(AvailableMaterialInterfaces.Num() == AvailableMaterials.Num());
-	// Check material usage
+	// Check material usage and validity. Replace invalid entries by default material so that indexing AvailableMaterials with LODIndexToMaterialIndex still works :
 	if (ensure(AvailableMaterialInterfaces.Num() > 0))
 	{
 		for(int Index = 0; Index < AvailableMaterialInterfaces.Num(); ++Index)
 		{
-			UMaterialInterface*& MaterialInterface = AvailableMaterialInterfaces[Index];
-			FMaterialRenderProxy*& MaterialProxy = AvailableMaterials[Index];
-			if (MaterialInterface == nullptr ||
-				(bHasStaticLighting && !MaterialInterface->CheckMaterialUsage_Concurrent(MATUSAGE_StaticLighting)))
+			bool bIsValidMaterial = false;
+			UMaterialInterface* MaterialInterface = AvailableMaterialInterfaces[Index];
+			if (MaterialInterface != nullptr)
 			{
+				bIsValidMaterial = true;
+
+				const UMaterial* LandscapeMaterial = MaterialInterface->GetMaterial_Concurrent();
+
+				// In some case it's possible that the Material Instance we have and the Material are not related, for example, in case where content was force deleted, we can have a MIC with no parent, so GetMaterial will fallback to the default material.
+				// and since the MIC is not really valid, fallback to 
+				UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(MaterialInterface);
+				bIsValidMaterial &= (MaterialInstance == nullptr) || MaterialInstance->IsChildOf(LandscapeMaterial);
+
+				// Check usage flags : 
+				bIsValidMaterial &= !bHasStaticLighting || MaterialInterface->CheckMaterialUsage_Concurrent(MATUSAGE_StaticLighting);
+			}
+
+			if (!bIsValidMaterial)
+			{
+				// Replace the landscape material by the default material : 
 				MaterialInterface = UMaterial::GetDefaultMaterial(MD_Surface);
-				MaterialProxy = MaterialInterface->GetRenderProxy();
+				AvailableMaterialInterfaces[Index] = MaterialInterface;
+				AvailableMaterials[Index] = MaterialInterface->GetRenderProxy();
 			}
 		}
 	}
@@ -979,24 +995,7 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 		AvailableMaterials.Add(AvailableMaterialInterfaces.Last()->GetRenderProxy());
 	}
 
-	MaterialRelevances.Reserve(AvailableMaterials.Num());
-
-	for (UMaterialInterface*& MaterialInterface : AvailableMaterialInterfaces)
-	{
-		const UMaterial* LandscapeMaterial = MaterialInterface != nullptr ? MaterialInterface->GetMaterial_Concurrent() : nullptr;
-
-		if (LandscapeMaterial != nullptr)
-		{
-			UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(MaterialInterface);
-
-			// In some case it's possible that the Material Instance we have and the Material are not related, for example, in case where content was force deleted, we can have a MIC with no parent, so GetMaterial will fallback to the default material.
-			// and since the MIC is not really valid, dont generate the relevance.
-			if (MaterialInstance == nullptr || MaterialInstance->IsChildOf(LandscapeMaterial))
-			{
-				MaterialRelevances.Add(MaterialInterface->GetRelevance_Concurrent(FeatureLevel));
-			}
-		}
-	}
+	Algo::Transform(AvailableMaterialInterfaces, MaterialRelevances, [FeatureLevel](UMaterialInterface* InMaterialInterface) { check(InMaterialInterface != nullptr); return InMaterialInterface->GetRelevance_Concurrent(FeatureLevel); });
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST) || (UE_BUILD_SHIPPING && WITH_EDITOR)
 	if (GIsEditor)

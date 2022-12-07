@@ -7344,8 +7344,7 @@ void ALandscape::UpdateLayersMaterialInstances(const TArray<ULandscapeComponent*
 
 		Component->MaterialPerLOD = NewMaterialPerLOD;
 
-		Component->MaterialInstances.SetNumZeroed(Component->MaterialPerLOD.Num() * 2); // over allocate in case we are using tessellation
-		int8 TessellatedMaterialCount = 0;
+		Component->MaterialInstances.SetNumZeroed(Component->MaterialPerLOD.Num()); 
 		int8 MaterialIndex = 0;
 
 		const TArray<FWeightmapLayerAllocationInfo>& WeightmapBaseLayerAllocation = Component->GetWeightmapLayerAllocations();

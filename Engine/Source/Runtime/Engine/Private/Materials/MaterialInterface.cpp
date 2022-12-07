@@ -363,12 +363,13 @@ FMaterialRelevance UMaterialInterface::GetRelevance_Internal(const UMaterial* Ma
 		const FMaterialResource* MaterialResource = GetMaterialResource(InFeatureLevel);
 
 		// If material is invalid e.g. unparented instance, fallback to the passed in material
-		if (!MaterialResource && Material)
+		bool bIsValidMaterialResource = (MaterialResource != nullptr) && (MaterialResource->GetMaterial() != nullptr);
+		if (!bIsValidMaterialResource && (Material != nullptr))
 		{
-			MaterialResource = Material->GetMaterialResource(InFeatureLevel);	
+			MaterialResource = Material->GetMaterialResource(InFeatureLevel);
 		}
 
-		if (!MaterialResource)
+		if (MaterialResource == nullptr)
 		{
 			return FMaterialRelevance();
 		}
