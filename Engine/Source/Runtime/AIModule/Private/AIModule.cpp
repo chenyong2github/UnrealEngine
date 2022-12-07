@@ -13,11 +13,13 @@
 #if ENABLE_VISUAL_LOG
 	#include "VisualLoggerExtension.h"
 #endif // ENABLE_VISUAL_LOG
-#endif
+#endif // WITH_EDITOR
 
+#if WITH_GAMEPLAY_DEBUGGER_CORE
+#include "GameplayDebugger.h"
+#endif // WITH_GAMEPLAY_DEBUGGER_CORE
 
 #if WITH_GAMEPLAY_DEBUGGER
-#include "GameplayDebugger.h"
 #include "GameplayDebugger/GameplayDebuggerCategory_AI.h"
 #include "GameplayDebugger/GameplayDebuggerCategory_BehaviorTree.h"
 #include "GameplayDebugger/GameplayDebuggerCategory_EQS.h"
@@ -80,7 +82,7 @@ void FAIModule::StartupModule()
 	GameplayDebuggerModule.RegisterCategory("Perception", IGameplayDebugger::FOnGetCategory::CreateStatic(&FGameplayDebuggerCategory_Perception::MakeInstance));
 	GameplayDebuggerModule.RegisterCategory("NavGrid", IGameplayDebugger::FOnGetCategory::CreateStatic(&FGameplayDebuggerCategory_NavLocalGrid::MakeInstance), EGameplayDebuggerCategoryState::Hidden);
 	GameplayDebuggerModule.NotifyCategoriesChanged();
-#endif
+#endif // WITH_GAMEPLAY_DEBUGGER
 }
 
 void FAIModule::ShutdownModule()
@@ -103,7 +105,7 @@ void FAIModule::ShutdownModule()
 		GameplayDebuggerModule.UnregisterCategory("NavGrid");
 		GameplayDebuggerModule.NotifyCategoriesChanged();
 	}
-#endif
+#endif // WITH_GAMEPLAY_DEBUGGER
 }
 
 UAISystemBase* FAIModule::CreateAISystemInstance(UWorld* World)

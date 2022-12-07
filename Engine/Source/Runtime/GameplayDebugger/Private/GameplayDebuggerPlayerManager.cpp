@@ -165,6 +165,7 @@ void AGameplayDebuggerPlayerManager::UpdateAuthReplicators()
 		}
 	}
 
+#if WITH_GAMEPLAY_DEBUGGER
 	for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; It++)
 	{
 		APlayerController* TestPC = It->Get();
@@ -179,6 +180,7 @@ void AGameplayDebuggerPlayerManager::UpdateAuthReplicators()
 			}
 		}
 	}
+#endif // WITH_GAMEPLAY_DEBUGGER
 
 	PrimaryActorTick.TickInterval = PlayerData.Num() ? 5.0f : 0.5f;
 }
@@ -194,7 +196,8 @@ void AGameplayDebuggerPlayerManager::RegisterReplicator(AGameplayDebuggerCategor
 	// keep all player related objects together for easy access and GC
 	FGameplayDebuggerPlayerData NewData;
 	NewData.Replicator = &Replicator;
-	
+
+#if WITH_GAMEPLAY_DEBUGGER
 	if (bIsLocal)
 	{
 		APlayerController* OwnerPC = Replicator.GetReplicationOwner();
@@ -216,12 +219,14 @@ void AGameplayDebuggerPlayerManager::RegisterReplicator(AGameplayDebuggerCategor
 		NewData.Controller = nullptr;
 		NewData.InputComponent = nullptr;
 	}
+#endif // WITH_GAMEPLAY_DEBUGGER
 
 	PlayerData.Add(NewData);
 }
 
 void AGameplayDebuggerPlayerManager::RefreshInputBindings(AGameplayDebuggerCategoryReplicator& Replicator)
 {
+#if WITH_GAMEPLAY_DEBUGGER
 	for (int32 Idx = 0; Idx < PlayerData.Num(); Idx++)
 	{
 		FGameplayDebuggerPlayerData& TestData = PlayerData[Idx];
@@ -234,6 +239,7 @@ void AGameplayDebuggerPlayerManager::RefreshInputBindings(AGameplayDebuggerCateg
 			TestData.Controller->BindInput(*TestData.InputComponent);
 		}
 	}
+#endif // WITH_GAMEPLAY_DEBUGGER
 }
 
 AGameplayDebuggerCategoryReplicator* AGameplayDebuggerPlayerManager::GetReplicator(const APlayerController& OwnerPC) const

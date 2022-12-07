@@ -44,15 +44,18 @@ UGameplayDebuggerLocalController::UGameplayDebuggerLocalController(const FObject
 	bPrevLocallyEnabled = false;
 	bEnableTextShadow = false;
 	bPrevScreenMessagesEnabled = false;
-	ActiveRowIdx = 0;
 #if WITH_EDITOR
 	bActivateOnPIEEnd = false;
 #endif // WITH_EDITOR
+
+#if WITH_GAMEPLAY_DEBUGGER
+	ActiveRowIdx = 0;
 	if (HasAnyFlags(RF_ClassDefaultObject) == false)
 	{
 		HUDFont = NewObject<UFont>(this, TEXT("HUDFont"), RF_NoFlags, GEngine->GetSmallFont());
 		HUDFont->LegacyFontSize = UGameplayDebuggerUserSettings::GetFontSize(); //FGameplayDebuggerTweakables::FontSize;
 	}
+#endif // WITH_GAMEPLAY_DEBUGGER
 }
 
 void UGameplayDebuggerLocalController::Initialize(AGameplayDebuggerCategoryReplicator& Replicator, AGameplayDebuggerPlayerManager& Manager)
@@ -61,6 +64,7 @@ void UGameplayDebuggerLocalController::Initialize(AGameplayDebuggerCategoryRepli
 	CachedPlayerManager = &Manager;
 	bSimulateMode = FGameplayDebuggerAddonBase::IsSimulateInEditor() || Replicator.IsEditorWorldReplicator();
 
+#if WITH_GAMEPLAY_DEBUGGER
 	UDebugDrawService::Register(bSimulateMode ? TEXT("DebugAI") : TEXT("Game"), FDebugDrawDelegate::CreateUObject(this, &UGameplayDebuggerLocalController::OnDebugDraw));
 
 #if WITH_EDITOR
@@ -82,10 +86,6 @@ void UGameplayDebuggerLocalController::Initialize(AGameplayDebuggerCategoryRepli
 		}
 	}
 #endif
-
-	FGameplayDebuggerAddonManager& AddonManager = FGameplayDebuggerAddonManager::GetCurrent();
-	AddonManager.OnCategoriesChanged.AddUObject(this, &UGameplayDebuggerLocalController::OnCategoriesChanged);
-	OnCategoriesChanged();
 
 	const UGameplayDebuggerConfig* SettingsCDO = UGameplayDebuggerConfig::StaticClass()->GetDefaultObject<UGameplayDebuggerConfig>();
 	const FKey NumpadKeys[] = { EKeys::NumPadZero, EKeys::NumPadOne, EKeys::NumPadTwo, EKeys::NumPadThree, EKeys::NumPadFour,
@@ -124,6 +124,11 @@ void UGameplayDebuggerLocalController::Initialize(AGameplayDebuggerCategoryRepli
 	PaddingBottom = SettingsCDO->DebugCanvasPaddingBottom;
 
 	bEnableTextShadow = SettingsCDO->bDebugCanvasEnableTextShadow;
+#endif // WITH_GAMEPLAY_DEBUGGER
+
+	FGameplayDebuggerAddonManager& AddonManager = FGameplayDebuggerAddonManager::GetCurrent();
+	AddonManager.OnCategoriesChanged.AddUObject(this, &UGameplayDebuggerLocalController::OnCategoriesChanged);
+	OnCategoriesChanged();
 
 	bNeedsCleanup = true;
 }
@@ -152,9 +157,38 @@ void UGameplayDebuggerLocalController::BeginDestroy()
 	}
 }
 
+void UGameplayDebuggerLocalController::OnCategoriesChanged()
+{
+	FGameplayDebuggerAddonManager& AddonManager = FGameplayDebuggerAddonManager::GetCurrent();
+
+	SlotNames.Reset();
+	SlotNames.Append(AddonManager.GetSlotNames());
+
+	// categories are already sorted using AddonManager.SlotMap, build Slot to Category Id map accordingly
+	const TArray< TArray<int32> >& SlotMap = AddonManager.GetSlotMap();
+	SlotCategoryIds.Reset();
+	SlotCategoryIds.AddDefaulted(SlotMap.Num());
+
+	int32 CategoryId = 0;
+	for (int32 SlotIdx = 0; SlotIdx < SlotMap.Num(); SlotIdx++)
+	{
+		for (int32 InnerIdx = 0; InnerIdx < SlotMap[SlotIdx].Num(); InnerIdx++)
+		{
+			SlotCategoryIds[SlotIdx].Add(CategoryId);
+			CategoryId++;
+		}
+	}
+
+	NumCategorySlots = SlotCategoryIds.Num();
+	NumCategories = AddonManager.GetNumVisibleCategories();
+
+	DataPackMap.Reset();
+}
+
+#if WITH_GAMEPLAY_DEBUGGER
 void UGameplayDebuggerLocalController::OnDebugDraw(class UCanvas* Canvas, class APlayerController* PC)
 {
-	if (CachedReplicator && CachedReplicator->IsEnabled())
+	if (CachedReplicator && CachedReplicator->IsEnabled() && bDebugDrawEnabled)
 	{
 		FGameplayDebuggerCanvasContext CanvasContext(Canvas, HUDFont);
 		CanvasContext.CursorX = CanvasContext.DefaultX = PaddingLeft;
@@ -799,35 +833,7 @@ void UGameplayDebuggerLocalController::OnSelectedObject(UObject* Object)
 		CachedReplicator->CollectCategoryData(/*bForce=*/true);
 	}
 }
-#endif
-
-void UGameplayDebuggerLocalController::OnCategoriesChanged()
-{
-	FGameplayDebuggerAddonManager& AddonManager = FGameplayDebuggerAddonManager::GetCurrent();
-
-	SlotNames.Reset();
-	SlotNames.Append(AddonManager.GetSlotNames());
-
-	// categories are already sorted using AddonManager.SlotMap, build Slot to Category Id map accordingly
-	const TArray< TArray<int32> >& SlotMap = AddonManager.GetSlotMap();
-	SlotCategoryIds.Reset();
-	SlotCategoryIds.AddDefaulted(SlotMap.Num());
-
-	int32 CategoryId = 0;
-	for (int32 SlotIdx = 0; SlotIdx < SlotMap.Num(); SlotIdx++)
-	{
-		for (int32 InnerIdx = 0; InnerIdx < SlotMap[SlotIdx].Num(); InnerIdx++)
-		{
-			SlotCategoryIds[SlotIdx].Add(CategoryId);
-			CategoryId++;
-		}
-	}
-
-	NumCategorySlots = SlotCategoryIds.Num();
-	NumCategories = AddonManager.GetNumVisibleCategories();
-
-	DataPackMap.Reset();
-}
+#endif // WITH_EDITOR
 
 void UGameplayDebuggerLocalController::RebuildDataPackMap()
 {
@@ -1098,3 +1104,4 @@ FAutoConsoleCommandWithWorldAndArgs FGameplayDebuggerConsoleCommands::SetFontSiz
 	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&FGameplayDebuggerConsoleCommands::SetFontSize)
 );
 
+#endif // WITH_GAMEPLAY_DEBUGGER

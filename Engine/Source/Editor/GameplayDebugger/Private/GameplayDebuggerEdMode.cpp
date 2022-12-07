@@ -66,6 +66,7 @@ bool FGameplayDebuggerEdMode::LostFocus(FEditorViewportClient* ViewportClient, F
 
 bool FGameplayDebuggerEdMode::InputKey(FEditorViewportClient* InViewportClient, FViewport* InViewport, FKey InKey, EInputEvent InEvent)
 {
+#if WITH_GAMEPLAY_DEBUGGER
 	UWorld* MyWorld = GetWorld();
 	APlayerController* LocalPC = GEngine->GetFirstLocalPlayerController(MyWorld);
 
@@ -96,7 +97,7 @@ bool FGameplayDebuggerEdMode::InputKey(FEditorViewportClient* InViewportClient, 
 			return true;			
 		}
 	}
-
+#endif // WITH_GAMEPLAY_DEBUGGER
 	return false;
 }
 

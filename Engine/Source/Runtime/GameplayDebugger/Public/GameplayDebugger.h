@@ -10,7 +10,8 @@
 // Category class:
 // - derives from FGameplayDebuggerCategory
 // - implements at least CollectData() and DrawData() functions
-// - requires WITH_GAMEPLAY_DEBUGGER define to compile (doesn't exist in shipping builds by default; see note below to override)
+// - If WITH_GAMEPLAY_DEBUGGER is defined (doesn't exist in shipping builds by default; see note below to override), it will include all default debug categories and menu
+// - If WITH_GAMEPLAY_DEBUGGER_CORE is defined (see note below), it will compile the core parts of the tool, waiting for user to register a debug category and create a replicator when desired.
 // - needs to be registered and unregistered manually by owning module
 // - automatically replicate data added with FGameplayDebuggerCategory::AddTextLine, FGameplayDebuggerCategory::AddShape
 // - automatically replicate data structs initialized with FGameplayDebuggerCategory::SetDataPackReplication
@@ -27,7 +28,8 @@
 // Check AIModule/Private/AIModule.cpp for registration example.
 //
 // Note. Use 'SetupGameplayDebuggerSupport(Target)' when adding module to your project's Build.cs (see AIModule/AIModule.Build.cs)
-// Note. Use 'bUseGameplayDebugger={0|1}' in your <ProjectTargetType>.Target.cs to force GameplayDebugger disabled/enabled
+// Note. Use 'bUseGameplayDebugger={0|1}' in your <ProjectTargetType>.Target.cs to force GameplayDebugger disabled/enabled (if enabled, it will implicitly set bUseGameplayDebuggerCore=1)
+// Note. Use 'bUseGameplayDebuggerCore={0|1}' in your <ProjectTargetType>.Target.cs to compile on/off the GameplayDebugger core parts only
 // 
 
 #pragma once

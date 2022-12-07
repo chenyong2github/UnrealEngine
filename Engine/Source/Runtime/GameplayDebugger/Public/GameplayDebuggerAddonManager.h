@@ -71,7 +71,7 @@ public:
 	int32 GetNumVisibleCategories() const { return NumVisibleCategories; }
 
 	/** singleton accessor */
-	static FGameplayDebuggerAddonManager& GetCurrent();
+	static GAMEPLAYDEBUGGER_API FGameplayDebuggerAddonManager& GetCurrent();
 
 	/** event called when CategoryMap changes */
 	FOnGameplayDebuggerAddonEvent OnCategoriesChanged;

@@ -17,7 +17,6 @@ class UInputComponent;
 struct FKey;
 class UFont;
 
-
 UCLASS(NotBlueprintable, NotBlueprintType, noteditinlinenew, hidedropdown, Transient)
 class UGameplayDebuggerLocalController : public UObject
 {
@@ -31,6 +30,10 @@ class UGameplayDebuggerLocalController : public UObject
 	/** remove from world */
 	void Cleanup();
 
+#if WITH_GAMEPLAY_DEBUGGER
+	/** Whether the Debug Draw rendering is allowed for this replicator */
+	void SetDebugDrawEnabled(const bool bInDebugDrawEnabled) { bDebugDrawEnabled = bInDebugDrawEnabled; }
+
 	/** drawing event */
 	void OnDebugDraw(class UCanvas* Canvas, class APlayerController* PC);
 
@@ -39,10 +42,9 @@ class UGameplayDebuggerLocalController : public UObject
 
 	/** checks if key is bound by any action */
 	bool GAMEPLAYDEBUGGER_API IsKeyBound(const FName KeyName) const;
+#endif // WITH_GAMEPLAY_DEBUGGER
 
 protected:
-	friend struct FGameplayDebuggerConsoleCommands;
-
 	UPROPERTY()
 	TObjectPtr<AGameplayDebuggerCategoryReplicator> CachedReplicator;
 
@@ -59,8 +61,6 @@ protected:
 	TArray<TArray<int32> > SlotCategoryIds;
 	TArray<FString> SlotNames;
 
-	TSet<FName> UsedBindings;
-
 	uint32 bSimulateMode : 1;
 	uint32 bNeedsCleanup : 1;
 	uint32 bIsSelectingActor : 1;
@@ -71,6 +71,13 @@ protected:
 #if WITH_EDITOR
 	uint32 bActivateOnPIEEnd : 1;
 #endif // WITH_EDITOR
+	int32 NumCategorySlots;
+	int32 NumCategories;
+
+#if WITH_GAMEPLAY_DEBUGGER
+	friend struct FGameplayDebuggerConsoleCommands;
+
+	TSet<FName> UsedBindings;
 
 	FString ActivationKeyDesc;
 	FString RowUpKeyDesc;
@@ -78,8 +85,6 @@ protected:
 	FString CategoryKeysDesc;
 
 	int32 ActiveRowIdx;
-	int32 NumCategorySlots;
-	int32 NumCategories;
 	static constexpr int32 NumCategoriesPerRow = 10;
 
 	float PaddingLeft;
@@ -89,6 +94,8 @@ protected:
 
 	FTimerHandle StartSelectingActorHandle;
 	FTimerHandle SelectActorTickHandle;
+
+	bool bDebugDrawEnabled = true;
 
 	void OnActivationPressed();
 	void OnActivationReleased();
@@ -134,14 +141,15 @@ protected:
 	void OnSelectedObject(UObject* Object);
 	void OnBeginPIE(const bool bIsSimulating);
 	void OnEndPIE(const bool bIsSimulating);
-#endif
+#endif // WITH_EDITOR
 
 	FString GetKeyDescriptionShort(const FKey& KeyBind) const;
 	FString GetKeyDescriptionLong(const FKey& KeyBind) const;
+	
+	/** build DataPackMap for replication details */
+	void RebuildDataPackMap();
+#endif // WITH_GAMEPLAY_DEBUGGER
 
 	/** called when known category set has changed */
 	void OnCategoriesChanged();
-
-	/** build DataPackMap for replication details */
-	void RebuildDataPackMap();
 };
