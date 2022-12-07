@@ -38,7 +38,7 @@ class MASSCROWD_API UZoneGraphCrowdLaneAnnotations : public UZoneGraphAnnotation
 protected:
 	virtual void PostSubsystemsInitialized() override;
 	virtual FZoneGraphTagMask GetAnnotationTags() const override;
-	virtual void HandleEvents(TConstArrayView<const UScriptStruct*> AllEventStructs, const FInstancedStructStream& Events) override;
+	virtual void HandleEvents(const FInstancedStructContainer& Events) override;
 	virtual void TickAnnotation(const float DeltaTime, FZoneGraphAnnotationTagContainer& AnnotationTagContainer) override;
 
 #if UE_ENABLE_DEBUG_DRAWING

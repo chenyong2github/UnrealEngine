@@ -570,42 +570,46 @@ void UZoneGraphDisturbanceAnnotation::UpdateAnnotationTags(FZoneGraphAnnotationT
 	}
 }
 
-void UZoneGraphDisturbanceAnnotation::HandleEvents(TConstArrayView<const UScriptStruct*> AllEventStructs, const FInstancedStructStream& Events)
+void UZoneGraphDisturbanceAnnotation::HandleEvents(const FInstancedStructContainer& Events)
 {
-	Events.ForEach<FZoneGraphDisturbanceArea>([this](const FZoneGraphDisturbanceArea& Danger)
+	for (int32 Index = 0; Index < Events.Num(); Index++)
 	{
-		FZoneGraphDisturbanceArea* ExistingDanger = Dangers.FindByPredicate([Danger](const FZoneGraphDisturbanceArea& Area) { return Area.InstigatorID == Danger.InstigatorID; });
-		if (ExistingDanger)
-		{
-			*ExistingDanger = Danger;
-		}
-		else
-		{
-			Dangers.Add(Danger);
-		}
-		bDisturbancesChanged = true;
-	});
+		FConstStructView Event = Events[Index];
 
-	Events.ForEach<FZoneGraphObstacleDisturbanceArea>([this](const FZoneGraphObstacleDisturbanceArea& Obstacle)
-	{
-		if (Obstacle.Action == EZoneGraphObstacleDisturbanceAreaAction::Add)
+		if (const FZoneGraphDisturbanceArea* Danger = Event.GetPtr<FZoneGraphDisturbanceArea>())
 		{
-			FZoneGraphObstacleDisturbanceArea* ExistingObstacle = Obstacles.FindByPredicate([Obstacle](const FZoneGraphObstacleDisturbanceArea& Area) { return Area.ObstacleID == Obstacle.ObstacleID; });
-			if (ExistingObstacle)
+			FZoneGraphDisturbanceArea* ExistingDanger = Dangers.FindByPredicate([Danger](const FZoneGraphDisturbanceArea& Area) { return Area.InstigatorID == Danger->InstigatorID; });
+			if (ExistingDanger)
 			{
-				*ExistingObstacle = Obstacle;
+				*ExistingDanger = *Danger;
 			}
 			else
 			{
-				Obstacles.Add(Obstacle);
+				Dangers.Add(*Danger);
 			}
+			bDisturbancesChanged = true;
 		}
-		else if (Obstacle.Action == EZoneGraphObstacleDisturbanceAreaAction::Remove)
+		else if (const FZoneGraphObstacleDisturbanceArea* Obstacle = Event.GetPtr<FZoneGraphObstacleDisturbanceArea>())
 		{
-			Obstacles.Remove(Obstacle);
+			if (Obstacle->Action == EZoneGraphObstacleDisturbanceAreaAction::Add)
+			{
+				FZoneGraphObstacleDisturbanceArea* ExistingObstacle = Obstacles.FindByPredicate([Obstacle](const FZoneGraphObstacleDisturbanceArea& Area) { return Area.ObstacleID == Obstacle->ObstacleID; });
+				if (ExistingObstacle)
+				{
+					*ExistingObstacle = *Obstacle;
+				}
+				else
+				{
+					Obstacles.Add(*Obstacle);
+				}
+			}
+			else if (Obstacle->Action == EZoneGraphObstacleDisturbanceAreaAction::Remove)
+			{
+				Obstacles.Remove(*Obstacle);
+			}
+			bDisturbancesChanged = true;
 		}
-		bDisturbancesChanged = true;
-	});
+	}
 }
 
 void UZoneGraphDisturbanceAnnotation::PostZoneGraphDataAdded(const AZoneGraphData& ZoneGraphData)

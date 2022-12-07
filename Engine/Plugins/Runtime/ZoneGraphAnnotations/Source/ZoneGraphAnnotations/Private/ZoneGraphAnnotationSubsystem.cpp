@@ -16,6 +16,10 @@ void UZoneGraphAnnotationSubsystem::Initialize(FSubsystemCollectionBase& Collect
 {
 	Super::Initialize(Collection);
 
+	constexpr int32 InitialEventBufferSize = 1024;
+	Events[0].ReserveBytes(InitialEventBufferSize);
+	Events[1].ReserveBytes(InitialEventBufferSize);
+	
 	const UZoneGraphSubsystem* ZoneGraph = Collection.InitializeDependency<UZoneGraphSubsystem>();
 
 	// Register existing data.
@@ -165,18 +169,14 @@ void UZoneGraphAnnotationSubsystem::Tick(float DeltaTime)
 		// Switch exposed current stream, so that event handling can add more events without disturbing the processing.
 		const int32 PrevEventStream = CurrentEventStream;
 		CurrentEventStream ^= 1;
-		FInstancedStructStream& CurrentEvents = Events[PrevEventStream];
+		FInstancedStructContainer& CurrentEvents = Events[PrevEventStream];
 		
-		// Mark which Annotations have received requests
-		TArray<const UScriptStruct*> AllEventStructs;
-		CurrentEvents.GetScriptStructs(AllEventStructs);
-
 		// Process requests
 		for (const FRegisteredZoneGraphAnnotation& Registered : RegisteredComponents)
 		{
 			if (Registered.AnnotationComponent != nullptr)
 			{
-				Registered.AnnotationComponent->HandleEvents(AllEventStructs, CurrentEvents);
+				Registered.AnnotationComponent->HandleEvents(CurrentEvents);
 			}
 		}
 

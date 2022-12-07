@@ -4,7 +4,6 @@
 
 #include "MassEntityTypes.h"
 #include "MassEntityManager.h"
-#include "InstancedStructStream.h"
 #include "Misc/MTAccessDetector.h"
 #include "MassEntityUtils.h"
 #include "MassCommands.h"

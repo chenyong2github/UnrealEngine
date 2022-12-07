@@ -32,15 +32,16 @@ FZoneGraphTagMask UZoneGraphCrowdLaneAnnotations::GetAnnotationTags() const
 	return AllTags;
 }
 
-void UZoneGraphCrowdLaneAnnotations::HandleEvents(TConstArrayView<const UScriptStruct*> AllEventStructs, const FInstancedStructStream& Events)
+void UZoneGraphCrowdLaneAnnotations::HandleEvents(const FInstancedStructContainer& Events)
 {
-	Events.ForEach([this](const FConstStructView View)
+	for (int32 Index = 0; Index < Events.Num(); Index++)
 	{
-		if (const FZoneGraphCrowdLaneStateChangeEvent* const StateChangeEvent = View.GetPtr<FZoneGraphCrowdLaneStateChangeEvent>())
+		FConstStructView Event = Events[Index];
+		if (const FZoneGraphCrowdLaneStateChangeEvent* const StateChangeEvent = Event.GetPtr<FZoneGraphCrowdLaneStateChangeEvent>())
 		{
 			StateChangeEvents.Add(*StateChangeEvent);
 		}
-	});
+	}
 }
 
 void UZoneGraphCrowdLaneAnnotations::TickAnnotation(const float DeltaTime, FZoneGraphAnnotationTagContainer& AnnotationTagContainer)

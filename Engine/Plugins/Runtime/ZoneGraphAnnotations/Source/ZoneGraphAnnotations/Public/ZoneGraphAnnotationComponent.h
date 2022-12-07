@@ -12,7 +12,7 @@ class UZoneGraphAnnotationSubsystem;
 class UZoneGraphAnnotationComponent;
 class UCanvas;
 class AZoneGraphData;
-struct FInstancedStructStream;
+struct FInstancedStructContainer;
 struct FZoneGraphAnnotationTagLookup;
 struct FZoneGraphAnnotationTagContainer;
 
@@ -47,7 +47,7 @@ public:
 	virtual void TickAnnotation(const float DeltaTime, FZoneGraphAnnotationTagContainer& AnnotationTagContainer) {}
 
 	/** Called when new events are ready to be processed */
-	virtual void HandleEvents(TConstArrayView<const UScriptStruct*> AllEventStructs, const FInstancedStructStream& Events) {}
+	virtual void HandleEvents(const FInstancedStructContainer& Events) {}
 
 	/** @return Tags applied by the Annotation, used to lookup Annotations from tags. */
 	virtual FZoneGraphTagMask GetAnnotationTags() const { return FZoneGraphTagMask::None; }

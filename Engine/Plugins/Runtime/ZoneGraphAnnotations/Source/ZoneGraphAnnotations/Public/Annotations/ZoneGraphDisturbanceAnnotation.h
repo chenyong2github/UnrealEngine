@@ -171,7 +171,7 @@ protected:
 	virtual FZoneGraphTagMask GetAnnotationTags() const override;
 
 	virtual void TickAnnotation(const float DeltaTime, FZoneGraphAnnotationTagContainer& AnnotationTagContainer) override;
-	virtual void HandleEvents(TConstArrayView<const UScriptStruct*> AllEventStructs, const FInstancedStructStream& Events) override;
+	virtual void HandleEvents(const FInstancedStructContainer& Events) override;
 
 	virtual void PostZoneGraphDataAdded(const AZoneGraphData& ZoneGraphData) override;
 	virtual void PreZoneGraphDataRemoved(const AZoneGraphData& ZoneGraphData) override;

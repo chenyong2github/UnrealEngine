@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "InstancedStructStream.h"
+#include "InstancedStructContainer.h"
 #include "ZoneGraphTypes.h"
 #include "ZoneGraphAnnotationTypes.h"
 #include "Misc/MTAccessDetector.h"
@@ -84,7 +84,8 @@ public:
 	{
 		// This method is thread safe.
 		UE_MT_SCOPED_WRITE_ACCESS(EventsDetector);
-		Events[CurrentEventStream].Add(InRequest);
+		FConstStructView Event = FConstStructView::Make(InRequest);
+		Events[CurrentEventStream].Append(MakeArrayView(&Event, 1));
 	}
 
 	/** @return bitmask of Annotation tags at given lane */
@@ -125,7 +126,7 @@ protected:
 
 	/** Stream of events to be processed, double buffered. */
 	UPROPERTY(Transient)
-	FInstancedStructStream Events[2];
+	FInstancedStructContainer Events[2];
 	UE_MT_DECLARE_RW_ACCESS_DETECTOR(EventsDetector);
 
 	/** Index of the current event stream. */
