@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Sound/AudioSettings.h"
 
+#include "AudioBusSubsystem.h"
 #include "AudioDevice.h"
 #include "AudioDeviceManager.h"
 #include "AudioMixerDevice.h"
@@ -162,7 +163,9 @@ void UAudioSettings::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 			{
 				DeviceManager->IterateOverAllDevices([this](Audio::FDeviceId, FAudioDevice* InDevice)
 				{
-					InDevice->InitDefaultAudioBuses();
+					UAudioBusSubsystem* AudioBusSubsystem = InDevice->GetSubsystem<UAudioBusSubsystem>();
+					check(AudioBusSubsystem);
+					AudioBusSubsystem->InitDefaultAudioBuses();
 				});
 			}
 		}

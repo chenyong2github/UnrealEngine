@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioDevice.h"
+#include "AudioBusSubsystem.h"
 #include "DSP/ConvertDeinterleave.h"
 #include "Internationalization/Text.h"
 #include "MediaPacket.h"
@@ -111,12 +112,14 @@ namespace Metasound
 					{
 						// Start the audio bus in case it's not already started
 						AudioBusChannels = AudioBusProxy->NumChannels;
-						AudioDevice->StartAudioBus(AudioBusProxy->AudioBusId, AudioBusChannels, false);
-
-						int32 BlockSizeFrames = InSettings.GetNumFramesPerBlock();
+						Audio::FAudioBusKey AudioBusKey = Audio::FAudioBusKey(AudioBusProxy->AudioBusId);
+						UAudioBusSubsystem* AudioBusSubsystem = AudioDevice->GetSubsystem<UAudioBusSubsystem>();
+						check(AudioBusSubsystem);
+						AudioBusSubsystem->StartAudioBus(AudioBusKey, AudioBusChannels, false);
 
 						// Create a bus patch output with enough room for the number of samples we expect and some buffering
-						AudioBusPatchOutput = AudioDevice->AddPatchOutputForAudioBus(AudioBusProxy->AudioBusId, BlockSizeFrames, AudioBusChannels);
+						int32 BlockSizeFrames = InSettings.GetNumFramesPerBlock();
+						AudioBusPatchOutput = AudioBusSubsystem->AddPatchOutputForAudioBus(AudioBusKey, BlockSizeFrames, AudioBusChannels);
 					}
 				}
 			}

@@ -125,7 +125,9 @@ namespace Audio
 		virtual void UnregisterSoundSubmix(const USoundSubmixBase* SoundSubmix) override;
 
 		virtual void InitSoundEffectPresets() override;
+		UE_DEPRECATED(5.2, "The functionality for this has been moved to UAudioBusSubsystem::InitDefaultAudioBuses, which is now automatically called on subsystem creation.")
 		virtual void InitDefaultAudioBuses() override;
+		UE_DEPRECATED(5.2, "The functionality for this has been moved to UAudioBusSubsystem::ShutdownDefaultAudioBuses.")
 		virtual void ShutdownDefaultAudioBuses() override;
 		virtual int32 GetNumActiveSources() const override;
 
@@ -244,6 +246,7 @@ namespace Audio
 		int32 GetDeviceOutputChannels() const;
 
 		FMixerSourceManager* GetSourceManager();
+		const FMixerSourceManager* GetSourceManager() const;
 
 		FMixerSubmixWeakPtr GetMasterSubmix(); 
 		FMixerSubmixWeakPtr GetBaseDefaultSubmix();
@@ -294,25 +297,27 @@ namespace Audio
 
 		static bool IsEndpointSubmix(const USoundSubmixBase* InSubmix);
 
-		// Audio bus API
+		// Audio bus API - these are deprecated. Use corresponding calls in UAudioBusSubsystem instead
+		UE_DEPRECATED(5.2, "This function is deprecated. Use UAudioBusSubsystem::StartAudioBus instead.")
 		virtual void StartAudioBus(uint32 InAudioBusId, int32 InNumChannels, bool bInIsAutomatic) override;
+		UE_DEPRECATED(5.2, "This function is deprecated. Use UAudioBusSubsystem::StopAudioBus instead.")
 		virtual void StopAudioBus(uint32 InAudioBusId) override;
+		UE_DEPRECATED(5.2, "This function is deprecated. Use UAudioBusSubsystem::IsAudioBusActive instead.")
 		virtual bool IsAudioBusActive(uint32 InAudioBusId) const override;
 
-		UE_DEPRECATED(5.2, "AddPatchForAudioBus is deprecated.  Use AddPatchOutputForAudioBus.")
+		UE_DEPRECATED(5.2, "AddPatchForAudioBus is deprecated.  Use UAudioBusSubsystem::AddPatchOutputForAudioBus.")
 		virtual FPatchOutputStrongPtr AddPatchForAudioBus(uint32 InAudioBusId, float InPatchGain = 1.0f) override;
 
-		UE_DEPRECATED(5.2, "AddPatchForAudioBus_GameThread is deprecated.  Use AddPatchOutputForAudioBus.")
+		UE_DEPRECATED(5.2, "AddPatchForAudioBus_GameThread is deprecated.  Use UAudioBusSubsystem::AddPatchOutputForAudioBus.")
 		virtual FPatchOutputStrongPtr AddPatchForAudioBus_GameThread(uint32 InAudioBusId, float InPatchGain = 1.0f) override;
 
-		UE_DEPRECATED(5.2, "This overload of AddPatchInputForAudioBus is deprecated and non-functional.  Use the overload that takes the number of frames and channels as parameters.")
+		UE_DEPRECATED(5.2, "This overload of AddPatchInputForAudioBus is deprecated and non-functional.  Use the overload in UAudioBusSubsystem that takes the number of frames and channels as parameters.")
 		virtual void AddPatchInputForAudioBus(const FPatchInput& InPatchInput, uint32 InAudioBusId, float InPatchGain = 1.0f) override;
 
-		UE_DEPRECATED(5.2, "AddPatchInputForAudioBus_GameThread is deprecated.  Use AddPatchInputForAudioBus.")
+		UE_DEPRECATED(5.2, "AddPatchInputForAudioBus_GameThread is deprecated.  Use UAudioBusSubsystem::AddPatchInputForAudioBus instead.")
 		virtual void AddPatchInputForAudioBus_GameThread(const FPatchInput& InPatchInput, uint32 InAudioBusId, float InPatchGain = 1.0f) override;
 
-		virtual FPatchInput AddPatchInputForAudioBus(uint32 InAudioBusId, int32 InFrames, int32 InChannels, float InGain = 1.f) override;
-		virtual FPatchOutputStrongPtr AddPatchOutputForAudioBus(uint32 InAudioBusId, int32 InFrames, int32 InChannels, float InGain = 1.f) override;
+		FPatchOutputStrongPtr MakePatch(int32 InFrames, int32 InChannels, float InGain) const;
 
 		// Clock Manager for quantized event handling on Audio Render Thread
 		FQuartzClockManager QuantizedEventClockManager;
@@ -373,23 +378,10 @@ namespace Audio
 		void PumpCommandQueue();
 		void PumpGameThreadCommandQueue();
 		
-		FPatchOutputStrongPtr MakePatch(int32 InFrames, int32 InChannels, float InGain) const;
-
 		TArray<USoundSubmix*> MasterSubmixes;
 		TArray<FMixerSubmixPtr> MasterSubmixInstances;
 
 		TArray<TStrongObjectPtr<UAudioBus>> DefaultAudioBuses;
-
-		struct FActiveBusData
-		{
-			int32 BusId = 0;
-			int32 NumChannels = 0;
-			bool bIsAutomatic = false;
-		};
-
-		// The active audio bus list accessible on the game thread
-		TMap<int32, FActiveBusData> ActiveAudioBuses_GameThread;
-
 		/** Ptr to the platform interface, which handles streaming audio to the hardware device. */
 		IAudioMixerPlatformInterface* AudioMixerPlatform;
 		

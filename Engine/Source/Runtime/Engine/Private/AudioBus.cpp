@@ -2,10 +2,10 @@
 
 
 #include "Sound/AudioBus.h"
+#include "AudioBusSubsystem.h"
 #include "AudioDeviceManager.h"
 #include "Engine/Engine.h"
 #include "AudioDevice.h"
-#include "AudioMixerDevice.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AudioBus)
 
@@ -44,8 +44,9 @@ void UAudioBus::BeginDestroy()
 		{
 			if (AudioDevice->IsAudioMixerEnabled())
 			{
-				Audio::FMixerDevice* MixerDevice = static_cast<Audio::FMixerDevice*>(AudioDevice);
-				MixerDevice->StopAudioBus(AudioBusId);
+				UAudioBusSubsystem* AudioBusSubsystem = AudioDevice->GetSubsystem<UAudioBusSubsystem>();
+				check(AudioBusSubsystem);
+				AudioBusSubsystem->StopAudioBus(Audio::FAudioBusKey(AudioBusId));
 			}
 		}
 	}
@@ -66,11 +67,11 @@ void UAudioBus::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEve
 		{
 			DeviceManager->IterateOverAllDevices([BusId = GetUniqueID(), NumChannels = AudioBusChannels](Audio::FDeviceId, FAudioDevice* InDevice)
 			{
-				if (Audio::FMixerDevice* MixerDevice = static_cast<Audio::FMixerDevice*>(InDevice))
-				{
-					MixerDevice->StopAudioBus(BusId);
-					MixerDevice->StartAudioBus(BusId, (int32)NumChannels + 1, false /* bInIsAutomatic */);
-				}
+				UAudioBusSubsystem* AudioBusSubsystem = InDevice->GetSubsystem<UAudioBusSubsystem>();
+				check(AudioBusSubsystem);
+				Audio::FAudioBusKey AudioBusKey = Audio::FAudioBusKey(BusId);
+				AudioBusSubsystem->StopAudioBus(AudioBusKey);
+				AudioBusSubsystem->StartAudioBus(AudioBusKey, (int32)NumChannels + 1, false /* bInIsAutomatic */);
 			});
 		}
 	}

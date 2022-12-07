@@ -2,13 +2,18 @@
 
 #pragma once
 
+#include "AudioDeviceManager.h"
 #include "Subsystem.h"
 #include "SubsystemCollection.h"
-#include "AudioDeviceManager.h"
 #include "AudioEngineSubsystem.generated.h"
 
 // Forward Declarations 
 class FAudioDevice;
+namespace Audio
+{
+	class FMixerDevice;
+	class FMixerSourceManager;
+}
 
 /**
  * UAudioSubsystemCollectionRoot
@@ -53,6 +58,18 @@ public:
 
 	/** Returns the owning audio device handle */
 	virtual FAudioDeviceHandle GetAudioDeviceHandle() const final;
+
+	/** Return a mutable version of the source manager associated with the owning device handle */
+	virtual Audio::FMixerSourceManager* GetMutableSourceManager() final;
+
+	/** Return the source manager associated with the owning device handle */
+	virtual const Audio::FMixerSourceManager* GetSourceManager() const final;
+
+	/** Return a mutable version of the mixer device from the owning device handle */
+	virtual Audio::FMixerDevice* GetMutableMixerDevice() final;
+
+	/** Return the mixer device from the owning device handle */
+	virtual const Audio::FMixerDevice* GetMixerDevice() const final;
 };
 
 /**

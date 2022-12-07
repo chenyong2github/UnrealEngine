@@ -3,6 +3,7 @@
 #include "Generators/SoundModulationEnvelopeFollower.h"
 
 #include "Algo/MaxElement.h"
+#include "AudioBusSubsystem.h"
 #include "AudioDefines.h"
 #include "AudioDeviceManager.h"
 #include "AudioMixerDevice.h"
@@ -203,7 +204,9 @@ namespace AudioModulation
 					FAudioDevice* AudioDevice = DeviceManager->GetAudioDeviceRaw(AudioDeviceId);
 					if (Audio::FMixerDevice* MixerDevice = static_cast<Audio::FMixerDevice*>(AudioDevice))
 					{
-						AudioBusPatch = MixerDevice->AddPatchOutputForAudioBus(BusId, MixerDevice->GetNumOutputFrames(), EnvelopeFollower.GetNumChannels(), Gain);
+						UAudioBusSubsystem* AudioBusSubsystem = MixerDevice->GetSubsystem<UAudioBusSubsystem>();
+						check(AudioBusSubsystem);
+						AudioBusPatch = AudioBusSubsystem->AddPatchOutputForAudioBus(Audio::FAudioBusKey(BusId), MixerDevice->GetNumOutputFrames(), EnvelopeFollower.GetNumChannels(), Gain);
 						bBusRequiresPatch = false;
 					}
 				}

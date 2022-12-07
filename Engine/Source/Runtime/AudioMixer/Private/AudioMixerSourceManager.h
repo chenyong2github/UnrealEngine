@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-
+#include "AudioBusSubsystem.h"
 #include "AudioMixerBuffer.h"
 #include "AudioMixerBus.h"
 #include "AudioMixerDevice.h"
@@ -190,29 +189,29 @@ namespace Audio
 		void InitSource(const int32 SourceId, const FMixerSourceVoiceInitParams& InitParams);
 
 		// Creates and starts an audio bus manually.
-		void StartAudioBus(uint32 InAudioBusId, int32 InNumChannels, bool bInIsAutomatic);
+		void StartAudioBus(FAudioBusKey InAudioBusKey, int32 InNumChannels, bool bInIsAutomatic);
 
 		// Stops an audio bus manually
-		void StopAudioBus(uint32 InAudioBusId);
+		void StopAudioBus(FAudioBusKey InAudioBusKey);
 
 		// Queries if an audio bus is active. Must be called from the audio thread.
-		bool IsAudioBusActive(uint32 InAudioBusId) const;
+		bool IsAudioBusActive(FAudioBusKey InAudioBusKey) const;
 
 		// Returns the number of channels currently set for the audio bus associated with
 		// the provided BusId.  Returns 0 if the audio bus is inactive.
-		int32 GetAudioBusNumChannels(uint32 InAudioBusId) const;
+		int32 GetAudioBusNumChannels(FAudioBusKey InAudioBusKey) const;
 
 		// Adds a patch output for an audio bus from the Audio Render Thread
-		void AddPatchOutputForAudioBus(uint32 InAudioBusId, const FPatchOutputStrongPtr& InPatchOutputStrongPtr);
+		void AddPatchOutputForAudioBus(FAudioBusKey InAudioBusKey, const FPatchOutputStrongPtr& InPatchOutputStrongPtr);
 
 		// Adds a patch output for an audio bus from the Audio Thread
-		void AddPatchOutputForAudioBus_AudioThread(uint32 InAudioBusId, const FPatchOutputStrongPtr& InPatchOutputStrongPtr);
+		void AddPatchOutputForAudioBus_AudioThread(FAudioBusKey InAudioBusKey, const FPatchOutputStrongPtr& InPatchOutputStrongPtr);
 
 		// Adds a patch input for an audio bus
-		void AddPatchInputForAudioBus(uint32 InAudioBusId, const FPatchInput& InPatchInput);
+		void AddPatchInputForAudioBus(FAudioBusKey InAudioBusKey, const FPatchInput& InPatchInput);
 
 		// Adds a patch input for an audio bus from the Audio Thread
-		void AddPatchInputForAudioBus_AudioThread(uint32 InAudioBusId, const FPatchInput& InPatchInput);
+		void AddPatchInputForAudioBus_AudioThread(FAudioBusKey InAudioBusKey, const FPatchInput& InPatchInput);
 
 		void Play(const int32 SourceId);
 		void Stop(const int32 SourceId);
@@ -578,8 +577,8 @@ namespace Audio
 		TArray<FMixerSourceSubmixOutputBuffer> SourceSubmixOutputBuffers;
 
 		// Map of bus object Id's to audio bus data. 
-		TMap<uint32, TSharedPtr<FMixerAudioBus>> AudioBuses;
-		TArray<uint32> AudioBusIds_AudioThread;
+		TMap<FAudioBusKey, TSharedPtr<FMixerAudioBus>> AudioBuses; 
+		TArray<FAudioBusKey> AudioBusKeys_AudioThread;
 
 		// Async task workers for processing sources in parallel
 		TArray<FAsyncTask<FAudioMixerSourceWorker>*> SourceWorkers;

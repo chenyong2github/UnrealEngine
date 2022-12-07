@@ -2,6 +2,7 @@
 
 #include "SubmixEffects/SubmixEffectMultiBandCompressor.h"
 
+#include "AudioBusSubsystem.h"
 #include "AudioDeviceManager.h"
 #include "AudioMixerDevice.h"
 #include "AudioMixerSubmix.h"
@@ -226,7 +227,9 @@ bool FSubmixEffectMultibandCompressor::UpdateKeySourcePatch()
 				const uint32 ObjectId = KeySource.GetObjectId();
 				if (ObjectId != INDEX_NONE)
 				{
-					KeySource.Patch = MixerDevice->AddPatchOutputForAudioBus(ObjectId, MixerDevice->GetNumOutputFrames(), KeySource.GetNumChannels());
+					UAudioBusSubsystem* AudioBusSubsystem = MixerDevice->GetSubsystem<UAudioBusSubsystem>();
+					check(AudioBusSubsystem);
+					KeySource.Patch = AudioBusSubsystem->AddPatchOutputForAudioBus(ObjectId, MixerDevice->GetNumOutputFrames(), KeySource.GetNumChannels());
 					if (KeySource.Patch.IsValid())
 					{
 						for (Audio::FDynamicsProcessor& DynamicsProcessor : DynamicsProcessors)

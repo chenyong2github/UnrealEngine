@@ -1,18 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioMixerBlueprintLibrary.h"
-#include "Engine/World.h"
+
+#include "Algo/Transform.h"
+#include "Async/Async.h"
+#include "AudioBusSubsystem.h"
+#include "AudioCompressionSettingsUtils.h"
 #include "AudioDevice.h"
+#include "AudioDeviceManager.h"
 #include "AudioMixerDevice.h"
+#include "ContentStreaming.h"
 #include "CoreMinimal.h"
 #include "DSP/ConstantQ.h"
 #include "DSP/SpectrumAnalyzer.h"
-#include "ContentStreaming.h"
-#include "AudioCompressionSettingsUtils.h"
-#include "Async/Async.h"
+#include "Engine/World.h"
 #include "Sound/SoundEffectPreset.h"
-#include "Algo/Transform.h"
-#include "AudioDeviceManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AudioMixerBlueprintLibrary)
 
@@ -653,7 +655,10 @@ void UAudioMixerBlueprintLibrary::StartAudioBus(const UObject* WorldContextObjec
 	{
 		uint32 AudioBusId = AudioBus->GetUniqueID();
 		int32 NumChannels = (int32)AudioBus->AudioBusChannels + 1;
-		MixerDevice->StartAudioBus(AudioBusId, NumChannels, false);
+
+		UAudioBusSubsystem* AudioBusSubsystem = MixerDevice->GetSubsystem<UAudioBusSubsystem>();
+		check(AudioBusSubsystem);
+		AudioBusSubsystem->StartAudioBus(Audio::FAudioBusKey(AudioBusId), NumChannels, false);
 	}
 	else
 	{
@@ -671,7 +676,9 @@ void UAudioMixerBlueprintLibrary::StopAudioBus(const UObject* WorldContextObject
 	if (Audio::FMixerDevice* MixerDevice = FAudioDeviceManager::GetAudioMixerDeviceFromWorldContext(WorldContextObject))
 	{
 		uint32 AudioBusId = AudioBus->GetUniqueID();
-		MixerDevice->StopAudioBus(AudioBusId);
+		UAudioBusSubsystem* AudioBusSubsystem = MixerDevice->GetSubsystem<UAudioBusSubsystem>();
+		check(AudioBusSubsystem);
+		AudioBusSubsystem->StopAudioBus(Audio::FAudioBusKey(AudioBusId));
 	}
 	else
 	{
@@ -688,8 +695,10 @@ bool UAudioMixerBlueprintLibrary::IsAudioBusActive(const UObject* WorldContextOb
 	}
 	if (Audio::FMixerDevice* MixerDevice = FAudioDeviceManager::GetAudioMixerDeviceFromWorldContext(WorldContextObject))
 	{
-		uint32 AudioBusId = AudioBus->GetUniqueID();
-		return MixerDevice->IsAudioBusActive(AudioBusId);
+		uint32 AudioBusId = AudioBus->GetUniqueID(); 
+		UAudioBusSubsystem* AudioBusSubsystem = MixerDevice->GetSubsystem<UAudioBusSubsystem>();
+		check(AudioBusSubsystem);
+		return AudioBusSubsystem->IsAudioBusActive(Audio::FAudioBusKey(AudioBusId));
 	}
 	else
 	{

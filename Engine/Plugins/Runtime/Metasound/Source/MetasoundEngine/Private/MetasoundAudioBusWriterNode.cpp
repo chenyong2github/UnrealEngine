@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AudioMixerDevice.h"
+#include "AudioBusSubsystem.h"
+#include "AudioDevice.h"
 #include "Internationalization/Text.h"
 #include "MediaPacket.h"
 #include "MetasoundAudioBuffer.h"
@@ -108,15 +109,18 @@ namespace Metasound
 				{
 					if (FAudioDevice* AudioDevice = ADM->GetAudioDeviceRaw(AudioDeviceId))
 					{
-						// Start the audio bus in case it's not already started
+						UAudioBusSubsystem* AudioBusSubsystem = AudioDevice->GetSubsystem<UAudioBusSubsystem>();
+						check(AudioBusSubsystem);
+						Audio::FAudioBusKey AudioBusKey = Audio::FAudioBusKey(AudioBusProxy->AudioBusId);	
+						// Start the audio bus in case it's not already started					
 						AudioBusChannels = AudioBusProxy->NumChannels;
-						AudioDevice->StartAudioBus(AudioBusProxy->AudioBusId, AudioBusChannels, false);
+						AudioBusSubsystem->StartAudioBus(AudioBusKey, AudioBusChannels, false);
 
 						BlockSizeFrames = InParams.OperatorSettings.GetNumFramesPerBlock();
 						InterleavedBuffer.AddZeroed(BlockSizeFrames * AudioBusChannels);
 
 						// Create a bus patch input with enough room for the number of samples we expect and some buffering
-						AudioBusPatchInput = AudioDevice->AddPatchInputForAudioBus(AudioBusProxy->AudioBusId, BlockSizeFrames, AudioBusChannels);
+						AudioBusPatchInput = AudioBusSubsystem->AddPatchInputForAudioBus(AudioBusKey, BlockSizeFrames, AudioBusChannels);
 					}
 				}
 			}

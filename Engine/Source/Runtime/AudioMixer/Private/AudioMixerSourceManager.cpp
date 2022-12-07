@@ -1135,19 +1135,19 @@ namespace Audio
 		}, AUDIO_MIXER_THREAD_COMMAND_STRING("ReleaseSourceId"));
 	}
 
-	void FMixerSourceManager::StartAudioBus(uint32 InAudioBusId, int32 InNumChannels, bool bInIsAutomatic)
+	void FMixerSourceManager::StartAudioBus(FAudioBusKey InAudioBusKey, int32 InNumChannels, bool bInIsAutomatic)
 	{
-		if (AudioBusIds_AudioThread.Contains(InAudioBusId))
+		if (AudioBusKeys_AudioThread.Contains(InAudioBusKey))
 		{
 			return;
 		}
 
-		AudioBusIds_AudioThread.Add(InAudioBusId);
+		AudioBusKeys_AudioThread.Add(InAudioBusKey);
 
-		AudioMixerThreadCommand([this, InAudioBusId, InNumChannels, bInIsAutomatic]()
+		AudioMixerThreadCommand([this, InAudioBusKey, InNumChannels, bInIsAutomatic]()
 		{
 			// If this audio bus id already exists, set it to not be automatic and return it
-			TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(InAudioBusId);
+			TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(InAudioBusKey);
 			if (AudioBusPtr.IsValid())
 			{
 				// If this audio bus already existed, make sure the num channels lines up
@@ -1159,23 +1159,23 @@ namespace Audio
 				// If the bus is not registered, make a new entry.
 				TSharedPtr<FMixerAudioBus> NewBusData(new FMixerAudioBus(this, bInIsAutomatic, InNumChannels));
 
-				AudioBuses.Add(InAudioBusId, NewBusData);
+				AudioBuses.Add(InAudioBusKey, NewBusData);
 			}
 		}, AUDIO_MIXER_THREAD_COMMAND_STRING("StartAudioBus"));
 	}
 
-	void FMixerSourceManager::StopAudioBus(uint32 InAudioBusId)
+	void FMixerSourceManager::StopAudioBus(FAudioBusKey InAudioBusKey)
 	{
-		if (!AudioBusIds_AudioThread.Contains(InAudioBusId))
+		if (!AudioBusKeys_AudioThread.Contains(InAudioBusKey))
 		{
 			return;
 		}
 
-		AudioBusIds_AudioThread.Remove(InAudioBusId);
+		AudioBusKeys_AudioThread.Remove(InAudioBusKey);
 
-		AudioMixerThreadCommand([this, InAudioBusId]()
+		AudioMixerThreadCommand([this, InAudioBusKey]()
 		{
-			TSharedPtr<FMixerAudioBus>* AudioBusPtr = AudioBuses.Find(InAudioBusId);
+			TSharedPtr<FMixerAudioBus>* AudioBusPtr = AudioBuses.Find(InAudioBusKey);
 			if (AudioBusPtr)
 			{
 				if (!(*AudioBusPtr)->IsAutomatic())
@@ -1183,7 +1183,7 @@ namespace Audio
 					// Immediately stop all sources which were source buses
 					for (FSourceInfo& SourceInfo : SourceInfos)
 					{
-						if (SourceInfo.AudioBusId == InAudioBusId)
+						if (SourceInfo.AudioBusId == InAudioBusKey.ObjectId)
 						{
 							SourceInfo.bIsPlaying = false;
 							SourceInfo.bIsPaused = false;
@@ -1191,22 +1191,22 @@ namespace Audio
 							SourceInfo.bIsStopping = false;
 						}
 					}
-					AudioBuses.Remove(InAudioBusId);
+					AudioBuses.Remove(InAudioBusKey);
 				}
 			}
 		}, AUDIO_MIXER_THREAD_COMMAND_STRING("StartAudioBus"));
 	}
 
-	bool FMixerSourceManager::IsAudioBusActive(uint32 InAudioBusId) const
+	bool FMixerSourceManager::IsAudioBusActive(FAudioBusKey InAudioBusKey) const
 	{
 		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
-		return AudioBusIds_AudioThread.Contains(InAudioBusId);
+		return AudioBusKeys_AudioThread.Contains(InAudioBusKey);
 	}
 
-	int32 FMixerSourceManager::GetAudioBusNumChannels(uint32 InAudioBusId) const
+	int32 FMixerSourceManager::GetAudioBusNumChannels(FAudioBusKey InAudioBusKey) const
 	{
 		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
-		TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(InAudioBusId);
+		TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(InAudioBusKey);
 		if (AudioBusPtr.IsValid())
 		{
 			return AudioBusPtr->GetNumChannels();
@@ -1215,12 +1215,12 @@ namespace Audio
 		return 0;
 	}
 
-	void FMixerSourceManager::AddPatchOutputForAudioBus(uint32 InAudioBusId, const FPatchOutputStrongPtr& InPatchOutputStrongPtr)
+	void FMixerSourceManager::AddPatchOutputForAudioBus(FAudioBusKey InAudioBusKey, const FPatchOutputStrongPtr& InPatchOutputStrongPtr)
 	{
 		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 		if (MixerDevice->IsAudioRenderingThread())
 		{
-			TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(InAudioBusId);
+			TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(InAudioBusKey);
 			if (AudioBusPtr.IsValid())
 			{
 				AudioBusPtr->AddNewPatchOutput(InPatchOutputStrongPtr);
@@ -1229,27 +1229,27 @@ namespace Audio
 		else
 		{
 			// Queue up the command via MPSC command queue
-			AudioMixerThreadMPSCCommand([this, InAudioBusId, InPatchOutputStrongPtr]()
+			AudioMixerThreadMPSCCommand([this, InAudioBusKey, InPatchOutputStrongPtr]()
 			{
-				AddPatchOutputForAudioBus(InAudioBusId, InPatchOutputStrongPtr);
+				AddPatchOutputForAudioBus(InAudioBusKey, InPatchOutputStrongPtr);
 			});
 		}
 	}
 
-	void FMixerSourceManager::AddPatchOutputForAudioBus_AudioThread(uint32 InAudioBusId, const FPatchOutputStrongPtr& InPatchOutputStrongPtr)
+	void FMixerSourceManager::AddPatchOutputForAudioBus_AudioThread(FAudioBusKey InAudioBusKey, const FPatchOutputStrongPtr& InPatchOutputStrongPtr)
 	{
-		AudioMixerThreadCommand([this, InAudioBusId, NewPatchPtr = InPatchOutputStrongPtr]() mutable
+		AudioMixerThreadCommand([this, InAudioBusKey, NewPatchPtr = InPatchOutputStrongPtr]() mutable
 		{
-			AddPatchOutputForAudioBus(InAudioBusId, NewPatchPtr);
+			AddPatchOutputForAudioBus(InAudioBusKey, NewPatchPtr);
 		}, AUDIO_MIXER_THREAD_COMMAND_STRING("AddPatchOutputForAudioBus_AudioThread()"));
 	}
 
-	void FMixerSourceManager::AddPatchInputForAudioBus(uint32 InAudioBusId, const FPatchInput& InPatchInput)
+	void FMixerSourceManager::AddPatchInputForAudioBus(FAudioBusKey InAudioBusKey, const FPatchInput& InPatchInput)
 	{
 		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 		if (MixerDevice->IsAudioRenderingThread())
 		{
-			TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(InAudioBusId);
+			TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(InAudioBusKey);
 			if (AudioBusPtr.IsValid())
 			{
 				AudioBusPtr->AddNewPatchInput(InPatchInput);
@@ -1258,18 +1258,18 @@ namespace Audio
 		else
 		{
 			// Queue up the command via MPSC command queue
-			AudioMixerThreadMPSCCommand([this, InAudioBusId, InPatchInput]()
+			AudioMixerThreadMPSCCommand([this, InAudioBusKey, InPatchInput]()
 			{
-				AddPatchInputForAudioBus(InAudioBusId, InPatchInput);
+				AddPatchInputForAudioBus(InAudioBusKey, InPatchInput);
 			});
 		}
 	}
 
-	void FMixerSourceManager::AddPatchInputForAudioBus_AudioThread(uint32 InAudioBusId, const FPatchInput& InPatchInput)
+	void FMixerSourceManager::AddPatchInputForAudioBus_AudioThread(FAudioBusKey InAudioBusKey, const FPatchInput& InPatchInput)
 	{
-		AudioMixerThreadCommand([this, InAudioBusId, InPatchInput]()
+		AudioMixerThreadCommand([this, InAudioBusKey, InPatchInput]()
 		{
-			AddPatchInputForAudioBus(InAudioBusId, InPatchInput);
+			AddPatchInputForAudioBus(InAudioBusKey, InPatchInput);
 		}, AUDIO_MIXER_THREAD_COMMAND_STRING("AddPatchInputForAudioBus_AudioThread()"));
 	}
 

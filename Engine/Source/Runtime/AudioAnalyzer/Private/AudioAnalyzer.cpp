@@ -8,6 +8,7 @@
 #include "AudioMixerDevice.h"
 #include "AudioDeviceManager.h"
 #include "AudioAnalyzerSubsystem.h"
+#include "AudioBusSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AudioAnalyzer)
 
@@ -75,11 +76,15 @@ void UAudioAnalyzer::StartAnalyzing(UWorld* InWorld, UAudioBus* AudioBusToAnalyz
 	// Start the audio bus. This won't do anythign if the bus is already started elsewhere.
 	uint32 AudioBusId = AudioBus->GetUniqueID();
 	int32 NumChannels = (int32)AudioBus->AudioBusChannels + 1;
-	MixerDevice->StartAudioBus(AudioBusId, NumChannels, false);
+
+	UAudioBusSubsystem* AudioBusSubsystem = MixerDevice->GetSubsystem<UAudioBusSubsystem>();
+	check(AudioBusSubsystem);
+	Audio::FAudioBusKey AudioBusKey = Audio::FAudioBusKey(AudioBusId);
+	AudioBusSubsystem->StartAudioBus(AudioBusKey, NumChannels, false);
 
 	// Get an output patch for the audio bus
 	NumFramesPerBufferToAnalyze = MixerDevice->GetNumOutputFrames();
-	PatchOutputStrongPtr = MixerDevice->AddPatchOutputForAudioBus(AudioBusId, NumFramesPerBufferToAnalyze, NumChannels);
+	PatchOutputStrongPtr = AudioBusSubsystem->AddPatchOutputForAudioBus(AudioBusKey, NumFramesPerBufferToAnalyze, NumChannels);
 
 	// Register this audio analyzer with the audio analyzer subsystem
 	// The subsystem will query this analyzer to see if it has enough audio to perform analysis.
