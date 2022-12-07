@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConcertClientDataStore.h"
+#include "ConcertMessageData.h"
 #include "IConcertSession.h"
 #include "ConcertSyncClientLiveSession.h"
 
@@ -98,7 +99,7 @@ TFuture<FConcertDataStoreResult> FConcertClientDataStore::InternalCompareExchang
 			// Send the 'version' rather than 'expected' to save bandwidth.
 			CompareExchangeRequest.ExpectedVersion = Result.Value->Version;
 			CompareExchangeRequest.Expected.PayloadTypeName = TEXT("");
-			CompareExchangeRequest.Expected.bPayloadIsCompressed = false;
+			CompareExchangeRequest.Expected.PayloadCompressionDetails = EConcertCompressionDetails::Uncompressed;
 			CompareExchangeRequest.Expected.PayloadSize = 0;
 			CompareExchangeRequest.Expected.PayloadBytes.Bytes.Reset();
 		}
@@ -184,7 +185,7 @@ FConcertDataStoreResult FConcertClientDataStore::HandleResponse(const FName& Sen
 		// Ensure the server doesn't send data when the client initiated the operation (The client knows the value it sent).
 		check(Response.Value.TypeName.IsNone());
 		check(Response.Value.SerializedValue.PayloadTypeName.IsNone());
-		check(Response.Value.SerializedValue.bPayloadIsCompressed == false);
+		check(Response.Value.SerializedValue.PayloadCompressionDetails == EConcertCompressionDetails::Uncompressed);
 		check(Response.Value.SerializedValue.PayloadBytes.Bytes.Num() == 0);
 
 		// Ensure the server sent back a valid version in case it has exchanged the value. (Successfully added value is always version 1)

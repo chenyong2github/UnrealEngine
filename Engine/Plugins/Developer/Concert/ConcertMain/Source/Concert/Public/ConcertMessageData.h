@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/CompressionFlags.h"
 #include "UObject/ObjectMacros.h"
 #include "Misc/Guid.h"
 #include "ConcertVersion.h"
@@ -43,6 +44,181 @@ enum class EConcertPayloadCompressionType : uint8
 	// The serialized data will always be compressed.
 	Always
 };
+
+UENUM()
+enum class EConcertCompressionDetails : uint8
+{
+	/** The package data (the body) is written uncompressed. */
+	Uncompressed = 0,
+
+	/** The package data (the body) is written in a single compressed block. The value 1 represents the original format. Still used to store small packages.*/
+	Compressed = 1 << 0,
+
+	/** If compression is enabled and this bit is set then oodle compression is used for the package data. */
+	CompressWithOodle = 1 << 1,
+
+	/** Compress for speed. */
+	CompressForSpeed = 1 << 2,
+
+	/** Compress for smaller sizes. */
+	CompressForSize = 1 << 3
+};
+ENUM_CLASS_FLAGS(EConcertCompressionDetails)
+
+namespace UE::Concert::Compression
+{
+
+/** Get the compression type from the console variable setting. */
+CONCERT_API int32 GetConsoleVariableCompressionType();
+
+/** Function to check the console variable for the compression flags. Speed vs size. */
+CONCERT_API int32 GetConsoleVariableCompressionFlags();
+
+/** Function to check the console variable for compression size limit.*/
+CONCERT_API int32 GetConsoleVariableCompressionSizeLimit();
+
+/** Based on the size of the data to compress indicate if we should invoke the compressor. */
+template <typename SizeType>
+inline bool ShouldCompress(SizeType DataSize)
+{
+	static_assert(std::is_integral<SizeType>::value);
+	const int32 CompressionLimit = GetConsoleVariableCompressionSizeLimit();
+	const int32 MinLimit = 512;
+	if (CompressionLimit <= 0)
+	{
+		return DataSize > MinLimit;
+	}
+	const SizeType MaxPackageDataSizeForCompression = static_cast<SizeType>(CompressionLimit) * 1024 * 1024;
+	return DataSize > MinLimit && DataSize <= MaxPackageDataSizeForCompression;
+}
+
+/** Returns truen if the compression details is set to compressed format.  */
+inline bool DataIsCompressed(EConcertCompressionDetails InFormat)
+{
+	return EnumHasAllFlags(InFormat, EConcertCompressionDetails::Compressed);
+}
+
+/** Returns true if the compression details is set to uncompressed format. */
+inline bool DataIsUncompressed(EConcertCompressionDetails InFormat)
+{
+	return InFormat == EConcertCompressionDetails::Uncompressed;
+}
+
+/** Returns true if we are suppose to use Oodle for compression. */
+inline bool DataIsCompressedWithOodle(EConcertCompressionDetails InFormat)
+{
+	return EnumHasAllFlags(InFormat, EConcertCompressionDetails::Compressed | EConcertCompressionDetails::CompressWithOodle);
+}
+
+/** Get the named compression algorithm to invoke with serializer and memory compressors. */
+inline FName GetCompressionAlgorithm()
+{
+	const int32 CompressionAlgo = GetConsoleVariableCompressionType();
+	if (CompressionAlgo == 1)
+	{
+		return NAME_Oodle;
+	}
+	return NAME_Zlib;
+}
+
+/** Get the default flags to use when invoking the compressor. */
+inline ECompressionFlags GetCompressionFlags()
+{
+	const int32 CompressionFlags = GetConsoleVariableCompressionFlags();
+	if (CompressionFlags == 0)
+	{
+		return COMPRESS_NoFlags;
+	}
+	if (CompressionFlags == 1)
+	{
+		return COMPRESS_BiasSize;
+	}
+	return COMPRESS_BiasSpeed;
+}
+
+/** Get the named compression algorithm based on the provided details.  Current this is only Zlib or Oodle. */
+inline FName GetCompressionAlgorithm(EConcertCompressionDetails InDetails)
+{
+	return DataIsCompressedWithOodle(InDetails) ? NAME_Oodle : NAME_Zlib;
+}
+
+/** Get the compression enum value given the concert compression settings.  This the value passed into the serializer and memory compressor. */
+inline ECompressionFlags GetCoreCompressionFlags(EConcertCompressionDetails InFormat)
+{
+	// Make sure we do not have both flags set.
+	check(!EnumHasAllFlags(InFormat, EConcertCompressionDetails::CompressForSize | EConcertCompressionDetails::CompressForSpeed));
+	if (DataIsUncompressed(InFormat))
+	{
+		return COMPRESS_NoFlags;
+	}
+	if (EnumHasAnyFlags(InFormat, EConcertCompressionDetails::CompressForSize))
+	{
+		return COMPRESS_BiasSize;
+	}
+	if (EnumHasAnyFlags(InFormat, EConcertCompressionDetails::CompressForSpeed))
+	{
+		return COMPRESS_BiasSpeed;
+	}
+	return COMPRESS_NoFlags;
+}
+
+/** For a given named compression algorithm and compression flags convert it into a EConcertCompressionDetails */
+inline EConcertCompressionDetails GetCompressionFromNamedType(FName NamedMethod, ECompressionFlags Flags)
+{
+	check(NamedMethod == NAME_Oodle || NamedMethod == NAME_Zlib);
+	check(Flags == COMPRESS_NoFlags || Flags == COMPRESS_BiasMemory || Flags == COMPRESS_BiasSpeed);
+
+	EConcertCompressionDetails Compressor = EConcertCompressionDetails::Compressed;
+
+	if (NamedMethod == NAME_Oodle)
+	{
+		Compressor = Compressor | EConcertCompressionDetails::CompressWithOodle;
+	}
+
+	if (Flags == COMPRESS_BiasMemory)
+	{
+		Compressor = Compressor | EConcertCompressionDetails::CompressForSize;
+	}
+	else if (Flags == COMPRESS_BiasSpeed)
+	{
+		Compressor = Compressor | EConcertCompressionDetails::CompressForSpeed;
+	}
+	return Compressor;
+}
+
+/** Add in the compression flags to the concert compression details enum. */
+inline EConcertCompressionDetails GetCompressionFlags(EConcertCompressionDetails InFormat)
+{
+	const int32 CompressionFlags = GetConsoleVariableCompressionFlags();
+	if (CompressionFlags == 0)
+	{
+		return InFormat;
+	}
+	if (CompressionFlags == 1)
+	{
+		return InFormat | EConcertCompressionDetails::CompressForSize;
+	}
+	return InFormat | EConcertCompressionDetails::CompressForSpeed;
+}
+
+/** Based on the data size return the current compression details to store. */
+template <typename SizeType>
+inline EConcertCompressionDetails GetCompressionDetails(SizeType DataSize)
+{
+	static_assert(std::is_integral<SizeType>::value);
+	const int32 CompressionType = GetConsoleVariableCompressionType();
+	if (ShouldCompress(DataSize) && CompressionType != 0)
+	{
+		if (CompressionType == 1)
+		{
+			return GetCompressionFlags(EConcertCompressionDetails::Compressed | EConcertCompressionDetails::CompressWithOodle);
+		}
+		return GetCompressionFlags(EConcertCompressionDetails::Compressed);
+	}
+	return EConcertCompressionDetails::Uncompressed;
+}
+
+}
 
 UENUM()
 enum class EConcertPayloadSerializationMethod : uint8
@@ -342,7 +518,7 @@ struct FConcertSessionSerializedPayload
 	CONCERT_API bool GetPayload(const UScriptStruct* InPayloadType, void* InOutPayloadData) const;
 
 	CONCERT_API bool IsTypeChildOf(const UScriptStruct* InPayloadType) const;
-	
+
 	template<typename T>
 	bool IsTypeChildOf() const
 	{
@@ -355,6 +531,12 @@ struct FConcertSessionSerializedPayload
 		return GetPayload(TBaseStructure<T>::Get(), &OutPayloadData);
 	}
 
+	/** Indicates if the stored payload has been compressed with any compression algorithm. */
+	bool PayloadIsCompressed() const
+	{
+		return UE::Concert::Compression::DataIsCompressed(PayloadCompressionDetails);
+	}
+
 	/** The typename of the user-defined payload. */
 	UPROPERTY(VisibleAnywhere, Category="Payload")
 	FName PayloadTypeName;
@@ -363,9 +545,9 @@ struct FConcertSessionSerializedPayload
 	UPROPERTY(VisibleAnywhere, Category = "Payload")
 	EConcertPayloadSerializationMethod SerializationMethod = EConcertPayloadSerializationMethod::Standard;
 
-	/** Indicates if the serialized payload has been compressed. */
-	UPROPERTY(VisibleAnywhere, Category="Payload")
-	bool bPayloadIsCompressed = false;
+	/** Indicates how the serialized payload has been compressed. */
+	UPROPERTY(VisibleAnywhere, Category = "Payload")
+	EConcertCompressionDetails PayloadCompressionDetails = EConcertCompressionDetails::Uncompressed;
 
 	/** The uncompressed size of the user-defined payload data. */
 	UPROPERTY(VisibleAnywhere, Category="Payload")

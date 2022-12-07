@@ -2,6 +2,7 @@
 
 #include "ConcertMessageData.h"
 #include "ConcertLogGlobal.h"
+#include "HAL/IConsoleManager.h"
 #include "IdentifierTable/ConcertTransportArchives.h"
 
 #include "Misc/App.h"
@@ -167,23 +168,50 @@ bool FConcertSessionFilter::ActivityIdPassesFilter(const int64 InActivityId) con
 		&& ActivityIdUpperBound >= InActivityId;
 }
 
+namespace UE::Concert::Compression
+{
+
+static TAutoConsoleVariable<int32> CVarCompressionType(
+	TEXT("Concert.SetCompressionType"), 1,
+	TEXT("Specify the type of compression to use when serializing data. A value of 0 means compression is off. A value of 1 = Oodle. All other values = Zlib."));
+
+static TAutoConsoleVariable<int32> CVarCompressionSizeLimit(
+	TEXT("Concert.SetCompressionSizeLimit"), 32,
+	TEXT("The compressor incurs a performance cost and will only be used if the package size is less than the amount specified (default 32 MB). A value of 0 or less will always compress."));
+
+static TAutoConsoleVariable<int32> CVarCompressionFlags(
+	TEXT("Concert.SetCompressionFlags"), 0,
+	TEXT("Specify the flags to use when compression is enabled. A value of 0 means no flags. A value of 1 favors smaller sizes. Any other value favors faster encoding."));
+
+int32 GetConsoleVariableCompressionType()
+{
+	return CVarCompressionType.GetValueOnAnyThread();
+}
+
+int32 GetConsoleVariableCompressionFlags()
+{
+	return CVarCompressionFlags.GetValueOnAnyThread();
+}
+
+int32 GetConsoleVariableCompressionSizeLimit()
+{
+	return CVarCompressionSizeLimit.GetValueOnAnyThread();
+}
+
+}
+
 namespace PayloadDetail
 {
 
 bool ShouldCompress(const FConcertSessionSerializedPayload& InPayload, EConcertPayloadCompressionType CompressionType)
 {
-	// We need to have at least 512 bytes to invoke the compressor.
-	constexpr int32 MinBytes = 512;
-	// Set the heuristic limit to 3 MB
-	constexpr int32 MaxBytes = 3 * 1024 * 1024;
-
 	if (CompressionType == EConcertPayloadCompressionType::None)
 	{
 		return false;
 	}
 	if (CompressionType == EConcertPayloadCompressionType::Heuristic)
 	{
-		return InPayload.PayloadSize > MinBytes && InPayload.PayloadSize < MaxBytes;
+		return UE::Concert::Compression::ShouldCompress(InPayload.PayloadSize);
 	}
 	check(CompressionType == EConcertPayloadCompressionType::Always);
 	// Otherwise we are always compressing
@@ -200,24 +228,27 @@ bool TryCompressImpl(const UScriptStruct* InEventType, const void* InEventData, 
 		TArray<uint8> &InBytes = InOutPayload.PayloadBytes.Bytes;
 		TArray<uint8> OutCompressedData;
 		// Compress the result to send on the wire
-		int32 CompressedSize = FCompression::CompressMemoryBound(NAME_Zlib, InOutPayload.PayloadSize);
+		FName NamedCompressionAlgo = UE::Concert::Compression::GetCompressionAlgorithm();
+		ECompressionFlags CompressFlags = UE::Concert::Compression::GetCompressionFlags();
+		int32 CompressedSize = FCompression::CompressMemoryBound(NamedCompressionAlgo, InOutPayload.PayloadSize, CompressFlags);
 		OutCompressedData.SetNumUninitialized(CompressedSize);
 		SCOPED_CONCERT_TRACE(SerializePayload_CompressMemory);
-		if (FCompression::CompressMemory(NAME_Zlib, OutCompressedData.GetData(), CompressedSize, InBytes.GetData(), InBytes.Num()))
+		if (FCompression::CompressMemory(NamedCompressionAlgo, OutCompressedData.GetData(), CompressedSize,
+										 InBytes.GetData(), InBytes.Num()), CompressFlags)
 		{
 			OutCompressedData.SetNum(CompressedSize, false);
 			InOutPayload.PayloadBytes.Bytes = MoveTemp(OutCompressedData);
-			InOutPayload.bPayloadIsCompressed = true;
+			InOutPayload.PayloadCompressionDetails = UE::Concert::Compression::GetCompressionFromNamedType(NamedCompressionAlgo, CompressFlags);
 		}
 		else
 		{
 			UE_LOG(LogConcert, Warning, TEXT("Unable to compress data for %s!"), *InEventType->GetName());
-			InOutPayload.bPayloadIsCompressed = false;
+			InOutPayload.PayloadCompressionDetails = EConcertCompressionDetails::Uncompressed;
 		}
 	}
 	else
 	{
-		InOutPayload.bPayloadIsCompressed = false;
+		InOutPayload.PayloadCompressionDetails = EConcertCompressionDetails::Uncompressed;
 	}
 
 	// Since we can support uncompressed or compressed data this is always successful.
@@ -228,17 +259,23 @@ using OptionalDecompressBytes = TOptional<TArray<uint8>>;
 
 OptionalDecompressBytes DecompressImpl(const FConcertSessionSerializedPayload& InPayload)
 {
-	if (InPayload.bPayloadIsCompressed)
+	EConcertCompressionDetails CompressAlgo = InPayload.PayloadCompressionDetails;
+	if (UE::Concert::Compression::DataIsCompressed(CompressAlgo))
 	{
 		const TArray<uint8> &InBytes = InPayload.PayloadBytes.Bytes;
 		TArray<uint8> UncompressedData;
 		UncompressedData.SetNumUninitialized(InPayload.PayloadSize);
 		SCOPED_CONCERT_TRACE(DeserializePayload_UncompressMemory);
-		if (FCompression::UncompressMemory(NAME_Zlib, UncompressedData.GetData(), UncompressedData.Num(), InBytes.GetData(), InBytes.Num()))
+		ECompressionFlags CompressFlags = UE::Concert::Compression::GetCoreCompressionFlags(CompressAlgo);
+		FName CompressType = UE::Concert::Compression::GetCompressionAlgorithm(CompressAlgo);
+		if (FCompression::UncompressMemory(CompressType, UncompressedData.GetData(), UncompressedData.Num(), InBytes.GetData(), InBytes.Num(), CompressFlags))
 		{
 			return OptionalDecompressBytes(MoveTemp(UncompressedData));
 		}
 	}
+
+	check(UE::Concert::Compression::DataIsUncompressed(CompressAlgo) &&
+		  InPayload.PayloadBytes.Bytes.Num() == InPayload.PayloadSize);
 
 	return OptionalDecompressBytes{};
 }
@@ -281,7 +318,9 @@ bool DeserializeImpl(const UScriptStruct* InTargetEventType, void* InOutTargetEv
 bool DeserializeAndDecompress(const UScriptStruct* InTargetEventType, void* InOutTargetEventData, const FConcertSessionSerializedPayload& InPayload)
 {
 	OptionalDecompressBytes DecompressedBytes = DecompressImpl(InPayload);
-	if ( InPayload.bPayloadIsCompressed && !DecompressedBytes.IsSet() )
+	EConcertCompressionDetails CompressAlgo = InPayload.PayloadCompressionDetails;
+
+	if ( UE::Concert::Compression::DataIsCompressed(CompressAlgo) && !DecompressedBytes.IsSet() )
 	{
 		return false;
 	}

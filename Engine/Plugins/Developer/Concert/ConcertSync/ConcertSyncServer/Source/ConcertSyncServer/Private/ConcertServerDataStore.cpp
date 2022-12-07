@@ -67,7 +67,7 @@ EConcertSessionResponseCode FConcertServerDataStore::OnCompareExchange(const FCo
 		// If the version or value matches.
 		if ((Request.ExpectedVersion != 0 && Request.ExpectedVersion == Result.Value->Version) ||
 		    (Request.ExpectedVersion == 0
-			 && Result.Value->SerializedValue.bPayloadIsCompressed == Request.Expected.bPayloadIsCompressed
+			 && Result.Value->SerializedValue.PayloadCompressionDetails == Request.Expected.PayloadCompressionDetails
 			 && Result.Value->SerializedValue.PayloadSize == Request.Expected.PayloadSize
 			 && Result.Value->SerializedValue.PayloadBytes.Bytes == Request.Expected.PayloadBytes.Bytes))
 		{
