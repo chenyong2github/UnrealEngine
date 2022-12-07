@@ -8,6 +8,7 @@
 #include "Materials/MaterialExpressionStrata.h"
 #include "MaterialExpressionSettings.h"
 #include "Engine/RendererSettings.h"
+#include "ShaderPlatformCachedIniValue.h"
 #include <functional>
 
 static int32 GetLWCTruncateMode()
