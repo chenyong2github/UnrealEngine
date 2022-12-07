@@ -187,10 +187,10 @@ void InitHitProxyRender(FRDGBuilder& GraphBuilder, FSceneRenderer* SceneRenderer
 	// Ensure VirtualTexture resources are allocated
 	if (UseVirtualTexturing(FeatureLevel))
 	{
-		FVirtualTextureSystem::Get().AllocateResources(GraphBuilder, FeatureLevel);
-		FVirtualTextureSystem::Get().CallPendingCallbacks();
-		// Because there is no Update(), we need to manually finalize the resources
-		FVirtualTextureSystem::Get().FinalizeResources(GraphBuilder, FeatureLevel);
+		FVirtualTextureUpdateSettings Settings;
+		Settings.EnablePageRequests(false);
+
+		FVirtualTextureSystem::Get().Update(GraphBuilder, FeatureLevel, nullptr, Settings);
 	}
 
 	// Initialize global system textures (pass-through if already initialized).

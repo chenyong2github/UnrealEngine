@@ -222,12 +222,8 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 		const bool bUseVirtualTexturing = UseVirtualTexturing(FeatureLevel) && !MeshMaterial.GetUniformVirtualTextureExpressions().IsEmpty();
 		if (bUseVirtualTexturing)
 		{
-			RDG_GPU_STAT_SCOPE(GraphBuilder, VirtualTextureUpdate);
-			FVirtualTextureSystem::Get().AllocateResources(GraphBuilder, FeatureLevel);
-			FVirtualTextureSystem::Get().CallPendingCallbacks();
-
 			FVirtualTextureUpdateSettings Settings;
-			Settings.DisableThrottling(true);
+			Settings.EnableThrottling(false);
 			FVirtualTextureSystem::Get().Update(GraphBuilder, FeatureLevel, Scene, Settings);
 
 			VirtualTextureFeedbackBegin(GraphBuilder, TArrayView<const FViewInfo>(&View, 1), RenderContext.GetViewportRect().Size());

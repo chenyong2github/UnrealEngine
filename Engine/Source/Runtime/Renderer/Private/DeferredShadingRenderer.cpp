@@ -2411,14 +2411,15 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	const bool bHasRayTracedOverlay = HasRayTracedOverlay(ViewFamily);
 	const bool bAllowStaticLighting = !bHasRayTracedOverlay && IsStaticLightingAllowed();
 
+	TUniquePtr<FVirtualTextureUpdater> VirtualTextureUpdater;
+
 	const bool bUseVirtualTexturing = UseVirtualTexturing(FeatureLevel);
 	if (bUseVirtualTexturing)
 	{
-		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, VirtualTextureUpdate);
-		RDG_GPU_STAT_SCOPE(GraphBuilder, VirtualTextureUpdate);
-		// AllocateResources needs to be called before RHIBeginScene
-		FVirtualTextureSystem::Get().AllocateResources(GraphBuilder, FeatureLevel);
-		FVirtualTextureSystem::Get().CallPendingCallbacks();
+		FVirtualTextureUpdateSettings Settings;
+		Settings.EnableThrottling(!ViewFamily.bOverrideVirtualTextureThrottle);
+
+		VirtualTextureUpdater = FVirtualTextureSystem::Get().BeginUpdate(GraphBuilder, FeatureLevel, Scene, Settings);
 		VirtualTextureFeedbackBegin(GraphBuilder, Views, SceneTexturesConfig.Extent);
 	}
 
@@ -2624,13 +2625,10 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	FSceneTextures::InitializeViewFamily(GraphBuilder, ViewFamily);
 	FSceneTextures& SceneTextures = GetActiveSceneTextures();
 
-	// Note, should happen after the GPU-Scene update to ensure rendering to runtime virtual textures is using the correctly updated scene
 	if (bUseVirtualTexturing)
 	{
-		RDG_GPU_STAT_SCOPE(GraphBuilder, VirtualTextureUpdate);
-		FVirtualTextureUpdateSettings Settings;
-		Settings.DisableThrottling(ViewFamily.bOverrideVirtualTextureThrottle);
-		FVirtualTextureSystem::Get().Update(GraphBuilder, FeatureLevel, Scene, Settings);
+		// Note, should happen after the GPU-Scene update to ensure rendering to runtime virtual textures is using the correctly updated scene
+		FVirtualTextureSystem::Get().EndUpdate(GraphBuilder, MoveTemp(VirtualTextureUpdater), FeatureLevel);
 	}
 
 #if RHI_RAYTRACING
@@ -3543,6 +3541,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		RDG_GPU_STAT_SCOPE(GraphBuilder, RenderDeferredLighting);
 		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderLighting);
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_Lighting);
+		SCOPED_NAMED_EVENT(RenderLighting, FColor::Emerald);
 
 		FRDGTextureRef DynamicBentNormalAOTexture = nullptr;
 
@@ -3678,6 +3677,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		if (EnumHasAnyFlags(TranslucencyViewsToRender, ETranslucencyView::UnderWater))
 		{
 			RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderTranslucency);
+			SCOPED_NAMED_EVENT(RenderTranslucency, FColor::Emerald);
 			SCOPE_CYCLE_COUNTER(STAT_TranslucencyDrawTime);
 			GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_Translucency));
 			const bool bStandardTranslucentCanRenderSeparate = false;
@@ -3720,6 +3720,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	if (!bHasRayTracedOverlay && ShouldRenderFog(ViewFamily))
 	{
 		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderFog);
+		SCOPED_NAMED_EVENT(RenderFog, FColor::Emerald);
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_RenderFog);
 		RenderFog(GraphBuilder, SceneTextures, LightShaftOcclusionTexture);
 	}
@@ -3762,6 +3763,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	if (!bHasRayTracedOverlay && TranslucencyViewsToRender != ETranslucencyView::None)
 	{
 		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderTranslucency);
+		SCOPED_NAMED_EVENT(RenderTranslucency, FColor::Emerald);
 		SCOPE_CYCLE_COUNTER(STAT_TranslucencyDrawTime);
 
 		RDG_EVENT_SCOPE(GraphBuilder, "Translucency");
@@ -4013,7 +4015,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "PostProcessing");
 		RDG_GPU_STAT_SCOPE(GraphBuilder, Postprocessing);
-		SCOPE_CYCLE_COUNTER(STAT_FinishRenderViewTargetTime);
+		SCOPED_NAMED_EVENT(PostProcessing, FColor::Emerald);
 
 		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_PostProcessing));
 

@@ -12,6 +12,8 @@
 #include "VT/VirtualTextureProducer.h"
 #include "VT/TexturePageLocks.h"
 #include "VirtualTexturing.h"
+#include "VT/VirtualTextureFeedback.h"
+#include "Tasks/Task.h"
 
 class FAdaptiveVirtualTexture;
 class FAllocatedVirtualTexture;
@@ -21,6 +23,7 @@ class FUniqueRequestList;
 class FVirtualTexturePhysicalSpace;
 class FVirtualTextureProducer;
 class FVirtualTextureSpace;
+class FVirtualTextureSystem;
 struct FVTSpaceDescription;
 struct FVTPhysicalSpaceDescription;
 union FPhysicalSpaceIDAndAddress;
@@ -36,9 +39,9 @@ struct FVirtualTextureUpdateSettings
 	FVirtualTextureUpdateSettings();
 
 	/** Force settings so that throttling page uploads is effectively disabled. */
-	FVirtualTextureUpdateSettings& DisableThrottling(bool bDisable)
+	FVirtualTextureUpdateSettings& EnableThrottling(bool bEnable)
 	{
-		if (bDisable)
+		if (!bEnable)
 		{
 			MaxPageUploads = 99999;
 			MaxPagesProduced = 99999;
@@ -46,6 +49,22 @@ struct FVirtualTextureUpdateSettings
 		return *this;
 	}
 
+	/** Force virtual texture updates to be done synchronously. */
+	FVirtualTextureUpdateSettings& EnableAsyncTasks(bool bEnable = true)
+	{
+		bEnableAsyncTasks = bEnable;
+		return *this;
+	}
+
+	/** Do not perform any updates related to read backs. */
+	FVirtualTextureUpdateSettings& EnablePageRequests(bool bEnable = true)
+	{
+		bEnablePageRequests = bEnable;
+		return *this;
+	}
+
+	bool bEnableAsyncTasks = true;
+	bool bEnablePageRequests = true;
 	bool bEnableFeedback;
 	bool bEnablePlayback;
 	bool bForceContinuousUpdate;
@@ -58,6 +77,17 @@ struct FVirtualTextureUpdateSettings
 	int32 MaxContinuousUpdates;
 };
 
+class FVirtualTextureUpdater
+{
+private:
+	FVirtualTextureUpdater() = default;
+
+	FVirtualTextureFeedback::FMapResult FeedbackMapResult;
+	UE::Tasks::FTask AsyncTask;
+
+	friend FVirtualTextureSystem;
+};
+
 class FVirtualTextureSystem
 {
 public:
@@ -67,10 +97,11 @@ public:
 
 	uint32 GetFrame() const { return Frame; }
 
-	void AllocateResources(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel);
-	void FinalizeResources(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel);
-	void CallPendingCallbacks();
-	void Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FScene* Scene, FVirtualTextureUpdateSettings const& Settings);
+	void Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FScene* Scene, const FVirtualTextureUpdateSettings& Settings);
+
+	TUniquePtr<FVirtualTextureUpdater> BeginUpdate(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FScene* Scene, const FVirtualTextureUpdateSettings& Settings);
+	void EndUpdate(FRDGBuilder& GraphBuilder, TUniquePtr<FVirtualTextureUpdater>&& Updater, ERHIFeatureLevel::Type FeatureLevel);
+
 	void ReleasePendingResources();
 
 	IAllocatedVirtualTexture* AllocateVirtualTexture(const FAllocatedVTDescription& Desc);
@@ -123,6 +154,7 @@ private:
 	FVirtualTextureSystem();
 	~FVirtualTextureSystem();
 
+	void AllocateResources(FRDGBuilder& GraphBuilder);
 	void DestroyPendingVirtualTextures(bool bForceDestroyAll);
 	void ReleasePendingSpaces();
 
@@ -130,11 +162,12 @@ private:
 	void RequestTilesInternal(const IAllocatedVirtualTexture* AllocatedVT, int32 InMipLevel);
 	void RequestTilesInternal(const IAllocatedVirtualTexture* AllocatedVT, const FVector2D& InScreenSpaceSize, int32 InMipLevel);
 	
-	void SubmitRequestsFromLocalTileList(TArray<FVirtualTextureLocalTile>& OutDeferredTiles, const TSet<FVirtualTextureLocalTile>& LocalTileList, EVTProducePageFlags Flags, FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel);
+	void SubmitRequestsFromLocalTileList(FRHICommandList& RHICmdList, TArray<FVirtualTextureLocalTile>& OutDeferredTiles, const TSet<FVirtualTextureLocalTile>& LocalTileList, EVTProducePageFlags Flags, ERHIFeatureLevel::Type FeatureLevel);
 
-	void SubmitPreMappedRequests(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel);
+	void SubmitPreMappedRequests(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel);
 
-	void SubmitRequests(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FConcurrentLinearBulkObjectAllocator& Allocator, FVirtualTextureUpdateSettings const& Settings, FUniqueRequestList* RequestList, bool bAsync);
+	void BeginSubmitRequests(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FConcurrentLinearBulkObjectAllocator& Allocator, FVirtualTextureUpdateSettings const& Settings, FUniqueRequestList* RequestList, bool bAsync);
+	void EndSubmitRequests(FRDGBuilder& GraphBuilder);
 
 	void GatherRequests(FUniqueRequestList* MergedRequestList, const FUniquePageList* UniquePageList, uint32 FrameRequested, FConcurrentLinearBulkObjectAllocator& Allocator, FVirtualTextureUpdateSettings const& Settings);
 
@@ -170,6 +203,7 @@ private:
 
 	FAdaptiveVirtualTexture* AdaptiveVTs[MaxSpaces] = { nullptr };
 
+	bool bUpdating = false;
 	bool bFlushCaches;
 	void FlushCachesFromConsole();
 	FAutoConsoleCommand FlushCachesCommand;

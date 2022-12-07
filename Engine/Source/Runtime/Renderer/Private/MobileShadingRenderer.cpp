@@ -448,15 +448,6 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 		Views[ViewIndex].GPUSceneViewId = InstanceCullingManager.RegisterView(Views[ViewIndex]);
 	}
 
-	if (bUseVirtualTexturing)
-	{
-		RDG_GPU_STAT_SCOPE(GraphBuilder, VirtualTextureUpdate);
-		// AllocateResources needs to be called before RHIBeginScene
-		FVirtualTextureSystem::Get().AllocateResources(GraphBuilder, FeatureLevel);
-		FVirtualTextureSystem::Get().CallPendingCallbacks();
-		VirtualTextureFeedbackBegin(GraphBuilder, Views, SceneTexturesConfig.Extent);
-	}
-
 	FILCUpdatePrimTaskData ILCTaskData;
 	FViewVisibleCommandsPerView ViewCommandsPerView;
 	ViewCommandsPerView.SetNum(Views.Num());
@@ -876,6 +867,17 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	FRDGSystemTextures::Create(GraphBuilder);
 
+	TUniquePtr<FVirtualTextureUpdater> VirtualTextureUpdater;
+
+	if (bUseVirtualTexturing)
+	{
+		FVirtualTextureUpdateSettings Settings;
+		Settings.EnableThrottling(!ViewFamily.bOverrideVirtualTextureThrottle);
+
+		VirtualTextureUpdater = FVirtualTextureSystem::Get().BeginUpdate(GraphBuilder, FeatureLevel, Scene, Settings);
+		VirtualTextureFeedbackBegin(GraphBuilder, Views, SceneTexturesConfig.Extent);
+	}
+
 	// Strata initialization is always run even when not enabled.
 	if (Strata::IsStrataEnabled())
 	{
@@ -928,10 +930,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	if (bUseVirtualTexturing)
 	{
-		RDG_GPU_STAT_SCOPE(GraphBuilder, VirtualTextureUpdate);
-		FVirtualTextureUpdateSettings Settings;
-		Settings.DisableThrottling(ViewFamily.bOverrideVirtualTextureThrottle);
-		FVirtualTextureSystem::Get().Update(GraphBuilder, FeatureLevel, Scene, Settings);
+		FVirtualTextureSystem::Get().EndUpdate(GraphBuilder, MoveTemp(VirtualTextureUpdater), FeatureLevel);
 	}
 
 	FSortedLightSetSceneInfo& SortedLightSet = *GraphBuilder.AllocObject<FSortedLightSetSceneInfo>();
