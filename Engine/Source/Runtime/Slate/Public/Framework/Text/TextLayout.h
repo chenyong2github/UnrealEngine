@@ -77,6 +77,9 @@ enum class ETextFlowDirection : uint8
 
 	/** Force text to be flowed right-to-left */
 	RightToLeft,
+
+	/** Uses the set culture to determine if text should flow left-to-right or right-to-left.  By comparison, Auto will use the text itself to determine it. */
+	Culture,
 };
 
 /** Get the default text flow direction (from the "Slate.DefaultTextFlowDirection" CVar) */

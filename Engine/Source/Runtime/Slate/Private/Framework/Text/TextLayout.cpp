@@ -7,6 +7,8 @@
 #include "Framework/Text/TextHitPoint.h"
 #include "Framework/Text/ILayoutBlock.h"
 #include "Internationalization/BreakIterator.h"
+#include "Internationalization/Culture.h"
+#include "Internationalization/Internationalization.h"
 #include "Internationalization/TextTransformer.h"
 #include "Framework/Text/ShapedTextCache.h"
 
@@ -1038,6 +1040,9 @@ void FTextLayout::CalculateLineTextDirection(FLineModel& LineModel) const
 		break;
 	case ETextFlowDirection::RightToLeft:
 		LineModel.TextBaseDirection = TextBiDi::ETextDirection::RightToLeft;
+		break;
+	case ETextFlowDirection::Culture:
+		LineModel.TextBaseDirection = FInternationalization::Get().GetCurrentLanguage()->IsRightToLeft() ? TextBiDi::ETextDirection::RightToLeft : TextBiDi::ETextDirection::LeftToRight;
 		break;
 	default:
 		break;
