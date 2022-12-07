@@ -181,7 +181,8 @@ class FPSOPrecacheThreadPool
 public:
 	~FPSOPrecacheThreadPool()
 	{
-		ShutdownThreadPool();
+		// Thread pool needs to be shutdown before the global object is deleted
+		check(PSOPrecompileCompileThreadPool.load() == nullptr);
 	}
 
 	FQueuedThreadPool& Get()
@@ -241,8 +242,11 @@ static FPSOPrecacheThreadPool GPSOPrecacheThreadPool;
 
 void PipelineStateCache::PreCompileComplete()
 {
-	// free up our threads when the precompile completes.
-	GPSOPrecacheThreadPool.ShutdownThreadPool();
+	// free up our threads when the precompile completes and don't have precaching enabled (otherwise the thread are used during gameplay as well)
+	if (!PipelineStateCache::IsPSOPrecachingEnabled())
+	{
+		GPSOPrecacheThreadPool.ShutdownThreadPool();
+	}
 }
 
 extern RHI_API FRHIComputePipelineState* ExecuteSetComputePipelineState(FComputePipelineState* ComputePipelineState);
@@ -2722,6 +2726,8 @@ void PipelineStateCache::Shutdown()
 		Pair.Value->Release();
 	}
 	GVertexDeclarationCache.Empty();
+
+	GPSOPrecacheThreadPool.ShutdownThreadPool();
 }
 
 FRHIVertexDeclaration*	PipelineStateCache::GetOrCreateVertexDeclaration(const FVertexDeclarationElementList& Elements)

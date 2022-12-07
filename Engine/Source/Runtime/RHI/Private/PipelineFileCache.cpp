@@ -3197,6 +3197,7 @@ void FPipelineFileCacheManager::Shutdown()
 		NewPSOHashes.Empty();
         NumNewPSOs = 0;
 		
+		FileCacheMap.Empty();
 		FileCacheEnabled = false;
 		
 		SET_MEMORY_STAT(STAT_NewCachedPSOMemory, 0);

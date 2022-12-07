@@ -333,6 +333,18 @@ FD3D12GraphicsPipelineState::FD3D12GraphicsPipelineState(
 {
 	// hold on to bound RHI resources
 	PipelineStateInitializer.BoundShaderState.AddRefResources();
+	if (PipelineStateInitializer.BlendState)
+	{
+		PipelineStateInitializer.BlendState->AddRef();
+	}
+	if (PipelineStateInitializer.RasterizerState)
+	{
+		PipelineStateInitializer.RasterizerState->AddRef();
+	}
+	if (PipelineStateInitializer.DepthStencilState)
+	{
+		PipelineStateInitializer.DepthStencilState->AddRef();
+	}
 
 	if (Initializer.BoundShaderState.VertexDeclarationRHI)
 	{
@@ -377,6 +389,18 @@ FD3D12GraphicsPipelineState::~FD3D12GraphicsPipelineState()
 
 	// release bound RHI resources
 	PipelineStateInitializer.BoundShaderState.ReleaseResources();
+	if (PipelineStateInitializer.BlendState)
+	{
+		PipelineStateInitializer.BlendState->Release();
+	}
+	if (PipelineStateInitializer.RasterizerState)
+	{
+		PipelineStateInitializer.RasterizerState->Release();
+	}
+	if (PipelineStateInitializer.DepthStencilState)
+	{
+		PipelineStateInitializer.DepthStencilState->Release();
+	}
 }
 
 FD3D12ComputePipelineState::FD3D12ComputePipelineState(FD3D12ComputeShader* InComputeShader, const FD3D12RootSignature* InRootSignature, FD3D12PipelineState* InPipelineState)
