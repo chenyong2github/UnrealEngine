@@ -44,7 +44,8 @@ public:
 	bool LoadFile(int frame);
 	bool UnloadFile(int frame);		
 	bool LoadRange();
-	void UnloadAll();	
+	void UnloadAll();
+	FString GetAssetPath(int frame);
 	
 	TSharedPtr<FVolumeCacheData> GetData() { return CachedVolumeFiles;  }
 

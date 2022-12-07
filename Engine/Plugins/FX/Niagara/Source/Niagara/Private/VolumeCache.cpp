@@ -98,6 +98,13 @@ void UVolumeCache::UnloadAll()
 	}
 }
 
+FString UVolumeCache::GetAssetPath(int frame)
+{
+	check(CachedVolumeFiles != nullptr);
+
+	return CachedVolumeFiles->GetAssetPath(FilePath, frame);
+}
+
 bool UVolumeCache::LoadFile(int frame)
 {
 	if (CachedVolumeFiles == nullptr)
