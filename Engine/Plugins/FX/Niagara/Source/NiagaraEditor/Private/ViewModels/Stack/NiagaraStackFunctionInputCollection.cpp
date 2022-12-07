@@ -380,6 +380,12 @@ void UNiagaraStackFunctionInputCollectionBase::AppendInputsForFunctionCall(FFunc
 		FInputData InputData = { InputPin, InputVariable.GetType(), EditorSortPriority, DisplayName, InputCategory, false, bIsInputHidden, bShouldShowInSummary, ModuleNode, InputFunctionCallNode };
 		int32 Index = State.InputDataCollection.Add(InputData);
 
+		if (InputVariable.GetType().IsStatic())
+		{
+			FNiagaraParentData& ParentData = State.ParentMapping.FindOrAdd(InputVariable.GetName());
+			ParentData.ParentPin = InputPin;
+		}
+
 		// set up the data for the parent-child mapping
 		if (InputMetaData && !InputMetaData->ParentAttribute.IsNone())
 		{
