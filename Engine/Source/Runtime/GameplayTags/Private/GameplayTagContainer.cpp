@@ -1395,6 +1395,22 @@ void FGameplayTagQuery::GetQueryExpr(FGameplayTagQueryExpression& OutExpr) const
 	QE.Read(OutExpr);
 }
 
+void FGameplayTagQuery::Serialize(FArchive& Ar)
+{
+	Ar << TokenStreamVersion;
+	Ar << TagDictionary;
+	Ar << QueryTokenStream;
+
+#if WITH_EDITOR
+	if (!Ar.IsCooking())
+	{
+		// Descriptions are not needed during runtime
+		Ar << UserDescription;
+		Ar << AutoDescription;
+	}
+#endif
+}
+
 void FGameplayTagQuery::Build(FGameplayTagQueryExpression& RootQueryExpr, FString InUserDescription)
 {
 	TokenStreamVersion = EGameplayTagQueryStreamVersion::LatestVersion;

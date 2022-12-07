@@ -874,6 +874,9 @@ public:
 	/** Builds a FGameplayTagQueryExpression from this query. */
 	void GetQueryExpr(struct FGameplayTagQueryExpression& OutExpr) const;
 
+	/** Serialize the tag query */
+	void Serialize(FArchive& Ar);
+	
 	/** Returns description string. */
 	const FString& GetDescription() const { return UserDescription.IsEmpty() ? AutoDescription : UserDescription; };
 
