@@ -459,7 +459,7 @@ namespace EpicGames.UHT.Parsers
 					// TODO: C++ UHT compat 
 					if (token.Value.Span.Contains('e') || token.Value.Span.Contains('E'))
 					{
-						tokenReader.LogError($"Metadata and specifier values can not contain the exponential notion at this time");
+						tokenReader.LogError($"Metadata and specifier values can not contain exponential notion at this time");
 					}
 					builder.Append(token.GetConstantValue(respectQuotes));
 					break;
