@@ -136,6 +136,12 @@ namespace Chaos
 /** Signals that we have left a write lock to control the checks above */
 #define CHAOS_RECORD_LEAVE_WRITE_LOCK Chaos::ThreadingPrivate::DecWriteDepth(this);
 
+enum class EThreadContext
+{
+	External,
+	Internal
+};
+
 #if PHYSICS_THREAD_CONTEXT
 /** Debug helper to ensure threading mistakes are caught. Do not use for ship */
 class CHAOS_API FPhysicsThreadContext : public TThreadSingleton<FPhysicsThreadContext>

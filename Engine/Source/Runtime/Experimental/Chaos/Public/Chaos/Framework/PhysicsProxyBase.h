@@ -90,6 +90,7 @@ public:
 	void ResetDirtyIdx() { DirtyIdx = INDEX_NONE; }
 
 	void MarkDeleted() { SyncTimestamp->bDeleted = true; }
+	bool GetMarkedDeleted() const { return SyncTimestamp->bDeleted; }
 
 	TSharedPtr<FProxyTimestampBase,ESPMode::ThreadSafe> GetSyncTimestamp() const { return SyncTimestamp; }
 

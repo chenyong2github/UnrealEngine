@@ -163,7 +163,7 @@ static void SetHitResultFromShapeAndFaceIndex(const FPhysicsShape& Shape,  const
 				if (ActorProxy->GetType() == EPhysicsProxyType::GeometryCollectionType)
 				{
 					const FGeometryCollectionPhysicsProxy* ConcreteProxy = static_cast<const FGeometryCollectionPhysicsProxy*>(ActorProxy);
-					OutResult.Item = ConcreteProxy->GetItemIndexFromGTParticle_External(&Actor).GetItemIndex();
+					OutResult.Item = ConcreteProxy->GetItemIndexFromGTParticle_External(Actor.CastToRigidParticle()).GetItemIndex();
 				}
 			}
 		}

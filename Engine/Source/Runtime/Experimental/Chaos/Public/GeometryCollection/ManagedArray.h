@@ -661,6 +661,9 @@ template<> inline void CopyRangeHelper(TArray<TYPE>& Target, const TManagedArray
 typedef TUniquePtr<Chaos::TGeometryParticle<Chaos::FReal, 3>> LOCAL_MA_UniqueTGeometryParticle;
 UNSUPPORTED_UNIQUE_ARRAY_COPIES(LOCAL_MA_UniqueTGeometryParticle, TEXT("Chaos::TGeometryParticle"));
 
+typedef TUniquePtr<Chaos::TPBDRigidParticle<Chaos::FReal, 3>> LOCAL_MA_UniqueTPBDRigidParticle;
+UNSUPPORTED_UNIQUE_ARRAY_COPIES(LOCAL_MA_UniqueTPBDRigidParticle, TEXT("Chaos::TPBDRigidParticle"));
+
 typedef TUniquePtr<Chaos::FBVHParticles, TDefaultDelete<Chaos::FBVHParticles>> LOCAL_MA_UniqueTBVHParticles;
 UNSUPPORTED_UNIQUE_ARRAY_COPIES(LOCAL_MA_UniqueTBVHParticles, TEXT("Chaos::FBVHParticles"));
 

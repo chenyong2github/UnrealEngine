@@ -31,6 +31,8 @@
 #include "Modules/ModuleManager.h"
 #include "Chaos/PullPhysicsDataImp.h"
 #include "Chaos/PBDRigidsEvolution.h"
+#include "Chaos/PhysicsObjectInternal.h"
+#include "Chaos/PhysicsObjectInterface.h"
 #include "GeometryCollection/Facades/CollectionAnchoringFacade.h"
 
 #ifndef TODO_REIMPLEMENT_INIT_COMMANDS
@@ -407,7 +409,7 @@ void FGeometryCollectionPhysicsProxy::Initialize(Chaos::FPBDRigidsEvolutionBase 
 	// Attach the external particles to the gamethread collection
 	if (DynamicCollection.HasAttribute(FGeometryCollection::ParticlesAttribute, FTransformCollection::TransformGroup))
 		DynamicCollection.RemoveAttribute(FGeometryCollection::ParticlesAttribute, FTransformCollection::TransformGroup);
-	DynamicCollection.AddExternalAttribute<TUniquePtr<Chaos::FGeometryParticle>>(FGeometryCollection::ParticlesAttribute, FTransformCollection::TransformGroup, GTParticles);
+	DynamicCollection.AddExternalAttribute<TUniquePtr<FParticle>>(FGeometryCollection::ParticlesAttribute, FTransformCollection::TransformGroup, GTParticles);
 
 
 	NumParticles = DynamicCollection.NumElements(FGeometryCollection::TransformGroup);
@@ -415,6 +417,13 @@ void FGeometryCollectionPhysicsProxy::Initialize(Chaos::FPBDRigidsEvolutionBase 
 	SolverClusterID.Init(nullptr, NumParticles);
 	SolverClusterHandles.Init(nullptr, NumParticles);
 	SolverParticleHandles.Init(nullptr, NumParticles);
+	
+	PhysicsObjects.Empty();
+	PhysicsObjects.Reserve(NumParticles);
+	for (int32 Index = 0; Index < NumParticles; ++Index)
+	{
+		PhysicsObjects.Emplace(Chaos::FPhysicsObjectFactory::CreatePhysicsObject(this, Index, FName(Parameters.RestCollection->BoneName[Index])));
+	}
 
 	// compatibility requirement to make sure we at least initialize GameThreadPerFrameData properly
 	GameThreadPerFrameData.SetWorldTransform(Parameters.WorldTransform);
@@ -447,18 +456,20 @@ void FGeometryCollectionPhysicsProxy::Initialize(Chaos::FPBDRigidsEvolutionBase 
 		GameThreadCollection.RemoveAttribute(FGeometryCollection::ParticlesAttribute, FTransformCollection::TransformGroup);
 	}
 		
-	GameThreadCollection.AddExternalAttribute<TUniquePtr<Chaos::FGeometryParticle>>(FGeometryCollection::ParticlesAttribute, FTransformCollection::TransformGroup, GTParticles);
+	GameThreadCollection.AddExternalAttribute<TUniquePtr<FParticle>>(FGeometryCollection::ParticlesAttribute, FTransformCollection::TransformGroup, GTParticles);
 	
 
 	const FVector Scale = Parameters.WorldTransform.GetScale3D();
+	const FVector::FReal MassScale = Scale.X * Scale.Y * Scale.Z;
+	const TManagedArray<float>& Mass = Parameters.RestCollection->GetAttribute<float>("Mass", FTransformCollection::TransformGroup);
 
 	TArray<int32> ChildrenToCheckForParentFix;
 	if(ensure(NumTransforms == GameThreadCollection.Implicits.Num() && NumTransforms == GTParticles.Num())) // Implicits are in the transform group so this invariant should always hold
 	{
 		for(int32 Index = 0; Index < NumTransforms; ++Index)
 		{
-			GTParticles[Index] = Chaos::FGeometryParticle::CreateParticle();
-			Chaos::FGeometryParticle* P = GTParticles[Index].Get();
+			GTParticles[Index] = FParticle::CreateParticle();
+			FParticle* P = GTParticles[Index].Get();
 			GTParticlesToTransformGroupIndex.Add(P, Index);
 
 			GTParticles[Index]->SetUniqueIdx(Evolution->GenerateUniqueIdx());
@@ -466,6 +477,7 @@ void FGeometryCollectionPhysicsProxy::Initialize(Chaos::FPBDRigidsEvolutionBase 
 			const FTransform& T = Parameters.WorldTransform * GameThreadCollection.Transform[Index];
 			P->SetX(T.GetTranslation(), false);
 			P->SetR(T.GetRotation(), false);
+			P->SetM(Mass[Index] * MassScale);
 			P->SetUserData(Parameters.UserData);
 			P->SetProxy(this);
 
@@ -542,7 +554,7 @@ void FGeometryCollectionPhysicsProxy::Initialize(Chaos::FPBDRigidsEvolutionBase 
 							{
 								using FImplicitObjectTransformed = Chaos::TImplicitObjectTransformed<Chaos::FReal, 3>;
 
-								Chaos::FGeometryParticle* ChildParticle = GTParticles[ChildIndex].Get();
+								FParticle* ChildParticle = GTParticles[ChildIndex].Get();
 								const FGeometryDynamicCollection::FSharedImplicit& ChildImplicit = GameThreadCollection.Implicits[ChildIndex];
 								if (ChildImplicit)
 								{
@@ -600,7 +612,7 @@ void FGeometryCollectionPhysicsProxy::Initialize(Chaos::FPBDRigidsEvolutionBase 
 		// Phase 3 : finalization of shapes
 		for(int32 Index = 0; Index < NumTransforms; ++Index)
 		{
-			Chaos::FGeometryParticle* P = GTParticles[Index].Get();
+			FParticle* P = GTParticles[Index].Get();
 			const Chaos::FShapesArray& Shapes = P->ShapesArray();
 			const int32 NumShapes = Shapes.Num();
 			for(int32 ShapeIndex = 0; ShapeIndex < NumShapes; ++ShapeIndex)
@@ -660,6 +672,11 @@ void FGeometryCollectionPhysicsProxy::Initialize(Chaos::FPBDRigidsEvolutionBase 
 		{
 			bool bIsRoot = (GameThreadCollection.Parent[TransformIndex] == INDEX_NONE);
 			GameThreadCollection.Active[TransformIndex] = bIsRoot;
+
+			if (FParticle* P = GTParticles[TransformIndex].Get())
+			{
+				P->SetDisabled(!bIsRoot);
+			}
 		}
 	}
 }
@@ -1080,7 +1097,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 					CreationParameters.Scale = Parameters.WorldTransform.GetScale3D();
 
 					// Hook the handle up with the GT particle
-					Chaos::FGeometryParticle* GTParticle = GTParticles[TransformGroupIndex].Get();
+					FParticle* GTParticle = GTParticles[TransformGroupIndex].Get();
 
 					Chaos::FUniqueIdx ExistingIndex = GTParticle->UniqueIdx();
 					Chaos::FPBDRigidClusteredParticleHandle* Handle = BuildClusters_Internal(TransformGroupIndex, RigidChildren, RigidChildrenTransformGroupIndex, CreationParameters, &ExistingIndex);
@@ -2334,23 +2351,28 @@ void FGeometryCollectionPhysicsProxy::SetClusteredParticleKinematicTarget_Intern
 	}
 }
 
+static EObjectStateTypeEnum GetObjectStateEnumFromObjectState(Chaos::EObjectStateType State)
+{
+	switch (State)
+	{
+	case Chaos::EObjectStateType::Kinematic:
+		return EObjectStateTypeEnum::Chaos_Object_Kinematic;
+	case Chaos::EObjectStateType::Static:
+		return EObjectStateTypeEnum::Chaos_Object_Static;
+	case Chaos::EObjectStateType::Sleeping:
+		return EObjectStateTypeEnum::Chaos_Object_Sleeping;
+	case Chaos::EObjectStateType::Dynamic:
+	case Chaos::EObjectStateType::Uninitialized:
+	default:
+		return EObjectStateTypeEnum::Chaos_Object_Dynamic;
+	}
+}
+
 static EObjectStateTypeEnum GetObjectStateFromHandle(const Chaos::TPBDRigidClusteredParticleHandle<Chaos::FReal, 3>* Handle)
 {
 	if (!Handle->Sleeping())
 	{
-		switch (Handle->ObjectState())
-		{
-		case Chaos::EObjectStateType::Kinematic:
-			return EObjectStateTypeEnum::Chaos_Object_Kinematic;
-		case Chaos::EObjectStateType::Static:
-			return EObjectStateTypeEnum::Chaos_Object_Static;
-		case Chaos::EObjectStateType::Sleeping:
-			return EObjectStateTypeEnum::Chaos_Object_Sleeping;
-		case Chaos::EObjectStateType::Dynamic:
-		case Chaos::EObjectStateType::Uninitialized:
-		default:
-			return EObjectStateTypeEnum::Chaos_Object_Dynamic;
-		}
+		return GetObjectStateEnumFromObjectState(Handle->ObjectState());
 	}
 	return EObjectStateTypeEnum::Chaos_Object_Sleeping;
 }
@@ -2398,9 +2420,10 @@ void FGeometryCollectionPhysicsProxy::BufferPhysicsResults_External(Chaos::FDirt
 	
 	for (int32 TransformGroupIndex = 0; TransformGroupIndex < TargetResults.Transforms.Num(); ++TransformGroupIndex)
 	{
-		const Chaos::FGeometryParticle& GTParticle = *GTParticles[TransformGroupIndex];
+		FParticle& GTParticle = *GTParticles[TransformGroupIndex];
 		TargetResults.ParticleXs[TransformGroupIndex] = GTParticle.X();
 		TargetResults.ParticleRs[TransformGroupIndex] = GTParticle.R();
+		TargetResults.States[TransformGroupIndex].DynamicState = static_cast<uint8>(GetObjectStateEnumFromObjectState(GTParticle.ObjectState()));
 
 		if (LinearVelocities && AngularVelocities)
 		{
@@ -2703,10 +2726,13 @@ bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGe
 		// first : copy the non interpolate-able values
 		for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; ++TransformGroupIndex)
 		{
+			FParticle& GTParticle = *GTParticles[TransformGroupIndex];
+
 			const bool bIsActive = !TargetResults.States[TransformGroupIndex].DisabledState;
 			if (GameThreadCollection.Active[TransformGroupIndex] != bIsActive)
 			{
 				GameThreadCollection.Active[TransformGroupIndex] = bIsActive;
+				GTParticle.SetDisabled(!bIsActive);
 				bIsCollectionDirty = true;
 			}
 			
@@ -2714,6 +2740,7 @@ bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGe
 			if (GameThreadCollection.DynamicState[TransformGroupIndex] != NewState)
 			{
 				GameThreadCollection.DynamicState[TransformGroupIndex] = NewState;
+				GTParticle.SetObjectState(static_cast<Chaos::EObjectStateType>(NewState));
 				bIsCollectionDirty = true;
 			}
 
@@ -2768,7 +2795,7 @@ bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGe
 			{
 				if (!TargetResults.States[TransformGroupIndex].DisabledState)
 				{
-					Chaos::FGeometryParticle& GTParticle = *GTParticles[TransformGroupIndex];
+					FParticle& GTParticle = *GTParticles[TransformGroupIndex];
 
 					const Chaos::FVec3 OldX = GTParticle.X();
 					const Chaos::FVec3 NewX = FMath::Lerp(Prev.ParticleXs[TransformGroupIndex], Next.ParticleXs[TransformGroupIndex], *Alpha);
@@ -2814,7 +2841,7 @@ bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGe
 			{
 				if (!TargetResults.States[TransformGroupIndex].DisabledState)
 				{
-					Chaos::FGeometryParticle& GTParticle = *GTParticles[TransformGroupIndex];
+					FParticle& GTParticle = *GTParticles[TransformGroupIndex];
 
 					const Chaos::FVec3 OldX = GTParticle.X();
 					const Chaos::FVec3& NewX = TargetResults.ParticleXs[TransformGroupIndex];
@@ -2891,7 +2918,7 @@ void FGeometryCollectionPhysicsProxy::UpdateFilterData_External(const FCollision
 	int32 NumTransforms = GameThreadCollection.Transform.Num();
 	for (int32 Index = 0; Index < NumTransforms; ++Index)
 	{
-		Chaos::FGeometryParticle* P = GTParticles[Index].Get();
+		FParticle* P = GTParticles[Index].Get();
 		const Chaos::FShapesArray& Shapes = P->ShapesArray();
 		const int32 NumShapes = Shapes.Num();
 		for (int32 ShapeIndex = 0; ShapeIndex < NumShapes; ++ShapeIndex)
@@ -4088,6 +4115,43 @@ void FGeometryCollectionPhysicsProxy::FieldForcesUpdateCallback(Chaos::FPBDRigid
 	}
 }
 
+Chaos::FPhysicsObjectHandle FGeometryCollectionPhysicsProxy::GetPhysicsObjectByIndex(int32 Index) const
+{
+	if (!PhysicsObjects.IsValidIndex(Index))
+	{
+		return nullptr;
+	}
+
+	return PhysicsObjects[Index].Get();
+}
+
+FGeometryCollectionPhysicsProxy::FParticle* FGeometryCollectionPhysicsProxy::GetParticleByIndex_External(int32 Index)
+{
+	return const_cast<FGeometryCollectionPhysicsProxy::FParticle*>(const_cast<const FGeometryCollectionPhysicsProxy*>(this)->GetParticleByIndex_External(Index));
+}
+
+const FGeometryCollectionPhysicsProxy::FParticle* FGeometryCollectionPhysicsProxy::GetParticleByIndex_External(int32 Index) const
+{
+	if (Index < 0 || Index >= GTParticles.Num())
+	{
+		return nullptr;
+	}
+	return GTParticles[Index].Get();
+}
+
+FGeometryCollectionPhysicsProxy::FParticleHandle* FGeometryCollectionPhysicsProxy::GetParticleByIndex_Internal(int32 Index)
+{
+	return const_cast<FGeometryCollectionPhysicsProxy::FParticleHandle*>(const_cast<const FGeometryCollectionPhysicsProxy*>(this)->GetParticleByIndex_Internal(Index));
+}
+
+const FGeometryCollectionPhysicsProxy::FParticleHandle* FGeometryCollectionPhysicsProxy::GetParticleByIndex_Internal(int32 Index) const
+{
+	if (!SolverParticleHandles.IsValidIndex(Index))
+	{
+		return nullptr;
+	}
+	return SolverParticleHandles[Index];
+}
 
 void FDamageCollector::Reset(int32 NumTransforms)
 {

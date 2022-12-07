@@ -8,6 +8,7 @@
 #include "Chaos/Framework/PhysicsProxy.h"
 #include "Chaos/PBDPositionConstraints.h"
 #include "Chaos/ParticleHandle.h"
+#include "Chaos/PhysicsObject.h"
 #include "PhysicsCoreTypes.h"
 #include "Chaos/Defines.h"
 #include "Chaos/PullPhysicsDataImp.h"
@@ -165,9 +166,20 @@ public:
 		return static_cast<const FPBDRigidParticle*>(GetParticle_LowLevel());
 	}
 
+	FPhysicsObjectHandle GetPhysicsObject()
+	{
+		return Reference.Get();
+	}
+
+	const FPhysicsObjectHandle GetPhysicsObject() const
+	{
+		return Reference.Get();
+	}
+
 protected:
 	TUniquePtr<PARTICLE_TYPE> Particle;
 	FParticleHandle* Handle;
+	FPhysicsObjectUniquePtr Reference;
 
 private:
 	FProxyInterpolationData InterpolationData;

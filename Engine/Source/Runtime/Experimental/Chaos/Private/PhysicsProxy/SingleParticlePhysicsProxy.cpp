@@ -10,6 +10,7 @@
 #include "Chaos/Serializable.h"
 #include "Chaos/PerParticleGravity.h"
 #include "Chaos/ParticleHandle.h"
+#include "Chaos/PhysicsObjectInternal.h"
 #include "Chaos/Framework/MultiBufferResource.h"
 #include "PhysicsSolver.h"
 #include "Chaos/ChaosMarshallingManager.h"
@@ -30,6 +31,7 @@ FSingleParticlePhysicsProxy::FSingleParticlePhysicsProxy(TUniquePtr<PARTICLE_TYP
 	, Handle(InHandle)
 {
 	Particle->SetProxy(this);
+	Reference = FPhysicsObjectFactory::CreatePhysicsObject(this);
 }
 
 
