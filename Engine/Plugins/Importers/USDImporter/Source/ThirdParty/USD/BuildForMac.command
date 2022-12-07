@@ -12,6 +12,10 @@ USD_VERSION=22.08
 # Note that a small patch to the USD CMake build is currently necessary for
 # the usdAbc plugin to require and link against Imath instead of OpenEXR:
 #     git apply USD_v2208_usdAbc_Imath.patch
+# Specifically for Mac, an additional patch is needed to bring forward a
+# workaround for a CMake build issue that causes code signing invalidation
+# (this can be removed once the USD release after 22.11 is adopted):
+#     git apply USD_v2208_Mac_code_sign.patch
 # Note also that this path may be emitted as part of USD error messages, so
 # it is suggested that it not reveal any sensitive information.
 SOURCE_LOCATION="/tmp/USD_src"
