@@ -58,3 +58,61 @@ public:
 
 
 };
+
+
+
+/** Modeling Components plugin-wide plane visualization modes */
+UENUM()
+enum class EModelingComponentsPlaneVisualizationMode : uint8
+{
+	/** Draw a grid with a fixed size in world space */
+	SimpleGrid,
+	
+	/** Draw a hierarchical grid */
+	HierarchicalGrid,
+	
+	/** Draw a grid with a fixed size in screen space */
+	FixedScreenAreaGrid,
+};
+
+/**
+ * Editor preferences for the Modeling Components plug-in.
+ */
+UCLASS(config=EditorSettings)
+class MODELINGCOMPONENTS_API UModelingComponentsEditorSettings : public UDeveloperSettings
+{
+	GENERATED_BODY()
+
+public:
+	// UDeveloperSettings overrides
+	virtual FName GetContainerName() const { return FName("Editor"); }
+	virtual FName GetCategoryName() const { return FName("Plugins"); }
+	virtual FName GetSectionName() const { return FName("Modeling Mode Tools"); }
+
+#if WITH_EDITOR
+	virtual FText GetSectionText() const override;
+	virtual FText GetSectionDescription() const override;
+#endif
+
+public:
+	/** The type of grid to draw in the viewport for modeling mode tools */
+	UPROPERTY(EditAnywhere, NonTransactional, Category = "Modeling Tools|Work Plane Configuration")
+	EModelingComponentsPlaneVisualizationMode GridMode = EModelingComponentsPlaneVisualizationMode::SimpleGrid;
+
+	/** The number of lines to be drawn for the plane */
+	UPROPERTY(EditAnywhere, NonTransactional, Category = "Modeling Tools|Work Plane Configuration", meta = (ClampMin = 2, EditCondition = "GridMode != EModelingComponentsPlaneVisualizationMode::HierarchicalGrid", EditConditionHides))
+	int NumGridLines = 21;
+
+	/** The space between grid lines in world space */
+	UPROPERTY(EditAnywhere, NonTransactional, Category = "Modeling Tools|Work Plane Configuration", meta = (ClampMin = 0, EditCondition = "GridMode == EModelingComponentsPlaneVisualizationMode::SimpleGrid", EditConditionHides))
+	float GridSpacing = 100.0f;
+
+	/** The base scale used to determine the size of the hierarchical plane */
+	UPROPERTY(EditAnywhere, NonTransactional, Category = "Modeling Tools|Work Plane Configuration", meta = (ClampMin = 1, EditCondition = "GridMode == EModelingComponentsPlaneVisualizationMode::HierarchicalGrid", EditConditionHides))
+	float GridScale = 1.0f;
+
+	/** The fraction of the viewport that the grid should occupy if looking at the plane's center */
+	UPROPERTY(EditAnywhere, NonTransactional, Category = "Modeling Tools|Work Plane Configuration", meta = (ClampMin = 0, ClampMax = 2, EditCondition = "GridMode == EModelingComponentsPlaneVisualizationMode::FixedScreenAreaGrid", EditConditionHides))
+	float GridSize = 0.5;
+
+};

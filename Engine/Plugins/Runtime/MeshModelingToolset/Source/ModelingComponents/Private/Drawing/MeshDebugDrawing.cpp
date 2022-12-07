@@ -157,7 +157,7 @@ void MeshDebugDraw::DrawHierarchicalGrid(
 		FMath::GridSnap(LocalFrame.Origin.X, GridScales[0]),
 		FMath::GridSnap(LocalFrame.Origin.Y, GridScales[0]),
 		LocalFrame.Origin.Z);
-	UE::Geometry::FFrame3d GridFrame(GridOrigin);
+	UE::Geometry::FFrame3d GridFrame(GridOrigin, LocalFrame.Rotation);
 
 	// Draw each level of the grid
 	for (int32 Level = 0; Level < Levels; ++Level)
