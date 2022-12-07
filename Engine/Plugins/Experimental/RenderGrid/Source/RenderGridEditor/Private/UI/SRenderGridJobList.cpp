@@ -227,7 +227,10 @@ FReply UE::RenderGrid::Private::SRenderGridJobList::OnMouseButtonUp(const FGeome
 			if (MenuContent.IsValid() && (MouseEvent.GetEventPath() != nullptr))
 			{
 				FWidgetPath WidgetPath = *MouseEvent.GetEventPath();
-				FSlateApplication::Get().PushMenu(WidgetPath.Widgets.Last().Widget, WidgetPath, MenuContent.ToSharedRef(), MouseEvent.GetScreenSpacePosition(), FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu));
+				if (FSlateApplication::IsInitialized())
+				{
+					FSlateApplication::Get().PushMenu(WidgetPath.Widgets.Last().Widget, WidgetPath, MenuContent.ToSharedRef(), MouseEvent.GetScreenSpacePosition(), FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu));
+				}
 			}
 			return FReply::Handled();
 		}

@@ -75,24 +75,27 @@ FReply UE::RenderGrid::Private::SRenderGridFileSelectorTextBlock::OnOpenDirector
 {
 	if (IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get())
 	{
-		TSharedPtr<SWindow> ParentWindow = FSlateApplication::Get().FindWidgetWindow(AsShared());
-		void* ParentWindowHandle = (ParentWindow.IsValid() && ParentWindow->GetNativeWindow().IsValid()) ? ParentWindow->GetNativeWindow()->GetOSWindowHandle() : nullptr;
-
-		FString OutFolderPath;
-		const bool bFolderSelected = DesktopPlatform->OpenDirectoryDialog(
-			ParentWindowHandle,
-			LOCTEXT("Title_OpenDirectoryDialog", "Choose a directory").ToString(),
-			FolderPath.Get(FPaths::ProjectDir() / TEXT("Saved/MovieRenders/")),
-			OutFolderPath
-		);
-
-		if (bFolderSelected)
+		if (FSlateApplication::IsInitialized())
 		{
-			const FText NewText = FText::FromString(OutFolderPath);
-			SetText(NewText);
-			if (OnTextCommittedDelegate.IsBound())
+			TSharedPtr<SWindow> ParentWindow = FSlateApplication::Get().FindWidgetWindow(AsShared());
+			void* ParentWindowHandle = (ParentWindow.IsValid() && ParentWindow->GetNativeWindow().IsValid()) ? ParentWindow->GetNativeWindow()->GetOSWindowHandle() : nullptr;
+
+			FString OutFolderPath;
+			const bool bFolderSelected = DesktopPlatform->OpenDirectoryDialog(
+				ParentWindowHandle,
+				LOCTEXT("Title_OpenDirectoryDialog", "Choose a directory").ToString(),
+				FolderPath.Get(FPaths::ProjectDir() / TEXT("Saved/MovieRenders/")),
+				OutFolderPath
+			);
+
+			if (bFolderSelected)
 			{
-				SetText(OnTextCommittedDelegate.Execute(NewText, ETextCommit::Type::OnEnter));
+				const FText NewText = FText::FromString(OutFolderPath);
+				SetText(NewText);
+				if (OnTextCommittedDelegate.IsBound())
+				{
+					SetText(OnTextCommittedDelegate.Execute(NewText, ETextCommit::Type::OnEnter));
+				}
 			}
 		}
 	}

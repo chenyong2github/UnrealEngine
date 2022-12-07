@@ -34,6 +34,17 @@ void UE::RenderGrid::Private::FRenderGridEditorStyle::Shutdown()
 	StyleInstance.Reset();
 }
 
+void UE::RenderGrid::Private::FRenderGridEditorStyle::ReloadTextures()
+{
+	if (FSlateApplication::IsInitialized())
+	{
+		if (FSlateRenderer* SlateRenderer = FSlateApplication::Get().GetRenderer())
+		{
+			SlateRenderer->ReloadTextureResources();
+		}
+	}
+}
+
 FName UE::RenderGrid::Private::FRenderGridEditorStyle::GetStyleSetName()
 {
 	static FName StyleSetName(TEXT("RenderGridEditorStyle"));
@@ -102,8 +113,3 @@ TSharedRef<FSlateStyleSet> UE::RenderGrid::Private::FRenderGridEditorStyle::Crea
 #undef BOX_BRUSH
 #undef BORDER_BRUSH
 #undef IMAGE_BRUSH_SVG
-
-void UE::RenderGrid::Private::FRenderGridEditorStyle::ReloadTextures()
-{
-	FSlateApplication::Get().GetRenderer()->ReloadTextureResources();
-}
