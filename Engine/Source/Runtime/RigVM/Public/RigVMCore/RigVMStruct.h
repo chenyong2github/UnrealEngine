@@ -167,8 +167,15 @@ struct RIGVM_API FRigVMStruct
 	virtual FString ProcessPinLabelForInjection(const FString& InLabel) const { return InLabel; }
 	virtual FName GetEventName() const { return NAME_None; }
 	virtual bool CanOnlyExistOnce() const { return false; }
+	virtual FString GetUnitLabel() const { return FString(); };
 
 public:
+
+	/** initialize logic for this struct */
+	virtual void Initialize() {}
+
+	/** Execute logic for this struct */
+	virtual void Execute() {}
 
 	// control flow related
 	bool IsForLoop() const;
@@ -275,4 +282,24 @@ protected:
 	friend class FRigVMGraphStructUpgradeInfoTest;
 	friend class URigVMController;
 	friend struct FRigVMDispatchFactory;
+};
+
+/**
+ * The base mutable class for all RigVM enabled structs.
+ */
+USTRUCT()
+struct RIGVM_API FRigVMStructMutable : public FRigVMStruct
+{
+	GENERATED_BODY()
+
+	virtual ~FRigVMStructMutable() {}
+
+public:
+
+
+	/*
+	 * This property is used to chain multiple mutable nodes together
+	 */
+	UPROPERTY(DisplayName = "Execute", Transient, meta = (Input, Output))
+	FRigVMExecuteContext ExecuteContext;
 };

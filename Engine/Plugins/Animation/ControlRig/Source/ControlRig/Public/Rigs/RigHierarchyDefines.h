@@ -1754,35 +1754,4 @@ struct CONTROLRIG_API FRigEventContext
 	void* Payload;
 };
 
-USTRUCT(BlueprintType)
-struct CONTROLRIG_API FRigMirrorSettings
-{
-	GENERATED_USTRUCT_BODY()
-
-    FRigMirrorSettings()
-    : MirrorAxis(EAxis::X)
-    , AxisToFlip(EAxis::Z)
-	{
-	}
-
-	// the axis to mirror against
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	TEnumAsByte<EAxis::Type> MirrorAxis;
-
-	// the axis to flip for rotations
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	TEnumAsByte<EAxis::Type> AxisToFlip;
-
-	// the string to search for
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, DisplayName = "Search")
-	FString SearchString;
-
-	// the string to replace the search occurrences with
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, DisplayName = "Replace")
-	FString ReplaceString;
-
-	FTransform MirrorTransform(const FTransform& InTransform) const;
-	FVector MirrorVector(const FVector& InVector) const;
-};
-
 DECLARE_MULTICAST_DELEGATE_TwoParams(FRigEventDelegate, URigHierarchy*, const FRigEventContext&);

@@ -16,7 +16,7 @@ struct CONTROLRIG_API FRigUnit_SetControlOffset : public FRigUnitMutable
 
 	FRigUnit_SetControlOffset()
 		: Control(NAME_None)
-		, Space(EBoneGetterSetterMode::GlobalSpace)
+		, Space(ERigVMTransformSpace::GlobalSpace)
 	{
 	}
 
@@ -40,7 +40,7 @@ struct CONTROLRIG_API FRigUnit_SetControlOffset : public FRigUnitMutable
 	 * in local or global space.
 	 */
 	UPROPERTY(meta = (Input))
-	EBoneGetterSetterMode Space;
+	ERigVMTransformSpace Space;
 
 	// user to internally cache the index of the bone
 	UPROPERTY()

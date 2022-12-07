@@ -384,7 +384,7 @@ struct CONTROLRIG_API FRigUnit_SetControlVector : public FRigUnitMutable
 	FRigUnit_SetControlVector()
 		: Weight(1.f)
 		, Vector(FVector::OneVector)
-		, Space(EBoneGetterSetterMode::GlobalSpace)
+		, Space(ERigVMTransformSpace::GlobalSpace)
 		, CachedControlIndex(FCachedRigElement())
 	{}
 
@@ -414,7 +414,7 @@ struct CONTROLRIG_API FRigUnit_SetControlVector : public FRigUnitMutable
 	 * in local or global space.
 	 */
 	UPROPERTY(meta = (Input))
-	EBoneGetterSetterMode Space;
+	ERigVMTransformSpace Space;
 
 	// Used to cache the internally used bone index
 	UPROPERTY()
@@ -432,7 +432,7 @@ struct CONTROLRIG_API FRigUnit_SetControlRotator : public FRigUnitMutable
 	FRigUnit_SetControlRotator()
 		: Weight(1.f)
 		, Rotator(FRotator::ZeroRotator)
-		, Space(EBoneGetterSetterMode::GlobalSpace)
+		, Space(ERigVMTransformSpace::GlobalSpace)
 		, CachedControlIndex(FCachedRigElement())
 	{}
 
@@ -462,7 +462,7 @@ struct CONTROLRIG_API FRigUnit_SetControlRotator : public FRigUnitMutable
 	 * in local or global space.
 	 */
 	UPROPERTY(meta = (Input))
-	EBoneGetterSetterMode Space;
+	ERigVMTransformSpace Space;
 
 	// Used to cache the internally used bone index
 	UPROPERTY()
@@ -477,7 +477,7 @@ struct CONTROLRIG_API FRigUnit_SetMultiControlRotator_Entry
 	FRigUnit_SetMultiControlRotator_Entry()
 	{
 		Rotator = FRotator::ZeroRotator;
-		Space = EBoneGetterSetterMode::GlobalSpace;
+		Space = ERigVMTransformSpace::GlobalSpace;
 	}
 
 	/**
@@ -497,7 +497,7 @@ struct CONTROLRIG_API FRigUnit_SetMultiControlRotator_Entry
 	 * in local or global space.
 	 */
 	UPROPERTY(meta = (Input))
-	EBoneGetterSetterMode Space;
+	ERigVMTransformSpace Space;
 };
 
 /**
@@ -544,7 +544,7 @@ struct CONTROLRIG_API FRigUnit_SetControlTransform : public FRigUnitMutable
 
 	FRigUnit_SetControlTransform()
 		: Weight(1.f)
-		, Space(EBoneGetterSetterMode::GlobalSpace)
+		, Space(ERigVMTransformSpace::GlobalSpace)
 		, CachedControlIndex(FCachedRigElement())
 	{}
 
@@ -574,7 +574,7 @@ struct CONTROLRIG_API FRigUnit_SetControlTransform : public FRigUnitMutable
 	 * in local or global space.
 	 */
 	UPROPERTY(meta = (Input))
-	EBoneGetterSetterMode Space;
+	ERigVMTransformSpace Space;
 
 	// Used to cache the internally used bone index
 	UPROPERTY()

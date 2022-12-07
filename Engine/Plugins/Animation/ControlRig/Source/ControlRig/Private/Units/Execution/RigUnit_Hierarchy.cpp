@@ -206,7 +206,7 @@ FRigUnit_HierarchySetPoseItemArray_Execute()
 {
 	ExecuteContext.Hierarchy->SetPose(
 		Pose,
-		Space == EBoneGetterSetterMode::GlobalSpace ? ERigTransformType::CurrentGlobal : ERigTransformType::CurrentLocal,
+		Space == ERigVMTransformSpace::GlobalSpace ? ERigTransformType::CurrentGlobal : ERigTransformType::CurrentLocal,
 		ElementType,
 		ItemsToSet,
 		Weight
@@ -393,7 +393,7 @@ FRigUnit_PoseGetDelta_Execute()
 }
 
 bool FRigUnit_PoseGetDelta::ArePoseElementsEqual(const FRigPoseElement& A, const FRigPoseElement& B,
-                                                 EBoneGetterSetterMode Space, float PositionU, float RotationU, float ScaleU, float CurveU)
+                                                 ERigVMTransformSpace Space, float PositionU, float RotationU, float ScaleU, float CurveU)
 {
 	const FRigElementKey& KeyA = A.Index.GetKey();
 	const FRigElementKey& KeyB = B.Index.GetKey();
@@ -405,8 +405,8 @@ bool FRigUnit_PoseGetDelta::ArePoseElementsEqual(const FRigPoseElement& A, const
 	}
 
 	return AreTransformsEqual(
-		(Space == EBoneGetterSetterMode::GlobalSpace) ? A.GlobalTransform : A.LocalTransform,
-		(Space == EBoneGetterSetterMode::GlobalSpace) ? B.GlobalTransform : B.LocalTransform,
+		(Space == ERigVMTransformSpace::GlobalSpace) ? A.GlobalTransform : A.LocalTransform,
+		(Space == ERigVMTransformSpace::GlobalSpace) ? B.GlobalTransform : B.LocalTransform,
 		PositionU, RotationU, ScaleU);
 }
 
@@ -485,7 +485,7 @@ FRigUnit_PoseGetTransform_Execute()
 
 	const FRigPoseElement& PoseElement = Pose[CachedPoseElementIndex];
 
-	if(Space == EBoneGetterSetterMode::GlobalSpace)
+	if(Space == ERigVMTransformSpace::GlobalSpace)
 	{
 		Transform = PoseElement.GlobalTransform;
 	}
@@ -505,7 +505,7 @@ FRigUnit_PoseGetTransformArray_Execute()
 
 	Transforms.SetNum(Pose.Num());
 
-	if(Space == EBoneGetterSetterMode::GlobalSpace)
+	if(Space == ERigVMTransformSpace::GlobalSpace)
 	{
 		for(int32 Index=0; Index<Pose.Num(); Index++)
 		{

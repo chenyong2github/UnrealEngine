@@ -14,7 +14,7 @@ struct CONTROLRIG_API FRigUnit_GetControlInitialTransform : public FRigUnit
 	GENERATED_BODY()
 
 	FRigUnit_GetControlInitialTransform()
-		: Space(EBoneGetterSetterMode::LocalSpace)
+		: Space(ERigVMTransformSpace::LocalSpace)
 		, CachedControlIndex(FCachedRigElement())
 	{}
 
@@ -32,7 +32,7 @@ struct CONTROLRIG_API FRigUnit_GetControlInitialTransform : public FRigUnit
 	 * in local or global space.
 	 */ 
 	UPROPERTY(meta = (Input))
-	EBoneGetterSetterMode Space;
+	ERigVMTransformSpace Space;
 
 	// The current transform of the given bone - or identity in case it wasn't found.
 	UPROPERTY(meta=(Output))

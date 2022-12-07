@@ -13,7 +13,7 @@ struct CONTROLRIG_API FRigUnit_DebugBezier : public FRigUnit_DebugBaseMutable
 
 	FRigUnit_DebugBezier()
 	{
-		Bezier = FCRFourPointBezier();
+		Bezier = FRigVMFourPointBezier();
 		Color = FLinearColor::Red;
 		MinimumU = 0.f;
 		MaximumU = 1.f;
@@ -27,7 +27,7 @@ struct CONTROLRIG_API FRigUnit_DebugBezier : public FRigUnit_DebugBaseMutable
 	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
-	FCRFourPointBezier Bezier;
+	FRigVMFourPointBezier Bezier;
 
 	UPROPERTY(meta = (Input))
 	float MinimumU;
@@ -64,7 +64,7 @@ struct CONTROLRIG_API FRigUnit_DebugBezierItemSpace : public FRigUnit_DebugBaseM
 
 	FRigUnit_DebugBezierItemSpace()
 	{
-		Bezier = FCRFourPointBezier();
+		Bezier = FRigVMFourPointBezier();
 		Color = FLinearColor::Red;
 		MinimumU = 0.f;
 		MaximumU = 1.f;
@@ -79,7 +79,7 @@ struct CONTROLRIG_API FRigUnit_DebugBezierItemSpace : public FRigUnit_DebugBaseM
 	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input))
-	FCRFourPointBezier Bezier;
+	FRigVMFourPointBezier Bezier;
 
 	UPROPERTY(meta = (Input))
 	float MinimumU;
@@ -108,5 +108,5 @@ struct CONTROLRIG_API FRigUnit_DebugBezierItemSpace : public FRigUnit_DebugBaseM
 	RIGVM_METHOD()
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 
-	static void DrawBezier(const FControlRigExecuteContext& InContext, const FTransform& WorldOffset, const FCRFourPointBezier& InBezier, float MinimumU, float MaximumU, const FLinearColor& Color, float Thickness, int32 Detail);
+	static void DrawBezier(const FControlRigExecuteContext& InContext, const FTransform& WorldOffset, const FRigVMFourPointBezier& InBezier, float MinimumU, float MaximumU, const FLinearColor& Color, float Thickness, int32 Detail);
 };

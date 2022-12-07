@@ -98,12 +98,12 @@ FRigUnit_GetControlVector_Execute()
 			FTransform Transform = FTransform::Identity;
 			switch (Space)
 			{
-				case EBoneGetterSetterMode::GlobalSpace:
+				case ERigVMTransformSpace::GlobalSpace:
 				{
 					Transform = Hierarchy->GetGlobalTransform(CachedControlIndex);
 					break;
 				}
-				case EBoneGetterSetterMode::LocalSpace:
+				case ERigVMTransformSpace::LocalSpace:
 				{
 					Transform = Hierarchy->GetLocalTransform(CachedControlIndex);
 					break;
@@ -146,12 +146,12 @@ FRigUnit_GetControlRotator_Execute()
 			FTransform Transform = FTransform::Identity;
 			switch (Space)
 			{
-				case EBoneGetterSetterMode::GlobalSpace:
+				case ERigVMTransformSpace::GlobalSpace:
 				{
 					Transform = Hierarchy->GetGlobalTransform(CachedControlIndex);
 					break;
 				}
-				case EBoneGetterSetterMode::LocalSpace:
+				case ERigVMTransformSpace::LocalSpace:
 				{
 					Transform = Hierarchy->GetLocalTransform(CachedControlIndex);
 					break;
@@ -186,12 +186,12 @@ FRigUnit_GetControlTransform_Execute()
 		{
 			switch (Space)
 			{
-				case EBoneGetterSetterMode::GlobalSpace:
+				case ERigVMTransformSpace::GlobalSpace:
 				{
 					Transform = Hierarchy->GetGlobalTransform(CachedControlIndex);
 					break;
 				}
-				case EBoneGetterSetterMode::LocalSpace:
+				case ERigVMTransformSpace::LocalSpace:
 				{
 					Transform = Hierarchy->GetLocalTransform(CachedControlIndex);
 					break;
@@ -233,26 +233,26 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_GetControlTransform)
 	    FTransform::Identity);
 
 	Unit.Control = TEXT("Unknown");
-	Unit.Space = EBoneGetterSetterMode::GlobalSpace;
+	Unit.Space = ERigVMTransformSpace::GlobalSpace;
 	Execute();
 	AddErrorIfFalse(Unit.Transform.GetTranslation().Equals(FVector(0.f, 0.f, 0.f)), TEXT("unexpected global transform (0)"));
-	Unit.Space = EBoneGetterSetterMode::LocalSpace;
+	Unit.Space = ERigVMTransformSpace::LocalSpace;
 	Execute();
 	AddErrorIfFalse(Unit.Transform.GetTranslation().Equals(FVector(0.f, 0.f, 0.f)), TEXT("unexpected local transform (0)"));
 
 	Unit.Control = TEXT("Root");
-	Unit.Space = EBoneGetterSetterMode::GlobalSpace;
+	Unit.Space = ERigVMTransformSpace::GlobalSpace;
 	Execute();
 	AddErrorIfFalse(Unit.Transform.GetTranslation().Equals(FVector(1.f, 0.f, 0.f)), TEXT("unexpected global transform (1)"));
-	Unit.Space = EBoneGetterSetterMode::LocalSpace;
+	Unit.Space = ERigVMTransformSpace::LocalSpace;
 	Execute();
 	AddErrorIfFalse(Unit.Transform.GetTranslation().Equals(FVector(1.f, 0.f, 0.f)), TEXT("unexpected local transform (1)"));
 
 	Unit.Control = TEXT("ControlA");
-	Unit.Space = EBoneGetterSetterMode::GlobalSpace;
+	Unit.Space = ERigVMTransformSpace::GlobalSpace;
 	Execute();
 	AddErrorIfFalse(Unit.Transform.GetTranslation().Equals(FVector(2.f, 2.f, 3.f)), TEXT("unexpected global transform (2)"));
-	Unit.Space = EBoneGetterSetterMode::LocalSpace;
+	Unit.Space = ERigVMTransformSpace::LocalSpace;
 	Execute();
 	AddErrorIfFalse(Unit.Transform.GetTranslation().Equals(FVector(1.f, 2.f, 3.f)), TEXT("unexpected local transform (2)"));
 

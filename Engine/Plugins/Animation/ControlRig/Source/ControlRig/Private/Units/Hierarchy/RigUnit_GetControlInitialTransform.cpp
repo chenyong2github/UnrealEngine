@@ -21,12 +21,12 @@ FRigUnit_GetControlInitialTransform_Execute()
 		{
 			switch (Space)
 			{
-				case EBoneGetterSetterMode::GlobalSpace:
+				case ERigVMTransformSpace::GlobalSpace:
 				{
 					Transform = Hierarchy->GetInitialGlobalTransform(CachedControlIndex);
 					break;
 				}
-				case EBoneGetterSetterMode::LocalSpace:
+				case ERigVMTransformSpace::LocalSpace:
 				{
 					Transform = Hierarchy->GetInitialLocalTransform(CachedControlIndex);
 					break;

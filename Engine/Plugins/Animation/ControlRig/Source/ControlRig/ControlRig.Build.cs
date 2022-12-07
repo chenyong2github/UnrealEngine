@@ -8,8 +8,6 @@ namespace UnrealBuildTool.Rules
         {
 			NumIncludedBytesPerUnityCPPOverride = 688128; // best unity size found from using UBT ProfileUnitySizes mode
 
-			PrivateIncludePaths.Add("ControlRig/ThirdParty/AHEasing");
-
             PrivateDependencyModuleNames.AddRange(
                 new string[]
                 {

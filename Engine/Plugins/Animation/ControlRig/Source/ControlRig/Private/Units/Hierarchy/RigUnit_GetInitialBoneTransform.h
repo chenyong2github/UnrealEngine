@@ -14,13 +14,13 @@ struct CONTROLRIG_API FRigUnit_GetInitialBoneTransform : public FRigUnit
 	GENERATED_BODY()
 
 	FRigUnit_GetInitialBoneTransform()
-		: Space(EBoneGetterSetterMode::GlobalSpace)
+		: Space(ERigVMTransformSpace::GlobalSpace)
 		, CachedBone(FCachedRigElement())
 	{}
 
 	virtual FRigElementKey DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
 	{
-		if (InPinPath.StartsWith(TEXT("Transform")) && Space == EBoneGetterSetterMode::LocalSpace)
+		if (InPinPath.StartsWith(TEXT("Transform")) && Space == ERigVMTransformSpace::LocalSpace)
 		{
 			if (const URigHierarchy* Hierarchy = (const URigHierarchy*)InUserContext)
 			{
@@ -44,7 +44,7 @@ struct CONTROLRIG_API FRigUnit_GetInitialBoneTransform : public FRigUnit
 	 * in local or global space.
 	 */ 
 	UPROPERTY(meta = (Input))
-	EBoneGetterSetterMode Space;
+	ERigVMTransformSpace Space;
 
 	// The current transform of the given bone - or identity in case it wasn't found.
 	UPROPERTY(meta=(Output))

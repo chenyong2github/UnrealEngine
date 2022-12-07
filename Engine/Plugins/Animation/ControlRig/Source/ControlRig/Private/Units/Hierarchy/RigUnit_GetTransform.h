@@ -15,7 +15,7 @@ struct CONTROLRIG_API FRigUnit_GetTransform : public FRigUnit
 
 	FRigUnit_GetTransform()
 		: Item(NAME_None, ERigElementType::Bone)
-		, Space(EBoneGetterSetterMode::GlobalSpace)
+		, Space(ERigVMTransformSpace::GlobalSpace)
 		, bInitial(false)
 		, Transform(FTransform::Identity)
 		, CachedIndex()
@@ -25,7 +25,7 @@ struct CONTROLRIG_API FRigUnit_GetTransform : public FRigUnit
 
 	virtual FRigElementKey DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
 	{
-		if(Space == EBoneGetterSetterMode::LocalSpace)
+		if(Space == ERigVMTransformSpace::LocalSpace)
 		{
 			if (const URigHierarchy* Hierarchy = (const URigHierarchy*)InUserContext)
 			{
@@ -48,7 +48,7 @@ struct CONTROLRIG_API FRigUnit_GetTransform : public FRigUnit
 	 * Defines if the transform should be retrieved in local or global space
 	 */ 
 	UPROPERTY(meta = (Input))
-	EBoneGetterSetterMode Space;
+	ERigVMTransformSpace Space;
 
 	/**
 	 * Defines if the transform should be retrieved as current (false) or initial (true).
@@ -76,7 +76,7 @@ struct CONTROLRIG_API FRigUnit_GetTransformArray : public FRigUnit
 
 	FRigUnit_GetTransformArray()
 		: Items()
-		, Space(EBoneGetterSetterMode::GlobalSpace)
+		, Space(ERigVMTransformSpace::GlobalSpace)
 		, bInitial(false)
 		, Transforms()
 		, CachedIndex()
@@ -95,7 +95,7 @@ struct CONTROLRIG_API FRigUnit_GetTransformArray : public FRigUnit
 	* Defines if the transforms should be retrieved in local or global space
 	*/ 
 	UPROPERTY(meta = (Input))
-	EBoneGetterSetterMode Space;
+	ERigVMTransformSpace Space;
 
 	/**
 	* Defines if the transforms should be retrieved as current (false) or initial (true).
@@ -126,7 +126,7 @@ struct CONTROLRIG_API FRigUnit_GetTransformItemArray : public FRigUnit
 
 	FRigUnit_GetTransformItemArray()
 		: Items()
-		, Space(EBoneGetterSetterMode::GlobalSpace)
+		, Space(ERigVMTransformSpace::GlobalSpace)
 		, bInitial(false)
 		, Transforms()
 		, CachedIndex()
@@ -145,7 +145,7 @@ struct CONTROLRIG_API FRigUnit_GetTransformItemArray : public FRigUnit
 	* Defines if the transforms should be retrieved in local or global space
 	*/ 
 	UPROPERTY(meta = (Input))
-	EBoneGetterSetterMode Space;
+	ERigVMTransformSpace Space;
 
 	/**
 	* Defines if the transforms should be retrieved as current (false) or initial (true).

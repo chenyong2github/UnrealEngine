@@ -45,7 +45,7 @@ FRigVMStructUpgradeInfo FRigUnit_DebugBezierItemSpace::GetUpgradeInfo() const
 	return FRigVMStructUpgradeInfo();
 }
 
-void FRigUnit_DebugBezierItemSpace::DrawBezier(const FControlRigExecuteContext& InContext, const FTransform& WorldOffset, const FCRFourPointBezier& InBezier, float MinimumU, float MaximumU, const FLinearColor& Color, float Thickness, int32 Detail)
+void FRigUnit_DebugBezierItemSpace::DrawBezier(const FControlRigExecuteContext& InContext, const FTransform& WorldOffset, const FRigVMFourPointBezier& InBezier, float MinimumU, float MaximumU, const FLinearColor& Color, float Thickness, int32 Detail)
 {
 	FRigVMDrawInterface* DrawInterface = InContext.GetDrawInterface();
 	if(DrawInterface == nullptr)

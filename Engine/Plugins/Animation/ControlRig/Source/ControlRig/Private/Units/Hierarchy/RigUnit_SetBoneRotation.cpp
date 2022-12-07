@@ -21,7 +21,7 @@ FRigUnit_SetBoneRotation_Execute()
 		{
 			switch (Space)
 			{
-				case EBoneGetterSetterMode::GlobalSpace:
+				case ERigVMTransformSpace::GlobalSpace:
 				{
 					FTransform Transform = Hierarchy->GetGlobalTransform(CachedBone);
 
@@ -38,7 +38,7 @@ FRigUnit_SetBoneRotation_Execute()
 					Hierarchy->SetGlobalTransform(CachedBone, Transform, bPropagateToChildren);
 					break;
 				}
-				case EBoneGetterSetterMode::LocalSpace:
+				case ERigVMTransformSpace::LocalSpace:
 				{
 					FTransform Transform = Hierarchy->GetLocalTransform(CachedBone);
 
@@ -91,7 +91,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetBoneRotation)
 
 	Hierarchy->ResetPoseToInitial(ERigElementType::Bone);
 	Unit.Bone = TEXT("Root");
-	Unit.Space = EBoneGetterSetterMode::GlobalSpace;
+	Unit.Space = ERigVMTransformSpace::GlobalSpace;
 	Unit.Rotation = FQuat(FVector(-1.f, 0.f, 0.f), 0.25f);
 	Unit.bPropagateToChildren = false;
 	Execute();
@@ -100,7 +100,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetBoneRotation)
 	AddErrorIfFalse(FMath::IsNearlyEqual(Hierarchy->GetGlobalTransform(2).GetRotation().GetAngle(), 0.7f, 0.001f), FString::Printf(TEXT("unexpected angle %.04f"), Hierarchy->GetGlobalTransform(2).GetRotation().GetAngle()));
 
 	Hierarchy->ResetPoseToInitial(ERigElementType::Bone);
-	Unit.Space = EBoneGetterSetterMode::LocalSpace;
+	Unit.Space = ERigVMTransformSpace::LocalSpace;
 	Execute();
 	AddErrorIfFalse(FMath::IsNearlyEqual(Hierarchy->GetGlobalTransform(0).GetRotation().GetAngle(), 0.25f, 0.001f), FString::Printf(TEXT("unexpected angle %.04f"), Hierarchy->GetGlobalTransform(0).GetRotation().GetAngle()));
 	AddErrorIfFalse(FMath::IsNearlyEqual(Hierarchy->GetGlobalTransform(1).GetRotation().GetAngle(), 0.5f, 0.001f), FString::Printf(TEXT("unexpected angle %.04f"), Hierarchy->GetGlobalTransform(1).GetRotation().GetAngle()));
@@ -115,7 +115,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetBoneRotation)
 
 	Hierarchy->ResetPoseToInitial(ERigElementType::Bone);
 	Unit.Bone = TEXT("BoneA");
-	Unit.Space = EBoneGetterSetterMode::GlobalSpace;
+	Unit.Space = ERigVMTransformSpace::GlobalSpace;
 	Unit.bPropagateToChildren = false;
 	Execute();
 	AddErrorIfFalse(FMath::IsNearlyEqual(Hierarchy->GetGlobalTransform(0).GetRotation().GetAngle(), 0.1f, 0.001f), FString::Printf(TEXT("unexpected angle %.04f"), Hierarchy->GetGlobalTransform(0).GetRotation().GetAngle()));
@@ -123,7 +123,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetBoneRotation)
 	AddErrorIfFalse(FMath::IsNearlyEqual(Hierarchy->GetGlobalTransform(2).GetRotation().GetAngle(), 0.7f, 0.001f), FString::Printf(TEXT("unexpected angle %.04f"), Hierarchy->GetGlobalTransform(2).GetRotation().GetAngle()));
 
 	Hierarchy->ResetPoseToInitial(ERigElementType::Bone);
-	Unit.Space = EBoneGetterSetterMode::LocalSpace;
+	Unit.Space = ERigVMTransformSpace::LocalSpace;
 	Execute();
 	AddErrorIfFalse(FMath::IsNearlyEqual(Hierarchy->GetGlobalTransform(0).GetRotation().GetAngle(), 0.1f, 0.001f), FString::Printf(TEXT("unexpected angle %.04f"), Hierarchy->GetGlobalTransform(0).GetRotation().GetAngle()));
 	AddErrorIfFalse(FMath::IsNearlyEqual(Hierarchy->GetGlobalTransform(1).GetRotation().GetAngle(), 0.35f, 0.001f), FString::Printf(TEXT("unexpected angle %.04f"), Hierarchy->GetGlobalTransform(1).GetRotation().GetAngle()));

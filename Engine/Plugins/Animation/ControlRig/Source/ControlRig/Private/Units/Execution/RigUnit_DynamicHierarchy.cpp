@@ -345,7 +345,7 @@ FRigUnit_HierarchyAddBone_Execute()
 	if(URigHierarchyController* Controller = ExecuteContext.Hierarchy->GetController(true))
 	{
 		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, ExecuteContext.GetInstructionIndex());
-		Item = Controller->AddBone(Name, Parent, Transform, Space == EBoneGetterSetterMode::GlobalSpace, ERigBoneType::Imported, false, false);
+		Item = Controller->AddBone(Name, Parent, Transform, Space == ERigVMTransformSpace::GlobalSpace, ERigBoneType::Imported, false, false);
 	}
 }
 
@@ -366,7 +366,7 @@ FRigUnit_HierarchyAddNull_Execute()
 	if(URigHierarchyController* Controller = ExecuteContext.Hierarchy->GetController(true))
 	{
 		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, ExecuteContext.GetInstructionIndex());
-		Item = Controller->AddNull(Name, Parent, Transform, Space == EBoneGetterSetterMode::GlobalSpace, false, false);
+		Item = Controller->AddNull(Name, Parent, Transform, Space == ERigVMTransformSpace::GlobalSpace, false, false);
 	}
 }
 

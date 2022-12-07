@@ -16,7 +16,7 @@ struct CONTROLRIG_API FRigUnit_SetSpaceTransform : public FRigUnitMutable
 
 	FRigUnit_SetSpaceTransform()
 		: Weight(1.f)
-		, SpaceType(EBoneGetterSetterMode::GlobalSpace)
+		, SpaceType(ERigVMTransformSpace::GlobalSpace)
 		, CachedSpaceIndex(FCachedRigElement())
 	{}
 
@@ -46,7 +46,7 @@ struct CONTROLRIG_API FRigUnit_SetSpaceTransform : public FRigUnitMutable
 	 * in local or global space.
 	 */
 	UPROPERTY(meta = (Input))
-	EBoneGetterSetterMode SpaceType;
+	ERigVMTransformSpace SpaceType;
 
 	// Used to cache the internally used bone index
 	UPROPERTY()

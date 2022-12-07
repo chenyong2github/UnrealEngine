@@ -19,7 +19,7 @@ struct CONTROLRIG_API FRigUnit_ChainHarmonics_Reach
 		ReachAxis = FVector(1.f, 0.f, 0.f);
 		ReachMinimum = 0.0f;
 		ReachMaximum = 0.0f;
-		ReachEase = EControlRigAnimEasingType::Linear;
+		ReachEase = ERigVMAnimEasingType::Linear;
 	}
 
 	UPROPERTY(meta = (Input))
@@ -38,7 +38,7 @@ struct CONTROLRIG_API FRigUnit_ChainHarmonics_Reach
 	float ReachMaximum;
 
 	UPROPERTY(meta = (Input))
-	EControlRigAnimEasingType ReachEase;
+	ERigVMAnimEasingType ReachEase;
 };
 
 USTRUCT()
@@ -55,7 +55,7 @@ struct CONTROLRIG_API FRigUnit_ChainHarmonics_Wave
 		WaveNoise = FVector::ZeroVector;
 		WaveMinimum = 0.f;
 		WaveMaximum = 1.f;
-		WaveEase = EControlRigAnimEasingType::Linear;
+		WaveEase = ERigVMAnimEasingType::Linear;
 	}
 
 	UPROPERTY(meta = (Input))
@@ -80,7 +80,7 @@ struct CONTROLRIG_API FRigUnit_ChainHarmonics_Wave
 	float WaveMaximum;
 
 	UPROPERTY(meta = (Input))
-	EControlRigAnimEasingType WaveEase;
+	ERigVMAnimEasingType WaveEase;
 };
 
 USTRUCT()
@@ -97,7 +97,7 @@ struct CONTROLRIG_API FRigUnit_ChainHarmonics_Pendulum
 		PendulumDrag = 0.98f;
 		PendulumMinimum = 0.0f;
 		PendulumMaximum = 0.1f;
-		PendulumEase = EControlRigAnimEasingType::Linear;
+		PendulumEase = ERigVMAnimEasingType::Linear;
 		UnwindAxis = FVector(0.f, 1.f, 0.f);
 		UnwindMinimum = 0.2f;
 		UnwindMaximum = 0.05f;
@@ -125,7 +125,7 @@ struct CONTROLRIG_API FRigUnit_ChainHarmonics_Pendulum
 	float PendulumMaximum;
 
 	UPROPERTY(meta = (Input))
-	EControlRigAnimEasingType PendulumEase;
+	ERigVMAnimEasingType PendulumEase;
 
 	UPROPERTY(meta = (Input))
 	FVector UnwindAxis;

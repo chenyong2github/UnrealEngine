@@ -4,6 +4,7 @@
 #include "Tools/ControlRigPoseMirrorSettings.h"
 #include "ControlRig.h"
 #include "Tools/ControlRigPose.h"
+#include "RigVMFunctions/Math/RigVMMathLibrary.h"
 
 void FControlRigPoseMirrorTable::SetUpMirrorTable(const UControlRig* ControlRig)
 {
@@ -83,7 +84,7 @@ void FControlRigPoseMirrorTable::GetMirrorTransform(const FRigControlCopy& Contr
 	{
 		if (!bIsMatched  && (OutGlobalTransform.GetRotation().IsIdentity() == false || OutLocalTransform.GetRotation().IsIdentity() == false))
 		{
-			FRigMirrorSettings MirrorSettings;
+			FRigVMMirrorSettings MirrorSettings;
 			MirrorSettings.MirrorAxis = Settings->MirrorAxis;
 			MirrorSettings.AxisToFlip = Settings->AxisToFlip;
 			FTransform NewTransform = MirrorSettings.MirrorTransform(GlobalTransform);

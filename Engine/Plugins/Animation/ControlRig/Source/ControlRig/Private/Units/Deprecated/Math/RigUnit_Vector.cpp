@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigUnit_Vector.h"
-#include "Units/Math/RigUnit_MathVector.h"
+#include "RigVMFunctions/Math/RigVMFunction_MathVector.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_Vector)
 
@@ -12,7 +12,7 @@ FRigUnit_Multiply_VectorVector_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_Multiply_VectorVector::GetUpgradeInfo() const
 {
-	FRigUnit_MathVectorMul NewNode;
+	FRigVMFunction_MathVectorMul NewNode;
 	NewNode.A = Argument0;
 	NewNode.B = Argument1;
 
@@ -29,7 +29,7 @@ FRigUnit_Add_VectorVector_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_Add_VectorVector::GetUpgradeInfo() const
 {
-	FRigUnit_MathVectorAdd NewNode;
+	FRigVMFunction_MathVectorAdd NewNode;
 	NewNode.A = Argument0;
 	NewNode.B = Argument1;
 
@@ -46,7 +46,7 @@ FRigUnit_Subtract_VectorVector_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_Subtract_VectorVector::GetUpgradeInfo() const
 {
-	FRigUnit_MathVectorSub NewNode;
+	FRigVMFunction_MathVectorSub NewNode;
 	NewNode.A = Argument0;
 	NewNode.B = Argument1;
 
@@ -63,7 +63,7 @@ FRigUnit_Divide_VectorVector_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_Divide_VectorVector::GetUpgradeInfo() const
 {
-	FRigUnit_MathVectorDiv NewNode;
+	FRigVMFunction_MathVectorDiv NewNode;
 	NewNode.A = Argument0;
 	NewNode.B = Argument1;
 
@@ -80,7 +80,7 @@ FRigUnit_Distance_VectorVector_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_Distance_VectorVector::GetUpgradeInfo() const
 {
-	FRigUnit_MathVectorDistance NewNode;
+	FRigVMFunction_MathVectorDistance NewNode;
 	NewNode.A = Argument0;
 	NewNode.B = Argument1;
 
@@ -88,4 +88,26 @@ FRigVMStructUpgradeInfo FRigUnit_Distance_VectorVector::GetUpgradeInfo() const
 	Info.AddRemappedPin(TEXT("Argument0"), TEXT("A"));
 	Info.AddRemappedPin(TEXT("Argument1"), TEXT("B"));
 	return Info;
+}
+
+FRigUnit_MathVectorBezierFourPoint_Execute()
+{
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+	FControlRigMathLibrary::FourPointBezier(Bezier, T, Result, Tangent);
+}
+
+FRigVMStructUpgradeInfo FRigUnit_MathVectorBezierFourPoint::GetUpgradeInfo() const
+{
+	// this node is no longer supported
+	return FRigVMStructUpgradeInfo();
+}
+
+FRigUnit_MathVectorMakeBezierFourPoint_Execute()
+{
+}
+
+FRigVMStructUpgradeInfo FRigUnit_MathVectorMakeBezierFourPoint::GetUpgradeInfo() const
+{
+	// this node is no longer supported
+	return FRigVMStructUpgradeInfo();
 }

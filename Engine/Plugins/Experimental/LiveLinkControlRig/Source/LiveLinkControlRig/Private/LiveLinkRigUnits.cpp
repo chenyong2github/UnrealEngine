@@ -78,10 +78,10 @@ FRigUnit_LiveLinkGetTransformByName_Execute()
 	SubjectFrame.GetTransformByName(TransformName, LiveLinkTransform);
 	switch (Space)
 	{
-	case EBoneGetterSetterMode::GlobalSpace:
+	case ERigVMTransformSpace::GlobalSpace:
 		LiveLinkTransform.GetTransformRootSpace(Transform);
 		break;
-	case EBoneGetterSetterMode::LocalSpace:
+	case ERigVMTransformSpace::LocalSpace:
 		LiveLinkTransform.GetTransformParentSpace(Transform);
 		break;
 	default:

@@ -16,14 +16,14 @@ struct CONTROLRIG_API FRigUnit_AnimEasingType : public FRigUnit_AnimBase
 
 	FRigUnit_AnimEasingType()
 	{
-		Type = EControlRigAnimEasingType::CubicEaseInOut;
+		Type = ERigVMAnimEasingType::CubicEaseInOut;
 	}
 
 	RIGVM_METHOD()
 	virtual void Execute() override;
 
 	UPROPERTY(meta = (Input, Output))
-	EControlRigAnimEasingType Type;
+	ERigVMAnimEasingType Type;
 };
 
 /**
@@ -37,7 +37,7 @@ struct CONTROLRIG_API FRigUnit_AnimEasing : public FRigUnit_AnimBase
 	FRigUnit_AnimEasing()
 	{
 		Value = Result = 0.f;
-		Type = EControlRigAnimEasingType::CubicEaseInOut;
+		Type = ERigVMAnimEasingType::CubicEaseInOut;
 		SourceMinimum = TargetMinimum = 0.f;
 		SourceMaximum = TargetMaximum = 1.f;
 	}
@@ -49,7 +49,7 @@ struct CONTROLRIG_API FRigUnit_AnimEasing : public FRigUnit_AnimBase
 	float Value;
 
 	UPROPERTY(meta=(Input))
-	EControlRigAnimEasingType Type;
+	ERigVMAnimEasingType Type;
 
 	UPROPERTY(meta=(Input))
 	float SourceMinimum;

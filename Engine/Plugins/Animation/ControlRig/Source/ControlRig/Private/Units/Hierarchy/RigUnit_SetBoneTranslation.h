@@ -16,7 +16,7 @@ struct CONTROLRIG_API FRigUnit_SetBoneTranslation : public FRigUnitMutable
 
 	FRigUnit_SetBoneTranslation()
 		: Translation(FVector::ZeroVector)
-		, Space(EBoneGetterSetterMode::LocalSpace)
+		, Space(ERigVMTransformSpace::LocalSpace)
 		, Weight(1.f)
 		, bPropagateToChildren(true)
 		, CachedBone(FCachedRigElement())
@@ -24,7 +24,7 @@ struct CONTROLRIG_API FRigUnit_SetBoneTranslation : public FRigUnitMutable
 
 	virtual FRigElementKey DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
 	{
-		if (InPinPath.StartsWith(TEXT("Translation")) && Space == EBoneGetterSetterMode::LocalSpace)
+		if (InPinPath.StartsWith(TEXT("Translation")) && Space == ERigVMTransformSpace::LocalSpace)
 		{
 			if (const URigHierarchy* Hierarchy = (const URigHierarchy*)InUserContext)
 			{
@@ -54,7 +54,7 @@ struct CONTROLRIG_API FRigUnit_SetBoneTranslation : public FRigUnitMutable
 	 * in local or global space.
 	 */
 	UPROPERTY(meta = (Input))
-	EBoneGetterSetterMode Space;
+	ERigVMTransformSpace Space;
 
 	/**
 	 * The weight of the change - how much the change should be applied

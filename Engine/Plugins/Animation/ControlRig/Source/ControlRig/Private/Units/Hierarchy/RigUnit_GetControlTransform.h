@@ -168,7 +168,7 @@ struct CONTROLRIG_API FRigUnit_GetControlVector : public FRigUnit
 	GENERATED_BODY()
 
 	FRigUnit_GetControlVector()
-		: Space(EBoneGetterSetterMode::GlobalSpace)
+		: Space(ERigVMTransformSpace::GlobalSpace)
 		, Vector(FVector::ZeroVector)
 		, Minimum(FVector::ZeroVector)
 		, Maximum(FVector::ZeroVector)
@@ -189,7 +189,7 @@ struct CONTROLRIG_API FRigUnit_GetControlVector : public FRigUnit
 	 * in local or global space.
 	 */ 
 	UPROPERTY(meta = (Input))
-	EBoneGetterSetterMode Space;
+	ERigVMTransformSpace Space;
 
 	// The current value of the control.
 	UPROPERTY(meta=(Output))
@@ -217,7 +217,7 @@ struct CONTROLRIG_API FRigUnit_GetControlRotator : public FRigUnit
 	GENERATED_BODY()
 
 	FRigUnit_GetControlRotator()
-		: Space(EBoneGetterSetterMode::GlobalSpace)
+		: Space(ERigVMTransformSpace::GlobalSpace)
 		, Rotator(FRotator::ZeroRotator)
 		, Minimum(FRotator::ZeroRotator)
 		, Maximum(FRotator::ZeroRotator)
@@ -239,7 +239,7 @@ struct CONTROLRIG_API FRigUnit_GetControlRotator : public FRigUnit
 	 * in local or global space.
 	 */ 
 	UPROPERTY(meta = (Input))
-	EBoneGetterSetterMode Space;
+	ERigVMTransformSpace Space;
 
 	// The current value of the control.
 	UPROPERTY(meta=(Output))
@@ -267,7 +267,7 @@ struct CONTROLRIG_API FRigUnit_GetControlTransform : public FRigUnit
 	GENERATED_BODY()
 
 	FRigUnit_GetControlTransform()
-		: Space(EBoneGetterSetterMode::GlobalSpace)
+		: Space(ERigVMTransformSpace::GlobalSpace)
 		, Transform(FTransform::Identity)
 		, Minimum(FTransform::Identity)
 		, Maximum(FTransform::Identity)
@@ -288,7 +288,7 @@ struct CONTROLRIG_API FRigUnit_GetControlTransform : public FRigUnit
 	 * in local or global space.
 	 */ 
 	UPROPERTY(meta = (Input))
-	EBoneGetterSetterMode Space;
+	ERigVMTransformSpace Space;
 
 	// The current value of the control.
 	UPROPERTY(meta=(Output))

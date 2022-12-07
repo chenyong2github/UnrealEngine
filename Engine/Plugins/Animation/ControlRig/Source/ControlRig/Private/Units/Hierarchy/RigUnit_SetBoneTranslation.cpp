@@ -21,7 +21,7 @@ FRigUnit_SetBoneTranslation_Execute()
 		{
 			switch (Space)
 			{
-				case EBoneGetterSetterMode::GlobalSpace:
+				case ERigVMTransformSpace::GlobalSpace:
 				{
 					FTransform Transform = Hierarchy->GetGlobalTransform(CachedBone);
 
@@ -38,7 +38,7 @@ FRigUnit_SetBoneTranslation_Execute()
 					Hierarchy->SetGlobalTransform(CachedBone, Transform, bPropagateToChildren);
 					break;
 				}
-				case EBoneGetterSetterMode::LocalSpace:
+				case ERigVMTransformSpace::LocalSpace:
 				{
 					FTransform Transform = Hierarchy->GetLocalTransform(CachedBone);
 

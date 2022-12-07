@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigUnit_Transform.h"
-#include "Units/Math/RigUnit_MathTransform.h"
+#include "RigVMFunctions/Math/RigVMFunction_MathTransform.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_Transform)
 
@@ -12,7 +12,7 @@ FRigUnit_MultiplyTransform_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_MultiplyTransform::GetUpgradeInfo() const
 {
-	FRigUnit_MathTransformMul NewNode;
+	FRigVMFunction_MathTransformMul NewNode;
 	NewNode.A = Argument0;
 	NewNode.B = Argument1;
 
@@ -29,7 +29,7 @@ FRigUnit_GetRelativeTransform_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_GetRelativeTransform::GetUpgradeInfo() const
 {
-	FRigUnit_MathTransformMakeRelative NewNode;
+	FRigVMFunction_MathTransformMakeRelative NewNode;
 	NewNode.Global = Argument0;
 	NewNode.Parent = Argument1;
 

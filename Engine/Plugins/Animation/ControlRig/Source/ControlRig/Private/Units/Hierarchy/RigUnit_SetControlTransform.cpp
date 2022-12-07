@@ -168,7 +168,7 @@ FRigUnit_SetControlVector_Execute()
 			const ERigControlType ControlType = Hierarchy->GetChecked<FRigControlElement>(CachedControlIndex)->Settings.ControlType;
 			
 			FTransform Transform = FTransform::Identity;
-			if (Space == EBoneGetterSetterMode::GlobalSpace)
+			if (Space == ERigVMTransformSpace::GlobalSpace)
 			{
 				Transform = Hierarchy->GetGlobalTransform(CachedControlIndex);
 			}
@@ -200,12 +200,12 @@ FRigUnit_SetControlVector_Execute()
 
 			switch (Space)
 			{
-				case EBoneGetterSetterMode::GlobalSpace:
+				case ERigVMTransformSpace::GlobalSpace:
 				{
 					Hierarchy->SetGlobalTransform(CachedControlIndex, Transform);
 					break;
 				}
-				case EBoneGetterSetterMode::LocalSpace:
+				case ERigVMTransformSpace::LocalSpace:
 				{
 					Hierarchy->SetLocalTransform(CachedControlIndex, Transform);
 					break;
@@ -229,7 +229,7 @@ FRigUnit_SetControlRotator_Execute()
 		if (CachedControlIndex.UpdateCache(Key, Hierarchy))
 		{
 			FTransform Transform = FTransform::Identity;
-			if (Space == EBoneGetterSetterMode::GlobalSpace)
+			if (Space == ERigVMTransformSpace::GlobalSpace)
 			{
 				Transform = Hierarchy->GetGlobalTransform(CachedControlIndex);
 			}
@@ -248,12 +248,12 @@ FRigUnit_SetControlRotator_Execute()
 
 			switch (Space)
 			{
-				case EBoneGetterSetterMode::GlobalSpace:
+				case ERigVMTransformSpace::GlobalSpace:
 				{
 					Hierarchy->SetGlobalTransform(CachedControlIndex, Transform);
 					break;
 				}
-				case EBoneGetterSetterMode::LocalSpace:
+				case ERigVMTransformSpace::LocalSpace:
 				{
 					Hierarchy->SetLocalTransform(CachedControlIndex, Transform);
 					break;
@@ -295,7 +295,7 @@ FRigUnit_SetControlTransform_Execute()
 		{
 			switch (Space)
 			{
-				case EBoneGetterSetterMode::GlobalSpace:
+				case ERigVMTransformSpace::GlobalSpace:
 				{
 					if(FMath::IsNearlyEqual((float)Weight, 1.f))
 					{
@@ -308,7 +308,7 @@ FRigUnit_SetControlTransform_Execute()
 					}
 					break;
 				}
-				case EBoneGetterSetterMode::LocalSpace:
+				case ERigVMTransformSpace::LocalSpace:
 				{
 					if(FMath::IsNearlyEqual((float)Weight, 1.f))
 					{
@@ -346,7 +346,7 @@ FRigVMStructUpgradeInfo FRigUnit_SetControlTransform::GetUpgradeInfo() const
 
 #if WITH_DEV_AUTOMATION_TESTS
 #include "Units/RigUnitTest.h"
-#include "Units/Math/RigUnit_MathTransform.h"
+#include "RigVMFunctions/Math/RigVMFunction_MathTransform.h"
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetMultiControlBool)
 {
@@ -523,12 +523,12 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetMultiControlRotator)
 	// functional test, whether the unit can set multiple controls
 	Entry.Control = TEXT("Control1");
 	Entry.Rotator = FRotator(90.f,0.f,0.f);
-	Entry.Space = EBoneGetterSetterMode::LocalSpace;
+	Entry.Space = ERigVMTransformSpace::LocalSpace;
 	Unit.Entries.Add(Entry);
 
 	Entry.Control = TEXT("Control2");
 	Entry.Rotator = FRotator(0.f,90.f,0.f);
-	Entry.Space = EBoneGetterSetterMode::LocalSpace;
+	Entry.Space = ERigVMTransformSpace::LocalSpace;
 	Unit.Entries.Add(Entry);
 	AddErrorIfFalse(Unit.Entries.Num() == 2, TEXT("unexpected number of entries"));
 

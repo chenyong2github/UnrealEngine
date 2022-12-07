@@ -338,7 +338,7 @@ struct CONTROLRIG_API FRigUnit_HierarchySetPose : public FRigUnit_HierarchyBaseM
 	{
 		Pose = FRigPose();
 		ElementType = ERigElementType::All;
-		Space = EBoneGetterSetterMode::LocalSpace;
+		Space = ERigVMTransformSpace::LocalSpace;
 		ItemsToSet = FRigElementKeyCollection();
 		Weight = 1.f;
 	}
@@ -353,7 +353,7 @@ struct CONTROLRIG_API FRigUnit_HierarchySetPose : public FRigUnit_HierarchyBaseM
 	ERigElementType ElementType;
 
 	UPROPERTY(meta = (Input))
-	EBoneGetterSetterMode Space;
+	ERigVMTransformSpace Space;
 
 	// An optional collection to filter against
 	UPROPERTY(meta = (Input))
@@ -378,7 +378,7 @@ struct CONTROLRIG_API FRigUnit_HierarchySetPoseItemArray : public FRigUnit_Hiera
 	{
 		Pose = FRigPose();
 		ElementType = ERigElementType::All;
-		Space = EBoneGetterSetterMode::LocalSpace;
+		Space = ERigVMTransformSpace::LocalSpace;
 		Weight = 1.f;
 	}
 
@@ -392,7 +392,7 @@ struct CONTROLRIG_API FRigUnit_HierarchySetPoseItemArray : public FRigUnit_Hiera
 	ERigElementType ElementType;
 
 	UPROPERTY(meta = (Input))
-	EBoneGetterSetterMode Space;
+	ERigVMTransformSpace Space;
 
 	// An optional collection to filter against
 	UPROPERTY(meta = (Input))
@@ -496,7 +496,7 @@ struct CONTROLRIG_API FRigUnit_PoseGetDelta : public FRigUnit_HierarchyBase
 	{
 		PoseA = PoseB = FRigPose();
 		ElementType = ERigElementType::All;
-		Space = EBoneGetterSetterMode::LocalSpace;
+		Space = ERigVMTransformSpace::LocalSpace;
 		ItemsToCompare = ItemsWithDelta = FRigElementKeyCollection();
 		PositionThreshold = 0.1f;
 		RotationThreshold = ScaleThreshold = CurveThreshold = 0.f;
@@ -533,7 +533,7 @@ struct CONTROLRIG_API FRigUnit_PoseGetDelta : public FRigUnit_HierarchyBase
 	
 	// Defines in which space transform deltas should be computed
 	UPROPERTY(meta = (Input))
-	EBoneGetterSetterMode Space;
+	ERigVMTransformSpace Space;
 
 	// An optional list of items to compare
 	UPROPERTY(meta = (Input))
@@ -548,7 +548,7 @@ struct CONTROLRIG_API FRigUnit_PoseGetDelta : public FRigUnit_HierarchyBase
 	static bool ArePoseElementsEqual(
 		const FRigPoseElement& A,
 		const FRigPoseElement& B,
-		EBoneGetterSetterMode Space,
+		ERigVMTransformSpace Space,
 		float PositionU,
 		float RotationU,
 		float ScaleU,
@@ -579,7 +579,7 @@ struct CONTROLRIG_API FRigUnit_PoseGetTransform : public FRigUnit_HierarchyBase
 	{
 		Pose = FRigPose();
 		Item = FRigElementKey();
-		Space = EBoneGetterSetterMode::GlobalSpace;
+		Space = ERigVMTransformSpace::GlobalSpace;
 		Valid = false;
 		Transform = FTransform::Identity;
 		CurveValue = 0.f;
@@ -599,7 +599,7 @@ struct CONTROLRIG_API FRigUnit_PoseGetTransform : public FRigUnit_HierarchyBase
 	* Defines if the transform should be retrieved in local or global space
 	*/ 
 	UPROPERTY(meta = (Input))
-	EBoneGetterSetterMode Space;
+	ERigVMTransformSpace Space;
 
 	UPROPERTY(meta = (Output))
 	bool Valid;
@@ -628,7 +628,7 @@ struct CONTROLRIG_API FRigUnit_PoseGetTransformArray : public FRigUnit_Hierarchy
 	FRigUnit_PoseGetTransformArray()
 	{
 		Pose = FRigPose();
-		Space = EBoneGetterSetterMode::GlobalSpace;
+		Space = ERigVMTransformSpace::GlobalSpace;
 		Valid = false;
 		Transforms.Reset();
 	}
@@ -643,7 +643,7 @@ struct CONTROLRIG_API FRigUnit_PoseGetTransformArray : public FRigUnit_Hierarchy
 	* Defines if the transform should be retrieved in local or global space
 	*/ 
 	UPROPERTY(meta = (Input))
-	EBoneGetterSetterMode Space;
+	ERigVMTransformSpace Space;
 
 	UPROPERTY(meta = (Output))
 	bool Valid;

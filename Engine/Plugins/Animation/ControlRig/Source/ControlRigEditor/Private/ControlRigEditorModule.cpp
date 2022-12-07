@@ -131,6 +131,7 @@
 #include "RigVMModel/Nodes/RigVMDispatchNode.h"
 #include "Units/ControlRigNodeWorkflow.h"
 #include "Units/RigDispatchFactory.h"
+#include "RigVMFunctions/Math/RigVMMathLibrary.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditorModule"
 
@@ -2069,8 +2070,8 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 						FSlateIcon(),
 						FUIAction(FExecuteAction::CreateLambda([RigBlueprint, Controller, PinToKey]() {
 
-							FRigMirrorSettings Settings;
-							TSharedPtr<FStructOnScope> StructToDisplay = MakeShareable(new FStructOnScope(FRigMirrorSettings::StaticStruct(), (uint8*)&Settings));
+							FRigVMMirrorSettings Settings;
+							TSharedPtr<FStructOnScope> StructToDisplay = MakeShareable(new FStructOnScope(FRigVMMirrorSettings::StaticStruct(), (uint8*)&Settings));
 
 							TSharedRef<SKismetInspector> KismetInspector = SNew(SKismetInspector);
 							KismetInspector->ShowSingleStruct(StructToDisplay);

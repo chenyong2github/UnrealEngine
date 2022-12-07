@@ -35,7 +35,7 @@ struct CONTROLRIG_API FRigUnit_TwistBones : public FRigUnit_HighlevelBaseMutable
 		StartBone = EndBone = NAME_None;
 		TwistAxis = FVector(1.f, 0.f, 0.f);
 		PoleAxis = FVector(0.f, 1.f, 0.f);
-		TwistEaseType = EControlRigAnimEasingType::Linear;
+		TwistEaseType = ERigVMAnimEasingType::Linear;
 		Weight = 1.f;
 		bPropagateToChildren = true;
 	}
@@ -76,7 +76,7 @@ struct CONTROLRIG_API FRigUnit_TwistBones : public FRigUnit_HighlevelBaseMutable
 	 * The easing to use between two twists.
 	 */
 	UPROPERTY(meta = (Input, Constant))
-	EControlRigAnimEasingType TwistEaseType;
+	ERigVMAnimEasingType TwistEaseType;
 
 	/**
 	 * The weight of the solver - how much the rotation should be applied
@@ -111,7 +111,7 @@ struct CONTROLRIG_API FRigUnit_TwistBonesPerItem : public FRigUnit_HighlevelBase
 	{
 		TwistAxis = FVector(1.f, 0.f, 0.f);
 		PoleAxis = FVector(0.f, 1.f, 0.f);
-		TwistEaseType = EControlRigAnimEasingType::Linear;
+		TwistEaseType = ERigVMAnimEasingType::Linear;
 		Weight = 1.f;
 		bPropagateToChildren = true;
 	}
@@ -141,7 +141,7 @@ struct CONTROLRIG_API FRigUnit_TwistBonesPerItem : public FRigUnit_HighlevelBase
 	 * The easing to use between two twists.
 	 */
 	UPROPERTY(meta = (Input, Constant))
-	EControlRigAnimEasingType TwistEaseType;
+	ERigVMAnimEasingType TwistEaseType;
 
 	/**
 	 * The weight of the solver - how much the rotation should be applied

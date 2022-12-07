@@ -135,7 +135,7 @@ struct CONTROLRIG_API FRigUnit_FitChainToCurve : public FRigUnit_HighlevelBaseMu
 	FRigUnit_FitChainToCurve()
 	{
 		StartBone = EndBone = NAME_None;
-		Bezier = FCRFourPointBezier();
+		Bezier = FRigVMFourPointBezier();
 		Alignment = EControlRigCurveAlignment::Stretched;
 		Minimum = 0.f;
 		Maximum = 1.f;
@@ -143,7 +143,7 @@ struct CONTROLRIG_API FRigUnit_FitChainToCurve : public FRigUnit_HighlevelBaseMu
 		PrimaryAxis = FVector(1.f, 0.f, 0.f);
 		SecondaryAxis = FVector(0.f, 0.f, 0.f);
 		PoleVectorPosition = FVector::ZeroVector;
-		RotationEaseType = EControlRigAnimEasingType::Linear;
+		RotationEaseType = ERigVMAnimEasingType::Linear;
 		Weight = 1.f;
 		bPropagateToChildren = true;
 		DebugSettings = FRigUnit_FitChainToCurve_DebugSettings();
@@ -168,7 +168,7 @@ struct CONTROLRIG_API FRigUnit_FitChainToCurve : public FRigUnit_HighlevelBaseMu
 	 * The curve to align to
 	 */
 	UPROPERTY(meta = (Input))
-	FCRFourPointBezier Bezier;
+	FRigVMFourPointBezier Bezier;
 
 	/** 
 	 * Specifies how to align the chain on the curve
@@ -224,7 +224,7 @@ struct CONTROLRIG_API FRigUnit_FitChainToCurve : public FRigUnit_HighlevelBaseMu
 	 * The easing to use between to rotations.
 	 */
 	UPROPERTY(meta = (Input, Constant))
-	EControlRigAnimEasingType RotationEaseType;
+	ERigVMAnimEasingType RotationEaseType;
 
 	/**
 	 * The weight of the solver - how much the rotation should be applied
@@ -261,7 +261,7 @@ struct CONTROLRIG_API FRigUnit_FitChainToCurvePerItem : public FRigUnit_Highleve
 
 	FRigUnit_FitChainToCurvePerItem()
 	{
-		Bezier = FCRFourPointBezier();
+		Bezier = FRigVMFourPointBezier();
 		Alignment = EControlRigCurveAlignment::Stretched;
 		Minimum = 0.f;
 		Maximum = 1.f;
@@ -269,7 +269,7 @@ struct CONTROLRIG_API FRigUnit_FitChainToCurvePerItem : public FRigUnit_Highleve
 		PrimaryAxis = FVector(1.f, 0.f, 0.f);
 		SecondaryAxis = FVector(0.f, 0.f, 0.f);
 		PoleVectorPosition = FVector::ZeroVector;
-		RotationEaseType = EControlRigAnimEasingType::Linear;
+		RotationEaseType = ERigVMAnimEasingType::Linear;
 		Weight = 1.f;
 		bPropagateToChildren = true;
 		DebugSettings = FRigUnit_FitChainToCurve_DebugSettings();
@@ -288,7 +288,7 @@ struct CONTROLRIG_API FRigUnit_FitChainToCurvePerItem : public FRigUnit_Highleve
 	 * The curve to align to
 	 */
 	UPROPERTY(meta = (Input))
-	FCRFourPointBezier Bezier;
+	FRigVMFourPointBezier Bezier;
 
 	/** 
 	 * Specifies how to align the chain on the curve
@@ -344,7 +344,7 @@ struct CONTROLRIG_API FRigUnit_FitChainToCurvePerItem : public FRigUnit_Highleve
 	 * The easing to use between to rotations.
 	 */
 	UPROPERTY(meta = (Input, Constant))
-	EControlRigAnimEasingType RotationEaseType;
+	ERigVMAnimEasingType RotationEaseType;
 
 	/**
 	 * The weight of the solver - how much the rotation should be applied
@@ -381,7 +381,7 @@ struct CONTROLRIG_API FRigUnit_FitChainToCurveItemArray : public FRigUnit_Highle
 
 	FRigUnit_FitChainToCurveItemArray()
 	{
-		Bezier = FCRFourPointBezier();
+		Bezier = FRigVMFourPointBezier();
 		Alignment = EControlRigCurveAlignment::Stretched;
 		Minimum = 0.f;
 		Maximum = 1.f;
@@ -389,7 +389,7 @@ struct CONTROLRIG_API FRigUnit_FitChainToCurveItemArray : public FRigUnit_Highle
 		PrimaryAxis = FVector(1.f, 0.f, 0.f);
 		SecondaryAxis = FVector(0.f, 0.f, 0.f);
 		PoleVectorPosition = FVector::ZeroVector;
-		RotationEaseType = EControlRigAnimEasingType::Linear;
+		RotationEaseType = ERigVMAnimEasingType::Linear;
 		Weight = 1.f;
 		bPropagateToChildren = true;
 		DebugSettings = FRigUnit_FitChainToCurve_DebugSettings();
@@ -408,7 +408,7 @@ struct CONTROLRIG_API FRigUnit_FitChainToCurveItemArray : public FRigUnit_Highle
 	 * The curve to align to
 	 */
 	UPROPERTY(meta = (Input))
-	FCRFourPointBezier Bezier;
+	FRigVMFourPointBezier Bezier;
 
 	/** 
 	 * Specifies how to align the chain on the curve
@@ -464,7 +464,7 @@ struct CONTROLRIG_API FRigUnit_FitChainToCurveItemArray : public FRigUnit_Highle
 	 * The easing to use between to rotations.
 	 */
 	UPROPERTY(meta = (Input, Constant))
-	EControlRigAnimEasingType RotationEaseType;
+	ERigVMAnimEasingType RotationEaseType;
 
 	/**
 	 * The weight of the solver - how much the rotation should be applied

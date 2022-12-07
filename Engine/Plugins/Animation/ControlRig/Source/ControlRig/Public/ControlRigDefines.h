@@ -33,34 +33,10 @@ enum class ETransformSpaceMode : uint8
 };
 
 UENUM()
-namespace EControlRigClampSpatialMode
-{
-	enum Type : int
-	{
-		Plane,
-		Cylinder,
-		Sphere
-	};
-}
-
-UENUM()
 enum class ETransformGetterType : uint8
 {
 	Initial,
 	Current,
-	Max UMETA(Hidden),
-};
-
-UENUM()
-enum class EBoneGetterSetterMode : uint8
-{
-	/** Apply in parent space */
-	LocalSpace,
-
-	/** Apply in rig space*/
-	GlobalSpace,
-
-	/** MAX - invalid */
 	Max UMETA(Hidden),
 };
 

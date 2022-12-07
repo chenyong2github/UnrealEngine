@@ -358,7 +358,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddBone : public FRigUnit_HierarchyAddEl
 	{
 		Name = TEXT("NewBone");
 		Transform = FTransform::Identity;
-		Space = EBoneGetterSetterMode::LocalSpace;
+		Space = ERigVMTransformSpace::LocalSpace;
 	}
 
 	virtual ERigElementType GetElementTypeToSpawn() const override { return ERigElementType::Bone; }
@@ -373,7 +373,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddBone : public FRigUnit_HierarchyAddEl
 	 * Defines if the transform should be interpreted in local or global space
 	 */ 
 	UPROPERTY(meta = (Input))
-	EBoneGetterSetterMode Space;
+	ERigVMTransformSpace Space;
 
 	RIGVM_METHOD()
 	virtual void Execute() override;
@@ -392,7 +392,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddNull : public FRigUnit_HierarchyAddEl
 	{
 		Name = TEXT("NewNull");
 		Transform = FTransform::Identity;
-		Space = EBoneGetterSetterMode::LocalSpace;
+		Space = ERigVMTransformSpace::LocalSpace;
 	}
 
 	virtual ERigElementType GetElementTypeToSpawn() const override { return ERigElementType::Null; }
@@ -407,7 +407,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddNull : public FRigUnit_HierarchyAddEl
 	 * Defines if the transform should be interpreted in local or global space
 	 */ 
 	UPROPERTY(meta = (Input))
-	EBoneGetterSetterMode Space;
+	ERigVMTransformSpace Space;
 
 	RIGVM_METHOD()
 	virtual void Execute() override;

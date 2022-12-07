@@ -21,7 +21,7 @@ FRigUnit_SetBoneInitialTransform_Execute()
 			return;
 		}
 
-		if (Space == EBoneGetterSetterMode::LocalSpace)
+		if (Space == ERigVMTransformSpace::LocalSpace)
 		{
 			Hierarchy->SetInitialLocalTransform(CachedBone, Transform);
 		}

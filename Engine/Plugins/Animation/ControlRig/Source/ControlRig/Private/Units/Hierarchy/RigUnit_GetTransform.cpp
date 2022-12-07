@@ -28,12 +28,12 @@ FRigUnit_GetTransform_Execute()
 			{
 				switch (Space)
 				{
-					case EBoneGetterSetterMode::GlobalSpace:
+					case ERigVMTransformSpace::GlobalSpace:
 					{
 						Transform = Hierarchy->GetInitialGlobalTransform(CachedIndex);
 						break;
 					}
-					case EBoneGetterSetterMode::LocalSpace:
+					case ERigVMTransformSpace::LocalSpace:
 					{
 						Transform = Hierarchy->GetInitialLocalTransform(CachedIndex);
 						break;
@@ -48,12 +48,12 @@ FRigUnit_GetTransform_Execute()
 			{
 				switch (Space)
 				{
-					case EBoneGetterSetterMode::GlobalSpace:
+					case ERigVMTransformSpace::GlobalSpace:
 					{
 						Transform = Hierarchy->GetGlobalTransform(CachedIndex);
 						break;
 					}
-					case EBoneGetterSetterMode::LocalSpace:
+					case ERigVMTransformSpace::LocalSpace:
 					{
 						Transform = Hierarchy->GetLocalTransform(CachedIndex);
 						break;

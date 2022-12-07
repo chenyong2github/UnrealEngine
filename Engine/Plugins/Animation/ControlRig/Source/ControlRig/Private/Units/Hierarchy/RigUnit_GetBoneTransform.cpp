@@ -21,12 +21,12 @@ FRigUnit_GetBoneTransform_Execute()
 		{
 			switch (Space)
 			{
-				case EBoneGetterSetterMode::GlobalSpace:
+				case ERigVMTransformSpace::GlobalSpace:
 				{
 					Transform = Hierarchy->GetGlobalTransform(CachedBone);
 					break;
 				}
-				case EBoneGetterSetterMode::LocalSpace:
+				case ERigVMTransformSpace::LocalSpace:
 				{
 					Transform = Hierarchy->GetLocalTransform(CachedBone);
 					break;
@@ -60,26 +60,26 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_GetBoneTransform)
 	const FRigElementKey BoneA = Controller->AddBone(TEXT("BoneA"), Root, FTransform(FVector(1.f, 2.f, 3.f)), true, ERigBoneType::User);
 
 	Unit.Bone = TEXT("Unknown");
-	Unit.Space = EBoneGetterSetterMode::GlobalSpace;
+	Unit.Space = ERigVMTransformSpace::GlobalSpace;
 	Execute();
 	AddErrorIfFalse(Unit.Transform.GetTranslation().Equals(FVector(0.f, 0.f, 0.f)), TEXT("unexpected global transform"));
-	Unit.Space = EBoneGetterSetterMode::LocalSpace;
+	Unit.Space = ERigVMTransformSpace::LocalSpace;
 	Execute();
 	AddErrorIfFalse(Unit.Transform.GetTranslation().Equals(FVector(0.f, 0.f, 0.f)), TEXT("unexpected local transform"));
 
 	Unit.Bone = TEXT("Root");
-	Unit.Space = EBoneGetterSetterMode::GlobalSpace;
+	Unit.Space = ERigVMTransformSpace::GlobalSpace;
 	Execute();
 	AddErrorIfFalse(Unit.Transform.GetTranslation().Equals(FVector(1.f, 0.f, 0.f)), TEXT("unexpected global transform"));
-	Unit.Space = EBoneGetterSetterMode::LocalSpace;
+	Unit.Space = ERigVMTransformSpace::LocalSpace;
 	Execute();
 	AddErrorIfFalse(Unit.Transform.GetTranslation().Equals(FVector(1.f, 0.f, 0.f)), TEXT("unexpected local transform"));
 
 	Unit.Bone = TEXT("BoneA");
-	Unit.Space = EBoneGetterSetterMode::GlobalSpace;
+	Unit.Space = ERigVMTransformSpace::GlobalSpace;
 	Execute();
 	AddErrorIfFalse(Unit.Transform.GetTranslation().Equals(FVector(1.f, 2.f, 3.f)), TEXT("unexpected global transform"));
-	Unit.Space = EBoneGetterSetterMode::LocalSpace;
+	Unit.Space = ERigVMTransformSpace::LocalSpace;
 	Execute();
 	AddErrorIfFalse(Unit.Transform.GetTranslation().Equals(FVector(0.f, 2.f, 3.f)), TEXT("unexpected local transform"));
 

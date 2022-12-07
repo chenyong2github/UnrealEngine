@@ -324,55 +324,6 @@ FRigElementKeyCollection FRigElementKeyCollection::FilterByName(const FName& InP
 	return Collection;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// FRigMirrorSettings
-////////////////////////////////////////////////////////////////////////////////
-
-FTransform FRigMirrorSettings::MirrorTransform(const FTransform& InTransform) const
-{
-	FTransform Transform = InTransform;
-	FQuat Quat = Transform.GetRotation();
-
-	Transform.SetLocation(MirrorVector(Transform.GetLocation()));
-
-	switch (AxisToFlip)
-	{
-	case EAxis::X:
-		{
-			FVector Y = MirrorVector(Quat.GetAxisY());
-			FVector Z = MirrorVector(Quat.GetAxisZ());
-			FMatrix Rotation = FRotationMatrix::MakeFromYZ(Y, Z);
-			Transform.SetRotation(FQuat(Rotation));
-			break;
-		}
-	case EAxis::Y:
-		{
-			FVector X = MirrorVector(Quat.GetAxisX());
-			FVector Z = MirrorVector(Quat.GetAxisZ());
-			FMatrix Rotation = FRotationMatrix::MakeFromXZ(X, Z);
-			Transform.SetRotation(FQuat(Rotation));
-			break;
-		}
-	default:
-		{
-			FVector X = MirrorVector(Quat.GetAxisX());
-			FVector Y = MirrorVector(Quat.GetAxisY());
-			FMatrix Rotation = FRotationMatrix::MakeFromXY(X, Y);
-			Transform.SetRotation(FQuat(Rotation));
-			break;
-		}
-	}
-
-	return Transform;
-}
-
-FVector FRigMirrorSettings::MirrorVector(const FVector& InVector) const
-{
-	FVector Axis = FVector::ZeroVector;
-	Axis.SetComponentForAxis(MirrorAxis, 1.f);
-	return InVector.MirrorByVector(Axis);
-}
-
 FArchive& operator<<(FArchive& Ar, FRigControlValue& Value)
 {
 	Ar <<  Value.FloatStorage.Float00;

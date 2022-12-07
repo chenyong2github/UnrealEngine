@@ -23,7 +23,7 @@ FRigUnit_SetControlOffset_Execute()
 		}
 
 		FRigControlElement* ControlElement = Hierarchy->Get<FRigControlElement>(CachedControlIndex);
-		if (Space == EBoneGetterSetterMode::GlobalSpace)
+		if (Space == ERigVMTransformSpace::GlobalSpace)
 		{
 			Hierarchy->SetControlOffsetTransform(ControlElement, Offset, ERigTransformType::CurrentGlobal, true, false);
 			Hierarchy->SetControlOffsetTransform(ControlElement, Offset, ERigTransformType::InitialGlobal, true, false);

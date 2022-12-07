@@ -22,7 +22,7 @@ FRigUnit_SetSpaceInitialTransform_Execute()
 		}
 
 		FTransform InitialTransform = Transform;
-		if (Space == EBoneGetterSetterMode::GlobalSpace)
+		if (Space == ERigVMTransformSpace::GlobalSpace)
 		{
 			const FTransform ParentTransform = Hierarchy->GetParentTransformByIndex(CachedSpaceIndex, true);
 			InitialTransform = InitialTransform.GetRelativeTransform(ParentTransform);

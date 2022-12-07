@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigUnit_Float.h"
-#include "Units/Math/RigUnit_MathFloat.h"
+#include "RigVMFunctions/Math/RigVMFunction_MathFloat.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_Float)
 
@@ -12,7 +12,7 @@ FRigUnit_Multiply_FloatFloat_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_Multiply_FloatFloat::GetUpgradeInfo() const
 {
-	FRigUnit_MathFloatMul NewNode;
+	FRigVMFunction_MathFloatMul NewNode;
 	NewNode.A = Argument0;
 	NewNode.B = Argument1;
 
@@ -29,7 +29,7 @@ FRigUnit_Add_FloatFloat_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_Add_FloatFloat::GetUpgradeInfo() const
 {
-	FRigUnit_MathFloatAdd NewNode;
+	FRigVMFunction_MathFloatAdd NewNode;
 	NewNode.A = Argument0;
 	NewNode.B = Argument1;
 
@@ -46,7 +46,7 @@ FRigUnit_Subtract_FloatFloat_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_Subtract_FloatFloat::GetUpgradeInfo() const
 {
-	FRigUnit_MathFloatSub NewNode;
+	FRigVMFunction_MathFloatSub NewNode;
 	NewNode.A = Argument0;
 	NewNode.B = Argument1;
 
@@ -63,7 +63,7 @@ FRigUnit_Divide_FloatFloat_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_Divide_FloatFloat::GetUpgradeInfo() const
 {
-	FRigUnit_MathFloatDiv NewNode;
+	FRigVMFunction_MathFloatDiv NewNode;
 	NewNode.A = Argument0;
 	NewNode.B = Argument1;
 
@@ -80,7 +80,7 @@ FRigUnit_Clamp_Float_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_Clamp_Float::GetUpgradeInfo() const
 {
-	FRigUnit_MathFloatClamp NewNode;
+	FRigVMFunction_MathFloatClamp NewNode;
 	NewNode.Value = Value;
 	NewNode.Minimum = Min;
 	NewNode.Maximum = Max;
@@ -98,7 +98,7 @@ FRigUnit_MapRange_Float_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_MapRange_Float::GetUpgradeInfo() const
 {
-	FRigUnit_MathFloatRemap NewNode;
+	FRigVMFunction_MathFloatRemap NewNode;
 	NewNode.Value = Value;
 	NewNode.SourceMinimum = MinIn;
 	NewNode.SourceMaximum = MaxIn;

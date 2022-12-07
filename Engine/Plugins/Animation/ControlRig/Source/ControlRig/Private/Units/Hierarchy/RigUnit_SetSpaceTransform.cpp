@@ -19,7 +19,7 @@ FRigUnit_SetSpaceTransform_Execute()
 		{
 			switch (SpaceType)
 			{
-				case EBoneGetterSetterMode::GlobalSpace:
+				case ERigVMTransformSpace::GlobalSpace:
 				{
 					if(FMath::IsNearlyEqual(Weight, 1.f))
 					{
@@ -32,7 +32,7 @@ FRigUnit_SetSpaceTransform_Execute()
 					}
 					break;
 				}
-				case EBoneGetterSetterMode::LocalSpace:
+				case ERigVMTransformSpace::LocalSpace:
 				{
 					if(FMath::IsNearlyEqual(Weight, 1.f))
 					{

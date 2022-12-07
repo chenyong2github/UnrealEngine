@@ -243,7 +243,7 @@ struct CONTROLRIGSPLINE_API FRigUnit_FitChainToSplineCurve : public FRigUnit_Hig
 		PrimaryAxis = FVector(1.f, 0.f, 0.f);
 		SecondaryAxis = FVector(0.f, 0.f, 0.f);
 		PoleVectorPosition = FVector::ZeroVector;
-		RotationEaseType = EControlRigAnimEasingType::Linear;
+		RotationEaseType = ERigVMAnimEasingType::Linear;
 		Weight = 1.f;
 		bPropagateToChildren = true;
 		DebugSettings = FRigUnit_FitChainToCurve_DebugSettings();
@@ -318,7 +318,7 @@ struct CONTROLRIGSPLINE_API FRigUnit_FitChainToSplineCurve : public FRigUnit_Hig
 	 * The easing to use between to rotations.
 	 */
 	UPROPERTY(meta = (Input, Constant))
-	EControlRigAnimEasingType RotationEaseType;
+	ERigVMAnimEasingType RotationEaseType;
 
 	/**
 	 * The weight of the solver - how much the rotation should be applied
@@ -362,7 +362,7 @@ struct CONTROLRIGSPLINE_API FRigUnit_FitChainToSplineCurveItemArray : public FRi
 		PrimaryAxis = FVector(1.f, 0.f, 0.f);
 		SecondaryAxis = FVector(0.f, 0.f, 0.f);
 		PoleVectorPosition = FVector::ZeroVector;
-		RotationEaseType = EControlRigAnimEasingType::Linear;
+		RotationEaseType = ERigVMAnimEasingType::Linear;
 		Weight = 1.f;
 		bPropagateToChildren = true;
 		DebugSettings = FRigUnit_FitChainToCurve_DebugSettings();
@@ -437,7 +437,7 @@ struct CONTROLRIGSPLINE_API FRigUnit_FitChainToSplineCurveItemArray : public FRi
 	 * The easing to use between to rotations.
 	 */
 	UPROPERTY(meta = (Input, Constant))
-	EControlRigAnimEasingType RotationEaseType;
+	ERigVMAnimEasingType RotationEaseType;
 
 	/**
 	 * The weight of the solver - how much the rotation should be applied

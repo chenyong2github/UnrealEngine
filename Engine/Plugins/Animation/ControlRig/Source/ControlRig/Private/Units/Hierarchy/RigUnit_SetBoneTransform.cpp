@@ -2,6 +2,7 @@
 
 #include "RigUnit_SetBoneTransform.h"
 #include "Units/RigUnitContext.h"
+#include "Math/ControlRigMathLibrary.h"
 #include "Units/Hierarchy/RigUnit_SetTransform.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_SetBoneTransform)
@@ -22,7 +23,7 @@ FRigUnit_SetBoneTransform_Execute()
 		{
 			switch (Space)
 			{
-				case EBoneGetterSetterMode::GlobalSpace:
+				case ERigVMTransformSpace::GlobalSpace:
 				{
 					if (FMath::IsNearlyEqual(Weight, 1.f))
 					{
@@ -37,7 +38,7 @@ FRigUnit_SetBoneTransform_Execute()
 					Hierarchy->SetGlobalTransform(CachedBone, Result, bPropagateToChildren);
 					break;
 				}
-				case EBoneGetterSetterMode::LocalSpace:
+				case ERigVMTransformSpace::LocalSpace:
 				{
 					if (FMath::IsNearlyEqual(Weight, 1.f))
 					{
@@ -87,7 +88,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetBoneTransform)
 
 	Hierarchy->ResetPoseToInitial(ERigElementType::Bone);
 	Unit.Bone = TEXT("Root");
-	Unit.Space = EBoneGetterSetterMode::GlobalSpace;
+	Unit.Space = ERigVMTransformSpace::GlobalSpace;
 	Unit.Transform = FTransform(FVector(0.f, 0.f, 7.f));
 	Unit.bPropagateToChildren = false;
 	Execute();
@@ -96,7 +97,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetBoneTransform)
 	AddErrorIfFalse(Hierarchy->GetGlobalTransform(2).GetTranslation().Equals(FVector(1.f, 5.f, 3.f)), TEXT("unexpected transform"));
 
 	Hierarchy->ResetPoseToInitial(ERigElementType::Bone);
-	Unit.Space = EBoneGetterSetterMode::LocalSpace;
+	Unit.Space = ERigVMTransformSpace::LocalSpace;
 	Execute();
 	AddErrorIfFalse(Hierarchy->GetGlobalTransform(0).GetTranslation().Equals(FVector(0.f, 0.f, 7.f)), TEXT("unexpected transform"));
 	AddErrorIfFalse(Hierarchy->GetGlobalTransform(1).GetTranslation().Equals(FVector(1.f, 2.f, 3.f)), TEXT("unexpected transform"));
@@ -111,7 +112,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetBoneTransform)
 
 	Hierarchy->ResetPoseToInitial(ERigElementType::Bone);
 	Unit.Bone = TEXT("BoneA");
-	Unit.Space = EBoneGetterSetterMode::GlobalSpace;
+	Unit.Space = ERigVMTransformSpace::GlobalSpace;
 	Unit.bPropagateToChildren = false;
 	Execute();
 	AddErrorIfFalse(Hierarchy->GetGlobalTransform(0).GetTranslation().Equals(FVector(1.f, 0.f, 0.f)), TEXT("unexpected transform"));
@@ -119,7 +120,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetBoneTransform)
 	AddErrorIfFalse(Hierarchy->GetGlobalTransform(2).GetTranslation().Equals(FVector(1.f, 5.f, 3.f)), TEXT("unexpected transform"));
 
 	Hierarchy->ResetPoseToInitial(ERigElementType::Bone);
-	Unit.Space = EBoneGetterSetterMode::LocalSpace;
+	Unit.Space = ERigVMTransformSpace::LocalSpace;
 	Execute();
 	AddErrorIfFalse(Hierarchy->GetGlobalTransform(0).GetTranslation().Equals(FVector(1.f, 0.f, 0.f)), TEXT("unexpected transform"));
 	AddErrorIfFalse(Hierarchy->GetGlobalTransform(1).GetTranslation().Equals(FVector(1.f, 0.f, 7.f)), TEXT("unexpected transform"));

@@ -506,7 +506,7 @@ public:
 	 * @return The keys of the mirrored items
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchyController)
-    TArray<FRigElementKey> MirrorElements(TArray<FRigElementKey> InKeys, FRigMirrorSettings InSettings, bool bSelectNewElements = true, bool bSetupUndo = false, bool bPrintPythonCommands = false);
+    TArray<FRigElementKey> MirrorElements(TArray<FRigElementKey> InKeys, FRigVMMirrorSettings InSettings, bool bSelectNewElements = true, bool bSetupUndo = false, bool bPrintPythonCommands = false);
 
 	/**
 	 * Returns the modified event, which can be used to 

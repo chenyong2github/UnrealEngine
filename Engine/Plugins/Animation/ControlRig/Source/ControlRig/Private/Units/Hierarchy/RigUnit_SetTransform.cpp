@@ -6,6 +6,7 @@
 #include "Units/Execution/RigUnit_PrepareForExecution.h"
 #include "Units/Execution/RigUnit_BeginExecution.h"
 #include "Units/Hierarchy/RigUnit_SetControlOffset.h"
+#include "Math/ControlRigMathLibrary.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_SetTransform)
 
@@ -64,12 +65,12 @@ FRigUnit_SetTransform_Execute()
 				FTransform PreviousTransform = WeightedTransform;
 				switch (Space)
 				{
-					case EBoneGetterSetterMode::GlobalSpace:
+					case ERigVMTransformSpace::GlobalSpace:
 					{
 						PreviousTransform = Hierarchy->GetGlobalTransformByIndex(CachedIndex, bInitial);
 						break;
 					}
-					case EBoneGetterSetterMode::LocalSpace:
+					case ERigVMTransformSpace::LocalSpace:
 					{
 						PreviousTransform = Hierarchy->GetLocalTransformByIndex(CachedIndex, bInitial);
 						break;
@@ -84,7 +85,7 @@ FRigUnit_SetTransform_Execute()
 
 			switch (Space)
 			{
-				case EBoneGetterSetterMode::GlobalSpace:
+				case ERigVMTransformSpace::GlobalSpace:
 				{
 					Hierarchy->SetGlobalTransformByIndex(CachedIndex, WeightedTransform, bInitial, bPropagateToChildren);
 
@@ -94,7 +95,7 @@ FRigUnit_SetTransform_Execute()
 					}
 					break;
 				}
-				case EBoneGetterSetterMode::LocalSpace:
+				case ERigVMTransformSpace::LocalSpace:
 				{
 					Hierarchy->SetLocalTransformByIndex(CachedIndex, WeightedTransform, bInitial, bPropagateToChildren);
 

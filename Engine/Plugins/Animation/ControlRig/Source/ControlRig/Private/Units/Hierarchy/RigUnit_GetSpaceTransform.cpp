@@ -16,12 +16,12 @@ FRigUnit_GetSpaceTransform_Execute()
 		{
 			switch (SpaceType)
 			{
-				case EBoneGetterSetterMode::GlobalSpace:
+				case ERigVMTransformSpace::GlobalSpace:
 				{
 					Transform = Hierarchy->GetGlobalTransform(CachedSpaceIndex);
 					break;
 				}
-				case EBoneGetterSetterMode::LocalSpace:
+				case ERigVMTransformSpace::LocalSpace:
 				{
 					Transform = Hierarchy->GetLocalTransform(CachedSpaceIndex);
 					break;

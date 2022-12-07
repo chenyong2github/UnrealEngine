@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigUnit_PropagateTransform.h"
-#include "Units/Math/RigUnit_MathTransform.h"
+#include "RigVMFunctions/Math/RigVMFunction_MathTransform.h"
 #include "Units/Hierarchy/RigUnit_GetTransform.h"
 #include "Units/Hierarchy/RigUnit_SetTransform.h"
 #include "Units/RigUnitContext.h"

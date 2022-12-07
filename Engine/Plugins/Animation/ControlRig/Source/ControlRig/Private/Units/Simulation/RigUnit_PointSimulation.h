@@ -132,7 +132,7 @@ struct CONTROLRIG_API FRigUnit_PointSimulation : public FRigUnit_SimBaseMutable
 		PrimaryAimAxis = FVector(1.f, 0.f, 0.f);
 		SecondaryAimAxis = FVector(0.f, 1.f, 0.f);
 		DebugSettings = FRigUnit_PointSimulation_DebugSettings();
-		Bezier = FCRFourPointBezier();
+		Bezier = FRigVMFourPointBezier();
 	}
 
 	RIGVM_METHOD()
@@ -199,7 +199,7 @@ struct CONTROLRIG_API FRigUnit_PointSimulation : public FRigUnit_SimBaseMutable
 
 	/** If the simulation has at least four points they will be stored in here. */
 	UPROPERTY(meta = (Output))
-	FCRFourPointBezier Bezier;
+	FRigVMFourPointBezier Bezier;
 
 	UPROPERTY(transient)
 	FRigUnit_PointSimulation_WorkData WorkData;

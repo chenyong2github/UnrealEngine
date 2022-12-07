@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigUnit_GetRelativeTransform.h"
-#include "Units/Math/RigUnit_MathTransform.h"
+#include "RigVMFunctions/Math/RigVMFunction_MathTransform.h"
 #include "Units/Hierarchy/RigUnit_GetTransform.h"
 #include "Units/RigUnitContext.h"
 
@@ -14,7 +14,7 @@ FRigUnit_GetRelativeTransformForItem_Execute()
 	FTransform ChildTransform = FTransform::Identity;
 	FTransform ParentTransform = FTransform::Identity;
 
-	FRigUnit_GetTransform::StaticExecute(ExecuteContext, Child, EBoneGetterSetterMode::GlobalSpace, bChildInitial, ChildTransform, CachedChild);
-	FRigUnit_GetTransform::StaticExecute(ExecuteContext, Parent, EBoneGetterSetterMode::GlobalSpace, bParentInitial, ParentTransform, CachedParent);
-	FRigUnit_MathTransformMakeRelative::StaticExecute(ExecuteContext, ChildTransform, ParentTransform, RelativeTransform);
+	FRigUnit_GetTransform::StaticExecute(ExecuteContext, Child, ERigVMTransformSpace::GlobalSpace, bChildInitial, ChildTransform, CachedChild);
+	FRigUnit_GetTransform::StaticExecute(ExecuteContext, Parent, ERigVMTransformSpace::GlobalSpace, bParentInitial, ParentTransform, CachedParent);
+	FRigVMFunction_MathTransformMakeRelative::StaticExecute(ExecuteContext, ChildTransform, ParentTransform, RelativeTransform);
 }

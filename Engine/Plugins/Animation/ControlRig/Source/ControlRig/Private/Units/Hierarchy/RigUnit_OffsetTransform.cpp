@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigUnit_OffsetTransform.h"
-#include "Units/Math/RigUnit_MathTransform.h"
+#include "RigVMFunctions/Math/RigVMFunction_MathTransform.h"
 #include "Units/Hierarchy/RigUnit_GetTransform.h"
 #include "Units/Hierarchy/RigUnit_SetTransform.h"
 #include "Units/RigUnitContext.h"
@@ -20,7 +20,7 @@ FRigUnit_OffsetTransformForItem_Execute()
 	FTransform PreviousTransform = FTransform::Identity;
 	FTransform GlobalTransform = FTransform::Identity;
 
-	FRigUnit_GetTransform::StaticExecute(ExecuteContext, Item, EBoneGetterSetterMode::GlobalSpace, false, PreviousTransform, CachedIndex);
-	FRigUnit_MathTransformMakeAbsolute::StaticExecute(ExecuteContext, OffsetTransform, PreviousTransform, GlobalTransform);
-	FRigUnit_SetTransform::StaticExecute(ExecuteContext, Item, EBoneGetterSetterMode::GlobalSpace, false, GlobalTransform, Weight, bPropagateToChildren, CachedIndex);
+	FRigUnit_GetTransform::StaticExecute(ExecuteContext, Item, ERigVMTransformSpace::GlobalSpace, false, PreviousTransform, CachedIndex);
+	FRigVMFunction_MathTransformMakeAbsolute::StaticExecute(ExecuteContext, OffsetTransform, PreviousTransform, GlobalTransform);
+	FRigUnit_SetTransform::StaticExecute(ExecuteContext, Item, ERigVMTransformSpace::GlobalSpace, false, GlobalTransform, Weight, bPropagateToChildren, CachedIndex);
 }

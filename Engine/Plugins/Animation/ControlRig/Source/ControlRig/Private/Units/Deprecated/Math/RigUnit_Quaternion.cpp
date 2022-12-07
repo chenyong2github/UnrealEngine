@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigUnit_Quaternion.h"
-#include "Units/Math/RigUnit_MathQuaternion.h"
+#include "RigVMFunctions/Math/RigVMFunction_MathQuaternion.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_Quaternion)
 
@@ -13,7 +13,7 @@ FRigUnit_MultiplyQuaternion_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_MultiplyQuaternion::GetUpgradeInfo() const
 {
-	FRigUnit_MathQuaternionMul NewNode;
+	FRigVMFunction_MathQuaternionMul NewNode;
 	NewNode.A = Argument0;
 	NewNode.B = Argument1;
 
@@ -31,7 +31,7 @@ FRigUnit_InverseQuaterion_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_InverseQuaterion::GetUpgradeInfo() const
 {
-	FRigUnit_MathQuaternionInverse NewNode;
+	FRigVMFunction_MathQuaternionInverse NewNode;
 	NewNode.Value = Argument;
 
 	FRigVMStructUpgradeInfo Info(*this, NewNode);
@@ -48,7 +48,7 @@ FRigUnit_QuaternionToAxisAndAngle_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_QuaternionToAxisAndAngle::GetUpgradeInfo() const
 {
-	FRigUnit_MathQuaternionToAxisAndAngle NewNode;
+	FRigVMFunction_MathQuaternionToAxisAndAngle NewNode;
 	NewNode.Value = Argument;
 
 	FRigVMStructUpgradeInfo Info(*this, NewNode);
@@ -64,7 +64,7 @@ FRigUnit_QuaternionFromAxisAndAngle_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_QuaternionFromAxisAndAngle::GetUpgradeInfo() const
 {
-	FRigUnit_MathQuaternionToAxisAndAngle NewNode;
+	FRigVMFunction_MathQuaternionToAxisAndAngle NewNode;
 	NewNode.Axis = Axis;
 	NewNode.Angle = Angle;
 

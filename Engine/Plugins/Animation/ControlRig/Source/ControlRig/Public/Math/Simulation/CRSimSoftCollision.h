@@ -26,7 +26,7 @@ struct FCRSimSoftCollision
 		ShapeType = ECRSimSoftCollisionType::Sphere;
 		MinimumDistance = 10.f;
 		MaximumDistance = 20.f;
-		FalloffType = EControlRigAnimEasingType::CubicEaseIn;
+		FalloffType = ERigVMAnimEasingType::CubicEaseIn;
 		Coefficient = 64.f;
 		bInverted = false;
 	}
@@ -63,7 +63,7 @@ struct FCRSimSoftCollision
 	 * The type of falloff to use
 	 */
 	UPROPERTY(EditAnywhere, Category=Simulation)
-	EControlRigAnimEasingType FalloffType;
+	ERigVMAnimEasingType FalloffType;
 
 	/**
 	 * The strength of the collision force

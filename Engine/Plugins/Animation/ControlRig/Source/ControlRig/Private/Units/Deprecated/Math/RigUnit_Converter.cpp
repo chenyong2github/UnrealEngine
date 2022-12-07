@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigUnit_Converter.h"
-#include "Units/Math/RigUnit_MathTransform.h"
-#include "Units/Math/RigUnit_MathQuaternion.h"
+#include "RigVMFunctions/Math/RigVMFunction_MathTransform.h"
+#include "RigVMFunctions/Math/RigVMFunction_MathQuaternion.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_Converter)
 
@@ -13,7 +13,7 @@ FRigUnit_ConvertTransform_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_ConvertTransform::GetUpgradeInfo() const
 {
-	FRigUnit_MathTransformToEulerTransform NewNode;
+	FRigVMFunction_MathTransformToEulerTransform NewNode;
 	NewNode.Value = Input;
 
 	FRigVMStructUpgradeInfo Info(*this, NewNode);
@@ -29,7 +29,7 @@ FRigUnit_ConvertEulerTransform_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_ConvertEulerTransform::GetUpgradeInfo() const
 {
-	FRigUnit_MathTransformFromEulerTransform NewNode;
+	FRigVMFunction_MathTransformFromEulerTransform NewNode;
 	NewNode.EulerTransform = Input;
 
 	FRigVMStructUpgradeInfo Info(*this, NewNode);
@@ -44,7 +44,7 @@ FRigUnit_ConvertRotation_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_ConvertRotation::GetUpgradeInfo() const
 {
-	FRigUnit_MathQuaternionFromRotator NewNode;
+	FRigVMFunction_MathQuaternionFromRotator NewNode;
 	NewNode.Rotator = Input;
 
 	FRigVMStructUpgradeInfo Info(*this, NewNode);
@@ -59,7 +59,7 @@ FRigUnit_ConvertQuaternion_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_ConvertQuaternion::GetUpgradeInfo() const
 {
-	FRigUnit_MathQuaternionToRotator NewNode;
+	FRigVMFunction_MathQuaternionToRotator NewNode;
 	NewNode.Value = Input;
 
 	FRigVMStructUpgradeInfo Info(*this, NewNode);
@@ -123,7 +123,7 @@ FRigUnit_ToSwingAndTwist_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_ToSwingAndTwist::GetUpgradeInfo() const
 {
-	FRigUnit_MathQuaternionSwingTwist NewNode;
+	FRigVMFunction_MathQuaternionSwingTwist NewNode;
 	NewNode.Input = Input;
 	NewNode.TwistAxis = TwistAxis;
 

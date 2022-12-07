@@ -65,7 +65,7 @@ struct LIVELINKCONTROLRIG_API FRigUnit_LiveLinkGetTransformByName : public FRigU
 	FName TransformName;
 
 	UPROPERTY(meta = (Input))
-	EBoneGetterSetterMode Space = EBoneGetterSetterMode::LocalSpace;
+	ERigVMTransformSpace Space = ERigVMTransformSpace::LocalSpace;
 
 	UPROPERTY(meta = (Output))
 	FTransform Transform;

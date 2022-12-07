@@ -6,6 +6,7 @@
 #include "RigVMCore/RigVMStruct.h"
 #include "RigVMCore/RigVMRegistry.h"
 #include "RigUnitContext.h"
+#include "RigVMFunctions/RigVMFunctionDefines.h"
 #include "RigUnit.generated.h"
 
 struct FRigUnitContext;
@@ -21,15 +22,6 @@ struct CONTROLRIG_API FRigUnit : public FRigVMStruct
 
 	/** Virtual destructor */
 	virtual ~FRigUnit() {}
-
-	/** Returns the label of this unit */
-	virtual FString GetUnitLabel() const { return FString(); }
-
-	/** initialize logic for this rig unit */
-	virtual void Initialize() {}
-
-	/** Execute logic for this rig unit */
-	virtual void Execute() {}
 
 	virtual FRigElementKey DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const { return FRigElementKey(); }
 	

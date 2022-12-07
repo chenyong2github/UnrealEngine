@@ -15,7 +15,7 @@ struct CONTROLRIG_API FRigUnit_SetSpaceInitialTransform : public FRigUnitMutable
 	GENERATED_BODY()
 
 	FRigUnit_SetSpaceInitialTransform()
-		: Space(EBoneGetterSetterMode::GlobalSpace)
+		: Space(ERigVMTransformSpace::GlobalSpace)
 	{}
 
 	RIGVM_METHOD()
@@ -44,7 +44,7 @@ struct CONTROLRIG_API FRigUnit_SetSpaceInitialTransform : public FRigUnitMutable
 	 * in local or global space.
 	 */
 	UPROPERTY(meta = (Input))
-	EBoneGetterSetterMode Space;
+	ERigVMTransformSpace Space;
 
 	// user to internally cache the index of the bone
 	UPROPERTY()

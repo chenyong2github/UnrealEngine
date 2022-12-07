@@ -48,6 +48,7 @@
 #include "Styling/AppStyle.h"
 #include "Algo/MinElement.h"
 #include "Algo/MaxElement.h"
+#include "RigVMFunctions/Math/RigVMMathLibrary.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SRigHierarchy)
 
@@ -1863,8 +1864,8 @@ void SRigHierarchy::HandleMirrorItem()
 		URigHierarchyController* Controller = Hierarchy->GetController(true);
 		check(Controller);
 		
-		FRigMirrorSettings Settings;
-		TSharedPtr<FStructOnScope> StructToDisplay = MakeShareable(new FStructOnScope(FRigMirrorSettings::StaticStruct(), (uint8*)&Settings));
+		FRigVMMirrorSettings Settings;
+		TSharedPtr<FStructOnScope> StructToDisplay = MakeShareable(new FStructOnScope(FRigVMMirrorSettings::StaticStruct(), (uint8*)&Settings));
 
 		TSharedRef<SKismetInspector> KismetInspector = SNew(SKismetInspector);
 		KismetInspector->ShowSingleStruct(StructToDisplay);
