@@ -3847,7 +3847,6 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	static FTransform MakeRelativeTransform(const FTransform& A, const FTransform& RelativeTo);
 
 	UE_DEPRECATED(4.22, "Use MakeRelativeTransform instead, with reversed order of arguments.")
-	UFUNCTION(BlueprintPure, meta=(Keywords="cast convert"), Category="Math|Transform")
 	static FTransform ConvertTransformToRelative(const FTransform& Transform, const FTransform& ParentTransform);
 
 	/** 
