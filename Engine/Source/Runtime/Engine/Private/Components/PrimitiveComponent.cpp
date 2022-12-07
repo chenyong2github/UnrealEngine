@@ -3106,11 +3106,12 @@ void UPrimitiveComponent::EndComponentOverlap(const FOverlapInfo& OtherOverlap, 
 		GlobalOverlapEventsCounter++;
 		OverlappingComponents.RemoveAtSwap(OverlapIdx, 1, false);
 
+		AActor* const MyActor = GetOwner();
 		const UWorld* World = GetWorld();
-		if (bDoNotifies && World && World->HasBegunPlay())
+		const bool bLevelStreamingOverlap = (bDoNotifies && MyActor && MyActor->bGenerateOverlapEventsDuringLevelStreaming && MyActor->IsActorBeginningPlayFromLevelStreaming());
+		if (bDoNotifies && ((World && World->HasBegunPlay()) || bLevelStreamingOverlap))
 		{
 			AActor* const OtherActor = OtherComp->GetOwner();
-			AActor* const MyActor = GetOwner();
 			if (OtherActor)
 			{
 				if (!bSkipNotifySelf && IsPrimCompValidAndAlive(this))
