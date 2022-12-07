@@ -158,6 +158,8 @@ FRHIParameterBatcher::FRHIParameterBatcher(const FBoundShaderStateInput& InBound
 	AllBatchedShaders[SF_Pixel] = InBoundShaderStateInput.GetPixelShader();
 	AllBatchedShaders[SF_Geometry] = InBoundShaderStateInput.GetGeometryShader();
 	AllBatchedShaders[SF_Compute] = InBoundComputeShaderRHI;
+
+	bEnabled = GRHICommandParameterBatching != 0;
 }
 
 FRHIParameterBatcher::FRHIParameterBatcher(FRHIParameterBatcher&&) = default;
