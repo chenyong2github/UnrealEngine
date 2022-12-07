@@ -10,6 +10,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "Misc/Guid.h"
 #include "InputCoreTypes.h"
+#include "Interfaces/IPhysicsComponent.h"
 #include "Templates/SubclassOf.h"
 #include "Engine/EngineTypes.h"
 #include "Engine/ScopedMovementUpdate.h"
@@ -255,7 +256,7 @@ DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_TwoParams( FComponentEndTouchOverSigna
  * ShapeComponents generate geometry that is used for collision detection but are not rendered, while StaticMeshComponents and SkeletalMeshComponents contain pre-built geometry that is rendered, but can also be used for collision detection.
  */
 UCLASS(abstract, HideCategories=(Mobility, VirtualTexture), ShowCategories=(PhysicsVolume))
-class ENGINE_API UPrimitiveComponent : public USceneComponent, public INavRelevantInterface, public IInterface_AsyncCompilation
+class ENGINE_API UPrimitiveComponent : public USceneComponent, public INavRelevantInterface, public IInterface_AsyncCompilation, public IPhysicsComponent
 {
 	GENERATED_BODY()
 
@@ -2739,6 +2740,13 @@ public:
 	void DispatchOnReleased(FKey ButtonReleased = EKeys::LeftMouseButton);
 	void DispatchOnInputTouchBegin(const ETouchIndex::Type Key);
 	void DispatchOnInputTouchEnd(const ETouchIndex::Type Key);
+
+	//~ Begin IPhysicsComponent Interface.
+public:
+	virtual Chaos::FPhysicsObject* GetPhysicsObjectById(int32 Id) const override;
+	virtual Chaos::FPhysicsObject* GetPhysicsObjectByName(const FName& Name) const override;
+	virtual TArray<Chaos::FPhysicsObject*> GetAllPhysicsObjects() const override;
+	//~ End IPhysicsComponent Interface.
 };
 
 /** 

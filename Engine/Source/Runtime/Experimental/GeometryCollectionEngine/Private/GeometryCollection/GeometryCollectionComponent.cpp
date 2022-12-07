@@ -785,6 +785,11 @@ void UGeometryCollectionComponent::SetSimulatePhysics(bool bEnabled)
 	{
 		RegisterAndInitializePhysicsProxy();
 	}
+
+	if (bEnabled)
+	{
+		RemoveAllAnchors();
+	}
 }
 
 void UGeometryCollectionComponent::AddForce(FVector Force, FName BoneName, bool bAccelChange)
@@ -4630,3 +4635,37 @@ void UGeometryCollectionComponent::PostLoad()
 	}
 }
 
+Chaos::FPhysicsObject* UGeometryCollectionComponent::GetPhysicsObjectById(int32 Id) const
+{
+	if (!PhysicsProxy)
+	{
+		return nullptr;
+	}
+	return PhysicsProxy->GetPhysicsObjectByIndex(Id);
+}
+
+Chaos::FPhysicsObject* UGeometryCollectionComponent::GetPhysicsObjectByName(const FName& Name) const
+{
+	if (!RestCollection)
+	{
+		return nullptr;
+	}
+	const int32 Index = RestCollection->GetGeometryCollection()->BoneName.Find(Name.ToString());
+	return GetPhysicsObjectById(Index);
+}
+
+TArray<Chaos::FPhysicsObject*> UGeometryCollectionComponent::GetAllPhysicsObjects() const
+{
+	if (!PhysicsProxy)
+	{
+		return {};
+	}
+	TArray<Chaos::FPhysicsObject*> Objects;
+	Objects.Reserve(PhysicsProxy->GetNumParticles());
+	
+	for (int32 Index = 0; Index < PhysicsProxy->GetNumParticles(); ++Index)
+	{
+		Objects.Add(GetPhysicsObjectById(Index));
+	}
+	return Objects;
+}

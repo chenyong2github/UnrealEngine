@@ -30,6 +30,7 @@
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Physics/PhysicsInterfaceCore.h"
 #include "Physics/PhysicsInterfaceScene.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "AnimationRuntime.h"
 #include "ClothCollisionData.h"
 #include "ClothingSimulationInteractor.h"
@@ -59,6 +60,7 @@
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/ImplicitObjectScaled.h"
 #include "Chaos/ImplicitObjectTransformed.h"
+#include "Chaos/PhysicsObjectInterface.h"
 
 #define LOCTEXT_NAMESPACE "SkeletalMeshComponentPhysics"
 
@@ -740,6 +742,23 @@ void USkeletalMeshComponent::InitArticulated(FPhysScene* PhysScene)
 	}
 
 	InstantiatePhysicsAsset(*PhysicsAsset, Scale3D, Bodies, Constraints, PhysScene, this, RootBodyIndex, Aggregate);
+	for (int32 BodyIndex = 0; BodyIndex < NumBodies; ++BodyIndex)
+	{
+		if (FBodyInstance* Body = Bodies[BodyIndex])
+		{
+			if (!Body->ActorHandle)
+			{
+				continue;
+			}
+
+			Chaos::FPhysicsObject* PhysicsObject = Body->ActorHandle->GetPhysicsObject();
+			if (UBodySetup* Setup = Body->GetBodySetup())
+			{
+				Chaos::FPhysicsObjectInterface::SetName(PhysicsObject, Setup->BoneName);
+			}
+			Chaos::FPhysicsObjectInterface::SetId(PhysicsObject, BodyIndex);
+		}
+	}
 
 	// now update root body index because body has BodySetup now
 	SetRootBodyIndex(RootBodyIndex);
@@ -4036,4 +4055,37 @@ FTransform USkeletalMeshComponent::GetComponentTransformFromBodyInstance(FBodyIn
 		return GetComponentTransform();
 	}
 }
+
+
+Chaos::FPhysicsObject* USkeletalMeshComponent::GetPhysicsObjectById(int32 Id) const
+{
+	if (!Bodies.IsValidIndex(Id) || !Bodies[Id] || !Bodies[Id]->ActorHandle)
+	{
+		return nullptr;
+	}
+	return Bodies[Id]->ActorHandle->GetPhysicsObject();
+}
+
+Chaos::FPhysicsObject* USkeletalMeshComponent::GetPhysicsObjectByName(const FName& Name) const
+{
+	FBodyInstance* Body = GetBodyInstance(Name);
+	if (!Body || !Body->ActorHandle)
+	{
+		return nullptr;
+	}
+
+	return Body->ActorHandle->GetPhysicsObject();
+}
+
+TArray<Chaos::FPhysicsObject*> USkeletalMeshComponent::GetAllPhysicsObjects() const
+{
+	TArray<Chaos::FPhysicsObject*> Objects;
+	Objects.Reserve(Bodies.Num());
+	for (int32 Index = 0; Index < Bodies.Num(); ++Index)
+	{
+		Objects.Add(GetPhysicsObjectById(Index));
+	}
+	return Objects;
+}
+
 #undef LOCTEXT_NAMESPACE
