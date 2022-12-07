@@ -320,7 +320,7 @@ namespace mu
 
 		FImageSize TargetSize((uint16)m_imageState.Last().m_imageRect.size[0],(uint16)m_imageState.Last().m_imageRect.size[1]);
 
-		EImageFormat baseFormat = base->GetImageDesc().m_format;
+		EImageFormat baseFormat = base->GetImageDesc( true ).m_format;
         //base = GenerateImageFormat( base, EImageFormat::IF_RGB_UBYTE );
         base = GenerateImageSize( base, TargetSize);
         op->base = base;
@@ -1981,22 +1981,20 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    Ptr<ASTOp> CodeGenerator::GenerateImageFormat( Ptr<ASTOp> at, EImageFormat format )
+    Ptr<ASTOp> CodeGenerator::GenerateImageFormat( Ptr<ASTOp> Op, EImageFormat InFormat)
     {
-        Ptr<ASTOp> result = at;
+        Ptr<ASTOp> Result = Op;
 
-        check( format != EImageFormat::IF_NONE );
-
-        if ( at && at->GetImageDesc().m_format != format )
+        if (InFormat!=EImageFormat::IF_NONE && Op && Op->GetImageDesc().m_format!=InFormat)
         {
             // Generate the format change code
             Ptr<ASTOpImagePixelFormat> op = new ASTOpImagePixelFormat();
-            op->Source = at;
-            op->Format = format;
-            result = op;
+            op->Source = Op;
+            op->Format = InFormat;
+			Result = op;
         }
 
-        return result;
+        return Result;
     }
 
 

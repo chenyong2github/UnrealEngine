@@ -482,7 +482,15 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 	}
 	
 	USkeleton* InSkeleton = InSkeletalMesh->GetSkeleton();
-	check(InSkeleton);
+	if (!InSkeleton)
+	{
+		FString Msg = FString::Printf(
+			TEXT("No skeleton provided when converting SkeletalMesh [%s]."),
+			*InSkeletalMesh->GetName()
+		);
+		GenerationContext.Compiler->CompilerLog(FText::FromString(Msg), CurrentNode);
+		return nullptr;
+	}
 
 	TObjectPtr<const USkeletalMesh> SkeletalMesh = InSkeletalMesh;
 
