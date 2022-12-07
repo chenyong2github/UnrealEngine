@@ -454,7 +454,7 @@ void FSkeletalMeshStreamIn_IO::SetIORequest(const FContext& Context)
 			// At this point task synchronization would hold the number of pending requests.
 			TaskSynchronization.Decrement();
 
-			if (FBulkDataRequest::EStatus::Cancelled == Status)
+			if (FBulkDataRequest::EStatus::Ok != Status)
 			{
 				// If IO requests was cancelled but the streaming request wasn't, this is an IO error.
 				if (!bIsCancelled)

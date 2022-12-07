@@ -493,7 +493,7 @@ void FStaticMeshStreamIn_IO::SetIORequest(const FContext& Context)
 		{
 			TaskSynchronization.Decrement();
 
-			if (FBulkDataRequest::EStatus::Cancelled == Status)
+			if (FBulkDataRequest::EStatus::Ok != Status)
 			{
 				// If IO requests was cancelled but the streaming request wasn't, this is an IO error.
 				if (!bIsCancelled)
