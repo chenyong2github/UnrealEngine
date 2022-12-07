@@ -1555,7 +1555,10 @@ void SLevelViewport::BindViewCommands( FUICommandList& OutCommandList )
 	{
 		FStrataVisualizationMenuCommands::Get().BindCommands(OutCommandList, Client);
 	}
-	FGroomVisualizationMenuCommands::Get().BindCommands(OutCommandList, Client);
+	if (IsGroomEnabled())
+	{
+		FGroomVisualizationMenuCommands::Get().BindCommands(OutCommandList, Client);
+	}
 	FVirtualShadowMapVisualizationMenuCommands::Get().BindCommands(OutCommandList, Client);
 }
 
