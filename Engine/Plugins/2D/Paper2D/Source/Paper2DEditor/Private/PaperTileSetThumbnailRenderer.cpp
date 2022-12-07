@@ -7,6 +7,7 @@
 #include "PaperTileSet.h"
 #include "RenderUtils.h"
 #include "TextureResource.h"
+#include "GlobalRenderResources.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PaperTileSetThumbnailRenderer)
 

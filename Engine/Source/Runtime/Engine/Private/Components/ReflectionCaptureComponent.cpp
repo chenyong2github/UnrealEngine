@@ -42,6 +42,7 @@
 #include "ComponentRecreateRenderStateContext.h"
 #include "Engine/TextureCube.h"
 #include "Math/PackedVector.h"
+#include "GlobalRenderResources.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ReflectionCaptureComponent)
 

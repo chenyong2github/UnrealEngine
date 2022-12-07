@@ -6,6 +6,7 @@
 #include "EngineModule.h"
 #include "Engine/Engine.h"
 #include "Engine/Texture2D.h"
+#include "GlobalRenderResources.h"
 #include "GlobalShader.h"
 #include "HAL/IConsoleManager.h"
 #include "HeightfieldMinMaxTexture.h"

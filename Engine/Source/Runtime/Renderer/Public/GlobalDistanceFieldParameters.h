@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GlobalDistanceFieldConstants.h"
+#include "GlobalRenderResources.h"
 #include "ShaderParameterMacros.h"
 #include "ShaderParameters.h"
 #include "RenderUtils.h"

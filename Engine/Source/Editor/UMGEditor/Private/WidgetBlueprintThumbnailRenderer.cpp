@@ -7,6 +7,7 @@
 #include "CanvasTypes.h"
 #include "Engine/Texture2D.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "GlobalRenderResources.h"
 #include "Input/HittestGrid.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Slate/WidgetRenderer.h"

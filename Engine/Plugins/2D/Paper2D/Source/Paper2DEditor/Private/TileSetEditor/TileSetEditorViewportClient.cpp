@@ -9,6 +9,7 @@
 #include "EngineGlobals.h"
 #include "TextureCompiler.h"
 #include "TextureResource.h"
+#include "GlobalRenderResources.h"
 
 #define LOCTEXT_NAMESPACE "TileSetEditor"
 

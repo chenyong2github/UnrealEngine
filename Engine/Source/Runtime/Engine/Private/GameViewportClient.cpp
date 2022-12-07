@@ -73,6 +73,7 @@
 #include "ObjectTrace.h"
 #include "DynamicResolutionState.h"
 #include "HDRHelper.h"
+#include "GlobalRenderResources.h"
 
 #if WITH_EDITOR
 #include "Settings/LevelEditorPlaySettings.h"

@@ -7,6 +7,7 @@
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "VertexFactory.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "GlobalRenderResources.h"
 #include "RHIResourceUpdates.h"
 
 /*-----------------------------------------------------------------------------

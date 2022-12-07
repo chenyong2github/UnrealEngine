@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraBatchedElements.h"
+#include "GlobalRenderResources.h"
 #include "GlobalShader.h"
 #include "RHIStaticStates.h"
 #include "SimpleElementShaders.h"

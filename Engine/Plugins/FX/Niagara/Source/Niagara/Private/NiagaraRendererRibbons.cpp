@@ -2,6 +2,7 @@
 
 #include "NiagaraRendererRibbons.h"
 
+#include "GlobalRenderResources.h"
 #include "GPUSortManager.h"
 #include "ParticleResources.h"
 #include "NiagaraRibbonVertexFactory.h"

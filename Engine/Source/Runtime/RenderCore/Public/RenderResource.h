@@ -495,9 +495,69 @@ public:
 	TRefCountPtr<FRDGPooledBuffer> Buffer;
 };
 
+/** Used to declare a render resource that is initialized/released by static initialization/destruction. */
+template<class ResourceType>
+class TGlobalResource : public ResourceType
+{
+public:
+	/** Default constructor. */
+	TGlobalResource()
+	{
+		InitGlobalResource();
+	}
+
+	/** Initialization constructor: 1 parameter. */
+	template<typename... Args>
+	explicit TGlobalResource(Args... InArgs)
+		: ResourceType(InArgs...)
+	{
+		InitGlobalResource();
+	}
+
+	/** Destructor. */
+	virtual ~TGlobalResource()
+	{
+		ReleaseGlobalResource();
+	}
+
+private:
+
+	/**
+	 * Initialize the global resource.
+	 */
+	void InitGlobalResource()
+	{
+		if (IsInRenderingThread())
+		{
+			// If the resource is constructed in the rendering thread, directly initialize it.
+			((ResourceType*)this)->InitResource();
+		}
+		else
+		{
+			// If the resource is constructed outside of the rendering thread, enqueue a command to initialize it.
+			BeginInitResource((ResourceType*)this);
+		}
+	}
+
+	/**
+	 * Release the global resource.
+	 */
+	void ReleaseGlobalResource()
+	{
+		// This should be called in the rendering thread, or at shutdown when the rendering thread has exited.
+		// However, it may also be called at shutdown after an error, when the rendering thread is still running.
+		// To avoid a second error in that case we don't assert.
+#if 0
+		check(IsInRenderingThread());
+#endif
+
+		// Cleanup the resource.
+		((ResourceType*)this)->ReleaseResource();
+	}
+};
+
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RayTracingGeometry.h"
 #include "RenderUtils.h"
-#endif
-
 #include "GlobalRenderResources.h"
+#endif

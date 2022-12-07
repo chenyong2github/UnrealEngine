@@ -8,6 +8,7 @@
 #include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSystemInstance.h"
 
+#include "GlobalRenderResources.h"
 #include "Misc/LargeWorldRenderPosition.h"
 #include "RHIStaticStates.h"
 #include "ShaderCompilerCore.h"

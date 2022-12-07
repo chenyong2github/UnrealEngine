@@ -15,6 +15,7 @@
 #include "PipelineStateCache.h"
 #include "Editor.h"
 #include "TextureResource.h"
+#include "GlobalRenderResources.h"
 
 UNREALED_API void GetBestFitForNumberOfTiles(int32 InSize, int32& OutNumTilesX, int32& OutNumTilesY)
 {

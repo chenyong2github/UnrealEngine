@@ -16,6 +16,7 @@
 #include "Misc/UObjectToken.h"
 
 #include "RenderCore.h"
+#include "GlobalRenderResources.h"
 #include "VirtualTexturing.h"
 #include "VT/RuntimeVirtualTexture.h"
 #include "SparseVolumeTexture/SparseVolumeTexture.h"

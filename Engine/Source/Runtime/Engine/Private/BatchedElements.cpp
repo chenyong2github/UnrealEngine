@@ -9,6 +9,7 @@
 #include "RHIStaticStates.h"
 #include "MeshPassProcessor.h"
 #include "SceneRelativeViewMatrices.h"
+#include "GlobalRenderResources.h"
 #include "HDRHelper.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogBatchedElements, Log, All);

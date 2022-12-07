@@ -6,6 +6,7 @@
 #include "ShaderParameters.h"
 #include "Components.h"
 #include "VertexFactory.h"
+#include "GlobalRenderResources.h"
 
 class FMaterial;
 class FSceneView;

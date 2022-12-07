@@ -18,6 +18,7 @@
 #include "CanvasTypes.h"
 #include "TextureResource.h"
 #include "Engine/Texture.h"
+#include "GlobalRenderResources.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/GameModeBase.h"
 #include "EngineUtils.h"

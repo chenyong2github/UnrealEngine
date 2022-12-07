@@ -9,6 +9,7 @@
 #include "ParticleResources.h"
 #include "ShaderParameterUtils.h"
 #include "MeshMaterialShader.h"
+#include "GlobalRenderResources.h"
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraMeshUniformParameters, "NiagaraMeshVF");
 

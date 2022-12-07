@@ -6,6 +6,7 @@
 
 #include "Texture2DPreview.h"
 #include "Shader.h"
+#include "GlobalRenderResources.h"
 #include "GlobalShader.h"
 #include "SimpleElementShaders.h"
 #include "ShaderParameterUtils.h"

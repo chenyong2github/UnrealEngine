@@ -16,6 +16,7 @@ D3D12Commands.cpp: D3D RHI commands implementation.
 #include "ResolveShader.h"
 #include "SceneUtils.h"
 #include "RenderUtils.h"
+#include "GlobalRenderResources.h"
 #include "RHIShaderParametersShared.h"
 
 int32 AFRSyncTemporalResources = 1;

@@ -8,7 +8,7 @@
 #include "PaperSpriteComponent.h"
 #include "AssetEditorModeManager.h"
 #include "ScopedTransaction.h"
-
+#include "GlobalRenderResources.h"
 #include "ComponentReregisterContext.h"
 
 #include "IAssetTools.h"

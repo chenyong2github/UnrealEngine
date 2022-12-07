@@ -10,6 +10,7 @@
 #include "EngineGlobals.h"
 #include "VulkanLLM.h"
 #include "RenderUtils.h"
+#include "GlobalRenderResources.h"
 #include "RHIShaderParametersShared.h"
 
 static TAutoConsoleVariable<int32> GCVarSubmitOnDispatch(

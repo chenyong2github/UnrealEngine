@@ -33,6 +33,9 @@
 #include "Rendering/SkyAtmosphereCommonData.h"
 
 class FCanvas;
+class FGlobalDynamicIndexBuffer;
+class FGlobalDynamicReadBuffer;
+class FGlobalDynamicVertexBuffer;
 class FLightMap;
 class FLightmapResourceCluster;
 class FLightSceneInfo;

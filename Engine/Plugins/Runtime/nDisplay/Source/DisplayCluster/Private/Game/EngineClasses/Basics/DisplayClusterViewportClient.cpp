@@ -23,6 +23,7 @@
 #include "Debug/DebugDrawService.h"
 #include "ContentStreaming.h"
 #include "EngineModule.h"
+#include "GlobalRenderResources.h"
 #include "FXSystem.h"
 #include "GameFramework/HUD.h"
 #include "SubtitleManager.h"

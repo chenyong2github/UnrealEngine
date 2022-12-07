@@ -7,6 +7,7 @@
 #pragma once
 
 #include "CommonRenderResources.h"
+#include "GlobalRenderResources.h"
 #include "GlobalShader.h"
 #include "Math/IntPoint.h"
 #include "Math/IntRect.h"

@@ -21,6 +21,7 @@
 
 #include "Stats/StatsData.h"
 #include "Performance/EnginePerformanceTargets.h"
+#include "GlobalRenderResources.h"
 
 TAutoConsoleVariable<int32> CVarNumStatsPerGroup(
 	TEXT("stats.MaxPerGroup"),

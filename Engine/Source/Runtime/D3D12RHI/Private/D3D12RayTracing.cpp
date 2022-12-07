@@ -18,6 +18,7 @@
 #include "Async/ParallelFor.h"
 #include "Misc/BufferedOutputDevice.h"
 #include "String/LexFromString.h"
+#include "GlobalRenderResources.h"
 
 static int32 GRayTracingDebugForceBuildMode = 0;
 static FAutoConsoleVariableRef CVarRayTracingDebugForceFastTrace(

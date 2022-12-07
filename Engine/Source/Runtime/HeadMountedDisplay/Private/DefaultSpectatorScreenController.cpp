@@ -6,6 +6,7 @@
 #include "ClearQuad.h"
 #include "ScreenRendering.h"
 #include "TextureResource.h"
+#include "GlobalRenderResources.h"
 #include "Misc/CoreDelegates.h"
 #include "Engine/Texture.h"
 #include "HeadMountedDisplayBase.h"

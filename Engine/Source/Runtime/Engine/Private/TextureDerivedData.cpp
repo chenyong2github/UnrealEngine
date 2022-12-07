@@ -17,6 +17,7 @@
 #include "Serialization/MemoryReader.h"
 #include "UObject/Package.h"
 #include "RenderUtils.h"
+#include "GlobalRenderResources.h"
 #include "TextureResource.h"
 #include "Engine/Texture.h"
 #include "Engine/Texture2D.h"

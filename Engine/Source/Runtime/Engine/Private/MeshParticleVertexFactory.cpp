@@ -8,6 +8,7 @@
 #include "ParticleHelper.h"
 #include "ShaderParameterUtils.h"
 #include "MeshMaterialShader.h"
+#include "GlobalRenderResources.h"
 
 class FMeshParticleVertexFactoryShaderParameters : public FVertexFactoryShaderParameters
 {

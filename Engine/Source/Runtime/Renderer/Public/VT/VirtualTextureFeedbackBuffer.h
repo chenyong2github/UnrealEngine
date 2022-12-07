@@ -60,10 +60,7 @@ public:
 	// Submits the feedback buffer for readback.
 	void End(FRDGBuilder& GraphBuilder);
 
-	FRHIUnorderedAccessView* GetUAV() const
-	{
-		return UAV ? UAV : GEmptyVertexBufferWithUAV->UnorderedAccessViewRHI.GetReference();
-	}
+	FRHIUnorderedAccessView* GetUAV() const;
 
 	//~ Begin FRenderResource Interface
 	virtual void ReleaseRHI() override;

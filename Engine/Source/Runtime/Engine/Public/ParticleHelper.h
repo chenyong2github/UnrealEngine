@@ -33,6 +33,8 @@ class UStaticMesh;
 struct FBaseParticle;
 struct FParticleMeshEmitterInstance;
 struct FStaticMeshLODResources;
+struct FGlobalDynamicIndexBufferAllocation;
+struct FGlobalDynamicVertexBufferAllocation;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogParticles, Log, All);
 
@@ -1532,9 +1534,9 @@ struct FDynamicSpriteEmitterDataBase : public FDynamicEmitterDataBase
 		int32 InDynamicParameterVertexSize, 
 		FGlobalDynamicIndexBuffer& DynamicIndexBuffer,
 		FGlobalDynamicVertexBuffer& DynamicVertexBuffer,
-		FGlobalDynamicVertexBuffer::FAllocation& DynamicVertexAllocation,
-		FGlobalDynamicIndexBuffer::FAllocation& DynamicIndexAllocation,
-		FGlobalDynamicVertexBuffer::FAllocation* DynamicParameterAllocation,
+		FGlobalDynamicVertexBufferAllocation& DynamicVertexAllocation,
+		FGlobalDynamicIndexBufferAllocation& DynamicIndexAllocation,
+		FGlobalDynamicVertexBufferAllocation* DynamicParameterAllocation,
 		FAsyncBufferFillData& Data) const;
 
 	/** The material render proxy for this emitter */

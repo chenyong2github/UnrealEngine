@@ -12,6 +12,7 @@
 #include "ClearQuad.h"
 #include "LTC.h"
 #include "Math/PackedVector.h"
+#include "GlobalRenderResources.h"
 
 /*-----------------------------------------------------------------------------
 SystemTextures

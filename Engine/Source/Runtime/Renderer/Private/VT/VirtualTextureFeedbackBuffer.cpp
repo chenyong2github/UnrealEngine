@@ -5,6 +5,7 @@
 #include "RenderGraphUtils.h"
 #include "SceneView.h"
 #include "VT/VirtualTextureFeedback.h"
+#include "GlobalRenderResources.h"
 
 int32 GetVirtualTextureFeedbackScale(FSceneViewFamily const* InViewFamily)
 {
@@ -104,6 +105,11 @@ void FVirtualTextureFeedbackBuffer::End(FRDGBuilder& GraphBuilder)
 		RHICmdList.Transition(FRHITransitionInfo(UAV, ERHIAccess::UAVGraphics, ERHIAccess::CopySrc));
 		SubmitVirtualTextureFeedbackBuffer(RHICmdList, PooledBuffer->GetRHI(), Desc);
 	});
+}
+
+FRHIUnorderedAccessView* FVirtualTextureFeedbackBuffer::GetUAV() const
+{
+	return UAV ? UAV : GEmptyVertexBufferWithUAV->UnorderedAccessViewRHI.GetReference();
 }
 
 void FVirtualTextureFeedbackBuffer::ReleaseRHI()

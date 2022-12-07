@@ -6,6 +6,7 @@
 #include "CanvasTypes.h"
 #include "Engine/Texture2D.h"
 #include "ImageUtils.h"
+#include "GlobalRenderResources.h"
 
 //////////////////////////////////////////////////////////////////////////
 // FPaperEditorViewportClient

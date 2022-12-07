@@ -9,6 +9,7 @@
 #include "EngineGlobals.h"
 #include "RHIStaticStates.h"
 #include "RHIUtilities.h"
+#include "GlobalRenderResources.h"
 #include "SceneView.h"
 #include "SceneUtils.h"
 #include "Engine/Engine.h"

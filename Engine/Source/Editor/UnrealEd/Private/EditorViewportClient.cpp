@@ -67,6 +67,7 @@
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 #include "IImageWrapperModule.h"
 #include "HDRHelper.h"
+#include "GlobalRenderResources.h"
 
 #define LOCTEXT_NAMESPACE "EditorViewportClient"
 
