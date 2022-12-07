@@ -113,10 +113,17 @@ void USmartObjectComponent::OnUnregister()
 	{	
 		if (USmartObjectSubsystem* Subsystem = USmartObjectSubsystem::GetCurrent(World))
 		{
-			// If a given smart object has been registered with the system as a part of SmartObject collection we
-			// keep the runtime data alive and active - that data will only be removed along with the whole collection.
-			// If this smart object is not a part of a collection its runtime data will be removed.
-			Subsystem->UnregisterSmartObjectInternal(*this, ESmartObjectUnregistrationMode::KeepRuntimeInstanceActiveIfPartOfCollection);
+			if (!IsBeingDestroyed())
+			{
+				Subsystem->UnregisterSmartObject(*this);
+			}
+			else
+			{
+				// note that this case is really only expected in the editor when the component is being unregistered 
+				// as part of DestroyComponent. In default game flow EndPlay will get called first and once we make 
+				// it here the RegisteredHandle should already be Invalid
+				Subsystem->RemoveSmartObject(*this);
+			}
 		}
 	}
 
@@ -128,21 +135,14 @@ void USmartObjectComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	/*
-	 * Ability system components can be sometimes added after the call to OnRuntimeInstanceCreated() or OnRuntimeInstanceBound().
-	 * This code attempts handle the case that the ability component was not read at the right time.
-	 * @todo: validate that this logic is correct.
-	*/
-	if (!bInstanceTagsDelegateBound)
+	if (bPendingRuntimeInstanceBinding && RegisteredHandle.IsValid())
 	{
 		if (USmartObjectSubsystem* Subsystem = USmartObjectSubsystem::GetCurrent(GetWorld()))
 		{
-			if (FSmartObjectRuntime* RuntimeInstance = Subsystem->GetRuntimeInstance(RegisteredHandle))
-			{
-				OnRuntimeInstanceBound(*RuntimeInstance);
-			}
+			Subsystem->BindComponentToSimulation(*this);
 		}
 	}
+	bPendingRuntimeInstanceBinding = false;
 }
 
 void USmartObjectComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -151,7 +151,7 @@ void USmartObjectComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	{
 		if (USmartObjectSubsystem* Subsystem = USmartObjectSubsystem::GetCurrent(GetWorld()))
 		{
-			Subsystem->UnregisterSmartObjectInternal(*this, ESmartObjectUnregistrationMode::DestroyRuntimeInstance);
+			Subsystem->RemoveSmartObject(*this);
 		}
 	}
 
@@ -186,20 +186,15 @@ void USmartObjectComponent::InvalidateRegisteredHandle()
 	RegistrationType = ESmartObjectRegistrationType::None;
 }
 
-void USmartObjectComponent::OnRuntimeInstanceCreated(FSmartObjectRuntime& RuntimeInstance)
-{
-	// A new runtime instance is always created from a collection entry which was initialized with
-	// the list of tags provided by the IGameplayTagAssetInterface of the SmartObjectComponent owning actor.
-	// This means that at this point both are already in sync and we simply need to register our delegates
-	// to synchronize changes coming from either the AbilitySystemComponent or the SmartObjectRuntime.
-	if (UAbilitySystemComponent* AbilityComponent = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner()))
-	{
-		BindTagsDelegates(RuntimeInstance, *AbilityComponent);
-	}
-}
-
 void USmartObjectComponent::OnRuntimeInstanceBound(FSmartObjectRuntime& RuntimeInstance)
 {
+	if (HasBegunPlay() == false)
+	{
+		// not processing this call since the Owner might still get some components registered. We'll retry in BeginPlay
+		bPendingRuntimeInstanceBinding = true;
+		return;
+	}
+	
 	if (UAbilitySystemComponent* AbilityComponent = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner()))
 	{
 		BindTagsDelegates(RuntimeInstance, *AbilityComponent);
@@ -225,6 +220,8 @@ void USmartObjectComponent::OnRuntimeInstanceBound(FSmartObjectRuntime& RuntimeI
 			AbilityComponent->SetTagMapCount(*It, 0);
 		}
 	}
+
+	bPendingRuntimeInstanceBinding = false;
 }
 
 void USmartObjectComponent::OnRuntimeInstanceUnbound(FSmartObjectRuntime& RuntimeInstance)

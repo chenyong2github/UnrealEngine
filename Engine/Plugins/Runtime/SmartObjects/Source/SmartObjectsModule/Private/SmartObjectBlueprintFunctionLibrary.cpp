@@ -50,7 +50,7 @@ bool USmartObjectBlueprintFunctionLibrary::K2_SetSmartObjectEnabled(AActor* Smar
 	}
 
 	return bEnabled ? Subsystem->RegisterSmartObjectActor(*SmartObject)
-		: Subsystem->UnregisterSmartObjectActor(*SmartObject);
+		: Subsystem->RemoveSmartObjectActor(*SmartObject);
 }
 
 void USmartObjectBlueprintFunctionLibrary::SetBlackboardValueAsSOClaimHandle(UBTNode* NodeOwner, const FBlackboardKeySelector& Key, const FSmartObjectClaimHandle& Value)

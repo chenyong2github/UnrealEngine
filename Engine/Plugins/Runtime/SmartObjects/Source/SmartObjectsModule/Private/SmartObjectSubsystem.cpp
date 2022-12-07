@@ -148,25 +148,32 @@ FSmartObjectRuntime* USmartObjectSubsystem::AddComponentToSimulation(USmartObjec
 	FSmartObjectRuntime* SmartObjectRuntime = AddCollectionEntryToSimulation(NewEntry, *SmartObjectComponent.GetDefinition(), SmartObjectComponent.GetOwner(), bCommitChanges);
 	if (SmartObjectRuntime != nullptr)
 	{
-		SmartObjectComponent.OnRuntimeInstanceCreated(*SmartObjectRuntime);
+		BindComponentToSimulationInternal(SmartObjectComponent, *SmartObjectRuntime);
 	}
 	return SmartObjectRuntime;
 }
 
 void USmartObjectSubsystem::BindComponentToSimulation(USmartObjectComponent& SmartObjectComponent)
 {
+	ensureMsgf(SmartObjectComponent.GetRegisteredHandle().IsValid(), TEXT("%s expects input SmartObjectComponent to be already registered."), ANSI_TO_TCHAR(__FUNCTION__));
+
 	// Notify the component to bind to its runtime counterpart
 	FSmartObjectRuntime* SmartObjectRuntime = RuntimeSmartObjects.Find(SmartObjectComponent.GetRegisteredHandle());
 	if (ensureMsgf(SmartObjectRuntime != nullptr, TEXT("Binding a component should only be used when an associated runtime instance exists.")))
 	{
-		if (SmartObjectRuntime->OwnerActor.IsValid())
-		{
-			UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Expecting empty OwnerActor (was %s) when binding SmartObjectComponent %s."),
-				*GetFullNameSafe(SmartObjectRuntime->OwnerActor.Get()), *GetFullNameSafe(&SmartObjectComponent));
-		}
-		SmartObjectRuntime->OwnerActor = SmartObjectComponent.GetOwner();
-		SmartObjectComponent.OnRuntimeInstanceBound(*SmartObjectRuntime);
+		BindComponentToSimulationInternal(SmartObjectComponent, *SmartObjectRuntime);
 	}
+}
+
+void USmartObjectSubsystem::BindComponentToSimulationInternal(USmartObjectComponent& SmartObjectComponent, FSmartObjectRuntime& SmartObjectRuntime)
+{
+	if (SmartObjectRuntime.OwnerActor.IsValid())
+	{
+		UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Expecting empty OwnerActor (was %s) when binding SmartObjectComponent %s."),
+			*GetFullNameSafe(SmartObjectRuntime.OwnerActor.Get()), *GetFullNameSafe(&SmartObjectComponent));
+	}
+	SmartObjectRuntime.OwnerActor = SmartObjectComponent.GetOwner();
+	SmartObjectComponent.OnRuntimeInstanceBound(SmartObjectRuntime);
 }
 
 void USmartObjectSubsystem::UnbindComponentFromSimulation(USmartObjectComponent& SmartObjectComponent)
@@ -182,6 +189,7 @@ void USmartObjectSubsystem::UnbindComponentFromSimulation(USmartObjectComponent&
 void USmartObjectSubsystem::UnbindComponentFromSimulationInternal(USmartObjectComponent& SmartObjectComponent, FSmartObjectRuntime& SmartObjectRuntime)
 {
 	SmartObjectComponent.OnRuntimeInstanceUnbound(SmartObjectRuntime);
+	SmartObjectComponent.InvalidateRegisteredHandle();
 	SmartObjectRuntime.OwnerActor = nullptr;
 }
 
@@ -461,17 +469,21 @@ bool USmartObjectSubsystem::RegisterSmartObjectInternal(USmartObjectComponent& S
 			bool bAlreadyInCollection = false;
 			if (const FSmartObjectCollectionEntry* Entry = SmartObjectContainer.AddSmartObject(SmartObjectComponent, bAlreadyInCollection))
 			{
-#if WITH_EDITOR
-				if (!bAlreadyInCollection)
+				SmartObjectComponent.SetRegisteredHandle(Entry->GetHandle(), bAlreadyInCollection ? ESmartObjectRegistrationType::WithCollection : ESmartObjectRegistrationType::Dynamic);
+
+				if (bAlreadyInCollection)
 				{
-					OnMainCollectionDirtied.Broadcast();
+					BindComponentToSimulation(SmartObjectComponent);
 				}
+				else
+				{
+					AddComponentToSimulation(SmartObjectComponent, *Entry);
+					// This is a new entry added after runtime initialization, mark it as a runtime entry (lifetime is tied to the component)
+					RuntimeCreatedEntries.Add(SmartObjectComponent.GetRegisteredHandle());
+#if WITH_EDITOR
+					OnMainCollectionDirtied.Broadcast();
 #endif
-				SmartObjectComponent.SetRegisteredHandle(Entry->GetHandle(), ESmartObjectRegistrationType::Dynamic);
-			
-				// This is a new entry added after runtime initialization, mark it as a runtime entry (lifetime is tied to the component)
-				AddComponentToSimulation(SmartObjectComponent, *Entry);
-				RuntimeCreatedEntries.Add(SmartObjectComponent.GetRegisteredHandle());
+				}
 			}
 		}
 
@@ -489,11 +501,25 @@ bool USmartObjectSubsystem::RegisterSmartObjectInternal(USmartObjectComponent& S
 	return true;
 }
 
+bool USmartObjectSubsystem::RemoveSmartObject(USmartObjectComponent& SmartObjectComponent)
+{
+	if (RegisteredSOComponents.Contains(&SmartObjectComponent))
+	{
+		return UnregisterSmartObjectInternal(SmartObjectComponent, /*bDestroyRuntimeState=*/true);
+	}
+
+	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("Failed to remove %s since it doesn't seem registered"),
+		*GetFullNameSafe(SmartObjectComponent.GetOwner()),
+		*GetFullNameSafe(SmartObjectComponent.GetDefinition()));
+
+	return false;
+}
+
 bool USmartObjectSubsystem::UnregisterSmartObject(USmartObjectComponent& SmartObjectComponent)
 {
 	if (RegisteredSOComponents.Contains(&SmartObjectComponent))
 	{
-		return UnregisterSmartObjectInternal(SmartObjectComponent, ESmartObjectUnregistrationMode::DestroyRuntimeInstance);
+		return UnregisterSmartObjectInternal(SmartObjectComponent, /*bDestroyRuntimeState=*/SmartObjectComponent.GetRegisterationType() == ESmartObjectRegistrationType::Dynamic);
 	}
 
 	UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("Failed to unregister %s. Already unregistered"),
@@ -503,7 +529,7 @@ bool USmartObjectSubsystem::UnregisterSmartObject(USmartObjectComponent& SmartOb
 	return false;
 }
 
-bool USmartObjectSubsystem::UnregisterSmartObjectInternal(USmartObjectComponent& SmartObjectComponent, const ESmartObjectUnregistrationMode UnregistrationMode)
+bool USmartObjectSubsystem::UnregisterSmartObjectInternal(USmartObjectComponent& SmartObjectComponent, const bool bDestroyRuntimeState)
 {
 	UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("Unregistering %s using definition %s."),
 		*GetFullNameSafe(SmartObjectComponent.GetOwner()),
@@ -515,11 +541,12 @@ bool USmartObjectSubsystem::UnregisterSmartObjectInternal(USmartObjectComponent&
 
 		ensure(SmartObjectComponent.GetRegisteredHandle().IsValid());
 
-		// a dynamically added SmartObject, i.e. not added as a part of a collection. 
-		// in this case we want to remove all traces of it
-		if (RuntimeCreatedEntries.Remove(SmartObjectComponent.GetRegisteredHandle()) != 0
-			// or requested removal of all traces
-			|| UnregistrationMode == ESmartObjectUnregistrationMode::DestroyRuntimeInstance)
+		if (SmartObjectComponent.GetRegisterationType() == ESmartObjectRegistrationType::Dynamic)
+		{
+			RuntimeCreatedEntries.Remove(SmartObjectComponent.GetRegisteredHandle());
+		}
+
+		if (bDestroyRuntimeState)
 		{
 			RemoveComponentFromSimulation(SmartObjectComponent);
 			SmartObjectContainer.RemoveSmartObject(SmartObjectComponent);
@@ -570,6 +597,24 @@ bool USmartObjectSubsystem::UnregisterSmartObjectActor(const AActor& SmartObject
 	for (USmartObjectComponent* SOComponent : Components)
 	{
 		if (UnregisterSmartObject(*SOComponent))
+		{
+			NumSuccess++;
+		}
+	}
+	return NumSuccess > 0 && NumSuccess == Components.Num();
+}
+
+bool USmartObjectSubsystem::RemoveSmartObjectActor(const AActor& SmartObjectActor)
+{
+	TArray<USmartObjectComponent*> Components;
+	SmartObjectActor.GetComponents(Components);
+	UE_CVLOG_UELOG(Components.Num() == 0, &SmartObjectActor, LogSmartObject, Log,
+		TEXT("Failed to remove SmartObject components runtime data for %s. No components found."), *SmartObjectActor.GetFullName());
+
+	int32 NumSuccess = 0;
+	for (USmartObjectComponent* SOComponent : Components)
+	{
+		if (RemoveSmartObject(*SOComponent))
 		{
 			NumSuccess++;
 		}
@@ -1818,3 +1863,15 @@ void USmartObjectSubsystem::DebugCleanupRuntime()
 }
 
 #endif // WITH_SMARTOBJECT_DEBUG
+
+//----------------------------------------------------------------------//
+// deprecated functions implementations
+//----------------------------------------------------------------------//
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+bool USmartObjectSubsystem::UnregisterSmartObjectInternal(USmartObjectComponent & SmartObjectComponent, const ESmartObjectUnregistrationMode UnregistrationMode)
+{
+	const bool bShouldDestroyRuntimeData = (UnregistrationMode == ESmartObjectUnregistrationMode::DestroyRuntimeInstance)
+		|| (SmartObjectComponent.GetRegisterationType() == ESmartObjectRegistrationType::Dynamic);
+	return UnregisterSmartObjectInternal(SmartObjectComponent, bShouldDestroyRuntimeData);
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

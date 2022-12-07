@@ -40,7 +40,6 @@ public:
 	void SetRegisteredHandle(const FSmartObjectHandle Value, const ESmartObjectRegistrationType InRegistrationType);
 	void InvalidateRegisteredHandle();
 
-	void OnRuntimeInstanceCreated(FSmartObjectRuntime& RuntimeInstance);
 	void OnRuntimeInstanceDestroyed();
 	void OnRuntimeInstanceBound(FSmartObjectRuntime& RuntimeInstance);
 	void OnRuntimeInstanceUnbound(FSmartObjectRuntime& RuntimeInstance);
@@ -81,6 +80,12 @@ protected:
 
 	FDelegateHandle OnComponentTagsModifiedHandle;
 	bool bInstanceTagsDelegateBound = false;
+
+	/** 
+	 * Signals that binding to the runtime smart object instance is required upon this SmartObjectComponent's
+	 * BeginPlay. bPendingRuntimeInstanceBinding gets set to True if OnRuntimeInstanceBound is called before BeginPlay
+	 */
+	bool bPendingRuntimeInstanceBinding = false;
 
 	/** 
 	 * Controls whether a given SmartObject can be aggregated in SmartObjectPersistentCollections. SOs in collections

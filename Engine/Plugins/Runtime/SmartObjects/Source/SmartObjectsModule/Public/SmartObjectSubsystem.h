@@ -149,7 +149,7 @@ enum class ESmartObjectCollectionRegistrationResult : uint8
  * Mode that indicates how the unregistration of the SmartObjectComponent affects its runtime instance.
  */
 UENUM()
-enum class ESmartObjectUnregistrationMode : uint8
+enum class UE_DEPRECATED(5.2, "This type is deprecated and no longer being used.") ESmartObjectUnregistrationMode : uint8
 {
 	KeepRuntimeInstanceActiveIfPartOfCollection,
 	DestroyRuntimeInstance
@@ -188,6 +188,13 @@ public:
 	bool UnregisterSmartObjectActor(const AActor& SmartObjectActor);
 
 	/**
+	 * Removes all data associated to SmartObject components of a given actor from the simulation.
+	 * @param SmartObjectActor Actor owning the components to delete
+	 * @return whether components are found and all successfully deleted
+	 */
+	bool RemoveSmartObjectActor(const AActor& SmartObjectActor);
+
+	/**
 	 * Registers a SmartObject components to the runtime simulation.
 	 * @param SmartObjectComponent SmartObject component to register
 	 * @return true when component is successfully registered, false otherwise
@@ -195,11 +202,25 @@ public:
 	bool RegisterSmartObject(USmartObjectComponent& SmartObjectComponent);
 	
 	/**
-	 * Unregisters a SmartObject components from the runtime simulation.
+	 * Unregisters a SmartObject component from the runtime simulation.
 	 * @param SmartObjectComponent SmartObject component to unregister
 	 * @return true when component is successfully unregistered, false otherwise
 	 */
 	bool UnregisterSmartObject(USmartObjectComponent& SmartObjectComponent);
+
+	/**
+	 * Removes a SmartObject component from the runtime simulation.
+	 * @param SmartObjectComponent SmartObject component to remove
+	 * @return whether SmartObject data has been successfully found and removed
+	 */
+	bool RemoveSmartObject(USmartObjectComponent& SmartObjectComponent);
+
+	/**
+	 * Binds a smartobject component to an existing instance in the simulation. If a given SmartObjectComponent has not 
+	 * been registered yet an ensure will trigger.
+	 * @param SmartObjectComponent The component to add to the simulation and for which a runtime instance must exist
+	*/
+	void BindComponentToSimulation(USmartObjectComponent& SmartObjectComponent);
 
 	/**
 	 * Returns the component associated to the claim handle if still
@@ -581,14 +602,18 @@ public:
 #endif
 
 protected:
-	friend USmartObjectComponent;
 	friend UWorldPartitionSmartObjectCollectionBuilder;
 
 	bool RegisterSmartObjectInternal(USmartObjectComponent& SmartObjectComponent);
+	bool UnregisterSmartObjectInternal(USmartObjectComponent& SmartObjectComponent, const bool bDestroyRuntimeState);
+
+	UE_DEPRECATED(5.2, "This flavor of UnregisterSmartObjectInternal is deprecated. Please use UnregisterSmartObjectInternal(USmartObjectComponent&, const bool) instead.")
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bool UnregisterSmartObjectInternal(USmartObjectComponent& SmartObjectComponent, const ESmartObjectUnregistrationMode UnregistrationMode);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	
 	/**
-	 * Callback overriden to gather loaded collections, spawn missing one and set the main collection.
+	 * Callback overridden to gather loaded collections, spawn missing one and set the main collection.
 	 * @note we use this method instead of `Initialize` or `PostInitialize` so active level is set and actors registered.
 	 */
 	virtual void OnWorldComponentsUpdated(UWorld& World) override;
@@ -690,11 +715,8 @@ protected:
 	 */
 	FSmartObjectRuntime* AddComponentToSimulation(USmartObjectComponent& SmartObjectComponent, const FSmartObjectCollectionEntry& CollectionEntry, const bool bCommitChanges = true);
 
-	/**
-	 * Binds a smartobject component to an existing instance in the simulation.
-	 * @param SmartObjectComponent The component to add to the simulation and for which a runtime instance must exist
-	 */
-	void BindComponentToSimulation(USmartObjectComponent& SmartObjectComponent);
+	/** Notifies SmartObjectComponent that it has been bound to a runtime instance, and sets SmartObjectComponent-related properties of SmartObjectRuntime */
+	void BindComponentToSimulationInternal(USmartObjectComponent& SmartObjectComponent, FSmartObjectRuntime& SmartObjectRuntime);
 
 	/**
 	 * Unbinds a smartobject component from an existing instance in the simulation.
