@@ -796,6 +796,15 @@ bool UNiagaraRendererProperties::IsSortHighPrecision(ENiagaraRendererSortPrecisi
 	return SortPrecision == ENiagaraRendererSortPrecision::High;
 }
 
+bool UNiagaraRendererProperties::ShouldGpuTranslucentThisFrame(ENiagaraRendererGpuTranslucentLatency Latency)
+{
+	if (Latency == ENiagaraRendererGpuTranslucentLatency::ProjectDefault)
+	{
+		return GetDefault<UNiagaraSettings>()->DefaultGpuTranslucentLatency == ENiagaraDefaultGpuTranslucentLatency::Immediate;
+	}
+	return Latency == ENiagaraRendererGpuTranslucentLatency::Immediate;
+}
+
 bool UNiagaraRendererProperties::IsGpuTranslucentThisFrame(ERHIFeatureLevel::Type FeatureLevel, ENiagaraRendererGpuTranslucentLatency Latency)
 {
 	// We can not support low latency on the mobile renderer path as it calls PostRenderOpaque after translucent in some paths
@@ -804,11 +813,7 @@ bool UNiagaraRendererProperties::IsGpuTranslucentThisFrame(ERHIFeatureLevel::Typ
 		return false;
 	}
 
-	if (Latency == ENiagaraRendererGpuTranslucentLatency::ProjectDefault)
-	{
-		return GetDefault<UNiagaraSettings>()->DefaultGpuTranslucentLatency == ENiagaraDefaultGpuTranslucentLatency::Immediate;
-	}
-	return Latency == ENiagaraRendererGpuTranslucentLatency::Immediate;
+	return ShouldGpuTranslucentThisFrame(Latency);
 }
 
 #undef LOCTEXT_NAMESPACE

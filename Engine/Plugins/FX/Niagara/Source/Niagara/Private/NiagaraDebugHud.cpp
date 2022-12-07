@@ -4,15 +4,17 @@
 #include "Engine/Engine.h"
 #include "GameFramework/Pawn.h"
 #include "NiagaraComponent.h"
+#include "NiagaraComputeExecutionContext.h"
+#include "NiagaraDataSetDebugAccessor.h"
 #include "NiagaraDataSetReadback.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
-#include "NiagaraComputeExecutionContext.h"
+#include "NiagaraMeshRendererProperties.h"
 #include "NiagaraScript.h"
+#include "NiagaraSpriteRendererProperties.h"
 #include "NiagaraSystem.h"
 #include "NiagaraSystemInstanceController.h"
 #include "NiagaraWorldManager.h"
-#include "NiagaraDataSetDebugAccessor.h"
 
 #include "Components/LineBatchComponent.h"
 #include "Debug/DebugDrawService.h"
@@ -656,6 +658,117 @@ namespace NiagaraDebugLocal
 				BatchedLineElements->AddLine(BoxPoints[1], BoxPoints[5], BoxColor, HitProxyId, 1.0f);
 				BatchedLineElements->AddLine(BoxPoints[2], BoxPoints[6], BoxColor, HitProxyId, 1.0f);
 				BatchedLineElements->AddLine(BoxPoints[3], BoxPoints[7], BoxColor, HitProxyId, 1.0f);
+			}
+		}
+	}
+
+	template<typename TOutput>
+	void BuildGpuHudInformation(TOutput& Output, UNiagaraComponent* NiagaraComponent, FNiagaraSystemInstance* SystemInstance, ERHIFeatureLevel::Type FeatureLevel)
+	{
+		static UEnum* GpuComputeTickStageEnum = StaticEnum<ENiagaraGpuComputeTickStage::Type>();
+		const FNiagaraSystemGpuComputeProxy* SystemInstanceComputeProxy = SystemInstance->GetSystemGpuComputeProxy();
+		if (GpuComputeTickStageEnum == nullptr || SystemInstanceComputeProxy == nullptr)
+		{
+			return;
+		}
+
+		const ENiagaraGpuComputeTickStage::Type GpuTickStage = SystemInstanceComputeProxy->GetComputeTickStage();
+		Output.Appendf(TEXT("GpuTickStage - %s\n"), *GpuComputeTickStageEnum->GetNameStringByValue(GpuTickStage));
+		if (Settings.SystemDebugVerbosity == ENiagaraDebugHudVerbosity::Verbose)
+		{
+			TStringBuilder<128> GpuFeaturesBuilder;
+			if (SystemInstance->RequiresDistanceFieldData())
+			{
+				GpuFeaturesBuilder.Append(TEXT(" DistanceFieldData"));
+			}
+			if (SystemInstance->RequiresDepthBuffer())
+			{
+				GpuFeaturesBuilder.Append(TEXT(" DepthBuffer"));
+			}
+			if (SystemInstance->RequiresEarlyViewData())
+			{
+				GpuFeaturesBuilder.Append(TEXT(" EarlyViewData"));
+			}
+			if (SystemInstance->RequiresViewUniformBuffer())
+			{
+				GpuFeaturesBuilder.Append(TEXT(" ViewUniformBuffer"));
+			}
+			if (SystemInstance->RequiresRayTracingScene())
+			{
+				GpuFeaturesBuilder.Append(TEXT(" RayTracingScene"));
+			}
+			if (GpuFeaturesBuilder.Len() > 0)
+			{
+				Output.Appendf(TEXT("GpuFeatures -%s\n"), *GpuFeaturesBuilder);
+			}
+		}
+
+		// Attempt to give feedback to the user if an emitter will be latent or not on the GPU
+		if (GpuTickStage == ENiagaraGpuComputeTickStage::PostOpaqueRender)
+		{
+			TStringBuilder<128> GpuLatentBuilder;
+
+			for (const TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& EmitterInstance : SystemInstance->GetEmitters())
+			{
+				FVersionedNiagaraEmitterData* EmitterData = EmitterInstance->GetCachedEmitterData();
+				UNiagaraEmitter* NiagaraEmitter = EmitterInstance->GetCachedEmitter().Emitter;
+				if (EmitterData == nullptr || NiagaraEmitter == nullptr)
+				{
+					continue;
+				}
+
+				bool bLowLatencyFailed = false;
+				EmitterData->ForEachEnabledRenderer(
+					[&](UNiagaraRendererProperties* RenderProperties)
+					{
+						ENiagaraRendererGpuTranslucentLatency RequestedLatency = ENiagaraRendererGpuTranslucentLatency::ProjectDefault;
+						if (UNiagaraMeshRendererProperties* MeshRenderProperties = Cast<UNiagaraMeshRendererProperties>(RenderProperties))
+						{
+							RequestedLatency = MeshRenderProperties->GpuTranslucentLatency;
+						}
+						else if (UNiagaraSpriteRendererProperties* SpriteRendererProperties = Cast<UNiagaraSpriteRendererProperties>(RenderProperties))
+						{
+							RequestedLatency = SpriteRendererProperties->GpuTranslucentLatency;
+						}
+						else
+						{
+							// Renderer does not support low latency
+							return;
+						}
+
+						const bool bWantsThisFrameData = UNiagaraRendererProperties::ShouldGpuTranslucentThisFrame(RequestedLatency);
+
+						bool bSupportsThisFrameData =
+							!NiagaraComponent->bCastVolumetricTranslucentShadow &&
+							UNiagaraRendererProperties::IsGpuTranslucentThisFrame(FeatureLevel, RequestedLatency);
+
+						if (bSupportsThisFrameData)
+						{
+							TArray<UMaterialInterface*> UsedMaterials;
+							RenderProperties->GetUsedMaterials(&EmitterInstance.Get(), UsedMaterials);
+							for (UMaterialInterface* Material : UsedMaterials)
+							{
+								if (Material && !IsTranslucentBlendMode(Material->GetBlendMode()) )
+								{
+									bSupportsThisFrameData = false;
+									break;
+								}
+							}
+						}
+						bLowLatencyFailed |= bWantsThisFrameData != bSupportsThisFrameData;
+					}
+				);
+
+				if (bLowLatencyFailed)
+				{
+					GpuLatentBuilder.AppendChar(' ');
+					GpuLatentBuilder.Append(NiagaraEmitter->GetUniqueEmitterName());
+				}
+			}
+
+			if ( GpuLatentBuilder.Len() > 0 )
+			{
+				Output.Appendf(TEXT("GpuHasLatentEmitters -%s\n"), *GpuLatentBuilder);
 			}
 		}
 	}
@@ -2667,11 +2780,7 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 						{
 							StringBuilder.Appendf(TEXT("TickGroup - %s\n"), *TickingGroupEnum->GetNameStringByValue(SystemInstance->CalculateTickGroup()));
 						}
-						static UEnum* GpuComputeTickStageEnum = StaticEnum<ENiagaraGpuComputeTickStage::Type>();
-						if (const FNiagaraSystemGpuComputeProxy* SystemInstanceComputeProxy = SystemInstance->GetSystemGpuComputeProxy())
-						{
-							StringBuilder.Appendf(TEXT("GpuTickStage - %s\n"), *GpuComputeTickStageEnum->GetNameStringByValue(SystemInstanceComputeProxy->GetComputeTickStage()));
-						}
+						BuildGpuHudInformation(StringBuilder, NiagaraComponent, SystemInstance, World->FeatureLevel);
 					}
 
 					int64 TotalBytes = 0;

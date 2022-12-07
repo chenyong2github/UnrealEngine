@@ -372,6 +372,9 @@ public:
 
 	static bool IsSortHighPrecision(ENiagaraRendererSortPrecision SortPrecision);
 
+	/** Should the Gpu translucent data be this frame or not? */
+	static bool ShouldGpuTranslucentThisFrame(ENiagaraRendererGpuTranslucentLatency Latency);
+	/** Is the Gpu translucent data going to be this frame, this can be restricted by things like feature level. */
 	static bool IsGpuTranslucentThisFrame(ERHIFeatureLevel::Type FeatureLevel, ENiagaraRendererGpuTranslucentLatency Latency);
 
 	template<typename TAction>
