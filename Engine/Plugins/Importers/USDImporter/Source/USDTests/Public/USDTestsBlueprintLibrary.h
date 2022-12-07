@@ -46,4 +46,10 @@ public:
 	 */
 	UFUNCTION( BlueprintCallable, Category = "Counts" )
 	static int64 GetSubtreeMaterialSlotCount( AUsdStageActor* StageActor, const FString& PrimPath );
+
+	/**
+	 * Internally opens the provided stage and sets it on the stage actor via C++
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Counts")
+	static void SetUsdStageCpp(AUsdStageActor* StageActor, const FString& NewStageRootLayer);
 };

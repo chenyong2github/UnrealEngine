@@ -177,6 +177,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
 	USDSTAGE_API void NewStage();
 
+	/**
+	 * If IsolatedStageRootLayer is the identifier of one of the sublayers of the currently opened stage, this will
+	 * enter isolated mode by creating a new stage with IsolatedStageRootLayer as its root, and displaying that.
+	 * Provide an empty string to leave isolated mode.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
+	USDSTAGE_API void SetIsolatedRootLayer(const FString& IsolatedStageRootLayer);
+
+	/**
+	 * Returns the root layer identifier of the currently isolated stage if we're in isolated mode, and the empty
+	 * string otherwise.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
+	USDSTAGE_API FString GetIsolatedRootLayer() const;
+
 public:
 	// Loads the stage with RootLayer if its not loaded already, and returns the either the isolated stage (if any) or
 	// the base stage
@@ -190,6 +205,8 @@ public:
 
 	// Always returns the isolated stage, being an invalid stage in case we're not isolating anything
 	USDSTAGE_API const UE::FUsdStage& GetIsolatedUsdStage() const;
+
+	USDSTAGE_API void SetUsdStage(const UE::FUsdStage& NewStage);
 
 	// Enters isolated mode by creating a new USD Stage using the provided layer as its root
 	USDSTAGE_API void IsolateLayer( const UE::FSdfLayer& Layer );

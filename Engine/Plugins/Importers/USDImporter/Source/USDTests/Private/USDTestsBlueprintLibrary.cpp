@@ -134,3 +134,14 @@ int64 USDTestsBlueprintLibrary::GetSubtreeMaterialSlotCount( AUsdStageActor* Sta
 
 	return -1;
 }
+
+void USDTestsBlueprintLibrary::SetUsdStageCpp(AUsdStageActor* StageActor, const FString& NewStageRootLayer)
+{
+	if (!StageActor)
+	{
+		return;
+	}
+
+	UE::FUsdStage NewStage = UnrealUSDWrapper::OpenStage(*NewStageRootLayer, EUsdInitialLoadSet::LoadAll);
+	StageActor->SetUsdStage(NewStage);
+}
