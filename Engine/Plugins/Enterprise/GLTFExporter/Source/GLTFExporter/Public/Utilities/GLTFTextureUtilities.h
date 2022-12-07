@@ -3,7 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Engine/TextureRenderTarget2D.h"
+#endif
+
+class FTexture;
+class UTexture;
+class UTextureRenderTarget2D;
 
 class GLTFEXPORTER_API FGLTFTextureUtilities
 {

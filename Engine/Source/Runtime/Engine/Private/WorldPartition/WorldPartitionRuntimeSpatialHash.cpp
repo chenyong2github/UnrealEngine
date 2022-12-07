@@ -33,7 +33,7 @@
 #include "Engine/Canvas.h"
 #include "DrawDebugHelpers.h"
 #include "DisplayDebugHelpers.h"
-#include "RenderUtils.h"
+#include "GlobalRenderResources.h"
 #include "Algo/Transform.h"
 #include "Algo/Copy.h"
 #include "Algo/Accumulate.h"

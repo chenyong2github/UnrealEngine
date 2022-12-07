@@ -4,6 +4,7 @@
 #include "RHI.h"
 #include "Engine/Scene.h"
 #include "RenderUtils.h"
+#include "GlobalRenderResources.h"
 
 DEFINE_LOG_CATEGORY(LogSceneUtils);
 

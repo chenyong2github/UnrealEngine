@@ -7,10 +7,10 @@
 #include "RHIShaderPlatform.h"
 #include "RHIFeatureLevel.h"
 
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RHI.h"
 #include "RenderResource.h"
 #include "RHIDefinitions.h"
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "PackedNormal.h"
 #include "RenderMath.h"
 #include "GlobalRenderResources.h"
@@ -361,10 +361,8 @@ RENDERCORE_API FBufferRHIRef& GetUnitCubeVertexBuffer();
 /** Unit cube index buffer */
 RENDERCORE_API FBufferRHIRef& GetUnitCubeIndexBuffer();
 
-#if RHI_RAYTRACING
 /** Unit cube AABB vertex buffer (useful to create procedural raytracing geometry) */
 RENDERCORE_API FBufferRHIRef& GetUnitCubeAABBVertexBuffer();
-#endif
 
 /**
 * Takes the requested buffer size and quantizes it to an appropriate size for the rest of the

@@ -16,7 +16,7 @@
 #include "Engine/FontImportOptions.h"
 #include "Engine/Font.h"
 #include "Factories/TrueTypeFontFactory.h"
-#include "RenderUtils.h"
+#include "RHI.h"
 #include "Engine/Texture2D.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "IDesktopPlatform.h"

@@ -3,7 +3,7 @@
 #include "Debug/ReporterBase.h"
 #include "CanvasItem.h"
 #include "Engine/Canvas.h"
-#include "RenderUtils.h"
+#include "GlobalRenderResources.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ReporterBase)
 
@@ -13,9 +13,6 @@ UReporterBase::UReporterBase(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer)
 {
 	bVisible = false;
-	
-
-
 }
 
 FVector2D UReporterBase::ToScreenSpace(const FVector2D& InVector, UCanvas* Canvas)

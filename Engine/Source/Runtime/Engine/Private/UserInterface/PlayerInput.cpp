@@ -8,7 +8,7 @@
 #include "Misc/CommandLine.h"
 #include "Components/InputComponent.h"
 #include "Misc/App.h"
-#include "RenderUtils.h"
+#include "GlobalRenderResources.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "GameFramework/PlayerController.h"

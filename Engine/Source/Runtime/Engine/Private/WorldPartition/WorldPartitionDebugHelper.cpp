@@ -2,7 +2,7 @@
 
 #include "WorldPartition/WorldPartitionDebugHelper.h"
 #include "Engine/Engine.h"
-#include "RenderUtils.h"
+#include "GlobalRenderResources.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
