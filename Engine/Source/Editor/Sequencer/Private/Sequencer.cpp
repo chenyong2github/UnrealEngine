@@ -167,6 +167,11 @@
 
 DEFINE_LOG_CATEGORY(LogSequencer);
 
+static TAutoConsoleVariable<bool> CVarAutoScrub(
+	TEXT("Sequencer.AutoScrub"),
+	false,
+	TEXT("Enable/disable auto-scrubbing"));
+
 static TAutoConsoleVariable<float> CVarAutoScrubSpeed(
 	TEXT("Sequencer.AutoScrubSpeed"),
 	6.0f,
@@ -5216,7 +5221,7 @@ void FSequencer::OnScrubPositionChanged( FFrameTime NewScrubPosition, bool bScru
 		}
 	}
 
-	if (!bScrubbing && FSlateApplication::Get().GetModifierKeys().IsShiftDown())
+	if (!bScrubbing && CVarAutoScrub->GetBool() && FSlateApplication::Get().GetModifierKeys().IsShiftDown())
 	{
 		AutoScrubToTime(NewScrubPosition);
 	}
@@ -9766,7 +9771,7 @@ void FSequencer::StepToNextMark()
 	int32 MarkedIndex = FocusedMovieScene->FindNextMarkedFrame(GetLocalTime().Time.FloorToFrame(), bForwards);
 	if (MarkedIndex != INDEX_NONE)
 	{
-		AutoScrubToTime(FocusedMovieScene->GetMarkedFrames()[MarkedIndex].FrameNumber.Value);
+		SetLocalTimeDirectly(FocusedMovieScene->GetMarkedFrames()[MarkedIndex].FrameNumber.Value);
 	}
 }
 
@@ -9788,7 +9793,7 @@ void FSequencer::StepToPreviousMark()
 	int32 MarkedIndex = FocusedMovieScene->FindNextMarkedFrame(GetLocalTime().Time.FloorToFrame(), bForwards);
 	if (MarkedIndex != INDEX_NONE)
 	{
-		AutoScrubToTime(FocusedMovieScene->GetMarkedFrames()[MarkedIndex].FrameNumber.Value);
+		SetLocalTimeDirectly(FocusedMovieScene->GetMarkedFrames()[MarkedIndex].FrameNumber.Value);
 	}
 }
 
