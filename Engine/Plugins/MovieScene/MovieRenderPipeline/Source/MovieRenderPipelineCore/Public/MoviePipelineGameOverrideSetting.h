@@ -147,4 +147,5 @@ private:
 #endif
 	float PreviousChaosImmPhysicsMinStepTime;
 	int32 PreviousSkipRedundantTransformUpdate;
+	int32 PreviousChaosClothUseTimeStepSmoothing;
 };
