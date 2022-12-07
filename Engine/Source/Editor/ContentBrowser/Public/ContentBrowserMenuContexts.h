@@ -54,7 +54,7 @@ public:
 	/**
 	 * The currently selected assets in the content browser.
 	 */
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly, Category="Tool Menus")
 	TArray<FAssetData> SelectedAssets;
 
 	UPROPERTY()
