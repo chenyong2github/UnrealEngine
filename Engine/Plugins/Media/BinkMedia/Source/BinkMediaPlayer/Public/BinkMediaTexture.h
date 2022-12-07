@@ -10,7 +10,7 @@
 class UBinkMediaPlayer;
 class FBinkMediaPlayer;
 enum EPixelFormat : uint8;
-enum TextureAddress;
+enum TextureAddress : int;
 
 /**
  * Implements a texture asset for rendering video tracks from UBinkMediaPlayer assets.
