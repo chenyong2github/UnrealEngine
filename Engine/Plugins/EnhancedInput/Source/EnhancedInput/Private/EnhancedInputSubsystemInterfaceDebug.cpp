@@ -162,6 +162,16 @@ void IEnhancedInputSubsystemInterface::ShowDebugInfo(UCanvas* Canvas)
 				}
 			}
 
+			const TArray<FEnhancedActionKeyMapping>& EnhancedActionMappings = PlayerInput->GetEnhancedActionMappings();
+			for (const FEnhancedActionKeyMapping& EnhancedActionMapping : EnhancedActionMappings)
+			{
+				if (TArray<FEnhancedActionKeyMapping>* Mappings = ActionMappings.Find(EnhancedActionMapping.Action))
+				{
+					//Add any mapping that might have been added as player mappable keys.
+					Mappings->AddUnique(EnhancedActionMapping);
+				}
+			}
+
 			Sort(OrderedActions.GetData(), OrderedActions.Num(), [](const UInputAction& A, const UInputAction& B) { return A.GetFName().LexicalLess(B.GetFName()); });
 
 			for (const UInputAction* Action : OrderedActions)

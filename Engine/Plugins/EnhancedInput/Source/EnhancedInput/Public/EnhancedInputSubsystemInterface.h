@@ -8,6 +8,7 @@
 #include "UObject/Interface.h"
 #include "EnhancedActionKeyMapping.h"
 #include "EnhancedPlayerInput.h"
+#include "PlayerMappableKeySlot.h"
 
 #include "EnhancedInputSubsystemInterface.generated.h"
 
@@ -180,31 +181,103 @@ public:
 	virtual TArray<FEnhancedActionKeyMapping> GetAllPlayerMappableActionKeyMappings() const;
 	
 	/**
-	 * Replace any currently applied mappings to this key mapping with the given new one.
+	 * Emplace or replace any currently applied key in the first key slot for mapping of MappingName.
 	 * Requests a rebuild of the player mappings. 
 	 *
 	 * @return The number of mappings that have been replaced
 	 */
+	//UE_DEPRECATED(5.2, "AddPlayerMappedKey has been deprecated, please use AddPlayerMappedKeyInSlot instead.")
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input|PlayerMappable", meta=(AutoCreateRefTerm = "Options"))
 	virtual int32 AddPlayerMappedKey(const FName MappingName, const FKey NewKey, const FModifyContextOptions& Options = FModifyContextOptions());
 
 	/**
-	 * Remove any player mappings with to the given action
+	 * Emplace or replace any currently applied key in KeySlot for mapping of MappingName.
+	 * Requests a rebuild of the player mappings.
+	 *
+	 * @return The number of mappings that have been replaced
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input|PlayerMappable", meta = (AutoCreateRefTerm = "KeySlot, Options"))
+	virtual int32 K2_AddPlayerMappedKeyInSlot(const FName MappingName, const FKey NewKey, const FPlayerMappableKeySlot& KeySlot = FPlayerMappableKeySlot(), const FModifyContextOptions& Options = FModifyContextOptions());
+
+	/**
+	 * Emplace or replace any currently applied key in KeySlot for mapping of MappingName.
+	 * Requests a rebuild of the player mappings.
+	 *
+	 * @return The number of mappings that have been replaced
+	 */
+	virtual int32 AddPlayerMappedKeyInSlot(const FName MappingName, const FKey NewKey, const FPlayerMappableKeySlot& KeySlot = FPlayerMappableKeySlot::FirstKeySlot, const FModifyContextOptions& Options = FModifyContextOptions());
+
+	/**
+	 * Removes player mapped key in the first KeySlot for mapping of MappingName.
 	 * Requests a rebuild of the player mappings. 
 	 *
 	 * @return The number of mappings that have been removed
 	 */
+	//UE_DEPRECATED(5.2, "RemovePlayerMappedKey has been deprecated, please use RemovePlayerMappedKeyInSlot instead.")
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input|PlayerMappable", meta=(AutoCreateRefTerm = "Options"))
 	virtual int32 RemovePlayerMappedKey(const FName MappingName, const FModifyContextOptions& Options = FModifyContextOptions());
 
 	/**
-	 * Get the player mapped key to the given mapping name. If there is not a player mapped key, then this will return
+	 * Removes player mapped key in the KeySlot for mapping of MappingName.
+	 * Requests a rebuild of the player mappings.
+	 *
+	 * @return The number of mappings that have been removed
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input|PlayerMappable", meta = (AutoCreateRefTerm = "KeySlot, Options"))
+	virtual int32 K2_RemovePlayerMappedKeyInSlot(const FName MappingName, const FPlayerMappableKeySlot& KeySlot = FPlayerMappableKeySlot(), const FModifyContextOptions& Options = FModifyContextOptions());
+
+	/**
+	 * Removes player mapped key in the KeySlot for mapping of MappingName.
+	 * Requests a rebuild of the player mappings.
+	 *
+	 * @return The number of mappings that have been removed
+	 */
+	virtual int32 RemovePlayerMappedKeyInSlot(const FName MappingName, const FPlayerMappableKeySlot& KeySlot = FPlayerMappableKeySlot::FirstKeySlot, const FModifyContextOptions& Options = FModifyContextOptions());
+
+	/**
+	 * Removes all player mapped keys for mapping of MappingName.
+	 * Requests a rebuild of the player mappings.
+	 *
+	 * @return The number of mappings that have been removed
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input|PlayerMappable", meta = (AutoCreateRefTerm = "KeySlot, Options"))
+	virtual int32 RemoveAllPlayerMappedKeysForMapping(const FName MappingName, const FModifyContextOptions& Options = FModifyContextOptions());
+
+	/**
+	 * Get the player mapped key in first slot to the given mapping name. If there is not a player mapped key, then this will return
 	 * EKeys::Invalid.
 	 *
 	 * @param MappingName	The FName of the mapped key that would have been set with the AddPlayerMappedKey function.
 	 */
+	//UE_DEPRECATED(5.2, "GetPlayerMappedKey has been deprecated, please use GetPlayerMappedKeyInSlot instead.")
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input|PlayerMappable")
 	virtual FKey GetPlayerMappedKey(const FName MappingName) const;
+
+	/**
+	 * Get the player mapped key in first slot to the given mapping name. If there is not a player mapped key, then this will return
+	 * EKeys::Invalid.
+	 *
+	 * @param MappingName	The FName of the mapped key that would have been set with the AddPlayerMappedKey function.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input|PlayerMappable", meta = (AutoCreateRefTerm = "KeySlot"))
+	virtual FKey K2_GetPlayerMappedKeyInSlot(const FName MappingName, const FPlayerMappableKeySlot& KeySlot = FPlayerMappableKeySlot()) const;
+
+	/**
+	 * Get the player mapped key in first slot to the given mapping name. If there is not a player mapped key, then this will return
+	 * EKeys::Invalid.
+	 *
+	 * @param MappingName	The FName of the mapped key that would have been set with the AddPlayerMappedKey function.
+	 */
+	virtual FKey GetPlayerMappedKeyInSlot(const FName MappingName, const FPlayerMappableKeySlot& KeySlot = FPlayerMappableKeySlot::FirstKeySlot) const;
+
+	/**
+	 * Get all the player mapped keys to the given mapping name. If there is not a player mapped key, then this will return
+	 * TArray<FKey>().
+	 *
+	 * @param MappingName	The FName of the mapped key that would have been set with the AddPlayerMappedKey function.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input|PlayerMappable")
+	virtual TArray<FKey> GetAllPlayerMappedKeys(const FName MappingName) const;
 	
 	/**
 	 * Remove All PlayerMappedKeys
@@ -273,8 +346,8 @@ private:
 	TMap<TWeakObjectPtr<const UInputAction>, FInputActionValue> ForcedActions;
 	TMap<FKey, FInputActionValue> ForcedKeys;
 
-	/** A map of any player mapped keys to the key that they should redirect to instead */
-	TMap<FName, FKey> PlayerMappedSettings;
+	/** A map of any player mapped keys to the keys that they should redirect to instead */
+	TMap<FName, TMap<FPlayerMappableKeySlot, FKey>> PlayerMappedSettings;
 
 	/**
 	 * A map of input actions with a Chorded trigger, mapped to the action they are dependent on.

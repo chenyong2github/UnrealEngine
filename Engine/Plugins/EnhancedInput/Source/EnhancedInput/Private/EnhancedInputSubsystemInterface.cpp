@@ -405,14 +405,26 @@ TArray<FEnhancedActionKeyMapping> IEnhancedInputSubsystemInterface::GetAllPlayer
 	return PlayerMappableMappings;
 }
 
-int32 IEnhancedInputSubsystemInterface::AddPlayerMappedKey(const FName MappingName, const FKey NewKey, const FModifyContextOptions& Options)
+int32 IEnhancedInputSubsystemInterface::AddPlayerMappedKey(const FName MappingName, const FKey NewKey, const FModifyContextOptions& Options /*= FModifyContextOptions()*/)
+{
+	return AddPlayerMappedKeyInSlot(MappingName, NewKey, FPlayerMappableKeySlot::FirstKeySlot, Options);
+}
+
+int32 IEnhancedInputSubsystemInterface::K2_AddPlayerMappedKeyInSlot(const FName MappingName, const FKey NewKey, const FPlayerMappableKeySlot& KeySlot /*= FPlayerMappableKeySlot()*/, const FModifyContextOptions& Options /*= FModifyContextOptions()*/)
+{
+	return AddPlayerMappedKeyInSlot(MappingName, NewKey, KeySlot, Options);
+}
+
+int32 IEnhancedInputSubsystemInterface::AddPlayerMappedKeyInSlot(const FName MappingName, const FKey NewKey, const FPlayerMappableKeySlot& KeySlot /*= FPlayerMappableKeySlot::FirstKeySlot*/, const FModifyContextOptions& Options /*= FModifyContextOptions()*/)
 {
 	int32 NumMappingsApplied = 0;
 	if (MappingName != NAME_None)
 	{
 		if (UEnhancedPlayerInput* const PlayerInput = GetPlayerInput())
 		{
-			PlayerMappedSettings.Add(MappingName, NewKey);
+			TMap<FPlayerMappableKeySlot, FKey>& PlayerMappedKeySlots = PlayerMappedSettings.FindOrAdd(MappingName);
+			FKey& KeyInSlot = PlayerMappedKeySlots.FindOrAdd(KeySlot);
+			KeyInSlot = NewKey;
 			++NumMappingsApplied;
 		}
 
@@ -420,22 +432,48 @@ int32 IEnhancedInputSubsystemInterface::AddPlayerMappedKey(const FName MappingNa
 	}
 	else
 	{
-		UE_LOG(LogEnhancedInput, Warning, TEXT("Attempted to AddPlayerMappedKey with an invalid MappingName! Mapping has not been applied."));
+		UE_LOG(LogEnhancedInput, Warning, TEXT("Attempted to AddPlayerMappedKeyInSlot with an invalid MappingName! Mapping has not been applied."));
 	}
 	return NumMappingsApplied;
 }
 
-int32 IEnhancedInputSubsystemInterface::RemovePlayerMappedKey(const FName MappingName, const FModifyContextOptions& Options)
+int32 IEnhancedInputSubsystemInterface::RemovePlayerMappedKey(const FName MappingName, const FModifyContextOptions& Options /*= FModifyContextOptions()*/)
 {
-	int32 NumMappingsApplied = 0;
+	return RemovePlayerMappedKeyInSlot(MappingName, FPlayerMappableKeySlot::FirstKeySlot, Options);
+}
+
+int32 IEnhancedInputSubsystemInterface::K2_RemovePlayerMappedKeyInSlot(const FName MappingName, const FPlayerMappableKeySlot& KeySlot /*= FPlayerMappableKeySlot()*/, const FModifyContextOptions& Options /*= FModifyContextOptions()*/)
+{
+	return RemovePlayerMappedKeyInSlot(MappingName, KeySlot, Options);
+}
+
+int32 IEnhancedInputSubsystemInterface::RemovePlayerMappedKeyInSlot(const FName MappingName, const FPlayerMappableKeySlot& KeySlot /*= FPlayerMappableKeySlot::FirstKeySlot*/, const FModifyContextOptions& Options /*= FModifyContextOptions()*/)
+{
+	int32 NumMappingsRemoved = 0;
 	if (UEnhancedPlayerInput* const PlayerInput = GetPlayerInput())
 	{
-		NumMappingsApplied = PlayerMappedSettings.Remove(MappingName);
+		if (TMap<FPlayerMappableKeySlot, FKey>* PlayerMappedKeySlots = PlayerMappedSettings.Find(MappingName))
+		{
+			NumMappingsRemoved = PlayerMappedKeySlots->Remove(KeySlot);
+		}
 	}
 
 	RequestRebuildControlMappings(Options);
-	
-	return NumMappingsApplied;
+
+	return NumMappingsRemoved;
+}
+
+int32 IEnhancedInputSubsystemInterface::RemoveAllPlayerMappedKeysForMapping(const FName MappingName, const FModifyContextOptions& Options /*= FModifyContextOptions()*/)
+{
+	int32 NumMappingsRemoved = 0;
+	if (UEnhancedPlayerInput* const PlayerInput = GetPlayerInput())
+	{
+		NumMappingsRemoved = PlayerMappedSettings.Remove(MappingName);
+	}
+
+	RequestRebuildControlMappings(Options);
+
+	return NumMappingsRemoved;
 }
 
 void IEnhancedInputSubsystemInterface::RemoveAllPlayerMappedKeys(const FModifyContextOptions& Options)
@@ -450,12 +488,35 @@ void IEnhancedInputSubsystemInterface::RemoveAllPlayerMappedKeys(const FModifyCo
 
 FKey IEnhancedInputSubsystemInterface::GetPlayerMappedKey(const FName MappingName) const
 {
-	if (const FKey* MappedKey = PlayerMappedSettings.Find(MappingName))
+	return GetPlayerMappedKeyInSlot(MappingName, FPlayerMappableKeySlot::FirstKeySlot);
+}
+
+FKey IEnhancedInputSubsystemInterface::K2_GetPlayerMappedKeyInSlot(const FName MappingName, const FPlayerMappableKeySlot& KeySlot /*= FPlayerMappableKeySlot()*/) const
+{
+	return GetPlayerMappedKeyInSlot(MappingName, KeySlot);
+}
+
+FKey IEnhancedInputSubsystemInterface::GetPlayerMappedKeyInSlot(const FName MappingName, const FPlayerMappableKeySlot& KeySlot /*= FPlayerMappableKeySlot()*/) const
+{
+	if (const TMap<FPlayerMappableKeySlot, FKey>* PlayerMappedKeySlots = PlayerMappedSettings.Find(MappingName))
 	{
-		return FKey(*MappedKey);
+		if (const FKey* PlayerMappedKey = PlayerMappedKeySlots->Find(KeySlot))
+		{
+			return *PlayerMappedKey;
+		}
 	}
-	
 	return EKeys::Invalid;
+}
+
+TArray<FKey> IEnhancedInputSubsystemInterface::GetAllPlayerMappedKeys(const FName MappingName) const
+{
+	TArray<FKey> PlayerMappedKeys;
+	if (const TMap<FPlayerMappableKeySlot, FKey>* PlayerMappedKeySlots = PlayerMappedSettings.Find(MappingName))
+	{
+		PlayerMappedKeySlots->GenerateValueArray(PlayerMappedKeys);
+		return PlayerMappedKeys;
+	}
+	return PlayerMappedKeys;
 }
 
 void IEnhancedInputSubsystemInterface::AddPlayerMappableConfig(const UPlayerMappableInputConfig* Config, const FModifyContextOptions& Options)
@@ -657,50 +718,60 @@ void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 
 		for (FEnhancedActionKeyMapping& Mapping : OrderedMappings)
 		{
-			if (FKey* PlayerKey = PlayerMappedSettings.Find(Mapping.GetMappingName()))
+			TArray<FKey> PlayerMappedKeys = GetAllPlayerMappedKeys(Mapping.GetMappingName());
+			if (PlayerMappedKeys.IsEmpty())
 			{
-				Mapping.Key = *PlayerKey;
+				//If we didn't find any player mapped keys use the default key from the mapping.
+				PlayerMappedKeys.Add(Mapping.Key);
 			}
-			
-			if (Mapping.Action && !AppliedKeys.Contains(Mapping.Key))
+
+			for (const FKey& PlayerMappedKey : PlayerMappedKeys)
 			{
-				// TODO: Wasteful query as we've already established chord state within ReorderMappings. Store TOptional bConsumeInput per mapping, allowing override? Query override via delegate?
-				auto IsChord = [](const UInputTrigger* Trigger) { return Cast<const UInputTriggerChordAction>(Trigger) != nullptr; };
-				bool bHasActionChords = HasTriggerWith(IsChord, Mapping.Action->Triggers);
-				bool bHasChords = HasTriggerWith(IsChord, Mapping.Triggers) || bHasActionChords;
+				Mapping.Key = PlayerMappedKey;
 
-				// Chorded actions can't consume input or they would hide the action they are chording.
-				if (!bHasChords && Mapping.Action->bConsumeInput)
+				if (Mapping.Action && !AppliedKeys.Contains(Mapping.Key))
 				{
-					ContextAppliedKeys.Add(Mapping.Key);
-				}
-
-				int32 NewMappingIndex = PlayerInput->AddMapping(Mapping);
-				FEnhancedActionKeyMapping& NewMapping = PlayerInput->EnhancedActionMappings[NewMappingIndex];
-
-				// Re-instance modifiers
-				DeepCopyPtrArray<UInputModifier>(Mapping.Modifiers, NewMapping.Modifiers);
-
-				ApplyAxisPropertyModifiers(PlayerInput, NewMapping);
-
-				// Re-instance triggers
-				DeepCopyPtrArray<UInputTrigger>(Mapping.Triggers, NewMapping.Triggers);
-
-				if (bHasChords)
-				{
-					// TODO: Re-prioritize chorded mappings (within same context only?) by number of chorded actions, so Ctrl + Alt + [key] > Ctrl + [key] > [key].
-					// TODO: Above example shouldn't block [key] if only Alt is down, as there is no direct Alt + [key] mapping.y
-					ChordedMappings.Add(NewMappingIndex);
-
-					// Action level chording triggers need to be evaluated at the mapping level to ensure they block early enough.
-					// TODO: Continuing to evaluate these at the action level is redundant.
-					if (bHasActionChords)
+					// TODO: Wasteful query as we've already established chord state within ReorderMappings. Store TOptional bConsumeInput per mapping, allowing override? Query override via delegate?
+					auto IsChord = [](const UInputTrigger* Trigger)
 					{
-						for (const UInputTrigger* Trigger : Mapping.Action->Triggers)
+						return Cast<const UInputTriggerChordAction>(Trigger) != nullptr;
+					};
+					bool bHasActionChords = HasTriggerWith(IsChord, Mapping.Action->Triggers);
+					bool bHasChords = HasTriggerWith(IsChord, Mapping.Triggers) || bHasActionChords;
+
+					// Chorded actions can't consume input or they would hide the action they are chording.
+					if (!bHasChords && Mapping.Action->bConsumeInput)
+					{
+						ContextAppliedKeys.Add(Mapping.Key);
+					}
+
+					int32 NewMappingIndex = PlayerInput->AddMapping(Mapping);
+					FEnhancedActionKeyMapping& NewMapping = PlayerInput->EnhancedActionMappings[NewMappingIndex];
+
+					// Re-instance modifiers
+					DeepCopyPtrArray<UInputModifier>(Mapping.Modifiers, NewMapping.Modifiers);
+
+					ApplyAxisPropertyModifiers(PlayerInput, NewMapping);
+
+					// Re-instance triggers
+					DeepCopyPtrArray<UInputTrigger>(Mapping.Triggers, NewMapping.Triggers);
+
+					if (bHasChords)
+					{
+						// TODO: Re-prioritize chorded mappings (within same context only?) by number of chorded actions, so Ctrl + Alt + [key] > Ctrl + [key] > [key].
+						// TODO: Above example shouldn't block [key] if only Alt is down, as there is no direct Alt + [key] mapping.y
+						ChordedMappings.Add(NewMappingIndex);
+
+						// Action level chording triggers need to be evaluated at the mapping level to ensure they block early enough.
+						// TODO: Continuing to evaluate these at the action level is redundant.
+						if (bHasActionChords)
 						{
-							if (IsChord(Trigger))
+							for (const UInputTrigger* Trigger : Mapping.Action->Triggers)
 							{
-								NewMapping.Triggers.Add(DuplicateObject(Trigger, nullptr));
+								if (IsChord(Trigger))
+								{
+									NewMapping.Triggers.Add(DuplicateObject(Trigger, nullptr));
+								}
 							}
 						}
 					}

@@ -7,6 +7,7 @@
 #include "InputActionValue.h"
 #include "InputMappingQuery.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "PlayerMappableKeySlot.h"
 #include "UObject/ObjectMacros.h"
 
 #include "EnhancedInputLibrary.generated.h"
@@ -97,4 +98,16 @@ public:
 	/** Converts a FInputActionValue to a string */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "To String (InputActionValue)", CompactNodeTitle = "->", BlueprintAutocast), Category = "Utilities|String")
 	static FString Conv_InputActionValueToString(FInputActionValue ActionValue);
+
+	UFUNCTION(BlueprintPure, Category = "Input", meta = (ReturnDisplayName = "First Player Mappable Key Slot"))
+	static FPlayerMappableKeySlot& GetFirstPlayerMappableKeySlot() { return FPlayerMappableKeySlot::FirstKeySlot; };
+
+	UFUNCTION(BlueprintPure, Category = "Input", meta = (ReturnDisplayName = "Second Player Mappable Key Slot"))
+	static FPlayerMappableKeySlot& GetSecondPlayerMappableKeySlot() { return FPlayerMappableKeySlot::SecondKeySlot; };
+
+	UFUNCTION(BlueprintPure, Category = "Input", meta = (ReturnDisplayName = "Third Player Mappable Key Slot"))
+	static FPlayerMappableKeySlot& GetThirdPlayerMappableKeySlot() { return FPlayerMappableKeySlot::ThirdKeySlot; };
+
+	UFUNCTION(BlueprintPure, Category = "Input", meta = (ReturnDisplayName = "Fourth Player Mappable Key Slot"))
+	static FPlayerMappableKeySlot& GetFourthPlayerMappableKeySlot() { return FPlayerMappableKeySlot::FourthKeySlot; };
 };
