@@ -9,6 +9,7 @@ FPlayerMappableKeySlot FPlayerMappableKeySlot::FourthKeySlot = FPlayerMappableKe
 
 FPlayerMappableKeySlot::FPlayerMappableKeySlot() { }
 FPlayerMappableKeySlot::FPlayerMappableKeySlot(const int32 InSlotNumber) : SlotNumber(InSlotNumber) { }
+FPlayerMappableKeySlot::~FPlayerMappableKeySlot() { }
 
 int32 FPlayerMappableKeySlot::GetSlotNumber() const
 {
