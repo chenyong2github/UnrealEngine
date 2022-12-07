@@ -3600,6 +3600,39 @@ int64 UTexture::Blueprint_GetMemorySize() const
 	return CalcTextureMemorySizeEnum(TMC_ResidentMips);
 }
 
+void UTexture::Blueprint_GetTextureSourceDiskAndMemorySize(int64 & OutDiskSize,int64 & OutMemorySize) const
+{
+#if WITH_EDITORONLY_DATA
+	OutMemorySize = Source.CalcMipSize(0);
+	OutDiskSize = Source.GetSizeOnDisk();
+#else
+	OutDiskSize = OutMemorySize = 0;
+	UE_LOG(LogTexture, Error, TEXT("Blueprint_GetTextureSourceDiskAndMemorySize can only be called WITH_EDITORONLY_DATA. (%s)"), *GetName());
+#endif
+}
+
+bool UTexture::ComputeTextureSourceChannelMinMax(FLinearColor & OutColorMin, FLinearColor & OutColorMax) const
+{
+	// make sure we fill the outputs if we return failure :
+	OutColorMin = FLinearColor(ForceInit);
+	OutColorMax = FLinearColor(ForceInit);
+
+#if WITH_EDITORONLY_DATA
+	FImage Image;
+	if ( ! const_cast<UTexture *>(this)->Source.GetMipImage(Image,0) )
+	{
+		UE_LOG(LogTexture, Error, TEXT("ComputeTextureSourceChannelMinMax failed to GetMipImage. (%s)"), *GetName());
+		return false;
+	}
+
+	FImageCore::ComputeChannelLinearMinMax(Image,OutColorMin,OutColorMax);
+	return true;
+#else
+	UE_LOG(LogTexture, Error, TEXT("ComputeTextureSourceChannelMinMax can only be called WITH_EDITORONLY_DATA. (%s)"), *GetName());
+	return false;
+#endif
+}
+
 #if WITH_EDITOR
 
 FTextureSource::FMipData::FMipData(const FTextureSource& InSource, FSharedBuffer InData)

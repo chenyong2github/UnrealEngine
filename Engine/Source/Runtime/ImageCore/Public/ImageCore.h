@@ -415,7 +415,7 @@ public:
 	/**
 	 * Copies the image to a destination image with the specified format.
 	 *
-	 * @param DestImage - The destination image.
+	 * @param DestImage - The destination image.  Will be allocated.  Any existing contents are replaced.
 	 * @param DestFormat - The destination image format.
 	 * @param DestSRGB - Whether the destination image is in SRGB format.
 	 */
@@ -703,6 +703,16 @@ IMAGECORE_API void SetAlphaOpaque(const FImageView & InImage);
 	* @param DestSRGB - Whether the destination image is in SRGB format.
 	*/
 IMAGECORE_API void ResizeTo(const FImageView & SourceImage,FImage& DestImage, int32 DestSizeX, int32 DestSizeY, ERawImageFormat::Type DestFormat, EGammaSpace DestGammaSpace);
+
+/**
+ * Compute the min/max of each channel to get value ranges
+ * Colors are converted to float Linear Gamma
+ * 
+ * @param InImage - The image to scan
+ * @param OutMin - filled with the minimum of the color channels
+ * @param OutMax - filled with the maximum of the color channels
+ */
+IMAGECORE_API void ComputeChannelLinearMinMax(const FImage & InImage, FLinearColor & OutMin, FLinearColor & OutMax);
 
 };
 

@@ -1344,10 +1344,30 @@ public:
 	uint8 bNotOfflineProcessed : 1;
 
 	/**
-	 * Gets the memory size of the texture, in bytes
+	 * Gets the memory size of the texture, in bytes.
+	 * This is the size in GPU memory of the built platformdata, accounting for LODBias, etc.
+	 * Returns zero for error.
 	 */
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "GetMemorySize"), Category = "Rendering|Texture")
 	int64 Blueprint_GetMemorySize() const;
+	
+	/**
+	 * Gets the memory size of the texture source top mip, in bytes, and the size on disk of the asset, which may be compressed.
+	 * Uses texture source, not available in runtime games.
+	 * Does not cause texture source to be loaded, queries cached values.
+	 * Returns zero for error.
+	 */
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "GetTextureSourceDiskAndMemorySize"), Category = "Rendering|Texture")
+	void Blueprint_GetTextureSourceDiskAndMemorySize(int64 & OutDiskSize,int64 & OutMemorySize) const;
+
+	/**
+	 * Scan the texture source pixels to compute the min & max values of the RGBA channels.
+	 * Uses texture source, not available in runtime games.
+	 * Causes texture source data to be loaded, is computed by scanning pixels when called.
+	 * Will set Min=Max=zero and return false on failure
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Texture")
+	bool ComputeTextureSourceChannelMinMax(FLinearColor & OutColorMin, FLinearColor & OutColorMax) const;
 
 private:
 	/** Whether the async resource release process has already been kicked off or not */
@@ -1732,9 +1752,10 @@ public:
 
 	/**
 	 * Calculates the size of this texture if it had MipCount miplevels streamed in.
+	 * This is the size in GPU memory of the built platformdata, accounting for LODBias, etc.
 	 *
 	 * @param	Enum	Which mips to calculate size for.
-	 * @return	Total size of all specified mips, in bytes
+	 * @return	Total size of all specified mips, in bytes.  Returns 0 for error.
 	 */
 	virtual uint32 CalcTextureMemorySizeEnum( ETextureMipCount Enum ) const
 	{

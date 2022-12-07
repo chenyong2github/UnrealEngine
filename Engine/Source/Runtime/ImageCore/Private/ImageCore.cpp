@@ -887,6 +887,7 @@ void FImage::CopyTo(FImage& DestImage, ERawImageFormat::Type DestFormat, EGammaS
 		DestGammaSpace = EGammaSpace::sRGB;
 	}
 
+	// existing contents of DestImage are freed and replaced
 	DestImage.Init(SizeX,SizeY,NumSlices,DestFormat,DestGammaSpace);
 	FImageCore::CopyImage(*this, DestImage);
 }
@@ -1505,4 +1506,37 @@ void FImageCore::SetAlphaOpaque(const FImageView & InImage)
 		// new format ?
 		check(0);
 	}
+}
+
+
+void FImageCore::ComputeChannelLinearMinMax(const FImage & InImage, FLinearColor & OutMin, FLinearColor & OutMax)
+{
+	// @todo Oodle : for speed, we should ideally scan the image for min/max in its native pixel format
+	//	then only convert the min/max colors to float linear after the scan
+	//	don't convert the whole image
+
+	FImage ImageLinear;
+	InImage.CopyTo(ImageLinear,ERawImageFormat::RGBA32F,EGammaSpace::Linear);
+	
+	TArrayView64<FLinearColor> Colors = ImageLinear.AsRGBA32F();
+	if ( Colors.Num() == 0 )
+	{
+		OutMin = FLinearColor(ForceInit);
+		OutMax = FLinearColor(ForceInit);
+		return;
+	}
+	
+	VectorRegister4Float VMin = VectorLoad(&Colors[0].Component(0));
+	VectorRegister4Float VMax = VMin;
+	
+	for ( const FLinearColor & Color : Colors )
+	{
+		VectorRegister4Float VCur = VectorLoad(&Color.Component(0));
+
+		VMin = VectorMin(VMin,VCur);
+		VMax = VectorMax(VMax,VCur);
+	}
+
+	VectorStore(VMin,&OutMin.Component(0));
+	VectorStore(VMax,&OutMax.Component(0));
 }
