@@ -1567,14 +1567,10 @@ void FGPUScene::UploadDynamicPrimitiveShaderDataForViewInternal(FRDGBuilder& Gra
 		UploadGeneral<FUploadDataSourceAdapterDynamicPrimitives>(GraphBuilder, Scene, ExternalAccessQueue, UploadAdapter);
 	}
 
-	// Update view uniform buffer
-	View.CachedViewUniformShaderParameters->PrimitiveSceneData = PrimitiveBuffer->GetSRV();
-	View.CachedViewUniformShaderParameters->LightmapSceneData = LightmapDataBuffer->GetSRV();
-	View.CachedViewUniformShaderParameters->InstancePayloadData = InstancePayloadDataBuffer->GetSRV();
-	View.CachedViewUniformShaderParameters->InstanceSceneData = InstanceSceneDataBuffer->GetSRV();
-	View.CachedViewUniformShaderParameters->InstanceSceneDataSOAStride = InstanceSceneDataSOAStride;
-
-	View.ViewUniformBuffer.UpdateUniformBufferImmediate(*View.CachedViewUniformShaderParameters);
+	if (FillViewShaderParameters(*View.CachedViewUniformShaderParameters))
+	{
+		View.ViewUniformBuffer.UpdateUniformBufferImmediate(*View.CachedViewUniformShaderParameters);
+	}
 
 	// Execute any instance data GPU writer callbacks. (Note: Done after the UB update, in case the user requires it)
 	if (bNeedsUpload) 
@@ -1631,6 +1627,25 @@ void FGPUScene::UploadDynamicPrimitiveShaderDataForViewInternal(FRDGBuilder& Gra
 
 		UseExternalAccessMode(ExternalAccessQueue, ERHIAccess::SRVMask, ERHIPipeline::All);
 	}
+}
+
+bool FGPUScene::FillViewShaderParameters(FViewUniformShaderParameters& OutParameters)
+{
+	bool bParametersChanged = false;
+
+	const auto SetParameter = [&](auto& OutParameter, const auto& InParameter)
+	{
+		bParametersChanged |= OutParameter != InParameter;
+		OutParameter = InParameter;
+	};
+
+	SetParameter(OutParameters.PrimitiveSceneData, PrimitiveBuffer->GetSRV());
+	SetParameter(OutParameters.LightmapSceneData, LightmapDataBuffer->GetSRV());
+	SetParameter(OutParameters.InstancePayloadData, InstancePayloadDataBuffer->GetSRV());
+	SetParameter(OutParameters.InstanceSceneData, InstanceSceneDataBuffer->GetSRV());
+	SetParameter(OutParameters.InstanceSceneDataSOAStride, InstanceSceneDataSOAStride);
+
+	return bParametersChanged;
 }
 
 void FGPUScene::AddPrimitiveToUpdate(int32 PrimitiveId, EPrimitiveDirtyState DirtyState)

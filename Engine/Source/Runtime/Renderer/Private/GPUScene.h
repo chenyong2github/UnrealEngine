@@ -221,6 +221,11 @@ public:
 	void UploadDynamicPrimitiveShaderDataForView(FRDGBuilder& GraphBuilder, FScene& Scene, FViewInfo& View, FRDGExternalAccessQueue& ExternalAccessQueue, bool bIsShadowView = false);
 
 	/**
+	 * Modifies the GPU scene specific view shader parameters to the current versions. Returns true if any of the parameters changed.
+	 */
+	bool FillViewShaderParameters(FViewUniformShaderParameters& View);
+
+	/**
 	 * Pull all pending updates from Scene and upload primitive & instance data.
 	 */
 	void Update(FRDGBuilder& GraphBuilder, FScene& Scene, FRDGExternalAccessQueue& ExternalAccessQueue);
