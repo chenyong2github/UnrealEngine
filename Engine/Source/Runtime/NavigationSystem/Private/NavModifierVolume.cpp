@@ -19,6 +19,7 @@
 ANavModifierVolume::ANavModifierVolume(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, AreaClass(UNavArea_Null::StaticClass())
+	, NavMeshResolution(ENavigationDataResolution::Invalid)
 {
 	if (GetBrushComponent())
 	{
@@ -34,13 +35,21 @@ void ANavModifierVolume::GetNavigationData(FNavigationRelevantData& Data) const
 		Data.Modifiers.CreateAreaModifiers(GetBrushComponent(), AreaClass);
 	}
 
-	if (bMaskFillCollisionUnderneathForNavmesh)
+	if (GetBrushComponent()->Brush != nullptr)
 	{
-		if (GetBrushComponent()->Brush != nullptr)
+		if (bMaskFillCollisionUnderneathForNavmesh)
 		{
 			const FBox& Box = GetBrushComponent()->Brush->Bounds.GetBox();
-			FAreaNavModifier AreaMod(Box, GetBrushComponent()->GetComponentTransform(), AreaClass);
+			const FAreaNavModifier AreaMod(Box, GetBrushComponent()->GetComponentTransform(), AreaClass);
 			Data.Modifiers.SetMaskFillCollisionUnderneathForNavmesh(true);
+			Data.Modifiers.Add(AreaMod);
+		}
+
+		if (NavMeshResolution != ENavigationDataResolution::Invalid)
+		{
+			const FBox& Box = GetBrushComponent()->Brush->Bounds.GetBox();
+			const FAreaNavModifier AreaMod(Box, GetBrushComponent()->GetComponentTransform(), AreaClass);
+			Data.Modifiers.SetNavMeshResolution(NavMeshResolution);
 			Data.Modifiers.Add(AreaMod);
 		}
 	}

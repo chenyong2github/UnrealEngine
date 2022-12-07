@@ -557,19 +557,39 @@ void FPImplRecastNavMesh::Serialize( FArchive& Ar, int32 NavMeshVersion )
 	Ar << Params.maxTiles;				///< The maximum number of tiles the navigation mesh can contain.
 	Ar << Params.maxPolys;
 
-	if(NavMeshOwner->NavMeshVersion >= NAVMESHVER_OPTIM_FIX_SERIALIZE_PARAMS)
+	if (NavMeshOwner->NavMeshVersion >= NAVMESHVER_TILE_RESOLUTIONS)
 	{
 		Ar << Params.walkableHeight;
 		Ar << Params.walkableRadius;
 		Ar << Params.walkableClimb;
-		Ar << Params.bvQuantFactor;
+		Ar << Params.resolutionParams[(uint8)ENavigationDataResolution::Low].bvQuantFactor;
+		Ar << Params.resolutionParams[(uint8)ENavigationDataResolution::Default].bvQuantFactor;
+		Ar << Params.resolutionParams[(uint8)ENavigationDataResolution::High].bvQuantFactor;
+	}
+	else if (NavMeshOwner->NavMeshVersion >= NAVMESHVER_OPTIM_FIX_SERIALIZE_PARAMS)
+	{
+		// Load previous version navmesh data into new struct
+		Ar << Params.walkableHeight;
+		Ar << Params.walkableRadius;
+		Ar << Params.walkableClimb;
+		Ar << Params.resolutionParams[(uint8)ENavigationDataResolution::Default].bvQuantFactor;
+		if (Ar.IsLoading())
+		{
+			const dtReal DefaultQuantFactor = Params.resolutionParams[(uint8)ENavigationDataResolution::Default].bvQuantFactor; 
+			Params.resolutionParams[(uint8)ENavigationDataResolution::Low].bvQuantFactor = DefaultQuantFactor;
+			Params.resolutionParams[(uint8)ENavigationDataResolution::High].bvQuantFactor = DefaultQuantFactor;
+		}
 	}
 	else
 	{
 		Params.walkableHeight = NavMeshOwner->AgentHeight;
 		Params.walkableRadius = NavMeshOwner->AgentRadius;
 		Params.walkableClimb = NavMeshOwner->AgentMaxStepHeight;
-		Params.bvQuantFactor = 1.f / NavMeshOwner->CellSize;
+		const float DefaultQuantFactor =  1.f / NavMeshOwner->GetCellSize(ENavigationDataResolution::Default);
+		for(uint8 Index = 0; Index < (uint8)ENavigationDataResolution::MAX; Index++)
+		{
+			Params.resolutionParams[Index].bvQuantFactor = DefaultQuantFactor;	
+		}
 	}
 
 	if (Ar.IsLoading())
@@ -577,7 +597,8 @@ void FPImplRecastNavMesh::Serialize( FArchive& Ar, int32 NavMeshVersion )
 		// at this point we can tell whether navmesh being loaded is in line
 		// ARecastNavMesh's params. If not, just skip it.
 		// assumes tiles are rectangular
-		const FVector::FReal ActorsTileSize = FVector::FReal(int32(NavMeshOwner->TileSizeUU / NavMeshOwner->CellSize) * NavMeshOwner->CellSize);
+		const float DefaultCellSize = NavMeshOwner->GetCellSize(ENavigationDataResolution::Default);
+		const FVector::FReal ActorsTileSize = FVector::FReal(int32(NavMeshOwner->TileSizeUU / DefaultCellSize) * DefaultCellSize);
 
 		if (ActorsTileSize != Params.tileWidth)
 		{
@@ -783,6 +804,12 @@ void FPImplRecastNavMesh::SerializeRecastMeshTile(FArchive& Ar, int32 NavMeshVer
 		Ar << Header->layer << Header->polyCount << Header->vertCount;
 		Ar << Header->maxLinkCount << Header->detailMeshCount << Header->detailVertCount << Header->detailTriCount;
 		Ar << Header->bvNodeCount << Header->offMeshConCount<< Header->offMeshBase;
+		
+		if (NavMeshVersion >= NAVMESHVER_TILE_RESOLUTIONS)
+		{
+			Ar << Header->resolution;
+		}
+		
 		Ar << Header->bmin[0] << Header->bmin[1] << Header->bmin[2];
 		Ar << Header->bmax[0] << Header->bmax[1] << Header->bmax[2];
 #if WITH_NAVMESH_CLUSTER_LINKS

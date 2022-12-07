@@ -388,13 +388,13 @@ static void drawMeshTileBVTree(duDebugDraw* dd, const dtMeshTile* tile, const dt
 void duDebugDrawNavMeshBVTree(duDebugDraw* dd, const dtNavMesh& mesh)
 {
 	if (!dd) return;
-
-	const dtReal bvQuantFactor = mesh.getBVQuantFactor();
 	
 	for (int i = 0; i < mesh.getMaxTiles(); ++i)
 	{
 		const dtMeshTile* tile = mesh.getTile(i);
 		if (!tile->header) continue;
+
+		const dtReal bvQuantFactor = mesh.getBVQuantFactor(tile->header->resolution);
 		drawMeshTileBVTree(dd, tile, bvQuantFactor);
 	}
 }

@@ -143,6 +143,8 @@ struct dtNavMeshCreateParams
 	dtReal cs;				///< The xz-plane cell size of the polygon mesh. [Limit: > 0] [Unit: wu]
 	dtReal ch;				///< The y-axis cell height of the polygon mesh. [Limit: > 0] [Unit: wu]
 
+	unsigned char tileResolutionLevel;	///< Tile resolution index 		//@UE
+
 	/// True if a bounding volume tree should be built for the tile.
 	/// @note The BVTree is not normally needed for layered navigation meshes.
 	bool buildBvTree;

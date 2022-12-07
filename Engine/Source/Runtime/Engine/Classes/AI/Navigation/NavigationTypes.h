@@ -66,6 +66,16 @@ namespace FNavigationSystem
 }
 
 UENUM()
+enum class ENavigationDataResolution : uint8
+{
+	Low = 0,
+	Default = 1,
+	High = 2,
+	Invalid = 3 UMETA(DisplayName="None"),
+	MAX = 3,
+};
+
+UENUM()
 namespace ENavigationOptionFlag
 {
 	enum Type : int

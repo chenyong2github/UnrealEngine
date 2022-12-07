@@ -123,6 +123,8 @@ static const int DT_MAX_AREAS = 64;
 static const int DT_MIN_SALT_BITS = 5;
 static const int DT_SALT_BASE = 1;
 
+static const int DT_RESOLUTION_COUNT = 3; 
+
 #if WITH_NAVMESH_SEGMENT_LINKS
 /// Max segment parts for segment-to-segment off mesh connection
 static const int DT_MAX_OFFMESH_SEGMENT_PARTS = 4;
@@ -399,6 +401,8 @@ struct dtMeshHeader
 #if WITH_NAVMESH_CLUSTER_LINKS
 	unsigned short clusterCount;			///< Number of clusters
 #endif // WITH_NAVMESH_CLUSTER_LINKS
+
+	unsigned char resolution;			///< The resolution index used for the tile.
 	//@UE END
 
 	// These should be at the bottom, as they are less often used than the rest of the data. The rest will fit in one cache line.
@@ -458,18 +462,27 @@ struct dtMeshTile
 	//@UE END
 };
 
+//@UE BEGIN
+/// Configuration parameters depending on navmesh resolution.
+struct dtNavMeshResParams
+{
+	dtReal bvQuantFactor;			///< The bounding volume quantization factor.
+};
+//@UE END
+
 /// Configuration parameters used to define multi-tile navigation meshes.
 /// The values are used to allocate space during the initialization of a navigation mesh.
 /// @see dtNavMesh::init()
 /// @ingroup detour
 struct dtNavMeshParams
 {
-	//@UE BEGIN Memory optimization
+	//@UE BEGIN
 	dtReal walkableHeight;			///< The height of the agents using the tile.
 	dtReal walkableRadius;			///< The radius of the agents using the tile.
 	dtReal walkableClimb;			///< The maximum climb height of the agents using the tile.	
-	dtReal bvQuantFactor;			///< The bounding volume quantization factor.
-	//@UE END Memory optimization 	
+
+	dtNavMeshResParams resolutionParams[DT_RESOLUTION_COUNT]; ///< Parameters depending on resolutions.
+	//@UE END
 	
 	dtReal orig[3];					///< The world space origin of the navigation mesh's tile space. [(x, y, z)]
 	dtReal tileWidth;				///< The width of each tile. (Along the x-axis.)
@@ -854,10 +867,10 @@ public:
 	/// @}
 
 	//@UE Begin LWCoords
-	dtReal getWalkableHeight() const { return m_walkableHeight; }
-	dtReal getWalkableRadius() const { return m_walkableRadius; }
-	dtReal getWalkableClimb() const { return m_walkableClimb; }
-	dtReal getBVQuantFactor() const { return m_bvQuantFactor; }
+	dtReal getWalkableHeight() const { return m_params.walkableHeight; }
+	dtReal getWalkableRadius() const { return m_params.walkableRadius; }
+	dtReal getWalkableClimb() const { return m_params.walkableClimb; }
+	dtReal getBVQuantFactor(const unsigned char resolution) const { return m_params.resolutionParams[resolution].bvQuantFactor; }
 	//@UE END LWCoords
 
 private:
@@ -934,16 +947,9 @@ private:
 	void calcTileLoc(const dtReal* pos, dtReal* tx, dtReal* ty) const;
 
 public:
-	dtNavMeshParams m_params;			///< Current initialization params. TODO: do not store this info twice.
+	dtNavMeshParams m_params;			///< Current initialization params.
 	dtReal m_orig[3];					///< Origin of the tile (0,0)
 	dtReal m_tileWidth, m_tileHeight;	///< Dimensions of each tile.
-
-	//@UE BEGIN Memory optimization
-	dtReal m_walkableHeight;			///< The height of the agents using the tile.
-	dtReal m_walkableRadius;			///< The radius of the agents using the tile.
-	dtReal m_walkableClimb;				///< The maximum climb height of the agents using the tile.
-	dtReal m_bvQuantFactor;				///< The bounding volume quantization factor. 
-	//@UE END Memory optimization
 
 	int m_maxTiles;						///< Max number of tiles.
 	int m_tileLutSize;					///< Tile hash lookup size (must be pot).

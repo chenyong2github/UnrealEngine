@@ -1632,7 +1632,9 @@ FRecastTileGenerator::FRecastTileGenerator(FRecastNavMeshGenerator& ParentGenera
 	TileX = Location.X;
 	TileY = Location.Y;
 
+	// Copy tile config from parent generator
 	TileConfig = ParentGenerator.GetConfig();
+	
 	TileDebugSettings = ParentGenerator.GetTileDebugSettings();
 	Version = ParentGenerator.GetVersion();
 	AdditionalCachedData = ParentGenerator.GetAdditionalCachedData();
@@ -1665,9 +1667,11 @@ FRecastTileGenerator::~FRecastTileGenerator()
 
 void FRecastTileGenerator::Setup(const FRecastNavMeshGenerator& ParentGenerator, const TArray<FBox>& DirtyAreas)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FRecastTileGenerator_Setup);
+	
 	const FVector RcNavMeshOrigin = ParentGenerator.GetRcNavMeshOrigin();
 	const FBox NavTotalBounds = ParentGenerator.GetTotalBounds();
-	const FVector::FReal TileSizeUU = (TileConfig.tileSize * TileConfig.cs);
+	const FVector::FReal TileSizeUU = TileConfig.GetTileSizeUU();
 
 	NavDataConfig = ParentGenerator.GetOwner()->GetConfig();
 
@@ -1977,17 +1981,43 @@ void FRecastTileGenerator::GatherGeometry(const FRecastNavMeshGenerator& ParentG
 	const bool bUseVirtualGeometryFilteringAndDirtying = OwnerNav->bUseVirtualGeometryFilteringAndDirtying;
 	const FNavDataConfig& OwnerNavDataConfig = OwnerNav->GetConfig();
 
-	NavigationOctree->FindElementsWithBoundsTest(ParentGenerator.GrowBoundingBox(TileBB, /*bIncludeAgentHeight*/ false),
-		[&OwnerNavDataConfig, &ParentGenerator, this, NavSys, bGeometryChanged, bUseVirtualGeometryFilteringAndDirtying](const FNavigationOctreeElement& Element)
+	TArray<TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe>> RelevantDataArray;
+
+	const FBox NewBounds = ParentGenerator.GrowBoundingBox(TileBB, /*bIncludeAgentHeight*/ false);
+	ENavigationDataResolution HighestResolution = ENavigationDataResolution::Low;
+	bool bNewResolutionFound = false;
+	
+	NavigationOctree->FindElementsWithBoundsTest(NewBounds,
+		[&HighestResolution, &bNewResolutionFound, &RelevantDataArray, &OwnerNavDataConfig, &ParentGenerator, this, NavSys, bGeometryChanged, bUseVirtualGeometryFilteringAndDirtying](const FNavigationOctreeElement& Element)
 	{
 		const bool bShouldUse = bUseVirtualGeometryFilteringAndDirtying ?
 			ParentGenerator.ShouldGenerateGeometryForOctreeElement(Element, OwnerNavDataConfig) :
 			Element.ShouldUseGeometry(OwnerNavDataConfig);
 		if (bShouldUse)
 		{
-			GatherNavigationDataGeometry(Element.Data, *NavSys, OwnerNavDataConfig, bGeometryChanged);
+			RelevantDataArray.Add(Element.Data);
+
+			// Keep highest resolution that is not the default.
+			const ENavigationDataResolution Resolution = Element.Data->Modifiers.GetNavMeshResolution();
+			if (Resolution != ENavigationDataResolution::Invalid)
+			{
+				HighestResolution = FMath::Max(HighestResolution, Resolution);
+				bNewResolutionFound = true;
+			}
 		}
 	});
+
+	check(HighestResolution != ENavigationDataResolution::Invalid);
+	if (bNewResolutionFound && ParentGenerator.GetOwner()->NavMeshResolutionParams[(uint8)HighestResolution].IsValid())
+	{
+		// Update the TileConfig
+		ParentGenerator.SetupTileConfig(HighestResolution, TileConfig);
+	}
+	
+	for(TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe> ElementData : RelevantDataArray)
+	{
+		GatherNavigationDataGeometry(ElementData, *NavSys, OwnerNavDataConfig, bGeometryChanged);
+	}
 }
 
 void FRecastTileGenerator::GatherNavigationDataGeometry(const TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe>& ElementData, UNavigationSystemV1& NavSys, const FNavDataConfig& OwnerNavDataConfig, const bool bGeometryChanged)
@@ -3782,6 +3812,7 @@ bool FRecastTileGenerator::GenerateNavigationDataLayer(FNavMeshBuildContext& Bui
 		rcVcopy(Params.bmax, GenerationContext.Layer->header->bmax);
 		Params.cs = TileConfig.cs;
 		Params.ch = TileConfig.ch;
+		Params.tileResolutionLevel = (unsigned char)TileConfig.TileResolution;
 		Params.buildBvTree = TileConfig.bGenerateBVTree;
 
 #if WITH_NAVMESH_CLUSTER_LINKS
@@ -4514,10 +4545,35 @@ FRecastNavMeshGenerator::~FRecastNavMeshGenerator()
 	DEC_DWORD_STAT_BY( STAT_NavigationMemory, sizeof(*this) );
 }
 
+void FRecastNavMeshGenerator::SetupTileConfig(const ENavigationDataResolution TileResolution, FRecastBuildConfig& OutConfig) const
+{
+	check(GetOwner());
+	ensure(GetConfig().cs == GetOwner()->GetCellSize(ENavigationDataResolution::Default));
+	const float CellSize = GetOwner()->GetCellSize(TileResolution);
+	
+	// Update all settings that depends directly on indirectly of the CellSize
+	OutConfig.TileResolution = TileResolution;
+	OutConfig.cs = CellSize;
+	OutConfig.walkableRadius = FMath::CeilToInt(DestNavMesh->AgentRadius / CellSize);
+
+	OutConfig.borderSize = OutConfig.walkableRadius + 3; // +1 for voxelization rounding, +1 for ledge neighbor access, +1 for occasional errors
+	OutConfig.maxEdgeLen = (int32)(1200.0f / CellSize);
+
+	OutConfig.minRegionArea = (int32)rcSqr(DestNavMesh->MinRegionArea / CellSize);
+	OutConfig.mergeRegionArea = (int32)rcSqr(DestNavMesh->MergeRegionSize / CellSize);
+
+	OutConfig.tileSize = FMath::Max(FMath::TruncToInt(DestNavMesh->TileSizeUU / CellSize), 1);
+	UE_CLOG(OutConfig.tileSize == 1, LogNavigation, Error, TEXT("RecastNavMesh TileSize of 1 is highly discouraged. This occurence indicates an issue with RecastNavMesh\'s generation properties (specifically TileSizeUU: %f, CellSize: %f). Please ensure their correctness.")
+		, DestNavMesh->TileSizeUU, CellSize);
+
+	OutConfig.regionChunkSize = FMath::Max(1, OutConfig.tileSize / FMath::Max(1, DestNavMesh->LayerChunkSplits));
+	OutConfig.TileCacheChunkSize = FMath::Max(1, OutConfig.tileSize / FMath::Max(1, DestNavMesh->RegionChunkSplits));
+}
+
 void FRecastNavMeshGenerator::ConfigureBuildProperties(FRecastBuildConfig& OutConfig)
 {
 	// @TODO those variables should be tweakable per navmesh actor
-	const float CellSize = DestNavMesh->CellSize;
+	const float CellSize = DestNavMesh->GetCellSize(ENavigationDataResolution::Default);
 	const float CellHeight = DestNavMesh->CellHeight;
 	const float AgentHeight = DestNavMesh->AgentHeight;
 	const float AgentMaxSlope = DestNavMesh->AgentMaxSlope;
@@ -4616,7 +4672,7 @@ void FRecastNavMeshGenerator::Init()
 		}
 	}
 
-	ensure(DestNavMesh->GetRecastMesh() == nullptr || DestNavMesh->GetRecastMesh()->getBVQuantFactor() != 0);
+	ensure(DestNavMesh->GetRecastMesh() == nullptr || DestNavMesh->GetRecastMesh()->getBVQuantFactor((unsigned char)ENavigationDataResolution::Default) != 0);
 
 	UpdateNavigationBounds();
 
@@ -4654,7 +4710,7 @@ void FRecastNavMeshGenerator::Init()
 			}
 			else
 			{
-				const FVector::FReal TileDim = Config.tileSize * Config.cs;
+				const FVector::FReal TileDim = Config.GetTileSizeUU();
 				if (SavedNavParams->tileHeight == TileDim && SavedNavParams->tileWidth == TileDim)
 				{
 					const FVector Orig = Recast2UnrealPoint(SavedNavParams->orig);
@@ -4764,8 +4820,8 @@ bool FRecastNavMeshGenerator::ConstructTiledNavMesh()
 		FVector NMOrigin = RcNavMeshOrigin;
 		rcVcopy(TiledMeshParameters.orig, &NMOrigin.X);
 
-		TiledMeshParameters.tileWidth = Config.tileSize * Config.cs;
-		TiledMeshParameters.tileHeight = Config.tileSize * Config.cs;
+		TiledMeshParameters.tileWidth = Config.GetTileSizeUU();
+		TiledMeshParameters.tileHeight = Config.GetTileSizeUU();
 
 		CalcNavMeshProperties(TiledMeshParameters.maxTiles, TiledMeshParameters.maxPolys);
 		Config.MaxPolysPerTile = TiledMeshParameters.maxPolys;
@@ -4773,7 +4829,9 @@ bool FRecastNavMeshGenerator::ConstructTiledNavMesh()
 		TiledMeshParameters.walkableClimb = Config.AgentMaxClimb;
 		TiledMeshParameters.walkableHeight = Config.AgentHeight;
 		TiledMeshParameters.walkableRadius = Config.AgentRadius;
-		TiledMeshParameters.bvQuantFactor = 1.f / Config.cs;
+		TiledMeshParameters.resolutionParams[(uint8)ENavigationDataResolution::Low].bvQuantFactor = 1.f / DestNavMesh->GetCellSize(ENavigationDataResolution::Low);
+		TiledMeshParameters.resolutionParams[(uint8)ENavigationDataResolution::Default].bvQuantFactor = 1.f / DestNavMesh->GetCellSize(ENavigationDataResolution::Default);
+		TiledMeshParameters.resolutionParams[(uint8)ENavigationDataResolution::High].bvQuantFactor = 1.f / DestNavMesh->GetCellSize(ENavigationDataResolution::High);
 
 		if (TiledMeshParameters.maxTiles == 0)
 		{
@@ -4837,7 +4895,7 @@ void FRecastNavMeshGenerator::CalcNavMeshProperties(int32& MaxTiles, int32& MaxP
 	int32 MaxRequestedTiles = 0;
 	if (DestNavMesh->IsResizable())
 	{
-		MaxRequestedTiles = UE::NavMesh::Private::CalculateMaxTilesCount(InclusionBounds, Config.tileSize * Config.cs, AvgLayersPerTile, DestNavMesh->NavMeshVersion);
+		MaxRequestedTiles = UE::NavMesh::Private::CalculateMaxTilesCount(InclusionBounds, Config.GetTileSizeUU(), AvgLayersPerTile, DestNavMesh->NavMeshVersion);
 	}
 	else
 	{
@@ -5007,7 +5065,7 @@ void FRecastNavMeshGenerator::OnNavigationBoundsChanged()
 	if (!IsGameStaticNavMesh(DestNavMesh) && DestNavMesh->IsResizable() && DetourMesh)
 	{
 		// Check whether Navmesh size needs to be changed
-		const int32 MaxRequestedTiles = UE::NavMesh::Private::CalculateMaxTilesCount(InclusionBounds, Config.tileSize * Config.cs, AvgLayersPerTile, DestNavMesh->NavMeshVersion);
+		const int32 MaxRequestedTiles = UE::NavMesh::Private::CalculateMaxTilesCount(InclusionBounds, Config.GetTileSizeUU(), AvgLayersPerTile, DestNavMesh->NavMeshVersion);
 		if (DetourMesh->getMaxTiles() != MaxRequestedTiles)
 		{
 			UE_LOG(LogNavigation, Log, TEXT("%s> Navigation bounds changed, rebuilding navmesh"), *DestNavMesh->GetName());
@@ -5654,7 +5712,7 @@ bool FRecastNavMeshGenerator::HasDirtyTiles(const FBox& AreaBounds) const
 	}
 
 	bool bRetDirty = false;
-	const FVector::FReal TileSizeInWorldUnits = Config.tileSize * Config.cs;
+	const FVector::FReal TileSizeInWorldUnits = Config.GetTileSizeUU();
 	const FRcTileBox TileBox(AreaBounds, RcNavMeshOrigin, TileSizeInWorldUnits);
 		
 	for (int32 Index = 0; bRetDirty == false && Index < PendingDirtyTiles.Num(); ++Index)
@@ -5671,7 +5729,7 @@ bool FRecastNavMeshGenerator::HasDirtyTiles(const FBox& AreaBounds) const
 
 int32 FRecastNavMeshGenerator::GetDirtyTilesCount(const FBox& AreaBounds) const
 {
-	const FVector::FReal TileSizeInWorldUnits = Config.tileSize * Config.cs;
+	const FVector::FReal TileSizeInWorldUnits = Config.GetTileSizeUU();
 	const FRcTileBox TileBox(AreaBounds, RcNavMeshOrigin, TileSizeInWorldUnits);
 
 	int32 DirtyPendingCount = 0;
@@ -5712,7 +5770,7 @@ void FRecastNavMeshGenerator::MarkDirtyTiles(const TArray<FNavigationDirtyArea>&
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_MarkDirtyTiles);
 	
 	check(bInitialized);
-	const FVector::FReal TileSizeInWorldUnits = Config.tileSize * Config.cs;
+	const FVector::FReal TileSizeInWorldUnits = Config.GetTileSizeUU();
 	check(TileSizeInWorldUnits > 0);
 
 	const bool bGameStaticNavMesh = IsGameStaticNavMesh(DestNavMesh);
@@ -5935,7 +5993,7 @@ void FRecastNavMeshGenerator::SortPendingBuildTiles()
 
 	if (SeedLocations.Num() > 0)
 	{
-		const FVector::FReal TileSizeInWorldUnits = Config.tileSize * Config.cs;
+		const FVector::FReal TileSizeInWorldUnits = Config.GetTileSizeUU();
 		
 		// Calculate shortest distances between tiles and players
 		for (FPendingTileElement& Element : PendingDirtyTiles)

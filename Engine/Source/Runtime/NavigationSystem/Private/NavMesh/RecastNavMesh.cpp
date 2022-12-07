@@ -424,7 +424,9 @@ FRecastNavMeshGenerationProperties::FRecastNavMeshGenerationProperties(const ARe
 {
 	TilePoolSize = RecastNavMesh.TilePoolSize;
 	TileSizeUU = RecastNavMesh.TileSizeUU;
-	CellSize = RecastNavMesh.CellSize;
+	
+	// @todo: Handle navmesh resolution if FRecastNavMeshGenerationProperties is used.
+	CellSize = RecastNavMesh.GetCellSize(ENavigationDataResolution::Default);
 	CellHeight = RecastNavMesh.CellHeight;
 	AgentRadius = RecastNavMesh.AgentRadius;
 	AgentHeight = RecastNavMesh.AgentHeight;
@@ -629,8 +631,22 @@ void ARecastNavMesh::PostLoad()
 		}
 	}
 
-	UE_CLOG(TileSizeUU < CellSize, LogNavigation, Error, TEXT("%s: TileSizeUU (%f) being less than CellSize (%f) is an invalid case and will cause navmesh generation issues.")
-		, *GetName(), TileSizeUU, CellSize);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	// If needed, initialize from deprecated value.
+	if (NavMeshVersion < NAVMESHVER_TILE_RESOLUTIONS)
+	{
+		for (int i = 0; i < (uint8)ENavigationDataResolution::MAX; ++i)
+		{
+			SetCellSize((ENavigationDataResolution)i, CellSize);
+		}
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	
+	for (uint8 Index = 0; Index < (uint8)ENavigationDataResolution::MAX; Index++)
+	{
+		UE_CLOG(TileSizeUU < GetCellSize((ENavigationDataResolution)Index), LogNavigation, Error, TEXT("%s: TileSizeUU (%f) being less than CellSize (%f) is an invalid case and will cause navmesh generation issues.")
+			, *GetName(), TileSizeUU, GetCellSize((ENavigationDataResolution)Index));
+	}
 	
 	if (!UWorld::IsPartitionedWorld(GetWorld()))
 	{
@@ -711,12 +727,17 @@ void ARecastNavMesh::PostInitProperties()
 			TileSizeUU = DefOb->TileSizeUU;
 		}
 
-		if (CellSize != DefOb->CellSize)
+		for (int i = 0; i < (uint8)ENavigationDataResolution::MAX; ++i)
 		{
-			UE_LOG(LogNavigation, Warning, TEXT("%s param: CellSize(%f) differs from config settings, forcing value %f so it can be used with voxel cache!"),
-				*GetNameSafe(this), CellSize, DefOb->CellSize);
+			const float CurrentCellSize = NavMeshResolutionParams[i].CellSize;
+			const float DefaultObjectCellSize = DefOb->NavMeshResolutionParams[i].CellSize;
+			if (CurrentCellSize != DefaultObjectCellSize)
+			{
+				UE_LOG(LogNavigation, Warning, TEXT("%s param: CellSize(%f) differs from config settings, forcing value %f so it can be used with voxel cache!"),
+					*GetNameSafe(this), CurrentCellSize, DefaultObjectCellSize);
 
-			CellSize = DefOb->CellSize;
+				NavMeshResolutionParams[i].CellSize = DefaultObjectCellSize;
+			}
 		}
 
 		if (CellHeight != DefOb->CellHeight)
@@ -943,7 +964,7 @@ void ARecastNavMesh::OnRegistered()
 	check(RecastNavMeshImpl);
 
 	// This check can fail when the NavMeshVersion indicates the map needs the nav mesh rebuilt
-	ensure(RecastNavMeshImpl->GetRecastMesh() == nullptr || RecastNavMeshImpl->GetRecastMesh()->getBVQuantFactor() != 0);
+	ensure(RecastNavMeshImpl->GetRecastMesh() == nullptr || RecastNavMeshImpl->GetRecastMesh()->getBVQuantFactor((uint8)ENavigationDataResolution::Default) != 0);
 }
 
 void ARecastNavMesh::SerializeRecastNavMesh(FArchive& Ar, FPImplRecastNavMesh*& NavMesh, int32 InNavMeshVersion)
@@ -1328,6 +1349,13 @@ bool ARecastNavMesh::IsResizable() const
 	}
 	
 	return !bFixedTilePoolSize;
+}
+
+float ARecastNavMesh::GetTileSizeUU() const
+{
+	const float DefaultCellSize = GetCellSize(ENavigationDataResolution::Default);
+	const float RcTileSize = FMath::TruncToFloat(TileSizeUU / DefaultCellSize);
+	return RcTileSize * DefaultCellSize;
 }
 
 void ARecastNavMesh::GetEdgesForPathCorridor(const TArray<NavNodeRef>* PathCorridor, TArray<FNavigationPortalEdge>* PathCorridorEdges) const
@@ -2084,12 +2112,11 @@ int32 ARecastNavMesh::ReplaceAreaInTileBounds(const FBox& Bounds, TSubclassOf<UN
 		ensure(NewAreaID != OldAreaID);
 
 		// workaround for privacy issue in the recast API
-		dtNavMesh* DetourNavMesh = RecastNavMeshImpl->GetRecastMesh();
+		const dtNavMesh* DetourNavMesh = RecastNavMeshImpl->GetRecastMesh();
 		dtNavMesh const* const ConstDetourNavMesh = RecastNavMeshImpl->GetRecastMesh();
 
 		const FVector RcNavMeshOrigin = Unreal2RecastPoint(NavMeshOriginOffset);
-		const float RcTileSize = FMath::TruncToFloat(TileSizeUU / CellSize);
-		const float TileSizeInWorldUnits = RcTileSize * CellSize;
+		const float TileSizeInWorldUnits = GetTileSizeUU();
 		const FRcTileBox TileBox(Bounds, RcNavMeshOrigin, TileSizeInWorldUnits);
 
 		for (int32 TileY = TileBox.YMin; TileY <= TileBox.YMax; ++TileY)
@@ -2111,7 +2138,7 @@ int32 ARecastNavMesh::ReplaceAreaInTileBounds(const FBox& Bounds, TSubclassOf<UN
 					if (TileRef)
 					{
 						const int32 TileIndex = (int32)ConstDetourNavMesh->decodePolyIdTile(TileRef);
-						const dtMeshTile* Tile = ((const dtNavMesh*)DetourNavMesh)->getTile(TileIndex);
+						const dtMeshTile* Tile = DetourNavMesh->getTile(TileIndex);
 						//const int32 MaxPolys = Tile && Tile->header ? Tile->header->offMeshBase : 0;
 						const int32 MaxPolys = Tile && Tile->header
 							? (ReplaceLinks ? Tile->header->polyCount : Tile->header->offMeshBase)
@@ -3018,6 +3045,66 @@ void ARecastNavMesh::UpdateNavVersion()
 
 #if WITH_EDITOR
 
+void ARecastNavMesh::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent)
+{
+	static const FName NAME_Generation = FName(TEXT("Generation"));
+	static const FName NAME_NavMeshResolutionParams = FName(TEXT("NavMeshResolutionParams"));
+
+	Super::PostEditChangeChainProperty(PropertyChangedChainEvent);
+	
+	if (PropertyChangedChainEvent.Property != NULL)
+	{
+		const FName CategoryName = FObjectEditorUtils::GetCategoryFName(PropertyChangedChainEvent.Property);
+		if (CategoryName == NAME_Generation)
+		{
+			const FName PropName = PropertyChangedChainEvent.Property->GetFName();
+			
+			if (PropName == GET_MEMBER_NAME_CHECKED(FNavMeshResolutionParam, CellSize))
+			{
+				const int32 ChangedIndex = PropertyChangedChainEvent.GetArrayIndex(NAME_NavMeshResolutionParams.ToString());
+				if (ChangedIndex != INDEX_NONE)
+				{
+					float& RefCellSize = NavMeshResolutionParams[ChangedIndex].CellSize;
+					RefCellSize = UE::NavMesh::Private::GetClampedCellSize(RefCellSize);
+				 
+					TileSizeUU = UE::NavMesh::Private::GetClampedTileSizeUU(TileSizeUU, RefCellSize, AgentRadius);
+
+					// Adjust tile size to be a multiple of RefCellSize
+					const float RefCellCount = FMath::TruncToFloat( TileSizeUU / RefCellSize);
+					TileSizeUU = RefCellCount * RefCellSize;
+
+					// Adjust the other cell size (find count of cells and set the size of the cell)
+					for (uint8 Index = 0; Index < (uint8)ENavigationDataResolution::MAX; Index++)
+					{
+						if (Index != ChangedIndex)
+						{
+							float& ResolutionCellSize = NavMeshResolutionParams[Index].CellSize;
+							const float ResolutionCellCount = FMath::TruncToFloat(TileSizeUU / ResolutionCellSize);
+							ResolutionCellSize = UE::NavMesh::Private::GetClampedCellSize(TileSizeUU / ResolutionCellCount);
+						}
+					}
+
+					PRAGMA_DISABLE_DEPRECATION_WARNINGS
+					// Update the deprecated CellSize to fit the default resolution CellSize
+					CellSize = NavMeshResolutionParams[(uint8)ENavigationDataResolution::Default].CellSize;
+					PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+					// update config
+					FillConfig(NavDataConfig);
+
+					UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+					if (!HasAnyFlags(RF_ClassDefaultObject)
+						&& NavSys && NavSys->GetIsAutoUpdateEnabled()
+						&& PropName != GET_MEMBER_NAME_CHECKED(ARecastNavMesh, MaxSimultaneousTileGenerationJobsCount))
+					{
+						RebuildAll();
+					}
+				}
+			}
+		}
+	}
+}
+
 void ARecastNavMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	static const FName NAME_Generation = FName(TEXT("Generation"));
@@ -3034,6 +3121,7 @@ void ARecastNavMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 		if (CategoryName == NAME_Generation)
 		{
 			const FName PropName = PropertyChangedEvent.Property->GetFName();
+			const FName MemberName = PropertyChangedEvent.MemberProperty->GetFName();
 			
 			if (PropName == GET_MEMBER_NAME_CHECKED(ARecastNavMesh, AgentRadius))
 			{
@@ -3047,22 +3135,19 @@ void ARecastNavMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 			}
 			else if (PropName == GET_MEMBER_NAME_CHECKED(ARecastNavMesh, TileSizeUU))
 			{
-				CellSize = UE::NavMesh::Private::GetClampedCellSize(CellSize);
-				TileSizeUU = UE::NavMesh::Private::GetClampedTileSizeUU(TileSizeUU, CellSize, AgentRadius);
-						
-				// Match cell size to tile size.
-				CellSize = TileSizeUU / FMath::TruncToFloat(TileSizeUU / CellSize);
+				SetCellSize(ENavigationDataResolution::Default, UE::NavMesh::Private::GetClampedCellSize(GetCellSize(ENavigationDataResolution::Default)));
+				TileSizeUU = UE::NavMesh::Private::GetClampedTileSizeUU(TileSizeUU, GetCellSize(ENavigationDataResolution::Default), AgentRadius);
 
-				// update config
-				FillConfig(NavDataConfig);
-			}
-			else if (PropName == GET_MEMBER_NAME_CHECKED(ARecastNavMesh, CellSize))
-			{
-				CellSize = UE::NavMesh::Private::GetClampedCellSize(CellSize);
-				TileSizeUU = UE::NavMesh::Private::GetClampedTileSizeUU(TileSizeUU, CellSize, AgentRadius);
-				
-				// Match tile size to cell size.
-				TileSizeUU = CellSize * FMath::TruncToFloat(TileSizeUU / CellSize);
+				// Match cell sizes to tile size.
+				for (uint8 Index = 0; Index < (uint8)ENavigationDataResolution::MAX; Index++)
+				{
+					SetCellSize((ENavigationDataResolution)Index, TileSizeUU / FMath::TruncToFloat(TileSizeUU / GetCellSize((ENavigationDataResolution)Index)));	
+				}
+
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
+				// Set deprecated CellSize
+				CellSize = GetCellSize(ENavigationDataResolution::Default);
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 				// update config
 				FillConfig(NavDataConfig);
@@ -3177,7 +3262,9 @@ void ARecastNavMesh::UpdateGenerationProperties(const FRecastNavMeshGenerationPr
 {
 	TilePoolSize = GenerationProps.TilePoolSize;
 	TileSizeUU = GenerationProps.TileSizeUU;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	CellSize = GenerationProps.CellSize;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	CellHeight = GenerationProps.CellHeight;
 	AgentRadius = GenerationProps.AgentRadius;
 	AgentHeight = GenerationProps.AgentHeight;
@@ -3246,7 +3333,7 @@ bool ARecastNavMesh::HasCompleteDataInRadius(const FVector& TestLocation, FVecto
 
 	const dtNavMesh* NavMesh = RecastNavMeshImpl->DetourNavMesh;
 	const dtNavMeshParams* NavParams = RecastNavMeshImpl->DetourNavMesh->getParams();
-	const float NavTileSize = CellSize * FMath::TruncToFloat(TileSizeUU / CellSize);
+	const float NavTileSize = GetTileSizeUU();
 	const FVector RcNavOrigin(NavParams->orig[0], NavParams->orig[1], NavParams->orig[2]);
 
 	const FBox RcBounds = Unreal2RecastBox(FBox::BuildAABB(TestLocation, FVector(TestRadius, TestRadius, 0)));
@@ -3305,7 +3392,7 @@ void ARecastNavMesh::UpdateActiveTiles(const TArray<FNavigationInvokerRaw>& Invo
 	check(NavParams && MyGenerator);
 	const FRecastBuildConfig& Config = MyGenerator->GetConfig();
 	const FVector NavmeshOrigin = Recast2UnrealPoint(NavParams->orig);
-	const FVector::FReal TileDim = Config.tileSize * Config.cs;
+	const FVector::FReal TileDim = Config.GetTileSizeUU();
 
 	TArray<FIntPoint>& ActiveTiles = GetActiveTiles();
 	TArray<FIntPoint> OldActiveSet = ActiveTiles;
@@ -3362,11 +3449,12 @@ void ARecastNavMesh::UpdateActiveTiles(const TArray<FNavigationInvokerRaw>& Invo
 		}
 	}
 
+	// Find tiles to update
 	TArray<FIntPoint> TilesToUpdate;
 	TilesToUpdate.Reserve(ActiveTiles.Num());
 	for (int32 Index = TilesInMinDistance.Num() - 1; Index >= 0; --Index)
 	{
-		// check if it's a new tile
+		// Check if it's a new tile (not in the active set)
 		const FIntPoint& Tile = TilesInMinDistance[Index];
 		if (OldActiveSet.Find(Tile) == INDEX_NONE)
 		{
@@ -3447,8 +3535,7 @@ void ARecastNavMesh::DirtyTilesInBounds(const FBox& Bounds)
 		// Add tiles within the overlapping bounds
 		TArray<FIntPoint> Points;
 		const FVector RcNavMeshOrigin = Unreal2RecastPoint(NavMeshOriginOffset);
-		const float RcTileSize = FMath::TruncToFloat(TileSizeUU / CellSize);
-		const float TileSizeInWorldUnits = RcTileSize * CellSize;
+		const float TileSizeInWorldUnits = GetTileSizeUU();
 		const FRcTileBox TileBox(OverlappingBounds, RcNavMeshOrigin, TileSizeInWorldUnits);
 
 		UE_LOG(LogNavigation, VeryVerbose, TEXT("RebuildTilesFromBounds %i tiles: (%i,%i) to (%i,%i)"), (TileBox.XMax-TileBox.XMin)*(TileBox.YMax-TileBox.YMin), TileBox.XMin, TileBox.YMin, TileBox.XMax, TileBox.YMax);

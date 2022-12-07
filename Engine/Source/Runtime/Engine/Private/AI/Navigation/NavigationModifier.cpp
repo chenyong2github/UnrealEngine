@@ -755,6 +755,7 @@ void FCompositeNavModifier::Reset()
 	bIsPerInstanceModifier = false;
 	bFillCollisionUnderneathForNavmesh = false;
 	bMaskFillCollisionUnderneathForNavmesh = false;
+	NavMeshResolution = ENavigationDataResolution::Invalid;
 }
 
 void FCompositeNavModifier::Empty()
@@ -766,6 +767,7 @@ void FCompositeNavModifier::Empty()
 	bAdjustHeight = false;
 	bFillCollisionUnderneathForNavmesh = false;
 	bMaskFillCollisionUnderneathForNavmesh = false;
+	NavMeshResolution = ENavigationDataResolution::Invalid;
 }
 
 FCompositeNavModifier FCompositeNavModifier::GetInstantiatedMetaModifier(const FNavAgentProperties* NavAgent, TWeakObjectPtr<UObject> WeakOwnerPtr) const

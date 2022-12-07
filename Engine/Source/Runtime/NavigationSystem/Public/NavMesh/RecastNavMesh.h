@@ -591,6 +591,18 @@ namespace FNavMeshConfig
 	};
 }
 
+USTRUCT()
+struct NAVIGATIONSYSTEM_API FNavMeshResolutionParam
+{
+	GENERATED_BODY()
+
+	bool IsValid() const { return CellSize > 0.f; }
+	
+	/** horizontal size of voxelization cell */
+	UPROPERTY(EditAnywhere, Category = Generation, config, meta = (ClampMin = "1.0", ClampMax = "1024.0"))
+	float CellSize = 25.f;
+};
+
 UCLASS(config=Engine, defaultconfig, hidecategories=(Input,Rendering,Tags,Transformation,Actor,Layers,Replication), notplaceable)
 class NAVIGATIONSYSTEM_API ARecastNavMesh : public ANavigationData
 {
@@ -701,12 +713,19 @@ class NAVIGATIONSYSTEM_API ARecastNavMesh : public ANavigationData
 	float TileSizeUU;
 
 	/** horizontal size of voxelization cell */
-	UPROPERTY(EditAnywhere, Category = Generation, config, meta = (ClampMin = "1.0", ClampMax = "1024.0"))
+	UE_DEPRECATED(5.2, "Set the CellSizes for the required navmesh resolutions in NavMeshResolutionParams.")
+	UPROPERTY(config)
 	float CellSize;
 
 	/** vertical size of voxelization cell */
 	UPROPERTY(EditAnywhere, Category = Generation, config, meta = (ClampMin = "1.0", ClampMax = "1024.0"))
 	float CellHeight;
+
+	/** Resolution params 
+	 * If using multiple resolutions, it's recommended to chose the highest resolution first and 
+	 * set it according to the highest desired precision and then the other resolutions. */
+	UPROPERTY(EditAnywhere, Category = Generation, config)
+	FNavMeshResolutionParam NavMeshResolutionParams[(uint8)ENavigationDataResolution::MAX];
 
 	/** Radius of smallest agent to traverse this navmesh */
 	UPROPERTY(EditAnywhere, Category = Generation, config, meta = (ClampMin = "0.0"))
@@ -954,6 +973,7 @@ public:
 	virtual void BeginDestroy() override;
 
 #if WITH_EDITOR
+	virtual void PostEditChangeChainProperty( struct FPropertyChangedChainEvent& PropertyChangedChainEvent) override;
 	virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 	//~ End UObject Interface
@@ -1029,6 +1049,15 @@ protected:
 	virtual void OnRegistered() override;
 
 public:
+	/** Get the CellSize for the given resolution. */
+	float GetCellSize(const ENavigationDataResolution Resolution) const { return NavMeshResolutionParams[(uint8)Resolution].CellSize; }
+
+	/** Set the CellSize for the given resolution. */
+	void SetCellSize(const ENavigationDataResolution Resolution, const float Size) { NavMeshResolutionParams[(uint8)Resolution].CellSize = Size; }
+
+	/** Returns the tile size in world units. */
+	float GetTileSizeUU() const;
+	
 	/** Whether NavMesh should adjust its tile pool size when NavBounds are changed */
 	bool IsResizable() const;
 

@@ -780,10 +780,6 @@ Notes:
 dtNavMesh::dtNavMesh() :
 	m_tileWidth(0),
 	m_tileHeight(0),
-	m_walkableHeight(0),
-	m_walkableRadius(0),
-	m_walkableClimb(0),
-	m_bvQuantFactor(0),
 	m_maxTiles(0),
 	m_tileLutSize(0),
 	m_tileLutMask(0),
@@ -825,14 +821,18 @@ dtNavMesh::~dtNavMesh()
 		
 dtStatus dtNavMesh::init(const dtNavMeshParams* params)
 {
-	m_walkableHeight = params->walkableHeight;
-	m_walkableRadius = params->walkableRadius; 
-	m_walkableClimb = params->walkableClimb;	
-	m_bvQuantFactor = params->bvQuantFactor;
-	check(m_bvQuantFactor != 0);
-	
 	memcpy(&m_params, params, sizeof(dtNavMeshParams));
 	dtVcopy(m_orig, params->orig);
+
+	// @UE BEGIN
+#if DO_CHECK	
+	for (uint8 i = 0; i < DT_RESOLUTION_COUNT; i++)
+	{
+		check(m_params.resolutionParams[i].bvQuantFactor != 0);
+	}
+#endif // DO_CHECK	
+	// @UE END
+	
 	m_tileWidth = params->tileWidth;
 	m_tileHeight = params->tileHeight;
 	
@@ -944,7 +944,7 @@ int dtNavMesh::findConnectingPolys(const dtReal* va, const dtReal* vb,
 			calcSlabEndPoints(vc, vd, bmin, bmax, side);
 
 			unsigned char overlapMode = 0;
-			if (!overlapSlabs(amin, amax, bmin, bmax, 0.01f, m_walkableClimb, &overlapMode)) continue;
+			if (!overlapSlabs(amin, amax, bmin, bmax, 0.01f, getWalkableClimb(), &overlapMode)) continue;
 
 			// if overlapping with only one side, verify height difference using detailed mesh
 			if (overlapMode == SLABOVERLAP_Max || overlapMode == SLABOVERLAP_Min)
@@ -957,7 +957,7 @@ int dtNavMesh::findConnectingPolys(const dtReal* va, const dtReal* vb,
 				const dtReal aH = getHeightFromDMesh(fromTile, fromPolyIdx, apt);
 				const dtReal bH = getHeightFromDMesh(tile, i, bpt);
 				const dtReal heightDiff = dtAbs(aH - bH);
-				if (heightDiff > m_walkableClimb)
+				if (heightDiff > getWalkableClimb())
 					continue;
 			}
 
@@ -1621,13 +1621,14 @@ int dtNavMesh::queryPolygonsInTile(const dtMeshTile* tile, const dtReal* qmin, c
 		dtReal maxz = dtClamp(qmax[2], tbmin[2], tbmax[2]) - tbmin[2];
 
 		// Quantize
-		UE_CLOG(m_bvQuantFactor == 0.f, LogDetour, Warning, TEXT("dtNavMesh::queryPolygonsInTile bounding volume quantization factor is zero! The query might not return the right result"));
-		bmin[0] = (unsigned short)(m_bvQuantFactor * minx) & 0xfffe;
-		bmin[1] = (unsigned short)(m_bvQuantFactor * miny) & 0xfffe;
-		bmin[2] = (unsigned short)(m_bvQuantFactor * minz) & 0xfffe;
-		bmax[0] = (unsigned short)(m_bvQuantFactor * maxx + 1) | 1;
-		bmax[1] = (unsigned short)(m_bvQuantFactor * maxy + 1) | 1;
-		bmax[2] = (unsigned short)(m_bvQuantFactor * maxz + 1) | 1;
+		const dtReal bvQuantFactor = m_params.resolutionParams[tile->header->resolution].bvQuantFactor; 	//@UE
+		UE_CLOG(bvQuantFactor == 0.f, LogDetour, Warning, TEXT("dtNavMesh::queryPolygonsInTile bounding volume quantization factor is zero! The query might not return the right result"));
+		bmin[0] = (unsigned short)(bvQuantFactor * minx) & 0xfffe;
+		bmin[1] = (unsigned short)(bvQuantFactor * miny) & 0xfffe;
+		bmin[2] = (unsigned short)(bvQuantFactor * minz) & 0xfffe;
+		bmax[0] = (unsigned short)(bvQuantFactor * maxx + 1) | 1;
+		bmax[1] = (unsigned short)(bvQuantFactor * maxy + 1) | 1;
+		bmax[2] = (unsigned short)(bvQuantFactor * maxz + 1) | 1;
 		
 		// Traverse tree
 		dtPolyRef base = getPolyRefBase(tile);

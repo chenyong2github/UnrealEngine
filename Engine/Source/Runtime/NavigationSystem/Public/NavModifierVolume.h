@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "Templates/SubclassOf.h"
 #include "AI/Navigation/NavRelevantInterface.h"
+#include "AI/Navigation/NavigationTypes.h"
 #include "NavAreas/NavArea.h"
 #include "GameFramework/Volume.h"
 #include "NavModifierVolume.generated.h"
@@ -27,6 +28,11 @@ protected:
 	/** Experimental: if set, the 2D space occupied by the volume box will ignore FillCollisionUnderneathForNavmesh */
 	UPROPERTY(EditAnywhere, Category = Default, AdvancedDisplay)
 	bool bMaskFillCollisionUnderneathForNavmesh;
+
+	/** Experimental: When not set to None, the navmesh tiles touched by the navigation modifier volume will be built
+	 * using the highest resolution found. */
+	UPROPERTY(EditAnywhere, Category = Default, AdvancedDisplay)
+	ENavigationDataResolution NavMeshResolution;
 
 public:
 	ANavModifierVolume(const FObjectInitializer& ObjectInitializer);

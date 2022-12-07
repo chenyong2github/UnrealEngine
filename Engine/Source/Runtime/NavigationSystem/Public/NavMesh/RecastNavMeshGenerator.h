@@ -81,6 +81,8 @@ struct FRecastBuildConfig : public rcConfig
 	/** Agent index for filtering links */
 	int32 AgentIndex;
 
+	ENavigationDataResolution TileResolution;
+
 	FRecastBuildConfig()
 	{
 		Reset();
@@ -101,7 +103,10 @@ struct FRecastBuildConfig : public rcConfig
 		MaxPolysPerTile = -1;
 		AgentIndex = 0;
 	}
+
+	rcReal GetTileSizeUU() const { return tileSize * cs; }
 };
+
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 struct FRecastVoxelCache
@@ -745,6 +750,9 @@ public:
 	const FNavRegenTimeSliceManager* GetTimeSliceManager() const { return SyncTimeSlicedData.TimeSliceManager; }
 	
 	void SetNextTimeSliceRegenActive(bool bRegenState) { SyncTimeSlicedData.bNextTimeSliceRegenActive = bRegenState; }
+
+	/** Update the config according to the resolution */
+	virtual void SetupTileConfig(const ENavigationDataResolution TileResolution, FRecastBuildConfig& OutConfig) const;
 
 protected:
 	// Performs initial setup of member variables so that generator is ready to

@@ -546,6 +546,7 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 	bool bAllValuesSet = true;
 
 	header->version = DT_NAVMESH_VERSION;
+	header->resolution = params->tileResolutionLevel;	//@UE
 	header->x = params->tileX;
 	header->y = params->tileY;
 	setHeaderShort(params->tileLayer, header->layer, TEXT("tile layer"), bAllValuesSet);
