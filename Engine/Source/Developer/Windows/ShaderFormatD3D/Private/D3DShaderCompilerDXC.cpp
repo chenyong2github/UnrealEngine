@@ -10,6 +10,7 @@
 #include "HAL/FileManager.h"
 #include "Serialization/MemoryWriter.h"
 #include "RayTracingDefinitions.h"
+#include "Math/UnitConversion.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogD3D12ShaderCompiler, Log, All);
 
@@ -127,11 +128,12 @@ static void LogFailedHRESULT(const TCHAR* FailedExpressionStr, HRESULT Result)
 {
 	if (Result == E_OUTOFMEMORY)
 	{
-		// Provide currently availble system memory to verify out-of-memory error is legitimate
 		const FPlatformMemoryStats MemoryStats = FPlatformMemory::GetStats();
-		FString SystemMemoryStr = FString::Printf(TEXT("%d MB"), MemoryStats.AvailablePhysical / 1024 / 1024);
-		FString UsedMemoryStr = FString::Printf(TEXT("%d MB"), MemoryStats.UsedPhysical / 1024 / 1024);
-		UE_LOG(LogD3D12ShaderCompiler, Fatal, TEXT("%s failed: Result=0x%08x (E_OUTOFMEMORY); System memory %s, used %s"), FailedExpressionStr, Result, *SystemMemoryStr, *UsedMemoryStr);
+		const FString AvailableMemoryStr = FString::Printf(TEXT("%d MB"), FUnitConversion::Convert(MemoryStats.AvailablePhysical, EUnit::Bytes, EUnit::Megabytes));
+		const FString UsedMemoryStr = FString::Printf(TEXT("%d MB"), FUnitConversion::Convert(MemoryStats.UsedPhysical, EUnit::Bytes, EUnit::Megabytes));
+		const FString ErrorReport = FString::Printf(TEXT("%s failed: Result=0x%08x (E_OUTOFMEMORY); Used physical memory %s of %s"), FailedExpressionStr, Result, *UsedMemoryStr, *AvailableMemoryStr);
+		FSCWErrorCode::Report(FSCWErrorCode::OutOfMemory, ErrorReport);
+		UE_LOG(LogD3D12ShaderCompiler, Fatal, TEXT("%s"), *ErrorReport);
 	}
 	else if (const TCHAR* ErrorCodeStr = DxcErrorCodeToString(Result))
 	{
@@ -197,17 +199,18 @@ public:
 
 	// IUnknown
 
-	ULONG STDCALL AddRef()
+	ULONG STDCALL AddRef() override
 	{
 		return ++RefCount;
 	}
 
-	ULONG STDCALL Release() {
-		check(RefCount != 0);
+	ULONG STDCALL Release() override
+	{
+		check(RefCount > 0);
 		return --RefCount;
 	}
 
-	HRESULT STDCALL QueryInterface(REFIID iid, void** ppvObject)
+	HRESULT STDCALL QueryInterface(REFIID iid, void** ppvObject) override
 	{
 		checkNoEntry(); // We do not expect or support QI on DXC allocator replacement
 		return ERROR_NOINTERFACE;
@@ -320,7 +323,7 @@ static HRESULT DXCCompileWrapper(
 
 	if (bExceptionError)
 	{
-		GSCWErrorCode = ESCWErrorCode::CrashInsidePlatformCompiler;
+		FSCWErrorCode::Report(FSCWErrorCode::CrashInsidePlatformCompiler);
 
 		FString ErrorMsg = TEXT("Internal error or exception inside dxcompiler.dll\n");
 		ErrorMsg += GDxcStackTrace;
@@ -603,7 +606,7 @@ static bool DXCRewriteWrapper(
 #if !PLATFORM_SEH_EXCEPTIONS_DISABLED
 	__except (EXCEPTION_EXECUTE_HANDLER)
 	{
-		GSCWErrorCode = ESCWErrorCode::CrashInsidePlatformCompiler;
+		FSCWErrorCode::Report(FSCWErrorCode::CrashInsidePlatformCompiler);
 		FMemory::Memzero(OutResultDesc);
 		bOutException = true;
 		return false;

@@ -10,8 +10,6 @@ THIRD_PARTY_INCLUDES_END
 #endif
 
 
-ESCWErrorCode GSCWErrorCode = ESCWErrorCode::NotSet;
-
 namespace CrossCompiler
 {
 

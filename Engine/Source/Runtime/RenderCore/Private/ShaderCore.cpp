@@ -235,6 +235,38 @@ private:
 	bool bInitialized;	
 };
 
+
+static FSCWErrorCode::ECode GSCWErrorCode = FSCWErrorCode::NotSet;
+static FString GSCWErrorCodeInfo;
+
+void FSCWErrorCode::Report(ECode Code, const FStringView& Info)
+{
+	checkf(!FSCWErrorCode::IsSet(), TEXT("ShaderCompileWorker error code already set; this is only supposed to be set once to handle a worker crash:\n%s"), Info);
+	GSCWErrorCode = Code;
+	GSCWErrorCodeInfo = Info;
+}
+
+void FSCWErrorCode::Reset()
+{
+	GSCWErrorCode = FSCWErrorCode::NotSet;
+	GSCWErrorCodeInfo.Empty();
+}
+
+FSCWErrorCode::ECode FSCWErrorCode::Get()
+{
+	return GSCWErrorCode;
+}
+
+const FString& FSCWErrorCode::GetInfo()
+{
+	return GSCWErrorCodeInfo;
+}
+
+bool FSCWErrorCode::IsSet()
+{
+	return GSCWErrorCode != FSCWErrorCode::NotSet;
+}
+
 /** Protects GShaderHashCache from simultaneous modification by multiple threads. Note that it can cover more than one method of the class, e.g. a block of code doing Find() then Add() can be guarded */
 FRWLock GShaderHashAccessRWLock;
 
