@@ -2869,6 +2869,7 @@ bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGe
 		{
 			GameThreadCollection.MakeDirty();
 		}
+		bIsPhysicsThreadWorldTransformDirty = false;
 	}
 
 	if (PostPhysicsSyncCallback)
