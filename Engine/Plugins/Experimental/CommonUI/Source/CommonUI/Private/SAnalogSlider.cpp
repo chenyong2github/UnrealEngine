@@ -62,6 +62,10 @@ FReply SAnalogSlider::OnAnalogValueChanged(const FGeometry& MyGeometry, const FA
 	{
 		Reply = FReply::Handled();
 	}
+	else
+	{
+		Reply = SSlider::OnAnalogValueChanged(MyGeometry, InAnalogInputEvent);
+	}
 
 	if (bIsUsingGamepad)
 	{
