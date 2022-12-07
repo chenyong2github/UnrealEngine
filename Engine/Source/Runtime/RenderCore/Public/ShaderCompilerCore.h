@@ -20,7 +20,7 @@ class Error;
 // this is for the protocol, not the data, bump if FShaderCompilerInput or ProcessInputFromArchive changes.
 inline const int32 ShaderCompileWorkerInputVersion = 17;
 // this is for the protocol, not the data, bump if FShaderCompilerOutput or WriteToOutputArchive changes.
-inline const int32 ShaderCompileWorkerOutputVersion = 8;
+inline const int32 ShaderCompileWorkerOutputVersion = 9;
 // this is for the protocol, not the data.
 inline const int32 ShaderCompileWorkerSingleJobHeader = 'S';
 // this is for the protocol, not the data.
@@ -496,21 +496,44 @@ struct FShaderCompilerOutput
 	}
 };
 
-enum class ESCWErrorCode
+struct RENDERCORE_API FSCWErrorCode
 {
-	NotSet = -1,
-	Success,
-	GeneralCrash,
-	BadShaderFormatVersion,
-	BadInputVersion,
-	BadSingleJobHeader,
-	BadPipelineJobHeader,
-	CantDeleteInputFile,
-	CantSaveOutputFile,
-	NoTargetShaderFormatsFound,
-	CantCompileForSpecificFormat,
-	CrashInsidePlatformCompiler,
-	BadInputFile
+	enum ECode : int32
+	{
+		NotSet = -1,
+		Success,
+		GeneralCrash,
+		BadShaderFormatVersion,
+		BadInputVersion,
+		BadSingleJobHeader,
+		BadPipelineJobHeader,
+		CantDeleteInputFile,
+		CantSaveOutputFile,
+		NoTargetShaderFormatsFound,
+		CantCompileForSpecificFormat,
+		CrashInsidePlatformCompiler,
+		BadInputFile,
+		OutOfMemory,
+	};
+
+	/**
+	Sets the global SCW error code if it hasn't been set before.
+	Call Reset first before setting a new value.
+	Returns true on success, otherwise the error code has already been set.
+	*/
+	static void Report(ECode Code, const FStringView& Info = {});
+
+	/** Resets the global SCW error code to NotSet. */
+	static void Reset();
+
+	/** Returns the global SCW error code. */
+	static ECode Get();
+
+	/** Returns the global SCW error code information string. Empty string if not set. */
+	static const FString& GetInfo();
+
+	/** Returns true if the SCW global error code has been set. Equivalent to 'Get() != NotSet'. */
+	static bool IsSet();
 };
 
 UE_DEPRECATED(5.2, "Functionality has moved to UE::ShaderCompilerCommon::ShouldUseStableConstantBuffer")

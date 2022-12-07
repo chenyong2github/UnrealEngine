@@ -127,11 +127,9 @@ static void LogFailedHRESULT(const TCHAR* FailedExpressionStr, HRESULT Result)
 {
 	if (Result == E_OUTOFMEMORY)
 	{
-		// Provide currently availble system memory to verify out-of-memory error is legitimate
-		const FPlatformMemoryStats MemoryStats = FPlatformMemory::GetStats();
-		FString SystemMemoryStr = FString::Printf(TEXT("%d MB"), MemoryStats.AvailablePhysical / 1024 / 1024);
-		FString UsedMemoryStr = FString::Printf(TEXT("%d MB"), MemoryStats.UsedPhysical / 1024 / 1024);
-		UE_LOG(LogD3D12ShaderCompiler, Fatal, TEXT("%s failed: Result=0x%08x (E_OUTOFMEMORY); System memory %s, used %s"), FailedExpressionStr, Result, *SystemMemoryStr, *UsedMemoryStr);
+		const FString ErrorReport = FString::Printf(TEXT("%s failed: Result=0x%08x (E_OUTOFMEMORY)"), FailedExpressionStr, Result);
+		FSCWErrorCode::Report(FSCWErrorCode::OutOfMemory, ErrorReport);
+		UE_LOG(LogD3D12ShaderCompiler, Fatal, TEXT("%s"), *ErrorReport);
 	}
 	else if (const TCHAR* ErrorCodeStr = DxcErrorCodeToString(Result))
 	{
@@ -157,55 +155,58 @@ static void LogFailedHRESULT(const TCHAR* FailedExpressionStr, HRESULT Result)
 
 class FDxcMalloc final : public IMalloc
 {
-	int32 RefCount = 1;
+	ULONG RefCount = 1;
 
 public:
 
 	// IMalloc
 
-	virtual void* STDMETHODCALLTYPE Alloc(SIZE_T cb) final override
+	void* STDCALL Alloc(SIZE_T cb) override
 	{
+		cb = FMath::Max(SIZE_T(1), cb);
 		return FMemory::Malloc(cb);
 	}
 
-	virtual void* STDMETHODCALLTYPE Realloc(void* pv, SIZE_T cb) final override
+	void* STDCALL Realloc(void* pv, SIZE_T cb) override
 	{
+		cb = FMath::Max(SIZE_T(1), cb);
 		return FMemory::Realloc(pv, cb);
 	}
 
-	virtual void STDMETHODCALLTYPE Free(void* pv) final override
+	void STDCALL Free(void* pv) override
 	{
 		return FMemory::Free(pv);
 	}
 
-	virtual SIZE_T STDMETHODCALLTYPE GetSize(void* pv) final override
+	SIZE_T STDCALL GetSize(void* pv) override
 	{
 		return FMemory::GetAllocSize(pv);
 	}
 
-	virtual int STDMETHODCALLTYPE DidAlloc(void* pv) final override
+	int STDCALL DidAlloc(void* pv) override
 	{
 		return 1; // assume that all allocation queries coming from DXC belong to our allocator
 	}
 
-	virtual void STDMETHODCALLTYPE HeapMinimize() final override
+	void STDCALL HeapMinimize() override
 	{
 		// nothing
 	}
 
 	// IUnknown
 
-	ULONG STDMETHODCALLTYPE AddRef()
+	ULONG STDCALL AddRef() override
 	{
 		return ++RefCount;
 	}
 
-	ULONG STDMETHODCALLTYPE Release() {
-		check(RefCount != 0);
+	ULONG STDCALL Release() override
+	{
+		check(RefCount > 0);
 		return --RefCount;
 	}
 
-	STDMETHODIMP QueryInterface(REFIID iid, void** ppvObject)
+	HRESULT STDCALL QueryInterface(REFIID iid, void** ppvObject) override
 	{
 		checkNoEntry(); // We do not expect or support QI on DXC allocator replacement
 		return ERROR_NOINTERFACE;
@@ -318,7 +319,7 @@ static HRESULT DXCCompileWrapper(
 
 	if (bExceptionError)
 	{
-		GSCWErrorCode = ESCWErrorCode::CrashInsidePlatformCompiler;
+		FSCWErrorCode::Report(FSCWErrorCode::CrashInsidePlatformCompiler);
 
 		FString ErrorMsg = TEXT("Internal error or exception inside dxcompiler.dll\n");
 		ErrorMsg += GDxcStackTrace;
@@ -601,7 +602,7 @@ static bool DXCRewriteWrapper(
 #if !PLATFORM_SEH_EXCEPTIONS_DISABLED
 	__except (EXCEPTION_EXECUTE_HANDLER)
 	{
-		GSCWErrorCode = ESCWErrorCode::CrashInsidePlatformCompiler;
+		FSCWErrorCode::Report(FSCWErrorCode::CrashInsidePlatformCompiler);
 		FMemory::Memzero(OutResultDesc);
 		bOutException = true;
 		return false;
