@@ -8,6 +8,11 @@
 // TODO: Lock D3D12 to SM 6.6 min spec
 #define USE_SHADER_MODEL_6_6 1
 
+// Controls whether r.Shaders.RemoveDeadCode should be honored
+#ifndef UE_D3D_SHADER_COMPILER_ALLOW_DEAD_CODE_REMOVAL
+#define UE_D3D_SHADER_COMPILER_ALLOW_DEAD_CODE_REMOVAL 1
+#endif // UE_D3D_SHADER_COMPILER_ALLOW_DEAD_CODE_REMOVAL
+
 struct FShaderTarget;
 
 enum class ELanguage

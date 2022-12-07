@@ -17,6 +17,11 @@ class FArchive;
 #include "Windows/WindowsHWrapper.h"
 #endif
 
+// Controls whether r.Shaders.RemoveDeadCode should be honored
+#ifndef UE_OPENGL_SHADER_COMPILER_ALLOW_DEAD_CODE_REMOVAL
+#define UE_OPENGL_SHADER_COMPILER_ALLOW_DEAD_CODE_REMOVAL 0 // Disabled initially, requires testing
+#endif // UE_OPENGL_SHADER_COMPILER_ALLOW_DEAD_CODE_REMOVAL
+
 class FShaderCompilerFlags;
 struct FShaderCompilerInput;
 struct FShaderCompilerOutput;

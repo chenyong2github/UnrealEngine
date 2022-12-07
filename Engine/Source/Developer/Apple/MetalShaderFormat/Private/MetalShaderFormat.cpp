@@ -338,7 +338,19 @@ uint32 GetMetalFormatVersion(FName Format)
 	check(Version.Version.Format == FMetalShaderFormat::HEADER_VERSION);
 	check(Version.Version.HLSLCCMinor == HLSLCC_VersionMinor);
 	
-	return Version.Raw;
+	uint32 Result = Version.Raw;
+
+#if UE_METAL_SHADER_COMPILER_ALLOW_DEAD_CODE_REMOVAL
+	{
+		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shader.RemoveDeadCode"));
+		if (CVar && CVar->GetInt() != 0)
+		{
+			Result = HashCombine(Result, 0x75E2FE85);
+		}
+	}
+#endif // UE_METAL_SHADER_COMPILER_ALLOW_DEAD_CODE_REMOVAL
+
+	return Result;
 }
 
 /**

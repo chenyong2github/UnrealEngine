@@ -6,6 +6,12 @@
 #include "SpirvCommon.h"
 #include "hlslcc.h"
 
+
+// Controls whether r.Shaders.RemoveDeadCode should be honored
+#ifndef UE_VULKAN_SHADER_COMPILER_ALLOW_DEAD_CODE_REMOVAL
+#define UE_VULKAN_SHADER_COMPILER_ALLOW_DEAD_CODE_REMOVAL 1
+#endif // UE_VULKAN_SHADER_COMPILER_ALLOW_DEAD_CODE_REMOVAL
+
 enum class EVulkanShaderVersion
 {
 	ES3_1,
