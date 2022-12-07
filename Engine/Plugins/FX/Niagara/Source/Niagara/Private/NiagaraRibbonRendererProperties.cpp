@@ -64,8 +64,8 @@ UNiagaraRibbonRendererProperties::UNiagaraRibbonRendererProperties()
 	, WidthSegmentationCount(1)
 	, MultiPlaneCount(2)
 	, TubeSubdivisions(3)
-	, CurveTension(0.f)
 	, TessellationMode(ENiagaraRibbonTessellationMode::Automatic)
+	, CurveTension(0.f)
 	, TessellationFactor(16)
 	, bUseConstantFactor(false)
 	, TessellationAngle(15)
@@ -604,30 +604,6 @@ void UNiagaraRibbonRendererProperties::GetRendererFeedback(const FVersionedNiaga
 		GetUsedMaterials(nullptr, Materials);
 		MaterialParameters.GetFeedback(Materials, OutWarnings);
 	}
-}
-
-
-bool UNiagaraRibbonRendererProperties::CanEditChange(const FProperty* InProperty) const
-{
-
-	if (InProperty->HasMetaData(TEXT("Category")) && InProperty->GetMetaData(TEXT("Category")).Contains("Tessellation"))
-	{
-		FName PropertyName = InProperty->GetFName();
-		if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraRibbonRendererProperties, CurveTension))
-		{
-			return TessellationMode != ENiagaraRibbonTessellationMode::Disabled;
-		}
-		if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraRibbonRendererProperties, TessellationFactor))
-		{
-			return TessellationMode == ENiagaraRibbonTessellationMode::Custom;
-		}
-		if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraRibbonRendererProperties, TessellationMode))
-		{
-			return Super::CanEditChange(InProperty);
-		}
-		return TessellationMode == ENiagaraRibbonTessellationMode::Custom;
-	}
-	return Super::CanEditChange(InProperty);
 }
 
 void UNiagaraRibbonRendererProperties::RenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const FVersionedNiagaraEmitter& InEmitter)

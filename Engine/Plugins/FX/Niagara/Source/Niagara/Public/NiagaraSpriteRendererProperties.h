@@ -187,7 +187,7 @@ public:
 	ENiagaraSortMode SortMode;
 
 	/** When using SubImage lookups for particles, this variable contains the number of columns in X and the number of rows in Y.*/
-	UPROPERTY(EditAnywhere, Category = "SubUV")
+	UPROPERTY(EditAnywhere, Category = "SubUV", meta = (EditCondition = "bSubImageBlend", EditConditionHides, DisplayAfter = bSubImageBlend))
 	FVector2D SubImageSize;
 
 	/** If true, blends the sub-image UV lookup with its next adjacent member using the fractional part of the SubImageIndex float value as the linear interpolation factor.*/
@@ -199,11 +199,11 @@ public:
 	uint32 bRemoveHMDRollInVR : 1;
 
 	/** If true, the particles are only sorted when using a translucent material. */
-	UPROPERTY(EditAnywhere, Category = "Sorting")
+	UPROPERTY(EditAnywhere, Category = "Sorting", meta = (EditCondition = "SortMode != ENiagaraSortMode::None", EditConditionHides))
 	uint32 bSortOnlyWhenTranslucent : 1;
 
 	/** Sort precision to use when sorting is active. */
-	UPROPERTY(EditAnywhere, Category = "Sorting")
+	UPROPERTY(EditAnywhere, Category = "Sorting", meta = (EditCondition = "SortMode != ENiagaraSortMode::None", EditConditionHides))
 	ENiagaraRendererSortPrecision SortPrecision = ENiagaraRendererSortPrecision::Default;
 
 	/**
@@ -229,7 +229,7 @@ public:
 	When pixel coverage is enabled this allows you to control the blend of the pixel coverage color adjustment.
 	i.e. 1.0 = full, 0.5 = 50/50 blend, 0.0 = none
 	*/
-	UPROPERTY(EditAnywhere, Category = "Sprite Rendering", meta = (EditCondition = "PixelCoverageMode != ENiagaraRendererPixelCoverageMode::Disabled", UIMin=0.0f, UIMax=1.0f))
+	UPROPERTY(EditAnywhere, Category = "Sprite Rendering", meta = (EditCondition = "PixelCoverageMode != ENiagaraRendererPixelCoverageMode::Disabled", UIMin=0.0f, UIMax=1.0f, EditConditionHides))
 	float PixelCoverageBlend = 1.0f;
 
 	/** When FacingMode is FacingCameraDistanceBlend, the distance at which the sprite is fully facing the camera plane. */
@@ -244,10 +244,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Visibility")
 	uint32 bEnableCameraDistanceCulling : 1;
 
-	UPROPERTY(EditAnywhere, Category = "Visibility", meta = (EditCondition = "bEnableCameraDistanceCulling", UIMin = 0.0f))
+	UPROPERTY(EditAnywhere, Category = "Visibility", meta = (EditCondition = "bEnableCameraDistanceCulling", UIMin = 0.0f, EditConditionHides))
 	float MinCameraDistance;
 
-	UPROPERTY(EditAnywhere, Category = "Visibility", meta = (EditCondition = "bEnableCameraDistanceCulling", UIMin = 0.0f))
+	UPROPERTY(EditAnywhere, Category = "Visibility", meta = (EditCondition = "bEnableCameraDistanceCulling", UIMin = 0.0f, EditConditionHides))
 	float MaxCameraDistance = 1000.0f;
 
 	/** If a render visibility tag is present, particles whose tag matches this value will be visible in this renderer. */
@@ -369,7 +369,7 @@ public:
 	bool bUseMaterialCutoutTexture;
 
 	/** Texture to generate bounding geometry from.	*/
-	UPROPERTY(EditAnywhere, Category="Cutout", meta = (EditCondition = "!bUseMaterialCutoutTexture"))
+	UPROPERTY(EditAnywhere, Category="Cutout", meta = (EditCondition = "!bUseMaterialCutoutTexture", EditConditionHides))
 	TObjectPtr<UTexture2D> CutoutTexture;
 
 	/**

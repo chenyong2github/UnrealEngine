@@ -87,10 +87,7 @@ public:
 
 	virtual void Tick(float DeltaTime) override {}
 	virtual bool RequiresTick() const override { return false; }
-	virtual bool InitiallyCollapsed() const override
-	{
-		return true;
-	}
+	virtual bool InitiallyCollapsed() const override { return true; }
 	virtual TSharedPtr<IPropertyHandle> GetPropertyHandle() const override { return ParentProperty; }
 
 	void Rebuild()
@@ -115,6 +112,38 @@ TSharedRef<IDetailCustomization> FNiagaraMeshRendererDetails::MakeInstance()
 void FNiagaraMeshRendererDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	LayoutBuilder = &DetailBuilder;
+
+	// Categories to put first
+	{
+		static const FName CategoriesToCollapse[] =
+		{
+			FName("Mesh Rendering"),
+			FName("Sorting"),
+			FName("Visibility"),
+		};
+
+		for (const FName& Category : CategoriesToCollapse)
+		{
+			IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(Category);
+		}
+	}
+
+	// Collapse default categories
+	{
+		static const FName CategoriesToCollapse[] =
+		{
+			FName("Bindings"),
+			FName("Rendering"),
+			FName("Scalability"),
+			FName("SubUV"),
+		};
+
+		for (const FName& Category : CategoriesToCollapse)
+		{
+			IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(Category);
+			CategoryBuilder.InitiallyCollapsed(true);
+		}
+	}
 
 	{
 		static const FName MeshesName = TEXT("Meshes");
@@ -159,7 +188,6 @@ void FNiagaraMeshRendererDetails::CustomizeDetails(IDetailLayoutBuilder& DetailB
 
 		TSharedRef<FDetailArrayBuilder> OverrideMaterialsBuilder = MakeShared<FDetailArrayBuilder>(OverrideMaterialsProperty.ToSharedRef(), true, bEnableMaterialOverrides, true);
 		OverrideMaterialsBuilder->OnGenerateArrayElementWidget(FOnGenerateArrayElementWidget::CreateSP(this, &FNiagaraMeshRendererDetails::OnGenerateMaterialOverrideWidget));
-
 
 		CategoryBuilder.AddProperty(EnableOverrideMaterialsProperty);
 		CategoryBuilder.AddCustomBuilder(OverrideMaterialsBuilder);

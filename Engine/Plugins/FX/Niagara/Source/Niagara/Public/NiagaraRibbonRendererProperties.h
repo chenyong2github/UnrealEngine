@@ -128,19 +128,19 @@ struct FNiagaraRibbonUVSettings
 
 
 	/** Specifies how ribbon UVs are distributed along the length of a ribbon. */
-	UPROPERTY(EditAnywhere, Category = UVs, meta = (DisplayName="UV Mode", EditCondition = "!bEnablePerParticleUOverride"))
+	UPROPERTY(EditAnywhere, Category = UVs, meta = (DisplayName="UV Mode", EditCondition = "!bEnablePerParticleUOverride", EditConditionHides))
 	ENiagaraRibbonUVDistributionMode DistributionMode;
 
 	/** Specifies how UVs transition into life at the leading edge of the ribbon. */
-	UPROPERTY(EditAnywhere, Category = UVs, meta = (DisplayName="Leading Edge Transition", EditCondition = "!bEnablePerParticleUOverride && DistributionMode != ENiagaraRibbonUVDistributionMode::TiledFromStartOverRibbonLength"))
+	UPROPERTY(EditAnywhere, Category = UVs, meta = (DisplayName="Leading Edge Transition", EditCondition = "!bEnablePerParticleUOverride && DistributionMode != ENiagaraRibbonUVDistributionMode::TiledFromStartOverRibbonLength", EditConditionHides))
 	ENiagaraRibbonUVEdgeMode LeadingEdgeMode;
 
 	/** Specifies how UVs transition out of life at the trailing edge of the ribbon. */
-	UPROPERTY(EditAnywhere, Category = UVs, meta = (DisplayName="Trailing Edge Transition", EditCondition = "!bEnablePerParticleUOverride && DistributionMode != ENiagaraRibbonUVDistributionMode::TiledOverRibbonLength && DistributionMode != ENiagaraRibbonUVDistributionMode::TiledFromStartOverRibbonLength"))
+	UPROPERTY(EditAnywhere, Category = UVs, meta = (DisplayName="Trailing Edge Transition", EditCondition = "!bEnablePerParticleUOverride && DistributionMode != ENiagaraRibbonUVDistributionMode::TiledOverRibbonLength && DistributionMode != ENiagaraRibbonUVDistributionMode::TiledFromStartOverRibbonLength", EditConditionHides))
 	ENiagaraRibbonUVEdgeMode TrailingEdgeMode;
 
 	/** Specifies the length in world units to use when tiling UVs across the ribbon when using one of the tiled distribution modes. */
-	UPROPERTY(EditAnywhere, Category = UVs, meta = (EditCondition="!bEnablePerParticleUOverride && DistributionMode == ENiagaraRibbonUVDistributionMode::TiledOverRibbonLength || DistributionMode == ENiagaraRibbonUVDistributionMode::TiledFromStartOverRibbonLength"))
+	UPROPERTY(EditAnywhere, Category = UVs, meta = (EditCondition="!bEnablePerParticleUOverride && DistributionMode == ENiagaraRibbonUVDistributionMode::TiledOverRibbonLength || DistributionMode == ENiagaraRibbonUVDistributionMode::TiledFromStartOverRibbonLength", EditConditionHides))
 	float TilingLength;
 
 	/** Specifies an additional offset which is applied to the UV range */
@@ -204,7 +204,6 @@ public:
 	virtual void Serialize(FStructuredArchive::FRecord Record) override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
 	virtual void RenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const FVersionedNiagaraEmitter& InEmitter) override;
 	virtual void RemoveVariable(const FNiagaraVariableBase& OldVariable, const FVersionedNiagaraEmitter& InEmitter) override;
 #endif
@@ -314,57 +313,56 @@ public:
 	  * MultiPlane will double geometry count to have triangles facing both sides. With this off MultiPlane will switch normal direction to face view.
 	  * 3D Ribbons will render like normal meshes with backface culling enabled.
 	  */
-	UPROPERTY(EditAnywhere, Category = "Ribbon Shape", meta = (EditCondition = "Shape != ENiagaraRibbonShapeMode::Plane"))
+	UPROPERTY(EditAnywhere, Category = "Ribbon Shape", meta = (EditCondition = "Shape != ENiagaraRibbonShapeMode::Plane", EditConditionHides))
 	bool bEnableAccurateGeometry;
 
 	/** Tessellation factor to apply to the width of the ribbon.
 	* Ranges from 1 to 16. Greater values increase amount of tessellation.
 	*/
-	UPROPERTY(EditAnywhere, Category = "Ribbon Shape", meta = (EditCondition = "Shape == ENiagaraRibbonShapeMode::Plane || Shape == ENiagaraRibbonShapeMode::MultiPlane", ClampMin = "1", ClampMax = "16"))
+	UPROPERTY(EditAnywhere, Category = "Ribbon Shape", meta = (EditCondition = "Shape == ENiagaraRibbonShapeMode::Plane || Shape == ENiagaraRibbonShapeMode::MultiPlane", ClampMin = "1", ClampMax = "16", EditConditionHides))
 	int32 WidthSegmentationCount;
 
 	/** Number of planes in multiplane shape. Evenly distributed from 0-90 or 0-180 degrees off camera facing depending on setting */
-	UPROPERTY(EditAnywhere, Category = "Ribbon Shape", meta = (EditCondition = "Shape == ENiagaraRibbonShapeMode::MultiPlane", ClampMin = "2", ClampMax = "8"))
+	UPROPERTY(EditAnywhere, Category = "Ribbon Shape", meta = (EditCondition = "Shape == ENiagaraRibbonShapeMode::MultiPlane", ClampMin = "2", ClampMax = "8", EditConditionHides))
 	int32 MultiPlaneCount;
 
 	/** Number of vertices/faces in a tube.  */
-	UPROPERTY(EditAnywhere, Category = "Ribbon Shape", meta = (EditCondition = "Shape == ENiagaraRibbonShapeMode::Tube", ClampMin = "3", ClampMax = "16"))
+	UPROPERTY(EditAnywhere, Category = "Ribbon Shape", meta = (EditCondition = "Shape == ENiagaraRibbonShapeMode::Tube", ClampMin = "3", ClampMax = "16", EditConditionHides))
 	int32 TubeSubdivisions;
 
 	/** Vertices for a cross section of the ribbon in custom shape mode. */
-	UPROPERTY(EditAnywhere, Category = "Ribbon Shape", meta = (EditCondition = "Shape == ENiagaraRibbonShapeMode::Custom"))
+	UPROPERTY(EditAnywhere, Category = "Ribbon Shape", meta = (EditCondition = "Shape == ENiagaraRibbonShapeMode::Custom", EditConditionHides))
 	TArray<FNiagaraRibbonShapeCustomVertex> CustomVertices;
 
+	/** Defines the tessellation mode allowing custom tessellation parameters or disabling tessellation entirely. */
+	UPROPERTY(EditAnywhere, Category = "Ribbon Tessellation", meta = (DisplayName = "Mode"))
+	ENiagaraRibbonTessellationMode TessellationMode;
 
 	/** Defines the curve tension, or how long the curve's tangents are.
 	  * Ranges from 0 to 1. The higher the value, the sharper the curve becomes.
 	  */
-	UPROPERTY(EditAnywhere, Category = "Tessellation", meta = (ClampMin = "0", ClampMax = "0.99"))
+	UPROPERTY(EditAnywhere, Category = "Ribbon Tessellation", meta = (EditCondition = "TessellationMode != ENiagaraRibbonTessellationMode::Disabled", EditConditionHides, ClampMin = "0", ClampMax = "0.99"))
 	float CurveTension;
-
-	/** Defines the tessellation mode allowing custom tessellation parameters or disabling tessellation entirely. */
-	UPROPERTY(EditAnywhere, Category = "Tessellation", meta = (DisplayName = "Mode"))
-	ENiagaraRibbonTessellationMode TessellationMode;
 
 	/** Custom tessellation factor.
 	  * Ranges from 1 to 16. Greater values increase amount of tessellation.
 	  */
-	UPROPERTY(EditAnywhere, Category = "Tessellation", meta = (DisplayName = "Max Tessellation Factor", ClampMin = "1", ClampMax = "16"))
+	UPROPERTY(EditAnywhere, Category = "Ribbon Tessellation", meta = (DisplayName = "Max Tessellation Factor", EditCondition = "TessellationMode == ENiagaraRibbonTessellationMode::Custom", EditConditionHides, ClampMin = "1", ClampMax = "16"))
 	int32 TessellationFactor;
 
 	/** If checked, use the above constant factor. Otherwise, adaptively select the tessellation factor based on the below parameters. */
-	UPROPERTY(EditAnywhere, Category = "Tessellation")
+	UPROPERTY(EditAnywhere, Category = "Ribbon Tessellation", meta = (EditCondition = "TessellationMode == ENiagaraRibbonTessellationMode::Custom", EditConditionHides))
 	bool bUseConstantFactor;
 
 	/** Defines the angle in degrees at which tessellation occurs.
 	  * Ranges from 1 to 180. Smaller values increase amount of tessellation.
 	  * If set to 0, use the maximum tessellation set above.
 	  */
-	UPROPERTY(EditAnywhere, Category = "Tessellation", meta = (EditCondition = "!bUseConstantFactor", ClampMin = "0", ClampMax = "180", UIMin = "1", UIMax = "180"))
+	UPROPERTY(EditAnywhere, Category = "Ribbon Tessellation", meta = (EditCondition = "TessellationMode == ENiagaraRibbonTessellationMode::Custom && !bUseConstantFactor", ClampMin = "0", ClampMax = "180", UIMin = "1", UIMax = "180", EditConditionHides))
 	float TessellationAngle;
 
 	/** If checked, use the ribbon's screen space percentage to adaptively adjust the tessellation factor. */
-	UPROPERTY(EditAnywhere, Category = "Tessellation", meta = (DisplayName = "Screen Space", EditCondition = "!bUseConstantFactor"))
+	UPROPERTY(EditAnywhere, Category = "Ribbon Tessellation", meta = (DisplayName = "Screen Space", EditCondition = "TessellationMode == ENiagaraRibbonTessellationMode::Custom && !bUseConstantFactor", EditConditionHides))
 	bool bScreenSpaceTessellation;
 
 	/** Which attribute should we use for position when generating ribbons?*/

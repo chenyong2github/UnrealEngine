@@ -29,7 +29,8 @@ enum class ENiagaraMeshFacingMode : uint8
 };
 
 UENUM()
-enum class ENiagaraMeshPivotOffsetSpace : uint8 {
+enum class ENiagaraMeshPivotOffsetSpace : uint8
+{
 	/** The pivot offset is in the mesh's local space (default) */
 	Mesh,
 	/** The pivot offset is in the emitter's local space if the emitter is marked as local-space, or in world space otherwise */
@@ -41,7 +42,8 @@ enum class ENiagaraMeshPivotOffsetSpace : uint8 {
 };
 
 UENUM()
-enum class ENiagaraMeshLockedAxisSpace : uint8 {
+enum class ENiagaraMeshLockedAxisSpace : uint8
+{
 	/** The locked axis is in the emitter's local space if the emitter is marked as local-space, or in world space otherwise */
 	Simulation,
 	/** The locked axis is in world space */
@@ -61,11 +63,11 @@ public:
 	bool SerializeFromMismatchedTag(const struct FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
 
 	/** Use this UMaterialInterface if set to a valid value. This will be subordinate to UserParamBinding if it is set to a valid user variable.*/
-	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bOverrideMaterials"))
+	UPROPERTY(EditAnywhere, Category = "Material", meta = (EditCondition = "bOverrideMaterials"))
 	TObjectPtr<UMaterialInterface> ExplicitMat;
 
 	/** Use the UMaterialInterface bound to this user variable if it is set to a valid value. If this is bound to a valid value and ExplicitMat is also set, UserParamBinding wins.*/
-	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bOverrideMaterials"))
+	UPROPERTY(EditAnywhere, Category = "Material", meta = (EditCondition = "bOverrideMaterials"))
 	FNiagaraUserParameterBinding UserParamBinding;
 
 	bool operator==(const FNiagaraMeshMaterialOverride& Other)const
@@ -214,7 +216,7 @@ public:
 	 * - If "Override Material" is not specified, the mesh's material is used. Override materials must have the Niagara Mesh Particles flag checked.
 	 * - If "Enable Mesh Flipbook" is specified, this mesh is assumed to be the first frame of the flipbook.
 	 */
-	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "!bEnableMeshFlipbook"))
+	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "!bEnableMeshFlipbook", EditConditionHides))
 	TArray<FNiagaraMeshRendererMeshProperties> Meshes;
 
 	/** Whether or not to draw a single element for the Emitter or to draw the particles.*/
@@ -230,11 +232,11 @@ public:
 	uint32 bOverrideMaterials : 1;
 
 	/** If true, the particles are only sorted when using a translucent material. */
-	UPROPERTY(EditAnywhere, Category = "Sorting")
+	UPROPERTY(EditAnywhere, Category = "Sorting", meta = (EditCondition = "SortMode != ENiagaraSortMode::None", EditConditionHides))
 	uint32 bSortOnlyWhenTranslucent : 1;
 
 	/** Sort precision to use when sorting is active. */
-	UPROPERTY(EditAnywhere, Category = "Sorting")
+	UPROPERTY(EditAnywhere, Category = "Sorting", meta = (EditCondition = "SortMode != ENiagaraSortMode::None", EditConditionHides))
 	ENiagaraRendererSortPrecision SortPrecision = ENiagaraRendererSortPrecision::Default;
 
 	/**
@@ -242,7 +244,7 @@ public:
 	Opaque materials will run latent when these features are used.
 	Translucent materials can choose if they want to use this frames or the previous frames data to match opaque draws.
 	*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Sprite Rendering")
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Mesh Rendering")
 	ENiagaraRendererGpuTranslucentLatency GpuTranslucentLatency = ENiagaraRendererGpuTranslucentLatency::ProjectDefault;
 
 	/** If true, blends the sub-image UV lookup with its next adjacent member using the fractional part of the SubImageIndex float value as the linear interpolation factor.*/
@@ -258,12 +260,12 @@ public:
 	uint32 bEnableCameraDistanceCulling : 1;
 
 	/** When checked, will treat 'ParticleMesh' as the first frame of the flipbook, and will use the other mesh flipbook options to find the other frames */
-	UPROPERTY(EditAnywhere, Category = "Mesh Flipbook")
+	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (DisplayAfter = "MeshBoundsScale"))
 	uint32 bEnableMeshFlipbook : 1;
 
 	/** The materials to be used instead of the StaticMesh's materials. Note that each material must have the Niagara Mesh Particles flag checked. If the ParticleMesh
 	requires more materials than exist in this array or any entry in this array is set to None, we will use the ParticleMesh's existing Material instead.*/
-	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bOverrideMaterials"))
+	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bOverrideMaterials", EditConditionHides))
 	TArray<FNiagaraMeshMaterialOverride> OverrideMaterials;
 
 #if WITH_EDITORONLY_DATA
@@ -272,7 +274,7 @@ public:
 #endif
 
 	/** When using SubImage lookups for particles, this variable contains the number of columns in X and the number of rows in Y.*/
-	UPROPERTY(EditAnywhere, Category = "SubUV")
+	UPROPERTY(EditAnywhere, Category = "SubUV", meta = (EditCondition = "bSubImageBlend", EditConditionHides))
 	FVector2D SubImageSize;
 
 	/** Determines how the mesh orients itself relative to the camera. */
@@ -284,11 +286,11 @@ public:
 	uint32 bLockedAxisEnable : 1;
 
 	/** Arbitrary axis by which to lock facing rotations */
-	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bLockedAxisEnable"))
+	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bLockedAxisEnable", EditConditionHides))
 	FVector LockedAxis;
 
 	/** Specifies what space the locked axis is in */
-	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bLockedAxisEnable"))
+	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bLockedAxisEnable", EditConditionHides))
 	ENiagaraMeshLockedAxisSpace LockedAxisSpace;
 
 	/**
@@ -300,10 +302,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", AdvancedDisplay)
 	FVector MeshBoundsScale = FVector::OneVector;
 
-	UPROPERTY(EditAnywhere, Category = "Visibility", meta = (EditCondition = "bEnableCameraDistanceCulling", ClampMin = 0.0f))
+	UPROPERTY(EditAnywhere, Category = "Visibility", meta = (EditCondition = "bEnableCameraDistanceCulling", EditConditionHides, ClampMin = 0.0f))
 	float MinCameraDistance;
 
-	UPROPERTY(EditAnywhere, Category = "Visibility", meta = (EditCondition = "bEnableCameraDistanceCulling", ClampMin = 0.0f))
+	UPROPERTY(EditAnywhere, Category = "Visibility", meta = (EditCondition = "bEnableCameraDistanceCulling", EditConditionHides, ClampMin = 0.0f))
 	float MaxCameraDistance = 1000.0f;
 
 	/** If a render visibility tag is present, particles whose tag matches this value will be visible in this renderer. */
@@ -402,7 +404,7 @@ public:
 	 * NOTE: The subsequent frames are expected to exist in the same content directory as the first frame of the flipbook, otherwise they
 	 * will not be found or used.
 	 */
-	UPROPERTY(EditAnywhere, Category = "Mesh Flipbook", meta = (EditCondition = "bEnableMeshFlipbook"))
+	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bEnableMeshFlipbook", EditConditionHides, DisplayAfter = "bEnableMeshFlipbook"))
 	TObjectPtr<UStaticMesh> FirstFlipbookFrame;
 
 	/**
@@ -411,18 +413,18 @@ public:
 	 * the starting frame index. Otherwise, it will assume "Particle Mesh" is frame number 0, and that subsequent frames follow this format,
 	 * starting with frame number 1.
 	 */
-	UPROPERTY(EditAnywhere, Category = "Mesh Flipbook", meta = (EditCondition = "bEnableMeshFlipbook && FirstFlipbookFrame != nullptr"))
+	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bEnableMeshFlipbook && FirstFlipbookFrame != nullptr", EditConditionHides, DisplayAfter = "bEnableMeshFlipbook"))
 	FString FlipbookSuffixFormat;
 
 	/**
 	* The number of digits to expect in the frame number of the flipbook page. A value of 1 will expect no leading zeros in the package names,
 	* and can also be used for names with frame numbers that extend to 10 and beyond (Example: Frame_1, Frame_2, ..., Frame_10, Frame_11, etc.)
 	*/
-	UPROPERTY(EditAnywhere, Category = "Mesh Flipbook", meta = (EditCondition = "bEnableMeshFlipbook && FirstFlipbookFrame != nullptr", ClampMin = 1, ClampMax = 10, NoSpinbox = true))
+	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bEnableMeshFlipbook && FirstFlipbookFrame != nullptr", EditConditionHides, ClampMin = 1, ClampMax = 10, NoSpinbox = true, DisplayAfter = "bEnableMeshFlipbook"))
 	uint32 FlipbookSuffixNumDigits;
 
 	/** The number of frames (static meshes) to be included in the flipbook. */
-	UPROPERTY(EditAnywhere, Category = "Mesh Flipbook", meta = (EditCondition = "bEnableMeshFlipbook && FirstFlipbookFrame != nullptr", ClampMin = 1, NoSpinbox = true))
+	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bEnableMeshFlipbook && FirstFlipbookFrame != nullptr", EditConditionHides, ClampMin = 1, NoSpinbox = true, DisplayAfter = "bEnableMeshFlipbook"))
 	uint32 NumFlipbookFrames;
 #endif
 
@@ -454,6 +456,4 @@ private:
 
 	UPROPERTY()
 	ENiagaraMeshPivotOffsetSpace PivotOffsetSpace_DEPRECATED;
-
-
 };

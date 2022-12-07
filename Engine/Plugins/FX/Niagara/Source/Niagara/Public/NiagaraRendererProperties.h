@@ -386,11 +386,11 @@ public:
 
 	/** By default, emitters are drawn in the order that they are added to the system. This value will allow you to control the order in a more fine-grained manner.
 	Materials of the same type (i.e. Transparent) will draw in order from lowest to highest within the system. The default value is 0.*/
-	UPROPERTY(EditAnywhere, Category = "Sort Order")
+	UPROPERTY(EditAnywhere, Category = "Rendering")
 	int32 SortOrderHint;
 
 	/** Hint about how to generate motion (velocity) vectors for this renderer. */
-	UPROPERTY(EditAnywhere, Category = "Motion Blur")
+	UPROPERTY(EditAnywhere, Category = "Rendering")
 	ENiagaraRendererMotionVectorSetting MotionVectorSetting;
 
 	/** Optional bool binding to dynamically enable / disable the renderer. */
