@@ -1,23 +1,63 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "AnimToTextureSkeletalMesh.h"
-#include "Rendering/SkeletalMeshModel.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/SkeletalMesh.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "MeshDescription.h"
-#include "BoneIndices.h"
+#include "StaticMeshAttributes.h"
 
 namespace AnimToTexture_Private
 {
 
-int32 GetVertices(const USkeletalMesh& Mesh, const int32 LODIndex, 
+int32 GetVertices(const UStaticMesh* StaticMesh, const int32 LODIndex,
 	TArray<FVector3f>& OutPositions, TArray<FVector3f>& OutNormals)
 {
+	check(StaticMesh);
 	OutPositions.Reset();
 	OutNormals.Reset();
+
+	if (!StaticMesh->IsMeshDescriptionValid(LODIndex))
+	{
+		return INDEX_NONE;
+	}
+
+	// Get Mesh Description
+	const FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(LODIndex);
+	check(MeshDescription);
 	
-	const FSkeletalMeshRenderData* RenderData = Mesh.GetResourceForRendering();
+	// Get MeshDescription Vertices
+	const FVertexArray& Vertices = MeshDescription->Vertices();
+	const int32 NumVertices = Vertices.Num();
+	OutPositions.SetNum(NumVertices);
+	OutNormals.SetNumZeroed(NumVertices);
+	
+	for (const FVertexID& VertexID : Vertices.GetElementIDs())
+	{
+		const int32 VertexIndex = VertexID.GetValue();
+
+		// Get Vertex Position
+		OutPositions[VertexIndex] = MeshDescription->GetVertexPosition(VertexID);
+
+		// Get Avg Vertex Normals
+		const TArrayView<const FVertexInstanceID> VertexInstances = MeshDescription->GetVertexVertexInstanceIDs(VertexID);
+		for (const FVertexInstanceID VertexInstanceID : VertexInstances)
+		{
+			const FVector3f VertexInstanceNormal = MeshDescription->VertexInstanceAttributes().GetAttribute<FVector3f>(VertexInstanceID, MeshAttribute::VertexInstance::Normal);
+			OutNormals[VertexIndex] += VertexInstanceNormal / VertexInstances.Num();
+		}
+	}
+	
+	return NumVertices;
+}
+
+int32 GetVertices(const USkeletalMesh* SkeletalMesh, const int32 LODIndex, 
+	TArray<FVector3f>& OutPositions)
+{
+	check(SkeletalMesh);
+	OutPositions.Reset();
+	
+	const FSkeletalMeshRenderData* RenderData = SkeletalMesh->GetResourceForRendering();
 	check(RenderData);
 
 	if (!RenderData->LODRenderData.IsValidIndex(LODIndex))
@@ -31,73 +71,50 @@ int32 GetVertices(const USkeletalMesh& Mesh, const int32 LODIndex,
 	// Get Total Num of Vertices (for all sections)
 	const int32 NumVertices = LODRenderData.GetNumVertices();
 	OutPositions.SetNumUninitialized(NumVertices);
-	OutNormals.SetNumUninitialized(NumVertices);
 	
 	for (int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
 	{
 		OutPositions[VertexIndex] = LODRenderData.StaticVertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex);
-		OutNormals[VertexIndex] = LODRenderData.StaticVertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(VertexIndex);
 	};
 
 	return NumVertices;
 }
 
-int32 FindClosestVertex(const FVector3f& Point, const TArray<FVector3f>& Vertices)
+int32 GetTriangles(const USkeletalMesh* SkeletalMesh, const int32 LODIndex,
+	TArray<FIntVector3>& OutTriangles)
 {
-	float MinDistance = TNumericLimits<float>::Max();
-	int32 ClosestIndex = INDEX_NONE;
+	check(SkeletalMesh);
+	OutTriangles.Reset();
 
-	// Find Closest SkeletalMesh Vertex.
-	for (int32 VertexIndex = 0; VertexIndex < Vertices.Num(); ++VertexIndex)
+	const FSkeletalMeshRenderData* RenderData = SkeletalMesh->GetResourceForRendering();
+	check(RenderData);
+
+	if (!RenderData->LODRenderData.IsValidIndex(LODIndex))
 	{
-		const float Distance = FVector3f::Dist(Point, Vertices[VertexIndex]);
-		if (Distance < MinDistance)
-		{
-			MinDistance = Distance;
-			ClosestIndex = VertexIndex;
-		}
+		return INDEX_NONE;
 	}
 
-	return ClosestIndex;
-}
+	// Get LOD Data
+	const FSkeletalMeshLODRenderData& LODRenderData = RenderData->LODRenderData[LODIndex];
 
-void GetStaticToSkeletalMapping(
-	const UStaticMesh& StaticMesh, const int32 StaticLODIndex,
-	const USkeletalMesh& SkeletalMesh, const int32 SkeletalLODIndex,
-	TArray<FVector3f>& OutStaticVertices, TArray<FVector3f>& OutSkeletalVertices,
-	TArray<int32>& OutStaticToSkeletalMapping)
-{
-	// Reset
-	OutStaticVertices.Reset();
-	OutSkeletalVertices.Reset();
-	OutStaticToSkeletalMapping.Reset();
+	// Get Indices
+	const FMultiSizeIndexContainer& IndexBuffer = LODRenderData.MultiSizeIndexContainer;
+	TArray<uint32> IndexArray;
+	IndexBuffer.GetIndexBuffer(IndexArray);
 
-	// Get Mesh Description
-	const FMeshDescription* MeshDescription = StaticMesh.GetMeshDescription(StaticLODIndex);
-	check(MeshDescription);
+	// Allocate Triangles
+	const uint32 NumTriangles = IndexArray.Num() / 3;
+	OutTriangles.SetNumUninitialized(NumTriangles);
 
-	// Get SkeletalMesh Vertices
-	TArray<FVector3f> Normals;
-	const int32 SkelNumVertices = AnimToTexture_Private::GetVertices(SkeletalMesh, SkeletalLODIndex, OutSkeletalVertices, Normals);
-
-	// Get MeshDescription Vertices
-	const FVertexArray& Vertices = MeshDescription->Vertices();
-	const int32 NumVertices = Vertices.Num();
-	OutStaticVertices.SetNum(NumVertices);
-	OutStaticToSkeletalMapping.SetNum(NumVertices);
-
-	for (const FVertexID VertexID : Vertices.GetElementIDs())
+	for (uint32 TriangleIndex = 0; TriangleIndex < NumTriangles; TriangleIndex++)
 	{
-		const int32 VertexIndex = VertexID.GetValue();
-
-		// Get Mesh Description Vertex Position
-		const FVector3f Vertex = MeshDescription->GetVertexPosition(VertexID);
-		OutStaticVertices[VertexIndex] = Vertex;
-
-		// Find Closest SkeletalMesh Vertex
-		OutStaticToSkeletalMapping[VertexIndex] = FindClosestVertex(Vertex, OutSkeletalVertices);
+		OutTriangles[TriangleIndex].X = IndexArray[TriangleIndex * 3];
+		OutTriangles[TriangleIndex].Y = IndexArray[TriangleIndex * 3 + 1];
+		OutTriangles[TriangleIndex].Z = IndexArray[TriangleIndex * 3 + 2];
 	}
-}
+
+	return NumTriangles;
+};
 
 int32 GetNumBones(const USkeletalMesh* SkeletalMesh)
 {
@@ -178,124 +195,14 @@ void GetBoneNames(const USkeletalMesh* SkeletalMesh, TArray<FName>& OutNames)
 	}
 };
 
-void GetSkinnedVertices(USkeletalMeshComponent* MeshComponent, const int32 LODIndex, 
-	TArray<FVector3f>& OutPositions, TArray<FVector3f>& OutNormals)
+void GetSkinWeights(const USkeletalMesh* SkeletalMesh, const int32 LODIndex, 
+	TArray<VertexSkinWeightMax>& OutSkinWeights)
 {
-	OutPositions.Reset();
-	OutNormals.Reset();
-
-	if (!MeshComponent)
-	{
-		return;
-	}
-
-	// Get SkeletalMesh
-	USkeletalMesh* SkeletalMesh = MeshComponent->GetSkeletalMeshAsset();
-	if (!SkeletalMesh)
-	{
-		return;
-	}
-
-	// Get Render Data 
-	FSkeletalMeshRenderData* RenderData = SkeletalMesh->GetResourceForRendering();
-	if (!RenderData->LODRenderData.IsValidIndex(LODIndex))
-	{
-		return;
-	};
-
-	// Get Matrices
-	TArray<FMatrix44f> RefToLocals;
-	MeshComponent->CacheRefToLocalMatrices(RefToLocals);
-
-	// ---------------------------------------------------------------------------------------------
-
-	// Get Ref-Pose Vertices
-	TArray<FVector3f> Vertices;
-	TArray<FVector3f> Normals;
-	const int32 NumVertices = GetVertices(*SkeletalMesh, LODIndex, Vertices, Normals);
-
-	// TODO: Add Morph Deltas to Vertices.
-
-	// Get Weights
-	TArray<TVertexSkinWeight<MAX_TOTAL_INFLUENCES>> SkinWeights;
-	GetSkinWeightsData(*SkeletalMesh, LODIndex, SkinWeights);
-
-	OutPositions.SetNumUninitialized(NumVertices);
-	OutNormals.SetNumUninitialized(NumVertices);
-
-	for (int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
-	{
-		const FVector3f& Vertex = Vertices[VertexIndex];
-		const FVector3f& Normal = Normals[VertexIndex];
-		const TVertexSkinWeight<MAX_TOTAL_INFLUENCES>& Weights = SkinWeights[VertexIndex];
-
-		FVector4f SkinnedVertex(0);
-		FVector4f SkinnedNormal(0);
-
-		for (int32 InfluenceIndex = 0; InfluenceIndex < MAX_TOTAL_INFLUENCES; InfluenceIndex++)
-		{
-			const uint8& BoneWeight = Weights.BoneWeights[InfluenceIndex];
-			const uint16& MeshBoneIndex = Weights.MeshBoneIndices[InfluenceIndex];
-
-			// Get Matrix
-			const FMatrix44f& RefToLocal = RefToLocals[MeshBoneIndex];
-
-			const float Weight = (float)BoneWeight / 255.f;
-			SkinnedVertex += RefToLocal.TransformPosition(Vertex) * Weight;
-			SkinnedNormal += RefToLocal.TransformVector(Normal) * Weight;
-		}
-
-		OutPositions[VertexIndex] = SkinnedVertex;
-		OutNormals[VertexIndex] = SkinnedNormal;
-	};
-	
-};
-
-void ReduceSkinWeightsData(const TArray<TVertexSkinWeight<MAX_TOTAL_INFLUENCES>>& InSkinWeights, TArray<TVertexSkinWeight<4>>& OutSkinWeights)
-{
-	OutSkinWeights.SetNumUninitialized(InSkinWeights.Num());
-
-	for (int32 VertexIndex = 0; VertexIndex < InSkinWeights.Num(); ++VertexIndex)
-	{
-		GetMaxFourInfluences(InSkinWeights[VertexIndex], OutSkinWeights[VertexIndex]);
-	}
-}
-
-void DecomposeTransformation(const FTransform& Transform, FVector3f& Translation, FVector4& Rotation)
-{
-	// Get Translation
-	Translation = (FVector3f)Transform.GetTranslation();
-
-	// Get Rotation 
-	const FQuat Quat = Transform.GetRotation();
-
-	FVector Axis;
-	float Angle;
-	Quat.ToAxisAndAngle(Axis, Angle);
-
-	Rotation = FVector4(Axis, Angle);
-}
-
-void DecomposeTransformations(const TArray<FTransform>& Transforms, TArray<FVector3f>& Translations, TArray<FVector4>& Rotations)
-{
-	const int32 NumTransforms = Transforms.Num();
-	Translations.SetNumUninitialized(NumTransforms);
-	Rotations.SetNumUninitialized(NumTransforms);
-
-	for (int32 Index = 0; Index < NumTransforms; ++Index)
-	{
-		DecomposeTransformation(Transforms[Index], Translations[Index], Rotations[Index]);
-	}
-};
-
-
-void GetSkinWeightsData(const USkeletalMesh& SkeletalMesh, const int32 LODIndex, TArray<TVertexSkinWeight<MAX_TOTAL_INFLUENCES>>& SkinWeights)
-{
-	// Reset Weights
-	SkinWeights.Reset();
+	check(SkeletalMesh);
+	OutSkinWeights.Reset();
 
 	// Get Render Data
-	const FSkeletalMeshRenderData* RenderData = SkeletalMesh.GetResourceForRendering();
+	const FSkeletalMeshRenderData* RenderData = SkeletalMesh->GetResourceForRendering();
 	check(RenderData);
 
 	if (!RenderData->LODRenderData.IsValidIndex(LODIndex))
@@ -317,10 +224,10 @@ void GetSkinWeightsData(const USkeletalMesh& SkeletalMesh, const int32 LODIndex,
 	SkinWeightVertexBuffer->GetSkinWeights(SkinWeightsInfo);
 
 	// Allocated SkinWeightData
-	SkinWeights.SetNumUninitialized(SkinWeightsInfo.Num());
+	OutSkinWeights.SetNumUninitialized(SkinWeightsInfo.Num());
 
 	// Loop thru vertices
-	for (int32 VertexIndex = 0; VertexIndex < SkinWeightsInfo.Num(); ++VertexIndex)
+	for (int32 VertexIndex = 0; VertexIndex < SkinWeightsInfo.Num(); VertexIndex++)
 	{
 		// Find Section From Global Vertex Index
 		// NOTE: BoneMap is stored by Section.
@@ -335,41 +242,88 @@ void GetSkinWeightsData(const USkeletalMesh& SkeletalMesh, const int32 LODIndex,
 		const FSkinWeightInfo& SkinWeightInfo = SkinWeightsInfo[VertexIndex];
 
 		// Store Weights
-		for (int32 InfluenceIndex = 0; InfluenceIndex < MAX_TOTAL_INFLUENCES; ++InfluenceIndex)
+		for (int32 Index = 0; Index < MAX_TOTAL_INFLUENCES; Index++)
 		{
-			const uint16& BoneWeight = SkinWeightInfo.InfluenceWeights[InfluenceIndex];
-			const uint16& BoneIndex = SkinWeightInfo.InfluenceBones[InfluenceIndex];
+			const uint8& BoneWeight = SkinWeightInfo.InfluenceWeights[Index];
+			const uint16& BoneIndex = SkinWeightInfo.InfluenceBones[Index];
 			const uint16& MeshBoneIndex = RenderSection.BoneMap[BoneIndex];
 
-			SkinWeights[VertexIndex].BoneWeights[InfluenceIndex] = BoneWeight >> 8;
-			SkinWeights[VertexIndex].BoneIndices[InfluenceIndex] = BoneIndex;
-			SkinWeights[VertexIndex].MeshBoneIndices[InfluenceIndex] = MeshBoneIndex;
+			OutSkinWeights[VertexIndex].BoneWeights[Index] = BoneWeight;
+			OutSkinWeights[VertexIndex].MeshBoneIndices[Index] = MeshBoneIndex;
 		}
 	}
 }
 
-void GetReducedSkinWeightsData(
-	const USkeletalMesh& SkeletalMesh, const int32 SkeletalLODIndex, 
-	const TArray<int32> StaticToSkelMapping, 
-	TArray<TVertexSkinWeight<4>>& OutSkinWeights)
-{	
-	// Get SkeletalMesh Weights
-	TArray<TVertexSkinWeight<MAX_TOTAL_INFLUENCES>> SkinWeights;
-	AnimToTexture_Private::GetSkinWeightsData(SkeletalMesh, SkeletalLODIndex, SkinWeights);
-	
-	// Reduce SkeletalMesh Weights to 4 highest influences.
-	TArray<TVertexSkinWeight<4>> ReducedSkinWeights;
-	AnimToTexture_Private::ReduceSkinWeightsData(SkinWeights, ReducedSkinWeights);
+void ReduceSkinWeights(const TArray<VertexSkinWeightMax>& InSkinWeights, 
+	TArray<VertexSkinWeightFour>& OutSkinWeights)
+{
+	OutSkinWeights.SetNumUninitialized(InSkinWeights.Num());
 
-	// Allocate StaticMesh Weights
-	OutSkinWeights.SetNumUninitialized(StaticToSkelMapping.Num());
-
-	// Loop thru SkeletalMesh Weights
-	for (int32 VertexIndex = 0; VertexIndex < StaticToSkelMapping.Num(); ++VertexIndex)
+	for (int32 VertexIndex = 0; VertexIndex < InSkinWeights.Num(); VertexIndex++)
 	{
-		const int32 SkelVertexIndex = StaticToSkelMapping[VertexIndex];
-		OutSkinWeights[VertexIndex] = ReducedSkinWeights[SkelVertexIndex];
+		const VertexSkinWeightMax& InVertexSkinWeight = InSkinWeights[VertexIndex];
+		VertexSkinWeightFour& OutVertexSkinWeight = OutSkinWeights[VertexIndex];
+
+		float TotalBoneWeight = 0.f;
+		for (int32 Index = 0; Index < 4; Index++)
+		{
+			TotalBoneWeight += (float)InVertexSkinWeight.BoneWeights[Index] / 255.f;
+		}
+
+		// We assume Weights are sorted
+		for (int32 Index = 0; Index < 4; Index++)
+		{
+			OutVertexSkinWeight.BoneWeights[Index] = (uint8)FMath::RoundToInt((float)InVertexSkinWeight.BoneWeights[Index] / TotalBoneWeight);
+			OutVertexSkinWeight.MeshBoneIndices[Index] = InVertexSkinWeight.MeshBoneIndices[Index];
+		}
 	}
 }
+
+void GetSkinnedVertices(const USkeletalMeshComponent* SkeletalMeshComponent, const int32 LODIndex,
+	TArray<FVector3f>& OutPositions)
+{
+	check(SkeletalMeshComponent);
+	OutPositions.Reset();
+
+	// Get SkeletalMesh
+	const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMeshAsset();
+	check(SkeletalMesh);
+
+	// Get Matrices
+	TArray<FMatrix44f> RefToLocals;
+	SkeletalMeshComponent->CacheRefToLocalMatrices(RefToLocals);
+
+	// Get Ref-Pose Vertices
+	TArray<FVector3f> Vertices;
+	const int32 NumVertices = GetVertices(SkeletalMesh, LODIndex, Vertices);
+	OutPositions.SetNumUninitialized(NumVertices);
+
+	// TODO: Add Morph Deltas to Vertices.
+
+	// Get Weights
+	TArray<VertexSkinWeightMax> SkinWeights;
+	GetSkinWeights(SkeletalMesh, LODIndex, SkinWeights);
+
+	for (int32 VertexIndex = 0; VertexIndex < NumVertices; VertexIndex++)
+	{
+		const FVector3f& Vertex = Vertices[VertexIndex];
+		const VertexSkinWeightMax& Weights = SkinWeights[VertexIndex];
+
+		FVector4f SkinnedVertex(0);
+		for (int32 Index = 0; Index < MAX_TOTAL_INFLUENCES; Index++)
+		{
+			const uint8& BoneWeight = Weights.BoneWeights[Index];
+			const uint16& MeshBoneIndex = Weights.MeshBoneIndices[Index];
+
+			// Get Matrix
+			const FMatrix44f& RefToLocal = RefToLocals[MeshBoneIndex];
+
+			const float Weight = (float)BoneWeight / 255.f;
+			SkinnedVertex += RefToLocal.TransformPosition(Vertex) * Weight;
+		}
+
+		OutPositions[VertexIndex] = SkinnedVertex;
+	};
+};
 
 } // end namespace AnimToTexture_Private

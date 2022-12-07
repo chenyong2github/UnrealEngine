@@ -4,9 +4,7 @@
 
 #include "Engine/DataAsset.h"
 #include "Animation/AnimInstance.h"
-#include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
-#include "Engine/Texture2D.h"
 #include "AnimToTextureDataAsset.generated.h"
 
 class USkeletalMesh;
@@ -93,13 +91,13 @@ struct FAnimInfo
 {
 	GENERATED_BODY()
 
-	UPROPERTY(VisibleAnywhere, Category = Default)
+	UPROPERTY(VisibleAnywhere, Category = Default, BlueprintReadOnly)
 	int32 NumFrames = 0;
 
-	UPROPERTY(VisibleAnywhere, Category = Default)
+	UPROPERTY(VisibleAnywhere, Category = Default, BlueprintReadOnly)
 	int32 AnimStart = 0;
 
-	UPROPERTY(EditAnywhere, Category = Default)
+	UPROPERTY(EditAnywhere, Category = Default, BlueprintReadOnly)
 	bool bLooping = true;
 };
 
@@ -165,9 +163,8 @@ public:
 
 	/**
 	* Texture Precision
-	* 16 bits is only supported for power-of-2 resolutions.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture", meta = (EditCondition="bEnforcePowerOfTwo"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture")
 	EAnimToTexturePrecision Precision = EAnimToTexturePrecision::EightBits;
 
 	/**

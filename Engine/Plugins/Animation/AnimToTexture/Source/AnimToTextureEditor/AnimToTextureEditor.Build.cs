@@ -42,6 +42,7 @@ public class AnimToTextureEditor : ModuleRules
 				"AnimToTexture",
 				"RawMesh",
 				"MeshDescription",
+				"StaticMeshDescription",
 				"UnrealEd",
 			}
 			);

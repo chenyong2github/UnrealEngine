@@ -1,83 +1,70 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimToTextureUtils.h"
-#include "AnimToTextureSkeletalMesh.h"
-
-#include "Rendering/SkeletalMeshRenderData.h"
 
 namespace AnimToTexture_Private
 {
-	bool CheckSkinWeightsToTexture(const TArray<TVertexSkinWeight<4>>& SkinWeights)
-	{
-		bool bHasInvalidIndices = false;
-		int16 InvalidMeshBoneIndex = INDEX_NONE;
-		for (int32 VertexIndex = 0; VertexIndex < SkinWeights.Num(); ++VertexIndex)
-		{
-			// MeshBoneIndex can not be higher than 255
-			for (uint16 MeshBoneIndex : SkinWeights[VertexIndex].MeshBoneIndices)
-			{
-				if (MeshBoneIndex > 255)
-				{
-					InvalidMeshBoneIndex = MeshBoneIndex;
-					bHasInvalidIndices = true;
-					break;
-				}
-			}
 
-			if (InvalidMeshBoneIndex != INDEX_NONE)
-			{
-				UE_LOG(LogTemp, Warning, TEXT("Invalid SkinWeights on Vertex: %i. MeshBoneIndex: %i > 255"), VertexIndex, InvalidMeshBoneIndex)
-			}
-		}
+void DecomposeTransformation(const FTransform& Transform, 
+	FVector3f& OutTranslation, FVector4& OutRotation)
+{
+	// Get Translation
+	OutTranslation = (FVector3f)Transform.GetTranslation();
 
-		if (bHasInvalidIndices)
-		{
-			return false;
-		}
+	// Get Rotation 
+	const FQuat Quat = Transform.GetRotation();
 
-		return true;
-	}
+	FVector Axis;
+	float Angle;
+	Quat.ToAxisAndAngle(Axis, Angle);
 
-	bool WriteSkinWeightsToTexture(const TArray<TVertexSkinWeight<4>>& SkinWeights,
-		const int32 RowsPerFrame, const int32 Height, const int32 Width, UTexture2D* Texture)
-	{
-		if (!Texture)
-		{
-			return false;
-		}
-
-		// Sanity check for MeshBoneIndices > 256
-		if (!CheckSkinWeightsToTexture(SkinWeights))
-		{
-			return false;
-		}
-
-		const int32 NumVertices = SkinWeights.Num();
-
-		// Allocate PixelData.
-		TArray<FLowPrecision::ColorType> Pixels;
-		Pixels.Init(FLowPrecision::ColorType::Black, Height * Width);
-
-		for (int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
-		{
-			const TVertexSkinWeight<4>& VertexSkinWeight = SkinWeights[VertexIndex];
-
-			// Write Influence
-			// NOTE: we are assuming the bone index is under < 256
-			Pixels[VertexIndex].R = (uint8)VertexSkinWeight.MeshBoneIndices[0];
-			Pixels[VertexIndex].G = (uint8)VertexSkinWeight.MeshBoneIndices[1];
-			Pixels[VertexIndex].B = (uint8)VertexSkinWeight.MeshBoneIndices[2];
-			Pixels[VertexIndex].A = (uint8)VertexSkinWeight.MeshBoneIndices[3];
-			
-			// Write Weight
-			Pixels[Width * RowsPerFrame + VertexIndex].R = VertexSkinWeight.BoneWeights[0];
-			Pixels[Width * RowsPerFrame + VertexIndex].G = VertexSkinWeight.BoneWeights[1];
-			Pixels[Width * RowsPerFrame + VertexIndex].B = VertexSkinWeight.BoneWeights[2];
-			Pixels[Width * RowsPerFrame + VertexIndex].A = VertexSkinWeight.BoneWeights[3];
-		};
-
-		// Write to Texture
-		return WriteToTexture<FLowPrecision>(Texture, Height, Width, Pixels);
-	}
-
+	OutRotation = FVector4(Axis, Angle);
 }
+
+void DecomposeTransformations(const TArray<FTransform>& Transforms, 
+	TArray<FVector3f>& OutTranslations, TArray<FVector4>& OutRotations)
+{
+	const int32 NumTransforms = Transforms.Num();
+	OutTranslations.SetNumUninitialized(NumTransforms);
+	OutRotations.SetNumUninitialized(NumTransforms);
+
+	for (int32 Index = 0; Index < NumTransforms; ++Index)
+	{
+		DecomposeTransformation(Transforms[Index], OutTranslations[Index], OutRotations[Index]);
+	}
+};
+
+bool WriteSkinWeightsToTexture(const TArray<VertexSkinWeightFour>& SkinWeights,
+	const int32 RowsPerFrame, const int32 Height, const int32 Width, UTexture2D* Texture)
+{
+	check(Texture);
+
+	const int32 NumVertices = SkinWeights.Num();
+
+	// Allocate PixelData.
+	TArray<FLowPrecision::ColorType> Pixels;
+	Pixels.Init(FLowPrecision::ColorType::Black, Height * Width);
+
+	for (int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
+	{
+		const VertexSkinWeightFour& VertexSkinWeight = SkinWeights[VertexIndex];
+
+		// Write Influence
+		// NOTE: we are assuming the bone index is under < 256
+		Pixels[VertexIndex].R = (uint8)VertexSkinWeight.MeshBoneIndices[0];
+		Pixels[VertexIndex].G = (uint8)VertexSkinWeight.MeshBoneIndices[1];
+		Pixels[VertexIndex].B = (uint8)VertexSkinWeight.MeshBoneIndices[2];
+		Pixels[VertexIndex].A = (uint8)VertexSkinWeight.MeshBoneIndices[3];
+			
+		// Write Weight
+		Pixels[Width * RowsPerFrame + VertexIndex].R = VertexSkinWeight.BoneWeights[0];
+		Pixels[Width * RowsPerFrame + VertexIndex].G = VertexSkinWeight.BoneWeights[1];
+		Pixels[Width * RowsPerFrame + VertexIndex].B = VertexSkinWeight.BoneWeights[2];
+		Pixels[Width * RowsPerFrame + VertexIndex].A = VertexSkinWeight.BoneWeights[3];
+	};
+
+	// Write to Texture
+	return WriteToTexture<FLowPrecision>(Texture, Height, Width, Pixels);
+}
+
+} // end namespace AnimToTexture_Private
