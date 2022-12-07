@@ -2985,7 +2985,7 @@ void FSequencer::SetLocalTime( FFrameTime NewTime, ESnapTimeMode SnapTimeMode, b
 	FFrameRate LocalResolution = GetFocusedTickResolution();
 
 	// Ensure the time is in the current view
-	if (IsAutoScrollEnabled() || GetPlaybackStatus() != EMovieScenePlayerStatus::Playing)
+	if (IsAutoScrollEnabled())
 	{
 		ScrollIntoView(NewTime / LocalResolution);
 	}
