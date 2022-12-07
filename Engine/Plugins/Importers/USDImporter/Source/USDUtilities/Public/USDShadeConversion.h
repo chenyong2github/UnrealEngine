@@ -33,7 +33,7 @@ class UTexture;
 struct FFlattenMaterial;
 struct FPropertyEntry;
 enum class EFlattenMaterialProperties : uint8;
-enum EMaterialProperty;
+enum EMaterialProperty : int;
 namespace UE
 {
 	class FUsdPrim;
