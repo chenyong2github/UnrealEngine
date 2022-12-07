@@ -106,7 +106,7 @@ bool tetrahedralization(
     // STEP 4: Volume mesh optimization //
     //////////////////////////////////////
 
-	FProgressCancel::FProgressScope ScopeOptimizeTet = FProgressCancel::CreateScopeTo(Progress, .9f, LOCTEXT("TetCutting", "Optimizing Tetrahedra"));
+	FProgressCancel::FProgressScope ScopeOptimizeTet = FProgressCancel::CreateScopeTo(Progress, .9f, LOCTEXT("TetOptimizing", "Optimizing Tetrahedra"));
     optimization(input_vertices, input_faces, input_tags, is_face_inserted, mesh, tree, {{1, 1, 1, 1}});
 
 	if (Progress && Progress->Cancelled())
