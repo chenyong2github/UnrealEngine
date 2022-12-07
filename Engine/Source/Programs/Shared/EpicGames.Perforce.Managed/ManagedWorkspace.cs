@@ -843,7 +843,7 @@ namespace EpicGames.Perforce.Managed
 					}
 					else
 					{
-						contents = await FindClientContentsWithoutHaveTableAsync(perforce, streamName, changeNumber, cancellationToken);
+						contents = await FindClientContentsWithoutHaveTableAsync(perforce, streamName, view, changeNumber, cancellationToken);
 					}
 				}
 				else
@@ -851,7 +851,7 @@ namespace EpicGames.Perforce.Managed
 					contents = await TryLoadClientContentsAsync(cacheFile, streamName, cancellationToken);
 					if (contents == null)
 					{
-						contents = await FindAndSaveClientContentsAsync(perforce, streamName, changeNumber, cacheFile, cancellationToken);
+						contents = await FindAndSaveClientContentsAsync(perforce, streamName, view, changeNumber, cacheFile, cancellationToken);
 					}
 				}
 
@@ -1018,7 +1018,7 @@ namespace EpicGames.Perforce.Managed
 					}
 					else
 					{
-						StreamSnapshot contents = await FindClientContentsWithoutHaveTableAsync(request.PerforceClient, streamName, changeNumber, cancellationToken);
+						StreamSnapshot contents = await FindClientContentsWithoutHaveTableAsync(request.PerforceClient, streamName, request.View, changeNumber, cancellationToken);
 						streamState[idx] = Tuple.Create(changeNumber, contents);
 					}
 
@@ -1553,53 +1553,71 @@ namespace EpicGames.Perforce.Managed
 
 			public Utf8String Digest => Values[(int)Field.digest].GetString();
 		}
-		
+
 		/// <summary>
 		/// Get the contents of the client without using the have table
 		/// </summary>
 		/// <param name="perforceClient">The client connection</param>
 		/// <param name="streamName">Name of stream</param>
+		/// <param name="view">View of the workspace</param>
 		/// <param name="changeNumber">The change number being synced. This must be specified in order to get the digest at the correct revision.</param>
 		/// <param name="cancellationToken">Cancellation token</param>
-		public async Task<StreamSnapshotFromMemory> FindClientContentsWithoutHaveTableAsync(IPerforceConnection perforceClient, string streamName, int changeNumber, CancellationToken cancellationToken)
+		public async Task<StreamSnapshotFromMemory> FindClientContentsWithoutHaveTableAsync(IPerforceConnection perforceClient, string streamName, IReadOnlyList<string> view, int changeNumber, CancellationToken cancellationToken)
 		{
-			DepotStreamTreeBuilder builder = new ();
+			DepotStreamTreeBuilder builder = new();
 			
-			StreamRecord streamRecord = await perforceClient.GetStreamAsync(streamName, true, cancellationToken);
-			PerforceViewMap viewMap = PerforceViewMap.Parse(streamRecord.View);
-			
-			// Re-use a single class instance as there can be millions of records
-			FStatRecordWithoutHaveTable record = new ();
-			void HandleRecord(PerforceRecord rawRecord)
+			using (Trace("FetchMetadata"))
+			using (ILoggerProgress scope = _logger.BeginProgressScope("Fetching metadata (without have table)..."))
 			{
-				// Copy into the values array
-				rawRecord.CopyInto(FStatRecordWithoutHaveTable.Utf8FieldNames, record.Values);
-				if (record.Digest.IsEmpty) { return; }
-				
-				if (viewMap.TryMapFile(record.DepotFile.ToString(), StringComparison.Ordinal, out string clientFile))
+				Stopwatch timer = Stopwatch.StartNew();
+
+				StreamRecord streamRecord = await perforceClient.GetStreamAsync(streamName, true, cancellationToken);
+				PerforceViewMap viewMap = PerforceViewMap.Parse(streamRecord.View);
+
+				// Use Horde's additional filtering taking place after stream view mapping
+				PerforceViewFilter viewFilter = PerforceViewFilter.Parse(view);
+
+				// Re-use a single class instance as there can be millions of records
+				FStatRecordWithoutHaveTable record = new();
+
+				void HandleRecord(PerforceRecord rawRecord)
 				{
-					Md5Hash md5Hash = Md5Hash.Parse(record.Digest);
-					FileContentId fileContentId = new (md5Hash, record.HeadType);
-					builder.AddFile(clientFile, new StreamFile(record.DepotFile, record.FileSize, fileContentId, record.HeadRev));					
+					// Copy into the values array
+					rawRecord.CopyInto(FStatRecordWithoutHaveTable.Utf8FieldNames, record.Values);
+					if (record.Digest.IsEmpty) { return; }
+
+					if (viewMap.TryMapFile(record.DepotFile.ToString(), StringComparison.OrdinalIgnoreCase, out string clientFile))
+					{
+						if (!viewFilter.IncludeFile(clientFile, StringComparison.OrdinalIgnoreCase))
+						{
+							return;
+						}
+
+						Md5Hash md5Hash = Md5Hash.Parse(record.Digest);
+						FileContentId fileContentId = new(md5Hash, record.HeadType);
+						builder.AddFile(clientFile, new StreamFile(record.DepotFile, record.FileSize, fileContentId, record.HeadRev));
+					}
+					else
+					{
+						_logger.LogError("Failed to view map depot file {DepotFile}", record.DepotFile.ToString());
+					}
 				}
-				else
-				{
-					_logger.LogError("Failed to view map depot file {DepotFile}", record.DepotFile.ToString());
-				}
+
+				string fileSpec = $"//{perforceClient.Settings.ClientName}/...@{changeNumber}";
+				List<string> arguments = new();
+				arguments.Add("-Ol"); // Output fileSize and digest field
+				arguments.Add("-Os"); // Shorten output by excluding client workspace data (for instance, the clientFile field).
+				arguments.Add("-F"); // Filter any files not existing at current revision (filter below)
+				arguments.Add("^headAction=delete&^headAction=move/delete&^headAction=purge");
+				arguments.Add("-T"); // Include only the fields listed below
+				arguments.Add(String.Join(",", FStatRecordWithoutHaveTable.FieldNames));
+				arguments.Add(fileSpec);
+
+				await perforceClient.RecordCommandAsync("fstat", arguments, null, HandleRecord, cancellationToken);
+
+				scope.Progress = $"({timer.Elapsed.TotalSeconds:0.0}s)";
 			}
 
-			string fileSpec = $"//{perforceClient.Settings.ClientName}/...@{changeNumber}";
-			List<string> arguments = new ();
-			arguments.Add("-Ol"); // Output fileSize and digest field
-			arguments.Add("-Os"); // Shorten output by excluding client workspace data (for instance, the clientFile field).
-			arguments.Add("-F"); // Filter any files not existing at current revision (filter below)
-			arguments.Add("^headAction=delete&^headAction=move/delete&^headAction=purge");
-			arguments.Add("-T"); // Include only the fields listed below
-			arguments.Add(String.Join(",", FStatRecordWithoutHaveTable.FieldNames));
-			arguments.Add(fileSpec);
-
-			await perforceClient.RecordCommandAsync("fstat", arguments, null, HandleRecord, cancellationToken);
-			
 			return new StreamSnapshotFromMemory(builder);
 		}
 
@@ -1631,15 +1649,16 @@ namespace EpicGames.Perforce.Managed
 		/// </summary>
 		/// <param name="perforceClient">The client connection</param>
 		/// <param name="basePath">Base path for the stream</param>
+		/// <param name="view">View of the workspace</param>
 		/// <param name="changeNumber">The change number being synced. This must be specified in order to get the digest at the correct revision.</param>
 		/// <param name="cacheFile">Location of the file to save the cached contents</param>
 		/// <param name="cancellationToken">Cancellation token</param>
 		/// <returns>Contents of the workspace</returns>
-		private async Task<StreamSnapshotFromMemory> FindAndSaveClientContentsAsync(IPerforceConnection perforceClient, Utf8String basePath, int changeNumber, FileReference cacheFile, CancellationToken cancellationToken)
+		private async Task<StreamSnapshotFromMemory> FindAndSaveClientContentsAsync(IPerforceConnection perforceClient, Utf8String basePath, IReadOnlyList<string> view, int changeNumber, FileReference cacheFile, CancellationToken cancellationToken)
 		{
 			StreamSnapshotFromMemory contents = _useHaveTable
 				? await FindClientContentsAsync(perforceClient, changeNumber, cancellationToken)
-				: await FindClientContentsWithoutHaveTableAsync(perforceClient, basePath.ToString(), changeNumber, cancellationToken);
+				: await FindClientContentsWithoutHaveTableAsync(perforceClient, basePath.ToString(), view, changeNumber, cancellationToken);
 
 			using (Trace("WriteMetadata"))
 			using (ILoggerProgress scope = _logger.BeginProgressScope($"Saving metadata to {cacheFile}..."))

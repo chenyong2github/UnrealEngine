@@ -54,6 +54,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.Perforce.Fixture"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.Redis.Tests", "..\Shared\EpicGames.Redis.Tests\EpicGames.Redis.Tests.csproj", "{BB7F4D62-C5D5-4457-90EC-10642D9B0086}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EpicGames.Perforce.Tests", "..\Shared\EpicGames.Perforce.Tests\EpicGames.Perforce.Tests.csproj", "{0E1BA5F9-5DC1-441D-85BE-A12A29C4DB31}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Analyze|Any CPU = Analyze|Any CPU
@@ -238,6 +240,14 @@ Global
 		{BB7F4D62-C5D5-4457-90EC-10642D9B0086}.Development|Any CPU.Build.0 = Development|Any CPU
 		{BB7F4D62-C5D5-4457-90EC-10642D9B0086}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BB7F4D62-C5D5-4457-90EC-10642D9B0086}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0E1BA5F9-5DC1-441D-85BE-A12A29C4DB31}.Analyze|Any CPU.ActiveCfg = Debug|Any CPU
+		{0E1BA5F9-5DC1-441D-85BE-A12A29C4DB31}.Analyze|Any CPU.Build.0 = Debug|Any CPU
+		{0E1BA5F9-5DC1-441D-85BE-A12A29C4DB31}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0E1BA5F9-5DC1-441D-85BE-A12A29C4DB31}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0E1BA5F9-5DC1-441D-85BE-A12A29C4DB31}.Development|Any CPU.ActiveCfg = Development|Any CPU
+		{0E1BA5F9-5DC1-441D-85BE-A12A29C4DB31}.Development|Any CPU.Build.0 = Development|Any CPU
+		{0E1BA5F9-5DC1-441D-85BE-A12A29C4DB31}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0E1BA5F9-5DC1-441D-85BE-A12A29C4DB31}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

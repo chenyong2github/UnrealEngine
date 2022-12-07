@@ -111,17 +111,72 @@ public class ManagedWorkspaceTest : BasePerforceFixtureTest
 	[TestMethod]
 	[DataRow(true, DisplayName = "With have-table")]
 	[DataRow(false, DisplayName = "Without have-table")]
+	public async Task SyncWithViewExclusivePathFirst(bool useHaveTable)
+	{
+		ManagedWorkspace ws = await GetManagedWorkspace(useHaveTable);
+		ChangelistFixture cl = Stream.GetChangelist(6);
+
+		List<string> view = new() { "-/Data/...", "-/shared.h", };
+		await ws.SyncAsync(PerforceConnection, StreamName, cl.Number, view, true, false, null, CancellationToken.None);
+
+		List<DepotFileFixture> filtered = cl.StreamFiles
+			.Where(x => !x.DepotFile.Contains("shared.h", StringComparison.Ordinal))
+			.Where(x => !x.DepotFile.Contains("Data/", StringComparison.Ordinal)).ToList();
+
+		ChangelistFixture clViewApplied = new (cl.Number, cl.Description, filtered, cl.IsShelved);
+		clViewApplied.AssertDepotFiles(SyncDir);
+		await clViewApplied.AssertHaveTableAsync(PerforceConnection, useHaveTable);
+	}
+	
+	[TestMethod]
+	[DataRow(true, DisplayName = "With have-table")]
+	[DataRow(false, DisplayName = "Without have-table")]
+	public async Task SyncWithViewInclusivePathFirst(bool useHaveTable)
+	{
+		ManagedWorkspace ws = await GetManagedWorkspace(useHaveTable);
+		ChangelistFixture cl = Stream.GetChangelist(6);
+
+		List<string> view = new() { "/...", "-/Data/..." };
+		await ws.SyncAsync(PerforceConnection, StreamName, cl.Number, view, true, false, null, CancellationToken.None);
+
+		List<DepotFileFixture> filtered = cl.StreamFiles
+			.Where(x => !x.DepotFile.Contains("Data/", StringComparison.Ordinal)).ToList();
+
+		ChangelistFixture clViewApplied = new (cl.Number, cl.Description, filtered, cl.IsShelved);
+		clViewApplied.AssertDepotFiles(SyncDir);
+		await clViewApplied.AssertHaveTableAsync(PerforceConnection, useHaveTable);
+	}
+	
+	[TestMethod]
+	[DataRow(true, DisplayName = "With have-table")]
+	[DataRow(false, DisplayName = "Without have-table")]
 	public async Task Populate(bool useHaveTable)
 	{
 		ManagedWorkspace ws = await GetManagedWorkspace(useHaveTable);
-
-		List<PopulateRequest> populateRequests = new ()
-		{
-			new PopulateRequest(PerforceConnection, StreamName, new List<string>())
-		};
+		List<PopulateRequest> populateRequests = new () { new PopulateRequest(PerforceConnection, StreamName, new List<string>()) };
 		await ws.PopulateAsync(populateRequests, false, CancellationToken.None);
 		Stream.LatestChangelist.AssertDepotFiles(SyncDir);
 		await Stream.LatestChangelist.AssertHaveTableAsync(PerforceConnection, useHaveTable);
+	}
+	
+	[TestMethod]
+	[DataRow(true, DisplayName = "With have-table")]
+	[DataRow(false, DisplayName = "Without have-table")]
+	public async Task PopulateWithView(bool useHaveTable)
+	{
+		ManagedWorkspace ws = await GetManagedWorkspace(useHaveTable);
+		List<string> view = new () { "-/Data/...", "-/shared.h" };
+		ChangelistFixture cl = Stream.LatestChangelist;
+		List<DepotFileFixture> filtered = cl.StreamFiles
+			.Where(x => !x.DepotFile.Contains("shared.h", StringComparison.Ordinal))
+			.Where(x => !x.DepotFile.Contains("Data/", StringComparison.Ordinal)).ToList();
+
+		List<PopulateRequest> populateRequests = new () { new PopulateRequest(PerforceConnection, StreamName, view) };
+		await ws.PopulateAsync(populateRequests, false, CancellationToken.None);
+		
+		ChangelistFixture clViewApplied = new (cl.Number, cl.Description, filtered, cl.IsShelved);
+		clViewApplied.AssertDepotFiles(SyncDir);
+		await clViewApplied.AssertHaveTableAsync(PerforceConnection, useHaveTable);
 	}
 	
 	[TestMethod]
