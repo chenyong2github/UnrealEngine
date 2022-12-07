@@ -4683,11 +4683,18 @@ bool FLinkerLoad::IsPackageReferenceAllowed(UPackage* InPackage)
 {
 	if (InPackage && !InPackage->IsExternallyReferenceable())
 	{
-		FName MountPointName = FPackageName::GetPackageMountPoint(LinkerRoot->GetName());
-		FName ImportMountPointName = FPackageName::GetPackageMountPoint(InPackage->GetName());
-		if (MountPointName != ImportMountPointName)
+#if WITH_EDITOR
+		// Package loaded for diff is not always in its original location (usually in /Temp/) 
+		// so we can't reliably compare mount points here
+		if ((LoadFlags & LOAD_ForDiff) == 0)
+#endif //if WITH_EDITOR
 		{
-			return false;
+			FName MountPointName = FPackageName::GetPackageMountPoint(LinkerRoot->GetName());
+			FName ImportMountPointName = FPackageName::GetPackageMountPoint(InPackage->GetName());
+			if (MountPointName != ImportMountPointName)
+			{
+				return false;
+			}
 		}
 	}
 	return true;
