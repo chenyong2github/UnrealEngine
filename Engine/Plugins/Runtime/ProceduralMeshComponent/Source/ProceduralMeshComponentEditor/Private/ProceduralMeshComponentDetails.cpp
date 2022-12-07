@@ -15,6 +15,7 @@
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "DetailCategoryBuilder.h"
+#include "EditorDirectories.h"
 #include "IDetailsView.h"
 #include "ProceduralMeshComponent.h"
 #include "StaticMeshAttributes.h"
@@ -90,7 +91,16 @@ FReply FProceduralMeshComponentDetails::ClickedOnConvertToStaticMesh()
 	if (ProcMeshComp != nullptr)
 	{
 		FString NewNameSuggestion = FString(TEXT("ProcMesh"));
-		FString PackageName = FString(TEXT("/Game/Meshes/")) + NewNameSuggestion;
+		FString DefaultPath;
+		const FString DefaultDirectory = FEditorDirectories::Get().GetLastDirectory(ELastDirectory::NEW_ASSET);
+		FPackageName::TryConvertFilenameToLongPackageName(DefaultDirectory, DefaultPath);
+
+		if (DefaultPath.IsEmpty())
+		{
+			DefaultPath = TEXT("/Game/Meshes");
+		}
+
+		FString PackageName = DefaultPath / NewNameSuggestion;
 		FString Name;
 		FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
 		AssetToolsModule.Get().CreateUniqueAssetName(PackageName, TEXT(""), PackageName, Name);

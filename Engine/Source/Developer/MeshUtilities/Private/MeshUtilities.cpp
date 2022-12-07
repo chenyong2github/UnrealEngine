@@ -25,6 +25,7 @@
 #include "Components/ShapeComponent.h"
 #include "Engine/SkinnedAssetCommon.h"
 #include "Engine/StaticMesh.h"
+#include "EditorDirectories.h"
 #include "Materials/Material.h"
 #include "RawMesh.h"
 #include "StaticMeshResources.h"
@@ -500,7 +501,16 @@ UStaticMesh* FMeshUtilities::ConvertMeshesToStaticMesh(const TArray<UMeshCompone
 	if (InPackageName.IsEmpty())
 	{
 		FString NewNameSuggestion = FString(TEXT("StaticMesh"));
-		FString PackageNameSuggestion = FString(TEXT("/Game/Meshes/")) + NewNameSuggestion;
+		FString DefaultPath;
+		const FString DefaultDirectory = FEditorDirectories::Get().GetLastDirectory(ELastDirectory::NEW_ASSET);
+		FPackageName::TryConvertFilenameToLongPackageName(DefaultDirectory, DefaultPath);
+
+		if (DefaultPath.IsEmpty())
+		{
+			DefaultPath = TEXT("/Game/Meshes");
+		}
+
+		FString PackageNameSuggestion = DefaultPath / NewNameSuggestion;
 		FString Name;
 		FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
 		AssetToolsModule.Get().CreateUniqueAssetName(PackageNameSuggestion, TEXT(""), PackageNameSuggestion, Name);
