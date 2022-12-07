@@ -117,6 +117,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual void UnregisterCanChangeAssetPublicStateDelegate() override;
 	virtual void RegisterIsFolderShowPrivateContentToggleableDelegate(FIsFolderShowPrivateContentToggleableDelegate InIsFolderShowPrivateContentToggleableDelegate) override;
 	virtual void UnregisterIsFolderShowPrivateContentToggleableDelegate() override;
+	virtual FDelegateHandle RegisterOnFavoritesChangedHandler(FSimpleDelegate OnFavoritesChanged) override;
+	virtual void UnregisterOnFavoritesChangedDelegate(FDelegateHandle Handle) override;
+
+	/** Broadcast that the favorites have changed. */
+	void BroadcastFavoritesChanged() const;
 
 	/** Gets the content browser singleton as a FContentBrowserSingleton */
 	static FContentBrowserSingleton& Get();
@@ -211,4 +216,7 @@ private:
 	int32 SettingsStringID;
 
 	FShowPrivateContentState ShowPrivateContentState;
+
+	DECLARE_MULTICAST_DELEGATE(FOnFavoritesChangedDelegate);
+	FOnFavoritesChangedDelegate OnFavoritesChanged;
 };

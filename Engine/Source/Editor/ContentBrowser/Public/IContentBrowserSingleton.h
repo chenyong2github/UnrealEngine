@@ -363,6 +363,9 @@ struct FPathPickerConfig
 	/** If true, passes virtual paths to OnPathSelected instead of internal asset paths */
 	bool bOnPathSelectedPassesVirtualPaths;
 
+	/** If true, will show the favorites selector in the picker */
+	bool bShowFavorites;
+
 	FPathPickerConfig()
 		: bFocusSearchBoxWhenOpened(true)
 		, bAllowContextMenu(true)
@@ -370,6 +373,7 @@ struct FPathPickerConfig
 		, bAllowReadOnlyFolders(true)
 		, bAddDefaultPath(false)
 		, bOnPathSelectedPassesVirtualPaths(false)
+		, bShowFavorites(true)
 	{}
 };
 
@@ -710,4 +714,10 @@ public:
 
 	/** Unregisters the delegate for custom handling of if a Folder allows private content edits */
 	virtual void UnregisterIsFolderShowPrivateContentToggleableDelegate() = 0;
+
+	/** Register a delegate to be called when the Favorites changes. */
+	virtual FDelegateHandle RegisterOnFavoritesChangedHandler(FSimpleDelegate OnFavoritesChanged) = 0;
+
+	/** Unregister a previously-registered handler for when Favorites changes. */
+	virtual void UnregisterOnFavoritesChangedDelegate(FDelegateHandle Handle) = 0;
 };

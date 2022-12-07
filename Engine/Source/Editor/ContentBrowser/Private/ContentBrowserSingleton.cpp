@@ -1176,6 +1176,21 @@ void FContentBrowserSingleton::UnregisterIsFolderShowPrivateContentToggleableDel
 	IsFolderShowPrivateContentToggleableDelegate = FIsFolderShowPrivateContentToggleableDelegate();
 }
 
+FDelegateHandle FContentBrowserSingleton::RegisterOnFavoritesChangedHandler(FSimpleDelegate InOnFavoritesChanged)
+{
+	return OnFavoritesChanged.Add(InOnFavoritesChanged);
+}
+
+void FContentBrowserSingleton::UnregisterOnFavoritesChangedDelegate(FDelegateHandle Handle)
+{
+	OnFavoritesChanged.Remove(Handle);
+}
+
+void FContentBrowserSingleton::BroadcastFavoritesChanged() const
+{
+	OnFavoritesChanged.Broadcast();
+}
+
 void FContentBrowserSingleton::PopulateConfigValues()
 {
 	const FString ContentBrowserSection = TEXT("ContentBrowser");

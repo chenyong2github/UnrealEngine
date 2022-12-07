@@ -706,6 +706,8 @@ bool ContentBrowserUtils::IsFavoriteFolder(const FString& FolderPath)
 void ContentBrowserUtils::AddFavoriteFolder(const FString& FolderPath, bool bFlushConfig /*= true*/)
 {
 	FContentBrowserSingleton::Get().FavoriteFolderPaths.AddUnique(ConvertVirtualPathToInvariantPathString(FolderPath));
+
+	FContentBrowserSingleton::Get().BroadcastFavoritesChanged();
 }
 
 void ContentBrowserUtils::RemoveFavoriteFolder(const FString& FolderPath, bool bFlushConfig /*= true*/)
@@ -722,6 +724,8 @@ void ContentBrowserUtils::RemoveFavoriteFolder(const FString& FolderPath, bool b
 	{
 		GConfig->Flush(false, GEditorPerProjectIni);
 	}
+
+	FContentBrowserSingleton::Get().BroadcastFavoritesChanged();
 }
 
 const TArray<FString>& ContentBrowserUtils::GetFavoriteFolders()
