@@ -39,13 +39,13 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 	public:
 
-		virtual int ComputeOutputShape(TConstArrayView<NNX::FTensorShape> InputShapes, TArray<NNX::FTensorShape>& OutputShapes) const override
+		virtual int PrepareOutputs(TConstArrayView<NNX::FTensorRef> InputTensors, TArrayView<NNX::FTensorRef> OutputTensors) const override
 		{
-			OutputShapes.Empty();
-			check(InputShapes.Num() >= 2 && InputShapes.Num() <= 3);
+			check(InputTensors.Num() >= 2 && InputTensors.Num() <= 3);
+			check(OutputTensors.Num() == 1);
 
-			const NNX::FTensorShape& Input = InputShapes[0];
-			const NNX::FTensorShape& Weights = InputShapes[1];
+			const NNX::FTensorShape& Input = InputTensors[0]->GetShape();
+			const NNX::FTensorShape& Weights = InputTensors[1]->GetShape();
 			NNX::FSymbolicTensorShape OutputShape;
 			
 			OutputShape.Data = UE::NNEHlslShaders::Internal::FConvCS::GetOutputShape(Input.Data, Weights.Data, AutoPad, Dilations, Strides, Pads);
@@ -53,7 +53,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			{
 				return -1;
 			}
-			OutputShapes.Emplace(NNX::FTensorShape::MakeFromSymbolic(OutputShape));
+			OutputTensors[0]->SetShape(NNX::FTensorShape::MakeFromSymbolic(OutputShape));
 
 			return 0;
 		};

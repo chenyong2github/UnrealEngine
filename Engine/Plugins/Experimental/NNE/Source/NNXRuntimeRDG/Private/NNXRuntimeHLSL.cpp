@@ -36,7 +36,7 @@ public:
 protected:
 
 	virtual void AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder) override;
-	virtual int RunShapeInference() override;
+	virtual int PrepareTensorShapesAndData() override;
 
 private:
 
@@ -137,103 +137,74 @@ FMLOperatorHlsl* FMLInferenceModelHlsl::OpCreate(const FString& OpName, TConstAr
 	return Op;
 }
 
-int FMLInferenceModelHlsl::RunShapeInference()
+int FMLInferenceModelHlsl::PrepareTensorShapesAndData()
 {
-	AllShapes.Empty();
-
+	check(AllTensorRDGs.Num() == AllSymbolicTensorDescs.Num());
+	
 	if (Operators.Num() == 0)
 	{
 		UE_LOG(LogNNX, Warning, TEXT("No operators in model"));
 		return -1;
 	}
 
+	// Run model preparation (including shape inference) on all operators
+	// This loop could be abstracted to a different engine/system as it apply on FTensorRef & IPrepareOperator witch are RDG agnostics.
 	static constexpr int32 MaxExpectedInput = 10;
-	TArray<FTensorShape, TInlineAllocator<MaxExpectedInput>> InputShapes;
-	TArray<FTensorShape> OutputShapes;
-	TArray<bool> AllInitializedShapes;
+	TArray<FTensorRef, TInlineAllocator<MaxExpectedInput>> InputTensors;
+	TArray<FTensorRef> OutputTensors;
+	TArray<bool> AllInitializedTensors;
 
-	checkCode(AllInitializedShapes.SetNum(AllSymbolicTensorDescs.Num(), false););
-	AllShapes.SetNum(AllSymbolicTensorDescs.Num());
+	checkCode(
+		AllInitializedTensors.Init(false, AllSymbolicTensorDescs.Num());
+		for (int32 Idx : InputTensorIndices)
+		{
+			AllInitializedTensors[Idx] = true;
+		}
+		for (int32 Idx : WeightTensorIndices)
+		{
+			AllInitializedTensors[Idx] = true;
+		}
+	);
 
-	//Prime shape inference with model inputs
-	for (int32 i = 0; i < InputTensorIndices.Num(); ++i)
-	{
-		const int32 InputTensorModelIndex = InputTensorIndices[i];
-
-		AllShapes[InputTensorModelIndex] = InputTensorShapes[i];
-		checkCode(AllInitializedShapes[InputTensorModelIndex] = true);
-	}
-
-	//Prime shape inference with model weights
-	for (int32 i = 0; i < WeightTensorIndices.Num(); ++i)
-	{
-		const int32 WeightTensorModelIndex = WeightTensorIndices[i];
-
-		AllShapes[WeightTensorModelIndex] = WeightTensorRDGs[i].GetShape();
-		checkCode(AllInitializedShapes[WeightTensorModelIndex] = true);
-	}
-
-	// Run shape inference on all operators
+	// Run model preparation (including shape inference) on all operators
+	// This loop could be abstracted to a different system as it apply on FTensorRef & IPrepareOperator witch are RDG agnostics.
 	for (int32 Idx = 0; Idx < Operators.Num(); ++Idx)
 	{
-		InputShapes.Empty();
-		OutputShapes.Empty();
+		InputTensors.Empty();
+		OutputTensors.Empty();
 
+		//Operator inputs
 		for (int32 i : OperatorInputTensorIndices[Idx])
 		{
-			checkf(AllInitializedShapes[i] == true, TEXT("Input shape %d for operator %d should have been initialized."), i, Idx);
-			InputShapes.Emplace(AllShapes[i]);
+			checkf(AllInitializedTensors[i] == true, TEXT("Input tensor %d for operator %d should have been initialized."), i, Idx);
+			InputTensors.Emplace(AllTensorRDGs[i]);
+		}
+		//Operator outputs
+		for (int32 i : OperatorOutputTensorIndices[Idx])
+		{
+			OutputTensors.Emplace(AllTensorRDGs[i]);
+			checkf(AllInitializedTensors[i] == false, TEXT("Output tensor %d for operator %d should not have been initialized yet."), i, Idx);
+			checkCode(AllInitializedTensors[i] = true);
 		}
 
-		//If operator output shapes are not variable we don't need to run shape inference
-		bool bShouldRunShapeInferenceForOperator = false;
-		for (int32 i = 0; i < OperatorOutputTensorIndices[Idx].Num(); ++i)
+		const FMLOperatorHlsl* Op = Operators[Idx];
+
+		if (Op->PrepareOutputs(InputTensors, OutputTensors) != 0)
 		{
-			const int32 OutputTensorIndex = OperatorOutputTensorIndices[Idx][i];
-
-			if (!AllSymbolicTensorDescs[OutputTensorIndex].IsConcrete())
-			{
-				bShouldRunShapeInferenceForOperator = true;
-				continue;
-			}
-			OutputShapes.Emplace(FTensorShape::MakeFromSymbolic(AllSymbolicTensorDescs[OutputTensorIndex].GetShape()));
-		}
-
-		//Otherwise we need to run shape inference for the operator
-		if (bShouldRunShapeInferenceForOperator)
-		{
-			OutputShapes.Empty();
-
-			const FMLOperatorHlsl* Op = Operators[Idx];
-
-			if (Op->ComputeOutputShape(InputShapes, OutputShapes) != 0)
-			{
-				//Operator could not compute output shapes, meaning we can't allocate
-				//output buffer before running the model. This engine does not support this.
-				UE_LOG(LogNNX, Warning, TEXT("Could not deduce tensor shapes for this model during shape inference, HLSL engine wont support the model as it need to precompute all shapes for performance reasons."));
-				AllShapes.Empty();
-				OutputTensorShapes.Empty();
-				return -1;
-			}
-		}
-
-		for (int32 i = 0; i < OperatorOutputTensorIndices[Idx].Num(); ++i)
-		{
-			const int32 OutputTensorIndex = OperatorOutputTensorIndices[Idx][i];
-
-			AllShapes[OutputTensorIndex] = OutputShapes[i];
-			checkCode(AllInitializedShapes[OutputTensorIndex] = true);
+			//Operator could not prepare the output tensors, meaning we can't allocate
+			//output buffer before running the model. This engine does not support this.
+			UE_LOG(LogNNX, Warning, TEXT("Could not deduce tensor shapes for this model during shape inference, HLSL engine wont support the model as it need to precompute all shapes for performance reasons."));
+			AllTensorRDGs.Empty();
+			return -1;
 		}
 	}
 
 	checkCode(
-		for (int i = 0; i < AllInitializedShapes.Num(); ++i)
+		for (int i = 0; i < AllInitializedTensors.Num(); ++i)
 		{
-			checkf(AllInitializedShapes[i], TEXT("Tensor at index %d, was not initialized by shape inference."));
+			checkf(AllInitializedTensors[i], TEXT("Tensor at index %d, was not initialized by model preparation."));
 		};
 	);
-
-	check(AllShapes.Num() == AllSymbolicTensorDescs.Num());
 
 	return 0;
 }
@@ -243,8 +214,6 @@ int FMLInferenceModelHlsl::RunShapeInference()
 //
 void FMLInferenceModelHlsl::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 {
-	check(AllTensorRDGs.Num() == AllShapes.Num());
-
 	static constexpr int32 MaxExpectedInput = 10;
 	TArray<FTensorRDGRef, TInlineAllocator<MaxExpectedInput>> InputTensors;
 

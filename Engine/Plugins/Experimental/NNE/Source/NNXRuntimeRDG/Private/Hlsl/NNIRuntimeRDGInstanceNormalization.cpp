@@ -66,18 +66,17 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 	public:
 
-		virtual int ComputeOutputShape(TConstArrayView<NNX::FTensorShape> InputShapes, TArray<NNX::FTensorShape>& OutputShapes) const override
+		virtual int PrepareOutputs(TConstArrayView<NNX::FTensorRef> InputTensors, TArrayView<NNX::FTensorRef> OutputTensors) const override
 		{
-			check(InputShapes.Num() == 3);
+			check(InputTensors.Num() == 3);
+			check(OutputTensors.Num() == 1);
 
-			OutputShapes.Empty(); // TODO REMOVE caller should make sure empty array is passed!
-
-			if (const int Res = ValidateInput(InputShapes[0], InputShapes[1], InputShapes[2]); Res < 0)
+			if (const int Res = ValidateInput(InputTensors[0]->GetShape(), InputTensors[1]->GetShape(), InputTensors[2]->GetShape()); Res < 0)
 			{
 				return Res;
 			}
 
-			OutputShapes.Add(InputShapes[0]);
+			OutputTensors[0]->SetShape(InputTensors[0]->GetShape());
 
 			return 0;
 		};

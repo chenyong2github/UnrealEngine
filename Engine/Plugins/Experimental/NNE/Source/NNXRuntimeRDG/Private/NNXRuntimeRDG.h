@@ -37,10 +37,21 @@ namespace NNX
 struct FTensorBinding;
 class FTensorDesc;
 
-/** Base class for all ML operators running on the RDG */
-struct FMLOperatorRDG
+/**
+ * Interface for all operators to prepare the model tensors at scheduling time
+ */
+struct IPrepareOperator
 {
-	virtual ~FMLOperatorRDG() = default;
+	virtual ~IPrepareOperator() = default;
+	virtual int PrepareOutputs(TConstArrayView<NNX::FTensorRef> InputTensors, TArrayView<NNX::FTensorRef> OutputTensors) const = 0;
+};
+
+/**
+* Interface for all ML operators running on the RDG 
+*/
+struct IOperatorRDG
+{
+	virtual ~IOperatorRDG() = default;
 };
 
 class FTensorRDG : public FTensor
@@ -57,6 +68,7 @@ public:
 		TensorRDG.Shape = Shape;
 		TensorRDG.Volume = Shape.Volume();
 		TensorRDG.DataSize = (uint64)GetTensorDataTypeSizeInBytes(TensorRDG.DataType) * TensorRDG.Volume;
+		TensorRDG.Buffer = Buffer;
 		check(TensorRDG.Volume <= TNumericLimits<uint32>::Max());
 		return TensorRDG;
 	}
@@ -103,9 +115,9 @@ protected:
 
 	bool LoadModel(TConstArrayView<uint8> ModelData, FMLRuntimeFormat& Format);
 
-	int SetTensors(FRDGBuilder& GraphBuilder, FTensorRDGArray& OutTensorRDGs, FIntArray& OutIndices, TConstArrayView<FMLTensorBinding> InBindings, TConstArrayView<FTensorDesc> InTensorDescs, TConstArrayView<FTensorShape> InTensorShapes);
+	int SetTensors(FRDGBuilder& GraphBuilder, FTensorRDGArray& InTensorRDGs, FIntArray& OutIndices, TConstArrayView<FMLTensorBinding> InBindings);
 	
-	virtual int RunShapeInference() = 0;
+	virtual int PrepareTensorShapesAndData() = 0;
 	virtual void AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder) = 0;
 
 	virtual void AddTensorUploads_RenderThread(FRDGBuilder& GraphBuilder, TConstArrayView<int32> InUploadIndices, TConstArrayView<FTensorRDG> InRDGBindings, TConstArrayView<FMLTensorBinding> InBindings);
@@ -113,7 +125,6 @@ protected:
 
 	//Tensor descriptor
 	TArray<FTensorDesc>			AllSymbolicTensorDescs;
-	TArray<FTensorShape>		AllShapes;
 
 	//Tensor indices for models
 	TArray<int32>				IntermediateTensorIndices;
@@ -171,7 +182,7 @@ private:
 		{
 		}
 
-		//TODO should be extended as needed by operator to support more validation especially around the range of the values.
+		//Idea: we could extended as needed by operator to support more validation especially around the range of the values.
 		//An example is ConvTranspose `auto_pad` enum style string that can only take a few values
 		//In the same direction we might only support a range of value for a float (for example
 		//we only support integer but the type is float, or only positive values for an int32)
@@ -293,12 +304,14 @@ public:
 
 			const FString& OpType = Format.Operators[Idx].TypeName;
 			
-			//TODO jira 167587: we should extract constant tensor from the model
-			//and pass them to the operator validation so that it can validate
-			//the shapes of the constant tensors and ensure no gpu-cpu sync
-			//will be needed during the execution of the operator.
 			typename TOperatorRegistryRDG<TOperatorType>::OperatorValidateFunc ValidationFn = Registry->OpFindValidation(OpType);
 
+			if (!ValidationFn)
+			{
+				UE_LOG(LogNNX, Warning, TEXT("Hlsl MLOperatorRegistry failed to find validation for operator:%s"), *OpType);
+				return false;
+			}
+			
 			if (!ValidationFn(AttributeMap, InputTensorTypes, InputTensorShapes))
 			{
 				UE_LOG(LogNNX, Warning, TEXT("Hlsl MLOperatorRegistry failed to validate operator:%s"), *OpType);

@@ -329,7 +329,7 @@ public:
 //
 // DirectML operator
 //
-class FMLOperatorDml : public FMLOperatorRDG
+class FMLOperatorDml : public IOperatorRDG
 {
 public:
 
@@ -1186,7 +1186,7 @@ public:
 protected:
 
 	virtual void AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder) override;
-	virtual int RunShapeInference() override;
+	virtual int PrepareTensorShapesAndData() override;
 
 private:
 
@@ -1551,8 +1551,6 @@ bool FMLInferenceModelDml::Init(TConstArrayView<uint8> ModelData, FDeviceContext
 //
 void FMLInferenceModelDml::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 {
-	check(AllTensorRDGs.Num() == AllShapes.Num());
-
 	static constexpr int32 MaxExpectedInput = 10;
 	TArray<FTensorRDGRef, TInlineAllocator<MaxExpectedInput>> InputTensors;
 
@@ -1610,23 +1608,15 @@ FMLOperatorDml* FMLInferenceModelDml::OpCreate(const FString& OpName, TArrayView
 //
 //
 //
-int FMLInferenceModelDml::RunShapeInference()
+int FMLInferenceModelDml::PrepareTensorShapesAndData()
 {
-	AllShapes.Empty();
-
 	for (FTensorDesc SymbolicTensorDesc : AllSymbolicTensorDescs)
 	{
-		if (SymbolicTensorDesc.IsConcrete())
+		if (!SymbolicTensorDesc.IsConcrete())
 		{
-			FTensorShape TensorShape = FTensorShape::MakeFromSymbolic(SymbolicTensorDesc.GetShape());
-			AllShapes.Emplace(TensorShape);
+			UE_LOG(LogNNX, Warning, TEXT("DML engine does not support model with variable shapes yet."));
+			return -1;
 		}
-	}
-	if (AllShapes.Num() != AllSymbolicTensorDescs.Num())
-	{
-		AllShapes.Empty();
-		UE_LOG(LogNNX, Warning, TEXT("DML engine does not support model with variable shapes yet."));
-		return -1;
 	}
 
 	return 0;

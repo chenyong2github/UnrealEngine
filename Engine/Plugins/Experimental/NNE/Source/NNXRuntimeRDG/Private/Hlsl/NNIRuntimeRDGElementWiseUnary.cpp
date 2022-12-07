@@ -31,10 +31,11 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 	public:
 
-		virtual int ComputeOutputShape(TConstArrayView<NNX::FTensorShape> InputShapes, TArray<NNX::FTensorShape>& OutputShapes) const override
+		virtual int PrepareOutputs(TConstArrayView<NNX::FTensorRef> InputTensors, TArrayView<NNX::FTensorRef> OutputTensors) const override
 		{
-			check(InputShapes.Num() == 1);
-			OutputShapes = InputShapes;
+			check(InputTensors.Num() == 1);
+			check(OutputTensors.Num() == 1);
+			OutputTensors[0]->SetShape(InputTensors[0]->GetShape());
 			return 0;
 		}
 

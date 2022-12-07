@@ -60,6 +60,12 @@ template <typename DimType, class FinalType> struct TTensorShapeBase
 	
 	inline bool operator!=(const TTensorShapeBase<DimType, FinalType>& OtherShape) const { return !(*this == OtherShape); }
 
+	inline void operator=(const TTensorShapeBase<DimType, FinalType>& OtherShape)
+	{
+		check(Rank() <= MaxRank);
+		Data = OtherShape.Data;
+	}
+
 	static FinalType Make(TConstArrayView<DimType> Data)
 	{
 		if (Data.Num() > MaxRank)
@@ -246,9 +252,18 @@ public:
 		return PreparedData;
 	}
 
+	void SetShape(const FTensorShape& InShape)
+	{
+		checkf(!HasPreparedData(), TEXT("Shape cannot be changed once data as been set."));
+		check(InShape.Volume() <= TNumericLimits<uint32>::Max());
+		Shape = InShape;
+		Volume = InShape.Volume();
+		DataSize = static_cast<uint64>(GetTensorDataTypeSizeInBytes(DataType) * Volume);
+	}
+
 	void SetPreparedData(TConstArrayView<uint8> Data)
 	{
-		check(Data.Num() == DataSize);
+		checkf(Data.Num() == DataSize, TEXT("Incorrect data size, it should match tensor shape and data type."));
 		PreparedData.Empty();
 		PreparedData.Append(Data);
 	}
@@ -267,17 +282,20 @@ public:
 	{
 		return DataSize;
 	}
-	
+
 	static FTensor Make(const FString& Name, const FTensorShape& Shape, EMLTensorDataType DataType)
 	{
-		FTensor Desc;
-		Desc.Name = Name;
-		Desc.DataType = DataType;
-		Desc.Shape = Shape;
-		Desc.Volume = Shape.Volume();
-		Desc.DataSize = (uint64)GetTensorDataTypeSizeInBytes(DataType) * Desc.Volume;
-		check(Desc.Volume <= TNumericLimits<uint32>::Max());
-		return Desc;
+		FTensor Tensor;
+		Tensor.Name = Name;
+		Tensor.DataType = DataType;
+		Tensor.SetShape(Shape);
+		return Tensor;
+	}
+
+	static FTensor Make(const FTensorDesc& TensorDesc, const FTensorShape& Shape)
+	{
+		check(Shape.IsCompatibleWith(TensorDesc.GetShape()));
+		return Make(TensorDesc.GetName(), Shape, TensorDesc.GetDataType());
 	}
 
 	static FTensor MakeFromSymbolicDesc(const FTensorDesc& TensorDesc)
@@ -285,5 +303,7 @@ public:
 		return Make(TensorDesc.GetName(), FTensorShape::MakeFromSymbolic(TensorDesc.GetShape()), TensorDesc.GetDataType());
 	}
 };
+
+using FTensorRef = FTensor*;
 
 } // namespace NNX

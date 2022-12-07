@@ -26,10 +26,11 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 	public:
 
-		virtual int ComputeOutputShape(TConstArrayView<NNX::FTensorShape> InputShapes, TArray<NNX::FTensorShape>& OutputShapes) const override
+		virtual int PrepareOutputs(TConstArrayView<NNX::FTensorRef> InputTensors, TArrayView<NNX::FTensorRef> OutputTensors) const override
 		{
-			OutputShapes.Empty();
-			UE_LOG(LogNNX, Warning, TEXT("Gather does not support variable input shapes at the moment"));
+			check(InputTensors.Num() == 2)
+			check(OutputTensors.Num() == 1)
+			UE_LOG(LogNNX, Warning, TEXT("Gather shape inference is not implemented at the moment"));
 			return -1;
 		};
 		

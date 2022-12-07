@@ -661,7 +661,7 @@
 				{
 					"inputs": [ { "shape": [ 1, 128, 56, 56 ] }, { "shape": [ 128 ] }, { "shape": [ 128 ] } ], "outputs": [ { "shape": [ 1, 128, 56, 56 ] } ],
 					"runtimes": [
-						{ "name": "NNXRuntimeHLSL", "relative_error": 9 },
+						{ "name": "NNXRuntimeHLSL", "relative_error": 10.5 },
 						{ "name": "NNXRuntimeORTCpu", "relative_error": 9 },
 						{ "name": "NNXRuntimeORTDml", "relative_error": 9 }
 					],

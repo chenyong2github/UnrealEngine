@@ -92,16 +92,16 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 	public:
 
-		virtual int ComputeOutputShape(TConstArrayView<NNX::FTensorShape> InputShapes, TArray<NNX::FTensorShape>& OutputShapes) const override
+		virtual int PrepareOutputs(TConstArrayView<NNX::FTensorRef> InputTensors, TArrayView<NNX::FTensorRef> OutputTensors) const override
 		{
-			OutputShapes.Empty();
-			check(InputShapes.Num() > 0);
+			check(InputTensors.Num() > 0);
+			check(OutputTensors.Num() == 1);
 
-			const int32 NumInput = InputShapes.Num();
+			const int32 NumInput = InputTensors.Num();
 			int32 OutputRank = 0;
 			for (int32 i = 0; i < NumInput; ++i)
 			{
-				OutputRank = FMath::Max(OutputRank, InputShapes[i].Rank());
+				OutputRank = FMath::Max(OutputRank, InputTensors[i]->GetShape().Rank());
 			}
 
 			NNX::FTensorShape OutputShape;
@@ -113,8 +113,8 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 				int32 OutputValue = 1;
 				for (int32 InputIdx = 0; InputIdx < NumInput; ++InputIdx)
 				{
-					int32 InputIndex = InputShapes[InputIdx].Rank() - 1 - i;
-					int32 InputValue = InputIndex >= 0 ? InputShapes[InputIdx].Data[InputIndex] : 1;
+					int32 InputIndex = InputTensors[InputIdx]->GetShape().Rank() - 1 - i;
+					int32 InputValue = InputIndex >= 0 ? InputTensors[InputIdx]->GetShape().Data[InputIndex] : 1;
 					if (InputValue != OutputValue && InputValue != 1 && OutputValue != 1)
 					{
 						UE_LOG(LogNNX, Warning, TEXT("Error while computing shape for element wise variadic op, input shapes are not compatible"));
@@ -125,7 +125,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 				OutputShape.Data[OutputRank - 1 - i] = OutputValue;
 			}
 
-			OutputShapes.Emplace(OutputShape);
+			OutputTensors[0]->SetShape(OutputShape);
 
 			return 0;
 		}

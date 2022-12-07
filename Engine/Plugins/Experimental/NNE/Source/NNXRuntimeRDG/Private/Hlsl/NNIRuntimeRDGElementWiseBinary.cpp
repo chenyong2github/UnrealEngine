@@ -24,13 +24,13 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 	public:
 
-		virtual int ComputeOutputShape(TConstArrayView<NNX::FTensorShape> InputShapes, TArray<NNX::FTensorShape>& OutputShapes) const override
+		virtual int PrepareOutputs(TConstArrayView<NNX::FTensorRef> InputTensors, TArrayView<NNX::FTensorRef> OutputTensors) const override
 		{
-			OutputShapes.Empty();
-			check(InputShapes.Num() == 2);
+			check(InputTensors.Num() == 2);
+			check(OutputTensors.Num() == 1);
 			
-			const NNX::FTensorShape& LHSInput = InputShapes[0];
-			const NNX::FTensorShape& RHSInput = InputShapes[1];
+			const NNX::FTensorShape& LHSInput = InputTensors[0]->GetShape();
+			const NNX::FTensorShape& RHSInput = InputTensors[1]->GetShape();
 			const int32 OutputRank = FMath::Max(LHSInput.Rank(), RHSInput.Rank());
 			NNX::FTensorShape OutputShape;
 			
@@ -51,7 +51,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 				OutputShape.Data[OutputRank - 1 - i] = OutputValue;
 			}
 
-			OutputShapes.Emplace(OutputShape);
+			OutputTensors[0]->SetShape(OutputShape);
 			
 			return 0;
 		}

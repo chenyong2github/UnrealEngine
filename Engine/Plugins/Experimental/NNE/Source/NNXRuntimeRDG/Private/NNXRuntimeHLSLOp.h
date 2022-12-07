@@ -10,12 +10,11 @@ namespace NNX
 	/**
 	 * Base class for all Hlsl ML operators
 	 */
-	struct FMLOperatorHlsl : public FMLOperatorRDG
+	struct FMLOperatorHlsl : public IOperatorRDG, public IPrepareOperator
 	{
 		virtual ~FMLOperatorHlsl() = default;
 		virtual bool Initialize(TConstArrayView<FTensorDesc> InputTensorDescs, TConstArrayView<FTensorDesc> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes) = 0;
 		virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<FTensorRDGRef> InInputTensors, TConstArrayView<FTensorRDGRef> InOutputTensors) = 0;
-		virtual int ComputeOutputShape(TConstArrayView<FTensorShape> InputShapes, TArray<FTensorShape>& OutputShapes) const { return -1; };
 	};
 
 	/**
