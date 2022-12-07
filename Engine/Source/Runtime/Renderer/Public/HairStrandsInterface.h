@@ -14,6 +14,7 @@
 #include "RenderResource.h"
 #include "RenderGraphResources.h"
 #include "ShaderPrintParameters.h"
+#include "GroomVisualizationData.h"
 
 class UTexture2D;
 
@@ -51,55 +52,6 @@ RENDERER_API FRDGBufferUAVRef   RegisterAsUAV(FRDGBuilder& GraphBuilder, const F
 RENDERER_API void				ConvertToExternalBufferWithViews(FRDGBuilder& GraphBuilder, FRDGBufferRef& InBuffer, FRDGExternalBuffer& OutBuffer, EPixelFormat Format = PF_Unknown);
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Misc/Helpers
-
-enum class EHairStrandsDebugMode : uint8
-{
-	NoneDebug,
-	SimHairStrands,
-	RenderHairStrands,
-	RenderHairUV,
-	RenderHairRootUV,
-	RenderHairRootUDIM,
-	RenderHairSeed,
-	RenderHairDimension,
-	RenderHairRadiusVariation,
-	RenderHairTangent,
-	RenderHairBaseColor,
-	RenderHairRoughness,
-	RenderVisCluster,
-	RenderHairGroup,
-	RenderLODColoration,
-	RenderHairControlPoints,
-	Count
-};
-
-enum class EHairDebugMode : uint8
-{
-	None,
-	MacroGroups,
-	LightBounds,
-	DeepOpacityMaps,
-	MacroGroupScreenRect,
-	SamplePerPixel,
-	CoverageType,
-	TAAResolveType,
-	VoxelsDensity,
-	VoxelsTangent,
-	VoxelsBaseColor,
-	VoxelsRoughness,
-	MeshProjection,
-	Coverage,
-	MaterialDepth,
-	MaterialBaseColor,
-	MaterialRoughness,
-	MaterialSpecular,
-	MaterialTangent,
-	Tile
-};
-
-/// Return the active debug view mode
-RENDERER_API EHairStrandsDebugMode GetHairStrandsDebugStrandsMode();
-RENDERER_API EHairDebugMode GetHairStrandsDebugMode();
 
 struct FHairStrandClusterCullingData;
 struct IPooledRenderTarget;
@@ -368,7 +320,6 @@ public:
 	bool  bDebugDrawLODInfo = false; // Enable/disable hair LOD info
 	float DebugScreenSize = 0.f;
 	FLinearColor DebugGroupColor;
-	EHairStrandsDebugMode DebugMode = EHairStrandsDebugMode::NoneDebug;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -426,9 +377,9 @@ enum class EHairStrandsShaderType
 	Tool,
 	All
 };
+
 RENDERER_API bool IsHairStrandsSupported(EHairStrandsShaderType Type, EShaderPlatform Platform);
 RENDERER_API bool IsHairStrandsEnabled(EHairStrandsShaderType Type, EShaderPlatform Platform = EShaderPlatform::SP_NumPlatforms);
-RENDERER_API void SetHairStrandsEnabled(bool In);
 
 RENDERER_API bool IsHairRayTracingEnabled();
 

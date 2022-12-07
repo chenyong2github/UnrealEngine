@@ -11,7 +11,7 @@ namespace UnrealBuildTool.Rules
 				{
 					"Core",
 					"CoreUObject",
-					"EditorFramework",					
+					"EditorFramework",
 					"Engine",
 					"GeometryCache",
 					"HairStrandsCore",
@@ -34,7 +34,8 @@ namespace UnrealBuildTool.Rules
 					"MovieScene",
 					"MovieSceneTools",
 					"Sequencer",
-					"HairCardGeneratorFramework"
+					"HairCardGeneratorFramework",
+					"CommonMenuExtensions",
 				});
 			AddEngineThirdPartyPrivateStaticDependencies(Target,
 			 "FBX"

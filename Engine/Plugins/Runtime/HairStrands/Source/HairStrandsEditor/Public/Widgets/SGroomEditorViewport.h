@@ -58,14 +58,7 @@ public:
 	int32 GetLODSelection() const;
 	int32 GetLODModelCount() const;
 	bool IsLODModelSelected(int32 InLODSelection) const;
-
 	void OnSetLODModel(int32 InLODSelection);
-
-	void OnViewMode(EHairStrandsDebugMode Mode);
-	bool CanViewMode(bool bGuideMode) const;
-
-	void OnCardsGuides();
-	bool CanCardsGuides() const;
 
 protected:
 

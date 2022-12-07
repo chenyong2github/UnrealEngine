@@ -28,6 +28,7 @@ void ComputeHairStrandsInterpolation(
 	FGlobalShaderMap* ShaderMap,
 	const uint32 ViewUniqueID,
 	const uint32 ViewRayTracingMask,
+	const EGroomViewMode ViewMode,
 	const FVector& TranslatedWorldOffset,
 	const struct FShaderPrintData* ShaderPrintData,
 	struct FHairGroupInstance* Instance,

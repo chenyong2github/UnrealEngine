@@ -165,7 +165,7 @@ void FOptimusGroomDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder
 	}
 }
 
-FHairGroupPublicData::FVertexFactoryInput ComputeHairStrandsVertexInputData(const FHairGroupInstance* Instance);
+FHairGroupPublicData::FVertexFactoryInput ComputeHairStrandsVertexInputData(const FHairGroupInstance* Instance, EGroomViewMode ViewMode);
 void FOptimusGroomDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
 {
 	if (!ensure(InDispatchSetup.ParameterStructSizeForValidation == sizeof(FGroomDataInterfaceParameters)))
@@ -184,7 +184,7 @@ void FOptimusGroomDataProviderProxy::GatherDispatchData(FDispatchSetup const& In
 			const int32 NumControlPoints = bIsSRVValid ? Instance->Strands.Data->PointCount : 0;
 			const int32 NumCurves = bIsSRVValid ? Instance->Strands.Data->CurveCount : 0;
 
-			const FHairGroupPublicData::FVertexFactoryInput VFInput = ComputeHairStrandsVertexInputData(Instance);
+			const FHairGroupPublicData::FVertexFactoryInput VFInput = ComputeHairStrandsVertexInputData(Instance, EGroomViewMode::None);
 			
 			FGroomDataInterfaceParameters* Parameters = (FGroomDataInterfaceParameters*)(InOutDispatchData.ParameterBuffer + InDispatchSetup.ParameterBufferOffset + InDispatchSetup.ParameterBufferStride * InvocationIndex);
 			Parameters->NumControlPoints = NumControlPoints;

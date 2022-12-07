@@ -72,8 +72,6 @@ static FAutoConsoleVariableRef CVarHairStrands_UseAttachedSimulationComponents(T
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-EHairStrandsDebugMode GetHairStrandsGeometryDebugMode(const FHairGroupInstance* Instance);
-
 const FLinearColor GetHairGroupDebugColor(int32 GroupIt)
 {
 	static TArray<FLinearColor> IndexedColor;
@@ -635,36 +633,48 @@ public:
 					check(Instances[GroupIt]->GetRefCount() > 0);
 
 					FMaterialRenderProxy* Debug_MaterialProxy = nullptr;
-					EHairStrandsDebugMode DebugMode = GetHairStrandsGeometryDebugMode(Instances[GroupIt]);
-					if (AllowDebugViewmodes() && View->Family->EngineShowFlags.LODColoration)
+					const EGroomViewMode ViewMode = AllowDebugViewmodes() ? GetGroomViewMode(*View) : EGroomViewMode::None;
+					bool bNeedDebugMaterial = false;
+					switch(ViewMode)
 					{
-						DebugMode = EHairStrandsDebugMode::RenderLODColoration;
-					}
-					
-					const bool bNeedDebugMaterial = 
-						DebugMode != EHairStrandsDebugMode::NoneDebug &&
-						DebugMode != EHairStrandsDebugMode::RenderHairControlPoints &&
-						DebugMode != EHairStrandsDebugMode::RenderHairTangent;
+					case EGroomViewMode::SimHairStrands				:
+					case EGroomViewMode::RenderVisCluster			:
+					case EGroomViewMode::RenderVisClusterAABB		:
+					case EGroomViewMode::RenderHairStrands			:
+						bNeedDebugMaterial = Instances[GroupIt]->GeometryType == EHairGeometryType::Strands; break;
+					case EGroomViewMode::RenderHairRootUV			:
+					case EGroomViewMode::RenderHairUV				:
+					case EGroomViewMode::RenderHairSeed				:
+					case EGroomViewMode::RenderHairDimension		:
+					case EGroomViewMode::RenderHairRadiusVariation	:
+					case EGroomViewMode::RenderHairRootUDIM			:
+					case EGroomViewMode::RenderHairBaseColor		:
+					case EGroomViewMode::RenderHairRoughness		:
+					case EGroomViewMode::RenderHairGroup			:
+					case EGroomViewMode::RenderLODColoration		:
+						bNeedDebugMaterial = true; break;
+					};
 
 					if (bNeedDebugMaterial)
 					{
 						float DebugModeScalar = 0;
-						switch(DebugMode)
+						switch(ViewMode)
 						{
-						case EHairStrandsDebugMode::NoneDebug					: DebugModeScalar =99.f; break;
-						case EHairStrandsDebugMode::SimHairStrands				: DebugModeScalar = 0.f; break;
-						case EHairStrandsDebugMode::RenderHairStrands			: DebugModeScalar = 0.f; break;
-						case EHairStrandsDebugMode::RenderHairRootUV			: DebugModeScalar = 1.f; break;
-						case EHairStrandsDebugMode::RenderHairUV				: DebugModeScalar = 2.f; break;
-						case EHairStrandsDebugMode::RenderHairSeed				: DebugModeScalar = 3.f; break;
-						case EHairStrandsDebugMode::RenderHairDimension			: DebugModeScalar = 4.f; break;
-						case EHairStrandsDebugMode::RenderHairRadiusVariation	: DebugModeScalar = 5.f; break;
-						case EHairStrandsDebugMode::RenderHairRootUDIM			: DebugModeScalar = 6.f; break;
-						case EHairStrandsDebugMode::RenderHairBaseColor			: DebugModeScalar = 7.f; break;
-						case EHairStrandsDebugMode::RenderHairRoughness			: DebugModeScalar = 8.f; break;
-						case EHairStrandsDebugMode::RenderVisCluster			: DebugModeScalar = 0.f; break;
-						case EHairStrandsDebugMode::RenderHairGroup				: DebugModeScalar = 9.f; break;
-						case EHairStrandsDebugMode::RenderLODColoration			: DebugModeScalar = 10.f; break;
+						case EGroomViewMode::None						: DebugModeScalar =99.f; break;
+						case EGroomViewMode::SimHairStrands				: DebugModeScalar = 0.f; break;
+						case EGroomViewMode::RenderHairStrands			: DebugModeScalar = 0.f; break;
+						case EGroomViewMode::RenderHairRootUV			: DebugModeScalar = 1.f; break;
+						case EGroomViewMode::RenderHairUV				: DebugModeScalar = 2.f; break;
+						case EGroomViewMode::RenderHairSeed				: DebugModeScalar = 3.f; break;
+						case EGroomViewMode::RenderHairDimension		: DebugModeScalar = 4.f; break;
+						case EGroomViewMode::RenderHairRadiusVariation	: DebugModeScalar = 5.f; break;
+						case EGroomViewMode::RenderHairRootUDIM			: DebugModeScalar = 6.f; break;
+						case EGroomViewMode::RenderHairBaseColor		: DebugModeScalar = 7.f; break;
+						case EGroomViewMode::RenderHairRoughness		: DebugModeScalar = 8.f; break;
+						case EGroomViewMode::RenderVisCluster			: DebugModeScalar = 0.f; break;
+						case EGroomViewMode::RenderVisClusterAABB		: DebugModeScalar = 0.f; break;
+						case EGroomViewMode::RenderHairGroup			: DebugModeScalar = 9.f; break;
+						case EGroomViewMode::RenderLODColoration		: DebugModeScalar = 10.f; break;
 						};
 
 						// TODO: fix this as the radius is incorrect. This code run before the interpolation code, which is where HairRadius is updated.
@@ -675,17 +685,17 @@ public:
 						}
 						
 						// Reuse the HairMaxRadius field to send the LOD index instead of adding yet another variable
-						if (DebugMode == EHairStrandsDebugMode::RenderLODColoration)
+						if (ViewMode == EGroomViewMode::RenderLODColoration)
 						{
 							HairMaxRadius = Instances[GroupIt]->HairGroupPublicData ? Instances[GroupIt]->HairGroupPublicData->LODIndex : 0;
 						}
 
 						FVector HairColor = FVector::ZeroVector;
-						if (DebugMode == EHairStrandsDebugMode::RenderHairGroup)
+						if (ViewMode == EGroomViewMode::RenderHairGroup)
 						{
 							HairColor = FVector(GetHairGroupDebugColor(GroupIt));
 						}
-						else if (DebugMode == EHairStrandsDebugMode::RenderLODColoration)
+						else if (ViewMode == EGroomViewMode::RenderLODColoration)
 						{
 							int32 LODIndex = Instances[GroupIt]->HairGroupPublicData ? Instances[GroupIt]->HairGroupPublicData->LODIndex : 0;
 							LODIndex = FMath::Clamp(LODIndex, 0, GEngine->LODColorationColors.Num() - 1);
@@ -1610,14 +1620,6 @@ void UGroomComponent::SetHairLengthScaleEnable(bool bEnable)
 	InitResources();
 }
 
-#if WITH_EDITOR
-void UGroomComponent::SetDebugMode(EHairStrandsDebugMode InMode)
-{ 
-	DebugMode = InMode; 
-	UpdateHairGroupsDescAndInvalidateRenderState(true);
-}
-#endif
-
 bool UGroomComponent::GetIsHairLengthScaleEnabled()
 {
 	bool IsEnabled = true;
@@ -1815,11 +1817,7 @@ void UGroomComponent::UpdateHairGroupsDescAndInvalidateRenderState(bool bInvalid
 	uint32 GroupIndex = 0;
 	for (FHairGroupInstance* Instance : HairGroupInstances)
 	{
-		Instance->Strands.Modifier  = GetGroomGroupsDesc(GroomAsset, this, GroupIndex);
-#if WITH_EDITORONLY_DATA
-		Instance->Debug.DebugMode = DebugMode;
-		Instance->HairGroupPublicData->DebugMode = DebugMode; // Replicated value for accessing it from the engine side. Refactor this.
-#endif// #if WITH_EDITORONLY_DATA
+		Instance->Strands.Modifier = GetGroomGroupsDesc(GroomAsset, this, GroupIndex);
 		++GroupIndex;
 	}
 	if (bInvalid)
@@ -2672,9 +2670,6 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 
 		// LODBias is in the Modifier which is needed for LOD selection regardless if the strands are there or not
 		HairGroupInstance->Strands.Modifier = GetGroomGroupsDesc(GroomAsset, this, GroupIt);
-		#if WITH_EDITORONLY_DATA
-		HairGroupInstance->Debug.DebugMode = DebugMode;
-		#endif// #if WITH_EDITORONLY_DATA
 
 		// Strands data/resources
 		if (bNeedStrandsData && GroupData.Strands.IsValid())

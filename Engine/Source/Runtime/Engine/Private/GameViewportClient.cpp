@@ -241,6 +241,7 @@ UGameViewportClient::UGameViewportClient(const FObjectInitializer& ObjectInitial
 	, CurrentNaniteVisualizationMode(NAME_None)
 	, CurrentLumenVisualizationMode(NAME_None)
 	, CurrentStrataVisualizationMode(NAME_None)
+	, CurrentGroomVisualizationMode(NAME_None)
 	, CurrentVirtualShadowMapVisualizationMode(NAME_None)
 	, HighResScreenshotDialog(nullptr)
 	, bUseSoftwareCursorWidgets(true)
@@ -336,6 +337,7 @@ UGameViewportClient::UGameViewportClient(FVTableHelper& Helper)
 	, CurrentNaniteVisualizationMode(NAME_None)
 	, CurrentLumenVisualizationMode(NAME_None)
 	, CurrentStrataVisualizationMode(NAME_None)
+	, CurrentGroomVisualizationMode(NAME_None)
 	, CurrentVirtualShadowMapVisualizationMode(NAME_None)
 	, HighResScreenshotDialog(nullptr)
 	, bIgnoreInput(false)
@@ -1501,6 +1503,7 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 					View->CurrentNaniteVisualizationMode = CurrentNaniteVisualizationMode;
 					View->CurrentLumenVisualizationMode = CurrentLumenVisualizationMode;
 					View->CurrentStrataVisualizationMode = CurrentStrataVisualizationMode;
+					View->CurrentGroomVisualizationMode = CurrentGroomVisualizationMode;
 					View->CurrentVirtualShadowMapVisualizationMode = CurrentVirtualShadowMapVisualizationMode;
 
 					View->CameraConstrainedViewRect = View->UnscaledViewRect;

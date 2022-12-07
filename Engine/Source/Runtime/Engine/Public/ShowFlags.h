@@ -377,6 +377,7 @@ private:
 		SetVisualizeNanite(false);
 		SetVisualizeLumen(false);
 		SetVisualizeStrata(false);
+		SetVisualizeGroom(false);
 		SetVisualizeVirtualShadowMap(false);
 		SetVectorFields(false);
 		SetGBufferHints(false);

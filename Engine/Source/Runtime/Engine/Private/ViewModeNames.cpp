@@ -285,6 +285,10 @@ TArray<const FSlateBrush*> FillViewModeDisplayIcons()
 		{
 			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.VisualizeStrataMode"));
 		}
+		else if (ViewModeIndex == VMI_VisualizeGroom)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.VisualizeGroomMode"));
+		}
 		else if (ViewModeIndex == VMI_VisualizeVirtualShadowMap)
 		{
 			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.VisualizeVirtualShadowMapMode"));

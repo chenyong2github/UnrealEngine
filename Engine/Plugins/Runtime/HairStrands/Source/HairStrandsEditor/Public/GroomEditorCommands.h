@@ -23,24 +23,6 @@ public:
 
 	TSharedPtr<FUICommandInfo> Simulate;
 
-	TSharedPtr<FUICommandInfo> ViewMode_Lit;
-	TSharedPtr<FUICommandInfo> ViewMode_Guide;
-	TSharedPtr<FUICommandInfo> ViewMode_GuideInfluence;
-	TSharedPtr<FUICommandInfo> ViewMode_UV;
-	TSharedPtr<FUICommandInfo> ViewMode_RootUV;
-	TSharedPtr<FUICommandInfo> ViewMode_RootUDIM;
-	TSharedPtr<FUICommandInfo> ViewMode_Seed;
-	TSharedPtr<FUICommandInfo> ViewMode_Dimension;
-	TSharedPtr<FUICommandInfo> ViewMode_RadiusVariation;
-	TSharedPtr<FUICommandInfo> ViewMode_Tangent;
-	TSharedPtr<FUICommandInfo> ViewMode_BaseColor;
-	TSharedPtr<FUICommandInfo> ViewMode_Roughness;
-	TSharedPtr<FUICommandInfo> ViewMode_ControlPoints;
-	TSharedPtr<FUICommandInfo> ViewMode_VisCluster;
-	TSharedPtr<FUICommandInfo> ViewMode_Group;
-
-	TSharedPtr<FUICommandInfo> ViewMode_CardsGuides;
-
 	virtual void RegisterCommands() override;
 };
 

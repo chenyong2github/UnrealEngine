@@ -929,6 +929,9 @@ enum EViewModeIndex : int
 	/** Visualize Strata debug views */
 	VMI_VisualizeStrata = 34 UMETA(DisplayName = "Strata Visualization"),
 
+	/** Visualize Groom debug views */
+	VMI_VisualizeGroom = 35 UMETA(DisplayName = "Groom Visualization"),
+
 	VMI_Max UMETA(Hidden),
 
 	// VMI_Unknown - The value assigned to VMI_Unknown must be the highest possible of any member of EViewModeIndex, or GetViewModeName might seg-fault

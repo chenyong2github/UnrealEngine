@@ -12,6 +12,7 @@
 #include "MeshMaterialShader.h"
 #include "HairStrandsInterface.h"
 #include "GroomInstance.h"
+#include "GroomVisualizationData.h"
 
 #define VF_STRANDS_SUPPORT_GPU_SCENE 1
 #define VF_STRANDS_PROCEDURAL_INTERSECTOR 1
@@ -62,11 +63,11 @@ TGlobalResource<FDummyCulledDispatchVertexIdsBuffer> GDummyCulledDispatchVertexI
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
-FHairGroupPublicData::FVertexFactoryInput ComputeHairStrandsVertexInputData(const FHairGroupInstance* Instance);
+FHairGroupPublicData::FVertexFactoryInput ComputeHairStrandsVertexInputData(const FHairGroupInstance* Instance, EGroomViewMode ViewMode);
 int GetHairRaytracingProceduralSplits();
-FHairStrandsVertexFactoryUniformShaderParameters FHairGroupInstance::GetHairStandsUniformShaderParameters() const
+FHairStrandsVertexFactoryUniformShaderParameters FHairGroupInstance::GetHairStandsUniformShaderParameters(EGroomViewMode ViewMode) const
 {
-	const FHairGroupPublicData::FVertexFactoryInput VFInput = ComputeHairStrandsVertexInputData(this);
+	const FHairGroupPublicData::FVertexFactoryInput VFInput = ComputeHairStrandsVertexInputData(this, ViewMode);
 
 	FHairStrandsVertexFactoryUniformShaderParameters Out = {};
 	Out.GroupIndex					= Debug.GroupIndex;
@@ -232,7 +233,7 @@ void FHairStrandsVertexFactory::InitResources()
 	check(IsValidRef(GetDeclaration()));
 
 	// create the buffer
-	FHairStrandsVertexFactoryUniformShaderParameters Parameters = Data.Instance->GetHairStandsUniformShaderParameters();
+	FHairStrandsVertexFactoryUniformShaderParameters Parameters = Data.Instance->GetHairStandsUniformShaderParameters(EGroomViewMode::None);
 	Data.Instance->Strands.UniformBuffer = FHairStrandsUniformBuffer::CreateUniformBufferImmediate(Parameters, UniformBuffer_MultiFrame);
 }
 

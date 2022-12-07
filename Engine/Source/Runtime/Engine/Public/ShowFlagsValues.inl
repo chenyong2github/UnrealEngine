@@ -68,6 +68,8 @@ SHOWFLAG_ALWAYS_ACCESSIBLE(VisualizeNanite, SFG_Hidden, NSLOCTEXT("UnrealEd", "V
 SHOWFLAG_ALWAYS_ACCESSIBLE(VisualizeLumen, SFG_Hidden, NSLOCTEXT("UnrealEd", "VisualizeLumenSF", "Lumen Visualization"))
 /** Needed for VMI_VisualizeStrata, Whether to enable the Strata visualization mode. */
 SHOWFLAG_ALWAYS_ACCESSIBLE(VisualizeStrata, SFG_Hidden, NSLOCTEXT("UnrealEd", "VisualizeStrataSF", "Strata Visualization"))
+/** Needed for VMI_VisualizeGroom, Whether to enable the Strata visualization mode. */
+SHOWFLAG_ALWAYS_ACCESSIBLE(VisualizeGroom, SFG_Hidden, NSLOCTEXT("UnrealEd", "VisualizeGroomSF", "Groom Visualization"))
 /** Needed for VMI_VisualizeVirtualShadowMap, Whether to enable the virtual shadow map visualization mode. */
 SHOWFLAG_ALWAYS_ACCESSIBLE(VisualizeVirtualShadowMap, SFG_Hidden, NSLOCTEXT("UnrealEd", "VisualizeVirtualShadowMapSF", "Virtual Shadow Map Visualization"))
 /** Allows to disable all direct lighting (does not affect indirect light) */

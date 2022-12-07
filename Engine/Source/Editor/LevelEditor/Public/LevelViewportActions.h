@@ -11,6 +11,7 @@
 #include "NaniteVisualizationMenuCommands.h"
 #include "LumenVisualizationMenuCommands.h"
 #include "StrataVisualizationMenuCommands.h"
+#include "GroomVisualizationMenuCommands.h"
 #include "VirtualShadowMapVisualizationMenuCommands.h"
 
 /**

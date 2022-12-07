@@ -139,6 +139,9 @@ public:
 	/** Changes the viewport to visualize Strata debug views */
 	TSharedPtr< FUICommandInfo > VisualizeStrataMode;
 
+	/** Changes the viewport to visualize Groom debug views */
+	TSharedPtr< FUICommandInfo > VisualizeGroomMode;
+
 	/** Changes the viewport to visualize virtual shadow map content */
 	TSharedPtr< FUICommandInfo > VisualizeVirtualShadowMapMode;
 

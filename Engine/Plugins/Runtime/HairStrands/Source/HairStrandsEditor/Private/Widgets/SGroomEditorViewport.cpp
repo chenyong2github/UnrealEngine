@@ -19,6 +19,8 @@
 #include "Components/StaticMeshComponent.h"
 #include "GroomEditorCommands.h"
 #include "GroomEditorViewportToolBar.h"
+#include "GroomVisualizationMenuCommands.h"
+#include "EditorViewportCommands.h"
 
 #define LOCTEXT_NAMESPACE "SGroomEditorViewport"
 
@@ -188,79 +190,8 @@ void SGroomEditorViewport::BindCommands()
 		FIsActionChecked::CreateSP(this, &SGroomEditorViewport::IsLODModelSelected, 0));
 	// all other LODs will be added dynamically
 	
-	CommandList->MapAction(FGroomEditorCommands::Get().ViewMode_Lit,				FExecuteAction::CreateSP(this, &SGroomEditorViewport::OnViewMode, EHairStrandsDebugMode::NoneDebug),				FCanExecuteAction::CreateSP(this, &SGroomEditorViewport::CanViewMode, false));
-	CommandList->MapAction(FGroomEditorCommands::Get().ViewMode_Guide,				FExecuteAction::CreateSP(this, &SGroomEditorViewport::OnViewMode, EHairStrandsDebugMode::SimHairStrands),			FCanExecuteAction::CreateSP(this, &SGroomEditorViewport::CanViewMode, true));
-	CommandList->MapAction(FGroomEditorCommands::Get().ViewMode_GuideInfluence,		FExecuteAction::CreateSP(this, &SGroomEditorViewport::OnViewMode, EHairStrandsDebugMode::RenderHairStrands),		FCanExecuteAction::CreateSP(this, &SGroomEditorViewport::CanViewMode, true));
-	CommandList->MapAction(FGroomEditorCommands::Get().ViewMode_UV,					FExecuteAction::CreateSP(this, &SGroomEditorViewport::OnViewMode, EHairStrandsDebugMode::RenderHairUV),				FCanExecuteAction::CreateSP(this, &SGroomEditorViewport::CanViewMode, false));
-	CommandList->MapAction(FGroomEditorCommands::Get().ViewMode_RootUV,				FExecuteAction::CreateSP(this, &SGroomEditorViewport::OnViewMode, EHairStrandsDebugMode::RenderHairRootUV),			FCanExecuteAction::CreateSP(this, &SGroomEditorViewport::CanViewMode, false));
-	CommandList->MapAction(FGroomEditorCommands::Get().ViewMode_RootUDIM,			FExecuteAction::CreateSP(this, &SGroomEditorViewport::OnViewMode, EHairStrandsDebugMode::RenderHairRootUDIM),		FCanExecuteAction::CreateSP(this, &SGroomEditorViewport::CanViewMode, false));
-	CommandList->MapAction(FGroomEditorCommands::Get().ViewMode_Seed,				FExecuteAction::CreateSP(this, &SGroomEditorViewport::OnViewMode, EHairStrandsDebugMode::RenderHairSeed),			FCanExecuteAction::CreateSP(this, &SGroomEditorViewport::CanViewMode, false));
-	CommandList->MapAction(FGroomEditorCommands::Get().ViewMode_Dimension,			FExecuteAction::CreateSP(this, &SGroomEditorViewport::OnViewMode, EHairStrandsDebugMode::RenderHairDimension),		FCanExecuteAction::CreateSP(this, &SGroomEditorViewport::CanViewMode, false));
-	CommandList->MapAction(FGroomEditorCommands::Get().ViewMode_RadiusVariation,	FExecuteAction::CreateSP(this, &SGroomEditorViewport::OnViewMode, EHairStrandsDebugMode::RenderHairRadiusVariation),FCanExecuteAction::CreateSP(this, &SGroomEditorViewport::CanViewMode, false));
-	CommandList->MapAction(FGroomEditorCommands::Get().ViewMode_Tangent,			FExecuteAction::CreateSP(this, &SGroomEditorViewport::OnViewMode, EHairStrandsDebugMode::RenderHairTangent),		FCanExecuteAction::CreateSP(this, &SGroomEditorViewport::CanViewMode, false));
-	CommandList->MapAction(FGroomEditorCommands::Get().ViewMode_BaseColor,			FExecuteAction::CreateSP(this, &SGroomEditorViewport::OnViewMode, EHairStrandsDebugMode::RenderHairBaseColor),		FCanExecuteAction::CreateSP(this, &SGroomEditorViewport::CanViewMode, false));
-	CommandList->MapAction(FGroomEditorCommands::Get().ViewMode_Roughness,			FExecuteAction::CreateSP(this, &SGroomEditorViewport::OnViewMode, EHairStrandsDebugMode::RenderHairRoughness),		FCanExecuteAction::CreateSP(this, &SGroomEditorViewport::CanViewMode, false));
-	CommandList->MapAction(FGroomEditorCommands::Get().ViewMode_ControlPoints,		FExecuteAction::CreateSP(this, &SGroomEditorViewport::OnViewMode, EHairStrandsDebugMode::RenderHairControlPoints),	FCanExecuteAction::CreateSP(this, &SGroomEditorViewport::CanViewMode, false));
-	CommandList->MapAction(FGroomEditorCommands::Get().ViewMode_VisCluster,			FExecuteAction::CreateSP(this, &SGroomEditorViewport::OnViewMode, EHairStrandsDebugMode::RenderVisCluster),			FCanExecuteAction::CreateSP(this, &SGroomEditorViewport::CanViewMode, true)); // While Clusters LOD/Culling doesn't require simulation, cluster visualization requires HairInterpolation to run, which is only available when simulation is enabled in the Groom editor.
-	CommandList->MapAction(FGroomEditorCommands::Get().ViewMode_Group,				FExecuteAction::CreateSP(this, &SGroomEditorViewport::OnViewMode, EHairStrandsDebugMode::RenderHairGroup),			FCanExecuteAction::CreateSP(this, &SGroomEditorViewport::CanViewMode, false));
-	CommandList->MapAction(FGroomEditorCommands::Get().ViewMode_CardsGuides,		FExecuteAction::CreateSP(this, &SGroomEditorViewport::OnCardsGuides),												FCanExecuteAction::CreateSP(this, &SGroomEditorViewport::CanCardsGuides));
-}
-
-void SGroomEditorViewport::OnViewMode(EHairStrandsDebugMode Mode)
-{
-	if (GroomComponent)
-	{
-		const EHairStrandsDebugMode OldMode = GroomComponent->GetDebugMode();
-		if (OldMode != Mode)
-		{
-			GroomComponent->SetDebugMode(Mode);
-		}
-		else
-		{
-			GroomComponent->SetDebugMode(EHairStrandsDebugMode::NoneDebug);
-		}
-	}
-}
-
-bool SGroomEditorViewport::CanViewMode(bool bRequireSimulation) const
-{
-	if (bRequireSimulation)
-	{
-		return GroomComponent && GroomComponent->GroomAsset != nullptr && GroomComponent->GroomAsset->IsSimulationEnable();
-	}
-	else
-	{
-		return GroomComponent && GroomComponent->GroomAsset != nullptr;
-	}
-}
-
-void SGroomEditorViewport::OnCardsGuides()
-{
-	bool bEnabled = true;
-	if (GroomComponent && GroomComponent->GroomAsset != nullptr)
-	{
-		for (uint32 GroupIt=0, GroupCount=GroomComponent->GetGroupCount(); GroupIt < GroupCount; ++GroupIt)
-		{
-			FHairGroupInstance* Instance = GroomComponent->GetGroupInstance(GroupIt);
-			Instance->Debug.bDrawCardsGuides = !Instance->Debug.bDrawCardsGuides;
-		}
-	}
-}
-
-bool SGroomEditorViewport::CanCardsGuides() const
-{
-	if (GroomComponent && GroomComponent->GroomAsset != nullptr)
-	{
-		for (uint32 GroupIt = 0, GroupCount = GroomComponent->GetGroupCount(); GroupIt < GroupCount; ++GroupIt)
-		{
-			const FHairGroupInstance* Instance = GroomComponent->GetGroupInstance(GroupIt); 
-			if (Instance->GeometryType == EHairGeometryType::Cards)
-			{
-				return GroomComponent->GroomAsset->IsSimulationEnable();
-			}
-		}
-	}
-	return false;
+	const FGroomVisualizationMenuCommands& GroomCommands = FGroomVisualizationMenuCommands::Get();
+	GroomCommands.BindCommands(*CommandList, SystemViewportClient);
 }
 
 void SGroomEditorViewport::RefreshViewport()

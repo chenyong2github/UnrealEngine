@@ -661,6 +661,9 @@ protected:
 	void SetCurrentStrataVisualizationMode(FName NewStrataVisualizationMode) { CurrentStrataVisualizationMode = NewStrataVisualizationMode; }
 	FName GetCurrentStrataVisualizationMode() const { return CurrentStrataVisualizationMode; }
 
+	void SetCurrentGroomVisualizationMode(FName NewGroomVisualizationMode) { CurrentGroomVisualizationMode = NewGroomVisualizationMode; }
+	FName GetCurrentGroomVisualizationMode() const { return CurrentGroomVisualizationMode; }
+
 	void SetCurrentVirtualShadowMapVisualizationMode(FName NewVirtualShadowMapVisualizationMode) { CurrentVirtualShadowMapVisualizationMode = NewVirtualShadowMapVisualizationMode; }
 	FName GetCurrentVirtualShadowMapVisualizationMode() const { return CurrentVirtualShadowMapVisualizationMode; }
 
@@ -970,6 +973,9 @@ private:
 
 	/** Current Strata visualization mode for this game viewport */
 	FName CurrentStrataVisualizationMode;
+
+	/** Current Groom visualization mode for this game viewport */
+	FName CurrentGroomVisualizationMode;
 
 	/** Current virtual shadow map visualization mode for this game viewport */
 	FName CurrentVirtualShadowMapVisualizationMode;

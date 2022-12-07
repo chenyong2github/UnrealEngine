@@ -28,17 +28,13 @@
 #include "ShaderPrint.h"
 #include "ScreenPass.h"
 
+#include "GroomVisualizationData.h"
+
 static int32 GDeepShadowDebugIndex = 0;
 static float GDeepShadowDebugScale = 20;
 
 static FAutoConsoleVariableRef CVarDeepShadowDebugDomIndex(TEXT("r.HairStrands.DeepShadow.DebugDOMIndex"), GDeepShadowDebugIndex, TEXT("Index of the DOM texture to draw"));
 static FAutoConsoleVariableRef CVarDeepShadowDebugDomScale(TEXT("r.HairStrands.DeepShadow.DebugDOMScale"), GDeepShadowDebugScale, TEXT("Scaling value for the DeepOpacityMap when drawing the deep shadow stats"));
-
-static int32 GHairStrandsDebugMode = 0;
-static FAutoConsoleVariableRef CVarDeepShadowStats(TEXT("r.HairStrands.DebugMode"), GHairStrandsDebugMode, TEXT("Draw various stats/debug mode about hair rendering"));
-
-static int32 GHairStrandsDebugStrandsMode = 0;
-static FAutoConsoleVariableRef CVarDebugPhysicsStrand(TEXT("r.HairStrands.StrandsMode"), GHairStrandsDebugStrandsMode, TEXT("Render debug mode for hair strands. 0:off, 1:simulation strands, 2:render strands with colored simulation strands influence, 3:hair UV, 4:hair root UV, 5: hair seed, 6: dimensions"));
 
 static int32 GHairStrandsDebugPlotBsdf = 0;
 static FAutoConsoleVariableRef CVarHairStrandsDebugBSDF(TEXT("r.HairStrands.PlotBsdf"), GHairStrandsDebugPlotBsdf, TEXT("Debug view for visualizing hair BSDF."));
@@ -51,17 +47,6 @@ static FAutoConsoleVariableRef CVarHairStrandsDebugBSDFAbsorption(TEXT("r.HairSt
 
 static float GHairStrandsDebugPlotBsdfExposure = 1.1f;
 static FAutoConsoleVariableRef CVarHairStrandsDebugBSDFExposure(TEXT("r.HairStrands.PlotBsdf.Exposure"), GHairStrandsDebugPlotBsdfExposure, TEXT("Change the exposure of the plot."));
-
-static int GHairStrandsDebugSampleIndex = -1;
-static FAutoConsoleVariableRef CVarHairStrandsDebugMaterialSampleIndex(TEXT("r.HairStrands.DebugMode.SampleIndex"), GHairStrandsDebugSampleIndex, TEXT("Debug value for a given sample index (default:-1, i.e., average sample information)."));
-
-static int32 GHairStrandsClusterDebug = 0;
-static FAutoConsoleVariableRef CVarHairStrandsDebugClusterAABB(TEXT("r.HairStrands.Cluster.Debug"), GHairStrandsClusterDebug, TEXT("Draw debug the world bounding box of hair clusters used for culling optimisation (0:off, 1:visible cluster, 2:culled cluster, 3:colored LOD, 4:LOD info)."));
-
-static int32 GHairTangentDebug = 0;
-static int32 GHairTangentDebug_TileSize = 8;
-static FAutoConsoleVariableRef CVarHairTangentDebug(TEXT("r.HairStrands.DebugMode.Tangent"), GHairTangentDebug, TEXT("Draw debug tangent for hair strands and hair cards."));
-static FAutoConsoleVariableRef CVarHairTangentDebug_TileSize(TEXT("r.HairStrands.DebugMode.Tangent.TileSize"), GHairTangentDebug_TileSize, TEXT("Draw debug tangent - Grid size for drawing debug tangent"));
 
 static int32 GHairVirtualVoxel_DrawDebugPage = 0;
 static FAutoConsoleVariableRef CVarHairVirtualVoxel_DrawDebugPage(TEXT("r.HairStrands.Voxelization.Virtual.DrawDebugPage"), GHairVirtualVoxel_DrawDebugPage, TEXT("When voxel debug rendering is enable 1: render the page bounds, instead of the voxel 2: the occupancy within the page (i.e., 8x8x8 brick)"));
@@ -79,16 +64,6 @@ static bool TryEnableShaderDrawAndShaderPrint(const FViewInfo& View, uint32 Resq
 	ShaderPrint::RequestSpaceForLines(ResquestedShaderDrawElements);
 
 	return ShaderPrint::IsEnabled(View.ShaderPrintData);
-}
-
-bool IsHairStrandsClusterDebugEnable()
-{
-	return GHairStrandsClusterDebug > 0;
-}
-
-bool IsHairStrandsClusterDebugAABBEnable()
-{
-	return GHairStrandsClusterDebug > 1;
 }
 
 FHairStrandsDebugData::FPlotData FHairStrandsDebugData::CreatePlotData(FRDGBuilder& GraphBuilder)
@@ -121,108 +96,6 @@ void FHairStrandsDebugData::SetParameters(FRDGBuilder& GraphBuilder, const FHair
 	Out.Debug_ShadingPointCounter = GraphBuilder.CreateSRV(In.ShadingPointCounter, PF_R32_UINT);
 	Out.Debug_SampleBuffer = GraphBuilder.CreateSRV(In.SampleBuffer);
 	Out.Debug_SampleCounter = GraphBuilder.CreateSRV(In.SampleCounter, PF_R32_UINT);
-}
-
-EHairDebugMode GetHairStrandsDebugMode()
-{
-	switch (GHairStrandsDebugMode)
-	{
-	case 0:  return EHairDebugMode::None;
-	case 1:  return EHairDebugMode::MacroGroups;
-	case 2:  return EHairDebugMode::LightBounds;
-	case 3:  return EHairDebugMode::MacroGroupScreenRect;
-	case 4:  return EHairDebugMode::DeepOpacityMaps;
-	case 5:  return EHairDebugMode::SamplePerPixel;
-	case 6:  return EHairDebugMode::TAAResolveType;
-	case 7:  return EHairDebugMode::CoverageType;
-	case 8:  return EHairDebugMode::VoxelsDensity;
-	case 9:  return EHairDebugMode::VoxelsTangent;
-	case 10: return EHairDebugMode::VoxelsBaseColor;
-	case 11: return EHairDebugMode::VoxelsRoughness;
-	case 12: return EHairDebugMode::MeshProjection;
-	case 13: return EHairDebugMode::Coverage;
-	case 14: return EHairDebugMode::MaterialDepth;
-	case 15: return EHairDebugMode::MaterialBaseColor;
-	case 16: return EHairDebugMode::MaterialRoughness;
-	case 17: return EHairDebugMode::MaterialSpecular;
-	case 18: return EHairDebugMode::MaterialTangent;
-	case 19: return EHairDebugMode::Tile;
-	default: return EHairDebugMode::None;
-	};
-}
-
-static const TCHAR* ToString(EHairDebugMode DebugMode)
-{
-	switch (DebugMode)
-	{
-	case EHairDebugMode::None: return TEXT("None");
-	case EHairDebugMode::MacroGroups: return TEXT("Macro groups info");
-	case EHairDebugMode::LightBounds: return TEXT("All DOMs light bounds");
-	case EHairDebugMode::MacroGroupScreenRect: return TEXT("Screen projected macro groups");
-	case EHairDebugMode::DeepOpacityMaps: return TEXT("Deep opacity maps");
-	case EHairDebugMode::SamplePerPixel: return TEXT("Sub-pixel sample count");
-	case EHairDebugMode::TAAResolveType: return TEXT("TAA resolve type (regular/responsive)");
-	case EHairDebugMode::CoverageType: return TEXT("Type of hair coverage - Fully covered : Green / Partially covered : Red");
-	case EHairDebugMode::VoxelsDensity: return TEXT("Hair density volume");
-	case EHairDebugMode::VoxelsTangent: return TEXT("Hair tangent volume");
-	case EHairDebugMode::VoxelsBaseColor: return TEXT("Hair base color volume");
-	case EHairDebugMode::VoxelsRoughness: return TEXT("Hair roughness volume");
-	case EHairDebugMode::MeshProjection: return TEXT("Hair mesh projection");
-	case EHairDebugMode::Coverage: return TEXT("Hair coverage");
-	case EHairDebugMode::MaterialDepth: return TEXT("Hair material depth");
-	case EHairDebugMode::MaterialBaseColor: return TEXT("Hair material base color");
-	case EHairDebugMode::MaterialRoughness: return TEXT("Hair material roughness");
-	case EHairDebugMode::MaterialSpecular: return TEXT("Hair material specular");
-	case EHairDebugMode::MaterialTangent: return TEXT("Hair material tangent");
-	case EHairDebugMode::Tile: return TEXT("Hair tile cotegorization");
-	default: return TEXT("None");
-	};
-}
-
-
-EHairStrandsDebugMode GetHairStrandsDebugStrandsMode()
-{
-	switch (GHairStrandsDebugStrandsMode)
-	{
-	case  0:  return EHairStrandsDebugMode::NoneDebug;
-	case  1:  return EHairStrandsDebugMode::SimHairStrands;
-	case  2:  return EHairStrandsDebugMode::RenderHairStrands;
-	case  3:  return EHairStrandsDebugMode::RenderHairRootUV;
-	case  4:  return EHairStrandsDebugMode::RenderHairRootUDIM;
-	case  5:  return EHairStrandsDebugMode::RenderHairUV;
-	case  6:  return EHairStrandsDebugMode::RenderHairSeed;
-	case  7:  return EHairStrandsDebugMode::RenderHairDimension;
-	case  8:  return EHairStrandsDebugMode::RenderHairRadiusVariation;
-	case  9:  return EHairStrandsDebugMode::RenderHairBaseColor;
-	case 10:  return EHairStrandsDebugMode::RenderHairRoughness;
-	case 11:  return EHairStrandsDebugMode::RenderVisCluster;
-	case 12:  return EHairStrandsDebugMode::RenderHairTangent;
-	case 13:  return EHairStrandsDebugMode::RenderHairControlPoints;
-	case 14:  return EHairStrandsDebugMode::RenderHairGroup;
-	default:  return EHairStrandsDebugMode::NoneDebug;
-	};
-}
-
-static const TCHAR* ToString(EHairStrandsDebugMode DebugMode)
-{
-	switch (DebugMode)
-	{
-	case EHairStrandsDebugMode::NoneDebug						: return TEXT("None");
-	case EHairStrandsDebugMode::SimHairStrands				: return TEXT("Simulation strands");
-	case EHairStrandsDebugMode::RenderHairStrands			: return TEXT("Rendering strands influences");
-	case EHairStrandsDebugMode::RenderHairRootUV			: return TEXT("Roots UV");
-	case EHairStrandsDebugMode::RenderHairRootUDIM			: return TEXT("Roots UV UDIM texture index");
-	case EHairStrandsDebugMode::RenderHairUV				: return TEXT("Hair UV");
-	case EHairStrandsDebugMode::RenderHairSeed				: return TEXT("Hair seed");
-	case EHairStrandsDebugMode::RenderHairDimension			: return TEXT("Hair dimensions");
-	case EHairStrandsDebugMode::RenderHairRadiusVariation	: return TEXT("Hair radius variation");
-	case EHairStrandsDebugMode::RenderHairTangent			: return TEXT("Hair tangent");
-	case EHairStrandsDebugMode::RenderHairControlPoints		: return TEXT("Hair control points");
-	case EHairStrandsDebugMode::RenderHairBaseColor			: return TEXT("Hair vertices color");
-	case EHairStrandsDebugMode::RenderHairRoughness			: return TEXT("Hair vertices roughness");
-	case EHairStrandsDebugMode::RenderVisCluster			: return TEXT("Hair visility clusters");
-	default													: return TEXT("None");
-	};
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -348,7 +221,7 @@ static void AddDebugHairPrintPass(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo* View,
-	const EHairDebugMode InDebugMode,
+	const EGroomViewMode ViewMode,
 	const FHairStrandsVisibilityData& VisibilityData,
 	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
 	const FHairStrandsMacroGroupResources& MacroGroupResources,
@@ -568,24 +441,24 @@ IMPLEMENT_GLOBAL_SHADER(FHairDebugPS, "/Engine/Private/HairStrands/HairStrandsDe
 static void AddDebugHairPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo* View,
-	const EHairDebugMode InDebugMode,
+	const EGroomViewMode InDebugMode,
 	const FHairStrandsVisibilityData& VisibilityData,
 	FRDGTextureSRVRef InDepthStencilTexture,
 	FRDGTextureRef& OutTarget)
 {
 	check(OutTarget);
-	check(InDebugMode == EHairDebugMode::TAAResolveType || 
-		InDebugMode == EHairDebugMode::SamplePerPixel || 
-		InDebugMode == EHairDebugMode::CoverageType || 
-		InDebugMode == EHairDebugMode::Coverage ||
-		InDebugMode == EHairDebugMode::MaterialDepth ||
-		InDebugMode == EHairDebugMode::MaterialBaseColor ||
-		InDebugMode == EHairDebugMode::MaterialRoughness ||
-		InDebugMode == EHairDebugMode::MaterialSpecular ||
-		InDebugMode == EHairDebugMode::MaterialTangent);
+	check(InDebugMode == EGroomViewMode::TAAResolveType || 
+		InDebugMode == EGroomViewMode::SamplePerPixel || 
+		InDebugMode == EGroomViewMode::CoverageType || 
+		InDebugMode == EGroomViewMode::Coverage ||
+		InDebugMode == EGroomViewMode::MaterialDepth ||
+		InDebugMode == EGroomViewMode::MaterialBaseColor ||
+		InDebugMode == EGroomViewMode::MaterialRoughness ||
+		InDebugMode == EGroomViewMode::MaterialSpecular ||
+		InDebugMode == EGroomViewMode::MaterialTangent);
 
 	if (!VisibilityData.CoverageTexture || !VisibilityData.NodeIndex || !VisibilityData.NodeData) return;
-	if (InDebugMode == EHairDebugMode::TAAResolveType && !InDepthStencilTexture) return;
+	if (InDebugMode == EGroomViewMode::TAAResolveType && !InDepthStencilTexture) return;
 
 	const FIntRect Viewport = View->ViewRect;
 	const FIntPoint Resolution(Viewport.Width(), Viewport.Height());
@@ -593,15 +466,15 @@ static void AddDebugHairPass(
 	uint32 InternalDebugMode = 0;
 	switch (InDebugMode)
 	{
-		case EHairDebugMode::SamplePerPixel:	InternalDebugMode = 0; break;
-		case EHairDebugMode::CoverageType:		InternalDebugMode = 1; break;
-		case EHairDebugMode::TAAResolveType:	InternalDebugMode = 2; break;
-		case EHairDebugMode::Coverage:			InternalDebugMode = 3; break;
-		case EHairDebugMode::MaterialDepth:		InternalDebugMode = 4; break;
-		case EHairDebugMode::MaterialBaseColor:	InternalDebugMode = 5; break;
-		case EHairDebugMode::MaterialRoughness:	InternalDebugMode = 6; break;
-		case EHairDebugMode::MaterialSpecular:	InternalDebugMode = 7; break;
-		case EHairDebugMode::MaterialTangent:	InternalDebugMode = 8; break;
+		case EGroomViewMode::SamplePerPixel:	InternalDebugMode = 0; break;
+		case EGroomViewMode::CoverageType:		InternalDebugMode = 1; break;
+		case EGroomViewMode::TAAResolveType:	InternalDebugMode = 2; break;
+		case EGroomViewMode::Coverage:			InternalDebugMode = 3; break;
+		case EGroomViewMode::MaterialDepth:		InternalDebugMode = 4; break;
+		case EGroomViewMode::MaterialBaseColor:	InternalDebugMode = 5; break;
+		case EGroomViewMode::MaterialRoughness:	InternalDebugMode = 6; break;
+		case EGroomViewMode::MaterialSpecular:	InternalDebugMode = 7; break;
+		case EGroomViewMode::MaterialTangent:	InternalDebugMode = 8; break;
 	};
 
 	FHairDebugPS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairDebugPS::FParameters>();
@@ -612,7 +485,7 @@ static void AddDebugHairPass(
 	Parameters->DepthStencilTexture = InDepthStencilTexture;
 	Parameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	Parameters->DebugMode = InternalDebugMode;
-	Parameters->SampleIndex = GHairStrandsDebugSampleIndex;
+	Parameters->SampleIndex = 0;
 	Parameters->RenderTargets[0] = FRenderTargetBinding(OutTarget, ERenderTargetLoadAction::ELoad, 0);
 	TShaderMapRef<FPostProcessVS> VertexShader(View->ShaderMap);
 
@@ -621,7 +494,7 @@ static void AddDebugHairPass(
 	ClearUnusedGraphResources(PixelShader, Parameters);
 
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("HairStrands::DebugMode(%s)", ToString(InDebugMode)),
+		RDG_EVENT_NAME("HairStrands::DebugMode(%s)", GetGroomViewModeName(InDebugMode)),
 		Parameters,
 		ERDGPassFlags::Raster,
 		[Parameters, VertexShader, PixelShader, Viewport, Resolution](FRHICommandList& RHICmdList)
@@ -946,7 +819,7 @@ static void AddDebugHairTangentPass(
 	const FSceneTextures& SceneTextures,
 	FRDGTextureRef& OutputTexture)
 {
-	if (!TryEnableShaderDrawAndShaderPrint(View, 8192u, 1000u))
+	if (!TryEnableShaderDrawAndShaderPrint(View, 64000u, 1000u))
 	{
 		return;
 	}
@@ -955,7 +828,7 @@ static void AddDebugHairTangentPass(
 	Parameters->ViewUniformBuffer		= View.ViewUniformBuffer;
 	Parameters->HairStrands				= View.HairStrandsViewData.UniformBuffer;
 	Parameters->OutputResolution		= OutputTexture->Desc.Extent;
-	Parameters->TileSize				= FMath::Clamp(GHairTangentDebug_TileSize, 4, 32);
+	Parameters->TileSize				= 8;
 	Parameters->TileCount				= FIntPoint(FMath::FloorToInt(Parameters->OutputResolution.X / Parameters->TileSize), FMath::FloorToInt(Parameters->OutputResolution.X / Parameters->TileSize));
 	Parameters->SceneTextures			= SceneTextures.UniformBuffer;
 	Parameters->BilinearTextureSampler	= TStaticSamplerState<SF_Bilinear>::GetRHI();
@@ -1234,26 +1107,29 @@ static void AddDrawDebugClusterPass(
 	const FHairStrandClusterData& HairClusterData,
 	const FViewInfo& View)
 {
-	const bool bDebugEnable = IsHairStrandsClusterDebugAABBEnable();
+	const EGroomViewMode ViewMode = GetGroomViewMode(View);
+	const bool bDebugEnable = ViewMode == EGroomViewMode::RenderVisClusterAABB || ViewMode == EGroomViewMode::RenderVisCluster;
 	const bool bCullingEnable = IsHairStrandsClusterCullingEnable();
 	if (!bDebugEnable || !bCullingEnable)
 	{
 		return;
 	}
 	
-	if (!TryEnableShaderDrawAndShaderPrint(View, 5000, 2000))
+	if (!TryEnableShaderDrawAndShaderPrint(View, 64000u, 2000))
 	{
 		return;
 	}
 
-
 	for (const FHairStrandsMacroGroupData& MacroGroupData : View.HairStrandsViewData.MacroGroupDatas)
 	{
-		const bool bDebugAABB = IsHairStrandsClusterDebugAABBEnable();
+		const bool bDebugAABB = GetGroomViewMode(View) == EGroomViewMode::RenderVisClusterAABB;
 
 		for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : MacroGroupData.PrimitivesInfos)
 		{
-			check(PrimitiveInfo.Mesh && PrimitiveInfo.Mesh->Elements.Num() > 0);
+			if (!PrimitiveInfo.Mesh || PrimitiveInfo.Mesh->Elements.Num() == 0)
+			{
+				continue;
+			}
 
 			for (int DataIndex = 0; DataIndex < HairClusterData.HairGroups.Num(); ++DataIndex)
 			{
@@ -1261,7 +1137,9 @@ static void AddDrawDebugClusterPass(
 
 				// Find a better/less hacky way
 				if (PrimitiveInfo.PublicDataPtr != HairGroupClusters.HairGroupPublicPtr)
+				{
 					continue;
+				}
 
 				if (ShaderPrint::IsEnabled(View.ShaderPrintData) && HairGroupClusters.CulledClusterCountBuffer)
 				{
@@ -1276,7 +1154,7 @@ static void AddDrawDebugClusterPass(
 					Parameters->ClusterCount = HairGroupClusters.ClusterCount;
 					Parameters->TriangleCount = HairGroupClusters.VertexCount * 2; // VertexCount is actually the number of control points
 					Parameters->HairGroupId = DataIndex;
-					Parameters->ClusterDebugMode = GHairStrandsClusterDebug;
+					Parameters->ClusterDebugMode = ViewMode == EGroomViewMode::RenderVisCluster ? 1 : (ViewMode == EGroomViewMode::RenderVisClusterAABB ? 2 : 0);
 					Parameters->ClusterAABBBuffer = HairGroupClusters.ClusterAABBBuffer->SRV;
 					Parameters->CulledDispatchIndirectParametersClusterCountBuffer = GraphBuilder.CreateSRV(HairGroupClusters.CulledClusterCountBuffer, EPixelFormat::PF_R32_UINT);
 					Parameters->CulledDrawIndirectParameters = DrawIndirectBuffer.SRV;
@@ -1331,38 +1209,12 @@ static void InternalRenderHairStrandsDebugInfo(
 		RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessDebug, Params);
 	}
 
+	const EGroomViewMode ViewMode = GetGroomViewMode(View);
+
 	// Display tangent vector for strands/cards/meshes
+	if (ViewMode == EGroomViewMode::RenderHairTangent)
 	{
-		// Check among the hair instances, if hair tangent debug mode is requested
-		bool bTangentEnabled = GHairTangentDebug > 0;
-		if (!bTangentEnabled)
-		{
-			for (const FMeshBatchAndRelevance& Mesh : View.HairStrandsMeshElements)
-			{
-				const FHairGroupPublicData* GroupData = HairStrands::GetHairData(Mesh.Mesh);
-				if (GroupData->DebugMode == EHairStrandsDebugMode::RenderHairTangent)
-				{
-					bTangentEnabled = true;
-					break;
-				}
-			}
-		}
-		if (!bTangentEnabled)
-		{
-			for (const FMeshBatchAndRelevance& Mesh : View.HairCardsMeshElements)
-			{
-				const FHairGroupPublicData* GroupData = HairStrands::GetHairData(Mesh.Mesh);
-				if (GroupData->DebugMode == EHairStrandsDebugMode::RenderHairTangent)
-				{
-					bTangentEnabled = true;
-					break;
-				}
-			}
-		}
-		if (bTangentEnabled)
-		{
-			AddDebugHairTangentPass(GraphBuilder, View, SceneTextures, SceneColorTexture);
-		}
+		AddDebugHairTangentPass(GraphBuilder, View, SceneTextures, SceneColorTexture);
 	}
 
 	// Draw LOD info 
@@ -1391,11 +1243,6 @@ static void InternalRenderHairStrandsDebugInfo(
 	}
 
 	const FScreenPassRenderTarget SceneColor(SceneColorTexture, View.ViewRect, ERenderTargetLoadAction::ELoad);
-
-	// Debug mode name only
-	const EHairStrandsDebugMode StrandsDebugMode = GetHairStrandsDebugStrandsMode();
-	const EHairDebugMode HairDebugMode = GetHairStrandsDebugMode();
-
 	
 	const FHairStrandsViewData& HairData = View.HairStrandsViewData;
 
@@ -1418,12 +1265,12 @@ static void InternalRenderHairStrandsDebugInfo(
 		AddDebugHairShadowCullingPass(GraphBuilder, Scene, &View);
 	}
 
-	if (HairDebugMode == EHairDebugMode::MacroGroups)
+	if (ViewMode == EGroomViewMode::MacroGroups)
 	{
-		AddDebugHairPrintPass(GraphBuilder, Scene, &View, HairDebugMode, HairData.VisibilityData, HairData.MacroGroupDatas, HairData.MacroGroupResources, SceneTextures.Stencil);
+		AddDebugHairPrintPass(GraphBuilder, Scene, &View, ViewMode, HairData.VisibilityData, HairData.MacroGroupDatas, HairData.MacroGroupResources, SceneTextures.Stencil);
 	}
 
-	if (HairDebugMode == EHairDebugMode::DeepOpacityMaps)
+	if (ViewMode == EGroomViewMode::DeepOpacityMaps)
 	{
 		for (const FHairStrandsMacroGroupData& MacroGroup : HairData.MacroGroupDatas)
 		{
@@ -1444,7 +1291,7 @@ static void InternalRenderHairStrandsDebugInfo(
 	}
 
 	// View Rect
-	if (IsHairStrandsViewRectOptimEnable() && HairDebugMode == EHairDebugMode::MacroGroupScreenRect)
+	if (IsHairStrandsViewRectOptimEnable() && ViewMode == EGroomViewMode::MacroGroupScreenRect)
 	{
 		for (const FHairStrandsMacroGroupData& MacroGroupData : HairData.MacroGroupDatas)
 		{
@@ -1455,11 +1302,10 @@ static void InternalRenderHairStrandsDebugInfo(
 		AddDebugDeepShadowTexturePass(GraphBuilder, &View, TotalRect, nullptr, nullptr, SceneColorTexture);
 	}
 	
-	const bool bIsVoxelMode = HairDebugMode == EHairDebugMode::VoxelsDensity || HairDebugMode == EHairDebugMode::VoxelsTangent || HairDebugMode == EHairDebugMode::VoxelsBaseColor || HairDebugMode == EHairDebugMode::VoxelsRoughness;
 
 	// Render Frustum for all lights & macro groups 
 	{
-		if ((HairDebugMode == EHairDebugMode::LightBounds || HairDebugMode == EHairDebugMode::DeepOpacityMaps))
+		if ((ViewMode == EGroomViewMode::LightBounds || ViewMode == EGroomViewMode::DeepOpacityMaps))
 		{
 			if (HairData.DeepShadowResources.bIsGPUDriven)
 			{
@@ -1469,26 +1315,27 @@ static void InternalRenderHairStrandsDebugInfo(
 	}
 	
 	const bool bRunDebugPass =
-		HairDebugMode == EHairDebugMode::TAAResolveType ||
-		HairDebugMode == EHairDebugMode::SamplePerPixel ||
-		HairDebugMode == EHairDebugMode::CoverageType ||
-		HairDebugMode == EHairDebugMode::Coverage ||
-		HairDebugMode == EHairDebugMode::MaterialDepth ||
-		HairDebugMode == EHairDebugMode::MaterialBaseColor ||
-		HairDebugMode == EHairDebugMode::MaterialRoughness ||
-		HairDebugMode == EHairDebugMode::MaterialSpecular ||
-		HairDebugMode == EHairDebugMode::MaterialTangent;
+		ViewMode == EGroomViewMode::TAAResolveType ||
+		ViewMode == EGroomViewMode::SamplePerPixel ||
+		ViewMode == EGroomViewMode::CoverageType ||
+		ViewMode == EGroomViewMode::Coverage ||
+		ViewMode == EGroomViewMode::MaterialDepth ||
+		ViewMode == EGroomViewMode::MaterialBaseColor ||
+		ViewMode == EGroomViewMode::MaterialRoughness ||
+		ViewMode == EGroomViewMode::MaterialSpecular ||
+		ViewMode == EGroomViewMode::MaterialTangent;
 	if (bRunDebugPass)
 	{
-		AddDebugHairPass(GraphBuilder, &View, HairDebugMode, HairData.VisibilityData, SceneTextures.Stencil, SceneColorTexture);
-		AddDebugHairPrintPass(GraphBuilder, Scene, &View, HairDebugMode, HairData.VisibilityData, HairData.MacroGroupDatas, HairData.MacroGroupResources, SceneTextures.Stencil);
+		AddDebugHairPass(GraphBuilder, &View, ViewMode, HairData.VisibilityData, SceneTextures.Stencil, SceneColorTexture);
+		AddDebugHairPrintPass(GraphBuilder, Scene, &View, ViewMode, HairData.VisibilityData, HairData.MacroGroupDatas, HairData.MacroGroupResources, SceneTextures.Stencil);
 	}
-	else if (HairDebugMode == EHairDebugMode::Tile)
+	else if (ViewMode == EGroomViewMode::Tile)
 	{
 		check(HairData.VisibilityData.TileData.IsValid());
 		AddHairStrandsDebugTilePass(GraphBuilder, View, SceneColorTexture, HairData.VisibilityData.TileData);
 	}
 
+	const bool bIsVoxelMode = ViewMode == EGroomViewMode::VoxelsDensity;
 	if (bIsVoxelMode)
 	{
 		if (HairData.VirtualVoxelResources.IsValid())
@@ -1520,22 +1367,22 @@ static void InternalRenderHairStrandsDebugInfo(
 		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrands::PPLLDebug"), ComputeShader, PassParameters, FIntVector::DivideAndRoundUp(TextureSize, FIntVector(8, 8, 1)));
 	}
 
-	if (GHairStrandsClusterDebug > 0)
+	if (ViewMode == EGroomViewMode::RenderVisCluster || ViewMode == EGroomViewMode::RenderVisClusterAABB)
 	{
 		AddDrawDebugClusterPass(GraphBuilder, HairClusterData, View);
 	}
 
-	if (StrandsDebugMode != EHairStrandsDebugMode::NoneDebug || HairDebugMode != EHairDebugMode::None)
+	if (ViewMode != EGroomViewMode::None)
 	{
-		AddDrawCanvasPass(GraphBuilder, {}, View, SceneColor, [&View, &StrandsDebugMode, YStep, HairDebugMode](FCanvas& Canvas)
+		AddDrawCanvasPass(GraphBuilder, {}, View, SceneColor, [&View, YStep, ViewMode](FCanvas& Canvas)
 		{
 			float X = 40;
 			float Y = View.ViewRect.Height() - YStep * 3.f;
 			FString Line;
-			if (StrandsDebugMode != EHairStrandsDebugMode::NoneDebug)
-				Line = FString::Printf(TEXT("Hair Debug mode - %s"), ToString(StrandsDebugMode));
-			else if (HairDebugMode != EHairDebugMode::None)
-				Line = FString::Printf(TEXT("Hair Debug mode - %s"), ToString(HairDebugMode));
+			if (ViewMode != EGroomViewMode::None)
+			{
+				Line = FString::Printf(TEXT("Hair Debug mode - %s"), GetGroomViewModeName(ViewMode));
+			}
 
 			Canvas.DrawShadowedString(X, Y += YStep, *Line, GetStatsFont(), FLinearColor(1, 1, 0));
 		});

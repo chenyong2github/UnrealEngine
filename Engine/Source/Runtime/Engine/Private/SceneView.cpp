@@ -20,6 +20,7 @@
 #include "NaniteVisualizationData.h"
 #include "LumenVisualizationData.h"
 #include "StrataVisualizationData.h"
+#include "GroomVisualizationData.h"
 #include "VirtualShadowMapVisualizationData.h"
 #include "Interfaces/Interface_PostProcessVolume.h"
 #include "Engine/TextureCube.h"

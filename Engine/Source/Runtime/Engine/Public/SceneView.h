@@ -1181,6 +1181,9 @@ public:
 	/** Current Strata visualization mode */
 	FName CurrentStrataVisualizationMode;
 
+	/** Current Groom visualization mode */
+	FName CurrentGroomVisualizationMode;
+
 	/** Current Virtual Shadow Map visualization mode */
 	FName CurrentVirtualShadowMapVisualizationMode;
 

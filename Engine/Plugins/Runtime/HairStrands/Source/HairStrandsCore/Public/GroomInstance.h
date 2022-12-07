@@ -14,6 +14,7 @@ class UGroomComponent;
 class FHairCardsVertexFactory;
 class FHairStrandsVertexFactory;
 enum class EGroomCacheType : uint8;
+enum class EGroomViewMode : uint8;
 
 // @hair_todo: pack card ID + card UV in 32Bits alpha channel's of the position buffer:
 //  * 10/10 bits for UV -> max 1024/1024 rect resolution
@@ -236,7 +237,6 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 	struct FDebug
 	{
 		// Data
-		EHairStrandsDebugMode	DebugMode = EHairStrandsDebugMode::NoneDebug;
 		uint32					ComponentId = ~0;
 		uint32					GroupIndex = ~0;
 		uint32					GroupCount = 0;
@@ -258,7 +258,6 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 		FTransform				SkinningCurrentLocalToWorld = FTransform::Identity;
 		FTransform				RigidPreviousLocalToWorld = FTransform::Identity;
 		FTransform				SkinningPreviousLocalToWorld = FTransform::Identity;
-		bool					bDrawCardsGuides = false;
 
 		TSharedPtr<class IGroomCacheBuffers, ESPMode::ThreadSafe> GroomCacheBuffers;
 
@@ -309,5 +308,5 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 															 Debug.RigidPreviousLocalToWorld;
 	}
 
-	FHairStrandsVertexFactoryUniformShaderParameters GetHairStandsUniformShaderParameters() const;
+	FHairStrandsVertexFactoryUniformShaderParameters GetHairStandsUniformShaderParameters(EGroomViewMode ViewMode) const;
 };

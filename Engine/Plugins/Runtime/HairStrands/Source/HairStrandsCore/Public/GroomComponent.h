@@ -176,9 +176,6 @@ public:
 	void ValidateMaterials(bool bMapCheck) const;
 	void Invalidate();
 	void InvalidateAndRecreate();
-
-	void SetDebugMode(EHairStrandsDebugMode InMode);
-	EHairStrandsDebugMode GetDebugMode() const { return DebugMode; }
 #endif
 
 	/* Accessor function for changing Groom asset from blueprint/sequencer */
@@ -351,9 +348,6 @@ private:
 	EHairLODSelectionType LODSelectionType = EHairLODSelectionType::Immediate;
 	float LODPredictedIndex = -1.f;
 	float LODForcedIndex = -1.f;
-
-	// Transient property for visualizing the groom in a certain debug mode. This is used by the groom editor
-	EHairStrandsDebugMode DebugMode = EHairStrandsDebugMode::NoneDebug;
 
 	void InitResources(bool bIsBindingReloading=false);
 	void ReleaseResources();

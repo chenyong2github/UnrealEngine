@@ -56,6 +56,7 @@
 #include "NaniteVisualizationData.h"
 #include "LumenVisualizationData.h"
 #include "StrataVisualizationData.h"
+#include "GroomVisualizationData.h"
 #include "VirtualShadowMapVisualizationData.h"
 #include "GPUSkinCacheVisualizationData.h"
 #include "UnrealWidget.h"
@@ -394,6 +395,7 @@ FEditorViewportClient::FEditorViewportClient(FEditorModeTools* InModeTools, FPre
 	, CurrentNaniteVisualizationMode(NAME_None)
 	, CurrentLumenVisualizationMode(NAME_None)
 	, CurrentStrataVisualizationMode(NAME_None)
+	, CurrentGroomVisualizationMode(NAME_None)
 	, CurrentVirtualShadowMapVisualizationMode(NAME_None)
 	, CurrentRayTracingDebugVisualizationMode(NAME_None)
 	, CurrentGPUSkinCacheVisualizationMode(NAME_None)
@@ -2699,6 +2701,22 @@ FText FEditorViewportClient::GetCurrentStrataVisualizationModeDisplayName() cons
 	return GetStrataVisualizationData().GetModeDisplayName(CurrentStrataVisualizationMode);
 }
 
+void FEditorViewportClient::ChangeGroomVisualizationMode(FName InName)
+{
+	SetViewMode(VMI_VisualizeGroom);
+	CurrentGroomVisualizationMode = InName;
+}
+
+bool FEditorViewportClient::IsGroomVisualizationModeSelected(FName InName) const
+{
+	return IsViewModeEnabled(VMI_VisualizeGroom) && CurrentGroomVisualizationMode == InName;
+}
+
+FText FEditorViewportClient::GetCurrentGroomVisualizationModeDisplayName() const
+{
+	checkf(IsViewModeEnabled(VMI_VisualizeGroom), TEXT("In order to call GetCurrentGroomVisualizationMode(), first you must set ViewMode to VMI_VisualizeGroom."));
+	return GetGroomVisualizationData().GetModeDisplayName(CurrentGroomVisualizationMode);
+}
 bool FEditorViewportClient::IsVisualizeCalibrationMaterialEnabled() const
 {
 	// Get the list of requested buffers from the console
@@ -3864,6 +3882,7 @@ void FEditorViewportClient::SetupViewForRendering(FSceneViewFamily& ViewFamily, 
 	View.CurrentNaniteVisualizationMode = CurrentNaniteVisualizationMode;
 	View.CurrentLumenVisualizationMode = CurrentLumenVisualizationMode;
 	View.CurrentStrataVisualizationMode = CurrentStrataVisualizationMode;
+	View.CurrentGroomVisualizationMode = CurrentGroomVisualizationMode;
 	View.CurrentVirtualShadowMapVisualizationMode = CurrentVirtualShadowMapVisualizationMode;
 	View.CurrentGPUSkinCacheVisualizationMode = CurrentGPUSkinCacheVisualizationMode;
 #if RHI_RAYTRACING

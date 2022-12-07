@@ -150,6 +150,8 @@ static void RunInternalHairStrandsInterpolation(
 	const uint32 ViewRayTracingMask = 0u;
 	#endif
 
+	const EGroomViewMode ViewMode = GetGroomViewMode(*View);
+
 	// Update dynamic mesh triangles
 	for (FHairStrandsInstance* AbstractInstance : Instances)
 	{
@@ -381,6 +383,7 @@ static void RunInternalHairStrandsInterpolation(
 				ShaderMap,
 				ViewUniqueID,
 				ViewRayTracingMask,
+				ViewMode,
 				TranslatedWorldOffset,
 				ShaderPrintData,
 				Instance,

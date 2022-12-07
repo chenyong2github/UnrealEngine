@@ -15,6 +15,8 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SGroomEditorViewport.h"
 #include "Widgets/Text/STextBlock.h"
+#include "GroomVisualizationMenuCommands.h"
+#include "EditorViewportCommands.h"
 
 #define LOCTEXT_NAMESPACE "GroomEditorViewportToolbar"
 
@@ -38,39 +40,10 @@ TSharedRef<SWidget> SGroomEditorViewportToolbar::GenerateShowMenu() const
 	const bool bInShouldCloseWindowAfterMenuSelection = true;
 	FMenuBuilder ViewMenuBuilder(bInShouldCloseWindowAfterMenuSelection, ViewportRef->GetCommandList());
 	{
-		auto Commands = FGroomEditorCommands::Get();
-
-		
-		ViewMenuBuilder.AddMenuEntry(Commands.ViewMode_Lit);
+		const FEditorViewportCommands& ViewportCommands = FEditorViewportCommands::Get();
+		ViewMenuBuilder.AddMenuEntry(ViewportCommands.LitMode);
 		ViewMenuBuilder.AddMenuSeparator();
-		
-		ViewMenuBuilder.AddMenuEntry(Commands.ViewMode_Guide);
-		ViewMenuBuilder.AddMenuEntry(Commands.ViewMode_GuideInfluence);
-
-		ViewMenuBuilder.AddMenuSeparator();
-		
-		ViewMenuBuilder.AddMenuEntry(Commands.ViewMode_UV);
-		ViewMenuBuilder.AddMenuEntry(Commands.ViewMode_RootUV);
-		ViewMenuBuilder.AddMenuEntry(Commands.ViewMode_RootUDIM);
-		ViewMenuBuilder.AddMenuEntry(Commands.ViewMode_Seed);
-		ViewMenuBuilder.AddMenuEntry(Commands.ViewMode_Dimension);
-		ViewMenuBuilder.AddMenuEntry(Commands.ViewMode_RadiusVariation);
-		ViewMenuBuilder.AddMenuEntry(Commands.ViewMode_Tangent);
-		ViewMenuBuilder.AddMenuEntry(Commands.ViewMode_BaseColor);
-		ViewMenuBuilder.AddMenuEntry(Commands.ViewMode_Roughness);
-
-		ViewMenuBuilder.AddMenuSeparator();
-
-		ViewMenuBuilder.AddMenuEntry(Commands.ViewMode_ControlPoints);
-		ViewMenuBuilder.AddMenuEntry(Commands.ViewMode_VisCluster);
-
-		ViewMenuBuilder.AddMenuSeparator();
-
-		ViewMenuBuilder.AddMenuEntry(Commands.ViewMode_Group);
-
-		ViewMenuBuilder.AddMenuSeparator();
-
-		ViewMenuBuilder.AddMenuEntry(Commands.ViewMode_CardsGuides);
+		FGroomVisualizationMenuCommands::BuildVisualisationSubMenuForGroomEditor(ViewMenuBuilder);
 	}
 
 	return ViewMenuBuilder.MakeWidget();

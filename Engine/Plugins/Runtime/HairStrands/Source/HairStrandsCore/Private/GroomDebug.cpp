@@ -15,6 +15,7 @@
 #include "SystemTextures.h"
 #include "CanvasTypes.h"
 #include "ShaderCompilerCore.h"
+#include "GroomVisualizationData.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -32,7 +33,7 @@ static int32 GHairDebugMeshProjection_Render_HairRestTriangles = 0;
 static int32 GHairDebugMeshProjection_Render_HairRestFrames = 0;
 static int32 GHairDebugMeshProjection_Render_HairRestSamples = 0;
 static int32 GHairDebugMeshProjection_Render_HairDeformedTriangles = 0;
-static int32 GHairDebugMeshProjection_Render_HairDeformedFrames = 0;
+static int32 GHairDebugMeshProjection_Render_HairDeformedFrames = 1;
 static int32 GHairDebugMeshProjection_Render_HairDeformedSamples = 0;
 
 
@@ -58,14 +59,6 @@ static FAutoConsoleVariableRef CVarHairCardsAtlasDebug(TEXT("r.HairStrands.Cards
 
 static int32 GHairCardsVoxelDebug = 0;
 static FAutoConsoleVariableRef CVarHairCardsVoxelDebug(TEXT("r.HairStrands.Cards.DebugVoxel"), GHairCardsVoxelDebug, TEXT("Draw debug hair cards voxel datas."));
-
-static int32 GHairCardsGuidesDebug_Ren = 0;
-static int32 GHairCardsGuidesDebug_Sim = 0;
-static FAutoConsoleVariableRef CVarHairCardsGuidesDebug_Ren(TEXT("r.HairStrands.Cards.DebugGuides.Render"), GHairCardsGuidesDebug_Ren, TEXT("Draw debug hair cards guides (1: Rest, 2: Deformed)."));
-static FAutoConsoleVariableRef CVarHairCardsGuidesDebug_Sim(TEXT("r.HairStrands.Cards.DebugGuides.Sim"), GHairCardsGuidesDebug_Sim, TEXT("Draw debug hair sim guides (1: Rest, 2: Deformed)."));
-
-static int32 GHairStrandsControlPointDebug = 0;
-static FAutoConsoleVariableRef CVarHairStrandsControlPointDebug(TEXT("r.HairStrands.Strands.DebugControlPoint"), GHairStrandsControlPointDebug, TEXT("Draw debug hair strands control points)."));
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1048,14 +1041,14 @@ void RunHairStrandsDebug(
 	FIntRect Viewport,
 	const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer)
 {
-	const EHairDebugMode HairDebugMode = GetHairStrandsDebugMode();
+	const EGroomViewMode ViewMode = GetGroomViewMode(View);
 
-	if (HairDebugMode == EHairDebugMode::MacroGroups)
+	if (ViewMode == EGroomViewMode::MacroGroups)
 	{
 		AddHairDebugPrintInstancePass(GraphBuilder, ShaderMap, ShaderPrintData, Instances, InstanceCountPerType);
 	}
 
-	if (HairDebugMode == EHairDebugMode::MeshProjection)
+	if (ViewMode == EGroomViewMode::MeshProjection)
 	{
 		{
 			if (GHairDebugMeshProjection_SkinCacheMesh > 0)
@@ -1162,17 +1155,17 @@ void RunHairStrandsDebug(
 	{
 		FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
 
-		if (GHairCardsGuidesDebug_Ren > 0 || Instance->Debug.bDrawCardsGuides)
+		if (ViewMode == EGroomViewMode::CardGuides)
 		{
-			AddDrawDebugCardsGuidesPass(GraphBuilder, View, ShaderMap, Instance, ShaderPrintData, Instance->Debug.bDrawCardsGuides ? false : GHairCardsGuidesDebug_Ren == 1, true);
+			AddDrawDebugCardsGuidesPass(GraphBuilder, View, ShaderMap, Instance, ShaderPrintData, true /*bDeformed*/, true);
 		}
 
-		if (GHairCardsGuidesDebug_Sim > 0)
+		if (ViewMode == EGroomViewMode::SimHairStrands)
 		{
-			AddDrawDebugCardsGuidesPass(GraphBuilder, View, ShaderMap, Instance, ShaderPrintData, GHairCardsGuidesDebug_Sim == 1, false);
+			AddDrawDebugCardsGuidesPass(GraphBuilder, View, ShaderMap, Instance, ShaderPrintData, true /*bDeformed*/, false);
 		}
 
-		if (GHairStrandsControlPointDebug || Instance->HairGroupPublicData->DebugMode == EHairStrandsDebugMode::RenderHairControlPoints)
+		if (ViewMode == EGroomViewMode::RenderHairControlPoints)
 		{
 			AddDrawDebugStrandsCVsPass(GraphBuilder, View, ShaderMap, Instance, ShaderPrintData, SceneColorTexture, SceneDepthTexture);
 		}

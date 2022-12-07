@@ -35,6 +35,7 @@
 #include "NaniteVisualizationData.h"
 #include "LumenVisualizationData.h"
 #include "StrataVisualizationData.h"
+#include "GroomVisualizationData.h"
 #include "VirtualShadowMapVisualizationData.h"
 #include "FoliageType.h"
 #include "ShowFlagMenuCommands.h"
@@ -1639,6 +1640,31 @@ void SLevelViewportToolBar::FillViewMenu(UToolMenu* Menu)
 			EUserInterfaceActionType::RadioButton,
 						/* bInOpenSubMenuOnClick = */ false,
 						FSlateIcon(FAppStyle::GetAppStyleSetName(), "EditorViewport.VisualizeStrataMode")
+						);
+	}
+
+	if (IsGroomEnabled())
+	{
+		FToolMenuSection& Section = Menu->FindOrAddSection("ViewMode");
+		Section.AddSubMenu(
+			"VisualizeGroomViewMode",
+			LOCTEXT("VisualizeGroomViewModeDisplayName", "Groom"),
+			LOCTEXT("GroomVisualizationMenu_ToolTip", "Select a mode for Groom visualization"),
+			FNewMenuDelegate::CreateStatic(&FGroomVisualizationMenuCommands::BuildVisualisationSubMenu),
+			FUIAction(
+				FExecuteAction(),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this]()
+					{
+						const TSharedRef<SEditorViewport> ViewportRef = Viewport.Pin().ToSharedRef();
+						const TSharedPtr<FEditorViewportClient> ViewportClient = ViewportRef->GetViewportClient();
+						check(ViewportClient.IsValid());
+						return ViewportClient->IsViewModeEnabled(VMI_VisualizeGroom);
+					})
+			),
+			EUserInterfaceActionType::RadioButton,
+						/* bInOpenSubMenuOnClick = */ false,
+						FSlateIcon(FAppStyle::GetAppStyleSetName(), "EditorViewport.VisualizeGroomMode")
 						);
 	}
 

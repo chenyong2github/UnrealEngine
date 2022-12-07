@@ -1309,6 +1309,26 @@ public:
 	FText GetCurrentStrataVisualizationModeDisplayName() const;
 
 	/**
+	 * Changes the Groom visualization mode for this viewport.
+	 *
+	 * @param InName	The ID of the required visualization mode
+	 */
+	void ChangeGroomVisualizationMode(FName InName);
+
+	/**
+	 * Checks if a Groom visualization mode is selected.
+	 *
+	 * @param InName	The ID of the required visualization mode
+	 * @return	true if the supplied Groom visualization mode is checked
+	 */
+	bool IsGroomVisualizationModeSelected(FName InName) const;
+
+	/**
+	 * Returns the FText display name associated with CurrentGroomVisualizationMode.
+	 */
+	FText GetCurrentGroomVisualizationModeDisplayName() const;
+
+	/**
 	* Changes the virtual shadow map visualization mode for this viewport.
 	*
 	* @param InName	The ID of the required visualization mode
@@ -1675,6 +1695,7 @@ public:
 	FName CurrentNaniteVisualizationMode;
 	FName CurrentLumenVisualizationMode;
 	FName CurrentStrataVisualizationMode;
+	FName CurrentGroomVisualizationMode;
 	FName CurrentVirtualShadowMapVisualizationMode;
 
 	FName CurrentRayTracingDebugVisualizationMode;

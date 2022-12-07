@@ -26,13 +26,6 @@ static TAutoConsoleVariable<int32> CVarHairStrandsRaytracingEnable(
 	TEXT("Enable/Disable hair strands raytracing geometry. This is anopt-in option per groom asset/groom instance."),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
-static int32 GHairStrandsPluginEnable = 0;
-
-static TAutoConsoleVariable<int32> CVarHairStrandsGlobalEnable(
-	TEXT("r.HairStrands.Enable"), 1,
-	TEXT("Enable/Disable the entire hair strands system. This affects all geometric representations (i.e., strands, cards, and meshes)."),
-	ECVF_RenderThreadSafe | ECVF_Scalability);
-
 static TAutoConsoleVariable<int32> CVarHairStrandsEnable(
 	TEXT("r.HairStrands.Strands"), 1,
 	TEXT("Enable/Disable hair strands rendering"),
@@ -207,7 +200,7 @@ bool IsHairRayTracingEnabled()
 
 bool IsHairStrandsSupported(EHairStrandsShaderType Type, EShaderPlatform Platform)
 {
-	if (GHairStrandsPluginEnable <= 0 || CVarHairStrandsGlobalEnable.GetValueOnAnyThread() <= 0) return false;
+	if (!IsGroomEnabled()) return false;
 
 	// Important:
 	// EHairStrandsShaderType::All: Mobile is excluded as we don't need any interpolation/simulation code for this. It only do rigid transformation. 
@@ -228,7 +221,7 @@ bool IsHairStrandsSupported(EHairStrandsShaderType Type, EShaderPlatform Platfor
 
 bool IsHairStrandsEnabled(EHairStrandsShaderType Type, EShaderPlatform Platform)
 {
-	const bool HairStrandsGlobalEnable = CVarHairStrandsGlobalEnable.GetValueOnAnyThread() > 0 && GHairStrandsPluginEnable > 0;
+	const bool HairStrandsGlobalEnable = IsGroomEnabled();
 	if (!HairStrandsGlobalEnable) return false;
 
 	// Important:
@@ -251,11 +244,6 @@ bool IsHairStrandsEnabled(EHairStrandsShaderType Type, EShaderPlatform Platform)
 	case EHairStrandsShaderType::All :		return HairStrandsGlobalEnable && (HairCardsEnable > 0 || HairMeshesEnable > 0 || HairStrandsEnable > 0) && !bIsMobile;
 	}
 	return false;
-}
-
-void SetHairStrandsEnabled(bool In)
-{
-	GHairStrandsPluginEnable = In ? 1 : 0;
 }
 
 bool IsHairStrandsBindingEnable()
