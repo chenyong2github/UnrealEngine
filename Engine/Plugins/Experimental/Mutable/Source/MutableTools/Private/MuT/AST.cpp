@@ -89,15 +89,15 @@ ASTChild& ASTChild::operator=( ASTChild&& rhs )
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-void ASTOp::ForEachParent(const TFunctionRef<void(ASTOp*)> f )
+void ASTOp::ForEachParent(const TFunctionRef<void(ASTOp*)> f) const
 {
-    for( auto& p: m_parents )
-    {
-        if (p)
-        {
-            f(p);
-        }
-    }
+	for (auto& p : m_parents)
+	{
+		if (p)
+		{
+			f(p);
+		}
+	}
 }
 
 
@@ -859,10 +859,10 @@ void ASTOp::Traverse_BottomUp_Unique
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-int ASTOp::GetParentCount()
+int ASTOp::GetParentCount() const
 {
     int result=0;
-    ForEachParent( [&](ASTOp* p)
+    ForEachParent( [&](const ASTOp* p)
     {
         if (p!=nullptr) ++result;
     });

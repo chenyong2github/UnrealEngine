@@ -4,7 +4,6 @@
 
 #include "MuT/Platform.h"
 #include "MuR/Image.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/ModelPrivate.h"
 #include "MuR/MutableMath.h"
 #include "MuR/MutableMemory.h"
@@ -416,7 +415,7 @@ namespace mu
         virtual void ForEachChild( const TFunctionRef<void(ASTChild&)> ) = 0;
 
         //! Run something for each parent operation+.
-        void ForEachParent( const TFunctionRef<void(ASTOp*)> );
+		void ForEachParent(const TFunctionRef<void(ASTOp*)>) const;
 
         //! Run something for each child operation, with a chance to modify it.
         virtual bool operator==( const ASTOp& other ) const;
@@ -666,7 +665,7 @@ namespace mu
 
     public:
 
-        int GetParentCount();
+        int GetParentCount() const;
 
         //! Make all parents of this node point at the other node instead.
         static void Replace( const Ptr<ASTOp>& node, const Ptr<ASTOp>& other );

@@ -141,7 +141,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	mu::Ptr<ASTOp> ASTOpSwitch::FindBranch(int32_t condition) const
+	mu::Ptr<ASTOp> ASTOpSwitch::FindBranch(int32 condition) const
 	{
 		for (const auto& c : cases)
 		{
@@ -477,6 +477,116 @@ namespace mu
 	        {
 				return SameBranch;
 	        }
+		}
+
+		// Ad-hoc logic optimization: check if all code paths leading to this operation have a switch with the same variable
+		// and the option on those switches for the path that connects to this one is always the same. In that case, we can 
+		// remove this switch and replace it by the value it has for that option. 
+		// This is something the generic logic optimizer should do whan re-enabled.
+		{
+			// List of parent operations that we have visited, and the child we have visited them from.
+			TSet<TTuple<const ASTOp*, const ASTOp*>> Visited;
+			Visited.Reserve(64);
+
+			// First is parent, second is what child we are reaching the parent from. This is necessary to find out what 
+			// switch branch we reach the parent from, if it is a switch.
+			TArray< TTuple<const ASTOp*, const ASTOp*>, TInlineAllocator<16>> Pending;
+			ForEachParent([this,&Pending](ASTOp* Parent)
+				{
+					Pending.Add({ Parent,this});
+				});
+
+			bool bAllPathsHaveMatchingSwitch = true;
+
+			// Switch option value of all parent compatible switches (if any)
+			int32 MatchingSwitchOption = -1;
+
+			while (!Pending.IsEmpty() && bAllPathsHaveMatchingSwitch)
+			{
+				TTuple<const ASTOp*, const ASTOp*> ParentPair = Pending.Pop();
+				bool bAlreadyVisited = false;
+				Visited.Add(ParentPair, &bAlreadyVisited);
+
+				if (!bAlreadyVisited)
+				{
+					const ASTOp* Parent = ParentPair.Get<0>();
+					const ASTOp* ParentChild = ParentPair.Get<1>();
+
+					bool bIsMatchingSwitch = false;
+
+					// TODO: Probably it could be a any switch, it doesn't need to be of the same type.
+					if (Parent->GetOpType() == GetOpType())
+					{
+						const ASTOpSwitch* ParentSwitch = dynamic_cast<const ASTOpSwitch*>(Parent);
+						check(ParentSwitch);
+
+						// To be compatible the switch must be on the same variable
+						if (ParentSwitch->variable==variable)
+						{
+							bIsMatchingSwitch = true;
+							
+							// Find what switch option we are reaching it from
+							bool bIsSingleOption = true;
+							int OptionIndex = -1;
+							for (int32 CaseIndex = 0; CaseIndex < ParentSwitch->cases.Num(); ++CaseIndex)
+							{
+								if (ParentSwitch->cases[CaseIndex].branch.child().get() == ParentChild)
+								{
+									if (OptionIndex != -1)
+									{
+										// This means the same child is connected to more than one switch options
+										// so we cannot optimize.
+										// \TODO: We could if we track a "set of options" for all switches instead of just one.
+										bIsSingleOption = false;
+										break;
+									}
+									else
+									{
+										OptionIndex = CaseIndex;
+									}
+								}
+							}
+
+							// If we did reach it from one single option
+							if (bIsSingleOption && OptionIndex!=-1)
+							{
+								if (MatchingSwitchOption<0)
+								{
+									MatchingSwitchOption = ParentSwitch->cases[OptionIndex].condition;
+								}
+								else if (MatchingSwitchOption!= ParentSwitch->cases[OptionIndex].condition)
+								{
+									bAllPathsHaveMatchingSwitch = false;
+								}
+							}
+						}
+					}
+					
+					if (!bIsMatchingSwitch)
+					{
+						// If it has no parents, then the optimization cannot be applied
+						bool bHasParent = false;
+						Parent->ForEachParent([&bHasParent,this,&Pending,Parent](ASTOp* ParentParent)
+							{
+								Pending.Add({ ParentParent,Parent });
+								bHasParent = true;
+							});
+
+						if (!bHasParent)
+						{
+							// We reached a root without a matching switch along the path.
+							bAllPathsHaveMatchingSwitch = false;
+						}
+					}
+				}
+			}
+
+			if (bAllPathsHaveMatchingSwitch && MatchingSwitchOption>=0)
+			{
+				// We can remove this switch, all paths leading to it have the same condition for this switches variable.
+				return FindBranch(MatchingSwitchOption);
+			}
+
 		}
 
 		return nullptr;

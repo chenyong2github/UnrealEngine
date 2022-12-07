@@ -4,7 +4,6 @@
 
 #include "HAL/PlatformMath.h"
 #include "MuR/Image.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/Operations.h"
 #include "MuR/Ptr.h"
 #include "MuT/AST.h"
@@ -34,13 +33,13 @@ template <class SCALAR> class vec4;
 
 		struct FCase
 		{
-			FCase(int32_t cond, Ptr<ASTOp> parent, Ptr<ASTOp> b)
+			FCase(int32 cond, Ptr<ASTOp> parent, Ptr<ASTOp> b)
 				: condition(cond)
 				, branch(parent.get(), b)
 			{
 			}
 
-			int32_t condition;
+			int32 condition;
 			ASTChild branch;
 
 			//!
@@ -85,7 +84,7 @@ template <class SCALAR> class vec4;
 		bool IsCompatibleWith(const ASTOpSwitch* other) const;
 
 		//!
-		Ptr<ASTOp> FindBranch(int32_t condition) const;
+		Ptr<ASTOp> FindBranch(int32 condition) const;
 
 	};
 
