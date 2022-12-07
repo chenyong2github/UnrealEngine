@@ -8,6 +8,10 @@
 
 namespace ERHIFeatureLevel { enum Type : int; }
 enum EShaderPlatform : uint16;
+enum ECubeFace : uint32;
+
+enum EPixelFormat : uint8;
+enum class EPixelFormatChannelFlags : uint8;
 
 // Command Lists
 class FRHICommandListBase;

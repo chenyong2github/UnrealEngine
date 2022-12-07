@@ -10,6 +10,7 @@
 #include "PixelShaderUtils.h"
 #include "ScenePrivate.h"
 #include "RendererModule.h"
+#include "ShaderPlatformCachedIniValue.h"
 
 namespace
 {

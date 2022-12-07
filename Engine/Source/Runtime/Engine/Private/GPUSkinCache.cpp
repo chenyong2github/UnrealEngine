@@ -24,6 +24,7 @@ GPUSkinCache.cpp: Performs skinning on a compute shader into a buffer to avoid v
 #include "RayTracingSkinnedGeometry.h"
 #include "GPUSkinCacheVisualizationData.h"
 #include "Internationalization/Internationalization.h"
+#include "ShaderPlatformCachedIniValue.h"
 
 DEFINE_STAT(STAT_GPUSkinCache_TotalNumChunks);
 DEFINE_STAT(STAT_GPUSkinCache_TotalNumVertices);

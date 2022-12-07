@@ -12,6 +12,7 @@
 #include "RenderCore.h"
 #include "PackedNormal.h"
 #include "Shader.h"
+#include "ShaderPlatformCachedIniValue.h"
 
 #if WITH_EDITOR
 #include "Misc/CoreMisc.h"

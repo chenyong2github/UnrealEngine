@@ -62,6 +62,7 @@
 #include "ShaderCodeLibrary.h"
 #include "ShaderCore.h"
 #include "ShaderParameterMetadata.h"
+#include "ShaderPlatformCachedIniValue.h"
 #include "StaticBoundShaderState.h"
 #include "StaticBoundShaderState.h"
 #include "StereoRenderUtils.h"

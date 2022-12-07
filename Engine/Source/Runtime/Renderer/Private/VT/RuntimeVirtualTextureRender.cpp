@@ -10,6 +10,7 @@
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
 #include "RenderUtils.h"
+#include "ShaderPlatformCachedIniValue.h"
 #include "ScenePrivate.h"
 #include "PostProcess/SceneRenderTargets.h"
 #include "ShaderBaseClasses.h"

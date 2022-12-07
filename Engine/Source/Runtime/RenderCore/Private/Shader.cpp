@@ -27,6 +27,7 @@
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "Misc/LargeWorldRenderPosition.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "ShaderPlatformCachedIniValue.h"
 
 #if WITH_EDITORONLY_DATA
 #include "Interfaces/IShaderFormat.h"

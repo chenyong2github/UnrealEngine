@@ -8,7 +8,7 @@
 #include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
 #include "OptimusSettings.h"
-#include "RenderUtils.h"
+#include "ShaderPlatformCachedIniValue.h"
 
 
 namespace Optimus

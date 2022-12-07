@@ -391,7 +391,7 @@ enum EVertexElementType
 static_assert(VET_MAX <= (1 << VET_NumBits), "VET_MAX will not fit on VET_NumBits");
 DECLARE_INTRINSIC_TYPE_LAYOUT(EVertexElementType);
 
-enum ECubeFace
+enum ECubeFace : uint32
 {
 	CubeFace_PosX = 0,
 	CubeFace_NegX,

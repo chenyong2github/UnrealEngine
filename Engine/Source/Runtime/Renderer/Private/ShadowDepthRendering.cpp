@@ -48,6 +48,7 @@
 #include "Rendering/NaniteStreamingManager.h"
 #include "Shadows/ShadowSceneRenderer.h"
 #include "RenderCore.h"
+#include "ShaderPlatformCachedIniValue.h"
 
 DEFINE_GPU_DRAWCALL_STAT(ShadowDepths);
 

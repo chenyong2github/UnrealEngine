@@ -17,8 +17,9 @@
 #include "Logging/LogMacros.h"
 #include "Misc/CoreMisc.h"
 #include "RenderGraphResources.h"
-
+#include "ShaderPlatformCachedIniValue.h"
 #include "Engine/RendererSettings.h"
+
 #if INTEL_ISPC
 #include "GPUSkinVertexFactory.ispc.generated.h"
 #endif

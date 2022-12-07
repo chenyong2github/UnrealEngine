@@ -2,6 +2,7 @@
 
 #include "StereoRenderUtils.h"
 #include "RenderUtils.h"
+#include "ShaderPlatformCachedIniValue.h"
 
 // enable this to printf-debug stereo rendering aspects on a device
 #define UE_DEBUG_STEREO_ASPECTS			(!UE_BUILD_SHIPPING && !UE_BUILD_TEST && !UE_EDITOR)
