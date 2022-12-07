@@ -85,11 +85,6 @@ FVector Lumen::GetLumenSceneViewOrigin(const FViewInfo& View, int32 ClipmapIndex
 	return CameraOrigin;
 }
 
-bool Lumen::UseThreadGroupSize32()
-{
-	return GRHISupportsWaveOperations && GRHIMinimumWaveSize <= 32 && CVarLumenThreadGroupSize32.GetValueOnRenderThread() != 0;
-}
-
 class FLumenCardPageGPUData
 {
 public:

@@ -314,7 +314,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenIrradianceFieldGath
 		InputArray,
 		OutputArray,
 		Scene,
-		ViewFamily.EngineShowFlags,
+		ViewFamily,
 		LumenCardRenderer.bPropagateGlobalLightingChange,
 		ComputePassFlags);
 

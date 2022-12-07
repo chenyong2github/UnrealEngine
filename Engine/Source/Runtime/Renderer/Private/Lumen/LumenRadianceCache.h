@@ -115,7 +115,7 @@ namespace LumenRadianceCache
 		const TInlineArray<FUpdateInputs>& InputArray,
 		TInlineArray<FUpdateOutputs>& OutputArray,
 		const FScene* Scene,
-		const FEngineShowFlags& EngineShadowFlags,
+		const FViewFamilyInfo& ViewFamily,
 		bool bPropagateGlobalLightingChange,
 		ERDGPassFlags ComputePassFlags = ERDGPassFlags::Compute);
 }

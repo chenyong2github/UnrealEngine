@@ -56,11 +56,10 @@ FAutoConsoleVariableRef CVarLumenSceneLightingStats(
 	ECVF_RenderThreadSafe
 );
 
-int32 GLumenLightingAsyncCompute = 0;
-FAutoConsoleVariableRef CVarLumenSceneLightingAsyncCompute(
+static TAutoConsoleVariable<int32> CVarLumenSceneLightingAsyncCompute(
 	TEXT("r.LumenScene.Lighting.AsyncCompute"),
-	GLumenLightingAsyncCompute,
-	TEXT("Whether to run LumenSceneLighting on the compute pipe if possible. Only takes effect if r.LumenScene.DirectLighting.ReuseShadowMaps is disabled."),
+	1,
+	TEXT("Whether to run LumenSceneLighting on the compute pipe if possible."),
 	ECVF_RenderThreadSafe
 );
 
@@ -197,16 +196,9 @@ void Lumen::CombineLumenSceneLighting(
 		(uint32)ELumenDispatchCardTilesIndirectArgsOffset::OneGroupPerCardTile);
 }
 
-ERDGPassFlags Lumen::GetLumenSceneLightingComputePassFlags(const FEngineShowFlags& EngineShadowFlags)
+bool LumenSceneLighting::UseAsyncCompute(const FViewFamilyInfo& ViewFamily)
 {
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	if (GLumenLightingAsyncCompute && LumenSceneDirectLighting::AllowShadowMaps(EngineShadowFlags))
-	{
-		GEngine->AddOnScreenDebugMessage(0xC53A67A90FB5BCA8llu, 1.f, FColor::Red,
-			TEXT("Async LumenSceneLighting enabled without disabling r.LumenScene.DirectLighting.ReuseShadowMaps. It will continue to run on the graphics pipe."));
-	}
-#endif
-	return GLumenLightingAsyncCompute && !LumenSceneDirectLighting::AllowShadowMaps(EngineShadowFlags) ? ERDGPassFlags::AsyncCompute : ERDGPassFlags::Compute;
+	return Lumen::UseAsyncCompute(ViewFamily) && CVarLumenSceneLightingAsyncCompute.GetValueOnRenderThread() != 0;
 }
 
 DECLARE_GPU_STAT(LumenSceneLighting);
@@ -236,7 +228,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 		RDG_EVENT_SCOPE(GraphBuilder, "LumenSceneLighting%s", LumenCardRenderer.bPropagateGlobalLightingChange ? TEXT(" PROPAGATE GLOBAL CHANGE!") : TEXT(""));
 		RDG_GPU_STAT_SCOPE(GraphBuilder, LumenSceneLighting);
 
-		const ERDGPassFlags ComputePassFlags = Lumen::GetLumenSceneLightingComputePassFlags(ViewFamily.EngineShowFlags);
+		const ERDGPassFlags ComputePassFlags = LumenSceneLighting::UseAsyncCompute(ViewFamily) ? ERDGPassFlags::AsyncCompute : ERDGPassFlags::Compute;
 
 		LumenSceneData.IncrementSurfaceCacheUpdateFrameIndex();
 

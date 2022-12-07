@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenRadianceCache.cpp
-=============================================================================*/
-
 #include "LumenRadianceCache.h"
 #include "RendererPrivate.h"
 #include "ScenePrivate.h"
@@ -12,6 +8,7 @@
 #include "ShaderParameterStruct.h"
 #include "DistanceFieldAmbientOcclusion.h"
 #include "LumenScreenProbeGather.h"
+#include "LumenSceneLighting.h"
 #include "ShaderPrintParameters.h"
 
 int32 GRadianceCacheUpdate = 1;
@@ -1104,7 +1101,7 @@ void UpdateRadianceCaches(
 	const TInlineArray<FUpdateInputs>& InputArray,
 	TInlineArray<FUpdateOutputs>& OutputArray,
 	const FScene* Scene,
-	const FEngineShowFlags& EngineShowFlags,
+	const FViewFamilyInfo& ViewFamily,
 	bool bPropagateGlobalLightingChange,
 	ERDGPassFlags ComputePassFlags)
 {
@@ -1272,7 +1269,7 @@ void UpdateRadianceCaches(
 				&& !bPropagateGlobalLightingChange;
 		}
 
-		const bool bLumenSceneLightingAsync = Lumen::GetLumenSceneLightingComputePassFlags(EngineShowFlags) == ERDGPassFlags::AsyncCompute;
+		const bool bLumenSceneLightingAsync = LumenSceneLighting::UseAsyncCompute(ViewFamily);
 
 		// Clear each clipmap indirection entry to invalid probe index
 		for (int32 RadianceCacheIndex = 0; RadianceCacheIndex < InputArray.Num(); RadianceCacheIndex++)

@@ -2545,6 +2545,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNanite(FRDGBuilder& GraphBui
 	Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(
 		GraphBuilder,
 		SharedContext,
+		SceneRenderer.ViewFamily,
 		VirtualShadowSize,
 		VirtualShadowViewRect,
 		false,

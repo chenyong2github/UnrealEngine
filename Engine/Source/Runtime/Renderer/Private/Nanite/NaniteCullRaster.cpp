@@ -17,6 +17,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "DynamicResolutionState.h"
+#include "Lumen/Lumen.h"
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("CullingContexts"), STAT_NaniteCullingContexts, STATGROUP_Nanite);
 
@@ -51,10 +52,9 @@ static FAutoConsoleVariableRef CVarNaniteParallelRasterTranslateExperimental(
 	TEXT("")
 );
 
-int32 GNaniteAsyncRasterizeShadowDepths = 1;
-static FAutoConsoleVariableRef CVarNaniteAsyncRasterizeShadowDepths(
+static TAutoConsoleVariable<int32> CVarNaniteAsyncRasterizeShadowDepths(
 	TEXT("r.Nanite.AsyncRasterization.ShadowDepths"),
-	GNaniteAsyncRasterizeShadowDepths,
+	1,
 	TEXT("Whether to run Nanite SW rasterization on a compute pipe if possible.")
 );
 
@@ -310,6 +310,12 @@ static bool UseAutoCullingShader(bool bUsePrimitiveShader)
 	return GRHISupportsPrimitiveShaders &&
 		   !bUsePrimitiveShader &&
 		   GNaniteAutoShaderCulling != 0;
+}
+
+static bool UseAsyncComputeForShadowMaps(const FViewFamilyInfo& ViewFamily)
+{
+	// Automatically disabled when Lumen async is enabled, as it then delays graphics pipe too much and regresses overall frame performance
+	return CVarNaniteAsyncRasterizeShadowDepths.GetValueOnRenderThread() != 0 && !Lumen::UseAsyncCompute(ViewFamily);
 }
 
 #if WANTS_DRAW_MESH_EVENTS
@@ -3148,6 +3154,7 @@ void AddClearVisBufferPass(
 FRasterContext InitRasterContext(
 	FRDGBuilder& GraphBuilder,
 	const FSharedContext& SharedContext,
+	const FViewFamilyInfo& ViewFamily,
 	FIntPoint TextureSize,
 	FIntRect TextureRect,
 	bool bVisualize,
@@ -3208,7 +3215,7 @@ FRasterContext InitRasterContext(
 
 	if (RasterContext.RasterMode == EOutputBufferMode::DepthOnly)
 	{
-		if (!GNaniteAsyncRasterizeShadowDepths && RasterContext.RasterScheduling == ERasterScheduling::HardwareAndSoftwareOverlap)
+		if (!UseAsyncComputeForShadowMaps(ViewFamily) && RasterContext.RasterScheduling == ERasterScheduling::HardwareAndSoftwareOverlap)
 		{
 			RasterContext.RasterScheduling = ERasterScheduling::HardwareThenSoftware;
 		}

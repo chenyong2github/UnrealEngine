@@ -788,20 +788,16 @@ void FDeferredShadingSceneRenderer::DispatchAsyncLumenIndirectLightingWork(
 	bool bHasLumenLights,
 	FAsyncLumenIndirectLightingOutputs& Outputs)
 {
-	extern int32 GLumenDiffuseIndirectAsyncCompute;
+	const bool bAsyncComputeDiffuseIndirect = LumenDiffuseIndirect::UseAsyncCompute(ViewFamily);
+	const bool bAsyncComputeReflections = LumenReflections::UseAsyncCompute(ViewFamily);
 	extern int32 GLumenVisualizeIndirectDiffuse;
 	extern int32 GLumenScreenProbeTemporalFilter;
-	extern int32 GLumenReflectionsAsyncCompute;
 	extern FLumenGatherCvarState GLumenGatherCvars;
 
-	if (!GSupportsEfficientAsyncCompute
-		|| !GLumenDiffuseIndirectAsyncCompute
+	if (!Lumen::UseAsyncCompute(ViewFamily)
+		|| !bAsyncComputeDiffuseIndirect
 		|| GLumenVisualizeIndirectDiffuse
-		|| ViewFamily.EngineShowFlags.VisualizeLightCulling
-		// Not much point to run Lumen async since most of the savings comes from overlapping with ShadowDepths
-		|| LumenSceneDirectLighting::AllowShadowMaps(ViewFamily.EngineShowFlags)
-		// TODO: Inline raytracing may also benefit from async compute
-		|| Lumen::UseHardwareRayTracing(ViewFamily))
+		|| ViewFamily.EngineShowFlags.VisualizeLightCulling)
 	{
 		return;
 	}
@@ -814,7 +810,7 @@ void FDeferredShadingSceneRenderer::DispatchAsyncLumenIndirectLightingWork(
 	RDG_EVENT_SCOPE(GraphBuilder, "DiffuseIndirectAndAO");
 	SCOPED_NAMED_EVENT(DispatchAsyncLumenIndirectLightingWork, FColor::Emerald);
 	
-	Outputs.DoneAsync(GLumenReflectionsAsyncCompute != 0);
+	Outputs.DoneAsync(bAsyncComputeReflections);
 	Outputs.Resize(Views.Num());
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
@@ -842,7 +838,7 @@ void FDeferredShadingSceneRenderer::DispatchAsyncLumenIndirectLightingWork(
 				ViewOutputs.ScreenBentNormalParameters,
 				ERDGPassFlags::AsyncCompute);
 
-			if (ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen && GLumenReflectionsAsyncCompute != 0)
+			if (ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen && bAsyncComputeReflections)
 			{
 				ViewOutputs.IndirectLightingTextures.Textures[3] = RenderLumenReflections(
 					GraphBuilder,

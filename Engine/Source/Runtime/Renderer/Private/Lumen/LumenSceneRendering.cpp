@@ -2948,6 +2948,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 				Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(
 					GraphBuilder,
 					SharedContext,
+					ViewFamily,
 					DepthStencilAtlasSize,
 					DepthAtlasRect,
 					false,

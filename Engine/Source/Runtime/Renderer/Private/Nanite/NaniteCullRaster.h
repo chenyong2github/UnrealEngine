@@ -5,6 +5,7 @@
 #include "NaniteShared.h"
 
 class FVirtualShadowMapArray;
+class FViewFamilyInfo;
 
 BEGIN_SHADER_PARAMETER_STRUCT(FRasterParameters,)
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>,			OutDepthBuffer)
@@ -170,6 +171,7 @@ FCullingContext	InitCullingContext(
 FRasterContext InitRasterContext(
 	FRDGBuilder& GraphBuilder,
 	const FSharedContext& SharedContext,
+	const FViewFamilyInfo& ViewFamily,
 	FIntPoint TextureSize,
 	FIntRect TextureRect,
 	bool bVisualize,

@@ -59,6 +59,7 @@ namespace Lumen
 	int32 GetNumGlobalDFClipmaps(const FSceneView& View);
 
 	// Features
+	bool UseAsyncCompute(const FViewFamilyInfo& ViewFamily);
 	bool UseThreadGroupSize32();
 	bool IsRadiosityEnabled(const FSceneViewFamily& ViewFamily);
 	uint32 GetRadiosityAtlasDownsampleFactor();

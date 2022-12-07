@@ -225,13 +225,12 @@ FAutoConsoleVariableRef GVarLumenReflectionsVisualizeTracingCoherency(
 	ECVF_RenderThreadSafe
 );
 
-int32 GLumenReflectionsAsyncCompute = 0;
-FAutoConsoleVariableRef CVarLumenReflectionsAsyncCompute(
+static TAutoConsoleVariable<int32> CVarLumenReflectionsAsyncCompute(
 	TEXT("r.Lumen.Reflections.AsyncCompute"),
-	GLumenReflectionsAsyncCompute,
+	1,
 	TEXT("Whether to run Lumen reflection passes on the compute pipe if possible."),
-	ECVF_RenderThreadSafe
-	);
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
 
 TRefCountPtr<FRDGPooledBuffer> GVisualizeReflectionTracesData;
 
@@ -270,6 +269,11 @@ void GetReflectionsVisualizeTracesBuffer(TRefCountPtr<FRDGPooledBuffer>& Visuali
 	{
 		VisualizeTracesData = GVisualizeReflectionTracesData;
 	}
+}
+
+bool LumenReflections::UseAsyncCompute(const FViewFamilyInfo& ViewFamily)
+{
+	return Lumen::UseAsyncCompute(ViewFamily) && CVarLumenReflectionsAsyncCompute.GetValueOnRenderThread() != 0;
 }
 
 void LumenReflections::SetupCompositeParameters(LumenReflections::FCompositeParameters& OutParameters)

@@ -93,6 +93,11 @@ namespace Lumen
 extern void UpdateLumenCardSceneUniformBuffer(FRDGBuilder& GraphBuilder, FScene* Scene, const FLumenSceneData& LumenSceneData, FLumenSceneFrameTemporaries& FrameTemporaries);
 extern void UpdateLumenMeshCards(FRDGBuilder& GraphBuilder, const FScene& Scene, const FDistanceFieldSceneData& DistanceFieldSceneData, FLumenSceneFrameTemporaries& FrameTemporaries, FLumenSceneData& LumenSceneData);
 
+namespace LumenDiffuseIndirect
+{
+	bool UseAsyncCompute(const FViewFamilyInfo& ViewFamily);
+}
+
 namespace LumenReflections
 {
 	BEGIN_SHADER_PARAMETER_STRUCT(FCompositeParameters, )
@@ -102,6 +107,7 @@ namespace LumenReflections
 	END_SHADER_PARAMETER_STRUCT()
 
 	void SetupCompositeParameters(LumenReflections::FCompositeParameters& OutParameters);
+	bool UseAsyncCompute(const FViewFamilyInfo& ViewFamily);
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenScreenSpaceBentNormalParameters, )

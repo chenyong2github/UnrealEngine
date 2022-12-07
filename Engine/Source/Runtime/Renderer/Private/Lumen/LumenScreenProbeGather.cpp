@@ -2109,7 +2109,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 			InputArray,
 			OutputArray,
 			Scene,
-			ViewFamily.EngineShowFlags,
+			ViewFamily,
 			LumenCardRenderer.bPropagateGlobalLightingChange,
 			ComputePassFlags);
 

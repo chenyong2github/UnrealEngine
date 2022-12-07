@@ -2888,6 +2888,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 					RasterContext = Nanite::InitRasterContext(
 						GraphBuilder,
 						SharedContext,
+						ViewFamily,
 						RasterTextureSize,
 						RasterTextureRect,
 						ViewFamily.EngineShowFlags.VisualizeNanite
@@ -3219,7 +3220,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	SetupRayTracingLightDataForViews(GraphBuilder);
 #endif
 
-	if (!bHasRayTracedOverlay && !LumenSceneDirectLighting::AllowShadowMaps(ViewFamily.EngineShowFlags))
+	if (!bHasRayTracedOverlay && !LumenSceneDirectLighting::UseShadowMaps(ViewFamily))
 	{
 #if RHI_RAYTRACING
 		// Lumen scene lighting requires ray tracing scene to be ready if HWRT shadows are desired
@@ -3430,7 +3431,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 #endif // RHI_RAYTRACING
 
-		if (LumenSceneDirectLighting::AllowShadowMaps(ViewFamily.EngineShowFlags))
+		if (LumenSceneDirectLighting::UseShadowMaps(ViewFamily))
 		{
 			LLM_SCOPE_BYTAG(Lumen);
 			BeginGatheringLumenSurfaceCacheFeedback(GraphBuilder, Views[0], LumenFrameTemporaries);

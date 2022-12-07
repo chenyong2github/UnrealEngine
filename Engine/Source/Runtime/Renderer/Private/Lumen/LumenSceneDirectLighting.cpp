@@ -152,9 +152,12 @@ bool LumenSceneDirectLighting::UseVirtualShadowMaps()
 	return GLumenDirectLightingVirtualShadowMap != 0;
 }
 
-bool LumenSceneDirectLighting::AllowShadowMaps(const FEngineShowFlags& EngineShowFlags)
+bool LumenSceneDirectLighting::UseShadowMaps(const FViewFamilyInfo& ViewFamily)
 {
-	return GLumenDirectLightingReuseShadowMaps != 0 && EngineShowFlags.LumenReuseShadowMaps;
+	return GLumenDirectLightingReuseShadowMaps != 0
+		&& ViewFamily.EngineShowFlags.LumenReuseShadowMaps
+		&& !Lumen::UseAsyncCompute(ViewFamily)			// Shadow map reuse isn't compatible with async compute, as async Lumen overlaps the shadow map pass
+		&& Lumen::UseHardwareRayTracing(ViewFamily); 	// Shadow map reuse causes view dependent lighting, but it's a big a big performance improvement in the HWRT path, so keep it enabled there
 }
 
 class FLumenGatheredLight
@@ -1108,6 +1111,7 @@ void ComputeNonRayTracedShadows(
 	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
 	TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos,
 	const FVirtualShadowMapArray& VirtualShadowMapArray,
+	bool bUseShadowMaps,
 	const FLumenGatheredLight& Light,
 	const FLumenLightTileScatterParameters& LightTileScatterParameters,
 	int32 ViewIndex,
@@ -1126,7 +1130,7 @@ void ComputeNonRayTracedShadows(
 	bool bUseVirtualShadowMap = false;
 	bool bUseDenseShadowMap = false;
 
-	if (Light.bHasShadows && LumenSceneDirectLighting::AllowShadowMaps(View.Family->EngineShowFlags))
+	if (Light.bHasShadows && bUseShadowMaps)
 	{
 		bUseVirtualShadowMap = ShadowSetup.VirtualShadowMapId != INDEX_NONE;
 		if (!bUseVirtualShadowMap)
@@ -1772,6 +1776,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 		{
 			RDG_EVENT_SCOPE_FINAL(GraphBuilder, "Non raytraced shadows");
 
+			const bool bUseShadowMaps = LumenSceneDirectLighting::UseShadowMaps(ViewFamily);
 			FRDGBufferUAVRef ShadowMaskTilesUAV = GraphBuilder.CreateUAV(ShadowMaskTiles, ERDGUnorderedAccessViewFlags::SkipBarrier);
 			FRDGBufferUAVRef ShadowTraceAllocatorUAV = ShadowTraceAllocator ? GraphBuilder.CreateUAV(ShadowTraceAllocator, ERDGUnorderedAccessViewFlags::SkipBarrier) : nullptr;
 			FRDGBufferUAVRef ShadowTracesUAV = ShadowTraces ? GraphBuilder.CreateUAV(ShadowTraces, ERDGUnorderedAccessViewFlags::SkipBarrier) : nullptr;
@@ -1793,6 +1798,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 							LumenCardSceneUniformBuffer,
 							VisibleLightInfos,
 							VirtualShadowMapArray,
+							bUseShadowMaps,
 							GatheredLight,
 							CullContext.LightTileScatterParameters,
 							ViewIndex,

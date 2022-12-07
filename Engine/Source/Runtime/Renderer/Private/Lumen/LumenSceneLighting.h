@@ -231,6 +231,11 @@ namespace Lumen
 	inline EPixelFormat GetNumFramesAccumulatedAtlasFormat() { return PF_R8; }
 };
 
+namespace LumenSceneLighting
+{
+	bool UseAsyncCompute(const FViewFamilyInfo& ViewFamily);
+}
+
 namespace LumenSceneDirectLighting
 {
 	float GetShadowMapSamplingBias();
@@ -239,6 +244,6 @@ namespace LumenSceneDirectLighting
 	float GetHeightfieldShadowRayBias();
 	float GetGlobalSDFShadowRayBias();
 	float GetHardwareRayTracingShadowRayBias();
+	bool UseShadowMaps(const FViewFamilyInfo& ViewFamily);
 	bool UseVirtualShadowMaps();
-	bool AllowShadowMaps(const FEngineShowFlags& EngineShowFlags);
 }

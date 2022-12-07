@@ -147,12 +147,12 @@ FAutoConsoleVariableRef CVarCardGridDistributionZScale(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-int32 GLumenDiffuseIndirectAsyncCompute = 0;
-static FAutoConsoleVariableRef CVarLumenDiffuseIndirectAsyncCompute(
+static TAutoConsoleVariable<int32> CVarLumenDiffuseIndirectAsyncCompute(
 	TEXT("r.Lumen.DiffuseIndirect.AsyncCompute"),
-	GLumenDiffuseIndirectAsyncCompute,
-	TEXT("Whether to run lumen diffuse indirect passes on the compute pipe if possible."),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
+	1,
+	TEXT("Whether to run Lumen diffuse indirect passes on the compute pipe if possible."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
 
 int32 GLumenDiffuseIndirectApplySSAO = 0;
 FAutoConsoleVariableRef CVarLumenDiffuseIndirectApplySSAO(
@@ -161,6 +161,11 @@ FAutoConsoleVariableRef CVarLumenDiffuseIndirectApplySSAO(
 	TEXT("Whether to render and apply SSAO to Lumen GI, only when r.Lumen.ScreenProbeGather.ScreenSpaceBentNormal is disabled.  This is useful for providing short range occlusion when Lumen's Screen Bent Normal is disabled due to scalability, however SSAO settings like screen radius come from the user's post process settings."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
+
+bool LumenDiffuseIndirect::UseAsyncCompute(const FViewFamilyInfo& ViewFamily)
+{
+	return Lumen::UseAsyncCompute(ViewFamily) && CVarLumenDiffuseIndirectAsyncCompute.GetValueOnRenderThread() != 0;
+}
 
 bool Lumen::UseMeshSDFTracing(const FSceneViewFamily& ViewFamily)
 {
