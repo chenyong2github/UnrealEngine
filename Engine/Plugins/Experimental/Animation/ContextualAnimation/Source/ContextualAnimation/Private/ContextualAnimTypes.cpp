@@ -408,6 +408,14 @@ const FContextualAnimSceneBinding* FContextualAnimSceneBindings::GetSyncLeader()
 
 bool FContextualAnimSceneBindings::BindActorToRole(AActor& ActorRef, FName Role)
 {
+	const UContextualAnimSceneActorComponent* Comp = ActorRef.FindComponentByClass<UContextualAnimSceneActorComponent>();
+	if (Comp == nullptr)
+	{
+		UE_LOG(LogContextualAnim, Warning, TEXT("FContextualAnimSceneBindings::BindActorToRole. Failed to bind Actor: '%s' to Role: '%s'. Reason: Missing SceneActorComp"),
+			*GetNameSafe(&ActorRef), *Role.ToString());
+		return false;
+	}
+
 	if(const FContextualAnimSceneBinding* Binding = FindBindingByRole(Role))
 	{
 		UE_LOG(LogContextualAnim, Warning, TEXT("FContextualAnimSceneBindings::BindActorToRole. Failed to bind Actor: '%s' to Role: '%s'. Reason: %s already bound"), 

@@ -51,13 +51,16 @@ bool UContextualAnimSceneActorComponent::StartContextualAnimScene(const FContext
 	const FContextualAnimSceneBinding* OwnerBinding = InBindings.FindBindingByActor(GetOwner());
 	if (ensureAlways(OwnerBinding))
 	{
-		OwnerBinding->GetSceneActorComponent()->JoinScene(InBindings);
+		JoinScene(InBindings);
 
 		for (const FContextualAnimSceneBinding& Binding : InBindings)
 		{
 			if (Binding.GetActor() != GetOwner())
 			{
-				Binding.GetSceneActorComponent()->JoinScene(InBindings);
+				UContextualAnimSceneActorComponent* Comp = Binding.GetSceneActorComponent();
+				checkf(Comp, TEXT("Missing SceneActorComp on %s"), *GetNameSafe(Binding.GetActor()));
+
+				Comp->JoinScene(InBindings);
 			}
 		}
 
@@ -99,7 +102,7 @@ void UContextualAnimSceneActorComponent::OnRep_Bindings(const FContextualAnimSce
 		if (ensureAlways(OwnerBinding))
 		{
 			// Join the scene (start playing animation, etc.)
-			OwnerBinding->GetSceneActorComponent()->JoinScene(RepBindings);
+			JoinScene(RepBindings);
 
 			// RepBindings is only replicated from the initiator of the actor. 
 			// So now we have to tell everyone else involved in the interaction to join us
@@ -109,7 +112,10 @@ void UContextualAnimSceneActorComponent::OnRep_Bindings(const FContextualAnimSce
 			{
 				if (Binding.GetActor() != GetOwner())
 				{
-					Binding.GetSceneActorComponent()->JoinScene(RepBindings);
+					UContextualAnimSceneActorComponent* Comp = Binding.GetSceneActorComponent();
+					checkf(Comp, TEXT("Missing SceneActorComp on %s"), *GetNameSafe(Binding.GetActor()));
+
+					Comp->JoinScene(RepBindings);
 				}
 			}
 		}
