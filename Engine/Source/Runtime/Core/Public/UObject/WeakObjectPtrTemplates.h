@@ -325,6 +325,25 @@ template<class T> struct TIsWeakPointerType<TWeakObjectPtr<T> > { enum { Value =
 
 
 /**
+ * SetKeyFuncs for TWeakObjectPtrs which allow the key to become stale without invalidating the set.
+ */
+template <typename ElementType, bool bInAllowDuplicateKeys = false>
+struct TWeakObjectPtrSetKeyFuncs : DefaultKeyFuncs<ElementType, bInAllowDuplicateKeys>
+{
+	typedef typename DefaultKeyFuncs<ElementType, bInAllowDuplicateKeys>::KeyInitType KeyInitType;
+
+	static FORCEINLINE bool Matches(KeyInitType A, KeyInitType B)
+	{
+		return A.HasSameIndexAndSerialNumber(B);
+	}
+
+	static FORCEINLINE uint32 GetKeyHash(KeyInitType Key)
+	{
+		return GetTypeHash(Key);
+	}
+};
+
+/**
  * MapKeyFuncs for TWeakObjectPtrs which allow the key to become stale without invalidating the map.
  */
 template <typename KeyType, typename ValueType, bool bInAllowDuplicateKeys = false>

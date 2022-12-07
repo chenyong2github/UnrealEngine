@@ -2284,8 +2284,12 @@ void ClearCachedPlatformCookedData(FSaveContext& SaveContext)
 void PostSavePackage(FSaveContext& SaveContext)
 {
 	UPackage* Package = SaveContext.GetPackage();
-	// Package has been saved, so unmark the NewlyCreated flag.
-	Package->ClearPackageFlags(PKG_NewlyCreated);
+
+	if (!SaveContext.IsFromAutoSave() && !SaveContext.IsProceduralSave())
+	{
+		// Package has been saved, so unmark the NewlyCreated flag.
+		Package->ClearPackageFlags(PKG_NewlyCreated);
+	}
 
 	// Copy and modify the output SerializedPackageFlags from the PackageFlags written into the default realm summary
 	uint32 SerializedPackageFlags = SaveContext.GetLinker()->Summary.GetPackageFlags();

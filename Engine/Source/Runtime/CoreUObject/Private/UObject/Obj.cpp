@@ -1478,6 +1478,28 @@ void UObject::Serialize(FStructuredArchive::FRecord Record)
 			}
 		}
 
+		// Keep track of transient
+		if (UnderlyingArchive.IsTransacting())
+		{
+			bool WasTransient = HasAnyFlags(RF_Transient);
+			if (UnderlyingArchive.IsLoading())
+			{
+				Record << SA_VALUE(TEXT("WasTransient"), WasTransient);
+				if (WasTransient)
+				{
+					SetFlags(RF_Transient);
+				}
+				else
+				{
+					ClearFlags(RF_Transient);
+				}
+			}
+			else if (UnderlyingArchive.IsSaving())
+			{
+				Record << SA_VALUE(TEXT("WasTransient"), WasTransient);
+			}
+		}
+
 		// Serialize a GUID if this object has one mapped to it
 		FLazyObjectPtr::PossiblySerializeObjectGuid(this, Record);
 
