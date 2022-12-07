@@ -362,6 +362,10 @@ namespace UnrealBuildTool
 				{
 					return NameOverride;
 				}
+				else if (!bUseUnityBuild)
+				{
+					return DefaultName + "NonUnity";
+				}
 
 				return DefaultName;
 			}
