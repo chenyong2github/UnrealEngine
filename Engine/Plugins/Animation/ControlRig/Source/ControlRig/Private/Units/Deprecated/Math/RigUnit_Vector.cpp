@@ -2,6 +2,7 @@
 
 #include "RigUnit_Vector.h"
 #include "RigVMFunctions/Math/RigVMFunction_MathVector.h"
+#include "Math/ControlRigMathLibrary.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_Vector)
 
