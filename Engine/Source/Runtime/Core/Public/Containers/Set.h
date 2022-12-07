@@ -124,10 +124,14 @@ public:
 		return Index != INDEX_NONE;
 	}
 
-	/** Comparison operator. */
+	/** Comparison operators. */
 	FORCEINLINE friend bool operator==(const FSetElementId& A,const FSetElementId& B)
 	{
 		return A.Index == B.Index;
+	}
+	FORCEINLINE friend bool operator!=(const FSetElementId& A, const FSetElementId& B)
+	{
+		return A.Index != B.Index;
 	}
 
 	FORCEINLINE int32 AsInteger() const
