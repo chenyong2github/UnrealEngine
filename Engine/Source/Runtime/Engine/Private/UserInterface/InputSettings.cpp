@@ -495,6 +495,7 @@ void UInputSettings::SetDefaultInputComponentClass(TSubclassOf<UInputComponent> 
 }
 
 FHardwareDeviceIdentifier FHardwareDeviceIdentifier::Invalid = { NAME_None, NAME_None };
+FHardwareDeviceIdentifier FHardwareDeviceIdentifier::DefaultKeyboardAndMouse = { TEXT("DefaultKeyboardAndMouse"), TEXT("KBM") };
 
 // Default to the invalid hardware device identifier
 FHardwareDeviceIdentifier::FHardwareDeviceIdentifier()
@@ -539,6 +540,9 @@ const TArray<FName>& UInputPlatformSettings::GetAllHardwareDeviceNames()
 {
 	static TArray<FName> HardwareDevices;
 	HardwareDevices.Reset();
+
+	// Add the keyboard and mouse by default for everything
+	HardwareDevices.Add(FHardwareDeviceIdentifier::DefaultKeyboardAndMouse.HardwareDeviceIdentifier);
 
 	// Get every known platform's InputPlatformSettings and compile a list of them
 	TArray<UPlatformSettings*> AllInputSettings = UPlatformSettingsManager::Get().GetAllPlatformSettings<UInputPlatformSettings>();

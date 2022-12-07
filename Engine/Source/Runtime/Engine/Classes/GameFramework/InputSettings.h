@@ -323,6 +323,9 @@ struct ENGINE_API FHardwareDeviceIdentifier
 	/** An Invalid Hardware Device Identifier. */
 	static FHardwareDeviceIdentifier Invalid;
 
+	/** Hardware device ID that represents a keyboard and mouse. This is what will be set when an Input Event's FKey is not a gamepad key. */
+	static FHardwareDeviceIdentifier DefaultKeyboardAndMouse;
+
 	bool operator==(const FHardwareDeviceIdentifier& Other) const
 	{
 		return Other.InputClassName == InputClassName && Other.HardwareDeviceIdentifier == HardwareDeviceIdentifier;

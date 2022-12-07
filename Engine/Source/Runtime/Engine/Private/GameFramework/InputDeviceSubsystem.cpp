@@ -28,7 +28,7 @@ class FInputDeviceSubsystemProcessor : public IInputProcessor
 {
 	friend class UInputDeviceSubsystem;
 	
-	void UpdateLatestDevice(const FInputDeviceId InDeviceId)
+	void UpdateLatestDevice(const FKey Key, const FInputDeviceId InDeviceId)
 	{
 #if WITH_EDITOR
 		// If we're stopped at a breakpoint we need for this input preprocessor to just ignore all incoming input
@@ -47,7 +47,12 @@ class FInputDeviceSubsystemProcessor : public IInputProcessor
 			{
 				// TODO: Refactor FInputDeviceScope to use FName's instead of a FString for HardwareDeviceIdentifier
 				SubSystem->SetMostRecentlyUsedHardwareDevice(InDeviceId, { Scope->InputDeviceName, FName(*Scope->HardwareDeviceIdentifier) });
-			}	
+			}
+			// If there isn't a recent input device scope, then we can check if the key was from a keyboard and mouse
+			else if (!Key.IsGamepadKey())
+			{
+				SubSystem->SetMostRecentlyUsedHardwareDevice(InDeviceId, FHardwareDeviceIdentifier::DefaultKeyboardAndMouse);
+			}
 		}
 	}
 	
@@ -58,37 +63,46 @@ public:
 	
 	virtual bool HandleKeyDownEvent(FSlateApplication& SlateApp, const FKeyEvent& InEvent) override
 	{
-		UpdateLatestDevice(InEvent.GetInputDeviceId());
+		UpdateLatestDevice(InEvent.GetKey(), InEvent.GetInputDeviceId());
 		return false;
 	}
 
 	virtual bool HandleAnalogInputEvent(FSlateApplication& SlateApp, const FAnalogInputEvent& InEvent) override
 	{
-		UpdateLatestDevice(InEvent.GetInputDeviceId());
+		if (!FMath::IsNearlyZero(InEvent.GetAnalogValue(), UE_KINDA_SMALL_NUMBER))
+		{
+			UpdateLatestDevice(InEvent.GetKey(), InEvent.GetInputDeviceId());
+		}
+		
 		return false;
 	}
 
 	virtual bool HandleMouseMoveEvent(FSlateApplication& SlateApp, const FPointerEvent& InEvent) override
 	{
-		UpdateLatestDevice(InEvent.GetInputDeviceId());
+		// We only want input events that have made changes
+		if (!InEvent.GetCursorDelta().IsNearlyZero())
+		{
+			UpdateLatestDevice(InEvent.GetEffectingButton(), InEvent.GetInputDeviceId());	
+		}
+		
 		return false;
 	}
 
 	virtual bool HandleMouseButtonDownEvent(FSlateApplication& SlateApp, const FPointerEvent& InEvent) override
 	{
-		UpdateLatestDevice(InEvent.GetInputDeviceId());
+		UpdateLatestDevice(InEvent.GetEffectingButton(), InEvent.GetInputDeviceId());
 		return false;
 	}
 
 	virtual bool HandleMouseButtonDoubleClickEvent(FSlateApplication& SlateApp, const FPointerEvent& InEvent) override
 	{
-		UpdateLatestDevice(InEvent.GetInputDeviceId());
+		UpdateLatestDevice(InEvent.GetEffectingButton(), InEvent.GetInputDeviceId());
 		return false;
 	}
 	
 	virtual bool HandleMouseWheelOrGestureEvent(FSlateApplication& SlateApp, const FPointerEvent& InEvent, const FPointerEvent* InGestureEvent) override
 	{
-		UpdateLatestDevice(InEvent.GetInputDeviceId());
+		UpdateLatestDevice(InEvent.GetEffectingButton(), InEvent.GetInputDeviceId());
 		return false;
 	}
 };
