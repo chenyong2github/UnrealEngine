@@ -5,7 +5,6 @@
 
 #include "HAL/PlatformMath.h"
 #include "Misc/AssertionMacros.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuT/NodeColour.h"
 #include "MuT/NodeImage.h"
 #include "MuT/NodeMesh.h"
@@ -15,8 +14,6 @@
 #include "MuT/NodeString.h"
 #include "MuT/NodeSurfaceNewPrivate.h"
 
-#include <memory>
-#include <utility>
 
 namespace mu
 {

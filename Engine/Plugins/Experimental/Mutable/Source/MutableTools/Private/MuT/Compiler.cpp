@@ -12,7 +12,6 @@
 #include "Logging/LogMacros.h"
 #include "Misc/AssertionMacros.h"
 #include "MuR/Image.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/Mesh.h"
 #include "MuR/Model.h"
 #include "MuR/ModelPrivate.h"

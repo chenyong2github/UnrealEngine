@@ -6,15 +6,11 @@
 #include "Containers/Array.h"
 #include "HAL/PlatformCrt.h"
 #include "Misc/AssertionMacros.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuT/NodeLayout.h"
 #include "MuT/NodeMeshMorphPrivate.h"
 #include "MuT/NodeMeshPrivate.h"
 #include "MuT/NodePrivate.h"
 #include "MuT/NodeScalar.h"
-
-#include <memory>
-#include <utility>
 
 
 namespace mu

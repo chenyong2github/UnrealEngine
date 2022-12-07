@@ -7,7 +7,6 @@
 #include "MuT/NodeScalarParameter.h"
 #include "MuT/NodeImage.h"
 #include "MuT/NodeRange.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/ParametersPrivate.h"
 
 

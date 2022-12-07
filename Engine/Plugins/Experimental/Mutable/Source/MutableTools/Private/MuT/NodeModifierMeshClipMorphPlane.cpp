@@ -4,7 +4,6 @@
 #include "MuT/NodeModifierMeshClipMorphPlane.h"
 
 #include "Misc/AssertionMacros.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/MutableMath.h"
 #include "MuT/NodeModifierMeshClipMorphPlanePrivate.h"
 #include "MuT/NodePrivate.h"

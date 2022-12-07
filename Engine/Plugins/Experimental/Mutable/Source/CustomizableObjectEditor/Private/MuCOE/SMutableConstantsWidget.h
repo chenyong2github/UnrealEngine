@@ -12,7 +12,6 @@
 #include "Internationalization/Text.h"
 #include "Misc/Optional.h"
 #include "MuR/Image.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/Mesh.h"
 #include "MuR/MutableMath.h"
 #include "Templates/SharedPointer.h"

@@ -11,7 +11,6 @@
 #include "Misc/AssertionMacros.h"
 #include "MuR/ConvertData.h"
 #include "MuR/Layout.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/MeshBufferSet.h"
 #include "MuR/MeshPrivate.h"
 #include "MuR/MutableMath.h"

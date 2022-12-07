@@ -15,7 +15,6 @@
 #include "MuR/CodeRunner.h"
 #include "MuR/CodeVisitor.h"
 #include "MuR/InstancePrivate.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/Mesh.h"
 #include "MuR/Model.h"
 #include "MuR/ModelPrivate.h"

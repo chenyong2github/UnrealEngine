@@ -7,8 +7,6 @@
 #include "MuT/NodeComponent.h"
 #include "MuT/NodeComponentNew.h"
 
-#include "MuR/MemoryPrivate.h"
-
 
 namespace mu
 {

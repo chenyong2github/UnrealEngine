@@ -5,7 +5,6 @@
 
 #include "HAL/PlatformCrt.h"
 #include "Misc/AssertionMacros.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuT/NodeLayout.h"
 #include "MuT/NodeObjectGroupPrivate.h"
 #include "MuT/NodeObjectPrivate.h"

@@ -15,7 +15,6 @@
 #include "Layout/Visibility.h"
 #include "Misc/Optional.h"
 #include "MuR/Image.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/Mesh.h"
 #include "MuR/Model.h"
 #include "MuR/ModelPrivate.h"

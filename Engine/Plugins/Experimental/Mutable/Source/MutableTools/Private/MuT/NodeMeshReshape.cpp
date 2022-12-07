@@ -5,15 +5,10 @@
 #include "Containers/Array.h"
 #include "HAL/PlatformCrt.h"
 #include "Misc/AssertionMacros.h"
-#include "MuR/MemoryPrivate.h"
-#include "MuR/RefCounted.h"
 #include "MuT/NodeLayout.h"
 #include "MuT/NodeMeshPrivate.h"
 #include "MuT/NodeMeshReshapePrivate.h"
 #include "MuT/NodePrivate.h"
-
-#include <memory>
-
 
 
 namespace mu

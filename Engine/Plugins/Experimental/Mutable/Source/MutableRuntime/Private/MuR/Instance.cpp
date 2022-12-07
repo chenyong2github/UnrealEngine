@@ -6,7 +6,6 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "Misc/AssertionMacros.h"
 #include "MuR/InstancePrivate.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/MutableMath.h"
 
 namespace mu

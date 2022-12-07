@@ -4,7 +4,6 @@
 #include "MuT/Node.h"
 
 #include "Misc/AssertionMacros.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/Serialisation.h"
 #include "MuR/SerialisationPrivate.h"
 #include "MuT/NodeBool.h"

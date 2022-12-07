@@ -5,7 +5,6 @@
 #include "MuT/NodePrivate.h"
 
 #include "MuT/NodeScalar.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/ParametersPrivate.h"
 
 

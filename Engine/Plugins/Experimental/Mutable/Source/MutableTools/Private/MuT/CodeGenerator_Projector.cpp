@@ -2,7 +2,6 @@
 
 #include "HAL/PlatformCrt.h"
 #include "Misc/AssertionMacros.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/MutableMath.h"
 #include "MuR/Operations.h"
 #include "MuR/Parameters.h"

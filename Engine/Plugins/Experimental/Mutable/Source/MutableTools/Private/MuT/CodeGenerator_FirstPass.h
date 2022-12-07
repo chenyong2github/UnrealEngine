@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "MuR/MemoryPrivate.h"
 #include "MuR/MutableMemory.h"
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"

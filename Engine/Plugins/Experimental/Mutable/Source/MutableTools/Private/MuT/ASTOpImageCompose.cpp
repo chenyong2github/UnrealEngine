@@ -6,7 +6,6 @@
 #include "Containers/Map.h"
 #include "HAL/PlatformMath.h"
 #include "MuR/Layout.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/ModelPrivate.h"
 #include "MuR/MutableMath.h"
 #include "MuR/MutableTrace.h"

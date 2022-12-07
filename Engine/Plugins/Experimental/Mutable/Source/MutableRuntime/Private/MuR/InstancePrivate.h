@@ -4,7 +4,6 @@
 
 #include "MuR/Instance.h"
 
-#include "MuR/MemoryPrivate.h"
 #include "MuR/ImagePrivate.h"
 #include "MuR/MeshPrivate.h"
 

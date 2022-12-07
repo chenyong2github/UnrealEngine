@@ -5,8 +5,6 @@
 #include "MuT/NodeImagePrivate.h"
 #include "MuT/NodeImageLuminance.h"
 
-#include "MuR/MemoryPrivate.h"
-
 
 namespace mu
 {

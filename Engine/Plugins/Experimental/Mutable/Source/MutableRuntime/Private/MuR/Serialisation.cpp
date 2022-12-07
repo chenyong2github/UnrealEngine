@@ -8,7 +8,6 @@
 #include "HAL/PlatformMath.h"
 #include "Misc/AssertionMacros.h"
 #include "MuR/Image.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/SerialisationPrivate.h"
 
 #include <limits>

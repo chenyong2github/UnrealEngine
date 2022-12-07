@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "MuR/MemoryPrivate.h"
 #include "MuR/Mesh.h"
 
 

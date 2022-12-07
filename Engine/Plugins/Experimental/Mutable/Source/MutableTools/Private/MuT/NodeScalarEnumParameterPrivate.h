@@ -6,7 +6,6 @@
 
 #include "MuT/NodeScalarEnumParameter.h"
 #include "MuT/NodeImage.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/ParametersPrivate.h"
 
 

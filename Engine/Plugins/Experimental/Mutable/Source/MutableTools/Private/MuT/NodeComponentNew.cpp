@@ -4,13 +4,9 @@
 #include "MuT/NodeComponentNew.h"
 
 #include "Misc/AssertionMacros.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuT/NodeComponentNewPrivate.h"
 #include "MuT/NodePrivate.h"
 #include "MuT/NodeSurface.h"
-
-#include <memory>
-#include <utility>
 
 
 namespace mu

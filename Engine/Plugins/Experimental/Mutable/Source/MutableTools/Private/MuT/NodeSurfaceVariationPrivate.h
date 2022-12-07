@@ -7,8 +7,6 @@
 #include "MuT/NodeSurfaceNewPrivate.h"
 #include "MuT/NodeModifier.h"
 
-#include "MuR/MemoryPrivate.h"
-
 
 namespace mu
 {

@@ -10,7 +10,6 @@
 #include "Misc/AssertionMacros.h"
 #include "Misc/EnumClassFlags.h"
 #include "MuR/Layout.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/MeshBufferSet.h"
 #include "MuR/MutableMath.h"
 #include "MuR/PhysicsBody.h"

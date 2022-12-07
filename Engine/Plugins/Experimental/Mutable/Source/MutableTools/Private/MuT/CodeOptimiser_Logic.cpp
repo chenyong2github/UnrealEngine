@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/AssertionMacros.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/MutableTrace.h"
 #include "MuR/Operations.h"
 #include "MuR/Ptr.h"

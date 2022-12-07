@@ -4,7 +4,6 @@
 #include "MuT/NodeSurfaceEdit.h"
 
 #include "Misc/AssertionMacros.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuT/NodeImage.h"
 #include "MuT/NodeMesh.h"
 #include "MuT/NodePatchImage.h"
@@ -12,9 +11,6 @@
 #include "MuT/NodePrivate.h"
 #include "MuT/NodeScalar.h"
 #include "MuT/NodeSurfaceEditPrivate.h"
-
-#include <memory>
-#include <utility>
 
 
 namespace mu

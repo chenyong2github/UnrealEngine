@@ -7,8 +7,6 @@
 #include "MuT/NodeImageLayerColour.h"
 #include "MuT/NodeColour.h"
 
-#include "MuR/MemoryPrivate.h"
-
 
 namespace mu
 {

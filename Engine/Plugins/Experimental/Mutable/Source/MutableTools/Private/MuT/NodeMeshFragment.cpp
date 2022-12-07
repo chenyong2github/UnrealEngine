@@ -4,14 +4,10 @@
 #include "MuT/NodeMeshFragment.h"
 
 #include "Misc/AssertionMacros.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuT/NodeLayout.h"
 #include "MuT/NodeMeshFragmentPrivate.h"
 #include "MuT/NodeMeshPrivate.h"
 #include "MuT/NodePrivate.h"
-
-#include <memory>
-#include <utility>
 
 
 namespace mu

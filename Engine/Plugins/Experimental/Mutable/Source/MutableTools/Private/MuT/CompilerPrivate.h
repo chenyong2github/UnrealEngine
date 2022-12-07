@@ -8,7 +8,6 @@
 #include "MuT/ErrorLogPrivate.h"
 
 #include "MuR/Operations.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuT/NodeObjectPrivate.h"
 
 

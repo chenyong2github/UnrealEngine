@@ -7,8 +7,6 @@
 #include "MuT/NodePatchImage.h"
 #include "MuT/NodeImage.h"
 
-#include "MuR/MemoryPrivate.h"
-
 
 namespace mu
 {

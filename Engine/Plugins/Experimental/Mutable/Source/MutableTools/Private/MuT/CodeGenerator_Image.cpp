@@ -4,7 +4,6 @@
 #include "Misc/AssertionMacros.h"
 #include "MuR/Image.h"
 #include "MuR/ImagePrivate.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/Mesh.h"
 #include "MuR/MutableMath.h"
 #include "MuR/MutableTrace.h"

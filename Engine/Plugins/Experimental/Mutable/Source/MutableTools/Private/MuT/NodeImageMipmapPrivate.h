@@ -8,7 +8,6 @@
 #include "MuT/AST.h"
 
 #include "MuR/ImagePrivate.h"
-#include "MuR/MemoryPrivate.h"
 
 
 namespace mu

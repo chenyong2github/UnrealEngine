@@ -5,8 +5,6 @@
 #include "MuT/NodeColourPrivate.h"
 #include "MuT/NodeColourArithmeticOperation.h"
 
-#include "MuR/MemoryPrivate.h"
-
 
 namespace mu
 {

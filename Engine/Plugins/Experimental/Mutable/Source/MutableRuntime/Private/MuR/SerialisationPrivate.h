@@ -11,7 +11,6 @@
 #include "MuR/RefCounted.h"
 #include "MuR/MutableMemory.h"
 #include "MuR/Types.h"
-#include "MuR/MemoryPrivate.h"
 
 #include <string>
 

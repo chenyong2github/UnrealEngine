@@ -7,7 +7,6 @@
 #include "MuR/Layout.h"
 #include "MuR/Skeleton.h"
 #include "MuR/SerialisationPrivate.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/ConvertData.h"
 
 #include "CoreFwd.h"

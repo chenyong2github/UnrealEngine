@@ -4,7 +4,6 @@
 #include "MuT/NodeColourTable.h"
 
 #include "Misc/AssertionMacros.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuT/NodeColourTablePrivate.h"
 #include "MuT/NodePrivate.h"
 #include "MuT/Table.h"

@@ -13,8 +13,6 @@
 #include "MuT/NodeString.h"
 #include "MuT/NodeColour.h"
 
-#include "MuR/MemoryPrivate.h"
-
 
 namespace mu
 {

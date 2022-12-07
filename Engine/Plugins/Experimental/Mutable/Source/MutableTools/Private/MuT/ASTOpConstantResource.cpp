@@ -7,7 +7,6 @@
 #include "Hash/CityHash.h"
 #include "Misc/AssertionMacros.h"
 #include "MuR/Layout.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/Mesh.h"
 #include "MuR/ModelPrivate.h"
 #include "MuR/MutableMath.h"

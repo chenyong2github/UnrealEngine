@@ -7,7 +7,6 @@
 #include "Misc/AssertionMacros.h"
 #include "MuR/Image.h"
 #include "MuR/ImagePrivate.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/MutableTrace.h"
 #include "MuR/Operations.h"
 #include "MuR/ParametersPrivate.h"

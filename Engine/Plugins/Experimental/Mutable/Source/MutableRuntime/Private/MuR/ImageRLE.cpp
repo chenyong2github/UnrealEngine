@@ -4,7 +4,6 @@
 
 #include "HAL/UnrealMemory.h"
 #include "Misc/AssertionMacros.h"
-#include "MuR/MemoryPrivate.h"
 
 
 namespace mu

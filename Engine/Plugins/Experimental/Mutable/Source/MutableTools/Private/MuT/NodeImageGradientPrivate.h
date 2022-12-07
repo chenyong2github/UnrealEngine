@@ -9,7 +9,6 @@
 #include "MuT/NodeImageGradient.h"
 #include "MuT/AST.h"
 
-#include "MuR/MemoryPrivate.h"
 #include "MuR/MutableMath.h"
 
 

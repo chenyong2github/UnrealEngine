@@ -22,7 +22,6 @@
 #include "Math/UnrealMathSSE.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/Attribute.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/ParametersPrivate.h"
 #include "MuT/TypeInfo.h"
 #include "SCurveEditorPanel.h"

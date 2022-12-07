@@ -7,7 +7,6 @@
 #include "MuT/NodeScalar.h"
 #include "MuT/AST.h"
 
-#include "MuR/MemoryPrivate.h"
 #include "MuR/SerialisationPrivate.h"
 #include "MuR/ParametersPrivate.h"
 

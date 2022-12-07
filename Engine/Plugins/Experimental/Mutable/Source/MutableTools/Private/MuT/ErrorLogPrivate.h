@@ -5,7 +5,6 @@
 
 #include "MuT/ErrorLog.h"
 
-#include "MuR/MemoryPrivate.h"
 #include "MuR/ModelPrivate.h"
 #include "MuR/Operations.h"
 

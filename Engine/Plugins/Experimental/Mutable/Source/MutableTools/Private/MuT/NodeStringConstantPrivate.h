@@ -7,7 +7,6 @@
 #include "MuT/NodeStringConstant.h"
 #include "MuT/NodeImage.h"
 #include "MuT/AST.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/ParametersPrivate.h"
 
 

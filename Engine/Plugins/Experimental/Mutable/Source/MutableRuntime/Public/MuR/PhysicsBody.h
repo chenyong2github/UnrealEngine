@@ -3,7 +3,6 @@
 #pragma once
 
 #include "MuR/SerialisationPrivate.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
 #include "MuR/Serialisation.h"

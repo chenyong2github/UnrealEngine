@@ -5,7 +5,6 @@
 #include "MuR/Image.h"
 #include "MuR/ImagePrivate.h"
 #include "MuR/ImageRLE.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/MutableMath.h"
 #include "MuR/MutableTrace.h"
 #include "MuR/Operations.h"

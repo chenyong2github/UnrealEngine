@@ -5,8 +5,6 @@
 #include "MuT/NodeScalarPrivate.h"
 #include "MuT/NodeScalarArithmeticOperation.h"
 
-#include "MuR/MemoryPrivate.h"
-
 
 namespace mu
 {

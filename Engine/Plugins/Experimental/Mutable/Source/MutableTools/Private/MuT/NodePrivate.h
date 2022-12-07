@@ -7,9 +7,7 @@
 #include "MuT/Visitor.h"
 #include "MuT/AST.h"
 #include "MuR/Operations.h"
-#include "MuR/MemoryPrivate.h"
 
-#include <memory>
 
 namespace mu
 {

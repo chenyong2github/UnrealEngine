@@ -3,7 +3,6 @@
 
 #include "MuR/Skeleton.h"
 
-#include "MuR/MemoryPrivate.h"
 #include "MuR/SerialisationPrivate.h"
 
 

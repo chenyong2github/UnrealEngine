@@ -9,7 +9,6 @@
 #include "HAL/PlatformMath.h"
 #include "MuR/Image.h"
 #include "MuR/Layout.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/MutableMemory.h"
 #include "MuR/Operations.h"
 #include "MuR/Ptr.h"

@@ -6,7 +6,6 @@
 #include "MuR/System.h"
 
 #include "MuR/SerialisationPrivate.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/Operations.h"
 #include "MuR/ImagePrivate.h"
 #include "MuR/MeshPrivate.h"

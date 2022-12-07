@@ -5,7 +5,6 @@
 #include "MuR/Parameters.h"
 
 #include "MuR/SerialisationPrivate.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/Operations.h"
 #include "MuR/ImagePrivate.h"
 

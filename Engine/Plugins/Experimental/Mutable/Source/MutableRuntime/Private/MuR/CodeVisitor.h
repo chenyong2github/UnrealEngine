@@ -5,7 +5,6 @@
 #include "HAL/PlatformMath.h"
 #include "HAL/UnrealMemory.h"
 #include "Misc/AssertionMacros.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/Model.h"
 #include "MuR/ModelPrivate.h"
 #include "MuR/MutableMemory.h"

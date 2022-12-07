@@ -4,7 +4,6 @@
 #include "MuT/NodeScalarSwitch.h"
 
 #include "Misc/AssertionMacros.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuT/NodePrivate.h"
 #include "MuT/NodeScalar.h"
 #include "MuT/NodeScalarSwitchPrivate.h"

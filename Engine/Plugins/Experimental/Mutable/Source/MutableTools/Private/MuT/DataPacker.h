@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "MuR/MemoryPrivate.h"
 #include "MuR/Operations.h"
 #include "MuT/AST.h"
 

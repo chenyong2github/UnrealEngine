@@ -3,7 +3,6 @@
 #pragma once
 
 #include "MuR/Image.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/MutableMemory.h"
 #include "MuR/Ptr.h"
 #include "MuT/Node.h"

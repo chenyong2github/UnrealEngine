@@ -4,7 +4,6 @@
 #include "MuT/NodeStringConstant.h"
 
 #include "Misc/AssertionMacros.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuT/NodePrivate.h"
 #include "MuT/NodeStringConstantPrivate.h"
 

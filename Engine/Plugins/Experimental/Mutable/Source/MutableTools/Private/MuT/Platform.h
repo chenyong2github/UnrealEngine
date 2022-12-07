@@ -3,7 +3,6 @@
 #pragma once
 
 #include "MuR/Platform.h"
-#include "MuR/MemoryPrivate.h"
 
 #include <vector>
 #include <map>

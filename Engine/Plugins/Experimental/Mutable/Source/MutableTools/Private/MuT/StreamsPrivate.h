@@ -11,7 +11,6 @@
 #include "MuT/Streams.h"
 #include "MuR/Platform.h"
 #include "MuR/Operations.h"
-#include "MuR/MemoryPrivate.h"
 
 namespace mu
 {

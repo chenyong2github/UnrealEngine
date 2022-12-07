@@ -5,12 +5,8 @@
 
 #include "Misc/AssertionMacros.h"
 #include "MuR/ImagePrivate.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuT/NodeImageSwizzlePrivate.h"
 #include "MuT/NodePrivate.h"
-
-#include <memory>
-#include <utility>
 
 
 namespace mu

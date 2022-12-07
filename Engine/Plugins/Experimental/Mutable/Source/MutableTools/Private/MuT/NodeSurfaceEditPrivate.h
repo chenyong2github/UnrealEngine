@@ -11,8 +11,6 @@
 #include "MuT/NodeImage.h"
 #include "MuT/NodeScalar.h"
 
-#include "MuR/MemoryPrivate.h"
-
 
 namespace mu
 {

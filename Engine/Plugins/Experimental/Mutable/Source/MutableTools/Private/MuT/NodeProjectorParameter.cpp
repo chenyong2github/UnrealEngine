@@ -2,7 +2,6 @@
 
 
 #include "Misc/AssertionMacros.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/MutableMath.h"
 #include "MuR/Parameters.h"
 #include "MuR/Ptr.h"
@@ -12,9 +11,6 @@
 #include "MuT/NodeProjector.h"
 #include "MuT/NodeProjectorPrivate.h"
 #include "MuT/NodeRange.h"
-
-#include <memory>
-#include <utility>
 
 
 namespace mu

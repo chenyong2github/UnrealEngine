@@ -7,8 +7,6 @@
 #include "MuT/AST.h"
 #include "MuT/StreamsPrivate.h"
 
-#include "MuR/MemoryPrivate.h"
-
 
 namespace mu
 {

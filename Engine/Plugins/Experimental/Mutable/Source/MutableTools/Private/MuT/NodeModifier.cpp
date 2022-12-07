@@ -4,7 +4,6 @@
 #include "MuT/NodeModifier.h"
 
 #include "Misc/AssertionMacros.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/Serialisation.h"
 #include "MuR/SerialisationPrivate.h"
 #include "MuT/NodeModifierMeshClipDeform.h"
@@ -12,10 +11,6 @@
 #include "MuT/NodeModifierMeshClipWithMesh.h"
 #include "MuT/NodeModifierPrivate.h"
 #include "MuT/NodePrivate.h"
-
-#include <stdint.h>
-#include <memory>
-#include <utility>
 
 
 namespace mu
@@ -48,13 +43,13 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeModifier::Serialise( const NodeModifier* p, OutputArchive& arch )
 	{
-        uint32_t ver = 0;
+        uint32 ver = 0;
 		arch << ver;
 
 #define SERIALISE_CHILDREN( C, ID ) \
         ( const C* pTyped##ID = dynamic_cast<const C*>(p) )			\
         {                                                           \
-            arch << (uint32_t)ID;									\
+            arch << (uint32)ID;									\
             C::Serialise( pTyped##ID, arch );						\
 		}
 
@@ -70,11 +65,11 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	NodeModifierPtr NodeModifier::StaticUnserialise( InputArchive& arch )
 	{
-        uint32_t ver;
+        uint32 ver;
 		arch >> ver;
 		check( ver == 0 );
 
-        uint32_t id;
+        uint32 id;
 		arch >> id;
 
 		switch (id)

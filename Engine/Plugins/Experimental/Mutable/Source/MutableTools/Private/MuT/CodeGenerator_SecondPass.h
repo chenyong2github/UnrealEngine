@@ -3,7 +3,6 @@
 #pragma once
 
 #include "HAL/PlatformCrt.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/MutableMemory.h"
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"

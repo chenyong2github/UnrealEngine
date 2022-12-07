@@ -6,7 +6,6 @@
 
 #include "MuR/SerialisationPrivate.h"
 #include "MuR/MutableMath.h"
-#include "MuR/MemoryPrivate.h"
 
 
 namespace mu

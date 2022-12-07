@@ -5,7 +5,6 @@
 
 #include "HAL/PlatformString.h"
 #include "Misc/AssertionMacros.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuT/CompilerPrivate.h"
 #include "MuT/NodeLayout.h"
 #include "MuT/NodeObjectPrivate.h"

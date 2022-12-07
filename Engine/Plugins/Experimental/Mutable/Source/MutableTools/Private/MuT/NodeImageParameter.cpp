@@ -4,7 +4,6 @@
 #include "MuT/NodeImageParameter.h"
 
 #include "Misc/AssertionMacros.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuT/NodeImageParameterPrivate.h"
 #include "MuT/NodePrivate.h"
 

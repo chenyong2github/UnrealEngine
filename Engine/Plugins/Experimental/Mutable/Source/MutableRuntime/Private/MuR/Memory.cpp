@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MuR/BlockCompression/Miro/Miro.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/MutableMemory.h"
 #include "HAL/MallocAnsi.h"
 

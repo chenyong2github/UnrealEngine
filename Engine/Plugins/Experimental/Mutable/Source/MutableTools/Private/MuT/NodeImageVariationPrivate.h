@@ -5,8 +5,6 @@
 #include "MuT/NodePrivate.h"
 #include "MuT/NodeImageVariation.h"
 
-#include "MuR/MemoryPrivate.h"
-
 
 namespace mu
 {

@@ -4,11 +4,9 @@
 #include "MuT/NodeScalarTable.h"
 
 #include "Misc/AssertionMacros.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuT/NodePrivate.h"
 #include "MuT/NodeScalarTablePrivate.h"
 #include "MuT/Table.h"
-
 
 
 namespace mu

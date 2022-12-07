@@ -13,7 +13,6 @@
 #include "MuR/ImagePrivate.h"
 #include "MuR/Instance.h"
 #include "MuR/InstancePrivate.h"
-#include "MuR/MemoryPrivate.h"
 #include "MuR/Mesh.h"
 #include "MuR/MeshBufferSet.h"
 #include "MuR/Model.h"
