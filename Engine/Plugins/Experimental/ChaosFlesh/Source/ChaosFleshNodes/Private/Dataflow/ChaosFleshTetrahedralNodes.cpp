@@ -1,13 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Dataflow/ChaosFleshTetrahedralNodes.h"
+#include "Dataflow/ChaosFleshEngineAssetNodes.h"
 
 #include "Chaos/Deformable/Utilities.h"
+#include "Chaos/Utilities.h"
+#include "Chaos/UniformGrid.h"
 #include "ChaosFlesh/FleshCollection.h"
+#include "ChaosFlesh/FleshCollectionUtility.h"
+#include "ChaosLog.h"
 #include "CompGeom/ExactPredicates.h"
+#include "CoreMinimal.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "Engine/StaticMesh.h"
+#include "FTetWildWrapper.h"
 #include "Generate/IsosurfaceStuffing.h"
 #include "GeometryCollection/ManagedArrayCollection.h"
 #include "MeshDescriptionToDynamicMesh.h"
@@ -18,6 +25,7 @@ namespace Dataflow
 	void ChaosFleshTetrahedralNodes()
 	{
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGenerateTetrahedralCollectionDataflowNodes);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FConstructTetGridNode);
 	}
 }
 
@@ -57,6 +65,42 @@ TArray<FIntVector3> GetSurfaceTriangles(const TArray<FIntVector4>& Tets)
 	return FacesSet.Array();
 }
 
+//=============================================================================
+// FConstructTetGridNode
+//=============================================================================
+
+void FConstructTetGridNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<FManagedArrayCollection>(&Collection))
+	{
+		TUniquePtr<FFleshCollection> InCollection(GetValue<DataType>(Context, &Collection).NewCopy<FFleshCollection>());
+
+		Chaos::TVector<int32, 3> Counts(GridCellCount[0], GridCellCount[1], GridCellCount[2]);
+
+		Chaos::TVector<double, 3> MinCorner = -.5 * GridDomain;
+		Chaos::TVector<double, 3> MaxCorner = .5 * GridDomain;
+		Chaos::TUniformGrid<double, 3> Grid(MinCorner, MaxCorner, Counts, 0);
+
+		TArray<FIntVector4> Tets;
+		TArray<FVector> X;
+		Chaos::Utilities::TetMeshFromGrid<double>(Grid, Tets, X);
+
+		UE_LOG(LogChaosFlesh, Display, TEXT("TetGrid generated %d points and %d tetrahedra."), X.Num(), Tets.Num());
+
+		TArray<FIntVector3> Tris = GetSurfaceTriangles(Tets);
+		TUniquePtr<FTetrahedralCollection> TetCollection(
+			FTetrahedralCollection::NewTetrahedralCollection(X, Tris, Tets));
+		InCollection->AppendGeometry(*TetCollection.Get());
+
+		SetValue<DataType>(Context, *(FManagedArrayCollection*)InCollection.Get(), &Collection);
+	}
+}
+
+//=============================================================================
+// FGenerateTetrahedralCollectionDataflowNodes
+//=============================================================================
+
+
 void FGenerateTetrahedralCollectionDataflowNodes::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
 	if (Out->IsA<DataType>(&Collection))
@@ -64,57 +108,146 @@ void FGenerateTetrahedralCollectionDataflowNodes::Evaluate(Dataflow::FContext& C
 		TUniquePtr<FFleshCollection> InCollection(GetValue<DataType>(Context, &Collection).NewCopy<FFleshCollection>());
 
 #if WITH_EDITORONLY_DATA
-		if (StaticMesh && NumCells>0 && (-.5<= OffsetPercent && OffsetPercent<=0.5))
+		if (Method == TetMeshingMethod::IsoStuffing)
 		{
-			// make a mesh description for UE::Geometry tools
-			UE::Geometry::FDynamicMesh3 DynamicMesh;
-			FMeshDescriptionToDynamicMesh GetSourceMesh;
-			bool bUsingHiResSource = StaticMesh->IsHiResMeshDescriptionValid();
-			const FMeshDescription* UseSourceMeshDescription =
-				(bUsingHiResSource) ? StaticMesh->GetHiResMeshDescription() : StaticMesh->GetMeshDescription(0);
-			GetSourceMesh.Convert(UseSourceMeshDescription, DynamicMesh);
-
-
-			// Tet mesh generation
-			UE::Geometry::TIsosurfaceStuffing<double> IsosurfaceStuffing;
-			UE::Geometry::FDynamicMeshAABBTree3 Spatial(&DynamicMesh);
-			UE::Geometry::TFastWindingTree<UE::Geometry::FDynamicMesh3> FastWinding(&Spatial);
-			UE::Geometry::FAxisAlignedBox3d Bounds = Spatial.GetBoundingBox();
-			IsosurfaceStuffing.Bounds = FBox(Bounds);
-			double CellSize = Bounds.MaxDim() / NumCells;
-			IsosurfaceStuffing.CellSize = CellSize;
-			IsosurfaceStuffing.IsoValue = .5+OffsetPercent;
-			IsosurfaceStuffing.Implicit = [&FastWinding, &Spatial](FVector3d Pos)
-			{
-				FVector3d Nearest = Spatial.FindNearestPoint(Pos);
-				double WindingSign = FastWinding.FastWindingNumber(Pos) - .5;
-				return FVector3d::Distance(Nearest, Pos) * FMathd::SignNonZero(WindingSign);
-			};
-
-			IsosurfaceStuffing.Generate();
-			if (IsosurfaceStuffing.Tets.Num() > 0)
-			{
-				TArray<FVector> Vertices; Vertices.SetNumUninitialized(IsosurfaceStuffing.Vertices.Num());
-				TArray<FIntVector4> Elements; Elements.SetNumUninitialized(IsosurfaceStuffing.Tets.Num());
-				TArray<FIntVector3> SurfaceElements = GetSurfaceTriangles(IsosurfaceStuffing.Tets);
-
-				for (int32 Tdx = 0; Tdx < IsosurfaceStuffing.Tets.Num(); ++Tdx)
-				{
-					Elements[Tdx] = IsosurfaceStuffing.Tets[Tdx];
-				}
-				for (int32 Vdx = 0; Vdx < IsosurfaceStuffing.Vertices.Num(); ++Vdx)
-				{
-					Vertices[Vdx] = IsosurfaceStuffing.Vertices[Vdx];
-				}
-
-				TUniquePtr<FTetrahedralCollection> TetCollection(FTetrahedralCollection::NewTetrahedralCollection(Vertices, SurfaceElements, Elements));
-				InCollection->AppendGeometry(*TetCollection.Get());
-			}
+			EvaluateIsoStuffing(Context, InCollection);
+		}
+		else if (Method == TetMeshingMethod::TetWild)
+		{
+			EvaluateTetWild(Context, InCollection);
+		}
+		else
+		{
+			ensureMsgf(false, TEXT("FGenerateTetrahedralCollectionDataflowNodes unsupported Method."));
 		}
 #else
-		ensureMsgf(false,TEXT("FGenerateTetrahedralCollectionDataflowNodes is a editor only node."));
+		ensureMsgf(false,TEXT("FGenerateTetrahedralCollectionDataflowNodes is an editor only node."));
 #endif
 
 		SetValue<DataType>(Context, *(FManagedArrayCollection*)InCollection.Get(), &Collection);
 	}
+}
+
+void FGenerateTetrahedralCollectionDataflowNodes::EvaluateIsoStuffing(Dataflow::FContext& Context, TUniquePtr<FFleshCollection>& InCollection) const
+{
+#if WITH_EDITORONLY_DATA
+	if (StaticMesh && NumCells > 0 && (-.5 <= OffsetPercent && OffsetPercent <= 0.5))
+	{
+		// make a mesh description for UE::Geometry tools
+		UE::Geometry::FDynamicMesh3 DynamicMesh;
+		FMeshDescriptionToDynamicMesh GetSourceMesh;
+		bool bUsingHiResSource = StaticMesh->IsHiResMeshDescriptionValid();
+		const FMeshDescription* UseSourceMeshDescription =
+			(bUsingHiResSource) ? StaticMesh->GetHiResMeshDescription() : StaticMesh->GetMeshDescription(0);
+		GetSourceMesh.Convert(UseSourceMeshDescription, DynamicMesh);
+
+		// Tet mesh generation
+		UE::Geometry::TIsosurfaceStuffing<double> IsosurfaceStuffing;
+		UE::Geometry::FDynamicMeshAABBTree3 Spatial(&DynamicMesh);
+		UE::Geometry::TFastWindingTree<UE::Geometry::FDynamicMesh3> FastWinding(&Spatial);
+		UE::Geometry::FAxisAlignedBox3d Bounds = Spatial.GetBoundingBox();
+		IsosurfaceStuffing.Bounds = FBox(Bounds);
+		double CellSize = Bounds.MaxDim() / NumCells;
+		IsosurfaceStuffing.CellSize = CellSize;
+		IsosurfaceStuffing.IsoValue = .5 + OffsetPercent;
+		IsosurfaceStuffing.Implicit = [&FastWinding, &Spatial](FVector3d Pos)
+		{
+			FVector3d Nearest = Spatial.FindNearestPoint(Pos);
+			double WindingSign = FastWinding.FastWindingNumber(Pos) - .5;
+			return FVector3d::Distance(Nearest, Pos) * FMathd::SignNonZero(WindingSign);
+		};
+
+		UE_LOG(LogChaosFlesh, Display, TEXT("Generating tet mesh via IsoStuffing..."));
+		IsosurfaceStuffing.Generate();
+		if (IsosurfaceStuffing.Tets.Num() > 0)
+		{
+			TArray<FVector> Vertices; Vertices.SetNumUninitialized(IsosurfaceStuffing.Vertices.Num());
+			TArray<FIntVector4> Elements; Elements.SetNumUninitialized(IsosurfaceStuffing.Tets.Num());
+			TArray<FIntVector3> SurfaceElements = GetSurfaceTriangles(IsosurfaceStuffing.Tets);
+
+			for (int32 Tdx = 0; Tdx < IsosurfaceStuffing.Tets.Num(); ++Tdx)
+			{
+				Elements[Tdx] = IsosurfaceStuffing.Tets[Tdx];
+			}
+			for (int32 Vdx = 0; Vdx < IsosurfaceStuffing.Vertices.Num(); ++Vdx)
+			{
+				Vertices[Vdx] = IsosurfaceStuffing.Vertices[Vdx];
+			}
+
+			TUniquePtr<FTetrahedralCollection> TetCollection(FTetrahedralCollection::NewTetrahedralCollection(Vertices, SurfaceElements, Elements));
+			InCollection->AppendGeometry(*TetCollection.Get());
+
+			UE_LOG(LogChaosFlesh, Display,
+				TEXT("Generated tet mesh via IsoStuffing, num vertices: %d num tets: %d"), Vertices.Num(), Elements.Num());
+		}
+		else
+		{
+			UE_LOG(LogChaosFlesh, Warning, TEXT("IsoStuffing produced 0 tetrahedra."));
+		}
+	}
+#else
+	ensureMsgf(false, TEXT("FGenerateTetrahedralCollectionDataflowNodes is an editor only node."));
+#endif
+}
+
+void FGenerateTetrahedralCollectionDataflowNodes::EvaluateTetWild(Dataflow::FContext & Context, TUniquePtr<FFleshCollection>&InCollection) const
+{
+#if WITH_EDITORONLY_DATA
+	if (StaticMesh)
+	{
+		// make a mesh description for UE::Geometry tools
+		UE::Geometry::FDynamicMesh3 DynamicMesh;
+		FMeshDescriptionToDynamicMesh GetSourceMesh;
+		bool bUsingHiResSource = StaticMesh->IsHiResMeshDescriptionValid();
+		const FMeshDescription* UseSourceMeshDescription =
+			(bUsingHiResSource) ? StaticMesh->GetHiResMeshDescription() : StaticMesh->GetMeshDescription(0);
+		GetSourceMesh.Convert(UseSourceMeshDescription, DynamicMesh);
+
+		// Pull out Vertices and Triangles
+		TArray<FVector> Verts;
+		TArray<FIntVector3> Tris;
+		for (FVector V : DynamicMesh.VerticesItr())
+		{
+			Verts.Add(V);
+		}
+		for (UE::Geometry::FIndex3i Tri : DynamicMesh.TrianglesItr())
+		{
+			Tris.Emplace(Tri.A, Tri.B, Tri.C);
+		}
+
+		// Tet mesh generation
+		UE::Geometry::FTetWild::FTetMeshParameters Params;
+		Params.bCoarsen = bCoarsen;
+		Params.bExtractManifoldBoundarySurface = bExtractManifoldBoundarySurface;
+		Params.bSkipSimplification = bSkipSimplification;
+
+		Params.EpsRel = EpsRel;
+		Params.MaxIts = MaxIterations;
+		Params.StopEnergy = StopEnergy;
+		Params.IdealEdgeLength = IdealEdgeLength;
+
+		Params.bInvertOutputTets = bInvertOutputTets;
+
+		TArray<FVector> TetVerts;
+		TArray<FIntVector4> Tets;
+		FProgressCancel Progress;
+		UE_LOG(LogChaosFlesh, Display,TEXT("Generating tet mesh via TetWild..."));
+		if (UE::Geometry::FTetWild::ComputeTetMesh(Params, Verts, Tris, TetVerts, Tets, &Progress))
+		{
+			TArray<FIntVector3> SurfaceElements = GetSurfaceTriangles(Tets);
+			TUniquePtr<FTetrahedralCollection> TetCollection(FTetrahedralCollection::NewTetrahedralCollection(TetVerts, SurfaceElements, Tets));
+			InCollection->AppendGeometry(*TetCollection.Get());
+
+			UE_LOG(LogChaosFlesh, Display,
+				TEXT("Generated tet mesh via TetWild, num vertices: %d num tets: %d"), TetVerts.Num(), Tets.Num());
+		}
+		else
+		{
+			UE_LOG(LogChaosFlesh, Error,
+				TEXT("TetWild tetrahedral mesh generation failed."));
+		}
+	}
+#else
+	ensureMsgf(false, TEXT("FGenerateTetrahedralCollectionDataflowNodes is an editor only node."));
+#endif
 }

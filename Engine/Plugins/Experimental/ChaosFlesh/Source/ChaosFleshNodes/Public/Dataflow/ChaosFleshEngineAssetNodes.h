@@ -86,35 +86,6 @@ public:
 
 
 USTRUCT(meta = (DataflowFlesh))
-struct FConstructTetGridNode : public FDataflowNode
-{
-	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FConstructTetGridNode, "TetGrid", "Flesh", "")
-	DATAFLOW_NODE_RENDER_TYPE(FGeometryCollection::StaticType(), "Collection")
-
-public:
-
-	UPROPERTY(meta = (DataflowOutput, DisplayName = "Collection"))
-	FManagedArrayCollection Collection;
-
-	UPROPERTY(EditAnywhere, Category = "Dataflow", meta = (ClampMin = "1"))
-	FIntVector GridCellCount = FIntVector(10, 10, 10);
-
-	UPROPERTY(EditAnywhere, Category = "Dataflow", meta = (ClampMin = "0.0"))
-	FVector GridDomain = FVector(1.0, 1.0, 1.0);
-
-	FConstructTetGridNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
-	{
-		RegisterOutputConnection(&Collection);
-	}
-
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-};
-
-
-
-USTRUCT(meta = (DataflowFlesh))
 struct FComputeFleshMassNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()

@@ -18,6 +18,7 @@ namespace UnrealBuildTool.Rules
 					"ChaosFlesh",
 					"ChaosFleshEngine",
 					"Engine",
+					"GeometryAlgorithms",
 					"GeometryCore",
 					"MeshConversion",
 					"TetMeshing"
