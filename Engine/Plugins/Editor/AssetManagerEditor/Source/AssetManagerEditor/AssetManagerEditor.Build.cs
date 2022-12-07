@@ -49,6 +49,7 @@ public class AssetManagerEditor : ModuleRules
 				"ToolWidgets",
 				"SourceControl",
 				"SourceControlWindows",
+				"UncontrolledChangelists",
 			}
 		);
 	}
