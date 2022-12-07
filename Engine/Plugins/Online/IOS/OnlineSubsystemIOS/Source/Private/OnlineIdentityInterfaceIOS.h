@@ -3,8 +3,8 @@
 
 #pragma once
 
-#import <UIKit/UIKit.h>
-#import <GameKit/GameKit.h>
+@class GKLocalPlayer;
+@class NSError;
 
 #include "OnlineSubsystemIOSTypes.h"
 #include "Interfaces/OnlineIdentityInterface.h"
@@ -17,19 +17,23 @@ private:
 	/** UID for this identity */
 	FUniqueNetIdIOSPtr UniqueNetId;
 	FOnlineSubsystemIOS* Subsystem;
-
+    
+    static_assert(MAX_LOCAL_PLAYERS == 1, "FOnlineIdentityIOS does not support more than 1 local player");
+    bool bLoginInProgress = false;
+    
 	FOnlineIdentityIOS();
 
+    using FGamCenterEvent = TValueOrError<FUniqueNetIdIOSPtr, FString>;
+    
+    static FGamCenterEvent GetCurrentGameCenterEvent(NSError* Error);
+    void HandleGamCenterEvent(const FGamCenterEvent& LoginResult, bool bTriggerLoginComplete);
+    
 PACKAGE_SCOPE:
 
 	/**
 	 * Default Constructor
 	 */
 	FOnlineIdentityIOS(FOnlineSubsystemIOS* InSubsystem);
-
-	FUniqueNetIdIOSPtr GetLocalPlayerUniqueId() const;
-
-	void SetLocalPlayerUniqueId(const FUniqueNetIdIOSPtr& UniqueId);
 
 public:
 
@@ -66,10 +70,7 @@ public:
 	 *
 	 * @return - The game center local player
 	 */
-	GKLocalPlayer* GetLocalGameCenterUser() const
-	{
-		return UniqueNetId.IsValid() ? [GKLocalPlayer localPlayer] : nil;
-	}
+    GKLocalPlayer* GetLocalGameCenterUser() const;
 };
 
 
