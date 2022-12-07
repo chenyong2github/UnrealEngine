@@ -11,7 +11,7 @@
 
 class FPCGEditor;
 class UPCGComponent;
-class UPCGNode;
+class UPCGEditorGraphNodeBase;
 class UPCGParamData;
 struct FPCGPoint;
 
@@ -64,7 +64,7 @@ private:
 	TSharedRef<SHeaderRow> CreateHeaderRowWidget() const;
 
 	void OnDebugObjectChanged(UPCGComponent* InPCGComponent);
-	void OnInspectedNodeChanged(UPCGNode* InPCGNode);
+	void OnInspectedNodeChanged(UPCGEditorGraphNodeBase* InPCGEditorGraphNode);
 
 	void OnGenerateUpdated(UPCGComponent* InPCGComponent);
 
@@ -98,12 +98,18 @@ private:
 	/** Cached PCGComponent being viewed */
 	TWeakObjectPtr<UPCGComponent> PCGComponent;
 
+	/** Cached PCGGraphNode being viewed */
+	TWeakObjectPtr<UPCGEditorGraphNodeBase> PCGEditorGraphNode;
+
 	TSharedPtr<SHeaderRow> ListViewHeader;
 	TSharedPtr<SListView<PCGListviewItemPtr>> ListView;
 	TArray<PCGListviewItemPtr> ListViewItems;
 
 	TSharedPtr<SComboBox<TSharedPtr<FName>>> DataComboBox;
 	TArray<TSharedPtr<FName>> DataComboBoxItems;
+	
+	TSharedPtr<STextBlock> NodeNameTextBlock;
+	TSharedPtr<STextBlock> InfoTextBlock;
 
 	TMap<FName, FPCGMetadataInfo> MetadataInfos;
 };

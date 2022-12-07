@@ -176,15 +176,6 @@ void FPCGEditor::SetPCGComponentBeingDebugged(UPCGComponent* InPCGComponent)
 	}
 }
 
-void FPCGEditor::SetPCGNodeBeingInspected(UPCGNode* InPCGNode)
-{
-	if (GetPCGNodeBeingInspected() != InPCGNode)
-	{
-		PCGNodeBeingInspected = InPCGNode;
-		OnInspectedNodeChangedDelegate.Broadcast(PCGNodeBeingInspected);
-	}
-}
-
 void FPCGEditor::JumpToNode(const UEdGraphNode* InNode)
 {
 	if (GraphEditorWidget.IsValid())
@@ -1187,11 +1178,11 @@ void FPCGEditor::OnStartInspectNode()
 	if (PCGGraphNodeBeingInspected)
 	{
 		PCGGraphNodeBeingInspected->SetInspected(false);
-	}	
+	}
 
 	PCGGraphNodeBeingInspected = PCGGraphNodeBase;
 	PCGGraphNodeBeingInspected->SetInspected(true);
-	SetPCGNodeBeingInspected(PCGGraphNodeBase->GetPCGNode());
+	OnInspectedNodeChangedDelegate.Broadcast(PCGGraphNodeBeingInspected);
 }
 
 void FPCGEditor::OnStopInspectNode()
@@ -1200,7 +1191,7 @@ void FPCGEditor::OnStopInspectNode()
 	{
 		PCGGraphNodeBeingInspected->SetInspected(false);
 		PCGGraphNodeBeingInspected = nullptr;
-		SetPCGNodeBeingInspected(nullptr);
+		OnInspectedNodeChangedDelegate.Broadcast(nullptr);
 	}
 }
 

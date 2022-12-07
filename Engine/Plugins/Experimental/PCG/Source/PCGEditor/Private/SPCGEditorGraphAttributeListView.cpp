@@ -11,6 +11,7 @@
 #include "PCGEditor.h"
 #include "PCGNode.h"
 #include "PCGParamData.h"
+#include "PCGEditorGraphNodeBase.h"
 
 #include "Styling/AppStyle.h"
 #include "Widgets/Input/SSearchBox.h"
@@ -28,7 +29,9 @@ static TAutoConsoleVariable<bool> CVarShowAdvancedAttributesFields(
 namespace PCGEditorGraphAttributeListView
 {
 	const FText NoDataAvailableText = LOCTEXT("NoDataAvailableText", "No data available");
-
+	const FText NoNodeInspectedText = LOCTEXT("NoNodeInspectedText", "No node being inspected");
+	const FText NoNodeInspectedToolTip = LOCTEXT("NoNodeInspectedToolTip", "Inspect a node using the right click menu");
+	
 	/** Names of the columns in the attribute list */
 	const FName NAME_IndexColumn = FName(TEXT("IndexColumn"));
 	const FName NAME_PointPositionX = FName(TEXT("PointPositionX"));
@@ -442,7 +445,31 @@ void SPCGEditorGraphAttributeListView::Construct(const FArguments& InArgs, TShar
 		+SVerticalBox::Slot()
 		.AutoHeight()
 		[
-			DataComboBox->AsShared()
+			SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				DataComboBox->AsShared()
+			]
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(EVerticalAlignment::VAlign_Center)
+			.Padding(4.0f, 0.0f)
+			[
+				SAssignNew(NodeNameTextBlock, STextBlock)
+				.Text(PCGEditorGraphAttributeListView::NoNodeInspectedText)
+				.ToolTipText(PCGEditorGraphAttributeListView::NoNodeInspectedToolTip)
+			]
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(EHorizontalAlignment::HAlign_Right)
+			.VAlign(EVerticalAlignment::VAlign_Center)
+			.Padding(4.0f, 0.0f)
+			[
+				SAssignNew(InfoTextBlock, STextBlock)
+			]
 		]
 		+SVerticalBox::Slot()
 		.FillHeight(1.0f)
@@ -508,8 +535,26 @@ void SPCGEditorGraphAttributeListView::OnDebugObjectChanged(UPCGComponent* InPCG
 	}
 }
 
-void SPCGEditorGraphAttributeListView::OnInspectedNodeChanged(UPCGNode* /*InPCGNode*/)
+void SPCGEditorGraphAttributeListView::OnInspectedNodeChanged(UPCGEditorGraphNodeBase* InPCGEditorGraphNode)
 {
+	if (PCGEditorGraphNode == InPCGEditorGraphNode)
+	{
+		return;
+	}
+	
+	PCGEditorGraphNode = InPCGEditorGraphNode;
+	
+	if (PCGEditorGraphNode.IsValid())
+	{
+		NodeNameTextBlock->SetText(PCGEditorGraphNode->GetNodeTitle(ENodeTitleType::FullTitle));
+		NodeNameTextBlock->SetToolTipText(PCGEditorGraphNode->GetTooltipText());
+	}
+	else
+	{
+		NodeNameTextBlock->SetText(PCGEditorGraphAttributeListView::NoNodeInspectedText);
+		NodeNameTextBlock->SetToolTipText(PCGEditorGraphAttributeListView::NoNodeInspectedToolTip);
+	}
+	
 	RefreshDataComboBox();
 	RefreshAttributeList();
 }
@@ -529,19 +574,19 @@ void SPCGEditorGraphAttributeListView::RefreshAttributeList()
 	ListViewItems.Empty();
 	ListViewHeader->ClearColumns();
 	MetadataInfos.Empty();
-
-	const TSharedPtr<FPCGEditor> PCGEditor = PCGEditorPtr.Pin();
-	if (!PCGEditor.IsValid())
-	{
-		return;
-	}
-
+	InfoTextBlock->SetText(FText::GetEmpty());
+	
 	if (!PCGComponent.IsValid())
 	{
 		return;
 	}
 
-	const UPCGNode* PCGNode = PCGEditor->GetPCGNodeBeingInspected();
+	if (!PCGEditorGraphNode.IsValid())
+	{
+		return;
+	}
+
+	const UPCGNode* PCGNode = PCGEditorGraphNode->GetPCGNode();
 	if (!PCGNode)
 	{
 		return;
@@ -581,6 +626,8 @@ void SPCGEditorGraphAttributeListView::RefreshAttributeList()
 				ListViewItem->MetadataInfos = &MetadataInfos;
 				ListViewItems.Add(ListViewItem);
 			}
+
+			InfoTextBlock->SetText(FText::Format(LOCTEXT("MetadataInfoTextBlockFmt", "Number of metadata: {0}"), ItemKeyUpperBound - ItemKeyLowerBound));
 		}
 	}
 	else if (const UPCGSpatialData* PCGSpatialData = Cast<const UPCGSpatialData>(PCGData))
@@ -593,8 +640,9 @@ void SPCGEditorGraphAttributeListView::RefreshAttributeList()
 			GenerateColumnsFromMetadata(PCGMetadata);
 
 			const TArray<FPCGPoint>& PCGPoints = PCGPointData->GetPoints();
-			ListViewItems.Reserve(PCGPoints.Num());
-			for (int32 PointIndex = 0; PointIndex < PCGPoints.Num(); PointIndex++)
+			const int32 NumPoints = PCGPoints.Num();
+			ListViewItems.Reserve(NumPoints);
+			for (int32 PointIndex = 0; PointIndex < NumPoints; PointIndex++)
 			{
 				const FPCGPoint& PCGPoint = PCGPoints[PointIndex];
 				// TODO: Investigate swapping out the shared ptr's for better performance on huge data sets
@@ -606,6 +654,8 @@ void SPCGEditorGraphAttributeListView::RefreshAttributeList()
 				ListViewItem->MetadataInfos = &MetadataInfos;
 				ListViewItems.Add(ListViewItem);
 			}
+
+			InfoTextBlock->SetText(FText::Format(LOCTEXT("PointInfoTextBlockFmt", "Number of points: {0}"), NumPoints));
 		}
 	}
 
@@ -623,13 +673,12 @@ void SPCGEditorGraphAttributeListView::RefreshDataComboBox()
 		return;
 	}
 
-	const TSharedPtr<FPCGEditor> PCGEditor = PCGEditorPtr.Pin();
-	if (!PCGEditor.IsValid())
+	if (!PCGEditorGraphNode.IsValid())
 	{
 		return;
 	}
 
-	const UPCGNode* PCGNode = PCGEditor->GetPCGNodeBeingInspected();
+	const UPCGNode* PCGNode = PCGEditorGraphNode->GetPCGNode();
 	if (!PCGNode)
 	{
 		return;

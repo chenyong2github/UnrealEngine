@@ -26,7 +26,7 @@ class UPCGGraph;
 class UPCGNode;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnDebugObjectChanged, UPCGComponent*);
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnInspectedNodeChanged, UPCGNode*);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnInspectedNodeChanged, UPCGEditorGraphNodeBase*);
 
 class FPCGEditor : public FAssetEditorToolkit, public FGCObject, public FSelfRegisteringEditorUndoClient
 {
@@ -42,12 +42,6 @@ public:
 
 	/** Gets the PCG component we are debugging */
 	UPCGComponent* GetPCGComponentBeingDebugged() const { return PCGComponentBeingDebugged.Get(); }
-
-	/** Sets the PCG node we want to inspect */
-	void SetPCGNodeBeingInspected(UPCGNode* InPCGNode);
-
-	/** Gets the PCG node we are inspecting */
-	UPCGNode* GetPCGNodeBeingInspected() const { return PCGNodeBeingInspected; }
 
 	/** Focus the graph view on a specific node */
 	void JumpToNode(const UEdGraphNode* InNode);
@@ -277,6 +271,5 @@ private:
 	UPCGEditorGraph* PCGEditorGraph = nullptr;
 
 	TWeakObjectPtr<UPCGComponent> PCGComponentBeingDebugged;
-	UPCGNode* PCGNodeBeingInspected = nullptr;
 	UPCGEditorGraphNodeBase* PCGGraphNodeBeingInspected = nullptr;
 };
