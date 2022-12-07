@@ -54,7 +54,7 @@ class MODELINGCOMPONENTS_API UBaseCreateFromSelectedHandleSourceProperties : pub
 	GENERATED_BODY()
 public:
 	/** Defines the object the tool output is written to. */
-	UPROPERTY(EditAnywhere, Category = OutputObject, meta = (DisplayName = "Write To"))
+	UPROPERTY(EditAnywhere, Category = OutputObject, meta = (DisplayName = "Write To", NoResetToDefault))
 	EBaseCreateFromSelectedTargetType OutputWriteTo = EBaseCreateFromSelectedTargetType::NewObject;
 
 	/** Base name of the newly generated object to which the output is written to. */
