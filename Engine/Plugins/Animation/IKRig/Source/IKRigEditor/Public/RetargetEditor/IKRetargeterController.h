@@ -51,7 +51,7 @@ public:
 	static UIKRetargeterController* GetController(UIKRetargeter* InRetargeterAsset);
 	
 	// Set the IK Rig to use as the source or target (to copy animation FROM/TO) 
-	UFUNCTION(BlueprintCallable, Category=IKRetargeter, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRetargeter)
 	void SetIKRig(const ERetargetSourceOrTarget SourceOrTarget, UIKRigDefinition* IKRig) const;
 	
 	// Get either source or target IK Rig 
@@ -59,7 +59,7 @@ public:
 	const UIKRigDefinition* GetIKRig(const ERetargetSourceOrTarget SourceOrTarget) const;
 
 	// Set the preview skeletal mesh for either source or target
-	UFUNCTION(BlueprintCallable, Category=IKRetargeter, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRetargeter)
 	void SetPreviewMesh(const ERetargetSourceOrTarget SourceOrTarget, USkeletalMesh* InPreviewMesh) const;
 	
 	// Get the preview skeletal mesh
@@ -92,11 +92,11 @@ public:
 	//
 	
 	// Use fuzzy string search to find "best" Source chain to map to each Target chain
-	UFUNCTION(BlueprintCallable, Category=IKRetargeter, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRetargeter)
 	void AutoMapChains(const EAutoMapChainType AutoMapType, const bool bForceRemap) const;
 
 	// Assign a source chain to the given target chain. Animation will be copied from the source to the target.
-	UFUNCTION(BlueprintCallable, Category=IKRetargeter, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRetargeter)
 	bool SetSourceChain(FName SourceChainName, FName TargetChainName) const;
 
 	// Get the name of the source chain mapped to a given target chain (the chain animation is copied FROM).
@@ -148,23 +148,23 @@ private:
 public:
 	
 	// Add new retarget pose. Returns the name of the new retarget pose.
-	UFUNCTION(BlueprintCallable, Category=IKRetargeter, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRetargeter)
 	FName CreateRetargetPose(const FName& NewPoseName, const ERetargetSourceOrTarget SourceOrTarget) const;
 
 	// Remove a retarget pose. Returns true if the pose was found and removed.
-	UFUNCTION(BlueprintCallable, Category=IKRetargeter, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRetargeter)
 	bool RemoveRetargetPose(const FName& PoseToRemove, const ERetargetSourceOrTarget SourceOrTarget) const;
 
 	// Duplicate a retarget pose. Returns the name of the new, duplicate pose (or NAME_None if PoseToDuplicate is not found).
-	UFUNCTION(BlueprintCallable, Category=IKRetargeter, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRetargeter)
 	FName DuplicateRetargetPose(const FName PoseToDuplicate, const FName NewName, const ERetargetSourceOrTarget SourceOrTarget) const;
 	
 	// Rename current retarget pose. Returns true if a pose was renamed.
-	UFUNCTION(BlueprintCallable, Category=IKRetargeter, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRetargeter)
 	bool RenameRetargetPose(const FName OldPoseName, const FName NewPoseName, const ERetargetSourceOrTarget SourceOrTarget) const;
 
 	// Change which retarget pose is used by the retargeter at runtime
-	UFUNCTION(BlueprintCallable, Category=IKRetargeter, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRetargeter)
 	bool SetCurrentRetargetPose(FName CurrentPose, const ERetargetSourceOrTarget SourceOrTarget) const;
 	
 	// Get the current retarget pose
@@ -181,24 +181,24 @@ public:
 
 	// Reset a retarget pose for the specified bones.
 	// If BonesToReset is Empty, will removes all stored deltas, returning pose to reference pose
-	UFUNCTION(BlueprintCallable, Category=IKRetargeter, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRetargeter)
 	void ResetRetargetPose(const FName& PoseToReset, const TArray<FName>& BonesToReset, const ERetargetSourceOrTarget SourceOrTarget) const;
 	
 	// Set a delta rotation for a given bone for the current retarget pose
-	UFUNCTION(BlueprintCallable, Category=IKRetargeter, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRetargeter)
 	void SetRotationOffsetForRetargetPoseBone(
 		const FName& BoneName,
 		const FQuat& RotationOffset,
 		const ERetargetSourceOrTarget SkeletonMode) const;
 	
 	// Get a delta rotation for a given bone for the current retarget pose
-	UFUNCTION(BlueprintCallable, Category=IKRetargeter, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRetargeter)
 	FQuat GetRotationOffsetForRetargetPoseBone(
 		const FName& BoneName,
 		const ERetargetSourceOrTarget SourceOrTarget) const;
 	
 	// Set the translation offset on the retarget root bone for the current retarget pose
-	UFUNCTION(BlueprintCallable, Category=IKRetargeter, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRetargeter)
 	void SetRootOffsetInRetargetPose(
 		const FVector& TranslationOffset,
 		const ERetargetSourceOrTarget SourceOrTarget) const;

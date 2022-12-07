@@ -77,11 +77,11 @@ public:
 	//
 
 	// Add a new solver of the given type to the bottom of the stack. Returns the stack index.
-	UFUNCTION(BlueprintCallable, Category=IKRig, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRig)
 	int32 AddSolver(TSubclassOf<UIKRigSolver> InSolverClass) const;
 
 	// Remove the solver at the given stack index. 
-	UFUNCTION(BlueprintCallable, Category=IKRig, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRig)
 	bool RemoveSolver(const int32 SolverIndex) const;
 
 	// Get access to the given solver. 
@@ -97,11 +97,11 @@ public:
 	int32 GetNumSolvers() const;
 
 	// Move the solver at the given index to the target index. 
-	UFUNCTION(BlueprintCallable, Category=IKRig, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRig)
 	bool MoveSolverInStack(int32 SolverToMoveIndex, int32 TargetSolverIndex) const;
 
 	// Set enabled/disabled status of the given solver. 
-	UFUNCTION(BlueprintCallable, Category=IKRig, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRig)
 	bool SetSolverEnabled(int32 SolverIndex, bool bIsEnabled) const;
 
 	// Get enabled status of the given solver. 
@@ -109,7 +109,7 @@ public:
 	bool GetSolverEnabled(int32 SolverIndex) const;
 
 	// Set the root bone on a given solver. (not all solvers support root bones, checks CanSetRootBone() first) 
-	UFUNCTION(BlueprintCallable, Category=IKRig, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRig)
 	bool SetRootBone(const FName RootBoneName, int32 SolverIndex) const;
 
 	// Get the name of the root bone on a given solver. (not all solvers support root bones, checks CanSetRootBone() first) 
@@ -117,7 +117,7 @@ public:
 	FName GetRootBone(int32 SolverIndex) const;
 
 	// Set the end bone on a given solver. (not all solvers require extra end bones, checks CanSetEndBone() first) 
-	UFUNCTION(BlueprintCallable, Category=IKRig, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRig)
 	bool SetEndBone(const FName EndBoneName, int32 SolverIndex) const;
 
 	// Get the name of the end bone on a given solver. (not all solvers require extra end bones, checks CanSetEndBone() first) 
@@ -139,19 +139,19 @@ public:
 	//
 	
 	// Add a new Goal associated with the given Bone. GoalName must be unique. Bones can have multiple Goals (rare). 
-	UFUNCTION(BlueprintCallable, Category=IKRig, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRig)
 	FName AddNewGoal(const FName GoalName, const FName BoneName) const;
 
 	// Remove the Goal by name. 
-	UFUNCTION(BlueprintCallable, Category=IKRig, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRig)
 	bool RemoveGoal(const FName GoalName) const;
 
 	// Rename a Goal. Returns new name, which may be different after being sanitized. Returns NAME_None if this fails.
-	UFUNCTION(BlueprintCallable, Category=IKRig, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRig)
 	FName RenameGoal(const FName OldName, const FName PotentialNewName) const;
 
 	// The the Bone that the given Goal should be parented to / associated with. 
-	UFUNCTION(BlueprintCallable, Category=IKRig, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRig)
 	bool SetGoalBone(const FName GoalName, const FName NewBoneName) const;
 
 	// The the Bone associated with the given Goal. 
@@ -163,11 +163,11 @@ public:
 	FName GetGoalNameForBone(const FName BoneName) const;
 
 	// Connect the given Goal to the given Solver. This creates an "Effector" with settings specific to this Solver.
-	UFUNCTION(BlueprintCallable, Category=IKRig, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRig)
 	bool ConnectGoalToSolver(const FName GoalName, int32 SolverIndex) const;
 
 	// Disconnect the given Goal from the given Solver. This removes the Effector that associates the Goal with the Solver.
-	UFUNCTION(BlueprintCallable, Category=IKRig, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRig)
 	bool DisconnectGoalFromSolver(const FName GoalToRemove, int32 SolverIndex) const;
 
 	// Returns true if the given Goal is connected to the given Solver. False otherwise. 
@@ -223,7 +223,7 @@ public:
 	//
 
 	// Include/exclude a bone from all the solvers. All bones are included by default. 
-	UFUNCTION(BlueprintCallable, Category=IKRig, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRig)
 	bool SetBoneExcluded(const FName BoneName, const bool bExclude) const;
 
 	// Returns true if the given Bone is excluded, false otherwise. 
@@ -231,11 +231,11 @@ public:
 	bool GetBoneExcluded(const FName BoneName) const;
 	
 	// Add settings to the given Bone/Solver. Does nothing if Bone already has settings in this Solver.
-	UFUNCTION(BlueprintCallable, Category=IKRig, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRig)
 	bool AddBoneSetting(const FName BoneName, int32 SolverIndex) const;
 
 	// Remove settings for the given Bone/Solver. Does nothing if Bone doesn't have setting in this Solver.
-	UFUNCTION(BlueprintCallable, Category=IKRig, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRig)
 	bool RemoveBoneSetting(const FName BoneName, int32 SolverIndex) const;
 
 	// Get the generic (Solver-specific) Bone settings UObject for this Bone in the given Solver.
@@ -265,27 +265,27 @@ public:
 
 	// Add a new chain with the given Chain and Bone names. Returns newly created chain name (uniquified).
 	// Note: only the ChainName is required here, all else can be set later.
-	UFUNCTION(BlueprintCallable, Category=IKRig, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRig)
 	FName AddRetargetChain(const FName ChainName, const FName StartBoneName, const FName EndBoneName, const FName GoalName) const;
 
 	// Remove a Chain with the given name. Returns true if a Chain was removed. 
-	UFUNCTION(BlueprintCallable, Category=IKRig, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRig)
 	bool RemoveRetargetChain(const FName ChainName) const;
 
 	// Renamed the given Chain. Returns the new name (same as old if unsuccessful). 
-	UFUNCTION(BlueprintCallable, Category=IKRig, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRig)
 	FName RenameRetargetChain(const FName ChainName, const FName NewChainName) const;
 
 	// Set the Start Bone for the given Chain. Returns true if operation was successful. 
-	UFUNCTION(BlueprintCallable, Category=IKRig, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRig)
 	bool SetRetargetChainStartBone(const FName ChainName, const FName StartBoneName) const;
 
 	// Set the End Bone for the given Chain. Returns true if operation was successful. 
-	UFUNCTION(BlueprintCallable, Category=IKRig, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRig)
 	bool SetRetargetChainEndBone(const FName ChainName, const FName EndBoneName) const;
 
 	// Set the Goal for the given Chain. Returns true if operation was successful. 
-	UFUNCTION(BlueprintCallable, Category=IKRig, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRig)
 	bool SetRetargetChainGoal(const FName ChainName, const FName GoalName) const;
 
 	// Get the Goal name for the given Chain. 
@@ -305,7 +305,7 @@ public:
 	const TArray<FBoneChain>& GetRetargetChains() const;
 
 	// Set the Root Bone of the retargeting (can only be one). 
-	UFUNCTION(BlueprintCallable, Category=IKRig, meta=(BlueprintPure = false))
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category=IKRig)
 	bool SetRetargetRoot(const FName RootBoneName) const;
 
 	// Get the name of the Root Bone of the retargeting (can only be one). 
