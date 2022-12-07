@@ -28,8 +28,7 @@ public class AjaCore : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
-				"RHI",
-				"Engine"
+				"RHI"
 			});
 
 		bDisableStaticAnalysis = true;
