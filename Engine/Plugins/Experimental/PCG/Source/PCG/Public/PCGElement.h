@@ -102,6 +102,9 @@ protected:
 	/** Used to specify that the element passes through the data without any manipulation - used to correct target pins, etc. */
 	virtual bool IsPassthrough() const { return false; }
 
+	/** Passes through data when the element is Disabled. Can be implemented to override what gets passed through. */
+	virtual void DisabledPassThroughData(FPCGContext* Context) const;
+
 #if WITH_EDITOR
 	virtual bool ShouldLog() const { return true; }
 #endif
