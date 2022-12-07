@@ -10,7 +10,7 @@ namespace Chaos
 		return ConcreteContainer()->GetConstrainedParticles(ConstraintIndex);
 	}
 
-	void FPBDPositionConstraints::AddConstraintsToGraph(FPBDIslandManager& IslandManager)
+	void FPBDPositionConstraints::AddConstraintsToGraph(Private::FPBDIslandManager& IslandManager)
 	{
 		IslandManager.AddContainerConstraints(*this);
 	}

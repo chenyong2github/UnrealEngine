@@ -53,499 +53,504 @@ namespace Chaos
 
 	}
 
-
-	FPBDIslandGroupManager::FPBDIslandGroupManager(FPBDIslandManager& InIslandManager)
-		: IslandManager(InIslandManager)
-		, IslandGroups()
-		, NumActiveGroups(0)
-		, NumWorkerThreads(0)
-		, TargetNumBodiesPerTask(0)
-		, TargetNumConstraintsPerTask(0)
-		, NumPositionIterations(0)
-		, NumVelocityIterations(0)
-		, NumProjectionIterations(0)
+	namespace Private
 	{
-		// Check for use of the "-onethread" command line arg, and physics threading disabled (GetNumWorkerThreads() is not affected by these)
-		// @todo(chaos): is the number of worker threads a good indicator of how many threads we get in the solver loop? (Currently uses ParallelFor)
-		NumWorkerThreads = (FApp::ShouldUseThreadingForPerformance() && !GSingleThreadedPhysics) ? FMath::Min(FTaskGraphInterface::Get().GetNumWorkerThreads(), Chaos::MaxNumWorkers) : 0;
-		const int32 MaxIslandGroups = (CVars::GIslandGroupsMaxWorkers > 0) ? CVars::GIslandGroupsMaxWorkers : TNumericLimits<int32>::Max();
-		const int32 NumIslandGroups = FMath::Clamp(FMath::CeilToInt32(FReal(NumWorkerThreads) * CVars::GIslandGroupsWorkerMultiplier), 1, MaxIslandGroups);
 
-		IslandGroups.Reserve(NumIslandGroups);
-		for (int32 GroupIndex = 0; GroupIndex < NumIslandGroups; ++GroupIndex)
+		FPBDIslandGroupManager::FPBDIslandGroupManager(FPBDIslandManager& InIslandManager)
+			: IslandManager(InIslandManager)
+			, IslandGroups()
+			, NumActiveGroups(0)
+			, NumWorkerThreads(0)
+			, TargetNumBodiesPerTask(0)
+			, TargetNumConstraintsPerTask(0)
+			, Iterations(0, 0, 0)
 		{
-			IslandGroups.Emplace(MakeUnique<FPBDIslandConstraintGroupSolver>(IslandManager));
-		}
-	}
+			// Check for use of the "-onethread" command line arg, and physics threading disabled (GetNumWorkerThreads() is not affected by these)
+			// @todo(chaos): is the number of worker threads a good indicator of how many threads we get in the solver loop? (Currently uses ParallelFor)
+			NumWorkerThreads = (FApp::ShouldUseThreadingForPerformance() && !GSingleThreadedPhysics) ? FMath::Min(FTaskGraphInterface::Get().GetNumWorkerThreads(), Chaos::MaxNumWorkers) : 0;
+			const int32 MaxIslandGroups = (CVars::GIslandGroupsMaxWorkers > 0) ? CVars::GIslandGroupsMaxWorkers : TNumericLimits<int32>::Max();
+			const int32 NumIslandGroups = FMath::Clamp(FMath::CeilToInt32(FReal(NumWorkerThreads) * CVars::GIslandGroupsWorkerMultiplier), 1, MaxIslandGroups);
 
-	FPBDIslandGroupManager::~FPBDIslandGroupManager()
-	{
-
-	}
-
-	void FPBDIslandGroupManager::AddConstraintContainer(FPBDConstraintContainer& ConstraintContainer, const int32 Priority)
-	{
-		const int32 ContainerId = ConstraintContainer.GetContainerId();
-
-		for (int32 GroupIndex = 0; GroupIndex < IslandGroups.Num(); ++GroupIndex)
-		{
-			IslandGroups[GroupIndex]->SetConstraintSolver(ContainerId, ConstraintContainer.CreateGroupSolver(Priority));
-		}
-	}
-
-	void FPBDIslandGroupManager::SetConstraintContainerPriority(const int32 ContainerId, const int32 Priority)
-	{
-		for (int32 GroupIndex = 0; GroupIndex < IslandGroups.Num(); ++GroupIndex)
-		{
-			IslandGroups[GroupIndex]->SetConstraintSolverPriority(ContainerId, Priority);
-		}
-	}
-
-	int32 FPBDIslandGroupManager::BuildGroups()
-	{
-		// The set of islands with some work to do
-		// NOTE: We do not add islands with no constraints even if they have particles. There is no need since the Particles'
-		// predicted positions/rotations will not be changed by the solver. (Zero-constraint islands may contain one isolated Particle).
-		TArray<FPBDIsland*> Islands;
-		for (int32 IslandIndex = 0; IslandIndex < IslandManager.NumIslands(); ++IslandIndex)
-		{
-			FPBDIsland* Island = IslandManager.GetIsland(IslandIndex);
-			if (!Island->IsSleeping() && (Island->GetNumConstraints() > 0))
+			IslandGroups.Reserve(NumIslandGroups);
+			for (int32 GroupIndex = 0; GroupIndex < NumIslandGroups; ++GroupIndex)
 			{
-				Islands.Add(Island);
+				IslandGroups.Emplace(MakeUnique<FPBDIslandConstraintGroupSolver>(IslandManager));
 			}
 		}
 
-		// Sort islands by constraint count - largest first
-		// @todo(chaos): Do we need this?
-		if (Islands.Num() > 1)
+		FPBDIslandGroupManager::~FPBDIslandGroupManager()
 		{
-			Algo::Sort(Islands, 
-				[](const FPBDIsland* L, const FPBDIsland* R) -> bool
-				{
-					return L->GetNumConstraints() > R->GetNumConstraints();
-				});
+
 		}
 
-		// Figure out how many bodies and constraints we'd like per group for gather, scatter and solve
-		const int32 MaxGroups = IslandGroups.Num();
-		int32 NumAllBodies = 0;
-		int32 NumAllConstraints = 0;
-		for (FPBDIsland* Island : Islands)
+		void FPBDIslandGroupManager::AddConstraintContainer(FPBDConstraintContainer& ConstraintContainer, const int32 Priority)
 		{
-			NumAllBodies += Island->GetNumParticles();
-			NumAllConstraints += Island->GetNumConstraints();
-		}
-		TargetNumConstraintsPerTask = NumAllConstraints / MaxGroups + 1;
-		TargetNumBodiesPerTask = NumAllBodies / MaxGroups + 1;
+			const int32 ContainerId = ConstraintContainer.GetContainerId();
 
-		// We want to gather or solve a minimum number of bodies and constraints per task if possible.
-		// There's not point creating 100 tasks if each task only processes one constraint - the task overhead
-		// would outweight the benefits of going wide.
-		// @todo(chaos): we may want to consider separating the gather task count from the number of island groups by adding a second multiplier.
-		TargetNumConstraintsPerTask = FMath::Max(TargetNumConstraintsPerTask, CVars::GIslandGroupsMinConstraintsPerWorker);
-		TargetNumBodiesPerTask = FMath::Max(TargetNumConstraintsPerTask, CVars::GIslandGroupsMinBodiesPerWorker);
-
-		// Reset all the groups
-		for (TUniquePtr<FPBDIslandConstraintGroupSolver>& IslandGroup : IslandGroups)
-		{
-			IslandGroup->Reset();
-		}
-		NumActiveGroups = 0;
-
-		// Add each Island to the first group with enough space, or the group with the fewest constraint if none have enough space
-		// @todo(chaos): optimize - when a group is full we should move it to the back so we don't keep visiting it
-		for (FPBDIsland* Island : Islands)
-		{
-			const int32 NumIslandConstraints = Island->GetNumConstraints();
-
-			int32 InsertGroupIndex = INDEX_NONE;
-			int32 SmallestGroupSize = TNumericLimits<int32>::Max();
 			for (int32 GroupIndex = 0; GroupIndex < IslandGroups.Num(); ++GroupIndex)
 			{
-				const int32 NumGroupConstraints = IslandGroups[GroupIndex]->GetNumConstraints();
+				IslandGroups[GroupIndex]->SetConstraintSolver(ContainerId, ConstraintContainer.CreateGroupSolver(Priority));
+			}
+		}
 
-				if (NumGroupConstraints < SmallestGroupSize)
+		void FPBDIslandGroupManager::SetConstraintContainerPriority(const int32 ContainerId, const int32 Priority)
+		{
+			for (int32 GroupIndex = 0; GroupIndex < IslandGroups.Num(); ++GroupIndex)
+			{
+				IslandGroups[GroupIndex]->SetConstraintSolverPriority(ContainerId, Priority);
+			}
+		}
+
+		int32 FPBDIslandGroupManager::BuildGroups()
+		{
+			// The set of islands with some work to do
+			// NOTE: We do not add islands with no constraints even if they have particles. There is no need since the Particles'
+			// predicted positions/rotations will not be changed by the solver. (Zero-constraint islands may contain one isolated Particle).
+			TArray<FPBDIsland*> Islands;
+			for (int32 IslandIndex = 0; IslandIndex < IslandManager.NumIslands(); ++IslandIndex)
+			{
+				FPBDIsland* Island = IslandManager.GetIsland(IslandIndex);
+				if (!Island->IsSleeping() && (Island->GetNumConstraints() > 0))
 				{
-					InsertGroupIndex = GroupIndex;
-					SmallestGroupSize = NumGroupConstraints;
+					Islands.Add(Island);
+				}
+			}
+
+			// Sort islands by constraint count - largest first
+			// @todo(chaos): Do we need this?
+			if (Islands.Num() > 1)
+			{
+				Algo::Sort(Islands, 
+					[](const FPBDIsland* L, const FPBDIsland* R) -> bool
+					{
+						return L->GetNumConstraints() > R->GetNumConstraints();
+					});
+			}
+
+			// Figure out how many bodies and constraints we'd like per group for gather, scatter and solve
+			const int32 MaxGroups = IslandGroups.Num();
+			int32 NumAllBodies = 0;
+			int32 NumAllConstraints = 0;
+			for (FPBDIsland* Island : Islands)
+			{
+				NumAllBodies += Island->GetNumParticles();
+				NumAllConstraints += Island->GetNumConstraints();
+			}
+			TargetNumConstraintsPerTask = NumAllConstraints / MaxGroups + 1;
+			TargetNumBodiesPerTask = NumAllBodies / MaxGroups + 1;
+
+			// We want to gather or solve a minimum number of bodies and constraints per task if possible.
+			// There's not point creating 100 tasks if each task only processes one constraint - the task overhead
+			// would outweight the benefits of going wide.
+			// @todo(chaos): we may want to consider separating the gather task count from the number of island groups by adding a second multiplier.
+			TargetNumConstraintsPerTask = FMath::Max(TargetNumConstraintsPerTask, CVars::GIslandGroupsMinConstraintsPerWorker);
+			TargetNumBodiesPerTask = FMath::Max(TargetNumConstraintsPerTask, CVars::GIslandGroupsMinBodiesPerWorker);
+
+			// Reset all the groups
+			for (TUniquePtr<FPBDIslandConstraintGroupSolver>& IslandGroup : IslandGroups)
+			{
+				IslandGroup->Reset();
+			}
+			NumActiveGroups = 0;
+
+			// Add each Island to the first group with enough space, or the group with the fewest constraint if none have enough space
+			// @todo(chaos): optimize - when a group is full we should move it to the back so we don't keep visiting it
+			for (FPBDIsland* Island : Islands)
+			{
+				const int32 NumIslandConstraints = Island->GetNumConstraints();
+
+				int32 InsertGroupIndex = INDEX_NONE;
+				int32 SmallestGroupSize = TNumericLimits<int32>::Max();
+				for (int32 GroupIndex = 0; GroupIndex < IslandGroups.Num(); ++GroupIndex)
+				{
+					const int32 NumGroupConstraints = IslandGroups[GroupIndex]->GetNumConstraints();
+
+					if (NumGroupConstraints < SmallestGroupSize)
+					{
+						InsertGroupIndex = GroupIndex;
+						SmallestGroupSize = NumGroupConstraints;
+					}
+
+					if (NumGroupConstraints + NumIslandConstraints < TargetNumConstraintsPerTask)
+					{
+						InsertGroupIndex = GroupIndex;
+						break;
+					}
 				}
 
-				if (NumGroupConstraints + NumIslandConstraints < TargetNumConstraintsPerTask)
-				{
-					InsertGroupIndex = GroupIndex;
-					break;
-				}
+				check(InsertGroupIndex != INDEX_NONE);
+				IslandGroups[InsertGroupIndex]->AddIsland(Island);
+
+				NumActiveGroups = FMath::Max(NumActiveGroups, InsertGroupIndex + 1);
 			}
 
-			check(InsertGroupIndex != INDEX_NONE);
-			IslandGroups[InsertGroupIndex]->AddIsland(Island);
-
-			NumActiveGroups = FMath::Max(NumActiveGroups, InsertGroupIndex + 1);
-		}
-
-		return NumActiveGroups;
-	}
-
-	void FPBDIslandGroupManager::BuildGatherBatches(TArray<FIslandGroupRange>& BodyRanges, TArray<FIslandGroupRange>& ConstraintRanges)
-	{
-		BodyRanges.Reset();
-		BodyRanges.Reserve(IslandGroups.Num());
-		ConstraintRanges.Reset();
-		ConstraintRanges.Reserve(IslandGroups.Num());
-
-		// If a group has a lot of constraints in it (compared to the target number per task) split the gather into multiple tasks
-		// The goal is to end up with the same number of tasks as we have task threads (see comments in SolveParallelTasks for more info)
-		for (int32 GroupIndex = 0; GroupIndex < NumActiveGroups; ++GroupIndex)
-		{
-			FPBDIslandConstraintGroupSolver* IslandGroup = GetGroup(GroupIndex);
-
-			const int32 NumConstraints = IslandGroup->GetNumSolverConstraints();
-			const int32 NumConstraintGatherTasks = FMath::Max(1, FMath::DivideAndRoundNearest(NumConstraints, TargetNumConstraintsPerTask));
-			const int32 NumConstraintsPerTask = FMath::DivideAndRoundUp(NumConstraints, NumConstraintGatherTasks);
-
-			for (int32 BeginIndex = 0; BeginIndex < NumConstraints; BeginIndex += NumConstraintsPerTask)
+			// Allow each island group to determine how many iterations to run
+			for (TUniquePtr<FPBDIslandConstraintGroupSolver>& IslandGroup : IslandGroups)
 			{
-				const int32 EndIndex = FMath::Min(BeginIndex + NumConstraintsPerTask, NumConstraints);
-
-				ConstraintRanges.Emplace(IslandGroup, BeginIndex, EndIndex);
+				IslandGroup->SetIterationSettings(Iterations);
 			}
 
-			const int32 NumBodies = IslandGroup->GetNumSolverBodies();
-			const int32 NumBodyGatherTasks = FMath::Max(1, FMath::DivideAndRoundNearest(NumBodies, TargetNumBodiesPerTask));
-			const int32 NumBodiesPerTask = FMath::DivideAndRoundUp(NumBodies, NumBodyGatherTasks);
-
-			for (int32 BeginIndex = 0; BeginIndex < NumBodies; BeginIndex += NumBodiesPerTask)
-			{
-				const int32 EndIndex = FMath::Min(BeginIndex + NumBodiesPerTask, NumBodies);
-
-				BodyRanges.Emplace(IslandGroup, BeginIndex, EndIndex);
-			}
+			return NumActiveGroups;
 		}
-	}
 
-	void FPBDIslandGroupManager::SolveGroupConstraints(int32 GroupIndex, const FReal Dt)
-	{
-		CSV_SCOPED_TIMING_STAT(Chaos, ApplyConstraints);
-
-		FPBDIslandConstraintGroupSolver* IslandGroup = GetGroup(GroupIndex);
-
+		void FPBDIslandGroupManager::BuildGatherBatches(TArray<FIslandGroupRange>& BodyRanges, TArray<FIslandGroupRange>& ConstraintRanges)
 		{
-			SCOPE_CYCLE_COUNTER(STAT_Evolution_ApplyConstraintsPhase1);
-			CSV_SCOPED_ISLANDGROUP_TIMING_STAT(PerIslandSolve_ApplyTotalSerialized, GroupIndex);
+			BodyRanges.Reset();
+			BodyRanges.Reserve(IslandGroups.Num());
+			ConstraintRanges.Reset();
+			ConstraintRanges.Reserve(IslandGroups.Num());
 
-			IslandGroup->ApplyPositionConstraints(Dt, NumPositionIterations);
-		}
-		{
-			SCOPE_CYCLE_COUNTER(STAT_Evolution_ApplyConstraintsPhase2);
-			CSV_SCOPED_ISLANDGROUP_TIMING_STAT(PerIslandSolve_ApplyPushOutTotalSerialized, GroupIndex);
-
-			IslandGroup->ApplyVelocityConstraints(Dt, NumVelocityIterations);
-		}
-		{
-			SCOPE_CYCLE_COUNTER(STAT_Evolution_ApplyConstraintsPhase3);
-			CSV_SCOPED_ISLANDGROUP_TIMING_STAT(PerIslandSolve_ApplyProjectionTotalSerialized, GroupIndex);
-
-			IslandGroup->ApplyProjectionConstraints(Dt, NumProjectionIterations);
-		}
-	}
-
-	void FPBDIslandGroupManager::SolveSerial(const FReal Dt)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_SolveConstraints);
-
-		for (int32 GroupIndex = 0; GroupIndex < NumActiveGroups; ++GroupIndex)
-		{
-			FPBDIslandConstraintGroupSolver* IslandGroup = GetGroup(GroupIndex);
-
-			{
-				SCOPE_CYCLE_COUNTER(STAT_Evolution_Gather);
-				CSV_SCOPED_ISLANDGROUP_TIMING_STAT(PerIslandSolve_GatherTotalSerialized, GroupIndex);
-
-				IslandGroup->AddConstraintsAndBodies();
-				IslandGroup->GatherBodies(Dt, 0, IslandGroup->GetNumSolverBodies());
-				IslandGroup->GatherConstraints(Dt, 0, IslandGroup->GetNumConstraints());
-			}
-
-			SolveGroupConstraints(GroupIndex, Dt);
-
-			{
-				SCOPE_CYCLE_COUNTER(STAT_Evolution_Scatter);
-				CSV_SCOPED_ISLANDGROUP_TIMING_STAT(PerIslandSolve_ScatterTotalSerialized, GroupIndex);
-				IslandGroup->ScatterConstraints(Dt);
-				IslandGroup->ScatterBodies(Dt);
-			}
-		}
-	}
-
-	void FPBDIslandGroupManager::SolveParallelFor(const FReal Dt)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_SolveConstraints);
-
-		TArray<FIslandGroupRange> BodyRanges;
-		TArray<FIslandGroupRange> ConstraintRanges;
-
-		{
-			CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_Gather);
-
-			// Add all the bodies and constraints to the groups in the required order
-			PhysicsParallelFor(NumActiveGroups,
-				[this](const int32 GroupIndex)
-				{
-					SCOPE_CYCLE_COUNTER(STAT_Evolution_Gather_Prepare);
-					CSV_SCOPED_ISLANDGROUP_TIMING_STAT(PerIslandSolve_GatherTotalSerialized, GroupIndex);
-
-					FPBDIslandConstraintGroupSolver* IslandGroup = GetGroup(GroupIndex);
-					IslandGroup->AddConstraintsAndBodies();
-				});
-
-			// Generate body and constraint ranges for parallel gather
-			// NOTE: Must be after AddConstraintsAndBodies for all groups
-			BuildGatherBatches(BodyRanges, ConstraintRanges);
-
-			// Gather all body data using all worker threads
-			PhysicsParallelFor(BodyRanges.Num(),
-				[this, &BodyRanges, Dt](const int32 RangeIndex)
-				{
-					SCOPE_CYCLE_COUNTER(STAT_Evolution_Gather_Bodies);
-					CSV_SCOPED_ISLANDGROUP_TIMING_STAT(PerIslandSolve_GatherTotalSerialized, RangeIndex);
-
-					FIslandGroupRange& Range = BodyRanges[RangeIndex];
-					Range.IslandGroup->GatherBodies(Dt, Range.BeginIndex, Range.EndIndex);
-				});
-
-			// Gather all constraint data
-			PhysicsParallelFor(ConstraintRanges.Num(),
-				[this, &ConstraintRanges, Dt](const int32 RangeIndex)
-				{
-					SCOPE_CYCLE_COUNTER(STAT_Evolution_Gather_Constraints);
-					CSV_SCOPED_ISLANDGROUP_TIMING_STAT(PerIslandSolve_GatherTotalSerialized, RangeIndex);
-
-					FIslandGroupRange& Range = ConstraintRanges[RangeIndex];
-					Range.IslandGroup->GatherConstraints(Dt, Range.BeginIndex, Range.EndIndex);
-				});
-		}
-		
-		// Solve all the constraints, each group in parallel
-		PhysicsParallelFor(NumActiveGroups,
-			[this, Dt](const int32 GroupIndex)
+			// If a group has a lot of constraints in it (compared to the target number per task) split the gather into multiple tasks
+			// The goal is to end up with the same number of tasks as we have task threads (see comments in SolveParallelTasks for more info)
+			for (int32 GroupIndex = 0; GroupIndex < NumActiveGroups; ++GroupIndex)
 			{
 				FPBDIslandConstraintGroupSolver* IslandGroup = GetGroup(GroupIndex);
 
-				SolveGroupConstraints(GroupIndex, Dt);
-			});
+				const int32 NumConstraints = IslandGroup->GetNumSolverConstraints();
+				const int32 NumConstraintGatherTasks = FMath::Max(1, FMath::DivideAndRoundNearest(NumConstraints, TargetNumConstraintsPerTask));
+				const int32 NumConstraintsPerTask = FMath::DivideAndRoundUp(NumConstraints, NumConstraintGatherTasks);
 
-		{
-			SCOPE_CYCLE_COUNTER(STAT_Evolution_Scatter);
-
-			// Scatter constraints using all worker threads
-			PhysicsParallelFor(ConstraintRanges.Num(),
-				[this, &ConstraintRanges, Dt](const int32 RangeIndex)
+				for (int32 BeginIndex = 0; BeginIndex < NumConstraints; BeginIndex += NumConstraintsPerTask)
 				{
-					SCOPE_CYCLE_COUNTER(STAT_Evolution_Scatter_Constraints);
-					CSV_SCOPED_ISLANDGROUP_TIMING_STAT(PerIslandSolve_ScatterTotalSerialized, RangeIndex);
+					const int32 EndIndex = FMath::Min(BeginIndex + NumConstraintsPerTask, NumConstraints);
 
-					FIslandGroupRange& Range = ConstraintRanges[RangeIndex];
-					Range.IslandGroup->ScatterConstraints(Dt, Range.BeginIndex, Range.EndIndex);
-				});
+					ConstraintRanges.Emplace(IslandGroup, BeginIndex, EndIndex);
+				}
 
-			// Scatter bodies using all worker threads
-			PhysicsParallelFor(BodyRanges.Num(),
-				[this, &BodyRanges, Dt](const int32 RangeIndex)
+				const int32 NumBodies = IslandGroup->GetNumSolverBodies();
+				const int32 NumBodyGatherTasks = FMath::Max(1, FMath::DivideAndRoundNearest(NumBodies, TargetNumBodiesPerTask));
+				const int32 NumBodiesPerTask = FMath::DivideAndRoundUp(NumBodies, NumBodyGatherTasks);
+
+				for (int32 BeginIndex = 0; BeginIndex < NumBodies; BeginIndex += NumBodiesPerTask)
 				{
-					SCOPE_CYCLE_COUNTER(STAT_Evolution_Scatter_Bodies);
-					CSV_SCOPED_ISLANDGROUP_TIMING_STAT(PerIslandSolve_ScatterTotalSerialized, RangeIndex);
+					const int32 EndIndex = FMath::Min(BeginIndex + NumBodiesPerTask, NumBodies);
 
-					FIslandGroupRange& Range = BodyRanges[RangeIndex];
-					Range.IslandGroup->ScatterBodies(Dt, Range.BeginIndex, Range.EndIndex);
-				});
+					BodyRanges.Emplace(IslandGroup, BeginIndex, EndIndex);
+				}
+			}
 		}
-	}
 
-
-	void FPBDIslandGroupManager::SolveParallelTasks(const FReal Dt)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_SolveConstraints);
-
-		FGraphEventArray GroupSolveEvents;
-		GroupSolveEvents.Reserve(NumActiveGroups);
-
-		// Each IslandGroup is independent of the otyher so they can all be solved in parallel.
-		// In addition, the Gather and Scatter work within each group is highly parallelizable.
-		//
-		// In order to utilize all workers when we have a small number of groups some are much
-		// larger than others, we allow each group to generate multiple gather/scatter tasks. 
-		// The number of tasks each group generates depends on how many constraints it has and 
-		// TargetNumConstraintsPerTask, which was calculated in BuildGroups such that we end 
-		// up with the right number of gather tasks below.
-		//
-		for (int32 GroupIndex = 0; GroupIndex < NumActiveGroups; ++GroupIndex)
+		void FPBDIslandGroupManager::SolveGroupConstraints(int32 GroupIndex, const FReal Dt)
 		{
-			// NOTE: This task spawns other child tasks. We must run AddConstraintsAndBodies before we know how many
-			// Gather and Scatter tasks we want to create.
-			FGraphEventRef GroupSolveEvent = FFunctionGraphTask::CreateAndDispatchWhenReady(
-				[this, GroupIndex, Dt](ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+			CSV_SCOPED_TIMING_STAT(Chaos, ApplyConstraints);
+
+			FPBDIslandConstraintGroupSolver* IslandGroup = GetGroup(GroupIndex);
+
+			{
+				SCOPE_CYCLE_COUNTER(STAT_Evolution_ApplyConstraintsPhase1);
+				CSV_SCOPED_ISLANDGROUP_TIMING_STAT(PerIslandSolve_ApplyTotalSerialized, GroupIndex);
+
+				IslandGroup->ApplyPositionConstraints(Dt);
+			}
+			{
+				SCOPE_CYCLE_COUNTER(STAT_Evolution_ApplyConstraintsPhase2);
+				CSV_SCOPED_ISLANDGROUP_TIMING_STAT(PerIslandSolve_ApplyPushOutTotalSerialized, GroupIndex);
+
+				IslandGroup->ApplyVelocityConstraints(Dt);
+			}
+			{
+				SCOPE_CYCLE_COUNTER(STAT_Evolution_ApplyConstraintsPhase3);
+				CSV_SCOPED_ISLANDGROUP_TIMING_STAT(PerIslandSolve_ApplyProjectionTotalSerialized, GroupIndex);
+
+				IslandGroup->ApplyProjectionConstraints(Dt);
+			}
+		}
+
+		void FPBDIslandGroupManager::SolveSerial(const FReal Dt)
+		{
+			SCOPE_CYCLE_COUNTER(STAT_SolveConstraints);
+
+			for (int32 GroupIndex = 0; GroupIndex < NumActiveGroups; ++GroupIndex)
+			{
+				FPBDIslandConstraintGroupSolver* IslandGroup = GetGroup(GroupIndex);
+
+				{
+					SCOPE_CYCLE_COUNTER(STAT_Evolution_Gather);
+					CSV_SCOPED_ISLANDGROUP_TIMING_STAT(PerIslandSolve_GatherTotalSerialized, GroupIndex);
+
+					IslandGroup->AddConstraintsAndBodies();
+					IslandGroup->GatherBodies(Dt, 0, IslandGroup->GetNumSolverBodies());
+					IslandGroup->GatherConstraints(Dt, 0, IslandGroup->GetNumConstraints());
+				}
+
+				SolveGroupConstraints(GroupIndex, Dt);
+
+				{
+					SCOPE_CYCLE_COUNTER(STAT_Evolution_Scatter);
+					CSV_SCOPED_ISLANDGROUP_TIMING_STAT(PerIslandSolve_ScatterTotalSerialized, GroupIndex);
+					IslandGroup->ScatterConstraints(Dt);
+					IslandGroup->ScatterBodies(Dt);
+				}
+			}
+		}
+
+		void FPBDIslandGroupManager::SolveParallelFor(const FReal Dt)
+		{
+			SCOPE_CYCLE_COUNTER(STAT_SolveConstraints);
+
+			TArray<FIslandGroupRange> BodyRanges;
+			TArray<FIslandGroupRange> ConstraintRanges;
+
+			{
+				CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_Gather);
+
+				// Add all the bodies and constraints to the groups in the required order
+				PhysicsParallelFor(NumActiveGroups,
+					[this](const int32 GroupIndex)
+					{
+						SCOPE_CYCLE_COUNTER(STAT_Evolution_Gather_Prepare);
+						CSV_SCOPED_ISLANDGROUP_TIMING_STAT(PerIslandSolve_GatherTotalSerialized, GroupIndex);
+
+						FPBDIslandConstraintGroupSolver* IslandGroup = GetGroup(GroupIndex);
+						IslandGroup->AddConstraintsAndBodies();
+					});
+
+				// Generate body and constraint ranges for parallel gather
+				// NOTE: Must be after AddConstraintsAndBodies for all groups
+				BuildGatherBatches(BodyRanges, ConstraintRanges);
+
+				// Gather all body data using all worker threads
+				PhysicsParallelFor(BodyRanges.Num(),
+					[this, &BodyRanges, Dt](const int32 RangeIndex)
+					{
+						SCOPE_CYCLE_COUNTER(STAT_Evolution_Gather_Bodies);
+						CSV_SCOPED_ISLANDGROUP_TIMING_STAT(PerIslandSolve_GatherTotalSerialized, RangeIndex);
+
+						FIslandGroupRange& Range = BodyRanges[RangeIndex];
+						Range.IslandGroup->GatherBodies(Dt, Range.BeginIndex, Range.EndIndex);
+					});
+
+				// Gather all constraint data
+				PhysicsParallelFor(ConstraintRanges.Num(),
+					[this, &ConstraintRanges, Dt](const int32 RangeIndex)
+					{
+						SCOPE_CYCLE_COUNTER(STAT_Evolution_Gather_Constraints);
+						CSV_SCOPED_ISLANDGROUP_TIMING_STAT(PerIslandSolve_GatherTotalSerialized, RangeIndex);
+
+						FIslandGroupRange& Range = ConstraintRanges[RangeIndex];
+						Range.IslandGroup->GatherConstraints(Dt, Range.BeginIndex, Range.EndIndex);
+					});
+			}
+		
+			// Solve all the constraints, each group in parallel
+			PhysicsParallelFor(NumActiveGroups,
+				[this, Dt](const int32 GroupIndex)
 				{
 					FPBDIslandConstraintGroupSolver* IslandGroup = GetGroup(GroupIndex);
 
-					// Add bodies and constraints to the solvers but do no real work. Cannot be further parallelized
-					{
-						SCOPE_CYCLE_COUNTER(STAT_Evolution_Gather_Prepare);
-
-						IslandGroup->AddConstraintsAndBodies();
-					}
-
-					// How many gather tasks should we be creating for this group?
-					// NOTE: TargetNumBodiesPerTask and TargetNumConstraintsPerTask were calculated in BuildGroups
-					// so that we end up with a reasonable number of Gather/Scatter tasks for the system's worker threads.
-					const int32 NumBodies = IslandGroup->GetNumSolverBodies();
-					const int32 NumBodyGatherTasks = FMath::Max(1, FMath::DivideAndRoundNearest(NumBodies, TargetNumBodiesPerTask));
-					const int32 NumBodiesPerTask = FMath::DivideAndRoundUp(NumBodies, NumBodyGatherTasks);
-					const int32 NumConstraints = IslandGroup->GetNumSolverConstraints();
-					const int32 NumConstraintGatherTasks = FMath::Max(1, FMath::DivideAndRoundNearest(NumConstraints, TargetNumConstraintsPerTask));
-					const int32 NumConstraintsPerTask = FMath::DivideAndRoundUp(NumConstraints, NumConstraintGatherTasks);
-
-					// Gather Bodies. Can run as wide as we like
-					FGraphEventArray GatherBodyEvents;
-					GatherBodyEvents.Reserve(NumBodyGatherTasks);
-					for (int32 BodyBeginIndex = 0; BodyBeginIndex < NumBodies; BodyBeginIndex += NumBodiesPerTask)
-					{
-						const int32 BodyEndIndex = FMath::Min(BodyBeginIndex + NumBodiesPerTask, NumBodies);
-
-						FGraphEventRef GatherBodyEvent = FFunctionGraphTask::CreateAndDispatchWhenReady(
-							[IslandGroup, BodyBeginIndex, BodyEndIndex, Dt]()
-							{
-								CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_Gather);
-
-								IslandGroup->GatherBodies(Dt, BodyBeginIndex, BodyEndIndex);
-							}
-							, GET_STATID(STAT_Evolution_Gather_Bodies));
-
-						GatherBodyEvents.Add(GatherBodyEvent);
-					}
-
-					// Wait for Gather Bodies
-					FGraphEventRef GatherBodiesCompletionEvent = TGraphTask<FNullGraphTask>::CreateTask(&GatherBodyEvents).ConstructAndDispatchWhenReady(TStatId(), ENamedThreads::AnyThread);
-
-					// Gather Constraints after body gather is complete. Can run as wide as wek like
-					FGraphEventArray GatherConstraintEvents;
-					GatherConstraintEvents.Reserve(NumConstraintGatherTasks);
-					for (int32 ConstraintBeginIndex = 0; ConstraintBeginIndex < NumConstraints; ConstraintBeginIndex += NumConstraintsPerTask)
-					{
-						const int32 ConstraintEndIndex = FMath::Min(ConstraintBeginIndex + NumConstraintsPerTask, NumConstraints);
-
-						FGraphEventRef GatherConstraintsEvent = FFunctionGraphTask::CreateAndDispatchWhenReady(
-							[this, IslandGroup, ConstraintBeginIndex, ConstraintEndIndex, Dt]()
-							{
-								CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_Gather);
-
-								IslandGroup->GatherConstraints(Dt, ConstraintBeginIndex, ConstraintEndIndex);
-							}
-							, GET_STATID(STAT_Evolution_Gather_Constraints)
-							, GatherBodiesCompletionEvent);
-
-						GatherConstraintEvents.Add(GatherConstraintsEvent);
-					}
-
-					// Wait for Gather Constraints
-					FGraphEventRef GatherConstraintsCompletionEvent = TGraphTask<FNullGraphTask>::CreateTask(&GatherConstraintEvents).ConstructAndDispatchWhenReady(TStatId(), ENamedThreads::AnyThread);
-
-					// Solve Constraints after gathering is complete. Single task - no further parallelization (without coloring)
-					// @todo(chaos): add coloring support
-					FGraphEventRef SolveConstraintsCompletionEvent = FFunctionGraphTask::CreateAndDispatchWhenReady(
-						[this, GroupIndex, Dt]()
-						{
-							SolveGroupConstraints(GroupIndex, Dt);
-						}
-						, TStatId()
-						, GatherConstraintsCompletionEvent);
-
-
-					// Scatter constraints and bodies after the solve completes. No dependencies between any tasks at this point
-					FGraphEventArray ScatterEvents;
-					ScatterEvents.Reserve(NumBodyGatherTasks + NumConstraintGatherTasks);
-
-					// Scatter Constraints
-					for (int32 ConstraintBeginIndex = 0; ConstraintBeginIndex < NumConstraints; ConstraintBeginIndex += NumConstraintsPerTask)
-					{
-						const int32 ConstraintEndIndex = FMath::Min(ConstraintBeginIndex + NumConstraintsPerTask, NumConstraints);
-
-						FGraphEventRef ScatterConstraintsEvent = FFunctionGraphTask::CreateAndDispatchWhenReady(
-							[this, IslandGroup, ConstraintBeginIndex, ConstraintEndIndex, Dt]()
-							{
-								CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_Scatter);
-
-								IslandGroup->ScatterConstraints(Dt, ConstraintBeginIndex, ConstraintEndIndex);
-							}
-							, GET_STATID(STAT_Evolution_Scatter_Constraints)
-							, SolveConstraintsCompletionEvent);
-
-						ScatterEvents.Add(ScatterConstraintsEvent);
-					}
-
-					// Scatter Bodies
-					for (int32 BodyBeginIndex = 0; BodyBeginIndex < NumBodies; BodyBeginIndex += NumBodiesPerTask)
-					{
-						const int32 BodyEndIndex = FMath::Min(BodyBeginIndex + NumBodiesPerTask, NumBodies);
-
-						FGraphEventRef ScatterBodyEvent = FFunctionGraphTask::CreateAndDispatchWhenReady(
-							[this, IslandGroup, BodyBeginIndex, BodyEndIndex, Dt]()
-							{
-								CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_Scatter);
-
-								IslandGroup->ScatterBodies(Dt, BodyBeginIndex, BodyEndIndex);
-							}
-							, GET_STATID(STAT_Evolution_Gather_Bodies)
-							, SolveConstraintsCompletionEvent);
-
-						ScatterEvents.Add(ScatterBodyEvent);
-					}
-
-					// Completion event
-					FGraphEventRef ScatterCompletionEvent = TGraphTask<FNullGraphTask>::CreateTask(&ScatterEvents).ConstructAndDispatchWhenReady(TStatId(), ENamedThreads::AnyThread);
-					MyCompletionGraphEvent->DontCompleteUntil(ScatterCompletionEvent);
+					SolveGroupConstraints(GroupIndex, Dt);
 				});
 
-			GroupSolveEvents.Add(GroupSolveEvent);
+			{
+				SCOPE_CYCLE_COUNTER(STAT_Evolution_Scatter);
+
+				// Scatter constraints using all worker threads
+				PhysicsParallelFor(ConstraintRanges.Num(),
+					[this, &ConstraintRanges, Dt](const int32 RangeIndex)
+					{
+						SCOPE_CYCLE_COUNTER(STAT_Evolution_Scatter_Constraints);
+						CSV_SCOPED_ISLANDGROUP_TIMING_STAT(PerIslandSolve_ScatterTotalSerialized, RangeIndex);
+
+						FIslandGroupRange& Range = ConstraintRanges[RangeIndex];
+						Range.IslandGroup->ScatterConstraints(Dt, Range.BeginIndex, Range.EndIndex);
+					});
+
+				// Scatter bodies using all worker threads
+				PhysicsParallelFor(BodyRanges.Num(),
+					[this, &BodyRanges, Dt](const int32 RangeIndex)
+					{
+						SCOPE_CYCLE_COUNTER(STAT_Evolution_Scatter_Bodies);
+						CSV_SCOPED_ISLANDGROUP_TIMING_STAT(PerIslandSolve_ScatterTotalSerialized, RangeIndex);
+
+						FIslandGroupRange& Range = BodyRanges[RangeIndex];
+						Range.IslandGroup->ScatterBodies(Dt, Range.BeginIndex, Range.EndIndex);
+					});
+			}
 		}
 
-		// Wait for all tasks to complete and help out
-		FTaskGraphInterface::Get().WaitUntilTasksComplete(GroupSolveEvents);
-	}
 
-	void FPBDIslandGroupManager::SetNumIterations(const int32 InNumPositionIterations, const int32 InNumVelocityIterations, const int32 InNumProjectionIterations)
-	{
-		NumPositionIterations = InNumPositionIterations;
-		NumVelocityIterations = InNumVelocityIterations;
-		NumProjectionIterations = InNumProjectionIterations;
-	}
-
-	void FPBDIslandGroupManager::Solve(const FReal Dt)
-	{
-#if CSV_PROFILER
-		GroupStats.Reset();
-		GroupStats.AddDefaulted(IslandGroups.Num());
-#endif
-
-		// @todo(chaos): Remove SolveParallelFor when SolveParallelTasks has been thoroughly tested
-		const bool bSingleThreaded = GSingleThreadedPhysics || (IslandGroups.Num() == 1);
-		const int32 ParallelMode = bSingleThreaded ? 0 : CVars::GIslandGroupsParallelMode;
-		switch (ParallelMode)
+		void FPBDIslandGroupManager::SolveParallelTasks(const FReal Dt)
 		{
-		case 0:
-			SolveSerial(Dt);
-			break;
-		case 1:
-			SolveParallelFor(Dt);
-			break;
-		case 2:
-			SolveParallelTasks(Dt);
-			break;
+			SCOPE_CYCLE_COUNTER(STAT_SolveConstraints);
+
+			FGraphEventArray GroupSolveEvents;
+			GroupSolveEvents.Reserve(NumActiveGroups);
+
+			// Each IslandGroup is independent of the otyher so they can all be solved in parallel.
+			// In addition, the Gather and Scatter work within each group is highly parallelizable.
+			//
+			// In order to utilize all workers when we have a small number of groups some are much
+			// larger than others, we allow each group to generate multiple gather/scatter tasks. 
+			// The number of tasks each group generates depends on how many constraints it has and 
+			// TargetNumConstraintsPerTask, which was calculated in BuildGroups such that we end 
+			// up with the right number of gather tasks below.
+			//
+			for (int32 GroupIndex = 0; GroupIndex < NumActiveGroups; ++GroupIndex)
+			{
+				// NOTE: This task spawns other child tasks. We must run AddConstraintsAndBodies before we know how many
+				// Gather and Scatter tasks we want to create.
+				FGraphEventRef GroupSolveEvent = FFunctionGraphTask::CreateAndDispatchWhenReady(
+					[this, GroupIndex, Dt](ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+					{
+						FPBDIslandConstraintGroupSolver* IslandGroup = GetGroup(GroupIndex);
+
+						// Add bodies and constraints to the solvers but do no real work. Cannot be further parallelized
+						{
+							SCOPE_CYCLE_COUNTER(STAT_Evolution_Gather_Prepare);
+
+							IslandGroup->AddConstraintsAndBodies();
+						}
+
+						// How many gather tasks should we be creating for this group?
+						// NOTE: TargetNumBodiesPerTask and TargetNumConstraintsPerTask were calculated in BuildGroups
+						// so that we end up with a reasonable number of Gather/Scatter tasks for the system's worker threads.
+						const int32 NumBodies = IslandGroup->GetNumSolverBodies();
+						const int32 NumBodyGatherTasks = FMath::Max(1, FMath::DivideAndRoundNearest(NumBodies, TargetNumBodiesPerTask));
+						const int32 NumBodiesPerTask = FMath::DivideAndRoundUp(NumBodies, NumBodyGatherTasks);
+						const int32 NumConstraints = IslandGroup->GetNumSolverConstraints();
+						const int32 NumConstraintGatherTasks = FMath::Max(1, FMath::DivideAndRoundNearest(NumConstraints, TargetNumConstraintsPerTask));
+						const int32 NumConstraintsPerTask = FMath::DivideAndRoundUp(NumConstraints, NumConstraintGatherTasks);
+
+						// Gather Bodies. Can run as wide as we like
+						FGraphEventArray GatherBodyEvents;
+						GatherBodyEvents.Reserve(NumBodyGatherTasks);
+						for (int32 BodyBeginIndex = 0; BodyBeginIndex < NumBodies; BodyBeginIndex += NumBodiesPerTask)
+						{
+							const int32 BodyEndIndex = FMath::Min(BodyBeginIndex + NumBodiesPerTask, NumBodies);
+
+							FGraphEventRef GatherBodyEvent = FFunctionGraphTask::CreateAndDispatchWhenReady(
+								[IslandGroup, BodyBeginIndex, BodyEndIndex, Dt]()
+								{
+									CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_Gather);
+
+									IslandGroup->GatherBodies(Dt, BodyBeginIndex, BodyEndIndex);
+								}
+								, GET_STATID(STAT_Evolution_Gather_Bodies));
+
+							GatherBodyEvents.Add(GatherBodyEvent);
+						}
+
+						// Wait for Gather Bodies
+						FGraphEventRef GatherBodiesCompletionEvent = TGraphTask<FNullGraphTask>::CreateTask(&GatherBodyEvents).ConstructAndDispatchWhenReady(TStatId(), ENamedThreads::AnyThread);
+
+						// Gather Constraints after body gather is complete. Can run as wide as wek like
+						FGraphEventArray GatherConstraintEvents;
+						GatherConstraintEvents.Reserve(NumConstraintGatherTasks);
+						for (int32 ConstraintBeginIndex = 0; ConstraintBeginIndex < NumConstraints; ConstraintBeginIndex += NumConstraintsPerTask)
+						{
+							const int32 ConstraintEndIndex = FMath::Min(ConstraintBeginIndex + NumConstraintsPerTask, NumConstraints);
+
+							FGraphEventRef GatherConstraintsEvent = FFunctionGraphTask::CreateAndDispatchWhenReady(
+								[this, IslandGroup, ConstraintBeginIndex, ConstraintEndIndex, Dt]()
+								{
+									CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_Gather);
+
+									IslandGroup->GatherConstraints(Dt, ConstraintBeginIndex, ConstraintEndIndex);
+								}
+								, GET_STATID(STAT_Evolution_Gather_Constraints)
+								, GatherBodiesCompletionEvent);
+
+							GatherConstraintEvents.Add(GatherConstraintsEvent);
+						}
+
+						// Wait for Gather Constraints
+						FGraphEventRef GatherConstraintsCompletionEvent = TGraphTask<FNullGraphTask>::CreateTask(&GatherConstraintEvents).ConstructAndDispatchWhenReady(TStatId(), ENamedThreads::AnyThread);
+
+						// Solve Constraints after gathering is complete. Single task - no further parallelization (without coloring)
+						// @todo(chaos): add coloring support
+						FGraphEventRef SolveConstraintsCompletionEvent = FFunctionGraphTask::CreateAndDispatchWhenReady(
+							[this, GroupIndex, Dt]()
+							{
+								SolveGroupConstraints(GroupIndex, Dt);
+							}
+							, TStatId()
+							, GatherConstraintsCompletionEvent);
+
+
+						// Scatter constraints and bodies after the solve completes. No dependencies between any tasks at this point
+						FGraphEventArray ScatterEvents;
+						ScatterEvents.Reserve(NumBodyGatherTasks + NumConstraintGatherTasks);
+
+						// Scatter Constraints
+						for (int32 ConstraintBeginIndex = 0; ConstraintBeginIndex < NumConstraints; ConstraintBeginIndex += NumConstraintsPerTask)
+						{
+							const int32 ConstraintEndIndex = FMath::Min(ConstraintBeginIndex + NumConstraintsPerTask, NumConstraints);
+
+							FGraphEventRef ScatterConstraintsEvent = FFunctionGraphTask::CreateAndDispatchWhenReady(
+								[this, IslandGroup, ConstraintBeginIndex, ConstraintEndIndex, Dt]()
+								{
+									CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_Scatter);
+
+									IslandGroup->ScatterConstraints(Dt, ConstraintBeginIndex, ConstraintEndIndex);
+								}
+								, GET_STATID(STAT_Evolution_Scatter_Constraints)
+								, SolveConstraintsCompletionEvent);
+
+							ScatterEvents.Add(ScatterConstraintsEvent);
+						}
+
+						// Scatter Bodies
+						for (int32 BodyBeginIndex = 0; BodyBeginIndex < NumBodies; BodyBeginIndex += NumBodiesPerTask)
+						{
+							const int32 BodyEndIndex = FMath::Min(BodyBeginIndex + NumBodiesPerTask, NumBodies);
+
+							FGraphEventRef ScatterBodyEvent = FFunctionGraphTask::CreateAndDispatchWhenReady(
+								[this, IslandGroup, BodyBeginIndex, BodyEndIndex, Dt]()
+								{
+									CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_Scatter);
+
+									IslandGroup->ScatterBodies(Dt, BodyBeginIndex, BodyEndIndex);
+								}
+								, GET_STATID(STAT_Evolution_Gather_Bodies)
+								, SolveConstraintsCompletionEvent);
+
+							ScatterEvents.Add(ScatterBodyEvent);
+						}
+
+						// Completion event
+						FGraphEventRef ScatterCompletionEvent = TGraphTask<FNullGraphTask>::CreateTask(&ScatterEvents).ConstructAndDispatchWhenReady(TStatId(), ENamedThreads::AnyThread);
+						MyCompletionGraphEvent->DontCompleteUntil(ScatterCompletionEvent);
+					});
+
+				GroupSolveEvents.Add(GroupSolveEvent);
+			}
+
+			// Wait for all tasks to complete and help out
+			FTaskGraphInterface::Get().WaitUntilTasksComplete(GroupSolveEvents);
 		}
 
-#if CSV_PROFILER
-		FIslandGroupStats FlattenedStats = FIslandGroupStats::Flatten(GroupStats);
-		FlattenedStats.ReportStats();
-#endif
-	}
-}
+		void FPBDIslandGroupManager::SetIterationSettings(const FIterationSettings& InIterations)
+		{
+			Iterations = InIterations;
+		}
+
+		void FPBDIslandGroupManager::Solve(const FReal Dt)
+		{
+	#if CSV_PROFILER
+			GroupStats.Reset();
+			GroupStats.AddDefaulted(IslandGroups.Num());
+	#endif
+
+			// @todo(chaos): Remove SolveParallelFor when SolveParallelTasks has been thoroughly tested
+			const bool bSingleThreaded = GSingleThreadedPhysics || (IslandGroups.Num() == 1);
+			const int32 ParallelMode = bSingleThreaded ? 0 : CVars::GIslandGroupsParallelMode;
+			switch (ParallelMode)
+			{
+			case 0:
+				SolveSerial(Dt);
+				break;
+			case 1:
+				SolveParallelFor(Dt);
+				break;
+			case 2:
+				SolveParallelTasks(Dt);
+				break;
+			}
+
+	#if CSV_PROFILER
+			FIslandGroupStats FlattenedStats = FIslandGroupStats::Flatten(GroupStats);
+			FlattenedStats.ReportStats();
+	#endif
+		}
+	}	// namespace Private
+}	// namespace Chaos

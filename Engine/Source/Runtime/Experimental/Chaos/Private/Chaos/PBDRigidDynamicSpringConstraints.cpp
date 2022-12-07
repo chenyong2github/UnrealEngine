@@ -97,7 +97,7 @@ namespace Chaos
 		}
 	}
 
-	void FPBDRigidDynamicSpringConstraints::AddConstraintsToGraph(FPBDIslandManager& IslandManager)
+	void FPBDRigidDynamicSpringConstraints::AddConstraintsToGraph(Private::FPBDIslandManager& IslandManager)
 	{
 		IslandManager.AddContainerConstraints(*this);
 	}

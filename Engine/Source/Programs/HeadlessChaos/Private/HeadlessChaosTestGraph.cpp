@@ -56,7 +56,7 @@ namespace ChaosTest {
 		//
 		virtual int32 GetNumConstraints() const override final { return Constraints.Num(); }
 		virtual void ResetConstraints() override final {}
-		virtual void AddConstraintsToGraph(FPBDIslandManager& IslandManager) override final;
+		virtual void AddConstraintsToGraph(Private::FPBDIslandManager& IslandManager) override final;
 		virtual void PrepareTick() override final {}
 		virtual void UnprepareTick() override final {}
 
@@ -168,7 +168,7 @@ namespace ChaosTest {
 	};
 
 	template<int32 T_TYPEID>
-	void TMockGraphConstraints<T_TYPEID>::AddConstraintsToGraph(FPBDIslandManager& IslandManager)
+	void TMockGraphConstraints<T_TYPEID>::AddConstraintsToGraph(Private::FPBDIslandManager& IslandManager)
 	{
 		for (TMockGraphConstraintHandle<T_TYPEID>* Handle : Handles)
 		{
@@ -244,7 +244,7 @@ namespace ChaosTest {
 		}
 
 		// Set up the particle graph
-		FPBDConstraintGraph Graph;
+		Private::FPBDIslandManager Graph;
 		Graph.AddConstraintContainer(ConstraintsOfType0);
 		Graph.AddConstraintContainer(ConstraintsOfType1);
 
@@ -293,10 +293,10 @@ namespace ChaosTest {
 		for (int32 ExpectedIslandIndex = 0; ExpectedIslandIndex < ExpectedIslandParticles.Num(); ++ExpectedIslandIndex)
 		{
 			const int32 CalculatedIslandIndex = CalculatedIslandIndices[ExpectedIslandIndex];
-			TArrayView<FPBDIslandParticle> CalculatedIslandParticles = Graph.GetIsland(CalculatedIslandIndex)->GetParticles();
+			TArrayView<Private::FPBDIslandParticle> CalculatedIslandParticles = Graph.GetIsland(CalculatedIslandIndex)->GetParticles();
 
 			EXPECT_EQ(CalculatedIslandParticles.Num(), ExpectedIslandParticles[ExpectedIslandIndex].Num());
-			for (FPBDIslandParticle& CalculatedIslandParticle : CalculatedIslandParticles)
+			for (Private::FPBDIslandParticle& CalculatedIslandParticle : CalculatedIslandParticles)
 			{
 				EXPECT_TRUE(ExpectedIslandParticles[ExpectedIslandIndex].Contains(CalculatedIslandParticle.GetParticle()));
 			}
@@ -305,15 +305,15 @@ namespace ChaosTest {
 		Graph.Reset();
 	}
 
-	void CheckIslandIntegrity(TArray<TSet<TGeometryParticleHandle<FReal,3>*>>& ExpectedIslandParticles, const TArray<int32> CalculatedIslandIndices, FPBDConstraintGraph& Graph)
+	void CheckIslandIntegrity(TArray<TSet<TGeometryParticleHandle<FReal,3>*>>& ExpectedIslandParticles, const TArray<int32> CalculatedIslandIndices, Private::FPBDIslandManager& Graph)
 	{
 		for (int32 ExpectedIslandIndex = 0; ExpectedIslandIndex < ExpectedIslandParticles.Num(); ++ExpectedIslandIndex)
 		{
 			const int32 CalculatedIslandIndex = CalculatedIslandIndices[ExpectedIslandIndex];
-			TArrayView<FPBDIslandParticle> CalculatedIslandParticles = Graph.GetIsland(CalculatedIslandIndex)->GetParticles();
+			TArrayView<Private::FPBDIslandParticle> CalculatedIslandParticles = Graph.GetIsland(CalculatedIslandIndex)->GetParticles();
 
 			EXPECT_EQ(CalculatedIslandParticles.Num(), ExpectedIslandParticles[ExpectedIslandIndex].Num());
-			for (FPBDIslandParticle& CalculatedIslandParticle : CalculatedIslandParticles)
+			for (Private::FPBDIslandParticle& CalculatedIslandParticle : CalculatedIslandParticles)
 			{
 				EXPECT_TRUE(ExpectedIslandParticles[ExpectedIslandIndex].Contains(CalculatedIslandParticle.GetParticle()));
 
@@ -536,7 +536,7 @@ namespace ChaosTest {
 		{
 			FIterationData& IterData = IterationData[Iteration];
 
-			FPBDConstraintGraph Graph;
+			Private::FPBDIslandManager Graph;
 			//FPBDConstraintColor GraphColor;
 			const int32 ContainerId = 0;
 
@@ -609,7 +609,7 @@ namespace ChaosTest {
 			int Index = 0;
 			for (int32 Island : CalculatedIslandIndices)
 			{
-				TArrayView<FPBDIslandConstraint> IslandConstraints = Graph.GetIsland(Island)->GetConstraints(ContainerId);
+				TArrayView<Private::FPBDIslandConstraint> IslandConstraints = Graph.GetIsland(Island)->GetConstraints(ContainerId);
 				EXPECT_EQ(IslandConstraints.Num(), IterData.ExpectedIslandEdges[Index++]);
 			}
 
@@ -637,11 +637,10 @@ namespace ChaosTest {
 	}
 
 	void HelpTickConstraints(FPBDRigidsSOAs& SOAs, const TArray<TPBDRigidParticleHandle<FReal, 3>*>& Particles,
-		FPBDConstraintGraph& Graph, TMockGraphConstraints<0> Constraints,
+		Private::FPBDIslandManager& Graph, TMockGraphConstraints<0> Constraints,
 		const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PhysicsMaterials,
 		const THandleArray<FChaosPhysicsMaterial>& PhysicalMaterials)
 	{
-
 		SOAs.ClearTransientDirty();
 
 		Graph.InitializeGraph(SOAs.GetNonDisabledDynamicView());
@@ -655,7 +654,7 @@ namespace ChaosTest {
 
 			if(bSleeped)
 			{
-				for(FPBDIslandParticle& Particle : Graph.GetIsland(IslandIndex)->GetParticles())
+				for(Private::FPBDIslandParticle& Particle : Graph.GetIsland(IslandIndex)->GetParticles())
 				{
 					SOAs.DeactivateParticle(Particle.GetParticle());
 				}
@@ -734,7 +733,7 @@ namespace ChaosTest {
 				Constraints.AddConstraint({ Particles[ConstrainedParticleIndices[0]], Particles[ConstrainedParticleIndices[1]] });
 			}
 
-			FPBDConstraintGraph Graph;
+			Private::FPBDIslandManager Graph;
 			Graph.AddConstraintContainer(Constraints);
 			for (FGeometryParticleHandle* Particle : Particles)
 			{
@@ -829,7 +828,7 @@ namespace ChaosTest {
 				Constraints.AddConstraint({ Particles[ConstrainedParticleIndices[0]], Particles[ConstrainedParticleIndices[1]] });
 			}
 
-			FPBDConstraintGraph Graph;
+			Private::FPBDIslandManager Graph;
 			Graph.AddConstraintContainer(Constraints);
 			for (FGeometryParticleHandle* Particle : Particles)
 			{
@@ -936,7 +935,7 @@ namespace ChaosTest {
 				Constraints.AddConstraint({ Particles[ConstrainedParticleIndices[0]], Particles[ConstrainedParticleIndices[1]] });
 			}
 
-			FPBDConstraintGraph Graph;
+			Private::FPBDIslandManager Graph;
 			Graph.AddConstraintContainer(Constraints);
 			for (FGeometryParticleHandle* Particle : Particles)
 			{
@@ -1121,7 +1120,7 @@ namespace ChaosTest {
 		}
 		
 		// Build the connectivity graph and islands
-		FPBDConstraintGraph Graph;
+		Private::FPBDIslandManager Graph;
 		Graph.AddConstraintContainer(Constraints);
 		//FPBDConstraintColor GraphColor;
 		for (FGeometryParticleHandle* Particle : AllParticles)
@@ -1219,7 +1218,7 @@ namespace ChaosTest {
 			return true;
 		}
 
-		static void ValidateConstraintGraphParticleHandles(const FPBDConstraintGraph& ConstraintGraph)
+		static void ValidateConstraintGraphParticleHandles(const Private::FPBDIslandManager& ConstraintGraph)
 		{
 			// Are all keys, values in the ParticleToNodeIndex Valid?
 			const int32 NodeCount = ConstraintGraph.GetGraphNodes().GetMaxIndex();
@@ -1234,22 +1233,22 @@ namespace ChaosTest {
 			const int32 NumIslands = ConstraintGraph.NumIslands();
 			for (int32 IslandIndex = 0; IslandIndex < NumIslands; ++IslandIndex)
 			{
-				TArrayView<const FPBDIslandParticle> IslandParticles = ConstraintGraph.GetIsland(IslandIndex)->GetParticles();
-				for (const FPBDIslandParticle& IslandParticle : IslandParticles)
+				TArrayView<const Private::FPBDIslandParticle> IslandParticles = ConstraintGraph.GetIsland(IslandIndex)->GetParticles();
+				for (const Private::FPBDIslandParticle& IslandParticle : IslandParticles)
 				{
 					EXPECT_TRUE(IsParticleHandleValid(IslandParticle.GetParticle()));
 				}
 			}
 
 			// Are all Graph Nodes valid?
-			for (const FPBDConstraintGraph::FGraphNode& Node : ConstraintGraph.GetGraphNodes())
+			for (const Private::FPBDIslandManager::FGraphNode& Node : ConstraintGraph.GetGraphNodes())
 			{
 				ensure(IsParticleHandleValid(Node.NodeItem));
 				EXPECT_TRUE(IsParticleHandleValid(Node.NodeItem));
 			}
 
 			// Are all Graph Edges valid?
-			for (const FPBDConstraintGraph::FGraphEdge& Edge : ConstraintGraph.GetGraphEdges())
+			for (const Private::FPBDIslandManager::FGraphEdge& Edge : ConstraintGraph.GetGraphEdges())
 			{
 				EXPECT_GE(Edge.FirstNode, 0);
 				EXPECT_LT(Edge.FirstNode, NodeCount);
@@ -1322,7 +1321,7 @@ namespace ChaosTest {
 		}
 
 		// Set up the particle graph
-		FPBDConstraintGraph Graph;
+		Private::FPBDIslandManager Graph;
 		Graph.AddConstraintContainer(PositionConstraints);
 		Graph.AddConstraintContainer(SuspensionConstraints);
 		Graph.AddConstraintContainer(SpringConstraints);

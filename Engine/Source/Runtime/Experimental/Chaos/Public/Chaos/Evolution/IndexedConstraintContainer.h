@@ -153,9 +153,9 @@ namespace Chaos
 			ensure(false);
 		}
 
-		virtual void AddConstraints(const TArrayView<FPBDIslandConstraint>& Constraints) override final
+		virtual void AddConstraints(const TArrayView<Private::FPBDIslandConstraint>& Constraints) override final
 		{
-			for (const FPBDIslandConstraint& Constraint : Constraints)
+			for (const Private::FPBDIslandConstraint& Constraint : Constraints)
 			{
 				// We will only ever be given constraints from our container (asserts in non-shipping)
 				const FIndexedConstraintHandle* IndexedConstraintHandle = Constraint.GetConstraint()->AsUnsafe<FIndexedConstraintHandle>();
@@ -235,19 +235,6 @@ namespace Chaos
 			: FPBDConstraintContainer(InType)
 		{
 		}
-
-		//virtual void SetConstraintEnabled(FConstraintHandle* ConstraintHandle, bool bEnabled) override final
-		//{
-		//	const FIndexedConstraintHandle* IndexedConstraintHandle = ConstraintHandle->As<FIndexedConstraintHandle>();
-		//	check(IndexedConstraintHandle != nullptr);
-		//	SetConstraintEnabled(IndexedConstraintHandle->GetConstraintIndex(), bEnabled);
-		//}
-		//virtual bool IsConstraintEnabled(FConstraintHandle* ConstraintHandle) const override final
-		//{
-		//	const FIndexedConstraintHandle* IndexedConstraintHandle = ConstraintHandle->As<FIndexedConstraintHandle>();
-		//	check(IndexedConstraintHandle != nullptr);
-		//	return IsConstraintEnabled(IndexedConstraintHandle->GetConstraintIndex());
-		//}
 
 		virtual void SetConstraintEnabled(int32 ConstraintIndex, bool bEnabled) { }
 		virtual bool IsConstraintEnabled(int32 ConstraintIndex) const { return true; }

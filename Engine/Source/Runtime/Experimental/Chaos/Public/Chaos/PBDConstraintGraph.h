@@ -5,8 +5,7 @@
 
 namespace Chaos
 {
-	// @todo(chaos): deprecate FPBDConstraintGraph
-	using FPBDConstraintGraph = FPBDIslandManager;
+	using FPBDConstraintGraph UE_DEPRECATED(5.2, "Internal class moved to Private namespace") = Private::FPBDIslandManager;
 }
 
 

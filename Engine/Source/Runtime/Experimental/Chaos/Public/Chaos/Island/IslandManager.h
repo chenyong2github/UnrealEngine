@@ -31,6 +31,9 @@ class FChaosPhysicsMaterial;
 
 using FPBDRigidParticles = TPBDRigidParticles<FReal, 3>;
 
+namespace Private
+{
+
 /** Island manager responsible to create the list of solver islands that will be persistent over time */
 class CHAOS_API FPBDIslandManager
 {
@@ -359,4 +362,9 @@ protected:
 	bool									bEndTickCalled;
 };
 
-}
+}	// namespace Private
+
+
+	using FPBDIslandManager UE_DEPRECATED(5.2, "Internal class moved to Private namespace") = Private::FPBDIslandManager;
+
+}	// namespace Chaos

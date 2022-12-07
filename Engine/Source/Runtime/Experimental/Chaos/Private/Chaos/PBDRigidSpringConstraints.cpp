@@ -124,7 +124,7 @@ namespace Chaos
 		return SpringSettings[ConstraintIndex].Stiffness * Delta / CombinedInvMass;
 	}
 
-	void FPBDRigidSpringConstraints::AddConstraintsToGraph(FPBDIslandManager& IslandManager)
+	void FPBDRigidSpringConstraints::AddConstraintsToGraph(Private::FPBDIslandManager& IslandManager)
 	{
 		IslandManager.AddContainerConstraints(*this);
 	}

@@ -132,7 +132,7 @@ public:
 	//
 	virtual int32 GetNumConstraints() const override final { return NumConstraints(); }
 	virtual void ResetConstraints() override final { Reset(); }
-	virtual void AddConstraintsToGraph(FPBDIslandManager& IslandManager) override final;
+	virtual void AddConstraintsToGraph(Private::FPBDIslandManager& IslandManager) override final;
 	virtual void PrepareTick() override final {}
 	virtual void UnprepareTick() override final {}
 

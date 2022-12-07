@@ -1281,7 +1281,7 @@ namespace Chaos
 			FDebugDrawQueue::GetInstance().DrawDebugLine(Pos, Pos + 0.01f * Settings.AngVelScale * SimSpace.AngularAcceleration, FColor::Orange, false, UE_KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
 		}
 
-		void DrawConstraintGraphImpl(const FRigidTransform3& SpaceTransform, const FPBDConstraintGraph& Graph, const FChaosDebugDrawSettings& Settings)
+		void DrawConstraintGraphImpl(const FRigidTransform3& SpaceTransform, const Private::FPBDIslandManager& Graph, const FChaosDebugDrawSettings& Settings)
 		{
 			auto DrawGraphCollision = [&](const FRigidTransform3& SpaceTransform, const FPBDCollisionConstraint* Constraint,  int32 IslandIndex, int32 LevelIndex, int32 ColorIndex, int32 OrderIndex, bool bIsUsed, const FChaosDebugDrawSettings& Settings)
 			{
@@ -1321,7 +1321,7 @@ namespace Chaos
 				TArray<FAABB3> IslandBounds;
 				IslandBounds.SetNum(Graph.NumIslands());
 
-				const typename FPBDIslandManager::GraphType* IslandGraph = Graph.GetIslandGraph();
+				const typename Private::FPBDIslandManager::GraphType* IslandGraph = Graph.GetIslandGraph();
 				for (const auto& GraphNode : IslandGraph->GraphNodes)
 				{
 					FConstGenericParticleHandle Particle = GraphNode.NodeItem;
@@ -1346,7 +1346,7 @@ namespace Chaos
 
 			if (bChaosDebugDebugDrawContactGraph || bChaosDebugDebugDrawContactGraphUnused || bChaosDebugDebugDrawContactGraphUsed)
 			{
-				const typename FPBDIslandManager::GraphType* IslandGraph = Graph.GetIslandGraph();
+				const typename Private::FPBDIslandManager::GraphType* IslandGraph = Graph.GetIslandGraph();
 				for (const auto& GraphEdge : IslandGraph->GraphEdges)
 				{
 					const FConstraintHandle* Constraint = GraphEdge.EdgeItem;
@@ -1745,7 +1745,7 @@ namespace Chaos
 			}
 		}
 
-		void DrawConstraintGraph(const FRigidTransform3& SpaceTransform, const FPBDConstraintGraph& Graph, const FChaosDebugDrawSettings* Settings)
+		void DrawConstraintGraph(const FRigidTransform3& SpaceTransform, const Private::FPBDIslandManager& Graph, const FChaosDebugDrawSettings* Settings)
 		{
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{

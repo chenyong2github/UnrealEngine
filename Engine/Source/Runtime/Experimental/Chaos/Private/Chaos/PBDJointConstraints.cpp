@@ -826,7 +826,7 @@ namespace Chaos
 		OutR1 = FRotation3(Q1 * XL1.GetRotation()).ToMatrix();
 	}
 
-	void FPBDJointConstraints::AddConstraintsToGraph(FPBDIslandManager& IslandManager)
+	void FPBDJointConstraints::AddConstraintsToGraph(Private::FPBDIslandManager& IslandManager)
 	{
 		for (int32 ConstraintIndex = 0; ConstraintIndex < GetNumConstraints(); ++ConstraintIndex)
 		{

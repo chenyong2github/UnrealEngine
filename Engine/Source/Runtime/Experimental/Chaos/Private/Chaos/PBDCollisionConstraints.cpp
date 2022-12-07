@@ -360,7 +360,7 @@ namespace Chaos
 		}
 	}
 
-	void FPBDCollisionConstraints::AddConstraintsToGraph(FPBDIslandManager& IslandManager)
+	void FPBDCollisionConstraints::AddConstraintsToGraph(Private::FPBDIslandManager& IslandManager)
 	{
 		// Debugging/diagnosing: if we have collisions disabled, remove all collisions from the graph and don't add any more
 		if (!GetCollisionsEnabled())

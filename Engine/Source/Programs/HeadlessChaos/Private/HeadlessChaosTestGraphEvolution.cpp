@@ -25,7 +25,7 @@ namespace ChaosTest
 			, Constraints()
 			, TickCount(0)
 		{
-			IslandManager = &Evolution.GetConstraintGraph();
+			IslandManager = &Evolution.GetIslandManager();
 
 			// Bind the constraints to the evolution
 			Evolution.AddConstraintContainer(Constraints);
@@ -95,7 +95,7 @@ namespace ChaosTest
 		FPBDNullConstraints Constraints;
 		TArray<FPBDRigidParticleHandle*> ParticleHandles;
 		TArray<FPBDNullConstraintHandle*> ConstraintHandles;
-		FPBDIslandManager* IslandManager;
+		Private::FPBDIslandManager* IslandManager;
 
 		int32 TickCount;
 	};

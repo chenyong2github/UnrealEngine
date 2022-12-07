@@ -1545,7 +1545,7 @@ CSV_CUSTOM_STAT(PhysicsCounters, Name, Value, ECsvCustomStatOp::Set);
 		CHAOS_COUNTER_STAT(NumGeometryCollectionBodies, (int32)GetEvolution()->GetParticles().GetGeometryCollectionParticles().Size());
 
 		// Constraint counts
-		CHAOS_COUNTER_STAT(NumIslands, GetEvolution()->GetConstraintGraph().NumIslands());
+		CHAOS_COUNTER_STAT(NumIslands, GetEvolution()->GetIslandManager().NumIslands());
 		CHAOS_COUNTER_STAT(NumIslandGroups, GetEvolution()->GetIslandGroupManager().GetNumActiveGroups());
 		CHAOS_COUNTER_STAT(NumContacts, NumCollisionConstraints());
 		CHAOS_COUNTER_STAT(NumJoints, NumJointConstraints());
@@ -1674,7 +1674,7 @@ CSV_CUSTOM_STAT(PhysicsCounters, Name, Value, ECsvCustomStatOp::Set);
 		}
 		if (ChaosSolverDrawIslands == 1)
 		{
-			DebugDraw::DrawConstraintGraph(FRigidTransform3(), GetEvolution()->GetConstraintGraph(), &ChaosSolverDebugDebugDrawSettings);
+			DebugDraw::DrawConstraintGraph(FRigidTransform3(), GetEvolution()->GetIslandManager(), &ChaosSolverDebugDebugDrawSettings);
 		}
 		if (ChaosSolverDrawClusterConstraints == 1)
 		{

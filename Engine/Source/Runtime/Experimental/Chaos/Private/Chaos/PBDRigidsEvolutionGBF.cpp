@@ -241,13 +241,13 @@ void FPBDRigidsEvolutionGBF::ReloadParticlesCache()
 	FEvolutionResimCache* ResimCache = GetCurrentStepResimCache();
 	if ((ResimCache != nullptr) && ResimCache->IsResimming())
 	{
-		for (int32 IslandIndex = 0; IslandIndex < GetConstraintGraph().NumIslands(); ++IslandIndex)
+		for (int32 IslandIndex = 0; IslandIndex < GetIslandManager().NumIslands(); ++IslandIndex)
 		{
-			FPBDIsland* Island = GetConstraintGraph().GetIsland(IslandIndex);
+			Private::FPBDIsland* Island = GetIslandManager().GetIsland(IslandIndex);
 			bool bIsUsingCache = false;
-			if (!Island->IsSleeping() && !GetConstraintGraph().IslandNeedsResim(IslandIndex))
+			if (!Island->IsSleeping() && !GetIslandManager().IslandNeedsResim(IslandIndex))
 			{
-				for (FPBDIslandParticle& IslandParticle : Island->GetParticles())
+				for (Private::FPBDIslandParticle& IslandParticle : Island->GetParticles())
 				{
 					if (auto Rigid = IslandParticle.GetParticle()->CastToRigidParticle())
 					{
@@ -263,7 +263,7 @@ void FPBDRigidsEvolutionGBF::ReloadParticlesCache()
 
 void FPBDRigidsEvolutionGBF::BuildDisabledParticles(const int32 Island, TArray<TArray<FPBDRigidParticleHandle*>>& DisabledParticles, TArray<bool>& SleepedIslands)
 {
-	for (FPBDIslandParticle& IslandParticle : GetConstraintGraph().GetIsland(Island)->GetParticles())
+	for (Private::FPBDIslandParticle& IslandParticle : GetIslandManager().GetIsland(Island)->GetParticles())
 	{
 		// If a dynamic particle is moving slowly enough for long enough, disable it.
 		// @todo(mlentine): Find a good way of not doing this when we aren't using this functionality
@@ -293,7 +293,7 @@ void FPBDRigidsEvolutionGBF::BuildDisabledParticles(const int32 Island, TArray<T
 	}
 
 	// Turn off if not moving
-	SleepedIslands[Island] = GetConstraintGraph().SleepInactive(Island, PhysicsMaterials, SolverPhysicsMaterials);
+	SleepedIslands[Island] = GetIslandManager().SleepInactive(Island, PhysicsMaterials, SolverPhysicsMaterials);
 }
 
 int32 DrawAwake = 0;
@@ -437,9 +437,9 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 
 
 	TArray<bool> SleepedIslands;
-	SleepedIslands.SetNum(GetConstraintGraph().NumIslands());
+	SleepedIslands.SetNum(GetIslandManager().NumIslands());
 	TArray<TArray<FPBDRigidParticleHandle*>> DisabledParticles;
-	DisabledParticles.SetNum(GetConstraintGraph().NumIslands());
+	DisabledParticles.SetNum(GetIslandManager().NumIslands());
 	if(Dt > 0)
 	{
 		// Solve all the constraints
@@ -447,10 +447,10 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 			SCOPE_CYCLE_COUNTER(STAT_Evolution_ParallelSolve);
 			CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_PerIslandSolve);
 
-			IslandGroupManager.SetNumIterations(NumPositionIterations, NumVelocityIterations, NumProjectionIterations);
 			IslandGroupManager.Solve(Dt);
 		}
 
+		// Post-solve CCD fixup to prevent the constraint solve from pushing CCD objects our of the world
 		{
 			SCOPE_CYCLE_COUNTER(STAT_Evolution_CCDCorrection);
 			CSV_SCOPED_TIMING_STAT(PhysicsVerbose, CCDCorrection);
@@ -464,10 +464,10 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 			// @todo(chaos): improve this - batching will be poor when some island are much larger than others. 
 			// We can't just loop over groups because there are some islands with no constraints (and usually a single particle) 
 			// that do not get added to a group but still need otbe checked for sleeping
-			const int32 NumIslands = GetConstraintGraph().NumIslands();
+			const int32 NumIslands = GetIslandManager().NumIslands();
 			PhysicsParallelFor(NumIslands, [&](const int32 IslandIndex)
 			{
-				FPBDIsland* Island = GetConstraintGraph().GetIsland(IslandIndex);
+					Private::FPBDIsland* Island = GetIslandManager().GetIsland(IslandIndex);
 				if (!Island->IsSleeping() && !Island->IsUsingCache())
 				{
 					BuildDisabledParticles(IslandIndex, DisabledParticles, SleepedIslands);
@@ -501,11 +501,11 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_DeactivateSleep);
 		CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_DeactivateSleep);
-		for (int32 Island = 0; Island < GetConstraintGraph().NumIslands(); ++Island)
+		for (int32 Island = 0; Island < GetIslandManager().NumIslands(); ++Island)
 		{
 			if (SleepedIslands[Island])
 			{
-				GetConstraintGraph().SleepIsland(Particles, Island);
+				GetIslandManager().SleepIsland(Particles, Island);
 			}
 			
 			for (const auto Particle : DisabledParticles[Island])
@@ -525,7 +525,7 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 	ParticleUpdatePosition(Particles.GetDirtyParticlesView(), Dt);
 
 	// Clean up the transient data from the constraint graph (e.g., Islands get cleared here)
-	GetConstraintGraph().EndTick();
+	GetIslandManager().EndTick();
 
 	if (bChaos_Solver_TestMode)
 	{
@@ -677,7 +677,7 @@ FPBDRigidsEvolutionGBF::~FPBDRigidsEvolutionGBF()
 {
 	// This is really only needed to ensure proper cleanup (we verify that constraints have been removed from 
 	// the graph in the destructor). This can be optimized if it's a problem but it shouldn't be
-	GetConstraintGraph().Reset();
+	GetIslandManager().Reset();
 }
 
 void FPBDRigidsEvolutionGBF::Serialize(FChaosArchive& Ar)
@@ -881,7 +881,7 @@ void FPBDRigidsEvolutionGBF::DestroyTransientConstraints(FGeometryParticleHandle
 	if (Particle != nullptr)
 	{
 		// Remove all the particle's collisions from the graph
-		GetConstraintGraph().RemoveParticleConstraints(Particle, CollisionConstraints.GetContainerId());
+		GetIslandManager().RemoveParticleConstraints(Particle, CollisionConstraints.GetContainerId());
 
 		// Mark all collision constraints for destruction
 		DestroyParticleCollisionsInAllocator(Particle);

@@ -16,7 +16,6 @@
 
 namespace Chaos
 {
-
 /** Cvar to enable/disable the island sleeping */
 bool bChaosSolverSleepEnabled = true;
 FAutoConsoleVariableRef CVarChaosSolverSleepEnabled(TEXT("p.Chaos.Solver.SleepEnabled"), bChaosSolverSleepEnabled, TEXT(""));
@@ -39,8 +38,8 @@ FAutoConsoleVariableRef CVarChaosSolverValidateGraph(TEXT("p.Chaos.Solver.Valida
 bool bChaosSolverPersistentGraph = true;
 FAutoConsoleVariableRef CVarChaosSolverPersistentGraph(TEXT("p.Chaos.Solver.PersistentGraph"), bChaosSolverPersistentGraph, TEXT(""));
 
-extern int32 GSingleThreadedPhysics;
-
+namespace Private
+{
 	
 /** Check if a particle is dynamic or sleeping */
 FORCEINLINE bool IsDynamicParticle(const FGeometryParticleHandle* ParticleHandle)
@@ -1283,4 +1282,5 @@ void FPBDIslandManager::DebugCheckIslands() const
 }
 #endif
 
-}
+}	// namespace Private
+}	// namespace Chaos

@@ -16,6 +16,7 @@ namespace Chaos
 	namespace Private
 	{
 		class FPBDJointContainerSolver;
+		class FPBDIslandManager;
 	}
 
 	/**
@@ -304,7 +305,7 @@ namespace Chaos
 		virtual TUniquePtr<FConstraintContainerSolver> CreateGroupSolver(const int32 Priority) override final;
 		virtual int32 GetNumConstraints() const override final { return NumConstraints(); }
 		virtual void ResetConstraints() override final {}
-		virtual void AddConstraintsToGraph(FPBDIslandManager& IslandManager) override final;
+		virtual void AddConstraintsToGraph(Private::FPBDIslandManager& IslandManager) override final;
 		virtual void PrepareTick() override final;
 		virtual void UnprepareTick() override final;
 

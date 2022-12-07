@@ -326,9 +326,9 @@ namespace Chaos
 		}
 	}
 
-	void FPBDCollisionContainerSolver::AddConstraints(const TArrayView<FPBDIslandConstraint>& IslandConstraints)
+	void FPBDCollisionContainerSolver::AddConstraints(const TArrayView<Private::FPBDIslandConstraint>& IslandConstraints)
 	{
-		for (FPBDIslandConstraint& IslandConstraint : IslandConstraints)
+		for (Private::FPBDIslandConstraint& IslandConstraint : IslandConstraints)
 		{
 			// We will only ever be given constraints from our container (asserts in non-shipping)
 			FPBDCollisionConstraint& Constraint = IslandConstraint.GetConstraint()->AsUnsafe<FPBDCollisionConstraintHandle>()->GetContact();

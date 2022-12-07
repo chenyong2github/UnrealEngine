@@ -7,6 +7,7 @@
 #include "Chaos/Evolution/ConstraintGroupSolver.h"
 #include "Chaos/Evolution/SimulationSpace.h"
 #include "Chaos/Evolution/SolverBodyContainer.h"
+#include "Chaos/Evolution/IterationSettings.h"
 #include "Chaos/ParticleHandleFwd.h"
 
 
@@ -44,17 +45,23 @@ namespace Chaos
 
 		void SetNumPositionIterations(const int32 NumIts)
 		{
-			NumPositionIterations = NumIts;
+			Private::FIterationSettings Iterations = ConstraintSolver.GetIterationSettings();
+			Iterations.SetNumPositionIterations(NumIts);
+			ConstraintSolver.SetIterationSettings(Iterations);
 		}
 
 		void SetNumVelocityIterations(const int32 NumIts)
 		{
-			NumVelocityIterations = NumIts;
+			Private::FIterationSettings Iterations = ConstraintSolver.GetIterationSettings();
+			Iterations.SetNumVelocityIterations(NumIts);
+			ConstraintSolver.SetIterationSettings(Iterations);
 		}
 
 		void SetNumProjectionIterations(const int32 NumIts)
 		{
-			NumProjectionIterations = NumIts;
+			Private::FIterationSettings Iterations = ConstraintSolver.GetIterationSettings();
+			Iterations.SetNumProjectionIterations(NumIts);
+			ConstraintSolver.SetIterationSettings(Iterations);
 		}
 
 		void SetGravity(const FVec3& G)
@@ -115,11 +122,8 @@ namespace Chaos
 		TArrayCollectionArray<FRotation3>& ParticlePrevRs;
 
 		TArray<FPBDConstraintContainer*> ConstraintContainers;
-		FPBDSceneConstraintGroupSolver ConstraintSolver;
+		Private::FPBDSceneConstraintGroupSolver ConstraintSolver;
 
-		int32 NumPositionIterations;
-		int32 NumVelocityIterations;
-		int32 NumProjectionIterations;
 		FVec3 Gravity;
 		FSimulationSpaceSettings SimulationSpaceSettings;
 		FSimulationSpace SimulationSpace;

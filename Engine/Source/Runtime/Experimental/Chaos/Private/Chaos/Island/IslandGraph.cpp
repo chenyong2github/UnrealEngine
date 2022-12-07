@@ -979,6 +979,6 @@ void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::RemoveAllAwakeEdge
 	} 
 }
 
-template class FIslandGraph<FGeometryParticleHandle*, FConstraintHandleHolder, FPBDIsland*, FPBDIslandManager>;
+template class FIslandGraph<FGeometryParticleHandle*, FConstraintHandleHolder, Private::FPBDIsland*, Private::FPBDIslandManager>;
 template class FIslandGraph<int32, int32, int32, TNullIslandGraphOwner<int32, int32>>;
 }

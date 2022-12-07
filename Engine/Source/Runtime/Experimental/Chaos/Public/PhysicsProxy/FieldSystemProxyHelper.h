@@ -200,7 +200,7 @@ namespace Chaos
 			RigidHandle->SetObjectStateLowLevel(FieldState);
 			if (!RigidHandle->Disabled())
 			{
-				RigidSolver->GetEvolution()->GetConstraintGraph().AddParticle(RigidHandle);
+				RigidSolver->GetEvolution()->GetIslandManager().AddParticle(RigidHandle);
 			}
 		}
 	}

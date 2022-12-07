@@ -5,10 +5,13 @@
 
 namespace Chaos
 {
+	namespace Private
+	{
+		class FPBDIslandConstraint;
+	}
 	class FConstraintHandleHolder;
-	class FPBDIslandConstraint;
 	class FSolverBodyContainer;
-	class FPBDIsland;
+
 
 	/** 
 	 * Base class for all the solver for a set of constraints of a specific type.
@@ -63,7 +66,7 @@ namespace Chaos
 		 * NOTE: this should not do any actual data gathering - it should just add to the list of constraints in this group. All data
 		 * gathering is handled in GatherInput.
 		*/
-		virtual void AddConstraints(const TArrayView<FPBDIslandConstraint>& Constraints) = 0;
+		virtual void AddConstraints(const TArrayView<Private::FPBDIslandConstraint>& Constraints) = 0;
 
 		/**
 		 * Add all the required bodies to the body container (required for the constraints added with AddConstraints)
@@ -127,7 +130,7 @@ namespace Chaos
 			// We solve all constraints in the container in the order it prefers so nothing to do here
 		}
 
-		virtual void AddConstraints(const TArrayView<FPBDIslandConstraint>& Constraints) override final
+		virtual void AddConstraints(const TArrayView<Private::FPBDIslandConstraint>& Constraints) override final
 		{
 			// This solver container is for use with the a non-graph evolution. It will not call this function.
 			ensure(false);

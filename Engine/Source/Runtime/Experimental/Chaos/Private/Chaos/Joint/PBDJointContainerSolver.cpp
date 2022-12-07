@@ -130,9 +130,9 @@ namespace Chaos
 			}
 		}
 
-		void FPBDJointContainerSolver::AddConstraints(const TArrayView<FPBDIslandConstraint>& IslandConstraints)
+		void FPBDJointContainerSolver::AddConstraints(const TArrayView<Private::FPBDIslandConstraint>& IslandConstraints)
 		{
-			for (FPBDIslandConstraint& IslandConstraint : IslandConstraints)
+			for (Private::FPBDIslandConstraint& IslandConstraint : IslandConstraints)
 			{
 				// We will only ever be given constraints from our container (asserts in non-shipping)
 				const int32 ContainerConstraintIndex = IslandConstraint.GetConstraint()->AsUnsafe<FPBDJointConstraintHandle>()->GetConstraintIndex();

@@ -4,7 +4,7 @@
 
 namespace Chaos
 {
-	void FPBDNullConstraints::AddConstraintsToGraph(FPBDIslandManager& IslandManager)
+	void FPBDNullConstraints::AddConstraintsToGraph(Private::FPBDIslandManager& IslandManager)
 	{
 		IslandManager.AddContainerConstraints(*this);
 	}

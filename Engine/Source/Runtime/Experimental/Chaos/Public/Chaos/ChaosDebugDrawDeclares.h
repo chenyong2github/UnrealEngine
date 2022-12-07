@@ -8,6 +8,11 @@
 
 namespace Chaos
 {
+	namespace Private
+	{
+		class FPBDIslandManager;
+	}
+
 	class FConstraintHandle;
 
 	class FPBDCollisionConstraints;
@@ -20,10 +25,5 @@ namespace Chaos
 
 	class FPBDJointConstraints;
 
-	class FPBDIslandManager;
-
 	class FSimulationSpace;
-
-
-	using FPBDConstraintGraph = FPBDIslandManager;
 }

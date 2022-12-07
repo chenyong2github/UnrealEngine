@@ -2357,7 +2357,7 @@ namespace ChaosTest {
 
 			// Wait for sleep (active particles get added to the dirty list)
 			// NOTE: Sleep requires 20 frames of inactivity by default, plus the time for smoothed velocity to damp to zero
-			// (see FPBDConstraintGraph::SleepInactive)
+			// (see FPBDIslandManager::SleepInactive)
 			for(int Step = 0; Step < 500; ++Step)
 			{
 				TickSolverHelper(Solver);

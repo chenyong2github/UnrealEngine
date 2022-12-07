@@ -58,9 +58,7 @@ namespace Chaos
 		, CollisionDetector(InCollisionDetector)
 		, ParticlePrevXs(InPrevX)
 		, ParticlePrevRs(InPrevR)
-		, NumPositionIterations(0)
-		, NumVelocityIterations(0)
-		, NumProjectionIterations(0)
+		, ConstraintSolver(Private::FIterationSettings(0,0,0))
 		, Gravity(FVec3(0))
 		, SimulationSpaceSettings()
 	{
@@ -390,20 +388,20 @@ namespace Chaos
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_ApplyConstraintsPhase1);
 
-		ConstraintSolver.ApplyPositionConstraints(Dt, NumPositionIterations);
+		ConstraintSolver.ApplyPositionConstraints(Dt);
 	}
 
 	void FPBDMinEvolution::ApplyConstraintsPhase2(FReal Dt)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_ApplyConstraintsPhase2);
 
-		ConstraintSolver.ApplyVelocityConstraints(Dt, NumVelocityIterations);
+		ConstraintSolver.ApplyVelocityConstraints(Dt);
 	}
 
 	void FPBDMinEvolution::ApplyConstraintsPhase3(FReal Dt)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_ApplyConstraintsPhase3);
 
-		ConstraintSolver.ApplyProjectionConstraints(Dt, NumProjectionIterations);
+		ConstraintSolver.ApplyProjectionConstraints(Dt);
 	}
 }

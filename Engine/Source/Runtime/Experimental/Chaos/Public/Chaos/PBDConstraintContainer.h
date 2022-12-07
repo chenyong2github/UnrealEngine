@@ -9,10 +9,11 @@
 
 namespace Chaos
 {
+	namespace Private
+	{
+		class FPBDIslandManager;
+	}
 	class FConstraintContainerSolver;
-	class FPBDIslandManager;
-	using FPBDConstraintGraph = FPBDIslandManager;
-
 
 	/**
 	 * Base class for containers of constraints.
@@ -98,7 +99,7 @@ namespace Chaos
 		/**
 		 * Add all the constraints in the container to the graph
 		*/
-		virtual void AddConstraintsToGraph(FPBDIslandManager& IslandManager) = 0;
+		virtual void AddConstraintsToGraph(Private::FPBDIslandManager& IslandManager) = 0;
 
 	protected:
 		FConstraintHandleTypeID ConstraintHandleType;

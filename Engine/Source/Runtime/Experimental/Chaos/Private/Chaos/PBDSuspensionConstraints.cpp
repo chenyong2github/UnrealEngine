@@ -114,7 +114,7 @@ namespace Chaos
 		}
 	}
 
-	void FPBDSuspensionConstraints::AddConstraintsToGraph(FPBDIslandManager& IslandManager)
+	void FPBDSuspensionConstraints::AddConstraintsToGraph(Private::FPBDIslandManager& IslandManager)
 	{
 		IslandManager.AddContainerConstraints(*this);
 	}
