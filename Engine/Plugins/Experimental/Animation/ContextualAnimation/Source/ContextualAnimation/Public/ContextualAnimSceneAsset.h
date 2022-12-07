@@ -140,6 +140,36 @@ enum class EContextualAnimCriterionToConsider : uint8
 	Other
 };
 
+UENUM(BlueprintType)
+enum class EContextualAnimActorPreviewType : uint8
+{
+	SkeletalMesh,
+	StaticMesh,
+	Actor,
+	None
+};
+
+USTRUCT(BlueprintType)
+struct FContextualAnimActorPreviewData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "Defaults", meta = (GetOptions = "GetRoles"))
+	FName Role;
+
+	UPROPERTY(EditAnywhere, Category = "Defaults", meta = (GetOptions = "GetRoles"))
+	EContextualAnimActorPreviewType Type = EContextualAnimActorPreviewType::StaticMesh;
+
+	UPROPERTY(EditAnywhere, Category = "Defaults", meta = (EditCondition = "Type==EContextualAnimActorPreviewType::SkeletalMesh", EditConditionHides))
+	TSoftObjectPtr<class USkeletalMesh> PreviewSkeletalMesh;
+
+	UPROPERTY(EditAnywhere, Category = "Defaults", meta = (EditCondition = "Type==EContextualAnimActorPreviewType::StaticMesh", EditConditionHides))
+	TSoftObjectPtr<class UStaticMesh> PreviewStaticMesh;
+
+	UPROPERTY(EditAnywhere, Category = "Defaults", meta = (EditCondition = "Type==EContextualAnimActorPreviewType::Actor", EditConditionHides))
+	TSoftClassPtr<class AActor> PreviewActorClass;
+};
+
 UCLASS(Blueprintable)
 class CONTEXTUALANIMATION_API UContextualAnimSceneAsset : public UDataAsset
 {
@@ -240,6 +270,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = "Defaults", meta = (GetOptions = "GetRoles"))
 	FName PrimaryRole = NAME_None;
+
+	UPROPERTY(EditAnywhere, Category = "Defaults")
+	TArray<FContextualAnimActorPreviewData> OverridePreviewData;
 
 	UPROPERTY(EditAnywhere, Category = "Defaults")
 	TArray<FContextualAnimSceneSection> Sections;

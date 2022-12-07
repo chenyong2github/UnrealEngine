@@ -141,86 +141,143 @@ void FContextualAnimViewModel::SetActiveAnimSetForSection(int32 SectionIdx, int3
 
 AActor* FContextualAnimViewModel::SpawnPreviewActor(const FContextualAnimTrack& AnimTrack)
 {
-	if (AnimTrack.Animation == nullptr)
+	AActor* PreviewActor = nullptr;
+
+	// Prioritize override preview
+	EContextualAnimActorPreviewType PreviewType = EContextualAnimActorPreviewType::None;
+	USkeletalMesh* PreviewSkeletalMesh = nullptr;
+	UStaticMesh* PreviewStaticMesh = nullptr;
+	UClass* PreviewActorClass = nullptr;
+
+	for (const FContextualAnimActorPreviewData& PreviewData : GetSceneAsset()->OverridePreviewData)
 	{
-		return nullptr;
+		if (PreviewData.Role == AnimTrack.Role)
+		{
+			if(PreviewData.Type == EContextualAnimActorPreviewType::StaticMesh)
+			{
+				if(UStaticMesh* StaticMesh = PreviewData.PreviewStaticMesh.LoadSynchronous())
+				{
+					PreviewStaticMesh = StaticMesh;
+					PreviewType = PreviewData.Type;
+				}
+			}
+			else if (PreviewData.Type == EContextualAnimActorPreviewType::SkeletalMesh)
+			{
+				if (USkeletalMesh* SkeletalMesh = PreviewData.PreviewSkeletalMesh.LoadSynchronous())
+				{
+					PreviewSkeletalMesh = SkeletalMesh;
+					PreviewType = PreviewData.Type;
+				}
+			}
+			else if (PreviewData.Type == EContextualAnimActorPreviewType::Actor)
+			{
+				if (UClass* ActorClass = PreviewData.PreviewActorClass.LoadSynchronous())
+				{
+					PreviewActorClass = ActorClass;
+					PreviewType = PreviewData.Type;
+				}
+			}
+			break;
+		}
 	}
 
-	USkeleton* Skeleton = AnimTrack.Animation->GetSkeleton();
-
-	if (Skeleton == nullptr)
+	// if not explicit preview mesh is defined for a role with a valid animation, try to pull the preview mesh from the animation
+	if (PreviewType == EContextualAnimActorPreviewType::None && AnimTrack.Animation && AnimTrack.Animation->GetSkeleton())
 	{
-		return nullptr;
-	}
+		PreviewSkeletalMesh = AnimTrack.Animation->GetSkeleton()->GetPreviewMesh(true);
 
-	const FContextualAnimRoleDefinition* RoleDef = GetSceneAsset()->RolesAsset ? GetSceneAsset()->RolesAsset->FindRoleDefinitionByName(AnimTrack.Role) : nullptr;
-	const bool bIsCharacter = (RoleDef && RoleDef->bIsCharacter);
+		if (PreviewSkeletalMesh)
+		{
+			PreviewType = EContextualAnimActorPreviewType::SkeletalMesh;
+		}
+	}
 
 	const FTransform SpawnTransform = AnimTrack.GetRootTransformAtTime(0.f);
 
 	FActorSpawnParameters Params;
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
-	if (bIsCharacter)
+	if (PreviewType != EContextualAnimActorPreviewType::None)
 	{
-		ACharacter* PreviewCharacter = GetWorld()->SpawnActor<ACharacter>(ACharacter::StaticClass(), SpawnTransform, Params);
-		PreviewCharacter->SetFlags(RF_Transient);
+		const FContextualAnimRoleDefinition* RoleDef = GetSceneAsset()->RolesAsset ? GetSceneAsset()->RolesAsset->FindRoleDefinitionByName(AnimTrack.Role) : nullptr;
+		const bool bIsCharacter = (RoleDef && RoleDef->bIsCharacter);
 
-		USkeletalMeshComponent* SkelMeshComp = PreviewCharacter->GetMesh();
-		SkelMeshComp->SetRelativeLocation(FVector(0.f, 0.f, -PreviewCharacter->GetCapsuleComponent()->GetScaledCapsuleHalfHeight()));
-		SkelMeshComp->SetRelativeRotation(RoleDef->MeshToComponent.GetRotation());
-		SkelMeshComp->SetSkeletalMesh(Skeleton->GetPreviewMesh(true));
-		SkelMeshComp->SetAnimationMode(EAnimationMode::AnimationBlueprint);
-		SkelMeshComp->SetAnimInstanceClass(UAnimPreviewInstance::StaticClass());
-
-		UAnimPreviewInstance* AnimInstance = Cast<UAnimPreviewInstance>(SkelMeshComp->GetAnimInstance());
-		AnimInstance->SetAnimationAsset(AnimTrack.Animation, false, 0.f);
-		AnimInstance->PlayAnim(false, 0.f);
-
-		PreviewCharacter->CacheInitialMeshOffset(SkelMeshComp->GetRelativeLocation(), SkelMeshComp->GetRelativeRotation());
-
-		if (UCharacterMovementComponent* CharacterMovementComp = PreviewCharacter->GetCharacterMovement())
+		if (bIsCharacter)
 		{
-			CharacterMovementComp->bOrientRotationToMovement = true;
-			CharacterMovementComp->bUseControllerDesiredRotation = false;
-			CharacterMovementComp->RotationRate = FRotator(0.f, 540.0, 0.f);
-			CharacterMovementComp->bRunPhysicsWithNoController = true;
+			ACharacter* PreviewCharacter = GetWorld()->SpawnActor<ACharacter>(ACharacter::StaticClass(), SpawnTransform, Params);
+			PreviewCharacter->SetFlags(RF_Transient);
 
-			CharacterMovementComp->SetMovementMode(AnimTrack.bRequireFlyingMode ? EMovementMode::MOVE_Flying : EMovementMode::MOVE_Walking);
+			USkeletalMeshComponent* SkelMeshComp = PreviewCharacter->GetMesh();
+			SkelMeshComp->SetRelativeLocation(FVector(0.f, 0.f, -PreviewCharacter->GetCapsuleComponent()->GetScaledCapsuleHalfHeight()));
+			SkelMeshComp->SetRelativeRotation(RoleDef->MeshToComponent.GetRotation());
+			SkelMeshComp->SetSkeletalMesh(PreviewSkeletalMesh);
+			SkelMeshComp->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+			SkelMeshComp->SetAnimInstanceClass(UAnimPreviewInstance::StaticClass());
+
+			UAnimPreviewInstance* AnimInstance = Cast<UAnimPreviewInstance>(SkelMeshComp->GetAnimInstance());
+			AnimInstance->SetAnimationAsset(AnimTrack.Animation, false, 0.f);
+			AnimInstance->PlayAnim(false, 0.f);
+
+			PreviewCharacter->CacheInitialMeshOffset(SkelMeshComp->GetRelativeLocation(), SkelMeshComp->GetRelativeRotation());
+
+			if (UCharacterMovementComponent* CharacterMovementComp = PreviewCharacter->GetCharacterMovement())
+			{
+				CharacterMovementComp->bOrientRotationToMovement = true;
+				CharacterMovementComp->bUseControllerDesiredRotation = false;
+				CharacterMovementComp->RotationRate = FRotator(0.f, 540.0, 0.f);
+				CharacterMovementComp->bRunPhysicsWithNoController = true;
+
+				CharacterMovementComp->SetMovementMode(AnimTrack.bRequireFlyingMode ? EMovementMode::MOVE_Flying : EMovementMode::MOVE_Walking);
+			}
+
+			UMotionWarpingComponent* MotionWarpingComp = NewObject<UMotionWarpingComponent>(PreviewCharacter);
+			MotionWarpingComp->RegisterComponentWithWorld(GetWorld());
+			MotionWarpingComp->InitializeComponent();
+
+			PreviewActor = PreviewCharacter;
 		}
-
-		UMotionWarpingComponent* MotionWarpingComp = NewObject<UMotionWarpingComponent>(PreviewCharacter);
-		MotionWarpingComp->RegisterComponentWithWorld(GetWorld());
-		MotionWarpingComp->InitializeComponent();
-
-		return PreviewCharacter;
-	}
-	else
-	{
-		AActor* PreviewActor = GetWorld()->SpawnActor<AActor>(AActor::StaticClass(), SpawnTransform, Params);
-		PreviewActor->SetFlags(RF_Transient);
-
-		UDebugSkelMeshComponent* SkelMeshComp = NewObject<UDebugSkelMeshComponent>(PreviewActor);
-		SkelMeshComp->RegisterComponentWithWorld(GetWorld());
-
-		UAnimPreviewInstance* AnimInstance = NewObject<UAnimPreviewInstance>(SkelMeshComp);
-		SkelMeshComp->PreviewInstance = AnimInstance;
-		AnimInstance->InitializeAnimation();
-
-		SkelMeshComp->SetSkeletalMesh(Skeleton->GetPreviewMesh(true));
-		SkelMeshComp->EnablePreview(true, AnimTrack.Animation);
-
-		AnimInstance->SetAnimationAsset(AnimTrack.Animation, false, 0.0f);
-
-		AnimInstance->PlayAnim(false, 0.0f);
-
-		if (!PreviewActor->GetRootComponent())
+		else
 		{
-			PreviewActor->SetRootComponent(SkelMeshComp);
-		}
+			if(PreviewActorClass)
+			{
+				PreviewActor = GetWorld()->SpawnActor<AActor>(PreviewActorClass, SpawnTransform, Params);
+				PreviewActor->SetFlags(RF_Transient);
+			}
+			else 
+			{
+				PreviewActor = GetWorld()->SpawnActor<AActor>(AActor::StaticClass(), SpawnTransform, Params);
+				PreviewActor->SetFlags(RF_Transient);
 
-		return PreviewActor;
+				if (PreviewSkeletalMesh)
+				{
+					UDebugSkelMeshComponent* SkelMeshComp = NewObject<UDebugSkelMeshComponent>(PreviewActor);
+					SkelMeshComp->RegisterComponentWithWorld(GetWorld());
+
+					UAnimPreviewInstance* AnimInstance = NewObject<UAnimPreviewInstance>(SkelMeshComp);
+					SkelMeshComp->PreviewInstance = AnimInstance;
+					AnimInstance->InitializeAnimation();
+
+					SkelMeshComp->SetSkeletalMesh(PreviewSkeletalMesh);
+					SkelMeshComp->EnablePreview(true, AnimTrack.Animation);
+
+					AnimInstance->SetAnimationAsset(AnimTrack.Animation, false, 0.0f);
+
+					AnimInstance->PlayAnim(false, 0.0f);
+
+					PreviewActor->SetRootComponent(SkelMeshComp);
+				}
+				else if (PreviewStaticMesh)
+				{
+					UStaticMeshComponent* StaticMeshComp = NewObject<UStaticMeshComponent>(PreviewActor);
+					StaticMeshComp->SetStaticMesh(PreviewStaticMesh);
+					StaticMeshComp->RegisterComponentWithWorld(GetWorld());
+					PreviewActor->SetRootComponent(StaticMeshComp);
+				}
+			}
+		}
 	}
+
+	return PreviewActor;
 }
 
 void FContextualAnimViewModel::ResetTimeline()
@@ -1020,10 +1077,15 @@ void FContextualAnimViewModel::OnFinishedChangingProperties(const FPropertyChang
 	const FName PropertyName = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
 	const FName MemberPropertyName = (PropertyChangedEvent.MemberProperty != nullptr) ? PropertyChangedEvent.MemberProperty->GetFName() : NAME_None;
 
-	// Refresh the time line if the Sections array or the AnimSets array inside a section changes
+	// Refresh preview scene if the Sections array or the AnimSets array inside a section changes
 	if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UContextualAnimSceneAsset, Sections) &&
 		(PropertyName == GET_MEMBER_NAME_CHECKED(UContextualAnimSceneAsset, Sections) ||
 			PropertyName == GET_MEMBER_NAME_CHECKED(FContextualAnimSceneSection, AnimSets)))
+	{
+		SetDefaultMode();
+	}
+	// Refresh preview scene if override preview data changes
+	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UContextualAnimSceneAsset, OverridePreviewData))
 	{
 		SetDefaultMode();
 	}
