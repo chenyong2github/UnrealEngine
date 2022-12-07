@@ -104,9 +104,9 @@ private:
 	static void						DestroyAndFree(FHierarchicalTimerInfo* InPtr);
 };
 
+static TAllocatorFixedSizeFreeList<sizeof(FHierarchicalTimerInfo), 256> TimerInfoAllocator;
 static FHierarchicalTimerInfo RootTimerInfo("Root", 0);
 static FHierarchicalTimerInfo* CurrentTimerInfo = &RootTimerInfo;
-static TAllocatorFixedSizeFreeList<sizeof(FHierarchicalTimerInfo), 256> TimerInfoAllocator;
 
 FHierarchicalTimerInfo* FHierarchicalTimerInfo::AllocNew(const char* InName, uint16 InId)
 {
