@@ -78,7 +78,7 @@ TSharedPtr<FObjectReplicator> FDormantReplicatorHolder::FindAndRemoveReplicator(
 	return ReplicatorPtr;
 }
 
-const TSharedRef<FObjectReplicator>& FDormantReplicatorHolder::CreateAndStoreReplicator(AActor* DormantActor, UObject* ReplicatedObject)
+const TSharedRef<FObjectReplicator>& FDormantReplicatorHolder::CreateAndStoreReplicator(AActor* DormantActor, UObject* ReplicatedObject, bool& bOverwroteExistingReplicator)
 {
 	FActorDormantReplicators& ActorReplicators = ActorReplicatorSet.FindOrAdd(FActorDormantReplicators(DormantActor));
 
@@ -86,7 +86,7 @@ const TSharedRef<FObjectReplicator>& FDormantReplicatorHolder::CreateAndStoreRep
 
 	// Add a new replicator tied to this object. 
 	// If there was already a replicator for the same object in the set, it will be destroyed and overwritten by this new one.
-	FSetElementId Index = ActorReplicators.DormantReplicators.Add(FDormantObjectReplicator(SubObjectKey));
+	FSetElementId Index = ActorReplicators.DormantReplicators.Add(FDormantObjectReplicator(SubObjectKey), &bOverwroteExistingReplicator);
 
 	return ActorReplicators.DormantReplicators[Index].Replicator;
 }

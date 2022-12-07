@@ -109,9 +109,10 @@ struct FDormantReplicatorHolder
 	* 
 	* @param DormantActor The dormant actor that owns the replicated object
 	* @param ReplicatedObject The object that will be tied to the new ObjectReplicator.
+	* @param bOverwroteExistingReplicator When it returns true it means we erased an existing replicator.
 	* @return Return a reference to the object replicator we created and are now storing.
 	*/
-	const TSharedRef<FObjectReplicator>& CreateAndStoreReplicator(AActor* DormantActor, UObject* ReplicatedObject);
+	const TSharedRef<FObjectReplicator>& CreateAndStoreReplicator(AActor* DormantActor, UObject* ReplicatedObject, bool& bOverwroteExistingReplicator);
 
 	/**
 	* Store an existing replicator tied to the given replicated object

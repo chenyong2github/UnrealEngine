@@ -4834,14 +4834,16 @@ void UNetConnection::FlushDormancyForObject(AActor* DormantActor, UObject* Repli
 	// If we need to create a new replicator when flushing
 	if (!bReuseReplicators)
 	{
-		const TSharedRef<FObjectReplicator>& ObjectReplicatorRef = DormantReplicatorSet.CreateAndStoreReplicator(DormantActor, ReplicatedObject);
+		bool bOverwroteExistingReplicator = false;
+		const TSharedRef<FObjectReplicator>& ObjectReplicatorRef = DormantReplicatorSet.CreateAndStoreReplicator(DormantActor, ReplicatedObject, bOverwroteExistingReplicator);
 		
 		// Init using the objects current state
 		constexpr bool bUseDefaultState = false; 
 		ObjectReplicatorRef->InitWithObject(ReplicatedObject, this, bUseDefaultState);
 
 #if UE_REPLICATED_OBJECT_REFCOUNTING
-		if (Driver && DormantActor != ReplicatedObject)
+		// Add a refcount only when we did not create a replicator on top of an existing one.
+		if (Driver && DormantActor != ReplicatedObject && !bOverwroteExistingReplicator)
 		{
 			Driver->GetNetworkObjectList().AddSubObjectChannelReference(DormantActor, ReplicatedObject, this);
 		}
@@ -5095,7 +5097,7 @@ void UNetConnection::CleanupDormantReplicatorsForActor(AActor* Actor)
 		if (Driver)
 		{
 			TArray<TWeakObjectPtr<UObject>, TInlineAllocator<16>> RemovedObjects;
-			UE::Net::FExecuteForEachDormantReplicator ExecuteFunction = [&RemovedObjects](AActor* OwnerActor, FObjectKey ObjectKey, const TSharedRef<FObjectReplicator>& ReplicatorRef)
+			auto ExecuteFunction = [&RemovedObjects](AActor* OwnerActor, FObjectKey ObjectKey, const TSharedRef<FObjectReplicator>& ReplicatorRef)
 			{
 				if (OwnerActor != ReplicatorRef->GetObject())
 				{

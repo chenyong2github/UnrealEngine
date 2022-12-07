@@ -5171,7 +5171,7 @@ int32 UNetDriver::ServerReplicateActors(float DeltaSeconds)
 		// net.DormancyValidate can be set to 2 to validate all dormant actors against last known state before going dormant
 		if ( GNetDormancyValidate == 2 )
 		{
-			UE::Net::FExecuteForEachDormantReplicator ValidateFunction = [](AActor* OwnerActor, FObjectKey ObjectKey, const TSharedRef<FObjectReplicator>& ReplicatorRef)
+			auto ValidateFunction = [](AActor* OwnerActor, FObjectKey ObjectKey, const TSharedRef<FObjectReplicator>& ReplicatorRef)
 			{
 				FObjectReplicator& Replicator = ReplicatorRef.Get();
 

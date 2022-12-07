@@ -3018,7 +3018,7 @@ void UDemoNetDriver::FinalizeFastForward(const double StartTime)
 			}
 		}
 
-		UE::Net::FExecuteForEachDormantReplicator CallRepNotifies = [](AActor* OwnerActor, FObjectKey ObjectKey, const TSharedRef<FObjectReplicator>& ReplicatorRef)
+		auto CallRepNotifies = [](AActor* OwnerActor, FObjectKey ObjectKey, const TSharedRef<FObjectReplicator>& ReplicatorRef)
 		{
 			ReplicatorRef->CallRepNotifies(true);
 		};
@@ -3921,7 +3921,7 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 			}
 		}
 
-		UE::Net::FExecuteForEachDormantReplicator CallRepNotifies = [](AActor* OwnerActor, FObjectKey ObjectKey, const TSharedRef<FObjectReplicator>& ReplicatorRef)
+		auto CallRepNotifies = [](AActor* OwnerActor, FObjectKey ObjectKey, const TSharedRef<FObjectReplicator>& ReplicatorRef)
 		{
 			ReplicatorRef->CallRepNotifies(true);
 		};
