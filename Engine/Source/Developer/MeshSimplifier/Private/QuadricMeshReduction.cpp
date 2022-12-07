@@ -15,6 +15,7 @@
 #include "RenderUtils.h"
 #include "Engine/StaticMesh.h"
 #include "Misc/ConfigCacheIni.h"
+#include "RenderMath.h"
 
 class FQuadricSimplifierMeshReductionModule : public IMeshReductionModule
 {

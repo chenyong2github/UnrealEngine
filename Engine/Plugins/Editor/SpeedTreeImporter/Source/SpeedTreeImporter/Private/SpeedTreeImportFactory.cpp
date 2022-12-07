@@ -69,6 +69,7 @@
 #include "PackageTools.h"
 #include "SpeedTreeWind.h"
 #include "StaticMeshAttributes.h"
+#include "RenderMath.h"
 
 #if WITH_SPEEDTREE
 

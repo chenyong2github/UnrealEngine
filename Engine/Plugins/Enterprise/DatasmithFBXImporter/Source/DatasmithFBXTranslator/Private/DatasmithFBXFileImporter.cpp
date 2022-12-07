@@ -14,6 +14,7 @@
 #include "StaticMeshAttributes.h"
 #include "Misc/Paths.h"
 #include "RenderUtils.h"
+#include "RenderMath.h"
 
 #define ROOT_NODE_NAME TEXT("RootNode")
 #define INCH_TO_MM(value) (value * 25.4)
