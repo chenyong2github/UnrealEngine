@@ -169,6 +169,7 @@ void UUMGSequenceTickManager::TickWidgetAnimations(float DeltaSeconds)
 					else
 					{
 						WidgetIter.RemoveCurrent();
+						UserWidget->AnimationTickManager = nullptr;
 						continue;
 					}
 				}
