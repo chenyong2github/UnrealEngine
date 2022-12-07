@@ -233,7 +233,7 @@ FRigUnit_MultiFABRIK_Execute()
 		EffectorIndices.Reset();
 		BoneTree.Reset();
 		ChainGroup.Reset();
-		bIsInitialized = false;
+		bIsInitialized = true;
 	}
 	
 	if(BoneTree.Num() == 0)
