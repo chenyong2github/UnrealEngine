@@ -174,7 +174,7 @@ static FAutoConsoleVariableRef CVarILCUpdatePrimitivesTask(
 	ECVF_RenderThreadSafe
 	);
 
-static int32 GEarlyInitDynamicShadows = 1;
+int32 GEarlyInitDynamicShadows = 1;
 static FAutoConsoleVariableRef CVarEarlyInitDynamicShadows(
 	TEXT("r.EarlyInitDynamicShadows"),
 	GEarlyInitDynamicShadows,
@@ -4913,6 +4913,10 @@ void FSceneRenderer::ComputeViewVisibility(
 		}
 	}
 
+	ComputeLightVisibilityTask.Wait();
+
+	PreGatherDynamicMeshElements();
+
 	{
 		SCOPED_NAMED_EVENT(FSceneRenderer_GatherDynamicMeshElements, FColor::Yellow);
 		// Gather FMeshBatches from scene proxies
@@ -4947,8 +4951,6 @@ void FSceneRenderer::ComputeViewVisibility(
 	INC_DWORD_STAT_BY(STAT_ProcessedPrimitives,NumProcessedPrimitives);
 	INC_DWORD_STAT_BY(STAT_CulledPrimitives,NumCulledPrimitives);
 	INC_DWORD_STAT_BY(STAT_OccludedPrimitives,NumOccludedPrimitives);
-	
-	ComputeLightVisibilityTask.Wait();
 }
 
 void FDeferredShadingSceneRenderer::ComputeLightVisibility()
@@ -5257,7 +5259,6 @@ void FDeferredShadingSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, const F
 	}
 
 	PostVisibilityFrameSetup(ILCTaskData);
-	InitViewsBeforePrepass(GraphBuilder, InstanceCullingManager);
 
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_InitViews_InitRHIResources);
@@ -5356,20 +5357,6 @@ void FSceneRenderer::SetupSceneReflectionCaptureBuffer(FRHICommandListImmediate&
 				View.FurthestReflectionCaptureDistance = FMath::Max(View.FurthestReflectionCaptureDistance, Distance);
 			}
 		}
-	}
-}
-
-void FDeferredShadingSceneRenderer::InitViewsBeforePrepass(FRDGBuilder& GraphBuilder, FInstanceCullingManager& InstanceCullingManager)
-{
-	const bool bHasRayTracedOverlay = HasRayTracedOverlay(ViewFamily);
-
-	if (GEarlyInitDynamicShadows &&
-		CurrentDynamicShadowsTaskData == nullptr &&
-		ViewFamily.EngineShowFlags.DynamicShadows
-		&& !ViewFamily.EngineShowFlags.HitProxies
-		&& !bHasRayTracedOverlay)
-	{
-		CurrentDynamicShadowsTaskData = BeginInitDynamicShadows(true);
 	}
 }
 

@@ -913,6 +913,46 @@ static void GatherRayTracingRelevantPrimitives(const FScene& Scene, const FViewI
 	Result.bValid = true;
 }
 
+#if RHI_RAYTRACING
+struct FRayTracingRelevantPrimitiveTaskData
+{
+	FRayTracingRelevantPrimitiveList List;
+	FGraphEventRef Task;
+};
+#endif // RHI_RAYTRACING
+
+void FDeferredShadingSceneRenderer::PreGatherDynamicMeshElements()
+{
+#if RHI_RAYTRACING
+	if (bAnyRayTracingPassEnabled)
+	{
+		const int32 ReferenceViewIndex = 0;
+		FViewInfo& ReferenceView = Views[ReferenceViewIndex];
+
+		RayTracingRelevantPrimitiveTaskData = Allocator.Create<FRayTracingRelevantPrimitiveTaskData>();
+		RayTracingRelevantPrimitiveTaskData->Task = FFunctionGraphTask::CreateAndDispatchWhenReady(
+			[Scene = this->Scene, &ReferenceView, &RayTracingRelevantPrimitiveList = RayTracingRelevantPrimitiveTaskData->List]()
+		{
+			FTaskTagScope TaskTagScope(ETaskTag::EParallelRenderingThread);
+			GatherRayTracingRelevantPrimitives(*Scene, ReferenceView, RayTracingRelevantPrimitiveList);
+		}, TStatId(), nullptr, ENamedThreads::AnyNormalThreadHiPriTask);
+	}
+#endif // RHI_RAYTRACING
+
+	const bool bHasRayTracedOverlay = HasRayTracedOverlay(ViewFamily);
+
+	extern int32 GEarlyInitDynamicShadows;
+
+	if (GEarlyInitDynamicShadows &&
+		CurrentDynamicShadowsTaskData == nullptr &&
+		ViewFamily.EngineShowFlags.DynamicShadows
+		&& !ViewFamily.EngineShowFlags.HitProxies
+		&& !bHasRayTracedOverlay)
+	{
+		CurrentDynamicShadowsTaskData = BeginInitDynamicShadows(true);
+	}
+}
+
 bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBuilder& GraphBuilder, FViewInfo& View, FRayTracingScene& RayTracingScene, FRayTracingRelevantPrimitiveList& RelevantPrimitiveList)
 {
 	checkf(IsRayTracingEnabled() && bAnyRayTracingPassEnabled, TEXT("GatherRayTracingWorldInstancesForView should only be called if ray tracing is used"))
@@ -2538,19 +2578,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			}
 		}
 	}
-
-	// Asynchronously create a list of primitives relevant to ray tracing scene
-	FRayTracingRelevantPrimitiveList RayTracingRelevantPrimitiveList;
-	FGraphEventRef RayTracingRelevantPrimitiveListTask;
-	if (bAnyRayTracingPassEnabled)
-	{
-		RayTracingRelevantPrimitiveListTask = FFunctionGraphTask::CreateAndDispatchWhenReady(
-			[Scene = this->Scene, &ReferenceView, &RayTracingRelevantPrimitiveList]()
-		{
-			FTaskTagScope TaskTagScope(ETaskTag::EParallelRenderingThread);
-			GatherRayTracingRelevantPrimitives(*Scene, ReferenceView, RayTracingRelevantPrimitiveList);
-		}, TStatId(), nullptr, ENamedThreads::AnyNormalThreadHiPriTask);
-	}
 #endif // RHI_RAYTRACING
 
 	// Notify the FX system that the scene is about to be rendered.
@@ -2613,16 +2640,16 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	if (bAnyRayTracingPassEnabled)
 	{
 		// Wait until RayTracingRelevantPrimitiveList is ready
-		if (RayTracingRelevantPrimitiveListTask.IsValid())
+		if (RayTracingRelevantPrimitiveTaskData->Task.IsValid())
 		{
-			RayTracingRelevantPrimitiveListTask->Wait();
-			RayTracingRelevantPrimitiveListTask.SafeRelease();
+			RayTracingRelevantPrimitiveTaskData->Task->Wait();
+			RayTracingRelevantPrimitiveTaskData->Task.SafeRelease();
 		}
 
 		// Prepare ray tracing scene instance list
-		checkf(RayTracingRelevantPrimitiveList.bValid, TEXT("Ray tracing relevant primitive list is expected to have been created before GatherRayTracingWorldInstancesForView() is called."));
+		checkf(RayTracingRelevantPrimitiveTaskData->List.bValid, TEXT("Ray tracing relevant primitive list is expected to have been created before GatherRayTracingWorldInstancesForView() is called."));
 
-		GatherRayTracingWorldInstancesForView(GraphBuilder, ReferenceView, RayTracingScene, RayTracingRelevantPrimitiveList);
+		GatherRayTracingWorldInstancesForView(GraphBuilder, ReferenceView, RayTracingScene, RayTracingRelevantPrimitiveTaskData->List);
 	}
 #endif // RHI_RAYTRACING
 

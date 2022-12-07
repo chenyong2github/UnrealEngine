@@ -2366,6 +2366,8 @@ protected:
 	/** Performs once per frame setup after to visibility determination. */
 	void PostVisibilityFrameSetup(FILCUpdatePrimTaskData& OutILCTaskData);
 
+	virtual void PreGatherDynamicMeshElements() {}
+
 	void GatherDynamicMeshElements(
 		TArray<FViewInfo>& InViews, 
 		const FScene* InScene, 

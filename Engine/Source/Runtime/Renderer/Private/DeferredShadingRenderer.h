@@ -51,6 +51,10 @@ struct FLumenSceneFrameTemporaries;
 struct FSingleLayerWaterPrePassResult;
 struct FBuildHZBAsyncComputeParams;
 
+#if RHI_RAYTRACING
+struct FRayTracingRelevantPrimitiveTaskData;
+#endif
+
 /**   
  * Data for rendering meshes into Lumen Lighting Cards.
  */
@@ -516,6 +520,8 @@ private:
 		const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& ViewDependentWholeSceneShadows,
 		TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& OutPreShadows);
 
+	void PreGatherDynamicMeshElements() override final;
+
 	void PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& SceneTexturesConfig);
 
 	void ComputeLightVisibility();
@@ -523,7 +529,6 @@ private:
 	/** Determines which primitives are visible for each view. */
 	void InitViews(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& SceneTexturesConfig, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, struct FILCUpdatePrimTaskData& ILCTaskData, FInstanceCullingManager& InstanceCullingManager);
 
-	void InitViewsBeforePrepass(FRDGBuilder& GraphBuilder, FInstanceCullingManager& InstanceCullingManager);
 	void InitViewsAfterPrepass(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries, struct FILCUpdatePrimTaskData& ILCTaskData, FInstanceCullingManager& InstanceCullingManager);
 	void BeginUpdateLumenSceneTasks(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries);
 	void UpdateLumenScene(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries);
@@ -1167,6 +1172,10 @@ private:
 	bool bAreLightsInLightGrid;
 
 	FDynamicShadowsTaskData* CurrentDynamicShadowsTaskData{};
+
+#if RHI_RAYTRACING
+	FRayTracingRelevantPrimitiveTaskData* RayTracingRelevantPrimitiveTaskData = nullptr;
+#endif
 };
 
 DECLARE_CYCLE_STAT_EXTERN(TEXT("PrePass"), STAT_CLM_PrePass, STATGROUP_CommandListMarkers, );
