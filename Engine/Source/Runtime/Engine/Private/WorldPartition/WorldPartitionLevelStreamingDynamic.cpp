@@ -689,6 +689,23 @@ UWorld* UWorldPartitionLevelStreamingDynamic::GetOuterWorld() const
 	return OuterWorldPartition->GetTypedOuter<UWorld>();
 }
 
+bool UWorldPartitionLevelStreamingDynamic::ShouldBlockOnUnload() const
+{
+	if (Super::ShouldBlockOnUnload())
+	{
+		return true;
+	}
+
+	// When world partition cannot stream (anymore), return true so that RemoveFromWorld of this level is not incremental. 
+	// This guarantees that unloaded instanced wp levels fully unload their cell levels.
+	if (OuterWorldPartition.IsValid() && !OuterWorldPartition->CanStream())
+	{
+		return true;
+	}
+
+	return false;
+}
+
 void UWorldPartitionLevelStreamingDynamic::UpdateShouldSkipMakingVisibilityTransactionRequest()
 {
 	const UWorldPartitionRuntimeCell* Cell = GetWorldPartitionRuntimeCell();

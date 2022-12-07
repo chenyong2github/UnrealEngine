@@ -402,6 +402,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 		FrameLoadCells.Reset();
 	};
 
+	const bool bCanStream = WorldPartition->CanStream();
 	const bool bIsServer = WorldPartition->IsServer();
 	const bool bIsServerStreamingEnabled = WorldPartition->IsServerStreamingEnabled();
 	const bool bCanDeactivateOrUnloadCells = !bIsServer || WorldPartition->IsServerStreamingOutEnabled();
@@ -409,104 +410,107 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 
 	const bool bIsStreamingInEnabled = WorldPartition->IsStreamingInEnabled();
 
-	if (!bIsServer || bIsServerStreamingEnabled || AWorldPartitionReplay::IsPlaybackEnabled(World))
+	if (bCanStream)
 	{
-		// When world partition can't stream, all cells must be unloaded
-		if (WorldPartition->CanStream() && WorldPartition->RuntimeHash)
+		if (!bIsServer || bIsServerStreamingEnabled || AWorldPartitionReplay::IsPlaybackEnabled(World))
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionStreamingPolicy::UpdateStreamingState_ForEachStreamingCellsSources);
-
-			UWorldPartitionRuntimeCell::DirtyStreamingSourceCacheEpoch();
-
-			WorldPartition->RuntimeHash->ForEachStreamingCellsSources(StreamingSources, [this](const UWorldPartitionRuntimeCell* Cell, EStreamingSourceTargetState TargetState)
-			{
-				switch (TargetState)
-				{
-				case EStreamingSourceTargetState::Loaded:
-					FrameLoadCells.Add(Cell);
-					break;
-				case EStreamingSourceTargetState::Activated:
-					FrameActivateCells.Add(Cell);
-					break;
-				default:
-					check(0);
-				}
-
-				return true;
-			});
-		}
-	}
-
-	if (bIsServer)
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionStreamingPolicy::UpdateStreamingState_ServerUpdate);
-
-		// Server will activate all non data layer cells at first and then load/activate/unload data layer cells only when the data layer states change
-		if (!bIsServerStreamingEnabled && 
-			(ServerStreamingEnabledEpoch == NewServerStreamingEnabledEpoch) &&
-			(ContentBundleServerEpoch == FContentBundle::GetContentBundleEpoch()) &&
-			(DataLayersStatesServerEpoch == AWorldDataLayers::GetDataLayersStateEpoch()))
-		{
-			// Server as nothing to do early out
-			return; 
-		}
-
-		bUpdateEpoch = true;
-
-		// Gather Client visible level names
-		if (const UNetDriver* NetDriver = World->GetNetDriver())
-		{
-			for (UNetConnection* Connection : NetDriver->ClientConnections)
-			{
-				ClientVisibleLevelNames.Add(Connection->GetClientWorldPackageName());
-				ClientVisibleLevelNames.Append(Connection->ClientVisibleLevelNames);
-				ClientVisibleLevelNames.Append(Connection->GetClientMakingVisibleLevelNames());
-			}
-		}
-
-		const UDataLayerSubsystem* DataLayerSubsystem = GetWorld()->GetSubsystem<UDataLayerSubsystem>();
-		TSet<FName> EffectiveActiveDataLayerNames = DataLayerSubsystem->GetEffectiveActiveDataLayerNames();
-		TSet<FName> EffectiveLoadedDataLayerNames = DataLayerSubsystem->GetEffectiveLoadedDataLayerNames();
-
-		auto AddServerFrameCells = [this, &EffectiveLoadedDataLayerNames, &EffectiveActiveDataLayerNames](const UWorldPartitionRuntimeCell* Cell)
-		{
-			// Non Data Layer Cells + Active Data Layers
-			if (!Cell->HasDataLayers() || Cell->HasAnyDataLayer(EffectiveActiveDataLayerNames))
-			{
-				FrameActivateCells.Add(Cell);
-			}
-
-			// Loaded Data Layers Cells only
-			if (EffectiveLoadedDataLayerNames.Num())
-			{
-				if (Cell->HasDataLayers() && Cell->HasAnyDataLayer(EffectiveLoadedDataLayerNames))
-				{
-					FrameLoadCells.Add(Cell);
-				}
-			}
-		};
-
-		if (!bIsServerStreamingEnabled)
-		{
+			// When world partition can't stream, all cells must be unloaded
 			if (WorldPartition->RuntimeHash)
 			{
-				WorldPartition->RuntimeHash->ForEachStreamingCells([this, &AddServerFrameCells](const UWorldPartitionRuntimeCell* Cell)
+				TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionStreamingPolicy::UpdateStreamingState_ForEachStreamingCellsSources);
+
+				UWorldPartitionRuntimeCell::DirtyStreamingSourceCacheEpoch();
+
+				WorldPartition->RuntimeHash->ForEachStreamingCellsSources(StreamingSources, [this](const UWorldPartitionRuntimeCell* Cell, EStreamingSourceTargetState TargetState)
 				{
-					AddServerFrameCells(Cell);
+					switch (TargetState)
+					{
+					case EStreamingSourceTargetState::Loaded:
+						FrameLoadCells.Add(Cell);
+						break;
+					case EStreamingSourceTargetState::Activated:
+						FrameActivateCells.Add(Cell);
+						break;
+					default:
+						check(0);
+					}
+
 					return true;
 				});
 			}
 		}
-		else if (!bCanDeactivateOrUnloadCells)
+
+		if (bIsServer)
 		{
-			// When server streaming-out is disabled, revisit existing loaded/activated cells and add them in the proper FrameLoadCells/FrameActivateCells
-			for (const UWorldPartitionRuntimeCell* Cell : ActivatedCells.GetCells())
+			TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionStreamingPolicy::UpdateStreamingState_ServerUpdate);
+
+			// Server will activate all non data layer cells at first and then load/activate/unload data layer cells only when the data layer states change
+			if (!bIsServerStreamingEnabled && 
+				(ServerStreamingEnabledEpoch == NewServerStreamingEnabledEpoch) &&
+				(ContentBundleServerEpoch == FContentBundle::GetContentBundleEpoch()) &&
+				(DataLayersStatesServerEpoch == AWorldDataLayers::GetDataLayersStateEpoch()))
 			{
-				AddServerFrameCells(Cell);
+				// Server as nothing to do early out
+				return; 
 			}
-			for (const UWorldPartitionRuntimeCell* Cell : LoadedCells)
+
+			bUpdateEpoch = true;
+
+			// Gather Client visible level names
+			if (const UNetDriver* NetDriver = World->GetNetDriver())
 			{
-				AddServerFrameCells(Cell);
+				for (UNetConnection* Connection : NetDriver->ClientConnections)
+				{
+					ClientVisibleLevelNames.Add(Connection->GetClientWorldPackageName());
+					ClientVisibleLevelNames.Append(Connection->ClientVisibleLevelNames);
+					ClientVisibleLevelNames.Append(Connection->GetClientMakingVisibleLevelNames());
+				}
+			}
+
+			const UDataLayerSubsystem* DataLayerSubsystem = GetWorld()->GetSubsystem<UDataLayerSubsystem>();
+			TSet<FName> EffectiveActiveDataLayerNames = DataLayerSubsystem->GetEffectiveActiveDataLayerNames();
+			TSet<FName> EffectiveLoadedDataLayerNames = DataLayerSubsystem->GetEffectiveLoadedDataLayerNames();
+
+			auto AddServerFrameCells = [this, &EffectiveLoadedDataLayerNames, &EffectiveActiveDataLayerNames](const UWorldPartitionRuntimeCell* Cell)
+			{
+				// Non Data Layer Cells + Active Data Layers
+				if (!Cell->HasDataLayers() || Cell->HasAnyDataLayer(EffectiveActiveDataLayerNames))
+				{
+					FrameActivateCells.Add(Cell);
+				}
+
+				// Loaded Data Layers Cells only
+				if (EffectiveLoadedDataLayerNames.Num())
+				{
+					if (Cell->HasDataLayers() && Cell->HasAnyDataLayer(EffectiveLoadedDataLayerNames))
+					{
+						FrameLoadCells.Add(Cell);
+					}
+				}
+			};
+
+			if (!bIsServerStreamingEnabled)
+			{
+				if (WorldPartition->RuntimeHash)
+				{
+					WorldPartition->RuntimeHash->ForEachStreamingCells([this, &AddServerFrameCells](const UWorldPartitionRuntimeCell* Cell)
+					{
+						AddServerFrameCells(Cell);
+						return true;
+					});
+				}
+			}
+			else if (!bCanDeactivateOrUnloadCells)
+			{
+				// When server streaming-out is disabled, revisit existing loaded/activated cells and add them in the proper FrameLoadCells/FrameActivateCells
+				for (const UWorldPartitionRuntimeCell* Cell : ActivatedCells.GetCells())
+				{
+					AddServerFrameCells(Cell);
+				}
+				for (const UWorldPartitionRuntimeCell* Cell : LoadedCells)
+				{
+					AddServerFrameCells(Cell);
+				}
 			}
 		}
 	}
@@ -536,6 +540,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 
 	// Determine cells to activate (sorted by importance)
 	TArray<const UWorldPartitionRuntimeCell*> ToActivateCells;
+	if (bCanStream)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionStreamingPolicy::UpdateStreamingState_ToActivateCells);
 		for (const UWorldPartitionRuntimeCell* Cell : FrameActivateCells)
@@ -551,6 +556,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 
 	// Determine cells to load (sorted by importance)
 	TArray<const UWorldPartitionRuntimeCell*> ToLoadCells;
+	if (bCanStream)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionStreamingPolicy::UpdateStreamingState_ToLoadCells);
 		for (const UWorldPartitionRuntimeCell* Cell : FrameLoadCells)
@@ -574,13 +580,13 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 	TArray<const UWorldPartitionRuntimeCell*> ToUnloadCells;
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionStreamingPolicy::UpdateStreamingState_ToUnloadCells);
-		auto BuildCellsToUnload = [this, &ToUnloadCells, bIsServer, ShouldWaitForClientVisibility](const TSet<const UWorldPartitionRuntimeCell*>& InCells)
+		auto BuildCellsToUnload = [this, &ToUnloadCells, bCanStream, bIsServer, ShouldWaitForClientVisibility](const TSet<const UWorldPartitionRuntimeCell*>& InCells)
 		{
 			for (const UWorldPartitionRuntimeCell* Cell : InCells)
 			{
 				if (!FrameActivateCells.Contains(Cell) && !FrameLoadCells.Contains(Cell))
 				{
-					if (!bIsServer || !ShouldWaitForClientVisibility(Cell))
+					if (!bCanStream || !bIsServer || !ShouldWaitForClientVisibility(Cell))
 					{
 						ToUnloadCells.Add(Cell);
 					}

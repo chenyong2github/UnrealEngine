@@ -497,6 +497,8 @@ public:
 	 */
 	virtual bool ShouldBeVisible() const;
 
+	virtual bool ShouldBlockOnUnload() const { return bShouldBlockOnUnload; }
+
 	virtual bool ShouldBeAlwaysLoaded() const { return false; }
 
 	/** Get a bounding box around the streaming volumes associated with this LevelStreaming object */
