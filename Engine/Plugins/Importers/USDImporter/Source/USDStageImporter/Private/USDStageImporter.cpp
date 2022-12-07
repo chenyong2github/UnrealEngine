@@ -1141,7 +1141,26 @@ namespace UsdStageImporterImpl
 			}
 
 			constexpr EArchiveReplaceObjectFlags ReplaceFlags = (EArchiveReplaceObjectFlags::IgnoreOuterRef | EArchiveReplaceObjectFlags::IgnoreArchetypeRef);
-			FArchiveReplaceObjectRef< UObject > ArchiveReplaceObjectRefInner(Referencer,ObjectsToRemap, ReplaceFlags);
+			FArchiveReplaceObjectRef< UObject > ArchiveReplaceObjectRefInner(Referencer, ObjectsToRemap, ReplaceFlags);
+		}
+
+
+	}
+
+	void CallAssetsPostEditChange(const TSet<UObject*>& PublishedObjects)
+	{
+		for (UObject* PublishedObject : PublishedObjects)
+		{
+			if (UMaterialInstance* Material = Cast<UMaterialInstance>(PublishedObject))
+			{
+				// After we remapped all references to the persistent assets we need to call PostEditChange on
+				// all materials. This because material instance proxies hold direct references to the UTextures that
+				// are used by the material, and those references will be left pointing at the transient assets in
+				// case we had to use DuplicateObject to "publish" them to their final locations. Calling
+				// PostEditChange rebuilds those proxies from the UMaterialInstance's parameters, which *have* been
+				// remapped by our RemapReferences and RemapSoftReferences functions.
+				Material->PostEditChange();
+			}
 		}
 	}
 
@@ -1371,6 +1390,43 @@ namespace UsdStageImporterImpl
 
 		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>( "AssetTools" ).Get();
 		AssetTools.RenameReferencingSoftObjectPaths( Packages.Array(), SoftObjectsToRemap );
+	}
+
+	void GetPublishedAssetsAndDependencies(
+		const TSet<UObject*>& UsedAssetsAndDependencies,
+		const TMap< UObject*, UObject* >& ObjectsToRemap,
+		const TMap<FSoftObjectPath, FSoftObjectPath>& SoftObjectsToRemap,
+		TSet<UObject*>& OutPublishedAssetsAndDependencies
+	)
+	{
+		OutPublishedAssetsAndDependencies.Empty(UsedAssetsAndDependencies.Num());
+
+		for (UObject* Asset : UsedAssetsAndDependencies)
+		{
+			if (!Asset)
+			{
+				continue;
+			}
+
+			UObject* RemappedAsset = ObjectsToRemap.FindRef(Asset);
+
+			// The asset itself was renamed onto its final package, no remapping needed
+			if (!RemappedAsset && Asset->GetOutermost() != GetTransientPackage())
+			{
+				OutPublishedAssetsAndDependencies.Add(Asset);
+				continue;
+			}
+
+			// If we have remapped it, ObjectsToRemap and SoftObjectsToRemap should have agreed on where to
+			const FSoftObjectPath* RemappedSoftAsset = SoftObjectsToRemap.Find(FSoftObjectPath{Asset});
+			if (!RemappedAsset || !RemappedSoftAsset || RemappedAsset != RemappedSoftAsset->TryLoad())
+			{
+				UE_LOG(LogUsd, Warning, TEXT("Failed to publish or remap asset '%s'!"), *Asset->GetPathName());
+				continue;
+			}
+
+			OutPublishedAssetsAndDependencies.Add(RemappedAsset);
+		}
 	}
 
 	/** After we remapped everything, notify the AssetRegistry that we created some new assets */
@@ -1644,6 +1700,7 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 	TMap<FSoftObjectPath, FSoftObjectPath> SoftObjectsToRemap;
 	TMap<UObject*, UObject*> ObjectsToRemap;
 	TSet<UObject*> UsedAssetsAndDependencies;
+	TSet<UObject*> PublishedAssetsAndDependencies;
 	UsdUtils::FBlendShapeMap BlendShapesByPath;
 
 	// Ensure a valid asset cache
@@ -1694,8 +1751,10 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 	UsdStageImporterImpl::ResolveActorConflicts( ImportContext, ExistingSceneActor, ObjectsToRemap, SoftObjectsToRemap );
 	UsdStageImporterImpl::RemapReferences( ImportContext, UsedAssetsAndDependencies, ObjectsToRemap );
 	UsdStageImporterImpl::RemapSoftReferences( ImportContext, UsedAssetsAndDependencies, SoftObjectsToRemap );
+	UsdStageImporterImpl::GetPublishedAssetsAndDependencies(UsedAssetsAndDependencies, ObjectsToRemap, SoftObjectsToRemap, PublishedAssetsAndDependencies);
+	UsdStageImporterImpl::CallAssetsPostEditChange(PublishedAssetsAndDependencies);
 	UsdStageImporterImpl::Cleanup( ImportContext.SceneActor, ExistingSceneActor, ImportContext.ImportOptions->ExistingActorPolicy );
-	UsdStageImporterImpl::NotifyAssetRegistry( UsedAssetsAndDependencies );
+	UsdStageImporterImpl::NotifyAssetRegistry(PublishedAssetsAndDependencies);
 	UsdStageImporterImpl::RefreshComponents( ImportContext.SceneActor, ImportContext.ImportOptions->bImportAtSpecificTimeCode );
 
 	FUsdDelegates::OnPostUsdImport.Broadcast( ImportContext.FilePath );
@@ -1703,7 +1762,7 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 	// Analytics
 	{
 		double ElapsedSeconds = FPlatformTime::ToSeconds64( FPlatformTime::Cycles64() - StartTime );
-		UsdStageImporterImpl::SendAnalytics( ImportContext, nullptr, TEXT("Import"), UsedAssetsAndDependencies, ElapsedSeconds);
+		UsdStageImporterImpl::SendAnalytics( ImportContext, nullptr, TEXT("Import"), PublishedAssetsAndDependencies, ElapsedSeconds);
 	}
 
 	UsdStageImporterImpl::CloseStageIfNeeded( ImportContext );
@@ -1817,8 +1876,13 @@ bool UUsdStageImporter::ReimportSingleAsset(FUsdStageImportContext& ImportContex
 
 		// Just publish the one asset we wanted to reimport. Note that we may have other assets here too, but we'll ignore those e.g. a displayColor material or a skeleton
 		OutReimportedAsset = UsdStageImporterImpl::PublishAsset(ImportContext, ReimportedObject, OriginalAsset->GetOutermost()->GetPathName(), ObjectsToRemap, SoftObjectsToRemap);
-		UsdStageImporterImpl::RemapReferences( ImportContext, ImportContext.AssetCache->GetActiveAssets(), ObjectsToRemap );
-		UsdStageImporterImpl::RemapSoftReferences( ImportContext, ImportContext.AssetCache->GetActiveAssets(), SoftObjectsToRemap );
+
+		TSet<UObject*> UsedAssetsAndDependencies = ImportContext.AssetCache->GetActiveAssets();
+		TSet<UObject*> PublishedAssetsAndDependencies;
+		UsdStageImporterImpl::RemapReferences(ImportContext, UsedAssetsAndDependencies, ObjectsToRemap);
+		UsdStageImporterImpl::RemapSoftReferences(ImportContext, UsedAssetsAndDependencies, SoftObjectsToRemap);
+		UsdStageImporterImpl::GetPublishedAssetsAndDependencies(UsedAssetsAndDependencies, ObjectsToRemap, SoftObjectsToRemap, PublishedAssetsAndDependencies);
+		UsdStageImporterImpl::CallAssetsPostEditChange(PublishedAssetsAndDependencies);
 
 		bSuccess = OutReimportedAsset != nullptr && ImportContext.AssetCache->GetActiveAssets().Contains( ReimportedObject );
 	}
