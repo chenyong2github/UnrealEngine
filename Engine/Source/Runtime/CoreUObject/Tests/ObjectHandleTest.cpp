@@ -1,12 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if 0
 #if WITH_LOW_LEVEL_TESTS
 
-#include "ObjectPtrTestClass.h"
 #include "UObject/ObjectHandle.h"
 #include "UObject/ObjectPtr.h"
-#include "UObject/Package.h"
 #include "UObject/MetaData.h"
 #include "HAL/PlatformProperties.h"
 #include "ObjectRefTrackingTestBase.h"
@@ -53,7 +50,7 @@ protected:
 	UObject* ConstructAndResolveHandle(const ANSICHAR* PackageName, const ANSICHAR* ObjectName, const ANSICHAR* ClassPackageName = nullptr, const ANSICHAR* ClassName = nullptr)
 	{
 		FObjectRef TargetRef{FName(PackageName), FName(ClassPackageName), FName(ClassName), FObjectPathId(ObjectName)};
-		bool bValue = TargetRef.IsNull();
+		bool bValue = IsObjectRefNull(TargetRef);
 		TEST_FALSE(TEXT("Reference to target is null"), bValue);
 		if (bValue)
 		{
@@ -66,7 +63,7 @@ protected:
 
 	UObject* ConstructAndResolveHandle(const FPackedObjectRef& PackedTargetRef)
 	{
-		bool bValue = PackedTargetRef.EncodedRef == 0;
+		bool bValue = IsPackedObjectRefNull(PackedTargetRef);
 		TEST_FALSE(TEXT("Reference to target is null"), bValue);
 		if (bValue)
 		{
@@ -166,8 +163,8 @@ TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Resolve Eng
 	const FName TestPackageName(TEXT("/Engine/Test/ObjectPtrDefaultSerialize/Transient"));
 	UPackage* TestPackage = NewObject<UPackage>(nullptr, TestPackageName, RF_Transient);
 	TestPackage->AddToRoot();
-	UObject* TestSoftObject = NewObject<UObjectPtrTestClass>(TestPackage, TEXT("DefaultSerializeObject"));
-	UObject* TestSubObject = NewObject<UObjectPtrTestClass>(TestSoftObject, TEXT("SubObject"));
+	UObject* TestSoftObject = NewObject<UMetaData>(TestPackage, TEXT("DefaultSerializeObject"));
+	UObject* TestSubObject = NewObject<UMetaData>(TestSoftObject, TEXT("SubObject"));
 	ON_SCOPE_EXIT{
 		TestPackage->RemoveFromRoot();
 	};
@@ -187,7 +184,7 @@ DISABLED_TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Re
 	const FName TestPackageName(TEXT("/Engine/Test/ObjectPtrDefaultSerialize/Transient"));
 	UPackage* TestPackage = NewObject<UPackage>(nullptr, TestPackageName, RF_Transient);
 	TestPackage->AddToRoot();
-	UObject* TestSoftObject = NewObject<UObjectPtrTestClass>(TestPackage, TEXT("DefaultSerializeObject"));
+	UObject* TestSoftObject = NewObject<UMetaData>(TestPackage, TEXT("DefaultSerializeObject"));
 	ON_SCOPE_EXIT{
 		TestPackage->RemoveFromRoot();
 	};
@@ -201,7 +198,7 @@ TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Resolve Scr
 	TestResolvableNonNull("/Script/CoreUObject", "MetaData");
 }
 
-TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::TObjectPtr::HandleNullGetClass", "[CoreUObject][ObjectHandle]")
+TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::TObjectPtr::HandleNullGetClass", "[CoreUObject][ObjectHandle][.Engine]")
 {
 	TObjectPtr<UObject> Ptr = nullptr;
 	TEST_TRUE(TEXT("TObjectPtr.GetClass should return null on a null object"), Ptr.GetClass() == nullptr);
@@ -212,7 +209,7 @@ TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::TObjectPtr::HandleNullGetC
 TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::TObjectPtr::Null Behavior", "[CoreUObject][ObjectHandle]")
 {
 	TObjectPtr<UObject> Ptr = nullptr;
-	UObjectPtrTestClass* TestObject = nullptr;
+	UMetaData* TestObject = nullptr;
 
 	uint32 ResolveCount = 0;
 	auto ResolveDelegate = FObjectHandleReferenceResolvedDelegate::CreateLambda([&ResolveCount](const FObjectRef& SourceRef, UPackage* ObjectPackage, UObject* Object)
@@ -279,7 +276,8 @@ TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::TObjectPtr::Null Behavior"
 	TestPackage->AddToRoot();
 
 	const FName TestObjectName(TEXT("MyObject"));
-	TestObject = NewObject<UObjectPtrTestClass>(TestPackage, TestObjectName, RF_Transient);
+	TestObject = NewObject<UMetaData>(TestPackage, TestObjectName, RF_Transient);
+	TestObject->AddToRoot();
 
 	//ObjectPtr = FObjectPtr(MakePackedObjectRef(TestObject));
 	Ptr = TestObject;
@@ -296,7 +294,7 @@ TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::TObjectPtr::Null Behavior"
 	CHECK(Ptr != TestObject); CHECK(ResolveCount == 0u);
 	CHECK(TestObject != Ptr); CHECK(ResolveCount == 0u);
 
-	TestObject = static_cast<UObjectPtrTestClass*>(Ptr.Get());
+	TestObject = static_cast<UMetaData*>(Ptr.Get());
 	Ptr = nullptr;
 	CHECK_FALSE(Ptr == TestObject); CHECK(ResolveCount == 0u);
 	CHECK_FALSE(TestObject == Ptr); CHECK(ResolveCount == 0u);
@@ -318,4 +316,3 @@ TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Resolve Mal
 #endif // UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 
 #endif
-#endif 

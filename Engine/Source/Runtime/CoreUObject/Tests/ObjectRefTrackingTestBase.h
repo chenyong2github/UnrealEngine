@@ -30,21 +30,28 @@ public:
 			Test.ConditionalInstallCallbacks();
 		}
 
-		void TestNumResolves(const TCHAR* What, uint32 ExpectedDelta)
+		bool TestNumResolves(const TCHAR* What, uint32 ExpectedDelta)
 		{
 #if UE_WITH_OBJECT_HANDLE_TRACKING
-			TEST_EQUAL(What, OriginalNumResolves + ExpectedDelta, Test.GetNumResolves());
+			bool bValue = OriginalNumResolves + ExpectedDelta == Test.GetNumResolves();
+			TEST_TRUE(What, bValue);
+			return bValue;
 #endif
+			return true;
 		}
 
-		void TestNumFailedResolves(const TCHAR* What, uint32 ExpectedDelta)
+		bool TestNumFailedResolves(const TCHAR* What, uint32 ExpectedDelta)
 		{
 #if UE_WITH_OBJECT_HANDLE_TRACKING
-			TEST_EQUAL(What, OriginalNumFailedResolves + ExpectedDelta, Test.GetNumFailedResolves());
+			bool bValue = OriginalNumFailedResolves + ExpectedDelta == Test.GetNumFailedResolves();
+			TEST_TRUE(What, bValue);
+			return bValue;
 #endif
+			return true;
+
 		}
 
-		void TestNumReads(const TCHAR* What, uint32 ExpectedDelta, bool bAllowAdditionalReads = false)
+		bool TestNumReads(const TCHAR* What, uint32 ExpectedDelta, bool bAllowAdditionalReads = false)
 		{
 #if UE_WITH_OBJECT_HANDLE_TRACKING
 			bool bValue = false;
@@ -58,7 +65,10 @@ public:
 				bValue = OriginalNumReads + ExpectedDelta == Test.GetNumReads();
 				TEST_TRUE(What, bValue);
 			}
+			return bValue;
 #endif
+			return true;
+
 		}
 	private:
 		FObjectRefTrackingTestBase& Test;
