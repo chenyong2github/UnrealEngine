@@ -65,7 +65,7 @@ public:
 	float RadiusScale;
 
 	/** The exponent to use for all lights if no exponent binding was found */
-	UPROPERTY(EditAnywhere, Category = "Light Rendering", meta = (ClampMin = "0", EditCondition = "!bUseInverseSquaredFalloff"))
+	UPROPERTY(EditAnywhere, Category = "Light Rendering", meta = (ClampMin = "0", EditCondition = "!bUseInverseSquaredFalloff", EditConditionHides))
 	float DefaultExponent;
 
 	/** A static color shift applied to each rendered light */
@@ -85,31 +85,31 @@ public:
 	int32 RendererVisibility;
 
 	/** Which attribute should we use to check if light rendering should be enabled for a particle? This can be used to control the spawn-rate on a per-particle basis. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
+	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding LightRenderingEnabledBinding;
 
 	/** Which attribute should we use for the light's exponent when inverse squared falloff is disabled? */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings", meta = (EditCondition = "!bUseInverseSquaredFalloff"))
+	UPROPERTY(EditAnywhere, Category = "Bindings", meta = (EditCondition = "!bUseInverseSquaredFalloff", EditConditionHides))
 	FNiagaraVariableAttributeBinding LightExponentBinding;
 
 	/** Which attribute should we use for position when generating lights?*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
+	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding PositionBinding;
 
 	/** Which attribute should we use for light color when generating lights?*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
+	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding ColorBinding;
 
 	/** Which attribute should we use for light radius when generating lights?*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
+	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding RadiusBinding;
 
 	/** Which attribute should we use for the intensity of the volumetric scattering from this light? This scales the light's intensity and color. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
+	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding VolumetricScatteringBinding;
 
 	/** Which attribute should we use for the renderer visibility tag? */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
+	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding RendererVisibilityTagBinding;
 
 	FNiagaraDataSetAccessor<FNiagaraPosition> PositionDataSetAccessor;
