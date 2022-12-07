@@ -420,7 +420,7 @@ namespace UnrealBuildTool
 						if (ParamArchitectures.Count() == 0)
 						{
 							// ask the platform what achitectures it wants for this project
-							Architectures = BuildPlatform.GetProjectArchitectures(TargetProjectFile, TargetName);
+							Architectures = BuildPlatform.GetProjectArchitectures(TargetProjectFile, TargetName, false, false);
 						}
 						else
 						{

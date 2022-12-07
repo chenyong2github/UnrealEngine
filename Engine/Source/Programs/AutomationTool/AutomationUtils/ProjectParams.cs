@@ -561,6 +561,10 @@ namespace AutomationTool
 			bool? Prebuilt = null,
             int? RunTimeoutSeconds = null,
 			string SpecifiedArchitecture = null,
+			string ServerArchitecture = null,
+			string EditorArchitecture = null,
+			string ClientArchitecture = null,
+			string ProgramArchitecture = null,
 			string UbtArgs = null,
 			string AdditionalPackageOptions = null,
 			bool? IterativeDeploy = null,
@@ -943,6 +947,12 @@ namespace AutomationTool
 			this.DevicePassword = ParseParamValueIfNotSpecified(Command, DevicePassword, "devicepass", String.Empty);
 			this.CrashReporter = GetParamValueIfNotSpecified(Command, CrashReporter, this.CrashReporter, "crashreporter");
 			this.SpecifiedArchitecture = ParseParamValueIfNotSpecified(Command, SpecifiedArchitecture, "specifiedarchitecture", String.Empty);
+			// if SpecifiedArchitecture is used, then set them all to it, and then allow comandline to override specific ones
+			this.ServerArchitecture = this.EditorArchitecture = this.ClientArchitecture = this.ProgramArchitecture = this.SpecifiedArchitecture;
+			this.ServerArchitecture = ParseParamValueIfNotSpecified(Command, ServerArchitecture, "serverarchitecture", this.ServerArchitecture);
+			this.EditorArchitecture = ParseParamValueIfNotSpecified(Command, EditorArchitecture, "editorarchitecture", this.EditorArchitecture);
+			this.ClientArchitecture = ParseParamValueIfNotSpecified(Command, ClientArchitecture, "clientarchitecture", this.ClientArchitecture);
+			this.ProgramArchitecture = ParseParamValueIfNotSpecified(Command, ProgramArchitecture, "programarchitecture", this.ProgramArchitecture);
 			this.UbtArgs = ParseParamValueIfNotSpecified(Command, UbtArgs, "ubtargs", String.Empty);
 			this.AdditionalPackageOptions = ParseParamValueIfNotSpecified(Command, AdditionalPackageOptions, "AdditionalPackageOptions", String.Empty);
 			this.WriteBackMetadataToAssetRegistry = ParseParamValueIfNotSpecified(Command, WriteBackMetadataToAssetRegistry, "WriteBackMetadataToAssetRegistry", String.Empty);
@@ -2221,8 +2231,20 @@ namespace AutomationTool
         [Help("RunTimeoutSeconds", "timeout to wait after we lunch the game")]
         public int RunTimeoutSeconds;
 
-		[Help("SpecifiedArchitecture", "Determine a specific Minimum OS")]
+		[Help("SpecifiedArchitecture", "Architecture to use for building any executables (see EditorArchitecture, etc for specific target type control)")]
 		public string SpecifiedArchitecture;
+
+		[Help("EditorArchitecture", "Architecture to use for building editor executables")]
+		public string EditorArchitecture;
+
+		[Help("ServerArchitecture", "Architecture to use for building server executables")]
+		public string ServerArchitecture;
+
+		[Help("ClientArchitecture", "Architecture to use for building client/game executables")]
+		public string ClientArchitecture;
+
+		[Help("ProgramArchitecture", "Architecture to use for building program executables")]
+		public string ProgramArchitecture;
 
 		[Help("UbtArgs", "extra options to pass to ubt")]
 		public string UbtArgs;

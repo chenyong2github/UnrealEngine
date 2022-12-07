@@ -869,8 +869,8 @@ namespace UnrealBuildTool
 			// Sort the targets by name. When we have multiple targets of a given type for a project, we'll use the order to determine which goes in the primary project file (so that client names with a suffix will go into their own project).
 			AllTargetFiles = AllTargetFiles.OrderBy(x => x.FullName, StringComparer.OrdinalIgnoreCase).ToList();
 
-			// Remove any game projects that don't have a target
-			AllGameProjects.RemoveAll(x => !AllTargetFiles.Any(y => y.IsUnderDirectory(x.Directory)));
+			// Remove any game projects that don't have a target (or are under a directory "Programs" since they don't have Targets under the .uproject)
+			AllGameProjects.RemoveAll(x => !x.ContainsName("Programs", 0) && !AllTargetFiles.Any(y => y.IsUnderDirectory(x.Directory)));
 
 			Dictionary<FileReference, List<DirectoryReference>> AdditionalSearchPaths = new Dictionary<FileReference, List<DirectoryReference>>();
 
@@ -2381,6 +2381,13 @@ namespace UnrealBuildTool
 					RulesAssembly RulesAssembly;
 
 					FileReference? CheckProjectFile = AllGames.FirstOrDefault(x => TargetFilePath.IsUnderDirectory(x.Directory));
+					// if it wasn't found, it may be a program, and the target file isn't under the uproject, so look up by name
+					if (CheckProjectFile == null && TargetFilePath.ContainsName("Programs", 0))
+					{
+						string BaseName = TargetFilePath.GetFileNameWithoutAnyExtensions();
+						CheckProjectFile = AllGames.FirstOrDefault(x => x.GetFileNameWithoutAnyExtensions().Equals(BaseName, StringComparison.InvariantCultureIgnoreCase));
+					}
+
 					if (CheckProjectFile == null)
 					{
 						RulesAssembly = RulesCompiler.CreateEngineRulesAssembly(false, false, false, Logger);

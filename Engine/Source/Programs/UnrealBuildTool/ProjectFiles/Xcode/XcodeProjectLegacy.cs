@@ -960,54 +960,7 @@ namespace UnrealBuildTool.XcodeProjectLegacy
 			// First time seeing this target?
 			if (!CachedMacProjectArcitectures.ContainsKey(TargetName))
 			{
-				// Default to Intel
-				IEnumerable<string> TargetArchitectures = new[] { MacExports.IntelArchitecture };
-
-				// These targets are known to work so are allow-listed
-				bool IsAllowed = MacExports.TargetsAllowedForAppleSilicon.Contains(TargetName, StringComparer.OrdinalIgnoreCase);
-
-				// determine the target architectures based on what's allowed/denied
-				if (IsAllowed)
-				{
-					TargetArchitectures = AllArchitectures;
-				}
-				else
-				{
-					// if this is an unspecified tool/program, default to Intel for installed builds because we know all of that works. 
-					if (Config.ProjectTarget!.TargetRules!.Type == TargetType.Program)
-					{
-						// For misc tools we default to Intel for installed builds because we know all of that works. 
-						TargetArchitectures = Unreal.IsEngineInstalled() ? new[] { MacExports.IntelArchitecture } : AllArchitectures;
-					}
-					else
-					{
-						// For project targets we default to Intel then check the project settings. Note the editor target will have
-						// been denied above already.
-						TargetArchitectures = new[] { MacExports.IntelArchitecture };
-
-						ConfigHierarchy EngineIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, InProjectFile?.Directory, UnrealTargetPlatform.Mac);
-						string TargetArchitecture;
-						string Key = Config.ProjectTarget!.TargetRules!.Type == TargetType.Editor ? "EditorTargetArchitecture" : "TargetArchitecture";
-						if (EngineIni.GetString("/Script/MacTargetPlatform.MacTargetSettings", Key, out TargetArchitecture))
-						{
-							if (TargetArchitecture.Contains("Universal", StringComparison.OrdinalIgnoreCase))
-							{
-								TargetArchitectures = AllArchitectures;
-							}
-							else if (TargetArchitecture.Contains("Intel", StringComparison.OrdinalIgnoreCase))
-							{
-								TargetArchitectures = new[] { MacExports.IntelArchitecture };
-							}
-							else if (TargetArchitecture.Contains("Apple", StringComparison.OrdinalIgnoreCase))
-							{
-								TargetArchitectures = new[] { MacExports.AppleArchitecture };
-							}
-						}
-					}
-				}
-
-				// Cache this so we don't need to keep checking this file
-				CachedMacProjectArcitectures.Add(TargetName, TargetArchitectures);
+				CachedMacProjectArcitectures[TargetName] = PlatformExports.GetProjectArchitectures(UnrealTargetPlatform.Mac, InProjectFile, TargetName, bGetAllSupported:true);
 			}
 
 			return CachedMacProjectArcitectures[TargetName];

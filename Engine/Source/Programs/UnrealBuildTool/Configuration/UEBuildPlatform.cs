@@ -254,7 +254,9 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="ProjectFile">Optional project to read settings from </param>
 		/// <param name="TargetName">Optional name of project, can be useful for programs, etc that have no projectfile</param>
-		public virtual IEnumerable<string> GetProjectArchitectures(FileReference? ProjectFile, string? TargetName=null)
+		/// <param name="bGetAllSupported">If true, return all supported architectures for this target</param>
+		/// <param name="bIsDistributionMode">If true, return architectures when packaging in distribution mode</param>
+		public virtual IEnumerable<string> GetProjectArchitectures(FileReference? ProjectFile, string? TargetName, bool bGetAllSupported, bool bIsDistributionMode)
 		{
 			// by default, use an empty architecture (which is really just a modifer to the platform for some paths/names)
 			return new string[] { GetDefaultArchitecture(ProjectFile) };

@@ -267,17 +267,8 @@ namespace UnrealBuildTool
 			return MacExports.DefaultArchitecture;
 		}
 
-		private List<string>? CachedProjectArches = null;
-		private FileReference? CachedArchesProject = null;
-		private string? CachedArchesTarget = null;
-		public override IEnumerable<string> GetProjectArchitectures(FileReference? ProjectFile, string? TargetName)
+		public override IEnumerable<string> GetProjectArchitectures(FileReference? ProjectFile, string? TargetName, bool bGetAllSupported, bool bIsDistributionMode)
 		{
-			// use the cached one if it's valid
-			if (CachedProjectArches != null && ProjectFile == CachedArchesProject && TargetName == CachedArchesTarget)
-			{
-				return CachedProjectArches;
-			}
-
 			bool bIsEditor = false;
 			//// get project ini from ProjetFile, or if null, then try to get it from the target rules
 			//DirectoryReference? ProjectDir = null;
@@ -294,6 +285,12 @@ namespace UnrealBuildTool
 				}
 				TargetRules? Rules = RulesAsm.CreateTargetRules(TargetName, UnrealTargetPlatform.Mac, UnrealTargetConfiguration.Development, "", ProjectFile, null, Log.Logger);
 				bIsEditor = Rules.Type == TargetType.Editor;
+				// the projectfile passed in may be a game's uproject file that we are compiling a program in the context of, 
+				// but we still want the settings for the program
+				if (Rules.Type == TargetType.Program)
+				{
+					ProjectFile = Rules.ProjectFile;
+				}
 			}
 
 			ConfigHierarchy EngineIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ProjectFile?.Directory, UnrealTargetPlatform.Mac);
@@ -319,7 +316,9 @@ namespace UnrealBuildTool
 
 			// choose a supported architecture(s) based on desired type
 			List<string> Architectures = new();
-			if (DefaultArchitecture.Equals("all", StringComparison.InvariantCultureIgnoreCase))
+
+			// return all supported if getting supported, compiling for distribution, or we want active, and "all" is selected
+			if (bGetAllSupported || bIsDistributionMode || DefaultArchitecture.Equals("all", StringComparison.InvariantCultureIgnoreCase))
 			{
 				if (bSupportsArm64)
 				{
@@ -362,12 +361,7 @@ namespace UnrealBuildTool
 				throw new BuildException($"Unknown {DefaultKey} value found ('{DefaultArchitecture}') in .ini");
 			}
 
-
-			CachedProjectArches = Architectures;
-			CachedArchesProject = ProjectFile;
-			CachedArchesTarget = TargetName;
-
-			return CachedProjectArches;
+			return Architectures;
 		}
 
 		/// <summary>

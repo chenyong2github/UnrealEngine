@@ -50,30 +50,6 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Returns the current list of default targets that are known to build for Apple Silicon. Individual projects will
-		/// use the Project setting.
-		/// </summary>
-		/// <returns></returns>
-		static public IEnumerable<string> TargetsAllowedForAppleSilicon
-		{
-			get
-			{
-				return new[] { 
-					"BenchmarkTool",
-					"BlankProgram",
-					"BuildPatchTool",
-					"ShaderCompileWorker",
-					"UnrealClient",
-					"UnrealGame", 
-					"UnrealServer",
-					"UnrealHeaderTool", 
-					"UnrealPak",
-					"SlateUGS",
-				};
-			}
-		}
-
-		/// <summary>
 		/// Cached result for AppleArch check
 		/// </summary>
 		private static bool? IsRunningOnAppleArchitectureVar;

@@ -89,17 +89,6 @@ public class MacPlatform : ApplePlatform
 	}
 
 	/// <summary>
-	/// Returns true if UAT can build this target for all Mac architectures
-	/// </summary>
-	/// <param name="InTarget"></param>
-	/// <param name="InParams"></param>
-	/// <returns></returns>
-	protected bool CanBuildTargetForAllArchitectures(UnrealBuild.BuildTarget InTarget, ProjectParams InParams)
-	{
-		return MacExports.TargetsAllowedForAppleSilicon.Contains(InTarget.TargetName, StringComparer.OrdinalIgnoreCase);
-	}
-
-	/// <summary>
 	/// Override PreBuildAgenda so we can control the architecture that targets are built for based on
 	/// project settings and the current user environment
 	/// </summary>
@@ -110,75 +99,14 @@ public class MacPlatform : ApplePlatform
 	{
 		base.PreBuildAgenda(Build, Agenda, Params);
 
-		string LocalArchitecture = MacExports.HostArchitecture;
-
-		bool ProjectIsUniversal = ProjectTargetArchitectures.Count() > 1;
-
-		// Go through the agenda for all targets and set the architecture appropriately
+		// Go through the agenda for all targets and set the architecture if needed
 		foreach (UnrealBuild.BuildTarget Target in Agenda.Targets)
 		{
-			bool IsTarget = Params.ClientCookedTargets.Contains(Target.TargetName) || Params.ServerCookedTargets.Contains(Target.TargetName);
-
-			// Default to Intel. 
-			string UBTArchitectureParam = MacExports.IntelArchitecture;
-
-			// If an architecture was specified, use that
-			if (!string.IsNullOrEmpty(Params.SpecifiedArchitecture))
+			// if building for Distribution, and no arch is already specified, then get the distro architectures and use that for this build
+			if (Params.Distribution && !Target.UBTArgs.ToLower().Contains("-architecture="))
 			{
-				UBTArchitectureParam = Params.SpecifiedArchitecture;
-				Log.TraceInformation("Building {0} as {1} due to -specifiedarchitecture", Target.TargetName, UBTArchitectureParam);
-			}
-			else
-			{
-				// Targets are easy. 
-				// - If the project is set to Intel/Apple we do that
-				// - If it's universal we build the local architecture unless distributing
-				// - SpecifiedArchitecture overrides these
-				if (IsTarget)
-				{
-					// If the project isn't marked as universal built what it's set to
-					if (!ProjectIsUniversal)
-					{
-						UBTArchitectureParam = ProjectTargetArchitectures.First();
-						Log.TraceInformation("Building {0} as {1}", Target.TargetName, UBTArchitectureParam);
-					}
-					else
-					{
-						// if it is universal, build everything for distribution or just the local architecture otherwise
-						if (Params.Distribution)
-						{
-							UBTArchitectureParam = string.Join("+", ProjectTargetArchitectures);
-							Log.TraceInformation("Building {0} as {1} for distribution", Target.TargetName, UBTArchitectureParam);
-						}
-						else
-						{
-							UBTArchitectureParam = LocalArchitecture;
-							Log.TraceInformation("Building {0} as {1} for local non-distribution", Target.TargetName, UBTArchitectureParam);
-						}
-					}
-				}
-				else
-				{
-					// We build tools for the local architecture if possible
-					if (CanBuildTargetForAllArchitectures(Target, Params) || LocalArchitecture == MacExports.IntelArchitecture)
-					{
-						UBTArchitectureParam = LocalArchitecture;
-						Log.TraceInformation("Building {0} as {1} for host", Target.TargetName, UBTArchitectureParam);
-					}
-					else if (MacExports.IsRunningOnAppleArchitecture)
-					{
-						// Tell them why to avoid confusion
-						Log.TraceInformation("Building {0} as {1} (arm64 not currently supported)", Target.TargetName, UBTArchitectureParam);
-						UBTArchitectureParam = MacExports.IntelArchitecture;
-					}
-				}
-			}
-			
-			// TODO - This needs to be handled in a more graceful way, however for now
-			// when in an installedbuild just leave it to the default arch and don't add anything extra
-			if (!Unreal.IsEngineInstalled())
-			{
-				Target.UBTArgs += string.Format(" -architecture={0}", UBTArchitectureParam);
+				IEnumerable<string> DistroArches = PlatformExports.GetProjectArchitectures(UnrealTargetPlatform.Mac, Params.RawProjectPath, Target.TargetName, false, true);
+				Target.UBTArgs += " -architecture=" + string.Join("+", DistroArches);
 			}
 		}
 	}
