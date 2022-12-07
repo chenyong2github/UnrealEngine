@@ -648,6 +648,21 @@ RENDERCORE_API bool SupportsTSR(const FStaticShaderPlatform Platform)
 	return FDataDrivenShaderPlatformInfo::GetSupportsGen5TemporalAA(Platform);
 }
 
+EShaderPlatform GetEditorShaderPlatform(EShaderPlatform ShaderPlatform)
+{
+	EShaderPlatform ActualShaderPlatform = ShaderPlatform;
+
+	if (GIsEditor)
+	{
+		if (FDataDrivenShaderPlatformInfo::GetIsPreviewPlatform(ActualShaderPlatform))
+		{
+			ActualShaderPlatform = FDataDrivenShaderPlatformInfo::GetPreviewShaderPlatformParent(ActualShaderPlatform);
+		}
+	}
+
+	return ActualShaderPlatform;
+}
+
 RENDERCORE_API int32 GUseForwardShading = 0;
 static FAutoConsoleVariableRef CVarForwardShading(
 	TEXT("r.ForwardShading"),
@@ -1167,7 +1182,7 @@ RENDERCORE_API bool PlatformSupportsVelocityRendering(const FStaticShaderPlatfor
 	return true;
 }
 
-RENDERCORE_API bool DoesPlatformSupportNanite(EShaderPlatform Platform, bool bCheckForProjectSetting)
+bool DoesPlatformSupportNanite(EShaderPlatform Platform, bool bCheckForProjectSetting)
 {
 	// Nanite allowed for this project
 	if (bCheckForProjectSetting)
@@ -1192,10 +1207,105 @@ RENDERCORE_API bool DoesPlatformSupportNanite(EShaderPlatform Platform, bool bCh
 	return bFullCheck;
 }
 
-/** Returns whether DBuffer decals are enabled for a given shader platform */
+bool NaniteAtomicsSupported()
+{
+	// Are 64bit image atomics supported by the GPU/Driver/OS/API?
+	bool bAtomicsSupported = GRHISupportsAtomicUInt64;
+
+#if PLATFORM_WINDOWS
+	const ERHIInterfaceType RHIInterface = RHIGetInterfaceType();
+	const bool bIsDx11 = RHIInterface == ERHIInterfaceType::D3D11;
+	const bool bIsDx12 = RHIInterface == ERHIInterfaceType::D3D12;
+
+	static const auto NaniteRequireDX12CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite.RequireDX12"));
+	static const uint32 NaniteRequireDX12 = (NaniteRequireDX12CVar != nullptr) ? NaniteRequireDX12CVar->GetInt() : 1;
+
+	if (bAtomicsSupported && NaniteRequireDX12 != 0)
+	{
+		// Only allow Vulkan or D3D12
+		bAtomicsSupported = !bIsDx11;
+
+		// Disable DX12 vendor extensions unless DX12 SM6.6 is supported
+		if (NaniteRequireDX12 == 1 && bIsDx12 && !GRHISupportsDX12AtomicUInt64)
+		{
+			// Vendor extensions currently support atomic64, but SM 6.6 and the DX12 Agility SDK are reporting that atomics are not supported.
+			// Likely due to a pre-1909 Windows 10 version, or outdated drivers without SM 6.6 support.
+			// See: https://devblogs.microsoft.com/directx/gettingstarted-dx12agility/
+			bAtomicsSupported = false;
+		}
+	}
+#endif
+
+	return bAtomicsSupported;
+}
+
+bool DoesRuntimeSupportNanite(EShaderPlatform ShaderPlatform, bool bCheckForAtomicSupport, bool bCheckForProjectSetting)
+{
+	// Does the platform support Nanite?
+	const bool bSupportedPlatform = DoesPlatformSupportNanite(ShaderPlatform, bCheckForProjectSetting);
+
+	// Nanite is not supported with forward shading at this time.
+	const bool bForwardShadingEnabled = IsForwardShadingEnabled(ShaderPlatform);
+
+	return bSupportedPlatform && (!bCheckForAtomicSupport || NaniteAtomicsSupported()) && !bForwardShadingEnabled;
+}
+
+bool UseNanite(EShaderPlatform ShaderPlatform, bool bCheckForAtomicSupport /*= true*/, bool bCheckForProjectSetting /*= true*/)
+{
+	static const auto EnableNaniteCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite"));
+	const bool bNaniteEnabled = (EnableNaniteCVar != nullptr) ? (EnableNaniteCVar->GetInt() != 0) : true;
+	return bNaniteEnabled && DoesRuntimeSupportNanite(ShaderPlatform, bCheckForAtomicSupport, bCheckForProjectSetting);
+}
+
+bool UseVirtualShadowMaps(EShaderPlatform ShaderPlatform, const FStaticFeatureLevel FeatureLevel)
+{
+	static const auto EnableVirtualSMCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shadow.Virtual.Enable"));
+	const bool bVirtualShadowMapsEnabled = EnableVirtualSMCVar ? (EnableVirtualSMCVar->GetInt() != 0) : false;
+	return bVirtualShadowMapsEnabled && DoesRuntimeSupportNanite(ShaderPlatform, true /* check for atomics */, false /* check project setting */);
+}
+
+bool DoesPlatformSupportVirtualShadowMaps(EShaderPlatform Platform)
+{
+	return DoesPlatformSupportNanite(Platform, false /* check project setting */);
+}
+
+bool DoesPlatformSupportNonNaniteVirtualShadowMaps(EShaderPlatform ShaderPlatform)
+{
+	static const auto EnableCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shadow.Virtual.NonNaniteVSM"));
+	return EnableCVar->GetInt() != 0 && DoesPlatformSupportNanite(ShaderPlatform, false /* check project setting */);
+}
+
+bool UseNonNaniteVirtualShadowMaps(EShaderPlatform ShaderPlatform, const FStaticFeatureLevel FeatureLevel)
+{
+	static const auto EnableCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shadow.Virtual.NonNaniteVSM"));
+	return EnableCVar->GetInt() != 0 && UseVirtualShadowMaps(ShaderPlatform, FeatureLevel);
+}
+
+bool IsWaterVirtualShadowMapFilteringEnabled(const FStaticShaderPlatform Platform)
+{
+	static const auto CVarWaterSingleLayerShaderSupportVSMFiltering = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Water.SingleLayer.ShadersSupportVSMFiltering"));
+	const bool bWaterVSMFilteringSupported = CVarWaterSingleLayerShaderSupportVSMFiltering && (CVarWaterSingleLayerShaderSupportVSMFiltering->GetInt() > 0);
+
+	const bool bVirtualShadowMapsSupported = DoesPlatformSupportVirtualShadowMaps(Platform);
+
+	return !IsForwardShadingEnabled(Platform) && bWaterVSMFilteringSupported && bVirtualShadowMapsSupported;
+}
+
+bool IsSingleLayerWaterDepthPrepassEnabled(const FStaticShaderPlatform Platform, const FStaticFeatureLevel FeatureLevel)
+{
+	static const auto CVarWaterSingleLayerDepthPrepass = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Water.SingleLayer.DepthPrepass"));
+	const bool bPrepassEnabled = CVarWaterSingleLayerDepthPrepass && CVarWaterSingleLayerDepthPrepass->GetInt() > 0;
+	// Currently VSM is the only feature dependent on the depth prepass which is why we only enable it if VSM could also be enabled.
+	// VSM can be toggled at runtime, but we need a compile time value here, so we fall back to DoesPlatformSupportVirtualShadowMaps() to check if
+	// VSM *could* be enabled.
+	const bool bVSMSupported = DoesPlatformSupportVirtualShadowMaps(Platform);
+
+	return bPrepassEnabled && bVSMSupported;
+
+}
+
 RENDERCORE_API bool IsUsingDBuffers(const FStaticShaderPlatform Platform)
 {
-	extern RENDERCORE_API ShaderPlatformMaskType GDBufferPlatformMask;
 	return (GDBufferPlatformMask[(int)Platform]);
 }
 
@@ -1211,6 +1321,25 @@ RENDERCORE_API bool DoesRuntimeSupportOnePassPointLightShadows(EShaderPlatform P
 
 	return RHISupportsVertexShaderLayer(Platform)
 		|| (CVar->GetValueOnAnyThread() != 0 && GRHISupportsArrayIndexFromAnyShader != 0);
+}
+
+bool IsForwardShadingEnabled(const FStaticShaderPlatform Platform)
+{
+	return (GForwardShadingPlatformMask[(int)Platform])
+		// Culling uses compute shader
+		&& GetMaxSupportedFeatureLevel(Platform) >= ERHIFeatureLevel::SM5;
+}
+
+bool IsUsingGBuffers(const FStaticShaderPlatform Platform)
+{
+	if (IsMobilePlatform(Platform))
+	{
+		return IsMobileDeferredShadingEnabled(Platform);
+	}
+	else
+	{
+		return !IsForwardShadingEnabled(Platform);
+	}
 }
 
 bool IsUsingBasePassVelocity(const FStaticShaderPlatform Platform)
@@ -1229,15 +1358,107 @@ bool IsUsingBasePassVelocity(const FStaticShaderPlatform Platform)
 	}
 }
 
-RENDERCORE_API bool AllowTranslucencyPerObjectShadows(const FStaticShaderPlatform& Platform)
+bool IsUsingSelectiveBasePassOutputs(const FStaticShaderPlatform Platform)
+{
+	return (GSelectiveBasePassOutputsPlatformMask[(int)Platform]);
+}
+
+bool IsUsingDistanceFields(const FStaticShaderPlatform Platform)
+{
+	return (GDistanceFieldsPlatformMask[(int)Platform]);
+}
+
+bool IsWaterDistanceFieldShadowEnabled(const FStaticShaderPlatform Platform)
+{
+	// Only deferred support such a feature. It is not possible to do that for water without a water depth pre-pass.
+	static const auto CVarWaterSingleLayerShaderSupportDistanceFieldShadow = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Water.SingleLayer.ShadersSupportDistanceFieldShadow"));
+	const bool bWaterSingleLayerShaderSupportDistanceFieldShadow = CVarWaterSingleLayerShaderSupportDistanceFieldShadow && (CVarWaterSingleLayerShaderSupportDistanceFieldShadow->GetInt() > 0);
+	return !IsForwardShadingEnabled(Platform) && IsUsingDistanceFields(Platform) && bWaterSingleLayerShaderSupportDistanceFieldShadow;
+}
+
+bool UseGPUScene(const FStaticShaderPlatform Platform, const FStaticFeatureLevel FeatureLevel)
+{
+	if (FeatureLevel == ERHIFeatureLevel::ES3_1)
+	{
+		return MobileSupportsGPUScene();
+	}
+
+	// GPU Scene management uses compute shaders
+	return FeatureLevel >= ERHIFeatureLevel::SM5
+		//@todo - support GPU Scene management compute shaders on these platforms to get dynamic instancing speedups on the Rendering Thread and RHI Thread
+		&& !IsOpenGLPlatform(Platform)
+		&& !IsVulkanMobileSM5Platform(Platform)
+		&& !IsMetalMobileSM5Platform(Platform)
+		// we only check DDSPI for platforms that have been read in - IsValid() can go away once ALL platforms are converted over to this system
+		&& (!FDataDrivenShaderPlatformInfo::IsValid(Platform) || FDataDrivenShaderPlatformInfo::GetSupportsGPUScene(Platform));
+}
+
+bool UseGPUScene(const FStaticShaderPlatform Platform)
+{
+	return UseGPUScene(Platform, GetMaxSupportedFeatureLevel(Platform));
+}
+
+bool ForceSimpleSkyDiffuse(const FStaticShaderPlatform Platform)
+{
+	return (GSimpleSkyDiffusePlatformMask[(int)Platform]);
+}
+
+bool VelocityEncodeDepth(const FStaticShaderPlatform Platform)
+{
+	return (GVelocityEncodeDepthPlatformMask[(int)Platform]);
+}
+
+RENDERCORE_API bool AllowTranslucencyPerObjectShadows(const FStaticShaderPlatform Platform)
 {
 	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && GAllowTranslucencyShadowsInProject != 0;
 }
 
+bool PlatformRequires128bitRT(EPixelFormat PixelFormat)
+{
+	switch (PixelFormat)
+	{
+	case PF_R32_FLOAT:
+	case PF_G32R32F:
+	case PF_A32B32G32R32F:
+		return FDataDrivenShaderPlatformInfo::GetRequiresExplicit128bitRT(GMaxRHIShaderPlatform);
+	default:
+		return false;
+	}
+}
+
+bool IsRayTracingEnabledForProject(EShaderPlatform ShaderPlatform)
+{
+	if (RHISupportsRayTracing(ShaderPlatform))
+	{
+		return (GRayTracingPlatformMask[(int)ShaderPlatform]);
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool ShouldCompileRayTracingShadersForProject(EShaderPlatform ShaderPlatform)
+{
+	if (RHISupportsRayTracingShaders(ShaderPlatform))
+	{
+		return IsRayTracingEnabledForProject(ShaderPlatform);
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool ShouldCompileRayTracingCallableShadersForProject(EShaderPlatform ShaderPlatform)
+{
+	return RHISupportsRayTracingCallableShaders(ShaderPlatform) && ShouldCompileRayTracingShadersForProject(ShaderPlatform);
+}
+
+
 bool IsRayTracingEnabled()
 {
 	bool bRayTracingEnabled = true;
-	extern RENDERCORE_API ERayTracingMode GRayTracingMode;
 	static const auto RayTracingEnableCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Raytracing.Enable"));
 	if (GRayTracingMode == ERayTracingMode::Dynamic && RayTracingEnableCVar)
 	{
@@ -1261,7 +1482,6 @@ bool IsRayTracingAllowed()
 	}
 #endif // DO_CHECK && WITH_EDITOR
 
-	extern RENDERCORE_API ERayTracingMode GRayTracingMode;
 	return (int32)GRayTracingMode >= (int32)ERayTracingMode::Enabled;
 }
 
@@ -1272,6 +1492,5 @@ bool IsRayTracingEnabled(EShaderPlatform ShaderPlatform)
 
 ERayTracingMode GetRayTracingMode()
 {
-	extern RENDERCORE_API ERayTracingMode GRayTracingMode;
 	return IsRayTracingAllowed() ? GRayTracingMode : ERayTracingMode::Disabled;
 }
