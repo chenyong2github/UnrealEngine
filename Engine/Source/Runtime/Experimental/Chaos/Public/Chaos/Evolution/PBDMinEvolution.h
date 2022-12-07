@@ -84,13 +84,13 @@ namespace Chaos
 		}
 
 
-		UE_DEPRECATED(5.3, "InBoundsExtension parameter has been removed")
+		UE_DEPRECATED(5.2, "InBoundsExtension parameter has been removed")
 		FPBDMinEvolution(FRigidParticleSOAs& InParticles, TArrayCollectionArray<FVec3>& InPrevX, TArrayCollectionArray<FRotation3>& InPrevR, FCollisionDetector& InCollisionDetector, const FReal InBoundsExtension)
 			: FPBDMinEvolution(InParticles, InPrevX, InPrevR, InCollisionDetector)
 		{
 		}
 
-		UE_DEPRECATED(5.3, "BoundsExtension has been removed")
+		UE_DEPRECATED(5.2, "BoundsExtension has been removed")
 		void SetBoudsExtension(const FReal Unused)
 		{
 		}

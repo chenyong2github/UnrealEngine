@@ -208,16 +208,16 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 		Ar << MP << MQ << MPreV << MPreW;
 	}
 
-	UE_DEPRECATED(5.3, "To be removed")
+	UE_DEPRECATED(5.2, "To be removed")
 	FORCEINLINE TArray<TVector<T, d>>& AllP() { return MP; }
 
-	UE_DEPRECATED(5.3, "To be removed")
+	UE_DEPRECATED(5.2, "To be removed")
 	FORCEINLINE TArray<TRotation<T, d>>& AllQ() { return MQ; }
 	
-	UE_DEPRECATED(5.3, "To be removed")
+	UE_DEPRECATED(5.2, "To be removed")
 	FORCEINLINE TArray<TVector<T, d>>& AllPreV() { return MPreV; }
 	
-	UE_DEPRECATED(5.3, "To be removed")
+	UE_DEPRECATED(5.2, "To be removed")
 	FORCEINLINE TArray<TVector<T, d>>& AllPreW() { return MPreW; }
 
   private:
