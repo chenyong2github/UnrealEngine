@@ -638,6 +638,7 @@ namespace mu
 				case OP_TYPE::ME_CLIPMORPHPLANE:
 				case OP_TYPE::ME_APPLYPOSE:
 				case OP_TYPE::ME_REMOVEMASK:
+				case OP_TYPE::IM_PLAINCOLOUR:
 					hasSpecialOpInSubtree = true;
 					break;
 
