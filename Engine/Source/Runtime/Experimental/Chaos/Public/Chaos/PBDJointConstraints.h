@@ -1,18 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-
-#include "Chaos/Array.h"
 #include "Chaos/Core.h"
-#include "Chaos/Transform.h"
-#include "Chaos/Vector.h"
 
 #include "Chaos/ConstraintHandle.h"
 #include "Chaos/Collision/CollisionApplyType.h"
 #include "Chaos/Evolution/IndexedConstraintContainer.h"
-#include "Chaos/Joint/PBDJointSolverGaussSeidel.h"
-#include "Chaos/Joint/PBDJointCachedSolverGaussSeidel.h"
 #include "Chaos/ParticleHandleFwd.h"
 #include "Chaos/PBDJointConstraintTypes.h"
 #include "Chaos/PBDJointConstraintData.h"
@@ -20,6 +13,14 @@
 
 namespace Chaos
 {
+	namespace Private
+	{
+		class FPBDJointContainerSolver;
+	}
+
+	/**
+	 * A handle to a joint constraint held in a joint container (FPBDJointConstraints) by index.
+	*/
 	class CHAOS_API FPBDJointConstraintHandle final : public TIndexedContainerConstraintHandle<FPBDJointConstraints>
 	{
 	public:
@@ -32,9 +33,6 @@ namespace Chaos
 		void SetConstraintEnabled(bool bEnabled);
 
 		void CalculateConstraintSpace(FVec3& OutXa, FMatrix33& OutRa, FVec3& OutXb, FMatrix33& OutRb) const;
-		int32 GetConstraintIsland() const;
-		int32 GetConstraintLevel() const;
-		int32 GetConstraintColor() const;
 
 		bool IsConstraintEnabled() const;
 		bool IsConstraintBroken() const;
@@ -64,6 +62,13 @@ namespace Chaos
 		void SetEnabledDuringResim(bool bEnabled);
 		EResimType ResimType() const;
 
+		UE_DEPRECATED(5.2, "No longer used")
+		int32 GetConstraintIsland() const;
+		UE_DEPRECATED(5.2, "No longer used")
+		int32 GetConstraintLevel() const;
+		UE_DEPRECATED(5.2, "No longer used")
+		int32 GetConstraintColor() const;
+
 	protected:
 		using Base::ConstraintIndex;
 		using Base::ConcreteContainer;
@@ -72,6 +77,9 @@ namespace Chaos
 		bool bAngularPlasticityInitialized;
 	};
 
+	/**
+	 * Peristent variable state for a joint
+	*/
 	class CHAOS_API FPBDJointState
 	{
 	public:
@@ -93,16 +101,15 @@ namespace Chaos
 	};
 
 	/**
-	 * A joint restricting up to 6 degrees of freedom, with linear and angular limits.
+	 * A set of joint restricting up to 6 degrees of freedom, with linear and angular limits.
 	 */
-	class CHAOS_API FPBDJointConstraints : public TPBDIndexedConstraintContainer<FPBDJointConstraints>
+	class CHAOS_API FPBDJointConstraints : public FPBDConstraintContainer
 	{
 	public:
-		using Base = TPBDIndexedConstraintContainer<FPBDJointConstraints>;
+		using Base = FPBDConstraintContainer;
 
 		using FConstraintContainerHandle = FPBDJointConstraintHandle;
 		using FConstraintHandleAllocator = TConstraintHandleAllocator<FPBDJointConstraints>;
-		using FVectorPair = TVector<FVec3, 2>;
 		using FTransformPair = TVector<FRigidTransform3, 2>;
 		using FHandles = TArray<FConstraintContainerHandle*>;
 
@@ -110,14 +117,26 @@ namespace Chaos
 
 		virtual ~FPBDJointConstraints();
 
+		/**
+		 * Get the solver settings (used by FPBDJointContainerSolver)
+		*/
 		const FPBDJointSolverSettings& GetSettings() const;
+
+		/*
+		* Modify the solver settings
+		*/
 		void SetSettings(const FPBDJointSolverSettings& InSettings);
 
+		/**
+		* Whether to use a linear or non-linear joint solver. Non-linear is more stable but much more expensive.
+		* A linear solver is used by default (see FPBDJointSolverSettings).
+		*/
 		void SetUseLinearJointSolver(const bool bInEnable) { Settings.bUseLinearSolver = bInEnable; }
 
-		//
-		// Constraint Container API
-		//
+		/**
+		 * Whether to sort the joints internally. Sort will be triggered on any tick when a joint was added. Only needed for RBAN.
+		*/
+		void SetSortEnabled(const bool bInEnable) { Settings.bSortEnabled = bInEnable; }
 
 		/**
 		 * Get the number of constraints.
@@ -198,22 +217,42 @@ namespace Chaos
 		 */
 		void FixConstraint(int32 ConstraintIndex);
 
+		/**
+		 * Set the break callback. This will be called once after the constraint solver phase on the \
+		 * tick when the constraint is broken. There is only one callback allowed - it is usually a 
+		 * method on the owner (e.g., the Evolution object) which will probably dispatch its own event.
+		*/
 		void SetBreakCallback(const FJointBreakCallback& Callback);
+
+		/**
+		 * Remove the previously assigned break callback.
+		*/
 		void ClearBreakCallback();
 
-		//
-		// Constraint API
-		//
+		/**
+		 * All of the constraints in the container, including inactive
+		*/
 		FHandles& GetConstraintHandles()
 		{
 			return Handles;
 		}
+
+		/**
+		 * All of the constraints in the container, including inactive
+		*/
 		const FHandles& GetConstConstraintHandles() const
 		{
 			return Handles;
 		}
 
+		/**
+		 * Get a joint constraint by index
+		*/
 		const FConstraintContainerHandle* GetConstraintHandle(int32 ConstraintIndex) const;
+
+		/**
+		 * Get a joint constraint by index
+		*/
 		FConstraintContainerHandle* GetConstraintHandle(int32 ConstraintIndex);
 
 		/**
@@ -221,17 +260,34 @@ namespace Chaos
 		 */
 		const FParticlePair& GetConstrainedParticles(int32 ConstraintIndex) const;
 
+		/**
+		 * Get the settings for a joint constraint by index
+		*/
 		const FPBDJointSettings& GetConstraintSettings(int32 ConstraintIndex) const;
 
+		/**
+		 * Set the settings for a joint constraint by index
+		*/
 		void SetConstraintSettings(int32 ConstraintIndex, const FPBDJointSettings& InConstraintSettings);
+
+		/**
+		 * Set the linear drive target for a constraint by index
+		*/
 		void SetLinearDrivePositionTarget(int32 ConstraintIndex, FVec3 InLinearDrivePositionTarget);
+
+		/**
+		 * Set the angular drive target for a constraint by index
+		*/
 		void SetAngularDrivePositionTarget(int32 ConstraintIndex, FRotation3 InAngularDrivePositionTarget);
 
-		int32 GetConstraintIsland(int32 ConstraintIndex) const;
-		int32 GetConstraintLevel(int32 ConstraintIndex) const;
-		int32 GetConstraintColor(int32 ConstraintIndex) const;
-
+		/**
+		* The total linear impulse applied by the constraint
+		*/
 		FVec3 GetConstraintLinearImpulse(int32 ConstraintIndex) const;
+
+		/**
+		* The total linear angular applied by the constraint
+		*/
 		FVec3 GetConstraintAngularImpulse(int32 ConstraintIndex) const;
 
 		ESyncState GetConstraintSyncState(int32 ConstraintIndex) const;
@@ -240,48 +296,58 @@ namespace Chaos
 		void SetConstraintEnabledDuringResim(int32 ConstraintIndex, bool bEnabled);
 		
 		EResimType GetConstraintResimType(int32 ConstraintIndex) const;
-		
+
 		//
 		// FConstraintContainer Implementation
 		//
+		virtual TUniquePtr<FConstraintContainerSolver> CreateSceneSolver(const int32 Priority) override final;
+		virtual TUniquePtr<FConstraintContainerSolver> CreateGroupSolver(const int32 Priority) override final;
 		virtual int32 GetNumConstraints() const override final { return NumConstraints(); }
 		virtual void ResetConstraints() override final {}
 		virtual void AddConstraintsToGraph(FPBDIslandManager& IslandManager) override final;
 		virtual void PrepareTick() override final;
 		virtual void UnprepareTick() override final;
 
-		//
-		// TSimpleConstraintContainerSolver API - used by RBAN solvers
-		//
-		void AddBodies(FSolverBodyContainer& SolverBodyContainer);
-		void GatherInput(const FReal Dt);
-		void ScatterOutput(const FReal Dt);
-		void ApplyPositionConstraints(const FReal Dt, const int32 It, const int32 NumIts);
-		void ApplyVelocityConstraints(const FReal Dt, const int32 It, const int32 NumIts);
-		void ApplyProjectionConstraints(const FReal Dt, const int32 It, const int32 NumIts);
+		// Called by the joint solver at the end of the constraint solver phase
+		void SetSolverResults(const int32 ConstraintIndex, const FVec3& LinearImpulse, const FVec3& AngularImpulse, const bool bIsBroken, const FSolverBody* SolverBody0, const FSolverBody* SolverBody1);
 
-		//
-		// TIndexedConstraintContainerSolver API - used by World solvers
-		//
-		void AddBodies(const TArrayView<int32>& ConstraintIndices, FSolverBodyContainer& SolverBodyContainer);
-		void GatherInput(const TArrayView<int32>& ConstraintIndices, const FReal Dt);
-		void ScatterOutput(const TArrayView<int32>& ConstraintIndices, const FReal Dt);
-		void ApplyPositionConstraints(const TArrayView<int32>& ConstraintIndices, const FReal Dt, const int32 It, const int32 NumIts);
-		void ApplyVelocityConstraints(const TArrayView<int32>& ConstraintIndices, const FReal Dt, const int32 It, const int32 NumIts);
-		void ApplyProjectionConstraints(const TArrayView<int32>& ConstraintIndices, const FReal Dt, const int32 It, const int32 NumIts);
+		// @todo(chaos): only needed for RBAN, and should be private or moved to the solver
+		int32 GetConstraintIsland(int32 ConstraintIndex) const;
+		int32 GetConstraintLevel(int32 ConstraintIndex) const;
+		int32 GetConstraintColor(int32 ConstraintIndex) const;
 
-		void GatherInput(const int32 ConstraintIndex, const FReal Dt);
-		void ScatterOutput(const int32 ConstraintIndex, const FReal Dt);
-
-	protected:
-		using Base::GetConstraintIndex;
-		using Base::SetConstraintIndex;
+		// @todo(chaos): functionality no longer supported here (see FPBDJointContainerSolver)
+		UE_DEPRECATED(5.2, "Joint Solver API moved to FPBDJointContainerSolver")
+		void AddBodies(FSolverBodyContainer& SolverBodyContainer) {}
+		UE_DEPRECATED(5.2, "Joint Solver API moved to FPBDJointContainerSolver")
+		void GatherInput(const FReal Dt){}
+		UE_DEPRECATED(5.2, "Joint Solver API moved to FPBDJointContainerSolver")
+		void ScatterOutput(const FReal Dt){}
+		UE_DEPRECATED(5.2, "Joint Solver API moved to FPBDJointContainerSolver")
+		void ApplyPositionConstraints(const FReal Dt, const int32 It, const int32 NumIts) {}
+		UE_DEPRECATED(5.2, "Joint Solver API moved to FPBDJointContainerSolver")
+		void ApplyVelocityConstraints(const FReal Dt, const int32 It, const int32 NumIts) {}
+		UE_DEPRECATED(5.2, "Joint Solver API moved to FPBDJointContainerSolver")
+		void ApplyProjectionConstraints(const FReal Dt, const int32 It, const int32 NumIts) {}
+		UE_DEPRECATED(5.2, "Joint Solver API moved to FPBDJointContainerSolver")
+		void AddBodies(const TArrayView<int32>& ConstraintIndices, FSolverBodyContainer& SolverBodyContainer) {}
+		UE_DEPRECATED(5.2, "Joint Solver API moved to FPBDJointContainerSolver")
+		void GatherInput(const TArrayView<int32>& ConstraintIndices, const FReal Dt) {}
+		UE_DEPRECATED(5.2, "Joint Solver API moved to FPBDJointContainerSolver")
+		void ScatterOutput(const TArrayView<int32>& ConstraintIndices, const FReal Dt) {}
+		UE_DEPRECATED(5.2, "Joint Solver API moved to FPBDJointContainerSolver")
+		void ApplyPositionConstraints(const TArrayView<int32>& ConstraintIndices, const FReal Dt, const int32 It, const int32 NumIts) {}
+		UE_DEPRECATED(5.2, "Joint Solver API moved to FPBDJointContainerSolver")
+		void ApplyVelocityConstraints(const TArrayView<int32>& ConstraintIndices, const FReal Dt, const int32 It, const int32 NumIts) {}
+		UE_DEPRECATED(5.2, "Joint Solver API moved to FPBDJointContainerSolver")
+		void ApplyProjectionConstraints(const TArrayView<int32>& ConstraintIndices, const FReal Dt, const int32 It, const int32 NumIts) {}
+		UE_DEPRECATED(5.2, "Joint Solver API moved to FPBDJointContainerSolver")
+		void GatherInput(const int32 ConstraintIndex, const FReal Dt) {}
+		UE_DEPRECATED(5.2, "Joint Solver API moved to FPBDJointContainerSolver")
+		void ScatterOutput(const int32 ConstraintIndex, const FReal Dt) {}
 
 	private:
 		friend class FPBDJointConstraintHandle;
-
-		FReal CalculateIterationStiffness(int32 It, int32 NumIts) const;
-		FReal CalculateShockPropagationInvMassScale(const FConstraintSolverBody& Body0, const FConstraintSolverBody& Body1, const FPBDJointSettings& JointSettings, const int32 It, const int32 NumIts) const;
 
 		void GetConstrainedParticleIndices(const int32 ConstraintIndex, int32& Index0, int32& Index1) const;
 		void CalculateConstraintSpace(int32 ConstraintIndex, FVec3& OutX0, FMatrix33& OutR0, FVec3& OutX1, FMatrix33& OutR1) const;
@@ -291,13 +357,7 @@ namespace Chaos
 
 		bool CanEvaluate(const int32 ConstraintIndex) const;
 
-		void AddBodies(const int32 ConstraintIndex, FSolverBodyContainer& SolverBodyContainer);
-		bool ApplyPositionConstraint(const FReal Dt, const int32 ConstraintIndex, const int32 It, const int32 NumIts);
-		bool ApplyVelocityConstraint(const FReal Dt, const int32 ConstraintIndex, const int32 It, const int32 NumIts);
-		void PrepareProjectionConstraint(const FReal Dt, const int32 ConstraintIndex, const int32 It, const int32 NumIts);
-		bool ApplyProjectionConstraint(const FReal Dt, const int32 ConstraintIndex, const int32 It, const int32 NumIts);
-		void ApplyBreakThreshold(const FReal Dt, int32 ConstraintIndex, const FVec3& LinearImpulse, const FVec3& AngularImpulse);
-		void ApplyPlasticityLimits(const int32 ConstraintIndex);
+		void ApplyPlasticityLimits(const int32 ConstraintIndex, const FSolverBody& SolverBody0, const FSolverBody& SolverBody1);
 
 		void SetConstraintBroken(int32 ConstraintIndex, bool bBroken);
 		void SetConstraintBreaking(int32 ConstraintIndex, bool bBreaking);
@@ -313,10 +373,6 @@ namespace Chaos
 		bool bJointsDirty;
 
 		FJointBreakCallback BreakCallback;
-
-		// @todo(ccaulfield): optimize storage for joint solver
-		TArray<FPBDJointSolver> ConstraintSolvers;
-		TArray<FPBDJointCachedSolver> CachedConstraintSolvers;
 	};
 
 }

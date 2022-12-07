@@ -223,6 +223,9 @@ namespace Chaos
 		// Whether to use the linear or non-linear joint solver
 		bool bUseLinearSolver;
 
+		// Whether the joints need to be sorted (only required for RBAN - the world solver uses the constraint graph for ordering)
+		bool bSortEnabled;
+
 		// Whether to solve rotation then position limits (true), or vice versa
 		// Solving position last leads to less separation at the joints when limits are being forced
 		bool bSolvePositionLast;

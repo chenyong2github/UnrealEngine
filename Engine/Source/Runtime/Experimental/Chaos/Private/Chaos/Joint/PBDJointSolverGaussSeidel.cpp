@@ -28,16 +28,6 @@ namespace Chaos
 	//
 	//
 
-	FPBDJointSolver::FPBDJointSolver()
-	{
-		if (bChaos_Joint_ISPC_Enabled)
-		{
-#if INTEL_ISPC
-			check(sizeof(FPBDJointSolver) == ispc::SizeofFPBDJointSolver()); 
-#endif
-		}
-	}
-
 	void FPBDJointSolver::InitDerivedState()
 	{
 		InitConnectorXs[0] = X(0) + R(0) * LocalConnectorXs[0].GetTranslation();
@@ -142,6 +132,7 @@ namespace Chaos
 		AngleTolerance = ToleranceScale * SolverSettings.AngleTolerance;
 
 		SolverStiffness = 1.0f;
+		bIsBroken = false;
 
 		LinearHardLambda = FVec3(0);
 		AngularHardLambda = FVec3(0);
@@ -211,7 +202,7 @@ namespace Chaos
 		}
 	}
 
-	void FPBDJointSolver::SetShockPropagationScales(const FReal InvMScale0, const FReal InvMScale1)
+	void FPBDJointSolver::SetShockPropagationScales(const FReal InvMScale0, const FReal InvMScale1, const FReal Dt)
 	{
 		if (InvMScales[0] != InvMScale0)
 		{
@@ -378,7 +369,8 @@ namespace Chaos
 	void FPBDJointSolver::ApplyProjections(
 		const FReal Dt,
 		const FPBDJointSolverSettings& SolverSettings,
-		const FPBDJointSettings& JointSettings)
+		const FPBDJointSettings& JointSettings,
+		const bool bLastIteration)
 	{
 		// @todo(chaos): We need to handle parent/child being the other way round
 		if (!IsDynamic(1))
@@ -405,22 +397,25 @@ namespace Chaos
 		}
 
 		// Final position fixup
-		const TVec3<EJointMotionType>& LinearMotion = JointSettings.LinearMotionTypes;
-		const bool bLinearLocked = (LinearMotion[0] == EJointMotionType::Locked) && (LinearMotion[1] == EJointMotionType::Locked) && (LinearMotion[2] == EJointMotionType::Locked);
-		if (bLinearLocked)
+		if (bLastIteration)
 		{
-			const FReal LinearProjection = FPBDJointUtilities::GetLinearProjection(SolverSettings, JointSettings);
-			const bool bLinearSoft = FPBDJointUtilities::GetSoftLinearLimitEnabled(SolverSettings, JointSettings);
-			const bool bLinearProjectionEnabled = (!bLinearSoft && JointSettings.bProjectionEnabled);
-			if (bLinearProjectionEnabled && (LinearProjection > 0))
+			const TVec3<EJointMotionType>& LinearMotion = JointSettings.LinearMotionTypes;
+			const bool bLinearLocked = (LinearMotion[0] == EJointMotionType::Locked) && (LinearMotion[1] == EJointMotionType::Locked) && (LinearMotion[2] == EJointMotionType::Locked);
+			if (bLinearLocked)
 			{
-				ApplyTranslateProjection(Dt, SolverSettings, JointSettings, LinearProjection, DP1, DR1);
-			}
+				const FReal LinearProjection = FPBDJointUtilities::GetLinearProjection(SolverSettings, JointSettings);
+				const bool bLinearSoft = FPBDJointUtilities::GetSoftLinearLimitEnabled(SolverSettings, JointSettings);
+				const bool bLinearProjectionEnabled = (!bLinearSoft && JointSettings.bProjectionEnabled);
+				if (bLinearProjectionEnabled && (LinearProjection > 0))
+				{
+					ApplyTranslateProjection(Dt, SolverSettings, JointSettings, LinearProjection, DP1, DR1);
+				}
 
-			// Add velocity correction from the net projection motion
-			if (Chaos_Joint_VelProjectionAlpha > 0.0f)
-			{
-				ApplyVelocityProjection(Dt, SolverSettings, JointSettings, Chaos_Joint_VelProjectionAlpha, DP1, DR1);
+				// Add velocity correction from the net projection motion
+				if (Chaos_Joint_VelProjectionAlpha > 0.0f)
+				{
+					ApplyVelocityProjection(Dt, SolverSettings, JointSettings, Chaos_Joint_VelProjectionAlpha, DP1, DR1);
+				}
 			}
 		}
 	}

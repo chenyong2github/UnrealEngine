@@ -127,7 +127,9 @@ namespace Chaos
 			return NetAngularImpulse;
 		}
 
-		FPBDJointSolver();
+		FPBDJointSolver()
+		{
+		}
 
 		void SetSolverBodies(FSolverBody* SolverBody0, FSolverBody* SolverBody1)
 		{
@@ -174,11 +176,28 @@ namespace Chaos
 		void ApplyProjections(
 			const FReal Dt,
 			const FPBDJointSolverSettings& SolverSettings,
-			const FPBDJointSettings& JointSettings);
+			const FPBDJointSettings& JointSettings,
+			const bool bLastIteration);
 
 		void SetShockPropagationScales(
 			const FReal InvMScale0, 
-			const FReal InvMScale1);
+			const FReal InvMScale1,
+			const FReal Dt);
+
+		void SetIsBroken(const bool bInIsBroken)
+		{
+			bIsBroken = bInIsBroken;
+		}
+
+		bool IsBroken() const
+		{
+			return bIsBroken;
+		}
+
+		bool RequiresSolve() const
+		{
+			return !IsBroken() && (IsDynamic(0) || IsDynamic(1));
+		}
 
 	private:
 
@@ -725,6 +744,8 @@ namespace Chaos
 		FRotation3 LastQs[MaxConstrainedBodies];	// Rotations at the beginning of the iteration
 		FVec3 InitConstraintAxisLinearVelocities; // Linear velocities along the constraint axes at the begining of the frame, used by restitution
 		FVec3 InitConstraintAxisAngularVelocities; // Angular velocities along the constraint axes at the begining of the frame, used by restitution
+
+		bool bIsBroken;
 	};
 
 }

@@ -10,9 +10,6 @@
 namespace Chaos
 {
 	
-FPBDJointCachedSolver::FPBDJointCachedSolver()
-{}
-	
 /** Derived states management */
 
 void FPBDJointCachedSolver::InitDerivedState()
@@ -197,6 +194,7 @@ void FPBDJointCachedSolver::Init(
 
 	NumActiveConstraints = -1;
 	bIsActive = true;
+	bIsBroken = false;
 
 	SolverStiffness = 1.0f;
 

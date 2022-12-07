@@ -42,6 +42,11 @@ namespace Chaos
 			return ConstraintIndex;
 		}
 
+		void SetConstraintIndex(const int32 InConstraintIndex)
+		{
+			ConstraintIndex = InConstraintIndex;
+		}
+
 		static const FConstraintHandleTypeID& StaticType()
 		{
 			static FConstraintHandleTypeID STypeID(TEXT("FIndexedConstraintHandle"), &FConstraintHandle::StaticType());

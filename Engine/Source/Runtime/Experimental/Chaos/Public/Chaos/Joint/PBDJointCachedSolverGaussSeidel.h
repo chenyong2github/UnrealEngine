@@ -191,7 +191,9 @@ struct FAxisConstraintDatas
 			return bIsActive;
 		}
 		
-		FPBDJointCachedSolver();
+		FPBDJointCachedSolver()
+		{
+		}
 
 		void SetSolverBodies(FSolverBody* SolverBody0, FSolverBody* SolverBody1)
 		{
@@ -271,6 +273,21 @@ struct FAxisConstraintDatas
 			const FReal InvMScale0,
 			const FReal InvMScale1,
 			const FReal Dt);
+
+		void SetIsBroken(const bool bInIsBroken)
+		{
+			bIsBroken = bInIsBroken;
+		}
+
+		bool IsBroken() const
+		{
+			return bIsBroken;
+		}
+
+		bool RequiresSolve() const
+		{
+			return !IsBroken() && (IsDynamic(0) || IsDynamic(1));
+		}
 
 	private:
 
@@ -583,6 +600,8 @@ struct FAxisConstraintDatas
 
 		FAxisConstraintDatas PositionDrives;
 		FAxisConstraintDatas RotationDrives;
+
+		bool bIsBroken;
 
 		// dummy indices
 		static constexpr int32 PointPositionConstraintIndex = 0;

@@ -892,6 +892,7 @@ namespace Chaos
 		JointsSettings.NumShockPropagationIterations = ChaosSolverJointNumShockProagationIterations;
 		JointsSettings.ShockPropagationOverride = ChaosSolverJointShockPropagation;
 		JointsSettings.bUseLinearSolver = bChaosSolverJointUseLinearSolver;
+		JointsSettings.bSortEnabled = false;
 		MEvolution->GetJointConstraints().SetSettings(JointsSettings);
 
 		// Apply CVAR overrides if set

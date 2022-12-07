@@ -758,6 +758,7 @@ namespace ChaosTest {
 		FParticleUniqueIndicesMultithreaded UniqueIndices;
 		FPBDRigidsSOAs ParticleContainer(UniqueIndices);
 		FPBDJointConstraints JointContainer;
+		JointContainer.SetSortEnabled(true);
 
 		// Create 3 particles
 		TArray<FPBDRigidParticleHandle*> Rigids = ParticleContainer.CreateDynamicParticles(3);
@@ -773,14 +774,14 @@ namespace ChaosTest {
 		JointContainer.PrepareTick();
 
 		// Both joints should be in an island
-		EXPECT_GE(Joints[0]->GetConstraintIsland(), 0);
-		EXPECT_GE(Joints[0]->GetConstraintIsland(), 0);
+		EXPECT_GE(JointContainer.GetConstraintIsland(0), 0);
+		EXPECT_GE(JointContainer.GetConstraintIsland(1), 0);
 
 		// Both joints should be in same island
-		EXPECT_EQ(Joints[0]->GetConstraintIsland(), Joints[1]->GetConstraintIsland());
+		EXPECT_EQ(JointContainer.GetConstraintIsland(0), JointContainer.GetConstraintIsland(1));
 
 		// Joints should have different colors
-		EXPECT_NE(Joints[0]->GetConstraintColor(), Joints[1]->GetConstraintColor());
+		EXPECT_NE(JointContainer.GetConstraintColor(0), JointContainer.GetConstraintColor(1));
 	}
 
 	// Check that constraints islands are not merged through shared kinematic particles
@@ -789,6 +790,7 @@ namespace ChaosTest {
 		FParticleUniqueIndicesMultithreaded UniqueIndices;
 		FPBDRigidsSOAs ParticleContainer(UniqueIndices);
 		FPBDJointConstraints JointContainer;
+		JointContainer.SetSortEnabled(true);
 
 		// Create 3 particles
 		TArray<FPBDRigidParticleHandle*> Rigids = ParticleContainer.CreateDynamicParticles(3);
@@ -807,17 +809,16 @@ namespace ChaosTest {
 		JointContainer.PrepareTick();
 
 		// Both joints should be in an island
-		EXPECT_GE(Joints[0]->GetConstraintIsland(), 0);
-		EXPECT_GE(Joints[1]->GetConstraintIsland(), 0);
+		EXPECT_GE(JointContainer.GetConstraintIsland(0), 0);
+		EXPECT_GE(JointContainer.GetConstraintIsland(1), 0);
 
 		// Joints should be in different islands
-		EXPECT_NE(Joints[0]->GetConstraintIsland(), Joints[1]->GetConstraintIsland());
+		EXPECT_NE(JointContainer.GetConstraintIsland(0), JointContainer.GetConstraintIsland(1));
 
 		// Both joints should be at level 0
-		EXPECT_EQ(Joints[0]->GetConstraintLevel(), 0);
-		EXPECT_EQ(Joints[1]->GetConstraintLevel(), 0);
+		EXPECT_EQ(JointContainer.GetConstraintLevel(0), 0);
+		EXPECT_EQ(JointContainer.GetConstraintLevel(1), 0);
 	}
-
 
 }
 
