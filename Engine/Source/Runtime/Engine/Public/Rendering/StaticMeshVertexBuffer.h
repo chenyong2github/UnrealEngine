@@ -437,54 +437,8 @@ public:
 	void CopyRHIForStreaming(const FStaticMeshVertexBuffer& Other, bool InAllowCPUAccess);
 
 	/** Similar to Init/ReleaseRHI but only update existing SRV so references to the SRV stays valid */
-	template <uint32 MaxNumUpdates>
-	void InitRHIForStreaming(
-		FRHIBuffer* IntermediateTangentsBuffer,
-		FRHIBuffer* IntermediateTexCoordBuffer,
-		TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
-	{
-		check(TangentsVertexBuffer.VertexBufferRHI && TexCoordVertexBuffer.VertexBufferRHI);
-		if (IntermediateTangentsBuffer)
-		{
-			Batcher.QueueUpdateRequest(TangentsVertexBuffer.VertexBufferRHI, IntermediateTangentsBuffer);
-			if (TangentsSRV)
-			{
-				Batcher.QueueUpdateRequest(
-					TangentsSRV,
-					TangentsVertexBuffer.VertexBufferRHI,
-					GetUseHighPrecisionTangentBasis() ? 8u : 4u,
-					GetUseHighPrecisionTangentBasis() ? (uint8)PF_R16G16B16A16_SNORM : (uint8)PF_R8G8B8A8_SNORM);;
-			}
-		}
-		if (IntermediateTexCoordBuffer)
-		{
-			Batcher.QueueUpdateRequest(TexCoordVertexBuffer.VertexBufferRHI, IntermediateTexCoordBuffer);
-			if (TextureCoordinatesSRV)
-			{
-				Batcher.QueueUpdateRequest(
-					TextureCoordinatesSRV,
-					TexCoordVertexBuffer.VertexBufferRHI,
-					GetUseFullPrecisionUVs() ? 8u : 4u,
-					GetUseFullPrecisionUVs() ? (uint8)PF_G32R32F : (uint8)PF_G16R16F);
-			}
-		}
-	}
-
-	template<uint32 MaxNumUpdates>
-	void ReleaseRHIForStreaming(TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
-	{
-		check(TangentsVertexBuffer.VertexBufferRHI && TexCoordVertexBuffer.VertexBufferRHI);
-		Batcher.QueueUpdateRequest(TangentsVertexBuffer.VertexBufferRHI, nullptr);
-		Batcher.QueueUpdateRequest(TexCoordVertexBuffer.VertexBufferRHI, nullptr);
-		if (TangentsSRV)
-		{
-			Batcher.QueueUpdateRequest(TangentsSRV, nullptr, 0, 0);
-		}
-		if (TextureCoordinatesSRV)
-		{
-			Batcher.QueueUpdateRequest(TextureCoordinatesSRV, nullptr, 0, 0);
-		}
-	}
+	void InitRHIForStreaming(FRHIBuffer* IntermediateTangentsBuffer, FRHIBuffer* IntermediateTexCoordBuffer, FRHIResourceUpdateBatcher& Batcher);
+	void ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& Batcher);
 
 	// FRenderResource interface.
 	ENGINE_API virtual void InitRHI() override;

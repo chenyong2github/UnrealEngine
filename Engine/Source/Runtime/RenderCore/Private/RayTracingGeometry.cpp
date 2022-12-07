@@ -3,6 +3,7 @@
 #include "RayTracingGeometry.h"
 #include "RayTracingGeometryManager.h"
 #include "RenderUtils.h"
+#include "RHIResourceUpdates.h"
 
 int32 GVarDebugForceRuntimeBLAS = 0;
 FAutoConsoleVariableRef CVarDebugForceRuntimeBLAS(
@@ -17,6 +18,31 @@ FRayTracingGeometry::FRayTracingGeometry() = default;
 FRayTracingGeometry::~FRayTracingGeometry() = default;
 
 #if RHI_RAYTRACING
+
+void FRayTracingGeometry::InitRHIForStreaming(FRHIRayTracingGeometry* IntermediateGeometry, FRHIResourceUpdateBatcher& Batcher)
+{
+	EnumAddFlags(GeometryState, EGeometryStateFlags::StreamedIn);
+
+	if (RayTracingGeometryRHI && IntermediateGeometry)
+	{
+		Batcher.QueueUpdateRequest(RayTracingGeometryRHI, IntermediateGeometry);
+		EnumAddFlags(GeometryState, EGeometryStateFlags::Valid);
+	}
+}
+
+void FRayTracingGeometry::ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& Batcher)
+{
+	Initializer = {};
+
+	RemoveBuildRequest();
+	EnumRemoveFlags(GeometryState, EGeometryStateFlags::StreamedIn);
+
+	if (RayTracingGeometryRHI)
+	{
+		Batcher.QueueUpdateRequest(RayTracingGeometryRHI, nullptr);
+		EnumRemoveFlags(GeometryState, EGeometryStateFlags::Valid);
+	}
+}
 
 void FRayTracingGeometry::CreateRayTracingGeometryFromCPUData(TResourceArray<uint8>& OfflineData)
 {

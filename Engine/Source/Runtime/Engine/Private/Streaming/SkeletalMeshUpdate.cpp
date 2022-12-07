@@ -14,6 +14,7 @@ SkeletalMeshUpdate.cpp: Helpers to stream in and out skeletal mesh LODs.
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "Streaming/RenderAssetUpdate.inl"
+#include "RHIResourceUpdates.h"
 
 int32 GStreamingSkeletalMeshIOPriority = (int32)AIOP_Low;
 static FAutoConsoleVariableRef CVarStreamingSkeletalMeshIOPriority(
@@ -95,8 +96,7 @@ void FSkeletalMeshStreamIn::FIntermediateBuffers::SafeRelease()
 	AltSkinWeightVertexBuffers.Empty();
 }
 
-template <uint32 MaxNumUpdates>
-void FSkeletalMeshStreamIn::FIntermediateBuffers::TransferBuffers(FSkeletalMeshLODRenderData& LODResource, TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
+void FSkeletalMeshStreamIn::FIntermediateBuffers::TransferBuffers(FSkeletalMeshLODRenderData& LODResource, FRHIResourceUpdateBatcher& Batcher)
 {
 	FStaticMeshVertexBuffers& VBs = LODResource.StaticVertexBuffers;
 	VBs.StaticMeshVertexBuffer.InitRHIForStreaming(TangentsVertexBuffer, TexCoordVertexBuffer, Batcher);

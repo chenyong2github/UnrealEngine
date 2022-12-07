@@ -104,30 +104,8 @@ public:
 	void CopyRHIForStreaming(const FPositionVertexBuffer& Other, bool InAllowCPUAccess);
 
 	/** Similar to Init/ReleaseRHI but only update existing SRV so references to the SRV stays valid */
-	template <uint32 MaxNumUpdates>
-	void InitRHIForStreaming(FRHIBuffer* IntermediateBuffer, TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
-	{
-		check(VertexBufferRHI);
-		if (IntermediateBuffer)
-		{
-			Batcher.QueueUpdateRequest(VertexBufferRHI, IntermediateBuffer);
-			if (PositionComponentSRV)
-			{
-				Batcher.QueueUpdateRequest(PositionComponentSRV, VertexBufferRHI, 4, PF_R32_FLOAT);
-			}
-		}
-	}
-
-	template <uint32 MaxNumUpdates>
-	void ReleaseRHIForStreaming(TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
-	{
-		check(VertexBufferRHI);
-		Batcher.QueueUpdateRequest(VertexBufferRHI, nullptr);
-		if (PositionComponentSRV)
-		{
-			Batcher.QueueUpdateRequest(PositionComponentSRV, nullptr, 0, 0);
-		}
-	}
+	void InitRHIForStreaming(FRHIBuffer* IntermediateBuffer, FRHIResourceUpdateBatcher& Batcher);
+	void ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& Batcher);
 
 	// FRenderResource interface.
 	ENGINE_API virtual void InitRHI() override;

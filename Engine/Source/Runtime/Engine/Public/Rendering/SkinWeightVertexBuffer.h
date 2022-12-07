@@ -142,29 +142,8 @@ public:
 	FBufferRHIRef CreateRHIBuffer_Async();
 
 	/** Similar to Init/ReleaseRHI but only update existing SRV so references to the SRV stays valid */
-	template <uint32 MaxNumUpdates>
-	void InitRHIForStreaming(FRHIBuffer* IntermediateBuffer, TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
-	{
-		if (VertexBufferRHI && IntermediateBuffer)
-		{
-			check(SRVValue);
-			Batcher.QueueUpdateRequest(VertexBufferRHI, IntermediateBuffer);
-			Batcher.QueueUpdateRequest(SRVValue, VertexBufferRHI, PixelFormatStride, PixelFormat);
-		}
-	}
-
-	template <uint32 MaxNumUpdates>
-	void ReleaseRHIForStreaming(TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
-	{
-		if (VertexBufferRHI)
-		{
-			Batcher.QueueUpdateRequest(VertexBufferRHI, nullptr);
-		}
-		if (SRVValue)
-		{
-			Batcher.QueueUpdateRequest(SRVValue, nullptr, 0, 0);
-		}
-	}
+	void InitRHIForStreaming(FRHIBuffer* IntermediateBuffer, FRHIResourceUpdateBatcher& Batcher);
+	void ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& Batcher);
 
 	void GetWeightOffsetAndInfluenceCount(uint32 VertexIndex, uint32& OutWeightOffset, uint32& OutInfluenceCount) const;
 	void SetWeightOffsetAndInfluenceCount(uint32 VertexIndex, uint32 WeightOffset, uint32 InfluenceCount);
@@ -325,29 +304,8 @@ public:
 	FBufferRHIRef CreateRHIBuffer_Async();
 
 	/** Similar to Init/ReleaseRHI but only update existing SRV so references to the SRV stays valid */
-	template <uint32 MaxNumUpdates>
-	void InitRHIForStreaming(FRHIBuffer* IntermediateBuffer, TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
-	{
-		if (VertexBufferRHI && IntermediateBuffer)
-		{
-			check(SRVValue);
-			Batcher.QueueUpdateRequest(VertexBufferRHI, IntermediateBuffer);
-			Batcher.QueueUpdateRequest(SRVValue, VertexBufferRHI, GetPixelFormatStride(), GetPixelFormat());
-		}
-	}
-
-	template <uint32 MaxNumUpdates>
-	void ReleaseRHIForStreaming(TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
-	{
-		if (VertexBufferRHI)
-		{
-			Batcher.QueueUpdateRequest(VertexBufferRHI, nullptr);
-		}
-		if (SRVValue)
-		{
-			Batcher.QueueUpdateRequest(SRVValue, nullptr, 0, 0);
-		}
-	}
+	void InitRHIForStreaming(FRHIBuffer* IntermediateBuffer, FRHIResourceUpdateBatcher& Batcher);
+	void ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& Batcher);
 
 	bool IsWeightDataValid() const;
 
@@ -521,15 +479,13 @@ public:
 	ENGINE_API void ReleaseResources();
 
 	/** Similar to Init/ReleaseRHI but only update existing SRV so references to the SRV stays valid */
-	template <uint32 MaxNumUpdates>
-	void InitRHIForStreaming(const FSkinWeightRHIInfo& RHIInfo, TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
+	void InitRHIForStreaming(const FSkinWeightRHIInfo& RHIInfo, FRHIResourceUpdateBatcher& Batcher)
 	{
 		DataVertexBuffer.InitRHIForStreaming(RHIInfo.DataVertexBufferRHI, Batcher);
 		LookupVertexBuffer.InitRHIForStreaming(RHIInfo.LookupVertexBufferRHI, Batcher);
 	}
 
-	template <uint32 MaxNumUpdates>
-	void ReleaseRHIForStreaming(TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
+	void ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& Batcher)
 	{
 		DataVertexBuffer.ReleaseRHIForStreaming(Batcher);
 		LookupVertexBuffer.ReleaseRHIForStreaming(Batcher);

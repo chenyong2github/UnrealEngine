@@ -147,31 +147,8 @@ public:
 	void CopyRHIForStreaming(const FColorVertexBuffer& Other, bool InAllowCPUAccess);
 
 	/** Similar to Init/ReleaseRHI but only update existing SRV so references to the SRV stays valid */
-	template <uint32 MaxNumUpdates>
-	void InitRHIForStreaming(FRHIBuffer* IntermediateBuffer, TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
-	{
-		if (VertexBufferRHI && IntermediateBuffer)
-		{
-			Batcher.QueueUpdateRequest(VertexBufferRHI, IntermediateBuffer);
-			if (ColorComponentsSRV)
-			{
-				Batcher.QueueUpdateRequest(ColorComponentsSRV, VertexBufferRHI, 4, PF_R8G8B8A8);
-			}
-		}
-	}
-
-	template <uint32 MaxNumUpdates>
-	void ReleaseRHIForStreaming(TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
-	{
-		if (VertexBufferRHI)
-		{
-			Batcher.QueueUpdateRequest(VertexBufferRHI, nullptr);
-		}
-		if (ColorComponentsSRV)
-		{
-			Batcher.QueueUpdateRequest(ColorComponentsSRV, nullptr, 0, 0);
-		}
-	}
+	void InitRHIForStreaming(FRHIBuffer* IntermediateBuffer, FRHIResourceUpdateBatcher& Batcher);
+	void ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& Batcher);
 
 	// FRenderResource interface.
 	ENGINE_API virtual void InitRHI() override;

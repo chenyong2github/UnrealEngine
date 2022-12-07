@@ -5,6 +5,7 @@
 #include "Components.h"
 #include "GPUSkinCache.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
+#include "RHIResourceUpdates.h"
 
 FStaticMeshVertexBuffer::FStaticMeshVertexBuffer() :
 	TangentsData(nullptr),
@@ -324,6 +325,53 @@ void FStaticMeshVertexBuffer::CopyRHIForStreaming(const FStaticMeshVertexBuffer&
 	TexCoordVertexBuffer.VertexBufferRHI = Other.TexCoordVertexBuffer.VertexBufferRHI;
 	TangentsSRV = Other.TangentsSRV;
 	TextureCoordinatesSRV = Other.TextureCoordinatesSRV;
+}
+
+void FStaticMeshVertexBuffer::InitRHIForStreaming(
+	FRHIBuffer* IntermediateTangentsBuffer,
+	FRHIBuffer* IntermediateTexCoordBuffer,
+	FRHIResourceUpdateBatcher& Batcher)
+{
+	check(TangentsVertexBuffer.VertexBufferRHI && TexCoordVertexBuffer.VertexBufferRHI);
+	if (IntermediateTangentsBuffer)
+	{
+		Batcher.QueueUpdateRequest(TangentsVertexBuffer.VertexBufferRHI, IntermediateTangentsBuffer);
+		if (TangentsSRV)
+		{
+			Batcher.QueueUpdateRequest(
+				TangentsSRV,
+				TangentsVertexBuffer.VertexBufferRHI,
+				GetUseHighPrecisionTangentBasis() ? 8u : 4u,
+				GetUseHighPrecisionTangentBasis() ? (uint8)PF_R16G16B16A16_SNORM : (uint8)PF_R8G8B8A8_SNORM);;
+		}
+	}
+	if (IntermediateTexCoordBuffer)
+	{
+		Batcher.QueueUpdateRequest(TexCoordVertexBuffer.VertexBufferRHI, IntermediateTexCoordBuffer);
+		if (TextureCoordinatesSRV)
+		{
+			Batcher.QueueUpdateRequest(
+				TextureCoordinatesSRV,
+				TexCoordVertexBuffer.VertexBufferRHI,
+				GetUseFullPrecisionUVs() ? 8u : 4u,
+				GetUseFullPrecisionUVs() ? (uint8)PF_G32R32F : (uint8)PF_G16R16F);
+		}
+	}
+}
+
+void FStaticMeshVertexBuffer::ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& Batcher)
+{
+	check(TangentsVertexBuffer.VertexBufferRHI && TexCoordVertexBuffer.VertexBufferRHI);
+	Batcher.QueueUpdateRequest(TangentsVertexBuffer.VertexBufferRHI, nullptr);
+	Batcher.QueueUpdateRequest(TexCoordVertexBuffer.VertexBufferRHI, nullptr);
+	if (TangentsSRV)
+	{
+		Batcher.QueueUpdateRequest(TangentsSRV, nullptr, 0, 0);
+	}
+	if (TextureCoordinatesSRV)
+	{
+		Batcher.QueueUpdateRequest(TextureCoordinatesSRV, nullptr, 0, 0);
+	}
 }
 
 void FStaticMeshVertexBuffer::InitRHI()

@@ -4,6 +4,7 @@
 #include "Rendering/SkeletalMeshVertexBuffer.h"
 #include "EngineUtils.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
+#include "RHIResourceUpdates.h"
 
 /**
 * Constructor
@@ -85,6 +86,28 @@ FBufferRHIRef FSkeletalMeshVertexClothBuffer::CreateRHIBuffer_RenderThread()
 FBufferRHIRef FSkeletalMeshVertexClothBuffer::CreateRHIBuffer_Async()
 {
 	return CreateRHIBuffer_Internal<false>();
+}
+
+void FSkeletalMeshVertexClothBuffer::InitRHIForStreaming(FRHIBuffer* IntermediateBuffer, FRHIResourceUpdateBatcher& Batcher)
+{
+	if (VertexBufferRHI && IntermediateBuffer)
+	{
+		check(VertexBufferSRV);
+		Batcher.QueueUpdateRequest(VertexBufferRHI, IntermediateBuffer);
+		Batcher.QueueUpdateRequest(VertexBufferSRV, VertexBufferRHI, sizeof(FVector4f), PF_A32B32G32R32F);
+	}
+}
+
+void FSkeletalMeshVertexClothBuffer::ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& Batcher)
+{
+	if (VertexBufferRHI)
+	{
+		Batcher.QueueUpdateRequest(VertexBufferRHI, nullptr);
+	}
+	if (VertexBufferSRV)
+	{
+		Batcher.QueueUpdateRequest(VertexBufferSRV, nullptr, 0, 0);
+	}
 }
 
 /**

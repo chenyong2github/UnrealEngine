@@ -779,6 +779,24 @@ void FSkinWeightProfilesData::CreateRHIBuffers_Async(TArray<TPair<FName, FSkinWe
 	CreateRHIBuffers_Internal<false>(OutBuffers);
 }
 
+void FSkinWeightProfilesData::InitRHIForStreaming(const TArray<TPair<FName, FSkinWeightRHIInfo>>& IntermediateBuffers, FRHIResourceUpdateBatcher& Batcher)
+{
+	for (int32 Idx = 0; Idx < IntermediateBuffers.Num(); ++Idx)
+	{
+		const FName& ProfileName = IntermediateBuffers[Idx].Key;
+		const FSkinWeightRHIInfo& IntermediateBuffer = IntermediateBuffers[Idx].Value;
+		ProfileNameToBuffer.FindChecked(ProfileName)->InitRHIForStreaming(IntermediateBuffer, Batcher);
+	}
+}
+
+void FSkinWeightProfilesData::ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& Batcher)
+{
+	for (TMap<FName, FSkinWeightVertexBuffer*>::TIterator It(ProfileNameToBuffer); It; ++It)
+	{
+		It->Value->ReleaseRHIForStreaming(Batcher);
+	}
+}
+
 void FRuntimeSkinWeightProfileData::ApplyOverrides(FSkinWeightVertexBuffer* OverrideBuffer, const void* DataBuffer, const int32 NumVerts) const
 {
 	if (DataBuffer)

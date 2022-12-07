@@ -9,6 +9,7 @@
 #include "Modules/ModuleManager.h"
 #include "RenderingThread.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "RHIResourceUpdates.h"
 
 #if WITH_EDITOR
 #include "MeshUtilities.h"
@@ -381,6 +382,22 @@ void FRawStaticIndexBuffer::CopyRHIForStreaming(const FRawStaticIndexBuffer& Oth
 	IndexBufferRHI = Other.IndexBufferRHI;
 }
 
+void FRawStaticIndexBuffer::InitRHIForStreaming(FRHIBuffer* IntermediateBuffer, FRHIResourceUpdateBatcher& Batcher)
+{
+	if (IndexBufferRHI && IntermediateBuffer)
+	{
+		Batcher.QueueUpdateRequest(IndexBufferRHI, IntermediateBuffer);
+	}
+}
+
+void FRawStaticIndexBuffer::ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& Batcher)
+{
+	if (IndexBufferRHI)
+	{
+		Batcher.QueueUpdateRequest(IndexBufferRHI, nullptr);
+	}
+}
+
 void FRawStaticIndexBuffer::InitRHI()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FRawStaticIndexBuffer::InitRHI);
@@ -442,6 +459,30 @@ void FRawStaticIndexBuffer::Discard()
 {
     IndexStorage.SetAllowCPUAccess(false);
     IndexStorage.Discard();
+}
+
+void FRawStaticIndexBuffer16or32Interface::InitRHIForStreaming(FRHIBuffer* IntermediateBuffer, size_t IndexSize, FRHIResourceUpdateBatcher& Batcher)
+{
+	if (IndexBufferRHI && IntermediateBuffer)
+	{
+		Batcher.QueueUpdateRequest(IndexBufferRHI, IntermediateBuffer);
+		if (SRVValue)
+		{
+			Batcher.QueueUpdateRequest(SRVValue, IndexBufferRHI, IndexSize, IndexSize == 2 ? PF_R16_UINT : PF_R32_UINT);
+		}
+	}
+}
+
+void FRawStaticIndexBuffer16or32Interface::ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& Batcher)
+{
+	if (IndexBufferRHI)
+	{
+		Batcher.QueueUpdateRequest(IndexBufferRHI, nullptr);
+	}
+	if (SRVValue)
+	{
+		Batcher.QueueUpdateRequest(SRVValue, nullptr, 0, 0);
+	}
 }
 
 FBufferRHIRef FRawStaticIndexBuffer16or32Interface::CreateRHIIndexBufferInternal(

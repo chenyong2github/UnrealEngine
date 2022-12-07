@@ -166,25 +166,8 @@ struct ENGINE_API FSkinWeightProfilesData
 	void CreateRHIBuffers_RenderThread(TArray<TPair<FName, FSkinWeightRHIInfo>>& OutBuffers);
 	void CreateRHIBuffers_Async(TArray<TPair<FName, FSkinWeightRHIInfo>>& OutBuffers);
 
-	template <uint32 MaxNumUpdates>
-	void InitRHIForStreaming(const TArray<TPair<FName, FSkinWeightRHIInfo>>& IntermediateBuffers, TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
-	{
-		for (int32 Idx = 0; Idx < IntermediateBuffers.Num(); ++Idx)
-		{
-			const FName& ProfileName = IntermediateBuffers[Idx].Key;
-			const FSkinWeightRHIInfo& IntermediateBuffer = IntermediateBuffers[Idx].Value;
-			ProfileNameToBuffer.FindChecked(ProfileName)->InitRHIForStreaming(IntermediateBuffer, Batcher);
-		}
-	}
-	
-	template <uint32 MaxNumUpdates>
-	void ReleaseRHIForStreaming(TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
-	{
-		for (TMap<FName, FSkinWeightVertexBuffer*>::TIterator It(ProfileNameToBuffer); It; ++It)
-		{
-			It->Value->ReleaseRHIForStreaming(Batcher);
-		}
-	}
+	void InitRHIForStreaming(const TArray<TPair<FName, FSkinWeightRHIInfo>>& IntermediateBuffers, FRHIResourceUpdateBatcher& Batcher);
+	void ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& Batcher);
 
 	bool IsPendingReadback() const;
 	void EnqueueGPUReadback();

@@ -13,11 +13,22 @@ enum ECubeFace : uint32;
 enum EPixelFormat : uint8;
 enum class EPixelFormatChannelFlags : uint8;
 
+enum class EBufferUsageFlags : uint32;
+enum class ETextureCreateFlags : uint64;
+
 // Command Lists
 class FRHICommandListBase;
 class FRHIComputeCommandList;
 class FRHICommandList;
 class FRHICommandListImmediate;
+
+struct FRHIResourceUpdateInfo;
+struct FRHIResourceUpdateBatcher;
+
+struct FSamplerStateInitializerRHI;
+struct FRasterizerStateInitializerRHI;
+struct FDepthStencilStateInitializerRHI;
+class FBlendStateInitializerRHI;
 
 // Resources
 class FRHIAmplificationShader;

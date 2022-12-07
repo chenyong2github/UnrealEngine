@@ -282,24 +282,10 @@ public:
 	void CopyRHIForStreaming(const FRawStaticIndexBuffer& Other, bool InAllowCPUAccess);
 
 	/** Take over ownership of IntermediateBuffer */
-	template <uint32 MaxNumUpdates>
-	void InitRHIForStreaming(FRHIBuffer* IntermediateBuffer, TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
-	{
-		if (IndexBufferRHI && IntermediateBuffer)
-		{
-			Batcher.QueueUpdateRequest(IndexBufferRHI, IntermediateBuffer);
-		}
-	}
+	void InitRHIForStreaming(FRHIBuffer* IntermediateBuffer, FRHIResourceUpdateBatcher& Batcher);
 
 	/** Release any GPU resource owned by the RHI object */
-	template <uint32 MaxNumUpdates>
-	void ReleaseRHIForStreaming(TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
-	{
-		if (IndexBufferRHI)
-		{
-			Batcher.QueueUpdateRequest(IndexBufferRHI, nullptr);
-		}
-	}
+	void ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& Batcher);
 
 	/**
 	 * Serialization.
@@ -374,6 +360,10 @@ public:
 	}
 
 protected:
+	/** Similar to Init/ReleaseRHI but only update existing SRV so references to the SRV stays valid */
+	void InitRHIForStreaming(FRHIBuffer* IntermediateBuffer, size_t IndexSize, FRHIResourceUpdateBatcher& Batcher);
+	void ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& Batcher);
+
 	static ENGINE_API FBufferRHIRef CreateRHIIndexBufferInternal(
 		const TCHAR* InDebugName,
 		const FName& InOwnerName,
@@ -511,30 +501,14 @@ public:
 	FBufferRHIRef CreateRHIBuffer_Async() { return CreateRHIBuffer_Internal<false>(); }
 
 	/** Similar to Init/ReleaseRHI but only update existing SRV so references to the SRV stays valid */
-	template <uint32 MaxNumUpdates>
-	void InitRHIForStreaming(FRHIBuffer* IntermediateBuffer, TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
+	void InitRHIForStreaming(FRHIBuffer* IntermediateBuffer, FRHIResourceUpdateBatcher& Batcher)
 	{
-		if (IndexBufferRHI && IntermediateBuffer)
-		{
-			Batcher.QueueUpdateRequest(IndexBufferRHI, IntermediateBuffer);
-			if (SRVValue)
-			{
-				Batcher.QueueUpdateRequest(SRVValue, IndexBufferRHI, sizeof(INDEX_TYPE), sizeof(INDEX_TYPE) == 2 ? PF_R16_UINT : PF_R32_UINT);
-			}
-		}
+		FRawStaticIndexBuffer16or32Interface::InitRHIForStreaming(IntermediateBuffer, sizeof(INDEX_TYPE), Batcher);
 	}
 
-	template <uint32 MaxNumUpdates>
-	void ReleaseRHIForStreaming(TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
+	void ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& Batcher)
 	{
-		if (IndexBufferRHI)
-		{
-			Batcher.QueueUpdateRequest(IndexBufferRHI, nullptr);
-		}
-		if (SRVValue)
-		{
-			Batcher.QueueUpdateRequest(SRVValue, nullptr, 0, 0);
-		}
+		FRawStaticIndexBuffer16or32Interface::ReleaseRHIForStreaming(Batcher);
 	}
 
 private:

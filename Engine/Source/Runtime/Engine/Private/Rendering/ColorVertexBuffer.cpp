@@ -7,6 +7,7 @@
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "VertexFactory.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "RHIResourceUpdates.h"
 
 /*-----------------------------------------------------------------------------
 FColorVertexBuffer
@@ -428,6 +429,30 @@ void FColorVertexBuffer::CopyRHIForStreaming(const FColorVertexBuffer& Other, bo
 	// Copy resource references.
 	VertexBufferRHI = Other.VertexBufferRHI;
 	ColorComponentsSRV = Other.ColorComponentsSRV;
+}
+
+void FColorVertexBuffer::InitRHIForStreaming(FRHIBuffer* IntermediateBuffer, FRHIResourceUpdateBatcher& Batcher)
+{
+	if (VertexBufferRHI && IntermediateBuffer)
+	{
+		Batcher.QueueUpdateRequest(VertexBufferRHI, IntermediateBuffer);
+		if (ColorComponentsSRV)
+		{
+			Batcher.QueueUpdateRequest(ColorComponentsSRV, VertexBufferRHI, 4, PF_R8G8B8A8);
+		}
+	}
+}
+
+void FColorVertexBuffer::ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& Batcher)
+{
+	if (VertexBufferRHI)
+	{
+		Batcher.QueueUpdateRequest(VertexBufferRHI, nullptr);
+	}
+	if (ColorComponentsSRV)
+	{
+		Batcher.QueueUpdateRequest(ColorComponentsSRV, nullptr, 0, 0);
+	}
 }
 
 void FColorVertexBuffer::InitRHI()

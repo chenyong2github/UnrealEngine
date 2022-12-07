@@ -8,6 +8,7 @@
 
 #include "StaticMeshVertexData.h"
 #include "GPUSkinCache.h"
+#include "RHIResourceUpdates.h"
 
 /*-----------------------------------------------------------------------------
 FPositionVertexBuffer
@@ -230,6 +231,29 @@ void FPositionVertexBuffer::CopyRHIForStreaming(const FPositionVertexBuffer& Oth
 	// Copy resource references.
 	VertexBufferRHI = Other.VertexBufferRHI;
 	PositionComponentSRV = Other.PositionComponentSRV;
+}
+
+void FPositionVertexBuffer::InitRHIForStreaming(FRHIBuffer* IntermediateBuffer, FRHIResourceUpdateBatcher& Batcher)
+{
+	check(VertexBufferRHI);
+	if (IntermediateBuffer)
+	{
+		Batcher.QueueUpdateRequest(VertexBufferRHI, IntermediateBuffer);
+		if (PositionComponentSRV)
+		{
+			Batcher.QueueUpdateRequest(PositionComponentSRV, VertexBufferRHI, 4, PF_R32_FLOAT);
+		}
+	}
+}
+
+void FPositionVertexBuffer::ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& Batcher)
+{
+	check(VertexBufferRHI);
+	Batcher.QueueUpdateRequest(VertexBufferRHI, nullptr);
+	if (PositionComponentSRV)
+	{
+		Batcher.QueueUpdateRequest(PositionComponentSRV, nullptr, 0, 0);
+	}
 }
 
 void FPositionVertexBuffer::InitRHI()

@@ -13,6 +13,7 @@ StaticMeshUpdate.cpp: Helpers to stream in and out static mesh LODs.
 #include "StaticMeshResources.h"
 #include "Streaming/RenderAssetUpdate.inl"
 #include "ContentStreaming.h"
+#include "RHIResourceUpdates.h"
 
 int32 GStreamingMaxReferenceChecks = 2;
 static FAutoConsoleVariableRef CVarStreamingMaxReferenceChecksBeforeStreamOut(
@@ -112,8 +113,7 @@ void FStaticMeshStreamIn::FIntermediateBuffers::SafeRelease()
 	WireframeIndexBuffer.SafeRelease();
 }
 
-template <uint32 MaxNumUpdates>
-void FStaticMeshStreamIn::FIntermediateBuffers::TransferBuffers(FStaticMeshLODResources& LODResource, TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
+void FStaticMeshStreamIn::FIntermediateBuffers::TransferBuffers(FStaticMeshLODResources& LODResource, FRHIResourceUpdateBatcher& Batcher)
 {
 	FStaticMeshVertexBuffers& VBs = LODResource.VertexBuffers;
 	VBs.StaticMeshVertexBuffer.InitRHIForStreaming(TangentsVertexBuffer, TexCoordVertexBuffer, Batcher);

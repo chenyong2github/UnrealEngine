@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/DynamicRHIResourceArray.h"
 #include "RenderResource.h"
 #if RHI_RAYTRACING
 #include "RHI.h"
@@ -96,32 +97,9 @@ public:
 		return GeometryState;
 	}
 
-	template <uint32 MaxNumUpdates>
-	void InitRHIForStreaming(FRHIRayTracingGeometry* IntermediateGeometry, TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
-	{
-		EnumAddFlags(GeometryState, EGeometryStateFlags::StreamedIn);
+	void InitRHIForStreaming(FRHIRayTracingGeometry* IntermediateGeometry, FRHIResourceUpdateBatcher& Batcher);
+	void ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& Batcher);
 
-		if (RayTracingGeometryRHI && IntermediateGeometry)
-		{
-			Batcher.QueueUpdateRequest(RayTracingGeometryRHI, IntermediateGeometry);
-			EnumAddFlags(GeometryState, EGeometryStateFlags::Valid);
-		}
-	}
-
-	template <uint32 MaxNumUpdates>
-	void ReleaseRHIForStreaming(TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
-	{
-		Initializer = {};
-
-		RemoveBuildRequest();
-		EnumRemoveFlags(GeometryState, EGeometryStateFlags::StreamedIn);
-
-		if (RayTracingGeometryRHI)
-		{
-			Batcher.QueueUpdateRequest(RayTracingGeometryRHI, nullptr);
-			EnumRemoveFlags(GeometryState, EGeometryStateFlags::Valid);
-		}
-	}
 	void CreateRayTracingGeometryFromCPUData(TResourceArray<uint8>& OfflineData);
 	void RequestBuildIfNeeded(ERTAccelerationStructureBuildPriority InBuildPriority);
 

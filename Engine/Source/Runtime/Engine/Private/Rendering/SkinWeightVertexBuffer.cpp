@@ -9,6 +9,7 @@
 #include "SkeletalMeshTypes.h"
 #include "UObject/AnimObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
+#include "RHIResourceUpdates.h"
 
 /*-----------------------------------------------------------------------------
 FSkinWeightLookupVertexBuffer
@@ -161,6 +162,28 @@ FBufferRHIRef FSkinWeightLookupVertexBuffer::CreateRHIBuffer_RenderThread()
 FBufferRHIRef FSkinWeightLookupVertexBuffer::CreateRHIBuffer_Async()
 {
 	return CreateRHIBuffer_Internal<false>();
+}
+
+void FSkinWeightLookupVertexBuffer::InitRHIForStreaming(FRHIBuffer* IntermediateBuffer, FRHIResourceUpdateBatcher& Batcher)
+{
+	if (VertexBufferRHI && IntermediateBuffer)
+	{
+		check(SRVValue);
+		Batcher.QueueUpdateRequest(VertexBufferRHI, IntermediateBuffer);
+		Batcher.QueueUpdateRequest(SRVValue, VertexBufferRHI, PixelFormatStride, PixelFormat);
+	}
+}
+
+void FSkinWeightLookupVertexBuffer::ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& Batcher)
+{
+	if (VertexBufferRHI)
+	{
+		Batcher.QueueUpdateRequest(VertexBufferRHI, nullptr);
+	}
+	if (SRVValue)
+	{
+		Batcher.QueueUpdateRequest(SRVValue, nullptr, 0, 0);
+	}
 }
 
 void FSkinWeightLookupVertexBuffer::GetWeightOffsetAndInfluenceCount(uint32 VertexIndex, uint32& OutWeightOffset, uint32& OutInfluenceCount) const
@@ -394,6 +417,28 @@ FBufferRHIRef FSkinWeightDataVertexBuffer::CreateRHIBuffer_RenderThread()
 FBufferRHIRef FSkinWeightDataVertexBuffer::CreateRHIBuffer_Async()
 {
 	return CreateRHIBuffer_Internal<false>();
+}
+
+void FSkinWeightDataVertexBuffer::InitRHIForStreaming(FRHIBuffer* IntermediateBuffer, FRHIResourceUpdateBatcher& Batcher)
+{
+	if (VertexBufferRHI && IntermediateBuffer)
+	{
+		check(SRVValue);
+		Batcher.QueueUpdateRequest(VertexBufferRHI, IntermediateBuffer);
+		Batcher.QueueUpdateRequest(SRVValue, VertexBufferRHI, GetPixelFormatStride(), GetPixelFormat());
+	}
+}
+
+void FSkinWeightDataVertexBuffer::ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& Batcher)
+{
+	if (VertexBufferRHI)
+	{
+		Batcher.QueueUpdateRequest(VertexBufferRHI, nullptr);
+	}
+	if (SRVValue)
+	{
+		Batcher.QueueUpdateRequest(SRVValue, nullptr, 0, 0);
+	}
 }
 
 bool FSkinWeightDataVertexBuffer::IsWeightDataValid() const

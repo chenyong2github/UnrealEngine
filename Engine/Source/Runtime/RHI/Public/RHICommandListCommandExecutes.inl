@@ -13,6 +13,8 @@
 #define INTERNAL_DECORATOR_COMPUTE(Method) CmdList.GetComputeContext().Method
 #endif
 
+#include "RHIResourceUpdates.h"
+
 class FRHICommandListBase;
 class IRHIComputeContext;
 struct FComputedBSS;
