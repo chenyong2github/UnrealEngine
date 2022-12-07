@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PCGElement.h"
+
 #include "PCGComponent.h"
 #include "PCGContext.h"
 #include "PCGModule.h"
@@ -9,6 +10,8 @@
 #include "Elements/PCGDebugElement.h"
 #include "Elements/PCGSelfPruning.h"
 #include "Graph/PCGGraphCache.h"
+
+#include "Algo/Find.h"
 
 bool IPCGElement::Execute(FPCGContext* Context) const
 {
