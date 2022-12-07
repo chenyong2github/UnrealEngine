@@ -1518,7 +1518,7 @@ USTRUCT()
 struct FBranchDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FBranchDataflowNode, "Branch", "Utilites|FlowControl", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FBranchDataflowNode, "Branch", "Utilities|FlowControl", "")
 
 public:
 	/** Mesh input */
