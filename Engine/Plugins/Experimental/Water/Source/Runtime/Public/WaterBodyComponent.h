@@ -333,6 +333,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category=Water, meta=(Deprecated = "5.2"))
 	void OnWaterBodyChanged(bool bShapeOrPositionChanged, bool bWeightmapSettingsChanged = false);
 
+	void OnWaterBodyChanged(const FOnWaterBodyChangedParams& InParams);
+
 	/** Fills wave-related information at the given world position and for this water depth.
 	 - InPosition : water surface position at which to query the wave information
 	 - InWaterDepth : water depth at this location
@@ -495,7 +497,6 @@ protected:
 	void RebuildWaterBodyInfoMesh();
 	void RebuildWaterBodyLODSections();
 	void OnTessellatedWaterMeshBoundsChanged();
-	void OnWaterBodyChanged(const FOnWaterBodyChangedParams& InParams);
 
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
