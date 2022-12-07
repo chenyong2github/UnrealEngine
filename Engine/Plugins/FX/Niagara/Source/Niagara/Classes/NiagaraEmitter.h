@@ -359,7 +359,7 @@ struct NIAGARA_API FVersionedNiagaraEmitterData
 	FNiagaraParameterStore RendererBindings;
 
 	void CopyFrom(const FVersionedNiagaraEmitterData& Source);
-	void PostLoad(UNiagaraEmitter& Emitter, bool bIsCooked, int32 NiagaraVer);
+	void PostLoad(UNiagaraEmitter& Emitter, int32 NiagaraVer);
 
 	void PostInitProperties(UNiagaraEmitter* Outer);
 	bool UsesCollection(const UNiagaraParameterCollection* Collection) const;
@@ -984,9 +984,6 @@ private:
 #endif
 
 #if WITH_EDITORONLY_DATA
-	/* Flag set on load based on whether the serialized data includes editor only data */
-	uint32 IsCooked : 1;
-	
 	/** Messages associated with the Emitter asset. */
 	UPROPERTY()
 	TMap<FGuid, TObjectPtr<UNiagaraMessageDataBase>> MessageKeyToMessageMap;
