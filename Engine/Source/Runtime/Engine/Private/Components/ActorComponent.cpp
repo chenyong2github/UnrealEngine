@@ -38,6 +38,8 @@
 #include "UObject/FrameworkObjectVersion.h"
 #include "UObject/FortniteReleaseBranchCustomObjectVersion.h"
 #include "Async/ParallelFor.h"
+#include "Engine/InputDelegateBinding.h"
+#include "GameFramework/InputSettings.h"
 
 #if WITH_EDITOR
 #include "Kismet2/ComponentEditorUtils.h"
@@ -1388,6 +1390,11 @@ void UActorComponent::RegisterComponentWithWorld(UWorld* InWorld, FRegisterCompo
 			}
 		}
 
+	}
+
+	if (MyOwner && MyOwner->InputComponent && GetDefault<UInputSettings>()->bEnableDynamicComponentInputBinding)
+	{
+		UInputDelegateBinding::BindInputDelegates(GetClass(), MyOwner->InputComponent, this);
 	}
 }
 
