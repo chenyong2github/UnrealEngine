@@ -488,18 +488,23 @@ void FGeometryCollection::ReindexMaterials(FManagedArrayCollection& InCollection
 	const int32 NumSections = InCollection.NumElements(FGeometryCollection::MaterialGroup);
 	const int32 NumFaceElements = InCollection.NumElements(FGeometryCollection::FacesGroup);
 
-	int Idx = 0;
-	for (int Section=0; Section < NumSections; Section++)
+	// since we know the number of triangles per section we can precompute the start offset of each sections 
+	// this avoid nested loop that result in N * M operations (N=sections M=faces) and we can process it in (N + M) operations instead 
+	TArray<int32> OffsetPerSection;
+	OffsetPerSection.AddUninitialized(NumSections);
+	int32 SectionOffset = 0;
+	for (int Section = 0; Section < NumSections; Section++)
 	{
-		for (int FaceElement = 0; FaceElement < NumFaceElements; FaceElement++)
-		{
-			int32 ID = (MaterialID)[FaceElement];
-	
-			if (Section == ID)
-			{
-				(MaterialIndex)[Idx++] = FaceElement;
-			}
-		}
+		OffsetPerSection[Section] = SectionOffset;
+		SectionOffset += Sections[Section].NumTriangles;
+	}
+
+	for (int FaceElement = 0; FaceElement < NumFaceElements; FaceElement++)
+	{
+		const int32 SectionID = MaterialID[FaceElement];
+		int32& SectionOffsetRef = OffsetPerSection[SectionID];
+		//ensure(MaterialIndex[SectionOffsetRef] == FaceElement);
+		MaterialIndex[SectionOffsetRef++] = FaceElement;
 	}
 
 	// delete unused material sections

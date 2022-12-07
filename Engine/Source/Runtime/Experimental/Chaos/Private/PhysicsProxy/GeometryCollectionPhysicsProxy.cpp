@@ -3692,7 +3692,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 
 				FBox InstanceBoundingBox(EForceInit::ForceInitToZero);
 				{ // tmp scope
-					TSet<int32> VertsAdded;
+					TArray<int32> VertsAdded;
 					VertsAdded.Reserve(BiggestNumElements);
 					for (TPBDRigidParticleHandle<FReal, 3>* Child : ChildrenIndices)
 					{
@@ -3707,7 +3707,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 							// transforming the mass space particles into the parent mass-space.
 							const FTransform ChildMassToClusterMass = (CollectionMassToLocal[ChildTransformIdx] * CollectionSpaceTransforms[ChildTransformIdx]).GetRelativeTransform(CollectionMassToLocal[ClusterTransformIdx] * CollectionSpaceTransforms[ClusterTransformIdx]);
 
-							ChildMesh->GetVertexSet(VertsAdded);
+							ChildMesh->GetVertexSetAsArray(VertsAdded);
 							for (const int32 VertIdx : VertsAdded)
 							{
 								//Update particles so they are in the cluster's mass space

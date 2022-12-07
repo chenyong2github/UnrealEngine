@@ -171,6 +171,26 @@ void FTriangleMesh::GetVertexSet(TSet<int32>& VertexSet) const
 	}
 }
 
+void FTriangleMesh::GetVertexSetAsArray(TArray<int32>& VertexSet) const
+{
+	TBitArray<> VisitedVertices; // using local index
+	VisitedVertices.Init(false, MNumIndices);
+	VertexSet.Reserve(MNumIndices);
+	for (const TVec3<int32>& Element : MElements)
+	{
+		for (int32 Corner = 0; Corner < 3; Corner++)
+		{
+			const int32 VertexIndex = Element[Corner];
+			FBitReference VisitedRef = VisitedVertices[VertexIndex-MStartIdx];
+			if (VisitedRef == false)
+			{
+				VisitedRef = true;
+				VertexSet.Add(VertexIndex);
+			}
+		}
+	}
+}
+
 const TMap<int32, TSet<int32>>& FTriangleMesh::GetPointToNeighborsMap() const
 {
 	if (MPointToNeighborsMap.Num())

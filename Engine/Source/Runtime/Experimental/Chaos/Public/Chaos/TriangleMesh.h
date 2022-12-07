@@ -48,6 +48,9 @@ namespace Chaos
 		/** Returns the unique set of vertices used by this triangle mesh. */
 		CHAOS_API void GetVertexSet(TSet<int32>& VertexSet) const;
 
+		/** Returns the unique set of vertices used by this triangle mesh. */
+		CHAOS_API void GetVertexSetAsArray(TArray<int32>& VertexSet) const;
+
 		/**
 		 * Extends the vertex range.
 		 *

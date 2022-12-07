@@ -45,13 +45,13 @@ FCollisionStructureManager::NewSimplicial(
 	{
 		Chaos::FReal Extent = 0;
 		int32 LSVCounter = 0;
-		TSet<int32> Indices;
-		TriMesh.GetVertexSet(Indices);
+		TArray<int32> IndicesArray;
+		TriMesh.GetVertexSetAsArray(IndicesArray);
 		TArray<Chaos::FVec3> OutsideVertices;
 
 		bool bFullCopy = true;
 		int32 LocalCollisionParticlesMax = CollisionParticlesMaxInput > 0 ? FMath::Min(CollisionParticlesMaxInput, CollisionParticlesMax) : CollisionParticlesMax;
-		if (bCollisionParticlesUseImplicitCulling!=0 && Implicit && Indices.Num()>LocalCollisionParticlesMax)
+		if (bCollisionParticlesUseImplicitCulling!=0 && Implicit && IndicesArray.Num()>LocalCollisionParticlesMax)
 		{
 			Extent = Implicit->HasBoundingBox() ? Implicit->BoundingBox().Extents().Size() : 1.f;
 
@@ -60,8 +60,8 @@ FCollisionStructureManager::NewSimplicial(
 			//
 			//  Remove particles inside the levelset. (I think this is useless) 
 			//
-			OutsideVertices.AddUninitialized(Indices.Num());
-			for (int32 Idx : Indices)
+			OutsideVertices.AddUninitialized(IndicesArray.Num());
+			for (int32 Idx : IndicesArray)
 			{
 				const Chaos::FVec3& SamplePoint = Vertices.X(Idx);
 				if (Implicit->SignedDistance(SamplePoint) > Threshold)
@@ -79,8 +79,7 @@ FCollisionStructureManager::NewSimplicial(
 		if(bFullCopy)
 		{
 			FBox Bounds(ForceInitToZero);
-			TArray<int32> IndicesArray = Indices.Array();
-			OutsideVertices.AddUninitialized(Indices.Num());
+			OutsideVertices.AddUninitialized(IndicesArray.Num());
 			for (int32 Idx=0;Idx<IndicesArray.Num();Idx++)
 			{
 				Bounds += FVector(Vertices.X(IndicesArray[Idx]));
@@ -120,7 +119,7 @@ FCollisionStructureManager::NewSimplicial(
 
 		Simplicial->UpdateAccelerationStructures();
 
-		UE_LOG(LogChaos, Log, TEXT("NewSimplicial: InitialSize: %d, ImplicitExterior: %d, FullCopy: %d, FinalSize: %d"), Indices.Num(), LSVCounter, (int32)bFullCopy, NumParticles);
+		UE_LOG(LogChaos, Log, TEXT("NewSimplicial: InitialSize: %d, ImplicitExterior: %d, FullCopy: %d, FinalSize: %d"), IndicesArray.Num(), LSVCounter, (int32)bFullCopy, NumParticles);
 		return Simplicial;
 	}
 	UE_LOG(LogChaos, Log, TEXT("NewSimplicial::Empty"));
