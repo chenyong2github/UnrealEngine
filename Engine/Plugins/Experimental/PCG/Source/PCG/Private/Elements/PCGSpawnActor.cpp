@@ -236,6 +236,11 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 					SpawnParams.Owner = TargetActor;
 					SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
+					if (PCGHelpers::IsRuntimeOrPIE())
+					{
+						SpawnParams.ObjectFlags |= RF_Transient;
+					}
+
 					TArray<FName> NewActorTags = GetNewActorTags(Context, TargetActor, Settings->bInheritActorTags, Settings->TagsToAddOnActors);
 
 					// Create managed resource for actor tracking
