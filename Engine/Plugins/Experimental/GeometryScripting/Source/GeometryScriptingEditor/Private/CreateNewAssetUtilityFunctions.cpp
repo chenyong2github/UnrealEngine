@@ -22,12 +22,12 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/Paths.h"
 
-#include "MeshDescriptionToDynamicMesh.h"
-#include "DynamicMeshToMeshDescription.h"
 #include "ConversionUtils/DynamicMeshToVolume.h"
 #include "AssetUtils/CreateStaticMeshUtil.h"
+#include "AssetUtils/CreateSkeletalMeshUtil.h"
 #include "AssetUtils/CreateTexture2DUtil.h"
 #include "ModelingObjectsCreationAPI.h"
+#include "Engine/SkinnedAssetCommon.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CreateNewAssetUtilityFunctions)
 
@@ -210,6 +210,87 @@ UStaticMesh* UGeometryScriptLibrary_CreateNewAssetFunctions::CreateNewStaticMesh
 
 	Outcome = EGeometryScriptOutcomePins::Success;
 	return NewStaticMesh;
+}
+
+
+USkeletalMesh* UGeometryScriptLibrary_CreateNewAssetFunctions::CreateNewSkeletalMeshAssetFromMesh(
+	UDynamicMesh* FromDynamicMesh,
+	USkeleton* InSkeleton,
+	FString AssetPathAndName, 
+	FGeometryScriptCreateNewSkeletalMeshAssetOptions Options,
+	TEnumAsByte<EGeometryScriptOutcomePins>& Outcome, 
+	UGeometryScriptDebug* Debug)
+{
+	using namespace UE::AssetUtils;
+
+	Outcome = EGeometryScriptOutcomePins::Failure;
+	if (FromDynamicMesh == nullptr)
+	{
+		AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CreateNewSkeletalMeshAssetFromMesh_InvalidInput1", "CreateNewSkeletalMeshAssetFromMesh: FromDynamicMesh is Null"));
+		return nullptr;
+	}
+	if (FromDynamicMesh->GetTriangleCount() == 0)
+	{
+		AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CreateNewSkeletalMeshAssetFromMesh_InvalidInput2", "CreateNewSkeletalMeshAssetFromMesh: FromDynamicMesh has zero triangles"));
+		return nullptr;
+	}
+	if (FromDynamicMesh->GetMeshRef().Attributes()->GetSkinWeightsAttributes().Num() == 0)
+	{
+		AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CreateNewSkeletalMeshAssetFromMesh_InvalidInput3", "CreateNewSkeletalMeshAssetFromMesh: FromDynamicMesh has no skin weight attributes"));
+		return nullptr;
+	}
+	
+	// todo: other safety checks
+
+	GEditor->BeginTransaction(LOCTEXT("CreateNewSkeletalMeshAssetFromMesh_Transaction", "Create SkeletalMesh"));
+
+	FSkeletalMeshAssetOptions AssetOptions;
+	AssetOptions.NewAssetPath = AssetPathAndName;
+
+	AssetOptions.NumSourceModels = 1;
+
+	if (!Options.Materials.IsEmpty())
+	{
+		TArray<FSkeletalMaterial> Materials;
+
+		for (const TPair<FName, TObjectPtr<UMaterialInterface>>& Item : Options.Materials)
+		{
+			Materials.Add(FSkeletalMaterial{Item.Value, Item.Key});
+		}
+		AssetOptions.SkeletalMaterials = MoveTemp(Materials);
+		AssetOptions.NumMaterialSlots = AssetOptions.SkeletalMaterials.Num(); 
+	}
+	else
+	{
+		AssetOptions.NumMaterialSlots = 1;
+	}
+	
+	AssetOptions.bEnableRecomputeNormals = Options.bEnableRecomputeNormals;
+	AssetOptions.bEnableRecomputeTangents = Options.bEnableRecomputeTangents;
+
+	FDynamicMesh3 LODMesh;
+	FromDynamicMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh)
+	{
+		LODMesh = ReadMesh;
+	});
+	AssetOptions.SourceMeshes.DynamicMeshes.Add(&LODMesh);
+
+	FSkeletalMeshResults ResultData;
+	const ECreateSkeletalMeshResult AssetResult = CreateSkeletalMeshAsset(AssetOptions, ResultData);
+
+	if (AssetResult != ECreateSkeletalMeshResult::Ok)
+	{
+		AppendError(Debug, EGeometryScriptErrorType::OperationFailed, LOCTEXT("CreateNewSkeletalMeshAssetFromMesh_Failed", "CreateNewSkeletalMeshAssetFromMesh: Failed to create new Asset"));
+		return nullptr;
+	}
+
+	GEditor->EndTransaction();
+
+	// publish new asset so that asset editor updates
+	FAssetRegistryModule::AssetCreated(ResultData.SkeletalMesh);
+
+	Outcome = EGeometryScriptOutcomePins::Success;
+	return ResultData.SkeletalMesh;
 }
 
 

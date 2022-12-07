@@ -9,6 +9,8 @@
 #include "BodySetupEnums.h"
 #include "CreateNewAssetUtilityFunctions.generated.h"
 
+
+class UMaterialInterface;
 class UStaticMesh;
 class UDynamicMesh;
 class AVolume;
@@ -71,6 +73,22 @@ public:
 
 
 USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGEDITOR_API FGeometryScriptCreateNewSkeletalMeshAssetOptions
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	bool bEnableRecomputeNormals = false;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	bool bEnableRecomputeTangents = false;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	TMap<FName, TObjectPtr<UMaterialInterface>> Materials;
+};
+
+
+USTRUCT(BlueprintType)
 struct GEOMETRYSCRIPTINGEDITOR_API FGeometryScriptCreateNewTexture2DAssetOptions
 {
 	GENERATED_BODY()
@@ -116,6 +134,16 @@ public:
 		UDynamicMesh* FromDynamicMesh, 
 		FString AssetPathAndName,
 		FGeometryScriptCreateNewStaticMeshAssetOptions Options,
+		TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+		UGeometryScriptDebug* Debug = nullptr);
+	
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|AssetManagement", meta = (ExpandEnumAsExecs = "Outcome"))
+	static UPARAM(DisplayName = "Skeletal Mesh Asset") USkeletalMesh* 
+	CreateNewSkeletalMeshAssetFromMesh(
+		UDynamicMesh* FromDynamicMesh, 
+		USkeleton* InSkeleton,
+		FString AssetPathAndName,
+		FGeometryScriptCreateNewSkeletalMeshAssetOptions Options,
 		TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
 		UGeometryScriptDebug* Debug = nullptr);
 

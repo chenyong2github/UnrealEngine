@@ -38,7 +38,8 @@ public class ModelingComponentsEditorOnly : ModuleRules
 				"Slate",
                 "RHI",
 				"AssetTools",
-				"UnrealEd"			// required for asset factories
+				"UnrealEd", 
+				"SkeletalMeshUtilitiesCommon" // required for asset factories
 			}
 			);
 

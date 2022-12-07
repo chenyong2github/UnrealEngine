@@ -2,11 +2,13 @@
 
 #include "GeometryScript/MeshBoneWeightFunctions.h"
 
+#include "Animation/Skeleton.h"
+#include "BoneWeights.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "DynamicMesh/DynamicVertexSkinWeightsAttribute.h"
+#include "SkinningOps/SkinBindingOp.h"
 #include "UDynamicMesh.h"
-#include "BoneWeights.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MeshBoneWeightFunctions)
 
@@ -227,6 +229,83 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBoneWeightFunctions::SetVertexBoneWeigh
 }
 
 
+UDynamicMesh* UGeometryScriptLibrary_MeshBoneWeightFunctions::SetAllVertexBoneWeights(
+	UDynamicMesh* TargetMesh,
+	const TArray<FGeometryScriptBoneWeight>& BoneWeights, 
+	FGeometryScriptBoneWeightProfile Profile
+	)
+{
+	bool bHasBoneWeightProfile = false;
+	const int32 Num = BoneWeights.Num();
+	TArray<FBoneWeight> NewWeightsList;
+	for (int32 k = 0; k < Num; ++k)
+	{
+		FBoneWeight NewWeight;
+		NewWeight.SetBoneIndex(BoneWeights[k].BoneIndex);
+		NewWeight.SetWeight(BoneWeights[k].Weight);
+		NewWeightsList.Add(NewWeight);
+	}
+	const FBoneWeights NewBoneWeights = FBoneWeights::Create(NewWeightsList);
+	
+	SimpleMeshBoneWeightEdit<bool>(TargetMesh, Profile, bHasBoneWeightProfile, false,
+		[&](const FDynamicMesh3& Mesh, FDynamicMeshVertexSkinWeightsAttribute& SkinWeights)
+	{
+		for (const int32 VertexID : Mesh.VertexIndicesItr())
+		{
+			SkinWeights.SetValue(VertexID, NewBoneWeights);
+		}
+		return true;
+	});
+
+	return TargetMesh;
+}
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshBoneWeightFunctions::ComputeSmoothBoneWeights(
+	UDynamicMesh* TargetMesh,
+	USkeleton* Skeleton, 
+	FGeometryScriptSmoothBoneWeightsOptions Options, 
+	FGeometryScriptBoneWeightProfile Profile,
+	UGeometryScriptDebug* Debug
+	)
+{
+	if (TargetMesh == nullptr)
+	{
+		AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ComputeSmoothBoneWeights_InvalidInput", "ComputeSmoothBoneWeights: TargetMesh is Null"));
+		return TargetMesh;
+	}
+	if (Skeleton == nullptr)
+	{
+		AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ComputeSmoothBoneWeights_InvalidSkeleton", "ComputeSmoothBoneWeights: Skeleton is Null"));
+		return TargetMesh;
+	}
+
+	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
+	{
+		FSkinBindingOp SkinBindingOp;
+		SkinBindingOp.OriginalMesh = MakeShared<FDynamicMesh3>(MoveTemp(EditMesh));
+		SkinBindingOp.SetTransformHierarchyFromReferenceSkeleton(Skeleton->GetReferenceSkeleton());
+		SkinBindingOp.ProfileName = Profile.ProfileName;
+		switch(Options.DistanceWeighingType)
+		{
+		case EGeometryScriptSmoothBoneWeightsType::DirectDistance:
+			SkinBindingOp.BindType = ESkinBindingType::DirectDistance;
+			break;
+		case EGeometryScriptSmoothBoneWeightsType::GeodesicVoxel:
+			SkinBindingOp.BindType = ESkinBindingType::GeodesicVoxel;
+			break;
+		}
+		SkinBindingOp.Stiffness = Options.Stiffness;
+		SkinBindingOp.MaxInfluences = Options.MaxInfluences;
+		SkinBindingOp.VoxelResolution = Options.VoxelResolution;
+
+		SkinBindingOp.CalculateResult(nullptr);
+
+		EditMesh = MoveTemp(*SkinBindingOp.ExtractResult().Release());
+	}, EDynamicMeshChangeType::AttributeEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
+
+	return TargetMesh;
+}
 
 
 #undef LOCTEXT_NAMESPACE

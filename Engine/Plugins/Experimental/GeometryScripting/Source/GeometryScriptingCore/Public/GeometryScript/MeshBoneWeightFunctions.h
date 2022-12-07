@@ -36,6 +36,45 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptBoneWeightProfile
 };
 
 
+UENUM(BlueprintType)
+enum class EGeometryScriptSmoothBoneWeightsType : uint8
+{
+	DirectDistance = 0,		/** Compute weighting by using Euclidean distance from bone to vertex */
+	GeodesicVoxel = 1,		/** Compute weighting by using geodesic distance from bone to vertex */
+};
+
+
+USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptSmoothBoneWeightsOptions
+{
+	GENERATED_BODY()
+
+	/** The type of algorithm to use for computing the bone weight for each vertex */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	EGeometryScriptSmoothBoneWeightsType DistanceWeighingType = EGeometryScriptSmoothBoneWeightsType::DirectDistance;
+
+	/** How rigid the binding should be. Higher values result in a more rigid binding (greater influence by bones
+	 *  closer to the vertex than those further away).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	float Stiffness = 0.2f;
+
+	/** Maximum number of bones that contribute to each weight. Set to 1 for a completely rigid binding. Higher values
+	 *  to have more distant bones make additional contributions to the deformation at each vertex. 
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	int32 MaxInfluences = 5;
+
+	/** The resolution to build the voxelized representation of the mesh, for computing geodesic distance. Higher values
+	 *  result in greater fidelity and less chance of disconnected parts contributing, but slower rate of computation and
+	 *  more memory usage.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options, meta=(EditCondition="DistanceWeighingType==EGeometryScriptSmoothBoneWeightsType::GeodesicVoxel"))
+	int32 VoxelResolution = 256;
+};
+
+
+
 
 UCLASS(meta = (ScriptName = "GeometryScript_BoneWeights"))
 class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshBoneWeightFunctions : public UBlueprintFunctionLibrary
@@ -117,5 +156,31 @@ public:
 		bool& bIsValidVertexID,
 		FGeometryScriptBoneWeightProfile Profile = FGeometryScriptBoneWeightProfile() );
 
+	/**
+	 * Set all vertices of the TargetMesh to the given Bone/Skin Weights
+	 * @param BoneWeights input array of bone index/weight pairs for the Vertex
+	 * @param Profile identifier for the bone/skin weight profile
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshQueries|BoneWeights", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	SetAllVertexBoneWeights( 
+		UDynamicMesh* TargetMesh,
+		const TArray<FGeometryScriptBoneWeight>& BoneWeights,
+		FGeometryScriptBoneWeightProfile Profile = FGeometryScriptBoneWeightProfile() );
 
+	/** 
+	 *  Computes a smooth skin binding for the given mesh to the skeleton provided.
+	 *  @param Skeleton The skeleton to compute binding for the skin weights.
+	 *  @param Options The options to set for the binding algorithm.
+	 *  @param Profile The skin weight profile to update with the smooth binding.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshQueries|BoneWeights", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh*
+	ComputeSmoothBoneWeights(
+		UDynamicMesh* TargetMesh, 
+		USkeleton* Skeleton,
+		FGeometryScriptSmoothBoneWeightsOptions Options,
+		FGeometryScriptBoneWeightProfile Profile = FGeometryScriptBoneWeightProfile(),
+		UGeometryScriptDebug* Debug = nullptr);
+	
 };
