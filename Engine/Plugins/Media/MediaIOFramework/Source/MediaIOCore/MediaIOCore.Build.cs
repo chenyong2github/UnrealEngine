@@ -48,7 +48,7 @@ namespace UnrealBuildTool.Rules
 	                "SoundFieldRendering"
 				});
 
-			PublicDefinitions.Add("WITH_MEDIA_IO_AUDIO_DEBUGGING=1");
+			PublicDefinitions.Add("WITH_MEDIA_IO_AUDIO_DEBUGGING=0");
 
 			if (Target.bBuildEditor == true)
 			{
