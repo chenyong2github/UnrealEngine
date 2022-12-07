@@ -16,6 +16,7 @@ public:
 
 	FPlayerMappableKeySlot();
 	FPlayerMappableKeySlot(int32 InSlotNumber);
+	virtual ~FPlayerMappableKeySlot();
 
 	virtual int32 GetSlotNumber() const;
 
