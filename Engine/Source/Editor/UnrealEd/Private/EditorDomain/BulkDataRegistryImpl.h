@@ -151,7 +151,7 @@ class FUpdatePayloadWorker : public FNonAbandonableTask
 {
 public:
 	FUpdatePayloadWorker(FBulkDataRegistryImpl* InBulkDataRegistry,
-		const UE::Serialization::FEditorBulkData& InSourceBulk);
+		const UE::Serialization::FEditorBulkData& InSourceBulk, bool bInKeepTempLoadedPayload);
 
 	void DoWork();
 	TStatId GetStatId() const
@@ -163,6 +163,7 @@ private:
 	UE::Serialization::FEditorBulkData BulkData;
 	TRefCountPtr<FTaskSharedDataLock> SharedDataLock;
 	FBulkDataRegistryImpl* BulkDataRegistry;
+	bool bKeepTempLoadedPayload;
 };
 
 /** Data storage for the FUpdatePayloadWorker that is updated while in flight for additional requesters. */
@@ -231,7 +232,7 @@ private:
 	void AddTempLoadedPayload(const FGuid& RegistryKey, uint64 PayloadSize);
 	void PruneTempLoadedPayloads();
 	void OnEndLoadPackage(const FEndLoadPackageContext& Context);
-	void WritePayloadIdToCache(FName PackageName, const UE::Serialization::FEditorBulkData& BulkData) const;
+	static void WritePayloadIdToCache(FName PackageName, const UE::Serialization::FEditorBulkData& BulkData);
 	void ReadPayloadIdsFromCache(FName PackageName, TArray<TRefCountPtr<FPendingPayloadId>>&& OldPendings,
 		TArray<TRefCountPtr<FPendingPayloadId>>&& NewPendings);
 

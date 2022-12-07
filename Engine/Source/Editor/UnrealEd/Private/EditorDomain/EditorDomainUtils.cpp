@@ -444,7 +444,7 @@ public:
 	FPrecacheClassDigest()
 		: ClassDigestsMap(GetClassDigests())
 		, ClassDigests(ClassDigestsMap.Map)
-		, AssetRegistry(*IAssetRegistry::Get())
+		, AssetRegistry(IAssetRegistry::GetChecked())
 	{
 		ClassDigestsMap.Lock.WriteLock();
 	}
@@ -1137,7 +1137,7 @@ public:
 				return *PackageDigest;
 			}
 		}
-		FPackageDigest PackageDigest = CalculatePackageDigest(*IAssetRegistry::Get(), PackageName);
+		FPackageDigest PackageDigest = CalculatePackageDigest(IAssetRegistry::GetChecked(), PackageName);
 		{
 			FWriteScopeLock ScopeLock(Lock);
 			PackageDigests.AddByHash(TypeHash, PackageName, PackageDigest);
@@ -2181,7 +2181,7 @@ void GetBulkDataList(FName PackageName, UE::DerivedData::IRequestOwner& Owner, T
 	IPackageDigestCache* DigestCache = IPackageDigestCache::Get();
 	FPackageDigest PackageDigest = DigestCache
 		? DigestCache->GetPackageDigest(PackageName)
-		: CalculatePackageDigest(*IAssetRegistry::Get(), PackageName);
+		: CalculatePackageDigest(IAssetRegistry::GetChecked(), PackageName);
 	if (!PackageDigest.IsSuccessful())
 	{
 		Callback(FSharedBuffer());
@@ -2209,7 +2209,7 @@ void PutBulkDataList(FName PackageName, FSharedBuffer Buffer)
 	IPackageDigestCache* DigestCache = IPackageDigestCache::Get();
 	FPackageDigest PackageDigest = DigestCache
 		? DigestCache->GetPackageDigest(PackageName)
-		: CalculatePackageDigest(*IAssetRegistry::Get(), PackageName);
+		: CalculatePackageDigest(IAssetRegistry::GetChecked(), PackageName);
 	if (!PackageDigest.IsSuccessful())
 	{
 		return;
@@ -2229,10 +2229,10 @@ void PutBulkDataList(FName PackageName, FSharedBuffer Buffer)
 	Owner.KeepAlive();
 }
 
-FIoHash GetPackageAndGuidHash(FIoHash& EditorDomainHash, const FGuid& BulkDataId)
+FIoHash GetPackageAndGuidHash(const FGuid& PackageGuid, const FGuid& BulkDataId)
 {
 	FBlake3 Builder;
-	Builder.Update(&EditorDomainHash, sizeof(EditorDomainHash));
+	Builder.Update(&PackageGuid, sizeof(PackageGuid));
 	Builder.Update(&BulkDataId, sizeof(BulkDataId));
 	return Builder.Finalize();
 }
@@ -2240,22 +2240,17 @@ FIoHash GetPackageAndGuidHash(FIoHash& EditorDomainHash, const FGuid& BulkDataId
 void GetBulkDataPayloadId(FName PackageName, const FGuid& BulkDataId, UE::DerivedData::IRequestOwner& Owner,
 	TUniqueFunction<void(FSharedBuffer Buffer)>&& Callback)
 {
-	IPackageDigestCache* DigestCache = IPackageDigestCache::Get();
-	FPackageDigest PackageDigest = DigestCache
-		? DigestCache->GetPackageDigest(PackageName)
-		: CalculatePackageDigest(*IAssetRegistry::Get(), PackageName);
-	if (!PackageDigest.IsSuccessful())
+	IAssetRegistry& AssetRegistry = IAssetRegistry::GetChecked();
+	AssetRegistry.WaitForPackage(PackageName.ToString());
+	TOptional<FAssetPackageData> PackageData = AssetRegistry.GetAssetPackageDataCopy(PackageName);
+	if (!PackageData)
 	{
-		Callback(FSharedBuffer());
 		return;
 	}
-
-	if (!EnumHasAnyFlags(PackageDigest.DomainUse, EDomainUse::LoadEnabled))
-	{
-		Callback(FSharedBuffer());
-		return;
-	}
-	FIoHash PackageAndGuidHash = GetPackageAndGuidHash(PackageDigest.Hash, BulkDataId);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	const FGuid& PackageGuid = PackageData->PackageGuid;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+	FIoHash PackageAndGuidHash = GetPackageAndGuidHash(PackageGuid, BulkDataId);
 
 	using namespace UE::DerivedData;
 	ICache& Cache = GetCache();
@@ -2270,20 +2265,17 @@ void GetBulkDataPayloadId(FName PackageName, const FGuid& BulkDataId, UE::Derive
 
 void PutBulkDataPayloadId(FName PackageName, const FGuid& BulkDataId, FSharedBuffer Buffer)
 {
-	IPackageDigestCache* DigestCache = IPackageDigestCache::Get();
-	FPackageDigest PackageDigest = DigestCache
-		? DigestCache->GetPackageDigest(PackageName)
-		: CalculatePackageDigest(*IAssetRegistry::Get(), PackageName);
-	if (!PackageDigest.IsSuccessful())
+	IAssetRegistry& AssetRegistry = IAssetRegistry::GetChecked();
+	AssetRegistry.WaitForPackage(PackageName.ToString());
+	TOptional<FAssetPackageData> PackageData = AssetRegistry.GetAssetPackageDataCopy(PackageName);
+	if (!PackageData)
 	{
 		return;
 	}
-
-	if (!EnumHasAnyFlags(PackageDigest.DomainUse, EDomainUse::SaveEnabled))
-	{
-		return;
-	}
-	FIoHash PackageAndGuidHash = GetPackageAndGuidHash(PackageDigest.Hash, BulkDataId);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	const FGuid& PackageGuid = PackageData->PackageGuid;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+	FIoHash PackageAndGuidHash = GetPackageAndGuidHash(PackageGuid, BulkDataId);
 
 	using namespace UE::DerivedData;
 	ICache& Cache = GetCache();
