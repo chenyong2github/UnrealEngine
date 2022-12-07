@@ -487,6 +487,7 @@ TSharedRef<SDockTab> FProxyTableEditor::SpawnTableTab( const FSpawnTabArgs& Args
 		{
 			FClassViewerInitializationOptions Options;
 			Options.ClassFilters.Add(MakeShared<UE::ChooserEditor::FInterfaceClassFilter>(UObjectChooser::StaticClass()) );
+			Options.NameTypeToDisplay = EClassViewerNameTypeToDisplay::DisplayName;
 			
 			// Add class filter for columns here
 			TSharedRef<SWidget> Widget = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateClassViewer(Options,

@@ -31,7 +31,7 @@ public:
 	TObjectPtr<UClass> OutputObjectType;
 };
 
-UCLASS()
+UCLASS(DisplayName = "Evaluate Chooser")
 class CHOOSER_API UObjectChooser_EvaluateChooser : public UObject, public IObjectChooser
 {
 	GENERATED_BODY()

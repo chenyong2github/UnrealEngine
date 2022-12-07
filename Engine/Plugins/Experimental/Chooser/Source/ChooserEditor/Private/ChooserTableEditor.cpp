@@ -531,15 +531,13 @@ void FChooserTableEditor::UpdateTableColumns()
 						})
 						));
 				
-					FClassViewerInitializationOptions Options;
-					Options.ClassFilters.Add(MakeShared<FInterfaceClassFilter>(Column->GetInputValueInterface()));
-
 				MenuBuilder.AddSubMenu(LOCTEXT("Input Type", "Input Type"),
 					LOCTEXT("InputTypeToolTip", "Change input parameter type"),
 					FNewMenuDelegate::CreateLambda([this, &Column](FMenuBuilder& Builder)
 					{
 						FClassViewerInitializationOptions Options;
 						Options.ClassFilters.Add(MakeShared<FInterfaceClassFilter>(Column->GetInputValueInterface()));
+						Options.NameTypeToDisplay = EClassViewerNameTypeToDisplay::DisplayName;
 						
 						// Add class filter for columns here
 						TSharedRef<SWidget> Widget = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateClassViewer(Options, FOnClassPicked::CreateLambda([this, &Column](UClass* ChosenClass)
@@ -622,6 +620,7 @@ TSharedRef<SDockTab> FChooserTableEditor::SpawnTableTab( const FSpawnTabArgs& Ar
 	{
 		FClassViewerInitializationOptions Options;
 		Options.ClassFilters.Add(MakeShared<FInterfaceClassFilter>(UChooserColumn::StaticClass()));
+		Options.NameTypeToDisplay = EClassViewerNameTypeToDisplay::DisplayName;
 		
 		// Add class filter for columns here
 		TSharedRef<SWidget> Widget = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateClassViewer(Options, FOnClassPicked::CreateLambda([this](UClass* ChosenClass)
@@ -657,6 +656,7 @@ TSharedRef<SDockTab> FChooserTableEditor::SpawnTableTab( const FSpawnTabArgs& Ar
 		{
 			FClassViewerInitializationOptions Options;
 			Options.ClassFilters.Add(MakeShared<FInterfaceClassFilter>(UObjectChooser::StaticClass()) );
+			Options.NameTypeToDisplay = EClassViewerNameTypeToDisplay::DisplayName;
 			
 			// Add class filter for columns here
 			TSharedRef<SWidget> Widget = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateClassViewer(Options,

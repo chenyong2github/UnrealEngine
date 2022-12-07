@@ -67,6 +67,7 @@ TSharedPtr<SWidget> FObjectChooserWidgetFactories::CreateWidget(UClass* Interfac
 	{
 		FClassViewerInitializationOptions Options;
 		Options.ClassFilters.Add(MakeShared<FInterfaceClassFilter>(InterfaceType));
+		Options.NameTypeToDisplay = EClassViewerNameTypeToDisplay::DisplayName;
 		
 		// Add class filter for columns here
 		TSharedRef<SWidget>  ClassMenu = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").

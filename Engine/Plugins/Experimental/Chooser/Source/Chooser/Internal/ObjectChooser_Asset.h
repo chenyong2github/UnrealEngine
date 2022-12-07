@@ -6,7 +6,7 @@
 #include "IObjectChooser.h"
 #include "ObjectChooser_Asset.generated.h"
 
-UCLASS()
+UCLASS(DisplayName = "Choose Asset")
 class CHOOSER_API UObjectChooser_Asset : public UObject, public IObjectChooser
 {
 	GENERATED_BODY()

@@ -8,7 +8,7 @@
 
 struct FBindingChainElement;
 
-UCLASS()
+UCLASS(DisplayName = "Enum Property Binding")
 class CHOOSER_API UChooserParameterEnum_ContextProperty : public UObject, public IChooserParameterEnum
 {
 	GENERATED_BODY()

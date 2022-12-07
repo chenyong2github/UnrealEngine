@@ -10,7 +10,7 @@
 
 struct FBindingChainElement;
 
-UCLASS()
+UCLASS(DisplayName = "Gameplay Tags Property Binding")
 class CHOOSER_API UChooserParameterGameplayTag_ContextProperty :  public UObject, public IChooserParameterGameplayTag
 {
 	GENERATED_BODY()

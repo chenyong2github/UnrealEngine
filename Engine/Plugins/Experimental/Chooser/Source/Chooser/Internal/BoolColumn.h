@@ -7,7 +7,7 @@
 #include "ChooserPropertyAccess.h"
 #include "BoolColumn.generated.h"
 
-UCLASS()
+UCLASS(DisplayName = "Bool Property Binding")
 class CHOOSER_API UChooserParameterBool_ContextProperty :  public UObject, public IChooserParameterBool
 {
 	GENERATED_BODY()

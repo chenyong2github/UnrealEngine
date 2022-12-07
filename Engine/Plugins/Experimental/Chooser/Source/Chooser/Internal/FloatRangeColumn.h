@@ -7,7 +7,7 @@
 #include "ChooserPropertyAccess.h"
 #include "FloatRangeColumn.generated.h"
 
-UCLASS()
+UCLASS(DisplayName = "Float Property Binding")
 class CHOOSER_API UChooserParameterFloat_ContextProperty :  public UObject, public IChooserParameterFloat
 {
 	GENERATED_BODY()
