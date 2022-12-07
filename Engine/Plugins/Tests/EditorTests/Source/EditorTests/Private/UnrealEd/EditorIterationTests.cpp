@@ -47,10 +47,6 @@ bool FIterationOpenAssets::RunTest(const FString& LongAssetPath)
 	// Issue Load request
 	AddCommand(new FOpenEditorForAssetCommand(LongAssetPath));
 
-	// Wait on all async asset processing
-	AddCommand(new FFunctionLatentCommand([] {
-		return FAssetCompilingManager::Get().GetNumRemainingAssets() == 0;
-	}));
 	AddCommand(new FFunctionLatentCommand([LongAssetPath] {
 		TRACE_BOOKMARK(TEXT("LoadAssetComplete - %s"), *LongAssetPath);
 		TRACE_BOOKMARK(TEXT("PIE - %s"), *LongAssetPath);
@@ -70,6 +66,16 @@ bool FIterationOpenAssets::RunTest(const FString& LongAssetPath)
 	// Teardown
 	AddCommand(new FFunctionLatentCommand([LongAssetPath] {
 		TRACE_BOOKMARK(TEXT("PIEComplete - %s"), *LongAssetPath);
+		return true;
+		}));
+
+	// Wait on all async asset processing
+	AddCommand(new FFunctionLatentCommand([] {
+		return FAssetCompilingManager::Get().GetNumRemainingAssets() == 0;
+		}));
+
+	AddCommand(new FFunctionLatentCommand([LongAssetPath] {
+		TRACE_BOOKMARK(TEXT("AssetCompilationComplete - %s"), *LongAssetPath);
 		return true;
 		}));
 
