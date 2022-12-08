@@ -62,11 +62,13 @@ public:
 		, DefaultMaxNumOptionalLODs(0)
 		, DefaultLightMapResolution(64)
 		, BasePercentTrianglesMult(1.0f)
+		, BasePercentVerticesMult(1.0f)
 		, bSupportLODStreaming(false)
 		, DisplayName( NSLOCTEXT( "UnrealEd", "None", "None" ) )
 	{
 		FMemory::Memzero(SettingsBias);
 		SettingsBias.PercentTriangles = 1.0f;
+		SettingsBias.PercentVertices = 1.0f;
 	}
 
 	/** Returns the default number of LODs to build. */
@@ -122,6 +124,8 @@ private:
 	int32 DefaultLightMapResolution;
 	/** An additional reduction of base meshes in this group. */
 	float BasePercentTrianglesMult;
+	/** An additional reduction of base meshes in this group. */
+	float BasePercentVerticesMult;
 	/** Whether static meshes in this LOD group can be streamed. */
 	bool bSupportLODStreaming;
 	/** Display name. */

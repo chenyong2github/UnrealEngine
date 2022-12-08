@@ -2174,12 +2174,36 @@ void FStaticMeshLODSettings::Initialize(const ITargetPlatform* TargetPlatform)
 	for (TMap<FName,FStaticMeshLODGroup>::TIterator It(Groups); It; ++It)
 	{
 		FStaticMeshLODGroup& Group = It.Value();
-		float PercentTrianglesPerLOD = Group.DefaultSettings[1].PercentTriangles;
+		EStaticMeshReductionTerimationCriterion LODTerminationCriterion = Group.DefaultSettings[0].TerminationCriterion;
+		float PercentTrianglesPerLODRatio = Group.DefaultSettings[1].PercentTriangles;
+		float PercentVerticesPerLODRatio = Group.DefaultSettings[1].PercentVertices;
 		for (int32 LODIndex = 1; LODIndex < MAX_STATIC_MESH_LODS; ++LODIndex)
 		{
-			float PercentTriangles = Group.DefaultSettings[LODIndex-1].PercentTriangles;
+			//Set the termination criteria
+			Group.DefaultSettings[LODIndex].TerminationCriterion = LODTerminationCriterion;
+			float PercentTriangles = Group.DefaultSettings[LODIndex - 1].PercentTriangles;
+			float PercentVertices = Group.DefaultSettings[LODIndex - 1].PercentVertices;
+
+			//Clamp Absolute value so every LOD is equal or less the previous LOD
+			uint32 MaxNumOfTriangles = FMath::Clamp<uint32>(
+				Group.DefaultSettings[LODIndex].MaxNumOfTriangles
+				, 2
+				, Group.DefaultSettings[LODIndex - 1].MaxNumOfTriangles);
+			uint32 MaxNumOfVerts = FMath::Clamp<uint32>(
+				Group.DefaultSettings[LODIndex].MaxNumOfVerts
+				, 4
+				, Group.DefaultSettings[LODIndex - 1].MaxNumOfVerts);
+
+			//Copy the previous LOD
 			Group.DefaultSettings[LODIndex] = Group.DefaultSettings[LODIndex - 1];
-			Group.DefaultSettings[LODIndex].PercentTriangles = PercentTriangles * PercentTrianglesPerLOD;
+
+			//Reduce the data from the previous LOD using the ratios
+			Group.DefaultSettings[LODIndex].PercentTriangles = PercentTriangles * PercentTrianglesPerLODRatio;
+			Group.DefaultSettings[LODIndex].PercentVertices = PercentVertices * PercentVerticesPerLODRatio;
+
+			//Put back the absolute criterion after the LOD copy
+			Group.DefaultSettings[LODIndex].MaxNumOfTriangles = MaxNumOfTriangles;
+			Group.DefaultSettings[LODIndex].MaxNumOfVerts = MaxNumOfVerts;
 		}
 	}
 }
@@ -2226,6 +2250,11 @@ void FStaticMeshLODSettings::ReadEntry(FStaticMeshLODGroup& Group, FString Entry
 		Group.DefaultLightMapResolution = (Group.DefaultLightMapResolution + 3) & (~3);
 	}
 
+	FString TerminationCriterion = StaticEnum<EStaticMeshReductionTerimationCriterion>()->GetValueAsString(EStaticMeshReductionTerimationCriterion::Triangles);
+	if (FParse::Value(*Entry, TEXT("TerminationCriterion="), TerminationCriterion))
+	{
+		Group.DefaultSettings[0].TerminationCriterion = static_cast<EStaticMeshReductionTerimationCriterion>(StaticEnum<EStaticMeshReductionTerimationCriterion>()->GetValueByNameString(TerminationCriterion));
+	}
 	float BasePercentTriangles = 100.0f;
 	if (FParse::Value(*Entry, TEXT("BasePercentTriangles="), BasePercentTriangles))
 	{
@@ -2233,11 +2262,42 @@ void FStaticMeshLODSettings::ReadEntry(FStaticMeshLODGroup& Group, FString Entry
 		Group.DefaultSettings[0].PercentTriangles = BasePercentTriangles * 0.01f;
 	}
 
+	float BasePercentVertices = 100.0f;
+	if (FParse::Value(*Entry, TEXT("BasePercentVertices="), BasePercentVertices))
+	{
+		BasePercentVertices = FMath::Clamp<float>(BasePercentVertices, 0.0f, 100.0f);
+		Group.DefaultSettings[0].PercentVertices = BasePercentVertices * 0.01f;
+	}
+
 	float LODPercentTriangles = 100.0f;
 	if (FParse::Value(*Entry, TEXT("LODPercentTriangles="), LODPercentTriangles))
 	{
 		LODPercentTriangles = FMath::Clamp<float>(LODPercentTriangles, 0.0f, 100.0f);
 		Group.DefaultSettings[1].PercentTriangles = LODPercentTriangles * 0.01f;
+	}
+
+	float LODPercentVertices = 100.0f;
+	if (FParse::Value(*Entry, TEXT("LODPercentVertices="), LODPercentVertices))
+	{
+		LODPercentVertices = FMath::Clamp<float>(LODPercentVertices, 0.0f, 100.0f);
+		Group.DefaultSettings[1].PercentVertices = LODPercentVertices * 0.01f;
+	}
+
+	for (int32 LodIndex = 0; LodIndex < Group.DefaultNumLODs; ++LodIndex)
+	{
+		uint32 LODMaxNumOfTriangles = MAX_uint32;
+		FString KeySearch = FString::Printf(TEXT("LOD%dMaxNumOfTriangles="), LodIndex);
+		if (FParse::Value(*Entry, *KeySearch, LODMaxNumOfTriangles))
+		{
+			Group.DefaultSettings[LodIndex].MaxNumOfTriangles = LODMaxNumOfTriangles;
+		}
+
+		uint32 LODMaxNumOfVerts = MAX_uint32;
+		KeySearch = FString::Printf(TEXT("LOD%dMaxNumOfVertices="), LodIndex);
+		if (FParse::Value(*Entry, *KeySearch, LODMaxNumOfVerts))
+		{
+			Group.DefaultSettings[LodIndex].MaxNumOfVerts = LODMaxNumOfVerts;
+		}
 	}
 
 	if (FParse::Value(*Entry, TEXT("MaxDeviation="), Settings.MaxDeviation))
@@ -2282,11 +2342,25 @@ void FStaticMeshLODSettings::ReadEntry(FStaticMeshLODGroup& Group, FString Entry
 		Group.BasePercentTrianglesMult = BasePercentTrianglesMult * 0.01f;
 	}
 
+	float BasePercentVerticesMult = 100.0f;
+	if (FParse::Value(*Entry, TEXT("BasePercentVerticesMult="), BasePercentVerticesMult))
+	{
+		BasePercentVerticesMult = FMath::Clamp<float>(BasePercentVerticesMult, 0.0f, 100.0f);
+		Group.BasePercentVerticesMult = BasePercentVerticesMult * 0.01f;
+	}
+
 	float LODPercentTrianglesMult = 100.0f;
 	if (FParse::Value(*Entry, TEXT("LODPercentTrianglesMult="), LODPercentTrianglesMult))
 	{
 		LODPercentTrianglesMult = FMath::Clamp<float>(LODPercentTrianglesMult, 0.0f, 100.0f);
 		Bias.PercentTriangles = LODPercentTrianglesMult * 0.01f;
+	}
+
+	float LODPercentVerticesMult = 100.0f;
+	if (FParse::Value(*Entry, TEXT("LODPercentVerticesMult="), LODPercentVerticesMult))
+	{
+		LODPercentVerticesMult = FMath::Clamp<float>(LODPercentVerticesMult, 0.0f, 100.0f);
+		Bias.PercentVertices = LODPercentVerticesMult * 0.01f;
 	}
 
 	if (FParse::Value(*Entry, TEXT("MaxDeviationBias="), Bias.MaxDeviation))
@@ -2350,6 +2424,9 @@ FMeshReductionSettings FStaticMeshLODGroup::GetSettings(const FMeshReductionSett
 	// PercentTriangles is actually a multiplier.
 	float PercentTrianglesMult = (LODIndex == 0) ? BasePercentTrianglesMult : SettingsBias.PercentTriangles;
 	FinalSettings.PercentTriangles = FMath::Clamp(InSettings.PercentTriangles * PercentTrianglesMult, 0.0f, 1.0f);
+
+	float PercentVerticesMult = (LODIndex == 0) ? BasePercentVerticesMult : SettingsBias.PercentVertices;
+	FinalSettings.PercentVertices = FMath::Clamp(InSettings.PercentVertices * PercentVerticesMult, 0.0f, 1.0f);
 
 	// Bias the remaining settings.
 	FinalSettings.MaxDeviation = FMath::Max(InSettings.MaxDeviation + SettingsBias.MaxDeviation, 0.0f);
