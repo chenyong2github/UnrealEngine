@@ -884,7 +884,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	// Handle output tag nodes
 	if (bAllowOutputTagNodes && NiagaraEditorSettings->IsAllowedClass(UNiagaraNodeOutputTag::StaticClass()))
 	{
-		FText MenuCat = FText::FromString("Compiler Tagging");
+		FText MenuCat = FText::FromString("Special Purpose Parameters");
 
 		{
 			FString Name = TEXT("Add Compiler Output Tag");
