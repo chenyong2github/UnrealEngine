@@ -364,6 +364,34 @@ bool UPCGNode::HasInboundEdges() const
 	return false;
 }
 
+const UPCGPin* UPCGNode::GetPassThroughInputPin() const
+{
+	// No outputs means nothing will be passed through
+	if (GetOutputPins().Num() == 0)
+	{
+		return nullptr;
+	}
+
+	// We assume a node whose primary output is params is a param processing node.
+	const bool bNodeOutputsParams = (GetOutputPins()[0]->Properties.AllowedTypes == EPCGDataType::Param);
+
+	if (bNodeOutputsParams)
+	{
+		// If this node primarily processes params, then look for a params pin, if we find it then we will pass it through
+		auto FindParams = [](const TObjectPtr<UPCGPin>& InPin) { return InPin->Properties.AllowedTypes == EPCGDataType::Param; };
+		const TObjectPtr<UPCGPin>* FirstParamsPinPtr = Algo::FindByPredicate(GetInputPins(), FindParams);
+		return FirstParamsPinPtr ? *FirstParamsPinPtr : nullptr;
+	}
+	else
+	{
+		// 'Normal' node. Look for the first pin that is not of type Params to pass through. If the node is disabled, the params are unused.
+		// Params-only pins will be rejected/ignored.
+		auto FindNonParams = [](const TObjectPtr<UPCGPin>& InPin) { return InPin->Properties.AllowedTypes != EPCGDataType::Param; };
+		const TObjectPtr<UPCGPin>* FirstNonParamsPinPtr = Algo::FindByPredicate(GetInputPins(), FindNonParams);
+		return FirstNonParamsPinPtr ? *FirstNonParamsPinPtr : nullptr;
+	}
+}
+
 void UPCGNode::SetSettingsInterface(UPCGSettingsInterface* InSettingsInterface, bool bUpdatePins)
 {
 #if WITH_EDITOR

@@ -217,16 +217,9 @@ void IPCGElement::DisabledPassThroughData(FPCGContext* Context) const
 		return;
 	}
 
-	const UPCGPin* FirstNonParamsPin = nullptr;
+	const UPCGPin* PassThroughPin = Context->Node->GetPassThroughInputPin();
 
-	// Find first non-params pin. Choosing to pass through params does not make sense
-	auto NonParamsPredicate = [](const TObjectPtr<UPCGPin>& InPin) { return InPin->Properties.AllowedTypes != EPCGDataType::Param; };
-	if (const TObjectPtr<UPCGPin>* FirstNonParamsPinPtr = Algo::FindByPredicate(Context->Node->GetInputPins(), NonParamsPredicate))
-	{
-		FirstNonParamsPin = *FirstNonParamsPinPtr;
-	}
-
-	if (FirstNonParamsPin == nullptr)
+	if (PassThroughPin == nullptr)
 	{
 		// No pin to grab pass through data from
 		Context->OutputData.TaggedData.Empty();
@@ -235,9 +228,9 @@ void IPCGElement::DisabledPassThroughData(FPCGContext* Context) const
 	}
 
 	// Find first incoming non-params data that is coming through the identified pin
-	TArray<FPCGTaggedData> InputsOnFirstPin = Context->InputData.GetInputsByPin(FirstNonParamsPin->Properties.Label);
+	TArray<FPCGTaggedData> InputsOnFirstPin = Context->InputData.GetInputsByPin(PassThroughPin->Properties.Label);
 	const int FirstNonParamsDataIndex = InputsOnFirstPin.IndexOfByPredicate([Context](const FPCGTaggedData& InData) { return Cast<UPCGParamData>(InData.Data) == nullptr; });
-	if (FirstNonParamsDataIndex != -1)
+	if (FirstNonParamsDataIndex != INDEX_NONE)
 	{
 		// Remove everything except the data we found above
 		for (int Index = Context->OutputData.TaggedData.Num() - 1; Index >= 0; --Index)

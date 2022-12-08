@@ -406,6 +406,7 @@ FPCGEditorConnectionDrawingPolicy::FPCGEditorConnectionDrawingPolicy(int32 InBac
 void FPCGEditorConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* OutputPin, UEdGraphPin* InputPin, /*inout*/ FConnectionParams& Params)
 {
 	FConnectionDrawingPolicy::DetermineWiringStyle(OutputPin, InputPin, Params);
+
 	// Emphasize wire thickness on hovered pins
 	if (HoveredPins.Contains(InputPin) && HoveredPins.Contains(OutputPin))
 	{
@@ -416,6 +417,26 @@ void FPCGEditorConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* Output
 	if (OutputPin)
 	{
 		Params.WireColor = GetDefault<UPCGEditorSettings>()->GetPinColor(OutputPin->PinType);
+	}
+
+	// Desaturate and connection if the node is disabled and the data on this wire won't be used
+	if (InputPin)
+	{
+		if (const UPCGEditorGraphNodeBase* EditorNode = CastChecked<const UPCGEditorGraphNodeBase>(InputPin->GetOwningNode()))
+		{
+			const UPCGNode* PCGNode = EditorNode->GetPCGNode();
+			if (PCGNode && PCGNode->GetSettings() && !PCGNode->GetSettings()->bEnabled)
+			{
+				const UPCGPin* PassThroughInputPin = PCGNode->GetPassThroughInputPin();
+
+				// If this wire does not connect to the pass-through pin, or if the wire is not the first link on that pin, then it will
+				// not be used by the node. In this case desaturate the wire.
+				if (PassThroughInputPin && PassThroughInputPin->Properties.Label != InputPin->GetFName() || InputPin->LinkedTo[0] != OutputPin)
+				{
+					Params.WireColor = Params.WireColor.Desaturate(0.7f);
+				}
+			}
+		}
 	}
 }
 

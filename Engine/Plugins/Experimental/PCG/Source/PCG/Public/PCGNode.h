@@ -97,6 +97,9 @@ public:
 	const UPCGPin* GetOutputPin(const FName& Label) const;
 	bool HasInboundEdges() const;
 
+	/** Pin from which data is passed through when this node is disabled. */
+	virtual const UPCGPin* GetPassThroughInputPin() const;
+
 	const TArray<TObjectPtr<UPCGPin>>& GetInputPins() const { return InputPins; }
 	const TArray<TObjectPtr<UPCGPin>>& GetOutputPins() const { return OutputPins; }
 
