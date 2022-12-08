@@ -15,25 +15,12 @@
 #include "PackageTools.h"
 #endif
 
-namespace ContentBundlePaths
-{
-	// ContentBundleCookedFolder is reduce to avoid reaching MAX_PATH
-	constexpr FStringView ContentBundleCookedFolder = TEXTVIEW("/CB/");
-}
-
 FString ContentBundlePaths::GetCookedContentBundleLevelFolder(const FContentBundleBase& ContentBundle)
 {
 	TStringBuilderWithBuffer<TCHAR, NAME_SIZE> GeneratedContentBundleLevelFolder;
 	GeneratedContentBundleLevelFolder += TEXT("/");
 	GeneratedContentBundleLevelFolder += ContentBundle.GetDescriptor()->GetPackageRoot();
-	GeneratedContentBundleLevelFolder += TEXT("/");
-	GeneratedContentBundleLevelFolder += ContentBundlePaths::ContentBundleCookedFolder;
-	GeneratedContentBundleLevelFolder += TEXT("/");
-	
-	// ContentBundleGuid is reduced to avoid reaching MAX_PATH
-	ContentBundle.GetDescriptor()->GetGuid().AppendString(GeneratedContentBundleLevelFolder, EGuidFormats::Short); 
-
-	GeneratedContentBundleLevelFolder += TEXT("/");
+	GeneratedContentBundleLevelFolder += TEXT("/CB/");
 	GeneratedContentBundleLevelFolder += GetRelativeLevelFolder(ContentBundle);
 	GeneratedContentBundleLevelFolder += TEXT("/");
 
@@ -41,7 +28,6 @@ FString ContentBundlePaths::GetCookedContentBundleLevelFolder(const FContentBund
 	FPaths::RemoveDuplicateSlashes(Result);
 	return Result;
 }
-
 
 FString ContentBundlePaths::GetRelativeLevelFolder(const FContentBundleBase& ContentBundle)
 {

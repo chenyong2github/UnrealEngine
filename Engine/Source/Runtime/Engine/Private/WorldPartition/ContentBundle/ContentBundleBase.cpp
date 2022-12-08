@@ -94,7 +94,12 @@ const UContentBundleDescriptor* FContentBundleBase::GetDescriptor() const
 
 FString FContentBundleBase::GetExternalStreamingObjectPackageName() const
 {
-	return ContentBundlePaths::GetCookedContentBundleLevelFolder(*this) + ContentBundlePaths::GetGeneratedFolderName() + TEXT("/StreamingObject");
+	return TEXT("StreamingObject_") + GetDescriptor()->GetGuid().ToString(EGuidFormats::Base36Encoded);
+}
+
+FString FContentBundleBase::GetExternalStreamingObjectPackagePath() const
+{
+	return ContentBundlePaths::GetCookedContentBundleLevelFolder(*this) + ContentBundlePaths::GetGeneratedFolderName() + TEXT("/") + GetExternalStreamingObjectPackageName();
 }
 
 FString FContentBundleBase::GetExternalStreamingObjectName() const

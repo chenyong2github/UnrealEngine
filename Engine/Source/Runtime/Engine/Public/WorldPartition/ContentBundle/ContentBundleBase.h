@@ -31,6 +31,7 @@ public:
 	const UContentBundleDescriptor* GetDescriptor() const;
 	EContentBundleStatus GetStatus() const { return Status; }
 	FString GetExternalStreamingObjectPackageName() const;
+	FString GetExternalStreamingObjectPackagePath() const;
 	FString GetExternalStreamingObjectName() const;
 
 protected:

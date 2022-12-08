@@ -373,7 +373,7 @@ bool FContentBundleEditor::GatherPackagesToCook(class IWorldPartitionCookPackage
 			}
 		});
 		
-		const FWorldPartitionCookPackage* CookPackage = CookContext.AddGenericPackageToGenerate(this, ContentBundlePaths::GetCookedContentBundleLevelFolder(*this), TEXT("StreamingObject"));
+		const FWorldPartitionCookPackage* CookPackage = CookContext.AddGenericPackageToGenerate(this, ContentBundlePaths::GetCookedContentBundleLevelFolder(*this), GetExternalStreamingObjectPackageName());
 		if (CookPackage == nullptr)
 		{
 			UE_LOG(LogContentBundle, Error, TEXT("[CB: %s][Cook] Failed to add streaming object package in cook context %s."), *GetDescriptor()->GetDisplayName());

@@ -30,7 +30,7 @@ void FContentBundle::DoInitialize()
 #if WITH_EDITOR
 	InitializeForPIE();
 #else
-	ExternalStreamingObjectPackage = LoadPackage(nullptr, *GetExternalStreamingObjectPackageName(), LOAD_None);
+	ExternalStreamingObjectPackage = LoadPackage(nullptr, *GetExternalStreamingObjectPackagePath(), LOAD_None);
 	if (ExternalStreamingObjectPackage != nullptr)
 	{
 		if (UObject* Object = StaticFindObjectFast(URuntimeHashExternalStreamingObjectBase::StaticClass(), ExternalStreamingObjectPackage, *GetExternalStreamingObjectName()))
@@ -40,7 +40,7 @@ void FContentBundle::DoInitialize()
 		}
 		else
 		{
-			UE_LOG(LogContentBundle, Error, TEXT("[CB: %s] No streaming object found in package %s."), *GetDescriptor()->GetDisplayName(), *GetExternalStreamingObjectPackageName());
+			UE_LOG(LogContentBundle, Error, TEXT("[CB: %s] No streaming object found in package %s."), *GetDescriptor()->GetDisplayName(), *GetExternalStreamingObjectPackagePath());
 		}
 	}
 	else
