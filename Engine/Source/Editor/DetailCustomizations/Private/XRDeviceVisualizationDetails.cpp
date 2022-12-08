@@ -1,70 +1,45 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MotionControllerDetails.h"
+#include "XRDeviceVisualizationDetails.h"
 
-#include "Containers/BitArray.h"
-#include "Containers/Set.h"
-#include "Containers/SparseArray.h"
-#include "Containers/UnrealString.h"
-#include "Delegates/Delegate.h"
-#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "Features/IModularFeatures.h" // for GetModularFeatureImplementations()
-#include "Fonts/SlateFontInfo.h"
-#include "HAL/Platform.h"
-#include "HAL/PlatformCrt.h"
-#include "IDetailPropertyRow.h"
 #include "IXRSystemAssets.h"
-#include "Internationalization/Internationalization.h"
-#include "Layout/Margin.h"
-#include "Misc/AssertionMacros.h"
-#include "Misc/Optional.h"
 #include "MotionControllerComponent.h"
 #include "MotionControllerSourceCustomization.h"
-#include "PropertyHandle.h"
-#include "SlotBase.h"
-#include "Styling/AppStyle.h"
-#include "Templates/Tuple.h"
-#include "Templates/UnrealTemplate.h"
-#include "UObject/Object.h"
-#include "UObject/UObjectGlobals.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SBorder.h"
-#include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STableRow.h"
+#include "XRDeviceVisualizationComponent.h"
 
 class FProperty;
 
-#define LOCTEXT_NAMESPACE "MotionControllerDetails"
+#define LOCTEXT_NAMESPACE "XRDeviceVisualizationDetails"
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
+TMap< FName, TSharedPtr<FName> > FXRDeviceVisualizationDetails::CustomSourceNames;
 
-TMap< FName, TSharedPtr<FName> > FMotionControllerDetails::CustomSourceNames;
-
-TSharedRef<IDetailCustomization> FMotionControllerDetails::MakeInstance()
+TSharedRef<IDetailCustomization> FXRDeviceVisualizationDetails::MakeInstance()
 {
-	return MakeShareable(new FMotionControllerDetails);
+	return MakeShareable(new FXRDeviceVisualizationDetails);
 }
 
-void FMotionControllerDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
+void FXRDeviceVisualizationDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout) 
 {
 	DetailLayout.GetObjectsBeingCustomized(SelectedObjects);
 	IDetailCategoryBuilder& VisualizationDetails = DetailLayout.EditCategory("Visualization");
 	
-	TSharedRef<IPropertyHandle> ModelSrcProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UMotionControllerComponent, DisplayModelSource));
+	TSharedRef<IPropertyHandle> ModelSrcProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UXRDeviceVisualizationComponent, DisplayModelSource));
 	if (ensure(ModelSrcProperty->IsValidHandle()))
 	{
 		XRSourceProperty = ModelSrcProperty;
 	}
 
-	DisplayModelProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UMotionControllerComponent, bDisplayDeviceModel));
-	TSharedRef<IPropertyHandle> CustomMeshProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UMotionControllerComponent, CustomDisplayMesh));
-	TSharedRef<IPropertyHandle> CustomMaterialsProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UMotionControllerComponent, DisplayMeshMaterialOverrides));
+	TSharedRef<IPropertyHandle> CustomMeshProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UXRDeviceVisualizationComponent, CustomDisplayMesh));
+	TSharedRef<IPropertyHandle> CustomMaterialsProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UXRDeviceVisualizationComponent, DisplayMeshMaterialOverrides));
 
 	TArray<TSharedRef<IPropertyHandle>> VisualizationProperties;
 	VisualizationDetails.GetDefaultProperties(VisualizationProperties);
@@ -83,25 +58,9 @@ void FMotionControllerDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayo
 			CustomizeCustomMeshRow(PropertyRow);
 		}
 	}
-
-	MotionSourceProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UMotionControllerComponent, MotionSource));
-	MotionSourceProperty->MarkHiddenByCustomization();
-
-	IDetailCategoryBuilder& MotionSourcePropertyGroup = DetailLayout.EditCategory(*MotionSourceProperty->GetMetaData(TEXT("Category")));
-	MotionSourcePropertyGroup.AddCustomRow(LOCTEXT("MotionSourceLabel", "Motion Source"))
-	.NameContent()
-	[
-		MotionSourceProperty->CreatePropertyNameWidget()
-	]
-	.ValueContent()
-	[
-		SNew(SMotionSourceWidget)
-		.OnGetMotionSourceText(this, &FMotionControllerDetails::GetMotionSourceValueText)
-		.OnMotionSourceChanged(this, &FMotionControllerDetails::OnMotionSourceChanged)
-	];
 }
 
-void FMotionControllerDetails::RefreshXRSourceList()
+void FXRDeviceVisualizationDetails::RefreshXRSourceList()
 {
 	TSharedPtr<FName> DefaultOption;
 	TSharedPtr<FName> CustomOption;
@@ -128,7 +87,7 @@ void FMotionControllerDetails::RefreshXRSourceList()
 		UObject* CustomizedController = FindObject<UMotionControllerComponent>(/*Outer =*/nullptr, *CustomNameIt.Key.ToString());
 		if (CustomizedController)
 		{
-			if (!CustomNameIt.Value->IsNone() && *CustomNameIt.Value != UMotionControllerComponent::CustomModelSourceId)
+			if (!CustomNameIt.Value->IsNone() && *CustomNameIt.Value != UXRDeviceVisualizationComponent::CustomModelSourceId)
 			{
 				ListedNames.AddUnique(*CustomNameIt.Value);
 				XRSourceNames.AddUnique(CustomNameIt.Value);
@@ -159,12 +118,12 @@ void FMotionControllerDetails::RefreshXRSourceList()
 
 	if (!CustomOption.IsValid())
 	{
-		CustomOption = MakeShareable(new FName(UMotionControllerComponent::CustomModelSourceId));
+		CustomOption = MakeShareable(new FName(UXRDeviceVisualizationComponent::CustomModelSourceId));
 	}
 	XRSourceNames.AddUnique(CustomOption);
 }
 
-void FMotionControllerDetails::SetSourcePropertyValue(const FName NewSystemName)
+void FXRDeviceVisualizationDetails::SetSourcePropertyValue(const FName NewSystemName)
 {
 	if (XRSourceProperty.IsValid())
 	{
@@ -172,7 +131,7 @@ void FMotionControllerDetails::SetSourcePropertyValue(const FName NewSystemName)
 	}	
 }
 
-void FMotionControllerDetails::UpdateSourceSelection(TSharedPtr<FName> NewSelection)
+void FXRDeviceVisualizationDetails::UpdateSourceSelection(TSharedPtr<FName> NewSelection)
 {
 	for (TWeakObjectPtr<UObject> SelectedObj : SelectedObjects)
 	{
@@ -184,13 +143,13 @@ void FMotionControllerDetails::UpdateSourceSelection(TSharedPtr<FName> NewSelect
 	SetSourcePropertyValue(*NewSelection);
 }
 
-void FMotionControllerDetails::CustomizeModelSourceRow(TSharedRef<IPropertyHandle>& Property, IDetailPropertyRow& PropertyRow)
+void FXRDeviceVisualizationDetails::CustomizeModelSourceRow(TSharedRef<IPropertyHandle>& Property, IDetailPropertyRow& PropertyRow)
 {
 	const FText ToolTip = Property->GetToolTipText();
 
 	FResetToDefaultOverride ResetOverride = FResetToDefaultOverride::Create(
-		FIsResetToDefaultVisible::CreateSP(this, &FMotionControllerDetails::IsSourceValueModified),
-		FResetToDefaultHandler::CreateSP(this, &FMotionControllerDetails::OnResetSourceValue)
+		FIsResetToDefaultVisible::CreateSP(this, &FXRDeviceVisualizationDetails::IsSourceValueModified),
+		FResetToDefaultHandler::CreateSP(this, &FXRDeviceVisualizationDetails::OnResetSourceValue)
 	);
 	PropertyRow.OverrideResetToDefault(ResetOverride);
 
@@ -203,7 +162,7 @@ void FMotionControllerDetails::CustomizeModelSourceRow(TSharedRef<IPropertyHandl
 		[
 			SNew(SComboButton)
 				.ContentPadding(FMargin(0,0,5,0))
-				.OnComboBoxOpened(this, &FMotionControllerDetails::OnSourceMenuOpened)
+				.OnComboBoxOpened(this, &FXRDeviceVisualizationDetails::OnSourceMenuOpened)
 				.ButtonContent()
 				[
 					SNew(SBorder)
@@ -211,8 +170,8 @@ void FMotionControllerDetails::CustomizeModelSourceRow(TSharedRef<IPropertyHandl
 						.Padding(FMargin(0, 0, 5, 0))
 					[
 						SNew(SEditableTextBox)
- 							.Text(this, &FMotionControllerDetails::OnGetSelectedSourceText)
- 							.OnTextCommitted(this, &FMotionControllerDetails::OnSourceNameCommited)
+ 							.Text(this, &FXRDeviceVisualizationDetails::OnGetSelectedSourceText)
+ 							.OnTextCommitted(this, &FXRDeviceVisualizationDetails::OnSourceNameCommited)
  							.ToolTipText(ToolTip)
  							.SelectAllTextWhenFocused(true)
  							.RevertTextOnEscape(true)
@@ -228,14 +187,14 @@ void FMotionControllerDetails::CustomizeModelSourceRow(TSharedRef<IPropertyHandl
 						[
 							SNew(SListView< TSharedPtr<FName> >)
  								.ListItemsSource(&XRSourceNames)
- 								.OnGenerateRow(this, &FMotionControllerDetails::MakeSourceSelectionWidget)
- 								.OnSelectionChanged(this, &FMotionControllerDetails::OnSourceSelectionChanged)
+ 								.OnGenerateRow(this, &FXRDeviceVisualizationDetails::MakeSourceSelectionWidget)
+ 								.OnSelectionChanged(this, &FXRDeviceVisualizationDetails::OnSourceSelectionChanged)
 						]
 				]
 		];
 }
 
-void FMotionControllerDetails::OnResetSourceValue(TSharedPtr<IPropertyHandle> /*PropertyHandle*/)
+void FXRDeviceVisualizationDetails::OnResetSourceValue(TSharedPtr<IPropertyHandle> /*PropertyHandle*/)
 {
 	TSharedPtr<FName> DefaultOption;
 	if (XRSourceNames.Num() > 0)
@@ -250,7 +209,7 @@ void FMotionControllerDetails::OnResetSourceValue(TSharedPtr<IPropertyHandle> /*
 	UpdateSourceSelection(DefaultOption);
 }
 
-bool FMotionControllerDetails::IsSourceValueModified(TSharedPtr<IPropertyHandle> PropertyHandle)
+bool FXRDeviceVisualizationDetails::IsSourceValueModified(TSharedPtr<IPropertyHandle> PropertyHandle)
 {
 	FName CurrentValue;
 	PropertyHandle->GetValue(CurrentValue);
@@ -258,12 +217,12 @@ bool FMotionControllerDetails::IsSourceValueModified(TSharedPtr<IPropertyHandle>
 	return !CurrentValue.IsNone();
 }
 
-void FMotionControllerDetails::OnSourceMenuOpened()
+void FXRDeviceVisualizationDetails::OnSourceMenuOpened()
 {
 	RefreshXRSourceList();
 }
 
-FText FMotionControllerDetails::OnGetSelectedSourceText() const
+FText FXRDeviceVisualizationDetails::OnGetSelectedSourceText() const
 {
 	FText DisplayText = LOCTEXT("DefaultModelSrc", "Default");
 	if (XRSourceProperty.IsValid())
@@ -271,7 +230,7 @@ FText FMotionControllerDetails::OnGetSelectedSourceText() const
 		FName PropertyValue;
 		XRSourceProperty->GetValue(PropertyValue);
 
-		if (PropertyValue == UMotionControllerComponent::CustomModelSourceId)
+		if (PropertyValue == UXRDeviceVisualizationComponent::CustomModelSourceId)
 		{
 			DisplayText = LOCTEXT("CustomModelSrc", "Custom...");
 		}
@@ -283,7 +242,7 @@ FText FMotionControllerDetails::OnGetSelectedSourceText() const
 	return DisplayText;
 }
 
-void FMotionControllerDetails::OnSourceNameCommited(const FText& NewText, ETextCommit::Type InTextCommit)
+void FXRDeviceVisualizationDetails::OnSourceNameCommited(const FText& NewText, ETextCommit::Type InTextCommit)
 {
 	if (InTextCommit == ETextCommit::OnEnter || InTextCommit == ETextCommit::OnUserMovedFocus)
 	{
@@ -295,7 +254,7 @@ void FMotionControllerDetails::OnSourceNameCommited(const FText& NewText, ETextC
 			UpdateSourceSelection(XRSourceNames[0]);
 			return;
 		}
-		else if (NewName == UMotionControllerComponent::CustomModelSourceId)
+		else if (NewName == UXRDeviceVisualizationComponent::CustomModelSourceId)
 		{
 			UpdateSourceSelection(XRSourceNames.Last());
 			return;
@@ -318,7 +277,7 @@ void FMotionControllerDetails::OnSourceNameCommited(const FText& NewText, ETextC
 	}
 }
 
-TSharedRef<ITableRow> FMotionControllerDetails::MakeSourceSelectionWidget(TSharedPtr<FName> Item, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> FXRDeviceVisualizationDetails::MakeSourceSelectionWidget(TSharedPtr<FName> Item, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	FText DisplayText;
 	if (Item.IsValid() && !Item->IsNone())
@@ -333,49 +292,28 @@ TSharedRef<ITableRow> FMotionControllerDetails::MakeSourceSelectionWidget(TShare
 		];
 }
 
-void FMotionControllerDetails::OnSourceSelectionChanged(TSharedPtr<FName> NewSelection, ESelectInfo::Type /*SelectInfo*/)
+void FXRDeviceVisualizationDetails::OnSourceSelectionChanged(TSharedPtr<FName> NewSelection, ESelectInfo::Type /*SelectInfo*/)
 {
 	UpdateSourceSelection(NewSelection);
 }
 
-void FMotionControllerDetails::CustomizeCustomMeshRow(IDetailPropertyRow& PropertyRow)
+void FXRDeviceVisualizationDetails::CustomizeCustomMeshRow(IDetailPropertyRow& PropertyRow)
 {
 	if (!UseCustomMeshAttr.IsBound())
 	{
-		UseCustomMeshAttr.Bind(this, &FMotionControllerDetails::IsCustomMeshPropertyEnabled);
+		UseCustomMeshAttr.Bind(this, &FXRDeviceVisualizationDetails::IsCustomMeshPropertyEnabled);
 	}
 	PropertyRow.EditCondition(UseCustomMeshAttr, nullptr);
 }
 
-bool FMotionControllerDetails::IsCustomMeshPropertyEnabled() const
+bool FXRDeviceVisualizationDetails::IsCustomMeshPropertyEnabled() const
 {
 	FName SourceSetting;
 	if (XRSourceProperty.IsValid())
 	{
 		XRSourceProperty->GetValue(SourceSetting);
 	}
-
-	bool bDisplayModelChecked = false;
-	if (DisplayModelProperty.IsValid())
-	{
-		DisplayModelProperty->GetValue(bDisplayModelChecked);
-	}
-
-	return bDisplayModelChecked && (SourceSetting == UMotionControllerComponent::CustomModelSourceId);
-}
-
-void FMotionControllerDetails::OnMotionSourceChanged(FName NewMotionSource)
-{
-	MotionSourceProperty->SetValue(NewMotionSource);
-}
-
-FText FMotionControllerDetails::GetMotionSourceValueText() const
-{
-	FName MotionSource;
-	MotionSourceProperty->GetValue(MotionSource);
-	return FText::FromName(MotionSource);
+	return SourceSetting == UXRDeviceVisualizationComponent::CustomModelSourceId;
 }
 
 #undef LOCTEXT_NAMESPACE
-
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
