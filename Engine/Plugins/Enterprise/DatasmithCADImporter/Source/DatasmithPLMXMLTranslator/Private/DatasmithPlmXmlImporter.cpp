@@ -764,7 +764,16 @@ namespace PlmXml
 
 		for (const FIdRef& InstanceRef : InstanceRefs)
 		{
-			TraverseProductInstance(MakeTraverseProductInstanceContext(Context, Context.ImportContext.GetProductInstance(InstanceRef)));
+			if (Context.ImportContext.HasProductInstance(InstanceRef))
+			{
+				TraverseProductInstance(MakeTraverseProductInstanceContext(Context, Context.ImportContext.GetProductInstance(InstanceRef)));
+			}
+			else if (Context.ImportContext.HasProductRevisionView(InstanceRef)) // in case InstanceRef is not a product instance
+			{
+				FTransform RootTransform;
+				RootTransform.SetIdentity();
+				TraverseProductRevisionView(MakeTraverseContext(Context, RootTransform, Context.ImportContext.GetProductRevisionView(InstanceRef)));
+			}
 		}
 	}
 
