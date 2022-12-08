@@ -18,6 +18,14 @@ TArray<FPCGPinProperties> UPCGDifferenceSettings::InputPinProperties() const
 	return PinProperties;
 }
 
+TArray<FPCGPinProperties> UPCGDifferenceSettings::OutputPinProperties() const
+{
+	TArray<FPCGPinProperties> PinProperties;
+	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Composite);
+
+	return PinProperties;
+}
+
 FPCGElementPtr UPCGDifferenceSettings::CreateElement() const
 {
 	return MakeShared<FPCGDifferenceElement>();

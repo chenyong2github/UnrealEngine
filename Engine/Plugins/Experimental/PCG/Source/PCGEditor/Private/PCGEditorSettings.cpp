@@ -24,6 +24,8 @@ UPCGEditorSettings::UPCGEditorSettings(const FObjectInitializer& ObjectInitializ
 
 	DefaultPinColor = FLinearColor(1.0f, 1.0f, 1.0f);
 	SpatialDataPinColor = FLinearColor(0.2f, 0.2f, 1.0f);
+	CompositeDataPinColor = FLinearColor(0.2f, 0.2f, 1.0f);
+	ConcreteDataPinColor = FLinearColor(0.2f, 0.2f, 1.0f);
 	RenderTargetDataPinColor = FLinearColor(1.0f, 0.3f, 0.f);
 	ParamDataPinColor = FLinearColor(1.0f, 0.6f, 0.0f);
 	UnknownDataPinColor = FLinearColor(0.3f, 0.3f, 0.3f);
@@ -96,16 +98,25 @@ FLinearColor UPCGEditorSettings::GetColor(UPCGSettings* Settings) const
 
 FLinearColor UPCGEditorSettings::GetPinColor(const FEdGraphPinType& PinType) const
 {
-	if (PinType.PinCategory == FPCGEditorCommon::SpatialDataType)
+	if (PinType.PinCategory == FPCGEditorCommon::SpatialDataType || PinType.PinCategory == FPCGEditorCommon::ConcreteDataType)
 	{
+		// Clauses below try to pick the narrowest type possible, falling back to Spatial
 		if (PinType.PinSubCategory == FPCGEditorCommon::RenderTargetDataType)
 		{
 			return RenderTargetDataPinColor;
+		}
+		else if (PinType.PinCategory == FPCGEditorCommon::ConcreteDataType)
+		{
+			return ConcreteDataPinColor;
 		}
 		else
 		{
 			return SpatialDataPinColor;
 		}
+	}
+	else if (PinType.PinCategory == FPCGEditorCommon::CompositeDataType)
+	{
+		return CompositeDataPinColor;
 	}
 	else if (PinType.PinCategory == FPCGEditorCommon::ParamDataType)
 	{

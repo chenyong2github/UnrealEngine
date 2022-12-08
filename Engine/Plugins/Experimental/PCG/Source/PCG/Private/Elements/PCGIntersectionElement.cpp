@@ -5,6 +5,14 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGIntersectionElement)
 
+TArray<FPCGPinProperties> UPCGIntersectionSettings::OutputPinProperties() const
+{
+	TArray<FPCGPinProperties> PinProperties;
+	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Composite);
+
+	return PinProperties;
+}
+
 FPCGElementPtr UPCGIntersectionSettings::CreateElement() const
 {
 	return MakeShared<FPCGIntersectionElement>();

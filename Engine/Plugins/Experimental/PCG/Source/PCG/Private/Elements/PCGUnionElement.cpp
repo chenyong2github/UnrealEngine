@@ -5,6 +5,14 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGUnionElement)
 
+TArray<FPCGPinProperties> UPCGUnionSettings::OutputPinProperties() const
+{
+	TArray<FPCGPinProperties> PinProperties;
+	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Composite);
+
+	return PinProperties;
+}
+
 FPCGElementPtr UPCGUnionSettings::CreateElement() const
 {
 	return MakeShared<FPCGUnionElement>();

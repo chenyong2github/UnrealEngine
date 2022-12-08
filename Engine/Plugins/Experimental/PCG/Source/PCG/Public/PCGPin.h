@@ -64,5 +64,6 @@ public:
 	bool BreakAllEdges();
 	bool BreakAllIncompatibleEdges();
 	bool IsConnected() const;
+	bool IsOutputPin() const;
 	int32 EdgeCount() const;
 };

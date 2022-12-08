@@ -67,7 +67,7 @@ void UPCGGraphInputOutputSettings::PostLoad()
 TArray<FPCGPinProperties> UPCGGraphInputOutputSettings::GetPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
-	const EPCGDataType DefaultPinDataType = bIsInput ? EPCGDataType::Spatial : EPCGDataType::Any;
+	const EPCGDataType DefaultPinDataType = bIsInput ? EPCGDataType::Composite : EPCGDataType::Any;
 	Algo::Transform(StaticLabels(), PinProperties, [DefaultPinDataType](const FLabelAndTooltip& InLabelAndTooltip) {
 		return FPCGPinProperties(InLabelAndTooltip.Label, DefaultPinDataType, true, InLabelAndTooltip.Tooltip);
 	});
@@ -75,7 +75,8 @@ TArray<FPCGPinProperties> UPCGGraphInputOutputSettings::GetPinProperties() const
 	if (bShowAdvancedPins)
 	{
 		Algo::Transform(StaticAdvancedLabels(), PinProperties, [DefaultPinDataType](const FLabelAndTooltip& InLabelAndTooltip) {
-			return FPCGPinProperties(InLabelAndTooltip.Label, (InLabelAndTooltip.Label == PCGInputOutputConstants::DefaultLandscapeLabel) ? EPCGDataType::Surface : DefaultPinDataType, true, InLabelAndTooltip.Tooltip);
+			const EPCGDataType PinType = (InLabelAndTooltip.Label == PCGInputOutputConstants::DefaultLandscapeLabel || InLabelAndTooltip.Label == PCGInputOutputConstants::DefaultLandscapeHeightLabel) ? EPCGDataType::Surface : DefaultPinDataType;
+			return FPCGPinProperties(InLabelAndTooltip.Label, PinType, true, InLabelAndTooltip.Tooltip);
 		});
 	}
 

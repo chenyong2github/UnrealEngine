@@ -39,7 +39,13 @@ enum class EPCGDataType : uint32
 	Volume = 1 << 7,
 	Primitive = 1 << 8,
 
-	Spatial = Point | PolyLine | Surface | Volume | Primitive,
+	/** Simple concrete data. */
+	Concrete = Point | PolyLine | Surface | Volume | Primitive,
+
+	/** Composite spatial data which can include boolean operations. Points can be sampled from the set without collapsing to concrete data. */
+	Composite = 1 << 9,
+
+	Spatial = Composite | Concrete,
 
 	Param = 1 << 27,
 	Settings = 1 << 28 UMETA(Hidden),

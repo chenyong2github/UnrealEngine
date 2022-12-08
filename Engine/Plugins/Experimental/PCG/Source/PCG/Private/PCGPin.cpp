@@ -48,10 +48,10 @@ bool UPCGPin::AddEdgeTo(UPCGPin* OtherPin)
 	}
 
 	// This pin is upstream if the pin is an output pin
-	const bool bThisPinIsUpstream = Node->GetOutputPin(Properties.Label) == this;
+	const bool bThisPinIsUpstream = IsOutputPin();
+	const bool bOtherPinIsUpstream = OtherPin->IsOutputPin();
 
 	// Pins should not both be upstream or both be downstream..
-	const bool bOtherPinIsUpstream = OtherPin->Node->GetOutputPin(OtherPin->Properties.Label) == OtherPin;
 	if (!ensure(bThisPinIsUpstream != bOtherPinIsUpstream))
 	{
 		return false;
@@ -162,6 +162,12 @@ bool UPCGPin::IsConnected() const
 	return false;
 }
 
+bool UPCGPin::IsOutputPin() const
+{
+	check(Node);
+	return Node->GetOutputPin(Properties.Label) == this;
+}
+
 int32 UPCGPin::EdgeCount() const
 {
 	int32 EdgeNum = 0;
@@ -178,7 +184,41 @@ int32 UPCGPin::EdgeCount() const
 
 bool UPCGPin::IsCompatible(const UPCGPin* OtherPin) const
 {
-	return OtherPin && !!(Properties.AllowedTypes & OtherPin->Properties.AllowedTypes);
+	if (!OtherPin)
+	{
+		return false;
+	}
+
+	const bool bThisPinOutput = IsOutputPin();
+	if (!ensure(bThisPinOutput != OtherPin->IsOutputPin()))
+	{
+		// Cannot connect two pins of same polarity
+		return false;
+	}
+
+	// Sort pins
+	const UPCGPin* UpstreamPin = bThisPinOutput ? this : OtherPin;
+	const UPCGPin* DownstreamPin = bThisPinOutput ? OtherPin : this;
+
+	// Concrete can always be used as a composite - allow connections from concrete to composite
+	const bool bUpstreamConcrete = !!(UpstreamPin->Properties.AllowedTypes & EPCGDataType::Concrete);
+	const bool bDownstreamComposite = !!(DownstreamPin->Properties.AllowedTypes & EPCGDataType::Composite);
+	if (bUpstreamConcrete && bDownstreamComposite)
+	{
+		return true;
+	}
+
+	// Catch case when a composite type is being connected to a concrete type - that can require collapse
+	const bool bUpstreamComposite = !!(UpstreamPin->Properties.AllowedTypes & EPCGDataType::Composite);
+	const bool bDownstreamConcrete = !!(DownstreamPin->Properties.AllowedTypes & EPCGDataType::Concrete);
+	if (bUpstreamComposite && bDownstreamConcrete)
+	{
+		// This will trigger a collapse, but let it slide for now.
+		// TODO in the future we should inject a conversion node.
+		return true;
+	}
+
+	return !!(Properties.AllowedTypes & OtherPin->Properties.AllowedTypes);
 }
 
 bool UPCGPin::CanConnect(const UPCGPin* OtherPin) const
