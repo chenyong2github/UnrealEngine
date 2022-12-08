@@ -124,32 +124,21 @@ SamplerState CurveTextureSampler;
 #if MAX_VECTOR_FIELDS != 4 && MAX_VECTOR_FIELDS != 1
 #error This must match MAX_VECTOR_FIELDS in C++ land
 #endif
-Texture3D VectorFieldTextures0;
+Texture3D VectorFieldTextures_0;
 
 #if MAX_VECTOR_FIELDS > 1
-Texture3D VectorFieldTextures1;
-Texture3D VectorFieldTextures2;
-Texture3D VectorFieldTextures3;
+Texture3D VectorFieldTextures_1;
+Texture3D VectorFieldTextures_2;
+Texture3D VectorFieldTextures_3;
 #endif
-//Texture3D VectorFieldTextures4;
-//Texture3D VectorFieldTextures5;
-//Texture3D VectorFieldTextures6;
-//Texture3D VectorFieldTextures7;
-//Texture3D VectorFieldTextures8;
-//Texture3D VectorFieldTextures9;
+//Texture3D VectorFieldTextures_4;
+//Texture3D VectorFieldTextures_5;
+//Texture3D VectorFieldTextures_6;
+//Texture3D VectorFieldTextures_7;
+//Texture3D VectorFieldTextures_8;
+//Texture3D VectorFieldTextures_9;
 
-SamplerState VectorFieldTexturesSampler0;
-#if MAX_VECTOR_FIELDS > 1
-SamplerState VectorFieldTexturesSampler1;
-SamplerState VectorFieldTexturesSampler2;
-SamplerState VectorFieldTexturesSampler3;
-#endif
-//SamplerState VectorFieldTexturesSampler4;
-//SamplerState VectorFieldTexturesSampler5;
-//SamplerState VectorFieldTexturesSampler6;
-//SamplerState VectorFieldTexturesSampler7;
-//SamplerState VectorFieldTexturesSampler8;
-//SamplerState VectorFieldTexturesSampler9;
+SamplerState VectorFieldTexturesSampler;
 
 /**
  * Computes the orbit velocity to apply to the particle based on time.
@@ -182,22 +171,22 @@ float3 ComputeOrbitVelocity(float Time, float RandomOrbit)
  float3 SampleVectorFieldTexture(int Index, float3 UV)
  {
 #if MAX_VECTOR_FIELDS == 1
-	 return Texture3DSample(VectorFieldTextures0, VectorFieldTexturesSampler0, UV).xyz;
+	 return Texture3DSample(VectorFieldTextures_0, VectorFieldTexturesSampler, UV).xyz;
 #else
-	if (Index == 0) return Texture3DSample(VectorFieldTextures0, VectorFieldTexturesSampler0, UV).xyz;
-	if (Index == 1) return Texture3DSample(VectorFieldTextures1, VectorFieldTexturesSampler1, UV).xyz;
-	if (Index == 2) return Texture3DSample(VectorFieldTextures2, VectorFieldTexturesSampler2, UV).xyz;
-	return Texture3DSample(VectorFieldTextures3, VectorFieldTexturesSampler3, UV).xyz;
+	if (Index == 0) return Texture3DSample(VectorFieldTextures_0, VectorFieldTexturesSampler, UV).xyz;
+	if (Index == 1) return Texture3DSample(VectorFieldTextures_1, VectorFieldTexturesSampler, UV).xyz;
+	if (Index == 2) return Texture3DSample(VectorFieldTextures_2, VectorFieldTexturesSampler, UV).xyz;
+	return Texture3DSample(VectorFieldTextures_3, VectorFieldTexturesSampler, UV).xyz;
 #endif
 
-//	if (Index == 3) return Texture3DSample(VectorFieldTextures3, VectorFieldTexturesSampler3, UV).xyz;
-//	if (Index == 4) return Texture3DSample(VectorFieldTextures4, VectorFieldTexturesSampler4, UV).xyz;
-//	if (Index == 5) return Texture3DSample(VectorFieldTextures5, VectorFieldTexturesSampler5, UV).xyz;
-//	if (Index == 6) return Texture3DSample(VectorFieldTextures6, VectorFieldTexturesSampler6, UV).xyz;
-//	if (Index == 7) return Texture3DSample(VectorFieldTextures7, VectorFieldTexturesSampler7, UV).xyz;
-//	if (Index == 8) return Texture3DSample(VectorFieldTextures8, VectorFieldTexturesSampler8, UV).xyz;
+//	if (Index == 3) return Texture3DSample(VectorFieldTextures_3, VectorFieldTexturesSampler, UV).xyz;
+//	if (Index == 4) return Texture3DSample(VectorFieldTextures_4, VectorFieldTexturesSampler, UV).xyz;
+//	if (Index == 5) return Texture3DSample(VectorFieldTextures_5, VectorFieldTexturesSampler, UV).xyz;
+//	if (Index == 6) return Texture3DSample(VectorFieldTextures_6, VectorFieldTexturesSampler, UV).xyz;
+//	if (Index == 7) return Texture3DSample(VectorFieldTextures_7, VectorFieldTexturesSampler, UV).xyz;
+//	if (Index == 8) return Texture3DSample(VectorFieldTextures_8, VectorFieldTexturesSampler, UV).xyz;
 //	
-//	return Texture3DSample(VectorFieldTextures9, VectorFieldTexturesSampler9, UV).xyz;
+//	return Texture3DSample(VectorFieldTextures_9, VectorFieldTexturesSampler, UV).xyz;
  }
 
 /**

@@ -203,7 +203,7 @@ void FFXSystemSet::PreRender(class FRDGBuilder& GraphBuilder, TConstArrayView<FV
 	}
 }
 
-void FFXSystemSet::SetSceneTexturesUniformBuffer(FRHIUniformBuffer* InSceneTexturesUniformParams)
+void FFXSystemSet::SetSceneTexturesUniformBuffer(const TUniformBufferRef<FSceneTextureUniformParameters>& InSceneTexturesUniformParams)
 {
 	for (FFXSystemInterface* FXSystem : FXSystems)
 	{

@@ -628,7 +628,7 @@ static void RenderOpaqueFX(
 		// Clear the scene textures UB pointer on the FX system. Use the same pass parameters to extend resource lifetimes.
 		GraphBuilder.AddPass(RDG_EVENT_NAME("UnsetSceneTexturesUniformBuffer"), ExtractUBPassParameters, UBPassFlags, [FXSystem](FRHICommandListImmediate&)
 		{
-			FXSystem->SetSceneTexturesUniformBuffer(nullptr);
+			FXSystem->SetSceneTexturesUniformBuffer({});
 		});
 
 		if (FGPUSortManager* GPUSortManager = FXSystem->GetGPUSortManager())
