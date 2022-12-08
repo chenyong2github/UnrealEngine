@@ -196,7 +196,7 @@ struct FHairCardsGeometry
 	TArray<uint32> IndexOffsets;
 	TArray<uint32> IndexCounts;
 
-	FBox3f BoundingBox;
+	FBox3f BoundingBox = FBox3f(EForceInit::ForceInit);
 
 	void Reset()
 	{
@@ -244,7 +244,6 @@ struct FHairCardsGeometry
 	}
 };
 
-struct FHairCardsBulkData;
 struct FHairCardsDatas
 {
 	bool IsValid() const { return Cards.Positions.Num() > 0; }
@@ -283,7 +282,7 @@ struct FHairCardsBulkData
 	TArray<FHairCardsUVFormat::Type> UVs;
 	TArray<FHairCardsMaterialFormat::Type> Materials;
 	TArray<FHairCardsIndexFormat::Type> Indices;
-	FBox BoundingBox;
+	FBox BoundingBox = FBox(EForceInit::ForceInit);
 
 	void Serialize(FArchive& Ar);
 };
@@ -418,7 +417,7 @@ struct FHairMeshes
 	TArray<FVector3f> Positions;
 	TArray<uint32>    Indices;
 
-	FBox3f BoundingBox;
+	FBox3f BoundingBox = FBox3f(EForceInit::ForceInit);
 
 	void SetNum(uint32 Count)
 	{
@@ -457,7 +456,7 @@ struct FHairMeshesBulkData
 	TArray<FHairCardsNormalFormat::Type> Normals;
 	TArray<FHairCardsUVFormat::Type> UVs;
 	TArray<FHairCardsIndexFormat::Type> Indices;
-	FBox BoundingBox;
+	FBox BoundingBox = FBox(EForceInit::ForceInit);
 
 	void Serialize(FArchive& Ar);
 };

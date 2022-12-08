@@ -454,7 +454,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsDatas
 	float HairDensity = 1;
 
 	/* Strands bounding box */
-	FBox BoundingBox;
+	FBox BoundingBox = FBox(EForceInit::ForceInit);
 };
 
 struct HAIRSTRANDSCORE_API FHairStrandsBulkData
@@ -481,7 +481,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkData
 	uint32 PointCount = 0;
 	float MaxLength = 0;
 	float MaxRadius = 0;
-	FBox BoundingBox;
+	FBox BoundingBox = FBox(EForceInit::ForceInit);
 	uint32 Flags = 0;
 
 	FByteBulkData Positions;	// Size = PointCount

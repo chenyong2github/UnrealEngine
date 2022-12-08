@@ -1347,6 +1347,7 @@ namespace HairCards
 
 		uint32 OutTotalPointCount = 0;
 		FRandomStream Random;
+		Random.Initialize(0xdeedbeed);
 		for (uint32 BucketIndex = 0; BucketIndex < OutCurveCount; BucketIndex++)
 		{
 			const uint32 CurveIndex = BucketIndex * BucketSize;// +BucketSize * Random.FRand();
@@ -4403,6 +4404,9 @@ void ImportGeometry(
 	const uint32 MeshLODIndex = 0;
 
 	// Note: if there are multiple section we only import the first one. Support for multiple section could be added later on. 
+	const FStaticMeshRenderData* MeshRenderData = StaticMesh->GetRenderData();
+	check(MeshRenderData != nullptr);
+	check(MeshRenderData->CurrentFirstLODIdx == MeshLODIndex);
 	const FStaticMeshLODResources& LODData = StaticMesh->GetLODForExport(MeshLODIndex);
 	const uint32 VertexCount = LODData.VertexBuffers.PositionVertexBuffer.GetNumVertices();
 	const uint32 IndexCount = LODData.IndexBuffer.GetNumIndices();
