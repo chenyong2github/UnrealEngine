@@ -50,15 +50,6 @@ struct FModifierStackEntry
 #if WITH_EDITOR
 		EditorGuid = FGuid::NewGuid();
 #endif
-	};
-
-	~FModifierStackEntry()
-	{
-		// It's possible the Generated Modifier may pass IsValid while having already been destroyed so ensure we explicitly check for this case
-		if (IsValid(GeneratedModifier) && !GeneratedModifier->HasAnyFlags(RF_BeginDestroyed | RF_FinishDestroyed))
-		{
-			GeneratedModifier->Deinitialize();
-		}
 	}
 
 	bool operator==(const FModifierStackEntry& Other) const

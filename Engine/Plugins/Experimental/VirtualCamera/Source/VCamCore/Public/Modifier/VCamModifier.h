@@ -29,17 +29,19 @@ UCLASS(Blueprintable, Abstract, EditInlineNew)
 class VCAMCORE_API UVCamModifier : public UObject
 {
 	GENERATED_BODY()
-
 public:
-	virtual void Initialize(UVCamModifierContext* Context, UInputComponent* InputComponent = nullptr);
 	
+	virtual void Initialize(UVCamModifierContext* Context, UInputComponent* InputComponent = nullptr);
 	virtual void Deinitialize();
 
 	virtual void Apply(UVCamModifierContext* Context, UCineCameraComponent* CameraComponent, const float DeltaTime) {};
 
+	//~ Begin UObject Interface
+	virtual void BeginDestroy() override;
 	virtual void PostLoad() override;
+	//~ End UObject Interface
 
-	bool DoesRequireInitialization() const { return bRequiresInitialization; };
+	bool IsInitialized() const { return bRequiresInitialization; };
 
 	UFUNCTION(BlueprintCallable, Category="VirtualCamera")
 	UVCamComponent* GetOwningVCamComponent() const;

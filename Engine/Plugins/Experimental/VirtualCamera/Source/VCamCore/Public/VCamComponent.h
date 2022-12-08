@@ -402,9 +402,6 @@ private:
 	
 	double LastEvaluationTime;
 
-	TWeakObjectPtr<AActor> Backup_ActorLock;
-	TWeakObjectPtr<AActor> Backup_ViewTarget;
-
 	TArray<UVCamOutputProviderBase*> SavedOutputProviders;
 	TArray<FModifierStackEntry> SavedModifierStack;
 	

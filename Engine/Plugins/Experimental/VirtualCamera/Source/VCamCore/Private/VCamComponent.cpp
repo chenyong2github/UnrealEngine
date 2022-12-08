@@ -104,9 +104,18 @@ void UVCamComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 
 	for (UVCamOutputProviderBase* Provider : OutputProviders)
 	{
-		if (Provider)
+		if (Provider && Provider->IsInitialized())
 		{
 			Provider->Deinitialize();
+		}
+	}
+
+	for (FModifierStackEntry& ModifierEntry : ModifierStack)
+	{
+		TObjectPtr<UVCamModifier>& Modifier = ModifierEntry.GeneratedModifier;
+		if (Modifier && !Modifier->IsInitialized())
+		{
+			Modifier->Deinitialize();
 		}
 	}
 
@@ -398,6 +407,7 @@ void UVCamComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 		else if (PropertyName == NAME_ModifierStack)
 		{
 			ValidateModifierStack();
+			SavedModifierStack.Empty();
 		}
 		else if (PropertyName == NAME_InputProfile)
 		{
@@ -716,7 +726,7 @@ void UVCamComponent::Update()
 				if (ModifierStackEntry.bEnabled)
 				{
 					// Initialize the Modifier if required
-					if (Modifier->DoesRequireInitialization())
+					if (Modifier->IsInitialized())
 					{
 						Modifier->Initialize(ModifierContext, InputComponent);
 						AddInputMappingContext(Modifier);
@@ -727,7 +737,7 @@ void UVCamComponent::Update()
 				else
 				{
 					// If the modifier is initialized but not enabled then we deinitialize it
-					if (!Modifier->DoesRequireInitialization())
+					if (!Modifier->IsInitialized())
 					{
 						Modifier->Deinitialize();
 					}

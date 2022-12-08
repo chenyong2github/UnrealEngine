@@ -22,11 +22,12 @@ void UVCamBlueprintModifier::Initialize(UVCamModifierContext* Context, UInputCom
 
 void UVCamBlueprintModifier::Deinitialize()
 {
-	// Forward the Initialize call to the Blueprint Event only if we have a valid world
-	if (GetWorld())
+	if (GetWorld()
+		&& !HasAnyFlags(RF_BeginDestroyed | RF_FinishDestroyed)
+		// Executing BP code during this phase is not allowed - you hit this when saving the world.
+		&& !FUObjectThreadContext::Get().IsRoutingPostLoad)
 	{
 		FEditorScriptExecutionGuard ScriptGuard;
-
 		OnDeinitialize();
 	}
 	
@@ -63,6 +64,16 @@ void UVCamModifier::Deinitialize()
 	}
 
 	bRequiresInitialization = true;
+}
+
+void UVCamModifier::BeginDestroy()
+{
+	if (!bRequiresInitialization)
+	{
+		Deinitialize();
+	}
+	
+	UObject::BeginDestroy();
 }
 
 void UVCamModifier::PostLoad()
