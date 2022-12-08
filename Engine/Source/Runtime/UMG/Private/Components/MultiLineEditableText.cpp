@@ -153,7 +153,7 @@ FText UMultiLineEditableText::GetText() const
 void UMultiLineEditableText::SetText(FText InText)
 {
 	// We detect if the Text is internal pointing to the same thing if so, nothing to do.
-	if (Text.IdenticalTo(InText))
+	if (GetText().IdenticalTo(InText))
 	{
 		return;
 	}
