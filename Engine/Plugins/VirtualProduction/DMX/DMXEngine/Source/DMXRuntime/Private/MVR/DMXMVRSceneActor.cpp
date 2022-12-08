@@ -537,7 +537,7 @@ AActor* ADMXMVRSceneActor::SpawnMVRActor(const TSubclassOf<AActor>&ActorClass, U
 	{
 		return nullptr;
 	}
-	NewFixtureActor->SetActorLabel(ActorName.ToString());
+	NewFixtureActor->SetActorLabel(FixturePatch->Name);
 
 	NewFixtureActor->RegisterAllComponents();
 	USceneComponent* RootComponentOfChildActor = NewFixtureActor->GetRootComponent();

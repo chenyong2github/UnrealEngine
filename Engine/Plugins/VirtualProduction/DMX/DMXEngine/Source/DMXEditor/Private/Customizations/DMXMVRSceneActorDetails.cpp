@@ -91,7 +91,7 @@ void FDMXMVRSceneActorDetails::CreateRefreshMVRSceneSection(IDetailLayoutBuilder
 	
 	const TSharedRef<IPropertyHandle> UpdateTransformHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ADMXMVRSceneActor, bUpdateTransformsOnRefresh));
 	UpdateTransformHandle->MarkHiddenByCustomization();
-	MVRCategory.AddCustomRow(LOCTEXT("UpdateTransformsFilterText", "Update Transform"))
+	MVRCategory.AddCustomRow(LOCTEXT("ResetTransformsFilterText", "Reset Transforms"))
 		.NameContent()
 		[
 			SNew(SBorder)

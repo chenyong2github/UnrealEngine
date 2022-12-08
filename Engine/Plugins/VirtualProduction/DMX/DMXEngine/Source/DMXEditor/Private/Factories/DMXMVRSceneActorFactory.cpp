@@ -71,6 +71,8 @@ AActor* UDMXMVRSceneActorFactory::SpawnActor(UObject* Asset, ULevel* InLevel, co
 		if(IsDMXLibraryAlreadySpawned(World, DMXLibrary))
 		{ 
 			NotifyDMXLibraryAlreadySpawned();
+
+			return nullptr;
 		}
 
 		ADMXMVRSceneActor* MVRSceneActor = World->SpawnActor<ADMXMVRSceneActor>(ADMXMVRSceneActor::StaticClass());

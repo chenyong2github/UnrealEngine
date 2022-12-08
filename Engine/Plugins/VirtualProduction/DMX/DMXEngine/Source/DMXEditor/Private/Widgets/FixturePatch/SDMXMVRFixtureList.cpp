@@ -563,7 +563,7 @@ const FName FDMXMVRFixtureListCollumnIDs::Patch = "Patch";
 
 SDMXMVRFixtureList::SDMXMVRFixtureList()
 	: SortMode(EColumnSortMode::Ascending)
-	, SortedByColumnID(FDMXMVRFixtureListCollumnIDs::Patch)
+	, SortedByColumnID(FDMXMVRFixtureListCollumnIDs::FixtureID)
 {}
 
 SDMXMVRFixtureList::~SDMXMVRFixtureList()
@@ -756,7 +756,7 @@ void SDMXMVRFixtureList::RefreshList()
 	// Update and sort the list and its widgets
 	ListView->RebuildList();
 
-	SortByColumnID(EColumnSortPriority::Max, FDMXMVRFixtureListCollumnIDs::Patch, EColumnSortMode::Ascending);
+	SortByColumnID(EColumnSortPriority::Max, SortedByColumnID, EColumnSortMode::Ascending);
 
 	AdoptSelectionFromFixturePatchSharedData();
 }
