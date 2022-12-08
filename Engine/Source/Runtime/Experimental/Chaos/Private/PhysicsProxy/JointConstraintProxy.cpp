@@ -14,6 +14,7 @@
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "PhysicsSolver.h"
 #include "Chaos/PullPhysicsDataImp.h"
+#include "Chaos/PhysicsObjectInternal.h"
 
 namespace Chaos
 {
@@ -81,10 +82,11 @@ void FJointConstraintPhysicsProxy::InitializeOnPhysicsThread(FPBDRigidsSolver* I
 	if (Handles.Size())
 	{
 		auto& JointConstraints = InSolver->GetJointConstraints();
-		if(const FProxyBasePairProperty* BasePairs = RemoteData.FindJointParticleProxies(Manager, DataIdx))
+		if(const FPhysicsObjectPairProperty* BodyPairs = RemoteData.FindJointPhysicsObjects(Manager, DataIdx))
 		{
-			FGeometryParticleHandle* Handle0 = GetParticleHandleFromProxy(BasePairs->ParticleProxies[0]);
-			FGeometryParticleHandle* Handle1 = GetParticleHandleFromProxy(BasePairs->ParticleProxies[1]);
+			FGeometryParticleHandle* Handle0 = BodyPairs->PhysicsBodies[0]->GetRootParticle<Chaos::EThreadContext::Internal>();
+			FGeometryParticleHandle* Handle1 = BodyPairs->PhysicsBodies[1]->GetRootParticle<Chaos::EThreadContext::Internal>();
+
 			if (Handle0 && Handle1)
 			{
 				if (const FPBDJointSettings* JointSettings = RemoteData.FindJointSettings(Manager, DataIdx))

@@ -10,7 +10,10 @@
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "PhysicsEngine/ConstraintUtils.h"
+#include "PhysicsEngine/PhysicsObjectExternalInterface.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "Components/BillboardComponent.h"
+#include "Chaos/PhysicsObjectInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PhysicsConstraintComponent)
 
@@ -134,16 +137,16 @@ int32 GetBoneIndexHelper(FName InBoneName, const USkeletalMeshComponent& SkelCom
 FTransform UPhysicsConstraintComponent::GetBodyTransformInternal(EConstraintFrame::Type Frame, FName InBoneName) const
 {
 	UPrimitiveComponent* PrimComp = GetComponentInternal(Frame);
-	if(!PrimComp)
+	if (!PrimComp)
 	{
 		return FTransform::Identity;
 	}
-	  
+
 	//Use GetComponentTransform() by default for all components
-	FTransform ResultTM = PrimComp->GetComponentTransform();
-		
+	FTransform ResultTM = FTransform::Identity;
+
 	// Skeletal case
-	if(const USkeletalMeshComponent* SkelComp = Cast<USkeletalMeshComponent>(PrimComp))
+	if (const USkeletalMeshComponent* SkelComp = Cast<USkeletalMeshComponent>(PrimComp))
 	{
 		const int32 BoneIndex = GetBoneIndexHelper(InBoneName, *SkelComp);
 		if (BoneIndex != INDEX_NONE)
@@ -157,6 +160,22 @@ FTransform UPhysicsConstraintComponent::GetBodyTransformInternal(EConstraintFram
 				FText::FromName(InBoneName), FText::FromString(GetPathNameSafe(this))));
 		}
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	}
+	else if (Chaos::FPhysicsObject* InitialObject = PrimComp->GetPhysicsObjectByName(InBoneName))
+	{
+		FLockedReadPhysicsObjectExternalInterface Interface = FPhysicsObjectExternalInterface::LockRead({ &InitialObject, 1 });
+		if (Chaos::FPhysicsObject* PhysicsObject = Interface->GetRootObject(InitialObject))
+		{
+			ResultTM = Interface->GetTransform(PhysicsObject);
+		}
+		else
+		{
+			ResultTM = Interface->GetTransform(InitialObject);
+		}
+	}
+	else
+	{
+		ResultTM = PrimComp->GetComponentTransform();
 	}
 
 	return ResultTM;
@@ -239,6 +258,17 @@ FBodyInstance* UPhysicsConstraintComponent::GetBodyInstance(EConstraintFrame::Ty
 	return Instance;
 }
 
+Chaos::FPhysicsObject* UPhysicsConstraintComponent::GetPhysicsObject(EConstraintFrame::Type Frame) const
+{
+	UPrimitiveComponent* PrimComp = GetComponentInternal(Frame);
+	if (!PrimComp)
+	{
+		return nullptr;
+	}
+
+	const FName BoneName = (Frame == EConstraintFrame::Frame1) ? ConstraintInstance.ConstraintBone1 : ConstraintInstance.ConstraintBone2;
+	return PrimComp->GetPhysicsObjectByName(BoneName);
+}
 
 /** Wrapper that calls our constraint broken delegate */
 void UPhysicsConstraintComponent::OnConstraintBrokenWrapper(int32 ConstraintIndex)
@@ -257,13 +287,18 @@ void UPhysicsConstraintComponent::InitComponentConstraint()
 	// First we convert world space position of constraint into local space frames
 	UpdateConstraintFrames();
 
-	// Then we init the constraint
+	// Normally, we'd want to init the constraint using the FPhysicsObject that we get from the component.
+	// However, to ensure that we can preserve backward compatible behavior, we first check to see if the
+	// FBodyInstance exists first. This way the behavior w.r.t. grabbing welded bodies remains the same.
 	FBodyInstance* Body1 = GetBodyInstance(EConstraintFrame::Frame1);
 	FBodyInstance* Body2 = GetBodyInstance(EConstraintFrame::Frame2);
 
-	if (Body1 != nullptr || Body2 != nullptr)
+	Chaos::FPhysicsObject* Object1 = (Body1 && Body1->IsValidBodyInstance()) ? Body1->ActorHandle->GetPhysicsObject() : GetPhysicsObject(EConstraintFrame::Frame1);
+	Chaos::FPhysicsObject* Object2 = (Body2 && Body2->IsValidBodyInstance()) ? Body2->ActorHandle->GetPhysicsObject() : GetPhysicsObject(EConstraintFrame::Frame2);
+
+	if (Object1 || Object2)
 	{
-		ConstraintInstance.InitConstraint(Body1, Body2, GetConstraintScale(), this, FOnConstraintBroken::CreateUObject(this, &UPhysicsConstraintComponent::OnConstraintBrokenWrapper));
+		ConstraintInstance.InitConstraint(Object1, Object2, GetConstraintScale(), this, FOnConstraintBroken::CreateUObject(this, &UPhysicsConstraintComponent::OnConstraintBrokenWrapper));
 	}
 }
 
@@ -515,12 +550,12 @@ void UPhysicsConstraintComponent::UpdateConstraintFrames()
 
 	//Note that in the case where there is no body instance, the position is given in world space and there is no scaling.
 	const float RefScale = FMath::Max(GetConstraintScale(), 0.01f);
-	if(GetBodyInstance(EConstraintFrame::Frame1))
+	if(GetPhysicsObject(EConstraintFrame::Frame1))
 	{
 		ConstraintInstance.Pos1 /= RefScale;
 	}
 
-	if (GetBodyInstance(EConstraintFrame::Frame2))
+	if (GetPhysicsObject(EConstraintFrame::Frame2))
 	{
 		ConstraintInstance.Pos2 /= RefScale;
 	}

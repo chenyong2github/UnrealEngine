@@ -215,6 +215,14 @@ struct FProxyBasePairProperty
 	FProxyBasePair ParticleProxies = { nullptr, nullptr };
 };
 
+struct FPhysicsObject;
+typedef TVector<FPhysicsObject*, 2> FPhysicsObjectPair;
+
+struct FPhysicsObjectPairProperty
+{
+	FPhysicsObjectPair PhysicsBodies = { nullptr, nullptr };
+};
+
 inline FChaosArchive& operator<<(FChaosArchive& Ar, FParticleDynamics& Data)
 {
 	Data.Serialize(Ar);

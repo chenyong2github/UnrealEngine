@@ -362,6 +362,9 @@ protected:
 	/** Get the body instance that we want to constrain to */
 	FBodyInstance* GetBodyInstance(EConstraintFrame::Type Frame) const;
 
+	/** Get the physics object that we want to constrain to. */
+	Chaos::FPhysicsObject* GetPhysicsObject(EConstraintFrame::Type Frame) const;
+
 	/** Internal util to get body transform from actor/component name/bone name information */
 	FTransform GetBodyTransformInternal(EConstraintFrame::Type Frame, FName InBoneName) const;
 	/** Internal util to get body box from actor/component name/bone name information */

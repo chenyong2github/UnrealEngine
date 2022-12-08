@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Chaos/Declares.h"
+#include "Chaos/PhysicsObject.h"
 #include "PhysicsInterfaceDeclaresCore.h"
 #include "PhysicsInterfaceWrapperShared.h"
 #include "PhysicsInterfaceTypesCore.h"
@@ -478,7 +479,9 @@ public:
 
 	static SIZE_T GetResourceSizeEx(const FPhysicsActorHandle& InActorRef);
 
+	static FPhysicsConstraintHandle CreateConstraint(Chaos::FPhysicsObject* Body1, Chaos::FPhysicsObject* Body2, const FTransform& InLocalFrame1, const FTransform& InLocalFrame2);
 	static FPhysicsConstraintHandle CreateConstraint(const FPhysicsActorHandle& InActorRef1,const FPhysicsActorHandle& InActorRef2,const FTransform& InLocalFrame1,const FTransform& InLocalFrame2);
+
 	static FPhysicsConstraintHandle CreateSuspension(const FPhysicsActorHandle& InActorRef, const FVector& InLocalFrame);
 	static void SetConstraintUserData(const FPhysicsConstraintHandle& InConstraintRef,void* InUserData);
 	static void ReleaseConstraint(FPhysicsConstraintHandle& InConstraintRef);

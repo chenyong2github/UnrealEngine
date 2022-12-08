@@ -3,6 +3,7 @@
 #include "Physics/Experimental/PhysInterface_Chaos.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
 #include "Physics/Experimental/ChaosInterfaceUtils.h"
+#include "Physics/Experimental/ChaosScopedSceneLock.h"
 #include "Physics/PhysicsInterfaceTypes.h"
 #include "PhysicsEngine/AggregateGeom.h"
 #include "PhysicsEngine/ConstraintInstance.h"
@@ -32,6 +33,7 @@
 #include "Chaos/PBDJointConstraints.h"
 #include "Chaos/PBDJointConstraintData.h"
 #include "Chaos/ChaosConstraintSettings.h"
+#include "Chaos/PhysicsObjectInterface.h"
 
 #include "Async/ParallelFor.h"
 #include "Collision/CollisionConversions.h"
@@ -566,6 +568,13 @@ bool FPhysInterface_Chaos::ExecuteRead(FPhysScene* InScene, TFunctionRef<void()>
 	return false;
 }
 
+bool FPhysInterface_Chaos::ExecuteRead(Chaos::FPhysicsObject* InObjectA, Chaos::FPhysicsObject* InObjectB, TFunctionRef<void(Chaos::FPhysicsObject* InObjectA, Chaos::FPhysicsObject* InObjectB)> InCallable)
+{
+	FScopedSceneLock_Chaos SceneLock(InObjectA, InObjectB, EPhysicsInterfaceScopedLockType::Read);
+	InCallable(InObjectA, InObjectB);
+	return true;
+}
+
 bool FPhysInterface_Chaos::ExecuteWrite(const FPhysicsActorHandle& InActorReference, TFunctionRef<void(const FPhysicsActorHandle& Actor)> InCallable)
 {
 	//why do we have a write that takes in a const handle?
@@ -638,6 +647,13 @@ bool FPhysInterface_Chaos::ExecuteWrite(FPhysScene* InScene, TFunctionRef<void(F
 	}
 
 	return false;
+}
+
+bool FPhysInterface_Chaos::ExecuteWrite(Chaos::FPhysicsObject* InObjectA, Chaos::FPhysicsObject* InObjectB, TFunctionRef<void(Chaos::FPhysicsObject* InObjectA, Chaos::FPhysicsObject* InObjectB)> InCallable)
+{
+	FScopedSceneLock_Chaos SceneLock(InObjectA, InObjectB, EPhysicsInterfaceScopedLockType::Write);
+	InCallable(InObjectA, InObjectB);
+	return true;
 }
 
 void FPhysInterface_Chaos::ExecuteShapeWrite(FBodyInstance* InInstance, FPhysicsShapeHandle& InShape, TFunctionRef<void(FPhysicsShapeHandle& InShape)> InCallable)
