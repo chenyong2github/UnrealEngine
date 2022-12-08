@@ -181,6 +181,7 @@ FDetailCategoryImpl::FDetailCategoryImpl(FName InCategoryName, TSharedRef<FDetai
 	, bFavoriteCategory(false)
 	, bShowOnlyChildren(false)
 	, bHasVisibleAdvanced(false)
+	, bExpanded(true)
 {
 	const UStruct* BaseStruct = InDetailLayout->GetRootNode()->GetBaseStructure();
 
@@ -817,6 +818,7 @@ void FDetailCategoryImpl::OnItemExpansionChanged(bool bIsExpanded, bool bShouldS
 		// Save the collapsed state of this section
 		GConfig->SetBool(TEXT("DetailCategories"), *CategoryPathName, bIsExpanded, GEditorPerProjectIni);
 	}
+	bExpanded = bIsExpanded;
 
 	OnExpansionChangedDelegate.ExecuteIfBound(bIsExpanded);
 }
@@ -837,7 +839,7 @@ bool FDetailCategoryImpl::ShouldBeExpanded() const
 	}
 	else
 	{
-		return !bShouldBeInitiallyCollapsed;
+		return bExpanded;
 	}
 }
 

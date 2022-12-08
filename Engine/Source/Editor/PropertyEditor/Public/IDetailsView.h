@@ -7,6 +7,7 @@
 #include "PropertyEditorDelegates.h"
 #include "Framework/Commands/UICommandList.h"
 #include "DetailsViewArgs.h"
+#include "Framework/FInvertiblePiecewiseLinearFunction.h"
 
 class AActor;
 class FNotifyHook;
@@ -187,6 +188,12 @@ public:
 	 * Returns a list of all the properties displayed (via full path), order in list corresponds to draw order:
 	 */
 	virtual TArray< FPropertyPath > GetPropertiesInOrderDisplayed() const = 0;
+	
+	virtual TArray<TPair<int32, FPropertyPath>> GetPropertyRowNumbers() const  = 0;
+
+	virtual void ScrollLockDetailsViews(TSharedRef<IDetailsView> OtherDetailsView, const TAttribute<FInvertiblePiecewiseLinearFunction>& ScrollRate) = 0;
+	
+	virtual void  SetCategoryExpansionSaving(bool bShouldCategoriesSaveExpansion) = 0;
 
 	/**
 	 * Creates a box around the treenode corresponding to Property and scrolls the treenode into view

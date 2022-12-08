@@ -26,6 +26,7 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STreeView.h"
+#include "Framework/FInvertiblePiecewiseLinearFunction.h"
 
 class FAssetThumbnailPool;
 class FDetailCategoryImpl;
@@ -85,6 +86,9 @@ public:
 	 * IDetailsView interface 
 	 */
 	virtual TArray< FPropertyPath > GetPropertiesInOrderDisplayed() const override;
+	virtual TArray<TPair<int32, FPropertyPath>> GetPropertyRowNumbers() const override;
+	virtual void ScrollLockDetailsViews(TSharedRef<IDetailsView> OtherDetailsView, const TAttribute<FInvertiblePiecewiseLinearFunction>& ScrollRate) override;
+	virtual void SetCategoryExpansionSaving(bool bShouldCategoriesSaveExpansion) override;
 	virtual void HighlightProperty(const FPropertyPath& Property) override;
 	virtual void ShowAllAdvancedProperties() override;
 	virtual void SetOnDisplayedPropertiesChanged(FOnDisplayedPropertiesChanged InOnDisplayedPropertiesChangedDelegate) override;

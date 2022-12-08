@@ -428,4 +428,6 @@ private:
 	bool bFavoriteCategory : 1;
 	bool bShowOnlyChildren : 1;
 	bool bHasVisibleAdvanced : 1;
+	/** whether or not this category is expanded */
+	bool bExpanded : 1;
 };

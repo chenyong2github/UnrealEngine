@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Framework/FInvertiblePiecewiseLinearFunction.h"
 #include "Misc/Attribute.h"
 #include "Layout/Geometry.h"
 #include "Input/CursorReply.h"
@@ -26,6 +27,7 @@ class SScrollBar;
 enum class EConsumeMouseWheel : uint8;
 enum class ESlateVisibility : uint8;
 struct FScrollBarStyle;
+class FScrollLockedTableView;
 
 /** If the list panel is arranging items as tiles, this enum dictates how the items should be aligned (basically, where any extra space is placed) */
 UENUM(BlueprintType)
@@ -91,6 +93,7 @@ class SLATE_API STableViewBase
 	, public IScrollableWidget
 {
 public:
+	friend class FScrollLockedTableView;
 
 	/** Create the child widgets that comprise the list */
 	void ConstructChildren( const TAttribute<float>& InItemWidth, const TAttribute<float>& InItemHeight, const TAttribute<EListItemAlignment>& InItemAlignment, const TSharedPtr<SHeaderRow>& InHeaderRow, const TSharedPtr<SScrollBar>& InScrollBar, EOrientation InScrollOrientation, const FOnTableViewScrolled& InOnTableViewScrolled, const FScrollBarStyle* InScrollBarStyle = nullptr, const bool bInPreventThrottling = false );
@@ -181,6 +184,9 @@ public:
 
 	/** Sets the Background Brush */
 	void SetBackgroundBrush(const TAttribute<const FSlateBrush*>& InBackgroundBrush);
+
+	/** Used to sync the scrolling between two tableviews so they can scroll simultaneously */
+	void SetScrollLockedTable(TSharedPtr<FScrollLockedTableView> ScrollLockedTableView);
 
 public:
 
@@ -469,6 +475,9 @@ protected:
 	/** Brush resource representing the background area of the view */
 	FInvalidatableBrushAttribute BackgroundBrush;
 
+	/** Set when another table scrolls automatically in sync with this table */
+	TSharedPtr<FScrollLockedTableView> ScrollLockedTable;
+
 protected:
 
 	/** Check whether the current state of the table warrants inertial scroll by the specified amount */
@@ -507,3 +516,22 @@ namespace TableViewHelpers
 	 */
 	SLATE_API const TBitArray<>& GetEmptyBitArray();
 }
+
+// Helper class used to give a TableView the authority to auto scroll another adjacent
+// table in sync with it
+class SLATE_API FScrollLockedTableView
+{
+public:
+	FScrollLockedTableView(const TSharedPtr<STableViewBase>& XTable, const TSharedPtr<STableViewBase>& YTable,
+		const TAttribute<FInvertiblePiecewiseLinearFunction>& ScrollSyncRate);
+
+	void MatchScroll(const STableViewBase* Scroller) const;
+
+private:
+	TWeakPtr<STableViewBase> XTable;
+	TWeakPtr<STableViewBase> YTable;
+
+	// this determines the relative speed that each table scrolls to stay in sync with one another.
+	// to scroll at a constant and equal rate, just ust the default constructor
+	TAttribute<FInvertiblePiecewiseLinearFunction> ScrollSyncRate;
+};
