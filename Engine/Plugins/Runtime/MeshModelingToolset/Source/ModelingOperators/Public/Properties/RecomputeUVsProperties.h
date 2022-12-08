@@ -30,7 +30,7 @@ enum class ERecomputeUVsPropertiesIslandMode
 {
 	// Values must match UE::Geometry::ERecomputeUVsIslandMode
 
-	/** Use Polygroups defined by Active PolyGroup property to define initial UV islands. */
+	/** Use PolyGroups defined by Active PolyGroup property to define initial UV islands. */
 	PolyGroups = 0 UMETA(DisplayName = "PolyGroups"),
 	/** Use existing UV Layer to define UV islands, i.e. re-solve UV flattening based on existing UVs */
 	ExistingUVs = 1

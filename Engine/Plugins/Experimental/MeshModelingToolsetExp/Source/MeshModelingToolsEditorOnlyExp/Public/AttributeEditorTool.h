@@ -261,7 +261,7 @@ public:
 	}
 
 	/** Add a new PolyGroup layer with the given Name */
-	UFUNCTION(CallInEditor, Category = NewAttribute, meta = (DisplayPriority = 3))
+	UFUNCTION(CallInEditor, Category = NewAttribute, meta = (DisplayPriority = 3, DisplayName = "Add PolyGroup Layer"))
 	void AddPolyGroupLayer()
 	{
 		PostAction(EAttributeEditorToolActions::AddPolyGroupLayer);

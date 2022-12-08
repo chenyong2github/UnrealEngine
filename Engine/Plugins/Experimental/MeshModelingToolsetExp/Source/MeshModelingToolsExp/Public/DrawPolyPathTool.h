@@ -106,7 +106,7 @@ public:
 	int RadialSlices = 16;
 
 	/** If true, all quads on the path will belong to the same polygon. If false, each quad gets its own polygon. */
-	UPROPERTY(EditAnywhere, Category = Path)
+	UPROPERTY(EditAnywhere, Category = Path, meta = (DisplayName = "Single PolyGroup"))
 	bool bSinglePolyGroup = false;
 
 	/** If and how the drawn path gets extruded */
