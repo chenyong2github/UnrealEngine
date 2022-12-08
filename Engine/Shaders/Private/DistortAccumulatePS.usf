@@ -49,7 +49,9 @@ void Main(
 	out float4 OutColor		: SV_Target0
 #if STRATA_ENABLED
 	,
-	out float4 OutVariance	: SV_Target1
+	out float2 OutVarianceCoverage : SV_Target1
+	,
+	out float  OutClosestDepthMeter : SV_Target2
 #endif
 	)
 {
@@ -129,11 +131,17 @@ void Main(
 	}
 	TopF0 = SanitizeF0(TopF0);	// Sanitize, in case a Add node has been used
 
-	// Write out variance (as this is more linear to accumulate than roughness)
-	OutVariance = float4(Sigma, 0.0f, 0.0f, 0.0f);
+	const FStrataOperator RootOperator	= StrataTree.Operators[StrataData.OperatorIndex];
+	const float RefractionCoverage		= RootOperator.Coverage;														// Coverage of the material
+	const float RefractionDepthMeter	= length(MaterialParameters.WorldPosition_CamRelative) * CENTIMETER_TO_METER;	// Distance for camera in meters
+	const float RefractionLobeVariance	= Sigma;																		// The lobe variance that can be added to in the en recover a single lobe.
+
+	// Write out variance (as this is more linear to accumulate than roughness).
+	OutVarianceCoverage = float2(RefractionLobeVariance, RefractionCoverage);
+	OutClosestDepthMeter = RefractionDepthMeter;
 
 	// Only allow clipping if roughness is close to 0.
-	const bool TryToClip = OutVariance.x < 0.01f;
+	const bool TryToClip = OutVarianceCoverage.x < 0.01f; // STRATA_TODO || RefractionCoverage <= 0.0f;	// Have an option to account for coverage or not?, ignored by default
 
 	// Compute UV distortion
 	float2 BufferUVDistortion = ComputeBufferUVDistortion(
