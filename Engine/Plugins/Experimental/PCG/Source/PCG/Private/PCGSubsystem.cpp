@@ -826,7 +826,6 @@ void UPCGSubsystem::UnregisterPartitionActor(APCGPartitionActor* Actor)
 				TSet<TObjectPtr<APCGPartitionActor>>* PartitionActorsPtr = ComponentToPartitionActorsMap.Find(Component);
 				if (PartitionActorsPtr)
 				{
-					Actor->RemoveGraphInstance(Component);
 					PartitionActorsPtr->Remove(Actor);
 				}
 			});
