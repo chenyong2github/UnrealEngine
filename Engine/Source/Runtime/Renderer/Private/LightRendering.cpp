@@ -191,6 +191,22 @@ bool ShouldRenderRayTracingShadowsForLight(const FLightSceneInfoCompact& LightIn
 }
 #endif // RHI_RAYTRACING
 
+bool FDeferredLightVS::ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+{
+	FPermutationDomain PermutationVector(Parameters.PermutationId);
+	if (PermutationVector.Get<FRadialLight>())
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) || IsMobileDeferredShadingEnabled(Parameters.Platform);
+	}
+	// used with FPrefilterPlanarReflectionPS on mobile
+	return true;
+}
+
+void FDeferredLightVS::ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+{
+	FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+}
+
 FDrawFullScreenRectangleParameters FDeferredLightVS::GetFullScreenRectParameters(
 	float X, float Y,
 	float SizeX, float SizeY,

@@ -14,6 +14,7 @@
 #include "ShaderParameterUtils.h"
 #include "GlobalShader.h"
 #include "GPUSort.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 /*------------------------------------------------------------------------------
 	Shaders used to generate particle sort keys.

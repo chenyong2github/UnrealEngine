@@ -6,7 +6,7 @@
 
 #include "MeshPaintRendering.h"
 #include "ShaderParameters.h"
-#include "RenderResource.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "Shader.h"
 #include "StaticBoundShaderState.h"
 #include "RHIStaticStates.h"

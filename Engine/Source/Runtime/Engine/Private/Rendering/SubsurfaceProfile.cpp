@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/SubsurfaceProfile.h"
-#include "RenderingThread.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "RendererInterface.h"
 #include "Rendering/BurleyNormalizedSSS.h"
 #include "EngineModule.h"

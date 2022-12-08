@@ -23,6 +23,7 @@
 #include "Engine/Engine.h"
 #include "Engine/Font.h"
 #include "MaterialShared.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "MaterialExpressionIO.h"
 #include "Materials/HLSLMaterialTranslator.h"
 #include "Materials/MaterialExpression.h"

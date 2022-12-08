@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GlobalRenderResources.h"
-//#include "RenderUtils.h"
 #include "RenderGraphUtils.h"
+#include "Containers/ResourceArray.h"
 
 // The maximum number of transient vertex buffer bytes to allocate before we start panic logging who is doing the allocations
 int32 GMaxVertexBytesAllocatedPerFrame = 32 * 1024 * 1024;

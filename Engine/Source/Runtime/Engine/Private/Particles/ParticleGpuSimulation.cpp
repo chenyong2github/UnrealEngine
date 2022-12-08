@@ -16,6 +16,7 @@
 #include "RHI.h"
 #include "RenderingThread.h"
 #include "RenderResource.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "UniformBuffer.h"
 #include "ShaderParameters.h"
 #include "Shader.h"

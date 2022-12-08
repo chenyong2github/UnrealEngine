@@ -7,6 +7,7 @@
 #include "RenderResource.h"
 #include "RenderingThread.h"
 #include "RHIUtilities.h"
+#include "Containers/DynamicRHIResourceArray.h"
 
 // Static buffers shared between all instances built once on load
 struct FNiagaraSystemStaticBuffers

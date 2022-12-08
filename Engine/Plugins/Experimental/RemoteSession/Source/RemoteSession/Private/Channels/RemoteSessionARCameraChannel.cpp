@@ -19,6 +19,7 @@
 #include "MediaShaders.h"
 #include "PipelineStateCache.h"
 #include "RHIUtilities.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "RHIStaticStates.h"
 #include "SceneUtils.h"
 #include "RendererInterface.h"

@@ -19,6 +19,7 @@
 #include "HLSLTree/HLSLTreeEmit.h"
 #include "Containers/LazyPrintf.h"
 #include "RenderUtils.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 static bool SharedPixelProperties[CompiledMP_MAX];
 

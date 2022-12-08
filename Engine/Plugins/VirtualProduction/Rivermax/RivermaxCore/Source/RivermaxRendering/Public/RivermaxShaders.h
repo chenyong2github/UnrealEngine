@@ -7,6 +7,7 @@
 #include "MediaShaders.h"
 #include "RenderGraphUtils.h"
 #include "RHI.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "Shader.h"
 #include "ShaderParameterStruct.h"
 

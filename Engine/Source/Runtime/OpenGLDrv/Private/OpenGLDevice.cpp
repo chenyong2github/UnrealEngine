@@ -13,6 +13,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "HAL/IConsoleManager.h"
 #include "RHI.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "Containers/List.h"
 #include "RenderResource.h"
 #include "ShaderCore.h"

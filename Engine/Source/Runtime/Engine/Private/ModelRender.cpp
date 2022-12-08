@@ -12,6 +12,7 @@
 #include "Engine/Level.h"
 #include "RHI.h"
 #include "RenderResource.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "RawIndexBuffer.h"
 #include "PrimitiveViewRelevance.h"
 #include "Materials/MaterialInterface.h"

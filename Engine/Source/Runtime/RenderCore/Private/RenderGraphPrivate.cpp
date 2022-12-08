@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RenderGraphPrivate.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #if RDG_ENABLE_DEBUG
 
@@ -607,4 +608,38 @@ void InitRenderGraph()
 		CVarRDGEvents->Set(RDGEventValue);
 	}
 #endif
+}
+
+bool IsParallelExecuteEnabled()
+{
+	return GRDGParallelExecute > 0
+		&& !GRHICommandList.Bypass()
+		&& !IsImmediateMode()
+		&& !GRDGDebug
+		&& !GRDGTransitionLog
+		&& !IsMobilePlatform(GMaxRHIShaderPlatform)
+		&& GRHISupportsMultithreadedShaderCreation
+#if WITH_DUMPGPU
+		&& !IsDumpingRDGResources()
+#endif
+		// Only run parallel RDG if we have a rendering thread.
+		&& IsInActualRenderingThread()
+		;
+}
+
+bool IsParallelSetupEnabled()
+{
+	return GRDGParallelSetup > 0
+		&& !GRHICommandList.Bypass()
+		&& !IsImmediateMode()
+		&& !GRDGDebug
+		&& !GRDGTransitionLog
+		&& !IsMobilePlatform(GMaxRHIShaderPlatform)
+		&& GRHISupportsMultithreadedShaderCreation
+#if WITH_DUMPGPU
+		&& !IsDumpingRDGResources()
+#endif
+		// Only run parallel RDG if we have a rendering thread.
+		&& IsInActualRenderingThread()
+		;
 }

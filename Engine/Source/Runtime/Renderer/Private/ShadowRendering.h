@@ -10,6 +10,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Templates/RefCounting.h"
 #include "RHI.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "RenderResource.h"
 #include "UniformBuffer.h"
 #include "ShaderParameters.h"

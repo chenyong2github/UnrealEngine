@@ -4,6 +4,7 @@
 #include "GlobalShader.h"
 #include "ShaderParameterStruct.h"
 #include "RenderGraphUtils.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #define NUM_THREADS_PER_GROUP_DIMENSION 32
 

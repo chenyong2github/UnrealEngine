@@ -3525,22 +3525,6 @@ static bool MoveHashLines(FString& Destination, FString &Source)
 	return bFound;
 }
 
-inline bool OpenGLShaderPlatformSeparable(const GLSLVersion InShaderPlatform)
-{
-	switch (InShaderPlatform)
-	{
-		case GLSL_150_ES3_1:
-			return false;
-
-		case GLSL_ES3_1_ANDROID:
-			return false;
-
-		default:
-			return true;
-		break;
-	}
-}
-
 TSharedPtr<ANSICHAR> FOpenGLFrontend::PrepareCodeForOfflineCompilation(const GLSLVersion ShaderVersion, EShaderFrequency Frequency, const ANSICHAR* InShaderSource) const
 {
 	FString OriginalShaderSource(ANSI_TO_TCHAR(InShaderSource));

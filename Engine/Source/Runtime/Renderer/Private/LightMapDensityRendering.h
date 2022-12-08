@@ -9,6 +9,7 @@
 #include "CoreMinimal.h"
 #include "EngineGlobals.h"
 #include "RHI.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "HitProxies.h"
 #include "ShaderParameters.h"
 #include "RHIStaticStates.h"

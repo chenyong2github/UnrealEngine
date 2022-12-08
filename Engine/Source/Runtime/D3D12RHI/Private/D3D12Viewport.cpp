@@ -8,6 +8,7 @@
 #include "RenderCore.h"
 #include "Engine/RendererSettings.h"
 #include "HDRHelper.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 namespace D3D12RHI
 {

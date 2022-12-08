@@ -9,6 +9,7 @@
 #include "Serialization/MemoryReader.h"
 #include "ProfilingDebugging/DiagnosticTable.h"
 #include "ShaderCompiler.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "UObject/DevObjectVersion.h"
 #include "NiagaraShaderCompilationManager.h"
 #include "UObject/CoreRedirects.h"

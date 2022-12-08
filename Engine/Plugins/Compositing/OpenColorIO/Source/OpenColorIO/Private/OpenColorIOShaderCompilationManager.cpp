@@ -8,6 +8,7 @@
 #include "Misc/Paths.h"
 #include "OpenColorIOShared.h"
 #include "ShaderCompiler.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #include "Interfaces/IShaderFormat.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"

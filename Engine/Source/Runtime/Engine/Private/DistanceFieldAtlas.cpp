@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "DistanceFieldAtlas.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "Engine/Texture2D.h"
 #include "HAL/RunnableThread.h"
 #include "HAL/Runnable.h"

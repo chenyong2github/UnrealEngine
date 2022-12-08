@@ -8,6 +8,7 @@
 #include "Misc/App.h"
 #include "EngineGlobals.h"
 #include "RenderingThread.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/Canvas.h"
 #include "Engine/RendererSettings.h"

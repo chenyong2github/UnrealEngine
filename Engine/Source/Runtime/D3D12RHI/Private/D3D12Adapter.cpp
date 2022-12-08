@@ -10,6 +10,7 @@ D3D12Adapter.cpp:D3D12 Adapter implementation.
 #include "Misc/OutputDeviceRedirector.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsPlatformMisc.h"
 #include "Windows/WindowsPlatformStackWalk.h"

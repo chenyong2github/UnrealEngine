@@ -5,6 +5,7 @@
 #include "RenderGraphUtils.h"
 #include "ShaderParameterUtils.h"
 #include "PipelineStateCache.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 int32 GNiagaraWaveIntrinsics = 0; // TODO: Enable this
 FAutoConsoleVariableRef CVarGNiagaraWaveIntrinsics(

@@ -57,21 +57,7 @@ enum EParticleCollisionShaderMode
 };
 
 /** Helper function to determine whether the given particle collision shader mode is supported on the given shader platform */
-inline bool IsParticleCollisionModeSupported(EShaderPlatform InPlatform, EParticleCollisionShaderMode InCollisionShaderMode)
-{
-	switch (InCollisionShaderMode)
-	{
-	case PCM_None:
-		return true;
-	case PCM_DepthBuffer:
-		return IsFeatureLevelSupported(InPlatform, ERHIFeatureLevel::SM5);
-	case PCM_DistanceField:
-		return IsFeatureLevelSupported(InPlatform, ERHIFeatureLevel::SM5);
-	}
-	check(0);
-	return IsFeatureLevelSupported(InPlatform, ERHIFeatureLevel::SM5);
-}
-
+extern bool IsParticleCollisionModeSupported(EShaderPlatform InPlatform, EParticleCollisionShaderMode InCollisionShaderMode);
 
 inline EParticleSimulatePhase::Type GetLastParticleSimulationPhase(EShaderPlatform InPlatform)
 {

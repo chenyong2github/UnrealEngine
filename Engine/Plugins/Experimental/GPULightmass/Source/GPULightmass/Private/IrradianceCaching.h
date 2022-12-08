@@ -5,6 +5,7 @@
 #include "ShaderParameterStruct.h"
 #include "SceneView.h"
 #include "SceneRenderTargetParameters.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 BEGIN_UNIFORM_BUFFER_STRUCT(FIrradianceCachingParameters, )
 	SHADER_PARAMETER(uint32, HashTableSize)

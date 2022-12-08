@@ -113,6 +113,7 @@
 #include "Preferences/UnrealEdOptions.h"
 #include "UnrealEdGlobals.h"
 #include "EditorModeManager.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #include "Internationalization/Culture.h"
 

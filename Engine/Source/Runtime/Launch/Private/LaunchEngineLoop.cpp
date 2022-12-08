@@ -45,6 +45,7 @@
 #if WITH_ENGINE
 #include "HAL/PlatformSplash.h"
 #include "StereoRenderUtils.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #endif
 #if WITH_APPLICATION_CORE
 #include "HAL/PlatformApplicationMisc.h"
@@ -2831,9 +2832,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		SCOPED_BOOT_TIMING("RHIInit");
 		// Initialize the RHI.
 		RHIInit(bHasEditorToken);
-#if WITH_EDITOR
-		FGenericDataDrivenShaderPlatformInfo::UpdatePreviewPlatforms();
-#endif
 	}
 
 	{

@@ -11,6 +11,7 @@
 #include "PixelShaderUtils.h"
 
 #include "RHIResources.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "CommonRenderResources.h"
 
 #include "Engine/StaticMesh.h"

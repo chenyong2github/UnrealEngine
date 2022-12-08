@@ -2,6 +2,7 @@
 
 #include "PostProcess/PostProcessGBufferHints.h"
 #include "CanvasTypes.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "RenderTargetTemp.h"
 #include "SceneTextureParameters.h"
 #include "UnrealEngine.h"

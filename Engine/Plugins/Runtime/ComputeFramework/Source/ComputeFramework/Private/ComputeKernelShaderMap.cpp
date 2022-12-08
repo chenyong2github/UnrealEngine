@@ -16,6 +16,7 @@
 #include "ShaderCompiler.h"
 #include "Stats/StatsMisc.h"
 #include "UObject/UObjectGlobals.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 
 #if ENABLE_COOK_STATS

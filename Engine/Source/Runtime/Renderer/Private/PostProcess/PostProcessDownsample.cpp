@@ -3,6 +3,7 @@
 #include "PostProcess/PostProcessDownsample.h"
 #include "PostProcess/PostProcessEyeAdaptation.h"
 #include "PixelShaderUtils.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 namespace
 {

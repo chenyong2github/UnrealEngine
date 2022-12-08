@@ -13,6 +13,7 @@
 #include "NiagaraGpuComputeDebugInterface.h"
 #include "NiagaraDataInterfaceGrid3DCollectionUtils.h"
 
+#include "DataDrivenShaderPlatformInfo.h"
 #include "Engine/TextureRenderTargetVolume.h"
 #include "Engine/VolumeTexture.h"
 #include "ClearQuad.h"

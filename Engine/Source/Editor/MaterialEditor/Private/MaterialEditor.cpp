@@ -48,6 +48,7 @@
 #include "MaterialEditingLibrary.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "MaterialCachedData.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #include "Materials/MaterialExpressionBreakMaterialAttributes.h"
 #include "Materials/MaterialExpressionCollectionParameter.h"

@@ -7,6 +7,7 @@
 #include "Materials/MaterialInterface.h"
 
 #include "RenderingThread.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "PrimitiveViewRelevance.h"
 #include "MaterialShared.h"
 #include "Materials/Material.h"

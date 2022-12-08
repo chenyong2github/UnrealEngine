@@ -4,6 +4,7 @@
 #include "ColorCorrectRegion.h"
 #include "ColorCorrectWindow.h"
 #include "CoreMinimal.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "MaterialShader.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"

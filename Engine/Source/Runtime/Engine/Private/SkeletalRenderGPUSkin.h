@@ -696,21 +696,8 @@ class FGPUMorphUpdateCS : public FGlobalShader
 public:
 	DECLARE_SHADER_TYPE(FGPUMorphUpdateCS, Global);
 
-	FGPUMorphUpdateCS() {}
-
-	FGPUMorphUpdateCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		MorphVertexBufferParameter.Bind(Initializer.ParameterMap, TEXT("MorphVertexBuffer"));
-
-		MorphTargetWeightsParameter.Bind(Initializer.ParameterMap, TEXT("MorphTargetWeights"));
-		MorphTargetBatchOffsetsParameter.Bind(Initializer.ParameterMap, TEXT("MorphTargetBatchOffsets"));
-		MorphTargetGroupOffsetsParameter.Bind(Initializer.ParameterMap, TEXT("MorphTargetGroupOffsets"));
-		PositionScaleParameter.Bind(Initializer.ParameterMap, TEXT("PositionScale"));
-		PrecisionParameter.Bind(Initializer.ParameterMap, TEXT("Precision"));
-
-		MorphDataBufferParameter.Bind(Initializer.ParameterMap, TEXT("MorphDataBuffer"));
-	}
+	FGPUMorphUpdateCS();
+	FGPUMorphUpdateCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 
 	static const uint32 MorphTargetDispatchBatchSize = 128;
 
@@ -720,10 +707,7 @@ public:
 	void Dispatch(FRHICommandList& RHICmdList, uint32 Size);
 	void EndAllDispatches(FRHICommandList& RHICmdList);
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
-	}
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
 
 protected:
 	LAYOUT_FIELD(FShaderResourceParameter, MorphVertexBufferParameter);
@@ -743,19 +727,10 @@ class FGPUMorphNormalizeCS : public FGlobalShader
 public:
 	DECLARE_SHADER_TYPE(FGPUMorphNormalizeCS, Global);
 
-	FGPUMorphNormalizeCS() {}
+	FGPUMorphNormalizeCS();
+	FGPUMorphNormalizeCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 
-	FGPUMorphNormalizeCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		MorphVertexBufferParameter.Bind(Initializer.ParameterMap, TEXT("MorphVertexBuffer"));
-		PositionScaleParameter.Bind(Initializer.ParameterMap, TEXT("PositionScale"));
-	}
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
-	}
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
 
 	void SetParameters(FRHICommandList& RHICmdList, const FVector4& LocalScale, const FMorphTargetVertexInfoBuffers& MorphTargetVertexInfoBuffers, FMorphVertexBuffer& MorphVertexBuffer);
 

@@ -13,6 +13,7 @@
 #include "OpenGLDrvPrivate.h"
 #include "PipelineStateCache.h"
 #include "Engine/GameViewportClient.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 
 IMPLEMENT_MODULE(FOpenGLDynamicRHIModule, OpenGLDrv);

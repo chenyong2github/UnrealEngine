@@ -5,6 +5,7 @@
 #include "Engine/Scene.h"
 #include "RenderUtils.h"
 #include "GlobalRenderResources.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 DEFINE_LOG_CATEGORY(LogSceneUtils);
 

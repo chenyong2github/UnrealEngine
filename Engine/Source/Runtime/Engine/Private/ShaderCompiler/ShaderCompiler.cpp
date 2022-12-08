@@ -10,6 +10,7 @@
 #include "ComponentRecreateRenderStateContext.h"
 #include "Components/PrimitiveComponent.h"
 #include "Containers/StringConv.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "DerivedDataCache.h"
 #include "DerivedDataRequestOwner.h"
 #include "DistributedBuildControllerInterface.h"

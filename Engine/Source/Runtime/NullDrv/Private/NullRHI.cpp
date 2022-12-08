@@ -5,7 +5,7 @@
 #include "Containers/List.h"
 #include "RenderResource.h"
 #include "RenderUtils.h"
-
+#include "DataDrivenShaderPlatformInfo.h"
 
 FNullDynamicRHI::FNullDynamicRHI()
 {

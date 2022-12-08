@@ -38,6 +38,7 @@
 #include "IHeadMountedDisplayModule.h"
 #include "HDRHelper.h"
 #include "RenderCore.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 DECLARE_CYCLE_STAT(TEXT("Slate RT: Rendering"), STAT_SlateRenderingRTTime, STATGROUP_Slate);
 

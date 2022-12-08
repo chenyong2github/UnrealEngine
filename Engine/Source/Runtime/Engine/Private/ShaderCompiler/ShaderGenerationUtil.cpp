@@ -7,6 +7,7 @@
 #include "ShaderCompiler.h"
 #include "ShaderCore.h"
 
+#include "DataDrivenShaderPlatformInfo.h"
 #include "Misc/FileHelper.h"
 #include "Misc/CoreMisc.h"
 #include "Misc/ScopeLock.h"

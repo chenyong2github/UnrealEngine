@@ -16,7 +16,7 @@
 #include "Preferences/MaterialStatsOptions.h"
 #include "MaterialEditorSettings.h"
 #include "ShaderCompiler.h"
-
+#include "DataDrivenShaderPlatformInfo.h"
 #include "Modules/ModuleManager.h"
 #include "MessageLogModule.h"
 

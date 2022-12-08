@@ -9,6 +9,7 @@
 #include "GlobalShader.h"
 #include "RenderUtils.h"
 #include "RenderGraphUtils.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 enum class EByteBufferResourceType
 {

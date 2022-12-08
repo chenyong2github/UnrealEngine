@@ -7,6 +7,7 @@
 #include "SteamVRHMD.h"
 #include "Misc/ScopeLock.h"
 #include "DefaultXRCamera.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 const FName FSteamVRHQLayer::ShapeName = FName("SteamVRHQLayer");
 

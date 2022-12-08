@@ -3,6 +3,7 @@
 #include "LandscapeCircleHeightPatchPS.h"
 
 #include "PixelShaderUtils.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 bool FLandscapeCircleHeightPatchPS::ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 {

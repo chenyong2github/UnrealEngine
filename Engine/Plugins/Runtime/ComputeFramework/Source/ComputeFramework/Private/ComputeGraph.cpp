@@ -18,6 +18,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "ShaderParameterMetadataBuilder.h"
 #include "UObject/Package.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ComputeGraph)
 

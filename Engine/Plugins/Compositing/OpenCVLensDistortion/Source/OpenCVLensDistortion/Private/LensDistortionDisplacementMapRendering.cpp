@@ -10,6 +10,7 @@
 #include "Logging/LogMacros.h"
 #include "PipelineStateCache.h"
 #include "RHIStaticStates.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "SceneUtils.h"
 #include "SceneInterface.h"
 #include "ShaderParameterUtils.h"

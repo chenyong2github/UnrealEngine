@@ -32,6 +32,11 @@ static TAutoConsoleVariable<int32> CVarMobileEyeAdaptation(
 	TEXT(" 1: Enabled (Default)"),
 	ECVF_RenderThreadSafe);
 
+bool FMSAADecodeAndCopyRectPS_Mobile::ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+{
+	return IsMetalMobilePlatform(Parameters.Platform);
+}
+
 IMPLEMENT_GLOBAL_SHADER(FMSAADecodeAndCopyRectPS_Mobile, "/Engine/Private/PostProcessMobile.usf", "MSAADecodeAndCopyRectPS", SF_Pixel);
 
 static EPixelFormat GetHDRPixelFormat()

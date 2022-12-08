@@ -17,6 +17,7 @@
 #include "RayTracingDefinitions.h"
 #include "RayTracingInstance.h"
 #include "SceneManagement.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 DECLARE_CYCLE_STAT(TEXT("Gather Mesh Elements"), STAT_GeometryCacheSceneProxy_GetMeshElements, STATGROUP_GeometryCache);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Triangle Count"), STAT_GeometryCacheSceneProxy_TriangleCount, STATGROUP_GeometryCache);

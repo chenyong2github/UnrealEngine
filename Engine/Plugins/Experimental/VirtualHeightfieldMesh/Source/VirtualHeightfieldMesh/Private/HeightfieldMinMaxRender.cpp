@@ -8,6 +8,7 @@
 #include "RenderGraphUtils.h"
 #include "RHIStaticStates.h"
 #include "ShaderParameterStruct.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 /** Shader for MinMax downsample passes. */
 class FMinMaxTextureCS : public FGlobalShader

@@ -10,6 +10,7 @@
 #include "Materials/Material.h"
 #include "ARBlueprintLibrary.h"
 #include "TimerManager.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 
 DECLARE_CYCLE_STAT(TEXT("Create Point Cloud Proxy"), STAT_PointCloud_CreateSceneProxy, STATGROUP_PointCloud);

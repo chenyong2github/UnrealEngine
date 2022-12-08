@@ -3,6 +3,7 @@
 #include "DecalRenderingCommon.h"
 #include "RHIStaticStates.h"
 #include "RenderUtils.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "Strata/Strata.h"
 
 namespace DecalRendering

@@ -47,15 +47,10 @@ class FCubemapTexturePropertiesVS : public FGlobalShader
 {
 	DECLARE_SHADER_TYPE(FCubemapTexturePropertiesVS,Global);
 public:
+	FCubemapTexturePropertiesVS();
+	FCubemapTexturePropertiesVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsPCPlatform(Parameters.Platform);}
-
-	FCubemapTexturePropertiesVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
-		FGlobalShader(Initializer)
-	{
-		Transform.Bind(Initializer.ParameterMap,TEXT("Transform"), SPF_Mandatory);
-	}
-	FCubemapTexturePropertiesVS() {}
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
 
 	void SetParameters(FRHICommandList& RHICmdList, const FMatrix& TransformValue);
 
@@ -75,7 +70,7 @@ class FCubemapTexturePropertiesPS : public FGlobalShader
 	using FPermutationDomain = TShaderPermutationDomain<FHDROutput, FCubeArray>;
 
 public:
-	FCubemapTexturePropertiesPS() = default;
+	FCubemapTexturePropertiesPS();
 	FCubemapTexturePropertiesPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
@@ -134,27 +129,16 @@ class FIESLightProfilePS : public FGlobalShader
 {
 	DECLARE_SHADER_TYPE(FIESLightProfilePS,Global);
 public:
+	FIESLightProfilePS();
+	FIESLightProfilePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && !IsConsolePlatform(Parameters.Platform);
-	}
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("USE_IES_PROFILE"), 1);
 		OutEnvironment.SetDefine(TEXT("USE_IES_STANDALONE_TEXTURE"), 1);
-	}
-
-	FIESLightProfilePS() {}
-
-	FIESLightProfilePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		IESTexture.Bind(Initializer.ParameterMap,TEXT("IESTexture"));
-		IESTextureSampler.Bind(Initializer.ParameterMap,TEXT("IESTextureSampler"));
-		BrightnessInLumens.Bind(Initializer.ParameterMap,TEXT("BrightnessInLumens"));
 	}
 
 	void SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture, float InBrightnessInLumens);

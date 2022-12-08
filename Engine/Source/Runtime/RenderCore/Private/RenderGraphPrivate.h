@@ -259,39 +259,8 @@ FORCEINLINE bool IsAsyncComputeSupported()
 
 bool IsDumpingRDGResources();
 
-FORCEINLINE bool IsParallelExecuteEnabled()
-{
-	return GRDGParallelExecute > 0
-		&& !GRHICommandList.Bypass()
-		&& !IsImmediateMode()
-		&& !GRDGDebug
-		&& !GRDGTransitionLog
-		&& !IsMobilePlatform(GMaxRHIShaderPlatform)
-		&& GRHISupportsMultithreadedShaderCreation
-#if WITH_DUMPGPU
-		&& !IsDumpingRDGResources()
-#endif
-		// Only run parallel RDG if we have a rendering thread.
-		&& IsInActualRenderingThread()
-		;
-}
-
-FORCEINLINE bool IsParallelSetupEnabled()
-{
-	return GRDGParallelSetup > 0
-		&& !GRHICommandList.Bypass()
-		&& !IsImmediateMode()
-		&& !GRDGDebug
-		&& !GRDGTransitionLog
-		&& !IsMobilePlatform(GMaxRHIShaderPlatform)
-		&& GRHISupportsMultithreadedShaderCreation
-#if WITH_DUMPGPU
-		&& !IsDumpingRDGResources()
-#endif
-		// Only run parallel RDG if we have a rendering thread.
-		&& IsInActualRenderingThread()
-		;
-}
+extern bool IsParallelExecuteEnabled();
+extern bool IsParallelSetupEnabled();
 
 template <typename ResourceRegistryType, typename FunctionType>
 inline void EnumerateExtendedLifetimeResources(ResourceRegistryType& Registry, FunctionType Function)

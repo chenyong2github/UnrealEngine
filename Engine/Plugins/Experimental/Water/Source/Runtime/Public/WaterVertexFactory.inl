@@ -7,6 +7,7 @@
 #include "Materials/Material.h"
 #include "MeshMaterialShader.h"
 #include "WaterInstanceDataBuffer.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 
 // ----------------------------------------------------------------------------------

@@ -13,6 +13,7 @@
 #include "Engine/TextureCube.h"
 #include "Engine/Texture2DArray.h"
 
+#include "DataDrivenShaderPlatformInfo.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "Materials/MaterialInterface.h"

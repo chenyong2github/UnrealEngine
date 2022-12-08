@@ -4,6 +4,7 @@
 
 #include "ScreenPass.h"
 #include "OverridePassSequence.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #if WITH_EDITOR
 

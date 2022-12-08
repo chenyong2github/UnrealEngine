@@ -15,6 +15,7 @@
 #include "Engine/TextureRenderTargetCube.h"
 #include "PipelineStateCache.h"
 #include "RHIStaticStates.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 IMPLEMENT_SHADER_TYPE(,FCubemapTexturePropertiesVS,TEXT("/Engine/Private/SimpleElementVertexShader.usf"),TEXT("Main"),SF_Vertex);
 IMPLEMENT_SHADER_TYPE(,FCubemapTexturePropertiesPS,TEXT("/Engine/Private/SimpleElementPixelShader.usf"),TEXT("CubemapTextureProperties"),SF_Pixel);
@@ -115,10 +116,25 @@ namespace CubemapHelpers
 	}
 }
 
+FCubemapTexturePropertiesVS::FCubemapTexturePropertiesVS() {}
+
+FCubemapTexturePropertiesVS::FCubemapTexturePropertiesVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
+	FGlobalShader(Initializer)
+{
+	Transform.Bind(Initializer.ParameterMap, TEXT("Transform"), SPF_Mandatory);
+}
+
+bool FCubemapTexturePropertiesVS::ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+{
+	return IsPCPlatform(Parameters.Platform);
+}
+
 void FCubemapTexturePropertiesVS::SetParameters( FRHICommandList& RHICmdList, const FMatrix& TransformValue )
 {
 	SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), Transform, (FMatrix44f)TransformValue);
 }
+
+FCubemapTexturePropertiesPS::FCubemapTexturePropertiesPS() = default;
 
 FCubemapTexturePropertiesPS::FCubemapTexturePropertiesPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 	: FGlobalShader(Initializer)
@@ -197,6 +213,21 @@ void FMipLevelBatchedElementParameters::BindShaders(FRHICommandList& RHICmdList,
 
 	VertexShader->SetParameters(RHICmdList, InTransform);
 	PixelShader->SetParameters(RHICmdList, Texture, ColorWeights, MipLevel, SliceIndex, bIsTextureCubeArray, ViewMatrix, bShowLongLatUnwrap, InGamma, bUsePointSampling);
+}
+
+FIESLightProfilePS::FIESLightProfilePS() = default;
+
+FIESLightProfilePS::FIESLightProfilePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+	: FGlobalShader(Initializer)
+{
+	IESTexture.Bind(Initializer.ParameterMap, TEXT("IESTexture"));
+	IESTextureSampler.Bind(Initializer.ParameterMap, TEXT("IESTextureSampler"));
+	BrightnessInLumens.Bind(Initializer.ParameterMap, TEXT("BrightnessInLumens"));
+}
+
+bool FIESLightProfilePS::ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+{
+	return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && !IsConsolePlatform(Parameters.Platform);
 }
 
 void FIESLightProfilePS::SetParameters( FRHICommandList& RHICmdList, const FTexture* Texture, float InBrightnessInLumens )

@@ -18,6 +18,7 @@
 	#include "Engine/VolumeTexture.h"
 	#include "StaticMeshResources.h"
 	#include "RHI.h"
+	#include "DataDrivenShaderPlatformInfo.h"
 	#include "AudioCompressionSettings.h"
 #endif // WITH_ENGINE
 #include "Windows/WindowsPlatformProperties.h"

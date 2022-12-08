@@ -14,6 +14,7 @@
 #include "UnrealClient.h"
 #include "Slate/SceneViewport.h"
 #include "UObject/AutomationObjectVersion.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ScreenshotFunctionalTest)
 

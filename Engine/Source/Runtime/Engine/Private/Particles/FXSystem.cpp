@@ -16,9 +16,25 @@
 #include "SceneUtils.h"
 #include "SceneRendering.h" // needed for STATGROUP_CommandListMarkers
 #include "GPUSortManager.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 
 TMap<FName, FCreateCustomFXSystemDelegate> FFXSystemInterface::CreateCustomFXDelegates;
+
+bool IsParticleCollisionModeSupported(EShaderPlatform InPlatform, EParticleCollisionShaderMode InCollisionShaderMode)
+{
+	switch (InCollisionShaderMode)
+	{
+	case PCM_None:
+		return true;
+	case PCM_DepthBuffer:
+		return IsFeatureLevelSupported(InPlatform, ERHIFeatureLevel::SM5);
+	case PCM_DistanceField:
+		return IsFeatureLevelSupported(InPlatform, ERHIFeatureLevel::SM5);
+	}
+	check(0);
+	return IsFeatureLevelSupported(InPlatform, ERHIFeatureLevel::SM5);
+}
 
 /*-----------------------------------------------------------------------------
 	External FX system interface.

@@ -9,6 +9,7 @@
 #include "RHIStaticStates.h"
 #include "ShaderParameters.h"
 #include "ShaderParameterUtils.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FVirtualHeightfieldMeshVertexFactoryParameters, "VHM");
 

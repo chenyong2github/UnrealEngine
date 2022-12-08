@@ -3,6 +3,7 @@
 #include "VirtualHeightfieldMeshSceneProxy.h"
 
 #include "CommonRenderResources.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "EngineModule.h"
 #include "Engine/Engine.h"
 #include "Engine/Texture2D.h"

@@ -8,6 +8,7 @@ NiagaraSortingGPU.cpp: Niagara sorting shaders
 #include "NiagaraGPUSortInfo.h"
 #include "ShaderParameterUtils.h"
 #include "ShaderCompilerCore.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 int32 GNiagaraGPUSortingCPUToGPUThreshold = -1;
 static FAutoConsoleVariableRef CVarNiagaraGPUSortingCPUToGPUThreshold(

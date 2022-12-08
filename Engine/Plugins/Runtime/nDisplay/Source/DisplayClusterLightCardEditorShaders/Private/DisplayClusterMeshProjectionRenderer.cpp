@@ -16,6 +16,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "InstanceCulling/InstanceCullingContext.h"
 #include "Materials/Material.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 
 //////////////////////////////////////////////////////////////////////////

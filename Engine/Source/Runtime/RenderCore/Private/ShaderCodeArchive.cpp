@@ -4,6 +4,7 @@
 
 #include "Async/ParallelFor.h"
 #include "Compression/OodleDataCompression.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "Misc/FileHelper.h"
 #include "Misc/MemStack.h"
 #include "Misc/ScopeRWLock.h"

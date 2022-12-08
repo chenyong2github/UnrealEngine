@@ -2,6 +2,7 @@
 
 #include "Materials/MaterialInstance.h"
 
+#include "DataDrivenShaderPlatformInfo.h"
 #include "Stats/StatsMisc.h"
 #include "EngineGlobals.h"
 #include "EngineModule.h"

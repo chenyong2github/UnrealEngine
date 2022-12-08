@@ -3,6 +3,7 @@
 #include "NiagaraGPUSceneUtils.h"
 #include "GlobalShader.h"
 #include "RenderGraphUtils.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 class FNiagaraUpdateMeshGPUSceneInstancesCS : public FGlobalShader
 {

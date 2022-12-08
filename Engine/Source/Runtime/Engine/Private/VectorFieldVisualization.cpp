@@ -14,6 +14,7 @@
 #include "ShaderParameterUtils.h"
 #include "FXSystem.h"
 #include "MeshMaterialShader.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FVectorFieldVisualizationParameters,"VectorFieldVis");
 

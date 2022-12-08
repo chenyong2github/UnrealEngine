@@ -7,6 +7,7 @@
 #include "SceneTextures.h"
 #include "SceneTextureParameters.h"
 #include "Strata/Strata.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 // We do not want such debug in shipping build or when the editor is not available.
 #define DEBUG_PROBE_ENABLED (!UE_BUILD_SHIPPING && WITH_EDITORONLY_DATA)

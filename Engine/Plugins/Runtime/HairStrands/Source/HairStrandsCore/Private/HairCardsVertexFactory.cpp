@@ -15,6 +15,7 @@
 #include "GroomInstance.h"
 #include "SystemTextures.h" 
 #include "GlobalRenderResources.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 template<typename T> inline void VFC_BindParam(FMeshDrawSingleShaderBindings& ShaderBindings, const FShaderResourceParameter& Param, T* Value) { if (Param.IsBound() && Value) ShaderBindings.Add(Param, Value); }
 template<typename T> inline void VFC_BindParam(FMeshDrawSingleShaderBindings& ShaderBindings, const FShaderParameter& Param, const T& Value) { if (Param.IsBound()) ShaderBindings.Add(Param, Value); }

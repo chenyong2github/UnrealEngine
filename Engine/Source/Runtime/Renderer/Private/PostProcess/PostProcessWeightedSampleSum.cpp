@@ -2,6 +2,7 @@
 
 #include "PostProcess/PostProcessWeightedSampleSum.h"
 #include "PixelShaderUtils.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 // maximum number of sample using the shader that has the dynamic loop
 #define MAX_FILTER_SAMPLES	128

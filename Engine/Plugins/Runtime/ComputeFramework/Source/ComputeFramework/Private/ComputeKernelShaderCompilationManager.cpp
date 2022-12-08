@@ -7,6 +7,7 @@
 #include "ComputeFramework/ComputeKernelShared.h"
 #include "RHIShaderFormatDefinitions.inl"
 #include "ShaderCompiler.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #if WITH_EDITOR
 #include "Interfaces/IShaderFormat.h"

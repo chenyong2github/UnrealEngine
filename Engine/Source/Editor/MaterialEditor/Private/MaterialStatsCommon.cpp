@@ -7,6 +7,7 @@
 #include "GPUSkinVertexFactory.h"
 #include "MaterialEditorSettings.h"
 #include "RHIShaderFormatDefinitions.inl"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "ShaderCompilerCore.h"
 #include "Styling/StyleColors.h"
 

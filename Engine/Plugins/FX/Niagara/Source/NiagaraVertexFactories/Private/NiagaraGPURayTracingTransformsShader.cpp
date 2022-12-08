@@ -7,6 +7,7 @@ NiagaraGPURayTracingTransformsShader.cpp : Niagara shader to generate the ray tr
 #include "NiagaraGPURayTracingTransformsShader.h"
 #include "NiagaraGPUSortInfo.h"
 #include "ShaderParameterUtils.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #if RHI_RAYTRACING
 IMPLEMENT_GLOBAL_SHADER(FNiagaraGPURayTracingTransformsCS, "/Plugin/FX/Niagara/Private/NiagaraGPURayTracingTransforms.usf", "NiagaraGPURayTracingTransformsCS", SF_Compute);

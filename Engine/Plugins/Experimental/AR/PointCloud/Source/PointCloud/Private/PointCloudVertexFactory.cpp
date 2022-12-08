@@ -8,6 +8,7 @@
 #include "Materials/Material.h"
 #include "ShaderParameterUtils.h"
 #include "MeshMaterialShader.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FPointCloudVertexFactoryParameters, "PointCloudVF");
 

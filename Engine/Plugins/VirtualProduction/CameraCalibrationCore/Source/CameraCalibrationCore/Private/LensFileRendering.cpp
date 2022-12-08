@@ -3,6 +3,7 @@
 
 #include "LensFileRendering.h"
 
+#include "DataDrivenShaderPlatformInfo.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "GlobalShader.h"
 #include "Misc/MemStack.h"

@@ -3,6 +3,7 @@
 #include "PostProcess/PostProcessTestImage.h"
 #include "PostProcess/PostProcessCombineLUTs.h"
 #include "CanvasTypes.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "RenderTargetTemp.h"
 #include "UnrealEngine.h"
 

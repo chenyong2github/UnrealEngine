@@ -183,10 +183,7 @@ class FMSAADecodeAndCopyRectPS_Mobile : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FMSAADecodeAndCopyRectPS_Mobile);
 	SHADER_USE_PARAMETER_STRUCT(FMSAADecodeAndCopyRectPS_Mobile, FGlobalShader);
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsMetalMobilePlatform(Parameters.Platform);
-	}
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)

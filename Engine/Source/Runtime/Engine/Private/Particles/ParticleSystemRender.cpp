@@ -38,6 +38,7 @@
 #include "Engine/StaticMesh.h"
 #include "UnrealEngine.h"
 #include "RenderCore.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 DECLARE_CYCLE_STAT(TEXT("ParticleSystemSceneProxy Create GT"), STAT_FParticleSystemSceneProxy_Create, STATGROUP_Particles);
 DECLARE_CYCLE_STAT(TEXT("ParticleSystemSceneProxy GetMeshElements RT"), STAT_FParticleSystemSceneProxy_GetMeshElements, STATGROUP_Particles);

@@ -5,6 +5,7 @@
 #include "RenderTargetTemp.h"
 #include "UnrealEngine.h"
 #include "SystemTextures.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 class FVisualizeComplexityApplyPS : public FGlobalShader
 {

@@ -3,6 +3,7 @@
 /*=============================================================================
 	DebugViewModeHelpers.cpp: debug view shader helpers.
 =============================================================================*/
+
 #include "DebugViewModeHelpers.h"
 #include "DebugViewModeInterface.h"
 #include "Materials/MaterialInterface.h"
@@ -16,6 +17,7 @@
 #include "Engine/World.h"
 #include "Components/PrimitiveComponent.h"
 #include "ActorEditorUtils.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #define LOCTEXT_NAMESPACE "LogDebugViewMode"
 

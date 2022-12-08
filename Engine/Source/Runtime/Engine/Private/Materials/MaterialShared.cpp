@@ -64,6 +64,7 @@
 #include "ProfilingDebugging/CountersTrace.h"
 #include "RenderCore.h"
 #include "StrataDefinitions.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #define LOCTEXT_NAMESPACE "MaterialShared"
 

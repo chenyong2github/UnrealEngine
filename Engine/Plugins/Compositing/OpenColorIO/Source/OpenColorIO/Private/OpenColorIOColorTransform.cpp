@@ -10,6 +10,7 @@
 #include "OpenColorIOModule.h"
 #include "OpenColorIOSettings.h"
 #include "UObject/UObjectIterator.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(OpenColorIOColorTransform)
 

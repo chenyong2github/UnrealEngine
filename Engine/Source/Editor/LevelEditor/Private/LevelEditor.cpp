@@ -37,6 +37,7 @@
 #include "PlatformInfo.h"
 #include "Editor.h"
 #include "SLevelViewport.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 // @todo Editor: remove this circular dependency
 #include "Interfaces/IMainFrameModule.h"

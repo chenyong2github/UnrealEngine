@@ -8,6 +8,7 @@
 #include "ComputeFramework/ComputeKernelFromText.h"
 #include "ComputeFramework/ComputeKernelShaderCompilationManager.h"
 #include "ComputeFramework/ComputeSystem.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "RenderGraphBuilder.h"
 #include "ShaderCore.h"
 #include "UObject/UObjectIterator.h"

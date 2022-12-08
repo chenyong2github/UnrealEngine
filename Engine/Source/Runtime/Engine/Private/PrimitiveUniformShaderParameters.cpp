@@ -7,6 +7,7 @@
 #include "NaniteSceneProxy.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "UnrealEngine.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 FPrimitiveUniformShaderParametersBuilder& FPrimitiveUniformShaderParametersBuilder::InstanceDrawDistance(FVector2f DistanceMinMax)
 {

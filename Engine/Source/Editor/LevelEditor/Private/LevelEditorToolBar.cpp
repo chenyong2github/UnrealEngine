@@ -62,6 +62,7 @@
 #include "ISourceControlModule.h"
 #include "Styling/ToolBarStyle.h"
 #include "PlatformInfo.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 namespace LevelEditorActionHelpers
 {

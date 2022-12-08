@@ -30,6 +30,7 @@
 #include "OculusHMDRuntimeSettings.h"
 #include "OculusDelegates.h"
 #include "Engine/RendererSettings.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #if PLATFORM_ANDROID
 #include "Android/AndroidJNI.h"

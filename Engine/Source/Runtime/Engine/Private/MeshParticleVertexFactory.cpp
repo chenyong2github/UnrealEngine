@@ -9,6 +9,7 @@
 #include "ShaderParameterUtils.h"
 #include "MeshMaterialShader.h"
 #include "GlobalRenderResources.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 class FMeshParticleVertexFactoryShaderParameters : public FVertexFactoryShaderParameters
 {

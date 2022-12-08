@@ -5,6 +5,7 @@
 #include "MeshDrawShaderBindings.h"
 #include "MeshMaterialShader.h"
 #include "ShaderParameterUtils.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "Rendering/ColorVertexBuffer.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 

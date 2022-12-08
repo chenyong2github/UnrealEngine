@@ -3,6 +3,7 @@
 #include "RendererUtils.h"
 #include "RenderTargetPool.h"
 #include "RHIDefinitions.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "VisualizeTexture.h"
 
 class FRTWriteMaskDecodeCS : public FGlobalShader

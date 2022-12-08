@@ -13,6 +13,7 @@
 #include "ShaderCompiler.h"
 #include "Tickable.h"
 #include "UObject/UObjectThreadContext.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogNiagaraShaderCompiler, Log, All);
 

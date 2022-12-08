@@ -13,6 +13,7 @@
 #include "MeshMaterialShaderType.h"
 #include "MaterialShaderMapLayout.h"
 #include "ShaderCompiler.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "UObject/ReleaseObjectVersion.h"

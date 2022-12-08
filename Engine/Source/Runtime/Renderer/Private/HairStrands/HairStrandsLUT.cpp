@@ -9,6 +9,7 @@
 #include "RenderGraphUtils.h"
 #include "SceneRendering.h"
 #include "SystemTextures.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 static int32 GHairLUTIncidentAngleCount = 64;
 static int32 GHairLUTRoughnessCount = 64;

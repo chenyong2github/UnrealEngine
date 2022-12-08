@@ -5,6 +5,7 @@
 #include "RenderTargetTemp.h"
 #include "SceneTextureParameters.h"
 #include "UnrealEngine.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 class FVisualizeShadingModelPS : public FGlobalShader
 {

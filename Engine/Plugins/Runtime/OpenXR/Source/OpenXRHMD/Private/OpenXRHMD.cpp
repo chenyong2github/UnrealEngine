@@ -23,6 +23,7 @@
 #include "ClearQuad.h"
 #include "XRThreadUtils.h"
 #include "RenderUtils.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "PipelineStateCache.h"
 #include "Slate/SceneViewport.h"
 #include "Engine/GameEngine.h"

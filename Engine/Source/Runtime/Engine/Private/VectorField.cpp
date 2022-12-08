@@ -7,6 +7,7 @@
 #include "VectorField.h"
 #include "PrimitiveViewRelevance.h"
 #include "RenderingThread.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "UniformBuffer.h"
 #include "ShaderParameters.h"
 #include "RHIStaticStates.h"

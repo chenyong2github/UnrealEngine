@@ -19,6 +19,7 @@
 #include "InstanceUniformShaderParameters.h"
 #include "NaniteSceneProxy.h" // TODO: PROG_RASTER
 #include "ComponentRecreateRenderStateContext.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #if WITH_EDITOR
 #include "FoliageHelper.h"

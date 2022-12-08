@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "NiagaraCutoutVertexBuffer.h"
+#include "RHI.h"
 
 FNiagaraCutoutVertexBuffer::FNiagaraCutoutVertexBuffer(int32 ZeroInitCount)
 {

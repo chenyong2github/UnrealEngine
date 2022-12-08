@@ -4,6 +4,7 @@
 #include "PostProcess/PostProcessTonemap.h"
 #include "Curves/CurveFloat.h"
 #include "UnrealEngine.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 extern bool IsExtendLuminanceRangeEnabled();
 

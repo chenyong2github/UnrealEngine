@@ -36,6 +36,7 @@
 #include "Collision.h"
 #include "CollisionDebugDrawingPublic.h"
 #include "PipelineStateCache.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #include "Elements/Framework/EngineElementsLibrary.h"
 #include "Elements/SMInstance/SMInstanceElementData.h"

@@ -5,6 +5,7 @@
 #include "HAL/IConsoleManager.h"
 #include "CoreGlobals.h"
 #include "RHI.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "Misc/ConfigCacheIni.h"
 #include "IDeviceProfileSelectorModule.h"
 #include "Modules/ModuleManager.h"

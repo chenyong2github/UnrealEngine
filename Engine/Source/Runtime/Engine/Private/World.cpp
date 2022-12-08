@@ -48,6 +48,7 @@
 #include "GameFramework/DefaultPhysicsVolume.h"
 #include "GameFramework/WorldSettings.h"
 #include "RendererInterface.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "Engine/Texture2D.h"
 #include "Engine/LevelStreaming.h"
 #include "Engine/LevelStreamingGCHelper.h"

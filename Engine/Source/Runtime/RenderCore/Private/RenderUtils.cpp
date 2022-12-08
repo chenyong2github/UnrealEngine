@@ -1,21 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RenderUtils.h"
-#include "Containers/ResourceArray.h"
+
 #include "Containers/DynamicRHIResourceArray.h"
-#include "RenderResource.h"
-#include "RHIStaticStates.h"
-#include "PipelineStateCache.h"
+#include "DataDrivenShaderPlatformInfo.h"
+#include "HAL/ConsoleManager.h"
 #include "Misc/ConfigCacheIni.h"
-#include "RenderGraphResourcePool.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
-#include "RenderCore.h"
 #include "PackedNormal.h"
+#include "PipelineStateCache.h"
+#include "RenderResource.h"
+#include "RHI.h"
 #include "Shader.h"
 #include "ShaderPlatformCachedIniValue.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #if WITH_EDITOR
-#include "Misc/CoreMisc.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "RHIShaderFormatDefinitions.inl"
@@ -561,6 +561,8 @@ RENDERCORE_API uint32 GetPlatformShadingModelsMask(const FStaticShaderPlatform P
 	}
 	return 0xFFFFFFFF;
 }
+
+typedef TBitArray<TInlineAllocator<EShaderPlatform::SP_NumPlatforms / 8>> ShaderPlatformMaskType;
 
 RENDERCORE_API ShaderPlatformMaskType GMobileAmbientOcclusionPlatformMask;
 

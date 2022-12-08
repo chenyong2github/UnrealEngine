@@ -4,6 +4,7 @@
 #include "GerstnerWaterWaveSubsystem.h"
 #include "WaterBodyActor.h"
 #include "GerstnerWaterWaves.h"
+#include "Containers/DynamicRHIResourceArray.h"
 #include "Engine/Engine.h"
 #include "SceneView.h"
 #include "WaterBodyManager.h"

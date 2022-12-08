@@ -3,7 +3,7 @@
 #include "DNAToSkelMeshMap.h"
 
 #include "RenderResource.h"
-#include "RHICommandList.h"
+#include "RHI.h"
 #include "Async/ParallelFor.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/StaticMesh.h"

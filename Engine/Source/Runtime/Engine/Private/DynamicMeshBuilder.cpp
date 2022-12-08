@@ -7,6 +7,7 @@
 #include "DynamicMeshBuilder.h"
 #include "RenderingThread.h"
 #include "RenderResource.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "UniformBuffer.h"
 #include "VertexFactory.h"
 #include "MeshBatch.h"

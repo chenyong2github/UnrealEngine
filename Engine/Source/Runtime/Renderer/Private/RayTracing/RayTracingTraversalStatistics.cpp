@@ -13,6 +13,7 @@
 #include "ShaderPrintParameters.h"
 #include "SceneRendering.h"
 #include "GlobalShader.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 // Needs to match the size of FTraceRayInlineTraversalStatistics in TraceRayInlineCommon.ush
 #define TRACE_RAY_INLINE_TRAVERSAL_STATISTICS_SIZE_IN_BYTES 40

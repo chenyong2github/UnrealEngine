@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "DataDrivenShaderPlatformInfo.h"
 #include "GlobalShader.h"
 #include "RHIDefinitions.h"
 #include "ShaderParameterMacros.h"

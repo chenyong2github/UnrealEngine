@@ -3,6 +3,7 @@
 #include "NiagaraScript.h"
 
 #include "Algo/RemoveIf.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "Modules/ModuleManager.h"
 #include "NiagaraScriptSourceBase.h"
 #include "NiagaraComponent.h"

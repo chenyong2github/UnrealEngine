@@ -389,6 +389,10 @@ void RHIInit(bool bHasEditorToken)
 
 		check(GDynamicRHI);
 	}
+
+#if WITH_EDITOR
+	FGenericDataDrivenShaderPlatformInfo::UpdatePreviewPlatforms();
+#endif
 }
 
 void RHIPostInit(const TArray<uint32>& InPixelFormatByteWidth)

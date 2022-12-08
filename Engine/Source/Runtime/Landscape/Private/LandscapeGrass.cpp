@@ -20,6 +20,7 @@
 #include "ShowFlags.h"
 #include "RHI.h"
 #include "RenderingThread.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "ShaderParameters.h"
 #include "RHIStaticStates.h"
 #include "SceneView.h"

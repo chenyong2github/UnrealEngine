@@ -44,30 +44,15 @@ struct FVolumeBounds
 };
 
 /** Vertex shader used to write to a range of slices of a 3d volume texture. */
-class FWriteToSliceVS : public FGlobalShader
+class ENGINE_API FWriteToSliceVS : public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FWriteToSliceVS,Global,ENGINE_API);
+	DECLARE_GLOBAL_SHADER(FWriteToSliceVS);
 public:
+	FWriteToSliceVS();
+	FWriteToSliceVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) 
-	{ 
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5); 
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
-	{
-		FGlobalShader::ModifyCompilationEnvironment( Parameters, OutEnvironment );
-		OutEnvironment.CompilerFlags.Add( CFLAG_VertexToGeometryShader );
-	}
-
-	FWriteToSliceVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
-		FGlobalShader(Initializer)
-	{
-		UVScaleBias.Bind(Initializer.ParameterMap, TEXT("UVScaleBias"));
-		MinZ.Bind(Initializer.ParameterMap, TEXT("MinZ"));
-	}
-
-	FWriteToSliceVS() {}
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 
 	template <typename TRHICommandList>
 	void SetParameters(TRHICommandList& RHICmdList, const FVolumeBounds& VolumeBounds, FIntVector VolumeResolution)
@@ -88,22 +73,14 @@ private:
 };
 
 /** Geometry shader used to write to a range of slices of a 3d volume texture. */
-class FWriteToSliceGS : public FGlobalShader
+class ENGINE_API FWriteToSliceGS : public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FWriteToSliceGS,Global,ENGINE_API);
+	DECLARE_GLOBAL_SHADER(FWriteToSliceGS);
 public:
+	FWriteToSliceGS();
+	FWriteToSliceGS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) 
-	{ 
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && RHISupportsGeometryShaders(Parameters.Platform); 
-	}
-
-	FWriteToSliceGS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
-		FGlobalShader(Initializer)
-	{
-		MinZ.Bind(Initializer.ParameterMap, TEXT("MinZ"));
-	}
-	FWriteToSliceGS() {}
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
 
 	template <typename TRHICommandList>
 	void SetParameters(TRHICommandList& RHICmdList, int32 MinZValue)
@@ -119,31 +96,10 @@ private:
 extern ENGINE_API void RasterizeToVolumeTexture(FRHICommandList& RHICmdList, FVolumeBounds VolumeBounds);
 
 /** Vertex buffer used for rendering into a volume texture. */
-class FVolumeRasterizeVertexBuffer : public FVertexBuffer
+class ENGINE_API FVolumeRasterizeVertexBuffer : public FVertexBuffer
 {
 public:
-
-	virtual void InitRHI() override
-	{
-		// Used as a non-indexed triangle strip, so 4 vertices per quad
-		const uint32 Size = 4 * sizeof(FScreenVertex);
-		FRHIResourceCreateInfo CreateInfo(TEXT("FVolumeRasterizeVertexBuffer"));
-		VertexBufferRHI = RHICreateBuffer(Size, BUF_Static | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
-		FScreenVertex* DestVertex = (FScreenVertex*)RHILockBuffer(VertexBufferRHI, 0, Size, RLM_WriteOnly);
-
-		// Setup a full - render target quad
-		// A viewport and UVScaleBias will be used to implement rendering to a sub region
-		DestVertex[0].Position = FVector2f(1, -GProjectionSignY);
-		DestVertex[0].UV = FVector2f(1, 1);
-		DestVertex[1].Position = FVector2f(1, GProjectionSignY);
-		DestVertex[1].UV = FVector2f(1, 0);
-		DestVertex[2].Position = FVector2f(-1, -GProjectionSignY);
-		DestVertex[2].UV = FVector2f(0, 1);
-		DestVertex[3].Position = FVector2f(-1, GProjectionSignY);
-		DestVertex[3].UV = FVector2f(0, 0);
-
-		RHIUnlockBuffer(VertexBufferRHI);      
-	}
+	virtual void InitRHI() override;
 };
 
 extern ENGINE_API TGlobalResource<FVolumeRasterizeVertexBuffer> GVolumeRasterizeVertexBuffer;

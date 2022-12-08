@@ -10,6 +10,7 @@
 
 #include "SceneTextureParameters.h"
 #include "SystemTextures.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 TAutoConsoleVariable<int32> CVarUseAtomicHistogram(
 	TEXT("r.Histogram.UseAtomic"), 1,

@@ -7,6 +7,7 @@
 #include "HAL/IConsoleManager.h"
 #include "PropertyEditorModule.h"
 #include "RenderingThread.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "Interfaces/IPluginManager.h"
 #include "ShaderCore.h"
 #include "SceneInterface.h"
@@ -73,6 +74,9 @@ enum class ERayTracingDisabledReason : int32
 	INCAPABLE_HARDWARE, // The video card isn't capable of hardware ray tracing (too old), or supports only software emulated ray tracing (GTX 10 series)
 };
 
+typedef TBitArray<TInlineAllocator<EShaderPlatform::SP_NumPlatforms / 8>> ShaderPlatformMaskType;
+extern RENDERCORE_API ShaderPlatformMaskType GRayTracingPlatformMask;
+
 ERayTracingDisabledReason GetRayTracingDisabledReason()
 {
 	if (IsRayTracingEnabled())
@@ -86,7 +90,6 @@ ERayTracingDisabledReason GetRayTracingDisabledReason()
 		return ERayTracingDisabledReason::DISABLED_BY_PROJECT_SETTINGS;
 	}
 
-	extern RENDERCORE_API ShaderPlatformMaskType GRayTracingPlatformMask;
 	if (!RHISupportsRayTracing(GMaxRHIShaderPlatform))
 	{
 		return ERayTracingDisabledReason::INCOMPATIBLE_SHADER_PLATFORM;

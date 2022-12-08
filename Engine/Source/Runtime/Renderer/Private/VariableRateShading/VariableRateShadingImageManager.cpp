@@ -8,6 +8,7 @@
 #include "ShaderParameterUtils.h"
 #include "RenderGraphUtils.h"
 #include "RHIDefinitions.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "RenderTargetPool.h"
 #include "SystemTextures.h"
 #include "SceneView.h"

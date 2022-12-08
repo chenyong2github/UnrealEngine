@@ -3,6 +3,7 @@
 #include "GoogleARCorePassthroughCameraRenderer.h"
 #include "ScreenRendering.h"
 #include "RendererInterface.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "EngineModule.h"
 #include "PipelineStateCache.h"
 #include "ClearQuad.h"

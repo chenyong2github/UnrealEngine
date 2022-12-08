@@ -446,21 +446,3 @@ inline uint32 CalcDynamicBufferSize(uint32 Size)
 void InitDefaultGLContextState(void);
 
 extern bool GUseEmulatedUniformBuffers;
-
-inline bool OpenGLShaderPlatformSeparable(const EShaderPlatform InShaderPlatform)
-{
-	switch (InShaderPlatform)
-	{
-		case SP_OPENGL_PCES3_1:
-			return true;
-
-		case SP_OPENGL_ES3_1_ANDROID:
-			return false;
-		default:
-			check(IsOpenGLPlatform(InShaderPlatform));
-			checkf(false, TEXT("invalid shader platform (%d)"), int(InShaderPlatform));
-			return true;
-			break;
-	}
-}
-

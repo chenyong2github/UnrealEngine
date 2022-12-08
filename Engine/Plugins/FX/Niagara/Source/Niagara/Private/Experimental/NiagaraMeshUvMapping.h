@@ -7,6 +7,8 @@
 #include "Experimental/NiagaraMeshUvMappingHandle.h"
 #include "NiagaraUvQuadTree.h"
 #include "RenderResource.h"
+#include "RHI.h"
+#include "Containers/DynamicRHIResourceArray.h"
 
 struct FMeshUvMapping;
 class FNiagaraUvQuadTree;

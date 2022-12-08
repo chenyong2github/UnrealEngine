@@ -8,6 +8,7 @@
 #include "Field/FieldSystemNodes.h"
 
 #include "RHIStaticStates.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "Shader.h"
 #include "GlobalShader.h"
 #include "ShaderParameters.h"

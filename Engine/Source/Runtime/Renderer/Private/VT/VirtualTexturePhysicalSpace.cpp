@@ -3,6 +3,7 @@
 #include "VirtualTexturePhysicalSpace.h"
 
 #include "BatchedElements.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "RenderTargetPool.h"

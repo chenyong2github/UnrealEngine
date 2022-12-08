@@ -7,6 +7,7 @@
 #include "GPUBenchmark.h"
 #include "GenericPlatform/GenericPlatformSurvey.h"
 #include "RHI.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "ShaderParameters.h"
 #include "RenderResource.h"
 #include "RendererInterface.h"

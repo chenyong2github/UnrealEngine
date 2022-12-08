@@ -13,6 +13,7 @@
 #include "SceneManagement.h"
 #include "Engine/DirectionalLight.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DirectionalLightComponent)
 

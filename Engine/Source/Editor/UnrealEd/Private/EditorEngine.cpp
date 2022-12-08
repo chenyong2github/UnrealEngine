@@ -69,6 +69,7 @@
 #include "Engine/Selection.h"
 #include "Sound/SoundCue.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "UnrealEngine.h"
 #include "EngineUtils.h"
 #include "Editor.h"

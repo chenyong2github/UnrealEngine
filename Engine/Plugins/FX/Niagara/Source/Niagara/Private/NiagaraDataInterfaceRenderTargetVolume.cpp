@@ -20,6 +20,7 @@
 #include "VolumeCache.h"
 #include "RHIStaticStates.h"
 #include "Misc/PathViews.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceRenderTargetVolume)
 

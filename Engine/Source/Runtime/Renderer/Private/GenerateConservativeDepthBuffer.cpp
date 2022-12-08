@@ -6,8 +6,7 @@
 
 #include "GenerateConservativeDepthBuffer.h"
 #include "SceneRendering.h"
-
-
+#include "DataDrivenShaderPlatformInfo.h"
 
 class FGenerateConservativeDepthBufferCS : public FGlobalShader
 {

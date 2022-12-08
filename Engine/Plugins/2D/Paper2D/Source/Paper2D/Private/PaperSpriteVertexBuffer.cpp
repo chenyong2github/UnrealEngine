@@ -7,6 +7,7 @@
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
 #include "PaperSpriteComponent.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 //////////////////////////////////////////////////////////////////////////
 // FPaperSpriteVertexBuffer

@@ -14,6 +14,7 @@
 #include "RenderCommandFence.h"
 #include "RenderTargetPool.h"
 #include "RHIResources.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "RHIStaticStates.h"
 #include "SceneRenderTargetParameters.h"
 #include "SimpleMeshDrawCommandPass.h"

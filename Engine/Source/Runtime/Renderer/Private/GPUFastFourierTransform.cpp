@@ -6,6 +6,7 @@
 #include "RenderGraph.h" 
 #include "ShaderCompilerCore.h"
 #include "SystemTextures.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 bool ShouldCompileGPUFFT(EShaderPlatform Platform)
 {

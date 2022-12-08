@@ -9,6 +9,7 @@
 #include "MaterialShared.h"
 #include "Materials/Material.h"
 #include "RenderingThread.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "BaseMeshReconstructorModule.h"
 #include "MeshReconstructorBase.h"
 #include "AI/NavigationSystemHelpers.h"

@@ -12,6 +12,7 @@
 #include "ComputeFramework/ShaderParameterMetadataAllocation.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "RendererInterface.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "RHIShaderFormatDefinitions.inl"
 #include "ShaderCompiler.h"
 #include "ShaderParameterMetadataBuilder.h"

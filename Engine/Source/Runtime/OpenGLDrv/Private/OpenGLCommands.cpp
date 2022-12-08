@@ -17,6 +17,7 @@
 #include "RenderUtils.h"
 #include "RHICoreShader.h"
 #include "RHIShaderParametersShared.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 /*
 #define DECLARE_ISBOUNDSHADER(ShaderType) template <typename TShaderType> inline void ValidateBoundShader(TRefCountPtr<FOpenGLBoundShaderState> InBoundShaderState, FRHIGraphicsShader* GfxShader, TShaderType* ShaderTypeRHI) \

@@ -73,6 +73,7 @@
 #include "Slate/SceneViewport.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 
 #include "LevelEditor.h"

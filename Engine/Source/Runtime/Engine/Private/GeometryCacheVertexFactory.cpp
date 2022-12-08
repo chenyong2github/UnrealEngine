@@ -10,6 +10,7 @@
 #include "ShaderParameterUtils.h"
 #include "MeshMaterialShader.h"
 #include "PackedNormal.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 /*-----------------------------------------------------------------------------
 FGeometryCacheVertexFactoryShaderParameters

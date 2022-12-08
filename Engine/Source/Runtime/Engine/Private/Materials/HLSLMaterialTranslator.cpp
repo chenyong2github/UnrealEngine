@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 /*=============================================================================
 	HLSLMaterialTranslator.cpp: Translates material expressions into HLSL code.
 =============================================================================*/
+
 #include "HLSLMaterialTranslator.h"
 #include "VT/VirtualTextureScalability.h"
 #include "Materials/MaterialExpressionCustom.h"
@@ -9,6 +11,7 @@
 #include "MaterialExpressionSettings.h"
 #include "Engine/RendererSettings.h"
 #include "ShaderPlatformCachedIniValue.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include <functional>
 
 static int32 GetLWCTruncateMode()

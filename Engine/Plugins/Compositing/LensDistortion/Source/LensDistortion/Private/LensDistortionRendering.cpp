@@ -14,6 +14,7 @@
 #include "Logging/MessageLog.h"
 #include "Internationalization/Internationalization.h"
 #include "TextureResource.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 
 static const uint32 kGridSubdivisionX = 32;

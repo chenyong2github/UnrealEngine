@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OIT.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "LocalVertexFactory.h"
 #include "OITParameters.h"
 #include "Shader.h"

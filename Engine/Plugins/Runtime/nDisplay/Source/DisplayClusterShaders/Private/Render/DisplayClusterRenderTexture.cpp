@@ -3,6 +3,7 @@
 #include "Render/DisplayClusterRenderTexture.h"
 
 #include "RenderingThread.h"
+#include "Containers/ResourceArray.h"
 
 //---------------------------------------------------------------------------------------
 // FDisplayClusterResourceBulkData

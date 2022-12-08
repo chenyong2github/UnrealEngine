@@ -2,8 +2,7 @@
 
 #include "SubsurfaceTiles.h"
 #include "SceneRendering.h"
-
-
+#include "DataDrivenShaderPlatformInfo.h"
 
 bool FSubsurfaceTilePassVS::ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 {

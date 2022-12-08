@@ -149,12 +149,51 @@ TRDGUniformBufferRef<FDebugViewModePassUniformParameters> CreateDebugViewModePas
 	return GraphBuilder.CreateUniformBuffer(UniformBufferParameters);
 }
 
-IMPLEMENT_MATERIAL_SHADER_TYPE(,FDebugViewModeVS,TEXT("/Engine/Private/DebugViewModeVertexShader.usf"),TEXT("Main"),SF_Vertex);	
+FDebugViewModeVS::FDebugViewModeVS() = default;
+FDebugViewModeVS::FDebugViewModeVS(const FMeshMaterialShaderType::CompiledShaderInitializerType& Initializer)
+	: FMeshMaterialShader(Initializer)
+{}
 
 bool FDebugViewModeVS::ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 {
 	return AllowDebugViewVSDSHS(Parameters.Platform) && EnumHasAllFlags(Parameters.Flags, EShaderPermutationFlags::HasEditorOnlyData);
 }
+
+void FDebugViewModeVS::GetShaderBindings(
+	const FScene* Scene,
+	ERHIFeatureLevel::Type FeatureLevel,
+	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
+	const FMaterialRenderProxy& MaterialRenderProxy,
+	const FMaterial& Material,
+	const FMeshPassProcessorRenderState& DrawRenderState,
+	const FDebugViewModeShaderElementData& ShaderElementData,
+	FMeshDrawSingleShaderBindings& ShaderBindings) const
+{
+	FMeshMaterialShader::GetShaderBindings(Scene, FeatureLevel, PrimitiveSceneProxy, MaterialRenderProxy, Material, DrawRenderState, ShaderElementData, ShaderBindings);
+}
+
+void FDebugViewModeVS::SetCommonDefinitions(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+{
+	// SM4 has less input interpolants. Also instanced meshes use more interpolants.
+	if (Parameters.MaterialParameters.bIsDefaultMaterial || (IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && !Parameters.MaterialParameters.bIsUsedWithInstancedStaticMeshes))
+	{	// Force the default material to pass enough texcoords to the pixel shaders (even though not using them).
+		// This is required to allow material shaders to have access to the sampled coords.
+		OutEnvironment.SetDefine(TEXT("MIN_MATERIAL_TEXCOORDS"), (uint32)4);
+	}
+	else // Otherwise still pass at minimum amount to have debug shader using a texcoord to work (material might not use any).
+	{
+		OutEnvironment.SetDefine(TEXT("MIN_MATERIAL_TEXCOORDS"), (uint32)2);
+	}
+
+}
+
+void FDebugViewModeVS::ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+{
+	SetCommonDefinitions(Parameters, OutEnvironment);
+	FMeshMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+}
+
+IMPLEMENT_MATERIAL_SHADER_TYPE(,FDebugViewModeVS,TEXT("/Engine/Private/DebugViewModeVertexShader.usf"),TEXT("Main"),SF_Vertex);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FDebugViewModePassParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
@@ -195,9 +234,52 @@ void RenderDebugViewMode(FRDGBuilder& GraphBuilder, TArrayView<FViewInfo> Views,
 	}
 }
 
+FDebugViewModePS::FDebugViewModePS() = default;
+FDebugViewModePS::FDebugViewModePS(const FMeshMaterialShaderType::CompiledShaderInitializerType& Initializer)
+	: FMeshMaterialShader(Initializer)
+{
+	OneOverCPUTexCoordScalesParameter.Bind(Initializer.ParameterMap, TEXT("OneOverCPUTexCoordScales"));
+	TexCoordIndicesParameter.Bind(Initializer.ParameterMap, TEXT("TexCoordIndices"));
+	CPUTexelFactorParameter.Bind(Initializer.ParameterMap, TEXT("CPUTexelFactor"));
+	NormalizedComplexity.Bind(Initializer.ParameterMap, TEXT("NormalizedComplexity"));
+	AnalysisParamsParameter.Bind(Initializer.ParameterMap, TEXT("AnalysisParams"));
+	PrimitiveAlphaParameter.Bind(Initializer.ParameterMap, TEXT("PrimitiveAlpha"));
+	TexCoordAnalysisIndexParameter.Bind(Initializer.ParameterMap, TEXT("TexCoordAnalysisIndex"));
+	CPULogDistanceParameter.Bind(Initializer.ParameterMap, TEXT("CPULogDistance"));
+	ShowQuadOverdraw.Bind(Initializer.ParameterMap, TEXT("bShowQuadOverdraw"));
+	OutputQuadOverdrawParameter.Bind(Initializer.ParameterMap, TEXT("bOutputQuadOverdraw"));
+	LODIndexParameter.Bind(Initializer.ParameterMap, TEXT("LODIndex"));
+	SkinCacheDebugColorParameter.Bind(Initializer.ParameterMap, TEXT("SkinCacheDebugColor"));
+	VisualizeModeParameter.Bind(Initializer.ParameterMap, TEXT("VisualizeMode"));
+	QuadBufferUAV.Bind(Initializer.ParameterMap, TEXT("RWQuadBuffer"));
+}
+
 bool FDebugViewModePS::ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 {
 	return ShouldCompileDebugViewModeShader(Parameters);
+}
+
+void FDebugViewModePS::ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+{
+	OutEnvironment.SetDefine(TEXT("UNDEFINED_ACCURACY"), UndefinedStreamingAccuracyIntensity);
+	OutEnvironment.SetDefine(TEXT("MAX_NUM_TEX_COORD"), (uint32)TEXSTREAM_MAX_NUM_UVCHANNELS);
+	OutEnvironment.SetDefine(TEXT("INITIAL_GPU_SCALE"), (uint32)TEXSTREAM_INITIAL_GPU_SCALE);
+	OutEnvironment.SetDefine(TEXT("TILE_RESOLUTION"), (uint32)TEXSTREAM_TILE_RESOLUTION);
+	OutEnvironment.SetDefine(TEXT("MAX_NUM_TEXTURE_REGISTER"), (uint32)TEXSTREAM_MAX_NUM_TEXTURES_PER_MATERIAL);
+	OutEnvironment.SetDefine(TEXT("SCENE_TEXTURES_DISABLED"), 1u);
+	TCHAR BufferRegister[] = { 'u', '0', 0 };
+	BufferRegister[1] += GetQuadOverdrawUAVIndex(Parameters.Platform);
+	OutEnvironment.SetDefine(TEXT("QUAD_BUFFER_REGISTER"), BufferRegister);
+	const bool bUsingMobileRenderer = FSceneInterface::GetShadingPath(GetMaxSupportedFeatureLevel(Parameters.Platform)) == EShadingPath::Mobile;
+	OutEnvironment.SetDefine(TEXT("OUTPUT_QUAD_OVERDRAW"), !bUsingMobileRenderer);
+
+
+	for (int i = 0; i < DVSM_MAX; ++i)
+	{
+		OutEnvironment.SetDefine(DebugViewShaderModeToString(static_cast<EDebugViewShaderMode>(i)), i);
+	}
+
+	FMeshMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 }
 
 void FDebugViewModePS::GetElementShaderBindings(

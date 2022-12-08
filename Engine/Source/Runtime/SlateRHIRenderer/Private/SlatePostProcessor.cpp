@@ -6,6 +6,7 @@
 #include "ScreenRendering.h"
 #include "SceneUtils.h"
 #include "RendererInterface.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "StaticBoundShaderState.h"
 #include "PipelineStateCache.h"
 #include "CommonRenderResources.h"

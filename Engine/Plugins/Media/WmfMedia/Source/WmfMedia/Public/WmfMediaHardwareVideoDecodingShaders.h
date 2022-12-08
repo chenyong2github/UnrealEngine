@@ -8,6 +8,7 @@
 #include "PipelineStateCache.h"
 #include "ShaderParameterUtils.h"
 #include "MediaShaders.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 /**
  * Shaders which allow the conversion of NV12 texture data into RGB textures.
