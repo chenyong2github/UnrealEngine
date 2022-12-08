@@ -460,10 +460,12 @@ namespace Chaos
 			, TargetPenetration(InTargetPenetration)
 		{
 			const FAABB3 QueryBounds = InQueryGeom.BoundingBox();
-			const FVec3 StartPoint = StartTM.TransformPositionNoScale(QueryBounds.Center());
+			const FVec3 BoundsStartPoint = StartTM.TransformPositionNoScale(QueryBounds.Center());
+			const FVec3 StartPoint = StartTM.GetTranslation();
 			const FVec3 Inflation3D = QueryBounds.Extents() * FReal(0.5);
 
 			const VectorRegister4Float LengthSimd = MakeVectorRegisterFloatFromDouble(VectorSetFloat1(Length));
+			BoundsStartPointSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(BoundsStartPoint.X, BoundsStartPoint.Y, BoundsStartPoint.Z, 0.0));
 			StartPointSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(StartPoint.X, StartPoint.Y, StartPoint.Z, 0.0));
 			DirSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(InDir.X, InDir.Y, InDir.Z, 0.0));
 			EndPointSimd = VectorAdd(StartPointSimd, VectorMultiply(DirSimd, LengthSimd));
@@ -549,7 +551,7 @@ namespace Chaos
 			HfData->GetPointsAndBoundsScaledSimd(VertexIndex, Points, CellBounds);
 			CellBounds.Thicken(Inflation3DSimd);
 
-			if (CellBounds.RaycastFast(StartPointSimd, InvDirSimd, ParallelSimd, VectorSetFloat1(static_cast<FRealSingle>(CurrentLength))))
+			if (CellBounds.RaycastFast(BoundsStartPointSimd, InvDirSimd, ParallelSimd, VectorSetFloat1(static_cast<FRealSingle>(CurrentLength))))
 			{
 				const int32 TriIndex0 = 2 * CellIndex + 0;
 				const int32 TriIndex1 = 2 * CellIndex + 1;
@@ -579,6 +581,7 @@ namespace Chaos
 		FReal IgnorePenetration;
 		FReal TargetPenetration;
 
+		VectorRegister4Float BoundsStartPointSimd;
 		VectorRegister4Float StartPointSimd;
 		VectorRegister4Float EndPointSimd;
 		VectorRegister4Float InvDirSimd;

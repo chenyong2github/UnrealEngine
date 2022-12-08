@@ -1103,4 +1103,85 @@ namespace ChaosTest {
 		SUCCEED();
 	}
 
+	// A flat heightfield and a sphere swept downwards using the CCD API.
+	// Check that the IgnoreThreshold is being used to ignore sweeps that have a penetration depth
+	// less that that threshold at T=1.
+	GTEST_TEST(HeightfieldCCDTests, TestSphere)
+	{
+		int32 Rows = 64;
+		int32 Columns = 64;
+		FVec3 Scale(100.0, 100.0, 100.0);
+		TArray<FReal> Heights;
+		Heights.AddZeroed(Rows * Columns);
+
+		TArray<FReal> HeightsCopy = Heights;
+		FHeightField Heightfield(MoveTemp(HeightsCopy), TArray<uint8>(), Rows, Columns, Scale);
+		const auto& Bounds = Heightfield.BoundingBox();	//Current API forces us to do this to cache the bounds
+
+		TSphere<FReal, 3> Sphere(FVec3(0.0, 0.0, 0.0), 50.0);
+
+		FReal TOI, Phi;
+		FVec3 Position, Normal, FaceNormal;
+		int32 FaceIdx = 0;
+
+		const FRigidTransform3 Start(FVec3(0, 0, 60), FRotation3::FromIdentity());
+		const FVec3 Dir(0, 0, -1);
+		const FReal CCDIgnorePenetration = 30;
+		const FReal CCDTargetPenetration = 0;
+
+		// The first sweep should be less than the ignore threshold so get no hit
+		const FReal CCDSweepLengthA = 30;
+		const bool bHitA = Heightfield.SweepGeomCCD(Sphere, Start, Dir, CCDSweepLengthA, CCDIgnorePenetration, CCDTargetPenetration, TOI, Phi, Position, Normal, FaceIdx, FaceNormal);
+		EXPECT_FALSE(bHitA);
+
+		// The second sweep should be greater than the ignore threshold so we get a hit
+		const FReal CCDSweepLengthB = 50;
+		const bool bHitB = Heightfield.SweepGeomCCD(Sphere, Start, Dir, CCDSweepLengthB, CCDIgnorePenetration, CCDTargetPenetration, TOI, Phi, Position, Normal, FaceIdx, FaceNormal);
+		EXPECT_TRUE(bHitB);
+		EXPECT_NEAR(TOI, 0.2, UE_KINDA_SMALL_NUMBER);	// 10 / 50
+		EXPECT_NEAR(Phi, 0.0, UE_KINDA_SMALL_NUMBER);	// We are not initially penetrating
+	}
+
+	// Same as TestSphere except the sphere has a local offset built in.
+	// CCD sweeps have an early out if the depth at T=1 is less than some threshold, and there was a bug in this.
+	// related to the fact that the sweep is effectively an AABB sweep to find the overlapping heightfield cells, 
+	// and a Shape sweep to find the shape-triangle overlaps. The bug was that the AABB sweep position was being 
+	// used in the early-rejection code that should be using the shape position.
+	GTEST_TEST(HeightfieldCCDTests, TestSphereWithOffset)
+	{
+		int32 Rows = 64;
+		int32 Columns = 64;
+		FVec3 Scale(100.0, 100.0, 100.0);
+		TArray<FReal> Heights;
+		Heights.AddZeroed(Rows * Columns);
+
+		TArray<FReal> HeightsCopy = Heights;
+		FHeightField Heightfield(MoveTemp(HeightsCopy), TArray<uint8>(), Rows, Columns, Scale);
+		const auto& Bounds = Heightfield.BoundingBox();	//Current API forces us to do this to cache the bounds
+
+		// NOTE: Sphere center 50cm up
+		TSphere<FReal, 3> Sphere(FVec3(0.0, 0.0, 50.0), 50.0);
+
+		FReal TOI, Phi;
+		FVec3 Position, Normal, FaceNormal;
+		int32 FaceIdx = 0;
+
+		// NOTE: Start height at 10, rather than 60 in TestSphere
+		const FRigidTransform3 Start(FVec3(0, 0, 10), FRotation3::FromIdentity());
+		const FVec3 Dir(0, 0, -1);
+		const FReal CCDIgnorePenetration = 30;
+		const FReal CCDTargetPenetration = 0;
+		
+		// The first sweep should be less than the ignore threshold so get no hit
+		const FReal CCDSweepLengthA = 30;
+		const bool bHitA = Heightfield.SweepGeomCCD(Sphere, Start, Dir, CCDSweepLengthA, CCDIgnorePenetration, CCDTargetPenetration, TOI, Phi, Position, Normal, FaceIdx, FaceNormal);
+		EXPECT_FALSE(bHitA);
+
+		// The second sweep should be greater than the ignore threshold so we get a hit
+		const FReal CCDSweepLengthB = 50;
+		const bool bHitB = Heightfield.SweepGeomCCD(Sphere, Start, Dir, CCDSweepLengthB, CCDIgnorePenetration, CCDTargetPenetration, TOI, Phi, Position, Normal, FaceIdx, FaceNormal);
+		EXPECT_TRUE(bHitB);
+		EXPECT_NEAR(TOI, 0.2, UE_KINDA_SMALL_NUMBER);	// 10 / 50
+		EXPECT_NEAR(Phi, 0.0, UE_KINDA_SMALL_NUMBER);	// We are not initially penetrating
+	}
 }
