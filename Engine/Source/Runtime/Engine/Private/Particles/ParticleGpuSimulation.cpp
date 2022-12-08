@@ -912,7 +912,7 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(float, TileSizeX)
 		SHADER_PARAMETER(float, TileSizeY)
-		SHADER_PARAMETER_SRV(FShaderResourceParameter, TileOffsets)
+		SHADER_PARAMETER_SRV(Buffer<float2>, TileOffsets)
 	END_SHADER_PARAMETER_STRUCT()
 
 	FParameters GetParameters(FParticleShaderParamRef TileOffsetsRef)
