@@ -70,6 +70,15 @@ void UInterchangePipelineBase::AdjustSettingsFromCache()
 	AdjustSettingsForContext(CachePipelineContext, CacheReimportObject.Get());
 }
 
+void UInterchangePipelineBase::TransferAdjustSettings(UInterchangePipelineBase* SourcePipeline)
+{
+	CachePipelineContext = SourcePipeline->CachePipelineContext;
+	CacheReimportObject = SourcePipeline->CacheReimportObject;
+	CachePropertiesStates = SourcePipeline->CachePropertiesStates;
+	bAllowPropertyStatesEdition = SourcePipeline->bAllowPropertyStatesEdition;
+	bIsReimportContext = SourcePipeline->bIsReimportContext;
+}
+
 const FInterchangePipelinePropertyStates* UInterchangePipelineBase::GetPropertyStates(const FName PropertyPath) const
 {
 	return PropertiesStates.Find(PropertyPath);

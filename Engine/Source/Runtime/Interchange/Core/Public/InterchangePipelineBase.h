@@ -243,6 +243,9 @@ public:
 	virtual void AdjustSettingsForContext(EInterchangePipelineContext ReimportType, TObjectPtr<UObject> ReimportAsset);
 	virtual void AdjustSettingsFromCache();
 
+	/** Transfer the source pipeline adjust settings to this pipeline. */
+	void TransferAdjustSettings(UInterchangePipelineBase* SourcePipeline);
+
 	/**
 	 * This function is used to add the given message object directly into the results for this operation.
 	 */
@@ -296,6 +299,7 @@ public:
 
 	bool CanEditPropertiesStates() { return bAllowPropertyStatesEdition; }
 	bool IsReimportContext() { return bIsReimportContext; }
+
 protected:
 
 	UE_DEPRECATED(5.2, "This function is replace by ExecutePipeline.")

@@ -67,6 +67,45 @@ FName FInterchangeProjectSettingsUtils::GetDefaultPipelineStackName(const bool b
 	return DefaultPipelineStack;
 }
 
+void FInterchangeProjectSettingsUtils::SetDefaultPipelineStackName(const bool bIsSceneImport, const UInterchangeSourceData& SourceData, const FName StackName)
+{
+	FInterchangeImportSettings& ImportSettings = GetMutableDefaultImportSettings(bIsSceneImport);
+
+	if (!ImportSettings.PipelineStacks.Contains(StackName))
+	{
+		//The new stack name must be valid
+		return;
+	}
+
+	FName DefaultPipelineStack = ImportSettings.DefaultPipelineStack;
+
+	if (!bIsSceneImport)
+	{
+		UE::Interchange::FScopedTranslator ScopedTranslator(&SourceData);
+
+		if (UInterchangeTranslatorBase* Translator = ScopedTranslator.GetTranslator())
+		{
+			EInterchangeTranslatorAssetType SupportedAssetTypes = Translator->GetSupportedAssetTypes();
+
+			FInterchangeContentImportSettings& ContentImportSettings = GetMutableDefault<UInterchangeProjectSettings>()->ContentImportSettings;
+			for (TMap<EInterchangeTranslatorAssetType, FName>::TIterator StackOverridesIt = ContentImportSettings.DefaultPipelineStackOverride.CreateIterator(); StackOverridesIt; ++StackOverridesIt)
+			{
+				if ((SupportedAssetTypes ^ StackOverridesIt->Key) < StackOverridesIt->Key)
+				{
+					//Update the override stack name and save the config
+					StackOverridesIt->Value = StackName;
+					GetMutableDefault<UInterchangeProjectSettings>()->SaveConfig();
+					return;
+				}
+			}
+		}
+	}
+
+	//We do not have any override default stack, simply change the DefaultPipelineStack and save the config
+	ImportSettings.DefaultPipelineStack = StackName;
+	GetMutableDefault<UInterchangeProjectSettings>()->SaveConfig();
+}
+
 bool FInterchangeProjectSettingsUtils::ShouldShowPipelineStacksConfigurationDialog(const bool bIsSceneImport, const UInterchangeSourceData& SourceData)
 {
 	const FInterchangeImportSettings& ImportSettings = GetDefaultImportSettings(bIsSceneImport);

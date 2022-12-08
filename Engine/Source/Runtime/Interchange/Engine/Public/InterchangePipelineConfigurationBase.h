@@ -17,6 +17,18 @@ enum class EInterchangePipelineConfigurationDialogResult : uint8
 	ImportAll	UMETA(DisplayName = "Import All"),
 };
 
+USTRUCT(BlueprintType)
+struct FInterchangeStackInfo
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interchange | Translator")
+	FName StackName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interchange | Translator")
+	TArray<TObjectPtr<UInterchangePipelineBase>> Pipelines;
+};
+
 UCLASS(BlueprintType, Blueprintable, Experimental)
 class INTERCHANGEENGINE_API UInterchangePipelineConfigurationBase : public UObject
 {
@@ -28,39 +40,51 @@ public:
 	 * Non virtual helper to allow blueprint to implement event base function to implement the ShowPipelineConfigurationDialog,
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interchange | Translator")
-	EInterchangePipelineConfigurationDialogResult ScriptedShowPipelineConfigurationDialog(UInterchangeSourceData* SourceData);
+	EInterchangePipelineConfigurationDialogResult ScriptedShowPipelineConfigurationDialog(TArray<FInterchangeStackInfo>& PipelineStacks
+		, TArray<UInterchangePipelineBase*>& OutPipelines
+		, UInterchangeSourceData* SourceData);
 
 	/** The default implementation (call if the blueprint do not have any implementation) will call the virtual ExecuteImportPipeline */
-	EInterchangePipelineConfigurationDialogResult ScriptedShowPipelineConfigurationDialog_Implementation(UInterchangeSourceData* SourceData)
+	EInterchangePipelineConfigurationDialogResult ScriptedShowPipelineConfigurationDialog_Implementation(TArray<FInterchangeStackInfo>& PipelineStacks
+		, TArray<UInterchangePipelineBase*>& OutPipelines
+		, UInterchangeSourceData* SourceData)
 	{
 		//By default we call the virtual import pipeline execution
-		return ShowPipelineConfigurationDialog(SourceData);
+		return ShowPipelineConfigurationDialog(PipelineStacks, OutPipelines, SourceData);
 	}
 
 	/**
 	 * Non virtual helper to allow blueprint to implement event base function to implement the ShowPipelineConfigurationDialog,
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interchange | Translator")
-	EInterchangePipelineConfigurationDialogResult ScriptedShowScenePipelineConfigurationDialog(UInterchangeSourceData* SourceData);
+	EInterchangePipelineConfigurationDialogResult ScriptedShowScenePipelineConfigurationDialog(TArray<FInterchangeStackInfo>& PipelineStacks
+		, TArray<UInterchangePipelineBase*>& OutPipelines
+		, UInterchangeSourceData* SourceData);
 
 	/** The default implementation (call if the blueprint do not have any implementation) will call the virtual ExecuteImportPipeline */
-	EInterchangePipelineConfigurationDialogResult ScriptedShowScenePipelineConfigurationDialog_Implementation(UInterchangeSourceData* SourceData)
+	EInterchangePipelineConfigurationDialogResult ScriptedShowScenePipelineConfigurationDialog_Implementation(TArray<FInterchangeStackInfo>& PipelineStacks
+		, TArray<UInterchangePipelineBase*>& OutPipelines
+		, UInterchangeSourceData* SourceData)
 	{
 		//By default we call the virtual import pipeline execution
-		return ShowScenePipelineConfigurationDialog(SourceData);
+		return ShowScenePipelineConfigurationDialog(PipelineStacks, OutPipelines, SourceData);
 	}
 
 	/**
 	 * Non virtual helper to allow blueprint to implement event base function to implement the ShowPipelineConfigurationDialog,
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interchange | Translator")
-	EInterchangePipelineConfigurationDialogResult ScriptedShowReimportPipelineConfigurationDialog(TArray<UInterchangePipelineBase*>& PipelineStack, UInterchangeSourceData* SourceData);
+	EInterchangePipelineConfigurationDialogResult ScriptedShowReimportPipelineConfigurationDialog(TArray<FInterchangeStackInfo>& PipelineStacks
+		, TArray<UInterchangePipelineBase*>& OutPipelines
+		, UInterchangeSourceData* SourceData);
 
 	/** The default implementation (call if the blueprint do not have any implementation) will call the virtual ExecuteImportPipeline */
-	EInterchangePipelineConfigurationDialogResult ScriptedShowReimportPipelineConfigurationDialog_Implementation(TArray<UInterchangePipelineBase*>& PipelineStack, UInterchangeSourceData* SourceData)
+	EInterchangePipelineConfigurationDialogResult ScriptedShowReimportPipelineConfigurationDialog_Implementation(TArray<FInterchangeStackInfo>& PipelineStacks
+		, TArray<UInterchangePipelineBase*>& OutPipelines
+		, UInterchangeSourceData* SourceData)
 	{
 		//By default we call the virtual import pipeline execution
-		return ShowReimportPipelineConfigurationDialog(PipelineStack, SourceData);
+		return ShowReimportPipelineConfigurationDialog(PipelineStacks, OutPipelines, SourceData);
 	}
 
 protected:
@@ -68,7 +92,9 @@ protected:
 	/**
 	 * This function show a dialog use to configure pipeline stacks and return a stack name that tell the caller the user choice.
 	 */
-	virtual EInterchangePipelineConfigurationDialogResult ShowPipelineConfigurationDialog(TWeakObjectPtr<UInterchangeSourceData> SourceData)
+	virtual EInterchangePipelineConfigurationDialogResult ShowPipelineConfigurationDialog(TArray<FInterchangeStackInfo>& PipelineStacks
+		, TArray<UInterchangePipelineBase*>& OutPipelines
+		, TWeakObjectPtr<UInterchangeSourceData> SourceData)
 	{ 
 		//Not implemented
 		return EInterchangePipelineConfigurationDialogResult::Cancel;
@@ -77,7 +103,9 @@ protected:
 	/**
 	 * This function show a dialog use to configure pipeline stacks and return a stack name that tell the caller the user choice.
 	 */
-	virtual EInterchangePipelineConfigurationDialogResult ShowScenePipelineConfigurationDialog(TWeakObjectPtr<UInterchangeSourceData> SourceData)
+	virtual EInterchangePipelineConfigurationDialogResult ShowScenePipelineConfigurationDialog(TArray<FInterchangeStackInfo>& PipelineStacks
+		, TArray<UInterchangePipelineBase*>& OutPipelines
+		, TWeakObjectPtr<UInterchangeSourceData> SourceData)
 	{ 
 		//Not implemented
 		return EInterchangePipelineConfigurationDialogResult::Cancel;
@@ -86,7 +114,9 @@ protected:
 	/**
 	 * This function show a dialog use to configure pipeline stacks and return a stack name that tell the caller the user choice.
 	 */
-	virtual EInterchangePipelineConfigurationDialogResult ShowReimportPipelineConfigurationDialog(TArray<UInterchangePipelineBase*>& PipelineStack, TWeakObjectPtr<UInterchangeSourceData> SourceData)
+	virtual EInterchangePipelineConfigurationDialogResult ShowReimportPipelineConfigurationDialog(TArray<FInterchangeStackInfo>& PipelineStacks
+		, TArray<UInterchangePipelineBase*>& OutPipelines
+		, TWeakObjectPtr<UInterchangeSourceData> SourceData)
 	{
 		//Not implemented
 		return EInterchangePipelineConfigurationDialogResult::Cancel;

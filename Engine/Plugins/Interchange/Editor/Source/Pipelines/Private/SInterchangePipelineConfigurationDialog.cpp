@@ -9,6 +9,7 @@
 #include "InterchangeBlueprintPipelineBase.h"
 #include "InterchangeManager.h"
 #include "InterchangePipelineBase.h"
+#include "InterchangePipelineConfigurationBase.h"
 #include "InterchangeProjectSettings.h"
 #include "InterchangePythonPipelineBase.h"
 #include "InterchangeSourceData.h"
@@ -30,362 +31,47 @@
 
 #define LOCTEXT_NAMESPACE "InterchangePipelineConfiguration"
 
-extern INTERCHANGECORE_API bool GInterchangeEnableCustomPipelines;
+const FName ReimportStackName = TEXT("ReimportPipeline");
 
-const FName ReimportPipelineName = TEXT("ReimportPipeline");
-
-/************************************************************************/
-/* FInterchangePipelineStacksTreeNodeItem Implementation                    */
-/************************************************************************/
-
-void FInterchangePipelineStacksTreeNodeItem::AddReferencedObjects(FReferenceCollector& Collector)
+void SInterchangePipelineItem::Construct(
+	const FArguments& InArgs,
+	const TSharedRef<STableViewBase>& OwnerTable,
+	TObjectPtr<UInterchangePipelineBase> InPipelineElement)
 {
-	if (Pipeline)
-	{
-		Collector.AddReferencedObject(Pipeline);
-	}
-}
-
-/************************************************************************/
-/* SInterchangePipelineStacksTreeView Implementation                    */
-/************************************************************************/
-
-SInterchangePipelineStacksTreeView::~SInterchangePipelineStacksTreeView()
-{
-
-}
-
-void SInterchangePipelineStacksTreeView::Construct(const FArguments& InArgs)
-{
-	OnSelectionChangedDelegate = InArgs._OnSelectionChangedDelegate;
-	SourceData = InArgs._SourceData;
-	PipelineStack = InArgs._PipelineStack;
-	bSceneImport = InArgs._bSceneImport;
-	bReimport = InArgs._bReimport && PipelineStack.Num() > 0;
-
-	//Build the FbxNodeInfoPtr tree data
-	const FName& DefaultPipelineStackName = bReimport ? ReimportPipelineName : FInterchangeProjectSettingsUtils::GetDefaultPipelineStackName(bSceneImport, *SourceData.Get());
-	const TMap<FName, FInterchangePipelineStack>& PipelineStacks = FInterchangeProjectSettingsUtils::GetDefaultImportSettings(bSceneImport).PipelineStacks;
-
-	//In reimport we modify directly the asset pipeline
-	if (bReimport)
-	{
-		TSharedPtr<FInterchangePipelineStacksTreeNodeItem> StackNode = MakeShared<FInterchangePipelineStacksTreeNodeItem>();
-		StackNode->StackName = ReimportPipelineName;
-		StackNode->Pipeline = nullptr;
-		for (int32 PipelineIndex = 0; PipelineIndex < PipelineStack.Num(); ++PipelineIndex)
-		{
-			if(UInterchangePipelineBase* GeneratedPipeline = PipelineStack[PipelineIndex])
-			{
-				//When we re-import we save the setting so ResetToDefault can simply just reload the settings
-				GeneratedPipeline->SaveSettings(ReimportPipelineName);
-				TSharedPtr<FInterchangePipelineStacksTreeNodeItem> PipelineNode = MakeShared<FInterchangePipelineStacksTreeNodeItem>();
-				PipelineNode->StackName = ReimportPipelineName;
-				//Currently the re-import never lock properties
-				PipelineNode->Pipeline = GeneratedPipeline;
-				StackNode->Childrens.Add(PipelineNode);
-			}
-		}
-		RootNodeArray.Add(StackNode);
-	}
-	else
-	{
-		for (const TPair<FName, FInterchangePipelineStack>& NameAndPipelineStack : PipelineStacks)
-		{
-			TSharedPtr<FInterchangePipelineStacksTreeNodeItem> StackNode = MakeShared<FInterchangePipelineStacksTreeNodeItem>();
-			StackNode->StackName = NameAndPipelineStack.Key;
-			StackNode->Pipeline = nullptr;
-			const FInterchangePipelineStack& InterchangePipelineStack = NameAndPipelineStack.Value;
-			for (int32 PipelineIndex = 0; PipelineIndex < InterchangePipelineStack.Pipelines.Num(); ++PipelineIndex)
-			{
-				if (UInterchangePipelineBase* GeneratedPipeline = UE::Interchange::GeneratePipelineInstance(InterchangePipelineStack.Pipelines[PipelineIndex]))
-				{
-					GeneratedPipeline->AdjustSettingsForContext((bSceneImport ? EInterchangePipelineContext::SceneImport : EInterchangePipelineContext::AssetImport), nullptr);
-					//Load the settings for this pipeline
-					GeneratedPipeline->LoadSettings(NameAndPipelineStack.Key);
-					GeneratedPipeline->PreDialogCleanup(NameAndPipelineStack.Key);
-					TSharedPtr<FInterchangePipelineStacksTreeNodeItem> PipelineNode = MakeShared<FInterchangePipelineStacksTreeNodeItem>();
-					PipelineNode->StackName = NameAndPipelineStack.Key;
-					PipelineNode->Pipeline = GeneratedPipeline;
-					StackNode->Childrens.Add(PipelineNode);
-				}
-			}
-			RootNodeArray.Add(StackNode);
-		}
-	}
-
-	STreeView::Construct
-	(
-		STreeView::FArguments()
-		.TreeItemsSource(&RootNodeArray)
-		.SelectionMode(ESelectionMode::Single)
-		.OnGenerateRow(this, &SInterchangePipelineStacksTreeView::OnGenerateRowPipelineConfigurationTreeView)
-		.OnGetChildren(this, &SInterchangePipelineStacksTreeView::OnGetChildrenPipelineConfigurationTreeView)
-		.OnContextMenuOpening(this, &SInterchangePipelineStacksTreeView::OnOpenContextMenu)
-		.OnSelectionChanged(this, &SInterchangePipelineStacksTreeView::OnTreeViewSelectionChanged)
-	);
-}
-
-void SInterchangePipelineStacksTreeView::SelectDefaultItem()
-{
-	FName DefaultStackName = bReimport ? ReimportPipelineName : FInterchangeProjectSettingsUtils::GetDefaultPipelineStackName(bSceneImport, *SourceData.Get());
-
-	for (const TSharedPtr<FInterchangePipelineStacksTreeNodeItem>& PipelineStacksTreeNodeItem : RootNodeArray)
-	{
-		if (PipelineStacksTreeNodeItem->StackName == DefaultStackName && !PipelineStacksTreeNodeItem->Childrens.IsEmpty())
-		{
-			const bool bShouldExpandItem = true;
-			SetItemExpansion(PipelineStacksTreeNodeItem, bShouldExpandItem);
-			SetSelection(PipelineStacksTreeNodeItem->Childrens[0]);
-
-			break;
-		}
-	}
-}
-
-/** The item used for visualizing the class in the tree. */
-class SInterchangePipelineStacksTreeViewItem : public STableRow< TSharedPtr<FInterchangePipelineStacksTreeNodeItem> >
-{
-public:
-
-	SLATE_BEGIN_ARGS(SInterchangePipelineStacksTreeViewItem)
-		: _InterchangeNode(nullptr)
-	{}
-
-		/** The item content. */
-		SLATE_ARGUMENT(TSharedPtr<FInterchangePipelineStacksTreeNodeItem>, InterchangeNode)
-		SLATE_ARGUMENT(bool, bSceneImport)
-		SLATE_ARGUMENT(FName, DefaultPipelineStackName)
-	SLATE_END_ARGS()
-
-	/**
-	* Construct the widget
-	*
-	* @param InArgs   A declaration from which to construct the widget
-	*/
-	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView)
-	{
-		InterchangeNode = InArgs._InterchangeNode;
-		bSceneImport = InArgs._bSceneImport;
-		DefaultPipelineStackName = InArgs._DefaultPipelineStackName;
-
-		//This is suppose to always be valid
-		check(InterchangeNode);
-		const bool bIsPipelineStackNode = InterchangeNode->Pipeline == nullptr;
-
-		//Prepare the tooltip
-		FString Tooltip;
-		//FString Tooltip = bIsPipelineStackNode ? InterchangeNode->GetDisplayLabel();
-		FText NodeDisplayLabel = FText::FromName(bIsPipelineStackNode ? InterchangeNode->StackName : InterchangeNode->Pipeline->GetClass()->GetFName());
-		this->ChildSlot
+	PipelineElement = InPipelineElement;
+	TObjectPtr<UInterchangePipelineBase> PipelineElementPtr = PipelineElement.Get();
+	check(PipelineElementPtr.Get());
+	FText PipelineName = PipelineElementPtr.Get() ? FText::FromString(PipelineElementPtr->GetClass()->GetName()) : LOCTEXT("InvalidPipelineName", "Invalid Pipeline");
+	STableRow<TObjectPtr<UInterchangePipelineBase>>::Construct(
+		STableRow<TObjectPtr<UInterchangePipelineBase>>::FArguments()
+		.Content()
 		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				SNew(SExpanderArrow, SharedThis(this))
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(0.0f, 2.0f, 6.0f, 2.0f)
-			[
-				SNew(SImage)
-				.Image(this, &SInterchangePipelineStacksTreeViewItem::GetImageItemIcon)
-			]
-			+ SHorizontalBox::Slot()
-			.FillWidth(1.0f)
-			.Padding(0.0f, 3.0f, 6.0f, 3.0f)
-			.VAlign(VAlign_Center)
+			SNew(SBox)
+			.Padding(3.0f, 0.0f)
 			[
 				SNew(STextBlock)
-				.Text(NodeDisplayLabel)
-				.ToolTipText(FText::FromString(Tooltip))
+				.Text(PipelineName)
 			]
-		];
-
-		STableRow< TSharedPtr<FInterchangePipelineStacksTreeNodeItem> >::ConstructInternal(
-			STableRow::FArguments()
-			.ShowSelection(true),
-			InOwnerTableView
-		);
-	}
-
-private:
-	const FSlateBrush* GetImageItemIcon() const
-	{
-		//This is suppose to always be valid
-		check(InterchangeNode);
-		const bool bIsPipelineStackNode = InterchangeNode->Pipeline == nullptr;
-		const bool bIsDefaultStackNode = bIsPipelineStackNode && (DefaultPipelineStackName == InterchangeNode->StackName);
-		const FSlateBrush * TypeIcon = nullptr;
-		FName IconName = bIsDefaultStackNode ? "PipelineConfigurationIcon.PipelineStackDefault" : bIsPipelineStackNode ? "PipelineConfigurationIcon.PipelineStack" : "PipelineConfigurationIcon.Pipeline";
-		if (IconName != NAME_None)
-		{
-			const FSlateIcon SlateIcon = FSlateIconFinder::FindIcon(IconName);
-			TypeIcon = SlateIcon.GetOptionalIcon();
-		}
-
-		if (!TypeIcon)
-		{
-			TypeIcon = FSlateIconFinder::FindIconBrushForClass(AActor::StaticClass());
-		}
-		return TypeIcon;
-	}
-
-	/** The node to build the tree view row from. */
-	TSharedPtr<FInterchangePipelineStacksTreeNodeItem> InterchangeNode = nullptr;
-	bool bSceneImport = false;
-	FName DefaultPipelineStackName;
-};
-
-TSharedRef< ITableRow > SInterchangePipelineStacksTreeView::OnGenerateRowPipelineConfigurationTreeView(TSharedPtr<FInterchangePipelineStacksTreeNodeItem> Item, const TSharedRef< STableViewBase >& OwnerTable)
-{
-	FName DefaultStackName = bReimport ? ReimportPipelineName : FInterchangeProjectSettingsUtils::GetDefaultPipelineStackName(bSceneImport, *SourceData.Get());
-
-	TSharedRef< SInterchangePipelineStacksTreeViewItem > ReturnRow = SNew(SInterchangePipelineStacksTreeViewItem, OwnerTable)
-		.InterchangeNode(Item)
-		.bSceneImport(bSceneImport)
-		.DefaultPipelineStackName(DefaultStackName);
-	return ReturnRow;
+		], OwnerTable);
 }
-void SInterchangePipelineStacksTreeView::OnGetChildrenPipelineConfigurationTreeView(TSharedPtr<FInterchangePipelineStacksTreeNodeItem> InParent, TArray< TSharedPtr<FInterchangePipelineStacksTreeNodeItem> >& OutChildren)
-{
-	for (int32 ChildIndex = 0; ChildIndex < InParent->Childrens.Num(); ++ChildIndex)
-	{
-		TSharedPtr<FInterchangePipelineStacksTreeNodeItem> ChildNode = InParent->Childrens[ChildIndex];
-		if (!ChildNode.IsValid())
-			continue;
-		OutChildren.Add(ChildNode);
-	}
-}
-
-void SInterchangePipelineStacksTreeView::RecursiveSetExpand(TSharedPtr<FInterchangePipelineStacksTreeNodeItem> Node, bool ExpandState)
-{
-	SetItemExpansion(Node, ExpandState);
-	for (int32 ChildIndex = 0; ChildIndex < Node->Childrens.Num(); ++ChildIndex)
-	{
-		TSharedPtr<FInterchangePipelineStacksTreeNodeItem> ChildNode = Node->Childrens[ChildIndex];
-		if (!ChildNode.IsValid())
-			continue;
-		RecursiveSetExpand(ChildNode, ExpandState);
-	}
-}
-
-FReply SInterchangePipelineStacksTreeView::OnExpandAll()
-{
-	for (TSharedPtr<FInterchangePipelineStacksTreeNodeItem> Node : RootNodeArray)
-	{
-		if (!ensure(Node))
-		{
-			continue;
-		}
-		RecursiveSetExpand(Node, true);
-	}
-	return FReply::Handled();
-}
-
-FReply SInterchangePipelineStacksTreeView::OnCollapseAll()
-{
-	for (TSharedPtr<FInterchangePipelineStacksTreeNodeItem> Node : RootNodeArray)
-	{
-		if (!ensure(Node))
-		{
-			continue;
-		}
-		RecursiveSetExpand(Node, false);
-	}
-	return FReply::Handled();
-}
-
-TSharedPtr<SWidget> SInterchangePipelineStacksTreeView::OnOpenContextMenu()
-{
-	if (bReimport)
-	{
-		return SNullWidget::NullWidget;
-	}
-
-	// Build up the menu for a selection
-	const bool bCloseAfterSelection = true;
-	FMenuBuilder MenuBuilder(bCloseAfterSelection, TSharedPtr<FUICommandList>());
-
-	TArray<TSharedPtr<FInterchangePipelineStacksTreeNodeItem>> SelectedNodes;
-	const auto NumSelectedItems = GetSelectedItems(SelectedNodes);
-
-	if (SelectedNodes.Num() == 1)
-	{
-		TSharedPtr<FInterchangePipelineStacksTreeNodeItem> SelectNode = SelectedNodes[0];
-		if (SelectNode->Pipeline == nullptr)
-		{
-			// We always create a section here, even if there is no parent so that clients can still extend the menu
-			MenuBuilder.BeginSection("TreeViewContextMenuStackNodeSection");
-			{
-				const FSlateIcon DefaultIcon(FAppStyle::GetAppStyleSetName(), "Icons.Default");
-				MenuBuilder.AddMenuEntry(LOCTEXT("SetAsDefaultMenuAction", "Set As Default Stack"), FText(), DefaultIcon, FUIAction(FExecuteAction::CreateSP(this, &SInterchangePipelineStacksTreeView::SetAsDefaultStack, SelectNode->StackName)));
-			}
-			MenuBuilder.EndSection();
-		}
-	}
-	
-
-	return MenuBuilder.MakeWidget();
-}
-
-void SInterchangePipelineStacksTreeView::SetAsDefaultStack(FName NewDefaultStackValue)
-{
-	UInterchangeProjectSettings* InterchangeProjectSettingsCDO = GetMutableDefault<UInterchangeProjectSettings>();
-	FName& DefaultPipelineStackName = [this, InterchangeProjectSettingsCDO]() -> FName&
-	{
-		if (bSceneImport)
-		{
-			return InterchangeProjectSettingsCDO->SceneImportSettings.DefaultPipelineStack;
-		}
-		else
-		{
-			return InterchangeProjectSettingsCDO->ContentImportSettings.DefaultPipelineStack;
-		}
-	}();
-
-	const TMap<FName, FInterchangePipelineStack>& PipelineStacks =
-		[this, InterchangeProjectSettingsCDO]() -> const TMap<FName, FInterchangePipelineStack>&
-		{
-			if (bSceneImport)
-			{
-				return InterchangeProjectSettingsCDO->SceneImportSettings.PipelineStacks;
-			}
-			else
-			{
-				return InterchangeProjectSettingsCDO->ContentImportSettings.PipelineStacks;
-			}
-		}();
-
-	if (PipelineStacks.Contains(NewDefaultStackValue))
-	{
-		DefaultPipelineStackName = NewDefaultStackValue;
-		InterchangeProjectSettingsCDO->SaveConfig(); //This ensure the default pipeline stack name is save into the local config
-	}
-}
-
-void SInterchangePipelineStacksTreeView::OnTreeViewSelectionChanged(TSharedPtr<FInterchangePipelineStacksTreeNodeItem> Item, ESelectInfo::Type SelectionType)
-{
-	if (SelectionMode.Get() == ESelectionMode::None)
-	{
-		return;
-	}
-
-	if (OnSelectionChangedDelegate.IsBound())
-	{
-		OnSelectionChangedDelegate.ExecuteIfBound(Item, SelectionType);
-	}
-}
-
 
 /************************************************************************/
 /* SInterchangePipelineConfigurationDialog Implementation                      */
 /************************************************************************/
 
+namespace UE::Private
+{
+	bool ContainStack(const TArray<FInterchangeStackInfo>& PipelineStacks, const FName StackName)
+	{
+		return PipelineStacks.FindByPredicate([StackName](const FInterchangeStackInfo& StackInfo)
+			{
+				return (StackInfo.StackName == StackName);
+			}) != nullptr;
+	}
+}
+
 SInterchangePipelineConfigurationDialog::SInterchangePipelineConfigurationDialog()
 {
-	PipelineConfigurationTreeView = nullptr;
 	PipelineConfigurationDetailsView = nullptr;
 	OwnerWindow = nullptr;
 }
@@ -400,58 +86,137 @@ SInterchangePipelineConfigurationDialog::~SInterchangePipelineConfigurationDialo
 
 TSharedRef<SBox> SInterchangePipelineConfigurationDialog::SpawnPipelineConfiguration()
 {
-	//Create the treeview
-	PipelineConfigurationTreeView = SNew(SInterchangePipelineStacksTreeView)
-		.OnSelectionChangedDelegate(this, &SInterchangePipelineConfigurationDialog::OnSelectionChanged)
-		.SourceData(SourceData)
-		.bSceneImport(bSceneImport)
-		.bReimport(bReimport)
-		.PipelineStack(PipelineStack);
+	AvailableStacks.Reset();
+	TSharedPtr<FString> SelectedStack;
+	if (bReimport)
+	{
+		CurrentStackName = ReimportStackName;
+	}
+	else
+	{
+		CurrentStackName = FInterchangeProjectSettingsUtils::GetDefaultPipelineStackName(bSceneImport, *SourceData);
+	}
 
-	const float PipelineStackTreeViewWidth = GInterchangeEnableCustomPipelines ? 0.4f : 0.f;
+	//In case we do not have a valid stack name use the first stack
+	FName FirstStackName = PipelineStacks.Num() > 0 ? PipelineStacks[0].StackName : CurrentStackName;
+	if (!UE::Private::ContainStack(PipelineStacks, CurrentStackName))
+	{
+		CurrentStackName = FirstStackName;
+	}
+
+	for(FInterchangeStackInfo& Stack : PipelineStacks)
+	{
+		TSharedPtr<FString> StackNamePtr = MakeShared<FString>(Stack.StackName.ToString());
+		if (CurrentStackName == Stack.StackName)
+		{
+			for (UInterchangePipelineBase* DefaultPipeline : Stack.Pipelines)
+			{
+				check(DefaultPipeline);
+				if (UInterchangePipelineBase* GeneratedPipeline = UE::Interchange::GeneratePipelineInstance(DefaultPipeline))
+				{
+					GeneratedPipeline->TransferAdjustSettings(DefaultPipeline);
+					if (Stack.StackName == ReimportStackName)
+					{
+						
+						//We save the pipeline settings to allow Reset to Default to work
+						GeneratedPipeline->SaveSettings(Stack.StackName);
+					}
+					else
+					{
+						//Load the settings for this pipeline
+						GeneratedPipeline->LoadSettings(Stack.StackName);
+						GeneratedPipeline->PreDialogCleanup(Stack.StackName);
+					}
+					PipelineListViewItems.Add(GeneratedPipeline);
+				}
+			}
+			SelectedStack = StackNamePtr;
+		}
+		AvailableStacks.Add(StackNamePtr);
+	}
+
+
+	PipelinesListView = SNew(SPipelineListViewType)
+		.SelectionMode(ESelectionMode::Single)
+		.ListItemsSource(&PipelineListViewItems)
+		.OnGenerateRow(this, &SInterchangePipelineConfigurationDialog::MakePipelineListRowWidget)
+		.OnSelectionChanged(this, &SInterchangePipelineConfigurationDialog::OnPipelineSelectionChanged);
+
+	TSharedPtr<STextComboBox> TextComboBoxPtr;
+	//Only use a combo box if there is more then one stack
+	if (AvailableStacks.Num() > 1)
+	{
+		TextComboBoxPtr = SNew(STextComboBox)
+			.OptionsSource(&AvailableStacks)
+			.OnSelectionChanged(this, &SInterchangePipelineConfigurationDialog::OnStackSelectionChanged);
+		if (SelectedStack.IsValid())
+		{
+			TextComboBoxPtr->SetSelectedItem(SelectedStack);
+		}
+	}
+
+	FText CurrentStackText = LOCTEXT("CurrentStackText", "Stack: ");
+
+	TSharedPtr<SWidget> StackTextComboBox;
+	if (!TextComboBoxPtr.IsValid())
+	{
+		CurrentStackText = FText::Format(LOCTEXT("CurrentStackTextNoComboBox", "Stack: {0}"), FText::FromName(CurrentStackName));
+		StackTextComboBox = SNew(SBox)
+		[
+			SNew(STextBlock)
+			.Text(CurrentStackText)
+		];
+	}
+	else
+	{
+		StackTextComboBox = SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		[
+			SNew(SBox)
+			[
+				SNew(STextBlock)
+				.Text(CurrentStackText)
+			]
+		]
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		[
+			TextComboBoxPtr.ToSharedRef()
+		];
+	}
 
 	TSharedPtr<SBox> InspectorBox;
 	TSharedRef<SBox> PipelineConfigurationPanelBox = SNew(SBox)
 	[
-		SNew(SSplitter)
-		.Orientation(Orient_Horizontal)
-		+ SSplitter::Slot()
-		.Value(PipelineStackTreeViewWidth)
-		.Resizable(GInterchangeEnableCustomPipelines)
+		SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
 			.HAlign(HAlign_Left)
 			.AutoHeight()
 			[
-				SNew(SUniformGridPanel)
-				.SlotPadding(2)
-				+ SUniformGridPanel::Slot(0, 0)
-				[
-					SNew(SButton)
-					.HAlign(HAlign_Center)
-					.Text(LOCTEXT("FbxOptionWindow_Scene_ExpandAll", "Expand All"))
-					.OnClicked(PipelineConfigurationTreeView.Get(), &SInterchangePipelineStacksTreeView::OnExpandAll)
-				]
-				+ SUniformGridPanel::Slot(1, 0)
-				[
-					SNew(SButton)
-					.HAlign(HAlign_Center)
-					.Text(LOCTEXT("FbxOptionWindow_Scene_CollapseAll", "Collapse All"))
-					.OnClicked(PipelineConfigurationTreeView.Get(), &SInterchangePipelineStacksTreeView::OnCollapseAll)
-				]
+				StackTextComboBox.ToSharedRef()
 			]
 			+ SVerticalBox::Slot()
-			.FillHeight(1.0f)
+			.Padding(0.0f, 5.0f)
+			.AutoHeight()
 			[
 				SNew(SBox)
+				.MinDesiredHeight(35)
+				.MaxDesiredHeight(110)
 				[
-					PipelineConfigurationTreeView.ToSharedRef()
+					PipelinesListView.ToSharedRef()
 				]
 			]
 		]
-		+ SSplitter::Slot()
-		.Value(1.f - PipelineStackTreeViewWidth)
+		+ SVerticalBox::Slot()
+		.Padding(0.0f, 5.0f, 0.0f, 2.0f)
+		.FillHeight(1.0f)
 		[
 			SAssignNew(InspectorBox, SBox)
 		]
@@ -482,7 +247,10 @@ void SInterchangePipelineConfigurationDialog::Construct(const FArguments& InArgs
 	SourceData = InArgs._SourceData;
 	bSceneImport = InArgs._bSceneImport;
 	bReimport = InArgs._bReimport;
-	PipelineStack = InArgs._PipelineStack;
+	PipelineStacks = InArgs._PipelineStacks;
+	OutPipelines = InArgs._OutPipelines;
+
+	check(OutPipelines);
 
 	check(OwnerWindow.IsValid());
 	if (TSharedPtr<SWindow> OwnerWindowPinned = OwnerWindow.Pin())
@@ -500,12 +268,12 @@ void SInterchangePipelineConfigurationDialog::Construct(const FArguments& InArgs
 			+ SVerticalBox::Slot()
 			.AutoHeight()
 			.HAlign(HAlign_Fill)
-			.Padding(2)
+			.Padding(0.0f, 2.0f)
 			[
 				SNew(SHorizontalBox)
 				+SHorizontalBox::Slot()
 				.FillWidth(1.0f)
-				.Padding(2)
+				.Padding(0.0f, 2.0f)
 				[
 					SNew(STextBlock)
 					.Text(this, &SInterchangePipelineConfigurationDialog::GetSourceDescription)
@@ -513,24 +281,38 @@ void SInterchangePipelineConfigurationDialog::Construct(const FArguments& InArgs
 				+SHorizontalBox::Slot()
 				.AutoWidth()
 				.HAlign(HAlign_Right)
-				.Padding(10, 2, 2, 2)
+				.Padding(10.0f, 2.0f, 0.0f, 2.0f)
 				[
 					SNew(SButton)
 					.HAlign(HAlign_Center)
-					.Text(LOCTEXT("InspectorGraphWindow_ResetDefault", "Reset to Default"))
+					.IsEnabled_Lambda([this]()
+						{
+							return PipelinesListView->GetNumItemsSelected() == 1;
+						})
+					.Text(LOCTEXT("SInterchangePipelineConfigurationDialog_ResetToPipelineAsset", "Reset Selected Pipeline"))
+					.ToolTipText_Lambda([bReimportClosure = bReimport]()
+						{
+							if (bReimportClosure)
+							{
+								return LOCTEXT("SInterchangePipelineConfigurationDialog_ResetToPipelineAsset_TooltipReimport", "Reset the selected pipeline properties to the asset import data pipeline properties.");
+							}
+							else
+							{
+								return LOCTEXT("SInterchangePipelineConfigurationDialog_ResetToPipelineAsset_Tooltip", "Reset the selected pipeline properties to the stack pipeline properties.");
+							}
+						})
 					.OnClicked(this, &SInterchangePipelineConfigurationDialog::OnResetToDefault)
 				]
 			]
 			+ SVerticalBox::Slot()
 			.FillHeight(1.0f)
-			.Padding(2)
 			[
 				SpawnPipelineConfiguration()
 			]
 			+ SVerticalBox::Slot()
 			.AutoHeight()
 			.HAlign(HAlign_Right)
-			.Padding(2)
+			.Padding(0.0f, 2.0f)
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
@@ -585,20 +367,11 @@ void SInterchangePipelineConfigurationDialog::Construct(const FArguments& InArgs
 		]
 	];
 
-	PipelineConfigurationTreeView->SelectDefaultItem();
-}
-
-void SInterchangePipelineConfigurationDialog::OnSelectionChanged(TSharedPtr<FInterchangePipelineStacksTreeNodeItem> Item, ESelectInfo::Type SelectionType)
-{
-	CurrentSelectedPipeline = nullptr;
-	FName StackName = NAME_None;
-	if (Item.IsValid())
+	//Select the first pipeline
+	if (PipelineListViewItems.Num() > 0)
 	{
-		CurrentSelectedPipeline = Item->Pipeline;
-		StackName = Item->StackName;
+		PipelinesListView->SetSelection(PipelineListViewItems[0], ESelectInfo::Direct);
 	}
-	PipelineConfigurationDetailsView->SetObject(CurrentSelectedPipeline.Get());
-	CurrentStackName = StackName;
 }
 
 bool SInterchangePipelineConfigurationDialog::IsPropertyVisible(const FPropertyAndParent& PropertyAndParent) const
@@ -629,16 +402,6 @@ FText SInterchangePipelineConfigurationDialog::GetSourceDescription() const
 	return ActionDescription;
 }
 
-void SInterchangePipelineConfigurationDialog::RecursiveIterateNode(TSharedPtr<FInterchangePipelineStacksTreeNodeItem>& ParentNode, TFunctionRef<void(TSharedPtr<FInterchangePipelineStacksTreeNodeItem>&)> IterationLambda)
-{
-	IterationLambda(ParentNode);
-
-	for (int32 ChildIndex = 0; ChildIndex < ParentNode->Childrens.Num(); ++ChildIndex)
-	{
-		RecursiveIterateNode(ParentNode->Childrens[ChildIndex], IterationLambda);
-	}
-}
-
 FReply SInterchangePipelineConfigurationDialog::OnResetToDefault()
 {
 	FReply Result = FReply::Handled();
@@ -653,59 +416,36 @@ FReply SInterchangePipelineConfigurationDialog::OnResetToDefault()
 	{
 		if (UInterchangePipelineBase* Pipeline = Cast<UInterchangePipelineBase>(WeakObject.Get()))
 		{
-			if (bReimport)
+			const UClass* PipelineClass = Pipeline->GetClass();
+
+			for (FInterchangeStackInfo& Stack : PipelineStacks)
 			{
-				//When we re-import we save the settings before showing the dialog, so the reset to default simply reload
-				//the original settings when the dialog was loaded.
-				for (int32 PipelineIndex = 0; PipelineIndex < PipelineStack.Num(); ++PipelineIndex)
+				if (Stack.StackName != CurrentStackName)
 				{
-					if (Pipeline == PipelineStack[PipelineIndex])
-					{
-						Pipeline->LoadSettings(CurrentStackName);
-						PipelineConfigurationDetailsView->SetObject(Pipeline, true);
-						break;
-					}
+					continue;
 				}
-			}
-			else
-			{
-				//The reset to default when doing a import is to duplicate again the pipeline stack reference asset.
-				const TMap<FName, FInterchangePipelineStack>& DefaultPipelineStacks = FInterchangeProjectSettingsUtils::GetDefaultImportSettings(bSceneImport).PipelineStacks;
-				//Find the stack node, so we can update the pipeline
-				TSharedPtr<FInterchangePipelineStacksTreeNodeItem> StackNode;
-				TArray<TSharedPtr<FInterchangePipelineStacksTreeNodeItem>>& RootNodeArray = PipelineConfigurationTreeView->GetMutableRootNodeArray();
-				for (TSharedPtr<FInterchangePipelineStacksTreeNodeItem>& RootNode : RootNodeArray)
+				for (UInterchangePipelineBase* DefaultPipeline : Stack.Pipelines)
 				{
-					RecursiveIterateNode(RootNode, [this, &Pipeline, &DefaultPipelineStacks](TSharedPtr<FInterchangePipelineStacksTreeNodeItem>& NodeItem)
+					//We assume the pipelines inside one stack are all different classes, we use the class to know which default asset we need to duplicate
+					if (DefaultPipeline->GetClass() == PipelineClass)
 					{
-						if (NodeItem->StackName == CurrentStackName && NodeItem->Pipeline == Pipeline)
+						for(int32 PipelineIndex = 0; PipelineIndex < PipelineListViewItems.Num(); ++PipelineIndex)
 						{
-							//We assume the pipelines inside one stack are all different classes, we use the class to know which default asset we need to duplicate
-							const UClass* PipelineClass = NodeItem->Pipeline->GetClass();
-							for (const TPair<FName, FInterchangePipelineStack>& NameAndPipelineStack : DefaultPipelineStacks)
+							TObjectPtr<UInterchangePipelineBase> PipelineElement = PipelineListViewItems[PipelineIndex];
+							if (PipelineElement.Get() == Pipeline)
 							{
-								if(CurrentStackName != NameAndPipelineStack.Key)
+								if (UInterchangePipelineBase* GeneratedPipeline = UE::Interchange::GeneratePipelineInstance(DefaultPipeline))
 								{
-									continue;
-								}
-								const FInterchangePipelineStack& InterchangePipelineStack = NameAndPipelineStack.Value;
-								for (int32 PipelineIndex = 0; PipelineIndex < InterchangePipelineStack.Pipelines.Num(); ++PipelineIndex)
-								{
-									if (UInterchangePipelineBase* GeneratedPipeline = UE::Interchange::GeneratePipelineInstance(InterchangePipelineStack.Pipelines[PipelineIndex]))
-									{
-										if (GeneratedPipeline->GetClass() == PipelineClass)
-										{
-											NodeItem->Pipeline = GeneratedPipeline;
-											GeneratedPipeline->AdjustSettingsForContext((bSceneImport ? EInterchangePipelineContext::SceneImport : EInterchangePipelineContext::AssetImport), nullptr);
-											PipelineConfigurationDetailsView->SetObject(NodeItem->Pipeline, true);
-											//Exit the lambda
-											return;
-										}
-									}
+									GeneratedPipeline->TransferAdjustSettings(DefaultPipeline);
+									//Switch the pipeline the element point on
+									PipelineListViewItems.RemoveAt(PipelineIndex, 1, false);
+									PipelineListViewItems.Insert(GeneratedPipeline, PipelineIndex);
+									PipelineConfigurationDetailsView->SetObject(GeneratedPipeline, true);
+									break;
 								}
 							}
 						}
-					});
+					}
 				}
 			}
 		}
@@ -713,18 +453,12 @@ FReply SInterchangePipelineConfigurationDialog::OnResetToDefault()
 	return Result;
 }
 
-bool SInterchangePipelineConfigurationDialog::RecursiveValidatePipelineSettings(const TSharedPtr<FInterchangePipelineStacksTreeNodeItem>& ParentNode, TOptional<FText>& OutInvalidReason) const
+bool SInterchangePipelineConfigurationDialog::ValidateAllPipelineSettings(TOptional<FText>& OutInvalidReason) const
 {
-	if (ParentNode->Pipeline)
+	for (TObjectPtr<UInterchangePipelineBase> PipelineElement : PipelineListViewItems)
 	{
-		if (!ParentNode->Pipeline->IsSettingsAreValid(OutInvalidReason))
-		{
-			return false;
-		}
-	}
-	for (int32 ChildIndex = 0; ChildIndex < ParentNode->Childrens.Num(); ++ChildIndex)
-	{
-		if (!RecursiveValidatePipelineSettings(ParentNode->Childrens[ChildIndex], OutInvalidReason))
+		check(PipelineElement);
+		if (!PipelineElement->IsSettingsAreValid(OutInvalidReason))
 		{
 			return false;
 		}
@@ -734,60 +468,28 @@ bool SInterchangePipelineConfigurationDialog::RecursiveValidatePipelineSettings(
 
 bool SInterchangePipelineConfigurationDialog::IsImportButtonEnabled() const
 {
-	const FName DefaultPipelineStackName = FInterchangeProjectSettingsUtils::GetDefaultPipelineStackName(bSceneImport, *SourceData.Get());
-	const TArray<TSharedPtr<FInterchangePipelineStacksTreeNodeItem>>& RootNodeArray = PipelineConfigurationTreeView->GetRootNodeArray();
-	for (const TSharedPtr<FInterchangePipelineStacksTreeNodeItem>& RootNode : RootNodeArray)
-	{
-		//Reimport has only one stack and the name wont match DefaultPipelineStackName
-		if (bReimport || RootNode->StackName == DefaultPipelineStackName)
-		{
-			TOptional<FText> InvalidReason;
-			return RecursiveValidatePipelineSettings(RootNode, InvalidReason);
-		}
-	}
-	return true;
+	TOptional<FText> InvalidReason;
+	return ValidateAllPipelineSettings(InvalidReason);
 }
 
 FText SInterchangePipelineConfigurationDialog::GetImportButtonTooltip() const
 {
-	const FName DefaultPipelineStackName = FInterchangeProjectSettingsUtils::GetDefaultPipelineStackName(bSceneImport, *SourceData.Get());
-	const TArray<TSharedPtr<FInterchangePipelineStacksTreeNodeItem>>& RootNodeArray = PipelineConfigurationTreeView->GetRootNodeArray();
-	for (const TSharedPtr<FInterchangePipelineStacksTreeNodeItem>& RootNode : RootNodeArray)
+	TOptional<FText> InvalidReason;
+	if (!ValidateAllPipelineSettings(InvalidReason) && InvalidReason.IsSet())
 	{
-		//Reimport have only one stack and the name wont match DefaultPipelineStackName
-		if (bReimport || RootNode->StackName == DefaultPipelineStackName)
-		{
-			TOptional<FText> InvalidReason;
-			if (!RecursiveValidatePipelineSettings(RootNode, InvalidReason) && InvalidReason.IsSet())
-			{
-				return InvalidReason.GetValue();
-			}
-		}
+		return InvalidReason.GetValue();
 	}
 	return FText();
 }
 
-void SInterchangePipelineConfigurationDialog::RecursiveSavePipelineSettings(const TSharedPtr<FInterchangePipelineStacksTreeNodeItem>& ParentNode, const int32 PipelineIndex) const
+void SInterchangePipelineConfigurationDialog::SaveAllPipelineSettings() const
 {
-	if (ParentNode->Pipeline)
+	for (const TObjectPtr<UInterchangePipelineBase> PipelineElement : PipelineListViewItems)
 	{
-		ParentNode->Pipeline->SaveSettings(ParentNode->StackName);
-	}
-	for (int32 ChildIndex = 0; ChildIndex < ParentNode->Childrens.Num(); ++ChildIndex)
-	{
-		RecursiveSavePipelineSettings(ParentNode->Childrens[ChildIndex], ChildIndex);
-	}
-}
-
-void SInterchangePipelineConfigurationDialog::RecursiveLoadPipelineSettings(const TSharedPtr<FInterchangePipelineStacksTreeNodeItem>& ParentNode, const int32 PipelineIndex) const
-{
-	if (ParentNode->Pipeline)
-	{
-		ParentNode->Pipeline->LoadSettings(ParentNode->StackName);
-	}
-	for (int32 ChildIndex = 0; ChildIndex < ParentNode->Childrens.Num(); ++ChildIndex)
-	{
-		RecursiveLoadPipelineSettings(ParentNode->Childrens[ChildIndex], ChildIndex);
+		if (PipelineElement)
+		{
+			PipelineElement->SaveSettings(CurrentStackName);
+		}
 	}
 }
 
@@ -797,32 +499,25 @@ void SInterchangePipelineConfigurationDialog::ClosePipelineConfiguration(const E
 	{
 		bCanceled = true;
 		bImportAll = false;
-		if (bReimport && PipelineConfigurationTreeView)
-		{
-			//If user cancel the reimport we have to put back the pipeline settings
-			const TArray<TSharedPtr<FInterchangePipelineStacksTreeNodeItem>>& RootNodeArray = PipelineConfigurationTreeView->GetRootNodeArray();
-			for (const TSharedPtr<FInterchangePipelineStacksTreeNodeItem>& RootNode : RootNodeArray)
-			{
-				RecursiveLoadPipelineSettings(RootNode, 0);
-			}
-		}
 	}
 	else //ECloseEventType::Import
 	{
 		bCanceled = false;
 		bImportAll = UseSameSettingsForAllCheckBox->IsChecked();
-	}
-
-	if (!bReimport && PipelineConfigurationTreeView)
-	{
-		const TArray<TSharedPtr<FInterchangePipelineStacksTreeNodeItem>>& RootNodeArray = PipelineConfigurationTreeView->GetRootNodeArray();
-		for (const TSharedPtr<FInterchangePipelineStacksTreeNodeItem>& RootNode : RootNodeArray)
+		
+		//Fill the OutPipelines array
+		for (const TObjectPtr<UInterchangePipelineBase> PipelineElement : PipelineListViewItems)
 		{
-			RecursiveSavePipelineSettings(RootNode, 0);
+			OutPipelines->Add(PipelineElement.Get());
 		}
 	}
 
-	PipelineConfigurationTreeView = nullptr;
+	//Save the settings only if its not a reimport
+	if (!bReimport)
+	{
+		SaveAllPipelineSettings();
+	}
+
 	PipelineConfigurationDetailsView = nullptr;
 
 	if (CloseEventType != ECloseEventType::WindowClosing)
@@ -850,6 +545,91 @@ FReply SInterchangePipelineConfigurationDialog::OnKeyDown(const FGeometry& MyGeo
 		}
 	}
 	return FReply::Unhandled();
+}
+
+void SInterchangePipelineConfigurationDialog::OnStackSelectionChanged(TSharedPtr<FString> String, ESelectInfo::Type)
+{
+	if (!String.IsValid())
+	{
+		return;
+	}
+
+	FName NewStackName = FName(*String.Get());
+	if (!UE::Private::ContainStack(PipelineStacks, NewStackName))
+	{
+		return;
+	}
+
+	//Nothing change the selection is the same
+	if (CurrentStackName == NewStackName)
+	{
+		return;
+	}
+
+	//Save current stack settings, we want the same settings when we will go back to the same stack
+	//When doing a reimport we do not want to save the setting because the context have special default
+	//value for some options like: (Import Materials, Import Textures...).
+	//So when doing a reimport switching stack is like doing a reset to default on all pipelines
+	if (!bReimport)
+	{
+		SaveAllPipelineSettings();
+	}
+
+	//Use the stack select by interchange manager
+	CurrentStackName = NewStackName;
+	
+	//Rebuild the Pipeline list item
+	PipelineListViewItems.Reset();
+
+	for (FInterchangeStackInfo& Stack : PipelineStacks)
+	{
+		TSharedPtr<FString> StackNamePtr = MakeShared<FString>(Stack.StackName.ToString());
+		if (CurrentStackName != Stack.StackName)
+		{
+			continue;
+		}
+		for (UInterchangePipelineBase* DefaultPipeline : Stack.Pipelines)
+		{
+			check(DefaultPipeline);
+			if (UInterchangePipelineBase* GeneratedPipeline = UE::Interchange::GeneratePipelineInstance(DefaultPipeline))
+			{
+				GeneratedPipeline->TransferAdjustSettings(DefaultPipeline);
+				if (Stack.StackName != ReimportStackName)
+				{
+					//Load the settings for this pipeline
+					GeneratedPipeline->LoadSettings(Stack.StackName);
+					GeneratedPipeline->PreDialogCleanup(Stack.StackName);
+				}
+				PipelineListViewItems.Add(GeneratedPipeline);
+			}
+		}
+	}
+
+	//Select the first pipeline
+	if (PipelineListViewItems.Num() > 0)
+	{
+		PipelinesListView->SetSelection(PipelineListViewItems[0], ESelectInfo::Direct);
+	}
+	PipelinesListView->RequestListRefresh();
+}
+
+
+TSharedRef<ITableRow> SInterchangePipelineConfigurationDialog::MakePipelineListRowWidget(
+	TObjectPtr<UInterchangePipelineBase> InElement,
+	const TSharedRef<STableViewBase>& OwnerTable)
+{
+	check(InElement);
+	return SNew(SInterchangePipelineItem, OwnerTable, InElement);
+}
+
+void SInterchangePipelineConfigurationDialog::OnPipelineSelectionChanged(TObjectPtr<UInterchangePipelineBase> InItem, ESelectInfo::Type SelectInfo)
+{
+	CurrentSelectedPipeline = nullptr;
+	if (InItem)
+	{
+		CurrentSelectedPipeline = InItem;
+	}
+	PipelineConfigurationDetailsView->SetObject(CurrentSelectedPipeline.Get());
 }
 
 #undef LOCTEXT_NAMESPACE
