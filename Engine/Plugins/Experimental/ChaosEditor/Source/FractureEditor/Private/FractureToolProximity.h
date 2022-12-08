@@ -30,6 +30,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = Automatic, meta = (ClampMin = "0", EditCondition = "Method == EProximityMethod::ConvexHull"))
 	double DistanceThreshold = 1;
 
+	// Method to use to determine the contact between two pieces, if the Contact Threshold is greater than 0
+	UPROPERTY(EditAnywhere, Category = Automatic)
+	EProximityContactMethod ContactMethod = EProximityContactMethod::MinOverlapInProjectionToMajorAxes;
+
+	// If greater than zero, proximity will be additionally filtered by a 'contact' threshold, in cm, to exclude grazing / corner proximity
+	UPROPERTY(EditAnywhere, Category = Automatic, meta = (ClampMin = "0"))
+	double ContactThreshold = 0;
+
 	// Whether to automatically transform the proximity graph into a connection graph to be used for simulation
 	UPROPERTY(EditAnywhere, Category = Automatic)
 	bool bUseAsConnectionGraph = false;

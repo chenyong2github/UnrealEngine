@@ -626,6 +626,77 @@ void FGeometryCollectionProximityUtility::UpdateProximity(UE::GeometryCollection
 		Spatial.MoveProximityToCollection(Collection);
 	}
 
+	if (Properties.RequireContactAmount > 0.0f)
+	{
+		if (Properties.ContactMethod == EProximityContactMethod::MinOverlapInProjectionToMajorAxes)
+		{
+			TManagedArray<TSet<int32>>& Proximity = Collection->ModifyAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
+			int32 NumGeometry = Collection->NumElements(FGeometryCollection::GeometryGroup);
+
+			TArray<FBox> GeometryBounds; // Geometry bounding boxes in a shared space
+			GeometryBounds.Init(FBox(EForceInit::ForceInit), NumGeometry);
+
+			TArray<FTransform> GlobalTransformArray;
+			GeometryCollectionAlgo::GlobalMatrices(Collection->Transform, Collection->Parent, GlobalTransformArray);
+
+			ParallelFor(NumGeometry, [&](int32 GeometryIdx)
+			{
+				FBox& Box = GeometryBounds[GeometryIdx];
+				const int32 Start = Collection->VertexStart[GeometryIdx];
+				const int32 End = Start + Collection->VertexCount[GeometryIdx];
+				FTransform GeometryTransform = GlobalTransformArray[Collection->TransformIndex[GeometryIdx]];
+				for (int32 VertIdx = Start; VertIdx < End; ++VertIdx)
+				{
+					Box += GeometryTransform.TransformPosition((FVector)Collection->Vertex[VertIdx]);
+				}
+			});
+
+			TArray<int32> ToRemove;
+			auto ProjectBox = [](const FBox& Box, int32 Axis) -> FBox2D
+			{
+				int32 X = (Axis + 1) % 3;
+				int32 Y = (Axis + 2) % 3;
+				return FBox2D(FVector2D(Box.Min[X], Box.Min[Y]), FVector2D(Box.Max[X], Box.Max[Y]));
+			};
+			for (int32 GeometryIdx = 0; GeometryIdx < NumGeometry; ++GeometryIdx)
+			{
+				FBox Box = GeometryBounds[GeometryIdx];
+				ToRemove.Reset();
+				for (int32 ConnectedGeoIdx : Proximity[GeometryIdx])
+				{
+					FBox OtherBox = GeometryBounds[ConnectedGeoIdx];
+					bool bOverlapAnyAxis = false;
+					for (int ProjAxis = 0; ProjAxis < 3; ++ProjAxis)
+					{
+						FBox2D ProjA = ProjectBox(Box, ProjAxis);
+						FBox2D ProjB = ProjectBox(OtherBox, ProjAxis);
+						FBox2D Overlap = ProjA.Overlap(ProjB);
+						if (Overlap.bIsValid)
+						{
+							float MinBoundsAxis = (float)FMath::Min(ProjA.GetSize().GetMin(), ProjB.GetSize().GetMin());
+							float MinAxisOverlap = (float)Overlap.GetSize().GetMin();
+							// Overlap is accepted if it is greater than the threshold amount OR greater than half the maximum possible amount (to avoid 100% filtering small pieces)
+							if (MinAxisOverlap > FMath::Min(MinBoundsAxis*.5f, Properties.RequireContactAmount))
+							{
+								bOverlapAnyAxis = true;
+								break;
+							}
+						}
+					}
+					if (!bOverlapAnyAxis)
+					{
+						ToRemove.Add(ConnectedGeoIdx);
+					}
+				}
+				for (int32 Nbr : ToRemove)
+				{
+					Proximity[GeometryIdx].Remove(Nbr);
+					Proximity[Nbr].Remove(GeometryIdx);
+				}
+			}
+		}
+	}
+
 	if (Properties.bUseAsConnectionGraph)
 	{
 		CopyProximityToConnectionGraph();

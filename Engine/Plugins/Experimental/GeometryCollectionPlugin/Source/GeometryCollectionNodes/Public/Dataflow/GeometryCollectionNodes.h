@@ -1714,6 +1714,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Proximity", meta = (ClampMin = "0", EditCondition = "ProximityMethod == EProximityMethodEnum::Dataflow_ProximityMethod_ConvexHull"))
 	float DistanceThreshold = 1;
 
+	// If greater than zero, proximity will be additionally filtered by a 'contact' threshold, in cm, to exclude grazing / corner proximity
+	UPROPERTY(EditAnywhere, Category = "Proximity", meta = (ClampMin = "0"))
+	float ContactThreshold = 0;
+
 	/** Whether to automatically transform the proximity graph into a connection graph to be used for simulation */
 	UPROPERTY(EditAnywhere, Category = "Proximity")
 	bool bUseAsConnectionGraph = false;

@@ -22,6 +22,8 @@ void UFractureProximityActions::SaveAsDefaults()
 	ModeSettings->ProximityMethod = ProximityTool->ProximitySettings->Method;
 	ModeSettings->ProximityDistanceThreshold = ProximityTool->ProximitySettings->DistanceThreshold;
 	ModeSettings->bProximityUseAsConnectionGraph = ProximityTool->ProximitySettings->bUseAsConnectionGraph;
+	ModeSettings->ProximityContactThreshold = ProximityTool->ProximitySettings->ContactThreshold;
+	ModeSettings->ProximityContactMethod = ProximityTool->ProximitySettings->ContactMethod;
 }
 
 void UFractureProximityActions::SetFromDefaults()
@@ -31,6 +33,8 @@ void UFractureProximityActions::SetFromDefaults()
 	ProximityTool->ProximitySettings->Method = ModeSettings->ProximityMethod;
 	ProximityTool->ProximitySettings->DistanceThreshold = ModeSettings->ProximityDistanceThreshold;
 	ProximityTool->ProximitySettings->bUseAsConnectionGraph = ModeSettings->bProximityUseAsConnectionGraph;
+	ProximityTool->ProximitySettings->ContactThreshold = ModeSettings->ProximityContactThreshold;
+	ProximityTool->ProximitySettings->ContactMethod = ModeSettings->ProximityContactMethod;
 
 	ProximityTool->NotifyOfPropertyChangeByTool(this);
 }
@@ -219,6 +223,8 @@ int32 UFractureToolProximity::ExecuteFracture(const FFractureToolContext& Fractu
 		Properties.Method = ProximitySettings->Method;
 		Properties.DistanceThreshold = ProximitySettings->DistanceThreshold;
 		Properties.bUseAsConnectionGraph = ProximitySettings->bUseAsConnectionGraph;
+		Properties.ContactMethod = ProximitySettings->ContactMethod;
+		Properties.RequireContactAmount = ProximitySettings->ContactThreshold;
 		
 		FractureContext.GetGeometryCollection()->SetProximityProperties(Properties);
 

@@ -20,6 +20,14 @@ enum class EProximityMethod : int32
 	ConvexHull
 };
 
+UENUM()
+enum class EProximityContactMethod : uint8
+{
+	// Rejects proximity if the bounding boxes do not overlap by more than this many centimeters in any major axis direction. This can filter out corner connections of box-like shapes.
+	MinOverlapInProjectionToMajorAxes
+	//~ TODO: Add other methods for filtering overlaps, e.g. based on approximate surface area of the contact
+};
+
 class CHAOS_API FGeometryCollectionProximityUtility
 {
 public:

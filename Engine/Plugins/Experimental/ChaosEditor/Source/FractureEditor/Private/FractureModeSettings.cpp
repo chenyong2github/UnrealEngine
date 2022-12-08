@@ -25,6 +25,8 @@ void UFractureModeSettings::ApplyDefaultProximitySettings(FGeometryCollection& G
 	Properties.bUseAsConnectionGraph = bProximityUseAsConnectionGraph;
 	Properties.DistanceThreshold = ProximityDistanceThreshold;
 	Properties.Method = ProximityMethod;
+	Properties.ContactMethod = ProximityContactMethod;
+	Properties.RequireContactAmount = ProximityContactThreshold;
 	GeometryCollection.SetProximityProperties(Properties);
 }
 
