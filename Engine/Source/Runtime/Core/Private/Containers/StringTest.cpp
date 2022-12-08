@@ -610,14 +610,16 @@ bool FStringPathConcatCompoundOperatorTest::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringFindTest, "System.Core.String.Find", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
-bool FStringFindTest::RunTest(const FString& Parameters)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringFindAndContainsTest, "System.Core.String.FindAndContains", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+bool FStringFindAndContainsTest::RunTest(const FString& Parameters)
 {
 	auto RunTest = [this](FStringView Search, FStringView Find, ESearchCase::Type SearchCase,
 		ESearchDir::Type SearchDir, int32 StartPosition, int32 Expected)
 	{
 		FString SearchStr(Search);
 		FString FindStr(Find);
+		bool bRunContainsTest = (SearchDir == ESearchDir::FromStart && StartPosition == 0) ||
+			(SearchDir == ESearchDir::FromEnd && StartPosition >= SearchStr.Len());
 		// TCHAR*, int32
 		{
 			int32 Actual = SearchStr.Find(Find.GetData(), Find.Len(), SearchCase, SearchDir, StartPosition);
@@ -626,6 +628,16 @@ bool FStringFindTest::RunTest(const FString& Parameters)
 				AddError(FString::Printf(TEXT("FString(\"%s\").Find(\"%s\", %d, %d, %d, %d) returned Actual %d not equal to Expected %d"),
 					*SearchStr, *FindStr, FindStr.Len(), (int32)SearchCase, (int32)SearchDir, StartPosition, Actual, Expected));
 			}
+			if (bRunContainsTest)
+			{
+				bool ContainsExpected = Expected != INDEX_NONE;
+				bool ContainsActual = SearchStr.Contains(Find.GetData(), Find.Len(), SearchCase, SearchDir);
+				if (ContainsActual != ContainsExpected)
+				{
+					AddError(FString::Printf(TEXT("FString(\"%s\").Contains(\"%s\", %d, %d, %d) returned Actual %s not equal to Expected %s"),
+						*SearchStr, *FindStr, FindStr.Len(), (int32)SearchCase, (int32)SearchDir,  *LexToString(ContainsActual), *LexToString(ContainsExpected)));
+				}
+			}
 		}
 		// FStringView
 		{
@@ -633,7 +645,17 @@ bool FStringFindTest::RunTest(const FString& Parameters)
 			if (Actual != Expected)
 			{
 				AddError(FString::Printf(TEXT("FString(\"%s\").Find(FStringView(\"%s\", %d), %d, %d, %d) returned Actual %d not equal to Expected %d"),
-					*SearchStr, *FindStr, FindStr.Len(), (int32)SearchCase, (int32)SearchDir, StartPosition));
+					*SearchStr, *FindStr, FindStr.Len(), (int32)SearchCase, (int32)SearchDir, StartPosition, Actual, Expected));
+			}
+			if (bRunContainsTest)
+			{
+				bool ContainsExpected = Expected != INDEX_NONE;
+				bool ContainsActual = ContainsExpected;
+				if (ContainsActual != ContainsExpected)
+				{
+					AddError(FString::Printf(TEXT("FString(\"%s\").Contains(FStringView(\"%s\", %d), %d, %d) returned Actual %s not equal to Expected %s"),
+						*SearchStr, *FindStr, FindStr.Len(), (int32)SearchCase, (int32)SearchDir, *LexToString(ContainsActual), *LexToString(ContainsExpected)));
+				}
 			}
 		}
 
@@ -643,7 +665,17 @@ bool FStringFindTest::RunTest(const FString& Parameters)
 			if (Actual != Expected)
 			{
 				AddError(FString::Printf(TEXT("FString(\"%s\").Find(TEXT(\"%s\"), %d, %d, %d) returned Actual %d not equal to Expected %d"),
-					*SearchStr, *FindStr, (int32)SearchCase, (int32)SearchDir, StartPosition));
+					*SearchStr, *FindStr, (int32)SearchCase, (int32)SearchDir, StartPosition, Actual, Expected));
+			}
+			if (bRunContainsTest)
+			{
+				bool ContainsExpected = Expected != INDEX_NONE;
+				bool ContainsActual = SearchStr.Contains(*FindStr, SearchCase, SearchDir);
+				if (ContainsActual != ContainsExpected)
+				{
+					AddError(FString::Printf(TEXT("FString(\"%s\").Contains(TEXT(\"%s\"), %d, %d) returned Actual %s not equal to Expected %s"),
+						*SearchStr, *FindStr, (int32)SearchCase, (int32)SearchDir, *LexToString(ContainsActual), *LexToString(ContainsExpected)));
+				}
 			}
 		}
 
@@ -653,7 +685,17 @@ bool FStringFindTest::RunTest(const FString& Parameters)
 			if (Actual != Expected)
 			{
 				AddError(FString::Printf(TEXT("FString(\"%s\").Find(FString(%d, \"%s\"), %d, %d, %d) returned Actual %d not equal to Expected %d"),
-					*SearchStr, FindStr.Len(), *FindStr, (int32)SearchCase, (int32)SearchDir, StartPosition));
+					*SearchStr, FindStr.Len(), *FindStr, (int32)SearchCase, (int32)SearchDir, StartPosition, Actual, Expected));
+			}
+			if (bRunContainsTest)
+			{
+				bool ContainsExpected = Expected != INDEX_NONE;
+				bool ContainsActual = SearchStr.Contains(FindStr, SearchCase, SearchDir);
+				if (ContainsActual != ContainsExpected)
+				{
+					AddError(FString::Printf(TEXT("FString(\"%s\").Contains(FString(%d, \"%s\"), %d, %d) returned Actual %s not equal to Expected %s"),
+						*SearchStr, FindStr.Len(), *FindStr, (int32)SearchCase, (int32)SearchDir, *LexToString(ContainsActual), *LexToString(ContainsExpected)));
+				}
 			}
 		}
 	};
@@ -710,9 +752,8 @@ bool FStringFindTest::RunTest(const FString& Parameters)
 	RunTest(ABACADAB, EmptyString, ESearchCase::CaseSensitive, ESearchDir::FromEnd, 2, 1);
 	RunTest(ABACADAB, EmptyString, ESearchCase::CaseSensitive, ESearchDir::FromEnd, 0, INDEX_NONE);
 
-	// Find with an empty search string has different behavior depending on SearchCase due to legacy implementation
-	RunTest(ABACADAB, EmptyString, ESearchCase::IgnoreCase, ESearchDir::FromStart, 0, INDEX_NONE);
-	RunTest(ABACADAB, EmptyString, ESearchCase::IgnoreCase, ESearchDir::FromStart, 4, INDEX_NONE);
+	RunTest(ABACADAB, EmptyString, ESearchCase::IgnoreCase, ESearchDir::FromStart, 0, 0);
+	RunTest(ABACADAB, EmptyString, ESearchCase::IgnoreCase, ESearchDir::FromStart, 4, 4);
 	RunTest(ABACADAB, EmptyString, ESearchCase::IgnoreCase, ESearchDir::FromEnd, 8, 7);
 	RunTest(ABACADAB, EmptyString, ESearchCase::IgnoreCase, ESearchDir::FromEnd, 2, 1);
 	RunTest(ABACADAB, EmptyString, ESearchCase::IgnoreCase, ESearchDir::FromEnd, 0, INDEX_NONE);

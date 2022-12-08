@@ -1066,8 +1066,8 @@ public:
 	}
 
 	/**
-	 * Searches the string for a substring, and returns index into this string
-	 * of the first found instance. Can search from beginning or end, and ignore case or not.
+	 * Searches the string for a substring, and returns index into this string of the first found instance. Can search
+	 * from beginning or end, and ignore case or not. If substring is empty, returns clamped StartPosition.
 	 *
 	 * @param SubStr			The string to search for
 	 * @param StartPosition		The start character position to search from
@@ -1090,8 +1090,8 @@ public:
 	}
 
 	/**
-	 * Searches the string for a substring, and returns index into this string
-	 * of the first found instance. Can search from beginning or end, and ignore case or not.
+	 * Searches the string for a substring, and returns index into this string of the first found instance. Can search
+	 * from beginning or end, and ignore case or not. If substring is empty, returns clamped StartPosition.
 	 *
 	 * @param SubStr			The string array of TCHAR to search for
 	 * @param StartPosition		The start character position to search from.  See note below.
@@ -1105,8 +1105,8 @@ public:
 	}
 
 	/**
-	 * Searches the string for a substring, and returns index into this string
-	 * of the first found instance. Can search from beginning or end, and ignore case or not.
+	 * Searches the string for a substring, and returns index into this string of the first found instance. Can search
+	 * from beginning or end, and ignore case or not. If substring is empty, returns clamped StartPosition.
 	 *
 	 * @param SubStr			The string array of TCHAR to search for
 	 * @param StartPosition		The start character position to search from.  See note below.
@@ -1127,8 +1127,8 @@ public:
 	}
 
 	/**
-	 * Searches the string for a substring, and returns index into this string
-	 * of the first found instance. Can search from beginning or end, and ignore case or not.
+	 * Searches the string for a substring, and returns index into this string of the first found instance. Can search
+	 * from beginning or end, and ignore case or not. If substring is empty, returns clamped StartPosition.
 	 *
 	 * @param SubStr			The string array of TCHAR to search for
 	 * @param SubStrLen			The length of the SubStr array
@@ -1147,16 +1147,32 @@ public:
 		ESearchDir::Type SearchDir = ESearchDir::FromStart, int32 StartPosition = INDEX_NONE) const;
 
 
+	/**
+	 * Returns whether this string contains the specified substring.
+	 *
+	 * @param SubStr			Text to search for
+	 * @param SearchCase		Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
+	 * @param SearchDir			Indicates whether the search starts at the beginning or at the end ( defaults to ESearchDir::FromStart )
+	 * @return					Returns whether the string contains the substring. If the substring is empty, returns true.
+	 **/
+	template <typename TCharRangeType, std::enable_if_t<TIsCharRangeNotCArrayNotFString<TCharRangeType>::Value>* = nullptr>
+	UE_NODISCARD FORCEINLINE bool Contains(TCharRangeType&& SubStr, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase,
+		ESearchDir::Type SearchDir = ESearchDir::FromStart) const
+	{
+		static_assert(std::is_same_v<typename TElementType<TCharRangeType>::Type, TCHAR>, "Expected a range of TCHAR");
+		return Find(Forward<TCharRangeType>(SubStr), SearchCase, SearchDir) != INDEX_NONE;
+	}
+
 	/** 
 	 * Returns whether this string contains the specified substring.
 	 *
-	 * @param SubStr			Find to search for
+	 * @param SubStr			Text to search for
 	 * @param SearchCase		Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
 	 * @param SearchDir			Indicates whether the search starts at the beginning or at the end ( defaults to ESearchDir::FromStart )
-	 * @return					Returns whether the string contains the substring
+	 * @return					Returns whether the string contains the substring. If the substring is empty, returns true.
 	 **/
-	UE_NODISCARD FORCEINLINE bool Contains(const TCHAR* SubStr, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase, 
-							  ESearchDir::Type SearchDir = ESearchDir::FromStart ) const
+	UE_NODISCARD FORCEINLINE bool Contains(const TCHAR* SubStr, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase,
+		ESearchDir::Type SearchDir = ESearchDir::FromStart) const
 	{
 		return Find(SubStr, SearchCase, SearchDir) != INDEX_NONE;
 	}
@@ -1164,15 +1180,30 @@ public:
 	/** 
 	 * Returns whether this string contains the specified substring.
 	 *
-	 * @param SubStr			Find to search for
+	 * @param SubStr			Text to search for
 	 * @param SearchCase		Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
 	 * @param SearchDir			Indicates whether the search starts at the beginning or at the end ( defaults to ESearchDir::FromStart )
-	 * @return					Returns whether the string contains the substring
+	 * @return					Returns whether the string contains the substring. If the substring is empty, returns true.
 	 **/
 	UE_NODISCARD FORCEINLINE bool Contains(const FString& SubStr, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase, 
 							  ESearchDir::Type SearchDir = ESearchDir::FromStart ) const
 	{
 		return Find(*SubStr, SearchCase, SearchDir) != INDEX_NONE;
+	}
+
+	/**
+	 * Returns whether this string contains the specified substring.
+	 *
+	 * @param SubStr			Text to search for
+	 * @param SubStrLen			Length of the Text
+	 * @param SearchCase		Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
+	 * @param SearchDir			Indicates whether the search starts at the beginning or at the end ( defaults to ESearchDir::FromStart )
+	 * @return					Returns whether the string contains the substring. If the substring is empty, returns true.
+	 **/
+	UE_NODISCARD FORCEINLINE bool Contains(const TCHAR* SubStr, int32 SubStrLen,
+		ESearchCase::Type SearchCase = ESearchCase::IgnoreCase, ESearchDir::Type SearchDir = ESearchDir::FromStart) const
+	{
+		return Find(SubStr, SubStrLen, SearchCase, SearchDir) != INDEX_NONE;
 	}
 
 	/**

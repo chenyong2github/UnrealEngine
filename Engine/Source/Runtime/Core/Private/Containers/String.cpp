@@ -409,11 +409,6 @@ int32 FString::Find(const TCHAR* SubStr, int32 SubStrLen, ESearchCase::Type Sear
 			Start += FMath::Clamp(StartPosition, 0, RemainingLength - 1);
 			RemainingLength = UE_PTRDIFF_TO_INT32(End - Start);
 		}
-		if (SubStrLen == 0 && SearchCase == ESearchCase::IgnoreCase)
-		{
-			// Legacy behavior: when SubStr is empty string and SearchCase is IgnoreCase, return INDEX_NONE
-			return INDEX_NONE;
-		}
 		const TCHAR* Tmp = SearchCase == ESearchCase::IgnoreCase
 			? FCString::Strnistr(Start, RemainingLength, SubStr, SubStrLen)
 			: FCString::Strnstr(Start, RemainingLength, SubStr, SubStrLen);

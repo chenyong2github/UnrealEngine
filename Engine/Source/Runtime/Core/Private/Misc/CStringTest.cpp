@@ -97,6 +97,51 @@ bool FCStringGetVarArgsTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCStringStrstrTest, "System.Core.Misc.CString.Strstr", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+bool FCStringStrstrTest::RunTest(const FString& Parameters)
+{
+	auto RunTest = [this](const TCHAR* Search, const TCHAR* Find, int32 ExpectedSensitiveIndex, int32 ExpectedInsensitiveIndex)
+	{
+		const TCHAR* ExpectedSensitive = ExpectedSensitiveIndex == INDEX_NONE ? nullptr :
+			(Search + ExpectedSensitiveIndex);
+		const TCHAR* ExpectedInsensitive = ExpectedInsensitiveIndex == INDEX_NONE ? nullptr :
+			(Search + ExpectedInsensitiveIndex);
+		if (FCString::Strstr(Search, Find) != ExpectedSensitive)
+		{
+			AddError(FString::Printf(TEXT("Strstr(\"%s\", \"%s\") did not equal index \"%d\"."),
+				Search, Find, ExpectedSensitiveIndex));
+		}
+		if (FCString::Stristr(Search, Find) != ExpectedInsensitive)
+		{
+			AddError(FString::Printf(TEXT("Stristr(\"%s\", \"%s\") did not equal index \"%d\"."),
+				Search, Find, ExpectedInsensitiveIndex));
+		}
+	};
+	const TCHAR* ABACADAB = TEXT("ABACADAB");
+
+	RunTest(ABACADAB, TEXT("A"), 0, 0);
+	RunTest(ABACADAB, TEXT("a"), INDEX_NONE, 0);
+	RunTest(ABACADAB, TEXT("BAC"), 1, 1);
+	RunTest(ABACADAB, TEXT("BaC"), INDEX_NONE, 1);
+	RunTest(ABACADAB, TEXT("BAC"), 1, 1);
+	RunTest(ABACADAB, TEXT("BaC"), INDEX_NONE, 1);
+	RunTest(ABACADAB, TEXT("DAB"), 5, 5);
+	RunTest(ABACADAB, TEXT("dab"), INDEX_NONE, 5);
+	RunTest(ABACADAB, ABACADAB, 0, 0);
+	RunTest(ABACADAB, TEXT("abacadab"), INDEX_NONE, 0);
+	RunTest(ABACADAB, TEXT("F"), INDEX_NONE, INDEX_NONE);
+	RunTest(ABACADAB, TEXT("DABZ"), INDEX_NONE, INDEX_NONE);
+	RunTest(ABACADAB, TEXT("ABACADABA"), INDEX_NONE, INDEX_NONE);
+	RunTest(ABACADAB, TEXT("NoMatchLongerString"), INDEX_NONE, INDEX_NONE);
+	RunTest(TEXT(""), TEXT("FindText"), INDEX_NONE, INDEX_NONE);
+	RunTest(TEXT(""), TEXT(""), 0, 0);
+	RunTest(ABACADAB, TEXT(""), 0, 0);
+
+	// Passing in nullpt r is not allowed by StrStr so we do not test it
+
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCStringStrnstrTest, "System.Core.Misc.CString.Strnstr", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
 bool FCStringStrnstrTest::RunTest(const FString& Parameters)
 {

@@ -784,7 +784,7 @@ namespace Audio
 			bool bIsDebug = false;
 			FString WaveInstanceName = WaveInstance->GetName(); //-V595
 			FString TestName = GEngine->GetAudioDeviceManager()->GetDebugger().GetAudioMixerDebugSoundName();
-			if (WaveInstanceName.Contains(TestName))
+			if (!TestName.IsEmpty() && WaveInstanceName.Contains(TestName))
 			{
 				bDebugMode = true;
 				InitParams.bIsDebugMode = bDebugMode;
