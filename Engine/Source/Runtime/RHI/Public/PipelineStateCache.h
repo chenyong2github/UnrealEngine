@@ -118,7 +118,8 @@ namespace PipelineStateCache
 	/* Any async precaching operations still busy */
 	extern RHI_API bool						IsPrecaching();
 
-	
+	/* Return number of active or pending PSO precache requests */
+	extern RHI_API uint32					NumActivePrecacheRequests();
 }
 
 // Returns the shader index within the ray tracing pipeline or INDEX_NONE if given shader does not exist.
