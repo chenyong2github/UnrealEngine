@@ -687,6 +687,11 @@ class DevicenDisplay(DeviceUnreal):
             "[/Script/EngineSettings.GeneralProjectSettings]:"
             "bUseBorderlessWindow=True")
 
+        ini_input = (
+            "-ini:Input:"
+            "[/Script/Engine.InputSettings]:"
+            "DefaultPlayerInputClass=/Script/DisplayCluster.DisplayClusterPlayerInput")
+
         # VP roles
         vproles, missing_roles = self.get_vproles()
 
@@ -776,6 +781,7 @@ class DevicenDisplay(DeviceUnreal):
             f'Log={self.log_filename}',   # log file
             f'{ini_engine}',              # Engine ini injections
             f'{ini_game}',                # Game ini injections
+            f'{ini_input}',               # Input ini injections
             f'{unattended}',              # -unattended
             f'{no_screen_messages}',      # -NoScreenMessages
             f'{disable_ensures}',         # -handleensurepercent=0

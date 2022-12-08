@@ -23,23 +23,32 @@ void UDisplayClusterEditorSettings::PostEditChangeProperty(FPropertyChangedEvent
 	if (PropertyChangedEvent.Property != nullptr)
 	{
 		// Since nDisplay is Windows only, save configs that depends on nDisplay plugin assets in Windows specific config file
-		static const FString DefaultEnginePath = FString::Printf(TEXT("%sDefaultEngine.ini"), *FPaths::SourceConfigDir());
-		static const FString DefaultGamePath   = FString::Printf(TEXT("%sDefaultGame.ini"),   *FPaths::SourceConfigDir());
+		const FString DefaultEnginePath = FString::Printf(TEXT("%sDefaultEngine.ini"), *FPaths::SourceConfigDir());
+		const FString DefaultGamePath   = FString::Printf(TEXT("%sDefaultGame.ini"),   *FPaths::SourceConfigDir());
+		const FString DefaultInputPath  = FString::Printf(TEXT("%sDefaultInput.ini"),  *FPaths::SourceConfigDir());
 
 		FName PropertyName(PropertyChangedEvent.Property->GetFName());
 
 		if (PropertyName == GET_MEMBER_NAME_CHECKED(UDisplayClusterEditorSettings, bEnabled))
 		{
-			if (FPlatformFileManager::Get().GetPlatformFile().IsReadOnly(*DefaultEnginePath))
+			// Reset read-only flag from the config files
 			{
-				FPlatformFileManager::Get().GetPlatformFile().SetReadOnly(*DefaultEnginePath, false);
+				const FString* ConfigFiles[] = {
+					&DefaultEnginePath,
+					&DefaultGamePath,
+					&DefaultInputPath
+				};
+
+				for (const FString* ConfigFile : ConfigFiles)
+				{
+					if (FPlatformFileManager::Get().GetPlatformFile().IsReadOnly(**ConfigFile))
+					{
+						FPlatformFileManager::Get().GetPlatformFile().SetReadOnly(**ConfigFile, false);
+					}
+				}
 			}
 
-			if (FPlatformFileManager::Get().GetPlatformFile().IsReadOnly(*DefaultGamePath))
-			{
-				FPlatformFileManager::Get().GetPlatformFile().SetReadOnly(*DefaultGamePath, false);
-			}
-
+			// Process nDisplay 'enable' command
 			if (bEnabled)
 			{
 				// DefaultEngine.ini
@@ -49,7 +58,11 @@ void UDisplayClusterEditorSettings::PostEditChangeProperty(FPropertyChangedEvent
 
 				// DefaultGame.ini
 				GConfig->SetString(TEXT("/Script/EngineSettings.GeneralProjectSettings"), TEXT("bUseBorderlessWindow"), TEXT("True"), DefaultGamePath);
+
+				// DefaultInput.ini
+				GConfig->SetString(TEXT("/Script/Engine.InputSettings"), TEXT("DefaultPlayerInputClass"), TEXT("/Script/DisplayCluster.DisplayClusterPlayerInput"), DefaultInputPath);
 			}
+			// Process nDisplay 'disable' command
 			else
 			{
 				// DefaultEngine.ini
@@ -59,10 +72,15 @@ void UDisplayClusterEditorSettings::PostEditChangeProperty(FPropertyChangedEvent
 
 				// DefaultGame.ini
 				GConfig->SetString(TEXT("/Script/EngineSettings.GeneralProjectSettings"), TEXT("bUseBorderlessWindow"), TEXT("False"), DefaultGamePath);
+
+				// DefaultInput.ini
+				GConfig->SetString(TEXT("/Script/Engine.InputSettings"), TEXT("DefaultPlayerInputClass"), TEXT("/Script/EnhancedInput.EnhancedPlayerInput"), DefaultInputPath);
 			}
 
+			// Save changes to the files
 			GConfig->Flush(false, DefaultEnginePath);
 			GConfig->Flush(false, DefaultGamePath);
+			GConfig->Flush(false, DefaultInputPath);
 		}
 	}
 }

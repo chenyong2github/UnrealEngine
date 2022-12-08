@@ -22,7 +22,8 @@ public class DisplayCluster : ModuleRules
 				"DisplayClusterConfiguration",
 				"DisplayClusterLightCardEditorShaders",
 				"DisplayClusterLightCardExtender",
-				"Engine"
+				"Engine",
+				"EnhancedInput",
 			});
 
 		PrivateDependencyModuleNames.AddRange(

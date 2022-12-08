@@ -22,7 +22,6 @@
 #include "IDisplayClusterConfiguration.h"
 #include "DisplayClusterConfigurationTypes.h"
 
-#include "DisplayClusterPlayerInput.h"
 #include "Blueprints/DisplayClusterBlueprint.h"
 #include "Blueprints/DisplayClusterBlueprintGeneratedClass.h"
 
@@ -771,32 +770,6 @@ void ADisplayClusterRootActor::BeginPlay()
 
 	// Store current operation mode
 	OperationMode = GDisplayCluster->GetOperationMode();
-	if (OperationMode == EDisplayClusterOperationMode::Cluster)
-	{
-		FString SyncPolicyType;
-
-		// Read native input synchronization settings
-		IPDisplayClusterConfigManager* const ConfigMgr = GDisplayCluster->GetPrivateConfigMgr();
-		if (ConfigMgr)
-		{
-			UDisplayClusterConfigurationData* ConfigData = ConfigMgr->GetConfig();
-			if (ConfigData)
-			{
-				SyncPolicyType = ConfigData->Cluster->Sync.InputSyncPolicy.Type;
-				UE_LOG(LogDisplayClusterGame, Log, TEXT("Native input sync policy: %s"), *SyncPolicyType);
-			}
-		}
-
-		// Optionally activate native input synchronization
-		if (SyncPolicyType.Equals(DisplayClusterConfigurationStrings::config::cluster::input_sync::InputSyncPolicyReplicatePrimary, ESearchCase::IgnoreCase))
-		{
-			APlayerController* const PlayerController = GetWorld()->GetFirstPlayerController();
-			if (PlayerController)
-			{
-				PlayerController->PlayerInput = NewObject<UDisplayClusterPlayerInput>(PlayerController);
-			}
-		}
-	}
 
 	InitializeRootActor();
 }

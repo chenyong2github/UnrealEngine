@@ -202,6 +202,10 @@
 			"Enabled": true
 		},
 		{
+			"Name": "EnhancedInput",
+			"Enabled": true
+		},
+		{
 			"Name": "MediaIOFramework",
 			"Enabled": true
 		},

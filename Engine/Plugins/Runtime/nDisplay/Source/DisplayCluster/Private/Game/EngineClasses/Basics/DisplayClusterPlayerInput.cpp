@@ -1,9 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DisplayClusterPlayerInput.h"
+
+#include "DisplayClusterConfigurationStrings.h"
+#include "DisplayClusterConfigurationTypes.h"
+#include "DisplayClusterEnums.h"
+
 #include "Components/InputComponent.h"
 
 #include "Cluster/IPDisplayClusterClusterManager.h"
+#include "Config/IPDisplayClusterConfigManager.h"
 
 #include "Misc/DisplayClusterGlobals.h"
 #include "Misc/DisplayClusterHelpers.h"
@@ -15,29 +21,35 @@
 
 UDisplayClusterPlayerInput::UDisplayClusterPlayerInput()
 	: Super()
+	, bReplicatePrimary(false) // no replication by default
 {
+	// Replication makes sense in 'cluster' mode only
+	if (GDisplayCluster && GDisplayCluster->GetOperationMode() == EDisplayClusterOperationMode::Cluster)
+	{
+		if (const IPDisplayClusterConfigManager* const ConfigMgr = GDisplayCluster->GetPrivateConfigMgr())
+		{
+			if (const UDisplayClusterConfigurationData* ConfigData = ConfigMgr->GetConfig())
+			{
+				const FString& SyncPolicyType = ConfigData->Cluster->Sync.InputSyncPolicy.Type;
+				UE_LOG(LogDisplayClusterGame, Log, TEXT("Native input sync policy: %s"), *SyncPolicyType);
+
+				// Optionally activate native input synchronization
+				if (SyncPolicyType.Equals(DisplayClusterConfigurationStrings::config::cluster::input_sync::InputSyncPolicyReplicatePrimary, ESearchCase::IgnoreCase))
+				{
+					// Ok, replication is needed
+					bReplicatePrimary = true;
+				}
+			}
+		}
+	}
 }
 
 void UDisplayClusterPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& InputComponentStack, const float DeltaTime, const bool bGamePaused)
 {
-	UE_LOG(LogDisplayClusterGame, Verbose, TEXT("Processing input stack..."));
-
-	if (IPDisplayClusterClusterManager* const ClusterMgr = GDisplayCluster->GetPrivateClusterMgr())
+	// Input replication
+	if (bReplicatePrimary)
 	{
-		TMap<FString, FString> KeyStates;
-
-		if (ClusterMgr->IsPrimary())
-		{
-			// Export key states data for the stack
-			SerializeKeyStateMap(KeyStates);
-			ClusterMgr->ImportNativeInputData(MoveTemp(KeyStates));
-		}
-		else
-		{
-			// Import key states data to the stack
-			ClusterMgr->ExportNativeInputData(KeyStates);
-			DeserializeKeyStateMap(KeyStates);
-		}
+		ProcessPolicy_ReplicatePrimary(InputComponentStack, DeltaTime, bGamePaused);
 	}
 
 	Super::ProcessInputStack(InputComponentStack, DeltaTime, bGamePaused);
@@ -129,4 +141,27 @@ bool UDisplayClusterPlayerInput::DeserializeKeyStateMap(const TMap<FString, FStr
 	}
 
 	return true;
+}
+
+void UDisplayClusterPlayerInput::ProcessPolicy_ReplicatePrimary(const TArray<UInputComponent*>& InputComponentStack, const float DeltaTime, const bool bGamePaused)
+{
+	UE_LOG(LogDisplayClusterGame, Verbose, TEXT("Processing input stack..."));
+
+	if (IPDisplayClusterClusterManager* const ClusterMgr = GDisplayCluster->GetPrivateClusterMgr())
+	{
+		TMap<FString, FString> KeyStates;
+
+		if (ClusterMgr->IsPrimary())
+		{
+			// Export key states data for the stack
+			SerializeKeyStateMap(KeyStates);
+			ClusterMgr->ImportNativeInputData(MoveTemp(KeyStates));
+		}
+		else
+		{
+			// Import key states data to the stack
+			ClusterMgr->ExportNativeInputData(KeyStates);
+			DeserializeKeyStateMap(KeyStates);
+		}
+	}
 }
