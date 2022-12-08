@@ -786,6 +786,10 @@ protected:
 
 	bool bRuntimeInitialized = false;
 
+#if WITH_EDITOR
+	bool bAutoInitializeEditorInstances = true;
+#endif // WITH_EDITOR
+
 #if WITH_EDITORONLY_DATA
 	/** Set in OnWorldComponentsUpdated and used to control special logic required to build collections in Editor mode */
 	bool bIsPartitionedWorld = false;
@@ -804,7 +808,7 @@ protected:
 	 * @param World World from which the bounds must be computed
 	 */
 	FBox ComputeBounds(const UWorld& World) const;
-#endif // WITH_EDITOR
+#endif // WITH_EDITORONLY_DATA
 
 #if WITH_SMARTOBJECT_DEBUG
 public:

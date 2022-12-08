@@ -124,7 +124,7 @@ void USmartObjectSubsystem::OnWorldComponentsUpdated(UWorld& World)
 	RegisterCollectionInstances();
 
 #if WITH_EDITOR
-	if (!World.IsGameWorld())
+	if (!World.IsGameWorld() && bAutoInitializeEditorInstances)
 	{
 		// calculating world bounds first since InitializeRuntime is using that data to create the USmartObjectSpacePartition 
 		// instance. Note that we use the World-calculated bounds only for editor worlds, since Runtime SmartObjectContainer's 

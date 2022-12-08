@@ -26,6 +26,8 @@ class USmartObjectTestSubsystem : public USmartObjectSubsystem
 	GENERATED_BODY()
 
 public:
+	USmartObjectTestSubsystem(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
 	void RebuildAndInitializeForTesting(const TSharedPtr<FMassEntityManager>& InEntityManager);
 	FMassEntityManager* GetEntityManagerForTesting();
 
