@@ -82,8 +82,8 @@
 #include "RigVMModel/Nodes/RigVMLibraryNode.h"
 #include "RigVMModel/RigVMVariableDescription.h"
 #include "ControlRigBlueprint.h"
-#include "Units/Simulation/RigUnit_AlphaInterp.h"
-#include "Units/Debug/RigUnit_VisualDebug.h"
+#include "RigVMFunctions/Simulation/RigVMFunction_AlphaInterp.h"
+#include "RigVMFunctions/Debug/RigVMFunction_VisualDebug.h"
 #include "SKismetInspector.h"
 #include "Dialogs/Dialogs.h"
 #include "Settings/ControlRigSettings.h"
@@ -1653,11 +1653,11 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 
 									if ((ModelPin->GetCPPType() == TEXT("float")) || (ModelPin->GetCPPType() == TEXT("double")))
 									{
-										ScriptStruct = FRigUnit_AlphaInterp::StaticStruct();
+										ScriptStruct = FRigVMFunction_AlphaInterp::StaticStruct();
 									}
 									else if (ModelPin->GetCPPType() == TEXT("FVector"))
 									{
-										ScriptStruct = FRigUnit_AlphaInterpVector::StaticStruct();
+										ScriptStruct = FRigVMFunction_AlphaInterpVector::StaticStruct();
 									}
 									else
 									{
@@ -1745,15 +1745,15 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 
 									if (ModelPin->GetCPPType() == TEXT("FVector"))
 									{
-										ScriptStruct = FRigUnit_VisualDebugVectorItemSpace::StaticStruct();
+										ScriptStruct = FRigVMFunction_VisualDebugVectorNoSpace::StaticStruct();
 									}
 									else if (ModelPin->GetCPPType() == TEXT("FQuat"))
 									{
-										ScriptStruct = FRigUnit_VisualDebugQuatItemSpace::StaticStruct();
+										ScriptStruct = FRigVMFunction_VisualDebugQuatNoSpace::StaticStruct();
 									}
 									else if (ModelPin->GetCPPType() == TEXT("FTransform"))
 									{
-										ScriptStruct = FRigUnit_VisualDebugTransformItemSpace::StaticStruct();
+										ScriptStruct = FRigVMFunction_VisualDebugTransformNoSpace::StaticStruct();
 									}
 									else
 									{

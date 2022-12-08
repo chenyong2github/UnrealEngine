@@ -64,6 +64,11 @@ private:
 		} \
 		virtual bool RunRigVMStructTest(const FString& Parameters); \
 		virtual FString GetBeautifiedTestName() const override { return TEXT(RIGVMSTRUCT_TEST_STRINGIFY(RigVM.RigVMFunctions.TRigVMStruct)); } \
+		void InitAndExecute() \
+		{ \
+			Unit.Initialize(); \
+			Unit.Execute(ExecuteContext); \
+		} \
 		void Execute() \
 		{ \
 			Unit.Execute(ExecuteContext); \

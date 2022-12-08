@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "CRSimPoint.h"
+#include "RigVMFunctions/Math/RigVMMathLibrary.h"
 #include "CRSimLinearSpring.h"
 #include "CRSimPointForce.h"
 #include "CRSimPointConstraint.h"
@@ -24,7 +24,7 @@ struct FCRSimPointContainer : public FCRSimContainer
 	 * The points within the simulation
 	 */
 	UPROPERTY()
-	TArray<FCRSimPoint> Points;
+	TArray<FRigVMSimPoint> Points;
 
 	/**
 	 * The springs within the simulation
@@ -50,7 +50,7 @@ struct FCRSimPointContainer : public FCRSimContainer
 	UPROPERTY()
 	TArray<FCRSimPointConstraint> Constraints;
 
-	FCRSimPoint GetPointInterpolated(int32 InIndex) const;
+	FRigVMSimPoint GetPointInterpolated(int32 InIndex) const;
 
 	virtual void Reset() override;
 	virtual void ResetTime() override;
@@ -58,7 +58,7 @@ struct FCRSimPointContainer : public FCRSimContainer
 protected:
 
 	UPROPERTY()
-	TArray<FCRSimPoint> PreviousStep;
+	TArray<FRigVMSimPoint> PreviousStep;
 
 	virtual void CachePreviousStep() override;
 	virtual void IntegrateVerlet(float InBlend) override;

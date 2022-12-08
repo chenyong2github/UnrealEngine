@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigVMFunctions/RigVMFunction_String.h"
+#include "RigVMFunctions/RigVMFunctionDefines.h"
 #include "RigVMCore/RigVM.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMFunction_String)
@@ -119,7 +120,7 @@ FRigVMFunction_StringSplit_Execute()
 	{
 		if(Separator.IsEmpty())
 		{
-			//UE_CONTROLRIG_RIGUNIT_REPORT_ERROR(TEXT("Separator is empty."));
+			UE_RIGVMSTRUCT_REPORT_ERROR(TEXT("Separator is empty."));
 			return;
 		}
 
@@ -400,20 +401,18 @@ void FRigDispatch_FromString::Execute(FRigVMExtendedExecuteContext& InContext, F
 
 	if(!ErrorPipe.Errors.IsEmpty())
 	{
+#if WITH_EDITOR
+		const FRigVMExecuteContext& ExecuteContext = InContext.GetPublicData<>();
+#endif
 		ValueProperty->InitializeValue(Value);
 		for(const FString& Error : ErrorPipe.Errors)
 		{
-			/*
-			const FRigUnitContext& Context = GetRigUnitContext(InContext);
-
 #if WITH_EDITOR
-			if(Context.Log != nullptr)
+			if(ExecuteContext.GetLog() != nullptr)
 			{
-				Context.Log->Report(EMessageSeverity::Error, InContext.GetPublicData<>().GetFunctionName(), InContext.GetPublicData<>().GetInstructionIndex(), Error);
+				ExecuteContext.GetLog()->Report(EMessageSeverity::Error, InContext.GetPublicData<>().GetFunctionName(), InContext.GetPublicData<>().GetInstructionIndex(), Error);
 			}
 #endif
-			*/
-
 			FString ObjectPath;
 			if(InContext.VM)
 			{

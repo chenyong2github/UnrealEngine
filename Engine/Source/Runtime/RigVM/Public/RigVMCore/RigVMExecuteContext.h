@@ -278,6 +278,7 @@ struct RIGVM_API FRigVMExecuteContext
 	FName GetFunctionName() const { return FunctionName; }
 	
 	FName GetEventName() const { return EventName; }
+	void SetEventName(const FName& InName) { EventName = InName; }
 
 	double GetDeltaTime() const { return DeltaTime; }
 	void SetDeltaTime(double InDeltaTime) { DeltaTime = InDeltaTime; }
@@ -360,15 +361,6 @@ protected:
 	friend struct FRigVMExtendedExecuteContext;
 	friend class URigVM;
 	friend class URigVMNativized;
-	friend class UControlRig;
-	friend class UAdditiveControlRig;
-	friend struct FRigUnit_BeginExecution;
-	friend struct FRigUnit_InverseExecution;
-	friend struct FRigUnit_PrepareForExecution;
-	friend struct FRigUnit_InteractionExecution;
-	friend struct FRigUnit_UserDefinedEvent;
-	friend struct FEngineTestRigVM_Begin;
-	friend struct FEngineTestRigVM_Setup; 
 };
 
 /**

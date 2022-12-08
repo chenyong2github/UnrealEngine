@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "RigUnit_DebugBase.h"
+#include "RigVMFunctions/Debug/RigVMFunction_DebugBase.h"
 #include "Math/ControlRigMathLibrary.h"
 #include "RigUnit_DebugBezier.generated.h"
 
 USTRUCT(meta=(DisplayName="Draw Bezier", Deprecated = "4.25"))
-struct CONTROLRIG_API FRigUnit_DebugBezier : public FRigUnit_DebugBaseMutable
+struct CONTROLRIG_API FRigUnit_DebugBezier : public FRigVMFunction_DebugBaseMutable
 {
 	GENERATED_BODY()
 
@@ -58,7 +58,7 @@ struct CONTROLRIG_API FRigUnit_DebugBezier : public FRigUnit_DebugBaseMutable
 };
 
 USTRUCT(meta=(DisplayName="Draw Bezier", Deprecated = "4.25"))
-struct CONTROLRIG_API FRigUnit_DebugBezierItemSpace : public FRigUnit_DebugBaseMutable
+struct CONTROLRIG_API FRigUnit_DebugBezierItemSpace : public FRigVMFunction_DebugBaseMutable
 {
 	GENERATED_BODY()
 
@@ -108,5 +108,5 @@ struct CONTROLRIG_API FRigUnit_DebugBezierItemSpace : public FRigUnit_DebugBaseM
 	RIGVM_METHOD()
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 
-	static void DrawBezier(const FControlRigExecuteContext& InContext, const FTransform& WorldOffset, const FRigVMFourPointBezier& InBezier, float MinimumU, float MaximumU, const FLinearColor& Color, float Thickness, int32 Detail);
+	static void DrawBezier(const FRigVMExecuteContext& InContext, const FTransform& WorldOffset, const FRigVMFourPointBezier& InBezier, float MinimumU, float MaximumU, const FLinearColor& Color, float Thickness, int32 Detail);
 };

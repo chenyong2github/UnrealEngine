@@ -2,7 +2,9 @@
 
 #pragma once
 
-#include "RigUnit_DebugBase.h"
+#include "RigVMFunctions/Debug/RigVMFunction_DebugBase.h"
+#include "Rigs/RigHierarchy.h"
+#include "Units/RigUnitContext.h"
 #include "RigUnit_DebugHierarchy.generated.h"
 
 UENUM()
@@ -22,7 +24,7 @@ namespace EControlRigDrawHierarchyMode
  * Draws vectors on each bone in the viewport across the entire hierarchy
  */
 USTRUCT(meta=(DisplayName="Draw Hierarchy"))
-struct CONTROLRIG_API FRigUnit_DebugHierarchy : public FRigUnit_DebugBaseMutable
+struct CONTROLRIG_API FRigUnit_DebugHierarchy : public FRigVMFunction_DebugBase
 {
 	GENERATED_BODY()
 
@@ -37,6 +39,9 @@ struct CONTROLRIG_API FRigUnit_DebugHierarchy : public FRigUnit_DebugBaseMutable
 
 	RIGVM_METHOD()
 	virtual void Execute() override;
+
+	UPROPERTY(DisplayName = "Execute", Transient, meta = (Input, Output))
+	FControlRigExecuteContext ExecuteContext;
 
 	UPROPERTY(meta = (Input))
 	float Scale;
@@ -53,14 +58,14 @@ struct CONTROLRIG_API FRigUnit_DebugHierarchy : public FRigUnit_DebugBaseMutable
 	UPROPERTY(meta = (Input))
 	bool bEnabled;
 
-	static void DrawHierarchy(const FControlRigExecuteContext& InContext, const FTransform& WorldOffset, URigHierarchy* Hierarchy, EControlRigDrawHierarchyMode::Type Mode, float Scale, const FLinearColor& Color, float Thickness, const FRigPose* InPose);
+	static void DrawHierarchy(const FRigVMExecuteContext& InContext, const FTransform& WorldOffset, URigHierarchy* Hierarchy, EControlRigDrawHierarchyMode::Type Mode, float Scale, const FLinearColor& Color, float Thickness, const FRigPose* InPose);
 };
 
 /**
 * Draws vectors on each bone in the viewport across the entire pose
 */
 USTRUCT(meta=(DisplayName="Draw Pose Cache"))
-struct CONTROLRIG_API FRigUnit_DebugPose : public FRigUnit_DebugBaseMutable
+struct CONTROLRIG_API FRigUnit_DebugPose : public FRigVMFunction_DebugBase
 {
 	GENERATED_BODY()
 
@@ -75,6 +80,9 @@ struct CONTROLRIG_API FRigUnit_DebugPose : public FRigUnit_DebugBaseMutable
 
 	RIGVM_METHOD()
 	virtual void Execute() override;
+
+	UPROPERTY(DisplayName = "Execute", Transient, meta = (Input, Output))
+	FControlRigExecuteContext ExecuteContext;
 
 	UPROPERTY(meta = (Input))
 	FRigPose Pose;

@@ -10,6 +10,6 @@ FName FRigUnit_InverseExecution::EventName = TEXT("Backwards Solve");
 FRigUnit_InverseExecution_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	ExecuteContext.EventName = FRigUnit_InverseExecution::EventName;
+	ExecuteContext.SetEventName(FRigUnit_InverseExecution::EventName);
 }
 

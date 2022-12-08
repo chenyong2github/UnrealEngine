@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "CRSimPoint.h"
+#include "RigVMFunctions/Math/RigVMMathLibrary.h"
 #include "CRSimLinearSpring.generated.h"
 
 USTRUCT(BlueprintType)
@@ -44,5 +44,5 @@ struct FCRSimLinearSpring
 	UPROPERTY(EditAnywhere, Category=Simulation)
 	float Equilibrium;
 
-	void CalculateForPoints(const FCRSimPoint& InPointA, const FCRSimPoint& InPointB, FVector& ForceA, FVector& ForceB) const;
+	void CalculateForPoints(const FRigVMSimPoint& InPointA, const FRigVMSimPoint& InPointB, FVector& ForceA, FVector& ForceB) const;
 };

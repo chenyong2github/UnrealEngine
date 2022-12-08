@@ -21,7 +21,7 @@
 #include "Units/Execution/RigUnit_InverseExecution.h"
 #include "Units/Execution/RigUnit_PrepareForExecution.h"
 #include "Units/Execution/RigUnit_InteractionExecution.h"
-#include "Units/Execution/RigUnit_UserDefinedEvent.h"
+#include "RigVMFunctions/Execution/RigVMFunction_UserDefinedEvent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigUnitNodeSpawner)
 
@@ -184,7 +184,7 @@ UControlRigGraphNode* UControlRigUnitNodeSpawner::SpawnNode(UEdGraph* ParentGrap
 			if(!EventName.IsNone())
 			{
 				if(StructInstance->CanOnlyExistOnce() &&
-					(StructTemplate != FRigUnit_UserDefinedEvent::StaticStruct()))
+					(StructTemplate != FRigVMFunction_UserDefinedEvent::StaticStruct()))
 				{
 					const TArray<URigVMGraph*> Models = RigBlueprint->GetAllModels();
 					for(URigVMGraph* Model : Models)
@@ -226,7 +226,7 @@ UControlRigGraphNode* UControlRigUnitNodeSpawner::SpawnNode(UEdGraph* ParentGrap
 
 			if (NewNode && bIsUserFacingNode)
 			{
-				if(StructTemplate == FRigUnit_UserDefinedEvent::StaticStruct())
+				if(StructTemplate == FRigVMFunction_UserDefinedEvent::StaticStruct())
 				{
 					// ensure uniqueness for the event name
 					TArray<FName> ExistingEventNames = {

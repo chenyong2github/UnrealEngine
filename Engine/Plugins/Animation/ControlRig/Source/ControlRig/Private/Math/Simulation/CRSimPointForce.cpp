@@ -4,7 +4,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CRSimPointForce)
 
-FVector FCRSimPointForce::Calculate(const FCRSimPoint& InPoint, float InDeltaTime) const
+FVector FCRSimPointForce::Calculate(const FRigVMSimPoint& InPoint, float InDeltaTime) const
 {
 	FVector Force = FVector::ZeroVector;
 	if(InPoint.Mass > SMALL_NUMBER)

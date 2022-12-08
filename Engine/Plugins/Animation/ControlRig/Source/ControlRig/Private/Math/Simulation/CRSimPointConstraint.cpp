@@ -5,7 +5,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CRSimPointConstraint)
 
-void FCRSimPointConstraint::Apply(FCRSimPoint& OutPointA, FCRSimPoint& OutPointB) const
+void FCRSimPointConstraint::Apply(FRigVMSimPoint& OutPointA, FRigVMSimPoint& OutPointB) const
 {
 	switch (Type)
 	{

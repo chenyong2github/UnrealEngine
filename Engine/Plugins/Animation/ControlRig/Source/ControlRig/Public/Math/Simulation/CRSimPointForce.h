@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "CRSimPoint.h"
+#include "RigVMFunctions/Math/RigVMMathLibrary.h"
 #include "CRSimPointForce.generated.h"
 
 UENUM()
@@ -51,5 +51,5 @@ struct FCRSimPointForce
 	UPROPERTY(EditAnywhere, Category=Simulation)
 	bool bNormalize;
 
-	FVector Calculate(const FCRSimPoint& InPoint, float InDeltaTime) const;
+	FVector Calculate(const FRigVMSimPoint& InPoint, float InDeltaTime) const;
 };

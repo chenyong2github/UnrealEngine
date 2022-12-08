@@ -17,13 +17,13 @@ void FCRSimPointContainer::ResetTime()
 {
 	FCRSimContainer::ResetTime();
 	PreviousStep.Reset();
-	for (FCRSimPoint& Point : Points)
+	for (FRigVMSimPoint& Point : Points)
 	{
 		Point.LinearVelocity = FVector::ZeroVector;
 	}
 }
 
-FCRSimPoint FCRSimPointContainer::GetPointInterpolated(int32 InIndex) const
+FRigVMSimPoint FCRSimPointContainer::GetPointInterpolated(int32 InIndex) const
 {
 	if (TimeLeftForStep <= SMALL_NUMBER || PreviousStep.Num() != Points.Num())
 	{
@@ -31,8 +31,8 @@ FCRSimPoint FCRSimPointContainer::GetPointInterpolated(int32 InIndex) const
 	}
 
 	float T = 1.f - TimeLeftForStep / TimeStep;
-	const FCRSimPoint& PrevPoint = PreviousStep[InIndex];
-	FCRSimPoint Point = Points[InIndex];
+	const FRigVMSimPoint& PrevPoint = PreviousStep[InIndex];
+	FRigVMSimPoint Point = Points[InIndex];
 	Point.Position = FMath::Lerp<FVector>(PrevPoint.Position, Point.Position, T);
 	Point.Size = FMath::Lerp<float>(PrevPoint.Size, Point.Size, T);
 	Point.LinearVelocity = FMath::Lerp<FVector>(PrevPoint.LinearVelocity, Point.LinearVelocity, T);
@@ -42,7 +42,7 @@ FCRSimPoint FCRSimPointContainer::GetPointInterpolated(int32 InIndex) const
 void FCRSimPointContainer::CachePreviousStep()
 {
 	PreviousStep = Points;
-	for (FCRSimPoint& Point : Points)
+	for (FRigVMSimPoint& Point : Points)
 	{
 		Point.LinearVelocity = FVector::ZeroVector;
 	}
@@ -73,15 +73,15 @@ void FCRSimPointContainer::IntegrateSprings()
 		{
 			continue;
 		}
-		const FCRSimPoint& PrevPointA = PreviousStep[Spring.SubjectA];
-		const FCRSimPoint& PrevPointB = PreviousStep[Spring.SubjectB];
+		const FRigVMSimPoint& PrevPointA = PreviousStep[Spring.SubjectA];
+		const FRigVMSimPoint& PrevPointB = PreviousStep[Spring.SubjectB];
 
 		FVector ForceA = FVector::ZeroVector;
 		FVector ForceB = FVector::ZeroVector;
 		Spring.CalculateForPoints(PrevPointA, PrevPointB, ForceA, ForceB);
 
-		FCRSimPoint& PointA = Points[Spring.SubjectA];
-		FCRSimPoint& PointB = Points[Spring.SubjectB];
+		FRigVMSimPoint& PointA = Points[Spring.SubjectA];
+		FRigVMSimPoint& PointB = Points[Spring.SubjectB];
 		PointA.LinearVelocity += ForceA;
 		PointB.LinearVelocity += ForceB;
 	}
@@ -128,8 +128,8 @@ void FCRSimPointContainer::ApplyConstraints()
 			continue;
 		}
 
-		FCRSimPoint& PointA = Points[Constraint.SubjectA];
-		FCRSimPoint& PointB = Points[Constraint.SubjectB == INDEX_NONE ? Constraint.SubjectA : Constraint.SubjectB];
+		FRigVMSimPoint& PointA = Points[Constraint.SubjectA];
+		FRigVMSimPoint& PointB = Points[Constraint.SubjectB == INDEX_NONE ? Constraint.SubjectA : Constraint.SubjectB];
 		Constraint.Apply(PointA, PointB);
 	}
 }

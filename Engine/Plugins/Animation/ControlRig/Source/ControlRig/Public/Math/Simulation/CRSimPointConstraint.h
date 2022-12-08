@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "CRSimPoint.h"
+#include "RigVMFunctions/Math/RigVMMathLibrary.h"
 #include "CRSimPointConstraint.generated.h"
 
 UENUM()
@@ -58,5 +58,5 @@ struct FCRSimPointConstraint
 	UPROPERTY()
 	FVector DataB;
 
-	void Apply(FCRSimPoint& OutPointA, FCRSimPoint& OutPointB) const;
+	void Apply(FRigVMSimPoint& OutPointA, FRigVMSimPoint& OutPointB) const;
 };

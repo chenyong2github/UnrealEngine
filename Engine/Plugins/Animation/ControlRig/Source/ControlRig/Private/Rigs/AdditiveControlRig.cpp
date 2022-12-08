@@ -48,7 +48,7 @@ bool UAdditiveControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FNam
 	{
 		FControlRigExecuteContext ExecuteContext;
 		ExecuteContext.Hierarchy = GetHierarchy();
-		ExecuteContext.EventName = InEventName;
+		ExecuteContext.SetEventName(InEventName);
 		ExecuteContext.UnitContext = InOutContext;
 
 		for (FRigUnit_AddBoneTransform& Unit : AddBoneRigUnits)

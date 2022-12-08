@@ -55,7 +55,7 @@ FRigUnit_SpringIK_Execute()
 
 		for (int32 PointIndex = 0; PointIndex < CachedBones.Num() - 1; PointIndex++)
 		{
-			Simulation.Points.Add(FCRSimPoint());
+			Simulation.Points.Add(FRigVMSimPoint());
 
 			FTransform A = Hierarchy->GetInitialGlobalTransform(CachedBones[PointIndex]);
 			FTransform B = Hierarchy->GetInitialGlobalTransform(CachedBones[PointIndex + 1]);
@@ -89,7 +89,7 @@ FRigUnit_SpringIK_Execute()
 				Simulation.Springs.Add(Spring);
 			}
 		}
-		Simulation.Points.Add(FCRSimPoint());
+		Simulation.Points.Add(FRigVMSimPoint());
 
 		Simulation.Points[0].Mass = 0.f;
 		Simulation.Points.Last().Mass = 0.f;

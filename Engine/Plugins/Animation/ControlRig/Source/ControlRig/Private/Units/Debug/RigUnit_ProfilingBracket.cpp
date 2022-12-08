@@ -2,6 +2,7 @@
 
 #include "Units/Debug/RigUnit_ProfilingBracket.h"
 #include "Units/RigUnitContext.h"
+#include "ControlRigDefines.h"
 #include "KismetAnimationLibrary.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_ProfilingBracket)

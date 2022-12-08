@@ -84,7 +84,7 @@ float FCRSimSoftCollision::CalculateFalloff(const FCRSimSoftCollision& InCollisi
 	return FControlRigMathLibrary::EaseFloat(Ratio, InCollision.FalloffType);
 }
 
-FVector FCRSimSoftCollision::CalculateForPoint(const FCRSimPoint& InPoint, float InDeltaTime) const
+FVector FCRSimSoftCollision::CalculateForPoint(const FRigVMSimPoint& InPoint, float InDeltaTime) const
 {
 	FVector Force = FVector::ZeroVector;
 	if(InPoint.Mass > SMALL_NUMBER)

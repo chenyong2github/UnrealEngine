@@ -5,7 +5,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CRSimLinearSpring)
 
-void FCRSimLinearSpring::CalculateForPoints(const FCRSimPoint& InPointA, const FCRSimPoint& InPointB, FVector& ForceA, FVector& ForceB) const
+void FCRSimLinearSpring::CalculateForPoints(const FRigVMSimPoint& InPointA, const FRigVMSimPoint& InPointB, FVector& ForceA, FVector& ForceB) const
 {
 	ForceA = ForceB = FVector::ZeroVector;
 

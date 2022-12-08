@@ -10,6 +10,6 @@ FName FRigUnit_InteractionExecution::EventName = TEXT("Interaction");
 FRigUnit_InteractionExecution_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	ExecuteContext.EventName = FRigUnit_InteractionExecution::EventName;
+	ExecuteContext.SetEventName(FRigUnit_InteractionExecution::EventName);
 }
 

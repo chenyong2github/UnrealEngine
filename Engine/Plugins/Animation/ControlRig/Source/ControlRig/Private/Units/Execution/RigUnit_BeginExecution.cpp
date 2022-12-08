@@ -10,6 +10,6 @@ FName FRigUnit_BeginExecution::EventName = TEXT("Forwards Solve");
 FRigUnit_BeginExecution_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	ExecuteContext.EventName = FRigUnit_BeginExecution::EventName;
+	ExecuteContext.SetEventName(FRigUnit_BeginExecution::EventName);
 }
 

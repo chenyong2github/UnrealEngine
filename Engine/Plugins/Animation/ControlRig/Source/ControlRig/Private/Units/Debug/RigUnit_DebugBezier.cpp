@@ -34,7 +34,7 @@ FRigUnit_DebugBezierItemSpace_Execute()
 	FTransform Transform = WorldOffset;
 	if (Space.IsValid())
 	{
-		Transform = Transform * ExecuteContext.Hierarchy->GetGlobalTransform(Space);
+		//Transform = Transform * ExecuteContext.Hierarchy->GetGlobalTransform(Space);
 	}
 
 	DrawBezier(ExecuteContext, Transform, Bezier, MinimumU, MaximumU, Color, Thickness, Detail);
@@ -46,7 +46,7 @@ FRigVMStructUpgradeInfo FRigUnit_DebugBezierItemSpace::GetUpgradeInfo() const
 	return FRigVMStructUpgradeInfo();
 }
 
-void FRigUnit_DebugBezierItemSpace::DrawBezier(const FControlRigExecuteContext& InContext, const FTransform& WorldOffset, const FRigVMFourPointBezier& InBezier, float MinimumU, float MaximumU, const FLinearColor& Color, float Thickness, int32 Detail)
+void FRigUnit_DebugBezierItemSpace::DrawBezier(const FRigVMExecuteContext& InContext, const FTransform& WorldOffset, const FRigVMFourPointBezier& InBezier, float MinimumU, float MaximumU, const FLinearColor& Color, float Thickness, int32 Detail)
 {
 	FRigVMDrawInterface* DrawInterface = InContext.GetDrawInterface();
 	if(DrawInterface == nullptr)

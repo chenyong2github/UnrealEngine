@@ -248,11 +248,11 @@ bool UControlRig::InitializeVM(const FName& InEventName)
 			const FRigVMExecuteContext& PublicContext = ExtendedExecuteContext.GetPublicData<>(); 
 			if(ControlRigLog)
 			{
-				ControlRigLog->Report(InSeverity,PublicContext.FunctionName,PublicContext.InstructionIndex, Message);
+				ControlRigLog->Report(InSeverity,PublicContext.GetFunctionName(),PublicContext.GetInstructionIndex(), Message);
 			}
 			else
 			{
-				LogOnce(InSeverity,PublicContext.InstructionIndex, Message);
+				LogOnce(InSeverity,PublicContext.GetInstructionIndex(), Message);
 			}
 		};
 	}
@@ -1573,11 +1573,11 @@ void UControlRig::UpdateVMSettings()
 
 			if(ControlRigLog)
 			{
-				ControlRigLog->Report(InSeverity, InContext->FunctionName, InContext->InstructionIndex, Message);
+				ControlRigLog->Report(InSeverity, InContext->GetFunctionName(), InContext->GetInstructionIndex(), Message);
 			}
 			else
 			{
-				LogOnce(InSeverity, InContext->InstructionIndex, Message);
+				LogOnce(InSeverity, InContext->GetInstructionIndex(), Message);
 			}
 		});
 #endif
