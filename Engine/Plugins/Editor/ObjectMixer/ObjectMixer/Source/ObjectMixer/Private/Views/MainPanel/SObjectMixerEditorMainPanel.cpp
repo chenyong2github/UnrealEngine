@@ -646,9 +646,9 @@ void SObjectMixerEditorMainPanel::SetSingleCollectionSelection(const FName& Coll
 		if (const TSharedPtr<FObjectMixerEditorListFilter_Collection> CollectionFilter =
 			StaticCastSharedRef<FObjectMixerEditorListFilter_Collection>(Filter))
 		{
-			const bool bIsAllCollectionFilter =
+			const bool bMatch =
 				CollectionFilter->CollectionName.IsEqual(CollectionToEnableName);
-			CollectionFilter->SetFilterActive(bIsAllCollectionFilter);
+			CollectionFilter->SetFilterActive(bMatch);
 		}
 	}
 }
@@ -956,6 +956,8 @@ bool SObjectMixerEditorMainPanel::RequestRemoveCollection(const FName& Collectio
 		
 		ListFilters.SetNum(NewListFilterCount);
 
+		OnCollectionCheckedStateChanged(true, UObjectMixerEditorSerializedData::AllCollectionName);
+
 		return true;
 	}
 
@@ -971,38 +973,7 @@ bool SObjectMixerEditorMainPanel::RequestRenameCollection(
 	const FName& CollectionNameToRename,
 	const FName& NewCollectionName)
 {
-	if (MainPanelModel.Pin()->RequestRenameCollection(CollectionNameToRename, NewCollectionName))
-	{
-		if (TSharedRef<IObjectMixerEditorListFilter>* Match = Algo::FindByPredicate(ListFilters,
-			[CollectionNameToRename](const TSharedRef<IObjectMixerEditorListFilter>& ListFilter)
-			{
-				if (const TSharedPtr<FObjectMixerEditorListFilter_Collection> CollectionFilter =
-					StaticCastSharedRef<FObjectMixerEditorListFilter_Collection>(ListFilter))
-				{
-					return CollectionFilter->CollectionName.IsEqual(CollectionNameToRename);
-				}
-				return false;
-			}))
-		{
-			StaticCastSharedRef<FObjectMixerEditorListFilter_Collection>(*Match)->CollectionName = NewCollectionName;
-		}
-		else
-		{
-			TSharedRef<FObjectMixerEditorListFilter_Collection> NewCollectionFilter =
-				MakeShared<FObjectMixerEditorListFilter_Collection>(NewCollectionName);
-		
-			ListFilters.Add(NewCollectionFilter);
-		
-			CollectionSelectorBox->AddSlot()
-			[
-				SNew(SCollectionSelectionButton, SharedThis(this), NewCollectionFilter)
-			];
-		}
-
-		return true;
-	}
-
-	return false;
+	return MainPanelModel.Pin()->RequestRenameCollection(CollectionNameToRename, NewCollectionName);
 }
 
 bool SObjectMixerEditorMainPanel::DoesCollectionExist(const FName& CollectionName) const

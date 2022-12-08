@@ -227,10 +227,7 @@ bool FObjectMixerEditorMainPanel::RequestAddObjectsToCollection(const FName& Col
 		for (const TSubclassOf<UObjectMixerObjectFilter>& Class : GetObjectFilterClasses())
 		{
 			const FName FilterName = Class->GetFName();
-			if (SerializedData->DoesCollectionExist(FilterName, CollectionName))
-			{
-				return SerializedData->AddObjectsToCollection(FilterName, CollectionName, ObjectsToAdd);
-			}
+			return SerializedData->AddObjectsToCollection(FilterName, CollectionName, ObjectsToAdd);
 		}
 	}
 
