@@ -1438,8 +1438,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 	}
 
-#if UE_AUDIO_THREAD_AS_PIPE
-
 	// AudioThread was removed and replaced by a pipe. While all engine code was converted where's a tiny possibilty that 
 	// an external code is using it directly. Redirect all audio tasks to the pipe
 	static void RedirectAudioTasksToPipe(FBaseGraphTask* Task)
@@ -1461,8 +1459,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 
-#endif
-
 	// API inherited from FTaskGraphInterface
 
 	/** 
@@ -1475,12 +1471,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		TASKGRAPH_SCOPE_CYCLE_COUNTER(2, STAT_TaskGraph_QueueTask);
 
-#if UE_STATS_THREAD_AS_PIPE
 		RedirectStatsTasksToPipe(Task);
-#endif
-#if UE_AUDIO_THREAD_AS_PIPE
 		RedirectAudioTasksToPipe(Task);
-#endif
 
 		if (ENamedThreads::GetThreadIndex(ThreadToExecuteOn) == ENamedThreads::AnyThread)
 		{
@@ -2024,12 +2016,8 @@ public:
 private:
 	void QueueTask(class FBaseGraphTask* Task, bool bWakeUpWorker, ENamedThreads::Type InThreadToExecuteOn, ENamedThreads::Type InCurrentThreadIfKnown) override
 	{
-#if UE_STATS_THREAD_AS_PIPE
 		FTaskGraphImplementation::RedirectStatsTasksToPipe(Task);
-#endif
-#if UE_AUDIO_THREAD_AS_PIPE
 		FTaskGraphImplementation::RedirectAudioTasksToPipe(Task);
-#endif
 
 		if (ENamedThreads::GetThreadIndex(InThreadToExecuteOn) == ENamedThreads::AnyThread)
 		{

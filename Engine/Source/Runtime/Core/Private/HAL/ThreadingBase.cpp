@@ -228,11 +228,6 @@ CORE_API std::atomic<bool> GIsAudioThreadRunning{ false };
 
 CORE_API std::atomic<bool> GIsAudioThreadSuspended{ false };
 
-#if !UE_AUDIO_THREAD_AS_PIPE
-CORE_API FRunnableThread* GAudioThread = nullptr;
-#endif
-
-
 CORE_API bool IsAudioThreadRunning()
 {
 	return GIsAudioThreadRunning.load(std::memory_order_acquire) && !GIsAudioThreadSuspended.load(std::memory_order_acquire);
@@ -240,31 +235,7 @@ CORE_API bool IsAudioThreadRunning()
 
 CORE_API bool IsInAudioThread()
 {
-#if UE_AUDIO_THREAD_AS_PIPE
-
 	return GIsAudioThreadRunning.load(std::memory_order_acquire) && !GIsAudioThreadSuspended.load(std::memory_order_acquire) ? GAudioPipe.IsInContext() : IsInGameThread();
-
-#else
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	// True if this is the audio thread or if there is no audio thread, then if it is the game thread
-	bool newValue = (nullptr == GAudioThread || GIsAudioThreadSuspended.load(std::memory_order_relaxed))
-		? FTaskTagScope::IsCurrentTag(ETaskTag::EGameThread)
-		: FTaskTagScope::IsCurrentTag(ETaskTag::EAudioThread);
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	if (!LowLevelTasks::FSchedulerTls::IsBusyWaiting() &&
-		!CoroTask_Detail::FCoroLocalState::IsCoroLaunchedTask() &&
-		!UE::Tasks::Private::IsThreadRetractingTask())
-	{
-		bool oldValue = FPlatformTLS::GetCurrentThreadId() == ((nullptr == GAudioThread || GIsAudioThreadSuspended.load(std::memory_order_relaxed)) ? GGameThreadId : GAudioThread->GetThreadID());
-		ensureMsgf(oldValue == newValue, TEXT("oldValue(%i) newValue(%i) If this check fails make sure that there is a FTaskTagScope(ETaskTag::EAudioThread) as deep as possible on the current callstack, you can see the current value in ActiveNamedThreads(%x)"), oldValue, newValue, FTaskTagScope::GetCurrentTag());
-		newValue = oldValue;
-	}
-#endif
-	return newValue;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-#endif
 }
 
 CORE_API TAtomic<int32> GIsRenderingThreadSuspended(0);

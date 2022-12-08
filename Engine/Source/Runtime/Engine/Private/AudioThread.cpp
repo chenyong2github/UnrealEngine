@@ -123,8 +123,6 @@ TStatId FAudioThread::CurrentAudioThreadStatId;
 TStatId FAudioThread::LongestAudioThreadStatId;
 double FAudioThread::LongestAudioThreadTimeMsec = 0.0;
 
-#if UE_AUDIO_THREAD_AS_PIPE
-
 TUniquePtr<UE::Tasks::FTaskEvent> FAudioThread::ResumeEvent;
 int32 FAudioThread::SuspendCount{ 0 };
 
@@ -184,132 +182,6 @@ void FAudioThread::ResumeAudioThread()
 	ResumeEvent = MakeUnique<UE::Tasks::FTaskEvent>(UE_SOURCE_LOCATION);
 }
 
-#else // UE_AUDIO_THREAD_AS_PIPE
-
-FRunnable* FAudioThread::AudioThreadRunnable = nullptr;
-
-/** The audio thread main loop */
-void AudioThreadMain( FEvent* TaskGraphBoundSyncEvent )
-{
-	FTaskGraphInterface::Get().AttachToThread(ENamedThreads::AudioThread);
-	FPlatformMisc::MemoryBarrier();
-
-	// Inform main thread that the audio thread has been attached to the taskgraph and is ready to receive tasks
-	if( TaskGraphBoundSyncEvent != nullptr )
-	{
-		TaskGraphBoundSyncEvent->Trigger();
-	}
-
-	FTaskGraphInterface::Get().ProcessThreadUntilRequestReturn(ENamedThreads::AudioThread);
-	FPlatformMisc::MemoryBarrier();
-}
-
-FAudioThread::FAudioThread()
-{
-	TaskGraphBoundSyncEvent	= FPlatformProcess::GetSynchEventFromPool(true);
-
-	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddRaw(this, &FAudioThread::OnPreGarbageCollect);
-	FCoreUObjectDelegates::GetPostGarbageCollect().AddRaw(this, &FAudioThread::OnPostGarbageCollect);
-
-	FCoreUObjectDelegates::PreGarbageCollectConditionalBeginDestroy.AddRaw(this, &FAudioThread::OnPreGarbageCollect);
-	FCoreUObjectDelegates::PostGarbageCollectConditionalBeginDestroy.AddRaw(this, &FAudioThread::OnPostGarbageCollect);
-}
-
-FAudioThread::~FAudioThread()
-{
-	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().RemoveAll(this);
-	FCoreUObjectDelegates::GetPostGarbageCollect().RemoveAll(this);
-
-	FCoreUObjectDelegates::PreGarbageCollectConditionalBeginDestroy.RemoveAll(this);
-	FCoreUObjectDelegates::PostGarbageCollectConditionalBeginDestroy.RemoveAll(this);
-
-	FPlatformProcess::ReturnSynchEventToPool(TaskGraphBoundSyncEvent);
-	TaskGraphBoundSyncEvent = nullptr;
-}
-
-static int32 AudioThreadSuspendCount = 0;
-
-void FAudioThread::SuspendAudioThread()
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(SuspendAudioThread);
-	check(FPlatformTLS::GetCurrentThreadId() == GGameThreadId);
-	check(!GIsAudioThreadSuspended.load() || GCVarSuspendAudioThread != 0);
-
-	if (IsAudioThreadRunning())
-	{
-		// Make GC wait on the audio thread finishing processing
-		FAudioCommandFence AudioFence;
-		AudioFence.BeginFence();
-		AudioFence.Wait();
-
-		GIsAudioThreadSuspended = true;
-		FPlatformMisc::MemoryBarrier();
-	}
-	check(!IsAudioThreadRunning());
-}
-
-void FAudioThread::ResumeAudioThread()
-{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-
-	check(FPlatformTLS::GetCurrentThreadId() == GGameThreadId);
-	if(GIsAudioThreadSuspended.load() && GCVarSuspendAudioThread == 0)
-	{
-		GIsAudioThreadSuspended = false;
-		FPlatformMisc::MemoryBarrier();
-	}
-	ProcessAllCommands();
-
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-void FAudioThread::OnPreGarbageCollect()
-{
-	AudioThreadSuspendCount++;
-	if (AudioThreadSuspendCount == 1)
-	{
-		SuspendAudioThread();
-	}
-}
-
-void FAudioThread::OnPostGarbageCollect()
-{
-	AudioThreadSuspendCount--;
-	if (AudioThreadSuspendCount == 0)
-	{
-		ResumeAudioThread();
-	}
-}
-
-#if !UE_AUDIO_THREAD_AS_PIPE
-
-bool FAudioThread::Init()
-{ 
-	GIsAudioThreadRunning.store(true, std::memory_order_release);
-	return true;
-}
-
-void FAudioThread::Exit()
-{
-	GIsAudioThreadRunning.store(false, std::memory_order_release);
-}
-
-#endif
-
-uint32 FAudioThread::Run()
-{
-	LLM_SCOPE(ELLMTag::AudioMisc);
-	SCOPED_NAMED_EVENT(FAudioThread_Run, FColor::Blue);
-
-	FMemory::SetupTLSCachesOnCurrentThread();
-	FPlatformProcess::SetupAudioThread();
-	AudioThreadMain( TaskGraphBoundSyncEvent );
-	FMemory::ClearAndDisableTLSCachesOnCurrentThread();
-	return 0;
-}
-
-#endif // UE_AUDIO_THREAD_AS_PIPE
-
 void FAudioThread::SetUseThreadedAudio(const bool bInUseThreadedAudio)
 {
 	if (IsAudioThreadRunning() && !bInUseThreadedAudio)
@@ -326,8 +198,6 @@ bool FAudioThread::IsUsingThreadedAudio()
 {
 	return bUseThreadedAudio;
 }
-
-#if UE_AUDIO_THREAD_AS_PIPE
 
 // batching audio commands allows to avoid the overhead of launching a task per command when resources are limited.
 // We assume that resources are limited if the previous batch is not completed yet (potentially waiting for execution due to the CPU being busy
@@ -382,59 +252,6 @@ struct FAudioAsyncBatcher
 	}
 };
 
-#else // UE_AUDIO_THREAD_AS_PIPE
-
-struct FAudioAsyncBatcher
-{
-	FGraphEventArray DispatchEvent;
-	int32 NumBatched = 0;
-
-
-	FGraphEventArray* GetAsyncPrereq()
-	{
-		check(IsInGameThread());
-#if !WITH_EDITOR
-		if (GCVarEnableBatchProcessing)
-		{
-			if (NumBatched >= GBatchAudioAsyncBatchSize || !DispatchEvent.Num() || !DispatchEvent[0].GetReference() || DispatchEvent[0]->IsComplete())
-			{
-				Flush();
-			}
-			if (DispatchEvent.Num() == 0)
-			{
-				check(NumBatched == 0);
-				DispatchEvent.Add(FGraphEvent::CreateGraphEvent());
-			}
-			NumBatched++;
-			return &DispatchEvent;
-		}
-#endif
-		return nullptr;
-	}
-
-	void Flush()
-	{
-		check(IsInGameThread());
-		if (NumBatched)
-		{
-			check(DispatchEvent.Num() && DispatchEvent[0].GetReference() && !DispatchEvent[0]->IsComplete());
-			FGraphEventRef Dispatch = DispatchEvent[0];
-			TFunction<void()> FlushAudioCommands = [Dispatch]()
-			{
-				Dispatch->DispatchSubsequents();
-			};
-
-			FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(FlushAudioCommands), TStatId(), nullptr, ENamedThreads::AudioThread);
-
-			DispatchEvent.Empty();
-			NumBatched = 0;
-		}
-	}
-
-};
-
-#endif // UE_AUDIO_THREAD_AS_PIPE
-
 static FAudioAsyncBatcher GAudioAsyncBatcher;
 
 TUniqueFunction<void()> FAudioThread::GetCommandWrapper(TUniqueFunction<void()> InFunction, const TStatId InStatId)
@@ -443,9 +260,6 @@ TUniqueFunction<void()> FAudioThread::GetCommandWrapper(TUniqueFunction<void()> 
 	{
 		return [Function = MoveTemp(InFunction), InStatId]()
 		{
-#if !UE_AUDIO_THREAD_AS_PIPE
-			FTaskTagScope Scope(ETaskTag::EAudioThread);
-#endif
 			FScopeCycleCounter ScopeCycleCounter(InStatId);
 			FAudioThread::SetCurrentAudioThreadStatId(InStatId);
 
@@ -467,9 +281,6 @@ TUniqueFunction<void()> FAudioThread::GetCommandWrapper(TUniqueFunction<void()> 
 	{
 		return [Function = MoveTemp(InFunction), InStatId]()
 		{
-#if !UE_AUDIO_THREAD_AS_PIPE
-			FTaskTagScope Scope(ETaskTag::EAudioThread);
-#endif
 			FScopeCycleCounter ScopeCycleCounter(InStatId);
 			Function();
 		};
@@ -478,8 +289,6 @@ TUniqueFunction<void()> FAudioThread::GetCommandWrapper(TUniqueFunction<void()> 
 
 void FAudioThread::RunCommandOnAudioThread(TUniqueFunction<void()> InFunction, const TStatId InStatId)
 {
-#if UE_AUDIO_THREAD_AS_PIPE
-
 	TUniqueFunction<void()> CommandWrapper{ GetCommandWrapper(MoveTemp(InFunction), InStatId) };
 	if (IsInAudioThread())
 	{
@@ -501,35 +310,6 @@ void FAudioThread::RunCommandOnAudioThread(TUniqueFunction<void()> InFunction, c
 		// the command must be executed on the game thread
 		AsyncTask(ENamedThreads::GameThread, MoveTemp(CommandWrapper));
 	}
-
-#else
-
-	if (IsInAudioThread())
-	{
-		// it's audio-thread-safe so execute the command in-place
-		FScopeCycleCounter ScopeCycleCounter(InStatId);
-		InFunction();
-		return;
-	}
-
-	TUniqueFunction<void()> CommandWrapper{ GetCommandWrapper(MoveTemp(InFunction), InStatId) };
-	if (IsInGameThread())
-	{
-		// batch commands to minimise game thread overhead
-		FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(CommandWrapper), TStatId{}, GAudioAsyncBatcher.GetAsyncPrereq(), ENamedThreads::AudioThread);
-	}
-	// we are on an unknown thread
-	else if (IsUsingThreadedAudio())
-	{
-		FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(CommandWrapper), TStatId{}, nullptr, ENamedThreads::AudioThread);
-	}
-	else
-	{
-		// the command must be executed on the game thread
-		FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(CommandWrapper), TStatId{}, nullptr, ENamedThreads::GameThread);
-	}
-
-#endif
 }
 
 void FAudioThread::SetCurrentAudioThreadStatId(TStatId InStatId)
@@ -581,11 +361,7 @@ void FAudioThread::ProcessAllCommands()
 	}
 	else
 	{
-#if UE_AUDIO_THREAD_AS_PIPE
 		check(GAudioAsyncBatcher.WorkItems.IsEmpty());
-#else
-		check(FPlatformTLS::GetCurrentThreadId() == GGameThreadId);
-#endif
 	}
 }
 
@@ -603,8 +379,6 @@ void FAudioThread::RunCommandOnGameThread(TUniqueFunction<void()> InFunction, co
 		InFunction();
 	}
 }
-
-#if UE_AUDIO_THREAD_AS_PIPE
 
 FDelegateHandle FAudioThread::PreGC;
 FDelegateHandle FAudioThread::PostGC;
@@ -692,198 +466,3 @@ void FAudioCommandFence::Wait(bool bProcessGameThreadTasks) const
 	Fence.Wait();
 	Fence = UE::Tasks::FTask{}; // release the task as it can hold some references
 }
-
-#else // UE_AUDIO_THREAD_AS_PIPE
-
-void FAudioThread::StartAudioThread()
-{
-	check(FPlatformTLS::GetCurrentThreadId() == GGameThreadId);
-
-	check(!IsAudioThreadRunning());
-	check(!GIsAudioThreadSuspended);
-	if (bUseThreadedAudio)
-	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		check(GAudioThread == nullptr);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-		static uint32 ThreadCount = 0;
-		check(!ThreadCount); // we should not stop and restart the audio thread; it is complexity we don't need.
-
-		// Create the audio thread.
-		AudioThreadRunnable = new FAudioThread();
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		GAudioThread = 
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-			FRunnableThread::Create(AudioThreadRunnable, *FName(NAME_AudioThread).GetPlainNameString(), 0, (GCVarAboveNormalAudioThreadPri == 0) ? TPri_BelowNormal : TPri_AboveNormal, FPlatformAffinity::GetAudioThreadMask());
-
-		// Wait for audio thread to have taskgraph bound before we dispatch any tasks for it.
-		((FAudioThread*)AudioThreadRunnable)->TaskGraphBoundSyncEvent->Wait();
-
-		// ensure the thread has actually started and is idling
-		FAudioCommandFence Fence;
-		Fence.BeginFence();
-		Fence.Wait();
-
-		ThreadCount++;
-		
-		if (GCVarSuspendAudioThread != 0)
-		{
-			SuspendAudioThread();
-		}
-	}
-}
-
-void FAudioThread::StopAudioThread()
-{
-	check(FPlatformTLS::GetCurrentThreadId() == GGameThreadId);
-	check(!GIsAudioThreadSuspended.load() || GCVarSuspendAudioThread != 0);
-
-	if (!IsAudioThreadRunning())
-	{
-		return;
-	}
-
-	FAudioCommandFence Fence;
-	Fence.BeginFence();
-	Fence.Wait();
-	FGraphEventRef QuitTask = TGraphTask<FReturnGraphTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(ENamedThreads::AudioThread);
-
-	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_StopAudioThread);
-		FTaskGraphInterface::Get().WaitUntilTaskCompletes(QuitTask, ENamedThreads::GameThread_Local);
-	}
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	// Wait for the audio thread to return.
-	GAudioThread->WaitForCompletion();
-
-	// Destroy the audio thread objects.
-	delete GAudioThread;
-	GAudioThread = nullptr;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-	delete AudioThreadRunnable;
-	AudioThreadRunnable = nullptr;
-}
-
-FAudioCommandFence::FAudioCommandFence()
-	: FenceDoneEvent(nullptr)
-{
-}
-
-FAudioCommandFence::~FAudioCommandFence()
-{
-	if (FenceDoneEvent)
-	{
-		FenceDoneEvent->Wait();
-
-		FPlatformProcess::ReturnSynchEventToPool(FenceDoneEvent);
-		FenceDoneEvent = nullptr;
-	}
-}
-
-void FAudioCommandFence::BeginFence()
-{
-	if (IsAudioThreadRunning())
-	{
-		DECLARE_CYCLE_STAT(TEXT("FNullGraphTask.FenceAudioCommand"),
-			STAT_FNullGraphTask_FenceAudioCommand,
-			STATGROUP_TaskGraphTasks);
-
-		CompletionEvent = TGraphTask<FNullGraphTask>::CreateTask(GAudioAsyncBatcher.GetAsyncPrereq(), ENamedThreads::GameThread).ConstructAndDispatchWhenReady(
-			GET_STATID(STAT_FNullGraphTask_FenceAudioCommand), ENamedThreads::AudioThread);
-
-		if (FenceDoneEvent)
-		{
-			FenceDoneEvent->Wait();
-
-			FPlatformProcess::ReturnSynchEventToPool(FenceDoneEvent);
-			FenceDoneEvent = nullptr;
-		}
-
-		FenceDoneEvent = FPlatformProcess::GetSynchEventFromPool(true);
-
-		FTaskGraphInterface::Get().TriggerEventWhenTaskCompletes(FenceDoneEvent, CompletionEvent, ENamedThreads::GameThread, ENamedThreads::AudioThread);
-
-		FAudioThread::ProcessAllCommands();
-	}
-	else
-	{
-		CompletionEvent = nullptr;
-	}
-}
-
-bool FAudioCommandFence::IsFenceComplete() const
-{
-	FAudioThread::ProcessAllCommands();
-	
-	if (!CompletionEvent.GetReference() || CompletionEvent->IsComplete())
-	{
-		CompletionEvent = nullptr; // this frees the handle for other uses, the NULL state is considered completed
-		return true;
-	}
-
-	check(IsAudioThreadRunning());
-
-	return FenceDoneEvent->Wait(0);
-}
-
-/**
- * Waits for pending fence commands to retire.
- */
-void FAudioCommandFence::Wait(bool bProcessGameThreadTasks) const
-{
-	FAudioThread::ProcessAllCommands();
-
-	if (!IsFenceComplete()) // this checks the current thread
-	{
-		const double StartTime = FPlatformTime::Seconds();
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_FAudioCommandFence_Wait);
-
-		bool bDone = false;
-
-		do
-		{
-			if (FenceDoneEvent)
-			{
-				bDone = FenceDoneEvent->Wait(GAudioCommandFenceWaitTimeMs);
-			}
-			else
-			{
-				bDone = true;
-			}
-			
-			if(bDone && FenceDoneEvent)
-			{
-				FPlatformProcess::ReturnSynchEventToPool(FenceDoneEvent);
-				FenceDoneEvent = nullptr;
-			}
-
-			// Log how long we've been waiting for the audio thread:
-			float ThisTime = FPlatformTime::Seconds() - StartTime;
- 			if (ThisTime > static_cast<float>(GAudioCommandFenceWaitTimeMs) / 1000.0f + SMALL_NUMBER)
-			{
-				if (GCVarEnableAudioCommandLogging == 1)
-				{
-					FString CurrentTask = FAudioThread::GetCurrentAudioThreadStatId();
-
-					FString LongestTask;
-					double LongestTaskTimeMs;
-					FAudioThread::GetLongestTaskInfo(LongestTask, LongestTaskTimeMs);
-
-					UE_LOG(LogAudio, Display, TEXT("Waited %.2f ms for audio thread. (Current Task: %s, Longest task: %s %.2f ms)"), ThisTime * 1000.0f, *CurrentTask, *LongestTask, LongestTaskTimeMs);
-				}
-				else
-				{
-					UE_LOG(LogAudio, Display,  TEXT("Waited %f ms for audio thread."), ThisTime * 1000.0f);
-				}
-			}
-		} while (!bDone);
-
-		FAudioThread::ResetAudioThreadTimers();
-	}
-}
-
-#endif // UE_AUDIO_THREAD_AS_PIPE

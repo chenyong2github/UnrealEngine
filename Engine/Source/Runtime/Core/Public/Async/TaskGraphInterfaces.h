@@ -63,11 +63,7 @@ namespace ENamedThreads
 #endif
 #endif
 		RHIThread,
-#if UE_AUDIO_THREAD_AS_PIPE
 		AudioThread UE_DEPRECATED(5.0, "`AudioThread` has been removed. Please use `FAudioThread` API"),
-#else
-		AudioThread,
-#endif
 		GameThread,
 		// The render thread is sometimes the game thread and is sometimes the actual rendering thread
 		ActualRenderingThread = GameThread + 1,

@@ -11,15 +11,6 @@
 
 #include "Tasks/Pipe.h"
 
-
-#if !UE_AUDIO_THREAD_AS_PIPE
-
-#include "Async/TaskGraphInterfaces.h"
-#include "HAL/Runnable.h"
-#include "Containers/Queue.h"
-
-#endif
-
 ////////////////////////////////////
 // Audio thread API
 // (the naming is outdated as the thread was replaced by piped tasks)
@@ -28,15 +19,10 @@
 DECLARE_STATS_GROUP(TEXT("Audio Thread Commands"), STATGROUP_AudioThreadCommands, STATCAT_Advanced);
 
 class FAudioThread
-#if !UE_AUDIO_THREAD_AS_PIPE
-	: public FRunnable
-#endif
 {
 private:
 	/** Whether to run with an audio thread */
 	static bool bUseThreadedAudio;
-
-#if UE_AUDIO_THREAD_AS_PIPE
 
 	static TUniquePtr<UE::Tasks::FTaskEvent> ResumeEvent;
 	static int32 SuspendCount;  // accessed only from GT
@@ -46,27 +32,6 @@ private:
 	static FDelegateHandle PostGC;
 	static FDelegateHandle PreGCDestroy;
 	static FDelegateHandle PostGCDestroy;
-
-#else
-
-	/** 
-	* Sync event to make sure that audio thread is bound to the task graph before main thread queues work against it.
-	*/
-	FEvent* TaskGraphBoundSyncEvent;
-
-	/**
-	* Whether the audio thread is currently running
-	* If this is false, then we have no audio thread and audio commands will be issued directly on the game thread
-	*/
-	static TAtomic<bool> bIsAudioThreadRunning;
-
-	/** The audio thread itself. */
-	static FRunnable* AudioThreadRunnable;
-
-	void OnPreGarbageCollect();
-	void OnPostGarbageCollect();
-
-#endif
 
 	/** Stat id of the currently executing audio thread command. */
 	static TStatId CurrentAudioThreadStatId;
@@ -83,19 +48,6 @@ private:
 	static TUniqueFunction<void()> GetCommandWrapper(TUniqueFunction<void()> InFunction, const TStatId InStatId);
 
 public:
-
-#if !UE_AUDIO_THREAD_AS_PIPE
-
-	FAudioThread();
-	virtual ~FAudioThread();
-
-	// FRunnable interface.
-	virtual bool Init() override;
-	virtual void Exit() override;
-	virtual uint32 Run() override;
-
-#endif
-
 	/** Starts the audio thread. */
 	static ENGINE_API void StartAudioThread();
 
@@ -150,9 +102,6 @@ struct FAudioThreadSuspendContext
 class ENGINE_API FAudioCommandFence
 {
 public:
-#if !UE_AUDIO_THREAD_AS_PIPE
-	FAudioCommandFence();
-#endif
 	~FAudioCommandFence();
 
 	/**
@@ -172,19 +121,7 @@ public:
 	bool IsFenceComplete() const;
 
 private:
-
-#if UE_AUDIO_THREAD_AS_PIPE
-
 	/** The last audio batch task **/
 	mutable UE::Tasks::FTask Fence;
-
-#else
-
-	/** Graph event that represents completion of this fence **/
-	mutable FGraphEventRef CompletionEvent;
-	/** Event that fires when CompletionEvent is done. **/
-	mutable FEvent* FenceDoneEvent;
-
-#endif
 };
 

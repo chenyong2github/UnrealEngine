@@ -78,9 +78,6 @@ inline void CoroParallelFor(const TCHAR* DebugName, int32 Num, BodyType Body, EP
 		ETaskTag::EStaticInit | 
 		ETaskTag::EGameThread | 
 		ETaskTag::ESlateThread | 
-#if !UE_AUDIO_THREAD_AS_PIPE
-		ETaskTag::EAudioThread | 
-#endif
 		ETaskTag::ERenderingThread | 
 		ETaskTag::ERhiThread;
 
