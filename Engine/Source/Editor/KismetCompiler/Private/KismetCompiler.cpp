@@ -2271,6 +2271,11 @@ void FKismetCompilerContext::PrecompileFunction(FKismetFunctionContext& Context,
 			Context.Function->SetMetaData(FBlueprintMetadata::MD_CallInEditor, TEXT( "true" ));
 		}
 
+		if (FunctionMetaData.bIsUnsafeDuringActorConstruction)
+		{
+			Context.Function->SetMetaData(FBlueprintMetadata::MD_UnsafeForConstructionScripts, TEXT("true"));
+		}
+
 		// Set appropriate metadata if the function is deprecated
 		if (FunctionMetaData.bIsDeprecated)
 		{
@@ -2902,6 +2907,11 @@ void FKismetCompilerContext::SetCalculatedMetaDataAndFlags(UFunction* Function, 
 	if (EntryNode->MetaData.bThreadSafe)
 	{
 		Function->SetMetaData(FBlueprintMetadata::MD_ThreadSafe, TEXT("true"));
+	}
+
+	if (EntryNode->MetaData.bIsUnsafeDuringActorConstruction)
+	{
+		Function->SetMetaData(FBlueprintMetadata::MD_UnsafeForConstructionScripts, TEXT("true"));
 	}
 	
 	if (UEdGraphPin* WorldContextPin = EntryNode->GetAutoWorldContextPin())

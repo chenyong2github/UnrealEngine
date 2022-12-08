@@ -779,6 +779,10 @@ private:
 	void OnIsThreadSafeFunctionModified(const ECheckBoxState NewCheckedState);
 	ECheckBoxState GetIsThreadSafeFunction() const;
 	
+	bool IsUnsafeDuringActorConstructionVisible() const;
+	void OnIsUnsafeDuringActorConstructionModified(const ECheckBoxState NewCheckedState);
+	ECheckBoxState GetIsUnsafeDuringActorConstruction() const;
+
 	/** Determines if the selected event is identified as editor callable */
 	ECheckBoxState GetIsEditorCallableEvent() const;
 

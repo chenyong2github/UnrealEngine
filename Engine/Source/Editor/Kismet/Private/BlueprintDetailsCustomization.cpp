@@ -4095,6 +4095,23 @@ void FBlueprintGraphActionDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 					.OnCheckStateChanged( this, &FBlueprintGraphActionDetails::OnIsThreadSafeFunctionModified )
 				];
 			}
+			if (IsUnsafeDuringActorConstructionVisible())
+			{
+				Category.AddCustomRow(LOCTEXT("FunctionUnsafeDuringActorConstruction_Tooltip", "Unsafe During Actor Constrution"), true)
+				.NameContent()
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("FunctionUnsafeDuringActorConstruction_Tooltip", "Unsafe During Actor Construction"))
+					.ToolTipText(LOCTEXT("FunctionIsUnsafeDuringActorConstruction_Tooltip", "Mark this function as unsafe during actor construction so that a warning is generated when it is called by a Constructin Script - useful when calling native functions that are also unsafe during construction"))
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+				]
+				.ValueContent()
+				[
+					SNew(SCheckBox)
+					.IsChecked(this, &FBlueprintGraphActionDetails::GetIsUnsafeDuringActorConstruction)
+					.OnCheckStateChanged(this, &FBlueprintGraphActionDetails::OnIsUnsafeDuringActorConstructionModified)
+				];
+			}
 		}
 
 		if (bIsCustomEvent)
@@ -5795,6 +5812,51 @@ ECheckBoxState FBlueprintGraphActionDetails::GetIsThreadSafeFunction() const
 		return ECheckBoxState::Undetermined;
 	}
 	return EntryNode->MetaData.bThreadSafe ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+bool FBlueprintGraphActionDetails::IsUnsafeDuringActorConstructionVisible() const
+{
+	bool bSupportedType = false;
+	bool bIsEditable = false;
+
+	UK2Node_EditablePinBase* FunctionEntryNode = FunctionEntryNodePtr.Get();
+	if (FunctionEntryNode)
+	{
+		bSupportedType = FunctionEntryNode->IsA<UK2Node_FunctionEntry>();
+		bIsEditable = FunctionEntryNode->IsEditable();
+	}
+
+	return bIsEditable && bSupportedType;
+}
+
+void FBlueprintGraphActionDetails::OnIsUnsafeDuringActorConstructionModified(const ECheckBoxState NewCheckedState)
+{
+	if (FunctionEntryNodePtr.IsValid())
+	{
+		const bool bIsUnsafeDuringActorConstruction = NewCheckedState == ECheckBoxState::Checked;
+		const FText TransactionType = bIsUnsafeDuringActorConstruction ? 
+			LOCTEXT("DisableIsUnsafeDuringActorConstruction", "Disable Unsafe During Actor Construction") : 
+			LOCTEXT("EnableThreadSafe", "Enable Unsafe During Actor Construction");
+
+		if (UK2Node_FunctionEntry* EntryPoint = Cast<UK2Node_FunctionEntry>(FunctionEntryNodePtr.Get()))
+		{
+			const FScopedTransaction Transaction(TransactionType);
+			EntryPoint->Modify();
+			EntryPoint->MetaData.bIsUnsafeDuringActorConstruction = bIsUnsafeDuringActorConstruction;
+			FBlueprintEditorUtils::MarkBlueprintAsModified(EntryPoint->GetBlueprint());
+		}
+	}
+}
+
+ECheckBoxState FBlueprintGraphActionDetails::GetIsUnsafeDuringActorConstruction() const
+{
+	UK2Node_EditablePinBase* FunctionEntryNode = FunctionEntryNodePtr.Get();
+	UK2Node_FunctionEntry* EntryNode = Cast<UK2Node_FunctionEntry>(FunctionEntryNode);
+	if (!EntryNode)
+	{
+		return ECheckBoxState::Undetermined;
+	}
+	return EntryNode->MetaData.bIsUnsafeDuringActorConstruction ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
 FReply FBaseBlueprintGraphActionDetails::OnAddNewInputClicked()

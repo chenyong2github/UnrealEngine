@@ -93,6 +93,9 @@ struct FKismetUserDeclaredFunctionMetadata
 	UPROPERTY()
 	bool bThreadSafe;
 
+	UPROPERTY()
+	bool bIsUnsafeDuringActorConstruction;
+
 	/** Cached value for whether or not the graph has latent functions, positive for TRUE, zero for FALSE, and INDEX_None for undetermined */
 	UPROPERTY(transient)
 	int8 HasLatentFunctions;
@@ -103,6 +106,7 @@ public:
 		, bIsDeprecated(false)
 		, bCallInEditor(false)
 		, bThreadSafe(false)
+		, bIsUnsafeDuringActorConstruction(false)
 		, HasLatentFunctions(INDEX_NONE)
 	{
 	}
