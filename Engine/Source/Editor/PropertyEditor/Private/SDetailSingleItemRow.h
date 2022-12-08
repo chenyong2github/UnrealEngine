@@ -72,6 +72,8 @@ protected:
 private:
 	void OnCopyProperty();
 	void OnCopyPropertyDisplayName();
+	void OnCopyPropertyInternalName();
+	bool CanCopyPropertyInternalName();
 	void OnPasteProperty();
 	bool CanPasteProperty() const;
 	FSlateColor GetOuterBackgroundColor() const;

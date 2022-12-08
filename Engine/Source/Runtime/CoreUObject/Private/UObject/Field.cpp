@@ -763,16 +763,6 @@ FText FField::GetToolTipText(bool bShortTooltip) const
 		LocalizedToolTip = FText::FromString(NativeToolTip);
 	}
 
-	const FText DisplayName = FText::FromString(FName::NameToDisplayString(FFieldDisplayNameHelper::Get(*this), IsA<FBoolProperty>()));
-	if (LocalizedToolTip.IsEmpty())
-	{
-		LocalizedToolTip = DisplayName;
-	}
-	else
-	{
-		LocalizedToolTip = FText::Join(FText::FromString(TEXT(":" LINE_TERMINATOR_ANSI)), DisplayName, LocalizedToolTip);
-	}
-
 	return LocalizedToolTip;
 }
 

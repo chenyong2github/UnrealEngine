@@ -798,16 +798,17 @@ FSlateColor SDetailSingleItemRow::GetInnerBackgroundColor() const
 bool SDetailSingleItemRow::OnContextMenuOpening(FMenuBuilder& MenuBuilder)
 {
 	FUIAction CopyDisplayNameAction = FExecuteAction::CreateSP(this, &SDetailSingleItemRow::OnCopyPropertyDisplayName);
+	FUIAction CopyInternalNameAction = FExecuteAction::CreateSP(this, &SDetailSingleItemRow::OnCopyPropertyInternalName);
+	CopyInternalNameAction.CanExecuteAction = FCanExecuteAction::CreateSP(this, &SDetailSingleItemRow::CanCopyPropertyInternalName);
 
-	bool bAddedMenuEntry = false;
+	// Show a separator line if there are items before this in the menu
+	if (MenuBuilder.GetMultiBox()->GetBlocks().Num() > 1)
+	{
+		MenuBuilder.AddMenuSeparator();
+	}
+
 	if (CopyAction.IsBound() && PasteAction.IsBound())
 	{
-		// Hide separator line if it only contains the SearchWidget, making the next 2 elements the top of the list
-		if (MenuBuilder.GetMultiBox()->GetBlocks().Num() > 1)
-		{
-			MenuBuilder.AddMenuSeparator();
-		}
-
 		bool bLongDisplayName = false;
 
 		FMenuEntryParams CopyContentParams;
@@ -825,13 +826,19 @@ bool SDetailSingleItemRow::OnContextMenuOpening(FMenuBuilder& MenuBuilder)
 		PasteContentParams.IconOverride = FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "GenericCommands.Paste");
 		PasteContentParams.DirectActions = PasteAction;
 		MenuBuilder.AddMenuEntry(PasteContentParams);
-
-		MenuBuilder.AddMenuEntry(
-			NSLOCTEXT("PropertyView", "CopyPropertyDisplayName", "Copy Display Name"),
-			NSLOCTEXT("PropertyView", "CopyPropertyDisplayName_ToolTip", "Copy this property display name"),
-			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "GenericCommands.Copy"),
-			CopyDisplayNameAction);
 	}
+
+	MenuBuilder.AddMenuEntry(
+		NSLOCTEXT("PropertyView", "CopyPropertyDisplayName", "Copy Display Name"),
+		NSLOCTEXT("PropertyView", "CopyPropertyDisplayName_ToolTip", "Copy the display name of this property to the system clipboard."),
+		FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "GenericCommands.Copy"),
+		CopyDisplayNameAction);
+
+	MenuBuilder.AddMenuEntry(
+		NSLOCTEXT("PropertyView", "CopyPropertyInternalName", "Copy Internal Name"),
+		NSLOCTEXT("PropertyView", "CopyPropertyInternalName_ToolTip", "Copy the internal name of this property to the system clipboard."),
+		FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "GenericCommands.Copy"),
+		CopyInternalNameAction);
 
 	if (OwnerTreeNode.Pin()->GetDetailsView()->IsFavoritingEnabled())
 	{
@@ -888,8 +895,6 @@ bool SDetailSingleItemRow::OnContextMenuOpening(FMenuBuilder& MenuBuilder)
 					  FIsActionChecked::CreateSP(this, &SDetailSingleItemRow::IsDenyListChecked)),
 			NAME_None,
 			EUserInterfaceActionType::Check);
-			
-		bAddedMenuEntry = true;
 	}
 
 	if (WidgetRow.CustomMenuItems.Num() > 0)
@@ -944,6 +949,46 @@ void SDetailSingleItemRow::OnCopyPropertyDisplayName()
 			FPlatformApplicationMisc::ClipboardCopy(*PropertyNode->GetDisplayName().ToString());
 		}
 	}
+}
+
+void SDetailSingleItemRow::OnCopyPropertyInternalName()
+{
+	if (OwnerTreeNode.IsValid())
+	{
+		TSharedPtr<FPropertyNode> PropertyNode = GetPropertyNode();
+		if (PropertyNode.IsValid())
+		{
+			if (const FProperty* Property = PropertyNode->GetProperty())
+			{
+				if (const UStruct* OwnerStruct = Property->GetOwnerStruct())
+				{
+					FPlatformApplicationMisc::ClipboardCopy(*OwnerStruct->GetAuthoredNameForField(Property));
+				}
+			}
+		}
+	}
+}
+
+bool SDetailSingleItemRow::CanCopyPropertyInternalName()
+{
+	if (OwnerTreeNode.IsValid())
+	{
+		TSharedPtr<FPropertyNode> PropertyNode = GetPropertyNode();
+		if (PropertyNode.IsValid())
+		{
+			if (const FProperty* Property = PropertyNode->GetProperty())
+			{
+				if (const UStruct* OwnerStruct = Property->GetOwnerStruct())
+				{
+					if (!OwnerStruct->GetAuthoredNameForField(Property).IsEmpty())
+					{
+						return true;
+					}
+				}
+			}
+		}
+	}
+	return false;
 }
 
 void SDetailSingleItemRow::OnPasteProperty()
