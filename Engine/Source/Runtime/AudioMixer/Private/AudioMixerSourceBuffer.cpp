@@ -617,6 +617,10 @@ namespace Audio
 		if (SoundGenerator.IsValid())
 		{
 			SoundGenerator->OnEndGenerate();
+			if (SoundWave)
+			{
+				SoundWave->OnEndGenerate(SoundGenerator);
+			}
 		}
 		else
 		{

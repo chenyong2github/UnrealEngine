@@ -914,6 +914,7 @@ public:
 
 	// Called when the procedural sound wave is done generating on the render thread. Only used in the audio mixer and when bProcedural is true..
 	virtual void OnEndGenerate() {};
+	virtual void OnEndGenerate(ISoundGeneratorPtr Generator) {};
 
 	void AddPlayingSource(const FSoundWaveClientPtr& Source);
 	void RemovePlayingSource(const FSoundWaveClientPtr& Source);
