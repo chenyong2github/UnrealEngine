@@ -2,7 +2,6 @@
 #include "AudioDeviceManager.h"
 
 #include "Audio.h"
-#include "AudioBusSubsystem.h"
 #include "Audio/AudioDebug.h"
 #include "AudioAnalytics.h"
 #include "AudioDefines.h"
@@ -531,12 +530,6 @@ void FAudioDeviceManager::UnregisterWorld(UWorld* InWorld, Audio::FDeviceId Devi
 	{
 		if (DeviceContainer->WorldsUsingThisDevice.Contains(InWorld))
 		{
-			if (FAudioDevice* AudioDevice = DeviceContainer->Device)
-			{
-				UAudioBusSubsystem* AudioBusSubsystem = AudioDevice->GetSubsystem<UAudioBusSubsystem>();
-				check(AudioBusSubsystem);
-				AudioBusSubsystem->ShutdownDefaultAudioBuses();
-			}
 			UE_LOG(LogAudio, Display, TEXT("Audio Device unregistered from world '%s'."), *InWorld->GetName());
 			DeviceContainer->WorldsUsingThisDevice.Remove(InWorld);
 			FAudioDeviceWorldDelegates::OnWorldUnregisteredWithAudioDevice.Broadcast(InWorld, DeviceId);

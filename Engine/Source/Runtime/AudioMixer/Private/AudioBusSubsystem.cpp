@@ -12,18 +12,19 @@ UAudioBusSubsystem::UAudioBusSubsystem()
 {
 }
 
-void UAudioBusSubsystem::PostInitProperties()
-{
-	Super::PostInitProperties();
-	if (this != GetClass()->ClassDefaultObject)
-	{
-		InitDefaultAudioBuses();
-	}
-}
-
 bool UAudioBusSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
 	return !IsRunningDedicatedServer();
+}
+
+void UAudioBusSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	InitDefaultAudioBuses();
+}
+
+void UAudioBusSubsystem::Deinitialize()
+{
+	ShutdownDefaultAudioBuses();
 }
 
 void UAudioBusSubsystem::StartAudioBus(Audio::FAudioBusKey InAudioBusKey, int32 InNumChannels, bool bInIsAutomatic)

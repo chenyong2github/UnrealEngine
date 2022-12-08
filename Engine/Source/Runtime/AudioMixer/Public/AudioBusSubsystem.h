@@ -72,10 +72,11 @@ class AUDIOMIXER_API UAudioBusSubsystem : public UAudioEngineSubsystem
 public:
 	UAudioBusSubsystem();
 	virtual ~UAudioBusSubsystem() = default;
-	virtual void PostInitProperties() override;
 
 	//~ Begin USubsystem interface
 	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
 	//~ End USubsystem interface
 
 	// Audio bus API from FMixerDevice
