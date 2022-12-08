@@ -141,9 +141,6 @@ namespace SoundWaveCookStats
 
 FSoundWaveData::~FSoundWaveData()
 {
-	// at this point, first chunk data should have been cleared by the last reference holder
-	// (see USoundWave::BeginDestroy and ~FSoundWaveProxy implmentations)
-	ensure(FirstChunk.GetData() == nullptr);
 }
 
 void FSoundWaveData::InitializeDataFromSoundWave(USoundWave& InWave)
