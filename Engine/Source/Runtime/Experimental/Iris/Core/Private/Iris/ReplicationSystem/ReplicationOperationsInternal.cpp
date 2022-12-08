@@ -4,7 +4,7 @@
 #include "Iris/Core/IrisLog.h"
 #include "Iris/ReplicationSystem/ChangeMaskCache.h"
 #include "Iris/ReplicationSystem/ChangeMaskUtil.h"
-#include "Iris/ReplicationSystem/NetHandleManager.h"
+#include "Iris/ReplicationSystem/NetRefHandleManager.h"
 #include "Iris/ReplicationSystem/ObjectReferenceCache.h"
 #include "Iris/ReplicationSystem/ReplicationFragment.h"
 #include "Iris/ReplicationSystem/ReplicationProtocol.h"

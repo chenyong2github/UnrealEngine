@@ -2,7 +2,7 @@
 
 #include "NetObjectGroups.h"
 #include "Iris/ReplicationSystem/Filtering/NetObjectFilter.h"
-#include "Iris/ReplicationSystem/NetHandleManager.h" // for InvalidInternalIndex
+#include "Iris/ReplicationSystem/NetRefHandleManager.h" // for InvalidInternalIndex
 #include "Containers/ArrayView.h"
 
 namespace UE::Net::Private

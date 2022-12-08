@@ -2,7 +2,7 @@
 
 #include "Iris/ReplicationState/ReplicationStateStorage.h"
 #include "Iris/Core/IrisMemoryTracker.h"
-#include "Iris/ReplicationSystem/NetHandleManager.h"
+#include "Iris/ReplicationSystem/NetRefHandleManager.h"
 #include "Iris/ReplicationSystem/ReplicationOperations.h"
 #include "Iris/ReplicationSystem/ReplicationOperationsInternal.h"
 #include "Iris/ReplicationSystem/ReplicationProtocol.h"

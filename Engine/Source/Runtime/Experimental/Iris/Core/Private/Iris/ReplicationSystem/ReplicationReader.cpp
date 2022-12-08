@@ -9,7 +9,7 @@
 #include "Net/Core/Trace/NetDebugName.h"
 #include "Iris/DataStream/DataStream.h"
 #include "Iris/ReplicationSystem/DeltaCompression/DeltaCompressionBaselineManager.h"
-#include "Iris/ReplicationSystem/NetHandleManager.h"
+#include "Iris/ReplicationSystem/NetRefHandleManager.h"
 #include "Iris/Serialization/NetReferenceCollector.h"
 #include "Iris/ReplicationSystem/ReplicationOperations.h"
 #include "Iris/ReplicationSystem/ReplicationOperationsInternal.h"

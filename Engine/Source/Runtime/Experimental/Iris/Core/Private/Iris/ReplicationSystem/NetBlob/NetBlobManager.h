@@ -4,7 +4,7 @@
 #include "CoreTypes.h"
 #include "Iris/ReplicationSystem/NetBlob/NetBlob.h"
 #include "Iris/ReplicationSystem/NetBlob/NetBlobHandlerManager.h"
-#include "Iris/ReplicationSystem/NetHandleManager.h" // For FInternalNetRefIndex
+#include "Iris/ReplicationSystem/NetRefHandleManager.h" // For FInternalNetRefIndex
 #include "UObject/StrongObjectPtr.h"
 
 class UNetBlobHandler;

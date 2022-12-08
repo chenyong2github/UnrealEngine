@@ -5,7 +5,7 @@
 // This class will never be included from public headers
 #include "Iris/ReplicationSystem/AttachmentReplication.h"
 #include "Iris/ReplicationSystem/ChangeMaskUtil.h"
-#include "Iris/ReplicationSystem/NetHandleManager.h"
+#include "Iris/ReplicationSystem/NetRefHandleManager.h"
 #include "Iris/ReplicationSystem/ObjectReferenceCache.h"
 #include "Iris/ReplicationSystem/ReplicationTypes.h"
 #include "Containers/Map.h"

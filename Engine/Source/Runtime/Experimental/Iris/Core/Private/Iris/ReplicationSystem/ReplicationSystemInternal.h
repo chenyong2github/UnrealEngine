@@ -6,7 +6,7 @@
 #include "Containers/Array.h"
 #include "Iris/ReplicationState/ReplicationStateStorage.h"
 #include "Iris/ReplicationSystem/DirtyNetObjectTracker.h"
-#include "Iris/ReplicationSystem/NetHandleManager.h"
+#include "Iris/ReplicationSystem/NetRefHandleManager.h"
 #include "Iris/ReplicationSystem/ChangeMaskCache.h"
 #include "Iris/ReplicationSystem/Conditionals/ReplicationConditionals.h"
 #include "Iris/ReplicationSystem/DeltaCompression/DeltaCompressionBaselineManager.h"

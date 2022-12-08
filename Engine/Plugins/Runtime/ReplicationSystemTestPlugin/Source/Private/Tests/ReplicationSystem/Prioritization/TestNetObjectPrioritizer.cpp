@@ -2,7 +2,7 @@
 
 #include "NetworkAutomationTest.h"
 #include "NetworkAutomationTestMacros.h"
-#include "Iris/ReplicationSystem/NetHandleManager.h"
+#include "Iris/ReplicationSystem/NetRefHandleManager.h"
 #include "Iris/ReplicationSystem/ReplicationSystemInternal.h"
 #include "Iris/ReplicationSystem/Prioritization/NetObjectPrioritizerDefinitions.h"
 #include "Tests/ReplicationSystem/Prioritization/MockNetObjectPrioritizer.h"

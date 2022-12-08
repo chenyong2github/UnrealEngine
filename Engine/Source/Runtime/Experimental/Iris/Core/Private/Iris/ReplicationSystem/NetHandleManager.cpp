@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NetHandleManager.h"
+#include "NetRefHandleManager.h"
 #include "ReplicationOperationsInternal.h"
 #include "ReplicationProtocol.h"
 #include "ReplicationProtocolManager.h"

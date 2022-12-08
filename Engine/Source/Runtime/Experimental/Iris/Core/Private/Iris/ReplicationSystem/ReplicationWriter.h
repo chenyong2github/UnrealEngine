@@ -4,7 +4,7 @@
 
 // This class will never be included from public headers
 #include "Net/Core/NetBitArray.h"
-#include "Iris/ReplicationSystem/NetHandleManager.h"
+#include "Iris/ReplicationSystem/NetRefHandleManager.h"
 #include "Iris/ReplicationSystem/ReplicationTypes.h"
 #include "Iris/ReplicationSystem/ReplicationRecord.h"
 #include "Iris/DataStream/DataStream.h"
