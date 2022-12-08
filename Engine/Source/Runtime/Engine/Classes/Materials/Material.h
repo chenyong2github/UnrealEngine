@@ -515,7 +515,7 @@ public:
 	UPROPERTY(EditAnywhere, Category=Material)
 	uint8 TwoSided : 1;
 
-	/** Indicates that the material should be rendered as a thin surface (i.e., without inner volume). */
+	/** Indicates that the material should be rendered as a thin surface (i.e., without inner volume). Only used by Strata materials. */
 	UPROPERTY(EditAnywhere, Category = Material)
 	uint8 bIsThinSurface : 1;
 
