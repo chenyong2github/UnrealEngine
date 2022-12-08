@@ -79,7 +79,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FGeometryAwareUpsampleParameters, )
 	SHADER_PARAMETER(FVector2f, DistanceFieldGBufferTexelSize)
 	SHADER_PARAMETER(FVector2f, DistanceFieldGBufferJitterOffset)
 	SHADER_PARAMETER(FVector2f, JitterOffset)
-	SHADER_PARAMETER(float, MinDownsampleFactorToBaseLevel)
 	SHADER_PARAMETER(float, DistanceFadeScale)
 END_SHADER_PARAMETER_STRUCT()
 
@@ -95,9 +94,6 @@ FGeometryAwareUpsampleParameters SetupGeometryAwareUpsampleParameters(const FVie
 	const FIntPoint ConeTracingBufferSize = GetBufferSizeForConeTracing(View);
 	const FVector4f BentNormalBufferAndTexelSizeValue(ConeTracingBufferSize.X, ConeTracingBufferSize.Y, 1.0f / ConeTracingBufferSize.X, 1.0f / ConeTracingBufferSize.Y);
 
-	extern int32 GConeTraceDownsampleFactor;
-	const float MinDownsampleFactor = GConeTraceDownsampleFactor;
-
 	extern float GAOViewFadeDistanceScale;
 	const float DistanceFadeScaleValue = 1.0f / ((1.0f - GAOViewFadeDistanceScale) * GetMaxAOViewDistance());
 
@@ -110,7 +106,6 @@ FGeometryAwareUpsampleParameters SetupGeometryAwareUpsampleParameters(const FVie
 	ShaderParameters.DistanceFieldGBufferTexelSize = BaseLevelTexelSizeValue;
 	ShaderParameters.DistanceFieldGBufferJitterOffset = BaseLevelTexelSizeValue * JitterOffsetValue;
 	ShaderParameters.JitterOffset = JitterOffsetValue;
-	ShaderParameters.MinDownsampleFactorToBaseLevel = MinDownsampleFactor;
 	ShaderParameters.DistanceFadeScale = DistanceFadeScaleValue;
 
 	return ShaderParameters;

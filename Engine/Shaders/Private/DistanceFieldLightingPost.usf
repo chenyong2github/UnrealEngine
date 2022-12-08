@@ -37,7 +37,6 @@ float ComputeHistoryWeightBasedOnPosition(float2 ScreenPosition, float SceneDept
 float2 DistanceFieldGBufferTexelSize;
 float2 DistanceFieldGBufferJitterOffset;
 float4 BentNormalBufferAndTexelSize;
-float MinDownsampleFactorToBaseLevel;
 
 float4 GetNormalWeights(float2 Corner00UV, float2 LowResTexelSize, float3 WorldNormal)
 {

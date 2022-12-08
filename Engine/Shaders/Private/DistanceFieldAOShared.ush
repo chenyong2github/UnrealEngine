@@ -1,20 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	DistanceFieldAOShared.usf
+	DistanceFieldAOShared.ush
 =============================================================================*/
-
-#ifndef SORTTHREADGROUP_SIZEX
-#define SORTTHREADGROUP_SIZEX 1
-#endif
-
-#ifndef SORTTHREADGROUP_SIZEY
-#define SORTTHREADGROUP_SIZEY 1
-#endif
-
-#ifndef CONE_TRACE_PHASE
-#define CONE_TRACE_PHASE -1
-#endif
 
 // Must match C++
 #define NUM_CONE_STEPS 10
@@ -38,9 +26,6 @@ float GetAOMaxDistance()
 {
 	return max(AOObjectMaxDistance, AOGlobalMaxOcclusionDistance);
 }
-
-// One for near, one for far
-#define NUM_CULLED_OBJECT_LISTS 2
 
 float GetStepOffset(float StepIndex)
 {
@@ -77,20 +62,10 @@ float GetDownsampledDepth(float2 ScreenUV)
 	return abs(Texture2DSampleLevel(DistanceFieldNormalTexture, DistanceFieldNormalSampler, ScreenUV, 0).w);
 }
 
-uint CurrentLevelDownsampleFactor;
-float2 AOBufferSize;
-
-uint DownsampleFactorToBaseLevel;
 float2 BaseLevelTexelSize;
 
 Texture2D BentNormalAOTexture;
 SamplerState BentNormalAOSampler;
-#if !SUPPORTS_INDEPENDENT_SAMPLERS
-SamplerState ConfidenceSampler;
-#endif
-
-Texture2D IrradianceTexture;
-SamplerState IrradianceSampler;
 
 bool SphereIntersectCone(float4 SphereCenterAndRadius, float3 ConeVertex, float3 ConeAxis, float ConeAngleCos, float ConeAngleSin)
 {
