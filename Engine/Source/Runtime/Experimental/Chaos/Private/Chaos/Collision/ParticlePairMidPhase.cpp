@@ -347,8 +347,6 @@ namespace Chaos
 			{
 				if (Context.GetAllocator()->ActivateConstraint(Constraint.Get()))
 				{
-					Constraint->Activate(Dt);
-
 					LastUsedEpoch = CurrentEpoch;
 					return 1;
 				}

@@ -299,7 +299,10 @@ namespace Chaos
 		/** 
 		 * Called each frame when the constraint is active after primary collision detection (but not per incremental collision detection call if enabled) 
 		 */
-		void Activate(const FReal Dt);
+		void Activate();
+
+		UE_DEPRECATED(5.2, "Removed parameter")
+		void Activate(const FReal Dt) { Activate(); }
 
 		// When a particle is moved under user control, we need to update some cached state to prevent friction from undoing the move
 		void UpdateParticleTransform(FGeometryParticleHandle* InParticle);

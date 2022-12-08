@@ -390,7 +390,7 @@ namespace Chaos
 		CCDTargetPenetration = FMath::Min(MinBounds * CVars::CCDAllowedDepthBoundsScale, CCDEnablePenetration);
 	}
 
-	void FPBDCollisionConstraint::Activate(const FReal Dt)
+	void FPBDCollisionConstraint::Activate()
 	{
 		SetDisabled(false);
 

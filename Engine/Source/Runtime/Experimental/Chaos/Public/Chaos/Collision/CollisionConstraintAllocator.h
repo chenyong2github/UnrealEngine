@@ -89,6 +89,8 @@ namespace Chaos
 
 				NewActiveConstraints.Push(Constraint);
 
+				Constraint->Activate();
+
 				return true;
 			}
 			return false;
