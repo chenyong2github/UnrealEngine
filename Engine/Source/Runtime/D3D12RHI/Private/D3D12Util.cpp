@@ -737,8 +737,7 @@ namespace D3D12RHI
 {
 	void TerminateOnGPUCrash(ID3D12Device* InDevice, const void* InGPUCrashDump, const size_t InGPUCrashDumpSize)
 	{		
-		// Lock the cs, and never unlock - don't want another thread processing the same GPU crash
-		// This call will force a request exit
+		// This function can be called outside of VerifyD3D12Result & co, so it uses its own critical section to make sure it's not re-entered.
 		static FCriticalSection cs;
 		cs.Lock();
 
@@ -846,9 +845,15 @@ namespace D3D12RHI
 		}
 	}
 
+	// It's possible for multiple threads to catch GPU crashes or other D3D errors at the same time. Make sure we only log the error once by acquiring
+	// this critical section inside VerifyD3D12Result and VerifyD3D12CreateTextureResult (and never releasing it, because those functions don't return).
+	static FCriticalSection GD3DCallFailedCS;
+
 	void VerifyD3D12Result(HRESULT D3DResult, const ANSICHAR* Code, const ANSICHAR* Filename, uint32 Line, ID3D12Device* Device, FString Message)
 	{
 		check(FAILED(D3DResult));
+		
+		GD3DCallFailedCS.Lock();
 
 		const FString& ErrorString = GetD3D12ErrorString(D3DResult, Device);
 		UE_LOG(LogD3D12RHI, Error, TEXT("%s failed \n at %s:%u \n with error %s\n%s"), ANSI_TO_TCHAR(Code), ANSI_TO_TCHAR(Filename), Line, *ErrorString, *Message);
@@ -874,6 +879,8 @@ namespace D3D12RHI
 	void VerifyD3D12CreateTextureResult(HRESULT D3DResult, const ANSICHAR* Code, const ANSICHAR* Filename, uint32 Line, const D3D12_RESOURCE_DESC& TextureDesc, ID3D12Device* Device)
 	{
 		check(FAILED(D3DResult));
+
+		GD3DCallFailedCS.Lock();
 
 		const FString ErrorString = GetD3D12ErrorString(D3DResult, nullptr);
 		const TCHAR* D3DFormatString = GetD3D12TextureFormatString(TextureDesc.Format);

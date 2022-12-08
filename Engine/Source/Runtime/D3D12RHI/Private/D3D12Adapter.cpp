@@ -285,8 +285,9 @@ FD3D12Adapter::FD3D12Adapter(FD3D12AdapterDesc& DescIn)
 /** Callback function called when the GPU crashes, when Aftermath is enabled */
 static void D3D12AftermathCrashCallback(const void* InGPUCrashDump, const uint32_t InGPUCrashDumpSize, void* InUserData)
 {
-	// Forward to shared function which is also called when DEVICE_LOST return value is given
-	D3D12RHI::TerminateOnGPUCrash(nullptr, InGPUCrashDump, InGPUCrashDumpSize);
+	// Disabled for now, let the regular rendering code catch the error on the next API call via VERIFYD3D12RESULT & co.
+	// Note that this means we won't be getting aftermath crash dump files anymore, since those are written based on the data passed to this function via InGPUCrashDump.
+	// D3D12RHI::TerminateOnGPUCrash(nullptr, InGPUCrashDump, InGPUCrashDumpSize);
 }
 
 

@@ -510,6 +510,7 @@ void FD3D12Device::BlockUntilIdle()
 
 		FD3D12Payload* Payload = new FD3D12Payload(this, (ED3D12QueueType)QueueTypeIndex);
 		Payload->SyncPointsToSignal.Add(SyncPoint);
+		Payload->bAlwaysSignal = true;
 
 		Payloads.Add(Payload);
 		SyncPoints.Add(SyncPoint);

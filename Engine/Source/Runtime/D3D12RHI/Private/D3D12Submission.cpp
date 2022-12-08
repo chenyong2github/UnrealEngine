@@ -821,6 +821,8 @@ uint64 FD3D12Queue::ExecutePayload()
 		bRequiresSignal = true;
 	}
 
+	bRequiresSignal |= PayloadToSubmit->bAlwaysSignal;
+
 	// Keep the latest fence value in the submitted payload.
 	// The interrupt thread uses this to determine when work has completed.
 	uint64 FenceValue = SignalFence();
@@ -925,8 +927,14 @@ FD3D12DynamicRHI::FProcessResult FD3D12DynamicRHI::ProcessInterruptQueue()
 
 			if (CompletedFenceValue == UINT64_MAX)
 			{
-				// If the GPU crashes or hangs, the driver will signal all fences to UINT64_MAX. Check the device is still healthy.
-				VERIFYD3D12RESULT(CurrentQueue.Device->GetDevice()->GetDeviceRemovedReason());
+				// If the GPU crashes or hangs, the driver will signal all fences to UINT64_MAX. If we get an error code here, we can't pass it directly to 
+				// VERIFYD3D12RESULT, because that expects DXGI_ERROR_DEVICE_REMOVED, DXGI_ERROR_DEVICE_RESET etc. and wants to obtain the reason code itself
+				// by calling GetDeviceRemovedReason (again).
+				HRESULT DeviceRemovedReason = CurrentQueue.Device->GetDevice()->GetDeviceRemovedReason();
+				if (DeviceRemovedReason != S_OK)
+				{
+					VerifyD3D12Result(DXGI_ERROR_DEVICE_REMOVED, "CurrentQueue.Fence.D3DFence->GetCompletedValue()", __FILE__, __LINE__, CurrentQueue.Device->GetDevice());
+				}
 			}
 
 			if (CompletedFenceValue < Payload->CompletionFenceValue)

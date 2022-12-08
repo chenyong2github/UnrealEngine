@@ -207,6 +207,9 @@ struct FD3D12PayloadBase
 	FGraphEventRef SubmissionEvent;
 	TOptional<uint64> SubmissionTime;
 
+	// Flags.
+	bool bAlwaysSignal = false;
+
 	// Cleanup
 	TArray<class FD3D12CommandAllocator*> AllocatorsToRelease;
 	TArray<FD3D12QueryLocation> TimestampQueries;
