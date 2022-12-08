@@ -213,8 +213,10 @@ inline bool LoadFromCompactBinary(FCbFieldView Field, TArray<T, Allocator>& OutV
 
 /** Convert the object to JSON in a multi-line format with indentation. */
 CORE_API void CompactBinaryToJson(const FCbObjectView& Object, FUtf8StringBuilderBase& Builder);
+CORE_API void CompactBinaryToJson(const FCbObjectView& Object, FWideStringBuilderBase& Builder);
 
 /** Convert the object to JSON in a compact format with no added whitespace. */
 CORE_API void CompactBinaryToCompactJson(const FCbObjectView& Object, FUtf8StringBuilderBase& Builder);
+CORE_API void CompactBinaryToCompactJson(const FCbObjectView& Object, FWideStringBuilderBase& Builder);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
