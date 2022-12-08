@@ -304,8 +304,6 @@ RENDERCORE_API int32 GetCVarForceLODShadow_AnyThread()
 	return Ret;
 }
 
-FMatrix44f FVirtualTextureUniformData::Invalid = FMatrix44f::Identity;
-
 // Note: Enables or disables HDR support for a project. Typically this would be set on a per-project/per-platform basis in defaultengine.ini
 TAutoConsoleVariable<int32> CVarAllowHDR(
 	TEXT("r.AllowHDR"),

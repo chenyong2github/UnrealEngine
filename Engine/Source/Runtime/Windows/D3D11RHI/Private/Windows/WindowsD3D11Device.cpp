@@ -23,6 +23,7 @@
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 #include "RHIValidation.h"
 #include "HAL/ExceptionHandling.h"
+#include "HDRHelper.h"
 
 #if NV_AFTERMATH
 bool GDX11NVAfterMathEnabled = false;

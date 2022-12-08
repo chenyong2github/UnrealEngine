@@ -6,6 +6,7 @@
 
 #include "D3D12RHIPrivate.h"
 #include "RenderCore.h"
+#include "HDRHelper.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Windows.h"

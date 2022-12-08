@@ -4,6 +4,9 @@
 
 #include "CoreMinimal.h"
 
+RENDERCORE_API bool IsHDREnabled();
+RENDERCORE_API bool IsHDRAllowed();
+
 RENDERCORE_API void HDRGetMetaData(EDisplayOutputFormat& OutDisplayOutputFormat, EDisplayColorGamut& OutDisplayColorGamut, bool& OutbHDRSupported,
 								   const FVector2D& WindowTopLeft, const FVector2D& WindowBottomRight, void* OSWindow);
 
