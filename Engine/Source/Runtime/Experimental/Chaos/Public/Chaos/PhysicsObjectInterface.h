@@ -20,7 +20,7 @@ struct CHAOS_API FClosestPhysicsObjectResult
 
 	Chaos::FPhysicsObjectHandle PhysicsObject = nullptr;
 	FVector ClosestLocation;
-	double ClosestDistance;
+	double ClosestDistance = 0.0;
 	operator bool() const
 	{
 		return IsValid();
