@@ -62,6 +62,7 @@
 #include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
+#include "Virtualization/VirtualizationSystem.h"
 
 DEFINE_LOG_CATEGORY(LogContentCommandlet);
 
@@ -99,6 +100,7 @@ DEFINE_LOG_CATEGORY(LogContentCommandlet);
 #include "Engine/LODActor.h"
 #include "PerQualityLevelProperties.h"
 #include "Misc/RedirectCollector.h"
+
 
 /**-----------------------------------------------------------------------------
  *	UResavePackages commandlet.
@@ -1113,6 +1115,8 @@ int32 UResavePackagesCommandlet::Main( const FString& Params )
 	bSkipCheckedOutFiles = Switches.Contains(TEXT("SkipCheckedOutPackages"));
 	/** if we should auto checkin packages that were checked out**/
 	bAutoCheckIn = bAutoCheckOut && (Switches.Contains(TEXT("AutoCheckIn")) || Switches.Contains(TEXT("AutoSubmit")));
+	/** if we should skip trying to virtualize packages being checked in **/
+	bSkipVirtualization = Switches.Contains(TEXT("SkipVirtualization"));
 	/** determine if we are building lighting for the map packages on the pass. **/
 	bShouldBuildLighting = Switches.Contains(TEXT("buildlighting"));
 	/** determine if we are building reflection captures for the map packages on the pass. **/
@@ -1748,19 +1752,78 @@ void UResavePackagesCommandlet::CheckoutAndSavePackage(UPackage* Package, TArray
 
 void UResavePackagesCommandlet::CheckInFiles(const TArray<FString>& InFilesToSubmit, const FText& InDescription) const
 {
-	if (!bAutoCheckIn)
+	if (!bAutoCheckIn || InFilesToSubmit.IsEmpty())
 	{
 		return;
 	}
 
-	// Check in all changed files
-	if (InFilesToSubmit.Num() > 0)
+	FText FinalDescription = InDescription;
+	if (!bSkipVirtualization)
 	{
-		TSharedRef<FCheckIn, ESPMode::ThreadSafe> CheckInOperation = ISourceControlOperation::Create<FCheckIn>();
-		CheckInOperation->SetDescription(InDescription);
+		if (!TryVirtualization(InFilesToSubmit, FinalDescription))
+		{
+			UE_LOG(LogContentCommandlet, Error, TEXT("Files will not be checked in due to virtualization failure!"));
+			return;
+		}
+	}
+	else
+	{
+		UE_LOG(LogContentCommandlet, Display, TEXT("Skipping virtualization due to the cmdline"));
+	}
 
-		ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-		SourceControlProvider.Execute(CheckInOperation, SourceControlHelpers::PackageFilenames(InFilesToSubmit));
+	TSharedRef<FCheckIn, ESPMode::ThreadSafe> CheckInOperation = ISourceControlOperation::Create<FCheckIn>();
+	CheckInOperation->SetDescription(FinalDescription);
+
+	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+	SourceControlProvider.Execute(CheckInOperation, SourceControlHelpers::PackageFilenames(InFilesToSubmit));
+}
+
+bool UResavePackagesCommandlet::TryVirtualization(const TArray<FString>& FilesToSubmit, FText& InOutDescription)
+{
+	TArray<FText> PayloadErrors;
+	TArray<FText> DescriptionTags;
+
+	UE::Virtualization::IVirtualizationSystem& System = UE::Virtualization::IVirtualizationSystem::Get();
+	if (!System.IsEnabled())
+	{
+		return true;
+	}
+
+	UE::Virtualization::EVirtualizationResult Result = System.TryVirtualizePackages(FilesToSubmit, DescriptionTags, PayloadErrors);
+	if (Result == UE::Virtualization::EVirtualizationResult::Success)
+	{
+		FTextBuilder NewDescription;
+		NewDescription.AppendLine(InOutDescription);
+
+		for (const FText& Line : DescriptionTags)
+		{
+			NewDescription.AppendLine(Line);
+		}
+
+		InOutDescription = NewDescription.ToText();
+
+		return true;
+	}
+	else if (System.AllowSubmitIfVirtualizationFailed())
+	{
+		for (const FText& Error : PayloadErrors)
+		{
+			UE_LOG(LogContentCommandlet, Warning, TEXT("%s"), *Error.ToString());
+		}
+
+		// Even though the virtualization process had problems we should continue submitting
+		return true;
+	}
+	else
+	{
+		for (const FText& Error : PayloadErrors)
+		{
+			UE_LOG(LogContentCommandlet, Error, TEXT("%s"), *Error.ToString());
+		}
+
+		UE_LOG(LogContentCommandlet, Error, TEXT("Failed to virtualize the files being submitted!"));
+
+		return false;
 	}
 }
 

@@ -63,7 +63,7 @@ protected:
 	// skip the assert when a package can not be opened
 	bool bCanIgnoreFails;
 
-	/** load all packages, and display warnings for those packages which would have been resaved but were read-only */
+	/** load all packages, and display warnings for those packages which would have been resaved but were read-only **/
 	bool bVerifyContent;
 
 	/** if we should only save dirty packages **/
@@ -72,14 +72,17 @@ protected:
 	/** if we should auto checkout packages that need to be saved**/
 	bool bAutoCheckOut;
 
-	/** if we should batch together source control operations rather than submit them one at a time */
+	/** if we should batch together source control operations rather than submit them one at a time **/
 	bool bBatchSourceControl;
 
-	/** if we should simply skip checked out files rather than error-ing out */
+	/** if we should simply skip checked out files rather than error-ing out **/
 	bool bSkipCheckedOutFiles;
 
 	/** if we should auto checkin packages that were checked out**/
 	bool bAutoCheckIn;
+
+	/** if we should skip trying to virtualize packages being checked in **/
+	bool bSkipVirtualization;
 
 	/** Should we build lighting for the packages we are saving? **/
 	bool bShouldBuildLighting;
@@ -243,6 +246,7 @@ protected:
 	bool CanCheckoutFile(const FString& Filename, FString& CheckedOutUser);
 	void CheckoutAndSavePackage(UPackage* Package, TArray<FString>& SublevelFilenames, bool bIgnoreAlreadyCheckedOut = false);
 	void CheckInFiles(const TArray<FString>& InFilesToSubmit, const FText& InDescription) const;
+	static bool TryVirtualization(const TArray<FString>& FilesToSubmit, FText& InOutDescription);
 
 	/**
 	 * Creates and returns a unique filename in the temporary file directory.
