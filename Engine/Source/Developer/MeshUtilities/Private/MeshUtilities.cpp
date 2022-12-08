@@ -4074,7 +4074,7 @@ public:
 						InfluenceCount = FMath::Min<uint32>(InfluenceCount, InfluenceLimit);
 					}
 
-					if (InfluenceCount > EXTRA_BONE_INFLUENCES && !FGPUBaseSkinVertexFactory::UseUnlimitedBoneInfluences(InfluenceCount))
+					if (InfluenceCount > EXTRA_BONE_INFLUENCES && !FGPUBaseSkinVertexFactory::UseUnlimitedBoneInfluences(InfluenceCount, BuildData.BuildOptions.TargetPlatform))
 					{
 						// Add a single warning message, there could be too many
 						if (bIsFirstBoneInfluenceTruncation)

@@ -2714,7 +2714,7 @@ void FLODUtilities::GenerateImportedSkinWeightProfileData(
 	TArray<FRawSkinWeight>& SkinWeights = ImportedProfileData.SkinWeights;
 	SkinWeights.Empty(DestinationSoftVertices.Num());
 
-	const int32 MaxBoneInfluencesFromProjectSettings = FGPUBaseSkinVertexFactory::UseUnlimitedBoneInfluences(MAX_TOTAL_INFLUENCES) ? MAX_TOTAL_INFLUENCES : EXTRA_BONE_INFLUENCES;
+	const int32 MaxBoneInfluencesFromProjectSettings = FGPUBaseSkinVertexFactory::UseUnlimitedBoneInfluences(MAX_TOTAL_INFLUENCES, TargetPlatform) ? MAX_TOTAL_INFLUENCES : EXTRA_BONE_INFLUENCES;
 	const int32 MaxBoneInfluencesFromAsset = FGPUBaseSkinVertexFactory::GetBoneInfluenceLimitForAsset(BoneInfluenceLimit, TargetPlatform);
 
 	//Get the maximum allow bone influence, so we can cut lowest weight properly and get the same result has the sk build

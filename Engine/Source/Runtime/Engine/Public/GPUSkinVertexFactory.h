@@ -376,8 +376,8 @@ public:
 
 	static const uint32 GHardwareMaxGPUSkinBones = 65536;
 	
-	ENGINE_API static bool UseUnlimitedBoneInfluences(uint32 MaxBoneInfluences);
-	ENGINE_API static bool GetUnlimitedBoneInfluences();
+	ENGINE_API static bool UseUnlimitedBoneInfluences(uint32 MaxBoneInfluences, const ITargetPlatform* TargetPlatform = nullptr);
+	ENGINE_API static bool GetUnlimitedBoneInfluences(const ITargetPlatform* TargetPlatform = nullptr);
 
 	/*
 	 * Returns the maximum number of bone influences that should be used for a skeletal mesh, given

@@ -19,6 +19,7 @@
 #include "RenderGraphResources.h"
 #include "ShaderPlatformCachedIniValue.h"
 #include "Engine/RendererSettings.h"
+#include "RHI.h"
 
 #if INTEL_ISPC
 #include "GPUSkinVertexFactory.ispc.generated.h"
@@ -448,15 +449,42 @@ int32 FGPUBaseSkinVertexFactory::GetMaxGPUSkinBones(const ITargetPlatform* Targe
 	}
 }
 
-bool FGPUBaseSkinVertexFactory::UseUnlimitedBoneInfluences(uint32 MaxBoneInfluences)
+bool FGPUBaseSkinVertexFactory::UseUnlimitedBoneInfluences(uint32 MaxBoneInfluences, const ITargetPlatform* TargetPlatform)
 {
-	const bool bUnlimitedBoneInfluence = (GCVarUnlimitedBoneInfluences!=0);
-	const uint32 UnlimitedBoneInfluencesThreshold = (uint32) GCVarUnlimitedBoneInfluencesThreshold;
-	return bUnlimitedBoneInfluence && MaxBoneInfluences > UnlimitedBoneInfluencesThreshold;
+	if (!GetUnlimitedBoneInfluences(TargetPlatform))
+	{
+		return false;
+	}
+
+	uint32 UnlimitedBoneInfluencesThreshold = (uint32)GCVarUnlimitedBoneInfluencesThreshold;
+
+#if ALLOW_OTHER_PLATFORM_CONFIG
+	if (TargetPlatform)
+	{
+		TSharedPtr<IConsoleVariable> VariablePtr = CVarUnlimitedBoneInfluencesThreshold->GetPlatformValueVariable(*TargetPlatform->IniPlatformName());
+		if (VariablePtr.IsValid())
+		{
+			UnlimitedBoneInfluencesThreshold = (uint32)VariablePtr->GetInt();
+		}
+	}
+#endif
+	
+	return MaxBoneInfluences > UnlimitedBoneInfluencesThreshold;
 }
 
-bool FGPUBaseSkinVertexFactory::GetUnlimitedBoneInfluences()
+bool FGPUBaseSkinVertexFactory::GetUnlimitedBoneInfluences(const ITargetPlatform* TargetPlatform)
 {
+#if ALLOW_OTHER_PLATFORM_CONFIG
+	if (TargetPlatform)
+	{
+		TSharedPtr<IConsoleVariable> VariablePtr = CVarUnlimitedBoneInfluences->GetPlatformValueVariable(*TargetPlatform->IniPlatformName());
+		if (VariablePtr.IsValid())
+		{
+			return VariablePtr->GetBool();
+		}
+	}
+#endif
+	
 	return (GCVarUnlimitedBoneInfluences!=0);
 }
 
@@ -543,7 +571,9 @@ TGlobalResource<FBoneBufferPool> FGPUBaseSkinVertexFactory::BoneBufferPool;
 template <GPUSkinBoneInfluenceType BoneInfluenceType>
 bool TGPUSkinVertexFactory<BoneInfluenceType>::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
-	bool bUnlimitedBoneInfluences = (BoneInfluenceType == UnlimitedBoneInfluence && GCVarUnlimitedBoneInfluences);
+	static FShaderPlatformCachedIniValue<int32> PerPlatformCVar(TEXT("r.GPUSkin.UnlimitedBoneInfluences"));
+	const bool bUnlimitedBoneInfluences = BoneInfluenceType == UnlimitedBoneInfluence && PerPlatformCVar.Get(Parameters.Platform) != 0;
+
 	return ShouldWeCompileGPUSkinVFShaders(Parameters.Platform, Parameters.MaterialParameters.FeatureLevel) &&
 		  (((Parameters.MaterialParameters.bIsUsedWithSkeletalMesh || Parameters.MaterialParameters.bIsUsedWithMorphTargets) && (BoneInfluenceType != UnlimitedBoneInfluence || bUnlimitedBoneInfluences)) 
 			  || Parameters.MaterialParameters.bIsSpecialEngineMaterial);
