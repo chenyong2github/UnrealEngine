@@ -66,16 +66,21 @@ namespace EpicGames.UHT.Exporters.CodeGen
 									addedCoreNetHeader = true;
 								}
 							}
+
+							bool RequireIncludeForClasses = IsRpcFunction(function) && ShouldExportFunction(function);
+
 							foreach (UhtProperty property in function.Properties)
 							{
-								AddIncludeForProperty(property, addedIncludes, includesToAdd);
+								AddIncludeForProperty(property, addedIncludes, includesToAdd, RequireIncludeForClasses);
 							}
+							if (function.ReturnProperty != null)
+								AddIncludeForProperty(function.ReturnProperty, addedIncludes, includesToAdd, RequireIncludeForClasses);
 						}
 
 						// Properties
 						foreach (UhtProperty property in structObj.Properties)
 						{
-							AddIncludeForProperty(property, addedIncludes, includesToAdd);
+							AddIncludeForProperty(property, addedIncludes, includesToAdd, false);
 						}
 					}
 
@@ -350,7 +355,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			}
 		}
 
-		private void AddIncludeForType(UhtProperty uhtProperty, HashSet<UhtHeaderFile> addedIncludes, IList<string> includesToAdd)
+		private void AddIncludeForType(UhtProperty uhtProperty, HashSet<UhtHeaderFile> addedIncludes, IList<string> includesToAdd, bool requireIncludeForClasses)
 		{
 			if (uhtProperty is UhtStructProperty structProperty)
 			{
@@ -360,20 +365,28 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					includesToAdd.Add(HeaderInfos[scriptStruct.HeaderFile.HeaderFileTypeIndex].IncludePath);
 				}
 			}
+			else if (requireIncludeForClasses && uhtProperty is UhtClassProperty classProperty)
+			{
+				UhtClass uhtClass = classProperty.Class;
+				if (!uhtClass.HeaderFile.IsNoExportTypes && addedIncludes.Add(uhtClass.HeaderFile))
+				{
+					includesToAdd.Add(HeaderInfos[uhtClass.HeaderFile.HeaderFileTypeIndex].IncludePath);
+				}
+			}
 		}
 
-		private void AddIncludeForProperty(UhtProperty property, HashSet<UhtHeaderFile> addedIncludes, IList<string> includesToAdd)
+		private void AddIncludeForProperty(UhtProperty property, HashSet<UhtHeaderFile> addedIncludes, IList<string> includesToAdd, bool requireIncludeForClasses)
 		{
-			AddIncludeForType(property, addedIncludes, includesToAdd);
+			AddIncludeForType(property, addedIncludes, includesToAdd, requireIncludeForClasses);
 
 			if (property is UhtContainerBaseProperty containerProperty)
 			{
-				AddIncludeForType(containerProperty.ValueProperty, addedIncludes, includesToAdd);
+				AddIncludeForType(containerProperty.ValueProperty, addedIncludes, includesToAdd, false);
 			}
 
 			if (property is UhtMapProperty mapProperty)
 			{
-				AddIncludeForType(mapProperty.KeyProperty, addedIncludes, includesToAdd);
+				AddIncludeForType(mapProperty.KeyProperty, addedIncludes, includesToAdd, false);
 			}
 		}
 
