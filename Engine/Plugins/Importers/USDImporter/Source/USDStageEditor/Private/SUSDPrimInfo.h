@@ -19,6 +19,7 @@ public:
 	void SetPrimPath( const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath );
 
 private:
+	friend class SUsdStage;
 	TSharedPtr< class SUsdPrimPropertiesList > PropertiesList;
 	TSharedPtr< class SUsdIntegrationsPanel > IntegrationsPanel;
 	TSharedPtr< class SVariantsList > VariantsList;

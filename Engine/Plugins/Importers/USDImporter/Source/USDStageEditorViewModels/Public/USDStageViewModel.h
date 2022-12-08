@@ -8,6 +8,7 @@
 
 class AUsdStageActor;
 class UPackage;
+class UUsdStageImportOptions;
 
 class USDSTAGEEDITORVIEWMODELS_API FUsdStageViewModel
 {
@@ -20,7 +21,7 @@ public:
 	void SaveStage();
 	/** Temporary until SaveAs feature is properly implemented, may be removed in a future release */
 	void SaveStageAs( const TCHAR* FilePath );
-	void ImportStage();
+	void ImportStage( const TCHAR* TargetContentFolder = nullptr, UUsdStageImportOptions* Options = nullptr );
 
 public:
 	TWeakObjectPtr< AUsdStageActor > UsdStageActor;

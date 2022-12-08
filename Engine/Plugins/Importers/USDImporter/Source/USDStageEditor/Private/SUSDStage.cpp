@@ -22,9 +22,10 @@
 #include "USDStageImportOptions.h"
 #include "USDStageModule.h"
 #include "USDTypesConversion.h"
-
 #include "UsdWrappers/SdfLayer.h"
+#include "UsdWrappers/UsdAttribute.h"
 #include "UsdWrappers/UsdStage.h"
+#include "Widgets/SUSDPrimPropertiesList.h"
 
 #include "ActorTreeItem.h"
 #include "Async/Async.h"
@@ -43,6 +44,7 @@
 #include "ScopedTransaction.h"
 #include "Styling/AppStyle.h"
 #include "UObject/StrongObjectPtr.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SButton.h"
@@ -392,6 +394,65 @@ void SUsdStage::Construct( const FArguments& InArgs )
 	if ( UsdStage )
 	{
 		Refresh();
+	}
+}
+
+AUsdStageActor* SUsdStage::GetAttachedStageActor() const
+{
+	return ViewModel.UsdStageActor.Get();
+}
+
+TArray<UE::FSdfLayer> SUsdStage::GetSelectedLayers() const
+{
+	if ( UsdLayersTreeView )
+	{
+		return UsdLayersTreeView->GetSelectedLayers();
+	}
+
+	return {};
+}
+
+void SUsdStage::SetSelectedLayers( const TArray<UE::FSdfLayer>& NewSelection ) const
+{
+	if ( UsdLayersTreeView )
+	{
+		UsdLayersTreeView->SetSelectedLayers( NewSelection );
+	}
+}
+
+TArray<UE::FUsdPrim> SUsdStage::GetSelectedPrims() const
+{
+	if ( UsdStageTreeView )
+	{
+		return UsdStageTreeView->GetSelectedPrims();
+	}
+
+	return {};
+}
+
+void SUsdStage::SetSelectedPrims( const TArray<UE::FUsdPrim>& NewSelection ) const
+{
+	if (UsdStageTreeView )
+	{
+		UsdStageTreeView->SetSelectedPrims( NewSelection );
+	}
+}
+
+TArray<FString> SUsdStage::GetSelectedPropertyNames() const
+{
+	if( UsdPrimInfoWidget && UsdPrimInfoWidget->PropertiesList )
+	{
+		return UsdPrimInfoWidget->PropertiesList->GetSelectedPropertyNames();
+	}
+
+	return {};
+}
+
+void SUsdStage::SetSelectedPropertyNames( const TArray<FString>& NewSelection )
+{
+	if ( UsdPrimInfoWidget && UsdPrimInfoWidget->PropertiesList )
+	{
+		UsdPrimInfoWidget->PropertiesList->SetSelectedPropertyNames( NewSelection );
 	}
 }
 
@@ -829,7 +890,7 @@ void SUsdStage::FillFileMenu( FMenuBuilder& MenuBuilder )
 			LOCTEXT("New_ToolTip", "Creates a new layer and opens the stage with it at its root"),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateSP( this, &SUsdStage::OnNew ),
+				FExecuteAction::CreateSP( this, &SUsdStage::FileNew ),
 				FCanExecuteAction()
 			),
 			NAME_None,
@@ -841,7 +902,10 @@ void SUsdStage::FillFileMenu( FMenuBuilder& MenuBuilder )
 			LOCTEXT("Open_ToolTip", "Opens a USD file"),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateSP( this, &SUsdStage::OnOpen ),
+				FExecuteAction::CreateLambda([this]()
+				{
+					FileOpen();
+				}),
 				FCanExecuteAction()
 			),
 			NAME_None,
@@ -853,7 +917,10 @@ void SUsdStage::FillFileMenu( FMenuBuilder& MenuBuilder )
 			LOCTEXT("Save_ToolTip", "Saves the stage"),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateSP( this, &SUsdStage::OnSave ),
+				FExecuteAction::CreateLambda([this]()
+				{
+					FileSave();
+				}),
 				FCanExecuteAction::CreateLambda( [this]()
 				{
 					if ( const AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
@@ -886,7 +953,7 @@ void SUsdStage::FillFileMenu( FMenuBuilder& MenuBuilder )
 			LOCTEXT("Reload_ToolTip", "Reloads the stage from disk, keeping aspects of the session intact"),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateSP( this, &SUsdStage::OnReloadStage ),
+				FExecuteAction::CreateSP( this, &SUsdStage::FileReload ),
 				FCanExecuteAction::CreateLambda( [this]()
 				{
 					if ( const AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
@@ -912,7 +979,7 @@ void SUsdStage::FillFileMenu( FMenuBuilder& MenuBuilder )
 			LOCTEXT( "ResetState_ToolTip", "Resets the session layer and other options like edit target and muted layers" ),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateSP( this, &SUsdStage::OnResetStage ),
+				FExecuteAction::CreateSP( this, &SUsdStage::FileReset ),
 				FCanExecuteAction::CreateLambda( [this]()
 				{
 					if ( const AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
@@ -939,7 +1006,7 @@ void SUsdStage::FillFileMenu( FMenuBuilder& MenuBuilder )
 			LOCTEXT("Close_ToolTip", "Closes the opened stage"),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateSP( this, &SUsdStage::OnClose ),
+				FExecuteAction::CreateSP( this, &SUsdStage::FileClose ),
 				FCanExecuteAction::CreateLambda( [this]()
 				{
 					if ( const AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
@@ -969,7 +1036,7 @@ void SUsdStage::FillActionsMenu( FMenuBuilder& MenuBuilder )
 			LOCTEXT("Import_ToolTip", "Imports the stage as Unreal assets"),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateSP( this, &SUsdStage::OnImport ),
+				FExecuteAction::CreateSP( this, &SUsdStage::ActionsImportWithDialog ),
 				FCanExecuteAction::CreateLambda( [this]()
 				{
 					if ( const AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
@@ -1051,12 +1118,17 @@ void SUsdStage::FillOptionsMenu(FMenuBuilder& MenuBuilder)
 
 void SUsdStage::FillExportSubMenu( FMenuBuilder& MenuBuilder )
 {
+	const FString FilePath;
+
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT( "ExportAll", "Export all layers..." ),
 		LOCTEXT( "ExportAll_ToolTip", "Exports copies of all file-based layers in the stage's layer stack to a new folder" ),
 		FSlateIcon(),
 		FUIAction(
-			FExecuteAction::CreateSP( this, &SUsdStage::OnExportAll ),
+			FExecuteAction::CreateLambda([this]()
+			{
+				FileExportAllLayers();
+			}),
 			FCanExecuteAction::CreateLambda( [this]()
 			{
 				if ( const AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
@@ -1079,7 +1151,10 @@ void SUsdStage::FillExportSubMenu( FMenuBuilder& MenuBuilder )
 		LOCTEXT( "ExportFlattened_ToolTip", "Flattens the current stage to a single USD layer and exports it as a new USD file" ),
 		FSlateIcon(),
 		FUIAction(
-			FExecuteAction::CreateSP( this, &SUsdStage::OnExportFlattened ),
+			FExecuteAction::CreateLambda([this]()
+			{
+				FileExportFlattenedStage();
+			}),
 			FCanExecuteAction::CreateLambda( [this]()
 			{
 				if ( const AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
@@ -1742,7 +1817,7 @@ void SUsdStage::FillSelectionSubMenu( FMenuBuilder& MenuBuilder )
 					{
 						TGuardValue<bool> SelectionLoopGuard( bUpdatingViewportSelection, true );
 
-						SUSDStageImpl::SelectGeneratedComponentsAndActors( ViewModel.UsdStageActor.Get(), UsdStageTreeView->GetSelectedPrims() );
+						SUSDStageImpl::SelectGeneratedComponentsAndActors( ViewModel.UsdStageActor.Get(), UsdStageTreeView->GetSelectedPrimPaths() );
 					}
 				}
 			}),
@@ -1780,22 +1855,29 @@ void SUsdStage::FillNaniteThresholdSubMenu( FMenuBuilder& MenuBuilder )
 	MenuBuilder.AddWidget( Slider, FText::FromString( TEXT( "Triangle threshold: " ) ), bNoIndent );
 }
 
-void SUsdStage::OnNew()
+void SUsdStage::FileNew()
 {
 	ViewModel.NewStage();
 }
 
-void SUsdStage::OnOpen()
+void SUsdStage::FileOpen( const FString& FilePath )
 {
-	TOptional< FString > UsdFilePath = UsdUtils::BrowseUsdFile( UsdUtils::EBrowseFileMode::Open );
-
-	if ( UsdFilePath )
+	FString FilePathCopy = FilePath;
+	if (FilePathCopy.IsEmpty())
 	{
-		OpenStage( *UsdFilePath.GetValue() );
+		TOptional< FString > UsdFilePath = UsdUtils::BrowseUsdFile( UsdUtils::EBrowseFileMode::Open );
+		if( !UsdFilePath.IsSet() )
+		{
+			return;
+		}
+
+		FilePathCopy = UsdFilePath.GetValue();
 	}
+
+	OpenStage(*FilePathCopy);
 }
 
-void SUsdStage::OnSave()
+void SUsdStage::FileSave( const FString& FilePath )
 {
 	const AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get();
 	if ( !StageActor )
@@ -1818,16 +1900,24 @@ void SUsdStage::OnSave()
 		}
 		else
 		{
-			TOptional< FString > UsdFilePath = UsdUtils::BrowseUsdFile( UsdUtils::EBrowseFileMode::Save );
-			if ( UsdFilePath )
+			FString FilePathCopy = FilePath;
+			if (FilePathCopy.IsEmpty())
 			{
-				ViewModel.SaveStageAs( *UsdFilePath.GetValue() );
+				TOptional< FString > UsdFilePath = UsdUtils::BrowseUsdFile( UsdUtils::EBrowseFileMode::Save );
+				if( !UsdFilePath.IsSet() )
+				{
+					return;
+				}
+
+				FilePathCopy = UsdFilePath.GetValue();
 			}
+
+			ViewModel.SaveStageAs(*FilePathCopy);
 		}
 	}
 }
 
-void SUsdStage::OnExportAll()
+void SUsdStage::FileExportAllLayers( const FString& OutputDirectory )
 {
 	const AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get();
 	if ( !StageActor )
@@ -1859,12 +1949,21 @@ void SUsdStage::OnExportAll()
 		? ParentWindow->GetNativeWindow()->GetOSWindowHandle()
 		: nullptr;
 
-	FString TargetFolderPath;
-	if ( !DesktopPlatform->OpenDirectoryDialog( ParentWindowHandle, LOCTEXT( "ChooseFolder", "Choose output folder" ).ToString(), TEXT( "" ), TargetFolderPath ) )
+	FString OutputDirectoryCopy = OutputDirectory;
+	if (OutputDirectoryCopy.IsEmpty())
 	{
-		return;
+		if ( !DesktopPlatform->OpenDirectoryDialog(
+			ParentWindowHandle,
+			LOCTEXT( "ChooseFolder", "Choose output folder" ).ToString(),
+			TEXT( "" ),
+			OutputDirectoryCopy
+		) )
+		{
+			return;
+		}
+
+		OutputDirectoryCopy = FPaths::ConvertRelativePathToFull(OutputDirectoryCopy);
 	}
-	TargetFolderPath = FPaths::ConvertRelativePathToFull( TargetFolderPath );
 
 	double StartTime = FPlatformTime::Cycles64();
 
@@ -1898,7 +1997,7 @@ void SUsdStage::OnExportAll()
 		FString LayerPath = Layer.GetRealPath();
 		FPaths::NormalizeFilename( LayerPath );
 
-		FString TargetPath = FPaths::Combine( TargetFolderPath, Layer.GetDisplayName() );
+		FString TargetPath = FPaths::Combine( OutputDirectory, Layer.GetDisplayName() );
 		FPaths::NormalizeFilename( TargetPath );
 
 		// Filename collision (should be rare, but possible given that we're discarding the folder structure)
@@ -1972,7 +2071,7 @@ void SUsdStage::OnExportAll()
 	}
 }
 
-void SUsdStage::OnExportFlattened()
+void SUsdStage::FileExportFlattenedStage(const FString& OutputLayer)
 {
 	const AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get();
 	if ( !StageActor )
@@ -1986,22 +2085,28 @@ void SUsdStage::OnExportFlattened()
 		return;
 	}
 
-	TOptional< FString > UsdFilePath = UsdUtils::BrowseUsdFile( UsdUtils::EBrowseFileMode::Save );
-	if ( !UsdFilePath.IsSet() )
+	FString OutputLayerCopy = OutputLayer;
+	if (OutputLayerCopy.IsEmpty())
 	{
-		return;
+		TOptional< FString > UsdFilePath = UsdUtils::BrowseUsdFile( UsdUtils::EBrowseFileMode::Save );
+		if ( !UsdFilePath.IsSet() )
+		{
+			return;
+		}
+
+		OutputLayerCopy = UsdFilePath.GetValue();
 	}
 
 	double StartTime = FPlatformTime::Cycles64();
 
-	UsdStage.Export( *( UsdFilePath.GetValue() ) );
+	UsdStage.Export(*OutputLayerCopy);
 
 	// Send analytics
 	if ( FEngineAnalytics::IsAvailable() )
 	{
 		bool bAutomated = false;
 		double ElapsedSeconds = FPlatformTime::ToSeconds64( FPlatformTime::Cycles64() - StartTime );
-		FString Extension = FPaths::GetExtension( UsdFilePath.GetValue() );
+		FString Extension = FPaths::GetExtension(OutputLayerCopy);
 		IUsdClassesModule::SendAnalytics(
 			{},
 			TEXT( "ExportStageFlattened" ),
@@ -2013,7 +2118,7 @@ void SUsdStage::OnExportFlattened()
 	}
 }
 
-void SUsdStage::OnReloadStage()
+void SUsdStage::FileReload()
 {
 	FScopedTransaction Transaction( LOCTEXT( "ReloadTransaction", "Reload USD stage" ) );
 
@@ -2028,7 +2133,7 @@ void SUsdStage::OnReloadStage()
 	}
 }
 
-void SUsdStage::OnResetStage()
+void SUsdStage::FileReset()
 {
 	ViewModel.ResetStage();
 
@@ -2041,7 +2146,7 @@ void SUsdStage::OnResetStage()
 	}
 }
 
-void SUsdStage::OnClose()
+void SUsdStage::FileClose()
 {
 	FScopedTransaction Transaction(LOCTEXT("CloseTransaction", "Close USD stage"));
 
@@ -2059,9 +2164,22 @@ void SUsdStage::OnLayerIsolated( const UE::FSdfLayer& IsolatedLayer )
 	}
 }
 
-void SUsdStage::OnImport()
+void SUsdStage::ActionsImportWithDialog()
 {
 	ViewModel.ImportStage();
+}
+
+void SUsdStage::ActionsImport( const FString& OutputContentFolder, UUsdStageImportOptions* Options )
+{
+	ViewModel.ImportStage( *OutputContentFolder, Options );
+}
+
+void SUsdStage::ExportSelectedLayers(const FString& OutputLayerOrDirectory)
+{
+	if ( UsdLayersTreeView )
+	{
+		UsdLayersTreeView->ExportSelectedLayers(OutputLayerOrDirectory);
+	}
 }
 
 void SUsdStage::OnPrimSelectionChanged( const TArray<FString>& PrimPaths )
@@ -2114,6 +2232,12 @@ void SUsdStage::OpenStage( const TCHAR* FilePath )
 		FText::FromString( FilePath )
 	) );
 
+	if ( !ViewModel.UsdStageActor.IsValid() )
+	{
+		IUsdStageModule& UsdStageModule = FModuleManager::Get().LoadModuleChecked< IUsdStageModule >( "UsdStage" );
+		AttachToStageActor( &UsdStageModule.GetUsdStageActor( GWorld ) );
+	}
+
 	ViewModel.OpenStage( FilePath );
 }
 
@@ -2142,7 +2266,7 @@ void SUsdStage::Refresh()
 
 		// Refresh will generate brand new RootItems, so let's immediately select the new item
 		// that corresponds to the prim we're supposed to be selecting
-		UsdStageTreeView->SelectPrims( { SelectedPrimPath } );
+		UsdStageTreeView->SetSelectedPrimPaths( { SelectedPrimPath } );
 
 		UsdStageTreeView->RequestTreeRefresh();
 	}
@@ -2150,16 +2274,6 @@ void SUsdStage::Refresh()
 	if ( UsdPrimInfoWidget )
 	{
 		UsdPrimInfoWidget->SetPrimPath( GetCurrentStage(), *SelectedPrimPath );
-	}
-
-	// Automatically attach to another stage actor if we can find one
-	if ( !StageActor )
-	{
-		IUsdStageModule& UsdStageModule = FModuleManager::Get().LoadModuleChecked< IUsdStageModule >( "UsdStage" );
-		if ( AUsdStageActor* OtherStageActor = UsdStageModule.FindUsdStageActor( IUsdClassesModule::GetCurrentWorld() ) )
-		{
-			AttachToStageActor( OtherStageActor );
-		}
 	}
 }
 
@@ -2254,10 +2368,7 @@ void SUsdStage::OnViewportSelectionChanged( UObject* NewSelection )
 
 	if ( PrimPaths.Num() > 0 )
 	{
-		if ( UsdStageTreeView )
-		{
-			UsdStageTreeView->SelectPrims( PrimPaths );
-		}
+		UsdStageTreeView->SetSelectedPrimPaths( PrimPaths );
 
 		if ( UsdPrimInfoWidget )
 		{

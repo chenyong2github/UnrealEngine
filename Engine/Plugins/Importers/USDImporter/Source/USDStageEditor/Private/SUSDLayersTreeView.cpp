@@ -986,6 +986,53 @@ FReply SUsdLayersTreeView::OnRowAcceptDrop( const FDragDropEvent& Event, EItemDr
 	return FReply::Unhandled();
 }
 
+TArray<UE::FSdfLayer> SUsdLayersTreeView::GetSelectedLayers() const
+{
+	TArray<UE::FSdfLayer> SelectedLayers;
+	TArray<FUsdLayerViewModelRef> SelectedViewModels = GetSelectedItems();
+	SelectedLayers.Reserve( SelectedViewModels.Num() );
+
+	for ( const FUsdLayerViewModelRef& SelectedItem : SelectedViewModels )
+	{
+		SelectedLayers.AddUnique( SelectedItem->GetLayer() );
+	}
+
+	return SelectedLayers;
+}
+
+void SUsdLayersTreeView::SetSelectedLayers( const TArray<UE::FSdfLayer>& NewSelection )
+{
+	TSet<FString> IdentifiersToSelect;
+	IdentifiersToSelect.Reserve( NewSelection.Num() );
+	for ( const UE::FSdfLayer& SelectedLayer : NewSelection )
+	{
+		IdentifiersToSelect.Add( SelectedLayer.GetIdentifier() );
+	}
+
+	TArray<FUsdLayerViewModelRef> ItemsToSelect;
+	ItemsToSelect.Reserve( NewSelection.Num() );
+
+	TFunction<void( const TArray< FUsdLayerViewModelRef >& )> Traverse;
+	Traverse = [this, &IdentifiersToSelect, &ItemsToSelect, &Traverse]( const TArray< FUsdLayerViewModelRef >& Items )
+	{
+		for ( const FUsdLayerViewModelRef& Item : Items )
+		{
+			if ( IdentifiersToSelect.Contains( Item->LayerIdentifier ) )
+			{
+				ItemsToSelect.Add( Item );
+			}
+
+			Traverse( Item->Children );
+		}
+	};
+	Traverse( RootItems );
+
+	Private_ClearSelection();
+
+	const bool bSelected = true;
+	SetItemSelection( ItemsToSelect, bSelected );
+}
+
 TSharedRef< ITableRow > SUsdLayersTreeView::OnGenerateRow( FUsdLayerViewModelRef InDisplayNode, const TSharedRef< STableViewBase >& OwnerTable )
 {
 	return SNew( SUsdTreeRow< FUsdLayerViewModelRef >, InDisplayNode, OwnerTable, SharedData )
@@ -1130,7 +1177,10 @@ TSharedPtr< SWidget > SUsdLayersTreeView::ConstructLayerContextMenu()
 			LOCTEXT( "Export_ToolTip", "Export the selected layers, having the exported layers reference the original stage's layers" ),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateSP( this, &SUsdLayersTreeView::OnExportSelectedLayers ),
+				FExecuteAction::CreateLambda([this]()
+				{
+					ExportSelectedLayers();
+				}),
 				FCanExecuteAction()
 			),
 			NAME_None,
@@ -1430,7 +1480,7 @@ bool SUsdLayersTreeView::CanSaveSelectedLayers() const
 	return false;
 }
 
-void SUsdLayersTreeView::OnExportSelectedLayers() const
+void SUsdLayersTreeView::ExportSelectedLayers(const FString& OutputLayerOrDirectory) const
 {
 	TArray< FUsdLayerViewModelRef > MySelectedItems = GetSelectedItems();
 
@@ -1450,20 +1500,26 @@ void SUsdLayersTreeView::OnExportSelectedLayers() const
 
 	double StartTime = FPlatformTime::Cycles64();
 	FString Extension;
+	FString OutputLayerOrDirectoryCopy = OutputLayerOrDirectory;
 
 	// Single layer -> Allow picking the target layer filename
 	if ( LayersToExport.Num() == 1 )
 	{
-		TOptional< FString > UsdFilePath = UsdUtils::BrowseUsdFile( UsdUtils::EBrowseFileMode::Save );
-		if ( !UsdFilePath.IsSet() )
+		if (OutputLayerOrDirectoryCopy.IsEmpty() )
 		{
-			return;
+			TOptional< FString > UsdFilePath = UsdUtils::BrowseUsdFile( UsdUtils::EBrowseFileMode::Save );
+			if ( !UsdFilePath.IsSet() )
+			{
+				return;
+			}
+
+			OutputLayerOrDirectoryCopy = UsdFilePath.GetValue();
 		}
 
 		StartTime = FPlatformTime::Cycles64();
-		Extension = FPaths::GetExtension( UsdFilePath.GetValue() );
+		Extension = FPaths::GetExtension(OutputLayerOrDirectoryCopy);
 
-		UE::USDLayersTreeViewImpl::Private::ExportLayerToPath( LayersToExport[ 0 ], UsdFilePath.GetValue() );
+		UE::USDLayersTreeViewImpl::Private::ExportLayerToPath( LayersToExport[ 0 ], OutputLayerOrDirectoryCopy);
 	}
 	// Multiple layers -> Pick folder and export them with the same name
 	else if ( LayersToExport.Num() > 1 )
@@ -1479,32 +1535,36 @@ void SUsdLayersTreeView::OnExportSelectedLayers() const
 			? ParentWindow->GetNativeWindow()->GetOSWindowHandle()
 			: nullptr;
 
-		FString TargetFolderPath;
-		if ( !DesktopPlatform->OpenDirectoryDialog( ParentWindowHandle, LOCTEXT( "ChooseFolder", "Choose output folder" ).ToString(), TEXT( "" ), TargetFolderPath ) )
+		if (OutputLayerOrDirectoryCopy.IsEmpty() )
 		{
-			return;
+			if ( !DesktopPlatform->OpenDirectoryDialog(
+				ParentWindowHandle,
+				LOCTEXT( "ChooseFolder", "Choose output folder" ).ToString(),
+				TEXT( "" ),
+				OutputLayerOrDirectoryCopy
+			))
+			{
+				return;
+			}
+			OutputLayerOrDirectoryCopy = FPaths::ConvertRelativePathToFull(OutputLayerOrDirectoryCopy);
 		}
-		TargetFolderPath = FPaths::ConvertRelativePathToFull( TargetFolderPath );
 
 		StartTime = FPlatformTime::Cycles64();
 		Extension = FPaths::GetExtension( LayersToExport[ 0 ].GetDisplayName() );
 
-		if ( FPaths::DirectoryExists( TargetFolderPath ) )
+		for ( const UE::FSdfLayer& LayerToExport : LayersToExport )
 		{
-			for ( const UE::FSdfLayer& LayerToExport : LayersToExport )
+			FString TargetFileName = FPaths::GetCleanFilename( LayerToExport.GetRealPath() );
+			FString FullPath = FPaths::Combine(OutputLayerOrDirectoryCopy, TargetFileName );
+			FString FinalFullPath = FullPath;
+
+			uint32 Suffix = 0;
+			while ( FPaths::FileExists( FinalFullPath ) )
 			{
-				FString TargetFileName = FPaths::GetCleanFilename( LayerToExport.GetRealPath() );
-				FString FullPath = FPaths::Combine( TargetFolderPath, TargetFileName );
-				FString FinalFullPath = FullPath;
-
-				uint32 Suffix = 0;
-				while ( FPaths::FileExists( FinalFullPath ) )
-				{
-					FinalFullPath = FString::Printf( TEXT( "%s_%u" ), *FullPath, Suffix++ );
-				}
-
-				UE::USDLayersTreeViewImpl::Private::ExportLayerToPath( LayerToExport, FinalFullPath );
+				FinalFullPath = FString::Printf( TEXT( "%s_%u" ), *FullPath, Suffix++ );
 			}
+
+			UE::USDLayersTreeViewImpl::Private::ExportLayerToPath( LayerToExport, FinalFullPath );
 		}
 	}
 

@@ -10,6 +10,9 @@
 #include "USDMemory.h"
 #include "USDProjectSettings.h"
 #include "USDStageActor.h"
+#include "UsdWrappers/SdfLayer.h"
+#include "UsdWrappers/UsdAttribute.h"
+#include "UsdWrappers/UsdPrim.h"
 
 #include "Editor/TransBuffer.h"
 #include "Editor/UnrealEdEngine.h"
@@ -30,6 +33,8 @@
 
 namespace UE::UsdStageEditorModule::Private
 {
+	const static FTabId UsdStageEditorTabID{ TEXT( "USDStage" ) };
+
 	void SaveStageActorLayersForWorld( UWorld* World, bool bForClosing, AUsdStageActor* TargetStageActor = nullptr )
 	{
 #if USE_USD_SDK
@@ -220,6 +225,29 @@ namespace UE::UsdStageEditorModule::Private
 		}
 #endif // USE_USD_SDK
 	}
+
+	TSharedPtr<SUsdStage> GetUsdStageEditor( bool bOpenIfNeeded = false )
+	{
+		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked< FLevelEditorModule >( "LevelEditor" );
+		TSharedPtr< FTabManager > LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
+
+		TSharedPtr< SDockTab > Tab = bOpenIfNeeded
+			? LevelEditorTabManager->TryInvokeTab( UsdStageEditorTabID )
+			: LevelEditorTabManager->FindExistingLiveTab( UsdStageEditorTabID );
+
+		if ( Tab )
+		{
+			if ( TSharedPtr<SBorder> ContentBorder = StaticCastSharedRef<SBorder>( Tab->GetContent() ) )
+			{
+				if ( TSharedPtr<SUsdStage> UsdStageEditor = StaticCastSharedRef<SUsdStage>( ContentBorder->GetContent() ) )
+				{
+					return UsdStageEditor;
+				}
+			}
+		}
+
+		return nullptr;
+	}
 }
 
 class FUsdStageEditorModule : public IUsdStageEditorModule
@@ -258,11 +286,14 @@ public:
 
 				const FSlateIcon LayersIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.USDStage");
 
-				LevelEditorTabManager->RegisterTabSpawner( TEXT("USDStage"), FOnSpawnTab::CreateStatic( &FUsdStageEditorModule::SpawnUsdStageTab ) )
-					.SetDisplayName( LOCTEXT( "USDStage", "USD Stage" ) )
-					.SetTooltipText( LOCTEXT( "USDStageTab", "Open USD Stage tab" ) )
-					.SetGroup(WorkspaceMenu::GetMenuStructure().GetLevelEditorVirtualProductionCategory())
-					.SetIcon( LayersIcon );
+				LevelEditorTabManager->RegisterTabSpawner(
+					UE::UsdStageEditorModule::Private::UsdStageEditorTabID.TabType,
+					FOnSpawnTab::CreateStatic( &FUsdStageEditorModule::SpawnUsdStageTab )
+				)
+				.SetDisplayName( LOCTEXT( "USDStage", "USD Stage" ) )
+				.SetTooltipText( LOCTEXT( "USDStageTab", "Open USD Stage tab" ) )
+				.SetGroup(WorkspaceMenu::GetMenuStructure().GetLevelEditorVirtualProductionCategory())
+				.SetIcon( LayersIcon );
 			});
 
 		// Prompt to save modified USD layers when closing the editor
@@ -389,6 +420,186 @@ private:
 	FDelegateHandle OnTransactionStateChangedHandle;
 #endif // #if USE_USD_SDK
 };
+
+bool IUsdStageEditorModule::OpenStageEditor() const
+{
+	const bool bOpenIfNeeded = true;
+	return UE::UsdStageEditorModule::Private::GetUsdStageEditor( bOpenIfNeeded ).IsValid();
+}
+
+bool IUsdStageEditorModule::CloseStageEditor() const
+{
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked< FLevelEditorModule >( "LevelEditor" );
+	TSharedPtr< FTabManager > LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
+	if ( TSharedPtr< SDockTab > Tab = LevelEditorTabManager->FindExistingLiveTab( UE::UsdStageEditorModule::Private::UsdStageEditorTabID ) )
+	{
+		return Tab->RequestCloseTab();
+	}
+
+	return false;
+}
+
+AUsdStageActor* IUsdStageEditorModule::GetAttachedStageActor() const
+{
+	if ( TSharedPtr<SUsdStage> UsdStageEditor = UE::UsdStageEditorModule::Private::GetUsdStageEditor() )
+	{
+		return UsdStageEditor->GetAttachedStageActor();
+	}
+
+	return nullptr;
+}
+
+bool IUsdStageEditorModule::SetAttachedStageActor( AUsdStageActor* NewActor ) const
+{
+	if ( TSharedPtr<SUsdStage> UsdStageEditor = UE::UsdStageEditorModule::Private::GetUsdStageEditor() )
+	{
+		UsdStageEditor->AttachToStageActor( NewActor );
+		return true;
+	}
+
+	return false;
+}
+
+TArray<UE::FSdfLayer> IUsdStageEditorModule::GetSelectedLayers() const
+{
+	if ( TSharedPtr<SUsdStage> UsdStageEditor = UE::UsdStageEditorModule::Private::GetUsdStageEditor() )
+	{
+		return UsdStageEditor->GetSelectedLayers();
+	}
+
+	return {};
+}
+
+void IUsdStageEditorModule::SetSelectedLayers( const TArray<UE::FSdfLayer>& NewSelection ) const
+{
+	if ( TSharedPtr<SUsdStage> UsdStageEditor = UE::UsdStageEditorModule::Private::GetUsdStageEditor() )
+	{
+		return UsdStageEditor->SetSelectedLayers( NewSelection );
+	}
+}
+
+TArray<UE::FUsdPrim> IUsdStageEditorModule::GetSelectedPrims() const
+{
+	if ( TSharedPtr<SUsdStage> UsdStageEditor = UE::UsdStageEditorModule::Private::GetUsdStageEditor() )
+	{
+		return UsdStageEditor->GetSelectedPrims();
+	}
+
+	return {};
+}
+
+void IUsdStageEditorModule::SetSelectedPrims( const TArray<UE::FUsdPrim>& NewSelection ) const
+{
+	if ( TSharedPtr<SUsdStage> UsdStageEditor = UE::UsdStageEditorModule::Private::GetUsdStageEditor() )
+	{
+		UsdStageEditor->SetSelectedPrims( NewSelection );
+	}
+}
+
+TArray<FString> IUsdStageEditorModule::GetSelectedPropertyNames() const
+{
+	if ( TSharedPtr<SUsdStage> UsdStageEditor = UE::UsdStageEditorModule::Private::GetUsdStageEditor() )
+	{
+		return UsdStageEditor->GetSelectedPropertyNames();
+	}
+
+	return {};
+}
+
+void IUsdStageEditorModule::SetSelectedPropertyNames( const TArray<FString>& NewSelection ) const
+{
+	if ( TSharedPtr<SUsdStage> UsdStageEditor = UE::UsdStageEditorModule::Private::GetUsdStageEditor() )
+	{
+		UsdStageEditor->SetSelectedPropertyNames( NewSelection );
+	}
+}
+
+void IUsdStageEditorModule::FileNew() const
+{
+	if ( TSharedPtr<SUsdStage> UsdStageEditor = UE::UsdStageEditorModule::Private::GetUsdStageEditor() )
+	{
+		UsdStageEditor->FileNew();
+	}
+}
+
+void IUsdStageEditorModule::FileOpen( const FString& FilePath ) const
+{
+	if ( TSharedPtr<SUsdStage> UsdStageEditor = UE::UsdStageEditorModule::Private::GetUsdStageEditor() )
+	{
+		UsdStageEditor->FileOpen( FilePath );
+	}
+}
+
+void IUsdStageEditorModule::FileSave( const FString& OutputFilePathIfUnsaved ) const
+{
+	if ( TSharedPtr<SUsdStage> UsdStageEditor = UE::UsdStageEditorModule::Private::GetUsdStageEditor() )
+	{
+		UsdStageEditor->FileSave( OutputFilePathIfUnsaved );
+	}
+}
+
+void IUsdStageEditorModule::FileExportAllLayers( const FString& OutputDirectory ) const
+{
+	if ( TSharedPtr<SUsdStage> UsdStageEditor = UE::UsdStageEditorModule::Private::GetUsdStageEditor() )
+	{
+		UsdStageEditor->FileExportAllLayers( OutputDirectory  );
+	}
+}
+
+void IUsdStageEditorModule::FileExportFlattenedStage( const FString& OutputLayer ) const
+{
+	if ( TSharedPtr<SUsdStage> UsdStageEditor = UE::UsdStageEditorModule::Private::GetUsdStageEditor() )
+	{
+		UsdStageEditor->FileExportFlattenedStage( OutputLayer  );
+	}
+}
+
+void IUsdStageEditorModule::FileReload() const
+{
+	if ( TSharedPtr<SUsdStage> UsdStageEditor = UE::UsdStageEditorModule::Private::GetUsdStageEditor() )
+	{
+		UsdStageEditor->FileReload();
+	}
+}
+
+void IUsdStageEditorModule::FileReset() const
+{
+	if ( TSharedPtr<SUsdStage> UsdStageEditor = UE::UsdStageEditorModule::Private::GetUsdStageEditor() )
+	{
+		UsdStageEditor->FileReset();
+	}
+}
+
+void IUsdStageEditorModule::FileClose() const
+{
+	if ( TSharedPtr<SUsdStage> UsdStageEditor = UE::UsdStageEditorModule::Private::GetUsdStageEditor() )
+	{
+		UsdStageEditor->FileClose();
+	}
+}
+
+void IUsdStageEditorModule::ActionsImport( const FString& OutputContentFolder, UUsdStageImportOptions* Options ) const
+{
+	if ( TSharedPtr<SUsdStage> UsdStageEditor = UE::UsdStageEditorModule::Private::GetUsdStageEditor() )
+	{
+		if ( OutputContentFolder.IsEmpty() )
+		{
+			UsdStageEditor->ActionsImportWithDialog();
+		}
+		else
+		{
+			UsdStageEditor->ActionsImport( OutputContentFolder, Options );
+		}
+	}
+}
+
+void IUsdStageEditorModule::ExportSelectedLayers( const FString& OutputLayerOrDirectory ) const
+{
+	if ( TSharedPtr<SUsdStage> UsdStageEditor = UE::UsdStageEditorModule::Private::GetUsdStageEditor() )
+	{
+		UsdStageEditor->ExportSelectedLayers( OutputLayerOrDirectory );
+	}
+}
 
 IMPLEMENT_MODULE_USD( FUsdStageEditorModule, USDStageEditor );
 

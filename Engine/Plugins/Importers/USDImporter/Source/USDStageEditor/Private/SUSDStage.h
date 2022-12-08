@@ -3,7 +3,7 @@
 #pragma once
 
 #include "USDStageViewModel.h"
-#include "UsdWrappers/UsdStage.h"
+#include "UsdWrappers/ForwardDeclarations.h"
 
 #include "Animation/CurveSequence.h"
 #include "CoreMinimal.h"
@@ -22,6 +22,11 @@ class ISceneOutliner;
 enum class EMapChangeType : uint8;
 enum class EUsdInitialLoadSet : uint8;
 struct FSlateBrush;
+namespace UE
+{
+	class FUsdPrim;
+	class FUsdAttribute;
+}
 
 #if USE_USD_SDK
 
@@ -30,6 +35,7 @@ class SUsdStage : public SCompoundWidget
 	SLATE_BEGIN_ARGS( SUsdStage ) {}
 	SLATE_END_ARGS()
 
+public:
 	void Construct( const FArguments& InArgs );
 
 	virtual ~SUsdStage();
@@ -38,6 +44,32 @@ class SUsdStage : public SCompoundWidget
 	// When bFlashButton is true we will also blink the button on the UI to draw attention to the fact
 	// that the actor changed
 	void AttachToStageActor( AUsdStageActor* InUsdStageActor, bool bFlashButton=true );
+
+	AUsdStageActor* GetAttachedStageActor() const;
+
+	TArray<UE::FSdfLayer> GetSelectedLayers() const;
+	void SetSelectedLayers( const TArray<UE::FSdfLayer>& NewSelection ) const;
+
+	TArray<UE::FUsdPrim> GetSelectedPrims() const;
+	void SetSelectedPrims( const TArray<UE::FUsdPrim>& NewSelection ) const;
+
+	TArray<FString> GetSelectedPropertyNames() const;
+	void SetSelectedPropertyNames( const TArray<FString>& NewSelection );
+
+	// Main menu actions.
+	// For all of these, providing an empty path will cause us to pop open a dialog to let the user pick the path
+	// instead.
+	void FileNew();
+	void FileOpen(const FString& FilePath = {});
+	void FileSave(const FString& OutputFileIfUnsaved = {});
+	void FileExportAllLayers(const FString& OutputDirectory = {});
+	void FileExportFlattenedStage(const FString& OutputLayer = {});
+	void FileReload();
+	void FileReset();
+	void FileClose();
+	void ActionsImportWithDialog();
+	void ActionsImport( const FString& OutputContentFolder, UUsdStageImportOptions* Options );
+	void ExportSelectedLayers(const FString& OutputLayerOrDirectory = {});
 
 protected:
 	void SetupStageActorDelegates();
@@ -61,18 +93,7 @@ protected:
 	void FillSelectionSubMenu( FMenuBuilder& MenuBuilder );
 	void FillNaniteThresholdSubMenu( FMenuBuilder& MenuBuilder );
 
-	void OnNew();
-	void OnOpen();
-	void OnSave();
-	void OnExportAll();
-	void OnExportFlattened();
-	void OnReloadStage();
-	void OnResetStage();
-	void OnClose();
-
 	void OnLayerIsolated( const UE::FSdfLayer& IsolatedLayer );
-
-	void OnImport();
 
 	void OnPrimSelectionChanged( const TArray<FString>& PrimPath );
 

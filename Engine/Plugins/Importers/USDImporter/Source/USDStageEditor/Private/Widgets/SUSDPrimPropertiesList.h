@@ -16,6 +16,9 @@ public:
 	void Construct( const FArguments& InArgs );
 	void SetPrimPath( const UE::FUsdStageWeak& UsdStage, const TCHAR* InPrimPath );
 
+	TArray<FString> GetSelectedPropertyNames() const;
+	void SetSelectedPropertyNames( const TArray<FString>& NewSelection );
+
 protected:
 	TSharedRef< ITableRow > OnGenerateRow( TSharedPtr< FUsdPrimAttributeViewModel > InDisplayNode, const TSharedRef< STableViewBase >& OwnerTable );
 	void GeneratePropertiesList( const UE::FUsdStageWeak& UsdStage, const TCHAR* InPrimPath );

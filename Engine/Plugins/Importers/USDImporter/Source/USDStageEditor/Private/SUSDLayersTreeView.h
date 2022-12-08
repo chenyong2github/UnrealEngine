@@ -33,6 +33,11 @@ public:
 	FReply OnRowAcceptDrop( const FDragDropEvent& Event, EItemDropZone Zone, FUsdLayerViewModelRef Item );
 	// End drag and drop interface
 
+	TArray<UE::FSdfLayer> GetSelectedLayers() const;
+	void SetSelectedLayers( const TArray<UE::FSdfLayer>& NewSelection );
+
+	void ExportSelectedLayers(const FString& OutputDirectory = {}) const;
+
 	const UE::FUsdStageWeak& GetStage() const { return UsdStage; }
 
 private:
@@ -56,8 +61,6 @@ private:
 
 	void OnSaveSelectedLayers();
 	bool CanSaveSelectedLayers() const;
-
-	void OnExportSelectedLayers() const;
 
 	bool CanInsertSubLayer() const;
 	void OnAddSubLayer();

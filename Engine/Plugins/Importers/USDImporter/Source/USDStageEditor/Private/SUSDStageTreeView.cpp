@@ -330,7 +330,7 @@ void SUsdStageTreeView::Construct( const FArguments& InArgs )
 			SelectedPrimPath = UsdToUnreal::ConvertPath( UsdStageTreeItem->UsdPrim.GetPrimPath() );
 		}
 
-		TArray<FString> SelectedPrimPaths = GetSelectedPrims();
+		TArray<FString> SelectedPrimPaths = GetSelectedPrimPaths();
 		this->OnPrimSelectionChanged.ExecuteIfBound( SelectedPrimPaths );
 	} );
 
@@ -516,19 +516,8 @@ FUsdPrimViewModelPtr SUsdStageTreeView::GetItemFromPrimPath( const FString& Prim
 	return FoundItem;
 }
 
-void SUsdStageTreeView::SelectPrims( const TArray<FString>& PrimPaths )
+void SUsdStageTreeView::SelectItemsInternal( const TArray<FUsdPrimViewModelRef>& ItemsToSelect )
 {
-	TArray< FUsdPrimViewModelRef > ItemsToSelect;
-	ItemsToSelect.Reserve( PrimPaths.Num() );
-
-	for ( const FString& PrimPath : PrimPaths )
-	{
-		if ( FUsdPrimViewModelPtr FoundItem = GetItemFromPrimPath( PrimPath ) )
-		{
-			ItemsToSelect.Add( FoundItem.ToSharedRef() );
-		}
-	}
-
 	if ( ItemsToSelect.Num() > 0 )
 	{
 		// Clear selection without emitting events, as we'll emit new events with SetItemSelection
@@ -546,11 +535,56 @@ void SUsdStageTreeView::SelectPrims( const TArray<FString>& PrimPaths )
 
 		// ClearSelection is not going to fire the OnSelectionChanged event in case we have nothing selected, but we
 		// need to do that to refresh the prim properties panel to display the stage properties instead
-		OnPrimSelectionChanged.ExecuteIfBound({});
+		OnPrimSelectionChanged.ExecuteIfBound( {} );
 	}
 }
 
-TArray<FString> SUsdStageTreeView::GetSelectedPrims()
+void SUsdStageTreeView::SetSelectedPrimPaths( const TArray<FString>& PrimPaths )
+{
+	TArray< FUsdPrimViewModelRef > ItemsToSelect;
+	ItemsToSelect.Reserve( PrimPaths.Num() );
+
+	for ( const FString& PrimPath : PrimPaths )
+	{
+		if ( FUsdPrimViewModelPtr FoundItem = GetItemFromPrimPath( PrimPath ) )
+		{
+			ItemsToSelect.Add( FoundItem.ToSharedRef() );
+		}
+	}
+
+	SelectItemsInternal( ItemsToSelect );
+}
+
+void SUsdStageTreeView::SetSelectedPrims( const TArray<UE::FUsdPrim>& Prims )
+{
+	TSet<UE::FSdfPath> PrimPaths;
+	for ( const UE::FUsdPrim& Prim : Prims )
+	{
+		PrimPaths.Add( Prim.GetPrimPath() );
+	}
+
+	TArray< FUsdPrimViewModelRef > ItemsToSelect;
+	ItemsToSelect.Reserve( Prims.Num() );
+
+	TFunction<void( const TArray< FUsdPrimViewModelRef >& )> Traverse;
+	Traverse = [this, &PrimPaths, &ItemsToSelect, &Traverse]( const TArray< FUsdPrimViewModelRef >& Items )
+	{
+		for ( const FUsdPrimViewModelRef& Item : Items )
+		{
+			if ( PrimPaths.Contains( Item->UsdPrim.GetPrimPath() ) )
+			{
+				ItemsToSelect.Add( Item );
+			}
+
+			Traverse( Item->Children );
+		}
+	};
+	Traverse( RootItems );
+
+	SelectItemsInternal( ItemsToSelect );
+}
+
+TArray<FString> SUsdStageTreeView::GetSelectedPrimPaths()
 {
 	TArray<FString> SelectedPrimPaths;
 	SelectedPrimPaths.Reserve( GetNumItemsSelected() );
@@ -561,6 +595,19 @@ TArray<FString> SUsdStageTreeView::GetSelectedPrims()
 	}
 
 	return SelectedPrimPaths;
+}
+
+TArray<UE::FUsdPrim> SUsdStageTreeView::GetSelectedPrims()
+{
+	TArray<UE::FUsdPrim> SelectedPrims;
+	SelectedPrims.Reserve( GetNumItemsSelected() );
+
+	for ( FUsdPrimViewModelRef SelectedItem : GetSelectedItems() )
+	{
+		SelectedPrims.Add( SelectedItem->UsdPrim );
+	}
+
+	return SelectedPrims;
 }
 
 void SUsdStageTreeView::SetupColumns()

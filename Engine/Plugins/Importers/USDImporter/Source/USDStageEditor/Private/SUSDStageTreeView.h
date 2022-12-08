@@ -13,6 +13,10 @@ class AUsdStageActor;
 class FUICommandList;
 enum class EPayloadsTrigger;
 enum class EUsdDuplicateType : uint8;
+namespace UE
+{
+	class FUsdPrim;
+}
 
 #if USE_USD_SDK
 
@@ -33,8 +37,10 @@ public:
 
 	FUsdPrimViewModelPtr GetItemFromPrimPath( const FString& PrimPath );
 
-	void SelectPrims( const TArray<FString>& PrimPaths );
-	TArray<FString> GetSelectedPrims();
+	void SetSelectedPrimPaths( const TArray<FString>& PrimPaths );
+	void SetSelectedPrims( const TArray<UE::FUsdPrim>& Prims );
+	TArray<FString> GetSelectedPrimPaths();
+	TArray<UE::FUsdPrim> GetSelectedPrims();
 
 private:
 	virtual TSharedRef< ITableRow > OnGenerateRow( FUsdPrimViewModelRef InDisplayNode, const TSharedRef< STableViewBase >& OwnerTable ) override;
@@ -85,6 +91,8 @@ private:
 	/** Uses TreeItemExpansionStates to travel the tree and call SetItemExpansion */
 	void RestoreExpansionStates();
 	virtual void RequestListRefresh() override;
+
+	void SelectItemsInternal( const TArray< FUsdPrimViewModelRef >& ItemsToSelect );
 
 private:
 	// Should always be valid, we keep the one we're given on Refresh()
