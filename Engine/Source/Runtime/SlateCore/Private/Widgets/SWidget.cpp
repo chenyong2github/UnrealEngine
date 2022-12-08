@@ -1391,13 +1391,6 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 	INC_DWORD_STAT(STAT_SlateNumPaintedWidgets);
 	UE_TRACE_SCOPED_SLATE_WIDGET_PAINT(this);
 
-	const SWidget* PaintParent = Args.GetPaintParent();
-	//if (GSlateEnableGlobalInvalidation)
-	//{
-	//	bInheritedVolatility = PaintParent ? (PaintParent->IsVolatileIndirectly() || PaintParent->IsVolatile()) : false;
-	//}
-
-
 	// If this widget clips to its bounds, then generate a new clipping rect representing the intersection of the bounding
 	// rectangle of the widget's geometry, and the current clipping rectangle.
 	bool bClipToBounds, bAlwaysClip, bIntersectClipBounds;
@@ -2044,7 +2037,7 @@ bool SWidget::CanChildrenBeAccessible() const
 bool SWidget::IsChildWidgetCulled(const FSlateRect& MyCullingRect, const FArrangedWidget& ArrangedChild) const
 {
 	// If we've enabled global invalidation it's safe to run the culling logic and just 'stop' drawing
-	// a widget, that widget has to be given an opportunity to paint, as wlel as all its children, the
+	// a widget, that widget has to be given an opportunity to paint, as well as all its children, the
 	// only correct way is to remove the widget from the tree, or to change the visibility of it.
 	if (GSlateIsOnFastUpdatePath)
 	{

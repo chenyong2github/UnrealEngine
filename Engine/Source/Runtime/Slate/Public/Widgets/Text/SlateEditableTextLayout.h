@@ -665,7 +665,7 @@ private:
 	/** How the text was committed by the virtual keyboard */
 	ETextCommit::Type VirtualKeyboardTextCommitType;
 
-	/** Override for for the overflow policy. If this is not set the text style setting is used */
+	/** Override for the overflow policy. If this is not set the text style setting is used */
 	TOptional<ETextOverflowPolicy> OverflowPolicyOverride;
 
 	/** The last known size of the widget from the previous OnPaint, used to recalculate wrapping */
