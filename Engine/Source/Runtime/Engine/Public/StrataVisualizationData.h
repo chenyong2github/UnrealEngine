@@ -29,7 +29,10 @@ public:
 		FViewMode Mode;
 
 		// Whether or not this mode (by default) composites with regular scene depth.
-		bool      DefaultComposited;
+		bool      bDefaultComposited;
+
+		bool      bAvailableCommand;
+		FText	  UnavailableReason;
 	};
 
 	/** Mapping of FName to a visualization mode record. */
