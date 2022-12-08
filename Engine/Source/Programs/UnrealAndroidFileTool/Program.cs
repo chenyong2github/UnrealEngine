@@ -16,7 +16,7 @@ namespace UnrealAndroidFileTool
 {
 	class Program
 	{
-		private static string AppVersion = "1.0.0";
+		private static string AppVersion = "1.0.1";
 
 		static void ShowHelp(string command)
 		{

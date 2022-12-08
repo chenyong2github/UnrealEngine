@@ -123,7 +123,6 @@ namespace AutomationTool
 				// create TCP/IP socket
 				try
 				{
-					IPHostEntry ipHost = Dns.GetHostEntry(Dns.GetHostName());
 					IPAddress ipAddr = IPAddress.Parse("127.0.0.1");
 					IPEndPoint localEndPoint = new IPEndPoint(ipAddr, Port);
 
@@ -1225,7 +1224,6 @@ namespace AutomationTool
 			// create TCP/IP socket
 			try
 			{
-				IPHostEntry ipHost = Dns.GetHostEntry(Dns.GetHostName());
 				IPAddress ipAddr = IPAddress.Parse(Address);
 				IPEndPoint localEndPoint = new IPEndPoint(ipAddr, UsePort);
 
