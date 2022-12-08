@@ -58,7 +58,7 @@ public:
 	virtual TArray<FRigVMExternalVariable> GetExternalVariables() const;
 	virtual TMap<FRigVMGraphFunctionIdentifier, uint32> GetDependencies() const;
 
-	FRigVMGraphFunctionIdentifier GetFunctionIdentifier() const;
+	virtual FRigVMGraphFunctionIdentifier GetFunctionIdentifier() const;
 	FRigVMGraphFunctionHeader GetFunctionHeader(IRigVMGraphFunctionHost* InHostObject = nullptr) const;
 
 protected:

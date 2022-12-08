@@ -504,9 +504,12 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 
 					NewNode->SetFlags(RF_Transactional);
 
-					if (UEdGraphPin* ValuePin = NewNode->FindPin(ModelNode->FindPin("Value")->GetPinPath()))
+					if (URigVMPin* ModelPin = ModelNode->FindPin("Value"))
 					{
-						NewNode->SetColorFromModel(GetSchema()->GetPinTypeColor(ValuePin->PinType));
+						if (UEdGraphPin* ValuePin = NewNode->FindPin(ModelPin->GetPinPath()))
+						{
+							NewNode->SetColorFromModel(GetSchema()->GetPinTypeColor(ValuePin->PinType));
+						}
 					}
 
 					ModelNodePathToEdNode.Add(ModelNode->GetFName(), NewNode);

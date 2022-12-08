@@ -3771,8 +3771,53 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 	return NodeNames;
 }
 
+URigVMLibraryNode* URigVMController::LocalizeFunctionFromPath(const FString& InHostPath, const FName& InFunctionName, bool bLocalizeDependentPrivateFunctions, bool bSetupUndoRedo, bool bPrintPythonCommand)
+{
+	if (!IsValidGraph())
+	{
+		return nullptr;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return nullptr;
+	}
+
+	URigVMGraph* Graph = GetGraph();
+	check(Graph);
+
+	if (Graph->IsA<URigVMFunctionLibrary>())
+	{
+		ReportError(TEXT("Cannot add function reference nodes to function library graphs."));
+		return nullptr;
+	}
+
+	UObject* HostObject = StaticLoadObject(UObject::StaticClass(), NULL, *InHostPath, NULL, LOAD_None, NULL);
+	if (!HostObject)
+	{
+		ReportErrorf(TEXT("Failed to load the Host object %s."), *InHostPath);
+		return nullptr;
+	}
+
+	IRigVMGraphFunctionHost* FunctionHost = Cast<IRigVMGraphFunctionHost>(HostObject);
+	if (!FunctionHost)
+	{
+		ReportError(TEXT("Host object is not a IRigVMGraphFunctionHost."));
+		return nullptr;
+	}
+
+	FRigVMGraphFunctionData* Data = FunctionHost->GetRigVMGraphFunctionStore()->FindFunctionByName(InFunctionName);
+	if (!Data)
+	{
+		ReportErrorf(TEXT("Function %s not found in host %s."), *InFunctionName.ToString(), *InHostPath);
+		return nullptr;
+	}
+
+	return LocalizeFunction(Data->Header.LibraryPointer, bLocalizeDependentPrivateFunctions, bSetupUndoRedo, bPrintPythonCommand);
+}
+
 URigVMLibraryNode* URigVMController::LocalizeFunction(
-	URigVMLibraryNode* InFunctionDefinition,
+	const FRigVMGraphFunctionIdentifier& InFunctionDefinition,
 	bool bLocalizeDependentPrivateFunctions,
 	bool bSetupUndoRedo,
 	bool bPrintPythonCommand)
@@ -3787,15 +3832,10 @@ URigVMLibraryNode* URigVMController::LocalizeFunction(
 		return nullptr;
 	}
 
-	if(InFunctionDefinition == nullptr)
-	{
-		return nullptr;
-	}
-
-	TArray<URigVMLibraryNode*> FunctionsToLocalize;
+	TArray<FRigVMGraphFunctionIdentifier> FunctionsToLocalize;
 	FunctionsToLocalize.Add(InFunctionDefinition);
 
-	TMap<URigVMLibraryNode*, URigVMLibraryNode*> Results = LocalizeFunctions(FunctionsToLocalize, bLocalizeDependentPrivateFunctions, bSetupUndoRedo, bPrintPythonCommand);
+	TMap<FRigVMGraphFunctionIdentifier, URigVMLibraryNode*> Results = LocalizeFunctions(FunctionsToLocalize, bLocalizeDependentPrivateFunctions, bSetupUndoRedo, bPrintPythonCommand);
 
 	URigVMLibraryNode** LocalizedFunctionPtr = Results.Find(FunctionsToLocalize[0]);
 	if(LocalizedFunctionPtr)
@@ -3805,12 +3845,12 @@ URigVMLibraryNode* URigVMController::LocalizeFunction(
 	return nullptr;
 }
 
-TMap<URigVMLibraryNode*, URigVMLibraryNode*> URigVMController::LocalizeFunctions(
-	TArray<URigVMLibraryNode*> InFunctionDefinitions,
+TMap<FRigVMGraphFunctionIdentifier, URigVMLibraryNode*> URigVMController::LocalizeFunctions(
+	TArray<FRigVMGraphFunctionIdentifier> InFunctionDefinitions,
 	bool bLocalizeDependentPrivateFunctions,
 	bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
-	TMap<URigVMLibraryNode*, URigVMLibraryNode*> LocalizedFunctions;
+	TMap<FRigVMGraphFunctionIdentifier, URigVMLibraryNode*> LocalizedFunctions;
 
 	if(!IsValidGraph())
 	{
@@ -3831,87 +3871,64 @@ TMap<URigVMLibraryNode*, URigVMLibraryNode*> URigVMController::LocalizeFunctions
 		return LocalizedFunctions;
 	}
 
-	TArray<URigVMLibraryNode*> FunctionsToLocalize;
+	TArray<FRigVMGraphFunctionData*> FunctionsToLocalize;
 
-	TArray<URigVMLibraryNode*> NodesToVisit;
-	for(URigVMLibraryNode* FunctionDefinition : InFunctionDefinitions)
+	TArray<FRigVMGraphFunctionIdentifier> NodesToVisit;
+	for(const FRigVMGraphFunctionIdentifier& FunctionDefinition : InFunctionDefinitions)
 	{
 		NodesToVisit.AddUnique(FunctionDefinition);
-		FunctionsToLocalize.AddUnique(FunctionDefinition);
+		FunctionsToLocalize.AddUnique(FRigVMGraphFunctionData::FindFunctionData(FunctionDefinition));
 	}
 
+	const FSoftObjectPath ThisFunctionHost = ThisLibrary->GetFunctionHostObjectPath();
+	
 	// find all functions to localize
 	for(int32 NodeToVisitIndex=0; NodeToVisitIndex<NodesToVisit.Num(); NodeToVisitIndex++)
 	{
-		URigVMLibraryNode* NodeToVisit = NodesToVisit[NodeToVisitIndex];
+		FRigVMGraphFunctionIdentifier& NodeToVisit = NodesToVisit[NodeToVisitIndex];
 
-		if(URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(NodeToVisit))
+		// Already local
+		if (NodeToVisit.HostObject == ThisFunctionHost)
 		{
-			const TArray<URigVMNode*>& ContainedNodes = CollapseNode->GetContainedNodes();
-			for(URigVMNode* ContainedNode : ContainedNodes)
-			{
-				if(URigVMLibraryNode* ContainedLibraryNode = Cast<URigVMLibraryNode>(ContainedNode))
-				{
-					NodesToVisit.AddUnique(ContainedLibraryNode);
-				}
-			}
-
-			if(URigVMFunctionLibrary* OtherLibrary = Cast<URigVMFunctionLibrary>(CollapseNode->GetOuter()))
-			{
-				if(OtherLibrary != ThisLibrary)
-				{
-					bool bIsAvailable = false;
-					FRigVMGraphFunctionIdentifier Identifier = CollapseNode->GetFunctionIdentifier();
-					if (IRigVMGraphFunctionHost* Host = Cast<IRigVMGraphFunctionHost>(Identifier.HostObject.ResolveObject()))
-					{
-						bIsAvailable = Host->GetRigVMGraphFunctionStore()->IsFunctionPublic(Identifier);		
-					}
-
-					if(!bIsAvailable)
-					{
-						if(!bLocalizeDependentPrivateFunctions)
-						{
-							ReportAndNotifyErrorf(TEXT("Cannot localize function - dependency %s is private."), *CollapseNode->GetPathName());
-							return LocalizedFunctions;
-						}
-						
-						FunctionsToLocalize.AddUnique(CollapseNode);
-					}
-				}
-			}
+			continue;
 		}
 
-		else if(const URigVMFunctionReferenceNode* FunctionReferencedNode = Cast<URigVMFunctionReferenceNode>(NodeToVisit))
+		bool bIsPublic;
+		FRigVMGraphFunctionData* FunctionData = FRigVMGraphFunctionData::FindFunctionData(NodeToVisit, &bIsPublic);
+		if (!FunctionData)
 		{
-			if(FunctionReferencedNode->GetReferencedFunctionHeader().LibraryPointer.HostObject != ThisLibrary->GetFunctionHostObjectPath())
-			{
-				if(URigVMCollapseNode* FunctionDefinition = Cast<URigVMCollapseNode>(FunctionReferencedNode->LoadReferencedNode()))
-				{
-					NodesToVisit.AddUnique(FunctionDefinition);
-				}
-			}
+			ReportAndNotifyErrorf(TEXT("Cannot localize function - could not find function %s in host %s."), *NodeToVisit.LibraryNode.ToString(), *NodeToVisit.HostObject.ToString());
+			return LocalizedFunctions;
+		}
+
+		// Do not localize public functions
+		if (bIsPublic)
+		{
+			continue;
+		}
+
+		if (!bLocalizeDependentPrivateFunctions)
+		{
+			ReportAndNotifyErrorf(TEXT("Cannot localize function - dependency %s is private."), *NodeToVisit.LibraryNode.ToString());
+			return LocalizedFunctions;
+		}
+
+		FunctionsToLocalize.AddUnique(FunctionData);
+
+		// Look for its dependencies
+		for (TPair<FRigVMGraphFunctionIdentifier, uint32>& Pair : FunctionData->Header.Dependencies)
+		{
+			NodesToVisit.AddUnique(Pair.Key);
 		}
 	}
 	
 	// sort the functions to localize based on their nesting
-	Algo::Sort(FunctionsToLocalize, [](URigVMLibraryNode* A, URigVMLibraryNode* B) -> bool
+	Algo::Sort(FunctionsToLocalize, [](FRigVMGraphFunctionData* A, FRigVMGraphFunctionData* B) -> bool
 	{
 		check(A);
 		check(B);
-		return B->Contains(A);
+		return B->Header.Dependencies.Contains(A->Header.LibraryPointer);
 	});
-
-	// export all of the content for each node
-	TMap<const URigVMLibraryNode*, FString> ExportedTextPerFunction;
-	for(const URigVMLibraryNode* FunctionToLocalize : FunctionsToLocalize)
-	{
-		URigVMFunctionLibrary* OtherLibrary = Cast<URigVMFunctionLibrary>(FunctionToLocalize->GetOuter());
-		FRigVMControllerGraphGuard GraphGuard(this, OtherLibrary, false);
-
-		const TArray<FName> NodeNamesToExport = {FunctionToLocalize->GetFName()};
-		const FString ExportedText = ExportNodesToText(NodeNamesToExport);
-		ExportedTextPerFunction.Add(FunctionToLocalize, ExportedText);
-	}
 
 	FRigVMControllerCompileBracketScope CompileScope(this);
 	if (bSetupUndoRedo)
@@ -3922,25 +3939,26 @@ TMap<URigVMLibraryNode*, URigVMLibraryNode*> URigVMController::LocalizeFunctions
 	// import the functions to our local function library
 	{
 		FRigVMControllerGraphGuard GraphGuard(this, ThisLibrary, bSetupUndoRedo);
-		for(URigVMLibraryNode* FunctionToLocalize : FunctionsToLocalize)
+		for(FRigVMGraphFunctionData* FunctionToLocalize : FunctionsToLocalize)
 		{
-			const FString& ExportedText = ExportedTextPerFunction.FindChecked(FunctionToLocalize);
-			TArray<FName> ImportedNodeNames = ImportNodesFromText(ExportedText);
-			if(ImportedNodeNames.Num() != 1)
+			if (FunctionToLocalize->SerializedCollapsedNode.IsEmpty())
 			{
-				ReportErrorf(TEXT("Not possible to localize function %s"), *FunctionToLocalize->GetPathName());
-				continue;
+				if (URigVMLibraryNode* ReferencedFunction = Cast<URigVMLibraryNode>(FunctionToLocalize->Header.LibraryPointer.LibraryNode.TryLoad()))
+				{
+					if (IRigVMClientHost* ClientHost = ReferencedFunction->GetImplementingOuter<IRigVMClientHost>())
+					{
+						ClientHost->GetRigVMClient()->UpdateGraphFunctionSerializedGraph(ReferencedFunction);
+					}
+				}				
 			}
-
-			URigVMLibraryNode* LocalizedFunction = Cast<URigVMLibraryNode>(GetGraph()->FindNodeByName(ImportedNodeNames[0]));
-			if(LocalizedFunction == nullptr)
+			
+			TArray<FName> NodeNames = ImportNodesFromText(FunctionToLocalize->SerializedCollapsedNode, false);
+			if (NodeNames.Num() > 0)
 			{
-				ReportErrorf(TEXT("Not possible to localize function %s"), *FunctionToLocalize->GetPathName());
-				continue;
+				URigVMLibraryNode* LocalizedFunction = ThisLibrary->FindFunction(NodeNames[0]);
+				LocalizedFunctions.Add(FunctionToLocalize->Header.LibraryPointer, LocalizedFunction);
+				ThisLibrary->LocalizedFunctions.FindOrAdd(FunctionToLocalize->Header.LibraryPointer.LibraryNode.ToString(), LocalizedFunction);
 			}
-
-			LocalizedFunctions.Add(FunctionToLocalize, LocalizedFunction);
-			ThisLibrary->LocalizedFunctions.FindOrAdd(FunctionToLocalize->GetPathName(), LocalizedFunction);
 		}
 	}
 
@@ -3964,8 +3982,7 @@ TMap<URigVMLibraryNode*, URigVMLibraryNode*> URigVMController::LocalizeFunctions
 			}
 			else if(URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(NodeToUpdate))
 			{
-				const URigVMLibraryNode* ReferencedNode = FunctionReferenceNode->LoadReferencedNode();
-				URigVMLibraryNode** RemappedNodePtr = LocalizedFunctions.Find(ReferencedNode);
+				URigVMLibraryNode** RemappedNodePtr = LocalizedFunctions.Find(FunctionReferenceNode->GetReferencedFunctionHeader().LibraryPointer);
 				if(RemappedNodePtr)
 				{
 					URigVMLibraryNode* RemappedNode = *RemappedNodePtr;
@@ -3982,26 +3999,19 @@ TMap<URigVMLibraryNode*, URigVMLibraryNode*> URigVMController::LocalizeFunctions
 
 	if (bPrintPythonCommand)
 	{
-		FString FunctionNames = TEXT("[");
-		for (auto It = InFunctionDefinitions.CreateConstIterator(); It; ++It)
+		for (const FRigVMGraphFunctionIdentifier& Identifier : InFunctionDefinitions)
 		{
-			FunctionNames += FString::Printf(TEXT("unreal.load_object(name = '%s', outer = None).get_local_function_library().find_function('%s')"),
-				*(*It)->GetLibrary()->GetOuter()->GetPathName(),
-				*(*It)->GetName());
-			if (It.GetIndex() < InFunctionDefinitions.Num() - 1)
-			{
-				FunctionNames += TEXT(", ");
-			}
+			const FString GraphName = GetSanitizedGraphName(GetGraph()->GetGraphName());
+			FRigVMGraphFunctionData* FunctionData = FRigVMGraphFunctionData::FindFunctionData(Identifier);
+			const FString FunctionDefinitionName = GetSanitizedNodeName(FunctionData->Header.Name.ToString());
+
+			RigVMPythonUtils::Print(GetGraphOuterName(), 
+				FString::Printf(TEXT("blueprint.get_controller_by_name('%s').localize_function_from_path('%s', '%s', %s)"),
+						*GraphName,
+						*Identifier.HostObject.ToString(),
+						*FunctionDefinitionName,
+						bLocalizeDependentPrivateFunctions ? TEXT("True") : TEXT("False")));
 		}
-		FunctionNames += TEXT("]");
-
-		const FString GraphName = GetSanitizedGraphName(GetGraph()->GetGraphName());
-
-		RigVMPythonUtils::Print(GetGraphOuterName(), 
-							FString::Printf(TEXT("blueprint.get_controller_by_name('%s').localize_functions(%s, %s)"),
-											*GraphName,
-											*FunctionNames,
-											(bLocalizeDependentPrivateFunctions) ? TEXT("True") : TEXT("False")));
 	}
 
 	return LocalizedFunctions;
@@ -13820,27 +13830,24 @@ bool URigVMController::CanAddNode(URigVMNode* InNode, bool bReportErrors, bool b
 			FRigVMGraphFunctionHeader FunctionDefinition = FunctionRefNode->GetReferencedFunctionHeader();
 			if(!CanAddFunctionRefForDefinition(FunctionDefinition, false))
 			{
-				if (URigVMLibraryNode* LibraryNode = FunctionRefNode->LoadReferencedNode())
+				URigVMFunctionLibrary* TargetLibrary = Graph->GetDefaultFunctionLibrary();
+				URigVMLibraryNode* NewFunctionDefinition = TargetLibrary->FindPreviouslyLocalizedFunction(FunctionDefinition.LibraryPointer);
+			
+				if((NewFunctionDefinition == nullptr) && RequestLocalizeFunctionDelegate.IsBound())
 				{
-					URigVMFunctionLibrary* TargetLibrary = Graph->GetDefaultFunctionLibrary();
-					URigVMLibraryNode* NewFunctionDefinition = TargetLibrary->FindPreviouslyLocalizedFunction(LibraryNode);
-				
-					if((NewFunctionDefinition == nullptr) && RequestLocalizeFunctionDelegate.IsBound())
+					if(RequestLocalizeFunctionDelegate.Execute(FunctionDefinition.LibraryPointer))
 					{
-						if(RequestLocalizeFunctionDelegate.Execute(LibraryNode))
-						{
-							NewFunctionDefinition = TargetLibrary->FindPreviouslyLocalizedFunction(LibraryNode);
-						}
+						NewFunctionDefinition = TargetLibrary->FindPreviouslyLocalizedFunction(FunctionDefinition.LibraryPointer);
 					}
-
-					if(NewFunctionDefinition == nullptr)
-					{
-						return false;
-					}
-				
-					SetReferencedFunction(FunctionRefNode, NewFunctionDefinition, false);
-					FunctionDefinition = FunctionRefNode->GetReferencedFunctionHeader();
 				}
+
+				if(NewFunctionDefinition == nullptr)
+				{
+					return false;
+				}
+			
+				SetReferencedFunction(FunctionRefNode, NewFunctionDefinition, false);
+				FunctionDefinition = FunctionRefNode->GetReferencedFunctionHeader();
 			}
 			
 			if(!CanAddFunctionRefForDefinition(FunctionDefinition, bReportErrors))

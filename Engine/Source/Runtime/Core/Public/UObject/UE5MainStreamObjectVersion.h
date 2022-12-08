@@ -316,6 +316,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Add refraction mode None, converted from legacy when the refraction pin is not plugged.
 		MaterialRefractionModeNone,
 
+		// Store serialized graph function in the function data
+		RigVMSaveSerializedGraphInGraphFunctionData,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

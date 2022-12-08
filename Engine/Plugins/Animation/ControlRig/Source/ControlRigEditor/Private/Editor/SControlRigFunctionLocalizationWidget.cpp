@@ -18,24 +18,22 @@
 /// SControlRigFunctionLocalizationItem
 ///////////////////////////////////////////////////////////
 
-SControlRigFunctionLocalizationItem::SControlRigFunctionLocalizationItem(URigVMLibraryNode* InFunction)
+SControlRigFunctionLocalizationItem::SControlRigFunctionLocalizationItem(const FRigVMGraphFunctionIdentifier& InFunction)
     : Function(InFunction)
 {
 	FString OuterName;
+	FString FunctionName;
 	bool bIsPublic = false;
 
-	if(URigVMFunctionLibrary* Library = Cast<URigVMFunctionLibrary>(InFunction->GetOuter()))
+	if (FRigVMGraphFunctionData* FunctionData = FRigVMGraphFunctionData::FindFunctionData(InFunction, &bIsPublic))
 	{
-		if(UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(Library->GetOuter()))
-		{
-			OuterName = Blueprint->GetName();
-			bIsPublic = Blueprint->IsFunctionPublic(InFunction->GetFName());
-		}
+		OuterName = InFunction.LibraryNode.GetAssetPathString();
+		FunctionName = FunctionData->Header.Name.ToString();
+		DisplayText = FText::FromString(FString::Printf(TEXT("%s :: %s"), *OuterName, *FunctionName));
+		ToolTipText = bIsPublic ?
+			FText::FromString(FString::Printf(TEXT("%s :: %s is public. Check this to create a local copy."), *OuterName, *FunctionName)) :
+			FText::FromString(FString::Printf(TEXT("%s :: %s is private. A local copy has to be created. To avoid this you can turn it public in the source Control Rig."), *OuterName, *FunctionName));
 	}
-	DisplayText = FText::FromString(FString::Printf(TEXT("%s :: %s"), *OuterName, *InFunction->GetName()));
-	ToolTipText = bIsPublic ?
-		FText::FromString(FString::Printf(TEXT("%s :: %s is public. Check this to create a local copy."), *OuterName, *InFunction->GetName())) :
-		FText::FromString(FString::Printf(TEXT("%s :: %s is private. A local copy has to be created. To avoid this you can turn it public in the source Control Rig."), *OuterName, *InFunction->GetName()));
 }
 
 //////////////////////////////////////////////////////////////
@@ -88,74 +86,58 @@ void SControlRigFunctionLocalizationTableRow::Construct(const FArguments& InArgs
 /// SControlRigFunctionLocalizationWidget
 ///////////////////////////////////////////////////////////
 
-void SControlRigFunctionLocalizationWidget::Construct(const FArguments& InArgs, URigVMLibraryNode* InFunctionToLocalize, UControlRigBlueprint* InTargetBlueprint)
+void SControlRigFunctionLocalizationWidget::Construct(const FArguments& InArgs, const FRigVMGraphFunctionIdentifier& InFunctionToLocalize, UControlRigBlueprint* InTargetBlueprint)
 {
 	FunctionsToLocalize.Add(InFunctionToLocalize);
 	FunctionItems.Reset();
 
-	TArray<URigVMLibraryNode*> NodesToVisit;
-	TArray<URigVMLibraryNode*> FunctionsForTable;
+	TArray<FRigVMGraphFunctionIdentifier> NodesToVisit;
+	TArray<FRigVMGraphFunctionData*> FunctionsForTable;
 
-	FunctionsForTable.Add(InFunctionToLocalize);
-	NodesToVisit.Add(InFunctionToLocalize);
-
-	for(int32 NodeToVisitIndex=0; NodeToVisitIndex<NodesToVisit.Num(); NodeToVisitIndex++)
 	{
-		URigVMLibraryNode* NodeToVisit = NodesToVisit[NodeToVisitIndex];
-		TArray<URigVMNode*> ContainedNodes = NodeToVisit->GetContainedNodes();
-		if (URigVMFunctionReferenceNode* ReferenceNode = Cast<URigVMFunctionReferenceNode>(NodeToVisit))
-		{
-			if (ReferenceNode->GetReferencedFunctionHeader().LibraryPointer.LibraryNode.ResolveObject())
-			{
-				URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(ReferenceNode->GetReferencedFunctionHeader().LibraryPointer.LibraryNode.ResolveObject());
-				ContainedNodes = LibraryNode->GetContainedNodes();
-			}
-		}
-		for(URigVMNode* ContainedNode : ContainedNodes)
-		{
-			if(URigVMLibraryNode* ContainedLibraryNode = Cast<URigVMLibraryNode>(ContainedNode))
-			{
-				NodesToVisit.AddUnique(ContainedLibraryNode);
-			}
-		}
-
-		if(URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(NodeToVisit))
-		{
-			FSoftObjectPath ReferencedNodePath = FunctionReferenceNode->GetReferencedFunctionHeader().LibraryPointer.LibraryNode;
-			if(ReferencedNodePath.ResolveObject())
-			{
-				URigVMLibraryNode* ReferencedNode = Cast<URigVMLibraryNode>(ReferencedNodePath.ResolveObject());
-				if(URigVMFunctionLibrary* ReferencedLibrary = ReferencedNode->GetLibrary())
-				{
-					if(UControlRigBlueprint* ReferencedBlueprint = Cast<UControlRigBlueprint>(ReferencedLibrary->GetOuter()))
-					{
-						if(ReferencedBlueprint != InTargetBlueprint)
-						{
-							FunctionsForTable.AddUnique(ReferencedNode);
-							if(!ReferencedBlueprint->IsFunctionPublic(ReferencedNode->GetFName()))
-							{
-								FunctionsToLocalize.AddUnique(ReferencedNode);
-							}
-						}
-					}
-				}
-
-				NodesToVisit.AddUnique(ReferencedNode);
-			}
-		}
+		FRigVMGraphFunctionData* FunctionData = FRigVMGraphFunctionData::FindFunctionData(InFunctionToLocalize);
+		FunctionsForTable.Add(FunctionData);
+		NodesToVisit.Add(InFunctionToLocalize);
 	}
 
+	IRigVMGraphFunctionHost* TargetFunctionHost = InTargetBlueprint->GetRigVMGraphFunctionHost();
+	for(int32 NodeToVisitIndex=0; NodeToVisitIndex<NodesToVisit.Num(); NodeToVisitIndex++)
+	{
+		const FRigVMGraphFunctionIdentifier& NodeToVisit = NodesToVisit[NodeToVisitIndex];
+
+		bool bIsPublic;
+		FRigVMGraphFunctionData* FunctionData = FRigVMGraphFunctionData::FindFunctionData(NodeToVisit, &bIsPublic);
+		if (!FunctionData)
+		{
+			continue;
+		}
+
+		for (TPair<FRigVMGraphFunctionIdentifier, uint32>& Pair : FunctionData->Header.Dependencies)
+		{
+			NodesToVisit.AddUnique(Pair.Key);
+		}
+		
+		if (NodeToVisit.HostObject != Cast<UObject>(TargetFunctionHost))
+		{
+			FunctionsForTable.AddUnique(FunctionData);
+			if (bIsPublic)
+			{
+				FunctionsToLocalize.AddUnique(NodeToVisit);
+			}
+		}
+	} 
+
 	// sort the functions to localize based on their nesting
-	Algo::Sort(FunctionsForTable, [](URigVMLibraryNode* A, URigVMLibraryNode* B) -> bool
+	Algo::Sort(FunctionsForTable, [](FRigVMGraphFunctionData* A, FRigVMGraphFunctionData* B) -> bool
     {
-        check(A);
-        check(B);
-        return A->Contains(B);
+		check(A);
+		check(B);
+		return A->Header.Dependencies.Contains(B->Header.LibraryPointer);
     });
 
-	for (URigVMLibraryNode* FunctionForTable : FunctionsForTable)
+	for (FRigVMGraphFunctionData* FunctionForTable : FunctionsForTable)
 	{
-		FunctionItems.Add(MakeShared<SControlRigFunctionLocalizationItem>(FunctionForTable));
+		FunctionItems.Add(MakeShared<SControlRigFunctionLocalizationItem>(FunctionForTable->Header.LibraryPointer));
 	}
 
 	ChildSlot
@@ -186,12 +168,12 @@ TSharedRef<ITableRow> SControlRigFunctionLocalizationWidget::GenerateFunctionLis
 	return TableRow;
 }
 
-ECheckBoxState SControlRigFunctionLocalizationWidget::IsFunctionEnabled(URigVMLibraryNode* InFunction) const
+ECheckBoxState SControlRigFunctionLocalizationWidget::IsFunctionEnabled(const FRigVMGraphFunctionIdentifier InFunction) const
 {
 	return FunctionsToLocalize.Contains(InFunction) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
-void SControlRigFunctionLocalizationWidget::SetFunctionEnabled(ECheckBoxState NewState, URigVMLibraryNode* InFunction)
+void SControlRigFunctionLocalizationWidget::SetFunctionEnabled(ECheckBoxState NewState, const FRigVMGraphFunctionIdentifier InFunction)
 {
 	if(NewState == ECheckBoxState::Checked)
 	{
@@ -203,16 +185,19 @@ void SControlRigFunctionLocalizationWidget::SetFunctionEnabled(ECheckBoxState Ne
 	}
 }
 
-bool SControlRigFunctionLocalizationWidget::IsFunctionPublic(URigVMLibraryNode* InFunction) const
+bool SControlRigFunctionLocalizationWidget::IsFunctionPublic(const FRigVMGraphFunctionIdentifier InFunction) const
 {
-	if(URigVMFunctionLibrary* FunctionLibrary = Cast<URigVMFunctionLibrary>(InFunction->GetOuter()))
+	IRigVMGraphFunctionHost* FunctionHost = nullptr;
+	if (UObject* FunctionHostObj = InFunction.HostObject.TryLoad())
 	{
-		if(UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(FunctionLibrary->GetOuter()))
-		{
-			return Blueprint->IsFunctionPublic(InFunction->GetFName());
-		}
+		FunctionHost = Cast<IRigVMGraphFunctionHost>(FunctionHostObj);									
 	}
-	return true;	
+	if (FunctionHost)
+	{
+		return FunctionHost->GetRigVMGraphFunctionStore()->IsFunctionPublic(InFunction);
+	}
+			
+	return false;	
 }
 
 void SControlRigFunctionLocalizationDialog::Construct(const FArguments& InArgs)
@@ -313,7 +298,7 @@ EAppReturnType::Type SControlRigFunctionLocalizationDialog::ShowModal()
 	return UserResponse;
 }
 
-TArray<URigVMLibraryNode*>& SControlRigFunctionLocalizationDialog::GetFunctionsToLocalize()
+TArray<FRigVMGraphFunctionIdentifier>& SControlRigFunctionLocalizationDialog::GetFunctionsToLocalize()
 {
 	return FunctionsWidget->FunctionsToLocalize;
 }

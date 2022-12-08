@@ -13,11 +13,11 @@ class SControlRigFunctionLocalizationWidget;
 class SControlRigFunctionLocalizationItem : public TSharedFromThis<SControlRigFunctionLocalizationItem>
 {
 public:
-	SControlRigFunctionLocalizationItem(URigVMLibraryNode* InFunction);
+	SControlRigFunctionLocalizationItem(const FRigVMGraphFunctionIdentifier& InFunction);
 
 	FText DisplayText;
 	FText ToolTipText;
-	URigVMLibraryNode* Function;
+	const FRigVMGraphFunctionIdentifier Function;
 };
 
 class SControlRigFunctionLocalizationTableRow : public STableRow<TSharedPtr<SControlRigFunctionLocalizationItem>>
@@ -34,18 +34,18 @@ public:
 	SLATE_BEGIN_ARGS(SControlRigFunctionLocalizationWidget) {}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, URigVMLibraryNode* InFunctionToLocalize, UControlRigBlueprint* InTargetBlueprint);
+	void Construct(const FArguments& InArgs, const FRigVMGraphFunctionIdentifier& InFunctionToLocalize, UControlRigBlueprint* InTargetBlueprint);
 
 	TSharedRef<ITableRow> GenerateFunctionListRow(TSharedPtr<SControlRigFunctionLocalizationItem> InItem, const TSharedRef<STableViewBase>& InOwningTable);
-	ECheckBoxState IsFunctionEnabled(URigVMLibraryNode* InFunction) const;
-	void SetFunctionEnabled(ECheckBoxState NewState, URigVMLibraryNode* InFunction);
-	bool IsFunctionPublic(URigVMLibraryNode* InFunction) const;
+	ECheckBoxState IsFunctionEnabled(const FRigVMGraphFunctionIdentifier InFunction) const;
+	void SetFunctionEnabled(ECheckBoxState NewState, const FRigVMGraphFunctionIdentifier InFunction);
+	bool IsFunctionPublic(const FRigVMGraphFunctionIdentifier InFunction) const;
 
 private:
 
-	TArray<URigVMLibraryNode*> FunctionsToLocalize;
+	TArray<FRigVMGraphFunctionIdentifier> FunctionsToLocalize;
 	TArray<TSharedPtr<SControlRigFunctionLocalizationItem>> FunctionItems;
-	TMap<URigVMLibraryNode*, TSharedRef<SControlRigFunctionLocalizationTableRow>> TableRows;
+	TMap<FRigVMGraphFunctionIdentifier, TSharedRef<SControlRigFunctionLocalizationTableRow>> TableRows;
 
 	friend class SControlRigFunctionLocalizationTableRow;
 	friend class SControlRigFunctionLocalizationDialog;
@@ -59,14 +59,14 @@ public:
 	{
 	}
 
-	SLATE_ARGUMENT(URigVMLibraryNode*, Function)
+	SLATE_ARGUMENT(FRigVMGraphFunctionIdentifier, Function)
 	SLATE_ARGUMENT(UControlRigBlueprint*, TargetBlueprint)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
 
 	EAppReturnType::Type ShowModal();
-	TArray<URigVMLibraryNode*>& GetFunctionsToLocalize();
+	TArray<FRigVMGraphFunctionIdentifier>& GetFunctionsToLocalize();
 
 protected:
 

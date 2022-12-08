@@ -152,6 +152,11 @@ FText URigVMFunctionReferenceNode::GetToolTipTextForPin(const URigVMPin* InPin) 
 	return Super::GetToolTipTextForPin(InPin);
 }
 
+FRigVMGraphFunctionIdentifier URigVMFunctionReferenceNode::GetFunctionIdentifier() const
+{
+	return GetReferencedFunctionHeader().LibraryPointer;
+}
+
 bool URigVMFunctionReferenceNode::IsReferencedFunctionHostLoaded() const
 {
 	return ReferencedFunctionHeader.LibraryPointer.HostObject.ResolveObject() != nullptr;

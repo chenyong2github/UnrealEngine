@@ -496,8 +496,9 @@ FReply FControlRigFunctionDragDropAction::DroppedOnPanel(const TSharedRef< class
 								{
 									if(!FunctionRigBlueprint->IsFunctionPublic(FunctionDefinitionNode->GetFName()))
 									{
-										TargetRigBlueprint->BroadcastRequestLocalizeFunctionDialog(FunctionDefinitionNode);
-										FunctionDefinitionNode = TargetRigBlueprint->GetLocalFunctionLibrary()->FindPreviouslyLocalizedFunction(FunctionDefinitionNode);
+										FRigVMGraphFunctionIdentifier FunctionIdentifier = FunctionDefinitionNode->GetFunctionIdentifier();
+										TargetRigBlueprint->BroadcastRequestLocalizeFunctionDialog(FunctionIdentifier);
+										FunctionDefinitionNode = TargetRigBlueprint->GetLocalFunctionLibrary()->FindPreviouslyLocalizedFunction(FunctionIdentifier);
 									}
 								}
 #endif

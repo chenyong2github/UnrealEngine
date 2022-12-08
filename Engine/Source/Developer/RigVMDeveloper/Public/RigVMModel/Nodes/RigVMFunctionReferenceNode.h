@@ -31,6 +31,7 @@ public:
 	virtual FString GetNodeKeywords() const override;
 	virtual TArray<FRigVMExternalVariable> GetExternalVariables() const override;
 	virtual const FRigVMTemplate* GetTemplate() const override { return nullptr; }
+	virtual FRigVMGraphFunctionIdentifier GetFunctionIdentifier() const override;
 	// end URigVMLibraryNode interface
 
 	bool IsReferencedFunctionHostLoaded() const;

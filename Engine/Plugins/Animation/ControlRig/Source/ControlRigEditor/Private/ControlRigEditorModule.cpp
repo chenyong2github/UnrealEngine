@@ -2405,18 +2405,16 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 						TSoftObjectPtr<URigVMFunctionReferenceNode> RefPtr(FunctionReferenceNode);
 						if(RefPtr.GetLongPackageName() != FunctionReferenceNode->GetReferencedFunctionHeader().LibraryPointer.LibraryNode.GetLongPackageName())
 						{
-							if (URigVMLibraryNode* LibraryNode = FunctionReferenceNode->LoadReferencedNode())
-							{
-								OrganizationSection.AddMenuEntry(
-								   "Localize Function",
-								   LOCTEXT("LocalizeFunction", "Localize Function"),
-								   LOCTEXT("LocalizeFunction_Tooltip", "Creates a local copy of the function backing the node."),
-								   FSlateIcon(),
-								   FUIAction(FExecuteAction::CreateLambda([RigBlueprint, LibraryNode]() {
-									   RigBlueprint->BroadcastRequestLocalizeFunctionDialog(LibraryNode, true);
-								   })
-							   ));
-							}
+							OrganizationSection.AddMenuEntry(
+							   "Localize Function",
+							   LOCTEXT("LocalizeFunction", "Localize Function"),
+							   LOCTEXT("LocalizeFunction_Tooltip", "Creates a local copy of the function backing the node."),
+							   FSlateIcon(),
+							   FUIAction(FExecuteAction::CreateLambda([RigBlueprint, FunctionReferenceNode]() {
+								   RigBlueprint->BroadcastRequestLocalizeFunctionDialog(FunctionReferenceNode->GetFunctionIdentifier(), true);
+							   })
+						    ));
+							
 
 							if(!FunctionReferenceNode->IsFullyRemapped() && FunctionReferenceNode->GetReferencedFunctionHeader().LibraryPointer.LibraryNode.ResolveObject())
 							{

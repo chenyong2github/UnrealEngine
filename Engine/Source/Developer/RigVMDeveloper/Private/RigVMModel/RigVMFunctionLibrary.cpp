@@ -119,36 +119,37 @@ void URigVMFunctionLibrary::ForEachReferenceSoftPtr(const FName& InFunctionName,
 	}
 }
 
-URigVMLibraryNode* URigVMFunctionLibrary::FindPreviouslyLocalizedFunction(URigVMLibraryNode* InFunctionToLocalize)
+URigVMLibraryNode* URigVMFunctionLibrary::FindPreviouslyLocalizedFunction(FRigVMGraphFunctionIdentifier InFunctionToLocalize)
 {
-	if(InFunctionToLocalize == nullptr)
-	{
-		return nullptr;
-	}
-	
-	const FString PathName = InFunctionToLocalize->GetPathName();
-
+	const FString PathName = InFunctionToLocalize.LibraryNode.ToString();
 	if(!LocalizedFunctions.Contains((PathName)))
 	{
 		return nullptr;
 	}
 
-	URigVMLibraryNode* LocalizedFunction = LocalizedFunctions.FindChecked(PathName);
-
-	// once we found the function - let's make sure it's notation is right
-	if(LocalizedFunction->GetPins().Num() != InFunctionToLocalize->GetPins().Num())
+	FRigVMGraphFunctionData* FunctionData = FRigVMGraphFunctionData::FindFunctionData(InFunctionToLocalize);
+	if (!FunctionData)
 	{
 		return nullptr;
 	}
-	for(int32 PinIndex=0; PinIndex < InFunctionToLocalize->GetPins().Num(); PinIndex++)
-	{
-		URigVMPin* PinA = InFunctionToLocalize->GetPins()[PinIndex];
-		URigVMPin* PinB = LocalizedFunction->GetPins()[PinIndex];
+	FRigVMGraphFunctionHeader& Header = FunctionData->Header;
+	
+	URigVMLibraryNode* LocalizedFunction = LocalizedFunctions.FindChecked(PathName);
 
-		if((PinA->GetFName() != PinB->GetFName()) ||
-			(PinA->GetCPPType() != PinB->GetCPPType()) ||
-			(PinA->GetCPPTypeObject() != PinB->GetCPPTypeObject()) ||
-			(PinA->IsArray() != PinB->IsArray()))
+	// once we found the function - let's make sure it's notation is right
+	if(LocalizedFunction->GetPins().Num() != Header.Arguments.Num())
+	{
+		return nullptr;
+	}
+	for(int32 PinIndex=0; PinIndex < Header.Arguments.Num(); PinIndex++)
+	{
+		FRigVMGraphFunctionArgument& Argument = Header.Arguments[PinIndex];
+		URigVMPin* Pin = LocalizedFunction->GetPins()[PinIndex];
+
+		if((Argument.Name != Pin->GetFName()) ||
+			(Argument.CPPType.ToString() != Pin->GetCPPType()) ||
+			(Argument.CPPTypeObject != Pin->GetCPPTypeObject()) ||
+			(Argument.bIsArray != Pin->IsArray()))
 		{
 			return nullptr;
 		}

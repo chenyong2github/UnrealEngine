@@ -153,6 +153,7 @@ public:
 	bool UpdateDependenciesForFunction(const URigVMLibraryNode* InLibraryNode);
 	bool UpdateFunctionReferences(const FRigVMGraphFunctionHeader& InHeader, bool bUpdateDependencies, bool bUpdateExternalVariables);
 	bool DirtyGraphFunctionCompilationData(URigVMLibraryNode* InLibraryNode);
+	bool UpdateGraphFunctionSerializedGraph(URigVMLibraryNode* InLibraryNode);
 	bool IsFunctionPublic(URigVMLibraryNode* InLibraryNode);
 
 private:

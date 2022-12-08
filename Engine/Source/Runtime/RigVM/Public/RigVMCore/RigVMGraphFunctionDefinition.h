@@ -4,6 +4,7 @@
 
 #include "RigVMCore/RigVMExternalVariable.h"
 #include "RigVMCore/RigVMByteCode.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 #include "RigVMGraphFunctionDefinition.generated.h"
 
 class IRigVMGraphFunctionHost;
@@ -423,6 +424,9 @@ struct RIGVM_API FRigVMGraphFunctionData
 	UPROPERTY()
 	FRigVMFunctionCompilationData CompilationData;
 
+	UPROPERTY()
+	FString SerializedCollapsedNode;
+
 	bool IsMutable() const;
 
 	bool operator==(const FRigVMGraphFunctionData& Other) const
@@ -436,8 +440,17 @@ struct RIGVM_API FRigVMGraphFunctionData
 	{
 		Ar << Data.Header;
 		Ar << Data.CompilationData;
+
+		if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::RigVMSaveSerializedGraphInGraphFunctionData)
+		{
+			return Ar;
+		}
+
+		Ar << Data.SerializedCollapsedNode;
 		return Ar;
 	}
 
 	void PostDuplicateHost(const FString& InOldPathName, const FString& InNewPathName);
+
+	static FRigVMGraphFunctionData* FindFunctionData(const FRigVMGraphFunctionIdentifier& InIdentifier, bool* bOutIsPublic = nullptr);	
 };

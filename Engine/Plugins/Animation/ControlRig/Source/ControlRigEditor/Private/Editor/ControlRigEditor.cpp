@@ -2725,17 +2725,13 @@ void FControlRigEditor::PasteNodes()
 
 	TGuardValue<FRigVMController_RequestLocalizeFunctionDelegate> RequestLocalizeDelegateGuard(
 		GetFocusedController()->RequestLocalizeFunctionDelegate,
-		FRigVMController_RequestLocalizeFunctionDelegate::CreateLambda([this](TSoftObjectPtr<URigVMLibraryNode> InFunctionToLocalize)
+		FRigVMController_RequestLocalizeFunctionDelegate::CreateLambda([this](FRigVMGraphFunctionIdentifier& InFunctionToLocalize)
 		{
-			if (InFunctionToLocalize.IsValid())
-			{
-				URigVMLibraryNode* LibraryNode = InFunctionToLocalize.Get();
-				OnRequestLocalizeFunctionDialog(LibraryNode, GetControlRigBlueprint(), true);
+			OnRequestLocalizeFunctionDialog(InFunctionToLocalize, GetControlRigBlueprint(), true);
 
-			   const URigVMLibraryNode* LocalizedFunctionNode = GetControlRigBlueprint()->GetLocalFunctionLibrary()->FindPreviouslyLocalizedFunction(LibraryNode);
-			   return LocalizedFunctionNode != nullptr;
-			}
-			return false;
+		   const URigVMLibraryNode* LocalizedFunctionNode = GetControlRigBlueprint()->GetLocalFunctionLibrary()->FindPreviouslyLocalizedFunction(InFunctionToLocalize);
+		   return LocalizedFunctionNode != nullptr;
+		
 		})
 	);
 	
@@ -5046,9 +5042,8 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 	}
 }
 
-void FControlRigEditor::OnRequestLocalizeFunctionDialog(URigVMLibraryNode* InFunction, UControlRigBlueprint* InTargetBlueprint, bool bForce)
+void FControlRigEditor::OnRequestLocalizeFunctionDialog(FRigVMGraphFunctionIdentifier& InFunction, UControlRigBlueprint* InTargetBlueprint, bool bForce)
 {
-	check(InFunction);
 	check(InTargetBlueprint);
 
 	if(InTargetBlueprint != GetControlRigBlueprint())
@@ -5058,23 +5053,18 @@ void FControlRigEditor::OnRequestLocalizeFunctionDialog(URigVMLibraryNode* InFun
 	
 	if(URigVMController* TargetController = InTargetBlueprint->GetController(InTargetBlueprint->GetDefaultModel()))
 	{
-		if(URigVMFunctionLibrary* FunctionLibrary = Cast<URigVMFunctionLibrary>(InFunction->GetOuter()))
+		bool bIsPublic;
+		if (FRigVMGraphFunctionData::FindFunctionData(InFunction, &bIsPublic))
 		{
-			if(UControlRigBlueprint* FunctionRigBlueprint = Cast<UControlRigBlueprint>(FunctionLibrary->GetOuter()))
+			if (bForce || bIsPublic)
 			{
-				if(FunctionRigBlueprint != InTargetBlueprint)
-				{
-					if(bForce || !FunctionRigBlueprint->IsFunctionPublic(InFunction->GetFName()))
-					{
-                        TSharedRef<SControlRigFunctionLocalizationDialog> LocalizationDialog = SNew(SControlRigFunctionLocalizationDialog)
-                        .Function(InFunction)
-                        .TargetBlueprint(InTargetBlueprint);
+				TSharedRef<SControlRigFunctionLocalizationDialog> LocalizationDialog = SNew(SControlRigFunctionLocalizationDialog)
+							.Function(InFunction)
+							.TargetBlueprint(InTargetBlueprint);
 
-						if (LocalizationDialog->ShowModal() != EAppReturnType::Cancel)
-						{
-							TargetController->LocalizeFunctions(LocalizationDialog->GetFunctionsToLocalize(), true, true, true);
-						}
-					}
+				if (LocalizationDialog->ShowModal() != EAppReturnType::Cancel)
+				{
+					TargetController->LocalizeFunctions(LocalizationDialog->GetFunctionsToLocalize(), true, true, true);
 				}
 			}
 		}

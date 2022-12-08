@@ -93,3 +93,26 @@ void FRigVMGraphFunctionData::PostDuplicateHost(const FString& InOldHostPathName
 {
 	Header.PostDuplicateHost(InOldHostPathName, InNewHostPathName);
 }
+
+FRigVMGraphFunctionData* FRigVMGraphFunctionData::FindFunctionData(const FRigVMGraphFunctionIdentifier& InIdentifier, bool* bOutIsPublic)
+{
+	IRigVMGraphFunctionHost* FunctionHost = nullptr;
+	if (UObject* FunctionHostObj = InIdentifier.HostObject.TryLoad())
+	{
+		FunctionHost = Cast<IRigVMGraphFunctionHost>(FunctionHostObj);									
+	}
+
+	if (!FunctionHost)
+	{
+		return nullptr;
+	}
+
+	FRigVMGraphFunctionStore* FunctionStore = FunctionHost->GetRigVMGraphFunctionStore();
+	if (!FunctionStore)
+	{
+		return nullptr;
+	}
+
+	return FunctionStore->FindFunction(InIdentifier, bOutIsPublic);
+}
+

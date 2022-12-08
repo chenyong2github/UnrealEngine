@@ -2,6 +2,8 @@
 
 #include "RigVMModel/RigVMClient.h"
 #include "Misc/TransactionObjectEvent.h"
+#include "Exporters/Exporter.h"
+#include "UnrealExporter.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMClient)
 
@@ -707,12 +709,14 @@ void FRigVMClient::HandleGraphModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 					if (GetOuter()->Implements<URigVMClientHost>())
 					{
 						FunctionStore->AddFunction(CollapseNode->GetFunctionHeader(FunctionHost), false);
+						UpdateGraphFunctionSerializedGraph(CollapseNode);
 					}
 				}
 			}
 			// A node was added into the contained graph of a function
 			else if(URigVMLibraryNode* LibraryNode = Cast<URigVMNode>(InSubject)->FindFunctionForNode())
 			{
+				UpdateGraphFunctionSerializedGraph(LibraryNode);
 				DirtyGraphFunctionCompilationData(LibraryNode);
 				if (URigVMFunctionReferenceNode* FunctionReference = Cast<URigVMFunctionReferenceNode>(InSubject))
 				{
@@ -737,6 +741,7 @@ void FRigVMClient::HandleGraphModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 			// A node was added into the contained graph of a function
 			else if(URigVMLibraryNode* LibraryNode = Cast<URigVMNode>(InSubject)->FindFunctionForNode())
 			{
+				UpdateGraphFunctionSerializedGraph(LibraryNode);
 				DirtyGraphFunctionCompilationData(LibraryNode);
 				if (URigVMFunctionReferenceNode* FunctionReference = Cast<URigVMFunctionReferenceNode>(InSubject))
 				{
@@ -753,6 +758,7 @@ void FRigVMClient::HandleGraphModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 		{
 			if(URigVMLibraryNode* LibraryNode = Cast<URigVMNode>(InSubject)->FindFunctionForNode())
 			{
+				UpdateGraphFunctionSerializedGraph(LibraryNode);
 				DirtyGraphFunctionCompilationData(LibraryNode);
 				UpdateExternalVariablesForFunction(LibraryNode);				
 			}
@@ -776,6 +782,10 @@ void FRigVMClient::HandleGraphModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 					UpdateGraphFunctionData(CollapseNode);
 				}
 			}
+			else if(URigVMLibraryNode* LibraryNode = Cast<URigVMNode>(InSubject)->FindFunctionForNode())
+			{
+				UpdateGraphFunctionSerializedGraph(LibraryNode);
+			}
 			break;	
 		}
 		case ERigVMGraphNotifType::NodeColorChanged: // A node's color has changed (Subject == URigVMNode)
@@ -790,13 +800,19 @@ void FRigVMClient::HandleGraphModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 					UpdateGraphFunctionData(CollapseNode);
 				}
 			}
+			else if(URigVMLibraryNode* LibraryNode = Cast<URigVMNode>(InSubject)->FindFunctionForNode())
+			{
+				UpdateGraphFunctionSerializedGraph(LibraryNode);
+			}
 			break;
 		}
 		case ERigVMGraphNotifType::NodeReferenceChanged: // A node has changed it's referenced function (Subject == URigVMFunctionReferenceNode)
 		case ERigVMGraphNotifType::LibraryTemplateChanged: // The definition of a library node's template has changed (Subject == URigVMLibraryNode)
 		{
-			
-			
+			if(URigVMLibraryNode* LibraryNode = Cast<URigVMNode>(InSubject)->FindFunctionForNode())
+			{
+				UpdateGraphFunctionSerializedGraph(LibraryNode);
+			}
 			break;	
 		}
 		
@@ -813,6 +829,7 @@ void FRigVMClient::HandleGraphModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 			{
 				if (URigVMLibraryNode* LibraryNode = Node->FindFunctionForNode())
 				{
+					UpdateGraphFunctionSerializedGraph(LibraryNode);
 					DirtyGraphFunctionCompilationData(LibraryNode);
 				}
 				if(Node->GetOuter()->IsA<URigVMFunctionLibrary>())
@@ -835,6 +852,7 @@ void FRigVMClient::HandleGraphModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 				{
 					if (URigVMLibraryNode* LibraryNode = OuterNode->FindFunctionForNode())
 					{
+						UpdateGraphFunctionSerializedGraph(LibraryNode);
 						DirtyGraphFunctionCompilationData(LibraryNode);
 					}
 				}
@@ -990,6 +1008,23 @@ bool FRigVMClient::DirtyGraphFunctionCompilationData(URigVMLibraryNode* InLibrar
 		}
 	}
 
+	return false;
+}
+
+bool FRigVMClient::UpdateGraphFunctionSerializedGraph(URigVMLibraryNode* InLibraryNode)
+{
+	if (FRigVMGraphFunctionStore* Store = FindFunctionStore(InLibraryNode))
+	{
+		FRigVMGraphFunctionIdentifier Identifier = InLibraryNode->GetFunctionIdentifier();
+		if (FRigVMGraphFunctionData* Data = Store->FindFunction(Identifier))
+		{
+			FStringOutputDevice Archive;
+			const FExportObjectInnerContext Context;
+			UExporter::ExportToOutputDevice(&Context, InLibraryNode, NULL, Archive, TEXT("copy"), 0, PPF_ExportsNotFullyQualified | PPF_Copy | PPF_Delimited, false, nullptr);
+			Data->SerializedCollapsedNode = Archive;
+			return true;
+		}
+	}
 	return false;
 }
 

@@ -616,17 +616,11 @@ bool UControlRigBlueprint::TryImportGraphFromText(const FString& InClipboardText
 	{
 		TGuardValue<FRigVMController_RequestLocalizeFunctionDelegate> RequestLocalizeDelegateGuard(
             FunctionLibraryController->RequestLocalizeFunctionDelegate,
-            FRigVMController_RequestLocalizeFunctionDelegate::CreateLambda([this](TSoftObjectPtr<URigVMLibraryNode> InFunctionToLocalize)
+            FRigVMController_RequestLocalizeFunctionDelegate::CreateLambda([this](FRigVMGraphFunctionIdentifier& InFunctionToLocalize)
             {
-            	if (InFunctionToLocalize.IsValid())
-            	{
-            		URigVMLibraryNode* LibraryNode = InFunctionToLocalize.Get();
-            		BroadcastRequestLocalizeFunctionDialog(LibraryNode);
-
-				   const URigVMLibraryNode* LocalizedFunctionNode = GetLocalFunctionLibrary()->FindPreviouslyLocalizedFunction(LibraryNode);
-				   return LocalizedFunctionNode != nullptr;
-            	}
-            	return false;
+            	BroadcastRequestLocalizeFunctionDialog(InFunctionToLocalize);
+				const URigVMLibraryNode* LocalizedFunctionNode = GetLocalFunctionLibrary()->FindPreviouslyLocalizedFunction(InFunctionToLocalize);
+				return LocalizedFunctionNode != nullptr;
             })
         );
 		
@@ -5182,7 +5176,7 @@ void UControlRigBlueprint::BroadcastPostEditChangeChainProperty(FPropertyChanged
 	PostEditChangeChainPropertyEvent.Broadcast(PropertyChangedChainEvent);
 }
 
-void UControlRigBlueprint::BroadcastRequestLocalizeFunctionDialog(URigVMLibraryNode* InFunction, bool bForce)
+void UControlRigBlueprint::BroadcastRequestLocalizeFunctionDialog(FRigVMGraphFunctionIdentifier InFunction, bool bForce)
 {
 	RequestLocalizeFunctionDialog.Broadcast(InFunction, this, bForce);
 }
