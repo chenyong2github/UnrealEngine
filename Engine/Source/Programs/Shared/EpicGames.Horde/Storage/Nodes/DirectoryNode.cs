@@ -72,7 +72,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Custom user data for this file entry
 		/// </summary>
-		public ReadOnlyMemory<byte> CustomData { get; } = ReadOnlyMemory<byte>.Empty;
+		public ReadOnlyMemory<byte> CustomData { get; set; } = ReadOnlyMemory<byte>.Empty;
 
 		/// <summary>
 		/// Cached hash of the target node
