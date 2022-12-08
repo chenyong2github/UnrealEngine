@@ -10,6 +10,8 @@
 #include "PrimitiveSceneProxy.h"
 #include "SceneManagement.h"
 #include "UnrealEngine.h"
+#include "Net/UnrealNetwork.h"
+#include "Net/Core/PushModel/PushModel.h"
 #include "Styling/StyleColors.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SplineComponent)
@@ -79,6 +81,14 @@ USplineComponent::USplineComponent(const FObjectInitializer& ObjectInitializer)
 	SplineReparamTable_DEPRECATED = SplineCurves.ReparamTable;
 }
 
+void USplineComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	// This is a workaround for UE-129807 so that scrubbing a replay doesn't cause instance edited properties to be reset to class defaults
+	// If you encounter this issue, reset the relevant replicated properties of this class with COND_ReplayOnly
+	DISABLE_ALL_CLASS_REPLICATED_PROPERTIES(USplineComponent, EFieldIteratorFlags::ExcludeSuper);
+}
 
 EInterpCurveMode ConvertSplinePointTypeToInterpCurveMode(ESplinePointType::Type SplinePointType)
 {
@@ -217,6 +227,15 @@ void FSplineCurves::UpdateSpline(bool bClosedLoop, bool bStationaryEndpoints, in
 void USplineComponent::UpdateSpline()
 {
 	SplineCurves.UpdateSpline(bClosedLoop, bStationaryEndpoints, ReparamStepsPerSegment, bLoopPositionOverride, LoopPosition, GetComponentTransform().GetScale3D());
+	MARK_PROPERTY_DIRTY_FROM_NAME(USplineComponent, SplineCurves, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(USplineComponent, bClosedLoop, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(USplineComponent, bStationaryEndpoints, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(USplineComponent, ReparamStepsPerSegment, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(USplineComponent, bLoopPositionOverride, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(USplineComponent, LoopPosition, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(USplineComponent, DefaultUpVector, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(USplineComponent, bSplineHasBeenEdited, this);
+	MARK_PROPERTY_DIRTY_FROM_NAME(USplineComponent, bInputSplinePointsToConstructionScript, this);
 
 #if !UE_BUILD_SHIPPING
 	if (bDrawDebug)

@@ -195,7 +195,7 @@ class ENGINE_API USplineComponent : public UPrimitiveComponent
 {
 	GENERATED_UCLASS_BODY()
 
-	UPROPERTY(EditAnywhere, Category=Points)
+	UPROPERTY(EditAnywhere, Replicated, Category=Points)
 	FSplineCurves SplineCurves;
 
 	/** Deprecated - please use GetSplinePointsPosition() to fetch this FInterpCurve */
@@ -217,7 +217,7 @@ class ENGINE_API USplineComponent : public UPrimitiveComponent
 	bool bAllowSplineEditingPerInstance_DEPRECATED;
 
 	/** Number of steps per spline segment to place in the reparameterization table */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Spline, meta=(ClampMin=4, UIMin=4, ClampMax=100, UIMax=100))
+	UPROPERTY(EditAnywhere, Replicated, AdvancedDisplay, Category = Spline, meta=(ClampMin=4, UIMin=4, ClampMax=100, UIMax=100))
 	int32 ReparamStepsPerSegment;
 
 	/** Specifies the duration of the spline in seconds */
@@ -225,11 +225,11 @@ class ENGINE_API USplineComponent : public UPrimitiveComponent
 	float Duration;
 
 	/** Whether the endpoints of the spline are considered stationary when traversing the spline at non-constant velocity.  Essentially this sets the endpoints' tangents to zero vectors. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Spline, meta=(EditCondition="!bClosedLoop"))
+	UPROPERTY(EditAnywhere, Replicated, BlueprintReadWrite, AdvancedDisplay, Category = Spline, meta=(EditCondition="!bClosedLoop"))
 	bool bStationaryEndpoints;
 
 	/** Whether the spline has been edited from its default by the spline component visualizer */
-	UPROPERTY(EditAnywhere, Category = Spline, meta=(DisplayName="Override Construction Script"))
+	UPROPERTY(EditAnywhere, Replicated, Category = Spline, meta=(DisplayName="Override Construction Script"))
 	bool bSplineHasBeenEdited;
 
 	UPROPERTY()
@@ -240,7 +240,7 @@ class ENGINE_API USplineComponent : public UPrimitiveComponent
 	 * Whether the spline points should be passed to the User Construction Script so they can be further manipulated by it.
 	 * If false, they will not be visible to it, and it will not be able to influence the per-instance positions set in the editor.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Spline)
+	UPROPERTY(EditAnywhere, Replicated, BlueprintReadWrite, Category = Spline)
 	bool bInputSplinePointsToConstructionScript;
 
 	/** If true, the spline will be rendered if the Splines showflag is set. */
@@ -252,18 +252,18 @@ private:
 	 * Whether the spline is to be considered as a closed loop.
 	 * Use SetClosedLoop() to set this property, and IsClosedLoop() to read it.
 	 */
-	UPROPERTY(EditAnywhere, Category = Spline)
+	UPROPERTY(EditAnywhere, Replicated, Category = Spline)
 	bool bClosedLoop;
 
-	UPROPERTY(EditAnywhere, Category = Spline, meta=(InlineEditConditionToggle=true))
+	UPROPERTY(EditAnywhere, Replicated, Category = Spline, meta=(InlineEditConditionToggle=true))
 	bool bLoopPositionOverride;
 
-	UPROPERTY(EditAnywhere, Category = Spline, meta=(EditCondition="bLoopPositionOverride"))
+	UPROPERTY(EditAnywhere, Replicated, Category = Spline, meta=(EditCondition="bLoopPositionOverride"))
 	float LoopPosition;
 
 public:
 	/** Default up vector in local space to be used when calculating transforms along the spline */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Spline)
+	UPROPERTY(EditAnywhere, Replicated, BlueprintReadWrite, Category = Spline)
 	FVector DefaultUpVector;
 
 #if WITH_EDITORONLY_DATA
@@ -297,6 +297,7 @@ public:
 #endif
 
 	//~ Begin UObject Interface
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
 #if WITH_EDITOR
