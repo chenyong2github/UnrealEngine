@@ -4,6 +4,7 @@
 
 #include "UsdWrappers/ForwardDeclarations.h"
 
+#include "Containers/Array.h"
 #include "Modules/ModuleInterface.h"
 
 class AUsdStageActor;
