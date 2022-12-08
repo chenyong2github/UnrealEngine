@@ -31,6 +31,39 @@ UNiagaraScriptSource::UNiagaraScriptSource(const FObjectInitializer& ObjectIniti
 {
 }
 
+void UNiagaraScriptSource::RegisterVMCompilationIdDependencies(struct FNiagaraVMExecutableDataId& Id, ENiagaraScriptUsage InUsage, const FGuid& InUsageId) const
+{
+	if (!AllowShaderCompiling())
+	{
+		return;
+	}
+
+	if (UNiagaraScript::IsGPUScript(InUsage)) // GPU particle scripts are baked in via other usages
+	{
+		return;
+	}
+
+	if (UNiagaraScript::IsParticleScript(InUsage) || UNiagaraScript::IsEmitterScript(InUsage) || UNiagaraScript::IsSystemScript(InUsage))
+	{
+		if (NodeGraph)
+		{
+			NodeGraph->RebuildCachedCompileIds();
+			FNiagaraCompileHash Hash = FNiagaraCompileHash(NodeGraph->GetCompileReferencedDataHash(InUsage, InUsageId));
+			
+			if (Hash.IsValid())
+			{
+				Id.ReferencedCompileHashes.AddUnique(Hash);
+				Id.DebugReferencedObjects.Emplace(GetPathName());
+			}
+			else
+			{
+				UE_LOG(LogNiagaraEditor, Warning, TEXT("Failed to get a valid referenced data hash back! %s"), *GetPathNameSafe(this));
+			}
+		}
+	}
+}
+
+
 void UNiagaraScriptSource::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, ENiagaraScriptUsage InUsage, const FGuid& InUsageId) const
 {
 	if (!AllowShaderCompiling())

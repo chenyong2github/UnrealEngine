@@ -941,6 +941,29 @@ void FNiagaraStackGraphUtilities::GetStackFunctionInputPinsWithoutCache(
 	Builder.SetIgnoreDisabled(bIgnoreDisabled);
 	Builder.ConstantResolver = ConstantResolver;
 	Builder.RegisterExternalStaticVariables(StaticVars);
+	
+	/* The line below represents a compromise. It basically says don't look up the static variable from the 
+	static variables list set in RegisterExternalStaticVariables as a rapid iteration parameter. Why? Rapid Iteration Parameters
+	may be stale and linger around from prior changes that have been abandoned. We keep them around so that when you toggle back
+	in the UI, you haven't also lost your last set values for that version. So therefore, we can't officially remove them.
+	
+	The issue comes in when a static variable is set via some other means, linking to another variable for example. When generating
+	the UI, it *should* show anything that would match up to the linked variable, but because this is a parameter map history
+	traversal that is in isolation on the node and doesn't include upstream set nodes, it will fail and just look up the rapid iteration
+	version if left to its' own devices. 
+	
+	Trial 1 at a fix was to cache all the values at the root of the graph and look them up when we build the static variables list
+	we use above. That isn't good because that version skips all disabled modules and we want the UI to be consistent regardless 
+	of disabled module status.
+	
+	Trial 2 was to back up and include the precursor gets/sets. This fails for the same reason, ultimately something will
+	be bound to a variable that will assume that it needs to look up a bogus rapid iteration value and we end up back here.
+	
+	Trial 3 just says, we know the static variables list above includes basically all relevant intermediate static values. So if 
+	we just circumvent the logic in the parameter map history traversal that looks up by rapid iteration parameter, it will
+	find the right "cached" value. So we just do that below.
+	 */
+	Builder.SetIgnoreStaticRapidIterationParameters(true);
 
 	// if we are only dealing with the module input pins then we don't need to delve deep into the graph
 	if (Options == ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly)

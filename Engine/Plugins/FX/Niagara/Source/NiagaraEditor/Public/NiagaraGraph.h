@@ -107,6 +107,10 @@ public:
 	UPROPERTY()
 	FNiagaraCompileHash CompileHashFromGraph;
 
+	/** The hash of values that could feed into downstream scripts.*/
+	UPROPERTY()
+	FNiagaraCompileHash ReferenceHashFromGraph;
+
 	UPROPERTY(Transient)
 	TArray<FNiagaraCompileHashVisitorDebugInfo> CompileLastObjects;
 
@@ -261,6 +265,9 @@ class UNiagaraGraph : public UEdGraph
 
 	/** Gets the current compile data hash associated with the output node traversal specified by InUsage and InUsageId. If the usage is not found, an invalid hash is returned.*/
 	FNiagaraCompileHash GetCompileDataHash(ENiagaraScriptUsage InUsage, const FGuid& InUsageId) const;
+
+	/** Gets the current reference data hash associated with the output node traversal specified by InUsage and InUsageId (Static variables & switches). If the usage is not found, an invalid hash is returned.*/
+	FNiagaraCompileHash GetCompileReferencedDataHash(ENiagaraScriptUsage InUsage, const FGuid& InUsageId) const;
 
 	/** Gets the current base id associated with the output node traversal specified by InUsage and InUsageId. If the usage is not found, an invalid guid is returned. */
 	FGuid GetBaseId(ENiagaraScriptUsage InUsage, const FGuid& InUsageId) const;

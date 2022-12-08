@@ -1837,10 +1837,17 @@ int32 FNiagaraParameterMapHistoryBuilder::HandleVariableRead(int32 ParamMapIdx, 
 		{					
 			FNiagaraVariable VarRapid = FNiagaraParameterMapHistory::ConvertVariableToRapidIterationConstantName(Histories[ParamMapIdx].Variables[FoundIdx], EmitterNamespace.Len() == 0 ? nullptr : *EmitterNamespace, Usage);
 			
-			int32 StaticIdx = StaticVariables.IndexOfByPredicate([&](const FNiagaraVariable& InObj) -> bool
-				{
-					return (InObj.GetName() == VarRapid.GetName());
-				});;
+			int32 StaticIdx = INDEX_NONE;
+			
+			// See the comments in FNiagaraStackGraphUtilities::GetStackFunctionInputPinsWithoutCache to see 
+			// why this check is necessary.
+			if (!bIgnoreStaticRapidIterationParameters)
+			{
+				StaticIdx = StaticVariables.IndexOfByPredicate([&](const FNiagaraVariable& InObj) -> bool
+					{
+						return (InObj.GetName() == VarRapid.GetName());
+					});;
+			}
 
 			if (StaticIdx == INDEX_NONE)
 			{

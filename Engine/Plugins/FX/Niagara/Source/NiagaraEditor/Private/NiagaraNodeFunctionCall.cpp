@@ -1048,6 +1048,28 @@ void UNiagaraNodeFunctionCall::UpdateCompileHashForNode(FSHA1& HashState) const
 	HashState.UpdateWithString(*GetFunctionName(), GetFunctionName().Len());
 }
 
+void UNiagaraNodeFunctionCall::UpdateReferencedStaticsHashForNode(FSHA1& HashState) const
+{
+
+	// Assume that we only care about static switch pins and their current values
+	FPinCollectorArray InputPins;
+	GetInputPins(InputPins);
+	for (int32 PinIndex = 0; PinIndex < InputPins.Num(); ++PinIndex)
+	{
+		if (!InputPins[PinIndex])
+		{
+			continue;
+		}
+
+		if (InputPins[PinIndex]->PersistentGuid.IsValid() && InputPins[PinIndex]->LinkedTo.Num() == 0 && InputPins[PinIndex]->bNotConnectable == true)
+		{			
+			HashState.Update((const uint8*)&InputPins[PinIndex]->PersistentGuid, sizeof(InputPins[PinIndex]->PersistentGuid));
+			HashState.UpdateWithString(*InputPins[PinIndex]->DefaultValue, InputPins[PinIndex]->DefaultValue.Len());
+		}
+	}
+
+}
+
 bool UNiagaraNodeFunctionCall::HasValidScriptAndGraph() const
 {
 	return FunctionScript != nullptr && GetCalledGraph() != nullptr;
@@ -1140,7 +1162,7 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 
 		if (bHasParamMapPin && bRecursive)
 		{
-			ParamMapIdx = OutHistory.TraceParameterMapOutputPin(UNiagaraNode::TraceOutputPin(ParamMapPin->LinkedTo[0]));
+			ParamMapIdx = OutHistory.TraceParameterMapOutputPin((ParamMapPin->LinkedTo[0]));
 		}
 
 		OutHistory.EnterFunction(GetFunctionName(), FunctionScript, FunctionGraph, this);

@@ -115,6 +115,8 @@ public:
 	virtual void UpdateCompileHashForNode(FSHA1& HashState) const override;
 	//End UNiagaraNode interface
 
+	virtual void UpdateReferencedStaticsHashForNode(FSHA1& HashState) const;
+
 	//~ Begin EdGraphNode Interface
 	virtual void AutowireNewNode(UEdGraphPin* FromPin) override;
 	virtual void AllocateDefaultPins() override;

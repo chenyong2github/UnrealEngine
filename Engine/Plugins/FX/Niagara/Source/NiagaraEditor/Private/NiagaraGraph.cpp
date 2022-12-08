@@ -305,6 +305,25 @@ void UNiagaraGraph::PostLoad()
 		MarkGraphRequiresSynchronization(TEXT("Graph change id was invalid"));
 	}
 
+	// Since we added the ReferenceHashFromGraph we need to keep it updated but the id won't be out of sync, so we 
+	// just do a quick check to see if all are missing then force it.
+	{
+		int32 NumMissing = 0;
+		for (int32 i = 0; i < CachedUsageInfo.Num(); i++)
+		{
+			if (false == CachedUsageInfo[i].ReferenceHashFromGraph.IsValid())
+			{
+				NumMissing++;
+			}
+		}
+
+		if (NumMissing == CachedUsageInfo.Num())
+		{
+			CachedUsageInfo.Empty();
+			LastBuiltTraversalDataChangeId = FGuid();
+		}
+	}
+
 	// There was a bug where the graph traversal could have nullptr entries in it, which causes crashes later. Detect these and just clear out the cache.
 	{
 		bool bAnyInvalid = false;
@@ -1391,6 +1410,18 @@ void UNiagaraGraph::BeginDestroy()
 class UNiagaraScriptSource* UNiagaraGraph::GetSource() const
 {
 	return CastChecked<UNiagaraScriptSource>(GetOuter());
+}
+
+FNiagaraCompileHash UNiagaraGraph::GetCompileReferencedDataHash(ENiagaraScriptUsage InUsage, const FGuid& InUsageId) const
+{
+	for (int32 i = 0; i < CachedUsageInfo.Num(); i++)
+	{
+		if (UNiagaraScript::IsEquivalentUsage(CachedUsageInfo[i].UsageType, InUsage) && CachedUsageInfo[i].UsageId == InUsageId)
+		{		
+			return CachedUsageInfo[i].ReferenceHashFromGraph;
+		}
+	}
+	return FNiagaraCompileHash();
 }
 
 FNiagaraCompileHash UNiagaraGraph::GetCompileDataHash(ENiagaraScriptUsage InUsage, const FGuid& InUsageId) const
@@ -3270,8 +3301,9 @@ void UNiagaraGraph::RebuildCachedCompileIds()
 
 	const FGuid CurrentScriptVersionId = FNiagaraCustomVersion::GetLatestScriptCompileVersion();
 
+
 	// If the graph hasn't changed since last rebuild, then do nothing.
-	const bool bForceRebuild = bHasValidLastBuiltScriptVersionId && (LastBuiltScriptVersionId != CurrentScriptVersionId);
+	const bool bForceRebuild = (bHasValidLastBuiltScriptVersionId && (LastBuiltScriptVersionId != CurrentScriptVersionId));
 	
 	if (!bForceRebuild && ChangeId == LastBuiltTraversalDataChangeId && LastBuiltTraversalDataChangeId.IsValid())
 	{
@@ -3332,11 +3364,20 @@ void UNiagaraGraph::RebuildCachedCompileIds()
 		GraphHashState.Final();
 
 		FSHA1 HashState;
+		FSHA1 HashStateStatics;
 		for (UNiagaraNode* Node : NewUsageCache[i].Traversal)
 		{
 			Node->UpdateCompileHashForNode(HashState);
+
+			UNiagaraNodeFunctionCall* CallNode = Cast<UNiagaraNodeFunctionCall>(Node);
+			if (CallNode)
+			{
+				CallNode->UpdateReferencedStaticsHashForNode(HashStateStatics);
+			}
+
 		}
 		HashState.Final();
+		HashStateStatics.Final();
 
 		// We can't store in a FShaHash struct directly because you can't FProperty it. Using a standin of the same size.
 		{
@@ -3346,13 +3387,18 @@ void UNiagaraGraph::RebuildCachedCompileIds()
 			NewUsageCache[i].CompileHash = FNiagaraCompileHash(DataHash.GetData(), DataHash.Num());
 		}
 
+		{
+			TStaticArray<uint8, FSHA1::DigestSize> DataHashStatics;
+			HashStateStatics.GetHash(DataHashStatics.GetData());
+			NewUsageCache[i].ReferenceHashFromGraph = FNiagaraCompileHash(DataHashStatics.GetData(), DataHashStatics.Num());
+		}
 
 		{
 			// We can't store in a FShaHash struct directly because you can't UProperty it. Using a standin of the same size.
 			TStaticArray<uint8, FSHA1::DigestSize> DataHash;
 			GraphHashState.GetHash(DataHash.GetData());
 			NewUsageCache[i].CompileHashFromGraph = FNiagaraCompileHash(DataHash.GetData(), DataHash.Num());
-			NewUsageCache[i].CompileLastObjects = Visitor.Values;
+			NewUsageCache[i].CompileLastObjects = Visitor.Values;	
 
 #if WITH_EDITORONLY_DATA
 			// Log out all the entries that differ!

@@ -508,6 +508,9 @@ public:
 	bool GetIgnoreDisabled() const { return bIgnoreDisabled; }
 	void SetIgnoreDisabled(bool bInIgnore) { bIgnoreDisabled = bInIgnore; }
 
+	bool GetIgnoreStaticRapidIterationParameters() const { return bIgnoreStaticRapidIterationParameters; }
+	void SetIgnoreStaticRapidIterationParameters(bool bInIgnore) { bIgnoreStaticRapidIterationParameters = bInIgnore; }
+
 	bool IsInEncounteredFunctionNamespace(const FNiagaraVariable& InVar) const;
 	bool IsInEncounteredEmitterNamespace(const FNiagaraVariable& InVar) const;
 
@@ -590,6 +593,10 @@ protected:
 
 	/** Whether we want to include ParameterCollection information */
 	bool bIncludeParameterCollectionInfo;
+
+	/** Whether or not we want to look up the rapid iteration form of a variable or just the regular form. 
+	see comments in FNiagaraStackGraphUtilities::GetStackFunctionInputPinsWithoutCache for reasoning behind this.*/
+	bool bIgnoreStaticRapidIterationParameters = false;
 
 	TArray<FNiagaraVariable> EncounterableExternalVariables;
 };

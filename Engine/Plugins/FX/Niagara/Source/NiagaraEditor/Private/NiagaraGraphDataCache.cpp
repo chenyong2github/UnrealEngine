@@ -145,8 +145,11 @@ FNiagaraGraphDataCache::FStackFunctionInputPinKey::FStackFunctionInputPinKey(con
 	bFilterForCompilation = bInFilterForCompilation;
 	ConstantResolverHash = InConstantResolver.BuildTypeHash();
 
+	const FString& FunctionName = FunctionCallNode.GetFunctionName();
+
 	Hash = GetTypeHash(FunctionCallGraphKey);
 	Hash = HashCombine(Hash, GetTypeHash(FunctionCallGraphChangeId));
+
 	for (const FNiagaraVariable& StaticVariable : ContextStaticVariables)
 	{
 		Hash = HashCombine(Hash, GetTypeHash(StaticVariable));
@@ -155,6 +158,23 @@ FNiagaraGraphDataCache::FStackFunctionInputPinKey::FStackFunctionInputPinKey(con
 		for (int32 ByteIt = 0; ByteIt < ByteCount; ++ByteIt)
 		{
 			Hash = HashCombine(Hash, GetTypeHash(StaticVariableData[ByteIt]));
+		}
+
+	}
+
+	/* We double-hash specifically anything that matches the namespace. However we don't hash the name, just the type
+	  and the value. This way we can still re-use across different instances of the same graph.*/
+	for (const FNiagaraVariable& StaticVariable : ContextStaticVariables)
+	{
+		if (StaticVariable.IsInNameSpace(FunctionName))
+		{
+			Hash = HashCombine(Hash, GetTypeHash(StaticVariable));
+			const uint8* StaticVariableData = StaticVariable.GetData();
+			const int32 ByteCount = StaticVariable.GetAllocatedSizeInBytes();
+			for (int32 ByteIt = 0; ByteIt < ByteCount; ++ByteIt)
+			{
+				Hash = HashCombine(Hash, GetTypeHash(StaticVariableData[ByteIt]));
+			}
 		}
 	}
 	Hash = HashCombine(Hash, ConstantResolverHash);
