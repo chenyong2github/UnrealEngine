@@ -160,20 +160,22 @@ FText UEditableText::GetText() const
 
 void UEditableText::SetText(FText InText)
 {
-	// We detect if the Text is internal pointing to the same thing if so, nothing to do.
-	if (GetText().IdenticalTo(InText))
-	{
-		return;
-	}
-
-	Text = InText;
-
-	BroadcastFieldValueChanged(FFieldNotificationClassDescriptor::Text);
-
-	if ( MyEditableText.IsValid() )
+	if (SetTextInternal(InText) && MyEditableText.IsValid() )
 	{
 		MyEditableText->SetText(Text);
 	}
+}
+
+bool UEditableText::SetTextInternal(const FText& InText)
+{
+	if (!Text.IdenticalTo(InText, ETextIdenticalModeFlags::DeepCompare | ETextIdenticalModeFlags::LexicalCompareInvariants))
+	{
+		Text = InText;
+		BroadcastFieldValueChanged(FFieldNotificationClassDescriptor::Text);
+		return true;
+	}
+
+	return false;
 }
 
 void UEditableText::SetIsPassword(bool InbIsPassword)
@@ -389,11 +391,15 @@ void UEditableText::SetFontOutlineMaterial(UMaterialInterface* InMaterial)
 
 void UEditableText::HandleOnTextChanged(const FText& InText)
 {
-	OnTextChanged.Broadcast(InText);
+	if (SetTextInternal(InText))
+	{
+		OnTextChanged.Broadcast(InText);
+	}
 }
 
 void UEditableText::HandleOnTextCommitted(const FText& InText, ETextCommit::Type CommitMethod)
 {
+	SetTextInternal(InText);
 	OnTextCommitted.Broadcast(InText, CommitMethod);
 }
 

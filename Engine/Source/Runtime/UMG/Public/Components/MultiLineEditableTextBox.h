@@ -31,7 +31,7 @@ public:
 	
 	UE_DEPRECATED(5.1, "Direct access to Text is deprecated. Please use the getter or setter.")
 	/** The text content for this editable text box widget */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintGetter = "GetText", BlueprintSetter = "SetText", Category = Content, meta=(MultiLine="true"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintGetter = "GetText", BlueprintSetter = "SetText", FieldNotify, Category = Content, meta=(MultiLine="true"))
 	FText Text;
 
 	UE_DEPRECATED(5.1, "Direct access to HintText is deprecated. Please use the getter or setter.")
@@ -163,6 +163,9 @@ protected:
 	PROPERTY_BINDING_IMPLEMENTATION(FText, HintText);
 
 private:
+	/** @return true if the text was changed, or false if identical. */
+	bool SetTextInternal(const FText& InText);
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	bool bIsFontDeprecationDone;

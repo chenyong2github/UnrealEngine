@@ -152,20 +152,22 @@ FText UMultiLineEditableText::GetText() const
 
 void UMultiLineEditableText::SetText(FText InText)
 {
-	// We detect if the Text is internal pointing to the same thing if so, nothing to do.
-	if (GetText().IdenticalTo(InText))
-	{
-		return;
-	}
-
-	Text = InText;
-
-	BroadcastFieldValueChanged(FFieldNotificationClassDescriptor::Text);
-
-	if ( MyMultiLineEditableText.IsValid() )
+	if (SetTextInternal(InText) && MyMultiLineEditableText.IsValid() )
 	{
 		MyMultiLineEditableText->SetText(Text);
 	}
+}
+
+bool UMultiLineEditableText::SetTextInternal(const FText& InText)
+{
+	if (!Text.IdenticalTo(InText, ETextIdenticalModeFlags::DeepCompare | ETextIdenticalModeFlags::LexicalCompareInvariants))
+	{
+		Text = InText;
+		BroadcastFieldValueChanged(FFieldNotificationClassDescriptor::Text);
+		return true;
+	}
+
+	return false;
 }
 
 FText UMultiLineEditableText::GetHintText() const
@@ -312,11 +314,15 @@ void UMultiLineEditableText::SetFontOutlineMaterial(UMaterialInterface* InMateri
 
 void UMultiLineEditableText::HandleOnTextChanged(const FText& InText)
 {
-	OnTextChanged.Broadcast(InText);
+	if (SetTextInternal(InText))
+	{
+		OnTextChanged.Broadcast(InText);
+	}
 }
 
 void UMultiLineEditableText::HandleOnTextCommitted(const FText& InText, ETextCommit::Type CommitMethod)
 {
+	SetTextInternal(InText);
 	OnTextCommitted.Broadcast(InText, CommitMethod);
 }
 

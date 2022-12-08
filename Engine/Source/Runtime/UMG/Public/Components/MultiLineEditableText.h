@@ -193,4 +193,8 @@ protected:
 	TSharedPtr<SMultiLineEditableText> MyMultiLineEditableText;
 
 	PROPERTY_BINDING_IMPLEMENTATION(FText, HintText);
+
+private:
+	/** @return true if the text was changed, or false if identical. */
+	bool SetTextInternal(const FText& InText);
 };

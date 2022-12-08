@@ -175,20 +175,22 @@ FText UEditableTextBox::GetText() const
 
 void UEditableTextBox::SetText(FText InText)
 {
-	// We detect if the Text is internal pointing to the same thing if so, nothing to do.
-	if (GetText().IdenticalTo(InText))
-	{
-		return;
-	}
-
-	Text = InText;
-
-	BroadcastFieldValueChanged(FFieldNotificationClassDescriptor::Text);
-
-	if ( MyEditableTextBlock.IsValid() )
+	if (SetTextInternal(InText) && MyEditableTextBlock.IsValid() )
 	{
 		MyEditableTextBlock->SetText(Text);
 	}
+}
+
+bool UEditableTextBox::SetTextInternal(const FText& InText)
+{
+	if (!Text.IdenticalTo(InText, ETextIdenticalModeFlags::DeepCompare | ETextIdenticalModeFlags::LexicalCompareInvariants))
+	{
+		Text = InText;
+		BroadcastFieldValueChanged(FFieldNotificationClassDescriptor::Text);
+		return true;
+	}
+
+	return false;
 }
 
 FText UEditableTextBox::GetHintText() const
@@ -389,13 +391,15 @@ void UEditableTextBox::SetTextOverflowPolicy(ETextOverflowPolicy InOverflowPolic
 
 void UEditableTextBox::HandleOnTextChanged(const FText& InText)
 {
-	Text = InText;
-	OnTextChanged.Broadcast(InText);
+	if (SetTextInternal(InText))
+	{
+		OnTextChanged.Broadcast(InText);
+	}
 }
 
 void UEditableTextBox::HandleOnTextCommitted(const FText& InText, ETextCommit::Type CommitMethod)
 {
-	Text = InText;
+	SetTextInternal(InText);
 	OnTextCommitted.Broadcast(InText, CommitMethod);
 }
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
