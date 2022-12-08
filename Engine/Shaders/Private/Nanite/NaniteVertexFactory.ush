@@ -400,23 +400,23 @@ FNaniteTransformedVert TransformNaniteVertex(FInstanceSceneData InstanceData, FN
 	return Vert;
 }
 
-#if COMPILER_SUPPORTS_WAVE_PERMUTE
-FNaniteTransformedVert WaveReadLaneAtVarying(FNaniteTransformedVert Vert, uint SrcIndex)
+
+FNaniteTransformedVert WaveReadLaneAt(FNaniteTransformedVert Vert, uint SrcIndex)
 {
 	FNaniteTransformedVert Result;
 
-	Result.VertIndex = WaveReadLaneAtVarying(Vert.VertIndex, SrcIndex);
-	Result.RawAttributeData = WaveReadLaneAtVarying(Vert.RawAttributeData, SrcIndex);
-	Result.PointLocal = WaveReadLaneAtVarying(Vert.PointLocal, SrcIndex);
-	Result.PrevPointLocal = WaveReadLaneAtVarying(Vert.PrevPointLocal, SrcIndex);
-	Result.PointWorld = WaveReadLaneAtVarying(Vert.PointWorld, SrcIndex);
-	Result.PointWorld_NoOffset = WaveReadLaneAtVarying(Vert.PointWorld_NoOffset, SrcIndex);
-	Result.PointSubpixelClip = WaveReadLaneAtVarying(Vert.PointSubpixelClip, SrcIndex);
+	Result.VertIndex			= WaveReadLaneAt( Vert.VertIndex,			SrcIndex );
+	Result.RawAttributeData		= WaveReadLaneAt( Vert.RawAttributeData,	SrcIndex );
+	Result.PointLocal			= WaveReadLaneAt( Vert.PointLocal,			SrcIndex );
+	Result.PrevPointLocal		= WaveReadLaneAt( Vert.PrevPointLocal,		SrcIndex );
+	Result.PointWorld			= WaveReadLaneAt( Vert.PointWorld,			SrcIndex );
+	Result.PointWorld_NoOffset	= WaveReadLaneAt( Vert.PointWorld_NoOffset,	SrcIndex );
+	Result.PointSubpixelClip	= WaveReadLaneAt( Vert.PointSubpixelClip,	SrcIndex );
 #if NUM_TEX_COORD_INTERPOLATORS
 	UNROLL
 	for (uint i = 0; i < NUM_TEX_COORD_INTERPOLATORS; ++i)
 	{
-		Result.CustomizedUVs[i] = WaveReadLaneAtVarying(Vert.CustomizedUVs[i], SrcIndex);
+		Result.CustomizedUVs[i] = WaveReadLaneAt(Vert.CustomizedUVs[i], SrcIndex);
 	}
 #endif
 	
@@ -429,12 +429,11 @@ FNaniteTransformedTri MakeTransformedNaniteTriangle(FNaniteTransformedVert Vert,
 
 	for (uint Corner = 0; Corner < 3; ++Corner)
 	{
-		Tri.Verts[Corner] = WaveReadLaneAtVarying(Vert, SrcLaneIndices[Corner]);
+		Tri.Verts[Corner] = WaveReadLaneAt(Vert, SrcLaneIndices[Corner]);
 	}
 
 	return Tri;
 }
-#endif
 
 FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FInstanceSceneData InstanceData, FInstanceDynamicData InstanceDynamicData, FNaniteView NaniteView, FNaniteTransformedTri Tri, FCluster Cluster, FBarycentrics Barycentrics, inout FVertexFactoryInterpolantsVSToPS Interpolants, inout float4 SvPosition)
 {

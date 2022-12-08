@@ -815,7 +815,7 @@ class FRasterBinBuild_CS : public FNaniteGlobalShader
 		SHADER_PARAMETER(uint32, RenderFlags)
 		SHADER_PARAMETER(uint32, MaxVisibleClusters)
 		SHADER_PARAMETER(uint32, RegularMaterialRasterSlotCount)
-		SHADER_PARAMETER(uint32, bEnableVertReuseBatch)
+		SHADER_PARAMETER(uint32, bUsePrimOrMeshShader)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -1025,13 +1025,15 @@ class FMicropolyRasterizeCS : public FNaniteMaterialShader
 		// Get data from GPUSceneParameters rather than View.
 		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
 
-		if (FDataDrivenShaderPlatformInfo::GetSupportsWavePermute(Parameters.Platform) && PermutationVector.Get<FPixelProgrammableDim>())
+		if (PermutationVector.Get<FPixelProgrammableDim>())
 		{
 			OutEnvironment.SetDefine(TEXT("NANITE_VERT_REUSE_BATCH"), 1);
 			OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
 		}
 
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
+
+		OutEnvironment.CompilerFlags.Add(CFLAG_HLSL2021);
 	}
 
 	void SetParameters(FRHIComputeCommandList& RHICmdList, FRHIComputeShader* ShaderRHI, const FViewInfo& View, const FMaterialRenderProxy* MaterialProxy, const FMaterial& Material)
@@ -1124,7 +1126,7 @@ class FHWRasterizeVS : public FNaniteMaterialShader
 		{
 			OutEnvironment.CompilerFlags.Add(CFLAG_VertexToPrimitiveShader);
 
-			if (FDataDrivenShaderPlatformInfo::GetSupportsWavePermute(Parameters.Platform) && PermutationVector.Get<FVertexProgrammableDim>())
+			if (PermutationVector.Get<FVertexProgrammableDim>())
 			{
 				OutEnvironment.SetDefine(TEXT("NANITE_VERT_REUSE_BATCH"), 1);
 				OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
@@ -1136,6 +1138,8 @@ class FHWRasterizeVS : public FNaniteMaterialShader
 		}
 
 		OutEnvironment.SetDefine(TEXT("NANITE_HW_COUNTER_INDEX"), bIsPrimitiveShader ? 4 : 5); // Mesh and primitive shaders use an index of 4 instead of 5
+
+		OutEnvironment.CompilerFlags.Add(CFLAG_HLSL2021);
 	}
 
 	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FMaterialRenderProxy* MaterialProxy, const FMaterial& Material)
@@ -1220,7 +1224,7 @@ class FHWRasterizeMS : public FNaniteMaterialShader
 		const uint32 MSThreadGroupSize = FDataDrivenShaderPlatformInfo::GetMaxMeshShaderThreadGroupSize(Parameters.Platform);
 		check(MSThreadGroupSize == 128 || MSThreadGroupSize == 256);
 
-		if (FDataDrivenShaderPlatformInfo::GetSupportsWavePermute(Parameters.Platform) && PermutationVector.Get<FVertexProgrammableDim>())
+		if (PermutationVector.Get<FVertexProgrammableDim>())
 		{
 			OutEnvironment.SetDefine(TEXT("NANITE_VERT_REUSE_BATCH"), 1);
 			OutEnvironment.SetDefine(TEXT("NANITE_MESH_SHADER_TG_SIZE"), 32);
@@ -1232,6 +1236,8 @@ class FHWRasterizeMS : public FNaniteMaterialShader
 		}
 
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
+
+		OutEnvironment.CompilerFlags.Add(CFLAG_HLSL2021);
 	}
 
 	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FMaterialRenderProxy* MaterialProxy, const FMaterial& Material)
@@ -1346,10 +1352,12 @@ public:
 		OutEnvironment.SetDefine(TEXT("USE_ANALYTIC_DERIVATIVES"), 0);
 		OutEnvironment.SetDefine(TEXT("NANITE_MULTI_VIEW"), 1);
 
-		if (FDataDrivenShaderPlatformInfo::GetSupportsWavePermute(Parameters.Platform) && PermutationVector.Get<FVertexProgrammableDim>() && (PermutationVector.Get<FMeshShaderDim>() || PermutationVector.Get<FPrimShaderDim>()))
+		if (PermutationVector.Get<FVertexProgrammableDim>() && (PermutationVector.Get<FMeshShaderDim>() || PermutationVector.Get<FPrimShaderDim>()))
 		{
 			OutEnvironment.SetDefine(TEXT("NANITE_VERT_REUSE_BATCH"), 1);
 		}
+
+		OutEnvironment.CompilerFlags.Add(CFLAG_HLSL2021);
 	}
 
 	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FMaterialRenderProxy* MaterialProxy, const FMaterial& Material)
@@ -2432,7 +2440,7 @@ static void AddPass_Binning(
 	const FGPUSceneParameters& GPUSceneParameters,
 	bool bMainPass,
 	bool bVirtualTextureTarget,
-	bool bEnableVertReuseBatch,
+	bool bUsePrimOrMeshShader,
 	FBinningData& BinningData
 )
 {
@@ -2473,7 +2481,7 @@ static void AddPass_Binning(
 	PassParameters->RenderFlags = RenderFlags;
 	PassParameters->MaxVisibleClusters = MaxVisibleClusters;
 	PassParameters->RegularMaterialRasterSlotCount = Scene.NaniteRasterPipelines[ENaniteMeshPass::BasePass].GetRegularBinCount();
-	PassParameters->bEnableVertReuseBatch = bEnableVertReuseBatch && FDataDrivenShaderPlatformInfo::GetSupportsWavePermute(Scene.GetShaderPlatform());
+	PassParameters->bUsePrimOrMeshShader = bUsePrimOrMeshShader;
 
 	// Classify SW & HW Clusters
 	{

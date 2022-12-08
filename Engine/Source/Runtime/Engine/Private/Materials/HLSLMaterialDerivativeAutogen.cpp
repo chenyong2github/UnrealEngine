@@ -1210,7 +1210,7 @@ int32 FMaterialDerivativeAutogen::GenerateIfFunc(FHLSLMaterialTranslator& Transl
 		else
 		{
 			CodeFinite = FString::Printf(
-				TEXT("(%s ? (%s ? %s : %s) : %s)"),
+				TEXT("select(%s, select(%s, %s, %s), %s)"),
 				*CompareNotEqual, *CompareGreaterEqual,
 				*GreaterFinite, *LessFinite, *Translator.GetParameterCode(Equal));
 		}
@@ -1232,7 +1232,7 @@ int32 FMaterialDerivativeAutogen::GenerateIfFunc(FHLSLMaterialTranslator& Transl
 				// @lh-todo: Workaround SPIR-V bug in DXC: Wrong literal type is deduced during implicit type deduction from int to uint
 				// GitHub PR: https://github.com/microsoft/DirectXShaderCompiler/pull/4626
 				CodeFinite = FString::Printf(
-					TEXT("(%s ? (uint)%s : (uint)%s)"),
+					TEXT("select(%s, (uint)%s, (uint)%s)"),
 					*CompareGreaterEqual,
 					*GreaterFinite, *LessFinite
 				);
@@ -1240,7 +1240,7 @@ int32 FMaterialDerivativeAutogen::GenerateIfFunc(FHLSLMaterialTranslator& Transl
 			else
 			{
 				CodeFinite = FString::Printf(
-					TEXT("(%s ? %s : %s)"),
+					TEXT("select(%s, %s, %s)"),
 					*CompareGreaterEqual,
 					*GreaterFinite, *LessFinite
 				);
@@ -1595,10 +1595,10 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					else
 					{
 						Ret += TEXT("\t") + BoolName + TEXT(" Cmp = A.Value < B.Value;") LINE_TERMINATOR;
-						Ret += TEXT("\tRet.Value = Cmp ? A.Value : B.Value;") LINE_TERMINATOR;
+						Ret += TEXT("\tRet.Value = select(Cmp, A.Value, B.Value);") LINE_TERMINATOR;
 					}
-					Ret += TEXT("\tRet.Ddx = Cmp ? A.Ddx : B.Ddx;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Ddy = Cmp ? A.Ddy : B.Ddy;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddx = select(Cmp, A.Ddx, B.Ddx);") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = select(Cmp, A.Ddy, B.Ddy);") LINE_TERMINATOR;
 					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
 					Ret += TEXT("}") LINE_TERMINATOR;
 					Ret += TEXT("") LINE_TERMINATOR;
@@ -1615,10 +1615,10 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					else
 					{
 						Ret += TEXT("\t") + BoolName + TEXT(" Cmp = A.Value > B.Value;") LINE_TERMINATOR;
-						Ret += TEXT("\tRet.Value = Cmp ? A.Value : B.Value;") LINE_TERMINATOR;
+						Ret += TEXT("\tRet.Value = select(Cmp, A.Value, B.Value);") LINE_TERMINATOR;
 					}
-					Ret += TEXT("\tRet.Ddx = Cmp ? A.Ddx : B.Ddx;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Ddy = Cmp ? A.Ddy : B.Ddy;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddx = select(Cmp, A.Ddx, B.Ddx);") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = select(Cmp, A.Ddy, B.Ddy);") LINE_TERMINATOR;
 					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
 					Ret += TEXT("}") LINE_TERMINATOR;
 					Ret += TEXT("") LINE_TERMINATOR;
@@ -1668,8 +1668,8 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					Ret += TEXT("\tRet.Value = PositiveClampedPow(A.Value, B.Value);") LINE_TERMINATOR;
 					Ret += TEXT("\tRet.Ddx = Ret.Value * (B.Ddx * log(A.Value) + (B.Value/A.Value)*A.Ddx);") LINE_TERMINATOR;
 					Ret += TEXT("\tRet.Ddy = Ret.Value * (B.Ddy * log(A.Value) + (B.Value/A.Value)*A.Ddy);") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Ddx = InRange ? Ret.Ddx : Zero;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Ddy = InRange ? Ret.Ddy : Zero;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddx = select(InRange, Ret.Ddx, Zero);") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = select(InRange, Ret.Ddy, Zero);") LINE_TERMINATOR;
 					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
 					Ret += TEXT("}") LINE_TERMINATOR;
 					Ret += TEXT("") LINE_TERMINATOR;
@@ -1753,12 +1753,12 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					if (IsLWCType(DerivType))
 					{
 						Ret += TEXT("\tRet.Value = LWCAbs(A.Value);") LINE_TERMINATOR;
-						Ret += TEXT("\t") + NonLWCFieldName + TEXT(" dFdA = LWCGreaterEqual(A.Value, 0.0f) ? One : -One;") LINE_TERMINATOR;
+						Ret += TEXT("\t") + NonLWCFieldName + TEXT(" dFdA = select(LWCGreaterEqual(A.Value, 0.0f), One, -One);") LINE_TERMINATOR;
 					}
 					else
 					{
 						Ret += TEXT("\tRet.Value = abs(A.Value);") LINE_TERMINATOR;
-						Ret += TEXT("\t") + NonLWCFieldName + TEXT(" dFdA = (A.Value >= 0.0f ? One : -One);") LINE_TERMINATOR;
+						Ret += TEXT("\t") + NonLWCFieldName + TEXT(" dFdA = select(A.Value >= 0.0f, One, -One);") LINE_TERMINATOR;
 					}
 
 					Ret += TEXT("\tRet.Ddx = dFdA * A.Ddx;") LINE_TERMINATOR;
@@ -1973,10 +1973,10 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					else
 					{
 						Ret += TEXT("\tRet.Value = saturate(A.Value);") LINE_TERMINATOR;
-						Ret += TEXT("\t") + BoolName + TEXT(" InRange = (0.0 < A.Value && A.Value < 1.0);") LINE_TERMINATOR;
+						Ret += TEXT("\t") + BoolName + TEXT(" InRange = ((0.0 < A.Value) & (A.Value < 1.0));") LINE_TERMINATOR;
 					}
-					Ret += TEXT("\tRet.Ddx = InRange ? A.Ddx : Zero;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Ddy = InRange ? A.Ddy : Zero;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddx = select(InRange, A.Ddx, Zero);") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = select(InRange, A.Ddy, Zero);") LINE_TERMINATOR;
 					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
 					Ret += TEXT("}") LINE_TERMINATOR;
 					Ret += TEXT("") LINE_TERMINATOR;

@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "/Engine/Public/WaveBroadcastIntrinsics.ush"
 #include "NaniteDataDecode.ush"
 
 struct FNaniteAttributeData
@@ -29,20 +28,18 @@ struct FNaniteRawAttributeData
 	float2 TexCoords[NANITE_MAX_UVS];
 };
 
-#if COMPILER_SUPPORTS_WAVE_PERMUTE
-FNaniteRawAttributeData WaveReadLaneAtVarying(FNaniteRawAttributeData In, uint SrcIndex)
+FNaniteRawAttributeData WaveReadLaneAt(FNaniteRawAttributeData In, uint SrcIndex)
 {
 	FNaniteRawAttributeData Out;
-	Out.TangentZ = WaveReadLaneAtVarying(In.TangentZ, SrcIndex);
-	Out.Color = WaveReadLaneAtVarying(In.Color, SrcIndex);
+	Out.TangentZ = WaveReadLaneAt(In.TangentZ, SrcIndex);
+	Out.Color = WaveReadLaneAt(In.Color, SrcIndex);
 	UNROLL
 	for (uint i = 0; i < NANITE_MAX_UVS; ++i)
 	{
-		Out.TexCoords[i] = WaveReadLaneAtVarying(In.TexCoords[i], SrcIndex);
+		Out.TexCoords[i] = WaveReadLaneAt(In.TexCoords[i], SrcIndex);
 	}
 	return Out;
 }
-#endif
 
 #define SIZEOF_UV_RANGE	32
 struct FUVRange

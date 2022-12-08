@@ -86,7 +86,7 @@ Buffer<uint> InClusterOffsetSWHW;
 StructuredBuffer<uint2> InClusterCountSWHW;
 StructuredBuffer<uint2> InTotalPrevDrawClusters;
 
-uint bEnableVertReuseBatch;
+uint bUsePrimOrMeshShader;
 
 uint RegularMaterialRasterSlotCount;
 ByteAddressBuffer MaterialSlotTable;
@@ -210,7 +210,8 @@ uint AllocateRasterizerBinCluster(uint BinIndex, bool bSoftware, uint BatchCount
 
 void ExportRasterizerBin(uint RasterizerBin, uint ClusterIndex, uint RangeStart, uint RangeEnd, uint BatchCount, uint BatchInfoOffset, FCluster Cluster, bool bBatchInfoInlined, bool bSoftware)
 {
-	const bool bUseBatch = bEnableVertReuseBatch && (!bSoftware || RasterizerBin >= RegularMaterialRasterSlotCount);
+	const bool bProgrammableRaster = RasterizerBin >= RegularMaterialRasterSlotCount;
+	const bool bUseBatch = bSoftware ? bProgrammableRaster : bUsePrimOrMeshShader;
 	BatchCount = CondMask(bUseBatch, BatchCount, 1u);
 #if RASTER_BIN_CLASSIFY
 	IncrementRasterizerBinCount(RasterizerBin, bSoftware, BatchCount);

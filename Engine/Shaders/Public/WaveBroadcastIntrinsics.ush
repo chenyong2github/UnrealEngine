@@ -108,11 +108,7 @@ uint WaveBroadcast(const FWaveBroadcastSettings Settings, uint x)
 	#if PLATFORM_SUPPORTS_WAVE_READ_AT
 	else if (Settings.Operation == WAVE_BROADCAST_READ_LANE_AT)
 	{
-		#if COMPILER_SUPPORTS_WAVE_PERMUTE
-		{
-			return WaveReadLaneAtVarying(x, Settings.SourceLaneIndex);
-		}
-		#elif FEATURE_LEVEL >= FEATURE_LEVEL_SM6 || PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS
+		#if FEATURE_LEVEL >= FEATURE_LEVEL_SM6 || PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS
 		{
 			return WaveReadLaneAt(x, Settings.SourceLaneIndex);
 		}

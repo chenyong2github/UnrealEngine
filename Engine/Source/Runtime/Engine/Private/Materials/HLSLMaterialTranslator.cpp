@@ -5496,7 +5496,7 @@ int32 FHLSLMaterialTranslator::If(int32 A,int32 B,int32 AGreaterThanB,int32 AEqu
 
 		return AddCodeChunk(
 			ResultType,
-			TEXT("((abs(%s - %s) > %s) ? (%s >= %s ? %s : %s) : %s)"),
+			TEXT("select(abs(%s - %s) > %s, select(%s >= %s, %s, %s), %s)"),
 			*GetParameterCode(A),
 			*GetParameterCode(B),
 			*GetParameterCode(ThresholdArg),
@@ -5521,7 +5521,7 @@ int32 FHLSLMaterialTranslator::If(int32 A,int32 B,int32 AGreaterThanB,int32 AEqu
 
 		return AddCodeChunk(
 			ResultType,
-			TEXT("((%s >= %s) ? %s : %s)"),
+			TEXT("select(%s >= %s, %s, %s)"),
 			*GetParameterCode(A),
 			*GetParameterCode(B),
 			*GetParameterCode(CoercedAGreaterThanB),
