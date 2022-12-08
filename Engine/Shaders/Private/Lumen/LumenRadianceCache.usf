@@ -637,16 +637,7 @@ FConeTraceResult TraceForProbeTexel(FConeTraceInput TraceInput)
 	TraceInput.bZeroRadianceIfRayStartsInsideGeometry = true;
 
 	ConeTraceLumenSceneVoxels(TraceInput, TraceResult);
-
-#if ENABLE_DYNAMIC_SKY_LIGHT
-	if (ReflectionStruct.SkyLightParameters.y > 0)
-	{
-		float SkyAverageBrightness = 1.0f;
-		float Roughness = TanConeAngleToRoughness(tan(TraceInput.ConeAngle));
-
-		TraceResult.Lighting = TraceResult.Lighting + GetSkyLightReflection(TraceInput.ConeDirection, Roughness, SkyAverageBrightness) * TraceResult.Transparency;
-	}
-#endif
+	ApplySkylightToTraceResult(TraceInput.ConeDirection, TraceResult);
 
 	return TraceResult;
 }
