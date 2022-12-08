@@ -358,8 +358,33 @@ UWorldPartitionLevelStreamingDynamic* UWorldPartitionRuntimeLevelStreamingCell::
 		ULevel* PartitionLevel = WorldPartition->GetTypedOuter<ULevel>();
 		if (PartitionLevel->IsInstancedLevel())
 		{
-			FString PackageShortName = FPackageName::GetShortName(PartitionLevel->GetPackage());
-			FString InstancedLevelPackageName = FString::Printf(TEXT("%s_InstanceOf_%s"), *LevelStreaming->PackageNameToLoad.ToString(), *PackageShortName);
+			// Try and extract the instance suffix that was applied to the instanced level itself
+			FString InstancedLevelSuffix;
+			{
+				UPackage* PartitionLevelPackage = PartitionLevel->GetPackage();
+
+				FNameBuilder SourcePackageName(PartitionLevelPackage->GetLoadedPath().GetPackageFName());
+				FNameBuilder InstancedPackageName(PartitionLevelPackage->GetFName());
+				
+				FStringView SourcePackageNameView = SourcePackageName.ToView();
+				FStringView InstancedPackageNameView = InstancedPackageName.ToView();
+
+				if (InstancedPackageNameView.StartsWith(SourcePackageNameView))
+				{
+					InstancedLevelSuffix = InstancedPackageNameView.Mid(SourcePackageNameView.Len());
+				}
+				else
+				{
+					InstancedLevelSuffix =  TEXT("_");
+					InstancedLevelSuffix += FPackageName::GetShortName(PartitionLevelPackage);
+				}
+			}
+			check(!InstancedLevelSuffix.IsEmpty());
+
+			FNameBuilder InstancedLevelPackageName;
+			LevelStreaming->PackageNameToLoad.AppendString(InstancedLevelPackageName);
+			InstancedLevelPackageName += InstancedLevelSuffix;
+
 			LevelStreaming->SetWorldAssetByPackageName(FName(InstancedLevelPackageName));
 		}
 	}
