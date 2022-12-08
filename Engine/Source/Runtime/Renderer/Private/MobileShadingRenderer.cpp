@@ -626,11 +626,13 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 	}
 	
 	const bool bDynamicShadows = ViewFamily.EngineShowFlags.DynamicShadows;
-	
+
+	FRDGExternalAccessQueue ExternalAccessQueue;
+
 	if (bDynamicShadows)
 	{
 		// Setup dynamic shadows.
-		InitDynamicShadows(RHICmdList, InstanceCullingManager);
+		InitDynamicShadows(GraphBuilder, InstanceCullingManager, ExternalAccessQueue);
 	}
 	else
 	{
@@ -659,8 +661,6 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 		// Initialize the view's RHI resources.
 		View.InitRHIResources();
 	}
-
-	FRDGExternalAccessQueue ExternalAccessQueue;
 
 	{
 		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, UpdateGPUScene);

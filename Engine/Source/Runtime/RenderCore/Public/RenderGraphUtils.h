@@ -1091,7 +1091,7 @@ public:
 		Resources.Emplace(Resource, Access, Pipelines);
 	}
 
-	void Submit(FRDGBuilder& GraphBuilder, ERHIPipeline AllowedPipes = ERHIPipeline::All);
+	void Submit(FRDGBuilder& GraphBuilder);
 
 	bool Contains(FRDGViewableResource* Resource)
 	{
@@ -1141,13 +1141,12 @@ private:
 		FResource(FRDGViewableResource* InResource, ERHIAccess InAccess, ERHIPipeline InPipelines)
 			: Resource(InResource)
 			, Access(InAccess)
-			, RequestedPipelines(InPipelines)
+			, Pipelines(InPipelines)
 		{}
 
 		FRDGViewableResource* Resource;
 		ERHIAccess Access;
-		ERHIPipeline RequestedPipelines;
-		ERHIPipeline SubmittedPipelines = ERHIPipeline::None;
+		ERHIPipeline Pipelines = ERHIPipeline::None;
 	};
 
 	TArray<FResource, FRDGArrayAllocator> Resources;

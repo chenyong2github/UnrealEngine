@@ -2455,7 +2455,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, VisibilityCommands);
-		InitViews(GraphBuilder, SceneTexturesConfig, BasePassDepthStencilAccess, ILCTaskData, InstanceCullingManager);
+		BeginInitViews(GraphBuilder, SceneTexturesConfig, BasePassDepthStencilAccess, ILCTaskData, InstanceCullingManager);
 	}
 
 	// GetBinIndexTranslator cannot be called before UpdateAllPrimitiveSceneInfos which can change the number of raster bins
@@ -2648,14 +2648,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	}
 #endif // RHI_RAYTRACING
 
-	// Dynamic vertex and index buffers need to be committed before rendering.
-	{
-		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FGlobalDynamicVertexBuffer_Commit);
-		DynamicIndexBufferForInitViews.Commit();
-		DynamicVertexBufferForInitViews.Commit();
-		DynamicReadBufferForInitViews.Commit();
-	}
-
 	const bool bUseGBuffer = IsUsingGBuffers(ShaderPlatform);
 	
 	const bool bRenderDeferredLighting = ViewFamily.EngineShowFlags.Lighting
@@ -2767,9 +2759,30 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	PrepareDistanceFieldScene(GraphBuilder, ExternalAccessQueue, false);
 
-	// Changes are flushed to the graphics pipe only, which avoids having to transition from async compute
-	// back to graphics later on during shadow GPU scene updates, which is serializing async Lumen compute work.
-	ExternalAccessQueue.Submit(GraphBuilder, ERHIPipeline::Graphics);
+	FLumenSceneFrameTemporaries LumenFrameTemporaries;
+	{
+		{
+			RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, VisibilityCommands);
+			EndInitViews(GraphBuilder, LumenFrameTemporaries, ILCTaskData, InstanceCullingManager, ExternalAccessQueue);
+		}
+
+		// Dynamic vertex and index buffers need to be committed before rendering.
+		{
+			SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FGlobalDynamicVertexBuffer_Commit);
+			DynamicIndexBufferForInitViews.Commit();
+			DynamicVertexBufferForInitViews.Commit();
+			DynamicReadBufferForInitViews.Commit();
+		}
+
+		{
+			SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FGlobalDynamicVertexBuffer_Commit);
+			DynamicVertexBufferForInitShadows.Commit();
+			DynamicIndexBufferForInitShadows.Commit();
+			DynamicReadBufferForInitShadows.Commit();
+		}
+	}
+
+	ExternalAccessQueue.Submit(GraphBuilder);
 
 	const bool bShouldRenderVelocities = ShouldRenderVelocities();
 	const EShaderPlatform Platform = GetViewFamilyInfo(Views).GetShaderPlatform();
@@ -2807,21 +2820,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_Velocity));
 			RenderVelocities(GraphBuilder, SceneTextures, EVelocityPass::Opaque, bHairStrandsEnable);
 			GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_AfterVelocity));
-		}
-	}
-
-	FLumenSceneFrameTemporaries LumenFrameTemporaries;
-	{
-		{
-			RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, VisibilityCommands);
-			InitViewsAfterPrepass(GraphBuilder, LumenFrameTemporaries, ILCTaskData, InstanceCullingManager);
-		}
-
-		{
-			SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FGlobalDynamicVertexBuffer_Commit);
-			DynamicVertexBufferForInitShadows.Commit();
-			DynamicIndexBufferForInitShadows.Commit();
-			DynamicReadBufferForInitShadows.Commit();
 		}
 	}
 
@@ -3117,10 +3115,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		RenderSkyAtmosphereLookUpTables(GraphBuilder, ExternalAccessQueue);
 	}
 
-	// Changes are flushed to the graphics pipe only, which avoids having to transition from async compute
-	// back to graphics later on during shadow GPU scene updates, which is serializing async Lumen compute work.
-	ExternalAccessQueue.Submit(GraphBuilder, ERHIPipeline::Graphics);
-
 	// Capture the SkyLight using the SkyAtmosphere and VolumetricCloud component if available.
 	const bool bRealTimeSkyCaptureEnabled = Scene->SkyLight && Scene->SkyLight->bRealTimeCaptureEnabled && Views.Num() > 0 && ViewFamily.EngineShowFlags.SkyLighting;
 	if (bRealTimeSkyCaptureEnabled)
@@ -3139,6 +3133,9 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			SceneTextures.UniformBuffer = CreateSceneTextureUniformBuffer(GraphBuilder, &SceneTextures, FeatureLevel, SceneTextures.SetupMode);
 		}
 	}
+
+	// Lumen updates need access to sky atmosphere LUT.
+	ExternalAccessQueue.Submit(GraphBuilder);
 
 	UpdateLumenScene(GraphBuilder, LumenFrameTemporaries);
 
@@ -3188,6 +3185,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		// With forward shading we need to render volumetric fog before the base pass
 		ComputeVolumetricFog(GraphBuilder, SceneTextures);
 	}
+
+	ExternalAccessQueue.Submit(GraphBuilder);
 
 	FDBufferTextures DBufferTextures = CreateDBufferTextures(GraphBuilder, SceneTextures.Config.Extent, ShaderPlatform);
 
