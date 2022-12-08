@@ -1666,7 +1666,7 @@ bool FSourceControlWindows::DiffAgainstWorkspace(const FString& InFileName)
 
 	if (FPackageName::TryConvertFilenameToLongPackageName(InFileName, AssetPackageName))
 	{
-		UPackage* AssetPackage = LoadPackage(nullptr, *AssetPackageName, LOAD_ForDiff | LOAD_DisableCompileOnLoad);
+		UPackage* AssetPackage = LoadPackage(nullptr, *AssetPackageName, LOAD_None);
 
 		// grab the asset from the package - we assume asset name matches file name
 		FString AssetName = FPaths::GetBaseFilename(InFileName);
@@ -1701,7 +1701,7 @@ bool FSourceControlWindows::DiffAgainstShelvedFile(const FSourceControlStateRef&
 	FString AssetPackageName;
 	if (FPackageName::TryConvertFilenameToLongPackageName(InFileState->GetFilename(), AssetPackageName))
 	{
-		UPackage* AssetPackage = LoadPackage(nullptr, *AssetPackageName, LOAD_ForDiff | LOAD_DisableCompileOnLoad);
+		UPackage* AssetPackage = LoadPackage(nullptr, *AssetPackageName, LOAD_None);
 
 		// grab the asset from the package - we assume asset name matches file name
 		FString AssetName = FPaths::GetBaseFilename(InFileState->GetFilename());

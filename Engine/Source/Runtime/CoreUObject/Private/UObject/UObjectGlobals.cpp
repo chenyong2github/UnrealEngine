@@ -1936,6 +1936,13 @@ UPackage* LoadPackage(UPackage* InOuter, const FPackagePath& PackagePath, uint32
 											NAME_None,
 										 ELLMTagSet::Assets, ELLMTracker::Default);
 	TRACE_LOADTIME_REQUEST_GROUP_SCOPE(TEXT("SyncLoad - %s"), *PackagePath.GetDebugName());
+	
+	// if this is a supported asset, it should be loaded fully rather than just for diffing
+	if(!ensure(!(LoadFlags & LOAD_ForDiff) || FPackageName::IsTempPackage(PackagePath.GetPackageName())))
+	{
+		// clear LOAD_ForDiff
+		LoadFlags &= ~LOAD_ForDiff;
+	}
 	return LoadPackageInternal(InOuter, PackagePath, LoadFlags, /*ImportLinker =*/ nullptr, InReaderOverride, InstancingContext, DiffPackagePath);
 }
 
