@@ -107,6 +107,7 @@
 #include "LightmapCommon.ush"  
 #include "MobileLightingCommon.ush"
 #include "ShadingModelsMaterial.ush"
+#include "ThinTranslucentCommon.ush"
 
 #if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 	#include "SingleLayerWaterShading.ush"
@@ -274,7 +275,12 @@ void Main(
 	, out HALF4_TYPE OutGBufferD : SV_Target4
 	#endif
 #else
+	#if DUAL_SOURCE_COLOR_BLENDING_ENABLED && !THIN_TRANSLUCENT_FALL_BACK
+	, out HALF4_TYPE OutColor DUAL_SOURCE_BLENDING_SLOT(0) : SV_Target0
+	, out HALF4_TYPE OutColor1 DUAL_SOURCE_BLENDING_SLOT(1) : SV_Target1
+	#else
 	, out HALF4_TYPE OutColor : SV_Target0
+	#endif
 #endif
 #if HAS_SCENE_DEPTH_AUX_OUTPUT
 	, out float OutSceneDepthAux : SV_TargetDepthAux
@@ -361,6 +367,12 @@ void Main(
 	half Anisotropy = GetMaterialAnisotropy(PixelMaterialInputs);
 	uint ShadingModelID = GetMaterialShadingModel(PixelMaterialInputs);
 	
+	// Opacity for this model is the coverage of the top layer over the transmission surface. Since the
+	// underlying material isn't allowed to be metallic, we are scaling the metallic value by the coverage.
+#if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
+	Metallic *= Opacity;
+#endif
+
 	// If we don't use this shading model the color should be black (don't generate shader code for unused data, don't do indirectlighting cache lighting with this color).
 	float3 SubsurfaceColor = 0;
 	// 0..1, SubsurfaceProfileId = int(x * 255)
@@ -514,38 +526,6 @@ void Main(
 #if MOBILE_HIGH_QUALITY_BRDF
 	GBuffer.GBufferAO = AOMultiBounce(Luminance(GBuffer.SpecularColor), ShadingOcclusion.SpecOcclusion).g;
 #endif
-
-#endif // !STRATA_ENABLED || STRATA_INLINE_SINGLELAYERWATER
-
-#if !STRATA_ENABLED
-	
-#if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
-	float TopMaterialCoverage = Opacity;
-
-	// Adjust Opacity
-	{
-		float3 TransmittanceColor = GetThinTranslucentMaterialOutput0(MaterialParameters);
-		float Transmittance = dot(TransmittanceColor, float3(1.0f,1.0f,1.0f)/3.0f);
-
-		// We can't use the NoV from the shading models because it uses saturate(), whereas we are using abs().
-		// The length through the surface is the same for both front and back faces.
-		float NoV = abs(dot(MaterialParameters.WorldNormal, MaterialParameters.CameraVector));
-		float PathLength = rcp(max(NoV, 1e-5f));
-		float NegativeAbsorptionCoefficient = log(Transmittance);
-		
-		// Material Modulation is how much of the background light goes through the surface
-		float MaterialModulation = exp(NegativeAbsorptionCoefficient * PathLength);
-
-		// The alpha of the material in translucent mode is one minus the amount that it is modulating the background by.
-		float MaterialOpacity = 1.0f - MaterialModulation;
-		
-		Opacity = 1.0f - (1.0f - TopMaterialCoverage) * (1.0f - MaterialOpacity);
-	}
-
-	GBuffer.BaseColor *= TopMaterialCoverage;
-#endif
-
-#endif // !STRATA_ENABLED
 
 	VTPageTableResult LightmapVTPageTableResult = (VTPageTableResult)0.0f;
 #if LIGHTMAP_VT_ENABLED
@@ -894,17 +874,52 @@ void Main(
 	// NEEDS_BASEPASS_PIXEL_FOGGING is not allowed on mobile for the sake of performance.
 				 
 	half3 Emissive = GetMaterialEmissive(PixelMaterialInputs);
-#if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
-	Emissive *= TopMaterialCoverage;
-#endif
+
 	Color += Emissive;
 
 #if !MATERIAL_SHADINGMODEL_UNLIT && MOBILE_EMULATION
 	Color = lerp(Color, DiffuseColor, ResolvedView.UnlitViewmodeMask);
 #endif
 
+#if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT && !STRATA_ENABLED
+	half3 DualBlendSurfaceLuminancePostCoverage = 0.0f;
+	half3 DualBlendSurfaceTransmittancePreCoverage = 1.0f;
+	half DualBlendSurfaceCoverage = 1.0f;
+	{
+		AccumulateThinTranslucentModel(
+			DualBlendSurfaceLuminancePostCoverage,
+			DualBlendSurfaceTransmittancePreCoverage,
+			DualBlendSurfaceCoverage,
+			MaterialParameters,
+			GBuffer,
+			DirectLighting.TotalLightDiffuse,
+			DirectLighting.TotalLightSpecular,
+			Emissive,
+			Opacity);
+
+		Color = 0;
+		Opacity = 1.0f;
+	}
+#endif // MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
+	
+	// MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT must come first because it also has MATERIALBLENDING_TRANSLUCENT defined
+	#if DUAL_SOURCE_COLOR_BLENDING_ENABLED
+
+		// Add fog luminance according to surfacecoverage and reduce surface luminance according to fog coverage.
+		half3 AdjustedDualBlendAdd = DualBlendSurfaceCoverage * VertexFog.rgb + VertexFog.a * DualBlendSurfaceLuminancePostCoverage;
+		// Fade the surface color transmittance out to 1 according to the surface coverage, and take into account the fog coverage to the surface.
+		half3 AdjustedDualBlendMul = lerp(1.0f, VertexFog.a * DualBlendSurfaceTransmittancePreCoverage, DualBlendSurfaceCoverage);
+
+		#if THIN_TRANSLUCENT_FALL_BACK
+			// In the fallback case, use standard alpha blending(grey scale transmittance)
+			half AdjustedAlpha = saturate(1 - dot(AdjustedDualBlendMul, half3(1.0f, 1.0f, 1.0f) / 3.0f));
+			OutColor = half4(AdjustedDualBlendAdd, AdjustedAlpha);
+		#else
+			OutColor = half4(AdjustedDualBlendAdd,0.0);
+			OutColor1 = half4(AdjustedDualBlendMul,1.0);
+		#endif
 	// On mobile, water (an opaque material) is rendered as trnaslucent with forced premultiplied alpha blending (see MobileBasePass::SetTranslucentRenderState)
-	#if MATERIALBLENDING_ALPHACOMPOSITE || MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+	#elif MATERIALBLENDING_ALPHACOMPOSITE || MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 		OutColor = half4(Color * VertexFog.a + VertexFog.rgb * Opacity, Opacity);
 	#elif MATERIALBLENDING_ALPHAHOLDOUT
 		// not implemented for holdout

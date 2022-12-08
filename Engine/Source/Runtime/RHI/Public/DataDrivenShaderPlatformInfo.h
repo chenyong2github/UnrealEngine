@@ -942,9 +942,8 @@ inline bool RHISupportsShaderPipelines(const FStaticShaderPlatform Platform)
 
 inline bool RHISupportsDualSourceBlending(const FStaticShaderPlatform Platform)
 {
-	// For now only enable support for SM5
-	// Metal RHI doesn't support dual source blending properly at the moment.
-	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && (IsD3DPlatform(Platform) || FDataDrivenShaderPlatformInfo::GetSupportsDualSourceBlending(Platform) || IsVulkanPlatform(Platform));
+	// Check if the platform supports dual src blending from DDPI
+	return FDataDrivenShaderPlatformInfo::GetSupportsDualSourceBlending(Platform) && !FDataDrivenShaderPlatformInfo::GetIsHlslcc(Platform);
 }
 
 // helper to check that the shader platform supports creating a UAV off an index buffer.
