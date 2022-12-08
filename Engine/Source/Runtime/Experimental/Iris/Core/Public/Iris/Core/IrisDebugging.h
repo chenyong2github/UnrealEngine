@@ -3,7 +3,7 @@
 #pragma once
 
 #include "HAL/Platform.h"
-#include "Iris/ReplicationSystem/NetHandle.h"
+#include "Iris/ReplicationSystem/NetRefHandle.h"
 #include "Net/Core/NetHandle/NetHandle.h"
 
 class UReplicationSystem;

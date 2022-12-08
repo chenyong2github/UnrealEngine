@@ -7,7 +7,7 @@
 #include "Templates/PimplPtr.h"
 #include "Templates/RefCounting.h"
 #include "Iris/IrisConfig.h"
-#include "Iris/ReplicationSystem/NetHandle.h"
+#include "Iris/ReplicationSystem/NetRefHandle.h"
 #include "Net/Core/NetHandle/NetHandle.h"
 
 #include "ReplicationSystem.generated.h"

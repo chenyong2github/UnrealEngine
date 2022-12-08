@@ -6,7 +6,7 @@
 #include "Containers/ContainersFwd.h"
 #include "Containers/Map.h"
 #include "Iris/Core/NetObjectReference.h"
-#include "Iris/ReplicationSystem/NetHandle.h"
+#include "Iris/ReplicationSystem/NetRefHandle.h"
 #include "Misc/EnumClassFlags.h"
 #include "Net/Core/NetHandle/NetHandle.h"
 #include "UObject/ObjectKey.h"

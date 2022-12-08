@@ -2,7 +2,7 @@
 
 #pragma once
 #include "CoreTypes.h"
-#include "Iris/ReplicationSystem/NetHandle.h"
+#include "Iris/ReplicationSystem/NetRefHandle.h"
 #include "Iris/PacketControl/PacketNotification.h"
 #include "Templates/RefCounting.h"
 

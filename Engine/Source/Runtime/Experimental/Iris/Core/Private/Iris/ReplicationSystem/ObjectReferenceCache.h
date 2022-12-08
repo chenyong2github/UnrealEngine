@@ -4,7 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Iris/Core/NetObjectReference.h"
-#include "Iris/ReplicationSystem/NetHandle.h"
+#include "Iris/ReplicationSystem/NetRefHandle.h"
 #include "UObject/WeakObjectPtr.h"
 #include "Containers/Map.h"
 #include "ObjectReferenceCacheFwd.h"

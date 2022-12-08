@@ -5,7 +5,7 @@
 #include "NetworkAutomationTest.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/StrongObjectPtr.h"
-#include "Iris/ReplicationSystem/NetHandle.h"
+#include "Iris/ReplicationSystem/NetRefHandle.h"
 #include "Iris/ReplicationSystem/ReplicationProtocol.h"
 #include "Iris/ReplicationSystem/ObjectReplicationBridge.h"
 #include "Iris/ReplicationSystem/PropertyReplicationFragment.h"

@@ -2,7 +2,7 @@
 
 #pragma once
 #include "CoreTypes.h"
-#include "Iris/ReplicationSystem/NetHandle.h"
+#include "Iris/ReplicationSystem/NetRefHandle.h"
 #include "NetBlobHandlerDefinitions.generated.h"
 
 namespace UE::Net::Private
