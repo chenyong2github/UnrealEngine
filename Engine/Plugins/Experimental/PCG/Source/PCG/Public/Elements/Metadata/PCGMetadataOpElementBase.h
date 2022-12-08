@@ -102,8 +102,6 @@ public:
 	virtual bool HasDifferentOutputTypes() const { return false; }
 	virtual TArray<uint16> GetAllOutputTypes() const { return TArray<uint16>(); };
 
-	bool IsMoreComplexType(uint16 FirstType, uint16 SecondType) const;
-
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Output")
 	FPCGAttributePropertySelector OutputTarget;
 

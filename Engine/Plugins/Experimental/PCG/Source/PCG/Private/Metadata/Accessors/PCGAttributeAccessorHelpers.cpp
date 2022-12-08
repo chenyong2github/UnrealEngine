@@ -35,6 +35,12 @@ namespace PCGAttributeAccessorHelpers
 
 		if (OutMetadata)
 		{
+			// If Name is None, try ot get the latest attribute
+			if (Name == NAME_None)
+			{
+				Name = OutMetadata->GetLatestAttributeNameOrNone();
+			}
+
 			OutAttribute = OutMetadata->GetMutableAttribute(Name);
 		}
 	}

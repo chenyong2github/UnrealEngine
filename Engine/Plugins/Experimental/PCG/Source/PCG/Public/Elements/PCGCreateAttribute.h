@@ -6,6 +6,7 @@
 #include "PCGSettings.h"
 #include "Metadata/PCGMetadataCommon.h"
 #include "Metadata/PCGMetadataAttributeTpl.h"
+#include "Metadata/PCGMetadataTypesConstantStruct.h"
 
 #include "PCGCreateAttribute.generated.h"
 
@@ -25,6 +26,10 @@ class PCG_API UPCGCreateAttributeSettings : public UPCGSettings
 {
 	GENERATED_BODY()
 public:
+	//~Begin UObject interface
+	virtual void PostLoad() override;
+	//~End UObject interface
+
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override;
@@ -46,50 +51,52 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "bFromSourceParam", EditConditionHides))
 	FName SourceParamAttributeName = NAME_None;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (ValidEnumValues = "Float, Double, Integer32, Integer64, Vector2, Vector, Vector4, Quaternion, Transform, String, Boolean, Rotator, Name", EditCondition = "!bFromSourceParam", EditConditionHides))
-	EPCGMetadataTypes Type = EPCGMetadataTypes::Double;
-
-	// All different types
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Type == EPCGMetadataTypes::Float && !bFromSourceParam", EditConditionHides))
-	float FloatValue = 0.0;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Type == EPCGMetadataTypes::Integer32 && !bFromSourceParam", EditConditionHides))
-	int32 Int32Value = 0;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Type == EPCGMetadataTypes::Double && !bFromSourceParam", EditConditionHides))
-	double DoubleValue = 0.0;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Type == EPCGMetadataTypes::Integer64 && !bFromSourceParam", EditConditionHides))
-	int64 IntValue = 0;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Type == EPCGMetadataTypes::Vector2 && !bFromSourceParam", EditConditionHides))
-	FVector2D Vector2Value = FVector2D::ZeroVector;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Type == EPCGMetadataTypes::Vector && !bFromSourceParam", EditConditionHides))
-	FVector VectorValue = FVector::ZeroVector;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Type == EPCGMetadataTypes::Vector4 && !bFromSourceParam", EditConditionHides))
-	FVector4 Vector4Value = FVector4::Zero();
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Type == EPCGMetadataTypes::Quaternion && !bFromSourceParam", EditConditionHides))
-	FQuat QuatValue = FQuat::Identity;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Type == EPCGMetadataTypes::Transform && !bFromSourceParam", EditConditionHides))
-	FTransform TransformValue = FTransform::Identity;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Type == EPCGMetadataTypes::String && !bFromSourceParam", EditConditionHides))
-	FString StringValue = "";
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Type == EPCGMetadataTypes::Boolean && !bFromSourceParam", EditConditionHides))
-	bool BoolValue = false;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Type == EPCGMetadataTypes::Rotator && !bFromSourceParam", EditConditionHides))
-	FRotator RotatorValue = FRotator::ZeroRotator;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Type == EPCGMetadataTypes::Name && !bFromSourceParam", EditConditionHides))
-	FName NameValue = NAME_None;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "!bFromSourceParam", EditConditionHides, ShowOnlyInnerProperties, DisplayAfter = "bFromSourceParam"))
+	FPCGMetadataTypesConstantStruct AttributeTypes;
 
 #if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	EPCGMetadataTypes Type_DEPRECATED = EPCGMetadataTypes::Double;
+
+	UPROPERTY()
+	float FloatValue_DEPRECATED = 0.0;
+
+	UPROPERTY()
+	int32 Int32Value_DEPRECATED = 0;
+
+	UPROPERTY()
+	double DoubleValue_DEPRECATED = 0.0;
+
+	UPROPERTY()
+	int64 IntValue_DEPRECATED = 0;
+
+	UPROPERTY()
+	FVector2D Vector2Value_DEPRECATED = FVector2D::ZeroVector;
+
+	UPROPERTY()
+	FVector VectorValue_DEPRECATED = FVector::ZeroVector;
+
+	UPROPERTY()
+	FVector4 Vector4Value_DEPRECATED = FVector4::Zero();
+
+	UPROPERTY()
+	FQuat QuatValue_DEPRECATED = FQuat::Identity;
+
+	UPROPERTY()
+	FTransform TransformValue_DEPRECATED = FTransform::Identity;
+
+	UPROPERTY()
+	FString StringValue_DEPRECATED = "";
+
+	UPROPERTY()
+	bool BoolValue_DEPRECATED = false;
+
+	UPROPERTY()
+	FRotator RotatorValue_DEPRECATED = FRotator::ZeroRotator;
+
+	UPROPERTY()
+	FName NameValue_DEPRECATED = NAME_None;
+
 	UPROPERTY()
 	bool bKeepExistingAttributes_DEPRECATED = false;
 #endif // WITH_EDITORONLY_DATA

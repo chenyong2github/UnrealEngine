@@ -18,53 +18,32 @@ namespace PCGCreateAttributeConstants
 	const FName SourceLabel = TEXT("Source");
 }
 
-namespace PCGCreateAttributeElement
+void UPCGCreateAttributeSettings::PostLoad()
 {
-	template <typename Func>
-	decltype(auto) Dispatcher(const UPCGCreateAttributeSettings* Settings, const UPCGParamData* Params, Func Callback)
-	{
-		using ReturnType = decltype(Callback(double{}));
+	Super::PostLoad();
 
-		switch (Settings->Type)
-		{
-		case EPCGMetadataTypes::Integer64:
-			return Callback(PCG_GET_OVERRIDEN_VALUE(Settings, IntValue, Params));
-		case EPCGMetadataTypes::Integer32:
-			return Callback(PCG_GET_OVERRIDEN_VALUE(Settings, Int32Value, Params));
-		case EPCGMetadataTypes::Float:
-			return Callback(PCG_GET_OVERRIDEN_VALUE(Settings, FloatValue, Params));
-		case EPCGMetadataTypes::Double:
-			return Callback(PCG_GET_OVERRIDEN_VALUE(Settings, DoubleValue, Params));
-		case EPCGMetadataTypes::Vector2:
-			return Callback(PCG_GET_OVERRIDEN_VALUE(Settings, Vector2Value, Params));
-		case EPCGMetadataTypes::Vector:
-			return Callback(PCG_GET_OVERRIDEN_VALUE(Settings, VectorValue, Params));
-		case EPCGMetadataTypes::Vector4:
-			return Callback(PCG_GET_OVERRIDEN_VALUE(Settings, Vector4Value, Params));
-		case EPCGMetadataTypes::Quaternion:
-			return Callback(PCG_GET_OVERRIDEN_VALUE(Settings, QuatValue, Params));
-		case EPCGMetadataTypes::Transform:
-			return Callback(PCG_GET_OVERRIDEN_VALUE(Settings, TransformValue, Params));
-		case EPCGMetadataTypes::String:
-			return Callback(PCG_GET_OVERRIDEN_VALUE(Settings, StringValue, Params));
-		case EPCGMetadataTypes::Boolean:
-			return Callback(PCG_GET_OVERRIDEN_VALUE(Settings, BoolValue, Params));
-		case EPCGMetadataTypes::Rotator:
-			return Callback(PCG_GET_OVERRIDEN_VALUE(Settings, RotatorValue, Params));
-		case EPCGMetadataTypes::Name:
-			return Callback(PCG_GET_OVERRIDEN_VALUE(Settings, NameValue, Params));
-		default:
-			// ReturnType{} is invalid if ReturnType is void
-			if constexpr (std::is_same_v<ReturnType, void>)
-			{
-				return;
-			}
-			else
-			{
-				return ReturnType{};
-			}
-		}
+#if WITH_EDITOR
+	if ((Type_DEPRECATED != EPCGMetadataTypes::Double) || (DoubleValue_DEPRECATED != 0.0))
+	{
+		AttributeTypes.Type = Type_DEPRECATED;
+		AttributeTypes.DoubleValue = DoubleValue_DEPRECATED;
+		AttributeTypes.FloatValue = FloatValue_DEPRECATED;
+		AttributeTypes.IntValue = IntValue_DEPRECATED;
+		AttributeTypes.Int32Value = Int32Value_DEPRECATED;
+		AttributeTypes.Vector2Value = Vector2Value_DEPRECATED;
+		AttributeTypes.VectorValue = VectorValue_DEPRECATED;
+		AttributeTypes.Vector4Value = Vector4Value_DEPRECATED;
+		AttributeTypes.RotatorValue = RotatorValue_DEPRECATED;
+		AttributeTypes.QuatValue = QuatValue_DEPRECATED;
+		AttributeTypes.TransformValue = TransformValue_DEPRECATED;
+		AttributeTypes.BoolValue = BoolValue_DEPRECATED;
+		AttributeTypes.StringValue = StringValue_DEPRECATED;
+		AttributeTypes.NameValue = NameValue_DEPRECATED;
+
+		Type_DEPRECATED = EPCGMetadataTypes::Double;
+		DoubleValue_DEPRECATED = 0.0;
 	}
+#endif // WITH_EDITOR
 }
 
 FName UPCGCreateAttributeSettings::AdditionalTaskName() const
@@ -73,7 +52,7 @@ FName UPCGCreateAttributeSettings::AdditionalTaskName() const
 	{
 		const FName NodeName = PCGCreateAttributeConstants::NodeName;
 
-		if (OutputAttributeName == NAME_None && SourceParamAttributeName == NAME_None)
+		if ((OutputAttributeName == NAME_None) && (SourceParamAttributeName == NAME_None))
 		{
 			return NodeName;
 		}
@@ -85,39 +64,7 @@ FName UPCGCreateAttributeSettings::AdditionalTaskName() const
 	}
 	else
 	{
-		const FString Name = OutputAttributeName.ToString();
-
-		switch (Type)
-		{
-		case EPCGMetadataTypes::Integer32:
-			return FName(FString::Printf(TEXT("%s: %d"), *Name, Int32Value));
-		case EPCGMetadataTypes::Float:
-			return FName(FString::Printf(TEXT("%s: %.2f"), *Name, FloatValue));
-		case EPCGMetadataTypes::Integer64:
-			return FName(FString::Printf(TEXT("%s: %lld"), *Name, IntValue));
-		case EPCGMetadataTypes::Double:
-			return FName(FString::Printf(TEXT("%s: %.2f"), *Name, DoubleValue));
-		case EPCGMetadataTypes::String:
-			return FName(FString::Printf(TEXT("%s: \"%s\""), *Name, *StringValue));
-		case EPCGMetadataTypes::Name:
-			return FName(FString::Printf(TEXT("%s: N(\"%s\")"), *Name, *NameValue.ToString()));
-		case EPCGMetadataTypes::Vector2:
-			return FName(FString::Printf(TEXT("%s: V(%.2f, %.2f)"), *Name, Vector2Value.X, Vector2Value.Y));
-		case EPCGMetadataTypes::Vector:
-			return FName(FString::Printf(TEXT("%s: V(%.2f, %.2f, %.2f)"), *Name, VectorValue.X, VectorValue.Y, VectorValue.Z));
-		case EPCGMetadataTypes::Vector4:
-			return FName(FString::Printf(TEXT("%s: V(%.2f, %.2f, %.2f, %.2f)"), *Name, Vector4Value.X, Vector4Value.Y, Vector4Value.Z, Vector4Value.W));
-		case EPCGMetadataTypes::Rotator:
-			return FName(FString::Printf(TEXT("%s: R(%.2f, %.2f, %.2f)"), *Name, RotatorValue.Roll, RotatorValue.Pitch, RotatorValue.Yaw));
-		case EPCGMetadataTypes::Quaternion:
-			return FName(FString::Printf(TEXT("%s: Q(%.2f, %.2f, %.2f, %.2f)"), *Name, QuatValue.X, QuatValue.Y, QuatValue.Z, QuatValue.W));
-		case EPCGMetadataTypes::Transform:
-			return FName(FString::Printf(TEXT("%s: Transform"), *Name));
-		case EPCGMetadataTypes::Boolean:
-			return FName(FString::Printf(TEXT("%s: %s"), *Name, (BoolValue ? TEXT("True") : TEXT("False"))));
-		default:
-			return NAME_None;
-		}
+		return FName(FString::Printf(TEXT("%s: %s"), *OutputAttributeName.ToString(), *AttributeTypes.ToString()));
 	}
 }
 
@@ -286,7 +233,7 @@ FPCGMetadataAttributeBase* FPCGCreateAttributeElement::ClearOrCreateAttribute(co
 		return PCGMetadataElementCommon::ClearOrCreateAttribute(Metadata, OutputAttributeNameOverride ? *OutputAttributeNameOverride : Settings->OutputAttributeName, Value);
 	};
 
-	return PCGCreateAttributeElement::Dispatcher(Settings, Params, CreateAttribute);
+	return Settings->AttributeTypes.DispatcherWithOverride(Params, CreateAttribute);
 }
 
 PCGMetadataEntryKey FPCGCreateAttributeElement::SetAttribute(const UPCGCreateAttributeSettings* Settings, FPCGMetadataAttributeBase* Attribute, UPCGMetadata* Metadata, PCGMetadataEntryKey EntryKey, const UPCGParamData* Params) const
@@ -306,6 +253,6 @@ PCGMetadataEntryKey FPCGCreateAttributeElement::SetAttribute(const UPCGCreateAtt
 		return FinalKey;
 	};
 
-	return PCGCreateAttributeElement::Dispatcher(Settings, Params, SetAttribute);
+	return Settings->AttributeTypes.DispatcherWithOverride(Params, SetAttribute);
 }
 

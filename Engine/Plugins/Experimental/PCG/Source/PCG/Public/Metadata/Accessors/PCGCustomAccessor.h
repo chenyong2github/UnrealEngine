@@ -64,3 +64,38 @@ private:
 	FPCGPoint::PointCustomPropertyGetter Getter;
 	FPCGPoint::PointCustomPropertySetter Setter;
 };
+
+/**
+* Very simple accessor that returns a constant value. Read only
+* Key supported: All
+*/
+template <typename T>
+class FPCGConstantValueAccessor : public IPCGAttributeAccessorT<FPCGConstantValueAccessor<T>>
+{
+public:
+	using Type = T;
+	using Super = IPCGAttributeAccessorT<FPCGConstantValueAccessor<T>>;
+
+	FPCGConstantValueAccessor(const T& InValue)
+		: Super(/*bInReadOnly=*/ true)
+		, Value(InValue)
+	{}
+
+	bool GetRangeImpl(TArrayView<T> OutValues, int32, const IPCGAttributeAccessorKeys&) const
+	{
+		for (int32 i = 0; i < OutValues.Num(); ++i)
+		{
+			OutValues[i] = Value;
+		}
+
+		return true;
+	}
+
+	bool SetRangeImpl(TArrayView<const T>, int32, IPCGAttributeAccessorKeys&, EPCGAttributeAccessorFlags)
+	{
+		return false;
+	}
+
+private:
+	T Value;
+};

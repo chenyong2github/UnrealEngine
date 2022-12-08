@@ -8,6 +8,9 @@
 #include "Metadata/PCGMetadataAttribute.h"
 #include "Metadata/PCGMetadataAttributeTpl.h"
 #include "Helpers/PCGAsync.h"
+#include "Metadata/Accessors/PCGCustomAccessor.h"
+#include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
+#include "Metadata/Accessors/PCGAttributeAccessorHelpers.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGPointFilter)
 
@@ -17,563 +20,44 @@ namespace PCGPointFilterConstants
 	const FName FilterLabel = TEXT("Filter");
 	const FName InFilterLabel = TEXT("InsideFilter");
 	const FName OutFilterLabel = TEXT("OutsideFilter");
+
+	constexpr int32 ChunkSize = 256;
 }
 
 namespace PCGPointFilterHelpers
 {
-	TFunction<void(const FPCGPoint&, const UPCGMetadata*, void*)> ConstructPropertyGetter(EPCGPointProperties TargetPointProperty, EPCGPointFilterConstantType& OutType)
+	template <typename T>
+	bool ApplyCompare(const T& Input1, const T& Input2, EPCGPointFilterOperator Operation)
 	{
-		if (TargetPointProperty == EPCGPointProperties::Density)
+		if (Operation == EPCGPointFilterOperator::Equal)
 		{
-			OutType = EPCGPointFilterConstantType::Float;
-			return [](const FPCGPoint& InPoint, const UPCGMetadata*, void* OutData)
-			{
-				*(static_cast<float*>(OutData)) = InPoint.Density;
-			};
+			return PCG::Private::MetadataTraits<T>::Equal(Input1, Input2);
 		}
-		else if (TargetPointProperty == EPCGPointProperties::BoundsMin)
+		else if (Operation == EPCGPointFilterOperator::NotEqual)
 		{
-			OutType = EPCGPointFilterConstantType::Vector;
-			return [](const FPCGPoint& InPoint, const UPCGMetadata*, void* OutData)
-			{
-				*(static_cast<FVector*>(OutData)) = InPoint.BoundsMin;
-			};
+			return !PCG::Private::MetadataTraits<T>::Equal(Input1, Input2);
 		}
-		else if (TargetPointProperty == EPCGPointProperties::BoundsMax)
-		{
-			OutType = EPCGPointFilterConstantType::Vector;
-			return [](const FPCGPoint& InPoint, const UPCGMetadata*, void* OutData)
-			{
-				*(static_cast<FVector*>(OutData)) = InPoint.BoundsMax;
-			};
-		}
-		else if (TargetPointProperty == EPCGPointProperties::Extents)
-		{
-			OutType = EPCGPointFilterConstantType::Vector;
-			return [](const FPCGPoint& InPoint, const UPCGMetadata*, void* OutData)
-			{
-				*(static_cast<FVector*>(OutData)) = InPoint.GetExtents();
-			};
-		}
-		else if (TargetPointProperty == EPCGPointProperties::Color)
-		{
-			OutType = EPCGPointFilterConstantType::Vector4;
-			return [](const FPCGPoint& InPoint, const UPCGMetadata*, void* OutData)
-			{
-				*(static_cast<FVector4*>(OutData)) = InPoint.Color;
-			};
-		}
-		else if (TargetPointProperty == EPCGPointProperties::Position)
-		{
-			OutType = EPCGPointFilterConstantType::Vector;
-			return [](const FPCGPoint& InPoint, const UPCGMetadata*, void* OutData)
-			{
-				*(static_cast<FVector*>(OutData)) = InPoint.Transform.GetLocation();
-			};
-		}
-		//else if (TargetPointProperty == EPCGPointProperties::Rotation)
-		//{
-		//	OutType = EPCGPointFilterConstantType::Rotation;
-		//	return [](const FPCGPoint& InPoint, const UPCGMetadata*, void* OutData)
-		//	{
-		//		*(static_cast<FQuat*>(OutData)) = InPoint.Transform.GetRotation();
-		//	};
-		//}
-		else if (TargetPointProperty == EPCGPointProperties::Scale)
-		{
-			OutType = EPCGPointFilterConstantType::Vector;
-			return [](const FPCGPoint& InPoint, const UPCGMetadata*, void* OutData)
-			{
-				*(static_cast<FVector*>(OutData)) = InPoint.Transform.GetScale3D();
-			};
-		}
-		//else if (TargetPointProperty == EPCGPointProperties::Transform)
-		//{
-		//	OutType = EPCGPointFilterConstantType::Transform;
-		//	return [](const FPCGPoint& InPoint, const UPCGMetadata*, void* OutData)
-		//	{
-		//		*(static_cast<FTransform*>(OutData)) = InPoint.Transform;
-		//	};
-		//}
-		else if (TargetPointProperty == EPCGPointProperties::Steepness)
-		{
-			OutType = EPCGPointFilterConstantType::Float;
-			return [](const FPCGPoint& InPoint, const UPCGMetadata*, void* OutData)
-			{
-				*(static_cast<float*>(OutData)) = InPoint.Steepness;
-			};
-		}
-		else
-		{
-			// Log error
-			OutType = EPCGPointFilterConstantType::Unknown;
-			return [](const FPCGPoint&, const UPCGMetadata*, void*) {};
-		}
-	}
 
-	TFunction<void(const FPCGPoint&, const UPCGMetadata*, void*)> ConstructAttributeGetter(
-		const UPCGMetadata* Metadata, 
-		const FName& AttributeName, 
-		EPCGPointFilterConstantType& OutType)
-	{
-		OutType = EPCGPointFilterConstantType::Unknown;
-
-		const FPCGMetadataAttributeBase* AttributeBase = Metadata->GetConstAttribute(AttributeName);
-		if (AttributeBase)
+		if constexpr (PCG::Private::MetadataTraits<T>::CanCompare)
 		{
-			if (AttributeBase->GetTypeId() == PCG::Private::MetadataTypes<bool>::Id)
+			switch (Operation)
 			{
-				OutType = EPCGPointFilterConstantType::Integer64;
-				return [AttributeBase](const FPCGPoint& InPoint, const UPCGMetadata* InMetadata, void* OutData)
-				{
-					*(static_cast<int64*>(OutData)) = static_cast<const FPCGMetadataAttribute<bool>*>(AttributeBase)->GetValueFromItemKey(InPoint.MetadataEntry);
-				};
-			}
-			else if (AttributeBase->GetTypeId() == PCG::Private::MetadataTypes<int32>::Id)
-			{
-				OutType = EPCGPointFilterConstantType::Integer64;
-				return [AttributeBase](const FPCGPoint& InPoint, const UPCGMetadata* InMetadata, void* OutData)
-				{
-					*(static_cast<int64*>(OutData)) = static_cast<const FPCGMetadataAttribute<int32>*>(AttributeBase)->GetValueFromItemKey(InPoint.MetadataEntry);
-				};
-			}
-			else if (AttributeBase->GetTypeId() == PCG::Private::MetadataTypes<int64>::Id)
-			{
-				OutType = EPCGPointFilterConstantType::Integer64;
-				return [AttributeBase](const FPCGPoint& InPoint, const UPCGMetadata* InMetadata, void* OutData)
-				{
-					*(static_cast<int64*>(OutData)) = static_cast<const FPCGMetadataAttribute<int64>*>(AttributeBase)->GetValueFromItemKey(InPoint.MetadataEntry);
-				};
-			}
-			else if (AttributeBase->GetTypeId() == PCG::Private::MetadataTypes<float>::Id)
-			{
-				OutType = EPCGPointFilterConstantType::Float;
-				return [AttributeBase](const FPCGPoint& InPoint, const UPCGMetadata* InMetadata, void* OutData)
-				{
-					*(static_cast<float*>(OutData)) = static_cast<const FPCGMetadataAttribute<float>*>(AttributeBase)->GetValueFromItemKey(InPoint.MetadataEntry);
-				};
-			}
-			else if (AttributeBase->GetTypeId() == PCG::Private::MetadataTypes<double>::Id)
-			{
-				OutType = EPCGPointFilterConstantType::Float;
-				return [AttributeBase](const FPCGPoint& InPoint, const UPCGMetadata* InMetadata, void* OutData)
-				{
-					*(static_cast<float*>(OutData)) = static_cast<const FPCGMetadataAttribute<double>*>(AttributeBase)->GetValueFromItemKey(InPoint.MetadataEntry);
-				};
-			}
-			else if (AttributeBase->GetTypeId() == PCG::Private::MetadataTypes<FVector>::Id)
-			{
-				OutType = EPCGPointFilterConstantType::Vector;
-				return [AttributeBase](const FPCGPoint& InPoint, const UPCGMetadata* InMetadata, void* OutData)
-				{
-					*(static_cast<FVector*>(OutData)) = static_cast<const FPCGMetadataAttribute<FVector>*>(AttributeBase)->GetValueFromItemKey(InPoint.MetadataEntry);
-				};
-			}
-			else if (AttributeBase->GetTypeId() == PCG::Private::MetadataTypes<FVector4>::Id)
-			{
-				OutType = EPCGPointFilterConstantType::Vector4;
-				return [AttributeBase](const FPCGPoint& InPoint, const UPCGMetadata* InMetadata, void* OutData)
-				{
-					*(static_cast<FVector4*>(OutData)) = static_cast<const FPCGMetadataAttribute<FVector4>*>(AttributeBase)->GetValueFromItemKey(InPoint.MetadataEntry);
-				};
-			}
-			//else if (AttributeBase->GetTypeId() == PCG::Private::MetadataTypes<FQuat>::Id)
-			//{
-			//	OutType = EPCGPointFilterConstantType::Rotation;
-			//	return [AttributeBase](const FPCGPoint& InPoint, const UPCGMetadata* InMetadata, void* OutData)
-			//	{
-			//		*(static_cast<FQuat*>(OutData)) = static_cast<const FPCGMetadataAttribute<FQuat>*>(AttributeBase)->GetValueFromItemKey(InPoint.MetadataEntry);
-			//	};
-			//}
-			//else if (AttributeBase->GetTypeId() == PCG::Private::MetadataTypes<FTransform>::Id)
-			//{
-			//	*(static_cast<FTransform*>(OutData)) = static_cast<const FPCGMetadataAttribute<FTransform>*>(AttributeBase)->GetValueFromItemKey(InPoint.MetadataEntry);
-			//}
-			else if (AttributeBase->GetTypeId() == PCG::Private::MetadataTypes<FString>::Id)
-			{
-				OutType = EPCGPointFilterConstantType::String;
-				return [AttributeBase](const FPCGPoint& InPoint, const UPCGMetadata* InMetadata, void* OutData)
-				{
-					*(static_cast<FString*>(OutData)) = static_cast<const FPCGMetadataAttribute<FString>*>(AttributeBase)->GetValueFromItemKey(InPoint.MetadataEntry);
-				};
-			}
-			else
-			{
-				// Log error
-				OutType = EPCGPointFilterConstantType::Unknown;
-				return [](const FPCGPoint&, const UPCGMetadata*, void*) {};
+			case EPCGPointFilterOperator::Greater:
+				return PCG::Private::MetadataTraits<T>::Greater(Input1, Input2);
+			case EPCGPointFilterOperator::GreaterOrEqual:
+				return PCG::Private::MetadataTraits<T>::GreaterOrEqual(Input1, Input2);
+			case EPCGPointFilterOperator::Lesser:
+				return PCG::Private::MetadataTraits<T>::Less(Input1, Input2);
+			case EPCGPointFilterOperator::LesserOrEqual:
+				return PCG::Private::MetadataTraits<T>::LessOrEqual(Input1, Input2);
+			default:
+				return false;
 			}
 		}
 		else
 		{
-			// Log error
-			OutType = EPCGPointFilterConstantType::Unknown;
-			return [](const FPCGPoint&, const UPCGMetadata*, void*) {};
+			return false;
 		}
-	}
-
-	TFunction<void(const FPCGPoint&, const UPCGMetadata*, void*)> ConstructSourceGetter(
-		EPCGPointTargetFilterType TargetFilterType, 
-		EPCGPointProperties TargetPointProperty, 
-		const UPCGMetadata* TargetMetadata,
-		const FName& TargetAttributeName,
-		EPCGPointFilterConstantType& OutType)
-	{
-		if (TargetFilterType == EPCGPointTargetFilterType::Property)
-		{
-			return ConstructPropertyGetter(TargetPointProperty, OutType);
-		}
-		else if (TargetFilterType == EPCGPointTargetFilterType::Metadata)
-		{
-			return ConstructAttributeGetter(TargetMetadata, TargetAttributeName, OutType);
-		}
-		else
-		{
-			// log error
-			OutType = EPCGPointFilterConstantType::Unknown;
-			return [](const FPCGPoint&, const UPCGMetadata*, void*) {};
-		}
-	}
-
-	TFunction<void(const FPCGPoint&, const UPCGMetadata*, void*)> ConstructThresholdGetter(
-		EPCGPointThresholdType ThresholdFilterType, 
-		EPCGPointProperties ThresholdPointProperty, 
-		const UPCGMetadata* ThresholdMetadata,
-		const FName& ThresholdAttributeName, 
-		EPCGPointFilterConstantType ThresholdConstantType,
-		const int64& Integer64Constant,
-		const float& FloatConstant,
-		const FVector& VectorConstant,
-		const FVector4& Vector4Constant,
-		//const FQuat& RotationConstant,
-		const FString& StringConstant,
-		EPCGPointFilterConstantType& OutType)
-	{
-		if (ThresholdFilterType == EPCGPointThresholdType::Property)
-		{
-			return ConstructPropertyGetter(ThresholdPointProperty, OutType);
-		}
-		else if (ThresholdFilterType == EPCGPointThresholdType::Metadata)
-		{
-			return ConstructAttributeGetter(ThresholdMetadata, ThresholdAttributeName, OutType);
-		}
-		else if (ThresholdFilterType == EPCGPointThresholdType::Constant)
-		{
-			OutType = ThresholdConstantType;
-
-			if (ThresholdConstantType == EPCGPointFilterConstantType::Integer64)
-			{
-				return [&Integer64Constant](const FPCGPoint&, const UPCGMetadata*, void* OutData)
-				{
-					*(static_cast<int64*>(OutData)) = Integer64Constant;
-				};
-			}
-			else if (ThresholdConstantType == EPCGPointFilterConstantType::Float)
-			{
-				return [&FloatConstant](const FPCGPoint&, const UPCGMetadata*, void* OutData)
-				{
-					*(static_cast<float*>(OutData)) = FloatConstant;
-				};
-			}
-			else if (ThresholdConstantType == EPCGPointFilterConstantType::Vector)
-			{
-				return [&VectorConstant](const FPCGPoint&, const UPCGMetadata*, void* OutData)
-				{
-					*(static_cast<FVector*>(OutData)) = VectorConstant;
-				};
-			}
-			else if (ThresholdConstantType == EPCGPointFilterConstantType::Vector4)
-			{
-				return [&Vector4Constant](const FPCGPoint&, const UPCGMetadata*, void* OutData)
-				{
-					*(static_cast<FVector4*>(OutData)) = Vector4Constant;
-				};
-			}
-			//else if (ThresholdConstantType == EPCGPointFilterConstantType::Rotation)
-			//{
-			//	return [&RotationConstant](const FPCGPoint&, const UPCGMetadata*, void* OutData)
-			//	{
-			//		*(static_cast<FQuat*>(OutData)) = RotationConstant;
-			//	};
-			//}
-			else if (ThresholdConstantType == EPCGPointFilterConstantType::String)
-			{
-				return [&StringConstant](const FPCGPoint&, const UPCGMetadata*, void* OutData)
-				{
-					*(static_cast<FString*>(OutData)) = StringConstant;
-				};
-			}
-			else // unknown constant type
-			{
-				// Log error
-				OutType = EPCGPointFilterConstantType::Unknown;
-				return [](const FPCGPoint&, const UPCGMetadata*, void*) {};
-			}
-		}
-		else // unknown filter type
-		{
-			// Log error
-			OutType = EPCGPointFilterConstantType::Unknown;
-			return [](const FPCGPoint&, const UPCGMetadata*, void*) {};
-		}
-	}
-
-	template<typename T, typename U>
-	struct TemplatedOperator
-	{
-		TemplatedOperator(EPCGPointFilterOperator Operator)
-		{
-			if (Operator == EPCGPointFilterOperator::Greater)
-			{
-				OperatorFn = [](const T& A, const U& B) { return A > B; };
-			}
-			else if (Operator == EPCGPointFilterOperator::GreaterOrEqual)
-			{
-				OperatorFn = [](const T& A, const U& B) { return A >= B; };
-			}
-			else if (Operator == EPCGPointFilterOperator::Lesser)
-			{
-				OperatorFn = [](const T& A, const U& B) { return A < B; };
-			}
-			else if (Operator == EPCGPointFilterOperator::LesserOrEqual)
-			{
-				OperatorFn = [](const T& A, const U& B) { return A <= B; };
-			}
-			else if (Operator == EPCGPointFilterOperator::Equal)
-			{
-				OperatorFn = [](const T& A, const U& B) { return A == B; };
-			}
-			else if (Operator == EPCGPointFilterOperator::NotEqual)
-			{
-				OperatorFn = [](const T& A, const U& B) { return A != B; };
-			}
-			else
-			{
-				OperatorFn = [](const T&, const U&) { return false; };
-			}
-		}
-
-		bool operator()(const T& A, const U& B) const
-		{
-			return OperatorFn(A, B);
-		}
-
-		TFunction<bool(const T&, const U&)> OperatorFn;
-	};
-
-	template<typename U>
-	struct TemplatedOperator<FVector, U>
-	{
-		TemplatedOperator(EPCGPointFilterOperator Operator)
-		{
-			if (Operator == EPCGPointFilterOperator::Greater)
-			{
-				OperatorFn = [](const FVector& A, const U& B) { return A.Length() > B; };
-			}
-			else if (Operator == EPCGPointFilterOperator::GreaterOrEqual)
-			{
-				OperatorFn = [](const FVector& A, const U& B) { return A.Length() >= B; };
-			}
-			else if (Operator == EPCGPointFilterOperator::Lesser)
-			{
-				OperatorFn = [](const FVector& A, const U& B) { return A.Length() < B; };
-			}
-			else if (Operator == EPCGPointFilterOperator::LesserOrEqual)
-			{
-				OperatorFn = [](const FVector& A, const U& B) { return A.Length() <= B; };
-			}
-			else if (Operator == EPCGPointFilterOperator::Equal)
-			{
-				OperatorFn = [](const FVector& A, const U& B) { return A.Length() == B; };
-			}
-			else if (Operator == EPCGPointFilterOperator::NotEqual)
-			{
-				OperatorFn = [](const FVector& A, const U& B) { return A.Length() != B; };
-			}
-			else
-			{
-				OperatorFn = [](const FVector&, const U&) { return false; };
-			}
-		}
-
-		bool operator()(const FVector& A, const U& B) const
-		{
-			return OperatorFn(A, B);
-		}
-
-		TFunction<bool(const FVector&, const U&)> OperatorFn;
-	};
-
-	template<typename U>
-	struct TemplatedOperator<U, FVector>
-	{
-		TemplatedOperator(EPCGPointFilterOperator Operator)
-		{
-			if (Operator == EPCGPointFilterOperator::Greater)
-			{
-				OperatorFn = [](const U& A, const FVector& B) { return A > B.Length(); };
-			}
-			else if (Operator == EPCGPointFilterOperator::GreaterOrEqual)
-			{
-				OperatorFn = [](const U& A, const FVector& B) { return A >= B.Length(); };
-			}
-			else if (Operator == EPCGPointFilterOperator::Lesser)
-			{
-				OperatorFn = [](const U& A, const FVector& B) { return A < B.Length(); };
-			}
-			else if (Operator == EPCGPointFilterOperator::LesserOrEqual)
-			{
-				OperatorFn = [](const U& A, const FVector& B) { return A <= B.Length(); };
-			}
-			else if (Operator == EPCGPointFilterOperator::Equal)
-			{
-				OperatorFn = [](const U& A, const FVector& B) { return A == B.Length(); };
-			}
-			else if (Operator == EPCGPointFilterOperator::NotEqual)
-			{
-				OperatorFn = [](const U& A, const FVector& B) { return A != B.Length(); };
-			}
-			else
-			{
-				OperatorFn = [](const U&, const FVector&) { return false; };
-			}
-		}
-
-		bool operator()(const U& A, const FVector& B) const
-		{
-			return OperatorFn(A, B);
-		}
-
-		TFunction<bool(const U&, const FVector&)> OperatorFn;
-	};
-
-	template<>
-	struct TemplatedOperator<FVector, FVector>
-	{
-		TemplatedOperator(EPCGPointFilterOperator Operator)
-		{
-			if (Operator == EPCGPointFilterOperator::Greater)
-			{
-				OperatorFn = [](const FVector& A, const FVector& B) { return A.X > B.X && A.Y > B.Y && A.Z > B.Z; };
-			}
-			else if (Operator == EPCGPointFilterOperator::GreaterOrEqual)
-			{
-				OperatorFn = [](const FVector& A, const FVector& B) { return A.X >= B.X && A.Y >= B.Y && A.Z >= B.Z; };
-			}
-			else if (Operator == EPCGPointFilterOperator::Lesser)
-			{
-				OperatorFn = [](const FVector& A, const FVector& B) { return A.X < B.X && A.Y < B.Y && A.Z < B.Z; };
-			}
-			else if (Operator == EPCGPointFilterOperator::LesserOrEqual)
-			{
-				OperatorFn = [](const FVector& A, const FVector& B) { return A.X <= B.X && A.Y <= B.Y && A.Z <= B.Z; };
-			}
-			else if (Operator == EPCGPointFilterOperator::Equal)
-			{
-				OperatorFn = [](const FVector& A, const FVector& B) { return A == B; };
-			}
-			else if (Operator == EPCGPointFilterOperator::NotEqual)
-			{
-				OperatorFn = [](const FVector& A, const FVector& B) { return A != B; };
-			}
-			else
-			{
-				OperatorFn = [](const FVector&, const FVector&) { return false; };
-			}
-		}
-
-		bool operator()(const FVector& A, const FVector& B) const
-		{
-			return OperatorFn(A, B);
-		}
-
-		TFunction<bool(const FVector&, const FVector&)> OperatorFn;
-	};
-
-	template<>
-	struct TemplatedOperator<FVector4, FVector4>
-	{
-		TemplatedOperator(EPCGPointFilterOperator Operator)
-		{
-			if (Operator == EPCGPointFilterOperator::Greater)
-			{
-				OperatorFn = [](const FVector4& A, const FVector4& B) { return A.X > B.X && A.Y > B.Y && A.Z > B.Z && A.W > B.W; };
-			}
-			else if (Operator == EPCGPointFilterOperator::GreaterOrEqual)
-			{
-				OperatorFn = [](const FVector4& A, const FVector4& B) { return A.X >= B.X && A.Y >= B.Y && A.Z >= B.Z && A.W >= B.W; };
-			}
-			else if (Operator == EPCGPointFilterOperator::Lesser)
-			{
-				OperatorFn = [](const FVector4& A, const FVector4& B) { return A.X < B.X&& A.Y < B.Y&& A.Z < B.Z && A.W < B.W; };
-			}
-			else if (Operator == EPCGPointFilterOperator::LesserOrEqual)
-			{
-				OperatorFn = [](const FVector4& A, const FVector4& B) { return A.X <= B.X && A.Y <= B.Y && A.Z <= B.Z && A.W <= B.W; };
-			}
-			else if (Operator == EPCGPointFilterOperator::Equal)
-			{
-				OperatorFn = [](const FVector4& A, const FVector4& B) { return A == B; };
-			}
-			else if (Operator == EPCGPointFilterOperator::NotEqual)
-			{
-				OperatorFn = [](const FVector4& A, const FVector4& B) { return A != B; };
-			}
-			else
-			{
-				OperatorFn = [](const FVector4&, const FVector4&) { return false; };
-			}
-		}
-
-		bool operator()(const FVector& A, const FVector& B) const
-		{
-			return OperatorFn(A, B);
-		}
-
-		TFunction<bool(const FVector&, const FVector&)> OperatorFn;
-	};
-
-	TFunction<bool(const FPCGPoint&, const UPCGMetadata*, const FPCGPoint&, const UPCGMetadata*)> ConstructConcreteOperator(
-		const TFunction<void(const FPCGPoint&, const UPCGMetadata*, void*)>& SourceGetter,
-		EPCGPointFilterConstantType SourceType,
-		const TFunction<void(const FPCGPoint&, const UPCGMetadata*, void*)>& ThresholdGetter,
-		EPCGPointFilterConstantType ThresholdType,
-		EPCGPointFilterOperator Operator,
-		bool& bOutOperatorCreatedCorrectly)
-	{
-		bOutOperatorCreatedCorrectly = true;
-
-#define CONCRETE_OPERATOR_SHORTHAND(TypeEnumA, TypeA, TypeEnumB, TypeB) \
-		if(SourceType == EPCGPointFilterConstantType::TypeEnumA && ThresholdType == EPCGPointFilterConstantType::TypeEnumB) \
-		{ \
-			TemplatedOperator<TypeA, TypeB> OperatorFn(Operator); \
-			\
-			return[&SourceGetter, &ThresholdGetter, OperatorFn](const FPCGPoint& InTargetPoint, const UPCGMetadata* InTargetMetadata, const FPCGPoint& InThresholdPoint, const UPCGMetadata* InThresholdMetadata) \
-			{ \
-				TypeA A; \
-				TypeB B; \
-				\
-				SourceGetter(InTargetPoint, InTargetMetadata, &A); \
-				ThresholdGetter(InThresholdPoint, InThresholdMetadata, &B); \
-				return OperatorFn(A, B); \
-			}; \
-		}
-
-		CONCRETE_OPERATOR_SHORTHAND(Integer64, int64, Integer64, int64)
-		CONCRETE_OPERATOR_SHORTHAND(Integer64, int64, Vector, FVector)
-		CONCRETE_OPERATOR_SHORTHAND(Float, float, Float, float)
-		CONCRETE_OPERATOR_SHORTHAND(Float, float, Vector, FVector)
-		CONCRETE_OPERATOR_SHORTHAND(Vector, FVector, Vector, FVector)
-		CONCRETE_OPERATOR_SHORTHAND(Vector, FVector, Integer64, int64)
-		CONCRETE_OPERATOR_SHORTHAND(Vector, FVector, Float, float)
-		CONCRETE_OPERATOR_SHORTHAND(Vector4, FVector4, Vector4, FVector4)
-		//CONCRETE_OPERATOR_SHORTHAND(Rotation, FQuat, Rotation, FQuat)
-		CONCRETE_OPERATOR_SHORTHAND(String, FString, String, FString)
-
-#undef CONCRETE_OPERATOR_SHORTHAND
-
-		bOutOperatorCreatedCorrectly = false;
-		return [](const FPCGPoint&, const UPCGMetadata*, const FPCGPoint&, const UPCGMetadata*) { return false; };
 	}
 }
 
@@ -581,7 +65,11 @@ TArray<FPCGPinProperties> UPCGPointFilterSettings::InputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
 	PinProperties.Emplace(PCGPointFilterConstants::DataToFilterLabel, EPCGDataType::Any);
-	PinProperties.Emplace(PCGPointFilterConstants::FilterLabel, EPCGDataType::Spatial);
+
+	if (!bUseConstantThreshold)
+	{
+		PinProperties.Emplace(PCGPointFilterConstants::FilterLabel, EPCGDataType::Any, /*bInAllowMultipleConnections=*/ false);
+	}
 
 	return PinProperties;
 }
@@ -600,15 +88,102 @@ FPCGElementPtr UPCGPointFilterSettings::CreateElement() const
 	return MakeShared<FPCGPointFilterElement>();
 }
 
+UPCGPointFilterSettings::UPCGPointFilterSettings()
+	: UPCGSettings()
+{
+	// Previous default object was: density for both selectors
+	// Recreate the same default
+	TargetAttribute.SetPointProperty(EPCGPointProperties::Density);
+	ThresholdAttribute.SetPointProperty(EPCGPointProperties::Density);
+}
+
+void UPCGPointFilterSettings::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITOR
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if ((TargetFilterType_DEPRECATED != EPCGPointTargetFilterType::Property)
+		|| (TargetPointProperty_DEPRECATED != EPCGPointProperties::Density)
+		|| (TargetAttributeName_DEPRECATED != NAME_None)
+		|| (ThresholdFilterType_DEPRECATED != EPCGPointThresholdType::Property)
+		|| (ThresholdPointProperty_DEPRECATED != EPCGPointProperties::Density)
+		|| (ThresholdAttributeName_DEPRECATED != NAME_None))
+	{
+		if (TargetFilterType_DEPRECATED == EPCGPointTargetFilterType::Property)
+		{
+			TargetAttribute.SetPointProperty(TargetPointProperty_DEPRECATED);
+		}
+		else
+		{
+			TargetAttribute.SetAttributeName(TargetAttributeName_DEPRECATED);
+		}
+
+		if (ThresholdFilterType_DEPRECATED == EPCGPointThresholdType::Property)
+		{
+			ThresholdAttribute.SetPointProperty(ThresholdPointProperty_DEPRECATED);
+		}
+		else if (ThresholdFilterType_DEPRECATED == EPCGPointThresholdType::Metadata)
+		{
+			ThresholdAttribute.SetAttributeName(ThresholdAttributeName_DEPRECATED);
+		}
+		else
+		{
+			bUseConstantThreshold = true;
+		}
+	}
+
+	if (bUseConstantThreshold && 
+		((ThresholdConstantType_DEPRECATED != EPCGPointFilterConstantType::Float)
+		|| (FloatConstant_DEPRECATED != 0.0f)))
+	{
+		switch (ThresholdConstantType_DEPRECATED)
+		{
+		case EPCGPointFilterConstantType::Float:
+			AttributeTypes.Type = EPCGMetadataTypes::Float;
+			AttributeTypes.FloatValue = FloatConstant_DEPRECATED;
+			break;
+		case EPCGPointFilterConstantType::Integer64:
+			AttributeTypes.Type = EPCGMetadataTypes::Integer64;
+			AttributeTypes.IntValue = Integer64Constant_DEPRECATED;
+			break;
+		case EPCGPointFilterConstantType::Vector:
+			AttributeTypes.Type = EPCGMetadataTypes::Vector;
+			AttributeTypes.VectorValue = VectorConstant_DEPRECATED;
+			break;
+		case EPCGPointFilterConstantType::Vector4:
+			AttributeTypes.Type = EPCGMetadataTypes::Vector4;
+			AttributeTypes.Vector4Value = Vector4Constant_DEPRECATED;
+			break;
+		case EPCGPointFilterConstantType::String:
+			AttributeTypes.Type = EPCGMetadataTypes::String;
+			AttributeTypes.StringValue = StringConstant_DEPRECATED;
+			break;
+		}
+	}
+
+	// Default values
+	TargetFilterType_DEPRECATED = EPCGPointTargetFilterType::Property;
+	TargetPointProperty_DEPRECATED = EPCGPointProperties::Density;
+	TargetAttributeName_DEPRECATED = NAME_None;
+	ThresholdFilterType_DEPRECATED = EPCGPointThresholdType::Property;
+	ThresholdPointProperty_DEPRECATED = EPCGPointProperties::Density;
+	ThresholdAttributeName_DEPRECATED = NAME_None;
+	ThresholdConstantType_DEPRECATED = EPCGPointFilterConstantType::Float;
+	FloatConstant_DEPRECATED = 0.0f;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif // WITH_EDITOR
+}
+
 bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGPointFilterElement::Execute);
 	check(Context);
 
+#if !WITH_EDITOR
 	const bool bHasInFilterOutputPin = Context->Node && Context->Node->IsOutputPinConnected(PCGPointFilterConstants::InFilterLabel);
 	const bool bHasOutsideFilterOutputPin = Context->Node && Context->Node->IsOutputPinConnected(PCGPointFilterConstants::OutFilterLabel);
 
-#if !WITH_EDITOR
 	// Early out - only in non-editor builds, otherwise we will potentially poison the cache, since it is input-driven
 	if (!bHasInFilterOutputPin && !bHasOutsideFilterOutputPin)
 	{
@@ -623,40 +198,79 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 	UPCGParamData* Params = Context->InputData.GetParams(); //TODO: by pin?
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 	TArray<FPCGTaggedData> FilterData = Context->InputData.GetInputsByPin(PCGPointFilterConstants::FilterLabel);
-	FilterData.Append(Context->InputData.GetParamsByPin(PCGPointFilterConstants::FilterLabel));
 
 	// Forward any non-input data
 	Outputs.Append(Context->InputData.GetAllSettings());
 
 	const EPCGPointFilterOperator Operator = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGPointFilterSettings, Operator), Settings->Operator, Params);
-	const EPCGPointTargetFilterType TargetFilterType = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGPointFilterSettings, TargetFilterType), Settings->TargetFilterType, Params);
-	const EPCGPointProperties TargetPointProperty = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGPointFilterSettings, TargetPointProperty), Settings->TargetPointProperty, Params);
-	const FName TargetAttributeName = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGPointFilterSettings, TargetAttributeName), Settings->TargetAttributeName, Params);
-
-	const EPCGPointThresholdType ThresholdFilterType = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGPointFilterSettings, ThresholdFilterType), Settings->ThresholdFilterType, Params);
-	const EPCGPointProperties ThresholdPointProperty = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGPointFilterSettings, ThresholdPointProperty), Settings->ThresholdPointProperty, Params);
-	const FName ThresholdAttributeName = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGPointFilterSettings, ThresholdAttributeName), Settings->ThresholdAttributeName, Params);
-	const EPCGPointFilterConstantType ThresholdConstantType = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGPointFilterSettings, ThresholdConstantType), Settings->ThresholdConstantType, Params);
-
-	const int64 Integer64Constant = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGPointFilterSettings, Integer64Constant), Settings->Integer64Constant, Params);
-	const float FloatConstant = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGPointFilterSettings, FloatConstant), Settings->FloatConstant, Params);
-	const FVector VectorConstant = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGPointFilterSettings, VectorConstant), Settings->VectorConstant, Params);
-	const FVector4 Vector4Constant = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGPointFilterSettings, Vector4Constant), Settings->Vector4Constant, Params);
-	//const FQuat RotationConstant = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGPointFilterSettings, RotationConstant), Settings->RotationConstant, Params);
-	const FString StringConstant = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGPointFilterSettings, StringConstant), Settings->StringConstant, Params);
 
 	bool bUseSpatialQuery = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGPointFilterSettings, bUseSpatialQuery), Settings->bUseSpatialQuery, Params);
 
-	// Validate basic input data
-	if (ThresholdFilterType == EPCGPointThresholdType::Property && !FilterData.IsEmpty() && Cast<UPCGSpatialData>(FilterData[0].Data) == nullptr)
+	// If there is no input, do nothing
+	if (DataToFilter.IsEmpty())
 	{
-		PCGE_LOG(Error, "Cannot filter by property on a non-spatial filter data");
 		return true;
 	}
 
-	if (ThresholdFilterType == EPCGPointThresholdType::Constant && !FilterData.IsEmpty())
+	TUniquePtr<const IPCGAttributeAccessor> ThresholdAccessor;
+	TUniquePtr<const IPCGAttributeAccessorKeys> ThresholdKeys;
+	bool bUseInputDataForThreshold = false;
+
+	UPCGPointData* ThresholdPointData = nullptr;
+	const UPCGSpatialData* ThresholdSpatialData = nullptr;
+
+	if (Settings->bUseConstantThreshold)
 	{
-		PCGE_LOG(Warning, "Point filter uses a constant but has filter data that will be ignored");
+		auto ConstantThreshold = [&ThresholdAccessor, &ThresholdKeys](auto&& Value)
+		{
+			using ConstantType = std::decay_t<decltype(Value)>;
+
+			ThresholdAccessor = MakeUnique<FPCGConstantValueAccessor<ConstantType>>(std::forward<ConstantType>(Value));
+			// Dummy keys
+			ThresholdKeys = MakeUnique<FPCGAttributeAccessorKeysSingleObjectPtr<void>>();
+		};
+
+		Settings->AttributeTypes.DispatcherWithOverride(Params, ConstantThreshold);
+	}
+	else
+	{
+		if (!FilterData.IsEmpty())
+		{
+			const UPCGData* ThresholdData = FilterData[0].Data;
+
+			if (const UPCGSpatialData* TentativeThresholdSpatialData = Cast<const UPCGSpatialData>(ThresholdData))
+			{
+				// If the threshold is spatial, and we use spatial query, it means we'll have to sample points.
+				// Don't create an accessor yet (ThresholdData = nullptr), it will be created further down.
+				// Otherwise, we convert it to point data and create the accessor.
+				if (Settings->bUseSpatialQuery)
+				{
+					ThresholdSpatialData = TentativeThresholdSpatialData;
+					ThresholdData = nullptr;
+				}
+				else
+				{
+					ThresholdSpatialData = TentativeThresholdSpatialData->ToPointData();
+					if (!ThresholdSpatialData)
+					{
+						PCGE_LOG(Error, "Unable to get point data from filter input");
+						return true;
+					}
+
+					ThresholdData = ThresholdSpatialData;
+				}
+			}
+
+			if (ThresholdData)
+			{
+				ThresholdAccessor = PCGAttributeAccessorHelpers::CreateConstAccessor(ThresholdData, Settings->ThresholdAttribute);
+				ThresholdKeys = PCGAttributeAccessorHelpers::CreateConstKeys(ThresholdData, Settings->ThresholdAttribute);
+			}
+		}
+		else
+		{
+			bUseInputDataForThreshold = true;
+		}
 	}
 
 	for (const FPCGTaggedData& Input : DataToFilter)
@@ -671,214 +285,181 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 			continue;
 		}
 
-		const TArray<FPCGPoint>& TargetPoints = OriginalData->GetPoints();
-		const UPCGMetadata* TargetMetadata = OriginalData->ConstMetadata();
-
-		const UPCGSpatialData* ThresholdSpatialData = nullptr;
-		const TArray<FPCGPoint>* ThresholdPoints = nullptr;
-		const UPCGMetadata* ThresholdMetadata = nullptr;
-		UPCGMetadata* TemporaryMetadata = nullptr;
-
-		if (FilterData.Num() > 0)
+		// Helper lambdas to fail nicely and forward input to in/out filter pin
+		// If there is a problem with threshold -> forward to InFilter
+		auto ForwardInputToInFilterPin = [&Outputs, Input]()
 		{
-			if (const UPCGSpatialData* SpatialDataFilter = Cast<const UPCGSpatialData>(FilterData[0].Data))
-			{
-				ThresholdSpatialData = SpatialDataFilter;
-				ThresholdMetadata = ThresholdSpatialData->ConstMetadata();
+			FPCGTaggedData& InFilterOutput = Outputs.Add_GetRef(Input);
+			InFilterOutput.Pin = PCGPointFilterConstants::InFilterLabel;
+		};
 
-				if (bUseSpatialQuery && ThresholdMetadata && ThresholdFilterType == EPCGPointThresholdType::Metadata)
-				{
-					TemporaryMetadata = NewObject<UPCGMetadata>();
-					TemporaryMetadata->Initialize(ThresholdMetadata);
-				}
-				else if(!bUseSpatialQuery)
-				{
-					const UPCGPointData* ThresholdData = SpatialDataFilter->ToPointData();
-					ThresholdPoints = &ThresholdData->GetPoints();
-				}
-			}
-			else if (const UPCGParamData* ParamDataFilter = Cast<const UPCGParamData>(FilterData[0].Data))
-			{
-				ThresholdMetadata = ParamDataFilter->ConstMetadata();
-			}
-		}
-		else
+		// If there is a problem with target -> forward to OutFilter
+		auto ForwardInputToOutFilterPin = [&Outputs, Input]()
 		{
-			// Use self as filter
-			ThresholdMetadata = TargetMetadata;
-			ThresholdPoints = &TargetPoints;
-		}
+			FPCGTaggedData& OutFilterOutput = Outputs.Add_GetRef(Input);
+			OutFilterOutput.Pin = PCGPointFilterConstants::OutFilterLabel;
+		};
 
-		const FName LocalTargetAttributeName = ((TargetAttributeName != NAME_None || !TargetMetadata) ? TargetAttributeName : TargetMetadata->GetLatestAttributeNameOrNone());
+		const TArray<FPCGPoint>& OriginalPoints = OriginalData->GetPoints();
 
-		// Additional validation
-		if (TargetFilterType == EPCGPointTargetFilterType::Metadata)
+		TUniquePtr<const IPCGAttributeAccessor> TargetAccessor = PCGAttributeAccessorHelpers::CreateConstAccessor(OriginalData, Settings->TargetAttribute);
+		TUniquePtr<const IPCGAttributeAccessorKeys> TargetKeys = PCGAttributeAccessorHelpers::CreateConstKeys(OriginalData, Settings->TargetAttribute);
+
+		if (!TargetAccessor.IsValid() || !TargetKeys.IsValid())
 		{
-			bool bExitToOutFilter = false;
-
-			if (!TargetMetadata)
-			{
-				PCGE_LOG(Warning, "Target data to filter has no metadata which is required to filter by metadata");
-				bExitToOutFilter = true;
-			}
-			else if (!TargetMetadata->GetConstAttribute(LocalTargetAttributeName))
-			{
-				PCGE_LOG(Warning, "Target metadata does not have the %s attribute", *LocalTargetAttributeName.ToString());
-				bExitToOutFilter = true;
-			}
-
-			if (bExitToOutFilter)
-			{
-				FPCGTaggedData& OutFilterTaggedData = Outputs.Add_GetRef(Input);
-				OutFilterTaggedData.Pin = PCGPointFilterConstants::OutFilterLabel;
-				continue;
-			}
-		}
-
-		const FName LocalThresholdAttributeName = ((ThresholdAttributeName != NAME_None || !ThresholdMetadata) ? ThresholdAttributeName : ThresholdMetadata->GetLatestAttributeNameOrNone());
-		
-		if (ThresholdFilterType == EPCGPointThresholdType::Metadata)
-		{
-			bool bExitToInFilter = false;
-
-			if (!ThresholdMetadata)
-			{
-				PCGE_LOG(Warning, "Filter data has no metadata which is required to filter by metadata");
-				bExitToInFilter = true;
-			}
-			else if (!ThresholdMetadata->GetConstAttribute(LocalThresholdAttributeName))
-			{
-				PCGE_LOG(Warning, "Filter metadata does not have the %s attribute", *LocalThresholdAttributeName.ToString());
-				bExitToInFilter = true;
-			}
-
-			if (bExitToInFilter)
-			{
-				FPCGTaggedData& InFilterTaggedData = Outputs.Add_GetRef(Input);
-				InFilterTaggedData.Pin = PCGPointFilterConstants::InFilterLabel;
-				continue;
-			}
-		}
-		else if (ThresholdFilterType == EPCGPointThresholdType::Property)
-		{
-			if (!bUseSpatialQuery && (!ThresholdPoints || (ThresholdPoints->Num() > 1 && TargetPoints.Num() > 0 && ThresholdPoints->Num() != TargetPoints.Num())))
-			{
-				PCGE_LOG(Error, "Filter data points count (%d) mismatch vs the data to filter (%d)", (ThresholdPoints ? ThresholdPoints->Num() : 0), TargetPoints.Num());
-				continue;
-			}
-
-			if (!bUseSpatialQuery && !ThresholdSpatialData)
-			{
-				PCGE_LOG(Error, "Filter data cannot be used as spatial data");
-				continue;
-			}
-		}
-
-		// Build our functions
-		EPCGPointFilterConstantType TargetType = EPCGPointFilterConstantType::Unknown;
-		EPCGPointFilterConstantType ThresholdType = EPCGPointFilterConstantType::Unknown;
-
-		TFunction<void(const FPCGPoint&, const UPCGMetadata*, void*)> SourceGetter = PCGPointFilterHelpers::ConstructSourceGetter(
-			TargetFilterType, 
-			TargetPointProperty, 
-			TargetMetadata,
-			LocalTargetAttributeName,
-			TargetType);
-
-		if (TargetType == EPCGPointFilterConstantType::Unknown)
-		{
-			PCGE_LOG(Error, "Unable to generate the data value getter");
+			PCGE_LOG(Warning, "TargetData doesn't have %s target attribute/property", *Settings->TargetAttribute.GetName().ToString());
+			ForwardInputToOutFilterPin();
 			continue;
 		}
 
-		// B - a getter that returns the value for the threshold data
-		TFunction<void(const FPCGPoint&, const UPCGMetadata*, void*)> ThresholdGetter = PCGPointFilterHelpers::ConstructThresholdGetter(
-			ThresholdFilterType,
-			ThresholdPointProperty,
-			ThresholdMetadata,
-			LocalThresholdAttributeName,
-			ThresholdConstantType,
-			Integer64Constant,
-			FloatConstant,
-			VectorConstant,
-			Vector4Constant,
-			//RotationConstant,
-			StringConstant,
-			ThresholdType);
-
-		if (ThresholdType == EPCGPointFilterConstantType::Unknown)
+		if (bUseInputDataForThreshold)
 		{
-			PCGE_LOG(Error, "Unable to generate the filter value getter");
+			// If we have no threshold accessor, we use the same data as input
+			ThresholdAccessor = PCGAttributeAccessorHelpers::CreateConstAccessor(OriginalData, Settings->ThresholdAttribute);
+			ThresholdKeys = PCGAttributeAccessorHelpers::CreateConstKeys(OriginalData, Settings->ThresholdAttribute);
+		}
+		else if (ThresholdSpatialData != nullptr && Settings->bUseSpatialQuery)
+		{
+			// Reset the point data and reserving some points
+			// No need to reserve the full number of points, since we'll go by chunk
+			// Only allocate the chunk size
+			ThresholdPointData = NewObject<UPCGPointData>();
+			ThresholdPointData->InitializeFromData(ThresholdSpatialData);
+			ThresholdPointData->GetMutablePoints().SetNum(PCGPointFilterConstants::ChunkSize);
+
+			// Accessor will be valid, but keys will point to default points. But since it is a view, it will be updated when we sample the points.
+			ThresholdAccessor = PCGAttributeAccessorHelpers::CreateConstAccessor(ThresholdPointData, Settings->ThresholdAttribute);
+			ThresholdKeys = PCGAttributeAccessorHelpers::CreateConstKeys(ThresholdPointData, Settings->ThresholdAttribute);
+		}
+
+		if (!ThresholdAccessor.IsValid() || !ThresholdKeys.IsValid())
+		{
+			PCGE_LOG(Warning, "DataToFilter doesn't have %s threshold attribute/property", *Settings->ThresholdAttribute.GetName().ToString());
+			ForwardInputToInFilterPin();
 			continue;
 		}
 
-		// C - the operator
-		bool bConcreteOperatorConstructedCorrectly = false;
-		TFunction<bool(const FPCGPoint&, const UPCGMetadata*, const FPCGPoint&, const UPCGMetadata*)> ConcreteOperator = PCGPointFilterHelpers::ConstructConcreteOperator(
-			SourceGetter,
-			TargetType,
-			ThresholdGetter,
-			ThresholdType,
-			Operator,
-			bConcreteOperatorConstructedCorrectly);
-
-		if (!bConcreteOperatorConstructedCorrectly)
+		// Comparison between threshold and target data needs to be of the same type. So we have to make sure that we can
+		// request target type from threshold type. ie. We need to make sure we can broadcast threshold type to target type.
+		// For example: if target is double but threshold is int32, we can broadcast int32 to double, to compare a double with a double.
+		if (!PCG::Private::IsBroadcastable(ThresholdAccessor->GetUnderlyingType(), TargetAccessor->GetUnderlyingType()))
 		{
-			PCGE_LOG(Error, "Unable to generate the operator (most likely data types mismatch");
+			PCGE_LOG(Warning, "Cannot broadcast threshold type to target type");
+			ForwardInputToInFilterPin();
 			continue;
+		}
+
+		// And also validate that types are comparable
+		if (Settings->Operator != EPCGPointFilterOperator::Equal && Settings->Operator != EPCGPointFilterOperator::NotEqual)
+		{
+			bool bCanCompare = PCGMetadataAttribute::CallbackWithRightType(TargetAccessor->GetUnderlyingType(), [](auto Dummy) -> bool
+			{
+				return PCG::Private::MetadataTraits<decltype(Dummy)>::CanCompare;
+			});
+
+			if (!bCanCompare)
+			{
+				PCGE_LOG(Warning, "Cannot compare target type.");
+				ForwardInputToOutFilterPin();
+				continue;
+			}
 		}
 
 		UPCGPointData* InFilterData = NewObject<UPCGPointData>();
-		InFilterData->InitializeFromData(OriginalData);
-		TArray<FPCGPoint>& InPoints = InFilterData->GetMutablePoints();
-
 		UPCGPointData* OutFilterData = NewObject<UPCGPointData>();
+
+		InFilterData->InitializeFromData(OriginalData);
 		OutFilterData->InitializeFromData(OriginalData);
-		TArray<FPCGPoint>& OutPoints = OutFilterData->GetMutablePoints();
+		TArray<FPCGPoint>& InFilterPoints = InFilterData->GetMutablePoints();
+		TArray<FPCGPoint>& OutFilterPoints = OutFilterData->GetMutablePoints();
 
-		FPCGAsync::AsyncPointFilterProcessing(Context, TargetPoints.Num(), InPoints, OutPoints, [&TargetPoints, TargetMetadata, ThresholdSpatialData, ThresholdPoints, ThresholdMetadata, TemporaryMetadata, &ConcreteOperator](int32 Index, FPCGPoint& InFilterPoint, FPCGPoint& OutFilterPoint)
+		InFilterPoints.Reserve(OriginalPoints.Num());
+		OutFilterPoints.Reserve(OriginalPoints.Num());
+
+		auto Operation = [&InFilterPoints, &OutFilterPoints, Settings, &ThresholdAccessor, &ThresholdKeys, &TargetAccessor, &TargetKeys, &OriginalPoints, ThresholdPointData, ThresholdSpatialData](auto Dummy) -> bool
 		{
-			const FPCGPoint& SourcePoint = TargetPoints[Index];
+			using Type = decltype(Dummy);
 
-			bool bSkipTest = false;
-			FPCGPoint ThresholdPoint;
-			if (ThresholdPoints) // not null only in the direct match case
-			{
-				ThresholdPoint = (*ThresholdPoints)[(ThresholdPoints->Num() > 1) ? Index : 0];
-			}
-			else if(ThresholdSpatialData)
-			{
-				bSkipTest = !ThresholdSpatialData->SamplePoint(SourcePoint.Transform, SourcePoint.GetLocalBounds(), ThresholdPoint, TemporaryMetadata);
-			}
-			else // Only metadata entry (param)
-			{
-				ThresholdPoint.MetadataEntry = 0;
-			}
+			const int32 NumberOfEntries = TargetKeys->GetNum();
 
-			// Apply operator
-			bool bPointInFilter = bSkipTest || ConcreteOperator(SourcePoint, TargetMetadata, ThresholdPoint, (TemporaryMetadata ? TemporaryMetadata : ThresholdMetadata));
-			if (bPointInFilter)
+			if (NumberOfEntries <= 0)
 			{
-				InFilterPoint = SourcePoint;
-				return true;
-			}
-			else
-			{
-				OutFilterPoint = SourcePoint;
 				return false;
 			}
-		});
 
-		// Push the filtered data to the output data.
-		FPCGTaggedData& InFilterTaggedData = Outputs.Emplace_GetRef();
-		InFilterTaggedData.Data = InFilterData;
-		InFilterTaggedData.Tags = Input.Tags;
-		InFilterTaggedData.Pin = PCGPointFilterConstants::InFilterLabel;
+			TArray<Type, TInlineAllocator<PCGPointFilterConstants::ChunkSize>> TargetValues;
+			TArray<Type, TInlineAllocator<PCGPointFilterConstants::ChunkSize>> ThresholdValues;
+			TArray<bool, TInlineAllocator<PCGPointFilterConstants::ChunkSize>> SkipTests;
+			TargetValues.SetNum(PCGPointFilterConstants::ChunkSize);
+			ThresholdValues.SetNum(PCGPointFilterConstants::ChunkSize);
+			SkipTests.SetNum(PCGPointFilterConstants::ChunkSize);
 
-		FPCGTaggedData& OutFilterTaggedData = Outputs.Emplace_GetRef();
-		OutFilterTaggedData.Data = OutFilterData;
-		OutFilterTaggedData.Tags = Input.Tags;
-		OutFilterTaggedData.Pin = PCGPointFilterConstants::OutFilterLabel;
+			const int32 NumberOfIterations = (NumberOfEntries + PCGPointFilterConstants::ChunkSize - 1) / PCGPointFilterConstants::ChunkSize;
+
+			for (int32 i = 0; i < NumberOfIterations; ++i)
+			{
+				const int32 StartIndex = i * PCGPointFilterConstants::ChunkSize;
+				const int32 Range = FMath::Min(NumberOfEntries - StartIndex, PCGPointFilterConstants::ChunkSize);
+				TArrayView<Type> TargetView(TargetValues.GetData(), Range);
+				TArrayView<Type> ThresholdView(ThresholdValues.GetData(), Range);
+
+				// Sampling the points if needed
+				if (ThresholdPointData != nullptr)
+				{
+					// Threshold points only have "ChunkSize" points.
+					TArray<FPCGPoint>& ThresholdPoints = ThresholdPointData->GetMutablePoints();
+					for (int32 j = 0; j < Range; ++j)
+					{
+						FPCGPoint ThresholdPoint;
+						const FPCGPoint& SourcePoint = OriginalPoints[StartIndex + j];
+						if (ThresholdSpatialData->SamplePoint(SourcePoint.Transform, SourcePoint.GetLocalBounds(), ThresholdPoint, ThresholdPointData->Metadata))
+						{
+							ThresholdPoints[j] = ThresholdPoint;
+							SkipTests[j] = false;
+						}
+						else
+						{
+							SkipTests[j] = true;
+						}
+					}
+				}
+
+				// If ThresholdView point on ThresholdPointData points, there are only "ChunkSize" points in it.
+				// But it wraps around, and since StartIndex is a multiple of "ChunkSize", we'll always start at point 0, as wanted. 
+				if (!TargetAccessor->GetRange(TargetView, StartIndex, *TargetKeys) ||
+					!ThresholdAccessor->GetRange(ThresholdView, StartIndex, *ThresholdKeys, EPCGAttributeAccessorFlags::AllowBroadcast))
+				{
+					return false;
+				}
+
+				for (int32 j = 0; j < Range; ++j)
+				{
+					if (SkipTests[j] || PCGPointFilterHelpers::ApplyCompare(TargetValues[j], ThresholdValues[j], Settings->Operator))
+					{
+						InFilterPoints.Add(OriginalPoints[StartIndex + j]);
+					}
+					else
+					{
+						OutFilterPoints.Add(OriginalPoints[StartIndex + j]);
+					}
+				}
+			}
+
+			return true;
+		};
+
+		if (PCGMetadataAttribute::CallbackWithRightType(TargetAccessor->GetUnderlyingType(), Operation))
+		{
+			FPCGTaggedData& InFilterOutput = Outputs.Add_GetRef(Input);
+			InFilterOutput.Pin = PCGPointFilterConstants::InFilterLabel;
+			InFilterOutput.Data = InFilterData;
+			InFilterOutput.Tags = Input.Tags;
+
+			FPCGTaggedData& OutFilterOutput = Outputs.Add_GetRef(Input);
+			OutFilterOutput.Pin = PCGPointFilterConstants::OutFilterLabel;
+			OutFilterOutput.Data = OutFilterData;
+			OutFilterOutput.Tags = Input.Tags;
+		}
 	}
 
 	return true;

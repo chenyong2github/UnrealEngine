@@ -5,18 +5,20 @@
 #include "PCGSettings.h"
 #include "PCGElement.h"
 #include "PCGPoint.h"
+#include "Metadata/PCGAttributePropertySelector.h"
+#include "Metadata/PCGMetadataTypesConstantStruct.h"
 
 #include "PCGPointFilter.generated.h"
 
 UENUM()
-enum class EPCGPointTargetFilterType : uint8
+enum class UE_DEPRECATED(5.2, "Not used anymore") EPCGPointTargetFilterType : uint8
 {
 	Property,
 	Metadata
 };
 
 UENUM()
-enum class EPCGPointThresholdType : uint8
+enum class UE_DEPRECATED(5.2, "Not used anymore") EPCGPointThresholdType : uint8
 {
 	Property,
 	Metadata,
@@ -24,7 +26,7 @@ enum class EPCGPointThresholdType : uint8
 };
 
 UENUM()
-enum class EPCGPointFilterConstantType : uint8
+enum class UE_DEPRECATED(5.2, "Not used anymore") EPCGPointFilterConstantType : uint8
 {
 	Integer64,
 	Float,
@@ -64,6 +66,12 @@ class PCG_API UPCGPointFilterSettings : public UPCGSettings
 	GENERATED_BODY()
 
 public:
+	UPCGPointFilterSettings();
+
+	//~Begin UObject interface
+	virtual void PostLoad() override;
+	//~End UObject interface
+
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override { return FName(TEXT("PointFilter")); }
@@ -83,48 +91,60 @@ public:
 
 	/** Target property/attribute related properties */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	EPCGPointTargetFilterType TargetFilterType = EPCGPointTargetFilterType::Property;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "TargetFilterType==EPCGPointTargetFilterType::Property"))
-	EPCGPointProperties TargetPointProperty = EPCGPointProperties::Density;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "TargetFilterType==EPCGPointTargetFilterType::Metadata"))
-	FName TargetAttributeName = NAME_None;
+	FPCGAttributePropertySelector TargetAttribute;
 
 	/** Threshold property/attribute/constant related properties */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	EPCGPointThresholdType ThresholdFilterType = EPCGPointThresholdType::Property;
+	bool bUseConstantThreshold = false;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "ThresholdFilterType==EPCGPointThresholdType::Property"))
-	EPCGPointProperties ThresholdPointProperty = EPCGPointProperties::Density;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "!bUseConstantThreshold", EditConditionHides))
+	FPCGAttributePropertySelector ThresholdAttribute;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "ThresholdFilterType==EPCGPointThresholdType::Metadata"))
-	FName ThresholdAttributeName = NAME_None;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "ThresholdFilterType==EPCGPointThresholdType::Constant"))
-	EPCGPointFilterConstantType ThresholdConstantType = EPCGPointFilterConstantType::Float;
-
-	/** Constants used as threshold comparator */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "ThresholdFilterType==EPCGPointThresholdType::Constant && ThresholdConstantType==EPCGPointFilterConstantType::Integer64"))
-	int64 Integer64Constant = 0;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta=(EditCondition="ThresholdFilterType==EPCGPointThresholdType::Constant && ThresholdConstantType==EPCGPointFilterConstantType::Float"))
-	float FloatConstant = 0;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "ThresholdFilterType==EPCGPointThresholdType::Constant && ThresholdConstantType==EPCGPointFilterConstantType::Vector"))
-	FVector VectorConstant = FVector::Zero();
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "ThresholdFilterType==EPCGPointThresholdType::Constant && ThresholdConstantType==EPCGPointFilterConstantType::Vector4"))
-	FVector4 Vector4Constant = FVector4::Zero();
-
-	//UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "ThresholdFilterType==EPCGPointThresholdType::Constant && ThresholdConstantType==EPCGPointFilterConstantType::Rotation"))
-	//FQuat RotationConstant = FQuat::Identity;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "ThresholdFilterType==EPCGPointThresholdType::Constant && ThresholdConstantType==EPCGPointFilterConstantType::String"))
-	FString StringConstant;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "ThresholdFilterType!=EPCGPointThresholdType::Constant"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "!bUseConstantThreshold", EditConditionHides))
 	bool bUseSpatialQuery = true;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Constant, meta = (EditCondition = "bUseConstantThreshold", EditConditionHides, ShowOnlyInnerProperties, DisplayAfter = "bUseConstantThreshold"))
+	FPCGMetadataTypesConstantStruct AttributeTypes;
+
+#if WITH_EDITORONLY_DATA
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UPROPERTY()
+	EPCGPointTargetFilterType TargetFilterType_DEPRECATED = EPCGPointTargetFilterType::Property;
+
+	UPROPERTY()
+	EPCGPointProperties TargetPointProperty_DEPRECATED = EPCGPointProperties::Density;
+
+	UPROPERTY()
+	FName TargetAttributeName_DEPRECATED = NAME_None;
+
+	UPROPERTY()
+	EPCGPointThresholdType ThresholdFilterType_DEPRECATED = EPCGPointThresholdType::Property;
+
+	UPROPERTY()
+	EPCGPointProperties ThresholdPointProperty_DEPRECATED = EPCGPointProperties::Density;
+
+	UPROPERTY()
+	FName ThresholdAttributeName_DEPRECATED = NAME_None;
+
+	UPROPERTY()
+	EPCGPointFilterConstantType ThresholdConstantType_DEPRECATED = EPCGPointFilterConstantType::Float;
+
+	UPROPERTY()
+	int64 Integer64Constant_DEPRECATED = 0;
+
+	UPROPERTY()
+	float FloatConstant_DEPRECATED = 0;
+
+	UPROPERTY()
+	FVector VectorConstant_DEPRECATED = FVector::Zero();
+
+	UPROPERTY()
+	FVector4 Vector4Constant_DEPRECATED = FVector4::Zero();
+
+	UPROPERTY()
+	FString StringConstant_DEPRECATED;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif 
 };
 
 class FPCGPointFilterElement : public FSimplePCGElement

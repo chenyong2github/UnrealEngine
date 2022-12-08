@@ -38,10 +38,11 @@ enum class EPCGMetadataTypes : uint8
 	MACRO(FVector)    \
 	MACRO(FVector4)   \
 	MACRO(FQuat)      \
-	MACRO(FRotator)   \
-	MACRO(FName)      \
+	MACRO(FTransform) \
 	MACRO(FString)    \
-	MACRO(FTransform)
+	MACRO(bool)       \
+	MACRO(FRotator)   \
+	MACRO(FName)
 
 namespace PCG
 {
@@ -171,6 +172,25 @@ namespace PCG
 		}
 
 		/**
+		* FirstType is more complex than SecondType, in the sense of PCG types, if both types are different and valid
+		* and we can broadcast SecondType to FirstType.
+		* It is useful to find the most complex type between operands of a given operation.
+		*/
+		constexpr inline bool IsMoreComplexType(uint16 FirstType, uint16 SecondType)
+		{
+			return FirstType != SecondType && FirstType <= (uint16)(EPCGMetadataTypes::Count) && SecondType <= (uint16)(EPCGMetadataTypes::Count) && PCG::Private::BroadcastableTypes[SecondType][FirstType];
+		}
+
+		/**
+		* cf. non templated version of IsMoreComplexType
+		*/
+		template <typename FirstType, typename SecondType>
+		constexpr inline bool IsMoreComplexType()
+		{
+			return IsMoreComplexType(MetadataTypes<FirstType>::Id, MetadataTypes<SecondType>::Id);
+		}
+
+		/**
 		* Generic function to broadcast an InType to an OutType.
 		* Supports only PCG types
 		* @param InValue - The Value to convert
@@ -268,6 +288,32 @@ namespace PCG
 		};
 
 		template<typename T>
+		struct DefaultCompareTraits
+		{
+			enum { CanCompare = true };
+
+			static bool Less(const T& A, const T& B)
+			{
+				return A < B;
+			}
+
+			static bool Greater(const T& A, const T& B)
+			{
+				return A > B;
+			}
+
+			static bool LessOrEqual(const T& A, const T& B)
+			{
+				return A <= B;
+			}
+
+			static bool GreaterOrEqual(const T& A, const T& B)
+			{
+				return A >= B;
+			}
+		};
+
+		template<typename T>
 		struct DefaultWeightedSumTraits
 		{
 			enum { CanInterpolate = true };
@@ -283,11 +329,9 @@ namespace PCG
 			}
 		};
 
-		// Common traits for int32, int64, float, double
-		template<typename T>
-		struct MetadataTraits : DefaultOperationTraits<T>, DefaultWeightedSumTraits<T>
+		template <typename T>
+		struct DefaultMinMaxTraits
 		{
-			enum { CompressData = false };
 			enum { CanMinMax = true };
 
 			static T Min(const T& A, const T& B)
@@ -301,6 +345,35 @@ namespace PCG
 			}
 		};
 
+		// Common traits for int32, int64, float, double
+		template<typename T>
+		struct MetadataTraits : DefaultOperationTraits<T>, DefaultWeightedSumTraits<T>, DefaultMinMaxTraits<T>, DefaultCompareTraits<T>
+		{
+			enum { CompressData = false };
+		};
+
+		template<>
+		struct MetadataTraits<float> : DefaultOperationTraits<float>, DefaultWeightedSumTraits<float>, DefaultMinMaxTraits<float>, DefaultCompareTraits<float>
+		{
+			enum { CompressData = false };
+
+			static bool Equal(const float& A, const float& B)
+			{
+				return FMath::IsNearlyEqual(A, B);
+			}
+		};
+
+		template<>
+		struct MetadataTraits<double> : DefaultOperationTraits<double>, DefaultWeightedSumTraits<double>, DefaultMinMaxTraits<double>, DefaultCompareTraits<double>
+		{
+			enum { CompressData = false };
+
+			static bool Equal(const double& A, const double& B)
+			{
+				return FMath::IsNearlyEqual(A, B);
+			}
+		};
+
 		template<>
 		struct MetadataTraits<bool>
 		{
@@ -309,6 +382,12 @@ namespace PCG
 			enum { CanSubAdd = true };
 			enum { CanMulDiv = false };
 			enum { CanInterpolate = false };
+			enum { CanCompare = true };
+
+			static bool ZeroValue()
+			{
+				return false;
+			}
 
 			static bool Equal(const bool& A, const bool& B)
 			{
@@ -334,6 +413,26 @@ namespace PCG
 			{
 				return A && !B;
 			}
+
+			static bool Less(const bool& A, const bool& B)
+			{
+				return !A && B;
+			}
+
+			static bool Greater(const bool& A, const bool& B)
+			{
+				return A && !B;
+			}
+
+			static bool LessOrEqual(const bool& A, const bool& B)
+			{
+				return !Greater(A, B);
+			}
+
+			static bool GreaterOrEqual(const bool& A, const bool& B)
+			{
+				return !Less(A, B);
+			}
 		};
 
 		// Vector types
@@ -343,6 +442,7 @@ namespace PCG
 			enum { CompressData = false };
 			enum { CanMinMax = true };
 			enum { CanInterpolate = true };
+			enum { CanCompare = true };
 
 			static T ZeroValue()
 			{
@@ -353,6 +453,11 @@ namespace PCG
 		template<>
 		struct MetadataTraits<FVector2D> : VectorTraits<FVector2D>
 		{
+			static bool Equal(const FVector2D& A, const FVector2D& B)
+			{
+				return A.Equals(B);
+			}
+
 			static FVector2D Min(const FVector2D& A, const FVector2D& B)
 			{
 				return FVector2D::Min(A, B);
@@ -362,11 +467,36 @@ namespace PCG
 			{
 				return FVector2D::Max(A, B);
 			}
+
+			static bool Less(const FVector2D& A, const FVector2D& B)
+			{
+				return (A.X < B.X) && (A.Y < B.Y);
+			}
+
+			static bool Greater(const FVector2D& A, const FVector2D& B)
+			{
+				return (A.X > B.X) && (A.Y > B.Y);
+			}
+
+			static bool LessOrEqual(const FVector2D& A, const FVector2D& B)
+			{
+				return (A.X <= B.X) && (A.Y <= B.Y);
+			}
+
+			static bool GreaterOrEqual(const FVector2D& A, const FVector2D& B)
+			{
+				return (A.X >= B.X) && (A.Y >= B.Y);
+			}
 		};
 
 		template<>
 		struct MetadataTraits<FVector> : VectorTraits<FVector>
 		{
+			static bool Equal(const FVector& A, const FVector& B)
+			{
+				return A.Equals(B);
+			}
+
 			static FVector Min(const FVector& A, const FVector& B)
 			{
 				return FVector::Min(A, B);
@@ -376,11 +506,36 @@ namespace PCG
 			{
 				return FVector::Max(A, B);
 			}
+
+			static bool Less(const FVector& A, const FVector& B)
+			{
+				return (A.X < B.X) && (A.Y < B.Y) && (A.Z < B.Z);
+			}
+
+			static bool Greater(const FVector& A, const FVector& B)
+			{
+				return (A.X > B.X) && (A.Y > B.Y) && (A.Z > B.Z);
+			}
+
+			static bool LessOrEqual(const FVector& A, const FVector& B)
+			{
+				return (A.X <= B.X) && (A.Y <= B.Y) && (A.Z <= B.Z);
+			}
+
+			static bool GreaterOrEqual(const FVector& A, const FVector& B)
+			{
+				return (A.X >= B.X) && (A.Y >= B.Y) && (A.Z >= B.Z);
+			}
 		};
 		
 		template<>
 		struct MetadataTraits<FVector4> : VectorTraits<FVector4>
 		{
+			static bool Equal(const FVector4& A, const FVector4& B)
+			{
+				return A.Equals(B);
+			}
+
 			static FVector4 Min(const FVector4& A, const FVector4& B)
 			{
 				return FVector4(FMath::Min(A.X, B.X), FMath::Min(A.Y, B.Y), FMath::Min(A.Z, B.Z), FMath::Min(A.W, B.W));
@@ -389,6 +544,26 @@ namespace PCG
 			static FVector4 Max(const FVector4& A, const FVector4& B)
 			{
 				return FVector4(FMath::Max(A.X, B.X), FMath::Max(A.Y, B.Y), FMath::Max(A.Z, B.Z), FMath::Max(A.W, B.W));
+			}
+
+			static bool Less(const FVector4& A, const FVector4& B)
+			{
+				return (A.X < B.X) && (A.Y < B.Y) && (A.Z < B.Z) && (A.W < B.W);
+			}
+
+			static bool Greater(const FVector4& A, const FVector4& B)
+			{
+				return (A.X > B.X) && (A.Y > B.Y) && (A.Z > B.Z) && (A.W > B.W);
+			}
+
+			static bool LessOrEqual(const FVector4& A, const FVector4& B)
+			{
+				return (A.X <= B.X) && (A.Y <= B.Y) && (A.Z <= B.Z) && (A.W <= B.W);
+			}
+
+			static bool GreaterOrEqual(const FVector4& A, const FVector4& B)
+			{
+				return (A.X >= B.X) && (A.Y >= B.Y) && (A.Z >= B.Z) && (A.W >= B.W);
 			}
 		};
 
@@ -401,10 +576,11 @@ namespace PCG
 			enum { CanSubAdd = true };
 			enum { CanMulDiv = true };
 			enum { CanInterpolate = true };
+			enum { CanCompare = false };
 
 			static bool Equal(const FQuat& A, const FQuat& B)
 			{
-				return A == B;
+				return A.Equals(B);
 			}
 
 			static FQuat Add(const FQuat& A, const FQuat& B)
@@ -453,10 +629,11 @@ namespace PCG
 			enum { CanSubAdd = true };
 			enum { CanMulDiv = true };
 			enum { CanInterpolate = true };
+			enum { CanCompare = false };
 
 			static bool Equal(const FRotator& A, const FRotator& B)
 			{
-				return A == B;
+				return A.Equals(B);
 			}
 
 			static FRotator Add(const FRotator& A, const FRotator& B)
@@ -500,12 +677,11 @@ namespace PCG
 			enum { CanSubAdd = false };
 			enum { CanMulDiv = true };
 			enum { CanInterpolate = true };
+			enum { CanCompare = false };
 
 			static bool Equal(const FTransform& A, const FTransform& B)
 			{
-				return A.GetLocation() == B.GetLocation() &&
-					A.GetRotation() == B.GetRotation() &&
-					A.GetScale3D() == B.GetScale3D();
+				return A.Equals(B);
 			}
 
 			static FTransform Mul(const FTransform& A, const FTransform& B)
@@ -545,7 +721,7 @@ namespace PCG
 
 		// Strings
 		template<>
-		struct MetadataTraits<FString>
+		struct MetadataTraits<FString> : DefaultCompareTraits<FString>
 		{
 			enum { CompressData = true };
 			enum { CanMinMax = false };
@@ -557,6 +733,11 @@ namespace PCG
 			{
 				return A == B;
 			}
+
+			static FString ZeroValue()
+			{
+				return FString();
+			}
 		};
 
 		template<>
@@ -567,10 +748,36 @@ namespace PCG
 			enum { CanSubAdd = false };
 			enum { CanMulDiv = false };
 			enum { CanInterpolate = false };
+			enum { CanCompare = true };
 
 			static bool Equal(const FName& A, const FName& B)
 			{
 				return A == B;
+			}
+
+			static bool Less(const FName& A, const FName& B)
+			{
+				return A.Compare(B) < 0;
+			}
+
+			static bool Greater(const FName& A, const FName& B)
+			{
+				return A.Compare(B) > 0;
+			}
+
+			static bool LessOrEqual(const FName& A, const FName& B)
+			{
+				return A.Compare(B) <= 0;
+			}
+
+			static bool GreaterOrEqual(const FName& A, const FName& B)
+			{
+				return A.Compare(B) >= 0;
+			}
+
+			static FName ZeroValue()
+			{
+				return NAME_None;
 			}
 		};
 	}

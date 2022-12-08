@@ -21,12 +21,13 @@ public:
 	using Type = T;
 	using Super = IPCGAttributeAccessorT<FPCGAttributeAccessor<T>>;
 
+	// Can't write if metadata is null
 	FPCGAttributeAccessor(FPCGMetadataAttribute<T>* InAttribute, UPCGMetadata* InMetadata)
-		: Super(/*bInReadOnly=*/ false)
+		: Super(/*bInReadOnly=*/ InMetadata == nullptr)
 		, Attribute(InAttribute)
 		, Metadata(InMetadata)
 	{
-		check(InAttribute && InMetadata);
+		check(InAttribute);
 	}
 
 	FPCGAttributeAccessor(const FPCGMetadataAttribute<T>* InAttribute, const UPCGMetadata* InMetadata)
@@ -34,7 +35,7 @@ public:
 		, Attribute(const_cast<FPCGMetadataAttribute<T>*>(InAttribute))
 		, Metadata(const_cast<UPCGMetadata*>(InMetadata))
 	{
-		check(InAttribute && InMetadata);
+		check(InAttribute);
 	}
 
 	bool GetRangeImpl(TArrayView<T> OutValues, int32 Index, const IPCGAttributeAccessorKeys& Keys) const

@@ -12,13 +12,44 @@ class FPCGMetadataAttributeBase;
 
 ///////////////////////////////////////////////////////////////////////
 
+namespace PCGAttributeAccessorKeys
+{
+	template <typename T, typename Container, typename Func>
+	bool GetKeys(Container& InContainer, int32 InStart, TArrayView<T*>& OutItems, Func&& Transform)
+	{
+		if (InContainer.Num() == 0)
+		{
+			return false;
+		}
+
+		int32 Current = InStart;
+		if (Current >= InContainer.Num())
+		{
+			Current %= InContainer.Num();
+		}
+
+		for (int32 i = 0; i < OutItems.Num(); ++i)
+		{
+			OutItems[i] = Transform(InContainer[Current++]);
+			if (Current >= InContainer.Num())
+			{
+				Current = 0;
+			}
+		}
+
+		return true;
+	}
+}
+
+///////////////////////////////////////////////////////////////////////
+
 /**
 * Base class to identify keys to use with an accessor.
 */
 class IPCGAttributeAccessorKeys
 {
 public:
-	IPCGAttributeAccessorKeys(bool bInReadOnly)
+	explicit IPCGAttributeAccessorKeys(bool bInReadOnly)
 		: bIsReadOnly(bInReadOnly)
 	{}
 
@@ -105,8 +136,8 @@ protected:
 class FPCGAttributeAccessorKeysEntries : public IPCGAttributeAccessorKeys
 {
 public:
-	FPCGAttributeAccessorKeysEntries(const FPCGMetadataAttributeBase* Attribute);
-	FPCGAttributeAccessorKeysEntries(PCGMetadataEntryKey EntryKey);
+	explicit FPCGAttributeAccessorKeysEntries(const FPCGMetadataAttributeBase* Attribute);
+	explicit FPCGAttributeAccessorKeysEntries(PCGMetadataEntryKey EntryKey);
 
 	virtual int32 GetNum() const override { return Entries.Num(); }
 
@@ -128,8 +159,8 @@ public:
 	FPCGAttributeAccessorKeysPoints(const TArrayView<FPCGPoint>& InPoints);
 	FPCGAttributeAccessorKeysPoints(const TArrayView<const FPCGPoint>& InPoints);
 
-	FPCGAttributeAccessorKeysPoints(FPCGPoint& InPoint);
-	FPCGAttributeAccessorKeysPoints(const FPCGPoint& InPoint);
+	explicit FPCGAttributeAccessorKeysPoints(FPCGPoint& InPoint);
+	explicit FPCGAttributeAccessorKeysPoints(const FPCGPoint& InPoint);
 
 	virtual int32 GetNum() const override { return Points.Num(); }
 
@@ -149,9 +180,11 @@ protected:
 /////////////////////////////////////////////////////////////////
 
 /**
-* Key around generic objects
+* Key around generic objects. 
+* Make sure ObjectType is not a pointer nor a reference, since we convert those to void*, it could lead to
+* very bad situations if we try to convert a T** to a void*.
 */
-template <typename ObjectType>
+template <typename ObjectType, typename = typename std::enable_if_t<!std::is_pointer_v<ObjectType> && !std::is_reference_v<ObjectType>>>
 class FPCGAttributeAccessorKeysGeneric : public IPCGAttributeAccessorKeys
 {
 public:
@@ -165,19 +198,26 @@ public:
 		, Objects(const_cast<ObjectType*>(InObjects.GetData()), InObjects.Num())
 	{}
 
-	FPCGAttributeAccessorKeysGeneric(ObjectType& InObject)
+	explicit FPCGAttributeAccessorKeysGeneric(ObjectType& InObject)
 		: FPCGAttributeAccessorKeysGeneric(TArrayView<ObjectType>(&InObject, 1))
 	{}
 
-	FPCGAttributeAccessorKeysGeneric(const ObjectType& InObject)
+	explicit FPCGAttributeAccessorKeysGeneric(const ObjectType& InObject)
 		: FPCGAttributeAccessorKeysGeneric(TArrayView<const ObjectType>(&InObject, 1))
 	{}
 
 	virtual int32 GetNum() const override { return Objects.Num(); }
 
 protected:
-	virtual bool GetGenericObjectKeys(int32 InStart, TArrayView<void*>& OutObjects) override;
-	virtual bool GetGenericObjectKeys(int32 InStart, TArrayView<const void*>& OutObjects) const override;
+	virtual bool GetGenericObjectKeys(int32 InStart, TArrayView<void*>& OutObjects) override
+	{
+		return PCGAttributeAccessorKeys::GetKeys(Objects, InStart, OutObjects, [](ObjectType& Obj) -> ObjectType* { return &Obj; });
+	}
+
+	virtual bool GetGenericObjectKeys(int32 InStart, TArrayView<const void*>& OutObjects) const override
+	{
+		return PCGAttributeAccessorKeys::GetKeys(Objects, InStart, OutObjects, [](const ObjectType& Obj) -> const ObjectType* { return &Obj; });
+	}
 
 	TArrayView<ObjectType> Objects;
 };
@@ -188,17 +228,25 @@ protected:
 * Unique Key around a single object.
 * Necessary if ObjectType is void, but keep a template version for completeness.
 * Useful when you want to use the accessors Get/Set methods on a single object.
+* Make sure ObjectType is not a pointer nor a reference, since we convert those to void*, it could lead to
+* very bad situations if we try to convert a T** to a void*.
 */
-template <typename ObjectType>
+template <typename ObjectType, typename = typename std::enable_if_t<!std::is_pointer_v<ObjectType> && !std::is_reference_v<ObjectType>>>
 class FPCGAttributeAccessorKeysSingleObjectPtr : public IPCGAttributeAccessorKeys
 {
 public:
-	FPCGAttributeAccessorKeysSingleObjectPtr(ObjectType* InPtr)
+
+	FPCGAttributeAccessorKeysSingleObjectPtr()
+		: IPCGAttributeAccessorKeys(/*bInReadOnly=*/ true)
+		, Ptr(nullptr)
+	{}
+
+	explicit FPCGAttributeAccessorKeysSingleObjectPtr(ObjectType* InPtr)
 		: IPCGAttributeAccessorKeys(/*bInReadOnly=*/ false)
 		, Ptr(InPtr)
 	{}
 
-	FPCGAttributeAccessorKeysSingleObjectPtr(const ObjectType* InPtr)
+	explicit FPCGAttributeAccessorKeysSingleObjectPtr(const ObjectType* InPtr)
 		: IPCGAttributeAccessorKeys(/*bInReadOnly=*/ true)
 		, Ptr(const_cast<ObjectType*>(InPtr))
 	{}
@@ -206,8 +254,35 @@ public:
 	virtual int32 GetNum() const override { return 1; }
 
 protected:
-	virtual bool GetGenericObjectKeys(int32 InStart, TArrayView<void*>& OutObjects) override;
-	virtual bool GetGenericObjectKeys(int32 InStart, TArrayView<const void*>& OutObjects) const override;
+	virtual bool GetGenericObjectKeys(int32 InStart, TArrayView<void*>& OutObjects) override
+	{
+		if (Ptr == nullptr)
+		{
+			return false;
+		}
+
+		for (int32 i = 0; i < OutObjects.Num(); ++i)
+		{
+			OutObjects[i] = Ptr;
+		}
+
+		return true;
+	}
+
+	virtual bool GetGenericObjectKeys(int32 InStart, TArrayView<const void*>& OutObjects) const override
+	{
+		if (Ptr == nullptr)
+		{
+			return false;
+		}
+
+		for (int32 i = 0; i < OutObjects.Num(); ++i)
+		{
+			OutObjects[i] = Ptr;
+		}
+
+		return true;
+	}
 
 	ObjectType* Ptr = nullptr;
 };
@@ -263,79 +338,4 @@ inline bool IPCGAttributeAccessorKeys::GetKeys(int32 InStart, TArrayView<const O
 	{
 		return false;
 	}
-}
-
-/////////////////////////////////////////////////////////////////
-
-namespace PCGAttributeAccessorKeys
-{
-	template <typename T, typename Container, typename Func>
-	bool GetKeys(Container& InContainer, int32 InStart, TArrayView<T*>& OutItems, Func&& Transform)
-	{
-		if (InContainer.Num() == 0)
-		{
-			return false;
-		}
-
-		int32 Current = InStart;
-		if (Current >= InContainer.Num())
-		{
-			Current %= InContainer.Num();
-		}
-
-		for (int32 i = 0; i < OutItems.Num(); ++i)
-		{
-			OutItems[i] = Transform(InContainer[Current++]);
-			if (Current >= InContainer.Num())
-			{
-				Current = 0;
-			}
-		}
-
-		return true;
-	}
-}
-
-template <typename ObjectType>
-bool FPCGAttributeAccessorKeysGeneric<ObjectType>::GetGenericObjectKeys(int32 InStart, TArrayView<void*>& OutObjects)
-{
-	return PCGAttributeAccessorKeys::GetKeys(Objects, InStart, OutObjects, [](ObjectType& Obj) -> ObjectType* { return &Obj; });
-}
-
-template <typename ObjectType>
-bool FPCGAttributeAccessorKeysGeneric<ObjectType>::GetGenericObjectKeys(int32 InStart, TArrayView<const void*>& OutObjects) const
-{
-	return PCGAttributeAccessorKeys::GetKeys(Objects, InStart, OutObjects, [](const ObjectType& Obj) -> const ObjectType* { return &Obj; });
-}
-
-template <typename ObjectType>
-bool FPCGAttributeAccessorKeysSingleObjectPtr<ObjectType>::GetGenericObjectKeys(int32 InStart, TArrayView<void*>& OutObjects)
-{
-	if (Ptr == nullptr)
-	{
-		return false;
-	}
-
-	for (int32 i = 0; i < OutObjects.Num(); ++i)
-	{
-		OutObjects[i] = Ptr;
-	}
-
-	return true;
-}
-
-template <typename ObjectType>
-bool FPCGAttributeAccessorKeysSingleObjectPtr<ObjectType>::GetGenericObjectKeys(int32 InStart, TArrayView<const void*>& OutObjects) const
-{
-	if (Ptr == nullptr)
-	{
-		return false;
-	}
-
-	for (int32 i = 0; i < OutObjects.Num(); ++i)
-	{
-		OutObjects[i] = Ptr;
-	}
-
-	return true;
 }
