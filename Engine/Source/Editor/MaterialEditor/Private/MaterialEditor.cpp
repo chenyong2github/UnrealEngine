@@ -6383,6 +6383,17 @@ void FMaterialEditor::PostUndo(bool bSuccess)
 			FocusedGraphEd->ClearSelectionSet();
 		}
 		
+		// After an undo operation, the reference contained in graph node to its material expression is lost
+		// (the serializer sets it to null). Here we relink the material expressions graph nodes back.
+		for (UMaterialExpression* MaterialExpression : Material->GetExpressions())
+		{
+			UMaterialGraphNode* GraphNode = Cast<UMaterialGraphNode>(MaterialExpression->GraphNode);
+			if (GraphNode)
+			{
+				GraphNode->MaterialExpression = MaterialExpression;
+			}
+		}
+
 		Material->BuildEditorParameterList();
 
 		// Update the current preview material.

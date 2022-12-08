@@ -74,7 +74,7 @@ void UMaterialGraphNode::PostCopyNode()
 
 FMaterialRenderProxy* UMaterialGraphNode::GetExpressionPreview()
 {
-	return FMaterialEditorUtilities::GetExpressionPreview(GetGraph(), MaterialExpression);
+	return MaterialExpression ? FMaterialEditorUtilities::GetExpressionPreview(GetGraph(), MaterialExpression) : nullptr;
 }
 
 void UMaterialGraphNode::RecreateAndLinkNode()

@@ -1507,11 +1507,43 @@ void UMaterialExpression::PostEditChangeProperty(FPropertyChangedEvent& Property
 			const FString& NewDefaultValue = GetInputPinDefaultValue(PinIndex);
 
 			// Update the pin value of the expression input
-			UEdGraphPin* Pin = GraphNode->GetPinAt(PinIndex);
-			if (Pin)
+			if (UEdGraphPin* Pin = GraphNode->GetPinAt(PinIndex))
 			{
 				Pin->Modify();
 				Pin->DefaultValue = NewDefaultValue;
+
+				// If this expression refers to a parameter, we need to keep the pin state in sync with all other nodes of the same type as this node.
+				if (IsA<UMaterialExpressionParameter>())
+				{
+					// Remember this expression parameter name.
+					const FName& ParameterName = static_cast<UMaterialExpressionParameter*>(this)->ParameterName;
+
+					// Fetch all nodes in the material that refer to a parameter.
+					TArray<UMaterialExpressionParameter*> ParameterExpressions;
+					Material->GetAllExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionParameter>(ParameterExpressions);
+
+					for (UMaterialExpressionParameter* ExpressionParameter : ParameterExpressions)
+					{
+						// If the other expression type and parameter name are the same as this expression's...
+						if (ExpressionParameter->GraphNode && ExpressionParameter->GetArchetype() == GetArchetype() && ExpressionParameter->ParameterName == ParameterName)
+						{
+							// ...modify the pin on other parameter expression node with the new value.
+							UEdGraphPin* OtherPin = ExpressionParameter->GraphNode->GetPinAt(PinIndex);
+							if (ensure(OtherPin && Pin && OtherPin->GetName() == Pin->GetName()))
+							{
+								OtherPin->Modify();
+								OtherPin->DefaultValue = NewDefaultValue;
+							}
+						}
+					}
+
+					// Propagate he parameter value change so that it updates the other caches.
+					// Note: since this could create a transaction, avoid creating a secondary nested transition.
+					if (!GIsTransacting)
+					{
+						Material->PropagateExpressionParameterChanges(this);
+					}
+				}
 			}
 
 			// If the property is linked as inline toggle to another property, both pins need updating to reflect the change.
@@ -1520,35 +1552,6 @@ void UMaterialExpression::PostEditChangeProperty(FPropertyChangedEvent& Property
 			if (bInlineEditConditionToggle || bEditCondition)
 			{
 				CastChecked<UMaterialGraphNode>(GraphNode)->RecreateAndLinkNode();
-			}
-
-			// If this expression refers to a parameter, we need to keep the pin state in sync with all other nodes of the same type as this node.
-			if (IsA<UMaterialExpressionParameter>())
-			{
-				// Remember this expression parameter name.
-				const FName& ParameterName = static_cast<UMaterialExpressionParameter*>(this)->ParameterName;
-
-				// Fetch all nodes in the material that refer to a parameter.
-				TArray<UMaterialExpressionParameter*> ParameterExpressions;
-				Material->GetAllExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionParameter>(ParameterExpressions);
-
-				for (UMaterialExpressionParameter* ExpressionParameter : ParameterExpressions)
-				{
-					// If the other expression type and parameter name are the same as this expression's...
-					if (ExpressionParameter->GraphNode && ExpressionParameter->GetArchetype() == GetArchetype() && ExpressionParameter->ParameterName == ParameterName)
-					{
-						// ...modify the pin on other parameter expression node with the new value.
-						UEdGraphPin* OtherPin = ExpressionParameter->GraphNode->GetPinAt(PinIndex);
-						if (ensure(OtherPin && Pin && OtherPin->GetName() == Pin->GetName()))
-						{
-							OtherPin->Modify();
-							OtherPin->DefaultValue = NewDefaultValue;
-						}
-					}
-				}
-
-				// Propagate he parameter value change so that it updates the other caches.
-				Material->PropagateExpressionParameterChanges(this);
 			}
 		}
 	}
