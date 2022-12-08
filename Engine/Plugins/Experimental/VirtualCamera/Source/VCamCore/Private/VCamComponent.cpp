@@ -617,7 +617,7 @@ bool UVCamComponent::AddInputProfileWithCurrentlyActiveMappings(const FName Prof
 					const FName MappingName = Mapping.GetMappingName();
 
 					// Prefer to use the current mapped key but fallback to the default if no key is mapped
-					FKey CurrentKey = EnhancedInputSubsystemInterface->GetPlayerMappedKey(MappingName);
+					FKey CurrentKey = EnhancedInputSubsystemInterface->GetPlayerMappedKeyInSlot(MappingName);
 					if (!CurrentKey.IsValid())
 					{
 						CurrentKey = Mapping.Key;
@@ -666,7 +666,7 @@ FKey UVCamComponent::GetPlayerMappedKey(const FName MappingName) const
 {
 	if (const IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetEnhancedInputSubsystemInterface())
 	{
-		return EnhancedInputSubsystemInterface->GetPlayerMappedKey(MappingName);
+		return EnhancedInputSubsystemInterface->GetPlayerMappedKeyInSlot(MappingName);
 	}
 	return EKeys::Invalid;
 }
@@ -1211,7 +1211,7 @@ void UVCamComponent::ApplyInputProfile()
 			// Ensure we have a valid name to map
 			if (MappingName != NAME_None)
 			{
-				EnhancedInputSubsystemInterface->AddPlayerMappedKey(MappingName, NewKey);
+				EnhancedInputSubsystemInterface->AddPlayerMappedKeyInSlot(MappingName, NewKey);
 			}
 		}
 	}
