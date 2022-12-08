@@ -55,7 +55,7 @@ namespace Horde.Agent.Commands.Vcs
 
 			RefName branchName = (Branch != null) ? new RefName(Branch) : workspaceState.Branch;
 
-			IStorageClient store = CreateStorageClient();
+			IStorageClient store = await GetStorageClientAsync();
 
 			using MemoryCache cache = new MemoryCache(new MemoryCacheOptions());
 			TreeReader reader = new TreeReader(store, cache, logger);

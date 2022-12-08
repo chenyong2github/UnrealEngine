@@ -50,7 +50,7 @@ namespace Horde.Agent.Commands.Vcs
 
 			PrintDelta(oldState, newState, logger);
 
-			IStorageClient store = CreateStorageClient();
+			IStorageClient store = await GetStorageClientAsync();
 
 			using MemoryCache cache = new MemoryCache(new MemoryCacheOptions());
 			TreeReader reader = new TreeReader(store, cache, logger);

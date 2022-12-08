@@ -441,6 +441,7 @@ namespace Horde.Build
 			services.AddSingleton<DeviceService>();						
 			services.AddSingleton<NoticeService>();
 			services.AddSingleton<StorageService>();
+			services.AddSingleton<IStorageClientFactory>(sp => sp.GetRequiredService<StorageService>());
 			services.AddSingleton<TestDataService>();
 
 			if (settings.JiraUrl != null)

@@ -24,7 +24,7 @@ namespace Horde.Agent.Commands.Vcs
 
 			WorkspaceState workspaceState = await ReadStateAsync(rootDir);
 
-			IStorageClient store = CreateStorageClient();
+			IStorageClient store = await GetStorageClientAsync();
 
 			RefName branchName = new RefName(Name);
 			if (await store.HasRefAsync(branchName))

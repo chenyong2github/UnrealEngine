@@ -89,7 +89,7 @@ namespace Horde.Build.Storage
 	/// <summary>
 	/// Functionality related to the storage service
 	/// </summary>
-	public sealed class StorageService : IHostedService, IDisposable
+	public sealed class StorageService : IHostedService, IDisposable, IStorageClientFactory
 	{
 		sealed class StorageClient : StorageClientBase, IStorageClientImpl, IDisposable
 		{
@@ -487,6 +487,9 @@ namespace Horde.Build.Storage
 			NamespaceInfo namespaceInfo = await GetNamespaceInfoAsync(namespaceId, cancellationToken);
 			return namespaceInfo.Client;
 		}
+
+		/// <inheritdoc/>
+		async ValueTask<IStorageClient> IStorageClientFactory.GetClientAsync(NamespaceId namespaceId, CancellationToken cancellationToken) => await GetClientAsync(namespaceId, cancellationToken);
 
 		/// <summary>
 		/// Authorize operations for the given store

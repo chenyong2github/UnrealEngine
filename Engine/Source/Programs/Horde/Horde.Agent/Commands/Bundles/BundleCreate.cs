@@ -5,7 +5,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
-using EpicGames.Horde.Storage.Backends;
 using EpicGames.Horde.Storage.Nodes;
 using Microsoft.Extensions.Logging;
 
@@ -14,15 +13,25 @@ namespace Horde.Agent.Commands.Bundles
 	[Command("bundle", "create", "Creates a bundle from a folder on the local hard drive")]
 	class BundleCreate : Command
 	{
+		[CommandLine("-Namespace=", Description = "Namespace to use for storage")]
+		public NamespaceId NamespaceId { get; set; } = new NamespaceId("default");
+
 		[CommandLine("-Ref=")]
 		public RefName RefName { get; set; } = new RefName("default-bundle");
 
 		[CommandLine("-InputDir=", Required = true)]
 		public DirectoryReference InputDir { get; set; } = null!;
 
+		readonly IStorageClientFactory _storageClientFactory;
+
+		public BundleCreate(IStorageClientFactory storageClientFactory)
+		{
+			_storageClientFactory = storageClientFactory;
+		}
+
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
-			FileStorageClient store = new FileStorageClient(DirectoryReference.Combine(Program.DataDir, "Bundles"), logger);
+			IStorageClient store = await _storageClientFactory.GetClientAsync(NamespaceId);
 
 			TreeWriter writer = new TreeWriter(store, prefix: RefName.Text);
 

@@ -8,6 +8,8 @@ using Microsoft.Extensions.Logging;
 using EpicGames.Horde.Storage.Backends;
 using Microsoft.Extensions.Options;
 using EpicGames.Core;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Horde.Agent.Utility
 {
@@ -28,21 +30,19 @@ namespace Horde.Agent.Utility
 			_logger = logger;
 		}
 
-		/// <summary>
-		/// Creates a client for the given namespace
-		/// </summary>
-		/// <param name="namespaceId">Namespace to get a client for</param>
-		/// <returns>New storage client instance</returns>
-		public IStorageClient Create(NamespaceId namespaceId)
+		/// <inheritdoc/>
+		public ValueTask<IStorageClient> GetClientAsync(NamespaceId namespaceId, CancellationToken cancellationToken)
 		{
+			IStorageClient client;
 			if (_settings.Value.UseLocalStorageClient)
 			{
-				return new FileStorageClient(DirectoryReference.Combine(Program.DataDir, "Storage", namespaceId.ToString()), _logger);
+				client = new FileStorageClient(DirectoryReference.Combine(Program.DataDir, "Storage", namespaceId.ToString()), _logger);
 			}
 			else
 			{
-				return new HttpStorageClient(() => CreateDefaultHttpClient(namespaceId), () => new HttpClient(), _logger);
+				client = new HttpStorageClient(() => CreateDefaultHttpClient(namespaceId), () => new HttpClient(), _logger);
 			}
+			return new ValueTask<IStorageClient>(client);
 		}
 
 		HttpClient CreateDefaultHttpClient(NamespaceId namespaceId)
@@ -58,6 +58,5 @@ namespace Horde.Agent.Utility
 
 			return client;
 		}
-
 	}
 }

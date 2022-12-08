@@ -47,13 +47,13 @@ namespace Horde.Agent.Commands.Bundles
 			}
 			else if (BlobId != null)
 			{
-				IStorageClient store = _storageClientFactory.Create(NamespaceId);
+				IStorageClient store = await _storageClientFactory.GetClientAsync(NamespaceId);
 				bundle = await store.ReadBundleAsync(BlobId.Value);
 				logger.LogInformation("Summary for blob {BlobId}", BlobId.Value);
 			}
 			else if (RefName != null)
 			{
-				IStorageClient store = _storageClientFactory.Create(NamespaceId);
+				IStorageClient store = await _storageClientFactory.GetClientAsync(NamespaceId);
 
 				NodeLocator locator = await store.ReadRefTargetAsync(RefName.Value);
 				logger.LogInformation("Ref {RefName} -> {Locator}", RefName.Value, locator);
