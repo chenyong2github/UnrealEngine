@@ -2565,7 +2565,7 @@ void FScene::AssignAvailableShadowMapChannelForLight(FLightSceneInfo* LightScene
 			return;
 		}
 	}
-	else if (LightSceneInfo->Proxy->GetLightType() == LightType_Directional && !IsMobilePlatform(GetShaderPlatform()))
+	else if (LightSceneInfo->Proxy->GetLightType() == LightType_Directional)
 	{
 		// The implementation of forward lighting in ShadowProjectionPixelShader.usf does not support binding the directional light to channel 3.
 		// This is related to the USE_FADE_PLANE feature that encodes the CSM blend factor the alpha channel.

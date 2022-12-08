@@ -470,6 +470,16 @@ FLightSceneProxy::FLightSceneProxy(const ULightComponent* InLightComponent)
 	LightFunctionDisabledBrightness = LightComponent->DisabledBrightness;
 
 	SamplesPerPixel = LightComponent->SamplesPerPixel;
+
+	if (bCastDynamicShadow && IsMobilePlatform(SceneInterface->GetShaderPlatform()))
+	{
+		if (GetLightType() == LightType_Point
+			|| GetLightType() == LightType_Rect
+			|| (GetLightType() == LightType_Spot && !IsMobileMovableSpotlightShadowsEnabled(SceneInterface->GetShaderPlatform())))
+		{
+			bCastDynamicShadow = false;
+		}
+	}
 }
 
 bool FLightSceneProxy::ShouldCreatePerObjectShadowsForDynamicObjects() const

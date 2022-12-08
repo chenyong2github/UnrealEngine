@@ -1762,7 +1762,7 @@ protected:
 	uint8 bStaticShadowing : 1;
 
 	/** True if the light casts dynamic shadows. */
-	const uint8 bCastDynamicShadow : 1;
+	uint8 bCastDynamicShadow : 1;
 
 	/** True if the light casts static shadows. */
 	const uint8 bCastStaticShadow : 1;

@@ -334,7 +334,6 @@ FDeferredLightData ConvertToDeferredLight_Mobile(const FLocalLightData In)
 	//Render RectLight approximately as SpotLight
 	Out.bSpotLight		= Out.bSpotLight || Out.bRectLight;
 	Out.bRectLight		= false;
-	Out.ShadowedBits	= 1;
 
 	return Out;
 }
