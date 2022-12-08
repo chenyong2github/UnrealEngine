@@ -475,10 +475,13 @@ FText UNiagaraStackFunctionInput::GetValueToolTip() const
 		{
 		case EValueMode::Data:
 		{
-			FString DataInterfaceDescription = InputValues.DataObject->GetClass()->GetDescription();
-			if (DataInterfaceDescription.Len() > 0)
+			if (InputValues.DataObject.IsValid())
 			{
-				ValueToolTipCache = FText::FromString(DataInterfaceDescription);
+				FString DataInterfaceDescription = InputValues.DataObject->GetClass()->GetDescription();
+				if (DataInterfaceDescription.Len() > 0)
+				{
+					ValueToolTipCache = FText::FromString(DataInterfaceDescription);
+				}
 			}
 			break;
 		}
