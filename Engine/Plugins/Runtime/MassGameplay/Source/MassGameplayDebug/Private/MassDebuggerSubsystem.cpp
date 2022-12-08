@@ -32,6 +32,15 @@ void UMassDebuggerSubsystem::Deinitialize()
 #endif // WITH_MASSENTITY_DEBUG
 }
 
+bool UMassDebuggerSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
+{
+	return
+#if WITH_MASSENTITY_DEBUG
+		WorldType == EWorldType::EditorStorage ||
+#endif
+		Super::DoesSupportWorldType(WorldType);
+}
+
 #if WITH_MASSENTITY_DEBUG
 void UMassDebuggerSubsystem::OnEntitySelected(const FMassEntityManager& EntityManager, const FMassEntityHandle EntityHandle)
 {

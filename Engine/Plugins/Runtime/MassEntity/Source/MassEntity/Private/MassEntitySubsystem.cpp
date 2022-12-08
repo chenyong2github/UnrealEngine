@@ -40,6 +40,11 @@ void UMassEntitySubsystem::Deinitialize()
 	EntityManager.Reset();
 }
 
+bool UMassEntitySubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
+{
+	return WorldType == EWorldType::EditorStorage || Super::DoesSupportWorldType(WorldType);
+}
+
 #if WITH_MASSENTITY_DEBUG
 //////////////////////////////////////////////////////////////////////
 // Debug commands

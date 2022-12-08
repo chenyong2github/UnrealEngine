@@ -113,6 +113,7 @@ protected:
 	// USubsystem BEGIN
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
+	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
 	// USubsystem END
 	
 	TMap<TObjectKey<const AActor>, FMassEntityHandle> ActorHandleMap;

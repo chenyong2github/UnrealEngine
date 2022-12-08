@@ -120,6 +120,8 @@ protected:
 	virtual void Tick(float DeltaTime) override;
 	virtual TStatId GetStatId() const override;
 
+	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
+
 	/** Array of registered components. */
 	UPROPERTY(Transient)
 	TArray<FRegisteredZoneGraphAnnotation> RegisteredComponents;

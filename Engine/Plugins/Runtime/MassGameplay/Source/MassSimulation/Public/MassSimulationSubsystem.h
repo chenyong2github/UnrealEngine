@@ -39,6 +39,7 @@ protected:
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 	virtual void Deinitialize() override;
 	virtual void BeginDestroy() override;
+	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
 
 	void RebuildTickPipeline();
 

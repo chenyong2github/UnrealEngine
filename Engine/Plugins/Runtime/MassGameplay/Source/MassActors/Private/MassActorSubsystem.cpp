@@ -96,6 +96,11 @@ void UMassActorSubsystem::Deinitialize()
 	ActorHandleMap.Reset();
 }
 
+bool UMassActorSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
+{
+	return WorldType == EWorldType::Type::EditorStorage || Super::DoesSupportWorldType(WorldType);
+}
+
 FMassEntityHandle UMassActorSubsystem::GetEntityHandleFromActor(const TObjectKey<const AActor> Actor)
 {
 	UE_MT_SCOPED_READ_ACCESS(ActorHandleMapDetector);

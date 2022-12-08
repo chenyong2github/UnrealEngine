@@ -38,7 +38,11 @@ namespace UE::Mass::Debugger::Private
 
 	bool IsSupportedWorldType(const EWorldType::Type WorldType)
 	{
-		return WorldType == EWorldType::Game || WorldType == EWorldType::Editor || WorldType == EWorldType::PIE;
+		return 
+			WorldType == EWorldType::Game || 
+			WorldType == EWorldType::Editor || 
+			WorldType == EWorldType::PIE || 
+			WorldType == EWorldType::EditorStorage;
 	}
 }
 
