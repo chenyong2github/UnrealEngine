@@ -4151,7 +4151,7 @@ namespace VulkanRHI
 
 	void FStagingBuffer::InvalidateMappedMemory()
 	{
-		Allocation. InvalidateMappedMemory(Device);
+		Allocation.InvalidateMappedMemory(Device);
 	}
 
 
