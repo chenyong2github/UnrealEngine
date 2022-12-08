@@ -1757,6 +1757,7 @@ void FSlateRHIRenderer::DrawWindows_Private(FSlateDrawBuffer& WindowDrawBuffer)
 				for (const FRenderThreadUpdateContext& Context : Contexts)
 				{
 					Context.Renderer->DrawWindowToTarget_RenderThread(RHICmdList, Context);
+					Context.Renderer->ReleaseDrawBuffer(*Context.WindowDrawBuffer);
 				}
 			}
 		);

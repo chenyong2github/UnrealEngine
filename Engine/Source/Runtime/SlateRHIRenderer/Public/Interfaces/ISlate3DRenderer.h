@@ -17,14 +17,18 @@ public:
 	/** Acquire the draw buffer and release it at the end of the scope. */
 	struct FScopedAcquireDrawBuffer
 	{
-		FScopedAcquireDrawBuffer(ISlate3DRenderer& InSlateRenderer)
+		FScopedAcquireDrawBuffer(ISlate3DRenderer& InSlateRenderer, bool bInDeferRenderTargetUpdate = false)
 			: SlateRenderer(InSlateRenderer)
 			, DrawBuffer(InSlateRenderer.AcquireDrawBuffer())
+			, bDeferRenderTargetUpdate(bInDeferRenderTargetUpdate)
 		{
 		}
 		~FScopedAcquireDrawBuffer()
 		{
-			SlateRenderer.ReleaseDrawBuffer(DrawBuffer);
+			if (!bDeferRenderTargetUpdate)
+			{
+				SlateRenderer.ReleaseDrawBuffer(DrawBuffer);
+			}
 		}
 		FScopedAcquireDrawBuffer(const FScopedAcquireDrawBuffer&) = delete;
 		FScopedAcquireDrawBuffer& operator=(const FScopedAcquireDrawBuffer&) = delete;
@@ -37,6 +41,7 @@ public:
 	private:
 		ISlate3DRenderer& SlateRenderer;
 		FSlateDrawBuffer& DrawBuffer;
+		bool bDeferRenderTargetUpdate;
 	};
 
 	/** set if this renderer should render in gamma space by default. */
