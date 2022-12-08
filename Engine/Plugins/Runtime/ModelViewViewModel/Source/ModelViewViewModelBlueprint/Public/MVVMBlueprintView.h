@@ -71,6 +71,7 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChainEvent) override;
 
+	void AddAssetTags(TArray<FAssetRegistryTag>& OutTags);
 	void WidgetRenamed(FName OldObjectName, FName NewObjectName);
 #endif
 

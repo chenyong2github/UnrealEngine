@@ -6,6 +6,7 @@
 #include "BlueprintModes/WidgetBlueprintApplicationMode.h"
 #include "BlueprintModes/WidgetBlueprintApplicationModes.h"
 #include "Customizations/MVVMPropertyBindingExtension.h"
+#include "Editor.h"
 #include "EdGraphSchema_K2.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Docking/LayoutExtender.h"
@@ -18,6 +19,7 @@
 #include "MVVMBlueprintView.h"
 #include "MVVMBlueprintViewModelContext.h"
 #include "MVVMEditorCommands.h"
+#include "MVVMEditorSubsystem.h"
 #include "MVVMWidgetBlueprintExtension_View.h"
 #include "StatusBarSubsystem.h"
 #include "Styling/MVVMEditorStyle.h"
@@ -69,11 +71,13 @@ void FModelViewViewModelEditorModule::StartupModule()
 	}
 
 	FMVVMEditorCommands::Register();
+	FWidgetBlueprintDelegates::GetAssetTags.AddRaw(this, &FModelViewViewModelEditorModule::HandleAssetTags);
 }
 
 
 void FModelViewViewModelEditorModule::ShutdownModule()
 {
+	FWidgetBlueprintDelegates::GetAssetTags.RemoveAll(this);
 	if (FMessageLogModule* MessageLogModule = FModuleManager::GetModulePtr<FMessageLogModule>("MessageLog"))
 	{
 		MessageLogModule->UnregisterLogListing("Model View Viewmodel");
@@ -195,6 +199,20 @@ void FModelViewViewModelEditorModule::HandleActivateMode(FWidgetBlueprintApplica
 		BP->GetToolkitCommands()->MapAction(FMVVMEditorCommands::Get().ToggleMVVMDrawer,
 			FExecuteAction::CreateStatic(&FMVVMBindingSummoner::ToggleMVVMDrawer)
 		);
+	}
+}
+
+void FModelViewViewModelEditorModule::HandleAssetTags(const UWidgetBlueprint* WidgetBlueprint, TArray<UObject::FAssetRegistryTag>& OutTags)
+{
+	if (WidgetBlueprint && GEditor)
+	{
+		if (UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>())
+		{
+			if (UMVVMBlueprintView* BlueprintView = Subsystem->GetView(WidgetBlueprint))
+			{
+				BlueprintView->AddAssetTags(OutTags);
+			}
+		}
 	}
 }
 
