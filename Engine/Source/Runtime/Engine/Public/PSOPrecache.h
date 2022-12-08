@@ -116,7 +116,7 @@ struct FPSOPrecacheParams
  */
 struct FPSOPrecacheData
 {
-	FPSOPrecacheData() : Type(EType::Graphics)
+	FPSOPrecacheData() : Type(EType::Graphics), bRequired(true)
 #if PSO_PRECACHING_VALIDATE
 		, MeshPassType(0)
 		, VertexFactoryType(nullptr)
@@ -130,6 +130,10 @@ struct FPSOPrecacheData
 		Compute,
 	};
 	EType Type;
+
+	// Is the PSO required to be able render the object or can it provide a fallback path
+	// (proxy creation won't wait for these PSOs if enabled)
+	bool bRequired;
 
 	union
 	{

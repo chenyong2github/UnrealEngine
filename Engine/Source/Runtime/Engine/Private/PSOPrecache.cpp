@@ -70,7 +70,7 @@ FGraphEventArray PrecachePSOs(const TArray<FPSOPrecacheData>& PSOInitializers)
 #endif // PSO_PRECACHING_VALIDATE
 
 			FGraphEventRef GraphEvent = PipelineStateCache::PrecacheGraphicsPipelineState(PrecacheData.GraphicsPSOInitializer);
-			if (GraphEvent)
+			if (GraphEvent && PrecacheData.bRequired)
 			{
 				GraphEvents.Add(GraphEvent);
 			}
@@ -83,7 +83,7 @@ FGraphEventArray PrecachePSOs(const TArray<FPSOPrecacheData>& PSOInitializers)
 #endif // PSO_PRECACHING_VALIDATE
 
 			FGraphEventRef GraphEvent = PipelineStateCache::PrecacheComputePipelineState(PrecacheData.ComputeShader);
-			if (GraphEvent)
+			if (GraphEvent && PrecacheData.bRequired)
 			{
 				GraphEvents.Add(GraphEvent);
 			}
