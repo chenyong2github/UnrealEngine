@@ -74,7 +74,7 @@ void FGroomVisualizationMenuCommands::InternalBuildVisualisationSubMenu(FMenuBui
 
 		// Attributes
 		{
-			Menu.BeginSection("LevelViewportGroomVisualizationGeneral", LOCTEXT("GroomVisualizationGeneral", "Groom Attributes"));
+			Menu.BeginSection("LevelViewportGroomVisualizationAttributes", LOCTEXT("GroomVisualizationAttributes", "Groom Attributes"));
 			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::RenderHairSeed);
 			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::RenderHairRootUV);
 			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::RenderHairRootUDIM);
@@ -87,7 +87,7 @@ void FGroomVisualizationMenuCommands::InternalBuildVisualisationSubMenu(FMenuBui
 		}
 		// Guides
 		{
-			Menu.BeginSection("LevelViewportGroomVisualizationGeneral", LOCTEXT("GroomVisualizationGuides", "Groom Guides"));
+			Menu.BeginSection("LevelViewportGroomVisualizationGuides", LOCTEXT("GroomVisualizationGuides", "Groom Guides"));
 			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::SimHairStrands);
 			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::RenderHairStrands);
 			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::CardGuides);
@@ -96,7 +96,7 @@ void FGroomVisualizationMenuCommands::InternalBuildVisualisationSubMenu(FMenuBui
 
 		// Strands
 		{
-			Menu.BeginSection("LevelViewportGroomVisualizationGeneral", LOCTEXT("GroomVisualizationMaterial", "Groom Strands"));
+			Menu.BeginSection("LevelViewportGroomVisualizationStrands", LOCTEXT("GroomVisualizationMaterial", "Groom Strands"));
 			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::RenderHairControlPoints);
 			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::MaterialDepth);
 			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::MaterialBaseColor);

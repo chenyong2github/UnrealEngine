@@ -5,6 +5,7 @@
 #include "TextureResource.h"
 #include "TextureRenderTargetVolumeResource.h"
 #include "Engine/TextureRenderTargetVolume.h"
+#include "HAL/PlatformFileManager.h"
 
 #include "NDIRenderTargetVolumeSimCacheData.h"
 #include "NiagaraDataInterfaceRenderTargetCommon.h"

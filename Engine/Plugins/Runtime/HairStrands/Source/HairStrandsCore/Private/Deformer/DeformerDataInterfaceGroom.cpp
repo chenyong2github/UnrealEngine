@@ -10,6 +10,7 @@
 #include "GroomComponent.h"
 #include "GroomInstance.h"
 #include "RenderGraphBuilder.h"
+#include "GlobalRenderResources.h"
 
 FString UOptimusGroomDataInterface::GetDisplayName() const
 {
