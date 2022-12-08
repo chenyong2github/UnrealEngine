@@ -142,6 +142,10 @@ namespace UnrealBuildTool
 		/// ARM64
 		/// </summary>
 		ARM64,
+		/// <summary>
+		/// ARM64EC
+		/// </summary>
+		ARM64EC,
 	}
 
 	/// <summary>
@@ -538,7 +542,12 @@ namespace UnrealBuildTool
 		{
 			this.Target = Target;
 
-			ManifestFile = FileReference.Combine(Unreal.EngineDirectory, "Build", "Windows", "Resources", String.Format("Default-{0}.manifest", Target.Platform)).FullName;
+			string Platform = Target.Platform.ToString();
+			if (Target.Architecture == "arm64" || Target.Architecture == "arm64ec")
+			{
+				Platform += "-arm64";
+			}
+			ManifestFile = FileReference.Combine(Unreal.EngineDirectory, "Build", "Windows", "Resources", String.Format("Default-{0}.manifest", Platform)).FullName;
 		}
 	}
 
@@ -902,7 +911,28 @@ namespace UnrealBuildTool
 		{
 			if (Platform == UnrealTargetPlatform.Win64)
 			{
-				Target.WindowsPlatform.Architecture = WindowsArchitecture.x64;
+				switch(Target.Architecture)
+				{
+					case "arm64":
+						Target.WindowsPlatform.Architecture = WindowsArchitecture.ARM64;
+						break;
+					case "arm64ec":
+						Target.WindowsPlatform.Architecture = WindowsArchitecture.ARM64EC;
+						break;
+					default:
+						Target.WindowsPlatform.Architecture = WindowsArchitecture.x64;
+						break;
+				}
+
+				// Add names of plugins here that are incompatible with arm64
+				bool bCompilingForArm = Target.Architecture.IndexOf("arm", StringComparison.OrdinalIgnoreCase) >= 0;
+				if (bCompilingForArm && Target.Name != "UnrealHeaderTool")
+				{
+					Target.DisablePlugins.AddRange(new string[]
+					{
+						"OpenImageDenoise"
+					});
+				}
 			}
 
 			// Disable Simplygon support if compiling against the NULL RHI.
@@ -1145,13 +1175,30 @@ namespace UnrealBuildTool
 			{
 				archPath = "x64";
 			}
-			else if (arch == WindowsArchitecture.ARM64)
+			else if (arch == WindowsArchitecture.ARM64 || arch == WindowsArchitecture.ARM64EC)
 			{
 				archPath = "arm64";
 			}
 			return archPath;
 		}
 
+		public static string GetArchitectureName(WindowsArchitecture arch)
+		{
+			string archPath = "Unknown";
+			if (arch == WindowsArchitecture.x64)
+			{
+				archPath = "x64";
+			}
+			else if (arch == WindowsArchitecture.ARM64)
+			{
+				archPath = "arm64";
+			}
+			else if (arch == WindowsArchitecture.ARM64EC)
+			{
+				archPath = "arm64ec";
+			}
+			return archPath;
+		}
 
 		/// <summary>
 		/// Determines if a directory contains a valid DIA SDK

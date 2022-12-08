@@ -48,6 +48,16 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Returns the architecture name of the current architecture.
+		/// </summary>
+		/// <param name="arch">The architecture enum</param>
+		/// <returns>String with the name</returns>
+		public static string GetArchitectureName(WindowsArchitecture arch)
+		{
+			return WindowsPlatform.GetArchitectureName(arch);
+		}
+
+		/// <summary>
 		/// Tries to get the directory for an installed Windows SDK
 		/// </summary>
 		/// <param name="DesiredVersion">Receives the desired version on success</param>

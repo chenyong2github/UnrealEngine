@@ -39,7 +39,7 @@
 #	define PLATFORM_CPU_ARM_FAMILY	0
 #	define PLATFORM_64BITS			1
 #	define PLATFORM_CACHE_LINE_SIZE	64
-#elif defined(__arm64__) || defined(_M_ARM64)
+#elif defined(__arm64__) || defined(_M_ARM64) || defined(_M_ARM64EC)
 #	define PLATFORM_CPU_X86_FAMILY	0
 #	define PLATFORM_CPU_ARM_FAMILY	1
 #	define PLATFORM_64BITS			1

@@ -1458,7 +1458,7 @@ typedef XXH64_hash_t xxh_u64;
 #ifndef XXH_REROLL_XXH64
 #  if (defined(__ILP32__) || defined(_ILP32)) /* ILP32 is often defined on 32-bit GCC family */ \
    || !(defined(__x86_64__) || defined(_M_X64) || defined(_M_AMD64) /* x86-64 */ \
-     || defined(_M_ARM64) || defined(__aarch64__) || defined(__arm64__) /* aarch64 */ \
+     || defined(_M_ARM64) || defined(_M_ARM64EC) || defined(__aarch64__) || defined(__arm64__) /* aarch64 */ /* EPIC MOD: Added _M_ARM64EC support */ \
      || defined(__PPC64__) || defined(__PPC64LE__) || defined(__ppc64__) || defined(__powerpc64__) /* ppc64 */ \
      || defined(__mips64__) || defined(__mips64)) /* mips64 */ \
    || (!defined(SIZE_MAX) || SIZE_MAX < ULLONG_MAX) /* check limits */

@@ -72,7 +72,7 @@
 
 // Whether the CPU is x86/x64 (i.e. both 32 and 64-bit variants)
 #ifndef PLATFORM_CPU_X86_FAMILY
-	#if (defined(_M_IX86) || defined(__i386__) || defined(_M_X64) || defined(__amd64__) || defined(__x86_64__))
+	#if (defined(_M_IX86) || defined(__i386__) || defined(_M_X64) || defined(__amd64__) || defined(__x86_64__)) && !defined(_M_ARM64EC)
 		#define PLATFORM_CPU_X86_FAMILY	1
 	#else
 		#define PLATFORM_CPU_X86_FAMILY	0
@@ -81,7 +81,7 @@
 
 // Whether the CPU is AArch32/AArch64 (i.e. both 32 and 64-bit variants)
 #ifndef PLATFORM_CPU_ARM_FAMILY
-	#if (defined(__arm__) || defined(_M_ARM) || defined(__aarch64__) || defined(_M_ARM64))
+	#if (defined(__arm__) || defined(_M_ARM) || defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC))
 		#define PLATFORM_CPU_ARM_FAMILY	1
 	#else
 		#define PLATFORM_CPU_ARM_FAMILY	0

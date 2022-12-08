@@ -182,7 +182,9 @@ typedef __m128 v4sf;
 /*
   ARM NEON support macros
 */
-#elif !defined(PFFFT_SIMD_DISABLE) && (defined(__arm__) || defined(__aarch64__) || defined(__arm64__))
+// BEGIN EPIC MOD: Added _M_ARM64 and _M_ARM64EC support
+#elif !defined(PFFFT_SIMD_DISABLE) && (defined(__arm__) || defined(__aarch64__) || defined(__arm64__) || defined(_M_ARM64) || defined(_M_ARM64EC))
+// END EPIC MOD
 #  include <arm_neon.h>
 typedef float32x4_t v4sf;
 #  define SIMD_SZ 4
@@ -207,7 +209,9 @@ typedef float32x4_t v4sf;
 #  define VALIGNED(ptr) ((((long)(ptr)) & 0x3) == 0)
 #else
 #  if !defined(PFFFT_SIMD_DISABLE)
-#    warning "building with simd disabled !\n";
+// BEGIN EPIC MOD: Fix compile error. Brought a fix from the devline
+#    pragma message( "building with simd disabled !" )
+// END EPIC MOD
 #    define PFFFT_SIMD_DISABLE // fallback to scalar code
 #  endif
 #endif

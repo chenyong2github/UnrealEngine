@@ -76,7 +76,14 @@ struct CORE_API FWindowsPlatformMisc
 	static void CustomNamedStat(const ANSICHAR* Text, float Value, const ANSICHAR* Graph, const ANSICHAR* Unit);
 #endif
 
-	FORCEINLINE static void MemoryBarrier() { _mm_sfence(); }
+	FORCEINLINE static void MemoryBarrier() 
+	{
+#if PLATFORM_CPU_X86_FAMILY
+		_mm_sfence();
+#elif PLATFORM_CPU_ARM_FAMILY
+		__dmb(_ARM64_BARRIER_SY);
+#endif
+	}
 
 	static bool IsRemoteSession();
 
@@ -162,14 +169,23 @@ struct CORE_API FWindowsPlatformMisc
 		const int32 CacheLineSize = GetCacheLineSize();
 		for (int32 LinesToPrefetch = (NumBytes + CacheLineSize - 1) / CacheLineSize; LinesToPrefetch; --LinesToPrefetch)
 		{
+#if PLATFORM_CPU_X86_FAMILY
 			_mm_prefetch( Ptr, _MM_HINT_T0 );
+#elif PLATFORM_CPU_ARM_FAMILY
+			__prefetch(Ptr);
+#endif
 			Ptr += CacheLineSize;
 		}
 	}
 
 	FORCEINLINE static void Prefetch(void const* x, int32 offset = 0)
 	{
-		 _mm_prefetch( (char const*)(x) + offset, _MM_HINT_T0 );
+#if PLATFORM_CPU_X86_FAMILY
+		_mm_prefetch((char const*)(x)+offset, _MM_HINT_T0);
+#elif PLATFORM_CPU_ARM_FAMILY
+		__prefetch((char const*)(x)+offset);
+#endif
+		
 	}
 
 	/** 

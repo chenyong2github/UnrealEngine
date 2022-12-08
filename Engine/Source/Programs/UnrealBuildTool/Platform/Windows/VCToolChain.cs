@@ -828,6 +828,18 @@ namespace UnrealBuildTool
 				Arguments.Add($"-Xclang -x -Xclang \"{FileSpecifier}\"");
 			}
 
+			if (CompileEnvironment.Architecture == "arm64ec")
+			{
+				Arguments.Add("/arm64EC");
+				// The latest vc toolchain requires that these be manually set for arm64ec.
+				AddDefinition(Arguments, "_ARM64EC_");
+				AddDefinition(Arguments, "_ARM64EC_WORKAROUND_");
+				AddDefinition(Arguments, "ARM64EC");
+				AddDefinition(Arguments, "AMD64");
+				AddDefinition(Arguments, "_AMD64_");
+				AddDefinition(Arguments, "_WINDOWS");
+				AddDefinition(Arguments, "WIN32");
+			}
 
 			if (!CompileEnvironment.bEnableBufferSecurityChecks)
 			{
@@ -1121,8 +1133,7 @@ namespace UnrealBuildTool
 			//
 			if (UseWindowsArchitecture(LinkEnvironment.Platform))
 			{
-				Arguments.Add($"/MACHINE:{WindowsExports.GetArchitectureSubpath(Target.WindowsPlatform.Architecture)}");
-
+				Arguments.Add($"/MACHINE:{WindowsExports.GetArchitectureName(Target.WindowsPlatform.Architecture)}");
 				{
 					if (LinkEnvironment.bIsBuildingConsoleApplication)
 					{
@@ -1158,7 +1169,10 @@ namespace UnrealBuildTool
 			}
 
 			// Allow delay-loaded DLLs to be explicitly unloaded.
-			Arguments.Add("/DELAY:UNLOAD");
+			if (Target.WindowsPlatform.Architecture == WindowsArchitecture.x64)
+			{
+				Arguments.Add("/DELAY:UNLOAD");
+			}
 
 			if (LinkEnvironment.bIsBuildingDLL)
 			{
@@ -1244,7 +1258,8 @@ namespace UnrealBuildTool
 			if (LinkEnvironment.bUseIncrementalLinking && 
 				LinkEnvironment.Configuration != CppConfiguration.Shipping && 
 				!Target.WindowsPlatform.bMergeIdenticalCOMDATs &&
-				!LinkEnvironment.bAllowLTCG)
+				!LinkEnvironment.bAllowLTCG &&
+				Target.WindowsPlatform.Architecture == WindowsArchitecture.x64)
 			{
 				Arguments.Add("/INCREMENTAL");
 				Arguments.Add("/verbose:incr");
@@ -1286,8 +1301,7 @@ namespace UnrealBuildTool
 			//
 			if (UseWindowsArchitecture(LinkEnvironment.Platform))
 			{
-				Arguments.Add($"/MACHINE:{WindowsExports.GetArchitectureSubpath(Target.WindowsPlatform.Architecture)}");
-
+				Arguments.Add($"/MACHINE:{WindowsExports.GetArchitectureName(Target.WindowsPlatform.Architecture)}");
 				{
 					if (LinkEnvironment.bIsBuildingConsoleApplication)
 					{
@@ -1792,10 +1806,7 @@ namespace UnrealBuildTool
 
 				// If we're compiling for 64-bit Windows, also add the _WIN64 definition to the resource
 				// compiler so that we can switch on that in the .rc file using #ifdef.
-				if (Target.WindowsPlatform.Architecture == WindowsArchitecture.x64 || Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
-				{
-					AddDefinition(Arguments, "_WIN64");
-				}
+				AddDefinition(Arguments, "_WIN64");
 
 				// Language
 				Arguments.Add("/l 0x409");

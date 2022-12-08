@@ -163,7 +163,14 @@ namespace UnrealBuildTool
 			// Add the Windows SDK directory to the path too, for mt.exe.
 			if (WindowsSdkVersion >= new VersionNumber(10))
 			{
-				AddDirectoryToPath(DirectoryReference.Combine(WindowsSdkDir, "bin", WindowsSdkVersion.ToString(), Architecture.ToString()));
+				string BuildHostArch = Architecture.ToString();
+				if (Architecture == WindowsArchitecture.ARM64 || Architecture == WindowsArchitecture.ARM64EC)
+				{
+					Debug.Assert(BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64);
+					BuildHostArch = "x64";
+				}
+				AddDirectoryToPath(DirectoryReference.Combine(WindowsSdkDir, "bin", WindowsSdkVersion.ToString(), BuildHostArch));
+
 			}
 		}
 

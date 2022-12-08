@@ -6,8 +6,11 @@
 	#error this code should only be included on Windows
 #endif
 
-#include <intrin.h>
-#include <smmintrin.h>
+#if PLATFORM_CPU_X86_FAMILY
+	#include <intrin.h>
+	#include <smmintrin.h>
+#endif
+
 #include "Microsoft/MicrosoftPlatformMath.h"
 
 typedef FMicrosoftPlatformMathBase FWindowsPlatformMath;

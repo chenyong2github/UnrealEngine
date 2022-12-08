@@ -6,6 +6,8 @@
 #include "GenericPlatform/GenericPlatformMemory.h"
 #include "Windows/WindowsSystemIncludes.h"
 
+#include <malloc.h>
+
 class FString;
 class FMalloc;
 struct FGenericMemoryStats;
