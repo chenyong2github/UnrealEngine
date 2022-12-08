@@ -199,25 +199,28 @@ void USmartObjectComponent::OnRuntimeInstanceBound(FSmartObjectRuntime& RuntimeI
 	{
 		BindTagsDelegates(RuntimeInstance, *AbilityComponent);
 
-		// Update component using the tags from the instance since the component might get reloaded while the instance
-		// was still part of the simulation (i.e. persistent). In this case we need to apply the most up to date
-		// tag counts to the component. Unfortunately there is no way at the moment to replace all tags in one go
-		// so update each tag count individually.
-		const FGameplayTagContainer& InstanceTags = RuntimeInstance.GetTags();
-		FGameplayTagContainer AbilityComponentTags;
-		AbilityComponent->GetOwnedGameplayTags(AbilityComponentTags);
-
-		// Adjust count of any existing and add the missing ones
-		for (auto It(InstanceTags.CreateConstIterator()); It; ++It)
+		if (RegistrationType == ESmartObjectRegistrationType::WithCollection)
 		{
-			AbilityComponentTags.RemoveTag(*It);
-			AbilityComponent->SetTagMapCount(*It, 1);
-		}
+			// Update component using the tags from the instance since the component might get reloaded while the instance
+			// was still part of the simulation (i.e. persistent). In this case we need to apply the most up to date
+			// tag counts to the component. Unfortunately there is no way at the moment to replace all tags in one go
+			// so update each tag count individually.
+			const FGameplayTagContainer& InstanceTags = RuntimeInstance.GetTags();
+			FGameplayTagContainer AbilityComponentTags;
+			AbilityComponent->GetOwnedGameplayTags(AbilityComponentTags);
 
-		// Remove all remaining tags that are no longer valid
-		for (auto It(AbilityComponentTags.CreateConstIterator()); It; ++It)
-		{
-			AbilityComponent->SetTagMapCount(*It, 0);
+			// Adjust count of any existing and add the missing ones
+			for (auto It(InstanceTags.CreateConstIterator()); It; ++It)
+			{
+				AbilityComponentTags.RemoveTag(*It);
+				AbilityComponent->SetTagMapCount(*It, 1);
+			}
+
+			// Remove all remaining tags that are no longer valid
+			for (auto It(AbilityComponentTags.CreateConstIterator()); It; ++It)
+			{
+				AbilityComponent->SetTagMapCount(*It, 0);
+			}
 		}
 	}
 
