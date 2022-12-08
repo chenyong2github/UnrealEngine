@@ -97,7 +97,7 @@ FReply SNiagaraSimCacheViewTimeline::OnTimelineScrubbed(const FGeometry& MyGeome
 	if ( FNiagaraSimCacheViewModel* ViewModel = WeakViewModel.Pin().Get() )
 	{
 		const FVector2D LocalLocation = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
-		const float NormalizedTime = LocalLocation.X / MyGeometry.Size.X;
+		const float NormalizedTime = FMath::Clamp( LocalLocation.X / MyGeometry.Size.X, 0.0f, 1.0f);
 
 		const int32 NewFrameIndex = FMath::RoundToInt(NormalizedTime * float(ViewModel->GetNumFrames() - 1));
 

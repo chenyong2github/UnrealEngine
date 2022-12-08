@@ -148,10 +148,12 @@ void FNiagaraSimCacheViewModel::SetFrameIndex(const int32 InFrameIndex)
 	{
 		const float Duration = SimCache->GetDurationSeconds();
 		const int NumFrames = SimCache->GetNumFrames();
+		const float StartSeconds = SimCache->GetStartSeconds();
 
-		const float NormalizedFrame = NumFrames == 0 ? 0.0f : float(InFrameIndex) / float(NumFrames - 1);
+		const float NormalizedFrame = FMath::Clamp( NumFrames == 0 ? 0.0f : float(InFrameIndex) / float(NumFrames - 1), 0.0f, 1.0f );
+		const float DesiredAge = FMath::Clamp(StartSeconds + (Duration * NormalizedFrame), StartSeconds, StartSeconds + Duration);
 		
-		PreviewComponent->SetDesiredAge(SimCache->GetStartSeconds() + (Duration * NormalizedFrame));
+		PreviewComponent->SetDesiredAge(DesiredAge);
 	}
 	OnViewDataChangedDelegate.Broadcast(false);
 }
