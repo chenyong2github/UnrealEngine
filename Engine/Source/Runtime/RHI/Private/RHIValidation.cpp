@@ -545,6 +545,45 @@ static FString GetBreadcrumbPath()
 	return BreadcrumbMessage;
 }
 
+// FlushType: Thread safe
+void FValidationRHI::RHIBindDebugLabelName(FRHITexture* Texture, const TCHAR* Name)
+{
+	check(IsInRenderingThread());
+
+	FString NameCopyRT = Name;
+	FRHICommandListExecutor::GetImmediateCommandList().EnqueueLambda([Texture, NameCopyRHIT = MoveTemp(NameCopyRT)](FRHICommandListImmediate& RHICmdList)
+		{
+			((FValidationContext&)RHICmdList.GetContext()).Tracker->Rename(Texture->GetTrackerResource(), *NameCopyRHIT);
+		});
+
+	RHI->RHIBindDebugLabelName(Texture, Name);
+}
+
+void FValidationRHI::RHIBindDebugLabelName(FRHIBuffer* Buffer, const TCHAR* Name)
+{
+	check(IsInRenderingThread());
+
+	FString NameCopyRT = Name;
+	FRHICommandListExecutor::GetImmediateCommandList().EnqueueLambda([Buffer, NameCopyRHIT = MoveTemp(NameCopyRT)](FRHICommandListImmediate& RHICmdList)
+		{
+			((FValidationContext&)RHICmdList.GetContext()).Tracker->Rename(Buffer, *NameCopyRHIT);
+		});
+
+	RHI->RHIBindDebugLabelName(Buffer, Name);
+}
+
+void FValidationRHI::RHIBindDebugLabelName(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const TCHAR* Name)
+{
+	RHIValidation::FResource* Resource = UnorderedAccessViewRHI->ViewIdentity.Resource;
+	FString NameCopyRT = Name;
+	FRHICommandListExecutor::GetImmediateCommandList().EnqueueLambda([Resource, NameCopyRHIT = MoveTemp(NameCopyRT)](FRHICommandListImmediate& RHICmdList)
+		{
+			((FValidationContext&)RHICmdList.GetContext()).Tracker->Rename(Resource, *NameCopyRHIT);
+		});
+
+	RHI->RHIBindDebugLabelName(UnorderedAccessViewRHI, Name);
+}
+
 void FValidationRHI::ReportValidationFailure(const TCHAR* InMessage)
 {
 	// Report failures only once per session, since many of them will happen repeatedly. This is similar to what ensure() does, but
@@ -567,11 +606,19 @@ void FValidationRHI::ReportValidationFailure(const TCHAR* InMessage)
 
 	if (!FRHIValidationBreadcrumbScope::Breadcrumbs.IsEmpty())
 	{
+		FString BreadcrumbMessage;
+
+		for (int32 Index = 0; Index < FRHIValidationBreadcrumbScope::Breadcrumbs.Num() - 1; ++Index)
+		{
+			BreadcrumbMessage += (FRHIValidationBreadcrumbScope::Breadcrumbs[Index] + FString(TEXT("/")));
+		}
+
+		BreadcrumbMessage += FRHIValidationBreadcrumbScope::Breadcrumbs.Last();
 		Message = FString::Printf(
 			TEXT("%s")
 			TEXT("Breadcrumbs: %s\n")
 			TEXT("--------------------------------------------------------------------\n"),
-			InMessage, *GetBreadcrumbPath());
+			InMessage, *BreadcrumbMessage);
 	}
 	else
 	{
@@ -1204,27 +1251,23 @@ namespace RHIValidation
 	{
 		void* Trace = CaptureBacktrace();
 
-		FString BreadcrumbMessage = GetBreadcrumbPath();
-
 		if (CreateTrace)
 		{
-			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("\n%s: Type: %s, %s, CreateTrace: 0x%p, %sTrace: 0x%p, %s\n"),
+			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("\n%s: Type: %s, %s, CreateTrace: 0x%p, %sTrace: 0x%p\n"),
 				*GetResourceDebugName(Resource, SubresourceIndex),
 				Type,
 				LogStr,
 				CreateTrace,
 				TracePrefix,
-				Trace,
-				*BreadcrumbMessage);
+				Trace);
 		}
 		else
 		{
-			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("\n%s: Type: %s, %s, Trace: 0x%p, %s\n"),
+			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("\n%s: Type: %s, %s, Trace: 0x%p\n"),
 				*GetResourceDebugName(Resource, SubresourceIndex),
 				Type,
 				LogStr,
-				Trace,
-				*BreadcrumbMessage);
+				Trace);
 		}
 
 		return Trace;

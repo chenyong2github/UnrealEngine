@@ -9,12 +9,9 @@
 #include "RHI.h"
 #include "RHIValidationCommon.h"
 #include "RHIValidationUtils.h"
-#include "RHIValidationContext.h"
 #include "DataDrivenShaderPlatformInfo.h"
 
 #if ENABLE_RHI_VALIDATION
-class FValidationComputeContext;
-class FValidationContext;
 
 // Controls whether BUF_SourceCopy should be validate or not.
 extern RHI_API bool GRHIValidateBufferSourceCopy;
@@ -35,6 +32,20 @@ class FValidationRHI : public FDynamicRHI
 public:
 	RHI_API FValidationRHI(FDynamicRHI* InRHI);
 	RHI_API virtual ~FValidationRHI();
+
+	static inline void ValidateIndirectArgsBuffer(FRHIBuffer* ArgumentBuffer, uint32 ArgumentOffset)
+	{
+		const TCHAR* BufferName = ArgumentBuffer->GetDebugName();
+		RHI_VALIDATION_CHECK(EnumHasAnyFlags(ArgumentBuffer->GetUsage(), EBufferUsageFlags::VertexBuffer), *FString::Printf(TEXT("The buffer %s needs to be a vertex buffer to be used as an indirect dispatch parameter."), BufferName));
+		RHI_VALIDATION_CHECK(EnumHasAnyFlags(ArgumentBuffer->GetUsage(), EBufferUsageFlags::DrawIndirect), *FString::Printf(TEXT("The buffer %s for indirect dispatch parameters was not flagged with BUF_DrawIndirect."), BufferName));
+		RHI_VALIDATION_CHECK((ArgumentOffset % 4) == 0, TEXT("IndirectArgOffset for compute shader indirect dispatch needs to be a multiple of 4."));
+		RHI_VALIDATION_CHECK((ArgumentOffset + ArgumentBuffer->GetStride()) <= ArgumentBuffer->GetSize(),
+			*FString::Printf(TEXT("Indirect parameters buffer for compute shader indirect dispatch at byte offset %d doesn't have enough room for one element."), ArgumentOffset));
+#if PLATFORM_DISPATCH_INDIRECT_ARGUMENT_BOUNDARY_SIZE != 0
+		RHI_VALIDATION_CHECK(IndirectArgOffset / PLATFORM_DISPATCH_INDIRECT_ARGUMENT_BOUNDARY_SIZE == (ArgumentOffset + Stride - 1) / PLATFORM_DISPATCH_INDIRECT_ARGUMENT_BOUNDARY_SIZE,
+			*FString::Printf(TEXT("Compute indirect dispatch arguments cannot cross %d byte boundary."), PLATFORM_DISPATCH_INDIRECT_ARGUMENT_BOUNDARY_SIZE));
+#endif // #if PLATFORM_DISPATCH_INDIRECT_ARGUMENT_BOUNDARY_SIZE != 0
+	}
 
 	virtual void Init() override final
 	{
@@ -839,43 +850,11 @@ public:
 	}
 
 	// FlushType: Thread safe
-	virtual void RHIBindDebugLabelName(FRHITexture* Texture, const TCHAR* Name) override final
-	{
-		check(IsInRenderingThread());
+	virtual void RHIBindDebugLabelName(FRHITexture* Texture, const TCHAR* Name) override final;
 
-		FString NameCopyRT = Name;
-		FRHICommandListExecutor::GetImmediateCommandList().EnqueueLambda([Texture, NameCopyRHIT = MoveTemp(NameCopyRT)](FRHICommandListImmediate& RHICmdList)
-		{
-			((FValidationContext&)RHICmdList.GetContext()).Tracker->Rename(Texture->GetTrackerResource(), *NameCopyRHIT);
-		});
+	virtual void RHIBindDebugLabelName(FRHIBuffer* Buffer, const TCHAR* Name) override final;
 
-		RHI->RHIBindDebugLabelName(Texture, Name);
-	}
-
-	virtual void RHIBindDebugLabelName(FRHIBuffer* Buffer, const TCHAR* Name) override final
-	{
-		check(IsInRenderingThread());
-
-		FString NameCopyRT = Name;
-		FRHICommandListExecutor::GetImmediateCommandList().EnqueueLambda([Buffer, NameCopyRHIT = MoveTemp(NameCopyRT)](FRHICommandListImmediate& RHICmdList)
-		{
-			((FValidationContext&)RHICmdList.GetContext()).Tracker->Rename(Buffer, *NameCopyRHIT);
-		});
-
-		RHI->RHIBindDebugLabelName(Buffer, Name);
-	}
-
-	virtual void RHIBindDebugLabelName(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const TCHAR* Name) override final
-	{
-		RHIValidation::FResource* Resource = UnorderedAccessViewRHI->ViewIdentity.Resource;
-		FString NameCopyRT = Name;
-		FRHICommandListExecutor::GetImmediateCommandList().EnqueueLambda([Resource, NameCopyRHIT = MoveTemp(NameCopyRT)](FRHICommandListImmediate& RHICmdList)
-		{
-			((FValidationContext&)RHICmdList.GetContext()).Tracker->Rename(Resource, *NameCopyRHIT);
-		});
-
-		RHI->RHIBindDebugLabelName(UnorderedAccessViewRHI, Name);
-	}
+	virtual void RHIBindDebugLabelName(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const TCHAR* Name) override final;
 
 	/**
 	* Reads the contents of a texture to an output buffer (non MSAA and MSAA) and returns it as a FColor array.
