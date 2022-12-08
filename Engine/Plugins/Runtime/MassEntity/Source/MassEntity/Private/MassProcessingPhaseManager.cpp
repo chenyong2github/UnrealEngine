@@ -46,11 +46,12 @@ FMassProcessingPhase::FMassProcessingPhase()
 {
 	bCanEverTick = true;
 	bStartWithTickEnabled = false;
+	SupportedTickTypes = (1 << LEVELTICK_All) | (1 << LEVELTICK_TimeOnly);
 }
 
 void FMassProcessingPhase::ExecuteTick(float DeltaTime, ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 {
-	if (TickType == LEVELTICK_ViewportsOnly || TickType == LEVELTICK_PauseTick)
+	if (ShouldTick(TickType) == false)
 	{
 		return;
 	}
@@ -168,7 +169,7 @@ void FMassProcessingPhaseManager::Initialize(UObject& InOwner, TConstArrayView<F
 {
 #if WITH_EDITOR
 	UWorld* World = InOwner.GetWorld();
-	const bool bIsEditorWorld = (World != 0) && (World->IsEditorWorld() && !World->IsGameWorld());
+	const bool bCreateProcessorGraphPreview = (World != nullptr) && (World->IsEditorWorld() && !World->IsGameWorld() && !World->IsStorageWorld());
 #endif // WITH_EDITOR
 	Owner = &InOwner;
 	ProcessingPhasesConfig = InProcessingPhasesConfig;
@@ -194,7 +195,7 @@ void FMassProcessingPhaseManager::Initialize(UObject& InOwner, TConstArrayView<F
 #endif // WITH_MASSENTITY_DEBUG
 
 #if WITH_EDITOR
-		if (bIsEditorWorld)
+		if (bCreateProcessorGraphPreview)
 		{
 			// populating the phase processor with initial data for editor world so that the default processing graph
 			// can be investigated in the editor without running PIE.

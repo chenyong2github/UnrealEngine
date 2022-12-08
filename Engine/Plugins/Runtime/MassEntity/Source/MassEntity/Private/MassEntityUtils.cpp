@@ -10,29 +10,30 @@
 
 namespace UE::Mass::Utils
 {
-
 EProcessorExecutionFlags GetProcessorExecutionFlagsForWold(const UWorld& World)
 {
-	EProcessorExecutionFlags ExecutionFlags = EProcessorExecutionFlags::None;
-	const ENetMode NetMode = World.GetNetMode();
-	switch (NetMode)
+	if (World.IsStorageWorld() && World.IsEditorWorld())
 	{
-		case NM_ListenServer:
-			ExecutionFlags = EProcessorExecutionFlags::Client | EProcessorExecutionFlags::Server;
-			break;
-		case NM_DedicatedServer:
-			ExecutionFlags = EProcessorExecutionFlags::Server;
-			break;
-		case NM_Client:
-			ExecutionFlags = EProcessorExecutionFlags::Client;
-			break;
-		default:
-			check(NetMode == NM_Standalone);
-			ExecutionFlags = EProcessorExecutionFlags::Standalone;
-			break;
+		return EProcessorExecutionFlags::Editor;
 	}
-
-	return ExecutionFlags;
+	else
+	{
+		const ENetMode NetMode = World.GetNetMode();
+		switch (NetMode)
+		{
+		case NM_ListenServer:
+			return EProcessorExecutionFlags::Client | EProcessorExecutionFlags::Server;
+		case NM_DedicatedServer:
+			return EProcessorExecutionFlags::Server;
+		case NM_Client:
+			return EProcessorExecutionFlags::Client;
+		case NM_Standalone:
+			return EProcessorExecutionFlags::Standalone;
+		default:
+			checkf(false, TEXT("Unsupported ENetMode type (%i) found while determining MASS processor execution flags."), NetMode);
+			return EProcessorExecutionFlags::None;
+		}
+	}
 }
 
 void CreateEntityCollections(const FMassEntityManager& EntityManager, const TConstArrayView<FMassEntityHandle> Entities

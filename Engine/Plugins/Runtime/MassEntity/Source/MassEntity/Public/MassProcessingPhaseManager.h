@@ -68,8 +68,12 @@ protected:
 	void ConfigureForParallelMode() { bRunInParallelMode = true; }
 	void ConfigureForSingleThreadMode() { bRunInParallelMode = false; }
 
+	bool ShouldTick(const ELevelTick TickType) const { return SupportedTickTypes & (1 << TickType); }
+
 public:
 	void Initialize(FMassProcessingPhaseManager& InPhaseManager, const EMassProcessingPhase InPhase, const ETickingGroup InTickGroup, UMassCompositeProcessor& InPhaseProcessor);
+	void AddSupportedTickType(const ELevelTick TickType) { SupportedTickTypes |= (1 << TickType); }
+	void RemoveSupportedTickType(const ELevelTick TickType) { SupportedTickTypes &= ~(1 << TickType); }
 
 protected:
 	friend FMassProcessingPhaseManager;
@@ -83,8 +87,9 @@ protected:
 
 private:
 	FMassProcessingPhaseManager* PhaseManager = nullptr;
-	bool bRunInParallelMode = false;
 	std::atomic<bool> bIsDuringMassProcessing = false;
+	bool bRunInParallelMode = false;
+	uint8 SupportedTickTypes = 0;
 };
 
 
