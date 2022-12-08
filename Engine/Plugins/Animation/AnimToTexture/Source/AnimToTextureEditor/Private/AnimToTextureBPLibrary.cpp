@@ -11,6 +11,7 @@
 #include "MeshUtilities.h"
 #include "Engine/SkeletalMesh.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Animation/Skeleton.h"
 #include "Animation/AnimSequence.h"
 #include "Math/Vector.h"
 #include "Math/NumericLimits.h"
