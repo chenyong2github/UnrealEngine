@@ -11,11 +11,11 @@
 #include "InterchangeTextureNode.h"
 #include "IDatasmithSceneElements.h"
 
-void UInterchangeDatasmithTexturePipeline::ExecutePreImportPipeline(UInterchangeBaseNodeContainer* InNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas)
+void UInterchangeDatasmithTexturePipeline::ExecutePipeline(UInterchangeBaseNodeContainer* InNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas)
 {
 	using namespace UE::DatasmithInterchange;
 
-	Super::ExecutePreImportPipeline(InNodeContainer, InSourceDatas);
+	Super::ExecutePipeline(InNodeContainer, InSourceDatas);
 
 	for (UInterchangeTextureFactoryNode* TextureFactoryNode : NodeUtils::GetNodes<UInterchangeTextureFactoryNode>(InNodeContainer))
 	{

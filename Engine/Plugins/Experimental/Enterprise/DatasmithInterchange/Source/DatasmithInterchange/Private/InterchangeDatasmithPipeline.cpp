@@ -55,7 +55,7 @@ UInterchangeDatasmithPipeline::UInterchangeDatasmithPipeline()
 	MeshPipeline->CommonSkeletalMeshesAndAnimationsProperties = CommonSkeletalMeshesAndAnimationsProperties;
 }
 
-void UInterchangeDatasmithPipeline::ExecutePreImportPipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& SourceDatas)
+void UInterchangeDatasmithPipeline::ExecutePipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& SourceDatas)
 {
 	using namespace UE::DatasmithInterchange;
 
@@ -72,7 +72,7 @@ void UInterchangeDatasmithPipeline::ExecutePreImportPipeline(UInterchangeBaseNod
 		if (Pipeline)
 		{
 			Pipeline->SetResultsContainer(this->Results);
-			Pipeline->ScriptedExecutePreImportPipeline(this->BaseNodeContainer, SourceDatas);
+			Pipeline->ScriptedExecutePipeline(this->BaseNodeContainer, SourceDatas);
 		}
 	};
 

@@ -104,7 +104,7 @@ void UInterchangeGenericMeshPipeline::PreDialogCleanup(const FName PipelineStack
 	PhysicsAsset = nullptr;
 }
 
-void UInterchangeGenericMeshPipeline::ExecutePreImportPipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas)
+void UInterchangeGenericMeshPipeline::ExecutePipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas)
 {
 	if (!InBaseNodeContainer)
 	{

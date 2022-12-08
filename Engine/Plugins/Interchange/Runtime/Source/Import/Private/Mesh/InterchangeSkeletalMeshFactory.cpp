@@ -1599,11 +1599,11 @@ void UInterchangeSkeletalMeshFactory::Cancel()
 }
 
 /* This function is call in the completion task on the main thread, use it to call main thread post creation step for your assets*/
-void UInterchangeSkeletalMeshFactory::PreImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
+void UInterchangeSkeletalMeshFactory::BeginPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE("UInterchangeSkeletalMeshFactory::PreImportPreCompletedCallback")
 	check(IsInGameThread());
-	Super::PreImportPreCompletedCallback(Arguments);
+	Super::BeginPreCompletedCallback(Arguments);
 
 	//TODO make sure this work at runtime
 #if WITH_EDITORONLY_DATA

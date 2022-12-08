@@ -14,13 +14,13 @@ namespace UE
 	namespace Interchange
 	{
 
-		class FTaskPipelinePreImport
+		class FTaskPipeline
 		{
 		private:
 			TWeakObjectPtr<UInterchangePipelineBase> PipelineBase;
 			TWeakPtr<FImportAsyncHelper, ESPMode::ThreadSafe> WeakAsyncHelper;
 		public:
-			FTaskPipelinePreImport(TWeakObjectPtr<UInterchangePipelineBase> InPipelineBase, TWeakPtr<FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper)
+			FTaskPipeline(TWeakObjectPtr<UInterchangePipelineBase> InPipelineBase, TWeakPtr<FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper)
 				: PipelineBase(InPipelineBase)
 				, WeakAsyncHelper(InAsyncHelper)
 			{
@@ -39,7 +39,7 @@ namespace UE
 					return ENamedThreads::GameThread;
 				}
 
-				return PipelineBase.Get()->ScriptedCanExecuteOnAnyThread(EInterchangePipelineTask::PreFactoryImport) ? ENamedThreads::AnyBackgroundThreadNormalTask : ENamedThreads::GameThread;
+				return PipelineBase.Get()->ScriptedCanExecuteOnAnyThread(EInterchangePipelineTask::PostTranslator) ? ENamedThreads::AnyBackgroundThreadNormalTask : ENamedThreads::GameThread;
 			}
 
 			static ESubsequentsMode::Type GetSubsequentsMode()
@@ -49,7 +49,7 @@ namespace UE
 
 			FORCEINLINE TStatId GetStatId() const
 			{
-				RETURN_QUICK_DECLARE_CYCLE_STAT(FTaskPipelinePreImport, STATGROUP_TaskGraphTasks);
+				RETURN_QUICK_DECLARE_CYCLE_STAT(FTaskPipeline, STATGROUP_TaskGraphTasks);
 			}
 
 			void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
@@ -90,7 +90,7 @@ namespace UE
 				}
 
 				//Ask the pipeline implementation
-				if (AsyncHelper->Pipelines[PipelineIndex]->ScriptedCanExecuteOnAnyThread(EInterchangePipelineTask::PostFactoryImport))
+				if (AsyncHelper->Pipelines[PipelineIndex]->ScriptedCanExecuteOnAnyThread(EInterchangePipelineTask::PostImport))
 				{
 					return ENamedThreads::AnyBackgroundThreadNormalTask;
 				}

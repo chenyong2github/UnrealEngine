@@ -19,11 +19,11 @@
 #include "Engine/StaticMeshActor.h"
 #include "Materials/MaterialInterface.h"
 
-void UInterchangeDatasmithLevelPipeline::ExecutePreImportPipeline(UInterchangeBaseNodeContainer* NodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas)
+void UInterchangeDatasmithLevelPipeline::ExecutePipeline(UInterchangeBaseNodeContainer* NodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas)
 {
 	using namespace UE::DatasmithInterchange;
 
-	Super::ExecutePreImportPipeline(NodeContainer, InSourceDatas);
+	Super::ExecutePipeline(NodeContainer, InSourceDatas);
 
 	// Add material factory dependencies for mesh actors where all overrides are filled with the same material
 	for (UInterchangeMeshActorFactoryNode* MeshActorFactoryNode : NodeUtils::GetNodes<UInterchangeMeshActorFactoryNode>(NodeContainer))

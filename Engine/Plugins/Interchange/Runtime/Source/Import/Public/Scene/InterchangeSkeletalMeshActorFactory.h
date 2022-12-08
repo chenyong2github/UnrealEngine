@@ -31,7 +31,7 @@ public:
 		return false;
 	}
 
-	virtual void PostImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments) override;
+	virtual void EndPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments) override;
 
 	// Interchange factory base interface end
 	//////////////////////////////////////////////////////////////////////////

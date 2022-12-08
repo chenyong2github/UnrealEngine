@@ -118,7 +118,7 @@ void UInterchangeGenericAssetsPipeline::AdjustSettingsForContext(EInterchangePip
 	}
 }
 
-void UInterchangeGenericAssetsPipeline::ExecutePreImportPipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas)
+void UInterchangeGenericAssetsPipeline::ExecutePipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas)
 {
 	check(CommonSkeletalMeshesAndAnimationsProperties);
 
@@ -200,15 +200,15 @@ void UInterchangeGenericAssetsPipeline::ExecutePreImportPipeline(UInterchangeBas
 
 	if (MaterialPipeline)
 	{
-		MaterialPipeline->ScriptedExecutePreImportPipeline(InBaseNodeContainer, InSourceDatas);
+		MaterialPipeline->ScriptedExecutePipeline(InBaseNodeContainer, InSourceDatas);
 	}
 	if (MeshPipeline)
 	{
-		MeshPipeline->ScriptedExecutePreImportPipeline(InBaseNodeContainer, InSourceDatas);
+		MeshPipeline->ScriptedExecutePipeline(InBaseNodeContainer, InSourceDatas);
 	}
 	if (AnimationPipeline)
 	{
-		AnimationPipeline->ScriptedExecutePreImportPipeline(InBaseNodeContainer, InSourceDatas);
+		AnimationPipeline->ScriptedExecutePipeline(InBaseNodeContainer, InSourceDatas);
 	}
 
 	ImplementUseSourceNameForAssetOption();

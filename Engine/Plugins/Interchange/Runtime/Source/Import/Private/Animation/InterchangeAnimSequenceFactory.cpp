@@ -986,10 +986,10 @@ UObject* UInterchangeAnimSequenceFactory::CreateAsset(const FCreateAssetParams& 
 }
 
 /* This function is call in the completion task on the main thread, use it to call main thread post creation step for your assets*/
-void UInterchangeAnimSequenceFactory::PreImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
+void UInterchangeAnimSequenceFactory::BeginPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
 {
 	check(IsInGameThread());
-	Super::PreImportPreCompletedCallback(Arguments);
+	Super::BeginPreCompletedCallback(Arguments);
 
 	// TODO: make sure this works at runtime
 #if WITH_EDITORONLY_DATA

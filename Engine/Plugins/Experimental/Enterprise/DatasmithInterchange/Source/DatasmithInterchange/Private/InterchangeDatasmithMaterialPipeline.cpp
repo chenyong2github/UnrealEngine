@@ -30,7 +30,7 @@ UInterchangeDatasmithMaterialPipeline::UInterchangeDatasmithMaterialPipeline()
 	MaterialImport = EInterchangeMaterialImportOption::ImportAsMaterials;
 }
 
-void UInterchangeDatasmithMaterialPipeline::ExecutePreImportPipeline(UInterchangeBaseNodeContainer* NodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas)
+void UInterchangeDatasmithMaterialPipeline::ExecutePipeline(UInterchangeBaseNodeContainer* NodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas)
 {
 	using namespace UE::DatasmithInterchange;
 
@@ -50,7 +50,7 @@ void UInterchangeDatasmithMaterialPipeline::ExecutePreImportPipeline(UInterchang
 			}
 		});
 
-	Super::ExecutePreImportPipeline(NodeContainer, InSourceDatas);
+	Super::ExecutePipeline(NodeContainer, InSourceDatas);
 
 	UpdateMaterialFactoryNodes(ShaderNodes);
 

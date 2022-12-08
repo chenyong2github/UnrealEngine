@@ -1654,9 +1654,9 @@ UObject* UInterchangeTextureFactory::CreateAsset(const FCreateAssetParams& Argum
 }
 
 /* This function is call in the completion task on the main thread, use it to call main thread post creation step for your assets*/
-void UInterchangeTextureFactory::PreImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
+void UInterchangeTextureFactory::BeginPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UInterchangeTextureFactory::PreImportPreCompletedCallback);
+	TRACE_CPUPROFILER_EVENT_SCOPE(UInterchangeTextureFactory::BeginPreCompletedCallback);
 
 	check(IsInGameThread());
 
@@ -1718,7 +1718,7 @@ void UInterchangeTextureFactory::PreImportPreCompletedCallback(const FImportPreC
 		}
 	}
 
-	Super::PreImportPreCompletedCallback(Arguments);
+	Super::BeginPreCompletedCallback(Arguments);
 
 	//TODO make sure this work at runtime
 #if WITH_EDITORONLY_DATA

@@ -94,7 +94,7 @@ public:
 	}
 
 	/**
-	 * Create an asset from a Node data, this function must be multithread safe, it cannot use member all the data must be pass in the FCreateAssetParams structure
+	 * Create an asset from a Node data, this function must be multithread safe.
 	 *
 	 * @param Arguments - The structure containing all necessary arguments, see the structure definition for the documentation
 	 * @return the created UObject or nullptr if there is an error, see LOG for any error detail.
@@ -165,21 +165,33 @@ public:
 ;
 	};
 
+	UE_DEPRECATED(5.2, "This function is replace by BeginPreCompletedCallback.")
+	virtual void PreImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
+	{
+		BeginPreCompletedCallback(Arguments);
+	}
+
 	/*
 	 * This function is call in the pre completion task on the main thread, use it to call main thread post creation step for your assets
 	 * @note - This function is called when starting the pre completion task (before PostEditChange is called for the asset).
 	 */
-	virtual void PreImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
+	virtual void BeginPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
 	{
 		check(IsInGameThread());
 		return;
 	}
 	
+	UE_DEPRECATED(5.2, "This function is replace by EndPreCompletedCallback.")
+	virtual void PostImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
+	{
+		EndPreCompletedCallback(Arguments);
+	}
+
 	/*
 	 * This function is call in the pre completion task on the main thread, use it to call main thread post creation step for your assets
 	 * @note - This function is called at the end of the pre completion task (after PostEditChange is called for the asset).
 	 */
-	virtual void PostImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
+	virtual void EndPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
 	{
 		check(IsInGameThread());
 		return;

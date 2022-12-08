@@ -20,7 +20,7 @@ class DATASMITHINTERCHANGE_API UInterchangeDatasmithTexturePipeline : public UIn
 	GENERATED_BODY()
 
 public:
-	virtual void ExecutePreImportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainer, const TArray<UInterchangeSourceData*>& SourceDatas) override;
+	virtual void ExecutePipeline(UInterchangeBaseNodeContainer* BaseNodeContainer, const TArray<UInterchangeSourceData*>& SourceDatas) override;
 
 private:
 	void PreImportTextureFactoryNode(UInterchangeBaseNodeContainer* BaseNodeContainer, UInterchangeTextureFactoryNode* TextureFactoryNode) const;

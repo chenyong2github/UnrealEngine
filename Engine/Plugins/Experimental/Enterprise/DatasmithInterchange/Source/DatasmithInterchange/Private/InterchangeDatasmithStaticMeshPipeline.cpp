@@ -11,11 +11,11 @@
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInterface.h"
 
-void UInterchangeDatasmithStaticMeshPipeline::ExecutePreImportPipeline(UInterchangeBaseNodeContainer* NodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas)
+void UInterchangeDatasmithStaticMeshPipeline::ExecutePipeline(UInterchangeBaseNodeContainer* NodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas)
 {
 	using namespace UE::DatasmithInterchange;
 
-	Super::ExecutePreImportPipeline(NodeContainer, InSourceDatas);
+	Super::ExecutePipeline(NodeContainer, InSourceDatas);
 
 	// Add material factory dependencies for meshes where all slots are filled with the same material
 	for (UInterchangeStaticMeshFactoryNode* MeshFactoryNode : NodeUtils::GetNodes<UInterchangeStaticMeshFactoryNode>(NodeContainer))

@@ -46,7 +46,7 @@ void UInterchangeSkeletalMeshActorFactory::SetupSkeletalMeshActor(const UInterch
 	SkeletalMeshComponent->UnregisterComponent();
 }
 
-void UInterchangeSkeletalMeshActorFactory::PostImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
+void UInterchangeSkeletalMeshActorFactory::EndPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
 {
 	// Set the skeletal mesh on the component in the post import callback, once the skeletal mesh has been fully imported.
 

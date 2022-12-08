@@ -199,7 +199,7 @@ namespace UE
 			TArray<UObject*> OriginalPipelines;
 
 			TArray<FGraphEventRef> TranslatorTasks;
-			TArray<FGraphEventRef> PipelinePreImportTasks;
+			TArray<FGraphEventRef> PipelineTasks;
 			TArray<FGraphEventRef> PipelinePostImportTasks;
 			FGraphEventRef ParsingTask;
 			TArray<FGraphEventRef> CreatePackageTasks;

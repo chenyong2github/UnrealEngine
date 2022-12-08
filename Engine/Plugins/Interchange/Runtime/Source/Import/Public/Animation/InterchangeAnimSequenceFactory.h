@@ -25,8 +25,8 @@ public:
 	virtual EInterchangeFactoryAssetType GetFactoryAssetType() override { return EInterchangeFactoryAssetType::Animations; }
 	virtual UObject* CreateEmptyAsset(const FCreateAssetParams& Arguments) override;
 	virtual UObject* CreateAsset(const FCreateAssetParams& Arguments) override;
-	virtual void PreImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments) override;
-	//virtual void PostImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments) const override;
+	virtual void BeginPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments) override;
+	//virtual void EndPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments) const override;
 	virtual bool CanExecuteOnAnyThread() const override
 	{
 		//Currently we cannot use the anim sequence controller outside of the game thread

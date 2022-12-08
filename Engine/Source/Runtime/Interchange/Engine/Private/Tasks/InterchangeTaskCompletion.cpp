@@ -9,6 +9,7 @@
 #include "InterchangeEngineLogPrivate.h"
 #include "InterchangeFactoryBase.h"
 #include "InterchangeManager.h"
+#include "InterchangePipelineBase.h"
 #include "InterchangeResultsContainer.h"
 #include "Nodes/InterchangeFactoryBaseNode.h"
 #include "Stats/Stats.h"
@@ -82,7 +83,7 @@ void UE::Interchange::FTaskPreCompletion::DoTask(ENamedThreads::Type CurrentThre
 					Arguments.Pipelines = AsyncHelper->Pipelines;
 					Arguments.OriginalPipelines = AsyncHelper->OriginalPipelines;
 					Arguments.bIsReimport = ObjectInfo.bIsReimport;
-					ObjectInfo.Factory->PreImportPreCompletedCallback(Arguments);
+					ObjectInfo.Factory->BeginPreCompletedCallback(Arguments);
 				}
 
 				if (ImportedObject == nullptr || !IsValid(ImportedObject))
@@ -122,6 +123,14 @@ void UE::Interchange::FTaskPreCompletion::DoTask(ENamedThreads::Type CurrentThre
 					}
 				}
 
+				for (UInterchangePipelineBase* PipelineBase : AsyncHelper->Pipelines)
+				{
+					PipelineBase->ScriptedExecutePostFactoryPipeline(AsyncHelper->BaseNodeContainers[SourceIndex].Get()
+						, ObjectInfo.FactoryNode ? ObjectInfo.FactoryNode->GetUniqueID() : FString()
+						, ImportedObject
+						, ObjectInfo.bIsReimport);
+				}
+
 #if WITH_EDITOR
 				ImportedObject->PostEditChange();
 #endif
@@ -155,7 +164,7 @@ void UE::Interchange::FTaskPreCompletion::DoTask(ENamedThreads::Type CurrentThre
 					Arguments.Pipelines = AsyncHelper->Pipelines;
 					Arguments.OriginalPipelines = AsyncHelper->OriginalPipelines;
 					Arguments.bIsReimport = ObjectInfo.bIsReimport;
-					ObjectInfo.Factory->PostImportPreCompletedCallback(Arguments);
+					ObjectInfo.Factory->EndPreCompletedCallback(Arguments);
 				}
 			}
 		}

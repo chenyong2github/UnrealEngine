@@ -706,15 +706,15 @@ UObject* UInterchangeAnimationTrackSetFactory::CreateAsset(const FCreateAssetPar
 }
 
 /* This function is call in the completion task on the main thread, use it to call main thread post creation step for your assets*/
-void UInterchangeAnimationTrackSetFactory::PreImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
+void UInterchangeAnimationTrackSetFactory::BeginPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
 {
 	check(IsInGameThread());
-	Super::PreImportPreCompletedCallback(Arguments);
+	Super::BeginPreCompletedCallback(Arguments);
 
 	// TODO: Talk with sequence team about adding AssetImportData to ULevelSequence for re-import 
 }
 
-void UInterchangeAnimationTrackSetFactory::PostImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
+void UInterchangeAnimationTrackSetFactory::EndPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
 {
 	check(IsInGameThread());
 	if (ULevelSequence* LevelSequence = Cast<ULevelSequence>(Arguments.ImportedObject))
@@ -726,7 +726,7 @@ void UInterchangeAnimationTrackSetFactory::PostImportPreCompletedCallback(const 
 		// Note: Sequencer team is aware of the issue and will look their design in a future release
 		UMovieSceneSignedObject::ResetImplicitScopedModifyDefer();
 	}
-	Super::PostImportPreCompletedCallback(Arguments);
+	Super::EndPreCompletedCallback(Arguments);
 }
 
 #undef LOCTEXT_NAMESPACE

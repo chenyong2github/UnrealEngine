@@ -31,8 +31,9 @@ template <typename OptionalType> struct TOptional;
 UENUM(BlueprintType)
 enum class EInterchangePipelineTask : uint8
 {
-	PreFactoryImport,
-	PostFactoryImport,
+	PostTranslator,
+	PostFactory,
+	PostImport,
 	Export
 };
 
@@ -107,31 +108,55 @@ class INTERCHANGECORE_API UInterchangePipelineBase : public UObject
 
 public:
 
-	/**
-	 * Non virtual helper to allow blueprint to implement event base function to implement a pre import pipeline,
-	 * It is call after the translation and before we parse the graph to call the factory. This is where factory node should be created
-	 * by the pipeline. Each factory node should be send to a a interchange factory to create an unreal asset.
-	 * @note - the Interchange manager is calling this function not the virtual one that is call by the default implementation.
-	 */
+	UE_DEPRECATED(5.2, "This function is replace by ScriptedExecutePipeline.")
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interchange | Pipeline")
 	void ScriptedExecutePreImportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainer, const TArray<UInterchangeSourceData*>& SourceDatas);
-	/** The default implementation (call if the blueprint do not have any implementation) will call the virtual ExecuteImportPipeline */
+
+	UE_DEPRECATED(5.2, "This internal public function is deprecated and not replace by any.")
 	void ScriptedExecutePreImportPipeline_Implementation(UInterchangeBaseNodeContainer* BaseNodeContainer, const TArray<UInterchangeSourceData*>& SourceDatas)
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		//By default we call the virtual import pipeline execution
 		ExecutePreImportPipeline(BaseNodeContainer, SourceDatas);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	/**
-	 * Non virtual helper to allow blueprint to implement event base function to implement a post import pipeline,
-	 * It is call after we completely import an asset. PostEditChange is already called. Some assets uses asynchronous build.
-	 * This can be useful if you need builded data of an asset to finish the setup of another asset.
+	 * ScriptedExecutePipeline, is call after the translation and before we parse the graph to call the factory.
+	 * This is where factory node should be created by the pipeline.
+	 * Each factory node represent an unreal asset create that will be create by an interchange factory.
+	 * @note - the FTaskPipeline is calling this function not the virtual one that is call by the default implementation.
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interchange | Pipeline")
+	void ScriptedExecutePipeline(UInterchangeBaseNodeContainer* BaseNodeContainer, const TArray<UInterchangeSourceData*>& SourceDatas);
+	/** The default implementation (call if the blueprint do not have any implementation) will call the virtual ExecutePipeline */
+	void ScriptedExecutePipeline_Implementation(UInterchangeBaseNodeContainer* BaseNodeContainer, const TArray<UInterchangeSourceData*>& SourceDatas)
+	{
+		//By default we call the virtual import pipeline execution
+		ExecutePipeline(BaseNodeContainer, SourceDatas);
+	}
+
+	/**
+	 * ScriptedExecutePostFactoryPipeline is call after the factory create the unreal asset but before calling PostEditChange.
+	 * @note - the FTaskPreCompletion task is calling this function not the virtual one that is call by the default implementation.
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interchange | Pipeline")
+	void ScriptedExecutePostFactoryPipeline(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FString& FactoryNodeKey, UObject* CreatedAsset, bool bIsAReimport);
+	/** The default implementation (call if the blueprint do not have any implementation) will call the virtual ExecutePostFactoryPipeline */
+	void ScriptedExecutePostFactoryPipeline_Implementation(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FString& FactoryNodeKey, UObject* CreatedAsset, bool bIsAReimport)
+	{
+		//By default we call the virtual import pipeline execution
+		ExecutePostFactoryPipeline(BaseNodeContainer, FactoryNodeKey, CreatedAsset, bIsAReimport);
+	}
+	/**
+	 * ScriptedExecutePostImportPipeline is call after we completely import an asset, PostEditChange is already called.
+	 * This can be useful if you need an asset build data to finish the setup of another asset.
 	 * @example - PhysicsAsset need skeletal mesh render data to be build properly.
-	 * @note - the Interchange manager is calling this function not the virtual one that is call by the default implementation.
+	 * @note - the FTaskPipelinePostImport is calling this function not the virtual one that is call by the default implementation.
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interchange | Pipeline")
 	void ScriptedExecutePostImportPipeline(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FString& FactoryNodeKey, UObject* CreatedAsset, bool bIsAReimport);
-	/** The default implementation (call if the blueprint do not have any implementation) will call the virtual ExecuteImportPipeline */
+	/** The default implementation (call if the blueprint do not have any implementation) will call the virtual ExecutePostImportPipeline */
 	void ScriptedExecutePostImportPipeline_Implementation(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FString& FactoryNodeKey, UObject* CreatedAsset, bool bIsAReimport)
 	{
 		//By default we call the virtual import pipeline execution
@@ -273,19 +298,31 @@ public:
 	bool IsReimportContext() { return bIsReimportContext; }
 protected:
 
-	/**
-	 * This function can modify the BaseNodeContainer to create a pipeline that will set the graph and the nodes options has it want it to be imported by the factories
-	 * The interchange manager is not calling this function directly. It is calling the blueprint native event in case this object is a blueprint derive object.
-	 * By default the scripted implementation is calling this virtual pipeline.
-	 */
+	UE_DEPRECATED(5.2, "This function is replace by ExecutePipeline.")
 	virtual void ExecutePreImportPipeline(UInterchangeBaseNodeContainer* BaseNodeContainer, const TArray<UInterchangeSourceData*>& SourceDatas)
+	{
+		ExecutePipeline(BaseNodeContainer, SourceDatas);
+	}
+
+	/**
+	 * This function is called after the translation is done. It should create any factory node representing unreal assets to be imported by the factories
+	 */
+	virtual void ExecutePipeline(UInterchangeBaseNodeContainer* BaseNodeContainer, const TArray<UInterchangeSourceData*>& SourceDatas)
 	{
 	}
 
 	/**
-	 * This function can read the node data and apply some change to the imported asset. This is called after the factory creates the asset and configures the asset properties.
-	 * The interchange manager is not calling this function directly. It is calling the blueprint native event in case this object is a blueprint derived object.
-	 * By default the scripted implementation is calling this virtual pipeline.
+	 * This function is called after the factory create an asset, but before PostEditChange is called.
+	 * It is always call on the game thread, code inside this function should not wait on other thread. (do not stall the game thread)
+	 * This is the place to do any change to the unreal asset before PostEditChange is call.
+	 */
+	virtual void ExecutePostFactoryPipeline(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FString& NodeKey, UObject* CreatedAsset, bool bIsAReimport)
+	{
+	}
+
+	/**
+	 * This function is called after the unreal asset is completely import and PostEditChange was called.
+	 * @Note: Some unreal assets have asynchronous build, its possible they are still compiling.
 	 */
 	virtual void ExecutePostImportPipeline(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FString& NodeKey, UObject* CreatedAsset, bool bIsAReimport)
 	{

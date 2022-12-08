@@ -484,10 +484,10 @@ UObject* UInterchangeMaterialFactory::CreateAsset(const FCreateAssetParams& Argu
 }
 
 /* This function is call in the completion task on the main thread, use it to call main thread post creation step for your assets*/
-void UInterchangeMaterialFactory::PreImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
+void UInterchangeMaterialFactory::BeginPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
 {
 	check(IsInGameThread());
-	Super::PreImportPreCompletedCallback(Arguments);
+	Super::BeginPreCompletedCallback(Arguments);
 
 	if (ensure(Arguments.ImportedObject && Arguments.SourceData))
 	{
@@ -1241,9 +1241,9 @@ UObject* UInterchangeMaterialFunctionFactory::CreateAsset(const FCreateAssetPara
 }
 
 /* This function is call in the completion task on the main thread, use it to call main thread post creation step for your assets*/
-void UInterchangeMaterialFunctionFactory::PreImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
+void UInterchangeMaterialFunctionFactory::BeginPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
 {
-	Super::PreImportPreCompletedCallback(Arguments);
+	Super::BeginPreCompletedCallback(Arguments);
 
 #if WITH_EDITORONLY_DATA
 	if (ensure(Arguments.ImportedObject && Arguments.SourceData))

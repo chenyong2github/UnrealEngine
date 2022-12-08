@@ -441,10 +441,10 @@ UObject* UInterchangeSceneVariantSetsFactory::CreateAsset(const FCreateAssetPara
 #endif //else !WITH_EDITOR || !WITH_EDITORONLY_DATA
 }
 
-void UInterchangeSceneVariantSetsFactory::PreImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
+void UInterchangeSceneVariantSetsFactory::BeginPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
 {
 	check(IsInGameThread());
-	Super::PreImportPreCompletedCallback(Arguments);
+	Super::BeginPreCompletedCallback(Arguments);
 
 	// TODO: Need to add an AssetImportData property to ULevelVariantSets
 }

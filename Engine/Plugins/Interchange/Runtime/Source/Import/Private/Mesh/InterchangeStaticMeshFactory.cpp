@@ -511,10 +511,10 @@ void UInterchangeStaticMeshFactory::SetupSourceModelsSettings(UStaticMesh& Stati
 #endif // WITH_EDITORONLY_DATA
 
 /* This function is call in the completion task on the main thread, use it to call main thread post creation step for your assets */
-void UInterchangeStaticMeshFactory::PreImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
+void UInterchangeStaticMeshFactory::BeginPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
 {
 	check(IsInGameThread());
-	Super::PreImportPreCompletedCallback(Arguments);
+	Super::BeginPreCompletedCallback(Arguments);
 
 	// TODO: make sure this works at runtime
 #if WITH_EDITORONLY_DATA
