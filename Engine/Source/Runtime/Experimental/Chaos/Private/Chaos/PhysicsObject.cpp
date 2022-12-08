@@ -20,40 +20,4 @@ namespace Chaos
 	{
 		return Proxy != nullptr && !Proxy->GetMarkedDeleted();
 	}
-
-	bool FPhysicsObject::HasChildren() const
-	{
-		EPhysicsProxyType ProxyType = Proxy->GetType();
-		switch (ProxyType)
-		{
-		case EPhysicsProxyType::GeometryCollectionType:
-		{
-			FGeometryDynamicCollection& Collection = static_cast<FGeometryCollectionPhysicsProxy*>(Proxy)->GetExternalCollection();
-			return !Collection.Children[BodyIndex].IsEmpty();
-		}
-		default:
-			break;
-		}
-		return false;
-	}
-
-	FPhysicsObjectHandle FPhysicsObject::GetParentObject() const
-	{
-		EPhysicsProxyType ProxyType = Proxy->GetType();
-		switch (ProxyType)
-		{
-		case EPhysicsProxyType::GeometryCollectionType:
-		{
-			FGeometryCollectionPhysicsProxy* GeometryCollectionProxy = static_cast<FGeometryCollectionPhysicsProxy*>(Proxy);
-			FGeometryDynamicCollection& Collection = GeometryCollectionProxy->GetExternalCollection();
-			if (int32 Index = Collection.Parent[BodyIndex]; Index != INDEX_NONE)
-			{
-				return GeometryCollectionProxy->GetPhysicsObjectByIndex(Index);
-			}
-		}
-		default:
-			break;
-		}
-		return nullptr;
-	}
 }

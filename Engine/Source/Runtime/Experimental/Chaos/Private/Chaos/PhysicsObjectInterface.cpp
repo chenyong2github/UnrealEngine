@@ -87,6 +87,12 @@ namespace Chaos
 	}
 
 	template<EThreadContext Id>
+	bool FReadPhysicsObjectInterface<Id>::HasChildren(FPhysicsObjectHandle Object)
+	{
+		return Object ? Object->HasChildren<Id>() : false;
+	}
+
+	template<EThreadContext Id>
 	FTransform FReadPhysicsObjectInterface<Id>::GetTransform(FPhysicsObjectHandle Object)
 	{
 		return FTransform{ GetR(Object), GetX(Object) };
@@ -419,11 +425,6 @@ namespace Chaos
 				}
 			}
 		}
-	}
-
-	bool FPhysicsObjectInterface::HasChildren(FPhysicsObjectHandle Object)
-	{
-		return Object ? Object->HasChildren() : false;
 	}
 
 	void FPhysicsObjectInterface::SetName(FPhysicsObjectHandle Object, const FName& InName)

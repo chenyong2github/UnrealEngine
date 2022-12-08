@@ -45,6 +45,7 @@ namespace Chaos
 	{
 	public:
 		FPhysicsObjectHandle GetRootObject(FPhysicsObjectHandle Object);
+		bool HasChildren(FPhysicsObjectHandle Object);
 
 		FTransform GetTransform(FPhysicsObjectHandle Object);
 		FVector GetX(FPhysicsObjectHandle Object);
@@ -98,8 +99,6 @@ namespace Chaos
 	class CHAOS_API FPhysicsObjectInterface
 	{
 	public:
-		static bool HasChildren(FPhysicsObjectHandle Object);
-
 		static void SetName(FPhysicsObjectHandle Object, const FName& InName);
 		static FName GetName(FPhysicsObjectHandle Object);
 

@@ -51,17 +51,36 @@ namespace Chaos
 
 			TThreadParticle<Id>* Particle = GetParticle<Id>();
 			FPhysicsObjectHandle CurrentObject = this;
-			FPhysicsObjectHandle CurrentParent = GetParentObject();
+			FPhysicsObjectHandle CurrentParent = GetParentObject<Id>();
 			while (CurrentParent && IsParticleDisabled<Id>(Particle))
 			{
 				Particle = CurrentParent->GetParticle<Id>();
 				CurrentObject = CurrentParent;
-				CurrentParent = CurrentParent->GetParentObject();
+				CurrentParent = CurrentParent->GetParentObject<Id>();
 			}
 			return CurrentObject;
 		}
 
-		FPhysicsObjectHandle GetParentObject() const;
+		template<EThreadContext Id>
+		FPhysicsObjectHandle GetParentObject() const
+		{
+			EPhysicsProxyType ProxyType = Proxy->GetType();
+			switch (ProxyType)
+			{
+			case EPhysicsProxyType::GeometryCollectionType:
+			{
+				FGeometryCollectionPhysicsProxy* GeometryCollectionProxy = static_cast<FGeometryCollectionPhysicsProxy*>(Proxy);
+				FGeometryDynamicCollection& Collection = GetGeometryCollectionDynamicCollection<Id>(*GeometryCollectionProxy);
+				if (int32 Index = Collection.Parent[BodyIndex]; Index != INDEX_NONE)
+				{
+					return GeometryCollectionProxy->GetPhysicsObjectByIndex(Index);
+				}
+			}
+			default:
+				break;
+			}
+			return nullptr;
+		}
 
 		template <EThreadContext Id>
 		TThreadParticle<Id>* GetRootParticle()
@@ -122,7 +141,22 @@ namespace Chaos
 		IPhysicsProxyBase* PhysicsProxy() { return Proxy; }
 		const IPhysicsProxyBase* PhysicsProxy() const { return Proxy; }
 
-		bool HasChildren() const;
+		template<EThreadContext Id>
+		bool HasChildren() const
+		{
+			EPhysicsProxyType ProxyType = Proxy->GetType();
+			switch (ProxyType)
+			{
+			case EPhysicsProxyType::GeometryCollectionType:
+			{
+				FGeometryDynamicCollection& Collection = GetGeometryCollectionDynamicCollection<Id>(*static_cast<FGeometryCollectionPhysicsProxy*>(Proxy));
+				return !Collection.Children[BodyIndex].IsEmpty();
+			}
+			default:
+				break;
+			}
+			return false;
+		}
 
 		friend class FPhysicsObjectFactory;
 	protected:
@@ -136,6 +170,19 @@ namespace Chaos
 		IPhysicsProxyBase* Proxy = nullptr;
 		int32 BodyIndex = INDEX_NONE;
 		FName BodyName = NAME_None;
+
+		template<EThreadContext Id>
+		static FGeometryDynamicCollection& GetGeometryCollectionDynamicCollection(FGeometryCollectionPhysicsProxy& GeometryCollectionProxy)
+		{
+			if constexpr (Id == EThreadContext::External)
+			{
+				return GeometryCollectionProxy.GetExternalCollection();
+			}
+			else
+			{
+				return GeometryCollectionProxy.GetPhysicsCollection();
+			}
+		}
 	};
 
 	/**
