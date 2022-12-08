@@ -65,6 +65,9 @@ public:
 	TObjectPtr<UMeshComponent> MeshComponent = nullptr;
 
 	UPROPERTY()
+	TObjectPtr<UOptimusDeformerInstance> DeformerInstance = nullptr;
+
+	UPROPERTY()
 	TArray<FOptimusGraphVariableDescription> Variables;
 
 	int32 ParameterBufferSize = 0;

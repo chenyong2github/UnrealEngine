@@ -6,13 +6,13 @@
 #include "ComputeFramework/ComputeFramework.h"
 #include "ComputeWorkerInterface.h"
 #include "DataInterfaces/OptimusDataInterfaceGraph.h"
+#include "DataInterfaces/OptimusDataInterfaceRawBuffer.h"
 #include "OptimusComputeGraph.h"
 #include "OptimusDataTypeRegistry.h"
 #include "OptimusDeformer.h"
 #include "OptimusVariableDescription.h"
 #include "RenderGraphBuilder.h"
 #include "Rendering/SkeletalMeshRenderData.h"
-#include "DataInterfaces/OptimusDataInterfaceRawBuffer.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusDeformerInstance)
 
@@ -347,6 +347,12 @@ void UOptimusDeformerInstance::SetupFromDeformer(UOptimusDeformer* InDeformer)
 			if (UOptimusPersistentBufferDataProvider* PersistentBufferProvider = Cast<UOptimusPersistentBufferDataProvider>(DataProvider))
 			{
 				PersistentBufferProvider->BufferPool = BufferPool;
+			}
+
+			// Set this instance on the graph data provider so that it can query variables.
+			if (UOptimusGraphDataProvider* GraphProvider = Cast<UOptimusGraphDataProvider>(DataProvider))
+			{
+				GraphProvider->DeformerInstance = this;
 			}
 		}
 

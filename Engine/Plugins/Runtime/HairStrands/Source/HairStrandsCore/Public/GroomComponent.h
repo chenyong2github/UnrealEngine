@@ -11,7 +11,6 @@
 #include "RHIDefinitions.h"
 #include "GroomDesc.h"
 #include "LODSyncInterface.h"
-#include "MeshDeformerInterface.h"
 #include "GroomInstance.h"
 #include "NiagaraDataInterfacePhysicsAsset.h"
 
@@ -23,7 +22,7 @@ class UMeshDeformerInstance;
 class UMeshDeformerInstanceSettings;
 
 UCLASS(HideCategories = (Object, Physics, Activation, Mobility, "Components|Activation"), editinlinenew, meta = (BlueprintSpawnableComponent), ClassGroup = Rendering)
-class HAIRSTRANDSCORE_API UGroomComponent : public UMeshComponent, public ILODSyncInterface, public INiagaraPhysicsAssetDICollectorInterface, public IMeshDeformerInterface
+class HAIRSTRANDSCORE_API UGroomComponent : public UMeshComponent, public ILODSyncInterface, public INiagaraPhysicsAssetDICollectorInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -239,10 +238,6 @@ public:
 	virtual int32 GetNumSyncLODs() const override;
 	virtual int32 GetCurrentSyncLOD() const override;
 	//~ End ILODSyncInterface
-
-	///~ Begin IMeshDeformerInterface Interface.
-	virtual UMeshDeformerInstance const* GetMeshDeformerInstance() const override { return MeshDeformerInstance; }
-	//~ End IMeshDeformerInterface
 
 	int32 GetNumLODs() const;
 	int32 GetForcedLOD() const;

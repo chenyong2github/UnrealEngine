@@ -18,7 +18,6 @@
 #include "Components/MeshComponent.h"
 #include "Containers/SortedMap.h"
 #include "LODSyncInterface.h"
-#include "MeshDeformerInterface.h"
 #include "BoneContainer.h"
 #include "ClothingSystemRuntimeTypes.h"
 #include "SkinnedMeshComponent.generated.h"
@@ -193,7 +192,7 @@ using FExternalMorphSets = TMap<int32, TSharedPtr<FExternalMorphSet>>;
  * @see USkeletalMeshComponent
 */
 UCLASS(hidecategories=Object, config=Engine, editinlinenew, abstract)
-class ENGINE_API USkinnedMeshComponent : public UMeshComponent, public ILODSyncInterface, public IMeshDeformerInterface
+class ENGINE_API USkinnedMeshComponent : public UMeshComponent, public ILODSyncInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -258,12 +257,12 @@ protected:
 	TObjectPtr<UMeshDeformerInstanceSettings> MeshDeformerInstanceSettings;
 
 	/** Object containing state for the bound MeshDeformer. */
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "Deformer")
+	UPROPERTY(Transient, BlueprintReadOnly, BlueprintGetter = GetMeshDeformerInstance, Category = "Deformer")
 	TObjectPtr<UMeshDeformerInstance> MeshDeformerInstance;
 
 public:
-	/** Get the currently active MeshDeformer Instance. */
-	UMeshDeformerInstance const* GetMeshDeformerInstance() const override { return MeshDeformerInstance; }
+	UFUNCTION(BlueprintGetter)
+	UMeshDeformerInstance* GetMeshDeformerInstance() const { return MeshDeformerInstance; }
 
 	/** Max LOD at which to update or apply the MeshDeformer. */
 	int32 GetMeshDeformerMaxLOD() const;

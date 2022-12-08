@@ -3,13 +3,12 @@
 #include "OptimusDataInterfaceGraph.h"
 
 #include "Components/SkinnedMeshComponent.h"
+#include "ComputeFramework/ComputeMetadataBuilder.h"
 #include "ComputeFramework/ShaderParameterMetadataAllocation.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "OptimusDeformerInstance.h"
 #include "OptimusVariableDescription.h"
 #include "ShaderParameterMetadataBuilder.h"
-#include "ComputeFramework/ComputeMetadataBuilder.h"
-#include "MeshDeformerInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusDataInterfaceGraph)
 
@@ -117,12 +116,7 @@ void UOptimusGraphDataProvider::SetConstant(FString const& InVariableName, TArra
 
 FComputeDataProviderRenderProxy* UOptimusGraphDataProvider::GetRenderProxy()
 {
-	if (IMeshDeformerInterface* MeshDeformerInterface = Cast<IMeshDeformerInterface>(MeshComponent))
-	{
-		UOptimusDeformerInstance const* DeformerInstance = Cast<UOptimusDeformerInstance>(MeshDeformerInterface->GetMeshDeformerInstance());
-		return new FOptimusGraphDataProviderProxy(DeformerInstance, Variables, ParameterBufferSize);
-	}
-	return nullptr;
+	return new FOptimusGraphDataProviderProxy(DeformerInstance, Variables, ParameterBufferSize);
 }
 
 FOptimusGraphDataProviderProxy::FOptimusGraphDataProviderProxy(UOptimusDeformerInstance const* DeformerInstance, TArray<FOptimusGraphVariableDescription> const& Variables, int32 ParameterBufferSize)
