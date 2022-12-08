@@ -2,7 +2,16 @@
 
 #if WITH_EDITOR
 
-#include "TestCommon/EditorUtilities.h"
+#include "Misc/QueuedThreadPool.h"
+
+#if WITH_COREUOBJECT
+#include "UObject/PackageResourceManager.h"
+#endif
+
+#ifdef DERIVEDDATACACHE_API
+#include "DerivedDataBuild.h"
+#include "DerivedDataCache.h"
+#endif
 
 void InitEditorThreadPools()
 {
@@ -35,8 +44,8 @@ void InitDerivedDataCache()
 	if (!FPlatformProperties::RequiresCookedData())
 	{
 		// Ensure that DDC is initialized from the game thread.
-		UE::DerivedData::GetBuild();
 		UE::DerivedData::GetCache();
+		UE::DerivedData::GetBuild();
 		GetDerivedDataCacheRef();
 	}
 #endif // WITH_EDITORONLY_DATA && defined(DERIVEDDATACACHE_API)
@@ -80,4 +89,4 @@ void InitSlate()
 	CurrentSlateApp.InitializeRenderer(SlateRendererSharedRef);
 }
 
-#endif
+#endif // WITH_EDITOR
