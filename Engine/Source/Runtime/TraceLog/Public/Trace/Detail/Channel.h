@@ -10,8 +10,17 @@
 
 namespace UE {
 namespace Trace {
-	
+
+struct FChannelInfo
+{
+	const ANSICHAR* Name;
+	const ANSICHAR* Desc;
+	bool bIsEnabled;
+	bool bIsReadOnly;
+};
+
 typedef void ChannelIterFunc(const ANSICHAR*, bool, void*);	
+typedef bool ChannelIterCallback(const FChannelInfo& OutChannelInfo, void*);
 
 /*
 	A named channel which can be used to filter trace events. Channels can be
@@ -52,7 +61,9 @@ public:
 	static bool			Toggle(const ANSICHAR* ChannelName, bool bEnabled);
 	static void			ToggleAll(bool bEnabled);
 	static FChannel*	FindChannel(const ANSICHAR* ChannelName);
+	UE_DEPRECATED(5.2, "Please use the ChannelIterCallback overload for enumerating channels.")
 	static void			EnumerateChannels(ChannelIterFunc Func, void* User);
+	static void			EnumerateChannels(ChannelIterCallback Func, void* User);
 	bool				Toggle(bool bEnabled);
 	bool				IsEnabled() const;
 	explicit			operator bool () const;

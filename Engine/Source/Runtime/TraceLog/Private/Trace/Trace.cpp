@@ -136,6 +136,27 @@ bool ToggleChannel(const TCHAR* ChannelName, bool bEnabled)
 ////////////////////////////////////////////////////////////////////////////////
 void EnumerateChannels(ChannelIterFunc IterFunc, void* User)
 {
+	struct FCallbackDataWrapper
+	{
+		ChannelIterFunc* Func;
+		void* User;
+	};
+
+	FCallbackDataWrapper Wrapper;
+	Wrapper.Func = IterFunc;
+	Wrapper.User = User;
+
+	FChannel::EnumerateChannels([](const FChannelInfo& Info, void* User)
+		{
+			FCallbackDataWrapper* Wrapper = (FCallbackDataWrapper*)User;
+			(*Wrapper).Func(Info.Name, Info.bIsEnabled, (*Wrapper).User);
+			return true;
+		}, &Wrapper);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void EnumerateChannels(ChannelIterCallback IterFunc, void* User)
+{
 	FChannel::EnumerateChannels(IterFunc, User);
 }
 

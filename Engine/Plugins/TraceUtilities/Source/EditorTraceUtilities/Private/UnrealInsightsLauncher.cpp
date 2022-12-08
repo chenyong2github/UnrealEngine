@@ -242,7 +242,7 @@ bool FUnrealInsightsLauncher::OpenActiveTraceFromStore(const FString& TraceHostA
 	
 	uint32 TraceId = SessionInfo->GetTraceId();
 	
-	if (!OpenRemoteTrace(TraceHostAddress, StoreClient->GetStorePort(), TraceId))
+	if (!OpenRemoteTrace(TraceHostAddress, (uint16)StoreClient->GetStorePort(), TraceId))
 	{
 		//Failed to open Trace File %s
 		return false;

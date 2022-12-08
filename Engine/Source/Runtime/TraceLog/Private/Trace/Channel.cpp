@@ -248,6 +248,34 @@ void FChannel::EnumerateChannels(ChannelIterFunc Func, void* User)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+void FChannel::EnumerateChannels(ChannelIterCallback Func, void* User)
+{
+	using namespace Private;
+	FChannel* ChannelLists[] =
+	{
+		AtomicLoadAcquire(&GNewChannelList),
+		AtomicLoadAcquire(&GHeadChannel),
+	};
+
+	FChannelInfo Info;
+	for (FChannel* Channel : ChannelLists)
+	{
+		for (; Channel != nullptr; Channel = Channel->Next)
+		{
+			Info.Name = Channel->Name.Ptr;
+			Info.Desc = Channel->Args.Desc;
+			Info.bIsEnabled = Channel->IsEnabled();
+			Info.bIsReadOnly = Channel->Args.bReadOnly;
+			bool Result = Func(Info, User);
+			if (!Result)
+			{
+				return;
+			}
+		}
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////
 bool FChannel::Toggle(bool bEnabled)
 {
 	using namespace Private;

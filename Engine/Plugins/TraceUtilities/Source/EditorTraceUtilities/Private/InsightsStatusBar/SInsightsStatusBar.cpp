@@ -54,6 +54,13 @@ void RegisterInsightsStatusWidgetWithToolMenu()
 	);
 }
 
+void SInsightsStatusBarWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+
+	bShouldUpdateChannels = true;
+}
+
 void SInsightsStatusBarWidget::Construct(const FArguments& InArgs)
 {
 	this->ChildSlot
@@ -162,7 +169,6 @@ void SInsightsStatusBarWidget::Construct(const FArguments& InArgs)
 		TraceDestination = ETraceDestination::File;
 	}
 
-	Channels = DefaultPreset;
 	FTraceAuxiliary::OnTraceStarted.AddSP(this, &SInsightsStatusBarWidget::OnTraceStarted);
 	FTraceAuxiliary::OnTraceStopped.AddSP(this, &SInsightsStatusBarWidget::OnTraceStopped);
 	FTraceAuxiliary::OnSnapshotSaved.AddSP(this, &SInsightsStatusBarWidget::OnSnapshotSaved);
@@ -185,15 +191,14 @@ TSharedRef<SWidget> SInsightsStatusBarWidget::MakeTraceMenu()
 			EUserInterfaceActionType::ToggleButton
 		);
 
-		// To be activated 
-		//	MenuBuilder.AddSubMenu
-		//	(
-		//		LOCTEXT("Channels", "Channels"),
-		//		LOCTEXT("Channels_Desc", "Select what trace channels to enable when tracing."),
-		//		FNewMenuDelegate::CreateSP(this, &SInsightsStatusBarWidget::Channels_BuildMenu),
-		//		false,
-		//		FSlateIcon(FEditorTraceUtilitiesStyle::Get().GetStyleSetName(), ("Icons.Trace.Menu"))
-		//	);
+		MenuBuilder.AddSubMenu
+		(
+			LOCTEXT("Channels", "Channels"),
+			LOCTEXT("Channels_Desc", "Select what trace channels to enable when tracing."),
+			FNewMenuDelegate::CreateSP(this, &SInsightsStatusBarWidget::Channels_BuildMenu),
+			false,
+			FSlateIcon(FEditorTraceUtilitiesStyle::Get().GetStyleSetName(), ("Icons.Trace.Menu"))
+		);
 	}
 	MenuBuilder.EndSection();
 
@@ -342,51 +347,26 @@ TSharedRef<SWidget> SInsightsStatusBarWidget::MakeTraceMenu()
 
 void SInsightsStatusBarWidget::Channels_BuildMenu(FMenuBuilder& MenuBuilder)
 {
-	MenuBuilder.BeginSection("Presets", LOCTEXT("Presets", "Presets"));
+	CreateChannelsInfo();
+
+	MenuBuilder.BeginSection("Channels", LOCTEXT("Channels", "Channels"));
 	{
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("DefautLabel", "Default"),
-			LOCTEXT("DefaultLabelDesc", "Activate the cpu,gpu,frame,log,bookmark channels."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &SInsightsStatusBarWidget::SetTraceChannels, DefaultPreset),
-				FCanExecuteAction::CreateLambda([]() {return true; }),
-				FIsActionChecked::CreateSP(this, &SInsightsStatusBarWidget::IsPresetSet, DefaultPreset)),
-			NAME_None,
-			EUserInterfaceActionType::RadioButton
-		);
+		for (int32 Index = 0; Index < ChannelsInfo.Num(); ++Index)
+		{
+			const FChannelData& Data = ChannelsInfo[Index];
+			FString ChannelDisplayName = Data.Name;
+			ChannelDisplayName.RemoveFromEnd(TEXT("Channel"), 7);
 
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("MemoryLabel", "Memory"),
-			LOCTEXT("MemoryLabelDesc", "Activate the memtag,memalloc,callstack,module and the default channels."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &SInsightsStatusBarWidget::SetTraceChannels, MemoryPreset),
-				FCanExecuteAction::CreateLambda([]() {return false; }),
-				FIsActionChecked::CreateSP(this, &SInsightsStatusBarWidget::IsPresetSet, MemoryPreset)),
-			NAME_None,
-			EUserInterfaceActionType::RadioButton
-		);
-
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("TaskGraphLabel", "Task Graph"),
-			LOCTEXT("TaskGraphLabelDesc", "Activate the task and the default channels."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &SInsightsStatusBarWidget::SetTraceChannels, TaskGraphPreset),
-				FCanExecuteAction::CreateLambda([]() {return false; }),
-				FIsActionChecked::CreateSP(this, &SInsightsStatusBarWidget::IsPresetSet, TaskGraphPreset)),
-			NAME_None,
-			EUserInterfaceActionType::RadioButton
-		);
-
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("Context Switches Label", "Context Switches"),
-			LOCTEXT("Context Switches LabelDesc", "Activate the contextswitches and the default channels."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &SInsightsStatusBarWidget::SetTraceChannels, ContextSwitchesPreset),
-				FCanExecuteAction::CreateLambda([]() { return false; }),
-				FIsActionChecked::CreateSP(this, &SInsightsStatusBarWidget::IsPresetSet, ContextSwitchesPreset)),
-			NAME_None,
-			EUserInterfaceActionType::RadioButton
-		);
+			MenuBuilder.AddMenuEntry(
+				FText::FromString(ChannelDisplayName),
+				FText::Format(LOCTEXT("ChannelDesc", "Enable/disable the {0} channel"), FText::FromString(ChannelDisplayName)),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateSP(this, &SInsightsStatusBarWidget::ToggleChannel_Execute, Index),
+					FCanExecuteAction::CreateLambda([Value = !Data.bIsReadOnly]() { return Value; }),
+					FIsActionChecked::CreateSP(this, &SInsightsStatusBarWidget::ToggleChannel_IsChecked, Index)),
+				NAME_None,
+				EUserInterfaceActionType::ToggleButton);
+		}
 	}
 	MenuBuilder.EndSection();
 }
@@ -618,11 +598,11 @@ void SInsightsStatusBarWidget::StartTracing()
 {
 	if (TraceDestination == ETraceDestination::TraceStore)
 	{
-		FTraceAuxiliary::Start(FTraceAuxiliary::EConnectionType::Network, TEXT("localhost"), Channels);
+		FTraceAuxiliary::Start(FTraceAuxiliary::EConnectionType::Network, TEXT("localhost"), nullptr);
 	}
 	else if (TraceDestination == ETraceDestination::File)
 	{
-		FTraceAuxiliary::Start(FTraceAuxiliary::EConnectionType::File, nullptr, Channels);
+		FTraceAuxiliary::Start(FTraceAuxiliary::EConnectionType::File, nullptr, nullptr);
 	}
 }
 
@@ -644,16 +624,6 @@ EVisibility SInsightsStatusBarWidget::GetStopTraceIconVisibility() const
 	}
 
 	return EVisibility::Hidden;
-}
-
-void SInsightsStatusBarWidget::SetTraceChannels(const TCHAR* InChannels)
-{
-	Channels = InChannels;
-}
-
-bool SInsightsStatusBarWidget::IsPresetSet(const TCHAR* InChannels) const
-{
-	return Channels == InChannels;
 }
 
 bool SInsightsStatusBarWidget::GetBooleanSettingValue(const TCHAR* InSettingName)
@@ -730,6 +700,78 @@ void SInsightsStatusBarWidget::CacheTraceStorePath()
 
 		TraceStorePath = FString(Status->GetStoreDir());
 	}
+}
+
+void SInsightsStatusBarWidget::CreateChannelsInfo()
+{
+	ChannelsInfo.Empty();
+
+	UE::Trace::EnumerateChannels([](const UE::Trace::FChannelInfo& Info, void* User)
+	{
+		TArray<FChannelData>* Channels = (TArray<FChannelData>*) User;
+
+		FChannelData NewChannelInfo;
+		NewChannelInfo.Name = Info.Name;
+		NewChannelInfo.bIsEnabled = Info.bIsEnabled;
+		NewChannelInfo.bIsReadOnly = Info.bIsReadOnly;
+
+		Channels->Add(NewChannelInfo);
+		return true;
+	}, &ChannelsInfo);
+
+	Algo::SortBy(ChannelsInfo, [](const FChannelData& Entry) { return Entry.Name; }, [](const FString& Rhs, const FString& Lhs)
+		{
+			return Rhs.Compare(Lhs) < 0;
+		});
+}
+
+void SInsightsStatusBarWidget::UpdateChannelsInfo()
+{
+	UE::Trace::EnumerateChannels([](const UE::Trace::FChannelInfo& Info, void* User)
+	{
+		TArray<FChannelData>* Channels = (TArray<FChannelData>*) User;
+
+		FString Name = Info.Name;
+		int32 Index = Algo::BinarySearchBy(*Channels, Name, [](const FChannelData& Entry) { return Entry.Name; }, [](const FString& Rhs, const FString& Lhs)
+			{
+				return Rhs.Compare(Lhs) < 0;
+			});
+
+		if (Index != INDEX_NONE)
+		{
+			FChannelData& Data = (*Channels)[Index];
+			Data.Name = Info.Name;
+			Data.bIsEnabled = Info.bIsEnabled;
+			Data.bIsReadOnly = Info.bIsReadOnly;
+		}
+
+		return true;
+	}, &ChannelsInfo);
+
+	bShouldUpdateChannels = false;
+}
+
+void SInsightsStatusBarWidget::ToggleChannel_Execute(int32 Index)
+{
+	if (Index < ChannelsInfo.Num())
+	{
+		UE::Trace::ToggleChannel(*ChannelsInfo[Index].Name, !ChannelsInfo[Index].bIsEnabled);
+	}
+}
+
+bool SInsightsStatusBarWidget::ToggleChannel_IsChecked(int32 Index)
+{
+	if (bShouldUpdateChannels)
+	{
+		UpdateChannelsInfo();
+	}
+
+	if (Index < ChannelsInfo.Num())
+	{
+		return ChannelsInfo[Index].bIsEnabled;
+	}
+
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

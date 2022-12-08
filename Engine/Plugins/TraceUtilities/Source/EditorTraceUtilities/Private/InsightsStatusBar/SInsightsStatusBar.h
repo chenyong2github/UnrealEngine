@@ -18,16 +18,26 @@ enum class ETraceDestination : uint32
 	File = 1
 };
 
+struct FChannelData
+{
+	FString Name;
+	bool bIsEnabled = false;
+	bool bIsReadOnly = false;
+};
+
 /**
  *  Status bar widget for Unreal Insights.
  *  Shows buttons to start tracing either to a file or to the trace store and allows saving a snapshot to file.
  */
 class SInsightsStatusBarWidget : public SCompoundWidget
 {
+public:
 	SLATE_BEGIN_ARGS(SInsightsStatusBarWidget) {}
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
+
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 private:
 	FText	GetTitleToolTipText() const;
@@ -83,6 +93,12 @@ private:
 
 	void CacheTraceStorePath();
 
+	void ToggleChannel_Execute(int32 Index);
+	bool ToggleChannel_IsChecked(int32 Index);
+
+	void CreateChannelsInfo();
+	void UpdateChannelsInfo();
+
 private:
 	static const TCHAR* DefaultPreset;
 	static const TCHAR* MemoryPreset;
@@ -96,8 +112,10 @@ private:
 
 	ETraceDestination TraceDestination = ETraceDestination::TraceStore;
 	bool bIsTraceRecordButtonHovered = false;
-	const TCHAR* Channels;
 	mutable double ConnectionStartTime = 0.0f;
 
 	FString TraceStorePath;
+
+	TArray<FChannelData> ChannelsInfo;
+	bool bShouldUpdateChannels = false;
 };

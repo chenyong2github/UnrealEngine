@@ -36,8 +36,9 @@ public class EditorTraceUtilities : ModuleRules
                 "ApplicationCore",
                 "UATHelper",
                 "TraceInsights",
-                "TraceAnalysis"
-            }
+                "TraceAnalysis",
+				"TraceLog",
+			}
         );
     }
 }
