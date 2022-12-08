@@ -133,7 +133,7 @@ namespace PCGDebugElement
 				else if (bScaleWithExtents)
 				{
 					const FVector ScaleWithExtents = Point.GetExtents() / MeshExtents;
-					const FVector TransformedBoxCenterWithOffset = InstanceTransform.TransformPosition(Point.GetLocalCenter()) - InstanceTransform.GetLocation() - MeshCenter * ScaleWithExtents;
+					const FVector TransformedBoxCenterWithOffset = InstanceTransform.TransformPosition(Point.GetLocalCenter()) - InstanceTransform.GetLocation();
 					InstanceTransform.SetTranslation(InstanceTransform.GetTranslation() + TransformedBoxCenterWithOffset);
 					InstanceTransform.SetScale3D(InstanceTransform.GetScale3D() * ScaleWithExtents);
 				}
@@ -186,6 +186,14 @@ namespace PCGDebugElement
 FPCGElementPtr UPCGDebugSettings::CreateElement() const
 {
 	return MakeShared<FPCGDebugElement>();
+}
+
+TArray<FPCGPinProperties> UPCGDebugSettings::OutputPinProperties() const
+{
+	TArray<FPCGPinProperties> PinProperties;
+	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Any);
+
+	return PinProperties;
 }
 
 bool FPCGDebugElement::ExecuteInternal(FPCGContext* Context) const

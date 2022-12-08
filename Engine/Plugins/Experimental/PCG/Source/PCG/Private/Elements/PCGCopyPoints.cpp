@@ -46,7 +46,7 @@ bool FPCGCopyPointsElement::ExecuteInternal(FPCGContext* Context) const
 
 	if (Sources.Num() != 1 || Targets.Num() != 1)
 	{
-		PCGE_LOG(Error, "Invalid number of inputs (should be exactly one source and one target)");
+		PCGE_LOG(Error, "Invalid number of inputs - Expected one source, got %d; Expected one target, got %d.", Sources.Num(), Targets.Num());
 		return true;
 	}
 	
