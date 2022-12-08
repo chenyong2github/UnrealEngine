@@ -192,7 +192,7 @@ namespace EpicGames.Perforce
 		/// <inheritdoc/>
 		public override string ToString()
 		{
-			StringBuilder builder = new ();
+			StringBuilder builder = new StringBuilder();
 			if (!Include)
 			{
 				builder.Append('-');
