@@ -595,7 +595,7 @@ public:
 
 	/**
 	 * Just like OnMouseButtonDown, but tunnels instead of bubbling.
-	 * If this even is handled, OnMouseButtonDown will not be sent.
+	 * If this event is handled, OnMouseButtonDown will not be sent.
 	 * 
 	 * Use this event sparingly as preview events generally make UIs more
 	 * difficult to reason about.

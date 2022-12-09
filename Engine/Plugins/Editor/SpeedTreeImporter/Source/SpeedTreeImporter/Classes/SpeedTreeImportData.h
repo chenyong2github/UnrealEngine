@@ -51,11 +51,11 @@ class USpeedTreeImportData : public UAssetImportData
 	UPROPERTY(EditAnywhere, config, Category=Mesh, meta=(DisplayName = "Tree Scale"))
 	float TreeScale;
 
-	/** Choose weather to import as a 3D asset, billboard or both */
+	/** Choose whether to import as a 3D asset, billboard or both */
 	UPROPERTY(EditAnywhere, config, Category=Mesh, meta = (DisplayName = "Geometry"))
 	TEnumAsByte<enum EImportGeometryType> ImportGeometryType;
 
-	/** Choose weather painted foliage or individual actor */
+	/** Choose whether painted foliage or individual actor */
 	UPROPERTY(EditAnywhere, config, Category=Mesh, meta = (DisplayName = "LOD Setup", SpeedTreeVersion = "8"))
 	TEnumAsByte<enum EImportLODType> LODType;
 

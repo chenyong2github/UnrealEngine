@@ -73,7 +73,7 @@ struct FControlRigComponentMappedElement
 	FComponentReference ComponentReference;
 
 	// An optional index that can be used with components
-	// with multiple transforms (for example the InstancedStaticMechComponent)
+	// with multiple transforms (for example the InstancedStaticMeshComponent)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mapping")
 	int32 TransformIndex;
 

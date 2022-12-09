@@ -61,15 +61,15 @@ struct SYNTHESIS_API FSynthKnobStyle : public FSlateWidgetStyle
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
 	FSlateBrush MediumKnob;
 
-	// Image to use for the mediaum knob dot handle
+	// Image to use for the medium knob dot handle
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
 	FSlateBrush MediumKnobOverlay;
 
-	// Image to use for the mediaum knob dot handle
+	// Image to use for the medium knob dot handle
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
 	float MinValueAngle;
 
-	// Image to use for the mediaum knob dot handle
+	// Image to use for the medium knob dot handle
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
 	float MaxValueAngle;
 

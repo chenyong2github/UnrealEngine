@@ -258,7 +258,7 @@ public:
 	* @param ParentToSnap The parent object to snap relative to. If animated, it needs to live in an active Sequencer in the level editor
 	* @param SnapSettings Settings to use
 	* @param TimeUnit Unit for frame values, either in display rate or tick resolution
-	* @param Returns True if successful, 
+	* @param Returns True if successful
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
 	static bool SnapControlRig(ULevelSequence* LevelSequence, FFrameNumber StartFrame, FFrameNumber EndFrame, const FControlRigSnapperSelection& ChildrenToSnap,
@@ -344,7 +344,7 @@ public:
 	* @param ControlRig The ControlRig
 	* @param ControlName Name of the Control
 	* @param Frame Time to set the transform
-	* @oaram WorldTransform World Transform to set
+	* @param WorldTransform World Transform to set
 	* @param TimeUnit Unit for frame values, either in display rate or tick resolution
 	* @param bSetKey Whether or not to set a key.
 	*/
@@ -358,7 +358,7 @@ public:
 	* @param ControlRig The ControlRig
 	* @param ControlName Name of the Control
 	* @param Frames Times to set the transform
-	* @oaram WorldTransform World Transform to set
+	* @param WorldTransform World Transform to set
 	* @param TimeUnit Unit for frame values, either in display rate or tick resolution
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
@@ -397,7 +397,7 @@ public:
 	* @param ControlRig The ControlRig
 	* @param ControlName Name of the Control, should be a float control
 	* @param Frame Time to set the value
-	* @param Value to set
+	* @param Value The value to set
 	* @param TimeUnit Unit for frame values, either in display rate or tick resolution
 	* @param bSetKey If True set a key, if not just set the value
 	*/
@@ -411,7 +411,7 @@ public:
 	* @param ControlRig The ControlRig
 	* @param ControlName Name of the Control, should be a float control
 	* @param Frames Times to set the values
-	* @param Values to set at those times
+	* @param Values The values to set at those times
 	* @param TimeUnit Unit for frame values, either in display rate or tick resolution
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
@@ -450,7 +450,7 @@ public:
 	* @param ControlRig The ControlRig
 	* @param ControlName Name of the Control, should be a bool control
 	* @param Frame Time to set the value
-	* @param Value to set
+	* @param Value The value to set
 	* @param TimeUnit Unit for frame values, either in display rate or tick resolution
 	* @param bSetKey If True set a key, if not just set the value
 	*/
@@ -464,7 +464,7 @@ public:
 	* @param ControlRig The ControlRig
 	* @param ControlName Name of the Control, should be a bool control
 	* @param Frames Times to set the values
-	* @param Values to set at those times
+	* @param Values The values to set at those times
 	* @param TimeUnit Unit for frame values, either in display rate or tick resolution
 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
@@ -503,7 +503,7 @@ public:
 	* @param ControlRig The ControlRig
 	* @param ControlName Name of the Control, should be a int control
 	* @param Frame Time to set the value
-	* @param Value to set
+	* @param Value The value to set
 	* @param TimeUnit Unit for frame values, either in display rate or tick resolution
 	* @param bSetKey If True set a key, if not just set the value
 	*/
@@ -518,7 +518,7 @@ public:
 	* @param ControlRig The ControlRig
 	* @param ControlName Name of the Control, should be a int control
 	* @param Frames Times to set the values
-	* @param Values to set at those times
+	* @param Values The values to set at those times
 	* @param TimeUnit Unit for frame values, either in display rate or tick resolution
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
@@ -557,7 +557,7 @@ public:
 	* @param ControlRig The ControlRig
 	* @param ControlName Name of the Control, should be a Vector2D control
 	* @param Frame Time to set the value
-	* @param Value to set
+	* @param Value The value to set
 	* @param TimeUnit Unit for frame values, either in display rate or tick resolution
 	* @param bSetKey If True set a key, if not just set the value
 	*/
@@ -572,7 +572,7 @@ public:
 	* @param ControlRig The ControlRig
 	* @param ControlName Name of the Control, should be a Vector2D control
 	* @param Frames Times to set the values
-	* @param Values to set at those times
+	* @param Values The values to set at those times
 	* @param TimeUnit Unit for frame values, either in display rate or tick resolution
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
@@ -611,7 +611,7 @@ public:
 	* @param ControlRig The ControlRig
 	* @param ControlName Name of the Control, should be a Position control
 	* @param Frame Time to set the value
-	* @param Value to set
+	* @param Value The value to set
 	* @param TimeUnit Unit for frame values, either in display rate or tick resolution
 	* @param bSetKey If True set a key, if not just set the value
 	*/
@@ -625,7 +625,7 @@ public:
 	* @param ControlRig The ControlRig
 	* @param ControlName Name of the Control, should be a Position control
 	* @param Frames Times to set the values
-	* @param Values to set at those times
+	* @param Values The values to set at those times
 	* @param TimeUnit Unit for frame values, either in display rate or tick resolution
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
@@ -664,7 +664,7 @@ public:
 	* @param ControlRig The ControlRig
 	* @param ControlName Name of the Control, should be a Rotator control
 	* @param Frame Time to set the value
-	* @param Value to set
+	* @param Value The value to set
 	* @param TimeUnit Unit for frame values, either in display rate or tick resolution
 	* @param bSetKey If True set a key, if not just set the value
 	*/
@@ -678,7 +678,7 @@ public:
 	* @param ControlRig The ControlRig
 	* @param ControlName Name of the Control, should be a Rotator control
 	* @param Frames Times to set the values
-	* @param Values to set at those times
+	* @param Values The values to set at those times
 	* @param TimeUnit Unit for frame values, either in display rate or tick resolution
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
@@ -717,7 +717,7 @@ public:
 	* @param ControlRig The ControlRig
 	* @param ControlName Name of the Control, should be a Scale control
 	* @param Frame Time to set the value
-	* @param Value to set
+	* @param Value The value to set
 	* @param TimeUnit Unit for frame values, either in display rate or tick resolution
 	* @param bSetKey If True set a key, if not just set the value
 */
@@ -731,7 +731,7 @@ public:
 	* @param ControlRig The ControlRig
 	* @param ControlName Name of the Control, should be a Scale control
 	* @param Frames Times to set the values
-	* @param Values to set at those times
+	* @param Values The values to set at those times
 	* @param TimeUnit Unit for frame values, either in display rate or tick resolution
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
@@ -771,7 +771,7 @@ public:
 	* @param ControlRig The ControlRig
 	* @param ControlName Name of the Control, should be a EulerTransform control
 	* @param Frame Time to set the value
-	* @param Value to set
+	* @param Value The value to set
 	* @param TimeUnit Unit for frame values, either in display rate or tick resolution
 	* @param bSetKey If True set a key, if not just set the value
 	*/
@@ -785,7 +785,7 @@ public:
 	* @param ControlRig The ControlRig
 	* @param ControlName Name of the Control, should be a EulerTransform control
 	* @param Frames Times to set the values
-	* @param Values to set at those times
+	* @param Values The values to set at those times
 	* @param TimeUnit Unit for frame values, either in display rate or tick resolution
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
@@ -824,7 +824,7 @@ public:
 	* @param ControlRig The ControlRig
 	* @param ControlName Name of the Control, should be a TransformNoScale control
 	* @param Frame Time to set the value
-	* @param Value to set
+	* @param Value The value to set
 	* @param TimeUnit Unit for frame values, either in display rate or tick resolution
 	* @param bSetKey If True set a key, if not just set the value
 	*/
@@ -838,7 +838,7 @@ public:
 	* @param ControlRig The ControlRig
 	* @param ControlName Name of the Control, should be a TransformNoScale control
 	* @param Frames Times to set the values
-	* @param Values to set at those times
+	* @param Values The values to set at those times
 	* @param TimeUnit Unit for frame values, either in display rate or tick resolution
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
@@ -877,7 +877,7 @@ public:
 	* @param ControlRig The ControlRig
 	* @param ControlName Name of the Control, should be a Transform control
 	* @param Frame Time to set the value
-	* @param Value to set 
+	* @param Value The value to set 
 	* @param TimeUnit Unit for frame values, either in display rate or tick resolution
 	* @param bSetKey If True set a key, if not just set the value
 	*/
@@ -891,7 +891,7 @@ public:
 	* @param ControlRig The ControlRig
 	* @param ControlName Name of the Control, should be a Transform control
 	* @param Frames Times to set the values
-	* @param Values to set at those times
+	* @param Values The values to set at those times
 	* @param TimeUnit Unit for frame values, either in display rate or tick resolution
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")

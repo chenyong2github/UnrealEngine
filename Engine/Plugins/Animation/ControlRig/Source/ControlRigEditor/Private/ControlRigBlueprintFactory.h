@@ -38,7 +38,7 @@ public:
 	/**
 	 * Create a new control rig asset within the contents space of the project
 	 * based on a skeletal mesh or skeleton object.
-	 * @param The SkeletalMesh / Skeleton object to base the control rig asset on
+	 * @param InSelectedObject The SkeletalMesh / Skeleton object to base the control rig asset on
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Control Rig")
 	static UControlRigBlueprint* CreateControlRigFromSkeletalMeshOrSkeleton(UObject* InSelectedObject);

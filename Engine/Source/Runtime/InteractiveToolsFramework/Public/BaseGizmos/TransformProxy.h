@@ -24,7 +24,7 @@
 class USceneComponent;
 
 /**
- * UTransformProxy is used to transform a set of sub-ojects. An internal
+ * UTransformProxy is used to transform a set of sub-objects. An internal
  * FTransform is generated based on the sub-object set, and the relative
  * FTransform of each sub-object is stored. Then as this main transform
  * is updated, the sub-objects are also updated.

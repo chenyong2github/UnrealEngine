@@ -24,7 +24,7 @@ struct NIAGARA_API FNiagaraPerfBaselineStats
 	UPROPERTY(EditAnywhere, Category="Baseline", config, BlueprintReadWrite)
 	float PerInstanceAvg_GT = 0.0f;
 
-	/** Per instance average time spent on the RenerThread (µs). */
+	/** Per instance average time spent on the RenderThread (µs). */
 	UPROPERTY(EditAnywhere, Category = "Baseline", config, BlueprintReadWrite)
 	float PerInstanceAvg_RT = 0.0f;
 

@@ -28,7 +28,7 @@ struct FAssetData;
 struct FFrame;
 
 /**
- * Snapshot of source control state of for a file
+ * Snapshot of source control state of a file
  * @see	USourceControlHelpers::QueryFileState()
  */
 USTRUCT(BlueprintType)

@@ -409,7 +409,7 @@ public:
 	virtual bool CanReplicateStreamingStatus() const { return true; }
 
 	/** 
-	 * Virtual that can be overriden to change whether a streaming level should be loaded.
+	 * Virtual that can be overridden to change whether a streaming level should be loaded.
 	 * Doesn't do anything at the base level as should be loaded defaults to true 
 	 */
 	UFUNCTION(BlueprintSetter)

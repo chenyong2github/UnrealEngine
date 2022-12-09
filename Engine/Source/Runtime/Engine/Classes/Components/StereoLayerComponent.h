@@ -343,7 +343,7 @@ public:
 
 	void MarkStereoLayerDirty();
 protected:
-	/** Texture displayed on the stereo layer (is stereocopic textures are supported on the platfrom and more than one texture is provided, this will be the right eye) **/
+	/** Texture displayed on the stereo layer (if stereoscopic textures are supported on the platform and more than one texture is provided, this will be the right eye) **/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category= "StereoLayer")
 	TObjectPtr<class UTexture> Texture;
 

@@ -893,7 +893,7 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	 *
 	 * @param InCurrent is the current rotation value
 	 * @param InDesired is the desired rotation value
-	 * @param  is the rotation amount to apply
+	 * @param InDeltaRate is the rotation amount to apply
 	 *
 	 * @return a new rotation component value clamped in the range (-360,360)
 	 */

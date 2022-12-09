@@ -62,7 +62,7 @@ class ENGINE_API ADebugCameraController
 	UPROPERTY()
 	TObjectPtr<class UDrawFrustumComponent> DrawFrustum;
 	
-	/** Sets whether to show information about the selected actor on the debug camera HUD.t */
+	/** Sets whether to show information about the selected actor on the debug camera HUD. */
 	UFUNCTION(exec)
 	virtual void ShowDebugSelectedInfo();
 

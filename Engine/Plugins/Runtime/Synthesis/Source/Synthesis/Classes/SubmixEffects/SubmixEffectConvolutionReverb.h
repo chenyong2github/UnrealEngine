@@ -47,7 +47,7 @@ struct SYNTHESIS_API FSubmixEffectConvolutionReverbSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixEffectPreset, meta = (EditCondition = "!bBypass"))
 	bool bMixReverbOutputToOutputChannelFormat;
 
-	/* Amout of audio to be sent to rear channels in quad/surround configurations */
+	/* Amount of audio to be sent to rear channels in quad/surround configurations */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SubmixEffectPreset|Surround", meta = (DisplayName = "Surround Rear Channel Bleed (dB)", EditCondition = "bMixReverbOutputToOutputChannelFormat && !bBypass", ClampMin = "-60.0", UIMin = "-60.0", ClampMax = "15.0", UIMax = "15.0"))
 	float SurroundRearChannelBleedDb;
 

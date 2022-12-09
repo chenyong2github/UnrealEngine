@@ -242,7 +242,7 @@ public:
 	bool RemoveActorsFromDataLayer(const TArray<AActor*>& Actors, UDataLayerInstance* DataLayer);
 
 	/**
-	 * Remove the actors to the DataLayers
+	 * Remove the actors from the DataLayers
 	 *
 	 * @param	Actors		The actors to remove to the DataLayers
 	 * @param	DataLayers	A valid list of DataLayers.

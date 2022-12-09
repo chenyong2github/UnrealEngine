@@ -685,7 +685,7 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	/** If true, the screen sizees at which LODs swap are computed automatically. */
+	/** If true, the screen sizes at which LODs swap are computed automatically. */
 	UPROPERTY()
 	uint8 bAutoComputeLODScreenSize : 1;
 

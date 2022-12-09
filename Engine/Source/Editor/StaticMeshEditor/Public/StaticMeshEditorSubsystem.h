@@ -187,7 +187,7 @@ public:
 
 	/**
 	* Get the Nanite Settings for the mesh
-	* @param StaticMesh        Mesh to up[date nanite settings for
+	* @param StaticMesh        Mesh to update nanite settings for
 	* @param NaniteSettings    Settings with which to update the mesh
 	* @param bApplyChanges     Indicates if changes must be applied or not.
 	*/
@@ -322,7 +322,7 @@ public:
 	 * @param	StaticMesh			Static mesh to remove collisions from.
 	 * @param	LODIndex			Index of the StaticMesh LOD.
 	 * @param	SectionIndex		Index of the StaticMesh Section.
-	 * @return True is the collision is enabled for the specified LOD of the StaticMesh section.
+	 * @return True if the collision is enabled for the specified LOD of the StaticMesh section.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Static Mesh Utilities")
 	bool IsSectionCollisionEnabled(UStaticMesh* StaticMesh, int32 LODIndex, int32 SectionIndex);

@@ -48,7 +48,7 @@ public:
 	int32 MinFractionalDigits;
 
 	UE_DEPRECATED(5.2, "Direct access to MaxFractionalDigits is deprecated. Please use the getter or setter.")
-	/** The maximume required fractional digits - default 6 */
+	/** The maximum required fractional digits - default 6 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter = SetMaxFractionalDigits, BlueprintGetter = GetMaxFractionalDigits, Category = "Slider", meta = (ClampMin = 0, UIMin = 0))
 	int32 MaxFractionalDigits;
 

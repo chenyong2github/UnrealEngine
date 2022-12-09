@@ -360,7 +360,7 @@ public:
 	 * @param	StaticMesh			Static mesh to remove collisions from.
 	 * @param	LODIndex			Index of the StaticMesh LOD.
 	 * @param	SectionIndex		Index of the StaticMesh Section.
-	 * @return True is the collision is enabled for the specified LOD of the StaticMesh section.
+	 * @return True if the collision is enabled for the specified LOD of the StaticMesh section.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
 	UFUNCTION(BlueprintPure, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecationMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))

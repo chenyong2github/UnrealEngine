@@ -77,7 +77,7 @@ struct FIntegerAnimationAttribute
 	}
 };
 
-/** Attribute type supporting the legacy TVariant<FString> atttributes */
+/** Attribute type supporting the legacy TVariant<FString> attributes */
 USTRUCT(BlueprintType)
 struct FStringAnimationAttribute
 {
@@ -87,7 +87,7 @@ struct FStringAnimationAttribute
 	FString Value;
 };
 
-/** Attribute type supporting the legacy TVariant<FTransform> atttributes */
+/** Attribute type supporting the legacy TVariant<FTransform> attributes */
 USTRUCT(BlueprintType)
 struct FTransformAnimationAttribute
 {

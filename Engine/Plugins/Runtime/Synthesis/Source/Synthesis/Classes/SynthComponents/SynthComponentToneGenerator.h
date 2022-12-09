@@ -59,7 +59,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Attenuation)
 	FRuntimeFloatCurve DistanceAttenuationCurve;
 
-	/* A distance range overwhich to apply distance attenuation using the supplied curve. */
+	/* A distance range over which to apply distance attenuation using the supplied curve. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Attenuation)
 	FVector2D DistanceRange = { 400.0f, 4000.0f };
 

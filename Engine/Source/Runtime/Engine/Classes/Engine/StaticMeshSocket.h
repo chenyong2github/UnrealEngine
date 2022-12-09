@@ -41,7 +41,7 @@ class UStaticMeshSocket : public UObject
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=StaticMeshSocket)
 	TObjectPtr<class UStaticMesh> PreviewStaticMesh;
 
-	/* Weather the socket was imported with the asset or create in the editor. Importer will remove/modify only imported socket and will not touch any editor created socket. */
+	/* Whether the socket was imported with the asset or created in the editor. Importer will remove/modify only imported socket and will not touch any editor created socket. */
 	UPROPERTY()
 	bool bSocketCreatedAtImport;
 #endif // WITH_EDITORONLY_DATA
