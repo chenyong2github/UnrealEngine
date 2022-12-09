@@ -142,7 +142,7 @@ public:
 			!std::is_array_v<std::remove_reference_t<CharRangeType>> &&
 			!std::is_same_v<CharRangeType, ViewType>
 		>* = nullptr>
-	constexpr inline TStringView(const CharRangeType& InRange)
+	constexpr inline TStringView(const CharRangeType& InRange UE_LIFETIMEBOUND)
 		: DataPtr((const CharType*)UE::Core::Private::StringViewGetData(InRange))
 		, Size(IntCastChecked<int32>(GetNum(InRange)))
 	{
@@ -453,7 +453,7 @@ TStringView(CharRangeType&& Range)
 	-> TStringView<TElementType_T<CharRangeType>>;
 
 template <typename CharPtrOrRangeType>
-constexpr inline auto MakeStringView(CharPtrOrRangeType&& CharPtrOrRange) -> decltype(TStringView(Forward<CharPtrOrRangeType>(CharPtrOrRange)))
+constexpr inline auto MakeStringView(CharPtrOrRangeType&& CharPtrOrRange UE_LIFETIMEBOUND) -> decltype(TStringView(Forward<CharPtrOrRangeType>(CharPtrOrRange)))
 {
 	return TStringView(Forward<CharPtrOrRangeType>(CharPtrOrRange));
 }

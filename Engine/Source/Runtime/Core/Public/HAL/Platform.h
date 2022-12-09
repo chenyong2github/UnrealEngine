@@ -688,6 +688,11 @@
 	#define FUNCTION_NON_NULL_RETURN_END
 #endif
 
+/* Wrap lifetimebound annotations to indicate that a function argument must outlive a return value or constructed object */
+#ifndef UE_LIFETIMEBOUND
+	#define UE_LIFETIMEBOUND
+#endif
+
 /** Promise expression is true. Compiler can optimize accordingly with undefined behavior if wrong. Static analyzers understand this.  */
 #ifndef UE_ASSUME
 	#if defined(__clang__)

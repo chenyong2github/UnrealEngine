@@ -785,7 +785,7 @@ public:
 			>::Value
 		>::Type
 	>
-	TFunctionRef(FunctorType&& InFunc)
+	TFunctionRef(FunctorType&& InFunc UE_LIFETIMEBOUND)
 		: Super(Forward<FunctorType>(InFunc))
 	{
 		// This constructor is disabled for TFunctionRef types so it isn't incorrectly selected as copy/move constructors.

@@ -20,3 +20,5 @@
 
 #define PLATFORM_RETURN_ADDRESS()			__builtin_return_address(0)
 #define PLATFORM_RETURN_ADDRESS_POINTER()	__builtin_frame_address(0)
+
+#define UE_LIFETIMEBOUND [[clang::lifetimebound]]
