@@ -26,7 +26,7 @@ namespace PerfReportTool
     class Version
     {
 		// Format: Major.Minor.Bugfix
-        private static string VersionString = "4.99.2";
+        private static string VersionString = "4.100.0";
 
         public static string Get() { return VersionString; }
     };
@@ -181,11 +181,13 @@ namespace PerfReportTool
 			"  -regressionOutlierStdDevThreshold <n> (default = 4) : stddiv threshold for outliers (these are ignored)\n"+
 			"\n" +
 			"Json serialization:\n" +
-			"  -summaryTableToJson <filename> : json filename to write summary table row data to\n" +
+			"  -summaryTableToJson <path> : path (usually a json filename) to write summary table row data to\n" +
+			"  -summaryTableToJsonSeparateFiles : writes separate files. -summaryTableToJson specifies the directory name\n" +
 			"  -summaryTableToJsonFastMode : exit after serializing json data (skips making summary tables)\n" +
 			"  -summaryTableToJsonWriteAllElementData : write all element data, including tooltips, flags\n" +
 			"  -summaryTableToJsonMetadataOnly : only write CsvMetadata elements to json\n" +
 			"  -summaryTableToJsonFileStream : use a file stream to write Json. Experimental but can avoid OOMs\n" +
+			"  -summaryTableToJsonNoIndent : don't indent json output files\n" +
 			"  -jsonToPrcs <json filename> : write PRCs. PRC files will be written to -summaryTableCache folder\n" +
 			"\n" +
 			"Performance args for bulk mode:\n" +
@@ -369,10 +371,14 @@ namespace PerfReportTool
 
 			// If we're outputting row data to json, create the dict
 			SummaryTableDataJsonWriteHelper summaryTableJsonHelper = null;
-			string summaryJsonOutFilename = GetArg("summaryTableToJson", null);
-			if (summaryJsonOutFilename != null)
+			string summaryJsonOutPath = GetArg("summaryTableToJson", null);
+			if (summaryJsonOutPath != null)
 			{
-				summaryTableJsonHelper = new SummaryTableDataJsonWriteHelper(summaryJsonOutFilename, GetBoolArg("summaryTableToJsonMetadataOnly"), GetBoolArg("summaryTableToJsonWriteAllElementData"));
+				summaryTableJsonHelper = new SummaryTableDataJsonWriteHelper(summaryJsonOutPath, 
+					GetBoolArg("summaryTableToJsonSeparateFiles"), 
+					GetBoolArg("summaryTableToJsonMetadataOnly"), 
+					GetBoolArg("summaryTableToJsonWriteAllElementData"),
+					!GetBoolArg("summaryTableToJsonNoIndent"));
 			}
 
 
@@ -632,7 +638,7 @@ namespace PerfReportTool
 
 			if (summaryTableJsonHelper != null)
 			{
-				summaryTableJsonHelper.WriteJsonFile(GetBoolArg("summaryTableToJsonFileStream"));
+				summaryTableJsonHelper.WriteToJson(GetBoolArg("summaryTableToJsonFileStream"));
 				perfLog.LogTiming("WriteSummaryDataJson");
 				if (GetBoolArg("summaryTableToJsonFastMode"))
 				{

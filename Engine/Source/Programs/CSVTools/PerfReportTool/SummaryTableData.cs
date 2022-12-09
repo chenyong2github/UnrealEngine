@@ -14,11 +14,19 @@ namespace PerfSummaries
 
 	class SummaryTableDataJsonWriteHelper
 	{
-		public SummaryTableDataJsonWriteHelper(string InJsonFilename, bool bInCsvMetadataOnly, bool bInWriteAllElementData)
+		public SummaryTableDataJsonWriteHelper(string InJsonFilenameOrDirectory, bool bInSeparateFiles, bool bInCsvMetadataOnly, bool bInWriteAllElementData, bool bInWriteIndented=false)
 		{
-			JsonFilename = InJsonFilename;
+			if (bInSeparateFiles)
+			{
+				JsonDirectory = InJsonFilenameOrDirectory;
+			}
+			else
+			{
+				JsonFilename = InJsonFilenameOrDirectory;
+			}
 			bCsvMetadataOnly = bInCsvMetadataOnly;
 			bWriteAllElementData = bInWriteAllElementData;
+			bWriteIndented = bInWriteIndented;
 		}
 		public void AddRowData(SummaryTableRowData rowData)
 		{
@@ -28,39 +36,60 @@ namespace PerfSummaries
 				return;
 			}
 
-			Dict.Add(rowData.dict["csvid"].value, rowData.ToJsonDict(bCsvMetadataOnly, bWriteAllElementData));
+			Dictionary<string, dynamic> RowDict = rowData.ToJsonDict(bCsvMetadataOnly, bWriteAllElementData);
+			Dict.Add(rowData.dict["csvid"].value, RowDict);
 		}
 
-		public void WriteJsonFile(bool bSerializeToStream)
+		public void WriteToJson(bool bSerializeToStream)
 		{
-			Console.WriteLine("Writing summary table row data to json: " + JsonFilename);
+			if (JsonDirectory != null)
+			{
+				Console.WriteLine("Writing summary table row data to directory : " + JsonDirectory);
+				foreach (string csvId in Dict.Keys)
+				{
+					string filename = Path.Combine(JsonDirectory, csvId+".json");
+					WriteJsonFile(bSerializeToStream, filename, Dict[csvId], bWriteIndented);
+				}
+			}
+			else
+			{
+				Console.WriteLine("Writing summary table row data to file: " + JsonFilename);
+				WriteJsonFile(bSerializeToStream, JsonFilename, Dict, bWriteIndented);
+			}
 
-			JsonSerializerOptions options = new JsonSerializerOptions { WriteIndented = true };
+		}
+
+		private static void WriteJsonFile(bool bSerializeToStream, string filename, Dictionary<string, dynamic> dictToSerialize, bool bWriteIndented)
+		{
+			JsonSerializerOptions options = new JsonSerializerOptions { WriteIndented = bWriteIndented };
 
 			if (bSerializeToStream)
 			{
-				Task task = WriteJsonFileAsyncPrivate(options);
+				Task task = WriteJsonFileAsyncPrivate(options, filename, dictToSerialize);
 				task.Wait();
 			}
 			else
 			{
-				string jsonString = JsonSerializer.Serialize(Dict, options);
-				File.WriteAllText(JsonFilename, jsonString);
+				string jsonString = JsonSerializer.Serialize(dictToSerialize, options);
+				File.WriteAllText(filename, jsonString);
 			}
 		}
 
-		private async Task WriteJsonFileAsyncPrivate(JsonSerializerOptions options) 
+
+		private static async Task WriteJsonFileAsyncPrivate(JsonSerializerOptions options, string Filename, Dictionary<string, dynamic> DictToSerialize) 
 		{
 			// serialize JSON directly to a file
-			FileStream createStream = File.Create(JsonFilename);
-			await JsonSerializer.SerializeAsync(createStream, Dict);
+			FileStream createStream = File.Create(Filename);
+			await JsonSerializer.SerializeAsync(createStream, DictToSerialize);
 			createStream.Dispose(); // DisposeAsync doesn't exist in .Net 4.8 so we can't await it
 		}
 
 		Dictionary<string, dynamic> Dict = new Dictionary<string, dynamic>();
-		string JsonFilename;
+		string JsonFilename = null;
+		string JsonDirectory = null;
 		bool bCsvMetadataOnly;
 		bool bWriteAllElementData;
+		bool bWriteIndented;
 	}
 
 
