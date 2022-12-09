@@ -14,6 +14,7 @@
 #include "Widgets/Views/STableRow.h"
 #include "Framework/Text/BaseTextLayoutMarshaller.h"
 #include "Misc/TextFilterExpressionEvaluator.h"
+#include "HAL/CriticalSection.h"
 #include "HAL/IConsoleManager.h"
 
 class FMenuBuilder;
@@ -541,11 +542,11 @@ protected:
 	/** All log messages to show in the text box */
 	TArray< TSharedPtr<FOutputLogMessage> > Messages;
 
+	/** Messages pending add, kept separate to avoid a race condition when reading Messages */
+	TArray< TSharedPtr<FOutputLogMessage> > PendingMessages;
+
 	/** Index of the next entry in the Messages array that is pending submission to the text layout */
 	int32 NextPendingMessageIndex;
-
-	/** Index of last message that was null, used to ensure we don't stop processing due to a null message */
-	int32 LastNullMessageIndex;
 
 	/** Holds cached numbers of messages to avoid unnecessary re-filtering */
 	int32 CachedNumMessages;
@@ -559,4 +560,7 @@ protected:
 	FName CategoryToHighlight;
 
 	FTextLayout* TextLayout;
+
+	/** Output log runs own its own "OutputDeviceRedirector" thread, lock against messages to prevent race conditions */
+	FCriticalSection PendingMessagesCriticalSection;
 };

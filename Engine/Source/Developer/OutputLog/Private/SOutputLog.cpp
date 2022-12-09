@@ -5,6 +5,7 @@
 #include "Framework/Text/TextLayout.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/OutputDeviceHelper.h"
+#include "Misc/ScopeLock.h"
 #include "SlateOptMacros.h"
 #include "Textures/SlateIcon.h"
 #include "Framework/Commands/UIAction.h"
@@ -815,39 +816,34 @@ void FOutputLogTextLayoutMarshaller::GetText(FString& TargetString, const FTextL
 
 bool FOutputLogTextLayoutMarshaller::AppendPendingMessage(const TCHAR* InText, const ELogVerbosity::Type InVerbosity, const FName& InCategory)
 {
-	return SOutputLog::CreateLogMessages(InText, InVerbosity, InCategory, Messages);
+	// We don't want to skip adding messages, so just try to acquire the lock
+	FScopeLock PendingMessagesAccess(&PendingMessagesCriticalSection);
+	return SOutputLog::CreateLogMessages(InText, InVerbosity, InCategory, PendingMessages);
 }
 
 bool FOutputLogTextLayoutMarshaller::SubmitPendingMessages()
 {
+	// We can always submit messages next tick. So only try to lock, if not possible return.
+	if (PendingMessagesCriticalSection.TryLock())
+	{
+		Messages.Append(MoveTemp(PendingMessages));
+		PendingMessages.Reset();
+		PendingMessagesCriticalSection.Unlock();
+	}
+	else
+	{
+		return false;
+	}
+
 	if (Messages.IsValidIndex(NextPendingMessageIndex))
 	{
 		const int32 CurrentMessagesCount = Messages.Num();
-
-		// If the same message is still invalid after a tick, just skip it during processing (Prevents getting stuck on a message).
-		bool bMessageStillInvalidAfterTick = Messages.IsValidIndex(LastNullMessageIndex) && !Messages[LastNullMessageIndex];
-
-		if (!bMessageStillInvalidAfterTick)
-		{
-			// Text log can be written to async. Rather than sync the log. Process all messages if possible,
-			// but if not wait till next tick to process (For the most part we will always process).
-			for (int32 MessageIndex = NextPendingMessageIndex; MessageIndex < CurrentMessagesCount; ++MessageIndex)
-			{
-				const TSharedPtr<FOutputLogMessage> Message = Messages[MessageIndex];
-				if (!Message)
-				{
-					LastNullMessageIndex = MessageIndex;
-					return false;
-				}
-			}
-		}
-
-		LastNullMessageIndex = INDEX_NONE;
 
 		AppendPendingMessagesToTextLayout();
 		NextPendingMessageIndex = CurrentMessagesCount;
 		return true;
 	}
+
 	return false;
 }
 
@@ -1090,7 +1086,6 @@ FTextLocation FOutputLogTextLayoutMarshaller::GetTextLocationAt(const FVector2D&
 FOutputLogTextLayoutMarshaller::FOutputLogTextLayoutMarshaller(TArray< TSharedPtr<FOutputLogMessage> > InMessages, FOutputLogFilter* InFilter)
 	: Messages(MoveTemp(InMessages))
 	, NextPendingMessageIndex(0)
-	, LastNullMessageIndex(INDEX_NONE)
 	, CachedNumMessages(0)
 	, Filter(InFilter)
 	, TextLayout(nullptr)
