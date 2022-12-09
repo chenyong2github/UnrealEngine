@@ -3,6 +3,8 @@
 #pragma once
 
 #include "PhysicsControlRecord.h"
+#include "PhysicsControlNameRecords.h"
+
 #include "UObject/ObjectPtr.h"
 #include "UObject/NameTypes.h"
 
@@ -118,7 +120,26 @@ public:
 	 */
 	FPhysicsBodyModifier* FindBodyModifier(const FName Name);
 
+	enum class EDestroyBehavior : uint8
+	{
+		KeepRecord,
+		RemoveRecord
+	};
+
+	/** Destroys the control. It will optionally be removed from the array of records too */
+	bool DestroyControl(
+		const FName            Name, 
+		const EDestroyBehavior DestroyBehavior = EDestroyBehavior::RemoveRecord);
+
+	/** Destroys the modifier. It will optionally be removed from the array of records too */
+	bool DestroyBodyModifier(
+		const FName            Name,
+		const EDestroyBehavior DestroyBehavior = EDestroyBehavior::RemoveRecord);
+
+	/** Calculates and returns a unique name based on the bone names and any existing records */
 	FName GetUniqueControlName(const FName ParentBoneName, const FName ChildBoneName) const;
+
+	/** Calculates and returns a unique name based on the bone name and any existing records */
 	FName GetUniqueBodyModifierName(const FName BoneName) const;
 
 public:
@@ -134,7 +155,12 @@ public:
 	TMap<FName, FPhysicsControlRecord> PhysicsControlRecords;
 	TMap<FName, FPhysicsBodyModifier> PhysicsBodyModifiers;
 
+public:
+	// Keep track of the names of everything we have created
+	FPhysicsControlNameRecords NameRecords;
+
 private:
-	UPhysicsControlComponent* Owner;
+	UPhysicsControlComponent* Owner = nullptr;
+
 };
 

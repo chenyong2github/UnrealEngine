@@ -60,11 +60,11 @@ struct PHYSICSCONTROL_API FPhysicsControlLimbBones
 };
 
 /**
- * Wrapper for the array of names, so that the limbs can we can work with a map of arrays of names. 
- * Note that in practice, the names will be of either controls or body modifiers.
+ * Wrapper for the array of names, so that the control/modifier sets can we work with a map 
+ * of arrays of names. Note that in practice, the names will be of either controls or body modifiers.
  */
 USTRUCT(BlueprintType)
-struct PHYSICSCONTROL_API FPhysicsControlNameArray
+struct PHYSICSCONTROL_API FPhysicsControlNames
 {
 	GENERATED_BODY()
 

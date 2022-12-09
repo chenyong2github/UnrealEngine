@@ -15,18 +15,12 @@ class UMeshComponent;
  */
 struct FPhysicsControlState
 {
-	FPhysicsControlState()
-		: bEnabled(false), bPendingDestroy(false)
-	{
-	}
-
 	/** Removes any constraint and resets the state */
 	void Reset();
 
 	TSharedPtr<FConstraintInstance> ConstraintInstance;
 
-	bool bEnabled;
-	bool bPendingDestroy;
+	bool bEnabled = false;
 };
 
 /**
@@ -34,8 +28,7 @@ struct FPhysicsControlState
  */
 struct FPhysicsControlRecord
 {
-	FPhysicsControlRecord(const FPhysicsControl& InControl)
-		: PhysicsControl(InControl)
+	FPhysicsControlRecord(const FPhysicsControl& InControl) : PhysicsControl(InControl)
 	{
 	}
 
@@ -78,7 +71,6 @@ struct FPhysicsBodyModifier
 		, KinematicTargetPosition(FVector::ZeroVector)
 		, KinematicTargetOrientation(FQuat::Identity)
 		, bUseSkeletalAnimation(InUseSkeletalAnimation)
-		, bPendingDestroy(false)
 	{}
 
 	/**  The mesh that will be modified. */
@@ -88,34 +80,31 @@ struct FPhysicsBodyModifier
 	FName BoneName;
 
 	/** How the associated body should move. */
-	EPhysicsMovementType MovementType;
+	EPhysicsMovementType MovementType = EPhysicsMovementType::Kinematic;
 
 	/** How the associated body should collide/interact */
-	ECollisionEnabled::Type CollisionType;
+	ECollisionEnabled::Type CollisionType = ECollisionEnabled::QueryAndPhysics;
 
 	/**
 	 * Multiplier for gravity applied to the body. Note that if the body itself has gravity disabled, then
 	 * setting this to 1 will not enable gravity.
 	 */
-	float GravityMultiplier;
+	float GravityMultiplier = 1.0f;
 
 	/** 
 	 * The target position when kinematic. Note that this is applied on top of any animation 
 	 * target if bUseSkeletalAnimation is set. 
 	 */
-	FVector KinematicTargetPosition;
+	FVector KinematicTargetPosition = FVector::ZeroVector;
 
 	/**
 	 * The target orientation when kinematic. Note that this is applied on top of any animation
 	 * target if bUseSkeletalAnimation is set.
 	 */
-	FQuat KinematicTargetOrientation;
+	FQuat KinematicTargetOrientation = FQuat::Identity;
 
 	/** If true then the target will be applied on top of the skeletal animation (if there is any) */
 	uint8 bUseSkeletalAnimation:1;
-
-	/** Indicates if this should be deleted on the next tick */
-	uint8 bPendingDestroy:1;
 };
 
 /**

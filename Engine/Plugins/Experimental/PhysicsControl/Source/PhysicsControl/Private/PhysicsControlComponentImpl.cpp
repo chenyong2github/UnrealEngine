@@ -528,43 +528,43 @@ bool FPhysicsControlComponentImpl::ApplyControlStrengths(
 	FPhysicsControlRecord& Record, FConstraintInstance* ConstraintInstance)
 {
 	const FPhysicsControlData& Data = Record.PhysicsControl.ControlData;
-	const FPhysicsControlMultipliers& Multipliers = Record.PhysicsControl.ControlMultipliers;
+	const FPhysicsControlMultiplier& Multiplier = Record.PhysicsControl.ControlMultiplier;
 
 	double AngularSpring;
 	double AngularDamping;
-	double MaxTorque = Data.MaxTorque * Multipliers.MaxTorqueMultiplier;
+	double MaxTorque = Data.MaxTorque * Multiplier.MaxTorqueMultiplier;
 
 	FVector LinearSpring;
 	FVector LinearDamping;
-	FVector MaxForce = Data.MaxForce * Multipliers.MaxForceMultiplier;
+	FVector MaxForce = Data.MaxForce * Multiplier.MaxForceMultiplier;
 
 	UE::PhysicsControlComponent::ConvertStrengthToSpringParams(
 		AngularSpring, AngularDamping,
-		Data.AngularStrength * Multipliers.AngularStrengthMultiplier,
+		Data.AngularStrength * Multiplier.AngularStrengthMultiplier,
 		Data.AngularDampingRatio,
-		Data.AngularExtraDamping * Multipliers.AngularExtraDampingMultiplier);
+		Data.AngularExtraDamping * Multiplier.AngularExtraDampingMultiplier);
 	UE::PhysicsControlComponent::ConvertStrengthToSpringParams(
 		LinearSpring, LinearDamping,
-		Data.LinearStrength * Multipliers.LinearStrengthMultiplier,
+		Data.LinearStrength * Multiplier.LinearStrengthMultiplier,
 		Data.LinearDampingRatio,
-		Data.LinearExtraDamping * Multipliers.LinearExtraDampingMultiplier);
+		Data.LinearExtraDamping * Multiplier.LinearExtraDampingMultiplier);
 
-	if (Multipliers.MaxTorqueMultiplier <= 0.0)
+	if (Multiplier.MaxTorqueMultiplier <= 0.0)
 	{
 		AngularSpring = 0.0;
 		AngularDamping = 0.0;
 	}
-	if (Multipliers.MaxForceMultiplier.X <= 0.0)
+	if (Multiplier.MaxForceMultiplier.X <= 0.0)
 	{
 		LinearSpring.X = 0.0;
 		LinearDamping.X = 0.0;
 	}
-	if (Multipliers.MaxForceMultiplier.Y <= 0.0)
+	if (Multiplier.MaxForceMultiplier.Y <= 0.0)
 	{
 		LinearSpring.Y = 0.0;
 		LinearDamping.Y = 0.0;
 	}
-	if (Multipliers.MaxForceMultiplier.Z <= 0.0)
+	if (Multiplier.MaxForceMultiplier.Z <= 0.0)
 	{
 		LinearSpring.Z = 0.0;
 		LinearDamping.Z = 0.0;
@@ -633,5 +633,59 @@ void FPhysicsControlComponentImpl::ApplyControl(FPhysicsControlRecord& Record)
 FPhysicsBodyModifier* FPhysicsControlComponentImpl::FindBodyModifier(const FName Name)
 {
 	return PhysicsBodyModifiers.Find(Name);
+}
+
+//======================================================================================================================
+bool FPhysicsControlComponentImpl::DestroyControl(
+	const FName            Name,
+	const EDestroyBehavior DestroyBehavior)
+{
+	FPhysicsControlRecord* PhysicsControlRecord = FindControlRecord(Name);
+	if (PhysicsControlRecord)
+	{
+		if (USkeletalMeshComponent* SkeletalMeshComponent =
+			Cast<USkeletalMeshComponent>(PhysicsControlRecord->PhysicsControl.ParentMeshComponent))
+		{
+			RemoveSkeletalMeshReferenceForCaching(SkeletalMeshComponent);
+		}
+		if (USkeletalMeshComponent* SkeletalMeshComponent =
+			Cast<USkeletalMeshComponent>(PhysicsControlRecord->PhysicsControl.ChildMeshComponent))
+		{
+			RemoveSkeletalMeshReferenceForCaching(SkeletalMeshComponent);
+		}
+
+		PhysicsControlRecord->PhysicsControlState.Reset();
+		NameRecords.RemoveControl(Name);
+		if (DestroyBehavior == EDestroyBehavior::RemoveRecord)
+		{
+			check(PhysicsControlRecords.Remove(Name) == 1);
+		}
+		return true;
+	}
+	return false;
+}
+
+//======================================================================================================================
+bool FPhysicsControlComponentImpl::DestroyBodyModifier(
+	const FName            Name,
+	const EDestroyBehavior DestroyBehavior)
+{
+	FPhysicsBodyModifier* PhysicsBodyModifier = FindBodyModifier(Name);
+	if (PhysicsBodyModifier)
+	{
+		if (USkeletalMeshComponent* SkeletalMeshComponent =
+			Cast<USkeletalMeshComponent>(PhysicsBodyModifier->MeshComponent))
+		{
+			RemoveSkeletalMeshReferenceForCaching(SkeletalMeshComponent);
+			RemoveSkeletalMeshReferenceForModifier(SkeletalMeshComponent);
+		}
+		NameRecords.RemoveBodyModifier(Name);
+		if (DestroyBehavior == EDestroyBehavior::RemoveRecord)
+		{
+			check(PhysicsBodyModifiers.Remove(Name) == 1);
+		}
+		return true;
+	}
+	return false;
 }
 

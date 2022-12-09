@@ -102,11 +102,11 @@ struct PHYSICSCONTROL_API FPhysicsControlData
  *    tick (typically between 0 and 1, though that is up to the user).
  */
 USTRUCT(BlueprintType)
-struct PHYSICSCONTROL_API FPhysicsControlMultipliers
+struct PHYSICSCONTROL_API FPhysicsControlMultiplier
 {
 	GENERATED_BODY()
 
-	FPhysicsControlMultipliers()
+	FPhysicsControlMultiplier()
 		: LinearStrengthMultiplier(1.0)
 		, LinearExtraDampingMultiplier(1.0)
 		, MaxForceMultiplier(1.0)
@@ -293,11 +293,11 @@ struct PHYSICSCONTROL_API FPhysicsControl
 	FPhysicsControlData ControlData;
 
 	/**
-	 * Multipliers for the ControlData. These will typically be modified dynamically, and also expose the ability
+	 * Multiplier for the ControlData. This will typically be modified dynamically, and also expose the ability
 	 * to set directional strengths
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PhysicsControl)
-	FPhysicsControlMultipliers ControlMultipliers;
+	FPhysicsControlMultiplier ControlMultiplier;
 
 	/**
 	 * The position/orientation etc targets for the controls. These are procedural/explicit control targets -
