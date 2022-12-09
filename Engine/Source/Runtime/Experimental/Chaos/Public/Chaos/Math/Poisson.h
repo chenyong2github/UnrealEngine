@@ -80,7 +80,28 @@ inline TV RowMaj3x3Multiply(const T* A, const TV& x)
 	return Result;
 }
 
+template <class T, class TV>
+inline TV RowMaj3x3RobustSolveLinearSystem(const T* A, const TV& b)
+{
+	T Cofactor11 = A[4] * A[8] - A[7] * A[5];
+	T Cofactor12 = A[7] * A[2] - A[1] * A[8];
+	T Cofactor13 = A[1] * A[5] - A[4] * A[2];
+	T Determinant = A[0] * Cofactor11 + A[3] * Cofactor12 + A[6] * Cofactor13;
 
+	T Matrix[9] =
+		{ Cofactor11, Cofactor12, Cofactor13,
+		  A[6] * A[5] - A[3] * A[8], A[0] * A[8] - A[6] * A[2], A[3] * A[2] - A[0] * A[5],
+		  A[3] * A[7] - A[6] * A[4], A[6] * A[1] - A[0] * A[7], A[0] * A[4] - A[3] * A[1] };
+	TV UnscaledResult = RowMaj3x3Multiply(&Matrix[0], b);
+
+	T RelativeTolerance = static_cast<T>(TNumericLimits<float>::Min()) * FMath::Max3(FMath::Abs(UnscaledResult[0]), FMath::Abs(UnscaledResult[1]), FMath::Abs(UnscaledResult[2]));
+	if (FMath::Abs(Determinant) <= RelativeTolerance)
+	{
+		RelativeTolerance = FMath::Max(RelativeTolerance, static_cast<T>(TNumericLimits<float>::Min()));
+		Determinant = Determinant >= 0 ? RelativeTolerance : -RelativeTolerance;
+	}
+	return UnscaledResult / Determinant;
+}
 
 template <class T, class TV=FVector3f, class TV_INT=FIntVector4, int32 d=3>
 void

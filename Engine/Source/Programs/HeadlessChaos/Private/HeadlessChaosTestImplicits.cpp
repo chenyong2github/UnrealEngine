@@ -10,6 +10,7 @@
 #include "Chaos/Box.h"
 #include "Chaos/Plane.h"
 #include "Chaos/Sphere.h"
+#include "Chaos/Tetrahedron.h"
 #include "Chaos/Cylinder.h"
 #include "Chaos/TaperedCylinder.h"
 #include "Chaos/TaperedCapsule.h"
@@ -222,6 +223,99 @@ namespace ChaosTest {
 		}
 	}
 
+	void ImplicitTetrahedron()
+	{
+		FString Caller("ImplicitTetrahedron()");
+
+		TTetrahedron<double> Tet(TVec3<double>(0, 0, 0), TVec3<double>(1, 0, 0), TVec3<double>(0, 1, 0), TVec3<double>(0, 0, 1));
+		const TArray<TTriangle<double>> Tris = Tet.GetTriangles();
+
+		double SVol = Tet.GetSignedVolume();
+		EXPECT_NEAR(SVol, 1.0/6, 0.001);
+
+		double Vol = Tet.GetVolume();
+		EXPECT_NEAR(Vol, SVol, 0.001);
+
+		double MinEL = Tet.GetMinEdgeLength();
+		EXPECT_NEAR(MinEL, 1.0, 0.001);
+
+		double MaxEL = Tet.GetMaxEdgeLength();
+		EXPECT_NEAR(MaxEL, 1.4, 0.1);
+
+		TVec3<double> Center = Tet.GetCenter();
+		EXPECT_VECTOR_NEAR(Center, FVector(.25, .25, .25), 0.001);
+
+		// Center
+		TVec3<double> Pt = Center;
+		bool Hit = Tet.Inside(Pt); // generates tris
+		EXPECT_TRUE(Hit);
+		bool RobustHit = Tet.RobustInside(Pt);
+		EXPECT_TRUE(RobustHit);
+		TVec3<double> Bary = Tet.GetFirstThreeBarycentricCoordinates(Pt);
+		EXPECT_VECTOR_NEAR(Bary, FVector(.25, .25, .25), 0.001);
+		TVec3<double> Surf = Tet.ProjectToSurface(Tris, Pt);
+		EXPECT_VECTOR_NEAR(Surf, Tris[3].GetCentroid(), 0.001);
+
+		// Point
+		Pt = Tet[0];
+		Hit = Tet.Inside(Pt, 0.001);
+		EXPECT_TRUE(Hit);
+		RobustHit = Tet.RobustInside(Pt, -0.001);
+		EXPECT_TRUE(RobustHit);
+		Bary = Tet.GetFirstThreeBarycentricCoordinates(Pt);
+		EXPECT_VECTOR_NEAR(Bary, FVector(1, 0, 0), 0.001);
+		Surf = Tet.ProjectToSurface(Tris, Pt);
+		EXPECT_VECTOR_NEAR(Surf, Pt, 0.001);
+
+		Pt[0] -= 0.1;
+		Hit = Tet.Inside(Pt, 0.001);
+		EXPECT_FALSE(Hit);
+		RobustHit = Tet.RobustInside(Pt, -0.001);
+		EXPECT_FALSE(RobustHit);
+		Surf = Tet.ProjectToSurface(Tris, Pt);
+		Pt[0] += 0.1;
+		EXPECT_VECTOR_NEAR(Surf, Pt, 0.001);
+
+		// Edge
+		Pt = TVec3<double>(0.5, 0, 0);
+		Hit = Tet.Inside(Pt, 0.001);
+		EXPECT_TRUE(Hit);
+		RobustHit = Tet.RobustInside(Pt, -0.001);
+		EXPECT_TRUE(RobustHit);
+		Bary = Tet.GetFirstThreeBarycentricCoordinates(Pt);
+		EXPECT_VECTOR_NEAR(Bary, FVector(.5, .5, 0), 0.001);
+		Surf = Tet.ProjectToSurface(Tris, Pt);
+		EXPECT_VECTOR_NEAR(Surf, Pt, 0.001);
+
+		Pt[1] -= 0.1;
+		Hit = Tet.Inside(Pt, 0.001);
+		EXPECT_FALSE(Hit);
+		RobustHit = Tet.RobustInside(Pt, -0.001);
+		EXPECT_FALSE(RobustHit);
+		Surf = Tet.ProjectToSurface(Tris, Pt);
+		Pt[1] += 0.1;
+		EXPECT_VECTOR_NEAR(Surf, Pt, 0.001);
+
+		// Face
+		Pt = Tris[0].GetCentroid();
+		Hit = Tet.Inside(Pt, 0.001);
+		EXPECT_TRUE(Hit);
+		RobustHit = Tet.RobustInside(Pt, -0.001);
+		EXPECT_TRUE(RobustHit);
+		Bary = Tet.GetFirstThreeBarycentricCoordinates(Pt);
+		EXPECT_VECTOR_NEAR(Bary, FVector(.3333, .3333, .3333), 0.001);
+		Surf = Tet.ProjectToSurface(Tris, Pt);
+		EXPECT_VECTOR_NEAR(Surf, Pt, 0.001);
+
+		Pt += Tris[0].GetNormal() * 0.1;
+		Hit = Tet.Inside(Pt, 0.001);
+		EXPECT_FALSE(Hit);
+		RobustHit = Tet.RobustInside(Pt, -0.001);
+		EXPECT_FALSE(RobustHit);
+		Surf = Tet.ProjectToSurface(Tris, Pt);
+		Pt -= Tris[0].GetNormal() * 0.1;
+		EXPECT_VECTOR_NEAR(Surf, Pt, 0.001);
+	}
 
 	void ImplicitCube()
 	{

@@ -72,6 +72,7 @@ DEFINE_LOG_CATEGORY(LogHeadlessChaos);
 
 TEST(ImplicitTests, Implicit) {
 	ChaosTest::ImplicitPlane();
+	ChaosTest::ImplicitTetrahedron();
 	ChaosTest::ImplicitCube();
 	ChaosTest::ImplicitSphere();
 	ChaosTest::ImplicitCylinder();

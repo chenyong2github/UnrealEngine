@@ -19,6 +19,9 @@ namespace ChaosTest {
 	void ImplicitPlane();
 
 	/**/
+	void ImplicitTetrahedron();
+
+	/**/
 	void ImplicitSphere();
 
 	/**/
