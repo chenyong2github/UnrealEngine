@@ -6,6 +6,7 @@
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
 #include "MuR/Types.h"
+#include "Templates/SharedPointer.h"
 
 
 #define MUTABLE_MAX_STRING_PARAM_LENGTH     40
