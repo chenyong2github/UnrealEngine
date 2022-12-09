@@ -857,7 +857,7 @@ namespace Horde.Build.Jobs
 			task.JobName = leaseName.ToString();
 			task.Executor = job.Executor ?? String.Empty;
 
-			List<HordeCommon.Rpc.Messages.AgentWorkspace> workspaces = new List<HordeCommon.Rpc.Messages.AgentWorkspace>();
+			List<HordeCommon.Rpc.Messages.AgentWorkspace> workspaces = new ();
 
 			PerforceCluster? cluster = globals.Config.FindPerforceCluster(workspace.Cluster);
 			if (cluster == null)
@@ -868,6 +868,8 @@ namespace Horde.Build.Jobs
 			AgentWorkspace? autoSdkWorkspace = useAutoSdk ? agent.GetAutoSdkWorkspace(cluster) : null;
 			if (autoSdkWorkspace != null)
 			{
+				autoSdkWorkspace.Method = workspace.Method;
+				
 				if (!await agent.TryAddWorkspaceMessage(autoSdkWorkspace, cluster, _perforceLoadBalancer, workspaces))
 				{
 					return null;
