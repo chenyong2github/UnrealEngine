@@ -3,6 +3,7 @@
 
 #include "Chaos/PBDLongRangeConstraintsBase.h"
 #include "Chaos/PBDParticles.h"
+#include "Chaos/PropertyCollectionAdapter.h"
 #include "ChaosStats.h"
 
 DECLARE_CYCLE_STAT(TEXT("Chaos XPBD Long Range Constraint"), STAT_XPBD_LongRange, STATGROUP_Chaos);
@@ -10,7 +11,9 @@ DECLARE_CYCLE_STAT(TEXT("Chaos XPBD Long Range Constraint"), STAT_XPBD_LongRange
 namespace Chaos::Softs
 {
 
+UE_DEPRECATED(5.2, "Use FXPBDLongRangeConstraints::MinStiffness instead.")
 static const FSolverReal XPBDLongRangeMinStiffness = (FSolverReal)1e-1;
+UE_DEPRECATED(5.2, "Use FXPBDLongRangeConstraints::MaxStiffness instead.")
 static const FSolverReal XPBDLongRangeMaxStiffness = (FSolverReal)1e7;
 
 class FXPBDLongRangeConstraints final : public FPBDLongRangeConstraintsBase
@@ -18,6 +21,36 @@ class FXPBDLongRangeConstraints final : public FPBDLongRangeConstraintsBase
 public:
 	typedef FPBDLongRangeConstraintsBase Base;
 	typedef typename Base::FTether FTether;
+
+	static constexpr FSolverReal MinStiffness = (FSolverReal)1e-1;
+	static constexpr FSolverReal MaxStiffness = (FSolverReal)1e7;
+
+	FXPBDLongRangeConstraints(
+		const FSolverParticles& Particles,
+		const int32 InParticleOffset,
+		const int32 InParticleCount,
+		const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& InTethers,
+		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
+		const TConstArrayView<FRealSingle>& ScaleMultipliers,
+		const FPropertyCollectionConstAdapter& PropertyCollection)
+	    : FPBDLongRangeConstraintsBase(
+			Particles,
+			InParticleOffset,
+			InParticleCount,
+			InTethers,
+			StiffnessMultipliers,
+			ScaleMultipliers,
+			FSolverVec2(GetWeightedFloatXPBDTetherStiffness(PropertyCollection)),
+			FSolverVec2(GetWeightedFloatXPBDTetherScale(PropertyCollection)),  // Scale clamping done in constructor
+			MaxStiffness)
+	{
+		NumTethers = 0;
+		for (const TConstArrayView<FTether>& TetherBatch : Tethers)
+		{
+			NumTethers += TetherBatch.Num();
+		}
+		Lambdas.Reserve(NumTethers);
+	}
 
 	FXPBDLongRangeConstraints(
 		const FSolverParticles& Particles,
@@ -28,7 +61,7 @@ public:
 		const TConstArrayView<FRealSingle>& ScaleMultipliers,
 		const FSolverVec2& InStiffness = FSolverVec2::UnitVector,
 		const FSolverVec2& InScale = FSolverVec2::UnitVector)
-	    : FPBDLongRangeConstraintsBase(
+		: FPBDLongRangeConstraintsBase(
 			Particles,
 			InParticleOffset,
 			InParticleCount,
@@ -36,8 +69,8 @@ public:
 			StiffnessMultipliers,
 			ScaleMultipliers,
 			InStiffness,
-			InScale,
-			XPBDLongRangeMaxStiffness)
+			InScale,  // Scale clamping done in constructor
+			MaxStiffness)
 	{
 		NumTethers = 0;
 		for (const TConstArrayView<FTether>& TetherBatch : Tethers)
@@ -49,17 +82,29 @@ public:
 
 	virtual ~FXPBDLongRangeConstraints() override {}
 
+	void SetProperties(const FPropertyCollectionConstAdapter& PropertyCollection)
+	{
+		if (IsXPBDTetherStiffnessMutable(PropertyCollection))
+		{
+			Stiffness.SetWeightedValue(FSolverVec2(GetWeightedFloatXPBDTetherStiffness(PropertyCollection)));
+		}
+		if (IsXPBDTetherScaleMutable(PropertyCollection))
+		{
+			TetherScale.SetWeightedValue(FSolverVec2(GetWeightedFloatXPBDTetherScale(PropertyCollection)).ClampAxes(Base::MinTetherScale, Base::MaxTetherScale));
+		}
+	}
+
 	// Set the stiffness and scale values used by the constraint
 	void SetProperties(const FSolverVec2& InStiffness, const FSolverVec2& InScale)
 	{
-		Stiffness.SetWeightedValue(InStiffness, XPBDLongRangeMaxStiffness);
+		Stiffness.SetWeightedValue(InStiffness, MaxStiffness);
 		TetherScale.SetWeightedValue(InScale.ClampAxes(Base::MinTetherScale, Base::MaxTetherScale));
 	}
 
 	// Set stiffness offset and range, as well as the simulation stiffness exponent
 	void ApplyProperties(const FSolverReal /*Dt*/, const int32 /*NumIterations*/)
 	{
-		Stiffness.ApplyXPBDValues(XPBDLongRangeMaxStiffness);
+		Stiffness.ApplyXPBDValues(MaxStiffness);
 		TetherScale.ApplyValues();
 	}
 
@@ -149,7 +194,7 @@ public:
 private:
 	void Apply(FSolverParticles& Particles, const FSolverReal Dt, const FTether& Tether, int32 ConstraintIndex, const FSolverReal InStiffness, const FSolverReal InScale) const
 	{
-		if (InStiffness < XPBDLongRangeMinStiffness)
+		if (InStiffness < MinStiffness)
 		{
 			return;
 		}
@@ -165,13 +210,15 @@ private:
 		Lambda += DLambda;
 	}
 
-private:
 	using Base::Tethers;
 	using Base::Stiffness;
 	using Base::TetherScale;
 
 	mutable TArray<FSolverReal> Lambdas;
 	int32 NumTethers;
+
+	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(XPBDTetherStiffness, float);
+	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(XPBDTetherScale, float);
 };
 
 }  // End namespace Chaos::Softs

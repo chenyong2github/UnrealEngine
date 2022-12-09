@@ -103,7 +103,7 @@ void FXPBDSpringConstraints::Apply(FSolverParticles& Particles, const FSolverRea
 		{
 			const FSolverReal ExpStiffnessValue = (FSolverReal)Stiffness;
 			const FSolverReal DampingRatioValue = (FSolverReal)DampingRatio;
-			if (ExpStiffnessValue < XPBDSpringMinStiffness)
+			if (ExpStiffnessValue < MinStiffness)
 			{
 				return;
 			}
@@ -179,7 +179,7 @@ void FXPBDSpringConstraints::Apply(FSolverParticles& Particles, const FSolverRea
 							&Dists.GetData()[ColorStart],
 							&Lambdas.GetData()[ColorStart],
 							Dt,
-							XPBDSpringMinStiffness,
+							MinStiffness,
 							StiffnessHasWeightMap,
 							&Stiffness.GetIndices().GetData()[ColorStart],
 							&Stiffness.GetTable().GetData()[0],
@@ -201,7 +201,7 @@ void FXPBDSpringConstraints::Apply(FSolverParticles& Particles, const FSolverRea
 							&Dists.GetData()[ColorStart],
 							&Lambdas.GetData()[ColorStart],
 							Dt,
-							XPBDSpringMinStiffness,
+							MinStiffness,
 							&Stiffness.GetIndices().GetData()[ColorStart],
 							&Stiffness.GetTable().GetData()[0],
 							ColorSize);
@@ -234,7 +234,7 @@ void FXPBDSpringConstraints::Apply(FSolverParticles& Particles, const FSolverRea
 		{
 			const FSolverReal ExpStiffnessValue = (FSolverReal)Stiffness;
 			const FSolverReal DampingRatioValue = (FSolverReal)DampingRatio;
-			if (ExpStiffnessValue < XPBDSpringMinStiffness)
+			if (ExpStiffnessValue < MinStiffness)
 			{
 				return;
 			}

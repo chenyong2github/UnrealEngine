@@ -4,6 +4,7 @@
 #include "Chaos/PBDSoftsEvolutionFwd.h"
 #include "Chaos/PBDSoftsSolverParticles.h"
 #include "Chaos/TriangleMesh.h"
+#include "Chaos/PropertyCollectionAdapter.h"
 
 namespace Chaos::Softs
 {
@@ -15,6 +16,27 @@ public:
 	static constexpr FSolverReal DefaultDragCoefficient = (FSolverReal)0.5;
 	static constexpr FSolverReal DefaultLiftCoefficient = (FSolverReal)0.1;
 	static constexpr FSolverReal DefaultFluidDensity = (FSolverReal)1.225e-6;
+	static constexpr FSolverReal MinCoefficient = (FSolverReal)0.;   // Applies to both drag and lift
+	static constexpr FSolverReal MaxCoefficient = (FSolverReal)10.;  //
+
+	static bool IsEnabled(const FPropertyCollectionConstAdapter& PropertyCollection)
+	{
+		return
+			IsDragEnabled(PropertyCollection, false) ||
+			IsLiftEnabled(PropertyCollection, false) ||
+			IsPressureEnabled(PropertyCollection, false);
+	}
+
+	explicit FVelocityAndPressureField(const FPropertyCollectionConstAdapter& PropertyCollection)
+		: Offset(INDEX_NONE)
+		, NumParticles(0)
+	{
+		SetProperties(
+			FSolverVec2(GetWeightedFloatDrag(PropertyCollection, DefaultDragCoefficient)),
+			FSolverVec2(GetWeightedFloatLift(PropertyCollection, DefaultLiftCoefficient)),
+			FSolverReal(GetFluidDensity(PropertyCollection, DefaultFluidDensity)),
+			FSolverVec2(GetWeightedFloatPressure(PropertyCollection, 0.f)));
+	}
 
 	// Construct an uninitialized field. Mesh, properties, and velocity will have to be set for this field to be valid.
 	FVelocityAndPressureField()
@@ -39,13 +61,41 @@ public:
 		}
 	}
 
+	void SetProperties(const FPropertyCollectionConstAdapter& PropertyCollection)
+	{
+		if (IsFluidDensityMutable(PropertyCollection))
+		{
+			constexpr FSolverReal OneQuarter = (FSolverReal)0.25;
+			QuarterRho = (FSolverReal)GetFluidDensity(PropertyCollection) * OneQuarter;
+		}
+
+		if (IsDragMutable(PropertyCollection))
+		{
+			const FSolverVec2 Drag(GetWeightedFloatDrag(PropertyCollection));
+			DragBase = FMath::Clamp(Drag[0], MinCoefficient, MaxCoefficient);
+			DragRange = FMath::Clamp(Drag[1], MinCoefficient, MaxCoefficient) - DragBase;
+		}
+
+		if (IsLiftMutable(PropertyCollection))
+		{
+			const FSolverVec2 Lift(GetWeightedFloatLift(PropertyCollection));
+			LiftBase = FMath::Clamp(Lift[0], MinCoefficient, MaxCoefficient);
+			LiftRange = FMath::Clamp(Lift[1], MinCoefficient, MaxCoefficient) - LiftBase;
+		}
+
+		if (IsPressureMutable(PropertyCollection))
+		{
+			const FSolverVec2 Pressure(GetWeightedFloatPressure(PropertyCollection));
+			PressureBase = Pressure[0];
+			PressureRange = Pressure[1] - PressureBase;
+		}
+	}
+
 	void SetProperties(const FSolverVec2& Drag, const FSolverVec2& Lift, const FSolverReal FluidDensity, const FSolverVec2& Pressure = FSolverVec2::ZeroVector)
 	{
 		constexpr FSolverReal OneQuarter = (FSolverReal)0.25;
 		QuarterRho = FluidDensity * OneQuarter;
 
-		constexpr FSolverReal MinCoefficient = (FSolverReal)0.;
-		constexpr FSolverReal MaxCoefficient = (FSolverReal)10.;
 		DragBase = FMath::Clamp(Drag[0], MinCoefficient, MaxCoefficient);
 		DragRange = FMath::Clamp(Drag[1], MinCoefficient, MaxCoefficient) - DragBase;
 		LiftBase = FMath::Clamp(Lift[0], MinCoefficient, MaxCoefficient);
@@ -109,6 +159,11 @@ private:
 	FSolverReal QuarterRho;
 	int32 Offset;
 	int32 NumParticles;
+
+	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(Drag, float);
+	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(Lift, float);
+	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(FluidDensity, float);
+	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(Pressure, float);
 };
 
 using FVelocityField UE_DEPRECATED(5.1, "Chaos::Softs::FVelocityField has been renamed FVelocityAndPressureField to match its new behavior.") = FVelocityAndPressureField;

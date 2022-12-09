@@ -42,7 +42,10 @@ FPBDLongRangeConstraintsBase::FPBDLongRangeConstraintsBase(
 		FPBDStiffness::DefaultTableSize,
 		FPBDStiffness::DefaultParameterFitBase,
 		MaxStiffness)
-	, TetherScale(InScale, ScaleMultipliers, InParticleCount)
+	, TetherScale(
+		InScale.ClampAxes(MinTetherScale, MaxTetherScale),
+		ScaleMultipliers,
+		InParticleCount)
 	, ParticleOffset(InParticleOffset)
 {
 	// Apply default properties

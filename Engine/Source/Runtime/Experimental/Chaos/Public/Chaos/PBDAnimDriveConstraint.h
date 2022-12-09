@@ -4,6 +4,7 @@
 #include "Chaos/Framework/Parallel.h"
 #include "Chaos/PBDSoftsEvolutionFwd.h"
 #include "Chaos/PBDStiffness.h"
+#include "Chaos/PropertyCollectionAdapter.h"
 #include "ChaosStats.h"
 
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Anim Drive Constraint"), STAT_PBD_AnimDriveConstraint, STATGROUP_Chaos);
@@ -14,6 +15,11 @@ namespace Chaos::Softs
 	class FPBDAnimDriveConstraint final
 	{
 	public:
+		static bool IsEnabled(const FPropertyCollectionConstAdapter& PropertyCollection)
+		{
+			return IsAnimDriveStiffnessEnabled(PropertyCollection, false);
+		}
+
 		UE_DEPRECATED(5.2, "Use the other constructor supplying AnimationVelocities for correct subframe and damping behavior")
 		FPBDAnimDriveConstraint(
 			const int32 InParticleOffset,
@@ -31,6 +37,32 @@ namespace Chaos::Softs
 			, UseDeprecatedApply(true)
 			, Stiffness(FSolverVec2::UnitVector, StiffnessMultipliers, InParticleCount)
 			, Damping(FSolverVec2::UnitVector, DampingMultipliers, InParticleCount)
+		{
+		}
+
+		FPBDAnimDriveConstraint(
+			const int32 InParticleOffset,
+			const int32 InParticleCount,
+			const TArray<FSolverVec3>& InAnimationPositions,  // Use global indexation (will need adding ParticleOffset)
+			const TArray<FSolverVec3>& InAnimationVelocities,  // Use global indexation (will need adding ParticleOffset)
+			const TConstArrayView<FRealSingle>& StiffnessMultipliers,  // Use local indexation
+			const TConstArrayView<FRealSingle>& DampingMultipliers,  // Use local indexation
+			const FPropertyCollectionConstAdapter& PropertyCollection
+		)
+			: AnimationPositions(InAnimationPositions)
+			, OldAnimationPositions_deprecated(InAnimationVelocities) // Unused when not using apply
+			, AnimationVelocities(InAnimationVelocities)
+			, ParticleOffset(InParticleOffset)
+			, ParticleCount(InParticleCount)
+			, UseDeprecatedApply(false)
+			, Stiffness(
+				FSolverVec2(GetWeightedFloatAnimDriveStiffness(PropertyCollection, 1.f)),
+				StiffnessMultipliers,
+				InParticleCount)
+			, Damping(
+				FSolverVec2(GetWeightedFloatAnimDriveDamping(PropertyCollection, 1.f)),
+				DampingMultipliers,
+				InParticleCount)
 		{
 		}
 
@@ -61,6 +93,18 @@ namespace Chaos::Softs
 
 		// Return the damping input values used by the constraint
 		FSolverVec2 GetDamping() const { return Damping.GetWeightedValue(); }
+
+		void SetProperties(const FPropertyCollectionConstAdapter& PropertyCollection)
+		{
+			if (IsAnimDriveStiffnessMutable(PropertyCollection))
+			{
+				Stiffness.SetWeightedValue(FSolverVec2(GetWeightedFloatAnimDriveStiffness(PropertyCollection)));
+			}
+			if (IsAnimDriveDampingMutable(PropertyCollection))
+			{
+				Damping.SetWeightedValue(FSolverVec2(GetWeightedFloatAnimDriveDamping(PropertyCollection)));
+			}
+		}
 
 		inline void SetProperties(const FSolverVec2& InStiffness, const FSolverVec2& InDamping)
 		{
@@ -218,6 +262,9 @@ namespace Chaos::Softs
 
 		FPBDStiffness Stiffness;
 		FPBDStiffness Damping;
+
+		UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(AnimDriveStiffness, float);
+		UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(AnimDriveDamping, float);
 	};
 
 }  // End namespace Chaos::Softs

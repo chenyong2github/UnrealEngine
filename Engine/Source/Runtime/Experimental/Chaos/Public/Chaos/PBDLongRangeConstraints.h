@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/PBDSoftsEvolutionFwd.h"
 #include "Chaos/PBDLongRangeConstraintsBase.h"
+#include "Chaos/PropertyCollectionAdapter.h"
 #include "ChaosStats.h"
 
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Long Range Constraint"), STAT_PBD_LongRange, STATGROUP_Chaos);
@@ -16,6 +16,30 @@ public:
 	typedef FPBDLongRangeConstraintsBase Base;
 	typedef typename Base::FTether FTether;
 
+	static bool IsEnabled(const FPropertyCollectionConstAdapter& PropertyCollection)
+	{
+		return IsTetherStiffnessEnabled(PropertyCollection, false);
+	}
+
+	FPBDLongRangeConstraints(
+		const FSolverParticles& Particles,
+		const int32 InParticleOffset,
+		const int32 InParticleCount,
+		const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& InTethers,
+		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
+		const TConstArrayView<FRealSingle>& ScaleMultipliers,
+		const FPropertyCollectionConstAdapter& PropertyCollection)
+		: FPBDLongRangeConstraintsBase(
+			Particles,
+			InParticleOffset,
+			InParticleCount,
+			InTethers,
+			StiffnessMultipliers,
+			ScaleMultipliers,
+			FSolverVec2(GetWeightedFloatTetherStiffness(PropertyCollection)),
+			FSolverVec2(GetWeightedFloatTetherScale(PropertyCollection)))  // Scale clamping done in constructor
+	{}
+
 	FPBDLongRangeConstraints(
 		const FSolverParticles& Particles,
 		const int32 InParticleOffset,
@@ -25,8 +49,32 @@ public:
 		const TConstArrayView<FRealSingle>& ScaleMultipliers,
 		const FSolverVec2& InStiffness = FSolverVec2::UnitVector,
 		const FSolverVec2& InScale = FSolverVec2::UnitVector)
-		: FPBDLongRangeConstraintsBase(Particles, InParticleOffset, InParticleCount, InTethers, StiffnessMultipliers, ScaleMultipliers, InStiffness, InScale) {}
+		: FPBDLongRangeConstraintsBase(
+			Particles,
+			InParticleOffset,
+			InParticleCount,
+			InTethers,
+			StiffnessMultipliers,
+			ScaleMultipliers,
+			InStiffness,
+			InScale)
+	{}
+
 	virtual ~FPBDLongRangeConstraints() override {}
+
+	using Base::SetProperties;
+
+	void SetProperties(const FPropertyCollectionConstAdapter& PropertyCollection)
+	{
+		if (IsTetherStiffnessMutable(PropertyCollection))
+		{
+			Stiffness.SetWeightedValue(FSolverVec2(GetWeightedFloatTetherStiffness(PropertyCollection)));
+		}
+		if (IsTetherScaleMutable(PropertyCollection))
+		{
+			TetherScale.SetWeightedValue(FSolverVec2(GetWeightedFloatTetherScale(PropertyCollection)).ClampAxes(MinTetherScale, MaxTetherScale));
+		}
+	}
 
 	void Apply(FSolverParticles& Particles, const FSolverReal Dt) const;
 
@@ -35,6 +83,9 @@ private:
 	using Base::Stiffness;
 	using Base::TetherScale;
 	using Base::ParticleOffset;
+
+	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(TetherStiffness, float);
+	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(TetherScale, float);
 };
 
 }  // End namespace Chaos::Softs

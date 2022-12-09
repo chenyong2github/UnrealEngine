@@ -58,6 +58,9 @@ protected:
 	TArray<TVec4<int32>> Constraints;
 	TArray<FSolverVec3> Barys;
 	TArray<bool> FlipNormal;
+	FSolverReal Thickness;
+	FSolverReal Stiffness;
+	FSolverReal FrictionCoefficient;
 
 private:
 	const FTriangleMesh& TriangleMesh;
@@ -67,9 +70,6 @@ private:
 
 	int32 Offset;
 	int32 NumParticles;
-	FSolverReal Thickness;
-	FSolverReal Stiffness;
-	FSolverReal FrictionCoefficient;
 	bool bGlobalIntersectionAnalysis; // This is set based on which Init is called.
 };
 

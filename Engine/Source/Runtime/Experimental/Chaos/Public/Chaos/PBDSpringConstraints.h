@@ -2,16 +2,13 @@
 #pragma once
 
 #include "Chaos/PBDSpringConstraintsBase.h"
+#include "Chaos/PropertyCollectionAdapter.h"
 
 namespace Chaos::Softs
 {
 
 class CHAOS_API FPBDSpringConstraints : public FPBDSpringConstraintsBase
 {
-	typedef FPBDSpringConstraintsBase Base;
-	using Base::Constraints;
-	using Base::Stiffness;
-
 public:
 	template<int32 Valence>
 	FPBDSpringConstraints(
@@ -34,12 +31,101 @@ public:
 
 	const TArray<int32>& GetConstraintsPerColorStartIndex() const { return ConstraintsPerColorStartIndex; }
 
+protected:
+	typedef FPBDSpringConstraintsBase Base;
+	using Base::Constraints;
+	using Base::Stiffness;
+
 private:
 	void InitColor(const FSolverParticles& InParticles, const int32 ParticleOffset, const int32 ParticleCount);
 	void ApplyHelper(FSolverParticles& Particles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverReal ExpStiffnessValue) const;
 
 private:
 	TArray<int32> ConstraintsPerColorStartIndex; // Constraints are ordered so each batch is contiguous. This is ColorNum + 1 length so it can be used as start and end.
+};
+
+class CHAOS_API FPBDEdgeSpringConstraints final : public FPBDSpringConstraints
+{
+public:
+	static constexpr int32 Valence = 2;
+
+	static bool IsEnabled(const FPropertyCollectionConstAdapter& PropertyCollection)
+	{
+		return IsEdgeSpringStiffnessEnabled(PropertyCollection, false);
+	}
+
+	FPBDEdgeSpringConstraints(
+		const FSolverParticles& Particles,
+		int32 ParticleOffset,
+		int32 ParticleCount,
+		const TArray<TVector<int32, Valence>>& InConstraints,
+		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
+		const FPropertyCollectionConstAdapter& PropertyCollection,
+		bool bTrimKinematicConstraints = false)
+		: FPBDSpringConstraints(
+			Particles,
+			ParticleOffset,
+			ParticleCount,
+			InConstraints,
+			StiffnessMultipliers,
+			FSolverVec2(GetWeightedFloatEdgeSpringStiffness(PropertyCollection, 1.f)),
+			bTrimKinematicConstraints)
+	{}
+
+	virtual ~FPBDEdgeSpringConstraints() override = default;
+
+	void SetProperties(const FPropertyCollectionConstAdapter& PropertyCollection)
+	{
+		if (IsEdgeSpringStiffnessMutable(PropertyCollection))
+		{
+			Stiffness.SetWeightedValue(FSolverVec2(GetWeightedFloatEdgeSpringStiffness(PropertyCollection)));
+		}
+	}
+
+private:
+	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(EdgeSpringStiffness, float);
+};
+
+class CHAOS_API FPBDBendingSpringConstraints final : public FPBDSpringConstraints
+{
+public:
+	static constexpr int32 Valence = 4;
+
+	static bool IsEnabled(const FPropertyCollectionConstAdapter& PropertyCollection)
+	{
+		return IsBendingSpringStiffnessEnabled(PropertyCollection, false);
+	}
+
+	FPBDBendingSpringConstraints(
+		const FSolverParticles& Particles,
+		int32 ParticleOffset,
+		int32 ParticleCount,
+		const TArray<TVector<int32, Valence>>& InConstraints,
+		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
+		const FPropertyCollectionConstAdapter& PropertyCollection,
+		bool bTrimKinematicConstraints = false)
+		: FPBDSpringConstraints(
+			Particles,
+			ParticleOffset,
+			ParticleCount,
+			InConstraints,
+			StiffnessMultipliers,
+			FSolverVec2(GetWeightedFloatBendingSpringStiffness(PropertyCollection, 1.f)),
+			bTrimKinematicConstraints)
+	{}
+
+	virtual ~FPBDBendingSpringConstraints() override = default;
+
+	void SetProperties(const FPropertyCollectionConstAdapter& PropertyCollection)
+	{
+		if (IsBendingSpringStiffnessMutable(PropertyCollection))
+		{
+			Stiffness.SetWeightedValue(FSolverVec2(GetWeightedFloatBendingSpringStiffness(PropertyCollection)));
+		}
+	}
+
+private:
+	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(BendingSpringStiffness, float);
 };
 
 }  // End namespace Chaos::Softs

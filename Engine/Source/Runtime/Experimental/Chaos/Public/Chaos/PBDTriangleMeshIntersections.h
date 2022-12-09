@@ -4,6 +4,7 @@
 #include "Chaos/Core.h"
 #include "Chaos/PBDSoftsEvolutionFwd.h"
 #include "Chaos/PBDTriangleMeshCollisions.h"
+#include "Chaos/PropertyCollectionAdapter.h"
 
 // Resolve intersections via contour minimization. Contour Minimization data is calculated in PBDTriangleMeshCollisions.
 namespace Chaos::Softs
@@ -11,6 +12,11 @@ namespace Chaos::Softs
 class CHAOS_API FPBDTriangleMeshIntersections
 {
 public:
+	static bool IsEnabled(const FPropertyCollectionConstAdapter& PropertyCollection)
+	{
+		return PropertyCollection.IsEnabled(FName(TEXT("SelfCollisionStiffness")).ToString(), false);  // Don't use UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME here, SelfCollisionStiffness is only needed for activation
+	}
+
 	FPBDTriangleMeshIntersections(
 		const int32 InOffset,
 		const int32 InNumParticles,

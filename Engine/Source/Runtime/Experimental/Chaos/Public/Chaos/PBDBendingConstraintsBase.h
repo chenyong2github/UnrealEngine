@@ -5,7 +5,6 @@
 #include "Chaos/PBDSoftsSolverParticles.h"
 #include "Chaos/PBDStiffness.h"
 #include "Chaos/ParticleRule.h"
-#include "Chaos/PropertyCollectionAdapter.h"
 #include "Containers/StaticArray.h"
 
 namespace Chaos::Softs
@@ -14,52 +13,6 @@ namespace Chaos::Softs
 class FPBDBendingConstraintsBase
 {
 public:
-	static bool IsEnabled(const FPropertyCollectionConstAdapter& PropertyCollection)
-	{
-		return IsBendingStiffnessEnabled(PropertyCollection, false);
-	}
-
-	FPBDBendingConstraintsBase(
-		const FSolverParticles& InParticles,
-		int32 ParticleOffset,
-		int32 ParticleCount,
-		TArray<TVec4<int32>>&& InConstraints,
-		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
-		const TConstArrayView<FRealSingle>& BucklingStiffnessMultipliers,
-		const FPropertyCollectionConstAdapter& PropertyCollection,
-		bool bTrimKinematicConstraints = false,
-		FSolverReal MaxStiffness = FPBDStiffness::DefaultPBDMaxStiffness)
-		: Constraints(bTrimKinematicConstraints ? TrimKinematicConstraints(InConstraints, InParticles): MoveTemp(InConstraints))
-		, ConstraintSharedEdges(ExtractConstraintSharedEdges(Constraints))
-		, Stiffness(FSolverVec2(GetWeightedFloatBendingStiffness(PropertyCollection, 1.f)),
-			StiffnessMultipliers,
-			TConstArrayView<TVec2<int32>>(ConstraintSharedEdges),
-			ParticleOffset,
-			ParticleCount,
-			FPBDStiffness::DefaultTableSize,
-			FPBDStiffness::DefaultParameterFitBase,
-			MaxStiffness)
-		, BucklingRatio((FSolverReal)FMath::Clamp(GetBucklingRatio(PropertyCollection, 0.f), 0.f, 1.f))
-		, BucklingStiffness(
-			FSolverVec2(GetWeightedFloatBucklingStiffness(PropertyCollection, 1.f)),
-			BucklingStiffnessMultipliers,
-			TConstArrayView<TVec2<int32>>(ConstraintSharedEdges),
-			ParticleOffset,
-			ParticleCount,
-			FPBDStiffness::DefaultTableSize,
-			FPBDStiffness::DefaultParameterFitBase,
-			MaxStiffness)
-	{
-		for (const TVec4<int32>& Constraint : Constraints)
-		{
-			const FSolverVec3& P1 = InParticles.X(Constraint[0]);
-			const FSolverVec3& P2 = InParticles.X(Constraint[1]);
-			const FSolverVec3& P3 = InParticles.X(Constraint[2]);
-			const FSolverVec3& P4 = InParticles.X(Constraint[3]);
-			RestAngles.Add(CalcAngle(P1, P2, P3, P4));
-		}
-	}
-
 	FPBDBendingConstraintsBase(const FSolverParticles& InParticles,
 		int32 ParticleOffset,
 		int32 ParticleCount, 
@@ -82,7 +35,7 @@ public:
 			FPBDStiffness::DefaultTableSize,
 			FPBDStiffness::DefaultParameterFitBase,
 			MaxStiffness)
-		, BucklingRatio(InBucklingRatio)
+		, BucklingRatio(FMath::Clamp(InBucklingRatio, (FSolverReal)0., (FSolverReal)1.))
 		, BucklingStiffness(
 			InBucklingStiffness,
 			BucklingStiffnessMultipliers,
@@ -103,6 +56,7 @@ public:
 		}
 	}
 
+	UE_DEPRECATED(5.2, "Use one of the other constructors instead.")
 	FPBDBendingConstraintsBase(const FSolverParticles& InParticles, TArray<TVec4<int32>>&& InConstraints, const FSolverReal InStiffness = (FSolverReal)1.)
 	    : Constraints(MoveTemp(InConstraints))
 		, ConstraintSharedEdges(ExtractConstraintSharedEdges(Constraints))
@@ -121,23 +75,6 @@ public:
 	}
 
 	virtual ~FPBDBendingConstraintsBase() {}
-
-	// Set properties using a property collection
-	void SetProperties(const FPropertyCollectionConstAdapter& PropertyCollection)
-	{
-		if (IsBendingStiffnessMutable(PropertyCollection))
-		{
-			Stiffness.SetWeightedValue(FSolverVec2(GetWeightedFloatBendingStiffness(PropertyCollection)));
-		}
-		if (IsBucklingRatioMutable(PropertyCollection))
-		{
-			BucklingRatio = FMath::Clamp((FSolverReal)GetBucklingRatio(PropertyCollection), (FSolverReal)0., (FSolverReal)1.);
-		}
-		if (IsBucklingStiffnessMutable(PropertyCollection))
-		{
-			BucklingStiffness.SetWeightedValue(FSolverVec2(GetWeightedFloatBucklingStiffness(PropertyCollection)));
-		}
-	}
 
 	// Update stiffness values
 	void SetProperties(const FSolverVec2& InStiffness, const FSolverReal InBucklingRatio, const FSolverVec2& InBucklingStiffness)
@@ -326,11 +263,6 @@ protected:
 
 	TArray<FSolverReal> RestAngles;
 	TArray<bool> IsBuckled;
-
-private:
-	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(BendingStiffness, float);
-	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(BucklingRatio, float);
-	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(BucklingStiffness, float);
 };
 
 }  // End namespace Chaos::Softs

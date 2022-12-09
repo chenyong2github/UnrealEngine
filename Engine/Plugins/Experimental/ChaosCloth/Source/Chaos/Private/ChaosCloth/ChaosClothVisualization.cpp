@@ -965,7 +965,7 @@ namespace Chaos
 					const FLinearColor ColorLight = FLinearColor::MakeFromHSV8(ColorSeed, 160, 128);
 					const FLinearColor ColorDark = FLinearColor::MakeFromHSV8(ColorSeed, 160, 64);
 
-					const FReal BackstopRadius = BackstopRadiuses[Index] * BackstopConstraint->GetSphereRadiiMultiplier();
+					const FReal BackstopRadius = BackstopRadiuses[Index] * BackstopConstraint->GetScale();
 					const FReal BackstopDistance = BackstopDistances[Index];
 
 					const FVector AnimationNormal(AnimationNormals[Index]);
@@ -1023,7 +1023,7 @@ namespace Chaos
 					const FLinearColor ColorLight = FLinearColor::MakeFromHSV8(ColorSeed, 160, 128);
 					const FLinearColor ColorDark = FLinearColor::MakeFromHSV8(ColorSeed, 160, 64);
 
-					const FReal BackstopRadius = BackstopRadiuses[Index] * BackstopConstraint->GetSphereRadiiMultiplier();
+					const FReal BackstopRadius = BackstopRadiuses[Index] * BackstopConstraint->GetScale();
 					const FReal BackstopDistance = BackstopDistances[Index];
 
 					const FVector AnimationNormal(AnimationNormals[Index]);

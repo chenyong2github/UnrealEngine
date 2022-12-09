@@ -336,11 +336,14 @@ void FClothConstraints::SetEdgeConstraints(const TArray<TVec3<int32>>& SurfaceEl
 
 	if (bUseXPBDConstraints)
 	{
+		const TConstArrayView<FRealSingle> DampingMultipliers;
+
 		XEdgeConstraints = MakeShared<Softs::FXPBDSpringConstraints>(
 			Evolution->Particles(),
 			ParticleOffset, NumParticles,
 			SurfaceElements,
 			StiffnessMultipliers,
+			DampingMultipliers,
 			/*InStiffness =*/ Softs::FSolverVec2::UnitVector,
 			/*bTrimKinematicConstraints =*/ true);
 	}
@@ -381,11 +384,14 @@ void FClothConstraints::SetBendingConstraints(const TArray<TVec2<int32>>& Edges,
 
 	if (bUseXPBDConstraints)
 	{
+		const TConstArrayView<FRealSingle> DampingMultipliers;
+
 		XBendingConstraints = MakeShared<Softs::FXPBDSpringConstraints>(
 			Evolution->Particles(),
 			ParticleOffset, NumParticles,
 			Edges,
 			StiffnessMultipliers,
+			DampingMultipliers,
 			/*InStiffness =*/ Softs::FSolverVec2::UnitVector,
 			/*bTrimKinematicConstraints =*/ true);
 	}
@@ -410,15 +416,19 @@ void FClothConstraints::SetBendingConstraints(TArray<TVec4<int32>>&& BendingElem
 
 	if (bUseXPBDConstraints)
 	{
+		const TConstArrayView<FRealSingle> DampingMultipliers;
+
 		XBendingElementConstraints = MakeShared<Softs::FXPBDBendingConstraints>(
 			Evolution->Particles(),
 			ParticleOffset, NumParticles,
 			MoveTemp(BendingElements),
 			StiffnessMultipliers,
 			BucklingStiffnessMultipliers,
+			DampingMultipliers,
 			/*InStiffness =*/ Softs::FSolverVec2::UnitVector,
 			/*InBucklingRatio=*/ (Softs::FSolverReal)0.f,
 			/*InBucklingStiffness =*/ Softs::FSolverVec2::UnitVector,
+			/*InDampingRatio =*/ Softs::FSolverVec2::ZeroVector,
 			/*bTrimKinematicConstraints =*/ true);
 	}
 	else
@@ -460,9 +470,21 @@ void FClothConstraints::SetXPBDBendingConstraints(TArray<TVec4<int32>>&& Bending
 
 void FClothConstraints::SetBendingConstraints(TArray<TVec4<int32>>&& BendingElements, Softs::FSolverReal BendingStiffness)
 {
+	// Deprecated 5.1
 	check(Evolution);
 
-	BendingElementConstraints = MakeShared<Softs::FPBDBendingConstraints>(Evolution->Particles(), MoveTemp(BendingElements), BendingStiffness);
+	BendingElementConstraints = MakeShared<Softs::FPBDBendingConstraints>(
+		Evolution->Particles(),
+		ParticleOffset,
+		NumParticles,
+		MoveTemp(BendingElements),
+		/*StiffnessMultipliers =*/ TConstArrayView<FRealSingle>(),
+		/*BucklingStiffnessMultipliers =*/ TConstArrayView<FRealSingle>(),
+		/*InStiffness =*/ BendingStiffness,
+		/*InBucklingRatio=*/ (Softs::FSolverReal)0.f,
+		/*InBucklingStiffness =*/ Softs::FSolverVec2::UnitVector,
+		/*bTrimKinematicConstraints =*/ true);
+
 	++NumConstraintInits;  // Uses init to update the property tables
 	++NumConstraintRules;
 }
@@ -709,7 +731,7 @@ void FClothConstraints::SetMaximumDistanceProperties(Softs::FSolverReal MaxDista
 {
 	if (MaximumDistanceConstraints)
 	{
-		MaximumDistanceConstraints->SetSphereRadiiMultiplier(MaxDistancesMultiplier);
+		MaximumDistanceConstraints->SetTransformScale(MaxDistancesMultiplier);
 	}
 }
 
@@ -740,7 +762,7 @@ void FClothConstraints::SetBackstopProperties(bool bEnabled, Softs::FSolverReal 
 	if (BackstopConstraints)
 	{
 		BackstopConstraints->SetEnabled(bEnabled);
-		BackstopConstraints->SetSphereRadiiMultiplier(BackstopDistancesMultiplier);
+		BackstopConstraints->SetTransformScale(BackstopDistancesMultiplier);
 	}
 }
 

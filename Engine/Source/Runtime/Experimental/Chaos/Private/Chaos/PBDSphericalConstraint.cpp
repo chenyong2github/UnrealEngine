@@ -29,7 +29,7 @@ void FPBDSphericalConstraint::ApplyHelperISPC(FSolverParticles& Particles, const
 		(ispc::FVector4f*)Particles.GetPAndInvM().GetData(),
 		(const ispc::FVector3f*)AnimationPositions.GetData(),
 		SphereRadii.GetData(),
-		SphereRadiiMultiplier,
+		GetScale(),
 		ParticleOffset,
 		ParticleCount);
 #endif
@@ -47,7 +47,7 @@ void FPBDSphericalBackstopConstraint::ApplyLegacyHelperISPC(FSolverParticles& Pa
 		(const ispc::FVector3f*)AnimationNormals.GetData(),
 		SphereOffsetDistances.GetData(),
 		SphereRadii.GetData(),
-		SphereRadiiMultiplier,
+		GetScale(),
 		ParticleOffset,
 		ParticleCount);
 #endif
@@ -65,7 +65,7 @@ void FPBDSphericalBackstopConstraint::ApplyHelperISPC(FSolverParticles& Particle
 		(const ispc::FVector3f*)AnimationNormals.GetData(),
 		SphereOffsetDistances.GetData(),
 		SphereRadii.GetData(),
-		SphereRadiiMultiplier,
+		GetScale(),
 		ParticleOffset,
 		ParticleCount);
 #endif

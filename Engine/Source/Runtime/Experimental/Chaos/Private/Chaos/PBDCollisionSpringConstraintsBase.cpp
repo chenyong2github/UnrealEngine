@@ -21,15 +21,15 @@ FPBDCollisionSpringConstraintsBase::FPBDCollisionSpringConstraintsBase(
 	const FSolverReal InThickness,
 	const FSolverReal InStiffness,
 	const FSolverReal InFrictionCoefficient)
-	: TriangleMesh(InTriangleMesh)
+	: Thickness(InThickness)
+	, Stiffness(InStiffness)
+	, FrictionCoefficient(InFrictionCoefficient)
+	, TriangleMesh(InTriangleMesh)
 	, Elements(InTriangleMesh.GetSurfaceElements())
 	, ReferencePositions(InReferencePositions)
 	, DisabledCollisionElements(InDisabledCollisionElements)
 	, Offset(InOffset)
 	, NumParticles(InNumParticles)
-	, Thickness(InThickness)
-	, Stiffness(InStiffness)
-	, FrictionCoefficient(InFrictionCoefficient)
 	, bGlobalIntersectionAnalysis(false)
 {
 }

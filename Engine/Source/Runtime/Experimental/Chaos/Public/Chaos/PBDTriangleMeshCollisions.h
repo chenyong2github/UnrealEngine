@@ -5,7 +5,7 @@
 #include "Chaos/PBDSoftsEvolutionFwd.h"
 #include "Chaos/TriangleMesh.h"
 #include "Chaos/HierarchicalSpatialHash.h"
-
+#include "Chaos/PropertyCollectionAdapter.h"
 
 // This does initialization for PBDCollisionSpringConstraints and PBDTriangleMeshIntersections, 
 // including intersection detection and global intersection analysis
@@ -15,24 +15,6 @@ namespace Chaos::Softs
 class CHAOS_API FPBDTriangleMeshCollisions
 {
 public:
-	FPBDTriangleMeshCollisions(
-		const int32 InOffset,
-		const int32 InNumParticles,
-		const FTriangleMesh& InTriangleMesh,
-		bool bInGlobalIntersectionAnalysis,
-		bool bInContourMinimization
-	)
-		:TriangleMesh(InTriangleMesh)
-		, Offset(InOffset)
-		, NumParticles(InNumParticles)
-		, bGlobalIntersectionAnalysis(bInGlobalIntersectionAnalysis)
-		, bContourMinimization(bInContourMinimization)
-	{}
-
-	~FPBDTriangleMeshCollisions() = default;
-
-	void Init(const FSolverParticles& Particles);
-
 	struct FContourMinimizationIntersection
 	{
 		TVec2<int32> EdgeVertices;
@@ -97,7 +79,6 @@ public:
 		}
 	};
 
-
 	// Debug display of intersection contours
 	struct FBarycentricPoint
 	{
@@ -113,6 +94,66 @@ public:
 		Contour1,
 		Count
 	};
+
+	static bool IsEnabled(const FPropertyCollectionConstAdapter& PropertyCollection)
+	{
+		return PropertyCollection.IsEnabled(FName(TEXT("SelfCollisionStiffness")).ToString(), false);  // Don't use UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME here, SelfCollisionStiffness is only needed for activation
+	}
+
+	FPBDTriangleMeshCollisions(
+		const int32 InOffset,
+		const int32 InNumParticles,
+		const FTriangleMesh& InTriangleMesh,
+		const FPropertyCollectionConstAdapter& PropertyCollection
+	)
+		:TriangleMesh(InTriangleMesh)
+		, Offset(InOffset)
+		, NumParticles(InNumParticles)
+		, bGlobalIntersectionAnalysis(GetUseSelfIntersections(PropertyCollection, false) || GetUseGlobalIntersectionAnalysis(PropertyCollection, false))
+		, bContourMinimization(GetUseSelfIntersections(PropertyCollection, false) || GetUseContourMinimization(PropertyCollection, false))
+	{}
+
+	FPBDTriangleMeshCollisions(
+		const int32 InOffset,
+		const int32 InNumParticles,
+		const FTriangleMesh& InTriangleMesh,
+		bool bInGlobalIntersectionAnalysis,
+		bool bInContourMinimization
+	)
+		:TriangleMesh(InTriangleMesh)
+		, Offset(InOffset)
+		, NumParticles(InNumParticles)
+		, bGlobalIntersectionAnalysis(bInGlobalIntersectionAnalysis)
+		, bContourMinimization(bInContourMinimization)
+	{}
+
+	virtual ~FPBDTriangleMeshCollisions() = default;
+
+	void SetProperties(const FPropertyCollectionConstAdapter& PropertyCollection)
+	{
+		bool bUseSelfIntersections = false;
+		if (IsUseSelfIntersectionsMutable(PropertyCollection))
+		{
+			bUseSelfIntersections = GetUseSelfIntersections(PropertyCollection);
+		}
+		if (bUseSelfIntersections)
+		{
+			bGlobalIntersectionAnalysis = bContourMinimization = true;
+		}
+		else
+		{
+			if (IsUseGlobalIntersectionAnalysisMutable(PropertyCollection))
+			{
+				bGlobalIntersectionAnalysis = GetUseGlobalIntersectionAnalysis(PropertyCollection);
+			}
+			if (IsUseContourMinimizationMutable(PropertyCollection))
+			{
+				bContourMinimization = GetUseContourMinimization(PropertyCollection);
+			}
+		}
+	}
+
+	void Init(const FSolverParticles& Particles);
 
 	void SetGlobalIntersectionAnalysis(bool bInGlobalIntersectionAnalysis) { bGlobalIntersectionAnalysis = bInGlobalIntersectionAnalysis; }
 	void SetContourMinimization(bool bInContourMinimization) { bContourMinimization = bInContourMinimization; }
@@ -140,6 +181,9 @@ private:
 	TArray<TArray<FBarycentricPoint>> IntersectionContourPoints;
 	TArray<FContourType> IntersectionContourTypes;
 
+	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(UseSelfIntersections, bool);
+	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(UseGlobalIntersectionAnalysis, bool);
+	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(UseContourMinimization, bool);
 };
 
 }  // End namespace Chaos::Softs

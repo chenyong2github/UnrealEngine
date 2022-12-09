@@ -77,7 +77,7 @@ void FXPBDBendingConstraints::ApplyHelper(FSolverParticles& Particles, const FSo
 	const int32 i4 = Constraint[3];
 
 	const FSolverReal BiphasicStiffnessValue = IsBuckled[ConstraintIndex] ? BucklingValue : StiffnessValue;
-	if (BiphasicStiffnessValue < XPBDBendMinStiffness || (Particles.InvM(i1) == (FSolverReal)0. && Particles.InvM(i2) == (FSolverReal)0. && Particles.InvM(i3) == (FSolverReal)0. && Particles.InvM(i4) == (FSolverReal)0.))
+	if (BiphasicStiffnessValue < MinStiffness || (Particles.InvM(i1) == (FSolverReal)0. && Particles.InvM(i2) == (FSolverReal)0. && Particles.InvM(i3) == (FSolverReal)0. && Particles.InvM(i4) == (FSolverReal)0.))
 	{
 		return;
 	}
@@ -127,7 +127,7 @@ void FXPBDBendingConstraints::Apply(FSolverParticles& Particles, const FSolverRe
 			const FSolverReal ExpBucklingValue = (FSolverReal)BucklingStiffness;
 			const FSolverReal DampingRatioValue = (FSolverReal)DampingRatio;
 
-			if (ExpStiffnessValue < XPBDBendMinStiffness && ExpBucklingValue < XPBDBendMinStiffness)
+			if (ExpStiffnessValue < MinStiffness && ExpBucklingValue < MinStiffness)
 			{
 				return;
 			}
@@ -149,7 +149,7 @@ void FXPBDBendingConstraints::Apply(FSolverParticles& Particles, const FSolverRe
 							&IsBuckled.GetData()[ColorStart],
 							&Lambdas.GetData()[ColorStart],
 							Dt,
-							XPBDBendMinStiffness,
+							MinStiffness,
 							ExpStiffnessValue,
 							ExpBucklingValue,
 							DampingRatioValue,
@@ -169,7 +169,7 @@ void FXPBDBendingConstraints::Apply(FSolverParticles& Particles, const FSolverRe
 							&IsBuckled.GetData()[ColorStart],
 							&Lambdas.GetData()[ColorStart],
 							Dt,
-							XPBDBendMinStiffness,
+							MinStiffness,
 							ExpStiffnessValue,
 							ExpBucklingValue,
 							ColorSize);
@@ -210,7 +210,7 @@ void FXPBDBendingConstraints::Apply(FSolverParticles& Particles, const FSolverRe
 							&IsBuckled.GetData()[ColorStart],
 							&Lambdas.GetData()[ColorStart],
 							Dt,
-							XPBDBendMinStiffness,
+							MinStiffness,
 							StiffnessHasWeightMap,
 							&Stiffness.GetIndices().GetData()[ColorStart],
 							&Stiffness.GetTable().GetData()[0],
@@ -236,7 +236,7 @@ void FXPBDBendingConstraints::Apply(FSolverParticles& Particles, const FSolverRe
 							&IsBuckled.GetData()[ColorStart],
 							&Lambdas.GetData()[ColorStart],
 							Dt,
-							XPBDBendMinStiffness,
+							MinStiffness,
 							StiffnessHasWeightMap,
 							&Stiffness.GetIndices().GetData()[ColorStart],
 							&Stiffness.GetTable().GetData()[0],
@@ -276,7 +276,7 @@ void FXPBDBendingConstraints::Apply(FSolverParticles& Particles, const FSolverRe
 			const FSolverReal ExpStiffnessValue = (FSolverReal)Stiffness;
 			const FSolverReal ExpBucklingValue = (FSolverReal)BucklingStiffness;
 			const FSolverReal DampingRatioValue = (FSolverReal)DampingRatio;
-			if (ExpStiffnessValue < XPBDBendMinStiffness && ExpBucklingValue < XPBDBendMinStiffness)
+			if (ExpStiffnessValue < MinStiffness && ExpBucklingValue < MinStiffness)
 			{
 				return;
 			}

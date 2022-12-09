@@ -318,6 +318,10 @@ namespace Chaos::Softs
 	{ \
 		return PropertyCollection.IsEnabled(PropertyName##String(), bDefault); \
 	} \
+	static bool Is##PropertyName##Animatable(const FPropertyCollectionConstAdapter& PropertyCollection, bool bDefault) \
+	{ \
+		return PropertyCollection.IsAnimatable(PropertyName##String(), bDefault); \
+	} \
 	Type GetLow##PropertyName(const FPropertyCollectionConstAdapter& PropertyCollection, const Type& Default) \
 	{ \
 		return PropertyCollection.GetLowValue<Type>(PropertyName##String(), Default, &PropertyName##Index); \
