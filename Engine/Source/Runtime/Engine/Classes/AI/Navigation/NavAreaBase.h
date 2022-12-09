@@ -3,9 +3,13 @@
 #pragma once
 
 #include "UObject/Object.h"
+#include "Templates/SubclassOf.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "AI/Navigation/NavigationTypes.h"
+#endif //UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "NavAreaBase.generated.h"
 
+struct FNavAgentProperties;
 
 // a stub class. Actual implementation in NavigationSystem module.
 UCLASS(DefaultToInstanced, abstract, Config = Engine)

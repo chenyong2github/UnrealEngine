@@ -11,6 +11,7 @@
 #include "UObject/ObjectMacros.h"
 #include "AI/Navigation/NavigationTypes.h"
 #include "GameFramework/Volume.h"
+#include "AI/Navigation/NavAgentSelector.h"
 #include "NavMeshBoundsVolume.generated.h"
 
 

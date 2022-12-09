@@ -3,6 +3,7 @@
 #pragma once
 
 #include "AI/Navigation/NavigationTypes.h"
+#include "AI/Navigation/NavAgentSelector.h"
 #include "NavigationSystemConfig.generated.h"
 
 class UNavigationSystemBase;

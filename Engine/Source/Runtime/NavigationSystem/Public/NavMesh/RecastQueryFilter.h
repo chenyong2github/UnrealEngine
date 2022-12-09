@@ -3,7 +3,9 @@
 #pragma once 
 
 #include "CoreMinimal.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "NavFilters/NavigationQueryFilter.h"
+#endif //UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "AI/Navigation/NavigationTypes.h"
 
 #if WITH_RECAST

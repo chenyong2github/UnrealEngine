@@ -8,6 +8,7 @@
 #include "Engine/EngineTypes.h"
 #include "NavAreas/NavArea.h"
 #include "AI/Navigation/NavLinkDefinition.h"
+#include "AI/Navigation/NavAgentSelector.h"
 #include "NavLinkCustomInterface.h"
 #include "NavRelevantComponent.h"
 #include "NavLinkCustomComponent.generated.h"

@@ -7,6 +7,7 @@
 #include "UObject/Object.h"
 #include "Templates/SubclassOf.h"
 #include "AI/Navigation/NavAreaBase.h"
+#include "AI/Navigation/NavAgentSelector.h"
 #include "NavArea.generated.h"
 
 /** Class containing definition of a navigation area */

@@ -7,6 +7,7 @@
 #include "EnvironmentQuery/EnvQueryTypes.h"
 #include "EnvironmentQuery/EQSQueryResultSourceInterface.h"
 #include "GameFramework/Character.h"
+#include "AI/Navigation/NavigationTypes.h"
 #include "EQSTestingPawn.generated.h"
 
 class UEnvQuery;

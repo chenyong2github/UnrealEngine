@@ -7,6 +7,8 @@
 #include "Templates/SubclassOf.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "AI/Navigation/NavLinkDefinition.h"
+#include "AI/Navigation/NavigationDataResolution.h"
+#include "AI/Navigation/NavigationTypes.h" //FNavDataPerInstanceTransformDelegate
 
 class UBrushComponent;
 class UPrimitiveComponent;

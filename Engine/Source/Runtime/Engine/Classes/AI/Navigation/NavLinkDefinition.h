@@ -7,7 +7,10 @@
 #include "UObject/Object.h"
 #include "UObject/Class.h"
 #include "Templates/SubclassOf.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "AI/Navigation/NavigationTypes.h"
+#endif //UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AI/Navigation/NavAgentSelector.h"
 #include "NavLinkDefinition.generated.h"
 
 class UNavAreaBase;

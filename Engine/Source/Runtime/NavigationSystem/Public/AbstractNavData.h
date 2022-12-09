@@ -10,7 +10,9 @@
 #include "Math/Box.h"
 #include "Math/UnrealMathSSE.h"
 #include "Math/Vector.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "NavFilters/NavigationQueryFilter.h"
+#endif //UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "NavigationData.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"

@@ -20,6 +20,7 @@
 #include "NavigationOctreeController.h"
 #include "NavigationDirtyAreasController.h"
 #include "Math/MovingWindowAverageFast.h"
+#include "AI/Navigation/NavigationBounds.h"
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #if WITH_EDITOR
 #include "UnrealEdMisc.h"
