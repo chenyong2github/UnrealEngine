@@ -21,7 +21,7 @@ public:
 	void Construct(const FArguments& InArgs);
 
 	/** Set the Mutable Bool to be used for this widget */
-	void SetColor(const float& InRed, const float& InGreen, const float& InBlue);
+	void SetColor(float InRed, float InGreen, float InBlue, float InAlpha);
 
 private:
 
@@ -29,7 +29,7 @@ private:
 	float RedValue = 0.0f;
 	float GreenValue = 0.0f;
 	float BlueValue = 0.0f;
-	const float AlphaValue{1};
+	float AlphaValue = 1.0f;
 
 	/** Color box widget designed to serve as a preview of the color reported by mutable */
 	TSharedPtr<SMutableColorPreviewBox> ColorPreview;
@@ -38,6 +38,7 @@ private:
 	FText GetRedValue() const;
 	FText GetGreenValue() const;
 	FText GetBlueValue() const;
+	FText GetAlphaValue() const;
 
 	/*
 	* Get a color object that the SMutableColorPreviewBox is able to display 

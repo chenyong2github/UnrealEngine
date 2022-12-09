@@ -165,12 +165,13 @@ namespace mu
 			uint8 r = uint8(FMath::Clamp(255.0f * c[0], 0.0f, 255.0f));
 			uint8 g = uint8(FMath::Clamp(255.0f * c[1], 0.0f, 255.0f));
 			uint8 b = uint8(FMath::Clamp(255.0f * c[2], 0.0f, 255.0f));
+			uint8 a = uint8(FMath::Clamp(255.0f * c[3], 0.0f, 255.0f));
 			for ( int p = 0; p < pixelCount; ++p )
             {
                 pData[0] = r;
                 pData[1] = g;
                 pData[2] = b;
-                pData[3] = 255;
+                pData[3] = a;
                 pData += 4;
             }
             break;
@@ -182,12 +183,13 @@ namespace mu
 			uint8 r = uint8(FMath::Clamp(255.0f * c[0], 0.0f, 255.0f));
 			uint8 g = uint8(FMath::Clamp(255.0f * c[1], 0.0f, 255.0f));
 			uint8 b = uint8(FMath::Clamp(255.0f * c[2], 0.0f, 255.0f));
+			uint8 a = uint8(FMath::Clamp(255.0f * c[3], 0.0f, 255.0f));
 			for ( int p = 0; p < pixelCount; ++p )
             {
                 pData[0] = b;
                 pData[1] = g;
                 pData[2] = r;
-                pData[3] = 255;
+                pData[3] = a;
                 pData += 4;
             }
             break;

@@ -697,7 +697,8 @@ namespace mu
 		OP::ADDRESS at,
 		float* pR,
 		float* pG,
-		float* pB)
+		float* pB,
+		float* pA)
 	{
 		FVector4f col;
 
@@ -710,6 +711,7 @@ namespace mu
 				if (pR) *pR = 0.0f;
 				if (pG) *pG = 0.0f;
 				if (pB) *pB = 0.0f;
+				if (pA) *pA = 1.0f;
 			}
 
 			col = m_memory->GetColour(FCacheAddress(at, 0, 0));
@@ -718,6 +720,7 @@ namespace mu
 		if (pR) *pR = col[0];
 		if (pG) *pG = col[1];
 		if (pB) *pB = col[2];
+		if (pA) *pA = col[3];
 	}
 
 	

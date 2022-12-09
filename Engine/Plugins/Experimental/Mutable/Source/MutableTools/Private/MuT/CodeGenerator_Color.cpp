@@ -127,6 +127,7 @@ namespace mu
 		op->op.args.ColourConstant.value[0] = node.m_value[0];
 		op->op.args.ColourConstant.value[1] = node.m_value[1];
 		op->op.args.ColourConstant.value[2] = node.m_value[2];
+		op->op.args.ColourConstant.value[3] = 1.0f;
 
 		result.op = op;
 	}

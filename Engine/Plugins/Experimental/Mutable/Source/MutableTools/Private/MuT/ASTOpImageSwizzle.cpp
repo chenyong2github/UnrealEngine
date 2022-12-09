@@ -254,22 +254,6 @@ namespace mu
 			switch (sourceType)
 			{
 
-			case OP_TYPE::IM_PLAINCOLOUR:
-			{
-				auto NewPlain = mu::Clone<ASTOpFixed>(channelSourceAt);
-				Ptr<ASTOpFixed> NewSwizzle = new ASTOpFixed;
-				NewSwizzle->op.type = OP_TYPE::CO_SWIZZLE;
-				for (int i = 0; i < MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++i)
-				{
-					NewSwizzle->SetChild(NewSwizzle->op.args.ColourSwizzle.sources[i], NewPlain->children[NewPlain->op.args.ImagePlainColour.colour]);
-					NewSwizzle->op.args.ColourSwizzle.sourceChannels[i] = SourceChannels[i];
-				}
-				NewPlain->SetChild(NewPlain->op.args.ImagePlainColour.colour, NewSwizzle);
-				NewPlain->op.args.ImagePlainColour.format = Format;
-				at = NewPlain;
-				break;
-			}
-
 			case OP_TYPE::IM_SWITCH:
 			{
 				// Move the swizzle down all the paths
@@ -759,6 +743,28 @@ namespace mu
 					at = NewFormat;
 				}
 			}
+
+			// Swizzle down plaincolours.
+			if (!at && sourceType == OP_TYPE::IM_PLAINCOLOUR)
+			{
+				Ptr<ASTOpFixed> NewPlain = mu::Clone<ASTOpFixed>(channelSourceAt);
+				Ptr<ASTOpFixed> NewSwizzle = new ASTOpFixed;
+				NewSwizzle->op.type = OP_TYPE::CO_SWIZZLE;
+				for (int c = 0; c < MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++c)
+				{
+					if (Sources[c])
+					{
+						const ASTOpFixed* TypedPlain = dynamic_cast<const ASTOpFixed*>(Sources[c].child().get());
+
+						NewSwizzle->SetChild(NewSwizzle->op.args.ColourSwizzle.sources[c], TypedPlain->children[TypedPlain->op.args.ImagePlainColour.colour]);
+					}
+					NewSwizzle->op.args.ColourSwizzle.sourceChannels[c] = SourceChannels[c];
+				}
+				NewPlain->SetChild(NewPlain->op.args.ImagePlainColour.colour, NewSwizzle);
+				NewPlain->op.args.ImagePlainColour.format = Format;
+				at = NewPlain;
+			}
+
 		}
 
 		// Swizzle of RGB from a source + A from a layer colour

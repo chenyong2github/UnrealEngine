@@ -242,7 +242,8 @@ namespace mu
             whiteOp->op.type = OP_TYPE::CO_CONSTANT;
             whiteOp->op.args.ColourConstant.value[0] = 1;
             whiteOp->op.args.ColourConstant.value[1] = 1;
-            whiteOp->op.args.ColourConstant.value[2] = 1;
+			whiteOp->op.args.ColourConstant.value[2] = 1;
+			whiteOp->op.args.ColourConstant.value[3] = 1;
 
             Ptr<ASTOpFixed> wplainOp = new ASTOpFixed;
             wplainOp->op.type = OP_TYPE::IM_PLAINCOLOUR;
@@ -466,7 +467,8 @@ namespace mu
                             blackOp->op.type = OP_TYPE::CO_CONSTANT;
                             blackOp->op.args.ColourConstant.value[0] = 0;
                             blackOp->op.args.ColourConstant.value[1] = 0;
-                            blackOp->op.args.ColourConstant.value[2] = 0;
+							blackOp->op.args.ColourConstant.value[2] = 0;
+							blackOp->op.args.ColourConstant.value[3] = 1;
 
                             Ptr<ASTOpFixed> plainOp = new ASTOpFixed;
                             plainOp->op.type = OP_TYPE::IM_PLAINCOLOUR;
@@ -511,6 +513,7 @@ namespace mu
 //							blackOp.args.ColourConstant.value[0] = 0;
 //							blackOp.args.ColourConstant.value[1] = 0;
 //							blackOp.args.ColourConstant.value[2] = 0;
+//							blackOp.args.ColourConstant.value[3] = 1;
 
 //							OP plainOp;
 //							plainOp.type = OP_TYPE::IM_PLAINCOLOUR;
@@ -568,7 +571,8 @@ namespace mu
                             blackOp->op.type = OP_TYPE::CO_CONSTANT;
                             blackOp->op.args.ColourConstant.value[0] = 0;
                             blackOp->op.args.ColourConstant.value[1] = 0;
-                            blackOp->op.args.ColourConstant.value[2] = 0;
+							blackOp->op.args.ColourConstant.value[2] = 0;
+							blackOp->op.args.ColourConstant.value[3] = 1;
 
                             Ptr<ASTOpFixed> plainOp = new ASTOpFixed;
                             plainOp->op.type = OP_TYPE::IM_PLAINCOLOUR;
@@ -1035,6 +1039,7 @@ namespace mu
                         blackOp->op.args.ColourConstant.value[0] = 0;
                         blackOp->op.args.ColourConstant.value[1] = 0;
                         blackOp->op.args.ColourConstant.value[2] = 0;
+						blackOp->op.args.ColourConstant.value[3] = 1;
 
                         Ptr<ASTOpFixed> plainOp = new ASTOpFixed;
                         plainOp->op.type = OP_TYPE::IM_PLAINCOLOUR;
@@ -1090,6 +1095,7 @@ namespace mu
                         blackOp->op.args.ColourConstant.value[0] = 0;
                         blackOp->op.args.ColourConstant.value[1] = 0;
                         blackOp->op.args.ColourConstant.value[2] = 0;
+						blackOp->op.args.ColourConstant.value[3] = 1;
 
                         Ptr<ASTOpFixed> plainOp = new ASTOpFixed;
                         plainOp->op.type = OP_TYPE::IM_PLAINCOLOUR;
@@ -1116,6 +1122,7 @@ namespace mu
                         blackOp->op.args.ColourConstant.value[0] = 0;
                         blackOp->op.args.ColourConstant.value[1] = 0;
                         blackOp->op.args.ColourConstant.value[2] = 0;
+						blackOp->op.args.ColourConstant.value[3] = 1;
 
                         Ptr<ASTOpFixed> plainOp = new ASTOpFixed;
                         plainOp->op.type = OP_TYPE::IM_PLAINCOLOUR;
@@ -1199,6 +1206,7 @@ namespace mu
                         blackOp->op.args.ColourConstant.value[0] = 0;
                         blackOp->op.args.ColourConstant.value[1] = 0;
                         blackOp->op.args.ColourConstant.value[2] = 0;
+						blackOp->op.args.ColourConstant.value[3] = 1;
 
                         Ptr<ASTOpFixed> plainOp = new ASTOpFixed;
                         plainOp->op.type = OP_TYPE::IM_PLAINCOLOUR;
@@ -1244,6 +1252,7 @@ namespace mu
                         blackOp->op.args.ColourConstant.value[0] = 0;
                         blackOp->op.args.ColourConstant.value[1] = 0;
                         blackOp->op.args.ColourConstant.value[2] = 0;
+						blackOp->op.args.ColourConstant.value[3] = 1;
 
                         Ptr<ASTOpFixed> plainOp = new ASTOpFixed;
                         plainOp->op.type = OP_TYPE::IM_PLAINCOLOUR;

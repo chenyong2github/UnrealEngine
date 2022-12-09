@@ -100,7 +100,7 @@ struct FSlateBrush;
 namespace MutableCodeTreeViewColumns
 {
 	static const FName OperationsColumnID("Operations");
-	static const FName AdditionalDataColumnID("Additional Data");
+	static const FName AdditionalDataColumnID("Flags");
 };
 
 /**
@@ -135,6 +135,14 @@ public:
 			// See if the operation type accepts additional information in the label
 			switch ( Type )
 			{
+			case mu::OP_TYPE::NU_PARAMETER:
+			{
+				mu::OP::ParameterArgs Args = Program.GetOpArgs<mu::OP::ParameterArgs>(RowItem->MutableOperation);
+				OpName += TEXT(" ");
+				OpName += ANSI_TO_TCHAR(Program.m_parameters[int32(Args.variable)].m_name.c_str());
+				break;
+			}
+
 			case mu::OP_TYPE::IM_SWIZZLE:
 			{
 				mu::OP::ImageSwizzleArgs Args = Program.GetOpArgs<mu::OP::ImageSwizzleArgs>(RowItem->MutableOperation);
@@ -402,10 +410,10 @@ private:
 	const FText EmptyText = FText(INVTEXT(" "));
 	
 	/** String printed on the UI when the operation is shown to be dynamic resource */
-	const FText DynamicResourceText = FText::FromString(FString("DYNAMIC RESOURCE"));
+	const FText DynamicResourceText = FText::FromString(FString("dyn"));
 
 	/** String printed on the UI when the operation is shown to be state constant */
-	const FText StateConstantText = FText::FromString(FString("STATE CONSTANT"));
+	const FText StateConstantText = FText::FromString(FString("const"));
 	
 	/** Color used on the extra data column when no extra data is shown */
 	const FSlateColor ExtraDataBackgroundBoxDefaultColor =  FSlateColor(TransparentColor);
@@ -2319,8 +2327,9 @@ void SMutableCodeViewer::Tick(const FGeometry& AllottedGeometry, const double In
 		float RedValue;
 		float GreenValue;
 		float BlueValue;
-		System->GetPrivate()->BuildColour(MutableModel, PreviewParameters.get(), SelectedOperationAddress, &RedValue, &GreenValue, &BlueValue);
-		PreviewColorViewer->SetColor(RedValue, GreenValue, BlueValue);
+		float AlphaValue;
+		System->GetPrivate()->BuildColour(MutableModel, PreviewParameters.get(), SelectedOperationAddress, &RedValue, &GreenValue, &BlueValue, &AlphaValue);
+		PreviewColorViewer->SetColor(RedValue, GreenValue, BlueValue, AlphaValue);
 		break;
 	}
 

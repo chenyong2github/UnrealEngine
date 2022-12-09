@@ -11,6 +11,7 @@ namespace UnrealBuildTool.Rules
 			ShortName = "MuT";
 
 			DefaultBuildSettings = BuildSettingsVersion.V2;
+			//bUseUnity = false;
 
 			// 
 			bUseRTTI = true;

@@ -38,19 +38,6 @@ namespace mu
     class Node;
     class NodeTransformedObject;
 
-    //! Available GPU families
-    typedef enum
-    {
-        GPU_NONE			= 0,
-        GPU_GL4,
-        GPU_GLES2,
-
-        GPU_COUNT
-    } GPU_TYPE;
-
-    //! Return a readable string for a GPU.
-    extern const char* GetGPUName( GPU_TYPE );
-
     //! \brief Options used to compile the models with a compiler.
     class MUTABLETOOLS_API CompilerOptions : public RefCounted
     {
@@ -109,13 +96,6 @@ namespace mu
         //! be enabled AND the appropiate serialisation function needs to be called (see
         //! rutime/Model.h).
         void SetTextureLayoutStrategy( TextureLayoutStrategy strategy );
-
-        //! Set the GPU type to optimise for, if any. Defaults to none.
-        void SetGPUType( GPU_TYPE );
-
-        //! If GPU optimsiation is enabled, set the maximum number of fragment textures the gpu can
-        //! use.
-        void SetGPUMaxFragmentTextures( int );
 
         //-----------------------------------------------------------------------------------------
         // Interface pattern
