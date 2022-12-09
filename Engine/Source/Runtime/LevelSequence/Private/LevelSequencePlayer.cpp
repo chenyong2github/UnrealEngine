@@ -96,6 +96,17 @@ void ULevelSequencePlayer::Initialize(ULevelSequence* InLevelSequence, ULevel* I
 	ULevelStreaming* LevelStreaming = FLevelUtils::FindStreamingLevel(InLevel);
 	if (LevelStreaming)
 	{
+		// All ULevelStreaming objects live in the owning world but if we are streaming a World Partition persistent level it will be returned as the StreamingWorld for all it's 
+		// ULevelStreaming cells. This streaming world should be used to resolve bindings.
+		if (UWorld* StreamingWorld = LevelStreaming->GetStreamingWorld(); StreamingWorld && (StreamingWorld != World))
+		{
+			Level = StreamingWorld->PersistentLevel;
+			LevelStreaming = FLevelUtils::FindStreamingLevel(Level.Get());
+		}
+	}
+		
+	if (LevelStreaming)
+	{
 		// StreamedLevelPackage is a package name of the form /Game/Folder/MapName, not a full asset path
 		FString StreamedLevelPackage = ((LevelStreaming->PackageNameToLoad == NAME_None) ? LevelStreaming->GetWorldAssetPackageFName() : LevelStreaming->PackageNameToLoad).ToString();
 

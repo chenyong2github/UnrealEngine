@@ -458,6 +458,12 @@ UWorld* ULevelStreaming::GetWorld() const
 	}
 }
 
+UWorld* ULevelStreaming::GetStreamingWorld() const
+{
+	check(!IsTemplate());
+	return GetWorld();
+}
+
 bool ULevelStreaming::IsLevelVisible() const
 {
 	return LoadedLevel && LoadedLevel->bIsVisible;

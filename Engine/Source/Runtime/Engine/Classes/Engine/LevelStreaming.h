@@ -534,6 +534,9 @@ public:
 
 	virtual UWorld* GetWorld() const override final;
 
+	/** Returns the UWorld that triggered the streaming of this streaming level. */
+	virtual UWorld* GetStreamingWorld() const;
+
 	/** Returns whether streaming level is visible */
 	UFUNCTION(BlueprintCallable, Category="Game")
 	bool IsLevelVisible() const;

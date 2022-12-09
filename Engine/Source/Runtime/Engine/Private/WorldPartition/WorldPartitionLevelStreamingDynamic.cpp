@@ -627,6 +627,14 @@ void UWorldPartitionLevelStreamingDynamic::Deactivate()
 	SetShouldBeVisible(false);
 }
 
+UWorld* UWorldPartitionLevelStreamingDynamic::GetStreamingWorld() const
+{
+	// For UWorldPartitionLevelStreamingDynamic the StreamingWorld is the world to which the OuterWorldPartition is outered.
+	// This World can be used to resolved SoftObjectPaths between cells.
+	check(OuterWorldPartition.IsValid());
+	return OuterWorldPartition->GetTypedOuter<UWorld>();
+}
+
 bool UWorldPartitionLevelStreamingDynamic::CanMakeVisible()
 {
 	const ENetMode NetMode = GetWorld()->GetNetMode();
@@ -681,12 +689,6 @@ bool UWorldPartitionLevelStreamingDynamic::CanMakeInvisible()
 	}
 
 	return Super::CanMakeInvisible();
-}
-
-UWorld* UWorldPartitionLevelStreamingDynamic::GetOuterWorld() const
-{
-	check(OuterWorldPartition.IsValid());
-	return OuterWorldPartition->GetTypedOuter<UWorld>();
 }
 
 bool UWorldPartitionLevelStreamingDynamic::ShouldBlockOnUnload() const
