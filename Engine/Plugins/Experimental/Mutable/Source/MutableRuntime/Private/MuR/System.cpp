@@ -194,7 +194,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    Instance::ID System::NewInstance( const ModelPtrConst& pModel )
+    Instance::ID System::NewInstance( const TSharedPtr<const Model>& pModel )
     {
 		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
 		MUTABLE_CPUPROFILER_SCOPE(NewInstance);
@@ -268,10 +268,10 @@ namespace mu
 
 		OP::ADDRESS rootAt = pLiveInstance->m_pModel->GetPrivate()->m_program.m_states[stateIndex].m_root;
 
-		m_pD->PrepareCache(pLiveInstance->m_pModel, stateIndex);
+		m_pD->PrepareCache(pLiveInstance->m_pModel.Get(), stateIndex);
 		pLiveInstance->m_pOldParameters = pParams->Clone();
 
-		m_pD->RunCode(pLiveInstance->m_pModel.get(), pParams.get(), rootAt, lodMask);
+		m_pD->RunCode(pLiveInstance->m_pModel, pParams.get(), rootAt, lodMask);
 
 		InstancePtrConst pResult = pLiveInstance->m_memory->GetInstance(FCacheAddress(rootAt, 0, 0));
 
@@ -356,7 +356,7 @@ namespace mu
 		{
 			if (res.m_id == imageId)
 			{
-				const mu::Model* Model = pLiveInstance->m_pModel.get();
+				const mu::Model* Model = pLiveInstance->m_pModel.Get();
 				const mu::FProgram& program = Model->GetPrivate()->m_program;
 
 				int32 VarValue = CVarClearImageDescCache.GetValueOnAnyThread();
@@ -372,7 +372,7 @@ namespace mu
 				if (GetOpDataType(opType) == DT_IMAGE)
 				{
 					int8 executionOptions = 0;
-					CodeRunner Runner(m_pD->m_pSettings, m_pD, Model, pLiveInstance->m_pOldParameters.get(), at, System::AllLODs, executionOptions, FScheduledOp::EType::ImageDesc);
+					CodeRunner Runner(m_pD->m_pSettings, m_pD, pLiveInstance->m_pModel, pLiveInstance->m_pOldParameters.get(), at, System::AllLODs, executionOptions, FScheduledOp::EType::ImageDesc);
 					Runner.Run();
 					Runner.GetImageDescResult(OutDesc);
 				}
@@ -461,7 +461,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    ImagePtrConst System::BuildParameterAdditionalImage( const Ptr<const Model>& pModel,
+    ImagePtrConst System::BuildParameterAdditionalImage(const TSharedPtr<const Model>& pModel,
                                                          const Ptr<const Parameters>& pParams,
                                                          int32 parameter,
                                                          int32 ImageIndex )
@@ -499,7 +499,7 @@ namespace mu
         RelevantParameterVisitor
             (
                 System::Private* pSystem,
-                const Ptr<const Model>& pModel,
+				const TSharedPtr<const Model>& pModel,
                 const Ptr<const Parameters>& pParams,
                 bool* pFlags
             )
@@ -552,7 +552,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void System::GetParameterRelevancy( const ModelPtrConst& pModel,
+    void System::GetParameterRelevancy(const TSharedPtr<const Model>& pModel,
                                         const ParametersPtrConst& pParameters,
                                         bool* pFlags )
     {
@@ -619,14 +619,14 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void System::Private::BeginBuild(const Ptr<const Model>& pModel)
+	void System::Private::BeginBuild(const TSharedPtr<const Model>& pModel)
 	{
 		// We don't have a FLiveInstance, let's create the memory
 		// \TODO: There is no clear moment to remove this... EndBuild?
 		m_memory = MakeShared<FProgramCache>();
 		m_memory->Init(pModel->GetPrivate()->m_program.m_opAddress.Num());
 
-		PrepareCache(pModel, -1);
+		PrepareCache(pModel.Get(), -1);
 	}
 
 
@@ -638,10 +638,10 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void System::Private::RunCode(const Ptr<const Model>& InModel,
+	void System::Private::RunCode(const TSharedPtr<const Model>& InModel,
 		const Parameters* InParameters, OP::ADDRESS InCodeRoot, uint32 InLODs, uint8 executionOptions)
 	{
-		CodeRunner Runner(m_pSettings, this, InModel.get(), InParameters, InCodeRoot, InLODs, 
+		CodeRunner Runner(m_pSettings, this, InModel, InParameters, InCodeRoot, InLODs, 
 			executionOptions, FScheduledOp::EType::Full);
 		Runner.Run();
 		bUnrecoverableError = Runner.bUnrecoverableError;
@@ -649,11 +649,11 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	bool System::Private::BuildBool(const Ptr<const Model>& pModel,
+	bool System::Private::BuildBool(const TSharedPtr<const Model>& pModel,
 		const Parameters* pParams,
 		OP::ADDRESS at)
 	{
-		RunCode(pModel.get(), pParams, at);
+		RunCode(pModel, pParams, at);
 		if (bUnrecoverableError)
 		{
 			return false;
@@ -663,11 +663,11 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	float System::Private::BuildScalar(const Ptr<const Model>& pModel,
+	float System::Private::BuildScalar(const TSharedPtr<const Model>& pModel,
 		const Parameters* pParams,
 		OP::ADDRESS at)
 	{
-		RunCode(pModel.get(), pParams, at);
+		RunCode(pModel, pParams, at);
 		if (bUnrecoverableError)
 		{
 			return 0.0f;
@@ -677,11 +677,11 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	int System::Private::BuildInt(const Ptr<const Model>& pModel,
+	int System::Private::BuildInt(const TSharedPtr<const Model>& pModel,
 		const Parameters* pParams,
 		OP::ADDRESS at)
 	{
-		RunCode(pModel.get(), pParams, at);
+		RunCode(pModel, pParams, at);
 		if (bUnrecoverableError)
 		{
 			return 0;
@@ -692,7 +692,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void System::Private::BuildColour(const Ptr<const Model>& pModel,
+	void System::Private::BuildColour(const TSharedPtr<const Model>& pModel,
 		const Parameters* pParams,
 		OP::ADDRESS at,
 		float* pR,
@@ -704,7 +704,7 @@ namespace mu
 		mu::OP_TYPE opType = pModel->GetPrivate()->m_program.GetOpType(at);
 		if (GetOpDataType(opType) == DT_COLOUR)
 		{
-			RunCode(pModel.get(), pParams, at);
+			RunCode(pModel, pParams, at);
 			if (bUnrecoverableError)
 			{
 				if (pR) *pR = 0.0f;
@@ -722,9 +722,9 @@ namespace mu
 
 	
 	//---------------------------------------------------------------------------------------------
-	Ptr<const Projector> System::Private::BuildProjector(const Ptr<const Model>& pModel, const Parameters* pParams, OP::ADDRESS at)
+	Ptr<const Projector> System::Private::BuildProjector(const TSharedPtr<const Model>& pModel, const Parameters* pParams, OP::ADDRESS at)
 	{
-    	RunCode(pModel.get(), pParams, at);
+    	RunCode(pModel, pParams, at);
 		if (bUnrecoverableError)
 		{
 			return nullptr;
@@ -734,7 +734,7 @@ namespace mu
 
 	
 	//---------------------------------------------------------------------------------------------
-	Ptr<const Image> System::Private::BuildImage(const Ptr<const Model>& pModel,
+	Ptr<const Image> System::Private::BuildImage(const TSharedPtr<const Model>& pModel,
 		const Parameters* pParams,
 		OP::ADDRESS at, int MipsToSkip)
 	{
@@ -742,7 +742,7 @@ namespace mu
 		if (GetOpDataType(opType) == DT_IMAGE)
 		{
 			m_memory->ClearCacheLayer0();
-			RunCode(pModel.get(), pParams, at, System::AllLODs, uint8(MipsToSkip));
+			RunCode(pModel, pParams, at, System::AllLODs, uint8(MipsToSkip));
 			if (bUnrecoverableError)
 			{
 				return nullptr;
@@ -756,7 +756,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	MeshPtrConst System::Private::BuildMesh(const Ptr<const Model>& pModel,
+	MeshPtrConst System::Private::BuildMesh(const TSharedPtr<const Model>& pModel,
 		const Parameters* pParams,
 		OP::ADDRESS at)
 	{
@@ -764,7 +764,7 @@ namespace mu
 		if (GetOpDataType(opType) == DT_MESH)
 		{
 			m_memory->ClearCacheLayer0();
-			RunCode(pModel.get(), pParams, at);
+			RunCode(pModel, pParams, at);
 			if (bUnrecoverableError)
 			{
 				return nullptr;
@@ -778,7 +778,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	LayoutPtrConst System::Private::BuildLayout(const Ptr<const Model>& pModel,
+	LayoutPtrConst System::Private::BuildLayout(const TSharedPtr<const Model>& pModel,
 		const Parameters* pParams,
 		OP::ADDRESS at)
 	{
@@ -789,7 +789,7 @@ namespace mu
 			mu::OP_TYPE opType = pModel->GetPrivate()->m_program.GetOpType(at);
 			if (GetOpDataType(opType) == DT_LAYOUT)
 			{
-				RunCode(pModel.get(), pParams, at);
+				RunCode(pModel, pParams, at);
 				if (bUnrecoverableError)
 				{
 					return nullptr;
@@ -803,7 +803,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	Ptr<const String> System::Private::BuildString(const Ptr<const Model>& pModel,
+	Ptr<const String> System::Private::BuildString(const TSharedPtr<const Model>& pModel,
 		const Parameters* pParams,
 		OP::ADDRESS at)
 	{
@@ -814,7 +814,7 @@ namespace mu
 			mu::OP_TYPE opType = pModel->GetPrivate()->m_program.GetOpType(at);
 			if (GetOpDataType(opType) == DT_STRING)
 			{
-				RunCode(pModel.get(), pParams, at);
+				RunCode(pModel, pParams, at);
 				if (bUnrecoverableError)
 				{
 					return nullptr;
@@ -828,7 +828,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void System::Private::PrepareCache(const Ptr<const Model>& pModel, int state)
+	void System::Private::PrepareCache( const Model* pModel, int state)
 	{
 		MUTABLE_CPUPROFILER_SCOPE(PrepareCache);
 
@@ -852,16 +852,16 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     //---------------------------------------------------------------------------------------------
     //---------------------------------------------------------------------------------------------
-	FModelCache::FModelCacheEntry& FModelCache::GetModelCache( const Model* m )
+	FModelCache::FModelCacheEntry& FModelCache::GetModelCache(const TSharedPtr<const Model>& InModel )
     {
-        check(m);
+        check(InModel);
 
         for(FModelCacheEntry& c:m_cachePerModel)
         {
-            mu::Ptr<mu::Model> pCandidate = c.m_pModel.Pin();
+			TSharedPtr<const Model> pCandidate = c.m_pModel.Pin();
             if (pCandidate)
             {
-                if (pCandidate==m)
+                if (pCandidate==InModel)
                 {
                     return c;
                 }
@@ -875,7 +875,7 @@ namespace mu
 
         // Not found. Add new
 		FModelCacheEntry n;
-        n.m_pModel = WeakPtr<Model>(m);
+        n.m_pModel = TWeakPtr<const Model>(InModel);
         m_cachePerModel.Add(n);
         return m_cachePerModel.Last();
     }
@@ -889,7 +889,7 @@ namespace mu
 		uint64 totalMemory = 0;
         for (FModelCacheEntry& m : m_cachePerModel)
         {
-			mu::Ptr<mu::Model> pCacheModel = m.m_pModel.Pin();
+			TSharedPtr<const Model> pCacheModel = m.m_pModel.Pin();
             if (pCacheModel)
             {
 				mu::FProgram& program = pCacheModel->GetPrivate()->m_program;
@@ -910,12 +910,12 @@ namespace mu
             bool finished = totalMemory < m_romBudget;
             while (!finished)
             {
-                ModelPtr lowestPriorityModel;
+				TSharedPtr<const Model> lowestPriorityModel;
                 int32 lowestPriorityRom = -1;
                 float lowestPriority = 0.0f;
                 for (FModelCacheEntry& modelCache : m_cachePerModel)
                 {
-					mu::Ptr<mu::Model> pCacheModel = modelCache.m_pModel.Pin();
+					TSharedPtr<const Model> pCacheModel = modelCache.m_pModel.Pin();
                     if (pCacheModel)
                     {
 						mu::FProgram& program = pCacheModel->GetPrivate()->m_program;
@@ -928,7 +928,7 @@ namespace mu
 
                             if (bIsLoaded
                                 &&
-                                (!isRomLockedFunc(pCacheModel.get(),RomIndex)) )
+                                (!isRomLockedFunc(pCacheModel.Get(),RomIndex)) )
                             {
                                 constexpr float factorWeight = 100.0f;
                                 constexpr float factorTime = -1.0f;
@@ -970,7 +970,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void FModelCache::MarkRomUsed( int romIndex, const Model* pModel )
+    void FModelCache::MarkRomUsed( int romIndex, const TSharedPtr<const Model>& pModel )
     {
         check(pModel);
 
@@ -1001,7 +1001,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void FModelCache::UpdateForLoad( int romIndex, const Model* pModel,
+    void FModelCache::UpdateForLoad( int romIndex, const TSharedPtr<const Model>& pModel,
                                      TFunctionRef<bool(const Model*,int)> isRomLockedFunc )
     {
 		MarkRomUsed( romIndex, pModel);

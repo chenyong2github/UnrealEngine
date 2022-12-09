@@ -292,11 +292,11 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    ModelPtr Model::StaticUnserialise( InputArchive& arch )
+	TSharedPtr<Model> Model::StaticUnserialise( InputArchive& arch )
     {
 		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
 
-        ModelPtr pResult = new Model();
+		TSharedPtr<Model> pResult = MakeShared<Model>();
         arch >> *pResult->m_pD;
         return pResult;
     }
@@ -339,18 +339,19 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    ParametersPtr Model::NewParameters( const Parameters* pOld ) const
+    ParametersPtr Model::NewParameters(TSharedPtr<const Model> Model, const Parameters* pOld )
     {
 		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
 
         ParametersPtr pRes = new Parameters();
 
-        pRes->GetPrivate()->m_pModel = this;
+        pRes->GetPrivate()->m_pModel = Model;
 
-        pRes->GetPrivate()->m_values.SetNum( m_pD->m_program.m_parameters.Num() );
-        for ( int32 p=0; p<m_pD->m_program.m_parameters.Num(); ++p )
+		const FProgram& Program = Model->GetPrivate()->m_program;
+        pRes->GetPrivate()->m_values.SetNum(Program.m_parameters.Num());
+        for ( int32 p=0; p< Program.m_parameters.Num(); ++p )
         {
-            pRes->GetPrivate()->m_values[p] = m_pD->m_program.m_parameters[p].m_defaultValue;
+            pRes->GetPrivate()->m_values[p] = Program.m_parameters[p].m_defaultValue;
         }
 
         // Copy old values
@@ -721,7 +722,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     ModelParametersGenerator::ModelParametersGenerator
         (
-            const Model* pModel,
+			TSharedPtr<const Model> pModel,
             System* pSystem
         )
     {
@@ -791,7 +792,7 @@ namespace mu
     {
 		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
 
-		Ptr<Parameters> res = m_pD->m_pModel->NewParameters();
+		Ptr<Parameters> res = Model::NewParameters(m_pD->m_pModel);
 
 		const FProgram& Program = m_pD->m_pModel->GetPrivate()->m_program;
         int paramCount = Program.m_parameters.Num();
@@ -938,7 +939,7 @@ namespace mu
     {
 		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
 
-        ParametersPtr res = m_pD->m_pModel->NewParameters();
+        ParametersPtr res = Model::NewParameters(m_pD->m_pModel);
 
 		const FProgram& Program = m_pD->m_pModel->GetPrivate()->m_program;
         int32 ParamCount = Program.m_parameters.Num();

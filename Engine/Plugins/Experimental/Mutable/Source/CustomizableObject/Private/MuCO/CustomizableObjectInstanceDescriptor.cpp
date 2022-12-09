@@ -480,7 +480,7 @@ mu::ParametersPtr FCustomizableObjectInstanceDescriptor::GetParameters() const
 		return nullptr;
 	}
 
-	mu::ParametersPtr MutableParameters = CustomizableObject->GetPrivate()->GetModel()->NewParameters();
+	mu::ParametersPtr MutableParameters = mu::Model::NewParameters( CustomizableObject->GetPrivate()->GetModel() );
 
 	const int32 ParamCount = MutableParameters->GetCount();
 	for (int32 ParamIndex = 0; ParamIndex < ParamCount; ++ParamIndex)
@@ -707,7 +707,7 @@ void FCustomizableObjectInstanceDescriptor::ReloadParameters()
 		return;
 	}
 
-	mu::ParametersPtr MutableParameters = CustomizableObject->GetPrivate()->GetModel()->NewParameters();
+	mu::ParametersPtr MutableParameters = mu::Model::NewParameters(CustomizableObject->GetPrivate()->GetModel());
 
 	int32 ParamCount = MutableParameters->GetCount();
 	for (int32 ParamIndex = 0; ParamIndex < ParamCount; ++ParamIndex)
@@ -1829,7 +1829,7 @@ bool FCustomizableObjectInstanceDescriptor::IsParamMultidimensional(const int32 
 {
 	check(CustomizableObject);
 
-	const mu::ParametersPtr MutableParameters = CustomizableObject->GetPrivate()->GetModel()->NewParameters();
+	const mu::ParametersPtr MutableParameters = mu::Model::NewParameters(CustomizableObject->GetPrivate()->GetModel());
 	check(ParamIndex < MutableParameters->GetCount());
 	const mu::RangeIndexPtr RangeIdxPtr = MutableParameters->NewRangeIndex(ParamIndex);
 
@@ -2029,7 +2029,7 @@ FCustomizableObjectProjector FCustomizableObjectInstanceDescriptor::GetProjector
 {
 	check(CustomizableObject);
 
-	const mu::ParametersPtr MutableParameters = CustomizableObject->GetPrivate()->GetModel()->NewParameters();
+	const mu::ParametersPtr MutableParameters = mu::Model::NewParameters(CustomizableObject->GetPrivate()->GetModel());
 	check(ParamIndex < MutableParameters->GetCount());
 
 	FCustomizableObjectProjector Projector;

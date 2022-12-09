@@ -730,7 +730,7 @@ namespace mu
     public:
 
         //!
-        Ptr<const Model> m_pModel;
+        TSharedPtr<const Model> m_pModel;
         Ptr<System> m_pSystem;
 
         //! Number of possible instances

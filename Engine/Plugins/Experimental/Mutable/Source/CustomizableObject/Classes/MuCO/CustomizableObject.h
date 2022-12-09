@@ -1417,10 +1417,10 @@ public:
 	// See UCustomizableObjectSystem::LockObject()
 	bool IsLocked() const;
 
-	mu::Model* GetModel() const;
+	TSharedPtr<mu::Model, ESPMode::ThreadSafe> GetModel() const;
 
 #if WITH_EDITOR
-	void SetModel(mu::Model* Model);
+	void SetModel(TSharedPtr<mu::Model, ESPMode::ThreadSafe> Model);
 #endif
 
 	int32 GetNumLODs() const;

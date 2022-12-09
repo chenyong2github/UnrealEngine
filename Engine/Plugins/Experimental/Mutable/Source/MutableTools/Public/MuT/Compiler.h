@@ -150,7 +150,7 @@ namespace mu
         Compiler( CompilerOptionsPtr options=nullptr );
 
         //! Compile the expression into a run-time model.
-        ModelPtr Compile( const Ptr<Node>& pNode );
+		TSharedPtr<Model> Compile( const Ptr<Node>& pNode );
 
         //! Return the log of messages of all the compile operations executed so far.
         ErrorLogPtrConst GetLog() const;

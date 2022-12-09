@@ -1401,9 +1401,9 @@ void FCustomizableObjectCompiler::FinishCompilation()
 	check(CompileTask.IsValid());
 
 	UpdateCompilerLogData();
-	mu::ModelPtr Model = CompileTask->Model;
+	TSharedPtr<mu::Model, ESPMode::ThreadSafe> Model = CompileTask->Model;
 
-	CurrentObject->SetModel(Model.get());
+	CurrentObject->SetModel(Model);
 
 	// Reset all instances, as the parameters may need to be rebuilt.
 	for (TObjectIterator<UCustomizableObjectInstance> It; It; ++It)

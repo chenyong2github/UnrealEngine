@@ -180,15 +180,14 @@ namespace mu
         //! Serialisation
         static void Serialise( const Parameters* p, OutputArchive& arch );
         static ParametersPtr StaticUnserialise( InputArchive& arch );
-        void SetUnserialisedModel( Model* pModel );
 
         //! Portable serialisation, which tries to keep values when:
         //! - new parametes have been added
         //! - parameters have been removed
         //! - parameter types have changed
         //! - parameter names have changed, and the application is using UIDs
-        static void SerialisePortable( const Parameters* p, OutputArchive& arch );
-        static ParametersPtr UnserialisePortable( InputArchive& arch, const Model* pModel );
+        static void SerialisePortable( const Parameters*, OutputArchive& );
+        static ParametersPtr UnserialisePortable( InputArchive&, TSharedPtr<const Model> );
 
 		//! Deep clone this object.
 		ParametersPtr Clone() const;

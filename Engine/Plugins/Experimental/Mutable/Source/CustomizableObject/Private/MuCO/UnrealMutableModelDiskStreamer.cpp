@@ -144,14 +144,14 @@ bool FUnrealMutableModelBulkStreamer::PrepareStreamingForObject(UCustomizableObj
 	// Is the object already prepared for streaming?
 	bool bAlreadyStreaming = Objects.FindByPredicate(
 		[CustomizableObject](const FObjectData& d) 
-		{ return d.Model.Pin() == CustomizableObject->GetModel(); })
+		{ return d.Model.Pin().Get() == CustomizableObject->GetModel().Get(); })
 		!= 
 		nullptr;
 
 	if (!bAlreadyStreaming)
 	{
 		FObjectData NewData;
-		NewData.Model = mu::WeakPtr<mu::Model>(CustomizableObject->GetModel());
+		NewData.Model = TWeakPtr<const mu::Model>(CustomizableObject->GetModel());
 
 #if WITH_EDITOR
 		FString FolderPath = CustomizableObject->GetCompiledDataFolderPath(true);
@@ -299,7 +299,7 @@ mu::ModelStreamer::OPERATION_ID FUnrealMutableModelBulkStreamer::BeginReadBlock(
 
 	// Find the object we are streaming for
 	FObjectData* ObjectData = Objects.FindByPredicate(
-		[Model](const FObjectData& d) {return d.Model.Pin()==Model; });
+		[Model](const FObjectData& d) {return d.Model.Pin().Get() == Model; });
 
 	if (!ObjectData)
 	{

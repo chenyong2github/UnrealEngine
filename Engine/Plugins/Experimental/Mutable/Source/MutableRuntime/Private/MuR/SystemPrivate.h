@@ -870,7 +870,7 @@ namespace mu
         struct FModelCacheEntry
         {
             //!
-            WeakPtr<Model> m_pModel;
+            TWeakPtr<const Model> m_pModel;
 
             // Rom streaming management
             TArray< TPair<uint64,uint64> > m_romWeight;
@@ -888,11 +888,11 @@ namespace mu
 			TFunctionRef<bool(const Model*, int)> IsRomLockedFunc = [](const Model*, int) {return false;});
 
         //!
-        void UpdateForLoad( int romIndex, const Model* pModel, TFunctionRef<bool(const Model*,int)> isRomLockedFunc );
-        void MarkRomUsed( int romIndex, const Model* pModel );
+        void UpdateForLoad( int romIndex, const TSharedPtr<const Model>& pModel, TFunctionRef<bool(const Model*,int)> isRomLockedFunc );
+        void MarkRomUsed( int romIndex, const TSharedPtr<const Model>& pModel );
 
         //! Private helper
-		FModelCacheEntry& GetModelCache( const Model* m );
+		FModelCacheEntry& GetModelCache(const TSharedPtr<const Model>&);
     };
 
 
@@ -911,18 +911,18 @@ namespace mu
         //-----------------------------------------------------------------------------------------
 
 		/** This method can be used to internally prepare for code execution. */
-		MUTABLERUNTIME_API void BeginBuild(const Ptr<const Model>&);
+		MUTABLERUNTIME_API void BeginBuild(const TSharedPtr<const Model>&);
 		MUTABLERUNTIME_API void EndBuild();
 
-		MUTABLERUNTIME_API bool BuildBool(const Ptr<const Model>&, const Parameters* pParams, OP::ADDRESS at) ;
-		MUTABLERUNTIME_API int BuildInt(const Ptr<const Model>&, const Parameters* pParams, OP::ADDRESS at) ;
-		MUTABLERUNTIME_API float BuildScalar(const Ptr<const Model>&, const Parameters* pParams, OP::ADDRESS at) ;
-		MUTABLERUNTIME_API void BuildColour(const Ptr<const Model>&, const Parameters* pParams, OP::ADDRESS at, float* pR, float* pG, float* pB) ;
-		MUTABLERUNTIME_API Ptr<const String> BuildString(const Ptr<const Model>&, const Parameters* pParams, OP::ADDRESS at) ;
-		MUTABLERUNTIME_API Ptr<const Image> BuildImage(const Ptr<const Model>&, const Parameters* pParams, OP::ADDRESS at, int32 MipsToSkip) ;
-		MUTABLERUNTIME_API Ptr<const Mesh> BuildMesh(const Ptr<const Model>&, const Parameters* pParams, OP::ADDRESS at) ;
-		MUTABLERUNTIME_API Ptr<const Layout> BuildLayout(const Ptr<const Model>&, const Parameters* pParams, OP::ADDRESS at) ;
-    	MUTABLERUNTIME_API Ptr<const Projector> BuildProjector(const Ptr<const Model>&, const Parameters* pParams, OP::ADDRESS at) ;
+		MUTABLERUNTIME_API bool BuildBool(const TSharedPtr<const Model>&, const Parameters* pParams, OP::ADDRESS at) ;
+		MUTABLERUNTIME_API int BuildInt(const TSharedPtr<const Model>&, const Parameters* pParams, OP::ADDRESS at) ;
+		MUTABLERUNTIME_API float BuildScalar(const TSharedPtr<const Model>&, const Parameters* pParams, OP::ADDRESS at) ;
+		MUTABLERUNTIME_API void BuildColour(const TSharedPtr<const Model>&, const Parameters* pParams, OP::ADDRESS at, float* pR, float* pG, float* pB) ;
+		MUTABLERUNTIME_API Ptr<const String> BuildString(const TSharedPtr<const Model>&, const Parameters* pParams, OP::ADDRESS at) ;
+		MUTABLERUNTIME_API Ptr<const Image> BuildImage(const TSharedPtr<const Model>&, const Parameters* pParams, OP::ADDRESS at, int32 MipsToSkip) ;
+		MUTABLERUNTIME_API Ptr<const Mesh> BuildMesh(const TSharedPtr<const Model>&, const Parameters* pParams, OP::ADDRESS at) ;
+		MUTABLERUNTIME_API Ptr<const Layout> BuildLayout(const TSharedPtr<const Model>&, const Parameters* pParams, OP::ADDRESS at) ;
+    	MUTABLERUNTIME_API Ptr<const Projector> BuildProjector(const TSharedPtr<const Model>&, const Parameters* pParams, OP::ADDRESS at) ;
 		void ClearCache() ;
 		void SetStreamingCache(uint64 bytes) ;
 
@@ -950,7 +950,7 @@ namespace mu
         {
             Instance::ID m_instanceID;
             InstancePtrConst m_pInstance;
-            ModelPtrConst m_pModel;
+            TSharedPtr<const Model> m_pModel;
 
             int m_state;
             ParametersPtr m_pOldParameters;
@@ -1007,12 +1007,12 @@ namespace mu
 
 	public:
 
-		void RunCode(const Ptr<const Model>& pModel,
+		void RunCode(const TSharedPtr<const Model>& pModel,
 			const Parameters* pParams,
 			OP::ADDRESS at, uint32 LODs = System::AllLODs, uint8 executionOptions = 0);
 
 		//!
-		void PrepareCache(const Ptr<const Model>& pModel, int state);
+		void PrepareCache(const Model*, int32 State);
 
 		//! Cache related members
 		//! @{

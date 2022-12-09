@@ -80,14 +80,14 @@ namespace impl
 		// This runs in a worker thread.
 		check(OperationData.IsValid());
 		check(OperationData->UpdateContext->System.get());
-		check(OperationData->UpdateContext->Model.get());
+		check(OperationData->UpdateContext->Model);
 		check(OperationData->UpdateContext->Parameters.get());
 
 		mu::SystemPtr System = OperationData->UpdateContext->System;
-		mu::ModelPtr Model = OperationData->UpdateContext->Model;
+		const TSharedPtr<mu::Model,ESPMode::ThreadSafe> Model = OperationData->UpdateContext->Model;
 
 		// For now, we are forcing the recreation of mutable-side instances with every update.
-		mu::Instance::ID InstanceID = System->NewInstance(Model.get());
+		mu::Instance::ID InstanceID = System->NewInstance(Model);
 		UE_LOG(LogMutable, Log, TEXT("Creating instance with id [%d] "), InstanceID)
 
 		const mu::Instance* Instance = nullptr;

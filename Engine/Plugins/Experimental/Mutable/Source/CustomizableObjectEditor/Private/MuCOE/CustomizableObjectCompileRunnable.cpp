@@ -198,7 +198,7 @@ FCustomizableObjectSaveDDRunnable::FCustomizableObjectSaveDDRunnable(UCustomizab
 
 uint32 FCustomizableObjectSaveDDRunnable::Run()
 {
-	bool bModelSerialized = Model.get() != nullptr;
+	bool bModelSerialized = Model.Get() != nullptr;
 
 	if (Options.bIsCooking && !Options.bSaveCookedDataToDisk)
 	{
@@ -210,7 +210,7 @@ uint32 FCustomizableObjectSaveDDRunnable::Run()
 		if (bModelSerialized)
 		{
 			FUnrealMutableModelBulkStreamer Streamer(&ModelMemoryWriter, &StreamableMemoryWriter);
-			mu::Model::Serialise(Model.get(), Streamer);
+			mu::Model::Serialise(Model.Get(), Streamer);
 		}
 	}
 	else if(bModelSerialized) // Save CO data + mu::Model and streamable resources to disk
@@ -254,7 +254,7 @@ uint32 FCustomizableObjectSaveDDRunnable::Run()
 			*ModelMemoryWriter << bModelSerialized;
 
 			FUnrealMutableModelBulkStreamer Streamer(ModelMemoryWriter, StreamableMemoryWriter);
-			mu::Model::Serialise(Model.get(), Streamer);
+			mu::Model::Serialise(Model.Get(), Streamer);
 
 			// Save to disk
 			ModelMemoryWriter->Flush();

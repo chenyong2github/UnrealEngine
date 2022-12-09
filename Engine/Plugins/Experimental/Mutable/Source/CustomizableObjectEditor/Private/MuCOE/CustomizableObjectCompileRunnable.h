@@ -62,7 +62,7 @@ public:
 
 public:
 
-	mu::ModelPtr Model;
+	TSharedPtr<mu::Model, ESPMode::ThreadSafe> Model;
 
 	// Texture packing strategy
 	bool bDisableTextureLayout;
@@ -112,7 +112,7 @@ private:
 	FString CompildeDataFullFileName;
 	FString StreamableDataFullFileName;
 
-	mu::ModelPtr Model;
+	TSharedPtr<mu::Model, ESPMode::ThreadSafe> Model;
 
 	// Bytes where the model is stored
 	TArray64<uint8> Bytes;

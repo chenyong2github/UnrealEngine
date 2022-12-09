@@ -461,7 +461,7 @@ namespace mu
 			FLinkerOptions LinkerOptions;
 			LinkerOptions.MinTextureResidentMipCount = 255;
 
-			ModelPtrConst model = new Model;
+			TSharedPtr<const Model> model = MakeShared<Model>();
 			ASTOp::FullLink( cloned, model->GetPrivate()->m_program, &LinkerOptions);
 			OP::ADDRESS at = cloned->linkedAddress;
 
@@ -469,7 +469,7 @@ namespace mu
 			state.m_root = at;
 			model->GetPrivate()->m_program.m_states.Add(state);
 
-			ParametersPtr localParams = model->NewParameters();
+			ParametersPtr localParams = Model::NewParameters(model);
 			pSystem->GetPrivate()->BeginBuild( model );
 
 			// Calculate the value and replace this op by a constant

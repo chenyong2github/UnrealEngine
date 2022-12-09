@@ -104,7 +104,7 @@ protected:
 	/** Streaming data for one object. */
 	struct FObjectData
 	{
-		mu::WeakPtr<mu::Model> Model;
+		TWeakPtr<const mu::Model> Model;
 		TArray<IAsyncReadFileHandle*> ReadFileHandles;
 		TMap<OPERATION_ID, IAsyncReadRequest*> CurrentReadRequests;
 		TMap<uint64, FMutableStreamableBlock> StreamableBlocks;

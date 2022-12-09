@@ -115,7 +115,7 @@ namespace mu
         //! no longer needed.
         //! \param pModel Model to build an instance of
         //! \return An identifier that is always bigger than 0.
-        Instance::ID NewInstance( const Ptr<const Model>& Model );
+        Instance::ID NewInstance(const TSharedPtr<const Model>& Model );
 
         //! \brief Update an instance with a new parameter set and/or state.
         //!
@@ -160,7 +160,7 @@ namespace mu
 
 		//! Build one of the images defined in a model parameter as additional description. These
 		//! images can be used for colour bars, icons, etc...
-		Ptr<const Image> BuildParameterAdditionalImage( const Ptr<const Model>& Model,
+		Ptr<const Image> BuildParameterAdditionalImage(const TSharedPtr<const Model>& Model,
 														const Ptr<const Parameters>& Params,
 														int32 Parameter,
 														int32 ImageIndex );
@@ -173,7 +173,7 @@ namespace mu
         //! \param pParameters Parameter set that we want to find the relevancy of.
         //! \param pFlags is a pointer to a preallocated array of booleans that contains at least
 		//! pParameters->GetCount() elements.
-        void GetParameterRelevancy( const Ptr<const Model>& Model,
+        void GetParameterRelevancy(const TSharedPtr<const Model>& Model,
 									const Ptr<const Parameters>& Parameters,
 									bool* Flags );
 

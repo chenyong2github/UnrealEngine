@@ -31,7 +31,7 @@ class UTexture;
 struct FMutableUpdateContext
 {
 	mu::Ptr<mu::System> System;
-	mu::Ptr<mu::Model> Model;
+	TSharedPtr<mu::Model, ESPMode::ThreadSafe> Model;
 	mu::Ptr<const mu::Parameters> Parameters;
 	int32 State = -1;
 

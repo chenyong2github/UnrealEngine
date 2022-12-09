@@ -6,6 +6,7 @@
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
 #include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
 
 
 //! This version number changes whenever there is a compatibility-breaking change in the Model
@@ -25,11 +26,6 @@ namespace mu
 	typedef Ptr<Parameters> ParametersPtr;
 	typedef Ptr<const Parameters> ParametersPtrConst;
 
-    class Model;
-
-    typedef Ptr<Model> ModelPtr;
-    typedef Ptr<const Model> ModelPtrConst;
-
     class ModelParametersGenerator;
 
     typedef Ptr<ModelParametersGenerator> ModelParametersGeneratorPtr;
@@ -46,7 +42,7 @@ namespace mu
     //! When values are given to the parameters, specific Instances can be built, which hold the
     //! built application-usable data.
 	//! \ingroup runtime
-    class MUTABLERUNTIME_API Model : public RefCountedWeak
+    class MUTABLERUNTIME_API Model
 	{
 	public:
 
@@ -55,8 +51,11 @@ namespace mu
 		//-----------------------------------------------------------------------------------------
 		Model();
 
+		//! Don't call directly. Manage with a TSharedPtr.
+		~Model();
+
 		static void Serialise( const Model* p, OutputArchive& arch );
-		static ModelPtr StaticUnserialise( InputArchive& arch );
+		static TSharedPtr<Model> StaticUnserialise( InputArchive& arch );
 
 		//! Special serialise operation that serialises the data in separate "files". An object
         //! with the ModelStreamer interface is responsible of storing this data and providing
@@ -80,7 +79,7 @@ namespace mu
 		//! Create a set of new parameters of the model with the default values.
 		//! If old parameters are provided, they will be reused when possible instead of the
 		//! default values.
-        ParametersPtr NewParameters( const Parameters* pOld = nullptr ) const;
+        static ParametersPtr NewParameters( TSharedPtr<const Model> Model, const Parameters* pOld = nullptr );
 
 		//! Get the number of states in the model.
 		int GetStateCount() const;
@@ -113,11 +112,6 @@ namespace mu
 
 		Private* GetPrivate() const;
 
-	protected:
-
-		//! Forbidden. Manage with the Ptr<> template.
-        ~Model() override;
-
 	private:
 
 		Private* m_pD;
@@ -138,7 +132,7 @@ namespace mu
     public:
 
         //!
-        ModelParametersGenerator( const Model* pModel, System* pSystem );
+        ModelParametersGenerator( TSharedPtr<const Model>, System* );
 
         //! Return the number of different possible instances that can be built from the model.
         int64 GetInstanceCount();

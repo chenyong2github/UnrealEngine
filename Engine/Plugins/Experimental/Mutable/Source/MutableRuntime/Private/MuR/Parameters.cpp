@@ -52,13 +52,6 @@ namespace mu
 	}
 
 
-	//---------------------------------------------------------------------------------------------
-	void Parameters::SetUnserialisedModel( Model* pModel )
-	{
-		m_pD->m_pModel = pModel;
-	}
-
-
     //---------------------------------------------------------------------------------------------
     void Parameters::SerialisePortable( const Parameters* params, OutputArchive& arch )
     {
@@ -80,11 +73,11 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    ParametersPtr Parameters::UnserialisePortable( InputArchive& arch, const Model* pModel )
+    ParametersPtr Parameters::UnserialisePortable( InputArchive& arch, TSharedPtr<const Model> pModel )
     {
 		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
 
-        ParametersPtr pResult = pModel->NewParameters();
+        ParametersPtr pResult = Model::NewParameters(pModel);
         size_t modelParameters = pModel->GetPrivate()->m_program.m_parameters.Num();
 
         int32_t ver;
@@ -1174,11 +1167,11 @@ namespace mu
     {
         check( index >= 0 && index < GetRangeCount() );
         check( index < int(m_pD->m_pParameters->GetPrivate()->m_values.Num()) );
-        ModelPtrConst m_pModel = m_pD->m_pParameters->GetPrivate()->m_pModel;
-        check( m_pModel );
-        check( index < int(m_pModel->GetPrivate()->m_program.m_ranges.Num()) );
+        TSharedPtr<const Model> pModel = m_pD->m_pParameters->GetPrivate()->m_pModel;
+        check(pModel);
+        check( index < int(pModel->GetPrivate()->m_program.m_ranges.Num()) );
 
-        return m_pModel->GetPrivate()->m_program.m_ranges[index].m_name.c_str();
+        return pModel->GetPrivate()->m_program.m_ranges[index].m_name.c_str();
     }
 
 
@@ -1187,11 +1180,11 @@ namespace mu
     {
         check( index >= 0 && index < GetRangeCount() );
         check( index < int(m_pD->m_pParameters->GetPrivate()->m_values.Num()) );
-        ModelPtrConst m_pModel = m_pD->m_pParameters->GetPrivate()->m_pModel;
-        check( m_pModel );
-        check( index < int(m_pModel->GetPrivate()->m_program.m_ranges.Num()) );
+		TSharedPtr<const Model> pModel = m_pD->m_pParameters->GetPrivate()->m_pModel;
+		check(pModel);
+        check( index < int(pModel->GetPrivate()->m_program.m_ranges.Num()) );
 
-        return m_pModel->GetPrivate()->m_program.m_ranges[index].m_uid.c_str();
+        return pModel->GetPrivate()->m_program.m_ranges[index].m_uid.c_str();
     }
 
 

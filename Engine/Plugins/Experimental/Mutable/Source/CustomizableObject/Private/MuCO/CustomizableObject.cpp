@@ -358,7 +358,7 @@ void UCustomizableObject::ClearCompiledData()
 
 void UCustomizableObject::UpdateCompiledDataFromModel()
 {
-	mu::ModelPtr Model = PrivateData->GetModel();
+	TSharedPtr<mu::Model, ESPMode::ThreadSafe> Model = PrivateData->GetModel();
 
 	// Generate a map that using the resource id tells the offset and size of the resource inside the bulk data
 	if(Model)
@@ -555,9 +555,9 @@ void UCustomizableObject::LoadCompiledData(FArchive& MemoryReader, bool bSkipEdi
 		{
 			UnrealMutableInputStream stream(MemoryReader);
 			mu::InputArchive arch(&stream);
-			mu::ModelPtr Model = mu::Model::StaticUnserialise( arch );
+			TSharedPtr<mu::Model, ESPMode::ThreadSafe> Model = mu::Model::StaticUnserialise( arch );
 
-			PrivateData->SetModel(Model.get());
+			PrivateData->SetModel(Model);
 		}
 	}
 
@@ -869,7 +869,7 @@ void UCustomizableObject::SaveEmbeddedData(FArchive& Ar)
 
 			UnrealMutableOutputStream stream(Ar);
 			mu::OutputArchive arch(&stream);
-			mu::Model::Serialise(PrivateData->GetModel(), arch);
+			mu::Model::Serialise(PrivateData->GetModel().Get(), arch);
 		}
 
 		UE_LOG(LogMutable, Log, TEXT("Saved embedded data for Customizable Object [%s] now at position %d."), *GetName(), int(Ar.Tell()));
@@ -911,8 +911,8 @@ void UCustomizableObject::LoadEmbeddedData(FArchive& Ar)
 		// Load model
 		UnrealMutableInputStream stream(Ar);
 		mu::InputArchive arch(&stream);
-		mu::ModelPtr Model = mu::Model::StaticUnserialise( arch );
-		PrivateData->SetModel( Model.get() );
+		TSharedPtr<mu::Model, ESPMode::ThreadSafe> Model = mu::Model::StaticUnserialise( arch );
+		PrivateData->SetModel( Model );
 
 		// Create parameter properties
 		UpdateParameterPropertiesFromModel();
@@ -1089,13 +1089,13 @@ UCustomizableObjectInstance* UCustomizableObject::CreateInstance()
 }
 
 
-mu::Model* UCustomizableObject::GetModel() const
+TSharedPtr<mu::Model, ESPMode::ThreadSafe> UCustomizableObject::GetModel() const
 {
 	return PrivateData->GetModel();
 }
 
 #if WITH_EDITOR
-void UCustomizableObject::SetModel(mu::Model* Model)
+void UCustomizableObject::SetModel(TSharedPtr<mu::Model, ESPMode::ThreadSafe> Model)
 {
 	PrivateData->SetModel(Model);
 	
@@ -1179,7 +1179,7 @@ void UCustomizableObject::UpdateParameterPropertiesFromModel()
 {
 	if (PrivateData->GetModel())
 	{
-		mu::ParametersPtr MutableParameters = PrivateData->GetModel()->NewParameters();
+		mu::ParametersPtr MutableParameters = mu::Model::NewParameters(PrivateData->GetModel());
 		int paramCount = MutableParameters->GetCount();
 
 		ParameterProperties.Reset(paramCount);
@@ -1583,21 +1583,21 @@ FGuid UCustomizableObject::GetCompilationGuid() const
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 
-void FCustomizableObjectPrivateData::SetModel(mu::Model* Model)
+void FCustomizableObjectPrivateData::SetModel(const TSharedPtr<mu::Model, ESPMode::ThreadSafe>& Model)
 {
 	MutableModel = Model;
 }
 
 
-mu::Model* FCustomizableObjectPrivateData::GetModel()
+const TSharedPtr<mu::Model, ESPMode::ThreadSafe>& FCustomizableObjectPrivateData::GetModel()
 {
-	return MutableModel.get();
+	return MutableModel;
 }
 
 
-const mu::Model* FCustomizableObjectPrivateData::GetModel() const
+TSharedPtr<const mu::Model, ESPMode::ThreadSafe> FCustomizableObjectPrivateData::GetModel() const
 {
-	return MutableModel.get();
+	return MutableModel;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1689,7 +1689,7 @@ void UCustomizableObjectBulk::PrepareBulkData(UCustomizableObject* InOuter, cons
 	BulkDataFileNames.Empty();
 	
 	// Split the Streamable data into several separate files and fix up FileIndex and Offset of each StreamableBlock
-	if(mu::ModelPtr Model = CustomizableObject->GetModel())
+	if(TSharedPtr<const mu::Model, ESPMode::ThreadSafe> Model = CustomizableObject->GetModel())
 	{
 		const uint64 MaxChunkSize = UCustomizableObjectSystem::GetInstance()->GetMaxChunkSizeForPlatform(TargetPlatform);
 

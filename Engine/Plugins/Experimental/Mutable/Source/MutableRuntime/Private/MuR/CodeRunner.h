@@ -42,7 +42,7 @@ namespace  mu
     {
     public:
 		CodeRunner(const SettingsPtrConst&, class System::Private*, 
-			const Model* pModel, const Parameters* pParams,
+			const TSharedPtr<const Model>&, const Parameters* pParams,
 			OP::ADDRESS at, uint32 lodMask, uint8 executionOptions, FScheduledOp::EType );
 
     protected:
@@ -146,7 +146,7 @@ namespace  mu
 #endif
 
 			virtual ~FIssuedTask() {}
-			virtual bool Prepare(CodeRunner*, const Model*, bool& bOutFailed) { bOutFailed = false; return true; }
+			virtual bool Prepare(CodeRunner*, const TSharedPtr<const Model>&, bool& bOutFailed) { bOutFailed = false; return true; }
 			virtual void DoWork() {}
 			virtual void Complete(CodeRunner*) = 0;
 			virtual bool IsComplete(CodeRunner*)
@@ -170,7 +170,7 @@ namespace  mu
 			}
 
 			// FIssuedTask interface
-			bool Prepare(CodeRunner*, const Model*, bool& bOutFailed) override;
+			bool Prepare(CodeRunner*, const TSharedPtr<const Model>&, bool& bOutFailed) override;
 			void Complete(CodeRunner*) override;
 			bool IsComplete(CodeRunner*) override;
 
@@ -189,7 +189,7 @@ namespace  mu
 			}
 
 			// FIssuedTask interface
-			bool Prepare(CodeRunner*, const Model*, bool& bOutFailed) override;
+			bool Prepare(CodeRunner*, const TSharedPtr<const Model>&, bool& bOutFailed) override;
 			void Complete(CodeRunner*) override;
 			bool IsComplete(CodeRunner*) override;
 
@@ -302,7 +302,7 @@ namespace  mu
 		bool bUnrecoverableError = false;
 
 		System::Private* m_pSystem = nullptr;
-		const Model* m_pModel = nullptr;
+		TSharedPtr<const Model> m_pModel = nullptr;
 		const Parameters* m_pParams = nullptr;
 		uint32 m_lodMask = 0;
 

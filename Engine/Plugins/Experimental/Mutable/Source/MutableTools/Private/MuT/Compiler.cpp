@@ -178,7 +178,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    ModelPtr Compiler::Compile( const Ptr<Node>& pNode )
+	TSharedPtr<Model> Compiler::Compile( const Ptr<Node>& pNode )
     {
         MUTABLE_CPUPROFILER_SCOPE(Compile);
 
@@ -221,7 +221,7 @@ namespace mu
 
 
         // Link the program and generate state data.
-        ModelPtr pResult = new Model();
+		TSharedPtr<Model> pResult = MakeShared<Model>();
         auto& program = pResult->GetPrivate()->m_program;
         for( auto& s: states )
         {
@@ -343,7 +343,7 @@ namespace mu
 
 		// Pack data
 		int32 MinimumBytesPerRom = 1024; // \TODO: compilation parameter
-		m_pD->GenerateRoms(pResult.get(),MinimumBytesPerRom);
+		m_pD->GenerateRoms(pResult.Get(),MinimumBytesPerRom);
 
 		UE_LOG(LogMutableCore, Verbose, TEXT("(int) %s : %ld"), TEXT("program size"), int64(program.m_opAddress.Num()));
 

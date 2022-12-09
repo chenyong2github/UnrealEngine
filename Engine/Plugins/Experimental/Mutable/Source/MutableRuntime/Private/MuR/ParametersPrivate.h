@@ -463,7 +463,7 @@ namespace mu
         //! Warning: update Parameters::Clone method if this members change.
 
         //! Run-time data
-        ModelPtrConst m_pModel;
+        TSharedPtr<const Model> m_pModel;
 
         //! Values for the parameters if they are not multidimensional.
 		TArray<PARAMETER_VALUE> m_values;

@@ -56,7 +56,7 @@ public:
 		ParameterIndex = -1;
 	}
 
-	mu::ModelPtrConst Model;
+	TSharedPtr<mu::Model, ESPMode::ThreadSafe> Model;
 	int StateIndex;
 	int ParameterIndex;
 
@@ -70,7 +70,7 @@ public:
 		}
 		else
 		{
-			mu::ParametersPtr TempParams = Model->NewParameters();
+			mu::ParametersPtr TempParams = mu::Model::NewParameters(Model);
 			res = TempParams->GetName( ParameterIndex );
 		}
 

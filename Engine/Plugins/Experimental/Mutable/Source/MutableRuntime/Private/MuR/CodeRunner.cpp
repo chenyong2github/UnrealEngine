@@ -79,7 +79,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     CodeRunner::CodeRunner(const SettingsPtrConst& pSettings,
 		class System::Private* s,
-		const Model* pModel,
+		const TSharedPtr<const Model>& pModel,
 		const Parameters* pParams,
 		OP::ADDRESS at,
 		uint32 lodMask, uint8 executionOptions, FScheduledOp::EType Type )
@@ -3233,10 +3233,9 @@ namespace mu
 
                     if (pMin && pMax)
                     {
-                        ImagePtr pNew = new Image( pMin->GetSizeX(),
-                                             pMin->GetSizeY(),
-                                             pMin->GetLODCount(),
-                                             pMin->GetFormat() );
+						int32 LevelCount = FMath::Max(pMin->GetLODCount(), pMax->GetLODCount());
+						
+						ImagePtr pNew = new Image( pMin->GetSizeX(), pMin->GetSizeY(), LevelCount, pMin->GetFormat() );
 
 						// Be defensive: ensure image sizes match.
 						if (pMin->GetSize() != pMax->GetSize())
@@ -3245,18 +3244,33 @@ namespace mu
 							pMax = ImageResizeLinear(0, pMax.get(), pMin->GetSize());
 						}
 
-						if (pMax->GetLODCount() != pMin->GetLODCount())
+						if (pMin->GetLODCount() != LevelCount)
 						{
 							MUTABLE_CPUPROFILER_SCOPE(Mipmap_ForInterpolate);
 
-							int32 levelCount = pMin->GetLODCount();
-							ImagePtr pDest = new Image(pMax->GetSizeX(), pMax->GetSizeY(), levelCount, pMax->GetFormat());
+							ImagePtr pDest = new Image(pMin->GetSizeX(), pMin->GetSizeY(), LevelCount, pMin->GetFormat());
 
 							SCRATCH_IMAGE_MIPMAP scratch;
 							FMipmapGenerationSettings settings{};
 
-							ImageMipmap_PrepareScratch(pDest.get(), pMax.get(), levelCount, &scratch);
-							ImageMipmap(m_pSettings->GetPrivate()->m_imageCompressionQuality, pDest.get(), pMax.get(), levelCount,
+							ImageMipmap_PrepareScratch(pDest.get(), pMin.get(), LevelCount, &scratch);
+							ImageMipmap(m_pSettings->GetPrivate()->m_imageCompressionQuality, pDest.get(), pMin.get(), LevelCount,
+								&scratch, settings);
+
+							pMin = pDest;
+						}
+
+						if (pMax->GetLODCount() != LevelCount)
+						{
+							MUTABLE_CPUPROFILER_SCOPE(Mipmap_ForInterpolate);
+
+							ImagePtr pDest = new Image(pMax->GetSizeX(), pMax->GetSizeY(), LevelCount, pMax->GetFormat());
+
+							SCRATCH_IMAGE_MIPMAP scratch;
+							FMipmapGenerationSettings settings{};
+
+							ImageMipmap_PrepareScratch(pDest.get(), pMax.get(), LevelCount, &scratch);
+							ImageMipmap(m_pSettings->GetPrivate()->m_imageCompressionQuality, pDest.get(), pMax.get(), LevelCount,
 								&scratch, settings);
 
 							pMax = pDest;

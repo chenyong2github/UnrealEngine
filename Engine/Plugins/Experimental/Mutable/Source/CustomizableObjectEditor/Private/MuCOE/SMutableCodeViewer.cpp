@@ -431,10 +431,10 @@ FString SMutableCodeViewer::GetReferencerName() const
 }
 
 
-void SMutableCodeViewer::SetCurrentModel(const mu::ModelPtr& InMutableModel)
+void SMutableCodeViewer::SetCurrentModel(const TSharedPtr<mu::Model, ESPMode::ThreadSafe>& InMutableModel)
 {
 	MutableModel = InMutableModel;
-	PreviewParameters = MutableModel->NewParameters();
+	PreviewParameters = mu::Model::NewParameters(MutableModel);
 
 	RootNodes.Empty();
 	RootNodeAddresses.Empty();
@@ -471,7 +471,7 @@ void SMutableCodeViewer::SetCurrentModel(const mu::ModelPtr& InMutableModel)
 }
 
 
-void SMutableCodeViewer::Construct(const FArguments& InArgs, const mu::ModelPtr& InMutableModel/*, const TSharedPtr<SDockTab>& ConstructUnderMajorTab*/)
+void SMutableCodeViewer::Construct(const FArguments& InArgs, const TSharedPtr<mu::Model, ESPMode::ThreadSafe>& InMutableModel/*, const TSharedPtr<SDockTab>& ConstructUnderMajorTab*/)
 {
 	// Min width allowed for the column. Needed to avoid having issues with the constants space being to small
 	// and then getting too tall on the y axis crashing the UI drawer.
@@ -519,7 +519,7 @@ void SMutableCodeViewer::Construct(const FArguments& InArgs, const mu::ModelPtr&
 						mu::OutputFileStream Stream(TCHAR_TO_ANSI(*SaveFileName));
 						Stream.Write(MUTABLE_COMPILED_MODEL_FILETAG, 4);
 						mu::OutputArchive Archive(&Stream);
-						mu::Model::Serialise(InMutableModel.get(), Archive);
+						mu::Model::Serialise(InMutableModel.Get(), Archive);
 						const uint32_t CodeVersion = MUTABLE_COMPILED_MODEL_CODE_VERSION;
 						Stream.Write((const uint8*)&CodeVersion, sizeof(uint32_t));
 						Stream.Flush();
@@ -2559,20 +2559,16 @@ FReply SMutableCodeViewer::OnDrop(const FGeometry& MyGeometry, const FDragDropEv
 					if (!FMemory::Memcmp(MutableSourceTag, MUTABLE_COMPILED_MODEL_FILETAG, 4))
 					{
 						mu::InputArchive arch(&stream);
-						mu::ModelPtr Model = mu::Model::StaticUnserialise(arch);
+						TSharedPtr<mu::Model, ESPMode::ThreadSafe> Model = mu::Model::StaticUnserialise(arch);
 						SetCurrentModel(Model);
 
 						TreeView->RequestTreeRefresh();
 
 						return FReply::Handled();
 					}
-
-					return FReply::Unhandled();
 				}
 			}
 		}
-
-		return FReply::Unhandled();
 	}
 
 	return FReply::Unhandled();

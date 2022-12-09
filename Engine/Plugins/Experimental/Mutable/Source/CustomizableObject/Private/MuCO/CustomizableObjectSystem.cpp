@@ -1098,7 +1098,7 @@ void FCustomizableObjectSystemPrivate::UpdateStreamingLimit()
 namespace impl
 {
 
-	void Subtask_Mutable_UpdateParameterDecorations(const TSharedPtr<FMutableOperationData>& OperationData, const mu::ModelPtr& MutableModel, const mu::Parameters* MutableParameters)
+	void Subtask_Mutable_UpdateParameterDecorations(const TSharedPtr<FMutableOperationData>& OperationData, const TSharedPtr<mu::Model, ESPMode::ThreadSafe>& MutableModel, const mu::Parameters* MutableParameters)
 	{
 		MUTABLE_CPUPROFILER_SCOPE(UCustomizableInstancePrivateData::UpdateParameterDecorations)
 
@@ -1124,7 +1124,7 @@ namespace impl
 					for (int32 i = 0; i < MutableParameters->GetAdditionalImageCount(p); ++i)
 					{
 						mu::ImagePtrConst Image = MutableSystem->BuildParameterAdditionalImage(
-							MutableModel.get(),
+							MutableModel,
 							MutableParameters,
 							p, i);
 
@@ -1141,7 +1141,7 @@ namespace impl
 
 			TArray<bool> relevant;
 			relevant.SetNumZeroed(NumParameter);
-			MutableSystem->GetParameterRelevancy(MutableModel.get(), MutableParameters, relevant.GetData());
+			MutableSystem->GetParameterRelevancy(MutableModel, MutableParameters, relevant.GetData());
 
 			for (int32 p = 0; p < NumParameter; ++p)
 			{
@@ -1155,7 +1155,7 @@ namespace impl
 	}
 
 
-	void Subtask_Mutable_BeginUpdate_GetMesh(const TSharedPtr<FMutableOperationData>& OperationData, mu::ModelPtr Model, const mu::Parameters* MutableParameters, int32 State)
+	void Subtask_Mutable_BeginUpdate_GetMesh(const TSharedPtr<FMutableOperationData>& OperationData, TSharedPtr<mu::Model, ESPMode::ThreadSafe> Model, const mu::Parameters* MutableParameters, int32 State)
 	{
 		MUTABLE_CPUPROFILER_SCOPE(Subtask_Mutable_BeginUpdate);
 
@@ -1167,7 +1167,7 @@ namespace impl
 		mu::System* System = UCustomizableObjectSystem::GetInstance()->GetPrivate()->MutableSystem.get();
 
 		// For now, we are forcing the recreation of mutable-side instances with every update.
-		OperationData->InstanceID = System->NewInstance(Model.get());
+		OperationData->InstanceID = System->NewInstance(Model);
 		UE_LOG(LogMutable, Log, TEXT("Creating instance with id [%d] "), OperationData->InstanceID)
 
 		const mu::Instance* Instance = nullptr;
@@ -1310,7 +1310,7 @@ namespace impl
 	}
 
 	
-	void Subtask_Mutable_GetImages(const TSharedPtr<FMutableOperationData>& OperationData, mu::ModelPtr Model, const mu::Parameters* MutableParameters, int32 State)
+	void Subtask_Mutable_GetImages(const TSharedPtr<FMutableOperationData>& OperationData, TSharedPtr<mu::Model, ESPMode::ThreadSafe> Model, const mu::Parameters* MutableParameters, int32 State)
 	{
 		MUTABLE_CPUPROFILER_SCOPE(Subtask_Mutable_GetImages);
 
@@ -1694,7 +1694,7 @@ namespace impl
 	}
 
 
-	void Task_Mutable_Update_GetMesh(TSharedPtr<FMutableOperationData> OperationData, mu::ModelPtr Model, mu::ParametersPtrConst Parameters, bool bBuildParameterDecorations, int32 State)
+	void Task_Mutable_Update_GetMesh(TSharedPtr<FMutableOperationData> OperationData, TSharedPtr<mu::Model, ESPMode::ThreadSafe> Model, mu::ParametersPtrConst Parameters, bool bBuildParameterDecorations, int32 State)
 	{
 		// This runs in a worker thread.
 		MUTABLE_CPUPROFILER_SCOPE(Task_Mutable_GetMesh)
@@ -1729,7 +1729,7 @@ namespace impl
 	}
 
 
-	void Task_Mutable_Update_GetImages(TSharedPtr<FMutableOperationData> OperationData, mu::ModelPtr Model, mu::ParametersPtrConst Parameters, int32 State)
+	void Task_Mutable_Update_GetImages(TSharedPtr<FMutableOperationData> OperationData, TSharedPtr<mu::Model, ESPMode::ThreadSafe> Model, mu::ParametersPtrConst Parameters, int32 State)
 	{
 		// This runs in a worker thread.
 		MUTABLE_CPUPROFILER_SCOPE(Task_Mutable_GetImages)
@@ -2051,7 +2051,7 @@ namespace impl
 		FGraphEventRef Mutable_GetImagesTask;
 		{
 			// Task inputs
-			mu::ModelPtr Model = CustomizableObject->GetPrivate()->GetModel();
+			TSharedPtr<mu::Model, ESPMode::ThreadSafe> Model = CustomizableObject->GetPrivate()->GetModel();
 			int32 State = CustomizableObjectInstancePtr->GetState();
 
 			Mutable_GetImagesTask = System->GetPrivate()->AddMutableThreadTask(
@@ -2188,7 +2188,7 @@ namespace impl
 			TWeakObjectPtr<UCustomizableObjectInstance> CustomizableObjectInstancePtr = CandidateInstance;
 			TSharedPtr<FMutableOperation> CurrentMutableOperation = System->GetPrivate()->CurrentMutableOperation;
 			bool bBuildParameterDecorations = CurrentMutableOperation->IsBuildParameterDecorations();
-			mu::ModelPtr Model = CustomizableObject->GetPrivate()->GetModel();
+			TSharedPtr<mu::Model, ESPMode::ThreadSafe> Model = CustomizableObject->GetPrivate()->GetModel();
 			int32 State = CustomizableObjectInstancePtr->GetState();
 
 			Mutable_GetMeshTask = System->GetPrivate()->AddMutableThreadTask(

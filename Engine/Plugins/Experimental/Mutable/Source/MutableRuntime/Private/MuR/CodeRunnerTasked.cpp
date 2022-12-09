@@ -156,7 +156,7 @@ namespace mu
 				// Special processing in case it is an ImageDesc operation
 				if ( item.Type==FScheduledOp::EType::ImageDesc )
 				{
-					RunCodeImageDesc(item, m_pParams, m_pModel, m_lodMask);
+					RunCodeImageDesc(item, m_pParams, m_pModel.Get(), m_lodMask);
 					continue;
 				}
 
@@ -210,7 +210,7 @@ namespace mu
 				else
 				{
 					// Run immediately
-					RunCode(item, m_pParams, m_pModel, m_lodMask);
+					RunCode(item, m_pParams, m_pModel.Get(), m_lodMask);
 
 					if (ScheduledStagePerOp[item] == item.Stage + 1)
 					{
@@ -435,7 +435,6 @@ namespace mu
 
 		bool bApplyColorBlendToAlpha = (Args.flags & OP::ImageLayerArgs::F_APPLY_TO_ALPHA) != 0;
 
-		// Investigate why this causes problems sometimes 
 		//ImagePtr pNew = mu::CloneOrTakeOver<Image>(m_base.get());
 		ImagePtr pNew = m_base->Clone();
 		check(pNew->GetDataSize() == m_base->GetDataSize());
@@ -1192,7 +1191,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	//---------------------------------------------------------------------------------------------
 	//---------------------------------------------------------------------------------------------
-	bool CodeRunner::FLoadMeshRomTask::Prepare(CodeRunner* runner, const Model* InModel, bool& bOutFailed )
+	bool CodeRunner::FLoadMeshRomTask::Prepare(CodeRunner* runner, const TSharedPtr<const Model>& InModel, bool& bOutFailed )
 	{
 		MUTABLE_CPUPROFILER_SCOPE(FLoadMeshRomTask_Prepare);
 
@@ -1214,7 +1213,7 @@ namespace mu
 				runner->m_pSystem->m_modelCache.UpdateForLoad(RomIndex, InModel,
 					[&](const Model* pModel, int romInd)
 					{
-						return (pModel == InModel)
+						return (pModel == InModel.Get())
 							&&
 							runner->m_romPendingOps[romInd] > 0;
 					});
@@ -1249,7 +1248,7 @@ namespace mu
 			}
 
 			uint32 RomId = program.m_roms[RomIndex].Id;
-			op->m_streamID = runner->m_pSystem->m_pStreamInterface->BeginReadBlock(InModel, RomId, op->m_streamBuffer.GetData(), RomSize);
+			op->m_streamID = runner->m_pSystem->m_pStreamInterface->BeginReadBlock(InModel.Get(), RomId, op->m_streamBuffer.GetData(), RomSize);
 			if (op->m_streamID < 0)
 			{
 				bOutFailed = true;
@@ -1273,7 +1272,7 @@ namespace mu
 		// This runs in the runner thread
 
 		// Process the constant op normally, now that the rom is loaded.
-		runner->RunCode(Op, runner->m_pParams, runner->m_pModel, runner->m_lodMask);
+		runner->RunCode(Op, runner->m_pParams, runner->m_pModel.Get(), runner->m_lodMask);
 
 		runner->m_pSystem->m_modelCache.MarkRomUsed(RomIndex, runner->m_pModel);
 		--runner->m_romPendingOps[RomIndex];
@@ -1291,7 +1290,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	//---------------------------------------------------------------------------------------------
 	//---------------------------------------------------------------------------------------------
-	bool CodeRunner::FLoadImageRomsTask::Prepare(CodeRunner* runner, const Model* InModel, bool& bOutFailed )
+	bool CodeRunner::FLoadImageRomsTask::Prepare(CodeRunner* runner, const TSharedPtr<const Model>& InModel, bool& bOutFailed )
 	{
 		MUTABLE_CPUPROFILER_SCOPE(FLoadImageRomsTask_Prepare);
 
@@ -1334,7 +1333,7 @@ namespace mu
 				runner->m_pSystem->m_modelCache.UpdateForLoad(RomIndex, InModel,
 					[&](const Model* pModel, int romInd)
 					{
-						return (pModel == InModel)
+						return (pModel == InModel.Get())
 							&&
 							runner->m_romPendingOps[romInd] > 0;
 					});
@@ -1369,7 +1368,7 @@ namespace mu
 			}
 
 			uint32 RomId = program.m_roms[RomIndex].Id;
-			op->m_streamID = runner->m_pSystem->m_pStreamInterface->BeginReadBlock(InModel, RomId, op->m_streamBuffer.GetData(), RomSize);
+			op->m_streamID = runner->m_pSystem->m_pStreamInterface->BeginReadBlock(InModel.Get(), RomId, op->m_streamBuffer.GetData(), RomSize);
 			if (op->m_streamID < 0)
 			{
 				bOutFailed = true;
@@ -1392,7 +1391,7 @@ namespace mu
 		// This runs in the runner thread
 
 		// Process the constant op normally, now that the rom is loaded.
-		runner->RunCode(Op, runner->m_pParams, runner->m_pModel, runner->m_lodMask);
+		runner->RunCode(Op, runner->m_pParams, runner->m_pModel.Get(), runner->m_lodMask);
 
 		FProgram& program = runner->m_pModel->GetPrivate()->m_program;
 		for (int32 i = 0; i < LODIndexCount; ++i)

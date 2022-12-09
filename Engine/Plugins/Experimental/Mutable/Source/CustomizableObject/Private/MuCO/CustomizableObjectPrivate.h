@@ -11,13 +11,13 @@ class FCustomizableObjectPrivateData
 {
 private:
 
-	mu::ModelPtr MutableModel;
+	TSharedPtr<mu::Model, ESPMode::ThreadSafe> MutableModel;
 
 public:
 
-	void SetModel(mu::Model* Model);
-	mu::Model* GetModel();
-	const mu::Model* GetModel() const;
+	void SetModel(const TSharedPtr<mu::Model, ESPMode::ThreadSafe>& Model);
+	const TSharedPtr<mu::Model, ESPMode::ThreadSafe>& GetModel();
+	TSharedPtr<const mu::Model, ESPMode::ThreadSafe> GetModel() const;
 
 	// See UCustomizableObjectSystem::LockObject. Must only be modified from the game thread
 	bool bLocked = false;

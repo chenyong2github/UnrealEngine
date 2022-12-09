@@ -461,7 +461,7 @@ class Parameters;
         DiscreteCoveredCodeVisitorBase
             (
                 System::Private* pSystem,
-                const ModelPtrConst& pModel,
+                const TSharedPtr<const Model>& pModel,
                 const ParametersPtrConst& pParams,
                 unsigned lodMask,
                 bool skipResources=false
@@ -654,7 +654,7 @@ class Parameters;
 
     protected:
         System::Private* m_pSystem = nullptr;
-        ModelPtrConst m_pModel;
+		TSharedPtr<const Model> m_pModel;
         const Parameters* m_pParams = nullptr;
         unsigned m_lodMask = 0;
     };
@@ -687,7 +687,7 @@ class Parameters;
         UniqueDiscreteCoveredCodeVisitor
             (
                 System::Private* pSystem,
-                const ModelPtrConst& pModel,
+				const TSharedPtr<const Model>& pModel,
                 const ParametersPtrConst& pParams,
                 unsigned lodMask
             )
