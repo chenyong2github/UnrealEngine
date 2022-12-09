@@ -113,7 +113,7 @@ public:
 		FString& UniqueAssetPathAndName,
 		FString& UniqueAssetName,
 		FGeometryScriptUniqueAssetNameOptions Options,
-		TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+		EGeometryScriptOutcomePins& Outcome,
 		UGeometryScriptDebug* Debug = nullptr);
 
 
@@ -125,7 +125,7 @@ public:
 		FTransform ActorTransform,
 		FString BaseActorName,
 		FGeometryScriptCreateNewVolumeFromMeshOptions Options,
-		TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+		EGeometryScriptOutcomePins& Outcome,
 		UGeometryScriptDebug* Debug = nullptr);
 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|AssetManagement", meta = (ExpandEnumAsExecs = "Outcome"))
@@ -134,7 +134,7 @@ public:
 		UDynamicMesh* FromDynamicMesh, 
 		FString AssetPathAndName,
 		FGeometryScriptCreateNewStaticMeshAssetOptions Options,
-		TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+		EGeometryScriptOutcomePins& Outcome,
 		UGeometryScriptDebug* Debug = nullptr);
 	
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|AssetManagement", meta = (ExpandEnumAsExecs = "Outcome"))
@@ -144,7 +144,7 @@ public:
 		USkeleton* InSkeleton,
 		FString AssetPathAndName,
 		FGeometryScriptCreateNewSkeletalMeshAssetOptions Options,
-		TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+		EGeometryScriptOutcomePins& Outcome,
 		UGeometryScriptDebug* Debug = nullptr);
 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|AssetManagement", meta = (ExpandEnumAsExecs = "Outcome"))
@@ -153,7 +153,7 @@ public:
 		UTexture2D* FromTexture, 
 		FString AssetPathAndName,
 		FGeometryScriptCreateNewTexture2DAssetOptions Options,
-		TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+		EGeometryScriptOutcomePins& Outcome,
 		UGeometryScriptDebug* Debug = nullptr);
 
 };

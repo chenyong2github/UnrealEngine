@@ -115,7 +115,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSpatial::FindNearestPointOnMesh(
 	FVector QueryPoint,
 	FGeometryScriptSpatialQueryOptions Options,
 	FGeometryScriptTrianglePoint& NearestResult,
-	TEnumAsByte<EGeometryScriptSearchOutcomePins>& Outcome,
+	EGeometryScriptSearchOutcomePins& Outcome,
 	UGeometryScriptDebug* Debug)
 {
 	Outcome = EGeometryScriptSearchOutcomePins::NotFound;
@@ -172,7 +172,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSpatial::FindNearestRayIntersectionWith
 	FVector RayDirection,
 	FGeometryScriptSpatialQueryOptions Options,
 	FGeometryScriptRayHitResult& HitResult,
-	TEnumAsByte<EGeometryScriptSearchOutcomePins>& Outcome,
+	EGeometryScriptSearchOutcomePins& Outcome,
 	UGeometryScriptDebug* Debug)
 {
 	Outcome = EGeometryScriptSearchOutcomePins::NotFound;
@@ -232,7 +232,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSpatial::IsPointInsideMesh(
 	FVector QueryPoint,
 	FGeometryScriptSpatialQueryOptions Options,
 	bool& bIsInside,
-	TEnumAsByte<EGeometryScriptContainmentOutcomePins>& Outcome,
+	EGeometryScriptContainmentOutcomePins& Outcome,
 	UGeometryScriptDebug* Debug)
 {
 	Outcome = EGeometryScriptContainmentOutcomePins::Outside;

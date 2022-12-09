@@ -112,7 +112,7 @@ public:
 		UDynamicMesh* ToDynamicMesh, 
 		FGeometryScriptCopyMeshFromAssetOptions AssetOptions,
 		FGeometryScriptMeshReadLOD RequestedLOD,
-		TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+		EGeometryScriptOutcomePins& Outcome,
 		UGeometryScriptDebug* Debug = nullptr);
 
 
@@ -123,7 +123,7 @@ public:
 		UStaticMesh* ToStaticMeshAsset, 
 		FGeometryScriptCopyMeshToAssetOptions Options,
 		FGeometryScriptMeshWriteLOD TargetLOD,
-		TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+		EGeometryScriptOutcomePins& Outcome,
 		UGeometryScriptDebug* Debug = nullptr);
 
 
@@ -135,7 +135,7 @@ public:
 		FGeometryScriptMeshReadLOD RequestedLOD,
 		TArray<UMaterialInterface*>& MaterialList,
 		TArray<int32>& MaterialIndex,
-		TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+		EGeometryScriptOutcomePins& Outcome,
 		UGeometryScriptDebug* Debug = nullptr);
 
 
@@ -146,7 +146,7 @@ public:
 		UDynamicMesh* ToDynamicMesh,
 		FGeometryScriptCopyMeshFromAssetOptions AssetOptions,
 		FGeometryScriptMeshReadLOD RequestedLOD,
-		TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+		EGeometryScriptOutcomePins& Outcome,
 		UGeometryScriptDebug* Debug = nullptr);
 
 
@@ -157,7 +157,7 @@ public:
 		USkeletalMesh* ToSkeletalMeshAsset,
 		FGeometryScriptCopyMeshToAssetOptions Options,
 		FGeometryScriptMeshWriteLOD TargetLOD,
-		TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+		EGeometryScriptOutcomePins& Outcome,
 		UGeometryScriptDebug* Debug = nullptr);
 };
 

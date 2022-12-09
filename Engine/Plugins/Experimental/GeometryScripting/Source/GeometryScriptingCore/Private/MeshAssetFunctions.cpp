@@ -42,7 +42,7 @@ static UDynamicMesh* CopyMeshFromStaticMesh_SourceData(
 	UDynamicMesh* ToDynamicMesh, 
 	FGeometryScriptCopyMeshFromAssetOptions AssetOptions,
 	FGeometryScriptMeshReadLOD RequestedLOD,
-	TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+	EGeometryScriptOutcomePins& Outcome,
 	UGeometryScriptDebug* Debug
 )
 {
@@ -119,7 +119,7 @@ static UDynamicMesh* CopyMeshFromStaticMesh_RenderData(
 	UDynamicMesh* ToDynamicMesh, 
 	FGeometryScriptCopyMeshFromAssetOptions AssetOptions,
 	FGeometryScriptMeshReadLOD RequestedLOD,
-	TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+	EGeometryScriptOutcomePins& Outcome,
 	UGeometryScriptDebug* Debug
 )
 {
@@ -173,7 +173,7 @@ UDynamicMesh*  UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshFromStaticMes
 	UDynamicMesh* ToDynamicMesh, 
 	FGeometryScriptCopyMeshFromAssetOptions AssetOptions,
 	FGeometryScriptMeshReadLOD RequestedLOD,
-	TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+	EGeometryScriptOutcomePins& Outcome,
 	UGeometryScriptDebug* Debug)
 {
 	Outcome = EGeometryScriptOutcomePins::Failure;
@@ -214,7 +214,7 @@ UDynamicMesh*  UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshToStaticMesh(
 	UStaticMesh* ToStaticMeshAsset,
 	FGeometryScriptCopyMeshToAssetOptions Options,
 	FGeometryScriptMeshWriteLOD TargetLOD,
-	TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+	EGeometryScriptOutcomePins& Outcome,
 	UGeometryScriptDebug* Debug)
 {
 	Outcome = EGeometryScriptOutcomePins::Failure;
@@ -393,7 +393,7 @@ void UGeometryScriptLibrary_StaticMeshFunctions::GetSectionMaterialListFromStati
 	FGeometryScriptMeshReadLOD RequestedLOD,
 	TArray<UMaterialInterface*>& MaterialList,
 	TArray<int32>& MaterialIndex,
-	TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+	EGeometryScriptOutcomePins& Outcome,
 	UGeometryScriptDebug* Debug)
 {
 	Outcome = EGeometryScriptOutcomePins::Failure;
@@ -428,7 +428,7 @@ UDynamicMesh* UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshFromSkeletalMe
 		UDynamicMesh* ToDynamicMesh,
 		FGeometryScriptCopyMeshFromAssetOptions AssetOptions,
 		FGeometryScriptMeshReadLOD RequestedLOD,
-		TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+		EGeometryScriptOutcomePins& Outcome,
 		UGeometryScriptDebug* Debug)
 {
 	Outcome = EGeometryScriptOutcomePins::Failure;
@@ -494,7 +494,7 @@ UDynamicMesh* UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshToSkeletalMesh
 		USkeletalMesh* ToSkeletalMeshAsset,
 		FGeometryScriptCopyMeshToAssetOptions Options,
 		FGeometryScriptMeshWriteLOD TargetLOD,
-		TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+		EGeometryScriptOutcomePins& Outcome,
 		UGeometryScriptDebug* Debug)
 {
 	Outcome = EGeometryScriptOutcomePins::Failure;

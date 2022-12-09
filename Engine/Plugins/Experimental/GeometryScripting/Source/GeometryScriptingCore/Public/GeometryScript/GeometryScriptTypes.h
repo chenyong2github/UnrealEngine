@@ -13,21 +13,21 @@ PREDECLARE_GEOMETRY(typedef TMeshAABBTree3<FDynamicMesh3> FDynamicMeshAABBTree3)
 
 
 UENUM(BlueprintType)
-enum EGeometryScriptOutcomePins : int
+enum class EGeometryScriptOutcomePins : uint8
 {
 	Failure,
 	Success
 };
 
 UENUM(BlueprintType)
-enum EGeometryScriptSearchOutcomePins : int
+enum class EGeometryScriptSearchOutcomePins : uint8
 {
 	Found,
 	NotFound
 };
 
 UENUM(BlueprintType)
-enum EGeometryScriptContainmentOutcomePins : int
+enum class EGeometryScriptContainmentOutcomePins : uint8
 {
 	Inside, 
 	Outside

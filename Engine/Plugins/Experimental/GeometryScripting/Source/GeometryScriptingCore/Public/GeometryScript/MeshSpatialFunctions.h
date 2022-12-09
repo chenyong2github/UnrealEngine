@@ -91,7 +91,7 @@ public:
 		FVector QueryPoint,
 		FGeometryScriptSpatialQueryOptions Options,
 		FGeometryScriptTrianglePoint& NearestResult,
-		TEnumAsByte<EGeometryScriptSearchOutcomePins>& Outcome,
+		EGeometryScriptSearchOutcomePins& Outcome,
 		UGeometryScriptDebug* Debug = nullptr );
 
 
@@ -104,7 +104,7 @@ public:
 		FVector RayDirection,
 		FGeometryScriptSpatialQueryOptions Options,
 		FGeometryScriptRayHitResult& HitResult,
-		TEnumAsByte<EGeometryScriptSearchOutcomePins>& Outcome,
+		EGeometryScriptSearchOutcomePins& Outcome,
 		UGeometryScriptDebug* Debug = nullptr );
 
 
@@ -116,7 +116,7 @@ public:
 		FVector QueryPoint,
 		FGeometryScriptSpatialQueryOptions Options,
 		bool& bIsInside,
-		TEnumAsByte<EGeometryScriptContainmentOutcomePins>& Outcome,
+		EGeometryScriptContainmentOutcomePins& Outcome,
 		UGeometryScriptDebug* Debug = nullptr );
 
 };

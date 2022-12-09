@@ -46,7 +46,7 @@ void UGeometryScriptLibrary_CreateNewAssetFunctions::CreateUniqueNewAssetPathNam
 	FString& UniqueAssetPathAndName,
 	FString& UniqueAssetName,
 	FGeometryScriptUniqueAssetNameOptions Options,
-	TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+	EGeometryScriptOutcomePins& Outcome,
 	UGeometryScriptDebug* Debug)
 {
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
@@ -78,7 +78,7 @@ AVolume* UGeometryScriptLibrary_CreateNewAssetFunctions::CreateNewVolumeFromMesh
 	FTransform ActorTransform,
 	FString BaseActorName,
 	FGeometryScriptCreateNewVolumeFromMeshOptions Options,
-	TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+	EGeometryScriptOutcomePins& Outcome,
 	UGeometryScriptDebug* Debug)
 {
 	Outcome = EGeometryScriptOutcomePins::Failure;
@@ -148,7 +148,7 @@ UStaticMesh* UGeometryScriptLibrary_CreateNewAssetFunctions::CreateNewStaticMesh
 	UDynamicMesh* FromDynamicMesh, 
 	FString AssetPathAndName,
 	FGeometryScriptCreateNewStaticMeshAssetOptions Options,
-	TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+	EGeometryScriptOutcomePins& Outcome,
 	UGeometryScriptDebug* Debug)
 {
 	Outcome = EGeometryScriptOutcomePins::Failure;
@@ -218,7 +218,7 @@ USkeletalMesh* UGeometryScriptLibrary_CreateNewAssetFunctions::CreateNewSkeletal
 	USkeleton* InSkeleton,
 	FString AssetPathAndName, 
 	FGeometryScriptCreateNewSkeletalMeshAssetOptions Options,
-	TEnumAsByte<EGeometryScriptOutcomePins>& Outcome, 
+	EGeometryScriptOutcomePins& Outcome, 
 	UGeometryScriptDebug* Debug)
 {
 	using namespace UE::AssetUtils;
@@ -298,7 +298,7 @@ UTexture2D* UGeometryScriptLibrary_CreateNewAssetFunctions::CreateNewTexture2DAs
 		UTexture2D* FromTexture, 
 		FString AssetPathAndName,
 		FGeometryScriptCreateNewTexture2DAssetOptions Options,
-		TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+		EGeometryScriptOutcomePins& Outcome,
 		UGeometryScriptDebug* Debug)
 {
 	Outcome = EGeometryScriptOutcomePins::Failure;

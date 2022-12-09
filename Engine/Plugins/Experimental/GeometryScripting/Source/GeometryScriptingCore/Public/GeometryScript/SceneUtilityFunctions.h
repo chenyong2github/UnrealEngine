@@ -58,7 +58,7 @@ public:
 		FGeometryScriptCopyMeshFromComponentOptions Options,
 		bool bTransformToWorld,
 		FTransform& LocalToWorld,
-		TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+		EGeometryScriptOutcomePins& Outcome,
 		UGeometryScriptDebug* Debug = nullptr);
 
 
@@ -90,7 +90,7 @@ public:
 		UDynamicMesh* ToDynamicMesh,
 		bool bTransformToWorld,
 		FTransform& LocalToWorld,
-		TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+		EGeometryScriptOutcomePins& Outcome,
 		bool bUseComplexCollision = false,
 		int SphereResolution = 16,
 		UGeometryScriptDebug* Debug = nullptr);

@@ -37,7 +37,7 @@ UDynamicMesh* UGeometryScriptLibrary_SceneUtilityFunctions::CopyMeshFromComponen
 	FGeometryScriptCopyMeshFromComponentOptions Options,
 	bool bTransformToWorld,
 	FTransform& LocalToWorld,
-	TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+	EGeometryScriptOutcomePins& Outcome,
 	UGeometryScriptDebug* Debug)
 {
 	Outcome = EGeometryScriptOutcomePins::Failure;
@@ -177,7 +177,7 @@ UDynamicMesh* UGeometryScriptLibrary_SceneUtilityFunctions::CopyCollisionMeshesF
 	UDynamicMesh* ToDynamicMesh,
 	bool bTransformToWorld,
 	FTransform& LocalToWorld,
-	TEnumAsByte<EGeometryScriptOutcomePins>& Outcome,
+	EGeometryScriptOutcomePins& Outcome,
 	bool bUseComplexCollision,
 	int SphereResolution,
 	UGeometryScriptDebug* Debug)
