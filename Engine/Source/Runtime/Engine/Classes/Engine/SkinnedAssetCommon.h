@@ -25,10 +25,10 @@ struct FSkeletalMeshLODGroupSettings;
 UENUM()
 enum class ESkinCacheUsage : uint8
 {
-	// Auto will defer to child or global behavior based on context. If Support Ray Tracing is enabled on the mesh, will imply Enabled
+	// Auto will defer to child or global behavior based on context
 	Auto		= 0,
 
-	// Mesh will not use the skin cache. If Support Ray Tracing is enabled on the mesh, will imply Enabled
+	// Mesh will not use the skin cache. However, if Support Ray Tracing is enabled on the mesh, the skin cache will still be used for Ray Tracing updates
 	Disabled	= uint8(-1),
 
 	// Mesh will use the skin cache
