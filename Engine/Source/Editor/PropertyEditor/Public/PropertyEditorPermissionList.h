@@ -64,6 +64,8 @@ public:
 
 	/** Add a specific property to a UStruct's AllowList */
 	void AddToAllowList(TSoftObjectPtr<UStruct> Struct, const FName PropertyName, const FName Owner = NAME_None);
+	/** Add a list of properties to a UStruct's AllowList */
+	void AddToAllowList(TSoftObjectPtr<UStruct> Struct, const TArray<FName>& PropertyNames, const FName Owner = NAME_None);
 	/** Remove a specific property from a UStruct's AllowList */
 	void RemoveFromAllowList(TSoftObjectPtr<UStruct> Struct, const FName PropertyName, const FName Owner = NAME_None);
 	/** Add a specific property to a UStruct's DenyList */

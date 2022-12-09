@@ -114,6 +114,24 @@ void FPropertyEditorPermissionList::AddToAllowList(TSoftObjectPtr<UStruct> Struc
 	}
 }
 
+void FPropertyEditorPermissionList::AddToAllowList(TSoftObjectPtr<UStruct> Struct, const TArray<FName>& PropertyNames, const FName Owner)
+{
+	FPropertyEditorPermissionListEntry& Entry = RawPropertyEditorPermissionList.FindOrAdd(Struct);
+	bool bAddedItem = false;
+	for (const FName& PropertyName : PropertyNames)
+	{
+		if (Entry.PermissionList.AddAllowListItem(Owner, PropertyName))
+		{
+			bAddedItem = true;
+		}
+	}
+
+	if (bAddedItem)
+	{
+		ClearCacheAndBroadcast(Struct, Owner);
+	}
+}
+
 void FPropertyEditorPermissionList::RemoveFromAllowList(TSoftObjectPtr<UStruct> Struct, const FName PropertyName, const FName Owner)
 {
 	FPropertyEditorPermissionListEntry& Entry = RawPropertyEditorPermissionList.FindOrAdd(Struct);
