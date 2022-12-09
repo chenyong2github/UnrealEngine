@@ -167,7 +167,7 @@ protected:
 		}
 
 		// If the buffer creation emptied the resource array, delete the containing structure as well
-		if (GFreeStructuresOnRHIBufferCreation && InOutResourceObject && (!ResourceArray || !ResourceArray->GetResourceDataSize()))
+		if (ShouldFreeResourceObject(InOutResourceObject, ResourceArray))
 		{
 			delete InOutResourceObject;
 			InOutResourceObject = nullptr;
@@ -177,6 +177,7 @@ protected:
 	}
 
 private:
+	static bool ShouldFreeResourceObject(void* ResourceObject, FResourceArrayInterface* ResourceArray);
 	static FBufferRHIRef CreateRHIBufferInternal(
 		const TCHAR* InDebugName,
 		const FName& InOwnerName,

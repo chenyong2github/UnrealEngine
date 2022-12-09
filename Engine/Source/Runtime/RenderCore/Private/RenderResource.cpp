@@ -12,6 +12,7 @@
 #include "CoreGlobals.h"
 #include "RayTracingGeometryManager.h"
 #include "RenderGraphResources.h"
+#include "Containers/ResourceArray.h"
 
 /** Whether to enable mip-level fading or not: +1.0f if enabled, -1.0f if disabled. */
 float GEnableMipLevelFading = 1.0f;
@@ -315,6 +316,11 @@ FRenderResource::~FRenderResource()
 		// Deleting an initialized FRenderResource will result in a crash later since it is still linked
 		UE_LOG(LogRendererCore, Fatal,TEXT("A FRenderResource was deleted without being released first!"));
 	}
+}
+
+bool FRenderResource::ShouldFreeResourceObject(void* ResourceObject, FResourceArrayInterface* ResourceArray)
+{
+	return GFreeStructuresOnRHIBufferCreation && ResourceObject && (!ResourceArray || !ResourceArray->GetResourceDataSize());
 }
 
 FBufferRHIRef FRenderResource::CreateRHIBufferInternal(
