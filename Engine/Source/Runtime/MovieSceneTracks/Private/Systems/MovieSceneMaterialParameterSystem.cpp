@@ -338,6 +338,8 @@ struct TOverlappingMaterialParameterHandler : Mixin
 		}
 		else if (!Output->OutputEntityID && Inputs.Num() == 1)
 		{
+			Linker->EntityManager.RemoveComponent(Inputs[0], BuiltInComponents->BlendChannelInput);
+
 			Mixin::InitializeSoleInput(Linker, BoundMaterial, ParameterName, Inputs[0], Output);
 		}
 
