@@ -8,7 +8,7 @@
 class UActorContainer;
 
 UCLASS(Abstract)
-class UWorldPartitionRuntimeSpatialHashCell : public UWorldPartitionRuntimeCell
+class ENGINE_API UWorldPartitionRuntimeSpatialHashCell : public UWorldPartitionRuntimeCell
 {
 	GENERATED_UCLASS_BODY()
 

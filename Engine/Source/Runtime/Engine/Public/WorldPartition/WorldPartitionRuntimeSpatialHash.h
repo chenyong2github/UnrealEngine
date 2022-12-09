@@ -80,7 +80,7 @@ struct FSquare2DGridHelper;
  * Represents a PIE/Game streaming grid
  */
 USTRUCT()
-struct FSpatialHashStreamingGrid
+struct ENGINE_API FSpatialHashStreamingGrid
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -147,6 +147,7 @@ struct FSpatialHashStreamingGrid
 	void Draw2D(UCanvas* Canvas, UWorld* World, const TArray<FWorldPartitionStreamingSource>& Sources, const FBox& Region, const FBox2D& GridScreenBounds, TFunctionRef<FVector2D(const FVector2D&)> WorldToScreen) const;
 	void Draw3D(UWorld* World, const TArray<FWorldPartitionStreamingSource>& Sources, const FTransform& Transform) const;
 	void ForEachRuntimeCell(TFunctionRef<bool(const UWorldPartitionRuntimeCell*)> Func) const;
+	const FSquare2DGridHelper& GetGridHelper() const;
 
 private:
 	void ForEachRuntimeCell(const FGridCellCoord& Coords, TFunctionRef<void(const UWorldPartitionRuntimeCell*)> Func) const;
@@ -154,7 +155,6 @@ private:
 	void DrawStreamingSource2D(UCanvas* Canvas, const FSphericalSector& Shape, TFunctionRef<FVector2D(const FVector2D&)> WorldToScreen, const FColor& Color) const;
 	void DrawStreamingSource3D(UWorld* World, const FSphericalSector& Shape, const FTransform& Transform, const FColor& Color) const;
 	void GetFilteredCellsForDebugDraw(const FSpatialHashStreamingGridLayerCell* LayerCell, const UDataLayerSubsystem* DataLayerSubsystem, TArray<const UWorldPartitionRuntimeCell*>& FilteredCells) const;
-	const FSquare2DGridHelper& GetGridHelper() const;
 	EWorldPartitionRuntimeCellVisualizeMode GetStreamingCellVisualizeMode() const;
 	mutable FSquare2DGridHelper* GridHelper;
 
@@ -334,6 +334,7 @@ private:
 	UPROPERTY(EditAnywhere, Config, Category = RuntimeSettings)
 	bool bEnableZCulling;
 
+protected:
 	/** 
 	 * Represents the streaming grids (PIE or Game)
 	 */
@@ -342,6 +343,7 @@ private:
 	mutable TMap<FName, const FSpatialHashStreamingGrid*> NameToGridMapping;
 	mutable bool bIsNameToGridMappingDirty;
 
+private:
 	UPROPERTY(Transient)
 	TArray<TWeakObjectPtr<URuntimeSpatialHashExternalStreamingObject>> ExternalStreamingObjects;
 	
@@ -350,7 +352,6 @@ private:
 	virtual bool ContainsRuntimeHash(const FString& Name) const override;
 	virtual bool IsStreaming3D() const override;
 
-private:
 	void GetAlwaysLoadedStreamingCells(const FSpatialHashStreamingGrid& StreamingGrid, TSet<const UWorldPartitionRuntimeCell*>& Cells) const;
 	void GetStreamingCells(const FVector& Position, const FSpatialHashStreamingGrid& StreamingGrid, TSet<const UWorldPartitionRuntimeCell*>& Cells) const;
 	const TMap<FName, const FSpatialHashStreamingGrid*>& GetNameToGridMapping() const;

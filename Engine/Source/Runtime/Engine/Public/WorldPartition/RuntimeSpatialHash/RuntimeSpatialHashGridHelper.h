@@ -17,7 +17,7 @@ extern ENGINE_API bool GRuntimeSpatialHashSnapNonAlignedGridLevelsToLowerLevels;
 /**
   * Square 2D grid helper
   */
-struct FSquare2DGridHelper
+struct ENGINE_API FSquare2DGridHelper
 {
 	struct FGrid2D
 	{
