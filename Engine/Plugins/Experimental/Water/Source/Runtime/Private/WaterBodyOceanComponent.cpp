@@ -80,6 +80,16 @@ void UWaterBodyOceanComponent::BeginUpdateWaterBody()
 }
 
 #if WITH_EDITOR
+void UWaterBodyOceanComponent::SetCollisionExtents(const FVector& NewExtents)
+{
+	CollisionExtents = NewExtents;
+
+	FOnWaterBodyChangedParams Params;
+	Params.bShapeOrPositionChanged = true;
+	Params.bWeightmapSettingsChanged = false;
+	UpdateAll(Params);
+}
+
 void UWaterBodyOceanComponent::OnPostEditChangeProperty(FOnWaterBodyChangedParams& InOutOnWaterBodyChangedParams)
 {
 	Super::OnPostEditChangeProperty(InOutOnWaterBodyChangedParams);
