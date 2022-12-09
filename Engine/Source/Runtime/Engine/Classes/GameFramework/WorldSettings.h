@@ -653,6 +653,9 @@ public:
 	UPROPERTY(EditAnywhere, noclear, BlueprintReadOnly, Category=Physics, AdvancedDisplay)
 	TSubclassOf<class ADefaultPhysicsVolume> DefaultPhysicsVolumeClass;
 
+	// Method to get the Physics Collision Handler Class
+	virtual TSubclassOf<class UPhysicsCollisionHandler> GetPhysicsCollisionHandlerClass() { return PhysicsCollisionHandlerClass; }
+
 	// optional level specific collision handler
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Physics, AdvancedDisplay)
 	TSubclassOf<class UPhysicsCollisionHandler>	PhysicsCollisionHandlerClass;

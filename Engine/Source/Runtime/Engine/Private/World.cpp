@@ -1945,7 +1945,7 @@ void UWorld::InitWorld(const InitializationValues IVS)
 	if (IVS.bCreatePhysicsScene)
 	{
 		// First look for world override
-		TSubclassOf<UPhysicsCollisionHandler> PhysHandlerClass = (WorldSettings ? WorldSettings->PhysicsCollisionHandlerClass : nullptr);
+		TSubclassOf<UPhysicsCollisionHandler> PhysHandlerClass = (WorldSettings ? WorldSettings->GetPhysicsCollisionHandlerClass() : nullptr);
 		// Then fall back to engine default
 		if(PhysHandlerClass == NULL)
 		{
