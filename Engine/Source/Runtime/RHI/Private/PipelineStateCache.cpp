@@ -1609,8 +1609,9 @@ public:
 
 			if (Initializer.bPSOPrecache)
 			{
-				if (ComputePipeline->RHIPipeline == nullptr)
+				if (ComputePipeline->RHIPipeline == nullptr || !ComputePipeline->RHIPipeline->IsValid())
 				{
+					ComputePipeline->RHIPipeline = nullptr;
 					GPrecacheComputePipelineCache.RegisterCSFailure(ComputePipeline);
 				}
 				else

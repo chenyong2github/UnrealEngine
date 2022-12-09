@@ -3333,7 +3333,6 @@ FGraphEventRef FVersionedNiagaraEmitterData::PrecacheComputePSOs(const UNiagaraE
 				for (int32 i = 0; i < ShaderScript->GetNumPermutations(); ++i)
 				{
 					FRHIComputeShader* ComputeShader = ShaderScript->GetShaderGameThread(i).GetComputeShader();
-					FGraphEventRef TaskRef = PipelineStateCache::PrecacheComputePipelineState(ComputeShader, true);
 					const EPSOPrecacheResult ShaderResult = PipelineStateCache::CheckPipelineStateInCache(ComputeShader);
 					if (ShaderResult != EPSOPrecacheResult::Complete)
 					{
