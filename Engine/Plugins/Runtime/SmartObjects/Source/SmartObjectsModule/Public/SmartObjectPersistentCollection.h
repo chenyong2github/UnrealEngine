@@ -160,6 +160,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	void ResetCollection(const int32 ExpectedNumElements = 0);
+	bool ShouldDebugDraw() const { return bEnableDebugDrawing; }
 #endif // WITH_EDITORONLY_DATA
 
 protected:
@@ -206,6 +207,9 @@ protected:
 	UPROPERTY(transient)
 	TObjectPtr<UBillboardComponent> SpriteComponent;
 
+	UPROPERTY(transient)
+	TObjectPtr<USmartObjectContainerRenderingComponent> RenderingComponent;
+
 private:
 	FDelegateHandle OnSmartObjectChangedDelegateHandle;
 
@@ -213,6 +217,8 @@ protected:
 	UPROPERTY(EditAnywhere, Category = SmartObject, AdvancedDisplay)
 	bool bUpdateCollectionOnSmartObjectsChange = true;
 
+	UPROPERTY(EditAnywhere, Category = SmartObject, AdvancedDisplay)
+	bool bEnableDebugDrawing = true;
 #endif // WITH_EDITORONLY_DATA
 
 protected:

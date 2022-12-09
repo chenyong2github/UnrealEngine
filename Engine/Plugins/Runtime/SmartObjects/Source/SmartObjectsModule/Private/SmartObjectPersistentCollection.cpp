@@ -14,6 +14,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "WorldPartition/ActorDescContainer.h"
 #include "LevelInstance/LevelInstanceInterface.h"
+#include "SmartObjectContainerRenderingComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectPersistentCollection)
 
@@ -420,6 +421,7 @@ ASmartObjectPersistentCollection::ASmartObjectPersistentCollection(const FObject
 	bIsSpatiallyLoaded = false;
 
 	SpriteComponent = CreateEditorOnlyDefaultSubobject<UBillboardComponent>(TEXT("Sprite"));
+	RootComponent = SpriteComponent;
 
 	if (!IsRunningCommandlet())
 	{
@@ -444,12 +446,15 @@ ASmartObjectPersistentCollection::ASmartObjectPersistentCollection(const FObject
 			SpriteComponent->SetRelativeScale3D(FVector(0.5f, 0.5f, 0.5f));
 			SpriteComponent->SpriteInfo.Category = ConstructorStatics.ID;
 			SpriteComponent->SpriteInfo.DisplayName = ConstructorStatics.NAME;
-			SpriteComponent->SetupAttachment(RootComponent);
 			SpriteComponent->Mobility = EComponentMobility::Static;
 		}
-	}
 
-	RootComponent = SpriteComponent;
+		RenderingComponent = CreateEditorOnlyDefaultSubobject<USmartObjectContainerRenderingComponent>(TEXT("RenderingComponent"));
+		if (RenderingComponent)
+		{
+			RenderingComponent->SetupAttachment(RootComponent);
+		}
+	}
 #endif // WITH_EDITORONLY_DATA
 }
 
@@ -599,6 +604,7 @@ void ASmartObjectPersistentCollection::ClearCollection()
 	{
 		ResetCollection();
 		MarkPackageDirty();
+		MarkComponentsRenderStateDirty();
 	}
 }
 
@@ -618,6 +624,7 @@ void ASmartObjectPersistentCollection::RebuildCollection()
 		{
 			// Dirty package since this is an explicit user action that resulted in collection changes
 			MarkPackageDirty();
+			MarkComponentsRenderStateDirty();
 		}
 	}
 }
