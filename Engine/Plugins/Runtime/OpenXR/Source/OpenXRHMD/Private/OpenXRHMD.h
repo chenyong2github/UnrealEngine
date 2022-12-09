@@ -370,8 +370,11 @@ public:
 	OPENXRHMD_API XrTime GetDisplayTime() const;
 	OPENXRHMD_API XrSpace GetTrackingSpace() const;
 	OPENXRHMD_API TArray<IOpenXRExtensionPlugin*>& GetExtensionPlugins() { return ExtensionPlugins; }
+	OPENXRHMD_API void SetEnvironmentBlendMode(XrEnvironmentBlendMode NewBlendMode);
 
 private:
+	TArray<XrEnvironmentBlendMode> RetrieveEnvironmentBlendModes() const;
+
 	bool					bStereoEnabled;
 	TAtomic<bool>			bIsRunning;
 	TAtomic<bool>			bIsReady;

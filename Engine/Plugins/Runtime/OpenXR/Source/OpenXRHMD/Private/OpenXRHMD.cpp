@@ -63,6 +63,18 @@ namespace {
 	static TSet<XrEnvironmentBlendMode> SupportedBlendModes{ XR_ENVIRONMENT_BLEND_MODE_ALPHA_BLEND, XR_ENVIRONMENT_BLEND_MODE_ADDITIVE, XR_ENVIRONMENT_BLEND_MODE_OPAQUE };
 	static TSet<XrViewConfigurationType> SupportedViewConfigurations{ XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_QUAD_VARJO };
 
+	/** Helper function for checking whether a blend mode is supported. */
+	bool IsEnvironmentBlendModeSupported(XrEnvironmentBlendMode BlendMode)
+	{
+		if (SupportedBlendModes.Contains(BlendMode) &&
+			// On mobile platforms the alpha channel can contain depth information, so we can't use alpha blend.
+			(BlendMode != XR_ENVIRONMENT_BLEND_MODE_ALPHA_BLEND || !IsMobilePlatform(GMaxRHIShaderPlatform)))
+		{
+			return true;
+		}
+		return false;
+	}
+
 	/** Helper function for acquiring the appropriate FSceneViewport */
 	FSceneViewport* FindSceneViewport()
 	{
@@ -1268,22 +1280,13 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 
 	// Enumerate environment blend modes and select the best one.
 	{
-		uint32 BlendModeCount;
-		TArray<XrEnvironmentBlendMode> BlendModes;
-		XR_ENSURE(xrEnumerateEnvironmentBlendModes(Instance, System, SelectedViewConfigurationType, 0, &BlendModeCount, nullptr));
-		// Fill the initial array with valid enum types (this will fail in the validation layer otherwise).
-		for (auto& TypeIter : BlendModes)
-			TypeIter = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
-		BlendModes.SetNum(BlendModeCount);
-		XR_ENSURE(xrEnumerateEnvironmentBlendModes(Instance, System, SelectedViewConfigurationType, BlendModeCount, &BlendModeCount, BlendModes.GetData()));
+		TArray<XrEnvironmentBlendMode> BlendModes = RetrieveEnvironmentBlendModes();
 
 		// Select the first blend mode returned by the runtime that is supported.
 		// This is the environment blend mode preferred by the runtime.
 		for (XrEnvironmentBlendMode BlendMode : BlendModes)
 		{
-			if (SupportedBlendModes.Contains(BlendMode) &&
-				// On mobile platforms the alpha channel can contain depth information, so we can't use alpha blend.
-				(BlendMode != XR_ENVIRONMENT_BLEND_MODE_ALPHA_BLEND || !IsMobilePlatform(GMaxRHIShaderPlatform)))
+			if (IsEnvironmentBlendModeSupported(BlendMode))
 			{
 				SelectedEnvironmentBlendMode = BlendMode;
 				break;
@@ -1339,6 +1342,17 @@ bool FOpenXRHMD::ReconfigureForShaderPlatform(EShaderPlatform NewShaderPlatform)
 	bProjectionLayerAlphaEnabled = !IsMobilePlatform(NewShaderPlatform) && CVarPropagateAlpha->GetValueOnAnyThread() != 0;
 
 	return true;
+}
+
+TArray<XrEnvironmentBlendMode> FOpenXRHMD::RetrieveEnvironmentBlendModes() const
+{
+	TArray<XrEnvironmentBlendMode> BlendModes;
+	uint32 BlendModeCount;
+	XR_ENSURE(xrEnumerateEnvironmentBlendModes(Instance, System, SelectedViewConfigurationType, 0, &BlendModeCount, nullptr));
+	// Fill the initial array with valid enum types (this will fail in the validation layer otherwise).
+	BlendModes.Init(XR_ENVIRONMENT_BLEND_MODE_OPAQUE, BlendModeCount);
+	XR_ENSURE(xrEnumerateEnvironmentBlendModes(Instance, System, SelectedViewConfigurationType, BlendModeCount, &BlendModeCount, BlendModes.GetData()));
+	return BlendModes;
 }
 
 const FOpenXRHMD::FPipelinedFrameState& FOpenXRHMD::GetPipelinedFrameStateForThread() const
@@ -1990,6 +2004,32 @@ bool FOpenXRHMD::IsRunning() const
 bool FOpenXRHMD::IsFocused() const
 {
 	return CurrentSessionState == XR_SESSION_STATE_FOCUSED;
+}
+
+void FOpenXRHMD::SetEnvironmentBlendMode(XrEnvironmentBlendMode NewBlendMode) 
+{
+	if (NewBlendMode == XR_ENVIRONMENT_BLEND_MODE_MAX_ENUM) 
+	{
+		UE_LOG(LogHMD, Error, TEXT("Environment Blend Mode can't be set to XR_ENVIRONMENT_BLEND_MODE_MAX_ENUM."));
+		return;
+	}
+
+	if(!Instance || !System)
+	{
+		return;
+	}
+
+	TArray<XrEnvironmentBlendMode> BlendModes = RetrieveEnvironmentBlendModes();
+
+	if (BlendModes.Contains(NewBlendMode) && IsEnvironmentBlendModeSupported(NewBlendMode))
+	{
+		SelectedEnvironmentBlendMode = NewBlendMode;
+		UE_LOG(LogHMD, Log, TEXT("Environment Blend Mode set to: %d."), SelectedEnvironmentBlendMode);
+	}
+	else
+	{
+		UE_LOG(LogHMD, Error, TEXT("Environment Blend Mode %d is not supported. Environment Blend Mode remains %d."), NewBlendMode, SelectedEnvironmentBlendMode);
+	}
 }
 
 bool FOpenXRHMD::StartSession()
