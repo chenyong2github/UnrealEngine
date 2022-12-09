@@ -541,14 +541,14 @@ void UMotionControllerComponent::SetShowDeviceModel(const bool bShowDeviceModel)
 		}
 		else
 #endif
-			if (DisplayComponent)
-			{
-				DisplayComponent->SetHiddenInGame(!bShowDeviceModel, /*bPropagateToChildren =*/false);
-			}
-			else if (!bShowDeviceModel)
-			{
-				RefreshDisplayComponent();
-			}
+		if (DisplayComponent)
+		{
+			DisplayComponent->SetHiddenInGame(!bShowDeviceModel, /*bPropagateToChildren =*/false);
+		}
+		else if (bShowDeviceModel)
+		{
+			RefreshDisplayComponent();
+		}
 	}
 }
 
