@@ -36,7 +36,7 @@ struct FOccupancyGrid3
 		TMeshAABBTree3<MeshType> Spatial(&InMesh);
 		TFastWindingTree FastWinding(&Spatial);
 		const FAxisAlignedBox3d Bounds = Spatial.GetBoundingBox();
-		CellSize = Bounds.MaxDim() / InVoxelResolution;
+		CellSize = float(Bounds.MaxDim() / InVoxelResolution);
 		CellMidPoint = {CellSize / 2.0f, CellSize / 2.0f, CellSize / 2.0f};
 
 		TMeshWindingNumberGrid WindingGrid(&InMesh, &FastWinding, CellSize);
@@ -110,7 +110,7 @@ struct FOccupancyGrid3
 	/// in the winding number grid, from which the occupancy got computed.
 	FVector3f GetCellCenterFromIndex(const FVector3i &Index) const
 	{
-		return {Index.X * CellSize + GridOrigin.X, Index.Y * CellSize + GridOrigin.Y, Index.Z * CellSize + GridOrigin.Z};
+		return {float(Index.X) * CellSize + GridOrigin.X, float(Index.Y) * CellSize + GridOrigin.Y, float(Index.Z) * CellSize + GridOrigin.Z};
 	}
 
 	/// Given an index into the occupancy grid, returns the bbox that represents the cell in the winding number

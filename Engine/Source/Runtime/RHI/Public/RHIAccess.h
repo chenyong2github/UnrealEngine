@@ -2,6 +2,11 @@
 
 #pragma once
 
+#include "CoreTypes.h"
+#include "Misc/EnumClassFlags.h"
+
+class FString;
+
 enum class ERHIAccess : uint32
 {
 	// Used when the previous state of a resource is not known,

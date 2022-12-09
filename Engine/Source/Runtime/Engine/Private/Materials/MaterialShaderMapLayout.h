@@ -11,6 +11,7 @@ class FShaderPipelineType;
 class FVertexFactoryType;
 struct FMaterialShaderParameters;
 enum class EShaderPermutationFlags : uint32;
+enum EShaderPlatform : uint16;
 
 class FShaderLayoutEntry
 {

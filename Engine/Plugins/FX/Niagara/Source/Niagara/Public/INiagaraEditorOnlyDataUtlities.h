@@ -2,11 +2,11 @@
 
 #pragma once
 
+#include "UObject/Object.h"
+
 class UNiagaraScriptSourceBase;
 class UNiagaraEditorParametersAdapterBase;
 class UNiagaraEditorDataBase;
-class UObject;
-struct FAssetRegistryTag;
 
 /** Defines utility methods for creating editor only data which is stored on runtime objects. */
 class INiagaraEditorOnlyDataUtilities

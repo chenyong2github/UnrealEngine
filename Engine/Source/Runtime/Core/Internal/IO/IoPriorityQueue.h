@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Algo/BinarySearch.h"
 #include "Algo/IsSorted.h"
 
 template<typename T>

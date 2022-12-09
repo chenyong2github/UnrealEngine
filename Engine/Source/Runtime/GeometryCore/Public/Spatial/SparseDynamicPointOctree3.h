@@ -8,6 +8,7 @@
 #include "GeometryTypes.h"
 #include "BoxTypes.h"
 #include "Util/DynamicVector.h"
+#include "Util/RefCountVector.h"
 #include "Util/SparseListSet.h"
 #include "Spatial/SparseGrid3.h"
 #include "Intersection/IntrRay3AxisAlignedBox3.h"
