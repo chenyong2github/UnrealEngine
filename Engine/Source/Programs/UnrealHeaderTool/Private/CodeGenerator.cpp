@@ -5616,7 +5616,7 @@ void FNativeClassHeaderGenerator::ApplyAlternatePropertyExportText(FUnrealProper
 	}
 }
 
-static void AddIncludeForType(const FUnrealTypeDefinitionInfo* PropertyTypeDef, TArray<FString>& RelativeIncludes)
+static void AddIncludeForType(const TSharedRef<FUnrealPropertyDefinitionInfo>& PropertyDef, const FUnrealTypeDefinitionInfo* PropertyTypeDef, bool bRequireIncludeForClasses, TArray<FString>& RelativeIncludes)
 {
 	if (UHTCast<FUnrealScriptStructDefinitionInfo>(PropertyTypeDef) != nullptr)
 	{
@@ -5626,15 +5626,27 @@ static void AddIncludeForType(const FUnrealTypeDefinitionInfo* PropertyTypeDef, 
 			RelativeIncludes.AddUnique(MoveTemp(Header));
 		}
 	}
+	else if (bRequireIncludeForClasses)
+	{
+		const FPropertyBase& PropertyBase = PropertyDef->GetPropertyBase();
+		if (PropertyBase.Type == CPT_ObjectReference && PropertyBase.ClassDef->IsChildOf(*GUClassDef))
+		{
+			if (PropertyBase.ClassDef->HasSource() && !PropertyBase.ClassDef->GetUnrealSourceFile().IsNoExportTypes())
+			{
+				FString Header = GetBuildPath(PropertyBase.ClassDef->GetUnrealSourceFile());
+				RelativeIncludes.AddUnique(MoveTemp(Header));
+			}
+		}
+	}
 }
 
-static void AddIncludeForProperty(const TSharedRef<FUnrealPropertyDefinitionInfo>& PropertyDef, TArray<FString>& RelativeIncludes)
+static void AddIncludeForProperty(const TSharedRef<FUnrealPropertyDefinitionInfo>& PropertyDef, bool bRequireIncludeForClasses, TArray<FString>& RelativeIncludes)
 {
 	const FPropertyBase& PropertyBase = PropertyDef->GetPropertyBase();
-	AddIncludeForType(PropertyBase.TypeDef, RelativeIncludes);
+	AddIncludeForType(PropertyDef, PropertyBase.TypeDef, bRequireIncludeForClasses, RelativeIncludes);
 	if (PropertyBase.MapKeyProp != nullptr)
 	{
-		AddIncludeForType(PropertyBase.MapKeyProp->TypeDef, RelativeIncludes);
+		AddIncludeForType(PropertyDef, PropertyBase.MapKeyProp->TypeDef, false, RelativeIncludes);
 	}
 }
 
@@ -5663,7 +5675,8 @@ bool FNativeClassHeaderGenerator::WriteSource(const FManifestModule& Module, FGe
 				// Functions
 				for (const TSharedRef<FUnrealFunctionDefinitionInfo>& FunctionDef : Struct->GetFunctions())
 				{
-					if (!(FunctionDef->GetFunctionData().FunctionExportFlags & FUNCEXPORT_CppStatic) && FunctionDef->HasAnyFunctionFlags(FUNC_NetValidate))
+					const FFuncInfo& FunctionData = FunctionDef->GetFunctionData();
+					if (!(FunctionData.FunctionExportFlags & FUNCEXPORT_CppStatic) && FunctionDef->HasAnyFunctionFlags(FUNC_NetValidate))
 					{
 						if (!bAddedCoreNetHeader)
 						{
@@ -5671,16 +5684,22 @@ bool FNativeClassHeaderGenerator::WriteSource(const FManifestModule& Module, FGe
 							bAddedCoreNetHeader = true;
 						}
 					}
+
+					bool bRequireIncludeForClasses =
+						FunctionDef->HasAnyFunctionFlags(FUNC_Native) &&
+						(FunctionData.FunctionExportFlags & FUNCEXPORT_CustomThunk) == 0 &&
+						ShouldExportFunction(*FunctionDef);
+
 					for (const TSharedRef<FUnrealPropertyDefinitionInfo>& PropertyDef : FunctionDef->GetProperties())
 					{
-						AddIncludeForProperty(PropertyDef, RelativeIncludes);
+						AddIncludeForProperty(PropertyDef, bRequireIncludeForClasses, RelativeIncludes);
 					}
 				}
 
 				// Properties
 				for (const TSharedRef<FUnrealPropertyDefinitionInfo>& PropertyDef : Struct->GetProperties())
 				{
-					AddIncludeForProperty(PropertyDef, RelativeIncludes);
+					AddIncludeForProperty(PropertyDef, false, RelativeIncludes);
 				}
 			}
 

@@ -67,20 +67,18 @@ namespace EpicGames.UHT.Exporters.CodeGen
 								}
 							}
 
-							bool RequireIncludeForClasses = IsRpcFunction(function) && ShouldExportFunction(function);
+							bool requireIncludeForClasses = IsRpcFunction(function) && ShouldExportFunction(function);
 
 							foreach (UhtProperty property in function.Properties)
 							{
-								AddIncludeForProperty(property, addedIncludes, includesToAdd, RequireIncludeForClasses);
+								AddIncludeForProperty(property, requireIncludeForClasses, addedIncludes, includesToAdd);
 							}
-							if (function.ReturnProperty != null)
-								AddIncludeForProperty(function.ReturnProperty, addedIncludes, includesToAdd, RequireIncludeForClasses);
 						}
 
 						// Properties
 						foreach (UhtProperty property in structObj.Properties)
 						{
-							AddIncludeForProperty(property, addedIncludes, includesToAdd, false);
+							AddIncludeForProperty(property, false, addedIncludes, includesToAdd);
 						}
 					}
 
@@ -355,7 +353,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			}
 		}
 
-		private void AddIncludeForType(UhtProperty uhtProperty, HashSet<UhtHeaderFile> addedIncludes, IList<string> includesToAdd, bool requireIncludeForClasses)
+		private void AddIncludeForType(UhtProperty uhtProperty, bool requireIncludeForClasses, HashSet<UhtHeaderFile> addedIncludes, IList<string> includesToAdd)
 		{
 			if (uhtProperty is UhtStructProperty structProperty)
 			{
@@ -375,18 +373,18 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			}
 		}
 
-		private void AddIncludeForProperty(UhtProperty property, HashSet<UhtHeaderFile> addedIncludes, IList<string> includesToAdd, bool requireIncludeForClasses)
+		private void AddIncludeForProperty(UhtProperty property, bool requireIncludeForClasses, HashSet<UhtHeaderFile> addedIncludes, IList<string> includesToAdd)
 		{
-			AddIncludeForType(property, addedIncludes, includesToAdd, requireIncludeForClasses);
+			AddIncludeForType(property, requireIncludeForClasses, addedIncludes, includesToAdd);
 
 			if (property is UhtContainerBaseProperty containerProperty)
 			{
-				AddIncludeForType(containerProperty.ValueProperty, addedIncludes, includesToAdd, false);
+				AddIncludeForType(containerProperty.ValueProperty, false, addedIncludes, includesToAdd);
 			}
 
 			if (property is UhtMapProperty mapProperty)
 			{
-				AddIncludeForType(mapProperty.KeyProperty, addedIncludes, includesToAdd, false);
+				AddIncludeForType(mapProperty.KeyProperty, false, addedIncludes, includesToAdd);
 			}
 		}
 
