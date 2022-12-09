@@ -572,10 +572,8 @@ void UZoneGraphDisturbanceAnnotation::UpdateAnnotationTags(FZoneGraphAnnotationT
 
 void UZoneGraphDisturbanceAnnotation::HandleEvents(const FInstancedStructContainer& Events)
 {
-	for (int32 Index = 0; Index < Events.Num(); Index++)
+	for (FConstStructView Event : Events)
 	{
-		FConstStructView Event = Events[Index];
-
 		if (const FZoneGraphDisturbanceArea* Danger = Event.GetPtr<FZoneGraphDisturbanceArea>())
 		{
 			FZoneGraphDisturbanceArea* ExistingDanger = Dangers.FindByPredicate([Danger](const FZoneGraphDisturbanceArea& Area) { return Area.InstigatorID == Danger->InstigatorID; });

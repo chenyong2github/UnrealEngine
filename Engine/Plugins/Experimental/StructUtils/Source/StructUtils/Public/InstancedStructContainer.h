@@ -4,6 +4,7 @@
 
 #include "InstancedStruct.h"
 #include "StructView.h"
+#include "Templates/ChooseClass.h"
 #include "InstancedStructContainer.generated.h"
 
 /**
@@ -125,6 +126,99 @@ public:
 		return FStructView(Item.ScriptStruct, Memory + Item.Offset);
 	}
 
+	/**
+	 * Iterators to enable range-based for loop support.
+	 *
+	 *	// Ranged for mutable container 
+	 *	for (FStructView View : Container) {}
+	 *
+	 *	// Ranged for const container 
+	 *	for (FConstStructView View : Container) {}
+	 *
+	 *	// Iterator based iteration, allows removing items.
+	 *	for (FInstancedStructContainer::FIterator It = Container.CreateIterator(); It; ++It)
+	 *	{
+	 *		It.RemoveCurrent();
+	 *	}
+	 */
+	template<typename T>
+	struct TIterator
+	{
+		using StructViewType = typename TChooseClass<TIsConst<T>::Value, FConstStructView, FStructView>::Result;
+
+		/** @return struct view (or const structview) to the item. */
+		StructViewType operator*()
+		{
+			const FItem& Item = Container.GetItem(Index);
+			return StructViewType(Item.ScriptStruct, Container.Memory + Item.Offset);
+		}
+
+		TIterator& operator++()
+		{
+			Index++;
+			return *this;
+		}
+
+		TIterator& operator--()
+		{
+			Index--;
+			return *this;
+		}
+
+		/** @return true of two iterators point to the same item. */
+		bool operator!=(const TIterator& RHS) const
+		{
+			return Index != RHS.Index;
+		}
+
+		/** @return true of the interator points to valid item. */
+		explicit operator bool() const
+		{
+			return Container.IsValidIndex(Index);
+		}
+
+		/** @returns The index of the iterator.  */
+		int32 GetIndex() const
+		{
+			return Index;
+		}
+
+		/** Removes the item pointed by the iterator and adjust the iterator. */
+		void RemoveCurrent()
+		{
+			static_assert(!TIsConst<T>::Value, "Cannot remove on const container.");
+			Container.RemoveAt(Index, 1);
+			Index--;
+		}
+		
+	private:
+		explicit TIterator(T& InContainer, const int32 InIndex = 0)
+			: Container(InContainer)
+			, Index(InIndex)
+		{
+		}
+
+		T& Container;
+		int32 Index = 0;
+
+		friend FInstancedStructContainer;
+	};
+
+	using FIterator = TIterator<FInstancedStructContainer>;
+	using FConstIterator = TIterator<const FInstancedStructContainer>;
+
+	/** Creates iterator to iterate over the array. */
+	FIterator CreateIterator() { return FIterator(*this, 0); }
+	/** Creates const iterator to iterate over the array. */
+	FConstIterator CreateConstIterator() const { return FConstIterator(*this, 0); }
+
+	/** For ranged for, do not use directly. */
+	FIterator begin() { return FIterator(*this, 0); }
+	FIterator end() { return FIterator(*this, NumItems); }
+
+	FConstIterator begin() const { return FConstIterator(*this, 0); }
+	FConstIterator end() const { return FConstIterator(*this, NumItems); }
+
 	/** Type traits */
 	void AddStructReferencedObjects(class FReferenceCollector& Collector) const;
 	bool Identical(const FInstancedStructContainer* Other, uint32 PortFlags) const;
@@ -162,6 +256,9 @@ private:
 
 	/** Number of items in the array. */
 	int32 NumItems = 0;
+
+	friend FIterator;
+	friend FConstIterator;
 };
 
 template<>

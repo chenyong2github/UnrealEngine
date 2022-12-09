@@ -34,9 +34,8 @@ FZoneGraphTagMask UZoneGraphCrowdLaneAnnotations::GetAnnotationTags() const
 
 void UZoneGraphCrowdLaneAnnotations::HandleEvents(const FInstancedStructContainer& Events)
 {
-	for (int32 Index = 0; Index < Events.Num(); Index++)
+	for (FConstStructView Event : Events)
 	{
-		FConstStructView Event = Events[Index];
 		if (const FZoneGraphCrowdLaneStateChangeEvent* const StateChangeEvent = Event.GetPtr<FZoneGraphCrowdLaneStateChangeEvent>())
 		{
 			StateChangeEvents.Add(*StateChangeEvent);
