@@ -51,6 +51,7 @@ bool FPCGTransformPointsElement::ExecuteInternal(FPCGContext* Context) const
 
 	const int Seed = PCGSettingsHelpers::ComputeSeedWithOverride(Settings, Context->SourceComponent, Params);
 
+	// Use implicit capture, since we capture a lot
 	ProcessPoints(Context, Inputs, Outputs, [&](const FPCGPoint& InPoint, FPCGPoint& OutPoint)
 	{
 		OutPoint = InPoint;

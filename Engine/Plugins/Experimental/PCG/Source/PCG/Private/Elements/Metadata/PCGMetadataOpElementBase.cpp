@@ -244,12 +244,16 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 	{
 		OutputTarget.AttributeName = InputName;
 	}
+	
+	// TODO: Make it an option
+	const int32 InputToForward = 0;
 
+	// Use implicit capture, since we capture a lot
 	auto CreateAttribute = [&](uint32 OutputIndex, auto DummyOutValue) -> bool
 	{
 		using AttributeType = decltype(DummyOutValue);
 
-		FPCGTaggedData& OutputData = Outputs.Add_GetRef(InputTaggedData[0]);
+		FPCGTaggedData& OutputData = Outputs.Add_GetRef(InputTaggedData[InputToForward]);
 		OutputData.Pin = Settings->GetOutputPinLabel(OutputIndex);
 
 		UPCGMetadata* OutMetadata = nullptr;
@@ -259,7 +263,7 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 		if (OutputTarget.Selection == EPCGAttributePropertySelection::Attribute)
 		{
 			// In case of attribute, there is no point of failure before duplicating. So duplicate, create the attribute and then the accessor.
-			PCGMetadataElementCommon::DuplicateTaggedData(InputTaggedData[0], OutputData, OutMetadata);
+			PCGMetadataElementCommon::DuplicateTaggedData(InputTaggedData[InputToForward], OutputData, OutMetadata);
 			FPCGMetadataAttributeBase* OutputAttribute = PCGMetadataElementCommon::ClearOrCreateAttribute(OutMetadata, OutputName, AttributeType{});
 			if (!OutputAttribute)
 			{
@@ -267,9 +271,9 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 			}
 
 			// And copy the mapping from the original attribute, if it is not points
-			if (!InputTaggedData[0].Data->IsA<UPCGPointData>() && SourceMetadata[0] && SourceAttribute[0])
+			if (!InputTaggedData[InputToForward].Data->IsA<UPCGPointData>() && SourceMetadata[InputToForward] && SourceAttribute[InputToForward])
 			{
-				PCGMetadataElementCommon::CopyEntryToValueKeyMap(SourceMetadata[0], SourceAttribute[0], OutputAttribute);
+				PCGMetadataElementCommon::CopyEntryToValueKeyMap(SourceMetadata[InputToForward], SourceAttribute[InputToForward], OutputAttribute);
 			}
 
 			OperationData.OutputAccessors[OutputIndex] = PCGAttributeAccessorHelpers::CreateAccessor(Cast<UPCGData>(OutputData.Data), OutputTarget);
@@ -288,7 +292,7 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 					return false;
 				}
 
-				PCGMetadataElementCommon::DuplicateTaggedData(InputTaggedData[0], OutputData, OutMetadata);
+				PCGMetadataElementCommon::DuplicateTaggedData(InputTaggedData[InputToForward], OutputData, OutMetadata);
 			}
 		}
 
@@ -302,7 +306,7 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 		return OperationData.OutputKeys[OutputIndex].IsValid();
 	};
 
-	auto CreateAllSameAttributes = [&](auto DummyOutValue) -> bool
+	auto CreateAllSameAttributes = [NumberOfOutputs, &CreateAttribute](auto DummyOutValue) -> bool
 	{
 		for (uint32 i = 0; i < NumberOfOutputs; ++i)
 		{
@@ -331,7 +335,8 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 		for (uint32 i = 0; i < NumberOfOutputs && bCreateAttributeSucceeded; ++i)
 		{
 			bCreateAttributeSucceeded &= PCGMetadataAttribute::CallbackWithRightType(OutputTypes[i],
-				[&](auto DummyOutValue) -> bool {
+				[&CreateAttribute, i](auto DummyOutValue) -> bool 
+				{
 					return CreateAttribute(i, DummyOutValue);
 				});
 		}

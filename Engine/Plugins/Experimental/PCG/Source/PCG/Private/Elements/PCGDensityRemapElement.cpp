@@ -53,7 +53,7 @@ bool FPCGDensityRemapElement::ExecuteInternal(FPCGContext* Context) const
 		Intercept = OutRangeMin;
 	}
 
-	ProcessPoints(Context, Inputs, Outputs, [&](const FPCGPoint& InPoint, FPCGPoint& OutPoint)
+	ProcessPoints(Context, Inputs, Outputs, [bExcludeValuesOutsideInputRange, InRangeTrueMin, InRangeTrueMax, Slope, InRangeMin, Intercept](const FPCGPoint& InPoint, FPCGPoint& OutPoint)
 	{
 		OutPoint = InPoint;
 		const float SourceDensity = InPoint.Density;

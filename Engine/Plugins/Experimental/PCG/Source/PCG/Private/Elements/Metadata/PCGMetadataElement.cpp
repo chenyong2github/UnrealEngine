@@ -163,7 +163,7 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (Settings->OutputTarget.Selection == EPCGAttributePropertySelection::Attribute)
 		{
-			auto CreateAttribute = [&](auto Dummy)
+			auto CreateAttribute = [SampledData, DestinationAttribute](auto Dummy)
 			{
 				using AttributeType = decltype(Dummy);
 				return PCGMetadataElementCommon::ClearOrCreateAttribute(SampledData->Metadata, DestinationAttribute, AttributeType{}) != nullptr;
@@ -196,7 +196,7 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 		}
 
 		// At this point, we are ready.
-		auto Operation = [&](auto Dummy)
+		auto Operation = [&InputAccessor, &InputKeys, &OutputAccessor, &OutputKeys](auto Dummy)
 		{
 			using OutputType = decltype(Dummy);
 			OutputType Value{};

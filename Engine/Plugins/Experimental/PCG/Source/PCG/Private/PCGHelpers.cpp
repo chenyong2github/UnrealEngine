@@ -104,7 +104,7 @@ namespace PCGHelpers
 
 		if (InActor)
 		{
-			InActor->ForEachComponent<UPrimitiveComponent>(bIncludeFromChildActors, [&](const UPrimitiveComponent* InPrimComp)
+			InActor->ForEachComponent<UPrimitiveComponent>(bIncludeFromChildActors, [bNonColliding, bIgnorePCGCreatedComponents, &Box](const UPrimitiveComponent* InPrimComp)
 			{
 				// Note: we omit the IsRegistered check here (e.g. InPrimComp->IsRegistered() )
 				// since this can be called in a scope where the components are temporarily unregistered
@@ -137,7 +137,7 @@ namespace PCGHelpers
 			const FTransform& ActorToWorld = InActor->GetTransform();
 			const FTransform WorldToActor = ActorToWorld.Inverse();
 
-			InActor->ForEachComponent<UPrimitiveComponent>(bIncludeFromChildActors, [&](const UPrimitiveComponent* InPrimComp)
+			InActor->ForEachComponent<UPrimitiveComponent>(bIncludeFromChildActors, [bNonColliding, bIgnorePCGCreatedComponents, &WorldToActor, &Box](const UPrimitiveComponent* InPrimComp)
 			{
 				if ((bNonColliding || InPrimComp->IsCollisionEnabled()) &&
 					(!bIgnorePCGCreatedComponents || !InPrimComp->ComponentTags.Contains(DefaultPCGTag)))

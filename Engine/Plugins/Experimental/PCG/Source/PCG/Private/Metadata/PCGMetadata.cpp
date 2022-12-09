@@ -437,29 +437,29 @@ void UPCGMetadata::CreateBoolAttribute(FName AttributeName, bool DefaultValue, b
 namespace PCGMetadata
 {
 	template<typename DataType>
-	bool SetAttributeFromPropertyHelper(UPCGMetadata& Metadata, FName AttributeName, PCGMetadataEntryKey& EntryKey, const DataType* DataPtr, const FProperty* InProperty, bool bCreate)
+	bool SetAttributeFromPropertyHelper(UPCGMetadata* Metadata, FName AttributeName, PCGMetadataEntryKey& EntryKey, const DataType* DataPtr, const FProperty* InProperty, bool bCreate)
 	{
-		if (!InProperty || !DataPtr)
+		if (!InProperty || !DataPtr || !Metadata)
 		{
 			return false;
 		}
 
 		// Check if an attribute already exists or not if we ask to create a new one
-		if (!bCreate && !Metadata.HasAttribute(AttributeName))
+		if (!bCreate && !Metadata->HasAttribute(AttributeName))
 		{
 			return false;
 		}
 
-		auto CreateAttributeAndSet = [AttributeName, &Metadata, bCreate, &EntryKey](auto&& PropertyValue) -> bool
+		auto CreateAttributeAndSet = [AttributeName, Metadata, bCreate, &EntryKey](auto&& PropertyValue) -> bool
 		{
 			using PropertyType = std::remove_const_t<std::remove_reference_t<decltype(PropertyValue)>>;
 
-			FPCGMetadataAttributeBase* BaseAttribute = Metadata.GetMutableAttribute(AttributeName);
+			FPCGMetadataAttributeBase* BaseAttribute = Metadata->GetMutableAttribute(AttributeName);
 
 			if (!BaseAttribute && bCreate)
 			{
 				// Interpolation is disabled and no parent override.
-				BaseAttribute = Metadata.CreateAttribute<PropertyType>(AttributeName, PropertyValue, false, false);
+				BaseAttribute = Metadata->CreateAttribute<PropertyType>(AttributeName, PropertyValue, false, false);
 			}
 
 			if (!BaseAttribute)
@@ -468,18 +468,20 @@ namespace PCGMetadata
 			}
 
 			// Allow to set the value if both type matches or if we can construct AttributeType from PropertyType.
-			return PCGMetadataAttribute::CallbackWithRightType(BaseAttribute->GetTypeId(), [&](auto AttributeValue) -> bool
+			return PCGMetadataAttribute::CallbackWithRightType(BaseAttribute->GetTypeId(), [&EntryKey, &PropertyValue, BaseAttribute, Metadata](auto AttributeValue) -> bool
 				{
 					using AttributeType = decltype(AttributeValue);
 					FPCGMetadataAttribute<AttributeType>* Attribute = static_cast<FPCGMetadataAttribute<AttributeType>*>(BaseAttribute);
 
 					if constexpr (std::is_same_v<AttributeType, PropertyType>)
 					{
+						Metadata->InitializeOnSet(EntryKey);
 						Attribute->SetValue(EntryKey, PropertyValue);
 						return true;
 					}
 					else if constexpr (std::is_constructible_v<AttributeType, PropertyType>)
 					{
+						Metadata->InitializeOnSet(EntryKey);
 						Attribute->SetValue(EntryKey, AttributeType(PropertyValue));
 						return true;
 					}
@@ -496,12 +498,12 @@ namespace PCGMetadata
 
 bool UPCGMetadata::SetAttributeFromProperty(FName AttributeName, PCGMetadataEntryKey& EntryKey, const UObject* Object, const FProperty* InProperty, bool bCreate)
 {
-	return PCGMetadata::SetAttributeFromPropertyHelper<UObject>(*this, AttributeName, EntryKey, Object, InProperty, bCreate);
+	return PCGMetadata::SetAttributeFromPropertyHelper<UObject>(this, AttributeName, EntryKey, Object, InProperty, bCreate);
 }
 
 bool UPCGMetadata::SetAttributeFromDataProperty(FName AttributeName, PCGMetadataEntryKey& EntryKey, const void* Data, const FProperty* InProperty, bool bCreate)
 {
-	return PCGMetadata::SetAttributeFromPropertyHelper<void>(*this, AttributeName, EntryKey, Data, InProperty, bCreate);
+	return PCGMetadata::SetAttributeFromPropertyHelper<void>(this, AttributeName, EntryKey, Data, InProperty, bCreate);
 }
 
 bool UPCGMetadata::CopyExistingAttribute(FName AttributeToCopy, FName NewAttributeName, bool bKeepParent)

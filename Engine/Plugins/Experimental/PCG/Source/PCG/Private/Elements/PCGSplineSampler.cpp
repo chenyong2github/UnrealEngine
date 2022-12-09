@@ -132,7 +132,7 @@ namespace PCGSplineSamplerHelpers
 		}
 
 		// Checks if a duplicate point should be counted as a valid intersection and adds it to the intersection list if so. Collinear points are also considered duplicates.
-		auto TestDuplicatePoint = [&](const FVector2D& IntersectionPoint, int32 Index) -> bool
+		auto TestDuplicatePoint = [PointCount, &PolygonPoints](const FVector2D& IntersectionPoint, int32 Index) -> bool
 		{
 			const int32 BackwardIndex = Index - 1;
 			const int32 ForwardIndex = Index + 1;

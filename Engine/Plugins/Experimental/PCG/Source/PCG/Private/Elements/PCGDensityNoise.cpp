@@ -38,7 +38,7 @@ bool FPCGDensityNoiseElement::ExecuteInternal(FPCGContext* Context) const
 	// Precompute a seed based on the settings one and the component one
 	const int Seed = PCGSettingsHelpers::ComputeSeedWithOverride(Settings, Context->SourceComponent, Params);
 
-	ProcessPoints(Context, Inputs, Outputs, [&](const FPCGPoint& InPoint, FPCGPoint& OutPoint)
+	ProcessPoints(Context, Inputs, Outputs, [Seed, DensityNoiseMin, DensityNoiseMax, bInvertSourceDensity, DensityMode](const FPCGPoint& InPoint, FPCGPoint& OutPoint)
 	{
 		OutPoint = InPoint;
 		FRandomStream RandomSource(PCGHelpers::ComputeSeed(Seed, OutPoint.Seed));

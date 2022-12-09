@@ -127,6 +127,7 @@ bool FPCGCopyPointsElement::ExecuteInternal(FPCGContext* Context) const
 	TArray<TTuple<int64, int64>> AllMetadataEntries;
 	AllMetadataEntries.SetNum(SourcePoints.Num() * TargetPoints.Num());
 
+	// Use implicit capture, since we capture a lot
 	FPCGAsync::AsyncPointProcessing(Context, SourcePoints.Num() * TargetPoints.Num(), OutPoints, [&](int32 Index, FPCGPoint& OutPoint)
 	{
 		const FPCGPoint& SourcePoint = SourcePoints[Index / TargetPoints.Num()];
