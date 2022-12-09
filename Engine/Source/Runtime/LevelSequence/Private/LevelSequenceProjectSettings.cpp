@@ -2,6 +2,8 @@
 
 #include "LevelSequenceProjectSettings.h"
 
+#include "HAL/IConsoleManager.h"
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LevelSequenceProjectSettings)
 
 ULevelSequenceProjectSettings::ULevelSequenceProjectSettings()
@@ -19,7 +21,31 @@ void ULevelSequenceProjectSettings::PostInitProperties()
 #if WITH_EDITOR
 	if(IsTemplate())
 	{
-		ImportConsoleVariableValues();
+		// Most classes that uses this console backed cvar to import the cvar values onto the config. 
+		// This isn't quite desirable because it means changing a value in the project settings will 
+		// get overwritten by cvar (possibly default) values. So, instead of importing console variable 
+		// values onto the config, set the console variable values based on the config values.
+		// ImportConsoleVariableValues();
+	
+		if (IConsoleVariable* ConsoleVariable = IConsoleManager::Get().FindConsoleVariable(TEXT("LevelSequence.DefaultLockEngineToDisplayRate")))
+		{
+			ConsoleVariable->Set((int32)bDefaultLockEngineToDisplayRate, ECVF_SetByProjectSetting);
+		}
+
+		if (IConsoleVariable* ConsoleVariable = IConsoleManager::Get().FindConsoleVariable(TEXT("LevelSequence.DefaultTickResolution")))
+		{
+			ConsoleVariable->Set(*DefaultTickResolution, ECVF_SetByProjectSetting);
+		}
+
+		if (IConsoleVariable* ConsoleVariable = IConsoleManager::Get().FindConsoleVariable(TEXT("LevelSequence.DefaultDisplayRate")))
+		{
+			ConsoleVariable->Set(*DefaultDisplayRate, ECVF_SetByProjectSetting);
+		}
+
+		if (IConsoleVariable* ConsoleVariable = IConsoleManager::Get().FindConsoleVariable(TEXT("LevelSequence.DefaultClockSource")))
+		{
+			ConsoleVariable->Set((int32)DefaultClockSource, ECVF_SetByProjectSetting);
+		}
 	}
 #endif
 }
