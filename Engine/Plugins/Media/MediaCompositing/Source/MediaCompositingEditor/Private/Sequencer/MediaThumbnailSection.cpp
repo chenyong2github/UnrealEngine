@@ -72,7 +72,13 @@ float FMediaThumbnailSection::GetSectionHeight() const
 FText FMediaThumbnailSection::GetSectionTitle() const
 {
 	UMovieSceneMediaSection* MediaSection = CastChecked<UMovieSceneMediaSection>(Section);
-	UMediaSource* MediaSource = MediaSection->GetMediaSource();
+	TSharedPtr<ISequencer> Sequencer = SequencerPtr.Pin();
+	UMediaSource* MediaSource = nullptr;
+
+	if (MediaSection && Sequencer.IsValid())
+	{
+		MediaSource = MediaSection->GetMediaSourceOrProxy(*Sequencer, Sequencer->GetFocusedTemplateID());
+	}
 
 	if (MediaSource == nullptr)
 	{

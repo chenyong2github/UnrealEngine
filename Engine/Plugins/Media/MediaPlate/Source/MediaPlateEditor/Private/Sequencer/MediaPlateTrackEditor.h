@@ -73,7 +73,7 @@ private:
 	/**
 	 * Adds a track for this component.
 	 */
-	void AddTrackForComponent(UMediaPlateComponent* Component);
+	void AddTrackForComponent(UMediaPlateComponent* Component, FGuid TargetObjectGuid);
 
 	/**
 	 * Adds tracks from an object binding.

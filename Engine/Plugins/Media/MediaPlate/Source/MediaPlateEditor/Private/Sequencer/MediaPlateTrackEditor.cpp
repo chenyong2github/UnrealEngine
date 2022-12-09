@@ -12,6 +12,7 @@
 #include "MediaPlaylist.h"
 #include "Misc/MessageDialog.h"
 #include "Modules/ModuleManager.h"
+#include "MovieSceneObjectBindingID.h"
 #include "MovieSceneMediaSection.h"
 #include "MovieSceneMediaTrack.h"
 #include "SceneOutlinerModule.h"
@@ -159,13 +160,16 @@ void FMediaPlateTrackEditor::HandleActorAdded(AActor* Actor, FGuid TargetObjectG
 	{
 		if (UMediaPlateComponent* MediaPlateComponent = Actor->FindComponentByClass<UMediaPlateComponent>())
 		{
-			AddTrackForComponent(MediaPlateComponent);
+			AddTrackForComponent(MediaPlateComponent, TargetObjectGuid);
 		}
 	}
 }
 
-void FMediaPlateTrackEditor::AddTrackForComponent(UMediaPlateComponent* Component)
+void FMediaPlateTrackEditor::AddTrackForComponent(UMediaPlateComponent* Component, FGuid TargetObjectGuid)
 {
+	FMovieSceneObjectBindingID TargetObjectBindingID =
+		UE::MovieScene::FRelativeObjectBindingID(TargetObjectGuid);
+
 	// Get object.
 	UObject* Object = Component->GetOwner();
 	FFindOrCreateHandleResult HandleResult = FindOrCreateHandleToObject(Object);
@@ -188,7 +192,8 @@ void FMediaPlateTrackEditor::AddTrackForComponent(UMediaPlateComponent* Componen
 				UMediaSource* MediaSource = Playlist->Get(Index);
 				if (MediaSource != nullptr)
 				{
-					UMovieSceneSection* Section = MediaTrack->AddNewMediaSourceProxy(*Component, Index, FFrameNumber(0));
+					UMovieSceneSection* Section = MediaTrack->AddNewMediaSourceProxy(
+						TargetObjectBindingID, Index, FFrameNumber(0));
 					if (Section != nullptr)
 					{
 						// Start process to get the duration.
@@ -250,7 +255,7 @@ void FMediaPlateTrackEditor::ImportObjectBinding(const TArray<FGuid> ObjectBindi
 			if (UMediaPlateComponent* MediaPlateComponent = Actor->FindComponentByClass<UMediaPlateComponent>())
 			{
 				// Add tracks for this.
-				AddTrackForComponent(MediaPlateComponent);
+				AddTrackForComponent(MediaPlateComponent, ObjectBinding);
 			}
 		}
 	}

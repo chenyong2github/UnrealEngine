@@ -5,14 +5,16 @@
 #include "MovieSceneSection.h"
 
 #include "MediaSource.h"
+#include "MovieSceneObjectBindingID.h"
 
 #include "MovieSceneMediaSection.generated.h"
 
+class IMovieScenePlayer;
 class UMediaPlayer;
 class UMediaSoundComponent;
 class UMediaSource;
 class UMediaTexture;
-
+struct FMovieSceneSequenceID;
 
 /**
  * Implements a movie scene section for media playback.
@@ -30,9 +32,7 @@ public:
 	/** The source to play with this video track if MediaSourceProxy is not available. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Media")
 	TObjectPtr<UMediaSource> MediaSource;
-	/** The object to get the source to play from if you don't want to directly specify a media source. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media")
-	TSoftObjectPtr<UObject> MediaSourceProxy;
+	
 	/** The index to pass to MediaSourceProxy to get the media source. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media")
 	int32 MediaSourceProxyIndex;
@@ -87,6 +87,9 @@ protected:
 	virtual UMovieSceneSection* SplitSection(FQualifiedFrameTime SplitTime, bool bDeleteKeys) override;
 	virtual TOptional<FFrameTime> GetOffsetTime() const override;
 	virtual void MigrateFrameTimes(FFrameRate SourceRate, FFrameRate DestinationRate) override;
+	virtual void OnBindingIDsUpdated(const TMap<UE::MovieScene::FFixedObjectBindingID, UE::MovieScene::FFixedObjectBindingID>& OldFixedToNewFixedMap, FMovieSceneSequenceID LocalSequenceID, const FMovieSceneSequenceHierarchy* Hierarchy, IMovieScenePlayer& Player) override;
+	virtual void GetReferencedBindings(TArray<FGuid>& OutBindings) override;
+
 
 public:
 
@@ -110,16 +113,42 @@ public:
 	}
 
 	/**
+	 * Get this section's video source proxy.
+	 */
+	const FMovieSceneObjectBindingID& GetMediaSourceProxy() const
+	{
+		return MediaSourceProxyBindingID;
+	}
+
+	/**
 	 * Set this section's video source proxy.
 	 *
-	 * @param InMediaSourceProxy	This should implement IMediaPlayerProxyInterface.
+	 * @param InObjectBinding		The object this binds to should implement IMediaPlayerProxyInterface.
 	 * @param InIndex				Index to pass to IMediaPlayerProxyInterface.
 	 */
-	void SetMediaSourceProxy(UObject* InMediaSourceProxy, int32 InIndex)
+	void SetMediaSourceProxy(const FMovieSceneObjectBindingID& InObjectBinding, int32 InIndex)
 	{
-		MediaSourceProxy = InMediaSourceProxy;
+		MediaSourceProxyBindingID = InObjectBinding;
 		MediaSourceProxyIndex = InIndex;
 	}
+
+	/**
+	 * If there is a proxy, get the media source from it.
+	 * Otherwise return our media source.
+	 * 
+	 * @param Player				Player used to get the proxy object from the binding.
+	 * @param SequenceID			ID used to get the proxy object from the binding.
+	 */
+	UMediaSource* GetMediaSourceOrProxy(IMovieScenePlayer& Player, FMovieSceneSequenceID SequenceID) const;
+
+	/**
+	 * Static version of GetMediaSourceOrProxy.
+	 *
+	 * @param Player				Player used to get the proxy object from the binding.
+	 * @param SequenceID			ID used to get the proxy object from the binding.
+	 */
+	static UMediaSource* GetMediaSourceOrProxy(IMovieScenePlayer& InPlayer, FMovieSceneSequenceID InSequenceID, UMediaSource* InMediaSource, const FMovieSceneObjectBindingID& InMediaSourceProxyBindingID, int32 InMediaSourceProxyIndex);
+
 
 #if WITH_EDITORONLY_DATA
 
@@ -145,4 +174,11 @@ public:
 	float ThumbnailReferenceOffset;
 
 #endif //WITH_EDITORONLY_DATA
+
+private:
+
+	/** The object to get the source to play from if you don't want to directly specify a media source. */
+	UPROPERTY(EditAnywhere, Category = "Section")
+	FMovieSceneObjectBindingID MediaSourceProxyBindingID;
+
 };

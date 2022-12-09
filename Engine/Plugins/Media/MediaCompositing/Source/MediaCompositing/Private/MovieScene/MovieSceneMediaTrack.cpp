@@ -45,10 +45,10 @@ UMovieSceneSection* UMovieSceneMediaTrack::AddNewMediaSourceOnRow(UMediaSource& 
 }
 
 
-UMovieSceneSection* UMovieSceneMediaTrack::AddNewMediaSourceProxyOnRow(UObject& MediaSourceProxy, int32 MediaSourceProxyIndex, FFrameNumber Time, int32 RowIndex)
+UMovieSceneSection* UMovieSceneMediaTrack::AddNewMediaSourceProxyOnRow(const FMovieSceneObjectBindingID& ObjectBinding, int32 MediaSourceProxyIndex, FFrameNumber Time, int32 RowIndex)
 {
 	UMovieSceneMediaSection* NewSection = AddNewSectionOnRow(Time, RowIndex);
-	NewSection->SetMediaSourceProxy(&MediaSourceProxy, MediaSourceProxyIndex);
+	NewSection->SetMediaSourceProxy(ObjectBinding, MediaSourceProxyIndex);
 	return NewSection;
 }
 

@@ -4,6 +4,7 @@
 
 #include "Evaluation/MovieSceneEvalTemplate.h"
 #include "Evaluation/MovieScenePropertyTemplate.h"
+#include "MovieSceneObjectBindingID.h"
 
 #include "MovieSceneMediaTemplate.generated.h"
 
@@ -27,7 +28,7 @@ struct FMovieSceneMediaSectionParams
 	TObjectPtr<UMediaSource> MediaSource;
 
 	UPROPERTY()
-	TObjectPtr<UObject> MediaSourceProxy;
+	FMovieSceneObjectBindingID MediaSourceProxy;
 
 	UPROPERTY()
 	int32 MediaSourceProxyIndex;
@@ -53,7 +54,6 @@ struct FMovieSceneMediaSectionParams
 	FMovieSceneMediaSectionParams()
 		: MediaSoundComponent(nullptr)
 		, MediaSource(nullptr)
-		, MediaSourceProxy(nullptr)
 		, MediaSourceProxyIndex(0)
 		, MediaTexture(nullptr)
 		, MediaPlayer(nullptr)

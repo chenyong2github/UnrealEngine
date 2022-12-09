@@ -2,6 +2,8 @@
 
 #include "MovieSceneMediaSection.h"
 
+#include "Components/ActorComponent.h"
+#include "GameFramework/Actor.h"
 #include "MediaPlayerProxyInterface.h"
 #include "MovieScene.h"
 #include "Misc/FrameRate.h"
@@ -91,27 +93,67 @@ void UMovieSceneMediaSection::MigrateFrameTimes(FFrameRate SourceRate, FFrameRat
 	}
 }
 
+void UMovieSceneMediaSection::OnBindingIDsUpdated(const TMap<UE::MovieScene::FFixedObjectBindingID, UE::MovieScene::FFixedObjectBindingID>& OldFixedToNewFixedMap, FMovieSceneSequenceID LocalSequenceID, const FMovieSceneSequenceHierarchy* Hierarchy, IMovieScenePlayer& Player)
+{
+	UE::MovieScene::FFixedObjectBindingID FixedBindingID = 
+		MediaSourceProxyBindingID.ResolveToFixed(LocalSequenceID, Player);
+
+	if (OldFixedToNewFixedMap.Contains(FixedBindingID))
+	{
+		Modify();
+
+		MediaSourceProxyBindingID =
+			OldFixedToNewFixedMap[FixedBindingID].ConvertToRelative(LocalSequenceID, Hierarchy);
+	}
+}
+
+void UMovieSceneMediaSection::GetReferencedBindings(TArray<FGuid>& OutBindings)
+{
+	OutBindings.Add(MediaSourceProxyBindingID.GetGuid());
+}
+
 UMediaSource* UMovieSceneMediaSection::GetMediaSource() const
 {
-	UMediaSource* LocalMediaSource = nullptr;
+	return MediaSource.Get();
+}
 
-	// Get media source from the proxy if we have one.
-	UObject* MediaSourceProxyObject = MediaSourceProxy.Get();
-	IMediaPlayerProxyInterface* PlayerProxyInterface = nullptr;
-	if (MediaSourceProxyObject)
+UMediaSource* UMovieSceneMediaSection::GetMediaSourceOrProxy(IMovieScenePlayer& Player, FMovieSceneSequenceID SequenceID) const
+{
+	return GetMediaSourceOrProxy(Player, SequenceID, MediaSource, MediaSourceProxyBindingID, MediaSourceProxyIndex);
+}
+
+UMediaSource* UMovieSceneMediaSection::GetMediaSourceOrProxy(IMovieScenePlayer& InPlayer, FMovieSceneSequenceID InSequenceID, UMediaSource* InMediaSource, const FMovieSceneObjectBindingID& InMediaSourceProxyBindingID, int32 InMediaSourceProxyIndex)
+{
+	UMediaSource* OutMediaSource = InMediaSource;
+
+	for (TWeakObjectPtr<> WeakObject : InMediaSourceProxyBindingID.ResolveBoundObjects(InSequenceID, InPlayer))
 	{
-		PlayerProxyInterface = Cast<IMediaPlayerProxyInterface>(MediaSourceProxyObject);
-	}
-	if (PlayerProxyInterface != nullptr)
-	{
-		LocalMediaSource = PlayerProxyInterface->GetMediaSourceFromIndex(MediaSourceProxyIndex);
-	}
-	else
-	{
-		LocalMediaSource = MediaSource.Get();
+		if (UObject* Object = WeakObject.Get())
+		{
+			AActor* Actor = Cast<AActor>(Object);
+			if (Actor != nullptr)
+			{
+				// Loop over all the components and see if any are a proxy.
+				TArray<UActorComponent*> ActorComponents;
+				Actor->GetComponents(ActorComponents);
+				for (UActorComponent* Component : ActorComponents)
+				{
+					IMediaPlayerProxyInterface* Proxy = Cast<IMediaPlayerProxyInterface>(Component);
+					if (Proxy != nullptr)
+					{
+						OutMediaSource = Proxy->GetMediaSourceFromIndex(InMediaSourceProxyIndex);
+						break;
+					}
+				}
+				if (OutMediaSource != nullptr)
+				{
+					break;
+				}
+			}
+		}
 	}
 
-	return LocalMediaSource;
+	return OutMediaSource;
 }
 
 #undef LOCTEXT_NAMESPACE
