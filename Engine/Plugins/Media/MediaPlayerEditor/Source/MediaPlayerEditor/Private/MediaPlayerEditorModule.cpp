@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
+#include "MediaPlayerEditorModule.h"
+
 #include "ComponentVisualizer.h"
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "AssetToolsModule.h"
 #include "UObject/UObjectHash.h"
@@ -59,7 +59,7 @@ DEFINE_LOG_CATEGORY(LogMediaPlayerEditor);
 class FMediaPlayerEditorModule
 	: public IHasMenuExtensibility
 	, public IHasToolBarExtensibility
-	, public IModuleInterface
+	, public IMediaPlayerEditorModule
 {
 public:
 
@@ -80,6 +80,12 @@ public:
 	}
 
 public:
+
+	//~ IMediaPlayerEditorModule interface
+	virtual TSharedPtr<ISlateStyle> GetStyle()
+	{
+		return Style;
+	}
 
 	//~ IModuleInterface interface
 
@@ -122,13 +128,13 @@ protected:
 	{
 		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 
-		RegisterAssetTypeAction(AssetTools, MakeShareable(new FFileMediaSourceActions(Style.ToSharedRef())));
+		RegisterAssetTypeAction(AssetTools, MakeShareable(new FFileMediaSourceActions()));
 		RegisterAssetTypeAction(AssetTools, MakeShareable(new FMediaPlayerActions(Style.ToSharedRef())));
 		RegisterAssetTypeAction(AssetTools, MakeShareable(new FMediaPlaylistActions(Style.ToSharedRef())));
-		RegisterAssetTypeAction(AssetTools, MakeShareable(new FMediaSourceActions));
+		RegisterAssetTypeAction(AssetTools, MakeShareable(new FMediaSourceActions()));
 		RegisterAssetTypeAction(AssetTools, MakeShareable(new FMediaTextureActions));
-		RegisterAssetTypeAction(AssetTools, MakeShareable(new FPlatformMediaSourceActions(Style.ToSharedRef())));
-		RegisterAssetTypeAction(AssetTools, MakeShareable(new FStreamMediaSourceActions(Style.ToSharedRef())));
+		RegisterAssetTypeAction(AssetTools, MakeShareable(new FPlatformMediaSourceActions()));
+		RegisterAssetTypeAction(AssetTools, MakeShareable(new FStreamMediaSourceActions()));
 	}
 
 	/**

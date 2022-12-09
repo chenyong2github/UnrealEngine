@@ -7,14 +7,6 @@
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
 
-/* FStreamMediaSourceActions constructors
- *****************************************************************************/
-
-FStreamMediaSourceActions::FStreamMediaSourceActions(const TSharedRef<ISlateStyle>& InStyle)
-	: Style(InStyle)
-{ }
-
-
 /* FAssetTypeActions_Base interface
  *****************************************************************************/
 

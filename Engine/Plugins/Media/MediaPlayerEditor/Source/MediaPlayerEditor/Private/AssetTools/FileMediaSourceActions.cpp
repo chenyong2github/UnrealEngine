@@ -11,14 +11,6 @@
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
 
-/* FFileMediaSourceActions constructors
- *****************************************************************************/
-
-FFileMediaSourceActions::FFileMediaSourceActions(const TSharedRef<ISlateStyle>& InStyle)
-	: Style(InStyle)
-{ }
-
-
 /* FAssetTypeActions_Base interface
  *****************************************************************************/
 
