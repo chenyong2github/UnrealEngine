@@ -17,7 +17,7 @@ FClosestPhysicsObjectResult UPhysicsObjectBlueprintLibrary::GetClosestPhysicsObj
 		// Maybe allow users to customize the predicate?
 		[&Interface](Chaos::FPhysicsObject* Object) {
 			// We need to filter so we only get the leaf bodies. Mainly in consideration of the geometry collection.
-			return !Interface->AreAllDisabled({&Object, 1}) && !Interface->HasChildren(Object);
+			return !Interface->HasChildren(Object);
 		}
 	);
 	return Interface->GetClosestPhysicsBodyFromLocation(PhysicsObjects, WorldLocation);
