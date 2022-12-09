@@ -5,6 +5,7 @@
 #include "HAL/PlatformMath.h"
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
+#include "Templates/SharedPointer.h"
 
 
 namespace mu
