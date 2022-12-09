@@ -27,6 +27,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenReflectionTracingParameters, )
 	SHADER_PARAMETER(float, ReflectionSmoothBias)
 	SHADER_PARAMETER(uint32, ReflectionPass)
 	SHADER_PARAMETER(uint32, UseJitter)
+	SHADER_PARAMETER(uint32, UseHighResSurface)
 
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, RayBuffer)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, RayTraceDistance)
@@ -61,6 +62,7 @@ namespace LumenReflections
 	bool UseFarFieldForReflections(const FSceneViewFamily& ViewFamily);
 	bool IsHitLightingForceEnabled(const FViewInfo& View);
 	bool UseHitLightingForReflections(const FViewInfo& View);
+	bool UseSurfaceCacheFeedback();
 };
 
 extern void TraceReflections(

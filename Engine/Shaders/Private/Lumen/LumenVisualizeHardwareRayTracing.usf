@@ -419,7 +419,6 @@ StructuredBuffer<FRayTracingSceneMetadataRecord> RayTracingSceneMetadata;
 uint ThreadCount;
 uint GroupCount;
 uint LightingMode;
-uint VisualizeHiResSurface;
 uint MaxTranslucentSkipCount;
 uint MaxTraversalIterations;
 float3 FarFieldReferencePos;

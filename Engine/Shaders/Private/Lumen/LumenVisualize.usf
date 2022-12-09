@@ -1,14 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "../Common.ush"
+#include "../DeferredShadingCommon.ush"
+#include "../SHCommon.ush"
+#include "../ShaderPrint.ush"
 #include "LumenCardCommon.ush"
 #include "LumenTracingCommon.ush"
 #define RADIANCE_CACHE_DEPTH_TEST_SPHERE_PARALLAX 1
 #include "LumenRadianceCacheCommon.ush"
 #include "LumenVisualizeTraces.ush"
-#include "../DeferredShadingCommon.ush"
-#include "../SHCommon.ush"
-#include "../ShaderPrint.ush"
 #include "LumenVisualize.ush"
 
 uint3 CullGridSize;
@@ -19,7 +19,6 @@ float MinTraceDistance;
 float MaxTraceDistance;
 float MaxMeshSDFTraceDistanceForVoxelTracing;
 float MaxMeshSDFTraceDistance;
-int VisualizeHiResSurface;
 float CardInterpolateInfluenceRadius;
 
 RWTexture2D<float4> RWSceneColor;
@@ -52,7 +51,7 @@ void VisualizeQuadsCS(
 	float3 CameraVector = normalize(ScreenVector);
 	float Noise = InterleavedGradientNoise(PixelPos, View.StateFrameIndexMod8);
 
-	float TanConeAngle = tan(PreviewConeAngle);
+	float ConeAngle = View.EyeToPixelSpreadAngle;
 	float TraceDistance = MaxTraceDistance;
 	bool bCoveredByRadianceCache = false;
 
@@ -66,7 +65,7 @@ void VisualizeQuadsCS(
 #endif
 
 	FConeTraceInput TraceInput;
-	TraceInput.Setup(LWCHackToFloat(PrimaryView.WorldCameraOrigin), PrimaryView.TranslatedWorldCameraOrigin, CameraVector, PreviewConeAngle, .01f, MinTraceDistance, TraceDistance, VisualizeStepFactor);
+	TraceInput.Setup(LWCHackToFloat(PrimaryView.WorldCameraOrigin), PrimaryView.TranslatedWorldCameraOrigin, CameraVector, ConeAngle, .01f, MinTraceDistance, TraceDistance, VisualizeStepFactor);
 	TraceInput.SDFStepFactor = lerp(.8f, 1.0f, Noise);
 	TraceInput.bDitheredTransparency = false;
 	TraceInput.DitherScreenCoord = PixelPos;
@@ -118,7 +117,7 @@ void VisualizeQuadsCS(
 #endif
 
 #if RADIANCE_CACHE
-	TraceResult.Lighting += SampleRadianceCacheInterpolated(Coverage, LWCHackToFloat(PrimaryView.WorldCameraOrigin), CameraVector, PreviewConeAngle).xyz * TraceResult.Transparency;
+	TraceResult.Lighting += SampleRadianceCacheInterpolated(Coverage, LWCHackToFloat(PrimaryView.WorldCameraOrigin), CameraVector, ConeAngle).xyz * TraceResult.Transparency;
 	TraceResult.Transparency = 0.0f;
 #else
 	ApplySkylightToTraceResult(CameraVector, TraceResult);

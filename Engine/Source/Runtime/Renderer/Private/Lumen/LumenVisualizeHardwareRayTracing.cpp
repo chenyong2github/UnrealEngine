@@ -102,7 +102,7 @@ namespace Lumen
 
 	bool ShouldVisualizeHardwareRayTracing(const FSceneViewFamily& ViewFamily)
 	{
-		return UseHardwareRayTracedVisualize(ViewFamily) && Lumen::ShouldVisualizeScene(ViewFamily);
+		return UseHardwareRayTracedVisualize(ViewFamily) && Lumen::ShouldVisualizeScene(ViewFamily.EngineShowFlags);
 	}
 
 #if RHI_RAYTRACING

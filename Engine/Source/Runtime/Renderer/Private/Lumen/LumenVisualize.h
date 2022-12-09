@@ -17,8 +17,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenVisualizeSceneParameters, )
 	SHADER_PARAMETER(FIntPoint, InputViewOffset)
 	SHADER_PARAMETER(FIntPoint, OutputViewSize)
 	SHADER_PARAMETER(FIntPoint, OutputViewOffset)
-	SHADER_PARAMETER(float, PreviewConeAngle)
-	SHADER_PARAMETER(float, TanPreviewConeAngle)
 	SHADER_PARAMETER(int32, VisualizeHiResSurface)
 	SHADER_PARAMETER(int32, Tonemap)
 	SHADER_PARAMETER(int32, VisualizeMode)
@@ -45,6 +43,7 @@ namespace LumenVisualize
 		bool bVisualizeModeWithHitLighting);
 
 	bool IsHitLightingForceEnabled(const FViewInfo& View);
+	bool UseSurfaceCacheFeedback(const FEngineShowFlags& ShowFlags);
 };
 
 struct FVisualizeLumenSceneInputs

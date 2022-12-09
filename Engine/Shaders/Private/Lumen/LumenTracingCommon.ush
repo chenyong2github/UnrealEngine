@@ -50,7 +50,7 @@ struct FConeTraceInput
 	float3 ConeTranslatedOrigin;
 	float3 ConeDirection;
 	
-	float ConeAngle;
+	float ConeAngle; // View.EyeToPixelSpreadAngle or RayCone.Spread in HWRT world
 	float TanConeAngle;
 
 	float ConeStartRadius;
@@ -722,7 +722,7 @@ float4 EvaluateGlobalDistanceFieldHit(FConeTraceInput TraceInput, FGlobalSDFTrac
 				{
 					uint2 ScreenCoord = TraceInput.DitherScreenCoord;
 					float SurfaceCacheBias = DISTANCE_FIELD_OBJECT_GRID_CARD_INTERPOLATION_RANGE_IN_VOXELS * ClipmapVoxelExtent;
-					float SampleRadius = 100.0f;
+					float SampleRadius = TraceInput.ConeStartRadius + TraceInput.TanConeAngle * SDFTraceResult.HitTime;
 
 					FSurfaceCacheSample SurfaceCacheSample = SampleLumenMeshCards(
 						ScreenCoord,
@@ -731,7 +731,7 @@ float4 EvaluateGlobalDistanceFieldHit(FConeTraceInput TraceInput, FGlobalSDFTrac
 						SampleWorldNormal,
 						SampleRadius,
 						SurfaceCacheBias,
-						/*bHiResSurface*/ false,
+						TraceInput.bHiResSurface,
 						FINAL_LIGHTING_ATLAS_ID
 					);
 

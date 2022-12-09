@@ -4,12 +4,11 @@
 #include "../EyeAdaptationCommon.ush"
 #include "../TonemapCommon.ush"
 
+uint VisualizeHiResSurface;
 uint2 InputViewSize;
 uint2 InputViewOffset;
 uint2 OutputViewSize;
 uint2 OutputViewOffset;
-float PreviewConeAngle;
-float TanPreviewConeAngle;
 int Tonemap;
 
 #define LUT_SCALING	1.05f

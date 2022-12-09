@@ -44,7 +44,7 @@ namespace Lumen
 
 	float GetMaxTraceDistance(const FViewInfo& View);
 	bool IsLumenFeatureAllowedForView(const FScene* Scene, const FSceneView& View, bool bSkipTracingDataCheck = false, bool bSkipProjectCheck = false);
-	bool ShouldVisualizeScene(const FSceneViewFamily& ViewFamily);
+	bool ShouldVisualizeScene(const FEngineShowFlags& ShowFlags);
 	bool ShouldVisualizeHardwareRayTracing(const FSceneViewFamily& ViewFamily);
 	bool ShouldHandleSkyLight(const FScene* Scene, const FSceneViewFamily& ViewFamily);
 

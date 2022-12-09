@@ -84,12 +84,11 @@ FAutoConsoleVariableRef CVarVisualizeLumenSceneHiResSurface(
 	ECVF_RenderThreadSafe
 );
 
-int32 GVisualizeLumenSceneSurfaceCacheFeedback = 1;
-FAutoConsoleVariableRef CVarVisualizeLumenSceneSurfaceCacheFeedback(
+static TAutoConsoleVariable<int32> CVarVisualizeLumenSceneSurfaceCacheFeedback(
 	TEXT("r.Lumen.Visualize.SurfaceCacheFeedback"),
-	GVisualizeLumenSceneSurfaceCacheFeedback,
+	1,
 	TEXT("Whether visualization should write surface cache feedback requests into the feedback buffer."),
-	ECVF_RenderThreadSafe
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 int32 GVisualizeLumenSceneTraceRadianceCache = 0;
@@ -250,9 +249,15 @@ FAutoConsoleVariableRef CVarCardInterpolateInfluenceRadius(
 	ECVF_RenderThreadSafe
 	);
 
-bool Lumen::ShouldVisualizeScene(const FSceneViewFamily& ViewFamily)
+bool Lumen::ShouldVisualizeScene(const FEngineShowFlags& ShowFlags)
 {
-	return ViewFamily.EngineShowFlags.VisualizeLumen || GLumenVisualize > 0;
+	return ShowFlags.VisualizeLumen || GLumenVisualize > 0;
+}
+
+bool LumenVisualize::UseSurfaceCacheFeedback(const FEngineShowFlags& ShowFlags)
+{
+	return CVarVisualizeLumenSceneSurfaceCacheFeedback.GetValueOnRenderThread() != 0
+		&& Lumen::ShouldVisualizeScene(ShowFlags);
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenVisualizeSceneSoftwareRayTracingParameters, )
@@ -311,6 +316,8 @@ public:
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
 		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
 		OutEnvironment.SetDefine(TEXT("ENABLE_VISUALIZE_MODE"), 1);
+		OutEnvironment.SetDefine(TEXT("SURFACE_CACHE_FEEDBACK"), 1);
+		OutEnvironment.SetDefine(TEXT("SURFACE_CACHE_HIGH_RES_PAGES"), 1);
 
 		// Workaround for an internal PC FXC compiler crash when compiling with disabled optimizations
 		if (Parameters.Platform == SP_PCD3D_SM5)
@@ -492,14 +499,6 @@ void SetupVisualizeParameters(
 	{
 		FLumenVisualizeSceneParameters& CommonParameters = VisualizeParameters.CommonParameters;
 
-		// Texture Level-of-Detail Strategies for Real-Time Ray Tracing https://developer.nvidia.com/raytracinggems Equation 20
-		const float RadFOV = (PI / 180.0f) * View.FOV;
-		const float PreviewConeAngle = FMath::Max(
-			FMath::Clamp(GVisualizeLumenSceneConeAngle, 0.0f, 45.0f) * (float)PI / 180.0f,
-			(2.0f * FPlatformMath::Tan(RadFOV * 0.5f)) / ViewRect.Height());
-
-		CommonParameters.PreviewConeAngle = PreviewConeAngle;
-		CommonParameters.TanPreviewConeAngle = FMath::Tan(PreviewConeAngle);
 		CommonParameters.VisualizeHiResSurface = GVisualizeLumenSceneHiResSurface ? 1 : 0;
 		CommonParameters.Tonemap = (EyeAdaptationBuffer != nullptr && ColorGradingTexture != nullptr) ? 1 : 0;
 		CommonParameters.VisualizeMode = VisualizeMode;
@@ -594,6 +593,7 @@ LumenRadianceCache::FRadianceCacheInputs GetFinalGatherRadianceCacheInputsForVis
 void VisualizeLumenScene(
 	const FScene* Scene,
 	FRDGBuilder& GraphBuilder,
+	const FEngineShowFlags& ShowFlags,
 	const FViewInfo& View,
 	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	FScreenPassTexture Output,
@@ -608,7 +608,7 @@ void VisualizeLumenScene(
 	SetupVisualizeParameters(GraphBuilder, View, Output.ViewRect, ColorGradingTexture, EyeAdaptationBuffer, VisualizeMode, VisualizeTileIndex, VisualizeParameters);
 
 	FLumenCardTracingParameters TracingParameters;
-	GetLumenCardTracingParameters(GraphBuilder, View, *Scene->GetLumenSceneData(View), FrameTemporaries, GVisualizeLumenSceneSurfaceCacheFeedback != 0, TracingParameters);
+	GetLumenCardTracingParameters(GraphBuilder, View, *Scene->GetLumenSceneData(View), FrameTemporaries, LumenVisualize::UseSurfaceCacheFeedback(ShowFlags), TracingParameters);
 
 	const FRadianceCacheState& RadianceCacheState = View.ViewState->Lumen.RadianceCacheState;
 	const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = GetFinalGatherRadianceCacheInputsForVisualize(View);
@@ -710,7 +710,7 @@ FScreenPassTexture AddVisualizeLumenScenePass(FRDGBuilder& GraphBuilder, const F
 
 	if (Lumen::IsLumenFeatureAllowedForView(Scene, View) && bAnyLumenActive)
 	{
-		const bool bVisualizeScene = Lumen::ShouldVisualizeScene(ViewFamily);
+		const bool bVisualizeScene = Lumen::ShouldVisualizeScene(ViewFamily.EngineShowFlags);
 
 		if (bVisualizeScene && (Lumen::ShouldVisualizeHardwareRayTracing(ViewFamily) || Lumen::IsSoftwareRayTracingSupported()))
 		{
@@ -760,7 +760,7 @@ FScreenPassTexture AddVisualizeLumenScenePass(FRDGBuilder& GraphBuilder, const F
 
 				for (int32 TileIndex = 0; TileIndex < LumenVisualize::NumOverviewTilesPerRow; ++TileIndex)
 				{
-					VisualizeLumenScene(Scene, GraphBuilder, View, FrameTemporaries, Output, Inputs.ColorGradingTexture, Inputs.EyeAdaptationBuffer, VisualizeTiles[TileIndex].Mode, TileIndex);	
+					VisualizeLumenScene(Scene, GraphBuilder, ViewFamily.EngineShowFlags, View, FrameTemporaries, Output, Inputs.ColorGradingTexture, Inputs.EyeAdaptationBuffer, VisualizeTiles[TileIndex].Mode, TileIndex);	
 				}
 
 				AddDrawCanvasPass(GraphBuilder, RDG_EVENT_NAME("LumenVisualizeLabels"), View, FScreenPassRenderTarget(Output, ERenderTargetLoadAction::ELoad),
@@ -784,7 +784,7 @@ FScreenPassTexture AddVisualizeLumenScenePass(FRDGBuilder& GraphBuilder, const F
 			}
 			else
 			{
-				VisualizeLumenScene(Scene, GraphBuilder, View, FrameTemporaries, Output, Inputs.ColorGradingTexture, Inputs.EyeAdaptationBuffer, VisualizeMode, /*VisualizeTileIndex*/ -1);
+				VisualizeLumenScene(Scene, GraphBuilder, ViewFamily.EngineShowFlags, View, FrameTemporaries, Output, Inputs.ColorGradingTexture, Inputs.EyeAdaptationBuffer, VisualizeMode, /*VisualizeTileIndex*/ -1);
 			}
 		}
 	}

@@ -1,14 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenSurfaceCacheFeedback.cpp
-=============================================================================*/
-
 #include "LumenSurfaceCacheFeedback.h"
 #include "SceneRendering.h"
+#include "DeferredShadingRenderer.h"
 #include "LumenSceneData.h"
 #include "Lumen.h"
-#include "DeferredShadingRenderer.h"
+#include "LumenReflections.h"
+#include "LumenVisualize.h"
 
 int32 GLumenSurfaceCacheFeedback = 1;
 FAutoConsoleVariableRef CVarLumenSurfaceCacheFeedback(
@@ -522,14 +520,10 @@ void FDeferredShadingSceneRenderer::BeginGatheringLumenSurfaceCacheFeedback(FRDG
 	{
 		FLumenSceneData& LumenSceneData = *Scene->GetLumenSceneData(View);
 
-		extern int32 GLumenVisualizeIndirectDiffuse;
-		extern int32 GVisualizeLumenSceneSurfaceCacheFeedback;
-		const bool bVisualizeUsesFeedback = GLumenVisualizeIndirectDiffuse != 0 && GVisualizeLumenSceneSurfaceCacheFeedback != 0;
+		const bool bVisualizeUsesFeedback = LumenVisualize::UseSurfaceCacheFeedback(ViewFamily.EngineShowFlags);
+		const bool bReflectionsUseFeedback = ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen && LumenReflections::UseSurfaceCacheFeedback();
 
-		extern int32 GLumenReflectionsSurfaceCacheFeedback;
-		const bool bReflectionsUseFeedback = Lumen::UseHardwareRayTracedReflections(ViewFamily) && GLumenReflectionsSurfaceCacheFeedback != 0;
-
-		if (!Lumen::IsSurfaceCacheFrozen() && (bReflectionsUseFeedback || bVisualizeUsesFeedback))
+		if (!Lumen::IsSurfaceCacheFrozen() && (bVisualizeUsesFeedback || bReflectionsUseFeedback))
 		{
 			ensure(FrameTemporaries.SurfaceCacheFeedbackResources.BufferUAV == nullptr);
 

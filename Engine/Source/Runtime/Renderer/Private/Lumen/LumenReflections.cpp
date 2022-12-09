@@ -232,6 +232,37 @@ static TAutoConsoleVariable<int32> CVarLumenReflectionsAsyncCompute(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarLumenReflectionsSurfaceCacheFeedback(
+	TEXT("r.Lumen.Reflections.SurfaceCacheFeedback"),
+	1,
+	TEXT("Whether to allow writing into virtual surface cache feedback buffer from reflection rays."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<int32> CVarLumenReflectionsHiResSurface(
+	TEXT("r.Lumen.Reflections.HiResSurface"),
+	1,
+	TEXT("Whether reflections should sample highest available surface data or use lowest res always resident pages."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+bool LumenReflections::UseSurfaceCacheFeedback()
+{
+	return CVarLumenReflectionsSurfaceCacheFeedback.GetValueOnRenderThread() != 0;
+}
+
+bool LumenReflections::UseAsyncCompute(const FViewFamilyInfo& ViewFamily)
+{
+	return Lumen::UseAsyncCompute(ViewFamily) && CVarLumenReflectionsAsyncCompute.GetValueOnRenderThread() != 0;
+}
+
+void LumenReflections::SetupCompositeParameters(LumenReflections::FCompositeParameters& OutParameters)
+{
+	OutParameters.MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;
+	OutParameters.InvRoughnessFadeLength = 1.0f / FMath::Clamp(GLumenReflectionRoughnessFadeLength, 0.001f, 1.0f);
+	OutParameters.MaxRoughnessToTraceForFoliage = GVarLumenReflectionsMaxRoughnessToTraceForFoliage.GetValueOnRenderThread();
+}
+
 TRefCountPtr<FRDGPooledBuffer> GVisualizeReflectionTracesData;
 
 FRDGBufferRef SetupVisualizeReflectionTraces(FRDGBuilder& GraphBuilder, FLumenReflectionsVisualizeTracesParameters& VisualizeTracesParameters)
@@ -269,18 +300,6 @@ void GetReflectionsVisualizeTracesBuffer(TRefCountPtr<FRDGPooledBuffer>& Visuali
 	{
 		VisualizeTracesData = GVisualizeReflectionTracesData;
 	}
-}
-
-bool LumenReflections::UseAsyncCompute(const FViewFamilyInfo& ViewFamily)
-{
-	return Lumen::UseAsyncCompute(ViewFamily) && CVarLumenReflectionsAsyncCompute.GetValueOnRenderThread() != 0;
-}
-
-void LumenReflections::SetupCompositeParameters(LumenReflections::FCompositeParameters& OutParameters)
-{
-	OutParameters.MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;
-	OutParameters.InvRoughnessFadeLength = 1.0f / FMath::Clamp(GLumenReflectionRoughnessFadeLength, 0.001f, 1.0f);
-	OutParameters.MaxRoughnessToTraceForFoliage = GVarLumenReflectionsMaxRoughnessToTraceForFoliage.GetValueOnRenderThread();
 }
 
 // Must match usf RESOLVE_TILE_SIZE
@@ -970,6 +989,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	ReflectionTracingParameters.ReflectionSmoothBias = GLumenReflectionSmoothBias;
 	ReflectionTracingParameters.ReflectionPass = (uint32)ReflectionPass;
 	ReflectionTracingParameters.UseJitter = bDenoise && GLumenReflectionTemporalFilter ? 1 : 0;
+	ReflectionTracingParameters.UseHighResSurface = CVarLumenReflectionsHiResSurface.GetValueOnRenderThread() != 0 ? 1 : 0;
 
 	FRDGTextureDesc RayBufferDesc(FRDGTextureDesc::Create2D(ReflectionTracingParameters.ReflectionTracingBufferSize, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
 	ReflectionTracingParameters.RayBuffer = GraphBuilder.CreateTexture(RayBufferDesc, TEXT("Lumen.Reflections.ReflectionRayBuffer"));

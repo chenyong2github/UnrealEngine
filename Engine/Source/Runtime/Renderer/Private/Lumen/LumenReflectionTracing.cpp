@@ -100,14 +100,6 @@ FAutoConsoleVariableRef GVarLumenReflectionSampleSceneColorRelativeDepthThreshol
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-int32 GLumenReflectionsSurfaceCacheFeedback = 1;
-FAutoConsoleVariableRef CVarLumenReflectionsSurfaceCacheFeedback(
-	TEXT("r.Lumen.Reflections.SurfaceCacheFeedback"),
-	GLumenReflectionsSurfaceCacheFeedback,
-	TEXT("Whether to allow writing into virtual surface cache feedback buffer from reflection rays."),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
 class FReflectionClearTracesCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FReflectionClearTracesCS)
@@ -358,6 +350,8 @@ class FReflectionTraceMeshSDFsCS : public FGlobalShader
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
+		OutEnvironment.SetDefine(TEXT("SURFACE_CACHE_FEEDBACK"), 1);
+		OutEnvironment.SetDefine(TEXT("SURFACE_CACHE_HIGH_RES_PAGES"), 1);
 
 		OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
 	}
@@ -390,6 +384,7 @@ class FReflectionTraceVoxelsCS : public FGlobalShader
 	class FHairStrands : SHADER_PERMUTATION_BOOL("USE_HAIRSTRANDS_VOXEL");
 	class FRadianceCache : SHADER_PERMUTATION_BOOL("RADIANCE_CACHE");
 	class FSampleSceneColor : SHADER_PERMUTATION_BOOL("SAMPLE_SCENE_COLOR");
+
 	using FPermutationDomain = TShaderPermutationDomain<FThreadGroupSize32, FTraceGlobalSDF, FHairStrands, FRadianceCache, FSampleSceneColor>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -401,6 +396,8 @@ class FReflectionTraceVoxelsCS : public FGlobalShader
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
+		OutEnvironment.SetDefine(TEXT("SURFACE_CACHE_FEEDBACK"), 1);
+		OutEnvironment.SetDefine(TEXT("SURFACE_CACHE_HIGH_RES_PAGES"), 1);
 
 		OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
 	}
@@ -652,7 +649,7 @@ void TraceReflections(
 	}
 
 	FLumenCardTracingParameters TracingParameters;
-	GetLumenCardTracingParameters(GraphBuilder, View, *Scene->GetLumenSceneData(View), FrameTemporaries, /*bSurfaceCacheFeedback*/ GLumenReflectionsSurfaceCacheFeedback != 0, TracingParameters);
+	GetLumenCardTracingParameters(GraphBuilder, View, *Scene->GetLumenSceneData(View), FrameTemporaries, LumenReflections::UseSurfaceCacheFeedback(), TracingParameters);
 
 	FLumenIndirectTracingParameters IndirectTracingParameters;
 	SetupIndirectTracingParametersForReflections(View, IndirectTracingParameters);
