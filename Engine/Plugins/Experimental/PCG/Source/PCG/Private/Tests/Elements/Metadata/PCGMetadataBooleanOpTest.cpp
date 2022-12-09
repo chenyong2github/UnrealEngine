@@ -88,13 +88,18 @@ bool FPCGMetadataBooleanOpTest::RunTest(const FString& Parameters)
 			return false;
 		}
 
-		const FPCGMetadataAttributeBase* OutAttributeBase = OutMetadata->GetConstAttribute(Settings->OutputTarget.AttributeName);
+		const FPCGMetadataAttributeBase* OutAttributeBase = OutMetadata->GetConstAttribute(Settings->OutputTarget.GetName());
 		if (!TestNotNull(TEXT("Output attribute exists"), OutAttributeBase))
 		{
 			return false;
 		}
 
 		if (!TestEqual(TEXT("Output attribute is a bool"), OutAttributeBase->GetTypeId(), (uint16)PCG::Private::MetadataTypes<bool>::Id))
+		{
+			return false;
+		}
+
+		if (!TestEqual(TEXT("Output attribute has an entry"), OutAttributeBase->GetNumberOfEntries(), 1))
 		{
 			return false;
 		}
@@ -144,45 +149,45 @@ bool FPCGMetadataBooleanOpTest::RunTest(const FString& Parameters)
 	AddExpectedError(TEXT("Attribute/Property Invalid is not a supported type for input"), EAutomationExpectedErrorFlags::Contains, 3);
 
 	{
-		Settings->InputSource1.AttributeName = InvalidAttribute;
-		Settings->InputSource2.AttributeName = FalseAttribute;
+		Settings->InputSource1.SetAttributeName(InvalidAttribute);
+		Settings->InputSource2.SetAttributeName(FalseAttribute);
 		bTestPassed &= ValidateOp(/*bExpectedResult=*/false, /*bIsValid=*/ false);
 	}
 
 	{
-		Settings->InputSource1.AttributeName = FalseAttribute;
-		Settings->InputSource2.AttributeName = InvalidAttribute;
+		Settings->InputSource1.SetAttributeName(FalseAttribute);
+		Settings->InputSource2.SetAttributeName(InvalidAttribute);
 		bTestPassed &= ValidateOp(/*bExpectedResult=*/false, /*bIsValid=*/ false);
 	}
 
 	{
-		Settings->InputSource1.AttributeName = InvalidAttribute;
-		Settings->InputSource2.AttributeName = InvalidAttribute;
+		Settings->InputSource1.SetAttributeName(InvalidAttribute);
+		Settings->InputSource2.SetAttributeName(InvalidAttribute);
 		bTestPassed &= ValidateOp(/*bExpectedResult=*/false, /*bIsValid=*/ false);
 	}
 
 	// Valid tests
 	{
-		Settings->InputSource1.AttributeName = TrueAttribute;
-		Settings->InputSource2.AttributeName = TrueAttribute;
+		Settings->InputSource1.SetAttributeName(TrueAttribute);
+		Settings->InputSource2.SetAttributeName(TrueAttribute);
 		bTestPassed &= ValidateOp(/*bExpectedResult=*/true);
 	}
 
 	{
-		Settings->InputSource1.AttributeName = FalseAttribute;
-		Settings->InputSource2.AttributeName = TrueAttribute;
+		Settings->InputSource1.SetAttributeName(FalseAttribute);
+		Settings->InputSource2.SetAttributeName(TrueAttribute);
 		bTestPassed &= ValidateOp(/*bExpectedResult=*/false);
 	}
 
 	{
-		Settings->InputSource1.AttributeName = TrueAttribute;
-		Settings->InputSource2.AttributeName = FalseAttribute;
+		Settings->InputSource1.SetAttributeName(TrueAttribute);
+		Settings->InputSource2.SetAttributeName(FalseAttribute);
 		bTestPassed &= ValidateOp(/*bExpectedResult=*/false);
 	}
 
 	{
-		Settings->InputSource1.AttributeName = FalseAttribute;
-		Settings->InputSource2.AttributeName = FalseAttribute;
+		Settings->InputSource1.SetAttributeName(FalseAttribute);
+		Settings->InputSource2.SetAttributeName(FalseAttribute);
 		bTestPassed &= ValidateOp(/*bExpectedResult=*/false);
 	}
 
@@ -192,26 +197,26 @@ bool FPCGMetadataBooleanOpTest::RunTest(const FString& Parameters)
 	/////////////////////////////////////////
 	Settings->Operation = EPCGMedadataBooleanOperation::Or;
 	{
-		Settings->InputSource1.AttributeName = TrueAttribute;
-		Settings->InputSource2.AttributeName = TrueAttribute;
+		Settings->InputSource1.SetAttributeName(TrueAttribute);
+		Settings->InputSource2.SetAttributeName(TrueAttribute);
 		bTestPassed &= ValidateOp(/*bExpectedResult=*/true);
 	}
 
 	{
-		Settings->InputSource1.AttributeName = FalseAttribute;
-		Settings->InputSource2.AttributeName = TrueAttribute;
+		Settings->InputSource1.SetAttributeName(FalseAttribute);
+		Settings->InputSource2.SetAttributeName(TrueAttribute);
 		bTestPassed &= ValidateOp(/*bExpectedResult=*/true);
 	}
 
 	{
-		Settings->InputSource1.AttributeName = TrueAttribute;
-		Settings->InputSource2.AttributeName = FalseAttribute;
+		Settings->InputSource1.SetAttributeName(TrueAttribute);
+		Settings->InputSource2.SetAttributeName(FalseAttribute);
 		bTestPassed &= ValidateOp(/*bExpectedResult=*/true);
 	}
 
 	{
-		Settings->InputSource1.AttributeName = FalseAttribute;
-		Settings->InputSource2.AttributeName = FalseAttribute;
+		Settings->InputSource1.SetAttributeName(FalseAttribute);
+		Settings->InputSource2.SetAttributeName(FalseAttribute);
 		bTestPassed &= ValidateOp(/*bExpectedResult=*/false);
 	}
 
@@ -220,26 +225,26 @@ bool FPCGMetadataBooleanOpTest::RunTest(const FString& Parameters)
 	/////////////////////////////////////////
 	Settings->Operation = EPCGMedadataBooleanOperation::Xor;
 	{
-		Settings->InputSource1.AttributeName = TrueAttribute;
-		Settings->InputSource2.AttributeName = TrueAttribute;
+		Settings->InputSource1.SetAttributeName(TrueAttribute);
+		Settings->InputSource2.SetAttributeName(TrueAttribute);
 		bTestPassed &= ValidateOp(/*bExpectedResult=*/false);
 	}
 
 	{
-		Settings->InputSource1.AttributeName = FalseAttribute;
-		Settings->InputSource2.AttributeName = TrueAttribute;
+		Settings->InputSource1.SetAttributeName(FalseAttribute);
+		Settings->InputSource2.SetAttributeName(TrueAttribute);
 		bTestPassed &= ValidateOp(/*bExpectedResult=*/true);
 	}
 
 	{
-		Settings->InputSource1.AttributeName = TrueAttribute;
-		Settings->InputSource2.AttributeName = FalseAttribute;
+		Settings->InputSource1.SetAttributeName(TrueAttribute);
+		Settings->InputSource2.SetAttributeName(FalseAttribute);
 		bTestPassed &= ValidateOp(/*bExpectedResult=*/true);
 	}
 
 	{
-		Settings->InputSource1.AttributeName = FalseAttribute;
-		Settings->InputSource2.AttributeName = FalseAttribute;
+		Settings->InputSource1.SetAttributeName(FalseAttribute);
+		Settings->InputSource2.SetAttributeName(FalseAttribute);
 		bTestPassed &= ValidateOp(/*bExpectedResult=*/false);
 	}
 

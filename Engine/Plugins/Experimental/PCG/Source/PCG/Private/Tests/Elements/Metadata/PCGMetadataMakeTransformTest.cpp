@@ -12,6 +12,9 @@
 #include "Metadata/PCGMetadata.h"
 #include "Metadata/PCGMetadataAttribute.h"
 #include "Metadata/PCGMetadataAttributeTpl.h"
+#include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
+#include "Metadata/Accessors/IPCGAttributeAccessor.h"
+#include "Metadata/Accessors/PCGAttributeAccessorHelpers.h"
 
 #if WITH_EDITOR
 
@@ -115,30 +118,39 @@ bool FPCGMetadataMakeTransformTest::RunTest(const FString& Parameters)
 
 		const FPCGTaggedData& Input = TranslationInputs[0];
 
-		UPCGMetadata* SourceMetadata = nullptr; 
-		if (const UPCGSpatialData* SpatialInput = Cast<const UPCGSpatialData>(Input.Data))
-		{
-			SourceMetadata = SpatialInput->Metadata;
-		}
-		else if (const UPCGParamData* ParamsInput = Cast<const UPCGParamData>(Input.Data))
-		{
-			SourceMetadata = ParamsInput->Metadata;
-		}
-		else
+		TUniquePtr<const IPCGAttributeAccessor> InputAccessor1 = PCGAttributeAccessorHelpers::CreateConstAccessor(Input.Data, Settings->InputSource1);
+		TUniquePtr<const IPCGAttributeAccessorKeys> InputKeys1 = PCGAttributeAccessorHelpers::CreateConstKeys(Input.Data, Settings->InputSource1);
+
+		TUniquePtr<const IPCGAttributeAccessor> InputAccessor2 = PCGAttributeAccessorHelpers::CreateConstAccessor(Input.Data, Settings->InputSource2);
+		TUniquePtr<const IPCGAttributeAccessorKeys> InputKeys2 = PCGAttributeAccessorHelpers::CreateConstKeys(Input.Data, Settings->InputSource2);
+
+		TUniquePtr<const IPCGAttributeAccessor> InputAccessor3 = PCGAttributeAccessorHelpers::CreateConstAccessor(Input.Data, Settings->InputSource3);
+		TUniquePtr<const IPCGAttributeAccessorKeys> InputKeys3 = PCGAttributeAccessorHelpers::CreateConstKeys(Input.Data, Settings->InputSource3);
+
+		if (!TestTrue("InputSource1 was found", InputAccessor1.IsValid() && InputKeys1.IsValid()))
 		{
 			return false;
 		}
 
-		check(SourceMetadata);
+		if (!TestTrue("InputSource2 was found", InputAccessor2.IsValid() && InputKeys2.IsValid()))
+		{
+			return false;
+		}
 
-		const FPCGMetadataAttributeBase* TranslationAttributeBase = SourceMetadata->GetConstAttribute(Settings->InputSource1.GetName());
-		check(TranslationAttributeBase);
+		if (!TestTrue("InputSource3 was found", InputAccessor3.IsValid() && InputKeys3.IsValid()))
+		{
+			return false;
+		}
 
-		const FPCGMetadataAttributeBase* RotationAttributeBase = SourceMetadata->GetConstAttribute(Settings->InputSource2.GetName());
-		check(RotationAttributeBase);
+		if (!TestEqual("Same number of input keys between source 1 and 2", InputKeys1->GetNum(), InputKeys2->GetNum()))
+		{
+			return false;
+		}
 
-		const FPCGMetadataAttributeBase* ScaleAttributeBase = SourceMetadata->GetConstAttribute(Settings->InputSource3.GetName());
-		check(ScaleAttributeBase);
+		if (!TestEqual("Same number of input keys between source 1 and 3", InputKeys1->GetNum(), InputKeys3->GetNum()))
+		{
+			return false;
+		}
 
 		const TArray<FPCGTaggedData> Outputs = Context->OutputData.GetInputsByPin(PCGPinConstants::DefaultOutputLabel);
 		if (!TestEqual("Right number of outputs", Outputs.Num(), 1))
@@ -153,67 +165,39 @@ bool FPCGMetadataMakeTransformTest::RunTest(const FString& Parameters)
 			return false;
 		}
 
-		UPCGMetadata* OutMetadata = nullptr;
-		if (const UPCGSpatialData* SpatialInput = Cast<const UPCGSpatialData>(Output.Data))
-		{
-			OutMetadata = SpatialInput->Metadata;
-		}
-		else if (const UPCGParamData* ParamsInput = Cast<const UPCGParamData>(Output.Data))
-		{
-			OutMetadata = ParamsInput->Metadata;
-		}
-		else
+		TUniquePtr<const IPCGAttributeAccessor> OutputAccessor = PCGAttributeAccessorHelpers::CreateConstAccessor(Output.Data, Settings->OutputTarget);
+		TUniquePtr<const IPCGAttributeAccessorKeys> OutputKeys = PCGAttributeAccessorHelpers::CreateConstKeys(Output.Data, Settings->OutputTarget);
+
+		if (!TestTrue("OutputTarget was found", OutputAccessor.IsValid() && OutputKeys.IsValid()))
 		{
 			return false;
 		}
 
-		if (!TestNotNull("Valid output metadata", OutMetadata))
+		if (!TestEqual("Output has a valid type (Transform)", OutputAccessor->GetUnderlyingType(), PCG::Private::MetadataTypes<FTransform>::Id))
 		{
 			return false;
 		}
 
-		const FPCGMetadataAttributeBase* OutAttributeBase = OutMetadata->GetConstAttribute(Settings->OutputTarget.GetName());
-
-		if (!TestNotNull("Valid output attribute", OutAttributeBase))
+		if (!TestEqual("Identical EntryKeys count", InputKeys1->GetNum(), OutputKeys->GetNum()))
 		{
 			return false;
 		}
 
-		const FPCGMetadataAttribute<FTransform>* OutAttribute = static_cast<const FPCGMetadataAttribute<FTransform>*>(OutAttributeBase);
-		check(OutAttribute);
-
-		const PCGMetadataEntryKey InEntryKeyCount = SourceMetadata->GetItemCountForChild();
-		const PCGMetadataEntryKey OutEntryKeyCount = OutMetadata->GetItemCountForChild();
-
-		if (!TestEqual("Identical EntryKey counts", InEntryKeyCount, OutEntryKeyCount))
+		for (int32 i = 0; i < OutputKeys->GetNum(); ++i)
 		{
-			return false;
-		}
+			FVector TranslationValue{};
+			FQuat QuatValue{};
+			FVector ScaleValue{};
+			FTransform OutValue{};
 
-		const PCGMetadataValueKey InValueKeyCount = TranslationAttributeBase->GetValueKeyOffsetForChild();
-		const PCGMetadataValueKey OutValueKeyCount = OutAttribute->GetValueKeyOffsetForChild();
-
-		if (!TestEqual("Identical ValueKey counts", InValueKeyCount, OutValueKeyCount))
-		{
-			return false;
-		}
-
-		for (PCGMetadataEntryKey EntryKey = 0; EntryKey < InEntryKeyCount; ++EntryKey)
-		{
-			const PCGMetadataValueKey InValueKey = TranslationAttributeBase->GetValueKey(EntryKey);
-			const PCGMetadataValueKey OutValueKey = OutAttribute->GetValueKey(EntryKey);
-
-			if (!TestEqual("Identical value keys", InValueKey, OutValueKey))
+			if (!InputAccessor1->Get<FVector>(TranslationValue, i, *InputKeys1)
+				|| !InputAccessor2->Get<FQuat>(QuatValue, i, *InputKeys2)
+				|| !InputAccessor3->Get<FVector>(ScaleValue, i, *InputKeys3)
+				|| !OutputAccessor->Get<FTransform>(OutValue, i, *OutputKeys))
 			{
 				return false;
 			}
-
-			FVector TranslationValue = static_cast<const FPCGMetadataAttribute<FVector>*>(TranslationAttributeBase)->GetValue(InValueKey);
-			FQuat QuatValue = static_cast<const FPCGMetadataAttribute<FQuat>*>(RotationAttributeBase)->GetValue(InValueKey);
-			FVector ScaleValue = static_cast<const FPCGMetadataAttribute<FVector>*>(ScaleAttributeBase)->GetValue(InValueKey);
 			
-			FTransform OutValue = OutAttribute->GetValue(OutValueKey);
-
 			if (!TestEqual("Mismatch between input and output for translation", OutValue.GetTranslation(), TranslationValue))
 			{
 				return false;
@@ -257,14 +241,10 @@ bool FPCGMetadataMakeTransformTest::RunTest(const FString& Parameters)
 		UPCGMetadataMakeTransformSettings* Settings = CastChecked<UPCGMetadataMakeTransformSettings>(TestData->Settings);
 
 		Settings->ForceOutputConnections[0] = true;
-		Settings->InputSource1.Selection = EPCGAttributePropertySelection::Attribute;
-		Settings->InputSource1.AttributeName = Vec3Attribute;
 
-		Settings->InputSource2.Selection = EPCGAttributePropertySelection::Attribute;
-		Settings->InputSource2.AttributeName = QuatAttribute;
-
-		Settings->InputSource3.Selection = EPCGAttributePropertySelection::Attribute;
-		Settings->InputSource3.AttributeName = Vec3Attribute;
+		Settings->InputSource1.SetAttributeName(Vec3Attribute);
+		Settings->InputSource2.SetAttributeName(QuatAttribute);
+		Settings->InputSource3.SetAttributeName(Vec3Attribute);
 
 		bTestPassed &= ValidateMetadataMakeVector(*TestData);
 	}

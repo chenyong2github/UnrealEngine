@@ -12,6 +12,9 @@
 #include "Metadata/PCGMetadata.h"
 #include "Metadata/PCGMetadataAttribute.h"
 #include "Metadata/PCGMetadataAttributeTpl.h"
+#include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
+#include "Metadata/Accessors/IPCGAttributeAccessor.h"
+#include "Metadata/Accessors/PCGAttributeAccessorHelpers.h"
 
 #if WITH_EDITOR
 
@@ -144,26 +147,15 @@ bool FPCGMetadataBreakVectorTest::RunTest(const FString& Parameters)
 
 		const FPCGTaggedData& Input = Inputs[0];
 
-		UPCGMetadata* SourceMetadata = nullptr; 
-		if (const UPCGSpatialData* SpatialInput = Cast<const UPCGSpatialData>(Input.Data))
-		{
-			SourceMetadata = SpatialInput->Metadata;
-		}
-		else if (const UPCGParamData* ParamsInput = Cast<const UPCGParamData>(Input.Data))
-		{
-			SourceMetadata = ParamsInput->Metadata;
-		}
-		else
+		TUniquePtr<const IPCGAttributeAccessor> InputAccessor = PCGAttributeAccessorHelpers::CreateConstAccessor(Input.Data, Settings->InputSource);
+		TUniquePtr<const IPCGAttributeAccessorKeys> InputKeys = PCGAttributeAccessorHelpers::CreateConstKeys(Input.Data, Settings->InputSource);
+
+		if (!TestTrue("InputSource was found", InputAccessor.IsValid() && InputKeys.IsValid()))
 		{
 			return false;
 		}
 
-		check(SourceMetadata);
-
-		const FPCGMetadataAttributeBase* SourceAttributeBase = SourceMetadata->GetConstAttribute(Settings->InputSource.GetName());
-		check(SourceAttributeBase);
-
-		auto ValidateComponentOutput = [&](const FPCGTaggedData& Output, const FName& OutAttributeName, PCGBreakVectorTest::EPCGComponentToCheck ComponentToCheck)
+		auto ValidateComponentOutput = [this, &bTestPassed, &InputKeys, &InputAccessor](const FPCGTaggedData& Output, const FPCGAttributePropertySelector& OutSelector, PCGBreakVectorTest::EPCGComponentToCheck ComponentToCheck)
 		{
 			if (!TestTrue("Valid output data", Output.Data != nullptr))
 			{
@@ -171,91 +163,80 @@ bool FPCGMetadataBreakVectorTest::RunTest(const FString& Parameters)
 				return;
 			}
 
-			UPCGMetadata* OutMetadata = nullptr;
-			if (const UPCGSpatialData* SpatialInput = Cast<const UPCGSpatialData>(Output.Data))
-			{
-				OutMetadata = SpatialInput->Metadata;
-			}
-			else if (const UPCGParamData* ParamsInput = Cast<const UPCGParamData>(Output.Data))
-			{
-				OutMetadata = ParamsInput->Metadata;
-			}
-			else
-			{
-				return;
-			}
+			TUniquePtr<const IPCGAttributeAccessor> OutputAccessor = PCGAttributeAccessorHelpers::CreateConstAccessor(Output.Data, OutSelector);
+			TUniquePtr<const IPCGAttributeAccessorKeys> OutputKeys = PCGAttributeAccessorHelpers::CreateConstKeys(Output.Data, OutSelector);
 
-			if (!TestNotNull("Valid output metadata", OutMetadata))
+			if (!TestTrue("OutputTarget was found", OutputAccessor.IsValid() && OutputKeys.IsValid()))
 			{
 				bTestPassed = false;
 				return;
 			}
 
-			const FPCGMetadataAttributeBase* OutAttributeBase = OutMetadata->GetConstAttribute(OutAttributeName);
-
-			if (!TestNotNull("Valid output attribute", OutAttributeBase))
+			if (!TestEqual("Output has a valid type (double)", OutputAccessor->GetUnderlyingType(), PCG::Private::MetadataTypes<double>::Id))
 			{
 				bTestPassed = false;
 				return;
 			}
 
-			if (!TestEqual("Output attribute is a valid type (double)", OutAttributeBase->GetTypeId(), PCG::Private::MetadataTypes<double>::Id))
+			if (!TestEqual("Identical EntryKeys count", InputKeys->GetNum(), OutputKeys->GetNum()))
 			{
 				bTestPassed = false;
 				return;
 			}
 
-			const FPCGMetadataAttribute<double>* OutAttribute = static_cast<const FPCGMetadataAttribute<double>*>(OutAttributeBase);
-			check(OutAttribute);
-
-			const PCGMetadataEntryKey InEntryKeyCount = SourceMetadata->GetItemCountForChild();
-			const PCGMetadataEntryKey OutEntryKeyCount = OutMetadata->GetItemCountForChild();
-
-			if (!TestEqual("Identical EntryKey counts", InEntryKeyCount, OutEntryKeyCount))
+			for (int32 i = 0; i < OutputKeys->GetNum(); ++i)
 			{
-				bTestPassed = false;
-				return;
-			}
-
-			const PCGMetadataValueKey InValueKeyCount = SourceAttributeBase->GetValueKeyOffsetForChild();
-			const PCGMetadataValueKey OutValueKeyCount = OutAttribute->GetValueKeyOffsetForChild();
-
-			if (!TestEqual("Identical ValueKey counts", InValueKeyCount, OutValueKeyCount))
-			{
-				bTestPassed = false;
-				return;
-			}
-
-			for (PCGMetadataEntryKey EntryKey = 0; EntryKey < InEntryKeyCount; ++EntryKey)
-			{
-				const PCGMetadataValueKey InValueKey = SourceAttributeBase->GetValueKey(EntryKey);
-				const PCGMetadataValueKey OutValueKey = OutAttribute->GetValueKey(EntryKey);
-
-				bTestPassed &= TestEqual("Identical value keys", InValueKey, OutValueKey);
-
-				FVector4 SourceValue;
-				if (SourceAttributeBase->GetTypeId() == PCG::Private::MetadataTypes<FVector>::Id)
+				FVector4 SourceValue{};
+				if (InputAccessor->GetUnderlyingType() == PCG::Private::MetadataTypes<FVector>::Id)
 				{
-					SourceValue = static_cast<const FPCGMetadataAttribute<FVector>*>(SourceAttributeBase)->GetValue(InValueKey);
+					FVector TempValue{};
+					if (!InputAccessor->Get<FVector>(TempValue, i, *InputKeys))
+					{
+						bTestPassed = false;
+						return;
+					}
+
+					SourceValue = FVector4(TempValue);
 				}
-				else if (SourceAttributeBase->GetTypeId() == PCG::Private::MetadataTypes<FVector2D>::Id)
+				else if (InputAccessor->GetUnderlyingType() == PCG::Private::MetadataTypes<FVector2D>::Id)
 				{
-					const FVector2D Vec2 = static_cast<const FPCGMetadataAttribute<FVector2D>*>(SourceAttributeBase)->GetValue(InValueKey);
-					SourceValue = FVector4(Vec2.X, Vec2.Y);
+					FVector2D TempValue{};
+					if (!InputAccessor->Get<FVector2D>(TempValue, i, *InputKeys))
+					{
+						bTestPassed = false;
+						return;
+					}
+
+					SourceValue = FVector4(TempValue.X, TempValue.Y);
 				}
-				else if (SourceAttributeBase->GetTypeId() == PCG::Private::MetadataTypes<FVector4>::Id)
+				else if (InputAccessor->GetUnderlyingType() == PCG::Private::MetadataTypes<FVector4>::Id)
 				{
-					SourceValue = static_cast<const FPCGMetadataAttribute<FVector4>*>(SourceAttributeBase)->GetValue(InValueKey);
+					if (!InputAccessor->Get<FVector4>(SourceValue, i, *InputKeys))
+					{
+						bTestPassed = false;
+						return;
+					}
 				}
-				else //if (SourceAttributeBase->GetTypeId() == PCG::Private::MetadataTypes<FRotator>::Id)
+				else //if (InputAccessor->GetUnderlyingType() == PCG::Private::MetadataTypes<FRotator>::Id)
 				{
-					const FRotator Rotator = static_cast<const FPCGMetadataAttribute<FRotator>*>(SourceAttributeBase)->GetValue(InValueKey);
-					SourceValue.X = Rotator.Roll;
-					SourceValue.Y = Rotator.Pitch;
-					SourceValue.Z = Rotator.Yaw;
+					FRotator TempValue{};
+					if (!InputAccessor->Get<FRotator>(TempValue, i, *InputKeys))
+					{
+						bTestPassed = false;
+						return;
+					}
+
+					SourceValue.X = TempValue.Roll;
+					SourceValue.Y = TempValue.Pitch;
+					SourceValue.Z = TempValue.Yaw;
 				}
 
-				const double OutValue = OutAttribute->GetValue(OutValueKey);
+				double OutValue{};
+				if (!OutputAccessor->Get<double>(OutValue, i, *OutputKeys))
+				{
+					bTestPassed = false;
+					return;
+				}
 
 				if (ComponentToCheck == PCGBreakVectorTest::EPCGComponentToCheck::X)
 				{
@@ -281,16 +262,11 @@ bool FPCGMetadataBreakVectorTest::RunTest(const FString& Parameters)
 		const TArray<FPCGTaggedData> OutputsZ = Context->OutputData.GetInputsByPin(PCGMetadataBreakVectorConstants::ZLabel);
 		const TArray<FPCGTaggedData> OutputsW = Context->OutputData.GetInputsByPin(PCGMetadataBreakVectorConstants::WLabel);
 
-		const FName DestinationAttributeForX = Settings->OutputTarget.AttributeName; //Settings->GetOutputAttributeName(Settings->OutputName.AttributeName, 0);
-		const FName DestinationAttributeForY = Settings->OutputTarget.AttributeName; //Settings->GetOutputAttributeName(Settings->OutputName.AttributeName, 1);
-		const FName DestinationAttributeForZ = Settings->OutputTarget.AttributeName; //Settings->GetOutputAttributeName(Settings->OutputName.AttributeName, 2);
-		const FName DestinationAttributeForW = Settings->OutputTarget.AttributeName; //Settings->GetOutputAttributeName(Settings->OutputName.AttributeName, 3);
-
 		if (Settings->ForceOutputConnections[0])
 		{
 			if (TestEqual("Appropriate number of outputs generated fox X", OutputsX.Num(), 1))
 			{
-				ValidateComponentOutput(OutputsX[0], DestinationAttributeForX, PCGBreakVectorTest::EPCGComponentToCheck::X);
+				ValidateComponentOutput(OutputsX[0], Settings->OutputTarget, PCGBreakVectorTest::EPCGComponentToCheck::X);
 			}
 			else
 			{
@@ -302,7 +278,7 @@ bool FPCGMetadataBreakVectorTest::RunTest(const FString& Parameters)
 		{
 			if (TestEqual("Appropriate number of outputs generated for Y", OutputsY.Num(), 1))
 			{
-				ValidateComponentOutput(OutputsY[0], DestinationAttributeForY, PCGBreakVectorTest::EPCGComponentToCheck::Y);
+				ValidateComponentOutput(OutputsY[0], Settings->OutputTarget, PCGBreakVectorTest::EPCGComponentToCheck::Y);
 			}
 			else
 			{
@@ -314,7 +290,7 @@ bool FPCGMetadataBreakVectorTest::RunTest(const FString& Parameters)
 		{
 			if (TestEqual("Appropriate number of outputs generated for Z", OutputsZ.Num(), 1))
 			{
-				ValidateComponentOutput(OutputsZ[0], DestinationAttributeForZ, PCGBreakVectorTest::EPCGComponentToCheck::Z);
+				ValidateComponentOutput(OutputsZ[0], Settings->OutputTarget, PCGBreakVectorTest::EPCGComponentToCheck::Z);
 			}
 			else
 			{
@@ -322,11 +298,11 @@ bool FPCGMetadataBreakVectorTest::RunTest(const FString& Parameters)
 			}
 		}
 
-		if (Settings->ForceOutputConnections[3] && SourceAttributeBase->GetTypeId() == PCG::Private::MetadataTypes<FVector4>::Id)
+		if (Settings->ForceOutputConnections[3])
 		{
 			if (TestEqual("Appropriate number of outputs generated for W", OutputsW.Num(), 1))
 			{
-				ValidateComponentOutput(OutputsW[0], DestinationAttributeForW, PCGBreakVectorTest::EPCGComponentToCheck::W);
+				ValidateComponentOutput(OutputsW[0], Settings->OutputTarget, PCGBreakVectorTest::EPCGComponentToCheck::W);
 			}
 			else
 			{
@@ -368,11 +344,9 @@ bool FPCGMetadataBreakVectorTest::RunTest(const FString& Parameters)
 		Settings->ForceOutputConnections[2] = false;
 		Settings->ForceOutputConnections[3] = false;
 
-		Settings->InputSource.Selection = EPCGAttributePropertySelection::Attribute;
-
 		{
 			AddInfo(TEXT("Test with FVector2D as input attribute"));
-			Settings->InputSource.AttributeName = PCGBreakVectorTest::Vec2Attribute;
+			Settings->InputSource.SetAttributeName(PCGBreakVectorTest::Vec2Attribute);
 			bTestPassed &= ValidateMetadataBreakVector(*TestData);
 		}
 
@@ -380,13 +354,13 @@ bool FPCGMetadataBreakVectorTest::RunTest(const FString& Parameters)
 
 		{
 			AddInfo(TEXT("Test with FVector as input attribute"));
-			Settings->InputSource.AttributeName = PCGBreakVectorTest::Vec3Attribute;
+			Settings->InputSource.SetAttributeName(PCGBreakVectorTest::Vec3Attribute);
 			bTestPassed &= ValidateMetadataBreakVector(*TestData);
 		}
 
 		{
 			AddInfo(TEXT("Test with FVector4 as input attribute"));
-			Settings->InputSource.AttributeName = PCGBreakVectorTest::Vec4Attribute;
+			Settings->InputSource.SetAttributeName(PCGBreakVectorTest::Vec4Attribute);
 			Settings->ForceOutputConnections[3] = true;
 			bTestPassed &= ValidateMetadataBreakVector(*TestData);
 			Settings->ForceOutputConnections[3] = false;
@@ -394,13 +368,13 @@ bool FPCGMetadataBreakVectorTest::RunTest(const FString& Parameters)
 
 		{
 			AddInfo(TEXT("Test with FRotator as input attribute"));
-			Settings->InputSource.AttributeName = PCGBreakVectorTest::RotatorAttribute;
+			Settings->InputSource.SetAttributeName(PCGBreakVectorTest::RotatorAttribute);
 			bTestPassed &= ValidateMetadataBreakVector(*TestData);
 		}
 
 		{
 			AddInfo(TEXT("Test with Float as input attribute (invalid type)"));
-			Settings->InputSource.AttributeName = PCGBreakVectorTest::FloatAttribute;
+			Settings->InputSource.SetAttributeName(PCGBreakVectorTest::FloatAttribute);
 
 			bTestPassed &= ValidateMetadataBreakVector(*TestData, /*bIsValid=*/false);
 		}
