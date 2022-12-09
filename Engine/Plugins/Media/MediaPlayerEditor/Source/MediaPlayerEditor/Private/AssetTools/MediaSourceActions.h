@@ -6,6 +6,7 @@
 #include "Widgets/SWidget.h"
 #include "AssetTypeActions_Base.h"
 
+class ISlateStyle; 
 struct FAssetData;
 
 /**
@@ -25,4 +26,6 @@ public:
 	virtual UClass* GetSupportedClass() const override;
 	virtual FColor GetTypeColor() const override;
 	virtual TSharedPtr<class SWidget> GetThumbnailOverlay(const FAssetData& AssetData) const override;
+
+	virtual void OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>()) override;
 };

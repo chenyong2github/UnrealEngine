@@ -4,6 +4,8 @@
 
 #include "AssetRegistry/AssetData.h"
 #include "ImgMediaSource.h"
+#include "MediaPlayerEditorModule.h"
+#include "Toolkits/MediaSourceEditorToolkit.h"
 
 
 #define LOCTEXT_NAMESPACE "ImageMediaSourceAssetTypeActions"
@@ -53,6 +55,30 @@ UClass* FImgMediaSourceActions::GetSupportedClass() const
 FColor FImgMediaSourceActions::GetTypeColor() const
 {
 	return FColor::White;
+}
+
+void FImgMediaSourceActions::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor)
+{
+	EToolkitMode::Type Mode = EditWithinLevelEditor.IsValid()
+		? EToolkitMode::WorldCentric
+		: EToolkitMode::Standalone;
+
+	for (auto ObjIt = InObjects.CreateConstIterator(); ObjIt; ++ObjIt)
+	{
+		auto MediaSource = Cast<UMediaSource>(*ObjIt);
+
+		if (MediaSource != nullptr)
+		{
+			IMediaPlayerEditorModule* MediaPlayerEditorModule = FModuleManager::LoadModulePtr<IMediaPlayerEditorModule>("MediaPlayerEditor");
+			if (MediaPlayerEditorModule != nullptr)
+			{
+				TSharedPtr<ISlateStyle> Style = MediaPlayerEditorModule->GetStyle();
+
+				TSharedRef<FMediaSourceEditorToolkit> EditorToolkit = MakeShareable(new FMediaSourceEditorToolkit(Style.ToSharedRef()));
+				EditorToolkit->Initialize(MediaSource, Mode, EditWithinLevelEditor);
+			}
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

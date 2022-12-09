@@ -53,5 +53,13 @@
 			"LoadingPhase" : "PostConfigInit",
 			"PlatformAllowList" : [ "Win64" ]
 		}
+	],
+	"Plugins":
+	[
+		{
+			"Name": "MediaPlayerEditor",
+			"TargetAllowList": [ "Editor" ],
+			"Enabled": true
+		},
 	]
 }
