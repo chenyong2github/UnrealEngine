@@ -160,6 +160,14 @@ inline const TCHAR* GetD3DCommandQueueTypeName(ED3D12QueueType QueueType)
 #define FD3D12_HEAP_FLAG_CREATE_NOT_ZEROED D3D12_HEAP_FLAG_CREATE_NOT_ZEROED
 #endif
 
+#ifndef WITH_NV_API
+#define WITH_NV_API 0
+#endif
+
+#ifndef WITH_AMD_AGS
+#define WITH_AMD_AGS 0
+#endif
+
 #if DEBUG_RESOURCE_STATES
 	#define LOG_EXECUTE_COMMAND_LISTS 1
 	#define ASSERT_RESOURCE_STATES 0	// Disabled for now.

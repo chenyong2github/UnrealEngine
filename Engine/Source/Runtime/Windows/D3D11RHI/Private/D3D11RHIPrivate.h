@@ -102,6 +102,14 @@ THIRD_PARTY_INCLUDES_END
 #define D3D11_NUM_THREAD_LOCAL_CACHES 1
 #endif
 
+#ifndef WITH_NV_API
+#define WITH_NV_API 0
+#endif
+
+#ifndef WITH_AMD_AGS
+#define WITH_AMD_AGS 0
+#endif
+
 /**
  * The D3D RHI stats.
  */
