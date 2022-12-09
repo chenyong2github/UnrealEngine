@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Containers/Array.h"
 #include "Elements/Interfaces/TypedElementDataStorageInterface.h"
 #include "Elements/Interfaces/TypedElementDataStorageCompatibilityInterface.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/WeakObjectPtr.h"
 
 #include "TypedElementDatabaseCompatibility.generated.h"

@@ -5,49 +5,76 @@
 #include "Editor.h"
 #include "Engine/World.h"
 #include "MassEntitySubsystem.h"
+#include "Stats/Stats2.h"
+#include "TickTaskManagerInterface.h"
 
 void UTypedElementDatabase::Initialize()
 {
-	ActiveEditorWorld = GEditor->GetEditorWorldContext().World();
-	check(ActiveEditorWorld);
-	UMassEntitySubsystem* Mass = ActiveEditorWorld->GetSubsystem<UMassEntitySubsystem>();
-	check(Mass);
-	ActiveEditorEntityManager = Mass->GetMutableEntityManager().AsShared();
-	
-	TickCallHandle = FWorldDelegates::OnWorldTickStart.AddLambda([this](UWorld* World, ELevelTick, float)
-		{
-			if (World == ActiveEditorWorld)
-			{
-				OnUpdateDelegate.Broadcast();
-			}
-		});
+	constexpr bool bInformEngineOfWorld = false;
+	constexpr bool bAddToRoot = false;
+	// Initialize the world as minimal as possible as it's only used to store data and tick a few subsystems that require updates to 
+	// keep data consistent.
+	UWorld::InitializationValues InitializationValues;
+	InitializationValues
+		.InitializeScenes(false)
+		.AllowAudioPlayback(false)
+		.CreatePhysicsScene(false)
+		.CreateNavigation(false)
+		.CreateAISystem(false)
+		.ShouldSimulatePhysics(false)
+		.CreateFXSystem(false);
+	ActiveEditorWorld = TObjectPtr<UWorld>(UWorld::CreateWorld(EWorldType::EditorStorage, bInformEngineOfWorld,
+		FName(TEXT("Typed Elements Data Storage World")), GetTransientPackage(), bAddToRoot, ERHIFeatureLevel::Num, &InitializationValues));
+	ActiveEditorWorld->SetShouldTick(false); // Ticks will be done explicitly.
 
-	GEditor->OnWorldAdded().AddLambda([this](UWorld* NewWorld)
-		{
-			if (GEditor->GetEditorWorldContext().World() == NewWorld)
-			{
-				ActiveEditorWorld = NewWorld;
-				UMassEntitySubsystem* Mass = NewWorld->GetSubsystem<UMassEntitySubsystem>();
-				check(Mass);
-				ActiveEditorEntityManager = Mass->GetMutableEntityManager().AsShared();
-				
-				OnCreationDelegate.Broadcast();
-			}
-		});
-	GEditor->OnWorldDestroyed().AddLambda([this](UWorld* DestroyedWorld)
-		{
-			if (DestroyedWorld == ActiveEditorWorld)
-			{
-				Reset();
-			}
-		});
+	UMassEntitySubsystem* Mass = ActiveEditorWorld->GetSubsystem<UMassEntitySubsystem>();
+	checkf(Mass, TEXT("New editor data world created, but an MASS entity subsystem wasn't created within it."));
+	ActiveEditorEntityManager = Mass->GetMutableEntityManager().AsShared();
 }
 
 void UTypedElementDatabase::Deinitialize()
 {
-	FWorldDelegates::OnWorldTickStart.Remove(TickCallHandle);
-
 	Reset();
+}
+
+ETickableTickType UTypedElementDatabase::GetTickableTickType() const
+{ 
+	return ETickableTickType::Always;
+}
+
+bool UTypedElementDatabase::IsTickableWhenPaused() const
+{
+	return true;
+}
+
+bool UTypedElementDatabase::IsTickableInEditor() const
+{
+	return true;
+}
+
+bool UTypedElementDatabase::IsAllowedToTick() const
+{
+	return !HasAllFlags(RF_ClassDefaultObject) && IsAvailable();
+}
+
+TStatId UTypedElementDatabase::GetStatId() const
+{
+	RETURN_QUICK_DECLARE_CYCLE_STAT(UTypedElementDatabase, STATGROUP_Tickables);
+}
+
+void UTypedElementDatabase::Tick(float DeltaTime)
+{
+	checkf(IsAvailable(), TEXT("Typed Element Database was ticked while it's not ready."));
+	OnUpdateDelegate.Broadcast();
+
+	FTickTaskManagerInterface& TaskManager = FTickTaskManagerInterface::Get();
+	TaskManager.StartFrame(ActiveEditorWorld, DeltaTime, LEVELTICK_TimeOnly, ActiveEditorWorld->GetLevels());
+	for (int Group = 0; Group < TG_MAX; ++Group)
+	{
+		constexpr static bool bBlockTillComplete = true;
+		TaskManager.RunTickGroup(static_cast<ETickingGroup>(Group), bBlockTillComplete);
+	}
+	TaskManager.EndFrame();
 }
 
 TSharedPtr<FMassEntityManager> UTypedElementDatabase::GetActiveMutableEditorEntityManager()
@@ -369,6 +396,7 @@ ITypedElementDataStorageInterface::FQueryResult UTypedElementDatabase::RunQuery(
 				Result.Completed = FQueryResult::ECompletion::Fully;
 				break;
 			case FQueryDescription::EActionType::Select:
+				checkf(false, TEXT("Support for this option will be coming in a future update."));
 				Result.Completed = FQueryResult::ECompletion::Unsupported;
 				break;
 			case FQueryDescription::EActionType::Count:
@@ -384,6 +412,7 @@ ITypedElementDataStorageInterface::FQueryResult UTypedElementDatabase::RunQuery(
 		}
 		else
 		{
+			checkf(false, TEXT("Support for this option will be coming in a future update."));
 			Result.Completed = FQueryResult::ECompletion::Unsupported;
 		}
 	}
@@ -393,16 +422,6 @@ ITypedElementDataStorageInterface::FQueryResult UTypedElementDatabase::RunQuery(
 	}
 
 	return Result;
-}
-
-FTypedElementOnDataStorageCreation& UTypedElementDatabase::OnCreation()
-{
-	return OnCreationDelegate;
-}
-
-FTypedElementOnDataStorageDestruction& UTypedElementDatabase::OnDestruction()
-{
-	return OnDestructionDelegate;
 }
 
 FTypedElementOnDataStorageUpdate& UTypedElementDatabase::OnUpdate()
@@ -422,11 +441,10 @@ void* UTypedElementDatabase::GetExternalSystemAddress(UClass* Target)
 
 void UTypedElementDatabase::Reset()
 {
-	OnDestructionDelegate.Broadcast();
-
 	Tables.Reset();
 	TableNameLookup.Reset();
 
+	ActiveEditorWorld->CleanupWorld();
 	ActiveEditorWorld = nullptr;
 	ActiveEditorEntityManager.Reset();
 }

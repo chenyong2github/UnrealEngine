@@ -225,22 +225,6 @@ public:
 	 */
 	
 	/**
-	 * Delegate that will be called when the data storage has been created. For various reasons the data storage
-	 * can be destroyed and recreated during the lifetime of the editor. This delegate allows for the opportunity
-	 * to register for this event so information such as table definitions can be registered again.
-	 * Note that by the time this delegate is available there will already be a data storage created. It's therefore
-	 * important that any information is registered with the data storage before registering a callback with the
-	 * delegate.
-	 */
-	virtual FTypedElementOnDataStorageCreation& OnCreation() = 0;
-	
-	/**
-	 * Delegate that will be called when the data storage is about to be destroyed. This can be use as an opportunity
-	 * to store any data in the data storage before it becomes unavailable.
-	 */
-	virtual FTypedElementOnDataStorageDestruction& OnDestruction() = 0;
-	
-	/**
 	 * Called periodically when the storage is available. This provides an opportunity to do any repeated processing
 	 * for the data storage.
 	 */

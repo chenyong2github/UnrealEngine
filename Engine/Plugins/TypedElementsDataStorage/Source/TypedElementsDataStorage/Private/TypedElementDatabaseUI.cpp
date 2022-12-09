@@ -11,8 +11,6 @@ void UTypedElementDatabaseUi::Initialize(ITypedElementDataStorageInterface* Stor
 
 	Storage = StorageInterface;
 	CreateStandardArchetypes();
-
-	StorageInterface->OnCreation().AddUObject(this, &UTypedElementDatabaseUi::CreateStandardArchetypes);
 }
 
 void UTypedElementDatabaseUi::Deinitialize()

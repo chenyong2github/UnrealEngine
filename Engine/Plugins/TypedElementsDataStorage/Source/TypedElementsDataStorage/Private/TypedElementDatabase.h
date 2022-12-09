@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Templates/SharedPointer.h"
 #include "Elements/Interfaces/TypedElementDataStorageInterface.h"
 #include "MassArchetypeTypes.h"
 #include "MassEntityQuery.h"
 #include "TypedElementHandleStore.h"
+#include "UObject/ObjectMacros.h"
 
 #include "TypedElementDatabase.generated.h"
 
@@ -17,21 +17,22 @@ class UWorld;
 UCLASS()
 class TYPEDELEMENTSDATASTORAGE_API UTypedElementDatabase 
 	: public UObject
+	, public FTickableGameObject
 	, public ITypedElementDataStorageInterface
 {
 	GENERATED_BODY()
 public:
-	struct FExtendedQuery
-	{
-		FMassEntityQuery NativeQuery;
-		FQueryDescription::EActionType Action{ FQueryDescription::EActionType::None };
-		bool bSimpleQuery{ false };
-	};
-
 	~UTypedElementDatabase() override = default;
-
+	
 	void Initialize();
 	void Deinitialize();
+
+	ETickableTickType GetTickableTickType() const override;
+	bool IsTickableWhenPaused() const override;
+	bool IsTickableInEditor() const override;
+	bool IsAllowedToTick() const override;
+	TStatId GetStatId() const override;
+	void Tick(float DeltaTime) override;
 
 	TSharedPtr<FMassEntityManager> GetActiveMutableEditorEntityManager();
 	TSharedPtr<const FMassEntityManager> GetActiveEditorEntityManager() const;
@@ -58,13 +59,17 @@ public:
 	void UnregisterQuery(TypedElementQueryHandle Query) override;
 	FQueryResult RunQuery(TypedElementQueryHandle Query) override;
 
-	FTypedElementOnDataStorageCreation& OnCreation() override;
-	FTypedElementOnDataStorageDestruction& OnDestruction() override;
 	FTypedElementOnDataStorageUpdate& OnUpdate() override;
 	bool IsAvailable() const override;
 	void* GetExternalSystemAddress(UClass* Target) override;
 
 private:
+	struct FExtendedQuery
+	{
+		FMassEntityQuery NativeQuery;
+		FQueryDescription::EActionType Action{ FQueryDescription::EActionType::None };
+		bool bSimpleQuery{ false };
+	};
 	using QueryStore = TTypedElementHandleStore<FExtendedQuery>;
 
 	void Reset();
@@ -74,12 +79,9 @@ private:
 
 	QueryStore Queries;
 
-	FTypedElementOnDataStorageCreation OnCreationDelegate;
-	FTypedElementOnDataStorageDestruction OnDestructionDelegate;
 	FTypedElementOnDataStorageUpdate OnUpdateDelegate;
 
-	FDelegateHandle TickCallHandle;
-
 	TSharedPtr<FMassEntityManager> ActiveEditorEntityManager;
-	UWorld* ActiveEditorWorld{ nullptr };
+	UPROPERTY(Transient)
+	TObjectPtr<UWorld> ActiveEditorWorld{ nullptr };
 };

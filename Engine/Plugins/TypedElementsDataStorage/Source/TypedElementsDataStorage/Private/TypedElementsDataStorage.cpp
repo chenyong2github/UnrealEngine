@@ -73,23 +73,30 @@ void FTypedElementsDataStorageModule::StartupModule()
 				bInitialized = true;
 			}
 		});
+	FCoreDelegates::OnExit.AddRaw(this, &FTypedElementsDataStorageModule::ShutdownModule);
 }
 
 void FTypedElementsDataStorageModule::ShutdownModule()
 {
-	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
-	if (Registry) // If the registry has already been destroyed there's no point in clearing the reference.
+	if (bInitialized)
 	{
-		Registry->SetDataStorage(nullptr);
-		Registry->SetDataStorageCompatibility(nullptr);
-		Registry->SetDataStorageUi(nullptr);
+		UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
+		if (Registry) // If the registry has already been destroyed there's no point in clearing the reference.
+		{
+			Registry->SetDataStorage(nullptr);
+			Registry->SetDataStorageCompatibility(nullptr);
+			Registry->SetDataStorageUi(nullptr);
+		}
+
+		if (UObjectInitialized())
+		{
+			DatabaseUi->Deinitialize();
+			DatabaseCompatibility->Deinitialize();
+			Database->Deinitialize();
+		}
+
+		bInitialized = false;
 	}
-
-	DatabaseUi->Deinitialize();
-	DatabaseCompatibility->Deinitialize();
-	Database->Deinitialize();
-
-	bInitialized = false;
 }
 
 void FTypedElementsDataStorageModule::AddReferencedObjects(FReferenceCollector& Collector)
