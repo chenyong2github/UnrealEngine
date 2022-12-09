@@ -6,21 +6,13 @@
 
 #pragma once
 
-#include "RHIFwd.h"
-#include "RHIShaderPlatform.h"
-#include "RHIFeatureLevel.h"
-#include "RenderTimer.h"
-#include "CoreGlobals.h"
-#include "RenderCore.h"
-
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Containers/Array.h"
-#include "Containers/ResourceArray.h"
 #include "Containers/DynamicRHIResourceArray.h"
 #include "Containers/EnumAsByte.h"
 #include "Containers/List.h"
 #include "Containers/ResourceArray.h"
 #include "Containers/UnrealString.h"
+#include "CoreGlobals.h"
 #include "CoreMinimal.h"
 #include "HAL/CriticalSection.h"
 #include "Math/Color.h"
@@ -31,13 +23,14 @@
 #include "RHI.h"
 #include "RHICommandList.h"
 #include "RHIDefinitions.h"
+#include "RenderCore.h"
 #include "RenderingThread.h"
 #include "Serialization/MemoryLayout.h"
 #include "DataDrivenShaderPlatformInfo.h"
-#endif
 
 class FRDGPooledBuffer;
-class FResourceArrayInterface;
+
+typedef TBitArray<TInlineAllocator<EShaderPlatform::SP_NumPlatforms / 8>>	ShaderPlatformMaskType;
 
 /** Number of frames after which unused global resource allocations will be discarded. */
 extern int32 GGlobalBufferNumFramesUnusedThresold;
@@ -174,7 +167,7 @@ protected:
 		}
 
 		// If the buffer creation emptied the resource array, delete the containing structure as well
-		if (ShouldFreeResourceObject(InOutResourceObject, ResourceArray))
+		if (GFreeStructuresOnRHIBufferCreation && InOutResourceObject && (!ResourceArray || !ResourceArray->GetResourceDataSize()))
 		{
 			delete InOutResourceObject;
 			InOutResourceObject = nullptr;
@@ -184,7 +177,6 @@ protected:
 	}
 
 private:
-	static bool ShouldFreeResourceObject(void* ResourceObject, FResourceArrayInterface* ResourceArray);
 	static FBufferRHIRef CreateRHIBufferInternal(
 		const TCHAR* InDebugName,
 		const FName& InOwnerName,
