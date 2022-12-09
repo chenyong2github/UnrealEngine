@@ -1309,7 +1309,8 @@ public:
 	/** 
 	 * Call on a level that was loaded from disk instead of PIE-duplicating, to fixup actor references
 	 */
-	ENGINE_API void FixupForPIE(int32 PIEInstanceID, TFunctionRef<void(int32, FSoftObjectPath&)> CustomFixupFunction = [](int32, FSoftObjectPath&) {});
+	ENGINE_API void FixupForPIE(int32 PIEInstanceID);
+	ENGINE_API void FixupForPIE(int32 PIEInstanceID, TFunctionRef<void(int32, FSoftObjectPath&)> CustomFixupFunction);
 
 	/**
 	 * Returns true if the level contains static meshes that have not finished compiling yet.

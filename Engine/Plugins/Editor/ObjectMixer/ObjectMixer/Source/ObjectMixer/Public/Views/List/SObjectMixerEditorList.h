@@ -293,8 +293,7 @@ protected:
 	FName ActiveSortingColumnName = NAME_None;
 	EColumnSortMode::Type ActiveSortingType = EColumnSortMode::None;
 
-	TFunctionRef<bool(const FObjectMixerEditorListRowPtr&, const FObjectMixerEditorListRowPtr&)> SortByOrderAscending =
-		[](const FObjectMixerEditorListRowPtr& A, const FObjectMixerEditorListRowPtr& B)
+	TFunction<bool(const FObjectMixerEditorListRowPtr&, const FObjectMixerEditorListRowPtr&)> SortByOrderAscending = [](const FObjectMixerEditorListRowPtr& A, const FObjectMixerEditorListRowPtr& B)
 		{
 			return A->GetSortOrder() < B->GetSortOrder();
 		};

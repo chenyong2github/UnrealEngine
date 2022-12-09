@@ -215,7 +215,7 @@ bool LexFromString(EOS_EAuthScopeFlags& OutEnum, const FStringView InString)
 
 	using namespace UE::String;
 	const EParseTokensOptions ParseOptions = EParseTokensOptions::SkipEmpty | EParseTokensOptions::Trim;
-	TFunctionRef<void(FStringView)> ParseFunc = [&OutEnum, &bParsedOk](FStringView Token)
+	auto ParseFunc = [&OutEnum, &bParsedOk](FStringView Token)
 	{
 		if (Token == TEXT("BasicProfile"))
 		{
@@ -247,7 +247,8 @@ bool LexFromString(EOS_EAuthScopeFlags& OutEnum, const FStringView InString)
 			bParsedOk = false;
 		}
 	};
-	ParseTokens(InString, TCHAR('|'), ParseFunc, ParseOptions);
+
+	ParseTokens(InString, TCHAR('|'), (TFunctionRef<void(FStringView)>)ParseFunc, ParseOptions);
 
 	return bParsedOk;
 }

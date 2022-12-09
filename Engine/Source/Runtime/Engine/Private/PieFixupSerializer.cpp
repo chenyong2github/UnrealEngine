@@ -7,8 +7,13 @@
 
 class FMulticastDelegateProperty;
 
+namespace
+{
+	void DefaultSoftObjectPathFixupFunction(int32, FSoftObjectPath&) {}
+}
+
 FPIEFixupSerializer::FPIEFixupSerializer(UObject* InRoot, int32 InPIEInstanceID)
-	: SoftObjectPathFixupFunction([](int32, FSoftObjectPath&) {})
+	: SoftObjectPathFixupFunction(DefaultSoftObjectPathFixupFunction)
 	, Root(InRoot)
 	, PIEInstanceID(InPIEInstanceID)
 {

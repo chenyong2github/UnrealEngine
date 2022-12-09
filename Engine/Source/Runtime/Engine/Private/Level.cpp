@@ -4199,6 +4199,11 @@ void ULevel::FixupForPIE(int32 InPIEInstanceID, TFunctionRef<void(int32, FSoftOb
 	Serialize(FixupSerializer);
 }
 
+void ULevel::FixupForPIE(int32 InPIEInstanceID)
+{
+	FixupForPIE(InPIEInstanceID, [](int32, FSoftObjectPath&) {});
+}
+
 #endif	//WITH_EDITOR
 
 bool ULevel::ResolveSubobject(const TCHAR* SubObjectPath, UObject*& OutObject, bool bLoadIfExists)

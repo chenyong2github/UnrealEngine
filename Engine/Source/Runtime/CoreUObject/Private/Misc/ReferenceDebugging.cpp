@@ -7,7 +7,7 @@
 void FindPackageReferencesInObject(const UObject* RootObject, const TArray<FName>& PackagesReferenced, TFunctionRef<void(FName /*PackagePath*/, const FString& /*PropertyPath*/)> Callback)
 {
 	TArray<FString> PathStack;
-	TFunctionRef<void(const UObject*)> InnerLoop = [&InnerLoop, &PackagesReferenced, &PathStack, Callback](const UObject* RootObject)
+	TFunction<void(const UObject*)> InnerLoop = [&InnerLoop, &PackagesReferenced, &PathStack, Callback](const UObject* RootObject)
 	{
 		for (TPropertyValueIterator<FObjectProperty> It(RootObject->GetClass(), RootObject, EPropertyValueIteratorFlags::FullRecursion, EFieldIteratorFlags::ExcludeDeprecated); It; ++It)
 		{

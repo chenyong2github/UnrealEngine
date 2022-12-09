@@ -36,7 +36,7 @@
 
 FVector2D SDataprepGraphTrackNode::TrackAnchor( 15.f, 40.f );
 
-typedef TFunctionRef<float(const FVector2D&, float)> DragCallback;
+typedef TFunction<float(const FVector2D&, float)> DragCallback;
 
 class SDataprepEmptyActionNode : public SVerticalBox
 {

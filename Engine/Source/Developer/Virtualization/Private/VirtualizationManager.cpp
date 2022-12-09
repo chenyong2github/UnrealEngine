@@ -1128,7 +1128,7 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Con
 	// Check for any legacy settings and print them out (easier to do this in one block rather than one and time)
 	{
 		// Entries that are allows to be in [Core.ContentVirtualization
-		TArrayView<const TCHAR* const> AllowedEntries = { TEXT("SystemName") , TEXT("LazyInit") };
+		static const TArray<FString> AllowedEntries = { TEXT("SystemName") , TEXT("LazyInit") };
 		
 		TArray<FString> LegacyEntries;	
 		if (const FConfigSection* LegacySection = ConfigFile.Find(LegacyConfigSection))

@@ -126,7 +126,7 @@ TOrientedBox3<RealType> OptimizeOrientedBox3Points(const TOrientedBox3<RealType>
 			}
 		}
 		RealType Depth = BestBox.Extents[Axis] * 2;
-		using TFitFn = TFunctionRef<RealType(RealType, RealType)>;
+		using TFitFn = TFunction<RealType(RealType, RealType)>;
 		TFitFn Score2 = FitMethod == EBox3FitCriteria::Volume ?
 			TFitFn([](RealType Width, RealType Height) -> RealType
 				{
@@ -371,7 +371,7 @@ TOrientedBox3<RealType> FitOrientedBox3Points(int32 NumPts, TFunctionRef<TVector
 			ProjBoundary.Emplace(BasisX.Dot(Pt), BasisY.Dot(Pt));
 		}
 		
-		using TFitFn = TFunctionRef<RealType(RealType, RealType)>;
+		using TFitFn = TFunction<RealType(RealType, RealType)>;
 		TFitFn Score2 = FitMethod == EBox3FitCriteria::Volume ? 
 			TFitFn([](RealType Width, RealType Height) -> RealType
 			{

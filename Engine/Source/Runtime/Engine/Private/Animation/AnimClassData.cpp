@@ -55,6 +55,5 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 TArrayView<const FAnimNodeData> UAnimClassData::GetNodeData() const
 {
-	TArray<FAnimNodeData> Dummy;
-	return Dummy;
+	return {};
 }
