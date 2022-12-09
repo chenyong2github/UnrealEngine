@@ -4,6 +4,7 @@
 #include "PlasticSourceControlProjectSettings.h"
 #include "ISourceControlModule.h"
 #include "Styling/AppStyle.h"
+#include "RevisionControlStyle/RevisionControlStyle.h"
 
 #define LOCTEXT_NAMESPACE "PlasticSourceControl.State"
 
@@ -104,13 +105,13 @@ FSlateIcon FPlasticSourceControlState::GetIcon() const
 {
 	if (!IsCurrent())
 	{
-		return FSlateIcon(FAppStyle::GetAppStyleSetName(),"Perforce.NotAtHeadRevision");
+		return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.NotAtHeadRevision");
 	}
 	else if (WorkspaceState != EWorkspaceState::CheckedOut && WorkspaceState != EWorkspaceState::LockedByOther)
 	{
 		if (IsModifiedInOtherBranch())
 		{
-			return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Perforce.ModifiedOtherBranch");
+			return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.ModifiedOtherBranch", NAME_None, "RevisionControl.ModifiedBadge");
 		}
 	}
 
@@ -118,24 +119,24 @@ FSlateIcon FPlasticSourceControlState::GetIcon() const
 	{
 	case EWorkspaceState::CheckedOut:
 	case EWorkspaceState::Replaced: // Merged (waiting for check-in)
-		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Plastic.CheckedOut");
+		return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.CheckedOut");
 	case EWorkspaceState::Changed: // Changed but unchecked-out file custom color icon
 		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Plastic.Changed"); // custom
 	case EWorkspaceState::Added:
 	case EWorkspaceState::Copied:
-		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Plastic.OpenForAdd");
+		return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.OpenForAdd");
 	case EWorkspaceState::Moved:
-		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Plastic.Branched");
+		return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.Branched");
 	case EWorkspaceState::Deleted:
-		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Plastic.MarkedForDelete");
+		return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.MarkedForDelete");
 	case EWorkspaceState::LocallyDeleted:
 		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Plastic.LocallyDeleted"); // custom
 	case EWorkspaceState::Conflicted:
 		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Plastic.Conflicted"); // custom
 	case EWorkspaceState::LockedByOther:
-		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Plastic.CheckedOutByOtherUser", NAME_None, "SourceControl.LockOverlay");
+		return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.CheckedOutByOtherUser", NAME_None, "RevisionControl.CheckedOutByOtherUserBadge");
 	case EWorkspaceState::Private: // Not controlled
-		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Plastic.NotInDepot");
+		return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.NotInDepot");
 	case EWorkspaceState::Ignored:
 		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Plastic.Ignored"); // custom
 	case EWorkspaceState::Unknown:

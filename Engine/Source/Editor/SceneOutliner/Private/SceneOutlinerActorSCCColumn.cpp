@@ -2,6 +2,7 @@
 
 #include "SceneOutlinerActorSCCColumn.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Images/SLayeredImage.h"
 #include "Widgets/Views/STreeView.h"
 #include "ActorTreeItem.h"
 #include "ActorDescTreeItem.h"
@@ -9,6 +10,7 @@
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "ISourceControlModule.h"
 #include "Misc/MessageDialog.h"
+#include "RevisionControlStyle/RevisionControlStyle.h"
 
 #define LOCTEXT_NAMESPACE "SceneOutlinerSourceControlColumn"
 
@@ -19,6 +21,12 @@ FName FSceneOutlinerActorSCCColumn::GetColumnID()
 
 SHeaderRow::FColumn::FArguments FSceneOutlinerActorSCCColumn::ConstructHeaderRowColumn()
 {
+	TSharedRef<SLayeredImage> HeaderRowIcon = SNew(SLayeredImage)
+			.ColorAndOpacity(FSlateColor::UseForeground())
+			.Image(FRevisionControlStyleManager::Get().GetBrush("RevisionControl.Icon"));
+	
+	HeaderRowIcon->AddLayer(TAttribute<const FSlateBrush*>::CreateSP(this, &FSceneOutlinerActorSCCColumn::GetHeaderIconBadge));
+	
 	return SHeaderRow::Column(GetColumnID())
 		.FixedWidth(24.f)
 		.HAlignHeader(HAlign_Center)
@@ -27,9 +35,7 @@ SHeaderRow::FColumn::FArguments FSceneOutlinerActorSCCColumn::ConstructHeaderRow
 		.VAlignCell(VAlign_Center)
 		.DefaultTooltip(FText::FromName(GetColumnID()))
 		[
-			SNew(SImage)
-			.ColorAndOpacity(FSlateColor::UseForeground())
-			.Image(this, &FSceneOutlinerActorSCCColumn::GetHeaderIcon)
+			HeaderRowIcon
 		];
 }
 
@@ -56,15 +62,15 @@ const TSharedRef<SWidget> FSceneOutlinerActorSCCColumn::ConstructRowWidget(FScen
 	return SNullWidget::NullWidget;
 }
 
-const FSlateBrush* FSceneOutlinerActorSCCColumn::GetHeaderIcon() const
+const FSlateBrush* FSceneOutlinerActorSCCColumn::GetHeaderIconBadge() const
 {
 	if (ISourceControlModule::Get().IsEnabled())
 	{
-		return FAppStyle::GetBrush("SourceControl.StatusIcon.On");
+		return FRevisionControlStyleManager::Get().GetBrush("RevisionControl.Icon.ConnectedBadge");
 	}
 	else
 	{
-		return FAppStyle::GetBrush("SourceControl.StatusIcon.Off");
+		return nullptr;
 	}
 }
 

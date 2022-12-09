@@ -9,6 +9,7 @@
 #include "ISourceControlWindowsModule.h"
 #include "UncontrolledChangelistsModule.h"
 #include "AssetViewUtils.h"
+#include "RevisionControlStyle/RevisionControlStyle.h"
 
 #define LOCTEXT_NAMESPACE "FSceneOutlinerSCCHandler"
 
@@ -48,7 +49,7 @@ bool FSceneOutlinerSCCHandler::AddSourceControlMenuOptions(UToolMenu* Menu, TArr
 					),
 				EUserInterfaceActionType::Button,
 				false,
-				FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.StatusIcon.On")
+				FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.Icon", FRevisionControlStyleManager::GetStyleSetName() , "RevisionControl.Icon.ConnectedBadge")
 				);
 		}
 		else
@@ -58,7 +59,7 @@ bool FSceneOutlinerSCCHandler::AddSourceControlMenuOptions(UToolMenu* Menu, TArr
 				"SourceControlSubMenu",
 				LOCTEXT("SourceControlSubMenuLabel", "Revision Control"),
 				LOCTEXT("SourceControlSubMenuDisabledToolTip", "Disabled because one or more selected items are not external packages."),
-				FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.StatusIcon.Off"),
+				FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.Icon"),
 				FUIAction(
 					FExecuteAction(),
 					FCanExecuteAction::CreateSP( this, &FSceneOutlinerSCCHandler::CanExecuteSCC )
@@ -179,7 +180,7 @@ void FSceneOutlinerSCCHandler::FillSourceControlSubMenu(UToolMenu* Menu)
 			"SCCCheckOut",
 			LOCTEXT("SCCCheckOut", "Check Out"),
 			LOCTEXT("SCCCheckOutTooltip", "Checks out the selected asset from revision control."),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.CheckOut"),
+			FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.Actions.CheckOut"),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &FSceneOutlinerSCCHandler::ExecuteSCCCheckOut ),
 				FCanExecuteAction::CreateSP( this, &FSceneOutlinerSCCHandler::CanExecuteSCCCheckOut )
@@ -193,7 +194,7 @@ void FSceneOutlinerSCCHandler::FillSourceControlSubMenu(UToolMenu* Menu)
 			"SCCCheckIn",
 			LOCTEXT("SCCCheckIn", "Check In"),
 			LOCTEXT("SCCCheckInTooltip", "Checks in the selected asset to revision control."),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Submit"),
+			FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.Actions.Submit"),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &FSceneOutlinerSCCHandler::ExecuteSCCCheckIn ),
 				FCanExecuteAction::CreateSP( this, &FSceneOutlinerSCCHandler::CanExecuteSCCCheckIn )
@@ -205,7 +206,7 @@ void FSceneOutlinerSCCHandler::FillSourceControlSubMenu(UToolMenu* Menu)
 		"SCCRefresh",
 		LOCTEXT("SCCRefresh", "Refresh"),
 		LOCTEXT("SCCRefreshTooltip", "Updates the revision control status of the asset."),
-		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Refresh"),
+		FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.Actions.Refresh"),
 		FUIAction(
 			FExecuteAction::CreateSP( this, &FSceneOutlinerSCCHandler::ExecuteSCCRefresh ),
 			FCanExecuteAction::CreateSP( this, &FSceneOutlinerSCCHandler::CanExecuteSCCRefresh )
@@ -218,7 +219,7 @@ void FSceneOutlinerSCCHandler::FillSourceControlSubMenu(UToolMenu* Menu)
 			"SCCHistory",
 			LOCTEXT("SCCHistory", "History"),
 			LOCTEXT("SCCHistoryTooltip", "Displays the revision control revision history of the selected asset."),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.History"),
+			FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.Actions.History"),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &FSceneOutlinerSCCHandler::ExecuteSCCHistory ),
 				FCanExecuteAction::CreateSP( this, &FSceneOutlinerSCCHandler::CanExecuteSCCHistory )
@@ -233,7 +234,7 @@ void FSceneOutlinerSCCHandler::FillSourceControlSubMenu(UToolMenu* Menu)
 			"SCCFindInChangelist",
 			LOCTEXT("SCCShowInChangelist", "Show in Changelist"),
 			LOCTEXT("SCCShowInChangelistTooltip", "Show the selected assets in the Changelist window."),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.ChangelistsTab"),
+			FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.ChangelistsTab"),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FSceneOutlinerSCCHandler::ExecuteSCCShowInChangelist),
 				FCanExecuteAction::CreateSP(this, &FSceneOutlinerSCCHandler::CanExecuteSCCShowInChangelist)

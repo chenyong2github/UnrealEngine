@@ -28,6 +28,7 @@ public class StatusBar : ModuleRules
 				"ToolWidgets",
 				"UnrealEd",
 				"AssetTools",
+				"SourceControl"
 			});
 
 		DynamicallyLoadedModuleNames.AddRange(

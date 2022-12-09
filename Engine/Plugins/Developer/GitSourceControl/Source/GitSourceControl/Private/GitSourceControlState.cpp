@@ -2,6 +2,7 @@
 
 #include "GitSourceControlState.h"
 #include "Styling/AppStyle.h"
+#include "RevisionControlStyle/RevisionControlStyle.h"
 
 #define LOCTEXT_NAMESPACE "GitSourceControl.State"
 
@@ -66,19 +67,19 @@ FSlateIcon FGitSourceControlState::GetIcon() const
 	switch (WorkingCopyState)
 	{
 	case EWorkingCopyState::Modified:
-		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Subversion.CheckedOut");
+		return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.CheckedOut");
 	case EWorkingCopyState::Added:
-		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Subversion.OpenForAdd");
+		return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.OpenForAdd");
 	case EWorkingCopyState::Renamed:
 	case EWorkingCopyState::Copied:
-		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Subversion.Branched");
+		return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.Branched");
 	case EWorkingCopyState::Deleted: // Deleted & Missing files does not show in Content Browser
 	case EWorkingCopyState::Missing:
-		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Subversion.MarkedForDelete");
+		return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.MarkedForDelete");
 	case EWorkingCopyState::Conflicted:
-		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Subversion.NotAtHeadRevision");
+		return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.NotAtHeadRevision");
 	case EWorkingCopyState::NotControlled:
-		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Subversion.NotInDepot");
+		return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.NotInDepot");
 	case EWorkingCopyState::Unknown:
 	case EWorkingCopyState::Unchanged: // Unchanged is the same as "Pristine" (not checked out) for Perforce, ie no icon
 	case EWorkingCopyState::Ignored:

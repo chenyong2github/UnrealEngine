@@ -4,6 +4,7 @@
 #include "PerforceSourceControlRevision.h"
 #include "Misc/EngineVersion.h"
 #include "Styling/AppStyle.h"
+#include "RevisionControlStyle/RevisionControlStyle.h"
 
 #define LOCTEXT_NAMESPACE "PerforceSourceControl.State"
 
@@ -91,20 +92,24 @@ TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FPerforceSourceCon
 
 FSlateIcon FPerforceSourceControlState::GetIcon() const
 {
+	if (IsConflicted())
+	{
+		return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.Conflicted");
+	}
 	if (!IsCurrent())
 	{
-		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Perforce.NotAtHeadRevision");
+		return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.NotAtHeadRevision");
 	}
 	else if (State != EPerforceState::CheckedOut && State != EPerforceState::CheckedOutOther)
 	{
 		if (IsCheckedOutInOtherBranch())
 		{
-			return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Perforce.CheckedOutByOtherUserOtherBranch", NAME_None, "SourceControl.LockOverlay");
+			return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.CheckedOutByOtherUserOtherBranch", NAME_None, "RevisionControl.CheckedOutByOtherUserOtherBranchBadge");
 		}
 
 		if (IsModifiedInOtherBranch())
 		{
-			return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Perforce.ModifiedOtherBranch");
+			return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.ModifiedOtherBranch", NAME_None, "RevisionControl.ModifiedBadge");
 		}
 	}
 
@@ -115,21 +120,21 @@ FSlateIcon FPerforceSourceControlState::GetIcon() const
 	case EPerforceState::DontCare:
 		return FSlateIcon();
 	case EPerforceState::CheckedOut:
-		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Perforce.CheckedOut");
+		return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.CheckedOut");
 	case EPerforceState::ReadOnly:
 		return FSlateIcon();
 	case EPerforceState::NotInDepot:
-		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Perforce.NotInDepot");
+		return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.NotInDepot");
 	case EPerforceState::CheckedOutOther:
-		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Perforce.CheckedOutByOtherUser", NAME_None, "SourceControl.LockOverlay");
+		return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.CheckedOutByOtherUser", NAME_None, "RevisionControl.CheckedOutByOtherUserBadge");
 	case EPerforceState::Ignore:
 		return FSlateIcon();
 	case EPerforceState::OpenForAdd:
-		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Perforce.OpenForAdd");
+		return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.OpenForAdd");
 	case EPerforceState::MarkedForDelete:
-		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Perforce.MarkedForDelete");
+		return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.MarkedForDelete");
 	case EPerforceState::Branched:
-		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Perforce.Branched");
+		return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.Branched");
 	}
 }
 

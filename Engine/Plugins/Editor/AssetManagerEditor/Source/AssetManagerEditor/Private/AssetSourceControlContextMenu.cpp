@@ -19,6 +19,7 @@
 #include "SourceControlHelpers.h"
 #include "SourceControlOperations.h"
 #include "SourceControlWindows.h"
+#include "RevisionControlStyle/RevisionControlStyle.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "Toolkits/AssetEditorToolkitMenuContext.h"
@@ -63,7 +64,7 @@ namespace UE::AssetSourceControlContextMenu::Private
 					]
 				+ SHorizontalBox::Slot()
 					.VAlign(VAlign_Center)
-					.Padding(FMargin(2, 0, 0, 0))
+					.Padding(FMargin(8, 0, 0, 0))
 					.AutoWidth()
 					[
 						SNew(STextBlock)
@@ -323,7 +324,7 @@ bool FAssetSourceControlContextMenuState::AddSourceControlMenuOptions(FToolMenuS
 				LOCTEXT("SourceControlSubMenuToolTip", "Revision Control actions."),
 				FNewToolMenuDelegate::CreateSP(this, &FAssetSourceControlContextMenuState::FillSourceControlSubMenu),
 				false,
-				FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.StatusIcon.On")
+				FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.Icon", FRevisionControlStyleManager::GetStyleSetName() , "RevisionControl.Icon.ConnectedBadge")
 			);
 		}
 		else
@@ -339,7 +340,7 @@ bool FAssetSourceControlContextMenuState::AddSourceControlMenuOptions(FToolMenuS
 				),
 				EUserInterfaceActionType::Button,
 				false,
-				FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.StatusIcon.Error")
+				FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.Icon", FRevisionControlStyleManager::GetStyleSetName() , "RevisionControl.Icon.WarningBadge")
 			);
 		}
 	}
@@ -349,7 +350,7 @@ bool FAssetSourceControlContextMenuState::AddSourceControlMenuOptions(FToolMenuS
 			"SCCConnectToSourceControl",
 			LOCTEXT("SCCConnectToSourceControl", "Connect To Revision Control..."),
 			LOCTEXT("SCCConnectToSourceControlTooltip", "Connect to a revision control system for tracking changes to your content and levels."),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), "MainFrame.ConnectToSourceControl"),
+			FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.Icon"),
 			FUIAction(
 				FExecuteAction::CreateLambda([]() { ISourceControlModule::Get().ShowLoginDialog(FSourceControlLoginClosed(), ELoginWindowMode::Modeless); }),
 				FCanExecuteAction()
@@ -364,7 +365,7 @@ bool FAssetSourceControlContextMenuState::AddSourceControlMenuOptions(FToolMenuS
 			"DiffSelected",
 			LOCTEXT("DiffSelected", "Diff Selected"),
 			LOCTEXT("DiffSelectedTooltip", "Diff the two assets that you have selected."),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Diff"),
+			FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.Actions.Diff"),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FAssetSourceControlContextMenuState::ExecuteDiffSelected)
 			)
@@ -392,7 +393,7 @@ void FAssetSourceControlContextMenuState::FillSourceControlSubMenu(UToolMenu* Me
 			"SCCSync",
 			LOCTEXT("SCCSync", "Sync"),
 			LOCTEXT("SCCSyncTooltip", "Updates the selected assets to the latest version in revision control."),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Sync"),
+			FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.Actions.Sync"),
 			FUIAction(
 				ExecutionCheck(FExecuteAction::CreateSP(this, &FAssetSourceControlContextMenuState::ExecuteSCCSync)),
 				FCanExecuteAction::CreateLambda([this]() { return IsActionEnabled(CanExecuteSCCSync()); })
@@ -418,7 +419,7 @@ void FAssetSourceControlContextMenuState::FillSourceControlSubMenu(UToolMenu* Me
 
 			TAttribute<FSlateIcon>::CreateLambda([this]()
 				{
-					return FSlateIcon(FAppStyle::GetAppStyleSetName(), CheckedOutUsers.Num() == 0 ? "SourceControl.Actions.CheckOut" : "SourceControl.LockOverlay");
+					return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), CheckedOutUsers.Num() == 0 ? "RevisionControl.Actions.CheckOut" : "RevisionControl.Locked");
 				}),
 					FUIAction(
 						ExecutionCheck(FExecuteAction::CreateSP(this, &FAssetSourceControlContextMenuState::ExecuteSCCCheckOut)),
@@ -442,7 +443,7 @@ void FAssetSourceControlContextMenuState::FillSourceControlSubMenu(UToolMenu* Me
 
 			TAttribute<FSlateIcon>::CreateLambda([this]()
 				{
-					return FSlateIcon(FAppStyle::GetAppStyleSetName(), CheckedOutUsers.Num() == 0 ? "SourceControl.Actions.CheckOut" : "SourceControl.LockOverlay");
+					return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), CheckedOutUsers.Num() == 0 ? "RevisionControl.Actions.SyncAndCheckOut" : "RevisionControl.Locked");
 				}),
 					FUIAction(
 						ExecutionCheck(FExecuteAction::CreateSP(this, &FAssetSourceControlContextMenuState::ExecuteSCCSyncAndCheckOut)),
@@ -458,7 +459,7 @@ void FAssetSourceControlContextMenuState::FillSourceControlSubMenu(UToolMenu* Me
 			"SCCMakeWritable",
 			LOCTEXT("SCCMakeWritable", "Make Writable"),
 			LOCTEXT("SCCMakeWritableTooltip", "Remove read-only flag from all selected assets."),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.CheckOut"),
+			FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.Actions.MakeWritable"),
 			FUIAction(
 				ExecutionCheck(FExecuteAction::CreateSP(this, &FAssetSourceControlContextMenuState::ExecuteSCCMakeWritable)),
 				FCanExecuteAction::CreateLambda([this]() { return IsActionEnabled(CanExecuteSCCMakeWritable()); })
@@ -471,7 +472,7 @@ void FAssetSourceControlContextMenuState::FillSourceControlSubMenu(UToolMenu* Me
 		"SCCOpenForAdd",
 		LOCTEXT("SCCOpenForAdd", "Mark For Add"),
 		LOCTEXT("SCCOpenForAddTooltip", "Adds the selected assets to revision control."),
-		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Add"),
+		FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.Actions.Add"),
 		FUIAction(
 			ExecutionCheck(FExecuteAction::CreateSP(this, &FAssetSourceControlContextMenuState::ExecuteSCCOpenForAdd)),
 			FCanExecuteAction::CreateLambda([this]() { return IsActionEnabled(CanExecuteSCCOpenForAdd()); })
@@ -485,7 +486,7 @@ void FAssetSourceControlContextMenuState::FillSourceControlSubMenu(UToolMenu* Me
 			"SCCCheckIn",
 			LOCTEXT("SCCCheckIn", "Check In"),
 			LOCTEXT("SCCCheckInTooltip", "Checks the selected assets into revision control."),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Submit"),
+			FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.Actions.Submit"),
 			FUIAction(
 				ExecutionCheck(FExecuteAction::CreateSP(this, &FAssetSourceControlContextMenuState::ExecuteSCCCheckIn)),
 				FCanExecuteAction::CreateLambda([this]() { return IsActionEnabled(CanExecuteSCCCheckIn()); })
@@ -498,7 +499,7 @@ void FAssetSourceControlContextMenuState::FillSourceControlSubMenu(UToolMenu* Me
 		"SCCHistory",
 		LOCTEXT("SCCHistory", "History"),
 		LOCTEXT("SCCHistoryTooltip", "Displays the history of the selected asset in revision control."),
-		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.History"),
+		FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.Actions.History"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FAssetSourceControlContextMenuState::ExecuteSCCHistory),
 			FCanExecuteAction::CreateLambda([this]() { return IsActionEnabled(CanExecuteSCCHistory()); })
@@ -510,7 +511,7 @@ void FAssetSourceControlContextMenuState::FillSourceControlSubMenu(UToolMenu* Me
 		"SCCDiffAgainstDepot",
 		LOCTEXT("SCCDiffAgainstDepot", "Diff Against Depot"),
 		LOCTEXT("SCCDiffAgainstDepotTooltip", "Look at differences between the local and remote version of the selected assets."),
-		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Diff"),
+		FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.Actions.Diff"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FAssetSourceControlContextMenuState::ExecuteSCCDiffAgainstDepot),
 			FCanExecuteAction::CreateLambda([this]() { return IsActionEnabled(CanExecuteSCCDiffAgainstDepot()); })
@@ -522,7 +523,7 @@ void FAssetSourceControlContextMenuState::FillSourceControlSubMenu(UToolMenu* Me
 		"SCCRevert",
 		LOCTEXT("SCCRevert", "Revert"),
 		LOCTEXT("SCCRevertTooltip", "Reverts the selected assets to their original state from revision control."),
-		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Revert"),
+		FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.Actions.Revert"),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FAssetSourceControlContextMenuState::ExecuteSCCRevert),
 			FCanExecuteAction::CreateLambda([this]() { return IsActionEnabled(CanExecuteSCCRevert()); })
@@ -536,7 +537,7 @@ void FAssetSourceControlContextMenuState::FillSourceControlSubMenu(UToolMenu* Me
 			"SCCRevertWritable",
 			LOCTEXT("SCCRevertWritable", "Revert Writable Files"),
 			LOCTEXT("SCCRevertWritableTooltip", "Reverts the assets that are Writable to their current state from revision control. They will remain at their current revision."),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Revert"),
+			FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.Actions.Revert"),
 			FUIAction(
 				ExecutionCheck(FExecuteAction::CreateSP(this, &FAssetSourceControlContextMenuState::ExecuteSCCRevertWritable)),
 				FCanExecuteAction::CreateLambda([this]() { return IsActionEnabled(CanExecuteSCCRevertWritable()); })
@@ -552,7 +553,7 @@ void FAssetSourceControlContextMenuState::FillSourceControlSubMenu(UToolMenu* Me
 			"SCCMerge",
 			LOCTEXT("SCCMerge", "Merge"),
 			LOCTEXT("SCCMergeTooltip", "Opens the blueprint editor with the merge tool open."),
-			FSlateIcon(),
+			FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.Actions.Merge"),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FAssetSourceControlContextMenuState::ExecuteSCCMerge),
 				FCanExecuteAction::CreateLambda([this]() { return IsActionEnabled(CanExecuteSCCMerge()); })
@@ -565,7 +566,7 @@ void FAssetSourceControlContextMenuState::FillSourceControlSubMenu(UToolMenu* Me
 		"SCCRefresh",
 		LOCTEXT("SCCRefresh", "Refresh"),
 		LOCTEXT("SCCRefreshTooltip", "Updates the revision control status of the asset."),
-		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Refresh"),
+		FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.Actions.Refresh"),
 		FUIAction(
 			ExecutionCheck(FExecuteAction::CreateSP(this, &FAssetSourceControlContextMenuState::ExecuteSCCRefresh)),
 			FCanExecuteAction()

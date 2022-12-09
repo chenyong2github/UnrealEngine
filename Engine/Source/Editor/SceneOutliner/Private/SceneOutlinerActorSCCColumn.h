@@ -37,7 +37,7 @@ public:
 	// End ISceneOutlinerColumn Implementation
 	//////////////////////////////////////////////////////////////////////////
 private:
-	const FSlateBrush* GetHeaderIcon() const;
+	const FSlateBrush* GetHeaderIconBadge() const;
 
 	TWeakPtr<ISceneOutliner> WeakSceneOutliner;
 };

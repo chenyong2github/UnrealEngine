@@ -74,7 +74,7 @@ private:
 	static TSharedRef<SWidget> GenerateSourceControlMenuContent();
 	static FText GetSourceControlStatusText();
 	static FText GetSourceControlTooltip();
-	static const FSlateBrush* GetSourceControlIcon();
+	static const FSlateBrush* GetSourceControlIconBadge();
 
 	/** Sync button */
 	static bool IsAtLatestRevision();

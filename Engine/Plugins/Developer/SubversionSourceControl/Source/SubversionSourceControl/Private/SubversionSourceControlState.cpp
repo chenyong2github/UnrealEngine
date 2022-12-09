@@ -2,6 +2,7 @@
 
 #include "SubversionSourceControlState.h"
 #include "Styling/AppStyle.h"
+#include "RevisionControlStyle/RevisionControlStyle.h"
 
 #define LOCTEXT_NAMESPACE "SubversionSourceControl.State"
 
@@ -56,15 +57,15 @@ FSlateIcon FSubversionSourceControlState::GetIcon() const
 {
 	if (LockState == ELockState::Locked)
 	{
-		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Subversion.CheckedOut");
+		return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.CheckedOut");
 	}
 	else if (LockState == ELockState::LockedOther)
 	{
-		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Subversion.CheckedOutByOtherUser");
+		return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.CheckedOutByOtherUser", NAME_None, "RevisionControl.CheckedOutByOtherUserBadge");
 	}
 	else if (!IsCurrent())
 	{
-		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Subversion.NotAtHeadRevision");
+		return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.NotAtHeadRevision");
 	}
 
 	switch (WorkingCopyState)
@@ -72,16 +73,16 @@ FSlateIcon FSubversionSourceControlState::GetIcon() const
 	case EWorkingCopyState::Added:
 		if (bCopied)
 		{
-			return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Subversion.Branched");
+		return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.Branched");
 		}
 		else
 		{
-			return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Subversion.OpenForAdd");
+		return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.OpenForAdd");
 		}
 	case EWorkingCopyState::NotControlled:
-		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Subversion.NotInDepot");
+		return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.NotInDepot");
 	case EWorkingCopyState::Deleted:
-		return FSlateIcon(FAppStyle::GetAppStyleSetName(), "Subversion.MarkedForDelete");
+		return FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.MarkedForDelete");
 	}
 
 	return FSlateIcon();

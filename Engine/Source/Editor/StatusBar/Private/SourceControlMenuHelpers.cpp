@@ -17,10 +17,12 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Images/SLayeredImage.h"
 #include "LevelEditorActions.h"
 #include "PackageTools.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/MessageDialog.h"
+#include "RevisionControlStyle/RevisionControlStyle.h"
 
 #define LOCTEXT_NAMESPACE "SourceControlCommands"
 
@@ -180,21 +182,21 @@ TSharedRef<SWidget> FSourceControlMenuHelpers::GenerateSourceControlMenuContent(
 		FSourceControlCommands::Get().ViewChangelists,
 		TAttribute<FText>(),
 		TAttribute<FText>(),
-		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.ChangelistsTab")
+		FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.ChangelistsTab")
 	);
 
 	Section.AddMenuEntry(
 		FSourceControlCommands::Get().SubmitContent,
 		TAttribute<FText>(),
 		TAttribute<FText>(),
-		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Submit")
+		FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.Actions.Submit")
 	);
 
 	Section.AddMenuEntry(
 		FSourceControlCommands::Get().CheckOutModifiedFiles,
 		TAttribute<FText>(),
 		TAttribute<FText>(),
-		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.CheckOut")
+		FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.Actions.CheckOut")
 	);
 
 	Section.AddDynamicEntry("ConnectToSourceControl", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
@@ -206,7 +208,7 @@ TSharedRef<SWidget> FSourceControlMenuHelpers::GenerateSourceControlMenuContent(
 				FSourceControlCommands::Get().ChangeSourceControlSettings,
 				TAttribute<FText>(),
 				TAttribute<FText>(),
-				FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.ChangeSettings")
+				FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.Actions.ChangeSettings")
 			);
 		}
 		else
@@ -215,7 +217,7 @@ TSharedRef<SWidget> FSourceControlMenuHelpers::GenerateSourceControlMenuContent(
 				FSourceControlCommands::Get().ConnectToSourceControl,
 				TAttribute<FText>(),
 				TAttribute<FText>(),
-				FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Connect")
+				FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.Icon")
 			);
 		}
 	}));
@@ -261,13 +263,11 @@ FText FSourceControlMenuHelpers::GetSourceControlTooltip()
 	}
 }
 
-const FSlateBrush* FSourceControlMenuHelpers::GetSourceControlIcon()
+const FSlateBrush* FSourceControlMenuHelpers::GetSourceControlIconBadge()
 {
-
 	if (QueryState == EQueryState::Querying)
 	{
-		static const FSlateBrush* QueryBrush = FAppStyle::Get().GetBrush("SourceControl.StatusIcon.Unknown");
-		return QueryBrush;
+		return nullptr;
 	}
 	else
 	{
@@ -276,18 +276,18 @@ const FSlateBrush* FSourceControlMenuHelpers::GetSourceControlIcon()
 		{
 			if (!SourceControlModule.GetProvider().IsAvailable())
 			{
-				static const FSlateBrush* ErrorBrush = FAppStyle::Get().GetBrush("SourceControl.StatusIcon.Error");
+				static const FSlateBrush* ErrorBrush = FRevisionControlStyleManager::Get().GetBrush("RevisionControl.Icon.WarningBadge");
 				return ErrorBrush;
 			}
 			else
 			{
-				static const FSlateBrush* OnBrush = FAppStyle::Get().GetBrush("SourceControl.StatusIcon.On");
+				static const FSlateBrush* OnBrush = FRevisionControlStyleManager::Get().GetBrush("RevisionControl.Icon.ConnectedBadge");
 				return OnBrush;
 			}
 		}
 		else
 		{
-			static const FSlateBrush* OffBrush = FAppStyle::Get().GetBrush("SourceControl.StatusIcon.Off");
+			static const FSlateBrush* OffBrush = nullptr;
 			return OffBrush;
 		}
 	}
@@ -335,8 +335,8 @@ FText FSourceControlMenuHelpers::GetSourceControlSyncStatusTooltipText()
 
 const FSlateBrush* FSourceControlMenuHelpers::GetSourceControlSyncStatusIcon()
 {
-	static const FSlateBrush* AtHeadBrush = FAppStyle::Get().GetBrush("SourceControl.StatusBar.AtLatestRevision");
-	static const FSlateBrush* NotAtHeadBrush = FAppStyle::Get().GetBrush("SourceControl.StatusBar.NotAtLatestRevision");
+	static const FSlateBrush* AtHeadBrush = FRevisionControlStyleManager::Get().GetBrush("RevisionControl.StatusBar.AtLatestRevision");
+	static const FSlateBrush* NotAtHeadBrush = FRevisionControlStyleManager::Get().GetBrush("RevisionControl.StatusBar.NotAtLatestRevision");
 
 	if (IsAtLatestRevision())
 	{
@@ -402,8 +402,8 @@ FText FSourceControlMenuHelpers::GetSourceControlCheckInStatusTooltipText()
 
 const FSlateBrush* FSourceControlMenuHelpers::GetSourceControlCheckInStatusIcon()
 {
-	static const FSlateBrush* NoLocalChangesBrush = FAppStyle::Get().GetBrush("SourceControl.StatusBar.NoLocalChanges");
-	static const FSlateBrush* HasLocalChangesBrush = FAppStyle::Get().GetBrush("SourceControl.StatusBar.HasLocalChanges");
+	static const FSlateBrush* NoLocalChangesBrush = FRevisionControlStyleManager::Get().GetBrush("RevisionControl.StatusBar.NoLocalChanges");
+	static const FSlateBrush* HasLocalChangesBrush = FRevisionControlStyleManager::Get().GetBrush("RevisionControl.StatusBar.HasLocalChanges");
 
 	if (GetNumLocalChanges() > 0)
 	{
@@ -424,6 +424,13 @@ FReply FSourceControlMenuHelpers::OnSourceControlCheckInChangesClicked()
 
 TSharedRef<SWidget> FSourceControlMenuHelpers::MakeSourceControlStatusWidget()
 {
+	TSharedRef<SLayeredImage> SourceControlIcon =
+		SNew(SLayeredImage)
+		.Image(FRevisionControlStyleManager::Get().GetBrush("RevisionControl.Icon"));
+
+	SourceControlIcon->AddLayer(TAttribute<const FSlateBrush*>::CreateStatic(&FSourceControlMenuHelpers::GetSourceControlIconBadge));
+
+	
 	return
 		SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
@@ -515,8 +522,7 @@ TSharedRef<SWidget> FSourceControlMenuHelpers::MakeSourceControlStatusWidget()
 				.VAlign(VAlign_Center)
 				.HAlign(HAlign_Center)
 				[
-					SNew(SImage)
-					.Image_Static(&FSourceControlMenuHelpers::GetSourceControlIcon)
+					SourceControlIcon
 				]
 				+ SHorizontalBox::Slot()
 				.AutoWidth()

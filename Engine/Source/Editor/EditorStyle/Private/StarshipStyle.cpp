@@ -435,7 +435,6 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 		Set("Icons.Snap", new IMAGE_BRUSH_SVG("Starship/Common/Snap", Icon16x16));
 		Set("Icons.Event", new IMAGE_BRUSH_SVG("Starship/Common/Event", Icon16x16));
 		Set("Icons.JumpToEvent", new IMAGE_BRUSH_SVG("Starship/Common/JumpToEvent", Icon16x16));
-		Set("Icons.Merge", new IMAGE_BRUSH_SVG("Starship/Common/Merge", Icon16x16));
 		Set("Icons.Level", new IMAGE_BRUSH_SVG("Starship/Common/Levels", Icon16x16));
 		Set("Icons.Play", new IMAGE_BRUSH_SVG("Starship/Common/play", Icon16x16));
 		Set("Icons.Localization", new IMAGE_BRUSH_SVG("Starship/Common/LocalizationDashboard", Icon16x16));
@@ -1289,7 +1288,7 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 
 
 		Set( "MainFrame.ChooseFilesToSave",       new IMAGE_BRUSH_SVG( "Starship/Common/SaveChoose", Icon16x16 ) );
-		Set( "MainFrame.ConnectToSourceControl",  new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/SourceControl", Icon16x16) );
+		Set( "MainFrame.ConnectToSourceControl",  new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/Status/RevisionControl", Icon16x16) );
 		Set( "MainFrame.OpenMarketplace",			new IMAGE_BRUSH_SVG("Starship/MainToolbar/marketplace", Icon16x16));
 
 		Set( "MainFrame.DebugTools.SmallFont", DEFAULT_FONT( "Regular", 8 ) );
@@ -4274,7 +4273,7 @@ void FStarshipEditorStyle::FStyle::SetupLevelEditorStyle()
 		Set( "MergeActors.MeshMergingTool", new IMAGE_BRUSH_SVG( "Starship/MergeActors/MeshMerging_16", Icon16x16 ) );
 		Set( "MergeActors.MeshProxyTool", new IMAGE_BRUSH_SVG( "Starship/MergeActors/MeshProxy_16", Icon16x16 ) );
 		Set( "MergeActors.MeshInstancingTool", new IMAGE_BRUSH_SVG("Starship/AssetIcons/StaticMeshActor_16", Icon16x16 ) );
-		Set( "MergeActors.TabIcon", new IMAGE_BRUSH_SVG("Starship/Common/Merge", Icon16x16));
+		Set( "MergeActors.TabIcon", new CORE_IMAGE_BRUSH_SVG("Starship/Common/Merge", Icon16x16));
 		Set( "MergeActors.Approximate", new IMAGE_BRUSH_SVG("Starship/MergeActors/approximate", Icon16x16));
 
 		// Top level Actors Menu
@@ -4394,7 +4393,7 @@ void FStarshipEditorStyle::FStyle::SetupLevelEditorStyle()
 			.SetLastControlStyle(PlacementSegmentedBox)
 		);
 
-		Set("PlacementBrowser.Icons.Recent",        new IMAGE_BRUSH_SVG("Starship/Common/Recent",         Icon16x16));
+		Set("PlacementBrowser.Icons.Recent",        new CORE_IMAGE_BRUSH_SVG("Starship/Common/Recent",    Icon16x16));
 		Set("PlacementBrowser.Icons.Basic",         new IMAGE_BRUSH_SVG("Starship/Common/Basic",          Icon16x16));
 		Set("PlacementBrowser.Icons.Lights",        new IMAGE_BRUSH_SVG("Starship/Common/LightBulb",      Icon16x16));
 		Set("PlacementBrowser.Icons.Cinematics",    new IMAGE_BRUSH_SVG("Starship/Common/Cinematics",     Icon16x16));
@@ -5993,11 +5992,11 @@ void FStarshipEditorStyle::FStyle::SetupContentBrowserStyle()
 			.SetEvenRowBackgroundHoveredBrush( IMAGE_BRUSH( "Common/Selection", Icon8x8, FLinearColor(1.0f, 1.0f, 1.0f, 0.1f) ) )
 			.SetOddRowBackgroundBrush( FSlateNoResource() )
 			.SetOddRowBackgroundHoveredBrush( IMAGE_BRUSH( "Common/Selection", Icon8x8, FLinearColor(1.0f, 1.0f, 1.0f, 0.1f) ) )
-			.SetSelectorFocusedBrush( BORDER_BRUSH( "Common/Selector", FMargin(4.f/16.f), SelectorColor ) )
-			.SetActiveBrush( IMAGE_BRUSH( "Common/Selection", Icon8x8, SelectionColor ) )
-			.SetActiveHoveredBrush( IMAGE_BRUSH( "Common/Selection", Icon8x8, SelectionColor ) )
-			.SetInactiveBrush( IMAGE_BRUSH( "Common/Selection", Icon8x8, SelectionColor_Inactive ) )
-			.SetInactiveHoveredBrush( IMAGE_BRUSH( "Common/Selection", Icon8x8, SelectionColor_Inactive ) )
+			.SetSelectorFocusedBrush( BORDER_BRUSH( "Common/Selector", FMargin(4.f/16.f), FStyleColors::Select ) )
+			.SetActiveBrush( IMAGE_BRUSH( "Common/Selection", Icon8x8, FStyleColors::Select ) )
+			.SetActiveHoveredBrush( IMAGE_BRUSH( "Common/Selection", Icon8x8, FStyleColors::Select ) )
+			.SetInactiveBrush( IMAGE_BRUSH( "Common/Selection", Icon8x8, FStyleColors::SelectInactive ) )
+			.SetInactiveHoveredBrush( IMAGE_BRUSH( "Common/Selection", Icon8x8, FStyleColors::SelectInactive ) )
 			.SetTextColor( DefaultForeground )
 			.SetSelectedTextColor( InvertedForeground )
 			);
@@ -6587,7 +6586,7 @@ void FStarshipEditorStyle::FStyle::SetupToolkitStyles()
 			Set( "FontEditor.Tabs.PageProperties", new IMAGE_BRUSH( "/Icons/properties_16x", Icon16x16 ) );
 		}
 
-		Set( "FontEditor.Update", new IMAGE_BRUSH_SVG( "Starship/Common/Update", Icon20x20 ) );
+		Set( "FontEditor.Update", new CORE_IMAGE_BRUSH_SVG( "Starship/Common/Update", Icon20x20 ) );
 		Set( "FontEditor.UpdateAll", new IMAGE_BRUSH_SVG( "Starship/Common/UpdateAll", Icon20x20 ) );
 		Set( "FontEditor.ExportPage", new CORE_IMAGE_BRUSH_SVG( "Starship/Common/export_20", Icon20x20 ) );
 		Set( "FontEditor.ExportAllPages", new IMAGE_BRUSH_SVG( "Starship/Common/ExportAll", Icon20x20 ) );
@@ -7069,8 +7068,13 @@ void FStarshipEditorStyle::FStyle::SetupUnsavedAssetsStyles()
 #endif
 }
 
+// These styles are oudated and exist for backwards compatibility, @see FRevisionControlStyleManager to use or the current revision control styles
 void FStarshipEditorStyle::FStyle::SetupSourceControlStyles()
 {
+	// Most styles here have been replaced in FRevisionControlStyleManager, however some are still in the process of being transferred over and references updated etc.
+	// If you want to use a revision control icon, use FRevisionControlStyleManager or add it there if it does not exist
+	// If you want to add a new icon, add it in FRevisionControlStyleManager
+	// If you want to modify an existing icon, look in FRevisionControlStyleManager instead and update it in both places for backwards compat (and if it doesn't exist there, add it there as a new icon)
 	//Source Control
 #if WITH_EDITOR || (IS_PROGRAM && WITH_UNREAL_DEVELOPER_TOOLS)
 	{
@@ -7088,7 +7092,7 @@ void FStarshipEditorStyle::FStyle::SetupSourceControlStyles()
 		Set("SourceControl.ShelvedChangelist", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/SCC_Changelist", Icon16x16, FStyleColors::AccentBlue));
 		Set("SourceControl.UncontrolledChangelist", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/SCC_Changelist", Icon32x32, FStyleColors::AccentOrange));
 		Set("SourceControl.UncontrolledChangelist_Small", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/SCC_Changelist", Icon16x16, FStyleColors::AccentOrange));
-		Set("SourceControl.OfflineFile_Small", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/SourceControl", Icon16x16, FStyleColors::AccentRed));
+		Set("SourceControl.OfflineFile_Small", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/Status/RevisionControl", Icon16x16, FStyleColors::AccentRed));
 
 		Set("SourceControl.Add", new CORE_IMAGE_BRUSH_SVG( "Starship/SourceControl/SCC_ContentAdd",Icon16x16));
 		Set("SourceControl.Edit", new CORE_IMAGE_BRUSH_SVG( "Starship/SourceControl/SCC_CheckedOut", Icon16x16));
@@ -7109,7 +7113,7 @@ void FStarshipEditorStyle::FStyle::SetupSourceControlStyles()
 		Set("SourceControl.Actions.Submit", new CORE_IMAGE_BRUSH_SVG( "Starship/Common/arrow-left", Icon16x16));
 		Set("SourceControl.Actions.Diff", new CORE_IMAGE_BRUSH_SVG( "Starship/SourceControl/SCC_Action_Diff", Icon16x16));
 		Set("SourceControl.Actions.Revert", new CORE_IMAGE_BRUSH_SVG( "Starship/SourceControl/icon_SCC_Revert", Icon16x16));
-		Set("SourceControl.Actions.Connect", new CORE_IMAGE_BRUSH_SVG( "Starship/SourceControl/SourceControl", Icon16x16));
+		Set("SourceControl.Actions.Connect", new CORE_IMAGE_BRUSH_SVG( "Starship/SourceControl/Status/RevisionControl", Icon16x16));
 		Set("SourceControl.Actions.History", new CORE_IMAGE_BRUSH_SVG( "Starship/SourceControl/icon_SCC_History", Icon16x16));
 		Set("SourceControl.Actions.Add", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/SCC_CheckedOut", Icon16x16));
 		Set("SourceControl.Actions.ChangeSettings", new CORE_IMAGE_BRUSH_SVG("Starship/SourceControl/icon_SCC_Change_Source_Control_Settings", Icon16x16));
