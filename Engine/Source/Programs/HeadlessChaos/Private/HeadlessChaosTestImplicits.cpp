@@ -7,6 +7,7 @@
 #include "Modules/ModuleManager.h"
 #include "Chaos/PBDRigidsEvolution.h"
 #include "Chaos/PBDRigidParticles.h"
+#include "Chaos/BoundingVolumeHierarchy.h"
 #include "Chaos/Box.h"
 #include "Chaos/Plane.h"
 #include "Chaos/Sphere.h"
@@ -315,6 +316,29 @@ namespace ChaosTest {
 		Surf = Tet.ProjectToSurface(Tris, Pt);
 		Pt -= Tris[0].GetNormal() * 0.1;
 		EXPECT_VECTOR_NEAR(Surf, Pt, 0.001);
+
+		// Bounding Volume Hierarchy
+		// Put the center of the tet at the origin, and sweep point tests across it.
+		Pt = Tet.GetCenter();
+		for (int i = 0; i < 4; i++)
+		{
+			Tet[i] -= Pt;
+		}
+		TArray<TTetrahedron<double>*> Tetrahedra;
+		Tetrahedra.Add(&Tet);
+		TBoundingVolumeHierarchy<TArray<TTetrahedron<Chaos::FReal>*>, TArray<int32>, Chaos::FReal, 3> BVH(Tetrahedra);
+		for (int32 i = -5; i < 5; i++)
+		{
+			TArray<int32> Intersections = BVH.FindAllIntersections(Chaos::TVec3<double>(i, i, i));
+			if (i == 0)
+			{
+				EXPECT_TRUE(Intersections.Num() == 1);
+			}
+			else
+			{
+				EXPECT_TRUE(Intersections.Num() == 0);
+			}
+		}
 	}
 
 	void ImplicitCube()

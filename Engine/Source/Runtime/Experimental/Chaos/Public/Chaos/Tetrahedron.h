@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Chaos/AABB.h"
 #include "Chaos/Core.h"
 #include "Chaos/Triangle.h"
 #include "Chaos/Math/Poisson.h" // 3x3 row major matrix functions
@@ -43,6 +44,18 @@ namespace Chaos {
 		TVec3<T> GetCenter() const
 		{
 			return static_cast<T>(.25) * (X[0] + X[1] + X[2] + X[3]);
+		}
+
+		bool HasBoundingBox() const { return true; }
+		TAABB<T, 3> BoundingBox() const { return GetBoundingBox(); }
+		TAABB<T, 3> GetBoundingBox() const
+		{
+			TAABB<T, 3> Box = TAABB<T, 3>::EmptyAABB();
+			for (int32 i = 0; i < 4; i++)
+			{
+				Box.GrowToInclude(X[i]);
+			}
+			return Box;
 		}
 
 		T GetMinEdgeLengthSquared() const

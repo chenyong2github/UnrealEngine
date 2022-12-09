@@ -3,6 +3,7 @@
 #include "Chaos/BoundingVolumeHierarchy.h"
 #include "Chaos/BoundingVolume.h"
 #include "Chaos/BoundingVolumeUtilities.h"
+#include "Chaos/Tetrahedron.h"
 #include "ChaosStats.h"
 
 namespace Chaos
@@ -684,6 +685,7 @@ namespace Chaos
 
 //template class CHAOS_API Chaos::TBoundingVolume<int32, FReal, 3>;
 template class Chaos::TBoundingVolumeHierarchy<TArray<Chaos::TSphere<Chaos::FReal, 3>*>, TArray<int32>, Chaos::FReal, 3>;
+template class Chaos::TBoundingVolumeHierarchy<TArray<Chaos::TTetrahedron<Chaos::FReal>*>, TArray<int32>, Chaos::FReal, 3>;
 template class Chaos::TBoundingVolumeHierarchy<Chaos::TPBDRigidParticles<Chaos::FReal, 3>, TArray<int32>, Chaos::FReal, 3>;
 template class Chaos::TBoundingVolumeHierarchy<Chaos::FParticles, TArray<int32>, Chaos::FReal, 3>;
 template class Chaos::TBoundingVolumeHierarchy<Chaos::TGeometryParticles<Chaos::FReal, 3>, TArray<int32>, Chaos::FReal, 3>;
