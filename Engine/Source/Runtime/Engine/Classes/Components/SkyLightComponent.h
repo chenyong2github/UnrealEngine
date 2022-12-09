@@ -202,6 +202,12 @@ class ENGINE_API USkyLightComponent : public ULightComponentBase
 	/** Controls how occlusion from Distance Field Ambient Occlusion is combined with Screen Space Ambient Occlusion. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=DistanceFieldAmbientOcclusion)
 	TEnumAsByte<enum EOcclusionCombineMode> OcclusionCombineMode;
+	
+	/**
+	 * When enabled, draw on screen the bull cube map as well as the integrate illuminance half hemisphere, together with the sky illuminance contribution. It also show the atmospheric sun illuminance post SkyAtmosphere transmittance on ground if one is enabled.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Visualization)
+	uint32 bShowIlluminanceMeter : 1;
 		
 	class FSkyLightSceneProxy* CreateSceneProxy() const;
 

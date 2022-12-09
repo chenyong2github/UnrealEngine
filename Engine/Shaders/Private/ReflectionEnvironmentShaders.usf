@@ -213,6 +213,27 @@ void CopyCubemapToCubeFaceColorPS(
 	OutColor = ClampToFP16 == 0.0f ? OutColor : clamp(OutColor, float4(0.0f, 0.0f, 0.0f, 0.0f), float4(MaxHalfFloat, MaxHalfFloat, MaxHalfFloat, 1.0f));
 }
 
+void CopyCubemapToIlluminanceMeterCubemapPS(
+	float4 SvPosition : SV_POSITION,
+	out float4 OutColor : SV_Target0
+	)
+{
+	float2 UV = SvPosition.xy * SvPositionToUVScale;
+	float2 ScaledUVs = UV * 2 - 1;
+
+	float3 CubeCoordinates = GetCubemapVector(ScaledUVs, CubeFace);
+
+	float NoL = saturate(normalize(CubeCoordinates).z);
+	//float NoL = CubeCoordinates.z > 0.0 ? 1 : 0;
+
+	// See https://www.ppsloan.org/publications/StupidSH36.pdf, p.9. 
+	float Tmp= 1.0f + ScaledUVs.x * ScaledUVs.x + ScaledUVs.y * ScaledUVs.y; 
+	float dA = 4.0f / (sqrt(Tmp) * Tmp); // Not really dA, but using same variable name
+
+	const float3 L = TextureCubeSampleLevel(SourceCubemapTexture, SourceCubemapSampler, CubeCoordinates, 0).rgb;
+	OutColor = float4(L * NoL* dA, dA);
+}
+
 uint MipIndex;
 uint NumMips;
 
@@ -326,6 +347,49 @@ void DownsampleMaxPS(
 		OutColor = max(OutColor, SourceCubemapTexture.SampleLevel(SourceCubemapSampler, SampleDir, 0));
 	}
 }
+
+void DownsampleIntegrateCubemapIlluminancePS(
+	float4 SvPosition : SV_POSITION,
+	out float4 OutColor : SV_Target0
+)
+{
+	OutColor = 0;
+	float2 UV = SvPosition.xy * SvPositionToUVScale;
+	float2 ScaledUVs = UV * 2 - 1;
+	const int SelectedCubeFace = CubeFace;
+
+	float3 CubeCoordinates = GetCubemapVector(ScaledUVs, SelectedCubeFace);
+
+	uint MipSize = 1u << (NumMips - MipIndex - 1);
+
+	float3 TangentX = 0.0f;
+	float3 TangentY = 0.0f;
+	GetCubemapTangent(SelectedCubeFace, TangentX, TangentY);
+
+	const float SampleOffset = 1.0f / MipSize;
+
+	// Offset from the connect of 4 texels towards their center.
+	float2 Offsets[] =
+	{
+		float2(-0.5,-0.5),
+		float2( 0.5,-0.5),
+		float2( 0.5, 0.5),
+		float2(-0.5, 0.5),
+	};
+
+	OutColor = 0;
+
+	UNROLL
+	for (uint i = 0; i < 4; i++)
+	{
+		float3 SampleDir = CubeCoordinates;
+		SampleDir += TangentX * (Offsets[i].x * SampleOffset);
+		SampleDir += TangentY * (Offsets[i].y * SampleOffset);
+		OutColor += SourceCubemapTexture.SampleLevel(SourceCubemapSampler, SampleDir, 0);
+	}
+}
+
+
 
 #ifdef USE_COMPUTE
 float4 LowerHemisphereSolidColor;
@@ -818,4 +882,148 @@ void RenderRealTimeReflectionHeightFogPS(
 
 #endif
 
+#ifdef VISUALIZE_ILLUMINANCE_METER
+
+#include "/Engine/Private/ShaderPrint.ush"
+
+int CubeMipIndexToSampleIlluminance;
+
+TextureCube SkyLightCubeTexture;
+SamplerState SkyLightCubeSampler;
+
+float4 GetIlluminance()
+{
+	float4 IlluminanceAcc = 0;
+	IlluminanceAcc += TextureCubeSampleLevel(SourceCubemapTexture, SourceCubemapSampler, float3(-1, 0, 0), CubeMipIndexToSampleIlluminance);
+	IlluminanceAcc += TextureCubeSampleLevel(SourceCubemapTexture, SourceCubemapSampler, float3( 1, 0, 0), CubeMipIndexToSampleIlluminance);
+	IlluminanceAcc += TextureCubeSampleLevel(SourceCubemapTexture, SourceCubemapSampler, float3( 0,-1, 0), CubeMipIndexToSampleIlluminance);
+	IlluminanceAcc += TextureCubeSampleLevel(SourceCubemapTexture, SourceCubemapSampler, float3( 0, 1, 0), CubeMipIndexToSampleIlluminance);
+	IlluminanceAcc += TextureCubeSampleLevel(SourceCubemapTexture, SourceCubemapSampler, float3( 0, 0,-1), CubeMipIndexToSampleIlluminance);
+	IlluminanceAcc += TextureCubeSampleLevel(SourceCubemapTexture, SourceCubemapSampler, float3( 0, 0, 1), CubeMipIndexToSampleIlluminance);
+
+	// See https://www.ppsloan.org/publications/StupidSH36.pdf, p.9.
+	IlluminanceAcc.rgb *= 4.0 * PI / IlluminanceAcc.a;
+
+	return IlluminanceAcc;
+}
+
+float GetSimpleAutoExposure()
+{
+	float4 IlluminanceAcc = GetIlluminance();
+	float MaxIlluminance = max3(IlluminanceAcc.r, IlluminanceAcc.g, IlluminanceAcc.b);
+	float SimpleAutoExposure = 1.0f / (MaxIlluminance <= 0.0 ? 0.01f : MaxIlluminance);
+	return SimpleAutoExposure;
+}
+
+float4 SampleCubeAsLatLon(TextureCube CubeTexture, SamplerState CubeSampler, float2 UV)
+{
+	float3 DirFromLatLong = float3(cos(UV.x * 2.0 * PI), sin(UV.x * 2.0 * PI), -sin(UV.y * PI - PI / 2));
+
+	float4 DebugVis = TextureCubeSampleLevel(CubeTexture, CubeSampler, DirFromLatLong, 0);
+	DebugVis.rgb *= GetSimpleAutoExposure();
+	return DebugVis;
+}
+
+float4 SampleCubeAsSphere(TextureCube CubeTexture, SamplerState CubeSampler, float2 UV)
+{
+	float2 Dir2D = (UV - 0.5) * 2.0;
+
+	float4 DebugVis = float4(0.0, 0.0, 0.0, 1.0);
+	if (length(Dir2D) <= 1.0)
+	{
+		float3 N = 0;
+		const float3 RayO = float3(UV, -1);
+		const float3 RayD = float3(0.0f, 0.0f, 1.0f);
+		const float4 Sphere = float4(0.5f, 0.5f, 0.f, 0.5);
+		const float2 Hit = RayIntersectSphere(RayO, RayD, Sphere);
+		if (Hit.x >= 0)
+		{
+			const float3 P = RayO + RayD * Hit.x;
+			N = normalize(P - Sphere.xyz);
+			N *= float3(1.0, -1.0, 1.0);
+		}
+
+		DebugVis = TextureCubeSampleLevel(CubeTexture, CubeSampler, mul(N, (float3x3)View.ViewToTranslatedWorld), 0);
+		DebugVis.rgb *= GetSimpleAutoExposure();
+	}
+
+	return DebugVis;
+}
+
+void VisualizeIlluminanceMeterPS(
+	float4 SVPos : SV_POSITION,
+	out float4 OutColor : SV_Target0)
+{
+	const uint2 PixelPosDynRes = uint2(float2(SVPos.xy) * View.ViewResolutionFraction);
+	float2 BufferUV = SvPositionToBufferUV(float4(PixelPosDynRes, SVPos.zw));
+
+	OutColor = 0.0f;
+
+	const uint2 CubeMapPreviewOrigin	= uint2(100, 110);
+	const uint2 CubeMapPreviewSize		= uint2(500, 250);
+
+	const uint2 SkyMapPreviewOrigin		= uint2(100, 370);
+	const uint2 SkyMapPreviewSize		= uint2(500, 250);	
+
+	const uint2 SphereCubeMapPreviewOrigin	= CubeMapPreviewOrigin + uint2(CubeMapPreviewSize.x + 10, 0);
+	const uint2 SphereCubeMapPreviewSize	= uint2(250, 250);
+
+	const uint2 SphereSkyMapPreviewOrigin	= SkyMapPreviewOrigin + uint2(SkyMapPreviewSize.x + 10, 0);
+	const uint2 SphereSkyMapPreviewSize		= uint2(250, 250);
+
+	if (all(uint2(SVPos.xy) == uint2(1, 1)))
+	{
+		float4 IlluminanceAcc = GetIlluminance();
+
+		FShaderPrintContext Context = InitShaderPrintContext(true, uint2(110, 70));
+		Print(Context, TEXT("Sky light illuminance = "), InitFontColor(0.8, 0.8, 0.8));
+		Print(Context, IlluminanceAcc.r, InitFontColor(1.0, 0.8, 0.8));
+		Print(Context, IlluminanceAcc.g, InitFontColor(0.8, 1.0, 0.8));
+		Print(Context, IlluminanceAcc.b, InitFontColor(0.8, 0.8, 1.0));
+
+		Newline(Context);
+
+		const float3 SunLightIlluminance = View.AtmosphereLightIlluminanceOnGroundPostTransmittance[0];
+
+		Print(Context, TEXT("Sun light illuminance = "), InitFontColor(0.8, 0.8, 0.8));
+		Print(Context, SunLightIlluminance.r, InitFontColor(1.0, 0.8, 0.8));
+		Print(Context, SunLightIlluminance.g, InitFontColor(0.8, 1.0, 0.8));
+		Print(Context, SunLightIlluminance.b, InitFontColor(0.8, 0.8, 1.0));
+	//	Print(Context, TEXT("(On ground, post SkyAtmosphere transmittance)"), InitFontColor(0.8, 0.8, 0.8));
+	}
+	else if (all(uint2(SVPos.xy) >= CubeMapPreviewOrigin) && all(uint2(SVPos.xy) <= (CubeMapPreviewOrigin + CubeMapPreviewSize)))
+	{
+		float2 UV = (SVPos.xy - float2(CubeMapPreviewOrigin)) / float2(CubeMapPreviewSize);
+		float4 DebugVis = SampleCubeAsLatLon(SourceCubemapTexture, SourceCubemapSampler, UV);
+		DebugVis.rgb *= 1.0 / DebugVis.a;	// This is a way to remove the texel dArea factor to show what luminance is integrated as a unction of NoL.
+		OutColor = float4(DebugVis.rgb, 0.0);
+	}
+	else if (all(uint2(SVPos.xy) >= SkyMapPreviewOrigin) && all(uint2(SVPos.xy) <= (SkyMapPreviewOrigin + SkyMapPreviewSize)))
+	{
+		float2 UV = (SVPos.xy - float2(SkyMapPreviewOrigin)) / float2(SkyMapPreviewSize);
+		float4 DebugVis = SampleCubeAsLatLon(SkyLightCubeTexture, SkyLightCubeSampler, UV);
+		OutColor = float4(DebugVis.rgb, 0.0);
+	}
+	else if (all(uint2(SVPos.xy) >= SphereCubeMapPreviewOrigin) && all(uint2(SVPos.xy) <= (SphereCubeMapPreviewOrigin + SphereCubeMapPreviewSize)))
+	{
+		float2 UV = (SVPos.xy - float2(SphereCubeMapPreviewOrigin)) / float2(SphereCubeMapPreviewSize);
+		float4 DebugVis = SampleCubeAsSphere(SourceCubemapTexture, SourceCubemapSampler, UV);
+		DebugVis.rgb *= 1.0 / DebugVis.a;	// This is a way to remove the texel dArea factor to show what luminance is integrated as a unction of NoL.
+		OutColor = float4(DebugVis.rgb, 0.0);
+	}
+	else if (all(uint2(SVPos.xy) >= SphereSkyMapPreviewOrigin) && all(uint2(SVPos.xy) <= (SphereSkyMapPreviewOrigin + SphereSkyMapPreviewSize)))
+	{
+		float2 UV = (SVPos.xy - float2(SphereSkyMapPreviewOrigin)) / float2(SphereSkyMapPreviewSize);
+		float4 DebugVis = SampleCubeAsSphere(SkyLightCubeTexture, SkyLightCubeSampler, UV);
+		OutColor = float4(DebugVis.rgb, 0.0);
+	}
+	else
+	{
+		clip(-1.0);
+	}
+
+	// TODO print sky as a sphere
+}
+
+#endif // DEBUG_ILLUMINANCE_METER
 

@@ -1223,6 +1223,8 @@ public:
 	bool bCaptureSkyLightWaitingForMeshesOrTextures;
 #endif
 
+	uint8 bShowIlluminanceMeter : 1;
+
 private:
 	FLinearColor LightColor;
 	const uint8 bMovable : 1;
