@@ -824,6 +824,7 @@ void FSkeletalMeshObjectGPUSkin::UpdateRayTracingGeometry(FSkeletalMeshLODRender
 				Initializer.DebugName = FName(DefaultDebugName, DebugNumber++);
 			}
 
+			Initializer.OwnerName = GetAssetPathName(LODIndex);
 			Initializer.IndexBuffer = IndexBufferRHI;
 			Initializer.TotalPrimitiveCount = TotalNumTriangles;
 			Initializer.GeometryType = RTGT_Triangles;

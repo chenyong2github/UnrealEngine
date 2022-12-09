@@ -1375,16 +1375,16 @@ void FStaticMeshLODResources::InitResources(UStaticMesh* Parent, int32 LODIndex)
 	{
 		const bool bProceduralPrimitive = Parent->HasValidNaniteData() && Nanite::GetSupportsRayTracingProceduralPrimitive(GMaxRHIShaderPlatform);
 		ENQUEUE_RENDER_COMMAND(InitStaticMeshRayTracingGeometry)(
-			[this, DebugName = Parent->GetFName(), bProceduralPrimitive](FRHICommandListImmediate& RHICmdList)
+			[this, DebugName = Parent->GetFName(), bProceduralPrimitive, OwnerName](FRHICommandListImmediate& RHICmdList)
 			{
 				FRayTracingGeometryInitializer Initializer;
 				if (bProceduralPrimitive)
 				{
-					SetupRayTracingProceduralGeometryInitializer(Initializer, DebugName);
+					SetupRayTracingProceduralGeometryInitializer(Initializer, DebugName, OwnerName);
 				}
 				else
 				{
-					SetupRayTracingGeometryInitializer(Initializer, DebugName);
+					SetupRayTracingGeometryInitializer(Initializer, DebugName, OwnerName);
 				}
 				RayTracingGeometry.SetInitializer(Initializer);
 			}
@@ -1438,9 +1438,10 @@ void FStaticMeshLODResources::InitResources(UStaticMesh* Parent, int32 LODIndex)
 }
 
 #if RHI_RAYTRACING
-void FStaticMeshLODResources::SetupRayTracingGeometryInitializer(FRayTracingGeometryInitializer& Initializer, const FName& DebugName)
+void FStaticMeshLODResources::SetupRayTracingGeometryInitializer(FRayTracingGeometryInitializer& Initializer, const FName& DebugName, const FName& OwnerName)
 {
 	Initializer.DebugName = DebugName;
+	Initializer.OwnerName = OwnerName;
 	Initializer.IndexBuffer = IndexBuffer.IndexBufferRHI;
 	Initializer.TotalPrimitiveCount = 0; // This is calculated below based on static mesh section data
 	Initializer.GeometryType = RTGT_Triangles;
@@ -1466,9 +1467,10 @@ void FStaticMeshLODResources::SetupRayTracingGeometryInitializer(FRayTracingGeom
 	Initializer.Segments = GeometrySections;
 }
 
-void FStaticMeshLODResources::SetupRayTracingProceduralGeometryInitializer(FRayTracingGeometryInitializer& Initializer, const FName& DebugName)
+void FStaticMeshLODResources::SetupRayTracingProceduralGeometryInitializer(FRayTracingGeometryInitializer& Initializer, const FName& DebugName, const FName& OwnerName)
 {
 	Initializer.DebugName = DebugName;
+	Initializer.OwnerName = OwnerName;
 	Initializer.IndexBuffer = nullptr;
 	Initializer.TotalPrimitiveCount = 1; // one AABB
 	Initializer.GeometryType = RTGT_Procedural;
@@ -5430,6 +5432,15 @@ void UStaticMesh::CalculateExtendedBounds()
 	}
 
 	SetExtendedBounds(Bounds);
+}
+
+FName UStaticMesh::GetLODPathName(const UStaticMesh* Mesh, int32 LODIndex)
+{
+#if RHI_ENABLE_RESOURCE_INFO
+	return FName(FString::Printf(TEXT("%s [LOD%d]"), Mesh ? *Mesh->GetPathName() : TEXT("UnknownStaticMesh"), LODIndex));
+#else
+	return NAME_None;
+#endif
 }
 
 #if WITH_EDITORONLY_DATA

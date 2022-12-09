@@ -182,14 +182,16 @@ void FStaticMeshStreamIn::CreateBuffers_Internal(const FContext& Context)
 			if (IsRayTracingEnabled() && Context.Mesh->bSupportRayTracing &&
 				LODResource.VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() > 0)
 			{
+				const FName OwnerName = UStaticMesh::GetLODPathName(Context.Mesh, LODIdx);
+
 				FRayTracingGeometryInitializer Initializer;
 				if (Context.Mesh->HasValidNaniteData() && Nanite::GetSupportsRayTracingProceduralPrimitive(GMaxRHIShaderPlatform))
 				{
-					FStaticMeshLODResources::SetupRayTracingProceduralGeometryInitializer(Initializer, Context.Mesh->GetFName());
+					FStaticMeshLODResources::SetupRayTracingProceduralGeometryInitializer(Initializer, Context.Mesh->GetFName(), OwnerName);
 				}
 				else
 				{
-					Context.LODResourcesView[LODIdx]->SetupRayTracingGeometryInitializer(Initializer, Context.Mesh->GetFName());
+					Context.LODResourcesView[LODIdx]->SetupRayTracingGeometryInitializer(Initializer, Context.Mesh->GetFName(), OwnerName);
 				}
 				Initializer.Type = ERayTracingGeometryInitializerType::StreamingSource;
 				IntermediateRayTracingGeometry[LODIdx].SetInitializer(Initializer);
@@ -268,15 +270,17 @@ void FStaticMeshStreamIn::DoFinishUpdate(const FContext& Context)
 				// Skip LODs that have their render data stripped
 				if (LODResource.VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() > 0)
 				{
+					const FName OwnerName = UStaticMesh::GetLODPathName(Context.Mesh, LODIndex);
+
 					// Rebuild the initializer because it could have been reset during a previous release
 					FRayTracingGeometryInitializer Initializer;
 					if (Context.Mesh->HasValidNaniteData() && Nanite::GetSupportsRayTracingProceduralPrimitive(GMaxRHIShaderPlatform))
 					{
-						FStaticMeshLODResources::SetupRayTracingProceduralGeometryInitializer(Initializer, Context.Mesh->GetFName());
+						FStaticMeshLODResources::SetupRayTracingProceduralGeometryInitializer(Initializer, Context.Mesh->GetFName(), OwnerName);
 					}
 					else
 					{
-						LODResource.SetupRayTracingGeometryInitializer(Initializer, Context.Mesh->GetFName());
+						LODResource.SetupRayTracingGeometryInitializer(Initializer, Context.Mesh->GetFName(), OwnerName);
 					}
 					LODResource.RayTracingGeometry.SetInitializer(Initializer);
 					LODResource.RayTracingGeometry.SetAsStreamedIn();			

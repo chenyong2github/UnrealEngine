@@ -2465,7 +2465,10 @@ public:
 	LAYOUT_FIELD_INITIALIZED(bool, bAllowCompaction, true);
 	LAYOUT_FIELD_INITIALIZED(ERayTracingGeometryInitializerType, Type, ERayTracingGeometryInitializerType::Rendering);
 
+	// Use FDebugName for auto-generated debug names with numbered suffixes, it is a variation of FMemoryImageName with optional number postfix.
 	LAYOUT_FIELD(FDebugName, DebugName);
+	// Store the path name of the owner object for resource tracking. FMemoryImageName allows a conversion to/from FName.
+	LAYOUT_FIELD(FMemoryImageName, OwnerName);
 };
 
 enum ERayTracingSceneLifetime

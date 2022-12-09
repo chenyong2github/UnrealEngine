@@ -1908,6 +1908,9 @@ public:
 
 	inline bool AreRenderingResourcesInitialized() const { return bRenderingResourcesInitialized; }
 
+	/** Helper function for resource tracking, construct a name using the mesh's path name and LOD index . */
+	static FName GetLODPathName(const UStaticMesh* Mesh, int32 LODIndex);
+
 #if WITH_EDITOR
 
 	/**

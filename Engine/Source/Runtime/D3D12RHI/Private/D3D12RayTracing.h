@@ -82,6 +82,7 @@ public:
 	TArray<FHitGroupSystemParameters> HitGroupSystemParameters[MAX_NUM_GPUS];
 
 	FDebugName DebugName;
+	FName OwnerName;		// Store the path name of the owner object for resource tracking
 
 	// Array of geometry descriptions, one per segment (single-segment geometry is a common case).
 	// Only references CPU-accessible structures (no GPU resources).
