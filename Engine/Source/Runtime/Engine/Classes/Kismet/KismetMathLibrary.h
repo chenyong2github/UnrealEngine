@@ -1370,12 +1370,34 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	 * Similar to the FRotator version, returns a result without roll such that it preserves the up vector.
 	 *
 	 * @note If you don't care about preserving the up vector and just want the most direct rotation, you can use the faster
-	 * 'FQuat::FindBetweenVectors(FVector::ForwardVector, YourVector)' or 'FQuat::FindBetweenNormals(...)' if you know the vector is of unit length.
+	 * 'FindBetweenVectors(ForwardVector, YourVector)' or 'FindBetweenNormals(...)' if you know the vector is of unit length.
 	 *
 	 * @return Quaternion from the Vector's direction, without any roll.
 	 */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "To Quaternion (Vector)", ScriptMethod = "Quaternion", Keywords="rotation rotate cast convert", BlueprintAutocast), Category="Math|Conversions")
 	static FQuat Conv_VectorToQuaternion(FVector InVec);
+
+	/**
+	 * Interpolate from a vector to the direction of another vector along a spherical path.
+	 *
+	 * @param Vector Vector we interpolate from
+	 * @param Direction Target direction we interpolate to
+	 * @param Alpha interpolation amount, usually between 0-1
+	 * @return Vector after interpolating between Vector and Direction along a spherical path. The magnitude will remain the length of the starting vector.
+	 */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "SlerpVectorToDirection", ScriptMethod = "SlerpVectors", Keywords = "spherical lerpvector vectorslerp interpolate"), Category = "Math|Vector")
+	static FVector Vector_SlerpVectorToDirection(FVector Vector, FVector Direction, double Alpha);
+
+	/**
+	 * Interpolate from normalized vector A to normalized vector B along a spherical path.
+	 *
+	 * @param NormalA Start direction of interpolation, must be normalized.
+	 * @param NormalB End target direction of interpolation, must be normalized.
+	 * @param Alpha interpolation amount, usually between 0-1
+	 * @return Vector after interpolating between A and B along a spherical path.
+	 */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "SlerpNormals", ScriptMethod = "SlerpNormals", Keywords = "spherical lerpnormal normalslerp interpolate"), Category = "Math|Vector")
+	static FVector Vector_SlerpNormals(FVector NormalA, FVector NormalB, double Alpha);
 
 	/** Vector addition */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "vector + vector", CompactNodeTitle = "+", ScriptMethod = "Add", ScriptOperator = "+;+=", Keywords = "+ add plus", CommutativeAssociativeBinaryOperator = "true"), Category="Math|Vector")
@@ -2081,7 +2103,7 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	 * Similar to the FRotator version, returns a result without roll such that it preserves the up vector.
 	 *
 	 * @note If you don't care about preserving the up vector and just want the most direct rotation, you can use the faster
-	 * 'FQuat::FindBetweenVectors(FVector::ForwardVector, YourVector)' or 'FQuat::FindBetweenNormals(...)' if you know the vector is of unit length.
+	 * 'FindBetweenVectors(ForwardVector, YourVector)' or 'FindBetweenNormals(...)' if you know the vector is of unit length.
 	 *
 	 * @return Quaternion from the Vector's direction, without any roll.
 	 */
@@ -2957,6 +2979,36 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "Unrotate Vector (Quat)", ScriptMethod = "UnrotateVector"), Category = "Math|Quat")
 	static FVector Quat_UnrotateVector(const FQuat& Q, const FVector& V);
 
+	/**
+	 * Spherical interpolation between Quaternions. Result is normalized.
+	 * 
+	 * @param A The starting quat we interp from
+	 * @param B The target quat we interp to
+	 * @param Alpha The interpolation amount, usually 0 to 1.
+	 * @return Quat after spherical interpolation
+	 */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Slerp (Quat)", ScriptMethod = "SlerpQuat", Keywords = "spherical interpolate"), Category = "Math|Quat")
+	static FQuat Quat_Slerp(const FQuat& A, const FQuat& B, double Alpha);
+
+	/**
+	 * Generates the 'smallest' (geodesic) rotation around a sphere between two vectors of arbitrary length.
+	 * 
+	 * @param Start Vector the rotation starts from
+	 * @param End Vector the rotation ends at
+	 * @return Quat that will rotate from Start to End
+	 */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Find Quat Between Vectors", ScriptMethod = "FindQuatBetweenVectors", Keywords = "FindQuat FindBetween"), Category = "Math|Quat")
+	static FQuat Quat_FindBetweenVectors(FVector Start, FVector End);
+
+	/**
+	 * Generates the 'smallest' (geodesic) rotation around a sphere between two normals (assumed to be unit length).
+	 * 
+	 * @param Start Normalized vector the rotation starts from
+	 * @param End Normalized vector the rotation ends at
+	 * @return Quat that will rotate from Start to End
+	 */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Find Quat Between Normals", ScriptMethod = "FindQuatBetweenNormals", Keywords = "FindQuat FindBetween"), Category = "Math|Quat")
+	static FQuat Quat_FindBetweenNormals(FVector StartNormal, FVector EndNormal);
 
 	//
 	// LinearColor constants - exposed for scripting

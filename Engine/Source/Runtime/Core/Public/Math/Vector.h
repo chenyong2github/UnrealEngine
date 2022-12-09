@@ -893,6 +893,26 @@ public:
      */
     T HeadingAngle() const;
 
+	/**
+	 * Interpolate from a vector to the direction of another vector along a spherical path.
+	 * 
+	 * @param V Vector we interpolate from
+	 * @param Direction Target direction we interpolate to
+	 * @param Alpha interpolation amount, usually between 0-1
+	 * @return Vector after interpolating between Vector and Direction along a spherical path. The magnitude will remain the length of the starting vector.
+	 */
+	static CORE_API TVector<T> SlerpVectorToDirection(TVector<T>& V, TVector<T>& Direction, T Alpha);
+
+	/**
+	 * Interpolate from normalized vector A to normalized vector B along a spherical path.
+	 *
+	 * @param NormalA Start direction of interpolation, must be normalized.
+	 * @param NormalB End target direction of interpolation, must be normalized.
+	 * @param Alpha interpolation amount, usually between 0-1
+	 * @return Normalized vector after interpolating between NormalA and NormalB along a spherical path.
+	 */
+	static CORE_API TVector<T> SlerpNormals(TVector<T>& NormalA, TVector<T>& NormalB, T Alpha);
+
     /**
      * Create an orthonormal basis from a basis with at least two orthogonal vectors.
      * It may change the directions of the X and Y axes to make the basis orthogonal,

@@ -220,6 +220,39 @@ UE::Math::TRotator<T> UE::Math::TVector<T>::ToOrientationRotator() const
 	return R;
 }
 
+template<typename T>
+UE::Math::TVector<T> UE::Math::TVector<T>::SlerpVectorToDirection(UE::Math::TVector<T>& V, UE::Math::TVector<T>& Direction, T Alpha)
+{
+	using TVector = UE::Math::TVector<T>;
+	using TQuat = UE::Math::TQuat<T>;
+	
+	// Find rotation from A to B
+	const TQuat RotationQuat = TQuat::FindBetweenVectors(V, Direction);
+	const TVector Axis = RotationQuat.GetRotationAxis();
+	const T AngleRads = RotationQuat.GetAngle();
+
+	// Rotate from A toward B using portion of the angle specified by Alpha.
+	const TQuat DeltaQuat(Axis, AngleRads * Alpha);
+	TVector Result = DeltaQuat.RotateVector(V);
+	return Result;
+}
+
+template<typename T>
+UE::Math::TVector<T> UE::Math::TVector<T>::SlerpNormals(UE::Math::TVector<T>& NormalA, UE::Math::TVector<T>& NormalB, T Alpha)
+{
+	using TVector = UE::Math::TVector<T>;
+	using TQuat = UE::Math::TQuat<T>;
+
+	// Find rotation from A to B
+	const TQuat RotationQuat = TQuat::FindBetweenNormals(NormalA, NormalB);
+	const TVector Axis = RotationQuat.GetRotationAxis();
+	const T AngleRads = RotationQuat.GetAngle();
+
+	// Rotate from A toward B using portion of the angle specified by Alpha.
+	const TQuat DeltaQuat(Axis, AngleRads * Alpha);
+	TVector Result = DeltaQuat.RotateVector(NormalA);
+	return Result;
+}
 
 template<typename T>
 UE::Math::TRotator<T> UE::Math::TVector4<T>::ToOrientationRotator() const

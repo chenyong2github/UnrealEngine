@@ -1529,6 +1529,18 @@ FQuat UKismetMathLibrary::Conv_VectorToQuaternion(FVector InVec)
 }
 
 KISMET_MATH_FORCEINLINE
+FVector UKismetMathLibrary::Vector_SlerpVectorToDirection(FVector Vector, FVector Direction, double Alpha)
+{
+	return FVector::SlerpVectorToDirection(Vector, Direction, Alpha);
+}
+
+KISMET_MATH_FORCEINLINE
+FVector UKismetMathLibrary::Vector_SlerpNormals(FVector NormalA, FVector NormalB, double Alpha)
+{
+	return FVector::SlerpNormals(NormalA, NormalB, Alpha);
+}
+
+KISMET_MATH_FORCEINLINE
 FLinearColor UKismetMathLibrary::Conv_VectorToLinearColor(FVector InVec)
 {
 	return FLinearColor(InVec);	
@@ -3493,6 +3505,24 @@ KISMET_MATH_FORCEINLINE
 FVector UKismetMathLibrary::Quat_UnrotateVector(const FQuat& Q, const FVector& V)
 {
 	return Q.UnrotateVector(V);
+}
+
+KISMET_MATH_FORCEINLINE
+FQuat UKismetMathLibrary::Quat_Slerp(const FQuat& A, const FQuat& B, double Alpha)
+{
+	return FQuat::Slerp(A, B, Alpha);
+}
+
+KISMET_MATH_FORCEINLINE
+FQuat UKismetMathLibrary::Quat_FindBetweenVectors(FVector Start, FVector End)
+{
+	return FQuat::FindBetweenVectors(Start, End);
+}
+
+KISMET_MATH_FORCEINLINE
+FQuat UKismetMathLibrary::Quat_FindBetweenNormals(FVector StartNormal, FVector EndNormal)
+{
+	return FQuat::FindBetweenNormals(StartNormal, EndNormal);
 }
 
 
