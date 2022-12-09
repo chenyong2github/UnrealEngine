@@ -12,7 +12,10 @@
 
 #if UE_USE_VERSE_PATHS
 
+#include "CoreTypes.h"
+
 class FArchive;
+class FString;
 
 namespace UE::Core
 {
@@ -23,9 +26,9 @@ namespace UE::Core
 
 	FArchive& operator<<(FArchive& Ar, FVersePath& VersePath);
 
-	uint32 GetTypeHash(const FVersePath& VersePath);
-
 	CORE_API FString MangleGuidToVerseIdent(const FString& Guid);
 }
+
+uint32 GetTypeHash(const UE::Core::FVersePath& VersePath); // Must be outside namespace to not break Tuples
 
 #endif // #if UE_USE_VERSE_PATHS

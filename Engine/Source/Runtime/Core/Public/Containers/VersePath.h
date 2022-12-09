@@ -18,8 +18,6 @@ class UE::Core::FVersePath
 
 	friend FArchive& operator<<(FArchive& Ar, FVersePath& VersePath);
 
-	friend uint32 GetTypeHash(const FVersePath& VersePath);
-
 public:
 	FVersePath() = default;
 	FVersePath(FVersePath&&) = default;
@@ -89,9 +87,9 @@ FORCEINLINE FArchive& UE::Core::operator<<(FArchive& Ar, FVersePath& VersePath)
 	return Ar << VersePath.PathString;
 }
 
-FORCEINLINE uint32 UE::Core::GetTypeHash(const FVersePath& VersePath)
+FORCEINLINE uint32 GetTypeHash(const UE::Core::FVersePath& VersePath) // Must be outside namespace to not break Tuples. Note that it needs to match VersePathFwd.h so can't be hidden friend
 {
-	return GetTypeHash(VersePath.PathString);
+	return GetTypeHash(VersePath.AsStringView());
 }
 
 #endif // #if UE_USE_VERSE_PATHS
