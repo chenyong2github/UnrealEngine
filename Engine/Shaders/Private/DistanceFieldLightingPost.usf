@@ -8,6 +8,7 @@
 #include "DeferredShadingCommon.ush"
 #include "DistanceFieldLightingShared.ush"
 #include "DistanceFieldAOShared.ush"
+#include "ScreenPass.ush"
 
 Texture2D BentNormalHistoryTexture;
 SamplerState BentNormalHistorySampler;
@@ -37,6 +38,8 @@ float ComputeHistoryWeightBasedOnPosition(float2 ScreenPosition, float SceneDept
 float2 DistanceFieldGBufferTexelSize;
 float2 DistanceFieldGBufferJitterOffset;
 float4 BentNormalBufferAndTexelSize;
+
+FScreenTransform UVToScreenPos;
 
 float4 GetNormalWeights(float2 Corner00UV, float2 LowResTexelSize, float3 WorldNormal)
 {
@@ -75,7 +78,7 @@ float4 GetNormalWeights(float2 Corner00UV, float2 LowResTexelSize, float3 WorldN
 
 float ComputeSampleWeightBasedOnPosition(float4 ReferencePlane, float2 SampleScreenUV, float SampleDepth)
 {
-	float2 SampleScreenPosition = (SampleScreenUV.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+	float2 SampleScreenPosition = ApplyScreenTransform(SampleScreenUV, UVToScreenPos);
 	float3 SampleTranslatedWorldPosition = mul(float4(SampleScreenPosition * SampleDepth, SampleDepth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;
 
 	float PlaneDistance = dot(ReferencePlane, float4(SampleTranslatedWorldPosition, 1));

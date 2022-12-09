@@ -75,6 +75,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FGeometryAwareUpsampleParameters, )
 	SHADER_PARAMETER_SAMPLER(SamplerState, DistanceFieldNormalSampler)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, BentNormalAOTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, BentNormalAOSampler)
+	SHADER_PARAMETER(FScreenTransform, UVToScreenPos)
 	SHADER_PARAMETER(FVector4f, BentNormalBufferAndTexelSize)
 	SHADER_PARAMETER(FVector2f, DistanceFieldGBufferTexelSize)
 	SHADER_PARAMETER(FVector2f, DistanceFieldGBufferJitterOffset)
@@ -97,11 +98,14 @@ FGeometryAwareUpsampleParameters SetupGeometryAwareUpsampleParameters(const FVie
 	extern float GAOViewFadeDistanceScale;
 	const float DistanceFadeScaleValue = 1.0f / ((1.0f - GAOViewFadeDistanceScale) * GetMaxAOViewDistance());
 
+	const FIntRect AOViewRect = FIntRect(FIntPoint::ZeroValue, FIntPoint::DivideAndRoundDown(View.ViewRect.Size(), GAODownsampleFactor));
+
 	FGeometryAwareUpsampleParameters ShaderParameters;
 	ShaderParameters.DistanceFieldNormalTexture = DistanceFieldNormal;
 	ShaderParameters.DistanceFieldNormalSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	ShaderParameters.BentNormalAOTexture = DistanceFieldAOBentNormal;
 	ShaderParameters.BentNormalAOSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	ShaderParameters.UVToScreenPos = FScreenTransform::ChangeTextureBasisFromTo(FScreenPassTextureViewport(DownsampledBufferSize, AOViewRect), FScreenTransform::ETextureBasis::TextureUV, FScreenTransform::ETextureBasis::ScreenPosition);
 	ShaderParameters.BentNormalBufferAndTexelSize = BentNormalBufferAndTexelSizeValue;
 	ShaderParameters.DistanceFieldGBufferTexelSize = BaseLevelTexelSizeValue;
 	ShaderParameters.DistanceFieldGBufferJitterOffset = BaseLevelTexelSizeValue * JitterOffsetValue;
@@ -252,6 +256,8 @@ void GeometryAwareUpsample(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRD
 
 		SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 
+		FIntPoint BufferSize = GetBufferSizeForAO(View);
+
 		DrawRectangle(
 			RHICmdList,
 			0, 0,
@@ -259,7 +265,7 @@ void GeometryAwareUpsample(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRD
 			0, 0,
 			View.ViewRect.Width() / GAODownsampleFactor, View.ViewRect.Height() / GAODownsampleFactor,
 			FIntPoint(View.ViewRect.Width() / GAODownsampleFactor, View.ViewRect.Height() / GAODownsampleFactor),
-			View.GetSceneTexturesConfig().Extent / FIntPoint(GAODownsampleFactor, GAODownsampleFactor),
+			BufferSize,
 			VertexShader);
 	});
 }
@@ -415,7 +421,7 @@ void UpdateHistory(
 						RHICmdList,
 						0, 0,
 						View.ViewRect.Width() / GAODownsampleFactor, View.ViewRect.Height() / GAODownsampleFactor,
-						View.ViewRect.Min.X / GAODownsampleFactor, View.ViewRect.Min.Y / GAODownsampleFactor,
+						0, 0,
 						View.ViewRect.Width() / GAODownsampleFactor, View.ViewRect.Height() / GAODownsampleFactor,
 						FIntPoint(View.ViewRect.Width() / GAODownsampleFactor, View.ViewRect.Height() / GAODownsampleFactor),
 						SceneTextureExtent / FIntPoint(GAODownsampleFactor, GAODownsampleFactor),
