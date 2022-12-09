@@ -13034,7 +13034,17 @@ URigVMTemplateNode* URigVMController::AddTemplateNode(const FName& InNotation, c
 	FRigVMRegistry& Registry = FRigVMRegistry::Get();
 	AddPinsForTemplate(Template, Types, Node);
 
-	UpdateTemplateNodePinTypes(Node, false);
+	if (Node->HasWildCardPin())
+	{
+		UpdateTemplateNodePinTypes(Node, false);
+	}
+	else
+	{
+		if (!Node->IsA<URigVMFunctionEntryNode>() && !Node->IsA<URigVMFunctionReturnNode>())
+		{
+			FullyResolveTemplateNode(Node, INDEX_NONE, false);
+		}
+	}
 
 	Graph->Nodes.Add(Node);
 
