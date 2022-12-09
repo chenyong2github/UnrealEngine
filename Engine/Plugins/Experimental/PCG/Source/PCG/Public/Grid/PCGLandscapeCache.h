@@ -87,7 +87,14 @@ public:
 	void ClearCache();
 	void Tick(float DeltaSeconds);
 
+#if WITH_EDITOR
+	/** Gets (and creates if needed) the cache entry - available only in Editor */
 	const FPCGLandscapeCacheEntry* GetCacheEntry(ULandscapeComponent* LandscapeComponent, const FIntPoint& ComponentKey);
+#endif
+
+	/** Gets landscape cache entry, works both in editor (but does not create) but works in game mode too. */
+	const FPCGLandscapeCacheEntry* GetCacheEntry(const FGuid& LandscapeGuid, const FIntPoint& ComponentKey);
+
 	TArray<FName> GetLayerNames(ALandscapeProxy* Landscape);
 
 private:

@@ -131,59 +131,59 @@ TArray<FPCGLandscapeLayerWeight> UPCGBlueprintHelpers::GetInterpolatedPCGLandsca
 {
 	UWorld* World = WorldContextObject ? WorldContextObject->GetWorld() : nullptr;
 	if (!World)
+	{
 		return {};
+	}
 
 	UPCGSubsystem* PCGSubSystem = UWorld::GetSubsystem<UPCGSubsystem>(World);
 	if (!PCGSubSystem)
+	{
 		return {};
-
-	FIntPoint ComponentKey{};
-
-	auto FindLandscapeComponent = [World, Location, &ComponentKey]() -> ULandscapeComponent* {
-		for (TObjectIterator<ALandscapeProxy> It; It; ++It)
-		{
-			if (It->GetWorld() == World)
-			{
-				FBox Box = It->GetComponentsBoundingBox();
-				if (Box.IsInsideOrOnXY(Location))
-				{
-					if (ULandscapeInfo* Info = It->GetLandscapeInfo())
-					{
-						const FVector ActorSpaceLocation = It->LandscapeActorToWorld().InverseTransformPosition(Location);
-						ComponentKey = FIntPoint(FMath::FloorToInt(ActorSpaceLocation.X / It->ComponentSizeQuads), FMath::FloorToInt(ActorSpaceLocation.Y / It->ComponentSizeQuads));
-
-						return Info->XYtoComponentMap.FindRef(ComponentKey);
-					}
-
-					return nullptr;
-				}
-			}
-		}
-
-		return nullptr;
-	};
-
-	ULandscapeComponent* LandscapeComponent = FindLandscapeComponent();
-	if (!LandscapeComponent)
-		return {};
-
-	const FVector ComponentSpaceLocation = LandscapeComponent->GetComponentToWorld().InverseTransformPosition(Location);
+	}
 
 	UPCGLandscapeCache* LandscapeCache = PCGSubSystem->GetLandscapeCache();
 	if (!LandscapeCache)
+	{
 		return {};
+	}
 
-	const FPCGLandscapeCacheEntry* CacheEntry = LandscapeCache->GetCacheEntry(LandscapeComponent, ComponentKey);
+	FBox Bounds(&Location, 1);
+	TArray<TWeakObjectPtr<ALandscapeProxy>> Landscapes = PCGHelpers::GetLandscapeProxies(World, Bounds);
+
+	if (Landscapes.IsEmpty() || !Landscapes[0].Get())
+	{
+		return {};
+	}
+
+	ALandscapeProxy* Landscape = Landscapes[0].Get();
+	check(Landscape);
+
+	ULandscapeInfo* LandscapeInfo = Landscape->GetLandscapeInfo();
+	check(LandscapeInfo);
+
+	const FVector LocalPoint = Landscape->GetTransform().InverseTransformPosition(Location);
+	const FIntPoint ComponentMapKey(FMath::FloorToInt(LocalPoint.X / LandscapeInfo->ComponentSizeQuads), FMath::FloorToInt(LocalPoint.Y / LandscapeInfo->ComponentSizeQuads));
+
+#if WITH_EDITOR
+	ULandscapeComponent* LandscapeComponent = LandscapeInfo->XYtoComponentMap.FindRef(ComponentMapKey);
+	const FPCGLandscapeCacheEntry* CacheEntry = LandscapeCache->GetCacheEntry(LandscapeComponent, ComponentMapKey);
+#else
+	const FPCGLandscapeCacheEntry* CacheEntry = LandscapeCache->GetCacheEntry(Landscape->GetLandscapeGuid(), ComponentMapKey);
+#endif
+
 	if (!CacheEntry)
+	{
 		return {};
+	}
 
+	const FVector2D ComponentLocalPoint(LocalPoint.X - ComponentMapKey.X * LandscapeInfo->ComponentSizeQuads, LocalPoint.Y - ComponentMapKey.Y * LandscapeInfo->ComponentSizeQuads);
+	
 	TArray<FPCGLandscapeLayerWeight> Result;
+	CacheEntry->GetInterpolatedLayerWeights(ComponentLocalPoint, Result);
 
-	CacheEntry->GetInterpolatedLayerWeights(FVector2D(ComponentSpaceLocation), Result);
-
-	Result.Sort([](const FPCGLandscapeLayerWeight& Lhs, const FPCGLandscapeLayerWeight& Rhs){
+	Result.Sort([](const FPCGLandscapeLayerWeight& Lhs, const FPCGLandscapeLayerWeight& Rhs) {
 		return Lhs.Weight > Rhs.Weight;
 	});
-					
+
 	return Result;
 }

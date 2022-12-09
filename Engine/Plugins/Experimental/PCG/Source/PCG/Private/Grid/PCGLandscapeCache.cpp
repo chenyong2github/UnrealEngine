@@ -578,25 +578,16 @@ void UPCGLandscapeCache::ClearCache()
 	CachedData.Reset();
 }
 
+#if WITH_EDITOR
 const FPCGLandscapeCacheEntry* UPCGLandscapeCache::GetCacheEntry(ULandscapeComponent* LandscapeComponent, const FIntPoint& ComponentCoordinate)
 {
-	const FPCGLandscapeCacheEntry* CacheEntry = nullptr;
-	TPair<FGuid, FIntPoint> ComponentKey(LandscapeComponent && LandscapeComponent->GetLandscapeProxy() ? LandscapeComponent->GetLandscapeProxy()->GetLandscapeGuid() : FGuid(), ComponentCoordinate);
+	const FGuid LandscapeGuid = (LandscapeComponent && LandscapeComponent->GetLandscapeProxy() ? LandscapeComponent->GetLandscapeProxy()->GetLandscapeGuid() : FGuid());
+	const FPCGLandscapeCacheEntry* CacheEntry = GetCacheEntry(LandscapeGuid, ComponentCoordinate);
 
-	{
-#if WITH_EDITOR
-		FReadScopeLock ScopeLock(CacheLock);
-#endif
-		if (FPCGLandscapeCacheEntry** FoundEntry = CachedData.Find(ComponentKey))
-		{
-			CacheEntry = *FoundEntry;
-		}
-	}
-
-#if WITH_EDITOR
 	if (!CacheEntry && LandscapeComponent && LandscapeComponent->GetLandscapeInfo())
 	{
 		FWriteScopeLock ScopeLock(CacheLock);
+		TPair<FGuid, FIntPoint> ComponentKey(LandscapeGuid, ComponentCoordinate);
 		if (FPCGLandscapeCacheEntry** FoundEntry = CachedData.Find(ComponentKey))
 		{
 			CacheEntry = *FoundEntry;
@@ -610,8 +601,34 @@ const FPCGLandscapeCacheEntry* UPCGLandscapeCache::GetCacheEntry(ULandscapeCompo
 			CacheEntry = NewEntry;
 			CachedData.Add(ComponentKey, NewEntry);
 		}
+
+		if (CacheEntry)
+		{
+			if (CacheEntry->TouchAndLoad(CacheTouch++))
+			{
+				CacheMemorySize += CacheEntry->GetMemorySize();
+			}
+		}
 	}
+
+	return CacheEntry;
+}
 #endif
+
+const FPCGLandscapeCacheEntry* UPCGLandscapeCache::GetCacheEntry(const FGuid& LandscapeGuid, const FIntPoint& ComponentCoordinate)
+{
+	const FPCGLandscapeCacheEntry* CacheEntry = nullptr;
+	TPair<FGuid, FIntPoint> ComponentKey(LandscapeGuid, ComponentCoordinate);
+
+	{
+#if WITH_EDITOR
+		FReadScopeLock ScopeLock(CacheLock);
+#endif
+		if (FPCGLandscapeCacheEntry** FoundEntry = CachedData.Find(ComponentKey))
+		{
+			CacheEntry = *FoundEntry;
+		}
+	}
 
 	if (CacheEntry)
 	{
