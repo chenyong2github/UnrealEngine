@@ -8,8 +8,9 @@
 #include "PlayerStart.generated.h"
 
 /** 
- *	This class indicates a location where a player can spawn when the game begins
+ *	This class indicates a location where a player can spawn when the game begins.
  *	
+ * 
  *	@see https://docs.unrealengine.com/latest/INT/Engine/Actors/PlayerStart/
  */
 UCLASS(Blueprintable, ClassGroup=Common, hidecategories=Collision)
