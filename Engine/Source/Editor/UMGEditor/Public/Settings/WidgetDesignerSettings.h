@@ -60,6 +60,10 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, config, Category = Dragging)
 	bool bLockToPanelOnDragByDefault;
+	
+	/** The default preview resolution in the designer.*/
+	UPROPERTY(EditAnywhere, config, Category = Visuals)
+	FUintVector2 DefaultPreviewResolution;
 
 	/**
 	 * Should the designer show outlines by default?

@@ -16,6 +16,7 @@ UWidgetDesignerSettings::UWidgetDesignerSettings()
 	bRespectLocks = true;
 	CreateOnCompile = EDisplayOnCompile::DoC_ErrorsOrWarnings;
 	DismissOnCompile = EDisplayOnCompile::DoC_ErrorsOrWarnings;
+	DefaultPreviewResolution = FUintVector2(1280, 720);
 }
 
 #if WITH_EDITOR

@@ -265,9 +265,6 @@ private:
 
 private:
 	static const FString ConfigSectionName;
-	static const uint32 DefaultResolutionWidth;
-	static const uint32 DefaultResolutionHeight;
-	static const FString DefaultAspectRatio;
 	static const FString DefaultPreviewOverrideName;
 
 	/** Extensions for the designer to allow for custom widgets to be inserted onto the design surface as selection changes. */
@@ -365,6 +362,9 @@ private:
 
 	/** The original Height of the preview area, read from the settings file. */
 	int32 HeightReadFromSettings;
+
+	// Whether we have selected one of the common resolutions for the preview.
+	bool bCommonResolutionSelected;
 
 	/***/
 	bool bShowResolutionOutlines;
