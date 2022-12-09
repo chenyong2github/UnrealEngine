@@ -12,6 +12,7 @@
 #include "DataDrivenShaderPlatformInfo.h"
 #include "RHIStaticStates.h"
 #include "MediaShaders.h"
+#include "Containers/ResourceArray.h"
 #else
 #include "Containers/Array.h"
 #endif

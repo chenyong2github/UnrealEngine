@@ -16,6 +16,7 @@
 #include "RHIUtilities.h"
 #include "GlobalShader.h"
 #include "ShaderParameterUtils.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RectLightComponent)
 

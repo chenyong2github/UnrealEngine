@@ -25,6 +25,7 @@
 #include "ARBlueprintLibrary.h"
 #include "ARKitGeoTrackingSupport.h"
 #include "RenderGraphBuilder.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 // For mesh occlusion
 #include "MRMeshComponent.h"
