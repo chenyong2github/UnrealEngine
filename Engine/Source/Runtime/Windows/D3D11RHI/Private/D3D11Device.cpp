@@ -619,7 +619,7 @@ void FD3D11DynamicRHI::CleanupD3DDevice()
 		ReleaseCachedQueries();
 
 
-#ifdef AMD_AGS_API
+#if WITH_AMD_AGS
 		// Clean up the AMD extensions and shut down the AMD AGS utility library
 		if (AmdAgsContext != NULL)
 		{
@@ -632,7 +632,7 @@ void FD3D11DynamicRHI::CleanupD3DDevice()
 			GRHIDeviceIsAMDPreGCNArchitecture = false;
 			AmdAgsContext = NULL;
 		}
-#endif //AMD_AGS_API
+#endif // WITH_AMD_AGS
 
 #if INTEL_EXTENSIONS
 		if (IsRHIDeviceIntel() && bAllowVendorDevice)

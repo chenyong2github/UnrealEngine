@@ -6,7 +6,7 @@ D3D12CommandContext.cpp: RHI  Command Context implementation.
 
 #include "D3D12RHIPrivate.h"
 
-#if PLATFORM_WINDOWS
+#if WITH_AMD_AGS
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "amd_ags.h"
 #include "Windows/HideWindowsPlatformTypes.h"
@@ -218,7 +218,7 @@ void FD3D12CommandContext::RHIPushEvent(const TCHAR* Name, FColor Color)
 #endif // NV_AFTERMATH		
 	}
 
-#if PLATFORM_WINDOWS
+#if WITH_AMD_AGS
 	AGSContext* const AmdAgsContext = FD3D12DynamicRHI::GetD3DRHI()->GetAmdAgsContext();
 	if (GEmitRgpFrameMarkers && AmdAgsContext)
 	{
@@ -254,7 +254,7 @@ void FD3D12CommandContext::RHIPopEvent()
 		}
 	}
 
-#if PLATFORM_WINDOWS
+#if WITH_AMD_AGS
 	AGSContext* const AmdAgsContext = FD3D12DynamicRHI::GetD3DRHI()->GetAmdAgsContext();
 	if (GEmitRgpFrameMarkers && AmdAgsContext)
 	{

@@ -9,11 +9,13 @@
 #include "Misc/EngineVersion.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Windows/WindowsPlatformCrashContext.h"
-	#include <delayimp.h>
-	#if !PLATFORM_HOLOLENS
-	#include "nvapi.h"
-	#include "nvShaderExtnEnums.h"
-	#include "amd_ags.h"
+#include <delayimp.h>
+	#if WITH_NVAPI
+		#include "nvapi.h"
+		#include "nvShaderExtnEnums.h"
+	#endif
+	#if WITH_AMD_AGS
+		#include "amd_ags.h"
 	#endif
 #include "Windows/HideWindowsPlatformTypes.h"
 

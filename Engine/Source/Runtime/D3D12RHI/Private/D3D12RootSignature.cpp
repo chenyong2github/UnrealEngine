@@ -12,7 +12,7 @@
 #define FD3D12_ROOT_SIGNATURE_FLAG_GLOBAL_ROOT_SIGNATURE D3D12_ROOT_SIGNATURE_FLAG_NONE
 #endif
 
-#if !PLATFORM_CPU_ARM_FAMILY && (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
+#if WITH_AMD_AGS
 #include "Microsoft/AllowMicrosoftPlatformTypes.h"
 #include "amd_ags.h"
 #include "Microsoft/HideMicrosoftPlatformTypes.h"
@@ -334,7 +334,7 @@ FD3D12RootSignatureDesc::FD3D12RootSignatureDesc(const FD3D12QuantizedBoundShade
 		}
 	}
 
-#if D3D12RHI_NEEDS_VENDOR_EXTENSIONS
+#if D3D12RHI_NEEDS_VENDOR_EXTENSIONS && WITH_AMD_AGS
 	if (QBSS.bNeedsAgsIntrinsicsSpace)
 	{
 		check(RootParameterCount < MaxRootParameters);

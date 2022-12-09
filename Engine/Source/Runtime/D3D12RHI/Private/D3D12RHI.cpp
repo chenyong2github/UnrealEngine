@@ -8,7 +8,7 @@
 #include "RHIStaticStates.h"
 #include "OneColorShader.h"
 
-#if PLATFORM_WINDOWS
+#if WITH_AMD_AGS
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "amd_ags.h"
 #include "Windows/HideWindowsPlatformTypes.h"
@@ -266,7 +266,7 @@ void FD3D12DynamicRHI::Shutdown()
 	// Reset the RHI initialized flag.
 	GIsRHIInitialized = false;
 
-#if PLATFORM_WINDOWS
+#if WITH_AMD_AGS
 	if (AmdAgsContext)
 	{
 		// Clean up the AMD extensions and shut down the AMD AGS utility library

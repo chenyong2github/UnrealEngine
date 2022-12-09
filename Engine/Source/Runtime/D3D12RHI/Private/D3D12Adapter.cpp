@@ -17,7 +17,7 @@ D3D12Adapter.cpp:D3D12 Adapter implementation.
 #endif
 #include "Modules/ModuleManager.h"
 
-#if !PLATFORM_CPU_ARM_FAMILY && (PLATFORM_WINDOWS)
+#if WITH_AMD_AGS
 	#include "amd_ags.h"
 #endif
 #include "Windows/HideWindowsPlatformTypes.h"

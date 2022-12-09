@@ -11,19 +11,13 @@
 #include "Windows/WindowsPlatformCrashContext.h"
 #include <delayimp.h>
 
-#if !PLATFORM_HOLOLENS && !PLATFORM_CPU_ARM_FAMILY
+#if WITH_AMD_AGS
 	#include "amd_ags.h"
-	#define AMD_API_ENABLE 1
-#else
-	#define AMD_API_ENABLE 0
 #endif
 
-#if !PLATFORM_HOLOLENS && !PLATFORM_CPU_ARM_FAMILY
-	#define NV_API_ENABLE 1
+#if WITH_NVAPI
 	#include "nvapi.h"
 	#include "nvShaderExtnEnums.h"
-#else
-	#define NV_API_ENABLE 0
 #endif
 
 #if INTEL_EXTENSIONS
@@ -1309,7 +1303,7 @@ void FD3D12DynamicRHI::Init()
 
 	UE_LOG(LogD3D12RHI, Log, TEXT("    GPU DeviceId: 0x%x (for the marketing name, search the web for \"GPU Device Id\")"), AdapterDesc.DeviceId);
 
-#if AMD_API_ENABLE
+#if WITH_AMD_AGS
 	// Initialize the AMD AGS utility library, when running on an AMD device
 	AGSGPUInfo AmdAgsGpuInfo = {};
 	if (IsRHIDeviceAMD() && bAllowVendorDevice)
@@ -1332,7 +1326,7 @@ void FD3D12DynamicRHI::Init()
 
 	bool bHasVendorSupportForAtomic64 = false;
 
-#if AMD_API_ENABLE
+#if WITH_AMD_AGS
 
 	// Check if the AMD device is pre-RDNA, and ensure it doesn't misreport wave32 support
 	if (IsRHIDeviceAMD() && bAllowVendorDevice && AmdAgsContext)
@@ -1390,7 +1384,7 @@ void FD3D12DynamicRHI::Init()
 	}
 #endif
 
-#if NV_API_ENABLE
+#if WITH_NVAPI
 	if (IsRHIDeviceNVIDIA() && bAllowVendorDevice)
 	{
 		const NvAPI_Status NvStatus = NvAPI_Initialize();
@@ -1458,9 +1452,9 @@ void FD3D12DynamicRHI::Init()
 			UE_LOG(LogD3D12RHI, Warning, TEXT("GD3D12WorkaroundFlags.bAllowGetShaderIdentifierOnCollectionSubObject is disabled due to a known issue with current driver version."));
 		}
 	} // if NVIDIA
-#endif // NV_API_ENABLE
+#endif // NVAPI
 
-#if AMD_API_ENABLE
+#if WITH_AMD_AGS
 	if (GRHISupportsRayTracing
 		&& IsRHIDeviceAMD()
 		&& AmdAgsContext
@@ -1483,7 +1477,7 @@ void FD3D12DynamicRHI::Init()
 			UE_LOG(LogD3D12RHI, Log, TEXT("AMD hit token extension is %s"), GRHISupportsRayTracingAMDHitToken ? TEXT("supported") : TEXT("not supported"));
 		}
 	}
-#endif // AMD_API_ENABLE
+#endif // WITH_AMD_AGS
 
 #if INTEL_EXTENSIONS
 	if (IsRHIDeviceIntel() && bAllowVendorDevice)

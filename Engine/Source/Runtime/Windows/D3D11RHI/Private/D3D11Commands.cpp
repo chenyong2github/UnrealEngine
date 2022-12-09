@@ -16,13 +16,15 @@
 #include "EngineGlobals.h"
 #include "RHIShaderParametersShared.h"
 
-#if !PLATFORM_HOLOLENS
 // For Depth Bounds Test interface
 #include "Windows/AllowWindowsPlatformTypes.h"
+#if WITH_NVAPI
 	#include "nvapi.h"
-	#include "amd_ags.h"
-#include "Windows/HideWindowsPlatformTypes.h"
 #endif
+#if WITH_AMD_AGS
+	#include "amd_ags.h"
+#endif
+#include "Windows/HideWindowsPlatformTypes.h"
 
 #define DECLARE_ISBOUNDSHADER(ShaderType) inline void ValidateBoundShader(FD3D11StateCache& InStateCache, FRHI##ShaderType* ShaderType##RHI) \
 { \
@@ -83,7 +85,7 @@ static TAutoConsoleVariable<int32> CVarAllowUAVFlushExt(
 	ECVF_RenderThreadSafe);
 
 
-#if !PLATFORM_HOLOLENS
+#if WITH_NVAPI
 //MultiGPU
 void FD3D11DynamicRHI::RHIBeginUpdateMultiFrameResource(FRHITexture* RHITexture)
 {
@@ -1553,6 +1555,7 @@ void FD3D11DynamicRHI::EnableDepthBoundsTest(bool bEnable,float MinDepth,float M
 	MinDepth = FMath::Clamp(MinDepth, 0.0f, 1.0f);
 	MaxDepth = FMath::Clamp(MaxDepth, 0.0f, 1.0f);
 
+#if WITH_NVAPI
 	if (IsRHIDeviceNVIDIA())
 	{
 		auto Result = NvAPI_D3D11_SetDepthBoundsTest( Direct3DDevice, bEnable, MinDepth, MaxDepth );
@@ -1580,7 +1583,9 @@ void FD3D11DynamicRHI::EnableDepthBoundsTest(bool bEnable,float MinDepth,float M
 			}
 		}
 	}
-	else if (IsRHIDeviceAMD())
+#endif
+#if WITH_AMD_AGS
+	if (IsRHIDeviceAMD())
 	{
 		auto Result = agsDriverExtensionsDX11_SetDepthBounds(AmdAgsContext, Direct3DDeviceIMContext, bEnable, MinDepth, MaxDepth);
 		if(Result != AGS_SUCCESS)
@@ -1607,6 +1612,7 @@ void FD3D11DynamicRHI::EnableDepthBoundsTest(bool bEnable,float MinDepth,float M
 			}
 		}
 	}
+#endif
 #endif
 
 	StateCache.bDepthBoundsEnabled = bEnable;
@@ -1659,11 +1665,15 @@ void FD3D11DynamicRHI::EnableUAVOverlap()
 #if !PLATFORM_HOLOLENS
 	if (IsRHIDeviceNVIDIA())
 	{
+#if WITH_NVAPI
 		NvAPI_D3D11_BeginUAVOverlap(Direct3DDevice);
+#endif
 	}
 	else if (IsRHIDeviceAMD())
 	{
+#if WITH_AMD_AGS
 		agsDriverExtensionsDX11_BeginUAVOverlap(AmdAgsContext, Direct3DDeviceIMContext);
+#endif
 	}
 	else if (IsRHIDeviceIntel())
 	{
@@ -1689,11 +1699,15 @@ void FD3D11DynamicRHI::DisableUAVOverlap()
 #if !PLATFORM_HOLOLENS
 	if (IsRHIDeviceNVIDIA())
 	{
+#if WITH_NVAPI
 		NvAPI_D3D11_EndUAVOverlap(Direct3DDevice);
+#endif
 	}
 	else if (IsRHIDeviceAMD())
 	{
+#if WITH_AMD_AGS
 		agsDriverExtensionsDX11_EndUAVOverlap(AmdAgsContext, Direct3DDeviceIMContext);
+#endif
 	}
 	else if (IsRHIDeviceIntel())
 	{

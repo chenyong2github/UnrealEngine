@@ -6,13 +6,15 @@
 
 #include "D3D11RHIPrivate.h"
 
-#if !PLATFORM_HOLOLENS
 // For Depth Bounds Test interface
 #include "Windows/AllowWindowsPlatformTypes.h"
+#if WITH_NVAPI
 	#include "nvapi.h"
-	#include "amd_ags.h"
-#include "Windows/HideWindowsPlatformTypes.h"
 #endif
+#if WITH_AMD_AGS
+	#include "amd_ags.h"
+#endif
+#include "Windows/HideWindowsPlatformTypes.h"
 
 #include "HAL/LowLevelMemTracker.h"
 #include "ProfilingDebugging/MemoryTrace.h"
@@ -766,8 +768,8 @@ FD3D11Texture* FD3D11DynamicRHI::CreateD3D11Texture2D(FRHITextureCreateDesc cons
 		RenderTargetViews,
 		DepthStencilViews
 	);
-	
-#if !PLATFORM_HOLOLENS
+
+#if WITH_NVAPI
 	if (IsRHIDeviceNVIDIA() && EnumHasAnyFlags(Flags, TexCreate_AFRManual))
 	{
 		// get a resource handle for this texture
@@ -928,7 +930,7 @@ FD3D11Texture* FD3D11DynamicRHI::CreateD3D11Texture3D(FRHITextureCreateDesc cons
 		{}
 	);
 
-#if !PLATFORM_HOLOLENS
+#if WITH_NVAPI
 	if (IsRHIDeviceNVIDIA() && EnumHasAnyFlags(Flags, TexCreate_AFRManual))
 	{
 		// get a resource handle for this texture

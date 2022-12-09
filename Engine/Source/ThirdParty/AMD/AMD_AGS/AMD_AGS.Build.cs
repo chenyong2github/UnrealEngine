@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 using UnrealBuildTool;
 using System.IO;
+using System;
 
 public class AMD_AGS : ModuleRules
 {
@@ -11,7 +12,7 @@ public class AMD_AGS : ModuleRules
 		string AmdAgsPath = Target.UEThirdPartySourceDirectory + "AMD/AMD_AGS/";
 		PublicSystemIncludePaths.Add(AmdAgsPath + "inc/");
 
-		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.Architecture.IndexOf("arm", StringComparison.OrdinalIgnoreCase) == -1)
 		{
 			string AmdApiLibPath = AmdAgsPath + "lib/VS2017";
 
@@ -20,6 +21,12 @@ public class AMD_AGS : ModuleRules
 				: "amd_ags_x64_2017_MD.lib";
 
 			PublicAdditionalLibraries.Add(Path.Combine(AmdApiLibPath, LibraryName));
+
+			PublicDefinitions.Add("WITH_AMD_AGS=1");
+		}
+		else
+		{
+			PublicDefinitions.Add("WITH_AMD_AGS=0");
 		}
 	}
 }

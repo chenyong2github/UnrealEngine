@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+using System;
 using UnrealBuildTool;
 
 public class NVAPI : ModuleRules
@@ -24,10 +25,15 @@ public class NVAPI : ModuleRules
 
 		PublicSystemIncludePaths.Add(nvApiPath);
 
-		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.Architecture.IndexOf("arm", StringComparison.OrdinalIgnoreCase) == -1)
 		{
 			string nvApiLibPath = nvApiPath + "amd64/";
 			PublicAdditionalLibraries.Add(nvApiLibPath + "nvapi64.lib");
+			PublicDefinitions.Add("WITH_NVAPI=1");
+		}
+		else
+		{
+			PublicDefinitions.Add("WITH_NVAPI=0");
 		}
 	}
 }

@@ -7,7 +7,7 @@
 //	Include Files
 //-----------------------------------------------------------------------------
 #include "D3D12RHIPrivate.h"
-#if !PLATFORM_HOLOLENS
+#if !PLATFORM_HOLOLENS && PLATFORM_CPU_X86_FAMILY
 #include <emmintrin.h>
 #endif
 

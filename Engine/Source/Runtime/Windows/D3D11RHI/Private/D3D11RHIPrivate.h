@@ -464,7 +464,7 @@ public:
 	 */
 	bool GetQueryData(ID3D11Query* Query, void* Data, SIZE_T DataSize, ERenderQueryType QueryType, bool bWait, bool bStallRHIThread);
 
-#if !PLATFORM_HOLOLENS	// allow the RHI default emptry implementations to fall through
+#if WITH_NVAPI
 	virtual void RHIBeginUpdateMultiFrameResource(FRHITexture* Texture) override;
 	virtual void RHIEndUpdateMultiFrameResource(FRHITexture* Texture) override;
 

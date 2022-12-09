@@ -8,8 +8,8 @@
 #include "Serialization/MemoryReader.h"
 #include "RHICoreShader.h"
 
-#if !PLATFORM_HOLOLENS
-#include "nvapi.h"
+#if WITH_NVAPI
+	#include "nvapi.h"
 #endif
 
 template <typename TShaderType>
@@ -75,12 +75,14 @@ static bool ApplyVendorExtensions(ID3D11Device* Direct3DDevice, EShaderFrequency
 				break;
 			}
 
+#if WITH_NVAPI
 			// https://developer.nvidia.com/unlocking-gpu-intrinsics-hlsl
 			if (Extension.Parameter.Type == EShaderParameterType::UAV)
 			{
 				NvAPI_D3D11_SetNvShaderExtnSlot(Direct3DDevice, Extension.Parameter.BaseIndex);
 				OutNeedsReset = true;
 			}
+#endif
 		}
 		else if (Extension.VendorId == 0x1002) // AMD
 		{
@@ -107,7 +109,7 @@ static bool ApplyVendorExtensions(ID3D11Device* Direct3DDevice, EShaderFrequency
 
 static void ResetVendorExtensions(ID3D11Device* Direct3DDevice)
 {
-#if !PLATFORM_HOLOLENS
+#if WITH_NVAPI
 	if (IsRHIDeviceNVIDIA())
 	{
 		NvAPI_D3D11_SetNvShaderExtnSlot(Direct3DDevice, ~uint32(0));
