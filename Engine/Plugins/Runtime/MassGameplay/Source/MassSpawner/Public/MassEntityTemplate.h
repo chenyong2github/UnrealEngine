@@ -79,7 +79,7 @@ struct MASSSPAWNER_API FMassEntityTemplate
 	TConstArrayView<FObjectFragmentInitializerFunction> GetObjectFragmentInitializers() const { return ObjectInitializers; }
 	TArray<FObjectFragmentInitializerFunction>& GetMutableObjectFragmentInitializers() { return ObjectInitializers; }
 
-	bool IsValid() const { return Archetype.IsValid() && (Composition.IsEmpty() == false); }
+	bool IsValid() const { return Archetype.IsValid(); }
 	bool IsEmpty() const { return Composition.IsEmpty(); }
 
 	void SetTemplateID(FMassEntityTemplateID InTemplateID) { TemplateID = InTemplateID; }

@@ -145,25 +145,18 @@ bool UMassEntityTemplateRegistry::BuildTemplateImpl(const FStructToTemplateBuild
 	return false;
 }
 
-void UMassEntityTemplateRegistry::InitializeEntityTemplate(FMassEntityTemplate& OutTemplate) const
+void UMassEntityTemplateRegistry::InitializeEntityTemplate(FMassEntityTemplate& InOutTemplate) const
 {
-	if (OutTemplate.IsEmpty() == true)
-	{
-		// nothing to initialize, return.
-		// this will leave the ArchetypeHandle invalid
-		return;
-	}
-
 	UWorld* World = GetWorld();
 	check(World);
 	// find or create template
 	FMassEntityManager& EntityManager = UE::Mass::Utils::GetEntityManagerChecked(*World);
 
 	// Sort anything there is to sort for later comparison purposes
-	OutTemplate.Sort();
+	InOutTemplate.Sort();
 
-	const FMassArchetypeHandle ArchetypeHandle = EntityManager.CreateArchetype(OutTemplate.GetCompositionDescriptor(), FName(OutTemplate.GetTemplateName()));
-	OutTemplate.SetArchetype(ArchetypeHandle);
+	const FMassArchetypeHandle ArchetypeHandle = EntityManager.CreateArchetype(InOutTemplate.GetCompositionDescriptor(), FName(InOutTemplate.GetTemplateName()));
+	InOutTemplate.SetArchetype(ArchetypeHandle);
 }
 
 void UMassEntityTemplateRegistry::DebugReset()

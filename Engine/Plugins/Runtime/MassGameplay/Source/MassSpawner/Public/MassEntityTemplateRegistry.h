@@ -222,7 +222,7 @@ public:
 
 	FMassEntityTemplate& CreateTemplate(const uint32 HashLookup, FMassEntityTemplateID TemplateID);
 	void DestroyTemplate(const uint32 HashLookup, FMassEntityTemplateID TemplateID);
-	void InitializeEntityTemplate(FMassEntityTemplate& OutTemplate) const;
+	void InitializeEntityTemplate(FMassEntityTemplate& InOutTemplate) const;
 
 protected:
 	/** @return true if a template has been built, false otherwise */
