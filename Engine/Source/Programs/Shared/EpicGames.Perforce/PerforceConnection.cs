@@ -4045,9 +4045,7 @@ namespace EpicGames.Perforce
 			arguments.Add($"-c{changeNumber}");
 			arguments.Add($"//...@{changeNumberToUndo}");
 
-			PerforceResponseList<UndoRecord> records = await CommandAsync<UndoRecord>(connection, "undo", arguments, null, cancellationToken);
-			records.RemoveAll(x => x.Error != null && x.Error.Generic == PerforceGenericCode.Empty);
-			return records;
+			return await CommandAsync<UndoRecord>(connection, "undo", arguments, null, cancellationToken);
 		}
 
 		#endregion
