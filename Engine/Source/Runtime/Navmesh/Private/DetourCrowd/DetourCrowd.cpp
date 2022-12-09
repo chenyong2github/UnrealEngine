@@ -854,8 +854,10 @@ void dtCrowd::updateMoveRequest(const dtReal /*dt*/)
 			// Quick seach towards the goal.
 			static const int MAX_ITER = 20;
 			m_navquery->updateLinkFilter(ag->params.linkFilter.Get());
+
 			const dtReal costLimit = DT_REAL_MAX; //@UE
-			m_navquery->initSlicedFindPath(path[0], ag->targetRef, ag->npos, ag->targetPos, costLimit, &m_filters[ag->params.filter]); //@UE
+			const bool requireNavigableEndLocation = true; //@UE
+			m_navquery->initSlicedFindPath(path[0], ag->targetRef, ag->npos, ag->targetPos, costLimit, requireNavigableEndLocation, &m_filters[ag->params.filter]); //@UE
 			m_navquery->updateSlicedFindPath(MAX_ITER, 0);
 			dtStatus status = 0;
 			if (ag->targetReplan) // && npath > 10)
@@ -922,8 +924,9 @@ void dtCrowd::updateMoveRequest(const dtReal /*dt*/)
 	{
 		dtCrowdAgent* ag = queue[i];
 		const dtReal costLimit = DT_REAL_MAX; //@UE
+		const bool requireNavigableEndLocation = true; //@UE
 		ag->targetPathqRef = m_pathq.request(ag->corridor.getLastPoly(), ag->targetRef,
-			ag->corridor.getTarget(), ag->targetPos, costLimit, &m_filters[ag->params.filter], ag->params.linkFilter); //@UE
+			ag->corridor.getTarget(), ag->targetPos, costLimit, requireNavigableEndLocation, &m_filters[ag->params.filter], ag->params.linkFilter); //@UE
 		if (ag->targetPathqRef != DT_PATHQ_INVALID)
 			ag->targetState = DT_CROWDAGENT_TARGET_WAITING_FOR_PATH;
 	}

@@ -107,6 +107,10 @@ public:
 	UPROPERTY(EditAnywhere, Category=Pathfinding)
 	uint32 bGatherDetailedInfo : 1;
 
+	/** if set, require the end location to be close to the navigation data. The tolerance is controlled by QueryingExtent */
+	UPROPERTY(EditAnywhere, Category=Pathfinding)
+	uint32 bRequireNavigableEndLocation : 1;
+
 	UPROPERTY(EditAnywhere, Category=Query)
 	uint32 bDrawDistanceToWall : 1;
 

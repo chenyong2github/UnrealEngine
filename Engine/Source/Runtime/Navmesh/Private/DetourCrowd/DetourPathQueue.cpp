@@ -111,7 +111,7 @@ void dtPathQueue::update(const int maxIters)
 		// Handle query start.
 		if (q.status == 0)
 		{
-			q.status = m_navquery->initSlicedFindPath(q.startRef, q.endRef, q.startPos, q.endPos, q.costLimit, q.filter); //@UE
+			q.status = m_navquery->initSlicedFindPath(q.startRef, q.endRef, q.startPos, q.endPos, q.costLimit, q.requireNavigableEndLocation, q.filter); //@UE
 		}		
 		// Handle query in progress.
 		if (dtStatusInProgress(q.status))
@@ -133,7 +133,7 @@ void dtPathQueue::update(const int maxIters)
 }
 
 dtPathQueueRef dtPathQueue::request(dtPolyRef startRef, dtPolyRef endRef,
-									const dtReal* startPos, const dtReal* endPos, const dtReal costLimit, //@UE
+									const dtReal* startPos, const dtReal* endPos, const dtReal costLimit, const bool requireNavigableEndLocation, //@UE
 									const dtQueryFilter* filter, TSharedPtr<dtQuerySpecialLinkFilter> linkFilter)
 {
 	// Find empty slot
@@ -160,6 +160,7 @@ dtPathQueueRef dtPathQueue::request(dtPolyRef startRef, dtPolyRef endRef,
 	dtVcopy(q.endPos, endPos);
 	q.endRef = endRef;
 	q.costLimit = costLimit; //@UE
+	q.requireNavigableEndLocation = requireNavigableEndLocation; //@UE
 	
 	q.status = 0;
 	q.npath = 0;

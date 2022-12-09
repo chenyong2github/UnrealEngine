@@ -46,6 +46,7 @@ class dtPathQueue
 		dtReal startPos[3], endPos[3];
 		dtPolyRef startRef, endRef;
 		dtReal costLimit;
+		unsigned char requireNavigableEndLocation : 1;	// @UE
 		/// Result.
 		dtPolyRef* path;
 		const dtQueryFilter* filter;
@@ -74,7 +75,7 @@ public:
 	void update(const int maxIters);
 	
 	dtPathQueueRef request(dtPolyRef startRef, dtPolyRef endRef,
-						   const dtReal* startPos, const dtReal* endPos, const dtReal costLimit,
+						   const dtReal* startPos, const dtReal* endPos, const dtReal costLimit, const bool requireNavigableEndLocation, //@UE
 						   const dtQueryFilter* filter,
 						   TSharedPtr<dtQuerySpecialLinkFilter> linkFilter);
 	

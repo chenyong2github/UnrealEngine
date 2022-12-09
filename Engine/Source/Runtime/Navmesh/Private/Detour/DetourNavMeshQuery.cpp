@@ -1492,11 +1492,12 @@ dtStatus dtNavMeshQuery::findPath(dtPolyRef startRef, dtPolyRef endRef,
 	
 	m_queryNodes = 0;
 
-	if (!startRef || !endRef)
+	if (!startRef || (m_query.requireNavigableEndLocation && !endRef))		//@UE
 		return DT_FAILURE | DT_INVALID_PARAM;
 	
 	// Validate input
-	if (!m_nav->isValidPolyRef(startRef) || !m_nav->isValidPolyRef(endRef))
+	// endRef could be 0 if requireNavigableEndLocation is false, but we don't want it to reference a polygon that doesn't exist
+	if (!m_nav->isValidPolyRef(startRef) || (!m_nav->isValidPolyRef(endRef) && (endRef || m_query.requireNavigableEndLocation)))	//@UE
 		return DT_FAILURE | DT_INVALID_PARAM;
 	
 	if (startRef == endRef)
@@ -1920,7 +1921,7 @@ dtStatus dtNavMeshQuery::testClusterPath(dtPolyRef startRef, dtPolyRef endRef) c
 /// path query.
 ///
 dtStatus dtNavMeshQuery::initSlicedFindPath(dtPolyRef startRef, dtPolyRef endRef,
-											const dtReal* startPos, const dtReal* endPos, const dtReal costLimit, //@UE
+											const dtReal* startPos, const dtReal* endPos, const dtReal costLimit, const bool requireNavigableEndLocation, //@UE 
 											const dtQueryFilter* filter)
 {
 	dtAssert(m_nav);
@@ -1935,13 +1936,15 @@ dtStatus dtNavMeshQuery::initSlicedFindPath(dtPolyRef startRef, dtPolyRef endRef
 	dtVcopy(m_query.startPos, startPos);
 	dtVcopy(m_query.endPos, endPos);
 	m_query.costLimit = costLimit; //@UE
+	m_query.requireNavigableEndLocation = requireNavigableEndLocation; //@UE
 	m_query.filter = filter;
 	
-	if (!startRef || !endRef)
+	if (!startRef || (m_query.requireNavigableEndLocation && !endRef))	//@UE
 		return DT_FAILURE | DT_INVALID_PARAM;
 	
 	// Validate input
-	if (!m_nav->isValidPolyRef(startRef) || !m_nav->isValidPolyRef(endRef))
+	// endRef could be 0 if requireNavigableEndLocation is false, but we don't want it to reference a polygon that doesn't exist
+	if (!m_nav->isValidPolyRef(startRef) || (!m_nav->isValidPolyRef(endRef) && (endRef || m_query.requireNavigableEndLocation)))	//@UE
 		return DT_FAILURE | DT_INVALID_PARAM;
 
 	if (startRef == endRef)
@@ -1979,7 +1982,8 @@ dtStatus dtNavMeshQuery::updateSlicedFindPath(const int maxIter, int* doneIters)
 		return m_query.status;
 
 	// Make sure the request is still valid.
-	if (!m_nav->isValidPolyRef(m_query.startRef) || !m_nav->isValidPolyRef(m_query.endRef))
+	// endRef could be 0 if requireNavigableEndLocation is false, but we don't want it to reference a polygon that doesn't exist
+	if (!m_nav->isValidPolyRef(m_query.startRef) || (!m_nav->isValidPolyRef(m_query.endRef) && (m_query.endRef || m_query.requireNavigableEndLocation)))	//@UE
 	{
 		m_query.status = DT_FAILURE;
 		return DT_FAILURE;
