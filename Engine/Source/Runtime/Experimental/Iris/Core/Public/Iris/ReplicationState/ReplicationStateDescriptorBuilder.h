@@ -7,6 +7,7 @@
 #include "Templates/RefCounting.h"
 #include "UObject/CoreNet.h"
 
+class IConsoleVariable;
 namespace UE::Net::Private
 {
 	class FReplicationStateDescriptorRegistry;
@@ -67,6 +68,11 @@ public:
 	 * Any new created ReplicationStateDescriptor will be registered in the provided registry.
 	 */
 	IRISCORE_API static TRefCountPtr<const FReplicationStateDescriptor> CreateDescriptorForFunction(const UFunction* Function, const FParameters& Parameters = FParameters());
+
+private:
+	static void InitCVarReplicateCustomDeltaPropertiesInRepIndexOrder();
+
+	static const IConsoleVariable* CVarReplicateCustomDeltaPropertiesInRepIndexOrder;
 };
 
 }

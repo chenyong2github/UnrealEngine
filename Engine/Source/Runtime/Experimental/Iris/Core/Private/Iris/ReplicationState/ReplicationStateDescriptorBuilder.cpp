@@ -2119,6 +2119,8 @@ bool FPropertyReplicationStateDescriptorBuilder::IsFastArraySupported(const UStr
 namespace UE::Net
 {
 
+const IConsoleVariable* FReplicationStateDescriptorBuilder::CVarReplicateCustomDeltaPropertiesInRepIndexOrder = nullptr;
+
 FReplicationStateDescriptorBuilder::FParameters::FParameters()
 : DescriptorRegistry(nullptr),
   DefaultStateSource(nullptr),
@@ -2371,21 +2373,21 @@ SIZE_T FReplicationStateDescriptorBuilder::CreateDescriptorsForClass(FResult& Cr
 	}
 
 	// We need the lifetime properties array to get conditionals
+	TArray<FLifetimeProperty> LifeTimePropertiesOriginalOrder;
 	TArray<FLifetimeProperty> LifeTimeProperties;
 	if (bGetLifeTimeProperties)
 	{
 		IRIS_PROFILER_SCOPE(FReplicationStateDescriptorBuilder_GetLifeTimeProperties);
 
-		TArray<FLifetimeProperty> TempLifetimeProperties;
-		TempLifetimeProperties.Reserve(InObjectClass->ClassReps.Num());
+		LifeTimePropertiesOriginalOrder.Reserve(InObjectClass->ClassReps.Num());
 		UObject* Object = InObjectClass->GetDefaultObject();
-		Object->GetLifetimeReplicatedProps(TempLifetimeProperties);
+		Object->GetLifetimeReplicatedProps(LifeTimePropertiesOriginalOrder);
 
 		// Lifetime properties aren't sorted and searching for a property with a specific RepIndex in the array is linear.
 		// Let's put them where we want them.
 		static_assert(TIsZeroConstructType<FLifetimeProperty>::Value, "Need to use SetNum() instead of SetNumZeroed()");
 		LifeTimeProperties.SetNumZeroed(InObjectClass->ClassReps.Num());
-		for (const FLifetimeProperty& LifetimeProperty : TempLifetimeProperties)
+		for (const FLifetimeProperty& LifetimeProperty : LifeTimePropertiesOriginalOrder)
 		{
 			LifeTimeProperties[LifetimeProperty.RepIndex] = LifetimeProperty;
 		}
@@ -2547,6 +2549,28 @@ SIZE_T FReplicationStateDescriptorBuilder::CreateDescriptorsForClass(FResult& Cr
 	}
 
 	// If we have properties with a CreateAndRegisterReplicationFragmentFunction, we build separate descriptors for them
+	// We may have to re-order custom properties if there are more than one.
+	if (CustomProperties.Num() > 1)
+	{
+		InitCVarReplicateCustomDeltaPropertiesInRepIndexOrder();
+
+		// If CVarReplicateCustomDeltaPropertiesInRepIndexOrder is false then we use the GetLifetimeReplicatedPropsOrder instead, which is the RepLayout legacy behavior.
+		if (CVarReplicateCustomDeltaPropertiesInRepIndexOrder != nullptr && !CVarReplicateCustomDeltaPropertiesInRepIndexOrder->GetBool())
+		{
+			TArray<FPropertyReplicationStateDescriptorBuilder::FMemberProperty, TInlineAllocator<8>> NewCustomProperties;
+			NewCustomProperties.Reserve(CustomProperties.Num());
+			for (const FLifetimeProperty& LifetimeProperty : LifeTimePropertiesOriginalOrder)
+			{
+				if (const FPropertyReplicationStateDescriptorBuilder::FMemberProperty* MemberProperty = CustomProperties.FindByPredicate([RepIndex = LifetimeProperty.RepIndex](const FPropertyReplicationStateDescriptorBuilder::FMemberProperty& MemberProperty) { return RepIndex == MemberProperty.Property->RepIndex; }))
+				{
+					NewCustomProperties.Add(*MemberProperty);
+				}
+			}
+
+			CustomProperties = NewCustomProperties;
+		}
+	}
+
 	for (uint32 CustomPropertyIt = 0, CustomArrayPropertyEndIt = CustomProperties.Num(); CustomPropertyIt != CustomArrayPropertyEndIt; ++CustomPropertyIt)
 	{
 		const FPropertyReplicationStateDescriptorBuilder::FMemberProperty& MemberProperty = CustomProperties[CustomPropertyIt];
@@ -2582,6 +2606,15 @@ SIZE_T FReplicationStateDescriptorBuilder::CreateDescriptorsForClass(FResult& Cr
 	}
 	
 	return CreatedDescriptors.Num();
+}
+
+void FReplicationStateDescriptorBuilder::InitCVarReplicateCustomDeltaPropertiesInRepIndexOrder()
+{
+	if (CVarReplicateCustomDeltaPropertiesInRepIndexOrder == nullptr)
+	{
+		CVarReplicateCustomDeltaPropertiesInRepIndexOrder = IConsoleManager::Get().FindConsoleVariable(TEXT("net.ReplicateCustomDeltaPropertiesInRepIndexOrder"));
+		ensureMsgf(CVarReplicateCustomDeltaPropertiesInRepIndexOrder != nullptr, TEXT("Unable to find cvar net.ReplicateCustomDeltaPropertiesInRepIndexOrder"));
+	}
 }
 
 }

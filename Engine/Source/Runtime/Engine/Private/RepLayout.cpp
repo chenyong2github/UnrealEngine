@@ -103,6 +103,14 @@ namespace UE::Net::Private
 {
 	static bool bDeltaInitialFastArrayElements = false;
 	static FAutoConsoleVariableRef CVarDeltaInitialFastArrayElements(TEXT("net.DeltaInitialFastArrayElements"), bDeltaInitialFastArrayElements, TEXT("If true, send delta struct changelists for initial fast array elements."));
+
+	/* FastArrays and other custom delta properties may have order dependencies due to callbacks being fired during serialization at which time other custom delta properties have not yet received their state.
+	 * This cvar toggles the behavior between using the RepIndex of the property or the order of appearance in the lifetime property array filled during a GetLifetimeReplicatedProps() call.
+	 * Default is false to keep the legacy behavior of using the GetLifetimeReplicatedProps() order for the custom delta properties.
+	 * The cvar is used in ReplicationStateDescriptorBuilder as well. Search for the cvar name in the code base before removing it.
+	 */
+	static bool bReplicateCustomDeltaPropertiesInRepIndexOrder = false;
+	static FAutoConsoleVariableRef CVarReplicateCustomDeltaPropertiesInRepIndexOrder(TEXT("net.ReplicateCustomDeltaPropertiesInRepIndexOrder"), bReplicateCustomDeltaPropertiesInRepIndexOrder, TEXT("If false (default) custom delta properties will replicate in the same order as they're added to the lifetime property array during the call to GetLifetimeReplicatedProps. If true custom delta properties will be replicated in the property RepIndex order, which is typically in increasing property offset order. Note that custom delta properties are always serialized after regular properties."));
 }
 
 extern int32 GNumSharedSerializationHit;
@@ -6180,10 +6188,16 @@ void FRepLayout::InitFromClass(
 	// Initialize lifetime props
 	// Properties that replicate for the lifetime of the channel
 	TArray<FLifetimeProperty> LifetimeProps;
+	LifetimeProps.Reserve(Parents.Num());
 
 	UObject* Object = InObjectClass->GetDefaultObject();
 
 	Object->GetLifetimeReplicatedProps(LifetimeProps);
+	// If there are custom delta properties we may have to change the order we traverse the replicated props.
+	if (UE::Net::Private::bReplicateCustomDeltaPropertiesInRepIndexOrder && (HighestCustomDeltaRepIndex != INDEX_NONE))
+	{
+		Algo::SortBy(LifetimeProps, [](const FLifetimeProperty& Element) { return Element.RepIndex; }, TLess<decltype(FLifetimeProperty::RepIndex)>());
+	}
 
 #if WITH_PUSH_MODEL
 	PushModelProperties.Init(false, Parents.Num());
