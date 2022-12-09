@@ -48,6 +48,10 @@ namespace UnrealBuildTool
 					default: Logger.LogWarning("Invalid Android architecture for ISPC. At least one architecture (armv7, x86, etc) needs to be selected in the project settings to build"); break;
 				}
 			}
+			else if (Platform == UnrealTargetPlatform.IOS)
+			{
+				ISPCTargets.Add("neon");
+			}
 			else
 			{
 				Logger.LogWarning("Unsupported ISPC platform target!");
@@ -76,6 +80,10 @@ namespace UnrealBuildTool
 			else if (Platform == UnrealTargetPlatform.Android)
 			{
 				ISPCOS += "android";
+			}
+			else if (Platform == UnrealTargetPlatform.IOS)
+			{
+				ISPCOS += "ios";
 			}
 			else if (Platform == UnrealTargetPlatform.Mac)
 			{
@@ -119,6 +127,10 @@ namespace UnrealBuildTool
 					case "-x64": ISPCArch += "x86-64"; break;
 					default: Logger.LogWarning("Invalid Android architecture for ISPC. At least one architecture (armv7, x86, etc) needs to be selected in the project settings to build"); break;
 				}
+			}
+			else if (Platform == UnrealTargetPlatform.IOS)
+			{
+				ISPCArch += "aarch64"; 
 			}
 			else
 			{
@@ -224,6 +236,7 @@ namespace UnrealBuildTool
 			}
 			else if (UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Unix) ||
 					Platform == UnrealTargetPlatform.Mac ||
+					Platform == UnrealTargetPlatform.IOS ||
 					Platform == UnrealTargetPlatform.Android)
 			{
 				Format += "obj";
@@ -251,6 +264,7 @@ namespace UnrealBuildTool
 			}
 			else if (UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Unix) ||
 					Platform == UnrealTargetPlatform.Mac ||
+					Platform == UnrealTargetPlatform.IOS ||
 					Platform == UnrealTargetPlatform.Android)
 			{
 				Suffix += ".o";
