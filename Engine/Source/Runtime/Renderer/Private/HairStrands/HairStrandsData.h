@@ -58,11 +58,13 @@ BEGIN_SHADER_PARAMETER_STRUCT(FHairStrandsInstanceParameters, )
 	SHADER_PARAMETER(float, HairStrandsVF_Length)
 	SHADER_PARAMETER(uint32, HairStrandsVF_bUseStableRasterization)
 	SHADER_PARAMETER(uint32, HairStrandsVF_VertexCount)
+	SHADER_PARAMETER(uint32, HairStrandsVF_CurveCount)
 	SHADER_PARAMETER(FVector3f, HairStrandsVF_PositionOffset)
 	SHADER_PARAMETER(FMatrix44f, HairStrandsVF_LocalToWorldPrimitiveTransform)
 	SHADER_PARAMETER(FMatrix44f, HairStrandsVF_LocalToTranslatedWorldPrimitiveTransform)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_PositionBuffer)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_PositionOffsetBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_CurveBuffer)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_CullingIndirectBuffer)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_CullingIndexBuffer)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_CullingRadiusScaleBuffer)
@@ -138,6 +140,9 @@ struct FHairStrandsVisibilityData
 	FRDGBufferRef	NodeIndirectArg = nullptr;
 	uint32			NodeGroupSize = 0;
 	FVector4f		HairOnlyDepthHZBParameters = FVector4f::Zero();
+
+	FRDGBufferSRVRef	ControlPointsSRV = nullptr;
+	FRDGTextureRef		ControlPointCount = nullptr;
 
 	FHairStrandsTiles TileData;
 

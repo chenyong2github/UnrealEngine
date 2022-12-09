@@ -356,6 +356,7 @@ struct FHairStrandsRestResource : public FHairCommonResource
 	const EHairStrandsResourcesType CurveType;
 
 	inline uint32 GetVertexCount() const { return BulkData.PointCount; }
+	inline uint32 GetCurveCount() const { return BulkData.CurveCount; }
 };
 
 struct FHairStrandsDeformedResource : public FHairCommonResource

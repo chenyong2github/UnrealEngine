@@ -214,6 +214,7 @@ public:
 			FRDGImportedBuffer Attribute1Buffer;
 			FRDGImportedBuffer PositionOffsetBuffer;
 			FRDGImportedBuffer PrevPositionOffsetBuffer;
+			FRDGImportedBuffer CurveBuffer;
 
 			FRDGExternalBuffer PositionBufferExternal;
 			FRDGExternalBuffer PrevPositionBufferExternal;
@@ -223,6 +224,7 @@ public:
 			FRDGExternalBuffer Attribute1BufferExternal;
 			FRDGExternalBuffer PositionOffsetBufferExternal;
 			FRDGExternalBuffer PrevPositionOffsetBufferExternal;
+			FRDGExternalBuffer CurveBufferExternal;
 
 			FShaderResourceViewRHIRef PositionBufferRHISRV				= nullptr;
 			FShaderResourceViewRHIRef PrevPositionBufferRHISRV			= nullptr;
@@ -232,10 +234,12 @@ public:
 			FShaderResourceViewRHIRef Attribute1BufferRHISRV			= nullptr;
 			FShaderResourceViewRHIRef PositionOffsetBufferRHISRV		= nullptr;
 			FShaderResourceViewRHIRef PrevPositionOffsetBufferRHISRV	= nullptr;
+			FShaderResourceViewRHIRef CurveBufferRHISRV					= nullptr;
 
 			FVector PositionOffset = FVector::ZeroVector;
 			FVector PrevPositionOffset = FVector::ZeroVector;
 
+			uint32 CurveCount = 0;
 			uint32 VertexCount = 0;
 			float HairRadius = 0;
 			float HairRootScale = 0;

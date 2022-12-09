@@ -130,10 +130,12 @@ float			HairStrandsVF_Density;
 uint			HairStrandsVF_bUseStableRasterization;
 float3			HairStrandsVF_PositionOffset;
 uint			HairStrandsVF_VertexCount;
+uint			HairStrandsVF_CurveCount;
 float4x4		HairStrandsVF_LocalToWorldPrimitiveTransform;
 float4x4		HairStrandsVF_LocalToTranslatedWorldPrimitiveTransform;
 Buffer<uint4>	HairStrandsVF_PositionBuffer;
 Buffer<float4>	HairStrandsVF_PositionOffsetBuffer;
+Buffer<uint>	HairStrandsVF_CurveBuffer;
 
 #if defined(PERMUTATION_CULLING) && PERMUTATION_CULLING == 1
 Buffer<uint>	HairStrandsVF_CullingIndirectBuffer;
