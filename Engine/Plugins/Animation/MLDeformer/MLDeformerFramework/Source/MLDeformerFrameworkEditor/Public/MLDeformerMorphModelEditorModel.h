@@ -54,6 +54,8 @@ namespace UE::MLDeformer
 		 */
 		void ClampMorphTargetNumber();
 
+		void UpdateMorphErrorValues(TArrayView<UMorphTarget*> MorphTargets);
+
 	protected:
 		/**
 		 * The entire set of morph target deltas, 3 per vertex, for each morph target, as one flattened buffer.

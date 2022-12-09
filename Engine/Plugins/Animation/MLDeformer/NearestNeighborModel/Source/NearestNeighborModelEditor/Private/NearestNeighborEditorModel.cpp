@@ -74,7 +74,7 @@ namespace UE::NearestNeighborModel
 			GetEditor()->GetModelDetailsView()->ForceRefresh();
 		}
 
-		if (Property->GetFName() == UNearestNeighborModel::GetMorphTargetDeltaThresholdPropertyName() || Property->GetFName() == UNearestNeighborModel::GetMorphTargetErrorTolerancePropertyName())
+		if (Property->GetFName() == UNearestNeighborModel::GetMorphCompressionLevelPropertyName() || Property->GetFName() == UNearestNeighborModel::GetMorphDeltaZeroThresholdPropertyName())
 		{
 			GetNearestNeighborModel()->InvalidateMorphTargetData();
 			GetEditor()->GetModelDetailsView()->ForceRefresh();
@@ -751,20 +751,26 @@ namespace UE::NearestNeighborModel
 			Deltas, 
 			FString("NNMorphTarget_"),
 			LOD,
-			NearestNeighborModel->GetMorphTargetDeltaThreshold(),
+			NearestNeighborModel->GetMorphDeltaZeroThreshold(),
 			NearestNeighborModel->GetIncludeMorphTargetNormals(),
 			NearestNeighborModel->GetMaskChannel(),
 			NearestNeighborModel->GetInvertMaskChannel());
 
 		check(NearestNeighborModel->GetMorphTargetSet().IsValid());
 		FMorphTargetVertexInfoBuffers& MorphBuffers = NearestNeighborModel->GetMorphTargetSet()->MorphBuffers;
-		CompressEngineMorphTargets(MorphBuffers, MorphTargets, LOD, NearestNeighborModel->GetMorphTargetErrorTolerance());
+		CompressEngineMorphTargets(MorphBuffers, MorphTargets, LOD, NearestNeighborModel->GetMorphCompressionLevel());
 
 		if (MorphBuffers.GetNumBatches() <= 0)
 		{
 			UE_LOG(LogNearestNeighborModel, Warning, TEXT("Morph buffer is empty. It is possible that all deltas are zero. No morph targets are generated."));
 			Result = EUpdateResult::WARNING;
 			NearestNeighborModel->ResetMorphBuffers();
+		}
+
+		// Remove the morph targets again, as we don't need them anymore.
+		for (UMorphTarget* MorphTarget : MorphTargets)
+		{
+			MorphTarget->ConditionalBeginDestroy();
 		}
 
 		NearestNeighborModel->SetMorphTargetDeltas(Deltas);

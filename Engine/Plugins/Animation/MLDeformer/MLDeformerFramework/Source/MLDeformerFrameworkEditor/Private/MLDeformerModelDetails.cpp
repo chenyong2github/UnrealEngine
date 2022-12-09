@@ -194,13 +194,6 @@ namespace UE::MLDeformer
 		// Bone include list group.
 		if (Model->DoesSupportBones())
 		{
-			const int NumBones = EditorModel->GetEditorInputInfo() ? EditorModel->GetEditorInputInfo()->GetNumBones() : 0;
-			const FText BonesText = FText::Format(FTextFormat(LOCTEXT("BonesGroupName", "Bones ({0})")), NumBones);;
-			FText AllBonesText;
-			if (Model->GetSkeletalMesh() && (Model->GetSkeletalMesh()->GetRefSkeleton().GetNum() == NumBones || NumBones == 0))
-			{
-				AllBonesText = LOCTEXT("BoneGroupValue", "All Bones Included");
-			}
 			IDetailGroup& BoneIncludeGroup = InputOutputCategoryBuilder->AddGroup("BoneIncludeGroup", FText(), false, false);
 			BoneIncludeGroup.HeaderRow()
 			.NameContent()
@@ -210,7 +203,14 @@ namespace UE::MLDeformer
 				.HAlign(HAlign_Right)
 				[
 					SNew(STextBlock)
-					.Text(BonesText)
+					.Text_Lambda
+					(
+						[this]()
+						{
+							const int NumBonesIncluded = EditorModel->GetEditorInputInfo() ? EditorModel->GetEditorInputInfo()->GetNumBones() : 0;
+							return FText::Format(FTextFormat(LOCTEXT("BonesGroupName", "Bones ({0})")), NumBonesIncluded);
+						}
+					)
 					.Font(IDetailLayoutBuilder::GetDetailFont())
 				]
 			]
@@ -221,7 +221,19 @@ namespace UE::MLDeformer
 				.HAlign(HAlign_Left)
 				[
 					SNew(STextBlock)
-					.Text(AllBonesText)
+					.Text_Lambda
+					(
+						[this]()
+						{
+							const int NumBonesIncluded = EditorModel->GetEditorInputInfo() ? EditorModel->GetEditorInputInfo()->GetNumBones() : 0;
+							FText AllBonesText;
+							if (Model->GetSkeletalMesh() && (Model->GetSkeletalMesh()->GetRefSkeleton().GetNum() == NumBonesIncluded || NumBonesIncluded == 0))
+							{
+								AllBonesText = LOCTEXT("BoneGroupValue", "All Bones Included");
+							}
+							return AllBonesText;
+						}
+					)
 					.Font(IDetailLayoutBuilder::GetDetailFontItalic())
 				]
 			];
@@ -249,18 +261,6 @@ namespace UE::MLDeformer
 		// Curve include list group.
 		if (Model->DoesSupportCurves())
 		{
-			const int NumCurves = EditorModel->GetEditorInputInfo() ? EditorModel->GetEditorInputInfo()->GetNumCurves() : 0;
-			const FText CurvesText = FText::Format(FTextFormat(LOCTEXT("CurvesGroupName", "Curves ({0})")), NumCurves);
-			FText AllCurvesText;
-			const int32 NumCurvesOnSkelMesh = EditorModel->GetNumCurvesOnSkeletalMesh(Model->GetSkeletalMesh());
-			if (NumCurvesOnSkelMesh == 0)
-			{
-				AllCurvesText = LOCTEXT("CurvesGroupValueNoCurves", "No Curves Found");
-			}
-			else if (NumCurves == NumCurvesOnSkelMesh)
-			{
-				AllCurvesText = LOCTEXT("CurvesGroupValue", "All Curves Included");
-			}
 			IDetailGroup& CurvesIncludeGroup = InputOutputCategoryBuilder->AddGroup("CurveIncludeGroup", LOCTEXT("CurveIncludeGroup", "Curves"), false, false);
 			CurvesIncludeGroup.HeaderRow()
 			.NameContent()
@@ -270,7 +270,14 @@ namespace UE::MLDeformer
 				.HAlign(HAlign_Right)
 				[
 					SNew(STextBlock)
-					.Text(CurvesText)
+					.Text_Lambda
+					(
+						[this]()
+						{
+							const int NumCurves = EditorModel->GetEditorInputInfo() ? EditorModel->GetEditorInputInfo()->GetNumCurves() : 0;
+							return FText::Format(FTextFormat(LOCTEXT("CurvesGroupName", "Curves ({0})")), NumCurves);
+						}
+					)
 					.Font(IDetailLayoutBuilder::GetDetailFont())
 				]
 			]
@@ -281,7 +288,23 @@ namespace UE::MLDeformer
 				.HAlign(HAlign_Left)
 				[
 					SNew(STextBlock)
-					.Text(AllCurvesText)
+					.Text_Lambda
+					(
+						[this]()
+						{
+							const int NumCurves = EditorModel->GetEditorInputInfo() ? EditorModel->GetEditorInputInfo()->GetNumCurves() : 0;
+							const int32 NumCurvesOnSkelMesh = EditorModel->GetNumCurvesOnSkeletalMesh(Model->GetSkeletalMesh());
+							if (NumCurvesOnSkelMesh == 0)
+							{
+								return LOCTEXT("CurvesGroupValueNoCurves", "No Curves Found");
+							}
+							else if (NumCurves == NumCurvesOnSkelMesh)
+							{
+								return LOCTEXT("CurvesGroupValue", "All Curves Included");
+							}
+							return FText();
+						}
+					)
 					.Font(IDetailLayoutBuilder::GetDetailFontItalic())
 				]
 			];

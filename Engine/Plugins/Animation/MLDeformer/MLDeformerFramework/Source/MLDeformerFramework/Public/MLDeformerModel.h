@@ -21,6 +21,7 @@ class UMLDeformerModelInstance;
 class UMLDeformerComponent;
 class UMLDeformerInputInfo;
 
+/** The channel to get the mask data from. */
 UENUM()
 enum class EMLDeformerMaskChannel : uint8
 {
@@ -43,6 +44,16 @@ enum class EMLDeformerMaskChannel : uint8
 
 namespace UE::MLDeformer
 {
+	/** The memory usage request flags, which you pass UMLDeformer::GetMemUsageInBytes method. */
+	enum class EMemUsageRequestFlags : uint8
+	{
+		/** Get the uncooked memory, so inside the editor. */
+		Uncooked,
+
+		/** Get the memory usage as we if are cooked. */
+		Cooked
+	};
+
 	/**
 	 * The vertex map, but in a GPU buffer. 
 	 * This map basically has a DCC vertex number for every render vertex.
@@ -138,6 +149,15 @@ public:
 	virtual bool DoesSupportCurves() const					{ return true; }
 
 	/**
+	 * Does this model support deformer quality levels?
+	 * For example Morph based models can disable certain morph targets based on this quality level.
+	 * On default this is disabled for models. You can override this method and make it return true to support it.
+	 * Morph based models on enable this on default.
+	 * @return Returns true when Deformer Quality is supported, otherwise false is returned.
+	 */
+	virtual bool DoesSupportQualityLevels() const			{ return false; }
+
+	/**
 	 * Check whether the neural network of this model should run on the GPU or not.
 	 * This is false on default, which makes it a CPU based neural network.
 	 * Some code internally that creates and initializes the neural network will use the return value of this method to mark it to be on CPU or GPU.
@@ -165,7 +185,6 @@ public:
 	 * @param SkelMesh The skeletal mesh.
 	 */
 	void SetSkeletalMesh(USkeletalMesh* SkelMesh)			{ SkeletalMesh = SkelMesh; }
-
 
 #if WITH_EDITORONLY_DATA
 	/**
@@ -209,6 +228,31 @@ public:
 	 * @return The number of imported vertices, which is the vertex count as seen in the DCC.
 	 */ 
 	static int32 ExtractNumImportedSkinnedVertices(const USkeletalMesh* SkeletalMesh);
+
+	/** Call this if you want it to recalculate the memory usage again after the tick has completed. */
+	void InvalidateMemUsage();
+
+	/** 
+	 * Check whether we invalidated the memory usage. If this returns true, we need to recompute it.
+	 * @return Returns true when we should make a call to UpdateMemoryUsage.
+	 */
+	bool IsMemUsageInvalidated() const;
+
+	/**
+	 * Get the memory usage for this model.
+	 * @param Flags The memory request flags.
+	 * @return The number of bytes that this model uses.
+	 */
+	uint64 GetMemUsageInBytes(UE::MLDeformer::EMemUsageRequestFlags Flags) const;
+
+	/**
+	 * Get the GPU memory usage for this model.
+	 * @return The number of bytes that this model uses.
+	 */
+	uint64 GetGPUMemUsageInBytes() const;
+
+	/** Force update the cached memory usage. */
+	virtual void UpdateMemoryUsage();
 #endif
 
 	// UObject overrides.
@@ -494,6 +538,21 @@ protected:
 	 * @param NumVerts The number of vertices.
 	 */
 	void SetNumTargetMeshVerts(int32 NumVerts)			{ NumTargetMeshVerts = NumVerts; }
+
+protected:
+#if WITH_EDITOR
+	/** Should we recalculate the memory usage? */
+	bool bInvalidateMemUsage = true;
+
+	/** The computed memory usage. */
+	uint64 MemUsageInBytes = 0;
+
+	/** The cooked memory usage. */
+	uint64 CookedMemUsageInBytes = 0;
+
+	/** GPU memory usage. */
+	uint64 GPUMemUsageInBytes = 0;
+#endif
 
 private:
 	/** The deformer asset that this model is part of. */

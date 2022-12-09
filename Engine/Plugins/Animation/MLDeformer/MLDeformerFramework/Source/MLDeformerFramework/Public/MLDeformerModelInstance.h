@@ -11,6 +11,7 @@
 class UMLDeformerModel;
 class UNeuralNetwork;
 class USkeletalMeshComponent;
+class UMLDeformerComponent;
 
 /**
  * An instance of the ML Deformer model.
@@ -118,6 +119,12 @@ public:
 
 	/** Check whether we already called UMLDeformerModel::PostMLDeformerComponentInit. */
 	bool HasPostInitialized() const;
+
+	/**
+	 * Get the ML Deformer component that this instance is part of.
+	 * @return A pointer to the ML Deformer component.
+	 */
+	UMLDeformerComponent* GetMLDeformerComponent() const;
 
 protected:
 	/**

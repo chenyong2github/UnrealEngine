@@ -6,6 +6,7 @@
 #include "UObject/Object.h"
 #include "Components/ActorComponent.h"
 #include "RenderCommandFence.h"
+#include "MLDeformerPerfCounter.h"
 #include "MLDeformerComponent.generated.h"
 
 class UMLDeformerAsset;
@@ -64,6 +65,28 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "MLDeformer")
 	void SetWeight(float NormalizedWeightValue)					{ SetWeightInternal(NormalizedWeightValue); }
 
+	/** 
+	 * The quality level of the deformer. A value of 0 is the highest quality, 1 is a step lower, etc.
+	 * It is up to the models to configure what each quality level means visually.
+	 * If the quality level will be clamped to the available quality levels, so if you choose quality level 100, while there are only 3 levels, then quality
+	 * level 3 will be used in this case, which represents the lowest available quality.
+	 * In morph based models each quality level defines how many morph targets are active at most.
+	 * @param InQualityLevel The quality level to switch to.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "MLDeformer")
+	void SetQualityLevel(int32 InQualityLevel)					{ QualityLevel = FMath::Max<int32>(InQualityLevel, 0); }
+
+	/** 
+	 * The quality level of the deformer. A value of 0 is the highest quality, 1 is a step lower, etc.
+	 * It is up to the models to configure what each quality level means visually.
+	 * If the quality level will be clamped to the available quality levels, so if you choose quality level 100, while there are only 3 levels, then quality
+	 * level 3 will be used in this case, which represents the lowest available quality.
+	 * In morph based models each quality level defines how many morph targets are active at most.
+	 * @param InQualityLevel The quality level to switch to.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "MLDeformer")
+	int32 GetQualityLevel() const								{ return QualityLevel; }
+
 	/**
 	 * Get the ML Deformer asset that is used by this component.
 	 * @return A pointer to the ML Deformer asset.
@@ -116,9 +139,17 @@ public:
 	 */
 	void SetSuppressMeshDeformerLogWarnings(bool bSuppress)		{ bSuppressMeshDeformerLogWarnings = bSuppress; }
 
+#if WITH_EDITOR
+	/**
+	 * Get the performance counter that measures how much time is spent inside the Tick function.
+	 */
+	const UE::MLDeformer::FMLDeformerPerfCounter& GetTickPerfCounter() const	{ return TickPerfCounter; }
+#endif
+
 	// Get property names.
 	static FName GetDeformerAssetPropertyName()					{ return GET_MEMBER_NAME_CHECKED(UMLDeformerComponent, DeformerAsset); }
 	static FName GetWeightPropertyName()						{ return GET_MEMBER_NAME_CHECKED(UMLDeformerComponent, Weight); }
+	static FName GetQualityLevelPropertyName()					{ return GET_MEMBER_NAME_CHECKED(UMLDeformerComponent, QualityLevel); }
 
 protected:
 	// AActorComponent overrides.
@@ -145,7 +176,17 @@ protected:
 	/** Set the ML Deformer asset. */
 	virtual void SetDeformerAssetInternal(UMLDeformerAsset* const InDeformerAsset) { DeformerAsset = InDeformerAsset; UpdateSkeletalMeshComponent(); }
 
+#if WITH_EDITOR
+	/** Reset the tick cycle counters. */
+	void ResetTickCycleCounters();
+#endif
+
 protected:
+#if WITH_EDITOR
+	/** The performance counter that measures timing of the Tick function. */
+	UE::MLDeformer::FMLDeformerPerfCounter TickPerfCounter;
+#endif
+
 	/** Render command fence that let's us wait for all other commands to finish. */
 	FRenderCommandFence RenderCommandFence;
 
@@ -169,6 +210,16 @@ protected:
 	/** How active is this deformer? Can be used to blend it in and out. */
 	UPROPERTY(EditAnywhere, Category = "ML Deformer", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float Weight = 1.0f;
+
+	/**
+	 * The quality level of the deformer. A value of 0 is the highest quality, 1 is a step lower, etc.
+	 * It is up to the models to configure what each quality level means visually.
+	 * If the quality level will be clamped to the available quality levels, so if you choose quality level 100, while there are only 3 levels, then quality
+	 * level 3 will be used in this case, which represents the lowest available quality.
+	 * In morph based models each quality level defines how many morph targets are active at most.
+	 */
+	UPROPERTY(EditAnywhere, Category = "ML Deformer", meta = (ClampMin = "0"))
+	int32 QualityLevel = 0;
 
 	/** The deformation model instance. This is used to perform the runtime updates and run the inference. */
 	UPROPERTY(Transient)

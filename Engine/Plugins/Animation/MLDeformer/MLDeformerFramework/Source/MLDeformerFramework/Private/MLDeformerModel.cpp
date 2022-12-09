@@ -141,6 +141,10 @@ void UMLDeformerModel::PostLoad()
 			Network->SetDeviceType(ENeuralDeviceType::CPU, ENeuralDeviceType::CPU, ENeuralDeviceType::CPU);
 		}
 	}
+
+	#if WITH_EDITOR
+		UpdateMemoryUsage();
+	#endif
 }
 
 void UMLDeformerModel::SetNeuralNetwork(UNeuralNetwork* InNeuralNetwork)
@@ -226,6 +230,59 @@ void UMLDeformerModel::FloatArrayToVector3Array(const TArray<float>& FloatArray,
 	int32 UMLDeformerModel::ExtractNumImportedSkinnedVertices(const USkeletalMesh* SkeletalMesh)
 	{
 		return SkeletalMesh ? SkeletalMesh->GetNumImportedVertices() : 0;
+	}
+
+	void UMLDeformerModel::InvalidateMemUsage()
+	{
+		bInvalidateMemUsage = true;
+	}
+
+	uint64 UMLDeformerModel::GetMemUsageInBytes(UE::MLDeformer::EMemUsageRequestFlags Flags) const
+	{
+		return (Flags == UE::MLDeformer::EMemUsageRequestFlags::Cooked) ? CookedMemUsageInBytes : MemUsageInBytes;
+	}
+
+	uint64 UMLDeformerModel::GetGPUMemUsageInBytes() const
+	{
+		return GPUMemUsageInBytes;
+	}
+
+	bool UMLDeformerModel::IsMemUsageInvalidated() const
+	{
+		return bInvalidateMemUsage;
+	}
+
+	void UMLDeformerModel::UpdateMemoryUsage()
+	{
+		bInvalidateMemUsage = false;
+		MemUsageInBytes = 0;
+		GPUMemUsageInBytes = 0;
+
+		// Get the size of the model to get an approximate size.
+		UMLDeformerModel* Model = const_cast<UMLDeformerModel*>(this);
+		MemUsageInBytes += static_cast<uint64>(Model->GetResourceSizeBytes(EResourceSizeMode::Type::EstimatedTotal));
+
+		// Init the cooked size. We can subtract bytes from this to simulate a cook.
+		CookedMemUsageInBytes = MemUsageInBytes;
+
+		// Add GPU memory.
+		if (VertexMapBuffer.VertexBufferRHI.IsValid())
+		{
+			GPUMemUsageInBytes += VertexMapBuffer.VertexBufferRHI->GetSize();
+		}
+
+		// Check if the neural network is on the GPU, if so, count the memory to the GPU and remove it from Main memory, as we added it to 
+		// that already when we did the Model->GetResourceSizeBytes.
+		if (NeuralNetwork)
+		{
+			if (NeuralNetwork->GetDeviceType() == ENeuralDeviceType::GPU)
+			{
+				const uint64 NeuralNetSize = static_cast<uint64>(NeuralNetwork->GetResourceSizeBytes(EResourceSizeMode::Type::EstimatedTotal));
+				GPUMemUsageInBytes += NeuralNetSize;
+				MemUsageInBytes -= NeuralNetSize;
+				CookedMemUsageInBytes -= NeuralNetSize;
+			}
+		}
 	}
 #endif	// #if WITH_EDITOR
 

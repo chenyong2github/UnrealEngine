@@ -573,6 +573,9 @@ namespace UE::MLDeformer
 		 */
 		virtual void GenerateNormalsForMorphTarget(int32 LOD, USkeletalMesh* SkelMesh, int32 MorphTargetIndex, TArrayView<const FVector3f> Deltas, TArrayView<const FVector3f> BaseVertexPositions, TArrayView<FVector3f> BaseNormals, TArray<FVector3f>& OutDeltaNormals);
 
+		/** Invalidate the memory usage, so it gets updated in the UI again. */
+		void UpdateMemoryUsage();	
+
 		/** Get the current view range. */
 		TRange<double> GetViewRange() const;
 
@@ -772,6 +775,13 @@ namespace UE::MLDeformer
 		 * @param DrawOffset An offset to perform the debug draw at.
 		 */
 		void DrawMorphTarget(FPrimitiveDrawInterface* PDI, const TArray<FVector3f>& MorphDeltas, float DeltaThreshold, int32 MorphTargetIndex, const FVector& DrawOffset);
+
+		/**
+		 * Find the ML Deformer component of a given editor actor.
+		 * @param ActorID The actor ID to get the component for.
+		 * @return A pointer to the ML Deformer component, if it exists on the actor, otherwise nullptr is returned.
+		 */
+		UMLDeformerComponent* FindMLDeformerComponent(int32 ActorID = ActorID_Test_MLDeformed) const;
 
 	protected:
 		/**

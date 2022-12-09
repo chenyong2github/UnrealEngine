@@ -100,6 +100,10 @@ void UMLDeformerComponent::SetupComponent(UMLDeformerAsset* InDeformerAsset, USk
 			);
 		}
 	}
+
+	#if WITH_EDITOR
+		TickPerfCounter.Reset();
+	#endif
 }
 
 void UMLDeformerComponent::AddNeuralNetworkModifyDelegate()
@@ -199,6 +203,10 @@ void UMLDeformerComponent::Activate(bool bReset)
 
 void UMLDeformerComponent::Deactivate()
 {
+	#if WITH_EDITOR
+		TickPerfCounter.Reset();
+	#endif
+
 	RemoveNeuralNetworkModifyDelegate();
 	if (ModelInstance)
 	{
@@ -210,6 +218,10 @@ void UMLDeformerComponent::Deactivate()
 
 void UMLDeformerComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
+	#if WITH_EDITOR
+		TickPerfCounter.BeginSample();
+	#endif
+
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 	if (TickType != ELevelTick::LEVELTICK_PauseTick)
 	{
@@ -219,8 +231,22 @@ void UMLDeformerComponent::TickComponent(float DeltaTime, enum ELevelTick TickTy
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(UMLDeformerComponent::TickComponent)
 			ModelInstance->Tick(DeltaTime, Weight);
+
+			#if WITH_EDITOR
+				// Update our memory usage if desired.
+				// This can be pretty slow.
+				UMLDeformerModel* Model = ModelInstance->GetModel();
+				if (Model->IsMemUsageInvalidated())
+				{
+					Model->UpdateMemoryUsage();
+				}
+			#endif
 		}
 	}
+
+	#if WITH_EDITOR
+		TickPerfCounter.EndSample();
+	#endif
 }
 
 #if WITH_EDITOR

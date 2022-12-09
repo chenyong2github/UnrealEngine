@@ -29,6 +29,11 @@ void UMLDeformerMorphModel::Serialize(FArchive& Archive)
 	bool bHasMorphData = false;
 	if (Archive.IsSaving())
 	{
+		if (Archive.IsCooking())
+		{
+			MorphTargetDeltas.Empty();
+		}
+
 		bHasMorphData = MorphTargetSet.IsValid() ? MorphTargetSet->MorphBuffers.IsMorphCPUDataValid() : false;
 	}
 	Archive << bHasMorphData;
@@ -39,6 +44,16 @@ void UMLDeformerMorphModel::Serialize(FArchive& Archive)
 		check(MorphTargetSet.IsValid());
 		Archive << MorphTargetSet->MorphBuffers;
 	}
+}
+
+void UMLDeformerMorphModel::PostLoad()
+{
+	Super::PostLoad();
+	UpdateStatistics();
+
+#if WITH_EDITOR
+	InvalidateMemUsage();
+#endif
 }
 
 UMLDeformerModelInstance* UMLDeformerMorphModel::CreateModelInstance(UMLDeformerComponent* Component)
@@ -78,5 +93,83 @@ void UMLDeformerMorphModel::BeginDestroy()
 	}
 	Super::BeginDestroy();
 }
+
+void UMLDeformerMorphModel::SetMorphTargetsErrorOrder(const TArray<int32>& MorphTargetOrder, const TArray<float>& ErrorValues)
+{
+	MorphTargetErrorOrder = MorphTargetOrder;
+	MorphTargetErrors = ErrorValues;
+}
+
+void UMLDeformerMorphModel::UpdateStatistics()
+{
+	NumMorphTargets = MorphTargetSet.IsValid() ? MorphTargetSet->MorphBuffers.GetNumMorphs() : 0;
+	CompressedMorphDataSizeInBytes = MorphTargetSet.IsValid() ? MorphTargetSet->MorphBuffers.GetMorphDataSizeInBytes() : 0;
+	UncompressedMorphDataSizeInBytes = GetMorphTargetDeltas().Num() * sizeof(FVector3f);
+}
+
+void UMLDeformerMorphModel::SetMorphTargetsMaxWeights(const TArray<float>& MaxWeights)
+{
+	MaxMorphWeights = MaxWeights;
+}
+
+TArrayView<const float> UMLDeformerMorphModel::GetMorphTargetMaxWeights() const
+{
+	return MaxMorphWeights;
+}
+
+TArrayView<const float> UMLDeformerMorphModel::GetMorphTargetErrorValues() const
+{
+	return MorphTargetErrors;
+}
+
+TArrayView<const int32> UMLDeformerMorphModel::GetMorphTargetErrorOrder() const
+{ 
+	return MorphTargetErrorOrder;
+}
+
+TArrayView<const FMLDeformerMorphModelQualityLevel> UMLDeformerMorphModel::GetQualityLevels() const
+{
+	return QualityLevels;
+}
+
+TArray<FMLDeformerMorphModelQualityLevel>& UMLDeformerMorphModel::GetQualityLevelsArray()
+{
+	return QualityLevels;
+}
+
+float UMLDeformerMorphModel::GetMorphTargetError(int32 MorphIndex) const
+{ 
+	return MorphTargetErrors[MorphIndex];
+}
+
+void UMLDeformerMorphModel::SetMorphTargetError(int32 MorphIndex, float Error)
+{ 
+	MorphTargetErrors[MorphIndex] = Error;
+}
+
+int32 UMLDeformerMorphModel::GetNumActiveMorphs(int32 QualityLevel) const
+{
+	if (QualityLevels.IsEmpty() || MorphTargetErrorOrder.IsEmpty() || MorphTargetErrors.IsEmpty())
+	{
+		return FMath::Max<int32>(0, NumMorphTargets - 1);	// -1 Because this number includes the means morph target.
+	}
+
+	const int32 ClampedQualityLevel = FMath::Clamp<int32>(QualityLevel, 0, QualityLevels.Num() - 1);
+	const int32 NumActiveMorphs = FMath::Clamp<int32>(QualityLevels[ClampedQualityLevel].GetMaxActiveMorphs(), 0, NumMorphTargets - 1);	// -1 Because we want to exclude the means morph target.
+	return NumActiveMorphs;
+}
+
+#if WITH_EDITOR
+void UMLDeformerMorphModel::UpdateMemoryUsage()
+{
+	Super::UpdateMemoryUsage();
+
+	// We strip the deltas when cooking.
+	CookedMemUsageInBytes -= MorphTargetDeltas.Num() * sizeof(FVector3f);
+
+	// Add the compressed morph size.
+	GPUMemUsageInBytes += GetCompressedMorphDataSizeInBytes();
+}
+#endif
 
 #undef LOCTEXT_NAMESPACE

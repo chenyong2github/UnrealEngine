@@ -63,6 +63,11 @@ public:
 		return PositionPrecision;
 	}
 
+	uint64 GetMorphDataSizeInBytes() const 
+	{ 
+		return MorphData.Num() * sizeof(uint32);
+	}
+
 	static const float CalculatePositionPrecision(float TargetPositionErrorTolerance);
 
 	const float GetTangentZPrecision() const

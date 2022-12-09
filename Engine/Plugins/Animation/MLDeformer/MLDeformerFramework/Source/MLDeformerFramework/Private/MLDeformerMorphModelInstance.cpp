@@ -2,6 +2,7 @@
 
 #include "MLDeformerMorphModelInstance.h"
 #include "MLDeformerMorphModel.h" 
+#include "MLDeformerComponent.h" 
 #include "NeuralNetwork.h"
 #include "Components/ExternalMorphSet.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -21,6 +22,11 @@ void UMLDeformerMorphModelInstance::Init(USkeletalMeshComponent* SkelMeshCompone
 bool UMLDeformerMorphModelInstance::IsValidForDataProvider() const
 {
 	return true;
+}
+
+int32 UMLDeformerMorphModelInstance::GetExternalMorphSetID() const
+{ 
+	return ExternalMorphSetID;
 }
 
 void UMLDeformerMorphModelInstance::Release()
@@ -97,6 +103,39 @@ void UMLDeformerMorphModelInstance::PostMLDeformerComponentInit()
 	}
 }
 
+void UMLDeformerMorphModelInstance::Tick(float DeltaTime, float ModelWeight)
+{
+	// Detect changes in quality level.
+	const int32 CurrentQualityLevel = GetMLDeformerComponent()->GetQualityLevel();
+	if (CurrentQualityLevel != LastQualityLevel)
+	{
+		LastQualityLevel = CurrentQualityLevel;
+		MorphLerpAlpha = 0.0f;
+
+		const int LOD = 0;	// For now we only support LOD 0, as we can't setup an ML Deformer per LOD yet.
+		FExternalMorphSetWeights* WeightData = FindWeightData(LOD);
+		if (WeightData)
+		{
+			StartMorphWeights = WeightData->Weights;
+		}
+	}
+
+	if (StartMorphWeights.IsEmpty())
+	{
+		const UMLDeformerMorphModel* MorphModel = Cast<UMLDeformerMorphModel>(Model);
+		StartMorphWeights.SetNumZeroed(MorphModel->GetNumMorphTargets());
+	}
+
+	Super::Tick(DeltaTime, ModelWeight);
+
+	// Update the morph lerp towards the target.
+	MorphLerpAlpha += DeltaTime * 10.0f;
+	if (MorphLerpAlpha > 1.0f)
+	{
+		MorphLerpAlpha = 1.0f;
+	}
+}
+
 FExternalMorphSetWeights* UMLDeformerMorphModelInstance::FindWeightData(int32 LOD) const
 {
 	const UMLDeformerMorphModel* MorphModel = Cast<UMLDeformerMorphModel>(Model);
@@ -160,18 +199,40 @@ void UMLDeformerMorphModelInstance::Execute(float ModelWeight)
 		if (NumMorphTargets == NumNetworkWeights + 1)
 		{
 			// Set the first morph target, which represents the means, to a weight of 1.0, as it always needs to be fully active.
-			WeightData->Weights[0] = 1.0f * ModelWeight;
+			WeightData->Weights[0] = ModelWeight;
 
 			// Update all generated morph target weights with the values calculated by our neural network.
-			for (int32 MorphIndex = 0; MorphIndex < NumNetworkWeights; ++MorphIndex)
+			UMLDeformerMorphModel* MorphModel = Cast<UMLDeformerMorphModel>(Model);
+			const TArrayView<const float> ErrorValues = MorphModel->GetMorphTargetErrorValues();
+			const TArrayView<const int32> ErrorOrder = MorphModel->GetMorphTargetErrorOrder();
+			if (!ErrorValues.IsEmpty())
 			{
-				const float OutputTensorValue = OutputTensor.At<float>(MorphIndex);
-				WeightData->Weights[MorphIndex + 1] = OutputTensorValue * ModelWeight;
+				const int32 QualityLevel = GetMLDeformerComponent()->GetQualityLevel();
+				const int32 NumActiveMorphs = MorphModel->GetNumActiveMorphs(QualityLevel);
+				for (int32 Index = 0; Index < NumActiveMorphs; ++Index)
+				{
+					const int32 MorphIndex = ErrorOrder[Index];
+					const float TargetWeight = OutputTensor.At<float>(MorphIndex) * ModelWeight;
+					WeightData->Weights[MorphIndex + 1] = FMath::Lerp<float, float>(StartMorphWeights[MorphIndex + 1], TargetWeight, MorphLerpAlpha);
+				}
+
+				// Disable all inactive morphs.
+				for (int32 Index = NumActiveMorphs; Index < NumNetworkWeights; ++Index)
+				{
+					const int32 MorphIndex = ErrorOrder[Index];
+					WeightData->Weights[MorphIndex + 1] = FMath::Lerp<float, float>(StartMorphWeights[MorphIndex + 1], 0.0f, MorphLerpAlpha);
+				}
 			}
+			else
+			{
+				for (int32 MorphIndex = 0; MorphIndex < NumNetworkWeights; ++MorphIndex)
+				{
+					WeightData->Weights[MorphIndex + 1] = OutputTensor.At<float>(MorphIndex) * ModelWeight;
+				}
+			}
+			return;
 		}
 	}
-	else
-	{
-		WeightData->ZeroWeights();
-	}
+
+	WeightData->ZeroWeights();
 }

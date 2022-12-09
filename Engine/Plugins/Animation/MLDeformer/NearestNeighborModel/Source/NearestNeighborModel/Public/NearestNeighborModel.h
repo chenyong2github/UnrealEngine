@@ -157,6 +157,7 @@ public:
 	virtual void PostLoad() override;
 
 	// UMLDeformerModel overrides.
+	virtual bool DoesSupportQualityLevels() const override { return false; }
 	virtual UMLDeformerModelInstance* CreateModelInstance(UMLDeformerComponent* Component) override;
 	virtual UMLDeformerInputInfo* CreateInputInfo() override;
 	virtual FString GetDisplayName() const override { return "Nearest Neighbor Model"; }

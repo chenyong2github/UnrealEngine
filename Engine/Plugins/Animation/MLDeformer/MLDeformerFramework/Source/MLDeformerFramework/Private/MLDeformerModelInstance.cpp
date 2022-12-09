@@ -5,6 +5,7 @@
 #include "MLDeformerModule.h"
 #include "MLDeformerAsset.h"
 #include "MLDeformerInputInfo.h"
+#include "MLDeformerComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
 #include "Animation/AnimInstance.h"
@@ -47,6 +48,11 @@ UMLDeformerModel* UMLDeformerModelInstance::GetModel() const
 void UMLDeformerModelInstance::SetModel(UMLDeformerModel* InModel)
 { 
 	Model = InModel;
+}
+
+UMLDeformerComponent* UMLDeformerModelInstance::GetMLDeformerComponent() const
+{ 
+	return Cast<UMLDeformerComponent>(GetOuter());
 }
 
 int32 UMLDeformerModelInstance::GetNeuralNetworkInferenceHandle() const

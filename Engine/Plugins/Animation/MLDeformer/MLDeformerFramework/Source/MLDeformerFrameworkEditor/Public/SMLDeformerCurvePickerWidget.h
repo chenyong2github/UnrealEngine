@@ -7,7 +7,6 @@
 #include "SlateFwd.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/STableRow.h"
 
 class SComboButton;

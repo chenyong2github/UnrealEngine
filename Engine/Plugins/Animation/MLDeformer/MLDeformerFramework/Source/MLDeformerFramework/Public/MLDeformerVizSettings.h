@@ -58,6 +58,7 @@ public:
 	void SetTrainingFrameNumber(int32 FrameNumber)			{ TrainingFrameNumber = FrameNumber; }
 	void SetTestingFrameNumber(int32 FrameNumber)			{ TestingFrameNumber = FrameNumber; }
 	void SetWeight(float InWeight)							{ Weight = InWeight; }
+	void SetQualityLevel(int32 InQualityLevel)				{ QualityLevel = FMath::Max<int32>(InQualityLevel, 0); }
 
 	FVector GetMeshSpacingOffsetVector() const				{ return FVector(MeshSpacing, 0.0f, 0.0f); }
 	float GetMeshSpacing() const							{ return MeshSpacing; }
@@ -81,6 +82,7 @@ public:
 	float GetWeight() const									{ return Weight; }
 	bool GetXRayDeltas() const								{ return bXRayDeltas; }
 	bool GetDrawVertexDeltas() const						{ return bDrawDeltas; }
+	int32 GetQualityLevel() const							{ return QualityLevel; }
 
 	// Get property names.
 	static FName GetVisualizationModePropertyName()			{ return GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, VisualizationMode); }
@@ -103,6 +105,7 @@ public:
 	static FName GetWeightPropertyName()					{ return GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, Weight); }
 	static FName GetXRayDeltasPropertyName()				{ return GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, bXRayDeltas); }
 	static FName GetDrawVertexDeltasPropertyName()			{ return GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, bDrawDeltas); }
+	static FName GetQualityLevelPropertyName()				{ return GET_MEMBER_NAME_CHECKED(UMLDeformerVizSettings, QualityLevel); }
 #endif
 
 protected:
@@ -147,6 +150,14 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Live Settings", meta = (ClampMin = "0"))
 	int32 TestingFrameNumber = 0;
 
+	/*
+	 * The ML Deformer LOD value. This is a continuous value between 0 and 1, where 0 means maximum quality and 1 means the lowest quality.
+	 * Morph based models will disable certain morph targets when increasing this value, which will lead to lower quality, but better GPU performance.
+	 * Each model can decide how to use this value. Some models might not support this.
+	 */
+	UPROPERTY(EditAnywhere, Transient, Category = "Live Settings", meta = (ClampMin = "0"))
+	int32 QualityLevel = 0;
+
 	/** Specify whether the heatmap is enabled or not. */
 	UPROPERTY(EditAnywhere, Category = "Live Settings")
 	bool bShowHeatMap = false;
@@ -170,7 +181,7 @@ protected:
 	 * A value of 0 means that we look exactly the same as the ML Deformed output, while a value of 1 means
 	 * the output is exactly the same as the ground truth. This is the blend factor between those two.
 	 */
-	UPROPERTY(EditAnywhere, Category = "Live Settings", meta = (EditCondition = "HeatMapMode==EMLDeformerHeatMapMode::GroundTruth && bShowHeatMap", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
+	UPROPERTY(EditAnywhere, Transient, Category = "Live Settings", meta = (EditCondition = "HeatMapMode==EMLDeformerHeatMapMode::GroundTruth && bShowHeatMap", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
 	float GroundTruthLerp = 0.0f;
 
 	/** Specifies whether we draw the linear skinned model or not. */
@@ -186,7 +197,7 @@ protected:
 	bool bDrawGroundTruthActor = true;
 
 	/** The scale factor of the ML deformer deltas being applied on top of the linear skinned results. */
-	UPROPERTY(EditAnywhere, Category = "Live Settings", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	UPROPERTY(EditAnywhere, Transient, Category = "Live Settings", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float Weight = 1.0f;
 
 	/** Specifiy whether we want to draw the vertex deltas or not. */

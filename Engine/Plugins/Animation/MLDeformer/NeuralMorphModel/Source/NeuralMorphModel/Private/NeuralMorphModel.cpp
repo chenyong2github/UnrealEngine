@@ -57,7 +57,7 @@ void UNeuralMorphModel::Serialize(FArchive& Archive)
 		// Show a warning when we are not using custom inference yet on this model.
 		if (NeuralMorphNetwork == nullptr && NNINeuralNetwork != nullptr)
 		{
-			UE_LOG(LogNeuralMorphModel, Warning, TEXT("Neural Morph Model in MLD asset '%s' should be retrained to get higher performance by taking advantage of custom inference."), *GetDeformerAsset()->GetName());
+			UE_LOG(LogNeuralMorphModel, Display, TEXT("Neural Morph Model in MLD asset '%s' should be retrained to get higher performance by taking advantage of custom inference."), *GetDeformerAsset()->GetName());
 		}
 
 		// If we have a custom inference network, make sure we don't save out the NNI network.
@@ -79,7 +79,7 @@ void UNeuralMorphModel::PostLoad()
 	// Show a warning when we are not using custom inference yet on this model.
 	if (NeuralMorphNetwork == nullptr && GetNeuralNetwork() != nullptr)
 	{
-		UE_LOG(LogNeuralMorphModel, Warning, TEXT("Neural Morph Model in MLD asset '%s' should be retrained to get higher performance by taking advantage of custom inference."), *GetDeformerAsset()->GetName());
+		UE_LOG(LogNeuralMorphModel, Display, TEXT("Neural Morph Model in MLD asset '%s' should be retrained to get higher performance by taking advantage of custom inference."), *GetDeformerAsset()->GetName());
 	}
 #endif
 }

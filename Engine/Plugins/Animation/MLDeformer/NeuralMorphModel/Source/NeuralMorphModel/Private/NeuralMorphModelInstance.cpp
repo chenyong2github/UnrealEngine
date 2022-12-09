@@ -3,6 +3,7 @@
 #include "NeuralMorphModelInstance.h"
 #include "NeuralMorphModel.h"
 #include "NeuralMorphNetwork.h"
+#include "MLDeformerComponent.h"
 #include "MLDeformerAsset.h"
 #include "Components/ExternalMorphSet.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -102,13 +103,35 @@ void UNeuralMorphModelInstance::Execute(float ModelWeight)
 		if (NumMorphTargets == NumNetworkWeights + 1)
 		{
 			// Set the first morph target, which represents the means, to a weight of 1.0, as it always needs to be fully active.
-			WeightData->Weights[0] = 1.0f * ModelWeight;
+			WeightData->Weights[0] = ModelWeight;
 
 			// Update all generated morph target weights with the values calculated by our neural network.
-			for (int32 MorphIndex = 0; MorphIndex < NumNetworkWeights; ++MorphIndex)
+			const TArrayView<const float> ErrorValues = MorphModel->GetMorphTargetErrorValues();
+			const TArrayView<const int32> ErrorOrder = MorphModel->GetMorphTargetErrorOrder();
+			if (!ErrorValues.IsEmpty())
 			{
-				const float OutputTensorValue = NetworkOutputs[MorphIndex];
-				WeightData->Weights[MorphIndex + 1] = OutputTensorValue * ModelWeight;
+				const int32 QualityLevel = GetMLDeformerComponent()->GetQualityLevel();
+				const int32 NumActiveMorphs = MorphModel->GetNumActiveMorphs(QualityLevel);
+				for (int32 Index = 0; Index < NumActiveMorphs; ++Index)
+				{
+					const int32 MorphIndex = ErrorOrder[Index];
+					const float TargetWeight = NetworkOutputs[MorphIndex] * ModelWeight;
+					WeightData->Weights[MorphIndex + 1] = FMath::Lerp<float, float>(StartMorphWeights[MorphIndex + 1], TargetWeight, MorphLerpAlpha);
+				}
+
+				// Disable all inactive morphs.
+				for (int32 Index = NumActiveMorphs; Index < NumNetworkWeights; ++Index)
+				{
+					const int32 MorphIndex = ErrorOrder[Index];
+					WeightData->Weights[MorphIndex + 1] = FMath::Lerp<float, float>(StartMorphWeights[MorphIndex + 1], 0.0f, MorphLerpAlpha);
+				}
+			}
+			else
+			{
+				for (int32 MorphIndex = 0; MorphIndex < NumNetworkWeights; ++MorphIndex)
+				{
+					WeightData->Weights[MorphIndex + 1] = NetworkOutputs[MorphIndex] * ModelWeight;
+				}
 			}
 			return;
 		}

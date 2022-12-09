@@ -9,6 +9,7 @@
 
 class IDetailCategoryBuilder;
 class IDetailLayoutBuilder;
+class IDetailGroup;
 class USkeleton;
 class UMLDeformerModel;
 class UMLDeformerVizSettings;
@@ -63,6 +64,17 @@ namespace UE::MLDeformer
 		/** Add any additional settings. */
 		virtual void AddAdditionalSettings() {}
 
+		/** Add any statistics. */
+		virtual void AddStatistics();
+
+		void AddStatsPerfRow(
+			IDetailGroup& Group,
+			const FText& Label,
+			const FMLDeformerEditorModel* InEditorModel,
+			const FNumberFormattingOptions& Format,
+			bool bHighlight,
+			TFunctionRef<int32(const FMLDeformerEditorModel*)> GetCyclesFunction);
+
 	protected:
 		/** Associated detail layout builder. */
 		IDetailLayoutBuilder* DetailLayoutBuilder = nullptr;
@@ -87,5 +99,26 @@ namespace UE::MLDeformer
 
 		/** A pointer to the training mesh category. This is only visible in training mode. */
 		IDetailCategoryBuilder* TrainingMeshesCategoryBuilder = nullptr;
+
+		/** A pointer to the statistics category. */
+		IDetailCategoryBuilder* StatsCategoryBuilder = nullptr;
+
+		/** The performance group inside the statistics category. */
+		IDetailGroup* StatsPerformanceGroup = nullptr;
+
+		/** The memory usage group inside the statistics category. */
+		IDetailGroup* StatsMemUsageGroup = nullptr;
+
+		/** Main memory usage subgroup. */
+		IDetailGroup* StatsMainMemUsageGroup = nullptr;
+
+		/** GPU memory usage subgroup. */
+		IDetailGroup* StatsGPUMemUsageGroup = nullptr;
+
+		/** Number format used for performance numbers. */
+		FNumberFormattingOptions PerformanceMetricFormat;
+
+		/** Number format used for memory usage numbers. */
+		FNumberFormattingOptions MemUsageMetricFormat;
 	};
 }	// namespace UE::MLDeformer

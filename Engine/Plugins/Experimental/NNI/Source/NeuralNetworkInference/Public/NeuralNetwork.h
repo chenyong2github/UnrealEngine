@@ -451,6 +451,8 @@ public: // It should really say "private-for-user, public-for-auxiliary-NNI-clas
 	TObjectPtr<class UAssetImportData> GetAndMaybeCreateAssetImportData();
 #endif // WITH_EDITOR
 
+	virtual void Serialize(FArchive& Archive) override;
+
 private:
 	/**
 	 * The back end to be used (it could and should be set to Auto). @see ENeuralBackEnd for more details.
@@ -480,6 +482,5 @@ private:
 	//~UObject interface
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
-	virtual void Serialize(FArchive& Archive) override;
 	//~End of UObject interface
 };

@@ -827,7 +827,6 @@ namespace UE::MLDeformer
 		if (ActiveModel.IsValid())
 		{
 			ActiveModel->SetViewRange(ViewRange);
-
 		}
 	}
 }	// namespace UE::MLDeformer
