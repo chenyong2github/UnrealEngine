@@ -87,8 +87,6 @@ void FWorldPartitionDestructibleHLODState::SetActorHealth(int32 InActorIndex, ui
 
 		DamagedActor.ActorHealth = InActorHealth;
 		MarkItemDirty(DamagedActor);
-
-		OwnerComponent->GetOwner()->FlushNetDormancy();
 	}
 
 	// If we are the client, directly update the visibility buffer
