@@ -27,18 +27,6 @@
 #include "Misc/CoreDelegates.h"
 #include "RHIFwd.h"
 
-// RHI_WANT_RESOURCE_INFO should be controlled by the RHI module.
-#ifndef RHI_WANT_RESOURCE_INFO
-#define RHI_WANT_RESOURCE_INFO 0
-#endif
-
-// RHI_FORCE_DISABLE_RESOURCE_INFO can be defined anywhere else, like in GlobalDefinitions.
-#ifndef RHI_FORCE_DISABLE_RESOURCE_INFO
-#define RHI_FORCE_DISABLE_RESOURCE_INFO 0
-#endif
-
-#define RHI_ENABLE_RESOURCE_INFO (RHI_WANT_RESOURCE_INFO && !RHI_FORCE_DISABLE_RESOURCE_INFO)
-
 class FRHIComputeCommandList;
 class FRHICommandListImmediate;
 struct FClearValueBinding;
