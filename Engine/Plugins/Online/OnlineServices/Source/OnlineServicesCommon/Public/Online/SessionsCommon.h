@@ -328,7 +328,7 @@ protected:
 
 private:
 	template<typename MethodStruct>
-	TOnlineAsyncOpHandle<MethodStruct> ExecuteAsyncSessionsMethod(typename MethodStruct::Params&& Params, TFuture<TOnlineResult<MethodStruct>>(FSessionsCommon::* ImplFunc)(const typename MethodStruct::Params& Params));
+	TOnlineAsyncOpHandle<MethodStruct> ExecuteAsyncSessionsMethod(typename MethodStruct::Params&& Params, TFuture<TOnlineResult<MethodStruct>>(FSessionsCommon::* ImplFunc)(const typename MethodStruct::Params& Params), bool bUseParallelQueue = false);
 
 	void ClearSessionByName(const FName& SessionName);
 	void ClearSessionById(const FOnlineSessionId& SessionId);
