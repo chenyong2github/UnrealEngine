@@ -25,6 +25,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "VRNotificationsComponent.h"
 #include "RenderUtils.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "AudioDevice.h"
 
 #define LOCTEXT_NAMESPACE "OculusMR_CastingCameraActor"

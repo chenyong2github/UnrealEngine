@@ -13,6 +13,7 @@
 #include "MetalCommandBuffer.h"
 #include "MetalProfiler.h"
 #include "MetalFrameAllocator.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #pragma mark - Private Console Variables -
 

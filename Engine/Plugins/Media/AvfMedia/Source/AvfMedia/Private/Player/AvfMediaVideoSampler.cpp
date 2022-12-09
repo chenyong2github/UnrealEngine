@@ -10,6 +10,7 @@
 #if WITH_ENGINE
 #include "RenderingThread.h"
 #include "RHI.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "MediaShaders.h"
 #include "StaticBoundShaderState.h"
 #include "Misc/ScopeLock.h"

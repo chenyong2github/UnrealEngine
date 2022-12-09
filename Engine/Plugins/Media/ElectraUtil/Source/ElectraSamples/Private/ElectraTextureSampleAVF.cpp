@@ -9,6 +9,7 @@
 #if WITH_ENGINE
 #include "RenderingThread.h"
 #include "RHI.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "RHIStaticStates.h"
 #include "MediaShaders.h"
 #else
