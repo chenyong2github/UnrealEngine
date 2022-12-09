@@ -61,6 +61,14 @@ struct CUSTOMIZABLEOBJECT_API FCustomizableObjectInstanceDescriptor
 	/** Update all parameters to be up to date with the Mutable Core parameters. */
 	void ReloadParameters();
     
+	int32 GetMinLod() const;
+
+	void SetMinLod(int32 InMinLOD);
+
+	int32 GetMaxLod() const;
+
+	void SetMaxLod(int32 InMaxLOD);
+
 	// ------------------------------------------------------------
 	// Parameters
 	// ------------------------------------------------------------

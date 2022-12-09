@@ -228,7 +228,7 @@ void UCustomizableInstancePrivateData::SetMinMaxLODToLoad(UCustomizableObjectIns
 	const bool bIsDowngradeLODUpdate = Public->GetCurrentMinLOD() >= 0 && NewMinLOD > Public->GetCurrentMinLOD();
 	SetCOInstanceFlags(bIsDowngradeLODUpdate ? PendingLODsDowngrade : ECONone);
 
-	if (!bIsDowngradeLODUpdate && bLimitLODUpgrades)
+	if (!bIsDowngradeLODUpdate && bLimitLODUpgrades && HasCOInstanceFlags(Generated))
 	{
 		if (FPlatformTime::Seconds() - LastUpdateTime < 3.f) // This is a sort of hysteresis/cooldown to prevent too many instances being discarded/updated per second
 		{
@@ -259,6 +259,8 @@ void UCustomizableInstancePrivateData::SetMinMaxLODToLoad(UCustomizableObjectIns
 
 	if (bLODChanged)
 	{
+		Public->UpdateDescriptorRuntimeHash.UpdateMinMaxLOD(NewMinLOD, NewMaxLOD);
+
 		if (const FMutableQueueElem* QueueElem = UCustomizableObjectSystem::GetInstance()->GetPrivate()->MutableOperationQueue.Get(Public))
 		{
 			QueueElem->Operation->InstanceDescriptorRuntimeHash.UpdateMinMaxLOD(NewMinLOD, NewMaxLOD);

@@ -1022,6 +1022,30 @@ void FCustomizableObjectInstanceDescriptor::ReloadParameters()
 }
 
 
+int32 FCustomizableObjectInstanceDescriptor::GetMinLod() const
+{
+	return MinLOD;
+}
+
+
+void FCustomizableObjectInstanceDescriptor::SetMinLod(int32 InMinLOD)
+{
+	MinLOD = InMinLOD;
+}
+
+
+int32 FCustomizableObjectInstanceDescriptor::GetMaxLod() const
+{
+	return MaxLOD;
+}
+
+
+void FCustomizableObjectInstanceDescriptor::SetMaxLod(int32 InMaxLOD)
+{
+	MaxLOD = InMaxLOD;
+}
+
+
 TArray<FCustomizableObjectBoolParameterValue>& FCustomizableObjectInstanceDescriptor::GetBoolParameters()
 {
 	return BoolParameters;
@@ -2310,8 +2334,6 @@ FDescriptorHash::FDescriptorHash(const FCustomizableObjectInstanceDescriptor& De
 	
 	Hash = HashCombine(Hash, GetTypeHash(Descriptor.State));
 	Hash = HashCombine(Hash, GetTypeHash(Descriptor.bBuildParameterDecorations));
-	Hash = HashCombine(Hash, GetTypeHash(Descriptor.MinLOD));
-	Hash = HashCombine(Hash, GetTypeHash(Descriptor.MaxLOD));
 
 	for (const TTuple<FName, FMultilayerProjector>& Pair : Descriptor.MultilayerProjectors)
 	{
