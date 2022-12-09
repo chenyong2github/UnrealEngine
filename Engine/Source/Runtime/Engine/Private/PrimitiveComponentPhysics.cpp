@@ -900,17 +900,31 @@ bool UPrimitiveComponent::IsSimulatingPhysics(FName BoneName) const
 	{
 		return BodyInst->IsInstanceSimulatingPhysics();
 	}
-	else if (BoneName != NAME_None)
-	{
-		if (Chaos::FPhysicsObject* PhysicsObject = GetPhysicsObjectByName(BoneName))
-		{
-			return true;
-		}
-	}
 	else
 	{
-		TArray<Chaos::FPhysicsObject*> PhysicsObjects = GetAllPhysicsObjects();
-		return !PhysicsObjects.IsEmpty();
+		TArray<Chaos::FPhysicsObjectHandle> PhysicsObjects;
+		if (BoneName != NAME_None)
+		{
+			PhysicsObjects.Add(GetPhysicsObjectByName(BoneName));
+		}
+		else
+		{
+			PhysicsObjects = GetAllPhysicsObjects();
+		}
+
+		if (PhysicsObjects.IsEmpty())
+		{
+			return false;
+		}
+
+		FLockedReadPhysicsObjectExternalInterface Interface = FPhysicsObjectExternalInterface::LockRead(PhysicsObjects);
+		PhysicsObjects = PhysicsObjects.FilterByPredicate(
+			[&Interface](Chaos::FPhysicsObjectHandle Object) {
+				return !Interface->AreAllDisabled({ &Object, 1 });
+			}
+		);
+
+		return Interface->AreAllDynamic(PhysicsObjects);
 	}
 
 	return false;
