@@ -163,6 +163,8 @@ void VirtualizePackages(TConstArrayView<FString> PackagePaths, TArray<FText>& Ou
 	const double StartTime = FPlatformTime::Seconds();
 
 	FScopedSlowTask Progress(5.0f, LOCTEXT("Virtualization_Task", "Virtualizing Assets..."));
+	// Force the task to be visible otherwise it might not be shown if the initial progress frames are too fast
+	Progress.Visibility = ESlowTaskVisibility::ForceVisible;
 	Progress.MakeDialog();
 
 	// Other systems may have added errors to this array, we need to check so later we can determine if this function added any additional errors.
@@ -266,9 +268,9 @@ void VirtualizePackages(TConstArrayView<FString> PackagePaths, TArray<FText>& Ou
 	// TODO: We should be able to do both Cache and Persistent pushes in the same call
 
 	// Push payloads to cache storage
+	Progress.EnterProgressFrame(1.0f);
+	if(System.IsPushingEnabled(EStorageType::Cache))
 	{
-		Progress.EnterProgressFrame(1.0f);
-		
 		if (!System.PushData(PayloadsToSubmit, EStorageType::Cache))
 		{
 			// Caching is not critical to the process so we only warn if it fails
@@ -285,6 +287,10 @@ void VirtualizePackages(TConstArrayView<FString> PackagePaths, TArray<FText>& Ou
 			Request.ResetResult();
 		}
 		UE_LOG(LogVirtualization, Display, TEXT("Pushed %" INT64_FMT " payload(s) to cached storage"), TotalPayloadsCached);
+	}
+	else
+	{
+		UE_LOG(LogVirtualization, Display, TEXT("Pushing payload(s) to cached storage is disbled, skipping"));
 	}
 	
 	// Push payloads to persistent storage

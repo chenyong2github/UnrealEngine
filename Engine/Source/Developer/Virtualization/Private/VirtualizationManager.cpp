@@ -266,6 +266,15 @@ static bool IsCmdLineValueSet(const TCHAR* Cmd, const TCHAR* AlternativeCmd, T& 
 	return false;
 }
 
+/** Utility to set the same FPushResult on many requests at once */
+static void SetPushRequestsResult(TArrayView<FPushRequest> Requests, FPushResult Result)
+{
+	for (FPushRequest& Request : Requests)
+	{
+		Request.SetResult(Result);
+	}
+}
+
 /* Utility function for building up a lookup table of all available IBackendFactory interfaces*/
 FVirtualizationManager::FRegistedFactories FindBackendFactories()
 {
@@ -582,9 +591,25 @@ bool FVirtualizationManager::PushData(TArrayView<FPushRequest> Requests, EStorag
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizationManager::PushData);
 
+	// No requests always counts as success
 	if (Requests.IsEmpty())
 	{
 		return true;
+	}
+
+	// Attempting to virtualize when the system or process is disabled always counts as a failure
+	if (!IsEnabled() || !bAllowPackageVirtualization)
+	{
+		SetPushRequestsResult(Requests, FPushResult::GetAsProcessDisabled());
+		return false;
+	}
+
+	FBackendArray& Backends = IsCacheType(StorageType) ? CacheStorageBackends : PersistentStorageBackends;
+
+	if (Backends.IsEmpty())
+	{
+		SetPushRequestsResult(Requests, FPushResult::GetAsNoBackend());
+		return false;
 	}
 
 	TArray<FPushRequest> ValidatedRequests;
@@ -637,12 +662,6 @@ bool FVirtualizationManager::PushData(TArrayView<FPushRequest> Requests, EStorag
 		return true;
 	}
 
-	// Early out if there are no backends
-	if (!IsEnabled() || !bAllowPackageVirtualization)
-	{
-		return false;
-	}
-
 	EnsureBackendConnections();
 
 	FConditionalScopeLock _(&DebugValues.ForceSingleThreadedCS, DebugValues.bSingleThreaded);
@@ -653,8 +672,7 @@ bool FVirtualizationManager::PushData(TArrayView<FPushRequest> Requests, EStorag
 
 	int32 ErrorCount = 0;
 	bool bWasPayloadPushed = false;
-	FBackendArray& Backends = IsCacheType(StorageType) ? CacheStorageBackends : PersistentStorageBackends;
-
+	
 	for (IVirtualizationBackend* Backend : Backends)
 	{
 		if (Backend->GetConnectionStatus() != IVirtualizationBackend::EConnectionStatus::Connected)

@@ -142,7 +142,7 @@ public:
 	virtual uint64 GetPayloadSize(const FIoHash& Identifier) = 0;
 };
 
-/** The result opf a push operation on a single payload */
+/** The result of a push operation on a single payload */
 struct FPushResult
 {
 	/** 
@@ -153,7 +153,11 @@ struct FPushResult
 	enum class EStatus : int8
 	{
 		/** The push operation caused an error */
-		Error			= -3,
+		Error			= -5,
+		/** The push operation storage type is disabled */
+		ProcessDisabled	= -4,
+		/** There were no backends that supported the push operation */
+		NoBackend		= -3,
 		/** The push operation was run on an invalid payload id */
 		Invalid			= -2,
 		/** The payload was rejected by the filtering system */
@@ -172,6 +176,16 @@ struct FPushResult
 	static FPushResult GetAsError()
 	{
 		return FPushResult(EStatus::Error);
+	}
+
+	static FPushResult GetAsProcessDisabled()
+	{
+		return FPushResult(EStatus::ProcessDisabled);
+	}
+
+	static FPushResult GetAsNoBackend()
+	{
+		return FPushResult(EStatus::NoBackend);
 	}
 
 	static FPushResult GetAsInvalid()
