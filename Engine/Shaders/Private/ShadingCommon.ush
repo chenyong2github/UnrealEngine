@@ -100,9 +100,14 @@ float F0ToDielectricSpecular(float F0)
 	return saturate(F0 / 0.08f);
 }
 
+float F0RGBToF0(float3 F0)
+{
+	return dot(0.3333333.xxx, F0);
+}
+
 float F0RGBToDielectricSpecular(float3 F0)
 {
-	return F0ToDielectricSpecular(max3(F0.r, F0.g, F0.b));
+	return F0ToDielectricSpecular(F0RGBToF0(F0));
 }
 
 half DielectricSpecularToF0(half Specular)
@@ -113,12 +118,12 @@ half DielectricSpecularToF0(half Specular)
 // [Burley, "Extending the Disney BRDF to a BSDF with Integrated Subsurface Scattering"]
 float DielectricF0ToIor(float F0)
 {
-	return 2.0f / (1.0f - sqrt(F0)) - 1.0f;
+	return 2.0f / (1.0f - sqrt(min(F0,0.99))) - 1.0f;
 }
 
 float DielectricF0RGBToIor(float3 F0)
 {
-	return DielectricF0ToIor(max3(F0.r, F0.g, F0.b));
+	return DielectricF0ToIor(F0RGBToF0(F0));
 }
 
 float DielectricIorToF0(float Ior)

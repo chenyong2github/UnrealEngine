@@ -11,7 +11,7 @@ PathTracingThinGlass.ush: Microfacet BSDF for thin glass
 #include "PathTracingGlossy.ush"
 #include "PathTracingEnergyConservation.ush"
 
-struct SlabWeights
+struct FThinSlabWeights
 {
 	float3 Reflected;
 	float3 Transmitted;
@@ -19,30 +19,36 @@ struct SlabWeights
 
 // return the amount of reflected and transmitted energy for an infinite slab viewed from a particular direction
 // taking into account the (repeated) Fresnel terms and the transmittance through the slab
-SlabWeights ComputeThinSlabWeights(float3 SlabColor, float CosV, float Eta)
+FThinSlabWeights ComputeThinSlabWeights(float3 SlabColor, float CosV, float Eta, float F0)
 {
 	// Compute Fresnel reflection off the top of the slab
 	// The Fresnel refletion at the bottom layer is exactly equal so we can assume energy is split into R and T at each bounce
-	const float R = FresnelReflectance(CosV, Eta);
-	const float T = 1.0 - R;
-
+	// NOTE: we don't need to pass Eta through here because TIR (which could only occur in contrived scenarios) isn't really supported
+	const float R = FresnelReflectance(CosV, 1.0, F0);
 
 	// The slab color is normalized to unit thickness, so we only need to account for the refracted viewing angle
-	const float3 A = pow(SlabColor, Eta / sqrt(Eta * Eta - 1.0 + CosV * CosV));
+	// Note that we only allow Eta > 1.0 here so that we don't need to worry about TIR
+	const float3 A = pow(SlabColor, Eta > 1.0 ? Eta * rsqrt(Eta * Eta - 1.0 + CosV * CosV) : rcp(abs(CosV)));
 
 	// figure out how much is reflected/transmitted from a single interaction
 	float3 SlabR = R;
-	float3 SlabT = T * A * T;
+	float3 SlabT = A - R * A; // (1 - R) * A
 
-	// if there was some transmission -- we must also account for the infinite series of bounces within the slab
-	// which can be computed exactly with geometric series
+#if 1
+	// Enable bounces within the slab
 	if (R < 1.0)
 	{
-		SlabR += R * Pow2(T * A) / (1.0 - Pow2(R * A));
-		SlabT /= 1.0 - Pow2(R * A);
+		// If there was some transmission we must also account for the infinite series of bounces within the slab
+		// which can be computed exactly with a geometric series. Note that this causes a bit of energy loss because we don't
+		// account for this non-linear fresnel term in the energy conservation calculation. However, this is fairly minimal in
+		// practice, and the added visual richness seems worth it.
+		float3 InvDenom = rcp(1.0 - Pow2(R * A));
+		SlabR += R * Pow2(SlabT) * InvDenom;
+		SlabT *= InvDenom - R * InvDenom; // (1 - R) * InvDenom
 	}
+#endif
 
-	SlabWeights Result = (SlabWeights) 0;
+	FThinSlabWeights Result = (FThinSlabWeights) 0;
 	Result.Reflected = SlabR;
 	Result.Transmitted = SlabT;
 	return Result;
@@ -54,13 +60,22 @@ FMaterialEval RoughThinGlass_EvalMaterial(
 	FPathTracingPayload Payload
 )
 {
-	float3 V_World = -IncomingDirection;
-	float3 L_World = OutgoingDirection;
-	float3 N_World = Payload.WorldNormal;
+	const float3 V_World = -IncomingDirection;
+	const float3 L_World = OutgoingDirection;
+	const float3 N_World = Payload.WorldNormal;
 
+	const float Eta = Payload.Ior;
+	const float F0 = F0RGBToF0(Payload.SpecularColor);
+	const float F90 = saturate(50.0 * F0);
+	const float3 SlabColor = Payload.CustomData.xyz;
 
-	float2 Alpha;
-	float3x3 Basis = GetGGXBasis(Payload.Roughness, Payload.Anisotropy, Payload.WorldNormal, Payload.WorldTangent, Alpha);
+	// transmitted lobe should have slightly less roughness due to the squeeze implied by the IOR (eventually converging to 0.0 as Ior approaches 1.0)
+	const float RoughnessR = Payload.Roughness;
+	const float RoughnessT = Payload.Roughness * sqrt(1.0 - min(Eta, rcp(Eta)));
+
+	float2 AlphaR;
+	const float3x3 Basis = GetGGXBasis(RoughnessR, Payload.Anisotropy, Payload.WorldNormal, Payload.WorldTangent, AlphaR);
+	const float2 AlphaT = GetGGXAlpha(RoughnessT, Payload.Anisotropy);
 
 	// move vectors into right shading frame
 	float3 V = mul(Basis, V_World);
@@ -72,33 +87,47 @@ FMaterialEval RoughThinGlass_EvalMaterial(
 		return NullMaterialEval();
 	}
 
-	const bool IsTransmission = L.z < 0;
+	const bool bIsReflection = L.z >= 0;
 	L.z = abs(L.z); // push L to the same side as V
 
 	const float NoV = saturate(V.z);
 	const float3 H = normalize(L + V);
 	const float VoH = saturate(dot(V, H));
 
-	const float Eta = Payload.Ior;
 
-	SlabWeights Result = ComputeThinSlabWeights(Payload.CustomData.xyz, VoH, Payload.Ior);
+	// because the roughnesses may not match, we need to measure the response for each individually, taking into account the reflected and transmitted fresnel respectively
+#if 1
+	// NOTE: 1.0 - F_Schlick(NoV, F0, F90) == F_Schlick(NoV, 1.0 - F0, 1.0 - F90)
+	const FBxDFEnergyTerms SpecR = ComputeGGXSpecEnergyTerms(RoughnessR, NoV, F0, F90);
+	const FBxDFEnergyTerms SpecT = ComputeGGXSpecEnergyTerms(RoughnessT, NoV, 1.0 - F0, 1.0 - F90);
+	// Approximate the transmission as just a plain tint by slab color because we can't depend on the half-vector for lobe selection
+	const float NudgeE = rcp(SpecR.E.x + SpecT.E.x);
+	const float ProbR = LobeSelectionProb(SpecR.E, Payload.HasRefraction() ? SpecT.E * SlabColor : 0.0);
+#else
+	const float Er = GGXEnergyLookup(RoughnessR, NoV).x;
+	const float Et = GGXEnergyLookup(RoughnessT, NoV).x;
+	const float ProbR = LobeSelectionProb(F0 * Er, Payload.HasRefraction() ? (1 - F0) * Et * SlabColor : 0.0);
+#endif
 
-	const float ProbR = LobeSelectionProb(Result.Reflected, Result.Transmitted);
-
-	const float2 GGXResult = GGXEvalReflection(L, V, H, Alpha);
-
-	// GGX reflected energy is split between reflection and refraction equally
-	// so just use the overall GGX energy loss for energy compensation (as in the solid glass case)
-	const float OutWeight = GGXResult.x / GGXEnergyLookup(Payload.Roughness, NoV).x;
-
-	if (IsTransmission)
+	const FThinSlabWeights Result = ComputeThinSlabWeights(SlabColor, VoH, Payload.Ior, F0);
+	const float2 GGXResult = GGXEvalReflection(L, V, H, bIsReflection ? AlphaR : AlphaT);
+	if (bIsReflection)
 	{
-		return CreateMaterialEval(OutWeight / (1.0 - ProbR) * Result.Transmitted, GGXResult.y * (1.0 - ProbR));
+		if (ProbR > 0.0)
+		{
+			const float OutWeight = NudgeE * GGXResult.x * SpecR.W.x;
+			return CreateMaterialEval(OutWeight / ProbR * Result.Reflected, GGXResult.y * ProbR);
+		}
 	}
 	else
 	{
-		return CreateMaterialEval(OutWeight / ProbR * Result.Reflected, GGXResult.y * ProbR);
+		if (ProbR < 1.0)
+		{
+			const float OutWeight = NudgeE * GGXResult.x * SpecT.W.x;
+			return CreateMaterialEval(OutWeight / (1.0 - ProbR) * Result.Transmitted, GGXResult.y * (1.0 - ProbR));
+		}
 	}
+	return NullMaterialEval();
 }
 
 
@@ -107,16 +136,24 @@ FMaterialSample RoughThinGlass_SampleMaterial(
 	FPathTracingPayload Payload,
 	float4 RandSample)
 {
-	float3 N_World = Payload.WorldNormal;
-	float3 V_World = -RayDirection;
+	const float3 N_World = Payload.WorldNormal;
+	const float3 V_World = -RayDirection;
 
-	float Eta = Payload.Ior;
+	const float Eta = Payload.Ior;
+	const float F0 = F0RGBToF0(Payload.SpecularColor);
+	const float F90 = saturate(50.0 * F0);
+	const float3 SlabColor = Payload.CustomData.xyz;
 
-	float2 Alpha;
-	float3x3 Basis = GetGGXBasis(Payload.Roughness, Payload.Anisotropy, Payload.WorldNormal, Payload.WorldTangent, Alpha);
+	// transmitted lobe should have slightly less roughness due to the squeeze implied by the IOR (eventually converging to 0.0 as Ior approaches 1.0)
+	const float RoughnessR = Payload.Roughness;
+	const float RoughnessT = Payload.Roughness * sqrt(1.0 - min(Eta, rcp(Eta)));
 
-	float3 V = mul(Basis, V_World);
-	float NoV = saturate(V.z);
+	float2 AlphaR;
+	const float3x3 Basis = GetGGXBasis(RoughnessR, Payload.Anisotropy, Payload.WorldNormal, Payload.WorldTangent, AlphaR);
+	const float2 AlphaT = GetGGXAlpha(RoughnessT, Payload.Anisotropy);
+
+	const float3 V = mul(Basis, V_World);
+	const float NoV = saturate(V.z);
 
 	if (NoV == 0)
 	{
@@ -124,36 +161,45 @@ FMaterialSample RoughThinGlass_SampleMaterial(
 		return NullMaterialSample();
 	}
 
-	float3 H = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(RandSample.xy), Alpha, V).xyz;
-	float3 N = float3(0, 0, 1);
-	float NoH = saturate(H.z);
-	float VoH = saturate(dot(V, H));
+	// because the roughnesses may not match, we need to measure the response for each individually, taking into account the reflected and transmitted fresnel respectively
+#if 1
+	// NOTE: 1.0 - F_Schlick(NoV, F0, F90) == F_Schlick(NoV, 1.0 - F0, 1.0 - F90)
+	const FBxDFEnergyTerms SpecR = ComputeGGXSpecEnergyTerms(RoughnessR, NoV, F0, F90);
+	const FBxDFEnergyTerms SpecT = ComputeGGXSpecEnergyTerms(RoughnessT, NoV, 1.0 - F0, 1.0 - F90);
+	// Approximate the transmission as just a plain tint by slab color because we can't depend on the half-vector for lobe selection
+	const float NudgeE = rcp(SpecR.E.x + SpecT.E.x);
+	const float ProbR = LobeSelectionProb(SpecR.E, Payload.HasRefraction() ? SpecT.E * SlabColor : 0.0);
+#else
+	const float Er = GGXEnergyLookup(RoughnessR, NoV).x;
+	const float Et = GGXEnergyLookup(RoughnessT, NoV).x;
+	const float ProbR = LobeSelectionProb(F0 * Er, Payload.HasRefraction() ? (1 - F0) * Et * SlabColor : 0.0);
+#endif
 
-	float3 L = reflect(-V, H);
+	const bool bIsReflection = RandSample.z < ProbR;
+
+	const float3 H = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(RandSample.xy), bIsReflection ? AlphaR : AlphaT, V).xyz;
+	const float NoH = saturate(H.z);
+	const float VoH = saturate(dot(V, H));
+
+	const float3 L = reflect(-V, H);
 	if (L.z <= 0)
 	{
 		// invalid output direction, exit early
 		return NullMaterialSample();
 	}
 
-	float NoL = saturate(L.z);
+	const float NoL = saturate(L.z);
 
-	SlabWeights Result = ComputeThinSlabWeights(Payload.CustomData.xyz, VoH, Payload.Ior);
+	FThinSlabWeights Result = ComputeThinSlabWeights(SlabColor, VoH, Payload.Ior, F0);
 
-	const float ProbR = LobeSelectionProb(Result.Reflected, Result.Transmitted);
+	const float2 GGXResult = GGXEvalReflection(L, V, H, bIsReflection ? AlphaR : AlphaT);
 
-	const float2 GGXResult = GGXEvalReflection(L, V, H, Alpha);
-
-	// GGX reflected energy is split between reflection and refraction equally
-	// so just use the overall GGX energy loss for energy compensation (as in the solid glass case)
-	float3 OutWeight = GGXResult.x / GGXEnergyLookup(Payload.Roughness, NoV).x;
+	float3 OutWeight = GGXResult.x;
 	float OutPdf = GGXResult.y;
-
-	// decide between reflection/transmission
-	if (RandSample.z < ProbR)
+	if (bIsReflection)
 	{
 		// reflected ray
-		OutWeight *= Result.Reflected / ProbR;
+		OutWeight *= NudgeE * SpecR.W.x * Result.Reflected / ProbR;
 		OutPdf *= ProbR;
 		float3 OutDirection = normalize(mul(L, Basis));
 		return CreateMaterialSample(OutDirection, OutWeight, OutPdf, 1.0, Payload.Roughness);
@@ -161,7 +207,7 @@ FMaterialSample RoughThinGlass_SampleMaterial(
 	else
 	{
 		// transmitted ray
-		OutWeight *= Result.Transmitted / (1.0 - ProbR);
+		OutWeight *= NudgeE * SpecT.W.x * Result.Transmitted / (1.0 - ProbR);
 		OutPdf *= 1.0 - ProbR;
 		float3 OutDirection = normalize(mul(float3(L.xy, -L.z), Basis)); // flip reflection to other side
 		return CreateMaterialSample(OutDirection, OutWeight, OutPdf, -1.0, Payload.Roughness);

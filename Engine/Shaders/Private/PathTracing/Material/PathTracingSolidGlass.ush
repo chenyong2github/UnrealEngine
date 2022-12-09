@@ -11,6 +11,7 @@ PathTracingSolidGlass.ush: Microfacet Refractive BSDF for solid glass
 #include "PathTracingGlossy.ush"
 #include "PathTracingEnergyConservation.ush"
 
+
 FMaterialSample RoughGlass_SampleMaterial(
 	float3 RayDirection,
 	FPathTracingPayload Payload,
@@ -22,8 +23,8 @@ FMaterialSample RoughGlass_SampleMaterial(
 	float3 V_World = -RayDirection;
 
 	// #dxr_todo: Maintain a refraction stack on the path tracing payload
-	float Ior = Payload.Ior;
-	float Eta = bIsEntering ? Ior : rcp(Ior);
+	const float Eta = bIsEntering ? Payload.Ior : rcp(Payload.Ior);
+	const float F0 = F0RGBToF0(Payload.SpecularColor);
 
 	float2 Alpha;
 	float3x3 Basis = GetGGXBasis(Payload.Roughness, Payload.Anisotropy, Payload.WorldNormal, Payload.WorldTangent, Alpha);
@@ -41,13 +42,10 @@ FMaterialSample RoughGlass_SampleMaterial(
 	const float E = GGXEnergyLookup(Payload.Roughness, NoV, Eta);
 
 	float3 H = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(RandSample.xy), Alpha, V).xyz;
-	float3 N = float3(0, 0, 1);
-	float NoH = saturate(H.z);
-	float VoH = saturate(dot(V, H));
 
 	float3 L = 0;
 	float F = 0;
-	if (SampleRefraction(-V, H, Eta, RandSample.z, L, F))
+	if (SampleRefraction(-V, H, Eta, F0, RandSample.z, L, F))
 	{
 		const float2 GGXResult = GGXEvalRefraction(L, V, H, Alpha, Eta);
 
@@ -76,8 +74,8 @@ FMaterialEval RoughGlass_EvalMaterial(
 	float3 N_World = Payload.WorldNormal;
 
 	// #dxr_todo: Maintain a refraction stack on the path tracing payload
-	float Ior = Payload.Ior;
-	float Eta = bIsEntering ? Ior : rcp(Ior);
+	const float Eta = bIsEntering ? Payload.Ior : rcp(Payload.Ior);
+	const float F0 = F0RGBToF0(Payload.SpecularColor);
 
 	float2 Alpha;
 	float3x3 Basis = GetGGXBasis(Payload.Roughness, Payload.Anisotropy, Payload.WorldNormal, Payload.WorldTangent, Alpha);
@@ -102,7 +100,7 @@ FMaterialEval RoughGlass_EvalMaterial(
 		// reflection side
 		const float3 H = normalize(L + V);
 		const float VoH = saturate(dot(V, H));
-		const float F = FresnelReflectance(VoH, Eta);
+		const float F = FresnelReflectance(VoH, Eta, F0);
 
 		const float2 GGXResult = GGXEvalReflection(L, V, H, Alpha);
 		return CreateMaterialEval(GGXResult.x / E, F * GGXResult.y);
@@ -115,7 +113,7 @@ FMaterialEval RoughGlass_EvalMaterial(
 		Ht = normalize((Eta < 1.0f) ? -Ht : Ht);
 
 		float VoH = dot(V, Ht);
-		float F = 1.0f - FresnelReflectance(VoH, Eta);
+		float F = 1.0f - FresnelReflectance(VoH, Eta, F0);
 		if (F > 0)
 		{
 			const float2 GGXResult = GGXEvalRefraction(L, V, Ht, Alpha, Eta);

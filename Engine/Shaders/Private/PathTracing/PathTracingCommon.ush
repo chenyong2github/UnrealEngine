@@ -165,19 +165,29 @@ struct FPathTracingPayload : FMinimalPayload
 		Roughness = lerp(RoughnessData.x, RoughnessData.y, RoughnessData.z);
 	}
 
+	bool HasRefraction()
+	{
+		return Ior > 0.0;
+	}
+
 	bool IsMaterialSolidGlass()
 	{
-		return ShadingModelID == SHADINGMODELID_DEFAULT_LIT && BlendingMode == RAY_TRACING_BLEND_MODE_TRANSLUCENT && Ior != 1.0 && Opacity < 1;
+		return ShadingModelID == SHADINGMODELID_DEFAULT_LIT && BlendingMode == RAY_TRACING_BLEND_MODE_TRANSLUCENT && HasRefraction() && Opacity < 1;
+	}
+
+	bool IsMaterialThinGlass()
+	{
+		return ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT && BlendingMode == RAY_TRACING_BLEND_MODE_TRANSLUCENT && HasRefraction() && Opacity < 1;
 	}
 
 	bool IsMaterialTransmissive()
 	{
 		return ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE ||
-			   ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT || 
 			   ShadingModelID == SHADINGMODELID_HAIR ||
 			   ShadingModelID == SHADINGMODELID_MEDIUM ||
 			   ShadingModelID == SHADINGMODELID_SINGLELAYERWATER ||	
-			   IsMaterialSolidGlass();
+			   IsMaterialSolidGlass() ||
+			   IsMaterialThinGlass();
 	}
 
 	bool IsSubsurfaceMaterial()

@@ -9,19 +9,19 @@ PathTracingSpecularTransmission.ush: Refractive BSDFs (pure singular)
 #include "PathTracingMaterialCommon.ush"
 #include "PathTracingGlossy.ush"
 
+// NOTE: this is no longer used, keeping around as reference
+
 FMaterialSample SpecularRefraction_SampleMaterial(
 	float3 RayDirection,
 	FPathTracingPayload Payload,
 	float4 RandSample)
 {
 	// NOTE: IsFrontFace() determines polygon orientation, because the normal is always flipped towards in the incoming ray
-	bool bIsEntering = Payload.IsFrontFace();
-	float3 WorldNormal = Payload.WorldNormal;
+	const bool bIsEntering = Payload.IsFrontFace();
+	const float3 WorldNormal = Payload.WorldNormal;
 
 	// #dxr_todo: Maintain a refraction stack on the path tracing payload
-	float Ior = Payload.Ior;
-	float Eta = bIsEntering ? Ior : 1.0 / Ior;
-
+	const float Eta = bIsEntering ? Payload.Ior : rcp(Payload.Ior);
 
 	float F = 0, BiasSign = 1.0;
 	float3 OutDirection = 0;

@@ -13,6 +13,27 @@ Glossy.usf: Microfacet GGX BRDF sampling functions
 #define GGX_MIN_ROUGHNESS 0.01
 #define GGX_MIN_ANISOTROPY 0.001 // ignore anisotropy below this amount
 
+float2 GetGGXAlpha(float Roughness)
+{
+	Roughness = max(Roughness, GGX_MIN_ROUGHNESS);
+	return Roughness * Roughness;
+}
+
+float2 GetGGXAlpha(float Roughness, float Anisotropy)
+{
+	Roughness = max(Roughness, GGX_MIN_ROUGHNESS);
+	float2 Alpha = 0.0;
+	if (abs(Anisotropy) >= GGX_MIN_ANISOTROPY)
+	{
+		GetAnisotropicRoughness(Roughness * Roughness, Anisotropy, Alpha.x, Alpha.y);
+	}
+	else
+	{
+		Alpha = Roughness * Roughness;
+	}
+	return Alpha;
+}
+
 float3x3 GetGGXBasis(float Roughness, float Anisotropy, float3 WorldNormal, float3 WorldTangent, out float2 Alpha)
 {
 	Roughness = max(Roughness, GGX_MIN_ROUGHNESS);
