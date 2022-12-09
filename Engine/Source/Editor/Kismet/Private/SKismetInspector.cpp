@@ -857,8 +857,7 @@ bool SKismetInspector::IsPropertyVisible( const FPropertyAndParent& PropertyAndP
 		{
 			if (const UClass* OwningClass = Property->GetOwnerClass())
 			{
-				return Blueprint && (OwningClass == Blueprint->ParentClass ||
-					OwningClass->ClassGeneratedBy == Blueprint);
+				return Blueprint && OwningClass->ClassGeneratedBy == Blueprint;
 			}
 			return false;
 		};
