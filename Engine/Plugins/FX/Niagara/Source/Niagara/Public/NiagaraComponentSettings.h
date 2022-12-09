@@ -9,6 +9,7 @@ class FNiagaraEmitterInstance;
 
 namespace FNiagaraComponentSettings
 {
+	extern void OnPostEngineInit();
 	extern NIAGARA_API bool IsSystemAllowedToRun(const UNiagaraSystem* System);
 	extern NIAGARA_API bool IsEmitterAllowedToRun(const FNiagaraEmitterInstance* EmitterInstance);
 };

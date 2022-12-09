@@ -3,6 +3,7 @@
 #include "NiagaraModule.h"
 #include "Misc/LazySingleton.h"
 #include "Modules/ModuleManager.h"
+#include "NiagaraComponentSettings.h"
 #include "NiagaraCompileHashVisitor.h"
 #include "NiagaraTypes.h"
 #include "NiagaraDebugVis.h"
@@ -422,6 +423,8 @@ void INiagaraModule::OnPostEngineInit()
 			FNiagaraPlatformSet::OnCVarUnregistered(CVar);
 		}
 	);
+
+	FNiagaraComponentSettings::OnPostEngineInit();
 }
 
 void INiagaraModule::OnPreExit()
