@@ -13,7 +13,9 @@
 #include "DatasmithSceneGraphBuilder.h"
 #include "DatasmithTranslator.h"
 #include "DatasmithUtils.h"
+#include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
+#include "HAL/PlatformProcess.h"
 #include "IDatasmithSceneElements.h"
 
 
@@ -226,19 +228,29 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 	{
 		TMap<uint32, FString> CADFileToUEFileMap;
 		{
-			int32 NumCores = FPlatformMisc::NumberOfCores();
+			constexpr double RecommandedRamPerWorkers = 6.;
+			constexpr double OneGigaByte = 1024. * 1024. * 1024.;
+			const double AvailableRamGB = (double) (FPlatformMemory::GetStats().AvailablePhysical / OneGigaByte);
+
+			const int32 MaxNumberOfWorkers = FPlatformMisc::NumberOfCores();
+			const int32 RecommandedNumberOfWorkers = (int32) (AvailableRamGB / RecommandedRamPerWorkers + 0.5);
+
+			// UE recommendation 
+			int32 NumberOfWorkers = FMath::Min(MaxNumberOfWorkers, RecommandedNumberOfWorkers);
+
+			// User choice but limited by the number of cores. More brings nothing
 			if (GMaxImportThreads > 1)
 			{
-				if (FileDescriptor.CanReferenceOtherFiles())
-				{
-					NumCores = FMath::Min(GMaxImportThreads, NumCores);
-				}
-				else 
-				{
-					NumCores = 1;
-				}
+				NumberOfWorkers = FMath::Min(GMaxImportThreads, MaxNumberOfWorkers);
 			}
-			DatasmithDispatcher::FDatasmithDispatcher Dispatcher(ImportParameters, CachePath, NumCores, CADFileToUEFileMap, CADFileToUEGeomMap);
+
+			// If the file cannot have reference. One worker is enough.
+			if (GMaxImportThreads != 1 && !FileDescriptor.CanReferenceOtherFiles())
+			{
+				NumberOfWorkers = 1;
+			}
+
+			DatasmithDispatcher::FDatasmithDispatcher Dispatcher(ImportParameters, CachePath, NumberOfWorkers, CADFileToUEFileMap, CADFileToUEGeomMap);
 			Dispatcher.AddTask(FileDescriptor);
 
 			Dispatcher.Process(GMaxImportThreads != 1);
