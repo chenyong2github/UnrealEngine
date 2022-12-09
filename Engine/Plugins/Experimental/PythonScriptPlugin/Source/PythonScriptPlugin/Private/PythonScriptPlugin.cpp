@@ -476,16 +476,6 @@ private:
 
 #endif	// WITH_PYTHON
 
-#if WITH_PYTHON
-static FDelayedAutoRegisterHelper GPythonScriptAutoRegistrySingletonHelper(EDelayedRegisterRunPhase::EndOfEngineInit, []() -> void
-	{
-		if (FPythonScriptPlugin::Get()->IsPythonAvailable())
-		{
-			FPythonScriptPlugin::Get()->RunStartupScripts();		
-		}
-	});
-#endif
-
 FPythonScriptPlugin::FPythonScriptPlugin()
 #if WITH_PYTHON
 	: CmdExec(this)
@@ -1189,6 +1179,7 @@ void FPythonScriptPlugin::RunStartupScripts()
 	}
 
 	FScopedSlowTask Progress(PySysPaths.Num() + GetDefault<UPythonScriptPluginSettings>()->StartupScripts.Num(), LOCTEXT("PythonScriptPluginInitScripts", "Running Python start-up scripts..."), true);
+	Progress.MakeDialogDelayed(0.1f);
 	for (const FString& PySysPath : PySysPaths)
 	{
 		const FString PotentialFilePath = PySysPath / TEXT("init_unreal.py");
