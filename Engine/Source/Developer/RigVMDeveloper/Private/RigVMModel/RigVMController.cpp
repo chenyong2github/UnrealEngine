@@ -19207,7 +19207,7 @@ static UObject* FindObjectGloballyWithRedirectors(const TCHAR* InObjectName)
 		FCoreRedirectObjectName(InObjectName),
 		NewObjectName,
 		nullptr,
-		ECoreRedirectMatchFlags::None);
+		ECoreRedirectMatchFlags::AllowPartialMatch); // AllowPartialMatch to allow redirects from one package to another (see /Script/ControlRig.CRFourPointBezier -> /Script/RigVM.RigVMFourPointBezier)
 
 	if (!bFoundRedirect)
 	{
