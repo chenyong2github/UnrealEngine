@@ -344,6 +344,7 @@ const FVTUploadTileHandle* FVirtualTextureTranscodeCache::AcquireTaskResult(FVTT
 }
 
 FVTTranscodeTileHandle FVirtualTextureTranscodeCache::SubmitTask(
+	FRHICommandList& RHICmdList,
 	FVirtualTextureUploadCache& InUploadCache,
 	const FVTTranscodeKey& InKey,
 	const FVirtualTextureProducerHandle& InProducerHandle,
@@ -417,7 +418,7 @@ FVTTranscodeTileHandle FVirtualTextureTranscodeCache::SubmitTask(
 				TileBaseOffset = TileLayerOffset;
 			}
 
-			TaskEntry.StageTileHandle[LayerIndex] = InUploadCache.PrepareTileForUpload(StagingBufferForLayer, LayerFormat, TilePixelSize);
+			TaskEntry.StageTileHandle[LayerIndex] = InUploadCache.PrepareTileForUpload(RHICmdList, StagingBufferForLayer, LayerFormat, TilePixelSize);
 
 			// If there aren't any prerequisites, it's not worth launching a task for a raw memcpy, just do the work now
 			if (Prerequisites || Chunk.CodecType[LayerIndex] != EVirtualTextureCodec::RawGPU)
@@ -441,7 +442,7 @@ FVTTranscodeTileHandle FVirtualTextureTranscodeCache::SubmitTask(
 	return FVTTranscodeTileHandle(TaskIndex, TaskEntry.Magic);
 }
 
-void FVirtualTextureTranscodeCache::RetireOldTasks(FVirtualTextureUploadCache& InUploadCache)
+void FVirtualTextureTranscodeCache::RetireOldTasks(FRHICommandList& RHICmdList, FVirtualTextureUploadCache& InUploadCache)
 {
 	const uint32 CurrentFrame = GFrameNumberRenderThread;
 
@@ -477,7 +478,7 @@ void FVirtualTextureTranscodeCache::RetireOldTasks(FVirtualTextureUploadCache& I
 			const FVTUploadTileHandle StageTileHandle = TaskEntry.StageTileHandle[LayerIndex];
 			if (Key.LayerMask & (1u << LayerIndex))
 			{
-				InUploadCache.CancelTile(StageTileHandle);
+				InUploadCache.CancelTile(RHICmdList, StageTileHandle);
 			}
 		}
 	

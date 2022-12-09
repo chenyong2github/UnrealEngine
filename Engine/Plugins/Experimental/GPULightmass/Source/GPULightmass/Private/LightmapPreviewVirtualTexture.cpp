@@ -61,6 +61,7 @@ FLightmapPreviewVirtualTexture::FLightmapPreviewVirtualTexture(FLightmapRenderSt
 }
 
 FVTRequestPageResult FLightmapPreviewVirtualTexture::RequestPageData(
+	FRHICommandList& RHICmdList,
 	const FVirtualTextureProducerHandle& InProducerHandle,
 	uint8 LayerMask,
 	uint8 vLevel,

@@ -15,6 +15,7 @@ public:
 	FLightmapPreviewVirtualTexture(FLightmapRenderStateRef LightmapRenderState, FLightmapRenderer* Renderer);
 
 	virtual FVTRequestPageResult RequestPageData(
+		FRHICommandList& RHICmdList,
 		const FVirtualTextureProducerHandle& ProducerHandle,
 		uint8 LayerMask,
 		uint8 vLevel,

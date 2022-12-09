@@ -15,6 +15,7 @@ FVirtualTextureLevelRedirector::~FVirtualTextureLevelRedirector()
 }
 
 FVTRequestPageResult FVirtualTextureLevelRedirector::RequestPageData(
+	FRHICommandList& RHICmdList,
 	const FVirtualTextureProducerHandle& ProducerHandle,
 	uint8 LayerMask,
 	uint8 vLevel,
@@ -23,7 +24,7 @@ FVTRequestPageResult FVirtualTextureLevelRedirector::RequestPageData(
 {
 	int32 VirtualTextureIndex = vLevel < TransitionLevel ? 0 : 1;
 	int32 vLevelOffset = vLevel < TransitionLevel ? 0 : TransitionLevel;
-	return VirtualTextures[VirtualTextureIndex]->RequestPageData(ProducerHandle, LayerMask, vLevel - vLevelOffset, vAddress, Priority);
+	return VirtualTextures[VirtualTextureIndex]->RequestPageData(RHICmdList, ProducerHandle, LayerMask, vLevel - vLevelOffset, vAddress, Priority);
 }
 
 IVirtualTextureFinalizer* FVirtualTextureLevelRedirector::ProducePageData(

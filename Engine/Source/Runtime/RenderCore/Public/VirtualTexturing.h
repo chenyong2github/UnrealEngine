@@ -294,7 +294,10 @@ public:
 	* @param Priority Priority of the request, used to drive async IO/task priority needed to generate data for request
 	* @return FVTRequestPageResult describing the availability of the request
 	*/
-	virtual FVTRequestPageResult RequestPageData(const FVirtualTextureProducerHandle& ProducerHandle, uint8 LayerMask, uint8 vLevel, uint64 vAddress, EVTRequestPagePriority Priority) = 0;
+	virtual FVTRequestPageResult RequestPageData(FRHICommandList& RHICmdList, const FVirtualTextureProducerHandle& ProducerHandle, uint8 LayerMask, uint8 vLevel, uint64 vAddress, EVTRequestPagePriority Priority) = 0;
+
+	UE_DEPRECATED(5.2, "RequestPageData now requires an RHI command list.")
+	virtual FVTRequestPageResult RequestPageData(const FVirtualTextureProducerHandle& ProducerHandle, uint8 LayerMask, uint8 vLevel, uint64 vAddress, EVTRequestPagePriority Priority) { return {}; }
 
 	/**
 	* Upload page data to the cache, data must have been previously requested, and reported either 'Available' or 'Pending'

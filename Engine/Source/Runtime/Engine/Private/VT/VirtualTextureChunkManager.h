@@ -42,7 +42,7 @@ public:
 	virtual void NotifyLevelOffset(class ULevel* Level, const FVector& Offset) override {}
 	// End IStreamingManager interface
 
-	FVTRequestPageResult RequestTile(FUploadingVirtualTexture* VTexture, const FVirtualTextureProducerHandle& ProducerHandle, uint8 LayerMask, uint8 vLevel, uint32 vAddress, EVTRequestPagePriority Priority);
+	FVTRequestPageResult RequestTile(FRHICommandList& RHICmdList, FUploadingVirtualTexture* VTexture, const FVirtualTextureProducerHandle& ProducerHandle, uint8 LayerMask, uint8 vLevel, uint32 vAddress, EVTRequestPagePriority Priority);
 	IVirtualTextureFinalizer* ProduceTile(FRHICommandList& RHICmdList, uint32 SkipBorderSize, uint8 NumLayers, uint8 LayerMask, uint64 RequestHandle, const FVTProduceTargetLayer* TargetLayers);
 	void GatherProducePageDataTasks(FVirtualTextureProducerHandle const& ProducerHandle, FGraphEventArray& InOutTasks) const;
 	void GatherProducePageDataTasks(uint64 RequestHandle, FGraphEventArray& InOutTasks) const;

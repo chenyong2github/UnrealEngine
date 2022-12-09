@@ -1406,7 +1406,7 @@ void FVirtualTexture2DResource::InitializeEditorResources(IVirtualTexture* InVir
 			for (uint32 TileX = 0u; TileX < MipWidthInTiles; ++TileX)
 			{
 				const uint32 vAddress = FMath::MortonCode2(TileX) | (FMath::MortonCode2(TileY) << 1);
-				const FVTRequestPageResult RequestResult = InVirtualTexture->RequestPageData(ProducerHandle, LayerMask, MipLevel, vAddress, EVTRequestPagePriority::High);
+				const FVTRequestPageResult RequestResult = InVirtualTexture->RequestPageData(FRHICommandListExecutor::GetImmediateCommandList(), ProducerHandle, LayerMask, MipLevel, vAddress, EVTRequestPagePriority::High);
 				
 				// High priority request should never be Saturated
 				// It's possible for status to be Invalid, if requesting data from a mip level that doesn't exist for the given producer (when using sparse UDIMs)

@@ -52,9 +52,9 @@ class FVTUploadTileAllocator
 {
 public:
 	/** Allocate a tile. Sometimes does an allocation of the backing CPU/GPU block of memory. */
-	uint32 Allocate(EPixelFormat InFormat, uint32 InTileSize);
+	uint32 Allocate(FRHICommandList& RHICmdList, EPixelFormat InFormat, uint32 InTileSize);
 	/** Free a tile. Sometimes does a free of the backing CPU/GPU block of memory. */
-	void Free(uint32 InHandle);
+	void Free(FRHICommandList& RHICmdList, uint32 InHandle);
 
 	/** Get upload buffer description from handle. */
 	FVTUploadTileBuffer GetBufferFromHandle(uint32 InHandle) const;
@@ -86,8 +86,8 @@ private:
 	{
 		~FStagingBuffer();
 
-		void Init(uint32 InBufferStrideBytes, uint32 InTileSizeBytes);
-		void Release();
+		void Init(FRHICommandList& RHICmdList, uint32 InBufferStrideBytes, uint32 InTileSizeBytes);
+		void Release(FRHICommandList* RHICmdList);
 
 		/** GPU buffer if used on platform. */
 		TRefCountPtr<FRHIBuffer> RHIBuffer;
@@ -137,21 +137,21 @@ public:
 	//~ End FRenderResource Interface.
 
 	/** Get a staging upload buffer for streaming texture data into. */
-	FVTUploadTileHandle PrepareTileForUpload(FVTUploadTileBuffer& OutBuffer, EPixelFormat InFormat, uint32 InTileSize);
+	FVTUploadTileHandle PrepareTileForUpload(FRHICommandList& RHICmdList, FVTUploadTileBuffer& OutBuffer, EPixelFormat InFormat, uint32 InTileSize);
 	/** 
 	 * Mark streamed upload data ready for upload to to the physical virtual texture.
 	 * Depending on the platform the upload might happen here, or be deferred to the Finalize() call.
 	 */
 	void SubmitTile(FRHICommandList& RHICmdList, const FVTUploadTileHandle& InHandle, FRHITexture2D* InDestTexture, int InDestX, int InDestY, int InSkipBorderSize);
 	/** Cancel a tile that was already in flight. */
-	void CancelTile(const FVTUploadTileHandle& InHandle);
+	void CancelTile(FRHICommandList& RHICmdList, const FVTUploadTileHandle& InHandle);
 
 	//~ Begin IVirtualTextureFinalizer Interface.
 	virtual void Finalize(FRDGBuilder& GraphBuilder) override;
 	//~ End IVirtualTextureFinalizer Interface.
 
 	/** Call on a tick to recycle submitted staging buffers. */
-	void UpdateFreeList(bool bForceFreeAll = false);
+	void UpdateFreeList(FRHICommandList& RHICmdList, bool bForceFreeAll = false);
 
 	/** Returns true if underlying allocator within the budget set by r.VT.MaxUploadMemory.  */
 	uint32 IsInMemoryBudget() const;

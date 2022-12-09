@@ -88,7 +88,7 @@ FVirtualTextureTest::FVirtualTextureTest( uint32 InSizeX, uint32 InSizeY, uint32
 FVirtualTextureTest::~FVirtualTextureTest()
 {}
 
-bool FVirtualTextureTest::RequestPageData( uint8 vLevel, uint64 vAddress, void* RESTRICT& Location ) /*const*/
+bool FVirtualTextureTest::RequestPageData(FRHICommandList& RHICmdList, uint8 vLevel, uint64 vAddress, void* RESTRICT& Location ) /*const*/
 {
 	/*
 	const size_t VTHeaderSize = 0;

@@ -17,6 +17,7 @@ public:
 
 	//~ Begin IVirtualTexture Interface.
 	virtual FVTRequestPageResult RequestPageData(
+		FRHICommandList& RHICmdList,
 		const FVirtualTextureProducerHandle& ProducerHandle,
 		uint8 LayerMask,
 		uint8 vLevel,

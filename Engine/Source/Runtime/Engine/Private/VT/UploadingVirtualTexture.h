@@ -78,7 +78,7 @@ public:
 
 	// IVirtualTexture interface
 	virtual uint32 GetLocalMipBias(uint8 vLevel, uint32 vAddress) const override;
-	virtual FVTRequestPageResult RequestPageData(const FVirtualTextureProducerHandle& ProducerHandle, uint8 LayerMask, uint8 vLevel, uint64 vAddress, EVTRequestPagePriority Priority) override;
+	virtual FVTRequestPageResult RequestPageData(FRHICommandList& RHICmdList, const FVirtualTextureProducerHandle& ProducerHandle, uint8 LayerMask, uint8 vLevel, uint64 vAddress, EVTRequestPagePriority Priority) override;
 	virtual IVirtualTextureFinalizer* ProducePageData(FRHICommandList& RHICmdList,
 		ERHIFeatureLevel::Type FeatureLevel,
 		EVTProducePageFlags Flags,

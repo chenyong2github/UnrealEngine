@@ -74,6 +74,7 @@ public:
 	FVTTranscodeTileHandleAndStatus FindTask(const FVTTranscodeKey& InKey) const;
 
 	FVTTranscodeTileHandle SubmitTask(
+		FRHICommandList& RHICmdList,
 		FVirtualTextureUploadCache& InUploadCache,
 		const FVTTranscodeKey& InKey,
 		const FVirtualTextureProducerHandle& InProducerHandle,
@@ -87,7 +88,7 @@ public:
 	FGraphEventRef GetTaskEvent(FVTTranscodeTileHandle InHandle) const;
 	void GatherProducePageDataTasks(FVirtualTextureProducerHandle const& ProducerHandle, FGraphEventArray& InOutTasks) const;
 
-	void RetireOldTasks(FVirtualTextureUploadCache& InUploadCache);
+	void RetireOldTasks(FRHICommandList& RHICmdList, FVirtualTextureUploadCache& InUploadCache);
 
 private:
 	enum ListType

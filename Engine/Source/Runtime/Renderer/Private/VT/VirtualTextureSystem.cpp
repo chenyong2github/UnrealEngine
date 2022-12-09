@@ -1972,7 +1972,7 @@ void FVirtualTextureSystem::SubmitRequestsFromLocalTileList(FRHICommandList& RHI
 		}
 
 		FVTRequestPageResult RequestPageResult = Producer->GetVirtualTexture()->RequestPageData(
-			ProducerHandle, LayerMask, Tile.Local_vLevel, Tile.Local_vAddress, EVTRequestPagePriority::High);
+			RHICmdList, ProducerHandle, LayerMask, Tile.Local_vLevel, Tile.Local_vAddress, EVTRequestPagePriority::High);
 
 		if (RequestPageResult.Status != EVTRequestPageStatus::Available)
 		{
@@ -2080,7 +2080,7 @@ void FVirtualTextureSystem::BeginSubmitRequests(FRHICommandList& RHICmdList, ERH
 			}
 
 			const EVTRequestPagePriority Priority = bLockTile ? EVTRequestPagePriority::High : EVTRequestPagePriority::Normal;
-			FVTRequestPageResult RequestPageResult = Producer.GetVirtualTexture()->RequestPageData(ProducerHandle, ProducerTextureLayerMask, TileToLoad.Local_vLevel, TileToLoad.Local_vAddress, Priority);
+			FVTRequestPageResult RequestPageResult = Producer.GetVirtualTexture()->RequestPageData(RHICmdList, ProducerHandle, ProducerTextureLayerMask, TileToLoad.Local_vLevel, TileToLoad.Local_vAddress, Priority);
 			if (RequestPageResult.Status == EVTRequestPageStatus::Pending && bForceProduceTile)
 			{
 				// If we're forcing production of this tile, we're OK producing data now (and possibly waiting) as long as data is pending
