@@ -54,8 +54,7 @@ struct FVisualizationTexture
 };
 static TMap<uint64, FVisualizationTexture> CachedModifierVisualizations;
 
-
-void IEnhancedInputSubsystemInterface::ShowDebugInfo(UCanvas* Canvas)
+void IEnhancedInputSubsystemInterface::ShowMappingContextDebugInfo(UCanvas* Canvas, const UEnhancedPlayerInput* PlayerInput)
 {
 	if (!Canvas)
 	{
@@ -64,37 +63,17 @@ void IEnhancedInputSubsystemInterface::ShowDebugInfo(UCanvas* Canvas)
 
 	FDisplayDebugManager& DisplayDebugManager = Canvas->DisplayDebugManager;
 
-	// TODO: Localize some/all debug output?
-	const UEnhancedPlayerInput* PlayerInput = GetPlayerInput();
 	if (!PlayerInput)
 	{
-		DisplayDebugManager.SetDrawColor(FColor::Orange);
-		DisplayDebugManager.DrawString(TEXT("This player does not support Enhanced Input. To enable it update Project Settings -> Input -> Default Classes to the Enhanced versions."));
+		DisplayDebugManager.SetDrawColor(FColor::Red);
+		DisplayDebugManager.DrawString(TEXT("Invalid Player Input!"));
 		return;
-	}
-
-	if (APlayerController* PC = Cast<APlayerController>(PlayerInput->GetOuter()))
-	{
-		DisplayDebugManager.SetDrawColor(FColor::White);
-		DisplayDebugManager.DrawString(FString::Printf(TEXT("Player: %s"), *PC->GetFName().ToString()));
-
-		// TODO: Display input stack? Remove input stack?
-		//TArray<UInputComponent*> InputStack;
-		//PC->BuildInputStack(InputStack);
-		//FString InputStackStr;
-		//for(UInputComponent* IC : InputStack)
-		//{
-		//	AActor* Owner = InputStack[i]->GetOwner();
-		//	InputStackStr += Owner ? Owner->GetFName().ToString() + "." : "" + IC->GetFName().ToString() + " > ";
-		//}
-		//DisplayDebugManager.SetDrawColor(FColor::White);
-		//DisplayDebugManager.DrawString(FString::Printf(TEXT("Input stack: %s"), *InputStackStr.LeftChop(3)));
 	}
 
 	if (PlayerInput->EnhancedActionMappings.Num() + PlayerInput->LastInjectedActions.Num() == 0)
 	{
 		DisplayDebugManager.SetDrawColor(FColor::Orange);
-		DisplayDebugManager.DrawString(TEXT("No enhanced player input action mappings have been applied to this player."));
+		DisplayDebugManager.DrawString(TEXT("No enhanced player input action mappings have been applied to this input."));
 	}
 	else
 	{
@@ -281,6 +260,45 @@ void IEnhancedInputSubsystemInterface::ShowDebugInfo(UCanvas* Canvas)
 			}
 		}
 	}
+}
+
+void IEnhancedInputSubsystemInterface::ShowDebugInfo(UCanvas* Canvas)
+{
+	if (!Canvas)
+	{
+		return;
+	}
+
+	FDisplayDebugManager& DisplayDebugManager = Canvas->DisplayDebugManager;
+
+	// TODO: Localize some/all debug output?
+	UEnhancedPlayerInput* PlayerInput = GetPlayerInput();
+	if (!PlayerInput)
+	{
+		DisplayDebugManager.SetDrawColor(FColor::Orange);
+		DisplayDebugManager.DrawString(TEXT("This player does not support Enhanced Input. To enable it update Project Settings -> Input -> Default Classes to the Enhanced versions."));
+		return;
+	}
+
+	if (APlayerController* PC = Cast<APlayerController>(PlayerInput->GetOuter()))
+	{
+		DisplayDebugManager.SetDrawColor(FColor::White);
+		DisplayDebugManager.DrawString(FString::Printf(TEXT("Player: %s"), *PC->GetFName().ToString()));
+
+		// TODO: Display input stack? Remove input stack?
+		//TArray<UInputComponent*> InputStack;
+		//PC->BuildInputStack(InputStack);
+		//FString InputStackStr;
+		//for(UInputComponent* IC : InputStack)
+		//{
+		//	AActor* Owner = InputStack[i]->GetOwner();
+		//	InputStackStr += Owner ? Owner->GetFName().ToString() + "." : "" + IC->GetFName().ToString() + " > ";
+		//}
+		//DisplayDebugManager.SetDrawColor(FColor::White);
+		//DisplayDebugManager.DrawString(FString::Printf(TEXT("Input stack: %s"), *InputStackStr.LeftChop(3)));
+	}
+
+	ShowMappingContextDebugInfo(Canvas, PlayerInput);
 }
 
 void IEnhancedInputSubsystemInterface::ShowDebugActionModifiers(UCanvas* Canvas, const UInputAction* Action)

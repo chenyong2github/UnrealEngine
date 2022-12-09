@@ -13,12 +13,14 @@
 #include "EnhancedInputSubsystemInterface.generated.h"
 
 class APlayerController;
+class UCanvas;
 class UInputMappingContext;
 class UInputAction;
 class UEnhancedPlayerInput;
 class UInputModifier;
 class UInputTrigger;
 class UPlayerMappableInputConfig;
+class UWorldSubsystem;
 
 // Subsystem interface
 UINTERFACE(MinimalAPI, meta=(CannotImplementInterfaceInBlueprint))
@@ -49,7 +51,7 @@ struct FModifyContextOptions
 		, bForceImmediately(false)
 	{}
 
-	// If true than any keys that are pressed during the rebuild of control mappings will be ignored until they are released.
+	// If true then any keys that are pressed during the rebuild of control mappings will be ignored until they are released.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	uint8 bIgnoreAllPressedKeysUntilRelease : 1;
 
@@ -312,6 +314,9 @@ protected:
 
 	/** Function that will be called when Control Mappings have been rebuilt this tick. */
 	virtual void ControlMappingsRebuiltThisFrame() {}
+
+	// helper function to display debug about mapping context info
+	void ShowMappingContextDebugInfo(UCanvas* Canvas, const UEnhancedPlayerInput* PlayerInput);
 	
 private:
 
@@ -376,8 +381,8 @@ private:
 	 */
 	bool bControlMappingsRebuiltThisTick = false;
 
-	// Debug visualization implemented in EnhancedInputSubsystemsDebug.cpp
-	void ShowDebugInfo(class UCanvas* Canvas);
+	// Debug visualization for enhanced input local player subsystem
+	virtual void ShowDebugInfo(UCanvas* Canvas);
 	
 	void ShowDebugActionModifiers(UCanvas* Canvas, const UInputAction* Action);
 	static void PurgeDebugVisualizations();

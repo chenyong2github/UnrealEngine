@@ -98,6 +98,7 @@ public:
 	/** Removes all the default mapping contexts */
 	void RemoveDefaultMappingContexts();
 	
+	virtual void ShowDebugInfo(UCanvas* Canvas) override;
 private:
 
 	/** The player input that is processing the input within this subsystem */

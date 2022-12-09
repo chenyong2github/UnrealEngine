@@ -7,6 +7,7 @@
 #include "EnhancedInputDeveloperSettings.h"
 #include "EnhancedInputModule.h"
 #include "EnhancedPlayerInput.h"
+#include "Engine/Canvas.h"
 #include "Engine/World.h"
 #include "Framework/Application/SlateApplication.h"
 #include "GameFramework/PlayerController.h"
@@ -263,4 +264,27 @@ void UEnhancedInputWorldSubsystem::RemoveDefaultMappingContexts()
 			}
 		}
 	}
+}
+
+void UEnhancedInputWorldSubsystem::ShowDebugInfo(UCanvas* Canvas)
+{
+	if (!Canvas)
+	{
+		return;
+	}
+
+	FDisplayDebugManager& DisplayDebugManager = Canvas->DisplayDebugManager;
+
+	UEnhancedPlayerInput* WorldSubsystemPlayerInput = GetPlayerInput();
+	if (!WorldSubsystemPlayerInput)
+	{
+		DisplayDebugManager.SetDrawColor(FColor::Orange);
+		DisplayDebugManager.DrawString(TEXT("This player does not support Enhanced Input."));
+		return;
+	}
+	
+	DisplayDebugManager.SetDrawColor(FColor::White);
+	DisplayDebugManager.DrawString(FString::Printf(TEXT("World Subsystem from %s"), LexToString(GetWorld()->WorldType)));
+	
+	ShowMappingContextDebugInfo(Canvas, WorldSubsystemPlayerInput);
 }
