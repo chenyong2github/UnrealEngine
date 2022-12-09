@@ -218,6 +218,8 @@ void CopyCubemapToIlluminanceMeterCubemapPS(
 	out float4 OutColor : SV_Target0
 	)
 {
+	ResolvedView = ResolveView();
+
 	float2 UV = SvPosition.xy * SvPositionToUVScale;
 	float2 ScaledUVs = UV * 2 - 1;
 
@@ -230,7 +232,7 @@ void CopyCubemapToIlluminanceMeterCubemapPS(
 	float Tmp= 1.0f + ScaledUVs.x * ScaledUVs.x + ScaledUVs.y * ScaledUVs.y; 
 	float dA = 4.0f / (sqrt(Tmp) * Tmp); // Not really dA, but using same variable name
 
-	const float3 L = TextureCubeSampleLevel(SourceCubemapTexture, SourceCubemapSampler, CubeCoordinates, 0).rgb;
+	const float3 L = TextureCubeSampleLevel(SourceCubemapTexture, SourceCubemapSampler, CubeCoordinates, 0).rgb * ResolvedView.SkyLightColor.rgb;
 	OutColor = float4(L * NoL* dA, dA);
 }
 
@@ -885,8 +887,10 @@ void RenderRealTimeReflectionHeightFogPS(
 #ifdef VISUALIZE_ILLUMINANCE_METER
 
 #include "/Engine/Private/ShaderPrint.ush"
+#include "/Engine/Private/SkyAtmosphereCommon.ush"
 
 int CubeMipIndexToSampleIlluminance;
+float3 SkyLightCaptureWorlPos;
 
 TextureCube SkyLightCubeTexture;
 SamplerState SkyLightCubeSampler;
@@ -912,7 +916,7 @@ float GetSimpleAutoExposure()
 	float4 IlluminanceAcc = GetIlluminance();
 	float MaxIlluminance = max3(IlluminanceAcc.r, IlluminanceAcc.g, IlluminanceAcc.b);
 	float SimpleAutoExposure = 1.0f / (MaxIlluminance <= 0.0 ? 0.01f : MaxIlluminance);
-	return SimpleAutoExposure;
+	return 1.0;// SimpleAutoExposure; Disabled for now, using the view exposure
 }
 
 float4 SampleCubeAsLatLon(TextureCube CubeTexture, SamplerState CubeSampler, float2 UV)
@@ -943,7 +947,7 @@ float4 SampleCubeAsSphere(TextureCube CubeTexture, SamplerState CubeSampler, flo
 			N *= float3(1.0, -1.0, 1.0);
 		}
 
-		DebugVis = TextureCubeSampleLevel(CubeTexture, CubeSampler, mul(N, (float3x3)View.ViewToTranslatedWorld), 0);
+		DebugVis = TextureCubeSampleLevel(CubeTexture, CubeSampler, mul(N, (float3x3)ResolvedView.ViewToTranslatedWorld), 0);
 		DebugVis.rgb *= GetSimpleAutoExposure();
 	}
 
@@ -954,7 +958,9 @@ void VisualizeIlluminanceMeterPS(
 	float4 SVPos : SV_POSITION,
 	out float4 OutColor : SV_Target0)
 {
-	const uint2 PixelPosDynRes = uint2(float2(SVPos.xy) * View.ViewResolutionFraction);
+	ResolvedView = ResolveView();
+
+	const uint2 PixelPosDynRes = uint2(float2(SVPos.xy) * ResolvedView.ViewResolutionFraction);
 	float2 BufferUV = SvPositionToBufferUV(float4(PixelPosDynRes, SVPos.zw));
 
 	OutColor = 0.0f;
@@ -983,7 +989,17 @@ void VisualizeIlluminanceMeterPS(
 
 		Newline(Context);
 
-		const float3 SunLightIlluminance = View.AtmosphereLightIlluminanceOnGroundPostTransmittance[0];
+	#if PROJECT_SUPPORT_SKY_ATMOSPHERE
+		const float3 PlanetCenterToTranslatedWorldPos = (LWCToFloat(LWCAdd(SkyLightCaptureWorlPos, ResolvedView.PreViewTranslation)) - ResolvedView.SkyPlanetTranslatedWorldCenterAndViewHeight.xyz) * CM_TO_SKY_UNIT;
+		// GetAtmosphereTransmittance does a shadow test against the virtual planet.
+		const float3 TransmittanceToLight = GetAtmosphereTransmittance(
+			PlanetCenterToTranslatedWorldPos, ResolvedView.AtmosphereLightDirection[0].xyz, ResolvedView.SkyAtmosphereBottomRadiusKm, ResolvedView.SkyAtmosphereTopRadiusKm,
+			View.TransmittanceLutTexture, View.TransmittanceLutTextureSampler);
+
+		const float3 SunLightIlluminance = ResolvedView.AtmosphereLightIlluminanceOuterSpace[0].rgb * TransmittanceToLight;
+	#else
+		const float3 SunLightIlluminance = ResolvedView.AtmosphereLightIlluminanceOuterSpace[0];
+	#endif
 
 		Print(Context, TEXT("Sun light illuminance = "), InitFontColor(0.8, 0.8, 0.8));
 		Print(Context, SunLightIlluminance.r, InitFontColor(1.0, 0.8, 0.8));

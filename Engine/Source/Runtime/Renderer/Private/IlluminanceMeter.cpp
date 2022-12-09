@@ -21,6 +21,7 @@ public:
 	SHADER_USE_PARAMETER_STRUCT(FCopyCubemapToIlluminanceMeterCubemapPS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_TEXTURE(TextureCube, SourceCubemapTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SourceCubemapSampler)
 		SHADER_PARAMETER(FVector2f, SvPositionToUVScale)
@@ -67,6 +68,7 @@ class FPrintIlluminanceMeterPS : public FGlobalShader
 		SHADER_PARAMETER_TEXTURE(TextureCube, SkyLightCubeTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SkyLightCubeSampler)
 		SHADER_PARAMETER(int32, CubeMipIndexToSampleIlluminance)
+		SHADER_PARAMETER(FVector3f, SkyLightCaptureWorlPos)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
@@ -135,6 +137,7 @@ void FScene::ProcessAndRenderIlluminanceMeter(FRDGBuilder& GraphBuilder, TArrayV
 		for (uint32 CubeFace = 0; CubeFace < CubeFace_MAX; CubeFace++)
 		{
 			auto* PassParameters = GraphBuilder.AllocParameters<FCopyCubemapToIlluminanceMeterCubemapPS::FParameters>();
+			PassParameters->ViewUniformBuffer = MainView.ViewUniformBuffer;
 			PassParameters->SourceCubemapSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 			PassParameters->SourceCubemapTexture = SkyLightTextureRHI;
 			PassParameters->CubeFace = CubeFace;
@@ -202,6 +205,7 @@ void FScene::ProcessAndRenderIlluminanceMeter(FRDGBuilder& GraphBuilder, TArrayV
 		PassParameters->SkyLightCubeTexture = SkyLightTextureRHI;
 		PassParameters->SkyLightCubeSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		PassParameters->CubeMipIndexToSampleIlluminance = IlluminanceMeterCubeTexture->Desc.NumMips - 1;
+		PassParameters->SkyLightCaptureWorlPos = FVector3f(SkyLight->CapturePosition);
 		ShaderPrint::SetParameters(GraphBuilder, MainView.ShaderPrintData, PassParameters->ShaderPrintParameters);
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
 

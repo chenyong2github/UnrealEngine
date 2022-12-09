@@ -204,7 +204,8 @@ class ENGINE_API USkyLightComponent : public ULightComponentBase
 	TEnumAsByte<enum EOcclusionCombineMode> OcclusionCombineMode;
 	
 	/**
-	 * When enabled, draw on screen the bull cube map as well as the integrate illuminance half hemisphere, together with the sky illuminance contribution. It also show the atmospheric sun illuminance post SkyAtmosphere transmittance on ground if one is enabled.
+	 * When enabled, visualize on screen the sky cube map as well as the integrate half hemisphere of luminance, together with the sky illuminance contribution at the position of the skylight component.
+	 * It also show the atmospheric directional light illuminance post SkyAtmosphere transmittance at the position on the skylight component.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Visualization)
 	uint32 bShowIlluminanceMeter : 1;
