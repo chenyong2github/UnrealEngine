@@ -292,11 +292,6 @@ class FP010ConvertPS
 
 public:
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
-	}
-
 	FP010ConvertPS() { }
 
 	FP010ConvertPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -316,11 +311,6 @@ class FP010ConvertAsUINT16sPS
 
 public:
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
-	}
-
 	FP010ConvertAsUINT16sPS() { }
 
 	FP010ConvertAsUINT16sPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -339,11 +329,6 @@ class FP010_2101010ConvertPS
 	DECLARE_EXPORTED_SHADER_TYPE(FP010_2101010ConvertPS, Global, RENDERCORE_API);
 
 public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
-	}
 
 	FP010_2101010ConvertPS() { }
 
