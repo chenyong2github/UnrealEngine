@@ -715,6 +715,14 @@ bool FPackageTrailer::UpdatePayloadAsVirtualized(const FIoHash& Identifier)
 	}
 }
 
+void FPackageTrailer::ForEachPayload(TFunctionRef<void(const FIoHash&, uint64, uint64, EPayloadAccessMode, UE::Virtualization::EPayloadFilterReason)> Callback) const
+{
+	for (const Private::FLookupTableEntry& Entry : Header.PayloadLookupTable)
+	{
+		Callback(Entry.Identifier, Entry.CompressedSize, Entry.RawSize, Entry.AccessMode, Entry.FilterFlags);
+	}
+}
+
 EPayloadStatus FPackageTrailer::FindPayloadStatus(const FIoHash& Id) const
 {
 	const Private::FLookupTableEntry* Entry = FindEntryInHeader(Header, Id);

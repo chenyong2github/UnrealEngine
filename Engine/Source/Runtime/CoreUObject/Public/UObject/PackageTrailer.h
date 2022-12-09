@@ -471,6 +471,11 @@ public:
 	 */
 	[[nodiscard]] bool UpdatePayloadAsVirtualized(const FIoHash& Identifier);
 
+	/**
+	 * Iterates over all payloads in the trailer and invokes the provoided callback on them
+	 */
+	void ForEachPayload(TFunctionRef<void(const FIoHash&, uint64, uint64, EPayloadAccessMode, UE::Virtualization::EPayloadFilterReason)> Callback) const;
+
 	/** Attempt to find the status of the given payload. @See EPayloadStatus */
 	[[nodiscard]] EPayloadStatus FindPayloadStatus(const FIoHash& Id) const;
 
@@ -575,6 +580,30 @@ private:
  * @return 				True if the package was parsed successfully (although it might not have contained any payloads) and false if opening or parsing the package file failed.
  */
 [[nodiscard]] COREUOBJECT_API bool FindPayloadsInPackageFile(const FPackagePath& PackagePath, EPayloadStorageType Filter, TArray<FIoHash>& OutPayloadIds);
+
+/** Allow EPayloadAccessMode to work with string builder */
+template <typename CharType>
+inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, EPayloadAccessMode Mode)
+{
+	switch (Mode)
+	{
+		case UE::EPayloadAccessMode::Local:
+			Builder << TEXT("Local");
+			break;
+		case UE::EPayloadAccessMode::Referenced:
+			Builder << TEXT("Referenced");
+			break;
+		case UE::EPayloadAccessMode::Virtualized:
+			Builder << TEXT("Virtualized");
+			break;
+		default:
+			Builder << TEXT("Invalid");
+			break;
+	}
+
+	return Builder;
+}
+
 
 } //namespace UE
 
