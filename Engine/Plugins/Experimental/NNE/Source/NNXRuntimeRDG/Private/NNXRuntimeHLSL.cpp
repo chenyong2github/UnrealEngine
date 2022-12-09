@@ -13,6 +13,7 @@
 #include "Hlsl/NNIRuntimeRDGGemm.h"
 #include "Hlsl/NNIRuntimeRDGMatMul.h"
 #include "Hlsl/NNIRuntimeRDGInstanceNormalization.h"
+#include "Hlsl/NNIRuntimeRDGUpsample.h"
 #include "NNXRuntimeHLSLHelper.h"
 #include "NNXRuntimeRDG.h"
 
@@ -266,6 +267,7 @@ public:
 		UE::NNIRuntimeRDG::Private::Hlsl::RegisterConvTransposeOperator(*registry);
 		UE::NNIRuntimeRDG::Private::Hlsl::RegisterMatMulOperator(*registry);
 		UE::NNIRuntimeRDG::Private::Hlsl::RegisterInstanceNormalizationOperator(*registry);
+		UE::NNIRuntimeRDG::Private::Hlsl::RegisterUpsampleOperator(*registry);
 
 		return true;
 	}

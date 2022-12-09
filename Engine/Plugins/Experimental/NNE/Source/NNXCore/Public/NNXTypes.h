@@ -247,9 +247,13 @@ public:
 		return Shape;
 	}
 
-	TConstArrayView<uint8> GetPreparedData() const
+	template <typename T> TConstArrayView<T> GetPreparedData() const
 	{
-		return PreparedData;
+		const T* DataPtr = reinterpret_cast<const T*>(PreparedData.GetData());
+		const int32 ElemSize = sizeof(T);
+		
+		check(DataSize % ElemSize == 0);
+		return MakeArrayView(DataPtr, DataSize / ElemSize);
 	}
 
 	void SetShape(const FTensorShape& InShape)
@@ -268,7 +272,7 @@ public:
 		PreparedData.Append(Data);
 	}
 
-	bool HasPreparedData()
+	bool HasPreparedData() const
 	{
 		return !PreparedData.IsEmpty();
 	}

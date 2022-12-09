@@ -95,7 +95,7 @@
 				},
 				"weights": {
 					"type": "array",
-					"description": "output to test",
+					"description": "weights to test",
 					"items": { "$ref": "#/$defs/test_config_tensor" }
 				},
 				"outputs": {

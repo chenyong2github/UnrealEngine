@@ -498,15 +498,6 @@ int FMLInferenceModelRDG::EnqueueRDG(FRDGBuilder& RDGBuilder, TConstArrayView<FM
 		TensorRDG.SetBuffer(TensorBuffer);
 	}
 
-	//For now weights tensors are not uploaded to GPU thus GetBuffer will return nullptr for them.
-	checkCode(for (const FTensorRDG* TensorRDG : AllTensorRDGs) { if (TensorRDG != nullptr) { check(TensorRDG->GetBuffer() != nullptr); } });
-
-	//Insert weights tensors
-	for (int32 i = 0; i < WeightTensorIndices.Num(); ++i)
-	{
-		AllTensorRDGs[WeightTensorIndices[i]] = &WeightTensorRDGs[i];
-	}
-	
 	// We can now dispatch operators
 	AddDispatchOps_RenderThread(RDGBuilder);
 

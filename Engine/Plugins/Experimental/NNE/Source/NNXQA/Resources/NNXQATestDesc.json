@@ -311,6 +311,15 @@
 			"targets": [
 				{ "target": "InstanceNormalization" }
 			]
+		},
+		{
+			"category": "Upsample",
+			"runtimes": [
+				{ "name": "NNXRuntimeDml", "skip": true	}
+			],
+			"targets": [
+				{ "target": "Upsample" }
+			]
 		}
 	],
 
@@ -565,7 +574,7 @@
 		{
 			"name": "MatMul.Rank5",
 			"runtimes": [	
-				{	"name": "NNXRuntimeORTDml", "skip": true, "comment": "DML metacommand only support 2 to 4 for inputs rank" 	},
+				{ "name": "NNXRuntimeORTDml", "skip": true, "comment": "DML metacommand only support 2 to 4 for inputs rank" },
 				{ "name": "NNXRuntimeHlsl", "relative_error": 0.01}
 			],
 			"datasets": [
@@ -591,6 +600,30 @@
 				{ "inputs":  [ { "shape": [ 1 ], "source": [ "1" ] } ], 
 				  "weights": [ { "shape": [ 2 ], "source": [ "1", "2" ] , "type": "int64" } ],
 				  "outputs": [ { "shape": [ 4 ], "source": [ "0", "1", "0", "0" ] } ] }
+			]
+		},
+		{
+			"name": "Upsample.ScaleFromInput",
+			"runtimes": [	
+				{ "name": "NNXRuntimeDml", "skip": true, "comment": "Scale should be a constant tensor for RDG" },
+				{ "name": "NNXRuntimeHlsl", "skip": true, "comment": "Scale should be a constant tensor for RDG" }
+			],
+			"datasets": [
+				{ "inputs":  [ { "shape": [ 1 ] },                            { "shape": [ 1 ], "source": [ "3"    ],                  "type": "float" } ], "outputs": [ { "shape": [ 3 ]} ] },
+				{ "inputs":  [ { "shape": [ 2 ] },                            { "shape": [ 1 ], "source": [ "2"    ],                  "type": "float" } ], "outputs": [ { "shape": [ 4 ]} ] },
+				{ "inputs":  [ { "shape": [ 3 ] },                            { "shape": [ 1 ], "source": [ "1"    ],                  "type": "float" } ], "outputs": [ { "shape": [ 3 ]} ] },
+				{ "inputs":  [ { "shape": [ 1, 2, 3, 4 ] },                   { "shape": [ 4 ], "source": [ "1", "1", "2", "2" ],      "type": "float" } ], "outputs": [ { "shape": [ 1, 2, 6, 8 ]} ] },
+				{ "inputs":  [ { "shape": [ 2, 1, 3, 1, 2 ] },                { "shape": [ 5 ], "source": [ "1", "2", "2", "1", "2" ], "type": "float" } ], "outputs": [ { "shape": [ 2, 2, 6, 1, 4 ]} ] }
+			]
+		},
+		{
+			"name": "Upsample.ScaleFromWeight",
+			"datasets": [
+				{ "inputs":  [ { "shape": [ 1 ] } ],             "weights": [ { "shape": [ 1 ], "source": [ "3"    ],                  "type": "float" } ], "outputs": [ { "shape": [ 3 ]} ] },
+				{ "inputs":  [ { "shape": [ 2 ] } ],             "weights": [ { "shape": [ 1 ], "source": [ "2"    ],                  "type": "float" } ], "outputs": [ { "shape": [ 4 ]} ] },
+				{ "inputs":  [ { "shape": [ 3 ] } ],             "weights": [ { "shape": [ 1 ], "source": [ "1"    ],                  "type": "float" } ], "outputs": [ { "shape": [ 3 ]} ] },
+				{ "inputs":  [ { "shape": [ 1, 2, 3, 4 ] } ],    "weights": [ { "shape": [ 4 ], "source": [ "1", "1", "2", "2" ],      "type": "float" } ], "outputs": [ { "shape": [ 1, 2, 6, 8 ]} ] },
+				{ "inputs":  [ { "shape": [ 2, 1, 3, 1, 2 ] } ], "weights": [ { "shape": [ 5 ], "source": [ "1", "2", "2", "1", "2" ], "type": "float" } ], "outputs": [ { "shape": [ 2, 2, 6, 1, 4 ]} ] }
 			]
 		},
 		{
