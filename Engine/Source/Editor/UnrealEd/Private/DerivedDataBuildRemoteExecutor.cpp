@@ -14,6 +14,7 @@
 #include "DerivedDataRequestOwner.h"
 #include "DerivedDataSharedString.h"
 #include "DerivedDataValue.h"
+#include "Experimental/ZenServerInterface.h"
 #include "Features/IModularFeatures.h"
 #include "HAL/Event.h"
 #include "HAL/PlatformProcess.h"
@@ -30,7 +31,6 @@
 #include "Tasks/Task.h"
 #include "Templates/Function.h"
 #include "ZenServerHttp.h"
-#include "ZenServerInterface.h"
 
 #include <atomic>
 

@@ -7,6 +7,7 @@
 #include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
 #include "Dom/JsonObject.h"
+#include "Experimental/ZenGlobals.h"
 #include "HAL/Platform.h"
 #include "HAL/PlatformCrt.h"
 #include "Misc/Optional.h"
@@ -15,7 +16,6 @@
 #include "Serialization/JsonWriter.h"
 #include "Templates/PimplPtr.h"
 #include "Templates/UniquePtr.h"
-#include "ZenGlobals.h"
 
 #if UE_WITH_ZEN
 #	include "ZenStatistics.h"

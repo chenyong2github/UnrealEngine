@@ -48,7 +48,7 @@
 #include "ITurnkeyIOModule.h"
 #include "AnalyticsEventAttribute.h"
 #if WITH_EDITOR
-#include "ZenServerInterface.h"
+#include "Experimental/ZenServerInterface.h"
 #endif
 
 #include "Misc/App.h"

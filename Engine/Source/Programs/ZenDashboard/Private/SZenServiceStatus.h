@@ -2,13 +2,13 @@
 
 #pragma once
 
+#include "Experimental/ZenServerInterface.h"
 #include "ServiceInstanceManager.h"
 #include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/SWidget.h"
-#include "ZenServerInterface.h"
 
 class SZenServiceStatus : public SCompoundWidget
 {

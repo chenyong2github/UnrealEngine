@@ -22,6 +22,7 @@
 #include "DerivedDataRequestOwner.h"
 #include "DerivedDataThreadPoolTask.h"
 #include "Experimental/Async/LazyEvent.h"
+#include "Experimental/ZenServerInterface.h"
 #include "Features/IModularFeatures.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "Misc/CommandLine.h"
@@ -33,7 +34,6 @@
 #include "Serialization/CompactBinaryWriter.h"
 #include "Stats/Stats.h"
 #include "Stats/StatsMisc.h"
-#include "ZenServerInterface.h"
 #include <atomic>
 
 DEFINE_STAT(STAT_DDC_NumGets);

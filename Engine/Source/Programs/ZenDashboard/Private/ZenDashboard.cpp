@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ZenDashboard.h"
+#include "Experimental/ZenServerInterface.h"
 #include "Features/IModularFeatures.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -25,7 +26,6 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Widgets/Text/STextBlock.h"
 #include "ZenDashboardStyle.h"
-#include "ZenServerInterface.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsHWrapper.h"

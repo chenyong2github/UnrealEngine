@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "ZenGlobals.h"
-
 #include "Containers/StaticArray.h"
 #include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
+#include "Experimental/ZenGlobals.h"
 #include "Memory/MemoryFwd.h"
 
 // if there is a platform-specific include then it must be used in the header file in case it defines CURL_STRICTER

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "ZenServerInterface.h"
+#include "Experimental/ZenServerInterface.h"
 
 #if UE_WITH_ZEN
 

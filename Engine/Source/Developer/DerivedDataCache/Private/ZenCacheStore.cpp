@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ZenServerInterface.h"
 #include "DerivedDataLegacyCacheStore.h"
+#include "Experimental/ZenServerInterface.h"
 
 #if UE_WITH_ZEN
 
@@ -13,6 +13,7 @@
 #include "DerivedDataChunk.h"
 #include "DerivedDataRequest.h"
 #include "DerivedDataRequestOwner.h"
+#include "Experimental/ZenStatistics.h"
 #include "Http/HttpClient.h"
 #include "Math/UnrealMathUtility.h"
 #include "Misc/App.h"
@@ -28,7 +29,6 @@
 #include "Templates/Function.h"
 #include "ZenBackendUtils.h"
 #include "ZenSerialization.h"
-#include "ZenStatistics.h"
 
 TRACE_DECLARE_INT_COUNTER(ZenDDC_Get,			TEXT("ZenDDC Get"));
 TRACE_DECLARE_INT_COUNTER(ZenDDC_GetHit,		TEXT("ZenDDC Get Hit"));
