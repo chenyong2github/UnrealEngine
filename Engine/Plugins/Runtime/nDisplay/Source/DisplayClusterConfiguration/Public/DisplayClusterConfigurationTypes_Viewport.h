@@ -83,6 +83,14 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_Rend
 	GENERATED_BODY()
 
 public:
+	/* Enable cross-GPU transfer for this viewport.
+	 * It may be disabled in some configurations. For example, when using offscreen rendering with TextureShare,
+	 * cross-gpu transfer can be disabled for this viewport to improve performance, because when transfer is called, 
+	 * it freezes the GPUs until synchronization is reached.
+	 * (TextureShare uses its own implementation of the crossGPU transfer for the shared textures.) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering", meta = (DisplayName = "Enable Cross-GPU Transfer"))
+	bool bEnableCrossGPUTransfer = true;
+
 	/** Specify which GPU should render the second Stereo eye */
 	UPROPERTY(EditAnywhere, Category = "Stereo", meta = (DisplayName = "Stereo GPU Index"))
 	int StereoGPUIndex = -1;
@@ -240,10 +248,6 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationRenderFrame
 	GENERATED_BODY()
 
 public:
-	// Performance: Allow change global MGPU settings
-	UPROPERTY(EditAnywhere, Category = "Configuration", meta = (DisplayName = "Multi GPU Mode"))
-	EDisplayClusterConfigurationRenderMGPUMode MultiGPUMode = EDisplayClusterConfigurationRenderMGPUMode::Enabled;
-
 	// Performance: Allow merge multiple viewports on single RTT with atlasing (required for bAllowViewFamilyMergeOptimization)
 	// [not implemented yet] Experimental
 	UPROPERTY()

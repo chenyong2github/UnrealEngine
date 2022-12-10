@@ -62,9 +62,10 @@ FDisplayClusterViewport::~FDisplayClusterViewport()
 
 	ViewportProxy.Reset();
 
+	// Handle projection policy EndScene event
 	HandleEndScene();
 
-	// Handle projection policy event
+	// Release Projection policy after HandleEndScene()
 	ProjectionPolicy.Reset();
 	UninitializedProjectionPolicy.Reset();
 
@@ -240,12 +241,17 @@ void FDisplayClusterViewport::SetupSceneView(uint32 ContextNum, class UWorld* Wo
 		return;
 	}
 
-	// Setup MGPU features:
 	if(Contexts[ContextNum].GPUIndex >= 0)
 	{
+		// Use custom GPUIndex for render
 		InOutView.bOverrideGPUMask = true;
-		InOutView.GPUMask = FRHIGPUMask::FromIndex(FMath::Min((uint32)Contexts[ContextNum].GPUIndex, GNumExplicitGPUsForRendering - 1));
-		InOutView.bAllowCrossGPUTransfer = (Contexts[ContextNum].bAllowGPUTransferOptimization == false);
+		InOutView.GPUMask = FRHIGPUMask::FromIndex((uint32)Contexts[ContextNum].GPUIndex);
+	}
+
+	if (Contexts[ContextNum].bOverrideCrossGPUTransfer || !RenderSettings.bEnableCrossGPUTransfer)
+	{
+		// Disable native cross-GPU transfers inside Renderer.
+		InOutView.bAllowCrossGPUTransfer = false;
 	}
 
 	// Disable raytracing for lightcard and chromakey
@@ -534,22 +540,22 @@ bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InStereoViewIndex
 
 		FDisplayClusterViewport_Context Context(ContextIt, StereoscopicPass, StereoViewIndex);
 
-		int32 ContextGPUIndex = (ContextIt > 0 && RenderSettings.StereoGPUIndex >= 0) ? RenderSettings.StereoGPUIndex : RenderSettings.GPUIndex;
-		Context.GPUIndex = ContextGPUIndex;
+		Context.GPUIndex = INDEX_NONE;
 
-
-		if (InFrameSettings.bIsRenderingInEditor)
+		// The nDisplay can use its own cross-GPU transfer
+		if (InFrameSettings.CrossGPUTransfer.bEnable)
 		{
-			// Disable MultiGPU feature
-			Context.GPUIndex = INDEX_NONE;
+			Context.bOverrideCrossGPUTransfer = true;
+		}
 
-			if (InFrameSettings.bAllowMultiGPURenderingInEditor)
+		const int32 MaxExplicitGPUIndex = GNumExplicitGPUsForRendering - 1;
+		if (MaxExplicitGPUIndex > 0)
+		{
+			if (InFrameSettings.bIsRenderingInEditor)
 			{
 				// Experimental: allow mGPU for preview rendering:
-				if (GNumExplicitGPUsForRendering > 1 && bDisableRender == false)
+				if (InFrameSettings.bAllowMultiGPURenderingInEditor && !bDisableRender)
 				{
-					int32 MaxExplicitGPUIndex = GNumExplicitGPUsForRendering - 1;
-
 					int32 MinGPUIndex = FMath::Min(InFrameSettings.PreviewMinGPUIndex, MaxExplicitGPUIndex);
 					int32 MaxGPUIndex = FMath::Min(InFrameSettings.PreviewMaxGPUIndex, MaxExplicitGPUIndex);
 
@@ -560,35 +566,13 @@ bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InStereoViewIndex
 					{
 						PreviewGPUIndex = MinGPUIndex;
 					}
-
-					Context.bAllowGPUTransferOptimization = true;
-					Context.bEnabledGPUTransferLockSteps = false;
 				}
 			}
-		}
-		else
-		{
-			// Control mGPU:
-			switch (InFrameSettings.MultiGPUMode)
+			else
 			{
-			case EDisplayClusterMultiGPUMode::None:
-				Context.bAllowGPUTransferOptimization = false;
-				Context.GPUIndex = INDEX_NONE;
-				break;
-
-			case EDisplayClusterMultiGPUMode::Optimized_EnabledLockSteps:
-				Context.bAllowGPUTransferOptimization = true;
-				Context.bEnabledGPUTransferLockSteps = true;
-				break;
-
-			case EDisplayClusterMultiGPUMode::Optimized_DisabledLockSteps:
-				Context.bAllowGPUTransferOptimization = true;
-				Context.bEnabledGPUTransferLockSteps = false;
-				break;
-
-			default:
-				Context.bAllowGPUTransferOptimization = false;
-				break;
+				// Set custom GPU index for this view
+				const int32 CustomMultiGPUIndex = (ContextIt > 0 && RenderSettings.StereoGPUIndex >= 0) ? RenderSettings.StereoGPUIndex : RenderSettings.GPUIndex;
+				Context.GPUIndex = FMath::Min(CustomMultiGPUIndex, MaxExplicitGPUIndex);
 			}
 		}
 

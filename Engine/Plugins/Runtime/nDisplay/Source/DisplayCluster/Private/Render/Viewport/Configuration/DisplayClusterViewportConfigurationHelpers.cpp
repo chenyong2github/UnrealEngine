@@ -174,6 +174,8 @@ void FDisplayClusterViewportConfigurationHelpers::UpdateBaseViewportSetting(FDis
 		DstViewport.RenderSettings.CameraId = InConfigurationViewport.Camera;
 		DstViewport.RenderSettings.Rect = DstViewport.GetValidRect(InConfigurationViewport.Region.ToRect(), TEXT("Configuration Region"));
 
+		DstViewport.RenderSettings.bEnableCrossGPUTransfer = InConfigurationViewport.RenderSettings.bEnableCrossGPUTransfer;
+
 		DstViewport.RenderSettings.GPUIndex = InConfigurationViewport.GPUIndex;
 		DstViewport.RenderSettings.OverlapOrder = InConfigurationViewport.OverlapOrder;
 

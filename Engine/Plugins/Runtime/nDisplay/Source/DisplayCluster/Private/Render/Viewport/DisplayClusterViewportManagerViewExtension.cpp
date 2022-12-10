@@ -3,7 +3,7 @@
 #include "DisplayClusterViewportManagerViewExtension.h"
 #include "DisplayClusterSceneViewExtensions.h"
 #include "Render/Viewport/IDisplayClusterViewportManager.h"
-#include "Render/Viewport/IDisplayClusterViewportManagerProxy.h"
+#include "Render/Viewport/DisplayClusterViewportManagerProxy.h"
 #include "SceneRendering.h"
 
 #include "IDisplayCluster.h"
@@ -69,13 +69,14 @@ void FDisplayClusterViewportManagerViewExtension::PreRenderViewFamily_RenderThre
 		if (const FSceneView* SceneView = InViewFamily.Views[ViewIndex])
 		{
 			FViewportProxy NewViewportProxy;
-			NewViewportProxy.ViewportProxy = ViewportManagerProxy->FindViewport_RenderThread(SceneView->StereoViewIndex, &NewViewportProxy.ViewportProxyContext.ContextNum);
-			NewViewportProxy.ViewportProxyContext.ViewFamilyProfileDescription = InViewFamily.ProfileDescription;
 
-			NewViewportProxy.ViewIndex = ViewIndex;
-
-			if (NewViewportProxy.IsEnabled())
+			if (IDisplayClusterViewportProxy* ViewportProxyPtr = ViewportManagerProxy->FindViewport_RenderThread(SceneView->StereoViewIndex, &NewViewportProxy.ViewportProxyContext.ContextNum))
 			{
+				NewViewportProxy.ViewportProxyContext.ViewFamilyProfileDescription = InViewFamily.ProfileDescription;
+
+				NewViewportProxy.ViewportProxy = (static_cast<FDisplayClusterViewportProxy*>(ViewportProxyPtr))->AsShared();
+				NewViewportProxy.ViewIndex = ViewIndex;
+
 				Viewports.Add(NewViewportProxy);
 			}
 		}

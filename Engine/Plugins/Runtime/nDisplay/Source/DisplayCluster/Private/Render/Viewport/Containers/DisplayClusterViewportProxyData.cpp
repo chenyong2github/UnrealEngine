@@ -58,7 +58,19 @@ void FDisplayClusterViewportProxyData::UpdateProxy_RenderThread() const
 	DstViewportProxy->PostRenderSettings.SetParameters(PostRenderSettings);
 
 	DstViewportProxy->ProjectionPolicy = ProjectionPolicy;
-	DstViewportProxy->Contexts         = Contexts;
+	
+	// The RenderThreadData for DstViewportProxy has been updated in DisplayClusterViewportManagerViewExtension on the rendering thread.
+	// Therefore, the RenderThreadData values from the game thread must be overridden by current data from the render thread.
+	{
+		const TArray<FDisplayClusterViewport_Context> CurrentContexts = DstViewportProxy->Contexts;
+		DstViewportProxy->Contexts = Contexts;
+
+		int32 ContextAmmount = FMath::Min(CurrentContexts.Num(), Contexts.Num());
+		for (int32 ContextIndex = 0; ContextIndex < ContextAmmount; ContextIndex++)
+		{
+			DstViewportProxy->Contexts[ContextIndex].RenderThreadData = CurrentContexts[ContextIndex].RenderThreadData;
+		}
+	}
 
 	// Update viewport proxy resources from container
 	DstViewportProxy->RenderTargets    = RenderTargets;

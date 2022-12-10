@@ -41,10 +41,11 @@ public:
 	// Rendering data, for internal usage
 
 	// GPU index for this context render target
-	int32 GPUIndex = -1;
+	int32 GPUIndex = INDEX_NONE;
 
-	bool bAllowGPUTransferOptimization = false;
-	bool bEnabledGPUTransferLockSteps = true;
+	/* Enables nDisplay's native implementation of cross-GPU transfer.
+	 * This disables cross-GPU transfer by default for nDisplay viewports in FSceneViewFamily structure. **/
+	bool bOverrideCrossGPUTransfer = false;
 
 	// Location and size on a render target texture
 	FIntRect RenderTargetRect;
@@ -63,4 +64,13 @@ public:
 
 	// Disable render for this viewport (Overlay)
 	bool bDisableRender = false;
+
+	struct FRenderThreadData
+	{
+		// GPUIndex used to render this context.
+		int32 GPUIndex = INDEX_NONE;
+	};
+
+	// This data updated only on rendering thread
+	FRenderThreadData RenderThreadData;
 };

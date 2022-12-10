@@ -177,9 +177,6 @@ protected:
 	// Viewport contexts (left/center/right eyes)
 	mutable TArray<FDisplayClusterViewport_Context> Contexts;
 
-	/** The GPU nodes on which to render this view. */
-	TArray<FRHIGPUMask> GPUMask;
-
 	// View family render to this resources
 	TArray<FDisplayClusterViewportRenderTargetResource*> RenderTargets;
 

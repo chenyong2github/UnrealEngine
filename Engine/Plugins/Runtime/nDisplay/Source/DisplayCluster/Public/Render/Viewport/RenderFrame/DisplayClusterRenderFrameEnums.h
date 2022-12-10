@@ -37,20 +37,3 @@ enum class EDisplayClusterRenderFamilyMode : uint8
 	// Use rules to merge views to minimal num of families (separate by: buffer_ratio, viewExtension, max RTT size)
 	MergeAnyPossible,
 };
-
-
-// Control multiGPU for cluster
-enum class EDisplayClusterMultiGPUMode : uint8
-{
-	// Disable multi GPU rendering
-	None = 0,
-
-	// Use default crossGPU transfer
-	Enabled,
-
-	// Performance (Experimental): Use optimized transfer once per frame with bLockStepGPUs=true
-	Optimized_EnabledLockSteps,
-
-	// Performance (Experimental): Use optimized transfer once per frame with bLockStepGPUs=false 
-	Optimized_DisabledLockSteps,
-};

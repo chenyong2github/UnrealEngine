@@ -22,18 +22,38 @@
 #include "Misc/DisplayClusterGlobals.h"
 #include "Misc/DisplayClusterLog.h"
 
-int32 GDisplayClusterOverrideMultiGPUMode = -1;
-static FAutoConsoleVariableRef CVarDisplayClusterOverrideMultiGPUMode(
-	TEXT("DC.OverrideMultiGPUMode"),
-	GDisplayClusterOverrideMultiGPUMode,
-	TEXT("Override Multi GPU Mode setting from component (-1 == no override, or EDisplayClusterConfigurationRenderMGPUMode enum)"),
+///////////////////////////////////////////////////////////////////
+int32 GDisplayClusterCrossGPUTransferEnable = 0;
+static FAutoConsoleVariableRef CDisplayClusterCrossGPUTransferEnable(
+	TEXT("nDisplay.render.CrossGPUTransfer.Enable"),
+	GDisplayClusterCrossGPUTransferEnable,
+	TEXT("Enable cross-GPU transfers using nDisplay implementation (0 - disable, default) \n")
+	TEXT("That replaces the default cross-GPU transfers using UE Core for the nDisplay viewports viewfamilies.\n"),
+	ECVF_RenderThreadSafe
+);
+
+int32 GDisplayClusterCrossGPUTransferLockSteps = 1;
+static FAutoConsoleVariableRef CDisplayClusterCrossGPUTransferLockSteps(
+	TEXT("nDisplay.render.CrossGPUTransfer.LockSteps"),
+	GDisplayClusterCrossGPUTransferLockSteps,
+	TEXT("The bLockSteps parameter is simply passed to the FTransferResourceParams structure. (0 - disable)\n")
+	TEXT("Whether the GPUs must handshake before and after the transfer. Required if the texture rect is being written to in several render passes.\n")
+	TEXT("Otherwise, minimal synchronization will be used.\n"),
+	ECVF_RenderThreadSafe
+);
+
+int32 GDisplayClusterCrossGPUTransferPullData = 1;
+static FAutoConsoleVariableRef CVarDisplayClusterCrossGPUTransferPullData(
+	TEXT("nDisplay.render.CrossGPUTransfer.PullData"),
+	GDisplayClusterCrossGPUTransferPullData,
+	TEXT("The bPullData parameter is simply passed to the FTransferResourceParams structure. (0 - disable)\n")
+	TEXT("Whether the data is read by the dest GPU, or written by the src GPU (not allowed if the texture is a backbuffer)\n"),
 	ECVF_RenderThreadSafe
 );
 
 ///////////////////////////////////////////////////////////////////
 // FDisplayClusterViewportConfiguration
 ///////////////////////////////////////////////////////////////////
-
 bool FDisplayClusterViewportConfiguration::SetRootActor(ADisplayClusterRootActor* InRootActorPtr)
 {
 	check(IsInGameThread());
@@ -257,26 +277,10 @@ void FDisplayClusterViewportConfiguration::ImplUpdateRenderFrameConfiguration(co
 		break;
 	}
 
-	// Performance: Allow change global MGPU settings
-	int32 ModeOverride = FMath::Min(GDisplayClusterOverrideMultiGPUMode,
-		(int32)EDisplayClusterConfigurationRenderMGPUMode::Optimized_DisabledLockSteps);
-
-	switch (ModeOverride >= 0 ? (EDisplayClusterConfigurationRenderMGPUMode)ModeOverride : InRenderFrameConfiguration.MultiGPUMode)
-	{
-	case EDisplayClusterConfigurationRenderMGPUMode::None:
-		RenderFrameSettings.MultiGPUMode = EDisplayClusterMultiGPUMode::None;
-		break;
-	case EDisplayClusterConfigurationRenderMGPUMode::Optimized_DisabledLockSteps:
-		RenderFrameSettings.MultiGPUMode = EDisplayClusterMultiGPUMode::Optimized_DisabledLockSteps;
-		break;
-	case EDisplayClusterConfigurationRenderMGPUMode::Optimized_EnabledLockSteps:
-		RenderFrameSettings.MultiGPUMode = EDisplayClusterMultiGPUMode::Optimized_EnabledLockSteps;
-		break;
-	case EDisplayClusterConfigurationRenderMGPUMode::Enabled:
-	default:
-		RenderFrameSettings.MultiGPUMode = EDisplayClusterMultiGPUMode::Enabled;
-		break;
-	};
+	// Performance: nDisplay has its own implementation of cross-GPU transfer.
+	RenderFrameSettings.CrossGPUTransfer.bEnable    = GDisplayClusterCrossGPUTransferEnable != 0;
+	RenderFrameSettings.CrossGPUTransfer.bLockSteps = GDisplayClusterCrossGPUTransferLockSteps != 0;
+	RenderFrameSettings.CrossGPUTransfer.bPullData  = GDisplayClusterCrossGPUTransferPullData != 0;
 
 	// Performance: Allow to use parent ViewFamily from parent viewport 
 	// (icvfx has child viewports: lightcard and chromakey with prj_view matrices copied from parent viewport. May sense to use same viewfamily?)

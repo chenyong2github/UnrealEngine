@@ -769,19 +769,17 @@ void FDisplayClusterViewportProxy::PostRenderViewFamily_RenderThread(FRDGBuilder
 {
 	const uint32 InContextNum = InProxyContext.ContextNum;
 
-	// Save GPUMask for each viewport context
+#if WITH_MGPU
+	// Get the GPUIndex used to render this viewport
 	if (Contexts.IsValidIndex(InContextNum))
 	{
-		if (GPUMask.Num() < Contexts.Num())
-		{
-			GPUMask.AddDefaulted(Contexts.Num() - GPUMask.Num());
-		}
-
 		checkSlow(InSceneView.bIsViewInfo);
 		const FViewInfo& ViewInfo = static_cast<const FViewInfo&>(InSceneView);
 
-		GPUMask[InContextNum] = ViewInfo.GPUMask;
+		const uint32 GPUIndex = ViewInfo.GPUMask.GetFirstIndex();
+		Contexts[InContextNum].RenderThreadData.GPUIndex = (GPUIndex < GNumExplicitGPUsForRendering) ? GPUIndex : -1;
 	}
+#endif
 
 	if (!InProxyContext.ViewFamilyProfileDescription.IsEmpty())
 	{

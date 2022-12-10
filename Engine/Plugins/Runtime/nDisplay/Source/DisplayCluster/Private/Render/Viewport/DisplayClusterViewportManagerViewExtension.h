@@ -56,15 +56,14 @@ private:
 
 	struct FViewportProxy
 	{
-		inline bool IsEnabled() const
-		{
-			return ViewportProxy != nullptr;
-		}
+		// The ViewportProxy must exist until this object is removed.
+		TSharedPtr<class IDisplayClusterViewportProxy, ESPMode::ThreadSafe> ViewportProxy;
 
-		class IDisplayClusterViewportProxy* ViewportProxy = nullptr;
-		FDisplayClusterViewportProxy_Context ViewportProxyContext;
-
+		// The index of view in viewfamily collection
 		int32 ViewIndex = 0;
+
+		// Context for viewport proxy object
+		FDisplayClusterViewportProxy_Context ViewportProxyContext;
 	};
 
 	TArray<FViewportProxy> Viewports;

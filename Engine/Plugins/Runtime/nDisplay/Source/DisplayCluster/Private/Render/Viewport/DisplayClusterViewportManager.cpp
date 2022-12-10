@@ -80,6 +80,9 @@ FDisplayClusterViewportManager::FDisplayClusterViewportManager()
 	PostProcessManager  = MakeShared<FDisplayClusterViewportPostProcessManager, ESPMode::ThreadSafe>(*this);
 	LightCardManager = MakeShared<FDisplayClusterViewportLightCardManager, ESPMode::ThreadSafe>(*this);
 
+	// Create DC ViewExtension to handle special features
+	ViewportManagerViewExtension = FSceneViewExtensions::NewExtension<FDisplayClusterViewportManagerViewExtension>(this);
+
 	// initialize proxy
 	ViewportManagerProxy->Initialize(*this);
 
@@ -101,6 +104,8 @@ FDisplayClusterViewportManager::~FDisplayClusterViewportManager()
 		LightCardManager->Release();
 		LightCardManager.Reset();
 	}
+
+	ViewportManagerViewExtension.Reset();
 
 	Configuration.Reset();
 
@@ -453,12 +458,6 @@ void FDisplayClusterViewportManager::ImplUpdateClusterNodeViewports(const EDispl
 bool FDisplayClusterViewportManager::BeginNewFrame(FViewport* InViewport, UWorld* InWorld, FDisplayClusterRenderFrame& OutRenderFrame)
 {
 	check(IsInGameThread());
-
-	if (!ViewportManagerViewExtension.IsValid())
-	{
-		// Create DC ViewExtension to handle special features
-		ViewportManagerViewExtension = FSceneViewExtensions::NewExtension<FDisplayClusterViewportManagerViewExtension>(this);
-	}
 
 	OutRenderFrame.ViewportManager = this;
 

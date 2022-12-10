@@ -144,22 +144,6 @@ enum class EDisplayClusterConfigurationCameraMotionBlurMode : uint8
 };
 
 UENUM()
-enum class EDisplayClusterConfigurationRenderMGPUMode : uint8
-{
-	// Disable multi GPU rendering
-	None         UMETA(DisplayName = "Disabled"),
-
-	// Use default UE crossGPU transfer
-	Enabled      UMETA(DisplayName = "Enabled"),
-
-	// Performance (Experimental): Use optimized transfer once per frame with bLockStepGPUs=true
-	Optimized_EnabledLockSteps  UMETA(DisplayName = "Optimization: Enabled Lockstep"),
-
-	// Performance (Experimental): Use optimized transfer once per frame with bLockStepGPUs=false 
-	Optimized_DisabledLockSteps  UMETA(DisplayName = "Optimization: Disabled Lockstep"),
-};
-
-UENUM()
 enum class EDisplayClusterConfigurationViewportOverscanMode : uint8
 {
 	Pixels   UMETA(DisplayName = "Pixels"),
