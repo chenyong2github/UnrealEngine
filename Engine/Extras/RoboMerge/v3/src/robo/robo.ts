@@ -397,18 +397,25 @@ async function init(logger: ContextualLogger) {
 						", creating a new one.")
 
 			while (true) {
-				try {
-					const streams = await robo.p4.streams();
-					if (streams.has(args.branchSpecsRootPath)) {
-						break
+				const match = args.branchSpecsRootPath.match(/(\/\/.*?\/.*?)[\/$]/)
+				if (match) {
+					const branchSpecsStream = match[1]
+					try {
+						const streams = await robo.p4.streams();
+						if (streams.has(branchSpecsStream)) {
+							break
+						}
 					}
-				}
-				catch (err) {
-				}
+					catch (err) {
+					}
 
-				const timeout = 5.0;
-				logger.info(`Will check again in ${timeout} sec...`);
-				await _setTimeout(timeout*1000);
+					const timeout = 5.0;
+					logger.info(`Will check again in ${timeout} sec...`);
+					await _setTimeout(timeout*1000);
+				}
+				else {
+					logger.warn(`Unable to determine stream from root path '${args.branchSpecsRootPath}'`)
+				}
 			}
 
 			await robo.p4.newBranchSpecWorkspace(autoUpdaterConfig.workspace, args.branchSpecsRootPath)
