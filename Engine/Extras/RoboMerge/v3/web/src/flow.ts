@@ -39,6 +39,7 @@ type Link = {
 const EDGE_STYLES: {[key: string]: [string, string][]} = {
 	roboshelf: [['color', 'purple'], ['arrowhead', 'diamond']],
 	forced: [],
+	gated: [['color', 'darkorange']],
 	defaultFlow: [['color', 'blue']],
 	onRequest: [['color', 'darkgray'], ['style', 'dashed']],
 	blockAssets: [['color', 'darkgray'], ['style', 'dashed'], ['arrowhead', 'odiamond']]
@@ -269,12 +270,15 @@ class Graph {
 			return
 		}
 
+		// TODO: work out where the lastGoodCLPath comes from
+		const isGated = false//srcBranchStatus.def.edgeProperties.get(dst).lastGoodCLPath
+
 		this.connectedNodes.add(srcInfo.id)
 		this.connectedNodes.add(dstInfo.id)
 
 		const edgeStyle =
 			srcBranchStatus.def.convertIntegratesToEdits ?	'roboshelf' :
-			isForced ?										'forced' :
+			isForced ?	(isGated ? 'gated' : 'forced') :
 			hasEdge(srcInfo.defaultDests, dstInfo) ?		'defaultFlow' :
 			hasEdge(srcInfo.blockAssetDests, dstInfo) ?		'blockAssets' : 'onRequest'
 

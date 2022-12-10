@@ -277,23 +277,27 @@ input[type="radio"] {
 }
 
 .auto-merge-arrow {
-	background-position: -3px -1px;
+	background-position: -3px 0px;
+}
+
+.gated-auto-merge-arrow {
+	background-position: -3px -87px;
 }
 
 .on-request-arrow {
-	background-position: -3px -19px;
+	background-position: -3px -18px;
 }
 
 .default-flow-arrow {
-	background-position: -3px -36px;
+	background-position: -3px -35px;
 }
 
 .block-assets-arrow {
-	background-position: -3px -53px;
+	background-position: -3px -52px;
 }
 
 .roboshelf-arrow {
-	background-position: -3px -71px;
+	background-position: -3px -69px;
 }
 
 .dead-bot {

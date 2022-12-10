@@ -21,6 +21,7 @@ class Info {
 const EDGE_STYLES = {
     roboshelf: [['color', 'purple'], ['arrowhead', 'diamond']],
     forced: [],
+    gated: [['color', 'darkorange']],
     defaultFlow: [['color', 'blue']],
     onRequest: [['color', 'darkgray'], ['style', 'dashed']],
     blockAssets: [['color', 'darkgray'], ['style', 'dashed'], ['arrowhead', 'odiamond']]
@@ -202,10 +203,11 @@ class Graph {
         if (!isForced && this.options.showOnlyForced) {
             return;
         }
+        const isGated = new Map(srcBranchStatus.def.edgeProperties).get(dst).lastGoodCLPath
         this.connectedNodes.add(srcInfo.id);
         this.connectedNodes.add(dstInfo.id);
         const edgeStyle = srcBranchStatus.def.convertIntegratesToEdits ? 'roboshelf' :
-            isForced ? 'forced' :
+            isForced ? (isGated ? 'gated' : 'forced') :
                 hasEdge(srcInfo.defaultDests, dstInfo) ? 'defaultFlow' :
                     hasEdge(srcInfo.blockAssetDests, dstInfo) ? 'blockAssets' : 'onRequest';
         const styles = [...EDGE_STYLES[edgeStyle]];
