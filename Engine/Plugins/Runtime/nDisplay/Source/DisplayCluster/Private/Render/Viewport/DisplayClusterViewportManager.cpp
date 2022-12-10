@@ -80,9 +80,6 @@ FDisplayClusterViewportManager::FDisplayClusterViewportManager()
 	PostProcessManager  = MakeShared<FDisplayClusterViewportPostProcessManager, ESPMode::ThreadSafe>(*this);
 	LightCardManager = MakeShared<FDisplayClusterViewportLightCardManager, ESPMode::ThreadSafe>(*this);
 
-	// Create DC ViewExtension to handle special features
-	ViewportManagerViewExtension = FSceneViewExtensions::NewExtension<FDisplayClusterViewportManagerViewExtension>(this);
-
 	// initialize proxy
 	ViewportManagerProxy->Initialize(*this);
 
@@ -481,6 +478,12 @@ bool FDisplayClusterViewportManager::BeginNewFrame(FViewport* InViewport, UWorld
 			// no world for render
 			return false;
 		}
+	}
+
+	// Create DC ViewExtension to handle special features
+	if (!ViewportManagerViewExtension.IsValid())
+	{
+		ViewportManagerViewExtension = FSceneViewExtensions::NewExtension<FDisplayClusterViewportManagerViewExtension>(this);
 	}
 
 	// Before new frame
