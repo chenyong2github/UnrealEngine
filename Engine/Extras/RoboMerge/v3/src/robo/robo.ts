@@ -397,7 +397,7 @@ async function init(logger: ContextualLogger) {
 						", creating a new one.")
 
 			while (true) {
-				const match = args.branchSpecsRootPath.match(/(\/\/.*?\/.*?)[\/$]/)
+				const match = args.branchSpecsRootPath.match(/(\/\/.*?\/.*?)(\/|$)/)
 				if (match) {
 					const branchSpecsStream = match[1]
 					try {
