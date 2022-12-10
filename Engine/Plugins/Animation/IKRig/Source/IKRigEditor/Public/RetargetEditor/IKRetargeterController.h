@@ -40,6 +40,9 @@ private:
 	// The actual asset that this Controller modifies. This is the only field this class should have.
 	UIKRetargeter* Asset = nullptr;
 
+	// Static global map of assets to their associated controller
+	static TMap<UIKRetargeter*, UIKRetargeterController*> Controllers;
+
 	//
 	// GENERAL PUBLIC/SCRIPTING API
 	//

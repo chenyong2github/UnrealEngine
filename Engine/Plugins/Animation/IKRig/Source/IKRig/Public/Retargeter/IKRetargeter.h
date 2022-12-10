@@ -31,7 +31,7 @@ struct IKRIG_API FRetargetChainMap
 	FName TargetChain = NAME_None;
 };
 
-UCLASS()
+UCLASS(BlueprintType)
 class IKRIG_API URetargetChainSettings : public UObject
 {
 	GENERATED_BODY()
@@ -428,10 +428,6 @@ public:
 	float BoneDrawSize = 1.0f;
 	
 private:
-
-	/** The controller responsible for managing this asset's data (all mutation goes through this) */
-	UPROPERTY(Transient)
-	mutable TObjectPtr<UObject> Controller;
 
 	// only ask to fix the root height once, then warn thereafter (don't nag) 
 	UPROPERTY()

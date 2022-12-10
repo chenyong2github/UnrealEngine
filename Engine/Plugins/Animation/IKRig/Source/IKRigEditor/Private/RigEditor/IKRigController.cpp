@@ -15,6 +15,8 @@
 
 #define LOCTEXT_NAMESPACE "IKRigController"
 
+TMap<UIKRigDefinition*, UIKRigController*> UIKRigController::Controllers;
+
 UIKRigController* UIKRigController::GetController(const UIKRigDefinition* InIKRigDefinition)
 {
 	if (!InIKRigDefinition)
@@ -22,14 +24,14 @@ UIKRigController* UIKRigController::GetController(const UIKRigDefinition* InIKRi
 		return nullptr;
 	}
 
-	if (!InIKRigDefinition->Controller)
+	if (!Controllers.Contains(InIKRigDefinition))
 	{
 		UIKRigController* Controller = NewObject<UIKRigController>();
 		Controller->Asset = const_cast<UIKRigDefinition*>(InIKRigDefinition);
-		InIKRigDefinition->Controller = Controller;
+		Controllers.Add(Controller->Asset, Controller);
 	}
 
-	return Cast<UIKRigController>(InIKRigDefinition->Controller);
+	return Controllers[InIKRigDefinition];
 }
 
 UIKRigDefinition* UIKRigController::GetAsset() const
@@ -894,7 +896,7 @@ FName UIKRigController::AddNewGoal(const FName GoalName, const FName BoneName) c
 	// does goal already exist?
 	if (GetGoalIndex(GoalName) != INDEX_NONE)
 	{
-		UE_LOG(LogIKRigEditor, Error, TEXT("Trying to create a Goal that already exists, %s."), *GoalName.ToString());
+		UE_LOG(LogIKRigEditor, Warning, TEXT("Trying to create a Goal that already exists, %s."), *GoalName.ToString());
 		return NAME_None;
 	}
 
@@ -902,7 +904,7 @@ FName UIKRigController::AddNewGoal(const FName GoalName, const FName BoneName) c
 	const int32 BoneIndex = Asset->Skeleton.GetBoneIndexFromName(BoneName);
 	if (BoneIndex == INDEX_NONE)
 	{
-		UE_LOG(LogIKRigEditor, Error, TEXT("Trying to create Goal on unknown bone, %s."), *BoneName.ToString());
+		UE_LOG(LogIKRigEditor, Warning, TEXT("Trying to create Goal on unknown bone, %s."), *BoneName.ToString());
 		return NAME_None;
 	}
 	

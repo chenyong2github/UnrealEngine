@@ -241,10 +241,6 @@ public:
 	/** The thickness of the Goals in the editor viewport.*/
 	UPROPERTY(EditAnywhere, Category = "Viewport Goal Settings",  meta = (ClampMin = "0.01", UIMin = "0.0", UIMax = "10.0"))
 	float GoalThickness = 0.7f;
-
-	/** The controller responsible for managing this asset's data (all mutation goes through this) */
-	UPROPERTY(Transient)
-	mutable TObjectPtr<UObject> Controller;
 #endif
 
 private:

@@ -369,6 +369,9 @@ private:
 	UPROPERTY(transient)
 	TObjectPtr<UIKRigDefinition> Asset = nullptr;
 
+	// Static global map of assets to their associated controller
+	static TMap<UIKRigDefinition*, UIKRigController*> Controllers;
+
 	// broadcast changes within the asset goals array
 	void BroadcastGoalsChange() const;
 	
