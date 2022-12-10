@@ -240,6 +240,8 @@ if (botname === '__TEST__') {
 			resolver: options.resolver || null,
 			triager: options.triager || null,
 			nagSchedule: options.nagSchedule || null,
+			nagAcknowledgedSchedule: options.nagAcknowledgedSchedule || null,
+			nagAcknowledgedLeeway: options.nagAcknowledgedLeeway || null,
 			nagWhenBlocked: options.nagWhenBlocked || null,
 			convertIntegratesToEdits: (options.integrationMethod || this.config.defaultIntegrationMethod) === IntegrationMethod.CONVERT_TO_EDIT,
 			visibility: options.visibility || this.config.visibility,

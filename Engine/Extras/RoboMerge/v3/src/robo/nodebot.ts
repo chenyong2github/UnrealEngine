@@ -28,6 +28,8 @@ import { GraphAPI } from '../new/graph';
  **********************************/
 
 const DEFAULT_NAG_SCHEDULE = [10, 20, 30, 60]
+const DEFAULT_ACKNOWLEDGED_NAG_SCHEDULE = [30, 30, 60]
+const DEFAULT_ACKNOWLEDGED_NAG_LEEWAY = 15
 const NAG_EMAIL_MIN_TIME_MINUTES = 60
 const NAG_EMAIL_MIN_TIME_DESCRIPTION = 'an hour'
 const SYNTAX_ERROR_PAUSE_TIMEOUT_SECONDS = 10 * 60
@@ -2055,12 +2057,15 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 
 				if (this.slackMessages) {
 
-					const nagSchedule = getNagProperty("nagSchedule") || DEFAULT_NAG_SCHEDULE
+					const nagSchedule = (conflict.acknowledger && (getNagProperty("nagAcknowledgedSchedule") || DEFAULT_ACKNOWLEDGED_NAG_SCHEDULE))
+											|| getNagProperty("nagSchedule") || DEFAULT_NAG_SCHEDULE
 
 					const nagDelay = conflict.lastNagTime ? ((now - conflict.lastNagTime.getTime()) / 1000) / 60 : ageMinutes
 					const nagWait = nagSchedule[Math.min(conflict.nagCount, nagSchedule.length - 1)]
+					const nagLeeway = getNagProperty("nagAcknowledgedLeeway") || DEFAULT_ACKNOWLEDGED_NAG_LEEWAY
+					const giveLeeway = conflict.acknowledgedAt && (nagLeeway > ((now - conflict.acknowledgedAt.getTime()) / 1000) / 60)
 
-					if (nagDelay > nagWait) {
+					if (nagDelay > nagWait && !giveLeeway) {
 						conflict.nagCount++ 
 						conflict.lastNagTime = new Date(now)
 						naggedSomeone = true

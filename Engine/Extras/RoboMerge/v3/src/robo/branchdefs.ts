@@ -20,6 +20,8 @@ export interface BotConfig {
 	globalNotify: string[]
 	nagWhenBlocked: boolean | null
 	nagSchedule: number[] | null
+	nagAcknowledgedSchedule: number[] | null
+	nagAcknowledgedLeeway: number | null
 	triager: string | null
 	checkIntervalSecs: number
 	excludeAuthors: string[]
@@ -50,6 +52,8 @@ const branchBasePrototype = {
 	triager: '' as string | null,
 	nagWhenBlocked: false as boolean | null,
 	nagSchedule: [] as number[] | null,
+	nagAcknowledgedSchedule: [] as number[] | null,
+	nagAcknowledgedLeeway: 0 as number | null,
 	aliases: [''],
 	badgeProject: '' as string | null,
 }
@@ -146,6 +150,8 @@ const edgeOptionFieldsPrototype = {
 	triager: '',
 
 	nagSchedule: [],
+	nagAcknowledgedSchedule: [],
+	nagAcknowledgedLeeway: 0,
 	nagWhenBlocked: true,
 
 	terminal: false, // changes go along terminal edges but no further
@@ -268,6 +274,8 @@ export class BranchDefs {
 			globalNotify: [],
 			triager: null,
 			nagSchedule: null,
+			nagAcknowledgedSchedule: null,
+			nagAcknowledgedLeeway: null,
 			nagWhenBlocked: null,
 			emailOnBlockage: true,
 			checkIntervalSecs: 30.0,
