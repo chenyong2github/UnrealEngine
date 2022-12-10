@@ -357,7 +357,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		description += '\n\n' // description has been trimmed
 
 		// if the owner is specifically overridden (can be by reconsider, resolver or manual tag)
-		const overriddenOwner = getIntegrationOwner(this.branch, info.owner)
+		const overriddenOwner = getIntegrationOwner(this.branch, info.branch, info.owner)
 
 		if (overriddenOwner) {
 			description += `#ROBOMERGE-OWNER: ${overriddenOwner}\n`

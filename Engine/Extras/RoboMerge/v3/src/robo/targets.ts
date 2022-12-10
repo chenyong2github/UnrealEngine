@@ -7,9 +7,9 @@ import { ContextualLogger } from '../common/logger';
 
 // const NEW_STUFF = false
 
-export function getIntegrationOwner(targetBranch: Branch, overriddenOwner?: string): string | null
+export function getIntegrationOwner(targetBranch: Branch, sourceBranch: Branch, overriddenOwner?: string): string | null
 export function getIntegrationOwner(pending: PendingChange): string
-export function getIntegrationOwner(arg0: Branch | PendingChange, overriddenOwner?: string) {
+export function getIntegrationOwner(arg0: Branch | PendingChange, sourceBranch?: Branch, overriddenOwner?: string) {
 	// order of priority for owner:
 
 	//  1)	a) Change flagged 'manual', i.e. will create a shelf
@@ -31,28 +31,29 @@ export function getIntegrationOwner(arg0: Branch | PendingChange, overriddenOwne
 		targetBranch = arg0 as Branch
 	}
 
-
 	// Manual requester or edge reconsider
-	if (pending && (
-			pending.action.flags.has('manual') ||
+	if (pending) {
+		if (pending.action.flags.has('manual') ||
 			pending.change.forceCreateAShelf ||
 			pending.change.userRequest == 'edge-reconsider'
-		)) {
-		return pending.change.owner
+		) {
+			return pending.change.owner
+		}
+
+		targetBranch = pending.action.branch
+		sourceBranch = pending.change.branch
+		overriddenOwner = pending.change.owner
 	}
 
-	const branch = pending ? pending.action.branch : targetBranch
-	const owner = pending ? pending.change.owner : overriddenOwner
-
-	let resolver = branch!.resolver
-	if (pending) {
-		const edgeprops = pending.change.branch.edgeProperties.get(branch!.upperName)
+	let resolver = targetBranch!.resolver
+	if (sourceBranch) {
+		const edgeprops = sourceBranch.edgeProperties.get(targetBranch!.upperName)
 		if (edgeprops) {
 			resolver = edgeprops.resolver || resolver || null
 		}	
 	}
 
-	return resolver || owner || null
+	return resolver || overriddenOwner || null
 }
 
 export function getNodeBotFullName(botname: string, branchName: string) {
