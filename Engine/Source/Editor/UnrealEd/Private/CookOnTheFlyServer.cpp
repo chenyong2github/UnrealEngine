@@ -7306,6 +7306,7 @@ void UCookOnTheFlyServer::BlockOnAssetRegistry()
 #endif
 
 	FAssetRegistryGenerator::UpdateAssetManagerDatabase();
+	AssetRegistry->ClearGathererCache();
 }
 
 void UCookOnTheFlyServer::RefreshPlatformAssetRegistries(const TArrayView<const ITargetPlatform* const>& TargetPlatforms)

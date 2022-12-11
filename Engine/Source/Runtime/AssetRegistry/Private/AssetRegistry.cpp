@@ -1668,6 +1668,25 @@ void UAssetRegistryImpl::WaitForCompletion()
 	}
 }
 
+void UAssetRegistryImpl::ClearGathererCache()
+{
+	FWriteScopeLock InterfaceScopeLock(InterfaceLock);
+	GuardedData.ClearGathererCache();
+}
+
+namespace UE::AssetRegistry
+{
+
+void FAssetRegistryImpl::ClearGathererCache()
+{
+	if (GlobalGatherer)
+	{
+		GlobalGatherer->ClearCache();
+	}
+}
+
+}
+
 void UAssetRegistryImpl::WaitForPackage(const FString& PackageName)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UAssetRegistryImpl::WaitForPackage);
@@ -3904,6 +3923,7 @@ Impl::EGatherStatus FAssetRegistryImpl::TickGatherer(Impl::FEventContext& EventC
 	if (OutStatus == EGatherStatus::Complete)
 	{
 		HighestPending = 0;
+		BackgroundResults.Shrink();
 
 		if (!bInitialSearchCompleted && bCanFinishInitialSearch)
 		{

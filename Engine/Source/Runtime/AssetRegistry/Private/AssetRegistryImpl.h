@@ -189,6 +189,7 @@ public:
 		TOptional<FAssetsFoundCallback> AssetsFoundCallback = TOptional<FAssetsFoundCallback>());
 	/** Look for and load a single AssetData result from the gatherer. */
 	void TickGatherPackage(Impl::FEventContext& EventContext, const FString& PackageName, const FString& LocalPath);
+	void ClearGathererCache();
 #if WITH_EDITOR
 	void GetProcessLoadedAssetsBatch(TArray<const UObject*>& OutLoadedAssets, uint32 BatchSize);
 	void PushProcessLoadedAssetsBatch(Impl::FEventContext& EventContext,

@@ -94,6 +94,7 @@ public:
 		TRingBuffer<FName> VerseFiles;
 
 		SIZE_T GetAllocatedSize() const { return Assets.GetAllocatedSize() + Paths.GetAllocatedSize() + Dependencies.GetAllocatedSize() + CookedPackageNamesWithoutAssetData.GetAllocatedSize() + VerseFiles.GetAllocatedSize(); }
+		void Shrink() { Assets.Trim(); Paths.Trim(); Dependencies.Trim(); CookedPackageNamesWithoutAssetData.Trim(); VerseFiles.Trim(); }
 	};
 	struct FResultContext
 	{
@@ -110,6 +111,12 @@ public:
 	void GetPackageResults(TRingBuffer<FAssetData*>& OutAssetResults, TRingBuffer<FPackageDependencyData>& OutDependencyResults);
 	/** Wait for all monitored assets under the given path to be added to search results. Returns immediately if the given path is not monitored. */
 	void WaitOnPath(FStringView LocalPath);
+	/**
+	 * Empty the cache read from disk and the cache used to write to disk. Disable further caching.
+	 * Used to save memory when cooking after the scan is complete.
+	*/
+	void ClearCache();
+
 	/**
 	 * Add a set of paths to the allow list, optionally force rescanning and ignore deny list on them,
 	 * and wait for all assets in the paths to be added to search results.
@@ -317,8 +324,6 @@ private:
 	bool bGatherAssetPackageData;
 	/** True if dependency data should be gathered. Constant during threading. */
 	bool bGatherDependsData;
-	/** True if the current process allows reading/writing of AssetDataGatherer cache files. Constant during threading. */
-	bool bCacheEnabled;
 
 
 	// Variable section for variables that are atomics read/writable from outside critical sections.
@@ -339,6 +344,8 @@ private:
 	 * Read/writable anywhere.
 	 */
 	std::atomic<bool> bSaveAsyncCacheTriggered;
+	/** True if the current process allows reading/writing of AssetDataGatherer cache files. */
+	std::atomic<bool> bCacheEnabled;
 
 	// Variable section for variables that are read/writable only within ResultsLock.
 

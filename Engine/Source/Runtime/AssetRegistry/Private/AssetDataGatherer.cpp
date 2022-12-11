@@ -3086,6 +3086,7 @@ void FAssetDataGatherer::TickInternal(bool& bOutIsTickInterrupt)
 	TArray<FString, FBatchInlineAllocator> LocalCookedPackageNamesWithoutAssetDataResults;
 	TArray<FName, FBatchInlineAllocator> LocalVerseResults;
 	bool bLoadMonolithicCache = false;
+	bool bLocalIsCacheEnabled = false;
 	double LocalLastCacheWriteTime = 0.0;
 	bool bWaitBatchCountDecremented = false;
 	bOutIsTickInterrupt = false;
@@ -3136,6 +3137,7 @@ void FAssetDataGatherer::TickInternal(bool& bOutIsTickInterrupt)
 		}
 		LocalLastCacheWriteTime = LastCacheWriteTime;
 	}
+	bLocalIsCacheEnabled = bCacheEnabled;
 
 	// Load the async cache if not yet loaded
 	if (bLoadMonolithicCache)
@@ -3276,7 +3278,7 @@ void FAssetDataGatherer::TickInternal(bool& bOutIsTickInterrupt)
 			// Add the results from a cooked package into our results on cooked package
 			LocalCookedPackageNamesWithoutAssetDataResults.Append(MoveTemp(ReadContext.CookedPackageNamesWithoutAssetData));
 			// Do not add the results from a cooked package into the map of data we keep to write out the new version of the cache file
-			bool bCachePackage = bCacheEnabled
+			bool bCachePackage = bLocalIsCacheEnabled
 				&& LocalCookedPackageNamesWithoutAssetDataResults.Num() == 0
 				&& ensure(ReadContext.AssetFileData.Type == EGatherableFileType::PackageFile);
 			if (bCachePackage)
@@ -3534,6 +3536,35 @@ void FAssetDataGatherer::WaitOnPath(FStringView InPath)
 	Discovery->SetPropertiesAndWait(QueryPath, false /* bAddToAllowList */, false /* bForceRescan */, false /* bIgnoreDenyListScanFilters */);
 	WaitOnPathsInternal(TArrayView<UE::AssetDataGather::Private::FPathExistence>(&QueryPath, 1), FString(), TArray<FString>());
 }
+
+void FAssetDataGatherer::ClearCache()
+{
+	FGathererScopeLock TickScopeLock(&TickLock);
+	bool bWasCacheEnabled = bCacheEnabled;
+	bCacheEnabled = false;
+	{
+		FGathererScopeLock ResultsScopeLock(&ResultsLock);
+		bUseMonolithicCache = false;
+	}
+
+	if (bWasCacheEnabled)
+	{
+		NewCachedAssetDataMap.Empty();
+		DiskCachedAssetDataMap.Empty();
+
+		for (FDiskCachedAssetData* AssetData : NewCachedAssetData)
+		{
+			delete AssetData;
+		}
+		NewCachedAssetData.Empty();
+		for (TPair<int32, FDiskCachedAssetData*> BlockData : DiskCachedAssetBlocks)
+		{
+			delete[] BlockData.Get<1>();
+		}
+		DiskCachedAssetBlocks.Empty();
+	}
+}
+
 
 void FAssetDataGatherer::ScanPathsSynchronous(const TArray<FString>& InLocalPaths, bool bForceRescan,
 	bool bIgnoreDenyListScanFilters, const FString& SaveCacheFilename, const TArray<FString>& SaveCacheLongPackageNameDirs)

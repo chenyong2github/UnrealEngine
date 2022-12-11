@@ -536,6 +536,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "AssetRegistry")
 	virtual void WaitForCompletion() = 0;
 
+	/**
+	 * Empty the global gatherer's cache and disable further caching of scans from disk.
+	 * Used to save memory when cooking after the scan is complete.
+	*/
+	virtual void ClearGathererCache() = 0;
+
 	/** Wait for the scan of a specific package to be complete */
 	UFUNCTION(BlueprintCallable, Category = "AssetRegistry")
 	virtual void WaitForPackage(const FString& PackageName) = 0;
