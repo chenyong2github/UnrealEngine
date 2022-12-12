@@ -816,6 +816,12 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::ProcessPackageSummary(TMap<TPair<FName, 
 		SCOPED_LOADTIMER(LinkerLoad_SerializePreloadDependencies);
 		Status = SerializePreloadDependencies();
 	}
+	
+	if (Status == LINKER_Loaded)
+	{
+		SCOPED_LOADTIMER(LinkerLoad_SerializeDataResources);
+		Status = SerializeDataResourceMap();
+	}
 
 	TRACE_LOADTIME_END_PROCESS_SUMMARY;
 
@@ -2337,6 +2343,30 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePreloadDependencies()
 
 	// Return whether we finished this step and it's safe to start with the next.
 	return !IsTimeLimitExceeded(TEXT("serialize preload dependencies")) ? LINKER_Loaded : LINKER_TimedOut;
+}
+
+FLinkerLoad::ELinkerStatus FLinkerLoad::SerializeDataResourceMap()
+{
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FLinkerLoad::SerializeDataResourceMap"), STAT_LinkerLoad_SerializeDataResourceMap, STATGROUP_LinkerLoad);
+	
+	TOptional<FStructuredArchive::FSlot> DataResourcesSlot;
+	
+	if (IsTextFormat())
+	{
+		DataResourcesSlot = StructuredArchiveRootRecord->TryEnterField(TEXT("DataResources"), false);
+	}
+	else if (Summary.DataResourceOffset > 0)
+	{
+		Seek(Summary.DataResourceOffset);
+		DataResourcesSlot = StructuredArchiveRootRecord->EnterField(TEXT("DataResources"));
+	}
+
+	if (DataResourcesSlot.IsSet())
+	{
+		FObjectDataResource::Serialize(*DataResourcesSlot, DataResourceMap);
+	}
+
+	return LINKER_Loaded;
 }
 
 /**

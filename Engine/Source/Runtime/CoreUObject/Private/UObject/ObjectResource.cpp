@@ -362,3 +362,47 @@ void operator<<(FStructuredArchive::FSlot Slot, FObjectImport& I)
 		I.XObject = NULL;
 	}
 }
+
+FArchive& FObjectDataResource::Serialize(FArchive& Ar, TArray<FObjectDataResource>& DataResources)
+{
+	Serialize(FStructuredArchiveFromArchive(Ar).GetSlot(), DataResources);
+	return Ar;
+}
+
+void FObjectDataResource::Serialize(FStructuredArchive::FSlot Slot, TArray<FObjectDataResource>& DataResources)
+{
+	auto SerializeDataResource = [](FStructuredArchive::FSlot Slot, uint32 Version, FObjectDataResource& D)
+	{
+		FStructuredArchive::FRecord Record = Slot.EnterRecord();
+		
+		Record << SA_VALUE(TEXT("Flags"), D.Flags);
+		Record << SA_VALUE(TEXT("SerialOffset"), D.SerialOffset);
+		Record << SA_VALUE(TEXT("DuplicateSerialOffset"), D.DuplicateSerialOffset);
+		Record << SA_VALUE(TEXT("SerialSize"), D.SerialSize);
+		Record << SA_VALUE(TEXT("RawSize"), D.RawSize);
+		Record << SA_VALUE(TEXT("OuterIndex"), D.OuterIndex);
+		Record << SA_VALUE(TEXT("LegacyBulkDataFlags"), D.LegacyBulkDataFlags);
+	};
+
+	FStructuredArchive::FRecord Record = Slot.EnterRecord();
+	uint32 Version = static_cast<uint32>(FObjectDataResource::EVersion::Latest);
+	Record << SA_VALUE(TEXT("Version"), Version);
+	int32 Count = DataResources.Num();
+	Record << SA_VALUE(TEXT("Count"), Count);
+
+	if (Count == 0)
+	{
+		return;
+	}
+
+	if (Slot.GetUnderlyingArchive().IsLoading())
+	{
+		DataResources.SetNum(Count);
+	}
+
+	FStructuredArchive::FStream Stream = Record.EnterStream(TEXT("Resources"));
+	for (FObjectDataResource& DataResource : DataResources)
+	{
+		SerializeDataResource(Stream.EnterElement(), Version, DataResource);
+	}
+}

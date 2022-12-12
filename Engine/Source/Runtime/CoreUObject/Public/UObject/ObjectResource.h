@@ -7,6 +7,7 @@
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/CString.h"
+#include "Misc/EnumClassFlags.h"
 #include "Misc/Guid.h"
 #include "Serialization/StructuredArchive.h"
 #include "Serialization/StructuredArchiveAdapters.h"
@@ -526,4 +527,49 @@ struct FObjectImport : public FObjectResource
 	/** I/O functions */
 	friend COREUOBJECT_API FArchive& operator<<(FArchive& Ar, FObjectImport& I);
 	friend COREUOBJECT_API void operator<<( FStructuredArchive::FSlot Slot, FObjectImport& I );
+};
+
+/** Data resource flags. */
+enum class EObjectDataResourceFlags : uint32
+{
+	None					= 0,
+	Inline					= (1 << 0),
+	Streaming				= (1 << 1),
+	Optional				= (1 << 2),
+	Duplicate				= (1 << 3),
+	MemoryMapped			= (1 << 4),
+	DerivedDataReference	= (1 << 5),
+};
+ENUM_CLASS_FLAGS(EObjectDataResourceFlags);
+
+/**
+ * UObject binary/bulk data resource type.
+ */
+struct FObjectDataResource
+{
+	enum class EVersion : uint32
+	{
+		Invalid,
+		Initial,
+		LatestPlusOne,
+		Latest = LatestPlusOne - 1
+	};
+
+	/** Data resource flags. */
+	EObjectDataResourceFlags Flags = EObjectDataResourceFlags::None;
+	/** Location of the data in the underlying storage type. */
+	int64 SerialOffset = -1;
+	/** Location of the data in the underlying storage type if this data is duplicated. */
+	int64 DuplicateSerialOffset = -1;
+	/** Number of bytes to serialize when loading/saving the data. */
+	int64 SerialSize = -1;
+	/** Uncompressed size of the data. */
+	int64 RawSize = -1;
+	/** Location of this resource outer/owning object in the export table. */
+	FPackageIndex OuterIndex;
+	/** Bulk data flags. */
+	uint32 LegacyBulkDataFlags = 0;
+	/** I/O functions. */
+	COREUOBJECT_API static FArchive& Serialize(FArchive& Ar, TArray<FObjectDataResource>& DataResources);
+	COREUOBJECT_API static void Serialize(FStructuredArchive::FSlot Slot, TArray<FObjectDataResource>& DataResources);
 };

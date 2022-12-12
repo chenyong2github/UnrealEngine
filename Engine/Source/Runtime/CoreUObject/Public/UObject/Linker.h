@@ -445,7 +445,10 @@ public:
 
 	/** Gatherable text data contained within this package */
 	TArray<FGatherableTextData> GatherableTextDataMap;
-
+	
+	/** Raw/bulk data references */
+	TArray<FObjectDataResource> DataResourceMap;
+	
 	/** The name of the file for this package */
 	UE_DEPRECATED(5.0, "Use GetDebugName for logging identifiers. For other purposes, use GetPackagePath on LinkerLoad and GetFilename on LinkerSave.")
 	FString					Filename;

@@ -1134,6 +1134,11 @@ private:
 	 * Serializes the preload dependencies.
 	 */
 	ELinkerStatus SerializePreloadDependencies();
+	
+	/**
+	 * Serializes the data resource map.
+	 */
+	ELinkerStatus SerializeDataResourceMap();
 
 	/** Sets the basic linker archive info */
 	void ResetStatusInfo();

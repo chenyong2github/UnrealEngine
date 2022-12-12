@@ -240,6 +240,11 @@ public:
 	* Location into the file on disk for the payload table of contents data
 	*/
 	int64		PayloadTocOffset;
+	
+	/**
+	* Location into the file of the data resource(s)
+	*/
+	int32		DataResourceOffset;
 
 	/** Constructor */
 	COREUOBJECT_API FPackageFileSummary();

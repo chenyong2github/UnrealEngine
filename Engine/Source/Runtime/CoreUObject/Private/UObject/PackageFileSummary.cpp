@@ -431,6 +431,15 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 		{
 			Sum.PayloadTocOffset = INDEX_NONE;
 		}
+		
+		if (BaseArchive.IsSaving() || Sum.GetFileVersionUE() >= EUnrealEngineObjectUE5Version::DATA_RESOURCES)
+		{
+			Record << SA_VALUE(TEXT("DataResourceOffset"), Sum.DataResourceOffset);
+		}
+		else
+		{
+			Sum.DataResourceOffset = -1;
+		}
 	}
 }
 
