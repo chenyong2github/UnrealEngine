@@ -1,5 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Collections.Generic;
 using Cassandra;
 using OpenTelemetry.Trace;
 
@@ -47,6 +49,31 @@ namespace Jupiter.Implementation
 
         public bool IsScylla { get; }
         public bool IsCassandra { get; }
+    }
+
+    public static class ScyllaUtils
+    {
+        public static IEnumerable<(long, long)> GetTableRanges(uint nodesInCluster, uint coresPerNode, uint smudgeFactor)
+        {
+            ulong parallelQueries = nodesInCluster * coresPerNode * smudgeFactor;
+            ulong countOfRanges = parallelQueries * 100;
+            ulong maxSize = ulong.MaxValue;
+            ulong rangeSize = maxSize / countOfRanges;
+
+            long start = long.MinValue;
+            long end = 0;
+            for (ulong i = 0; i < countOfRanges; i++)
+            {
+                end = start + (long)rangeSize;
+                if (start > 0 && end < 0)
+                {
+                    end = long.MaxValue;
+                }
+                yield return (start, end);
+
+                start = end + 1;
+            }
+        }
     }
 
     public static class ScyllaTraceExtensions

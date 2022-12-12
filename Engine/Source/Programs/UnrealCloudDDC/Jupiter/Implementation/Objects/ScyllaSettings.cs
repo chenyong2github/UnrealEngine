@@ -6,7 +6,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Jupiter.Implementation;
 
-public class ScyllaSettings
+public class ScyllaSettings : IValidatableObject
 {
     public string ConnectionString { get; set; } = "Contact Points=localhost,scylla";
     public long InlineBlobMaxSize { get; set; } = 32 * 1024; // default to 32 kb blobs max
@@ -58,4 +58,32 @@ public class ScyllaSettings
     /// </summary>
     public bool UseSSL { get; set; } = true;
 
+    /// <summary>
+    /// Enable to scan database per shard, this requires setting more information about your cluster
+    /// </summary>
+    public bool UsePerShardScanning { get; set; } = false;
+
+    /// <summary>
+    /// Count of cores each nodes has, only used when UsePerShardScanning is set
+    /// </summary>
+    [Range(1, 128)]
+    public uint CountOfCoresPerNode { get; set; } = 1;
+
+    /// <summary>
+    /// Count of nodes in the DC, only used when UsePerShardScanning is set
+    /// </summary>
+    [Range(1, 64)]
+    public uint CountOfNodes { get; set; } = 1;
+
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        List<ValidationResult> results = new List<ValidationResult>();
+
+        if (UsePerShardScanning)
+        {
+            Validator.TryValidateProperty(CountOfNodes, new ValidationContext(this, null, null) { MemberName = nameof(CountOfNodes) }, results);
+            Validator.TryValidateProperty(CountOfCoresPerNode, new ValidationContext(this, null, null) { MemberName = nameof(CountOfCoresPerNode) }, results);
+        }
+        return results;
+    }
 }

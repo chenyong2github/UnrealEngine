@@ -22,6 +22,7 @@ namespace Jupiter.Implementation
         private readonly ILogger _logger;
         private readonly PreparedStatement _getObjectsStatement;
         private readonly PreparedStatement _getNamespacesStatement;
+        private readonly PreparedStatement _getObjectsForPartitionRangeStatement;
 
         public ScyllaReferencesStore(IScyllaSessionManager scyllaSessionManager, IOptionsMonitor<ScyllaSettings> settings, Tracer tracer, ILogger<ScyllaReferencesStore> logger)
         {
@@ -55,6 +56,8 @@ namespace Jupiter.Implementation
             string cqlOptions = scyllaSessionManager.IsScylla ? "BYPASS CACHE" : "";
             _getObjectsStatement = _session.Prepare($"SELECT bucket, name, last_access_time FROM objects WHERE namespace = ? ALLOW FILTERING {cqlOptions}");
             _getNamespacesStatement = _session.Prepare("SELECT DISTINCT namespace FROM buckets");
+
+            _getObjectsForPartitionRangeStatement = _session.Prepare($"SELECT namespace, bucket, name, last_access_time FROM objects WHERE token(namespace, bucket, name) >= ? AND token(namespace, bucket, name) <= ? {cqlOptions}");
         }
 
         public async Task<ObjectRecord> Get(NamespaceId ns, BucketId bucket, IoHashKey name, IReferencesStore.FieldFlags flags)
@@ -125,17 +128,97 @@ namespace Jupiter.Implementation
         public async IAsyncEnumerable<(BucketId, IoHashKey, DateTime)> GetRecords(NamespaceId ns)
         {
             using TelemetrySpan scope = _tracer.BuildScyllaSpan("scylla.get_records");
-            const int MaxRetryAttempts = 3;
-            RowSet rowSet = await _session.ExecuteAsync(_getObjectsStatement.Bind(ns.ToString()));
 
-            do
+            if (_settings.CurrentValue.UsePerShardScanning)
             {
-                int countOfRows = rowSet.GetAvailableWithoutFetching();
-                IEnumerable<Row> localRows = rowSet.Take(countOfRows);
-                Task prefetchTask = rowSet.FetchMoreResultsAsync();
+                IAsyncEnumerable<(NamespaceId, BucketId, IoHashKey, DateTime)> enumerable = GetRecordsPerShard();
 
-                foreach (Row row in localRows)
+                await foreach ((NamespaceId, BucketId, IoHashKey, DateTime) record in enumerable)
                 {
+                    if (!record.Item1.Equals(ns))
+                    {
+                        continue;
+                    }
+                    yield return (record.Item2, record.Item3, record.Item4);
+                }
+            }
+            else
+            {
+                const int MaxRetryAttempts = 3;
+                RowSet rowSet = await _session.ExecuteAsync(_getObjectsStatement.Bind(ns.ToString()));
+
+                do
+                {
+                    int countOfRows = rowSet.GetAvailableWithoutFetching();
+                    IEnumerable<Row> localRows = rowSet.Take(countOfRows);
+                    Task prefetchTask = rowSet.FetchMoreResultsAsync();
+
+                    foreach (Row row in localRows)
+                    {
+                        string bucket = row.GetValue<string>("bucket");
+                        string name = row.GetValue<string>("name");
+                        DateTime? lastAccessTime = row.GetValue<DateTime?>("last_access_time");
+
+                        // skip any names that are not conformant to io hash
+                        if (name.Length != 40)
+                        {
+                            continue;
+                        }
+
+                        // if last access time is missing we treat it as being very old
+                        lastAccessTime ??= DateTime.MinValue;
+                        yield return (new BucketId(bucket), new IoHashKey(name), lastAccessTime.Value);
+                    }
+
+                    int retryAttempts = 0;
+                    Exception? timeoutException = null;
+                    while (retryAttempts < MaxRetryAttempts)
+                    {
+                        try
+                        {
+                            await prefetchTask;
+                            timeoutException = null;
+                            break;
+                        }
+                        catch (ReadTimeoutException e)
+                        {
+                            retryAttempts += 1;
+                            _logger.LogWarning(
+                                "Cassandra read timeouts, waiting a while and then retrying. Attempt {Attempts} .",
+                                retryAttempts);
+                            // wait 10 seconds and try again as the Db is under heavy load right now
+                            await Task.Delay(TimeSpan.FromSeconds(10));
+                            timeoutException = e;
+                        }
+                    }
+
+                    if (timeoutException != null)
+                    {
+                        _logger.LogWarning("Cassandra read timeouts, attempted {Attempts} attempts now we give up.",
+                            retryAttempts);
+                        // we have failed to many times, rethrow the exception and abort to avoid stalling here for ever
+                        throw timeoutException;
+                    }
+                } while (!rowSet.IsFullyFetched);
+            }
+        }
+
+        /// <summary>
+        /// This implements a more efficient scanning where we fetch objects based on which shard it is in. It scans the entire database and thus returns all namespaces.
+        /// See https://www.scylladb.com/2017/03/28/parallel-efficient-full-table-scan-scylla/
+        /// </summary>
+        /// <returns></returns>
+        private async IAsyncEnumerable<(NamespaceId, BucketId, IoHashKey, DateTime)> GetRecordsPerShard()
+        {
+            using TelemetrySpan scope = _tracer.BuildScyllaSpan("scylla.get_records_per_shard");
+            
+            foreach ((long, long) range in ScyllaUtils.GetTableRanges(_settings.CurrentValue.CountOfNodes, _settings.CurrentValue.CountOfCoresPerNode, 3))
+            {
+                RowSet rowSet = await _session.ExecuteAsync(_getObjectsForPartitionRangeStatement.Bind(range.Item1, range.Item2));
+                
+                foreach (Row row in rowSet)
+                {
+                    string ns = row.GetValue<string>("namespace");
                     string bucket = row.GetValue<string>("bucket");
                     string name = row.GetValue<string>("name");
                     DateTime? lastAccessTime = row.GetValue<DateTime?>("last_access_time");
@@ -148,39 +231,9 @@ namespace Jupiter.Implementation
 
                     // if last access time is missing we treat it as being very old
                     lastAccessTime ??= DateTime.MinValue;
-                    yield return (new BucketId(bucket), new IoHashKey(name), lastAccessTime.Value);
+                    yield return (new NamespaceId(ns), new BucketId(bucket), new IoHashKey(name), lastAccessTime.Value);
                 }
-
-                int retryAttempts = 0;
-                Exception? timeoutException = null;
-                while (retryAttempts < MaxRetryAttempts)
-                {
-                    try
-                    {
-                        await prefetchTask;
-                        timeoutException = null;
-                        break;
-                    }
-                    catch (ReadTimeoutException e)
-                    {
-                        retryAttempts += 1;
-                        _logger.LogWarning(
-                            "Cassandra read timeouts, waiting a while and then retrying. Attempt {Attempts} .",
-                            retryAttempts);
-                        // wait 10 seconds and try again as the Db is under heavy load right now
-                        await Task.Delay(TimeSpan.FromSeconds(10));
-                        timeoutException = e;
-                    }
-                }
-
-                if (timeoutException != null)
-                {
-                    _logger.LogWarning("Cassandra read timeouts, attempted {Attempts} attempts now we give up.",
-                        retryAttempts);
-                    // we have failed to many times, rethrow the exception and abort to avoid stalling here for ever
-                    throw timeoutException;
-                }
-            } while (!rowSet.IsFullyFetched);
+            }
         }
 
         public async IAsyncEnumerable<NamespaceId> GetNamespaces()
