@@ -222,8 +222,7 @@ UWorldPartition* AWorldSettings::GetWorldPartition() const
 
 void AWorldSettings::SetWorldPartition(UWorldPartition* InWorldPartition)
 {
-	check(!IsValid(WorldPartition));
-	check(InWorldPartition);
+	check(!InWorldPartition || !WorldPartition);
 	WorldPartition = InWorldPartition;
 	ApplyWorldPartitionForcedSettings();
 }

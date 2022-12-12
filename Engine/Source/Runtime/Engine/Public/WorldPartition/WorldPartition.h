@@ -93,6 +93,7 @@ class ENGINE_API UWorldPartition final : public UObject, public FActorDescContai
 public:
 #if WITH_EDITOR
 	static UWorldPartition* CreateOrRepairWorldPartition(AWorldSettings* WorldSettings, TSubclassOf<UWorldPartitionEditorHash> EditorHashClass = nullptr, TSubclassOf<UWorldPartitionRuntimeHash> RuntimeHashClass = nullptr);
+	static bool RemoveWorldPartition(AWorldSettings* WorldSettings);
 #endif
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FWorldPartitionInitializeDelegate, UWorldPartition*);

@@ -1005,6 +1005,36 @@ UWorldPartition* UWorldPartition::CreateOrRepairWorldPartition(AWorldSettings* W
 	return WorldPartition;
 }
 
+bool UWorldPartition::RemoveWorldPartition(AWorldSettings* WorldSettings)
+{
+	if (UWorldPartition* WorldPartition = WorldSettings->GetWorldPartition())
+	{
+		if (!WorldPartition->IsStreamingEnabled())
+		{
+			WorldSettings->Modify();
+			
+			ULevel* PersistentLevel = WorldSettings->GetLevel();
+			for (AActor* Actor : PersistentLevel->Actors)
+			{
+				if (Actor && (Cast<AWorldDataLayers>(Actor) || Cast<AWorldPartitionMiniMap>(Actor)))
+				{
+					Actor->Destroy();
+				}
+			}
+
+			WorldPartition->Uninitialize();
+			WorldSettings->SetWorldPartition(nullptr);
+
+			if (WorldPartition->WorldPartitionEditor)
+			{
+				WorldPartition->WorldPartitionEditor->Reconstruct();
+			}
+			
+			return true;
+		}
+	}
+	return false;
+}
 #endif
 
 const TArray<FWorldPartitionStreamingSource>& UWorldPartition::GetStreamingSources() const
