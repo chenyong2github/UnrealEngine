@@ -297,7 +297,7 @@ class FRayTracingReflectionsRGS : public FGlobalShader
 
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FRaytracingLightDataPacked, LightDataPacked)
-		SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionStruct)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FReflectionUniformParameters, ReflectionStruct)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FFogUniformParameters, FogUniformParameters)
 		SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCapture)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FForwardLightData, Forward)
@@ -686,7 +686,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 	// Hybrid reflection path samples lit scene color texture instead of performing a ray trace.
 	CommonParameters.SceneColor = bHybridReflections ? SceneTextures.Color.Resolve : SystemTextures.Black;
 
-	CommonParameters.ReflectionStruct = CreateReflectionUniformBuffer(View, EUniformBufferUsage::UniformBuffer_SingleFrame);
+	CommonParameters.ReflectionStruct = CreateReflectionUniformBuffer(GraphBuilder, View);
 	CommonParameters.FogUniformParameters = CreateFogUniformBuffer(GraphBuilder, View);
 	CommonParameters.ColorOutput = GraphBuilder.CreateUAV(OutDenoiserInputs->Color);
 	CommonParameters.RayHitDistanceOutput = GraphBuilder.CreateUAV(OutDenoiserInputs->RayHitDistance);

@@ -874,7 +874,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 			Parameters.ReflectionCaptureData = View.ReflectionCaptureUniformBuffer;
 			{
 				FReflectionUniformParameters ReflectionUniformParameters;
-				SetupReflectionUniformParameters(View, ReflectionUniformParameters);
+				SetupReflectionUniformParameters(GraphBuilder, View, ReflectionUniformParameters);
 				Parameters.ReflectionsParameters = CreateUniformBufferImmediate(ReflectionUniformParameters, UniformBuffer_SingleDraw);
 			}
 			Parameters.ForwardLightData = View.ForwardLightingResources.ForwardLightUniformBuffer;

@@ -702,7 +702,7 @@ void SetupSharedBasePassParameters(
 	const FScene* Scene = View.Family->Scene ? View.Family->Scene->GetRenderScene() : nullptr;
 	const FPlanarReflectionSceneProxy* ReflectionSceneProxy = Scene ? Scene->GetForwardPassGlobalPlanarReflection() : nullptr;
 
-	SetupReflectionUniformParameters(View, SharedParameters.Reflection);
+	SetupReflectionUniformParameters(GraphBuilder, View, SharedParameters.Reflection);
 	SetupPlanarReflectionUniformParameters(View, ReflectionSceneProxy, SharedParameters.PlanarReflection);
 
 	// Skip base pass skylight if Lumen GI is enabled, as Lumen handles the skylight.

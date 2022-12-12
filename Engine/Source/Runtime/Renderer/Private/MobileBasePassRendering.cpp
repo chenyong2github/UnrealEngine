@@ -239,7 +239,7 @@ void SetupMobileBasePassUniformParameters(
 	// Strata
 	Strata::BindStrataMobileForwardPasslUniformParameters(GraphBuilder, View, BasePassParameters.Strata);
 
-	SetupReflectionUniformParameters(View, BasePassParameters.ReflectionsParameters);
+	SetupReflectionUniformParameters(GraphBuilder, View, BasePassParameters.ReflectionsParameters);
 }
 
 TRDGUniformBufferRef<FMobileBasePassUniformParameters> CreateMobileBasePassUniformBuffer(

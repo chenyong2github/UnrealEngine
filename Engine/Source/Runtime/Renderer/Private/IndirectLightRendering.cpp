@@ -470,9 +470,9 @@ void FDeferredShadingSceneRenderer::CommitIndirectLightingState()
 	}
 }
 
-void SetupReflectionUniformParameters(const FViewInfo& View, FReflectionUniformParameters& OutParameters)
+void SetupReflectionUniformParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, FReflectionUniformParameters& OutParameters)
 {
-	FTextureRHIRef SkyLightTextureResource = GBlackTextureCube->TextureRHI;
+	FTextureRHIRef SkyLightTextureResource = nullptr;
 	FSamplerStateRHIRef SkyLightCubemapSampler = TStaticSamplerState<SF_Trilinear>::GetRHI();
 	FTexture* SkyLightBlendDestinationTextureResource = GBlackTextureCube;
 	float ApplySkyLightMask = 0;
@@ -521,10 +521,20 @@ void SetupReflectionUniformParameters(const FViewInfo& View, FReflectionUniformP
 		SkyAverageBrightness = SkyLight.AverageBrightness;
 	}
 
-	const int32 CubemapWidth = SkyLightTextureResource->GetSizeXYZ().X;
-	const float SkyMipCount = FMath::Log2(static_cast<float>(CubemapWidth)) + 1.0f;
+	FRDGTextureRef SkyLightTexture = nullptr;
+	if (SkyLightTextureResource)
+	{
+		 SkyLightTexture = RegisterExternalTexture(GraphBuilder, SkyLightTextureResource, TEXT("SkyLightTexture"));
+	}
+	else
+	{
+		SkyLightTexture = GSystemTextures.GetCubeBlackDummy(GraphBuilder);
+	}
 
-	OutParameters.SkyLightCubemap = SkyLightTextureResource;
+	const int32 CubemapWidth = SkyLightTexture->Desc.Extent.X;
+	const float SkyMipCount = FMath::Log2(static_cast<float>(CubemapWidth)) + 1.0f;
+		
+	OutParameters.SkyLightCubemap = SkyLightTexture;
 	OutParameters.SkyLightCubemapSampler = SkyLightCubemapSampler;
 	OutParameters.SkyLightBlendDestinationCubemap = SkyLightBlendDestinationTextureResource->TextureRHI;
 	OutParameters.SkyLightBlendDestinationCubemapSampler = SkyLightBlendDestinationTextureResource->SamplerStateRHI;
@@ -549,11 +559,11 @@ void SetupReflectionUniformParameters(const FViewInfo& View, FReflectionUniformP
 	OutParameters.PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 }
 
-TUniformBufferRef<FReflectionUniformParameters> CreateReflectionUniformBuffer(const class FViewInfo& View, EUniformBufferUsage Usage)
+TRDGUniformBufferRef<FReflectionUniformParameters> CreateReflectionUniformBuffer(class FRDGBuilder& GraphBuilder, const FViewInfo& View)
 {
-	FReflectionUniformParameters ReflectionStruct;
-	SetupReflectionUniformParameters(View, ReflectionStruct);
-	return CreateUniformBufferImmediate(ReflectionStruct, Usage);
+	FReflectionUniformParameters* Parameters = GraphBuilder.AllocParameters<FReflectionUniformParameters>();
+	SetupReflectionUniformParameters(GraphBuilder, View, *Parameters);
+	return GraphBuilder.CreateUniformBuffer(Parameters);
 }
 
 #if RHI_RAYTRACING
@@ -1585,7 +1595,7 @@ static void AddSkyReflectionPass(
 		PassParameters->PS.ReflectionCaptureData = View.ReflectionCaptureUniformBuffer;
 		{
 			FReflectionUniformParameters ReflectionUniformParameters;
-			SetupReflectionUniformParameters(View, ReflectionUniformParameters);
+			SetupReflectionUniformParameters(GraphBuilder, View, ReflectionUniformParameters);
 			PassParameters->PS.ReflectionsParameters = CreateUniformBufferImmediate(ReflectionUniformParameters, UniformBuffer_SingleDraw);
 		}
 		PassParameters->PS.ForwardLightData = View.ForwardLightingResources.ForwardLightUniformBuffer;

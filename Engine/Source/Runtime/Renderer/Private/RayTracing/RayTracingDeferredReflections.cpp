@@ -263,7 +263,7 @@ class FRayTracingDeferredReflectionsRGS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, ColorOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, ReflectionDenoiserData)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-		SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionStruct)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FReflectionUniformParameters, ReflectionStruct)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FRaytracingLightDataPacked, LightDataPacked)
 		SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCapture)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FForwardLightData, Forward)
@@ -537,7 +537,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 	CommonParameters.SceneTextures           = SceneTextures;
 	CommonParameters.ViewUniformBuffer       = View.ViewUniformBuffer;
 	CommonParameters.LightDataPacked         = View.RayTracingLightDataUniformBuffer;
-	CommonParameters.ReflectionStruct        = CreateReflectionUniformBuffer(View, EUniformBufferUsage::UniformBuffer_SingleFrame);
+	CommonParameters.ReflectionStruct        = CreateReflectionUniformBuffer(GraphBuilder, View);
 	CommonParameters.ReflectionCapture       = View.ReflectionCaptureUniformBuffer;
 	CommonParameters.Forward                 = View.ForwardLightingResources.ForwardLightUniformBuffer;
 	CommonParameters.ReflectionMaxNormalBias = GetRaytracingMaxNormalBias();

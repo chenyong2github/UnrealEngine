@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	ReflectionEnvironmentShared
-=============================================================================*/
-
 #pragma once
 
 #if (FEATURE_LEVEL <= FEATURE_LEVEL_ES3_1)

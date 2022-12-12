@@ -351,7 +351,7 @@ void FSkyLightRenderState::PrepareSkyTexture(FRHICommandListImmediate& RHICmdLis
 	FRDGTextureRef SkylightPdf;
 
 	FReflectionUniformParameters Parameters;
-	Parameters.SkyLightCubemap = ProcessedTexture;
+	Parameters.SkyLightCubemap = RegisterExternalTexture(GraphBuilder, ProcessedTexture, TEXT("SkyLightTexture"));
 	Parameters.SkyLightCubemapSampler = ProcessedTextureSampler;
 	Parameters.SkyLightBlendDestinationCubemap = ProcessedTexture;
 	Parameters.SkyLightBlendDestinationCubemapSampler = ProcessedTextureSampler;

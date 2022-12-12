@@ -204,7 +204,7 @@ class FMaterialDebugStrataTreePS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
-		SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionStruct)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FReflectionUniformParameters, ReflectionStruct)
 		SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCapture)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FForwardLightData, ForwardLightData)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSkyDiffuseLightingParameters, SkyDiffuseLighting)
@@ -345,7 +345,7 @@ static void AddVisualizeAdvancedMaterialPasses(FRDGBuilder& GraphBuilder, const 
 		FMaterialDebugStrataTreePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMaterialDebugStrataTreePS::FParameters>();
 		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
-		PassParameters->ReflectionStruct = CreateReflectionUniformBuffer(View, UniformBuffer_SingleFrame);
+		PassParameters->ReflectionStruct = CreateReflectionUniformBuffer(GraphBuilder, View);
 		PassParameters->ReflectionCapture = View.ReflectionCaptureUniformBuffer;
 		PassParameters->ForwardLightData = View.ForwardLightingResources.ForwardLightUniformBuffer;
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);

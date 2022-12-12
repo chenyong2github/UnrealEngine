@@ -556,7 +556,7 @@ class FPathTracingSkylightPrepareCS : public FGlobalShader
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_TEXTURE(TextureCube, SkyLightCubemap0)
+		SHADER_PARAMETER_RDG_TEXTURE(TextureCube, SkyLightCubemap0)
 		SHADER_PARAMETER_TEXTURE(TextureCube, SkyLightCubemap1)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SkyLightCubemapSampler0)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SkyLightCubemapSampler1)
@@ -1427,7 +1427,7 @@ bool PrepareSkyTexture(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo
 	SkylightParameters->SkylightTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 	FReflectionUniformParameters Parameters;
-	SetupReflectionUniformParameters(View, Parameters);
+	SetupReflectionUniformParameters(GraphBuilder, View, Parameters);
 	if (!SkylightEnabled || !(Parameters.SkyLightParameters.Y > 0))
 	{
 		// textures not ready, or skylight not active

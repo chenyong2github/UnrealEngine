@@ -386,7 +386,7 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 	ParametersPS->ReflectionCaptureData = View.ReflectionCaptureUniformBuffer;
 	{
 		FReflectionUniformParameters ReflectionUniformParameters;
-		SetupReflectionUniformParameters(View, ReflectionUniformParameters);
+		SetupReflectionUniformParameters(GraphBuilder, View, ReflectionUniformParameters);
 		ParametersPS->ReflectionsParameters = CreateUniformBufferImmediate(ReflectionUniformParameters, UniformBuffer_SingleDraw);
 	}
 

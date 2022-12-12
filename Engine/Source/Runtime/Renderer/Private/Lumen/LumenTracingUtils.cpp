@@ -23,7 +23,7 @@ void GetLumenCardTracingParameters(
 
 	TracingParameters.View = View.ViewUniformBuffer;
 	TracingParameters.LumenCardScene = FrameTemporaries.LumenCardSceneUniformBuffer;
-	TracingParameters.ReflectionStruct = CreateReflectionUniformBuffer(View, UniformBuffer_MultiFrame);
+	TracingParameters.ReflectionStruct = CreateReflectionUniformBuffer(GraphBuilder, View);
 	
 	TracingParameters.DiffuseColorBoost = 1.0f / FMath::Max(View.FinalPostProcessSettings.LumenDiffuseColorBoost, 1.0f);
 	TracingParameters.SkylightLeaking = View.FinalPostProcessSettings.LumenSkylightLeaking;
