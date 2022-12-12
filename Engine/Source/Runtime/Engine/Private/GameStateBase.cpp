@@ -9,6 +9,7 @@
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/PlayerState.h"
 #include "EngineUtils.h"
+#include "Engine/DemoNetDriver.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameStateBase)
 
@@ -154,7 +155,7 @@ void AGameStateBase::UpdateServerTimeSeconds()
 	UWorld* World = GetWorld();
 	if (World)
 	{
-		ReplicatedWorldTimeSeconds = World->GetTimeSeconds();
+		ReplicatedWorldTimeSecondsDouble = World->GetTimeSeconds();
 	}
 }
 
@@ -163,7 +164,25 @@ void AGameStateBase::OnRep_ReplicatedWorldTimeSeconds()
 	UWorld* World = GetWorld();
 	if (World)
 	{
-		const double ServerWorldTimeDelta = ReplicatedWorldTimeSeconds - World->GetTimeSeconds();
+		const UDemoNetDriver* DemoNetDriver = World ? World->GetDemoNetDriver() : nullptr;
+
+		// Support old replays.
+		if (DemoNetDriver && DemoNetDriver->IsPlaying() && (DemoNetDriver->GetPlaybackEngineNetworkProtocolVersion() < EEngineNetworkVersionHistory::HISTORY_GAMESTATE_REPLCIATED_TIME_AS_DOUBLE))
+		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			ReplicatedWorldTimeSecondsDouble = ReplicatedWorldTimeSeconds;
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			OnRep_ReplicatedWorldTimeSecondsDouble();
+		}
+	}
+}
+
+void AGameStateBase::OnRep_ReplicatedWorldTimeSecondsDouble()
+{
+	UWorld* World = GetWorld();
+	if (World)
+	{
+		const double ServerWorldTimeDelta = ReplicatedWorldTimeSecondsDouble - World->GetTimeSeconds();
 
 		// Accumulate the computed server world delta
 		SumServerWorldTimeSecondsDelta += ServerWorldTimeDelta;
@@ -251,8 +270,15 @@ void AGameStateBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	DOREPLIFETIME( AGameStateBase, SpectatorClass );
 
 	DOREPLIFETIME_CONDITION( AGameStateBase, GameModeClass,	COND_InitialOnly );
+	DOREPLIFETIME( AGameStateBase, ReplicatedWorldTimeSecondsDouble );
 
-	DOREPLIFETIME( AGameStateBase, ReplicatedWorldTimeSeconds );
+	FDoRepLifetimeParams Params;
+	Params.bIsPushBased = true;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	// ReplicatedWorldTimeSeconds is still 'replicated' to support old replays, however this variable does not change value on the server now and is never dirtyed.
+	DOREPLIFETIME_WITH_PARAMS_FAST(AGameStateBase, ReplicatedWorldTimeSeconds, Params);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	DOREPLIFETIME( AGameStateBase, bReplicatedHasBegunPlay );
 }
 

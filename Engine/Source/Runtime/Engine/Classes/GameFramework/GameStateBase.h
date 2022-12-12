@@ -139,16 +139,25 @@ protected:
 	UPROPERTY(Transient, ReplicatedUsing = OnRep_ReplicatedHasBegunPlay)
 	bool bReplicatedHasBegunPlay;
 
-	/** Called periodically to update ReplicatedWorldTimeSeconds */
+	/** Called periodically to update ReplicatedWorldTimeSecondsDouble */
 	virtual void UpdateServerTimeSeconds();
 
 	/** Allows clients to calculate ServerWorldTimeSecondsDelta */
+	UE_DEPRECATED(5.2, "OnRep_ReplicatedWorldTimeSeconds() is deprecated. Use OnRep_ReplicatedWorldTimeSecondsDouble().")
 	UFUNCTION()
-	virtual void OnRep_ReplicatedWorldTimeSeconds();
+	virtual void OnRep_ReplicatedWorldTimeSeconds() final;
+
+	/** Allows clients to calculate ServerWorldTimeSecondsDelta */
+	UFUNCTION()
+	virtual void OnRep_ReplicatedWorldTimeSecondsDouble();
 
 	/** Server TimeSeconds. Useful for syncing up animation and gameplay. */
+	UE_DEPRECATED(5.2, "ReplicatedWorldTimeSeconds is deprecated. Use ReplicatedWorldTimeSecondsDouble.")
 	UPROPERTY(Transient, ReplicatedUsing=OnRep_ReplicatedWorldTimeSeconds)
-	double ReplicatedWorldTimeSeconds;
+	float ReplicatedWorldTimeSeconds;
+
+	UPROPERTY(Transient, ReplicatedUsing = OnRep_ReplicatedWorldTimeSecondsDouble)
+	double ReplicatedWorldTimeSecondsDouble;
 
 	/** The difference from the local world's TimeSeconds and the server world's TimeSeconds. */
 	UPROPERTY(Transient)

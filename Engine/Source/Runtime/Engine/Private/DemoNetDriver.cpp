@@ -2973,11 +2973,11 @@ void UDemoNetDriver::FinalizeFastForward(const double StartTime)
 		if (bIsFastForwardingForCheckpoint)
 		{
 			const double PostCheckpointServerTime = SavedReplicatedWorldTimeSeconds + SavedSecondsToSkip;
-			GameState->ReplicatedWorldTimeSeconds = PostCheckpointServerTime;
+			GameState->ReplicatedWorldTimeSecondsDouble = PostCheckpointServerTime;
 		}
 
 		// Correct the ServerWorldTimeSecondsDelta
-		GameState->OnRep_ReplicatedWorldTimeSeconds();
+		GameState->OnRep_ReplicatedWorldTimeSecondsDouble();
 	}
 
 	if (ServerConnection != nullptr && bIsFastForwardingForCheckpoint)
@@ -4524,7 +4524,7 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 		const AGameStateBase* const GameState = World->GetGameState();
 		if (GameState != nullptr)
 		{
-			SavedReplicatedWorldTimeSeconds = GameState->ReplicatedWorldTimeSeconds;
+			SavedReplicatedWorldTimeSeconds = GameState->ReplicatedWorldTimeSecondsDouble;
 		}
 	}
 
