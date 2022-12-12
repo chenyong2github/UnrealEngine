@@ -248,7 +248,7 @@ namespace EpicGames.Horde.Tests
 				remaining = await node.AppendDataAsync(remaining, options, writer, CancellationToken.None);
 				nodes.Add(node);
 
-				IoHash hash = IoHash.Compute(node.Data);
+				IoHash hash = IoHash.Compute(node.Data.Span);
 				uniqueChunks[hash] = node.Length;
 			}
 
@@ -384,7 +384,7 @@ namespace EpicGames.Horde.Tests
 			{
 				LeafFileNode newLeafNode = (LeafFileNode)newNode;
 				Assert.AreEqual(oldLeafNode.Length, newLeafNode.Length);
-				Assert.IsTrue(oldLeafNode.Data.AsSingleSegment().Span.SequenceEqual(newLeafNode.Data.AsSingleSegment().Span));
+				Assert.IsTrue(oldLeafNode.Data.Span.SequenceEqual(newLeafNode.Data.Span));
 			}
 			else
 			{
@@ -408,11 +408,8 @@ namespace EpicGames.Horde.Tests
 			int offset = 0;
 			if (fileNode is LeafFileNode leafNode)
 			{
-				foreach (ReadOnlyMemory<byte> segment in leafNode.Data)
-				{
-					Assert.IsTrue(segment.Span.SequenceEqual(data.Span.Slice(offset, segment.Length)));
-					offset += segment.Length;
-				}
+				Assert.IsTrue(leafNode.Data.Span.SequenceEqual(data.Span.Slice(offset, leafNode.Data.Length)));
+				offset += leafNode.Data.Length;
 			}
 			else if (fileNode is InteriorFileNode interiorFileNode)
 			{
