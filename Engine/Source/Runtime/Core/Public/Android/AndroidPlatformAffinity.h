@@ -49,12 +49,7 @@ public:
 		return AllCores;
 	}
 
-	static const CORE_API uint64 GetStatsThreadMask()
-	{
-		return GetLittleCoreMask();
-	}
-
-	static const CORE_API uint64 GetAudioThreadMask()
+	static const CORE_API uint64 GetAudioRenderThreadMask()
 	{
 		return GetLittleCoreMask();
 	}

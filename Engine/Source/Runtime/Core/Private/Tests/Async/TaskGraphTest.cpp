@@ -897,29 +897,10 @@ namespace TaskGraphTests
 
 		// named threads and local queues
 
-#if STATS
-		{	// StatsThread
-			bool bExecuted = false;
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			FFunctionGraphTask::CreateAndDispatchWhenReady([&bExecuted] { bExecuted = true; }, TStatId{}, nullptr, ENamedThreads::StatsThread)->Wait();
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-			check(bExecuted);
-		}
-#endif
-
 		if (IsRHIThreadRunning())
 		{	// RHIThread
 			bool bExecuted = false;
 			FFunctionGraphTask::CreateAndDispatchWhenReady([&bExecuted] { bExecuted = true; }, TStatId{}, nullptr, ENamedThreads::RHIThread)->Wait();
-			check(bExecuted);
-		}
-
-		if (IsAudioThreadRunning())
-		{	// AudioThread
-			bool bExecuted = false;
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			FFunctionGraphTask::CreateAndDispatchWhenReady([&bExecuted] { bExecuted = true; }, TStatId{}, nullptr, ENamedThreads::AudioThread)->Wait();
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			check(bExecuted);
 		}
 
@@ -1333,29 +1314,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		UE_BENCHMARK(5, TestWorkStealing<100, 1000>);
 		UE_BENCHMARK(5, TestSpawning<100000>);
 		UE_BENCHMARK(5, TestBatchSpawning<100000>);
-
-		return true;
-	}
-
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphStatsThreadRedirectionTest, "System.Core.Async.TaskGraph.StatsThreadRedirection", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
-
-	bool FTaskGraphStatsThreadRedirectionTest::RunTest(const FString& Parameters)
-	{
-		if (!FPlatformProcess::SupportsMultithreading())
-		{
-			// no StatsThread around
-			return true;
-		}
-
-#if STATS
-
-		bool bExecuted = false;
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		FFunctionGraphTask::CreateAndDispatchWhenReady([&bExecuted] { bExecuted = true; }, TStatId{}, nullptr, ENamedThreads::StatsThread)->Wait();
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		check(bExecuted);
-
-#endif
 
 		return true;
 	}

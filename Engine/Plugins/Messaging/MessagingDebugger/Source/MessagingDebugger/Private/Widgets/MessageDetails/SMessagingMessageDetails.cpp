@@ -233,16 +233,6 @@ FText SMessagingMessageDetails::HandleSenderThreadText() const
 			return LOCTEXT("ActualRenderingThread_Local", "ActualRenderingThread_Local");
 			break;
 
-#if STATS && !UE_STATS_THREAD_AS_PIPE
-		case ENamedThreads::StatsThread:
-			return LOCTEXT("StatsThread", "StatsThread");
-			break;
-
-		case ENamedThreads::StatsThread_Local:
-			return LOCTEXT("StatsThread_Local", "StatsThread_Local");
-			break;
-#endif
-
 		default:
 			return LOCTEXT("UnknownThread", "Unknown");
 		}

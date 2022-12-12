@@ -164,13 +164,11 @@ void FProfilerServiceManager::SetPreviewState( const FMessageAddress& ClientAddr
 				// Enable stat capture.
 				if (PreviewClients.Num() == 0)
 				{
-#if UE_STATS_THREAD_AS_PIPE
 					if (FPlatformProcess::SupportsMultithreading())
 					{
 						GStatsPipe.Launch(UE_SOURCE_LOCATION, [this] { AddNewFrameHandleStatsPipe(); });
 					}
 					else
-#endif
 					{
 						FSimpleDelegateGraphTask::CreateAndDispatchWhenReady
 						(
@@ -192,13 +190,11 @@ void FProfilerServiceManager::SetPreviewState( const FMessageAddress& ClientAddr
 				// Disable stat capture.
 				if (PreviewClients.Num() == 0)
 				{
-#if UE_STATS_THREAD_AS_PIPE
 					if (FPlatformProcess::SupportsMultithreading())
 					{
 						GStatsPipe.Launch(UE_SOURCE_LOCATION, [this] { RemoveNewFrameHandleStatsPipe(); });
 					}
 					else
-#endif
 					{
 						FSimpleDelegateGraphTask::CreateAndDispatchWhenReady
 						(

@@ -55,15 +55,7 @@ namespace ENamedThreads
 	{
 		UnusedAnchor = -1,
 		/** The always-present, named threads are listed next **/
-#if STATS
-#if UE_STATS_THREAD_AS_PIPE
-		StatsThread UE_DEPRECATED(5.0, "`StatsThread` has been removed. Stats system should be used by Stats public API"),
-#else
-		StatsThread,
-#endif
-#endif
 		RHIThread,
-		AudioThread UE_DEPRECATED(5.0, "`AudioThread` has been removed. Please use `FAudioThread` API"),
 		GameThread,
 		// The render thread is sometimes the game thread and is sometimes the actual rendering thread
 		ActualRenderingThread = GameThread + 1,
@@ -100,15 +92,6 @@ namespace ENamedThreads
 		ThreadPriorityShift = 10,
 
 		/** Combinations **/
-#if STATS
-#if UE_STATS_THREAD_AS_PIPE
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		StatsThread_Local UE_DEPRECATED(5.0, "`StatsThread_Local` has been removed (and has never been supported). Stats system should be used by its public API in `Stats2.h`") = StatsThread | LocalQueue,
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#else
-		StatsThread_Local = StatsThread | LocalQueue,
-#endif
-#endif
 		GameThread_Local = GameThread | LocalQueue,
 		ActualRenderingThread_Local = ActualRenderingThread | LocalQueue,
 

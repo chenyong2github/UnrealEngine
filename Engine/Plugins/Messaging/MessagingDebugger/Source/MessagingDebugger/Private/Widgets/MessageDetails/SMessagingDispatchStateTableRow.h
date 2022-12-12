@@ -189,12 +189,6 @@ protected:
 			return LOCTEXT("ActualRenderingThread", "ActualRenderingThread");
 			break;
 
-#if STATS && !UE_STATS_THREAD_AS_PIPE
-		case ENamedThreads::StatsThread:
-			return LOCTEXT("StatsThread", "StatsThread");
-			break;
-#endif
-
 		default:
 			return LOCTEXT("UnknownThread", "Unknown");
 		}

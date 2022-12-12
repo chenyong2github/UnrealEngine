@@ -212,7 +212,7 @@ void FMicrosoftSpatialSound::Initialize(const FAudioPluginInitializationParams I
 
 			bWarnedMicrosoftSpatialSoundDynamicObjectCountIsZero = false;
 
-			SpatialAudioRenderThread = FRunnableThread::Create(this, TEXT("MicrosoftSpatialAudioThread"), 0, TPri_TimeCritical, FPlatformAffinity::GetAudioThreadMask());
+			SpatialAudioRenderThread = FRunnableThread::Create(this, TEXT("MicrosoftSpatialAudioThread"), 0, TPri_TimeCritical, FPlatformAffinity::GetAudioRenderThreadMask());
 
 			Audio::Analytics::RecordEvent_Usage(TEXT("MicrosoftSpatialSound.Initialized"));
 		}

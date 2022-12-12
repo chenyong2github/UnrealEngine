@@ -101,7 +101,7 @@ namespace Audio
 			WakeupEvent->Trigger();
 		}
 		
-		CallbackThread.Reset(FRunnableThread::Create(this, TEXT("AudioMixerNullCallbackThread"), 0, ThreadPriority, FPlatformAffinity::GetAudioThreadMask()));
+		CallbackThread.Reset(FRunnableThread::Create(this, TEXT("AudioMixerNullCallbackThread"), 0, ThreadPriority, FPlatformAffinity::GetAudioRenderThreadMask()));
 	}
 		
 	void FMixerNullCallback::Stop()
