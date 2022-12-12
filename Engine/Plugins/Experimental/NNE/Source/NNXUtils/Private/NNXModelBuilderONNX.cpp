@@ -334,9 +334,10 @@ NNXUTILS_API bool CreateONNXModelForOperator(bool UseVariadicShapeForModel, cons
 	
 	int64 IrVersion = OnnxIrVersion;
 	int64 OpsetVersion = OnnxOpsetVersion;
-	if (OperatorName == TEXT("Upsample"))
+	if (OperatorName == TEXT("Upsample") || OperatorName == TEXT("Pad"))
 	{
 		// Upsample is deprecated starting opset 10
+		// Pad current implementation is opset 2 (next version is 11)
 		OpsetVersion = 9;
 	}
 	TUniquePtr<IMLModelBuilder> Builder(CreateONNXModelBuilder(IrVersion, OpsetVersion));
