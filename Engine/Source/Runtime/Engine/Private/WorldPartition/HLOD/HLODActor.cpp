@@ -11,6 +11,7 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HLODActor)
 
 #if WITH_EDITOR
+#include "Misc/ArchiveMD5.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/HLOD/HLODActorDesc.h"
@@ -103,7 +104,7 @@ void AWorldPartitionHLOD::Serialize(FArchive& Ar)
 		{
 			CellName = CellPath;
 		}
-		SourceCellName = *CellName;
+		SourceCellName_DEPRECATED = *CellName;
 	}
 #endif
 }
@@ -137,13 +138,65 @@ void AWorldPartitionHLOD::PostLoad()
 			FString WorldName = FPackageName::GetShortName(ExternalActorsPath);
 
 			// Strip "WorldName_" from the cell name
-			FString CellName = SourceCellName.ToString();
+			FString CellName = SourceCellName_DEPRECATED.ToString();
 			bool bRemoved = CellName.RemoveFromStart(WorldName + TEXT("_"), ESearchCase::CaseSensitive);
 			if (bRemoved)
 			{
-				SourceCellName = *CellName;
+				SourceCellName_DEPRECATED = *CellName;
 			}
 		}
+	}
+
+	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WorldPartitionHLODActorUseSourceCellGuid)
+	{
+		check(!SourceCellName_DEPRECATED.IsNone());
+		check(!SourceCellGuid.IsValid());
+
+		FString GridName;
+		int64 CellGlobalCoord[3];
+		uint32 DataLayerID;
+		uint32 ContentBundleID;
+
+		// Input format should be GridName_Lx_Xx_Yx_DLx[_CBx]
+		TArray<FString> Tokens;
+		if (SourceCellName_DEPRECATED.ToString().ParseIntoArray(Tokens, TEXT("_")) >= 4)
+		{
+			int32 CurrentIndex = 0;
+			GridName = Tokens[CurrentIndex++];
+
+			// Since GridName can contain underscores, we do our best to extract it
+			while(Tokens.IsValidIndex(CurrentIndex))
+			{
+				if ((Tokens[CurrentIndex][0] == TEXT('L')) && (Tokens[CurrentIndex].Len() > 1))
+				{
+					if (FCString::IsNumeric(*Tokens[CurrentIndex] + 1))
+					{
+						break;
+					}
+				}
+
+				GridName += TEXT("_");
+				GridName += Tokens[CurrentIndex++];
+			}
+
+			GridName = GridName.ToLower();
+
+			CellGlobalCoord[2] = Tokens.IsValidIndex(CurrentIndex) ? FCString::Strtoui64(*Tokens[CurrentIndex++] + 1, nullptr, 10) : 0;
+			CellGlobalCoord[0] = Tokens.IsValidIndex(CurrentIndex) ? FCString::Strtoui64(*Tokens[CurrentIndex++] + 1, nullptr, 10) : 0;
+			CellGlobalCoord[1] = Tokens.IsValidIndex(CurrentIndex) ? FCString::Strtoui64(*Tokens[CurrentIndex++] + 1, nullptr, 10) : 0;
+			DataLayerID = Tokens.IsValidIndex(CurrentIndex) ? FCString::Strtoui64(*Tokens[CurrentIndex++] + 2, nullptr, 16) : 0;
+			ContentBundleID = Tokens.IsValidIndex(CurrentIndex) ? FCString::Strtoui64(*Tokens[CurrentIndex++] + 2, nullptr, 16) : 0;
+		}
+
+		FArchiveMD5 ArMD5;
+		ArMD5 << GridName << CellGlobalCoord[0] << CellGlobalCoord[1] << CellGlobalCoord[2] << DataLayerID << ContentBundleID;
+
+		FMD5Hash MD5Hash;
+		ArMD5.GetHash(MD5Hash);
+
+		check(MD5Hash.GetSize() == sizeof(FGuid));
+		FMemory::Memcpy(&SourceCellGuid, MD5Hash.GetBytes(), sizeof(FGuid));
+		check(SourceCellGuid.IsValid());
 	}
 
 	// Update the disk size stat on load, as we can't really know it when saving
@@ -215,9 +268,9 @@ void AWorldPartitionHLOD::SetSubActorsHLODLayer(const UHLODLayer* InSubActorsHLO
 	bRequireWarmup = SubActorsHLODLayer->DoesRequireWarmup();
 }
 
-void AWorldPartitionHLOD::SetSourceCellName(FName InSourceCellName)
+void AWorldPartitionHLOD::SetSourceCellGuid(const FGuid& InSourceCellGuid)
 {
-	SourceCellName = InSourceCellName;
+	SourceCellGuid = InSourceCellGuid;
 }
 
 const FBox& AWorldPartitionHLOD::GetHLODBounds() const
