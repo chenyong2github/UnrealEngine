@@ -1093,6 +1093,23 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				builder.Append("\tDEFINE_VTABLE_PTR_HELPER_CTOR(").Append(classObj.SourceName).Append(");\r\n");
 			}
 
+			if (!classObj.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasConstructor))
+			{
+				if (!classObj.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.UsesGeneratedBodyLegacy))
+				{
+					switch (GetConstructorType(classObj))
+					{
+						case ConstructorType.ObjectInitializer:
+							builder.Append('\t').Append(classObj.SourceName).Append("::").Append(classObj.SourceName).Append("(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {}\r\n");
+							break;
+
+						case ConstructorType.Default:
+							builder.Append('\t').Append(classObj.SourceName).Append("::").Append(classObj.SourceName).Append("() {}\r\n");
+							break;
+					}
+				}
+			}
+
 			if (!classObj.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasDestructor))
 			{
 				builder.Append('\t').Append(classObj.SourceName).Append("::~").Append(classObj.SourceName).Append("() {}\r\n");

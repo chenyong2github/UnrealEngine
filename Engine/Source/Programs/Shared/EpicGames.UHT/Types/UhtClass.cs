@@ -88,6 +88,12 @@ namespace EpicGames.UHT.Types
 		/// Class has destructor
 		/// </summary>
 		HasDestructor = 1 << 11,
+
+		/// <summary>
+		/// The GENERATED_UCLASS_BODY, GENERATED_UINTERFACE_BODY, and GENERATED_IINTERFACE_BODY macros use the 
+		/// legacy generated body.  If this flag is set, generate the legacy instead of the GENERATED_BODY macros.
+		/// </summary>
+		UsesGeneratedBodyLegacy = 1 << 12,
 	}
 
 	/// <summary>

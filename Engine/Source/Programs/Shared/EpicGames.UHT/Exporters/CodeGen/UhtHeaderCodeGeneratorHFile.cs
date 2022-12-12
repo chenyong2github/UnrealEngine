@@ -978,65 +978,6 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		}
 
 		/// <summary>
-		/// Type of constructor on the class regardless of explicit or generated.
-		/// </summary>
-		enum ConstructorType
-		{
-			ObjectInitializer,
-			Default,
-			ForbiddenDefault,
-		}
-
-		/// <summary>
-		/// Return the type of constructor the class will have regardless of if one has been explicitly 
-		/// declared or will be generated.
-		/// </summary>
-		/// <param name="classObj">Class in question</param>
-		/// <returns>Constructor type</returns>
-		private static ConstructorType GetConstructorType(UhtClass classObj)
-		{
-			if (!classObj.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasConstructor))
-			{
-
-				// Assume super class has OI constructor, this may not always be true but we should always be able to check this.
-				// In any case, it will default to old behavior before we even checked this.
-				bool superClassObjectInitializerConstructorDeclared = true;
-				UhtClass? superClass = classObj.SuperClass;
-				if (superClass != null)
-				{
-					if (!superClass.HeaderFile.IsNoExportTypes)
-					{
-						superClassObjectInitializerConstructorDeclared = GetConstructorType(superClass) == ConstructorType.ObjectInitializer;
-					}
-				}
-
-				if (superClassObjectInitializerConstructorDeclared)
-				{
-					return ConstructorType.ObjectInitializer;
-				}
-				else
-				{
-					return ConstructorType.Default;
-				}
-			}
-			else
-			{
-				if (classObj.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasObjectInitializerConstructor))
-				{
-					return ConstructorType.ObjectInitializer;
-				}
-				else if (classObj.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasDefaultConstructor))
-				{
-					return ConstructorType.Default;
-				}
-				else
-				{
-					return ConstructorType.ForbiddenDefault;
-				}
-			}
-		}
-
-		/// <summary>
 		/// Generates private copy-constructor declaration.
 		/// </summary>
 		/// <param name="builder">Output builder</param>
@@ -1051,11 +992,11 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				switch (GetConstructorType(classObj))
 				{
 					case ConstructorType.ObjectInitializer:
-						builder.Append('\t').Append(api).Append(classObj.SourceName).Append("(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get()) : Super(ObjectInitializer) { }; \\\r\n");
+						builder.Append('\t').Append(api).Append(classObj.SourceName).Append("(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get()); \\\r\n");
 						break;
 
 					case ConstructorType.Default:
-						builder.Append('\t').Append(api).Append(classObj.SourceName).Append("() { }; \\\r\n");
+						builder.Append('\t').Append(api).Append(classObj.SourceName).Append("(); \\\r\n");
 						break;
 				}
 			}

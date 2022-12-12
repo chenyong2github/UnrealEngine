@@ -53,6 +53,7 @@ namespace EpicGames.UHT.Parsers
 
 			if (token.IsValue("GENERATED_IINTERFACE_BODY"))
 			{
+				classObj.ClassExportFlags |= UhtClassExportFlags.UsesGeneratedBodyLegacy;
 				topScope.AccessSpecifier = UhtAccessSpecifier.Public;
 			}
 			return UhtParseResult.Handled;

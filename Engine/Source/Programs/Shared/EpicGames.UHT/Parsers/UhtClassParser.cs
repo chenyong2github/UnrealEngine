@@ -41,6 +41,7 @@ namespace EpicGames.UHT.Parsers
 			}
 			else
 			{
+				classObj.ClassExportFlags |= UhtClassExportFlags.UsesGeneratedBodyLegacy;
 				topScope.AccessSpecifier = UhtAccessSpecifier.Public;
 			}
 
