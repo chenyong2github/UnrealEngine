@@ -178,7 +178,7 @@ namespace Horde.Build.Agents
 				Identifier = Identifier,
 				Stream = Stream,
 				Incremental = Incremental,
-				Method = Method
+				Method = Method ?? String.Empty
 			};
 			
 			if (View != null)
@@ -768,7 +768,7 @@ namespace Horde.Build.Agents
 				Identifier = workspace.Identifier,
 				Stream = workspace.Stream,
 				Incremental = workspace.Incremental,
-				Method = workspace.Method
+				Method = workspace.Method ?? String.Empty
 			};
 
 			if (workspace.View != null)

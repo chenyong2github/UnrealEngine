@@ -412,7 +412,7 @@ namespace Horde.Agent.Execution
 			const string ManagedWorkspaceValue = "managedWorkspace";
 			const string UseHaveTableKey = "useHaveTable";
 			
-			if (method == null)
+			if (String.IsNullOrEmpty(method))
 			{
 				return true;
 			}
