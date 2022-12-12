@@ -1,13 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 #include "MeshCreator.h"
-#include "Contour.h"
-#include "Part.h"
-#include "Data.h"
-#include "ContourList.h"
 
 #include "ConstrainedDelaunay2.h"
+#include "Contour.h"
+#include "ContourList.h"
+#include "Data.h"
+#include "Part.h"
 
 using namespace UE::Geometry;
 
@@ -177,6 +176,8 @@ void FMeshCreator::CreateBevelMesh(const float Bevel, const EText3DBevelType Typ
 
 void FMeshCreator::CreateExtrudeMesh(float Extrude, float Bevel, const EText3DBevelType Type, bool bFlipNormals)
 {
+	Bevel = FMath::Max(UE_SMALL_NUMBER, Bevel);
+	
 	if (Type != EText3DBevelType::HalfCircle)
 	{
 		Bevel = FMath::Clamp(Bevel, 0.0f, Extrude / 2.f);

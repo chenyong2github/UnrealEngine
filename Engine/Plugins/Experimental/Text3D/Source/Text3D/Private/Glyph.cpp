@@ -4,7 +4,6 @@
 #include "Materials/Material.h"
 #include "Engine/StaticMesh.h"
 
-
 FText3DGlyph::FText3DGlyph() :
 	StaticMeshAttributes(MeshDescription)
 {
@@ -32,9 +31,7 @@ void FText3DGlyph::Build(UStaticMesh* StaticMesh, UMaterial* DefaultMaterial)
 
 	UStaticMesh::FBuildMeshDescriptionsParams Params;
 	Params.bCommitMeshDescription = true;
-#if !WITH_EDITOR
 	Params.bFastBuild = true;
-#endif
 	StaticMesh->BuildFromMeshDescriptions(MeshDescriptions, Params);
 }
 

@@ -909,7 +909,23 @@ float UText3DComponent::MaxBevel() const
 
 void UText3DComponent::UpdateMaterial(const EText3DGroupType Type, UMaterialInterface* Material)
 {
-	const int32 Index = static_cast<int32>(Type);
+	// Material indices are affected by some options
+	const bool bHasBevel = !bOutline && !FMath::IsNearlyZero(Bevel);
+	if (!bHasBevel && Type == EText3DGroupType::Bevel)
+	{
+		return; 
+	}
+	
+	const bool bHasExtrude = !FMath::IsNearlyZero(Extrude);
+	if (!bHasExtrude && Type == EText3DGroupType::Extrude)
+	{
+		return;
+	}
+
+	int32 Index = static_cast<int32>(Type);
+	Index -= !bHasBevel && Type >= EText3DGroupType::Bevel ? 1 : 0; // if no bevel, and the input is bevel or above (bevel, side/extrude, back), offset -1
+	Index -= !bHasExtrude && Type >= EText3DGroupType::Extrude ? 1 : 0; // if no extrude, and the input is side/extrude or above (back), offset -1
+
 	for (UStaticMeshComponent* StaticMeshComponent : CharacterMeshes)
 	{
 		StaticMeshComponent->SetMaterial(Index, Material);
