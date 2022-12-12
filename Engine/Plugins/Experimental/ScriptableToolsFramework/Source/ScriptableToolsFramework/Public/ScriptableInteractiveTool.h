@@ -16,7 +16,7 @@ class FCanvas;
 class FSceneView;
 
 UENUM(BlueprintType)
-enum EToolsFrameworkOutcomePins
+enum class EToolsFrameworkOutcomePins : uint8
 {
 	Success,
 	Failure
@@ -170,6 +170,11 @@ public:
 	UPARAM(DisplayName="Render Object") UScriptableTool_RenderAPI* 
 	DrawLine(FVector Start, FVector End, FLinearColor Color, float Thickness = 1.0, float DepthBias = 0.0f, bool bDepthTested = true);
 
+	UFUNCTION(BlueprintCallable, Category = "ScriptableTool|Render")
+	UPARAM(DisplayName="Render Object") UScriptableTool_RenderAPI* 
+	DrawRectWidthHeightXY(FTransform Transform, double Width, double Height, FLinearColor Color, float LineThickness = 1.0, float DepthBias = 0.0f, bool bDepthTested = true, bool bCentered = true);
+
+
 	// DrawPoint, DrawCircle, DrawViewFacingCircle
 	// DrawWireCylinder, DrawWireBox, DrawSquare
 	// PushTransform, PopTransform, SetTransform, PopAllTransforms
@@ -238,7 +243,7 @@ class SCRIPTABLETOOLSFRAMEWORK_API UScriptableInteractiveToolPropertySet : publi
 	/** Access the Tool that owns this PropertySet */
 	UFUNCTION(BlueprintCallable, Category = "ScriptableTool", Meta = (ExpandEnumAsExecs = "Outcome"))
 	UScriptableInteractiveTool* GetOwningTool(
-		TEnumAsByte<EToolsFrameworkOutcomePins>& Outcome);
+		EToolsFrameworkOutcomePins& Outcome);
 
 protected:
 	TWeakObjectPtr<UScriptableInteractiveTool> ParentTool;
@@ -282,6 +287,10 @@ public:
 	/** Tooltip used for this Tool in (eg) icons/etc */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Scriptable Tool Settings", meta=(DisplayName="Tooltip"))
 	FText ToolTooltip;
+
+	/** A generic flag to indicate whether this Tool should be shown in the UE Editor. This may be interpreted in different ways */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Scriptable Tool Settings", meta=(DisplayName="Visible in Editor"))
+	bool bShowToolInEditor = true;
 
 	/** Specifies how the user exits this Tool, either Accept/Cancel-style or Complete-style */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Scriptable Tool Settings", meta=(DisplayName="Shutdown Type"))
@@ -418,7 +427,7 @@ public:
 	AddPropertySetOfType(
 		TSubclassOf<UScriptableInteractiveToolPropertySet> PropertySetType,
 		FString Identifier,
-		TEnumAsByte<EToolsFrameworkOutcomePins>& Outcome);
+		EToolsFrameworkOutcomePins& Outcome);
 
 	/**
 	 * Remove a Property Set from the current Tool, found via it's unique Identifier.
@@ -427,7 +436,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ScriptableTool|PropertySets", Meta = (ExpandEnumAsExecs = "Outcome", Identifier="Settings"))
 	void RemovePropertySetByName(
 		FString Identifier,
-		TEnumAsByte<EToolsFrameworkOutcomePins>& Outcome);
+		EToolsFrameworkOutcomePins& Outcome);
 
 	/**
 	 * Set the visibility of a Property Set that is paired with the given unique Identifier.
@@ -453,7 +462,7 @@ public:
 	 * in the same Engine session (ie in a previous invocation of the Tool, or another Tool that uses the same Property Set)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ScriptableTool|PropertySets", Meta = (Identifier="Settings"))
-	void RestorePropertySetSettings(
+	UPARAM(DisplayName="Property Set") UScriptableInteractiveToolPropertySet* RestorePropertySetSettings(
 		UScriptableInteractiveToolPropertySet* PropertySet,
 		FString SaveKey);
 
@@ -462,7 +471,7 @@ public:
 	 * These saved values can be restored in future Tool invocations based on the SaveKey.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ScriptableTool|PropertySets", Meta = (Identifier="Settings"))
-	void SavePropertySetSettings(
+	UPARAM(DisplayName="Property Set") UScriptableInteractiveToolPropertySet* SavePropertySetSettings(
 		UScriptableInteractiveToolPropertySet* PropertySet,
 		FString SaveKey);
 
@@ -479,7 +488,7 @@ public:
 	 * @param OnModified this delegate will be called if the Property value changes.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ScriptableTool|PropertySets")
-	void WatchFloatProperty(
+	UPARAM(DisplayName="Property Set") UScriptableInteractiveToolPropertySet* WatchFloatProperty(
 		UScriptableInteractiveToolPropertySet* PropertySet,
 		FString PropertyName,
 		const FToolFloatPropertyModifiedDelegate& OnModified );
@@ -491,7 +500,7 @@ public:
 	 * @param OnModified this delegate will be called if the Property value changes.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ScriptableTool|PropertySets")
-	void WatchIntProperty(
+	UPARAM(DisplayName="Property Set") UScriptableInteractiveToolPropertySet* WatchIntProperty(
 		UScriptableInteractiveToolPropertySet* PropertySet,
 		FString PropertyName,
 		const FToolIntPropertyModifiedDelegate& OnModified );
@@ -503,7 +512,7 @@ public:
 	 * @param OnModified this delegate will be called if the Property value changes.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ScriptableTool|PropertySets")
-	void WatchBoolProperty(
+	UPARAM(DisplayName="Property Set") UScriptableInteractiveToolPropertySet* WatchBoolProperty(
 		UScriptableInteractiveToolPropertySet* PropertySet,
 		FString PropertyName,
 		const FToolBoolPropertyModifiedDelegate& OnModified );
@@ -516,7 +525,7 @@ public:
 	 * @param OnModified this delegate will be called if the Property value changes.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ScriptableTool|PropertySets")
-	void WatchEnumProperty(
+	UPARAM(DisplayName="Property Set") UScriptableInteractiveToolPropertySet* WatchEnumProperty(
 		UScriptableInteractiveToolPropertySet* PropertySet,
 		FString PropertyName,
 		const FToolEnumPropertyModifiedDelegate& OnModified );
@@ -528,7 +537,7 @@ public:
 	 * @param OnModified this delegate will be called if the Property value changes.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ScriptableTool|PropertySets")
-	void WatchStringProperty(
+	UPARAM(DisplayName="Property Set") UScriptableInteractiveToolPropertySet* WatchStringProperty(
 		UScriptableInteractiveToolPropertySet* PropertySet,
 		FString PropertyName,
 		const FToolStringPropertyModifiedDelegate& OnModified );
@@ -540,7 +549,7 @@ public:
 	 * @param OnModified this delegate will be called if the Property value changes.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ScriptableTool|PropertySets")
-	void WatchNameProperty(
+	UPARAM(DisplayName="Property Set") UScriptableInteractiveToolPropertySet* WatchNameProperty(
 		UScriptableInteractiveToolPropertySet* PropertySet,
 		FString PropertyName,
 		const FToolFNamePropertyModifiedDelegate& OnModified );
@@ -552,7 +561,7 @@ public:
 	 * @param OnModified this delegate will be called if the Property value changes.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ScriptableTool|PropertySets")
-	void WatchObjectProperty(
+	UPARAM(DisplayName="Property Set") UScriptableInteractiveToolPropertySet* WatchObjectProperty(
 		UScriptableInteractiveToolPropertySet* PropertySet,
 		FString PropertyName,
 		const FToolObjectPropertyModifiedDelegate& OnModified );
@@ -570,7 +579,7 @@ public:
 	 * @param OnModified this delegate will be called if the Property value changes.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ScriptableTool|PropertySets")
-	void WatchProperty(
+	UPARAM(DisplayName="Property Set") UScriptableInteractiveToolPropertySet* WatchProperty(
 		UScriptableInteractiveToolPropertySet* PropertySet,
 		FString PropertyName,
 		const FToolPropertyModifiedDelegate& OnModified );
@@ -627,7 +636,7 @@ public:
 		FString Identifier,
 		FTransform InitialTransform,
 		FScriptableToolGizmoOptions GizmoOptions,
-		TEnumAsByte<EToolsFrameworkOutcomePins>& Outcome);
+		EToolsFrameworkOutcomePins& Outcome);
 
 	/**
 	 * Destroy a created Gizmo by name Identifier
@@ -635,7 +644,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ScriptableTool|Gizmos", Meta = (ExpandEnumAsExecs = "Outcome", Identifier="Gizmo1"))
 	void DestroyTRSGizmo(
 		FString Identifier,
-		TEnumAsByte<EToolsFrameworkOutcomePins>& Outcome);
+		EToolsFrameworkOutcomePins& Outcome);
 
 	/**
 	 * Set an existing Gizmo visible/hidden based on its name Identifier
@@ -706,7 +715,7 @@ public:
 	 * Clear any active message shown via DisplayUserHelpMessage and/or DisplayUserWarningMessage
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ScriptableTool|Messaging")
-	void ClearUserMessages( bool bHelpMessage, bool bWarningMessage );
+	void ClearUserMessages( bool bHelpMessage = true, bool bWarningMessage = true );
 
 
 public:

@@ -22,7 +22,7 @@
 
 
 
-UScriptableInteractiveTool* UScriptableInteractiveToolPropertySet::GetOwningTool(TEnumAsByte<EToolsFrameworkOutcomePins>& Outcome)
+UScriptableInteractiveTool* UScriptableInteractiveToolPropertySet::GetOwningTool(EToolsFrameworkOutcomePins& Outcome)
 {
 	if (ParentTool.IsValid())
 	{
@@ -48,6 +48,44 @@ UScriptableTool_RenderAPI* UScriptableTool_RenderAPI::DrawLine(FVector Start, FV
 	ActiveVisualizer->DrawLine(Start, End, Color, Thickness, bDepthTested);
 	return this;
 }
+
+
+UScriptableTool_RenderAPI* UScriptableTool_RenderAPI::DrawRectWidthHeightXY(FTransform Transform, double Width, double Height, FLinearColor Color, float LineThickness, float DepthBias, bool bDepthTested, bool bOriginIsCenter)
+{
+	if (ActiveVisualizer == nullptr)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ScriptableInteractiveTool::DrawRectWidthHeight] DrawRectWidthHeight can only be called during OnScriptRender event callback"));
+		return this;
+	}
+
+	ActiveVisualizer->DepthBias = DepthBias;
+
+	ActiveVisualizer->PushTransform(Transform);
+
+	if (bOriginIsCenter)
+	{
+		FVector DeltaX(Width*0.5, 0, 0), DeltaY(0,Height*0.5,0);
+		FVector A(-DeltaX-DeltaY), B(DeltaX-DeltaY), C(DeltaX+DeltaY), D(-DeltaX+DeltaY);
+		ActiveVisualizer->DrawLine(A, B, Color, LineThickness, bDepthTested);
+		ActiveVisualizer->DrawLine(B, C, Color, LineThickness, bDepthTested);
+		ActiveVisualizer->DrawLine(C, D, Color, LineThickness, bDepthTested);
+		ActiveVisualizer->DrawLine(D, A, Color, LineThickness, bDepthTested);
+	}
+	else
+	{
+		FVector DeltaX(Width, 0, 0), DeltaY(0,Height,0);
+		FVector A(0,0,0), B(DeltaX), C(DeltaX+DeltaY), D(DeltaY);
+		ActiveVisualizer->DrawLine(A, B, Color, LineThickness, bDepthTested);
+		ActiveVisualizer->DrawLine(B, C, Color, LineThickness, bDepthTested);
+		ActiveVisualizer->DrawLine(C, D, Color, LineThickness, bDepthTested);
+		ActiveVisualizer->DrawLine(D, A, Color, LineThickness, bDepthTested);
+	}
+
+	ActiveVisualizer->PopTransform();
+
+	return this;
+}
+
 
 
 UScriptableTool_HUDAPI* UScriptableTool_HUDAPI::DrawTextAtLocation(FVector Location, FString String, FLinearColor Color, bool bCentered, float ShiftRowsY)
@@ -279,7 +317,7 @@ void UScriptableInteractiveTool::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI
 UScriptableInteractiveToolPropertySet* UScriptableInteractiveTool::AddPropertySetOfType(
 	TSubclassOf<UScriptableInteractiveToolPropertySet> PropertySetType,
 	FString Identifier,
-	TEnumAsByte<EToolsFrameworkOutcomePins>& Outcome)
+	EToolsFrameworkOutcomePins& Outcome)
 {
 	Outcome = EToolsFrameworkOutcomePins::Failure;
 
@@ -320,7 +358,7 @@ UScriptableInteractiveToolPropertySet* UScriptableInteractiveTool::AddPropertySe
 
 void UScriptableInteractiveTool::RemovePropertySetByName(
 	FString Identifier,
-	TEnumAsByte<EToolsFrameworkOutcomePins>& Outcome)
+	EToolsFrameworkOutcomePins& Outcome)
 {
 	Outcome = EToolsFrameworkOutcomePins::Failure;
 
@@ -359,7 +397,7 @@ void UScriptableInteractiveTool::ForcePropertySetUpdateByName(
 }
 
 
-void UScriptableInteractiveTool::RestorePropertySetSettings(
+UScriptableInteractiveToolPropertySet* UScriptableInteractiveTool::RestorePropertySetSettings(
 	UScriptableInteractiveToolPropertySet* PropertySet,
 	FString SaveKey)
 {
@@ -367,10 +405,11 @@ void UScriptableInteractiveTool::RestorePropertySetSettings(
 	{
 		PropertySet->RestoreProperties(this, SaveKey);
 	}
+	return PropertySet;
 }
 
 
-void UScriptableInteractiveTool::SavePropertySetSettings(
+UScriptableInteractiveToolPropertySet* UScriptableInteractiveTool::SavePropertySetSettings(
 	UScriptableInteractiveToolPropertySet* PropertySet,
 	FString SaveKey)
 {
@@ -378,7 +417,12 @@ void UScriptableInteractiveTool::SavePropertySetSettings(
 	{
 		PropertySet->SaveProperties(this, SaveKey);
 	}
+	return PropertySet;
 }
+
+
+
+
 
 namespace UELocal
 {
@@ -420,7 +464,7 @@ PropertyType* FindValidPropertyByTypeAndName(
 } // end namespace UELocal
 
 
-void UScriptableInteractiveTool::WatchFloatProperty(
+UScriptableInteractiveToolPropertySet* UScriptableInteractiveTool::WatchFloatProperty(
 	UScriptableInteractiveToolPropertySet* PropertySet,
 	FString PropertyName,
 	const FToolFloatPropertyModifiedDelegate& OnModified)
@@ -431,7 +475,7 @@ void UScriptableInteractiveTool::WatchFloatProperty(
 		if (NumericProp->IsFloatingPoint() == false)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("WatchFloatProperty: Property %s is not Float type"), *PropertyName);
-			return;
+			return PropertySet;
 		}
 
 		int32 ArrayIndex = WatchFloatPropertyDelegates.Num();
@@ -447,12 +491,12 @@ void UScriptableInteractiveTool::WatchFloatProperty(
 				WatchFloatPropertyDelegates[ArrayIndex].ExecuteIfBound(PropertySet, PropertyName, NewValue);
 			} );
 	}
-
+	return PropertySet;
 }
 
 
 
-void UScriptableInteractiveTool::WatchIntProperty(
+UScriptableInteractiveToolPropertySet* UScriptableInteractiveTool::WatchIntProperty(
 	UScriptableInteractiveToolPropertySet* PropertySet,
 	FString PropertyName,
 	const FToolIntPropertyModifiedDelegate& OnModified)
@@ -463,7 +507,7 @@ void UScriptableInteractiveTool::WatchIntProperty(
 		if (NumericProp->IsInteger() == false)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("WatchIntProperty: Property %s is not Integer type"), *PropertyName);
-			return;
+			return PropertySet;
 		}
 
 		int32 ArrayIndex = WatchIntPropertyDelegates.Num();
@@ -478,11 +522,12 @@ void UScriptableInteractiveTool::WatchIntProperty(
 				WatchIntPropertyDelegates[ArrayIndex].ExecuteIfBound(PropertySet, PropertyName, NewValue);
 			} );
 	}
+	return PropertySet;
 }
 
 
 
-void UScriptableInteractiveTool::WatchBoolProperty(
+UScriptableInteractiveToolPropertySet* UScriptableInteractiveTool::WatchBoolProperty(
 	UScriptableInteractiveToolPropertySet* PropertySet,
 	FString PropertyName,
 	const FToolBoolPropertyModifiedDelegate& OnModified)
@@ -503,10 +548,11 @@ void UScriptableInteractiveTool::WatchBoolProperty(
 				WatchBoolPropertyDelegates[ArrayIndex].ExecuteIfBound(PropertySet, PropertyName, bNewValue);
 			} );
 	}
+	return PropertySet;
 }
 
 
-void UScriptableInteractiveTool::WatchEnumProperty(
+UScriptableInteractiveToolPropertySet* UScriptableInteractiveTool::WatchEnumProperty(
 	UScriptableInteractiveToolPropertySet* PropertySet,
 	FString PropertyName,
 	const FToolEnumPropertyModifiedDelegate& OnModified)
@@ -528,11 +574,12 @@ void UScriptableInteractiveTool::WatchEnumProperty(
 				WatchEnumPropertyDelegates[ArrayIndex].ExecuteIfBound(PropertySet, PropertyName, (uint8)NewValue);
 			} );
 	}
+	return PropertySet;
 }
 
 
 
-void UScriptableInteractiveTool::WatchStringProperty(
+UScriptableInteractiveToolPropertySet* UScriptableInteractiveTool::WatchStringProperty(
 	UScriptableInteractiveToolPropertySet* PropertySet,
 	FString PropertyName,
 	const FToolStringPropertyModifiedDelegate& OnModified)
@@ -552,10 +599,11 @@ void UScriptableInteractiveTool::WatchStringProperty(
 				WatchStringPropertyDelegates[ArrayIndex].ExecuteIfBound(PropertySet, PropertyName, NewValue);
 			} );
 	}
+	return PropertySet;
 }
 
 
-void UScriptableInteractiveTool::WatchNameProperty(
+UScriptableInteractiveToolPropertySet* UScriptableInteractiveTool::WatchNameProperty(
 	UScriptableInteractiveToolPropertySet* PropertySet,
 	FString PropertyName,
 	const FToolFNamePropertyModifiedDelegate& OnModified)
@@ -575,10 +623,11 @@ void UScriptableInteractiveTool::WatchNameProperty(
 				WatchFNamePropertyDelegates[ArrayIndex].ExecuteIfBound(PropertySet, PropertyName, NewValue);
 			} );
 	}
+	return PropertySet;
 }
 
 
-void UScriptableInteractiveTool::WatchObjectProperty(
+UScriptableInteractiveToolPropertySet* UScriptableInteractiveTool::WatchObjectProperty(
 	UScriptableInteractiveToolPropertySet* PropertySet,
 	FString PropertyName,
 	const FToolObjectPropertyModifiedDelegate& OnModified)
@@ -598,12 +647,13 @@ void UScriptableInteractiveTool::WatchObjectProperty(
 				WatchObjectPropertyDelegates[ArrayIndex].ExecuteIfBound(PropertySet, PropertyName, NewValue);
 			} );
 	}
+	return PropertySet;
 }
 
 
 
 
-void UScriptableInteractiveTool::WatchProperty(
+UScriptableInteractiveToolPropertySet* UScriptableInteractiveTool::WatchProperty(
 	UScriptableInteractiveToolPropertySet* PropertySet,
 	FString PropertyName,
 	const FToolPropertyModifiedDelegate& OnModified)
@@ -612,7 +662,7 @@ void UScriptableInteractiveTool::WatchProperty(
 			PropertySet, PropertyName, TEXT("WatchProperty"));
 	if (Property == nullptr)
 	{
-		return;
+		return PropertySet;
 	}
 
 	int32 ArrayIndex = WatchAnyPropertyInfo.Num();
@@ -768,7 +818,7 @@ void UScriptableInteractiveTool::WatchProperty(
 		//		WatchAnyPropertyInfo[ArrayIndex].Delegate.ExecuteIfBound(PropertySet, PropertyName);
 		//	} );
 	}
-
+	return PropertySet;
 }
 
 
@@ -778,7 +828,7 @@ void UScriptableInteractiveTool::CreateTRSGizmo(
 	FString Identifier,
 	FTransform InitialTransform,
 	FScriptableToolGizmoOptions GizmoOptions,
-	TEnumAsByte<EToolsFrameworkOutcomePins>& Outcome)
+	EToolsFrameworkOutcomePins& Outcome)
 {
 	Outcome = EToolsFrameworkOutcomePins::Failure;
 
@@ -889,7 +939,7 @@ void UScriptableInteractiveTool::CreateTRSGizmo(
 
 void UScriptableInteractiveTool::DestroyTRSGizmo(
 	FString Identifier,
-	TEnumAsByte<EToolsFrameworkOutcomePins>& Outcome)
+	EToolsFrameworkOutcomePins& Outcome)
 {
 	Outcome = EToolsFrameworkOutcomePins::Failure;
 

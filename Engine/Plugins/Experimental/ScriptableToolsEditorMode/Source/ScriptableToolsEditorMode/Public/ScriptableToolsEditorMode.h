@@ -84,6 +84,9 @@ protected:
 	void OnBlueprintPreCompile(UBlueprint* Blueprint);
 	FDelegateHandle BlueprintPreCompileHandle;
 
+	void OnBlueprintCompiled();
+	FDelegateHandle BlueprintCompiledHandle;
+
 protected:
 	UPROPERTY()
 	TObjectPtr<UScriptableToolSet> ScriptableTools;

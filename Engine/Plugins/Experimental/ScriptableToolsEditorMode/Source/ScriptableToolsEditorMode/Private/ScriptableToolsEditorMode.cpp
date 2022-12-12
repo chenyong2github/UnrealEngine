@@ -167,6 +167,7 @@ void UScriptableToolsEditorMode::Enter()
 	GetToolManager()->SelectActiveToolType(EToolSide::Left, TEXT("BeginMeshInspectorTool"));
 
 	BlueprintPreCompileHandle = GEditor->OnBlueprintPreCompile().AddUObject(this, &UScriptableToolsEditorMode::OnBlueprintPreCompile); 
+	BlueprintCompiledHandle = GEditor->OnBlueprintCompiled().AddUObject(this, &UScriptableToolsEditorMode::OnBlueprintCompiled); 
 
 	// do any toolkit UI initialization that depends on the mode setup above
 	if (Toolkit.IsValid())
@@ -185,7 +186,11 @@ void UScriptableToolsEditorMode::OnBlueprintPreCompile(UBlueprint* Blueprint)
 	{
 		GetToolManager()->DeactivateTool(EToolSide::Left, EToolShutdownType::Cancel);
 	}
+}
 
+
+void UScriptableToolsEditorMode::OnBlueprintCompiled()
+{
 	// Probably not necessary to always rebuild the palette here. But currently this lets us respond
 	// to changes in the tool name/setting/etc
 	if (Toolkit.IsValid())
@@ -194,7 +199,6 @@ void UScriptableToolsEditorMode::OnBlueprintPreCompile(UBlueprint* Blueprint)
 		ModeToolkit->ForceToolPaletteRebuild();
 	}
 }
-
 
 void UScriptableToolsEditorMode::Exit()
 {

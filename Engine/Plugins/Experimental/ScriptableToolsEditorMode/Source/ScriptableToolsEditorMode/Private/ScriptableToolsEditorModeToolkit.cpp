@@ -302,6 +302,11 @@ void FScriptableToolsEditorModeToolkit::GetToolPaletteNames(TArray<FName>& Palet
 	ScriptableTools->ForEachScriptableTool( [&](UClass* ToolClass, UBaseScriptableToolBuilder* ToolBuilder) 
 	{
 		UScriptableInteractiveTool* ToolCDO = Cast<UScriptableInteractiveTool>(ToolClass->GetDefaultObject());
+		if (ToolCDO->bShowToolInEditor == false)
+		{
+			return;
+		}
+
 		if (ToolCDO->ToolCategory.IsEmpty() == false)
 		{
 			FName CategoryName(ToolCDO->ToolCategory.ToString());
@@ -353,6 +358,11 @@ void FScriptableToolsEditorModeToolkit::BuildToolPalette(FName PaletteIndex, cla
 	ScriptableTools->ForEachScriptableTool([&](UClass* ToolClass, UBaseScriptableToolBuilder* ToolBuilder)
 	{
 		UScriptableInteractiveTool* ToolCDO = Cast<UScriptableInteractiveTool>(ToolClass->GetDefaultObject());
+		if (ToolCDO->bShowToolInEditor == false)
+		{
+			return;
+		}
+
 		FName UseCategoryName = ToolCDO->ToolCategory.IsEmpty() ? CustomToolsTabName : FName(ToolCDO->ToolCategory.ToString());
 		if (ActiveToolCategories.Contains(UseCategoryName) == false)
 		{
