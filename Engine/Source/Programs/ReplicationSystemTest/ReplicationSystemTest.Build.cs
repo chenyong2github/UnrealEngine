@@ -39,7 +39,7 @@ public class ReplicationSystemTest : ModuleRules
 				"SessionServices",
 				"SlateNullRenderer",
 				"SlateRHIRenderer",
-				"TaskGraph",
+				"ProfileVisualizer",
  			}
 		);
 	}

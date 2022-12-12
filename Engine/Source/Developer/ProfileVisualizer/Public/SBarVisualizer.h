@@ -20,7 +20,7 @@ class STimeline;
 /**
  * Bars Visualizer. Contains a list of bars for each profiler category
  */
-class TASKGRAPH_API SBarVisualizer : public SCompoundWidget
+class PROFILEVISUALIZER_API SBarVisualizer : public SCompoundWidget
 {
 public:
 

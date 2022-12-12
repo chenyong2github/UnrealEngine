@@ -13,7 +13,7 @@ class FSlateWindowElementList;
 struct FSlateBrush;
 
 /** A timeline widget.*/
-class TASKGRAPH_API STimeline : public SCompoundWidget
+class PROFILEVISUALIZER_API STimeline : public SCompoundWidget
 {
 
 public:

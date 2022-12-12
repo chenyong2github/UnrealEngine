@@ -27,11 +27,6 @@ public class D3D12RHI : ModuleRules
 			}
 			);
 
-		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
-		{
-			PrivateIncludePathModuleNames.AddRange(new string[] { "TaskGraph" });
-		}
-
 		///////////////////////////////////////////////////////////////
         // Platform specific defines
         ///////////////////////////////////////////////////////////////

@@ -7,7 +7,7 @@
 #include "Styling/CoreStyle.h"
 #include "Rendering/DrawElements.h"
 #include "Framework/Application/SlateApplication.h"
-#include "TaskGraphStyle.h"
+#include "ProfileVisualizerStyle.h"
 
 void STimeline::Construct( const FArguments& InArgs )
 {
@@ -15,7 +15,7 @@ void STimeline::Construct( const FArguments& InArgs )
 	MaxValue = InArgs._MaxValue;
 	FixedLabelSpacing = InArgs._FixedLabelSpacing;
 
-	BackgroundImage = FTaskGraphStyle::Get()->GetBrush("TaskGraph.Background");
+	BackgroundImage = FProfileVisualizerStyle::Get()->GetBrush("ProfileVisualizer.Background");
 
 	Zoom = 1.0f;
 	Offset = 0.0f;
@@ -34,7 +34,7 @@ int32 STimeline::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeome
 	static const FLinearColor SelectedBarColor(FLinearColor::White);
 
 	// Paint inside the border only. 
-	const FVector2D BorderPadding = FTaskGraphStyle::Get()->GetVector("TaskGraph.ProgressBar.BorderPadding");
+	const FVector2D BorderPadding = FProfileVisualizerStyle::Get()->GetVector("ProfileVisualizer.ProgressBar.BorderPadding");
 	
 	const float OffsetX = DrawingOffsetX; // BorderPadding.X
 	const float Width = DrawingGeometry.Size.X; // AllottedGeometry.Size.X - - 2.0f * BorderPadding.X

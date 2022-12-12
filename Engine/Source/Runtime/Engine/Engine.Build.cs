@@ -57,7 +57,6 @@ public class Engine : ModuleRules
 		{
 			PrivateIncludePathModuleNames.AddRange(
 				new string[] {
-					"TaskGraph",
 					"SlateReflector",
 				}
 			);

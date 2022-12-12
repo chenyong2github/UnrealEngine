@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "STaskGraph.h"
+#include "ProfileVisualizerModule.h"
 #include "Stats/Stats.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -9,7 +9,7 @@
 #include "Tickable.h"
 #include "SProfileVisualizer.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "TaskGraphStyle.h"
+#include "ProfileVisualizerStyle.h"
 #if WITH_EDITOR
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
@@ -23,10 +23,10 @@
  * @return Visualizer window
  */
 
-FName TaskGraphTabId("VisualizerSpawnPoint");
-TSharedRef<SDockTab> MakeTaskGraphVisualizerWindow( TSharedPtr< FVisualizerEvent > ProfileData, const FText& WindowTitle, const FText& ProfilerType, const FText& HeaderMessageText = FText::GetEmpty(), const FLinearColor& HeaderMessageTextColor = FLinearColor::White, const bool InsertTab = true )
+FName ProfileVisualizerTabId("VisualizerSpawnPoint");
+TSharedRef<SDockTab> MakeProfileVisualizerWindow( TSharedPtr< FVisualizerEvent > ProfileData, const FText& WindowTitle, const FText& ProfilerType, const FText& HeaderMessageText = FText::GetEmpty(), const FLinearColor& HeaderMessageTextColor = FLinearColor::White, const bool InsertTab = true )
 {
-	TSharedRef<SDockTab> TaskGraphVizualizer = SNew(SDockTab)
+	TSharedRef<SDockTab> ProfileVisualizer = SNew(SDockTab)
 												.Label(WindowTitle)
 												.TabRole(ETabRole::NomadTab)
 												[
@@ -41,12 +41,12 @@ TSharedRef<SDockTab> MakeTaskGraphVisualizerWindow( TSharedPtr< FVisualizerEvent
 	{
 		FGlobalTabmanager::Get()->InsertNewDocumentTab
 		(
-			TaskGraphTabId, FTabManager::ESearchPreference::RequireClosedTab,
-			TaskGraphVizualizer
+			ProfileVisualizerTabId, FTabManager::ESearchPreference::RequireClosedTab,
+			ProfileVisualizer
 		);
 	}
 
-	return TaskGraphVizualizer;
+	return ProfileVisualizer;
 }
 
 /** Helper class that counts down when to unpause and stop movie. */
@@ -93,7 +93,7 @@ public:
 		for ( int32 Index = 0; Index < VisualizerDataToSpawn.Num(); Index++ )
 		{
 			TSharedPtr<FPendingWindow> Window =  VisualizerDataToSpawn[ Index ];
-			MakeTaskGraphVisualizerWindow( Window->ProfileData, Window->Title, Window->Type ); 
+			MakeProfileVisualizerWindow( Window->ProfileData, Window->Title, Window->Type ); 
 		}
 
 		VisualizerDataToSpawn.Empty();
@@ -130,7 +130,7 @@ static TSharedPtr< FDelayedVisualizerSpawner > GDelayedVisualizerSpawner;
 
 void InitProfileVisualizer()
 {
-	FTaskGraphStyle::Initialize();
+	FProfileVisualizerStyle::Initialize();
 	if( GDelayedVisualizerSpawner.IsValid() == false )
 	{
 		GDelayedVisualizerSpawner = MakeShareable( new FDelayedVisualizerSpawner() );
@@ -139,7 +139,7 @@ void InitProfileVisualizer()
 
 void ShutdownProfileVisualizer()
 {
-	FTaskGraphStyle::Shutdown();
+	FProfileVisualizerStyle::Shutdown();
 	GDelayedVisualizerSpawner.Reset();
 }
 
@@ -152,10 +152,10 @@ void DisplayProfileVisualizer(TSharedPtr< FVisualizerEvent > InProfileData, cons
 	FFormatNamedArguments Args;
 	Args.Add( TEXT("ProfilerType"), FText::FromString( InProfilerType ) );
 
-	const FText WindowTitle = FText::Format( NSLOCTEXT("TaskGraph", "WindowTitle", "{ProfilerType} Visualizer"), Args );
-	const FText ProfilerType = FText::Format( NSLOCTEXT("TaskGraph", "ProfilerType", "{ProfilerType} Profile"), Args );
+	const FText WindowTitle = FText::Format( NSLOCTEXT("ProfileVisualizer", "WindowTitle", "{ProfilerType} Visualizer"), Args );
+	const FText ProfilerType = FText::Format( NSLOCTEXT("ProfileVisualizer", "ProfilerType", "{ProfilerType} Profile"), Args );
 
-	MakeTaskGraphVisualizerWindow( InProfileData, WindowTitle, ProfilerType, HeaderMessageText, HeaderMessageTextColor );
+	MakeProfileVisualizerWindow( InProfileData, WindowTitle, ProfilerType, HeaderMessageText, HeaderMessageTextColor );
 	
 }
 
@@ -170,7 +170,7 @@ public:
 		::InitProfileVisualizer();
 
 #if WITH_EDITOR
-		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(TaskGraphTabId, FOnSpawnTab::CreateRaw(this, &FProfileVisualizerModule::SpawnProfileVizualizerTab))
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(ProfileVisualizerTabId, FOnSpawnTab::CreateRaw(this, &FProfileVisualizerModule::SpawnProfileVisualizerTab))
 			.SetDisplayName(NSLOCTEXT("ProfileVisualizerModule", "TabTitle", "Profile Data Visualizer"))
 			.SetTooltipText(NSLOCTEXT("ProfileVisualizerModule", "TooltipText", "Open the Profile Data Visualizer tab."))
 			.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsProfilingCategory())
@@ -181,7 +181,7 @@ public:
 	virtual void ShutdownModule() override
 	{
 #if WITH_EDITOR
-		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(TaskGraphTabId);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ProfileVisualizerTabId);
 #endif		
 		::ShutdownProfileVisualizer();
 	}
@@ -192,12 +192,12 @@ public:
 #endif // WITH_EDITOR
 	}
 
-	TSharedRef<SDockTab> SpawnProfileVizualizerTab(const FSpawnTabArgs& Args)
+	TSharedRef<SDockTab> SpawnProfileVisualizerTab(const FSpawnTabArgs& Args)
 	{
 		TSharedPtr< FVisualizerEvent > InProfileData(new FVisualizerEvent(0., 0., 0., 0, "Dummy"));
 		
-		return MakeTaskGraphVisualizerWindow(InProfileData, FText::GetEmpty(), FText::GetEmpty(), FText::GetEmpty(), FLinearColor::White, false);
+		return MakeProfileVisualizerWindow(InProfileData, FText::GetEmpty(), FText::GetEmpty(), FText::GetEmpty(), FLinearColor::White, false);
 	}
 
 };
-IMPLEMENT_MODULE(FProfileVisualizerModule, TaskGraph);
+IMPLEMENT_MODULE(FProfileVisualizerModule, ProfileVisualizer);

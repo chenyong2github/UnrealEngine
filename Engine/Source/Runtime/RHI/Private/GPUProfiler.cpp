@@ -9,7 +9,7 @@
 
 #if !UE_BUILD_SHIPPING
 #include "VisualizerEvents.h"
-#include "STaskGraph.h"
+#include "ProfileVisualizerModule.h"
 #include "Modules/ModuleManager.h"
 #endif
 
@@ -580,10 +580,10 @@ void FGPUProfilerEventNodeFrame::DumpEventTree()
 				{
 					void Thread( TSharedPtr<FVisualizerEvent> InVisualizerData, const FText InVsyncEnabledWarningText )
 					{
-						static FName TaskGraphModule(TEXT("TaskGraph"));			
-						if (FModuleManager::Get().IsModuleLoaded(TaskGraphModule))
+						static FName ProfileVisualizerModule(TEXT("ProfileVisualizer"));			
+						if (FModuleManager::Get().IsModuleLoaded(ProfileVisualizerModule))
 						{
-							IProfileVisualizerModule& ProfileVisualizer = FModuleManager::GetModuleChecked<IProfileVisualizerModule>(TaskGraphModule);
+							IProfileVisualizerModule& ProfileVisualizer = FModuleManager::GetModuleChecked<IProfileVisualizerModule>(ProfileVisualizerModule);
 							// Display a warning if this is a GPU profile and the GPU was profiled with v-sync enabled (otherwise InVsyncEnabledWarningText is empty)
 							ProfileVisualizer.DisplayProfileVisualizer( InVisualizerData, TEXT("GPU"), InVsyncEnabledWarningText, FLinearColor::Red );
 						}

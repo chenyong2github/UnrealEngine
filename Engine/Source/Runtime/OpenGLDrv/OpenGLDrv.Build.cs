@@ -32,11 +32,6 @@ public class OpenGLDrv : ModuleRules
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "SDL2");
 		}
 
-		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
-		{
-			PrivateIncludePathModuleNames.Add("TaskGraph");
-		}
-
 		if (Target.Platform == UnrealTargetPlatform.Android)
 		{
 			PrivateDependencyModuleNames.Add("detex");

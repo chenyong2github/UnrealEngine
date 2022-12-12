@@ -2,9 +2,9 @@
 
 using UnrealBuildTool;
 
-public class TaskGraph : ModuleRules
+public class ProfileVisualizer : ModuleRules
 {
-	public TaskGraph(ReadOnlyTargetRules Target) : base(Target)
+	public ProfileVisualizer(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {

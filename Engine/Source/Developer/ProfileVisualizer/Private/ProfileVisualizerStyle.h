@@ -10,7 +10,7 @@
 /**
  * Declares the Editor's visual style.
  */
-class FTaskGraphStyle
+class FProfileVisualizerStyle
 {
 public:
 	
@@ -28,5 +28,5 @@ public:
 
 	static TSharedPtr<class ISlateStyle> Get();
 
-	static TSharedPtr< FTaskGraphStyle::FStyle > StyleInstance;
+	static TSharedPtr< FProfileVisualizerStyle::FStyle > StyleInstance;
 };

@@ -2,7 +2,7 @@
 
 #include "SGraphBar.h"
 #include "Rendering/DrawElements.h"
-#include "TaskGraphStyle.h"
+#include "ProfileVisualizerStyle.h"
 
 FColor SGraphBar::ColorPalette[] = {
 	FColor( 0xff00A480 ),
@@ -42,9 +42,9 @@ void SGraphBar::Construct( const FArguments& InArgs )
 	OnSelectionChanged = InArgs._OnSelectionChanged;
 	OnGeometryChanged = InArgs._OnGeometryChanged;
 
-	BackgroundImage = FTaskGraphStyle::Get()->GetBrush("TaskGraph.Background");
-	FillImage = FTaskGraphStyle::Get()->GetBrush("TaskGraph.Mono");
-	SelectedImage = FTaskGraphStyle::Get()->GetBrush("TaskGraph.Selected");
+	BackgroundImage = FProfileVisualizerStyle::Get()->GetBrush("ProfileVisualizer.Background");
+	FillImage = FProfileVisualizerStyle::Get()->GetBrush("ProfileVisualizer.Mono");
+	SelectedImage = FProfileVisualizerStyle::Get()->GetBrush("ProfileVisualizer.Selected");
 
 	LastHoveredEvent = INDEX_NONE;
 	Zoom = 1.0f;
@@ -65,7 +65,7 @@ int32 SGraphBar::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeome
 	static const FLinearColor SelectedBarColor(FLinearColor::White);
 
 	// Paint inside the border only. 
-	const FVector2D BorderPadding = FTaskGraphStyle::Get()->GetVector("TaskGraph.ProgressBar.BorderPadding");
+	const FVector2D BorderPadding = FProfileVisualizerStyle::Get()->GetVector("ProfileVisualizer.ProgressBar.BorderPadding");
 
 	FSlateDrawElement::MakeBox(
 		OutDrawElements,

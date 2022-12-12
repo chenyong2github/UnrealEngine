@@ -106,7 +106,7 @@ FText SRealtimeProfilerTimeline::GetZoomLabel() const
 	static const FNumberFormattingOptions ZoomFormatOptions = FNumberFormattingOptions()
 		.SetMinimumFractionalDigits(2)
 		.SetMaximumFractionalDigits(2);
-	return FText::Format( NSLOCTEXT("TaskGraph", "ZoomLabelFmt", "Zoom: {0}x"), FText::AsNumber(GetZoom(), &ZoomFormatOptions) );
+	return FText::Format( NSLOCTEXT("ProfileVisualizer", "ZoomLabelFmt", "Zoom: {0}x"), FText::AsNumber(GetZoom(), &ZoomFormatOptions) );
 }
 
 float SRealtimeProfilerTimeline::GetZoomValue() const

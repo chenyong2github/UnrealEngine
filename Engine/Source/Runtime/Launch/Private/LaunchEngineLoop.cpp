@@ -199,7 +199,7 @@
 	#include "ShaderPipelineCache.h"
 
 #if !UE_BUILD_SHIPPING
-	#include "STaskGraph.h"
+	#include "ProfileVisualizerModule.h"
 	#include "IProfilerServiceModule.h"
 #endif
 
@@ -3933,7 +3933,7 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 
 	// Initialize profile visualizers.
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	FModuleManager::Get().LoadModule(TEXT("TaskGraph"));
+	FModuleManager::Get().LoadModule(TEXT("ProfileVisualizer"));
 	if (FPlatformProcess::SupportsMultithreading())
 	{
 		FModuleManager::Get().LoadModule(TEXT("ProfilerService"));

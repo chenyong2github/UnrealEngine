@@ -114,7 +114,7 @@ TSharedRef<SWidget> SRealtimeProfilerVisualizer::MakeBarVisualizerContextMenu()
 	FMenuBuilder MenuBuilder( bCloseAfterSelection, NULL );
 	{
 		FUIAction Action( FExecuteAction::CreateSP( this, &SRealtimeProfilerVisualizer::ShowGraphBarInEventsWindow, (int32)INDEX_NONE ) );
-		MenuBuilder.AddMenuEntry( NSLOCTEXT("TaskGraph", "GraphBarShowInNew", "Show in New Events Window"), FText::GetEmpty(), FSlateIcon(), Action, NAME_None, EUserInterfaceActionType::Button );
+		MenuBuilder.AddMenuEntry( NSLOCTEXT("ProfileVisualizer", "GraphBarShowInNew", "Show in New Events Window"), FText::GetEmpty(), FSlateIcon(), Action, NAME_None, EUserInterfaceActionType::Button );
 	}
 		
 	return MenuBuilder.MakeWidget();

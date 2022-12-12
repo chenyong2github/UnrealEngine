@@ -54,10 +54,6 @@
 //#include "SoundDefinitions.h"
 #include "FXSystem.h"
 #include "TickTaskManagerInterface.h"
-#if !UE_BUILD_SHIPPING
-#include "VisualizerEvents.h"
-#include "STaskGraph.h"
-#endif
 #include "Async/ParallelFor.h"
 #include "Engine/CoreSettings.h"
 

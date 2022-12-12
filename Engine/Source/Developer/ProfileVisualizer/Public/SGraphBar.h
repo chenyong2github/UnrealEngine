@@ -15,7 +15,7 @@ class FSlateWindowElementList;
 struct FSlateBrush;
 
 /** A graph bar widget.*/
-class TASKGRAPH_API SGraphBar : public SLeafWidget
+class PROFILEVISUALIZER_API SGraphBar : public SLeafWidget
 {
 public:
 

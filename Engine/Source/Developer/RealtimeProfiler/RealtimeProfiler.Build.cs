@@ -14,7 +14,7 @@ public class RealtimeProfiler : ModuleRules
 				"Slate",
 				"SlateCore",
                 
-				"TaskGraph",
+				"ProfileVisualizer",
 				"Engine"
 			}
 		);

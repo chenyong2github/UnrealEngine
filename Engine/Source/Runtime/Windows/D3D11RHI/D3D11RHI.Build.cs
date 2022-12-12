@@ -41,10 +41,5 @@ public class D3D11RHI : ModuleRules
 		{
 			PrivateIncludePaths.Add(Path.Combine(this.ModuleDirectory, "Private", "Windows"));
 		}
-
-        if (Target.Configuration != UnrealTargetConfiguration.Shipping)
-		{
-			PrivateIncludePathModuleNames.AddRange(new string[] { "TaskGraph" });
-		}
 	}
 }

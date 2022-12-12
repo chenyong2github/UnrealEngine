@@ -9,7 +9,7 @@ public class Launch : ModuleRules
 	{
 		PrivateIncludePathModuleNames.AddRange(new string[] {
 				"AutomationController",
-				"TaskGraph",
+				"ProfileVisualizer",
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] {
@@ -167,7 +167,7 @@ public class Launch : ModuleRules
 			PublicIncludePathModuleNames.Add("ProfilerService");
 
 			DynamicallyLoadedModuleNames.AddRange(new string[] {
-				"TaskGraph",
+				"ProfileVisualizer",
 				"RealtimeProfiler",
 				"ProfilerService"
 			});

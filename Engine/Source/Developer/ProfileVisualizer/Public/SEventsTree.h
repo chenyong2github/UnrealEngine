@@ -15,7 +15,7 @@
 /**
  * Item used in task graph events list
  */
-class TASKGRAPH_API SEventItem : public SMultiColumnTableRow< TSharedPtr< FVisualizerEvent > >
+class PROFILEVISUALIZER_API SEventItem : public SMultiColumnTableRow< TSharedPtr< FVisualizerEvent > >
 {
 public:
 	
@@ -64,7 +64,7 @@ private:
 /**
  * Profiler events tree. Contains a tree of profiler event for the selected graph bar.
  */
-class TASKGRAPH_API SEventsTree : public SCompoundWidget
+class PROFILEVISUALIZER_API SEventsTree : public SCompoundWidget
 {
 public:
 

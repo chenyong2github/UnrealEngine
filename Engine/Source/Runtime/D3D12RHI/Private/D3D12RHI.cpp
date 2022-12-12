@@ -14,10 +14,6 @@
 #include "Windows/HideWindowsPlatformTypes.h"
 #endif
 
-#if !UE_BUILD_SHIPPING
-#include "STaskGraph.h"
-#endif
-
 #if !defined(D3D12_PLATFORM_NEEDS_DISPLAY_MODE_ENUMERATION)
 	#define D3D12_PLATFORM_NEEDS_DISPLAY_MODE_ENUMERATION 1
 #endif

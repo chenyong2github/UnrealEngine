@@ -9,8 +9,8 @@
 
 #define LOCTEXT_NAMESPACE "SEventsTree"
 
-FName SEventsTree::NAME_NameColumn = FName(*NSLOCTEXT("TaskGraph", "ColumnName", "Name").ToString());
-FName SEventsTree::NAME_DurationColumn = FName( *NSLOCTEXT("TaskGraph", "ColumnDuration", "Duration").ToString() );
+FName SEventsTree::NAME_NameColumn = FName(*NSLOCTEXT("ProfileVisualizer", "ColumnName", "Name").ToString());
+FName SEventsTree::NAME_DurationColumn = FName( *NSLOCTEXT("ProfileVisualizer", "ColumnDuration", "Duration").ToString() );
 
 void SEventItem::Construct( const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView )
 {
@@ -132,7 +132,7 @@ void SEventsTree::Construct( const FArguments& InArgs )
 		+SVerticalBox::Slot().AutoHeight().Padding( 1.0f, 0.0f, 1.0f, 2.0f )
 		[
 			SNew( SSearchBox )
-			.ToolTipText( NSLOCTEXT("TaskGraph", "FilterSearchHint", "Type here to search events.") )
+			.ToolTipText( NSLOCTEXT("ProfileVisualizer", "FilterSearchHint", "Type here to search events.") )
 			.OnTextChanged( this, &SEventsTree::OnFilterTextChanged )
 			.OnTextCommitted( this, &SEventsTree::OnFilterTextCommitted )
 		]
@@ -159,7 +159,7 @@ void SEventsTree::Construct( const FArguments& InArgs )
 				(
 					SNew( SHeaderRow )
 					+ SHeaderRow::Column( NAME_NameColumn )
-					.DefaultLabel( NSLOCTEXT("TaskGraph", "ColumnName", "Name") ) 
+					.DefaultLabel( NSLOCTEXT("ProfileVisualizer", "ColumnName", "Name") ) 
 					.SortMode( TAttribute< EColumnSortMode::Type >::Create( TAttribute< EColumnSortMode::Type >::FGetter::CreateSP( this, &SEventsTree::GetColumnSortMode, NAME_NameColumn ) ) )
 					.OnSort( FOnSortModeChanged::CreateSP( this, &SEventsTree::OnColumnSortModeChanged ) )
 					.FillWidth( 1.0f )
@@ -196,9 +196,9 @@ EColumnSortMode::Type SEventsTree::GetColumnSortMode( const FName ColumnId )
 
 FText SEventsTree::GetDurationColumnTitle() const
 {
-	static const FText Units[] = { NSLOCTEXT("TaskGraph", "microseconds", "microseconds"), NSLOCTEXT("TaskGraph", "milliseconds", "ms"), NSLOCTEXT("TaskGraph", "seconds", "s") };
+	static const FText Units[] = { NSLOCTEXT("ProfileVisualizer", "microseconds", "microseconds"), NSLOCTEXT("ProfileVisualizer", "milliseconds", "ms"), NSLOCTEXT("ProfileVisualizer", "seconds", "s") };
 
-	return FText::Format( NSLOCTEXT("TaskGraph", "ColumnDurationValue", "Duration ({0})"), Units[ DurationUnits ] );
+	return FText::Format( NSLOCTEXT("ProfileVisualizer", "ColumnDurationValue", "Duration ({0})"), Units[ DurationUnits ] );
 }
 
 void ClearEventsSelection( TArray< TSharedPtr< FVisualizerEvent > >& Events )
@@ -444,7 +444,7 @@ FString SEventsTree::GetTabTitle() const
 	}
 	else
 	{
-		return NSLOCTEXT("TaskGraph", "EventsVisualizerName", "Empty Events List").ToString();
+		return NSLOCTEXT("ProfileVisualizer", "EventsVisualizerName", "Empty Events List").ToString();
 	}
 }
 

@@ -55,7 +55,7 @@ public class RHI : ModuleRules
 
 		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
 		{
-			PrivateIncludePathModuleNames.AddRange(new string[] { "TaskGraph" });
+			PrivateIncludePathModuleNames.AddRange(new string[] { "ProfileVisualizer" });
 		}
     }
 }

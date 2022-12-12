@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SProfileVisualizer.h"
+#include "ProfileVisualizerModule.h"
 #include "Widgets/SBoxPanel.h"
 #include "Layout/WidgetPath.h"
 #include "Framework/Application/MenuStack.h"
@@ -11,10 +12,10 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Layout/SSplitter.h"
-#include "TaskGraphStyle.h"
+#include "ProfileVisualizerStyle.h"
 #include "SBarVisualizer.h"
 #include "SEventsTree.h"
-#include "STaskGraph.h"
+#include "SProfileVisualizer.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Misc/App.h"
@@ -36,7 +37,7 @@ void SProfileVisualizer::Construct(const FArguments& InArgs)
 	HeaderMessageText = InArgs._HeaderMessageText;
 	HeaderMessageTextColor = InArgs._HeaderMessageTextColor;
 
-	const FSlateBrush* ContentAreaBrush = FTaskGraphStyle::Get()->GetBrush("TaskGraph.ContentAreaBrush");
+	const FSlateBrush* ContentAreaBrush = FProfileVisualizerStyle::Get()->GetBrush("ProfileVisualizer.ContentAreaBrush");
 	ChildSlot
 	[
 		SNew(SVerticalBox)
@@ -53,8 +54,8 @@ void SProfileVisualizer::Construct(const FArguments& InArgs)
 				.Content()
 				[
 					SNew(STextBlock)
-					.Text(NSLOCTEXT("TaskGraph", "Load", "Load"))
-					.ToolTipText(NSLOCTEXT("TaskGraph", "Load_GPUTooltip", "Load GPU profiling data"))
+					.Text(NSLOCTEXT("ProfileVisualizer", "Load", "Load"))
+					.ToolTipText(NSLOCTEXT("ProfileVisualizer", "Load_GPUTooltip", "Load GPU profiling data"))
 				]
 			]
 			+ SHorizontalBox::Slot()
@@ -66,8 +67,8 @@ void SProfileVisualizer::Construct(const FArguments& InArgs)
 				.Content()
 				[
 					SNew(STextBlock)
-					.Text(NSLOCTEXT("TaskGraph", "Save", "Save"))
-					.ToolTipText(NSLOCTEXT("TaskGraph", "Save_GPUTooltip", "Save the GPU profiling data"))
+					.Text(NSLOCTEXT("ProfileVisualizer", "Save", "Save"))
+					.ToolTipText(NSLOCTEXT("ProfileVisualizer", "Save_GPUTooltip", "Save the GPU profiling data"))
 				]
 			]
 		]
@@ -129,20 +130,20 @@ TSharedRef< SWidget > SProfileVisualizer::MakeMainMenu()
 	{
 		// File
 		MenuBuilder.AddPullDownMenu( 
-			NSLOCTEXT("TaskGraph", "FileMenu", "File"),
-			NSLOCTEXT("TaskGraph", "FileMenu_ToolTip", "Open the file menu"),
+			NSLOCTEXT("ProfileVisualizer", "FileMenu", "File"),
+			NSLOCTEXT("ProfileVisualizer", "FileMenu_ToolTip", "Open the file menu"),
 			FNewMenuDelegate::CreateSP( this, &SProfileVisualizer::FillFileMenu ) );
 
 		// Apps
 		MenuBuilder.AddPullDownMenu( 
-			NSLOCTEXT("TaskGraph", "AppMenu", "Window"),
-			NSLOCTEXT("TaskGraph", "AppMenu_ToolTip", "Open the summoning menu"),
+			NSLOCTEXT("ProfileVisualizer", "AppMenu", "Window"),
+			NSLOCTEXT("ProfileVisualizer", "AppMenu_ToolTip", "Open the summoning menu"),
 			FNewMenuDelegate::CreateSP( this, &SProfileVisualizer::FillAppMenu ) );
 
 		// Help
 		MenuBuilder.AddPullDownMenu( 
-			NSLOCTEXT("TaskGraph", "HelpMenu", "Help"),
-			NSLOCTEXT("TaskGraph", "HelpMenu_ToolTip", "Open the help menu"),
+			NSLOCTEXT("ProfileVisualizer", "HelpMenu", "Help"),
+			NSLOCTEXT("ProfileVisualizer", "HelpMenu_ToolTip", "Open the help menu"),
 			FNewMenuDelegate::CreateSP( this, &SProfileVisualizer::FillHelpMenu ) );
 	}
 
@@ -199,7 +200,7 @@ TSharedRef<SWidget> SProfileVisualizer::MakeBarVisualizerContextMenu()
 	FMenuBuilder MenuBuilder( bCloseAfterSelection, NULL );
 	{
 		FUIAction Action( FExecuteAction::CreateSP( this, &SProfileVisualizer::ShowGraphBarInEventsWindow, (int32)INDEX_NONE ) );
-		MenuBuilder.AddMenuEntry( NSLOCTEXT("TaskGraph", "GraphBarShowInNew", "Show in New Events Window"), FText::GetEmpty(), FSlateIcon(), Action, NAME_None, EUserInterfaceActionType::Button );
+		MenuBuilder.AddMenuEntry( NSLOCTEXT("ProfileVisualizer", "GraphBarShowInNew", "Show in New Events Window"), FText::GetEmpty(), FSlateIcon(), Action, NAME_None, EUserInterfaceActionType::Button );
 	}
 		
 	return MenuBuilder.MakeWidget();
@@ -235,11 +236,11 @@ FReply SProfileVisualizer::OnSaveClicked()
 		delete ProfileFile;
 		ProfileFile = NULL;
 
-		Message = NSLOCTEXT("TaskGraph", "ExportMessage", "Wrote profile data to file");
+		Message = NSLOCTEXT("ProfileVisualizer", "ExportMessage", "Wrote profile data to file");
 	}
 	else
 	{
-		Message = NSLOCTEXT("TaskGraph", "FailedExportMessage", "Could not write profile data to file");
+		Message = NSLOCTEXT("ProfileVisualizer", "FailedExportMessage", "Could not write profile data to file");
 	}
 
 	struct Local
@@ -297,10 +298,10 @@ FReply SProfileVisualizer::OnLoadClicked()
 				TSharedPtr< FVisualizerEvent > InVisualizerData;
 				InVisualizerData = FVisualizerEvent::LoadVisualizerEvent(ProfileFile);
 								
-				static FName TaskGraphModule(TEXT("TaskGraph"));
-				if (FModuleManager::Get().IsModuleLoaded(TaskGraphModule))
+				static FName ProfileVisualizerModule(TEXT("ProfileVisualizer"));
+				if (FModuleManager::Get().IsModuleLoaded(ProfileVisualizerModule))
 				{
-					IProfileVisualizerModule& ProfileVisualizer = FModuleManager::GetModuleChecked<IProfileVisualizerModule>(TaskGraphModule);
+					IProfileVisualizerModule& ProfileVisualizer = FModuleManager::GetModuleChecked<IProfileVisualizerModule>(ProfileVisualizerModule);
 
 					FText LoadedFileName = FText::AsCultureInvariant(ProfileFile->GetArchiveName());
 					ProfileVisualizer.DisplayProfileVisualizer(InVisualizerData, TEXT("Profile Data"), LoadedFileName);

@@ -14,7 +14,7 @@
 #include "Widgets/Input/SSlider.h"
 #include "SGraphBar.h"
 #include "STimeline.h"
-#include "TaskGraphStyle.h"
+#include "ProfileVisualizerStyle.h"
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void SBarVisualizer::Construct( const FArguments& InArgs )
@@ -51,8 +51,8 @@ void SBarVisualizer::Construct( const FArguments& InArgs )
 		ViewMenuBuilder.AddMenuEntry( NSLOCTEXT("SBarVisualizer", "Flat", "Flat"), FText(), FSlateIcon(), Action, NAME_None, EUserInterfaceActionType::Check );
 	}
 
-	const FSlateBrush* HomeButtonBrush = FTaskGraphStyle::Get()->GetBrush( "TaskGraph.Home" );
-	const FSlateBrush* ToParentButtonBrush = FTaskGraphStyle::Get()->GetBrush( "TaskGraph.ToParent" );
+	const FSlateBrush* HomeButtonBrush = FProfileVisualizerStyle::Get()->GetBrush( "ProfileVisualizer.Home" );
+	const FSlateBrush* ToParentButtonBrush = FProfileVisualizerStyle::Get()->GetBrush( "ProfileVisualizer.ToParent" );
 
 	this->ChildSlot
 	[
@@ -60,8 +60,8 @@ void SBarVisualizer::Construct( const FArguments& InArgs )
 		+SVerticalBox::Slot().AutoHeight() .Padding( 2 ) .VAlign( VAlign_Fill )
 		[
 			SNew( SBorder )
-			.BorderImage( FTaskGraphStyle::Get()->GetBrush("StatsHeader") )
-			.ForegroundColor( FTaskGraphStyle::Get()->GetSlateColor("DefaultForeground") )
+			.BorderImage( FProfileVisualizerStyle::Get()->GetBrush("StatsHeader") )
+			.ForegroundColor( FProfileVisualizerStyle::Get()->GetSlateColor("DefaultForeground") )
 			[
 				SNew(SHorizontalBox)
 				+SHorizontalBox::Slot().AutoWidth() .Padding( 2 ) .HAlign( HAlign_Left )
@@ -107,7 +107,7 @@ void SBarVisualizer::Construct( const FArguments& InArgs )
 					.ButtonContent()
 					[
 						SNew(SImage)
-						.Image( FTaskGraphStyle::Get()->GetBrush("TaskGraph.MenuDropdown") )
+						.Image( FProfileVisualizerStyle::Get()->GetBrush("ProfileVisualizer.MenuDropdown") )
 					]
 					.MenuContent()
 					[
@@ -202,7 +202,7 @@ FText SBarVisualizer::GetZoomLabel() const
 	static const FNumberFormattingOptions ZoomFormatOptions = FNumberFormattingOptions()
 		.SetMinimumFractionalDigits(2)
 		.SetMaximumFractionalDigits(2);
-	return FText::Format( NSLOCTEXT("TaskGraph", "ZoomLabelFmt", "Zoom: {0}x"), FText::AsNumber(GetZoom(), &ZoomFormatOptions) );
+	return FText::Format( NSLOCTEXT("ProfileVisualizer", "ZoomLabelFmt", "Zoom: {0}x"), FText::AsNumber(GetZoom(), &ZoomFormatOptions) );
 }
 
 float SBarVisualizer::GetZoomValue() const

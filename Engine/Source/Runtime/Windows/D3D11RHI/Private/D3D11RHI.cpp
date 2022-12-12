@@ -18,10 +18,6 @@
 #endif	//WITH_DX_PERF
 #include "OneColorShader.h"
 
-#if !UE_BUILD_SHIPPING
-	#include "STaskGraph.h"
-#endif
-
 DEFINE_LOG_CATEGORY(LogD3D11RHI);
 
 extern void UniformBufferBeginFrame();

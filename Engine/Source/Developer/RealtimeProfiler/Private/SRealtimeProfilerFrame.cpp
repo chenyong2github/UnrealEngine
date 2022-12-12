@@ -55,7 +55,7 @@ void SRealtimeProfilerFrame::AddVisualizer( TSharedPtr< SDockTabStack > TabStack
 
 	Visualizers.Add( NewVisualizer );
 
-	AddTab( NewVisualizer, "Stats", NSLOCTEXT("TaskGraph", "ProfileVisualizerToolTip", "Profile Visualizer.").ToString(), TabStack );
+	AddTab( NewVisualizer, "Stats", NSLOCTEXT("ProfileVisualizer", "ProfileVisualizerToolTip", "Profile Visualizer.").ToString(), TabStack );
 
 
 	Visualizer = NewVisualizer;
