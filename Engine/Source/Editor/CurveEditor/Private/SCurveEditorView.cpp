@@ -322,7 +322,10 @@ void SCurveEditorView::GetCurveDrawParam(TSharedPtr<FCurveEditor>& CurveEditor,c
 void SCurveEditorView::CheckCacheAndInvalidateIfNeeded()
 {
 	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
-	check(CurveEditor.IsValid());
+	if (CurveEditor.IsValid() == false)
+	{
+		return;
+	}
 	const bool bUseCurveCache = CVarUseCurveCache.GetValueOnGameThread();
 
 	if (bUseCurveCache)
