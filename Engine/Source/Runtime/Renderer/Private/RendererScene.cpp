@@ -3714,14 +3714,17 @@ void FSceneVelocityData::StartFrame(FScene* Scene)
 
 void FScene::GetPrimitiveUniformShaderParameters_RenderThread(const FPrimitiveSceneInfo* PrimitiveSceneInfo, bool& bHasPrecomputedVolumetricLightmap, FMatrix& PreviousLocalToWorld, int32& SingleCaptureIndex, bool& bOutputVelocity) const 
 {
-	bHasPrecomputedVolumetricLightmap = VolumetricLightmapSceneData.HasData();
-	
-	bOutputVelocity = VelocityData.GetComponentPreviousLocalToWorld(PrimitiveSceneInfo->PrimitiveComponentId, PreviousLocalToWorld);
+	const FMatrix LocalToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
+	PreviousLocalToWorld = LocalToWorld;
+	bOutputVelocity = false;
 
-	if (!bOutputVelocity)
+	const bool bHasPreviousLocalToWorld = VelocityData.GetComponentPreviousLocalToWorld(PrimitiveSceneInfo->PrimitiveComponentId, PreviousLocalToWorld);
+	if (bHasPreviousLocalToWorld)
 	{
-		PreviousLocalToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
+		bOutputVelocity = !LocalToWorld.Equals(PreviousLocalToWorld, 0.0001f);
 	}
+
+	bHasPrecomputedVolumetricLightmap = VolumetricLightmapSceneData.HasData();
 
 	// Get index if proxy exists, otherwise fall back to index 0 which will contain the default black cubemap
 	SingleCaptureIndex = PrimitiveSceneInfo->CachedReflectionCaptureProxy ? PrimitiveSceneInfo->CachedReflectionCaptureProxy->SortedCaptureIndex : 0;
