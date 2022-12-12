@@ -174,12 +174,11 @@ static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const
 				SlowTask.EnterProgressFrame(1);
 				// todo_ow : Generating hlods is not yet supported for content bundles. Pass an invalid UID to specified the cell is not coming from ContentBundles.
 				FGuid ContentBundleInvalidUID;
-				FGuid CellGuid = UWorldPartitionRuntimeSpatialHash::GetCellGuid(RuntimeGrid.GridName, CellGlobalCoord, GridCellDataChunk.GetDataLayersID(), ContentBundleInvalidUID);
 				FString CellName = UWorldPartitionRuntimeSpatialHash::GetCellNameString(RuntimeGrid.GridName, CellGlobalCoord, GridCellDataChunk.GetDataLayersID(), ContentBundleInvalidUID);
 
 				UE_LOG(LogWorldPartitionRuntimeSpatialHashHLOD, Verbose, TEXT("Creating HLOD for cell %s at %s..."), *CellName, *CellCoord.ToString());
 
-				TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*CellCoord.ToString());
+				TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*CellName);
 
 				UE_LOG(LogWorldPartitionRuntimeSpatialHashHLOD, Display, TEXT("[%d / %d] Processing cell %s..."), (int32)SlowTask.CompletedWork + 1, (int32)SlowTask.TotalAmountOfWork, *CellName);
 
@@ -207,7 +206,7 @@ static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const
 
 				FHLODCreationParams CreationParams;
 				CreationParams.WorldPartition = WorldPartition;
-				CreationParams.CellGuid = CellGuid;
+				CreationParams.CellName = FName(CellName);
 				CreationParams.CellBounds = CellBounds;
 				CreationParams.HLODLevel = HLODLevel;
 				CreationParams.MinVisibleDistance = RuntimeGrid.LoadingRange;

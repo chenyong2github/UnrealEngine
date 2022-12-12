@@ -233,9 +233,6 @@ class ENGINE_API UWorldPartitionRuntimeCell : public UObject, public IWorldParti
 #endif
 	
 	bool GetIsHLOD() const { return bIsHLOD; }
-	
-	FGuid GetGuid() const { return CellGuid; }
-	void SetGuid(const FGuid& InCellGuid) { CellGuid = InCellGuid; }
 
 #if !UE_BUILD_SHIPPING
 	void SetDebugStreamingPriority(float InDebugStreamingPriority) { DebugStreamingPriority = InDebugStreamingPriority; }
@@ -279,9 +276,6 @@ private:
 	FGuid ContentBundleID;
 
 protected:
-	UPROPERTY()
-	FGuid CellGuid;
-
 	// Source Priority
 	mutable uint8 CachedMinSourcePriority;
 

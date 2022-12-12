@@ -262,9 +262,6 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Fixed localization gathering for external actor packages
 		FixedLocalizationGatherForExternalActorPackage,
 
-		// Change HLODActors to RuntimeCells mapping to use a GUID instead of the cell name
-		WorldPartitionHLODActorUseSourceCellGuid,
-
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

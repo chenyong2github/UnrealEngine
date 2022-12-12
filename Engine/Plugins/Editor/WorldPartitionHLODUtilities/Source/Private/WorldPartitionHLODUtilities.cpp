@@ -190,14 +190,14 @@ TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLO
 		const TSet<FHLODSubActor>& SubActors = Pair.Value;
 		check(!SubActors.IsEmpty());
 
-		auto ComputeCellHash = [](const FString& HLODLayerName, const FGuid CellGuid)
+		auto ComputeCellHash = [](const FString& HLODLayerName, const FName CellName)
 		{
 			uint64 HLODLayerNameHash = FCrc::StrCrc32(*HLODLayerName);
-			uint32 CellGuidHash = GetTypeHash(CellGuid);
-			return HashCombine(HLODLayerNameHash, CellGuidHash);
+			uint32 CellNameHash = FCrc::StrCrc32(*CellName.ToString());
+			return HashCombine(HLODLayerNameHash, CellNameHash);
 		};
 
-		uint64 CellHash = ComputeCellHash(HLODLayer->GetName(), InCreationParams.CellGuid);
+		uint64 CellHash = ComputeCellHash(HLODLayer->GetName(), InCreationParams.CellName);
 		FName HLODActorName = *FString::Printf(TEXT("%s_%016llx"), *HLODLayer->GetName(), CellHash);		
 
 		AWorldPartitionHLOD* HLODActor = nullptr;
@@ -216,7 +216,7 @@ TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLO
 			SpawnParams.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_Fatal;
 			HLODActor = InCreationParams.WorldPartition->GetWorld()->SpawnActor<AWorldPartitionHLOD>(SpawnParams);
 
-			HLODActor->SetSourceCellGuid(InCreationParams.CellGuid);
+			HLODActor->SetSourceCellName(InCreationParams.CellName);
 			HLODActor->SetSubActorsHLODLayer(HLODLayer);
 
 			// Make sure the generated HLOD actor has the same data layers as the source actors
@@ -228,7 +228,7 @@ TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLO
 		else
 		{
 #if DO_CHECK
-			check(HLODActor->GetSourceCellGuid() == InCreationParams.CellGuid);
+			check(HLODActor->GetSourceCellName() == InCreationParams.CellName);
 			check(HLODActor->GetSubActorsHLODLayer() == HLODLayer);
 #endif
 		}
@@ -292,7 +292,7 @@ TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLO
 		}
 
 		// Actor label
-		const FString ActorLabel = FString::Printf(TEXT("%s/%s"), *HLODLayer->GetName(), *InCreationParams.CellGuid.ToString());
+		const FString ActorLabel = FString::Printf(TEXT("%s/%s"), *HLODLayer->GetName(), *InCreationParams.CellName.ToString());
 		if (HLODActor->GetActorLabel() != ActorLabel)
 		{
 			HLODActor->SetActorLabel(ActorLabel);

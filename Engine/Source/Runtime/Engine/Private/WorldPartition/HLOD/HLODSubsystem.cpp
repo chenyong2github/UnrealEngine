@@ -259,7 +259,7 @@ void UHLODSubsystem::OnWorldPartitionInitialized(UWorldPartition* InWorldPartiti
 		{
 			InWorldPartition->RuntimeHash->ForEachStreamingCells([&WorldPartitionHLODRuntimeData](const UWorldPartitionRuntimeCell* Cell)
 			{
-				WorldPartitionHLODRuntimeData.CellsData.Emplace(Cell->GetGuid());
+				WorldPartitionHLODRuntimeData.CellsData.Emplace(Cell->GetFName());
 				return true;
 			});
 		}
@@ -294,7 +294,7 @@ UHLODSubsystem::FCellData* UHLODSubsystem::GetCellData(const UWorldPartitionRunt
 	FWorldPartitionHLODRuntimeData* WorldPartitionHLODRuntimeData = WorldPartitionsHLODRuntimeData.Find(WorldPartition);
 	if (WorldPartitionHLODRuntimeData)
 	{
-		return WorldPartitionHLODRuntimeData->CellsData.Find(InCell->GetGuid());
+		return WorldPartitionHLODRuntimeData->CellsData.Find(InCell->GetFName());
 	}
 
 	return nullptr;
@@ -308,8 +308,8 @@ UHLODSubsystem::FCellData* UHLODSubsystem::GetCellData(AWorldPartitionHLOD* InWo
 	FWorldPartitionHLODRuntimeData* WorldPartitionHLODRuntimeData = WorldPartitionsHLODRuntimeData.Find(WorldPartition);
 	if (WorldPartitionHLODRuntimeData)
 	{
-		const FGuid CellGuid = InWorldPartitionHLOD->GetSourceCellGuid();
-		return WorldPartitionHLODRuntimeData->CellsData.Find(CellGuid);
+		const FName CellName = InWorldPartitionHLOD->GetSourceCellName();
+		return WorldPartitionHLODRuntimeData->CellsData.Find(CellName);
 	}
 
 	return nullptr;		
@@ -334,14 +334,14 @@ void UHLODSubsystem::RegisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHLOD
 	if (FCellData* CellData = GetCellData(InWorldPartitionHLOD))
 	{
 #if WITH_EDITOR
-		UE_LOG(LogHLODSubsystem, Verbose, TEXT("Registering HLOD %s (%s) for cell %s"), *InWorldPartitionHLOD->GetActorLabel(), *InWorldPartitionHLOD->GetActorGuid().ToString(), *InWorldPartitionHLOD->GetSourceCellGuid().ToString());
+		UE_LOG(LogHLODSubsystem, Verbose, TEXT("Registering HLOD %s (%s) for cell %s"), *InWorldPartitionHLOD->GetActorLabel(), *InWorldPartitionHLOD->GetActorGuid().ToString(), *InWorldPartitionHLOD->GetSourceCellName().ToString());
 #endif
 		CellData->LoadedHLODs.Add(InWorldPartitionHLOD);
 		InWorldPartitionHLOD->SetVisibility(UHLODSubsystem::WorldPartitionHLODEnabled && !CellData->bIsCellVisible);
 	}
 	else
 	{
-		UE_LOG(LogHLODSubsystem, Verbose, TEXT("Found HLOD referencing nonexistent cell '%s'"), *InWorldPartitionHLOD->GetSourceCellGuid().ToString());
+		UE_LOG(LogHLODSubsystem, Verbose, TEXT("Found HLOD referencing nonexistent cell '%s'"), *InWorldPartitionHLOD->GetSourceCellName().ToString());
 		InWorldPartitionHLOD->SetVisibility(false);
 	}
 
@@ -356,7 +356,7 @@ void UHLODSubsystem::UnregisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHL
 	if (FCellData* CellData = GetCellData(InWorldPartitionHLOD))
 	{
 #if WITH_EDITOR
-		UE_LOG(LogHLODSubsystem, Verbose, TEXT("Unregistering HLOD %s (%s) for cell %s"), *InWorldPartitionHLOD->GetActorLabel(), *InWorldPartitionHLOD->GetActorGuid().ToString(), *InWorldPartitionHLOD->GetSourceCellGuid().ToString());
+		UE_LOG(LogHLODSubsystem, Verbose, TEXT("Unregistering HLOD %s (%s) for cell %s"), *InWorldPartitionHLOD->GetActorLabel(), *InWorldPartitionHLOD->GetActorGuid().ToString(), *InWorldPartitionHLOD->GetSourceCellName().ToString());
 #endif
 
 		int32 NumRemoved = CellData->LoadedHLODs.Remove(InWorldPartitionHLOD);

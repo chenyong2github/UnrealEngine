@@ -70,7 +70,7 @@ private:
 
 	struct FWorldPartitionHLODRuntimeData
 	{
-		TMap<FGuid, FCellData> CellsData;
+		TMap<FName, FCellData> CellsData;
 	};
 	
 	TMap<TObjectPtr<UWorldPartition>, FWorldPartitionHLODRuntimeData> WorldPartitionsHLODRuntimeData;

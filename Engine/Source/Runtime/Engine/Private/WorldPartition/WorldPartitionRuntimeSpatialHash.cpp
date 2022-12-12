@@ -6,7 +6,6 @@
 #include "WorldPartition/WorldPartitionRuntimeSpatialHash.h"
 
 #include "Engine/Engine.h"
-#include "Misc/ArchiveMD5.h"
 #include "Misc/Paths.h"
 #include "WorldPartition/WorldPartitionStreamingGenerationContext.h"
 #include "WorldPartition/WorldPartitionRuntimeSpatialHashCell.h"
@@ -1309,27 +1308,6 @@ FString UWorldPartitionRuntimeSpatialHash::GetCellNameString(FName InGridName, c
 	return CellName;
 }
 
-FGuid UWorldPartitionRuntimeSpatialHash::GetCellGuid(FName InGridName, const FGridCellCoord& InCellGlobalCoord, const FDataLayersID& InDataLayerID, const FGuid& InContentBundleID)
-{
-	FString GridName = InGridName.ToString().ToLower();
-	FGridCellCoord CellGlobalCoord = InCellGlobalCoord;
-	uint32 DataLayerID = InDataLayerID.GetHash();
-	uint32 ContentBundleID = InContentBundleID.IsValid() ? GetTypeHash(InContentBundleID) : 0;
-
-	FArchiveMD5 ArMD5;
-	ArMD5 << GridName << CellGlobalCoord << DataLayerID << ContentBundleID;
-
-	FMD5Hash MD5Hash;
-	ArMD5.GetHash(MD5Hash);
-
-	FGuid CellGuid;
-	check(MD5Hash.GetSize() == sizeof(FGuid));
-	FMemory::Memcpy(&CellGuid, MD5Hash.GetBytes(), sizeof(FGuid));
-	check(CellGuid.IsValid());
-
-	return CellGuid;
-}
-
 bool UWorldPartitionRuntimeSpatialHash::GetPreviewGrids() const
 {
 	return bPreviewGrids;
@@ -1417,8 +1395,7 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 				
 				FGridCellCoord CellGlobalCoords;
 				verify(PartionedActors.GetCellGlobalCoords(FGridCellCoord(CellCoordX, CellCoordY, Level), CellGlobalCoords));
-				const FString CellName = GetCellNameString(CurrentStreamingGrid.GridName, CellGlobalCoords, GridCellDataChunk.GetDataLayersID(), GridCellDataChunk.GetContentBundleID());
-				const FGuid CellGuid = GetCellGuid(CurrentStreamingGrid.GridName, CellGlobalCoords, GridCellDataChunk.GetDataLayersID(), GridCellDataChunk.GetContentBundleID());
+				FString CellName = GetCellNameString(CurrentStreamingGrid.GridName, CellGlobalCoords, GridCellDataChunk.GetDataLayersID(), GridCellDataChunk.GetContentBundleID());
 
 				UWorldPartitionRuntimeSpatialHashCell* StreamingCell = NewObject<UWorldPartitionRuntimeSpatialHashCell>(this, StreamingPolicy->GetRuntimeCellClass(), FName(CellName));
 
@@ -1450,7 +1427,6 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 				StreamingCell->SetClientOnlyVisible(CurrentStreamingGrid.bClientOnlyVisible);
 				StreamingCell->SetBlockOnSlowLoading(CurrentStreamingGrid.bBlockOnSlowStreaming);
 				StreamingCell->SetIsHLOD(RuntimeGrid.HLODLayer ? true : false);
-				StreamingCell->SetGuid(CellGuid);
 
 				check(!StreamingCell->UnsavedActorsContainer);
 				for (const IStreamingGenerationContext::FActorInstance& ActorInstance : FilteredActors)

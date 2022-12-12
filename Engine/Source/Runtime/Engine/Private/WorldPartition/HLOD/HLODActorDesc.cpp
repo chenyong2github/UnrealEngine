@@ -23,6 +23,7 @@ void FHLODActorDesc::Init(const AActor* InActor)
 	HLODSubActors.Reserve(HLODActor->GetSubActors().Num());
 	Algo::Transform(HLODActor->GetSubActors(), HLODSubActors, [](const FHLODSubActor& SubActor) { return FHLODSubActorDesc(SubActor.ActorGuid, SubActor.ContainerID); });
 
+	SourceCellName = HLODActor->GetSourceCellName();
 	SourceHLODLayerName = HLODActor->GetSubActorsHLODLayer()->GetFName();
 	HLODStats = HLODActor->GetStats();
 }
@@ -65,13 +66,8 @@ void FHLODActorDesc::Serialize(FArchive& Ar)
 	}
 
 	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::WorldPartitionHLODActorDescSerializeStats)
-	{
-		if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WorldPartitionHLODActorUseSourceCellGuid)
-		{
-			FName SourceCellName;
-			Ar << SourceCellName;
-		}
-
+	{		
+		Ar << SourceCellName;
 		Ar << SourceHLODLayerName;
 		Ar << HLODStats;
 
@@ -88,7 +84,8 @@ bool FHLODActorDesc::Equals(const FWorldPartitionActorDesc* Other) const
 	if (FWorldPartitionActorDesc::Equals(Other))
 	{
 		const FHLODActorDesc& HLODActorDesc = *(FHLODActorDesc*)Other;
-		return SourceHLODLayerName == HLODActorDesc.SourceHLODLayerName &&
+		return SourceCellName == HLODActorDesc.SourceCellName &&
+			   SourceHLODLayerName == HLODActorDesc.SourceHLODLayerName &&
 			   HLODStats.OrderIndependentCompareEqual(HLODActorDesc.GetStats()) &&
 			   CompareUnsortedArrays(HLODSubActors, HLODActorDesc.HLODSubActors);
 	}

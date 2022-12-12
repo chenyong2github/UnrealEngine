@@ -27,7 +27,7 @@ struct ENGINE_API FHLODCreationParams
 
 	FName HLODLayerName;
 
-	FGuid CellGuid;
+	FName CellName;
 	FBox  CellBounds;
 	uint32 HLODLevel;
 
