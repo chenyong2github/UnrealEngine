@@ -374,7 +374,7 @@ struct NIAGARA_API FVersionedNiagaraEmitterData
 	void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData, const UNiagaraEmitter& Emitter);
 	void CacheFromShaderCompiled();
 
-	FGraphEventRef PrecacheComputePSOs(const UNiagaraEmitter& NiagaraEmitter);
+	FGraphEventArray PrecacheComputePSOs(const UNiagaraEmitter& NiagaraEmitter);
 	bool DidPSOPrecacheFail() const { return PSOPrecacheResult == EPSOPrecacheResult::NotSupported; }
 
 	bool RequiresViewUniformBuffer() const { return bRequiresViewUniformBuffer; }

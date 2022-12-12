@@ -1828,10 +1828,7 @@ void UNiagaraSystem::CacheFromCompiledData()
 			Handle.GetInstance().Emitter->ConditionalPostLoad();
 			EmitterData->CacheFromCompiledData(DataSetCompiledData, *Handle.GetInstance().Emitter);
 
-			if ( FGraphEventRef PSOGraphEvent = EmitterData->PrecacheComputePSOs(*Handle.GetInstance().Emitter) )
-			{
-				PSOPrecacheEvents.Add(PSOGraphEvent);
-			}
+			PSOPrecacheEvents.Append(EmitterData->PrecacheComputePSOs(*Handle.GetInstance().Emitter));
 
 			// Allow data interfaces to cache static buffers
 			UNiagaraScript* NiagaraEmitterScripts[] =
