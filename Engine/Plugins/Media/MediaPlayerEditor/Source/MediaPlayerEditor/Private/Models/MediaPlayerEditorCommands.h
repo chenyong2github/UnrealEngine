@@ -35,6 +35,9 @@ public:
 	/** Jump to next item in the play list. */
 	TSharedPtr<FUICommandInfo> NextMedia;
 
+	/** Open the current media. */
+	TSharedPtr<FUICommandInfo> OpenMedia;
+
 	/** Pauses media playback. */
 	TSharedPtr<FUICommandInfo> PauseMedia;
 

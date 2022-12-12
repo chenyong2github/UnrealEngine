@@ -70,8 +70,7 @@ void FMediaSourceEditorToolkit::Initialize(UMediaSource* InMediaSource, const ET
 
 	MediaPlayer = NewObject<UMediaPlayer>(GetTransientPackage());
 	MediaPlayer->SetLooping(false);
-	MediaPlayer->PlayOnOpen = false;
-	MediaPlayer->OpenSource(MediaSource);
+	MediaPlayer->PlayOnOpen = true;
 
 	BindCommands();
 
@@ -257,6 +256,12 @@ void FMediaSourceEditorToolkit::BindCommands()
 	);
 
 	ToolkitCommands->MapAction(
+		Commands.OpenMedia,
+		FExecuteAction::CreateLambda([this] { MediaPlayer->OpenSource(MediaSource); }),
+		FCanExecuteAction::CreateLambda([this] { return true; })
+	);
+
+	ToolkitCommands->MapAction(
 		Commands.PauseMedia,
 		FExecuteAction::CreateLambda([this]{ MediaPlayer->Pause(); }),
 		FCanExecuteAction::CreateLambda([this]{ return MediaPlayer->CanPause() && !MediaPlayer->IsPaused(); })
@@ -309,6 +314,7 @@ void FMediaSourceEditorToolkit::ExtendToolBar()
 
 			ToolbarBuilder.BeginSection("MediaControls");
 			{
+				ToolbarBuilder.AddToolBarButton(FMediaPlayerEditorCommands::Get().OpenMedia);
 				ToolbarBuilder.AddToolBarButton(FMediaPlayerEditorCommands::Get().CloseMedia);
 			}
 			ToolbarBuilder.EndSection();

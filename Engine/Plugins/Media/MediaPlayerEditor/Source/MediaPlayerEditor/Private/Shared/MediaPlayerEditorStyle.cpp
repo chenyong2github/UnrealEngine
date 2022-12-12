@@ -56,6 +56,8 @@ FMediaPlayerEditorStyle::FMediaPlayerEditorStyle()
 	Set("MediaPlayerEditor.ForwardMedia.Small", new IMAGE_BRUSH("icon_forward_40x", Icon20x20));
 	Set("MediaPlayerEditor.NextMedia", new IMAGE_BRUSH("icon_step_40x", Icon40x40));
 	Set("MediaPlayerEditor.NextMedia.Small", new IMAGE_BRUSH("icon_step_40x", Icon20x20));
+	Set("MediaPlayerEditor.OpenMedia", new IMAGE_BRUSH("icon_open_40x", Icon40x40));
+	Set("MediaPlayerEditor.OpenMedia.Small", new IMAGE_BRUSH("icon_open_40x", Icon20x20));
 	Set("MediaPlayerEditor.PauseMedia", new IMAGE_BRUSH("icon_pause_40x", Icon40x40));
 	Set("MediaPlayerEditor.PauseMedia.Small", new IMAGE_BRUSH("icon_pause_40x", Icon20x20));
 	Set("MediaPlayerEditor.PlayMedia", new IMAGE_BRUSH("icon_play_40x", Icon40x40));
