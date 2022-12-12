@@ -16,6 +16,7 @@
 #include "UObject/TextProperty.h"
 #include "UObject/SoftObjectPtr.h"
 #include "UObject/PropertyAccessUtil.h"
+#include "UObject/TopLevelAssetPath.h"
 #include "Engine/LatentActionManager.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Engine/CollisionProfile.h"
@@ -265,7 +266,15 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "To Soft Object Path", CompactNodeTitle = "->", BlueprintAutocast), Category = "Utilities")
 	static FSoftObjectPath Conv_SoftObjRefToSoftObjPath(TSoftObjectPtr<UObject> SoftObjectReference);
 
-	/** 
+	/** Builds a TopLevelAssetPath struct from single Path string or from PackageName and AssetName string. */
+	UFUNCTION(BlueprintPure, Category = "Utilities", meta = (Keywords = "construct build", NativeMakeFunc, BlueprintThreadSafe, BlueprintAutocast))
+	static FORCENOINLINE FTopLevelAssetPath MakeTopLevelAssetPath(const FString& FullPathOrPackageName, const FString& AssetName);
+
+	/** Gets the path string out of a TopLevelAssetPath */
+	UFUNCTION(BlueprintPure, Category = "Utilities", meta = (NativeBreakFunc, BlueprintThreadSafe, BlueprintAutocast))
+	static void BreakTopLevelAssetPath(const FTopLevelAssetPath& TopLevelAssetPath, FString& PathString);
+
+	/**
 	 * Builds a Soft Class Path struct from a string that contains a full /folder/packagename.class path.
 	 * For blueprint classes, this needs to point to the actual class (often with _C) and not the blueprint editor asset
 	 */

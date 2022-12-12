@@ -1246,6 +1246,50 @@ FSoftObjectPath UKismetSystemLibrary::Conv_SoftObjRefToSoftObjPath(TSoftObjectPt
 	return SoftObjectReference.ToSoftObjectPath();
 }
 
+FTopLevelAssetPath UKismetSystemLibrary::MakeTopLevelAssetPath(const FString& FullPathOrPackageName, const FString& AssetName)
+{
+	if (!FullPathOrPackageName.StartsWith(TEXT("/")))
+	{
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("PathString"), FText::AsCultureInvariant(FullPathOrPackageName));
+		LogRuntimeError(FText::Format(NSLOCTEXT("KismetSystemLibrary", "TopLevelAssetPath_UnrootedPath",
+			"Short path \"{PathString}\" not valid for MakeTopLevelAssetPath. Path must be rooted with /, for example /Game."), Args));
+
+		return FTopLevelAssetPath();
+	}
+	
+	if (AssetName.IsEmpty())
+	{
+		FTopLevelAssetPath Result = FTopLevelAssetPath(FullPathOrPackageName);
+		if (!Result.IsValid() && !FullPathOrPackageName.IsEmpty())
+		{
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("PathString"), FText::AsCultureInvariant(FullPathOrPackageName));
+			LogRuntimeError(FText::Format(NSLOCTEXT("KismetSystemLibrary", "TopLevelAssetPath_PathStringInvalid",
+				"String \"{PathString}\" is invalid for MakeTopLevelAssetPath."), Args));
+		}
+		return Result;
+	}
+	else
+	{
+		FTopLevelAssetPath Result = FTopLevelAssetPath(*FullPathOrPackageName, *AssetName);
+		if (!Result.IsValid())
+		{
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("PackageName"), FText::AsCultureInvariant(FullPathOrPackageName));
+			Args.Add(TEXT("AssetName"), FText::AsCultureInvariant(AssetName));
+			LogRuntimeError(FText::Format(NSLOCTEXT("KismetSystemLibrary", "TopLevelAssetPath_PackageAndAssetStringsInvalid",
+				"Strings (\"{PackageName}\", \"{AssetName}\") are invalid for MakeTopLevelAssetPath."), Args));
+		}
+		return Result;
+	}
+}
+
+void UKismetSystemLibrary::BreakTopLevelAssetPath(const FTopLevelAssetPath& InTopLevelAssetPath, FString& PathString)
+{
+	InTopLevelAssetPath.ToString(PathString);
+}
+
 FSoftClassPath UKismetSystemLibrary::MakeSoftClassPath(const FString& PathString)
 {
 	FSoftClassPath SoftClassPath(PathString);

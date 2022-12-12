@@ -2095,7 +2095,7 @@ struct FTimespan
  * A struct that can reference a top level asset such as '/Path/To/Package.AssetName'
  * @note The full C++ class is located here: Engine\Source\Runtime\CoreUObject\Public\UObject\TopLevelAssetPath.h
  */
-USTRUCT(noexport, BlueprintType)
+USTRUCT(noexport, BlueprintType, meta = (HasNativeMake = "/Script/Engine.KismetSystemLibrary.MakeTopLevelAssetPath", HasNativeBreak = "/Script/Engine.KismetSystemLibrary.BreakTopLevelAssetPath"))
 struct FTopLevelAssetPath
 {
 private:
