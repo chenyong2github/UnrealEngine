@@ -127,8 +127,9 @@ void Main(
 
 		const float PixelStandardDevInPixel = StandardDeviationCmForThickness / PixelRadiusCm;
 
-		// Jitter UV according to MIP level to hide texel.
-		if(true)
+		// Jitter UV according to MIP level to hide texel
+		// => disabled because it is a bit unpleasant over bright area (TSR seems to have trouble resolving it)
+		if(false)
 		{
 			const float BlurRandomness = InterleavedGradientNoise(SVPos.xy, float(View.StateFrameIndexMod8)) - 0.5; // In [-0.5, 0.5]
 			const float RandAngle = BlurRandomness * 2.0f * PI;

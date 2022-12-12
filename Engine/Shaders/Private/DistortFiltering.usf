@@ -16,12 +16,17 @@ SamplerState SceneColorSampler;
 Texture2D SceneDepthTexture;
 SamplerState SceneDepthSampler;
 
+float MaxExposedLuminance;
+
 void CopySceneColorDepthTexturePS(FScreenVertexOutput Input, out float4 OutColor : SV_Target0, out float OutDepthMeter : SV_Target1)
 {
 	float2 SVPos = Input.UV * View.ViewSizeAndInvSize.xy + View.ViewRectMin.xy;
 
 	float2 TextureUV = SVPos * View.BufferSizeAndInvSize.zw;
 	float4 LinearColor = Texture2DSample(SceneColorTexture, SceneColorSampler, TextureUV);
+
+	// Clamping to a certain max luminance help to reduce bright specular highlight flickering, even with temporal AA stabilization.
+	LinearColor.rgb = min(LinearColor, MaxExposedLuminance.xxx);
 
 	float DeviceZ = Texture2DSample(SceneDepthTexture, SceneDepthSampler, TextureUV).r;
 #if HAS_INVERTED_Z_BUFFER

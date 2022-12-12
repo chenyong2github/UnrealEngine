@@ -49,6 +49,12 @@ static TAutoConsoleVariable<int32> CVarRefractionBlurTemporalAA(
 	TEXT("Enables temporal AA of the scene color buffer in order to avoid flickering in rough refractions."),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<float> CVarRefractionBlurMaxExposedLuminance(
+	TEXT("r.Refraction.Blur.MaxExposedLuminance"),
+	10.0f,
+	TEXT("Clamp scene pre-exposed luminance to this maximum value. It helps to reduce bright specular highlight flickering, even when r.Refraction.Blur.TemporalAA=1."),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
+
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FDistortionPassUniformParameters, RENDERER_API)
 	SHADER_PARAMETER_STRUCT(FSceneTextureUniformParameters, SceneTextures)
 	SHADER_PARAMETER(FVector4f, DistortionParams)
@@ -260,6 +266,7 @@ public:
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorSampler)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SceneDepthSampler)
+		SHADER_PARAMETER(float, MaxExposedLuminance)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -291,6 +298,7 @@ static void AddCopySceneColorDepthPass(FRDGBuilder& GraphBuilder, const FViewInf
 	PassParameters->SceneDepthSampler = TStaticSamplerState<SF_Point>::GetRHI();
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorCopyTexture, ERenderTargetLoadAction::ENoAction);
 	PassParameters->RenderTargets[1] = FRenderTargetBinding(SceneDepthCopyTexture, ERenderTargetLoadAction::ENoAction);
+	PassParameters->MaxExposedLuminance = FMath::Max(0.0f, CVarRefractionBlurMaxExposedLuminance.GetValueOnRenderThread());
 
 	// The scene color is copied into from multi-view-rect layout into a single-rect layout.
 	FIntRect ViewRect;
