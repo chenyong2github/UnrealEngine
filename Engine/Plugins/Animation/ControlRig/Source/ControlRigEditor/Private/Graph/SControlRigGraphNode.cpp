@@ -294,7 +294,7 @@ FReply SControlRigGraphNode::OnAddPin()
 	{
 		if (UControlRigGraphNode* ControlRigGraphNode = Cast<UControlRigGraphNode>(GraphNode))
 		{
-			if (ModelNode->IsA<URigVMAggregateNode>())
+			if (ModelNode->IsA<URigVMAggregateNode>() || ModelNode->IsAggregate())
 			{
 				ControlRigGraphNode->HandleAddAggregateElement(ModelNode->GetNodePath());
 			}
