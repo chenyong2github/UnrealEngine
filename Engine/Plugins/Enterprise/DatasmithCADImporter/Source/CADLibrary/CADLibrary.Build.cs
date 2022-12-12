@@ -24,8 +24,5 @@ public class CADLibrary : ModuleRules
 				"StaticMeshDescription"
 			}
 		);
-
-		// Support for Windows only
-		bool bIsPlateformSupported = Target.Platform == UnrealTargetPlatform.Win64;
 	}
 }
