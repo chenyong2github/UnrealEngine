@@ -2,6 +2,7 @@
 
 using UnrealBuildTool;
 using System.IO;
+using System;
 
 public class UElibPNG : ModuleRules
 {
@@ -54,6 +55,11 @@ public class UElibPNG : ModuleRules
 		else if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			LibDir = Path.Combine(LibPNGPath, "Win64", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
+
+			if (Target.Architecture.IndexOf("arm", StringComparison.OrdinalIgnoreCase) >= 0)
+			{
+				LibDir = Path.Combine(LibDir, Target.WindowsPlatform.GetArchitectureSubpath());
+			}
 
 			string LibFileName = "libpng" + (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT ? "d" : "") + "_64.lib";
 			PublicAdditionalLibraries.Add(Path.Combine(LibDir, LibFileName));
