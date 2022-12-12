@@ -10,11 +10,20 @@
 #include "EditorSupportDelegates.h"
 
 
+FLevelObjectsObserver::~FLevelObjectsObserver()
+{
+	ensure(!OnActorDeletedHandle.IsValid());
+	ensure(!OnActorAddedHandle.IsValid());
+	ensure(!OnActorListChangedHandle.IsValid());
+}
+
+
 void FLevelObjectsObserver::Initialize(UWorld* WorldIn)
 {
 	this->World = WorldIn;
 
 	GEditor->RegisterForUndo(this);
+
 	OnActorDeletedHandle = GEngine->OnLevelActorDeleted().AddLambda([this](AActor* Actor) { HandleActorDeletedEvent(Actor); });
 	OnActorAddedHandle = GEngine->OnLevelActorAdded().AddLambda([this](AActor* Actor) { HandleActorAddedEvent(Actor); });
 	OnActorListChangedHandle = GEngine->OnLevelActorListChanged().AddLambda([this]() { OnUntrackedLevelChange(); });
@@ -29,17 +38,28 @@ void FLevelObjectsObserver::Shutdown()
 	{
 		OnActorRemoved.Broadcast(Actor);
 	}
+	Actors.Reset();
 
 	this->World = nullptr;
-	Actors.Reset();
 
 	OnActorAdded.Clear();
 	OnActorRemoved.Clear();
 
-	GEditor->UnregisterForUndo(this);
-	GEngine->OnLevelActorDeleted().Remove(OnActorDeletedHandle);
-	GEngine->OnLevelActorAdded().Remove(OnActorAddedHandle);
-	GEngine->OnLevelActorListChanged().Remove(OnActorListChangedHandle);
+	if (GEditor != nullptr)
+	{
+		GEditor->UnregisterForUndo(this);
+	}
+
+	if (GEngine != nullptr)
+	{
+		GEngine->OnLevelActorDeleted().Remove(OnActorDeletedHandle);
+		GEngine->OnLevelActorAdded().Remove(OnActorAddedHandle);
+		GEngine->OnLevelActorListChanged().Remove(OnActorListChangedHandle);
+	}
+
+	OnActorDeletedHandle.Reset();
+	OnActorAddedHandle.Reset();
+	OnActorListChangedHandle.Reset();
 }
 
 
@@ -50,7 +70,7 @@ void FLevelObjectsObserver::PostUndo(bool bSuccess)
 }
 void FLevelObjectsObserver::PostRedo(bool bSuccess) 
 { 
-	PostUndo(bSuccess); 
+	PostUndo(bSuccess);
 }
 
 

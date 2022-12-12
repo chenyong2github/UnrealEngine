@@ -27,6 +27,11 @@ class MODELINGCOMPONENTSEDITORONLY_API FLevelObjectsObserver : public FEditorUnd
 {
 public:
 	/**
+	 * Destructor.
+	 */
+	virtual ~FLevelObjectsObserver();
+
+	/**
 	 * Begin watching WorldIn. This will emit OnActorAdded for all Actors in the World.
 	 */
 	void Initialize(UWorld* WorldIn);
@@ -39,7 +44,6 @@ public:
 	// FEditorUndoClient implementation
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override;
-
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FActorAddRemoveSignature, AActor*);
 
