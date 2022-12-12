@@ -10,7 +10,7 @@
 template<uint32 NumRuns, typename TestT>
 void Benchmark(const TCHAR* TestName, TestT&& TestBody)
 {
-	UE_LOG(LogTemp, Display, TEXT("\n-------------------------------\n%s"), TestName);
+	UE_LOG(LogTemp, Log, TEXT("\n-------------------------------\n%s"), TestName);
 	double MinTime = TNumericLimits<double>::Max();
 	double TotalTime = 0;
 	for (uint32 RunNo = 0; RunNo != NumRuns; ++RunNo)
@@ -19,7 +19,7 @@ void Benchmark(const TCHAR* TestName, TestT&& TestBody)
 		TestBody();
 		Time = FPlatformTime::Seconds() - Time;
 
-		UE_LOG(LogTemp, Display, TEXT("#%d: %f secs"), RunNo, Time);
+		UE_LOG(LogTemp, Log, TEXT("#%d: %f secs"), RunNo, Time);
 
 		TotalTime += Time;
 		if (MinTime > Time)
@@ -27,7 +27,7 @@ void Benchmark(const TCHAR* TestName, TestT&& TestBody)
 			MinTime = Time;
 		}
 	}
-	UE_LOG(LogTemp, Display, TEXT("min: %f secs, avg: %f secs\n-------------------------------\n"), MinTime, TotalTime / NumRuns);
+	UE_LOG(LogTemp, Log, TEXT("min: %f secs, avg: %f secs\n-------------------------------\n"), MinTime, TotalTime / NumRuns);
 
 #if NO_LOGGING
 	printf("%s\nmin: %f secs, avg: %f secs\n-------------------------------\n\n", TCHAR_TO_ANSI(TestName), MinTime, TotalTime / NumRuns);
