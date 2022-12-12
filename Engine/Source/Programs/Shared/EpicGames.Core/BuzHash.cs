@@ -137,6 +137,26 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Static method for appending a range of data to a hash value
+		/// </summary>
+		/// <param name="state">The current hash value</param>
+		/// <param name="data">Data to append to the hash</param>
+		/// <param name="count">Size of the window</param>
+		/// <returns>New hash value</returns>
+		public static unsafe uint Sub(uint state, ReadOnlySpan<byte> data, int count)
+		{
+			fixed (uint* table = s_table)
+			fixed (byte* dataPtr = data)
+			{
+				for (int idx = 0; idx < data.Length; idx++)
+				{
+					state = state ^ Rol32(s_table[dataPtr[idx]], --count);
+				}
+			}
+			return state;
+		}
+
+		/// <summary>
 		/// Update the hash with the given data
 		/// </summary>
 		/// <param name="data"></param>
@@ -196,6 +216,16 @@ namespace EpicGames.Core
 		{
 			n &= 31;
 			return ((v) << (n)) | ((v) >> (32 - n));
+		}
+
+		/// <summary>
+		/// Gets the threshold below which hash values should statistically occur on average after the given number of entries
+		/// </summary>
+		/// <param name="targetSize"></param>
+		/// <returns></returns>
+		public static uint GetThreshold(int targetSize)
+		{
+			return (uint)((1L << 32) / targetSize);
 		}
 	}
 }
