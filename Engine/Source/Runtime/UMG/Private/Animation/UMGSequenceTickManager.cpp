@@ -55,7 +55,10 @@ UUMGSequenceTickManager::UUMGSequenceTickManager(const FObjectInitializer& Init)
 void UUMGSequenceTickManager::AddWidget(UUserWidget* InWidget)
 {
 	TWeakObjectPtr<UUserWidget> WeakWidget = InWidget;
-	WeakUserWidgetData.Add(WeakWidget, FSequenceTickManagerWidgetData());
+	if (!WeakUserWidgetData.Contains(WeakWidget))
+	{
+		WeakUserWidgetData.Add(WeakWidget, FSequenceTickManagerWidgetData());
+	}
 }
 
 void UUMGSequenceTickManager::RemoveWidget(UUserWidget* InWidget)
@@ -70,6 +73,10 @@ void UUMGSequenceTickManager::OnWidgetTicked(UUserWidget* InWidget)
 	if (FSequenceTickManagerWidgetData* WidgetData = WeakUserWidgetData.Find(InWidget))
 	{
 		WidgetData->bIsTicking = true;
+	}
+	else
+	{
+		WeakUserWidgetData.Add(InWidget, FSequenceTickManagerWidgetData());
 	}
 }
 
@@ -148,21 +155,18 @@ void UUMGSequenceTickManager::TickWidgetAnimations(float DeltaSeconds)
 			}
 			else if (!WidgetData.bIsTicking)
 			{
-				// If this widget has not told us it is ticking, and its last known state was
-				// ticking, we disable animations for that widget. Once it ticks again, the animation
-				// will be updated naturally, and doesn't need anything re-enabling.
+				// If this widget has not told us it is ticking, we disable animations for that widget.
+				// Once it ticks again, the animation will be updated naturally, and doesn't need anything re-enabling.
 				// 
 				// @todo: There is a chance that relative animations hitting this code path will resume with
 				// different relative bases due to the way the ecs data is destroyed and re-created.
 				// In order to fix this we would have to annex that data instead of destroying it.
 				if (!bIsCurrentlyEvaluating)
 				{
-					if (WidgetData.bLastKnownTickState)
-					{
-						UserWidget->DisableAnimations();
-					}
+					UserWidget->DisableAnimations();
+					UserWidget->AnimationTickManager = nullptr;
 
-					WidgetData.bLastKnownTickState = false;
+					WidgetIter.RemoveCurrent();
 				}
 			}
 			else
@@ -182,7 +186,6 @@ void UUMGSequenceTickManager::TickWidgetAnimations(float DeltaSeconds)
 
 				// Assume this widget will no longer tick, until we're told otherwise by way of OnWidgetTicked
 				WidgetData.bIsTicking = false;
-				WidgetData.bLastKnownTickState = true;
 			}
 		}
 	}
@@ -212,6 +215,8 @@ void UUMGSequenceTickManager::TickWidgetAnimations(float DeltaSeconds)
 			}
 		}
 	}
+
+	WeakUserWidgetData.Shrink();
 }
 
 void UUMGSequenceTickManager::ForceFlush()

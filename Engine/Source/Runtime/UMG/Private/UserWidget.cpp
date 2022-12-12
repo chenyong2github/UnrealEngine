@@ -1465,6 +1465,13 @@ void UUserWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 #endif
 		if (bTickAnimations)
 		{
+			// If we have active animations but no tick manager this means we were offscreen
+			// but are now being actively ticked again so we need to resume animations
+			if (ActiveSequencePlayers.Num() != 0 && AnimationTickManager == nullptr)
+			{
+				AnimationTickManager = UUMGSequenceTickManager::Get(this);
+			}
+
 			if (AnimationTickManager)
 			{
 				AnimationTickManager->OnWidgetTicked(this);
