@@ -20,6 +20,14 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(UIFWidget)
 
 
+void UUIFrameworkWidget::ForceNetUpdate()
+{
+	if (AActor* OwnerActor = Cast<AActor>(GetOuter()))
+	{
+		OwnerActor->ForceNetUpdate();
+	}
+}
+
 /**
  *
  */
@@ -150,6 +158,7 @@ void UUIFrameworkWidget::SetVisibility(ESlateVisibility InVisibility)
 	{
 		Visibility = InVisibility;
 		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Visibility, this);
+		ForceNetUpdate();
 	}
 }
 
@@ -164,6 +173,7 @@ void UUIFrameworkWidget::SetEnabled(bool bInIsEnabled)
 	{
 		bIsEnabled = bInIsEnabled;
 		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, bIsEnabled, this);
+		ForceNetUpdate();
 	}
 }
 

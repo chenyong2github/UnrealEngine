@@ -123,6 +123,8 @@ protected:
 	{
 	}
 
+	void ForceNetUpdate();
+
 private:
 	UFUNCTION()
 	void OnRep_IsEnabled();

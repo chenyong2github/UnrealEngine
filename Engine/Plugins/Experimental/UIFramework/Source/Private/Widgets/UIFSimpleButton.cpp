@@ -44,6 +44,7 @@ void UUIFrameworkSimpleButton::SetText(FText InText)
 {
 	Text = InText;
 	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Text, this);
+	ForceNetUpdate();
 }
 
 

@@ -147,6 +147,7 @@ void UUIFrameworkStackBox::SetOrientation(EOrientation Value)
 			StackBox->SetOrientation(Orientation);
 		}
 		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Orientation, this);
+		ForceNetUpdate();
 	}
 }
 

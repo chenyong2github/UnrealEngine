@@ -57,6 +57,7 @@ void UUIFrameworkButton::SetContent(FUIFrameworkSimpleSlot InEntry)
 	}
 
 	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Slot, this);
+	ForceNetUpdate();
 }
 
 
@@ -76,6 +77,7 @@ void UUIFrameworkButton::AuthorityRemoveChild(UUIFrameworkWidget* Widget)
 
 	Slot.AuthoritySetWidget(nullptr);;
 	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Slot, this);
+	ForceNetUpdate();
 }
 
 void UUIFrameworkButton::LocalOnUMGWidgetCreated()

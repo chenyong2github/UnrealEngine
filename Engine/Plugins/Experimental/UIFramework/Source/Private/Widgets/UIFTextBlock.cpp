@@ -40,6 +40,7 @@ void UUIFrameworkTextBlock::SetText(FText InText)
 {
 	Text = InText;
 	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Text, this);
+	ForceNetUpdate();
 }
 
 void UUIFrameworkTextBlock::SetJustification(ETextJustify::Type InJustification)
@@ -48,6 +49,7 @@ void UUIFrameworkTextBlock::SetJustification(ETextJustify::Type InJustification)
 	{
 		Justification = InJustification;
 		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Justification, this);
+		ForceNetUpdate();
 	}
 }
 
