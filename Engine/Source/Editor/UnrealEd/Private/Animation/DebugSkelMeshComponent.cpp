@@ -515,6 +515,11 @@ FString UDebugSkelMeshComponent::GetPreviewText() const
 #undef LOCTEXT_NAMESPACE
 }
 
+TObjectPtr<UAnimPreviewInstance> UDebugSkelMeshComponent::CreatePreviewInstance()
+{
+	return NewObject<UAnimPreviewInstance>(this);
+}
+
 void UDebugSkelMeshComponent::InitAnim(bool bForceReinit)
 {
 	if (PreviewInstance != nullptr && AnimScriptInstance == PreviewInstance && bForceReinit)
@@ -529,7 +534,7 @@ void UDebugSkelMeshComponent::InitAnim(bool bForceReinit)
 	// if PreviewInstance is nullptr, create here once
 	if (PreviewInstance == nullptr)
 	{
-		PreviewInstance = NewObject<UAnimPreviewInstance>(this);
+		PreviewInstance = CreatePreviewInstance();
 		check(PreviewInstance);
 
 		//Set transactional flag in order to restore slider position when undo operation is performed

@@ -379,6 +379,9 @@ class UNREALED_API UDebugSkelMeshComponent : public USkeletalMeshComponent
 	// we can disable per asset, so that if some other window disabled before me, I don't accidently turn it off
 	virtual void EnablePreview(bool bEnable, class UAnimationAsset * PreviewAsset);
 
+	// Create the preview instance to use (default UAnimPreviewInstance)
+	virtual TObjectPtr<UAnimPreviewInstance> CreatePreviewInstance();
+
 	// reference pose for this component
 	// we don't want to use default refpose because you still want to move joint when this mode is on
 	virtual void ShowReferencePose(bool bRefPose);

@@ -48,6 +48,9 @@ class UPhysicsAssetEditorSkeletalMeshComponent : public UDebugSkelMeshComponent
 	/** Mesh-space matrices showing state of just animation (ie before physics) - useful for debugging! */
 	TArray<FTransform> AnimationSpaceBases;
 
+	/** UDebugSkelMeshComponent interface */
+	virtual TObjectPtr<UAnimPreviewInstance> CreatePreviewInstance() override;
+
 	/** UPrimitiveComponent interface */
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual void AddImpulseAtLocation(FVector Impulse, FVector Location, FName BoneName = NAME_None) override;
