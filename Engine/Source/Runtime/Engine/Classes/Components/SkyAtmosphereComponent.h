@@ -68,7 +68,10 @@ class USkyAtmosphereComponent : public USceneComponent
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Atmosphere", meta = (UIMin = 1.0, UIMax = 200.0, ClampMin = 0.1, SliderExponent = 2.0))
 	float AtmosphereHeight;
 
-	/** Render multi scattering as if sun light would bounce around in the atmosphere. This is achieved using a dual scattering approach. */
+	/** Factor applied to multiple scattering only (after the sun light has bounced around in the atmosphere at least once). 
+	 * Multiple scattering is evaluated using a dual scattering approach. 
+	 * A value of 2 is recommended to better represent default atmosphere when r.SkyAtmosphere.MultiScatteringLUT.HighQuality=0. 
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Atmosphere", meta = (DisplayName = "MultiScattering", UIMin = 0.0, UIMax = 1.0, ClampMin = 0.0, ClampMax = 2.0))
 	float MultiScatteringFactor;
 
