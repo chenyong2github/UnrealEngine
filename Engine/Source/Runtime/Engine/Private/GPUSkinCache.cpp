@@ -2064,7 +2064,7 @@ void FGPUSkinCache::CVarSinkFunction()
 
 	if (GEnableGPUSkinCacheShaders)
 	{
-		if (GIsRHIInitialized && IsGPUSkinCacheRayTracingSupported())
+		if (GIsRHIInitialized && IsGPUSkinCacheRayTracingSupported() && IsRayTracingEnabled())
 		{
 			// Skin cache is *required* for ray tracing.
 			NewGPUSkinCacheValue = 1;
