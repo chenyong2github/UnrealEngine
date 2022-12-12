@@ -62,6 +62,9 @@
 #include "SFilterList.h"
 #include "SPrimaryButton.h"
 
+#include "ISourceControlModule.h"
+#include "RevisionControlStyle/RevisionControlStyle.h"
+
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 #define MAX_THUMBNAIL_SIZE 4096
 
@@ -1673,6 +1676,12 @@ TSharedRef<SAssetTileView> SAssetView::CreateTileView()
 
 TSharedRef<SAssetListView> SAssetView::CreateListView()
 {
+	TSharedRef<SLayeredImage> RevisionControlColumnIcon = SNew(SLayeredImage)
+			.ColorAndOpacity(FSlateColor::UseForeground())
+			.Image(FRevisionControlStyleManager::Get().GetBrush("RevisionControl.Icon"));
+
+	RevisionControlColumnIcon->AddLayer(TAttribute<const FSlateBrush*>::CreateSP(this, &SAssetView::GetRevisionControlColumnIconBadge));
+
 	return SNew(SAssetListView)
 		.SelectionMode( SelectionMode )
 		.ListItemsSource(&FilteredAssetItems)
@@ -1681,11 +1690,42 @@ TSharedRef<SAssetListView> SAssetView::CreateListView()
 		.OnContextMenuOpening(this, &SAssetView::OnGetContextMenuContent)
 		.OnMouseButtonDoubleClick(this, &SAssetView::OnListMouseButtonDoubleClick)
 		.OnSelectionChanged(this, &SAssetView::AssetSelectionChanged)
-		.ItemHeight(this, &SAssetView::GetListViewItemHeight);
+		.ItemHeight(this, &SAssetView::GetListViewItemHeight)
+		.HeaderRow
+		(
+			SNew(SHeaderRow)
+			.ResizeMode(ESplitterResizeMode::FixedSize)
+
+			// Revision Control column, currently doesn't support sorting
+			+ SHeaderRow::Column(SortManager.RevisionControlColumnId)
+			.FixedWidth(30.f)
+			.HAlignHeader(HAlign_Center)
+			.VAlignHeader(VAlign_Center)
+			.HAlignCell(HAlign_Center)
+			.VAlignCell(VAlign_Center)
+			.DefaultLabel( LOCTEXT("Column_RC", "Revision Control") )
+			[
+				RevisionControlColumnIcon
+			]
+			
+			+ SHeaderRow::Column(SortManager.NameColumnId)
+			.FillWidth(300)
+			.SortMode( TAttribute< EColumnSortMode::Type >::Create( TAttribute< EColumnSortMode::Type >::FGetter::CreateSP( this, &SAssetView::GetColumnSortMode, SortManager.NameColumnId ) ) )
+			.SortPriority(TAttribute< EColumnSortPriority::Type >::Create(TAttribute< EColumnSortPriority::Type >::FGetter::CreateSP(this, &SAssetView::GetColumnSortPriority, SortManager.NameColumnId)))
+			.OnSort( FOnSortModeChanged::CreateSP( this, &SAssetView::OnSortColumnHeader ) )
+			.DefaultLabel( LOCTEXT("Column_Name", "Name") )
+			.ShouldGenerateWidget(true) // Can't hide name column, so at least one column is visible
+		);
 }
 
 TSharedRef<SAssetColumnView> SAssetView::CreateColumnView()
 {
+	TSharedRef<SLayeredImage> RevisionControlColumnIcon = SNew(SLayeredImage)
+				.ColorAndOpacity(FSlateColor::UseForeground())
+				.Image(FRevisionControlStyleManager::Get().GetBrush("RevisionControl.Icon"));
+
+	RevisionControlColumnIcon->AddLayer(TAttribute<const FSlateBrush*>::CreateSP(this, &SAssetView::GetRevisionControlColumnIconBadge));
+	
 	TSharedPtr<SAssetColumnView> NewColumnView = SNew(SAssetColumnView)
 		.SelectionMode( SelectionMode )
 		.ListItemsSource(&FilteredAssetItems)
@@ -1701,6 +1741,19 @@ TSharedRef<SAssetColumnView> SAssetView::CreateColumnView()
 			.ResizeMode(ESplitterResizeMode::FixedSize)
 			.CanSelectGeneratedColumn(true)
 			.OnHiddenColumnsListChanged(this, &SAssetView::OnHiddenColumnsChanged)
+
+			// Revision Control column, currently doesn't support sorting
+			+ SHeaderRow::Column(SortManager.RevisionControlColumnId)
+			.FixedWidth(24.f)
+			.HAlignHeader(HAlign_Center)
+			.VAlignHeader(VAlign_Center)
+			.HAlignCell(HAlign_Center)
+			.VAlignCell(VAlign_Center)
+			.DefaultLabel( LOCTEXT("Column_RC", "Revision Control") )
+			[
+				RevisionControlColumnIcon
+			]
+			
 			+ SHeaderRow::Column(SortManager.NameColumnId)
 			.FillWidth(300)
 			.SortMode( TAttribute< EColumnSortMode::Type >::Create( TAttribute< EColumnSortMode::Type >::FGetter::CreateSP( this, &SAssetView::GetColumnSortMode, SortManager.NameColumnId ) ) )
@@ -1709,6 +1762,11 @@ TSharedRef<SAssetColumnView> SAssetView::CreateColumnView()
 			.DefaultLabel( LOCTEXT("Column_Name", "Name") )
 			.ShouldGenerateWidget(true) // Can't hide name column, so at least one column is visible
 		);
+
+	{
+		const bool bIsColumnVisible = !HiddenColumnNames.Contains(SortManager.RevisionControlColumnId.ToString());
+        NewColumnView->GetHeaderRow()->SetShowGeneratedColumn(SortManager.RevisionControlColumnId, bIsColumnVisible);
+	}
 
 	NewColumnView->GetHeaderRow()->SetOnGetMaxRowSizeForColumn(FOnGetMaxRowSizeForColumn::CreateRaw(NewColumnView.Get(), &SAssetColumnView::GetMaxRowSizeForColumn));
 
@@ -1723,7 +1781,7 @@ TSharedRef<SAssetColumnView> SAssetView::CreateColumnView()
 				.DefaultLabel(LOCTEXT("Column_Class", "Type"))
 			);
 
-		bool bIsColumnVisible = !HiddenColumnNames.Contains(SortManager.ClassColumnId.ToString());
+		const bool bIsColumnVisible = !HiddenColumnNames.Contains(SortManager.ClassColumnId.ToString());
 		
 		NewColumnView->GetHeaderRow()->SetShowGeneratedColumn(SortManager.ClassColumnId, bIsColumnVisible);
 	}
@@ -1739,13 +1797,26 @@ TSharedRef<SAssetColumnView> SAssetView::CreateColumnView()
 				.DefaultLabel(LOCTEXT("Column_Path", "Path"))
 			);
 
-		bool bIsColumnVisible = !HiddenColumnNames.Contains(SortManager.PathColumnId.ToString());
+		const bool bIsColumnVisible = !HiddenColumnNames.Contains(SortManager.PathColumnId.ToString());
 		
 		NewColumnView->GetHeaderRow()->SetShowGeneratedColumn(SortManager.PathColumnId, bIsColumnVisible);
 	}
 
 	return NewColumnView.ToSharedRef();
 }
+
+const FSlateBrush* SAssetView::GetRevisionControlColumnIconBadge() const
+{
+	if (ISourceControlModule::Get().IsEnabled())
+	{
+		return FRevisionControlStyleManager::Get().GetBrush("RevisionControl.Icon.ConnectedBadge");
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
 
 bool SAssetView::IsValidSearchToken(const FString& Token) const
 {
@@ -2062,9 +2133,10 @@ void SAssetView::SetMajorityAssetType(FName NewMajorityAssetType)
 	auto IsFixedColumn = [this](FName InColumnId)
 	{
 		const bool bIsFixedNameColumn = InColumnId == SortManager.NameColumnId;
+		const bool bIsFixedRevisionControlColumn = InColumnId == SortManager.RevisionControlColumnId;
 		const bool bIsFixedClassColumn = bShowTypeInColumnView && InColumnId == SortManager.ClassColumnId;
 		const bool bIsFixedPathColumn = bShowPathInColumnView && InColumnId == SortManager.PathColumnId;
-		return bIsFixedNameColumn || bIsFixedClassColumn || bIsFixedPathColumn;
+		return bIsFixedNameColumn || bIsFixedRevisionControlColumn || bIsFixedClassColumn || bIsFixedPathColumn;
 	};
 
 
@@ -2134,7 +2206,7 @@ void SAssetView::SetMajorityAssetType(FName NewMajorityAssetType)
 				.DefaultTooltip(Column.TooltipText)
 				.FillWidth(180));
 
-			bool bIsColumnVisible = !HiddenColumnNames.Contains(TagName.ToString());
+			const bool bIsColumnVisible = !HiddenColumnNames.Contains(TagName.ToString());
 		
 			ColumnView->GetHeaderRow()->SetShowGeneratedColumn(TagName, bIsColumnVisible);
 
@@ -2211,7 +2283,7 @@ void SAssetView::SetMajorityAssetType(FName NewMajorityAssetType)
 							.DefaultTooltip(TagPair.Value.GetMetaData().TooltipText)
 							.FillWidth(180));
 
-						bool bIsColumnVisible = !HiddenColumnNames.Contains(TagPair.Key.ToString());
+						const bool bIsColumnVisible = !HiddenColumnNames.Contains(TagPair.Key.ToString());
 		
 						ColumnView->GetHeaderRow()->SetShowGeneratedColumn(TagPair.Key, bIsColumnVisible);
 						
@@ -3221,27 +3293,21 @@ TSharedRef<ITableRow> SAssetView::MakeListViewWidget(TSharedPtr<FAssetViewItem> 
 
 	if (AssetItem->IsFolder())
 	{
-		TSharedPtr< STableRow<TSharedPtr<FAssetViewItem>> > TableRowWidget;
-		SAssignNew( TableRowWidget, STableRow<TSharedPtr<FAssetViewItem>>, OwnerTable )
-			.Style(FAppStyle::Get(), "ContentBrowser.AssetListView.ColumnListTableRow")
+		return
+			SNew( SAssetListViewRow, OwnerTable )
+			.OnDragDetected( this, &SAssetView::OnDraggingAssetItem )
 			.Cursor( bAllowDragging ? EMouseCursor::GrabHand : EMouseCursor::Default )
-			.OnDragDetected( this, &SAssetView::OnDraggingAssetItem );
-
-		TSharedRef<SAssetListItem> Item =
-			SNew(SAssetListItem)
-			.AssetItem(AssetItem)
-			.ItemHeight(this, &SAssetView::GetListViewItemHeight)
-			.OnRenameBegin(this, &SAssetView::AssetRenameBegin)
-			.OnRenameCommit(this, &SAssetView::AssetRenameCommit)
-			.OnVerifyRenameCommit(this, &SAssetView::AssetVerifyRenameCommit)
-			.OnItemDestroyed(this, &SAssetView::AssetItemWidgetDestroyed)
-			.ShouldAllowToolTip(this, &SAssetView::ShouldAllowToolTips)
-			.HighlightText(HighlightedText)
-			.IsSelected( FIsSelected::CreateSP(TableRowWidget.Get(), &STableRow<TSharedPtr<FAssetViewItem>>::IsSelectedExclusively) );
-
-		TableRowWidget->SetContent(Item);
-
-		return TableRowWidget.ToSharedRef();
+			.AssetListItem(
+				SNew(SAssetListItem)
+					.AssetItem(AssetItem)
+					.ItemHeight(this, &SAssetView::GetListViewItemHeight)
+					.OnRenameBegin(this, &SAssetView::AssetRenameBegin)
+					.OnRenameCommit(this, &SAssetView::AssetRenameCommit)
+					.OnVerifyRenameCommit(this, &SAssetView::AssetVerifyRenameCommit)
+					.OnItemDestroyed(this, &SAssetView::AssetItemWidgetDestroyed)
+					.ShouldAllowToolTip(this, &SAssetView::ShouldAllowToolTips)
+					.HighlightText(HighlightedText)
+			);
 	}
 	else
 	{
@@ -3253,38 +3319,32 @@ TSharedRef<ITableRow> SAssetView::MakeListViewWidget(TSharedPtr<FAssetViewItem> 
 			AssetItem->GetItem().UpdateThumbnail(*AssetThumbnail);
 			AssetThumbnail->GetViewportRenderTargetTexture(); // Access the texture once to trigger it to render
 		}
-
-		TSharedPtr< STableRow<TSharedPtr<FAssetViewItem>> > TableRowWidget;
-		SAssignNew( TableRowWidget, STableRow<TSharedPtr<FAssetViewItem>>, OwnerTable )
-		.Style(FAppStyle::Get(), "ContentBrowser.AssetListView.ColumnListTableRow")
-		.Cursor( bAllowDragging ? EMouseCursor::GrabHand : EMouseCursor::Default )
-		.OnDragDetected( this, &SAssetView::OnDraggingAssetItem );
-
-		TSharedRef<SAssetListItem> Item =
-			SNew(SAssetListItem)
-			.AssetThumbnail(AssetThumbnail)
-			.AssetItem(AssetItem)
-			.ThumbnailPadding(ListViewThumbnailPadding)
-			.ItemHeight(this, &SAssetView::GetListViewItemHeight)
-			.OnRenameBegin(this, &SAssetView::AssetRenameBegin)
-			.OnRenameCommit(this, &SAssetView::AssetRenameCommit)
-			.OnVerifyRenameCommit(this, &SAssetView::AssetVerifyRenameCommit)
-			.OnItemDestroyed(this, &SAssetView::AssetItemWidgetDestroyed)
-			.ShouldAllowToolTip(this, &SAssetView::ShouldAllowToolTips)
-			.HighlightText(HighlightedText)
-			.ThumbnailEditMode(this, &SAssetView::IsThumbnailEditMode)
-			.ThumbnailLabel( ThumbnailLabel )
-			.ThumbnailHintColorAndOpacity( this, &SAssetView::GetThumbnailHintColorAndOpacity )
-			.AllowThumbnailHintLabel( AllowThumbnailHintLabel )
-			.IsSelected( FIsSelected::CreateSP(TableRowWidget.Get(), &STableRow<TSharedPtr<FAssetViewItem>>::IsSelectedExclusively) )
-			.OnIsAssetValidForCustomToolTip(OnIsAssetValidForCustomToolTip)
-			.OnGetCustomAssetToolTip(OnGetCustomAssetToolTip)
-			.OnVisualizeAssetToolTip(OnVisualizeAssetToolTip)
-			.OnAssetToolTipClosing(OnAssetToolTipClosing);
-
-		TableRowWidget->SetContent(Item);
-
-		return TableRowWidget.ToSharedRef();
+		
+		return
+			SNew( SAssetListViewRow, OwnerTable )
+			.OnDragDetected( this, &SAssetView::OnDraggingAssetItem )
+			.Cursor( bAllowDragging ? EMouseCursor::GrabHand : EMouseCursor::Default )
+			.AssetListItem(
+				SNew(SAssetListItem)
+					.AssetThumbnail(AssetThumbnail)
+					.AssetItem(AssetItem)
+					.ThumbnailPadding(ListViewThumbnailPadding)
+					.ItemHeight(this, &SAssetView::GetListViewItemHeight)
+					.OnRenameBegin(this, &SAssetView::AssetRenameBegin)
+					.OnRenameCommit(this, &SAssetView::AssetRenameCommit)
+					.OnVerifyRenameCommit(this, &SAssetView::AssetVerifyRenameCommit)
+					.OnItemDestroyed(this, &SAssetView::AssetItemWidgetDestroyed)
+					.ShouldAllowToolTip(this, &SAssetView::ShouldAllowToolTips)
+					.HighlightText(HighlightedText)
+					.ThumbnailEditMode(this, &SAssetView::IsThumbnailEditMode)
+					.ThumbnailLabel( ThumbnailLabel )
+					.ThumbnailHintColorAndOpacity( this, &SAssetView::GetThumbnailHintColorAndOpacity )
+					.AllowThumbnailHintLabel( AllowThumbnailHintLabel )
+					.OnIsAssetValidForCustomToolTip(OnIsAssetValidForCustomToolTip)
+					.OnGetCustomAssetToolTip(OnGetCustomAssetToolTip)
+					.OnVisualizeAssetToolTip(OnVisualizeAssetToolTip)
+					.OnAssetToolTipClosing(OnAssetToolTipClosing)
+			);
 	}
 }
 
@@ -4312,7 +4372,7 @@ void SAssetView::OnHiddenColumnsChanged()
 	// So instead for each column that currently exists, we update its visibility state in the HiddenColumnNames array
 	for (const SHeaderRow::FColumn& Column : ColumnView->GetHeaderRow()->GetColumns())
 	{
-		bool bIsColumnVisible = NewHiddenColumns.Contains(Column.ColumnId);
+		const bool bIsColumnVisible = NewHiddenColumns.Contains(Column.ColumnId);
 
 		if(bIsColumnVisible)
 		{

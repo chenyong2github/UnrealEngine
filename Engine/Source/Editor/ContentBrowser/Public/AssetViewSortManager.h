@@ -55,6 +55,9 @@ public:
 	static const FName ClassColumnId;
 	static const FName PathColumnId;
 
+	// The revision control column. NOTE: This column currently doesn't support sorting, but is wired through the Sort Manager so the feature can be added in the future
+	static const FName RevisionControlColumnId;
+
 private:
 	/** The name of the column that is currently used for sorting. */
 	FName SortColumnId[EColumnSortPriority::Max];

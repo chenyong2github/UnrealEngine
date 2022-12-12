@@ -243,26 +243,10 @@ TSharedRef<SWidget> FAssetViewItemHelper::CreateListTileItemContents(T* const In
 	}
 	else
 	{
-
-
 		// The actual thumbnail
 		ItemContentsOverlay->AddSlot()
 		[
 			InThumbnail
-		];
-
-		// Source control state
-		ItemContentsOverlay->AddSlot()
-		.HAlign(HAlign_Right)
-		.VAlign(VAlign_Top)
-		.Padding(FMargin(0.0f, 3.0f, 3.0f, 0.0f))
-		[
-			SNew(SBox)
-			.WidthOverride(InTileOrListItem, &T::GetStateIconImageSize)
-			.HeightOverride(InTileOrListItem, &T::GetStateIconImageSize)
-			[
-				InTileOrListItem->GenerateSourceControlIconWidget()
-			]
 		];
 
 		// Extra external state hook
@@ -299,8 +283,6 @@ TSharedRef<SWidget> FAssetViewItemHelper::CreateListTileItemContents(T* const In
 			.SmallView(!InTileOrListItem->CanDisplayPrimitiveTools())
 			.Visibility(InTileOrListItem, &T::GetThumbnailEditModeUIVisibility)
 		];
-
-		InTileOrListItem->HandleSourceControlStateChanged();
 	}
 	
 	return ItemContentsOverlay;
@@ -1581,10 +1563,11 @@ void SAssetListItem::Construct( const FArguments& InArgs )
 
 	AssetThumbnail = InArgs._AssetThumbnail;
 	ItemHeight = InArgs._ItemHeight;
+	IsSelectedExclusively = InArgs._IsSelectedExclusively;
+	HighlightText = InArgs._HighlightText;
 
-	const float ThumbnailPadding = InArgs._ThumbnailPadding;
+	ThumbnailPadding = InArgs._ThumbnailPadding;
 
-	TSharedPtr<SWidget> Thumbnail;
 	if ( AssetItem.IsValid() && AssetThumbnail.IsValid() )
 	{
 		FAssetThumbnailConfig ThumbnailConfig;
@@ -1610,79 +1593,11 @@ void SAssetListItem::Construct( const FArguments& InArgs )
 			}
 		}
 
-		Thumbnail = AssetThumbnail->MakeThumbnailWidget(ThumbnailConfig);
+		ThumbnailWidget = AssetThumbnail->MakeThumbnailWidget(ThumbnailConfig);
 	}
 	else
 	{
-		Thumbnail = SNew(SImage) .Image( FAppStyle::GetDefaultBrush() );
-	}
-
-	FName ItemShadowBorderName;
-	TSharedRef<SWidget> ItemContents = FAssetViewItemHelper::CreateListItemContents(this, Thumbnail.ToSharedRef(), ItemShadowBorderName);
-
-	ChildSlot
-	[
-		SNew(SBorder)
-		.BorderImage(this, &SAssetViewItem::GetBorderImage)
-		.Padding(0)
-		.AddMetaData<FTagMetaData>(FTagMetaData(AssetItem->GetItem().GetVirtualPath()))
-		[
-			SNew(SHorizontalBox)
-
-			// Viewport
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			[
-				SNew( SBox )
-				.Padding(ThumbnailPadding - 4.f)
-				.WidthOverride( this, &SAssetListItem::GetThumbnailBoxSize )
-				.HeightOverride( this, &SAssetListItem::GetThumbnailBoxSize )
-				[
-					ItemContents
-				]
-			]
-
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(6, 0, 0, 0)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SVerticalBox)
-
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(0, 1)
-				[
-					SAssignNew(InlineRenameWidget, SInlineEditableTextBlock)
-					.Font(FAppStyle::GetFontStyle("ContentBrowser.AssetTileViewNameFont"))
-					.Text( GetNameText() )
-					.OnBeginTextEdit(this, &SAssetListItem::HandleBeginNameChange)
-					.OnTextCommitted(this, &SAssetListItem::HandleNameCommitted)
-					.OnVerifyTextChanged(this, &SAssetListItem::HandleVerifyNameChanged)
-					.HighlightText(InArgs._HighlightText)
-					.IsSelected(InArgs._IsSelectedExclusively)
-					.IsReadOnly(this, &SAssetListItem::IsNameReadOnly)
-				]
-
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(0, 1)
-				[
-					// Class
-					SAssignNew(ClassTextWidget, STextBlock)
-					.Font(FAppStyle::GetFontStyle("ContentBrowser.AssetListViewClassFont"))
-					.Text(GetAssetClassText())
-					.HighlightText(InArgs._HighlightText)
-				]
-			]
-		]
-	];
-
-	if(AssetItem.IsValid())
-	{
-		AssetItem->OnRenameRequested().BindSP(InlineRenameWidget.Get(), &SInlineEditableTextBlock::EnterEditingMode);
-		AssetItem->OnRenameCanceled().BindSP(InlineRenameWidget.Get(), &SInlineEditableTextBlock::ExitEditingMode);
+		ThumbnailWidget = SNew(SImage) .Image( FAppStyle::GetDefaultBrush() );
 	}
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
@@ -1729,6 +1644,110 @@ void SAssetListItem::OnMouseLeave(const FPointerEvent& MouseEvent)
 		AssetThumbnail->SetRealTime(false);
 	}
 }
+
+FSlateColor SAssetListItem::GetColumnTextColor(FIsSelected InIsSelected) const
+{
+	const bool bIsSelected = InIsSelected.IsBound() ? InIsSelected.Execute() : false;
+	const bool bIsHoveredOrDraggedOver = IsHovered() || bDraggedOver;
+	if (bIsSelected || bIsHoveredOrDraggedOver)
+	{
+		return FStyleColors::White;
+	}
+
+	return FSlateColor::UseForeground();
+}
+
+TSharedRef<SWidget> SAssetListItem::GenerateWidgetForColumn( const FName& ColumnName, FIsSelected InIsSelected )
+{
+	TSharedPtr<SWidget> Content;
+
+	if ( ColumnName == "Name" )
+	{
+		FName ItemShadowBorderName;
+		TSharedRef<SWidget> ItemContents = FAssetViewItemHelper::CreateListItemContents(this, ThumbnailWidget.ToSharedRef(), ItemShadowBorderName);
+
+		Content = SNew(SBorder)
+		.BorderImage(this, &SAssetViewItem::GetBorderImage)
+		.Padding(0)
+		.AddMetaData<FTagMetaData>(FTagMetaData(AssetItem->GetItem().GetVirtualPath()))
+		[
+			SNew(SHorizontalBox)
+
+			// Viewport
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew( SBox )
+				.Padding(ThumbnailPadding - 4.f)
+				.WidthOverride( this, &SAssetListItem::GetThumbnailBoxSize )
+				.HeightOverride( this, &SAssetListItem::GetThumbnailBoxSize )
+				[
+					ItemContents
+				]
+			]
+
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(6, 0, 0, 0)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SVerticalBox)
+
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0, 1)
+				[
+					SAssignNew(InlineRenameWidget, SInlineEditableTextBlock)
+					.Font(FAppStyle::GetFontStyle("ContentBrowser.AssetTileViewNameFont"))
+					.Text( GetNameText() )
+					.OnBeginTextEdit(this, &SAssetListItem::HandleBeginNameChange)
+					.OnTextCommitted(this, &SAssetListItem::HandleNameCommitted)
+					.OnVerifyTextChanged(this, &SAssetListItem::HandleVerifyNameChanged)
+					.HighlightText(HighlightText)
+					.IsSelected(IsSelectedExclusively)
+					.IsReadOnly(this, &SAssetListItem::IsNameReadOnly)
+					.ColorAndOpacity(this, &SAssetListItem::GetColumnTextColor, InIsSelected)
+				]
+
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0, 1)
+				[
+					// Class
+					SAssignNew(ClassTextWidget, STextBlock)
+					.Font(FAppStyle::GetFontStyle("ContentBrowser.AssetListViewClassFont"))
+					.Text(GetAssetClassText())
+					.HighlightText(HighlightText)
+					.ColorAndOpacity(this, &SAssetListItem::GetColumnTextColor, InIsSelected)
+				]
+			]
+		];
+
+		if(AssetItem.IsValid())
+		{
+			AssetItem->OnRenameRequested().BindSP(InlineRenameWidget.Get(), &SInlineEditableTextBlock::EnterEditingMode);
+			AssetItem->OnRenameCanceled().BindSP(InlineRenameWidget.Get(), &SInlineEditableTextBlock::ExitEditingMode);
+		}
+
+	}
+	else if ( ColumnName == "RevisionControl")
+	{
+		Content = SNew(SBox)
+			.WidthOverride(16.0f)
+			.HeightOverride(16.0f)
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Center)
+			[
+				GenerateSourceControlIconWidget()
+			];
+	}
+	
+	HandleSourceControlStateChanged();
+
+	return Content.ToSharedRef();
+}
+
 
 float SAssetListItem::GetExtraStateIconWidth() const
 {
@@ -1891,11 +1910,28 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 							.AutoHeight()
 							.Padding(2.0f,0.0f, 0.0f, 2.0f)
 							[
-								SAssignNew(ClassTextWidget, STextBlock)
-								.TextStyle(FAppStyle::Get(), "ContentBrowser.ClassFont")
-								.OverflowPolicy(ETextOverflowPolicy::Ellipsis)
-								.Text(this, &SAssetTileItem::GetAssetClassText)
-								.ColorAndOpacity(this, &SAssetTileItem::GetAssetClassLabelTextColor)
+								SNew(SHorizontalBox)
+								+SHorizontalBox::Slot()
+								.AutoWidth()
+								[
+									SAssignNew(ClassTextWidget, STextBlock)
+									.TextStyle(FAppStyle::Get(), "ContentBrowser.ClassFont")
+									.OverflowPolicy(ETextOverflowPolicy::Ellipsis)
+									.Text(this, &SAssetTileItem::GetAssetClassText)
+									.ColorAndOpacity(this, &SAssetTileItem::GetAssetClassLabelTextColor)
+								]
+
+								+SHorizontalBox::Slot()
+								.Padding(FMargin(3.0f, 0.0f, 0.0f, 1.0f))
+								.HAlign(HAlign_Right)
+								[
+									SNew(SBox)
+									.WidthOverride(16.0f)
+									.HeightOverride(16.0f)
+									[
+										GenerateSourceControlIconWidget()
+									]
+								]
 							]
 							
 						]
@@ -1910,6 +1946,8 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 			]
 		]
 	];
+
+	HandleSourceControlStateChanged();
 
 	if(AssetItem.IsValid())
 	{
@@ -2248,6 +2286,18 @@ void SAssetColumnItem::Construct( const FArguments& InArgs )
 	HighlightText = InArgs._HighlightText;
 }
 
+FSlateColor SAssetColumnItem::GetColumnTextColor(FIsSelected InIsSelected) const
+{
+	const bool bIsSelected = InIsSelected.IsBound() ? InIsSelected.Execute() : false;
+	const bool bIsHoveredOrDraggedOver = IsHovered() || bDraggedOver;
+	if (bIsSelected || bIsHoveredOrDraggedOver)
+	{
+		return FStyleColors::White;
+	}
+
+	return FSlateColor::UseForeground();
+}
+
 TSharedRef<SWidget> SAssetColumnItem::GenerateWidgetForColumn( const FName& ColumnName, FIsSelected InIsSelected )
 {
 	TSharedPtr<SWidget> Content;
@@ -2294,20 +2344,6 @@ TSharedRef<SWidget> SAssetColumnItem::GenerateWidgetForColumn( const FName& Colu
 					.ColorAndOpacity(this, &SAssetColumnItem::GetAssetColor)
 				]
 
-				// Source control state
-				+SOverlay::Slot()
-				.HAlign(HAlign_Right)
-				.VAlign(VAlign_Top)
-				[
-					SNew(SBox)
-					.WidthOverride(IconOverlaySize)
-					.HeightOverride(IconOverlaySize)
-					[
-						SAssignNew(SCCStateWidget, SLayeredImage)
-						.Image(FStyleDefaults::GetNoBrush())
-					]
-				]
-
 				// Extra external state hook
 				+ SOverlay::Slot()
 				.HAlign(HAlign_Left)
@@ -2348,6 +2384,7 @@ TSharedRef<SWidget> SAssetColumnItem::GenerateWidgetForColumn( const FName& Colu
 				.HighlightText(HighlightText)
 				.IsSelected(InIsSelected)
 				.IsReadOnly(this, &SAssetColumnItem::IsNameReadOnly)
+				.ColorAndOpacity(this, &SAssetColumnItem::GetColumnTextColor, InIsSelected)
 			];
 
 		if(AssetItem.IsValid())
@@ -2382,6 +2419,15 @@ TSharedRef<SWidget> SAssetColumnItem::GenerateWidgetForColumn( const FName& Colu
 			.ToolTipText( this, &SAssetColumnItem::GetAssetPathText )
 			.Text( GetAssetPathText() )
 			.HighlightText( HighlightText );
+	}
+	else if ( ColumnName == "RevisionControl" )
+	{
+		Content = SNew(SBox)
+			.WidthOverride(16.0f)
+			.HeightOverride(16.0f)
+			[
+				GenerateSourceControlIconWidget()
+			];
 	}
 	else
 	{

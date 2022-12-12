@@ -452,6 +452,9 @@ public:
 	/** Whether the widget should allow primitive tools to be displayed */
 	bool CanDisplayPrimitiveTools() const { return false; }
 
+	/** Generates a widget for a particular column */
+	virtual TSharedRef<SWidget> GenerateWidgetForColumn( const FName& ColumnName, FIsSelected InIsSelected );
+
 private:
 	/** Get the expected width of an extra state icon. */
 	float GetExtraStateIconWidth() const;
@@ -465,12 +468,121 @@ private:
 	/** Returns the size of the thumbnail widget */
 	FOptionalSize GetThumbnailBoxSize() const;
 
+	/** Get the text color for the columns */
+	FSlateColor GetColumnTextColor(FIsSelected InIsSelected) const;
 private:
 	/** The handle to the thumbnail that this item is rendering */
 	TSharedPtr<FAssetThumbnail> AssetThumbnail;
 
 	/** The height allowed for this item */
 	TAttribute<float> ItemHeight;
+
+	/** The padding for the thumbnail */
+	float ThumbnailPadding;
+
+	/** The actual widget for the thumbnail */
+	TSharedPtr<SWidget> ThumbnailWidget;
+
+	/** The string in the title to highlight (used when searching by string) */
+	TAttribute<FText> HighlightText;
+
+	/** Whether the item is selected in the view without anything else being selected*/
+	FIsSelected IsSelectedExclusively;
+};
+
+class SAssetListViewRow : public SMultiColumnTableRow< TSharedPtr<FAssetViewItem> >
+{
+public:
+	SLATE_BEGIN_ARGS( SAssetListViewRow )
+		{}
+
+		SLATE_EVENT( FOnDragDetected, OnDragDetected )
+		SLATE_ARGUMENT( TSharedPtr<SAssetListItem>, AssetListItem )
+
+	SLATE_END_ARGS()
+
+	/** Constructs this widget with InArgs */
+	void Construct( const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView )
+	{
+		this->AssetListItem = InArgs._AssetListItem;
+		ensure(this->AssetListItem.IsValid());
+
+		SMultiColumnTableRow< TSharedPtr<FAssetViewItem> >::Construct( 
+			FSuperRowType::FArguments()
+				.Style(FAppStyle::Get(), "ContentBrowser.AssetListView.ColumnListTableRow")
+				.OnDragDetected(InArgs._OnDragDetected), 
+			InOwnerTableView);
+		Content = this->AssetListItem;
+	}
+
+	virtual TSharedRef<SWidget> GenerateWidgetForColumn( const FName& ColumnName ) override
+	{
+		if ( this->AssetListItem.IsValid() )
+		{
+			return this->AssetListItem->GenerateWidgetForColumn(ColumnName, FIsSelected::CreateSP( this, &SAssetListViewRow::IsSelectedExclusively ));
+		}
+		else
+		{
+			return SNew(STextBlock) .Text( NSLOCTEXT("AssetView", "ListViewInvalidColumnId", "Invalid Column Item") );
+		}
+		
+	}
+
+	virtual FVector2D GetRowSizeForColumn(const FName& InColumnName) const override
+	{
+		const TSharedRef<SWidget>* ColumnWidget = GetWidgetFromColumnId(InColumnName);
+
+		if (ColumnWidget != nullptr)
+		{
+			return (*ColumnWidget)->GetDesiredSize();
+		}
+
+		return FVector2D::ZeroVector; 
+	}
+
+	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override
+	{
+		this->AssetListItem->Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+	}
+
+	virtual TSharedPtr<IToolTip> GetToolTip() override
+	{
+		return AssetListItem->GetToolTip();
+	}
+
+	virtual void OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override
+	{
+		AssetListItem->OnDragEnter(MyGeometry, DragDropEvent);
+	}
+
+	virtual void OnDragLeave(const FDragDropEvent& DragDropEvent) override
+	{
+		AssetListItem->OnDragLeave(DragDropEvent);
+	}
+
+	virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override
+	{
+		return AssetListItem->OnDragOver(MyGeometry, DragDropEvent);
+	}
+
+	virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override
+	{
+		return AssetListItem->OnDrop(MyGeometry, DragDropEvent, AsShared());
+	}
+
+	virtual bool OnVisualizeTooltip(const TSharedPtr<SWidget>& TooltipContent) override
+	{
+		// We take the content from the asset column item during construction,
+		// so let the item handle the tooltip callback
+		return AssetListItem->OnVisualizeTooltip(TooltipContent);
+	}
+
+	virtual void OnToolTipClosing() override
+	{
+		AssetListItem->OnToolTipClosing();
+	}
+
+	TSharedPtr<SAssetListItem> AssetListItem;
 };
 
 /** An item in the asset tile view */
@@ -702,6 +814,9 @@ private:
 
 	/** Gets the value for the specified tag in this asset */
 	FText GetAssetTagText(FName Tag) const;
+
+	/** Get the text color for the columns */
+	FSlateColor GetColumnTextColor(FIsSelected InIsSelected) const;
 
 private:
 	TAttribute<FText> HighlightText;

@@ -451,6 +451,8 @@ private:
 	/** Creates a new column view */
 	TSharedRef<class SAssetColumnView> CreateColumnView();
 
+	const FSlateBrush* GetRevisionControlColumnIconBadge() const;
+
 	/** Returns true if the specified search token is allowed */
 	bool IsValidSearchToken(const FString& Token) const;
 

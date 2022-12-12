@@ -331,6 +331,8 @@ protected:
 const FName FAssetViewSortManager::NameColumnId = "Name";
 const FName FAssetViewSortManager::ClassColumnId = "Class";
 const FName FAssetViewSortManager::PathColumnId = "Path";
+const FName FAssetViewSortManager::RevisionControlColumnId = "RevisionControl";
+
 
 FAssetViewSortManager::FAssetViewSortManager()
 {
