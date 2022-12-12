@@ -18,6 +18,10 @@
 		{
 			"Name": "TypedElementsDataStorage",
 			"Type": "Editor"
+		},
+		{
+			"Name": "TypedElementsDataStorageUI",
+			"Type": "Editor"
 		}
 	],
 	"Plugins": [
