@@ -177,7 +177,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		AttributeValidator.AddOptional(TEXT("auto_pad"), ENNEAttributeDataType::String);
 		AttributeValidator.AddOptional(TEXT("dilations"), ENNEAttributeDataType::Int32Array);
 		AttributeValidator.AddOptional(TEXT("group"), ENNEAttributeDataType::Int32);
-		//AttributeValidator.AddOptional(TEXT("kernel_shape"), ENNEAttributeDataType::Int32Array);
+		AttributeValidator.AddOptional(TEXT("kernel_shape"), ENNEAttributeDataType::Int32Array); // idea: cross check input weight shape with this attribute if present
 		AttributeValidator.AddOptional(TEXT("pads"), ENNEAttributeDataType::Int32Array);
 		AttributeValidator.AddOptional(TEXT("strides"), ENNEAttributeDataType::Int32Array);
 

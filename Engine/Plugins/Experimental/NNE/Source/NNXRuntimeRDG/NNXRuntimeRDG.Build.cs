@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
 using UnrealBuildTool;
 
 public class NNXRuntimeRDG : ModuleRules
@@ -7,7 +8,9 @@ public class NNXRuntimeRDG : ModuleRules
 	public NNXRuntimeRDG(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
-		
+
+		PrivateIncludePaths.AddRange(new string[] { Path.Combine(EngineDirectory, "Source/Runtime/Renderer/Private") });
+
 		PublicDependencyModuleNames.AddRange(new string[] 
 		{ 
 			"Core", 
