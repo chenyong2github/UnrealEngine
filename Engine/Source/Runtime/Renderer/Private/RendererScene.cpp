@@ -949,6 +949,7 @@ uint64 FPreviousViewInfo::GetGPUSizeBytes(bool bLogSizes) const
 		DOFSetupHistory.GetGPUSizeBytes(bLogSizes) +
 		SSRHistory.GetGPUSizeBytes(bLogSizes) +
 		WaterSSRHistory.GetGPUSizeBytes(bLogSizes) +
+		RoughRefractionHistory.GetGPUSizeBytes(bLogSizes) +
 		HairHistory.GetGPUSizeBytes(bLogSizes) +
 		EditorPrimtiveDepthHistory.GetGPUSizeBytes(bLogSizes) +
 		CustomSSRInput.GetGPUSizeBytes(bLogSizes) +

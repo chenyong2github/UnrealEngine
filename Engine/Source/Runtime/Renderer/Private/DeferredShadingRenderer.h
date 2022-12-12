@@ -804,6 +804,7 @@ private:
 	void RenderDistortion(FRDGBuilder& GraphBuilder, 
 		FRDGTextureRef SceneColorTexture, 
 		FRDGTextureRef SceneDepthTexture,
+		FRDGTextureRef SceneVelocityTexture,
 		FTranslucencyPassResourcesMap& TranslucencyResourceMap);
 
 	void CollectLightForTranslucencyLightingVolumeInjection(

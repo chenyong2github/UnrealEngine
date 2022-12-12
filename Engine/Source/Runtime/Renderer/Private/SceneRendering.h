@@ -1122,6 +1122,9 @@ struct FPreviousViewInfo
 	FTemporalAAHistory SSRHistory;
 	FTemporalAAHistory WaterSSRHistory;
 
+	// Temporal AA history for Rough refraction
+	FTemporalAAHistory RoughRefractionHistory;
+
 	// Temporal AA history for Hair
 	FTemporalAAHistory HairHistory;
 

@@ -15,6 +15,7 @@
 #include "MeshPassProcessor.inl"
 #include "Strata/Strata.h"
 #include "ScreenRendering.h"
+#include "PostProcess/TemporalAA.h"
 
 DECLARE_GPU_DRAWCALL_STAT(Distortion);
 
@@ -40,6 +41,12 @@ static TAutoConsoleVariable<float> CVarRefractionBlurMaxStandardDeviationInScree
 	TEXT("r.Refraction.Blur.MaxStandardDeviationInScreenRatio"),
 	5.0f,
 	TEXT("This will clamp the maximum refraction blur radius on screen."),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarRefractionBlurTemporalAA(
+	TEXT("r.Refraction.Blur.TemporalAA"),
+	1,
+	TEXT("Enables temporal AA of the scene color buffer in order to avoid flickering in rough refractions."),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FDistortionPassUniformParameters, RENDERER_API)
@@ -450,6 +457,7 @@ void FDeferredShadingSceneRenderer::RenderDistortion(
 	FRDGBuilder& GraphBuilder, 
 	FRDGTextureRef SceneColorTexture, 
 	FRDGTextureRef SceneDepthTexture,
+	FRDGTextureRef SceneVelocityTexture,
 	FTranslucencyPassResourcesMap& TranslucencyResourceMap)
 {
 	check(SceneDepthTexture);
@@ -517,11 +525,33 @@ void FDeferredShadingSceneRenderer::RenderDistortion(
 				TempSceneDepthMeterMipchainTexture = GraphBuilder.CreateTexture(SceneDepthMeterMipchainDesc, TEXT("TempSceneDepthMeterMipchain"));
 			}
 
+			// Apply temporal AA on the current scene buffer to avoid large flickering in rough refraction
+
+			FRDGTextureRef TAASceneColorTexture = SceneColorTexture;
+			if(View.ViewState && CVarRefractionBlurTemporalAA.GetValueOnRenderThread() > 0)
+			{
+				FTAAPassParameters TAASettings(View);
+				TAASettings.SceneDepthTexture = SceneDepthTexture;
+				TAASettings.SceneVelocityTexture = SceneVelocityTexture;
+				TAASettings.Pass = ETAAPassConfig::Main;		// Reusing main config for now. We could add a ReoughRefraction config forcing 111110 format.
+				TAASettings.SceneColorInput = TAASceneColorTexture;
+				TAASettings.bOutputRenderTargetable = true;
+
+				FTAAOutputs TAAOutputs = AddTemporalAAPass(
+					GraphBuilder,
+					View,
+					TAASettings,
+					View.PrevViewInfo.RoughRefractionHistory,
+					&View.ViewState->PrevFrameViewInfo.RoughRefractionHistory);
+
+				TAASceneColorTexture = TAAOutputs.SceneColor;
+			}
+
 			// Copy scene color into the first mip level
 
 			{
 				RDG_EVENT_SCOPE(GraphBuilder, "CopySceneColorDepth");
-				AddCopySceneColorDepthPass(GraphBuilder, View, SceneColorTexture, SceneDepthTexture, SceneColorMipchainTexture, SceneDepthMeterMipchainTexture);
+				AddCopySceneColorDepthPass(GraphBuilder, View, TAASceneColorTexture, SceneDepthTexture, SceneColorMipchainTexture, SceneDepthMeterMipchainTexture);
 			}
 
 			// Now render the mip chain
