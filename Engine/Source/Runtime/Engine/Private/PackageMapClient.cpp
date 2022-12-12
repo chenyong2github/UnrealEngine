@@ -1990,6 +1990,11 @@ void UPackageMapClient::AppendExportBunches(TArray<FOutBunch *>& OutgoingBunches
 	}
 }
 
+int32 UPackageMapClient::GetNumExportBunches() const
+{
+	return ExportBunches.Num();
+}
+
 void UPackageMapClient::SyncPackageMapExportAckStatus( const UPackageMapClient* Source )
 {
 	AckState = Source->AckState;

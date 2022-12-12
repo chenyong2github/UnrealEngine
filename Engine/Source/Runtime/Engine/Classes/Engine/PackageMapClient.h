@@ -406,6 +406,7 @@ public:
 
 	void ReceiveNetGUIDBunch( FInBunch &InBunch );
 	void AppendExportBunches(TArray<FOutBunch *>& OutgoingBunches);
+	int32 GetNumExportBunches() const;
 
 	void AppendExportData(FArchive& Archive);
 	void ReceiveExportData(FArchive& Archive);
