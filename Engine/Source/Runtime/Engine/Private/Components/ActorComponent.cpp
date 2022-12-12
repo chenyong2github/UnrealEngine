@@ -2441,7 +2441,7 @@ void UActorComponent::AddReferencedObjects(UObject* InThis, FReferenceCollector&
 		{
 			for (FSimpleMemberReference& MemberReference : *UCSModifiedProperties)
 			{
-				Collector.AddStableReference(&MemberReference.MemberParent);
+				Collector.AddReferencedObject(MemberReference.MemberParent);
 			}
 		}
 	}
