@@ -28,6 +28,8 @@ class UScriptStruct;
 
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("STAT_UObjectsStatGroupTester"), STAT_UObjectsStatGroupTester, STATGROUP_UObjects, COREUOBJECT_API);
 
+namespace UE::GC { class FTokenStreamBuilder; }
+
 /** 
  * Low level implementation of UObject, should not be used directly in game code 
  */
@@ -78,7 +80,7 @@ public:
 	/**
 	 * Emit GC tokens for UObjectBase, this might be UObject::StaticClass or Default__Class
 	 **/
-	static void EmitBaseReferences(UClass *RootClass);
+	static void EmitBaseReferences(UE::GC::FTokenStreamBuilder& TokenStream);
 
 protected:
 	/**
@@ -226,6 +228,9 @@ public:
 		}
 		while( FPlatformAtomics::InterlockedCompareExchange( (int32*)&ObjectFlags, NewFlags, OldFlags) != OldFlags );
 	}
+
+	static void PrefetchClass(UObject* Object) { FPlatformMisc::Prefetch(Object, offsetof(UObjectBase, ClassPrivate)); }
+	static void PrefetchOuter(UObject* Object) { FPlatformMisc::Prefetch(Object, offsetof(UObjectBase, OuterPrivate)); }
 
 private:
 

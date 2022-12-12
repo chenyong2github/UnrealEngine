@@ -396,7 +396,7 @@ bool AActor::CanBeInCluster() const
 void AActor::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
 	AActor* This = CastChecked<AActor>(InThis);
-	Collector.AddReferencedObjects(This->OwnedComponents);
+	Collector.AddStableReferenceSet(&This->OwnedComponents);
 #if WITH_EDITOR
 	if (This->CurrentTransactionAnnotation.IsValid())
 	{

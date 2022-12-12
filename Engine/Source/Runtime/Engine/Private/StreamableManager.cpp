@@ -1042,6 +1042,7 @@ struct FStreamable
 };
 
 FStreamableManager::FStreamableManager()
+	: FGCObject(EFlags::AddStableNativeReferencesOnly)
 {
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddRaw(this, &FStreamableManager::OnPreGarbageCollect);
 	bForceSynchronousLoads = false;
@@ -1109,22 +1110,14 @@ void FStreamableManager::OnPreGarbageCollect()
 void FStreamableManager::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	// If there are active streamable handles in the editor, this will cause the user to Force Delete, which is irritating but necessary because weak pointers cannot be used here
-	for (TStreamableMap::TConstIterator It(StreamableItems); It; ++It)
+	for (TPair<FSoftObjectPath, FStreamable*>& Pair : StreamableItems)
 	{
-		FStreamable* Existing = It.Value();
-		if (Existing->Target)
-		{
-			Collector.AddReferencedObject(Existing->Target);
-		}
+		Collector.AddStableReference(&Pair.Value->Target);
 	}
-
-	for (TStreamableRedirects::TIterator It(StreamableRedirects); It; ++It)
+	
+	for (TPair<FSoftObjectPath, FRedirectedPath>& Pair : StreamableRedirects)
 	{
-		FRedirectedPath& Existing = It.Value();
-		if (Existing.LoadedRedirector)
-		{
-			Collector.AddReferencedObject(Existing.LoadedRedirector);
-		}
+		Collector.AddStableReference(&Pair.Value.LoadedRedirector);
 	}
 }
 

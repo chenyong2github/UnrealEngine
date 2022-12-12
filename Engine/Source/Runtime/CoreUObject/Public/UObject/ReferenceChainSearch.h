@@ -341,7 +341,7 @@ private:
 	/** All nodes created during the search */
 	TMap<FGCObjectInfo*, FGraphNode*> AllNodes;
 	/** Maps UObject pointers to object info structs */
-	TMap<UObject*, FGCObjectInfo*> ObjectToInfoMap;
+	TMap<const UObject*, FGCObjectInfo*> ObjectToInfoMap;
 
 	/** Performs the search */
 	void PerformSearch();
@@ -356,7 +356,7 @@ private:
 	void Cleanup();
 
 	/** Tries to find a node for an object and if it doesn't exists creates a new one and returns it */
-	FGraphNode* FindOrAddNode(UObject* InObjectToFindNodeFor);
+	FGraphNode* FindOrAddNode(const UObject* InObjectToFindNodeFor);
 	FGraphNode* FindOrAddNode(FGCObjectInfo* InObjectInfo);
 
 	/** Link two nodes together with the given reference info */

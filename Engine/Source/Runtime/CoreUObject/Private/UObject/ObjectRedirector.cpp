@@ -102,6 +102,7 @@ bool UObjectRedirector::GetNativePropertyValues( TMap<FString,FString>& out_Prop
 
 IMPLEMENT_CORE_INTRINSIC_CLASS(UObjectRedirector, UObject,
 	{
-		Class->EmitObjectReference(STRUCT_OFFSET(UObjectRedirector, DestinationObject), TEXT("DestinationObject"));
+		UE::GC::FTokenStreamBuilder& Builder = UE::GC::FIntrinsicClassTokens::AllocateBuilder(Class);
+		Builder.EmitObjectReference(STRUCT_OFFSET(UObjectRedirector, DestinationObject), TEXT("DestinationObject"));
 	}
 );

@@ -586,7 +586,6 @@ enum class EInternalObjectFlags : int32
 
 	LoaderImport = 1 << 20, ///< Object is ready to be imported by another package during loading
 	Garbage = 1 << 21, ///< Garbage from logical point of view and should not be referenced. This flag is mirrored in EObjectFlags as RF_Garbage for performance
-	PersistentGarbage = 1 << 22, ///< Same as above but referenced through a persistent reference so it can't be GC'd
 	ReachableInCluster = 1 << 23, ///< External reference to object in cluster exists
 	ClusterRoot = 1 << 24, ///< Root of a cluster
 	Native = 1 << 25, ///< Native (UClass only). 
@@ -602,7 +601,7 @@ enum class EInternalObjectFlags : int32
 	MirroredFlags = Garbage | PendingKill, /// Flags mirrored in EObjectFlags
 
 	//~ Make sure this is up to date!
-	AllFlags = LoaderImport | Garbage | PersistentGarbage | ReachableInCluster | ClusterRoot | Native | Async | AsyncLoading | Unreachable | PendingKill | RootSet | PendingConstruction
+	AllFlags = LoaderImport | Garbage | ReachableInCluster | ClusterRoot | Native | Async | AsyncLoading | Unreachable | PendingKill | RootSet | PendingConstruction
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 };
 ENUM_CLASS_FLAGS(EInternalObjectFlags);

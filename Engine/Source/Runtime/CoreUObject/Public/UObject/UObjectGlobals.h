@@ -2098,33 +2098,24 @@ private:
 };
 
 /** Base class for reference serialization archives */
-class COREUOBJECT_API FReferenceCollectorArchive : public FArchiveUObject
+class FReferenceCollectorArchive : public FArchiveUObject
 {
 	/** Object which is performing the serialization. */
-	const UObject* SerializingObject;
+	const UObject* SerializingObject = nullptr;
 	/** Object that owns the serialized data. */
-	const UObject* SerializedDataContainer;
-	/** Pointer to serialized data (read-only). */
-	const void* SerializedDataPtr;
+	const UObject* SerializedDataContainer  = nullptr;
 	/** Stored pointer to reference collector. */
 	class FReferenceCollector& Collector;
 
 protected:
-
-	class FReferenceCollector& GetCollector()
+	FORCEINLINE class FReferenceCollector& GetCollector()
 	{
 		return Collector;
 	}
 
 public:
+	FReferenceCollectorArchive(const UObject* InSerializingObject, FReferenceCollector& InCollector);
 
-	FReferenceCollectorArchive(const UObject* InSerializingObject, FReferenceCollector& InCollector)
-		: SerializingObject(InSerializingObject)
-		, SerializedDataContainer(nullptr)
-		, SerializedDataPtr(nullptr)
-		, Collector(InCollector)
-	{
-	}
 	void SetSerializingObject(const UObject* InSerializingObject)
 	{
 		SerializingObject = InSerializingObject;
@@ -2141,14 +2132,9 @@ public:
 	{
 		return SerializedDataContainer;
 	}
-	void SetSerializedDataPtr(const void* InSerializedDataPtr)
-	{
-		SerializedDataPtr = InSerializedDataPtr;
-	}
-	const void* GetSerializedDataPtr() const
-	{
-		return SerializedDataPtr;
-	}
+
+	COREUOBJECT_API virtual FArchive& operator<<(UObject*& Object) override;
+	COREUOBJECT_API virtual FArchive& operator<<(FObjectPtr& Object) override;
 };
 
 /** Helper class for setting and resetting attributes on the FReferenceCollectorArchive */
@@ -2158,27 +2144,23 @@ class COREUOBJECT_API FVerySlowReferenceCollectorArchiveScope
 	const UObject* OldSerializingObject;
 	FProperty* OldSerializedProperty;
 	const UObject* OldSerializedDataContainer;
-	const void* OldSerializedDataPtr;
 
 public:
-	FVerySlowReferenceCollectorArchiveScope(FReferenceCollectorArchive& InArchive, const UObject* InSerializingObject, FProperty* InSerializedProperty = nullptr, const UObject* InSerializedDataContainer = nullptr, const void* InSerializedDataPtr = nullptr)
+	FVerySlowReferenceCollectorArchiveScope(FReferenceCollectorArchive& InArchive, const UObject* InSerializingObject, FProperty* InSerializedProperty = nullptr, const UObject* InSerializedDataContainer = nullptr)
 		: Archive(InArchive)
 		, OldSerializingObject(InArchive.GetSerializingObject())
 		, OldSerializedProperty(InArchive.GetSerializedProperty())
 		, OldSerializedDataContainer(InArchive.GetSerializedDataContainer())
-		, OldSerializedDataPtr(InArchive.GetSerializedDataPtr())
 	{
 		Archive.SetSerializingObject(InSerializingObject);
 		Archive.SetSerializedProperty(InSerializedProperty);
 		Archive.SetSerializedDataContainer(InSerializedDataContainer);
-		Archive.SetSerializedDataPtr(InSerializedDataPtr);
 	}
 	~FVerySlowReferenceCollectorArchiveScope()
 	{
 		Archive.SetSerializingObject(OldSerializingObject);
 		Archive.SetSerializedProperty(OldSerializedProperty);
 		Archive.SetSerializedDataContainer(OldSerializedDataContainer);
-		Archive.SetSerializedDataPtr(OldSerializedDataPtr);
 	}
 	FReferenceCollectorArchive& GetArchive()
 	{
@@ -2186,16 +2168,82 @@ public:
 	}
 };
 
-/**
- * FReferenceCollector.
- * Helper class used by the garbage collector to collect object references.
- */
+/** Used by garbage collector to collect references via virtual AddReferencedObjects calls */
 class COREUOBJECT_API FReferenceCollector
 {
 public:
+	virtual ~FReferenceCollector() {}
 
-	FReferenceCollector();
-	virtual ~FReferenceCollector();
+	/** Preferred way to add a reference that allows batching. Object must outlive GC tracing, can't be used for temporary/stack references. */
+	virtual void AddStableReference(UObject** Object);
+	
+	/** Preferred way to add a reference array that allows batching. Can't be used for temporary/stack array. */
+	virtual void AddStableReferenceArray(TArray<UObject*>* Objects);
+
+	/** Preferred way to add a reference set that allows batching. Can't be used for temporary/stack set. */
+	virtual void AddStableReferenceSet(TSet<UObject*>* Objects);
+
+	template<class UObjectType>
+	FORCEINLINE void AddStableReference(UObjectType** Object)
+	{
+		static_assert(sizeof(UObjectType) > 0, "Element must be a pointer to a fully-defined type");
+		static_assert(std::is_convertible_v<UObjectType*, const UObjectBase*>, "Element must be a pointer to a type derived from UObject");
+		AddStableReference(reinterpret_cast<UObject**>(Object));
+	}
+
+	template<class UObjectType>
+	FORCEINLINE void AddStableReferenceArray(TArray<UObjectType*>* Objects)
+	{
+		static_assert(sizeof(UObjectType) > 0, "Element must be a pointer to a fully-defined type");
+		static_assert(std::is_convertible_v<UObjectType*, const UObjectBase*>, "Element must be a pointer to a type derived from UObject");
+		AddStableReferenceArray(reinterpret_cast<TArray<UObject*>*>(Objects)); 
+	}
+
+	template<class UObjectType>
+	FORCEINLINE void AddStableReferenceSet(TSet<UObjectType*>* Objects)
+	{
+		static_assert(sizeof(UObjectType) > 0, "Element must be a pointer to a fully-defined type");
+		static_assert(std::is_convertible_v<UObjectType*, const UObjectBase*>, "Element must be a pointer to a type derived from UObject");
+		AddStableReferenceSet(reinterpret_cast<TSet<UObject*>*>(Objects)); 
+	}
+
+	template<class UObjectType>
+	FORCEINLINE void AddStableReference(TObjectPtr<UObjectType>* Object)
+	{
+		AddStableReference(reinterpret_cast<UObjectType**>(Object));
+	}
+
+	template<class UObjectType>
+	FORCEINLINE void AddStableReferenceArray(TArray<TObjectPtr<UObjectType>>* Objects)
+	{
+		AddStableReferenceArray(reinterpret_cast<TArray<UObjectType*>*>(Objects)); 
+	}
+
+	template<class UObjectType>
+	FORCEINLINE void AddStableReferenceSet(TSet<TObjectPtr<UObjectType>>* Objects)
+	{
+		AddStableReferenceSet(reinterpret_cast<TSet<UObjectType*>*>(Objects)); 
+	}
+
+	template <typename KeyType, typename ValueType, typename Allocator, typename KeyFuncs>
+	FORCEINLINE_DEBUGGABLE void AddStableReferenceMap(TMapBase<KeyType, ValueType, Allocator, KeyFuncs>& Map)
+	{
+		static constexpr bool bKeyReference =	std::is_convertible_v<KeyType, const UObjectBase*>;
+		static constexpr bool bValueReference =	std::is_convertible_v<ValueType, const UObjectBase*>;
+		static_assert(bKeyReference || bValueReference, "Key or value must be pointer to fully-defined UObject type");
+
+		for (TPair<KeyType, ValueType>& Pair : Map)
+		{
+			if constexpr (bKeyReference)
+			{
+				AddStableReference(&Pair.Key);
+			}
+			if constexpr (bValueReference)
+			{
+				AddStableReference(&Pair.Value);
+			}
+		}
+	}
 
 	/**
 	 * Adds object reference.
@@ -2317,18 +2365,6 @@ public:
 			HandleObjectReference(*(UObject**)&It.Value, ReferencingObject, ReferencingProperty);
 		}
 	}
-
-
-
-	/**
-	 * Adds any applicable references from a UScriptStruct. Only necessary to handle cases of an unreflected/non-UPROPERTY struct that wants to have references emitted.
-	 *
-	 * @param ScriptStruct Script struct to add referenced objects from
-	 * @param StructMemory Memory of struct instance
-	 * @param ReferencingObject Referencing object (if available).
-	 * @param ReferencingProperty Referencing property (if available).
-	 */
-	void AddReferencedObjects(const class UScriptStruct*& ScriptStruct, void* StructMemory, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr);
 
 	/**
 	 * Adds object reference.
@@ -2473,6 +2509,36 @@ public:
 	}
 
 	/**
+	 * Adds all strong property references from a UScriptStruct instance including the struct itself
+	 * 
+	 * Only necessary to handle cases of an unreflected/non-UPROPERTY struct that wants to have references emitted.
+	 *
+	 * Calls AddStructReferencedObjects() but not recursively on nested structs. 
+	 * 
+	 * This and other AddPropertyReferences functions will hopefully merge into a single function in the future.
+	 * They're kept separate initially to maintain exact semantics while replacing the much slower
+	 * SerializeBin/TPropertyValueIterator/GetVerySlowReferenceCollectorArchive paths.
+	 */
+	void AddReferencedObjects(const UScriptStruct*& ScriptStruct, void* Instance, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr);
+
+	/** Adds all strong property references from a struct instance, but not the struct itself. Skips AddStructReferencedObjects. */
+	void AddPropertyReferences(const UStruct* Struct, void* Instance, const UObject* ReferencingObject = nullptr);
+	
+	/** Same as AddPropertyReferences but also calls AddStructReferencedObjects on Struct and all nested structs */
+	void AddPropertyReferencesWithStructARO(const UScriptStruct* Struct, void* Instance, const UObject* ReferencingObject = nullptr);
+
+	/** Internal use only. Same as AddPropertyReferences but skips field path and interface properties. Might get removed. */
+	void AddPropertyReferencesLimitedToObjectProperties(const UStruct* Struct, void* Instance, const UObject* ReferencingObject = nullptr);
+
+	/**
+	 * Make Add[OnlyObject]PropertyReference/AddReferencedObjects(UScriptStruct) use AddReferencedObjects(UObject*&) callbacks
+	 * with ReferencingObject and ReferencingProperty context supplied and check for null references before making a callback.
+	 * 
+	 * Return false to use context free AddStableReference callbacks without null checks that avoid sync cache misses when batch processing references.
+	 */
+	virtual bool NeedsPropertyReferencer() const { return true; }
+
+	/**
 	 * If true archetype references should not be added to this collector.
 	 */
 	virtual bool IsIgnoringArchetypeRef() const = 0;
@@ -2484,6 +2550,8 @@ public:
 	 * Allows reference elimination by this collector.
 	 */
 	virtual void AllowEliminatingReferences(bool bAllow) {}
+
+
 	/**
 	 * Sets the property that is currently being serialized
 	 */
@@ -2506,9 +2574,13 @@ public:
 	 */
 	virtual bool IsProcessingNativeReferences() const { return true; }
 
+	/** Used by parallel reachability analysis to pre-collect and then exclude some initial FGCObject references */
+	virtual bool NeedsInitialReferences() const { return true; }
+
 	/**
-	* Returns the collector archive associated with this collector.
-	* NOTE THAT COLLECTING REFERENCES THROUGH SERIALIZATION IS VERY SLOW.
+	* Get archive to collect references via SerializeBin / Serialize.
+	*
+	* NOTE: Prefer using AddPropertyReferences or AddReferencedObjects(const UScriptStruct&) instead, they're much faster.
 	*/
 	FReferenceCollectorArchive& GetVerySlowReferenceCollectorArchive()
 	{
@@ -2517,19 +2589,6 @@ public:
 			CreateVerySlowReferenceCollectorArchive();
 		}
 		return *DefaultReferenceCollectorArchive;
-	}
-
-	/**
-	* INTERNAL USE ONLY: returns the persistent frame collector archive associated with this collector.
-	* NOTE THAT COLLECTING REFERENCES THROUGH SERIALIZATION IS VERY SLOW.
-	*/
-	FReferenceCollectorArchive& GetInternalPersistentFrameReferenceCollectorArchive()
-	{
-		if (!PersistentFrameReferenceCollectorArchive)
-		{
-			CreatePersistentFrameReferenceCollectorArchive();
-		}
-		return *PersistentFrameReferenceCollectorArchive;
 	}
 
 protected:
@@ -2570,16 +2629,11 @@ protected:
 	virtual void HandleObjectReferences(FObjectPtr* InObjects, const int32 ObjectNum, const UObject* InReferencingObject, const FProperty* InReferencingProperty);
 
 private:
-
-	/** Creates the roxy archive that uses serialization to add objects to this collector */
+	/** Creates the proxy archive that uses serialization to add objects to this collector */
 	void CreateVerySlowReferenceCollectorArchive();
-	/** Creates persistent frame proxy archive that uses serialization to add objects to this collector */
-	void CreatePersistentFrameReferenceCollectorArchive();
 
 	/** Default proxy archive that uses serialization to add objects to this collector */
-	FReferenceCollectorArchive* DefaultReferenceCollectorArchive;
-	/** Persistent frame proxy archive that uses serialization to add objects to this collector */
-	FReferenceCollectorArchive* PersistentFrameReferenceCollectorArchive;
+	TUniquePtr<FReferenceCollectorArchive> DefaultReferenceCollectorArchive;
 };
 
 /**

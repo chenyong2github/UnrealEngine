@@ -35,7 +35,7 @@ FReferenceChainSearch::FGraphNode* FReferenceChainSearch::FindOrAddNode(FGCObjec
 	return ObjectNode;
 }
 
-FReferenceChainSearch::FGraphNode* FReferenceChainSearch::FindOrAddNode(UObject* InObjectToFindNodeFor)
+FReferenceChainSearch::FGraphNode* FReferenceChainSearch::FindOrAddNode(const UObject* InObjectToFindNodeFor)
 {
 	return FindOrAddNode(FGCObjectInfo::FindOrAddInfoHelper(InObjectToFindNodeFor, ObjectToInfoMap));
 }
@@ -587,11 +587,11 @@ class FDirectReferenceProcessor : public FSimpleReferenceProcessorBase
 {	
 protected:
 	TSet<FReferenceChainSearch::FObjectReferenceInfo> ReferencedObjects;
-	TMap<UObject*, FGCObjectInfo*>& ObjectToInfoMap;
+	TMap<const UObject*, FGCObjectInfo*>& ObjectToInfoMap;
 
 public:
 
-	FDirectReferenceProcessor(TMap<UObject*, FGCObjectInfo*>& InObjectToInfoMap)
+	FDirectReferenceProcessor(TMap<const UObject*, FGCObjectInfo*>& InObjectToInfoMap)
 	: ObjectToInfoMap(InObjectToInfoMap)
 	{
 	}
@@ -606,7 +606,7 @@ public:
 		return ReferencedObjects;
 	}
 
-	void HandleTokenStreamObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, UObject* ReferencingObject, UObject*& Object, const int32 TokenIndex, const EGCTokenType TokenType, bool bAllowReferenceElimination)
+	void HandleTokenStreamObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, UObject* ReferencingObject, UObject*& Object, UE::GC::FTokenId TokenIndex, EGCTokenType TokenType, bool bAllowReferenceElimination)
 	{		
 		if (Object && Object != ReferencingObject) // Skip self-references just in case 
 		{
@@ -615,9 +615,9 @@ public:
 			FReferenceChainSearch::FObjectReferenceInfo RefInfo(ObjectInfo);
 			if (!ReferencedObjects.Contains(RefInfo))
 			{
-				if (TokenIndex >= 0)
+				if (TokenIndex != UE::GC::ETokenlessId::Collector)
 				{
-					FTokenInfo TokenInfo = ReferencingObject->GetClass()->ReferenceTokenStream.GetTokenInfo(TokenIndex);
+					FTokenInfo TokenInfo = ReferencingObject->GetClass()->ReferenceTokens.GetTokenInfo(TokenIndex);
 					RefInfo.ReferencerName = TokenInfo.Name;
 					RefInfo.Type = FReferenceChainSearch::EReferenceType::Property;
 				}
@@ -667,7 +667,7 @@ class FMinimalReferenceProcessor : public FDirectReferenceProcessor
 public:
 	FMinimalReferenceProcessor(
 		TSet<UObject*>& InTargetObjects,
-		TMap<UObject*, FGCObjectInfo*>& InObjectToInfoMap
+		TMap<const UObject*, FGCObjectInfo*>& InObjectToInfoMap
 	)
 	: FDirectReferenceProcessor(InObjectToInfoMap)
 	, TargetObjects(InTargetObjects)
@@ -679,14 +679,7 @@ public:
 		bSearchInners = InValue;
 	}
 
-	void HandleTokenStreamObjectReference(
-		FGCArrayStruct& ObjectsToSerializeStruct,
-		UObject* ReferencingObject,
-		UObject*& Object,
-		const int32 TokenIndex,
-		const EGCTokenType TokenType,
-		bool bAllowReferenceElimination
-	)
+	void HandleTokenStreamObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, UObject* ReferencingObject, UObject*& Object, UE::GC::FTokenId TokenIndex, EGCTokenType TokenType, bool bAllowReferenceElimination)
 	{		
 		if (Object && Object != ReferencingObject) // Skip self-references just in case 
 		{
@@ -720,14 +713,11 @@ public:
 	}
 };
 
-template<typename ProcessorType>
-class TReferenceSearchReferenceCollector : public TDefaultReferenceCollector<ProcessorType>
+using FDirectReferenceCollectorBase = UE::GC::TDefaultCollector<FDirectReferenceProcessor>;
+class FDirectReferenceCollector : public FDirectReferenceCollectorBase
 {
 public:
-	TReferenceSearchReferenceCollector (ProcessorType& InProcessor, FGCArrayStruct& InObjectArrayStruct)
-		: TDefaultReferenceCollector<ProcessorType>(InProcessor, InObjectArrayStruct)
-	{
-	}
+	using FDirectReferenceCollectorBase::FDirectReferenceCollectorBase;
 
 	virtual bool MarkWeakObjectReferenceForClearing(UObject** WeakReference) override
 	{
@@ -808,7 +798,7 @@ void FReferenceChainSearch::PerformSearch()
 {
 	TArray<FGraphNode*> GraphNodesToFind;
 	GraphNodesToFind.Reserve(ObjectsToFindReferencesTo.Num());
-	for (UObject* Obj : ObjectsToFindReferencesTo)
+	for (const UObject* Obj : ObjectsToFindReferencesTo)
 	{
 		FGraphNode* ObjectNodeToFindReferencesTo = FindOrAddNode(Obj);
 		check(ObjectNodeToFindReferencesTo);
@@ -836,7 +826,7 @@ void FReferenceChainSearch::PerformSearch()
 #if ENABLE_GC_HISTORY
 void FReferenceChainSearch::PerformSearchFromGCSnapshot(UObject* InObjectToFindReferencesTo, FGCSnapshot& InSnapshot)
 {
-	PerformSearchFromGCSnapshot(TConstArrayView<UObject*>(&InObjectToFindReferencesTo, 1), InSnapshot);
+	PerformSearchFromGCSnapshot(MakeArrayView(&InObjectToFindReferencesTo, 1), InSnapshot);
 }
 
 void FReferenceChainSearch::PerformSearchFromGCSnapshot(TConstArrayView<UObject*> InObjectsToFindReferencesTo, FGCSnapshot& InSnapshot)
@@ -850,7 +840,7 @@ void FReferenceChainSearch::PerformSearchFromGCSnapshot(TConstArrayView<UObject*
 
 	ObjectsToFindReferencesTo = InObjectsToFindReferencesTo;
 	ObjectInfosToFindReferencesTo.Reset();
-	for (UObject* Obj : InObjectsToFindReferencesTo)
+	for (const UObject* Obj : InObjectsToFindReferencesTo)
 	{
 		ObjectInfosToFindReferencesTo.Add(FGCObjectInfo::FindOrAddInfoHelper(Obj, ObjectToInfoMap));
 	}
@@ -894,19 +884,11 @@ template<typename ProcessorType>
 struct TReferenceSearchHelper
 {
 	ProcessorType Processor;
-	TFastReferenceCollector<
-		ProcessorType, 
-		TReferenceSearchReferenceCollector<ProcessorType>, 
-		FGCArrayPool, 
-		EFastReferenceCollectorOptions::AutogenerateTokenStream | EFastReferenceCollectorOptions::ProcessNoOpTokens
-	> ReferenceCollector;
-	FGCArrayStruct ArrayStruct;
+	TArray<UObject*> ObjectsToProcess;
 
 	TReferenceSearchHelper(ProcessorType&& InProcessor)
 	: Processor(MoveTemp(InProcessor))
-	, ReferenceCollector(Processor, FGCArrayPool::Get())
-	{
-	}
+	{}
 
 	static bool DoNotFilterObjects(UObject* Object) { return true; }
 
@@ -915,7 +897,6 @@ struct TReferenceSearchHelper
 	template<typename HANDLE_REFERENCES, typename FILTER_OBJECTS = decltype(DoNotFilterObjects)>
 	void CollectAllReferences(bool bGCOnly, HANDLE_REFERENCES HandleReferences, FILTER_OBJECTS FilterObjects = &DoNotFilterObjects)
 	{
-		TArray<UObject*>& ObjectsToProcess = ArrayStruct.ObjectsToSerialize;
 		for (FRawObjectIterator It; It; ++It)
 		{
 			FUObjectItem* ObjItem = *It;
@@ -934,9 +915,10 @@ struct TReferenceSearchHelper
 
 			// Find direct references
 			Processor.Reset();
-			ObjectsToProcess.Reset();
-			ObjectsToProcess.Add(Object);
-			ReferenceCollector.CollectReferences(ArrayStruct);
+			UE::GC::FWorkerContext Context;
+			ObjectsToProcess = {Object};
+			Context.SetInitialObjectsUnpadded(ObjectsToProcess);
+			CollectReferences(Processor, Context);
 
 			if (!HandleReferences(Object, Processor.GetReferencedObjects()))
 			{
@@ -1102,7 +1084,7 @@ int32 FReferenceChainSearch::PrintResults(TFunctionRef<bool(FCallbackParams& Par
 	{
 		if (TargetObject)
 		{
-			FGCObjectInfo* ObjInfo = FGCObjectInfo::FindOrAddInfoHelper(TargetObject, *const_cast<TMap<UObject*, FGCObjectInfo*>*>(&ObjectToInfoMap));
+			FGCObjectInfo* ObjInfo = FGCObjectInfo::FindOrAddInfoHelper(TargetObject, const_cast<TMap<const UObject*, FGCObjectInfo*>&>(ObjectToInfoMap));
 			check(ObjInfo);
 			UE_LOG(LogReferenceChain, Log, TEXT("%s%s is not currently reachable."),
 				*GetObjectFlags(ObjInfo),
@@ -1174,7 +1156,7 @@ void FReferenceChainSearch::Cleanup()
 	}
 	AllNodes.Empty();
 
-	for (TPair<UObject*, FGCObjectInfo*>& ObjectToInfoPair : ObjectToInfoMap)
+	for (TPair<const UObject*, FGCObjectInfo*>& ObjectToInfoPair : ObjectToInfoMap)
 	{
 		delete ObjectToInfoPair.Value;
 	}

@@ -382,7 +382,8 @@ void FInstancedStruct::AddStructReferencedObjects(class FReferenceCollector& Col
 {
 	if (ScriptStruct != nullptr)
 	{
-		UE::StructUtils::AddReferencedObjects(Collector, ScriptStruct, GetMutableMemory());
+		Collector.AddReferencedObject(ScriptStruct);
+		Collector.AddPropertyReferencesWithStructARO(ScriptStruct, GetMutableMemory());
 	}
 }
 

@@ -73,10 +73,9 @@ FString FGCObjectInfo::GetFullName() const
 	return FString::Printf(TEXT("%s %s"), *GetClassName(), *GetPathName());
 }
 
-FGCObjectInfo* FGCObjectInfo::FindOrAddInfoHelper(UObject* InObject, TMap<UObject*, FGCObjectInfo*>& InOutObjectToInfoMap)
+FGCObjectInfo* FGCObjectInfo::FindOrAddInfoHelper(const UObject* InObject, TMap<const UObject*, FGCObjectInfo*>& InOutObjectToInfoMap)
 {
-	FGCObjectInfo** ExistingObjInfo = InOutObjectToInfoMap.Find(InObject);
-	if (ExistingObjInfo)
+	if (FGCObjectInfo** ExistingObjInfo = InOutObjectToInfoMap.Find(InObject))
 	{
 		return *ExistingObjInfo;
 	}

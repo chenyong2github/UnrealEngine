@@ -100,7 +100,7 @@ void FUObjectAllocator::FreeUObject(UObjectBase *Object) const
 {
 	check(Object);
 	// Only free memory if it was allocated directly from allocator and not from permanent object pool.
-	if( ResidesInPermanentPool(Object) == false )
+	if (FPermanentObjectPoolExtents(*this).Contains(Object) == false)
 	{
 		FMemory::Free(Object);
 	}

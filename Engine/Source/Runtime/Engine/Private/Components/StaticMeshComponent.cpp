@@ -302,13 +302,14 @@ FString UStaticMeshComponent::GetDetailedInfoInternal() const
 void UStaticMeshComponent::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {	
 	UStaticMeshComponent* This = CastChecked<UStaticMeshComponent>(InThis);
+	FPlatformMisc::Prefetch(This, offsetof(UStaticMeshComponent, LODData));
 	Super::AddReferencedObjects(This, Collector);
 
-	for (int32 LODIndex = 0; LODIndex < This->LODData.Num(); LODIndex++)
+	for (FStaticMeshComponentLODInfo& LodInfo : This->LODData)
 	{
-		if (This->LODData[LODIndex].OverrideMapBuildData)
+		if (LodInfo.OverrideMapBuildData)
 		{
-			This->LODData[LODIndex].OverrideMapBuildData->AddReferencedObjects(Collector);
+			LodInfo.OverrideMapBuildData->AddReferencedObjects(Collector);
 		}
 	}
 }

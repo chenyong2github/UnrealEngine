@@ -66,7 +66,6 @@ struct BPGCBreadcrumbsParams
 {
 	UObject& Object;
 	UBlueprintGeneratedClass& BPGC;
-	FArchive& Ar;
 	uint32 ThreadId;
 };
 
@@ -91,15 +90,6 @@ void WriteBPGCBreadcrumbs(FCrashContextExtendedWriter& Writer, const BPGCBreadcr
 		Builder.AppendChar(TEXT('\n'));
 		Params.BPGC.GetPathName(nullptr, Builder);
 		Builder.AppendChar(TEXT('\n'));
-
-		if (Params.Ar.GetSerializedProperty() != nullptr)
-		{
-			Params.Ar.GetSerializedProperty()->GetPathName(nullptr, Builder);
-		}
-		else
-		{
-			Builder.Append(TEXT("Serialized property was null!"));
-		}
 
 		TStringBuilder<MAX_FILENAME_SIZE> Filename;
 
@@ -1846,68 +1836,183 @@ void UBlueprintGeneratedClass::Bind()
 	}
 }
 
+#define UE_CHECK_BLUEPRINT_REFERENCES !(UE_BUILD_TEST || UE_BUILD_SHIPPING)
+
+class FPersistentFrameCollector final : public FReferenceCollector
+{
+	FReferenceCollector& InnerCollector;
+#if UE_CHECK_BLUEPRINT_REFERENCES
+	const uint8* PersistentFrameDataAddr;
+	const UObject* Blueprint;
+#endif
+
+public:
+	FPersistentFrameCollector(FReferenceCollector& Collector, uint8* Instance, UObject* InBlueprint)
+	: InnerCollector(Collector)
+#if UE_CHECK_BLUEPRINT_REFERENCES
+	, PersistentFrameDataAddr(Instance)
+	, Blueprint(InBlueprint)
+#endif
+	{}
+
+
+	virtual void HandleObjectReference(UObject*& Object, const UObject* Referencer, const FProperty* ReferencingProperty) override
+	{
+		check(Referencer);
+
+#if UE_CHECK_BLUEPRINT_REFERENCES
+		const bool bIsValidObjectReference = (Object == nullptr || Object->IsValidLowLevelFast());
+		if (!bIsValidObjectReference)
+		{
+			if (const UFunction* UberGraphFunction = Cast<UFunction>(Referencer))
+			{
+				const int32 PersistentFrameDataSize = UberGraphFunction->GetStructureSize();
+
+				FString PersistentFrameDataText;
+				const int32 MaxBytesToDisplayPerLine = 32;
+				PersistentFrameDataText.Reserve(PersistentFrameDataSize * 2 + PersistentFrameDataSize / MaxBytesToDisplayPerLine);
+				for (int32 PersistentFrameDataIdx = 0; PersistentFrameDataIdx < PersistentFrameDataSize; ++PersistentFrameDataIdx)
+				{
+					if (PersistentFrameDataIdx % MaxBytesToDisplayPerLine == 0)
+					{
+						PersistentFrameDataText += TEXT("\n");
+					}
+
+					PersistentFrameDataText += FString::Printf(TEXT("%02x "), PersistentFrameDataAddr[PersistentFrameDataIdx]);
+				}
+
+				UE_LOG(LogUObjectGlobals, Log, TEXT("PersistentFrame: Addr=0x%016llx, Size=%d%s"),
+					(int64)(PTRINT)PersistentFrameDataAddr,
+					PersistentFrameDataSize,
+					*PersistentFrameDataText);
+			}
+		}
+
+		auto GetBlueprintObjectNameLambda = [](const UObject* Referencer) -> FString
+		{
+			if (const UClass* BPGC = Referencer->GetTypedOuter<UClass>())
+			{
+#if WITH_EDITORONLY_DATA
+				if (BPGC->ClassGeneratedBy)
+				{
+					return BPGC->ClassGeneratedBy->GetFullName();
+				}
+#endif
+				return BPGC->GetFullName();
+			}
+
+			return TEXT("NULL");
+		};
+
+		if (!ensureMsgf(bIsValidObjectReference
+			, TEXT("Invalid object referenced by the PersistentFrame: 0x%016llx (Blueprint object: %s, ReferencingProperty: %s, Instance: %s, Address: 0x%016llx) - If you have a reliable repro for this, please contact the development team with it.")
+			, (int64)(PTRINT)Object
+			, *GetBlueprintObjectNameLambda(Referencer)
+			, *ReferencingProperty->GetFullName()
+			, *Blueprint->GetFullName()
+			, (int64)(PTRINT)&Object))
+		{
+			// clear the property value (it's garbage)... the ubergraph-frame
+			// has just lost a reference to whatever it was attempting to hold onto
+			Object = nullptr;
+			return;
+		}
+#endif
+
+		if (Object)
+		{
+			// If the property that serialized us is not an object property we are in some native serializer, we have to treat these as strong
+			if (!Object->HasAnyFlags(RF_StrongRefOnFrame))
+			{
+				if (const FObjectProperty* ObjectProperty = CastField<const FObjectProperty>(ReferencingProperty))
+				{
+					// This was a raw UObject* serialized by FObjectProperty, so just save the address
+					if (InnerCollector.MarkWeakObjectReferenceForClearing(&Object))
+					{
+						return;
+					}
+				}
+			}
+
+			// This is a hard reference or we don't know what's serializing it, so serialize it normally
+			InnerCollector.AddReferencedObject(Object, Referencer, ReferencingProperty);
+		}
+	}
+
+	virtual void HandleObjectReferences(UObject** Objects, int32 Num, const UObject* ReferencingObject, const FProperty* ReferencingProperty)
+	{
+		for (int32 Idx = 0; Idx < Num; ++Idx)
+		{
+			HandleObjectReference(Objects[Idx], ReferencingObject, ReferencingProperty);
+		}
+	}
+
+	virtual bool IsIgnoringArchetypeRef() const override { return InnerCollector.IsIgnoringArchetypeRef(); }
+	virtual bool IsIgnoringTransient() const override { return InnerCollector.IsIgnoringArchetypeRef(); }
+};
+
 void UBlueprintGeneratedClass::AddReferencedObjectsInUbergraphFrame(UObject* InThis, FReferenceCollector& Collector)
 {
 	checkSlow(InThis);
-	for (UClass* CurrentClass = InThis->GetClass(); CurrentClass; CurrentClass = CurrentClass->GetSuperClass())
+	checkSlow(InThis->GetClass());
+	checkSlow(InThis->GetClass() == Cast<UBlueprintGeneratedClass>(InThis->GetClass()));
+
+	UBlueprintGeneratedClass* BPGC = static_cast<UBlueprintGeneratedClass*>(InThis->GetClass());
+	UClass* SuperClass = BPGC->GetSuperClass();
+	
+	while (true)
 	{
-		if (UBlueprintGeneratedClass* BPGC = Cast<UBlueprintGeneratedClass>(CurrentClass))
-		{
 #if USE_UBER_GRAPH_PERSISTENT_FRAME
-			if (BPGC->UberGraphFramePointerProperty)
+		UFunction* UberGraphFunction = BPGC->UberGraphFunction;
+		if (BPGC->UberGraphFramePointerProperty)
+		{
+			FPointerToUberGraphFrame* PointerToUberGraphFrame = BPGC->UberGraphFramePointerProperty->ContainerPtrToValuePtr<FPointerToUberGraphFrame>(InThis);
+			checkSlow(PointerToUberGraphFrame)
+
+				
+			FPersistentFrameCollector ProxyCollector(Collector, PointerToUberGraphFrame->RawPointer, InThis);
+			if (uint8* Instance = PointerToUberGraphFrame->RawPointer)
 			{
-				FPointerToUberGraphFrame* PointerToUberGraphFrame = BPGC->UberGraphFramePointerProperty->ContainerPtrToValuePtr<FPointerToUberGraphFrame>(InThis);
-				checkSlow(PointerToUberGraphFrame)
-				if (PointerToUberGraphFrame->RawPointer)
-				{
 #if VALIDATE_UBER_GRAPH_PERSISTENT_FRAME
-					ensureMsgf(
-						PointerToUberGraphFrame->UberGraphFunctionKey == BPGC->UberGraphFunctionKey,
-						TEXT("Detected key mismatch in uber graph frame for instance %s of type %s, iteration will be unsafe"),
-						*InThis->GetPathName(),
-						*BPGC->GetPathName()
-					);
+				ensureMsgf(
+					PointerToUberGraphFrame->UberGraphFunctionKey == BPGC->UberGraphFunctionKey,
+					TEXT("Detected key mismatch in uber graph frame for instance %s of type %s, iteration will be unsafe"),
+					*InThis->GetPathName(),
+					*BPGC->GetPathName()
+				);
 #endif//VALIDATE_UBER_GRAPH_PERSISTENT_FRAME
 
-					{
-						checkSlow(BPGC->UberGraphFunction);
-						FVerySlowReferenceCollectorArchiveScope CollectorScope(
-							Collector.GetInternalPersistentFrameReferenceCollectorArchive(),
-							BPGC->UberGraphFunction,
-							BPGC->UberGraphFramePointerProperty,
-							InThis,
-							PointerToUberGraphFrame->RawPointer);
-
 #if WITH_ADDITIONAL_CRASH_CONTEXTS
-						BPGCBreadcrumbsParams Params =
-						{
-							*InThis,
-							*BPGC,
-							CollectorScope.GetArchive(),
-							FPlatformTLS::GetCurrentThreadId()
-						};
+				BPGCBreadcrumbsParams Params =
+				{
+					*InThis,
+					*BPGC,
+					FPlatformTLS::GetCurrentThreadId()
+				};
 
-						UE_ADD_CRASH_CONTEXT_SCOPE([&](FCrashContextExtendedWriter& Writer) { WriteBPGCBreadcrumbs(Writer, Params); });
+				UE_ADD_CRASH_CONTEXT_SCOPE([&](FCrashContextExtendedWriter& Writer) { WriteBPGCBreadcrumbs(Writer, Params); });
 #endif // WITH_ADDITIONAL_CRASH_CONTEXTS
-						// All encountered references should be treated as non-native by GC
-						Collector.SetIsProcessingNativeReferences(false);
-						BPGC->UberGraphFunction->SerializeBin(CollectorScope.GetArchive(), PointerToUberGraphFrame->RawPointer);
-						Collector.SetIsProcessingNativeReferences(true);
-					}
+				
+				// All encountered references should be treated as non-native by GC
+				Collector.SetIsProcessingNativeReferences(false);
+				//Collector.AddPersistentFrameReferences(*UberGraphFunction, Instance, InThis);
+				ProxyCollector.AddPropertyReferences(UberGraphFunction, Instance, UberGraphFunction);
+				Collector.SetIsProcessingNativeReferences(true);
 
-				}
 			}
-#endif // USE_UBER_GRAPH_PERSISTENT_FRAME
 		}
-		else if (CurrentClass->HasAllClassFlags(CLASS_Native))
+#endif // USE_UBER_GRAPH_PERSISTENT_FRAME
+
+		if (SuperClass->HasAllClassFlags(CLASS_Native))
 		{
-			CurrentClass->CallAddReferencedObjects(InThis, Collector);
+			checkSlow(Cast<UBlueprintGeneratedClass>(SuperClass) == nullptr);
+			SuperClass->CallAddReferencedObjects(InThis, Collector);
 			break;
 		}
-		else
-		{
-			checkSlow(false);
-		}
+
+		checkSlow(SuperClass == Cast<UBlueprintGeneratedClass>(SuperClass));
+		BPGC = static_cast<UBlueprintGeneratedClass*>(SuperClass);
+		SuperClass = SuperClass->GetSuperClass();
 	}
 }
 

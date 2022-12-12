@@ -503,10 +503,10 @@ public:
 	**/
 	FORCEINLINE_DEBUGGABLE FUObjectItem const* GetObjectPtr(int32 Index) const TSAN_SAFE
 	{
-		const int32 ChunkIndex = Index / NumElementsPerChunk;
-		const int32 WithinChunkIndex = Index % NumElementsPerChunk;
+		const uint32 ChunkIndex = (uint32)Index / NumElementsPerChunk;
+		const uint32 WithinChunkIndex = (uint32)Index % NumElementsPerChunk;
 		checkf(IsValidIndex(Index), TEXT("IsValidIndex(%d)"), Index);
-		checkf(ChunkIndex < NumChunks, TEXT("ChunkIndex (%d) < NumChunks (%d)"), ChunkIndex, NumChunks);
+		checkf(ChunkIndex < (uint32)NumChunks, TEXT("ChunkIndex (%d) < NumChunks (%d)"), ChunkIndex, NumChunks);
 		checkf(Index < MaxElements, TEXT("Index (%d) < MaxElements (%d)"), Index, MaxElements);
 		FUObjectItem* Chunk = Objects[ChunkIndex];
 		check(Chunk);
@@ -514,14 +514,22 @@ public:
 	}
 	FORCEINLINE_DEBUGGABLE FUObjectItem* GetObjectPtr(int32 Index) TSAN_SAFE
 	{
-		const int32 ChunkIndex = Index / NumElementsPerChunk;
-		const int32 WithinChunkIndex = Index % NumElementsPerChunk;
+		const uint32 ChunkIndex = (uint32)Index / NumElementsPerChunk;
+		const uint32 WithinChunkIndex = (uint32)Index % NumElementsPerChunk;
 		checkf(IsValidIndex(Index), TEXT("IsValidIndex(%d)"), Index);
-		checkf(ChunkIndex < NumChunks, TEXT("ChunkIndex (%d) < NumChunks (%d)"), ChunkIndex, NumChunks);
+		checkf(ChunkIndex < (uint32)NumChunks, TEXT("ChunkIndex (%d) < NumChunks (%d)"), ChunkIndex, NumChunks);
 		checkf(Index < MaxElements, TEXT("Index (%d) < MaxElements (%d)"), Index, MaxElements);
 		FUObjectItem* Chunk = Objects[ChunkIndex];
 		check(Chunk);
 		return Chunk + WithinChunkIndex;
+	}
+
+	FORCEINLINE_DEBUGGABLE void PrefetchObjectPtr(int32 Index) const TSAN_SAFE
+	{
+		const uint32 ChunkIndex = (uint32)Index / NumElementsPerChunk;
+		const uint32 WithinChunkIndex = (uint32)Index % NumElementsPerChunk;
+		const FUObjectItem* Chunk = Objects[ChunkIndex];
+		FPlatformMisc::Prefetch(Chunk + WithinChunkIndex);
 	}
 
 	/**

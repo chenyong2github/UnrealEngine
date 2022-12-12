@@ -155,6 +155,7 @@ namespace UE::GameFeatures
 		{
 			// If the UObject hash knew about package mount roots, we could avoid this loop
 			TRACE_CPUPROFILER_EVENT_SCOPE(PackageLoop);
+			FPermanentObjectPoolExtents PermanentPool;
 			ForEachObjectOfClass(UPackage::StaticClass(), [&](UObject* Obj)
 			{
 				if (UPackage* Package = CastChecked<UPackage>(Obj, ECastCheckedType::NullAllowed))
@@ -163,7 +164,7 @@ namespace UE::GameFeatures
 					{
 						return;
 					}
-					if (GUObjectAllocator.ResidesInPermanentPool(Package))
+					if (PermanentPool.Contains(Package))
 					{
 						return;
 					}

@@ -18,7 +18,6 @@
 #include "Templates/PointerIsConvertibleFromTo.h"
 #include "Templates/TypeHash.h"
 #include "Templates/UnrealTemplate.h"
-#include "UObject/FastReferenceCollectorOptions.h"
 #include "UObject/Field.h"
 #include "UObject/NameTypes.h"
 #include "UObject/UObjectArray.h"
@@ -36,9 +35,7 @@ template <typename T> struct TIsZeroConstructType;
 
 struct COREUOBJECT_API FFieldPath
 {
-	// GC needs access to GetResolvedOwnerItemInternal and ClearCachedFieldInternal
-	template <typename ReferenceProcessorType, typename CollectorType, typename ArrayPoolType, EFastReferenceCollectorOptions Options>
-	friend class TFastReferenceCollector;
+	friend struct FGCInternals;
 
 	// TWeakFieldPtr needs access to ClearCachedField
 	template<class T>

@@ -621,53 +621,59 @@ void FObjectPropertyBase::CheckValidObject(void* ValueAddress, UObject* OldValue
 		UClass* ObjectClass = Object->GetClass();
 		UE_CLOG(!ObjectClass, LogProperty, Fatal, TEXT("Object without class referenced by %s, object: 0x%016llx %s"), *GetPathName(), (int64)(PTRINT)Object, *Object->GetPathName());
 
-		// we could be in the middle of replacing references to the 
-		// PropertyClass itself (in the middle of an FArchiveReplaceObjectRef 
-		// pass)... if this is the case, then we might have already replaced 
-		// the object's class, but not the PropertyClass yet (or vise-versa)... 
-		// so we use this to ensure, in that situation, that we don't clear the 
-		// object value (if CLASS_NewerVersionExists is set, then we are likely 
-		// in the middle of an FArchiveReplaceObjectRef pass)
-		bool bIsReplacingClassRefs = PropertyClass && PropertyClass->HasAnyClassFlags(CLASS_NewerVersionExists) != ObjectClass->HasAnyClassFlags(CLASS_NewerVersionExists);
-		
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
-		FLinkerLoad* PropertyLinker = GetLinker();
-		bool const bIsDeferringValueLoad = ((PropertyLinker == nullptr) || (PropertyLinker->LoadFlags & LOAD_DeferDependencyLoads)) &&
-			(Object->IsA<ULinkerPlaceholderExportObject>() || Object->IsA<ULinkerPlaceholderClass>());
+		auto IsDeferringValueLoad = [&]()
+		{
+			FLinkerLoad* PropertyLinker = GetLinker();
+			return ((PropertyLinker == nullptr) || (PropertyLinker->LoadFlags & LOAD_DeferDependencyLoads)) &&
+				(Object->IsA<ULinkerPlaceholderExportObject>() || Object->IsA<ULinkerPlaceholderClass>());
+		};
 
 #if USE_DEFERRED_DEPENDENCY_CHECK_VERIFICATION_TESTS
-		check( bIsDeferringValueLoad || (!Object->IsA<ULinkerPlaceholderExportObject>() && !Object->IsA<ULinkerPlaceholderClass>()) );
+		check( IsDeferringValueLoad() || (!Object->IsA<ULinkerPlaceholderExportObject>() && !Object->IsA<ULinkerPlaceholderClass>()) );
 #endif // USE_DEFERRED_DEPENDENCY_CHECK_VERIFICATION_TESTS
 
 #else  // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING 
-		bool const bIsDeferringValueLoad = false;
+		auto IsDeferringValueLoad = [&]() { return false; };
 #endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 
-		if ((PropertyClass != nullptr) && !ObjectClass->IsChildOf(PropertyClass) && !ObjectClass->GetAuthoritativeClass()->IsChildOf(PropertyClass) && !bIsReplacingClassRefs && !bIsDeferringValueLoad)
+		if ((PropertyClass != nullptr) && !ObjectClass->IsChildOf(PropertyClass) && !ObjectClass->GetAuthoritativeClass()->IsChildOf(PropertyClass))
 		{
-			if (!HasAnyPropertyFlags(CPF_NonNullable))
+			
+			// we could be in the middle of replacing references to the 
+			// PropertyClass itself (in the middle of an FArchiveReplaceObjectRef 
+			// pass)... if this is the case, then we might have already replaced 
+			// the object's class, but not the PropertyClass yet (or vise-versa)... 
+			// so we use this to ensure, in that situation, that we don't clear the 
+			// object value (if CLASS_NewerVersionExists is set, then we are likely 
+			// in the middle of an FArchiveReplaceObjectRef pass)
+			bool bIsReplacingClassRefs = PropertyClass && PropertyClass->HasAnyClassFlags(CLASS_NewerVersionExists) != ObjectClass->HasAnyClassFlags(CLASS_NewerVersionExists);
+			if (!bIsReplacingClassRefs && !IsDeferringValueLoad())
 			{
-			UE_LOG(LogProperty, Warning,
-				TEXT("Serialized %s for a property of %s. Reference will be nullptred.\n    Property = %s\n    Item = %s"),
-				*Object->GetClass()->GetFullName(),
-				*PropertyClass->GetFullName(),
-				*GetFullName(),
-				*Object->GetFullName()
-			);
-				SetObjectPropertyValue(ValueAddress, nullptr);
-			}
-			else
-			{
-				checkf(OldValue, TEXT("CheckValidObject(\"%s\") trying to assign null object value to non-nullable property \"%s\""), *Object->GetFullName(), *GetFullName());
-				UE_LOG(LogProperty, Warning,
-					TEXT("Serialized %s for a property of %s. Reference will be reverted back to %s.\n    Property = %s\n    Item = %s"),
-					*Object->GetClass()->GetFullName(),
-					*PropertyClass->GetFullName(),
-					*OldValue->GetFullName(),
-					*GetFullName(),
-					*Object->GetFullName()
-				);
-				SetObjectPropertyValue(ValueAddress, OldValue);
+				if (!HasAnyPropertyFlags(CPF_NonNullable))
+				{
+					UE_LOG(LogProperty, Warning,
+						TEXT("Serialized %s for a property of %s. Reference will be nullptred.\n    Property = %s\n    Item = %s"),
+						*Object->GetClass()->GetFullName(),
+						*PropertyClass->GetFullName(),
+						*GetFullName(),
+						*Object->GetFullName()
+					);
+					SetObjectPropertyValue(ValueAddress, nullptr);
+				}
+				else
+				{
+					checkf(OldValue, TEXT("CheckValidObject(\"%s\") trying to assign null object value to non-nullable property \"%s\""), *Object->GetFullName(), *GetFullName());
+					UE_LOG(LogProperty, Warning,
+						TEXT("Serialized %s for a property of %s. Reference will be reverted back to %s.\n    Property = %s\n    Item = %s"),
+						*Object->GetClass()->GetFullName(),
+						*PropertyClass->GetFullName(),
+						*OldValue->GetFullName(),
+						*GetFullName(),
+						*Object->GetFullName()
+					);
+					SetObjectPropertyValue(ValueAddress, OldValue);
+				}
 			}
 		}
 	}

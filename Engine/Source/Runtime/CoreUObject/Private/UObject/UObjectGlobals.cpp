@@ -29,6 +29,7 @@
 #include "UObject/GarbageCollection.h"
 #include "UObject/Class.h"
 #include "UObject/CoreRedirects.h"
+#include "UObject/FastReferenceCollector.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/Package.h"
 #include "Templates/Casts.h"
@@ -4442,34 +4443,22 @@ void ConstructorHelpers::StripObjectClass( FString& PathName, bool bAssertOnBadP
 	}
 }
 
-/*----------------------------------------------------------------------------
-FSimpleObjectReferenceCollectorArchive.
-----------------------------------------------------------------------------*/
-class FSimpleObjectReferenceCollectorArchive : public FReferenceCollectorArchive
+//////////////////////////////////////////////////////////////////////////
+
+FReferenceCollectorArchive::FReferenceCollectorArchive(const UObject* InSerializingObject, FReferenceCollector& InCollector)
+: SerializingObject(InSerializingObject)
+, Collector(InCollector)
+{
+	ArIsObjectReferenceCollector = true;
+	this->SetIsPersistent(InCollector.IsIgnoringTransient());
+	ArIgnoreArchetypeRef = InCollector.IsIgnoringArchetypeRef();
+}
+
+class FPropertyTrackingReferenceCollectorArchive : public FReferenceCollectorArchive
 {
 public:
+	using FReferenceCollectorArchive::FReferenceCollectorArchive;
 
-	/**
-	* Constructor
-	*
-	* @param	InObjectArray			Array to add object references to
-	*/
-	FSimpleObjectReferenceCollectorArchive(UObject* InSerializingObject, FReferenceCollector& InCollector)
-		: FReferenceCollectorArchive(InSerializingObject, InCollector)
-	{
-		ArIsObjectReferenceCollector = true;
-		this->SetIsPersistent(InCollector.IsIgnoringTransient());
-		ArIgnoreArchetypeRef = InCollector.IsIgnoringArchetypeRef();
-	}
-
-protected:
-
-	/**
-	* UObject serialize operator implementation
-	*
-	* @param Object	reference to Object reference
-	* @return reference to instance of this class
-	*/
 	virtual FArchive& operator<<(UObject*& Object) override
 	{
 		if (Object)
@@ -4497,122 +4486,19 @@ protected:
 
 };
 
-class FPersistentFrameCollectorArchive : public FSimpleObjectReferenceCollectorArchive
+void FReferenceCollector::AddStableReference(UObject** Object)
 {
-public:
-	FPersistentFrameCollectorArchive(UObject* InSerializingObject, FReferenceCollector& InCollector)
-		: FSimpleObjectReferenceCollectorArchive(InSerializingObject, InCollector)
-	{	}
-
-protected:
-	virtual FArchive& operator<<(UObject*& Object) override
-	{
-#if !(UE_BUILD_TEST || UE_BUILD_SHIPPING)
-		const bool bIsValidObjectReference = (Object == nullptr || Object->IsValidLowLevelFast());
-		if (!bIsValidObjectReference)
-		{
-			if (const UFunction* UberGraphFunction = Cast<UFunction>(GetSerializingObject()))
-			{
-				const int32 PersistentFrameDataSize = UberGraphFunction->GetStructureSize();
-				if (const uint8* PersistentFrameDataAddr = (const uint8*)GetSerializedDataPtr())
-				{
-					FString PersistentFrameDataText;
-					const int32 MaxBytesToDisplayPerLine = 32;
-					PersistentFrameDataText.Reserve(PersistentFrameDataSize * 2 + PersistentFrameDataSize / MaxBytesToDisplayPerLine);
-					for (int32 PersistentFrameDataIdx = 0; PersistentFrameDataIdx < PersistentFrameDataSize; ++PersistentFrameDataIdx)
-					{
-						if (PersistentFrameDataIdx % MaxBytesToDisplayPerLine == 0)
-						{
-							PersistentFrameDataText += TEXT("\n");
-						}
-
-						PersistentFrameDataText += FString::Printf(TEXT("%02x "), PersistentFrameDataAddr[PersistentFrameDataIdx]);
-					}
-
-					UE_LOG(LogUObjectGlobals, Log, TEXT("PersistentFrame: Addr=0x%016llx, Size=%d%s"),
-						(int64)(PTRINT)PersistentFrameDataAddr,
-						PersistentFrameDataSize,
-						*PersistentFrameDataText);
-				}
-			}
-		}
-
-		auto GetBlueprintObjectNameLambda = [](const UObject* InSerializingObject) -> FString
-		{
-			if (InSerializingObject)
-			{
-				if (const UClass* BPGC = InSerializingObject->GetTypedOuter<UClass>())
-				{
-#if WITH_EDITORONLY_DATA
-					if (BPGC->ClassGeneratedBy)
-					{
-						return BPGC->ClassGeneratedBy->GetFullName();
-					}
-					else
-#endif
-					{
-						return BPGC->GetFullName();
-					}
-				}
-			}
-
-			return TEXT("NULL");
-		};
-
-		if (!ensureMsgf(bIsValidObjectReference
-			, TEXT("Invalid object referenced by the PersistentFrame: 0x%016llx (Blueprint object: %s, ReferencingProperty: %s, Instance: %s, Address: 0x%016llx) - If you have a reliable repro for this, please contact the development team with it.")
-			, (int64)(PTRINT)Object
-			, *GetBlueprintObjectNameLambda(GetSerializingObject())
-			, GetSerializedProperty() ? *GetSerializedProperty()->GetFullName() : TEXT("NULL")
-			, GetSerializedDataContainer() ? *GetSerializedDataContainer()->GetFullName() : TEXT("NULL")
-			, (int64)(PTRINT)&Object))
-		{
-			// clear the property value (it's garbage)... the ubergraph-frame
-			// has just lost a reference to whatever it was attempting to hold onto
-			Object = nullptr;
-		}
-#endif
-		if (Object)
-		{
-			bool bWeakRef = false;
-
-			// If the property that serialized us is not an object property we are in some native serializer, we have to treat these as strong
-			if (!Object->HasAnyFlags(RF_StrongRefOnFrame))
-			{
-				FObjectProperty* ObjectProperty = CastField<FObjectProperty>(GetSerializedProperty());
-
-				if (ObjectProperty)
-				{
-					// This was a raw UObject* serialized by FObjectProperty, so just save the address
-					bWeakRef = true;
-				}
-			}
-
-			// Try to handle it as a weak ref, if it returns false treat it as a strong ref instead
-			bWeakRef = bWeakRef && GetCollector().MarkWeakObjectReferenceForClearing(&Object);
-
-			if (!bWeakRef)
-			{
-				// This is a hard reference or we don't know what's serializing it, so serialize it normally
-				return FSimpleObjectReferenceCollectorArchive::operator<<(Object);
-			}
-		}
-
-		return *this;
-	}
-};
-
-
-FReferenceCollector::FReferenceCollector()
-	: DefaultReferenceCollectorArchive(nullptr)
-	, PersistentFrameReferenceCollectorArchive(nullptr)
-{
+	AddReferencedObject(*Object);
 }
 
-FReferenceCollector::~FReferenceCollector()
+void FReferenceCollector::AddStableReferenceArray(TArray<UObject*>* Array)
 {
-	delete DefaultReferenceCollectorArchive;
-	delete PersistentFrameReferenceCollectorArchive;
+	AddReferencedObjects(*Array); 
+}
+
+void FReferenceCollector::AddStableReferenceSet(TSet<UObject*>* Objects)
+{
+	AddReferencedObjects(*Objects);
 }
 
 void FReferenceCollector::AddReferencedObjects(const UScriptStruct*& ScriptStruct, void* StructMemory, const UObject* ReferencingObject /*= nullptr*/, const FProperty* ReferencingProperty /*= nullptr*/)
@@ -4628,12 +4514,7 @@ void FReferenceCollector::AddReferencedObjects(const UScriptStruct*& ScriptStruc
 		ScriptStruct->GetCppStructOps()->AddStructReferencedObjects()(StructMemory, *this);
 	}
 
-	// Iterate through all object properties within the struct (will also search through structs within the struct)
-	for (TPropertyValueIterator<const FObjectProperty> ObjectPropertyIter(ScriptStruct, StructMemory); ObjectPropertyIter; ++ObjectPropertyIter)
-	{
-		TObjectPtr<UObject>& ObjectPtrRef = ObjectPropertyIter.Key()->GetObjectPtrPropertyValueRef(ObjectPropertyIter.Value());
-		AddReferencedObject(ObjectPtrRef, ReferencingObject, ReferencingProperty);
-	}
+	AddPropertyReferences(ScriptStruct, StructMemory, ReferencingObject);
 }
 
 void FReferenceCollector::HandleObjectReferences(FObjectPtr* InObjects, const int32 ObjectNum, const UObject* InReferencingObject, const FProperty* InReferencingProperty)
@@ -4648,16 +4529,393 @@ void FReferenceCollector::HandleObjectReferences(FObjectPtr* InObjects, const in
 	}
 }
 
+//////////////////////////////////////////////////////////////////////////
+
+enum class EPropertyCollectFlags : uint32
+{
+	None				= 0,
+	SkipTransient		= 1 << 0,		
+	NeedsReferencer		= 1 << 1,
+	CallStructARO		= 1 << 2,
+	OnlyObjectProperty	= 1 << 3,
+};
+ENUM_CLASS_FLAGS(EPropertyCollectFlags);
+
+static constexpr EPropertyCollectFlags AllCollectorFlags =  EPropertyCollectFlags::SkipTransient | EPropertyCollectFlags::NeedsReferencer;
+FORCEINLINE EPropertyCollectFlags GetCollectorPropertyFlags(FReferenceCollector& Collector)
+{
+	return (Collector.IsIgnoringTransient() ? EPropertyCollectFlags::SkipTransient : EPropertyCollectFlags::None)
+		 | (Collector.NeedsPropertyReferencer() ? EPropertyCollectFlags::NeedsReferencer : EPropertyCollectFlags::None);
+}
+
+FORCEINLINE constexpr EPropertyFlags GetPropertyFlagsToSkip(EPropertyCollectFlags CollectFlags)
+{
+	return CPF_SkipSerialization | (EnumHasAnyFlags(CollectFlags, EPropertyCollectFlags::SkipTransient) ? CPF_Transient : CPF_None);
+}
+
+
+/** Core property types with weak references */
+static constexpr EClassCastFlags WeakCastFlags =			CASTCLASS_FWeakObjectProperty | 
+															CASTCLASS_FLazyObjectProperty |
+															CASTCLASS_FSoftObjectProperty |
+															CASTCLASS_FDelegateProperty |
+															CASTCLASS_FMulticastDelegateProperty;
+
+static constexpr EClassCastFlags ObjectCastFlags =			CASTCLASS_FObjectProperty |
+															CASTCLASS_FObjectPtrProperty;
+
+static constexpr EClassCastFlags OtherStrongCastFlags =		CASTCLASS_FInterfaceProperty |
+															CASTCLASS_FFieldPathProperty;
+
+/** Core property types with strong references */
+static constexpr EClassCastFlags StrongCastFlags =			ObjectCastFlags | OtherStrongCastFlags;
+
+/** Core property types with neither weak nor strong references */
+static constexpr EClassCastFlags UnreferencingCastFlags =	CASTCLASS_FByteProperty |
+															CASTCLASS_FInt8Property |
+															CASTCLASS_FIntProperty |
+															CASTCLASS_FFloatProperty |
+															CASTCLASS_FUInt64Property |
+															CASTCLASS_FUInt32Property |
+															CASTCLASS_FNameProperty |
+															CASTCLASS_FStrProperty |
+															CASTCLASS_FBoolProperty |
+															CASTCLASS_FUInt16Property |
+															CASTCLASS_FInt64Property |
+															CASTCLASS_FNumericProperty |
+															CASTCLASS_FTextProperty |
+															CASTCLASS_FInt16Property |
+															CASTCLASS_FDoubleProperty |
+															CASTCLASS_FEnumProperty |
+															CASTCLASS_FLargeWorldCoordinatesRealProperty;
+
+FORCEINLINE constexpr EClassCastFlags GetCastFlagsToSkip(EPropertyCollectFlags CollectFlags)
+{
+	return WeakCastFlags | (EnumHasAnyFlags(CollectFlags, EPropertyCollectFlags::OnlyObjectProperty) ? OtherStrongCastFlags : CASTCLASS_None);
+}
+
+FORCEINLINE constexpr bool MayContainStrongReference(EClassCastFlags CastFlags)
+{
+	return !EnumHasAnyFlags(CastFlags, UnreferencingCastFlags | WeakCastFlags);
+}
+
+FORCEINLINE constexpr bool MayContainStrongReference(const FProperty& Property)
+{
+	return MayContainStrongReference(static_cast<EClassCastFlags>(Property.GetClass()->GetCastFlags()));
+}
+
+template<EPropertyCollectFlags CollectFlags>
+void CollectPropertyReferences(FReferenceCollector& Collector, FProperty& Property, void* Instance, const UObject* Referencer);
+
+template<EPropertyCollectFlags CollectFlags, /* UStruct or UScriptStruct */ class StructType>
+static void CollectStructReferences(FReferenceCollector& Collector, const StructType* Struct, void* Instance, const UObject* Referencer)
+{
+	// The FProperty instance might start in the middle of a cache line	
+	static constexpr uint32 ExtraPrefetchBytes = PLATFORM_CACHE_LINE_SIZE - /* min alignment */ 16;
+	// Prefetch vtable, PropertyFlags and NextRef. NextRef comes last.
+	static constexpr uint32 PropertyPrefetchBytes = offsetof(FProperty, NextRef) + ExtraPrefetchBytes;
+
+	FPlatformMisc::PrefetchBlock(Struct->RefLink, PropertyPrefetchBytes);
+	
+	if constexpr (EnumHasAnyFlags(CollectFlags, EPropertyCollectFlags::CallStructARO))
+	{
+		if (Struct->StructFlags & STRUCT_AddStructReferencedObjects)
+		{
+			Struct->GetCppStructOps()->AddStructReferencedObjects()(Instance, Collector);
+		}
+	}
+
+	for (FProperty* It = Struct->RefLink; It; It = It->NextRef)
+	{
+		FPlatformMisc::PrefetchBlock(It->NextRef, PropertyPrefetchBytes);
+		CollectPropertyReferences<CollectFlags>(Collector, *It, Instance, Referencer);
+	}
+}
+
+template<EPropertyCollectFlags CollectFlags>
+void CollectArrayReferences(FReferenceCollector& Collector, FArrayProperty& Property, void* Instance, const UObject* Referencer)
+{
+	FProperty& InnerProperty = *Property.Inner;
+	EClassCastFlags InnerCastFlags = static_cast<EClassCastFlags>(InnerProperty.GetClass()->GetCastFlags());
+	if (MayContainStrongReference(InnerCastFlags))
+	{
+		bool bIsReferenceArray = EnumHasAnyFlags(InnerCastFlags, ObjectCastFlags) &
+								!EnumHasAnyFlags(Property.ArrayFlags, EArrayPropertyFlags::UsesMemoryImageAllocator);
+		if (bIsReferenceArray && !EnumHasAnyFlags(CollectFlags, EPropertyCollectFlags::NeedsReferencer))
+		{
+			Collector.AddStableReferenceArray(reinterpret_cast<TArray<UObject*>*>(Instance));
+		}
+		else if (FScriptArrayHelper Helper(&Property, Instance); int32 Num = Helper.Num())
+		{
+			if (bIsReferenceArray)
+			{
+				if (UE_WITH_OBJECT_HANDLE_LATE_RESOLVE && EnumHasAnyFlags(InnerCastFlags, CASTCLASS_FObjectPtrProperty))
+				{
+					Collector.AddReferencedObjects(*reinterpret_cast<TArray<TObjectPtr<UObject>>*>(Instance), Referencer, &Property);
+				}
+				else
+				{
+					Collector.AddReferencedObjects(*reinterpret_cast<TArray<UObject*>*>(Instance), Referencer, &Property);
+				}
+			}
+			else if (EnumHasAnyFlags(InnerCastFlags, CASTCLASS_FStructProperty))
+			{
+				for (int32 Idx = 0; Idx < Num; ++Idx)
+				{
+					CollectStructReferences<CollectFlags>(Collector, static_cast<FStructProperty&>(InnerProperty).Struct, Helper.GetRawPtr(Idx), Referencer);
+				}
+			}
+			else
+			{
+				for (int32 Idx = 0; Idx < Num; ++Idx)
+				{
+					CollectPropertyReferences<CollectFlags>(Collector, InnerProperty, Helper.GetRawPtr(Idx), Referencer);
+				}
+			}
+			
+		}
+	}
+}
+
+template<EPropertyCollectFlags CollectFlags>
+static void CollectMapReferences(FReferenceCollector& Collector, FMapProperty& Property, void* Instance, const UObject* Referencer)
+{
+	FScriptMapHelper MapHelper(&Property, Instance);
+	const int32 Num = MapHelper.Num();
+	const bool bCollectKeys = MayContainStrongReference(*MapHelper.GetKeyProperty());
+	const bool bCollectValues = MayContainStrongReference(*MapHelper.GetValueProperty());
+
+	if (Num == 0)
+	{
+		return;	
+	}
+
+	if (bCollectKeys)
+	{
+		for (int32 Idx = 0; Idx < Num; ++Idx)
+		{
+			if (MapHelper.IsValidIndex(Idx))
+			{
+				CollectPropertyReferences<CollectFlags>(Collector, *MapHelper.GetKeyProperty(), MapHelper.GetPairPtr(Idx), Referencer);
+			}
+		}
+	}
+
+	if (bCollectValues)
+	{
+		for (int32 Idx = 0; Idx < Num; ++Idx)
+		{
+			if (MapHelper.IsValidIndex(Idx))
+			{
+				CollectPropertyReferences<CollectFlags>(Collector, *MapHelper.GetValueProperty(), MapHelper.GetPairPtr(Idx), Referencer);
+			}
+		}
+	}
+}
+
+template<EPropertyCollectFlags CollectFlags>
+void CollectSetReferences(FReferenceCollector& Collector, FSetProperty& Property, void* Instance, const UObject* Referencer)
+{
+	FScriptSetHelper SetHelper(&Property, Instance);
+	if (MayContainStrongReference(*SetHelper.GetElementProperty()))
+	{
+		for (int32 Idx = 0, Num = SetHelper.Num(); Idx < Num; ++Idx)
+		{	
+			if (SetHelper.IsValidIndex(Idx))
+			{
+				CollectPropertyReferences<CollectFlags>(Collector, *SetHelper.GetElementProperty(), SetHelper.GetElementPtr(Idx), Referencer);
+			}
+		}
+	}
+}
+
+// Process FObjectProperty or FObjectPtrProperty reference
+template<EPropertyCollectFlags CollectFlags>
+FORCEINLINE_DEBUGGABLE void CollectObjectReference(FReferenceCollector& Collector, FProperty& Property, void* Value, const UObject* Referencer)
+{
+	UObject*& Reference = *reinterpret_cast<UObject**>(Value);
+	if constexpr (EnumHasAnyFlags(CollectFlags, EPropertyCollectFlags::NeedsReferencer))
+	{
+		// Sync reference processors will inspect Reference immediately so might as well avoid virtual call
+		if (!!Reference & IsObjectHandleResolved(*reinterpret_cast<FObjectHandle*>(Value)))
+		{
+			Collector.AddReferencedObject(Reference, Referencer, &Property);
+		}
+	}
+	else
+	{
+		// Allows batch reference processor to queue up Reference and prefetch before accessing it
+		Collector.AddStableReference(&Reference);
+	}
+}
+
+// Process stack reference synchronously and return true if reference got nulled out
+FORCEINLINE_DEBUGGABLE bool CollectStackReference(FReferenceCollector& Collector, FProperty& Property, UObject*& Reference, const UObject* Referencer)
+{
+	if (Reference)
+	{
+		Collector.AddReferencedObject(Reference, Referencer, &Property);
+		return !Reference;
+	}
+	return false;
+}
+
+FORCENOINLINE static void CollectInterfaceReference(FReferenceCollector& Collector, FInterfaceProperty& Property, FScriptInterface& Interface, const UObject* Referencer)
+{
+	// Handle reference synchronously and update interface if reference was nulled out
+	UObject*& Ref = Interface.GetObjectRef();
+	if (CollectStackReference(Collector, Property, Ref, Referencer))
+	{
+		Interface.SetInterface(nullptr);
+	}
+}
+
+FORCENOINLINE static void CollectFieldPathReference(FReferenceCollector& Collector, FFieldPathProperty& Property, FFieldPath& FieldPath, const UObject* Referencer)
+{
+	if (FUObjectItem* FieldOwnerItem = FGCInternals::GetResolvedOwner(FieldPath))
+	{
+		// Handle reference synchronously and update field path if reference was nulled out
+		UObject* Owner = static_cast<UObject*>(FieldOwnerItem->Object);		
+		if (CollectStackReference(Collector, Property, Owner, Referencer))
+		{
+			FGCInternals::ClearCachedField(FieldPath);
+		}
+	}
+}
+
+template<EPropertyCollectFlags CollectFlags>
+void CollectPropertyReferences(FReferenceCollector& Collector, FProperty& Property, void* Instance, const UObject* Referencer)
+{
+	FFieldClass* Class = Property.GetClass();
+	const int32 ArrayDim = Property.ArrayDim;
+	EPropertyFlags PropertyFlags = Property.GetPropertyFlags();
+	const EClassCastFlags CastFlags = static_cast<EClassCastFlags>(Class->GetCastFlags());
+	
+	if (EnumHasAnyFlags(CastFlags, GetCastFlagsToSkip(CollectFlags)) |
+		EnumHasAnyFlags(PropertyFlags, GetPropertyFlagsToSkip(CollectFlags)))
+	{
+		return;
+	}
+
+	int32 Idx = 0;
+	do
+	{
+		void* Value = Property.ContainerPtrToValuePtr<void>(Instance, Idx);
+
+		if (EnumHasAnyFlags(CastFlags, ObjectCastFlags))
+		{
+			CollectObjectReference<CollectFlags>(Collector, Property, Value, Referencer);
+		}
+		else if (EnumHasAnyFlags(CastFlags, CASTCLASS_FArrayProperty))
+		{
+			CollectArrayReferences<CollectFlags>(Collector, static_cast<FArrayProperty&>(Property), Value, Referencer);
+		}
+		else if (EnumHasAnyFlags(CastFlags, CASTCLASS_FStructProperty))
+		{
+			CollectStructReferences<CollectFlags>(Collector, static_cast<FStructProperty&>(Property).Struct, Value, Referencer);
+		}
+		else if (EnumHasAnyFlags(CastFlags, CASTCLASS_FMapProperty))
+		{	
+			CollectMapReferences<CollectFlags>(Collector, static_cast<FMapProperty&>(Property), Value, Referencer);
+		}
+		else if (EnumHasAnyFlags(CastFlags, CASTCLASS_FSetProperty))
+		{	
+			CollectSetReferences<CollectFlags>(Collector, static_cast<FSetProperty&>(Property), Value, Referencer);
+		}
+		else if (EnumHasAnyFlags(CastFlags, CASTCLASS_FFieldPathProperty))
+		{	
+			CollectFieldPathReference(Collector, static_cast<FFieldPathProperty&>(Property), *reinterpret_cast<FFieldPath*>(Value), Referencer);
+		}
+		else if (EnumHasAnyFlags(CastFlags, CASTCLASS_FInterfaceProperty))
+		{	
+			CollectInterfaceReference(Collector, static_cast<FInterfaceProperty&>(Property), *reinterpret_cast<FScriptInterface*>(Value), Referencer);
+		}
+		else
+		{
+			// Fallback to virtual SerializeItem dispatch inside SerializeBin
+			// for certain Epic plugins that actually add new FProperty types (not recommended)
+			checkf(MayContainStrongReference(CastFlags), TEXT("Missing code to collect references from %s properties (%llx). "
+				"Core property types part of RefLink chain / overloading ContainsObjectReference should be handled above."),
+				*Class->GetFName().ToString(), CastFlags);
+
+			FReferenceCollectorArchive& Archive = Collector.GetVerySlowReferenceCollectorArchive();
+
+			if constexpr (EnumHasAnyFlags(CollectFlags, EPropertyCollectFlags::NeedsReferencer))
+			{
+				FVerySlowReferenceCollectorArchiveScope CollectorScope(Archive, Referencer, &Property);
+				Property.SerializeItem(FStructuredArchiveFromArchive(Archive).GetSlot(), Value, /* defaults */ nullptr);
+			}
+			else
+			{
+				Property.SerializeItem(FStructuredArchiveFromArchive(Archive).GetSlot(), Value, /* defaults */ nullptr);
+			}			
+		}
+	}
+	while (++Idx < ArrayDim);
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+template<EPropertyCollectFlags NonCollectorFlag, /* UStruct or UScriptStruct */ class StructType>
+FORCEINLINE_DEBUGGABLE void CallCollectStructReferences(FReferenceCollector& Collector, const StructType* Struct, void* Instance, const UObject* Referencer)
+{
+	static_assert(!EnumHasAnyFlags(NonCollectorFlag, AllCollectorFlags));
+	static_assert(AllCollectorFlags == EPropertyCollectFlags(3));
+
+	EPropertyCollectFlags CollectorFlags = GetCollectorPropertyFlags(Collector);
+
+	using Func = void (*)(FReferenceCollector&, const StructType*, void*, const UObject*);
+	static constexpr Func Funcs[] = 
+	{
+		&CollectStructReferences<NonCollectorFlag | EPropertyCollectFlags(0), StructType>,
+		&CollectStructReferences<NonCollectorFlag | EPropertyCollectFlags(1), StructType>,
+		&CollectStructReferences<NonCollectorFlag | EPropertyCollectFlags(2), StructType>,
+		&CollectStructReferences<NonCollectorFlag | EPropertyCollectFlags(3), StructType>,
+	};
+
+	uint32 Idx = static_cast<uint32>(CollectorFlags);
+	check(Idx < UE_ARRAY_COUNT(Funcs));
+	(*Funcs[Idx])(Collector, Struct, Instance, Referencer);
+}
+
+void FReferenceCollector::AddPropertyReferences(const UStruct* Struct, void* Instance, const UObject* ReferencingObject)
+{
+	CallCollectStructReferences<EPropertyCollectFlags::None>(*this, Struct, Instance, ReferencingObject);
+}
+
+void FReferenceCollector::AddPropertyReferencesWithStructARO(const UScriptStruct* Struct, void* Instance, const UObject* ReferencingObject)
+{
+	CallCollectStructReferences<EPropertyCollectFlags::CallStructARO>(*this, Struct, Instance, ReferencingObject);
+}
+
+void FReferenceCollector::AddPropertyReferencesLimitedToObjectProperties(const UStruct* Struct, void* Instance, const UObject* ReferencingObject)
+{
+	CallCollectStructReferences<EPropertyCollectFlags::OnlyObjectProperty>(*this, Struct, Instance, ReferencingObject);
+}
+
 void FReferenceCollector::CreateVerySlowReferenceCollectorArchive()
 {
 	check(DefaultReferenceCollectorArchive == nullptr);
-	DefaultReferenceCollectorArchive = new FSimpleObjectReferenceCollectorArchive(nullptr, *this);
+	if (NeedsPropertyReferencer())
+	{
+		DefaultReferenceCollectorArchive.Reset(new FPropertyTrackingReferenceCollectorArchive(nullptr, *this));
+	}
+	else
+	{
+		DefaultReferenceCollectorArchive.Reset(new FReferenceCollectorArchive(nullptr, *this));
+	}
 }
 
-void FReferenceCollector::CreatePersistentFrameReferenceCollectorArchive()
+FArchive& FReferenceCollectorArchive::operator<<(UObject*& Object)
 {
-	check(PersistentFrameReferenceCollectorArchive == nullptr);
-	PersistentFrameReferenceCollectorArchive = new FPersistentFrameCollectorArchive(nullptr, *this);
+	Collector.AddStableReference(&Object);
+	return *this;
+}
+
+FArchive& FReferenceCollectorArchive::operator<<(FObjectPtr& Object)
+{
+	Collector.AddStableReference(reinterpret_cast<UObject**>(&Object));
+	return *this;
 }
 
 /**
@@ -4758,7 +5016,7 @@ private:
 
 		if( !Object->GetClass()->IsChildOf(UClass::StaticClass()) )
 		{
-			FSimpleObjectReferenceCollectorArchive CollectorArchive( Object, *this );
+			FPropertyTrackingReferenceCollectorArchive CollectorArchive( Object, *this );
 			Object->SerializeScriptProperties( CollectorArchive );
 		}
 		Object->CallAddReferencedObjects(*this);
@@ -5697,7 +5955,7 @@ namespace UECodeGen_Private
 		if ((NewClass->ClassFlags & CLASS_Intrinsic) != CLASS_Intrinsic)
 		{
 			check((NewClass->ClassFlags & CLASS_TokenStreamAssembled) != CLASS_TokenStreamAssembled);
-			NewClass->ReferenceTokenStream.Empty();
+			NewClass->ReferenceTokens.Reset();
 		}
 		NewClass->CreateLinkAndAddChildFunctionsToMap(Params.FunctionLinkArray, Params.NumFunctions);
 

@@ -38,12 +38,7 @@ public:
 	 */
 	void BootMessage();
 
-	/**
-	 * Checks whether object is part of permanent object pool.
-	 *
-	 * @param Object object to test as a member of permanent object pool
-	 * @return true if object is part of permanent object pool, false otherwise
-	 */
+	UE_DEPRECATED(5.1, "Use the more efficient FPermanentObjectPoolExtents instead")
 	FORCEINLINE bool ResidesInPermanentPool(const UObjectBase *Object) const
 	{
 		return ((const uint8*)Object >= PermanentObjectPool) && ((const uint8*)Object < PermanentObjectPoolTail);
@@ -67,6 +62,7 @@ public:
 	void FreeUObject(UObjectBase *Object) const;
 
 private:
+	friend class FPermanentObjectPoolExtents;
 
 	/** Size in bytes of pool for objects disregarded for GC.								*/
 	int32							PermanentObjectPoolSize;
@@ -81,3 +77,21 @@ private:
 /** Global UObjectBase allocator							*/
 extern COREUOBJECT_API FUObjectAllocator GUObjectAllocator;
 
+/** Helps check if an object is part of permanent object pool */
+class FPermanentObjectPoolExtents
+{
+public:
+	FORCEINLINE FPermanentObjectPoolExtents(const FUObjectAllocator& ObjectAllocator = GUObjectAllocator)
+		: Address(reinterpret_cast<uint64>(ObjectAllocator.PermanentObjectPool))
+		, Size(static_cast<uint64>(ObjectAllocator.PermanentObjectPoolSize))
+	{}
+	
+	FORCEINLINE bool Contains(const UObjectBase* Object) const
+	{
+		return reinterpret_cast<uint64>(Object) - Address < Size;
+	}
+
+private:
+	const uint64 Address;
+	const uint64 Size;
+};

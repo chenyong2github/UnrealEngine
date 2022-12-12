@@ -52,6 +52,8 @@ void SObjectWidget::ResetWidget()
 {
 	if ( UObjectInitialized() && WidgetObject )
 	{
+		UnregisterGCObject();
+
 		if ( CanRouteEvent() )
 		{
 			WidgetObject->NativeDestruct();
@@ -97,7 +99,7 @@ FString SObjectWidget::GetReferencerName() const
 
 void SObjectWidget::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	Collector.AddReferencedObject(WidgetObject);
+	Collector.AddStableReference(&WidgetObject);
 }
 
 void SObjectWidget::SetPadding(const TAttribute<FMargin>& InMargin)

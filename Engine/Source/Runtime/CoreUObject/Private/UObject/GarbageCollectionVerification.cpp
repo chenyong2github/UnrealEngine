@@ -52,7 +52,7 @@ public:
 	{
 		return NumErrors.GetValue();
 	}
-	FORCEINLINE_DEBUGGABLE void HandleTokenStreamObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, UObject* ReferencingObject, UObject*& Object, const int32 TokenIndex, const EGCTokenType TokenType, bool bAllowReferenceElimination)
+	FORCEINLINE_DEBUGGABLE void HandleTokenStreamObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, UObject* ReferencingObject, UObject*& Object, UE::GC::FTokenId TokenIndex, const EGCTokenType TokenType, bool bAllowReferenceElimination)
 	{
 		if (Object)
 		{
@@ -66,7 +66,7 @@ public:
 				FString TokenDebugInfo;
 				if (UClass *Class = (ReferencingObject ? ReferencingObject->GetClass() : nullptr))
 				{
-					FTokenInfo TokenInfo = Class->ReferenceTokenStream.GetTokenInfo(TokenIndex);
+					FTokenInfo TokenInfo = Class->ReferenceTokens.GetTokenInfo(TokenIndex);
 					TokenDebugInfo = FString::Printf(TEXT("ReferencingObjectClass: %s, Property Name: %s, Offset: %d"),
 						*Class->GetFullName(), *TokenInfo.Name.GetPlainNameString(), TokenInfo.Offset);
 				}
@@ -79,7 +79,7 @@ public:
 				UE_LOG(LogGarbage, Fatal, TEXT("Invalid object while verifying Disregard for GC assumptions: 0x%016llx, ReferencingObject: %s, %s, TokenIndex: %d"),
 					(int64)(PTRINT)Object,
 					ReferencingObject ? *ReferencingObject->GetFullName() : TEXT("NULL"),
-					*TokenDebugInfo, TokenIndex);
+					*TokenDebugInfo, TokenIndex.AsPrintableIndex());
 				}
 #endif // ENABLE_GC_OBJECT_CHECKS
 
@@ -96,43 +96,37 @@ public:
 		}
 	}
 };
-typedef TDefaultReferenceCollector<FDisregardSetReferenceProcessor> FDisregardSetReferenceCollector;
 
 void VerifyGCAssumptions()
 {	
 	int32 MaxNumberOfObjects = GUObjectArray.GetObjectArrayNumPermanent();
 
 	FDisregardSetReferenceProcessor Processor;
-	TFastReferenceCollector<
-		FDisregardSetReferenceProcessor, 
-		FDisregardSetReferenceCollector, 
-		FGCArrayPool, 
-		EFastReferenceCollectorOptions::AutogenerateTokenStream | EFastReferenceCollectorOptions::ProcessNoOpTokens
-	> ReferenceCollector(Processor, FGCArrayPool::Get());
 
-	int32 NumThreads = FMath::Max(1, FTaskGraphInterface::Get().GetNumWorkerThreads());
+	int32 NumThreads = GetNumCollectReferenceWorkers();
 	int32 NumberOfObjectsPerThread = (MaxNumberOfObjects / NumThreads) + 1;
-	FGCArrayStruct* ArrayStructs = new FGCArrayStruct[NumThreads];
-
-	ParallelFor( TEXT("GarbageCollection.PF"),NumThreads,1, [&ReferenceCollector, ArrayStructs, NumberOfObjectsPerThread, NumThreads, MaxNumberOfObjects](int32 ThreadIndex)
+	
+	ParallelFor( TEXT("GC.VerifyAssumptions"),NumThreads,1, [&Processor, NumberOfObjectsPerThread, NumThreads, MaxNumberOfObjects](int32 ThreadIndex)
 	{
 		int32 FirstObjectIndex = ThreadIndex * NumberOfObjectsPerThread;
 		int32 NumObjects = (ThreadIndex < (NumThreads - 1)) ? NumberOfObjectsPerThread : (MaxNumberOfObjects - (NumThreads - 1)*NumberOfObjectsPerThread);
-		FGCArrayStruct& ArrayStruct = ArrayStructs[ThreadIndex];
-		ArrayStruct.ObjectsToSerialize.Reserve(NumberOfObjectsPerThread);
+		
+		TArray<UObject*> ObjectsToSerialize;
+		ObjectsToSerialize.Reserve(NumberOfObjectsPerThread + UE::GC::ObjectLookahead);
 
 		for (int32 ObjectIndex = 0; ObjectIndex < NumObjects && (FirstObjectIndex + ObjectIndex) < MaxNumberOfObjects; ++ObjectIndex)
 		{
 			FUObjectItem& ObjectItem = GUObjectArray.GetObjectItemArrayUnsafe()[FirstObjectIndex + ObjectIndex];
 			if (ObjectItem.Object && ObjectItem.Object != FGCObject::GGCObjectReferencer)
 			{
-				ArrayStruct.ObjectsToSerialize.Add(static_cast<UObject*>(ObjectItem.Object));
+				ObjectsToSerialize.Add(static_cast<UObject*>(ObjectItem.Object));
 			}
 		}
-		ReferenceCollector.CollectReferences(ArrayStruct);
+		
+		UE::GC::FWorkerContext Context;
+		Context.SetInitialObjectsUnpadded(ObjectsToSerialize);
+		CollectReferences(Processor, Context);
 	});
-
-	delete[] ArrayStructs;
 
 	UE_CLOG(Processor.GetErrorCount() > 0, LogGarbage, Fatal, TEXT("Encountered %d object(s) breaking Disregard for GC assumptions. Please check log for details."), Processor.GetErrorCount());
 }
@@ -177,7 +171,7 @@ public:
 	* @param TokenIndex Index to the token stream where the reference was found.
 	* @param bAllowReferenceElimination True if reference elimination is allowed (ignored when constructing clusters).
 	*/
-	FORCEINLINE_DEBUGGABLE void HandleTokenStreamObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, UObject* ReferencingObject, UObject*& Object, const int32 TokenIndex, const EGCTokenType TokenType, bool bAllowReferenceElimination)
+	FORCEINLINE_DEBUGGABLE void HandleTokenStreamObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, UObject* ReferencingObject, UObject*& Object, UE::GC::FTokenId TokenIndex, const EGCTokenType TokenType, bool bAllowReferenceElimination)
 	{
 		if (Object)
 		{
@@ -197,7 +191,7 @@ public:
 				FString TokenDebugInfo;
 				if (UClass *Class = (ReferencingObject ? ReferencingObject->GetClass() : nullptr))
 				{
-					FTokenInfo TokenInfo = Class->ReferenceTokenStream.GetTokenInfo(TokenIndex);
+					FTokenInfo TokenInfo = Class->ReferenceTokens.GetTokenInfo(TokenIndex);
 					TokenDebugInfo = FString::Printf(TEXT("ReferencingObjectClass: %s, Property Name: %s, Offset: %d"),
 						*Class->GetFullName(), *TokenInfo.Name.GetPlainNameString(), TokenInfo.Offset);
 				}
@@ -214,7 +208,7 @@ public:
 				UE_LOG(LogGarbage, Fatal, TEXT("Invalid object while verifying cluster assumptions: 0x%016llx, ReferencingObject: %s, %s, TokenIndex: %d"),
 					(int64)(PTRINT)Object,
 					ReferencingObject ? *ReferencingObject->GetFullName() : TEXT("NULL"),
-					*TokenDebugInfo, TokenIndex);
+					*TokenDebugInfo, TokenIndex.AsPrintableIndex());
 			}
 #endif // ENABLE_GC_OBJECT_CHECKS
 
@@ -283,57 +277,51 @@ public:
 		}
 	}
 };
-typedef TDefaultReferenceCollector<FClusterVerifyReferenceProcessor> FClusterVerifyReferenceCollector;
 
 void VerifyClustersAssumptions()
 {
 	int32 MaxNumberOfClusters = GUObjectClusters.GetClustersUnsafe().Num();
-	int32 NumThreads = FMath::Max(1, FTaskGraphInterface::Get().GetNumWorkerThreads());
+	int32 NumThreads = GetNumCollectReferenceWorkers();
 	int32 NumberOfClustersPerThread = (MaxNumberOfClusters / NumThreads) + 1;
-	FGCArrayStruct* ArrayStructs = new FGCArrayStruct[NumThreads];
+	
 	FThreadSafeCounter NumErrors(0);
 
-	ParallelFor( TEXT("GarbageCollection.PF"),NumThreads,1, [&NumErrors, ArrayStructs, NumberOfClustersPerThread, NumThreads, MaxNumberOfClusters](int32 ThreadIndex)
+	ParallelFor( TEXT("GC.VerifyClusterAssumptions"),NumThreads,1, [&NumErrors, NumberOfClustersPerThread, NumThreads, MaxNumberOfClusters](int32 ThreadIndex)
 	{
 		int32 FirstClusterIndex = ThreadIndex * NumberOfClustersPerThread;
 		int32 NumClusters = (ThreadIndex < (NumThreads - 1)) ? NumberOfClustersPerThread : (MaxNumberOfClusters - (NumThreads - 1) * NumberOfClustersPerThread);
-		FGCArrayStruct& ArrayStruct = ArrayStructs[ThreadIndex];
-		
+				
 		FClusterVerifyReferenceProcessor Processor;
-		TFastReferenceCollector<
-			FClusterVerifyReferenceProcessor, 
-			FClusterVerifyReferenceCollector, 
-			FGCArrayPool, 
-			EFastReferenceCollectorOptions::AutogenerateTokenStream | EFastReferenceCollectorOptions::ProcessNoOpTokens
-		> ReferenceCollector(Processor, FGCArrayPool::Get());
 
+		TArray<UObject*> ObjectsToSerialize;
 		for (int32 ClusterIndex = 0; ClusterIndex < NumClusters && (FirstClusterIndex + ClusterIndex) < MaxNumberOfClusters; ++ClusterIndex)
 		{
 			FUObjectCluster& Cluster = GUObjectClusters.GetClustersUnsafe()[FirstClusterIndex + ClusterIndex];
 			if (Cluster.RootIndex >= 0 && Cluster.Objects.Num())
 			{
-				ArrayStruct.ObjectsToSerialize.Reset();
-				ArrayStruct.ObjectsToSerialize.Reserve(Cluster.Objects.Num() + 1);
+				ObjectsToSerialize.Reset(Cluster.Objects.Num() + 1 + UE::GC::ObjectLookahead);
 				{
 					FUObjectItem* RootItem = GUObjectArray.IndexToObject(Cluster.RootIndex);
 					check(RootItem);
 					check(RootItem->Object);
-					ArrayStruct.ObjectsToSerialize.Add(static_cast<UObject*>(RootItem->Object));
+					ObjectsToSerialize.Add(static_cast<UObject*>(RootItem->Object));
 				}
 				for (int32 ObjectIndex : Cluster.Objects)
 				{
 					FUObjectItem* ObjectItem = GUObjectArray.IndexToObject(ObjectIndex);
 					check(ObjectItem);
 					check(ObjectItem->Object);
-					ArrayStruct.ObjectsToSerialize.Add(static_cast<UObject*>(ObjectItem->Object));
+					ObjectsToSerialize.Add(static_cast<UObject*>(ObjectItem->Object));
 				}
-				ReferenceCollector.CollectReferences(ArrayStruct);
+
+				UE::GC::FWorkerContext Context;
+				Context.SetInitialObjectsUnpadded(ObjectsToSerialize);
+				CollectReferences(Processor, Context);
 				NumErrors.Add(Processor.GetErrorCount());
 			}			
 		}		
 	});
 
-	delete[] ArrayStructs;
 
 	UE_CLOG(NumErrors.GetValue() > 0, LogGarbage, Fatal, TEXT("Encountered %d object(s) breaking GC Clusters assumptions. Please check log for details."), NumErrors.GetValue());
 }
@@ -345,7 +333,7 @@ void VerifyObjectFlagMirroring()
 	int32 NumberOfObjectsPerThread = (MaxNumberOfObjects / NumThreads) + 1;
 	std::atomic<uint32> NumErrors(0);
 
-	ParallelFor( TEXT("GarbageCollection.PF"),NumThreads,1, [&NumErrors, NumberOfObjectsPerThread, NumThreads, MaxNumberOfObjects](int32 ThreadIndex)
+	ParallelFor( TEXT("GC.VerifyFlagMirroring"),NumThreads,1, [&NumErrors, NumberOfObjectsPerThread, NumThreads, MaxNumberOfObjects](int32 ThreadIndex)
 	{
 		int32 FirstObjectIndex = ThreadIndex * NumberOfObjectsPerThread;
 		int32 NumObjects = (ThreadIndex < (NumThreads - 1)) ? NumberOfObjectsPerThread : (MaxNumberOfObjects - (NumThreads - 1) * NumberOfObjectsPerThread);

@@ -73,7 +73,7 @@ public:
 		check(Obj->CanBeInCluster());
 		if (ObjectIndex != ClusterRootIndex && ObjectItem->GetOwnerIndex() == 0 && !GUObjectArray.IsDisregardForGC(Obj) && !Obj->IsRooted())
 		{
-			ObjectsToSerializeStruct.ObjectsToSerialize.Add(Obj);
+			ObjectsToSerializeStruct.ObjectsToSerialize.Add<Options>(Obj);
 			check(!ObjectItem->HasAnyFlags(EInternalObjectFlags::ClusterRoot));
 			ObjectItem->SetOwnerIndex(ClusterRootIndex);
 			Cluster.Objects.Add(ObjectIndex);
@@ -83,7 +83,7 @@ public:
 				UObject* ObjOuter = Obj->GetOuter();
 				if (CanAddToCluster(ObjOuter))
 				{
-					HandleTokenStreamObjectReference(ObjectsToSerializeStruct, Obj, ObjOuter, INDEX_NONE, EGCTokenType::Native, true);
+					HandleTokenStreamObjectReference(ObjectsToSerializeStruct, Obj, ObjOuter, UE::GC::ETokenlessId::Outer, EGCTokenType::Native, true);
 				}
 				else
 				{
@@ -92,9 +92,9 @@ public:
 				if (!Obj->GetClass()->HasAllClassFlags(CLASS_Native))
 				{
 					UObject* ObjectClass = Obj->GetClass();
-					HandleTokenStreamObjectReference(ObjectsToSerializeStruct, Obj, ObjectClass, INDEX_NONE, EGCTokenType::Native, true);
+					HandleTokenStreamObjectReference(ObjectsToSerializeStruct, Obj, ObjectClass, UE::GC::ETokenlessId::Class, EGCTokenType::Native, true);
 					UObject* ObjectClassOuter = Obj->GetClass()->GetOuter();
-					HandleTokenStreamObjectReference(ObjectsToSerializeStruct, Obj, ObjectClassOuter, INDEX_NONE, EGCTokenType::Native, true);
+					HandleTokenStreamObjectReference(ObjectsToSerializeStruct, Obj, ObjectClassOuter, UE::GC::ETokenlessId::ClassOuter, EGCTokenType::Native, true);
 				}
 			}
 		}
@@ -108,7 +108,7 @@ public:
 	* @param TokenIndex Index to the token stream where the reference was found.
 	* @param bAllowReferenceElimination True if reference elimination is allowed (ignored when constructing clusters).
 	*/
-	FORCEINLINE void HandleTokenStreamObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, UObject* ReferencingObject, UObject*& Object, const int32 TokenIndex, const EGCTokenType TokenType, bool bAllowReferenceElimination)
+	FORCEINLINE void HandleTokenStreamObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, UObject* ReferencingObject, UObject*& Object, UE::GC::FTokenId TokenIndex, EGCTokenType TokenType, bool bAllowReferenceElimination)
 	{
 		if (Object)
 		{
@@ -182,19 +182,10 @@ void ULevelActorContainer::CreateCluster()
 
 	// Collect all objects referenced by cluster root and by all objects it's referencing
 	FActorClusterReferenceProcessor Processor(ContainerInternalIndex, Cluster, CastChecked<ULevel>(GetOuter()));
-	TFastReferenceCollector<
-		FActorClusterReferenceProcessor, 
-		TDefaultReferenceCollector<FActorClusterReferenceProcessor>, 
-		FGCArrayPool, 
-		EFastReferenceCollectorOptions::AutogenerateTokenStream | EFastReferenceCollectorOptions::ProcessNoOpTokens
-	> ReferenceCollector(Processor, FGCArrayPool::Get());
+	TArray<UObject*> ObjectsToProcess = {static_cast<UObject*>(this)};
 	FGCArrayStruct ArrayStruct;
-	TArray<UObject*>& ObjectsToProcess = ArrayStruct.ObjectsToSerialize;
-	ObjectsToProcess.Add(static_cast<UObject*>(this));
-	ReferenceCollector.CollectReferences(ArrayStruct);
-#if UE_BUILD_DEBUG
-	FGCArrayPool::Get().CheckLeaks();
-#endif
+	ArrayStruct.SetInitialObjectsUnpadded(ObjectsToProcess);
+	CollectReferences(Processor, ArrayStruct);
 
 	check(RootItem->GetOwnerIndex() == 0);
 	RootItem->SetClusterIndex(ClusterIndex);

@@ -34,6 +34,8 @@ namespace
 		}
 	}
 #endif // WITH_EDITORONLY_DATA
+
+	UE_CALL_ONCE(UE::GC::RegisterSlowImplementation, &UDataTable::AddReferencedObjects, UE::GC::EAROFlags::ExtraSlow);
 }
 
 UDataTable::FScopedDataTableChange::FScopedDataTableChange(UDataTable* InTable)
@@ -268,15 +270,11 @@ void UDataTable::AddReferencedObjects(UObject* InThis, FReferenceCollector& Coll
 	if(This->RowStruct != nullptr && This->RowStruct->RefLink != nullptr)
 	{
 		// Now iterate over rows in the map
-		for ( auto RowIt = This->RowMap.CreateIterator(); RowIt; ++RowIt )
+		for (const TPair<FName, uint8*>& Pair : This->RowMap)
 		{
-			uint8* RowData = RowIt.Value();
-
-			if (RowData)
+			if (uint8* RowData = Pair.Value)
 			{
-				FVerySlowReferenceCollectorArchiveScope CollectorScope(Collector.GetVerySlowReferenceCollectorArchive(), This);
-				// Serialize all of the properties to make sure they get in the collector
-				This->RowStruct->SerializeBin(CollectorScope.GetArchive(), RowData);
+				Collector.AddPropertyReferences(This->RowStruct, RowData, This);
 			}
 		}
 	}

@@ -101,10 +101,12 @@ void FObjectProperty::SerializeItem( FStructuredArchive::FSlot Slot, void* Value
 		TObjectPtr<UObject>* ObjectPtr = GetPropertyValuePtr(Value);
 		Slot << (*ObjectPtr);
 
+#if !(UE_BUILD_TEST || UE_BUILD_SHIPPING) 
 		if(!UnderlyingArchive.IsSaving())
 		{
 			CheckValidObject(ObjectPtr, *ObjectPtr);
 		}
+#endif
 	}
 	else
 	{

@@ -467,13 +467,11 @@ const uint8* UUserDefinedStruct::GetDefaultInstance() const
 void UUserDefinedStruct::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
 	UUserDefinedStruct* This = CastChecked<UUserDefinedStruct>(InThis);
-
 	ensure(!This->DefaultStructInstance.IsValid() || This->DefaultStructInstance.GetStruct() == This);
-	uint8* StructData = This->DefaultStructInstance.GetStructMemory();
-	if (StructData)
+
+	if (uint8* StructData = This->DefaultStructInstance.GetStructMemory())
 	{
-		FVerySlowReferenceCollectorArchiveScope CollectorScope(Collector.GetVerySlowReferenceCollectorArchive(), This);
-		This->SerializeBin(FStructuredArchiveFromArchive(CollectorScope.GetArchive()).GetSlot(), StructData);
+		Collector.AddPropertyReferences(This, StructData, This);
 	}
 
 	Super::AddReferencedObjects(This, Collector);

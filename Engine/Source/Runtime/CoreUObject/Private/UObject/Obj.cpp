@@ -1765,6 +1765,12 @@ public:
 	{
 		if( !ReferencingObject->GetClass()->IsChildOf(UClass::StaticClass()) )
 		{
+			// Didn't dare switching from SerializeScriptProperties to new and faster AddPropertyReferencers.
+			// This collector IsIgnoringTransient and SerializeScriptProperties will skip
+			// transient default objects but AddPropertyReferencers / SerializeBin will skip all transient 
+			// properties, including default ones. Not sure if this matters.
+			// 
+			// See FReferenceFinder::FindReferences whose collector doesn't ignore transient
 			FVerySlowReferenceCollectorArchiveScope CollectorScope(GetVerySlowReferenceCollectorArchive(), ReferencingObject);
 			ReferencingObject->SerializeScriptProperties(CollectorScope.GetArchive());
 		}

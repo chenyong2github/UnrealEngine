@@ -2785,9 +2785,7 @@ public:
 	TArray<FImplementedInterface> Interfaces;
 
 	/** Reference token stream used by realtime garbage collector, finalized in AssembleReferenceTokenStream */
-	FGCReferenceTokenStream ReferenceTokenStream;
-	/** CS for the token stream. Token stream can assemble code can sometimes be called from two threads throuh a web of async loading calls. */
-	FCriticalSection ReferenceTokenStreamCritical;
+	UE::GC::FTokenStreamOwner ReferenceTokens;
 
 	/** This class's native functions. */
 	TArray<FNativeFunctionLookup> NativeFunctionLookupTable;
@@ -3219,68 +3217,6 @@ public:
 	FString GetDescription() const;
 
 	/**
-	 * Realtime garbage collection helper function used to emit token containing information about a 
-	 * direct UObject reference at the passed in offset.
-	 *
-	 * @param Offset	Offset into object at which object reference is stored.
-	 * @param DebugName	DebugName for this objects token. Only used in non-shipping builds.
-	 * @param Kind		Optional parameter the describe the type of the reference.
-	 */
-	void EmitObjectReference(int32 Offset, const FName& DebugName, EGCReferenceType Kind = GCRT_Object);
-
-	/**
-	 * Realtime garbage collection helper function used to emit token containing information about a 
-	 * an array of UObject references at the passed in offset. Handles both TArray and TTransArray.
-	 *
-	 * @param Offset	Offset into object at which array of objects is stored.
-	 * @param DebugName	DebugName for this objects token. Only used in non-shipping builds.
-	 */
-	void EmitObjectArrayReference(int32 Offset, const FName& DebugName);
-
-	/**
-	 * Realtime garbage collection helper function used to indicate an array of structs at the passed in 
-	 * offset.
-	 *
-	 * @param Offset	Offset into object at which array of structs is stored
-	 * @param DebugName	DebugName for this objects token. Only used in non-shipping builds.
-	 * @param Stride	Size/stride of struct
-	 * @return	Index into token stream at which later on index to next token after the array is stored
-	 *			which is used to skip over empty dynamic arrays
-	 */
-	uint32 EmitStructArrayBegin(int32 Offset, const FName& DebugName, int32 Stride);
-
-	/**
-	 * Realtime garbage collection helper function used to indicate the end of an array of structs. The
-	 * index following the current one will be written to the passed in SkipIndexIndex in order to be
-	 * able to skip tokens for empty dynamic arrays.
-	 *
-	 * @param SkipIndexIndex
-	 */
-	void EmitStructArrayEnd(uint32 SkipIndexIndex);
-
-	/**
-	 * Realtime garbage collection helper function used to indicate the beginning of a fixed array.
-	 * All tokens issues between Begin and End will be replayed Count times.
-	 *
-	 * @param Offset	Offset at which fixed array starts.
-	 * @param DebugName	DebugName for this objects token. Only used in non-shipping builds.
-	 * @param Stride	Stride of array element, e.g. sizeof(struct) or sizeof(UObject*).
-	 * @param Count		Fixed array count.
-	 */
-	void EmitFixedArrayBegin(int32 Offset, const FName& DebugName, int32 Stride, int32 Count);
-	
-	/**
-	 * Realtime garbage collection helper function used to indicated the end of a fixed array.
-	 */
-	void EmitFixedArrayEnd();
-
-	/**
-	 * Realtime garbage collection helper function used to emit token containing information about an
-	 * external package reference.
-	 */
-	void EmitExternalPackageReference();
-
-	/**
 	 * Assembles the token stream for realtime garbage collection by combining the per class only
 	 * token stream for each class in the class hierarchy. This is only done once and duplicate
 	 * work is avoided by using an object flag.
@@ -3446,6 +3382,7 @@ private:
 	 * Tests if all properties tagged with Replicate were registered in GetLifetimeReplicatedProps
 	 */
 	void ValidateRuntimeReplicationData();
+	void AssembleReferenceTokenStreamInternal(bool bForce = false);
 	void InternalCreateDefaultObjectWrapper() const;
 protected:
 	/**

@@ -30,13 +30,6 @@ namespace UE::StructUtils
 	{
 		return T::StaticClass();
 	}
-
-	/**
-	 * Adds references objects from specific struct, similar to FReferenceCollector::AddReferencedObjects(),
-	 * but calls AddStructReferencedObjects recursively on child structs.
-	 */
-	extern STRUCTUTILS_API void AddReferencedObjects(FReferenceCollector& Collector, const UScriptStruct*& ScriptStruct, void* StructMemory,
-													 const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr);
 }
 
 /* Predicate useful to find a struct of a specific type in an container */

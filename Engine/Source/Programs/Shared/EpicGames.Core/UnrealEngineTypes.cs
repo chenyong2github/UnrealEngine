@@ -658,11 +658,6 @@ namespace EpicGames.Core
 		Garbage = 1 << 21,
 
 		/// <summary>
-		/// Same as above but referenced through a persistent reference so it can't be GC'd
-		/// </summary>
-		PersistentGarbage = 1 << 22,
-
-		/// <summary>
 		/// External reference to object in cluster exists
 		/// </summary>
 		ReachableInCluster = 1 << 23,
@@ -710,7 +705,7 @@ namespace EpicGames.Core
 		GarbageCollectionKeepFlags = Native | Async | AsyncLoading | LoaderImport,
 
 		//~ Make sure this is up to date!
-		AllFlags = LoaderImport | Garbage | PersistentGarbage | ReachableInCluster | ClusterRoot | Native | Async | AsyncLoading | Unreachable | PendingKill | RootSet | PendingConstruction
+		AllFlags = LoaderImport | Garbage | ReachableInCluster | ClusterRoot | Native | Async | AsyncLoading | Unreachable | PendingKill | RootSet | PendingConstruction
 	};
 
 	/// <summary>

@@ -3753,24 +3753,24 @@ void UNetDriver::AddReferencedObjects(UObject* InThis, FReferenceCollector& Coll
 	//			E.G., if we detected that FObjectReplicator / FReplicationChangelistMgrs detected
 	//			their associated objects were destroyed, we could destroy the Shadow Buffers
 	//			which should be the last thing referencing the FRepLayout and the Properties.
-	for (auto It = This->RepLayoutMap.CreateIterator(); It; ++It)
+	for (TPair<TWeakObjectPtr<UObject>, TSharedPtr<FRepLayout>>& Pair : This->RepLayoutMap)
 	{
-		It.Value()->AddReferencedObjects(Collector);
+		Pair.Value->AddReferencedObjects(Collector);
 	}
 	
 	for (FObjectReplicator* Replicator : This->AllOwnedReplicators)
 	{
 		if (Replicator->GetWeakObjectPtr().IsValid())
 		{
-			Collector.AddReferencedObject(Replicator->ObjectPtr, This);
+			Collector.AddStableReference(&Replicator->ObjectPtr);
 		}
 
-		Collector.AddReferencedObject(Replicator->ObjectClass, This);
+		Collector.AddStableReference(&Replicator->ObjectClass);
 	}
 
-	for (FConnectionMap::TIterator It(This->MappedClientConnections); It; ++It)
+	for (TPair<TSharedRef<const FInternetAddr>, UNetConnection*>& Pair : This->MappedClientConnections)
 	{
-		Collector.AddReferencedObject(It.Value(), This);
+		Collector.AddStableReference(&Pair.Value);
 	}
 
 	if (This->GuidCache.IsValid())

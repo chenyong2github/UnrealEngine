@@ -123,9 +123,7 @@ void UStateTree::AddReferencedObjects(UObject* InThis, FReferenceCollector& Coll
 	{
 		if (InstanceData.IsValid())
 		{
-			uint8* StructMemory = (uint8*)InstanceData.Get();
-			const UScriptStruct* ScriptStruct = FStateTreeInstanceData::StaticStruct();
-			UE::StructUtils::AddReferencedObjects(Collector, ScriptStruct, StructMemory);
+			Collector.AddPropertyReferencesWithStructARO(FStateTreeInstanceData::StaticStruct(), InstanceData.Get(), StateTree);
 		}
 	}
 }

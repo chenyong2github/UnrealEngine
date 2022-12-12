@@ -146,5 +146,5 @@ public:
 	}
 
 	/** Helper function for adding info about an UObject into UObject to FGCObjectInfo map */
-	static FGCObjectInfo* FindOrAddInfoHelper(UObject* InObject, TMap<UObject*, FGCObjectInfo*>& InOutObjectToInfoMap);
+	static FGCObjectInfo* FindOrAddInfoHelper(const UObject* InObject, TMap<const UObject*, FGCObjectInfo*>& InOutObjectToInfoMap);
 };

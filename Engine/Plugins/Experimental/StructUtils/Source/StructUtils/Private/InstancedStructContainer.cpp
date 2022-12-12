@@ -363,14 +363,15 @@ void FInstancedStructContainer::Empty()
 	AllocatedSize = 0;
 }
 
-void FInstancedStructContainer::AddStructReferencedObjects(class FReferenceCollector& Collector) const
+void FInstancedStructContainer::AddStructReferencedObjects(FReferenceCollector& Collector) const
 {
-	for (int32 Index = 0; Index < NumItems; Index++)
+	for (int32 Index = 0, Num = NumItems; Index < Num; Index++)
 	{
 		FItem& Item = GetItem(Index);
 		if (Item.ScriptStruct != nullptr)
 		{
-			UE::StructUtils::AddReferencedObjects(Collector, Item.ScriptStruct, Memory + Item.Offset);
+			Collector.AddReferencedObject(Item.ScriptStruct);
+			Collector.AddPropertyReferencesWithStructARO(Item.ScriptStruct, Memory + Item.Offset);
 		}
 	}
 }

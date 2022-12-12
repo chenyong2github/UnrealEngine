@@ -172,8 +172,9 @@ namespace UEEnumProperty_Private
 
 IMPLEMENT_CORE_INTRINSIC_CLASS(UEnumProperty, UProperty,
 	{
-		Class->EmitObjectReference(UEEnumProperty_Private::FEnumPropertyFriend::EnumOffset, TEXT("Enum"));
-		Class->EmitObjectReference(UEEnumProperty_Private::FEnumPropertyFriend::UnderlyingPropOffset, TEXT("UnderlyingProp"));
+		UE::GC::FTokenStreamBuilder& Builder = UE::GC::FIntrinsicClassTokens::AllocateBuilder(Class);
+		Builder.EmitObjectReference(UEEnumProperty_Private::FEnumPropertyFriend::EnumOffset, TEXT("Enum"));
+		Builder.EmitObjectReference(UEEnumProperty_Private::FEnumPropertyFriend::UnderlyingPropOffset, TEXT("UnderlyingProp"));
 	}
 );
 
@@ -192,7 +193,8 @@ void UArrayProperty::AddReferencedObjects(UObject* InThis, FReferenceCollector& 
 
 IMPLEMENT_CORE_INTRINSIC_CLASS(UArrayProperty, UProperty,
 	{
-		Class->EmitObjectReference(STRUCT_OFFSET(UArrayProperty, Inner), TEXT("Inner"));
+		UE::GC::FTokenStreamBuilder& Builder = UE::GC::FIntrinsicClassTokens::AllocateBuilder(Class);
+		Builder.EmitObjectReference(STRUCT_OFFSET(UArrayProperty, Inner), TEXT("Inner"));
 
 		// Ensure that TArray and FScriptArray are interchangeable, as FScriptArray will be used to access a native array property
 		// from script that is declared as a TArray in C++.
@@ -254,7 +256,8 @@ void UObjectPropertyBase::AddReferencedObjects(UObject* InThis, FReferenceCollec
 
 IMPLEMENT_CORE_INTRINSIC_CLASS(UObjectPropertyBase, UProperty,
 	{
-		Class->EmitObjectReference(STRUCT_OFFSET(UObjectProperty, PropertyClass), TEXT("PropertyClass"));
+		UE::GC::FTokenStreamBuilder& Builder = UE::GC::FIntrinsicClassTokens::AllocateBuilder(Class);
+		Builder.EmitObjectReference(STRUCT_OFFSET(UObjectProperty, PropertyClass), TEXT("PropertyClass"));
 	}
 );
 
@@ -369,7 +372,8 @@ void UByteProperty::AddReferencedObjects(UObject* InThis, FReferenceCollector& C
 
 IMPLEMENT_CORE_INTRINSIC_CLASS(UByteProperty, UNumericProperty,
 	{
-		Class->EmitObjectReference(STRUCT_OFFSET(UByteProperty, Enum), TEXT("Enum"));
+		UE::GC::FTokenStreamBuilder& Builder = UE::GC::FIntrinsicClassTokens::AllocateBuilder(Class);
+		Builder.EmitObjectReference(STRUCT_OFFSET(UByteProperty, Enum), TEXT("Enum"));
 	}
 );
 
@@ -438,7 +442,8 @@ void UClassProperty::AddReferencedObjects(UObject* InThis, FReferenceCollector& 
 
 IMPLEMENT_CORE_INTRINSIC_CLASS(UClassProperty, UObjectProperty,
 	{
-		Class->EmitObjectReference(STRUCT_OFFSET(UClassProperty, MetaClass), TEXT("MetaClass"));
+		UE::GC::FTokenStreamBuilder& Builder = UE::GC::FIntrinsicClassTokens::AllocateBuilder(Class);
+		Builder.EmitObjectReference(STRUCT_OFFSET(UClassProperty, MetaClass), TEXT("MetaClass"));
 	}
 );
 
@@ -473,7 +478,8 @@ void UDelegateProperty::BeginDestroy()
 
 IMPLEMENT_CORE_INTRINSIC_CLASS(UDelegateProperty, UProperty,
 	{
-		Class->EmitObjectReference(STRUCT_OFFSET(UDelegateProperty, SignatureFunction), TEXT("SignatureFunction"));
+		UE::GC::FTokenStreamBuilder& Builder = UE::GC::FIntrinsicClassTokens::AllocateBuilder(Class);
+		Builder.EmitObjectReference(STRUCT_OFFSET(UDelegateProperty, SignatureFunction), TEXT("SignatureFunction"));
 	}
 );
 
@@ -574,7 +580,8 @@ void UInterfaceProperty::AddReferencedObjects(UObject* InThis, FReferenceCollect
 
 IMPLEMENT_CORE_INTRINSIC_CLASS(UInterfaceProperty, UProperty,
 	{
-		Class->EmitObjectReference(STRUCT_OFFSET(UInterfaceProperty, InterfaceClass), TEXT("InterfaceClass"));
+		UE::GC::FTokenStreamBuilder& Builder = UE::GC::FIntrinsicClassTokens::AllocateBuilder(Class);
+		Builder.EmitObjectReference(STRUCT_OFFSET(UInterfaceProperty, InterfaceClass), TEXT("InterfaceClass"));
 	}
 );
 
@@ -611,8 +618,9 @@ void UMapProperty::AddReferencedObjects(UObject* InThis, FReferenceCollector& Co
 
 IMPLEMENT_CORE_INTRINSIC_CLASS(UMapProperty, UProperty,
 	{
-		Class->EmitObjectReference(STRUCT_OFFSET(UMapProperty, KeyProp),   TEXT("KeyProp"));
-		Class->EmitObjectReference(STRUCT_OFFSET(UMapProperty, ValueProp), TEXT("ValueProp"));
+		UE::GC::FTokenStreamBuilder& Builder = UE::GC::FIntrinsicClassTokens::AllocateBuilder(Class);
+		Builder.EmitObjectReference(STRUCT_OFFSET(UMapProperty, KeyProp),   TEXT("KeyProp"));
+		Builder.EmitObjectReference(STRUCT_OFFSET(UMapProperty, ValueProp), TEXT("ValueProp"));
 
 		// Ensure that TArray and FScriptMap are interchangeable, as FScriptMap will be used to access a native array property
 		// from script that is declared as a TArray in C++.
@@ -650,7 +658,8 @@ void UMulticastDelegateProperty::BeginDestroy()
 
 IMPLEMENT_CORE_INTRINSIC_CLASS(UMulticastDelegateProperty, UProperty,
 	{
-		Class->EmitObjectReference(STRUCT_OFFSET(UMulticastDelegateProperty, SignatureFunction), TEXT("SignatureFunction"));
+		UE::GC::FTokenStreamBuilder& Builder = UE::GC::FIntrinsicClassTokens::AllocateBuilder(Class);
+		Builder.EmitObjectReference(STRUCT_OFFSET(UMulticastDelegateProperty, SignatureFunction), TEXT("SignatureFunction"));
 	}
 );
 
@@ -704,7 +713,8 @@ void USetProperty::AddReferencedObjects(UObject* InThis, FReferenceCollector& Co
 
 IMPLEMENT_CORE_INTRINSIC_CLASS(USetProperty, UProperty,
 	{
-		Class->EmitObjectReference(STRUCT_OFFSET(USetProperty, ElementProp), TEXT("ElementProp"));
+		UE::GC::FTokenStreamBuilder& Builder = UE::GC::FIntrinsicClassTokens::AllocateBuilder(Class);
+		Builder.EmitObjectReference(STRUCT_OFFSET(USetProperty, ElementProp), TEXT("ElementProp"));
 
 		// Ensure that TArray and FScriptMap are interchangeable, as FScriptMap will be used to access a native array property
 		// from script that is declared as a TArray in C++.
@@ -778,7 +788,8 @@ void USoftClassProperty::AddReferencedObjects(UObject* InThis, FReferenceCollect
 
 IMPLEMENT_CORE_INTRINSIC_CLASS(USoftClassProperty, USoftObjectProperty,
 	{
-		Class->EmitObjectReference(STRUCT_OFFSET(USoftClassProperty, MetaClass), TEXT("MetaClass"));
+		UE::GC::FTokenStreamBuilder& Builder = UE::GC::FIntrinsicClassTokens::AllocateBuilder(Class);
+		Builder.EmitObjectReference(STRUCT_OFFSET(USoftClassProperty, MetaClass), TEXT("MetaClass"));
 	}
 );
 
@@ -879,7 +890,8 @@ void UStructProperty::AddReferencedObjects(UObject* InThis, FReferenceCollector&
 
 IMPLEMENT_CORE_INTRINSIC_CLASS(UStructProperty, UProperty,
 	{
-		Class->EmitObjectReference(STRUCT_OFFSET(UStructProperty, Struct), TEXT("Struct"));
+		UE::GC::FTokenStreamBuilder& Builder = UE::GC::FIntrinsicClassTokens::AllocateBuilder(Class);
+		Builder.EmitObjectReference(STRUCT_OFFSET(UStructProperty, Struct), TEXT("Struct"));
 	}
 );
 

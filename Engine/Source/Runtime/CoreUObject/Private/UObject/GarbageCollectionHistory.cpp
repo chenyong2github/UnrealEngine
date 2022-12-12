@@ -9,6 +9,7 @@
 #include "Misc/TimeGuard.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/App.h"
+#include "UObject/FastReferenceCollector.h"
 #include "UObject/UObjectAllocator.h"
 #include "UObject/UObjectBase.h"
 #include "UObject/Object.h"
@@ -70,7 +71,7 @@ void FGCHistory::Cleanup(FGCSnapshot& InSnapshot)
 		delete DirectReferenceInfos.Value;
 	}
 	InSnapshot.DirectReferences.Reset();
-	for (TPair<UObject*, FGCObjectInfo*>& ObjectToInfoPair : InSnapshot.ObjectToInfoMap)
+	for (TPair<const UObject*, FGCObjectInfo*>& ObjectToInfoPair : InSnapshot.ObjectToInfoMap)
 	{
 		delete ObjectToInfoPair.Value;
 	}
@@ -100,9 +101,9 @@ void FGCHistory::SetHistorySize(int32 HistorySize)
 	}
 }
 
-void FGCHistory::MergeArrayStructHistory(TMap<UObject*, TArray<FGCDirectReference>*>& History, FGCSnapshot& Snapshot)
+void FGCHistory::MergeArrayStructHistory(TMap<const UObject*, TArray<FGCDirectReference>*>& History, FGCSnapshot& Snapshot)
 {
-	for (TPair<UObject*, TArray<FGCDirectReference>*>& ReferencePair : History)
+	for (TPair<const UObject*, TArray<FGCDirectReference>*>& ReferencePair : History)
 	{
 		FGCObjectInfo* ReferencerInfo = FGCObjectInfo::FindOrAddInfoHelper(ReferencePair.Key, Snapshot.ObjectToInfoMap);
 		TArray<FGCDirectReferenceInfo>*& DirectReferencesInfoArray = Snapshot.DirectReferences.FindOrAdd(ReferencerInfo);
@@ -119,7 +120,7 @@ void FGCHistory::MergeArrayStructHistory(TMap<UObject*, TArray<FGCDirectReferenc
 	}
 }
 
-void FGCHistory::Update(TArray<FGCArrayStruct*>& AllArrays)
+void FGCHistory::Update(TConstArrayView<TUniquePtr<UE::GC::FWorkerContext>> Contexts)
 {
 	if (IsActive())
 	{
@@ -133,9 +134,9 @@ void FGCHistory::Update(TArray<FGCArrayStruct*>& AllArrays)
 		}
 
 		// Copy information gather in all of the GC struct arrays
-		for (FGCArrayStruct* ArrayStruct : AllArrays)
+		for (const TUniquePtr<UE::GC::FWorkerContext>& Context : Contexts)
 		{
-			MergeArrayStructHistory(ArrayStruct->History, CurrentSnapshot);
+			MergeArrayStructHistory(Context->History, CurrentSnapshot);
 		}
 	}
 }

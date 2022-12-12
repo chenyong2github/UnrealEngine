@@ -361,7 +361,8 @@ void UPackage::SetLoadedByEditorPropertiesOnly(bool bIsEditorOnly, bool bRecursi
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 IMPLEMENT_CORE_INTRINSIC_CLASS(UPackage, UObject,
 	{
-		Class->EmitObjectReference(STRUCT_OFFSET(UPackage, MetaData), TEXT("MetaData"));
+		UE::GC::FTokenStreamBuilder& Builder = UE::GC::FIntrinsicClassTokens::AllocateBuilder(Class);
+		Builder.EmitObjectReference(STRUCT_OFFSET(UPackage, MetaData), TEXT("MetaData"));
 	}
 );
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

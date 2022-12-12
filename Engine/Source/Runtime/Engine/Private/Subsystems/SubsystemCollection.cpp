@@ -219,7 +219,7 @@ USubsystem* FSubsystemCollectionBase::InitializeDependency(TSubclassOf<USubsyste
 
 void FSubsystemCollectionBase::AddReferencedObjects(UObject* Referencer, FReferenceCollector& Collector)
 {
-	Collector.AddReferencedObjects(SubsystemMap, Referencer);
+	Collector.AddStableReferenceMap(SubsystemMap);
 }
 
 USubsystem* FSubsystemCollectionBase::AddAndInitializeSubsystem(UClass* SubsystemClass)

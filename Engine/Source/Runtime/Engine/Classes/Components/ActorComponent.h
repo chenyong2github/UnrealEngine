@@ -153,6 +153,8 @@ private:
 	int32 UCSSerializationIndex;
 
 protected:
+	/** If this actor currently has any UCS modified properties */
+	uint8 bHasUCSModifiedProperties:1;
 	/** 
 	 *  Indicates if this ActorComponent is currently registered with a scene. 
 	 */
@@ -420,9 +422,6 @@ private:
 	UPROPERTY()
 	TArray<FSimpleMemberReference> UCSModifiedProperties_DEPRECATED;
 #endif
-
-	static FRWLock AllUCSModifiedPropertiesLock;
-	static TMap<UActorComponent*, TArray<FSimpleMemberReference>> AllUCSModifiedProperties;
 
 public:
 	/**

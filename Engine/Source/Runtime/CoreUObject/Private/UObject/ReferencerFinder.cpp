@@ -21,7 +21,7 @@ public:
 		, Flags(InFlags)
 	{
 	}
-	FORCEINLINE_DEBUGGABLE void HandleTokenStreamObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, UObject* ReferencingObject, UObject*& Object, const int32 TokenIndex, const EGCTokenType TokenType, bool bAllowReferenceElimination)
+	FORCEINLINE_DEBUGGABLE void HandleTokenStreamObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, UObject* ReferencingObject, UObject*& Object, UE::GC::FTokenId, EGCTokenType, bool)
 	{
 		if (!ReferencingObject)
 		{
@@ -49,15 +49,11 @@ public:
 	}
 };
 
-class FAllReferencesCollector : public TDefaultReferenceCollector<FAllReferencesProcessor>
+class FAllReferencesCollector : public UE::GC::TDefaultCollector<FAllReferencesProcessor>
 {
-	FAllReferencesProcessor& Processor;
+	using Super = UE::GC::TDefaultCollector<FAllReferencesProcessor>;
 public:
-	FAllReferencesCollector(FAllReferencesProcessor& InProcessor, FGCArrayStruct& InObjectArrayStruct)
-		: TDefaultReferenceCollector<FAllReferencesProcessor>(InProcessor, InObjectArrayStruct)
-		, Processor(InProcessor)
-	{
-	}
+	using Super::Super;
 
 	virtual bool MarkWeakObjectReferenceForClearing(UObject** WeakReference) override
 	{
@@ -98,22 +94,15 @@ TArray<UObject*> FReferencerFinder::GetAllReferencers(const TSet<UObject*>& Refe
 		GUObjectArray.LockInternalArray();
 
 		const int32 MaxNumberOfObjects = GUObjectArray.GetObjectArrayNum();
-		const int32 NumThreads = FMath::Max(1, FTaskGraphInterface::Get().GetNumWorkerThreads());
+		const int32 NumThreads = GetNumCollectReferenceWorkers();
 		const int32 NumberOfObjectsPerThread = (MaxNumberOfObjects / NumThreads) + 1;
 
 		ParallelFor(NumThreads, [&Referencees, ObjectsToIgnore, &ResultCritical, &Ret, NumberOfObjectsPerThread, NumThreads, MaxNumberOfObjects, Flags](int32 ThreadIndex)
 		{
 			TSet<UObject*> ThreadResult;
 			FAllReferencesProcessor Processor(Referencees, Flags, ThreadResult);
-			TFastReferenceCollector<
-				FAllReferencesProcessor, 
-				FAllReferencesCollector, 
-				FGCArrayPool, 
-				EFastReferenceCollectorOptions::AutogenerateTokenStream | EFastReferenceCollectorOptions::ProcessNoOpTokens
-			> ReferenceCollector(Processor, FGCArrayPool::Get());
-			FGCArrayStruct ArrayStruct;
-
-			ArrayStruct.ObjectsToSerialize.Reserve(NumberOfObjectsPerThread);
+			TArray<UObject*> ObjectsToSerialize;
+			ObjectsToSerialize.Reserve(NumberOfObjectsPerThread);
 
 			const int32 FirstObjectIndex = ThreadIndex * NumberOfObjectsPerThread;
 			const int32 NumObjects = (ThreadIndex < (NumThreads - 1)) ? NumberOfObjectsPerThread : (MaxNumberOfObjects - (NumThreads - 1)*NumberOfObjectsPerThread);
@@ -132,17 +121,20 @@ TArray<UObject*> FReferencerFinder::GetAllReferencers(const TSet<UObject*>& Refe
 
 					if (!Referencees.Contains(PotentialReferencer))
 					{
-						ArrayStruct.ObjectsToSerialize.Add(PotentialReferencer);
+						ObjectsToSerialize.Add(PotentialReferencer);
 					}
 				}
 			}
+
+			FGCArrayStruct ArrayStruct;
+			ArrayStruct.SetInitialObjectsUnpadded(ObjectsToSerialize);
 			
 			{
 				// Since ReferenceCollector is configured to automatically assemble reference token streams
 				// for classes that require it, make sure GC is locked because UClass::AssembleReferenceTokenStream requires it
 				FGCScopeGuard GCGuard;
 				// Now check if any of the potential referencers is referencing any of the referencees
-				ReferenceCollector.CollectReferences(ArrayStruct);
+				CollectReferences(Processor, ArrayStruct);
 			}
 
 			if (ThreadResult.Num())

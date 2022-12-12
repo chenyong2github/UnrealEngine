@@ -24,7 +24,8 @@ FPropertyValueIterator::FPropertyValueIterator(
 	if (Entry.ValueArray.Num() > 0)
 	{
 		PropertyIteratorStack.Emplace(MoveTemp(Entry));
-		IterateToNext();
+
+		while (NextValue(InRecursionFlags));
 	}
 }
 
@@ -33,22 +34,11 @@ FPropertyValueIterator::EPropertyValueFlags FPropertyValueIterator::GetPropertyV
 	EPropertyValueFlags Flags = EPropertyValueFlags::None;
 	if (RecursionFlags == EPropertyValueIteratorFlags::FullRecursion)
 	{
-		if (Property->IsA(FArrayProperty::StaticClass()))
-		{
-			Flags = EPropertyValueFlags::IsArray;
-		}
-		else if (Property->IsA(FMapProperty::StaticClass()))
-		{
-			Flags = EPropertyValueFlags::IsMap;
-		}
-		else if (Property->IsA(FSetProperty::StaticClass()))
-		{
-			Flags = EPropertyValueFlags::IsSet;
-		}
-		else if (Property->IsA(FStructProperty::StaticClass()))
-		{
-			Flags = EPropertyValueFlags::IsStruct;
-		}
+		uint64 CastFlags = Property->GetClass()->GetCastFlags();
+		Flags = EPropertyValueFlags(  !!(CastFlags & CASTCLASS_FArrayProperty)	* uint32(EPropertyValueFlags::IsArray)
+									| !!(CastFlags & CASTCLASS_FMapProperty)	* uint32(EPropertyValueFlags::IsMap)
+									| !!(CastFlags & CASTCLASS_FSetProperty)	* uint32(EPropertyValueFlags::IsSet)
+									| !!(CastFlags & CASTCLASS_FStructProperty)	* uint32(EPropertyValueFlags::IsStruct));
 	}
 	if (bMatchAll || Property->IsA(PropertyClass))
 	{
@@ -77,7 +67,7 @@ void FPropertyValueIterator::FillStructProperties(const UStruct* Struct, FProper
 	}
 }
 
-bool FPropertyValueIterator::NextValue(EPropertyValueIteratorFlags InRecursionFlags)
+FORCEINLINE_DEBUGGABLE bool FPropertyValueIterator::NextValue(EPropertyValueIteratorFlags InRecursionFlags)
 {
 	check(PropertyIteratorStack.Num() > 0)
 	FPropertyValueStackEntry& Entry = PropertyIteratorStack.Last();
@@ -200,19 +190,18 @@ bool FPropertyValueIterator::NextValue(EPropertyValueIteratorFlags InRecursionFl
 
 void FPropertyValueIterator::IterateToNext()
 {
-	EPropertyValueIteratorFlags LocalRecursionFlags = RecursionFlags;
-
 	if (bSkipRecursionOnce)
 	{
-		LocalRecursionFlags = EPropertyValueIteratorFlags::NoRecursion;
 		bSkipRecursionOnce = false;
+		
+		if (!NextValue(EPropertyValueIteratorFlags::NoRecursion))
+		{
+			return;
+		}
 	}
 
-	while (NextValue(LocalRecursionFlags))
-	{
-		// Reset recursion override as we've skipped the first property
-		LocalRecursionFlags = RecursionFlags;
-	}
+	EPropertyValueIteratorFlags LocalRecursionFlags = RecursionFlags;	
+	while (NextValue(LocalRecursionFlags));
 }
 
 void FPropertyValueIterator::GetPropertyChain(TArray<const FProperty*>& PropertyChain) const

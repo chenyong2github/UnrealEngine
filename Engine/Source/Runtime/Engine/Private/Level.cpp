@@ -496,11 +496,11 @@ void ULevel::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collecto
 	// Let GC know that we're referencing some AActor objects
 	if (FPlatformProperties::RequiresCookedData() && GActorClusteringEnabled && This->bActorClusterCreated)
 	{
-		Collector.AddReferencedObjects(This->ActorsForGC, This);
+		Collector.AddStableReferenceArray(&This->ActorsForGC);
 	}
 	else
 	{
-		Collector.AddReferencedObjects(This->Actors, This);
+		Collector.AddStableReferenceArray(&This->Actors);
 	}
 
 	Super::AddReferencedObjects( This, Collector );

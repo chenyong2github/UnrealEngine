@@ -4241,7 +4241,7 @@ void FSequencer::AddReferencedObjects( FReferenceCollector& Collector )
 		Collector.AddReferencedObject( RootSequencePtr );
 	}
 
-	FMovieSceneRootEvaluationTemplateInstance::StaticStruct()->SerializeBin(Collector.GetVerySlowReferenceCollectorArchive(), &RootTemplateInstance);
+	Collector.AddPropertyReferences(FMovieSceneRootEvaluationTemplateInstance::StaticStruct(), &RootTemplateInstance, nullptr);
 }
 
 FString FSequencer::GetReferencerName() const

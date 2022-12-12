@@ -314,8 +314,9 @@ FActorComponentGlobalDestroyPhysicsSignature UActorComponent::GlobalDestroyPhysi
 UActorComponent::FOnMarkRenderStateDirty UActorComponent::MarkRenderStateDirtyEvent;
 
 const FString UActorComponent::ComponentTemplateNameSuffix(TEXT("_GEN_VARIABLE"));
-TMap<UActorComponent*, TArray<FSimpleMemberReference>> UActorComponent::AllUCSModifiedProperties;
-FRWLock UActorComponent::AllUCSModifiedPropertiesLock;
+
+static TMap<UActorComponent*, TArray<FSimpleMemberReference, TInlineAllocator<1>>> GAllUCSModifiedProperties;
+static FRWLock GAllUCSModifiedPropertiesLock;
 
 UActorComponent::UActorComponent(const FObjectInitializer& ObjectInitializer /*= FObjectInitializer::Get()*/)
 	: Super(ObjectInitializer)
@@ -447,8 +448,9 @@ void UActorComponent::PostLoad()
 		{
 			if (UCSModifiedProperties_DEPRECATED.Num())
 			{
-				FRWScopeLock Lock(AllUCSModifiedPropertiesLock, SLT_Write);
-				AllUCSModifiedProperties.Add(this, MoveTemp(UCSModifiedProperties_DEPRECATED));
+				FWriteScopeLock WriteLock(GAllUCSModifiedPropertiesLock);
+				GAllUCSModifiedProperties.Add(this) = MoveTemp(UCSModifiedProperties_DEPRECATED);
+				bHasUCSModifiedProperties = true;
 			}
 		}
 #endif
@@ -2319,7 +2321,7 @@ void UActorComponent::DetermineUCSModifiedProperties()
 {
 	if (CreationMethod == EComponentCreationMethod::SimpleConstructionScript)
 	{
-		TArray<FSimpleMemberReference> UCSModifiedProperties;
+		TArray<FSimpleMemberReference, TInlineAllocator<1>> UCSModifiedProperties;
 
 		class FComponentPropertySkipper : public FArchive
 		{
@@ -2368,58 +2370,79 @@ void UActorComponent::DetermineUCSModifiedProperties()
 			}
 		}
 
-		FRWScopeLock Lock(AllUCSModifiedPropertiesLock, SLT_Write);
-		if (UCSModifiedProperties.Num() > 0)
+		bHasUCSModifiedProperties = UCSModifiedProperties.Num() > 0;
+		FWriteScopeLock WriteLock(GAllUCSModifiedPropertiesLock);
+		if (bHasUCSModifiedProperties)
 		{
-			AllUCSModifiedProperties.Add(this, MoveTemp(UCSModifiedProperties));
+			GAllUCSModifiedProperties.Add(this, MoveTemp(UCSModifiedProperties));
 		}
 		else
 		{
-			AllUCSModifiedProperties.Remove(this);
+			GAllUCSModifiedProperties.Remove(this);
 		}
 	}
 }
 
 void UActorComponent::GetUCSModifiedProperties(TSet<const FProperty*>& ModifiedProperties) const
 {
-	FRWScopeLock Lock(AllUCSModifiedPropertiesLock, SLT_ReadOnly);
-	if (TArray<FSimpleMemberReference>* UCSModifiedProperties = AllUCSModifiedProperties.Find(this))
+	if (bHasUCSModifiedProperties)
 	{
-		for (const FSimpleMemberReference& MemberReference : *UCSModifiedProperties)
+		FReadScopeLock ReadLock(GAllUCSModifiedPropertiesLock);
+		if (TArray<FSimpleMemberReference, TInlineAllocator<1>>* UCSModifiedProperties = GAllUCSModifiedProperties.Find(this))
 		{
-			ModifiedProperties.Add(FMemberReference::ResolveSimpleMemberReference<FProperty>(MemberReference));
+			for (const FSimpleMemberReference& MemberReference : *UCSModifiedProperties)
+			{
+				ModifiedProperties.Add(FMemberReference::ResolveSimpleMemberReference<FProperty>(MemberReference));
+			}
 		}
 	}
 }
 
 void UActorComponent::RemoveUCSModifiedProperties(const TArray<FProperty*>& Properties)
 {
-	FRWScopeLock Lock(AllUCSModifiedPropertiesLock, SLT_Write);
-	if (TArray<FSimpleMemberReference>* UCSModifiedProperties = AllUCSModifiedProperties.Find(this))
+	if (bHasUCSModifiedProperties && Properties.Num())
 	{
-		for (FProperty* Property : Properties)
+		FWriteScopeLock WriteLock(GAllUCSModifiedPropertiesLock);
+		if (TArray<FSimpleMemberReference, TInlineAllocator<1>>* UCSModifiedProperties = GAllUCSModifiedProperties.Find(this))
 		{
-			FSimpleMemberReference MemberReference;
-			FMemberReference::FillSimpleMemberReference<FProperty>(Property, MemberReference);
-			UCSModifiedProperties->RemoveSwap(MemberReference);
+			for (FProperty* Property : Properties)
+			{
+				FSimpleMemberReference MemberReference;
+				FMemberReference::FillSimpleMemberReference<FProperty>(Property, MemberReference);
+				UCSModifiedProperties->RemoveSwap(MemberReference);
+			}
+
+			if (UCSModifiedProperties->IsEmpty())
+			{
+				bHasUCSModifiedProperties = false;
+				GAllUCSModifiedProperties.Remove(this);
+			}
 		}
 	}
 }
 
 void UActorComponent::ClearUCSModifiedProperties()
 {
-	FRWScopeLock Lock(AllUCSModifiedPropertiesLock, SLT_Write);
-	AllUCSModifiedProperties.Remove(this);
+	if (bHasUCSModifiedProperties)
+	{
+		bHasUCSModifiedProperties = false;
+		FWriteScopeLock WriteLock(GAllUCSModifiedPropertiesLock);
+		GAllUCSModifiedProperties.Remove(this);
+	}
 }
 
 void UActorComponent::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
-	FRWScopeLock Lock(AllUCSModifiedPropertiesLock, SLT_ReadOnly);
-	if (TArray<FSimpleMemberReference>* UCSModifiedProperties = AllUCSModifiedProperties.Find(CastChecked<UActorComponent>(InThis)))
+	UActorComponent* ThisActor = CastChecked<UActorComponent>(InThis);
+	if (ThisActor->bHasUCSModifiedProperties)
 	{
-		for (FSimpleMemberReference& MemberReference : *UCSModifiedProperties)
+		FReadScopeLock ReadLock(GAllUCSModifiedPropertiesLock);
+		if (TArray<FSimpleMemberReference, TInlineAllocator<1>>* UCSModifiedProperties = GAllUCSModifiedProperties.Find(ThisActor))
 		{
-			Collector.AddReferencedObject(MemberReference.MemberParent);
+			for (FSimpleMemberReference& MemberReference : *UCSModifiedProperties)
+			{
+				Collector.AddStableReference(&MemberReference.MemberParent);
+			}
 		}
 	}
 }
@@ -2467,29 +2490,29 @@ void UActorComponent::Serialize(FArchive& Ar)
 	{
 		if (Ar.IsLoading())
 		{
-			TArray<FSimpleMemberReference> UCSModifiedProperties;
+			TArray<FSimpleMemberReference, TInlineAllocator<1>> UCSModifiedProperties;
 			Ar << UCSModifiedProperties;
 
-			FRWScopeLock Lock(AllUCSModifiedPropertiesLock, SLT_Write);
+			FWriteScopeLock WriteLock(GAllUCSModifiedPropertiesLock);
 			if (UCSModifiedProperties.Num() > 0)
 			{
-				AllUCSModifiedProperties.Add(this, MoveTemp(UCSModifiedProperties));
+				GAllUCSModifiedProperties.Add(this, MoveTemp(UCSModifiedProperties));
 			}
 			else
 			{
-				AllUCSModifiedProperties.Remove(this);
+				GAllUCSModifiedProperties.Remove(this);
 			}
 		}
 		else
 		{
-			FRWScopeLock Lock(AllUCSModifiedPropertiesLock, SLT_ReadOnly);
-			if (TArray<FSimpleMemberReference>* UCSModifiedProperties = AllUCSModifiedProperties.Find(this))
+			FReadScopeLock ReadLock(GAllUCSModifiedPropertiesLock);
+			if (TArray<FSimpleMemberReference, TInlineAllocator<1>>* UCSModifiedProperties = GAllUCSModifiedProperties.Find(this))
 			{
 				Ar << *UCSModifiedProperties;
 			}
 			else
 			{
-				TArray<FSimpleMemberReference> EmptyUCSModifiedProperties;
+				TArray<FSimpleMemberReference, TInlineAllocator<1>> EmptyUCSModifiedProperties;
 				Ar << EmptyUCSModifiedProperties;
 			}
 		}

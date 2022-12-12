@@ -68,17 +68,17 @@ FMaterialCachedExpressionData::FMaterialCachedExpressionData()
 
 void FMaterialCachedExpressionData::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	Collector.AddReferencedObjects(ReferencedTextures);
-	Collector.AddReferencedObjects(GrassTypes);
-	Collector.AddReferencedObjects(MaterialLayers.Layers);
-	Collector.AddReferencedObjects(MaterialLayers.Blends);
+	Collector.AddStableReferenceArray(&ReferencedTextures);
+	Collector.AddStableReferenceArray(&GrassTypes);
+	Collector.AddStableReferenceArray(&MaterialLayers.Layers);
+	Collector.AddStableReferenceArray(&MaterialLayers.Blends);
 	for (FMaterialFunctionInfo& FunctionInfo : FunctionInfos)
 	{
-		Collector.AddReferencedObject(FunctionInfo.Function);
+		Collector.AddStableReference(&FunctionInfo.Function);
 	}
 	for (FMaterialParameterCollectionInfo& ParameterCollectionInfo : ParameterCollectionInfos)
 	{
-		Collector.AddReferencedObject(ParameterCollectionInfo.ParameterCollection);
+		Collector.AddStableReference(&ParameterCollectionInfo.ParameterCollection);
 	}
 }
 

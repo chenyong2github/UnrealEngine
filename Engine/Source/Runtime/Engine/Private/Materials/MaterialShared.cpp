@@ -1262,7 +1262,7 @@ void FMaterial::SetRenderingThreadShaderMap(TRefCountPtr<FMaterialShaderMap>& In
 void FMaterial::AddReferencedObjects(FReferenceCollector& Collector)
 {
 #if WITH_EDITOR
-	Collector.AddReferencedObjects(ErrorExpressions);
+	Collector.AddStableReferenceArray(&ErrorExpressions);
 #endif
 }
 
@@ -1452,8 +1452,8 @@ void FMaterialResource::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	FMaterial::AddReferencedObjects(Collector);
 
-	Collector.AddReferencedObject(Material);
-	Collector.AddReferencedObject(MaterialInstance);
+	Collector.AddStableReference(&Material);
+	Collector.AddStableReference(&MaterialInstance);
 }
 
 bool FMaterialResource::GetAllowDevelopmentShaderCompile()const

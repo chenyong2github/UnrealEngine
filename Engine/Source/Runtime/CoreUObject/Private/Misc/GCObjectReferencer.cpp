@@ -25,8 +25,25 @@ static FAutoConsoleVariableRef CVerifyGCObjectNames(
 extern bool GObjIncrementalPurgeIsInProgress;
 extern bool GObjUnhashUnreachableIsInProgress;
 
+namespace UE::GC
+{
+	inline constexpr FStringView UnknownGCObjectName = TEXTVIEW("Unknown FGCObject");
+}
+
+struct UGCObjectReferencer::FImpl
+{
+	/** Critical section used when adding and removing objects */
+	FCriticalSection ReferencedObjectsCritical;
+	/** Objects without EFlags::AddStableNativeReferencesOnly */
+	TArray<FGCObject*> RemainingReferencedObjects;
+	/** Objects with EFlags::AddStableNativeReferencesOnly */
+	TArray<FGCObject*> InitialReferencedObjects;
+};
+
+
 UGCObjectReferencer::UGCObjectReferencer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, Impl(new FImpl)
 {
 #if VERIFY_DISREGARD_GC_ASSUMPTIONS
 	if (!HasAnyFlags(RF_ClassDefaultObject))
@@ -36,31 +53,47 @@ UGCObjectReferencer::UGCObjectReferencer(const FObjectInitializer& ObjectInitial
 #endif // VERIFY_DISREGARD_GC_ASSUMPTIONS
 }
 
+UGCObjectReferencer::UGCObjectReferencer(FVTableHelper& Helper)
+: Super(Helper)
+, Impl(new FImpl)
+{}
+
 void UGCObjectReferencer::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
 	UGCObjectReferencer* This = CastChecked<UGCObjectReferencer>(InThis);
 
-	checkSlow(!This->bIsAddingReferencedObjects);
-	This->bIsAddingReferencedObjects = true;
+	check(!This->CurrentlySerializingObject);
+
 	// Note we're not locking ReferencedObjectsCritical here because we guard
 	// against adding new references during GC in AddObject and RemoveObject.
 	// Let each registered object handle its AddReferencedObjects call
-	for (FGCObject* Object : This->ReferencedObjects)
+	
+	if (Collector.NeedsInitialReferences())
 	{
-		check(Object);
+		for (FGCObject* Object : This->Impl->InitialReferencedObjects)
+		{
+			This->CurrentlySerializingObject = Object;
+			Object->AddReferencedObjects(Collector);
+		}
+	}
+
+	for (FGCObject* Object : This->Impl->RemainingReferencedObjects)
+	{
 		This->CurrentlySerializingObject = Object;
 		Object->AddReferencedObjects(Collector);
 	}
+
 	This->CurrentlySerializingObject = nullptr;
 	Super::AddReferencedObjects(This, Collector);
-	This->bIsAddingReferencedObjects = false;
 }
 
 void UGCObjectReferencer::AddObject(FGCObject* Object)
 {
 	check(Object);
 	check(GObjUnhashUnreachableIsInProgress || GObjIncrementalPurgeIsInProgress || !IsGarbageCollectingAndLockingUObjectHashTables());
-	FScopeLock ReferencedObjectsLock(&ReferencedObjectsCritical);
+	
+	FScopeLock ReferencedObjectsLock(&Impl->ReferencedObjectsCritical);
+	TArray<FGCObject*>& ReferencedObjects = Object->bCanMakeInitialReferences ? Impl->InitialReferencedObjects : Impl->RemainingReferencedObjects; 
 	// Make sure there are no duplicates. Should be impossible...
 	checkSlow(!ReferencedObjects.Contains(Object));
 	ReferencedObjects.Add(Object);
@@ -77,7 +110,9 @@ void UGCObjectReferencer::RemoveObject(FGCObject* Object)
 {
 	check(Object);
 	check(GObjUnhashUnreachableIsInProgress || GObjIncrementalPurgeIsInProgress || !IsGarbageCollectingAndLockingUObjectHashTables());
-	FScopeLock ReferencedObjectsLock(&ReferencedObjectsCritical);
+	
+	FScopeLock ReferencedObjectsLock(&Impl->ReferencedObjectsCritical);
+	TArray<FGCObject*>& ReferencedObjects = Object->bCanMakeInitialReferences ? Impl->InitialReferencedObjects : Impl->RemainingReferencedObjects; 
 	int32 NumRemoved = ReferencedObjects.RemoveSingleSwap(Object);
 	check(NumRemoved == 1);
 #if VERIFY_DISREGARD_GC_ASSUMPTIONS
@@ -89,7 +124,7 @@ bool UGCObjectReferencer::GetReferencerName(UObject* Object, FString& OutName, b
 {
 	if (bOnlyIfAddingReferenced)
 	{
-		if (!bIsAddingReferencedObjects || !CurrentlySerializingObject)
+		if (!CurrentlySerializingObject)
 		{
 			return false;
 		}
@@ -103,24 +138,27 @@ bool UGCObjectReferencer::GetReferencerName(UObject* Object, FString& OutName, b
 	}
 
 	// Let each registered object handle its AddReferencedObjects call
-	for (int32 i = 0; i < ReferencedObjects.Num(); i++)
+	for (TArrayView<FGCObject*> ReferencedObjects : { MakeArrayView(Impl->RemainingReferencedObjects),
+													  MakeArrayView(Impl->InitialReferencedObjects) })
 	{
-		TArray<UObject*> ObjectArray;
-		FReferenceFinder Collector(ObjectArray);
-
-		FGCObject* GCReporter = ReferencedObjects[i];
-		check(GCReporter);
-		GCReporter->AddReferencedObjects(Collector);
-
-		if (ObjectArray.Contains(Object))
+		for (FGCObject* GCReporter : ReferencedObjects)
 		{
-			OutName = GCReporter->GetReferencerName();
-			FString ReferencerProperty;
-			if (GCReporter->GetReferencerPropertyName(Object, ReferencerProperty))
+			TArray<UObject*> ObjectArray;
+			FReferenceFinder Collector(ObjectArray);
+
+			check(GCReporter);
+			GCReporter->AddReferencedObjects(Collector);
+
+			if (ObjectArray.Contains(Object))
 			{
-				OutName += TEXT(":") + ReferencerProperty;
+				OutName = GCReporter->GetReferencerName();
+				FString ReferencerProperty;
+				if (GCReporter->GetReferencerPropertyName(Object, ReferencerProperty))
+				{
+					OutName += TEXT(":") + ReferencerProperty;
+				}
+				return true;
 			}
-			return true;
 		}
 	}
 
@@ -134,11 +172,64 @@ void UGCObjectReferencer::FinishDestroy()
 		// Make sure FGCObjects that are around after exit purge don't
 		// reference this object.
 		check( FGCObject::GGCObjectReferencer == this );
-		FGCObject::GGCObjectReferencer = NULL;
-		ReferencedObjects.Empty();
+		FGCObject::GGCObjectReferencer = nullptr;
+		Impl.Reset();
 	}
 
 	Super::FinishDestroy();
+}
+
+
+class FInitialReferenceCollector final : public FReferenceCollector
+{
+	TArray<UObject**>& Result;
+
+	virtual void AddStableReference(UObject** Object) override
+	{
+		Result.Add(Object);
+	}
+
+	virtual void AddStableReferenceArray(TArray<UObject*>* Objects) override
+	{
+		for (UObject*& Object : *Objects)
+		{
+			Result.Add(&Object);
+		}
+	}
+
+	virtual void AddStableReferenceSet(TSet<UObject*>* Objects) override
+	{
+		for (UObject*& Object : *Objects)
+		{
+			Result.Add(&Object);
+		}
+	}
+
+	virtual void HandleObjectReference(UObject*& InObject, const UObject* InReferencingObject, const FProperty* InReferencingProperty) override
+	{
+		checkf(false, TEXT("FGCObject constructed with AddStableNativeReferencesOnly should only call AddStableReference, not HandleObjectReference"));
+	}
+
+	virtual void SetIsProcessingNativeReferences(bool) override
+	{
+		checkf(false, TEXT("FGCObject constructed with AddStableNativeReferencesOnly should never flip to non-native references"));
+	}
+
+	virtual bool IsIgnoringArchetypeRef() const override { return false;}
+	virtual bool IsIgnoringTransient() const override {	return false; }
+
+public:
+	FInitialReferenceCollector(TArray<UObject**>& Out) : Result(Out) {}
+};
+
+
+void UGCObjectReferencer::AddInitialReferences(TArray<UObject**>& Out)
+{
+	FInitialReferenceCollector Collector(Out);
+	for (FGCObject* Object : Impl->InitialReferencedObjects)
+	{
+		Object->AddReferencedObjects(Collector);
+	}
 }
 
 /** 
@@ -164,7 +255,7 @@ public:
 	{
 		if (!bCurrentObjectVerified && CurrentGCObject)
 		{
-			if (!ensureAlwaysMsgf(CurrentGCObject->GetReferencerName() != FGCObject::UnknownGCObjectName,
+			if (!ensureAlwaysMsgf(CurrentGCObject->GetReferencerName() !=  UE::GC::UnknownGCObjectName,
 				TEXT("Please make sure all FGCObject derived classes have a unique name by overriding FGCObject::GetReferencerName() function. FGCObject::GetReferencerName() will become pure virtual in the next engine release. See callstack for details.")))
 			{
 				bCurrentObjectVerified = true;
@@ -198,11 +289,15 @@ void UGCObjectReferencer::VerifyGCObjectNames()
 	{
 		FVerifyReferencerNameCollector VerifyReferencerNameCollector;
 
-		for (FGCObject* GCObject : ReferencedObjects)
+		for (TArrayView<FGCObject*> ReferencedObjects : { MakeArrayView(Impl->RemainingReferencedObjects),
+														  MakeArrayView(Impl->InitialReferencedObjects) })
 		{
-			check(GCObject);
-			VerifyReferencerNameCollector.SetCurrentGCObject(GCObject);
-			GCObject->AddReferencedObjects(VerifyReferencerNameCollector);
+			for (FGCObject* GCObject : ReferencedObjects)
+			{
+				check(GCObject);
+				VerifyReferencerNameCollector.SetCurrentGCObject(GCObject);
+				GCObject->AddReferencedObjects(VerifyReferencerNameCollector);
+			}
 		}
 	}
 }
@@ -213,9 +308,41 @@ IMPLEMENT_CORE_INTRINSIC_CLASS(UGCObjectReferencer, UObject,
 	}
 );
 
-/** Static used for calling AddReferencedObjects on non-UObject objects */
 UGCObjectReferencer* FGCObject::GGCObjectReferencer = nullptr;
-/** Default name for unnamed FGCObjects */
-const TCHAR* FGCObject::UnknownGCObjectName = TEXT("Unknown FGCObject");
 
+// This variable allows inline declaration of GetReferencerName(), which
+// works around a Linux/.so undefined typeinfo link error for plugins using -frtti
+const TCHAR* FGCObject::UnknownGCObjectName = UE::GC::UnknownGCObjectName.GetData();
 
+void FGCObject::StaticInit()
+{
+	if (GGCObjectReferencer == nullptr)
+	{
+		GGCObjectReferencer = NewObject<UGCObjectReferencer>();
+		GGCObjectReferencer->AddToRoot();
+	}
+}
+
+void FGCObject::RegisterGCObject()
+{
+	// Some objects can get created after the engine started shutting down (lazy init of singletons etc).
+	if (!IsEngineExitRequested() && !bReferenceAdded)
+	{
+		StaticInit();
+
+		// Add this instance to the referencer's list
+		GGCObjectReferencer->AddObject(this);
+		bReferenceAdded = true;
+	}
+}
+
+void FGCObject::UnregisterGCObject()
+{
+	// GObjectSerializer will be NULL if this object gets destroyed after the exit purge.
+	// We want to make sure we remove any objects that were added to the GGCObjectReferencer during Init when exiting
+	if (GGCObjectReferencer && bReferenceAdded)
+	{
+		GGCObjectReferencer->RemoveObject(this);
+		bReferenceAdded = false;
+	}
+}

@@ -126,6 +126,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/FeedbackContext.h"
 
+#include "Containers/ArrayView.h"
 #include "UObject/FastReferenceCollector.h"
 #include "Elements/Framework/TypedElementRegistry.h"
 #include "Elements/Interfaces/TypedElementHierarchyInterface.h"
@@ -8329,7 +8330,7 @@ public:
 			}
 		}
 	}
-	FORCEINLINE_DEBUGGABLE void HandleTokenStreamObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, UObject* ReferencingObject, UObject*& Object, const int32 TokenIndex, const EGCTokenType TokenType, bool bAllowReferenceElimination)
+	FORCEINLINE_DEBUGGABLE void HandleTokenStreamObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, UObject* ReferencingObject, UObject*& Object, UE::GC::FTokenId, EGCTokenType, bool)
 	{
 		if (!ReferencingObject)
 		{
@@ -8363,17 +8364,12 @@ void FBlueprintEditorUtils::GetActorReferenceMap(UWorld* InWorld, TArray<UClass*
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FBlueprintEditorUtils::GetActorReferenceMap);
 	
-	FGCArrayStruct ArrayStruct;
-	
-	FActorMapReferenceProcessor Processor(InWorld, ArrayStruct.ObjectsToSerialize, InClassesToIgnore, OutReferencingActors);
-	TFastReferenceCollector<
-		FActorMapReferenceProcessor, 
-		TDefaultReferenceCollector<FActorMapReferenceProcessor>, 
-		FGCArrayPool, 
-		EFastReferenceCollectorOptions::AutogenerateTokenStream | EFastReferenceCollectorOptions::ProcessNoOpTokens
-	> ReferenceCollector(Processor, FGCArrayPool::Get());
-	
-	ReferenceCollector.CollectReferences(ArrayStruct);
+	TArray<UObject*> InitialObjects;
+	FActorMapReferenceProcessor Processor(InWorld, /* out */ InitialObjects, InClassesToIgnore, OutReferencingActors);
+
+	UE::GC::FWorkerContext Context;
+	Context.SetInitialObjectsUnpadded(InitialObjects);
+	CollectReferences(Processor, Context);
 }
 
 void FBlueprintEditorUtils::FixLevelScriptActorBindings(ALevelScriptActor* LevelScriptActor, const ULevelScriptBlueprint* ScriptBlueprint)
@@ -10558,7 +10554,7 @@ static FAutoConsoleCommand AuditFunctionCallsForBlueprint(
 
 			struct FFunctionReferenceProcessor : public FSimpleReferenceProcessorBase
 			{
-				FORCEINLINE void HandleTokenStreamObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, UObject* ReferencingObject, UObject*& Object, const int32 TokenIndex, const EGCTokenType TokenType, bool bAllowReferenceElimination)
+				FORCEINLINE void HandleTokenStreamObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, UObject* ReferencingObject, UObject*& Object, UE::GC::FTokenId, EGCTokenType TokenType, bool)
 				{
 					if (UFunction* Function = Cast<UFunction>(Object))
 					{
@@ -10577,15 +10573,11 @@ static FAutoConsoleCommand AuditFunctionCallsForBlueprint(
 				}
 			} Processor;
 
-			TFastReferenceCollector<
-				FFunctionReferenceProcessor,
-				TDefaultReferenceCollector<FFunctionReferenceProcessor>,
-				FGCArrayPool,
-				EFastReferenceCollectorOptions::AutogenerateTokenStream | EFastReferenceCollectorOptions::ProcessNoOpTokens
-			> ReferenceCollector(Processor, FGCArrayPool::Get());
-			FGCArrayStruct ArrayStruct;
-			ArrayStruct.ObjectsToSerialize.Add(Blueprint->GeneratedClass);
-			ReferenceCollector.CollectReferences(ArrayStruct);
+			
+			TArray<UObject*> InitialObjects = {Blueprint->GeneratedClass};
+			UE::GC::FWorkerContext Context;
+			Context.SetInitialObjectsUnpadded(InitialObjects);
+			CollectReferences(Processor, Context);
 
 			UE_LOG(LogBlueprint, Display, TEXT("--- END audit all BlueprintThreadSafe functions ---"));
 		}));

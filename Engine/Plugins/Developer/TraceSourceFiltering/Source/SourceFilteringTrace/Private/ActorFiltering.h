@@ -204,10 +204,9 @@ public:
 		return ActorArray.Num();
 	}
 
-
 	void AddReferencedObjects(FReferenceCollector& Collector) override
 	{
-		Collector.AddReferencedObjects(AllFilteredClasses);
+		Collector.AddStableReferenceArray(&AllFilteredClasses);
 	}
 	virtual FString GetReferencerName() const override
 	{

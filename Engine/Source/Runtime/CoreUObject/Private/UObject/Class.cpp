@@ -80,6 +80,8 @@ static_assert(sizeof(__underlying_type(EClassFlags)) == sizeof(uint32), "expecti
 
 //////////////////////////////////////////////////////////////////////////
 
+namespace { UE_CALL_ONCE(UE::GC::RegisterSlowImplementation, &UClass::AddReferencedObjects, UE::GC::EAROFlags::Unbalanced); }
+
 FThreadSafeBool& InternalSafeGetTokenStreamDirtyFlag()
 {
 	static FThreadSafeBool TokenStreamDirty(true);
@@ -574,7 +576,8 @@ void UField::SetAssociatedFField(FField* InField)
 
 IMPLEMENT_CORE_INTRINSIC_CLASS(UField, UObject,
 	{
-		Class->EmitObjectReference(STRUCT_OFFSET(UField, Next), TEXT("Next"));
+		UE::GC::FTokenStreamBuilder& Builder = UE::GC::FIntrinsicClassTokens::AllocateBuilder(Class);
+		Builder.EmitObjectReference(STRUCT_OFFSET(UField, Next), TEXT("Next"));
 	}
 );
 
@@ -1081,8 +1084,14 @@ void UStruct::SerializeBin( FStructuredArchive::FSlot Slot, void* Data ) const
 	
 	if (UnderlyingArchive.IsObjectReferenceCollector() && !UnderlyingArchive.IsModifyingWeakAndStrongReferences())
 	{
+		// The FProperty instance might start in the middle of a cache line	
+		static constexpr uint32 ExtraPrefetchBytes = PLATFORM_CACHE_LINE_SIZE - /* min alignment */ 16;
+		// Prefetch vtable, PropertyFlags and NextRef. NextRef comes last.
+		static constexpr uint32 PropertyPrefetchBytes = offsetof(FProperty, NextRef) + ExtraPrefetchBytes;
+		FPlatformMisc::PrefetchBlock(RefLink, PropertyPrefetchBytes);
 		for( FProperty* RefLinkProperty=RefLink; RefLinkProperty!=NULL; RefLinkProperty=RefLinkProperty->NextRef )
 		{
+			FPlatformMisc::PrefetchBlock(RefLinkProperty->NextRef, PropertyPrefetchBytes);
 			RefLinkProperty->SerializeBinProperty(PropertyStream.EnterElement(), Data );
 		}
 	}
@@ -2179,13 +2188,14 @@ void UStruct::InstanceSubobjectTemplates( void* Data, void const* DefaultData, U
 IMPLEMENT_CORE_INTRINSIC_CLASS(UStruct, UField,
 	{
 		Class->CppClassStaticFunctions = UOBJECT_CPPCLASS_STATICFUNCTIONS_FORCLASS(UStruct);
-		Class->EmitObjectReference(STRUCT_OFFSET(UStruct, SuperStruct), TEXT("SuperStruct"));
-		Class->EmitObjectReference(STRUCT_OFFSET(UStruct, Children), TEXT("Children"));
+
+		UE::GC::FTokenStreamBuilder& Builder = UE::GC::FIntrinsicClassTokens::AllocateBuilder(Class);
+		Builder.EmitObjectReference(STRUCT_OFFSET(UStruct, SuperStruct), TEXT("SuperStruct"));
+		Builder.EmitObjectReference(STRUCT_OFFSET(UStruct, Children), TEXT("Children"));
 
 		// Note: None of the *Link members need to be emitted, as they only contain properties
 		// that are in the Children chain or SuperStruct->Children chains.
-
-		Class->EmitObjectArrayReference(STRUCT_OFFSET(UStruct, ScriptAndPropertyObjectReferences), TEXT("ScriptAndPropertyObjectReferences"));
+		Builder.EmitObjectArrayReference(STRUCT_OFFSET(UStruct, ScriptAndPropertyObjectReferences), TEXT("ScriptAndPropertyObjectReferences"));
 	}
 );
 
@@ -3948,19 +3958,23 @@ void UClass::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collecto
 	UClass* This = CastChecked<UClass>(InThis);
 	for (FImplementedInterface& Inter : This->Interfaces)
 	{
-		Collector.AddReferencedObject( Inter.Class, This );
+		Collector.AddStableReference( &Inter.Class );
 	}
 
-	Collector.AddReferencedObjects( This->FuncMap, This );
-	Collector.AddReferencedObject( This->ClassWithin, This );
+	for (TPair<FName, UFunction*>& Pair : This->FuncMap)
+	{
+		Collector.AddStableReference( &Pair.Value );
+	}
+	
+	Collector.AddStableReference( &This->ClassWithin );
 
 #if WITH_EDITORONLY_DATA
-	Collector.AddReferencedObject( This->ClassGeneratedBy, This );
+	Collector.AddStableReference( &This->ClassGeneratedBy );
 #endif
 
 	if ( !Collector.IsIgnoringArchetypeRef() )
 	{
-		Collector.AddReferencedObject( This->ClassDefaultObject, This );
+		Collector.AddStableReference( &This->ClassDefaultObject );
 	}
 	else if( This->ClassDefaultObject != NULL)
 	{
@@ -3968,7 +3982,7 @@ void UClass::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collecto
 		This->CallAddReferencedObjects(This->ClassDefaultObject, Collector);
 	}
 
-	Collector.AddReferencedObject( This->SparseClassDataStruct, This );
+	Collector.AddStableReference( &This->SparseClassDataStruct );
 
 	// Add sparse class data
 	if (This->SparseClassDataStruct && This->SparseClassData)
@@ -3979,12 +3993,9 @@ void UClass::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collecto
 		}
 		else
 		{
-			// The iterator will recursively loop through all structs in structs too.
-			for (TPropertyValueIterator<FObjectProperty> It(This->SparseClassDataStruct, This->SparseClassData); It; ++It)
-			{
-				// @TODO: OBJPTR: 
-				Collector.AddReferencedObject(It.Key()->GetObjectPtrPropertyValueRef(It.Value()));
-			}
+			// Skip FFieldPathProperty and FInterfaceProperty references since original code iterated over
+			// FObjectProperty only. Unsure if sparse class author intended this.
+			Collector.AddPropertyReferencesLimitedToObjectProperties(This->SparseClassDataStruct, This->SparseClassData, This);
 		}
 	}
 	
@@ -6301,10 +6312,11 @@ IMPLEMENT_CORE_INTRINSIC_CLASS(UClass, UStruct,
 	{
 		Class->CppClassStaticFunctions = UOBJECT_CPPCLASS_STATICFUNCTIONS_FORCLASS(UClass);
 
-		Class->EmitObjectReference(STRUCT_OFFSET(UClass, ClassDefaultObject), TEXT("ClassDefaultObject"));
-		Class->EmitObjectReference(STRUCT_OFFSET(UClass, ClassWithin), TEXT("ClassWithin"));
-		Class->EmitObjectReference(STRUCT_OFFSET(UClass, ClassGeneratedBy), TEXT("ClassGeneratedBy"));
-		Class->EmitObjectArrayReference(STRUCT_OFFSET(UClass, NetFields), TEXT("NetFields"));
+		UE::GC::FTokenStreamBuilder& Builder = UE::GC::FIntrinsicClassTokens::AllocateBuilder(Class);
+		Builder.EmitObjectReference(STRUCT_OFFSET(UClass, ClassDefaultObject), TEXT("ClassDefaultObject"));
+		Builder.EmitObjectReference(STRUCT_OFFSET(UClass, ClassWithin), TEXT("ClassWithin"));
+		Builder.EmitObjectReference(STRUCT_OFFSET(UClass, ClassGeneratedBy), TEXT("ClassGeneratedBy"));
+		Builder.EmitObjectArrayReference(STRUCT_OFFSET(UClass, NetFields), TEXT("NetFields"));
 	}
 );
 #else
@@ -6312,9 +6324,10 @@ IMPLEMENT_CORE_INTRINSIC_CLASS(UClass, UStruct,
 	{
 		Class->CppClassStaticFunctions = UOBJECT_CPPCLASS_STATICFUNCTIONS_FORCLASS(UClass);
 
-		Class->EmitObjectReference(STRUCT_OFFSET(UClass, ClassDefaultObject), TEXT("ClassDefaultObject"));
-		Class->EmitObjectReference(STRUCT_OFFSET(UClass, ClassWithin), TEXT("ClassWithin"));
-		Class->EmitObjectArrayReference(STRUCT_OFFSET(UClass, NetFields), TEXT("NetFields"));
+		UE::GC::FTokenStreamBuilder& Builder = UE::GC::FIntrinsicClassTokens::AllocateBuilder(Class);
+		Builder.EmitObjectReference(STRUCT_OFFSET(UClass, ClassDefaultObject), TEXT("ClassDefaultObject"));
+		Builder.EmitObjectReference(STRUCT_OFFSET(UClass, ClassWithin), TEXT("ClassWithin"));
+		Builder.EmitObjectArrayReference(STRUCT_OFFSET(UClass, NetFields), TEXT("NetFields"));
 	}
 );
 #endif

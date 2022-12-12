@@ -62,10 +62,12 @@ void FObjectPtrProperty::StaticSerializeItem(const FObjectPropertyBase* ObjectPr
 	{
 		Slot << *ObjectPtr;
 
+#if !(UE_BUILD_TEST || UE_BUILD_SHIPPING) 
 		if(!UnderlyingArchive.IsSaving() && IsObjectHandleResolved(ObjectPtr->GetHandle()))
 		{
 			ObjectProperty->CheckValidObject(ObjectPtr, CurrentValue);
 		}
+#endif
 	}
 	else
 	{

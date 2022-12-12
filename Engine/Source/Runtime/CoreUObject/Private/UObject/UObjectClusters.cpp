@@ -629,7 +629,7 @@ public:
 		check(Obj->CanBeInCluster());
 		if (ObjectIndex != ClusterRootIndex && ObjectItem->GetOwnerIndex() == 0 && !GUObjectArray.IsDisregardForGC(Obj) && !Obj->IsRooted())
 		{
-			ObjectsToSerializeStruct.ObjectsToSerialize.Add(Obj);
+			ObjectsToSerializeStruct.ObjectsToSerialize.Add<Options>(Obj);
 			check(!ObjectItem->HasAnyFlags(EInternalObjectFlags::ClusterRoot));
 			ObjectItem->SetOwnerIndex(ClusterRootIndex);
 			Cluster.Objects.Add(ObjectIndex);
@@ -639,14 +639,14 @@ public:
 				UObject* ObjOuter = Obj->GetOuter();
 				if (ObjOuter)
 				{
-					HandleTokenStreamObjectReference(ObjectsToSerializeStruct, Obj, ObjOuter, INDEX_NONE, EGCTokenType::Native, true);
+					HandleTokenStreamObjectReference(ObjectsToSerializeStruct, Obj, ObjOuter, UE::GC::ETokenlessId::Outer, EGCTokenType::Native, true);
 				}
 				if (!Obj->GetClass()->HasAllClassFlags(CLASS_Native))
 				{
 					UObject* ObjectClass = Obj->GetClass();
-					HandleTokenStreamObjectReference(ObjectsToSerializeStruct, Obj, ObjectClass, INDEX_NONE, EGCTokenType::Native, true);
+					HandleTokenStreamObjectReference(ObjectsToSerializeStruct, Obj, ObjectClass, UE::GC::ETokenlessId::Class, EGCTokenType::Native, true);
 					UObject* ObjectClassOuter = Obj->GetClass()->GetOuter();
-					HandleTokenStreamObjectReference(ObjectsToSerializeStruct, Obj, ObjectClassOuter, INDEX_NONE, EGCTokenType::Native, true);
+					HandleTokenStreamObjectReference(ObjectsToSerializeStruct, Obj, ObjectClassOuter, UE::GC::ETokenlessId::ClassOuter, EGCTokenType::Native, true);
 				}
 			}
 		}
@@ -660,7 +660,7 @@ public:
 	* @param TokenIndex Index to the token stream where the reference was found.
 	* @param bAllowReferenceElimination True if reference elimination is allowed (ignored when constructing clusters).
 	*/
-	FORCEINLINE void HandleTokenStreamObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, UObject* ReferencingObject, UObject*& Object, const int32 TokenIndex, const EGCTokenType TokenType, bool bAllowReferenceElimination)
+	FORCEINLINE void HandleTokenStreamObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, UObject* ReferencingObject, UObject*& Object, UE::GC::FTokenId TokenIndex, const EGCTokenType TokenType, bool bAllowReferenceElimination)
 	{
 		if (Object)
 		{
@@ -748,19 +748,10 @@ void UObjectBaseUtility::AddToCluster(UObjectBaseUtility* ClusterRootOrObjectFro
 		if (!bAddAsMutableObject)
 		{
 			FClusterReferenceProcessor Processor(ClusterRootIndex, *Cluster);
-			TFastReferenceCollector<
-				FClusterReferenceProcessor, 
-				TDefaultReferenceCollector<FClusterReferenceProcessor>, 
-				FGCArrayPool, 
-				EFastReferenceCollectorOptions::AutogenerateTokenStream | EFastReferenceCollectorOptions::ProcessNoOpTokens
-			> ReferenceCollector(Processor, FGCArrayPool::Get());
-			FGCArrayStruct ArrayStruct;
 			UObject* ThisObject = static_cast<UObject*>(this);
-			Processor.HandleTokenStreamObjectReference(ArrayStruct, static_cast<UObject*>(ClusterRootOrObjectFromCluster), ThisObject, INDEX_NONE, EGCTokenType::Native, true);
-			if (ArrayStruct.ObjectsToSerialize.Num())
-			{
-				ReferenceCollector.CollectReferences(ArrayStruct);
-			}
+			FGCArrayStruct ArrayStruct;
+			ArrayStruct.InitialNativeReferences = {&ThisObject};
+			CollectReferences(Processor, ArrayStruct);
 
 #if UE_GCCLUSTER_VERBOSE_LOGGING
 			UObject* ClusterRootObject = static_cast<UObject*>(GUObjectArray.IndexToObjectUnsafeForGC(Cluster->RootIndex)->Object);
@@ -820,19 +811,10 @@ void UObjectBaseUtility::CreateCluster()
 
 	// Collect all objects referenced by cluster root and by all objects it's referencing
 	FClusterReferenceProcessor Processor(InternalIndex, Cluster);
-	TFastReferenceCollector<
-		FClusterReferenceProcessor, 
-		TDefaultReferenceCollector<FClusterReferenceProcessor>, 
-		FGCArrayPool, 
-		EFastReferenceCollectorOptions::AutogenerateTokenStream | EFastReferenceCollectorOptions::ProcessNoOpTokens
-	> ReferenceCollector(Processor, FGCArrayPool::Get());
 	FGCArrayStruct ArrayStruct;
-	TArray<UObject*>& ObjectsToProcess = ArrayStruct.ObjectsToSerialize;
-	ObjectsToProcess.Add(static_cast<UObject*>(this));
-	ReferenceCollector.CollectReferences(ArrayStruct);
-#if UE_BUILD_DEBUG
-	FGCArrayPool::Get().CheckLeaks();
-#endif
+	TArray<UObject*> ObjectsToProcess = {static_cast<UObject*>(this)};
+	ArrayStruct.SetInitialObjectsUnpadded(ObjectsToProcess);
+	CollectReferences(Processor, ArrayStruct);
 
 	check(RootItem->GetOwnerIndex() == 0);
 	RootItem->SetClusterIndex(ClusterIndex);

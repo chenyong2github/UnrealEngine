@@ -26,38 +26,4 @@ namespace UE::StructUtils
 		}
 		return 0;
 	}
-
-	STRUCTUTILS_API void AddReferencedObjects(FReferenceCollector& Collector, const UScriptStruct*& ScriptStruct, void* StructMemory,
-										 const UObject* ReferencingObject, const FProperty* ReferencingProperty)
-	{
-		check(ScriptStruct != nullptr);
-		check(StructMemory != nullptr);
-
-		Collector.AddReferencedObject(ScriptStruct, ReferencingObject, ReferencingProperty);
-
-		// If the script struct explicitly provided an implementation of AddReferencedObjects, make sure to capture its referenced objects
-		if (ScriptStruct->StructFlags & STRUCT_AddStructReferencedObjects)
-		{
-			ScriptStruct->GetCppStructOps()->AddStructReferencedObjects()(StructMemory, Collector);
-		}
-
-		// Iterate through all object and struct properties within the struct (will also search through structs within the struct)
-		for (TPropertyValueIterator<const FProperty> PropertyIter(ScriptStruct, StructMemory); PropertyIter; ++PropertyIter)
-		{
-			if (const FObjectProperty* ObjectProperty = CastField<FObjectProperty>(PropertyIter.Key()))
-			{
-				TObjectPtr<UObject>& ObjectPtrRef = ObjectProperty->GetObjectPtrPropertyValueRef(PropertyIter.Value());
-				Collector.AddReferencedObject(ObjectPtrRef, ReferencingObject, ReferencingProperty);
-			}
-			else if (const FStructProperty* StructProperty = CastField<FStructProperty>(PropertyIter.Key()))
-			{
-				const UScriptStruct* ChildScriptStruct = StructProperty->Struct; 
-				if (ChildScriptStruct && ChildScriptStruct->StructFlags & STRUCT_AddStructReferencedObjects)
-				{
-					ChildScriptStruct->GetCppStructOps()->AddStructReferencedObjects()(const_cast<void*>(PropertyIter.Value()), Collector);
-				}
-			}
-		}
-	}
-
 }

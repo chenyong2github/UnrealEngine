@@ -215,7 +215,7 @@ void FWorldConditionQueryState::AddStructReferencedObjects(class FReferenceColle
 	check(SharedDefinition);
 	check(NumConditions == SharedDefinition->Conditions.Num());
 
-	for (int32 Index = 0; Index < SharedDefinition->Conditions.Num(); Index++)
+	for (int32 Index = 0, Num = SharedDefinition->Conditions.Num(); Index < Num; Index++)
 	{
 		const FWorldConditionBase& Condition = SharedDefinition->Conditions[Index].GetMutable<FWorldConditionBase>();
 		if (Condition.StateDataOffset == 0)
@@ -233,7 +233,8 @@ void FWorldConditionQueryState::AddStructReferencedObjects(class FReferenceColle
 		{
 			if (const UScriptStruct* StateScriptStruct = Cast<UScriptStruct>(Condition.GetRuntimeStateType()))
 			{
-				UE::StructUtils::AddReferencedObjects(Collector, StateScriptStruct, StateMemory);
+				Collector.AddReferencedObject(StateScriptStruct, Owner);
+				Collector.AddPropertyReferencesWithStructARO(StateScriptStruct, StateMemory, Owner);
 			}
 		}
 	}

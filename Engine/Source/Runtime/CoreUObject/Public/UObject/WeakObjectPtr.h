@@ -10,7 +10,6 @@
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
 #include "Templates/UnrealTemplate.h"
-#include "UObject/FastReferenceCollectorOptions.h"
 #include "UObject/ScriptDelegates.h"
 #include "UObject/UObjectArray.h"
 
