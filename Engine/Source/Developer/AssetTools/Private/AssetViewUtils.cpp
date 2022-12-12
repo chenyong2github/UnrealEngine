@@ -1724,14 +1724,15 @@ void AssetViewUtils::SyncPackagesFromSourceControl(const TArray<FString>& Packag
 		SCCProvider.Execute(ISourceControlOperation::Create<FSync>(), PackageFilenames);
 
 		// Syncing may have deleted some packages, so we need to unload those rather than re-load them...
-		TArray<UPackage*> PackagesToUnload;
+		// Note: we will store the package using weak pointers here otherwise we might have garbage collection issues after the ReloadPackages call
+		TArray<TWeakObjectPtr<UPackage>> PackagesToUnload;
 		LoadedPackages.RemoveAll([&](UPackage* InPackage) -> bool
 		{
 			const FString PackageExtension = InPackage->ContainsMap() ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension();
 			const FString PackageFilename = FPackageName::LongPackageNameToFilename(InPackage->GetName(), PackageExtension);
 			if (!FPaths::FileExists(PackageFilename))
 			{
-				PackagesToUnload.Emplace(InPackage);
+				PackagesToUnload.Emplace(MakeWeakObjectPtr(InPackage));
 				return true; // remove package
 			}
 			return false; // keep package
@@ -1766,7 +1767,16 @@ void AssetViewUtils::SyncPackagesFromSourceControl(const TArray<FString>& Packag
 		}
 
 		// Unload any deleted packages...
-		UPackageTools::UnloadPackages(PackagesToUnload);
+		TArray<UPackage*> PackageRawPtrsToUnload;
+		for (TWeakObjectPtr<UPackage>& PackageToUnload : PackagesToUnload)
+		{
+			if (PackageToUnload.IsValid())
+			{
+				PackageRawPtrsToUnload.Emplace(PackageToUnload.Get());
+			}
+		}
+
+		UPackageTools::UnloadPackages(PackageRawPtrsToUnload);
 
 		// Re-cache the SCC state...
 		SCCProvider.Execute(ISourceControlOperation::Create<FUpdateStatus>(), PackageFilenames);
