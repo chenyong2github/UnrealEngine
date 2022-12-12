@@ -691,7 +691,7 @@ void UUnrealEdEngine::OnSourceControlStateUpdated(const FSourceControlOperationR
 						}
 						else
 						{
-							if (Settings->bAutomaticallyCheckoutOnAssetModification)
+							if (Settings->GetAutomaticallyCheckoutOnAssetModification())
 							{
 								PackagesToAutomaticallyCheckOut.Add(PackagePtr);
 								FilesToAutomaticallyCheckOut.Add(SourceControlHelpers::PackageFilename(Package));

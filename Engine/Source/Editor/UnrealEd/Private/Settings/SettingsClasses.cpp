@@ -312,6 +312,28 @@ void UEditorLoadingSavingSettings::PostInitProperties()
 	Super::PostInitProperties();
 }
 
+bool UEditorLoadingSavingSettings::GetAutomaticallyCheckoutOnAssetModification() const
+{
+	if (bAutomaticallyCheckoutOnAssetModificationOverride.IsSet())
+	{
+		return bAutomaticallyCheckoutOnAssetModificationOverride.GetValue();
+	}
+	else
+	{
+		return bAutomaticallyCheckoutOnAssetModification;
+	}
+}
+
+void UEditorLoadingSavingSettings::SetAutomaticallyCheckoutOnAssetModificationOverride(bool InValue)
+{
+	bAutomaticallyCheckoutOnAssetModificationOverride = InValue;
+}
+
+void UEditorLoadingSavingSettings::ResetAutomaticallyCheckoutOnAssetModificationOverride()
+{
+	bAutomaticallyCheckoutOnAssetModificationOverride.Reset();
+}
+
 FAutoReimportDirectoryConfig::FParseContext::FParseContext(bool bInEnableLogging)
 	: bEnableLogging(bInEnableLogging)
 {

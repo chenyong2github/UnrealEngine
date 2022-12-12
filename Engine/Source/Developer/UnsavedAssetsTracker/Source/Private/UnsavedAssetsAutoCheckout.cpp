@@ -20,7 +20,7 @@ FUnsavedAssetsAutoCheckout::~FUnsavedAssetsAutoCheckout()
 void FUnsavedAssetsAutoCheckout::AsyncCheckout(const FString& AbsoluteAssetFilepath)
 {
 	const UEditorLoadingSavingSettings* Settings = GetDefault<UEditorLoadingSavingSettings>();
-	if (!Settings->bAutomaticallyCheckoutOnAssetModification)
+	if (!Settings->GetAutomaticallyCheckoutOnAssetModification())
 	{
 		return;
 	}

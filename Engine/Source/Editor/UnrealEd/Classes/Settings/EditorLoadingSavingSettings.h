@@ -193,6 +193,12 @@ public:
 	// @todo thomass: proper settings support for source control module
 	void SccHackInitialize( );
 
+	bool GetAutomaticallyCheckoutOnAssetModification() const;
+
+	void SetAutomaticallyCheckoutOnAssetModificationOverride(bool InValue);
+
+	void ResetAutomaticallyCheckoutOnAssetModificationOverride();
+
 public:
 
 	/**
@@ -214,4 +220,7 @@ private:
 
 	// Holds an event delegate that is executed when a setting has changed.
 	FSettingChangedEvent SettingChangedEvent;
+
+	// Holds the potentially overridden value of bAutomaticallyCheckoutOnAssetModification at runtime only.
+	TOptional<bool> bAutomaticallyCheckoutOnAssetModificationOverride;
 };
