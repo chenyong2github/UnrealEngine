@@ -29,6 +29,7 @@ TGlobalResource<FVariableRateShadingImageManager> GVRSImageManager;
 namespace VRSHelpers
 {
 	constexpr int32 kCombineGroupSize = FComputeShaderUtils::kGolden2DGroupSize;
+	constexpr uint32 kShadingRateDimensionBits = 2;
 }
 
 class FCombineShadingRateTexturesCS : public FGlobalShader
@@ -39,10 +40,8 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, RWOutputTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, SourceTexture_1)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, SourceTexture_2)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, SourceTexture_3)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, SourceTexture_4)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, SourceTexture0)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, SourceTexture1)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -56,6 +55,8 @@ public:
 
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), VRSHelpers::kCombineGroupSize);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), VRSHelpers::kCombineGroupSize);
+
+		OutEnvironment.SetDefine(TEXT("SHADING_RATE_DIMENSION_BITS"), VRSHelpers::kShadingRateDimensionBits);
 	}
 
 };
@@ -159,8 +160,8 @@ FRDGTextureRef FVariableRateShadingImageManager::GetVariableRateShadingImage(FRD
 		FRDGTextureRef CombinedShadingRateTexture = GraphBuilder.CreateTexture(Desc, TEXT("CombinedShadingRateTexture"));
 
 		FCombineShadingRateTexturesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCombineShadingRateTexturesCS::FParameters>();
-		PassParameters->SourceTexture_2 = InternalVRSSources[0];
-		PassParameters->SourceTexture_1 = InternalVRSSources[1];
+		PassParameters->SourceTexture0 = InternalVRSSources[0];
+		PassParameters->SourceTexture1 = InternalVRSSources[1];
 		PassParameters->RWOutputTexture = GraphBuilder.CreateUAV(CombinedShadingRateTexture);
 
 		TShaderMapRef<FCombineShadingRateTexturesCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
