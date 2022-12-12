@@ -19,11 +19,13 @@ bool UAudioBusSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 
 void UAudioBusSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
+	UE_LOG(LogAudioMixer, Log, TEXT("Initializing Audio Bus Subsystem for audio device with ID %d"), GetMixerDevice()->DeviceID);
 	InitDefaultAudioBuses();
 }
 
 void UAudioBusSubsystem::Deinitialize()
 {
+	UE_LOG(LogAudioMixer, Log, TEXT("Deinitializing Audio Bus Subsystem for audio device with ID %d"), GetMixerDevice()->DeviceID);
 	ShutdownDefaultAudioBuses();
 }
 

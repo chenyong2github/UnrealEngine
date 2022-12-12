@@ -689,7 +689,7 @@ bool FAudioDevice::Init(Audio::FDeviceId InDeviceID, int32 InMaxSources, int32 I
 
 	InitDefaultAudioBuses();
 
-	UE_LOG(LogInit, Log, TEXT("FAudioDevice initialized."));
+	UE_LOG(LogInit, Log, TEXT("FAudioDevice initialized with ID %d."), InDeviceID);
 
 	return true;
 }
@@ -2424,6 +2424,8 @@ void FAudioDevice::InitSoundSources()
 
 void FAudioDevice::InitializeSubsystemCollection()
 {
+	UE_LOG(LogAudio, Log, TEXT("Initializing audio subsystem collection for audio device with id %d"), DeviceID);
+	FModuleManager::Get().LoadModuleChecked("AudioMixer");
 	SubsystemCollectionRoot.Reset(NewObject<UAudioSubsystemCollectionRoot>(GetTransientPackage()));
 	check(SubsystemCollectionRoot.IsValid());
 
