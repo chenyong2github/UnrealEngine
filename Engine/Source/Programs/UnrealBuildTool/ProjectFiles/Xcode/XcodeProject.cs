@@ -491,25 +491,21 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 										if (BuildConfigs.Where(Config => Config.DisplayName == ConfigName).ToList().Count == 0)
 										{
 											string TargetName = ProjectTarget.TargetFilePath.GetFileNameWithoutAnyExtensions();
+											// Get the .uproject directory
+											DirectoryReference? UProjectDirectory = DirectoryReference.FromFile(ProjectTarget.UnrealProjectFilePath);
 
 											// Get the output directory
-											DirectoryReference RootDirectory = Unreal.EngineDirectory;
-											// Unique and Monolithic both need to use the target directory not the engine directory
-											if (ProjectTarget.TargetRules.Type != TargetType.Program && (bShouldCompileMonolithic || ProjectTarget.TargetRules.BuildEnvironment == TargetBuildEnvironment.Unique))
+											DirectoryReference RootDirectory;
+											if (UProjectDirectory != null && 
+												(bShouldCompileMonolithic || ProjectTarget.TargetRules.BuildEnvironment == TargetBuildEnvironment.Unique) && 
+												ProjectTarget.TargetRules.File!.IsUnderDirectory(UProjectDirectory))
 											{
-												if (ProjectTarget.UnrealProjectFilePath != null)
-												{
-													RootDirectory = ProjectTarget.UnrealProjectFilePath.Directory;
-												}
+												RootDirectory = UEBuildTarget.GetOutputDirectoryForExecutable(UProjectDirectory, ProjectTarget.TargetRules.File!);
 											}
-
-											if (ProjectTarget.TargetRules.Type == TargetType.Program && ProjectTarget.UnrealProjectFilePath != null)
+											else
 											{
-												RootDirectory = ProjectTarget.UnrealProjectFilePath.Directory;
+												RootDirectory = UEBuildTarget.GetOutputDirectoryForExecutable(Unreal.EngineDirectory, ProjectTarget.TargetRules.File!);
 											}
-
-											// Get the output directory
-											DirectoryReference OutputDirectory = DirectoryReference.Combine(RootDirectory, "Binaries");
 
 											string ExeName = TargetName;
 											if (!bShouldCompileMonolithic && ProjectTarget.TargetRules.Type != TargetType.Program)
@@ -525,19 +521,31 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 												}
 											}
 
+											// Get the output directory
+											DirectoryReference OutputDirectory = DirectoryReference.Combine(RootDirectory, "Binaries");
+											DirectoryReference MacBinaryDir = DirectoryReference.Combine(OutputDirectory, "Mac");
+											DirectoryReference IOSBinaryDir = DirectoryReference.Combine(OutputDirectory, "IOS");
+											DirectoryReference TVOSBinaryDir = DirectoryReference.Combine(OutputDirectory, "TVOS");
+											if (!string.IsNullOrEmpty(ProjectTarget.TargetRules.ExeBinariesSubFolder))
+											{
+												MacBinaryDir = DirectoryReference.Combine(MacBinaryDir, ProjectTarget.TargetRules.ExeBinariesSubFolder);
+												IOSBinaryDir = DirectoryReference.Combine(IOSBinaryDir, ProjectTarget.TargetRules.ExeBinariesSubFolder);
+												TVOSBinaryDir = DirectoryReference.Combine(TVOSBinaryDir, ProjectTarget.TargetRules.ExeBinariesSubFolder);
+											}
+
 											if (BuildPlatform.Platform == UnrealTargetPlatform.Mac)
 											{
 												string MacExecutableName = MakeExecutableFileName(ExeName, UnrealTargetPlatform.Mac, Configuration, ProjectTarget.TargetRules.Architecture, ProjectTarget.TargetRules.UndecoratedConfiguration);
 												string IOSExecutableName = MacExecutableName.Replace("-Mac-", "-IOS-");
 												string TVOSExecutableName = MacExecutableName.Replace("-Mac-", "-TVOS-");
-												BuildConfigs.Add(new UnrealBuildConfig(ConfigName, TargetName, FileReference.Combine(OutputDirectory, "Mac", MacExecutableName), FileReference.Combine(OutputDirectory, "IOS", IOSExecutableName), FileReference.Combine(OutputDirectory, "TVOS", TVOSExecutableName), ProjectTarget, Configuration));
+												BuildConfigs.Add(new UnrealBuildConfig(ConfigName, TargetName, FileReference.Combine(MacBinaryDir, MacExecutableName), FileReference.Combine(IOSBinaryDir, IOSExecutableName), FileReference.Combine(TVOSBinaryDir, TVOSExecutableName), ProjectTarget, Configuration));
 											}
 											else if (BuildPlatform.Platform == UnrealTargetPlatform.IOS || BuildPlatform.Platform == UnrealTargetPlatform.TVOS)
 											{
 												string IOSExecutableName = MakeExecutableFileName(ExeName, UnrealTargetPlatform.IOS, Configuration, ProjectTarget.TargetRules.Architecture, ProjectTarget.TargetRules.UndecoratedConfiguration);
 												string TVOSExecutableName = IOSExecutableName.Replace("-IOS-", "-TVOS-");
 												//string MacExecutableName = IOSExecutableName.Replace("-IOS-", "-Mac-");
-												BuildConfigs.Add(new UnrealBuildConfig(ConfigName, TargetName, FileReference.Combine(OutputDirectory, "Mac", IOSExecutableName), FileReference.Combine(OutputDirectory, "IOS", IOSExecutableName), FileReference.Combine(OutputDirectory, "TVOS", TVOSExecutableName), ProjectTarget, Configuration));
+												BuildConfigs.Add(new UnrealBuildConfig(ConfigName, TargetName, FileReference.Combine(MacBinaryDir, IOSExecutableName), FileReference.Combine(IOSBinaryDir, IOSExecutableName), FileReference.Combine(TVOSBinaryDir, TVOSExecutableName), ProjectTarget, Configuration));
 											}
 										}
 									}
@@ -1484,7 +1492,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				SupportedDevices.Add(UnrealData.IOSProjectSettings!.RuntimeDevices);
 
 				Xcconfig.AppendLine($"SDKROOT{SettingFilter} = iphoneos");
-				Xcconfig.AppendLine($"CONFIGURATION_BUILD_DIR{SettingFilter} = {ProjectRootDir}/Binaries/IOS/Payload");
+				Xcconfig.AppendLine($"CONFIGURATION_BUILD_DIR{SettingFilter} = {UnrealData.AllConfigs[0].IOSExecutablePath!.Directory}/Payload");
 				Xcconfig.AppendLine($"IPHONEOS_DEPLOYMENT_TARGET = {UnrealData.IOSProjectSettings.RuntimeVersion}");
 
 				if (UnrealData.PlistMode == PlistMode.UpdateTemplate)
@@ -1545,7 +1553,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				SupportedDevices.Add(UnrealData.TVOSProjectSettings!.RuntimeDevices);
 
 				Xcconfig.AppendLine($"SDKROOT{SettingFilter} = appletvos");
-				Xcconfig.AppendLine($"CONFIGURATION_BUILD_DIR{SettingFilter} = {ProjectRootDir}/Binaries/TVOS/Payload");
+				Xcconfig.AppendLine($"CONFIGURATION_BUILD_DIR{SettingFilter} = {UnrealData.AllConfigs[0].TVOSExecutablePath!.Directory}/Payload");
 				Xcconfig.AppendLine($"TVOS_DEPLOYMENT_TARGET = {UnrealData.TVOSProjectSettings.RuntimeVersion}");
 
 				if (UnrealData.PlistMode == PlistMode.UpdateTemplate)

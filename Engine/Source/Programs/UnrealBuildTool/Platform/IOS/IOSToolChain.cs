@@ -1859,7 +1859,7 @@ namespace UnrealBuildTool
 				// ensure the plist, entitlements, and provision files are properly copied
 				UEDeployIOS DeployHandler = (Target.Platform == UnrealTargetPlatform.IOS ? new UEDeployIOS(Logger) : new UEDeployTVOS(Logger));
 				DeployHandler.ForDistribution = Target.bForDistribution;
-				DeployHandler.PrepTargetForDeployment(Target.ProjectFile, Target.TargetName, Target.Platform, Target.Configuration, Target.UPLScripts, Target.bCreateStubIPA, BundleID, Target.bBuildAsFramework);
+				DeployHandler.PrepTargetForDeployment(Target.ProjectFile, Target.TargetName, Target.OutputPath, Target.Platform, Target.Configuration, Target.UPLScripts, Target.bCreateStubIPA, BundleID, Target.bBuildAsFramework);
 
 				Logger.LogInformation("Executing {Script}", SignProjectScript);
 
@@ -1938,7 +1938,7 @@ namespace UnrealBuildTool
 				// ensure the plist, entitlements, and provision files are properly copied
 				UEDeployIOS DeployHandler = (Target.Platform == UnrealTargetPlatform.IOS ? new UEDeployIOS(Logger) : new UEDeployTVOS(Logger));
 				DeployHandler.ForDistribution = Target.bForDistribution;
-				DeployHandler.PrepTargetForDeployment(Target.ProjectFile, Target.TargetName, Target.Platform, Target.Configuration, Target.UPLScripts, Target.bCreateStubIPA, BundleID, Target.bBuildAsFramework);
+				DeployHandler.PrepTargetForDeployment(Target.ProjectFile, Target.TargetName, Target.OutputPath, Target.Platform, Target.Configuration, Target.UPLScripts, Target.bCreateStubIPA, BundleID, Target.bBuildAsFramework);
 
 				// write the entitlements file (building on Mac)
 				WriteEntitlements(Target, Logger);

@@ -707,45 +707,43 @@ namespace UnrealBuildTool.XcodeProjectLegacy
 		{
 			StringBuilder FrameworkScript = new StringBuilder();
 
-			// nothing to do without a project
-			if (UProjectPath == null)
+			if (UProjectPath != null)
 			{
-				return;
-			}
 
-			// @todo: look also in Project/Build/Frameworks directory!
-			ProjectDescriptor Project = ProjectDescriptor.FromFile(UProjectPath);
-			List<PluginInfo> AvailablePlugins = Plugins.ReadAvailablePlugins(Unreal.EngineDirectory, DirectoryReference.FromFile(UProjectPath), Project.AdditionalPluginDirectories);
+				// @todo: look also in Project/Build/Frameworks directory!
+				ProjectDescriptor Project = ProjectDescriptor.FromFile(UProjectPath);
+				List<PluginInfo> AvailablePlugins = Plugins.ReadAvailablePlugins(Unreal.EngineDirectory, DirectoryReference.FromFile(UProjectPath), Project.AdditionalPluginDirectories);
 
-			// look in each plugin for frameworks
-			// @todo: Cache this kind of things since every target will re-do this work!
-			foreach (PluginInfo PI in AvailablePlugins)
-			{
-				if (!Plugins.IsPluginEnabledForTarget(PI, Project, UnrealTargetPlatform.IOS, UnrealTargetConfiguration.Development, TargetRules.TargetType.Game))
+				// look in each plugin for frameworks
+				// @todo: Cache this kind of things since every target will re-do this work!
+				foreach (PluginInfo PI in AvailablePlugins)
 				{
-					continue;
-				}
-
-				// for now, we copy and code sign all *.framework.zip, even if the have no code (non-code frameworks are assumed to be *.embeddedframework.zip
-				DirectoryReference FrameworkDir = DirectoryReference.Combine(PI.Directory, "Source/Frameworks");
-				if (!DirectoryReference.Exists(FrameworkDir))
-				{
-					FrameworkDir = DirectoryReference.Combine(PI.Directory, "Frameworks");
-				}
-				if (DirectoryReference.Exists(FrameworkDir))
-				{
-					// look at each zip
-					foreach (FileInfo FI in new System.IO.DirectoryInfo(FrameworkDir.FullName).EnumerateFiles("*.framework.zip"))
+					if (!Plugins.IsPluginEnabledForTarget(PI, Project, UnrealTargetPlatform.IOS, UnrealTargetConfiguration.Development, TargetRules.TargetType.Game))
 					{
-						//string Guid = XcodeProjectFileGenerator.MakeXcodeGuid();
-						//string RefGuid = XcodeProjectFileGenerator.MakeXcodeGuid();
+						continue;
+					}
 
-						// for FI of foo.framework.zip, this will give us foo.framework
-						//string Framework = Path.GetFileNameWithoutExtension(FI.FullName);
+					// for now, we copy and code sign all *.framework.zip, even if the have no code (non-code frameworks are assumed to be *.embeddedframework.zip
+					DirectoryReference FrameworkDir = DirectoryReference.Combine(PI.Directory, "Source/Frameworks");
+					if (!DirectoryReference.Exists(FrameworkDir))
+					{
+						FrameworkDir = DirectoryReference.Combine(PI.Directory, "Frameworks");
+					}
+					if (DirectoryReference.Exists(FrameworkDir))
+					{
+						// look at each zip
+						foreach (FileInfo FI in new System.IO.DirectoryInfo(FrameworkDir.FullName).EnumerateFiles("*.framework.zip"))
+						{
+							//string Guid = XcodeProjectFileGenerator.MakeXcodeGuid();
+							//string RefGuid = XcodeProjectFileGenerator.MakeXcodeGuid();
 
-						// unzip the framework right into the .app
-						FrameworkScript.AppendFormat("\\techo Unzipping {0}...\\n", FI.FullName);
-						FrameworkScript.AppendFormat("\\tunzip -o -q {0} -d ${{FRAMEWORK_DIR}} -x \\\"__MACOSX/*\\\" \\\"*/.DS_Store\\\"\\n", FI.FullName);
+							// for FI of foo.framework.zip, this will give us foo.framework
+							//string Framework = Path.GetFileNameWithoutExtension(FI.FullName);
+
+							// unzip the framework right into the .app
+							FrameworkScript.AppendFormat("\\techo Unzipping {0}...\\n", FI.FullName);
+							FrameworkScript.AppendFormat("\\tunzip -o -q {0} -d ${{FRAMEWORK_DIR}} -x \\\"__MACOSX/*\\\" \\\"*/.DS_Store\\\"\\n", FI.FullName);
+						}
 					}
 				}
 			}
@@ -1099,38 +1097,13 @@ namespace UnrealBuildTool.XcodeProjectLegacy
 					Content.Append("\t\t\t\t\"PRODUCT_BUNDLE_IDENTIFIER[sdk=macosx*]\" = " + MacBundleIdentifier + ";" + ProjectFileGenerator.NewLine);
 				}
 
-				if (bIsUnrealGame || bIsUnrealClient)
+				if (IOSRunTimeVersion != null)
 				{
-					if (IOSRunTimeVersion != null)
-					{
-						Content.Append("\t\t\t\t\"CONFIGURATION_BUILD_DIR[sdk=iphoneos*]\" = \"" + UEDir + "/Engine/Binaries/IOS" + BinariesSubDir + "\";" + ProjectFileGenerator.NewLine);
-					}
-					if (TVOSRunTimeVersion != null)
-					{
-						Content.Append("\t\t\t\t\"CONFIGURATION_BUILD_DIR[sdk=appletvos*]\" = \"" + UEDir + "/Engine/Binaries/TVOS" + BinariesSubDir + "\";" + ProjectFileGenerator.NewLine);
-					}
+					Content.Append("\t\t\t\t\"CONFIGURATION_BUILD_DIR[sdk=iphoneos*]\" = \"" + Config.IOSExecutablePath!.Directory!.FullName + BinariesSubDir + "\";" + ProjectFileGenerator.NewLine);
 				}
-				else if (ProjectFile != null)
+				if (TVOSRunTimeVersion != null)
 				{
-					if (IOSRunTimeVersion != null)
-					{
-						Content.Append("\t\t\t\t\"CONFIGURATION_BUILD_DIR[sdk=iphoneos*]\" = \"" + GamePath + "/Binaries/IOS" + BinariesSubDir + "\";" + ProjectFileGenerator.NewLine);
-					}
-					if (TVOSRunTimeVersion != null)
-					{
-						Content.Append("\t\t\t\t\"CONFIGURATION_BUILD_DIR[sdk=appletvos*]\" = \"" + GamePath + "/Binaries/TVOS" + BinariesSubDir + "\";" + ProjectFileGenerator.NewLine);
-					}
-				}
-				else
-				{
-					if (IOSRunTimeVersion != null)
-					{
-						Content.Append("\t\t\t\t\"CONFIGURATION_BUILD_DIR[sdk=iphoneos*]\" = \"" + UEDir + "/Engine/Binaries/IOS" + BinariesSubDir + "\";" + ProjectFileGenerator.NewLine);
-					}
-					if (TVOSRunTimeVersion != null)
-					{
-						Content.Append("\t\t\t\t\"CONFIGURATION_BUILD_DIR[sdk=appletvos*]\" = \"" + UEDir + "/Engine/Binaries/TVOS" + BinariesSubDir + "\";" + ProjectFileGenerator.NewLine);
-					}
+					Content.Append("\t\t\t\t\"CONFIGURATION_BUILD_DIR[sdk=appletvos*]\" = \"" + Config.TVOSExecutablePath!.Directory!.FullName + BinariesSubDir +	"\";" + ProjectFileGenerator.NewLine);
 				}
 		}
 
@@ -1482,25 +1455,21 @@ namespace UnrealBuildTool.XcodeProjectLegacy
 										if (BuildConfigs.Where(Config => Config.DisplayName == ConfigName).ToList().Count == 0)
 										{
 											string TargetName = ProjectTarget.TargetFilePath.GetFileNameWithoutAnyExtensions();
+											// Get the .uproject directory
+											DirectoryReference? UProjectDirectory = DirectoryReference.FromFile(ProjectTarget.UnrealProjectFilePath);
 
 											// Get the output directory
-											DirectoryReference RootDirectory = Unreal.EngineDirectory;
-											// Unique and Monolithic both need to use the target directory not the engine directory
-											if (ProjectTarget.TargetRules.Type != TargetType.Program && (bShouldCompileMonolithic || ProjectTarget.TargetRules.BuildEnvironment == TargetBuildEnvironment.Unique))
+											DirectoryReference RootDirectory;
+											if (UProjectDirectory != null &&
+												(bShouldCompileMonolithic || ProjectTarget.TargetRules.BuildEnvironment == TargetBuildEnvironment.Unique) &&
+												ProjectTarget.TargetRules.File!.IsUnderDirectory(UProjectDirectory))
 											{
-												if (ProjectTarget.UnrealProjectFilePath != null)
-												{
-													RootDirectory = ProjectTarget.UnrealProjectFilePath.Directory;
-												}
+												RootDirectory = UEBuildTarget.GetOutputDirectoryForExecutable(UProjectDirectory, ProjectTarget.TargetRules.File!);
 											}
-
-											if (ProjectTarget.TargetRules.Type == TargetType.Program && ProjectTarget.UnrealProjectFilePath != null)
+											else
 											{
-												RootDirectory = ProjectTarget.UnrealProjectFilePath.Directory;
+												RootDirectory = UEBuildTarget.GetOutputDirectoryForExecutable(Unreal.EngineDirectory, ProjectTarget.TargetRules.File!);
 											}
-
-											// Get the output directory
-											DirectoryReference OutputDirectory = DirectoryReference.Combine(RootDirectory, "Binaries");
 
 											string ExeName = TargetName;
 											if (!bShouldCompileMonolithic && ProjectTarget.TargetRules.Type != TargetType.Program)
@@ -1516,19 +1485,31 @@ namespace UnrealBuildTool.XcodeProjectLegacy
 												}
 											}
 
+											// Get the output directory
+											DirectoryReference OutputDirectory = DirectoryReference.Combine(RootDirectory, "Binaries");
+											DirectoryReference MacBinaryDir = DirectoryReference.Combine(OutputDirectory, "Mac");
+											DirectoryReference IOSBinaryDir = DirectoryReference.Combine(OutputDirectory, "IOS");
+											DirectoryReference TVOSBinaryDir = DirectoryReference.Combine(OutputDirectory, "TVOS");
+											if (!string.IsNullOrEmpty(ProjectTarget.TargetRules.ExeBinariesSubFolder))
+											{
+												MacBinaryDir = DirectoryReference.Combine(MacBinaryDir, ProjectTarget.TargetRules.ExeBinariesSubFolder);
+												IOSBinaryDir = DirectoryReference.Combine(IOSBinaryDir, ProjectTarget.TargetRules.ExeBinariesSubFolder);
+												TVOSBinaryDir = DirectoryReference.Combine(TVOSBinaryDir, ProjectTarget.TargetRules.ExeBinariesSubFolder);
+											}
+
 											if (BuildPlatform.Platform == UnrealTargetPlatform.Mac)
 											{
 												string MacExecutableName = MakeExecutableFileName(ExeName, UnrealTargetPlatform.Mac, Configuration, ProjectTarget.TargetRules.Architecture, ProjectTarget.TargetRules.UndecoratedConfiguration);
 												string IOSExecutableName = MacExecutableName.Replace("-Mac-", "-IOS-");
 												string TVOSExecutableName = MacExecutableName.Replace("-Mac-", "-TVOS-");
-												BuildConfigs.Add(new XcodeBuildConfig(ConfigName, TargetName, FileReference.Combine(OutputDirectory, "Mac", MacExecutableName), FileReference.Combine(OutputDirectory, "IOS", IOSExecutableName), FileReference.Combine(OutputDirectory, "TVOS", TVOSExecutableName), ProjectTarget, Configuration));
+												BuildConfigs.Add(new XcodeBuildConfig(ConfigName, TargetName, FileReference.Combine(MacBinaryDir, MacExecutableName), FileReference.Combine(IOSBinaryDir, IOSExecutableName), FileReference.Combine(TVOSBinaryDir, TVOSExecutableName), ProjectTarget, Configuration));
 											}
 											else if (BuildPlatform.Platform == UnrealTargetPlatform.IOS || BuildPlatform.Platform == UnrealTargetPlatform.TVOS)
 											{
 												string IOSExecutableName = MakeExecutableFileName(ExeName, UnrealTargetPlatform.IOS, Configuration, ProjectTarget.TargetRules.Architecture, ProjectTarget.TargetRules.UndecoratedConfiguration);
 												string TVOSExecutableName = IOSExecutableName.Replace("-IOS-", "-TVOS-");
 												//string MacExecutableName = IOSExecutableName.Replace("-IOS-", "-Mac-");
-												BuildConfigs.Add(new XcodeBuildConfig(ConfigName, TargetName, FileReference.Combine(OutputDirectory, "Mac", IOSExecutableName), FileReference.Combine(OutputDirectory, "IOS", IOSExecutableName), FileReference.Combine(OutputDirectory, "TVOS", TVOSExecutableName), ProjectTarget, Configuration));
+												BuildConfigs.Add(new XcodeBuildConfig(ConfigName, TargetName, FileReference.Combine(MacBinaryDir, IOSExecutableName), FileReference.Combine(IOSBinaryDir, IOSExecutableName), FileReference.Combine(TVOSBinaryDir, TVOSExecutableName), ProjectTarget, Configuration));
 											}
 										}
 									}
