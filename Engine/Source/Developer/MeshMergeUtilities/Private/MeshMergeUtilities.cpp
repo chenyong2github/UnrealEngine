@@ -3494,7 +3494,7 @@ void FMeshMergeUtilities::MergeComponentsToInstances(const TArray<UPrimitiveComp
 			{
 				// Create our actors
 				const FScopedTransaction Transaction(LOCTEXT("PlaceInstancedActors", "Place Instanced Actor(s)"));
-				Level->Modify();
+				Level->Modify(false);
 
  				FActorSpawnParameters Params;
  				Params.OverrideLevel = Level;
