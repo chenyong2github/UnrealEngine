@@ -376,18 +376,22 @@ FEdGraphPinType UPCGEditorGraphNodeBase::GetPinType(const UPCGPin* InPin)
 
 	if (CheckType(EPCGDataType::Spatial))
 	{
-		EdPinType.PinCategory = FPCGEditorCommon::SpatialDataType;
-
-		// Assign subcategory if we have precise information
-		if (CheckType(EPCGDataType::Composite))
-		{
-			EdPinType.PinCategory = FPCGEditorCommon::CompositeDataType;
-		}
-		else if (CheckType(EPCGDataType::Concrete))
+		// Categories within spatial, checking from narrow -> wide
+		if (CheckType(EPCGDataType::Concrete))
 		{
 			EdPinType.PinCategory = FPCGEditorCommon::ConcreteDataType;
 		}
-		else if (CheckType(EPCGDataType::Point))
+		else if (CheckType(EPCGDataType::Composite))
+		{
+			EdPinType.PinCategory = FPCGEditorCommon::CompositeDataType;
+		}
+		else
+		{
+			EdPinType.PinCategory = FPCGEditorCommon::SpatialDataType;
+		}
+
+		// Assign subcategory if we have precise information
+		if (CheckType(EPCGDataType::Point))
 		{
 			EdPinType.PinSubCategory = FPCGEditorCommon::PointDataType;
 		}
