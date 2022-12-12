@@ -7,6 +7,7 @@
 #include "GameFramework/Actor.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "MaterialShared.h"
+#include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WaterZoneActor.generated.h"
 
 class UWaterMeshComponent;
@@ -44,6 +45,8 @@ public:
 	FVector2D GetZoneExtent() const { return ZoneExtent; }
 	void SetZoneExtent(FVector2D NewExtents);
 
+	FBox2D GetZoneBounds() const;
+
 	void SetRenderTargetResolution(FIntPoint NewResolution);
 	FIntPoint GetRenderTargetResolution() const { return RenderTargetResolution; }
 
@@ -74,6 +77,11 @@ public:
 	float GetNonTessellatedLODSectionSize() const;
 
 	bool IsNonTessellatedLODMeshEnabled() const { return bEnableNonTessellatedLODMesh; }
+
+#if WITH_EDITOR
+	virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
+	virtual FBox GetStreamingBounds() const override;
+#endif //WITH_EDITOR
 
 private:
 
@@ -173,3 +181,4 @@ private:
 	TObjectPtr<UTexture2D> WaterVelocityTexture_DEPRECATED;
 #endif // WITH_EDITORONLY_DATA
 };
+DEFINE_ACTORDESC_TYPE(AWaterZone, FWaterZoneActorDesc);

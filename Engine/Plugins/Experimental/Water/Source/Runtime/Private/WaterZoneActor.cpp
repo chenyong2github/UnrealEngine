@@ -17,12 +17,13 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WaterZoneActor)
 
-#if	WITH_EDITOR
+#if WITH_EDITOR
 #include "Algo/Transform.h"
 #include "LevelEditor.h"
 #include "Modules/ModuleManager.h"
 #include "WaterIconHelper.h"
 #include "Components/BoxComponent.h"
+#include "WaterZoneActorDesc.h"
 #endif // WITH_EDITOR
 
 static int32 ForceUpdateWaterInfoNextFrames = 0;
@@ -79,6 +80,16 @@ void AWaterZone::SetZoneExtent(FVector2D NewExtent)
 {
 	ZoneExtent = NewExtent;
 	OnExtentChanged();
+}
+
+FBox2D AWaterZone::GetZoneBounds() const
+{
+	// GetZoneExtents returns the full extent of the zone but BoxSphereBounds expects a half-extent.
+	const FVector2D WaterZoneLocation = FVector2D(GetActorLocation());
+	const FVector2D WaterZoneHalfExtent = GetZoneExtent() / 2.0;
+	const FBox2D WaterZoneBounds(WaterZoneLocation - WaterZoneHalfExtent, WaterZoneLocation + WaterZoneHalfExtent);
+
+	return WaterZoneBounds;
 }
 
 void AWaterZone::SetRenderTargetResolution(FIntPoint NewResolution)
@@ -302,6 +313,21 @@ void AWaterZone::OnActorSelectionChanged(const TArray<UObject*>& NewSelection, b
 		MarkForRebuild(EWaterZoneRebuildFlags::UpdateWaterMesh | EWaterZoneRebuildFlags::UpdateWaterInfoTexture);
 	}
 }
+
+TUniquePtr<class FWorldPartitionActorDesc> AWaterZone::CreateClassActorDesc() const
+{
+	return TUniquePtr<FWorldPartitionActorDesc>(new FWaterZoneActorDesc());
+}
+
+FBox AWaterZone::GetStreamingBounds() const
+{
+	const FBox2D ZoneBounds2D = GetZoneBounds();
+	// #todo_water [roey]: Water zone doesn't have an explicit z bounds yet. For now just use the x or y.
+	const double StreamingBoundsZ = FMath::Max(ZoneExtent.X, ZoneExtent.Y);
+
+	return FBox(FVector3d(ZoneBounds2D.Min, -StreamingBoundsZ / 2.), FVector3d(ZoneBounds2D.Max, StreamingBoundsZ / 2.0));
+}
+
 #endif // WITH_EDITOR
 
 void AWaterZone::OnExtentChanged()

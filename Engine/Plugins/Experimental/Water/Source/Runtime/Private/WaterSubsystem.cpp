@@ -26,6 +26,12 @@
 #include "WaterSplineComponent.h"
 #include "WaterUtils.h"
 #include "WaterViewExtension.h"
+#include "Algo/MaxElement.h"
+
+#if WITH_EDITOR
+#include "WaterZoneActorDesc.h"
+#include "WorldPartition/WorldPartitionHelpers.h"
+#endif // WITH_DITOR
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WaterSubsystem)
 
@@ -525,9 +531,7 @@ void UWaterSubsystem::MarkWaterZonesInRegionForRebuild(const FBox2D& InUpdateReg
 	{
 		for (AWaterZone* WaterZone : TActorRange<AWaterZone>(World))
 		{
-			FVector2D ZoneExtent = WaterZone->GetZoneExtent();
-			FVector2D ZoneLocation = FVector2D(WaterZone->GetActorLocation());
-			const FBox2D WaterZoneBounds(ZoneLocation - ZoneExtent * 0.5, ZoneLocation + ZoneExtent * 0.5);
+			const FBox2D WaterZoneBounds = WaterZone->GetZoneBounds();
 
 			if (WaterZoneBounds.Intersect(InUpdateRegion))
 			{
@@ -535,6 +539,59 @@ void UWaterSubsystem::MarkWaterZonesInRegionForRebuild(const FBox2D& InUpdateReg
 			}
 		}
 	}
+}
+
+TSoftObjectPtr<AWaterZone> UWaterSubsystem::FindWaterZone(const FBox2D& Bounds) const
+{
+	if (!GetWorld())
+	{
+		return {};
+	}
+
+	const UWorld* World = GetWorld();
+
+	// Score each overlapping water zone and then pick the best.
+	TMap<TSoftObjectPtr<AWaterZone>, int32> ViableZones;
+
+#if WITH_EDITOR
+	// Within the editor, we also want to check unloaded actors to ensure that the water body has serialized the best possible water zone, rather than just looking through what might be loaded now.
+	if (GEditor && !World->IsGameWorld())
+	{
+		if (UWorldPartition* WorldPartition = GetWorld()->GetWorldPartition())
+		{
+			FWorldPartitionHelpers::ForEachActorDesc<AWaterZone>(WorldPartition, [Bounds, &ViableZones](const FWorldPartitionActorDesc* ActorDesc)
+			{
+				FWaterZoneActorDesc* WaterZoneActorDesc = (FWaterZoneActorDesc*)ActorDesc;
+				const FBox WaterZoneBounds = WaterZoneActorDesc->GetBounds();
+				const FBox2D WaterZoneBounds2D(FVector2D(WaterZoneBounds.Min), FVector2D(WaterZoneBounds.Max));
+
+				if (Bounds.Intersect(WaterZoneBounds2D))
+				{
+					ViableZones.Emplace(WaterZoneActorDesc->GetActorSoftPath(), WaterZoneActorDesc->GetOverlapPriority());
+				}
+
+				return true;
+			});
+		}
+	}
+#endif // WITH_EDITOR
+
+	for (AWaterZone* WaterZone : TActorRange<AWaterZone>(World, AWaterZone::StaticClass(), EActorIteratorFlags::SkipPendingKill))
+	{
+		const FBox2D WaterZoneBounds = WaterZone->GetZoneBounds();
+
+		if (Bounds.Intersect(WaterZoneBounds))
+		{
+			ViableZones.Emplace(WaterZone, WaterZone->GetOverlapPriority());
+		}
+	}
+
+	if (ViableZones.Num() == 0)
+	{
+		return {};
+	}
+
+	return Algo::MaxElementBy(ViableZones, [](const TPair<TSoftObjectPtr<AWaterZone>, int32>& A) { return A.Value; })->Key;
 }
 
 void UWaterSubsystem::NotifyWaterScalabilityChangedInternal(IConsoleVariable* CVar)

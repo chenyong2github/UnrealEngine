@@ -216,11 +216,6 @@ FBox UWaterBodyComponent::GetCollisionComponentBounds() const
 	return Box;
 }
 
-FBoxSphereBounds UWaterBodyComponent::CalcBounds(const FTransform& LocalToWorld) const
-{
-	return Super::CalcBounds(LocalToWorld);
-}
-
 AWaterBody* UWaterBodyComponent::GetWaterBodyActor() const
 {
 	// If we have an Owner, it must be an AWaterBody
@@ -394,20 +389,30 @@ void UWaterBodyComponent::UpdateWaterZones()
 {
 	if (UWorld* World = GetWorld())
 	{
-		AWaterZone* OldWaterZone = GetWaterZone();
-		AWaterZone* FoundZone = FindWaterZone();
-
-		if (OldWaterZone != FoundZone)
+		TSoftObjectPtr<AWaterZone> FoundZone = nullptr;
+		if (!WaterZoneOverride.IsNull())
 		{
-			if (OldWaterZone)
+			FoundZone = WaterZoneOverride.Get();
+		}
+		else
+		{
+			const FBox Bounds3D = Bounds.GetBox();
+			if (const UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(GetWorld()))
 			{
-				OldWaterZone->RemoveWaterBodyComponent(this);
-				OldWaterZone = nullptr;
+				FoundZone = WaterSubsystem->FindWaterZone(FBox2D(FVector2D(Bounds3D.Min), FVector2D(Bounds3D.Max)));
+			}
+		}
+
+		if (OwningWaterZone != FoundZone)
+		{
+			if (AWaterZone* OldOwningZonePtr = OwningWaterZone.Get())
+			{
+				OldOwningZonePtr->RemoveWaterBodyComponent(this);
 			}
 
-			if (FoundZone)
+			if (AWaterZone* FoundZonePtr = FoundZone.Get())
 			{
-				FoundZone->AddWaterBodyComponent(this);
+				FoundZonePtr->AddWaterBodyComponent(this);
 			}
 
 			OwningWaterZone = FoundZone;
@@ -1736,57 +1741,6 @@ UWaterWavesBase* UWaterBodyComponent::GetWaterWaves() const
 		return OwningWaterBody->GetWaterWaves();
 	}
 	return nullptr;
-}
-
-AWaterZone* UWaterBodyComponent::FindWaterZone() const
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(UWaterBodyComponent::FindWaterZone);
-
-	if (!WaterZoneOverride.IsNull())
-	{
-		return WaterZoneOverride.Get();
-	}
-
-	// Score each overlapping water zone and then pick the best.
-	TArray<TPair<int32, AWaterZone*>, TInlineAllocator<4>> ViableZones;
-
-	if (const UWorld* World = GetWorld())
-	{
-		const ULevel* PreferredLevel = GetTypedOuter<ULevel>();
-		if (PreferredLevel)
-		{
-			for (AWaterZone* WaterZone : TActorRange<AWaterZone>(World, AWaterZone::StaticClass(), EActorIteratorFlags::SkipPendingKill))
-			{
-				// WaterZone->GetZoneExtents returns the full extent of the zone but BoxSphereBounds expects a half-extent.
-				const FVector2D WaterZoneLocation = FVector2D(WaterZone->GetActorLocation());
-				const FVector2D WaterZoneHalfExtent = WaterZone->GetZoneExtent() / 2.0;
-				const FBox2D WaterZoneBounds(WaterZoneLocation - WaterZoneHalfExtent, WaterZoneLocation + WaterZoneHalfExtent);
-				const FBox ComponentBounds3d = CalcBounds(GetComponentTransform()).GetBox();
-				const FBox2D ComponentBounds = FBox2D(FVector2D(ComponentBounds3d.Min), FVector2D(ComponentBounds3d.Max));
-
-				// Only consider WaterZones which this component overlaps 
-				// but prefer choosing water zones which are part of the same outered level.
-				if (ComponentBounds.Intersect(WaterZoneBounds))
-				{
-					if (WaterZone->GetTypedOuter<ULevel>() == PreferredLevel)
-					{
-						ViableZones.Add({ WaterZone->GetOverlapPriority(), WaterZone });
-						continue;
-					}
-
-					// Fallback to zones not in the preferred level only as a final resort.
-					ViableZones.Add({ TNumericLimits<int32>::Min(), WaterZone});
-				}
-			}
-		}
-	}
-	
-	if (ViableZones.Num() == 0)
-	{
-		return nullptr;
-	}
-
-	return Algo::MaxElementBy(ViableZones, [](const TPair<int32, AWaterZone*>& A) { return A.Key; })->Value;
 }
 
 static inline FColor PackFlowData(float VelocityMagnitude, float DirectionAngle, float MaxVelocity)
