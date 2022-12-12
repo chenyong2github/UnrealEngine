@@ -32,15 +32,21 @@ class DYNAMICMESH_API FOffsetMeshRegion
 {
 public:
 
-
+	/**
+	 * Method used to determine the per-vertex offset direction vector
+	 */
 	enum class EVertexExtrusionVectorType
 	{
+		/** No geometric offset vector, client must define offset via custom OffsetPositionFunc */
 		Zero,
+		/** Offset vector is per-vertex normal, either provided by FDynamicMesh3 Per-Vertex Normals if defined, or computed by averaging one-ring face normals */
 		VertexNormal,
-		// Angle weighted average of the triangles in the selection that contain this vertex (unit length)
+		/** Angle weighted average of the triangles in the selection that contain this vertex(unit length) */
 		SelectionTriNormalsAngleWeightedAverage,
-		// Like SelectionTriNormalsAngleWeightedAverage, but with the vertex length adjusted to try to keep
-		// the selection triangles parallel to their original location.
+		/** 
+		 *  Like SelectionTriNormalsAngleWeightedAverage, but with the vertex length adjusted to try to keep
+		 *  the selection triangles parallel to their original location. 
+		 */
 		SelectionTriNormalsAngleWeightedAdjusted,
 	};
 
@@ -54,7 +60,7 @@ public:
 	/** The triangle region we are modifying */
 	TArray<int32> Triangles;
 
-	/** This function is called to generate the offset vertex position. */
+	/** OffsetPositionFunc function is called to generate the offset vertex position. */
 	TFunction<FVector3d(const FVector3d& Position, const FVector3d& VertexVector, int Vid)> OffsetPositionFunc = 
 		[this](const FVector3d& Position, const FVector3d& VertexVector, int Vid)
 	{
@@ -92,6 +98,30 @@ public:
 
 	/** When using SelectionTriNormalsAngleWeightedAdjusted to keep triangles parallel, clamp the offset scale to at most this factor */
 	double MaxScaleForAdjustingTriNormalsOffset = 4.0;
+
+	/** 
+	 * Number of subdivisions along the length of the "tubes" used to stitch the offset regions.
+	 * This parameter is only supported in EVersion::Version1 and later
+	 */
+	int32 NumSubdivisions = 0;
+
+	/**
+	 * Support for different versions of the OffsetMeshRegion geometric operation.
+	 * We default to the latest version.
+	 */
+	enum class EVersion
+	{
+		// always use most recent version
+		Current = 0,
+		// initial implementation, various limitations and issues, maintained for back-compat
+		Legacy = 1,
+		// support NumSubdivisions, UVs and Normals computed by polygroup
+		Version1 = 2,
+	};
+
+	/** Version of Offset operation being used. Defaults to Current, ie most recent version */
+	EVersion UseVersion = EVersion::Current;
+	
 
 	//
 	// Outputs
@@ -174,6 +204,9 @@ public:
 protected:
 
 	virtual bool ApplyOffset(FOffsetInfo& Region);
+
+	virtual bool ApplyOffset_Legacy(FOffsetInfo& Region);
+	virtual bool ApplyOffset_Version1(FOffsetInfo& Region);
 };
 
 } // end namespace UE::Geometry

@@ -48,3 +48,59 @@ void UE::Geometry::ComputeArbitraryTrianglePatchUVs(
 		return (float)UseUVScale * UV;
 	});
 }
+
+
+
+
+double UE::Geometry::ComputeAverageUVScaleRatioAlongVertexPath(
+	const FDynamicMesh3& Mesh,
+	const FDynamicMeshUVOverlay& UVOverlay,
+	const TArray<int32>& VertexPath,
+	double* PathLengthOut,
+	double* UVPathLengthOut )
+{
+	double MeshLength = 0;
+	double UVLength = 0;
+	int32 N = VertexPath.Num();
+	for ( int32 k = 0; k < N-1; ++k )
+	{
+		int32 EdgeID = Mesh.FindEdge(VertexPath[k], VertexPath[k+1]);
+		if (EdgeID != IndexConstants::InvalidID)
+		{
+			double EdgeLength = Distance(Mesh.GetVertex(VertexPath[k]), Mesh.GetVertex(VertexPath[k+1]));
+			FIndex2i EdgeTris = Mesh.GetEdgeT(EdgeID);
+
+			double EdgeUVLength = 0;
+			int EdgeUVLengthCount = 0;
+			for ( int32 j = 0; j < 2; ++j )
+			{
+				if ( EdgeTris[j] != IndexConstants::InvalidID && UVOverlay.IsSetTriangle(EdgeTris[j]))
+				{
+					int32 EdgeIdx = Mesh.GetTriEdges(EdgeTris[j]).IndexOf(EdgeID);
+					if ( EdgeIdx != IndexConstants::InvalidID )
+					{
+						FVector2f UVs[3];
+						UVOverlay.GetTriElements(EdgeTris[j], UVs[0], UVs[1], UVs[2]);
+						EdgeUVLength += (double)Distance( UVs[EdgeIdx], UVs[(EdgeIdx+1)%3] );
+						EdgeUVLengthCount++;
+					}
+				}
+			}
+			if ( EdgeUVLengthCount > 0 )
+			{
+				EdgeUVLength /= (double)EdgeUVLengthCount;
+				MeshLength += EdgeLength;
+				UVLength += EdgeUVLength;
+			}
+		}
+	}
+	if ( PathLengthOut )
+	{
+		*PathLengthOut = MeshLength;
+	}
+	if ( UVPathLengthOut )
+	{
+		*UVPathLengthOut = UVLength;
+	}
+	return ( MeshLength > FMathf::ZeroTolerance ) ? (UVLength / MeshLength) : 1.0;
+}

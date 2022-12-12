@@ -213,6 +213,19 @@ public:
 	bool DisconnectTriangles(const TArray<int>& Triangles, TArray<FLoopPairSet>& LoopSetOut, bool bHandleBoundaryVertices);
 
 	/**
+	 * Variant of DisconnectTriangles that takes a precomputed set of BoundaryLoops of the triangles, and a TSet of Triangles.
+	 * These are both computed internally by the version that only takes a TArray of Triangles.
+	 * @warning If the BoundaryLoops are not correct for the provided TriangleSet, this version will likely crash.
+	 * @param Triangles set of triangles
+	 * @param BoundaryLoops precomputed set of boundary EdgeLoops of TriangleSet
+	 * @param LoopSetOut returned set of boundary loops. LoopA is original loop which remains with "outer" triangles previously connected to TriangleSet, and LoopB is new boundary loop of TriangleSet
+	 * @param bAllowBoundaryVertices if true, mesh boundary vertices are duplicated and left on the 'outer' loop, otherwise function aborts and returns false if a boundary vertex is encountered
+	 */
+	bool DisconnectTriangles(const TSet<int>& TriangleSet, const TArray<FEdgeLoop>& BoundaryLoops, TArray<FLoopPairSet>& LoopSetOut, bool bAllowBoundaryVertices);
+
+
+
+	/**
 	* Disconnects triangles (without constructing boundary loops) such that the input Triangles are not connected to any other triangles in the mesh
 	* @param Triangles set of triangles
 	* @param bPreventBowties do some additional processing and vertex splitting as needed to prevent the creation of any new bowties

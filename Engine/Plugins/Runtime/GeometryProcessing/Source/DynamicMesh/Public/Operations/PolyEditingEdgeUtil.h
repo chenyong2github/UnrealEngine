@@ -54,5 +54,26 @@ DYNAMICMESH_API FVector3d SolveInsetVertexPositionFromLinePair(
 	const FLine3d& InsetEdgeLine2);
 
 
+/**
+ * Compute a new set of GroupIDs along an edge loop under the assumption that 
+ * the edge loop is about to be split and new geometry introduced. The decision
+ * is based on a provided EdgesShouldHaveSameGroupFunc function which is called
+ * with sequential pairs of edges. For example if this function returns true when 
+ * the GroupIDs are the same on both edges, then this function will create a new
+ * GroupID for each sequential span of non-matching GroupIDs (ie often the "expected" behavior).
+ * 
+ * @param LoopEdgeIDs the EdgeIDs of the loop
+ * @param NewLoopEdgeGroupIDsOut returned with new GroupID for each input EdgeID, same length as LoopEdgeIDs
+ * @param NewGroupIDsOut list of newly-allocated GroupIDs
+ * @param EdgesShouldHaveSameGroupFunc predicate that determines where new GroupIDs will be allocated
+ */
+DYNAMICMESH_API void ComputeNewGroupIDsAlongEdgeLoop(
+	FDynamicMesh3& Mesh,
+	const TArray<int32>& LoopEdgeIDs,
+	TArray<int32>& NewLoopEdgeGroupIDsOut,
+	TArray<int32>& NewGroupIDsOut,
+	TFunctionRef<bool(int32 Eid1, int32 Eid2)> EdgesShouldHaveSameGroupFunc);
+
+
 } // end namespace UE::Geometry
 } // end namespace UE

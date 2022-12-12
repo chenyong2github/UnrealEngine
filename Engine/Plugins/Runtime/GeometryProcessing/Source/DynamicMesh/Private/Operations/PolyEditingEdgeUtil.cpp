@@ -102,6 +102,54 @@ void UE::Geometry::SolveInsetVertexPositionsFromInsetLines(
 		FVector3d CurPos = Mesh.GetVertex(VertexIDs[vi]);
 		VertexPositionsOut[vi] = SolveInsetVertexPositionFromLinePair(CurPos, PrevLine, NextLine);
 	}
+}
 
 
+void UE::Geometry::ComputeNewGroupIDsAlongEdgeLoop(
+	FDynamicMesh3& Mesh,
+	const TArray<int32>& LoopEdgeIDs,
+	TArray<int32>& NewLoopEdgeGroupIDs,
+	TArray<int32>& NewGroupIDsOut,
+	TFunctionRef<bool(int32 Eid1, int32 Eid2)> EdgesShouldHaveSameGroupFunc)
+{
+	int32 NumEdgeIDs = LoopEdgeIDs.Num();
+	NewLoopEdgeGroupIDs.SetNumUninitialized(NumEdgeIDs);
+
+	if (!ensure(NumEdgeIDs > 2))
+	{
+		if (NumEdgeIDs > 0)
+		{
+			int32 OneGroupID = Mesh.AllocateTriangleGroup();
+			NewLoopEdgeGroupIDs.Init(OneGroupID, NumEdgeIDs);
+			NewGroupIDsOut.Add(OneGroupID);
+		}
+		return;
+	}
+
+	NewLoopEdgeGroupIDs[0] = Mesh.AllocateTriangleGroup();
+	NewGroupIDsOut.Add(NewLoopEdgeGroupIDs[0]);
+
+	// Propagate the group backwards first so we don't allocate an unnecessary group
+	// at the end and then have to fix it.
+	int32 LastDifferentGroupIndex = NumEdgeIDs - 1;
+	while (LastDifferentGroupIndex > 0
+		&& EdgesShouldHaveSameGroupFunc(LoopEdgeIDs[0], LoopEdgeIDs[LastDifferentGroupIndex]) )
+	{
+		NewLoopEdgeGroupIDs[LastDifferentGroupIndex] = NewLoopEdgeGroupIDs[0];
+		--LastDifferentGroupIndex;
+	}
+
+	// Now add new groups forward
+	for (int32 j = 1; j <= LastDifferentGroupIndex; ++j)
+	{
+		if ( ! EdgesShouldHaveSameGroupFunc(LoopEdgeIDs[j], LoopEdgeIDs[j-1]) )
+		{
+			NewLoopEdgeGroupIDs[j] = Mesh.AllocateTriangleGroup();
+			NewGroupIDsOut.Add(NewLoopEdgeGroupIDs[j]);
+		}
+		else
+		{
+			NewLoopEdgeGroupIDs[j] = NewLoopEdgeGroupIDs[j-1];
+		}
+	}
 }

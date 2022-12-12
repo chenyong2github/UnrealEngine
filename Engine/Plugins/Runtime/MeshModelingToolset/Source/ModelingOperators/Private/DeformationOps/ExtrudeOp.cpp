@@ -222,6 +222,7 @@ bool FExtrudeOp::MoveAndStitchExtrude(FProgressCancel* Progress)
 	UpdateSelectionGroups(*ResultMesh, TriangleSelection, SelectionGids);
 
 	FOffsetMeshRegion Extruder(ResultMesh.Get());
+	Extruder.UseVersion = FOffsetMeshRegion::EVersion::Legacy;		// to reconsider...
 	Extruder.Triangles = TriangleSelection;
 
 	Extruder.LoopEdgesShouldHaveSameGroup = [this](int32 Eid1, int32 Eid2) {

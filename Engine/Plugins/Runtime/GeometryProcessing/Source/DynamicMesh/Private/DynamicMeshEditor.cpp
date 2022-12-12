@@ -462,10 +462,6 @@ void FDynamicMeshEditor::DuplicateTriangles(const TArray<int>& Triangles, FMeshI
 
 }
 
-
-
-
-
 bool FDynamicMeshEditor::DisconnectTriangles(const TArray<int>& Triangles, TArray<FLoopPairSet>& LoopSetOut, bool bHandleBoundaryVertices)
 {
 	// find the region boundary loops
@@ -477,14 +473,13 @@ bool FDynamicMeshEditor::DisconnectTriangles(const TArray<int>& Triangles, TArra
 	}
 	TArray<FEdgeLoop>& Loops = RegionLoops.Loops;
 
-	// need to test Contains() many times
-	TSet<int> TriangleSet;
-	TriangleSet.Reserve(Triangles.Num() * 3);
-	for (int TriID : Triangles)
-	{
-		TriangleSet.Add(TriID);
-	}
+	TSet<int> TriangleSet(Triangles);
 
+	return DisconnectTriangles(TriangleSet, Loops, LoopSetOut, bHandleBoundaryVertices);
+}
+
+bool FDynamicMeshEditor::DisconnectTriangles(const TSet<int>& TriangleSet, const TArray<FEdgeLoop>& Loops, TArray<FLoopPairSet>& LoopSetOut, bool bHandleBoundaryVertices)
+{
 	// process each loop island
 	int NumLoops = Loops.Num();
 	LoopSetOut.SetNum(NumLoops);
@@ -492,7 +487,7 @@ bool FDynamicMeshEditor::DisconnectTriangles(const TArray<int>& Triangles, TArra
 	TMap<int32, int32> OldVidsToNewVids; 
 	for ( int li = 0; li < NumLoops; ++li)
 	{
-		FEdgeLoop& Loop = Loops[li];
+		const FEdgeLoop& Loop = Loops[li];
 		FLoopPairSet& LoopPair = LoopSetOut[li];
 		LoopPair.OuterVertices = Loop.Vertices;
 		LoopPair.OuterEdges = Loop.Edges;
