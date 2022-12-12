@@ -1541,9 +1541,6 @@ void FD3D12DynamicRHI::Init()
 		if (IntelExtensionContext)
 		{
 			bHasVendorSupportForAtomic64 = (INTCExtensionInfo.RequestedExtensionVersion.HWFeatureLevel > 0);
-
-			GRHISupportsAtomicUInt64 = EnableIntelAtomic64Support(IntelExtensionContext, INTCExtensionInfo);
-			GRHISupportsDX12AtomicUInt64 = GRHISupportsAtomicUInt64;
 		}
 
 		if (GRHISupportsMeshShadersTier0 || GRHISupportsMeshShadersTier1)
