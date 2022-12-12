@@ -8,6 +8,7 @@
 
 #include "OnlineSubsystemIOSTypes.h"
 #include "Interfaces/OnlineIdentityInterface.h"
+#include "Templates/ValueOrError.h"
 #include "OnlineSubsystemIOSPackage.h"
 
 class FOnlineIdentityIOS :
