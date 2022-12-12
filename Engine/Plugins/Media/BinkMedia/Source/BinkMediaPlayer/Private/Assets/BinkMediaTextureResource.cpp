@@ -9,6 +9,7 @@
 #include "Runtime/Launch/Resources/Version.h"
 #include "BinkMediaPlayer.h"
 #include "BinkMediaTexture.h"
+#include "RenderingThread.h"
 
 void FBinkMediaTextureResource::InitDynamicRHI() 
 {

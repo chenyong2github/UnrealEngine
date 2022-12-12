@@ -7,6 +7,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "RenderUtils.h"
+#include "RenderingThread.h"
 #include "Modules/ModuleManager.h"
 #include "Audio.h"
 #include "Sound/SoundBase.h"

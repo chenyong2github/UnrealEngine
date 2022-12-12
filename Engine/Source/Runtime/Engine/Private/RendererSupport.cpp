@@ -11,7 +11,7 @@
 #include "UObject/UObjectHash.h"
 #include "Engine/Level.h"
 #include "EngineGlobals.h"
-#include "RenderingThread.h"
+#include "RenderDeferredCleanup.h"
 #include "Containers/List.h"
 #include "Shader.h"
 #include "VertexFactory.h"

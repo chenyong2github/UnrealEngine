@@ -17,6 +17,7 @@
 #include "RHI.h"
 #include "RenderCore.h"
 #include "RenderCommandFence.h"
+#include "RenderDeferredCleanup.h"
 #include "TickableObjectRenderThread.h"
 #include "Stats/StatsData.h"
 #include "HAL/ThreadHeartBeat.h"

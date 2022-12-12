@@ -11,6 +11,7 @@
 #include "NullMoviePlayer.h"
 #include "DefaultGameMoviePlayer.h"
 #include "Widgets/Images/SThrobber.h"
+#include "RenderingThread.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, MoviePlayer);
 

@@ -11,7 +11,7 @@
 #include "Framework/Text/RichTextMarkupProcessing.h"
 #include "Framework/Text/IRichTextMarkupParser.h"
 #include "Framework/Text/IRichTextMarkupWriter.h"
-#include "RenderingThread.h"
+#include "RenderDeferredCleanup.h"
 #include "Editor/WidgetCompilerLog.h"
 #include "Materials/MaterialInstanceDynamic.h"
 

@@ -15,7 +15,10 @@
 #include "MaterialShared.h"
 #include "RHI.h"
 #include "RenderResource.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RenderingThread.h"
+#endif
+#include "RenderDeferredCleanup.h"
 #include "UniformBuffer.h"
 #include "Shader.h"
 #include "VertexFactory.h"

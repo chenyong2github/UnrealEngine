@@ -12,7 +12,10 @@
 #include "Engine/EngineTypes.h"
 #include "UObject/GCObject.h"
 #include "RenderResource.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RenderingThread.h"
+#endif
+#include "RenderDeferredCleanup.h"
 #include "TextureLayout3d.h"
 #include "AsyncCompilationHelpers.h"
 #include "AssetCompilingManager.h"

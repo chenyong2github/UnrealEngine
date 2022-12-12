@@ -6,6 +6,7 @@
 #include "Engine/EngineTypes.h"
 #include "RenderResource.h"
 #include "RenderingThread.h"
+#include "RenderDeferredCleanup.h"
 #include "RHI.h"
 #include "SceneTypes.h"
 #include "Shader.h"

@@ -6,6 +6,7 @@
 #include "BinkMediaPlayer.h"
 #include "BinkMediaPlayerPrivate.h"
 #include "BinkMediaTextureResource.h"
+#include "RenderingThread.h"
 
 UBinkMediaTexture::UBinkMediaTexture( const FObjectInitializer& ObjectInitializer )
 	: Super(ObjectInitializer)

@@ -8,7 +8,10 @@
 
 #include "CoreMinimal.h"
 #include "Containers/IndirectArray.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RenderingThread.h"
+#endif
+#include "RenderDeferredCleanup.h"
 #include "SceneTypes.h"
 #include "HitProxies.h"
 #include "Math/GenericOctreePublic.h"

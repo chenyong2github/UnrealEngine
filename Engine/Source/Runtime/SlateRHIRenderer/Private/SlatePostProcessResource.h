@@ -5,7 +5,10 @@
 #include "CoreMinimal.h"
 #include "Textures/SlateShaderResource.h"
 #include "RenderResource.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RenderingThread.h"
+#endif
+#include "RenderDeferredCleanup.h"
 
 /**
  * Handle to resources used for post processing.  This should not be deleted manually because it implements FDeferredCleanupInterface

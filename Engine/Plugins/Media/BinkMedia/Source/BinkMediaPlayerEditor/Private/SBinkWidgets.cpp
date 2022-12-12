@@ -6,6 +6,7 @@
 #include "BinkMediaPlayerEditorPrivate.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/SViewport.h"
+#include "RenderingThread.h"
 
 #define LOCTEXT_NAMESPACE "SBinkMediaPlayerWidgets"
 

@@ -10,6 +10,7 @@
 #include "RenderingThread.h"
 #include "Components/LightComponentBase.h"
 #include "Math/SHMath.h"
+#include "RenderDeferredCleanup.h"
 #include "SkyLightComponent.generated.h"
 
 class FSkyLightSceneProxy;

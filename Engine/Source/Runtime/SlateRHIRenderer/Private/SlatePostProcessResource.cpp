@@ -2,6 +2,7 @@
 
 #include "SlatePostProcessResource.h"
 #include "RenderUtils.h"
+#include "RHI.h"
 
 DECLARE_MEMORY_STAT(TEXT("PostProcess RenderTargets"), STAT_SLATEPPRenderTargetMem, STATGROUP_SlateMemory);
 

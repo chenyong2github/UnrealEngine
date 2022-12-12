@@ -10,7 +10,10 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Rendering/DrawElements.h"
 #include "Engine/Texture.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RenderingThread.h"
+#endif
+#include "RenderDeferredCleanup.h"
 #include "Widgets/SWindow.h"
 #include "Widgets/SVirtualWindow.h"
 

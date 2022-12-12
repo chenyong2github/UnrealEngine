@@ -7,6 +7,7 @@
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
 #include "RenderingThread.h"
+#include "RenderDeferredCleanup.h"
 #include "RHI.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Notifications/SProgressBar.h"

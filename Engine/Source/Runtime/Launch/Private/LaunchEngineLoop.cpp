@@ -104,6 +104,7 @@
 	#include "Input/Reply.h"
 	#include "Styling/CoreStyle.h"
 	#include "RenderingThread.h"
+	#include "RenderDeferredCleanup.h"
 	#include "Editor/EditorEngine.h"
 	#include "UnrealEdMisc.h"
 	#include "UnrealEdGlobals.h"

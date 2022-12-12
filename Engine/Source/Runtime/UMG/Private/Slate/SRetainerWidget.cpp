@@ -5,6 +5,8 @@
 #include "UObject/Package.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "RenderDeferredCleanup.h"
+#include "RHI.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/World.h"
 #include "UMGPrivate.h"

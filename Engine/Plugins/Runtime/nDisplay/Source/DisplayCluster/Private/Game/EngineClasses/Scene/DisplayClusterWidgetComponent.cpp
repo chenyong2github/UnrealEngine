@@ -4,6 +4,9 @@
 
 #include "Engine/Engine.h"
 #include "Slate/WidgetRenderer.h"
+#if !UE_SERVER
+#include "RHI.h"
+#endif
 
 UDisplayClusterWidgetComponent::UDisplayClusterWidgetComponent()
 {

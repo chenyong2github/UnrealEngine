@@ -10,6 +10,7 @@
 #include "RHI.h"
 #if PLATFORM_WINDOWS
 #include "Slate/SlateTextures.h"
+#include "RenderingThread.h"
 #endif
 #endif
 
