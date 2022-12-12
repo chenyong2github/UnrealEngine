@@ -2,8 +2,11 @@
 
 #include "GeometryScript/ShapeFunctions.h"
 #include "VectorTypes.h"
+#include "FrameTypes.h"
 #include "Intersection/IntersectionUtil.h"
 #include "Intersection/IntrRay3AxisAlignedBox3.h"
+#include "Distance/DistLine3Ray3.h"
+#include "Distance/DistRay3Segment3.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ShapeFunctions)
 
@@ -13,7 +16,63 @@ using namespace UE::Geometry;
 
 
 
-FRay UGeometryScriptLibrary_RayFunctions::MakeRayFromPoints(const FVector& A, const FVector& B)
+FTransform UGeometryScriptLibrary_TransformFunctions::MakeTransformFromZAxis(FVector Location, FVector ZAxis)
+{
+	return FFrame3d(Location, ZAxis).ToFTransform();
+}
+
+
+FTransform UGeometryScriptLibrary_TransformFunctions::MakeTransformFromAxes(
+	FVector Location, 
+	FVector ZAxis, 
+	FVector TangentAxis, 
+	bool bTangentIsX)
+{
+	FFrame3d Frame(Location, ZAxis);
+	// if axes are parallel we can't do the alignment so just ignore it?
+	if (FMathd::Abs(ZAxis.Dot(TangentAxis)) < 0.999)
+	{
+		Frame.ConstrainedAlignAxis(
+			(bTangentIsX) ? 0 : 1, TangentAxis, Frame.Z());
+	}
+	return Frame.ToFTransform();
+}
+
+FVector UGeometryScriptLibrary_TransformFunctions::GetTransformAxisVector(FTransform Transform, EGeometryScriptAxis Axis)
+{
+	switch(Axis)
+	{
+		case EGeometryScriptAxis::X: return ((FQuaterniond)Transform.GetRotation()).AxisX();
+		case EGeometryScriptAxis::Y: return ((FQuaterniond)Transform.GetRotation()).AxisY();
+		default:
+		case EGeometryScriptAxis::Z: return ((FQuaterniond)Transform.GetRotation()).AxisZ();
+	}
+}
+
+FRay UGeometryScriptLibrary_TransformFunctions::GetTransformAxisRay(FTransform Transform, EGeometryScriptAxis Axis)
+{
+	switch(Axis)
+	{
+		case EGeometryScriptAxis::X: return FRay( Transform.GetLocation(), ((FQuaterniond)Transform.GetRotation()).AxisX() );
+		case EGeometryScriptAxis::Y: return FRay( Transform.GetLocation(), ((FQuaterniond)Transform.GetRotation()).AxisY() );
+		default:
+		case EGeometryScriptAxis::Z: return FRay( Transform.GetLocation(), ((FQuaterniond)Transform.GetRotation()).AxisZ() );
+	}
+}
+
+FPlane UGeometryScriptLibrary_TransformFunctions::GetTransformAxisPlane(FTransform Transform, EGeometryScriptAxis Axis)
+{
+	switch(Axis)
+	{
+		case EGeometryScriptAxis::X: return FPlane( Transform.GetLocation(), ((FQuaterniond)Transform.GetRotation()).AxisX() );
+		case EGeometryScriptAxis::Y: return FPlane( Transform.GetLocation(), ((FQuaterniond)Transform.GetRotation()).AxisY() );
+		default:
+		case EGeometryScriptAxis::Z: return FPlane( Transform.GetLocation(), ((FQuaterniond)Transform.GetRotation()).AxisZ() );
+	}
+}
+
+
+FRay UGeometryScriptLibrary_RayFunctions::MakeRayFromPoints(FVector A, FVector B)
 {
 	FVector Direction(B-A);
 	if (Normalize(Direction) < FMathf::Epsilon)
@@ -23,44 +82,44 @@ FRay UGeometryScriptLibrary_RayFunctions::MakeRayFromPoints(const FVector& A, co
 	return FRay(A, Direction, true);
 }
 
-FRay UGeometryScriptLibrary_RayFunctions::MakeRayFromPointDirection(const FVector& Origin, const FVector& Direction, bool bDirectionIsNormalized)
+FRay UGeometryScriptLibrary_RayFunctions::MakeRayFromPointDirection(FVector Origin, FVector Direction, bool bDirectionIsNormalized)
 {
 	return FRay(Origin, Direction, bDirectionIsNormalized);
 }
 
-FRay UGeometryScriptLibrary_RayFunctions::GetTransformedRay(const FRay& Ray, const FTransform& TransformIn, bool bInvert)
+FRay UGeometryScriptLibrary_RayFunctions::GetTransformedRay(FRay Ray, FTransform TransformIn, bool bInvert)
 {
 	FTransformSRT3d Transform(TransformIn);
 	return (bInvert) ? Transform.InverseTransformRay(Ray) : Transform.TransformRay(Ray);
 }
 
-FVector UGeometryScriptLibrary_RayFunctions::GetRayPoint(const FRay& Ray, double Distance)
+FVector UGeometryScriptLibrary_RayFunctions::GetRayPoint(FRay Ray, double Distance)
 {
 	return Ray.PointAt(Distance);
 }
 
-void UGeometryScriptLibrary_RayFunctions::GetRayStartEnd(const FRay& Ray, double StartDistance, double EndDistance, FVector& StartPoint, FVector& EndPoint)
+void UGeometryScriptLibrary_RayFunctions::GetRayStartEnd(FRay Ray, double StartDistance, double EndDistance, FVector& StartPoint, FVector& EndPoint)
 {
 	StartPoint = Ray.PointAt(StartDistance);
 	EndPoint = Ray.PointAt(EndDistance == 0 ? TNumericLimits<float>::Max() : EndDistance );
 }
 
-double UGeometryScriptLibrary_RayFunctions::GetRayParameter(const FRay& Ray, const FVector& Point)
+double UGeometryScriptLibrary_RayFunctions::GetRayParameter(FRay Ray, FVector Point)
 {
 	return Ray.GetParameter(Point);
 }
 
-double UGeometryScriptLibrary_RayFunctions::GetRayPointDistance(const FRay& Ray, const FVector& Point)
+double UGeometryScriptLibrary_RayFunctions::GetRayPointDistance(FRay Ray, FVector Point)
 {
 	return Ray.Dist(Point);
 }
 
-FVector UGeometryScriptLibrary_RayFunctions::GetRayClosestPoint(const FRay& Ray, const FVector& Point)
+FVector UGeometryScriptLibrary_RayFunctions::GetRayClosestPoint(FRay Ray, FVector Point)
 {
 	return Ray.ClosestPoint(Point);
 }
 
-bool UGeometryScriptLibrary_RayFunctions::GetRaySphereIntersection(const FRay& Ray, const FVector& SphereCenter, double SphereRadius, double& Distance1, double& Distance2)
+bool UGeometryScriptLibrary_RayFunctions::GetRaySphereIntersection(FRay Ray, FVector SphereCenter, double SphereRadius, double& Distance1, double& Distance2)
 {
 	Distance1 = Distance2 = (double)TNumericLimits<float>::Max();
 	FLinearIntersection Intersection;
@@ -73,36 +132,69 @@ bool UGeometryScriptLibrary_RayFunctions::GetRaySphereIntersection(const FRay& R
 	return bIntersects;
 }
 
-bool UGeometryScriptLibrary_RayFunctions::GetRayBoxIntersection(const FRay& Ray, const FBox& Box, double& HitDistance)
+bool UGeometryScriptLibrary_RayFunctions::GetRayBoxIntersection(FRay Ray, FBox Box, double& HitDistance)
 {
 	HitDistance = (double)TNumericLimits<float>::Max();
 	return FIntrRay3AxisAlignedBox3d::FindIntersection(Ray, FAxisAlignedBox3d(Box), HitDistance);
 }
 
+bool UGeometryScriptLibrary_RayFunctions::GetRayPlaneIntersection(FRay Ray, FPlane Plane, double& HitDistance)
+{
+	const FVector PlaneNormal = FVector(Plane.X, Plane.Y, Plane.Z);
+	const FVector PlaneOrigin = PlaneNormal * Plane.W;
+	if (FMathd::Abs(FVector::DotProduct(Ray.Direction, PlaneNormal)) > FMathd::ZeroTolerance)
+	{
+		HitDistance = FVector::DotProduct((PlaneOrigin - Ray.Origin), PlaneNormal);
+		return true;
+	}
+	HitDistance = 0;
+	return false;
+}
+
+
+double UGeometryScriptLibrary_RayFunctions::GetRayLineClosestPoint(FRay Ray, FVector LineOrigin, FVector LineDirection, double& RayParameter, FVector& RayPoint, double& LineParameter, FVector& LinePoint)
+{
+	FDistLine3Ray3d Distance( FLine3d(LineOrigin, LineDirection), Ray );
+	double Dist = Distance.Get();
+	RayParameter = Distance.RayParameter;
+	RayPoint = Distance.RayClosestPoint;
+	LineParameter = Distance.LineParameter;
+	LinePoint = Distance.LineClosestPoint;
+	return Dist;
+}
+
+double UGeometryScriptLibrary_RayFunctions::GetRaySegmentClosestPoint(FRay Ray, FVector SegStartPoint, FVector SegEndPoint, double& RayParameter, FVector& RayPoint, FVector& SegPoint)
+{
+	FDistRay3Segment3d Distance( Ray, FSegment3d(SegStartPoint, SegEndPoint) );
+	double Dist = Distance.Get();
+	RayParameter = Distance.RayParameter;
+	RayPoint = Distance.RayClosestPoint;
+	SegPoint = Distance.SegmentClosestPoint;
+	return Dist;
+}
 
 
 
-
-FBox UGeometryScriptLibrary_BoxFunctions::MakeBoxFromCenterSize(const FVector& Center, const FVector& Dimensions)
+FBox UGeometryScriptLibrary_BoxFunctions::MakeBoxFromCenterSize(FVector Center, FVector Dimensions)
 {
 	FVector Extents( FMathd::Max(0, Dimensions.X * 0.5), FMathd::Max(0, Dimensions.Y * 0.5), FMathd::Max(0, Dimensions.Z * 0.5) );
 	return FBox(Center - Extents, Center + Extents);
 }
 
-FBox UGeometryScriptLibrary_BoxFunctions::MakeBoxFromCenterExtents(const FVector& Center, const FVector& Extents)
+FBox UGeometryScriptLibrary_BoxFunctions::MakeBoxFromCenterExtents(FVector Center, FVector Extents)
 {
 	return FBox(Center - Extents, Center + Extents);
 }
 
 
-void UGeometryScriptLibrary_BoxFunctions::GetBoxCenterSize(const FBox& Box, FVector& Center, FVector& Dimensions)
+void UGeometryScriptLibrary_BoxFunctions::GetBoxCenterSize(FBox Box, FVector& Center, FVector& Dimensions)
 {
 	FVector Extents;
 	Box.GetCenterAndExtents(Center, Extents);
 	Dimensions = 2.0 * Extents;
 }
 
-FVector UGeometryScriptLibrary_BoxFunctions::GetBoxCorner(const FBox& Box, int CornerIndex)
+FVector UGeometryScriptLibrary_BoxFunctions::GetBoxCorner(FBox Box, int CornerIndex)
 {
 	CornerIndex = FMath::Clamp(CornerIndex, 0, 7);
 	switch (CornerIndex)		// matches Box.GetVertices()
@@ -119,7 +211,7 @@ FVector UGeometryScriptLibrary_BoxFunctions::GetBoxCorner(const FBox& Box, int C
 	}
 }
 
-FVector UGeometryScriptLibrary_BoxFunctions::GetBoxFaceCenter(const FBox& Box, int FaceIndex, FVector& FaceNormal)
+FVector UGeometryScriptLibrary_BoxFunctions::GetBoxFaceCenter(FBox Box, int FaceIndex, FVector& FaceNormal)
 {
 	FaceIndex = FMath::Clamp(FaceIndex, 0, 5);
 	FVector Center = 0.5 * (Box.Min + Box.Max);
@@ -135,7 +227,7 @@ FVector UGeometryScriptLibrary_BoxFunctions::GetBoxFaceCenter(const FBox& Box, i
 	}
 }
 
-void UGeometryScriptLibrary_BoxFunctions::GetBoxVolumeArea(const FBox& Box, double& Volume, double& SurfaceArea)
+void UGeometryScriptLibrary_BoxFunctions::GetBoxVolumeArea(FBox Box, double& Volume, double& SurfaceArea)
 {
 	FVector Dimensions = Box.GetSize();
 	double AreaXY = Dimensions.X * Dimensions.Y;
@@ -145,7 +237,7 @@ void UGeometryScriptLibrary_BoxFunctions::GetBoxVolumeArea(const FBox& Box, doub
 	Volume = Dimensions.X * Dimensions.Y * Dimensions.Z;
 }
 
-FBox UGeometryScriptLibrary_BoxFunctions::GetExpandedBox(const FBox& Box, const FVector& ExpandBy)
+FBox UGeometryScriptLibrary_BoxFunctions::GetExpandedBox(FBox Box, FVector ExpandBy)
 {
 	FBox Result = Box.ExpandBy(ExpandBy);
 	// ExpandBy with negative expansion factor does not clamp to original box center
@@ -159,48 +251,48 @@ FBox UGeometryScriptLibrary_BoxFunctions::GetExpandedBox(const FBox& Box, const 
 	return Result;
 }
 
-FBox UGeometryScriptLibrary_BoxFunctions::GetTransformedBox(const FBox& Box, const FTransform& Transform)
+FBox UGeometryScriptLibrary_BoxFunctions::GetTransformedBox(FBox Box, FTransform Transform)
 {
 	return Box.TransformBy(Transform);
 }
 
 
-bool UGeometryScriptLibrary_BoxFunctions::TestBoxBoxIntersection(const FBox& Box1, const FBox& Box2)
+bool UGeometryScriptLibrary_BoxFunctions::TestBoxBoxIntersection(FBox Box1, FBox Box2)
 {
 	return Box1.Intersect(Box2);
 }
 
 
-FBox UGeometryScriptLibrary_BoxFunctions::FindBoxBoxIntersection(const FBox& Box1, const FBox& Box2, bool& bIsIntersecting)
+FBox UGeometryScriptLibrary_BoxFunctions::FindBoxBoxIntersection(FBox Box1, FBox Box2, bool& bIsIntersecting)
 {
 	bIsIntersecting = Box1.Intersect(Box2);
 	return Box1.Overlap(Box2);
 }
 
-double UGeometryScriptLibrary_BoxFunctions::GetBoxBoxDistance(const FBox& Box1, const FBox& Box2)
+double UGeometryScriptLibrary_BoxFunctions::GetBoxBoxDistance(FBox Box1, FBox Box2)
 {
 	double DistSqr = FMathd::Max(0.0, Box1.ComputeSquaredDistanceToBox(Box2));
 	return FMathd::Sqrt(DistSqr);
 }
 
-bool UGeometryScriptLibrary_BoxFunctions::TestPointInsideBox(const FBox& Box, const FVector& Point, bool bConsiderOnBoxAsInside)
+bool UGeometryScriptLibrary_BoxFunctions::TestPointInsideBox(FBox Box, FVector Point, bool bConsiderOnBoxAsInside)
 {
 	return (bConsiderOnBoxAsInside) ? Box.IsInsideOrOn(Point) : Box.IsInside(Point);
 }
 
-FVector UGeometryScriptLibrary_BoxFunctions::FindClosestPointOnBox(const FBox& Box, const FVector& Point, bool& bIsInside)
+FVector UGeometryScriptLibrary_BoxFunctions::FindClosestPointOnBox(FBox Box, FVector Point, bool& bIsInside)
 {
 	bIsInside = Box.IsInside(Point);
 	return Box.GetClosestPointTo(Point);
 }
 
-double UGeometryScriptLibrary_BoxFunctions::GetBoxPointDistance(const FBox& Box, const FVector& Point)
+double UGeometryScriptLibrary_BoxFunctions::GetBoxPointDistance(FBox Box, FVector Point)
 {
 	double DistSqr = FMathd::Max(0.0, Box.ComputeSquaredDistanceToPoint(Point));
 	return FMathd::Sqrt(DistSqr);
 }
 
-bool UGeometryScriptLibrary_BoxFunctions::TestBoxSphereIntersection(const FBox& Box, const FVector& SphereCenter, double SphereRadius)
+bool UGeometryScriptLibrary_BoxFunctions::TestBoxSphereIntersection(FBox Box, FVector SphereCenter, double SphereRadius)
 {
 	return FMath::SphereAABBIntersection(SphereCenter, SphereRadius*SphereRadius, Box);
 }
