@@ -640,7 +640,7 @@ static TOptional<EWindowsRHI> ChooseForcedRHI(TOptional<ERHIFeatureLevel::Type> 
 	}
 
 	// FeatureLevelES31 is also a command line override, so it will determine the underlying RHI unless one is specified
-	if ((FPlatformProperties::RequiresCookedData() || !GIsEditor) && ForcedFeatureLevel == ERHIFeatureLevel::ES3_1)
+	if (FPlatformProperties::RequiresCookedData() && ForcedFeatureLevel == ERHIFeatureLevel::ES3_1)
 	{
 		if (ForcedRHI)
 		{
