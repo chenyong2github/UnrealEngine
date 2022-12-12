@@ -225,12 +225,31 @@ protected:
 		int32 SaveCount = 0;
 	};
 
+	struct FPackageRecord
+	{
+		friend FArchive& operator<<(FArchive& Ar, FPackageRecord& PackageRecord)
+		{
+			Ar << PackageRecord.DirtyFenceCount;
+			Ar << PackageRecord.bWasDirty;
+			return Ar;
+		}
+
+		/** The fence count used to determine if the cached dirty state is still valid on undo/redo (ie, was the package saved or deleted since the undo was made) */
+		int32 DirtyFenceCount = 0;
+
+		/** The cached dirty state of this package, to be restored on undo/redo as long as the DirtyFenceCount still matches */
+		bool bWasDirty = false;
+	};
+
 	// Transaction variables.
 	/** List of object records in this transaction */
 	TIndirectArray<FObjectRecord> Records;
 
 	/** Map of object records (non-array), for optimized look-up and to prevent an object being serialized to a transaction more than once. */
 	TMap<UE::Transaction::FPersistentObjectRef, FObjectRecords> ObjectRecordsMap;
+
+	/** Map of package records for tracking and restoring the dirty state of packages on undo/redo. The package itself may also be stored in ObjectRecordsMap. */
+	TMap<UE::Transaction::FPersistentObjectRef, FPackageRecord> PackageRecordMap;
 
 	/** Unique identifier for this transaction, used to track it during its lifetime */
 	FGuid		Id;
@@ -295,6 +314,8 @@ private:
 	// Non-copyable
 	FTransaction( const FTransaction& ) = delete;
 	FTransaction& operator=( const FTransaction& ) = delete;
+
+	void SavePackage(UPackage* Package);
 
 public:
 	
@@ -391,7 +412,7 @@ public:
 	/** Serializes a reference to a transaction in a given archive. */
 	friend FArchive& operator<<( FArchive& Ar, FTransaction& T )
 	{
-		Ar << T.Records << T.ObjectRecordsMap << T.Id << T.Title << T.Context << T.PrimaryObject;
+		Ar << T.Records << T.ObjectRecordsMap << T.PackageRecordMap << T.Id << T.Title << T.Context << T.PrimaryObject;
 
 		if (Ar.IsLoading())
 		{
@@ -425,7 +446,6 @@ public:
 	 * @param	Objects		[out] Receives the object list.  Previous contents are cleared.
 	 */
 	void GetTransactionObjects(TArray<UObject*>& Objects) const;
-	void RemoveRecords( int32 Count = 1 );
 	int32 GetRecordCount() const;
 
 	const UObject* GetPrimaryObject() const { return PrimaryObject; }

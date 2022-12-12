@@ -108,12 +108,6 @@ void UPackage::Serialize( FArchive& Ar )
 {
 	Super::Serialize(Ar);
 
-	if ( Ar.IsTransacting() )
-	{
-		bool bTempDirty = bDirty;
-		Ar << bTempDirty;
-		bDirty = bTempDirty;
-	}
 	if (Ar.IsCountingMemory())
 	{		
 		if (FLinker* Loader = GetLinker())

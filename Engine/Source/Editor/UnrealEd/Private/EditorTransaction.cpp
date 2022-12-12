@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "Misc/MemStack.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/Package.h"
 #include "Algo/Find.h"
 #include "Algo/Reverse.h"
@@ -11,6 +12,7 @@
 #include "Components/ActorComponent.h"
 #include "Model.h"
 #include "Misc/ITransactionObjectAnnotation.h"
+#include "Editor.h"
 #include "Editor/Transactor.h"
 #include "Editor/TransBuffer.h"
 #include "Components/ModelComponent.h"
@@ -19,6 +21,68 @@
 #include "Engine/DataTable.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditorTransaction, Log, All);
+
+struct FTransactionPackageDirtyFenceCounter
+{
+public:
+	static FTransactionPackageDirtyFenceCounter Get()
+	{
+		static FTransactionPackageDirtyFenceCounter Instance;
+		return Instance;
+	}
+
+	int32 GetFenceCount(const UPackage* Pkg) const
+	{
+		return PackageFenceCounts.FindRef(Pkg);
+	}
+
+	~FTransactionPackageDirtyFenceCounter()
+	{
+		UPackage::PackageSavedWithContextEvent.RemoveAll(this);
+		FEditorDelegates::OnPackageDeleted.RemoveAll(this);
+		FCoreUObjectDelegates::GetPostGarbageCollect().RemoveAll(this);
+	}
+
+private:
+	FTransactionPackageDirtyFenceCounter()
+	{
+		UPackage::PackageSavedWithContextEvent.AddRaw(this, &FTransactionPackageDirtyFenceCounter::OnPackageSaved);
+		FEditorDelegates::OnPackageDeleted.AddRaw(this, &FTransactionPackageDirtyFenceCounter::OnPackageDeleted);
+		FCoreUObjectDelegates::GetPostGarbageCollect().AddRaw(this, &FTransactionPackageDirtyFenceCounter::OnPostGarbageCollect);
+	}
+
+	void IncrementCount(UPackage* Pkg)
+	{
+		int32& PackageSaveCount = PackageFenceCounts.FindOrAdd(Pkg);
+		++PackageSaveCount;
+	}
+
+	void OnPackageSaved(const FString& Filename, UPackage* Pkg, FObjectPostSaveContext ObjectSaveContext)
+	{
+		if (!(ObjectSaveContext.GetSaveFlags() & SAVE_FromAutosave) && !ObjectSaveContext.IsProceduralSave())
+		{
+			IncrementCount(Pkg);
+		}
+	}
+
+	void OnPackageDeleted(UPackage* Pkg)
+	{
+		IncrementCount(Pkg);
+	}
+
+	void OnPostGarbageCollect()
+	{
+		for (auto It = PackageFenceCounts.CreateIterator(); It; ++It)
+		{
+			if (!It->Key.IsValid())
+			{
+				It.RemoveCurrent();
+			}
+		}
+	}
+
+	TMap<TWeakObjectPtr<const UPackage>, int32, FDefaultSetAllocator, TWeakObjectPtrMapKeyFuncs<TWeakObjectPtr<const UPackage>, int32>> PackageFenceCounts;
+};
 
 /*-----------------------------------------------------------------------------
 	A single transaction.
@@ -489,28 +553,6 @@ bool FTransaction::IsObjectTransacting(const UObject* Object) const
 	return ChangedObjects.Contains(Object);
 }
 
-void FTransaction::RemoveRecords( int32 Count /* = 1  */ )
-{
-	if ( Count > 0 && Records.Num() >= Count )
-	{
-		// Remove anything from the ObjectRecordMap which is about to be removed from the Records array
-		for (int32 Index = 0; Index < Count; Index++)
-		{
-			FObjectRecord& Record = Records[Records.Num() - Count + Index];
-			if (FObjectRecords* ObjectRecords = ObjectRecordsMap.Find(Record.Object))
-			{
-				ObjectRecords->Records.RemoveSingle(&Record);
-				if (ObjectRecords->Records.Num() == 0)
-				{
-					ObjectRecordsMap.Remove(Record.Object);
-				}
-			}
-		}
-
-		Records.RemoveAt( Records.Num() - Count, Count );
-	}
-}
-
 /**
  * Outputs the contents of the ObjectMap to the specified output device.
  */
@@ -624,10 +666,32 @@ void FTransaction::AddReferencedObjects( FReferenceCollector& Collector )
 	}
 }
 
+void FTransaction::SavePackage(UPackage* Package)
+{
+	check(Package);
+
+	const bool bIsTransactional = Package->HasAnyFlags(RF_Transactional);
+	const bool bIsTransient = Package->HasAnyFlags(RF_Transient);
+	const bool bIsScriptPackage = Package->HasAnyPackageFlags(PKG_ContainsScript);
+
+	if (bIsTransactional && !bIsTransient && !bIsScriptPackage)
+	{
+		UE::Transaction::FPersistentObjectRef PackageRef(Package);
+		if (!PackageRecordMap.Contains(PackageRef))
+		{
+			FPackageRecord& PackageRecord = PackageRecordMap.Add(PackageRef);
+			PackageRecord.DirtyFenceCount = FTransactionPackageDirtyFenceCounter::Get().GetFenceCount(Package);
+			PackageRecord.bWasDirty = Package->IsDirty();
+		}
+	}
+}
+
 void FTransaction::SaveObject( UObject* Object )
 {
 	check(Object);
 	Object->CheckDefaultSubobjects();
+
+	SavePackage(Object->GetPackage());
 
 	FObjectRecords* ObjectRecords = &ObjectRecordsMap.FindOrAdd(UE::Transaction::FPersistentObjectRef(Object));
 	if (ObjectRecords->Records.Num() == 0)
@@ -670,6 +734,8 @@ void FTransaction::StoreUndo(UObject* Object, TUniquePtr<FChange> UndoChange)
 {
 	check(Object);
 	Object->CheckDefaultSubobjects();
+
+	SavePackage(Object->GetPackage());
 
 	// Save the undo record
 	FObjectRecords& ObjectRecords = ObjectRecordsMap.FindOrAdd(UE::Transaction::FPersistentObjectRef(Object));
@@ -742,6 +808,29 @@ void FTransaction::Apply()
 	const int32 End   = Inc==1 ? Records.Num() :              -1;
 
 	UE::Transaction::DiffUtil::FDiffableObjectArchetypeCache ArchetypeCache;
+
+	// Update the package dirty states
+	// We do this prior to applying any object updates as we want to respect if an undo operation causes an object to dirty its own package
+	if (bFlip)
+	{
+		for (TTuple<UE::Transaction::FPersistentObjectRef, FPackageRecord>& PackageRecordPair : PackageRecordMap)
+		{
+			if (UPackage* Package = Cast<UPackage>(PackageRecordPair.Key.Get()))
+			{
+				const int32 CurrentDirtyFenceCount = FTransactionPackageDirtyFenceCounter::Get().GetFenceCount(Package);
+				const bool bCurrentDirtyFlag = Package->IsDirty();
+
+				// When restoring an undo, any package that has been "fenced" since this transaction was made needs to be considered dirty
+				// since the undo may restore it to a state that no longer matches the file on disk
+				const bool bNewDirtyFlag = PackageRecordPair.Value.bWasDirty || PackageRecordPair.Value.DirtyFenceCount != CurrentDirtyFenceCount;
+				Package->SetDirtyFlag(bNewDirtyFlag);
+				
+				// Store the current state for any inverse undo/redo operation
+				PackageRecordPair.Value.DirtyFenceCount = CurrentDirtyFenceCount;
+				PackageRecordPair.Value.bWasDirty = bCurrentDirtyFlag;
+			}
+		}
+	}
 
 	// Init objects.
 	for( int32 i=Start; i!=End; i+=Inc )
