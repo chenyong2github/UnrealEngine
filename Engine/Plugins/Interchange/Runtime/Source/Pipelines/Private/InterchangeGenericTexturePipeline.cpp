@@ -73,7 +73,6 @@ namespace UE::Interchange::Private
 	{
 		if (Texture)
 		{
-			Texture->PreEditChange(nullptr);
 			if (UE::NormalMapIdentification::HandleAssetPostImport(Texture))
 			{
 				UE_LOG(LogInterchangePipeline, Display, TEXT("Auto-detected normal map"));
@@ -84,7 +83,6 @@ namespace UE::Interchange::Private
 				}
 			}
 			// this will rebuild the texture if it changed to normal map
-			Texture->PostEditChange(); 
 		}
 	}
 #endif
@@ -171,7 +169,7 @@ void UInterchangeGenericTexturePipeline::ExecutePipeline(UInterchangeBaseNodeCon
 	}
 }
 
-void UInterchangeGenericTexturePipeline::ExecutePostImportPipeline(const UInterchangeBaseNodeContainer* InBaseNodeContainer, const FString& NodeKey, UObject* CreatedAsset, bool bIsAReimport)
+void UInterchangeGenericTexturePipeline::ExecutePostFactoryPipeline(const UInterchangeBaseNodeContainer* InBaseNodeContainer, const FString& NodeKey, UObject* CreatedAsset, bool bIsAReimport)
 {
 	//We do not use the provided base container since ExecutePreImportPipeline cache it
 	//We just make sure the same one is pass in parameter
@@ -335,6 +333,7 @@ void UInterchangeGenericTexturePipeline::PostImportTextureAssetImport(UObject* C
 #if WITH_EDITOR
 
 	// this is run on main thread
+	check(IsInGameThread());
 	//	after texture may have started compiling
 
 	if (!bIsAReimport && bDetectNormalMapTexture)
@@ -344,42 +343,9 @@ void UInterchangeGenericTexturePipeline::PostImportTextureAssetImport(UObject* C
 			// if it's already a normal map, no need to run NormalMapIdentification
 			if (!Texture->IsNormalMap())
 			{
-				// @todo Interchange: This can create 2 build of the texture (we should revisit this at some point)
-
-				if (FTextureCompilingManager::Get().IsCompilingTexture(Texture))
-				{
-					// install a lambda to do AdjustTextureForNormalMap which will run after compile is done
-
-					TWeakObjectPtr<UTexture> WeakTexturePtr = Texture;
-					TSharedRef<FDelegateHandle> HandlePtr = MakeShared<FDelegateHandle>();
-					HandlePtr.Get() = FTextureCompilingManager::Get().OnTexturePostCompileEvent().AddLambda([this, WeakTexturePtr, HandlePtr](const TArrayView<UTexture* const>&)
-						{
-							if (UTexture* TextureToTest = WeakTexturePtr.Get())
-							{
-								if (FTextureCompilingManager::Get().IsCompilingTexture(TextureToTest))
-								{
-									// I'm still in compile queue, this lambda will get called again when I finish the next compile
-									//	OnTexturePostCompileEvent().Remove is not called, leave the lambda
-									// this can happen if multiple compiles of this texture got queued
-									return;
-								}
-
-								UE::Interchange::Private::AdjustTextureForNormalMap(TextureToTest, bFlipNormalMapGreenChannel);
-								// ?? does the asset registry need to be fixed?
-								//	asset import notifications were sent earlier
-							}
-
-							// remove myself:
-							FTextureCompilingManager::Get().OnTexturePostCompileEvent().Remove(HandlePtr.Get());
-						});
-				}
-				else
-				{
-					//Texture->Modify(); // Modify blocks on async build task being done
-
-					// AdjustTextureForNormalMap does a PostEditChange which triggers a rebuild
-					UE::Interchange::Private::AdjustTextureForNormalMap(Texture, bFlipNormalMapGreenChannel);
-				}
+ 				check(!FTextureCompilingManager::Get().IsCompilingTexture(Texture));
+				// AdjustTextureForNormalMap does a PostEditChange which triggers a rebuild
+				UE::Interchange::Private::AdjustTextureForNormalMap(Texture, bFlipNormalMapGreenChannel);
 			}
 		}
 	}

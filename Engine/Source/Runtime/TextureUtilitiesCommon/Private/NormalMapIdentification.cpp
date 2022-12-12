@@ -6,6 +6,7 @@
 
 #include "Engine/Texture2D.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "TextureCompiler.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
 #define NORMALMAP_IDENTIFICATION_TIMING	(0)
@@ -451,6 +452,14 @@ public:
 		UTexture2D* Texture2D = Texture.IsValid() ? Cast<UTexture2D>(Texture.Get()) : NULL;
 		if ( Texture2D )
 		{
+			if (FTextureCompilingManager::Get().IsCompilingTexture(Texture2D))
+			{
+				// Block until compile is done
+				TArray<UTexture*> TextureArray;
+				TextureArray.Add(Texture2D);
+				FTextureCompilingManager::Get().FinishCompilation(TextureArray);
+			}
+
 			if ( Texture2D->CompressionSettings == TC_Normalmap )
 			{
 				// Must wait until the texture is done with previous operations before changing settings and getting it to rebuild.
@@ -465,7 +474,6 @@ public:
 					Texture2D->SRGB = true;
 					Texture2D->LODGroup = TEXTUREGROUP_World;
 				}
-
 				Texture2D->PostEditChange();
 			}
 		}
@@ -492,7 +500,6 @@ bool UE::NormalMapIdentification::HandleAssetPostImport( UTexture* Texture )
 			// Set the compression settings and no gamma correction for a normal map
 			{
 				Texture->SetFlags(RF_Transactional);
-				Texture->Modify(); // Modify blocks on pending texture builds
 				Texture->CompressionSettings = TC_Normalmap;
 				Texture->SRGB = false;
 				Texture->LODGroup = TEXTUREGROUP_WorldNormalMap;
