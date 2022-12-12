@@ -4,13 +4,14 @@ setlocal
 REM Copyright Epic Games, Inc. All Rights Reserved.
 
 if [%1]==[] goto usage
+if [%2]==[] goto usage
 
 set BLOSC_VERSION=%1
 
 rem Set as VS2015 for backwards compatibility even though VS2019 is used
 rem when building.
 set COMPILER_VERSION_NAME=VS2015
-set ARCH_NAME=x64
+set ARCH_NAME=%2
 
 set BUILD_SCRIPT_LOCATION=%~dp0
 set UE_THIRD_PARTY_LOCATION=%BUILD_SCRIPT_LOCATION%..\..\..
@@ -18,6 +19,7 @@ set UE_THIRD_PARTY_LOCATION=%BUILD_SCRIPT_LOCATION%..\..\..
 set ZLIB_LOCATION=%UE_THIRD_PARTY_LOCATION%\zlib\v1.2.8
 set ZLIB_INCLUDE_LOCATION=%ZLIB_LOCATION%\include\Win64\%COMPILER_VERSION_NAME%
 set ZLIB_LIB_LOCATION=%ZLIB_LOCATION%\lib\Win64\%COMPILER_VERSION_NAME%\Release\zlibstatic.lib
+if %2==ARM64 set ZLIB_LIB_LOCATION=%ZLIB_LOCATION%\lib\Win64\%COMPILER_VERSION_NAME%\arm64\Release\zlibstatic.lib
 
 set UE_MODULE_LOCATION=%BUILD_SCRIPT_LOCATION%..\..
 
@@ -27,7 +29,7 @@ set BUILD_LOCATION=%UE_MODULE_LOCATION%\Intermediate
 
 set INSTALL_LOCATION=%UE_MODULE_LOCATION%\Deploy\c-blosc-%BLOSC_VERSION%
 set INSTALL_INCLUDE_LOCATION=%INSTALL_LOCATION%\include
-set INSTALL_WIN_LOCATION=%INSTALL_LOCATION%\%COMPILER_VERSION_NAME%
+set INSTALL_WIN_LOCATION=%INSTALL_LOCATION%\%COMPILER_VERSION_NAME%\%ARCH_NAME%
 
 if exist %BUILD_LOCATION% (
     rmdir %BUILD_LOCATION% /S /Q)
@@ -56,8 +58,12 @@ popd
 
 set C_FLAGS="-DLZ4_PREFIX=BLOSC_"
 
+set ADDITIONAL_FLAGS=
+if %2==ARM64 set ADDITIONAL_FLAGS=-DDEACTIVATE_SSE2=ON -DDEACTIVATE_AVX2=ON
+
 echo Configuring build for Blosc version %BLOSC_VERSION%...
-cmake -G "Visual Studio 16 2019" %BUILD_SOURCE_LOCATION%^
+cmake -G "Visual Studio 17 2022" %BUILD_SOURCE_LOCATION%^
+    -A %ARCH_NAME%^
     -DCMAKE_INSTALL_PREFIX="%INSTALL_LOCATION%"^
     -DPREFER_EXTERNAL_ZLIB=ON^
     -DZLIB_INCLUDE_DIR="%ZLIB_INCLUDE_LOCATION%"^
@@ -68,7 +74,8 @@ cmake -G "Visual Studio 16 2019" %BUILD_SOURCE_LOCATION%^
     -DBUILD_TESTS=OFF^
     -DBUILD_FUZZERS=OFF^
     -DBUILD_BENCHMARKS=OFF^
-    -DCMAKE_DEBUG_POSTFIX=_d
+    -DCMAKE_DEBUG_POSTFIX=_d^
+    %ADDITIONAL_FLAGS%
 if %errorlevel% neq 0 exit /B %errorlevel%
 
 echo Building Blosc for Debug...
@@ -104,6 +111,7 @@ goto :eof
 
 :usage
 echo Usage: BuildForWindows 1.21.0
+echo Arch: x64 or ARM64
 exit /B 1
 
 endlocal
