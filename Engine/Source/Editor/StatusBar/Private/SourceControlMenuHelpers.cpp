@@ -17,6 +17,7 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Images/SLayeredImage.h"
 #include "LevelEditorActions.h"
 #include "PackageTools.h"
@@ -48,6 +49,7 @@ void FSourceControlCommands::RegisterCommands()
 	UI_COMMAND(ViewChangelists, "View Changelists", "Opens a dialog displaying current changelists.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(SubmitContent, "Submit Content", "Opens a dialog with check in options for content and levels.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(CheckOutModifiedFiles, "Check Out Modified Files", "Opens a dialog to check out any assets which have been modified.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(RevertAll, "Revert All Files", "Opens a dialog to revert any assets which have been modified.", EUserInterfaceActionType::Button, FInputChord());
 
 	ActionList->MapAction(
 		ConnectToSourceControl,
@@ -79,6 +81,12 @@ void FSourceControlCommands::RegisterCommands()
 		CheckOutModifiedFiles,
 		FExecuteAction::CreateStatic(&FSourceControlCommands::CheckOutModifiedFiles_Clicked),
 		FCanExecuteAction::CreateStatic(&FSourceControlCommands::CheckOutModifiedFiles_CanExecute)
+	);
+
+	ActionList->MapAction(
+		RevertAll,
+		FExecuteAction::CreateStatic(&FSourceControlCommands::RevertAllModifiedFiles_Clicked),
+		FCanExecuteAction::CreateLambda([] { return true; })
 	);
 }
 
@@ -144,6 +152,18 @@ void FSourceControlCommands::CheckOutModifiedFiles_Clicked()
 	const bool bCheckDirty = true;
 	const bool bPromptUserToSave = false;
 	FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave, bCheckDirty, bPromptUserToSave);
+}
+
+void FSourceControlCommands::RevertAllModifiedFiles_Clicked()
+{
+	FText Message = LOCTEXT("RevertAllModifiedFiles", "Are you sure you want to revert all local changes? By proceeding, your local changes will be discarded, and the state of your last synced snapshot will be restored.");
+	FText Title = LOCTEXT("RevertAllModifiedFiles_Title", "Revert all local changes");
+	if (FMessageDialog::Open(EAppMsgType::YesNo, EAppReturnType::No, Message, &Title) == EAppReturnType::No)
+	{
+		return;
+	}
+	
+	FSourceControlWindows::RevertAllChangesAndReloadAllPackages();
 }
 
 FSourceControlMenuHelpers& FSourceControlMenuHelpers::Get()
@@ -223,6 +243,29 @@ TSharedRef<SWidget> FSourceControlMenuHelpers::GenerateSourceControlMenuContent(
 	}));
 
 	return UToolMenus::Get()->GenerateWidget("StatusBar.ToolBar.SourceControl", FToolMenuContext(FSourceControlCommands::ActionList));
+}
+
+TSharedRef<SWidget> FSourceControlMenuHelpers::GenerateCheckInComboButtonContent()
+{
+	UToolMenu* SourceControlMenu = UToolMenus::Get()->RegisterMenu("StatusBar.ToolBar.SourceControl.CheckInCombo", NAME_None, EMultiBoxType::Menu, false);
+
+	FToolMenuSection& Section = SourceControlMenu->AddSection("SourceControlComboActions", LOCTEXT("SourceControlComboMenuHeadingActions", "Actions"));
+
+	Section.AddMenuEntry(
+		FSourceControlCommands::Get().RevertAll,
+		TAttribute<FText>(),
+		TAttribute<FText>(),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Revert")
+	);
+
+	Section.AddMenuEntry(
+		FSourceControlCommands::Get().ViewChangelists,
+		TAttribute<FText>(),
+		TAttribute<FText>(),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.ChangelistsTab")
+	);
+
+	return UToolMenus::Get()->GenerateWidget("StatusBar.ToolBar.SourceControl.CheckInCombo", FToolMenuContext(FSourceControlCommands::ActionList));
 }
 
 FText FSourceControlMenuHelpers::GetSourceControlStatusText()
@@ -473,6 +516,25 @@ TSharedRef<SWidget> FSourceControlMenuHelpers::MakeSourceControlStatusWidget()
 				]
 			]
 			.OnClicked_Static(&FSourceControlMenuHelpers::OnSourceControlCheckInChangesClicked)
+		]
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		[
+			SNew(SSeparator)
+			.Thickness(1.0)
+			.Orientation(EOrientation::Orient_Vertical)
+		]
+		+SHorizontalBox::Slot() // Check In Kebab Combo button
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		[
+			SNew(SComboButton)
+			.ContentPadding(FMargin(7.f, 0.f))
+			.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("StatusBar.StatusBarEllipsisComboButton"))
+			.MenuPlacement(MenuPlacement_AboveAnchor)
+			.Visibility_Static(&FSourceControlMenuHelpers::GetSourceControlCheckInStatusVisibility)
+			.OnGetMenuContent(FOnGetContent::CreateStatic(&FSourceControlMenuHelpers::GenerateCheckInComboButtonContent))
 		]
 		+ SHorizontalBox::Slot() // Sync Latest Button
 		.VAlign(VAlign_Center)

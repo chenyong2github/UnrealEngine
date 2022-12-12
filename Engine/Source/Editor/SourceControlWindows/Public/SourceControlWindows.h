@@ -36,13 +36,6 @@ class SOURCECONTROLWINDOWS_API FSourceControlWindows
 {
 public:
 	/**
-	 * Get the list of files and directories that source control should check when looking for changes.
-	 *
-	 * @param	bContentOnly	True to only include content directories.
-	 */
-	static TArray<FString> GetSourceControlLocations(const bool bContentOnly = false);
-
-	/**
 	 * Opens a user dialog to choose packages to submit.
 	 *
 	 * @param	OnCompleteDelegate	Delegate to call when this user-based operation is complete. Also see FCheckinResultInfo.
@@ -102,10 +95,16 @@ public:
 	 * Prompt the user with a revert files dialog, allowing them to specify which packages, if any, should be reverted.
 	 *
 	 * @param	InPackageNames	Names of the packages to consider for reverting
+	 * @param	InReloadAllPackages	Reload all packages as part of the revert operation
 	 *
 	 * @return	true if the files were reverted; false if the user canceled out of the dialog
 	 */
-	static bool PromptForRevert(const TArray<FString>& InPackageNames );
+	static bool PromptForRevert(const TArray<FString>& InPackageNames, bool InReloadAllPackages = false );
+
+	/**
+	 * Revert all locally modified files, and reload all packages
+	 */
+	static bool RevertAllChangesAndReloadAllPackages();
 
 	/**
 	 * Displays file diff against workspace version

@@ -26,6 +26,12 @@ public:
 		ResultInfo.ErrorMessages.Add(InError);
 	}
 
+	/** Add tag. */
+	virtual void AddTag(const FString& InTag)
+	{
+		ResultInfo.Tags.Add(InTag);
+	}
+
 	/**
 	 * Append any info or error messages that may have accumulated during the operation prior
 	 * to returning a result, ensuring to keep any already accumulated info.

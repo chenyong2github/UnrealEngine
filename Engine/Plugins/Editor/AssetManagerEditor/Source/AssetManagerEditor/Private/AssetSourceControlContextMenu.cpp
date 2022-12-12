@@ -777,7 +777,17 @@ void FAssetSourceControlContextMenuState::ExecuteSCCRevert() const
 {
 	TArray<FString> PackageNames;
 	GetSelectedPackageNames(PackageNames);
-	FSourceControlWindows::PromptForRevert(PackageNames);
+	bool bReloadAll = false;
+	for (FString PackageName : PackageNames)
+	{
+		UPackage* Package = FindPackage(nullptr, *PackageName);
+		if (Package->ContainsMap())
+		{
+			bReloadAll = true;
+			break;
+		}
+	}
+	FSourceControlWindows::PromptForRevert(PackageNames, bReloadAll);
 }
 
 void FAssetSourceControlContextMenuState::ExecuteSCCRevertWritable() const

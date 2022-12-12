@@ -351,19 +351,38 @@ public:
 
 	/**
 	 * Applies the provided function and reloads provided packages.
-	 * @param	InFilenames		The files/packages to apply the operation and reload
-	 * @param	InOperation		The function to apply
+	 * @param	InPackagesToApplyOperation			The files/packages to apply the operation
+	 * @param	InPackagesToReload					The files to reload
+	 * @param	InOperation							The function to apply
+	 * @param	bAllowReloadWorld					Allow reloading of the world
 	 * @return true if succeeded.
 	 */
-	static bool ApplyOperationAndReloadPackages(const TArray<FString>& InFilenames, const TFunctionRef<bool(const TArray<FString>&)>& InOperation);
+	static bool ApplyOperationAndReloadPackages(const TArray<FString>& InPackagesToApplyOperation, const TArray<FString>& InPackagesToReload, 
+		const TFunctionRef<bool(const TArray<FString>&)>& InOperation, bool bAllowReloadWorld = false);
 
 	/**
      * Reverts the provided files then reload packages.
-     * @param	InFilenames		The files/packages to revert and reload
+	 * @param	InPackagesToRevert					The packages to revert
+	 * @param	InPackagesToReload					The packages to reload
+	 * @param	bRevertAll							Whether to revert all files
+	 * @param	bAllowReloadWorld					Allow reloading of the world
      * @return true if succeeded.
      */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Editor Revision Control Helpers", meta = (Keywords = "Source Control"))
-	static bool RevertAndReloadPackages(const TArray<FString>& InFilenames);
+	static bool RevertAndReloadPackages(const TArray<FString>& InPackagesToRevert, const TArray<FString>& InPackagesToReload, bool bRevertAll = false, bool bAllowReloadWorld = false);
+
+	/**
+	 * Reverts the provided files and then reloads all packages.
+	 * @param	InFilenames		The files/packages to revert
+	 * @return true if succeeded.
+	 */
+	static bool RevertAndReloadAllPackages(const TArray<FString>& InFilenames);
+
+	/**
+	 * Reverts all changes and then reloads all packages.
+	 * @return true if succeeded.
+	 */
+	static bool RevertAllChangesAndReloadAllPackages();
 
 #endif // !WITH_EDITOR
 
@@ -611,6 +630,18 @@ public:
 	 * Note: will not query history to prevent recursion
 	 */
 	static bool GetAssetDataFromFileHistory(FSourceControlStatePtr InSourceControlState, TArray<FAssetData>& OutAssets, TArray<FName>* OutDependencies = nullptr, int64 MaxFetchSize = -1);
+
+	/**
+	 * Find packages in Source Control locations
+	 */
+	static bool ListAllPackages(TArray<FString>& OutPackageNames);
+
+	/**
+	 * Get the list of files and directories that source control should check when looking for changes.
+	 *
+	 * @param	bContentOnly	True to only include content directories.
+	 */
+	static TArray<FString> GetSourceControlLocations(const bool bContentOnly = false);
 
 };  // USourceControlHelpers
 

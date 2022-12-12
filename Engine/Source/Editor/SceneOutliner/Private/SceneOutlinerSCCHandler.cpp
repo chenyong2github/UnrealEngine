@@ -84,6 +84,7 @@ void FSceneOutlinerSCCHandler::CacheCanExecuteVars()
 	bCanExecuteSCC = true;
 	bCanExecuteSCCCheckOut = false;
 	bCanExecuteSCCCheckIn = false;
+	bCanExecuteSCCRevert = false;
 	bCanExecuteSCCHistory = false;
 	bUsesFileRevisions = false;
 	bUsesChangelists = false;
@@ -128,6 +129,11 @@ void FSceneOutlinerSCCHandler::CacheCanExecuteVars()
 				{
 					bCanExecuteSCCCheckIn = true;
 				}
+
+				if (SourceControlState->CanRevert())
+				{
+					bCanExecuteSCCRevert = true;
+				}
 			}
 		}
 
@@ -153,6 +159,11 @@ bool FSceneOutlinerSCCHandler::CanExecuteSCCCheckOut() const
 bool FSceneOutlinerSCCHandler::CanExecuteSCCCheckIn() const
 {
 	return bCanExecuteSCCCheckIn && bUsesFileRevisions;
+}
+
+bool FSceneOutlinerSCCHandler::CanExecuteSCCRevert() const
+{
+	return bCanExecuteSCCRevert;
 }
 
 bool FSceneOutlinerSCCHandler::CanExecuteSCCHistory() const
@@ -223,6 +234,20 @@ void FSceneOutlinerSCCHandler::FillSourceControlSubMenu(UToolMenu* Menu)
 			FUIAction(
 				FExecuteAction::CreateSP( this, &FSceneOutlinerSCCHandler::ExecuteSCCHistory ),
 				FCanExecuteAction::CreateSP( this, &FSceneOutlinerSCCHandler::CanExecuteSCCHistory )
+			)
+		);
+	}
+
+	if (CanExecuteSCCRevert())
+	{
+		Section.AddMenuEntry(
+			"SCCRevert",
+			LOCTEXT("SCCRevert", "Revert"),
+			LOCTEXT("SCCRevertTooltip", "Reverts the item to the state it was before it was checked out."),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Revert"),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &FSceneOutlinerSCCHandler::ExecuteSCCRevert),
+				FCanExecuteAction::CreateSP(this, &FSceneOutlinerSCCHandler::CanExecuteSCCRevert)
 			)
 		);
 	}
@@ -337,6 +362,13 @@ void FSceneOutlinerSCCHandler::ExecuteSCCCheckIn()
 			FMessageDialog::Open( EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "SCC_Checkin_Aborted", "Check-in aborted as a result of save failure.") );
 		}
 	}
+}
+
+void FSceneOutlinerSCCHandler::ExecuteSCCRevert()
+{
+	TArray<FString> PackageNames;
+	GetSelectedPackageNames(PackageNames);
+	FSourceControlWindows::PromptForRevert(PackageNames, true);
 }
 
 void FSceneOutlinerSCCHandler::ExecuteSCCHistory()

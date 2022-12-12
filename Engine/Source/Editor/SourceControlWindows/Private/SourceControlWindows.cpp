@@ -36,29 +36,6 @@ FCheckinResultInfo::FCheckinResultInfo()
 
 TWeakPtr<SNotificationItem> FSourceControlWindows::ChoosePackagesToCheckInNotification;
 
-TArray<FString> FSourceControlWindows::GetSourceControlLocations(const bool bContentOnly)
-{
-	TArray<FString> SourceControlLocations;
-
-	{
-		TArray<FString> RootPaths;
-		FPackageName::QueryRootContentPaths(RootPaths);
-		for (const FString& RootPath : RootPaths)
-		{
-			const FString RootPathOnDisk = FPackageName::LongPackageNameToFilename(RootPath);
-			SourceControlLocations.Add(FPaths::ConvertRelativePathToFull(RootPathOnDisk));
-		}
-	}
-
-	if (!bContentOnly)
-	{
-		SourceControlLocations.Add(FPaths::ConvertRelativePathToFull(FPaths::ProjectConfigDir()));
-		SourceControlLocations.Add(FPaths::ConvertRelativePathToFull(FPaths::GetProjectFilePath()));
-	}
-
-	return SourceControlLocations;
-}
-
 bool FSourceControlWindows::ChoosePackagesToCheckIn(const FSourceControlWindowsOnCheckInComplete& OnCompleteDelegate)
 {
 	if (!ISourceControlModule::Get().IsEnabled())
@@ -96,7 +73,7 @@ bool FSourceControlWindows::ChoosePackagesToCheckIn(const FSourceControlWindowsO
 	}
 	else
 	{
-		Filenames = GetSourceControlLocations();
+		Filenames = SourceControlHelpers::GetSourceControlLocations();
 	}
 	
 	// make sure the SourceControlProvider state cache is populated as well
@@ -201,48 +178,6 @@ static bool SaveDirtyPackages()
 	return bSaved;
 }
 
-
-static bool ListAllPackages(TArray<FString>& OutPackageNames)
-{
-	// determine source control locations
-	TArray<FString> SourceControlLocations;
-
-	if (ISourceControlModule::Get().UsesCustomProjectDir())
-	{
-		SourceControlLocations.Add(ISourceControlModule::Get().GetSourceControlProjectDir());
-	}
-	else
-	{
-		FSourceControlWindows::GetSourceControlLocations(/*bContentOnly=*/true);
-	}
-
-	// find packages in those locations
-	for (const FString& SourceControlLocation : SourceControlLocations)
-	{
-		TArray<FString> PackageRelativePaths;
-		if (FPackageName::FindPackagesInDirectory(PackageRelativePaths, FPaths::ConvertRelativePathToFull(SourceControlLocation)))
-		{
-			OutPackageNames.Reserve(OutPackageNames.Num() + PackageRelativePaths.Num());
-			for (const FString& Path : PackageRelativePaths)
-			{
-				FString PackageName;
-				FString FailureReason;
-				if (FPackageName::TryConvertFilenameToLongPackageName(Path, PackageName, &FailureReason))
-				{
-					OutPackageNames.Add(PackageName);
-				}
-				else
-				{
-					FMessageLog("SourceControl").Error(FText::FromString(FailureReason));
-				}
-			}
-		}
-	}
-
-	return true;
-}
-
-
 bool FSourceControlWindows::SyncAllPackages()
 {
 	bool bSaved = SaveDirtyPackages();
@@ -251,7 +186,7 @@ bool FSourceControlWindows::SyncAllPackages()
 	if (bSaved)
 	{
 		TArray<FString> PackageNames;
-		if (ListAllPackages(PackageNames))
+		if (SourceControlHelpers::ListAllPackages(PackageNames))
 		{
 			// sync those packages if any were found
 			if (PackageNames.Num() > 0)
@@ -586,7 +521,7 @@ void FSourceControlWindows::ChoosePackagesToCheckInCompleted(const TArray<UPacka
 	}
 	else
 	{
-		PendingDeletePaths = GetSourceControlLocations();
+		PendingDeletePaths = SourceControlHelpers::GetSourceControlLocations();
 	}
 
 	PromptForCheckin(OutResultInfo, PackageNames, PendingDeletePaths, ConfigFiles, bUseSourceControlStateCache);

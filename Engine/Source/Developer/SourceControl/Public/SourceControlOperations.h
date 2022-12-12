@@ -251,6 +251,16 @@ public:
 		return bIsSoftRevert;
 	}
 
+	void SetRevertAll(const bool bInRevertAll)
+	{
+		bIsRevertAll = bInRevertAll;
+	}
+
+	bool IsRevertAll() const
+	{
+		return bIsRevertAll;
+	}
+
 	bool ShouldDeleteNewFiles() const
 	{
 		return USourceControlPreferences::ShouldDeleteNewFilesOnRevert();
@@ -265,6 +275,7 @@ public:
 
 protected:
 	bool				bIsSoftRevert = false;
+	bool				bIsRevertAll = false;
 	TArray<FString>		DeletedFiles;
 };
 

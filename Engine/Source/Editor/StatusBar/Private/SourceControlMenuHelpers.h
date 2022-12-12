@@ -29,6 +29,7 @@ private:
 	static void ViewChangelists_Clicked();
 	static bool CheckOutModifiedFiles_CanExecute();
 	static void CheckOutModifiedFiles_Clicked();
+	static void RevertAllModifiedFiles_Clicked();
 
 public:
 	/**
@@ -39,6 +40,7 @@ public:
 	TSharedPtr< FUICommandInfo > ViewChangelists;
 	TSharedPtr< FUICommandInfo > SubmitContent;
 	TSharedPtr< FUICommandInfo > CheckOutModifiedFiles;
+	TSharedPtr< FUICommandInfo > RevertAll;
 
 	static TSharedRef<FUICommandList> ActionList;
 };
@@ -72,6 +74,7 @@ public:
 private:
 	static void OnSourceControlOperationComplete(const FSourceControlOperationRef& InOperation, ECommandResult::Type InResult);
 	static TSharedRef<SWidget> GenerateSourceControlMenuContent();
+	static TSharedRef<SWidget> GenerateCheckInComboButtonContent();
 	static FText GetSourceControlStatusText();
 	static FText GetSourceControlTooltip();
 	static const FSlateBrush* GetSourceControlIconBadge();

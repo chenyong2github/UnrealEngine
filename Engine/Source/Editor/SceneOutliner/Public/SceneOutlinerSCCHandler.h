@@ -22,6 +22,7 @@ private:
 	bool CanExecuteSCC() const;
 	bool CanExecuteSCCCheckOut() const;
 	bool CanExecuteSCCCheckIn() const;
+	bool CanExecuteSCCRevert() const;
 	bool CanExecuteSCCHistory() const;
 	bool CanExecuteSCCRefresh() const;
 	bool CanExecuteSCCShowInChangelist() const;
@@ -31,6 +32,7 @@ private:
 	void ExecuteSCCRefresh();
 	void ExecuteSCCCheckOut();
 	void ExecuteSCCCheckIn();
+	void ExecuteSCCRevert();
 	void ExecuteSCCHistory();
 	void ExecuteSCCShowInChangelist();
 
@@ -44,6 +46,7 @@ private:
 	bool bCanExecuteSCCCheckOut = false;
 	bool bCanExecuteSCCCheckIn = false;
 	bool bCanExecuteSCCHistory = false;
+	bool bCanExecuteSCCRevert = false;
 	bool bUsesFileRevisions = false;
 	bool bUsesChangelists = false;
 

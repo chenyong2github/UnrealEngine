@@ -43,7 +43,7 @@
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Settings/ContentBrowserSettings.h"
 #include "SourceControlOperations.h"
-#include "SourceControlWindows.h"
+#include "SourceControlHelpers.h"
 #include "Templates/RemoveReference.h"
 #include "Templates/UnrealTemplate.h"
 #include "TextFilterKeyValueHandlers.h"
@@ -857,7 +857,7 @@ void FFrontendFilter_NotSourceControlled::RequestStatus()
 		}
 		else
 		{
-			Filenames = FSourceControlWindows::GetSourceControlLocations(/*bContentOnly*/true);
+			Filenames = SourceControlHelpers::GetSourceControlLocations(/*bContentOnly*/true);
 		}
 		UpdateStatusOperation->SetCheckingAllFiles(false);
 		SourceControlProvider.Execute(UpdateStatusOperation, Filenames, EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateSP(this, &FFrontendFilter_NotSourceControlled::SourceControlOperationComplete));
