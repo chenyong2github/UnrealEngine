@@ -60,10 +60,26 @@ bool UInputRouter::PostInputEvent(const FInputDeviceState& Input)
 	if (Input.IsFromDevice(EInputDevices::Mouse))
 	{
 		PostInputEvent_Mouse(Input);
+		LastMouseInputState = Input;
 		return HasActiveMouseCapture();
 	}
 	else if (Input.IsFromDevice(EInputDevices::Keyboard))
 	{
+		// if we are actively capturing Mouse and the key event is from a modifier key, 
+		// we want to update those modifiers
+		if ( (HasActiveMouseCapture() || ActiveLeftHoverCapture != nullptr)
+			   && Input.Keyboard.ActiveKey.Button.IsModifierKey() )
+		{
+			if ((LastMouseInputState.bAltKeyDown != Input.bAltKeyDown) ||
+				(LastMouseInputState.bShiftKeyDown != Input.bShiftKeyDown) ||
+				(LastMouseInputState.bCtrlKeyDown != Input.bCtrlKeyDown) ||
+				(LastMouseInputState.bCmdKeyDown != Input.bCmdKeyDown))
+			{
+				LastMouseInputState.SetModifierKeyStates(Input.bShiftKeyDown, Input.bAltKeyDown, Input.bCtrlKeyDown, Input.bCmdKeyDown);
+				PostInputEvent_Mouse(LastMouseInputState);
+			}
+		}
+
 		PostInputEvent_Keyboard(Input);
 		return (ActiveKeyboardCapture != nullptr);
 	}

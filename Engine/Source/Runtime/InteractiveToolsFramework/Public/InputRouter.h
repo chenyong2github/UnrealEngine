@@ -111,13 +111,14 @@ protected:
 	void CheckForMouseCaptures(const FInputDeviceState& Input);
 	void HandleCapturedMouseInput(const FInputDeviceState& Input);
 
-
 	//
 	// Hover support
 	//
 
 	UInputBehavior* ActiveLeftHoverCapture = nullptr;
 	void* ActiveLeftHoverCaptureOwner = nullptr;
+
+	FInputDeviceState LastMouseInputState;
 
 	void TerminateHover(EInputCaptureSide Side);
 	bool ProcessMouseHover(const FInputDeviceState& Input);
