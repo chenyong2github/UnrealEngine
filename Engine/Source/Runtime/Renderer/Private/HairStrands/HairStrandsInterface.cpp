@@ -492,7 +492,12 @@ bool IsHairStrandContinuousDecimationReorderingEnabled()
 
 bool IsHairVisibilityComputeRasterEnabled()
 {
-	return CVarHairStrandsVisibilityComputeRaster.GetValueOnAnyThread() > 0;
+	return CVarHairStrandsVisibilityComputeRaster.GetValueOnAnyThread() == 1;
+}
+
+bool IsHairVisibilityComputeRasterForwardEnabled()
+{
+	return CVarHairStrandsVisibilityComputeRaster.GetValueOnAnyThread() == 2;
 }
 
 bool IsHairVisibilityComputeRasterContinuousLODEnabled()

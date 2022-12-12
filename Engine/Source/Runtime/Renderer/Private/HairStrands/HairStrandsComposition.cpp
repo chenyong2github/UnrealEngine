@@ -12,6 +12,7 @@
 #include "HairStrandsTile.h"
 #include "FogRendering.h"
 #include "PostProcess/TemporalAA.h"
+#include "HairStrandsForwardRaster.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
@@ -467,7 +468,6 @@ static void AddHairVisibilityGBufferWritePass(
 		Parameters);
 }
 
-
 static void InternalRenderHairComposition(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
@@ -480,131 +480,138 @@ static void InternalRenderHairComposition(
 	RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsComposition);
 	SCOPED_NAMED_EVENT(HairStrandsComposition, FColor::Emerald);
 
+	if (View.HairStrandsViewData.VisibilityData.RasterizedInstanceCount > 0)
 	{
+		AddHairStrandsForwardRasterPass(
+			GraphBuilder,
+			View,
+			SceneDepthTexture->Desc.Extent,
+			View.HairStrandsViewData.VisibilityData,
+			SceneDepthTexture,
+			SceneColorTexture);
+	}
+	else
+	{
+		const FHairStrandsVisibilityData& VisibilityData = View.HairStrandsViewData.VisibilityData;
+
+		if (!VisibilityData.CoverageTexture)
 		{
+			return; // Automatically skip for any view not rendering hair
+		}
+
+		FRDGTextureRef DOFDepth = nullptr;
+		const bool bHairDOF = GHairStrandsComposeDOFDepth > 0 ? 1 : 0;
+		if (bHairDOF)
+		{
+			DOFDepth = AddHairDOFDepthPass(
+				GraphBuilder,
+				View,
+				VisibilityData,
+				VisibilityData.CoverageTexture,
+				SceneColorTexture,
+				SceneDepthTexture);
+		}
+
+		FRDGTextureRef AccumulatedColor = nullptr;
+
+		const bool bTemporalLayeringEnabled = IsHairVisibilityComputeRasterTemporalLayeringEnabled() && View.ViewState;
+
+		if (bTemporalLayeringEnabled)
+		{
+			FIntPoint OutputResolution = SceneColorTexture->Desc.Extent;
+
+			FRDGTextureDesc HairColorInputDesc = FRDGTextureDesc::Create2D(OutputResolution, PF_FloatRGBA, FClearValueBinding(FLinearColor(0, 0, 0, 0)), TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV, 1);
+			FRDGTextureRef HairColorInputTexture = GraphBuilder.CreateTexture(HairColorInputDesc, TEXT("Hair.ColorInputTexture"));
+
+			AddHairVisibilityComposeSamplePass(
+				GraphBuilder,
+				View,
+				VisibilityData,
+				VisibilityData.CoverageTexture,
+				DOFDepth,
+				nullptr,
+				HairColorInputTexture,
+				SceneDepthTexture,
+				bTemporalLayeringEnabled);
+
+
+			check(View.ViewState);
+			FTAAPassParameters TAASettings(View);
+			TAASettings.SceneDepthTexture = SceneDepthTexture;
+			TAASettings.SceneVelocityTexture = SceneVelocityTexture;
+			TAASettings.Pass = ETAAPassConfig::Hair;
+			TAASettings.SceneColorInput = HairColorInputTexture;
+			TAASettings.bOutputRenderTargetable = true;
+
+			FTAAOutputs TAAOutputs = AddTemporalAAPass(
+				GraphBuilder,
+				View,
+				TAASettings,
+				View.PrevViewInfo.HairHistory,
+				&View.ViewState->PrevFrameViewInfo.HairHistory);
+
+			AccumulatedColor = TAAOutputs.SceneColor;			
+		}
+
+		AddHairVisibilityComposeSamplePass(
+			GraphBuilder,
+			View,
+			VisibilityData,
+			VisibilityData.CoverageTexture,
+			DOFDepth,
+			AccumulatedColor,
+			SceneColorTexture,
+			SceneDepthTexture,
+			bTemporalLayeringEnabled);
+
+		if (VisibilityData.ResolveMaskTexture)
+		{
+			AddHairVisibilityFastResolveMaskPass(
+				GraphBuilder,
+				View,
+				VisibilityData.ResolveMaskTexture,
+				VisibilityData.TileData,
+				SceneDepthTexture);
+		}
+
+		const bool bWriteDummyData		= View.Family->ViewMode != VMI_VisualizeBuffer && GHairWriteGBufferData == 1;
+		const bool bWritePartialGBuffer = View.Family->ViewMode != VMI_VisualizeBuffer && (GHairWriteGBufferData == 1 || GHairWriteGBufferData == 2);
+		const bool bWriteFullGBuffer	= View.Family->ViewMode == VMI_VisualizeBuffer || (GHairWriteGBufferData == 3);
+		if (bWriteFullGBuffer || bWritePartialGBuffer)
+		{
+			const FSceneTextures& SceneTextures = View.GetSceneTextures();
+			const FRDGTextureRef GBufferATexture = SceneTextures.GBufferA;
+			const FRDGTextureRef GBufferBTexture = SceneTextures.GBufferB;
+			const FRDGTextureRef GBufferCTexture = SceneTextures.GBufferC;
+			const FRDGTextureRef GBufferDTexture = SceneTextures.GBufferD;
+			const FRDGTextureRef GBufferETexture = SceneTextures.GBufferE;
+			if (bWritePartialGBuffer && GBufferATexture && GBufferBTexture)
 			{
-				const FHairStrandsVisibilityData& VisibilityData = View.HairStrandsViewData.VisibilityData;
-
-				if (!VisibilityData.CoverageTexture)
-				{
-					return; // Automatically skip for any view not rendering hair
-				}
-
-				FRDGTextureRef DOFDepth = nullptr;
-				const bool bHairDOF = GHairStrandsComposeDOFDepth > 0 ? 1 : 0;
-				if (bHairDOF)
-				{
-					DOFDepth = AddHairDOFDepthPass(
-						GraphBuilder,
-						View,
-						VisibilityData,
-						VisibilityData.CoverageTexture,
-						SceneColorTexture,
-						SceneDepthTexture);
-				}
-
-				FRDGTextureRef AccumulatedColor = nullptr;
-
-				const bool bTemporalLayeringEnabled = IsHairVisibilityComputeRasterTemporalLayeringEnabled() && View.ViewState;
-
-				if (bTemporalLayeringEnabled)
-				{
-					FIntPoint OutputResolution = SceneColorTexture->Desc.Extent;
-
-					FRDGTextureDesc HairColorInputDesc = FRDGTextureDesc::Create2D(OutputResolution, PF_FloatRGBA, FClearValueBinding(FLinearColor(0, 0, 0, 0)), TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV, 1);
-					FRDGTextureRef HairColorInputTexture = GraphBuilder.CreateTexture(HairColorInputDesc, TEXT("Hair.ColorInputTexture"));
-
-					AddHairVisibilityComposeSamplePass(
-						GraphBuilder,
-						View,
-						VisibilityData,
-						VisibilityData.CoverageTexture,
-						DOFDepth,
-						nullptr,
-						HairColorInputTexture,
-						SceneDepthTexture,
-						bTemporalLayeringEnabled);
-
-
-					check(View.ViewState);
-					FTAAPassParameters TAASettings(View);
-					TAASettings.SceneDepthTexture = SceneDepthTexture;
-					TAASettings.SceneVelocityTexture = SceneVelocityTexture;
-					TAASettings.Pass = ETAAPassConfig::Hair;
-					TAASettings.SceneColorInput = HairColorInputTexture;
-					TAASettings.bOutputRenderTargetable = true;
-
-					FTAAOutputs TAAOutputs = AddTemporalAAPass(
-						GraphBuilder,
-						View,
-						TAASettings,
-						View.PrevViewInfo.HairHistory,
-						&View.ViewState->PrevFrameViewInfo.HairHistory);
-
-					AccumulatedColor = TAAOutputs.SceneColor;			
-				}
-
-				AddHairVisibilityComposeSamplePass(
+				AddHairVisibilityGBufferWritePass(
 					GraphBuilder,
 					View,
-					VisibilityData,
-					VisibilityData.CoverageTexture,
-					DOFDepth,
-					AccumulatedColor,
-					SceneColorTexture,
-					SceneDepthTexture,
-					bTemporalLayeringEnabled);
-
-				if (VisibilityData.ResolveMaskTexture)
-				{
-					AddHairVisibilityFastResolveMaskPass(
-						GraphBuilder,
-						View,
-						VisibilityData.ResolveMaskTexture,
-						VisibilityData.TileData,
-						SceneDepthTexture);
-				}
-
-				const bool bWriteDummyData		= View.Family->ViewMode != VMI_VisualizeBuffer && GHairWriteGBufferData == 1;
-				const bool bWritePartialGBuffer = View.Family->ViewMode != VMI_VisualizeBuffer && (GHairWriteGBufferData == 1 || GHairWriteGBufferData == 2);
-				const bool bWriteFullGBuffer	= View.Family->ViewMode == VMI_VisualizeBuffer || (GHairWriteGBufferData == 3);
-				if (bWriteFullGBuffer || bWritePartialGBuffer)
-				{
-					const FSceneTextures& SceneTextures = View.GetSceneTextures();
-					const FRDGTextureRef GBufferATexture = SceneTextures.GBufferA;
-					const FRDGTextureRef GBufferBTexture = SceneTextures.GBufferB;
-					const FRDGTextureRef GBufferCTexture = SceneTextures.GBufferC;
-					const FRDGTextureRef GBufferDTexture = SceneTextures.GBufferD;
-					const FRDGTextureRef GBufferETexture = SceneTextures.GBufferE;
-					if (bWritePartialGBuffer && GBufferATexture && GBufferBTexture)
-					{
-						AddHairVisibilityGBufferWritePass(
-							GraphBuilder,
-							View,
-							bWriteDummyData,
-							VisibilityData.TileData,
-							GBufferATexture,
-							GBufferBTexture,
-							nullptr,
-							nullptr,
-							nullptr,
-							nullptr);
-					}
-					else if (bWriteFullGBuffer && GBufferATexture && GBufferBTexture && GBufferCTexture && SceneDepthTexture)
-					{
-						AddHairVisibilityGBufferWritePass(
-							GraphBuilder,
-							View,
-							bWriteDummyData,
-							VisibilityData.TileData,
-							GBufferATexture,
-							GBufferBTexture,
-							GBufferCTexture,
-							GBufferDTexture,
-							GBufferETexture,
-							SceneDepthTexture);
-					}
-				}
+					bWriteDummyData,
+					VisibilityData.TileData,
+					GBufferATexture,
+					GBufferBTexture,
+					nullptr,
+					nullptr,
+					nullptr,
+					nullptr);
+			}
+			else if (bWriteFullGBuffer && GBufferATexture && GBufferBTexture && GBufferCTexture && SceneDepthTexture)
+			{
+				AddHairVisibilityGBufferWritePass(
+					GraphBuilder,
+					View,
+					bWriteDummyData,
+					VisibilityData.TileData,
+					GBufferATexture,
+					GBufferBTexture,
+					GBufferCTexture,
+					GBufferDTexture,
+					GBufferETexture,
+					SceneDepthTexture);
 			}
 		}
 	}

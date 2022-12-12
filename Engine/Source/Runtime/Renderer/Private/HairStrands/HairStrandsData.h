@@ -141,6 +141,8 @@ struct FHairStrandsVisibilityData
 	uint32			NodeGroupSize = 0;
 	FVector4f		HairOnlyDepthHZBParameters = FVector4f::Zero();
 
+	uint32				RasterizedInstanceCount = 0;
+	uint32				MaxControlPointCount = 0;
 	FRDGBufferSRVRef	ControlPointsSRV = nullptr;
 	FRDGTextureRef		ControlPointCount = nullptr;
 
