@@ -2315,7 +2315,7 @@ public:
 	}
 
 	/** Returns true if this actor is spatially loaded. */
-	bool GetIsSpatiallyLoaded() const { return bIsSpatiallyLoaded; }
+	bool GetIsSpatiallyLoaded() const;
 	
 	/** Set if this actor should be spatially loaded or not. */
 	void SetIsSpatiallyLoaded(bool bInIsSpatiallyLoaded)
@@ -2328,7 +2328,7 @@ public:
 	}
 
 	/** Returns true if this actor allows changing the spatially loaded flag.  */
-	virtual bool CanChangeIsSpatiallyLoadedFlag() const { return true; }
+	virtual bool CanChangeIsSpatiallyLoadedFlag() const;
 
 	/** Gets the property name for bIsSpatiallyLoaded. */
 	static const FName GetIsSpatiallyLoadedPropertyName() { return GET_MEMBER_NAME_CHECKED(AActor, bIsSpatiallyLoaded); }

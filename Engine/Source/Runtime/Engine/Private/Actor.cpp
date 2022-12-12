@@ -1076,52 +1076,89 @@ void AActor::ProcessEvent(UFunction* Function, void* Parameters)
 }
 
 #if WITH_EDITOR
-FBox AActor::GetStreamingBounds() const
+static bool IsComponentStreamingRelevant(const AActor* InActor, const UActorComponent* InComponent, FBox& OutStreamingBounds)
 {
-	FBox StreamingBounds(ForceInit);
+	check(InActor);
+	check(InComponent);
 
-	auto HandleComponent = [this, &StreamingBounds](const UActorComponent* Component)
+	if (!InComponent->IsRegistered())
 	{
-		check(Component);
+		return false;
+	}
 
-		if (!Component->IsRegistered())
+	if (InComponent->HasAnyFlags(RF_Transient))
+	{
+		return false;
+	}
+
+	if (!InActor->IsEditorOnly() && InComponent->IsEditorOnly())
+	{
+		return false;
+	}
+
+	OutStreamingBounds = InComponent->GetStreamingBounds();
+	return !!OutStreamingBounds.IsValid;
+}
+
+template <class F>
+static bool ForEachStreamingRelevantComponent(const AActor* InActor, F Func)
+{
+	bool bHasStreamingRelevantComponents = false;
+
+	auto HandleComponent = [InActor, &bHasStreamingRelevantComponents, &Func](const UActorComponent* Component)
+	{
+		FBox ComponentStreamingBound;
+		if (IsComponentStreamingRelevant(InActor, Component, ComponentStreamingBound))
 		{
-			return;
+			Func(Component, ComponentStreamingBound);
+			bHasStreamingRelevantComponents = true;
 		}
-
-		if (Component->HasAnyFlags(RF_Transient))
-		{
-			return;
-		}
-
-		if (!IsEditorOnly() && Component->IsEditorOnly())
-		{
-			return;
-		}
-
-		const FBox ComponentStreamingBound = Component->GetStreamingBounds();
-		if (!ComponentStreamingBound.IsValid)
-		{
-			return;
-		}
-
-		StreamingBounds += ComponentStreamingBound;
 	};
 
-	ForEachComponent<UPrimitiveComponent>(true, [this, &HandleComponent](UActorComponent* Component)
+	InActor->ForEachComponent<UPrimitiveComponent>(true, [&HandleComponent](UActorComponent* Component)
 	{
 		HandleComponent(Component);
 	});
 
-	if (!StreamingBounds.IsValid)
+	if (!bHasStreamingRelevantComponents)
 	{
-		ForEachComponent<UActorComponent>(false, [this, &HandleComponent](UActorComponent* Component)
+		InActor->ForEachComponent<UActorComponent>(false, [&HandleComponent](UActorComponent* Component)
 		{
 			HandleComponent(Component);
 		});
 	}
 
+	return bHasStreamingRelevantComponents;
+}
+
+static bool HasComponentForceActorNonSpatiallyLoaded(const AActor* InActor)
+{
+	bool bHasComponentForceActorNonSpatiallyLoaded = false;
+	ForEachStreamingRelevantComponent(InActor, [&bHasComponentForceActorNonSpatiallyLoaded](const UActorComponent* Component, const FBox& StreamingBound)
+	{
+		bHasComponentForceActorNonSpatiallyLoaded |= Component->ForceActorNonSpatiallyLoaded();
+	});
+	return bHasComponentForceActorNonSpatiallyLoaded;
+}
+
+FBox AActor::GetStreamingBounds() const
+{
+	FBox StreamingBounds(ForceInit);
+	ForEachStreamingRelevantComponent(this, [&StreamingBounds](const UActorComponent* Component, const FBox& StreamingBound)
+	{
+		StreamingBounds += StreamingBound;
+	});
 	return StreamingBounds;
+}
+
+bool AActor::GetIsSpatiallyLoaded() const
+{
+	return bIsSpatiallyLoaded && !HasComponentForceActorNonSpatiallyLoaded(this);
+}
+	
+bool AActor::CanChangeIsSpatiallyLoadedFlag() const
+{
+	return !HasComponentForceActorNonSpatiallyLoaded(this);
 }
 #endif
 

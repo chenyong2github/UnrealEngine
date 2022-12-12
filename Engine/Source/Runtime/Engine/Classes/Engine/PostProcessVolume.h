@@ -76,7 +76,7 @@ class ENGINE_API APostProcessVolume : public AVolume, public IInterface_PostProc
 	virtual void PostUnregisterAllComponents( void ) override;
 
 #if WITH_EDITOR
-	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return !bUnbound; }
+	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return bUnbound ? false : Super::CanChangeIsSpatiallyLoadedFlag(); }
 #endif
 
 protected:

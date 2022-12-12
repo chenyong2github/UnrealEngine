@@ -344,6 +344,7 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
+	virtual bool ForceActorNonSpatiallyLoaded() const override { return true; }
 #endif // WITH_EDITOR
 	virtual void Serialize(FArchive& Ar) override;
 	//~ Begin UObject Interface

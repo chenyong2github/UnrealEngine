@@ -35,7 +35,6 @@ public:
 #if WITH_EDITOR
 	LANDSCAPE_API bool HasGeneratedLandscapeSplineMeshesActors() const;
 	void SetLandscapeGuid(const FGuid& InGuid);
-	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return true; }
 	virtual void GetActorDescProperties(FPropertyPairsMap& PropertyPairsMap) const override;
 
 	void GetSharedProperties(ULandscapeInfo* InLandscapeInfo);
