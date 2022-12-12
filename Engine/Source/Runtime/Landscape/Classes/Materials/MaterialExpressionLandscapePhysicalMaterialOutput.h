@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Materials/MaterialExpressionCustomOutput.h"
-
+#include "MaterialValueType.h"
 #include "MaterialExpressionLandscapePhysicalMaterialOutput.generated.h"
 
 /** Structure linking a material expression input with a physical material. For use by UMaterialExpressionLandscapePhysicalMaterialOutput. */

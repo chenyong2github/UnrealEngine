@@ -10,10 +10,12 @@
 #include "UObject/ObjectMacros.h"
 #include "Misc/Guid.h"
 #include "MaterialExpressionIO.h"
+#include "MaterialTypes.h"
 #include "Materials/MaterialExpression.h"
 #include "MaterialExpressionMaterialFunctionCall.generated.h"
 
 class UMaterialFunction;
+class FMaterialFunctionCompileState;
 struct FPropertyChangedEvent;
 
 /** Struct that stores information about a function input which is needed to maintain connections and implement the function call. */

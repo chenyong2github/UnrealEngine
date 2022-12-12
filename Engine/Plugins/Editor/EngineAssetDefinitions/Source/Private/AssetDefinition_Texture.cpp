@@ -7,6 +7,7 @@
 #include "Misc/PackageName.h"
 #include "Styling/AppStyle.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialFunction.h"
 #include "Materials/MaterialInstance.h"
 #include "Factories/MaterialFactoryNew.h"
 #include "Interfaces/ITextureEditorModule.h"

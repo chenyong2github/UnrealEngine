@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "MaterialValueType.h"
 #include "Materials/MaterialExpression.h"
 #include "UObject/ObjectMacros.h"
 #include "MaterialExpressionRuntimeVirtualTextureReplace.generated.h"

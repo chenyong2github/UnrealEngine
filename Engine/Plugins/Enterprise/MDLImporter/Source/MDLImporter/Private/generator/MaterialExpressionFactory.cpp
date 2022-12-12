@@ -3,6 +3,7 @@
 #ifdef USE_MDLSDK
 
 #include "MaterialExpressionFactory.h"
+#include "Materials/MaterialExpressionMaterialFunctionCall.h"
 
 #include "generator/FunctionLoader.h"
 #include "generator/MaterialExpressions.h"

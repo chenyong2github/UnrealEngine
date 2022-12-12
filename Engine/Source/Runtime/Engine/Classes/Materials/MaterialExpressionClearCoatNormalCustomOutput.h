@@ -6,7 +6,9 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "MaterialExpressionIO.h"
+#include "MaterialValueType.h"
 #include "Materials/MaterialExpressionCustomOutput.h"
+#include "Shader/ShaderTypes.h"
 #include "MaterialExpressionClearCoatNormalCustomOutput.generated.h"
 
 UCLASS(MinimalAPI)

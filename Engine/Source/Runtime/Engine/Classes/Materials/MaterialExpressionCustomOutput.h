@@ -6,6 +6,8 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Materials/MaterialExpression.h"
+#include "RHIDefinitions.h"
+#include "Shader/ShaderTypes.h"
 #include "MaterialExpressionCustomOutput.generated.h"
 
 UCLASS(abstract,collapsecategories, hidecategories = Object, MinimalAPI)

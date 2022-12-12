@@ -19,6 +19,7 @@
 #include "InterchangeTexture2DFactoryNode.h"
 #include "InterchangeMaterialInstanceNode.h"
 
+#include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "Materials/MaterialFunction.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Materials/MaterialInstanceDynamic.h"

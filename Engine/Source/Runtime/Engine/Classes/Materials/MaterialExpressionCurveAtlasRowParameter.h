@@ -4,10 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
+#include "MaterialValueType.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
 #include "MaterialExpressionCurveAtlasRowParameter.generated.h"
-
-
 
 UCLASS(collapsecategories, hidecategories=(Object, MaterialExpressionScalarParameter), MinimalAPI)
 class UMaterialExpressionCurveAtlasRowParameter : public UMaterialExpressionScalarParameter

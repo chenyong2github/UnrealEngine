@@ -6,6 +6,7 @@
 
 #include "Containers/UnrealString.h"
 #include "Engine/Texture2D.h"
+#include "Materials/MaterialExpressionMaterialFunctionCall.h"
 
 namespace Generator
 {

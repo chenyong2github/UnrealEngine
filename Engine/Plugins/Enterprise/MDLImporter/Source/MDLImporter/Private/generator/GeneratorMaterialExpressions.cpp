@@ -3,6 +3,7 @@
 #include "MaterialExpressions.h"
 
 #include "common/Logging.h"
+#include "Materials/MaterialExpressionMaterialFunctionCall.h"
 
 namespace Generator
 {

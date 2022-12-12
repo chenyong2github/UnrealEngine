@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "MaterialValueType.h"
 #include "Materials/MaterialExpressionCustomOutput.h"
 #include "MaterialExpressionVertexInterpolator.generated.h"
 

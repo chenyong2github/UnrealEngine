@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Materials/MaterialExpressionCustomOutput.h"
+#include "MaterialValueType.h"
 
 #include "MaterialExpressionPhysicalMaterialOutput.generated.h"
 

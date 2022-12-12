@@ -14,6 +14,7 @@
 
 class UTexture;
 struct FPropertyChangedEvent;
+enum EMaterialSamplerType : int;
 
 UCLASS(abstract, hidecategories=Object)
 class ENGINE_API UMaterialExpressionTextureBase : public UMaterialExpression 
@@ -21,10 +22,10 @@ class ENGINE_API UMaterialExpressionTextureBase : public UMaterialExpression
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MaterialExpressionTextureBase)
-	TObjectPtr<class UTexture> Texture;
+	TObjectPtr<UTexture> Texture;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MaterialExpressionTextureBase, meta = (ShowAsInputPin = "Advanced"))
-	TEnumAsByte<enum EMaterialSamplerType> SamplerType;
+	TEnumAsByte<EMaterialSamplerType> SamplerType;
 	
 	/** Is default selected texture when using mesh paint mode texture painting */
 	UPROPERTY(EditAnywhere, Category=MaterialExpressionTextureBase)

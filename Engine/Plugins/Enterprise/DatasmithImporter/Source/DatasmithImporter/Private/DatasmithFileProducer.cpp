@@ -46,6 +46,7 @@
 #include "LevelSequence.h"
 #include "LevelVariantSets.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialFunction.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstance.h"
 #include "MaterialCachedData.h"

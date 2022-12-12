@@ -8,6 +8,7 @@
 #include "mdl/Material.h"
 
 #include "Materials/MaterialExpressionClearCoatNormalCustomOutput.h"
+#include "Materials/MaterialExpressionMaterialFunctionCall.h"
 
 namespace Mat
 {

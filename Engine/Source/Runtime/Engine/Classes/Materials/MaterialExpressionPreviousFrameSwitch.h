@@ -2,6 +2,7 @@
 
 
 #pragma once
+#include "MaterialValueType.h"
 #include "Materials/MaterialExpression.h"
 #include "MaterialExpressionPreviousFrameSwitch.generated.h"
 

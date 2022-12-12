@@ -61,6 +61,7 @@
 #include "LevelSequence.h"
 #include "LevelUtils.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialFunction.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Materials/MaterialInterface.h"
 #include "Misc/Guid.h"

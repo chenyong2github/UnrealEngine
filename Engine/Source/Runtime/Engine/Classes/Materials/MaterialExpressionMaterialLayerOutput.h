@@ -5,6 +5,7 @@
 #include "UObject/ObjectMacros.h"
 #include "Misc/Guid.h"
 #include "MaterialExpressionIO.h"
+#include "MaterialValueType.h"
 #include "Materials/MaterialExpressionFunctionOutput.h"
 #include "MaterialExpressionMaterialLayerOutput.generated.h"
 

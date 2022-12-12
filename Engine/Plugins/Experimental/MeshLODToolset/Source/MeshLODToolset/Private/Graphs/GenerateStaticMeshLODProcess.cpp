@@ -30,6 +30,7 @@
 
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceConstant.h"
+#include "Materials/MaterialExpressionTextureSampleParameter.h"
 #include "Factories/MaterialInstanceConstantFactoryNew.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "MaterialGraph/MaterialGraph.h"

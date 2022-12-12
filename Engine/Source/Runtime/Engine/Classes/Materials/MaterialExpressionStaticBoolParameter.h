@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
+#include "MaterialValueType.h"
 #include "Materials/MaterialExpressionParameter.h"
 #include "MaterialExpressionStaticBoolParameter.generated.h"
 

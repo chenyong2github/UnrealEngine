@@ -5,6 +5,7 @@
 #include "generator/FunctionLoader.h"
 #include "generator/MaterialExpressions.h"
 #include "material/MaterialFactory.h"
+#include "Materials/MaterialExpressionMaterialFunctionCall.h"
 
 namespace Mat
 {

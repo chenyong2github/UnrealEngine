@@ -13,6 +13,7 @@
 #include "mdl/Utility.h"
 
 #include "Materials/Material.h"
+#include "Materials/MaterialExpressionMaterialFunctionCall.h"
 
 MDLSDK_INCLUDES_START
 #include "mi/neuraylib/imaterial_definition.h"

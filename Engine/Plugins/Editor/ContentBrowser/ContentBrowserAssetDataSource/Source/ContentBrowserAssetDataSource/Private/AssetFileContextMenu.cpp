@@ -34,6 +34,7 @@
 #include "Components/ActorComponent.h"
 #include "GameFramework/Actor.h"
 #include "UnrealClient.h"
+#include "Materials/MaterialFunction.h"
 #include "Materials/MaterialFunctionInstance.h"
 #include "Materials/Material.h"
 #include "Settings/EditorExperimentalSettings.h"

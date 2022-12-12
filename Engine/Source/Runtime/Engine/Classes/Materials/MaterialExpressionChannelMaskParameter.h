@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
+#include "MaterialValueType.h"
 #include "Materials/MaterialExpressionChannelMaskParameterColor.h"
 #include "Materials/MaterialExpressionVectorParameter.h"
 #include "MaterialExpressionChannelMaskParameter.generated.h"

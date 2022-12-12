@@ -8,6 +8,7 @@
 #include "MaterialEditorUtilities.h"
 #include "MaterialShared.h"
 #include "MaterialGraph/MaterialGraphNode.h"
+#include "Materials/MaterialFunction.h"
 #include "Materials/MaterialInstance.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInstanceConstant.h"

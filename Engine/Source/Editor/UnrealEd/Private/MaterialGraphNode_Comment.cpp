@@ -8,6 +8,7 @@
 #include "ToolMenus.h"
 #include "MaterialGraph/MaterialGraphSchema.h"
 #include "Materials/MaterialExpressionComment.h"
+#include "Materials/MaterialFunction.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "GraphEditorActions.h"
 

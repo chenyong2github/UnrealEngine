@@ -9,6 +9,7 @@
 #include "Templates/Casts.h"
 #include "Materials/MaterialFunctionInterface.h"
 #include "StaticParameterSet.h"
+#include "MaterialExpression.h"
 #include "MaterialFunction.generated.h"
 
 class UMaterial;

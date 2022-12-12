@@ -6,6 +6,7 @@
 #include "MaterialEditor.h"
 #include "MaterialEditorUtilities.h"
 #include "MaterialInstanceEditor.h"
+#include "Materials/MaterialFunction.h"
 #include "Materials/MaterialInstance.h"
 #include "Materials/MaterialFunctionInstance.h"
 #include "Settings/EditorExperimentalSettings.h"

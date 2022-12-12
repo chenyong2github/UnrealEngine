@@ -31,7 +31,10 @@
 #include "MaterialEditor/MaterialEditorPreviewParameters.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
+#include "Materials/MaterialFunction.h"
 #include "Materials/MaterialFunctionInstance.h"
+#include "Materials/MaterialFunctionInterface.h"
+#include "Materials/MaterialExpressionTextureSampleParameter.h"
 #include "Framework/Application/SlateApplication.h"
 
 #include "Widgets/Input/SEditableTextBox.h"

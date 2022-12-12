@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Materials/MaterialExpression.h"
+#include "Shader/ShaderTypes.h"
 #include "MaterialExpressionGenericConstant.generated.h"
 
 UCLASS(abstract, MinimalAPI)

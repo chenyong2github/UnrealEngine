@@ -7,6 +7,7 @@
 #include "UObject/ObjectMacros.h"
 #include "MaterialExpressionIO.h"
 #include "Materials/MaterialExpression.h"
+#include "RHIDefinitions.h"
 #include "MaterialExpressionShaderStageSwitch.generated.h"
 
 UCLASS(collapsecategories, hidecategories = Object, MinimalAPI)

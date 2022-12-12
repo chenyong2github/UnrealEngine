@@ -141,6 +141,7 @@
 #include "Materials/MaterialExpressionWhileLoop.h"
 #include "Materials/MaterialFunctionInterface.h"
 #include "MaterialHLSLTree.h"
+#include "MaterialShared.h"
 #include "HLSLTree/HLSLTree.h"
 #include "HLSLTree/HLSLTreeCommon.h"
 #include "Engine/Engine.h"

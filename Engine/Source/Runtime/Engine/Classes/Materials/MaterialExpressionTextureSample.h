@@ -10,6 +10,8 @@
 #include "MaterialExpressionTextureSample.generated.h"
 
 struct FPropertyChangedEvent;
+enum ETextureMipValueMode : int;
+enum ESamplerSourceMode : int;
 
 UCLASS(collapsecategories, hidecategories=Object)
 class ENGINE_API UMaterialExpressionTextureSample : public UMaterialExpressionTextureBase
@@ -43,7 +45,7 @@ class ENGINE_API UMaterialExpressionTextureSample : public UMaterialExpressionTe
 
 	/** Defines how the MipValue property is applied to the texture lookup */
 	UPROPERTY(EditAnywhere, Category=MaterialExpressionTextureSample, meta=(DisplayName = "MipValueMode", ShowAsInputPin = "Advanced"))
-	TEnumAsByte<enum ETextureMipValueMode> MipValueMode;
+	TEnumAsByte<ETextureMipValueMode> MipValueMode;
 
 	/** 
 	 * Controls where the sampler for this texture lookup will come from.  
@@ -52,7 +54,7 @@ class ENGINE_API UMaterialExpressionTextureSample : public UMaterialExpressionTe
 	 * This allows materials to use more than 16 unique textures on SM5 platforms.
 	 */
 	UPROPERTY(EditAnywhere, Category=MaterialExpressionTextureSample, Meta = (ShowAsInputPin = "Advanced"))
-	TEnumAsByte<enum ESamplerSourceMode> SamplerSource;
+	TEnumAsByte<ESamplerSourceMode> SamplerSource;
 
 	/** Whether the texture should be sampled with per view mip biasing for sharper output with Temporal AA. */
 	UPROPERTY(EditAnywhere, Category = MaterialExpressionTextureSample)

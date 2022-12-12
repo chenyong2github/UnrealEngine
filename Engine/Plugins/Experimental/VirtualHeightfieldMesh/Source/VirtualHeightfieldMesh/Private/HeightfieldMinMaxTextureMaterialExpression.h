@@ -9,6 +9,7 @@
 
 struct FPropertyChangedEvent;
 class UHeightfieldMinMaxTexture;
+enum EMaterialSamplerType : int;
 
 /** Node which outputs a texture object contained in a UHeightfieldMinMaxTexture. */
 UCLASS(collapsecategories, hidecategories=Object, MinimalAPI)
@@ -20,7 +21,7 @@ class UMaterialExpressionHeightfieldMinMaxTexture : public UMaterialExpression
 	TObjectPtr<UHeightfieldMinMaxTexture> MinMaxTexture;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MaterialExpressionTexture)
-	TEnumAsByte<enum EMaterialSamplerType> SamplerType;
+	TEnumAsByte<EMaterialSamplerType> SamplerType;
 
 protected:
 #if WITH_EDITOR

@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Materials/MaterialExpression.h"
+#include "MaterialValueType.h"
 #include "MaterialExpressionConstant4Vector.generated.h"
 
 UCLASS(collapsecategories, hidecategories=Object, MinimalAPI)

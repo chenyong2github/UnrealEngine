@@ -10,6 +10,7 @@
 #include "GLTFMaterialAnalyzer.h"
 #include "IGLTFMaterialBakingModule.h"
 #include "GLTFMaterialBakingStructures.h"
+#include "Materials/MaterialExpressionTextureSample.h"
 #endif
 #include "Engine/RendererSettings.h"
 #include "Modules/ModuleManager.h"

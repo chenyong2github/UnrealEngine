@@ -11,6 +11,7 @@
 #include "Materials/MaterialExpressionCustomOutput.h"
 #include "Materials/MaterialExpressionVertexInterpolator.h"
 #include "Materials/MaterialExpressionExecBegin.h"
+#include "Materials/MaterialFunction.h"
 #include "MaterialHLSLTree.h"
 #include "Materials/Material.h"
 #include "MaterialCachedHLSLTree.h"

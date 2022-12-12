@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Materials/MaterialExpressionCustomOutput.h"
 #include "UObject/ObjectMacros.h"
+#include "Shader/ShaderTypes.h"
 #include "MaterialExpressionVolumetricAdvancedMaterialOutput.generated.h"
 
 /** Material output expression for writing advanced volumetric material properties. */

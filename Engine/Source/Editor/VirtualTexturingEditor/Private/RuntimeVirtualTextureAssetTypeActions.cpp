@@ -14,6 +14,7 @@
 #include "AssetRegistry/AssetRegistryHelpers.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionRuntimeVirtualTextureSample.h"
+#include "Materials/MaterialExpressionTextureBase.h"
 #include "Materials/MaterialFunction.h"
 #include "Materials/MaterialInstance.h"
 #include "Materials/MaterialInterface.h"

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "MaterialTypes.h"
 #include "Materials/MaterialExpressionRuntimeVirtualTextureSample.h"
 #include "MaterialExpressionRuntimeVirtualTextureSampleParameter.generated.h"
 

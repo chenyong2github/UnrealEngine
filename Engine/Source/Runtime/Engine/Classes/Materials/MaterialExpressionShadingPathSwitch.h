@@ -6,7 +6,9 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "MaterialExpressionIO.h"
+#include "MaterialValueType.h"
 #include "Materials/MaterialExpression.h"
+#include "RHIDefinitions.h"
 #include "MaterialExpressionShadingPathSwitch.generated.h"
 
 UCLASS(collapsecategories, hidecategories=Object, MinimalAPI)
