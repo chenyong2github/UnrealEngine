@@ -10,34 +10,6 @@
 
 #define LOCTEXT_NAMESPACE "SBlueprintDif"
 
-// well known algorithm for computing the Longest Common Subsequence table of two ordered lists
-template <typename RangeType, typename ComparePredicate>
-static TArray<TArray<int32>> CalculateLCSTable(const RangeType& Range1, const RangeType& Range2, ComparePredicate Comparison)
-{
-	TArray<TArray<int32>> LCS;
-	LCS.SetNum(Range1.Num() + 1);
-	for (int32 I = 0; I <= Range1.Num(); I++)
-	{
-		LCS[I].SetNum(Range2.Num() + 1);
-		if (I == 0)
-		{
-			continue;
-		}
-	
-		for (int32 J = 1; J <= Range2.Num(); J++)
-		{
-			if (Comparison(Range1[I - 1], Range2[J - 1]))
-			{
-				LCS[I][J] = LCS[I - 1][J - 1] + 1;
-			}
-			else
-			{
-				LCS[I][J] = FMath::Max(LCS[I - 1][J], LCS[I][J - 1]);
-			}
-		}
-	}
-	return LCS;
-}
 
 /////////////////////////////////////////////////////////////////////////////
 /// IDiffControl
@@ -213,137 +185,17 @@ void FSCSDiffControl::GenerateTreeEntries(TArray<TSharedPtr<FBlueprintDifference
 	));
 }
 
-FDetailsDiffControl::FDetailsDiffControl(const UObject* InOldObject, const UObject* InNewObject,
-	FOnDiffEntryFocused InSelectionCallback, bool bPopulateOutTreeEntries): SelectionCallback(InSelectionCallback)
-	                                                                        , OldDetails(InOldObject, FDetailsDiff::FOnDisplayedPropertiesChanged())
-	                                                                        , NewDetails(InNewObject, FDetailsDiff::FOnDisplayedPropertiesChanged())
-	                                                                        , bPopulateOutTreeEntries(bPopulateOutTreeEntries)
-{
-	OldDetails.DiffAgainst(NewDetails, DifferingProperties, true);
-
-	TSet<FPropertyPath> PropertyPaths;
-	Algo::Transform(DifferingProperties, PropertyPaths,
-	                [&InOldObject](const FSingleObjectDiffEntry& DiffEntry)
-	                {
-		                return DiffEntry.Identifier.ResolvePath(InOldObject);
-	                });
-
-	OldDetails.DetailsWidget()->UpdatePropertyAllowList(PropertyPaths);
-
-	PropertyPaths.Reset();
-	Algo::Transform(DifferingProperties, PropertyPaths,
-	                [&InNewObject](const FSingleObjectDiffEntry& DiffEntry)
-	                {
-		                return DiffEntry.Identifier.ResolvePath(InNewObject);
-	                });
-
-	NewDetails.DetailsWidget()->UpdatePropertyAllowList(PropertyPaths);
-		
-	// Sync the scrolling between the left and right panels
-	const TSharedRef<IDetailsView> OldDetailsView = OldDetails.DetailsWidget();
-	const TSharedRef<IDetailsView> NewDetailsView = NewDetails.DetailsWidget();
-	OldDetailsView->ScrollLockDetailsViews(NewDetailsView, GetLinkedScrollRateAttribute(OldDetailsView, NewDetailsView));
-
-	// Make it so that these details panels don't overwrite the saved expansion states since they're just temp copies
-	OldDetailsView->SetCategoryExpansionSaving(false);
-	OldDetailsView->SetCategoryExpansionSaving(false);
-}
-
-void FDetailsDiffControl::GenerateTreeEntries(TArray<TSharedPtr<FBlueprintDifferenceTreeEntry>>& OutTreeEntries, TArray<TSharedPtr<FBlueprintDifferenceTreeEntry>>& OutRealDifferences)
-{
-	for (const FSingleObjectDiffEntry& Difference : DifferingProperties)
-	{
-			
-		TSharedPtr<FBlueprintDifferenceTreeEntry> Entry = MakeShared<FBlueprintDifferenceTreeEntry>(
-			FOnDiffEntryFocused::CreateSP(TSharedFromThis<FDetailsDiffControl>::AsShared(), &FDetailsDiffControl::OnSelectDiffEntry, Difference.Identifier),
-			FGenerateDiffEntryWidget::CreateStatic(&GenerateObjectDiffWidget, Difference, RightRevision));
-		Children.Push(Entry);
-		OutRealDifferences.Push(Entry);
-		if (bPopulateOutTreeEntries)
-		{
-			OutTreeEntries.Push(Entry);
-		}
-	}
-}
-
-void FDetailsDiffControl::OnSelectDiffEntry(FPropertySoftPath PropertyName)
-{
-	SelectionCallback.ExecuteIfBound();
-	OldDetails.HighlightProperty(PropertyName);
-	NewDetails.HighlightProperty(PropertyName);
-}
-
-TAttribute<FInvertiblePiecewiseLinearFunction> FDetailsDiffControl::GetLinkedScrollRateAttribute(const TSharedRef<IDetailsView>& OldDetailsView, const TSharedRef<IDetailsView>& NewDetailsView)
-{
-	return TAttribute<FInvertiblePiecewiseLinearFunction>::CreateRaw(this, &FDetailsDiffControl::GetLinkedScrollRate, OldDetailsView, NewDetailsView);
-}
-
-FInvertiblePiecewiseLinearFunction FDetailsDiffControl::GetLinkedScrollRate(TSharedRef<IDetailsView> OldDetailsView, TSharedRef<IDetailsView> NewDetailsView) const
-{
-	TArray<TPair<int32, FPropertyPath>> OldProperties = OldDetailsView->GetPropertyRowNumbers();
-	TArray<TPair<int32, FPropertyPath>> NewProperties = NewDetailsView->GetPropertyRowNumbers();
-
-	// use caching to avoid O(n^2) LCS calculation every frame
-	if(LinkedScrollRateCache.OldProperties != OldProperties || LinkedScrollRateCache.NewProperties != NewProperties)
-	{
-		const auto PropertyPathsEqual = [](const TPair<int32, FPropertyPath>& A, const TPair<int32, FPropertyPath>& B)
-		{
-			return A.Value == B.Value;
-		};
-		
-		// Find the Longest Common Subsequence between both sets of properties
-		const TArray<TArray<int32>> LCS = CalculateLCSTable(OldProperties, NewProperties, PropertyPathsEqual);
-	
-		// Using the LCS Table, we can determine which lines should match one another while scrolling. For example, an element
-		// of FixedPoints may be {12.f, 5.f} meaning that line 12 of the left panel is the same as line 5 of the right panel
-		TArray<FVector2f> FixedPoints;
-
-		int32 I = OldProperties.Num();
-		int32 J = NewProperties.Num();
-		while (I > 0 && J > 0)
-		{
-			if (OldProperties[I - 1].Value == NewProperties[J - 1].Value)
-			{
-				const int32 OldLineNum = OldProperties[I - 1].Key;
-				const int32 NewLineNum = NewProperties[J - 1].Key;
-				// add two endpoints for every matched property because the elements have a width of 1 in the panels
-				FixedPoints.Add(FVector2f(OldLineNum + 1.f, NewLineNum + 1.f));
-				FixedPoints.Add(FVector2f((float)OldLineNum, (float)NewLineNum));
-				--I;
-				--J;
-			}
-			else if (LCS[I - 1][J] <= LCS[I][J	 - 1])
-			{
-				--J;
-			}
-			else
-			{
-				--I;
-			}
-		}
-		FixedPoints.Add({0.f, 0.f});
-		Algo::Reverse(FixedPoints);
-        	
-		LinkedScrollRateCache.OldProperties = OldProperties;
-		LinkedScrollRateCache.NewProperties = NewProperties;
-		LinkedScrollRateCache.ScrollRate = FInvertiblePiecewiseLinearFunction (FixedPoints);
-	}
-	
-	return LinkedScrollRateCache.ScrollRate;
-}
-
 
 /////////////////////////////////////////////////////////////////////////////
 /// FCDODiffControl
 
-FCDODiffControl::FCDODiffControl(const UObject* InOldObject, const UObject* InNewObject, FOnDiffEntryFocused InSelectionCallback)
-	: FDetailsDiffControl(InOldObject, InNewObject, InSelectionCallback, false)
+FCDODiffControl::FCDODiffControl(const UObject* InOldObject, const UObject* InNewObject, FOnDiffEntryFocused InSelectionCallback): TDetailsDiffControl(InOldObject, InNewObject, InSelectionCallback)
 {
 }
 
 void FCDODiffControl::GenerateTreeEntries(TArray<TSharedPtr<FBlueprintDifferenceTreeEntry>>& OutTreeEntries, TArray<TSharedPtr<FBlueprintDifferenceTreeEntry>>& OutRealDifferences)
 {
-	FDetailsDiffControl::GenerateTreeEntries(OutTreeEntries, OutRealDifferences);
+	TDetailsDiffControl::GenerateTreeEntries(OutTreeEntries, OutRealDifferences);
 
 	const bool bHasDifferences = Children.Num() != 0;
 	if (!bHasDifferences)
@@ -366,14 +218,13 @@ void FCDODiffControl::GenerateTreeEntries(TArray<TSharedPtr<FBlueprintDifference
 /////////////////////////////////////////////////////////////////////////////
 /// FClassSettingsDiffControl
 
-FClassSettingsDiffControl::FClassSettingsDiffControl(const UObject* InOldObject, const UObject* InNewObject, FOnDiffEntryFocused InSelectionCallback)
-	: FDetailsDiffControl(InOldObject, InNewObject, InSelectionCallback, false)
+FClassSettingsDiffControl::FClassSettingsDiffControl(const UObject* InOldObject, const UObject* InNewObject, FOnDiffEntryFocused InSelectionCallback): TDetailsDiffControl(InOldObject, InNewObject, InSelectionCallback)
 {
 }
 
 void FClassSettingsDiffControl::GenerateTreeEntries(TArray<TSharedPtr<FBlueprintDifferenceTreeEntry>>& OutTreeEntries, TArray<TSharedPtr<FBlueprintDifferenceTreeEntry>>& OutRealDifferences)
 {
-	FDetailsDiffControl::GenerateTreeEntries(OutTreeEntries, OutRealDifferences);
+	TDetailsDiffControl::GenerateTreeEntries(OutTreeEntries, OutRealDifferences);
 
 	const bool bHasDifferences = Children.Num() != 0;
 	if (!bHasDifferences)

@@ -274,29 +274,6 @@ EActiveTimerReturnType STableViewBase::EnsureTickToRefresh(double InCurrentTime,
 	return EActiveTimerReturnType::Stop;
 }
 
-FScrollLockedTableView::FScrollLockedTableView(const TSharedPtr<STableViewBase>& XTable,
-	const TSharedPtr<STableViewBase>& YTable, const TAttribute<FInvertiblePiecewiseLinearFunction>& ScrollSyncRate): XTable(XTable)
-	, YTable(YTable)
-	, ScrollSyncRate(ScrollSyncRate)
-{}
-
-void FScrollLockedTableView::MatchScroll(const STableViewBase* Scroller) const
-{
-	if (!XTable.IsValid() || !YTable.IsValid())
-	{
-		return;
-	}
-	if (Scroller == XTable.Pin().Get())
-	{
-		YTable.Pin()->SetScrollOffset(ScrollSyncRate.Get().SolveForY(Scroller->GetScrollOffset()));
-	}
-	else
-	{
-		check(Scroller == YTable.Pin().Get());
-		XTable.Pin()->SetScrollOffset(ScrollSyncRate.Get().SolveForX(Scroller->GetScrollOffset()));
-	}
-}
-
 void STableViewBase::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
 {
 	if (ItemsPanel.IsValid())
@@ -855,12 +832,6 @@ float STableViewBase::ScrollTo( float InScrollOffset)
 
 	SetScrollOffset( NewScrollOffset );
 
-	// if another table is scrolling in sync with this one, update it
-	if (ScrollLockedTable)
-	{
-		ScrollLockedTable->MatchScroll(this);
-	}
-
 	return AmountScrolled;
 }
 
@@ -953,11 +924,6 @@ void STableViewBase::SetWheelScrollMultiplier(float NewWheelScrollMultiplier)
 void STableViewBase::SetBackgroundBrush(const TAttribute<const FSlateBrush*>& InBackgroundBrush)
 {
 	BackgroundBrush.SetImage(*this, InBackgroundBrush);
-}
-
-void STableViewBase::SetScrollLockedTable(TSharedPtr<FScrollLockedTableView> ScrollLockedTableView)
-{
-	ScrollLockedTable = ScrollLockedTableView;
 }
 
 void STableViewBase::InsertWidget( const TSharedRef<ITableRow> & WidgetToInset )
