@@ -54,6 +54,9 @@ struct FPCGRootSet
 	void Remove(UObject* InObject);
 
 	TMap<UObject*, int32> RootSet;
+private:
+	void AddInternal(UObject* InObject);
+	void RemoveInternal(UObject* InObject);
 };
 
 USTRUCT(BlueprintType)

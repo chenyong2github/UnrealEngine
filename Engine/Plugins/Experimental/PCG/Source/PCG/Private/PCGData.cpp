@@ -20,16 +20,31 @@ void FPCGRootSet::Clear()
 void FPCGRootSet::Add(UObject* InObject)
 {
 	check(InObject);
+	AddInternal(InObject);
+}
+
+void FPCGRootSet::AddInternal(UObject* InObject)
+{
+	check(InObject && !InObject->IsA<UPackage>());
+
 	if (int32* Found = RootSet.Find(InObject))
 	{
 		(*Found)++;
 	}
-	else if(!InObject->IsRooted() && InObject->GetPackage() == GetTransientPackage())
+	else if (!InObject->IsRooted() && InObject->GetPackage() == GetTransientPackage())
 	{
 		InObject->AddToRoot();
 		RootSet.Emplace(InObject, 1);
 	}
+
+	// Recurse to outermost
+	UObject* OuterObject = InObject->GetOuter();
+	if (OuterObject && !OuterObject->IsA<UPackage>())
+	{
+		AddInternal(OuterObject);
+	}
 }
+
 void FPCGRootSet::Remove(UObject* InObject)
 {
 	if (!InObject)
@@ -37,7 +52,14 @@ void FPCGRootSet::Remove(UObject* InObject)
 		UE_LOG(LogPCG, Warning, TEXT("Trying to remove a null object from the rootset"));
 		return;
 	}
-	
+
+	RemoveInternal(InObject);
+}
+
+void FPCGRootSet::RemoveInternal(UObject* InObject)
+{
+	check(InObject && !InObject->IsA<UPackage>());
+
 	if (int32* Found = RootSet.Find(InObject))
 	{
 		check(InObject->IsRooted());
@@ -48,6 +70,13 @@ void FPCGRootSet::Remove(UObject* InObject)
 			InObject->RemoveFromRoot();
 			RootSet.Remove(InObject);
 		}
+	}
+
+	// Recurse to outermost
+	UObject* OuterObject = InObject->GetOuter();
+	if (OuterObject && !OuterObject->IsA<UPackage>())
+	{
+		RemoveInternal(OuterObject);
 	}
 }
 
