@@ -64,7 +64,7 @@ public:
 		{
 			AutomatedApplication->AllowPlatformMessageHandling();
 		}
-		
+
 		FSlateApplication::Get().SetPlatformApplication(AutomatedApplication.ToSharedRef());
 	}
 
@@ -76,6 +76,12 @@ public:
 		}
 
 		AutomatedApplication->DisablePlatformMessageHandling();
+
+#if WITH_ACCESSIBILITY
+		// Unregister primary user on the accessible handler before swapping back the original application
+		FGenericAccessibleUserRegistry& UserRegistry = AutomatedApplication->GetAccessibleMessageHandler()->GetAccessibleUserRegistry();
+		UserRegistry.UnregisterUser(FGenericAccessibleUserRegistry::GetPrimaryUserIndex());
+#endif
 
 		FSlateApplication::Get().SetPlatformApplication(RealApplication.ToSharedRef());
 		RealApplication->SetMessageHandler(RealMessageHandler.ToSharedRef());
