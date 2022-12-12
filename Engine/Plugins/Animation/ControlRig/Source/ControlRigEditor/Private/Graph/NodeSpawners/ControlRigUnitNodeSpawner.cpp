@@ -294,7 +294,7 @@ UControlRigGraphNode* UControlRigUnitNodeSpawner::SpawnNode(UEdGraph* ParentGrap
 						for (int64 EnumValue = 0; EnumValue < MaxEnumValue; EnumValue++)
 						{
 							FString EnumText = RigElementTypeEnum->GetDisplayNameTextByValue(EnumValue).ToString().ToLower();
-							if (UsedFilterString.Contains(EnumText))
+							if (!EnumText.IsEmpty() && UsedFilterString.Contains(EnumText))
 							{
 								UsedElementType = (ERigElementType)EnumValue;
 								break;

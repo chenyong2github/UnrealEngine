@@ -1109,7 +1109,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
 	bool SetNameArrayMetadata(FRigElementKey InItem, FName InMetadataName, TArray<FName> InValue)
 	{
-		return SetArrayMetadata<FName>(InItem, ERigMetadataType::FloatArray, InMetadataName, InValue);
+		return SetArrayMetadata<FName>(InItem, ERigMetadataType::NameArray, InMetadataName, InValue);
 	}
 
 	/**
