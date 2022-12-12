@@ -998,23 +998,21 @@ bool UK2Node_PromotableOperator::CreateIntermediateCast(UK2Node_CallFunction* So
 	}
 
 	UK2Node* TemplateConversionNode = nullptr;
-	FName TargetFunctionName;
-	UClass* ClassContainingConversionFunction = nullptr;
 	TSubclassOf<UK2Node> ConversionNodeClass;
 
-	if (Schema->SearchForAutocastFunction(InputPin->PinType, OutputPin->PinType, /*out*/ TargetFunctionName, /*out*/ClassContainingConversionFunction))
+	if (TOptional<UEdGraphSchema_K2::FSearchForAutocastFunctionResults> AutoCastResults = Schema->SearchForAutocastFunction(InputPin->PinType, OutputPin->PinType))
 	{
 		// Create a new call function node for the casting operator
 		UK2Node_CallFunction* TemplateNode = SourceGraph->CreateIntermediateNode<UK2Node_CallFunction>();
-		TemplateNode->FunctionReference.SetExternalMember(TargetFunctionName, ClassContainingConversionFunction);
+		TemplateNode->FunctionReference.SetExternalMember(AutoCastResults->TargetFunction, AutoCastResults->FunctionOwner);
 		TemplateConversionNode = TemplateNode;
 		TemplateNode->AllocateDefaultPins();
 		CompilerContext.MessageLog.NotifyIntermediateObjectCreation(TemplateNode, this);
 	}
-	else if (Schema->FindSpecializedConversionNode(InputPin, OutputPin, true, /*out*/ TemplateConversionNode))
+	else if (TOptional<UEdGraphSchema_K2::FindSpecializedConversionNodeResults> ConversionNodeResults = Schema->FindSpecializedConversionNode(InputPin->PinType, *OutputPin, true))
 	{
 		FVector2D AverageLocation = UEdGraphSchema_K2::CalculateAveragePositionBetweenNodes(InputPin, OutputPin);		
-		TemplateConversionNode = FEdGraphSchemaAction_K2NewNode::SpawnNodeFromTemplate<UK2Node>(SourceGraph, TemplateConversionNode, AverageLocation);		
+		TemplateConversionNode = FEdGraphSchemaAction_K2NewNode::SpawnNodeFromTemplate<UK2Node>(SourceGraph, ConversionNodeResults->TargetNode, AverageLocation);
 		CompilerContext.MessageLog.NotifyIntermediateObjectCreation(TemplateConversionNode, this);
 	}
 

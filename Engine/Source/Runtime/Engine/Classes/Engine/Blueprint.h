@@ -17,9 +17,14 @@
 #endif
 #include "UObject/SoftObjectPath.h"
 #include "Blueprint/BlueprintSupport.h"
+
+#if WITH_EDITOR
+#include "EngineLogs.h"
+#include "Kismet2/CompilerResultsLog.h"
+#endif
+
 #include "Blueprint.generated.h"
 
-class FCompilerResultsLog;
 class ITargetPlatform;
 class UActorComponent;
 class UEdGraph;
@@ -1212,21 +1217,56 @@ private:
 
 public:
 	/** If this blueprint is currently being compiled, the CurrentMessageLog will be the log currently being used to send logs to. */
-	class FCompilerResultsLog* CurrentMessageLog;
+	FCompilerResultsLog* CurrentMessageLog;
 
 	/** Message log for storing upgrade notes that were generated within the Blueprint, will be displayed to the compiler results each compiler and will remain until saving */
-	TSharedPtr<class FCompilerResultsLog> UpgradeNotesLog;
+	TSharedPtr<FCompilerResultsLog> UpgradeNotesLog;
 
 	/** Message log for storing pre-compile errors/notes/warnings that will only last until the next Blueprint compile */
-	TSharedPtr<class FCompilerResultsLog> PreCompileLog;
+	TSharedPtr<FCompilerResultsLog> PreCompileLog;
 
 	/** 
 	 * Sends a message to the CurrentMessageLog, if there is one available.  Otherwise, defaults to logging to the normal channels.
 	 * Should use this for node and blueprint actions that happen during compilation!
 	 */
-	void Message_Note(const FString& MessageToLog);
-	void Message_Warn(const FString& MessageToLog);
-	void Message_Error(const FString& MessageToLog);
+	template<typename... ArgTypes>
+	void Message_Note(const FString& MessageToLog, ArgTypes... Args)
+	{
+		if (CurrentMessageLog)
+		{
+			CurrentMessageLog->Note(*MessageToLog, Forward<ArgTypes>(Args)...);
+		}
+		else
+		{
+			UE_LOG(LogBlueprint, Log, TEXT("[%s] %s"), *GetName(), *MessageToLog);
+		}
+	}
+
+	template<typename... ArgTypes>
+	void Message_Warn(const FString& MessageToLog, ArgTypes... Args)
+	{
+		if (CurrentMessageLog)
+		{
+			CurrentMessageLog->Warning(*MessageToLog, Forward<ArgTypes>(Args)...);
+		}
+		else
+		{
+			UE_LOG(LogBlueprint, Warning, TEXT("[%s] %s"), *GetName(), *MessageToLog);
+		}
+	}
+
+	template<typename... ArgTypes>
+	void Message_Error(const FString& MessageToLog, ArgTypes... Args)
+	{
+		if (CurrentMessageLog)
+		{
+			CurrentMessageLog->Error(*MessageToLog, Forward<ArgTypes>(Args)...);
+		}
+		else
+		{
+			UE_LOG(LogBlueprint, Error, TEXT("[%s] %s"), *GetName(), *MessageToLog);
+		}
+	}
 #endif
 	
 #if WITH_EDITORONLY_DATA

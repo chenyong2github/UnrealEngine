@@ -29,7 +29,6 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/ComponentEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
-#include "Kismet2/CompilerResultsLog.h"
 #include "Kismet2/StructureEditorUtils.h"
 #include "WatchPointViewer.h"
 #include "FindInBlueprintManager.h"
@@ -1816,42 +1815,6 @@ void UBlueprint::GetAllGraphs(TArray<UEdGraph*>& Graphs) const
 }
 
 #if WITH_EDITOR
-void UBlueprint::Message_Note(const FString& MessageToLog)
-{
-	if( CurrentMessageLog )
-	{
-		CurrentMessageLog->Note(*MessageToLog);
-	}
-	else
-	{
-		UE_LOG(LogBlueprint, Log, TEXT("[%s] %s"), *GetName(), *MessageToLog);
-	}
-}
-
-void UBlueprint::Message_Warn(const FString& MessageToLog)
-{
-	if( CurrentMessageLog )
-	{
-		CurrentMessageLog->Warning(*MessageToLog);
-	}
-	else
-	{
-		UE_LOG(LogBlueprint, Warning, TEXT("[%s] %s"), *GetName(), *MessageToLog);
-	}
-}
-
-void UBlueprint::Message_Error(const FString& MessageToLog)
-{
-	if( CurrentMessageLog )
-	{
-		CurrentMessageLog->Error(*MessageToLog);
-	}
-	else
-	{
-		UE_LOG(LogBlueprint, Error, TEXT("[%s] %s"), *GetName(), *MessageToLog);
-	}
-}
-
 bool UBlueprint::ChangeOwnerOfTemplates()
 {
 	struct FUniqueNewNameHelper

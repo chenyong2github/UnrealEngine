@@ -518,20 +518,37 @@ FReply UAnimationGraphSchema::BeginGraphDragAction(TSharedPtr<FEdGraphSchemaActi
 
 bool UAnimationGraphSchema::SearchForAutocastFunction(const FEdGraphPinType& OutputPinType, const FEdGraphPinType& InputPinType, FName& TargetFunction, /*out*/ UClass*& FunctionOwner) const
 {
+	TOptional<UEdGraphSchema_K2::FSearchForAutocastFunctionResults> Result = SearchForAutocastFunction(OutputPinType, InputPinType);
+	if (Result)
+	{
+		TargetFunction = Result->TargetFunction;
+		FunctionOwner = Result->FunctionOwner;
+		return true;
+	}
+
+	return false;
+}
+
+TOptional<UEdGraphSchema_K2::FSearchForAutocastFunctionResults> UAnimationGraphSchema::SearchForAutocastFunction(const FEdGraphPinType& OutputPinType, const FEdGraphPinType& InputPinType) const
+{
+	TOptional<UEdGraphSchema_K2::FSearchForAutocastFunctionResults> Result;
+
 	if (IsComponentSpacePosePin(OutputPinType) && IsLocalSpacePosePin(InputPinType))
 	{
 		// Insert a Component To LocalSpace conversion
-		return true;
+		Result = UEdGraphSchema_K2::FSearchForAutocastFunctionResults{};
 	}
 	else if (IsLocalSpacePosePin(OutputPinType) && IsComponentSpacePosePin(InputPinType))
 	{
 		// Insert a Local To ComponentSpace conversion
-		return true;
+		Result = UEdGraphSchema_K2::FSearchForAutocastFunctionResults{};
 	}
 	else
 	{
-		return Super::SearchForAutocastFunction(OutputPinType, InputPinType, TargetFunction, FunctionOwner);
+		Result = Super::SearchForAutocastFunction(OutputPinType, InputPinType);
 	}
+
+	return Result;
 }
 
 bool UAnimationGraphSchema::CreateAutomaticConversionNodeAndConnections(UEdGraphPin* PinA, UEdGraphPin* PinB) const

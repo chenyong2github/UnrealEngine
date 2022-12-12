@@ -1827,45 +1827,6 @@ bool UK2Node::CanCreateUnderSpecifiedSchema(const UEdGraphSchema* DesiredSchema)
 	return DesiredSchema->GetClass()->IsChildOf(UEdGraphSchema_K2::StaticClass());
 }
 
-void UK2Node::Message_Note(const FString& Message)
-{
-	UBlueprint* OwningBP = GetBlueprint();
-	if( OwningBP )
-	{
-		OwningBP->Message_Note(Message);
-	}
-	else
-	{
-		UE_LOG(LogBlueprint, Log, TEXT("%s"), *Message);
-	}
-}
-
-void UK2Node::Message_Warn(const FString& Message)
-{
-	UBlueprint* OwningBP = GetBlueprint();
-	if( OwningBP )
-	{
-		OwningBP->Message_Warn(Message);
-	}
-	else
-	{
-		UE_LOG(LogBlueprint, Warning, TEXT("%s"), *Message);
-	}
-}
-
-void UK2Node::Message_Error(const FString& Message)
-{
-	UBlueprint* OwningBP = GetBlueprint();
-	if( OwningBP )
-	{
-		OwningBP->Message_Error(Message);
-	}
-	else
-	{
-		UE_LOG(LogBlueprint, Error, TEXT("%s"), *Message);
-	}
-}
-
 FString UK2Node::GetDocumentationLink() const
 {
 	return TEXT("Shared/GraphNodes/Blueprint");

@@ -71,7 +71,9 @@ class UAnimationGraphSchema : public UEdGraphSchema_K2
 
 	//~ Begin UEdGraphSchema_K2 Interface
 	virtual const FPinConnectionResponse DetermineConnectionResponseOfCompatibleTypedPins(const UEdGraphPin* PinA, const UEdGraphPin* PinB, const UEdGraphPin* InputPin, const UEdGraphPin* OutputPin) const override;
+	UE_DEPRECATED(5.2, "Use the FSearchForAutocastFunctionResults variant.")
 	virtual bool SearchForAutocastFunction(const FEdGraphPinType& OutputPinType, const FEdGraphPinType& InputPinType, /*out*/ FName& TargetFunction, /*out*/ UClass*& FunctionOwner) const override;
+	virtual TOptional<FSearchForAutocastFunctionResults> SearchForAutocastFunction(const FEdGraphPinType& OutputPinType, const FEdGraphPinType& InputPinType) const;
 	virtual bool ArePinsCompatible(const UEdGraphPin* PinA, const UEdGraphPin* PinB, const UClass* CallingContext = NULL, bool bIgnoreArray = false) const override;
 	virtual bool DoesSupportCollapsedNodes() const override { return false; }
 	virtual bool DoesSupportEventDispatcher() const	override { return false; }

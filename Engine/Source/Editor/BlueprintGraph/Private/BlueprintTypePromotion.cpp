@@ -125,11 +125,7 @@ bool FTypePromotion::IsValidPromotion(const FEdGraphPinType& A, const FEdGraphPi
 	{
 		const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 
-		FName DummyName;
-		UClass* DummyClass = nullptr;
-		UK2Node* DummyNode = nullptr;
-
-		return K2Schema->SearchForAutocastFunction(A, B, /*out*/ DummyName, DummyClass);
+		return K2Schema->SearchForAutocastFunction(A, B).IsSet();
 	}
 	else
 	{
@@ -139,14 +135,13 @@ bool FTypePromotion::IsValidPromotion(const FEdGraphPinType& A, const FEdGraphPi
 
 bool FTypePromotion::HasStructConversion(const UEdGraphPin* InputPin, const UEdGraphPin* OutputPin)
 {
+	check(InputPin);
+	check(OutputPin);
+
 	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 
-	FName DummyName;
-	UClass* DummyClass = nullptr;
-	UK2Node* DummyNode = nullptr;
-
-	const bool bCanAutocast = K2Schema->SearchForAutocastFunction(OutputPin->PinType, InputPin->PinType, /*out*/ DummyName, DummyClass);
-	const bool bCanAutoConvert = K2Schema->FindSpecializedConversionNode(OutputPin, InputPin, false, /* out */ DummyNode);
+	const bool bCanAutocast = K2Schema->SearchForAutocastFunction(OutputPin->PinType, InputPin->PinType).IsSet();
+	const bool bCanAutoConvert = K2Schema->FindSpecializedConversionNode(OutputPin->PinType, *InputPin, false).IsSet();
 	
 	return bCanAutocast || bCanAutoConvert;
 }

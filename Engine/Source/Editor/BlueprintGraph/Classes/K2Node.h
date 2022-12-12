@@ -11,6 +11,7 @@
 #include "CoreMinimal.h"
 #include "Delegates/Delegate.h"
 #include "EdGraph/EdGraphNode.h"
+#include "Engine/Blueprint.h"
 #include "HAL/PlatformMath.h"
 #include "Internationalization/Text.h"
 #include "Math/Color.h"
@@ -491,10 +492,47 @@ protected:
 	 * Sends a message to the owning blueprint's CurrentMessageLog, if there is one available.  Otherwise, defaults to logging to the normal channels.
 	 * Should use this for node actions that happen during compilation!
 	 */
-	void Message_Note(const FString& Message);
-	void Message_Warn(const FString& Message);
-	void Message_Error(const FString& Message);
+	template<typename... ArgTypes>
+	void Message_Note(const FString& Message, ArgTypes... Args)
+	{
+		UBlueprint* OwningBP = GetBlueprint();
+		if (OwningBP)
+		{
+			OwningBP->Message_Note(Message, Forward<ArgTypes>(Args)...);
+		}
+		else
+		{
+			UE_LOG(LogBlueprint, Log, TEXT("%s"), *Message);
+		}
+	}
 
+	template<typename... ArgTypes>
+	void Message_Warn(const FString& Message, ArgTypes... Args)
+	{
+		UBlueprint* OwningBP = GetBlueprint();
+		if (OwningBP)
+		{
+			OwningBP->Message_Warn(Message, Forward<ArgTypes>(Args)...);
+		}
+		else
+		{
+			UE_LOG(LogBlueprint, Warning, TEXT("%s"), *Message);
+		}
+	}
+
+	template<typename... ArgTypes>
+	void Message_Error(const FString& Message, ArgTypes... Args)
+	{
+		UBlueprint* OwningBP = GetBlueprint();
+		if (OwningBP)
+		{
+			OwningBP->Message_Error(Message, Forward<ArgTypes>(Args)...);
+		}
+		else
+		{
+			UE_LOG(LogBlueprint, Error, TEXT("%s"), *Message);
+		}
+	}
 
 	friend class FKismetCompilerContext;
 

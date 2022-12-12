@@ -397,12 +397,10 @@ void UAnimBlueprintExtension_PropertyAccess::ExpandPropertyAccess(FKismetCompile
 			else
 			{
 				// Need to create a conversion node. We will support basic conversion here for now as we are only looking for primitive types/casts
-				FName FuncName = NAME_None;
-				UClass* FuncOwner = nullptr;
-				if(K2Schema->SearchForAutocastFunction(CurrentPin->PinType, InTargetPin->PinType, FuncName, FuncOwner))
+				if(TOptional<UEdGraphSchema_K2::FSearchForAutocastFunctionResults> AutoCastResults = K2Schema->SearchForAutocastFunction(CurrentPin->PinType, InTargetPin->PinType))
 				{
 					UK2Node_CallFunction* AutoCastNode = InCompilerContext.SpawnIntermediateNode<UK2Node_CallFunction>(SourceNode, InParentGraph);
-					AutoCastNode->FunctionReference.SetExternalMember(FuncName, FuncOwner);
+					AutoCastNode->FunctionReference.SetExternalMember(AutoCastResults->TargetFunction, AutoCastResults->FunctionOwner);
 					AutoCastNode->AllocateDefaultPins();
 					
 					// Find output pin & connect
