@@ -21,9 +21,7 @@ UVirtualHeightfieldMeshComponent::UVirtualHeightfieldMeshComponent(const FObject
 	bAffectDynamicIndirectLighting = false;
 	bAffectDistanceFieldLighting = false;
 	bNeverDistanceCull = true;
-#if WITH_EDITORONLY_DATA
 	bEnableAutoLODGeneration = false;
-#endif // WITH_EDITORONLY_DATA
 	Mobility = EComponentMobility::Static;
 }
 

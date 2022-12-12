@@ -27,6 +27,7 @@
 #include "HitProxies.h"
 #include "Interfaces/Interface_AsyncCompilation.h"
 #include "HLOD/HLODBatchingPolicy.h"
+#include "HLOD/HLODLevelExclusion.h"
 #include "Stats/Stats2.h"
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
 #include "Engine/OverlapInfo.h"
@@ -305,34 +306,29 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Lighting)
 	ELightmapType LightmapType;
 
-#if WITH_EDITORONLY_DATA
-	/** Whether to include this component in HLODs or not. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=HLOD, meta=(DisplayName="Include Component in HLOD"))
-	uint8 bEnableAutoLODGeneration : 1;
-
 	/** Which specific HLOD levels this component should be excluded from */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category=HLOD, meta=(DisplayName="Exclude from HLOD Levels", EditConditionHides, EditCondition="bEnableAutoLODGeneration"))
-	TArray<int32> ExcludeForSpecificHLODLevels;
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category=HLOD, meta=(Bitmask, BitmaskEnum = "EHLODLevelExclusion", DisplayName="Exclude from HLOD Levels", DisplayAfter="bEnableAutoLODGeneration", EditConditionHides, EditCondition="bEnableAutoLODGeneration"))
+	uint8 ExcludeFromSpecificHLODLevels;
 
 	/** Determines how the geometry of a component will be incorporated in proxy (simplified) HLODs. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category=HLOD, meta=(DisplayName="HLOD Batching Policy", EditConditionHides, EditCondition="bEnableAutoLODGeneration"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category=HLOD, meta=(DisplayName="HLOD Batching Policy", DisplayAfter="bEnableAutoLODGeneration", EditConditionHides, EditCondition="bEnableAutoLODGeneration"))
 	EHLODBatchingPolicy HLODBatchingPolicy;
 
+	/** Whether to include this component in HLODs or not. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = HLOD, meta=(DisplayName="Include Component in HLOD"))
+	uint8 bEnableAutoLODGeneration : 1;
 
 	/** Indicates that the texture streaming built data is local to the Actor (see UActorTextureStreamingBuildDataComponent). */
 	UPROPERTY()
 	uint8 bIsActorTextureStreamingBuiltData : 1;
-#endif 
 
 	/** Indicates to the texture streaming wether it can use the pre-built texture streaming data (even if empty). */
 	UPROPERTY()
 	uint8 bIsValidTextureStreamingBuiltData : 1;
 
-	/**
-	 * When enabled this object will not be culled by distance. This is ignored if a child of a HLOD.
-	 */
+	/** When enabled this object will not be culled by distance. This is ignored if a child of a HLOD. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=LOD)
-	uint8 bNeverDistanceCull:1;
+	uint8 bNeverDistanceCull : 1;
 
 	/** Whether this primitive is referenced by a FLevelRenderAssetManager  */
 	mutable uint8 bAttachedToStreamingManagerAsStatic : 1;
@@ -687,6 +683,9 @@ private:
 	/** Deprecated - represented by HLODBatchingPolicy == EHLODBatchingPolicy::Instancing */
 	UPROPERTY()
 	uint8 bBatchImpostersAsInstances_DEPRECATED : 1;
+
+	UPROPERTY()
+	TArray<int32> ExcludeForSpecificHLODLevels_DEPRECATED;
 #endif
 
 	FMaskFilter MoveIgnoreMask;

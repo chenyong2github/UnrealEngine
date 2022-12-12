@@ -5871,9 +5871,7 @@ UFoliageInstancedStaticMeshComponent::UFoliageInstancedStaticMeshComponent(const
 	// * warnings and a fixup option for components which have instances with very large coordinates.
 	bUseTranslatedInstanceSpace = true;
 
-#if WITH_EDITORONLY_DATA
 	bEnableAutoLODGeneration = false;
-#endif
 
 	ViewRelevanceType = EHISMViewRelevanceType::Foliage;
 }
