@@ -427,6 +427,12 @@ private:
 	/** How many files in the search results were not in the cache and were read by parsing the file. Read/writable only within TickLock. */
 	int32 NumUncachedAssetFiles;
 	/**
+	 * Incremented when a thread is in the middle of saving any cache and therefore the cache cannot be deleted,
+	 * decremented when the thread is done. Only allowed to be incremented when bCacheEnabled has been recently confirmed to be true.
+	 * Read/writable only within TickLock.
+	 */
+	int32 CacheInUseCount;
+	/**
 	 * True if the current TickInternal is synchronous, which may be because bIsSynchronous or because the game thread has taken over the tick for a synchronous function.
 	 * Read/writable only within TickLock.
 	 */
