@@ -128,7 +128,11 @@ UWaterBodyComponent::UWaterBodyComponent(const FObjectInitializer& ObjectInitial
 
 bool UWaterBodyComponent::IsHLODRelevant() const
 {
+#if WITH_EDITOR
 	return bEnableAutoLODGeneration;
+#else
+	return false;
+#endif
 }
 
 void UWaterBodyComponent::OnVisibilityChanged()

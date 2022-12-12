@@ -323,12 +323,8 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 
 	LDMaxDrawDistance = 0.f;
 	CachedMaxDrawDistance = 0.f;
-
-	bEnableAutoLODGeneration = true;
-	HLODBatchingPolicy = EHLODBatchingPolicy::None;
-	ExcludeFromSpecificHLODLevels = 0;
-
 #if WITH_EDITORONLY_DATA
+	HLODBatchingPolicy = EHLODBatchingPolicy::None;
 	bUseMaxLODAsImposter_DEPRECATED = false;
 	bBatchImpostersAsInstances_DEPRECATED = false;
 #endif
@@ -365,6 +361,7 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 #endif
 
 #if WITH_EDITORONLY_DATA
+	bEnableAutoLODGeneration = true;
 	HitProxyPriority = HPP_World;
 #endif // WITH_EDITORONLY_DATA
 
@@ -1008,18 +1005,6 @@ void UPrimitiveComponent::Serialize(FArchive& Ar)
 		if (bBatchImpostersAsInstances_DEPRECATED)
 		{
 			HLODBatchingPolicy = EHLODBatchingPolicy::Instancing;
-		}
-	}
-
-	if (!ExcludeForSpecificHLODLevels_DEPRECATED.IsEmpty())
-	{
-		ExcludeFromSpecificHLODLevels = 0;
-		for (int32 ExcludeFromLevel : ExcludeForSpecificHLODLevels_DEPRECATED)
-		{
-			if (ExcludeFromLevel < CHAR_BIT)
-			{
-				ExcludeFromSpecificHLODLevels |= (1 << ExcludeFromLevel);
-			}
 		}
 	}
 #endif
@@ -4179,7 +4164,7 @@ const bool UPrimitiveComponent::ShouldGenerateAutoLOD(const int32 HierarchicalLe
 
 	// bAllowSpecificExclusion
 	bool bExcluded = false;
-	if ((HierarchicalLevelIndex < CHAR_BIT) && (ExcludeFromSpecificHLODLevels & (1 << HierarchicalLevelIndex)))
+	if (ExcludeForSpecificHLODLevels.Contains(HierarchicalLevelIndex))
 	{
 		const TArray<struct FHierarchicalSimplification>& HLODSetup = GetOwner()->GetLevel()->GetWorldSettings()->GetHierarchicalLODSetup();
 		if (HLODSetup.IsValidIndex(HierarchicalLevelIndex))
