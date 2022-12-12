@@ -24,7 +24,14 @@ FSequencerSectionPainter::~FSequencerSectionPainter()
 
 int32 FSequencerSectionPainter::PaintSectionBackground()
 {
-	return PaintSectionBackground(GetTrack()->GetColorTint());
+	FLinearColor TrackColor = FLinearColor(GetTrack()->GetColorTint());
+	FLinearColor SectionColor = FLinearColor(SectionModel->GetSection()->GetColorTint());
+
+	const float Alpha = SectionColor.A;
+	SectionColor.A = 1.f;
+
+	FLinearColor BackgroundColor = TrackColor * (1.f - Alpha) + SectionColor * Alpha;
+	return PaintSectionBackground(BackgroundColor);
 }
 
 UMovieSceneTrack* FSequencerSectionPainter::GetTrack() const

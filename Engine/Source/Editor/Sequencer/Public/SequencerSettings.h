@@ -338,6 +338,11 @@ public:
 	/** Set whether to disable sections when baking, as opposed to deleting */
 	void SetDisableSectionsAfterBaking(bool bInDisableSectionsAfterBaking);
 
+	/** @return the section color tints */
+	TArray<FColor> GetSectionColorTints() const;
+	/** Set the section color tints */
+	void SetSectionColorTints(const TArray<FColor>& InSectionColorTints);
+
 	/** @return Whether to playback in clean mode (game view, hide viewport UI) */
 	bool GetCleanPlaybackMode() const;
 	/** Toggle whether to playback in clean mode */
@@ -602,6 +607,10 @@ protected:
 	/** Whether to disable sections after baking as opposed to deleting. */
 	UPROPERTY(config, EditAnywhere, Category = Timeline)
 	bool bDisableSectionsAfterBaking;
+
+	/** Section color tints */
+	UPROPERTY(config, EditAnywhere, Category = General)
+	TArray<FColor> SectionColorTints;
 
 	/** When enabled, sequencer will playback in clean mode (game view, hide viewport UI) */
 	UPROPERTY(config, EditAnywhere, Category = General)

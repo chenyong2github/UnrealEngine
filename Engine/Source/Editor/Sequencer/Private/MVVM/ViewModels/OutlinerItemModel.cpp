@@ -14,10 +14,12 @@
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ISettingsModule.h"
 #include "MovieSceneSequence.h"
 #include "ScopedTransaction.h"
 #include "Sequencer.h"
 #include "SequencerSelectionCurveFilter.h"
+#include "SequencerSettings.h"
 #include "Styling/AppStyle.h"
 #include "Tree/CurveEditorTreeFilter.h"
 #include "Tree/SCurveEditorTreePin.h"
@@ -518,6 +520,11 @@ void FOutlinerItemModelMixin::BuildContextMenu(FMenuBuilder& MenuBuilder)
 
 		MenuBuilder.BeginSection("TrackDisplayOptions", NSLOCTEXT("Sequencer", "TrackNodeDisplayOptions", "Display Options"));
 		{
+			MenuBuilder.AddSubMenu(
+				LOCTEXT("SetColorTint", "Set Color Tint"),
+				LOCTEXT("SetColorTintTooltip", "Set color tint from the preferences for the selected sections or the track's sections"),
+				FNewMenuDelegate::CreateSP(SharedThis, &FOutlinerItemModelMixin::BuildSectionColorTintsContextMenu));
+
 			UStruct* DisplayOptionsStruct = FMovieSceneTrackDisplayOptions::StaticStruct();
 
 			const FBoolProperty* ShowVerticalFramesProperty = CastField<FBoolProperty>(DisplayOptionsStruct->FindPropertyByName(GET_MEMBER_NAME_CHECKED(FMovieSceneTrackDisplayOptions, bShowVerticalFrames)));
@@ -586,6 +593,87 @@ void FOutlinerItemModelMixin::BuildOrganizeContextMenu(FMenuBuilder& MenuBuilder
 				FExecuteAction::CreateSP(Sequencer.Get(), &FSequencer::RemoveSelectedNodesFromFolders),
 				FCanExecuteAction::CreateLambda( [Sequencer] { return Sequencer->GetSelectedNodesInFolders().Num() > 0; } )));
 	}
+}
+
+void FOutlinerItemModelMixin::BuildSectionColorTintsContextMenu(FMenuBuilder& MenuBuilder)
+{
+	TSharedPtr<FSequencer> Sequencer = GetEditor()->GetSequencerImpl();
+
+	TArray<UMovieSceneSection*> Sections;
+	for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sequencer->GetSelection().GetSelectedSections())
+	{
+		if (UMovieSceneSection* Section = WeakSection.Get())
+		{
+			Sections.Add(Section);
+		}
+	}
+
+	if (!Sections.Num())
+	{
+		for (TWeakPtr<FViewModel> WeakNode : Sequencer->GetSelection().GetSelectedOutlinerItems())
+		{
+			TSharedPtr<FViewModel> Node = WeakNode.Pin();
+
+			if (ITrackExtension* TrackExtension = Node->CastThis<ITrackExtension>())
+			{
+				for (UMovieSceneSection* Section : TrackExtension->GetSections())
+				{
+					Sections.Add(Section);
+				}
+			}
+		}
+	}
+
+	if (!Sections.Num())
+	{
+		return;
+	}
+
+	const bool bIsReadOnly = Sequencer->IsReadOnly();
+	FCanExecuteAction CanExecute = FCanExecuteAction::CreateLambda([bIsReadOnly] { return !bIsReadOnly; });
+
+	TArray<FColor> SectionColorTints = Sequencer->GetSequencerSettings()->GetSectionColorTints();
+
+	for (const FColor& SectionColorTint : SectionColorTints)
+	{
+		TSharedPtr<SBox> ColorWidget = SNew(SBox)
+			.WidthOverride(70.f)
+			.HeightOverride(20.f)
+		[
+			SNew(SBorder)
+				.BorderImage(FAppStyle::GetBrush("WhiteBrush"))
+				.BorderBackgroundColor(FLinearColor::FromSRGBColor(SectionColorTint))
+		];
+
+		MenuBuilder.AddMenuEntry(
+			FUIAction(
+				FExecuteAction::CreateSP(Sequencer.Get(), &FSequencer::SetSectionColorTint, Sections, SectionColorTint),
+				CanExecute),
+			ColorWidget.ToSharedRef());
+	}
+
+	MenuBuilder.AddSeparator();
+
+	// Clear any assigned color tints
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("ClearColorTintLabel", "Clear"),
+		LOCTEXT("ClearColorTintTooltip", "Clear any assigned color tints"),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(Sequencer.Get(), &FSequencer::SetSectionColorTint, Sections, FColor(0, 0, 0, 0)),
+			CanExecute));
+
+	// Pop up preferences to edit custom color tints
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("EditColorTintLabel", "Edit Color Tints..."),
+		LOCTEXT("EditColorTintTooltip", "Edit the custom color tints"),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda([=] { 
+				FString SettingsName = Sequencer->GetSequencerSettings()->GetName();
+				return FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer("Editor", "ContentEditors", *SettingsName); 
+			})
+		));
 }
 
 bool FOutlinerItemModelMixin::HasCurves() const

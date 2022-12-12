@@ -87,6 +87,8 @@ protected:
 	/** Set expansion state without saving it in the movie-scene data */
 	void SetExpansionWithoutSaving(bool bInIsExpanded);
 
+	void BuildSectionColorTintsContextMenu(FMenuBuilder& MenuBuilder);
+
 private:
 
 	virtual FViewModel* AsViewModel() = 0;

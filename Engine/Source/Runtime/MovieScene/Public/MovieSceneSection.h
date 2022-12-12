@@ -592,6 +592,13 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")
 	int32 GetPostRollFrames() const { return PostRollFrames.Value; }
 
+	/** Set this section's color tint. */
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
+	MOVIESCENE_API void SetColorTint(const FColor& InColorTint);
+	/** Get this section's color tint. */
+	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")
+	MOVIESCENE_API FColor GetColorTint() const;
+
 	/** The optional offset time of this section */
 	virtual TOptional<FFrameTime> GetOffsetTime() const { return TOptional<FFrameTime>(); }
 
@@ -753,6 +760,12 @@ private:
 	/** Toggle whether this section is locked/unlocked */
 	UPROPERTY(EditAnywhere, Category="Section")
 	uint32 bIsLocked : 1;
+
+#if WITH_EDITORONLY_DATA
+	/** The color tint for this section */
+	UPROPERTY(EditAnywhere, Category = "Section")
+	FColor ColorTint;
+#endif
 
 protected:
 

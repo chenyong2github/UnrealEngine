@@ -49,6 +49,10 @@ UMovieSceneSection::UMovieSceneSection(const FObjectInitializer& ObjectInitializ
 	Easing.EaseOut = DefaultEaseOut;
 
 	ChannelProxyType = EMovieSceneChannelProxyType::Static;
+
+#if WITH_EDITORONLY_DATA
+	ColorTint = FColor(0, 0, 0, 0);
+#endif
 }
 
 
@@ -551,6 +555,24 @@ void UMovieSceneSection::InitialPlacementOnRow(const TArray<UMovieSceneSection*>
 	{
 		Track->UpdateEasing();
 	}
+}
+
+void UMovieSceneSection::SetColorTint(const FColor& InColorTint)
+{
+#if WITH_EDITORONLY_DATA
+	if (TryModify())
+	{
+		ColorTint = InColorTint;
+	}
+#endif
+}
+
+FColor UMovieSceneSection::GetColorTint() const
+{
+#if WITH_EDITORONLY_DATA
+	return ColorTint;
+#endif
+	return FColor(0, 0, 0, 0);
 }
 
 UMovieSceneSection* UMovieSceneSection::SplitSection(FQualifiedFrameTime SplitTime, bool bDeleteKeys)

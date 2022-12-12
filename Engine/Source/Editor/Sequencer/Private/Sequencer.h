@@ -599,6 +599,9 @@ public:
 	/** Will create a custom menu if FSequencerViewParams::OnBuildCustomContextMenuForGuid is specified. */
 	void BuildCustomContextMenuForGuid(FMenuBuilder& MenuBuilder, FGuid ObjectBinding);
 
+	/** Set the color tint for the requested sections */
+	void SetSectionColorTint(TArray<UMovieSceneSection*> Sections, FColor ColorTint);
+
 public:
 
 	/** Copy the selection, whether it's keys or tracks */

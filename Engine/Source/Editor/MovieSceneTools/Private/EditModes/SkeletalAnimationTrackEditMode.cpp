@@ -332,8 +332,15 @@ void FSkeletalAnimationTrackEditMode::Render(const FSceneView* View, FViewport* 
 											FCompactPoseBoneIndex PoseIndex = AnimationPoseData.GetPose().GetBoneContainer().GetCompactPoseIndexFromSkeletonIndex(Index);
 											OutPose[PoseIndex] = RootMotionAtStart;
 
+											FLinearColor SectionColor = FLinearColor(AnimSection->GetColorTint());
+
+											const float Alpha = SectionColor.A;
+											SectionColor.A = 1.f;
+
+											FLinearColor BoneColor = Colors[SectionIndex % 5] * (1.f - Alpha) + SectionColor * Alpha;
+
 											FVector RootLocation;
-											DrawBonesFromCompactPose(OutPose, SkelMeshComp, PDI, Colors[SectionIndex % 5], PoseIndex, RootLocation);
+											DrawBonesFromCompactPose(OutPose, SkelMeshComp, PDI, BoneColor, PoseIndex, RootLocation);
 											
 											if (IsRootSelected(AnimSection))
 											{

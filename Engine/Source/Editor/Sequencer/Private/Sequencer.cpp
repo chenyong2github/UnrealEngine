@@ -11701,6 +11701,17 @@ void FSequencer::BuildCustomContextMenuForGuid(FMenuBuilder& MenuBuilder, FGuid 
 	OutlinerViewModel->BuildCustomContextMenuForGuid(MenuBuilder, ObjectBinding);
 }
 
+void FSequencer::SetSectionColorTint(TArray<UMovieSceneSection*> Sections, FColor ColorTint)
+{
+	FScopedTransaction Transaction(LOCTEXT("SetSectionColorTint", "Set Section Color Tint"));
+
+	for (UMovieSceneSection* Section : Sections)
+	{
+		Section->Modify();
+		Section->SetColorTint(ColorTint);
+	}
+}
+
 bool FSequencer::GetGridMetrics(const float PhysicalWidth, const double InViewStart, const double InViewEnd, double& OutMajorInterval, int32& OutMinorDivisions) const
 {
 	FSlateFontInfo SmallLayoutFont = FCoreStyle::GetDefaultFontStyle("Regular", 8);
