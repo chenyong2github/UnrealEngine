@@ -1671,8 +1671,7 @@ class DeviceUnreal(Device):
 
         (supported_roles, unsupported_roles) = self.get_vproles()
 
-        if supported_roles:
-            command_line_args += ' -VPRole=' + '|'.join(supported_roles)
+        command_line_args += ' -VPRole=' + '|'.join(supported_roles)
         if unsupported_roles:
             LOGGER.error(
                 f"{self.name}: Omitted unsupported roles: "
