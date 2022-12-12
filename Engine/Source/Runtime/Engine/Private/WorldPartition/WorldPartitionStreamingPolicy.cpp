@@ -405,7 +405,6 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 	const bool bCanStream = WorldPartition->CanStream();
 	const bool bIsServer = WorldPartition->IsServer();
 	const bool bIsServerStreamingEnabled = WorldPartition->IsServerStreamingEnabled();
-	const bool bCanDeactivateOrUnloadCells = !bIsServer || WorldPartition->IsServerStreamingOutEnabled();
 	const int32 NewServerStreamingEnabledEpoch = ComputeServerStreamingEnabledEpoch();
 
 	const bool bIsStreamingInEnabled = WorldPartition->IsStreamingInEnabled();
@@ -442,6 +441,9 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 
 		if (bIsServer)
 		{
+			const bool bCanServerDeactivateOrUnloadCells = WorldPartition->IsServerStreamingOutEnabled();
+			const bool bCanServerDeactivateOrUnloadDataLayerCells = WorldPartition->IsServerDataLayerStreamingOutEnabled();
+
 			TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionStreamingPolicy::UpdateStreamingState_ServerUpdate);
 
 			// Server will activate all non data layer cells at first and then load/activate/unload data layer cells only when the data layer states change
@@ -471,21 +473,32 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 			TSet<FName> EffectiveActiveDataLayerNames = DataLayerSubsystem->GetEffectiveActiveDataLayerNames();
 			TSet<FName> EffectiveLoadedDataLayerNames = DataLayerSubsystem->GetEffectiveLoadedDataLayerNames();
 
-			auto AddServerFrameCells = [this, &EffectiveLoadedDataLayerNames, &EffectiveActiveDataLayerNames](const UWorldPartitionRuntimeCell* Cell)
+			auto AddServerFrameCell = [this, bCanServerDeactivateOrUnloadDataLayerCells, &EffectiveLoadedDataLayerNames, &EffectiveActiveDataLayerNames](const UWorldPartitionRuntimeCell* Cell)
 			{
+				// Keep Data Layer cells is their current state if server cannot deactivat/unload data layer cells
+				if (!bCanServerDeactivateOrUnloadDataLayerCells && Cell->HasDataLayers())
+				{
+					if (ActivatedCells.Contains(Cell))
+					{
+						FrameActivateCells.Add(Cell);
+						return;
+					}
+					else if (LoadedCells.Contains(Cell))
+					{
+						FrameLoadCells.Add(Cell);
+						return;
+					}
+				}
+				
 				// Non Data Layer Cells + Active Data Layers
-				if (!Cell->HasDataLayers() || Cell->HasAnyDataLayer(EffectiveActiveDataLayerNames))
+				if (!Cell->HasDataLayers() || (EffectiveActiveDataLayerNames.Num() && Cell->HasAnyDataLayer(EffectiveActiveDataLayerNames)))
 				{
 					FrameActivateCells.Add(Cell);
 				}
-
 				// Loaded Data Layers Cells only
-				if (EffectiveLoadedDataLayerNames.Num())
+				else if (Cell->HasDataLayers() && EffectiveLoadedDataLayerNames.Num() && Cell->HasAnyDataLayer(EffectiveLoadedDataLayerNames))
 				{
-					if (Cell->HasDataLayers() && Cell->HasAnyDataLayer(EffectiveLoadedDataLayerNames))
-					{
-						FrameLoadCells.Add(Cell);
-					}
+					FrameLoadCells.Add(Cell);
 				}
 			};
 
@@ -493,23 +506,23 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 			{
 				if (WorldPartition->RuntimeHash)
 				{
-					WorldPartition->RuntimeHash->ForEachStreamingCells([this, &AddServerFrameCells](const UWorldPartitionRuntimeCell* Cell)
+					WorldPartition->RuntimeHash->ForEachStreamingCells([this, &AddServerFrameCell](const UWorldPartitionRuntimeCell* Cell)
 					{
-						AddServerFrameCells(Cell);
+						AddServerFrameCell(Cell);
 						return true;
 					});
 				}
 			}
-			else if (!bCanDeactivateOrUnloadCells)
+			else if (!bCanServerDeactivateOrUnloadCells)
 			{
 				// When server streaming-out is disabled, revisit existing loaded/activated cells and add them in the proper FrameLoadCells/FrameActivateCells
 				for (const UWorldPartitionRuntimeCell* Cell : ActivatedCells.GetCells())
 				{
-					AddServerFrameCells(Cell);
+					AddServerFrameCell(Cell);
 				}
 				for (const UWorldPartitionRuntimeCell* Cell : LoadedCells)
 				{
-					AddServerFrameCells(Cell);
+					AddServerFrameCell(Cell);
 				}
 			}
 		}
