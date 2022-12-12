@@ -62,10 +62,9 @@ public:
 
 		if (AutomatedApplication.IsValid())
 		{
+			FSlateApplication::Get().SetPlatformApplication(AutomatedApplication.ToSharedRef());
 			AutomatedApplication->AllowPlatformMessageHandling();
 		}
-
-		FSlateApplication::Get().SetPlatformApplication(AutomatedApplication.ToSharedRef());
 	}
 
 	virtual void Disable() override
