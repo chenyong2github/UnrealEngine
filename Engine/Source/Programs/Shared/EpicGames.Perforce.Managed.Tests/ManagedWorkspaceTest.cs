@@ -192,6 +192,27 @@ public class ManagedWorkspaceTest : BasePerforceFixtureTest
 		// Have-table still correspond to CL 7 as CL 8 is shelved, only p4 printed to workspace
 		await Stream.GetChangelist(7).AssertHaveTableAsync(PerforceConnection, useHaveTable);
 	}
+	
+	[TestMethod]
+	public async Task ReusePerforceClientWithoutHaveTable()
+	{
+		// Sync with have-table as normal
+		ManagedWorkspace wsWithHave = await GetManagedWorkspace(true);
+		await wsWithHave.SetupAsync(PerforceConnection, StreamName, CancellationToken.None);
+		ChangelistFixture cl = Stream.GetChangelist(6);
+		await SyncAsync(wsWithHave, cl.Number);
+		cl.AssertDepotFiles(SyncDir);
+		await cl.AssertHaveTableAsync(PerforceConnection);
+
+		// Create a new ManagedWorkspace without have-table but re-use same Perforce connection
+		// The have-table remnants from above should not interfere with this workspace
+		ManagedWorkspace wsWithoutHave = await GetManagedWorkspace(false);
+		await wsWithoutHave.SetupAsync(PerforceConnection, StreamName, CancellationToken.None);
+		await SyncAsync(wsWithoutHave, cl.Number);
+		await AssertHaveTableFileCount(0);
+		await cl.AssertHaveTableAsync(PerforceConnection, useHaveTable: false);
+		cl.AssertDepotFiles(SyncDir);
+	}
 
 	private async Task<ManagedWorkspace> GetManagedWorkspace(bool useHaveTable)
 	{

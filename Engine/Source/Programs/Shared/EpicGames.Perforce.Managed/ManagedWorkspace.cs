@@ -1169,6 +1169,12 @@ namespace EpicGames.Perforce.Managed
 					await perforceClient.CreateClientAsync(client, cancellationToken);
 				}
 
+				if (!_useHaveTable)
+				{
+					// If have table is not used, make client is fully reset as it may have been re-used
+					await UpdateHaveTablePathAsync(perforceClient, $"//{clientName}/...#0", cancellationToken);
+				}
+
 				status.Progress = $"({timer.Elapsed.TotalSeconds:0.0}s)";
 			}
 			_createdClients[clientName] = client;
