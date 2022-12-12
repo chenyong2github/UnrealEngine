@@ -240,9 +240,9 @@ void FPixWinPluginModule::DoFrameCaptureCurrentViewport(FViewport* InViewport, u
 	}
 #endif // WITH_EDITOR
 
+	check(Viewport);
 	BeginFrameCapture(Viewport->GetWindow(), InDestFileName);
 
-	check(Viewport);
 	Viewport->Draw(true);
 
 	EndFrameCapture();
