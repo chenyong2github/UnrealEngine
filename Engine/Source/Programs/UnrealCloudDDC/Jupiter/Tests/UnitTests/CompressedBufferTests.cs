@@ -16,7 +16,7 @@ namespace Jupiter.Tests.Unit
         {
             byte[] bytes = Encoding.UTF8.GetBytes("this is a test string");
 
-            CompressedBufferUtils bufferUtils = new CompressedBufferUtils(TracerProvider.Default.GetTracer("TestTracer"));
+            CompressedBufferUtils bufferUtils = new(TracerProvider.Default.GetTracer("TestTracer"));
 
             byte[] compressedBytes = bufferUtils.CompressContent(OoodleCompressorMethod.Mermaid, OoodleCompressionLevel.VeryFast, bytes);
 

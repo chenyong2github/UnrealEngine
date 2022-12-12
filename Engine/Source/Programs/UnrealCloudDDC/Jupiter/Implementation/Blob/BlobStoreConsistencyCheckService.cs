@@ -22,7 +22,7 @@ namespace Jupiter.Implementation
     public class BlobStoreConsistencyCheckService : PollingService<ConsistencyState>
     {
         private readonly IOptionsMonitor<ConsistencyCheckSettings> _settings;
-        private readonly IOptionsMonitor<UnrealCloudDDCSettings> _UnrealCloudDDCSettings;
+        private readonly IOptionsMonitor<UnrealCloudDDCSettings> _unrealCloudDDCSettings;
         private readonly IServiceProvider _provider;
         private readonly ILeaderElection _leaderElection;
         private readonly IReferencesStore _referencesStore;
@@ -35,10 +35,10 @@ namespace Jupiter.Implementation
             return _settings.CurrentValue.EnableBlobStoreChecks;
         }
 
-        public BlobStoreConsistencyCheckService(IOptionsMonitor<ConsistencyCheckSettings> settings, IOptionsMonitor<UnrealCloudDDCSettings> UnrealCloudDDCSettings, IServiceProvider provider, ILeaderElection leaderElection, IReferencesStore referencesStore, IBlobIndex blobIndex, Tracer tracer, ILogger<BlobStoreConsistencyCheckService> logger) : base(serviceName: nameof(BlobStoreConsistencyCheckService), TimeSpan.FromSeconds(settings.CurrentValue.ConsistencyCheckPollFrequencySeconds), new ConsistencyState(), logger)
+        public BlobStoreConsistencyCheckService(IOptionsMonitor<ConsistencyCheckSettings> settings, IOptionsMonitor<UnrealCloudDDCSettings> unrealCloudDDCSettings, IServiceProvider provider, ILeaderElection leaderElection, IReferencesStore referencesStore, IBlobIndex blobIndex, Tracer tracer, ILogger<BlobStoreConsistencyCheckService> logger) : base(serviceName: nameof(BlobStoreConsistencyCheckService), TimeSpan.FromSeconds(settings.CurrentValue.ConsistencyCheckPollFrequencySeconds), new ConsistencyState(), logger)
         {
             _settings = settings;
-            _UnrealCloudDDCSettings = UnrealCloudDDCSettings;
+            _unrealCloudDDCSettings = unrealCloudDDCSettings;
             _provider = provider;
             _leaderElection = leaderElection;
             _referencesStore = referencesStore;
@@ -62,7 +62,7 @@ namespace Jupiter.Implementation
 
         private async Task RunConsistencyCheck()
         {
-            foreach (IBlobStore blobStore in BlobService.GetBlobStores(_provider, _UnrealCloudDDCSettings).Where(RunConsistencyCheckOnBlobStore))
+            foreach (IBlobStore blobStore in BlobService.GetBlobStores(_provider, _unrealCloudDDCSettings).Where(RunConsistencyCheckOnBlobStore))
             {
                 string blobStoreName = blobStore.GetType().Name;
 
