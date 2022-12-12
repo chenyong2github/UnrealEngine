@@ -1909,6 +1909,30 @@ void FD3D11DynamicRHI::InitD3DDevice()
 			AmdExtensionParams.pAppName = bDisableAppRegistration ? TEXT("") : FApp::GetProjectName();
 			AmdExtensionParams.appVersion = AGS_UNSPECIFIED_VERSION;
 
+			// agsDriverExtensionsDX11_CreateDevice will not check for the DriverStore if there is not already a D3D11 device
+			// initialized. In order to use AMF we require libraries to also be loaded from the driver store so we temporarily
+			// initialize a device here and destroy it once the agsDriverExtensionsDX11_CreateDevice is run.
+			ID3D11Device* D3DDevicePreload = nullptr;
+			ID3D11DeviceContext* D3DDeviceContextPreload = nullptr;
+
+			int32 NumAllowedFeatureLevels = 1;
+			D3D_FEATURE_LEVEL OutFeatureLevel = FeatureLevel;
+			HRESULT Result = D3D11CreateDevice(
+				Adapter.DXGIAdapter,
+				D3D_DRIVER_TYPE_UNKNOWN,
+				nullptr,
+				DeviceFlags,
+				&FeatureLevel,
+				NumAllowedFeatureLevels,
+				D3D11_SDK_VERSION,
+				&D3DDevicePreload,
+				&ActualFeatureLevel,
+				&D3DDeviceContextPreload);
+			if (FAILED(Result))
+			{
+				UE_LOG(LogD3D11RHI, Error, TEXT("Failed to load the AMD DriverStore library"));
+			}
+
 			AGSDX11ReturnedParams DeviceCreationReturnedParams;
 			FMemory::Memzero(&DeviceCreationReturnedParams, sizeof(DeviceCreationReturnedParams));
 			AGSReturnCode DeviceCreation =
@@ -1917,6 +1941,13 @@ void FD3D11DynamicRHI::InitD3DDevice()
 					&DeviceCreationParams,
 					&AmdExtensionParams,
 					&DeviceCreationReturnedParams);
+
+			// Destroy temporary device and context			
+			D3DDevicePreload->Release();
+			D3DDevicePreload = nullptr;
+
+			D3DDeviceContextPreload->Release();
+			D3DDeviceContextPreload = nullptr;
 
 			if (DeviceCreation == AGS_SUCCESS)
 			{
