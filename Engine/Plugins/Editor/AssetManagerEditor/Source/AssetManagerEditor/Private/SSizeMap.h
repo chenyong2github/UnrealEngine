@@ -11,8 +11,34 @@
 #include "ITreeMap.h"
 #include "STreeMap.h"
 
+#include "SSizeMap.generated.h"
+
 class FAssetThumbnailPool;
 class FUICommandList;
+
+UENUM()
+enum class ESizeMapDependencyType
+{
+	/** Queries all hard dependencies */
+	All,
+	/** Queries hard dependencies that are part of a cooked build. See UE::AssetRegistry::EDependencyQuery::Game. */
+	Game,
+	/** Queries hard dependencies that only exist in the editor. See UE::AssetRegistry::EDependencyQuery::EditorOnly */
+	EditorOnly,
+};
+
+UCLASS(config=EditorPerProjectUserSettings)
+class USizeMapSettings : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(config)
+	FName SizeType = IAssetManagerEditorModule::DiskSizeName;
+
+	UPROPERTY(config)
+	ESizeMapDependencyType DependencyType = ESizeMapDependencyType::All;
+};
 
 /**
  * Tree map for displaying the size of assets
@@ -100,7 +126,7 @@ protected:
 	FReply OnZoomOut();
 	bool CanZoomOut() const;
 
-	/** Combo Box */
+	/** Size Type Combo Box */
 	TSharedRef<SWidget> GenerateSizeTypeComboItem(TSharedPtr<FName> InItem) const;
 	void HandleSizeTypeComboChanged(TSharedPtr<FName> Item, ESelectInfo::Type SelectInfo);
 	FText GetSizeTypeComboText() const;
@@ -109,10 +135,18 @@ protected:
 	bool IsSizeTypeEnabled() const;
 
 	TArray<TSharedPtr<FName>> SizeTypeComboList;
-	FName CurrentSizeType;
 	FText OverviewText;
 	bool bMemorySizeCached;
-	TSharedPtr<SComboBox<TSharedPtr<FName>>> ComboBoxWidget;
+	TSharedPtr<SComboBox<TSharedPtr<FName>>> SizeTypeComboBoxWidget;
+
+	/** Dependency Type Combo Box */
+	TSharedRef<SWidget> GenerateDependencyTypeComboItem(TSharedPtr<ESizeMapDependencyType> InItem) const;
+	void HandleDependencyTypeComboChanged(TSharedPtr<ESizeMapDependencyType> Item, ESelectInfo::Type SelectInfo);
+	FText GetDependencyTypeComboText() const;
+	FText GetDependencyTypeText(ESizeMapDependencyType DependencyType) const;
+
+	TArray<TSharedPtr<ESizeMapDependencyType>> DependencyTypeComboList;
+	TSharedPtr<SComboBox<TSharedPtr<ESizeMapDependencyType>>> DependencyTypeComboBoxWidget;
 
 	/** Our tree map widget */
 	TSharedPtr<class STreeMap> TreeMapWidget;
