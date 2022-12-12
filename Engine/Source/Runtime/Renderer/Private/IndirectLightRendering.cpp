@@ -356,7 +356,7 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-		SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionsParameters)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FReflectionUniformParameters, ReflectionsParameters)
 		SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCaptureData)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FForwardLightData, ForwardLightData)
 
@@ -1593,11 +1593,7 @@ static void AddSkyReflectionPass(
 
 		PassParameters->PS.ViewUniformBuffer = View.ViewUniformBuffer;
 		PassParameters->PS.ReflectionCaptureData = View.ReflectionCaptureUniformBuffer;
-		{
-			FReflectionUniformParameters ReflectionUniformParameters;
-			SetupReflectionUniformParameters(GraphBuilder, View, ReflectionUniformParameters);
-			PassParameters->PS.ReflectionsParameters = CreateUniformBufferImmediate(ReflectionUniformParameters, UniformBuffer_SingleDraw);
-		}
+		PassParameters->PS.ReflectionsParameters = CreateReflectionUniformBuffer(GraphBuilder, View);
 		PassParameters->PS.ForwardLightData = View.ForwardLightingResources.ForwardLightUniformBuffer;
 
 		PassParameters->PS.Strata = Strata::BindStrataGlobalUniformParameters(View);

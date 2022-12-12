@@ -255,7 +255,7 @@ class FHairEnvironmentLightingPS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairEnergyLUTTexture)
 
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-		SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionsParameters)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FReflectionUniformParameters, ReflectionsParameters)
 		SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCaptureData)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FForwardLightData, ForwardLightData)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairStrandsViewUniformParameters, HairStrands)
@@ -384,12 +384,8 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 	ParametersPS->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
 	ParametersPS->ViewUniformBuffer = View.ViewUniformBuffer;
 	ParametersPS->ReflectionCaptureData = View.ReflectionCaptureUniformBuffer;
-	{
-		FReflectionUniformParameters ReflectionUniformParameters;
-		SetupReflectionUniformParameters(GraphBuilder, View, ReflectionUniformParameters);
-		ParametersPS->ReflectionsParameters = CreateUniformBufferImmediate(ReflectionUniformParameters, UniformBuffer_SingleDraw);
-	}
-
+	ParametersPS->ReflectionsParameters = CreateReflectionUniformBuffer(GraphBuilder, View);
+	
 	if (LightingType == EHairLightingSourceType::Lumen)
 	{
 		const FRadianceCacheState& RadianceCacheState = View.ViewState->Lumen.RadianceCacheState;
