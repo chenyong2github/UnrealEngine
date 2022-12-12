@@ -14,7 +14,7 @@ class GEOMETRYSCRIPTINGEDITOR_API UGeometryScriptLibrary_OpenSubdivFunctions : p
 public:
 
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|OpenSubdiv", meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|OpenSubdiv", meta=(ScriptMethod, DisplayName = "ApplyPolyGroupCatmullClarkSubD"))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ApplyPolygroupCatmullClarkSubD(
 		UDynamicMesh* FromDynamicMesh, 

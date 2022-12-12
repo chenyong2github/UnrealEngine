@@ -91,7 +91,7 @@ public:
 	* @param MaterialID new Material ID to set
 	* @param bDeferChangeNotifications if true, the UDynamicMesh does not emit a change event/signal for this modification
 	*/
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Polygroups", meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|PolyGroups", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	SetMaterialIDForMeshSelection( 
 		UDynamicMesh* TargetMesh, 
@@ -101,20 +101,20 @@ public:
 		UGeometryScriptDebug* Debug = nullptr);
 
 	/**
-	* Set a new MaterialID on all the triangles of TargetMesh with the given Polygroup.
-	* @param GroupLayer Polygroup Layer to use as basis for polygroups
-	* @param PolygroupID Polygroup ID that specifies Triangles to set to new MaterialID
+	* Set a new MaterialID on all the triangles of TargetMesh with the given PolyGroup.
+	* @param GroupLayer PolyGroup Layer to use as basis for PolyGroups
+	* @param PolygroupID PolyGroup ID that specifies Triangles to set to new MaterialID
 	* @param MaterialID explicit new MaterialID to set
 	* @param bDeferChangeNotifications if true, the UDynamicMesh does not emit a change event/signal for this modification
 	*/
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Materials", meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Materials", meta=(ScriptMethod, DisplayName = "SetPolyGroupMaterialID"))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	SetPolygroupMaterialID( 
 		UDynamicMesh* TargetMesh, 
 		FGeometryScriptGroupLayer GroupLayer,
-		int PolygroupID, 
+		UPARAM(DisplayName = "PolyGroup ID") int PolygroupID,
 		int MaterialID,
-		bool& bIsValidPolygroupID,
+		UPARAM(DisplayName = "Is Valid PolyGroup ID") bool& bIsValidPolygroupID,
 		bool bDeferChangeNotifications = false,
 		UGeometryScriptDebug* Debug = nullptr);
 

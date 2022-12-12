@@ -325,8 +325,8 @@ public:
 
 	/**
 	 * Copy the 2D UVs from the given UVSetIndex in CopyFromMesh to the 3D vertex positions in CopyToUVMesh,
-	 * with the triangle mesh topolgoy defined by the UV Set. Generally this "UV Mesh" topolgoy will not
-	 * be the same as the 3D mesh topology. Polygroup IDs and Material IDs are preserved in the UVMesh.
+	 * with the triangle mesh topology defined by the UV Set. Generally this "UV Mesh" topology will not
+	 * be the same as the 3D mesh topology. PolyGroup IDs and Material IDs are preserved in the UVMesh.
 	 * 
 	 * 2D UV Positions are copied to 3D as (X, Y, 0) 
 	 * 

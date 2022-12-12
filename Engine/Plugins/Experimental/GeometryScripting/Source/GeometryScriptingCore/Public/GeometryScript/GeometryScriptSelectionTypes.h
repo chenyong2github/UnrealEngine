@@ -16,7 +16,7 @@ enum class EGeometryScriptMeshSelectionType : uint8
 {
 	Vertices = 0,
 	Triangles = 1,
-	Polygroups = 2
+	Polygroups = 2 UMETA(DisplayName = "PolyGroups")
 };
 
 /**
@@ -28,7 +28,7 @@ enum class EGeometryScriptMeshSelectionConversionType : uint8
 	NoConversion = 0,
 	ToVertices = 1,
 	ToTriangles = 2,
-	ToPolygroups = 3
+	ToPolygroups = 3 UMETA(DisplayName = "To PolyGroups")
 };
 
 /**
@@ -90,7 +90,7 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptMeshSelection
 
 	/**
 	 * Convert the current selection to a TArray, optionally converting to ConvertToType.
-	 * For (Tri|Group)=>Vtx, all triangle vertices (in triangles or polygroups) are included.
+	 * For (Tri|Group)=>Vtx, all triangle vertices (in triangles or PolyGroups) are included.
 	 * For Vtx=>Tri, all one-ring vertices are included. For Group=>Tri, all Triangles are found via enumerating over mesh.
 	 * (Tri|Vtx)=>Group, all GroupIDs of all triangles/one-ring triangles are included
 	 */
@@ -99,7 +99,7 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptMeshSelection
 	/**
 	 * Call PerTriangleFunc for each TriangleID in the Selection.
 	 * For Vertex Selections, Vertex one-rings are enumerated and accumulated in a TSet.
-	 * For Polygroup Selections, a full mesh iteration is used to find all Triangles in the Groups.
+	 * For PolyGroup Selections, a full mesh iteration is used to find all Triangles in the groups.
 	 */
 	void ProcessByTriangleID(const UE::Geometry::FDynamicMesh3& Mesh,
 		TFunctionRef<void(int32)> PerTriangleFunc,
@@ -108,7 +108,7 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptMeshSelection
 	/**
 	 * Call PerVertexFunc for each VertexID in the Selection.
 	 * For Triangle Selections, Triangles Vertex tuples are enumerated and accumulated in a TSet.
-	 * For Polygroup Selections, a full mesh iteration is used to find all Triangle Vertices in the Groups (accumulated in a TSet)
+	 * For PolyGroup Selections, a full mesh iteration is used to find all Triangle Vertices in the groups (accumulated in a TSet)
 	 */
 	void ProcessByVertexID(const UE::Geometry::FDynamicMesh3& Mesh,
 		TFunctionRef<void(int32)> PerVertexFunc,

@@ -61,7 +61,7 @@ UENUM(BlueprintType)
 enum class EGeometryScriptPolyOperationArea : uint8
 {
 	EntireSelection = 0,
-	PerPolygroup = 1,
+	PerPolygroup = 1 UMETA(DisplayName = "Per PolyGroup"),
 	PerTriangle = 2
 };
 
@@ -205,7 +205,7 @@ public:
 
 
 	/**
-	 * If true the set of beveled polygroup edges is limited to those that 
+	 * If true the set of beveled PolyGroup edges is limited to those that 
 	 * are fully or partially contained within the (transformed) FilterBox
 	 */
 	UPROPERTY(BlueprintReadWrite, Category = FilterShape, AdvancedDisplay)
@@ -224,7 +224,7 @@ public:
 	FTransform FilterBoxTransform = FTransform::Identity;
 
 	/**
-	 * If true, then only polygroup edges that are fully contained within the filter box will be beveled,
+	 * If true, then only PolyGroup edges that are fully contained within the filter box will be beveled,
 	 * otherwise the edge will be beveled if any vertex is within the filter box.
 	 */
 	UPROPERTY(BlueprintReadWrite, Category = FilterShape, AdvancedDisplay)
@@ -241,10 +241,10 @@ enum class EGeometryScriptMeshBevelSelectionMode : uint8
 {
 	/** Convert the selection to Triangles and bevel the boundary edge loops of the triangle set */
 	TriangleArea = 0,
-	/** Convert the selection to Polygroups and bevel all the Polygroup Edges of the selected Polygroups */
-	AllPolygroupEdges = 1,
-	/** Convert the selection to Polygroups and bevel all the Polygroup Edges that are between selected Polygroups */
-	SharedPolygroupEdges = 2
+	/** Convert the selection to PolyGroups and bevel all the PolyGroup Edges of the selected PolyGroups */
+	AllPolygroupEdges = 1 UMETA(DisplayName = "All PolyGroup Edges"),
+	/** Convert the selection to PolyGroups and bevel all the PolyGroup Edges that are between selected PolyGroups */
+	SharedPolygroupEdges = 2 UMETA(DisplayName = "Shared PolyGroup Edges")
 };
 
 
@@ -360,7 +360,7 @@ public:
 	/**
 	 * Apply a Mesh Bevel operation to parts of TargetMesh using the BevelOptions settings.
 	 * @param Selection specifies which mesh edges to Bevel
-	 * @param BevelMode specifies how Selection should be converted to a Triangle Region or set of Polygroup Edges
+	 * @param BevelMode specifies how Selection should be converted to a Triangle Region or set of PolyGroup Edges
 	 * @param BevelOptions settings for the Bevel Operation
 	 */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Modeling", meta=(ScriptMethod))
@@ -373,7 +373,7 @@ public:
 		UGeometryScriptDebug* Debug = nullptr );
 
 
-	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Modeling", meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Modeling", meta=(ScriptMethod, DisplayName = "ApplyMeshPolyGroupBevel"))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	ApplyMeshPolygroupBevel(
 		UDynamicMesh* TargetMesh,

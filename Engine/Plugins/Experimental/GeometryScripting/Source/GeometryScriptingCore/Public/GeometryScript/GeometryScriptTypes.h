@@ -166,11 +166,11 @@ public:
 
 
 //
-// Polygroups
+// PolyGroups
 //
 
 /**
- * FGeometryScriptGroupLayer identifies a Polygroup Layer of a Mesh.
+ * FGeometryScriptGroupLayer identifies a PolyGroup Layer of a Mesh.
  * The Default Layer always exists, Extended layers may or may not exist.
  */
 USTRUCT(BlueprintType)
@@ -194,10 +194,10 @@ public:
 
 // By default structs exposed to Python will use a per-UPROPERTY comparison. When this doesn't give correct results
 // (e.g., for structs with no properties, which will compare equal in all cases because there are no properties to
-// compare), it is necessary to define explicity equality operators and add the following WithIdenticalViaEquality trait.
+// compare), it is necessary to define explicit equality operators and add the following WithIdenticalViaEquality trait.
 // Note that users can write blueprints/python scripts which pass these lists to many function calls so we would like to
 // avoid copying them (very slow if they have millions of elements) so we defined the equality operations using pointer
-// equality but this is potentially confusing if users expect that different lists with the same elements compare equal
+// equality but this is potentially confusing if users expect that different lists with the same elements compare equal.
 
 UENUM(BlueprintType)
 enum class EGeometryScriptIndexType : uint8
@@ -207,7 +207,7 @@ enum class EGeometryScriptIndexType : uint8
 	Triangle,
 	Vertex,
 	MaterialID,
-	PolygroupID
+	PolygroupID UMETA(DisplayName = "PolyGroup ID")
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName = "Index List"))

@@ -16,7 +16,7 @@ UENUM(BlueprintType)
 enum class EGeometryScriptTopologyConnectionType : uint8
 {
 	Geometric,
-	Polygroup,
+	Polygroup UMETA(DisplayName = "PolyGroup"),
 	MaterialID
 };
 
@@ -66,7 +66,7 @@ public:
 	 * If bAllowPartialInclusion is disabled, then more restrictive conversions are performed, as follows:
 	 *   For To-Vertices, only include vertices where all one-ring triangles are included in FromSelection.
 	 *   For To-Triangles, only include triangles where all tri vertices are included in FromSelection.
-	 *   For To-Polygroups, only include groups where all group triangles are included in FromSelection
+	 *   For To-PolyGroups, only include groups where all group triangles are included in FromSelection
 	 * @param bAllowPartialInclusion if false, perform more limited selection conversion as described above
 	 */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshSelection", meta=(ScriptMethod))
@@ -209,7 +209,7 @@ public:
 	/**
 	* Create a new Mesh Selection of the SelectionType for the TargetMesh by finding all elements that have a normal
 	* vector that is within an angular deviation threshold from the given Normal. 
-	* For Triangle and Polygroup selections the triangle facet normal is used, for Vertex selections the per-vertex averaged normal is used.
+	* For Triangle and PolyGroup selections the triangle facet normal is used, for Vertex selections the per-vertex averaged normal is used.
 	* @param Normal normal/direction vector to measure against
 	* @param MaxAngleDeg maximum angular deviation from Normal, in degrees
 	* @param bInvert return a selection of all elements not within the given deviation
@@ -229,7 +229,7 @@ public:
 
 	/**
 	* Create a new Mesh Selection of the SelectionType for the TargetMesh by finding all elements inside a second SelectionMesh
-	* For Triangle and Polygroup selections the triangle facet normal is used, for Vertex selections the per-vertex averaged normal is used.
+	* For Triangle and PolyGroup selections the triangle facet normal is used, for Vertex selections the per-vertex averaged normal is used.
 	* @param SelectionMeshTransform Transform applied to SelectionMesh for inside/outside testing
 	* @param bInvert return a selection of all elements not within the given deviation
 	* @param ShellDistance If > 0, points within this distance from SelectionMesh will also be considered "inside"
@@ -280,10 +280,10 @@ public:
 	 * Grow or Shrink the Selection on the TargetMesh to connected neighbours.
 	 * For Vertex selections, Expand includes vertices in one-ring of selected vertices, and Contract removes any vertices with a one-ring neighbour that is not selected
 	 * For Triangle selections, Add/Remove Triangles connected to selected Triangles
-	 * For Polygroup selections, Add/Remove Polygroups connected to selected Polygroups
+	 * For PolyGroup selections, Add/Remove PolyGroups connected to selected PolyGroups
 	 * @param Iterations number of times to Expand/Contract the Selection. Valid range is [0,100] where 0 is a no-op.
 	 * @param bContract if true selection contracts instead of growing
-	 * @param bOnlyExpandToFaceNeighbours if true, only adjacent Triangles/Polygroups directly connected by an edge are added, vs connected to any selected vertex
+	 * @param bOnlyExpandToFaceNeighbours if true, only adjacent Triangles/PolyGroups directly connected by an edge are added, vs connected to any selected vertex
 	 */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshSelection", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
