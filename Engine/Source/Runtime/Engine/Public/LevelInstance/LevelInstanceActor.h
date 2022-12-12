@@ -34,11 +34,10 @@ protected:
 	UPROPERTY(Transient, ReplicatedUsing=OnRep_LevelInstanceSpawnGuid)
 	FGuid LevelInstanceSpawnGuid;
 
-private:
 	FLevelInstanceActorGuid LevelInstanceActorGuid;
 	FLevelInstanceActorImpl LevelInstanceActorImpl;
-public:
 
+public:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	ELevelInstanceRuntimeBehavior DesiredRuntimeBehavior;
