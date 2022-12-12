@@ -887,6 +887,12 @@ void SSceneOutliner::RemoveItemFromTree(FSceneOutlinerTreeItemRef ReferenceItem)
 	{
 		FSceneOutlinerTreeItemRef Item = ItemInTree->ToSharedRef();
 
+		// If the item we are removing is selected, refresh the selection to remove it from there as well
+		if(OutlinerTreeView->GetSelectedItems().Contains(Item))
+		{
+			RefreshSelection();
+		}
+
 		auto Parent = Item->GetParent();
 
 		if (Parent.IsValid())
