@@ -1669,7 +1669,11 @@ static void ReportEvent(ECrashContextType InType, const TCHAR* ErrorMessage, uin
 
 					if (ProgramCounter == nullptr)
 					{
+#if PLATFORM_CPU_X86_FAMILY || defined(_M_ARM64EC)
 						ProgramCounter = (void*)(ThreadContext.Rip);
+#else
+						ProgramCounter = (void*)(ThreadContext.Pc);
+#endif
 					}
 				}
 			}

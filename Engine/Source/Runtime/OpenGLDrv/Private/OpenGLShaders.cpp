@@ -20,7 +20,7 @@
 
 #define CHECK_FOR_GL_SHADERS_TO_REPLACE 0
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS && PLATFORM_CPU_X86_FAMILY
 #include <mmintrin.h>
 #endif
 #include "SceneUtils.h"

@@ -8,7 +8,7 @@
 #include "Misc/StringBuilder.h"
 #include "Serialization/CompactBinaryWriter.h"
 
-#if defined(_M_AMD64) || defined(__x86_64__)
+#if (defined(_M_AMD64) || defined(__x86_64__)) && !defined(_M_ARM64EC)
 
 #include <immintrin.h>
 #if PLATFORM_COMPILER_CLANG
@@ -23,7 +23,7 @@
 #define UE_PLATFORM_SHA_FALLBACK 0
 #endif
 
-#elif defined(__aarch64__)
+#elif defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC)
 
 // on ARMv8 enable SHA instructions unconditionally only when they are enabled with compiler
 #ifdef __ARM_FEATURE_CRYPTO
