@@ -67,7 +67,7 @@ struct FReplicationGraphDestructionSettings;
 
 typedef TObjectKey<class UNetReplicationGraphConnection> FRepGraphConnectionKey;
 
-#define DO_ENABLE_REPGRAPH_DEBUG_ACTOR !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#define DO_ENABLE_REPGRAPH_DEBUG_ACTOR !(UE_BUILD_SHIPPING)
 
 UCLASS(abstract, transient, config=Engine)
 class REPLICATIONGRAPH_API UReplicationGraphNode : public UObject
@@ -165,49 +165,6 @@ protected:
 
 	/** Determines if PrepareForReplication() is called. This currently must be set in the constructor, not dynamically. */
 	bool bRequiresPrepareForReplicationCall = false;
-};
-
-// -----------------------------------
-
-
-struct REPLICATIONGRAPH_API FStreamingLevelActorListCollection
-{
-	void AddActor(const FNewReplicatedActorInfo& ActorInfo);
-	bool RemoveActor(const FNewReplicatedActorInfo& ActorInfo, bool bWarnIfNotFound, UReplicationGraphNode* Outer);
-	bool RemoveActorFast(const FNewReplicatedActorInfo& ActorInfo, UReplicationGraphNode* Outer);
-	void Reset();
-	void Gather(const FConnectionGatherActorListParameters& Params);
-	void DeepCopyFrom(const FStreamingLevelActorListCollection& Source);
-	void GetAll_Debug(TArray<FActorRepListType>& OutArray) const;
-	void Log(FReplicationGraphDebugInfo& DebugInfo) const;
-	int32 NumLevels() const { return StreamingLevelLists.Num(); }
-	void TearDown();
-
-	struct FStreamingLevelActors
-	{
-		FStreamingLevelActors(FName InName) : StreamingLevelName(InName) 
-		{ 
-			repCheck(InName != NAME_None); 
-		}
-
-		FName StreamingLevelName;
-		FActorRepListRefView ReplicationActorList;
-		bool operator==(const FName& InName) const { return InName == StreamingLevelName; };
-	};
-
-	/** Lists for streaming levels. Actors that "came from" streaming levels go here. These lists are only returned if the connection has their streaming level loaded. */
-	static const int32 NumInlineAllocations = 4;
-	TArray<FStreamingLevelActors, TInlineAllocator<NumInlineAllocations>> StreamingLevelLists;
-
-	void CountBytes(FArchive& Ar) const
-	{
-		StreamingLevelLists.CountBytes(Ar);
-
-		for (const FStreamingLevelActors& List : StreamingLevelLists)
-		{
-			List.ReplicationActorList.CountBytes(Ar);
-		}
-	}
 };
 
 // -----------------------------------
@@ -434,7 +391,10 @@ protected:
 	virtual void GatherActors(const FActorRepListRefView& RepList, FGlobalActorReplicationInfoMap& GlobalMap, FPerConnectionActorInfoMap& ConnectionMap, const FConnectionGatherActorListParameters& Params, UNetConnection* NetConnection);
 	virtual void GatherActors_DistanceOnly(const FActorRepListRefView& RepList, FGlobalActorReplicationInfoMap& GlobalMap, FPerConnectionActorInfoMap& ConnectionMap, const FConnectionGatherActorListParameters& Params);
 
+	UE_DEPRECATED(5.2, "This function was replaced with a version that needs to receive a UNetReplicationGraphConnection instead of a NetConnection")
 	void CalcFrequencyForActor(AActor* Actor, UReplicationGraph* RepGraph, UNetConnection* NetConnection, FGlobalActorReplicationInfo& GlobalInfo, FPerConnectionActorInfoMap& ConnectionMap, FSettings& MySettings, const FNetViewerArray& Viewers, const uint32 FrameNum, int32 ExistingItemIndex);
+
+	void CalcFrequencyForActor(AActor* Actor, UReplicationGraph* RepGraph, const UNetReplicationGraphConnection& RepGraphConnection, FGlobalActorReplicationInfo& GlobalInfo, FPerConnectionActorInfoMap& ConnectionMap, FSettings& MySettings, const FNetViewerArray& Viewers, const uint32 FrameNum, int32 ExistingItemIndex);
 };
 
 
@@ -1076,6 +1036,8 @@ public:
 		return (uint16)FramesBetweenUpdates;
 	}
 
+	UNetReplicationGraphConnection* FindConnectionManager(UNetConnection* NetConnection) const;
+
 protected:
 
 	virtual void InitializeForWorld(UWorld* World);
@@ -1093,7 +1055,11 @@ protected:
 
 	UNetReplicationGraphConnection* FindOrAddConnectionManager(UNetConnection* NetConnection);
 
-	void HandleStarvedActorList(const FPrioritizedRepList& List, int32 StartIdx, FPerConnectionActorInfoMap& ConnectionActorInfoMap, uint32 FrameNum);
+	UE_DEPRECATED(5.2, "This function has been replaced with a version that needs to receive a UNetReplicationGraphConnection")
+	void HandleStarvedActorList(const FPrioritizedRepList& List, int32 StartIdx, FPerConnectionActorInfoMap& ConnectionActorInfoMap, uint32 FrameNum) {}
+
+	/** Sets the next timeout frame for the actors in the list along with their dependent actors */
+	void HandleStarvedActorList(const UNetReplicationGraphConnection& RepGraphConnection, const FPrioritizedRepList& List, int32 StartIdx, FPerConnectionActorInfoMap& ConnectionActorInfoMap, uint32 FrameNum);
 
 	/** How long, in frames, without replicating before an actor channel is closed on a connection. This is a global value added to the individual actor's ActorChannelFrameTimeout */
 	uint32 GlobalActorChannelFrameNumTimeout;
@@ -1303,6 +1269,9 @@ public:
 	/** Generates a set of all the visible level names for this connection and its subconnections (if any) */
 	virtual void GetClientVisibleLevelNames(TSet<FName>& OutLevelNames) const;
 
+	/** Returns the list of visible levels cached at the start of the gather phase. */
+	const TSet<FName>& GetCachedClientVisibleLevelNames() const { return CachedVisibleLevels; }
+
 	FActorRepListRefView& GetPrevDormantActorListForNode(const UReplicationGraphNode* GridNode);
 
 	void RemoveActorFromAllPrevDormantActorLists(AActor* InActor);
@@ -1358,6 +1327,8 @@ private:
 
 	void SetActorNotDormantOnConnection(AActor* InActor);
 
+	void BuildVisibleLevels();
+
 	UPROPERTY()
 	TArray<TObjectPtr<UReplicationGraphNode>> ConnectionGraphNodes;
 
@@ -1409,6 +1380,9 @@ private:
 
 	/** Set used to guard against double adds into PendingDormantDestructList */
 	TSet<FNetworkGUID> TrackedDormantDestructionInfos;
+
+	/** List of level names visible to this connection. Valid during the Gather phase */
+	TSet<FName> CachedVisibleLevels;
 };
 
 // --------------------------------------------------------------------------------------------------------------------------------------------

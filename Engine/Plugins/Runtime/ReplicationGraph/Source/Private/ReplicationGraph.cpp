@@ -395,6 +395,42 @@ void UReplicationGraph::RemoveConnectionGraphNode(UReplicationGraphNode* GraphNo
 	ConnectionManager->RemoveConnectionGraphNode(GraphNode);
 }
 
+UNetReplicationGraphConnection* UReplicationGraph::FindConnectionManager(UNetConnection* NetConnection) const
+{
+#if WITH_SERVER_CODE
+	check(NetConnection);
+
+	// Children do not have a connection manager, this is handled by their parent.
+	// We do not want to create connection managers for children, so redirect them.
+	if (NetConnection->GetUChildConnection() != nullptr)
+	{
+		NetConnection = ((UChildConnection*)NetConnection)->Parent;
+		UE_LOG(LogReplicationGraph, Verbose, TEXT("UReplicationGraph::FindOrAddConnectionManager was called with a child connection, redirecting to parent"));
+		check(NetConnection != nullptr);
+	}
+
+	check(NetConnection->GetDriver() == NetDriver);
+
+	for (UNetReplicationGraphConnection* ConnManager : Connections)
+	{
+		if (ConnManager->NetConnection == NetConnection)
+		{
+			return ConnManager;
+		}
+	}
+
+	for (UNetReplicationGraphConnection* ConnManager : PendingConnections)
+	{
+		if (ConnManager->NetConnection == NetConnection)
+		{
+			return ConnManager;
+		}
+	}
+#endif
+
+	return nullptr;
+}
+
 UNetReplicationGraphConnection* UReplicationGraph::FindOrAddConnectionManager(UNetConnection* NetConnection)
 {
 #if WITH_SERVER_CODE
@@ -1042,9 +1078,7 @@ int32 UReplicationGraph::ServerReplicateActors(float DeltaSeconds)
 		
 		FGatheredReplicationActorLists GatheredReplicationListsForConnection;
 
-		TSet<FName> AllVisibleLevelNames;
-		ConnectionManager->GetClientVisibleLevelNames(AllVisibleLevelNames);
-		const FConnectionGatherActorListParameters Parameters(ConnectionViewers, *ConnectionManager, AllVisibleLevelNames, FrameNum, GatheredReplicationListsForConnection);
+		const FConnectionGatherActorListParameters Parameters(ConnectionViewers, *ConnectionManager, ConnectionManager->GetCachedClientVisibleLevelNames(), FrameNum, GatheredReplicationListsForConnection);
 
 		UNetReplicationGraphConnection::FRepGraphDestructionViewerInfoArray DestructionViewersInfo;
 
@@ -1494,7 +1528,7 @@ void UReplicationGraph::ReplicateActorsForConnection(UNetConnection* NetConnecti
 		{
 			// We've exceeded the budget for this category of replication list.
 			RG_QUICK_SCOPE_CYCLE_COUNTER(NET_ReplicateActors_PartialStarvedActorList);
-			HandleStarvedActorList(PrioritizedReplicationList, ActorIdx + 1, ConnectionActorInfoMap, FrameNum);
+			HandleStarvedActorList(*ConnectionManager, PrioritizedReplicationList, ActorIdx + 1, ConnectionActorInfoMap, FrameNum);
 			NotifyConnectionSaturated(*ConnectionManager);
 			break;
 		}
@@ -1953,41 +1987,48 @@ int64 UReplicationGraph::ReplicateSingleActor(AActor* Actor, FConnectionReplicat
 	// ----------------------------
 	//	Dependent actors
 	// ----------------------------
-	const FGlobalActorReplicationInfo::FDependantListType& DependentActorList = GlobalActorInfo.GetDependentActorList();
-	if (DependentActorList.Num() > 0)
+	FGatheredReplicationActorLists ListGatherer;
+	GlobalActorInfo.GatherDependentActorLists(ConnectionManager, ListGatherer);
+	
+	if (ListGatherer.NumLists() > 0)
 	{
 		RG_QUICK_SCOPE_CYCLE_COUNTER(NET_ReplicateActors_DependentActors);
 
 		const int32 CloseFrameNum = ActorInfo.ActorChannelCloseFrameNum;
+		
+		const TArray<FActorRepListConstView>& DependentLists = ListGatherer.GetLists(EActorRepListTypeFlags::Default);
 
-		for (AActor* DependentActor : DependentActorList)
+		for (const FActorRepListConstView& DependentActorList : DependentLists)
 		{
-			repCheck(DependentActor);
-
-			FConnectionReplicationActorInfo& DependentActorConnectionInfo = ConnectionActorInfoMap.FindOrAdd(DependentActor);
-			FGlobalActorReplicationInfo& DependentActorGlobalData = GlobalActorReplicationInfoMap.Get(DependentActor);
-
-			UpdateActorChannelCloseFrameNum(DependentActor, DependentActorConnectionInfo, DependentActorGlobalData, FrameNum, NetConnection);
-
-			// Dependent actor channel will stay open as long as the owning actor channel is open
-			DependentActorConnectionInfo.ActorChannelCloseFrameNum = FMath::Max<uint32>(CloseFrameNum, DependentActorConnectionInfo.ActorChannelCloseFrameNum);
-
-			if (!ReadyForNextReplication(DependentActorConnectionInfo, DependentActorGlobalData, FrameNum))
+			for (AActor* DependentActor : DependentActorList)
 			{
-				continue;
-			}
+				repCheck(DependentActor);
 
-			if (!ensureMsgf(IsActorValidForReplication(DependentActor), TEXT("DependentActor %s (Owner: %s) not valid for replication (BeingDestroyed:%d) (IsValid:%d) (Unreachable:%d) (TearOff:%d)! Channel = %s"),
-							*DependentActor->GetFullName(), *Actor->GetFullName(),
-							DependentActor->IsActorBeingDestroyed(), IsValid(DependentActor), DependentActor->IsUnreachable(), DependentActor->GetTearOff(),
-							*DescribeSafe(DependentActorConnectionInfo.Channel)))
-			{
-				continue;
-			}
+				FConnectionReplicationActorInfo& DependentActorConnectionInfo = ConnectionActorInfoMap.FindOrAdd(DependentActor);
+				FGlobalActorReplicationInfo& DependentActorGlobalData = GlobalActorReplicationInfoMap.Get(DependentActor);
 
-			//UE_LOG(LogReplicationGraph, Display, TEXT("DependentActor %s %s. NextReplicationFrameNum: %d. FrameNum: %d. ForceNetUpdateFrame: %d. LastRepFrameNum: %d."), *DependentActor->GetPathName(), *NetConnection->GetName(), DependentActorConnectionInfo.NextReplicationFrameNum, FrameNum, DependentActorGlobalData.ForceNetUpdateFrame, DependentActorConnectionInfo.LastRepFrameNum);
-			BitsWritten += ReplicateSingleActor(DependentActor, DependentActorConnectionInfo, DependentActorGlobalData, ConnectionActorInfoMap, ConnectionManager, FrameNum);
-		}					
+				UpdateActorChannelCloseFrameNum(DependentActor, DependentActorConnectionInfo, DependentActorGlobalData, FrameNum, NetConnection);
+
+				// Dependent actor channel will stay open as long as the owning actor channel is open
+				DependentActorConnectionInfo.ActorChannelCloseFrameNum = FMath::Max<uint32>(CloseFrameNum, DependentActorConnectionInfo.ActorChannelCloseFrameNum);
+
+				if (!ReadyForNextReplication(DependentActorConnectionInfo, DependentActorGlobalData, FrameNum))
+				{
+					continue;
+				}
+
+				if (!ensureMsgf(IsActorValidForReplication(DependentActor), TEXT("DependentActor %s (Owner: %s) not valid for replication (BeingDestroyed:%d) (IsValid:%d) (Unreachable:%d) (TearOff:%d)! Channel = %s"),
+					*DependentActor->GetFullName(), *Actor->GetFullName(),
+					DependentActor->IsActorBeingDestroyed(), IsValid(DependentActor), DependentActor->IsUnreachable(), DependentActor->GetTearOff(),
+					*DescribeSafe(DependentActorConnectionInfo.Channel)))
+				{
+					continue;
+				}
+
+				//UE_LOG(LogReplicationGraph, Display, TEXT("DependentActor %s %s. NextReplicationFrameNum: %d. FrameNum: %d. ForceNetUpdateFrame: %d. LastRepFrameNum: %d."), *DependentActor->GetPathName(), *NetConnection->GetName(), DependentActorConnectionInfo.NextReplicationFrameNum, FrameNum, DependentActorGlobalData.ForceNetUpdateFrame, DependentActorConnectionInfo.LastRepFrameNum);
+				BitsWritten += ReplicateSingleActor(DependentActor, DependentActorConnectionInfo, DependentActorGlobalData, ConnectionActorInfoMap, ConnectionManager, FrameNum);
+			}
+		}
 	}
 
 	// Optional budget for actor discovery traffic
@@ -2006,27 +2047,30 @@ int64 UReplicationGraph::ReplicateSingleActor(AActor* Actor, FConnectionReplicat
 #endif //WITH_SERVER_CODE
 }
 
-void UReplicationGraph::HandleStarvedActorList(const FPrioritizedRepList& List, int32 StartIdx, FPerConnectionActorInfoMap& ConnectionActorInfoMap, uint32 FrameNum)
+void UReplicationGraph::HandleStarvedActorList(const UNetReplicationGraphConnection& RepGraphConnection, const FPrioritizedRepList& List, int32 StartIdx, FPerConnectionActorInfoMap& ConnectionActorInfoMap, uint32 FrameNum)
 {
+	FGatheredReplicationActorLists DependentListContainer;
+
 	for (int32 ActorIdx=StartIdx; ActorIdx < List.Items.Num(); ++ActorIdx)
 	{
 		const FPrioritizedRepList::FItem& RepItem = List.Items[ActorIdx];
-		FConnectionReplicationActorInfo& ActorInfo = *RepItem.ConnectionData;
+		const uint32 CloseFrameNum = RepItem.ConnectionData->ActorChannelCloseFrameNum;
 
 		// Update dependent actor's timeout frame
 		FGlobalActorReplicationInfo& GlobalActorInfo = GlobalActorReplicationInfoMap.Get(RepItem.Actor);
 
-		const FGlobalActorReplicationInfo::FDependantListType& DependentActorList = GlobalActorInfo.GetDependentActorList();
-
-		if (DependentActorList.Num() > 0)
+		
+		GlobalActorInfo.GatherDependentActorLists(RepGraphConnection, DependentListContainer);
+		const TArray<FActorRepListConstView>& DependentLists = DependentListContainer.GetLists(EActorRepListTypeFlags::Default);
+		for (const FActorRepListConstView& DependentList : DependentLists)
 		{
-			const uint32 CloseFrameNum = ActorInfo.ActorChannelCloseFrameNum;
-			for (AActor* DependentActor : DependentActorList)
+			for (AActor* DependentActor : DependentList)
 			{
 				FConnectionReplicationActorInfo& DependentActorConnectionInfo = ConnectionActorInfoMap.FindOrAdd(DependentActor);
 				DependentActorConnectionInfo.ActorChannelCloseFrameNum = FMath::Max<uint32>(CloseFrameNum, DependentActorConnectionInfo.ActorChannelCloseFrameNum);
 			}
 		}
+		DependentListContainer.Reset();
 	}
 }
 
@@ -2638,7 +2682,24 @@ bool UNetReplicationGraphConnection::PrepareForReplication()
 		CurChild->ViewTarget = CurChild->PlayerController ? CurChild->PlayerController->GetViewTarget() : ToRawPtr(CurChild->OwningActor);
 	}
 
+	BuildVisibleLevels();
+
 	return (NetConnection->GetConnectionState() != USOCK_Closed) && (NetConnection->ViewTarget != nullptr) && bConnectionHasCorrectWorld;
+}
+
+void UNetReplicationGraphConnection::BuildVisibleLevels()
+{
+	CachedVisibleLevels.Reset();
+
+	CachedVisibleLevels.Append(NetConnection->ClientVisibleLevelNames);
+	for (const UNetConnection* Child : NetConnection->Children)
+	{
+		if (Child)
+		{
+			// For sets, we don't have to worry about uniqueness due to the nature of the data structure.
+			CachedVisibleLevels.Append(Child->ClientVisibleLevelNames);
+		}
+	}
 }
 
 void UNetReplicationGraphConnection::NotifyAddDestructionInfo(FActorDestructionInfo* DestructInfo)
@@ -3084,7 +3145,7 @@ void FStreamingLevelActorListCollection::AddActor(const FNewReplicatedActorInfo&
 	Item->ReplicationActorList.Add(ActorInfo.Actor);
 }
 
-bool FStreamingLevelActorListCollection::RemoveActor(const FNewReplicatedActorInfo& ActorInfo, bool bWarnIfNotFound, UReplicationGraphNode* Outer)
+bool FStreamingLevelActorListCollection::RemoveActor(const FNewReplicatedActorInfo& ActorInfo, bool bWarnIfNotFound, UObject* Outer)
 {
 	bool bRemovedSomething = false;
 	for (FStreamingLevelActors& StreamingList : StreamingLevelLists)
@@ -3107,7 +3168,7 @@ bool FStreamingLevelActorListCollection::RemoveActor(const FNewReplicatedActorIn
 	return bRemovedSomething;
 }
 
-bool FStreamingLevelActorListCollection::RemoveActorFast(const FNewReplicatedActorInfo& ActorInfo, UReplicationGraphNode* Outer)
+bool FStreamingLevelActorListCollection::RemoveActorFast(const FNewReplicatedActorInfo& ActorInfo, UObject* Outer)
 {
 	bool bRemovedSomething = false;
 	for (FStreamingLevelActors& StreamingList : StreamingLevelLists)
@@ -3129,7 +3190,7 @@ void FStreamingLevelActorListCollection::Reset()
 	}
 }
 
-void FStreamingLevelActorListCollection::Gather(const FConnectionGatherActorListParameters& Params)
+void FStreamingLevelActorListCollection::Gather(const FConnectionGatherActorListParameters& Params) const
 {
 	for (const FStreamingLevelActors& StreamingList : StreamingLevelLists)
 	{
@@ -3142,6 +3203,40 @@ void FStreamingLevelActorListCollection::Gather(const FConnectionGatherActorList
 			UE_LOG(LogReplicationGraph, Verbose, TEXT("Level Not Loaded %s. (Client has %d levels loaded)"), *StreamingList.StreamingLevelName.ToString(), Params.ClientVisibleLevelNamesRef.Num());
 		}
 	}
+}
+
+void FStreamingLevelActorListCollection::Gather(const UNetReplicationGraphConnection& ConnectionManager, FGatheredReplicationActorLists& OutGatheredList) const
+{
+	const TSet<FName>& ClientLevelNames = ConnectionManager.GetCachedClientVisibleLevelNames();
+
+	for (const FStreamingLevelActors& StreamingList : StreamingLevelLists)
+	{
+		if (ClientLevelNames.Contains(StreamingList.StreamingLevelName))
+		{
+			OutGatheredList.AddReplicationActorList(StreamingList.ReplicationActorList);
+		}
+	}
+}
+
+void FStreamingLevelActorListCollection::AppendAllLists(FGatheredReplicationActorLists& OutGatheredList) const
+{
+	for (const FStreamingLevelActors& StreamingList : StreamingLevelLists)
+	{
+		OutGatheredList.AddReplicationActorList(StreamingList.ReplicationActorList);
+	}
+}
+
+bool FStreamingLevelActorListCollection::Contains(const FNewReplicatedActorInfo& ActorInfo) const
+{
+	for (const FStreamingLevelActors& StreamingList : StreamingLevelLists)
+	{
+		if (StreamingList.StreamingLevelName == ActorInfo.StreamingLevelName)
+		{
+			return StreamingList.ReplicationActorList.Contains(ActorInfo.Actor);
+		}
+	}
+
+	return false;
 }
 
 void FStreamingLevelActorListCollection::DeepCopyFrom(const FStreamingLevelActorListCollection& Source)
@@ -3738,7 +3833,7 @@ void UReplicationGraphNode_DynamicSpatialFrequency::GatherActorListsForConnectio
 					AActor* Actor = Item.Actor;
 					FGlobalActorReplicationInfo& GlobalInfo = *Item.GlobalInfo;
 				
-					CalcFrequencyForActor(Actor, RepGraph, NetConnection, GlobalInfo, ConnectionActorInfoMap, MySettings, Params.Viewers, FrameNum, idx);
+					CalcFrequencyForActor(Actor, RepGraph, Params.ConnectionManager, GlobalInfo, ConnectionActorInfoMap, MySettings, Params.Viewers, FrameNum, idx);
 				}
 
 				SortedReplicationList.Sort();
@@ -3887,8 +3982,16 @@ static TArray<FColor> DynamicSpatialFrequencyDebugColorArray = { FColor::Red, FC
 
 void UReplicationGraphNode_DynamicSpatialFrequency::CalcFrequencyForActor(AActor* Actor, UReplicationGraph* RepGraph, UNetConnection* NetConnection, FGlobalActorReplicationInfo& GlobalInfo, FPerConnectionActorInfoMap& ConnectionMap, FSettings& MySettings, const FNetViewerArray& Viewers, const uint32 FrameNum, int32 ExistingItemIndex)
 {
+	UNetReplicationGraphConnection* RepGraphConnection = RepGraph->FindConnectionManager(NetConnection);
+	CalcFrequencyForActor(Actor, RepGraph, *RepGraphConnection, GlobalInfo, ConnectionMap, MySettings, Viewers, FrameNum, ExistingItemIndex);
+}
+
+void UReplicationGraphNode_DynamicSpatialFrequency::CalcFrequencyForActor(AActor* Actor, UReplicationGraph* RepGraph, const UNetReplicationGraphConnection& RepGraphConnection, FGlobalActorReplicationInfo& GlobalInfo, FPerConnectionActorInfoMap& ConnectionMap, FSettings& MySettings, const FNetViewerArray& Viewers, const uint32 FrameNum, int32 ExistingItemIndex)
+{
 #if WITH_SERVER_CODE
 	FConnectionReplicationActorInfo& ConnectionInfo = ConnectionMap.FindOrAdd(Actor);
+
+	UNetConnection* NetConnection = RepGraphConnection.NetConnection;
 
 	// If we need to filter out the actor and it is already in the SortedReplicationList, we need to remove it (instead of just skipping/returning).
 	auto RemoveExistingItem = [&ExistingItemIndex, this]()
@@ -3957,6 +4060,8 @@ void UReplicationGraphNode_DynamicSpatialFrequency::CalcFrequencyForActor(AActor
 
 	const bool ActorSupportsFastShared = (GlobalInfo.Settings.FastSharedReplicationFunc != nullptr);
 	TArrayView<FSpatializationZone>& ZoneList = ActorSupportsFastShared ? MySettings.ZoneSettings : MySettings.ZoneSettings_NonFastSharedActors;
+
+	FGatheredReplicationActorLists DependentListContainer;
 		
 	for (int32 ZoneIdx=0; ZoneIdx < ZoneList.Num(); ++ZoneIdx)
 	{
@@ -3995,12 +4100,18 @@ void UReplicationGraphNode_DynamicSpatialFrequency::CalcFrequencyForActor(AActor
 				// Update actor timeout frame here in case we get starved and can't actually replicate before then
 				ConnectionInfo.ActorChannelCloseFrameNum = FMath::Max<uint32>(ConnectionInfo.ActorChannelCloseFrameNum, ConnectionInfo.NextReplicationFrameNum + 1);
 
-				const FGlobalActorReplicationInfo::FDependantListType& DependentActorList = GlobalInfo.GetDependentActorList();
-				for (AActor* DependentActor : DependentActorList)
+				// Update the dependent actor's timeout frame too
+				GlobalInfo.GatherDependentActorLists(RepGraphConnection, DependentListContainer);
+				const TArray<FActorRepListConstView>& DependentLists = DependentListContainer.GetLists(EActorRepListTypeFlags::Default);
+				for (const FActorRepListConstView& DependentList : DependentLists)
 				{
-					FConnectionReplicationActorInfo& DependentActorConnectionInfo = ConnectionMap.FindOrAdd(DependentActor);
-					DependentActorConnectionInfo.ActorChannelCloseFrameNum = FMath::Max<uint32>(ConnectionInfo.ActorChannelCloseFrameNum, ConnectionInfo.NextReplicationFrameNum + 1);
+					for (AActor* DependentActor : DependentList)
+					{
+						FConnectionReplicationActorInfo& DependentActorConnectionInfo = ConnectionMap.FindOrAdd(DependentActor);
+						DependentActorConnectionInfo.ActorChannelCloseFrameNum = FMath::Max<uint32>(ConnectionInfo.ActorChannelCloseFrameNum, ConnectionInfo.NextReplicationFrameNum + 1);
+					}
 				}
+				DependentListContainer.Reset();
 
 				// Calc Replication Period for FastShared replication
 				if (ActorSupportsFastShared && ZoneInfo.FastPath_MinRepPeriod > 0)
@@ -4111,7 +4222,7 @@ void UReplicationGraphNode_DynamicSpatialFrequency::GatherActors(const FActorRep
 
 		FGlobalActorReplicationInfo& GlobalInfo = GlobalMap.Get(Actor);
 
-		CalcFrequencyForActor(Actor, RepGraph, NetConnection, GlobalInfo, ConnectionMap, MySettings, Params.Viewers, FrameNum, INDEX_NONE);
+		CalcFrequencyForActor(Actor, RepGraph, Params.ConnectionManager, GlobalInfo, ConnectionMap, MySettings, Params.Viewers, FrameNum, INDEX_NONE);
 	}
 }
 

@@ -445,6 +445,18 @@ void TActorListAllocator<NumListsPerBlock, MaxNumPools>::LogDetails(int32 PoolSi
 	}
 }
 
+int32 FGlobalActorReplicationInfoMap::Remove(const FActorRepListType& RemovedActor)
+{
+	// Clean the references to the removed actor from its dependent link
+	if (FGlobalActorReplicationInfo* RemovedActorInfo = Find(RemovedActor))
+	{
+		RemoveAllActorDependencies(RemovedActor, RemovedActorInfo);
+	}
+
+	return ActorMap.Remove(RemovedActor);
+}
+
+
 void FGlobalActorReplicationInfoMap::AddDependentActor(AActor* Parent, AActor* Child, FGlobalActorReplicationInfoMap::EWarnFlag WarnFlag)
 {
 	/**
@@ -467,12 +479,12 @@ void FGlobalActorReplicationInfoMap::AddDependentActor(AActor* Parent, AActor* C
 		bool bChildIsAlreadyDependant(false);
 		if (FGlobalActorReplicationInfo* ParentInfo = Find(Parent))
 		{
-			bChildIsAlreadyDependant = ParentInfo->DependentActorList.Find(Child) != INDEX_NONE;
+			bChildIsAlreadyDependant = ParentInfo->DependentActorList.Contains(Child);
 			if (bChildIsAlreadyDependant == false)
 			{
 				if (IsActorValidForReplicationGather(Child))
 				{
-					ParentInfo->DependentActorList.Add(Child);
+					ParentInfo->DependentActorList.AddNetworkActor(Child);
 				}
 			}
 		}
@@ -596,4 +608,94 @@ void FActorRepListStatCollector::VisitExplicitStreamingLevelList(FName ListOwner
 	StreamingLevelStats.NumSlack += ListSlack;
 	StreamingLevelStats.NumBytes += ListBytes;
 	StreamingLevelStats.MaxListSize = FMath::Max(StreamingLevelStats.MaxListSize, ListSize);
+}
+
+void FLevelBasedActorList::AddNetworkActor(AActor* NetActor)
+{
+	FNewReplicatedActorInfo ActorInfo(NetActor);
+
+	if (ActorInfo.StreamingLevelName == NAME_None)
+	{
+		PermanentLevelActors.Add(NetActor);
+	}
+	else
+	{
+		StreamingLevelActors.AddActor(ActorInfo);
+	}
+}
+
+bool FLevelBasedActorList::RemoveNetworkActor(const FNewReplicatedActorInfo& ActorInfo)
+{
+	if (ActorInfo.StreamingLevelName == NAME_None)
+	{
+		return PermanentLevelActors.RemoveFast(ActorInfo.Actor);
+	}
+	else
+	{
+		return StreamingLevelActors.RemoveActorFast(ActorInfo);
+	}
+}
+
+bool FLevelBasedActorList::RemoveNetworkActorOrdered(AActor* NetActor)
+{
+	FNewReplicatedActorInfo ActorInfo(NetActor);
+
+	if (ActorInfo.StreamingLevelName == NAME_None)
+	{
+		return PermanentLevelActors.RemoveSlow(NetActor);
+	}
+	else
+	{
+		return StreamingLevelActors.RemoveActor(ActorInfo, false);
+	}
+}
+
+bool FLevelBasedActorList::Contains(AActor* NetActor) const
+{
+	FNewReplicatedActorInfo ActorInfo(NetActor);
+
+	if (ActorInfo.StreamingLevelName == NAME_None)
+	{
+		return PermanentLevelActors.Contains(NetActor);
+	}
+	else
+	{
+		return StreamingLevelActors.Contains(ActorInfo);
+	}
+}
+
+void FLevelBasedActorList::Reset()
+{
+	PermanentLevelActors.Reset();
+	StreamingLevelActors.Reset();
+}
+
+void FLevelBasedActorList::Gather(const FConnectionGatherActorListParameters& Params) const
+{
+	Params.OutGatheredReplicationLists.AddReplicationActorList(PermanentLevelActors);
+	StreamingLevelActors.Gather(Params);
+}
+
+void FLevelBasedActorList::Gather(const UNetReplicationGraphConnection& ConnectionManager, FGatheredReplicationActorLists& OutGatheredList) const
+{
+	OutGatheredList.AddReplicationActorList(PermanentLevelActors);
+	StreamingLevelActors.Gather(ConnectionManager, OutGatheredList);
+}
+
+void FLevelBasedActorList::AppendAllLists(FGatheredReplicationActorLists& OutGatheredList) const
+{
+	OutGatheredList.AddReplicationActorList(PermanentLevelActors);
+	StreamingLevelActors.AppendAllLists(OutGatheredList);
+}
+
+void FLevelBasedActorList::GetAllActors(TArray<AActor*>& OutAllActors) const
+{
+	PermanentLevelActors.AppendToTArray(OutAllActors);
+	StreamingLevelActors.GetAll_Debug(OutAllActors);
+}
+
+void FLevelBasedActorList::CountBytes(FArchive& Ar) const
+{
+	PermanentLevelActors.CountBytes(Ar);
+	StreamingLevelActors.CountBytes(Ar);
 }
