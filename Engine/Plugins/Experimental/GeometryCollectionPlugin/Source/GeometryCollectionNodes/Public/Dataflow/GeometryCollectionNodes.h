@@ -14,6 +14,7 @@
 
 
 class FGeometryCollection;
+class UGeometryCollection;
 class UStaticMesh;
 
 /**
@@ -22,82 +23,23 @@ class UStaticMesh;
  *
  */
 USTRUCT(meta = (DataflowGeometryCollection))
-struct FGetCollectionAssetDataflowNode : public FDataflowNode
+struct FGetCollectionFromAssetDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FGetCollectionAssetDataflowNode, "GetCollectionAsset", "GeometryCollection|Asset", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FGetCollectionFromAssetDataflowNode, "GetCollectionFromAsset", "GeometryCollection|Asset", "")
 
 public:
-	typedef FManagedArrayCollection DataType;
+	UPROPERTY(EditAnywhere, Category = "Dataflow", meta = (DataflowInput, DisplayName = "Asset"))
+	TObjectPtr<UGeometryCollection> CollectionAsset;
 
-	UPROPERTY(meta = (DataflowOutput, DisplayName = "Collection"))
-	mutable FManagedArrayCollection Output;
-
-	FGetCollectionAssetDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
-	{
-		RegisterOutputConnection(&Output);
-	}
-
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-
-};
-
-
-/**
- *
- * Description for this node
- *
- */
-USTRUCT(meta = (DataflowGeometryCollection))
-struct FExampleCollectionEditDataflowNode : public FDataflowNode
-{
-	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FExampleCollectionEditDataflowNode, "ExampleCollectionEdit", "GeometryCollection", "")
-
-public:
-	typedef FManagedArrayCollection DataType;
-
-	/** Description for this parameter */
-	UPROPERTY(EditAnywhere, Category = "Dataflow", meta = (EditCondition = "false", EditConditionHides));
-	float Scale = 1.0;
-
-	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Collection"))
+	UPROPERTY(meta = (DataflowOutput))
 	FManagedArrayCollection Collection;
 
-	FExampleCollectionEditDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+	FGetCollectionFromAssetDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
 	{
-		RegisterOutputConnection(&Collection, &Collection);
-		RegisterInputConnection(&Collection);
-	}
-
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-
-};
-
-
-/**
- *
- * Description for this node
- *
- */
-USTRUCT(meta = (DataflowGeometryCollection, DataflowTerminal))
-struct FSetCollectionAssetDataflowNode : public FDataflowTerminalNode
-{
-	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FSetCollectionAssetDataflowNode, "SetCollectionAsset", "Terminal", "")
-
-public:
-	typedef FManagedArrayCollection DataType;
-
-	UPROPERTY(meta = (DataflowInput))
-	FManagedArrayCollection Collection;
-
-	FSetCollectionAssetDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowTerminalNode(InParam, InGuid)
-	{
-		RegisterInputConnection(&Collection);
+		RegisterInputConnection(&CollectionAsset);
+		RegisterOutputConnection(&Collection);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
@@ -132,33 +74,6 @@ public:
 		RegisterInputConnection(&Collection1);
 		RegisterInputConnection(&Collection2);
 		RegisterOutputConnection(&Collection1, &Collection1);
-	}
-
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-
-};
-
-/**
- *
- * Description for this node
- *
- */
-USTRUCT(meta = (DataflowGeometryCollection))
-struct FResetGeometryCollectionDataflowNode : public FDataflowNode
-{
-	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FResetGeometryCollectionDataflowNode, "ResetGeometryCollection", "GeometryCollection", "")
-
-public:
-	typedef FManagedArrayCollection DataType;
-
-	UPROPERTY(meta = (DataflowOutput))
-	FManagedArrayCollection Collection;
-
-	FResetGeometryCollectionDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
-	{
-		RegisterOutputConnection(&Collection);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
@@ -501,7 +416,7 @@ public:
 	float Radius = 0.f;
 
 	UPROPERTY(meta = (DataflowOutput));
-	FSphere Sphere;
+	FSphere Sphere = FSphere(ForceInit);
 
 	FMakeSphereDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
@@ -1000,85 +915,6 @@ public:
 	{
 		RegisterInputConnection(&Degrees);
 		RegisterOutputConnection(&Radians);
-	}
-
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-
-};
-
-
-/**
- *
- * "Explodes" the pieces from the Collection for better visualization
- *
- */
-USTRUCT(meta = (DataflowGeometryCollection))
-struct FExplodedViewDataflowNode : public FDataflowNode
-{
-	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FExplodedViewDataflowNode, "ExplodedView", "GeometryCollection|Fracture|Utilities", "")
-	DATAFLOW_NODE_RENDER_TYPE(FGeometryCollection::StaticType(), "Collection")
-
-public:
-	UPROPERTY(meta = (DataflowInput, DataflowOutput))
-	FManagedArrayCollection Collection;
-
-	UPROPERTY(EditAnywhere, Category = "Scale", meta = (DataflowInput))
-	float UniformScale = 1.f;
-
-	UPROPERTY(EditAnywhere, Category = "Scale", meta = (DataflowInput))
-	FVector Scale = FVector(1.0);
-
-	FExplodedViewDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
-	{
-		RegisterInputConnection(&Collection);
-		RegisterInputConnection(&UniformScale);
-		RegisterInputConnection(&Scale);
-		RegisterOutputConnection(&Collection);
-	}
-
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-
-private:
-	// todo(chaos) this is a copy of a function in FractureEditorModeToolkit, we should move this to a common place  
-	static bool GetValidGeoCenter(FGeometryCollection* Collection, const TManagedArray<int32>& TransformToGeometryIndex, const TArray<FTransform>& Transforms, const TManagedArray<TSet<int32>>& Children, const TManagedArray<FBox>& BoundingBox, int32 TransformIndex, FVector& OutGeoCenter);
-
-};
-
-
-/**
- *
- * Generates convex hull representation for the bones for simulation
- *
- */
-USTRUCT(meta = (DataflowGeometryCollection))
-struct FCreateNonOverlappingConvexHullsDataflowNode : public FDataflowNode
-{
-	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FCreateNonOverlappingConvexHullsDataflowNode, "CreateNonOverlappingConvexHulls", "GeometryCollection|Utilities", "")
-
-public:
-	UPROPERTY(meta = (DataflowInput, DataflowOutput))
-	FManagedArrayCollection Collection;
-
-	UPROPERTY(EditAnywhere, Category = "Convex", meta = (DataflowInput, UIMin = 0.01f, UIMax = 1.f))
-	float CanRemoveFraction = 0.5f;
-
-	UPROPERTY(EditAnywhere, Category = "Convex", meta = (DataflowInput, UIMin = 0.f))
-	float CanExceedFraction = 0.5f;
-
-	UPROPERTY(EditAnywhere, Category = "Convex", meta = (DataflowInput, UIMin = 0.f))
-	float SimplificationDistanceThreshold = 10.f;
-
-	FCreateNonOverlappingConvexHullsDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
-	{
-		RegisterInputConnection(&Collection);
-		RegisterInputConnection(&CanRemoveFraction);
-		RegisterInputConnection(&CanExceedFraction);
-		RegisterInputConnection(&SimplificationDistanceThreshold);
-		RegisterOutputConnection(&Collection);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
@@ -2001,10 +1837,6 @@ public:
 	UPROPERTY(meta = (DataflowInput));
 	TArray<FVector> VectorAttributeData;
 
-	/** If yes then create attribute if it doesn't exist */
-//	UPROPERTY(EditAnywhere, Category = "Attribute", meta = (DisplayName = "Attribute"))
-//	FString AttrName = FString("");
-
 	FSetCollectionAttributeDataTypedDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
 	{
@@ -2014,6 +1846,37 @@ public:
 		RegisterInputConnection(&IntAttributeData);
 		RegisterInputConnection(&VectorAttributeData);
 		RegisterOutputConnection(&Collection, &Collection);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+
+/**
+ *
+ * Converts a TArray<bool> to a FDataflowFaceSelection
+ *
+ */
+USTRUCT()
+struct FBoolArrayToFaceSelectionDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FBoolArrayToFaceSelectionDataflowNode, "BoolArrayToFaceSelection", "Utilities|Array", "")
+
+public:
+	/** TArray<bool> data */
+	UPROPERTY(meta = (DataflowInput));
+	TArray<bool> BoolAttributeData;
+
+	UPROPERTY(meta = (DataflowOutput, DisplayName = "FaceSelection"))
+	FDataflowFaceSelection FaceSelection;
+
+	FBoolArrayToFaceSelectionDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&BoolAttributeData);
+		RegisterOutputConnection(&FaceSelection);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;

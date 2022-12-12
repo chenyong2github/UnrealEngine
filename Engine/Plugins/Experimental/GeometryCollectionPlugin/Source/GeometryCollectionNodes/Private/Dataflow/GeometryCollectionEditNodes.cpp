@@ -87,30 +87,67 @@ void FSetVisibilityInCollectionDataflowNode::Evaluate(Dataflow::FContext& Contex
 {
 	if (Out->IsA<FManagedArrayCollection>(&Collection))
 	{
-		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		const FDataflowTransformSelection& InTransformSelection = GetValue<FDataflowTransformSelection>(Context, &TransformSelection);
+		const FDataflowFaceSelection& InFaceSelection = GetValue<FDataflowFaceSelection>(Context, &FaceSelection);
 
-		const int32 NumTransforms = InCollection.NumElements(FGeometryCollection::TransformGroup);
-		if (InTransformSelection.Num() == NumTransforms)
+		if (IsConnected<FDataflowTransformSelection>(&TransformSelection))
 		{
-			if (InTransformSelection.AnySelected())
+			FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+			const int32 NumTransforms = InCollection.NumElements(FGeometryCollection::TransformGroup);
+
+			if (InTransformSelection.Num() == NumTransforms)
 			{
-				TArray<int32> BoneIndices;
-				InTransformSelection.AsArray(BoneIndices);
+				if (InTransformSelection.AnySelected())
+				{
+					TArray<int32> BoneIndices;
+					InTransformSelection.AsArray(BoneIndices);
 
-				FFractureEngineEdit::SetVisibilityInCollection(InCollection, BoneIndices, Visibility == EVisibiltyOptionsEnum::Dataflow_VisibilityOptions_Visible);
+					FFractureEngineEdit::SetVisibilityInCollectionFromTransformSelection(InCollection, BoneIndices, Visibility == EVisibiltyOptionsEnum::Dataflow_VisibilityOptions_Visible);
 
-				SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
-				return;
+					SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+					return;
+				}
+			}
+			else
+			{
+				// ERROR: InTransformSelection's length doesn't much number of transforms in InCollection
+				FString ErrorStr = "TransformSelection's number of elements doesn't match number of transforms in Collection.";
+				UE_LOG(LogTemp, Error, TEXT("[Dataflow ERROR] %s"), *ErrorStr);
+			}
+		}
+		else if (IsConnected<FDataflowFaceSelection>(&FaceSelection))
+		{
+			FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+			const int32 NumFaces = InCollection.NumElements(FGeometryCollection::FacesGroup);
+
+			if (InFaceSelection.Num() == NumFaces)
+			{
+				if (InFaceSelection.AnySelected())
+				{
+					TArray<int32> FaceIndexArr;
+					InFaceSelection.AsArray(FaceIndexArr);
+
+					FFractureEngineEdit::SetVisibilityInCollectionFromFaceSelection(InCollection, FaceIndexArr, Visibility == EVisibiltyOptionsEnum::Dataflow_VisibilityOptions_Visible);
+
+					SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+					return;
+				}
+			}
+			else
+			{
+				// ERROR: InTransformSelection's length doesn't much number of transforms in InCollection
+				FString ErrorStr = "TransformSelection's number of elements doesn't match number of transforms in Collection.";
+				UE_LOG(LogTemp, Error, TEXT("[Dataflow ERROR] %s"), *ErrorStr);
 			}
 		}
 		else
 		{
 			// ERROR: InTransformSelection's length doesn't much number of transforms in InCollection
-			FString ErrorStr = "TransformSelection's number of elements doesn't match number of transforms in Collection.";
+			FString ErrorStr = "A TransformSelection or a FaceSelection must be connected as input.";
 			UE_LOG(LogTemp, Error, TEXT("[Dataflow ERROR] %s"), *ErrorStr);
 		}
 
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
 	}
 }

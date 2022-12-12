@@ -41,19 +41,19 @@ void FFractureEngineEdit::DeleteBranch(FGeometryCollection& GeometryCollection, 
 }
 
 
-void FFractureEngineEdit::SetVisibilityInCollection(FManagedArrayCollection& InCollection, const TArray<int32>& InBoneSelection, bool bVisible)
+void FFractureEngineEdit::SetVisibilityInCollectionFromTransformSelection(FManagedArrayCollection& InCollection, const TArray<int32>& InTransformSelection, bool bVisible)
 {
 	GeometryCollection::Facades::FCollectionTransformSelectionFacade TransformSelectionFacade(InCollection);
 
-	const TManagedArray<int32>& TransformToGeometryIndex = InCollection.GetAttribute<int32>("TransformToGeometryIndex", FGeometryCollection::GeometryGroup);
+	const TManagedArray<int32>& TransformToGeometryIndex = InCollection.GetAttribute<int32>("TransformToGeometryIndex", FGeometryCollection::TransformGroup);
 	const TManagedArray<int32>& FaceStart = InCollection.GetAttribute<int32>("FaceStart", FGeometryCollection::GeometryGroup);
 	const TManagedArray<int32>& FaceCount = InCollection.GetAttribute<int32>("FaceCount", FGeometryCollection::GeometryGroup);
-	TManagedArray<bool>* Visible = InCollection.FindAttribute<bool>("Visible", FGeometryCollection::GeometryGroup);
+	TManagedArray<bool>& Visible = InCollection.ModifyAttribute<bool>("Visible", FGeometryCollection::FacesGroup);
 
-	TArray<int32> BoneIndicies = InBoneSelection;
-	TransformSelectionFacade.ConvertSelectionToRigidNodes(BoneIndicies);
+	TArray<int32> TransformIndicies = InTransformSelection;
+	TransformSelectionFacade.ConvertSelectionToRigidNodes(TransformIndicies);
 
-	for (int32 Index : BoneIndicies)
+	for (int32 Index : TransformIndicies)
 	{
 		// Iterate the faces in the geometry of this rigid node and set invisible.
 		if (TransformToGeometryIndex[Index] > INDEX_NONE)
@@ -61,9 +61,22 @@ void FFractureEngineEdit::SetVisibilityInCollection(FManagedArrayCollection& InC
 			int32 CurrFace = FaceStart[TransformToGeometryIndex[Index]];
 			for (int32 FaceOffset = 0; FaceOffset < FaceCount[TransformToGeometryIndex[Index]]; ++FaceOffset)
 			{
-				(*Visible)[CurrFace + FaceOffset] = bVisible;
+				Visible[CurrFace + FaceOffset] = bVisible;
 			}
 		}
+	}
+}
+
+
+void FFractureEngineEdit::SetVisibilityInCollectionFromFaceSelection(FManagedArrayCollection& InCollection, const TArray<int32>& InFaceSelection, bool bVisible)
+{
+	TManagedArray<bool>& Visible = InCollection.ModifyAttribute<bool>("Visible", FGeometryCollection::FacesGroup);
+
+	int32 NumFaces = InCollection.NumElements(FGeometryCollection::FacesGroup);
+
+	for (int32 FaceIdx : InFaceSelection)
+	{
+		Visible[FaceIdx] = bVisible;
 	}
 }
 

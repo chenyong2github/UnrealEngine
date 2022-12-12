@@ -93,6 +93,7 @@ public:
 	
 	/** Recursively update the hierarchy level of all the children below this bone */
 	static void UpdateHierarchyLevelOfChildren(FGeometryCollection* GeometryCollection, int32 ParentElement);
+	static void UpdateHierarchyLevelOfChildren(FManagedArrayCollection& InCollection, int32 ParentElement);
 
 	/** Collapse hierarchy at specified level */
 	static void CollapseLevelHierarchy(int8 Level, FGeometryCollection* GeometryCollection);

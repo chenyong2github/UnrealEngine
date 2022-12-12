@@ -16,7 +16,8 @@ namespace UnrealBuildTool.Rules
 					"Chaos",
 					"Core",
 					"DataflowCore",
-					"PlanarCut"
+					"PlanarCut",
+					"Voronoi"
 				}
 				);
 

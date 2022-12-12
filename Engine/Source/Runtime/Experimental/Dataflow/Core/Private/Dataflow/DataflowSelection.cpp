@@ -63,6 +63,19 @@ void FDataflowSelection::SetFromArray(const TArray<int32>& SelectionArr)
 	}
 }
 
+void FDataflowSelection::SetFromArray(const TArray<bool>& SelectionArr)
+{
+	SelectionArray.Init(false, SelectionArray.Num());
+
+	for (int32 Idx = 0; Idx < SelectionArr.Num(); ++Idx)
+	{
+		if (SelectionArr[Idx])
+		{
+			SetSelected(Idx);
+		}
+	}
+}
+
 void FDataflowSelection::AND(const FDataflowSelection& Other, FDataflowSelection& Result) const
 { 
 	Result.SelectionArray = TBitArray<>::BitwiseAND(SelectionArray, Other.SelectionArray, EBitwiseOperatorFlags::MaxSize);

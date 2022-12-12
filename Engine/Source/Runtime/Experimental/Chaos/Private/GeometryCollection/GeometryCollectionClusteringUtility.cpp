@@ -5,6 +5,7 @@
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "Containers/Set.h"
 #include "Async/ParallelFor.h"
+#include "GeometryCollection/Facades/CollectionHierarchyFacade.h"
 
 static int32 ChaosValidateResultsOfEditOperations = 0;
 static FAutoConsoleVariableRef CVarChaosStillCheckDistanceThreshold(TEXT("p.fracture.ValidateResultsOfEditOperations"), ChaosValidateResultsOfEditOperations, TEXT("When on this will enable result validation for fracture tool edit operations (can be slow for large geometry collection) [def:0]"));
@@ -681,6 +682,13 @@ void FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(FGeome
 			RecursivelyUpdateHierarchyLevelOfChildren(Levels, Children, RootBone);
 		}
 	}
+}
+
+void FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(FManagedArrayCollection& InCollection, int32 ParentElement)
+{
+	Chaos::Facades::FCollectionHierarchyFacade HierarchyFacade(InCollection);
+
+	HierarchyFacade.GenerateLevelAttribute();
 }
 
 void FGeometryCollectionClusteringUtility::RecursivelyUpdateHierarchyLevelOfChildren(TManagedArray<int32>& Levels, const TManagedArray<TSet<int32>>& Children, int32 ParentElement)

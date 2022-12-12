@@ -27,6 +27,7 @@
 #include "GeometryCollection/GeometryCollectionProximityUtility.h"
 #include "FractureEngineClustering.h"
 #include "FractureEngineSelection.h"
+#include "FractureEngineFracturing.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCollectionFracturingNodes)
 
@@ -41,6 +42,7 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FRadialScatterPointsDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FVoronoiFractureDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FPlaneCutterDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FExplodedViewDataflowNode);
 
 		// GeometryCollection|Fracture
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY_NODE_COLORS_BY_CATEGORY("GeometryCollection|Fracture", FLinearColor(1.f, 1.f, 0.8f), CDefaultNodeBodyTintColor);
@@ -107,94 +109,42 @@ void FRadialScatterPointsDataflowNode::Evaluate(Dataflow::FContext& Context, con
 }
 
 
-static float GetMaxVertexMovement(float Grout, float Amplitude, int OctaveNumber, float Persistence)
-{
-	float MaxDisp = Grout;
-	float AmplitudeScaled = Amplitude;
-	for (int32 OctaveIdx = 0; OctaveIdx < OctaveNumber; OctaveIdx++, AmplitudeScaled *= Persistence)
-	{
-		MaxDisp += FMath::Abs(AmplitudeScaled);
-	}
-	return MaxDisp;
-}
-
 void FVoronoiFractureDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
 	if (Out->IsA<FManagedArrayCollection>(&Collection))
 	{
-		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
-		if (TUniquePtr<FGeometryCollection> GeomCollection = TUniquePtr<FGeometryCollection>(InCollection.NewCopy<FGeometryCollection>()))
+		const FDataflowTransformSelection& InTransformSelection = GetValue<FDataflowTransformSelection>(Context, &TransformSelection);
+
+		if (IsConnected<FDataflowTransformSelection>(&TransformSelection))
 		{
-			const TArray<FVector>& Sites = GetValue<TArray<FVector>>(Context, &Points);
-			if (Sites.Num() > 0)
+			if (InTransformSelection.AnySelected())
 			{
-				//
-				// Compute BoundingBox for ManagedArrayIn
-				//
-				FBox BoundingBox(ForceInit);
+				FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 
-				if (InCollection.HasAttribute("Transform", FGeometryCollection::TransformGroup) &&
-					InCollection.HasAttribute("Parent", FGeometryCollection::TransformGroup) &&
-					InCollection.HasAttribute("TransformIndex", FGeometryCollection::GeometryGroup) &&
-					InCollection.HasAttribute("BoundingBox", FGeometryCollection::GeometryGroup))
-				{
-					const TManagedArray<FTransform>& Transforms = InCollection.GetAttribute<FTransform>("Transform", FGeometryCollection::TransformGroup);
-					const TManagedArray<int32>& ParentIndices = InCollection.GetAttribute<int32>("Parent", FGeometryCollection::TransformGroup);
-					const TManagedArray<int32>& TransformIndices = InCollection.GetAttribute<int32>("TransformIndex", FGeometryCollection::GeometryGroup);
-					const TManagedArray<FBox>& BoundingBoxes = InCollection.GetAttribute<FBox>("BoundingBox", FGeometryCollection::GeometryGroup);
+				FFractureEngineFracturing::VoronoiFracture(InCollection,
+					InTransformSelection,
+					GetValue<TArray<FVector>>(Context, &Points),
+					GetValue<float>(Context, &RandomSeed),
+					GetValue<float>(Context, &ChanceToFracture),
+					GroupFracture,
+					GetValue<float>(Context, &Grout),
+					GetValue<float>(Context, &Amplitude),
+					GetValue<float>(Context, &Frequency),
+					GetValue<float>(Context, &Persistence),
+					GetValue<float>(Context, &Lacunarity),
+					GetValue<int32>(Context, &OctaveNumber),
+					GetValue<float>(Context, &PointSpacing),
+					AddSamplesForCollision,
+					GetValue<float>(Context, &CollisionSampleSpacing));
 
-					TArray<FMatrix> TmpGlobalMatrices;
-					GeometryCollectionAlgo::GlobalMatrices(Transforms, ParentIndices, TmpGlobalMatrices);
+				SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
 
-					if (TmpGlobalMatrices.Num() > 0)
-					{
-						for (int32 BoxIdx = 0; BoxIdx < BoundingBoxes.Num(); ++BoxIdx)
-						{
-							const int32 TransformIndex = TransformIndices[BoxIdx];
-							BoundingBox += BoundingBoxes[BoxIdx].TransformBy(TmpGlobalMatrices[TransformIndex]);
-						}
-					}
-
-					//
-					// Compute Voronoi Bounds
-					//
-					FBox VoronoiBounds = BoundingBox;
-					VoronoiBounds += FBox(Sites);
-
-					float GroutVal = GetValue<float>(Context, &Grout);
-					float AmplitudeVal = GetValue<float>(Context, &Amplitude);
-					int32 OctaveNumberVal = GetValue<int32>(Context, &OctaveNumber);
-					float PersistenceVal = GetValue<float>(Context, &Persistence);
-
-					VoronoiBounds = VoronoiBounds.ExpandBy(GetMaxVertexMovement(GroutVal, AmplitudeVal, OctaveNumberVal, PersistenceVal) + KINDA_SMALL_NUMBER);
-
-					//
-					// Voronoi Fracture
-					//
-					FNoiseSettings NoiseSettings;
-					NoiseSettings.Amplitude = AmplitudeVal;
-					NoiseSettings.Frequency = GetValue<float>(Context, &Frequency);
-					NoiseSettings.Octaves = OctaveNumberVal;
-					NoiseSettings.PointSpacing = GetValue<float>(Context, &PointSpacing);
-					NoiseSettings.Lacunarity = GetValue<float>(Context, &Lacunarity);
-					NoiseSettings.Persistence = GetValue<float>(Context, &Persistence);;
-
-					FVoronoiDiagram Voronoi(Sites, VoronoiBounds, .1f);
-
-					FPlanarCells VoronoiPlanarCells = FPlanarCells(Sites, Voronoi);
-					VoronoiPlanarCells.InternalSurfaceMaterials.NoiseSettings = NoiseSettings;
-
-					const TArrayView<const int32>& TransformIndicesArray(TransformIndices.GetConstArray());
-
-					float CollisionSampleSpacingVal = GetValue<float>(Context, &CollisionSampleSpacing);
-					float RandomSeedVal = GetValue<float>(Context, &RandomSeed);
-
-					int ResultGeometryIndex = CutMultipleWithPlanarCells(VoronoiPlanarCells, *GeomCollection, TransformIndicesArray, GroutVal, CollisionSampleSpacingVal, RandomSeedVal, FTransform().Identity);
-
-					SetValue<FManagedArrayCollection>(Context, (const FManagedArrayCollection&)(*GeomCollection), &Collection);
-				}
+				return;
 			}
 		}
+
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
 	}
 }
 
@@ -203,61 +153,53 @@ void FPlaneCutterDataflowNode::Evaluate(Dataflow::FContext& Context, const FData
 {
 	if (Out->IsA<FManagedArrayCollection>(&Collection))
 	{
-		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
-		if (TUniquePtr<FGeometryCollection> GeomCollection = TUniquePtr<FGeometryCollection>(InCollection.NewCopy<FGeometryCollection>()))
+		const FDataflowTransformSelection& InTransformSelection = GetValue<FDataflowTransformSelection>(Context, &TransformSelection);
+
+		if (IsConnected<FDataflowTransformSelection>(&TransformSelection))
 		{
-			TArray<FPlane> CuttingPlanes;
-			TArray<FTransform> CuttingPlaneTransforms;
-
-			float RandomSeedVal = GetValue<float>(Context, &RandomSeed);
-			FRandomStream RandStream(RandomSeedVal);
-
-			FBox Bounds = GetValue<FBox>(Context, &BoundingBox);
-			const FVector Extent(Bounds.Max - Bounds.Min);
-
-			CuttingPlaneTransforms.Reserve(CuttingPlaneTransforms.Num() + NumPlanes);
-			for (int32 ii = 0; ii < NumPlanes; ++ii)
+			if (InTransformSelection.AnySelected())
 			{
-				FVector Position(Bounds.Min + FVector(RandStream.FRand(), RandStream.FRand(), RandStream.FRand()) * Extent);
-				CuttingPlaneTransforms.Emplace(FTransform(FRotator(RandStream.FRand() * 360.0f, RandStream.FRand() * 360.0f, 0.0f), Position));
-			}
+				FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 
-			for (const FTransform& Transform : CuttingPlaneTransforms)
-			{
-				CuttingPlanes.Add(FPlane(Transform.GetLocation(), Transform.GetUnitAxis(EAxis::Z)));
-			}
+				FFractureEngineFracturing::PlaneCutter(InCollection,
+					InTransformSelection,
+					GetValue<FBox>(Context, &BoundingBox),
+					NumPlanes,
+					GetValue<float>(Context, &RandomSeed),
+					GetValue<float>(Context, &Grout),
+					GetValue<float>(Context, &Amplitude),
+					GetValue<float>(Context, &Frequency),
+					GetValue<float>(Context, &Persistence),
+					GetValue<float>(Context, &Lacunarity),
+					GetValue<int32>(Context, &OctaveNumber),
+					GetValue<float>(Context, &PointSpacing),
+					GetValue<bool>(Context, &AddSamplesForCollision),
+					GetValue<float>(Context, &CollisionSampleSpacing));
 
-			FInternalSurfaceMaterials InternalSurfaceMaterials;
-			FNoiseSettings NoiseSettings;
+				SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
 
-			float AmplitudeVal = GetValue<float>(Context, &Amplitude);
-			if (AmplitudeVal > 0.0f)
-			{
-				NoiseSettings.Amplitude = AmplitudeVal;
-				NoiseSettings.Frequency = GetValue<float>(Context, &Frequency);
-				NoiseSettings.Lacunarity = GetValue<float>(Context, &Lacunarity);
-				NoiseSettings.Persistence = GetValue<float>(Context, &Persistence);
-				NoiseSettings.Octaves = GetValue<int32>(Context, &OctaveNumber);
-				NoiseSettings.PointSpacing = GetValue<float>(Context, &PointSpacing);
-
-				InternalSurfaceMaterials.NoiseSettings = NoiseSettings;
-			}
-
-			if (GeomCollection->HasAttribute("TransformIndex", "Geometry"))
-			{
-				const TManagedArray<int32>& TransformIndices = GeomCollection->GetAttribute<int32>("TransformIndex", "Geometry");
-				const TArrayView<const int32>& TransformIndicesArray(TransformIndices.GetConstArray());
-
-				float CollisionSampleSpacingVal = GetValue<float>(Context, &CollisionSampleSpacing);
-				float GroutVal = GetValue<float>(Context, &Grout);
-
-				int ResultGeometryIndex = CutMultipleWithMultiplePlanes(CuttingPlanes, InternalSurfaceMaterials, *GeomCollection, TransformIndicesArray, GroutVal, CollisionSampleSpacingVal, RandomSeedVal, FTransform().Identity);
-
-				SetValue<FManagedArrayCollection>(Context, (const FManagedArrayCollection&)(*GeomCollection), &Collection);
+				return;
 			}
 		}
+
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
 	}
 }
+
+
+void FExplodedViewDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<FManagedArrayCollection>(&Collection))
+	{
+		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+
+		FFractureEngineFracturing::GenerateExplodedViewAttribute(InCollection, GetValue<FVector>(Context, &Scale), GetValue<float>(Context, &UniformScale));
+
+		SetValue<FManagedArrayCollection>(Context, MoveTemp(InCollection), &Collection);
+	}
+}
+
 
 
 

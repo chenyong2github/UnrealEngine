@@ -47,7 +47,6 @@ public:
 };
 
 
-
 /**
  * Get Current geometry collection asset 
  * Note : Use with caution as this may get replaced in a near future for a more generic getAsset node
@@ -67,6 +66,7 @@ public:
 	TObjectPtr<UGeometryCollection> Asset;
 };
 
+
 /**
  * Get the list of the original mesh information used to create a specific geometryc collection asset
  * each entry contains a mesh, a transform and a list of override materials
@@ -75,7 +75,7 @@ USTRUCT(meta = (DataflowGeometryCollection))
 struct FGetGeometryCollectionSourcesDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FGetGeometryCollectionSourcesDataflowNode, "GetGeometryCollectionSources", "GeometryCollection|Utilities", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FGetGeometryCollectionSourcesDataflowNode, "GetGeometryCollectionSources", "GeometryCollection|Asset", "")
 
 public:
 	FGetGeometryCollectionSourcesDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
@@ -90,6 +90,7 @@ public:
 	TArray<FGeometryCollectionSource> Sources;
 };
 
+
 /**
  * create a geometry collection from a set of geometry sources    
  */
@@ -97,7 +98,7 @@ USTRUCT(meta = (DataflowGeometryCollection))
 struct FCreateGeometryCollectionFromSourcesDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FCreateGeometryCollectionFromSourcesDataflowNode, "CreateGeometryCollectionFromSources", "GeometryCollection|Utilities", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FCreateGeometryCollectionFromSourcesDataflowNode, "CreateGeometryCollectionFromSources", "GeometryCollection|Asset", "")
 
 public:
 	FCreateGeometryCollectionFromSourcesDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());

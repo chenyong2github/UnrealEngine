@@ -42,12 +42,8 @@ namespace Dataflow
 	{
 		static const FLinearColor CDefaultNodeBodyTintColor = FLinearColor(0.f, 0.f, 0.f, 0.5f);
 
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetCollectionAssetDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FExampleCollectionEditDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSetCollectionAssetDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetCollectionFromAssetDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FAppendCollectionAssetsDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FResetGeometryCollectionDataflowNode);
-
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FPrintStringDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FLogStringDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMakeLiteralStringDataflowNode);
@@ -73,8 +69,6 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FRandomUnitVectorInConeDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FRadiansToDegreesDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FDegreesToRadiansDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FExplodedViewDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCreateNonOverlappingConvexHullsDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FHashStringDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FHashVectorDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FFloatToIntDataflowNode);
@@ -95,6 +89,7 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetNumElementsInCollectionGroupDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetCollectionAttributeDataTypedDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSetCollectionAttributeDataTypedDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FBoolArrayToFaceSelectionDataflowNode);
 
 		// GeometryCollection
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY_NODE_COLORS_BY_CATEGORY("GeometryCollection", FLinearColor(0.55f, 0.45f, 1.0f), CDefaultNodeBodyTintColor);
@@ -113,55 +108,28 @@ namespace Dataflow
 	}
 }
 
-void FGetCollectionAssetDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+void FGetCollectionFromAssetDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	if (Out->IsA<DataType>(&Output))
+	if (Out->IsA<FManagedArrayCollection>(&Collection))
 	{
-		if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
+		if (CollectionAsset)
 		{
-			if (UGeometryCollection* CollectionAsset = Cast<UGeometryCollection>(EngineContext->Owner))
+			if (const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> AssetCollection = CollectionAsset->GetGeometryCollection())
 			{
-				if (const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> AssetCollection = CollectionAsset->GetGeometryCollection())
-				{
-					SetValue<DataType>(Context, DataType(*AssetCollection), &Output);
-				}
+				SetValue<FManagedArrayCollection>(Context, (const FManagedArrayCollection&)(*AssetCollection), &Collection);
+			}
+			else
+			{
+				SetValue<FManagedArrayCollection>(Context, FManagedArrayCollection(), &Collection);
 			}
 		}
-	}
-}
-
-void FExampleCollectionEditDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<DataType>(&Collection))
-	{
-		DataType InCollection = GetValue<DataType>(Context, &Collection);
-
-		if (bActive)
+		else
 		{
-			TManagedArray<FVector3f>* Vertex = InCollection.FindAttribute<FVector3f>("Vertex", "Vertices");
-			for (int i = 0; i < Vertex->Num(); i++)
-			{
-				(*Vertex)[i][1] *= Scale;
-			}
-		}
-		SetValue<DataType>(Context, InCollection, &Collection);
-	}
-}
-
-void FSetCollectionAssetDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	DataType InCollection = GetValue<DataType>(Context, &Collection);
-
-	if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
-	{
-		if (UGeometryCollection* CollectionAsset = Cast<UGeometryCollection>(EngineContext->Owner))
-		{
-			TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> NewCollection(InCollection.NewCopy<FGeometryCollection>());
-			CollectionAsset->SetGeometryCollection(NewCollection);
-			CollectionAsset->InvalidateCollection();
+			SetValue<FManagedArrayCollection>(Context, FManagedArrayCollection(), &Collection);
 		}
 	}
 }
+
 
 void FAppendCollectionAssetsDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
@@ -175,71 +143,6 @@ void FAppendCollectionAssetsDataflowNode::Evaluate(Dataflow::FContext& Context, 
 	}
 }
 
-void FResetGeometryCollectionDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<DataType>(&Collection))
-	{
-		SetValue<DataType>(Context, Collection, &Collection); // prime to avoid ensure
-
-		if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
-		{
-			if (UGeometryCollection* GeometryCollectionObject = Cast<UGeometryCollection>(EngineContext->Owner))
-			{
-				GeometryCollectionObject->Reset();
-
-				const UObject* Owner = EngineContext->Owner;
-				FName AName("GeometrySource");
-				if (Owner && Owner->GetClass())
-				{
-					if (const ::FProperty* UEProperty = Owner->GetClass()->FindPropertyByName(AName))
-					{
-						if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(UEProperty))
-						{
-							FScriptArrayHelper_InContainer ArrayHelper(ArrayProperty, Owner);
-							const int32 ArraySize = ArrayHelper.Num();
-							for (int32 Index = 0; Index < ArraySize; ++Index)
-							{
-								if (FGeometryCollectionSource* SourceObject = (FGeometryCollectionSource*)(ArrayHelper.GetRawPtr(Index)))
-								{
-									if (UObject* ResolvedObject = SourceObject->SourceGeometryObject.ResolveObject())
-									{
-										if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(ResolvedObject))
-										{
-											TArray<UMaterialInterface*> Materials;
-											Materials.Reserve(StaticMesh->GetStaticMaterials().Num());
-
-											for (int32 Index2 = 0; Index2 < StaticMesh->GetStaticMaterials().Num(); ++Index2)
-											{
-												UMaterialInterface* CurrMaterial = StaticMesh->GetMaterial(Index2);
-												Materials.Add(CurrMaterial);
-											}
-
-											// Geometry collections usually carry the selection material, which we'll delete before appending
-											UMaterialInterface* BoneSelectedMaterial = LoadObject<UMaterialInterface>(nullptr, UGeometryCollection::GetSelectedMaterialPath(), nullptr, LOAD_None, nullptr);
-											GeometryCollectionObject->Materials.Remove(BoneSelectedMaterial);
-											Materials.Remove(BoneSelectedMaterial);
-
-											FGeometryCollectionEngineConversion::AppendStaticMesh(StaticMesh, Materials, FTransform(), GeometryCollectionObject);
-
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-				GeometryCollectionObject->UpdateGeometryDependentProperties();
-				GeometryCollectionObject->InitializeMaterials();
-				GeometryCollectionObject->InvalidateCollection();
-
-				if (const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> AssetCollection = GeometryCollectionObject->GetGeometryCollection())
-				{
-					SetValue<DataType>(Context, *AssetCollection, &Collection);
-				}
-			}
-		}
-	}
-}
 
 void FPrintStringDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
@@ -551,168 +454,6 @@ void FDegreesToRadiansDataflowNode::Evaluate(Dataflow::FContext& Context, const 
 	if (Out->IsA<float>(&Radians))
 	{
 		SetValue<float>(Context, FMath::DegreesToRadians(GetValue<float>(Context, &Degrees)), &Radians);
-	}
-}
-
-static void AddAdditionalAttributesIfRequired(FGeometryCollection* GeometryCollection)
-{
-	FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(GeometryCollection, -1);
-}
-
-bool FExplodedViewDataflowNode::GetValidGeoCenter(FGeometryCollection* Collection, const TManagedArray<int32>& TransformToGeometryIndex, const TArray<FTransform>& Transforms, const TManagedArray<TSet<int32>>& Children, const TManagedArray<FBox>& BoundingBox, int32 TransformIndex, FVector& OutGeoCenter)
-{
-	if (Collection->IsRigid(TransformIndex))
-	{
-		OutGeoCenter = Transforms[TransformIndex].TransformPosition(BoundingBox[TransformToGeometryIndex[TransformIndex]].GetCenter());
-
-		return true;
-	}
-	else if (Collection->SimulationType[TransformIndex] == FGeometryCollection::ESimulationTypes::FST_None) // ie this is embedded geometry
-	{
-		int32 Parent = Collection->Parent[TransformIndex];
-		int32 ParentGeo = Parent != INDEX_NONE ? TransformToGeometryIndex[Parent] : INDEX_NONE;
-		if (ensureMsgf(ParentGeo != INDEX_NONE, TEXT("Embedded geometry should always have a rigid geometry parent!  Geometry collection may be malformed.")))
-		{
-			OutGeoCenter = Transforms[Collection->Parent[TransformIndex]].TransformPosition(BoundingBox[ParentGeo].GetCenter());
-		}
-		else
-		{
-			return false; // no valid value to return
-		}
-
-		return true;
-	}
-	else
-	{
-		FVector AverageCenter;
-		int32 ValidVectors = 0;
-		for (int32 ChildIndex : Children[TransformIndex])
-		{
-
-			if (GetValidGeoCenter(Collection, TransformToGeometryIndex, Transforms, Children, BoundingBox, ChildIndex, OutGeoCenter))
-			{
-				if (ValidVectors == 0)
-				{
-					AverageCenter = OutGeoCenter;
-				}
-				else
-				{
-					AverageCenter += OutGeoCenter;
-				}
-				++ValidVectors;
-			}
-		}
-
-		if (ValidVectors > 0)
-		{
-			OutGeoCenter = AverageCenter / ValidVectors;
-			return true;
-		}
-	}
-	return false;
-}
-
-void FExplodedViewDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<FManagedArrayCollection>(&Collection))
-	{
-		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
-
-		if (TUniquePtr<FGeometryCollection> GeomCollection = TUniquePtr<FGeometryCollection>(InCollection.NewCopy<FGeometryCollection>()))
-		{
-			GeomCollection->AddAttribute<FVector3f>("ExplodedVector", FGeometryCollection::TransformGroup, FManagedArrayCollection::FConstructionParameters(FName()));
-			check(GeomCollection->HasAttribute("ExplodedVector", FGeometryCollection::TransformGroup));
-
-			TManagedArray<FVector3f>& ExplodedVectors = GeomCollection->ModifyAttribute<FVector3f>("ExplodedVector", FGeometryCollection::TransformGroup);
-			const TManagedArray<FTransform>& Transform = GeomCollection->GetAttribute<FTransform>("Transform", FGeometryCollection::TransformGroup);
-			const TManagedArray<int32>& TransformToGeometryIndex = GeomCollection->GetAttribute<int32>("TransformToGeometryIndex", FGeometryCollection::TransformGroup);
-			const TManagedArray<FBox>& BoundingBox = GeomCollection->GetAttribute<FBox>("BoundingBox", FGeometryCollection::GeometryGroup);
-
-			// Make sure we have valid "Level"
-			AddAdditionalAttributesIfRequired(GeomCollection.Get());
-
-			const TManagedArray<int32>& Levels = GeomCollection->GetAttribute<int32>("Level", FTransformCollection::TransformGroup);
-			const TManagedArray<int32>& Parent = GeomCollection->GetAttribute<int32>("Parent", FTransformCollection::TransformGroup);
-			const TManagedArray<TSet<int32>>& Children = GeomCollection->GetAttribute<TSet<int32>>("Children", FGeometryCollection::TransformGroup);
-
-			int32 ViewFractureLevel = -1;
-			int32 MaxFractureLevel = ViewFractureLevel;
-			for (int32 Idx = 0, ni = Transform.Num(); Idx < ni; ++Idx)
-			{
-				if (Levels[Idx] > MaxFractureLevel)
-					MaxFractureLevel = Levels[Idx];
-			}
-
-			TArray<FTransform> Transforms;
-			GeometryCollectionAlgo::GlobalMatrices(Transform, GeomCollection->Parent, Transforms);
-
-			TArray<FVector> TransformedCenters;
-			TransformedCenters.SetNumUninitialized(Transforms.Num());
-
-			int32 TransformsCount = 0;
-
-			FVector Center(ForceInitToZero);
-			for (int32 Idx = 0, ni = Transform.Num(); Idx < ni; ++Idx)
-			{
-				ExplodedVectors[Idx] = FVector3f::ZeroVector;
-				FVector GeoCenter;
-
-				if (GetValidGeoCenter(GeomCollection.Get(), TransformToGeometryIndex, Transforms, Children, BoundingBox, Idx, GeoCenter))
-				{
-					TransformedCenters[Idx] = GeoCenter;
-					if ((ViewFractureLevel < 0) || Levels[Idx] == ViewFractureLevel)
-					{
-						Center += TransformedCenters[Idx];
-						++TransformsCount;
-					}
-				}
-			}
-
-			Center /= TransformsCount;
-
-			for (int Level = 1; Level <= MaxFractureLevel; Level++)
-			{
-				for (int32 Idx = 0, ni = Transforms.Num(); Idx < ni; ++Idx)
-				{
-					if ((ViewFractureLevel < 0) || Levels[Idx] == ViewFractureLevel)
-					{
-						FVector ScaleVal = GetValue<FVector>(Context, &Scale);
-						float UniformScaleVal = GetValue<float>(Context, &UniformScale);
-
-						FVector ScaleVec = ScaleVal * UniformScaleVal;
-						ExplodedVectors[Idx] = (FVector3f)(TransformedCenters[Idx] - Center) * (FVector3f)ScaleVec;
-					}
-					else
-					{
-						if (Parent[Idx] > -1)
-						{
-							ExplodedVectors[Idx] = ExplodedVectors[Parent[Idx]];
-						}
-					}
-				}
-			}
-
-			SetValue<FManagedArrayCollection>(Context, (const FManagedArrayCollection&)(*GeomCollection), &Collection);
-		}
-	}
-}
-
-void FCreateNonOverlappingConvexHullsDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
-{
-	if (Out->IsA<FManagedArrayCollection>(&Collection))
-	{
-		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
-
-		if (TUniquePtr<FGeometryCollection> GeomCollection = TUniquePtr<FGeometryCollection>(InCollection.NewCopy<FGeometryCollection>()))
-		{
-			float CanRemoveFractionVal = GetValue<float>(Context, &CanRemoveFraction);
-			float CanExceedFractionVal = GetValue<float>(Context, &CanExceedFraction);
-			float SimplificationDistanceThresholdVal = GetValue<float>(Context, &SimplificationDistanceThreshold);
-
-			FGeometryCollectionConvexUtility::FGeometryCollectionConvexData ConvexData = FGeometryCollectionConvexUtility::CreateNonOverlappingConvexHullData(GeomCollection.Get(), CanRemoveFractionVal, SimplificationDistanceThresholdVal, CanExceedFractionVal);
-
-			SetValue<FManagedArrayCollection>(Context, (const FManagedArrayCollection&)(*GeomCollection), &Collection);
-		}
 	}
 }
 
@@ -1472,4 +1213,17 @@ void FSetCollectionAttributeDataTypedDataflowNode::Evaluate(Dataflow::FContext& 
 }
 
 
+void FBoolArrayToFaceSelectionDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<FDataflowFaceSelection>(&FaceSelection))
+	{
+		const TArray<bool>& InBoolAttributeData = GetValue<TArray<bool>>(Context, &BoolAttributeData);
+
+		FDataflowFaceSelection NewFaceSelection;
+		NewFaceSelection.Initialize(InBoolAttributeData.Num(), false);
+		NewFaceSelection.SetFromArray(InBoolAttributeData);
+
+		SetValue<FDataflowFaceSelection>(Context, NewFaceSelection, &FaceSelection);
+	}
+}
 

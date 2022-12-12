@@ -19,7 +19,17 @@ struct DATAFLOWCORE_API FDataflowSelection
 	void SetNotSelected(int32 Idx) { SelectionArray[Idx] = false; }
 	void AsArray(TArray<int32>& SelectionArr) const;
 	TArray<int32> AsArray() const;
+	
+	/**
+	* Sets the selection from a sparse array (it only contains the indices of the selected items)
+	*/
 	void SetFromArray(const TArray<int32>& SelectionArr);
+	
+	/**
+	* Sets the selection from a dense array (it contains element for every item)
+	* (for example from the "Internal" attr from FacesGroup)
+	*/
+	void SetFromArray(const TArray<bool>& SelectionArr);
 	void AND(const FDataflowSelection& Other, FDataflowSelection& Result) const;
 	void OR(const FDataflowSelection& Other, FDataflowSelection& Result) const;
 	void XOR(const FDataflowSelection& Other, FDataflowSelection& Result) const;

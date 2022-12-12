@@ -125,6 +125,10 @@ public:
 	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
 	TArray<FVector> Points;
 
+	/**   */
+	UPROPERTY(meta = (DataflowInput, DisplayName = "TransformSelection", DataflowIntrinsic))
+	FDataflowTransformSelection TransformSelection;
+
 	UPROPERTY(EditAnywhere, Category = "Fracture", meta = (DataflowInput));
 	float RandomSeed = -1.f;
 
@@ -166,6 +170,7 @@ public:
 	{
 		RegisterInputConnection(&Collection);
 		RegisterInputConnection(&Points);
+		RegisterInputConnection(&TransformSelection);
 		RegisterInputConnection(&RandomSeed);
 		RegisterInputConnection(&ChanceToFracture);
 		RegisterInputConnection(&Grout);
@@ -193,7 +198,7 @@ USTRUCT(meta = (DataflowGeometryCollection))
 struct FPlaneCutterDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
-		DATAFLOW_NODE_DEFINE_INTERNAL(FPlaneCutterDataflowNode, "PlaneCutter", "GeometryCollection|Fracture", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FPlaneCutterDataflowNode, "PlaneCutter", "GeometryCollection|Fracture", "")
 
 public:
 	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Collection", DataflowIntrinsic))
@@ -201,6 +206,10 @@ public:
 
 	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
 	FBox BoundingBox = FBox(ForceInit);
+
+	/**   */
+	UPROPERTY(meta = (DataflowInput, DisplayName = "TransformSelection", DataflowIntrinsic))
+	FDataflowTransformSelection TransformSelection;
 
 	UPROPERTY(EditAnywhere, Category = "Fracture", meta = (DataflowInput, UIMin = 1))
 	int32 NumPlanes = 1;
@@ -240,6 +249,7 @@ public:
 	{
 		RegisterInputConnection(&Collection);
 		RegisterInputConnection(&BoundingBox);
+		RegisterInputConnection(&TransformSelection);
 		RegisterInputConnection(&NumPlanes);
 		RegisterInputConnection(&RandomSeed);
 		RegisterInputConnection(&Grout);
@@ -249,6 +259,7 @@ public:
 		RegisterInputConnection(&Lacunarity);
 		RegisterInputConnection(&OctaveNumber);
 		RegisterInputConnection(&PointSpacing);
+		RegisterInputConnection(&AddSamplesForCollision);
 		RegisterInputConnection(&CollisionSampleSpacing);
 		RegisterOutputConnection(&Collection, &Collection);
 	}
@@ -256,6 +267,68 @@ public:
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 
 };
+
+
+/**
+ *
+ * "Explodes" the pieces from the Collection for better visualization
+ *
+ */
+USTRUCT(meta = (DataflowGeometryCollection))
+struct FExplodedViewDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FExplodedViewDataflowNode, "ExplodedView", "GeometryCollection|Fracture|Utilities", "")
+	DATAFLOW_NODE_RENDER_TYPE(FGeometryCollection::StaticType(), "Collection")
+
+public:
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Collection", DataflowIntrinsic))
+	FManagedArrayCollection Collection;
+
+	UPROPERTY(EditAnywhere, Category = "Scale", meta = (DataflowInput))
+	float UniformScale = 1.f;
+
+	UPROPERTY(EditAnywhere, Category = "Scale", meta = (DataflowInput))
+	FVector Scale = FVector(1.0);
+
+	FExplodedViewDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&Collection);
+		RegisterInputConnection(&UniformScale);
+		RegisterInputConnection(&Scale);
+		RegisterOutputConnection(&Collection, &Collection);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+private:
+	// todo(chaos) this is a copy of a function in FractureEditorModeToolkit, we should move this to a common place  
+	static bool GetValidGeoCenter(FGeometryCollection* Collection, const TManagedArray<int32>& TransformToGeometryIndex, const TArray<FTransform>& Transforms, const TManagedArray<TSet<int32>>& Children, const TManagedArray<FBox>& BoundingBox, int32 TransformIndex, FVector& OutGeoCenter);
+
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 namespace Dataflow

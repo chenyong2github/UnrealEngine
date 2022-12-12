@@ -5,6 +5,7 @@
 #include "Dataflow/DataflowRenderingFactory.h"
 #include "GeometryCollection/GeometryCollectionUtility.h"
 #include "GeometryCollection/Facades/CollectionRenderingFacade.h"
+#include "GeometryCollection/Facades/CollectionExplodedVectorFacade.h"
 #include "GeometryCollection/ManagedArrayCollection.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 
@@ -38,42 +39,56 @@ namespace Dataflow
 						&& Collection.FindAttributeTyped<int32>("BoneMap", FGeometryCollection::VerticesGroup)
 						&& Collection.FindAttributeTyped<int32>(FTransformCollection::ParentAttribute, FTransformCollection::TransformGroup))
 					{
-						const TManagedArray<int32>& BoneIndex = Collection.GetAttribute<int32>("BoneMap", FGeometryCollection::VerticesGroup);
-						const TManagedArray<int32>& Parents = Collection.GetAttribute<int32>(FTransformCollection::ParentAttribute, FTransformCollection::TransformGroup);
-						const TManagedArray<FTransform>& Transforms = Collection.GetAttribute<FTransform>(FTransformCollection::TransformAttribute, FTransformCollection::TransformGroup);
-
-						TArray<FTransform> M;
-						GeometryCollectionAlgo::GlobalMatrices(Transforms, Parents, M);
-
-						auto ToD = [](FVector3f V) { return FVector3d(V.X, V.Y, V.Z); };
-						auto ToF = [](FVector3d V) { return FVector3f(V.X, V.Y, V.Z); };
-
-
-						const TManagedArray<FVector3f>& Vertex = Collection.GetAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup);
-						const TManagedArray<FIntVector>& Faces = Collection.GetAttribute<FIntVector>("Indices", FGeometryCollection::FacesGroup);
-
-						TArray<FVector3f> Vertices; Vertices.AddUninitialized(Vertex.Num());
-						TArray<FIntVector> Tris; Tris.AddUninitialized(Faces.Num());
-						TArray<bool> Visited; Visited.Init(false, Vertices.Num());
-
-						int32 Tdx = 0;
-						for (const FIntVector& Face : Faces)
+						if (Collection.NumElements(FTransformCollection::TransformGroup) > 0)
 						{
-							FIntVector Tri = FIntVector(Face[0], Face[1], Face[2]);
-							FTransform Ms[3] = { M[BoneIndex[Tri[0]]], M[BoneIndex[Tri[1]]], M[BoneIndex[Tri[2]]] };
+							const TManagedArray<int32>& BoneIndex = Collection.GetAttribute<int32>("BoneMap", FGeometryCollection::VerticesGroup);
+							const TManagedArray<int32>& Parents = Collection.GetAttribute<int32>(FTransformCollection::ParentAttribute, FTransformCollection::TransformGroup);
+							const TManagedArray<FTransform>& Transforms = Collection.GetAttribute<FTransform>(FTransformCollection::TransformAttribute, FTransformCollection::TransformGroup);
 
-							Tris[Tdx++] = Tri;
-							if (!Visited[Tri[0]]) Vertices[Tri[0]] = ToF(Ms[0].TransformPosition(ToD(Vertex[Tri[0]])));
-							if (!Visited[Tri[1]]) Vertices[Tri[1]] = ToF(Ms[1].TransformPosition(ToD(Vertex[Tri[1]])));
-							if (!Visited[Tri[2]]) Vertices[Tri[2]] = ToF(Ms[2].TransformPosition(ToD(Vertex[Tri[2]])));
+							TArray<FTransform> M;
+							GeometryCollectionAlgo::GlobalMatrices(Transforms, Parents, M);
 
-							Visited[Tri[0]] = true; Visited[Tri[1]] = true; Visited[Tri[2]] = true;
+							// If Collection has "ExplodedVector" attribute then use it to modify the global matrices (ExplodedView node creates it)
+							GeometryCollection::Facades::FCollectionExplodedVectorFacade ExplodedViewFacade(Collection);
+							ExplodedViewFacade.UpdateGlobalMatricesWithExplodedVectors(M);
+
+							auto ToD = [](FVector3f V) { return FVector3d(V.X, V.Y, V.Z); };
+							auto ToF = [](FVector3d V) { return FVector3f(V.X, V.Y, V.Z); };
+
+
+							const TManagedArray<FVector3f>& Vertex = Collection.GetAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup);
+							const TManagedArray<FIntVector>& Faces = Collection.GetAttribute<FIntVector>("Indices", FGeometryCollection::FacesGroup);
+							const TManagedArray<bool>* FaceVisible = Collection.FindAttribute<bool>("Visible", FGeometryCollection::FacesGroup);
+
+							TArray<FVector3f> Vertices; Vertices.AddUninitialized(Vertex.Num());
+							TArray<FIntVector> Tris; Tris.AddUninitialized(Faces.Num());
+							TArray<bool> Visited; Visited.Init(false, Vertices.Num());
+
+							int32 Tdx = 0;
+							for (int32 FaceIdx = 0; FaceIdx < Faces.Num(); ++FaceIdx)
+							{				
+								if (FaceVisible && !(*FaceVisible)[FaceIdx]) continue;
+
+								const FIntVector& Face = Faces[FaceIdx];
+
+								FIntVector Tri = FIntVector(Face[0], Face[1], Face[2]);
+								FTransform Ms[3] = { M[BoneIndex[Tri[0]]], M[BoneIndex[Tri[1]]], M[BoneIndex[Tri[2]]] };
+
+								Tris[Tdx++] = Tri;
+								if (!Visited[Tri[0]]) Vertices[Tri[0]] = ToF(Ms[0].TransformPosition(ToD(Vertex[Tri[0]])));
+								if (!Visited[Tri[1]]) Vertices[Tri[1]] = ToF(Ms[1].TransformPosition(ToD(Vertex[Tri[1]])));
+								if (!Visited[Tri[2]]) Vertices[Tri[2]] = ToF(Ms[2].TransformPosition(ToD(Vertex[Tri[2]])));
+
+								Visited[Tri[0]] = true; Visited[Tri[1]] = true; Visited[Tri[2]] = true;
+							}
+
+							Tris.SetNum(Tdx);
+
+							// Maybe these buffers should be shrunk, but there are unused vertices in the buffer. 
+							for (int i = 0; i < Visited.Num(); i++) if (!Visited[i]) Vertices[i] = FVector3f(0);
+
+							RenderCollection.AddSurface(MoveTemp(Vertices), MoveTemp(Tris));
 						}
-
-						// Maybe these buffers should be shrunk, but there are unused vertices in the buffer. 
-						for (int i = 0; i < Visited.Num(); i++) if (!Visited[i]) Vertices[i] = FVector3f(0);
-
-						RenderCollection.AddSurface(MoveTemp(Vertices), MoveTemp(Tris));
 					}
 				}
 			});

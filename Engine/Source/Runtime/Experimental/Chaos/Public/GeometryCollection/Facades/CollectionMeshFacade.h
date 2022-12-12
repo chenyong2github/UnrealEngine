@@ -4,6 +4,7 @@
 
 #include "GeometryCollection/ManagedArrayAccessor.h"
 #include "GeometryCollection/ManagedArrayCollection.h"
+#include "GeometryCollection/GeometryCollection.h"
 
 
 namespace GeometryCollection::Facades
@@ -40,6 +41,11 @@ namespace GeometryCollection::Facades
 		 * Returns the face indices for the bone
 		 */
 		const TArray<int32> GetFaceIndices(int32 BoneIdx) const;
+
+		/**
+		 * Adds and sets "Internal" attribute in FGeometryCollection::FacesGroup to designate internal faces
+		 */
+		static void AddInternalAttribute(FGeometryCollection& InGeometryCollection, const TArray<int32>& InMaterialID);
 
 		/**
 		 * Returns the vertex indices of the face for the bone
