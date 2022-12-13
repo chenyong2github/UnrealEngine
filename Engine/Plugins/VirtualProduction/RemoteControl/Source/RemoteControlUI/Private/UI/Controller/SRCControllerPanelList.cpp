@@ -686,7 +686,8 @@ void SRCControllerPanelList::CreateAutoBindForProperty(TSharedPtr<const FRemoteC
 			Reset();
 
 			// Step 3. Create Bind Behaviour and Bind to the property
-			CreateBindBehaviourAndAssignTo(NewController, RemoteControlProperty.ToSharedRef(), false);
+			constexpr bool bExecuteBind = true;
+			CreateBindBehaviourAndAssignTo(NewController, RemoteControlProperty.ToSharedRef(), bExecuteBind);
 		}
 	}
 }

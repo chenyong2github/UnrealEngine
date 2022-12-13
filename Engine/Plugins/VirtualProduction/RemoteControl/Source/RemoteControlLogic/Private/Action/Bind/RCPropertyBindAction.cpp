@@ -151,7 +151,14 @@ void URCPropertyBindAction::Execute() const
 			// Numeric To Numeric
 			if (RemoteControlProperty->IsA(FNumericProperty::StaticClass()))
 			{
-				Handle->SetValue(NumericValue);
+				if (RemoteControlProperty->IsA(FFloatProperty::StaticClass()))
+				{
+					Handle->SetValue(NumericValue);
+				}
+				else if (RemoteControlProperty->IsA(FIntProperty::StaticClass()))
+				{
+					Handle->SetValue((int32)NumericValue);
+				}
 			}
 			// Numeric To Boolean
 			else if (RemoteControlProperty->IsA(FBoolProperty::StaticClass()))
