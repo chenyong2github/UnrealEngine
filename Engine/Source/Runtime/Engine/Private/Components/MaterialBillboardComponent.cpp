@@ -18,6 +18,7 @@
 #include "LevelUtils.h"
 #include "PrimitiveSceneProxy.h"
 #include "StaticMeshResources.h"
+#include "PSOPrecache.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialBillboardComponent)
 

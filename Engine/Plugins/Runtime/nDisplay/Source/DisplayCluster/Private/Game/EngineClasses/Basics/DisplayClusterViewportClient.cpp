@@ -14,6 +14,7 @@
 #include "Engine/LocalPlayer.h"
 #include "UnrealEngine.h"
 #include "EngineUtils.h"
+#include "ShaderCore.h"
 
 #include "AudioDeviceManager.h"
 #include "AudioDevice.h"

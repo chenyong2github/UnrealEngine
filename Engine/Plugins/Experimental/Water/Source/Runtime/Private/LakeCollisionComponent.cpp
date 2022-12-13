@@ -12,6 +12,7 @@
 #include "PhysicsEngine/ConvexElem.h"
 #include "AI/NavigationSystemHelpers.h"
 #include "SceneManagement.h"
+#include "ShaderCore.h"
 #include "WaterUtils.h"
 #include "Algo/Transform.h"
 

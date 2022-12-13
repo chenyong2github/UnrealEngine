@@ -15,6 +15,7 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "CanvasTypes.h"
 #include "CanvasItem.h"
+#include "MaterialShared.h"
 #include "MeshPaintingToolsetTypes.h"
 #include "TextureResource.h"
 

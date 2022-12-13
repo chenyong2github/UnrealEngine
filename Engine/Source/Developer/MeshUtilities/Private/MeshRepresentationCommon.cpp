@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MeshRepresentationCommon.h"
+#include "MaterialShared.h"
 #include "MeshUtilities.h"
 #include "MeshUtilitiesPrivate.h"
 #include "DerivedMeshDataTaskUtils.h"

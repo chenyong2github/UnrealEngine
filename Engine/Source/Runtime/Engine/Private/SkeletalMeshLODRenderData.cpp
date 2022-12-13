@@ -20,6 +20,7 @@
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UE5PrivateFrostyStreamObjectVersion.h"
 #include "GPUSkinCache.h"
+#include "Serialization/MemoryWriter.h"
 
 #if WITH_EDITOR
 #include "Modules/ModuleManager.h"

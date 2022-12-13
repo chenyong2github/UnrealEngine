@@ -28,6 +28,8 @@
 #include "Components/PrimitiveComponent.h"
 #include "ContentStreaming.h"
 #include "MeshBatch.h"
+#include "Engine/Scene.h"
+#include "RenderUtils.h"
 #include "TextureCompiler.h"
 #include "MaterialShaderQualitySettings.h"
 #include "ShaderPlatformQualitySettings.h"

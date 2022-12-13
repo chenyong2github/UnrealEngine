@@ -15,6 +15,7 @@
 #include "NaniteDefinitions.h"
 #include "Templates/DontCopy.h"
 #include "Templates/PimplPtr.h"
+#include "VertexFactory.h"
 
 /** Whether Nanite::FSceneProxy should store data and enable codepaths needed for debug rendering. */
 #if PLATFORM_WINDOWS

@@ -14,6 +14,7 @@
 #include "RenderGraphUtils.h"
 #include "RenderGraphResources.h"
 #include "Rendering/SkeletalMeshModel.h"
+#include "ShaderCompilerCore.h"
 #include "ShaderParameterMetadataBuilder.h"
 #include "SkeletalRenderPublic.h"
 #include "NeuralNetwork.h"

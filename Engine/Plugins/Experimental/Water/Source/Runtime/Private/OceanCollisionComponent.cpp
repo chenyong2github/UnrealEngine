@@ -8,6 +8,7 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "PhysicsEngine/ConvexElem.h"
 #include "SceneManagement.h"
+#include "ShaderCore.h"
 #include "AI/NavigationSystemHelpers.h"
 #include "WaterUtils.h"
 

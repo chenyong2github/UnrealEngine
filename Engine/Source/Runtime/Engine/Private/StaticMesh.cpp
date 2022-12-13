@@ -56,6 +56,7 @@
 #include "Async/Async.h"
 #include "SplineMeshSceneProxy.h"
 #include "Templates/UniquePtr.h"
+#include "PSOPrecache.h"
 
 #if WITH_EDITOR
 #include "Async/ParallelFor.h"

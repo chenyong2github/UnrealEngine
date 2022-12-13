@@ -19,6 +19,7 @@
 #include "Elements/Interfaces/TypedElementSelectionInterface.h"
 #include "ActorPartition/ActorPartitionSubsystem.h"
 #include "Editor.h"
+#include "MaterialShared.h"
 #include "Modes/PlacementModeSubsystem.h"
 #include "ActorFactories/ActorFactory.h"
 #include "BaseGizmos/GizmoRenderingUtil.h"

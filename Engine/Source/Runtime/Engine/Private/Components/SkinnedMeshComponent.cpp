@@ -35,6 +35,7 @@
 #include "Animation/SkinWeightProfileManager.h"
 #include "GPUSkinCache.h"
 #include "PipelineStateCache.h"
+#include "PSOPrecache.h"
 #include "SkeletalRender.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 

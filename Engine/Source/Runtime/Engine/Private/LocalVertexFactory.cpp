@@ -11,10 +11,12 @@
 #include "ShaderParameterUtils.h"
 #include "Rendering/ColorVertexBuffer.h"
 #include "MeshMaterialShader.h"
+#include "PrimitiveUniformShaderParameters.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "GPUSkinCache.h"
 #include "GPUSkinVertexFactory.h"
 #include "Animation/MeshDeformerProvider.h"
+#include "RenderGraphResources.h"
 
 IMPLEMENT_TYPE_LAYOUT(FLocalVertexFactoryShaderParametersBase);
 IMPLEMENT_TYPE_LAYOUT(FLocalVertexFactoryShaderParameters);

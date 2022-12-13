@@ -19,6 +19,7 @@ class FObjectPreSaveContext;
 class UToolMenu;
 class UMaterialEditorInstanceConstant;
 class UMaterialInterface;
+class UMaterialInstance;
 class UMaterialInstanceConstant;
 class UMaterialFunctionInterface;
 class UMaterialFunctionInstance;

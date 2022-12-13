@@ -10,6 +10,7 @@
 #include "Rendering/SkeletalMeshLODRenderData.h"
 #include "ShaderParameterMetadataBuilder.h"
 #include "SkeletalRenderPublic.h"
+#include "ShaderCompilerCore.h"
 #include "ComponentSources/OptimusSkinnedMeshComponentSource.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusDataInterfaceRawBuffer)

@@ -11,6 +11,7 @@ struct FGLTFMaterialPropertyEx;
 class UMaterialExpressionTextureSample;
 class UMaterialInstanceConstant;
 class UMaterialInterface;
+class UMaterialExpressionCustomOutput;
 
 struct FGLTFPropertyBakeOutput
 {

@@ -74,6 +74,7 @@
 #include "DynamicResolutionState.h"
 #include "HDRHelper.h"
 #include "GlobalRenderResources.h"
+#include "ShaderCore.h"
 
 #if WITH_EDITOR
 #include "Settings/LevelEditorPlaySettings.h"

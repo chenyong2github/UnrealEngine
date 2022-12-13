@@ -10,6 +10,7 @@
 #include "Engine/Texture2D.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "TextureResource.h"
+#include "MaterialShared.h"
 
 #include "IMeshPaintGeometryAdapter.h"
 
