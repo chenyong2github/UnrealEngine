@@ -215,7 +215,7 @@ public:
 		{
 			const FOculusSoundfieldBuffer& InputBuffer = DowncastSoundfieldRef<const FOculusSoundfieldBuffer>(InputData.SoundfieldBuffer);
 
-			if (InputBuffer.AudioBuffer.Num() == 0)
+			if (InputBuffer.AudioBuffer.Num() == 0 || InputBuffer.NumChannels == 0)
 			{
 				return;
 			}
