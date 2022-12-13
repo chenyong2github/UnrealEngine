@@ -875,54 +875,57 @@ void ULandscapeEditorObject::RefreshImportLayersList(bool bRefreshFromTarget)
 	{
 		const FName& LayerName = LayerNames[i];
 
-		bool bFound = false;
-		FLandscapeImportLayer NewImportLayer;
-		NewImportLayer.ImportResult = ELandscapeImportResult::Success;
-		NewImportLayer.ErrorMessage = FText();
+		if (!LayerName.IsNone())
+		{
+			bool bFound = false;
+			FLandscapeImportLayer NewImportLayer;
+			NewImportLayer.ImportResult = ELandscapeImportResult::Success;
+			NewImportLayer.ErrorMessage = FText();
 
-		for (int32 j = 0; j < OldLayersList.Num(); j++)
-		{
-			if (OldLayersList[j].LayerName == LayerName)
+			for (int32 j = 0; j < OldLayersList.Num(); j++)
 			{
-				NewImportLayer = OldLayersList[j];
-				bFound = true;
-				break;
-			}
-		}
-
-		if (bFound)
-		{
-			if (NewImportLayer.ThumbnailMIC->Parent != Material)
-			{
-				FMaterialUpdateContext Context;
-				NewImportLayer.ThumbnailMIC->SetParentEditorOnly(Material);
-				Context.AddMaterialInterface(NewImportLayer.ThumbnailMIC);
-			}
-		}
-		else
-		{
-			if (!ThumbnailWeightmap)
-			{
-				ThumbnailWeightmap = LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EditorLandscapeResources/LandscapeThumbnailWeightmap.LandscapeThumbnailWeightmap"), nullptr, LOAD_None, nullptr);
+				if (OldLayersList[j].LayerName == LayerName)
+				{
+					NewImportLayer = OldLayersList[j];
+					bFound = true;
+					break;
+				}
 			}
 
-			if (!ThumbnailHeightmap)
+			if (bFound)
 			{
-				ThumbnailHeightmap = LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EditorLandscapeResources/LandscapeThumbnailHeightmap.LandscapeThumbnailHeightmap"), nullptr, LOAD_None, nullptr);
+				if (NewImportLayer.ThumbnailMIC->Parent != Material)
+				{
+					FMaterialUpdateContext Context;
+					NewImportLayer.ThumbnailMIC->SetParentEditorOnly(Material);
+					Context.AddMaterialInterface(NewImportLayer.ThumbnailMIC);
+				}
+			}
+			else
+			{
+				if (!ThumbnailWeightmap)
+				{
+					ThumbnailWeightmap = LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EditorLandscapeResources/LandscapeThumbnailWeightmap.LandscapeThumbnailWeightmap"), nullptr, LOAD_None, nullptr);
+				}
+
+				if (!ThumbnailHeightmap)
+				{
+					ThumbnailHeightmap = LoadObject<UTexture2D>(nullptr, TEXT("/Engine/EditorLandscapeResources/LandscapeThumbnailHeightmap.LandscapeThumbnailHeightmap"), nullptr, LOAD_None, nullptr);
+				}
+
+				NewImportLayer.LayerName = LayerName;
+				NewImportLayer.ThumbnailMIC = ALandscapeProxy::GetLayerThumbnailMIC(Material, LayerName, ThumbnailWeightmap, ThumbnailHeightmap, nullptr);
 			}
 
-			NewImportLayer.LayerName = LayerName;
-			NewImportLayer.ThumbnailMIC = ALandscapeProxy::GetLayerThumbnailMIC(Material, LayerName, ThumbnailWeightmap, ThumbnailHeightmap, nullptr);
+			if (bRefreshFromTarget)
+			{
+				NewImportLayer.LayerInfo = LayerInfoObjs[i];
+			}
+
+			RefreshLayerImport(NewImportLayer);
+
+			ImportLandscape_Layers.Add(MoveTemp(NewImportLayer));
 		}
-
-		if (bRefreshFromTarget)
-		{
-			NewImportLayer.LayerInfo = LayerInfoObjs[i];
-		}
-
-		RefreshLayerImport(NewImportLayer);
-
-		ImportLandscape_Layers.Add(MoveTemp(NewImportLayer));
 	}
 }
 
