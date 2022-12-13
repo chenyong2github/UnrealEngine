@@ -101,7 +101,7 @@ private:
 	TSharedPtr<FEdGraphSchemaAction> Action;
 };
 
-TSharedRef<SWidget> FBlueprintWidgetCustomization::MakePropertyBindingWidget(TWeakPtr<FWidgetBlueprintEditor> InEditor, FDelegateProperty* InDelegateProperty, TSharedRef<IPropertyHandle> InPropertyHandle, bool bInGeneratePureBindings)
+TSharedRef<SWidget> FBlueprintWidgetCustomization::MakePropertyBindingWidget(TWeakPtr<FWidgetBlueprintEditor> InEditor, UFunction* SignatureFunction, TSharedRef<IPropertyHandle> InPropertyHandle, bool bInGeneratePureBindings)
 {
 	if (!IModularFeatures::Get().IsModularFeatureAvailable("PropertyAccessEditor"))
 	{
@@ -123,7 +123,7 @@ TSharedRef<SWidget> FBlueprintWidgetCustomization::MakePropertyBindingWidget(TWe
 	UWidget* Widget = Objects.Num() ? Cast<UWidget>(Objects[0]) : nullptr;
 
 	FString WidgetName;
-	if ( Widget && !Widget->IsGeneratedName() )
+	if (Widget && !Widget->IsGeneratedName())
 	{
 		WidgetName = TEXT("_") + Widget->GetName() + TEXT("_");
 	}
@@ -132,19 +132,23 @@ TSharedRef<SWidget> FBlueprintWidgetCustomization::MakePropertyBindingWidget(TWe
 
 	TArray<TSharedPtr<FExtender>> MenuExtenders;
 
+	// cached list of extensions for which CanExtend() returned true
+	TArray<TSharedPtr<IPropertyBindingExtension>> ActiveExtensions;
+
 	IUMGEditorModule& EditorModule = FModuleManager::LoadModuleChecked<IUMGEditorModule>("UMGEditor");
 	for (const TSharedPtr<IPropertyBindingExtension>& Extension : EditorModule.GetPropertyBindingExtensibilityManager()->GetExtensions())
 	{
 		if (Extension->CanExtend(WidgetBlueprint, Widget, InPropertyHandle->GetProperty()))
 		{
 			MenuExtenders.Add(Extension->CreateMenuExtender(WidgetBlueprint, Widget, InPropertyHandle->GetProperty()));
+			ActiveExtensions.Add(Extension);
 		}
 	}
 
 	FPropertyBindingWidgetArgs Args;
 	Args.MenuExtender = FExtender::Combine(MenuExtenders);
 	Args.Property = InPropertyHandle->GetProperty();
-	Args.BindableSignature = InDelegateProperty->SignatureFunction;
+	Args.BindableSignature = SignatureFunction;
 	Args.OnGenerateBindingName = FOnGenerateBindingName::CreateLambda([WidgetName]()
 	{
 		return WidgetName;
@@ -230,23 +234,26 @@ TSharedRef<SWidget> FBlueprintWidgetCustomization::MakePropertyBindingWidget(TWe
 		return false;
 	});
 
-	Args.OnCanBindProperty = FOnCanBindProperty::CreateLambda([InDelegateProperty](FProperty* InProperty)
+	Args.OnCanBindProperty = FOnCanBindProperty::CreateLambda([SignatureFunction](FProperty* InProperty)
 	{
-		if ( FProperty* ReturnProperty = InDelegateProperty->SignatureFunction->GetReturnProperty() )
+		if (SignatureFunction != nullptr)
 		{
-			// Find the binder that can handle the delegate return type.
-			TSubclassOf<UPropertyBinding> Binder = UWidget::FindBinderClassForDestination(ReturnProperty);
-			if ( Binder != nullptr )
+			if (FProperty* ReturnProperty = SignatureFunction->GetReturnProperty() )
 			{
-				// Ensure that the binder also can handle binding from the property we care about.
-				return ( Binder->GetDefaultObject<UPropertyBinding>()->IsSupportedSource(InProperty) );
+				// Find the binder that can handle the delegate return type.
+				TSubclassOf<UPropertyBinding> Binder = UWidget::FindBinderClassForDestination(ReturnProperty);
+				if ( Binder != nullptr )
+				{
+					// Ensure that the binder also can handle binding from the property we care about.
+					return ( Binder->GetDefaultObject<UPropertyBinding>()->IsSupportedSource(InProperty) );
+				}
 			}
 		}
 
 		return false;
 	});
 	
-	Args.OnCanBindFunction = FOnCanBindFunction::CreateLambda([InDelegateProperty](UFunction* InFunction)
+	Args.OnCanBindFunction = FOnCanBindFunction::CreateLambda([SignatureFunction](UFunction* InFunction)
 	{
 		auto HasFunctionBinder = [InFunction](UFunction* InBindableSignature)
 		{
@@ -273,9 +280,14 @@ TSharedRef<SWidget> FBlueprintWidgetCustomization::MakePropertyBindingWidget(TWe
 			return false;
 		};
 
+		if (SignatureFunction == nullptr)
+		{
+			return false;
+		}
+
 		// We ignore CPF_ReturnParm because all that matters for binding to script functions is that the number of out parameters match.
-		return ( InFunction->IsSignatureCompatibleWith(InDelegateProperty->SignatureFunction, UFunction::GetDefaultIgnoredSignatureCompatibilityFlags() | CPF_ReturnParm) ||
-				HasFunctionBinder(InDelegateProperty->SignatureFunction) );
+		return ( InFunction->IsSignatureCompatibleWith(SignatureFunction, UFunction::GetDefaultIgnoredSignatureCompatibilityFlags() | CPF_ReturnParm) ||
+				HasFunctionBinder(SignatureFunction) );
 	});
 
 	Args.OnCanBindToClass = FOnCanBindToClass::CreateLambda([](UClass* InClass)
@@ -366,7 +378,7 @@ TSharedRef<SWidget> FBlueprintWidgetCustomization::MakePropertyBindingWidget(TWe
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(ThisBlueprint);	
 	});
 
-	Args.OnRemoveBinding = FOnRemoveBinding::CreateLambda([InEditor, Objects, InPropertyHandle](FName InPropertyName)
+	Args.OnRemoveBinding = FOnRemoveBinding::CreateLambda([InEditor, Objects, InPropertyHandle, ActiveExtensions](FName InPropertyName)
 	{
 		UWidgetBlueprint* ThisBlueprint = InEditor.Pin()->GetWidgetBlueprintObj();
 
@@ -390,8 +402,7 @@ TSharedRef<SWidget> FBlueprintWidgetCustomization::MakePropertyBindingWidget(TWe
 
 			if (UWidget* Widget = Cast<UWidget>(Object))
 			{
-				IUMGEditorModule& EditorModule = FModuleManager::LoadModuleChecked<IUMGEditorModule>("UMGEditor");
-				for (const TSharedPtr<IPropertyBindingExtension>& Extension : EditorModule.GetPropertyBindingExtensibilityManager()->GetExtensions())
+				for (const TSharedPtr<IPropertyBindingExtension>& Extension : ActiveExtensions)
 				{
 					Extension->ClearCurrentValue(ThisBlueprint, Widget, InPropertyHandle->GetProperty());
 				}
@@ -399,11 +410,9 @@ TSharedRef<SWidget> FBlueprintWidgetCustomization::MakePropertyBindingWidget(TWe
 		}
 
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(ThisBlueprint);
-
-		
 	});
 
-	Args.OnCanRemoveBinding = FOnCanRemoveBinding::CreateLambda([InEditor, Objects, InPropertyHandle](FName InPropertyName)
+	Args.OnCanRemoveBinding = FOnCanRemoveBinding::CreateLambda([InEditor, Objects, InPropertyHandle, ActiveExtensions](FName InPropertyName)
 	{
 		UWidgetBlueprint* ThisBlueprint = InEditor.Pin()->GetWidgetBlueprintObj();
 
@@ -427,8 +436,7 @@ TSharedRef<SWidget> FBlueprintWidgetCustomization::MakePropertyBindingWidget(TWe
 
 			if (UWidget* Widget = Cast<UWidget>(Object))
 			{
-				IUMGEditorModule& EditorModule = FModuleManager::LoadModuleChecked<IUMGEditorModule>("UMGEditor");
-				for (const TSharedPtr<IPropertyBindingExtension>& Extension : EditorModule.GetPropertyBindingExtensibilityManager()->GetExtensions())
+				for (const TSharedPtr<IPropertyBindingExtension>& Extension : ActiveExtensions)
 				{
 					TOptional<FName> Name = Extension->GetCurrentValue(ThisBlueprint, Widget, InPropertyHandle->GetProperty());
 					if (Name.IsSet())
@@ -442,7 +450,7 @@ TSharedRef<SWidget> FBlueprintWidgetCustomization::MakePropertyBindingWidget(TWe
 		return false;
 	});
 
-	Args.CurrentBindingText = MakeAttributeLambda([InEditor, Objects, InPropertyHandle]()
+	Args.CurrentBindingText = MakeAttributeLambda([InEditor, Objects, InPropertyHandle, ActiveExtensions]()
 	{
 		UWidgetBlueprint* ThisBlueprint = InEditor.Pin()->GetWidgetBlueprintObj();
 
@@ -503,8 +511,7 @@ TSharedRef<SWidget> FBlueprintWidgetCustomization::MakePropertyBindingWidget(TWe
 
 			if (UWidget* Widget = Cast<UWidget>(Object))
 			{
-				IUMGEditorModule& EditorModule = FModuleManager::LoadModuleChecked<IUMGEditorModule>("UMGEditor");
-				for (const TSharedPtr<IPropertyBindingExtension>& Extension : EditorModule.GetPropertyBindingExtensibilityManager()->GetExtensions())
+				for (const TSharedPtr<IPropertyBindingExtension>& Extension : ActiveExtensions)
 				{
 					TOptional<FName> Name = Extension->GetCurrentValue(ThisBlueprint, Widget, InPropertyHandle->GetProperty());
 					if (Name.IsSet())
@@ -522,7 +529,7 @@ TSharedRef<SWidget> FBlueprintWidgetCustomization::MakePropertyBindingWidget(TWe
 		return LOCTEXT("Bind", "Bind");
 	});
 
-	Args.CurrentBindingImage = MakeAttributeLambda([InEditor, Objects, InPropertyHandle]() -> const FSlateBrush*
+	Args.CurrentBindingImage = MakeAttributeLambda([InEditor, Objects, InPropertyHandle, ActiveExtensions]() -> const FSlateBrush*
 	{
 		static FName PropertyIcon(TEXT("Kismet.Tabs.Variables"));
 		static FName FunctionIcon(TEXT("GraphEditor.Function_16x"));
@@ -557,6 +564,18 @@ TSharedRef<SWidget> FBlueprintWidgetCustomization::MakePropertyBindingWidget(TWe
 					}
 				}
 			}
+
+			if (UWidget* Widget = Cast<UWidget>(Object))
+			{
+				for (const TSharedPtr<IPropertyBindingExtension>& Extension : ActiveExtensions)
+				{
+					const FSlateBrush* Brush = Extension->GetCurrentIcon(ThisBlueprint, Widget, InPropertyHandle->GetProperty());
+					if (Brush != nullptr)
+					{
+						return Brush;
+					}
+				}
+			}
 		}
 
 		return nullptr;
@@ -586,8 +605,9 @@ bool FBlueprintWidgetCustomization::HasPropertyBindings(TWeakPtr<FWidgetBlueprin
 		ParentPropertyName = CurrentPropertyHandle->GetProperty()->GetFName();
 	}
 
-	//TODO UMG O(N) Isn't good for this, needs to be map, but map isn't serialized, need cached runtime map for fast lookups.
+	IUMGEditorModule& EditorModule = FModuleManager::LoadModuleChecked<IUMGEditorModule>("UMGEditor");
 
+	//TODO UMG O(N) Isn't good for this, needs to be map, but map isn't serialized, need cached runtime map for fast lookups.
 	for (const UObject* Object : Objects)
 	{
 		// Ignore null outer objects
@@ -603,8 +623,28 @@ bool FBlueprintWidgetCustomization::HasPropertyBindings(TWeakPtr<FWidgetBlueprin
 				return true;
 			}
 		}
+	}
 
-		break;
+	// check property binding extensions
+	for (const UObject* Object : Objects)
+	{
+		const UWidget* Widget = Cast<UWidget>(Object);
+		if (Widget == nullptr)
+		{
+			continue;
+		}
+
+		for (const TSharedPtr<IPropertyBindingExtension>& BindingExtension : EditorModule.GetPropertyBindingExtensibilityManager()->GetExtensions())
+		{
+			if (BindingExtension->CanExtend(ThisBlueprint, Widget, InPropertyHandle->GetProperty()))
+			{
+				TOptional<FName> CurrentValue = BindingExtension->GetCurrentValue(ThisBlueprint, Widget, InPropertyHandle->GetProperty());
+				if (CurrentValue.IsSet())
+				{
+					return true;
+				}
+			}
+		}
 	}
 
 	return false;
@@ -656,7 +696,7 @@ void FBlueprintWidgetCustomization::CreateEventCustomization( IDetailLayoutBuild
 		.MinDesiredWidth(200)
 		.MaxDesiredWidth(250)
 		[
-			MakePropertyBindingWidget(Editor.Pin(), Property, DelegatePropertyHandle, false)
+			MakePropertyBindingWidget(Editor.Pin(), Property->SignatureFunction, DelegatePropertyHandle, false)
 		];
 }
 
@@ -914,7 +954,7 @@ void FBlueprintWidgetCustomization::CustomizeAccessibilityProperty(IDetailLayout
 			return !HasPropertyBindings(ThisEditor, AccessibleTextPropertyHandle);
 		}));
 
-	TSharedRef<SWidget> BindingWidget = MakePropertyBindingWidget(Editor, AccessibleTextDelegateProperty, AccessibleTextPropertyHandle, false);
+	TSharedRef<SWidget> BindingWidget = MakePropertyBindingWidget(Editor, AccessibleTextDelegateProperty->SignatureFunction, AccessibleTextPropertyHandle, false);
 	TSharedRef<SHorizontalBox> CustomTextLayout = SNew(SHorizontalBox)
 	.Visibility(TAttribute<EVisibility>::Create([AccessibleBehaviorPropertyHandle]() -> EVisibility
 	{

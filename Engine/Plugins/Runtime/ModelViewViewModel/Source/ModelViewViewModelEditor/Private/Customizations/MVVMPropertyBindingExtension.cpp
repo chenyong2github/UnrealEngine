@@ -2,6 +2,7 @@
 
 #include "Customizations/MVVMPropertyBindingExtension.h"
 
+#include "BlueprintEditor.h"
 #include "Components/Widget.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -163,11 +164,46 @@ TOptional<FName> FMVVMPropertyBindingExtension::GetCurrentValue(const UWidgetBlu
 	TArray<FName> Names = Binding->ViewModelPath.GetPaths();
 	if (Names.Num() > 0)
 	{
-		return Names[0];
+		return Names.Last();
 	}
 	return TOptional<FName>();
 }
 
+const FSlateBrush* FMVVMPropertyBindingExtension::GetCurrentIcon(const UWidgetBlueprint* WidgetBlueprint, const UWidget* Widget, const FProperty* Property) const
+{
+	const UMVVMWidgetBlueprintExtension_View* MVVMExtensionPtr = UMVVMWidgetBlueprintExtension_View::GetExtension<UMVVMWidgetBlueprintExtension_View>(WidgetBlueprint);
+	if (MVVMExtensionPtr == nullptr)
+	{
+		return nullptr;
+	}
+	const UMVVMBlueprintView* MVVMBlueprintView = MVVMExtensionPtr->GetBlueprintView();
+
+	const FMVVMBlueprintViewBinding* Binding = MVVMBlueprintView ? MVVMBlueprintView->FindBinding(Widget, Property) : nullptr;
+	if (Binding == nullptr)
+	{
+		return nullptr;
+	}
+
+	TArray<UE::MVVM::FMVVMConstFieldVariant> Fields = Binding->ViewModelPath.GetFields();
+	if (Fields.IsEmpty())
+	{
+		return nullptr;
+	}
+
+	UE::MVVM::FMVVMConstFieldVariant Field = Fields.Last();
+	if (Field.IsFunction() && Field.GetFunction() != nullptr)
+	{
+		return FAppStyle::Get().GetBrush("GraphEditor.Function_16x");
+	}
+	else if (Field.IsProperty() && Field.GetProperty() != nullptr)
+	{
+		FSlateColor PrimaryColor, SecondaryColor;
+		const FSlateBrush* SecondaryBrush = nullptr;
+		return FBlueprintEditor::GetVarIconAndColorFromProperty(Field.GetProperty(), PrimaryColor, SecondaryBrush, SecondaryColor);
+	}
+
+	return nullptr;
+}
 
 void FMVVMPropertyBindingExtension::ClearCurrentValue(const UWidgetBlueprint* WidgetBlueprint, const UWidget* Widget, const FProperty* Property)
 {

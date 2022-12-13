@@ -3,18 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
-#include "WidgetBlueprintEditor.h"
 #include "IDetailPropertyExtensionHandler.h"
 
-class IPropertyHandle;
+class FWidgetBlueprintEditor;
 
 class FDetailWidgetExtensionHandler : public IDetailPropertyExtensionHandler
 {
 public:
-	FDetailWidgetExtensionHandler(TSharedPtr<class FWidgetBlueprintEditor> InBlueprintEditor);
+	FDetailWidgetExtensionHandler(TSharedPtr<FWidgetBlueprintEditor> InBlueprintEditor);
 
-	virtual bool IsPropertyExtendable(const UClass* InObjectClass, const class IPropertyHandle& PropertyHandle) const override;
+	virtual bool IsPropertyExtendable(const UClass* InObjectClass, const IPropertyHandle& PropertyHandle) const override;
 
 	virtual void ExtendWidgetRow(
 		FDetailWidgetRow& InWidgetRow,
@@ -23,5 +21,5 @@ public:
 		TSharedPtr<IPropertyHandle> PropertyHandle) override;
 
 private:
-	TWeakPtr<class FWidgetBlueprintEditor> BlueprintEditor;
+	TWeakPtr<FWidgetBlueprintEditor> BlueprintEditor;
 };

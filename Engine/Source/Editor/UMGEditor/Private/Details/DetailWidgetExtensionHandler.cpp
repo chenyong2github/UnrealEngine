@@ -1,58 +1,117 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Details/DetailWidgetExtensionHandler.h"
-#include "UMGEditorProjectSettings.h"
-#include "WidgetBlueprintEditor.h"
-#include "Engine/Blueprint.h"
 #include "Binding/WidgetBinding.h"
-#include "WidgetBlueprint.h"
 #include "Customizations/UMGDetailCustomizations.h"
+#include "Engine/Blueprint.h"
+#include "UMGEditorModule.h"
+#include "UMGEditorProjectSettings.h"
+#include "WidgetBlueprint.h"
+#include "WidgetBlueprintEditor.h"
 
 FDetailWidgetExtensionHandler::FDetailWidgetExtensionHandler(TSharedPtr<FWidgetBlueprintEditor> InBlueprintEditor)
 	: BlueprintEditor( InBlueprintEditor )
 {}
 
-bool FDetailWidgetExtensionHandler::IsPropertyExtendable(const UClass* InObjectClass, const IPropertyHandle& InPropertyHandle) const
+namespace Private
 {
-	// TODO UMG make this work for multiple widgets.
-	if ( InPropertyHandle.GetNumOuterObjects() == 1 )
+	FDelegateProperty* FindDelegateProperty(const IPropertyHandle& PropertyHandle)
 	{
-		TArray<UObject*> Objects;
-		InPropertyHandle.GetOuterObjects(Objects);
-
 		// Make the extension handler run for child struct/array properties if the parent is bindable.
 		// This is so we can later disable any child rows of a bound property in ExtendWidgetRow().
-		// Check to see if there's a delegate for the parent property.
 		TSharedPtr<const IPropertyHandle> ParentPropertyHandle;
-		for (TSharedPtr<const IPropertyHandle> CurrentPropertyHandle = InPropertyHandle.AsShared();
+		for (TSharedPtr<const IPropertyHandle> CurrentPropertyHandle = PropertyHandle.AsShared();
 			CurrentPropertyHandle && CurrentPropertyHandle->GetProperty();
 			CurrentPropertyHandle = CurrentPropertyHandle->GetParentHandle())
 		{
 			ParentPropertyHandle = CurrentPropertyHandle;
 		}
 
-		// We don't allow bindings on the CDO.
-		if (Objects[0] != nullptr && Objects[0]->HasAnyFlags(RF_ClassDefaultObject) )
-		{
-			return false;
-		}
-
-		TSharedPtr<FWidgetBlueprintEditor> BPEd = BlueprintEditor.Pin();
-		if (BPEd == nullptr || Objects[0] == BPEd->GetPreview())
-		{
-			return false;
-		}
-
+		// Check to see if there's a delegate for the parent property.
 		FProperty* ParentProperty = ParentPropertyHandle->GetProperty();
 		FString DelegateName = ParentProperty->GetName() + "Delegate";
 
-		if ( UClass* ContainerClass = ParentProperty->GetOwner<UClass>() )
+		if (UClass* ContainerClass = ParentProperty->GetOwner<UClass>())
 		{
 			FDelegateProperty* DelegateProperty = FindFProperty<FDelegateProperty>(ContainerClass, FName(*DelegateName));
-			if ( DelegateProperty )
+			return DelegateProperty;
+		} 
+
+		return nullptr;
+	}
+
+	bool ShouldShowOldBindingWidget(const UWidgetBlueprint* WidgetBlueprint, const IPropertyHandle& PropertyHandle)
+	{
+		FProperty* Property = PropertyHandle.GetProperty();
+		FString DelegateName = Property->GetName() + "Delegate";
+		FDelegateProperty* DelegateProperty = FindDelegateProperty(PropertyHandle);
+		if (DelegateProperty == nullptr)
+		{
+			return false;
+		}
+
+		const bool bIsEditable = Property->HasAnyPropertyFlags(CPF_Edit | CPF_EditConst);
+		const bool bDoSignaturesMatch = DelegateProperty->SignatureFunction->GetReturnProperty()->SameType(Property);
+
+		if (!ensure(bIsEditable && bDoSignaturesMatch))
+		{
+			return false;
+		}
+
+		if (!WidgetBlueprint->ArePropertyBindingsAllowed())
+		{
+			// Even if they don't want them on, we need to show them so they can remove them if they had any.
+			if (WidgetBlueprint->Bindings.Num() == 0)
 			{
-				return true;
+				return false;
 			}
+		}
+
+		return true;
+	}
+}
+
+bool FDetailWidgetExtensionHandler::IsPropertyExtendable(const UClass* ObjectClass, const IPropertyHandle& PropertyHandle) const
+{
+	if (PropertyHandle.GetNumOuterObjects() != 1)
+	{
+		return false;
+	}
+
+	TArray<UObject*> Objects;
+	PropertyHandle.GetOuterObjects(Objects);
+
+	// We don't allow bindings on the CDO.
+	if (Objects[0] != nullptr && Objects[0]->HasAnyFlags(RF_ClassDefaultObject))
+	{
+		return false;
+	}
+
+	TSharedPtr<FWidgetBlueprintEditor> BPEd = BlueprintEditor.Pin();
+	if (BPEd == nullptr || Objects[0] == BPEd->GetPreview())
+	{
+		return false;
+	}
+
+	if (FDelegateProperty* DelegateProperty = Private::FindDelegateProperty(PropertyHandle))
+	{
+		return true;
+	}
+
+	const UWidget* Widget = Cast<UWidget>(Objects[0]);
+	if (Widget == nullptr)
+	{
+		return false;
+	}
+
+	const UWidgetBlueprint* WidgetBlueprint = BPEd->GetWidgetBlueprintObj();
+
+	IUMGEditorModule& EditorModule = FModuleManager::LoadModuleChecked<IUMGEditorModule>("UMGEditor");
+	for (const TSharedPtr<IPropertyBindingExtension>& Extension : EditorModule.GetPropertyBindingExtensibilityManager()->GetExtensions())
+	{
+		if (Extension->CanExtend(WidgetBlueprint, Widget, PropertyHandle.GetProperty()))
+		{
+			return true;
 		}
 	}
 
@@ -79,41 +138,42 @@ void FDetailWidgetExtensionHandler::ExtendWidgetRow(
 			return !FBlueprintWidgetCustomization::HasPropertyBindings(BlueprintEditorPtr, PropertyHandleRef);
 		}));
 
-	FProperty* Property = InPropertyHandle->GetProperty();
-	FString DelegateName = Property->GetName() + "Delegate";
+	const UWidgetBlueprint* WidgetBlueprint = BlueprintEditor.Pin()->GetWidgetBlueprintObj();
 
-	// Don't show the property binding widget for child properties of a bindable property,
-	// i.e. if the property's owner isn't the class itself.
-	// This check is necessary because IsPropertyExtendable() accepts all bindable properties
-	// and their descendants, primarily so we can disable the descendants' value widgets above.
-	const UClass* OwnerClass = Property->GetOwner<UClass>();
-	if (!OwnerClass) {
-		return;
-	}
+	bool bShouldShowWidget = false;
+	bShouldShowWidget |= Private::ShouldShowOldBindingWidget(WidgetBlueprint, PropertyHandleRef.Get());
+	
+	TArray<UObject*> Objects;
+	InPropertyHandle->GetOuterObjects(Objects);
 
-	FDelegateProperty* DelegateProperty = FindFieldChecked<FDelegateProperty>(OwnerClass, FName(*DelegateName));
-
-	const bool bIsEditable = Property->HasAnyPropertyFlags(CPF_Edit | CPF_EditConst);
-	const bool bDoSignaturesMatch = DelegateProperty->SignatureFunction->GetReturnProperty()->SameType(Property);
-
-	if ( !ensure(bIsEditable && bDoSignaturesMatch) )
+	for (const UObject* Object : Objects)
 	{
-		return;
-	}
-
-	UWidgetBlueprint* WidgetBlueprint = BlueprintEditor.Pin()->GetWidgetBlueprintObj();
-
-	if (!WidgetBlueprint->ArePropertyBindingsAllowed())
-	{
-		// Even if they don't want them on, we need to show them so they can remove them if they had any.
-		if (BlueprintEditor.Pin()->GetWidgetBlueprintObj()->Bindings.Num() == 0)
+		const UWidget* Widget = Cast<UWidget>(Object);
+		if (Widget == nullptr)
 		{
-			return;
+			continue;
 		}
+
+		IUMGEditorModule& EditorModule = FModuleManager::LoadModuleChecked<IUMGEditorModule>("UMGEditor");
+		for (const TSharedPtr<IPropertyBindingExtension>& Extension : EditorModule.GetPropertyBindingExtensibilityManager()->GetExtensions())
+		{
+			bShouldShowWidget |= Extension->CanExtend(WidgetBlueprint, Widget, InPropertyHandle->GetProperty());
+		}
+	}
+
+	if (!bShouldShowWidget)
+	{
+		return;
+	}
+
+	UFunction* SignatureFunction = nullptr;
+	if (FDelegateProperty* DelegateProperty = Private::FindDelegateProperty(PropertyHandleRef.Get()))
+	{
+		SignatureFunction = DelegateProperty->SignatureFunction;
 	}
 
 	InWidgetRow.ExtensionContent()
 	[
-		FBlueprintWidgetCustomization::MakePropertyBindingWidget(BlueprintEditor, DelegateProperty, InPropertyHandle.ToSharedRef(), true)
+		FBlueprintWidgetCustomization::MakePropertyBindingWidget(BlueprintEditor, SignatureFunction, InPropertyHandle.ToSharedRef(), true)
 	];
 }
