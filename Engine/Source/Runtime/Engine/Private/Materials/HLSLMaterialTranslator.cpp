@@ -837,6 +837,7 @@ bool FHLSLMaterialTranslator::Translate()
 		const EShaderFrequency NormalShaderFrequency = FMaterialAttributeDefinitionMap::GetShaderFrequency(MP_Normal);
 		const EMaterialDomain Domain = Material->GetMaterialDomain();
 		const EBlendMode BlendMode = Material->GetBlendMode();
+		const EStrataBlendMode StrataBlendMode = Material->GetStrataBlendMode();
 
 		// Gather the implementation for any custom output expressions
 		TArray<UMaterialExpressionCustomOutput*> CustomOutputExpressions;
@@ -921,7 +922,7 @@ bool FHLSLMaterialTranslator::Translate()
 			Chunk[MP_CustomData1] = Material->CompilePropertyAndSetMaterialProperty(MP_CustomData1, this);
 			Chunk[MP_AmbientOcclusion] = Material->CompilePropertyAndSetMaterialProperty(MP_AmbientOcclusion, this);
 
-			if (IsTranslucentBlendMode(BlendMode) || MaterialShadingModels.HasShadingModel(MSM_SingleLayerWater))
+			if (IsTranslucentBlendMode(BlendMode, StrataBlendMode) || MaterialShadingModels.HasShadingModel(MSM_SingleLayerWater))
 			{
 				// Cast to exact match is needed for float parameter to be correctly cast to float2.
 				int32 UserRefraction = ForceCast(Material->CompilePropertyAndSetMaterialProperty(MP_Refraction, this), MCT_Float2, MFCF_ExactMatch);
@@ -1094,7 +1095,7 @@ bool FHLSLMaterialTranslator::Translate()
 		}
 
 		// Don't allow opaque and masked materials to scene depth as the results are undefined
-		if (bUsesSceneDepth && Domain != MD_PostProcess && !IsTranslucentBlendMode(BlendMode))
+		if (bUsesSceneDepth && Domain != MD_PostProcess && !IsTranslucentBlendMode(BlendMode, StrataBlendMode))
 		{
 			Errorf(TEXT("Only transparent or postprocess materials can read from scene depth."));
 		}
@@ -1112,7 +1113,7 @@ bool FHLSLMaterialTranslator::Translate()
 			{
 				Errorf(TEXT("Only 'surface' material domain can use the scene color node."));
 			}
-			else if (!IsTranslucentBlendMode(BlendMode))
+			else if (!IsTranslucentBlendMode(BlendMode, StrataBlendMode))
 			{
 				Errorf(TEXT("Only translucent materials can use the scene color node."));
 			}
@@ -1132,7 +1133,7 @@ bool FHLSLMaterialTranslator::Translate()
 			Errorf(TEXT("Volume materials are not compatible with skinned meshes: they are voxelised as boxes anyway. Please disable UsedWithSkeletalMesh on the material."));
 		}
 
-		if (Material->IsLightFunction() && BlendMode != BLEND_Opaque)
+		if (Material->IsLightFunction() && !IsOpaqueBlendMode(BlendMode, StrataBlendMode))
 		{
 			Errorf(TEXT("Light function materials must be opaque."));
 		}
@@ -1152,14 +1153,14 @@ bool FHLSLMaterialTranslator::Translate()
 			Errorf(TEXT("Only unlit materials can output negative emissive color."));
 		}
 
-		if (Material->IsSky() && (!MaterialShadingModels.IsUnlit() || !(BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked)))
+		if (Material->IsSky() && (!MaterialShadingModels.IsUnlit() || !(IsOpaqueOrMaskedBlendMode(BlendMode, StrataBlendMode))))
 		{
 			Errorf(TEXT("Sky materials must be opaque or masked, and unlit. They are expected to completely replace the background."));
 		}
 
 		if (MaterialShadingModels.HasShadingModel(MSM_SingleLayerWater))
 		{
-			if (BlendMode != BLEND_Opaque && BlendMode != BLEND_Masked)
+			if (!IsOpaqueOrMaskedBlendMode(BlendMode, StrataBlendMode))
 			{
 				Errorf(TEXT("SingleLayerWater materials must be opaque or masked."));
 			}
@@ -1178,7 +1179,7 @@ bool FHLSLMaterialTranslator::Translate()
 
 		if (MaterialShadingModels.HasShadingModel(MSM_ThinTranslucent))
 		{
-			if (BlendMode != BLEND_Translucent)
+			if (!IsTranslucentOnlyBlendMode(BlendMode))
 			{
 				Errorf(TEXT("ThinTranslucent materials must be translucent."));
 			}
@@ -1229,7 +1230,7 @@ bool FHLSLMaterialTranslator::Translate()
 		{
 			if (Domain != MD_DeferredDecal && Domain != MD_PostProcess)
 			{
-				if (!MaterialShadingModels.HasShadingModel(MSM_SingleLayerWater) && (BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked))
+				if (!MaterialShadingModels.HasShadingModel(MSM_SingleLayerWater) && IsOpaqueOrMaskedBlendMode(BlendMode, StrataBlendMode))
 				{
 					// In opaque pass, none of the textures are available
 					Errorf(TEXT("SceneTexture expressions cannot be used in opaque materials except if used with the Single Layer Water shading model."));
@@ -1400,7 +1401,6 @@ bool FHLSLMaterialTranslator::Translate()
 
 		if (bStrataFrontMaterialIsValid)
 		{
-			EStrataBlendMode StrataBlendMode = Material->GetStrataBlendMode();
 			bMaterialIsStrata = true;
 
 			if (StrataMaterialRootOperator)

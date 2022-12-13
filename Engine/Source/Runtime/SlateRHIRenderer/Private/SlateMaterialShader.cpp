@@ -72,6 +72,7 @@ void FSlateMaterialShaderPS::SetBlendState(FGraphicsPipelineStateInitializer& Gr
 {
 	EBlendMode BlendMode = Material->GetBlendMode();
 
+	// STRATA_TODO_BLENDMODE
 	switch (BlendMode)
 	{
 	default:

@@ -319,8 +319,9 @@ bool FCustomDepthPassMeshProcessor::UseDefaultMaterial(const FMaterial& Material
 	bool bUseDefaultMaterial = false;
 	bIgnoreThisMaterial = false;
 
-	const EBlendMode BlendMode = Material.GetBlendMode();
-	if (BlendMode == BLEND_Opaque
+	const bool bIsOpaque = IsOpaqueBlendMode(Material);
+	const bool bIsTranslucent = IsTranslucentBlendMode(Material);
+	if (bIsOpaque
 		&& bSupportPositionOnlyStream
 		&& !bMaterialModifiesMeshPosition
 		&& Material.WritesEveryPixel())
@@ -328,7 +329,7 @@ bool FCustomDepthPassMeshProcessor::UseDefaultMaterial(const FMaterial& Material
 		bUseDefaultMaterial = true;
 		bPositionOnly = true;
 	}
-	else if (!IsTranslucentBlendMode(BlendMode) || Material.IsTranslucencyWritingCustomDepth())
+	else if (!bIsTranslucent || Material.IsTranslucencyWritingCustomDepth())
 	{
 		const bool bMaterialMasked = !Material.WritesEveryPixel() || Material.IsTranslucencyWritingCustomDepth();
 		if (!bMaterialMasked && !bMaterialModifiesMeshPosition)

@@ -1728,11 +1728,12 @@ bool FSingleLayerWaterDepthPrepassMeshProcessor::TryAddMeshBatch(
 	{
 		// Determine the mesh's material and blend mode.
 		const EBlendMode BlendMode = Material.GetBlendMode();
+		const EStrataBlendMode StrataBlendMode = Material.GetStrataBlendMode();
 		const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
 		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
 		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
 
-		if (BlendMode == BLEND_Opaque
+		if (IsOpaqueBlendMode(BlendMode, StrataBlendMode)
 			&& MeshBatch.VertexFactory->SupportsPositionOnlyStream()
 			&& !Material.MaterialModifiesMeshPosition_RenderThread()
 			&& Material.WritesEveryPixel())
@@ -1820,9 +1821,10 @@ void FSingleLayerWaterDepthPrepassMeshProcessor::CollectPSOInitializers(const FS
 		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
 		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
 		const EBlendMode BlendMode = Material.GetBlendMode();
+		const EStrataBlendMode StrataBlendMode = Material.GetStrataBlendMode();
 		const bool bSupportPositionOnlyStream = VertexFactoryType->SupportsPositionOnly();
 
-		if (BlendMode == BLEND_Opaque
+		if (IsOpaqueBlendMode(BlendMode, StrataBlendMode)
 			&& bSupportPositionOnlyStream
 			&& !Material.MaterialModifiesMeshPosition_GameThread()
 			&& Material.WritesEveryPixel())

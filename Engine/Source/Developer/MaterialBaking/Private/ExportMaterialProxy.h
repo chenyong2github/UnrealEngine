@@ -357,7 +357,6 @@ public:
 	{
 		if (Property == MP_EmissiveColor)
 		{
-			const EBlendMode BlendMode = MaterialInterface->GetBlendMode();
 			FExportMaterialCompiler ProxyCompiler(Compiler);
 			const uint32 ForceCast_Exact_Replicate = MFCF_ForceCast | MFCF_ExactMatch | MFCF_ReplicateValue;
 
@@ -375,7 +374,7 @@ public:
 			case MP_Metallic:
 			case MP_AmbientOcclusion:
 				// Only return for Opaque and Masked...
-				if (BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked)
+				if (IsOpaqueOrMaskedBlendMode(*MaterialInterface))
 				{
 					return MaterialInterface->CompileProperty(&ProxyCompiler, PropertyToCompile, ForceCast_Exact_Replicate);
 				}
@@ -392,7 +391,7 @@ public:
 			case MP_Normal:
 			case MP_Tangent:
 				// Only return for Opaque and Masked...
-				if (BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked)
+				if (IsOpaqueOrMaskedBlendMode(*MaterialInterface))
 				{
 					return CompileNormalEncoding(
 						Compiler,

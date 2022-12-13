@@ -3001,7 +3001,7 @@ FGPUSpriteParticleEmitterInstance(FFXSystem* InFXSystem, FGPUSpriteEmitterInfo& 
 		DynamicData->FXSystem = FXSystem;
 		DynamicData->Resources = EmitterInfo.Resources;
 		DynamicData->MaterialProxy = GetCurrentMaterial()->GetRenderProxy();
-		DynamicData->bIsMaterialTranslucent = IsTranslucentBlendMode(GetCurrentMaterial()->GetBlendMode());
+		DynamicData->bIsMaterialTranslucent = IsTranslucentBlendMode(*GetCurrentMaterial());
 		DynamicData->Simulation = Simulation;
 		DynamicData->SimulationBounds = Template->bUseFixedRelativeBoundingBox ? Template->FixedRelativeBoundingBox.TransformBy(Component->GetComponentTransform()) : Component->Bounds.GetBox();
 		DynamicData->SortMode = EmitterInfo.RequiredModule->SortMode;

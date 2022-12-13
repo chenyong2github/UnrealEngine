@@ -304,8 +304,7 @@ void FNiagaraRendererMeshes::PrepareParticleMeshRenderData(FParticleMeshRenderDa
 	{
 		check(MaterialProxy);
 		const FMaterial& Material = MaterialProxy->GetIncompleteMaterialWithFallback(FeatureLevel);
-		const EBlendMode BlendMode = Material.GetBlendMode();
-		const bool bTranslucent = IsTranslucentBlendMode(BlendMode);
+		const bool bTranslucent = IsTranslucentBlendMode(Material);
 
 		ParticleMeshRenderData.bHasTranslucentMaterials |= bTranslucent;
 
@@ -1313,8 +1312,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 						}
 
 						const FMaterial& Material = MaterialProxy->GetIncompleteMaterialWithFallback(FeatureLevel);
-						const EBlendMode BlendMode = Material.GetBlendMode();
-						const bool bTranslucent = IsTranslucentBlendMode(BlendMode);
+						const bool bTranslucent = IsTranslucentBlendMode(Material);
 						const bool bNeedsPrevTransform = !bTranslucent || Material.IsTranslucencyWritingVelocity();
 						if (bIsShadowView && bTranslucent && !SceneProxy->CastsVolumetricTranslucentShadow())
 						{

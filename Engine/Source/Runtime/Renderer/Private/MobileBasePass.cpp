@@ -37,7 +37,7 @@ bool MobileUsesNoLightMapPermutation(const FMeshMaterialShaderPermutationParamet
 	const bool bDeferredShading = IsMobileDeferredShadingEnabled(Parameters.Platform);
 
 	if (!bDeferredShading && !bAllowStaticLighting && bIsLitMaterial && 
-		!IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) && 
+		!IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) &&  // STRATA_TODO_BLENDMODE
 		!Parameters.MaterialParameters.ShadingModels.HasShadingModel(MSM_SingleLayerWater))
 	{
 		// We don't need NoLightMap permutation if CSM shader can handle no-CSM case with a branch inside shader
@@ -217,7 +217,7 @@ ELightMapPolicyType MobileBasePass::SelectMeshLightmapPolicy(
 	bool bPrimReceivesCSM,
 	bool bUsesDeferredShading,
 	ERHIFeatureLevel::Type FeatureLevel,
-	EBlendMode BlendMode)
+	EBlendMode BlendMode) // STRATA_TODO_BLENDMODE
 {
 	// Unlit uses NoLightmapPolicy with 0 point lights
 	ELightMapPolicyType SelectedLightmapPolicy = LMP_NO_LIGHTMAP;
@@ -373,8 +373,8 @@ void MobileBasePass::SetOpaqueRenderState(FMeshPassProcessorRenderState& DrawRen
 	{
 		// default depth state should be already set
 	}
-
-	if (Material.GetBlendMode() == BLEND_Masked && Material.IsUsingAlphaToCoverage())
+	const bool bIsMasked = IsMaskedBlendMode(Material);
+	if (bIsMasked && Material.IsUsingAlphaToCoverage())
 	{
 		DrawRenderState.SetBlendState(TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero, 
 														CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero,
@@ -394,6 +394,7 @@ void MobileBasePass::SetTranslucentRenderState(FMeshPassProcessorRenderState& Dr
 
 	const bool bIsUsingMobilePixelProjectedReflection = Material.IsUsingPlanarForwardReflections() && IsUsingMobilePixelProjectedReflection(ShaderPlatform);
 
+	// STRATA_TODO_BLENDMODE
 	if (ShadingModels.HasShadingModel(MSM_ThinTranslucent))
 	{
 		const bool bIsDualSourceBlending = RHISupportsDualSourceBlending(ShaderPlatform);
@@ -604,8 +605,9 @@ FMobileBasePassMeshProcessor::FMobileBasePassMeshProcessor(
 bool FMobileBasePassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId, const FMaterialRenderProxy& MaterialRenderProxy, const FMaterial& Material)
 {
 	const EBlendMode BlendMode = Material.GetBlendMode();
+	const EStrataBlendMode StrataBlendMode = Material.GetStrataBlendMode();
 	const FMaterialShadingModelField ShadingModels = Material.GetShadingModels();
-	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
+	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode, StrataBlendMode);
 	const bool bUsesWaterMaterial = ShadingModels.HasShadingModel(MSM_SingleLayerWater); // Water goes into the translucent pass
 	const bool bCanReceiveCSM = ((Flags & EFlags::CanReceiveCSM) == EFlags::CanReceiveCSM);
 
@@ -743,7 +745,7 @@ bool FMobileBasePassMeshProcessor::Process(
 		SortKey = CalculateTranslucentMeshStaticSortKey(PrimitiveSceneProxy, MeshBatch.MeshIdInPrimitive);
 		// We always want water to be rendered first on mobile in order to mimic other renderers where it is opaque. We shift the other priorities by 1.
 		// And we also want to render the meshes used for mobile pixel projected reflection first if it is opaque.
-		const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
+		const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode); // STRATA_TODO_BLENDMODE
 		SortKey.Translucent.Priority = ShadingModels.HasShadingModel(MSM_SingleLayerWater) || (!bIsTranslucent && bIsUsingMobilePixelProjectedReflection) ? uint16(0) : uint16(FMath::Clamp(uint32(SortKey.Translucent.Priority) + 1, 0u, uint32(USHRT_MAX)));
 	}
 	else
@@ -752,7 +754,7 @@ bool FMobileBasePassMeshProcessor::Process(
 		bool bBackground = PrimitiveSceneProxy ? PrimitiveSceneProxy->TreatAsBackgroundForOcclusion() : false;
 		// Default static sort key separates masked and non-masked geometry, generic mesh sorting will also sort by PSO
 		// if platform wants front to back sorting, this key will be recomputed in InitViews
-		SortKey = GetBasePassStaticSortKey(BlendMode, bBackground);
+		SortKey = GetBasePassStaticSortKey(BlendMode, bBackground); // STRATA_TODO_BLENDMODE
 	}
 	
 	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);

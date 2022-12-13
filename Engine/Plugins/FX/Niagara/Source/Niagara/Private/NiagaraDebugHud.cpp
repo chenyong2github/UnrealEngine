@@ -748,7 +748,7 @@ namespace NiagaraDebugLocal
 							RenderProperties->GetUsedMaterials(&EmitterInstance.Get(), UsedMaterials);
 							for (UMaterialInterface* Material : UsedMaterials)
 							{
-								if (Material && !IsTranslucentBlendMode(Material->GetBlendMode()) )
+								if (Material && !IsTranslucentBlendMode(*Material))
 								{
 									bSupportsThisFrameData = false;
 									break;

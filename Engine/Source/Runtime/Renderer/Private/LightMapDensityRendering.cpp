@@ -255,7 +255,7 @@ bool FLightmapDensityMeshProcessor::TryAddMeshBatch(
 	const FMaterialRenderProxy* MaterialRenderProxy = &InMaterialRenderProxy;
 	const FMaterial* Material = &InMaterial;
 	const bool bMaterialMasked = Material->IsMasked();
-	const bool bTranslucentBlendMode = IsTranslucentBlendMode(Material->GetBlendMode());
+	const bool bTranslucentBlendMode = IsTranslucentBlendMode(*Material);
 	const bool bIsLitMaterial = Material->GetShadingModels().IsLit();
 	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
 	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(*Material, OverrideSettings);

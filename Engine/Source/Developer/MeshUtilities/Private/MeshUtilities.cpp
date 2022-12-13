@@ -5020,7 +5020,7 @@ static bool NonOpaqueMaterialPredicate(UStaticMeshComponent* InMesh)
 	InMesh->GetUsedMaterials(OutMaterials);
 	for (auto Material : OutMaterials)
 	{
-		if (Material == nullptr || Material->GetBlendMode() != BLEND_Opaque)
+		if (Material == nullptr || !IsOpaqueBlendMode(*Material))
 		{
 			return true;
 		}

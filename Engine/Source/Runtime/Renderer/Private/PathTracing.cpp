@@ -1079,7 +1079,7 @@ FRayTracingLightFunctionMap GatherLightFunctionLightsPathTracing(FScene* Scene, 
 	return RayTracingLightFunctionMap;
 }
 
-static bool NeedsAnyHitShader(bool bIsMasked, EBlendMode BlendMode)
+static bool NeedsAnyHitShader(bool bIsMasked, EBlendMode BlendMode) // STRATA_TODO_BLENDMODE
 {
 	if (bIsMasked)
 	{
@@ -1124,7 +1124,7 @@ public:
 			// does the VF support ray tracing at all?
 			return false;
 		}
-		if (NeedsAnyHitShader(Parameters.MaterialParameters.bIsMasked, Parameters.MaterialParameters.BlendMode) != UseAnyHitShader)
+		if (NeedsAnyHitShader(Parameters.MaterialParameters.bIsMasked, Parameters.MaterialParameters.BlendMode) != UseAnyHitShader) // STRATA_TODO_BLENDMODE
 		{
 			// the anyhit permutation is only required if the material is masked or has a non-opaque blend mode
 			return false;

@@ -4279,7 +4279,7 @@ bool UMaterialInstance::IsThinSurface() const
 
 bool UMaterialInstance::IsTranslucencyWritingVelocity() const
 {
-	return bOutputTranslucentVelocity && IsTranslucentBlendMode(GetBlendMode());
+	return bOutputTranslucentVelocity && IsTranslucentBlendMode(GetBlendMode(), GetStrataBlendMode());
 }
 
 bool UMaterialInstance::IsDitheredLODTransition() const
@@ -4289,7 +4289,7 @@ bool UMaterialInstance::IsDitheredLODTransition() const
 
 bool UMaterialInstance::IsMasked() const
 {
-	return GetBlendMode() == EBlendMode::BLEND_Masked || (GetBlendMode() == EBlendMode::BLEND_Translucent && GetCastDynamicShadowAsMasked());
+	return IsMaskedBlendMode(GetBlendMode(), GetStrataBlendMode()) || (IsTranslucentOnlyBlendMode(GetBlendMode(), GetStrataBlendMode()) && GetCastDynamicShadowAsMasked());
 }
 
 USubsurfaceProfile* UMaterialInstance::GetSubsurfaceProfile_Internal() const

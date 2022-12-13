@@ -673,15 +673,15 @@ bool UParticleModuleCollisionGPU::IsValidForLODLevel(UParticleLODLevel* LODLevel
 	}
 	check(Material);
 
-	EBlendMode BlendMode = BLEND_Opaque;
+	bool bIsOpaqueOrMasked = true;
 	UWorld* World = GetWorld();
 	const FMaterialResource* MaterialResource = Material->GetMaterialResource(World ? World->FeatureLevel.GetValue() : GMaxRHIFeatureLevel);
-	if(MaterialResource)
+	if (MaterialResource)
 	{
-		BlendMode = MaterialResource->GetBlendMode();
+		bIsOpaqueOrMasked = IsOpaqueOrMaskedBlendMode(*MaterialResource);
 	}
 
-	if (CollisionMode == EParticleCollisionMode::SceneDepth && (BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked))
+	if (CollisionMode == EParticleCollisionMode::SceneDepth && bIsOpaqueOrMasked)
 	{
 		OutErrorString = NSLOCTEXT("UnrealEd", "CollisionOnOpaqueEmitter", "Scene depth collision cannot be used on emitters with an opaque material.").ToString();
 		return false;

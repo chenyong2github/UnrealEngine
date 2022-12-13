@@ -2137,7 +2137,7 @@ void FixupMaterials(FMaterialAudit& Audit)
 	}
 }
 
-bool IsSupportedBlendMode(EBlendMode Mode)
+bool IsSupportedBlendMode(EBlendMode Mode) // STRATA_TODO_BLENDMODE
 {
 	if (GNaniteErrorOnMaskedBlendMode != 0)
 	{

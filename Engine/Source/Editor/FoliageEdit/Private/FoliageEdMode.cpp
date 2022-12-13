@@ -273,7 +273,7 @@ bool FFoliagePaintingGeometryFilter::operator() (const UPrimitiveComponent* Comp
 
 		// deny list
 		bAllowed &=
-			(bAllowTranslucent || !(Component->GetMaterial(0) && IsTranslucentBlendMode(Component->GetMaterial(0)->GetBlendMode())));
+			(bAllowTranslucent || !(Component->GetMaterial(0) && IsTranslucentBlendMode(*Component->GetMaterial(0))));
 
 		return bAllowed;
 	}
@@ -2796,7 +2796,7 @@ void FEdModeFoliage::ApplyPaintBucket_Add(AActor* Actor)
 		UMaterialInterface* Material = StaticMeshComponent->GetMaterial(0);
 
 		if (UISettings.bFilterStaticMesh && StaticMeshComponent->GetStaticMesh() && StaticMeshComponent->GetStaticMesh()->GetRenderData() &&
-			(UISettings.bFilterTranslucent || !Material || !IsTranslucentBlendMode(Material->GetBlendMode())))
+			(UISettings.bFilterTranslucent || !Material || !IsTranslucentBlendMode(*Material)))
 		{
 			UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
 			FStaticMeshLODResources& LODModel = StaticMesh->GetRenderData()->LODResources[0];

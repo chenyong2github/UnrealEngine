@@ -101,7 +101,7 @@ public:
 		const bool bIsMasked = !Parameters.MaterialParameters.bWritesEveryPixel;
 
 		// Compile for opaque and two-sided materials.
-		const bool bIsOpaqueAndTwoSided = (Parameters.MaterialParameters.bIsTwoSided && !IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode));
+		const bool bIsOpaqueAndTwoSided = (Parameters.MaterialParameters.bIsTwoSided && !IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode)); // STRATA_TODO_BLENDMODE
 
 		// Compile for materials which modify meshes.
 		const bool bMayModifyMeshes = Parameters.MaterialParameters.bMaterialMayModifyMeshPosition;
@@ -512,8 +512,7 @@ bool FOpaqueVelocityMeshProcessor::TryAddMeshBatch(
 	const FMaterialRenderProxy* MaterialRenderProxy,
 	const FMaterial* Material)
 {
-	const EBlendMode BlendMode = Material->GetBlendMode();
-	const bool bIsNotTranslucent = BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked;
+	const bool bIsNotTranslucent = IsOpaqueOrMaskedBlendMode(*Material);
 
 	bool bResult = true;
 	if (MeshBatch.bUseForMaterial && bIsNotTranslucent && ShouldIncludeMaterialInDefaultOpaquePass(*Material))
@@ -598,8 +597,7 @@ void FOpaqueVelocityMeshProcessor::CollectPSOInitializers(const FSceneTexturesCo
 	}
 	else
 	{
-		const EBlendMode BlendMode = Material.GetBlendMode();
-		const bool bIsNotTranslucent = BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked;
+		const bool bIsNotTranslucent = IsOpaqueOrMaskedBlendMode(Material);
 
 		if (PreCacheParams.bRenderInMainPass && bIsNotTranslucent && ShouldIncludeMaterialInDefaultOpaquePass(Material))
 		{			

@@ -273,6 +273,39 @@ enum EStrataBlendMode : int
 	SBM_MAX,
 };
 
+class FMaterial;
+class UMaterialInterface;
+
+ENGINE_API bool IsOpaqueBlendMode(EStrataBlendMode BlendMode);
+ENGINE_API bool IsOpaqueBlendMode(EBlendMode BlendMode);
+ENGINE_API bool IsOpaqueBlendMode(EBlendMode LegacyBlendMode, EStrataBlendMode StrataBlendMode);
+ENGINE_API bool IsOpaqueBlendMode(const FMaterial& In);
+ENGINE_API bool IsOpaqueBlendMode(const UMaterialInterface& In);
+
+ENGINE_API bool IsOpaqueOrMaskedBlendMode(EStrataBlendMode BlendMode);
+ENGINE_API bool IsOpaqueOrMaskedBlendMode(EBlendMode BlendMode);
+ENGINE_API bool IsOpaqueOrMaskedBlendMode(EBlendMode LegacyBlendMode, EStrataBlendMode StrataBlendMode);
+ENGINE_API bool IsOpaqueOrMaskedBlendMode(const FMaterial& In);
+ENGINE_API bool IsOpaqueOrMaskedBlendMode(const UMaterialInterface& In);
+
+ENGINE_API bool IsMaskedBlendMode(EStrataBlendMode BlendMode);
+ENGINE_API bool IsMaskedBlendMode(EBlendMode BlendMode);
+ENGINE_API bool IsMaskedBlendMode(EBlendMode LegacyBlendMode, EStrataBlendMode StrataBlendMode);
+ENGINE_API bool IsMaskedBlendMode(const FMaterial& In);
+ENGINE_API bool IsMaskedBlendMode(const UMaterialInterface& In);
+
+ENGINE_API bool IsTranslucentOnlyBlendMode(EStrataBlendMode BlendMode);
+ENGINE_API bool IsTranslucentOnlyBlendMode(EBlendMode BlendMode);
+ENGINE_API bool IsTranslucentOnlyBlendMode(EBlendMode LegacyBlendMode, EStrataBlendMode StrataBlendMode);
+ENGINE_API bool IsTranslucentOnlyBlendMode(const FMaterial& In);
+ENGINE_API bool IsTranslucentOnlyBlendMode(const UMaterialInterface& In);
+
+ENGINE_API bool IsTranslucentBlendMode(EStrataBlendMode BlendMode);
+ENGINE_API bool IsTranslucentBlendMode(EBlendMode BlendMode);
+ENGINE_API bool IsTranslucentBlendMode(EBlendMode LegacyBlendMode, EStrataBlendMode StrataBlendMode);
+ENGINE_API bool IsTranslucentBlendMode(const FMaterial& In);
+ENGINE_API bool IsTranslucentBlendMode(const UMaterialInterface& In);
+
 /** The default float precision for material's pixel shaders on mobile devices*/
 UENUM()
 enum EMaterialFloatPrecisionMode : int

@@ -9,8 +9,7 @@ bool FFXRenderingUtils::CanMaterialRenderBeforeFXPostOpaque(
 	const FPrimitiveSceneProxy& SceneProxy,
 	const FMaterial& Material)
 {
-	const EBlendMode BlendMode = Material.GetBlendMode();
-	const bool bTranslucent = IsTranslucentBlendMode(BlendMode);		
+	const bool bTranslucent = IsTranslucentBlendMode(Material);
 
 	if (!bTranslucent)
 	{

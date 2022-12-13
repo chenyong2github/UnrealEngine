@@ -74,13 +74,16 @@ protected:
 			SharedCommand.SetShaders(PassShaders.GetUntypedShaders());
 		}
 
-		SharedCommand.InstanceMask = ComputeBlendModeMask(MaterialResource.GetBlendMode());
+		EBlendMode BlendMode = MaterialResource.GetBlendMode();
+		EStrataBlendMode StrataBlendMode = MaterialResource.GetStrataBlendMode();
+
+		SharedCommand.InstanceMask = ComputeBlendModeMask(BlendMode);
 		SharedCommand.bCastRayTracedShadows = MeshBatch.CastRayTracedShadow && MaterialResource.CastsRayTracedShadows();
-		SharedCommand.bOpaque = MaterialResource.GetBlendMode() == EBlendMode::BLEND_Opaque && !(VertexFactory->GetType()->SupportsRayTracingProceduralPrimitive() && FDataDrivenShaderPlatformInfo::GetSupportsRayTracingProceduralPrimitive(GMaxRHIShaderPlatform));
+		SharedCommand.bOpaque = IsOpaqueBlendMode(BlendMode, StrataBlendMode) && !(VertexFactory->GetType()->SupportsRayTracingProceduralPrimitive() && FDataDrivenShaderPlatformInfo::GetSupportsRayTracingProceduralPrimitive(GMaxRHIShaderPlatform));
 		SharedCommand.bDecal = MaterialResource.GetMaterialDomain() == EMaterialDomain::MD_DeferredDecal;
 		SharedCommand.bIsSky = MaterialResource.IsSky();
 		SharedCommand.bTwoSided = MaterialResource.IsTwoSided();
-		SharedCommand.bIsTranslucent = MaterialResource.GetBlendMode() == EBlendMode::BLEND_Translucent;
+		SharedCommand.bIsTranslucent = IsTranslucentOnlyBlendMode(BlendMode, StrataBlendMode);
 
 		FVertexInputStreamArray VertexStreams;
 		VertexFactory->GetStreams(ERHIFeatureLevel::SM5, EVertexInputStreamType::Default, VertexStreams);

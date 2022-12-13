@@ -314,7 +314,7 @@ public:
 protected:
 	virtual bool CanDrawMeshBatch(const FMeshBatch& RESTRICT MeshBatch, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, const FMaterial* Material) override
 	{
-		const bool bIsTranslucent = IsTranslucentBlendMode(Material->GetBlendMode());
+		const bool bIsTranslucent = IsTranslucentBlendMode(*Material);
 
 		if (bTranslucencyPass)
 		{

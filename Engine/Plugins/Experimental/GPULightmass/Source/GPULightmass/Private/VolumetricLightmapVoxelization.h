@@ -114,7 +114,7 @@ public:
 		{
 			const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel);
 
-			if (Material.GetBlendMode() == BLEND_Opaque || Material.IsMasked())
+			if (IsOpaqueBlendMode(Material) || Material.IsMasked())
 			{
 				const FMaterialRenderProxy& DefaultProxy = *UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
 				const FMaterial& DefaultMaterial = *DefaultProxy.GetMaterialNoFallback(FeatureLevel);

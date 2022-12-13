@@ -978,7 +978,7 @@ void FMaterialInstanceParameterDetails::OnAssetChanged(const FAssetData & InAsse
 
 EVisibility FMaterialInstanceParameterDetails::ShouldShowMaterialRefractionSettings() const
 {
-	return (MaterialEditorInstance->SourceInstance->GetMaterial()->bUsesDistortion && IsTranslucentBlendMode(MaterialEditorInstance->SourceInstance->GetBlendMode())) ? EVisibility::Visible : EVisibility::Collapsed;
+	return (MaterialEditorInstance->SourceInstance->GetMaterial()->bUsesDistortion && IsTranslucentBlendMode(*MaterialEditorInstance->SourceInstance)) ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 EVisibility FMaterialInstanceParameterDetails::ShouldShowSubsurfaceProfile() const

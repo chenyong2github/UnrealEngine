@@ -871,7 +871,7 @@ void ModifyBasePassCSPSCompilationEnvironment(const FMeshMaterialShaderPermutati
 	OutEnvironment.SetDefine(TEXT("IS_BASE_PASS"), 1);
 	OutEnvironment.SetDefine(TEXT("IS_MOBILE_BASE_PASS"), 0);
 
-	const bool bTranslucent = IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode);
+	const bool bTranslucent = IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode); // STRATA_TODO_BLENDMODE
 	const bool bIsSingleLayerWater = Parameters.MaterialParameters.ShadingModels.HasShadingModel(MSM_SingleLayerWater);
 	const bool bSupportVirtualShadowMap = IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	if (bSupportVirtualShadowMap && (bTranslucent || bIsSingleLayerWater))
@@ -1845,7 +1845,7 @@ bool FBasePassMeshProcessor::ShouldDraw(const FMaterial& Material)
 	// Determine the mesh's material and blend mode.
 	const EBlendMode BlendMode = Material.GetBlendMode();
 	const EStrataBlendMode StrataBlendMode = Material.GetStrataBlendMode();
-	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
+	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode, StrataBlendMode);
 	
 	bool bShouldDraw = false;
 	if (bTranslucentBasePass)
@@ -1903,7 +1903,7 @@ bool FBasePassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatc
 	const EBlendMode BlendMode = Material.GetBlendMode();
 	const EStrataBlendMode StrataBlendMode = Material.GetStrataBlendMode();
 	const FMaterialShadingModelField ShadingModels = Material.GetShadingModels();
-	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
+	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode, StrataBlendMode);
 	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
 	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
 	const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
@@ -2078,8 +2078,7 @@ bool FBasePassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatc
 ELightMapPolicyType FBasePassMeshProcessor::GetUniformLightMapPolicyType(ERHIFeatureLevel::Type FeatureLevel, const FScene* Scene, const FMeshBatch& RESTRICT MeshBatch, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, const FMaterial& Material)
 {
 	// Check for a cached light-map.
-	const EBlendMode BlendMode = Material.GetBlendMode();
-	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
+	const bool bIsTranslucent = IsTranslucentBlendMode(Material);
 	const FMaterialShadingModelField ShadingModels = Material.GetShadingModels();
 	const bool bIsLitMaterial = ShadingModels.IsLit();
 	const bool bAllowStaticLighting = AllowStaticLighting();
@@ -2189,10 +2188,9 @@ ELightMapPolicyType FBasePassMeshProcessor::GetUniformLightMapPolicyType(ERHIFea
 
 TArray<ELightMapPolicyType, TInlineAllocator<2>> FBasePassMeshProcessor::GetUniformLightMapPolicyTypeForPSOCollection(ERHIFeatureLevel::Type FeatureLevel, const FMaterial& Material)
 {
-	const EBlendMode BlendMode = Material.GetBlendMode();
 	const FMaterialShadingModelField ShadingModels = Material.GetShadingModels();
 
-	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
+	const bool bIsTranslucent = IsTranslucentBlendMode(Material);
 	const bool bIsLitMaterial = ShadingModels.IsLit();
 	const bool bAllowStaticLighting = AllowStaticLighting();
 
@@ -2302,7 +2300,7 @@ void FBasePassMeshProcessor::CollectPSOInitializersForSkyLight(
 	const EBlendMode BlendMode = Material.GetBlendMode();
 	const FMaterialShadingModelField ShadingModels = Material.GetShadingModels();
 
-	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
+	const bool bIsTranslucent = IsTranslucentBlendMode(Material);
 	const bool bIsLitMaterial = ShadingModels.IsLit();
 	
 	static const auto CVarSupportLightMapPolicyMode = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.PSOPrecache.LightMapPolicyMode"));
@@ -2319,19 +2317,19 @@ void FBasePassMeshProcessor::CollectPSOInitializersForSkyLight(
 		if (bAllowStaticLighting && bUseVolumetricLightmap)
 		{
 			CollectPSOInitializersForLMPolicy< FSelfShadowedVolumetricLightmapPolicy >(
-				SceneTexturesConfig, VertexFactoryType, Material, BlendMode, ShadingModels, bRenderSkyLight, bDitheredLODTransition,
+				SceneTexturesConfig, VertexFactoryType, Material, BlendMode /*STRATA_TODO_BLENDMODE StrataBlendMode */, ShadingModels, bRenderSkyLight, bDitheredLODTransition,
 				FSelfShadowedVolumetricLightmapPolicy(), MeshFillMode, MeshCullMode, PrimitiveType, PSOInitializers);
 		}
 
 		if (IsIndirectLightingCacheAllowed(FeatureLevel) && bAllowIndirectLightingCache)
 		{
 			CollectPSOInitializersForLMPolicy< FSelfShadowedCachedPointIndirectLightingPolicy >(
-				SceneTexturesConfig, VertexFactoryType, Material, BlendMode, ShadingModels, bRenderSkyLight, bDitheredLODTransition,
+				SceneTexturesConfig, VertexFactoryType, Material, BlendMode /*STRATA_TODO_BLENDMODE StrataBlendMode */, ShadingModels, bRenderSkyLight, bDitheredLODTransition,
 				FSelfShadowedCachedPointIndirectLightingPolicy(), MeshFillMode, MeshCullMode, PrimitiveType, PSOInitializers);
 		}
 
 		CollectPSOInitializersForLMPolicy< FSelfShadowedTranslucencyPolicy >(
-			SceneTexturesConfig, VertexFactoryType, Material, BlendMode, ShadingModels, bRenderSkyLight, bDitheredLODTransition,
+			SceneTexturesConfig, VertexFactoryType, Material, BlendMode /*STRATA_TODO_BLENDMODE StrataBlendMode */, ShadingModels, bRenderSkyLight, bDitheredLODTransition,
 			FSelfShadowedTranslucencyPolicy(), MeshFillMode, MeshCullMode, PrimitiveType, PSOInitializers);
 	}
 
@@ -2339,7 +2337,7 @@ void FBasePassMeshProcessor::CollectPSOInitializersForSkyLight(
 	for (ELightMapPolicyType LightMapPolicyType : UniformLightMapPolicyTypes)
 	{
 		CollectPSOInitializersForLMPolicy< FUniformLightMapPolicy >(
-			SceneTexturesConfig, VertexFactoryType, Material, BlendMode, ShadingModels, bRenderSkyLight, bDitheredLODTransition,
+			SceneTexturesConfig, VertexFactoryType, Material, BlendMode /*STRATA_TODO_BLENDMODE StrataBlendMode */, ShadingModels, bRenderSkyLight, bDitheredLODTransition,
 			FUniformLightMapPolicy(LightMapPolicyType), MeshFillMode, MeshCullMode, PrimitiveType, PSOInitializers);
 	}
 }

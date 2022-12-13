@@ -661,9 +661,8 @@ void FLumenCardMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch,
 			{
 				auto TryAddMeshBatch = [this](const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId, const FMaterialRenderProxy& MaterialRenderProxy, const FMaterial& Material) -> bool
 				{
-					const EBlendMode BlendMode = Material.GetBlendMode();
 					const FMaterialShadingModelField ShadingModels = Material.GetShadingModels();
-					const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
+					const bool bIsTranslucent = IsTranslucentBlendMode(Material);
 					const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
 					const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
 					const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
@@ -732,9 +731,8 @@ void FLumenCardMeshProcessor::CollectPSOInitializers(const FSceneTexturesConfig&
 		return;
 	}
 
-	const EBlendMode BlendMode = Material.GetBlendMode();
 	const FMaterialShadingModelField ShadingModels = Material.GetShadingModels();
-	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
+	const bool bIsTranslucent = IsTranslucentBlendMode(Material);
 	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(PreCacheParams);
 	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
 	const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);

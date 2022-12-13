@@ -247,8 +247,6 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 		PassParameters->ReflectionCapture = EmptyReflectionCaptureUniformBuffer;
 		PassParameters->InstanceCulling = FInstanceCullingContext::CreateDummyInstanceCullingUniformBuffer(GraphBuilder);
 
-		const EBlendMode MaterialBlendMode = MeshMaterial.GetBlendMode();
-
 		// handle translucent material blend modes, not relevant in MaterialTexCoordScalesAnalysis since it outputs the scales.
 		if (ViewFamily->GetDebugViewShaderMode() == DVSM_OutputMaterialTextureScales)
 		{
@@ -279,7 +277,7 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 			}
 #endif // WITH_DEBUG_VIEW_MODES
 		}
-		else if (IsTranslucentBlendMode(MaterialBlendMode))
+		else if (IsTranslucentBlendMode(MeshMaterial))
 		{
 			if (ShadingPath == EShadingPath::Deferred)
 			{

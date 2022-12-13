@@ -112,7 +112,7 @@ UMaterialInterface* FMaterialUtilities::CreateProxyMaterialAndTextures(UPackage*
 	Material->BasePropertyOverrides.DitheredLODTransition = MaterialData.Material->IsDitheredLODTransition();
 	Material->BasePropertyOverrides.bOverride_DitheredLODTransition = MaterialData.Material->IsDitheredLODTransition();
 
-	if (MaterialData.Material->GetBlendMode() != BLEND_Opaque)
+	if (MaterialData.Material->GetBlendMode() != BLEND_Opaque) // STRATA_TODO_BLENDMODE
 	{
 		Material->BasePropertyOverrides.bOverride_BlendMode = true;
 		Material->BasePropertyOverrides.BlendMode = MaterialData.Material->GetBlendMode();
@@ -555,6 +555,7 @@ public:
 	{
 		if (Property == MP_EmissiveColor || Property == MP_SubsurfaceColor)
 		{
+			const bool bIsOpaqueOrMasked = IsOpaqueOrMaskedBlendMode(*MaterialInterface);
 			UMaterial* ProxyMaterial = MaterialInterface->GetMaterial();
 			check(ProxyMaterial);
 			EBlendMode BlendMode = MaterialInterface->GetBlendMode();
@@ -568,7 +569,7 @@ public:
 				return MaterialInterface->CompileProperty(&ProxyCompiler, MP_EmissiveColor, ForceCast_Exact_Replicate);
 			case MP_BaseColor:
 				// Only return for Opaque and Masked...
-				if (BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked)
+				if (bIsOpaqueOrMasked)
 				{
 				return MaterialInterface->CompileProperty(&ProxyCompiler, MP_BaseColor, ForceCast_Exact_Replicate);
 				}
@@ -580,7 +581,7 @@ public:
 			case MP_AmbientOcclusion:
 			case MP_SubsurfaceColor:
 				// Only return for Opaque and Masked...
-				if (BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked)
+				if (bIsOpaqueOrMasked)
 				{
 					return MaterialInterface->CompileProperty(&ProxyCompiler, PropertyToCompile, ForceCast_Exact_Replicate);
 				}
@@ -588,7 +589,7 @@ public:
 			case MP_Normal:
 			case MP_Tangent:
 				// Only return for Opaque and Masked...
-				if (BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked)
+				if (bIsOpaqueOrMasked)
 				{
 					return Compiler->Add( 
 							Compiler->Mul(MaterialInterface->CompileProperty(&ProxyCompiler, PropertyToCompile, ForceCast_Exact_Replicate), Compiler->Constant(0.5f)), // [-1,1] * 0.5
@@ -1648,12 +1649,11 @@ void FMaterialUtilities::AnalyzeMaterial(UMaterialInterface* InMaterial, const s
 
 			if (PropertyIndex == MP_Opacity)
 			{
-				EBlendMode BlendMode = InMaterial->GetBlendMode();
-				if (BlendMode == BLEND_Masked)
+				if (IsMaskedBlendMode(*InMaterial))
 				{
 					Property = MP_OpacityMask;
 				}
-				else if (IsTranslucentBlendMode(BlendMode))
+				else if (IsTranslucentBlendMode(*InMaterial))
 				{
 					Property = MP_Opacity;
 				}
@@ -1683,12 +1683,11 @@ void FMaterialUtilities::AnalyzeMaterial(class UMaterialInterface* InMaterial, c
 	{
 		if (Property == MP_Opacity)
 		{
-			EBlendMode BlendMode = InMaterial->GetBlendMode();
-			if (BlendMode == BLEND_Masked)
+			if (IsMaskedBlendMode(*InMaterial))
 			{
 				Property = MP_OpacityMask;
 			}
-			else if (IsTranslucentBlendMode(BlendMode))
+			else if (IsTranslucentBlendMode(*InMaterial))
 			{
 				Property = MP_Opacity;
 			}
@@ -2359,8 +2358,8 @@ bool FMaterialUtilities::ExportMaterial(struct FMaterialMergeData& InMaterialDat
 	const bool bRenderNormal = (Material->GetMaterial()->HasNormalConnected() || Material->GetMaterial()->bUseMaterialAttributes) && OutFlattenMaterial.ShouldGenerateDataForProperty(EFlattenMaterialProperties::Normal);
 	const bool bRenderTangent = (Material->GetMaterial()->IsPropertyConnected(MP_Tangent) || Material->GetMaterial()->bUseMaterialAttributes) && OutFlattenMaterial.ShouldGenerateDataForProperty(EFlattenMaterialProperties::Tangent);
 	const bool bRenderEmissive = (Material->GetMaterial()->IsPropertyConnected(MP_EmissiveColor) || Material->GetMaterial()->bUseMaterialAttributes) && OutFlattenMaterial.ShouldGenerateDataForProperty(EFlattenMaterialProperties::Emissive);
-	const bool bRenderOpacityMask = Material->IsPropertyActive(MP_OpacityMask) && Material->GetBlendMode() == BLEND_Masked && OutFlattenMaterial.ShouldGenerateDataForProperty(EFlattenMaterialProperties::OpacityMask);
-	const bool bRenderOpacity = Material->IsPropertyActive(MP_Opacity) && IsTranslucentBlendMode(Material->GetBlendMode()) && OutFlattenMaterial.ShouldGenerateDataForProperty(EFlattenMaterialProperties::Opacity);
+	const bool bRenderOpacityMask = Material->IsPropertyActive(MP_OpacityMask) && IsMaskedBlendMode(*Material) && OutFlattenMaterial.ShouldGenerateDataForProperty(EFlattenMaterialProperties::OpacityMask);
+	const bool bRenderOpacity = Material->IsPropertyActive(MP_Opacity) && IsTranslucentBlendMode(*Material) && OutFlattenMaterial.ShouldGenerateDataForProperty(EFlattenMaterialProperties::Opacity);
 	const bool bRenderSubSurface = Material->IsPropertyActive(MP_SubsurfaceColor) && OutFlattenMaterial.ShouldGenerateDataForProperty(EFlattenMaterialProperties::SubSurface);
 	const bool bRenderMetallic = Material->IsPropertyActive(MP_Metallic) && OutFlattenMaterial.ShouldGenerateDataForProperty(EFlattenMaterialProperties::Metallic);
 	const bool bRenderSpecular = Material->IsPropertyActive(MP_Specular) && OutFlattenMaterial.ShouldGenerateDataForProperty(EFlattenMaterialProperties::Specular);

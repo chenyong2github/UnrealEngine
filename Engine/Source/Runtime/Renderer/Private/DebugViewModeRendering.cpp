@@ -445,7 +445,7 @@ void FDebugViewModeMeshProcessor::UpdateInstructionCount(FDebugViewModeShaderEle
 				OutShaderElementData.NumVSInstructions = Shaders.Shaders[SF_Vertex]->GetNumInstructions();
 				OutShaderElementData.NumPSInstructions = Shaders.Shaders[SF_Pixel]->GetNumInstructions();
 
-				if (IsForwardShadingEnabled(ShaderPlatform) && !IsTranslucentBlendMode(InBatchMaterial->GetBlendMode()))
+				if (IsForwardShadingEnabled(ShaderPlatform) && !IsTranslucentBlendMode(*InBatchMaterial))
 				{
 					const bool bLit = InBatchMaterial->GetShadingModels().IsLit();
 

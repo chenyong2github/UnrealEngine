@@ -387,7 +387,7 @@ void FPaperRenderSceneProxy::GetNewBatchMeshes(const FSceneView* View, int32 Vie
 				// Implementing our own wireframe coloring as the automatic one (controlled by Mesh.bCanApplyViewModeOverrides) only supports per-FPrimitiveSceneProxy WireframeColor
 				if (bIsWireframeView)
 				{
-					const FLinearColor EffectiveWireframeColor = (Batch.Material->GetBlendMode() != BLEND_Opaque) ? GetWireframeColor() : FLinearColor::Green;
+					const FLinearColor EffectiveWireframeColor = IsOpaqueBlendMode(*Batch.Material) ? GetWireframeColor() : FLinearColor::Green;
 
 					auto WireframeMaterialInstance = new FColoredMaterialRenderProxy(
 						GEngine->WireframeMaterial->GetRenderProxy(),
@@ -436,7 +436,7 @@ void FPaperRenderSceneProxy::GetNewBatchMeshesPrebuilt(const FSceneView* View, i
 			if (bIsWireframeView)
 			{
 				const FSpriteRenderSection& Section = BatchedSections[SectionIndex];
-				const FLinearColor EffectiveWireframeColor = (Section.Material->GetBlendMode() != BLEND_Opaque) ? GetWireframeColor() : FLinearColor::Green;
+				const FLinearColor EffectiveWireframeColor = IsOpaqueBlendMode(*Section.Material) ? GetWireframeColor() : FLinearColor::Green;
 
 				auto WireframeMaterialInstance = new FColoredMaterialRenderProxy(
 					GEngine->WireframeMaterial->GetRenderProxy(),

@@ -230,7 +230,7 @@ void FNiagaraRendererSprites::PrepareParticleSpriteRenderData(FParticleSpriteRen
 
 	// Do we have anything to render?
 	const EBlendMode BlendMode = MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel).GetBlendMode();
-	ParticleSpriteRenderData.BlendMode = BlendMode;
+	ParticleSpriteRenderData.BlendMode = BlendMode; // STRATA_TODO_BLENDMODE
 	ParticleSpriteRenderData.bHasTranslucentMaterials = IsTranslucentBlendMode(BlendMode);
 
 	// If these conditions change please update the DebugHUD display also to reflect it

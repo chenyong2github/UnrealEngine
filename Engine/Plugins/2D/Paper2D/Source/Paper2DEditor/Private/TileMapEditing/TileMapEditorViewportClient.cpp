@@ -182,21 +182,17 @@ void FTileMapEditorViewportClient::DrawCanvas(FViewport& InViewport, FSceneView&
 				FText MaterialType = LOCTEXT("NoMaterial", "No material set!");
 				if (TileMap->Material != nullptr)
 				{
-					switch (TileMap->Material->GetBlendMode())
+					if (IsOpaqueBlendMode(*TileMap->Material))
 					{
-					case EBlendMode::BLEND_Opaque:
 						MaterialType = Opaque;
-						break;
-					case EBlendMode::BLEND_Translucent:
-					case EBlendMode::BLEND_Additive:
-					case EBlendMode::BLEND_Modulate:
-					case EBlendMode::BLEND_AlphaComposite:
-					case EBlendMode::BLEND_AlphaHoldout:
-						MaterialType = Translucent;
-						break;
-					case EBlendMode::BLEND_Masked:
+					}
+					else if (IsMaskedBlendMode(*TileMap->Material))
+					{
 						MaterialType = Masked;
-						break;
+					}
+					else
+					{
+						MaterialType = Translucent;
 					}
 				}
 

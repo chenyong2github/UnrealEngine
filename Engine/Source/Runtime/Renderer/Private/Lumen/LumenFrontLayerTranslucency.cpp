@@ -62,8 +62,7 @@ namespace Lumen
 
 	bool ShouldRenderInFrontLayerTranslucencyGBufferPass(bool bShouldRenderInMainPass, const FMaterial& Material)
 	{
-		const EBlendMode BlendMode = Material.GetBlendMode();
-		const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
+		const bool bIsTranslucent = IsTranslucentBlendMode(Material);
 		const ETranslucencyLightingMode TranslucencyLightingMode = Material.GetTranslucencyLightingMode();
 
 		return bIsTranslucent
@@ -109,7 +108,7 @@ protected:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return DoesPlatformSupportLumenGI(Parameters.Platform) && IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) && Parameters.MaterialParameters.bIsTranslucencySurface;
+		return DoesPlatformSupportLumenGI(Parameters.Platform) && IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) && Parameters.MaterialParameters.bIsTranslucencySurface; // STRATA_TODO_BLENDMODE
 	}
 
 	FLumenFrontLayerTranslucencyGBufferVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -129,7 +128,7 @@ class FLumenFrontLayerTranslucencyGBufferPS : public FMeshMaterialShader
 public:
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return DoesPlatformSupportLumenGI(Parameters.Platform) && IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) && Parameters.MaterialParameters.bIsTranslucencySurface;
+		return DoesPlatformSupportLumenGI(Parameters.Platform) && IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) && Parameters.MaterialParameters.bIsTranslucencySurface; // STRATA_TODO_BLENDMODE
 	}
 
 	FLumenFrontLayerTranslucencyGBufferPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)

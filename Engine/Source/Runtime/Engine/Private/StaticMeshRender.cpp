@@ -1265,7 +1265,7 @@ void FStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PD
 							&& Material.WritesEveryPixel()
 							&& !Material.IsTwoSided()
 							&& !Material.IsThinSurface()
-							&& !IsTranslucentBlendMode(Material.GetBlendMode())
+							&& !IsTranslucentBlendMode(Material)
 							&& !Material.MaterialModifiesMeshPosition_RenderThread()
 							&& Material.GetMaterialDomain() == MD_Surface
 							&& !Material.IsSky()
@@ -2258,7 +2258,7 @@ FStaticMeshSceneProxy::FLODInfo::FLODInfo(const UStaticMeshComponent* InComponen
 		SectionInfo.MaterialIndex = Section.MaterialIndex;
 #endif
 
-		if (GForceDefaultMaterial && SectionInfo.Material && !IsTranslucentBlendMode(SectionInfo.Material->GetBlendMode()))
+		if (GForceDefaultMaterial && SectionInfo.Material && !IsTranslucentBlendMode(*SectionInfo.Material))
 		{
 			SectionInfo.Material = UMaterial::GetDefaultMaterial(MD_Surface);
 		}

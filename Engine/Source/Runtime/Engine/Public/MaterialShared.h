@@ -1956,10 +1956,12 @@ public:
 	/** Returns whether this material should be considered for casting dynamic shadows. */
 	inline bool ShouldCastDynamicShadows() const
 	{
+		const EBlendMode BlendMode = GetBlendMode();
+		const EStrataBlendMode StrataBlendMode = GetStrataBlendMode();
 		return !GetShadingModels().HasOnlyShadingModel(MSM_SingleLayerWater) &&
-				(GetBlendMode() == BLEND_Opaque
- 				 || GetBlendMode() == BLEND_Masked
-  				 || (GetBlendMode() == BLEND_Translucent && GetCastDynamicShadowAsMasked()));
+				(IsOpaqueBlendMode(BlendMode, StrataBlendMode)
+ 				 || IsMaskedBlendMode(BlendMode, StrataBlendMode)
+  				 || (IsTranslucentOnlyBlendMode(BlendMode, StrataBlendMode) && GetCastDynamicShadowAsMasked()));
 	}
 
 
@@ -2775,22 +2777,6 @@ public:
 };
 
 /**
- * @return True if BlendMode is translucent (should be part of the translucent rendering).
- */
-inline bool IsTranslucentBlendMode(enum EBlendMode BlendMode)
-{
-	return BlendMode != BLEND_Opaque && BlendMode != BLEND_Masked;
-}
-
-/**
- * @return True if StrataBlendMode is translucent (should be part of the translucent rendering).
- */
-inline bool IsTranslucentBlendMode(enum EStrataBlendMode StrataBlendMode)
-{
-	return StrataBlendMode != SBM_Opaque && StrataBlendMode != SBM_Masked;
-}
-
-/**
  * Implementation of the FMaterial interface for a UMaterial or UMaterialInstance.
  */
 class FMaterialResource : public FMaterial
@@ -3471,7 +3457,7 @@ struct FMaterialShaderParameters
 {
 	EMaterialDomain MaterialDomain;
 	FMaterialShadingModelField ShadingModels;
-	EBlendMode BlendMode;
+	EBlendMode BlendMode; // STRATA_TODO_BLENDMODE
 	ERHIFeatureLevel::Type FeatureLevel;
 	EMaterialQualityLevel::Type QualityLevel;
 	int32 BlendableLocation;

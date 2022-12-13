@@ -86,7 +86,7 @@ bool IsCompatibleWithHairStrands(const FMaterial* Material, const ERHIFeatureLev
 	return
 		ERHIFeatureLevel::SM5 <= FeatureLevel &&
 		Material && Material->IsUsedWithHairStrands() && 
-		(Material->GetBlendMode() == BLEND_Opaque || Material->GetBlendMode() == BLEND_Masked);
+		IsOpaqueOrMaskedBlendMode(*Material);
 }
 
 bool IsCompatibleWithHairStrands(EShaderPlatform Platform, const FMaterialShaderParameters& Parameters)
@@ -94,7 +94,7 @@ bool IsCompatibleWithHairStrands(EShaderPlatform Platform, const FMaterialShader
 	return
 		IsHairStrandsGeometrySupported(Platform) &&
 		Parameters.bIsUsedWithHairStrands &&
-		(Parameters.BlendMode == BLEND_Opaque || Parameters.BlendMode == BLEND_Masked);
+		(Parameters.BlendMode == BLEND_Opaque || Parameters.BlendMode == BLEND_Masked); // STRATA_TODO_BLENDMODE
 }
 
 static EMaterialGetParameterValueFlags MakeParameterValueFlags(bool bOveriddenOnly)
@@ -390,7 +390,7 @@ FMaterialRelevance UMaterialInterface::GetRelevance_Internal(const UMaterial* Ma
 
 		const EBlendMode BlendMode = (EBlendMode)GetBlendMode();
 		const EStrataBlendMode StrataBlendMode = (EStrataBlendMode)GetStrataBlendMode();
-		const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode) || IsSinglePassWaterTranslucent || bIsMobilePixelProjectedTranslucent; // We want meshes with water materials to be scheduled for translucent pass on mobile. And we also have to render the meshes used for mobile pixel projection reflection in translucent pass.
+		const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode, StrataBlendMode) || IsSinglePassWaterTranslucent || bIsMobilePixelProjectedTranslucent; // We want meshes with water materials to be scheduled for translucent pass on mobile. And we also have to render the meshes used for mobile pixel projection reflection in translucent pass.
 
 		EMaterialDomain Domain = (EMaterialDomain)MaterialResource->GetMaterialDomain();
 		bool bDecal = (Domain == MD_DeferredDecal);

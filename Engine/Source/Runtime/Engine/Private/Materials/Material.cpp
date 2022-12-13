@@ -254,7 +254,7 @@ int32 FMaterialResource::CompilePropertyAndSetMaterialProperty(EMaterialProperty
 		case MP_OpacityMask:
 			// Force basic opaque surfaces to skip masked/translucent-only attributes.
 			// Some features can force the material to create a masked variant which unintentionally runs this dormant code
-			if (GetMaterialDomain() != MD_Surface || GetBlendMode() != BLEND_Opaque || (GetShadingModels().IsLit() && !GetShadingModels().HasOnlyShadingModel(MSM_DefaultLit)))
+			if (GetMaterialDomain() != MD_Surface || !IsOpaqueBlendMode(GetBlendMode(), GetStrataBlendMode()) || (GetShadingModels().IsLit() && !GetShadingModels().HasOnlyShadingModel(MSM_DefaultLit)))
 			{
 				Ret = MaterialInterface->CompileProperty(Compiler, Property);
 			}
@@ -959,6 +959,7 @@ UMaterial::UMaterial(const FObjectInitializer& ObjectInitializer)
 	, ReleasedByRT(true)
 {
 	BlendMode = BLEND_Opaque;
+	StrataBlendMode = SBM_Opaque;
 	ShadingModel = MSM_DefaultLit;
 	ShadingModels = FMaterialShadingModelField(ShadingModel); 
 	TranslucencyLightingMode = TLM_VolumetricNonDirectional;
@@ -2932,6 +2933,7 @@ void UMaterial::BackwardsCompatibilityVirtualTextureOutputConversion()
 			{
 				OutputExpression->GetInput(5)->Connect(EditorOnly->Opacity.OutputIndex, EditorOnly->Opacity.Expression);
 			}
+			// STRATA_TODO_BLENDMODE
 			if (BlendMode != BLEND_Opaque)
 			{
 				// Full alpha blend modes were mostly/always used with MD_RuntimeVirtualTexture to allow pin connections.
@@ -4317,7 +4319,7 @@ bool UMaterial::CanEditChange(const FProperty* InProperty) const
 			PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, DitherOpacityMask)
 			)
 		{
-			return BlendMode == BLEND_Masked ||
+			return IsMaskedBlendMode(BlendMode, StrataBlendMode) ||
 			bCastDynamicShadowAsMasked ||
 			IsTranslucencyWritingCustomDepth() ||
 			IsTranslucencyWritingVelocity();
@@ -4325,7 +4327,7 @@ bool UMaterial::CanEditChange(const FProperty* InProperty) const
 
 		if ( PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bCastDynamicShadowAsMasked) )
 		{
-			return BlendMode == BLEND_Translucent;
+			return IsTranslucentOnlyBlendMode(BlendMode, StrataBlendMode);
 		}
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, MaterialDecalResponse))
@@ -4415,13 +4417,13 @@ bool UMaterial::CanEditChange(const FProperty* InProperty) const
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bComputeFogPerPixel)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bOutputTranslucentVelocity))
 		{
-			return MaterialDomain != MD_DeferredDecal && IsTranslucentBlendMode(BlendMode);
+			return MaterialDomain != MD_DeferredDecal && IsTranslucentBlendMode(BlendMode, StrataBlendMode);
 		}
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bApplyCloudFogging))
 		{
 			const bool bApplyFogging = bUseTranslucencyVertexFog;
-			return bApplyFogging && MaterialDomain != MD_DeferredDecal && IsTranslucentBlendMode(BlendMode);
+			return bApplyFogging && MaterialDomain != MD_DeferredDecal && IsTranslucentBlendMode(BlendMode, StrataBlendMode);
 		}
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bIsSky))
@@ -4446,12 +4448,12 @@ bool UMaterial::CanEditChange(const FProperty* InProperty) const
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, SubsurfaceProfile))
 		{
-			return MaterialDomain == MD_Surface && UseSubsurfaceProfile(ShadingModels) && (BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked);
+			return MaterialDomain == MD_Surface && UseSubsurfaceProfile(ShadingModels) && IsOpaqueOrMaskedBlendMode(BlendMode, StrataBlendMode);
 		}
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FLightmassMaterialInterfaceSettings, bCastShadowAsMasked))
 		{
-			return BlendMode != BLEND_Opaque && BlendMode != BLEND_Modulate;
+			return !IsOpaqueBlendMode(BlendMode, StrataBlendMode) && BlendMode != BLEND_Modulate;
 		}
 	}
 
@@ -6434,17 +6436,17 @@ bool UMaterial::IsDitheredLODTransition() const
 
 bool UMaterial::IsTranslucencyWritingCustomDepth() const
 {
-	return AllowTranslucentCustomDepthWrites != 0 && IsTranslucentBlendMode(GetBlendMode());
+	return AllowTranslucentCustomDepthWrites != 0 && IsTranslucentBlendMode(GetBlendMode(), GetStrataBlendMode());
 }
 
 bool UMaterial::IsTranslucencyWritingVelocity() const
 {
-	return bOutputTranslucentVelocity && IsTranslucentBlendMode(GetBlendMode());
+	return bOutputTranslucentVelocity && IsTranslucentBlendMode(GetBlendMode(), GetStrataBlendMode());
 }
 
 bool UMaterial::IsMasked() const
 {
-	return GetBlendMode() == BLEND_Masked || (GetBlendMode() == BLEND_Translucent && GetCastDynamicShadowAsMasked());
+	return IsMaskedBlendMode(GetBlendMode(), GetStrataBlendMode()) || (IsTranslucentOnlyBlendMode(GetBlendMode(), GetStrataBlendMode()) && GetCastDynamicShadowAsMasked());
 }
 
 USubsurfaceProfile* UMaterial::GetSubsurfaceProfile_Internal() const
@@ -6615,14 +6617,14 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 	{
 		return InProperty == MP_EmissiveColor
 			|| (InProperty == MP_WorldPositionOffset)
-			|| (InProperty == MP_OpacityMask && BlendMode == BLEND_Masked)
-			|| (InProperty == MP_Opacity && IsTranslucentBlendMode(BlendMode) && BlendMode != BLEND_Modulate)
+			|| (InProperty == MP_OpacityMask && IsMaskedBlendMode(BlendMode, StrataBlendMode))
+			|| (InProperty == MP_Opacity && IsTranslucentBlendMode(BlendMode, StrataBlendMode) && BlendMode != BLEND_Modulate)
 			|| (InProperty >= MP_CustomizedUVs0 && InProperty <= MP_CustomizedUVs7);
 	}
 
 	// Now processing MD_Surface
 
-	const bool bIsTranslucentBlendMode = IsTranslucentBlendMode(BlendMode);
+	const bool bIsTranslucentBlendMode = IsTranslucentBlendMode(BlendMode, StrataBlendMode);
 	const bool bIsNonDirectionalTranslucencyLightingMode = TranslucencyLightingMode == TLM_VolumetricNonDirectional || TranslucencyLightingMode == TLM_VolumetricPerVertexNonDirectional;
 	const bool bIsVolumetricTranslucencyLightingMode = TranslucencyLightingMode == TLM_VolumetricNonDirectional
 		|| TranslucencyLightingMode == TLM_VolumetricDirectional
@@ -6645,7 +6647,7 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 				Active = (bIsTranslucentBlendMode && BlendMode != BLEND_Modulate) || ShadingModels.HasShadingModel(MSM_SingleLayerWater);
 				break;
 			case MP_OpacityMask:
-				Active = BlendMode == BLEND_Masked || StrataBlendMode == SBM_Masked;
+				Active = IsMaskedBlendMode(BlendMode, StrataBlendMode);
 				break;
 			case MP_AmbientOcclusion:
 				Active = ShadingModels.IsLit();
@@ -6684,7 +6686,7 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 			}
 			break;
 		case MP_OpacityMask:
-			Active = BlendMode == BLEND_Masked;
+			Active = IsMaskedBlendMode(BlendMode, StrataBlendMode);
 			break;
 		case MP_BaseColor:
 		case MP_AmbientOcclusion:

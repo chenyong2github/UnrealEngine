@@ -1708,7 +1708,7 @@ void FInstancedStaticMeshSceneProxy::SetupInstancedMeshBatch(int32 LODIndex, int
 		if (FeatureLevel > ERHIFeatureLevel::ES3_1)
 		{
 			const FMaterial& Material = OutMeshBatch.MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel);
-			BatchElement0.bPreserveInstanceOrder = IsTranslucentBlendMode(Material.GetBlendMode());
+			BatchElement0.bPreserveInstanceOrder = IsTranslucentBlendMode(Material);
 		}
 	}
 

@@ -104,7 +104,7 @@ bool UPlacementBrushToolBase::FindHitResultWithStartAndEndTraceVectors(FHitResul
 
 			// deny list
 			bAllowed &=
-				(bAllowTranslucent || !(InComponent->GetMaterial(0) && IsTranslucentBlendMode(InComponent->GetMaterial(0)->GetBlendMode())));
+				(bAllowTranslucent || !(InComponent->GetMaterial(0) && IsTranslucentBlendMode(*InComponent->GetMaterial(0))));
 
 			return bAllowed;
 		}

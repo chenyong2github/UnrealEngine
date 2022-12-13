@@ -243,7 +243,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return AllowTranslucencyPerObjectShadows(Parameters.Platform) && IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode);
+		return AllowTranslucencyPerObjectShadows(Parameters.Platform) && IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode); // STRATA_TODO_BLENDMODE
 	}
 
 	FTranslucencyShadowDepthVS() {}
@@ -289,7 +289,7 @@ class FTranslucencyShadowDepthPS : public FMeshMaterialShader
 public:
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return AllowTranslucencyPerObjectShadows(Parameters.Platform) && IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode);
+		return AllowTranslucencyPerObjectShadows(Parameters.Platform) && IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode); // STRATA_TODO_BLENDMODE
 	}
 
 	FTranslucencyShadowDepthPS() = default;
@@ -400,13 +400,12 @@ bool FTranslucencyDepthPassMeshProcessor::TryAddMeshBatch(
 	const FMaterial& Material)
 {
 	// Determine the mesh's material and blend mode.
-	const EBlendMode BlendMode = Material.GetBlendMode();
 	const float MaterialTranslucentShadowStartOffset = Material.GetTranslucentShadowStartOffset();
 	const bool MaterialCastDynamicShadowAsMasked = Material.GetCastDynamicShadowAsMasked();
 	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
 	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
 	const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
-	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
+	const bool bIsTranslucent = IsTranslucentBlendMode(Material);
 
 	// Only render translucent meshes into the Fourier opacity maps
 	if (bIsTranslucent && ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain()) && !MaterialCastDynamicShadowAsMasked)

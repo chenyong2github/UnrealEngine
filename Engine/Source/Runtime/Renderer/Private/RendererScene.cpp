@@ -3054,7 +3054,7 @@ void FScene::GetLightIESAtlasSlot(const FLightSceneProxy* Proxy, FLightRenderPar
 {
 	if (Proxy)
 	{
-		check(!IsInGameThread());
+		//check(!IsInGameThread());
 		Out->IESAtlasIndex = IESAtlas::GetAtlasSlot(Proxy->IESAtlasId);
 	}
 }
@@ -6097,12 +6097,14 @@ bool FScene::IsPrimitiveBeingRemoved(FPrimitiveSceneInfo* PrimitiveSceneInfo) co
 	return RemovedPrimitiveSceneInfos.Find(PrimitiveSceneInfo) != nullptr;
 }
 
-bool FScene::ShouldRenderSkylightInBasePass(EBlendMode BlendMode) const
+bool FScene::ShouldRenderSkylightInBasePass(EBlendMode BlendMode) const // STRATA_TODO_BLENDMODE
 {
+	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode/*, StrataBlendMode*/); // STRATA_TODO_BLENDMODE
+
 	if (IsMobilePlatform(GetShaderPlatform()))
 	{
 		bool bRenderSkyLight = SkyLight && !SkyLight->bHasStaticLighting;
-		const bool bIsForwardShading = IsTranslucentBlendMode(BlendMode) || !IsMobileDeferredShadingEnabled(GetShaderPlatform());
+		const bool bIsForwardShading = bIsTranslucent || !IsMobileDeferredShadingEnabled(GetShaderPlatform());
 		const bool bIsDynamicLighting = !ReadOnlyCVARCache.bAllowStaticLighting || GetForceNoPrecomputedLighting();
 
 		// Both stationary and movable skylights are applied in base pass for forward shading
@@ -6113,7 +6115,7 @@ bool FScene::ShouldRenderSkylightInBasePass(EBlendMode BlendMode) const
 	{
 		bool bRenderSkyLight = SkyLight && !SkyLight->bHasStaticLighting && !(ShouldRenderRayTracingSkyLight(SkyLight) && !IsForwardShadingEnabled(GetShaderPlatform()));
 
-		if (IsTranslucentBlendMode(BlendMode))
+		if (bIsTranslucent)
 		{
 			// Both stationary and movable skylights are applied in base pass for translucent materials
 			bRenderSkyLight = bRenderSkyLight

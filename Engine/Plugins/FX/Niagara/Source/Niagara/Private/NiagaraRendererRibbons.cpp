@@ -1858,12 +1858,12 @@ void FNiagaraRendererRibbons::GenerateIndexBufferCPU(FNiagaraIndexGenerationInpu
 
 	FMaterialRenderProxy* MaterialRenderProxy = DynamicDataRibbon->Material;
 	check(MaterialRenderProxy);
-	const EBlendMode BlendMode = MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel).GetBlendMode();
+	const bool bIsTranslucent = IsTranslucentBlendMode(MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel));
 	
 	const TSharedPtr<FNiagaraRibbonCPUGeneratedVertexData>& GeneratedGeometryData = DynamicDataRibbon->GenerationOutput;
 
 	TValue* CurrentIndexBuffer = StartIndexBuffer;
-	if (IsTranslucentBlendMode(BlendMode) && GeneratedGeometryData->RibbonInfoLookup.Num())
+	if (bIsTranslucent && GeneratedGeometryData->RibbonInfoLookup.Num())
 	{
 		for (const FRibbonMultiRibbonInfo& MultiRibbonInfo : GeneratedGeometryData->RibbonInfoLookup)
 		{

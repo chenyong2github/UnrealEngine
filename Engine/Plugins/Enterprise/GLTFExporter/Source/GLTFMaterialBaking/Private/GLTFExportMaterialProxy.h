@@ -507,7 +507,7 @@ public:
 		}
 		return false;
 	}
-	virtual bool IsMasked() const override { return ProxyBlendMode == BLEND_Masked; }
+	virtual bool IsMasked() const override { return ProxyBlendMode == BLEND_Masked; } // STRATA_TODO_BLENDMODE
 	virtual enum EBlendMode GetBlendMode() const override { return ProxyBlendMode; }
 	virtual FMaterialShadingModelField GetShadingModels() const override { return ProxyBlendMode == BLEND_Opaque ? MSM_DefaultLit : MSM_Unlit; }
 	virtual bool IsShadingModelFromMaterialExpression() const override { return false; }

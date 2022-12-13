@@ -328,7 +328,7 @@ UMaterialInstanceConstant* ULandscapeComponent::GetCombinationMaterial(FMaterial
 	UMaterialInterface* const LandscapeMaterial = GetLandscapeMaterial(InLODIndex);
 	UMaterialInterface* const HoleMaterial = bComponentHasHoles ? GetLandscapeHoleMaterial() : nullptr;
 	UMaterialInterface* const MaterialToUse = bComponentHasHoles && HoleMaterial ? HoleMaterial : LandscapeMaterial;
-	bool bOverrideBlendMode = bComponentHasHoles && !HoleMaterial && LandscapeMaterial->GetBlendMode() == BLEND_Opaque;
+	bool bOverrideBlendMode = bComponentHasHoles && !HoleMaterial && IsOpaqueBlendMode(*LandscapeMaterial);
 
 	if (bOverrideBlendMode)
 	{

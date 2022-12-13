@@ -256,7 +256,7 @@ static EHairMaterialCompatibility IsHairMaterialCompatible(UMaterialInterface* M
 		{
 			return EHairMaterialCompatibility::Invalid_ShadingModel;
 		}
-		if (MaterialInterface->GetBlendMode() != BLEND_Opaque && MaterialInterface->GetBlendMode() != BLEND_Masked && GeometryType == EHairGeometryType::Strands)
+		if (!IsOpaqueOrMaskedBlendMode(*MaterialInterface) && GeometryType == EHairGeometryType::Strands)
 		{
 			return EHairMaterialCompatibility::Invalid_BlendMode;
 		}

@@ -1390,13 +1390,13 @@ namespace UE
 						}
 						break;
 					case MP_OpacityMask:
-						if ( !Material.IsPropertyActive( MP_OpacityMask ) || Material.GetBlendMode() != BLEND_Masked )
+						if ( !Material.IsPropertyActive( MP_OpacityMask ) || !IsMaskedBlendMode(Material) )
 						{
 							continue;
 						}
 						break;
 					case MP_Opacity:
-						if ( !Material.IsPropertyActive( MP_Opacity ) || !IsTranslucentBlendMode( Material.GetBlendMode() ) )
+						if ( !Material.IsPropertyActive( MP_Opacity ) || !IsTranslucentBlendMode(Material) )
 						{
 							continue;
 						}

@@ -219,7 +219,7 @@ public:
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
 		return Parameters.MaterialParameters.ShadingModels.IsLit() &&
-			IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) &&
+			IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) && // STRATA_TODO_BLENDMODE
 			IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
@@ -290,7 +290,7 @@ struct FCachedVolumeIndirectLightingPolicy
 		static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
 
 		return Parameters.MaterialParameters.ShadingModels.IsLit()
-			&& !IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode)
+			&& !IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) // STRATA_TODO_BLENDMODE
 			&& (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnAnyThread() != 0)
 			&& IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
@@ -347,7 +347,7 @@ struct FMobileDirectionalLightAndCSMPolicy
 
 		return (!bAllowStaticLighting || bEnableNoPrecomputedLightingCSMShader) &&
 			Parameters.MaterialParameters.ShadingModels.IsLit() && 
-			!IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode);
+			!IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode); // STRATA_TODO_BLENDMODE
 	}
 };
 
@@ -387,7 +387,7 @@ public:
 		const bool bMobileEnableStaticAndCSMShadowReceivers = CVarMobileEnableStaticAndCSMShadowReceivers->GetValueOnAnyThread() == 1;
 		return bMobileEnableStaticAndCSMShadowReceivers && 
 			Parameters.MaterialParameters.ShadingModels.IsLit() && 
-			!IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) &&
+			!IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) && // STRATA_TODO_BLENDMODE
 			Super::ShouldCompilePermutation(Parameters);
 	}
 
@@ -413,7 +413,7 @@ public:
 			return false;
 		}
 		
-		return !IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) && Super::ShouldCompilePermutation(Parameters);
+		return !IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) && Super::ShouldCompilePermutation(Parameters); // STRATA_TODO_BLENDMODE
 	}
 	
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -457,7 +457,7 @@ public:
 		static auto* CVarMobileEnableStaticAndCSMShadowReceivers = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.EnableStaticAndCSMShadowReceivers"));
 		const bool bMobileEnableStaticAndCSMShadowReceivers = CVarMobileEnableStaticAndCSMShadowReceivers->GetValueOnAnyThread() == 1;
 		return bMobileEnableStaticAndCSMShadowReceivers &&
-			!IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) &&
+			!IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) && // STRATA_TODO_BLENDMODE
 			Super::ShouldCompilePermutation(Parameters);
 	}
 
@@ -799,7 +799,7 @@ public:
 		static IConsoleVariable* AllowStaticLightingVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.AllowStaticLighting"));
 
 		return Parameters.MaterialParameters.ShadingModels.IsLit()
-			&& IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode)
+			&& IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) // STRATA_TODO_BLENDMODE
 			&& (!AllowStaticLightingVar || AllowStaticLightingVar->GetInt() != 0)
 			&& FSelfShadowedTranslucencyPolicy::ShouldCompilePermutation(Parameters);
 	}
@@ -872,7 +872,7 @@ public:
 		static IConsoleVariable* AllowStaticLightingVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.AllowStaticLighting"));
 
 		return Parameters.MaterialParameters.ShadingModels.IsLit()
-			&& IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode)
+			&& IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) // STRATA_TODO_BLENDMODE
 			&& (!AllowStaticLightingVar || AllowStaticLightingVar->GetInt() != 0)
 			&& FSelfShadowedTranslucencyPolicy::ShouldCompilePermutation(Parameters);
 	}

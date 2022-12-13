@@ -1140,7 +1140,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 						{
 							PixelShader->SetBlendState(GraphicsPSOInit, EffectiveMaterial);
 							FSlateShaderResource* MaskResource = MaterialShaderResource->GetTextureMaskResource();
-							if (MaskResource && (EffectiveMaterial->GetBlendMode() == EBlendMode::BLEND_Opaque || EffectiveMaterial->GetBlendMode() == EBlendMode::BLEND_Masked))
+							if (MaskResource && IsOpaqueOrMaskedBlendMode(*EffectiveMaterial))
 							{
 								// Font materials require some form of translucent blending
 								GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_InverseDestAlpha, BF_One>::GetRHI();

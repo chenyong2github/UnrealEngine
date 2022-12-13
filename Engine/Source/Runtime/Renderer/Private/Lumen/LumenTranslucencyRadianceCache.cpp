@@ -55,8 +55,7 @@ namespace Lumen
 
 	bool ShouldRenderInTranslucencyRadianceCacheMarkPass(bool bShouldRenderInMainPass, const FMaterial& Material)
 	{
-		const EBlendMode BlendMode = Material.GetBlendMode();
-		const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
+		const bool bIsTranslucent = IsTranslucentBlendMode(Material);
 		const ETranslucencyLightingMode TranslucencyLightingMode = Material.GetTranslucencyLightingMode();
 
 		return bIsTranslucent
@@ -84,7 +83,7 @@ protected:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return DoesPlatformSupportLumenGI(Parameters.Platform) && IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) && Parameters.MaterialParameters.bIsTranslucencySurface;
+		return DoesPlatformSupportLumenGI(Parameters.Platform) && IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) && Parameters.MaterialParameters.bIsTranslucencySurface; // STRATA_TODO_BLENDMODE
 	}
 
 	FLumenTranslucencyRadianceCacheMarkVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -104,7 +103,7 @@ class FLumenTranslucencyRadianceCacheMarkPS : public FMeshMaterialShader
 public:
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return DoesPlatformSupportLumenGI(Parameters.Platform) && IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) && Parameters.MaterialParameters.bIsTranslucencySurface;
+		return DoesPlatformSupportLumenGI(Parameters.Platform) && IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) && Parameters.MaterialParameters.bIsTranslucencySurface; // STRATA_TODO_BLENDMODE
 	}
 
 	FLumenTranslucencyRadianceCacheMarkPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)

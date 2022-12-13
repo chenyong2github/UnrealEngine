@@ -29,7 +29,7 @@ static bool IsAnisotropyPassCompatible(const EShaderPlatform Platform, FMaterial
 	return 
 		FDataDrivenShaderPlatformInfo::GetSupportsAnisotropicMaterials(Platform) &&
 		MaterialParameters.bHasAnisotropyConnected &&
-		!IsTranslucentBlendMode(MaterialParameters.BlendMode) && 
+		!IsTranslucentBlendMode(MaterialParameters.BlendMode) && // STRATA_TODO_BLENDMODE
 		MaterialParameters.ShadingModels.HasAnyShadingModel({ MSM_DefaultLit, MSM_ClearCoat });
 }
 
@@ -136,8 +136,7 @@ bool GetAnisotropyPassShaders(
 
 static bool ShouldDraw(const FMaterial& Material, bool bMaterialUsesAnisotropy)
 {
-	const EBlendMode BlendMode = Material.GetBlendMode();
-	const bool bIsNotTranslucent = BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked;
+	const bool bIsNotTranslucent = IsOpaqueOrMaskedBlendMode(Material);
 	return (bMaterialUsesAnisotropy && bIsNotTranslucent && Material.GetShadingModels().HasAnyShadingModel({ MSM_DefaultLit, MSM_ClearCoat }));
 }
 

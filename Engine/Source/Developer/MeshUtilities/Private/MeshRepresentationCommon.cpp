@@ -215,7 +215,7 @@ void MeshRepresentation::SetupEmbreeScene(
 					{
 						if (MaterialBlendModes.IsValidIndex(Section.MaterialIndex))
 						{
-							bTriangleIsOpaqueOrMasked = !IsTranslucentBlendMode(MaterialBlendModes[Section.MaterialIndex].BlendMode) && MaterialBlendModes[Section.MaterialIndex].bAffectDistanceFieldLighting;
+							bTriangleIsOpaqueOrMasked = !IsTranslucentBlendMode(MaterialBlendModes[Section.MaterialIndex].BlendMode) && MaterialBlendModes[Section.MaterialIndex].bAffectDistanceFieldLighting; // STRATA_TODO_BLENDMODE
 						}
 
 						break;

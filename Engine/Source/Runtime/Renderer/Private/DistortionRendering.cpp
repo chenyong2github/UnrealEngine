@@ -190,7 +190,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) && Parameters.MaterialParameters.bIsDistorted;
+		return IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) && Parameters.MaterialParameters.bIsDistorted; // STRATA_TODO_BLENDMODE
 	}
 };
 
@@ -208,7 +208,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) && Parameters.MaterialParameters.bIsDistorted;
+		return IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) && Parameters.MaterialParameters.bIsDistorted; // STRATA_TODO_BLENDMODE
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -950,9 +950,7 @@ void FDistortionMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch
 
 static bool ShouldDraw(const FMaterial& Material)
 {
-	const EBlendMode BlendMode = Material.GetBlendMode();
-	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
-	return (bIsTranslucent
+	return (IsTranslucentBlendMode(Material)
 		&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain())
 		&& Material.IsDistorted());
 }

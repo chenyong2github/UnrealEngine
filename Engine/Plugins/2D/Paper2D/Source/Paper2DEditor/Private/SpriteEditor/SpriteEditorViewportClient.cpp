@@ -357,21 +357,17 @@ void FSpriteEditorViewportClient::AnalyzeSpriteMaterialType(UPaperSprite* Sprite
 		{
 			if (Material != nullptr)
 			{
-				switch (Material->GetBlendMode())
+				if (IsOpaqueBlendMode(*Material))
 				{
-				case EBlendMode::BLEND_Opaque:
 					NumOpaqueTriangles += NumTriangles;
-					break;
-				case EBlendMode::BLEND_Translucent:
-				case EBlendMode::BLEND_Additive:
-				case EBlendMode::BLEND_Modulate:
-				case EBlendMode::BLEND_AlphaComposite:
-				case EBlendMode::BLEND_AlphaHoldout:
-					NumTranslucentTriangles += NumTriangles;
-					break;
-				case EBlendMode::BLEND_Masked:
+				}
+				else if (IsMaskedBlendMode(*Material))
+				{
 					NumMaskedTriangles += NumTriangles;
-					break;
+				}
+				else
+				{
+					NumTranslucentTriangles += NumTriangles;
 				}
 			}
 		}
