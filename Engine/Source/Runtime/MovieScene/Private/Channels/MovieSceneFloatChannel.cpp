@@ -158,6 +158,11 @@ void FMovieSceneFloatChannel::ClearDefault()
 	bHasDefaultValue = false;
 }
 
+EMovieSceneKeyInterpolation GetInterpolationMode(FMovieSceneFloatChannel* InChannel, const FFrameNumber& InTime, EMovieSceneKeyInterpolation DefaultInterpolationMode)
+{
+	return TMovieSceneCurveChannelImpl<FMovieSceneFloatChannel>::GetInterpolationMode(InChannel, InTime, DefaultInterpolationMode);
+}
+
 FKeyHandle AddKeyToChannel(FMovieSceneFloatChannel* Channel, FFrameNumber InFrameNumber, float InValue, EMovieSceneKeyInterpolation Interpolation)
 {
 	return TMovieSceneCurveChannelImpl<FMovieSceneFloatChannel>::AddKeyToChannel(Channel, InFrameNumber, InValue, Interpolation);

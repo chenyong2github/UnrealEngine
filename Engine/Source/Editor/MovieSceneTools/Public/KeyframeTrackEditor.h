@@ -70,6 +70,7 @@ struct TAddKeyImpl : IImpl
 				{
 					if (Section->TryModify())
 					{
+						InterpolationMode = GetInterpolationMode(Channel, InTime, InterpolationMode);
 						AddKeyToChannel(Channel, InTime, ValueToSet, InterpolationMode);
 						bKeyCreated = true;
 					}
@@ -130,6 +131,7 @@ struct TAddKeyImpl<FMovieSceneBoolChannel, bool> : IImpl
 				{
 					if (Section->TryModify())
 					{
+						InterpolationMode = GetInterpolationMode(Channel, InTime, InterpolationMode);
 						AddKeyToChannel(Channel, InTime, ValueToSet, InterpolationMode);
 						bKeyCreated = true;
 					}
@@ -189,6 +191,7 @@ struct TAddKeyImpl<FMovieSceneDoubleChannel, double> : IImpl
 				{
 					if (Section->TryModify())
 					{
+						InterpolationMode = GetInterpolationMode(Channel, InTime, InterpolationMode);
 						AddKeyToChannel(Channel, InTime, ValueToSet, InterpolationMode);
 						bKeyCreated = true;
 					}
@@ -266,6 +269,7 @@ struct TAddKeyImpl<FMovieSceneFloatChannel, float> : IImpl
 				{
 					if (Section->TryModify())
 					{
+						InterpolationMode = GetInterpolationMode(Channel, InTime, InterpolationMode);
 						AddKeyToChannel(Channel, InTime, ValueToSet, InterpolationMode);
 						bKeyCreated = true;
 					}
@@ -343,6 +347,7 @@ struct TAddKeyImpl<FMovieSceneIntegerChannel, int32> : IImpl
 				{
 					if (Section->TryModify())
 					{
+						InterpolationMode = GetInterpolationMode(Channel, InTime, InterpolationMode);
 						AddKeyToChannel(Channel, InTime, ValueToSet, InterpolationMode);
 						bKeyCreated = true;
 					}

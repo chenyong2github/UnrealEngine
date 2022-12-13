@@ -142,7 +142,8 @@ void FEulerTransformPropertyTrackEditor::ProcessKeyOperation(UObject* ObjectToKe
 					FMovieSceneDoubleChannel* Channel = static_cast<FMovieSceneDoubleChannel*>(Handle.Get());
 
 					double Value = RecomposedTransform[Handle.GetChannelIndex()];
-					AddKeyToChannel(Channel, KeyTime, Value, InSequencer.GetKeyInterpolation());
+					EMovieSceneKeyInterpolation Interpolation = GetInterpolationMode(Channel, KeyTime, InSequencer.GetKeyInterpolation());
+					AddKeyToChannel(Channel, KeyTime, Value, Interpolation);
 				}
 				else
 				{

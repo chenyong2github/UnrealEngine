@@ -361,10 +361,14 @@ struct TMovieSceneChannelTraits<FMovieSceneFloatChannel> : TMovieSceneChannelTra
 };
 
 /**
+ * Overload for getting the interpolation mode for a channel at a specified time, it could be the previous key's mode.See UE::MovieScene::GetInterpolationMode for default implementation.
+ */
+MOVIESCENE_API EMovieSceneKeyInterpolation GetInterpolationMode(FMovieSceneFloatChannel* InChannel, const FFrameNumber& InTime, EMovieSceneKeyInterpolation DefaultInterpolationMode);
+
+/**
  * Overload for adding a new key to a float channel at a given time. See UE::MovieScene::AddKeyToChannel for default implementation.
  */
 MOVIESCENE_API FKeyHandle AddKeyToChannel(FMovieSceneFloatChannel* Channel, FFrameNumber InFrameNumber, float InValue, EMovieSceneKeyInterpolation Interpolation);
-
 
 /**
  * Overload for dilating float channel data. See UE::MovieScene::Dilate for default implementation.

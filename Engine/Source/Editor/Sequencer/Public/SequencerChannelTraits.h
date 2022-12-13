@@ -187,7 +187,8 @@ namespace Sequencer
 		ValueType ValueAtTime = InDefaultValue;
 		EvaluateChannel(InChannel, InTime, ValueAtTime);
 
-		return AddKeyToChannel(InChannel, InTime, ValueAtTime, InSequencer.GetKeyInterpolation());
+		EMovieSceneKeyInterpolation InterpolationMode = GetInterpolationMode(InChannel, InTime, InSequencer.GetKeyInterpolation());
+		return AddKeyToChannel(InChannel, InTime, ValueAtTime, InterpolationMode);
 	}
 	
 
@@ -226,7 +227,8 @@ namespace Sequencer
 					TOptional<ValueType> Value = InExternalValue.OnGetExternalValue(*Object, InPropertyBindings);
 					if (Value.IsSet())
 					{
-						return AddKeyToChannel(InChannel, InTime, Value.GetValue(), InSequencer.GetKeyInterpolation());
+						EMovieSceneKeyInterpolation InterpolationMode = GetInterpolationMode(InChannel, InTime, InSequencer.GetKeyInterpolation());
+						return AddKeyToChannel(InChannel, InTime, Value.GetValue(), InterpolationMode);
 					}
 				}
 			}
@@ -290,7 +292,8 @@ namespace Sequencer
 			ValueType ValueAtTime{};
 			EvaluateChannel(InChannel, InTime, ValueAtTime);
 		
-			Handle = AddKeyToChannel(InChannel, InTime, ValueAtTime, InSequencer.GetKeyInterpolation());
+			EMovieSceneKeyInterpolation InterpolationMode = GetInterpolationMode(InChannel, InTime, InSequencer.GetKeyInterpolation());
+			Handle = AddKeyToChannel(InChannel, InTime, ValueAtTime, InterpolationMode);
 		}
 
 		return Handle.GetValue();

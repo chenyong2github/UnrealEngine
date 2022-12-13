@@ -168,6 +168,11 @@ void FMovieSceneDoubleChannel::ClearDefault()
 	bHasDefaultValue = false;
 }
 
+EMovieSceneKeyInterpolation GetInterpolationMode(FMovieSceneDoubleChannel* InChannel, const FFrameNumber& InTime, EMovieSceneKeyInterpolation DefaultInterpolationMode)
+{
+	return TMovieSceneCurveChannelImpl<FMovieSceneDoubleChannel>::GetInterpolationMode(InChannel, InTime, DefaultInterpolationMode);
+}
+
 FKeyHandle AddKeyToChannel(FMovieSceneDoubleChannel* Channel, FFrameNumber InFrameNumber, double InValue, EMovieSceneKeyInterpolation Interpolation)
 {
 	return TMovieSceneCurveChannelImpl<FMovieSceneDoubleChannel>::AddKeyToChannel(Channel, InFrameNumber, InValue, Interpolation);

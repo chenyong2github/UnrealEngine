@@ -126,6 +126,12 @@ namespace MovieScene
 		return false;
 	}
 
+	template<typename ChannelType>
+	EMovieSceneKeyInterpolation GetInterpolationMode(ChannelType* InChannel, const FFrameNumber& InTime, EMovieSceneKeyInterpolation DefaultInterpolationMode)
+	{
+		return DefaultInterpolationMode;
+	}
+
 	/**
 	 * Add a key to a channel, or update an existing key if one already exists at this time
 	 *

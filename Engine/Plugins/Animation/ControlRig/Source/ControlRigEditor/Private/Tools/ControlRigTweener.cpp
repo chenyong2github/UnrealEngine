@@ -549,13 +549,16 @@ bool FBasicBlendSlider::Blend(TWeakPtr<ISequencer>& InSequencer, const double Bl
 					double CurrentTime = TickResoultion.AsSeconds(FFrameTime(ObjectChannels.KeyBounds[Index].CurrentFrame));
 					double NewValue = DoBlend(PreviousTime, PreviousValue, CurrentTime, CurrentValue,
 						NextTime, NextValue, BlendValue);
+					using namespace UE::MovieScene;
 					if (ObjectChannels.KeyBounds[Index].FloatChannel)
 					{
-						AddKeyToChannel(ObjectChannels.KeyBounds[Index].FloatChannel, FrameTime.GetFrame(), (float)NewValue, Sequencer->GetKeyInterpolation());
+						EMovieSceneKeyInterpolation KeyInterpolation = GetInterpolationMode(ObjectChannels.KeyBounds[Index].FloatChannel, FrameTime.GetFrame(), Sequencer->GetKeyInterpolation());
+						AddKeyToChannel(ObjectChannels.KeyBounds[Index].FloatChannel, FrameTime.GetFrame(), (float)NewValue, KeyInterpolation);
 					}
 					else if (ObjectChannels.KeyBounds[Index].DoubleChannel)
 					{
-						AddKeyToChannel(ObjectChannels.KeyBounds[Index].DoubleChannel, FrameTime.GetFrame(), NewValue, Sequencer->GetKeyInterpolation());
+						EMovieSceneKeyInterpolation KeyInterpolation = GetInterpolationMode(ObjectChannels.KeyBounds[Index].DoubleChannel, FrameTime.GetFrame(), Sequencer->GetKeyInterpolation());
+						AddKeyToChannel(ObjectChannels.KeyBounds[Index].DoubleChannel, FrameTime.GetFrame(), NewValue, KeyInterpolation);
 					}
 					bDidBlend = true;
 				}

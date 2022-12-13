@@ -193,9 +193,9 @@ FKeyHandle AddOrUpdateKeyImpl(ChannelType* Channel, UMovieSceneSection* SectionT
 			}
 		}
 	}
-
 	using namespace UE::MovieScene;
-	return AddKeyToChannel(Channel, InTime, NewValue, Sequencer.GetKeyInterpolation());
+	EMovieSceneKeyInterpolation KeyInterpolation = GetInterpolationMode(Channel,InTime,Sequencer.GetKeyInterpolation());
+	return AddKeyToChannel(Channel, InTime, NewValue, KeyInterpolation);
 }
 
 FKeyHandle AddOrUpdateKey(FMovieSceneFloatChannel* Channel, UMovieSceneSection* SectionToKey, const TMovieSceneExternalValue<float>& ExternalValue, FFrameNumber InTime, ISequencer& Sequencer, const FGuid& InObjectBindingID, FTrackInstancePropertyBindings* PropertyBindings)

@@ -113,9 +113,9 @@ public:
 	/** Sets which channels are keyed when a channel is keyed */
 	void SetKeyGroupMode(EKeyGroupMode);
 
-	/** Gets default key interpolation. */
+	/** Get the default Interpolation type for newly created keyframes if the channel does not already have keyframes */
 	EMovieSceneKeyInterpolation GetKeyInterpolation() const;
-	/** Sets default key interpolation */
+	/** Sets default key interpolation for creating new keys on empty channels */
 	void SetKeyInterpolation(EMovieSceneKeyInterpolation InKeyInterpolation);
 
 	/** Get initial spawn position. */

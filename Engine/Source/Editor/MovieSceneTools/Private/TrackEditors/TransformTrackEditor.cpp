@@ -1147,7 +1147,8 @@ void F3DTransformTrackEditor::ProcessKeyOperation(UObject* ObjectToKey, TArrayVi
 					FMovieSceneDoubleChannel* Channel = static_cast<FMovieSceneDoubleChannel*>(Handle.Get());
 
 					double Value = RecomposedTransform[Handle.GetChannelIndex()];
-					AddKeyToChannel(Channel, KeyTime, Value, InSequencer.GetKeyInterpolation());
+					EMovieSceneKeyInterpolation Interpolation = GetInterpolationMode(Channel,KeyTime,InSequencer.GetKeyInterpolation());
+					AddKeyToChannel(Channel, KeyTime, Value, Interpolation);
 				}
 				else
 				{

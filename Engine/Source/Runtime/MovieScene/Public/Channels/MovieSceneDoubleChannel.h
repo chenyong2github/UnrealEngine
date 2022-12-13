@@ -361,6 +361,11 @@ struct TMovieSceneChannelTraits<FMovieSceneDoubleChannel> : TMovieSceneChannelTr
 };
 
 /**
+ * Overload for getting the interpolation mode for a channel at a specified time, it could be the previous key's mode.See UE::MovieScene::GetInterpolationMode for default implementation.
+ */
+MOVIESCENE_API EMovieSceneKeyInterpolation GetInterpolationMode(FMovieSceneDoubleChannel* InChannel, const FFrameNumber& InTime, EMovieSceneKeyInterpolation DefaultInterpolationMode);
+
+/**
  * Overload for adding a new key to a double channel at a given time. See UE::MovieScene::AddKeyToChannel for default implementation.
  */
 MOVIESCENE_API FKeyHandle AddKeyToChannel(FMovieSceneDoubleChannel* Channel, FFrameNumber InFrameNumber, double InValue, EMovieSceneKeyInterpolation Interpolation);

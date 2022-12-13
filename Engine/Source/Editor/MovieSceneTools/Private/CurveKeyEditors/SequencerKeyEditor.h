@@ -115,7 +115,7 @@ struct TSequencerKeyEditor
 		const FFrameNumber CurrentTime = Sequencer->GetLocalTime().Time.FloorToFrame();
 		const bool  bAutoSetTrackDefaults = Sequencer->GetAutoSetTrackDefaults();
 
-		EMovieSceneKeyInterpolation Interpolation = Sequencer->GetKeyInterpolation();
+		EMovieSceneKeyInterpolation Interpolation = GetInterpolationMode(Channel,CurrentTime,Sequencer->GetKeyInterpolation());
 
 		TArray<FKeyHandle> KeysAtCurrentTime;
 		Channel->GetKeys(TRange<FFrameNumber>(CurrentTime), nullptr, &KeysAtCurrentTime);

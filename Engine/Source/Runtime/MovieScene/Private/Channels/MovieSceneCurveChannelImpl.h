@@ -94,12 +94,21 @@ struct MOVIESCENE_API TMovieSceneCurveChannelImpl
 	/** Add a new key to a channel at a given time */
 	static FKeyHandle AddKeyToChannel(ChannelType* InChannel, FFrameNumber InFrameNumber, float InValue, EMovieSceneKeyInterpolation Interpolation);
 
+	/**
+	 * Get the interpolation mode to use at a specified time
+	 *
+	 * @param InChannel          The channel to find the interpolation mode
+	 * @param InTime             The time we are looking for an interpolation mode
+	 * @param DefaultInterpolationMode Current default interpolation mode, may be returned as the current mode
+	 * @return Interpolation mode to use at that frame
+	 */
+	static EMovieSceneKeyInterpolation GetInterpolationMode(ChannelType* InChannel, const FFrameNumber& InTime, EMovieSceneKeyInterpolation DefaultInterpolationMode);
+	
 	/** Dilate channel data.*/
 	static void Dilate(ChannelType* InChannel, FFrameNumber Origin, float DilationFactor);
 
 	/** Assigns a given value on a key */
 	static void AssignValue(ChannelType* InChannel, FKeyHandle InKeyHandle, typename ChannelType::CurveValueType InValue);
-
 
 	/** Serialization methods */
 
@@ -197,4 +206,5 @@ void TMovieSceneCurveChannelImpl<ChannelType>::CopyChannel(const OtherChannelTyp
 	OutDestinationChannel->bShowCurve = InSourceChannel->GetShowCurve();
 #endif
 }
+
 

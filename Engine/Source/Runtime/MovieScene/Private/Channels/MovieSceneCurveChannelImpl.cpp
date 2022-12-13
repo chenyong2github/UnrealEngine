@@ -1095,6 +1095,52 @@ void TMovieSceneCurveChannelImpl<ChannelType>::Optimize(ChannelType* InChannel, 
 	}
 }
 
+
+template<typename ChannelType>
+EMovieSceneKeyInterpolation TMovieSceneCurveChannelImpl<ChannelType>::GetInterpolationMode(ChannelType* InChannel, const FFrameNumber& InTime, EMovieSceneKeyInterpolation DefaultInterpolationMode)
+{
+	auto ChannelData = InChannel->GetData();
+	const TArrayView<const ChannelValueType> Values = ChannelData.GetValues();
+	const TArrayView<FFrameNumber> Times = ChannelData.GetTimes();
+	if (Times.Num() > 0)
+	{
+		//get previous key or first key if first
+		int32 Index = Algo::LowerBound(Times, InTime) - 1;
+		if (Index < 0)
+		{
+			Index = 0;
+		}
+		const ChannelValueType& Value = Values[Index]; //-V758
+		switch (Value.InterpMode.GetValue())
+		{
+		case RCIM_Linear:
+			return EMovieSceneKeyInterpolation::Linear;
+			break;
+		case RCIM_Constant:
+			return EMovieSceneKeyInterpolation::Constant;
+			break;
+
+		case RCIM_Cubic:
+
+			switch (Value.TangentMode.GetValue())
+			{
+			case RCTM_Auto:
+				return EMovieSceneKeyInterpolation::Auto;
+				break;
+			case RCTM_Break:
+				return EMovieSceneKeyInterpolation::Break;
+				break;
+			case RCTM_User:
+				return EMovieSceneKeyInterpolation::User;
+				break;
+			}
+			break;
+		}
+
+	}
+	return DefaultInterpolationMode;
+}
+
 template<typename ChannelType>
 FKeyHandle TMovieSceneCurveChannelImpl<ChannelType>::AddKeyToChannel(ChannelType* InChannel, FFrameNumber InFrameNumber, float InValue, EMovieSceneKeyInterpolation Interpolation)
 {
