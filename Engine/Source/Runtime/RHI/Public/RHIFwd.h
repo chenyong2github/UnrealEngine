@@ -67,6 +67,7 @@ class FRHIRenderQuery;
 class FRHIRenderQueryPool;
 class FRHIResource;
 class FRHISamplerState;
+class FRHIShader;
 class FRHIShaderLibrary;
 class FRHIShaderResourceView;
 class FRHIStagingBuffer;
