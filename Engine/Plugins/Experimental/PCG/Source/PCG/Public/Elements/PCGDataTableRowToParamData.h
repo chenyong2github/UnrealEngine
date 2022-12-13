@@ -26,7 +26,7 @@ public:
 	virtual FName AdditionalTaskName() const override;
 
 	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
-	virtual TArray<FPCGPinProperties> InputPinProperties() const override { return TArray<FPCGPinProperties>(); }
+	virtual TArray<FPCGPinProperties> InputPinProperties() const override;
 
 	// The name of the row to copy from
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
@@ -34,7 +34,7 @@ public:
 
 	// the data table to copy from
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	TObjectPtr<UDataTable> DataTable;
+	TSoftObjectPtr<UDataTable> DataTable;
 
 protected:
 	virtual FPCGElementPtr CreateElement() const override;
@@ -50,4 +50,3 @@ public:
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
 };
-

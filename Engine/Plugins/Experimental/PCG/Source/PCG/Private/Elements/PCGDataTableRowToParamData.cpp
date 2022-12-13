@@ -13,10 +13,18 @@ FPCGElementPtr UPCGDataTableRowToParamDataSettings::CreateElement() const
 	return MakeShared<FPCGDataTableRowToParamData>();
 }
 
+TArray<FPCGPinProperties> UPCGDataTableRowToParamDataSettings::InputPinProperties() const
+{
+	TArray<FPCGPinProperties> PinProperties;
+	PinProperties.Emplace(PCGPinConstants::DefaultParamsLabel, EPCGDataType::Param, false);
+
+	return PinProperties;
+}
+
 TArray<FPCGPinProperties> UPCGDataTableRowToParamDataSettings::OutputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Param);
+	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Param, false);
 
 	return PinProperties;
 }
@@ -30,21 +38,33 @@ bool FPCGDataTableRowToParamData::ExecuteInternal(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGDataTableRowToParamData::Execute);
 
+	UPCGParamData* Params = Context->InputData.GetParams();
+
 	const UPCGDataTableRowToParamDataSettings* Settings = Context->GetInputSettings<UPCGDataTableRowToParamDataSettings>();
 	check(Settings);
 
-	const UDataTable* DataTable = Settings->DataTable.Get();
+	const FString PathOverride = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGDataTableRowToParamDataSettings, DataTable), FString(), Params);
+	const FName RowName = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGDataTableRowToParamDataSettings, RowName), Settings->RowName, Params);
+
+	TSoftObjectPtr<UDataTable> DataTablePtr = Settings->DataTable;
+
+	if (!PathOverride.IsEmpty())
+	{
+		DataTablePtr = FSoftObjectPath(PathOverride);
+	}
+
+	const UDataTable* DataTable = DataTablePtr.LoadSynchronous();
 	if (!DataTable)
 	{
 		PCGE_LOG(Error, TEXT("FPCGDataTableRowToParamData: Data table is invalid"));
 		return true;
 	}
 
-	const uint8* const* RowDataItr = DataTable->GetRowMap().Find(Settings->RowName);
+	const uint8* const* RowDataItr = DataTable->GetRowMap().Find(RowName);
 	const uint8* RowDataPtr = RowDataItr ? *RowDataItr : nullptr;
 	if (!RowDataPtr)
 	{
-		PCGE_LOG(Error, TEXT("FPCGDataTableRowToParamData: Data table '%s' has no row named '%s'"), *DataTable->GetPathName(), *Settings->RowName.ToString());
+		PCGE_LOG(Error, TEXT("FPCGDataTableRowToParamData: Data table '%s' has no row named '%s'"), *DataTable->GetPathName(), *RowName.ToString());
 		return true;
 	}
 
@@ -71,4 +91,3 @@ bool FPCGDataTableRowToParamData::ExecuteInternal(FPCGContext* Context) const
 
 	return true;
 }
-
