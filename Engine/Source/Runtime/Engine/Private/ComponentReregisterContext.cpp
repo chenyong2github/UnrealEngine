@@ -12,11 +12,6 @@ UWorld* FComponentReregisterContextBase::UnRegister(UActorComponent* InComponent
 
 	if(InComponent->IsRegistered() && InComponent->GetWorld())
 	{
-		if (InComponent->IsRenderStateCreated())
-		{
-			UpdateAllPrimitiveSceneInfosForSingleComponent(InComponent, ScenesToUpdateAllPrimitiveSceneInfos);
-		}
-
 		// Save the world and set the component's world to NULL to prevent a nested FComponentReregisterContext from reregistering this component.
 		World = InComponent->GetWorld();
 		FNavigationLockContext NavUpdateLock(World);
@@ -52,7 +47,5 @@ void FComponentReregisterContextBase::ReRegister(UActorComponent* InComponent, U
 
 		// Will set bRegistered to true
 		InComponent->ExecuteRegisterEvents();
-
-		UpdateAllPrimitiveSceneInfosForSingleComponent(InComponent, ScenesToUpdateAllPrimitiveSceneInfos);
 	}
 }
