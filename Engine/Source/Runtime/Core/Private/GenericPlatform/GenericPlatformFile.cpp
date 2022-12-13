@@ -811,7 +811,7 @@ bool IPlatformFile::CopyDirectoryTree(const TCHAR* DestinationDirectory, const T
 
 	// Destination directory exists already or can be created ?
 	if (!DirectoryExists(*DestDir) &&
-		!CreateDirectory(*DestDir))
+		!CreateDirectoryTree(*DestDir))
 	{
 		return false;
 	}
