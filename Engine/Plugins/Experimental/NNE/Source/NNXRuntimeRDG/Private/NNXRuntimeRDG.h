@@ -56,7 +56,7 @@ struct IOperatorRDG
 
 class FTensorRDG : public FTensor
 {
-	FRDGBufferRef Buffer;
+	FRDGBufferRef Buffer{};
 	
 public:
 	static FTensorRDG Make(const FTensorDesc& TensorDesc, const FTensorShape& Shape, FRDGBufferRef Buffer)
@@ -73,6 +73,7 @@ public:
 		return TensorRDG;
 	}
 
+	bool HasBuffer() const { return Buffer != FRDGBufferRef{}; }
 	void SetBuffer(FRDGBufferRef Inbuffer){ Buffer = Inbuffer; }
 	FRDGBufferRef GetBuffer() const { return Buffer; }
 };

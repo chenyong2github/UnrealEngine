@@ -10,7 +10,7 @@
 					"tags": [ "SmokeTest" ],
 					"runtimes": [
 						{ "name": "NNXRuntimeORTDml", "relative_error": 1.0 },
-						{ "name": "NNXRuntimeHlsl",	"skip": true, "comment": "Model with multiple layer not yet implemented."	},
+						{ "name": "NNXRuntimeHlsl",  "skip": true, "comment": "Missing BatchNormalisation operator." },
 						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Model with multiple layer not yet implemented." }
 					]
 				},
@@ -22,7 +22,7 @@
 							"comment": "Worst relative error 43.367836 % (epsilon 0.001000 %) at position 112558, got -0.003391 expected -0.002365. TODO we need an automatic balance between relative error and absolute error"
 						},
 						{ "name": "NNXRuntimeORTCpu", "absolute_error": 1e-3, "relative_error": 3.0 },
-						{ "name": "NNXRuntimeHlsl",	"skip": true, "comment": "Model with multiple layer not yet implemented."	},
+						{ "name": "NNXRuntimeHlsl", "absolute_error": 0.03, "relative_error": 55.0, "comment": "TODO check, errors are very high." },
 						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Model with multiple layer not yet implemented." }
 					]
 				}
@@ -37,7 +37,7 @@
 					"tags": [ "SmokeTest" ],
 					"runtimes": [
 						{ "name": "NNXRuntimeORTDml", "relative_error": 0.02 },
-						{ "name": "NNXRuntimeHlsl",	"skip": true, "comment": "Model with multiple layer not yet implemented."	},
+						{ "name": "NNXRuntimeHlsl", "relative_error": 0.02 },
 						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Model with multiple layer not yet implemented." }
 					]
 				},
@@ -46,17 +46,15 @@
 					"tags": [ "SmokeTest" ],
 					"runtimes": [
 						{ "name": "NNXRuntimeORTDml", "relative_error": 0.04 },
-						{ "name": "NNXRuntimeHlsl",	"skip": true, "comment": "Model with multiple layer not yet implemented."	},
+						{ "name": "NNXRuntimeHlsl",  "skip": true, "comment": "Missing Reshape operator." },
 						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Model with multiple layer not yet implemented." }
 					]
 				},
 				{
 					"target": "VertexDeltaModel",
 					"runtimes": [
-						{ "name": "NNXRuntimeORTDml", "absolute_error": 1e-4, "relative_error": 10.0,
-							"comment": "TODO check, relative error is very high."
-						},
-						{ "name": "NNXRuntimeHlsl",	"skip": true, "comment": "Model with multiple layer not yet implemented."	},
+						{ "name": "NNXRuntimeORTDml", "absolute_error": 1e-4, "relative_error": 10.0, "comment": "TODO check, relative error is very high."	},
+						{ "name": "NNXRuntimeHlsl", "absolute_error": 1e-4, "relative_error": 3.0 },
 						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Model with multiple layer not yet implemented." }
 					]
 				}
@@ -70,7 +68,6 @@
 					"target": "OneLayerWithWeights",
 					"tags": [ "SmokeTest" ],
 					"runtimes": [
-						{ "name": "NNXRuntimeHlsl",	"skip": true, "comment": "Weights from model not yet implemented."	},
 						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Weights from model not yet implemented." }
 					]
 				},
@@ -632,11 +629,11 @@
 		{
 			"name": "Upsample.ScaleFromWeight",
 			"datasets": [
-				{ "inputs":  [ { "shape": [ 1 ] } ],             "weights": [ { "shape": [ 1 ], "source": [ "3"    ],                  "type": "float" } ], "outputs": [ { "shape": [ 3 ]} ] },
-				{ "inputs":  [ { "shape": [ 2 ] } ],             "weights": [ { "shape": [ 1 ], "source": [ "2"    ],                  "type": "float" } ], "outputs": [ { "shape": [ 4 ]} ] },
-				{ "inputs":  [ { "shape": [ 3 ] } ],             "weights": [ { "shape": [ 1 ], "source": [ "1"    ],                  "type": "float" } ], "outputs": [ { "shape": [ 3 ]} ] },
-				{ "inputs":  [ { "shape": [ 1, 128, 50, 55 ] } ],    "weights": [ { "shape": [ 4 ], "source": [ "1", "1", "2", "2" ],      "type": "float" } ], "outputs": [ { "shape": [ 1, 128, 100, 110 ]} ] },
-				{ "inputs":  [ { "shape": [ 2, 1, 3, 1, 2 ] } ], "weights": [ { "shape": [ 5 ], "source": [ "1", "2", "2", "1", "2" ], "type": "float" } ], "outputs": [ { "shape": [ 2, 2, 6, 1, 4 ]} ] }
+				{ "inputs":  [ { "shape": [ 1 ] } ],              "weights": [ { "shape": [ 1 ], "source": [ "3"    ],                  "type": "float" } ], "outputs": [ { "shape": [ 3 ]} ] },
+				{ "inputs":  [ { "shape": [ 2 ] } ],              "weights": [ { "shape": [ 1 ], "source": [ "2"    ],                  "type": "float" } ], "outputs": [ { "shape": [ 4 ]} ] },
+				{ "inputs":  [ { "shape": [ 3 ] } ],              "weights": [ { "shape": [ 1 ], "source": [ "1"    ],                  "type": "float" } ], "outputs": [ { "shape": [ 3 ]} ] },
+				{ "inputs":  [ { "shape": [ 1, 128, 50, 55 ] } ], "weights": [ { "shape": [ 4 ], "source": [ "1", "1", "2", "2" ],      "type": "float" } ], "outputs": [ { "shape": [ 1, 128, 100, 110 ]} ] },
+				{ "inputs":  [ { "shape": [ 2, 1, 3, 1, 2 ] } ],  "weights": [ { "shape": [ 5 ], "source": [ "1", "2", "2", "1", "2" ], "type": "float" } ], "outputs": [ { "shape": [ 2, 2, 6, 1, 4 ]} ] }
 			]
 		},
 		{

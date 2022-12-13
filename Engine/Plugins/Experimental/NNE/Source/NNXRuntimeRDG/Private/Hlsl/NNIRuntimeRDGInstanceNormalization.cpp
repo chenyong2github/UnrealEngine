@@ -120,16 +120,16 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			Parameters->Bias = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(Bias.GetBuffer(), PF_R32_FLOAT));
 			Parameters->Output = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(Output.GetBuffer(), PF_R32_FLOAT));
 
-			TInstanceNormalizationCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<TInstanceNormalizationCS::FInstanceNormalizationAlgorithm>(Algorithm);
-			TShaderMapRef<TInstanceNormalizationCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
-
-			if (Algorithm == EInstanceNormalizationAlgorithm::MAX)
+			EInstanceNormalizationAlgorithm DispatchAlgorithm = Algorithm;
+			if (DispatchAlgorithm == EInstanceNormalizationAlgorithm::MAX)
 			{
-				TInstanceNormalizationCS::GetAlgorithm(*Parameters);
+				DispatchAlgorithm = TInstanceNormalizationCS::GetAlgorithm(*Parameters);
 			}
-
-			FIntVector ThreadGroupCount = TInstanceNormalizationCS::GetGroupCount(*Parameters, Algorithm);
+			
+			TInstanceNormalizationCS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<TInstanceNormalizationCS::FInstanceNormalizationAlgorithm>(DispatchAlgorithm);
+			TShaderMapRef<TInstanceNormalizationCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
+			FIntVector ThreadGroupCount = TInstanceNormalizationCS::GetGroupCount(*Parameters, DispatchAlgorithm);
 
 			RDG_EVENT_SCOPE(GraphBuilder, "NNI.Operator.Hlsl.InstanceNormalization");
 			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNIOperatorInstanceNormalization);

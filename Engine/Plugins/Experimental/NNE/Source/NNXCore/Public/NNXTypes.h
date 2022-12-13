@@ -62,7 +62,7 @@ template <typename DimType, class FinalType> struct TTensorShapeBase
 
 	inline void operator=(const TTensorShapeBase<DimType, FinalType>& OtherShape)
 	{
-		check(Rank() <= MaxRank);
+		check(OtherShape.Rank() <= MaxRank);
 		Data = OtherShape.Data;
 	}
 
@@ -252,8 +252,8 @@ public:
 		const T* DataPtr = reinterpret_cast<const T*>(PreparedData.GetData());
 		const int32 ElemSize = sizeof(T);
 		
-		check(DataSize % ElemSize == 0);
-		return MakeArrayView(DataPtr, DataSize / ElemSize);
+		check(PreparedData.Num() % ElemSize == 0);
+		return MakeArrayView(DataPtr, PreparedData.Num() / ElemSize);
 	}
 
 	void SetShape(const FTensorShape& InShape)
