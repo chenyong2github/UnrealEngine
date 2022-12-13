@@ -155,8 +155,9 @@ namespace NetworkingPrivate
 {
 	struct ENGINE_API FRepPropertyDescriptor
 	{
+		UE_DEPRECATED(5.2, "No longer used")
 		FRepPropertyDescriptor(const FProperty* Property)
-			: PropertyName(VerifyPropertyAndGetName(Property))
+			: PropertyName(TEXT(""))
 			, RepIndex(Property->RepIndex)
 			, ArrayDim(Property->ArrayDim)
 		{
@@ -174,13 +175,6 @@ namespace NetworkingPrivate
 		const int32 ArrayDim;
 
 	private:
-
-		static const TCHAR* VerifyPropertyAndGetName(const FProperty* Property)
-		{
-			check(Property);
-			return *(Property->GetName());
-		}
-
 		UE_NONCOPYABLE(FRepPropertyDescriptor);
 
 		void* operator new(size_t) = delete;
@@ -426,8 +420,8 @@ DisableAllReplicatedPropertiesOfClass(StaticClass(), c::StaticClass(), SuperClas
 #define DISABLE_ALL_CLASS_REPLICATED_PROPERTIES_FAST(c, SuperClassBehavior) \
 { \
 	static const bool bIsValid_##c_##v = ValidateReplicatedClassInheritance(StaticClass(), c::StaticClass(), TEXT("DISABLE_ALL_CLASS_REPLICATED_PROPERTIES")); \
-	const TCHAR* DoRepPropertyName_##c(TEXT(#c)); \
-	const NetworkingPrivate::FRepClassDescriptor ClassDescriptor_##c(DoRepPropertyName_##c, (int32)c::ENetFields_Private::NETFIELD_REP_START, (int32)c::ENetFields_Private::NETFIELD_REP_END); \
+	const TCHAR* DoRepClassName_##c(TEXT(#c)); \
+	const NetworkingPrivate::FRepClassDescriptor ClassDescriptor_##c(DoRepClassName_##c, (int32)c::ENetFields_Private::NETFIELD_REP_START, (int32)c::ENetFields_Private::NETFIELD_REP_END); \
 	DisableAllReplicatedPropertiesOfClass(ClassDescriptor_##c, SuperClassBehavior, OutLifetimeProps); \
 }	
 

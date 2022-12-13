@@ -87,7 +87,9 @@ void RegisterReplicatedLifetimeProperty(
 		return;
 	}
 
-	RegisterReplicatedLifetimeProperty(NetworkingPrivate::FRepPropertyDescriptor(ReplicatedProperty), OutLifetimeProps, Params);
+	const FString ReplicatedPropertyName = ReplicatedProperty->GetName();
+	NetworkingPrivate::FRepPropertyDescriptor PropDesc(*ReplicatedPropertyName, ReplicatedProperty->RepIndex, ReplicatedProperty->ArrayDim);
+	RegisterReplicatedLifetimeProperty(PropDesc, OutLifetimeProps, Params);
 }
 
 void SetReplicatedPropertyToDisabled(const NetworkingPrivate::FRepPropertyDescriptor& PropertyDescriptor, TArray<FLifetimeProperty>& OutLifetimeProps)
@@ -110,7 +112,9 @@ void SetReplicatedPropertyToDisabled(const NetworkingPrivate::FRepPropertyDescri
 
 void SetReplicatedPropertyToDisabled(const FProperty* ReplicatedProperty, TArray<FLifetimeProperty>& OutLifetimeProps)
 {
-	SetReplicatedPropertyToDisabled(NetworkingPrivate::FRepPropertyDescriptor(ReplicatedProperty), OutLifetimeProps);
+	const FString ReplicatedPropertyName = ReplicatedProperty->GetName();
+	NetworkingPrivate::FRepPropertyDescriptor PropDesc(*ReplicatedPropertyName, ReplicatedProperty->RepIndex, ReplicatedProperty->ArrayDim);
+	SetReplicatedPropertyToDisabled(PropDesc, OutLifetimeProps);
 }
 
 void DisableReplicatedLifetimeProperty(const NetworkingPrivate::FRepPropertyDescriptor& PropertyDescriptor, TArray<FLifetimeProperty>& OutLifetimeProps)
@@ -126,7 +130,9 @@ void DisableReplicatedLifetimeProperty(const UClass* ThisClass, const UClass* Pr
 		return;
 	}
 
-	SetReplicatedPropertyToDisabled(NetworkingPrivate::FRepPropertyDescriptor(ReplicatedProperty), OutLifetimeProps);
+	const FString ReplicatedPropertyName = ReplicatedProperty->GetName();
+	NetworkingPrivate::FRepPropertyDescriptor PropDesc(*ReplicatedPropertyName, ReplicatedProperty->RepIndex, ReplicatedProperty->ArrayDim);
+	SetReplicatedPropertyToDisabled(PropDesc, OutLifetimeProps);
 }
 
 void ResetReplicatedLifetimeProperty(
@@ -159,7 +165,9 @@ void ResetReplicatedLifetimeProperty(const UClass* ThisClass, const UClass* Prop
 		return;
 	}
 
-	ResetReplicatedLifetimeProperty(NetworkingPrivate::FRepPropertyDescriptor(ReplicatedProperty), LifetimeCondition, OutLifetimeProps);
+	const FString ReplicatedPropertyName = ReplicatedProperty->GetName();
+	NetworkingPrivate::FRepPropertyDescriptor PropDesc(*ReplicatedPropertyName, ReplicatedProperty->RepIndex, ReplicatedProperty->ArrayDim);
+	ResetReplicatedLifetimeProperty(PropDesc, LifetimeCondition, OutLifetimeProps);
 }
 
 void ResetReplicatedLifetimeProperty(const UClass* ThisClass, const UClass* PropertyClass, FName PropertyName, const FDoRepLifetimeParams& Params, TArray< FLifetimeProperty >& OutLifetimeProps)
@@ -170,7 +178,9 @@ void ResetReplicatedLifetimeProperty(const UClass* ThisClass, const UClass* Prop
 		return;
 	}
 
-	ResetReplicatedLifetimeProperty(NetworkingPrivate::FRepPropertyDescriptor(ReplicatedProperty), Params, OutLifetimeProps);
+	const FString ReplicatedPropertyName = ReplicatedProperty->GetName();
+	NetworkingPrivate::FRepPropertyDescriptor PropDesc(*ReplicatedPropertyName, ReplicatedProperty->RepIndex, ReplicatedProperty->ArrayDim);
+	ResetReplicatedLifetimeProperty(PropDesc, Params, OutLifetimeProps);
 }
 
 void ResetReplicatedLifetimeProperty(const NetworkingPrivate::FRepPropertyDescriptor& PropertyDescriptor, const FDoRepLifetimeParams& Params, TArray< FLifetimeProperty >& OutLifetimeProps)
