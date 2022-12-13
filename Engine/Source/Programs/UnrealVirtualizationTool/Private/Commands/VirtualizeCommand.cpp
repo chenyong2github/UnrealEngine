@@ -141,8 +141,18 @@ bool FVirtualizeCommand::Run(const TArray<FProject>& Projects)
 
 		Project.RegisterMountPoints();
 
+		ON_SCOPE_EXIT
+		{
+			Project.UnRegisterMountPoints();
+		};
+
 		UE::Virtualization::FInitParams InitParams(ProjectName, EngineConfigWithProject);
 		UE::Virtualization::Initialize(InitParams, UE::Virtualization::EInitializationFlags::ForceInitialize);
+
+		ON_SCOPE_EXIT
+		{
+			UE::Virtualization::Shutdown();
+		};
 
 		TArray<FString> ProjectPackages = Project.GetAllPackages();
 
@@ -160,9 +170,6 @@ bool FVirtualizeCommand::Run(const TArray<FProject>& Projects)
 		}
 
 		UE_LOG(LogVirtualizationTool, Display, TEXT("\tCheck complete"));
-
-		UE::Virtualization::Shutdown();
-		Project.UnRegisterMountPoints();
 	}
 
 	if (bShouldSubmitChangelist)
