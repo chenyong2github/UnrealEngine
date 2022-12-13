@@ -86,14 +86,14 @@ public:
 	constexpr TStringView() = default;
 
 	/** Construct a view of the null-terminated string pointed to by InData. */
-	constexpr inline TStringView(const CharType* InData UE_LIFETIMEBOUND)
+	constexpr inline TStringView(const CharType* InData)
 		: DataPtr(InData)
 		, Size(InData ? TCString<CharType>::Strlen(InData) : 0)
 	{
 	}
 
 	/** Construct a view of InSize characters beginning at InData. */
-	constexpr inline TStringView(const CharType* InData UE_LIFETIMEBOUND, int32 InSize)
+	constexpr inline TStringView(const CharType* InData, int32 InSize)
 		: DataPtr(InData)
 		, Size(InSize)
 	{
@@ -109,7 +109,7 @@ public:
 			>::Value
 		>* = nullptr
 	>
-	constexpr inline TStringView(const OtherCharType* InData UE_LIFETIMEBOUND)
+	constexpr inline TStringView(const OtherCharType* InData)
 		: DataPtr((const CharType*)InData)
 		, Size(InData ? TCString<CharType>::Strlen((const CharType*)InData) : 0)
 	{
@@ -125,7 +125,7 @@ public:
 			>::Value
 		>* = nullptr
 	>
-	constexpr inline TStringView(const OtherCharType* InData UE_LIFETIMEBOUND, int32 InSize)
+	constexpr inline TStringView(const OtherCharType* InData, int32 InSize)
 		: DataPtr((const CharType*)InData)
 		, Size(InSize)
 	{
@@ -459,7 +459,7 @@ constexpr inline auto MakeStringView(CharPtrOrRangeType&& CharPtrOrRange UE_LIFE
 }
 
 template <typename CharPtrType>
-constexpr inline auto MakeStringView(CharPtrType&& CharPtr UE_LIFETIMEBOUND, int32 Size) -> decltype(TStringView(Forward<CharPtrType>(CharPtr), Size))
+constexpr inline auto MakeStringView(CharPtrType&& CharPtr, int32 Size) -> decltype(TStringView(Forward<CharPtrType>(CharPtr), Size))
 {
 	return TStringView(Forward<CharPtrType>(CharPtr), Size);
 }

@@ -679,7 +679,7 @@ public:
 	 *
 	 * @returns Pointer to first array entry or nullptr if ArrayMax == 0.
 	 */
-	FORCEINLINE ElementType* GetData() UE_LIFETIMEBOUND
+	FORCEINLINE ElementType* GetData()
 	{
 		return (ElementType*)AllocatorInstance.GetAllocation();
 	}
@@ -689,7 +689,7 @@ public:
 	 *
 	 * @returns Pointer to first array entry or nullptr if ArrayMax == 0.
 	 */
-	FORCEINLINE const ElementType* GetData() const UE_LIFETIMEBOUND
+	FORCEINLINE const ElementType* GetData() const
 	{
 		return (const ElementType*)AllocatorInstance.GetAllocation();
 	}
@@ -800,7 +800,7 @@ public:
 	 *
 	 * @returns Reference to indexed element.
 	 */
-	FORCEINLINE ElementType& operator[](SizeType Index) UE_LIFETIMEBOUND
+	FORCEINLINE ElementType& operator[](SizeType Index)
 	{
 		RangeCheck(Index);
 		return GetData()[Index];
@@ -813,7 +813,7 @@ public:
 	 *
 	 * @returns Reference to indexed element.
 	 */
-	FORCEINLINE const ElementType& operator[](SizeType Index) const UE_LIFETIMEBOUND
+	FORCEINLINE const ElementType& operator[](SizeType Index) const
 	{
 		RangeCheck(Index);
 		return GetData()[Index];

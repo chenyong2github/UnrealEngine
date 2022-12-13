@@ -754,7 +754,7 @@ public:
 	 *
 	 * @return A const pointer to the converted string.
 	 */
-	FORCEINLINE const ToType* Get() const UE_LIFETIMEBOUND
+	FORCEINLINE const ToType* Get() const
 	{
 		return Ptr;
 	}
@@ -798,9 +798,6 @@ struct TElementType<TStringConversion<Converter, DefaultConversionSize>>
 	using Type = typename Converter::ToType;
 };
 
-
-namespace UE::Core::Private
-{
 
 /**
  * Class takes one type of string and and stores it as-is.
@@ -885,11 +882,10 @@ public:
 	/**
 	 * Accessor for the string.
 	 * @note The string may not be null-terminated if constructed from an explicitly sized buffer that didn't include the null-terminator.
-	 * @note Setting to UE_LIFETIMEBOUND even though TStringPointer doesn't own the pointer, because we want StringCast to give consistent warnings no matter what implementation choice it makes
 	 *
 	 * @return A const pointer to the string.
 	 */
-	FORCEINLINE const ToType* Get() const UE_LIFETIMEBOUND
+	FORCEINLINE const ToType* Get() const
 	{
 		return Ptr;
 	}
@@ -913,31 +909,30 @@ private:
 	int32 StringLength;
 };
 
-} // namespace UE::Core::Private
-
 template <typename FromType, typename ToType>
-inline auto GetData(const UE::Core::Private::TStringPointer<FromType, ToType>& Pointer) -> decltype(Pointer.Get())
+inline auto GetData(const TStringPointer<FromType, ToType>& Pointer) -> decltype(Pointer.Get())
 {
 	return Pointer.Get();
 }
 
 template <typename FromType, typename ToType>
-inline auto GetNum(const UE::Core::Private::TStringPointer<FromType, ToType>& Pointer) -> decltype(Pointer.Length())
+inline auto GetNum(const TStringPointer<FromType, ToType>& Pointer) -> decltype(Pointer.Length())
 {
 	return Pointer.Length();
 }
 
 template <typename FromType, typename ToType>
-struct TIsContiguousContainer<UE::Core::Private::TStringPointer<FromType, ToType>>
+struct TIsContiguousContainer<TStringPointer<FromType, ToType>>
 {
 	static constexpr bool Value = true;
 };
 
 template <typename FromType, typename ToType>
-struct TElementType<UE::Core::Private::TStringPointer<FromType, ToType>>
+struct TElementType<TStringPointer<FromType, ToType>>
 {
 	using Type = ToType;
 };
+
 
 /**
  * NOTE: The objects these macros declare have very short lifetimes. They are
@@ -975,8 +970,8 @@ typedef TStringConversion<TUTF16ToUTF32_Convert<UTF16CHAR, TCHAR>> FUTF16ToTCHAR
 #define UTF16_TO_TCHAR(str) (TCHAR*)FUTF16ToTCHAR((const UTF16CHAR*)str).Get()
 
 static_assert(sizeof(TCHAR) == sizeof(UTF32CHAR), "TCHAR and UTF32CHAR are expected to be the same size for inline conversion! PLATFORM_TCHAR_IS_4_BYTES is not configured correctly for this platform.");
-typedef UE::Core::Private::TStringPointer<TCHAR, UTF32CHAR> FTCHARToUTF32;
-typedef UE::Core::Private::TStringPointer<UTF32CHAR, TCHAR> FUTF32ToTCHAR;
+typedef TStringPointer<TCHAR, UTF32CHAR> FTCHARToUTF32;
+typedef TStringPointer<UTF32CHAR, TCHAR> FUTF32ToTCHAR;
 #define TCHAR_TO_UTF32(str) (UTF32CHAR*)(str)
 #define UTF32_TO_TCHAR(str) (TCHAR*)(str)
 
@@ -995,8 +990,8 @@ typedef TStringConversion<TStringConvert<UTF32CHAR, TCHAR>> FUTF32ToTCHAR;
 #else
 
 static_assert(sizeof(TCHAR) == sizeof(UTF16CHAR), "TCHAR and UTF16CHAR are expected to be the same size for inline conversion! PLATFORM_TCHAR_IS_4_BYTES is not configured correctly for this platform.");
-typedef UE::Core::Private::TStringPointer<TCHAR, UTF16CHAR> FTCHARToUTF16;
-typedef UE::Core::Private::TStringPointer<UTF16CHAR, TCHAR> FUTF16ToTCHAR;
+typedef TStringPointer<TCHAR, UTF16CHAR> FTCHARToUTF16;
+typedef TStringPointer<UTF16CHAR, TCHAR> FUTF16ToTCHAR;
 #define TCHAR_TO_UTF16(str) (UTF16CHAR*)(str)
 #define UTF16_TO_TCHAR(str) (TCHAR*)(str)
 
@@ -1024,8 +1019,8 @@ typedef TStringConversion<TStringConvert<wchar_t, TCHAR>> FWCharToTCHAR;
 #else
 
 static_assert(sizeof(TCHAR) == sizeof(wchar_t), "TCHAR and wchar_t are expected to be the same size for inline conversion! PLATFORM_WCHAR_IS_4_BYTES is not configured correctly for this platform.");
-typedef UE::Core::Private::TStringPointer<TCHAR, wchar_t> FTCHARToWChar;
-typedef UE::Core::Private::TStringPointer<wchar_t, TCHAR> FWCharToTCHAR;
+typedef TStringPointer<TCHAR, wchar_t> FTCHARToWChar;
+typedef TStringPointer<wchar_t, TCHAR> FWCharToTCHAR;
 #define TCHAR_TO_WCHAR(str) (wchar_t*)(str)
 #define WCHAR_TO_TCHAR(str) (TCHAR*)(str)
 
@@ -1059,7 +1054,7 @@ FORCEINLINE auto StringCast(const From* Str)
 {
 	if constexpr (TIsCharEncodingCompatibleWith_V<From, To>)
 	{
-		return UE::Core::Private::TStringPointer<To>((const To*)Str);
+		return TStringPointer<To>((const To*)Str);
 	}
 	else
 	{
@@ -1078,7 +1073,7 @@ FORCEINLINE auto StringCast(const From* Str, int32 Len)
 {
 	if constexpr (TIsCharEncodingCompatibleWith_V<From, To>)
 	{
-		return UE::Core::Private::TStringPointer<To>((const To*)Str, Len);
+		return TStringPointer<To>((const To*)Str, Len);
 	}
 	else
 	{
@@ -1100,9 +1095,6 @@ FORCEINLINE To CharCast(From Ch)
 	FPlatformString::Convert(&Result, 1, &Ch, 1);
 	return Result;
 }
-
-namespace UE::Core::Private
-{
 
 /**
  * This class is returned by StringPassthru and is not intended to be used directly.
@@ -1133,7 +1125,7 @@ public:
 		FPlatformString::Convert(Dest, DestLen, Source, SrcLen);
 	}
 
-	FORCEINLINE FromType* Get() UE_LIFETIMEBOUND
+	FORCEINLINE FromType* Get()
 	{
 		return (FromType*)AllocatorType::GetAllocation();
 	}
@@ -1159,8 +1151,7 @@ public:
 	{
 	}
 
-	// @note Setting to UE_LIFETIMEBOUND even though TPassthruPointer doesn't own the pointer, because we want StringMemoryPassthru to give consistent warnings no matter what implementation choice it makes
-	FORCEINLINE T* Get() const UE_LIFETIMEBOUND
+	FORCEINLINE T* Get() const
 	{
 		return Ptr;
 	}
@@ -1172,8 +1163,6 @@ public:
 private:
 	T* Ptr;
 };
-
-}
 
 /**
  * Allows the efficient conversion of strings by means of a temporary memory buffer only when necessary.  Intended to be used
@@ -1213,11 +1202,11 @@ FORCEINLINE auto StringMemoryPassthru(To* Buffer, int32 BufferSize, int32 Source
 	if constexpr (TIsCharEncodingCompatibleWith_V<From, To>)
 	{
 		check(SourceLength <= BufferSize);
-		return UE::Core::Private::TPassthruPointer<From>((From*)Buffer);
+		return TPassthruPointer<From>((From*)Buffer);
 	}
 	else
 	{
-		return UE::Core::Private::TStringPassthru<To, From, DefaultConversionSize>(Buffer, BufferSize, SourceLength);
+		return TStringPassthru<To, From, DefaultConversionSize>(Buffer, BufferSize, SourceLength);
 	}
 }
 

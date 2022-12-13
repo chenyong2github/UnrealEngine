@@ -217,7 +217,7 @@ public:
 	 */
 	template <typename OtherElementType,
 		typename = typename TEnableIf<TIsCompatibleElementType<OtherElementType>::Value>::Type>
-	FORCEINLINE TArrayView(OtherElementType* InData UE_LIFETIMEBOUND, SizeType InCount)
+	FORCEINLINE TArrayView(OtherElementType* InData, SizeType InCount)
 		: DataPtr(InData)
 		, ArrayNum(InCount)
 	{
@@ -769,7 +769,7 @@ auto MakeArrayView(OtherRangeType&& Other UE_LIFETIMEBOUND)
 }
 
 template<typename ElementType>
-auto MakeArrayView(ElementType* Pointer UE_LIFETIMEBOUND, int32 Size)
+auto MakeArrayView(ElementType* Pointer, int32 Size)
 {
 	return TArrayView<ElementType>(Pointer, Size);
 }
