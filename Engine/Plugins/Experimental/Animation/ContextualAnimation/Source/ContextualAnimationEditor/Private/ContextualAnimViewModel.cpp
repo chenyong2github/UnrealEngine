@@ -24,6 +24,7 @@
 #include "ContextualAnimSceneAsset.h"
 #include "ContextualAnimManager.h"
 #include "ContextualAnimSceneInstance.h"
+#include "ContextualAnimSceneActorComponent.h"
 #include "AnimNotifyState_IKWindow.h"
 #include "PropertyEditorModule.h"
 #include "Modules/ModuleManager.h"
@@ -277,6 +278,12 @@ AActor* FContextualAnimViewModel::SpawnPreviewActor(const FContextualAnimTrack& 
 				}
 			}
 		}
+
+		check(PreviewActor);
+		UContextualAnimSceneActorComponent* SceneActorComp = NewObject<UContextualAnimSceneActorComponent>(PreviewActor);
+		SceneActorComp->RegisterComponentWithWorld(GetWorld());
+		SceneActorComp->InitializeComponent();
+
 	}
 
 	return PreviewActor;
