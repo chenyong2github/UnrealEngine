@@ -12,7 +12,7 @@ struct FAssetData;
 /**
  * Implements an action for UMediaSource assets.
  */
-class FMediaSourceActions
+class MEDIAPLAYEREDITOR_API FMediaSourceActions
 	: public FAssetTypeActions_Base
 {
 public:
