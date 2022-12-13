@@ -339,6 +339,7 @@ public class UnrealEd : ModuleRules
 				"UncontrolledChangelists",
 				"PropertyEditor",
 				"ClassViewer",
+				"EditorSubsystem"
 			}
 		);
 

@@ -119,6 +119,16 @@ public class Engine : ModuleRules
 			new string[] {
 				"TypedElementFramework",
 				"TypedElementRuntime",
+				"NetCore",
+				"RenderCore",
+				"CoreUObject",
+				"CoreOnline",
+				"PhysicsCore",
+				"ChaosCore",
+				"DeveloperSettings",
+				"NetCommon",
+				"Sockets",
+				"MeshDescription"
 			}
 		);
 
