@@ -26,7 +26,7 @@ namespace mu
 
 		inline void IncRef() const
 		{
-			std::atomic_fetch_add_explicit( &m_refCount, 1u, std::memory_order_relaxed );
+			std::atomic_fetch_add_explicit( &m_refCount, 1, std::memory_order_relaxed );
 		}
 
 		inline void DecRef() const
