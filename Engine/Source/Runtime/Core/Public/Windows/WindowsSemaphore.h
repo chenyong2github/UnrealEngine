@@ -33,7 +33,7 @@ public:
 	bool TryAcquire(FTimespan Timeout = FTimespan::Zero())
 	{
 		HRESULT hRes = WaitForSingleObject(Semaphore, (DWORD)Timeout.GetTotalMilliseconds());
-		checkfSlow(hRes == WAIT_OBJECT_0 || hRes == WAIT_TIMEOUT, TEXT("Acquiring semaphore failed: %d (%d)"), hRes, GetLastError());
+		checkfSlow(hRes == WAIT_OBJECT_0 || hRes == WAIT_TIMEOUT, TEXT("Acquiring semaphore failed: %d (%d)"), (int)hRes, GetLastError());
 		return hRes == WAIT_OBJECT_0;
 	}
 

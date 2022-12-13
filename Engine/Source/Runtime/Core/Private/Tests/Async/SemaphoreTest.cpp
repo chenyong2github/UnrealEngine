@@ -32,7 +32,7 @@ namespace UE::SemaphoreTests
 		std::atomic<uint32> Sync1{ 0 };
 		std::atomic<uint32> Sync2{ 0 };
 
-		for (int i = 0; i != NumThreads; ++i)
+		for (uint32 i = 0; i < NumThreads; ++i)
 		{
 			Threads.Emplace(TEXT("SemaphoreWakeUpPerfTest"),
 				[&Semaphore, &Sync1, &Sync2, &bQuit]
@@ -61,7 +61,7 @@ namespace UE::SemaphoreTests
 			}
 			else
 			{
-				for (int i = 0; i != NumThreads; ++i)
+				for (uint32 i = 0; i < NumThreads; ++i)
 				{
 					Semaphore.Release();
 				}
@@ -73,7 +73,7 @@ namespace UE::SemaphoreTests
 			FPlatformProcess::Sleep(0.0);
 		};
 
-		for (int i = 0; i != NumLoops; ++i)
+		for (uint32 i = 0; i < NumLoops; ++i)
 		{
 			Iteration();
 		}
@@ -104,7 +104,7 @@ namespace UE::SemaphoreTests
 		std::atomic<uint32> Sync1{ 0 };
 		std::atomic<uint32> Sync2{ 0 };
 
-		for (int i = 0; i != NumThreads; ++i)
+		for (uint32 i = 0; i < NumThreads; ++i)
 		{
 			Threads.Emplace(TEXT("MultiEventWakeUpPerfTest"),
 				[Event = &Events[i], &Sync1, &Sync2, &bQuit]()
@@ -127,7 +127,7 @@ namespace UE::SemaphoreTests
 			Sync2 = NumThreads;
 			Sync1 = NumThreads;
 
-			for (int i = 0; i != NumThreads; ++i)
+			for (uint32 i = 0; i < NumThreads; ++i)
 			{
 				Events[i]->Trigger();
 			}
