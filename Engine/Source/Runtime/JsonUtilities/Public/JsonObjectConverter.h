@@ -49,6 +49,8 @@ public: // UStruct -> JSON
 	 */
 	DECLARE_DELEGATE_RetVal_TwoParams(TSharedPtr<FJsonValue>, CustomExportCallback, FProperty* /* Property */, const void* /* Value */);
 
+	static const CustomExportCallback ExportCallback_WriteISO8601Dates;
+
 	/**
 	 * Utility Export Callback for having object properties expanded to full Json.
 	 */
