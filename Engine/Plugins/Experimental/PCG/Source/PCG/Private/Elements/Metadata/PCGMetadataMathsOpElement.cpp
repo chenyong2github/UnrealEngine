@@ -134,6 +134,8 @@ namespace PCGMetadataMathsSettings
 			return PCGMetadataMaths::Clamp(Value1, Value1, Value2);
 		case EPCGMedadataMathsOperation::Pow:
 			return PCGMetadataMaths::Pow(Value1, Value2);
+		case EPCGMedadataMathsOperation::Modulo:
+			return PCGMetadataMaths::Modulo(Value1, Value2);
 		default:
 			return T{};
 		}
@@ -238,7 +240,7 @@ FPCGAttributePropertySelector UPCGMetadataMathsSettings::GetInputSource(uint32 I
 
 FName UPCGMetadataMathsSettings::AdditionalTaskName() const
 {
-	if (const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("/Script/PCG.EPCGMedadataMathsOperation"), true))
+	if (const UEnum* EnumPtr = StaticEnum<EPCGMedadataMathsOperation>())
 	{
 		return FName(FString("Maths: ") + EnumPtr->GetNameStringByValue(static_cast<int>(Operation)));
 	}

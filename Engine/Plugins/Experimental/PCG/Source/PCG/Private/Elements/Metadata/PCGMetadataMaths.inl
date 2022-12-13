@@ -393,4 +393,52 @@ namespace PCGMetadataMaths
 			Lerp(Value1.Z, Value2.Z, Ratio.Z),
 			Lerp(Value1.W, Value2.W, Ratio.W));
 	}
+
+	////////////////////
+	// Modulo
+	////////////////////
+	template <typename T>
+	inline T Modulo(const T& Value1, const T& Value2)
+	{
+		return (Value2 != 0) ? (Value1 % Value2) : 0;
+	}
+
+	template<>
+	inline float Modulo(const float& Value1, const float& Value2)
+	{
+		return static_cast<float>(Modulo(FMath::RoundToInt(Value1), FMath::RoundToInt(Value2)));
+	}
+
+	template<>
+	inline double Modulo(const double& Value1, const double& Value2)
+	{
+		return static_cast<double>(Modulo(FMath::RoundToInt(Value1), FMath::RoundToInt(Value2)));
+	}
+
+	template<>
+	inline FVector2D Modulo(const FVector2D& Value1, const FVector2D& Value2)
+	{
+		return FVector2D(
+			Modulo(Value1.X, Value2.X),
+			Modulo(Value1.Y, Value2.Y));
+	}
+
+	template<>
+	inline FVector Modulo(const FVector& Value1, const FVector& Value2)
+	{
+		return FVector(
+			Modulo(Value1.X, Value2.X),
+			Modulo(Value1.Y, Value2.Y),
+			Modulo(Value1.Z, Value2.Z));
+	}
+
+	template<>
+	inline FVector4 Modulo(const FVector4& Value1, const FVector4& Value2)
+	{
+		return FVector4(
+			Modulo(Value1.X, Value2.X),
+			Modulo(Value1.Y, Value2.Y),
+			Modulo(Value1.Z, Value2.Z),
+			Modulo(Value1.W, Value2.W));
+	}	
 }
