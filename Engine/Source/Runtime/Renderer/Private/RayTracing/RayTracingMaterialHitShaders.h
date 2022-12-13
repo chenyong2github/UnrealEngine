@@ -10,7 +10,7 @@
 
 #include "RayTracingPayloadType.h"
 
-ENGINE_API uint8 ComputeBlendModeMask(const EBlendMode BlendMode);
+ENGINE_API uint8 ComputeBlendModeMask(const FMaterial& Material);
 FRHIRayTracingShader* GetRayTracingDefaultMissShader(const FGlobalShaderMap* ShaderMap);
 FRHIRayTracingShader* GetRayTracingDefaultOpaqueShader(const FGlobalShaderMap* ShaderMap);
 FRHIRayTracingShader* GetRayTracingDefaultHiddenShader(const FGlobalShaderMap* ShaderMap);
@@ -74,16 +74,13 @@ protected:
 			SharedCommand.SetShaders(PassShaders.GetUntypedShaders());
 		}
 
-		EBlendMode BlendMode = MaterialResource.GetBlendMode();
-		EStrataBlendMode StrataBlendMode = MaterialResource.GetStrataBlendMode();
-
-		SharedCommand.InstanceMask = ComputeBlendModeMask(BlendMode);
+		SharedCommand.InstanceMask = ComputeBlendModeMask(MaterialResource);
 		SharedCommand.bCastRayTracedShadows = MeshBatch.CastRayTracedShadow && MaterialResource.CastsRayTracedShadows();
-		SharedCommand.bOpaque = IsOpaqueBlendMode(BlendMode, StrataBlendMode) && !(VertexFactory->GetType()->SupportsRayTracingProceduralPrimitive() && FDataDrivenShaderPlatformInfo::GetSupportsRayTracingProceduralPrimitive(GMaxRHIShaderPlatform));
+		SharedCommand.bOpaque = IsOpaqueBlendMode(MaterialResource) && !(VertexFactory->GetType()->SupportsRayTracingProceduralPrimitive() && FDataDrivenShaderPlatformInfo::GetSupportsRayTracingProceduralPrimitive(GMaxRHIShaderPlatform));
 		SharedCommand.bDecal = MaterialResource.GetMaterialDomain() == EMaterialDomain::MD_DeferredDecal;
 		SharedCommand.bIsSky = MaterialResource.IsSky();
 		SharedCommand.bTwoSided = MaterialResource.IsTwoSided();
-		SharedCommand.bIsTranslucent = IsTranslucentOnlyBlendMode(BlendMode, StrataBlendMode);
+		SharedCommand.bIsTranslucent = IsTranslucentOnlyBlendMode(MaterialResource);
 
 		FVertexInputStreamArray VertexStreams;
 		VertexFactory->GetStreams(ERHIFeatureLevel::SM5, EVertexInputStreamType::Default, VertexStreams);

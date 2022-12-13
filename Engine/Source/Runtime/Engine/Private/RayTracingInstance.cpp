@@ -41,8 +41,7 @@ FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMe
 		if (MeshBatch.bUseForMaterial && MeshBatch.MaterialRenderProxy)
 		{
 			const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel);
-			const EBlendMode BlendMode = Material.GetBlendMode(); // STRATA_TODO_BLENDMODE
-			Result.Mask |= ComputeBlendModeMask(BlendMode);
+			Result.Mask |= ComputeBlendModeMask(Material);
 			bAllSegmentsOpaque &= IsOpaqueBlendMode(Material);
 			bAnySegmentsCastShadow |= MeshBatch.CastRayTracedShadow && Material.CastsRayTracedShadows();
 			bAllSegmentsCastShadow &= MeshBatch.CastRayTracedShadow && Material.CastsRayTracedShadows();
@@ -77,9 +76,9 @@ FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMe
 	return Result;
 }
 
-uint8 ComputeBlendModeMask(const EBlendMode BlendMode)
+uint8 ComputeBlendModeMask(const FMaterial& Material)
 {
-	return (BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked) ? RAY_TRACING_MASK_OPAQUE : RAY_TRACING_MASK_TRANSLUCENT;
+	return IsOpaqueOrMaskedBlendMode(Material) ? RAY_TRACING_MASK_OPAQUE : RAY_TRACING_MASK_TRANSLUCENT;
 }
 
 #endif

@@ -113,5 +113,5 @@ struct FRayTracingInstance
 
 /** Build mask and flags based on materials specified in Materials. You can still override Mask after calling this function. */
 ENGINE_API FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMeshBatch> MeshBatches, ERHIFeatureLevel::Type FeatureLevel, ERayTracingInstanceLayer InstanceLayer = ERayTracingInstanceLayer::NearField, uint8 ExtraMask = 0);
-ENGINE_API uint8 ComputeBlendModeMask(const EBlendMode BlendMode);
+ENGINE_API uint8 ComputeBlendModeMask(const FMaterial& Material);
 #endif
