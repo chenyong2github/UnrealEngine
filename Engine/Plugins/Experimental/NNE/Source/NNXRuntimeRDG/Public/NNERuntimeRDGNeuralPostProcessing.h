@@ -21,6 +21,8 @@ public:
 	int32 Add(FString RuntimeName, UNNEModelData* ModelData);
 	bool Remove(int32 ModelId);
 	bool SetWeight(int32 ModelId, float Weight);
+	bool SetRangeScale(int32 ModelId, float RangeScale);
+	bool SetInputSize(int32 ModelId, FIntPoint InputSize);
 	void Enable(int32 ModelId);
 	void Disable(int32 ModelId);
 
@@ -40,6 +42,8 @@ private:
 	int32 LastId;
 	TMap<int32, TSharedPtr<NNX::FMLInferenceModel, ESPMode::ThreadSafe>> Models;
 	TMap<int32, float> Weights;
+	TMap<int32, float> RangeScales;
+	TMap<int32, FIntPoint> InputSizes;
 	TSet<int32> Enabled;
 
 };
@@ -59,6 +63,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "NNE - Neural Network Engine")
 	bool SetWeight(int32 ModelId, float Weight);
+
+	UFUNCTION(BlueprintCallable, Category = "NNE - Neural Network Engine")
+	bool SetRangeScale(int32 ModelId, float RangeScale);
+	
+	UFUNCTION(BlueprintCallable, Category = "NNE - Neural Network Engine")
+	bool SetInputSize(int32 ModelId, FIntPoint InputSize);
 
 	UFUNCTION(BlueprintCallable, Category = "NNE - Neural Network Engine")
 	void Enable(int32 ModelId);

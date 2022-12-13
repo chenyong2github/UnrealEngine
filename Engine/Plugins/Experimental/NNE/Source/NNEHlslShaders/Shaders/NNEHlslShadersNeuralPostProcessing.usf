@@ -18,6 +18,7 @@ int OutputBufferHeight;
 RWBuffer<float> OutputBuffer;
 
 float Weight;
+float RangeScale;
 
 [numthreads(THREAD_GROUP_SIZE, THREAD_GROUP_SIZE, 1)]
 void ReadInput(in const uint3 DispatchThreadID : SV_DispatchThreadID)
@@ -72,9 +73,9 @@ void PreStep(in const uint3 DispatchThreadID : SV_DispatchThreadID)
 	int Idx = DispatchThreadID.y * InputBufferWidth + DispatchThreadID.x;
 	int Offset1 = InputBufferWidth * InputBufferHeight;
 	int Offset2 = Offset1 + Offset1;
-	InputBuffer[Idx] = Result.r;
-	InputBuffer[Idx + Offset1] = Result.g;
-	InputBuffer[Idx + Offset2] = Result.b;
+	InputBuffer[Idx] = RangeScale * Result.r;
+	InputBuffer[Idx + Offset1] = RangeScale * Result.g;
+	InputBuffer[Idx + Offset2] = RangeScale * Result.b;
 }
 
 [numthreads(THREAD_GROUP_SIZE, THREAD_GROUP_SIZE, 1)]
@@ -129,13 +130,13 @@ void PostStep(in const uint3 DispatchThreadID : SV_DispatchThreadID)
 
 	int ResultIdx = (DispatchThreadID.y * InputTextureWidth + DispatchThreadID.x) * 3;
 #if OVERWRITE == 0
-	AccumulationBuffer[ResultIdx + 0] += Weight * Result.r;
-	AccumulationBuffer[ResultIdx + 1] += Weight * Result.g;
-	AccumulationBuffer[ResultIdx + 2] += Weight * Result.b;
+	AccumulationBuffer[ResultIdx + 0] += Weight * Result.r / RangeScale;
+	AccumulationBuffer[ResultIdx + 1] += Weight * Result.g / RangeScale;
+	AccumulationBuffer[ResultIdx + 2] += Weight * Result.b / RangeScale;
 #else
-	AccumulationBuffer[ResultIdx + 0] = Weight * Result.r;
-	AccumulationBuffer[ResultIdx + 1] = Weight * Result.g;
-	AccumulationBuffer[ResultIdx + 2] = Weight * Result.b;
+	AccumulationBuffer[ResultIdx + 0] = Weight * Result.r / RangeScale;
+	AccumulationBuffer[ResultIdx + 1] = Weight * Result.g / RangeScale;
+	AccumulationBuffer[ResultIdx + 2] = Weight * Result.b / RangeScale;
 #endif
 }
 

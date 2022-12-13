@@ -62,6 +62,7 @@ namespace UE::NNEHlslShaders::Internal
 			SHADER_PARAMETER(int32, InputBufferWidth)
 			SHADER_PARAMETER(int32, InputBufferHeight)
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float>, InputBuffer)
+			SHADER_PARAMETER(float, RangeScale)
 		END_SHADER_PARAMETER_STRUCT()
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);
@@ -86,6 +87,7 @@ namespace UE::NNEHlslShaders::Internal
 			SHADER_PARAMETER(int32, InputTextureHeight)
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float>, AccumulationBuffer)
 			SHADER_PARAMETER(float, Weight)
+			SHADER_PARAMETER(float, RangeScale)
 		END_SHADER_PARAMETER_STRUCT()
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment);

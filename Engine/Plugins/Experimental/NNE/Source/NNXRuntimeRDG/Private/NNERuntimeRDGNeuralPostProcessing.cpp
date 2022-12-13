@@ -64,6 +64,8 @@ int32 FNNENeuralPostProcessing::Add(FString RuntimeName, UNNEModelData* ModelDat
 	// Add the model to the map
 	Models.Add(LastId, Model);
 	SetWeight(LastId, 0.0);
+	SetRangeScale(LastId, 1.0);
+	SetInputSize(LastId, FIntPoint(-1, -1));
 
 	return LastId;
 }
@@ -77,6 +79,8 @@ bool FNNENeuralPostProcessing::Remove(int32 ModelId)
 	Disable(ModelId);
 	Models.Remove(ModelId);
 	Weights.Remove(ModelId);
+	RangeScales.Remove(ModelId);
+	InputSizes.Remove(ModelId);
 
 	return bResult;
 }
@@ -88,6 +92,30 @@ bool FNNENeuralPostProcessing::SetWeight(int32 ModelId, float Weight)
 	if (Models.Find(ModelId) != nullptr)
 	{
 		Weights.Add(ModelId, Weight);
+		return true;
+	}
+	return false;
+}
+
+bool FNNENeuralPostProcessing::SetRangeScale(int32 ModelId, float RangeScale)
+{
+	FScopeLock Lock(&CriticalSection);
+
+	if (Models.Find(ModelId) != nullptr)
+	{
+		RangeScales.Add(ModelId, RangeScale);
+		return true;
+	}
+	return false;
+}
+
+bool FNNENeuralPostProcessing::SetInputSize(int32 ModelId, FIntPoint InputSize)
+{
+	FScopeLock Lock(&CriticalSection);
+
+	if (Models.Find(ModelId) != nullptr)
+	{
+		InputSizes.Add(ModelId, InputSize);
 		return true;
 	}
 	return false;
@@ -213,14 +241,26 @@ void FNNENeuralPostProcessing::PrePostProcessPass_RenderThread(FRDGBuilder& Grap
 				float OutputWeight = *Weights.Find(Pair.Key);
 				if (OutputWeight > WeightEpsilon)
 				{
+					float RangeScale = 1.0;
+					if (RangeScales.Find(Pair.Key))
+					{
+						RangeScale = *RangeScales.Find(Pair.Key);
+					}
+
+					FIntPoint InputSize = FIntPoint(-1, -1);
+					if (InputSizes.Find(Pair.Key))
+					{
+						InputSize = *InputSizes.Find(Pair.Key);
+					}
+
 					NNX::FSymbolicTensorShape InputShape = Pair.Value->GetInputTensorDescs()[0].GetShape();
 
 					checkf(InputShape.Rank() == 4, TEXT("Neural Post Processing requires models with input shape 1 x 3 x height x width!"))
 					checkf(InputShape.Data[0] == 1, TEXT("Neural Post Processing requires models with input shape 1 x 3 x height x width!"))
 					checkf(InputShape.Data[1] == 3, TEXT("Neural Post Processing requires models with input shape 1 x 3 x height x width!"))
 
-					int32 NeuralNetworkInputWidth = InputShape.Data[3] < 0 ? TextureSize.X : InputShape.Data[3];
-					int32 NeuralNetworkInputHeight = InputShape.Data[2] < 0 ? TextureSize.Y : InputShape.Data[2];
+					int32 NeuralNetworkInputWidth = InputShape.Data[3] >= 0 ? InputShape.Data[3] : (InputSize.X >= 0 ? InputSize.X : TextureSize.X);
+					int32 NeuralNetworkInputHeight = InputShape.Data[2] >= 0 ? InputShape.Data[2] : (InputSize.Y >= 0 ? InputSize.Y : TextureSize.Y);
 
 					FRDGBufferDesc InputBufferDesc = FRDGBufferDesc::CreateBufferDesc(sizeof(float), NeuralNetworkInputWidth * NeuralNetworkInputHeight * 3);
 					FRDGBufferRef InputBuffer = GraphBuilder.CreateBuffer(InputBufferDesc, *(FString("NNENeuralPostProcessing::NeuralNetowrkInput_") + FString::FromInt(Pair.Key)));
@@ -234,6 +274,7 @@ void FNNENeuralPostProcessing::PrePostProcessPass_RenderThread(FRDGBuilder& Grap
 					PreStepParameters->InputBufferWidth = NeuralNetworkInputWidth;
 					PreStepParameters->InputBufferHeight = NeuralNetworkInputHeight;
 					PreStepParameters->InputBuffer = InputBufferUAV;
+					PreStepParameters->RangeScale = RangeScale;
 
 					FIntVector PreStepThreadGroupCount = FIntVector(FMath::DivideAndRoundUp(NeuralNetworkInputWidth, FNeuralPostProcessingConstants::THREAD_GROUP_SIZE), FMath::DivideAndRoundUp(NeuralNetworkInputHeight, FNeuralPostProcessingConstants::THREAD_GROUP_SIZE), 1);
 					TShaderMapRef<TNeuralPostProcessingPreStepCS> PreStepShader(GlobalShaderMap);
@@ -282,6 +323,7 @@ void FNNENeuralPostProcessing::PrePostProcessPass_RenderThread(FRDGBuilder& Grap
 					PostStepParameters->InputTextureHeight = TextureSize.Y;
 					PostStepParameters->AccumulationBuffer = AccumulationBufferUAV;
 					PostStepParameters->Weight = OutputWeight;
+					PostStepParameters->RangeScale = RangeScale;
 
 					TNeuralPostProcessingPostStepCS::FPermutationDomain PermutationVector;
 					PermutationVector.Set<TNeuralPostProcessingPostStepCS::FNeuralPostProcessingOverwrite>(bOverwrite ? ENeuralPostProcessingOverwrite::Yes : ENeuralPostProcessingOverwrite::No);
@@ -352,6 +394,24 @@ bool UNNENeuralPostProcessing::SetWeight(int32 ModelId, float Weight)
 		NeuralPostProcessing = FSceneViewExtensions::NewExtension<FNNENeuralPostProcessing>();
 	}
 	return NeuralPostProcessing->SetWeight(ModelId, Weight);
+}
+
+bool UNNENeuralPostProcessing::SetRangeScale(int32 ModelId, float RangeScale)
+{
+	if (!NeuralPostProcessing.IsValid())
+	{
+		NeuralPostProcessing = FSceneViewExtensions::NewExtension<FNNENeuralPostProcessing>();
+	}
+	return NeuralPostProcessing->SetRangeScale(ModelId, RangeScale);
+}
+
+bool UNNENeuralPostProcessing::SetInputSize(int32 ModelId, FIntPoint InputSize)
+{
+	if (!NeuralPostProcessing.IsValid())
+	{
+		NeuralPostProcessing = FSceneViewExtensions::NewExtension<FNNENeuralPostProcessing>();
+	}
+	return NeuralPostProcessing->SetInputSize(ModelId, InputSize);
 }
 
 void UNNENeuralPostProcessing::Enable(int32 ModelId)
