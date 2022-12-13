@@ -26,6 +26,9 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (ValidEnumValues = "Float, Double, Integer32, Integer64, Vector2, Vector, Vector4, Quaternion, Transform, String, Boolean, Rotator, Name"))
 	EPCGMetadataTypes Type = EPCGMetadataTypes::Double;
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Type == EPCGMetadataTypes::String", EditConditionHides))
+	bool bStringAsSoftObjectPath = false;
+
 	// All different types
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Type == EPCGMetadataTypes::Float", EditConditionHides))
 	float FloatValue = 0.0f;
@@ -54,7 +57,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Type == EPCGMetadataTypes::Transform", EditConditionHides))
 	FTransform TransformValue = FTransform::Identity;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Type == EPCGMetadataTypes::String", EditConditionHides))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Type == EPCGMetadataTypes::String && !bStringAsSoftObjectPath", EditConditionHides))
 	FString StringValue = "";
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Type == EPCGMetadataTypes::Boolean", EditConditionHides))
@@ -65,6 +68,9 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Type == EPCGMetadataTypes::Name", EditConditionHides))
 	FName NameValue = NAME_None;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Type == EPCGMetadataTypes::String && bStringAsSoftObjectPath", EditConditionHides))
+	FSoftClassPath SoftObjectPathValue;
 };
 
 template <typename Func>
@@ -93,7 +99,14 @@ decltype(auto) FPCGMetadataTypesConstantStruct::DispatcherWithOverride(const UPC
 	case EPCGMetadataTypes::Transform:
 		return Callback(PCG_GET_OVERRIDEN_VALUE(this, TransformValue, Params));
 	case EPCGMetadataTypes::String:
-		return Callback(PCG_GET_OVERRIDEN_VALUE(this, StringValue, Params));
+		if (bStringAsSoftObjectPath)
+		{
+			return Callback(PCG_GET_OVERRIDEN_VALUE(this, SoftObjectPathValue.ToString(), Params));
+		}
+		else
+		{
+			return Callback(PCG_GET_OVERRIDEN_VALUE(this, StringValue, Params));
+		}
 	case EPCGMetadataTypes::Boolean:
 		return Callback(PCG_GET_OVERRIDEN_VALUE(this, BoolValue, Params));
 	case EPCGMetadataTypes::Rotator:

@@ -21,9 +21,12 @@ UPCGEditorGraphNode::UPCGEditorGraphNode(const FObjectInitializer& ObjectInitial
 
 FText UPCGEditorGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
+	constexpr int32 NodeTitleMaxSize = 70;
+
 	if (PCGNode)
 	{
-		return FText::FromName(PCGNode->GetNodeTitle());
+		FString Res = PCGNode->GetNodeTitle().ToString();
+		return FText::FromString((Res.Len() > NodeTitleMaxSize) ? Res.Left(NodeTitleMaxSize) : Res);
 	}
 	else
 	{

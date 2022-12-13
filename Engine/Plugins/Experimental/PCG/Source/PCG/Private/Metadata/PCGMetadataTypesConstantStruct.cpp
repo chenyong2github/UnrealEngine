@@ -15,7 +15,14 @@ FString FPCGMetadataTypesConstantStruct::ToString() const
 	case EPCGMetadataTypes::Double:
 		return FString::Printf(TEXT("%.2f"), DoubleValue);
 	case EPCGMetadataTypes::String:
-		return FString::Printf(TEXT("\"%s\""), *StringValue);
+		if (bStringAsSoftObjectPath)
+		{
+			return FString::Printf(TEXT("\"%s\""), *(SoftObjectPathValue.GetAssetName()));
+		}
+		else
+		{
+			return FString::Printf(TEXT("\"%s\""), *StringValue);
+		}
 	case EPCGMetadataTypes::Name:
 		return FString::Printf(TEXT("N(\"%s\")"), *NameValue.ToString());
 	case EPCGMetadataTypes::Vector2:
