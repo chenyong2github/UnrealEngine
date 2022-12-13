@@ -46,12 +46,12 @@
 #include "Chaos/ParticleHandle.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 
-#define LOCTEXT_NAMESPACE "BodyInstance"
-
 #include "Components/ModelComponent.h"
 #include "Components/BrushComponent.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "PhysicsEngine/PhysicsSettings.h"
+
+#define LOCTEXT_NAMESPACE "BodyInstance"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BodyInstance)
 
