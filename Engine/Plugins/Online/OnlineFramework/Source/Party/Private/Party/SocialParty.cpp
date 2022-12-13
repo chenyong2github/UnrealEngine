@@ -928,16 +928,33 @@ void USocialParty::HandlePartyConfigChanged(const FUniqueNetId& LocalUserId, con
 
 void USocialParty::HandleUpdatePartyConfigComplete(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, EUpdateConfigCompletionResult Result)
 {
+	if (!OssParty.IsValid())
+	{
+		UE_LOG(LogParty, Error, TEXT("[%s] Invalid OssParty value. Party %s"), ANSI_TO_TCHAR(__FUNCTION__), *PartyId.ToDebugString());
+		return;
+	}
+
 	if (Result == EUpdateConfigCompletionResult::Succeeded)
 	{
-		UE_LOG(LogParty, Verbose, TEXT("[%s] Party config updated %s"), *PartyId.ToDebugString(), ToString(Result));
-
 		CurrentConfig = *OssParty->GetConfiguration();
+		UE_LOG(LogParty, Verbose, TEXT("[%s] Success updating Party Config for %s - OssParty Configuration:%s"),
+			ANSI_TO_TCHAR(__FUNCTION__),
+			*PartyId.ToDebugString(),
+			*::ToDebugString(CurrentConfig)
+		);
+
 		OnPartyConfigurationChanged().Broadcast(CurrentConfig);
 	}
 	else
-	{
-		UE_LOG(LogParty, Warning, TEXT("Failed to update config for party [%s]"), *PartyId.ToDebugString());
+	{	
+		const FPartyConfiguration& OssConfig = *OssParty->GetConfiguration();
+		UE_LOG(LogParty, Error, TEXT("[%s] Failed to update Party Config for %s - Current Configuration:%s Oss Configuration:%s Result:%s"),
+			ANSI_TO_TCHAR(__FUNCTION__),
+			*PartyId.ToDebugString(),
+			*::ToDebugString(CurrentConfig),
+			*::ToDebugString(OssConfig),
+			ToString(Result)
+		);
 	}
 }
 
