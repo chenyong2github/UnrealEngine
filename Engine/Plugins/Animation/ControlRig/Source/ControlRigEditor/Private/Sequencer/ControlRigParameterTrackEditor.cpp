@@ -3472,8 +3472,9 @@ FKeyPropertyResult FControlRigParameterTrackEditor::AddKeysToControlRigHandle(US
 					RigControlName, OptionalKeyTime);
 
 				// compensate constraints
+				const uint32 ControlHash = UTransformableControlHandle::ComputeHash(SectionControlRig, RigControlName);
 				FConstraintChannelHelper::CompensateIfNeeded(
-					SectionControlRig->GetWorld(), GetSequencer(), ParamSection, OptionalKeyTime);
+					SectionControlRig->GetWorld(), GetSequencer(), ParamSection, OptionalKeyTime, ControlHash);
 			}
 		}
 	}

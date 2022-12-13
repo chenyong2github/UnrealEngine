@@ -46,7 +46,8 @@ public:
 		UWorld* InWorld,
 		const TSharedPtr<ISequencer>& InSequencer,
 		IMovieSceneConstrainedSection* Section,
-		const TOptional<FFrameNumber>& OptionalTime);
+		const TOptional<FFrameNumber>& OptionalTime,
+		const int32 InChildHash = INDEX_NONE);
 
 	/** @todo documentation. */
 	static UMovieSceneControlRigParameterSection* GetControlSection(
