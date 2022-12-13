@@ -338,12 +338,23 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	void SetPresetOrigin(UMoviePipelinePrimaryConfig* InPreset);
 
+	/**
+	 * Gets the preset for this job, but only if the preset has not been modified. If it has been modified, or the preset
+	 * no longer exists, returns nullptr.
+	 * @see GetConfiguration()
+	 */
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
 	UMoviePipelinePrimaryConfig* GetPresetOrigin() const 
 	{
 		return PresetOrigin.LoadSynchronous();
 	}
 
+	/**
+	 * Gets the configuration for the job. This configuration is either standalone (not associated with any preset), or
+	 * contains a copy of the preset origin plus any modifications made on top of it. If the preset that this
+	 * configuration was originally based on no longer exists, this configuration will still be valid.
+	 * @see GetPresetOrigin()
+	 */
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
 	UMoviePipelinePrimaryConfig* GetConfiguration() const
 	{

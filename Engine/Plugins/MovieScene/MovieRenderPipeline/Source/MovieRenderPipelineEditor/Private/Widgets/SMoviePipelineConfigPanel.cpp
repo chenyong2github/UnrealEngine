@@ -60,11 +60,12 @@ void SMoviePipelineConfigPanel::Construct(const FArguments& InArgs, TSubclassOf<
 		if (InArgs._BasePreset)
 		{
 			TransientPreset->CopyFrom(InArgs._BasePreset);
-			PresetUsedIfNotModified = InArgs._BasePreset;
+			OriginPreset = InArgs._BasePreset;
 		}
 		else if (InArgs._BaseConfig)
 		{
 			TransientPreset->CopyFrom(InArgs._BaseConfig);
+			OriginPreset = nullptr;
 		}
 	}
 	else
@@ -154,7 +155,7 @@ void SMoviePipelineConfigPanel::Construct(const FArguments& InArgs, TSubclassOf<
 						.Padding(0, 1, 0, 0)
 						[
 							SNew(STextBlock)
-							.Text(LOCTEXT("PresetsToolbarButton", "Load/Save Preset"))
+							.Text(this, &SMoviePipelineConfigPanel::GetPresetsMenuButtonText)
 						]
 					]
 				]
@@ -239,6 +240,19 @@ void SMoviePipelineConfigPanel::Construct(const FArguments& InArgs, TSubclassOf<
 
 UE_ENABLE_OPTIMIZATION_SHIP
 
+FText SMoviePipelineConfigPanel::GetPresetsMenuButtonText() const
+{
+	const FString PresetName = GetConfigOriginName();
+	if (!PresetName.IsEmpty())
+	{
+		return FText::Format(FText::FromString(TEXT("{0}{1}")),
+			FText::FromString(PresetName),
+			FText::FromString(IsConfigDirty() ? TEXT(" *") : TEXT("")));
+	}
+	
+	return LOCTEXT("PresetsSaveMenuUnsavedConfig_Text", "Unsaved Config *");
+}
+
 FText SMoviePipelineConfigPanel::GetConfigTypeLabel() const
 {
 	return LOCTEXT("PrimaryConfigType_Label", "PRIMARY");
@@ -251,14 +265,21 @@ FReply SMoviePipelineConfigPanel::OnConfirmChanges()
 	// accept will simply assign that preset to the resulting job. Because the UI
 	// works on a copy it is hard to tell so we separately track the last preset-based
 	// action and then clear it if they've modified 'it' (which is actually our UI copy).
-	if (PresetUsedIfNotModified.IsValid())
+	if (OriginPreset.IsValid() && !bHasModifiedLoadedPreset)
 	{
 		// They just want to use the preset. We'll call a different callback so it's easier for
 		// the caller to determine the intent.
-		OnConfigurationSetToPreset.ExecuteIfBound(WeakJob, WeakShot, PresetUsedIfNotModified.Get());
+		OnConfigurationSetToPreset.ExecuteIfBound(WeakJob, WeakShot, OriginPreset.Get());
 	}
 	else
 	{
+		// If the panel was originally loaded up with an origin preset, but changes have been
+		// made, update the transient preset to indicate where it came from
+		if (OriginPreset.IsValid())
+		{
+			TransientPreset->SetConfigOrigin(OriginPreset.Get());
+		}
+		
 		// They modified the object after the last preset action, then we'll just use 
 		// the transient ui copy and the owning job will know it has been modified.
 		OnConfigurationModified.ExecuteIfBound(WeakJob, WeakShot, TransientPreset);
@@ -343,10 +364,39 @@ TSharedRef<SWidget> SMoviePipelineConfigPanel::OnGeneratePresetsMenu()
 
 	IContentBrowserSingleton& ContentBrowser = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
 
+	static const FText NoLoadedPresetText = LOCTEXT("NoLoadedPreset", "None");
+	static const FText LoadedPresetFormatText = LOCTEXT("LoadedPresetFormat", "Current Preset: {0}");
+	const FString PresetName = GetConfigOriginName();
+	const FText LoadedPresetName = FText::Format(
+		LoadedPresetFormatText, !PresetName.IsEmpty() ? FText::FromString(PresetName) : NoLoadedPresetText);
+
+	MenuBuilder.AddMenuEntry(
+		LoadedPresetName,
+		LoadedPresetName,
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction(),
+			FCanExecuteAction::CreateLambda([]() { return false; })),
+		NAME_None,
+		EUserInterfaceActionType::None
+	);
+
+	MenuBuilder.AddMenuSeparator();
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("SavePreset_Text", "Save Preset"),
+		LOCTEXT("SavePreset_Tip", "Save the current preset if one has been loaded."),
+		FSlateIcon(FAppStyle::Get().GetStyleSetName(), "AssetEditor.SaveAsset"),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &SMoviePipelineConfigPanel::OnSavePreset),
+			FCanExecuteAction::CreateSP(this, &SMoviePipelineConfigPanel::CanSavePreset)
+		)
+	);
+
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("SaveAsPreset_Text", "Save As Preset"),
 		LOCTEXT("SaveAsPreset_Tip", "Save the current configuration as a new preset that can be shared between multiple jobs, or imported later as the base of a new configuration."),
-		FSlateIcon(FAppStyle::Get().GetStyleSetName(), "AssetEditor.SaveAsset"),
+		FSlateIcon(FAppStyle::Get().GetStyleSetName(), "AssetEditor.SaveAssetAs"),
 		FUIAction(FExecuteAction::CreateSP(this, &SMoviePipelineConfigPanel::OnSaveAsPreset))
 	);
 
@@ -470,6 +520,20 @@ bool SMoviePipelineConfigPanel::GetSavePresetPackageName(const FString& InExisti
 	return true;
 }
 
+void SMoviePipelineConfigPanel::OnSavePreset()
+{
+	UMoviePipelineConfigBase* ConfigOrigin = GetConfigOrigin();
+	
+	// If the preset origin is not known, then treat the "Save" as a "Save As"
+	if (!ConfigOrigin)
+	{
+		OnSaveAsPreset();
+		return;
+	}
+	
+	SaveTransientPresetToAsset(ConfigOrigin);
+}
+
 void SMoviePipelineConfigPanel::OnSaveAsPreset()
 {
 	FString PackageName;
@@ -478,23 +542,27 @@ void SMoviePipelineConfigPanel::OnSaveAsPreset()
 		return;
 	}
 
-	FScopedTransaction Transaction(LOCTEXT("SaveAsPreset", "Save As Preset"));
-
 	// Saving into a new package
 	const FString NewAssetName = FPackageName::GetLongPackageAssetName(PackageName);
-	UPackage*     NewPackage = CreatePackage(*PackageName);
+	UPackage* NewPackage = CreatePackage(*PackageName);
 	NewPackage->MarkAsFullyLoaded();
-	UMoviePipelineConfigBase*  NewPreset = NewObject<UMoviePipelineConfigBase>(NewPackage, ConfigAssetType, *NewAssetName, RF_Public | RF_Standalone | RF_Transactional);
-	
-	if (NewPreset)
+	UMoviePipelineConfigBase* NewPreset = NewObject<UMoviePipelineConfigBase>(NewPackage, ConfigAssetType, *NewAssetName, RF_Public | RF_Standalone | RF_Transactional);
+
+	SaveTransientPresetToAsset(NewPreset);
+}
+
+void SMoviePipelineConfigPanel::SaveTransientPresetToAsset(UMoviePipelineConfigBase* DestinationPreset)
+{
+	if (TransientPreset && DestinationPreset)
 	{
-		NewPreset->CopyFrom(TransientPreset);
-		NewPreset->MarkPackageDirty();
+		DestinationPreset->CopyFrom(TransientPreset);
+		DestinationPreset->SetConfigOrigin(DestinationPreset);
+		DestinationPreset->MarkPackageDirty();
 
 		// We need to be able to save an empty string into the file. When we duplicate the Output Setting in CopyFrom, the PostLoad is fired which fixes it back up
 		// to point to the local output directory. A bit unfortunate but we need to do this after the CopyFrom since it needs to only happen on asset save.
 		UMoviePipelineOutputSetting* ExistingOutputSetting = TransientPreset->FindSetting<UMoviePipelineOutputSetting>();
-		UMoviePipelineOutputSetting* NewOutputSetting = NewPreset->FindSetting<UMoviePipelineOutputSetting>();
+		UMoviePipelineOutputSetting* NewOutputSetting = DestinationPreset->FindSetting<UMoviePipelineOutputSetting>();
 		if (ExistingOutputSetting && NewOutputSetting)
 		{
 			if (ExistingOutputSetting->OutputDirectory.Path.Len() == 0)
@@ -505,23 +573,26 @@ void SMoviePipelineConfigPanel::OnSaveAsPreset()
 		}
 		
 		// Make the Display Name match the preset name so when imported later they look like the asset.
-		NewPreset->DisplayName = NewAssetName;
+		DestinationPreset->DisplayName = DestinationPreset->GetName();
 
-		FAssetRegistryModule::AssetCreated(NewPreset);
+		FAssetRegistryModule::AssetCreated(DestinationPreset);
 
-		FEditorFileUtils::EPromptReturnCode PromptReturnCode = FEditorFileUtils::PromptForCheckoutAndSave({ NewPackage }, false, false);
+		const bool bCheckDirty = false;
+		const bool bPromptToSave = false;
+		FEditorFileUtils::EPromptReturnCode PromptReturnCode = FEditorFileUtils::PromptForCheckoutAndSave({ DestinationPreset->GetPackage() }, bCheckDirty, bPromptToSave);
 		if (PromptReturnCode == FEditorFileUtils::EPromptReturnCode::PR_Success)
 		{
 			// If the user has exported a new preset, they expect that hitting accept will
 			// just use that preset directly, unless they further modify the ui. Because this
 			// ui uses a copy of the object there's no good way to compare them after closing
 			// the dialog.
-			PresetUsedIfNotModified = NewPreset;
+			bHasModifiedLoadedPreset = false;
+			OriginPreset = DestinationPreset;
 
 			// We also want to rename our transient preset. The name is used to indicate what preset
 			// it originally came from, and now the closest preset to it is not the original but the
 			// newly exported preset.
-			// @todo
+			TransientPreset->DisplayName = DestinationPreset->DisplayName;
 		}
 
 		// CockpitWidget->GetMetaData()->SetPresetOrigin(NewPreset);
@@ -536,13 +607,24 @@ void SMoviePipelineConfigPanel::OnAnyObjectModified(UObject* InModifiedObject)
 	{
 		if (InModifiedObject->IsIn(TransientPreset) || (InModifiedObject == TransientPreset))
 		{
-			PresetUsedIfNotModified = nullptr;
+			bHasModifiedLoadedPreset = true;
 		}
 	}
 }
 
 void SMoviePipelineConfigPanel::OnImportPreset(const FAssetData& InPresetAsset)
 {
+	if (IsConfigDirty())
+	{
+		const FText TitleText = LOCTEXT("UnsavedPresetWarningTitle", "Unsaved Changes to Preset");
+		const FText MessageText = LOCTEXT("UnsavedPresetWarningMessage", "The changes made to the current preset will be lost by importing another preset. Do you want to continue with this import?");
+
+		if (FMessageDialog::Open(EAppMsgType::YesNo, MessageText, &TitleText) == EAppReturnType::No)
+		{
+			return;
+		}
+	}
+	
 	FSlateApplication::Get().DismissAllMenus();
 
 	UMoviePipelineConfigBase* Preset = CastChecked<UMoviePipelineConfigBase>(InPresetAsset.GetAsset());
@@ -553,9 +635,23 @@ void SMoviePipelineConfigPanel::OnImportPreset(const FAssetData& InPresetAsset)
 		TransientPreset->Modify();
 		TransientPreset->CopyFrom(Preset);
 
-		PresetUsedIfNotModified = Preset;
+		bHasModifiedLoadedPreset = false;
+		OriginPreset = Preset;
 		// CockpitWidget->GetMetaData()->SetPresetOrigin(Take);
 	}
+}
+
+bool SMoviePipelineConfigPanel::CanSavePreset() const
+{
+	// If a transient preset is loaded, "Save" will always be available (although it may trigger a "Save As" if the
+	// transient's origin preset is not known)
+	if (!OriginPreset.IsValid() && TransientPreset)
+	{
+		return true;
+	}
+
+	// If a non-transient preset is loaded, it can be saved as long as it has been modified
+	return bHasModifiedLoadedPreset;
 }
 
 void SMoviePipelineConfigPanel::AddReferencedObjects(FReferenceCollector& Collector)
@@ -582,4 +678,38 @@ TSharedRef<SWidget> SMoviePipelineConfigPanel::MakeSettingsWidget()
 {
 	return MoviePipelineEditorWidget->MakeAddSettingButton();
 }
+
+bool SMoviePipelineConfigPanel::IsConfigDirty() const
+{
+	// The preset is dirty if...
+	// 1) There was never an origin preset specified, meaning this is a purely transient config, or
+	// 2) There *was* an origin preset, but it has been modified after being loaded in this dialog
+	return !OriginPreset.IsValid() || (OriginPreset.IsValid() && bHasModifiedLoadedPreset);
+}
+
+UMoviePipelineConfigBase* SMoviePipelineConfigPanel::GetConfigOrigin() const
+{
+	if (OriginPreset.IsValid())
+	{
+		return OriginPreset.Get();
+	}
+	
+	if (TransientPreset->GetConfigOrigin())
+	{
+		return TransientPreset->GetConfigOrigin();
+	}
+
+	return nullptr;
+}
+
+FString SMoviePipelineConfigPanel::GetConfigOriginName() const
+{
+	if (const UMoviePipelineConfigBase* ConfigOrigin = GetConfigOrigin())
+	{
+		return ConfigOrigin->DisplayName;
+	}
+
+	return FString();
+}
+
 #undef LOCTEXT_NAMESPACE // SMoviePipelinePanel

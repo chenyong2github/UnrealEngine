@@ -46,6 +46,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	virtual TArray<UMoviePipelineSetting*> GetUserSettings() const { return Settings; }
 
+	/**
+	 * Gets the config that this config was originally based on (if any). Helpful for determining where a transient
+	 * config came from.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
+	UMoviePipelineConfigBase* GetConfigOrigin() const { return ConfigOrigin.LoadSynchronous(); }
+
+	/**
+	 * Sets the config that this config originated from (if any).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
+	void SetConfigOrigin(UMoviePipelineConfigBase* InConfig) { ConfigOrigin = InConfig; }
+
 public:
 	template<typename SettingType>
 	TArray<SettingType*> FindSettings(const bool bIncludeDisabledSettings = false) const
@@ -170,5 +183,9 @@ protected:
 	TArray<TObjectPtr<UMoviePipelineSetting>> Settings;
 
 private:
+	/** The config that this config originated from. Helpful for transient configs. */
+	UPROPERTY()
+	TSoftObjectPtr<UMoviePipelineConfigBase> ConfigOrigin;
+	
 	int32 SettingsSerialNumber;
 };

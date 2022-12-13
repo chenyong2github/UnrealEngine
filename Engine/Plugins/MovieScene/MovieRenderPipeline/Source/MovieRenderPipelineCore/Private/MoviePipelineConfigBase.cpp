@@ -19,12 +19,19 @@ void UMoviePipelineConfigBase::RemoveSetting(UMoviePipelineSetting* InSetting)
 
 void UMoviePipelineConfigBase::CopyFrom(UMoviePipelineConfigBase* InConfig)
 {
+	if (!InConfig)
+	{
+		return;
+	}
+	
 	// Don't allow copying ourself to ourself as we first wipe out our settings array
 	// and then copy from the other config's settings array which will now be empty.
 	if (InConfig == this)
 	{
 		return;
 	}
+
+	ConfigOrigin = InConfig->ConfigOrigin;
 
 #if WITH_EDITOR
 	Modify();

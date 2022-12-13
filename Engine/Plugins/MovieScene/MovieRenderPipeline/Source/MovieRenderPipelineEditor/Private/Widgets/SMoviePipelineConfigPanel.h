@@ -71,6 +71,7 @@ private:
 	/** Generate the widget that is visible in the Choose Preset dropdown. */
 	TSharedRef<SWidget> OnGeneratePresetsMenu();
 	
+	FText GetPresetsMenuButtonText() const;
 	FText GetConfigTypeLabel() const;
 
 	FReply OnCancelChanges();
@@ -86,8 +87,18 @@ private:
 	
 	/** When a user wants to import an existing preset asset over the current config. */
 	void OnImportPreset(const FAssetData& InPresetAsset);
-	/** Save the current configuration out to an asset. */
+
+	/** Returns true if the user can save the current preset, else false. */
+	bool CanSavePreset() const;
+	
+	/** Saves the current preset to its existing asset, or triggers a "Save As" if a transient preset is being saved. */
+	void OnSavePreset();
+	
+	/** Saves the current preset out to a new or existing asset. */
 	void OnSaveAsPreset();
+
+	/** Saves the transient preset to DestinationPreset. */
+	void SaveTransientPresetToAsset(UMoviePipelineConfigBase* DestinationPreset);
 
 	FText GetValidationWarningText() const;
 
@@ -95,11 +106,19 @@ public:
 	TSharedRef<SWidget> MakeSettingsWidget();
 
 private:
-	/** The transient preset that we use - kept alive by AddReferencedObjects */
-	UMoviePipelineConfigBase* TransientPreset;
+	bool IsConfigDirty() const;
+	UMoviePipelineConfigBase* GetConfigOrigin() const;
+	FString GetConfigOriginName() const;
 
-	/** This is set each time the user performs an action that makes them feel like they've used a specific preset in this UI. */
-	TSoftObjectPtr<UMoviePipelineConfigBase> PresetUsedIfNotModified;
+private:
+	/** The transient preset that we use - kept alive by AddReferencedObjects */
+	UMoviePipelineConfigBase* TransientPreset = nullptr;
+
+	/** The preset that is in use, if any. Will be null if the preset was never saved and is only transient. */
+	TSoftObjectPtr<UMoviePipelineConfigBase> OriginPreset;
+
+	/** Whether the preset (transient or otherwise) has been modified while loaded in this panel. */
+	bool bHasModifiedLoadedPreset = false;
 
 	/** The job this editing panel is for. Kept alive externally. */
 	TWeakObjectPtr<UMoviePipelineExecutorJob> WeakJob;
