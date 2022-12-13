@@ -9,6 +9,7 @@
 #if RHI_RAYTRACING
 
 #include "RayTracingDefinitions.h"
+#include "MaterialShared.h"
 
 void FRayTracingInstance::BuildInstanceMaskAndFlags(ERHIFeatureLevel::Type FeatureLevel, ERayTracingInstanceLayer InstanceLayer, uint8 ExtraMask)
 {
