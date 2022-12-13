@@ -1023,17 +1023,16 @@ public:
 			}
 			else if (FLiteralTypeHelper::IsDelegate(&Term->Type, CoerceProperty))
 			{
-				if (Term->Name == TEXT(""))
-				{
-					ensureMsgf(false, TEXT("Cannot use an empty literal expression for a delegate property"));
-				}
-				else
-				{
-					FName FunctionName(*(Term->Name)); //@TODO: K2 Delegate Support: Need to verify this function actually exists and has the right signature?
+				FName FunctionName;
 
-					Writer << EX_InstanceDelegate;
-					Writer << FunctionName;
+				// Deliberately null delegates are allowed, using empty string or the ExportText format
+				if (Term->Name != TEXT("") && Term->Name != TEXT("(null).None"))
+				{
+					FunctionName = *Term->Name; //@TODO: K2 Delegate Support: Need to verify this function actually exists and has the right signature?
 				}
+	
+				Writer << EX_InstanceDelegate;
+				Writer << FunctionName;
 			}
 			else if (FLiteralTypeHelper::IsSoftObject(&Term->Type, CoerceProperty))
 			{

@@ -185,6 +185,7 @@ namespace DelegatePropertyTools
 
 		TCHAR ObjName[NAME_SIZE];
 		TCHAR FuncName[NAME_SIZE];
+
 		// Get object name
 		int32 i;
 		while (*Buffer == TEXT('('))
@@ -198,6 +199,15 @@ namespace DelegatePropertyTools
 		ObjName[i] = TCHAR('\0');
 		UClass* Cls = nullptr;
 		UObject* Object = nullptr;
+		bool bIsNullClass = false;
+		
+		// Handle (null).None syntax used for empty delegates in ExportText
+		if (*Buffer == TCHAR(')') && FCString::Strcmp(ObjName, TEXT("null")) == 0)
+		{
+			++Buffer;
+			bIsNullClass = true;
+		}
+
 		// Get function name
 		if (*Buffer == TCHAR('.'))
 		{
@@ -235,6 +245,26 @@ namespace DelegatePropertyTools
 			}
 			FCString::Strncpy(FuncName, ObjName, i + 1);
 		}
+
+		if (bIsNullClass)
+		{
+			FName ParsedName(FuncName);
+			if (ParsedName == NAME_None)
+			{
+				// Deliberately null
+				Delegate.Unbind();
+				return Buffer;
+			}
+			else
+			{
+				FString DelegateString = Delegate.GetFunctionName().ToString();
+				FString SignatureFunctionString = GetNameSafe(SignatureFunction);
+				ErrorText->Logf(ELogVerbosity::Warning, TEXT("Cannot import delegate with function name %s but null class. Delegate=%s SignatureFunction=%s"),
+					*FuncName, *DelegateString, *SignatureFunctionString);
+				return nullptr;
+			}
+		}
+
 		if (Cls == nullptr)
 		{
 			Cls = UClass::TryFindTypeSlow<UClass>(ObjName);

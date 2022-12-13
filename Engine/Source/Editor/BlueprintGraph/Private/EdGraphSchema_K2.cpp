@@ -4421,6 +4421,14 @@ bool UEdGraphSchema_K2::DefaultValueSimpleValidation(const FEdGraphPinType& PinT
 	{
 		// Anything is allowed
 	}
+	else if (PinCategory == TEXT("Delegate"))
+	{
+		// Only empty delegates are allowed, support both empty string and the format used in ExportText
+		if (!NewDefaultValue.IsEmpty() && NewDefaultValue != TEXT("(null).None"))
+		{
+			DVSV_RETURN_MSG(FString::Printf(TEXT("Unsupported value %s for delegate pin %s, only empty delegates are supported"), *NewDefaultValue, *PinName.ToString()));
+		}
+	}
 	else
 	{
 		//@TODO: MessageLog.Error(*FString::Printf(TEXT("Unsupported type %s on @@"), *UEdGraphSchema_K2::TypeToText(Type).ToString()), SourceObject);
