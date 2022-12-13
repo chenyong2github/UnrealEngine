@@ -3378,6 +3378,7 @@ UTransformableControlHandle* UControlRig::CreateTransformableControlHandle(
 	
 	UTransformableControlHandle* CtrlHandle = NewObject<UTransformableControlHandle>(InOuter);
 	ensure(CtrlHandle);
+	CtrlHandle->SetFlags(RF_Transactional);
 	CtrlHandle->ControlRig = this;
 	CtrlHandle->ControlName = InControlName;
 	CtrlHandle->RegisterDelegates();

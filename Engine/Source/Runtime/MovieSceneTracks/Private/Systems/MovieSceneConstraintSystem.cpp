@@ -121,11 +121,18 @@ void UMovieSceneConstraintSystem::OnRun(FSystemTaskPrerequisites& InPrerequisite
 					ConstraintChannel.ConstraintAndActiveChannel->Constraint.LoadSynchronous();
 				}
 				UTickableConstraint* Constraint = ConstraintChannel.ConstraintAndActiveChannel->Constraint.Get();
-				if (!Constraint)
+				if (!Constraint) //if constraint doesn't exist it probably got unspawned so recreate it and add it
 				{
 					UTickableConstraint* NewOne = Controller->AddConstraintFromCopy(ConstraintChannel.ConstraintAndActiveChannel->ConstraintCopyToSpawn);
 					Constraint = Controller->GetConstraint(ConstraintChannel.ConstraintName);
 					ConstraintChannel.Section->ReplaceConstraint(ConstraintChannel.ConstraintName, Constraint);
+				}
+				else // it's possible that we have it but it's not in the manager, due to manager not being saved with it (due to spawning or undo/redo).
+				{
+					if(Controller->GetConstraint(ConstraintChannel.ConstraintName) != Constraint)
+					{
+						Controller->AddConstraint(Constraint);
+					}
 				}
 				if (Constraint)
 				{

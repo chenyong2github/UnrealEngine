@@ -1318,6 +1318,7 @@ UTransformableComponentHandle* FTransformConstraintUtils::CreateHandleForSceneCo
 	if (InSceneComponent)
 	{
 		ComponentHandle = NewObject<UTransformableComponentHandle>(Outer);
+		ComponentHandle->SetFlags(RF_Transactional);
 		ComponentHandle->Component = InSceneComponent;
 		ComponentHandle->SocketName = InSocketName;
 		InSceneComponent->SetMobility(EComponentMobility::Movable);
