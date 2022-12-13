@@ -1356,8 +1356,8 @@ bool USkeletalMeshComponent::ShouldUpdateTransform(bool bLODHasChanged) const
 		// if leader pose is ticking, follower also has to update it
 		if (LeaderPoseComponent.IsValid())
 		{
-			const USkeletalMeshComponent* Leader = CastChecked<USkeletalMeshComponent>(LeaderPoseComponent.Get());
-			if (Leader->GetUpdateAnimationInEditor())
+			const USkeletalMeshComponent* Leader = Cast<USkeletalMeshComponent>(LeaderPoseComponent.Get());
+			if (Leader && Leader->GetUpdateAnimationInEditor())
 			{
 				return true;
 			}
