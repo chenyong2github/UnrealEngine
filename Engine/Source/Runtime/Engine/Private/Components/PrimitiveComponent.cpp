@@ -272,7 +272,10 @@ FThreadSafeCounter UPrimitiveComponent::NextRegistrationSerialNumber;
 FThreadSafeCounter UPrimitiveComponent::NextComponentId;
 
 UPrimitiveComponent::UPrimitiveComponent(FVTableHelper& Helper) : Super(Helper) { }
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 UPrimitiveComponent::~UPrimitiveComponent() = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 
 UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitializer /*= FObjectInitializer::Get()*/)
 	: Super(ObjectInitializer)
@@ -324,8 +327,12 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 
 	LDMaxDrawDistance = 0.f;
 	CachedMaxDrawDistance = 0.f;
-#if WITH_EDITORONLY_DATA
+
+	bEnableAutoLODGeneration = true;
 	HLODBatchingPolicy = EHLODBatchingPolicy::None;
+	ExcludeFromHLODLevels = 0;
+
+#if WITH_EDITORONLY_DATA
 	bUseMaxLODAsImposter_DEPRECATED = false;
 	bBatchImpostersAsInstances_DEPRECATED = false;
 #endif
@@ -362,7 +369,6 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 #endif
 
 #if WITH_EDITORONLY_DATA
-	bEnableAutoLODGeneration = true;
 	HitProxyPriority = HPP_World;
 #endif // WITH_EDITORONLY_DATA
 
@@ -1008,6 +1014,14 @@ void UPrimitiveComponent::Serialize(FArchive& Ar)
 			HLODBatchingPolicy = EHLODBatchingPolicy::Instancing;
 		}
 	}
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	if (Ar.IsLoading() && !ExcludeForSpecificHLODLevels_DEPRECATED.IsEmpty())
+	{
+		SetExcludeForSpecificHLODLevels(ExcludeForSpecificHLODLevels_DEPRECATED);
+		ExcludeForSpecificHLODLevels_DEPRECATED.Empty();
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 #endif
 }
 
@@ -4165,7 +4179,7 @@ const bool UPrimitiveComponent::ShouldGenerateAutoLOD(const int32 HierarchicalLe
 
 	// bAllowSpecificExclusion
 	bool bExcluded = false;
-	if (ExcludeForSpecificHLODLevels.Contains(HierarchicalLevelIndex))
+	if (HierarchicalLevelIndex < CHAR_BIT && IsExcludedFromHLODLevel(EHLODLevelExclusion(1 << HierarchicalLevelIndex)))
 	{
 		const TArray<struct FHierarchicalSimplification>& HLODSetup = GetOwner()->GetLevel()->GetWorldSettings()->GetHierarchicalLODSetup();
 		if (HLODSetup.IsValidIndex(HierarchicalLevelIndex))
@@ -4179,6 +4193,51 @@ const bool UPrimitiveComponent::ShouldGenerateAutoLOD(const int32 HierarchicalLe
 
 	return !bExcluded;
 }
+
 #endif
+
+void UPrimitiveComponent::SetExcludeForSpecificHLODLevels(const TArray<int32>& InExcludeForSpecificHLODLevels)
+{
+	ExcludeFromHLODLevels = 0;
+	for (int32 ExcludeFromLevel : InExcludeForSpecificHLODLevels)
+	{
+		if (ExcludeFromLevel < CHAR_BIT)
+		{
+			SetExcludedFromHLODLevel(EHLODLevelExclusion(1 << ExcludeFromLevel), true);
+		}
+	}
+}
+
+TArray<int32> UPrimitiveComponent::GetExcludeForSpecificHLODLevels() const
+{
+	TArray<int32> ExcludeFromLevels;
+
+	for (int32 ExcludeFromLevel = 0; ExcludeFromLevel < CHAR_BIT; ExcludeFromLevel++)
+	{
+		if (IsExcludedFromHLODLevel(EHLODLevelExclusion(1 << ExcludeFromLevel)))
+		{
+			ExcludeFromLevels.Add(ExcludeFromLevel);
+		}
+	}
+
+	return ExcludeFromLevels;
+}
+
+bool UPrimitiveComponent::IsExcludedFromHLODLevel(EHLODLevelExclusion HLODLevel) const
+{
+	return EnumHasAllFlags((EHLODLevelExclusion)ExcludeFromHLODLevels, HLODLevel);
+}
+
+void UPrimitiveComponent::SetExcludedFromHLODLevel(EHLODLevelExclusion HLODLevel, bool bExcluded)
+{
+	if (bExcluded)
+	{
+		EnumAddFlags((EHLODLevelExclusion&)ExcludeFromHLODLevels, HLODLevel);
+	}
+	else
+	{
+		EnumRemoveFlags((EHLODLevelExclusion&)ExcludeFromHLODLevels, HLODLevel);
+	}
+}
 
 #undef LOCTEXT_NAMESPACE

@@ -27,6 +27,7 @@
 #include "HitProxies.h"
 #include "Interfaces/Interface_AsyncCompilation.h"
 #include "HLOD/HLODBatchingPolicy.h"
+#include "HLOD/HLODLevelExclusion.h"
 #include "Stats/Stats2.h"
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
 #include "Engine/OverlapInfo.h"
@@ -305,34 +306,25 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Lighting)
 	ELightmapType LightmapType;
 
-#if WITH_EDITORONLY_DATA
-	/** Whether to include this component in HLODs or not. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=HLOD, meta=(DisplayName="Include Component in HLOD"))
-	uint8 bEnableAutoLODGeneration : 1;
-
-	/** Which specific HLOD levels this component should be excluded from */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category=HLOD, meta=(DisplayName="Exclude from HLOD Levels", EditConditionHides, EditCondition="bEnableAutoLODGeneration"))
-	TArray<int32> ExcludeForSpecificHLODLevels;
-
 	/** Determines how the geometry of a component will be incorporated in proxy (simplified) HLODs. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category=HLOD, meta=(DisplayName="HLOD Batching Policy", EditConditionHides, EditCondition="bEnableAutoLODGeneration"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category=HLOD, meta=(DisplayName="HLOD Batching Policy", DisplayAfter="bEnableAutoLODGeneration", EditConditionHides, EditCondition="bEnableAutoLODGeneration"))
 	EHLODBatchingPolicy HLODBatchingPolicy;
 
+	/** Whether to include this component in HLODs or not. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = HLOD, meta=(DisplayName="Include Component in HLOD"))
+	uint8 bEnableAutoLODGeneration : 1;
 
 	/** Indicates that the texture streaming built data is local to the Actor (see UActorTextureStreamingBuildDataComponent). */
 	UPROPERTY()
 	uint8 bIsActorTextureStreamingBuiltData : 1;
-#endif 
 
 	/** Indicates to the texture streaming wether it can use the pre-built texture streaming data (even if empty). */
 	UPROPERTY()
 	uint8 bIsValidTextureStreamingBuiltData : 1;
 
-	/**
-	 * When enabled this object will not be culled by distance. This is ignored if a child of a HLOD.
-	 */
+	/** When enabled this object will not be culled by distance. This is ignored if a child of a HLOD. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=LOD)
-	uint8 bNeverDistanceCull:1;
+	uint8 bNeverDistanceCull : 1;
 
 	/** Whether this primitive is referenced by a FLevelRenderAssetManager  */
 	mutable uint8 bAttachedToStreamingManagerAsStatic : 1;
@@ -684,9 +676,29 @@ public:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TEnumAsByte<enum EHitProxyPriority> HitProxyPriority;
+
+	UE_DEPRECATED(5.2, "Use SetExcludedFromHLODLevel/IsExcludedFromHLODLevel")
+	UPROPERTY(BlueprintReadWrite, Category = HLOD, BlueprintGetter=GetExcludeForSpecificHLODLevels, BlueprintSetter=SetExcludeForSpecificHLODLevels, meta = (DeprecatedProperty, DeprecationMessage = "WARNING: This property has been deprecated, use the SetExcludedFromHLODLevel/IsExcludedFromHLODLevel functions instead"))
+	TArray<int32> ExcludeForSpecificHLODLevels_DEPRECATED;
 #endif
 
+	/** Whether this primitive is excluded from the specified HLOD level */
+	UFUNCTION(BlueprintCallable, Category = "HLOD", meta = (DisplayName="Is Excluded From HLOD Level"))
+	bool IsExcludedFromHLODLevel(EHLODLevelExclusion HLODLevel) const;
+
+	/** Exclude this primitive from the specified HLOD level */
+	UFUNCTION(BlueprintCallable, Category = "HLOD", meta = (DisplayName = "Set Excluded From HLOD Level"))
+	void SetExcludedFromHLODLevel(EHLODLevelExclusion HLODLevel, bool bExcluded);
+
 private:
+	UE_DEPRECATED("5.2", "Use SetExcludedFromHLODLevel instead")
+	UFUNCTION(BlueprintCallable, BlueprintSetter, Category = "HLOD", meta = (BlueprintInternalUseOnly="true"))
+	void SetExcludeForSpecificHLODLevels(const TArray<int32>& InExcludeForSpecificHLODLevels);
+
+	UE_DEPRECATED("5.2", "Use IsExcludedFromHLODLevel instead")
+	UFUNCTION(BlueprintCallable, BlueprintGetter, Category = "HLOD", meta = (BlueprintInternalUseOnly="true"))
+	TArray<int32> GetExcludeForSpecificHLODLevels() const;
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TEnumAsByte<enum ECanBeCharacterBase> CanBeCharacterBase_DEPRECATED;
@@ -1868,6 +1880,10 @@ public:
 	FRenderCommandFence DetachFence;
 
 private:
+	/** Which specific HLOD levels this component should be excluded from */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = HLOD, meta = (Bitmask, BitmaskEnum = "/Script/Engine.EHLODLevelExclusion", DisplayName = "Exclude from HLOD Levels", DisplayAfter = "bEnableAutoLODGeneration", EditConditionHides, EditCondition = "bEnableAutoLODGeneration"))
+	uint8 ExcludeFromHLODLevels;
+
 	/** LOD parent primitive to draw instead of this one (multiple UPrim's will point to the same LODParent ) */
 	UPROPERTY(NonPIEDuplicateTransient)
 	TObjectPtr<class UPrimitiveComponent> LODParentPrimitive;
