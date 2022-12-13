@@ -7,6 +7,7 @@
 #include "NavFilters/NavigationQueryFilter.h"
 #endif //UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "AI/Navigation/NavigationTypes.h"
+#include "AI/Navigation/NavQueryFilter.h"
 
 #if WITH_RECAST
 #include "Detour/DetourNavMesh.h"
