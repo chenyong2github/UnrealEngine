@@ -108,11 +108,6 @@ namespace UE
 				Key = FName(Other);
 			}
 
-			FORCEINLINE const TCHAR* operator*() const
-			{
-				return *(Key.ToString());
-			}
-
 			FORCEINLINE FAttributeKey& operator=(const FName& Other)
 			{
 				Key = Other;
