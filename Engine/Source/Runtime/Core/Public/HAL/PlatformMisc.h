@@ -237,3 +237,18 @@ public:
 	FScopedEnterBackgroundEvent EnterBackgroundEvent_##Name##_(TEXT(#Name)); \
 	QUICK_SCOPE_CYCLE_COUNTER(Name);
 
+
+#ifdef PLATFORM_COMPILER_IWYU
+
+// There are limitations to what IWYU can read out of the ast. decltype() inside unused template parameter default initializer is one example
+// In those cases we need to give IWYU something it can use to know what is needed
+namespace UE::Core::Private
+{
+	template <typename T, bool IsSameTypes = true> struct IwyuTestSize { enum { Value = 0 }; };
+	template <typename T> struct IwyuTestSize<T, false> { enum { Value = sizeof(T) }; };
+}
+#define IWYU_MARKUP_IMPLICIT_CAST(From, To) UE::Core::Private::IwyuTestSize<From, std::is_same<typename std::remove_cv<To>::type, typename std::remove_cv<From>::type>::value>::Value
+
+#else
+#define IWYU_MARKUP_IMPLICIT_CAST(From, To)
+#endif

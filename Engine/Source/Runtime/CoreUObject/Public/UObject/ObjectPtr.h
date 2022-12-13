@@ -380,6 +380,7 @@ public:
 	FORCEINLINE TObjectPtr(const TObjectPtr<U>& Other)
 		: ObjectPtr(Other.ObjectPtr)
 	{
+		IWYU_MARKUP_IMPLICIT_CAST(U, T);
 	}
 
 	template <
@@ -414,9 +415,7 @@ public:
 	>
 	FORCEINLINE TObjectPtr<T>& operator=(const TObjectPtr<U>& Other)
 	{
-		#ifdef PLATFORM_COMPILER_IWYU
-		enum { IWYU = sizeof(U) }; // Unfortunately the decltype expression above is not visible to IWYU so it can't tell that the code needs to know about type U
-		#endif
+		IWYU_MARKUP_IMPLICIT_CAST(U, T);
 		ObjectPtr = Other.ObjectPtr;
 		return *this;
 	}

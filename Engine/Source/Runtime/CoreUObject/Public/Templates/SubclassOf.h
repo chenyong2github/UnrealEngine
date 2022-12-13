@@ -66,6 +66,7 @@ public:
 	FORCEINLINE TSubclassOf(const TSubclassOf<OtherT>& Other)
 		: Class(Other.Class)
 	{
+		IWYU_MARKUP_IMPLICIT_CAST(OtherT, T);
 	}
 
 	/** Assign from another TSubclassOf, only if types are compatible */
@@ -75,6 +76,7 @@ public:
 	>
 	FORCEINLINE TSubclassOf& operator=(const TSubclassOf<OtherT>& Other)
 	{
+		IWYU_MARKUP_IMPLICIT_CAST(OtherT, T);
 		Class = Other.Class;
 		return *this;
 	}
