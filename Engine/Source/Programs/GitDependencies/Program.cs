@@ -1195,7 +1195,7 @@ namespace GitDependencies
 					if (Retries++ == MaxRetries)
 					{
 						Interlocked.Increment(ref State.NumFailingOrIdleDownloads);
-						State.LastDownloadError = String.Format("Failed to download '{0}': {1} ({2})", NextPack.Url, Ex.Message, Ex.GetType().Name);
+						State.LastDownloadError = $"Failed to download '{NextPack.Url}': {FormatExceptionDetails(Ex)}";
 					}
 				}
 			}
@@ -1448,7 +1448,7 @@ namespace GitDependencies
 			}
 			catch(Exception Ex)
 			{
-				Log.WriteError("Failed to read '{0}': {1}", FileName, Ex.ToString());
+				Log.WriteError($"Failed to read '{FileName}': {FormatExceptionDetails(Ex)}");
 				NewObject = default(T);
 				return false;
 			}
@@ -1471,7 +1471,7 @@ namespace GitDependencies
 			}
 			catch(Exception Ex)
 			{
-				Log.WriteError("Failed to write file '{0}': {1}", FileName, Ex.Message);
+				Log.WriteError($"Failed to write file '{FileName}': {FormatExceptionDetails(Ex)}");
 				return false;
 			}
 		}
@@ -1587,6 +1587,52 @@ namespace GitDependencies
 				byte[] Hash = Hasher.ComputeHash(InputStream);
 				return BitConverter.ToString(Hash).ToLower().Replace("-", "");
 			}
+		}
+
+		public static string FormatExceptionDetails(Exception ex)
+		{
+			List<Exception> exceptionStack = new List<Exception>();
+			for (Exception currentEx = ex; currentEx != null; currentEx = currentEx.InnerException)
+			{
+				exceptionStack.Add(currentEx);
+			}
+
+			StringBuilder message = new StringBuilder();
+			for (int idx = exceptionStack.Count - 1; idx >= 0; idx--)
+			{
+				Exception currentEx = exceptionStack[idx];
+				message.AppendFormat("{0}{1}: {2}\n{3}", (idx == exceptionStack.Count - 1) ? "" : "Wrapped by ", currentEx.GetType().Name, currentEx.Message, currentEx.StackTrace);
+
+				if (currentEx.Data.Count > 0)
+				{
+					foreach (object key in currentEx.Data.Keys)
+					{
+						if (key == null)
+						{
+							continue;
+						}
+
+						object value = currentEx.Data[key];
+						if (value == null)
+						{
+							continue;
+						}
+
+						string valueString;
+						if (value is List<string> valueList)
+						{
+							valueString = String.Format("({0})", String.Join(", ", valueList.Select(x => String.Format("\"{0}\"", x))));
+						}
+						else
+						{
+							valueString = value.ToString() ?? String.Empty;
+						}
+
+						message.AppendFormat("   data: {0} = {1}", key, valueString);
+					}
+				}
+			}
+			return message.Replace("\r\n", "\n").ToString();
 		}
 	}
 }
