@@ -15,14 +15,17 @@ FString FPCGMetadataTypesConstantStruct::ToString() const
 	case EPCGMetadataTypes::Double:
 		return FString::Printf(TEXT("%.2f"), DoubleValue);
 	case EPCGMetadataTypes::String:
-		if (bStringAsSoftObjectPath)
+	{
+		switch (StringMode)
 		{
-			return FString::Printf(TEXT("\"%s\""), *(SoftObjectPathValue.GetAssetName()));
-		}
-		else
-		{
+		case EPCGMetadataTypesConstantStructStringMode::String:
 			return FString::Printf(TEXT("\"%s\""), *StringValue);
+		case EPCGMetadataTypesConstantStructStringMode::SoftObjectPath:
+			return FString::Printf(TEXT("\"%s\""), *(SoftObjectPathValue.GetAssetName()));
+		default:
+			break;
 		}
+	}
 	case EPCGMetadataTypes::Name:
 		return FString::Printf(TEXT("N(\"%s\")"), *NameValue.ToString());
 	case EPCGMetadataTypes::Vector2:
@@ -40,6 +43,8 @@ FString FPCGMetadataTypesConstantStruct::ToString() const
 	case EPCGMetadataTypes::Boolean:
 		return FString::Printf(TEXT("%s"), (BoolValue ? TEXT("True") : TEXT("False")));
 	default:
-		return FString();
+		break;
 	}
+
+	return FString();
 }

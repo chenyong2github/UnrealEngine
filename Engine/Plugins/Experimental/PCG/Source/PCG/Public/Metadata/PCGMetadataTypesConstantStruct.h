@@ -9,6 +9,13 @@
 
 class UPCGParamData;
 
+UENUM()
+enum class EPCGMetadataTypesConstantStructStringMode
+{
+	String,
+	SoftObjectPath
+};
+
 /**
 * Struct to be re-used when you need to show constants types for a metadata type
 * It will store all our values, and will display nicely depending on the type chosen
@@ -27,7 +34,7 @@ public:
 	EPCGMetadataTypes Type = EPCGMetadataTypes::Double;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Type == EPCGMetadataTypes::String", EditConditionHides))
-	bool bStringAsSoftObjectPath = false;
+	EPCGMetadataTypesConstantStructStringMode StringMode = EPCGMetadataTypesConstantStructStringMode::String;
 
 	// All different types
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Type == EPCGMetadataTypes::Float", EditConditionHides))
@@ -57,7 +64,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Type == EPCGMetadataTypes::Transform", EditConditionHides))
 	FTransform TransformValue = FTransform::Identity;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Type == EPCGMetadataTypes::String && !bStringAsSoftObjectPath", EditConditionHides))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Type == EPCGMetadataTypes::String && StringMode == EPCGMetadataTypesConstantStructStringMode::String", EditConditionHides))
 	FString StringValue = "";
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Type == EPCGMetadataTypes::Boolean", EditConditionHides))
@@ -69,7 +76,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Type == EPCGMetadataTypes::Name", EditConditionHides))
 	FName NameValue = NAME_None;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Type == EPCGMetadataTypes::String && bStringAsSoftObjectPath", EditConditionHides))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Type == EPCGMetadataTypes::String && StringMode == EPCGMetadataTypesConstantStructStringMode::SoftObjectPath", EditConditionHides))
 	FSoftClassPath SoftObjectPathValue;
 };
 
@@ -99,14 +106,17 @@ decltype(auto) FPCGMetadataTypesConstantStruct::DispatcherWithOverride(const UPC
 	case EPCGMetadataTypes::Transform:
 		return Callback(PCG_GET_OVERRIDEN_VALUE(this, TransformValue, Params));
 	case EPCGMetadataTypes::String:
-		if (bStringAsSoftObjectPath)
+	{
+		switch (StringMode)
 		{
-			return Callback(PCG_GET_OVERRIDEN_VALUE(this, SoftObjectPathValue.ToString(), Params));
-		}
-		else
-		{
+		case EPCGMetadataTypesConstantStructStringMode::String:
 			return Callback(PCG_GET_OVERRIDEN_VALUE(this, StringValue, Params));
+		case EPCGMetadataTypesConstantStructStringMode::SoftObjectPath:
+			return Callback(PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(FPCGMetadataTypesConstantStruct, SoftObjectPathValue), SoftObjectPathValue.ToString(), Params));
+		default:
+			break;
 		}
+	}
 	case EPCGMetadataTypes::Boolean:
 		return Callback(PCG_GET_OVERRIDEN_VALUE(this, BoolValue, Params));
 	case EPCGMetadataTypes::Rotator:
@@ -114,14 +124,16 @@ decltype(auto) FPCGMetadataTypesConstantStruct::DispatcherWithOverride(const UPC
 	case EPCGMetadataTypes::Name:
 		return Callback(PCG_GET_OVERRIDEN_VALUE(this, NameValue, Params));
 	default:
-		// ReturnType{} is invalid if ReturnType is void
-		if constexpr (std::is_same_v<ReturnType, void>)
-		{
-			return;
-		}
-		else
-		{
-			return ReturnType{};
-		}
+		break;
+	}
+
+	// ReturnType{} is invalid if ReturnType is void
+	if constexpr (std::is_same_v<ReturnType, void>)
+	{
+		return;
+	}
+	else
+	{
+		return ReturnType{};
 	}
 }
