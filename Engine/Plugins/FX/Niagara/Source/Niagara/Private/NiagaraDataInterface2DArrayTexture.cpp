@@ -19,6 +19,7 @@
 
 const TCHAR* UNiagaraDataInterface2DArrayTexture::TemplateShaderFilePath = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceTexture2DArrayTemplate.ush");
 const FName UNiagaraDataInterface2DArrayTexture::LoadTextureName(TEXT("LoadTexture"));
+const FName UNiagaraDataInterface2DArrayTexture::GatherRedTextureName(TEXT("GatherRedTexture"));
 const FName UNiagaraDataInterface2DArrayTexture::SampleTextureName(TEXT("SampleTexture"));
 const FName UNiagaraDataInterface2DArrayTexture::TextureDimsName(TEXT("TextureDimensions"));
 
@@ -107,15 +108,16 @@ void UNiagaraDataInterface2DArrayTexture::GetFunctions(TArray<FNiagaraFunctionSi
 {
 	OutFunctions.Reserve(OutFunctions.Num() + 3);
 
+	FNiagaraFunctionSignature DefaultSig;
+	DefaultSig.bMemberFunction = true;
+	DefaultSig.bRequiresContext = false;
+	DefaultSig.bSupportsCPU = false;
+	DefaultSig.bSupportsGPU = true;
+	DefaultSig.Inputs.Emplace(FNiagaraTypeDefinition(GetClass()), TEXT("Texture"));
 
 	{
-		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
+		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(DefaultSig);
 		Sig.Name = LoadTextureName;
-		Sig.bMemberFunction = true;
-		Sig.bRequiresContext = false;
-		Sig.bSupportsCPU = false;
-		Sig.bSupportsGPU = true;
-		Sig.Inputs.Emplace(FNiagaraTypeDefinition(GetClass()), TEXT("Texture"));
 		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("TexelX"));
 		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("TexelY"));
 		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("TexelZ"));
@@ -125,13 +127,16 @@ void UNiagaraDataInterface2DArrayTexture::GetFunctions(TArray<FNiagaraFunctionSi
 	}
 
 	{
-		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
+		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(DefaultSig);
+		Sig.Name = GatherRedTextureName;
+		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("UVW"));
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetVec4Def(), TEXT("Value"));
+		Sig.SetDescription(LOCTEXT("TextureGatherTexture2ArrayDDesc", "Gather the 4 samples (Red only) that would be used in bilinear interpolation."));
+	}
+
+	{
+		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(DefaultSig);
 		Sig.Name = SampleTextureName;
-		Sig.bMemberFunction = true;
-		Sig.bRequiresContext = false;
-		Sig.bSupportsCPU = false;
-		Sig.bSupportsGPU = true;
-		Sig.Inputs.Emplace(FNiagaraTypeDefinition(GetClass()), TEXT("Texture"));
 		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("UVW"));
 		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetFloatDef(), TEXT("MipLevel"));
 		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetVec4Def(), TEXT("Value"));
@@ -261,6 +266,7 @@ bool UNiagaraDataInterface2DArrayTexture::GetFunctionHLSL(const FNiagaraDataInte
 	static const TSet<FName> ValidGpuFunctions =
 	{
 		LoadTextureName,
+		GatherRedTextureName,
 		SampleTextureName,
 		TextureDimsName,
 	};

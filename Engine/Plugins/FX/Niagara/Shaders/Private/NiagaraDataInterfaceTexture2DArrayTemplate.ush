@@ -9,6 +9,11 @@ void LoadTexture_{ParameterName}(in int TexelX, in int TexelY, in int TexelZ, in
 	OutValue = {ParameterName}_Texture.Load(int4(TexelX, TexelY, TexelZ, MipLevel));
 }
 
+void GatherRedTexture_{ParameterName}(in float3 UVW, out float4 OutValue)
+{
+	OutValue = {ParameterName}_Texture.Gather({ParameterName}_TextureSampler, UVW);
+}
+
 void SampleTexture_{ParameterName}(in float3 UVW, in float MipLevel, out float4 OutValue)
 {
 	OutValue = {ParameterName}_Texture.SampleLevel({ParameterName}_TextureSampler, UVW, MipLevel);
