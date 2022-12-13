@@ -579,7 +579,14 @@ bool FConstraintChannelHelper::SmartComponentConstraintKey(
 	InConstraint->bDynamicOffset = true;
 	
 	// add the channel
-	ConstraintSection->AddConstraintChannel(InConstraint);
+	if (ConstraintSection->HasConstraintChannel(InConstraint->GetFName()) == false)
+	{
+		ConstraintSection->AddConstraintChannel(InConstraint);
+		if (InSequencer.IsValid())
+		{
+			InSequencer->RecreateCurveEditor();
+		}
+	}
 
 	// add key if needed
 	if (FConstraintAndActiveChannel* Channel = ConstraintSection->GetConstraintChannel(InConstraint->GetFName()))

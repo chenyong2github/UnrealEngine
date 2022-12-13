@@ -2352,6 +2352,14 @@ void FSequencer::RecreateCurveEditor()
 	if (ensure(CurveEditorIntegration))
 	{
 		CurveEditorIntegration->ResetCurveEditor();
+		if (GetSequencerSettings()->ShouldSyncCurveEditorSelection())
+		{
+			FCurveEditorExtension* CurveEditorExtension = ViewModel->CastDynamic<FCurveEditorExtension>();
+			if (ensure(CurveEditorExtension))
+			{
+				return CurveEditorExtension->RequestSyncSelection();
+			}
+		}
 	}
 }
 
