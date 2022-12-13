@@ -12,7 +12,7 @@
 #include "IO/IoHash.h"
 #include "Serialization/Archive.h"
 #include "Serialization/ArchiveUObject.h"
-#include "Serialization/FileRegions.h"
+#include "Serialization/FileRegionArchive.h"
 #include "Templates/Function.h"
 #include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
@@ -77,26 +77,7 @@ public:
 	/** Save context associated with this linker */
 	TRefCountPtr<FUObjectSerializeContext> SaveContext;
 
-	/** List of bulkdata that needs to be stored at the end of the file */
-	struct FBulkDataStorageInfo
-	{
-		/** Offset to the location where the payload offset is stored */
-		int64 BulkDataOffsetInFilePos;
-		/** Offset to the location where the payload size is stored */
-		int64 BulkDataSizeOnDiskPos;
-		/** Offset to the location where the bulk data flags are stored */
-		int64 BulkDataFlagsPos;
-		/** Bulk data flags at the time of serialization */
-		uint32 BulkDataFlags;
-		/** The file region type to apply to this bulk data */
-		EFileRegionType BulkDataFileRegionType;
-		/** The bulkdata */
-		FBulkData* BulkData;
-	};
-	TArray<FBulkDataStorageInfo> BulkDataToAppend;
 	TArray<FFileRegion> FileRegions;
-
-	// TODO: Look into removing BulkDataToAppend and use AdditionalDataToAppend instead.
 
 	/**
 	 * Callback for arbitrary serializers to append data to the end of the ExportsArchive.
@@ -192,6 +173,29 @@ public:
 	 */
 	virtual void SetFilterEditorOnly(bool bInFilterEditorOnly) override;
 
+	/** Set target platform memory map alignment. A negative value disables memory mapped bulk data. */
+	void SetMemoryMapAlignment(int64 InAlignment)
+	{
+		MemoryMappingAlignment = InAlignment;
+	}
+
+	/** Sets whether file regions will be written or not. */
+	void SetFileRegionsEnabled(bool bEnabled)
+	{
+		bFileRegionsEnabled = bEnabled;
+	}
+
+	/** Sets whether saving bulk data by reference, i.e. leaving the bulk data payload in the original .uasset file when using EditorDomain. */
+	void SetSaveBulkDataByReference(bool bValue)
+	{
+		bSaveBulkDataByReference = bValue;
+	}
+	
+	/** Sets whether bulk data will be stored in the Linker archive (.uasset) or in sepearate files (.ubulk, .m.ubulk, .opt.ubulk) .*/ 
+	void SetSaveBulkDataToSeparateFiles(bool bValue)
+	{
+		bSaveBulkDataToSeparateFiles = bValue;
+	}
 
 #if WITH_EDITOR
 	// proxy for debugdata
@@ -214,6 +218,9 @@ public:
 
 	/** Invoke all of the callbacks in PostSaveCallbacks and then empty it. */
 	void OnPostSave(const FPackagePath& PackagePath, FObjectPostSaveContext ObjectSaveContext);
+	
+	/** Triggered after bulk data payloads has been serialized to disk/package writer.*/
+	void OnPostSaveBulkData();
 
 	// FLinker interface
 	virtual FString GetDebugName() const override;
@@ -254,6 +261,23 @@ public:
 	UE::FDerivedData AddDerivedData(const UE::FDerivedData& Data);
 #endif // WITH_EDITORONLY_DATA
 
+	virtual bool SerializeBulkData(FBulkData& BulkData, const FBulkDataSerializationParams& Params) override;
+	
+	FFileRegionMemoryWriter& GetBulkDataArchive()
+	{
+		return BulkDataAr;
+	}
+
+	FFileRegionMemoryWriter& GetOptionalBulkDataArchive()
+	{
+		return OptionalBulkDataAr;
+	}
+
+	FFileRegionMemoryWriter& GetMemoryMappedBulkDataArchive()
+	{
+		return MemoryMappedBulkDataAr;
+	}
+
 protected:
 	/** Set the filename being saved to */
 	void SetFilename(FStringView InFilename);
@@ -266,4 +290,20 @@ private:
 	/** The index of the last derived data chunk added to the package. */
 	int32 LastDerivedDataIndex = -1;
 #endif
+	/** Map from bulk data object to resource index. */
+	TMap<FBulkData*, int32> SerializedBulkData;
+	/** Default bulk data archive. */
+	FFileRegionMemoryWriter BulkDataAr;
+	/** Optional bulk data archive. */
+	FFileRegionMemoryWriter OptionalBulkDataAr;
+	/** Memory mapped bulk data archive. */
+	FFileRegionMemoryWriter MemoryMappedBulkDataAr;
+	/** Alignment for memory mapped data .*/ 
+	int64 MemoryMappingAlignment = -1;
+	/** Whether file regions are enabled. */
+	bool bFileRegionsEnabled = false;
+	/** Whether saving bulk data by reference. */
+	bool bSaveBulkDataByReference = false;
+	/** Whether saving bulk data to separate files. */
+	bool bSaveBulkDataToSeparateFiles = false;
 };

@@ -1635,6 +1635,19 @@ public:
 	virtual void DetachBulkData(UE::Serialization::FEditorBulkData* BulkData, bool bEnsureBulkDataIsLoaded) {}
 
 	/**
+	 * Serialize bulk data.
+	 *
+	 * @param	BulkData		Bulk data object to serialize
+	 * @param	Params			Serialization parameters
+	 *
+	 * @return true if the bulk data was serialized, false to fallback to default serialization (inline)
+	 */
+	virtual bool SerializeBulkData(FBulkData& BulkData, const struct FBulkDataSerializationParams& Params)
+	{ 
+		return false;
+	}
+
+	/**
 	* Determine if the given archive is a valid "child" of this archive. In general, this means "is exactly the same" but
 	* this function allows a derived archive to support "child" or "internal" archives which are different objects that proxy the
 	* original one in some way.
@@ -2131,6 +2144,30 @@ public:
 		}
 	};
 #endif
+
+	/** Seeks to and restores the position of an archive. */
+	class FScopeSeekTo
+	{
+	public:
+		FScopeSeekTo(FArchive& InAr, int64 InPos)
+			: Ar(InAr)
+			, SavedPos(InAr.Tell())
+		{
+			Ar.Seek(InPos);
+		}
+		
+		~FScopeSeekTo()
+		{
+			Ar.Seek(SavedPos);
+		}
+
+		FScopeSeekTo(const FScopeSeekTo&) = delete;
+		FScopeSeekTo& operator=(const FScopeSeekTo&) = delete;
+
+	private:
+		FArchive& Ar;
+		int64 SavedPos;
+	};
 
 	/** Called whilst cooking to provide file region hints to the cooker. */
 	virtual void PushFileRegionType(EFileRegionType Type) { }

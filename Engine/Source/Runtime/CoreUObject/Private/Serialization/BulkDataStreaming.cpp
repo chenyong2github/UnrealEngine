@@ -93,128 +93,10 @@ void FBulkDataIORequest::Cancel()
 	ReadRequest->Cancel();
 }
 
+//////////////////////////////////////////////////////////////////////////////
+
 namespace UE::BulkData::Private
 {
-
-//////////////////////////////////////////////////////////////////////////////
-
-/**
- * Triggers an ensure when trying to stream inline bulk data. This is to prevent
- * inconsistencies between the Zen loader loading from I/O store (utoc/ucas) and the legacy EDL loader using
- * the file system (.pak). The Zen loader currenlty does not allow reloading of inline bulk data.
- * The trigger can be ignored by setting [Core.System]IgnoreInlineBulkDataReloadEnsures to true in the config file.
- * Ignoring this ensure will most likely break loading of bulk data when packaging with Zen/IO store (.utoc/.ucas).
- */
-void EnsureCanStreamBulkData(const FBulkMetaData& BulkMeta)
-{
-#if !WITH_EDITOR && !UE_KEEP_INLINE_RELOADING_CONSISTENT	
-	static struct FIgnoreInlineDataReloadEnsures
-	{
-		bool bEnabled = false;
-
-		FIgnoreInlineDataReloadEnsures()
-		{
-			FConfigFile PlatformEngineIni;
-			FConfigCacheIni::LoadLocalIniFile(PlatformEngineIni, TEXT("Engine"), true, ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName()));
-
-			PlatformEngineIni.GetBool(TEXT("Core.System"), TEXT("IgnoreInlineBulkDataReloadEnsures"), bEnabled);
-
-			UE_LOG(LogSerialization, Display, TEXT("IgnoreInlineDataReloadEnsures: '%s'"), bEnabled ? TEXT("true") : TEXT("false"));
-		}
-	} IgnoreInlineDataReloadEnsures;
-
-	const bool bIsInlined = BulkMeta.HasAnyFlags(BULKDATA_PayloadAtEndOfFile) == false;
-	// Note that we only want the ensure to trigger if we have a valid offset (the bulkdata references data from disk)
-	ensureMsgf(!bIsInlined || BulkMeta.GetOffset() == INDEX_NONE || IgnoreInlineDataReloadEnsures.bEnabled,
-				TEXT("Attempting to stream inline BulkData! This operation is not supported by the IoDispatcher and so will eventually stop working."
-				" The calling code should be fixed to retain the inline data in memory and re-use it rather than discard it and then try to reload from disk!"));
-#endif 
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-EPackageSegment GetPackageSegmentFromFlags(const FBulkMetaData& BulkMeta)
-{
-	const EBulkDataFlags BulkDataFlags = BulkMeta.GetFlags();
-
-	if ((BulkDataFlags & BULKDATA_PayloadInSeperateFile) == 0)
-	{
-		const bool bLoadingFromCookedPackage = EnumHasAnyFlags(BulkMeta.GetMetaFlags(), FBulkMetaData::EMetaFlags::CookedPackage);
-		if (bLoadingFromCookedPackage)
-		{
-			// Cooked packages are split into EPackageSegment::Header (summary and linker tables) and
-			// EPackageSegment::Exports (serialized UObject bytes and the bulk data section)
-			// Inline and end-of-file bulk data is in the Exports section
-			return EPackageSegment::Exports;
-		}
-		else
-		{
-			return EPackageSegment::Header;
-		}
-	}
-	else if (BulkDataFlags & BULKDATA_OptionalPayload )
-	{
-		return EPackageSegment::BulkDataOptional;
-	}
-	else if (BulkDataFlags & BULKDATA_MemoryMappedPayload)
-	{
-		return EPackageSegment::BulkDataMemoryMapped;
-	}
-	else
-	{
-		return EPackageSegment::BulkDataDefault;
-	}
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-FIoChunkId CreateBulkDataIoChunkId(const FBulkMetaData& BulkMeta, UObject* Owner)
-{
-	UPackage* Pkg = Owner ? Owner->GetPackage() : nullptr;
-
-	if (Pkg == nullptr)
-	{
-		return FIoChunkId::InvalidChunkId;
-	}
-
-	const bool bCooked = EnumHasAnyFlags(BulkMeta.GetMetaFlags(), FBulkMetaData::EMetaFlags::CookedPackage);
-	
-	if (bCooked && Pkg->GetPackageId().IsValid())
-	{
-		const EBulkDataFlags BulkDataFlags = BulkMeta.GetFlags();
-
-		const EIoChunkType ChunkType = BulkDataFlags & BULKDATA_OptionalPayload
-			? EIoChunkType::OptionalBulkData
-			: BulkDataFlags & BULKDATA_MemoryMappedPayload
-				? EIoChunkType::MemoryMappedBulkData
-				: EIoChunkType::BulkData;
-
-		const uint16 ChunkIndex = EnumHasAnyFlags(BulkMeta.GetMetaFlags(), FBulkMetaData::EMetaFlags::OptionalPackage) ? 1 : 0;
-		
-		return CreateIoChunkId(Pkg->GetPackageIdToLoad().Value(), ChunkIndex, ChunkType);
-	}
-	else
-	{
-		FLinkerLoad* Linker = Owner->GetLinker();
-		if (Linker == nullptr)
-		{
-			Linker = FLinkerLoad::FindExistingLinkerForPackage(Pkg);
-		}
-	
-		if (Linker != nullptr)
-		{
-			const FPackagePath& PkgPath = Linker->GetPackagePath();
-			const EPackageSegment Segment = GetPackageSegmentFromFlags(BulkMeta);
-			const bool bExternalResource = BulkMeta.HasAnyFlags(BULKDATA_WorkspaceDomainPayload);
-
-			return CreatePackageResourceChunkId(PkgPath.GetPackageFName(), Segment, bExternalResource);
-		}
-	}
-
-	return FIoChunkId::InvalidChunkId;
-}
-
-//////////////////////////////////////////////////////////////////////////////
 
 enum class EChunkRequestStatus : uint32
 {
@@ -555,8 +437,6 @@ bool OpenReadBulkData(
 		return false;
 	}
 
-	EnsureCanStreamBulkData(BulkMeta);
-	
 	FIoBatch Batch = FIoDispatcher::Get().NewBatch();
 	FIoRequest Request = Batch.Read(BulkChunkId, FIoReadOptions(Offset, Size), ConvertToIoDispatcherPriority(Priority));
 	FEventRef Event;
@@ -583,7 +463,6 @@ TUniquePtr<IAsyncReadFileHandle> OpenAsyncReadBulkData(const FBulkMetaData& Bulk
 		return TUniquePtr<IAsyncReadFileHandle>();
 	}
 
-	EnsureCanStreamBulkData(BulkMeta);
 	return MakeUnique<FChunkReadFileHandle>(BulkChunkId);
 }
 
@@ -602,8 +481,6 @@ TUniquePtr<IBulkDataIORequest> CreateStreamingRequest(
 	{
 		return TUniquePtr<IBulkDataIORequest>();
 	}
-
-	EnsureCanStreamBulkData(BulkMeta);
 
 	FIoBuffer Buffer = UserSuppliedMemory ? FIoBuffer(FIoBuffer::Wrap, UserSuppliedMemory, Size) : FIoBuffer(Size);
 	FChunkBulkDataRequest* Request = new FChunkBulkDataRequest(Callback, MoveTemp(Buffer));

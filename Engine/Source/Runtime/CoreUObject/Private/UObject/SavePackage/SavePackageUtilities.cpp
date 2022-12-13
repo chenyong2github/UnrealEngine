@@ -20,6 +20,7 @@
 #include "Serialization/EditorBulkData.h"
 #include "Serialization/CompactBinarySerialization.h"
 #include "Serialization/CompactBinaryWriter.h"
+#include "Serialization/FileRegionArchive.h"
 #include "Serialization/LargeMemoryWriter.h"
 #include "Serialization/PackageWriter.h"
 #include "Tasks/Task.h"
@@ -1812,16 +1813,6 @@ void SaveThumbnails(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::
 #endif
 }
 
-class FLargeMemoryWriterWithRegions : public FLargeMemoryWriter
-{
-public:
-	FLargeMemoryWriterWithRegions()
-		: FLargeMemoryWriter(0, /* IsPersistent */ true)
-	{}
-
-	TArray<FFileRegion> FileRegions;
-};
-
 ESavePackageResult AppendAdditionalData(FLinkerSave& Linker, int64& InOutDataStartOffset, FSavePackageContext* SavePackageContext)
 {
 	if (Linker.AdditionalDataToAppend.Num() == 0)
@@ -1833,21 +1824,23 @@ ESavePackageResult AppendAdditionalData(FLinkerSave& Linker, int64& InOutDataSta
 	if (PackageWriter)
 	{
 		bool bDeclareRegionForEachAdditionalFile = SavePackageContext->PackageWriterCapabilities.bDeclareRegionForEachAdditionalFile;
-		FLargeMemoryWriterWithRegions DataArchive;
+		FFileRegionMemoryWriter DataArchive;
 		for (FLinkerSave::AdditionalDataCallback& Callback : Linker.AdditionalDataToAppend)
 		{
-			int64 RegionStart = DataArchive.Tell();
-			Callback(Linker, DataArchive, InOutDataStartOffset + RegionStart);
-			int64 RegionEnd = DataArchive.Tell();
-			if (RegionEnd != RegionStart && bDeclareRegionForEachAdditionalFile)
+			if (bDeclareRegionForEachAdditionalFile)
 			{
-				DataArchive.FileRegions.Add(FFileRegion(RegionStart, RegionEnd - RegionStart, EFileRegionType::None));
+				DataArchive.PushFileRegionType(EFileRegionType::None);
+			}
+			Callback(Linker, DataArchive, InOutDataStartOffset + DataArchive.Tell());
+			if (bDeclareRegionForEachAdditionalFile)
+			{
+				DataArchive.PopFileRegionType();
 			}
 		}
 		IPackageWriter::FLinkerAdditionalDataInfo DataInfo{ Linker.LinkerRoot->GetFName() };
 		int64 DataSize = DataArchive.TotalSize();
 		FIoBuffer DataBuffer = FIoBuffer(FIoBuffer::AssumeOwnership, DataArchive.ReleaseOwnership(), DataSize);
-		PackageWriter->WriteLinkerAdditionalData(DataInfo, DataBuffer, DataArchive.FileRegions);
+		PackageWriter->WriteLinkerAdditionalData(DataInfo, DataBuffer, DataArchive.GetFileRegions());
 		InOutDataStartOffset += DataSize;
 	}
 	else
@@ -1955,365 +1948,6 @@ ESavePackageResult CreatePayloadSidecarFile(FLinkerSave& Linker, const FPackageP
 
 	Linker.SidecarDataToAppend.Empty();
 
-	return ESavePackageResult::Success;
-}
-
-ESavePackageResult SaveBulkData(FLinkerSave* Linker, int64& InOutStartOffset, const UPackage* InOuter, const TCHAR* Filename, const ITargetPlatform* TargetPlatform,
-				  FSavePackageContext* SavePackageContext, uint32 SaveFlags, const bool bTextFormat, 
-				  int64& TotalPackageSizeUncompressed, bool bIsOptionalRealm)
-{
-	// Now we write all the bulkdata that is supposed to be at the end of the package
-	// and fix up the offset
-	IPackageWriter* PackageWriter = SavePackageContext != nullptr ? SavePackageContext->PackageWriter : nullptr;
-	Linker->Summary.BulkDataStartOffset = InOutStartOffset;
-
-	if (Linker->BulkDataToAppend.Num() == 0)
-	{
-		return ESavePackageResult::Success;;
-	}
-	check(!bTextFormat);
-
-	COOK_STAT(FScopedDurationTimer SaveTimer(FSavePackageStats::SerializeBulkDataTimeSec));
-
-	FScopedSlowTask BulkDataFeedback((float)Linker->BulkDataToAppend.Num());
-
-	TUniquePtr<FLargeMemoryWriterWithRegions> BulkArchive;
-	TUniquePtr<FLargeMemoryWriterWithRegions> OptionalBulkArchive;
-	TUniquePtr<FLargeMemoryWriterWithRegions> MappedBulkArchive;
-
-	const bool bSeparateSegmentsEnabled = Linker->IsCooking();
-
-	int64 LinkerStart = 0;
-	if (PackageWriter || bSeparateSegmentsEnabled)
-	{
-		BulkArchive.Reset(new FLargeMemoryWriterWithRegions);
-		if (bSeparateSegmentsEnabled)
-		{
-			OptionalBulkArchive.Reset(new FLargeMemoryWriterWithRegions);
-			MappedBulkArchive.Reset(new FLargeMemoryWriterWithRegions);
-		}
-	}
-	else
-	{
-		LinkerStart = Linker->Tell();
-	}
-	bool bRequestSaveByReference = SaveFlags & SAVE_BulkDataByReference;
-
-	bool bAlignBulkData = false;
-	bool bDeclareSpecialRegions = false;
-	bool bDeclareRegionForEachAdditionalFile = false;
-	int64 BulkDataAlignment = 0;
-
-	if (TargetPlatform)
-	{
-		bAlignBulkData = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MemoryMappedFiles);
-		bDeclareSpecialRegions = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::CookFileRegionMetadata);
-		BulkDataAlignment = TargetPlatform->GetMemoryMappingAlignment();
-	}
-	if (PackageWriter)
-	{
-		bDeclareRegionForEachAdditionalFile = SavePackageContext->PackageWriterCapabilities.bDeclareRegionForEachAdditionalFile;
-	}
-
-	if (bRequestSaveByReference)
-	{
-		const TCHAR* FailureReason = nullptr;
-		if (Linker->bUpdatingLoadedPath)
-		{
-			FailureReason = TEXT("SAVE_BulkDataByReference is incompatible with bUpdatingLoadedPath");
-		}
-		if (FailureReason)
-		{
-			UE_LOG(LogSavePackage, Error, TEXT("SaveBulkData failed for %s: %s."), Filename, FailureReason);
-			return ESavePackageResult::Error;
-		}
-	}
-
-	for (FLinkerSave::FBulkDataStorageInfo& BulkDataStorageInfo : Linker->BulkDataToAppend)
-	{
-		BulkDataFeedback.EnterProgressFrame();
-
-		// Set bulk data flags to what they were during initial serialization (they might have changed after that)
-		uint32 BulkDataFlags = BulkDataStorageInfo.BulkDataFlags;
-		FBulkData* BulkData = BulkDataStorageInfo.BulkData;
-		checkf(BulkDataFlags& BULKDATA_PayloadAtEndOfFile, TEXT("Inlined BulkData data should not have been added to BulkDataToAppend"));
-
-		const bool bBulkItemIsOptional = (BulkDataFlags & BULKDATA_OptionalPayload) != 0;
-		bool bBulkItemIsMapped = bAlignBulkData && ((BulkDataFlags & BULKDATA_MemoryMappedPayload) != 0);
-
-		if (bBulkItemIsMapped && bBulkItemIsOptional)
-		{
-			UE_LOG(LogSavePackage, Warning, TEXT("%s has bulk data that is both mapped and optional. This is not currently supported. Will not be mapped."), Filename);
-			BulkDataFlags &= ~BULKDATA_MemoryMappedPayload;
-			bBulkItemIsMapped = false;
-		}
-		if (bBulkItemIsMapped && bRequestSaveByReference)
-		{
-			UE_LOG(LogSavePackage, Warning, TEXT("%s has bulk data that is mapped, but the save method is SAVE_BulkDataByReference."
-				"This is not currently supported. Will not be mapped."), Filename);
-			BulkDataFlags &= ~BULKDATA_MemoryMappedPayload;
-			bBulkItemIsMapped = false;
-		}
-
-		enum ESaveLocation
-		{
-			Invalid,
-			EndOfPackage,
-			SeparateSegment,
-			Reference,
-			SeparateArchiveAtEndOfPackage,
-		};
-		ESaveLocation SaveLocation = ESaveLocation::Invalid;
-		auto CanSaveByReference = [](FBulkData* BulkData)
-		{
-			return BulkData->GetBulkDataOffsetInFile() != INDEX_NONE &&
-				// We don't support yet loading from a separate file
-				!BulkData->IsInSeparateFile() &&
-				// It is possible to have a BulkData marked as optional without putting it into a separate file, and we
-				// assume that if BulkData is optional and in a separate file, then it is in the BulkDataOptional
-				// segment. Rather than changing that assumption to support optional ExternalResource bulkdata, we
-				// instead require that optional inlined/endofpackagedata BulkDatas can not be read from an
-				// ExternalResource and must remain inline.
-				!BulkData->IsOptional() &&
-				// Inline or end-of-package-file data can only be loaded from the workspace domain package file if the
-				// archive used by the bulk data was actually from the package file; BULKDATA_LazyLoadable is set by
-				// Serialize iff that is the case										
-				(BulkData->GetBulkDataFlags() & BULKDATA_LazyLoadable);
-		};
-		if (bRequestSaveByReference && CanSaveByReference(BulkData))
-		{
-			SaveLocation = ESaveLocation::Reference;
-		}
-		else if (bSeparateSegmentsEnabled)
-		{
-			SaveLocation = ESaveLocation::SeparateSegment;
-		}
-		else if (PackageWriter)
-		{
-			SaveLocation = ESaveLocation::SeparateArchiveAtEndOfPackage;
-		}
-		else
-		{
-			SaveLocation = ESaveLocation::EndOfPackage;
-		}
-
-		int64 BulkDataOffsetInFile;
-		int64 BulkDataSizeOnDisk;
-		if (SaveLocation == ESaveLocation::Reference)
-		{
-			BulkDataFlags |= BULKDATA_PayloadInSeperateFile | BULKDATA_WorkspaceDomainPayload;
-			BulkDataFlags |= BULKDATA_NoOffsetFixUp; // We don't use legacy offset fixups when referencing
-			BulkDataFlags &= ~BULKDATA_MemoryMappedPayload; // We don't support memory mapping from referenced
-
-			BulkDataOffsetInFile = BulkData->GetBulkDataOffsetInFile();
-			BulkDataSizeOnDisk = BulkData->GetBulkDataSizeOnDisk();
-		}
-		else
-		{
-			TArray<FFileRegion>* TargetRegions = &Linker->FileRegions;
-			FArchive* TargetArchive = Linker;
-			if (SaveLocation == ESaveLocation::SeparateSegment)
-			{
-				BulkDataFlags |= BULKDATA_PayloadInSeperateFile;
-				// OffsetFixup is not useful when bulkdata is in separate segments.
-				// It is also not supported if we are using IoStore, which always uses SeparateSegments, because 
-				// the Linker's Summary.BulkDataStartOffset information is not available when loading with AsyncLoader2.
-				BulkDataFlags |= BULKDATA_NoOffsetFixUp;
-
-				if (bBulkItemIsOptional)
-				{
-					TargetArchive = OptionalBulkArchive.Get();
-					TargetRegions = &OptionalBulkArchive->FileRegions;
-				}
-				else if (bBulkItemIsMapped)
-				{
-					TargetArchive = MappedBulkArchive.Get();
-					TargetRegions = &MappedBulkArchive->FileRegions;
-				}
-				else
-				{
-					TargetArchive = BulkArchive.Get();
-					TargetRegions = &BulkArchive->FileRegions;
-				}
-			}
-			else if (SaveLocation == ESaveLocation::SeparateArchiveAtEndOfPackage)
-			{
-				TargetArchive = BulkArchive.Get();
-				TargetRegions = &BulkArchive->FileRegions;
-			}
-
-			check(TargetArchive && TargetRegions);
-
-			// Pad archive for proper alignment for memory mapping
-			if (bBulkItemIsMapped && BulkDataAlignment > 0)
-			{
-				const int64 BulkStartOffset = TargetArchive->Tell();
-
-				if (!IsAligned(BulkStartOffset, BulkDataAlignment))
-				{
-					const int64 AlignedOffset = Align(BulkStartOffset, BulkDataAlignment);
-
-					int64 Padding = AlignedOffset - BulkStartOffset;
-					check(Padding > 0);
-
-					uint64 Zero64 = 0;
-					while (Padding >= 8)
-					{
-						*TargetArchive << Zero64;
-						Padding -= 8;
-					}
-
-					uint8 Zero8 = 0;
-					while (Padding > 0)
-					{
-						*TargetArchive << Zero8;
-						Padding--;
-					}
-
-					check(TargetArchive->Tell() == AlignedOffset);
-				}
-			}
-
-			const int64 BulkStartOffset = TargetArchive->Tell();
-			BulkData->SerializeBulkData(*TargetArchive, BulkData->Lock(LOCK_READ_ONLY), static_cast<EBulkDataFlags>(BulkDataFlags));
-			BulkData->Unlock();
-			const int64 BulkEndOffset = TargetArchive->Tell();
-
-			BulkDataOffsetInFile = BulkStartOffset;
-			if (SaveLocation == ESaveLocation::SeparateArchiveAtEndOfPackage)
-			{
-				// BulkDatas are written in a separate archive that is appended onto the exports archive;
-				// the input BulkStartOffset is relative to the beginning of this separate archive.
-				// But records of the BulkData's offset needs to instead be relative to the beginning of the exports archive.
-				// We have to do this to distinguish them from inline bulkdatas in the exports segment
-				BulkDataOffsetInFile += Linker->Summary.BulkDataStartOffset;
-			}
-			if ((BulkDataFlags & BULKDATA_NoOffsetFixUp) == 0)
-			{
-				// The runtime will add in the Summary.BulkDataStartOffset, so we subtract it here.
-				// This allows the decoupling of the values written into the package from the size of the exports section.
-				BulkDataOffsetInFile -= Linker->Summary.BulkDataStartOffset;
-			}
-			BulkDataSizeOnDisk = BulkEndOffset - BulkStartOffset;
-
-			bool bDeclareBecauseSpecial = bDeclareSpecialRegions && BulkDataStorageInfo.BulkDataFileRegionType != EFileRegionType::None;
-			if ((bDeclareRegionForEachAdditionalFile || bDeclareBecauseSpecial) && BulkDataSizeOnDisk > 0)
-			{
-				TargetRegions->Add(FFileRegion(BulkStartOffset, BulkDataSizeOnDisk, BulkDataStorageInfo.BulkDataFileRegionType));
-			}
-		}
-
-		const int64 SavedLinkerOffset = Linker->Tell();
-		Linker->Seek(BulkDataStorageInfo.BulkDataFlagsPos);
-		*Linker << BulkDataFlags;
-		Linker->Seek(BulkDataStorageInfo.BulkDataSizeOnDiskPos);
-		SerializeBulkDataSizeInt(*Linker, BulkDataSizeOnDisk, static_cast<EBulkDataFlags>(BulkDataFlags));
-		Linker->Seek(BulkDataStorageInfo.BulkDataOffsetInFilePos);
-		*Linker << BulkDataOffsetInFile;
-		Linker->Seek(SavedLinkerOffset);
-
-#if WITH_EDITOR
-		// If we are overwriting the LoadedPath for the current package, the bulk data flags and location need to be updated to match
-		// the values set in the package on disk.
-		if (Linker->bUpdatingLoadedPath)
-		{
-			BulkData->SetFlagsFromDiskWrittenValues(static_cast<EBulkDataFlags>(BulkDataFlags), BulkDataOffsetInFile,
-				BulkDataSizeOnDisk, Linker->Summary.BulkDataStartOffset);
-		}
-#endif
-	}
-
-	if (BulkArchive)
-	{
-		if (PackageWriter)
-		{
-			auto AddSizeAndConvertToIoBuffer = [&TotalPackageSizeUncompressed](FLargeMemoryWriter* Writer)
-			{
-				const int64 TotalSize = Writer->TotalSize();
-				TotalPackageSizeUncompressed += TotalSize;
-				return FIoBuffer(FIoBuffer::AssumeOwnership, Writer->ReleaseOwnership(), TotalSize);
-			};
-
-			IPackageWriter::FBulkDataInfo BulkInfo;
-			BulkInfo.PackageName = InOuter->GetFName();
-			// Adjust LooseFilePath if needed
-			if (bIsOptionalRealm)
-			{
-				// Optional output have the form PackagePath.o.ext
-				BulkInfo.LooseFilePath = FPathViews::ChangeExtension(Filename, TEXT("o.") + FPaths::GetExtension(Filename));
-				BulkInfo.MultiOutputIndex = 1;
-			}
-			else
-			{
-				BulkInfo.LooseFilePath = Filename;
-			}
-			FPackageId PackageId = FPackageId::FromName(BulkInfo.PackageName);
-				
-			if (BulkArchive->TotalSize())
-			{
-				BulkInfo.ChunkId = CreateIoChunkId(PackageId.Value(), BulkInfo.MultiOutputIndex, EIoChunkType::BulkData);
-				BulkInfo.BulkDataType = bSeparateSegmentsEnabled ?
-					IPackageWriter::FBulkDataInfo::BulkSegment : IPackageWriter::FBulkDataInfo::AppendToExports;
-				BulkInfo.LooseFilePath = FPathViews::ChangeExtension(BulkInfo.LooseFilePath, LexToString(EPackageExtension::BulkDataDefault));
-					
-				PackageWriter->WriteBulkData(BulkInfo, AddSizeAndConvertToIoBuffer(BulkArchive.Get()), BulkArchive->FileRegions);
-			}
-			// @note FH: temporarily do not handle optional bulk data into editor optional packages, proper support will be added soon
-			if (OptionalBulkArchive && OptionalBulkArchive->TotalSize() && !bIsOptionalRealm)
-			{
-				BulkInfo.ChunkId = CreateIoChunkId(PackageId.Value(), BulkInfo.MultiOutputIndex, EIoChunkType::OptionalBulkData);
-				BulkInfo.BulkDataType = IPackageWriter::FBulkDataInfo::Optional;
-				BulkInfo.LooseFilePath = FPathViews::ChangeExtension(BulkInfo.LooseFilePath, LexToString(EPackageExtension::BulkDataOptional));
-				PackageWriter->WriteBulkData(BulkInfo, AddSizeAndConvertToIoBuffer(OptionalBulkArchive.Get()), OptionalBulkArchive->FileRegions);
-			}
-			if (MappedBulkArchive && MappedBulkArchive->TotalSize())
-			{
-				checkf(!bIsOptionalRealm, TEXT("MemoryMappedBulkData is currently unsupported with optional package multi output for %s"), *InOuter->GetName());
-				BulkInfo.ChunkId = CreateIoChunkId(PackageId.Value(), 0, EIoChunkType::MemoryMappedBulkData);
-				BulkInfo.BulkDataType = IPackageWriter::FBulkDataInfo::Mmap;
-				BulkInfo.LooseFilePath = FPathViews::ChangeExtension(BulkInfo.LooseFilePath, LexToString(EPackageExtension::BulkDataMemoryMapped));
-				PackageWriter->WriteBulkData(BulkInfo, AddSizeAndConvertToIoBuffer(MappedBulkArchive.Get()), MappedBulkArchive->FileRegions);
-			}
-		}
-		else
-		{
-			checkf(!bIsOptionalRealm, TEXT("Package optional package multi output is unsupported without a PackageWriter for %s"), *InOuter->GetName());
-			auto WriteBulkData = [&](FLargeMemoryWriterWithRegions* Archive, const TCHAR* BulkFileExtension)
-			{
-				if (const int64 DataSize = Archive ? Archive->TotalSize() : 0)
-				{
-					TotalPackageSizeUncompressed += DataSize;
-
-					FLargeMemoryPtr DataPtr(Archive->ReleaseOwnership());
-
-					const FString ArchiveFilename = FPaths::ChangeExtension(Filename, BulkFileExtension);
-
-					EAsyncWriteOptions WriteOptions(EAsyncWriteOptions::None);
-					SavePackageUtilities::AsyncWriteFile(MoveTemp(DataPtr), DataSize, *ArchiveFilename, WriteOptions, Archive->FileRegions);
-				}
-			};
-
-			WriteBulkData(BulkArchive.Get(), LexToString(EPackageExtension::BulkDataDefault));
-			WriteBulkData(OptionalBulkArchive.Get(), LexToString(EPackageExtension::BulkDataOptional));
-			WriteBulkData(MappedBulkArchive.Get(), LexToString(EPackageExtension::BulkDataMemoryMapped));
-		}
-	}
-
-	if (!bSeparateSegmentsEnabled)
-	{
-		if (PackageWriter)
-		{
-			check(BulkArchive.IsValid() && LinkerStart == 0);
-			InOutStartOffset += BulkArchive->TotalSize();
-		}
-		else
-		{
-			check(!BulkArchive.IsValid() && LinkerStart > 0);
-			InOutStartOffset += Linker->Tell() - LinkerStart;
-		}
-	}
-
-	Linker->BulkDataToAppend.Empty();
 	return ESavePackageResult::Success;
 }
 

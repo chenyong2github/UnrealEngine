@@ -353,17 +353,10 @@ void FDerivedData::Serialize(FArchive& Ar, UObject* Owner)
 			BulkData.SetBulkDataFlags(BulkDataFlags | BULKDATA_Force_NOT_InlinePayload);
 		}
 
-		const int64 Offset = Ar.Tell();
-
-		FLinkerSave::FBulkDataStorageInfo& BulkDataInfo = Linker->BulkDataToAppend.AddZeroed_GetRef();
-		BulkDataInfo.BulkDataOffsetInFilePos = Offset;
-		// Size will be written as 64 bits because of the flag BULKDATA_Size64Bit.
-		BulkDataInfo.BulkDataSizeOnDiskPos = Offset + sizeof(uint64);
-		// Use the offset of the offset because SaveBulkData writes flags before offset and size anyway.
-		BulkDataInfo.BulkDataFlagsPos = Offset;
-		BulkDataInfo.BulkDataFlags = BulkDataFlags;
-		BulkDataInfo.BulkDataFileRegionType = EFileRegionType::None;
-		BulkDataInfo.BulkData = &EditorData->BulkData;
+		const int32 ElementSize = 1;
+		const bool bAttemptFileMapping = false;
+		const EFileRegionType FileRegionType = EFileRegionType::None;
+		Ar.SerializeBulkData(EditorData->BulkData, FBulkDataSerializationParams {Owner, ElementSize, FileRegionType, bAttemptFileMapping});
 
 		return LocalCookedData.Serialize(Ar);
 

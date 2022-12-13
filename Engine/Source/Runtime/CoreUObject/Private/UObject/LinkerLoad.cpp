@@ -16,6 +16,7 @@
 #include "UObject/ObjectRedirector.h"
 #include "UObject/Package.h"
 #include "UObject/PackageResourceManager.h"
+#include "UObject/PackageResourceIoDispatcherBackend.h"
 #include "UObject/PackageTrailer.h"
 #include "UObject/UObjectHash.h"
 #include "Misc/PackageName.h"
@@ -55,7 +56,7 @@
 #include "Misc/StringBuilder.h"
 #include "Misc/EngineBuildSettings.h"
 #include "Internationalization/GatherableTextData.h"
-
+#include "Async/MappedFileHandle.h"
 class FTexture2DResourceMem;
 
 #define LOCTEXT_NAMESPACE "LinkerLoad"
@@ -113,9 +114,25 @@ void TrackPackageAssetClass(UPackage* Package, FLinkerLoad& LinkerLoad, const TA
 #endif
 }
 
-/*----------------------------------------------------------------------------
-Helpers
-----------------------------------------------------------------------------*/
+EPackageSegment GetBulkDataPackageSegmentFromFlags(const EBulkDataFlags BulkDataFlags, bool bLoadingFromCookedPackage)
+{
+	if (FBulkData::HasFlags(BulkDataFlags, BULKDATA_PayloadInSeperateFile) == false)
+	{
+		return bLoadingFromCookedPackage ? EPackageSegment::Exports : EPackageSegment::Header;
+	}
+	else if (BulkDataFlags & BULKDATA_OptionalPayload )
+	{
+		return EPackageSegment::BulkDataOptional;
+	}
+	else if (BulkDataFlags & BULKDATA_MemoryMappedPayload)
+	{
+		return EPackageSegment::BulkDataMemoryMapped;
+	}
+	else
+	{
+		return EPackageSegment::BulkDataDefault;
+	}
+}
 
 #if WITH_EDITOR
 bool FLinkerLoad::ShouldCreateThrottledSlowTask() const
@@ -6681,5 +6698,154 @@ bool FLinkerLoad::TryGetPreloadedLoader(const FPackagePath& InPackagePath, FOpen
 }
 
 #endif
+
+bool FLinkerLoad::SerializeBulkData(FBulkData& BulkData, const FBulkDataSerializationParams& Params)
+{
+	using namespace UE::BulkData::Private;
+
+	if (ShouldSkipBulkData())
+	{
+		return false;
+	}
+	
+	checkf(BulkData.IsUnlocked(), TEXT("Serialize bulk data FAILED, bulk data is locked"));
+
+	FBulkMetaData& Meta = BulkData.BulkMeta;
+	int64 DuplicateSerialOffset = -1;
+	SerializeBulkMeta(Meta, DuplicateSerialOffset, Params.ElementSize);
+
+	if (IsAllowingLazyLoading())
+	{
+		Meta.AddFlags(BULKDATA_LazyLoadable);
+#if WITH_EDITOR
+		check(IsTextFormat() == false);
+		BulkData.AttachedAr = this;
+		AttachBulkData(Params.Owner, &BulkData);
+#endif // WITH_EDITOR
+	}
+	else
+	{
+		Meta.ClearFlags(BULKDATA_LazyLoadable);
+	}
+
+	const bool bExternalResource = Meta.HasAnyFlags(BULKDATA_WorkspaceDomainPayload);
+	EPackageSegment Segment = GetBulkDataPackageSegmentFromFlags(Meta.GetFlags(), IsLoadingFromCookedPackage());  
+	BulkData.BulkChunkId = UE::CreatePackageResourceChunkId(PackagePath.GetPackageFName(), Segment, bExternalResource);
+
+	const bool bIsInline = Meta.HasAnyFlags(BULKDATA_PayloadAtEndOfFile) == false;
+	if (bIsInline)
+	{
+		if (IsLoadingFromCookedPackage())
+		{
+			// Cooked packages are split into .uasset/.exp files and the offset needs to be adjusted accordingly.
+			const int64 PkgHeaderSize = IPackageResourceManager::Get().FileSize(PackagePath,  EPackageSegment::Header);
+			Meta.SetOffset(Meta.GetOffset() - PkgHeaderSize);
+		}
+		void* Payload = BulkData.ReallocateData(Meta.GetSize());
+		BulkData.SerializeBulkData(*this, Payload, Meta.GetSize(), Meta.GetFlags());
+	}
+#if USE_RUNTIME_BULKDATA
+	else
+	{
+		// Streaming cooked bulk data. Since I/O store is the default staged output format
+		// this path is only used when running from loose cooked files.
+		check(Meta.HasAnyFlags(BULKDATA_PayloadInSeperateFile));
+		check(IsLoadingFromCookedPackage());
+		Meta.AddFlags(BULKDATA_LazyLoadable);
+
+		IPackageResourceManager& ResourceMgr = IPackageResourceManager::Get();
+	
+		if (Meta.HasAnyFlags(BULKDATA_DuplicateNonOptionalPayload) &&
+			ResourceMgr.DoesPackageExist(PackagePath, EPackageSegment::BulkDataOptional))
+		{
+			Segment = EPackageSegment::BulkDataOptional;
+			Meta.ClearFlags(BULKDATA_DuplicateNonOptionalPayload);
+			Meta.AddFlags(BULKDATA_OptionalPayload);
+			Meta.SetOffset(DuplicateSerialOffset);
+		}
+		else if (Meta.HasAnyFlags(BULKDATA_MemoryMappedPayload) && Params.bAttemptMemoryMapping)
+		{
+			bool bMemoryMapped = false;
+			if (IsAllowingLazyLoading())
+			{
+				TUniquePtr<IMappedFileHandle> MappedFile;
+				MappedFile.Reset(ResourceMgr.OpenMappedHandleToPackage(PackagePath, EPackageSegment::BulkDataMemoryMapped));
+				IMappedFileRegion* MappedRegion = MappedFile.IsValid() ? MappedFile->MapRegion(Meta.GetOffset(), Meta.GetSize(), true) : nullptr;
+				if (MappedRegion)
+				{
+					Segment = EPackageSegment::BulkDataMemoryMapped;
+					BulkData.DataAllocation.SetMemoryMappedData(&BulkData, MappedFile.Release(), MappedRegion);
+					bMemoryMapped  = true;
+				}
+			}
+
+			if (bMemoryMapped == false)
+			{
+				UE_LOG(LogSerialization, Warning, TEXT("Memory map bulk data '%s' FAILED"), *PackagePath.GetDebugName());
+				
+				BulkData.BulkChunkId = UE::CreatePackageResourceChunkId(PackagePath.GetPackageFName(), EPackageSegment::BulkDataDefault, false);
+				BulkData.ForceBulkDataResident();
+			}
+		}
+	
+		BulkData.BulkChunkId = UE::CreatePackageResourceChunkId(PackagePath.GetPackageFName(), Segment, bExternalResource);
+	}
+#else
+	else
+	{
+		// Streaming uncooked bulk data (editor only)
+		check(IsLoadingFromCookedPackage() == false);
+
+		// Unless this package is loaded from the EditorDomain, the offset needs
+		// to be adjusted to the start of non-inline bulk data in the .uasset file. 
+		if (Meta.HasAnyFlags(BULKDATA_WorkspaceDomainPayload) == false)
+		{
+			Meta.SetOffset(Meta.GetOffset() + Summary.BulkDataStartOffset);
+		}
+
+		if (IsAllowingLazyLoading() == false)
+		{
+			FArchive& Ar = *this;
+			FArchive::FScopeSeekTo _(Ar, Meta.GetOffset());
+			void* Payload = BulkData.ReallocateData(Meta.GetSize());
+			BulkData.SerializeBulkData(Ar, Payload, Meta.GetSize(), Meta.GetFlags());
+		}
+	}
+#endif // USE_RUNTIME_BULKDATA
+
+	return true;
+}
+
+void FLinkerLoad::SerializeBulkMeta(UE::BulkData::Private::FBulkMetaData& Meta, int64& DuplicateSerialOffset, int32 ElementSize)
+{
+	using namespace UE::BulkData::Private;
+	FArchive& Ar = *this;
+
+	if (DataResourceMap.IsEmpty())
+	{
+		FBulkMetaResource SerializedMeta;
+		Ar << SerializedMeta;
+		Meta = FBulkMetaData::FromSerialized(SerializedMeta, ElementSize);
+		DuplicateSerialOffset = SerializedMeta.DuplicateOffset;
+	}
+	else
+	{
+		int32 DataResourceIndex = INDEX_NONE;
+		Ar << DataResourceIndex;
+		const FObjectDataResource& DataResource = DataResourceMap[DataResourceIndex];
+		Meta.SetFlags(static_cast<EBulkDataFlags>(DataResource.LegacyBulkDataFlags));
+		Meta.SetOffset(DataResource.SerialOffset);
+		Meta.SetSize(DataResource.RawSize);
+		Meta.SetSizeOnDisk(DataResource.SerialSize);
+		DuplicateSerialOffset = DataResource.DuplicateSerialOffset;
+	}
+
+#if WITH_EDITOR
+	if (GIsEditor)
+	{
+		Meta.ClearFlags(BULKDATA_SingleUse);
+	}
+#endif // WITH_EDITOR
+}
 
 #undef LOCTEXT_NAMESPACE

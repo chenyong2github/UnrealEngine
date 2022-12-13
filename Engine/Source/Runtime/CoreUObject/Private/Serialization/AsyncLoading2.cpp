@@ -142,6 +142,17 @@ FArchive& operator<<(FArchive& Ar, FExportMapEntry& ExportMapEntry)
 
 	return Ar;
 }
+	
+FArchive& operator<<(FArchive& Ar, FBulkDataMapEntry& BulkDataEntry)
+{
+	Ar << BulkDataEntry.SerialOffset;
+	Ar << BulkDataEntry.DuplicateSerialOffset;
+	Ar << BulkDataEntry.SerialSize;
+	Ar << BulkDataEntry.Flags;
+	Ar << BulkDataEntry.Pad;
+
+	return Ar;
+}
 
 uint64 FPackageObjectIndex::GenerateImportHashFromObjectPath(const FStringView& ObjectPath)
 {
@@ -1344,6 +1355,7 @@ struct FAsyncPackageHeaderData
 	TArrayView<const FPackageObjectIndex> ImportMap;
 	TArrayView<const FExportMapEntry> ExportMap;
 	TArrayView<const uint8> ArcsData;
+	TArrayView<const FBulkDataMapEntry> BulkDataMap;
 	// Backed by allocation in FAsyncPackageData
 	TArrayView<FPackageId> ImportedPackageIds;
 	TArrayView<FName> ImportedPackageNames;
@@ -1357,6 +1369,7 @@ struct FAsyncPackageHeaderData
 		ImportMap = TArrayView<const FPackageObjectIndex>();
 		ExportMap = TArrayView<const FExportMapEntry>();
 		ArcsData = TArrayView<const uint8>();
+		BulkDataMap = TArrayView<const FBulkDataMapEntry>();
 	}
 };
 
@@ -1506,6 +1519,7 @@ class FExportArchive final : public FArchive
 {
 public:
 	FExportArchive(const uint8* AllExportDataPtr, const uint8* CurrentExportPtr, uint64 AllExportDataSize)
+		: IoDispatcher(FIoDispatcher::Get())
 	{
 #if (!DEVIRTUALIZE_FLinkerLoad_Serialize)
 		ActiveFPLB = &InlineFPLB;
@@ -1564,18 +1578,32 @@ public:
 
 	virtual int64 Tell() override
 	{
-		int64 CookedFilePosition = (ActiveFPLB->StartFastPathLoadBuffer - ActiveFPLB->OriginalFastPathLoadBuffer);
-		CookedFilePosition -= BufferSerialOffset;
-		CookedFilePosition += CookedSerialOffset;
-		return CookedFilePosition;
+		if (bExportsCookedToSeparateArchive)
+		{
+			return (ActiveFPLB->StartFastPathLoadBuffer - ActiveFPLB->OriginalFastPathLoadBuffer) - BufferSerialOffset;
+		}
+		else
+		{
+			int64 CookedFilePosition = (ActiveFPLB->StartFastPathLoadBuffer - ActiveFPLB->OriginalFastPathLoadBuffer);
+			CookedFilePosition -= BufferSerialOffset;
+			CookedFilePosition += CookedSerialOffset;
+			return CookedFilePosition;
+		}
 	}
 
 	virtual void Seek(int64 Position) override
 	{
-		uint64 BufferPosition = (uint64)Position;
-		BufferPosition -= CookedSerialOffset;
-		BufferPosition += BufferSerialOffset;
-		ActiveFPLB->StartFastPathLoadBuffer = ActiveFPLB->OriginalFastPathLoadBuffer + BufferPosition;
+		if (bExportsCookedToSeparateArchive)
+		{
+			ActiveFPLB->StartFastPathLoadBuffer = ActiveFPLB->OriginalFastPathLoadBuffer + BufferSerialOffset + Position;
+		}
+		else
+		{
+			uint64 BufferPosition = (uint64)Position;
+			BufferPosition -= CookedSerialOffset;
+			BufferPosition += BufferSerialOffset;
+			ActiveFPLB->StartFastPathLoadBuffer = ActiveFPLB->OriginalFastPathLoadBuffer + BufferPosition;
+		}
 		CheckBufferPosition(TEXT("InvalidSeek"));
 	}
 
@@ -1728,10 +1756,107 @@ public:
 		}
 		return *this;
 	}
+
+	inline virtual bool SerializeBulkData(FBulkData& BulkData, const FBulkDataSerializationParams& Params) override
+	{
+		const FPackageId& PackageId = PackageDesc->PackageIdToLoad;
+		const uint16 ChunkIndex = bIsOptionalSegment ? 1 : 0; 
+
+		UE::BulkData::Private::FBulkMetaData& Meta = BulkData.BulkMeta;
+		int64 DuplicateSerialOffset = -1;
+		SerializeBulkMeta(Meta, DuplicateSerialOffset, Params.ElementSize);
+
+		const bool bIsInline = Meta.HasAnyFlags(BULKDATA_PayloadAtEndOfFile) == false;
+		if (bIsInline)
+		{
+			if (int64 PayloadSize = Meta.GetSize(); PayloadSize > 0 && Meta.HasAnyFlags(BULKDATA_Unused) == false)
+			{
+				// Make inline bulk data reloadable
+				const int64 ExportBundleOffset = (ActiveFPLB->StartFastPathLoadBuffer - ActiveFPLB->OriginalFastPathLoadBuffer);
+				Meta.SetOffset(ExportBundleOffset);
+				BulkData.BulkChunkId = CreateIoChunkId(PackageId.Value(), ChunkIndex, EIoChunkType::ExportBundleData);
+				Serialize(BulkData.ReallocateData(PayloadSize), PayloadSize);
+			}
+		}
+		else
+		{
+			const EIoChunkType ChunkType = Meta.HasAnyFlags(BULKDATA_OptionalPayload) ? EIoChunkType::OptionalBulkData : EIoChunkType::BulkData;
+			FIoChunkId ChunkId = CreateIoChunkId(PackageId.Value(), ChunkIndex, ChunkType);
+
+			if (Meta.HasAnyFlags(BULKDATA_DuplicateNonOptionalPayload))
+			{
+				const FIoChunkId OptionalChunkId = CreateIoChunkId(PackageId.Value(), ChunkIndex, EIoChunkType::OptionalBulkData);
+				if (IoDispatcher.DoesChunkExist(OptionalChunkId))
+				{
+					ChunkId = OptionalChunkId;
+					Meta.ClearFlags(BULKDATA_DuplicateNonOptionalPayload);
+					Meta.AddFlags(BULKDATA_OptionalPayload);
+					Meta.SetOffset(DuplicateSerialOffset);
+				}
+			}
+			else if (Meta.HasAnyFlags(BULKDATA_MemoryMappedPayload) && Params.bAttemptMemoryMapping)
+			{
+				const FIoChunkId MappedChunkId = CreateIoChunkId(PackageId.Value(), ChunkIndex, EIoChunkType::MemoryMappedBulkData);
+				TIoStatusOr<FIoMappedRegion> Status = IoDispatcher.OpenMapped(MappedChunkId, FIoReadOptions(Meta.GetOffset(), Meta.GetSize()));
+
+				if (Status.IsOk())
+				{
+					ChunkId = MappedChunkId;
+					FIoMappedRegion Mapping = Status.ConsumeValueOrDie(); 
+					BulkData.DataAllocation.SetMemoryMappedData(&BulkData, Mapping.MappedFileHandle, Mapping.MappedFileRegion);
+				}
+				else
+				{
+					UE_LOG(LogSerialization, Warning, TEXT("Memory map bulk data from chunk '%s', offset '%lld', size '%lld' FAILED"),
+						*LexToString(MappedChunkId), Meta.GetOffset(), Meta.GetSize());
+					
+					BulkData.BulkChunkId = ChunkId;
+					BulkData.ForceBulkDataResident();
+				}
+			}
+
+			BulkData.BulkChunkId = ChunkId;
+		}
+
+		return true;
+	}
 	//~ End FArchive::FLinkerLoad Interface
 
 private:
+	inline void SerializeBulkMeta(UE::BulkData::Private::FBulkMetaData& Meta, int64& DuplicateSerialOffset, int32 ElementSize)
+	{
+		using namespace UE::BulkData::Private;
+		FArchive& Ar = *this;
+
+		if (UNLIKELY(HeaderData->BulkDataMap.IsEmpty()))
+		{
+			FBulkMetaResource SerializedMeta;
+			Ar << SerializedMeta;
+			Meta = FBulkMetaData::FromSerialized(SerializedMeta, ElementSize);
+			DuplicateSerialOffset = SerializedMeta.DuplicateOffset;
+		}
+		else
+		{
+			int32 EntryIndex = INDEX_NONE;
+			Ar << EntryIndex;
+			const FBulkDataMapEntry& Entry = HeaderData->BulkDataMap[EntryIndex];
+			Meta.SetFlags(static_cast<EBulkDataFlags>(Entry.Flags));
+			Meta.SetOffset(Entry.SerialOffset);
+			Meta.SetSize(Entry.SerialSize);
+			DuplicateSerialOffset = Entry.DuplicateSerialOffset;
+		}
+
+		Meta.AddFlags(static_cast<EBulkDataFlags>(BULKDATA_UsesIoDispatcher | BULKDATA_LazyLoadable));
+#if WITH_EDITOR
+		if (GIsEditor)
+		{
+			Meta.ClearFlags(BULKDATA_SingleUse);
+		}
+#endif
+	}
+
 	friend FAsyncPackage2;
+	FIoDispatcher& IoDispatcher;
 #if (!DEVIRTUALIZE_FLinkerLoad_Serialize)
 	FArchive::FFastPathLoadBuffer InlineFPLB;
 	FArchive::FFastPathLoadBuffer* ActiveFPLB;
@@ -1749,6 +1874,8 @@ private:
 	uint64 CookedSerialOffset = 0;
 	uint64 CookedSerialSize = 0;
 	uint64 BufferSerialOffset = 0;
+	bool bIsOptionalSegment = false;
+	bool bExportsCookedToSeparateArchive = false;
 
 	void FixupSoftObjectPathForInstancedPackage(FSoftObjectPath& InOutSoftObjectPath)
 	{
@@ -4721,6 +4848,15 @@ static void ReadAsyncPackageHeader(FAsyncPackageSerializationState& Serializatio
 		HeaderData.NameMap.Load(PackageHeaderDataReader, FMappedName::EType::Package);
 	}
 	HeaderData.PackageName = HeaderData.NameMap.GetName(PackageSummary->Name);
+	
+	const FZenPackageVersioningInfo* VersioningInfo = HeaderData.VersioningInfo.GetPtrOrNull();
+	if (VersioningInfo == nullptr || VersioningInfo->PackageVersion >= EUnrealEngineObjectUE5Version::DATA_RESOURCES)
+	{
+		int64 BulkDataMapSize = 0;
+		PackageHeaderDataReader << BulkDataMapSize;
+		const uint8* BulkDataMapData = PackageHeaderDataPtr + sizeof(FZenPackageSummary) + PackageHeaderDataReader.Tell();
+		HeaderData.BulkDataMap = MakeArrayView(reinterpret_cast<const FBulkDataMapEntry*>(BulkDataMapData), BulkDataMapSize / sizeof(FBulkDataMapEntry));
+	}
 
 	HeaderData.CookedHeaderSize = PackageSummary->CookedHeaderSize;
 	HeaderData.ImportedPublicExportHashes = TArrayView<const uint64>(
@@ -5400,12 +5536,15 @@ EEventLoadNodeExecutionResult FAsyncPackage2::Event_ProcessExportBundle(FAsyncLo
 	
 	if (!Package->bLoadHasFailed)
 	{
+		bool bIsOptionalSegment = false;
 #if WITH_EDITOR
 		const FAsyncPackageHeaderData* HeaderData;
 		const FExportBundleHeader* ExportBundle;
 		FAsyncPackageSerializationState* SerializationState;
 		TArrayView<FExportObject> Exports = Package->Data.Exports;
-		if (InExportBundleIndex >= Package->HeaderData.ExportBundleHeaders.Num())
+		bIsOptionalSegment = InExportBundleIndex >= Package->HeaderData.ExportBundleHeaders.Num();
+
+		if (bIsOptionalSegment)
 		{
 			HeaderData = Package->OptionalSegmentHeaderData.GetPtrOrNull();
 			check(HeaderData);
@@ -5459,6 +5598,8 @@ EEventLoadNodeExecutionResult FAsyncPackage2::Event_ProcessExportBundle(FAsyncLo
 			Ar.Exports = Exports;
 			Ar.ExternalReadDependencies = &Package->ExternalReadDependencies;
 			Ar.InstanceContext = Package->InstanceContext.Get();
+			Ar.bIsOptionalSegment = bIsOptionalSegment;
+			Ar.bExportsCookedToSeparateArchive = Ar.UEVer() >= EUnrealEngineObjectUE5Version::DATA_RESOURCES;			
 		}
 
 		while (Package->ExportBundleEntryIndex < int32(ExportBundle->EntryCount))

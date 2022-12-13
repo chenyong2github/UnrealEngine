@@ -2,7 +2,9 @@
 
 #include "UObject/LinkerSave.h"
 #include "HAL/FileManager.h"
+#include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Serialization/BulkData.h"
 #include "Serialization/LargeMemoryWriter.h"
 #include "UObject/Package.h"
 #include "UObject/Class.h"
@@ -14,7 +16,6 @@
 #include "UObject/UObjectThreadContext.h"
 #include "UObject/UnrealType.h"
 #include "HAL/PlatformStackWalk.h"
-
 #if WITH_EDITORONLY_DATA
 #include "IO/IoDispatcher.h"
 #include "Serialization/DerivedData.h"
@@ -200,8 +201,6 @@ bool FLinkerSave::CloseAndDestroySaver()
 	if (Saver)
 	{
 		// first, do an explicit close to check for archive errors
-		bSuccess = Saver->Close();
-		// then, destroy it
 		delete Saver;
 	}
 	Saver = nullptr;
@@ -555,3 +554,175 @@ UE::FDerivedData FLinkerSave::AddDerivedData(const UE::FDerivedData& Data)
 	return UE::FDerivedData(CookedData);
 }
 #endif // WITH_EDITORONLY_DATA
+
+bool FLinkerSave::SerializeBulkData(FBulkData& BulkData, const FBulkDataSerializationParams& Params) 
+{
+	using namespace UE::BulkData::Private;
+
+	auto CanSaveBulkDataByReference = [](FBulkData& BulkData) -> bool
+	{
+		return BulkData.GetBulkDataOffsetInFile() != INDEX_NONE &&
+			// We don't support yet loading from a separate file
+			!BulkData.IsInSeparateFile() &&
+			// It is possible to have a BulkData marked as optional without putting it into a separate file, and we
+			// assume that if BulkData is optional and in a separate file, then it is in the BulkDataOptional
+			// segment. Rather than changing that assumption to support optional ExternalResource bulkdata, we
+			// instead require that optional inlined/endofpackagedata BulkDatas can not be read from an
+			// ExternalResource and must remain inline.
+			!BulkData.IsOptional() &&
+			// Inline or end-of-package-file data can only be loaded from the workspace domain package file if the
+			// archive used by the bulk data was actually from the package file; BULKDATA_LazyLoadable is set by
+			// Serialize iff that is the case										
+			(BulkData.GetBulkDataFlags() & BULKDATA_LazyLoadable);
+	};
+	
+	if (ShouldSkipBulkData())
+	{
+		return false;
+	}
+
+	const EBulkDataFlags BulkDataFlags	= static_cast<EBulkDataFlags>(BulkData.GetBulkDataFlags());
+	int32 ResourceIndex					= DataResourceMap.Num();
+	const int64 PayloadSize				= BulkData.GetBulkDataSize();
+	const EFileRegionType RegionToUse	= bFileRegionsEnabled && IsCooking() ? Params.RegionType : EFileRegionType::None;
+	const bool bSupportsMemoryMapping	= IsCooking() && MemoryMappingAlignment >= 0;
+	const bool bSaveAsResourceIndex		= IsCooking();
+	
+	FBulkMetaResource SerializedMeta;
+	SerializedMeta.Flags = BulkDataFlags;
+	SerializedMeta.ElementCount = PayloadSize / Params.ElementSize;
+	SerializedMeta.SizeOnDisk = PayloadSize; 
+
+	EBulkDataFlags FlagsToClear = static_cast<EBulkDataFlags>(BULKDATA_PayloadAtEndOfFile | BULKDATA_PayloadInSeperateFile | BULKDATA_WorkspaceDomainPayload | BULKDATA_ForceSingleElementSerialization);
+	if (IsCooking())
+	{
+		FBulkData::SetBulkDataFlagsOn(FlagsToClear, static_cast<EBulkDataFlags>(BULKDATA_SerializeCompressed));
+	}
+
+	FBulkData::ClearBulkDataFlagsOn(SerializedMeta.Flags, FlagsToClear);
+
+	const bool bSerializeInline =
+		FBulkData::HasFlags(BulkDataFlags, BULKDATA_ForceInlinePayload) ||
+		(IsCooking() && (FBulkData::HasFlags(BulkDataFlags, BULKDATA_Force_NOT_InlinePayload) == false)) ||
+		IsTextFormat();
+
+	if (bSerializeInline)
+	{
+		FArchive& Ar = *this;
+
+		const int64 MetaOffset = Tell();
+		if (bSaveAsResourceIndex)
+		{
+			Ar << ResourceIndex;
+		}
+		else
+		{
+			Ar << SerializedMeta;
+		}
+
+		SerializedMeta.Offset = Tell();
+		SerializedMeta.SizeOnDisk = BulkData.SerializePayload(Ar, SerializedMeta.Flags, RegionToUse);
+
+		if (bSaveAsResourceIndex == false)
+		{
+			FArchive::FScopeSeekTo _(Ar, MetaOffset);
+			Ar << SerializedMeta;
+		}
+	}
+	else
+	{
+		FBulkData::SetBulkDataFlagsOn(SerializedMeta.Flags, static_cast<EBulkDataFlags>(BULKDATA_PayloadAtEndOfFile));
+
+		if (bSaveBulkDataToSeparateFiles)
+		{
+			check(bSaveBulkDataByReference == false);
+			FBulkData::SetBulkDataFlagsOn(SerializedMeta.Flags, static_cast<EBulkDataFlags>(BULKDATA_PayloadInSeperateFile | BULKDATA_NoOffsetFixUp));
+		}
+		
+		const bool bSaveByReference = bSaveBulkDataByReference && CanSaveBulkDataByReference(BulkData);
+		if (bSaveByReference)
+		{
+			check(IsCooking() == false);
+			FBulkData::SetBulkDataFlagsOn(SerializedMeta.Flags, static_cast<EBulkDataFlags>(BULKDATA_NoOffsetFixUp | BULKDATA_WorkspaceDomainPayload));
+		}
+
+		if (bSaveBulkDataToSeparateFiles && FBulkData::HasFlags(SerializedMeta.Flags, BULKDATA_OptionalPayload))
+		{
+			SerializedMeta.Offset = OptionalBulkDataAr.Tell();
+			SerializedMeta.SizeOnDisk = BulkData.SerializePayload(OptionalBulkDataAr, SerializedMeta.Flags, RegionToUse);
+		}
+		else if (bSaveBulkDataToSeparateFiles && FBulkData::HasFlags(SerializedMeta.Flags, BULKDATA_MemoryMappedPayload) && bSupportsMemoryMapping)
+		{
+			if (int64 Padding = Align(MemoryMappedBulkDataAr.Tell(), MemoryMappingAlignment) - MemoryMappedBulkDataAr.Tell(); Padding > 0)
+			{
+				TArray<uint8> Zeros;
+				Zeros.SetNumZeroed(int32(Padding));
+				MemoryMappedBulkDataAr.Serialize(Zeros.GetData(), Padding);
+			}
+			SerializedMeta.Offset = MemoryMappedBulkDataAr.Tell();
+			SerializedMeta.SizeOnDisk = BulkData.SerializePayload(MemoryMappedBulkDataAr, SerializedMeta.Flags, RegionToUse);
+		}
+		else
+		{
+			if (bSaveBulkDataToSeparateFiles && FBulkData::HasFlags(SerializedMeta.Flags, BULKDATA_DuplicateNonOptionalPayload))
+			{
+				SerializedMeta.DuplicateFlags = SerializedMeta.Flags;
+				SerializedMeta.DuplicateOffset = OptionalBulkDataAr.Tell();
+				SerializedMeta.DuplicateSizeOnDisk = BulkData.SerializePayload(OptionalBulkDataAr, SerializedMeta.Flags, RegionToUse);
+
+				FBulkData::ClearBulkDataFlagsOn(SerializedMeta.DuplicateFlags, BULKDATA_DuplicateNonOptionalPayload);
+				FBulkData::SetBulkDataFlagsOn(SerializedMeta.DuplicateFlags, BULKDATA_OptionalPayload);
+			}
+
+			if (bSaveByReference)
+			{
+				SerializedMeta.Offset = BulkData.GetBulkDataOffsetInFile();
+				SerializedMeta.SizeOnDisk = BulkData.GetBulkDataSizeOnDisk();
+			}
+			else
+			{
+				SerializedMeta.Offset = BulkDataAr.Tell();
+				SerializedMeta.SizeOnDisk = BulkData.SerializePayload(BulkDataAr, SerializedMeta.Flags, RegionToUse);
+			}
+		}
+		
+		FArchive& Ar = *this;
+		if (bSaveAsResourceIndex)
+		{
+			Ar << ResourceIndex;
+		}
+		else
+		{
+			Ar << SerializedMeta;
+		}
+	}
+
+	FObjectDataResource& DataResource = DataResourceMap.AddDefaulted_GetRef();
+	DataResource.RawSize				= PayloadSize;
+	DataResource.SerialSize				= SerializedMeta.SizeOnDisk;
+	DataResource.SerialOffset			= SerializedMeta.Offset;
+	DataResource.DuplicateSerialOffset	= SerializedMeta.DuplicateOffset;
+	DataResource.LegacyBulkDataFlags	= SerializedMeta.Flags;
+	DataResource.OuterIndex				= ObjectIndicesMap.FindRef(Params.Owner);
+
+	SerializedBulkData.Add(&BulkData, ResourceIndex);
+
+	return true;
+}
+
+void FLinkerSave::OnPostSaveBulkData()
+{
+#if WITH_EDITOR
+	if (bUpdatingLoadedPath)
+	{
+		for (TPair<FBulkData*, int32>& Kv : SerializedBulkData)
+		{
+			FBulkData& BulkData = *Kv.Key;
+			const FObjectDataResource& DataResource = DataResourceMap[Kv.Value];
+			BulkData.SetFlagsFromDiskWrittenValues(static_cast<EBulkDataFlags>(DataResource.Flags), DataResource.SerialOffset, DataResource.SerialSize, Summary.BulkDataStartOffset);
+		}
+	}
+#endif
+
+	SerializedBulkData.Empty();
+}

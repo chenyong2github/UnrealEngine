@@ -3515,15 +3515,18 @@ void FAsyncPackage::EventDrivenSerializeExport(int32 LocalExportIndex)
 			ACCUM_LOADTIMECOUNT_STAT(StaticGetNativeClassName(Object->GetClass()).ToString());
 			SCOPED_ACCUM_LOADTIME_STAT(StaticGetNativeClassName(Object->GetClass()).ToString());
 			SCOPED_ACCUM_LOADTIME(Serialize, StaticGetNativeClassName(Object->GetClass()));
+			
+			FLinkerExportArchive ExportArchive(*Linker, Export.SerialOffset, Export.SerialSize);
+			ExportArchive.SetFilterEditorOnly(Linker->IsFilterEditorOnly());
 		
 			if (Object->HasAnyFlags(RF_ClassDefaultObject))
 			{
-				Object->GetClass()->SerializeDefaultObject(Object, *Linker);
+				Object->GetClass()->SerializeDefaultObject(Object, ExportArchive);
 			}
 			else
 			{
 				UE_SCOPED_IO_ACTIVITY(*Object->GetName());
-				Object->Serialize(*Linker);
+				Object->Serialize(ExportArchive);
 			}
 		}
 		check(Linker->TemplateForGetArchetypeFromLoader == Template);
@@ -8552,6 +8555,38 @@ void FAsyncArchive::DiscardInlineBufferAndUpdateCurrentPos()
 	ActiveFPLB->Reset();
 }
 #endif
+
+FLinkerExportArchive::FLinkerExportArchive(FLinkerLoad& InLinker, int64 InExportSerialOffset, int64 InExportSerialSize)
+	: FArchiveProxy(InLinker)
+	, ExportSerialOffset(InExportSerialOffset)
+	, ExportSerialSize(InExportSerialSize)
+{
+	bExportsCookedToSeparateArchive = InLinker.IsLoadingFromCookedPackage() && InLinker.Summary.GetFileVersionUE() >= EUnrealEngineObjectUE5Version::DATA_RESOURCES;
+}
+
+int64 FLinkerExportArchive::Tell() 
+{
+	const int64 Position = FArchiveProxy::Tell();
+
+	if (bExportsCookedToSeparateArchive)
+	{
+		return Position - ExportSerialOffset;
+	}
+
+	return Position; 
+}
+
+void FLinkerExportArchive::Seek(int64 Position)
+{
+	if (bExportsCookedToSeparateArchive && Position <= ExportSerialSize)
+	{
+		FArchiveProxy::Seek(ExportSerialOffset + Position);
+	}
+	else
+	{
+		FArchiveProxy::Seek(Position);
+	}
+}
 
 #if TRACK_SERIALIZE
 

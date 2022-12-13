@@ -245,6 +245,7 @@ enum class EExportFilterFlags : uint8
 enum class EZenPackageVersion : uint32
 {
 	Initial,
+	DataResourceTable,
 
 	LatestPlusOne,
 	Latest = LatestPlusOne - 1
@@ -342,6 +343,17 @@ struct FExportMapEntry
 	uint8 Pad[3] = {};
 
 	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FExportMapEntry& ExportMapEntry);
+};
+
+struct FBulkDataMapEntry
+{
+	int64 SerialOffset = 0;
+	int64 DuplicateSerialOffset = 0;
+	int64 SerialSize = 0;
+	uint32 Flags = 0;
+	uint32 Pad = 0;
+	
+	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FBulkDataMapEntry& BulkDataEntry);
 };
 
 COREUOBJECT_API void FindAllRuntimeScriptPackages(TArray<UPackage*>& OutPackages);

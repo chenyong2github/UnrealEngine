@@ -144,7 +144,8 @@ FPackageStorePackage* FPackageStoreOptimizer::CreatePackageFromCookedHeader(cons
 	ProcessImports(CookedHeaderData, Package, Imports);
 	ProcessExports(CookedHeaderData, Package, Imports.GetData());
 	ProcessPreloadDependencies(CookedHeaderData, Package);
-	
+	ProcessDataResources(CookedHeaderData, Package);
+
 	CreateExportBundles(Package);
 
 	return Package;
@@ -178,6 +179,7 @@ FPackageStorePackage* FPackageStoreOptimizer::CreatePackageFromPackageStoreHeade
 	{
 		Package->NameMapBuilder.AddName(DisplayId);
 	}
+	Package->BulkDataEntries = MoveTemp(PackageStoreHeaderData.BulkDataEntries);
 	ProcessImports(PackageStoreHeaderData, Package);
 	ProcessExports(PackageStoreHeaderData, Package);
 	ProcessPreloadDependencies(PackageStoreHeaderData, Package);
@@ -282,6 +284,12 @@ FPackageStoreOptimizer::FCookedHeaderData FPackageStoreOptimizer::LoadCookedHead
 			ProxyAr << ObjectExport;
 		}
 	}
+	
+	if (Summary.DataResourceOffset > 0)
+	{
+		ProxyAr.Seek(Summary.DataResourceOffset);
+		FObjectDataResource::Serialize(ProxyAr, CookedHeaderData.DataResources);
+	}
 
 	return CookedHeaderData;
 }
@@ -308,6 +316,15 @@ FPackageStoreOptimizer::FPackageStoreHeaderData FPackageStoreOptimizer::LoadPack
 
 	TArray<FDisplayNameEntryId>& NameMap = PackageStoreHeaderData.NameMap;
 	NameMap = LoadNameBatch(HeaderDataReader);
+
+	const FZenPackageVersioningInfo* VersioningInfo = PackageStoreHeaderData.VersioningInfo.GetPtrOrNull();
+	if (VersioningInfo == nullptr || VersioningInfo->PackageVersion >= EUnrealEngineObjectUE5Version::DATA_RESOURCES)
+	{
+		int64 BulkDataMapSize = 0;
+		HeaderDataReader << BulkDataMapSize;
+		const uint8* BulkDataMapData = HeaderData + sizeof(FZenPackageSummary) + HeaderDataReader.Tell();
+		PackageStoreHeaderData.BulkDataEntries = MakeArrayView(reinterpret_cast<const FBulkDataMapEntry*>(BulkDataMapData), BulkDataMapSize / sizeof(FBulkDataMapEntry));
+	}
 
 	for (FPackageId PackageId : PackageStoreEntry.ImportedPackageIds)
 	{
@@ -1005,6 +1022,20 @@ void FPackageStoreOptimizer::ProcessPreloadDependencies(const FCookedHeaderData&
 	}
 }
 
+void FPackageStoreOptimizer::ProcessDataResources(const FCookedHeaderData& CookedHeaderData, FPackageStorePackage* Package) const
+{
+	for (const FObjectDataResource& DataResource : CookedHeaderData.DataResources)
+	{
+		FBulkDataMapEntry& Entry = Package->BulkDataEntries.AddDefaulted_GetRef();
+		checkf(DataResource.SerialSize == DataResource.RawSize, TEXT("Compressed bulk data is not supported in cooked builds"));
+
+		Entry.SerialOffset = DataResource.SerialOffset;
+		Entry.DuplicateSerialOffset = DataResource.DuplicateSerialOffset;
+		Entry.SerialSize = DataResource.SerialSize;
+		Entry.Flags = DataResource.LegacyBulkDataFlags;
+	}
+}
+
 void FPackageStoreOptimizer::ProcessPreloadDependencies(const FPackageStoreHeaderData& PackageStoreHeaderData, FPackageStorePackage* Package) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ProcessPreloadDependencies);
@@ -1489,6 +1520,13 @@ void FPackageStoreOptimizer::FinalizePackageHeader(FPackageStorePackage* Package
 		VersioningInfoArchive << Package->VersioningInfo.GetValue();
 		Package->VersioningInfoSize = VersioningInfoArchive.Tell();
 	}
+	
+	FBufferWriter BulkDataMapAr(nullptr, 0, EBufferWriterFlags::AllowResize | EBufferWriterFlags::TakeOwnership);
+	for (FBulkDataMapEntry& Entry : Package->BulkDataEntries)
+	{
+		BulkDataMapAr << Entry;
+	}
+	Package->BulkDataMapSize = BulkDataMapAr.Tell();
 
 	Package->HeaderSize =
 		sizeof(FZenPackageSummary)
@@ -1498,7 +1536,8 @@ void FPackageStoreOptimizer::FinalizePackageHeader(FPackageStorePackage* Package
 		+ Package->ImportMapSize
 		+ Package->ExportMapSize
 		+ Package->ExportBundleEntriesSize
-		+ Package->GraphDataSize;
+		+ Package->GraphDataSize
+		+ Package->BulkDataMapSize + sizeof(int64);
 
 	Package->HeaderBuffer = FIoBuffer(Package->HeaderSize);
 	uint8* HeaderData = Package->HeaderBuffer.Data();
@@ -1522,6 +1561,10 @@ void FPackageStoreOptimizer::FinalizePackageHeader(FPackageStorePackage* Package
 	}
 
 	HeaderArchive.Serialize(NameMapArchive.GetWriterData(), NameMapArchive.Tell());
+
+	HeaderArchive << Package->BulkDataMapSize;
+	HeaderArchive.Serialize(BulkDataMapAr.GetWriterData(), Package->BulkDataMapSize);
+
 	PackageSummary->ImportedPublicExportHashesOffset = HeaderArchive.Tell();
 	HeaderArchive.Serialize(ImportedPublicExportHashesArchive.GetWriterData(), ImportedPublicExportHashesArchive.Tell());
 	PackageSummary->ImportMapOffset = HeaderArchive.Tell();

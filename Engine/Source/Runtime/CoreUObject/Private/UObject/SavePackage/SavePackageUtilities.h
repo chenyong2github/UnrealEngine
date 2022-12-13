@@ -353,29 +353,6 @@ namespace SavePackageUtilities
 	void SaveThumbnails(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::FSlot Slot);
 
 	/**
-	 * Save all of the BulkDatas that have registered as not being inline.
-	 * They may be saved to the end of the file, or to an archive for a separate file.
-	 * Kicks off async writes, use UPackage::WaitForAsyncFileWrites(); to ensure they are complete.
-	 * 
-	 * @param Linker The linker containing the exports. Provides metadata for BulkData, and BulkData may write to it as their target archive.
-	 * @param InOutStartOffset In value is the offset in the Linker's archive where the BulkDatas will be put. If SavePackageContext settings direct
-	 *        the bulkdatas to write in a separate archive that will be combined after the linker, the value is the Linker archive's totalsize.
-	 *        Output value is incremented by the number of bytes written the Linker or the separate archive at the end of the linker.
-	 *        Bytes written to separate files do not contribute to this offset.
-	 * @param InOuter The package being saved
-	 * @param Filename The filename the package is being saved to. Used to decide the filename of separate archives, if any are used.
-	 * @param SavePackageContext Provides The PackageWriter and other parameters of how the bulkdata should be saved.
-	 * @param SaveFlags The flags passed into SavePackage; affects how the bulkdata should be saved.
-	 * @param bTextFormat True if package is saving to text. Bulkdata has special handling for text output.
-	 * @param bDiffing True if the package is only diffing, so bulk data should be recorded but not saved to disk.
-	 * @param TotalPackageSizeUncompressed Output: Bulkdata sizes are added to it.
-	 */
-	ESavePackageResult SaveBulkData(FLinkerSave* Linker, int64& InOutStartOffset, const UPackage* InOuter,
-		const TCHAR* Filename, const ITargetPlatform* TargetPlatform, FSavePackageContext* SavePackageContext,
-		uint32 SaveFlags, const bool bTextFormat,
-		int64& TotalPackageSizeUncompressed, bool bIsOptionalRealm = false);
-	
-	/**
 	 * Used to append additional data to the end of the package file by invoking callbacks stored in the linker.
 	 * They may be saved to the end of the file, or to a separate archive passed into the PackageWriter.
 	 

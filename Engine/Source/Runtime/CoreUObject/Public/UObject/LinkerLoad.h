@@ -44,6 +44,7 @@ class UObject;
 class UPackage;
 class UStruct;
 namespace UE::Serialization{ class FEditorBulkData; }
+namespace UE::BulkData::Private{ class FBulkMetaData; }
 namespace UE{ class FPackageTrailer; }
 struct FObjectPtr;
 struct FOpenPackageResult;
@@ -380,7 +381,11 @@ public:
 	 */
 	COREUOBJECT_API static void AddGameNameRedirect(const FName OldName, const FName NewName);
 
+	virtual bool SerializeBulkData(FBulkData& BulkData, const FBulkDataSerializationParams& Params) override;
+
 private:
+
+	void SerializeBulkMeta(UE::BulkData::Private::FBulkMetaData& Meta, int64& DuplicateSerialOffset, int32 ElementSize);
 
 	// Variables used during async linker creation.
 

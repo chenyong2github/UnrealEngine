@@ -154,6 +154,11 @@ public:
 		InnerArchive.DetachBulkData(BulkData, bEnsureBulkDataIsLoaded);
 	}
 
+	virtual bool SerializeBulkData(class FBulkData& BulkData, const struct FBulkDataSerializationParams& Params) override
+	{
+		return InnerArchive.SerializeBulkData(BulkData, Params);
+	}
+
 	virtual bool Precache(int64 PrecacheOffset, int64 PrecacheSize) override
 	{
 		return InnerArchive.Precache(PrecacheOffset, PrecacheSize);
@@ -236,6 +241,7 @@ public:
 
 	virtual void SetFilterEditorOnly(bool InFilterEditorOnly) override
 	{
+		FArchive::SetFilterEditorOnly(InFilterEditorOnly);
 		InnerArchive.SetFilterEditorOnly(InFilterEditorOnly);
 	}
 

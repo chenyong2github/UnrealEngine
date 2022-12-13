@@ -46,6 +46,7 @@ class IAsyncReadRequest;
 class UObject;
 struct FTimespan;
 namespace UE { namespace Serialization { class FEditorBulkData; } }
+enum class EFileRegionType : uint8;
 
 #if WITH_EDITOR == 0 && WITH_EDITORONLY_DATA == 0
 	#define USE_NEW_BULKDATA UE_DEPRECATED_MACRO(5.1, "The USE_NEW_BULKDATA macro has been deprecated in favor of USE_RUNTIME_BULKDATA.") 1
@@ -181,22 +182,6 @@ inline FArchive& operator<<(FArchive& Ar, EBulkDataFlags& Flags)
 {
 	Ar << (uint32&)Flags;
 	return Ar;
-}
-
-/** Serialize the given Value as an int32 or int64 depending on InBulkDataFlags&BULKDATA_Size64Bit. */
-inline void SerializeBulkDataSizeInt(FArchive& Ar, int64& Value, EBulkDataFlags InBulkDataFlags)
-{
-	if (InBulkDataFlags & BULKDATA_Size64Bit)
-	{
-		Ar << Value;
-	}
-	else
-	{
-		check(!Ar.IsSaving() || (MIN_int32 <= Value && Value <= MAX_int32));
-		int32 ValueAsInt32 = static_cast<int32>(Value);
-		Ar << ValueAsInt32;
-		Value = ValueAsInt32;
-	}
 }
 
 /**
@@ -351,22 +336,11 @@ struct FBulkMetaResource
  *
  * Uses 5 bytes for size and offset.
  * [0 - 4][5 - 9][  10	][    11	][12    -   15]([16   -  23])
- * [Size][Offset][MetaFlags][LockFlags][BulkDataFlags]([SizeOnDisk])
+ * [Size][Offset][Unused][LockFlags][BulkDataFlags]([SizeOnDisk])
  */
 class FBulkMetaData
 {
 public:
-	enum class EMetaFlags : uint8
-	{
-		/** No additional bulk data flags. */
-		None				= 0,
-		/** Loading from a cooked package. */
-		CookedPackage		= (1 << 0),
-		/** Loading optional package data. */
-		OptionalPackage		= (1 << 1)
-	};
-	FRIEND_ENUM_CLASS_FLAGS(EMetaFlags);
-
 	/** 40 bits for max bulk data size. */
 	static constexpr int64 MaxSize = 0xFFffFFffFF;
 	/** 39 bits for max bulk data offset and 1 bit to indicate INDEX_NONE. */
@@ -380,11 +354,10 @@ public:
 #endif
 	}
 
-	explicit FBulkMetaData(EBulkDataFlags Flags, EMetaFlags MetaFlags)
+	explicit FBulkMetaData(EBulkDataFlags Flags)
 		: FBulkMetaData()
 	{
 		SetFlags(Flags);
-		SetMetaFlags(MetaFlags);
 	}
 
 	inline int64 GetSize() const
@@ -452,6 +425,16 @@ public:
 		*reinterpret_cast<uint32*>(&Data[12]) = static_cast<uint32>(Flags);
 	}
 
+	void AddFlags(EBulkDataFlags Flags)
+	{
+		*reinterpret_cast<uint32*>(&Data[12]) |= static_cast<uint32>(Flags);
+	}
+	
+	void ClearFlags(EBulkDataFlags Flags)
+	{
+		*reinterpret_cast<uint32*>(&Data[12]) &= ~static_cast<uint32>(Flags);
+	}
+
 	inline bool HasAnyFlags(EBulkDataFlags Flags) const
 	{
 		return (GetFlags() & Flags) != 0;
@@ -462,16 +445,6 @@ public:
 		return (GetFlags() & Flags) == Flags;
 	}
 
-	void SetMetaFlags(EMetaFlags MetaFlags)
-	{
-		Data[10] = static_cast<uint8>(MetaFlags);
-	}
-	
-	EMetaFlags GetMetaFlags() const
-	{
-		return static_cast<EMetaFlags>(Data[10]);
-	}
-	
 	static FBulkMetaData FromSerialized(const FBulkMetaResource& MetaResource, int64 ElementSize)
 	{
 		FBulkMetaData Meta;
@@ -485,6 +458,12 @@ public:
 		Meta.SetOffset(MetaResource.Offset);
 		Meta.SetFlags(MetaResource.Flags);
 
+		check(MetaResource.ElementCount <= 0 || Meta.GetSize() == MetaResource.ElementCount * ElementSize);
+		check(Meta.GetOffset() == MetaResource.Offset);
+		check(Meta.GetFlags() == MetaResource.Flags);
+#if !USE_RUNTIME_BULKDATA
+		check(MetaResource.ElementCount <= 0 || Meta.GetSizeOnDisk() == MetaResource.SizeOnDisk);
+#endif
 		return Meta;
 	}
 
@@ -505,13 +484,20 @@ private:
 #endif // USE_RUNTIME_BULKDATA
 };
 
-/** Returns an I/O chunk ID to be used when loading from I/O store. */
-FIoChunkId CreateBulkDataIoChunkId(const FBulkMetaData& BulkMeta, UObject* Owner);
-
-/** Returns the package segment when loading from the package resource manager. */
-COREUOBJECT_API EPackageSegment GetPackageSegmentFromFlags(const FBulkMetaData& BulkMeta);
-
 } // namespace UE::BulkData::Private
+
+/** Parameters when serializing bulk data. */
+struct FBulkDataSerializationParams
+{
+	/** The owner of the bulk data. */
+	UObject* Owner = nullptr;
+	/** Bulk data element size. */
+	int32 ElementSize = 0;
+	/** The region type. */
+	EFileRegionType RegionType;
+	/** Flag indicating whether to try to memory map the bulk data payload or not. */
+	bool bAttemptMemoryMapping = false;
+};
 
 /**
  * @documentation @todo documentation
@@ -557,6 +543,7 @@ class COREUOBJECT_API FBulkData
 
 public:
 	friend class FLinkerLoad;
+	friend class FLinkerSave;
 	friend class FExportArchive;
 	friend class UE::Serialization::FEditorBulkData; // To allow access to AttachedAr
 	friend class FBulkDataBatchRequest;
@@ -1042,6 +1029,8 @@ public:
 	static void SetBulkDataFlagsOn(EBulkDataFlags& InOutAccumulator, EBulkDataFlags FlagsToSet);
 	/** Disable the given flags in the given accumulator variable. */
 	static void ClearBulkDataFlagsOn(EBulkDataFlags& InOutAccumulator, EBulkDataFlags FlagsToClear);
+	/** Returns whether all of the specified flags are set. */
+	static bool HasFlags(EBulkDataFlags Flags, EBulkDataFlags Contains);
 	/** Returns decompress method flags specified by the given bulk data flags. */
 	static FName GetDecompressionFormat(EBulkDataFlags InFlags);
 
@@ -1054,6 +1043,8 @@ protected:
 	void SerializeBulkData(FArchive& Ar, void* Data, int64 DataSize, EBulkDataFlags InBulkDataFlags);
 
 private:
+
+	int64 SerializePayload(FArchive& Ar, EBulkDataFlags SerializationFlags, EFileRegionType RegionType);
 #if WITH_EDITOR
 	/**
 	 * Detaches the bulk data from the passed in archive. Needs to match the archive we are currently
@@ -1092,9 +1083,6 @@ private:
 	
 	bool CanDiscardInternalData() const;
 	
-	/** Sets whether inline bulk data is allowed to be unloaded or not */
-	void ConditionalSetInlineAlwaysAllowDiscard(bool bPackageUsesIoStore);
-
 	/** Reallocate bulk data */
 	inline void* ReallocateData(SIZE_T SizeInBytes) { return DataAllocation.ReallocateData(this, SizeInBytes); }
 

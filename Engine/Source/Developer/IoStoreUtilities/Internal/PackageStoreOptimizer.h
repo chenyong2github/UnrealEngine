@@ -276,6 +276,7 @@ private:
 	TArray<FPackageId> ImportedPackageIds;
 	TArray<uint64> ImportedPublicExportHashes;
 	TSet<FSHAHash> ShaderMapHashes;
+	TArray<FBulkDataMapEntry> BulkDataEntries;
 
 	FIoBuffer HeaderBuffer;
 
@@ -290,6 +291,7 @@ private:
 	uint64 GraphDataSize = 0;
 	uint64 NameMapSize = 0;
 	uint64 VersioningInfoSize = 0;
+	uint64 BulkDataMapSize = 0;
 	uint32 LoadOrder = 0;
 	
 	TArray<FExportBundleGraphNode> ExportBundleGraphNodes;
@@ -369,6 +371,7 @@ private:
 		TArray<FObjectImport> ObjectImports;
 		TArray<FObjectExport> ObjectExports;
 		TArray<FPackageIndex> PreloadDependencies;
+		TArray<FObjectDataResource> DataResources;
 	};
 
 	struct FPackageStoreHeaderData
@@ -378,6 +381,7 @@ private:
 		TArray<FPackageId> ImportedPackageIds;
 		TArray<uint64> ImportedPublicExportHashes;
 		TArray<FDisplayNameEntryId> NameMap;
+		TArray<FBulkDataMapEntry> BulkDataEntries;
 		TArray<FPackageObjectIndex> Imports; // FH: Imports might need to have more info to be able to resolve export hash with import as outer
 		TArray<FExportMapEntry> Exports;
 		TArray<FExportBundleHeader> ExportBundleHeaders;
@@ -401,6 +405,7 @@ private:
 	void ProcessExports(const FPackageStoreHeaderData& PackageStoreHeaderData, FPackageStorePackage* Package) const;
 	void ProcessPreloadDependencies(const FCookedHeaderData& CookedHeaderData, FPackageStorePackage* Package) const;
 	void ProcessPreloadDependencies(const FPackageStoreHeaderData& PackageStoreHeaderData, FPackageStorePackage* Package) const;
+	void ProcessDataResources(const FCookedHeaderData& CookedHeaderData, FPackageStorePackage* Package) const;
 	TArray<FPackageStorePackage*> SortPackagesInLoadOrder(const TMap<FPackageId, FPackageStorePackage*>& PackagesMap) const;
 	void SerializeGraphData(const TArray<FPackageId>& ImportedPackageIds, FPackageStorePackage::FGraphData& GraphData, FBufferWriter& GraphArchive) const;
 	TArray<FPackageStorePackage::FExportGraphNode*> SortExportGraphNodesInLoadOrder(FPackageStorePackage* Package, FExportGraphEdges& Edges) const;

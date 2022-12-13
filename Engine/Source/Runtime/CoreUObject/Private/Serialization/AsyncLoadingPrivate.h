@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Serialization/ArchiveProxy.h"
 #include "UObject/Linker.h"
 #include "Async/AsyncFileHandle.h"
 
@@ -149,3 +150,24 @@ private:
 
 	FLinkerLoad* OwnerLinker;
 };
+
+/**
+ * The Linker export archive converts Export relative offsets
+ * to file relative offsets when exports are cooked to separate
+ * archives.
+ */
+class COREUOBJECT_API FLinkerExportArchive final
+	: public FArchiveProxy
+{
+public:
+	FLinkerExportArchive(class FLinkerLoad& InLinker, int64 InExportSerialOffset, int64 InExportSerialSize);
+
+	virtual int64 Tell() override;
+	virtual void Seek(int64 Position) override;
+
+private:
+	int64 ExportSerialOffset;
+	int64 ExportSerialSize;
+	bool bExportsCookedToSeparateArchive;
+};
+
