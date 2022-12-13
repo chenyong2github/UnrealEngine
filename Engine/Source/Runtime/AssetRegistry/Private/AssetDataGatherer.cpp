@@ -4186,10 +4186,7 @@ void FAssetDataGatherer::SetDirectoryProperties(FStringView LocalPath, const UE:
 		return;
 	}
 
-	if (!Discovery->TrySetDirectoryProperties(LocalAbsPath, InProperties, false))
-	{
-		return;
-	}
+	Discovery->TrySetDirectoryProperties(LocalAbsPath, InProperties, false);
 
 	{
 		FGathererScopeLock ResultsScopeLock(&ResultsLock);
