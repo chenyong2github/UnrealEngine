@@ -85,12 +85,13 @@ namespace UE::ShaderCompilerCommon
 	extern SHADERCOMPILERCOMMON_API void ParseRayTracingEntryPoint(const FString& Input, FString& OutMain, FString& OutAnyHit, FString& OutIntersection);
 
 	/**
-	* Rewrites a fully preprocessed shader source code, removing any functions or structs that are not reachable from a given entry point.
+	* Rewrites a fully preprocessed shader source code, removing any functions or structs that are not reachable from a given entry point or list of symbols.
 	* This is a high-level wrapper for UE::ShaderMinifier that should be used in all shader compiler back-ends for consistency.
 	* Any errors encountered during parsing or minification are added to OutErrors.
 	* InOutPreprocessedShaderSource is replaced with the rewritten code on success and is kept intact on failure.
 	*/
 	extern SHADERCOMPILERCOMMON_API bool RemoveDeadCode(FString& InOutPreprocessedShaderSource, const FString& EntryPoint, TArray<FShaderCompilerError>& OutErrors);
+	extern SHADERCOMPILERCOMMON_API bool RemoveDeadCode(FString& InOutPreprocessedShaderSource, TConstArrayView<FStringView> RequiredSymbols, TArray<FShaderCompilerError>& OutErrors);
 
 	struct FDebugShaderDataOptions
 	{

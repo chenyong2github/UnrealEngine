@@ -672,25 +672,8 @@ void UE::ShaderCompilerCommon::ParseRayTracingEntryPoint(const FString& Input, F
 	}
 }
 
-bool UE::ShaderCompilerCommon::RemoveDeadCode(FString& InOutPreprocessedShaderSource, const FString& EntryPoint, TArray<FShaderCompilerError>& OutErrors)
+bool UE::ShaderCompilerCommon::RemoveDeadCode(FString& InOutPreprocessedShaderSource, TConstArrayView<FStringView> RequiredSymbols, TArray<FShaderCompilerError>& OutErrors)
 {
-	FString EntryMain;
-	FString EntryAnyHit;
-	FString EntryIntersection;
-	UE::ShaderCompilerCommon::ParseRayTracingEntryPoint(EntryPoint, EntryMain, EntryAnyHit, EntryIntersection);
-
-	if (!EntryAnyHit.IsEmpty())
-	{
-		EntryMain += TEXT(";");
-		EntryMain += EntryAnyHit;
-	}
-
-	if (!EntryIntersection.IsEmpty())
-	{
-		EntryMain += TEXT(";");
-		EntryMain += EntryIntersection;
-	}
-
 	UE::ShaderMinifier::EMinifyShaderFlags ExtraFlags = UE::ShaderMinifier::EMinifyShaderFlags::None;
 
 #if 0 // Extra features that may be useful during development / debugging
@@ -698,7 +681,7 @@ bool UE::ShaderCompilerCommon::RemoveDeadCode(FString& InOutPreprocessedShaderSo
 	           |  UE::ShaderMinifier::EMinifyShaderFlags::OutputStats;  // Output a comment detailing how many blocks of each type (functions/structs/etc.) were emitted
 #endif
 
-	UE::ShaderMinifier::FMinifiedShader Minified  = UE::ShaderMinifier::Minify(InOutPreprocessedShaderSource, EntryMain,
+	UE::ShaderMinifier::FMinifiedShader Minified  = UE::ShaderMinifier::Minify(InOutPreprocessedShaderSource, RequiredSymbols,
 		  UE::ShaderMinifier::EMinifyShaderFlags::OutputCommentLines // Preserve comments that were left after preprocessing
 		| UE::ShaderMinifier::EMinifyShaderFlags::OutputLines        // Emit #line directives
 		| ExtraFlags);
@@ -713,6 +696,30 @@ bool UE::ShaderCompilerCommon::RemoveDeadCode(FString& InOutPreprocessedShaderSo
 		OutErrors.Add(TEXT("warning: Shader minification failed."));
 		return false;
 	}
+}
+
+bool UE::ShaderCompilerCommon::RemoveDeadCode(FString& InOutPreprocessedShaderSource, const FString& EntryPoint, TArray<FShaderCompilerError>& OutErrors)
+{
+	TArray<FStringView> RequiredSymbols;
+
+	FString EntryMain;
+	FString EntryAnyHit;
+	FString EntryIntersection;
+	UE::ShaderCompilerCommon::ParseRayTracingEntryPoint(EntryPoint, EntryMain, EntryAnyHit, EntryIntersection);
+
+	RequiredSymbols.Add(EntryMain);
+
+	if (!EntryAnyHit.IsEmpty())
+	{
+		RequiredSymbols.Add(EntryAnyHit);
+	}
+
+	if (!EntryIntersection.IsEmpty())
+	{
+		RequiredSymbols.Add(EntryIntersection);
+	}
+
+	return UE::ShaderCompilerCommon::RemoveDeadCode(InOutPreprocessedShaderSource, RequiredSymbols, OutErrors);
 }
 
 void HandleReflectedGlobalConstantBufferMember(
