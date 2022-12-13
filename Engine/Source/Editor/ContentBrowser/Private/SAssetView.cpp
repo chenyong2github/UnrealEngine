@@ -1744,7 +1744,7 @@ TSharedRef<SAssetColumnView> SAssetView::CreateColumnView()
 
 			// Revision Control column, currently doesn't support sorting
 			+ SHeaderRow::Column(SortManager.RevisionControlColumnId)
-			.FixedWidth(24.f)
+			.FixedWidth(30.f)
 			.HAlignHeader(HAlign_Center)
 			.VAlignHeader(VAlign_Center)
 			.HAlignCell(HAlign_Center)

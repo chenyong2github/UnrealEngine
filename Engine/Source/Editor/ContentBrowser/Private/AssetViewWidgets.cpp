@@ -1912,7 +1912,6 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 							[
 								SNew(SHorizontalBox)
 								+SHorizontalBox::Slot()
-								.AutoWidth()
 								[
 									SAssignNew(ClassTextWidget, STextBlock)
 									.TextStyle(FAppStyle::Get(), "ContentBrowser.ClassFont")
@@ -1923,6 +1922,7 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 
 								+SHorizontalBox::Slot()
 								.Padding(FMargin(3.0f, 0.0f, 0.0f, 1.0f))
+								.AutoWidth()
 								.HAlign(HAlign_Right)
 								[
 									SNew(SBox)
