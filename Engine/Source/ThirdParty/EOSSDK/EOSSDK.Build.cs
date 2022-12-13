@@ -144,7 +144,9 @@ public class EOSSDK : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		bool bUseProjectBinary = Target.LinkType == TargetLinkType.Monolithic && Target.GlobalDefinitions.Contains("EOSSDK_USE_PROJECT_BINARY=1");
+		bool bIsMonolithic = Target.LinkType == TargetLinkType.Monolithic;
+		bool bIsUniqueBuildEnv = Target.BuildEnvironment == TargetBuildEnvironment.Unique;
+		bool bUseProjectBinary = (bIsMonolithic || bIsUniqueBuildEnv) && Target.GlobalDefinitions.Contains("EOSSDK_USE_PROJECT_BINARY=1");
 
 		if (!bUseProjectBinary && Target.Platform == UnrealTargetPlatform.LinuxArm64)
         {
