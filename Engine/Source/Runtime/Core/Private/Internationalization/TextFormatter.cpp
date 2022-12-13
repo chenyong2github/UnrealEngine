@@ -4,6 +4,7 @@
 
 #include "CoreGlobals.h"
 #include "CoreTypes.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "HAL/PlatformProcess.h"
 #include "Internationalization/CulturePointer.h"
 #include "Internationalization/Internationalization.h"
@@ -696,6 +697,7 @@ bool FTextFormatData::IsValid_NoLock() const
 void FTextFormatData::Compile_NoLock()
 {
 	SCOPE_CYCLE_COUNTER(STAT_TextFormatData_Compile);
+	LLM_SCOPE(ELLMTag::Localization);
 
 	LexedExpression.Reset();
 	if (SourceType == ESourceType::Text)

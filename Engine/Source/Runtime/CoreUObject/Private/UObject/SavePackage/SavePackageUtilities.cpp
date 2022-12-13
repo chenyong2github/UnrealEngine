@@ -1598,26 +1598,31 @@ namespace UE::SavePackageUtilities
 
 void StartSavingEDLCookInfoForVerification()
 {
+	LLM_SCOPE_BYTAG(EDLCookChecker);
 	FEDLCookChecker::StartSavingEDLCookInfoForVerification();
 }
 
 void VerifyEDLCookInfo(bool bFullReferencesExpected)
 {
+	LLM_SCOPE_BYTAG(EDLCookChecker);
 	FEDLCookChecker::Verify(bFullReferencesExpected);
 }
 
 void EDLCookInfoAddIterativelySkippedPackage(FName LongPackageName)
 {
+	LLM_SCOPE_BYTAG(EDLCookChecker);
 	FEDLCookCheckerThreadState::Get().AddPackageWithUnknownExports(LongPackageName);
 }
 
 void EDLCookInfoMoveToCompactBinaryAndClear(FCbWriter& Writer, bool& bOutHasData)
 {
+	LLM_SCOPE_BYTAG(EDLCookChecker);
 	FEDLCookChecker::MoveToCompactBinaryAndClear(Writer, bOutHasData);
 }
 
 bool EDLCookInfoAppendFromCompactBinary(FCbFieldView Field)
 {
+	LLM_SCOPE_BYTAG(EDLCookChecker);
 	return FEDLCookChecker::AppendFromCompactBinary(Field);
 }
 

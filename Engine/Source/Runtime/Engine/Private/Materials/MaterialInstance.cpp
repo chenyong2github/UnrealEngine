@@ -2525,6 +2525,7 @@ void TrimToOverriddenOnly(TArray<ParameterType>& Parameters)
 
 void UMaterialInstance::BeginCacheForCookedPlatformData( const ITargetPlatform *TargetPlatform )
 {
+	LLM_SCOPE(ELLMTag::Materials);
 	TArray<FMaterialResource*> *CachedMaterialResourcesForPlatform = CachedMaterialResourcesForCooking.Find( TargetPlatform );
 
 	if ( CachedMaterialResourcesForPlatform == NULL )
@@ -2555,6 +2556,7 @@ void UMaterialInstance::BeginCacheForCookedPlatformData( const ITargetPlatform *
 
 bool UMaterialInstance::IsCachedCookedPlatformDataLoaded( const ITargetPlatform* TargetPlatform ) 
 {
+	LLM_SCOPE(ELLMTag::Materials);
 	const TArray<FMaterialResource*> *CachedMaterialResourcesForPlatform = CachedMaterialResourcesForCooking.Find( TargetPlatform );
 	if ( CachedMaterialResourcesForPlatform != NULL )
 	{

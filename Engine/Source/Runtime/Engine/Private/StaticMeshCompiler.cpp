@@ -9,6 +9,7 @@
 #include "Engine/StaticMesh.h"
 #include "ObjectCacheContext.h"
 #include "Settings/EditorExperimentalSettings.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "Misc/QueuedThreadPoolWrapper.h"
 #include "Misc/Optional.h"
 #include "EngineModule.h"
@@ -699,6 +700,7 @@ void FStaticMeshCompilingManager::Reschedule()
 void FStaticMeshCompilingManager::ProcessStaticMeshes(bool bLimitExecutionTime, int32 MinBatchSize)
 {
 	using namespace StaticMeshCompilingManagerImpl;
+	LLM_SCOPE(ELLMTag::StaticMesh);
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshCompilingManager::ProcessStaticMeshes);
 	const int32 NumRemainingMeshes = GetNumRemainingMeshes();
 	// Spread out the load over multiple frames but if too many meshes, convergence is more important than frame time

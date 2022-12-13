@@ -7,6 +7,7 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "EngineGlobals.h"
 #include "HAL/IConsoleManager.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "Components/PrimitiveComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
@@ -997,6 +998,7 @@ void UBodySetup::Serialize(FArchive& Ar)
 
 void UBodySetup::PostLoad()
 {
+	LLM_SCOPE(ELLMTag::Physics);
 	Super::PostLoad();
 
 	// Our owner needs to be post-loaded before us else they may not have loaded

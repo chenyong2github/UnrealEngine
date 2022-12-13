@@ -11,6 +11,7 @@
 #include "CookTypes.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/Event.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "HAL/Runnable.h"
 #include "Memory/SharedBuffer.h"
 #include "Misc/Guid.h"
@@ -33,6 +34,8 @@ namespace UE::Cook { struct FInitialConfigMessage; }
 namespace UE::Cook { struct FPackageData; }
 namespace UE::Cook { struct FRetractionResultsMessage; }
 namespace UE::Cook { struct FWorkerId; }
+
+LLM_DECLARE_TAG(Cooker_MPCook);
 
 namespace UE::Cook
 {

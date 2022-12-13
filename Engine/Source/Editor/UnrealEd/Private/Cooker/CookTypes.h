@@ -39,6 +39,8 @@ bool LoadFromCompactBinary(FCbFieldView Field, UE::Cook::FInitializeConfigSettin
 #define COOK_CHECKSLOW_PACKAGEDATA 0
 #define DEBUG_COOKONTHEFLY 0
 
+LLM_DECLARE_TAG(Cooker_CachedPlatformData);
+
 /** A BaseKeyFuncs for Maps and Sets with a quicker hash function for pointers than TDefaultMapKeyFuncs */
 template<typename KeyType>
 struct TFastPointerSetKeyFuncs : public DefaultKeyFuncs<KeyType>
@@ -363,6 +365,7 @@ FString LexToString(FPlatformMemoryStats::EMemoryPressureStatus Value);
 
 inline void RouteBeginCacheForCookedPlatformData(UObject* Obj, const ITargetPlatform* TargetPlatform)
 {
+	LLM_SCOPE_BYTAG(Cooker_CachedPlatformData);
 	UE_SCOPED_TEXT_COOKTIMER(*WriteToString<128>(GetClassTraceScope(Obj), TEXT("_BeginCacheForCookedPlatformData")));
 	UE_SCOPED_COOK_STAT(Obj->GetPackage()->GetFName(), EPackageEventStatType::BeginCacheForCookedPlatformData);
 	Obj->BeginCacheForCookedPlatformData(TargetPlatform);
@@ -370,6 +373,7 @@ inline void RouteBeginCacheForCookedPlatformData(UObject* Obj, const ITargetPlat
 
 inline bool RouteIsCachedCookedPlatformDataLoaded(UObject* Obj, const ITargetPlatform* TargetPlatform)
 {
+	LLM_SCOPE_BYTAG(Cooker_CachedPlatformData);
 	UE_SCOPED_TEXT_COOKTIMER(*WriteToString<128>(GetClassTraceScope(Obj), TEXT("_IsCachedCookedPlatformDataLoaded")));
 	UE_SCOPED_COOK_STAT(Obj->GetPackage()->GetFName(), EPackageEventStatType::IsCachedCookedPlatformDataLoaded);
 	return Obj->IsCachedCookedPlatformDataLoaded(TargetPlatform);

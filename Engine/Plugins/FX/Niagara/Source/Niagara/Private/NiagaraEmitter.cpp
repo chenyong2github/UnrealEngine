@@ -17,6 +17,7 @@
 #include "NiagaraStats.h"
 #include "NiagaraSystem.h"
 #include "NiagaraTrace.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/LinkerLoad.h"
@@ -1810,6 +1811,7 @@ void UNiagaraEmitter::UpdateEmitterAfterLoad()
 		return;
 	}
 	bFullyLoaded = true;
+	LLM_SCOPE(ELLMTag::Niagara);
 	
 #if WITH_EDITORONLY_DATA
 	check(IsInGameThread());

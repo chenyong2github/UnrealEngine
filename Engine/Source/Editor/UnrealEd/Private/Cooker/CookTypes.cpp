@@ -15,6 +15,8 @@
 #include "Misc/Parse.h"
 #include "PackageTracker.h"
 
+LLM_DEFINE_TAG(Cooker_CachedPlatformData);
+
 namespace UE::Cook
 {
 

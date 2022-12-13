@@ -27,6 +27,8 @@
 
 extern CORE_API int32 GNumForegroundWorkers; // TaskGraph.cpp
 
+LLM_DEFINE_TAG(Cooker_MPCook);
+
 namespace UE::Cook
 {
 

@@ -2932,6 +2932,7 @@ public:
 
 	bool AppendFromCompactBinary(FCbFieldView Field)
 	{
+		LLM_SCOPE(ELLMTag::Shaders);
 		bool bOk = true;
 		for (FCbFieldView PlatformField : Field)
 		{

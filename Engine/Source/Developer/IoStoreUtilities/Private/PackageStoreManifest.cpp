@@ -5,18 +5,22 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "Dom/JsonObject.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "Misc/FileHelper.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/Paths.h"
 
+LLM_DEFINE_TAG(Cooker_PackageStoreManifest);
 FPackageStoreManifest::FPackageStoreManifest(const FString& InCookedOutputPath)
 	: CookedOutputPath(InCookedOutputPath)
 {
+	LLM_SCOPE_BYTAG(Cooker_PackageStoreManifest);
 	FPaths::NormalizeFilename(CookedOutputPath);
 }
 
 void FPackageStoreManifest::BeginPackage(FName PackageName)
 {
+	LLM_SCOPE_BYTAG(Cooker_PackageStoreManifest);
 	FScopeLock Lock(&CriticalSection);
 	FPackageInfo& PackageInfo = PackageInfoByNameMap.FindOrAdd(PackageName);
 	PackageInfo.PackageName = PackageName;
@@ -33,6 +37,7 @@ void FPackageStoreManifest::BeginPackage(FName PackageName)
 
 void FPackageStoreManifest::AddPackageData(FName PackageName, const FString& FileName, const FIoChunkId& ChunkId)
 {
+	LLM_SCOPE_BYTAG(Cooker_PackageStoreManifest);
 	FScopeLock Lock(&CriticalSection);
 	FPackageInfo* PackageInfo = GetPackageInfo_NoLock(PackageName);
 	check(PackageInfo);
@@ -45,6 +50,7 @@ void FPackageStoreManifest::AddPackageData(FName PackageName, const FString& Fil
 
 void FPackageStoreManifest::AddBulkData(FName PackageName, const FString& FileName, const FIoChunkId& ChunkId)
 {
+	LLM_SCOPE_BYTAG(Cooker_PackageStoreManifest);
 	FScopeLock Lock(&CriticalSection);
 	FPackageInfo* PackageInfo = GetPackageInfo_NoLock(PackageName);
 	check(PackageInfo);
@@ -57,6 +63,7 @@ void FPackageStoreManifest::AddBulkData(FName PackageName, const FString& FileNa
 
 FIoStatus FPackageStoreManifest::Save(const TCHAR* Filename) const
 {
+	LLM_SCOPE_BYTAG(Cooker_PackageStoreManifest);
 	FScopeLock Lock(&CriticalSection);
 	TStringBuilder<64> ChunkIdStringBuilder;
 	auto ChunkIdToString = [&ChunkIdStringBuilder](const FIoChunkId& ChunkId)
@@ -146,6 +153,7 @@ FIoStatus FPackageStoreManifest::Save(const TCHAR* Filename) const
 
 FIoStatus FPackageStoreManifest::Load(const TCHAR* Filename)
 {
+	LLM_SCOPE_BYTAG(Cooker_PackageStoreManifest);
 	FScopeLock Lock(&CriticalSection);
 	PackageInfoByNameMap.Empty();
 	FileNameByChunkIdMap.Empty();

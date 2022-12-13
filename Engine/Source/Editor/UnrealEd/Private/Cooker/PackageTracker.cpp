@@ -62,6 +62,7 @@ namespace UE::Cook
 	FPackageTracker::FPackageTracker(FPackageDatas& InPackageDatas)
 		:PackageDatas(InPackageDatas)
 	{
+		LLM_SCOPE_BYTAG(Cooker);
 		for (TObjectIterator<UPackage> It; It; ++It)
 		{
 			UPackage* Package = *It;
@@ -105,6 +106,7 @@ namespace UE::Cook
 	{
 		if (Object->GetClass() == UPackage::StaticClass())
 		{
+			LLM_SCOPE_BYTAG(Cooker);
 			auto Package = const_cast<UPackage*>(static_cast<const UPackage*>(Object));
 
 			if (Package->GetOuter() == nullptr)

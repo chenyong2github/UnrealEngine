@@ -350,6 +350,7 @@ bool USkeleton::IsPostLoadThreadSafe() const
 void USkeleton::PostLoad()
 {
 	Super::PostLoad();
+	LLM_SCOPE(ELLMTag::Animation);
 
 	if( GetLinker() && (GetLinker()->UEVer() < VER_UE4_REFERENCE_SKELETON_REFACTOR) )
 	{

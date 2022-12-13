@@ -1276,6 +1276,7 @@ void UAssetManager::SetPrimaryAssetTypeRules(FPrimaryAssetType PrimaryAssetType,
 void UAssetManager::SetPrimaryAssetRules(FPrimaryAssetId PrimaryAssetId, const FPrimaryAssetRules& Rules)
 {
 	static FPrimaryAssetRules DefaultRules;
+	LLM_SCOPE_BYTAG(AssetManager);
 
 	FPrimaryAssetRulesExplicitOverride ExplicitRules;
 	ExplicitRules.Rules = Rules;

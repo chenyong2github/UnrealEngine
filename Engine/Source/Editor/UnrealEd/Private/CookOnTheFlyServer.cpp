@@ -142,6 +142,7 @@
 
 DEFINE_LOG_CATEGORY(LogCook);
 LLM_DEFINE_TAG(Cooker);
+LLM_DEFINE_TAG(Cooker_SavePackage);
 
 
 int32 GCookProgressDisplay = (int32)ECookProgressDisplayMode::RemainingPackages;
@@ -5442,6 +5443,7 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FSaveCookedPackageContext&
 			{
 				try
 				{
+					LLM_SCOPE_BYTAG(Cooker_SavePackage);
 					Context.SavePackageResult = GEditor->Save(Package, Context.World, *Context.PlatFilename, SaveArgs);
 				}
 				catch (std::exception&)
@@ -5806,6 +5808,7 @@ void FSaveCookedPackageContext::FinishPackage()
 void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInitializationFlags InCookFlags, const FString &InOutputDirectoryOverride )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UCookOnTheFlyServer::Initialize);
+	LLM_SCOPE_BYTAG(Cooker);
 
 	CurrentCookMode = DesiredCookMode;
 	CookFlags = InCookFlags;
@@ -7878,6 +7881,7 @@ bool UCookOnTheFlyServer::IsCookByTheBookRunning() const
 
 void UCookOnTheFlyServer::SaveGlobalShaderMapFiles(const TArrayView<const ITargetPlatform* const>& Platforms, ODSCRecompileCommand RecompileCommand)
 {
+	LLM_SCOPE(ELLMTag::Shaders);
 	check(!IsCookingDLC()); // GlobalShaderMapFiles are not supported when cooking DLC
 	check(IsInGameThread());
 	for (const ITargetPlatform* TargetPlatform : Platforms)

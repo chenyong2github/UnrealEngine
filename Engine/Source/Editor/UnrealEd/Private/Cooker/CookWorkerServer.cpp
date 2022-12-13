@@ -422,6 +422,7 @@ void FCookWorkerServer::SendPendingPackages()
 	{
 		return;
 	}
+	LLM_SCOPE_BYTAG(Cooker_MPCook);
 
 	TArray<FAssignPackageData> AssignDatas;
 	AssignDatas.Reserve(PackagesToAssign.Num());
@@ -439,6 +440,7 @@ void FCookWorkerServer::SendPendingPackages()
 void FCookWorkerServer::PumpReceiveMessages()
 {
 	using namespace UE::CompactBinaryTCP;
+	LLM_SCOPE_BYTAG(Cooker_MPCook);
 	TArray<FMarshalledMessage> Messages;
 	EConnectionStatus SocketStatus = TryReadPacket(Socket, ReceiveBuffer, Messages);
 	if (SocketStatus != EConnectionStatus::Okay && SocketStatus != EConnectionStatus::Incomplete)

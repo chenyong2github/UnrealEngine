@@ -10,6 +10,7 @@
 #include "Containers/Set.h"
 #include "ContentBrowserLog.h"
 #include "Delegates/Delegate.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "HAL/Platform.h"
 #include "ICollectionManager.h"
 #include "Logging/LogCategory.h"
@@ -172,6 +173,7 @@ FCollectionAssetRegistryBridge::~FCollectionAssetRegistryBridge()
 
 void FCollectionAssetRegistryBridge::OnAssetRegistryLoadComplete()
 {
+	LLM_SCOPE_BYNAME(TEXT("CollectionManager"));
 	FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
 
 	// We've found all the assets, let the collections manager fix up its references now so that it doesn't reference any redirectors

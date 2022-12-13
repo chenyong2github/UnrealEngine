@@ -28,6 +28,7 @@
 #include "NiagaraWorldManager.h"
 #include "Algo/RemoveIf.h"
 #include "Async/Async.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/ScopeExit.h"
@@ -1772,6 +1773,7 @@ void UNiagaraSystem::ComputeRenderersDrawOrder()
 
 void UNiagaraSystem::CacheFromCompiledData()
 {
+	LLM_SCOPE(ELLMTag::Niagara);
 	const FNiagaraDataSetCompiledData& SystemDataSet = SystemCompiledData.DataSetCompiledData;
 
 	bNeedsAsyncOptimize = true;

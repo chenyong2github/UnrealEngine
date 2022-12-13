@@ -4412,6 +4412,7 @@ void USkeletalMesh::ValidateBoneWeights(const ITargetPlatform* TargetPlatform)
 
 void USkeletalMesh::BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform)
 {
+	LLM_SCOPE(ELLMTag::SkeletalMesh);
 	// Make sure to cache platform data so it doesn't happen lazily during serialization of the skeletal mesh
 	constexpr bool bIsSerializeSaving = false;
 	GetPlatformSkeletalMeshRenderData(this, TargetPlatform, bIsSerializeSaving);
@@ -4420,6 +4421,7 @@ void USkeletalMesh::BeginCacheForCookedPlatformData(const ITargetPlatform* Targe
 
 void USkeletalMesh::ClearAllCachedCookedPlatformData()
 {
+	LLM_SCOPE(ELLMTag::SkeletalMesh);
 	GetResourceForRendering()->NextCachedRenderData.Reset();
 	
 	if (FApp::CanEverRender())

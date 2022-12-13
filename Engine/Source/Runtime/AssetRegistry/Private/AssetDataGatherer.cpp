@@ -11,6 +11,7 @@
 #include "Async/MappedFileHandle.h"
 #include "Async/ParallelFor.h"
 #include "Containers/BinaryHeap.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "HAL/PlatformFileManager.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/RunnableThread.h"
@@ -1380,6 +1381,7 @@ bool FAssetDataDiscovery::Init()
 
 uint32 FAssetDataDiscovery::Run()
 {
+	LLM_SCOPE(ELLMTag::AssetRegistry);
 	constexpr float IdleSleepTime = 0.1f;
 	{
 		FGathererScopeLock ResultsScopeLock(&ResultsLock);
@@ -2862,6 +2864,7 @@ private:
 
 	void LoadAsync()
 	{
+		LLM_SCOPE(ELLMTag::AssetRegistry);
 		Payload = LoadCacheFile(GPreloadSettings.GetMonolithicCacheFilename());
 	}
 
@@ -2972,6 +2975,8 @@ bool FAssetDataGatherer::Init()
 uint32 FAssetDataGatherer::Run()
 {
 	constexpr float IdleSleepTime = 0.1f;
+	LLM_SCOPE(ELLMTag::AssetRegistry);
+
 	while (!IsStopped)
 	{
 		InnerTickLoop(false /* bInIsSynchronousTick */, true /* bContributeToCacheSave */);

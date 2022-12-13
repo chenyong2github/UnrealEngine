@@ -31,6 +31,7 @@
 #include "NiagaraScriptVariable.h"
 #include "NiagaraSettings.h"
 #include "HAL/FileManager.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "Misc/Paths.h"
 #include "Misc/SecureHash.h"
 #include "Modules/ModuleManager.h"
@@ -282,6 +283,7 @@ void UNiagaraGraph::PostLoad_LWCFixup(int32 NiagaraVersion)
 
 void UNiagaraGraph::PostLoad()
 {
+	LLM_SCOPE(ELLMTag::Niagara);
 	check(!bIsForCompilationOnly);
 
 	Super::PostLoad();
