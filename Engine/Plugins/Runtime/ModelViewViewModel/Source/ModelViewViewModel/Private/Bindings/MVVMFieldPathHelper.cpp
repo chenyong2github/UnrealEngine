@@ -38,6 +38,20 @@ TValueOrError<UStruct*, FText> FindContainer(const FProperty* Property)
 }
 
 
+const FProperty* FindProperty(FMVVMConstFieldVariant Field)
+{
+	if (Field.IsProperty())
+	{
+		return Field.GetProperty();
+	}
+	else if (Field.IsFunction() && Field.GetFunction())
+	{
+		return BindingHelper::GetReturnProperty(Field.GetFunction());
+	}
+	return nullptr;
+}
+
+
 TValueOrError<FMVVMConstFieldVariant, FText> TransformWithAccessor(UStruct* CurrentContainer, FMVVMConstFieldVariant CurrentField, bool bForReading)
 {
 #if WITH_EDITORONLY_DATA
@@ -269,18 +283,15 @@ TValueOrError<FParsedBindingInfo, FText> GetBindingInfoFromFieldPath(const UClas
 		return MakeError(LOCTEXT("FieldPathEmpty", "The field path is empty."));
 	}
 
-	FParsedBindingInfo Result;
-	FParsedBindingInfo::FFieldVariantArray LocalFullPath;
-	bool bLookForNotifyFieldId = false;
-	const UStruct* CurrentContainerType = InFieldPath[0].GetOwner();
-	if (!InAccessor->IsChildOf(CurrentContainerType))
+	if (!InAccessor->IsChildOf(InFieldPath[0].GetOwner()))
 	{
 		return MakeError(LOCTEXT("FieldPathDoesntStartWithAccessor", "Field path that doesn't start with the accessor is not supported."));
 	}
 
-	for (int32 Index = 0; Index < InFieldPath.Num(); ++Index)
+	FParsedBindingInfo Result;
+
+	for (int32 Index = InFieldPath.Num() - 1; Index >= 0; --Index)
 	{
-		bool bLastField = Index == InFieldPath.Num() - 1;
 		FMVVMConstFieldVariant Field = InFieldPath[Index];
 
 		if (Field.IsEmpty())
@@ -288,94 +299,54 @@ TValueOrError<FParsedBindingInfo, FText> GetBindingInfoFromFieldPath(const UClas
 			return MakeError(FText::Format(LOCTEXT("FieldIsEmpty", "The field at index '{0}' is empty."), Index));
 		}
 
-		if (CurrentContainerType == nullptr)
+		const UStruct* FieldOwner = Field.GetOwner();
+		check(FieldOwner);
+		const UStruct* ParentContainerType = InAccessor;
+		check(ParentContainerType);
+		if (Index != 0)
 		{
-			return MakeError(FText::Format(LOCTEXT("FieldDoesNotExist", "The field '{0}' does not exist."), 
-				FText::FromName(Field.GetName()))
-			);
+			const FProperty* ParentProperty = Private::FindProperty(InFieldPath[Index - 1]);
+			if (ParentProperty == nullptr)
+			{
+				return MakeError(FText::Format(LOCTEXT("InvalidParentProperty", "The field at index '{0}' has an invalid parent."), Index));
+			}
+
+			TValueOrError<UStruct*, FText> FoundParentContainer = Private::FindContainer(ParentProperty);
+			if (FoundParentContainer.HasError())
+			{
+				return MakeError(FoundParentContainer.StealError());
+			}
+			ParentContainerType = FoundParentContainer.GetValue();
 		}
 
-		const bool bIsChild = Field.GetOwner()->IsChildOf(CurrentContainerType);
-		const bool bIsDownCast = CurrentContainerType->IsChildOf(Field.GetOwner());
+		if (ParentContainerType == nullptr)
+		{
+			return MakeError(FText::Format(LOCTEXT("InvalidFieldParent", "The field '{0}' is not a container."), Index - 1));
+		}
+
+		const bool bIsChild = FieldOwner->IsChildOf(ParentContainerType);
+		const bool bIsDownCast = ParentContainerType->IsChildOf(FieldOwner);
 		if (!(bIsChild || bIsDownCast))
 		{
-			return MakeError(FText::Format(LOCTEXT("FieldDoesNotExistInStruct", "The field '{0}' does not exist in the struct '{1}'."), 
-				FText::FromName(Field.GetName()), 
-				FText::FromString(CurrentContainerType->GetName()))
+			return MakeError(FText::Format(LOCTEXT("FieldDoesNotExistInStruct", "The field '{0}' does not exist in the struct '{1}'."),
+				FText::FromName(Field.GetName()),
+				FText::FromString(ParentContainerType->GetName()))
 			);
 		}
-
-		const FProperty* FieldProperty = nullptr;
-		if (Field.IsProperty())
-		{
-			FieldProperty = Field.GetProperty();
-		}
-		else if (Field.IsFunction() && Field.GetFunction())
-		{
-			FieldProperty = BindingHelper::GetReturnProperty(Field.GetFunction());
-		}
-
-		if (FieldProperty == nullptr)
-		{
-			return MakeError(FText::Format(LOCTEXT("FieldHasInvalidProperty", "The field '{0}' has an invalid property."), 
-				FText::FromName(Field.GetName()))
-			);
-		}
-
-
-		LocalFullPath.Add(Field);
 
 		// Is field a viewmodel
-		bool bSaveNotifyFieldInterfacePath = false;
-		if (!bLastField)
+		const UClass* FieldOwnerAsClass = Cast<const UClass>(FieldOwner);
+		if (FieldOwnerAsClass && FieldOwnerAsClass->ImplementsInterface(UNotifyFieldValueChanged::StaticClass()))
 		{
-			if (const FObjectPropertyBase* FieldObjectProperty = CastField<const FObjectPropertyBase>(FieldProperty))
+			FMVVMAvailableBinding AvailableBinding = UMVVMSubsystem::GetAvailableBindingForField(Field, InAccessor);
+			if (AvailableBinding.IsValid() && AvailableBinding.HasNotify())
 			{
-				if (FieldObjectProperty->PropertyClass->ImplementsInterface(UNotifyFieldValueChanged::StaticClass()))
-				{
-					Result.NotifyFieldClass = FieldObjectProperty->PropertyClass;
-					Result.NotifyFieldId = FFieldNotificationId();
-					Result.NotifyFieldInterfacePath = LocalFullPath;
-					Result.ViewModelIndex = Index;
-					bSaveNotifyFieldInterfacePath = true;
-					bLookForNotifyFieldId = true;
-				}
+				Result.NotifyFieldClass = const_cast<UClass*>(FieldOwnerAsClass);
+				Result.NotifyFieldId = FFieldNotificationId(AvailableBinding.GetBindingName().ToName());
+				Result.ViewModelIndex = Index-1;
+				break;
 			}
 		}
-
-		if (!bSaveNotifyFieldInterfacePath)
-		{
-			if (bLookForNotifyFieldId && Result.NotifyFieldClass.Get() != nullptr)
-			{
-				FMVVMBindingName BindingName = FMVVMBindingName(Field.GetName());
-				FMVVMAvailableBinding AvailableBinding = GEngine->GetEngineSubsystem<UMVVMSubsystem>()->GetAvailableBinding(Result.NotifyFieldClass.Get(), BindingName, InAccessor);
-				if (AvailableBinding.IsValid())
-				{
-					Result.NotifyFieldId = FFieldNotificationId(AvailableBinding.GetBindingName().ToName());
-				}
-			}
-			bLookForNotifyFieldId = false;
-		}
-
-		if (!bLastField)
-		{
-			TValueOrError<UStruct*, FText> FoundContainer = Private::FindContainer(FieldProperty);
-			if (FoundContainer.HasError())
-			{
-				return MakeError(FoundContainer.StealError());
-			}
-			CurrentContainerType = FoundContainer.GetValue();
-		}
-	}
-
-	if (Result.ViewModelIndex > 0)
-	{
-		TValueOrError<TArray<FMVVMConstFieldVariant>, FText> FinalPath = GenerateFieldPathList(Result.NotifyFieldInterfacePath, true);
-		if (FinalPath.HasError())
-		{
-			return MakeError(FinalPath.StealError());
-		}
-		Result.NotifyFieldInterfacePath = FinalPath.StealValue();
 	}
 
 	return MakeValue(MoveTemp(Result));

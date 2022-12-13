@@ -33,12 +33,8 @@ namespace UE::MVVM::FieldPathHelper
 		FFieldNotificationId NotifyFieldId;
 
 		/**
-		 * The property path to get the viewmodel at runtime.
-		 * @return "ViewmodelA.ViewmodelB" or "ViewmodelA.GetViewmodelB" when the path is "ViewmodelA.ViewmodelB.Vector.X"
-		 */
-		FFieldVariantArray NotifyFieldInterfacePath;
-		/**
 		 * The viewmodel index in the original path.
+		 * When it's INDEX_NONE but the ParsedBindingInfo is valid, the class accessor is the Accessor class.
 		 * @return 1 when the path is "ViewmodelA.ViewmodelB.Vector.X"
 		 */
 		int32 ViewModelIndex = INDEX_NONE;
@@ -50,7 +46,11 @@ namespace UE::MVVM::FieldPathHelper
 	/** */
 	UE_NODISCARD MODELVIEWVIEWMODEL_API TValueOrError<TArray<FMVVMConstFieldVariant>, FText> GenerateFieldPathList(TArrayView<const FMVVMConstFieldVariant> Fields, bool bForSourceBinding);
 
-	/** */
+	/**
+	 * Generate the FParsedBindingInfo from the parsed field path.
+	 * This gives us which FieldId and Viewmodel should be used by the path.
+	 * Note. The code may have changed since the binding was created in the editor. As an example, a sub-object can be a viewmodel now.
+	 */
 	UE_NODISCARD MODELVIEWVIEWMODEL_API TValueOrError<FParsedBindingInfo, FText> GetBindingInfoFromFieldPath(const UClass* Accessor, TArrayView<const FMVVMConstFieldVariant> Fields);
 
 	/** */

@@ -1075,9 +1075,11 @@ bool FMVVMViewBlueprintCompiler::CompileBindings(const FCompiledBindingLibraryCo
 		FMVVMBlueprintViewBinding& ViewBinding = *BlueprintView->GetBindingAt(CompileBinding.BindingIndex);
 
 		FMVVMViewClass_CompiledBinding NewBinding;
-
-		check(CompileBinding.CompilerSourceContextIndex != INDEX_NONE);
-		NewBinding.SourcePropertyName = CompilerSourceContexts[CompileBinding.CompilerSourceContextIndex].PropertyName;
+		const bool bIsSourceSelf = !CompilerSourceCreatorContexts.IsValidIndex(CompileBinding.CompilerSourceContextIndex);
+		if (!bIsSourceSelf)
+		{
+			NewBinding.SourcePropertyName = CompilerSourceContexts[CompileBinding.CompilerSourceContextIndex].PropertyName;
+		}
 
 		const FMVVMVCompiledFieldId* CompiledFieldId = CompileResult.FieldIds.Find(CompileBinding.FieldIdHandle);
 		if (CompiledFieldId == nullptr && CompileBinding.bFieldIdNeeded)
@@ -1098,8 +1100,9 @@ bool FMVVMViewBlueprintCompiler::CompileBindings(const FCompiledBindingLibraryCo
 		}
 
 		bool bIsOptional = false;
-		if (CompilerSourceCreatorContexts.IsValidIndex(CompileBinding.CompilerSourceContextIndex))
+		if (!bIsSourceSelf)
 		{
+			check(CompilerSourceCreatorContexts.IsValidIndex(CompileBinding.CompilerSourceContextIndex));
 			const FMVVMBlueprintViewModelContext& ModelContext = CompilerSourceCreatorContexts[CompileBinding.CompilerSourceContextIndex].ViewModelContext;
 			if (ModelContext.IsValid())
 			{
@@ -1119,6 +1122,7 @@ bool FMVVMViewBlueprintCompiler::CompileBindings(const FCompiledBindingLibraryCo
 		NewBinding.Flags |= (bIsOptional) ? FMVVMViewClass_CompiledBinding::EBindingFlags::ViewModelOptional : 0;
 		NewBinding.Flags |= (CompileBinding.bIsConversionFunctionComplex) ? FMVVMViewClass_CompiledBinding::EBindingFlags::ConversionFunctionIsComplex : 0;
 		NewBinding.Flags |= (ViewBinding.bOverrideExecutionMode) ? FMVVMViewClass_CompiledBinding::EBindingFlags::OverrideExecuteMode : 0;
+		NewBinding.Flags |= (bIsSourceSelf) ? FMVVMViewClass_CompiledBinding::EBindingFlags::SourceObjectIsSelf : 0;
 
 		ViewExtension->CompiledBindings.Emplace(MoveTemp(NewBinding));
 	}
@@ -1141,7 +1145,7 @@ TValueOrError<FMVVMViewBlueprintCompiler::FBindingSourceContext, FText> FMVVMVie
 	if (PropertyPath.IsEmpty())
 	{
 		ensureAlways(false);
-		return MakeError(LOCTEXT("EmptyPropertyPath", "Empty property path found. This is legal."));
+		return MakeError(LOCTEXT("EmptyPropertyPath", "Empty property path found. This is ilegal."));
 	}
 
 	FBindingSourceContext Result;
@@ -1165,7 +1169,7 @@ TValueOrError<FMVVMViewBlueprintCompiler::FBindingSourceContext, FText> FMVVMVie
 		if (Result.bIsRootWidget)
 		{
 			Result.UserWidgetPropertyContextIndex = INDEX_NONE;
-			Result.SourceClass = Class->ClassGeneratedBy->GetClass();
+			Result.SourceClass = const_cast<UWidgetBlueprintGeneratedClass*>(Class);
 			Result.PropertyPath = CreatePropertyPath(Class, FName(), PropertyPath.GetFields());
 		}
 		else
@@ -1197,31 +1201,32 @@ TValueOrError<FMVVMViewBlueprintCompiler::FBindingSourceContext, FText> FMVVMVie
 	// The INotifyFieldValueChanged/viewmodel is not the first property. Creates the ViaBinding source entries.
 	if (bCreateADynamicSourceEntry)
 	{
-		Result.SourceClass = BindingInfo.NotifyFieldClass;
-		Result.UserWidgetPropertyContextIndex = INDEX_NONE;
-		Result.bIsRootWidget = false;
+		return MakeError(LOCTEXT("DynamicSourceEntryNotSupport", "Long source entry is not yet fully supported. Add the viewmodel manually."));
+		
+		//Result.SourceClass = BindingInfo.NotifyFieldClass;
+		//Result.UserWidgetPropertyContextIndex = INDEX_NONE;
+		//Result.bIsRootWidget = false;
 
-		FString InterfacePath = FieldPathHelper::ToString(BindingInfo.NotifyFieldInterfacePath);
-		int32 SourceCreatorContextIndex = CompilerSourceCreatorContexts.IndexOfByPredicate([&InterfacePath](const FCompilerSourceCreatorContext& Other)
-			{
-				return (Other.Type == ECompilerSourceCreatorType::ViewModel)
-					? (Other.ViewModelContext.CreationType == EMVVMBlueprintViewModelContextCreationType::PropertyPath
-						&& Other.ViewModelContext.ViewModelPropertyPath == InterfacePath)
-					: false;
-			});
+		//FString InterfacePath = FieldPathHelper::ToString(BindingInfo.NotifyFieldInterfacePath);
+		//int32 SourceCreatorContextIndex = CompilerSourceCreatorContexts.IndexOfByPredicate([&InterfacePath](const FCompilerSourceCreatorContext& Other)
+		//	{
+		//		return (Other.Type == ECompilerSourceCreatorType::ViewModel)
+		//			? (Other.ViewModelContext.CreationType == EMVVMBlueprintViewModelContextCreationType::PropertyPath
+		//				&& Other.ViewModelContext.ViewModelPropertyPath == InterfacePath)
+		//			: false;
+		//	});
 
+		//// Add if the path doesn't already exists
+		//if (!CompilerSourceCreatorContexts.IsValidIndex(SourceCreatorContextIndex))
+		//{
+		//	return MakeError(LOCTEXT("ViewModelNotAtRoot", "The field in the path is from a viewmodel that is not the root of the path. This is not yet supported."));
+		//}
 
-		// Add if the path doesn't already exists
-		if (!CompilerSourceCreatorContexts.IsValidIndex(SourceCreatorContextIndex))
-		{
-			return MakeError(LOCTEXT("ViewModelNotAtRoot", "The field in the path is from a viewmodel that is not the root of the path. This is not yet supported."));
-		}
-
-		Result.PropertyPath.RemoveAt(0, BindingInfo.ViewModelIndex);
-		if (CompilerSourceCreatorContexts[SourceCreatorContextIndex].Type == ECompilerSourceCreatorType::ViewModel)
-		{
-			Result.UserWidgetPropertyContextIndex = SourceCreatorContextIndex;
-		}
+		//Result.PropertyPath.RemoveAt(0, BindingInfo.ViewModelIndex);
+		//if (CompilerSourceCreatorContexts[SourceCreatorContextIndex].Type == ECompilerSourceCreatorType::ViewModel)
+		//{
+		//	Result.UserWidgetPropertyContextIndex = SourceCreatorContextIndex;
+		//}
 	}
 
 	return MakeValue(Result);

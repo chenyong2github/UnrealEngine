@@ -112,6 +112,12 @@ public:
 		return SourcePropertyName;
 	}
 
+	/** @return true if SourceFieldId is not from a property but on the object itserf (UserWidget). */
+	bool IsSourceObjectItself() const
+	{
+		return (Flags & EBindingFlags::SourceObjectIsSelf) != 0;
+	}
+
 	/** @return the binding. From source to destination (if forward) or from destination to source (if backward). */
 	const FMVVMVCompiledBinding& GetBinding() const
 	{
@@ -170,14 +176,20 @@ private:
 	enum EBindingFlags
 	{
 		None = 0,
-		ForwardBinding = 1 << 0, // True when the binding goes from Source to Destination.
-		TwoWayBinding = 1 << 1, // The binding is one part of a 2 ways binding.
+		/** True when the binding goes from Source to Destination. */
+		ForwardBinding = 1 << 0,
+		/** The binding is one part of a 2 ways binding. */
+		TwoWayBinding = 1 << 1,
 		OneTime = 1 << 2,
 		EnabledByDefault = 1 << 3,
-		ViewModelOptional = 1 << 4,	// The source (viewmodel) can be nullptr and the binding could failed and should not log a warning.
-		ConversionFunctionIsComplex = 1 << 5,	// The conversion function is complex, there is no input. The inputs are calculated in the BP function.
-		// In development, (when the Blueprint maybe not be compiled with the latest data), the ExecutionMode may not reflect the default project setting value.
+		/** The source (viewmodel) can be nullptr and the binding could failed and should not log a warning. */
+		ViewModelOptional = 1 << 4,
+		/** The conversion function is complex, there is no input. The inputs are calculated in the BP function. */
+		ConversionFunctionIsComplex = 1 << 5,
+		/** In development, (when the Blueprint maybe not be compiled with the latest data), the ExecutionMode may not reflect the default project setting value. */
 		OverrideExecuteMode = 1 << 6,
+		/** When the source object is the object itself. */
+		SourceObjectIsSelf = 1 << 7,
 	};
 
 	UPROPERTY()

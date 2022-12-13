@@ -580,30 +580,37 @@ TScriptInterface<INotifyFieldValueChanged> UMVVMView::FindSource(const FMVVMView
 	check(UserWidget);
 	check(ClassExtension);
 
-	const FObjectPropertyBase* SourceObjectProperty = CastField<FObjectPropertyBase>(UserWidget->GetClass()->FindPropertyByName(Binding.GetSourceObjectPropertyName()));
-	if (SourceObjectProperty == nullptr)
+	if (Binding.IsSourceObjectItself())
 	{
-		UE_LOG(LogMVVM, Error, TEXT("'%s' could not evaluate the source for binding '%s'. The property name is invalid."), *GetFullName(), *Binding.ToString());
-		return TScriptInterface<INotifyFieldValueChanged>();
+		return TScriptInterface<INotifyFieldValueChanged>(UserWidget);
 	}
-
-	UObject* Source = SourceObjectProperty->GetObjectPropertyValue_InContainer(UserWidget);
-	if (Source == nullptr)
+	else
 	{
-		if (!bAllowNull)
+		const FObjectPropertyBase* SourceObjectProperty = CastField<FObjectPropertyBase>(UserWidget->GetClass()->FindPropertyByName(Binding.GetSourceObjectPropertyName()));
+		if (SourceObjectProperty == nullptr)
 		{
-			UE_LOG(LogMVVM, Error, TEXT("'%s' could not evaluate the source for binding '%s'. The path point to an invalid object."), *GetFullName(), *Binding.ToString());
+			UE_LOG(LogMVVM, Error, TEXT("'%s' could not evaluate the source for binding '%s'. The property name is invalid."), *GetFullName(), *Binding.ToString());
+			return TScriptInterface<INotifyFieldValueChanged>();
 		}
-		return TScriptInterface<INotifyFieldValueChanged>();
-	}
 
-	if (!Source->Implements<UNotifyFieldValueChanged>())
-	{
-		UE_LOG(LogMVVM, Error, TEXT("'%s' could not evaluate the source for binding '%s'. The object '%s' doesn't implements INotifyFieldValueChanged."), *GetFullName(), *Binding.ToString(), *Source->GetFName().ToString());
-		return TScriptInterface<INotifyFieldValueChanged>();
-	}
+		UObject* Source = SourceObjectProperty->GetObjectPropertyValue_InContainer(UserWidget);
+		if (Source == nullptr)
+		{
+			if (!bAllowNull)
+			{
+				UE_LOG(LogMVVM, Error, TEXT("'%s' could not evaluate the source for binding '%s'. The path point to an invalid object."), *GetFullName(), *Binding.ToString());
+			}
+			return TScriptInterface<INotifyFieldValueChanged>();
+		}
 
-	return TScriptInterface<INotifyFieldValueChanged>(Source);
+		if (!Source->Implements<UNotifyFieldValueChanged>())
+		{
+			UE_LOG(LogMVVM, Error, TEXT("'%s' could not evaluate the source for binding '%s'. The object '%s' doesn't implements INotifyFieldValueChanged."), *GetFullName(), *Binding.ToString(), *Source->GetFName().ToString());
+			return TScriptInterface<INotifyFieldValueChanged>();
+		}
+
+		return TScriptInterface<INotifyFieldValueChanged>(Source);
+	}
 }
 
 
