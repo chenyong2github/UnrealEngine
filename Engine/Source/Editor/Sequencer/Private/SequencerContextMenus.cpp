@@ -784,12 +784,9 @@ void FSectionContextMenu::ReduceKeys()
 			{
 				Section->Modify();
 
-				for (const FMovieSceneChannelEntry& Entry : Section->GetChannelProxy().GetAllEntries())
+				if (FMovieSceneChannel* Channel = KeyArea->GetChannel().Get())
 				{
-					for (FMovieSceneChannel* Channel : Entry.GetChannels())
-					{
-						Channel->Optimize(Params);
-					}
+					Channel->Optimize(Params);
 				}
 			}
 		}
@@ -862,8 +859,10 @@ void FSectionContextMenu::SetInterpTangentMode(ERichCurveInterpMode InterpMode, 
 			{
 				Section->Modify();
 
-				for (FMovieSceneFloatChannel* FloatChannel : Section->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>())
+				FMovieSceneChannelHandle Handle = KeyArea->GetChannel();
+				if (Handle.GetChannelTypeName() == FMovieSceneFloatChannel::StaticStruct()->GetFName())
 				{
+					FMovieSceneFloatChannel* FloatChannel = static_cast<FMovieSceneFloatChannel*>(Handle.Get());
 					TMovieSceneChannelData<FMovieSceneFloatValue> ChannelData = FloatChannel->GetData();
 					TArrayView<FMovieSceneFloatValue> Values = ChannelData.GetValues();
 
@@ -876,9 +875,9 @@ void FSectionContextMenu::SetInterpTangentMode(ERichCurveInterpMode InterpMode, 
 
 					FloatChannel->AutoSetTangents();
 				}
-
-				for (FMovieSceneDoubleChannel* DoubleChannel : Section->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>())
+				else if (Handle.GetChannelTypeName() == FMovieSceneDoubleChannel::StaticStruct()->GetFName())
 				{
+					FMovieSceneDoubleChannel* DoubleChannel = static_cast<FMovieSceneDoubleChannel*>(Handle.Get());
 					TMovieSceneChannelData<FMovieSceneDoubleValue> ChannelData = DoubleChannel->GetData();
 					TArrayView<FMovieSceneDoubleValue> Values = ChannelData.GetValues();
 
@@ -923,12 +922,9 @@ bool FSectionContextMenu::CanSetInterpTangentMode() const
 	{
 		if (KeyArea.IsValid())
 		{
-			UMovieSceneSection* Section = KeyArea->GetOwningSection();
-			if (Section)
-			{
-				return (Section->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>().Num() != 0 ||
-					    Section->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>().Num() != 0);
-			}
+			FMovieSceneChannelHandle Handle = KeyArea->GetChannel();
+			return (Handle.GetChannelTypeName() == FMovieSceneFloatChannel::StaticStruct()->GetFName() ||
+					Handle.GetChannelTypeName() == FMovieSceneDoubleChannel::StaticStruct()->GetFName());
 		}
 	}
 

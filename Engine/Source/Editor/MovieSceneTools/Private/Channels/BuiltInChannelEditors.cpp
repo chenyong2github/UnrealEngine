@@ -1402,8 +1402,64 @@ struct FCurveChannelSectionMenuExtension : TSharedFromThis<FCurveChannelSectionM
 		);
 	}
 
+	void GetChannels(TArray<FMovieSceneFloatChannel*>& FloatChannels, TArray<FMovieSceneDoubleChannel*>& DoubleChannels) const
+	{
+		ISequencer* Sequencer = WeakSequencer.Pin().Get();
+		if (!Sequencer)
+		{
+			return;
+		}
+
+		// Get selected channels
+		TArray<const IKeyArea*> KeyAreas;
+		Sequencer->GetSelectedKeyAreas(KeyAreas);
+		for (const IKeyArea* KeyArea : KeyAreas)
+		{
+			FMovieSceneChannelHandle Handle = KeyArea->GetChannel();
+			if (Handle.GetChannelTypeName() == FMovieSceneFloatChannel::StaticStruct()->GetFName())
+			{
+				FMovieSceneFloatChannel* Channel = static_cast<FMovieSceneFloatChannel*>(Handle.Get());
+				FloatChannels.Add(Channel);
+			}
+			else if (Handle.GetChannelTypeName() == FMovieSceneDoubleChannel::StaticStruct()->GetFName())
+			{
+				FMovieSceneDoubleChannel* Channel = static_cast<FMovieSceneDoubleChannel*>(Handle.Get());
+				DoubleChannels.Add(Channel);
+			}
+		}
+
+		// Otherwise, the channels of all the sections
+		if (FloatChannels.Num() + DoubleChannels.Num() == 0)
+		{
+			for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sections)
+			{
+				if (UMovieSceneSection* Section = WeakSection.Get())
+				{
+					FMovieSceneChannelProxy& ChannelProxy = Section->GetChannelProxy();
+					for (FMovieSceneFloatChannel* Channel : ChannelProxy.GetChannels<FMovieSceneFloatChannel>())
+					{
+						FloatChannels.Add(Channel);
+					}
+					for (FMovieSceneDoubleChannel* Channel : ChannelProxy.GetChannels<FMovieSceneDoubleChannel>())
+					{
+						DoubleChannels.Add(Channel);
+					}
+				}
+			}
+		}
+	}
+
 	void SetExtrapolationMode(ERichCurveExtrapolation ExtrapMode, bool bPreInfinity)
 	{
+		TArray<FMovieSceneFloatChannel*> FloatChannels;
+		TArray<FMovieSceneDoubleChannel*> DoubleChannels;
+		GetChannels(FloatChannels, DoubleChannels);
+
+		if (FloatChannels.Num() + DoubleChannels.Num() == 0)
+		{
+			return;
+		}
+
 		FScopedTransaction Transaction(LOCTEXT("SetExtrapolationMode_Transaction", "Set Extrapolation Mode"));
 
 		bool bAnythingChanged = false;
@@ -1418,24 +1474,17 @@ struct FCurveChannelSectionMenuExtension : TSharedFromThis<FCurveChannelSectionM
 		}
 
 		// Apply to all channels
-		for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sections)
+		for (FMovieSceneFloatChannel* Channel : FloatChannels)
 		{
-			if (UMovieSceneSection* Section = WeakSection.Get())
-			{
-				FMovieSceneChannelProxy& ChannelProxy = Section->GetChannelProxy();
-				for (FMovieSceneFloatChannel* Channel : ChannelProxy.GetChannels<FMovieSceneFloatChannel>())
-				{
-					TEnumAsByte<ERichCurveExtrapolation>& DestExtrap = bPreInfinity ? Channel->PreInfinityExtrap : Channel->PostInfinityExtrap;
-					DestExtrap = ExtrapMode;
-					bAnythingChanged = true;
-				}
-				for (FMovieSceneDoubleChannel* Channel : ChannelProxy.GetChannels<FMovieSceneDoubleChannel>())
-				{
-					TEnumAsByte<ERichCurveExtrapolation>& DestExtrap = bPreInfinity ? Channel->PreInfinityExtrap : Channel->PostInfinityExtrap;
-					DestExtrap = ExtrapMode;
-					bAnythingChanged = true;
-				}
-			}
+			TEnumAsByte<ERichCurveExtrapolation>& DestExtrap = bPreInfinity ? Channel->PreInfinityExtrap : Channel->PostInfinityExtrap;
+			DestExtrap = ExtrapMode;
+			bAnythingChanged = true;
+		}
+		for (FMovieSceneDoubleChannel* Channel : DoubleChannels)
+		{
+			TEnumAsByte<ERichCurveExtrapolation>& DestExtrap = bPreInfinity ? Channel->PreInfinityExtrap : Channel->PostInfinityExtrap;
+			DestExtrap = ExtrapMode;
+			bAnythingChanged = true;
 		}
 
 		if (bAnythingChanged)
@@ -1453,27 +1502,24 @@ struct FCurveChannelSectionMenuExtension : TSharedFromThis<FCurveChannelSectionM
 
 	bool IsExtrapolationModeSelected(ERichCurveExtrapolation ExtrapMode, bool bPreInfinity) const
 	{
-		for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sections)
+		TArray<FMovieSceneFloatChannel*> FloatChannels;
+		TArray<FMovieSceneDoubleChannel*> DoubleChannels;
+		GetChannels(FloatChannels, DoubleChannels);
+
+		for (FMovieSceneFloatChannel* Channel : FloatChannels)
 		{
-			if (UMovieSceneSection* Section = WeakSection.Get())
+			ERichCurveExtrapolation SourceExtrap = bPreInfinity ? Channel->PreInfinityExtrap : Channel->PostInfinityExtrap;
+			if (SourceExtrap != ExtrapMode)
 			{
-				FMovieSceneChannelProxy& ChannelProxy = Section->GetChannelProxy();
-				for (FMovieSceneFloatChannel* Channel : ChannelProxy.GetChannels<FMovieSceneFloatChannel>())
-				{
-					ERichCurveExtrapolation SourceExtrap = bPreInfinity ? Channel->PreInfinityExtrap : Channel->PostInfinityExtrap;
-					if (SourceExtrap != ExtrapMode)
-					{
-						return false;
-					}
-				}
-				for (FMovieSceneDoubleChannel* Channel : ChannelProxy.GetChannels<FMovieSceneDoubleChannel>())
-				{
-					ERichCurveExtrapolation SourceExtrap = bPreInfinity ? Channel->PreInfinityExtrap : Channel->PostInfinityExtrap;
-					if (SourceExtrap != ExtrapMode)
-					{
-						return false;
-					}
-				}
+				return false;
+			}
+		}
+		for (FMovieSceneDoubleChannel* Channel : DoubleChannels)
+		{
+			ERichCurveExtrapolation SourceExtrap = bPreInfinity ? Channel->PreInfinityExtrap : Channel->PostInfinityExtrap;
+			if (SourceExtrap != ExtrapMode)
+			{
+				return false;
 			}
 		}
 
