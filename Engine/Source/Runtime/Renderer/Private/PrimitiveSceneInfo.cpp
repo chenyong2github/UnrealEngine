@@ -297,7 +297,9 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_CacheMeshDrawCommands);
 
-	static constexpr int BATCH_SIZE = 64;
+	// This reduce stuttering in editor by improving balancing of all the 
+	// shadermap processing. Keep it as it is for runtime as the requirements are different.
+	static constexpr int BATCH_SIZE = WITH_EDITOR ? 1 : 64;
 	const int NumBatches = (SceneInfos.Num() + BATCH_SIZE - 1) / BATCH_SIZE;
 
 	auto DoWorkLambda = [Scene, SceneInfos](FCachedPassMeshDrawListContext& DrawListContext, int32 Index)
