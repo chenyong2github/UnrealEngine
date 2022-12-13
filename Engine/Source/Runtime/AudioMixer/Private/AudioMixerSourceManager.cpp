@@ -1150,7 +1150,7 @@ namespace Audio
 	void FMixerSourceManager::StartAudioBus(FAudioBusKey InAudioBusKey, int32 InNumChannels, bool bInIsAutomatic)
 	{
 		AUDIO_MIXER_THREAD_DEBUG_UPDATE()
-		if (AudioBusIds_AudioThread.Contains(InAudioBusKey))
+		if (AudioBusKeys_AudioThread.Contains(InAudioBusKey))
 		{
 			return;
 		}
@@ -1180,7 +1180,7 @@ namespace Audio
 	void FMixerSourceManager::StopAudioBus(FAudioBusKey InAudioBusKey)
 	{
 		AUDIO_MIXER_THREAD_DEBUG_UPDATE()
-		if (!AudioBusIds_AudioThread.Contains(InAudioBusKey))
+		if (!AudioBusKeys_AudioThread.Contains(InAudioBusKey))
 		{
 			return;
 		}
