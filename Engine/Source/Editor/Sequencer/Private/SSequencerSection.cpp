@@ -883,6 +883,10 @@ void SSequencerSection::Construct( const FArguments& InArgs, TSharedPtr<FSequenc
 
 SSequencerSection::~SSequencerSection()
 {
+	if (Sequencer.IsValid() && GetSequencer().GetViewModel() && GetSequencer().GetViewModel()->GetTrackArea())
+	{
+		GetSequencer().GetViewModel()->GetTrackArea()->SetHotspot(nullptr);
+	}
 }
 
 EVisibility SSequencerSection::GetTopLevelChannelGroupVisibility() const
