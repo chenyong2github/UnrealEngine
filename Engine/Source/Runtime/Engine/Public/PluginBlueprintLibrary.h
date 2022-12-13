@@ -170,4 +170,14 @@ public:
 	static bool GetPluginEditorCustomVirtualPath(
 			const FString& PluginName,
 			FString& OutVirtualPath);
+
+	/**
+	 * Determine whether a plugin is mounted.
+	 *
+	 * @param PluginName - Name of the plugin
+	 *
+	 * @return true if the named plugin is mounted, or false otherwise
+	 */
+	UFUNCTION(BlueprintCallable, Category="Engine Scripting | Plugin Utilities")
+	static bool IsPluginMounted(const FString& PluginName);
 };

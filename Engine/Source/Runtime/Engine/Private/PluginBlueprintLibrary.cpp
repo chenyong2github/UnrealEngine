@@ -7,6 +7,7 @@
 #include "Containers/UnrealString.h"
 #include "Interfaces/IPluginManager.h"
 #include "Interfaces/IProjectManager.h"
+#include "Misc/PackageName.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/SoftObjectPath.h"
 
@@ -190,4 +191,15 @@ bool UPluginBlueprintLibrary::GetPluginEditorCustomVirtualPath(
 	OutVirtualPath = Plugin->GetDescriptor().EditorCustomVirtualPath;
 
 	return true;
+}
+
+bool UPluginBlueprintLibrary::IsPluginMounted(const FString& PluginName)
+{
+	FString PluginMountedAssetPath;
+	if (!GetPluginMountedAssetPath(PluginName, PluginMountedAssetPath))
+	{
+		return false;
+	}
+
+	return FPackageName::MountPointExists(PluginMountedAssetPath);
 }
