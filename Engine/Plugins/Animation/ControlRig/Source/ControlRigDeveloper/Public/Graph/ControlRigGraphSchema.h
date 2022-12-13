@@ -142,6 +142,35 @@ private:
 };
 
 USTRUCT()
+struct CONTROLRIGDEVELOPER_API FControlRigGraphSchemaAction_PromoteToExposedPin : public FEdGraphSchemaAction
+{
+	GENERATED_BODY()
+
+public:
+
+	// Simple type info
+	static FName StaticGetTypeId() {static FName Type("FControlRigGraphSchemaAction_PromoteToExposedPin"); return Type;}
+	virtual FName GetTypeId() const override { return StaticGetTypeId(); } 
+
+	FControlRigGraphSchemaAction_PromoteToExposedPin()
+		: FEdGraphSchemaAction()
+	{}
+
+	FControlRigGraphSchemaAction_PromoteToExposedPin(UEdGraphPin* InEdGraphPin);
+
+	virtual bool IsA(const FName& InType) const override
+	{
+		return InType == GetTypeId();
+	}
+
+	virtual UEdGraphNode* PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode) override;
+
+private:
+
+	UEdGraphPin* EdGraphPin;
+};
+
+USTRUCT()
 struct CONTROLRIGDEVELOPER_API FControlRigGraphSchemaAction_Event : public FEdGraphSchemaAction
 {
 	GENERATED_BODY()

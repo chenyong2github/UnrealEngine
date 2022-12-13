@@ -390,6 +390,86 @@ UEdGraphNode* FControlRigGraphSchemaAction_PromoteToVariable::PerformAction(UEdG
 	return nullptr;
 }
 
+FControlRigGraphSchemaAction_PromoteToExposedPin::FControlRigGraphSchemaAction_PromoteToExposedPin(UEdGraphPin* InEdGraphPin)
+: FEdGraphSchemaAction(	FText(), 
+						LOCTEXT("PromoteToExposedPin", "Promote to exposed pin"),
+						LOCTEXT("PromoteToExposedPin", "Promote to exposed pin"),
+						1)
+, EdGraphPin(InEdGraphPin)
+{
+}
+
+UEdGraphNode* FControlRigGraphSchemaAction_PromoteToExposedPin::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode)
+{
+	UControlRigGraph* RigGraph = Cast<UControlRigGraph>(ParentGraph);
+	if(RigGraph == nullptr)
+	{
+		return nullptr;
+	}
+
+	URigVMGraph* Model = RigGraph->GetModel();
+	URigVMController* Controller = RigGraph->GetController();
+	if(Model == nullptr || Controller == nullptr)
+	{
+		return nullptr;
+	}
+	
+	URigVMPin* ModelPin = Model->FindPin(FromPin->GetName());
+	if (ModelPin == nullptr)
+	{
+		return nullptr;
+	}
+
+	const FScopedTransaction Transaction(
+		LOCTEXT("GraphEd_PromoteToExposedPin", "Promote To Exposed Pin"));
+	
+#if WITH_EDITOR
+	if (GEditor)
+	{
+		GEditor->CancelTransaction(0);
+	}	
+#endif
+
+	Controller->OpenUndoBracket(TEXT("Promote to Exposed Pin"));
+
+	const UObject* CPPTypeObject = ModelPin->GetCPPTypeObject();
+	const FString PinName = Controller->AddExposedPin(
+		*ModelPin->GetName(),
+		ModelPin->GetDirection(),
+		ModelPin->GetCPPType(),
+		CPPTypeObject ? (FName)*CPPTypeObject->GetPathName() : NAME_None,
+		ModelPin->GetDefaultValue(),
+		true,
+		true
+	).ToString();
+
+	UEdGraphNode* Result = nullptr;
+	if(!PinName.IsEmpty())
+	{
+		if (ModelPin->GetDirection() == ERigVMPinDirection::Input)
+		{
+			Controller->AddLink(Model->GetEntryNode()->FindPin(PinName), ModelPin, true);
+			Result = RigGraph->FindNodeForModelNodeName(Model->GetEntryNode()->GetFName());
+		}
+		else if(ModelPin->GetDirection() == ERigVMPinDirection::Output)
+		{
+			Controller->AddLink(ModelPin, Model->GetReturnNode()->FindPin(PinName), true);
+			Result = RigGraph->FindNodeForModelNodeName(Model->GetReturnNode()->GetFName());
+		}
+		else if (ModelPin->GetDirection() == ERigVMPinDirection::IO)
+		{
+			URigVMFunctionEntryNode* EntryNode = Model->GetEntryNode();
+			Controller->AddLink(EntryNode->FindPin(PinName), ModelPin, true);
+			Controller->AddLink(ModelPin, Model->GetReturnNode()->FindPin(PinName), true);
+			Result = RigGraph->FindNodeForModelNodeName(EntryNode->GetFName());
+		}		
+	}
+
+	Controller->CloseUndoBracket();
+	
+	return Result;
+}
+
 FControlRigGraphSchemaAction_Event::FControlRigGraphSchemaAction_Event(const FName& InEventName, const FString& InNodePath, const FText& InNodeCategory)
 : FEdGraphSchemaAction(	InNodeCategory, 
 						FText::FromName(InEventName),
@@ -862,6 +942,7 @@ void UControlRigGraphSchema::InsertAdditionalActions(TArray<UBlueprint*> InBluep
 		{
 			if(URigVMPin* ModelPin = RigNode->GetModelPinFromPinPath(EdGraphPins[0]->GetName()))
 			{
+				const bool bIsRootGraph = ModelPin->GetGraph()->IsRootGraph();
 				if(!ModelPin->IsExecuteContext() && !ModelPin->IsWildCard())
 				{
 					if(!ModelPin->GetNode()->IsA<URigVMVariableNode>())
@@ -870,12 +951,22 @@ void UControlRigGraphSchema::InsertAdditionalActions(TArray<UBlueprint*> InBluep
 							new FControlRigGraphSchemaAction_PromoteToVariable(EdGraphPins[0], false)
 						));
 
-						if(!ModelPin->GetGraph()->IsRootGraph())
+						if(!bIsRootGraph && !ModelPin->IsWildCard())
 						{
 							OutAllActions.AddAction(TSharedPtr<FControlRigGraphSchemaAction_PromoteToVariable>(
 								new FControlRigGraphSchemaAction_PromoteToVariable(EdGraphPins[0], true)
 							));
 						}
+					}
+				}
+
+				if (!bIsRootGraph)
+				{
+					if (!ModelPin->GetGraph()->GetRootGraph()->IsA<URigVMFunctionLibrary>() || !ModelPin->IsWildCard())
+					{
+						OutAllActions.AddAction(TSharedPtr<FControlRigGraphSchemaAction_PromoteToExposedPin>(
+								   new FControlRigGraphSchemaAction_PromoteToExposedPin(EdGraphPins[0])
+							   ));
 					}
 				}
 			}
