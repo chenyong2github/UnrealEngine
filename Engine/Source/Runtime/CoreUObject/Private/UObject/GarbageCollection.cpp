@@ -1185,13 +1185,13 @@ private:
 		for (uint32 Idx = 0; Idx < Num; ++Idx)
 		{
 			UObject* Object = GetObject(UnvalidatedReferences[Idx].Reference);
-			ValidsB.Set(Idx, !!Object & IsObjectHandleResolved(reinterpret_cast<FObjectHandle&>(Object)));
+			ValidsB.Set(Idx, !!Object & IsObjectHandleResolved(reinterpret_cast<FObjectHandle&>(Object))); //-V792
 		}
 
 		FValidatedBitmask Validations = FValidatedBitmask::And(ValidsA, ValidsB);
 		uint32 NumValid = Validations.CountBits();
 		uint32 UnvalidatedIdx = 0;
-		for (uint32 Slack = ValidatedReferences.Slack(); NumValid >= Slack; Slack = ValidatedBatchSize)
+		for (uint32 Slack = ValidatedReferences.Slack(); NumValid >= Slack; Slack = ValidatedBatchSize) //-V1021
 		{
 			QueueValidReferences(Slack, Validations, /* in-out */  UnvalidatedIdx);
 			check(ValidatedReferences.IsFull());
@@ -2644,7 +2644,7 @@ public:
 		if (ValidateReference(Object, PermanentPool, ReferencingObject, TokenId))
 		{
 			FReferenceMetadata Metadata(GUObjectArray.ObjectToIndex(Object));
-			if (bAllowReferenceElimination & Metadata.Has(TReachabilityProcessor<Options>::KillFlag))
+			if (bAllowReferenceElimination & Metadata.Has(TReachabilityProcessor<Options>::KillFlag)) //-V792
 			{
 				if (MayKill<Options>(TokenType, bAllowReferenceElimination) == EKillable::Yes)
 				{

@@ -4737,7 +4737,7 @@ FORCEINLINE_DEBUGGABLE void CollectObjectReference(FReferenceCollector& Collecto
 	if constexpr (EnumHasAnyFlags(CollectFlags, EPropertyCollectFlags::NeedsReferencer))
 	{
 		// Sync reference processors will inspect Reference immediately so might as well avoid virtual call
-		if (!!Reference & IsObjectHandleResolved(*reinterpret_cast<FObjectHandle*>(Value)))
+		if (!!Reference & IsObjectHandleResolved(*reinterpret_cast<FObjectHandle*>(Value))) //-V792
 		{
 			Collector.AddReferencedObject(Reference, Referencer, &Property);
 		}
@@ -4791,8 +4791,8 @@ void CollectPropertyReferences(FReferenceCollector& Collector, FProperty& Proper
 	EPropertyFlags PropertyFlags = Property.GetPropertyFlags();
 	const EClassCastFlags CastFlags = static_cast<EClassCastFlags>(Class->GetCastFlags());
 	
-	if (EnumHasAnyFlags(CastFlags, GetCastFlagsToSkip(CollectFlags)) |
-		EnumHasAnyFlags(PropertyFlags, GetPropertyFlagsToSkip(CollectFlags)))
+	if (EnumHasAnyFlags(CastFlags, GetCastFlagsToSkip(CollectFlags)) |			//-V792
+		EnumHasAnyFlags(PropertyFlags, GetPropertyFlagsToSkip(CollectFlags)))	//-V792
 	{
 		return;
 	}
