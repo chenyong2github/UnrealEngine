@@ -211,6 +211,10 @@ private:
 
 	void SequencerDataChanged(EMovieSceneDataChangeType DataChangeType);
 
+	void SequencerPlayEvent();
+
+	void SequencerStopEvent();
+
 	void OnAnimNotifyChanged(UAnimSequenceBase* Animation);
 
 	void CreateSequencer();

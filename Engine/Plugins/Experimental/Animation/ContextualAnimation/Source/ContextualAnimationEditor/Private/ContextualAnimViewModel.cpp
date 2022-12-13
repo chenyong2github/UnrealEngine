@@ -57,6 +57,8 @@ FContextualAnimViewModel::~FContextualAnimViewModel()
 	{
 		Sequencer->OnMovieSceneDataChanged().RemoveAll(this);
 		Sequencer->OnGlobalTimeChanged().RemoveAll(this);
+		Sequencer->OnPlayEvent().RemoveAll(this);
+		Sequencer->OnStopEvent().RemoveAll(this);
 		Sequencer.Reset();
 	}
 }
@@ -114,6 +116,8 @@ void FContextualAnimViewModel::CreateSequencer()
 	Sequencer = SequencerModule.CreateSequencer(SequencerInitParams);
 	Sequencer->OnMovieSceneDataChanged().AddRaw(this, &FContextualAnimViewModel::SequencerDataChanged);
 	Sequencer->OnGlobalTimeChanged().AddRaw(this, &FContextualAnimViewModel::SequencerTimeChanged);
+	Sequencer->OnPlayEvent().AddRaw(this, &FContextualAnimViewModel::SequencerPlayEvent);
+	Sequencer->OnStopEvent().AddRaw(this, &FContextualAnimViewModel::SequencerStopEvent);
 	Sequencer->SetPlaybackStatus(EMovieScenePlayerStatus::Stopped);
 }
 
@@ -678,6 +682,22 @@ UContextualAnimMovieSceneTrack* FContextualAnimViewModel::FindTrackByRole(const 
 	}
 
 	return nullptr;
+}
+
+void FContextualAnimViewModel::SequencerPlayEvent()
+{
+	if (SimulateModeState == ESimulateModeState::Paused)
+	{
+		StartSimulation();
+	}
+}
+
+void FContextualAnimViewModel::SequencerStopEvent()
+{
+	if (SimulateModeState != ESimulateModeState::Inactive)
+	{
+		ToggleSimulateMode();
+	}
 }
 
 void FContextualAnimViewModel::SequencerTimeChanged()

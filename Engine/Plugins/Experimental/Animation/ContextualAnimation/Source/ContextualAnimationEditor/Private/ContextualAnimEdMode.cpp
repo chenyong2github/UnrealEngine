@@ -327,15 +327,6 @@ bool FContextualAnimEdMode::InputDelta(FEditorViewportClient* InViewportClient, 
 
 bool FContextualAnimEdMode::InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event)
 {
-	if (ViewModel && ViewModel->IsSimulateModePaused())
-	{
-		if (Key == EKeys::Enter && Event == IE_Released)
-		{
-			ViewModel->StartSimulation();
-			return true;
-		}
-	}
-
 	return FEdMode::InputKey(ViewportClient, Viewport, Key, Event);
 }
 
