@@ -68,6 +68,8 @@ void FSceneOutlinerModule::ShutdownModule()
 
 TSharedRef<ISceneOutliner> FSceneOutlinerModule::CreateSceneOutliner(const FSceneOutlinerInitializationOptions& InitOptions) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FSceneOutlinerModule::CreateSceneOutliner);
+
 	return SNew(SSceneOutliner, InitOptions)
 		.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute());
 }
