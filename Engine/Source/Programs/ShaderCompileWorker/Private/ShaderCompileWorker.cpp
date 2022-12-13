@@ -333,6 +333,9 @@ static int64 WriteOutputFileHeader(FArchive& OutputFile, int32 ErrorCode, int32 
 		}
 	}
 
+	// Reset error code as it can be receive a new value now
+	FSCWErrorCode::Reset();
+
 	UpdateFileSize(OutputFile, FileSizePosition);
 	return FileSizePosition;
 }
@@ -1262,6 +1265,14 @@ static int32 GuardedMain(int32 argc, TCHAR* argv[], bool bDirectMode)
 	// to avoid all those directory enumeration during engine init.
 	FString IniBootstrapFilename;
 	FString ModulesBootstrapFilename;
+
+	// Register out-of-memory delegate to report error code on exit
+	FCoreDelegates::GetOutOfMemoryDelegate().AddLambda(
+		[]()
+		{
+			FSCWErrorCode::Report(FSCWErrorCode::OutOfMemory);
+		}
+	);
 
 	if (IsUsingXGE())
 	{

@@ -241,7 +241,6 @@ static FString GSCWErrorCodeInfo;
 
 void FSCWErrorCode::Report(ECode Code, const FStringView& Info)
 {
-	checkf(!FSCWErrorCode::IsSet(), TEXT("ShaderCompileWorker error code already set; this is only supposed to be set once to handle a worker crash:\n%s"), Info);
 	GSCWErrorCode = Code;
 	GSCWErrorCodeInfo = Info;
 }
