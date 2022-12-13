@@ -109,6 +109,15 @@ void UPrimitiveComponent::SetSimulatePhysics(bool bSimulate)
 	BodyInstance.SetInstanceSimulatePhysics(bSimulate);
 }
 
+void UPrimitiveComponent::SetStaticWhenNotMoveable(bool bInStaticWhenNotMoveable)
+{
+	if (bStaticWhenNotMoveable != bInStaticWhenNotMoveable)
+	{
+		bStaticWhenNotMoveable = bInStaticWhenNotMoveable;
+		RecreatePhysicsState();
+	}
+}
+
 void UPrimitiveComponent::SetConstraintMode(EDOFMode::Type ConstraintMode)
 {
 	FBodyInstance * RootBI = GetBodyInstance(NAME_None, false);

@@ -1451,7 +1451,9 @@ void FInitBodiesHelperBase::InitBodies()
 
 FInitBodySpawnParams::FInitBodySpawnParams(const UPrimitiveComponent* PrimComp)
 {
-	bStaticPhysics = PrimComp == nullptr || PrimComp->Mobility != EComponentMobility::Movable;
+	bStaticPhysics = PrimComp == nullptr || (
+		PrimComp->Mobility != EComponentMobility::Movable &&
+		PrimComp->GetStaticWhenNotMoveable());
 
 	if(const USkeletalMeshComponent* SKOwner = Cast<USkeletalMeshComponent>(PrimComp))
 	{

@@ -657,6 +657,17 @@ protected:
 	UPROPERTY()
 	uint8 bHasNoStreamableTextures : 1;
 
+	/** When mobility is stationary, use a static underlying physics body. Static bodies do not have
+		physical data like mass. If false, even stationary bodies will be generated with all data
+		necessary for simulating.
+		
+		If you need this body's physical parameters on the physics thread (eg, in a sim callback)
+		then set this to false. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Lighting, AdvancedDisplay, meta=(
+		DisplayName = "Static When Not Moveable",
+		ToolTip = "When false, the underlying physics body will contain all sim data (mass, inertia tensor, etc) even if mobility is not set to Moveable"))
+	uint8 bStaticWhenNotMoveable:1;
+
 #if WITH_EDITOR
 	uint8 bIgnoreBoundsForEditorFocus : 1;
 
@@ -1400,6 +1411,15 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Physics")
 	virtual void SetSimulatePhysics(bool bSimulate);
+
+	/*
+	 *	
+	 */
+	UFUNCTION(BlueprintCallable, Category="Physics")
+	void SetStaticWhenNotMoveable(bool bInStaticWhenNotMoveable);
+
+	UFUNCTION(BlueprintCallable, Category="Physics")
+	bool GetStaticWhenNotMoveable() const { return bStaticWhenNotMoveable; }
 
 	/**
 	 * Determines whether or not the simulate physics setting can be edited interactively on this component
