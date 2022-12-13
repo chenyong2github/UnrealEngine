@@ -76,9 +76,6 @@ class UMaterialExpressionFontSampleParameter : public UMaterialExpressionFontSam
 #endif
 	//~ End UMaterialExpression Interface
 	
-	UE_DEPRECATED(5.0, "Use GetParameterValue and/or GetParameterName")
-	bool IsNamedParameter(const FHashedMaterialParameterInfo& ParameterInfo, UFont*& OutFontValue, int32& OutFontPage) const;
-
 #if WITH_EDITOR
 	bool SetParameterValue(FName InParameterName, UFont* InFontValue, int32 InFontPage, EMaterialExpressionSetParameterValueFlags Flags = EMaterialExpressionSetParameterValueFlags::None);
 #endif
@@ -92,9 +89,6 @@ class UMaterialExpressionFontSampleParameter : public UMaterialExpressionFontSam
 	{
 		return ExpressionGUID;
 	}
-
-	UE_DEPRECATED(5.0, "Use GetAllParameterInfoOfType or GetAllParametersOfType")
-	void GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const;
 };
 
 

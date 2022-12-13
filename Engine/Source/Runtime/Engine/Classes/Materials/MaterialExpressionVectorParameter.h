@@ -61,16 +61,12 @@ class UMaterialExpressionVectorParameter : public UMaterialExpressionParameter
 #endif
 	//~ End UMaterialExpression Interface
 
-	UE_DEPRECATED(5.0, "Use GetParameterValue and/or GetParameterName")
-	bool IsNamedParameter(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor& OutValue) const;
-
 #if WITH_EDITOR
 	virtual bool SetParameterValue(FName InParameterName, FLinearColor InValue, EMaterialExpressionSetParameterValueFlags Flags = EMaterialExpressionSetParameterValueFlags::None);
 
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;	
 
 	void ApplyChannelNames();
-	
 
 	virtual void ValidateParameterName(const bool bAllowDuplicateName) override;
 	virtual bool HasClassAndNameCollision(UMaterialExpression* OtherExpression) const override;
@@ -84,9 +80,6 @@ class UMaterialExpressionVectorParameter : public UMaterialExpressionParameter
 		return ChannelNames;
 	}
 #endif
-
-	UE_DEPRECATED(5.0, "Use GetAllParameterInfoOfType or GetAllParametersOfType")
-	virtual void GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const override;
 };
 
 

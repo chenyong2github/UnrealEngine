@@ -550,33 +550,7 @@ class UMaterialInstance : public UMaterialInterface
 	UPROPERTY(EditAnywhere, Category = MaterialInstance)
 	FMaterialOverrideNanite NaniteOverrideMaterial;
 
-	/**
-	 * Delegate for custom static parameters getter.
-	 *
-	 * @param OutStaticParameterSet Parameter set to append.
-	 * @param Material Material instance to collect parameters.
-	 */
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FCustomStaticParametersGetterDelegate, FStaticParameterSet&, UMaterialInstance*);
-
-	/**
-	 * Delegate for custom static parameters updater.
-	 *
-	 * @param StaticParameterSet Parameter set to update.
-	 * @param Material Material to update.
-	 *
-	 * @returns True if any parameter been updated. False otherwise.
-	 */
-	DECLARE_DELEGATE_RetVal_TwoParams(bool, FCustomParameterSetUpdaterDelegate, FStaticParameterSet&, UMaterial*);
-
 #if WITH_EDITORONLY_DATA
-	// Custom static parameters getter delegate.
-	UE_DEPRECATED(5.0, "Custom static parameter delegates no longer supported.")
-	ENGINE_API static FCustomStaticParametersGetterDelegate CustomStaticParametersGetters;
-
-	// An array of custom parameter set updaters.
-	UE_DEPRECATED(5.0, "Custom static parameter delegates no longer supported.")
-	ENGINE_API static TArray<FCustomParameterSetUpdaterDelegate> CustomParameterSetUpdaters;
-
 	ENGINE_API const FStaticParameterSetEditorOnlyData& GetEditorOnlyStaticParameters() const;
 #endif // WITH_EDITORONLY_DATA
 

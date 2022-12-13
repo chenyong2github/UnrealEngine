@@ -33,12 +33,6 @@ class UMaterialExpressionRuntimeVirtualTextureSampleParameter : public UMaterial
 	bool SetParameterValue(FName InParameterName, URuntimeVirtualTexture* InValue, EMaterialExpressionSetParameterValueFlags Flags = EMaterialExpressionSetParameterValueFlags::None);
 #endif
 
-	UE_DEPRECATED(5.0, "Use GetParameterValue and/or GetParameterName")
-	bool IsNamedParameter(const FHashedMaterialParameterInfo& ParameterInfo, URuntimeVirtualTexture*& OutValue) const;
-	
-	UE_DEPRECATED(5.0, "Use GetAllParameterInfoOfType or GetAllParametersOfType")
-	void GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const;
-
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
 	virtual bool CanRenameNode() const override { return true; }

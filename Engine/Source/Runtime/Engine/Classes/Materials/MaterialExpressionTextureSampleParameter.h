@@ -80,9 +80,6 @@ class ENGINE_API UMaterialExpressionTextureSampleParameter : public UMaterialExp
 #endif
 	//~ End UMaterialExpression Interface
 
-	UE_DEPRECATED(5.0, "Use GetParameterValue and/or GetParameterName")
-	bool IsNamedParameter(const FHashedMaterialParameterInfo& ParameterInfo, UTexture*& OutValue) const;
-
 #if WITH_EDITOR
 	bool SetParameterValue(FName InParameterName, UTexture* InValue, EMaterialExpressionSetParameterValueFlags Flags = EMaterialExpressionSetParameterValueFlags::None);
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -114,7 +111,4 @@ class ENGINE_API UMaterialExpressionTextureSampleParameter : public UMaterialExp
 		return ChannelNames;
 	}
 #endif
-
-	UE_DEPRECATED(5.0, "Use GetAllParameterInfoOfType or GetAllParametersOfType")
-	void GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const;
 };

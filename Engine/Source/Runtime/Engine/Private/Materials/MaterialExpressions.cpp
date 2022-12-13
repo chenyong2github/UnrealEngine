@@ -3394,33 +3394,6 @@ UMaterialExpressionRuntimeVirtualTextureSampleParameter::UMaterialExpressionRunt
 #endif
 }
 
-bool UMaterialExpressionRuntimeVirtualTextureSampleParameter::IsNamedParameter(const FHashedMaterialParameterInfo& ParameterInfo, URuntimeVirtualTexture*& OutValue) const
-{
-	if (ParameterInfo.Name == ParameterName)
-	{
-		OutValue = VirtualTexture;
-		return true;
-	}
-
-	return false;
-}
-
-void UMaterialExpressionRuntimeVirtualTextureSampleParameter::GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const
-{
-	int32 CurrentSize = OutParameterInfo.Num();
-	FMaterialParameterInfo NewParameter(ParameterName, InBaseParameterInfo.Association, InBaseParameterInfo.Index);
-#if WITH_EDITOR
-	if (HasConnectedOutputs())
-#endif
-	{
-		OutParameterInfo.AddUnique(NewParameter);
-		if (CurrentSize != OutParameterInfo.Num())
-		{
-			OutParameterIds.Add(ExpressionGUID);
-		}
-	}
-}
-
 #if WITH_EDITOR
 
 template<typename T>
@@ -3686,20 +3659,7 @@ void UMaterialExpressionTextureSampleParameter::ValidateParameterName(const bool
 {
 	ValidateParameterNameInternal(this, Material, bAllowDuplicateName);
 }
-#endif // WITH_EDITOR
 
-bool UMaterialExpressionTextureSampleParameter::IsNamedParameter(const FHashedMaterialParameterInfo& ParameterInfo, UTexture*& OutValue) const
-{
-	if (ParameterInfo.Name == ParameterName)
-	{
-		OutValue = Texture;
-		return true;
-	}
-
-	return false;
-}
-
-#if WITH_EDITOR
 bool UMaterialExpressionTextureSampleParameter::SetParameterValue(FName InParameterName, UTexture* InValue, EMaterialExpressionSetParameterValueFlags Flags)
 {
 	if (InParameterName == ParameterName)
@@ -3758,24 +3718,6 @@ void UMaterialExpressionTextureSampleParameter::SetDefaultTexture()
 	// Does nothing in the base case...
 }
 #endif // WITH_EDITOR
-
-void UMaterialExpressionTextureSampleParameter::GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const
-{
-	int32 CurrentSize = OutParameterInfo.Num();
-	FMaterialParameterInfo NewParameter(ParameterName, InBaseParameterInfo.Association, InBaseParameterInfo.Index);
-
-#if WITH_EDITOR
-	if (HasConnectedOutputs())
-#endif
-	{
-		OutParameterInfo.AddUnique(NewParameter);
-
-		if (CurrentSize != OutParameterInfo.Num())
-		{
-			OutParameterIds.Add(ExpressionGUID);
-		}
-	}
-}
 
 //
 //  UMaterialExpressionTextureObjectParameter
@@ -5685,24 +5627,7 @@ void UMaterialExpressionStaticComponentMaskParameter::GetCaption(TArray<FString>
 	OutCaptions.Add(TEXT("Mask Param")); 
 	OutCaptions.Add(FString::Printf(TEXT("'%s'"), *ParameterName.ToString()));
 }
-#endif // WITH_EDITOR
 
-bool UMaterialExpressionStaticComponentMaskParameter::IsNamedParameter(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutR, bool& OutG, bool& OutB, bool& OutA, FGuid&OutExpressionGuid) const
-{
-	if (ParameterInfo.Name == ParameterName)
-	{
-		OutR = DefaultR;
-		OutG = DefaultG;
-		OutB = DefaultB;
-		OutA = DefaultA;
-		OutExpressionGuid = ExpressionGUID;
-		return true;
-	}
-
-	return false;
-}
-
-#if WITH_EDITOR
 bool  UMaterialExpressionStaticComponentMaskParameter::SetParameterValue(FName InParameterName, bool InR, bool InG, bool InB, bool InA, FGuid InExpressionGuid, EMaterialExpressionSetParameterValueFlags Flags)
 {
 	if (InParameterName == ParameterName)
@@ -8518,26 +8443,6 @@ void UMaterialExpressionParameter::SetEditableName(const FString& NewName)
 	ParameterName = *NewName;
 }
 
-#endif
-
-void UMaterialExpressionParameter::GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const
-{
-	int32 CurrentSize = OutParameterInfo.Num();
-	FMaterialParameterInfo NewParameter(ParameterName, InBaseParameterInfo.Association, InBaseParameterInfo.Index);
-
-#if WITH_EDITOR
-	if (HasConnectedOutputs())
-#endif
-	{
-		OutParameterInfo.AddUnique(MoveTemp(NewParameter));
-		if (CurrentSize != OutParameterInfo.Num())
-		{
-			OutParameterIds.Add(ExpressionGUID);
-		}
-	}
-}
-
-#if WITH_EDITOR
 void UMaterialExpressionParameter::ValidateParameterName(const bool bAllowDuplicateName)
 {
 	ValidateParameterNameInternal(this, Material, bAllowDuplicateName);
@@ -8609,30 +8514,7 @@ void UMaterialExpressionVectorParameter::GetCaption(TArray<FString>& OutCaptions
 
 	OutCaptions.Add(FString::Printf(TEXT("'%s'"), *ParameterName.ToString())); 
 }
-#endif // WITH_EDITOR
 
-bool UMaterialExpressionVectorParameter::IsNamedParameter(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor& OutValue) const
-{
-	if (ParameterInfo.Name == ParameterName)
-	{
-		OutValue = DefaultValue;
-		return true;
-	}
-
-	return false;
-}
-
-void UMaterialExpressionVectorParameter::GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const
-{
-	if (!bUseCustomPrimitiveData)
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		Super::GetAllParameterInfo(OutParameterInfo, OutParameterIds, InBaseParameterInfo);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-}
-
-#if WITH_EDITOR
 bool UMaterialExpressionVectorParameter::SetParameterValue(FName InParameterName, FLinearColor InValue, EMaterialExpressionSetParameterValueFlags Flags)
 {
 	if (InParameterName == ParameterName)
@@ -8990,30 +8872,7 @@ void UMaterialExpressionScalarParameter::GetCaption(TArray<FString>& OutCaptions
 	}
 	 OutCaptions.Add(FString::Printf(TEXT("'%s'"), *ParameterName.ToString())); 
 }
-#endif // WITH_EDITOR
 
-bool UMaterialExpressionScalarParameter::IsNamedParameter(const FHashedMaterialParameterInfo& ParameterInfo, float& OutValue) const
-{
-	if (ParameterInfo.Name == ParameterName)
-	{
-		OutValue = DefaultValue;
-		return true;
-	}
-
-	return false;
-}
-
-void UMaterialExpressionScalarParameter::GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const
-{
-	if (!bUseCustomPrimitiveData)
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		Super::GetAllParameterInfo(OutParameterInfo, OutParameterIds, InBaseParameterInfo);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-}
-
-#if WITH_EDITOR
 bool UMaterialExpressionScalarParameter::SetParameterValue(FName InParameterName, float InValue, EMaterialExpressionSetParameterValueFlags Flags)
 {
 	if (InParameterName == ParameterName)
@@ -9229,21 +9088,7 @@ void UMaterialExpressionStaticBoolParameter::GetCaption(TArray<FString>& OutCapt
 	OutCaptions.Add(FString::Printf(TEXT("Static Bool Param (%s)"), (DefaultValue ? TEXT("True") : TEXT("False")))); 
 	OutCaptions.Add(FString::Printf(TEXT("'%s'"), *ParameterName.ToString())); 
 }
-#endif // WITH_EDITOR
 
-bool UMaterialExpressionStaticBoolParameter::IsNamedParameter(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutValue, FGuid& OutExpressionGuid) const
-{
-	if (ParameterInfo.Name == ParameterName)
-	{
-		OutValue = DefaultValue;
-		OutExpressionGuid = ExpressionGUID;
-		return true;
-	}
-
-	return false;
-}
-
-#if WITH_EDITOR
 bool UMaterialExpressionStaticBoolParameter::SetParameterValue(FName InParameterName, bool InValue, FGuid InExpressionGuid, EMaterialExpressionSetParameterValueFlags Flags)
 {
 	if (InParameterName == ParameterName)
@@ -12467,21 +12312,7 @@ void UMaterialExpressionFontSampleParameter::ValidateParameterName(const bool bA
 {
 	ValidateParameterNameInternal(this, Material, bAllowDuplicateName);
 }
-#endif // WITH_EDITOR
 
-bool UMaterialExpressionFontSampleParameter::IsNamedParameter(const FHashedMaterialParameterInfo& ParameterInfo, UFont*& OutFontValue, int32& OutFontPage) const
-{
-	if (ParameterInfo.Name == ParameterName)
-	{
-		OutFontValue = Font;
-		OutFontPage = FontTexturePage;
-		return true;
-	}
-
-	return false;
-}
-
-#if WITH_EDITOR
 bool UMaterialExpressionFontSampleParameter::SetParameterValue(FName InParameterName, UFont* InFontValue, int32 InFontPage, EMaterialExpressionSetParameterValueFlags Flags)
 {
 	if (InParameterName == ParameterName)
@@ -12527,23 +12358,6 @@ void UMaterialExpressionFontSampleParameter::SetEditableName(const FString& NewN
 	ParameterName = *NewName;
 }
 #endif
-
-void UMaterialExpressionFontSampleParameter::GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const
-{
-	int32 CurrentSize = OutParameterInfo.Num();
-	FMaterialParameterInfo NewParameter(ParameterName, InBaseParameterInfo.Association, InBaseParameterInfo.Index);
-#if WITH_EDITOR
-	if (HasConnectedOutputs())
-#endif
-	{
-		OutParameterInfo.AddUnique(NewParameter);
-		if (CurrentSize != OutParameterInfo.Num())
-		{
-			OutParameterIds.Add(ExpressionGUID);
-		}
-	}
-}
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // UMaterialExpressionWorldPosition

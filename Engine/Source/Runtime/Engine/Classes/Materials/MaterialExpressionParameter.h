@@ -67,8 +67,4 @@ class UMaterialExpressionParameter : public UMaterialExpression
 	{
 		return ExpressionGUID;
 	}
-
-	UE_DEPRECATED(5.0, "Use GetAllParameterInfoOfType or GetAllParametersOfType")
-	virtual void GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const;
-
 };

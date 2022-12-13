@@ -72,9 +72,6 @@ class UMaterialExpressionScalarParameter : public UMaterialExpressionParameter
 #endif
 	//~ End UMaterialExpression Interface
 
-	UE_DEPRECATED(5.0, "Use GetParameterValue and/or GetParameterName")
-	bool IsNamedParameter(const FHashedMaterialParameterInfo& ParameterInfo, float& OutValue) const;
-
 #if WITH_EDITOR
 	bool SetParameterValue(FName InParameterName, float InValue, EMaterialExpressionSetParameterValueFlags Flags = EMaterialExpressionSetParameterValueFlags::None);
 
@@ -84,9 +81,6 @@ class UMaterialExpressionScalarParameter : public UMaterialExpressionParameter
 #endif
 
 	virtual bool IsUsedAsAtlasPosition() const { return false; }
-
-	UE_DEPRECATED(5.0, "Use GetAllParameterInfoOfType or GetAllParametersOfType")
-	virtual void GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const override;
 };
 
 

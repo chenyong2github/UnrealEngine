@@ -622,20 +622,6 @@ bool UMaterialInstance::UpdateParameters()
 
 			// Static component mask parameters
 			bDirty = UpdateParameterSet<FStaticComponentMaskParameter, UMaterialExpressionStaticComponentMaskParameter>(EditorOnly->StaticParameters.StaticComponentMaskParameters, ParentMaterial) || bDirty;
-
-			// Custom parameters
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			if (CustomParameterSetUpdaters.Num() > 0)
-			{
-				FStaticParameterSet LocalStaticParameters = GetStaticParameters();
-				for (const auto& CustomParameterSetUpdater : CustomParameterSetUpdaters)
-				{
-					bDirty |= CustomParameterSetUpdater.Execute(LocalStaticParameters, ParentMaterial);
-				}
-				StaticParametersRuntime = LocalStaticParameters.GetRuntime();
-				EditorOnly->StaticParameters = LocalStaticParameters.EditorOnly;
-			}
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 
 		if (StaticParametersRuntime.bHasMaterialLayers && Parent)
@@ -1866,11 +1852,6 @@ void UMaterialInstance::GetStaticParameterValues(FStaticParameterSet& OutStaticP
 	}
 
 	OutStaticParameters.Validate();
-
-	// Custom parameters.
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	CustomStaticParametersGetters.Broadcast(OutStaticParameters, this);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if (AllowCachingStaticParameterValuesCounter > 0)
 	{
@@ -4748,11 +4729,3 @@ void UMaterialInstance::CopyMaterialUniformParametersInternal(UMaterialInterface
 	FObjectCacheEventSink::NotifyReferencedTextureChanged_Concurrent(this);
 #endif
 }
-
-#if WITH_EDITORONLY_DATA
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-UMaterialInstance::FCustomStaticParametersGetterDelegate UMaterialInstance::CustomStaticParametersGetters;
-TArray<UMaterialInstance::FCustomParameterSetUpdaterDelegate> UMaterialInstance::CustomParameterSetUpdaters;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#endif // WITH_EDITORONLY_DATA
-
