@@ -144,6 +144,11 @@ namespace Horde.Agent.Parser
 			{
 				await _inner.DisposeAsync();
 			}
+
+			if (_writer != null)
+			{
+				_writer.Dispose();
+			}
 		}
 
 		async Task TickTailAsync()
@@ -213,7 +218,7 @@ namespace Horde.Agent.Parser
 
 			if (request.Flush || _bufferLength > FlushLength)
 			{
-				NodeLocator target = await _builder.FlushAsync(_writer, request.Flush, cancellationToken);
+				NodeHandle target = await _builder.FlushAsync(_writer, request.Flush, cancellationToken);
 				await UpdateLogAsync(target, _builder.LineCount, cancellationToken);
 				_bufferLength = 0;
 			}
@@ -223,7 +228,7 @@ namespace Horde.Agent.Parser
 
 		#region RPC calls
 
-		protected virtual async Task UpdateLogAsync(NodeLocator target, int lineCount, CancellationToken cancellationToken)
+		protected virtual async Task UpdateLogAsync(NodeHandle target, int lineCount, CancellationToken cancellationToken)
 		{
 			_logger.LogDebug("Updating log {LogId} to line {LineCount}, target {Locator}", _logId, lineCount, target);
 

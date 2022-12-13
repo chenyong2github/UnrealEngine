@@ -244,7 +244,7 @@ namespace EpicGames.Horde.Logs
 		}
 
 		/// <inheritdoc/>
-		protected override void Serialize(IMemoryWriter writer)
+		public override void Serialize(ITreeNodeWriter writer)
 		{
 			base.Serialize(writer);
 

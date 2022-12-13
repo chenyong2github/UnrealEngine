@@ -323,7 +323,7 @@ namespace EpicGames.Horde.Storage
 	/// <summary>
 	/// Information about a type within a bundle
 	/// </summary>
-	[DebuggerDisplay("{Tag}#{Version}")]
+	[DebuggerDisplay("{Guid}#{Version}")]
 	public class BundleType : IEquatable<BundleType>
 	{
 		/// <summary>
@@ -576,32 +576,37 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Compress a data packet
 		/// </summary>
-		/// <param name="format"></param>
-		/// <param name="input"></param>
+		/// <param name="format">Format for the compressed data</param>
+		/// <param name="input">The data to compress</param>
+		/// <param name="writer">Writer for output data</param>
 		/// <returns>The compressed data</returns>
-		public static ReadOnlyMemory<byte> Compress(BundleCompressionFormat format, ReadOnlyMemory<byte> input)
+		public static int Compress(BundleCompressionFormat format, ReadOnlyMemory<byte> input, IMemoryWriter writer)
 		{
 			switch (format)
 			{
 				case BundleCompressionFormat.None:
 					{
-						return input;
+						writer.WriteFixedLengthBytes(input.Span);
+						return input.Length;
 					}
 				case BundleCompressionFormat.LZ4:
 					{
 						int maxSize = LZ4Codec.MaximumOutputSize(input.Length);
-						using (IMemoryOwner<byte> buffer = MemoryPool<byte>.Shared.Rent(maxSize))
-						{
-							int encodedLength = LZ4Codec.Encode(input.Span, buffer.Memory.Span);
-							return buffer.Memory.Slice(0, encodedLength).ToArray();
-						}
+
+						Span<byte> buffer = writer.GetSpan(maxSize);
+						int encodedLength = LZ4Codec.Encode(input.Span, buffer);
+
+						writer.Advance(encodedLength);
+						return encodedLength;
 					}
 				case BundleCompressionFormat.Gzip:
 					{
 						using MemoryStream outputStream = new MemoryStream(input.Length);
 						using GZipStream gzipStream = new GZipStream(outputStream, CompressionLevel.Fastest);
 						gzipStream.Write(input.Span);
-						return outputStream.ToArray();
+
+						writer.WriteFixedLengthBytes(outputStream.ToArray());
+						return (int)outputStream.Length;
 					}
 				case BundleCompressionFormat.Oodle:
 					{

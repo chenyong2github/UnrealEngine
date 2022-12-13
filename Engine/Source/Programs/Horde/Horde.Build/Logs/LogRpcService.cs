@@ -53,7 +53,7 @@ namespace Horde.Build.Logs
 
 			IStorageClient store = await _storageService.GetClientAsync(Namespace.Logs, context.CancellationToken);
 			_logger.LogInformation("Updating {LogId} to node {RefTarget}", request.LogId, request.Target);
-			await store.WriteRefTargetAsync(new RefName(request.LogId), NodeLocator.Parse(request.Target));
+			await store.WriteRefTargetAsync(new RefName(request.LogId), NodeHandle.Parse(request.Target));
 
 			await _logFileCollection.UpdateLineCountAsync(logFile, request.LineCount, CancellationToken.None);
 

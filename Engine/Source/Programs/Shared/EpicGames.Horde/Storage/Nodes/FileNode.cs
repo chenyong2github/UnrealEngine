@@ -12,6 +12,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Reflection.Metadata;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
@@ -64,6 +65,15 @@ namespace EpicGames.Horde.Storage.Nodes
 		public int TargetSize { get; set; }
 
 		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="size">Fixed size chunks to use</param>
+		public ChunkingOptionsForNodeType(int size)
+			: this(size, size, size)
+		{
+		}
+
+		/// <summary>
 		/// Default constructor
 		/// </summary>
 		public ChunkingOptionsForNodeType(int minSize, int maxSize, int targetSize)
@@ -81,186 +91,6 @@ namespace EpicGames.Horde.Storage.Nodes
 	/// </summary>
 	public abstract class FileNode : TreeNode
 	{
-		/// <summary>
-		/// Length of the node
-		/// </summary>
-		public abstract long Length { get; }
-
-		/// <summary>
-		/// Rolling hash for the current node
-		/// </summary>
-		public abstract uint RollingHash { get; }
-
-		/// <summary>
-		/// Whether the node can have data appended to it
-		/// </summary>
-		/// <returns>True if the node is read only</returns>
-		public abstract bool IsReadOnly();
-
-		/// <summary>
-		/// Creates a file node from a block of memory
-		/// </summary>
-		/// <param name="memory">The memory to read from</param>
-		/// <param name="options">Options for chunking the data</param>
-		/// <param name="writer">Writer for new tree nodes</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>New file node</returns>
-		public static Task<FileNode> CreateAsync(ReadOnlyMemory<byte> memory, ChunkingOptions options, TreeWriter writer, CancellationToken cancellationToken)
-		{
-			using ReadOnlyMemoryStream stream = new ReadOnlyMemoryStream(memory);
-			return CreateAsync(stream, options, writer, cancellationToken);
-		}
-
-		/// <summary>
-		/// Creates a file node from a file
-		/// </summary>
-		/// <param name="fileInfo">The stream to read from</param>
-		/// <param name="options">Options for chunking the data</param>
-		/// <param name="writer">Writer for new tree nodes</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>New file node</returns>
-		public static async Task<FileNode> CreateAsync(FileInfo fileInfo, ChunkingOptions options, TreeWriter writer, CancellationToken cancellationToken)
-		{
-			using (Stream stream = fileInfo.OpenRead())
-			{
-				return await FileNode.CreateAsync(stream, options, writer, cancellationToken);
-			}
-		}
-
-		/// <summary>
-		/// Creates a file node from a stream
-		/// </summary>
-		/// <param name="stream">The stream to read from</param>
-		/// <param name="options">Options for chunking the data</param>
-		/// <param name="writer">Writer for new tree nodes</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>New file node</returns>
-		public static async Task<FileNode> CreateAsync(Stream stream, ChunkingOptions options, TreeWriter writer, CancellationToken cancellationToken)
-		{
-			FileNode node = new LeafFileNode();
-
-			byte[] buffer = new byte[4 * 1024];
-			for (; ; )
-			{
-				int numBytes = await stream.ReadAsync(buffer, cancellationToken);
-				if (numBytes == 0)
-				{
-					break;
-				}
-				node = await node.AppendAsync(buffer.AsMemory(0, numBytes), options, writer, cancellationToken);
-			}
-
-			return node;
-		}
-
-		/// <summary>
-		/// Append data to this chunk. Must only be called on the root node in a chunk tree.
-		/// </summary>
-		/// <param name="input">The data to write</param>
-		/// <param name="options">Settings for chunking the data</param>
-		/// <param name="writer">Writer for new tree nodes</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public ValueTask<FileNode> AppendAsync(ReadOnlyMemory<byte> input, ChunkingOptions options, TreeWriter writer, CancellationToken cancellationToken)
-		{
-			return AppendAsync(this, input, options, writer, cancellationToken);
-		}
-
-		/// <summary>
-		/// Appends data to this file
-		/// </summary>
-		/// <param name="stream">Data to append to the file</param>
-		/// <param name="options">Options for chunking the data</param>
-		/// <param name="writer">Writer for new node data</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>New node at the root of this file</returns>
-		public ValueTask<FileNode> AppendAsync(Stream stream, ChunkingOptions options, TreeWriter writer, CancellationToken cancellationToken)
-		{
-			return AppendAsync(this, stream, options, writer, cancellationToken);
-		}
-
-		/// <summary>
-		/// Appends data to this file
-		/// </summary>
-		/// <param name="node">Node to append to</param>
-		/// <param name="stream">Data to append to the file</param>
-		/// <param name="options">Options for chunking the data</param>
-		/// <param name="writer">Writer for new node data</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>New node at the root of this file</returns>
-		static async ValueTask<FileNode> AppendAsync(FileNode node, Stream stream, ChunkingOptions options, TreeWriter writer, CancellationToken cancellationToken)
-		{
-			const int BufferLength = 32 * 1024;
-
-			using IMemoryOwner<byte> owner = MemoryPool<byte>.Shared.Rent(BufferLength * 2);
-			Memory<byte> buffer = owner.Memory;
-
-			int readBufferOffset = 0;
-			Memory<byte> appendBuffer = Memory<byte>.Empty;
-			for (; ; )
-			{
-				// Start a read into memory
-				Memory<byte> readBuffer = buffer.Slice(readBufferOffset, BufferLength);
-				Task<int> readTask = Task.Run(async () => await stream.ReadAsync(readBuffer, cancellationToken), cancellationToken);
-
-				// In the meantime, append the last data that was read to the tree
-				if (appendBuffer.Length > 0)
-				{
-					node = await node.AppendAsync(appendBuffer, options, writer, cancellationToken);
-				}
-
-				// Wait for the read to finish
-				int numBytes = await readTask;
-				if (numBytes == 0)
-				{
-					break;
-				}
-
-				// Switch the buffers around
-				appendBuffer = readBuffer.Slice(0, numBytes);
-				readBufferOffset ^= BufferLength;
-			}
-			return node;
-		}
-
-		static async ValueTask<FileNode> AppendAsync(FileNode root, ReadOnlyMemory<byte> input, ChunkingOptions options, TreeWriter writer, CancellationToken cancellationToken)
-		{
-			for (; ; )
-			{
-				// Append as much data as possible to the existing tree
-				input = await root.AppendToNodeAsync(input, options, writer, cancellationToken);
-				if (input.IsEmpty)
-				{
-					break;
-				}
-
-				// Increase the height of the tree by pushing the contents of this node into a new child node
-				root = new InteriorFileNode(root.Length, root);
-			}
-			return root;
-		}
-
-		private async Task<ReadOnlyMemory<byte>> AppendToNodeAsync(ReadOnlyMemory<byte> appendData, ChunkingOptions options, TreeWriter writer, CancellationToken cancellationToken)
-		{
-			if (appendData.Length == 0 || IsReadOnly())
-			{
-				return appendData;
-			}
-			else
-			{
-				return await AppendDataAsync(appendData, options, writer, cancellationToken);
-			}
-		}
-
-		/// <summary>
-		/// Attempt to append data to the current node.
-		/// </summary>
-		/// <param name="newData">The data to append</param>
-		/// <param name="options">Options for chunking the data</param>
-		/// <param name="writer">Writer for new tree nodes</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>Remaining data in the buffer</returns>
-		public abstract ValueTask<ReadOnlyMemory<byte>> AppendDataAsync(ReadOnlyMemory<byte> newData, ChunkingOptions options, TreeWriter writer, CancellationToken cancellationToken);
-
 		/// <summary>
 		/// Copies the contents of this node and its children to the given output stream
 		/// </summary>
@@ -306,24 +136,10 @@ namespace EpicGames.Horde.Storage.Nodes
 	[TreeNode("{B27AFB68-9E20-4A4B-A4D8-788A4098D439}", 1)]
 	public sealed class LeafFileNode : FileNode
 	{
-		class DataSegment : ReadOnlySequenceSegment<byte>
-		{
-			public DataSegment(long runningIndex, ReadOnlyMemory<byte> data)
-			{
-				RunningIndex = runningIndex;
-				Memory = data;
-			}
-
-			public void SetNext(DataSegment next)
-			{
-				Next = next;
-			}
-		}
-
-		bool _isReadOnly;
-		uint _rollingHash;
-		int _length;
-		byte[]? _buffer;
+		/// <summary>
+		/// Data for this node
+		/// </summary>
+		public ReadOnlyMemory<byte> Data { get; }
 
 		/// <summary>
 		/// Create an empty leaf node
@@ -337,60 +153,17 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		public LeafFileNode(ITreeNodeReader reader)
 		{
-			_isReadOnly = true;
-			_rollingHash = reader.ReadUInt32();
-			_buffer = reader.ReadVariableLengthBytes().ToArray();
-			_length = _buffer.Length;
+			Data = reader.ReadFixedLengthBytes(reader.Length);
 		}
 
 		/// <inheritdoc/>
 		public override void Serialize(ITreeNodeWriter writer)
 		{
-			writer.WriteUInt32(_rollingHash);
-			writer.WriteVariableLengthBytes(Data.Span);
+			writer.WriteFixedLengthBytes(Data.Span);
 		}
 
 		/// <inheritdoc/>
 		public override IEnumerable<TreeNodeRef> EnumerateRefs() => Enumerable.Empty<TreeNodeRef>();
-
-		/// <inheritdoc/>
-		public override bool IsReadOnly() => _isReadOnly;
-
-		/// <inheritdoc/>
-		public override uint RollingHash => _rollingHash;
-
-		/// <summary>
-		/// Gets the data for this node
-		/// </summary>
-		public ReadOnlyMemory<byte> Data => _buffer.AsMemory(0, _length);
-
-		/// <inheritdoc/>
-		public override long Length => _length;
-
-		/// <inheritdoc/>
-		public override ValueTask<ReadOnlyMemory<byte>> AppendDataAsync(ReadOnlyMemory<byte> newData, ChunkingOptions options, TreeWriter writer, CancellationToken cancellationToken)
-		{
-			ReadOnlyMemory<byte> result;
-			if (_isReadOnly)
-			{
-				result = newData;
-			}
-			else
-			{
-				if (_buffer == null || _buffer.Length < options.LeafOptions.MaxSize)
-				{
-					Array.Resize(ref _buffer, options.LeafOptions.MaxSize);
-				}
-
-				int appendLength = AppendData(_buffer.AsSpan(0, _length), newData.Span, ref _rollingHash, options.LeafOptions);
-				newData.Slice(0, appendLength).CopyTo(_buffer.AsMemory(_length));
-				_length += appendLength;
-
-				result = newData.Slice(appendLength);
-				_isReadOnly = (result.Length > 0);
-			}
-			return new ValueTask<ReadOnlyMemory<byte>>(result);
-		}
 
 		/// <summary>
 		/// Determines how much data to append to an existing leaf node
@@ -482,31 +255,18 @@ namespace EpicGames.Horde.Storage.Nodes
 	[TreeNode("{F4DEDDBC-70CB-4C7A-8347-F011AFCCCDB9}", 1)]
 	public class InteriorFileNode : FileNode
 	{
-		bool _isReadOnly;
-		uint _rollingHash;
-		long _length;
-		readonly List<TreeNodeRef<FileNode>> _children = new List<TreeNodeRef<FileNode>>();
-
 		/// <summary>
 		/// Child nodes
 		/// </summary>
-		public IReadOnlyList<TreeNodeRef<FileNode>> Children => _children;
-
-		/// <inheritdoc/>
-		public override long Length => _length;
-
-		/// <inheritdoc/>
-		public override uint RollingHash => _rollingHash;
+		public IReadOnlyList<TreeNodeRef<FileNode>> Children { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="length"></param>
-		/// <param name="child"></param>
-		public InteriorFileNode(long length, FileNode child)
+		/// <param name="children"></param>
+		public InteriorFileNode(IReadOnlyList<TreeNodeRef<FileNode>> children)
 		{
-			_length = length;
-			_children.Add(new TreeNodeRef<FileNode>(child));
+			Children = children;
 		}
 
 		/// <summary>
@@ -514,100 +274,383 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		public InteriorFileNode(ITreeNodeReader reader)
 		{
-			_rollingHash = reader.ReadUInt32();
-			_length = (long)reader.ReadUnsignedVarInt();
-			_isReadOnly = reader.ReadBoolean();
-			_children = reader.ReadList(() => reader.ReadRef<FileNode>());
+			TreeNodeRef<FileNode>[] children = new TreeNodeRef<FileNode>[reader.Length / IoHash.NumBytes];
+			for (int idx = 0; idx < children.Length; idx++)
+			{
+				children[idx] = reader.ReadRef<FileNode>();
+			}
+			Children = children;
 		}
-
-		/// <inheritdoc/>
-		public override bool IsReadOnly() => _isReadOnly;
 
 		/// <inheritdoc/>
 		public override void Serialize(ITreeNodeWriter writer)
 		{
-			writer.WriteUInt32(_rollingHash);
-			writer.WriteUnsignedVarInt((ulong)_length);
-			writer.WriteBoolean(_isReadOnly);
-			writer.WriteList(_children, x => writer.WriteRef(x));
-		}
-
-		/// <inheritdoc/>
-		public override IEnumerable<TreeNodeRef> EnumerateRefs() => _children;
-
-		/// <inheritdoc/>
-		public override async ValueTask<ReadOnlyMemory<byte>> AppendDataAsync(ReadOnlyMemory<byte> newData, ChunkingOptions options, TreeWriter writer, CancellationToken cancellationToken)
-		{
-			for (; ; )
+			foreach (TreeNodeRef<FileNode> child in Children)
 			{
-				Debug.Assert(_children != null);
-
-				// Try to write to the last node
-				if (_children.Count > 0)
-				{
-					TreeNodeRef<FileNode> lastNodeRef = _children[^1];
-
-					FileNode? lastNode = lastNodeRef.Target;
-					if (lastNode != null)
-					{
-						// Update the length to match the new node
-						_length -= lastNode.Length;
-						newData = await lastNode.AppendDataAsync(newData, options, writer, cancellationToken);
-						_length += lastNode.Length;
-
-						// If the last node is complete, write it to the buffer
-						if (lastNode.IsReadOnly())
-						{
-							// Write the last node to allow it to be flushed
-							await writer.WriteAsync(lastNodeRef, cancellationToken);
-
-							// Update the hash
-							AppendChildHash(lastNode.RollingHash);
-
-							// Check if it's time to finish this chunk
-							uint hashThreshold = (uint)(((1L << 32) * IoHash.NumBytes) / options.LeafOptions.TargetSize);
-							if ((_children.Count >= options.InteriorOptions.MinSize && _rollingHash < hashThreshold) || (_children.Count >= options.InteriorOptions.MaxSize))
-							{
-								_isReadOnly = true;
-								return newData;
-							}
-						}
-
-						// Bail out if there's nothing left to write
-						if (newData.Length == 0)
-						{
-							return newData;
-						}
-
-						// Collapse the final node
-						await writer.WriteAsync(Children[^1], cancellationToken);
-					}
-				}
-
-				// Add a new child node
-				_children.Add(new TreeNodeRef<FileNode>(new LeafFileNode()));
+				writer.WriteRef(child);
 			}
 		}
 
+		/// <inheritdoc/>
+		public override IEnumerable<TreeNodeRef> EnumerateRefs() => Children;
+
 		/// <summary>
-		/// Updates the rolling hash to append a child hash
+		/// Test whether the current node is complete
 		/// </summary>
-		/// <param name="childHash">The child hash to append</param>
-		void AppendChildHash(uint childHash)
+		/// <param name="currentData"></param>
+		/// <param name="rollingHash"></param>
+		/// <param name="options"></param>
+		/// <returns></returns>
+		internal static bool IsComplete(ReadOnlySpan<byte> currentData, uint rollingHash, ChunkingOptionsForNodeType options)
 		{
-			Span<byte> hashData = stackalloc byte[4];
-			BinaryPrimitives.WriteUInt32LittleEndian(hashData, childHash);
-			_rollingHash = BuzHash.Add(_rollingHash, hashData);
+			if (currentData.Length + IoHash.NumBytes > options.MaxSize)
+			{
+				return true;
+			}
+
+			if (currentData.Length >= options.MinSize)
+			{
+				uint rollingHashThreshold = BuzHash.GetThreshold(options.TargetSize);
+				if (rollingHash < rollingHashThreshold)
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		/// <summary>
+		/// Append a new hash to this interior node
+		/// </summary>
+		/// <param name="currentData">Current data for the node</param>
+		/// <param name="hash">Hash of the child node</param>
+		/// <param name="rollingHash">Current rolling hash for the node</param>
+		/// <param name="options">Options for chunking the node</param>
+		/// <returns>True if the hash could be appended, false otherwise</returns>
+		internal static void AppendData(ReadOnlySpan<byte> currentData, IoHash hash, ref uint rollingHash, ChunkingOptionsForNodeType options)
+		{
+			Span<byte> hashData = stackalloc byte[IoHash.NumBytes];
+			hash.CopyTo(hashData);
+
+			rollingHash = BuzHash.Add(rollingHash, hashData);
+
+			int windowSize = options.MinSize - (options.MinSize % IoHash.NumBytes);
+			if (currentData.Length > windowSize)
+			{
+				ReadOnlySpan<byte> removeData = currentData.Slice(currentData.Length - windowSize, IoHash.NumBytes);
+				rollingHash = BuzHash.Sub(rollingHash, removeData, windowSize + IoHash.NumBytes);
+			}
 		}
 
 		/// <inheritdoc/>
 		public override async Task CopyToStreamAsync(TreeReader reader, Stream outputStream, CancellationToken cancellationToken)
 		{
-			foreach (TreeNodeRef<FileNode> childNodeRef in _children)
+			foreach (TreeNodeRef<FileNode> childNodeRef in Children)
 			{
 				FileNode childNode = await childNodeRef.ExpandAsync(reader, cancellationToken);
 				await childNode.CopyToStreamAsync(reader, outputStream, cancellationToken);
 			}
+		}
+	}
+
+	/// <summary>
+	/// Utility class for generating FileNode data directly into <see cref="TreeWriter"/> instances, without constructing node representations first.
+	/// </summary>
+	public class FileNodeWriter
+	{
+		class InteriorNodeState
+		{
+			public InteriorNodeState? _parent;
+			public readonly ArrayMemoryWriter _data;
+			public readonly List<NodeHandle> _children = new List<NodeHandle>();
+
+			public uint _rollingHash;
+
+			public InteriorNodeState(int maxSize)
+			{
+				_data = new ArrayMemoryWriter(maxSize);
+			}
+
+			public void Reset()
+			{
+				_rollingHash = 0;
+				_data.Clear();
+				_children.Clear();
+			}
+
+			public void Write(NodeHandle handle)
+			{
+				_children.Add(handle);
+				_data.WriteIoHash(handle.Hash);
+			}
+		}
+
+		static readonly BundleType s_leafNodeType = TreeNodeExtensions.GetBundleType(typeof(LeafFileNode));
+		static readonly BundleType s_interiorNodeType = TreeNodeExtensions.GetBundleType(typeof(InteriorFileNode));
+
+		readonly TreeWriter _writer;
+		readonly ChunkingOptions _options;
+
+		// Tree state
+		InteriorNodeState? _topInteriorNode = null;
+		long _totalLength;
+		readonly Stack<InteriorNodeState> _freeInteriorNodes = new Stack<InteriorNodeState>();
+
+		// Leaf node state
+		uint _leafHash;
+		int _leafLength;
+
+		/// <summary>
+		/// Length of the file so far
+		/// </summary>
+		public long Length => _totalLength;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="writer">Writer for new nodes</param>
+		/// <param name="options">Chunking options</param>
+		public FileNodeWriter(TreeWriter writer, ChunkingOptions options)
+		{
+			_writer = writer;
+			_options = options;
+		}
+
+		/// <summary>
+		/// Reset the current state
+		/// </summary>
+		public void Reset()
+		{
+			FreeInteriorNodes();
+			ResetLeafState();
+			_totalLength = 0;
+		}
+
+		/// <summary>
+		/// Resets the state of the current leaf node
+		/// </summary>
+		void ResetLeafState()
+		{
+			_leafHash = 0;
+			_leafLength = 0;
+		}
+
+		/// <summary>
+		/// Creates a new interior node state
+		/// </summary>
+		/// <returns>State object</returns>
+		InteriorNodeState CreateInteriorNode()
+		{
+			InteriorNodeState? result;
+			if (!_freeInteriorNodes.TryPop(out result))
+			{
+				result = new InteriorNodeState(_options.InteriorOptions.MaxSize);
+			}
+			return result;
+		}
+
+		/// <summary>
+		/// Free all the current interior nodes
+		/// </summary>
+		void FreeInteriorNodes()
+		{
+			while (_topInteriorNode != null)
+			{
+				InteriorNodeState current = _topInteriorNode;
+				_topInteriorNode = _topInteriorNode._parent;
+				current.Reset();
+				_freeInteriorNodes.Push(current);
+			}
+		}
+
+		/// <summary>
+		/// Creates data for the given file
+		/// </summary>
+		/// <param name="fileInfo">File to append</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		public async Task<NodeHandle> CreateAsync(FileInfo fileInfo, CancellationToken cancellationToken)
+		{
+			using (FileStream stream = fileInfo.OpenRead())
+			{
+				return await CreateAsync(stream, cancellationToken);
+			}
+		}
+
+		/// <summary>
+		/// Creates data from the given stream
+		/// </summary>
+		/// <param name="stream">Stream to append</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		public async Task<NodeHandle> CreateAsync(Stream stream, CancellationToken cancellationToken)
+		{
+			Reset();
+			await AppendAsync(stream, cancellationToken);
+			return await FlushAsync(cancellationToken);
+		}
+
+		/// <summary>
+		/// Creates data from the given data
+		/// </summary>
+		/// <param name="data">Stream to append</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		public async Task<NodeHandle> CreateAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken)
+		{
+			Reset();
+			await AppendAsync(data, cancellationToken);
+			return await FlushAsync(cancellationToken);
+		}
+
+		/// <summary>
+		/// Appends data to the current file
+		/// </summary>
+		/// <param name="stream">Stream containing data to append</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		public async Task AppendAsync(Stream stream, CancellationToken cancellationToken)
+		{
+			const int BufferLength = 32 * 1024;
+
+			using IMemoryOwner<byte> owner = MemoryPool<byte>.Shared.Rent(BufferLength * 2);
+			Memory<byte> buffer = owner.Memory;
+
+			int readBufferOffset = 0;
+			Memory<byte> appendBuffer = Memory<byte>.Empty;
+			for (; ; )
+			{
+				// Start a read into memory
+				Memory<byte> readBuffer = buffer.Slice(readBufferOffset, BufferLength);
+				Task<int> readTask = Task.Run(async () => await stream.ReadAsync(readBuffer, cancellationToken), cancellationToken);
+
+				// In the meantime, append the last data that was read to the tree
+				if (appendBuffer.Length > 0)
+				{
+					await AppendAsync(appendBuffer, cancellationToken);
+				}
+
+				// Wait for the read to finish
+				int numBytes = await readTask;
+				if (numBytes == 0)
+				{
+					break;
+				}
+
+				// Switch the buffers around
+				appendBuffer = readBuffer.Slice(0, numBytes);
+				readBufferOffset ^= BufferLength;
+			}
+		}
+
+		/// <summary>
+		/// Appends data to the current file
+		/// </summary>
+		/// <param name="data">Data to append</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		public async Task AppendAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken)
+		{
+			Memory<byte> buffer = _writer.GetOutputBuffer(_leafLength, _leafLength);
+			for (; ; )
+			{
+				// Append data to the current leaf node
+				int appendLength = LeafFileNode.AppendData(buffer.Span.Slice(0, _leafLength), data.Span, ref _leafHash, _options.LeafOptions);
+
+				buffer = _writer.GetOutputBuffer(_leafLength, _leafLength + appendLength);
+				data.Slice(0, appendLength).CopyTo(buffer.Slice(_leafLength));
+
+				_leafLength += appendLength;
+				data = data.Slice(appendLength);
+
+				_totalLength += appendLength;
+
+				if (data.Length == 0)
+				{
+					break;
+				}
+
+				// Flush the leaf node and any interior nodes that are full
+				NodeHandle handle = await WriteLeafNodeAsync(cancellationToken);
+				ResetLeafState();
+				await AddToInteriorNodeAsync(handle, cancellationToken);
+			}
+		}
+
+		async Task AddToInteriorNodeAsync(NodeHandle handle, CancellationToken cancellationToken)
+		{
+			_topInteriorNode ??= CreateInteriorNode();
+			await AddToInteriorNodeAsync(_topInteriorNode, handle, cancellationToken);
+		}
+
+		async Task AddToInteriorNodeAsync(InteriorNodeState interiorNode, NodeHandle handle, CancellationToken cancellationToken)
+		{
+			// If the node is already full, flush it
+			if (InteriorFileNode.IsComplete(interiorNode._data.WrittenSpan, interiorNode._rollingHash, _options.InteriorOptions))
+			{
+				NodeHandle interiorNodeHandle = await WriteInteriorNodeAndResetAsync(interiorNode, cancellationToken);
+				interiorNode._parent ??= CreateInteriorNode();
+				await AddToInteriorNodeAsync(interiorNode._parent, interiorNodeHandle, cancellationToken);
+			}
+
+			// Add this handle
+			InteriorFileNode.AppendData(interiorNode._data.WrittenSpan, handle.Hash, ref interiorNode._rollingHash, _options.InteriorOptions);
+			interiorNode.Write(handle);
+		}
+
+		/// <summary>
+		/// Complete the current file, and write all open nodes to the underlying writer
+		/// </summary>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Handle to the root node</returns>
+		public async Task<NodeHandle> CompleteAsync(CancellationToken cancellationToken)
+		{
+			NodeHandle handle = await WriteLeafNodeAsync(cancellationToken);
+			ResetLeafState();
+
+			for (InteriorNodeState? state = _topInteriorNode; state != null; state = state._parent)
+			{
+				await AddToInteriorNodeAsync(state, handle, cancellationToken);
+				handle = await WriteInteriorNodeAndResetAsync(state, cancellationToken);
+			}
+
+			FreeInteriorNodes();
+			return handle;
+		}
+
+		/// <summary>
+		/// Flush the state of the writer
+		/// </summary>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Handle to the root FileNode</returns>
+		public async Task<NodeHandle> FlushAsync(CancellationToken cancellationToken)
+		{
+			NodeHandle handle = await CompleteAsync(cancellationToken);
+			await _writer.FlushAsync(cancellationToken);
+			return handle;
+		}
+
+		/// <summary>
+		/// Writes the state of the given interior node to storage
+		/// </summary>
+		/// <param name="state"></param>
+		/// <param name="cancellationToken"></param>
+		/// <returns></returns>
+		async ValueTask<NodeHandle> WriteInteriorNodeAndResetAsync(InteriorNodeState state, CancellationToken cancellationToken)
+		{
+			Memory<byte> buffer = _writer.GetOutputBuffer(0, state._data.Length);
+			state._data.WrittenMemory.CopyTo(buffer);
+
+			NodeHandle handle = await _writer.WriteNodeAsync(state._data.Length, state._children, s_interiorNodeType, cancellationToken);
+			state.Reset();
+
+			return handle;
+		}
+
+		/// <summary>
+		/// Writes the contents of the current leaf node to storage
+		/// </summary>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Handle to the written leaf node</returns>
+		async ValueTask<NodeHandle> WriteLeafNodeAsync(CancellationToken cancellationToken)
+		{
+			return await _writer.WriteNodeAsync(_leafLength, Array.Empty<NodeHandle>(), s_leafNodeType, cancellationToken);
 		}
 	}
 }

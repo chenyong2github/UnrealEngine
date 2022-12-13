@@ -866,7 +866,7 @@ namespace Horde.Agent.Execution
 				RefName refName = TempStorage.GetRefNameForNode(RefPrefix, step.Name);
 
 				TreeOptions treeOptions = new TreeOptions();
-				TreeWriter treeWriter = new TreeWriter(storage, treeOptions, refName.Text);
+				using TreeWriter treeWriter = new TreeWriter(storage, treeOptions, refName.Text);
 
 				TempStorageNode outputNode = new TempStorageNode();
 
@@ -1286,7 +1286,7 @@ namespace Horde.Agent.Execution
 				RefName refName = new RefName(RefName.Sanitize($"{RefPrefix}/artifacts"));
 
 				TreeOptions treeOptions = new TreeOptions();
-				TreeWriter treeWriter = new TreeWriter(store, treeOptions, refName.Text);
+				using TreeWriter treeWriter = new TreeWriter(store, treeOptions, refName.Text);
 
 				DirectoryNode directoryNode = new DirectoryNode(DirectoryFlags.None);
 

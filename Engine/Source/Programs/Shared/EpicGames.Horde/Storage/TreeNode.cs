@@ -70,10 +70,10 @@ namespace EpicGames.Horde.Storage
 	public interface ITreeNodeWriter : IMemoryWriter
 	{
 		/// <summary>
-		/// Write a reference to another node
+		/// Writes a reference to another node
 		/// </summary>
-		/// <param name="target">Target of the reference</param>
-		void WriteRef(TreeNodeRef target);
+		/// <param name="handle">Handle to the target node</param>
+		void WriteNodeHandle(NodeHandle handle);
 	}
 
 	/// <summary>
@@ -163,6 +163,16 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <summary>
+		/// Writes a ref to storage
+		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="value">Value to write</param>
+		public static void WriteRef(this ITreeNodeWriter writer, TreeNodeRef value)
+		{
+			value.Serialize(writer);
+		}
+
+		/// <summary>
 		/// Writes an optional ref value to storage
 		/// </summary>
 		/// <param name="writer">Writer to serialize to</param>
@@ -191,9 +201,9 @@ namespace EpicGames.Horde.Storage
 		/// <param name="refOptions">Options for the ref</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Location of node targetted by the ref</returns>
-		public static async Task<NodeLocator> WriteNodeAsync(this IStorageClient store, RefName name, TreeNode node, TreeOptions? options = null, Utf8String prefix = default, RefOptions? refOptions = null, CancellationToken cancellationToken = default)
+		public static async Task<NodeHandle> WriteNodeAsync(this IStorageClient store, RefName name, TreeNode node, TreeOptions? options = null, Utf8String prefix = default, RefOptions? refOptions = null, CancellationToken cancellationToken = default)
 		{
-			TreeWriter writer = new TreeWriter(store, options, prefix.IsEmpty ? name.Text : prefix);
+			using TreeWriter writer = new TreeWriter(store, options, prefix.IsEmpty ? name.Text : prefix);
 			return await writer.WriteAsync(name, node, refOptions, cancellationToken);
 		}
 

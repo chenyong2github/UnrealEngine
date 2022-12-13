@@ -33,7 +33,7 @@ namespace Horde.Agent.Commands.Bundles
 		{
 			IStorageClient store = await _storageClientFactory.GetClientAsync(NamespaceId);
 
-			TreeWriter writer = new TreeWriter(store, prefix: RefName.Text);
+			using TreeWriter writer = new TreeWriter(store, prefix: RefName.Text);
 
 			DirectoryNode node = new DirectoryNode(DirectoryFlags.None);
 

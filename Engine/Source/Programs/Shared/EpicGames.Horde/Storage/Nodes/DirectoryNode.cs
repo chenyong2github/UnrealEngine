@@ -62,12 +62,12 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Length of this entry
 		/// </summary>
-		public long Length => (Target == null) ? _cachedLength : Target.Length;
+		public long Length { get; }
 
 		/// <summary>
 		/// Hash of the target node
 		/// </summary>
-		public IoHash Hash => (Target == null) ? _cachedHash : Target.Hash;
+		public IoHash Hash { get; }
 
 		/// <summary>
 		/// Custom user data for this file entry
@@ -75,23 +75,15 @@ namespace EpicGames.Horde.Storage.Nodes
 		public ReadOnlyMemory<byte> CustomData { get; set; } = ReadOnlyMemory<byte>.Empty;
 
 		/// <summary>
-		/// Cached hash of the target node
-		/// </summary>
-		IoHash _cachedHash;
-
-		/// <summary>
-		/// Cached length of this node
-		/// </summary>
-		long _cachedLength;
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
-		public FileEntry(Utf8String name, FileEntryFlags flags, FileNode node)
+		public FileEntry(Utf8String name, FileEntryFlags flags, long length, NodeHandle node)
 			: base(node)
 		{
 			Name = name;
 			Flags = flags;
+			Length = length;
+			Hash = node.Hash;
 		}
 
 		/// <summary>
@@ -103,9 +95,8 @@ namespace EpicGames.Horde.Storage.Nodes
 		{
 			Name = reader.ReadUtf8String();
 			Flags = (FileEntryFlags)reader.ReadUnsignedVarInt();
-
-			_cachedHash = reader.ReadIoHash();
-			_cachedLength = (long)reader.ReadUnsignedVarInt();
+			Length = (long)reader.ReadUnsignedVarInt();
+			Hash = reader.ReadIoHash();
 
 			if ((Flags & FileEntryFlags.HasCustomData) != 0)
 			{
@@ -118,7 +109,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// Serialize this entry
 		/// </summary>
 		/// <param name="writer"></param>
-		protected override void Serialize(IMemoryWriter writer)
+		public override void Serialize(ITreeNodeWriter writer)
 		{
 			base.Serialize(writer);
 
@@ -126,10 +117,10 @@ namespace EpicGames.Horde.Storage.Nodes
 
 			writer.WriteUtf8String(Name);
 			writer.WriteUnsignedVarInt((ulong)flags);
-			writer.WriteIoHash(Hash);
 			writer.WriteUnsignedVarInt((ulong)Length);
+			writer.WriteIoHash(Hash);
 
-			if((flags & FileEntryFlags.HasCustomData) != 0)
+			if ((flags & FileEntryFlags.HasCustomData) != 0)
 			{
 				writer.WriteVariableLengthBytes(CustomData.Span);
 			}
@@ -158,15 +149,6 @@ namespace EpicGames.Horde.Storage.Nodes
 		{
 			FileNode node = await ExpandAsync(reader, cancellationToken);
 			await node.CopyToFileAsync(reader, file, cancellationToken);
-		}
-
-		/// <inheritdoc/>
-		protected override void OnCollapse()
-		{
-			base.OnCollapse();
-
-			_cachedHash = Target!.Hash;
-			_cachedLength = Target!.Length;
 		}
 
 		/// <inheritdoc/>
@@ -215,9 +197,10 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// Serialize this directory entry to disk
 		/// </summary>
 		/// <param name="writer"></param>
-		protected override void Serialize(IMemoryWriter writer)
+		public override void Serialize(ITreeNodeWriter writer)
 		{
 			base.Serialize(writer);
+
 			writer.WriteUnsignedVarInt((ulong)Length);
 		}
 
@@ -272,9 +255,10 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// Serialize this directory entry to disk
 		/// </summary>
 		/// <param name="writer"></param>
-		protected override void Serialize(IMemoryWriter writer)
+		public override void Serialize(ITreeNodeWriter writer)
 		{
 			base.Serialize(writer);
+
 			writer.WriteUtf8String(Name);
 		}
 
@@ -433,11 +417,12 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		/// <param name="name">Name of the new directory</param>
 		/// <param name="flags">Flags for the new file</param>
-		/// <param name="node">The file data</param>
+		/// <param name="length">Length of the file</param>
+		/// <param name="handle">Handle to the file data</param>
 		/// <returns>The new directory object</returns>
-		public FileEntry AddFile(Utf8String name, FileEntryFlags flags, FileNode node)
+		public FileEntry AddFile(Utf8String name, FileEntryFlags flags, long length, NodeHandle handle)
 		{
-			FileEntry entry = new FileEntry(name, flags, node);
+			FileEntry entry = new FileEntry(name, flags, length, handle);
 			AddFile(entry);
 			return entry;
 		}
@@ -448,10 +433,11 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="reader">Reader for node data</param>
 		/// <param name="path">Path to the file</param>
 		/// <param name="flags">Flags for the new file</param>
-		/// <param name="node">THe file node</param>
+		/// <param name="handle">The file node</param>
+		/// <param name="length">Length of the node</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The new directory object</returns>
-		public async ValueTask<FileEntry> AddFileByPathAsync(TreeReader reader, Utf8String path, FileEntryFlags flags, FileNode node, CancellationToken cancellationToken = default)
+		public async ValueTask<FileEntry> AddFileByPathAsync(TreeReader reader, Utf8String path, FileEntryFlags flags, long length, NodeHandle handle, CancellationToken cancellationToken = default)
 		{
 			DirectoryNode directory = this;
 
@@ -463,26 +449,26 @@ namespace EpicGames.Horde.Storage.Nodes
 
 			for (; ; )
 			{
-				int length = 0;
-				for (; ; length++)
+				int pathLength = 0;
+				for (; ; pathLength++)
 				{
-					if (length == remainingPath.Length)
+					if (pathLength == remainingPath.Length)
 					{
-						return directory.AddFile(remainingPath, flags, node);
+						return directory.AddFile(remainingPath, flags, length, handle);
 					}
 
-					byte character = remainingPath[length];
+					byte character = remainingPath[pathLength];
 					if (character == '\\' || character == '/')
 					{
 						break;
 					}
 				}
 
-				if (length > 0)
+				if (pathLength > 0)
 				{
-					directory = await directory.FindOrAddDirectoryAsync(reader, remainingPath.Slice(0, length), cancellationToken);
+					directory = await directory.FindOrAddDirectoryAsync(reader, remainingPath.Slice(0, pathLength), cancellationToken);
 				}
-				remainingPath = remainingPath.Slice(length + 1);
+				remainingPath = remainingPath.Slice(pathLength + 1);
 			}
 		}
 
@@ -733,12 +719,14 @@ namespace EpicGames.Horde.Storage.Nodes
 
 		static async Task CopyFilesAsync(List<(DirectoryNode DirectoryNode, FileInfo FileInfo)> files, int minIdx, int maxIdx, FileEntry[] entries, ChunkingOptions options, TreeWriter baseWriter, CancellationToken cancellationToken)
 		{
-			TreeWriter writer = new TreeWriter(baseWriter);
+			using TreeWriter writer = new TreeWriter(baseWriter);
+
+			FileNodeWriter fileNodeWriter = new FileNodeWriter(writer, options);
 			for(int idx = minIdx; idx < maxIdx; idx++)
 			{
 				FileInfo fileInfo = files[idx].FileInfo;
-				FileNode fileNode = await FileNode.CreateAsync(fileInfo, options, writer, cancellationToken);
-				entries[idx] = new FileEntry(fileInfo.Name, FileEntryFlags.None, fileNode);
+				NodeHandle handle = await fileNodeWriter.CreateAsync(fileInfo, cancellationToken);
+				entries[idx] = new FileEntry(fileInfo.Name, FileEntryFlags.None, fileNodeWriter.Length, handle);
 			}
 			await writer.FlushAsync(cancellationToken);
 		}
@@ -771,12 +759,5 @@ namespace EpicGames.Horde.Storage.Nodes
 
 			await Task.WhenAll(tasks);
 		}
-	}
-
-	/// <summary>
-	/// Extension methods for <see cref="DirectoryNode"/>
-	/// </summary>
-	public static class DirectoryNodeExtensions
-	{
 	}
 }

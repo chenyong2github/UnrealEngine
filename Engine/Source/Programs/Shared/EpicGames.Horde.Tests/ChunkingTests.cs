@@ -48,47 +48,6 @@ namespace EpicGames.Horde.Tests
 		}
 
 		[TestMethod]
-		public async Task BasicChunkingTests()
-		{
-			using MemoryCache cache = new MemoryCache(new MemoryCacheOptions());
-
-			MemoryStorageClient store = new MemoryStorageClient();
-			TreeReader reader = new TreeReader(store, cache, NullLogger.Instance);
-			TreeWriter writer = new TreeWriter(store, new TreeOptions(), "test");
-
-			ChunkingOptions options = new ChunkingOptions();
-			options.LeafOptions = new ChunkingOptionsForNodeType(8, 8, 8);
-
-			FileNode node = new LeafFileNode();
-			node = await node.AppendAsync(new byte[7], options, writer, CancellationToken.None);
-			Assert.AreEqual(7, node.Length);
-			Assert.IsTrue(node is LeafFileNode);
-			Assert.AreEqual(7, (await node.ToByteArrayAsync(reader, CancellationToken.None)).Length);
-
-			node = new LeafFileNode();
-			node = await node.AppendAsync(new byte[8], options, writer, CancellationToken.None);
-			Assert.AreEqual(8, node.Length);
-			Assert.IsTrue(node is LeafFileNode);
-			Assert.AreEqual(8, (await node.ToByteArrayAsync(reader, CancellationToken.None)).Length);
-
-			node = new LeafFileNode();
-			node = await node.AppendAsync(new byte[9], options, writer, CancellationToken.None);
-			Assert.AreEqual(9, node.Length);
-			Assert.IsTrue(node is InteriorFileNode);
-			Assert.AreEqual(2, ((InteriorFileNode)node).Children.Count);
-
-			FileNode? childNode1 = await ((TreeNodeRef<FileNode>)((InteriorFileNode)node).Children[0]).ExpandAsync(reader);
-			Assert.IsNotNull(childNode1);
-			Assert.IsTrue(childNode1 is LeafFileNode);
-			Assert.AreEqual(8, (await childNode1!.ToByteArrayAsync(reader, CancellationToken.None)).Length);
-
-			FileNode? childNode2 = await ((TreeNodeRef<FileNode>)((InteriorFileNode)node).Children[1]).ExpandAsync(reader);
-			Assert.IsNotNull(childNode2);
-			Assert.IsTrue(childNode2 is LeafFileNode);
-			Assert.AreEqual(1, (await childNode2!.ToByteArrayAsync(reader, CancellationToken.None)).Length);
-		}
-
-		[TestMethod]
 		public async Task FixedSizeChunkingTests()
 		{
 			ChunkingOptions options = new ChunkingOptions();
@@ -108,13 +67,13 @@ namespace EpicGames.Horde.Tests
 			await TestChunkingAsync(options);
 		}
 
-		static async Task TestChunkingAsync(ChunkingOptions options)
+		async Task TestChunkingAsync(ChunkingOptions options)
 		{
 			using MemoryCache cache = new MemoryCache(new MemoryCacheOptions());
 
 			MemoryStorageClient store = new MemoryStorageClient();
 			TreeReader reader = new TreeReader(store, cache, NullLogger.Instance);
-			TreeWriter writer = new TreeWriter(store, new TreeOptions());
+			using TreeWriter writer = new TreeWriter(store, new TreeOptions());
 
 			byte[] data = new byte[4096];
 			new Random(0).NextBytes(data);
@@ -124,13 +83,21 @@ namespace EpicGames.Horde.Tests
 				data[idx] = (byte)idx;
 			}
 
-			FileNode root = new LeafFileNode();
+			NodeHandle handle;
 
 			const int NumIterations = 100;
-			for (int idx = 0; idx < NumIterations; idx++)
 			{
-				root = await root.AppendAsync(data, options, writer, CancellationToken.None);
+				FileNodeWriter fileWriter = new FileNodeWriter(writer, options);
+
+				for (int idx = 0; idx < NumIterations; idx++)
+				{
+					await fileWriter.AppendAsync(data, CancellationToken.None);
+				}
+
+				handle = await fileWriter.FlushAsync(CancellationToken.None);
 			}
+
+			FileNode root = await reader.ReadNodeAsync<FileNode>(handle.Locator);
 
 			byte[] result;
 			using (MemoryStream stream = new MemoryStream())
@@ -145,6 +112,31 @@ namespace EpicGames.Horde.Tests
 			{
 				ReadOnlyMemory<byte> spanData = result.AsMemory(idx * data.Length, data.Length);
 				Assert.IsTrue(spanData.Span.SequenceEqual(data));
+			}
+
+			await CheckSizes(reader, root, options, true);
+		}
+
+		async Task CheckSizes(TreeReader reader, FileNode node, ChunkingOptions options, bool rightmost)
+		{
+			if (node is LeafFileNode leafNode)
+			{
+				Assert.IsTrue(rightmost || leafNode.Data.Length >= options.LeafOptions.MinSize);
+				Assert.IsTrue(leafNode.Data.Length <= options.LeafOptions.MaxSize);
+			}
+			else
+			{
+				InteriorFileNode interiorNode = (InteriorFileNode)node;
+
+				Assert.IsTrue(rightmost || interiorNode.Children.Count * IoHash.NumBytes >= options.InteriorOptions.MinSize);
+				Assert.IsTrue(interiorNode.Children.Count <= options.InteriorOptions.MaxSize);
+
+				int childCount = interiorNode.Children.Count;
+				for (int idx = 0; idx < childCount; idx++)
+				{
+					FileNode childNode = await interiorNode.Children[idx].ExpandAsync(reader, CancellationToken.None);
+					await CheckSizes(reader, childNode, options, idx == childCount - 1);
+				}
 			}
 		}
 	}

@@ -96,13 +96,22 @@ namespace Horde.Build.Perforce
 			class Handle
 			{
 				public Utf8String _path;
-				public FileNode _node = null!;
+				public FileNodeWriter _fileWriter = null!;
 				public long _size;
+				public long _sizeWritten;
 				public readonly IncrementalHash _hash = IncrementalHash.CreateHash(HashAlgorithmName.MD5);
 			}
 
+			readonly TreeWriter _writer;
+			readonly ChunkingOptions _options;
 			readonly Stack<Handle> _freeHandles = new Stack<Handle>();
 			readonly Dictionary<int, Handle> _openHandles = new Dictionary<int, Handle>();
+
+			public FileWriter(TreeWriter writer, ChunkingOptions options)
+			{
+				_writer = writer;
+				_options = options;
+			}
 
 			public void Dispose()
 			{
@@ -120,34 +129,39 @@ namespace Horde.Build.Perforce
 			{
 				Handle handle = (_freeHandles.Count > 0)? _freeHandles.Pop() : new Handle();
 
+				handle._fileWriter.Reset();
 				handle._path = path;
-				handle._node = new LeafFileNode();
 				handle._size = size;
 
 				_openHandles.Add(fd, handle);
 			}
 
-			public async Task AppendAsync(int fd, ReadOnlyMemory<byte> data, ChunkingOptions options, TreeWriter writer, CancellationToken cancellationToken)
+			public async Task AppendAsync(int fd, ReadOnlyMemory<byte> data, CancellationToken cancellationToken)
 			{
 				Handle handle = _openHandles[fd];
 				handle._hash.AppendData(data.Span);
-				handle._node = await handle._node.AppendAsync(data, options, writer, cancellationToken);
+
+				await handle._fileWriter.AppendAsync(data, cancellationToken);
+				handle._sizeWritten += data.Length;
 			}
 
-			public void Close(int fd, out Utf8String path, out FileNode node, out byte[] hash)
+			public async Task<(Utf8String, NodeHandle, byte[], long)> CloseAsync(int fd, CancellationToken cancellationToken)
 			{
 				Handle handle = _openHandles[fd];
-				if (handle._node.Length != handle._size)
+				if (handle._sizeWritten != handle._size)
 				{
-					throw new ReplicationException($"Invalid size for replicated file '{handle._path}'. Expected {handle._size}, got {handle._node.Length}.");
+					throw new ReplicationException($"Invalid size for replicated file '{handle._path}'. Expected {handle._size}, got {handle._sizeWritten}.");
 				}
 
-				path = handle._path;
-				node = handle._node;
-				hash = handle._hash.GetHashAndReset();
+				Utf8String path = handle._path;
+				NodeHandle node = await handle._fileWriter.FlushAsync(cancellationToken);
+				byte[] hash = handle._hash.GetHashAndReset();
+				long length = handle._fileWriter.Length;
 
 				_openHandles.Remove(fd);
 				_freeHandles.Push(handle);
+
+				return (path, node, hash, length);
 			}
 		}
 
@@ -294,7 +308,7 @@ namespace Horde.Build.Perforce
 			_logger.LogInformation("Total sync size: {Size:n1}mb", totalSize / (1024.0 * 1024.0));
 
 			// Create the tree writer
-			TreeWriter writer = new TreeWriter(store, refName, options.TreeOptions);
+			using TreeWriter writer = new TreeWriter(store, refName, options.TreeOptions);
 
 			// Sync incrementally
 			long syncedSize = 0;
@@ -349,7 +363,7 @@ namespace Horde.Build.Perforce
 				Stopwatch processTimer = new Stopwatch();
 				Stopwatch gcTimer = new Stopwatch();
 
-				using FileWriter fileWriter = new FileWriter();
+				using FileWriter fileWriter = new FileWriter(writer, options.ChunkingOptions);
 				await foreach (PerforceResponse response in perforce.StreamCommandAsync("sync", Array.Empty<string>(), syncPaths, null, typeof(SyncRecord), true, default))
 				{
 					PerforceError? error = response.Error;
@@ -389,13 +403,13 @@ namespace Horde.Build.Perforce
 						}
 						else if (io.Command == PerforceIoCommand.Write)
 						{
-							await fileWriter.AppendAsync(io.File, io.Payload, options.ChunkingOptions, writer, cancellationToken);
+							await fileWriter.AppendAsync(io.File, io.Payload, cancellationToken);
 						}
 						else if (io.Command == PerforceIoCommand.Close)
 						{
-							fileWriter.Close(io.File, out Utf8String path, out FileNode node, out byte[] hash);
+							(Utf8String path, NodeHandle handle, byte[] hash, long length) = await fileWriter.CloseAsync(io.File, cancellationToken);
 
-							FileEntry entry = await root.AddFileByPathAsync(reader, path, FileEntryFlags.None, node, cancellationToken);
+							FileEntry entry = await root.AddFileByPathAsync(reader, path, FileEntryFlags.None, length, handle, cancellationToken);
 							entry.CustomData = hash;
 							await writer.WriteAsync(entry, cancellationToken);
 						}

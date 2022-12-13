@@ -79,7 +79,7 @@ namespace EpicGames.Horde.Tests
 		{
 			// Generate a tree
 			{
-				TreeWriter writer = new TreeWriter(store, options, "test");
+				using TreeWriter writer = new TreeWriter(store, options, "test");
 
 				SimpleNode node1 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 1 }), Array.Empty<TreeNodeRef<SimpleNode>>());
 				SimpleNode node2 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 2 }), new[] { new TreeNodeRef<SimpleNode>(node1) });
@@ -136,6 +136,20 @@ namespace EpicGames.Horde.Tests
 		}
 
 		[TestMethod]
+		public async Task SimpleNodeAsync()
+		{
+			MemoryStorageClient store = new MemoryStorageClient();
+
+			RefName refName = new RefName("test");
+			await store.WriteNodeAsync(refName, new SimpleNode(new ReadOnlySequence<byte>(new byte[] { (byte)123 }), Array.Empty<TreeNodeRef<SimpleNode>>()));
+
+			TreeReader reader = new TreeReader(store, null, s_readOptions, NullLogger.Instance);
+			SimpleNode node = await reader.ReadNodeAsync<SimpleNode>(refName);
+
+			Assert.AreEqual(123, node.Data.FirstSpan[0]);
+		}
+
+		[TestMethod]
 		public async Task DirectoryNodesAsync()
 		{
 			MemoryStorageClient store = new MemoryStorageClient();
@@ -180,13 +194,14 @@ namespace EpicGames.Horde.Tests
 
 			// Generate a tree
 			{
-				TreeWriter writer = new TreeWriter(store, new TreeOptions());
+				using TreeWriter writer = new TreeWriter(store, new TreeOptions());
 
 				DirectoryNode root = new DirectoryNode(DirectoryFlags.None);
 				DirectoryNode hello = root.AddDirectory("hello");
 
-				FileNode world = await FileNode.CreateAsync(Encoding.UTF8.GetBytes("world"), new ChunkingOptions(), writer, CancellationToken.None);
-				hello.AddFile("world", FileEntryFlags.None, world);
+				FileNodeWriter fileWriter = new FileNodeWriter(writer, new ChunkingOptions());
+				NodeHandle fileHandle = await fileWriter.CreateAsync(Encoding.UTF8.GetBytes("world"), CancellationToken.None);
+				hello.AddFile("world", FileEntryFlags.None, fileWriter.Length, fileHandle);
 
 				await writer.WriteAsync(new RefName("test"), root);
 
@@ -217,83 +232,6 @@ namespace EpicGames.Horde.Tests
 		}
 
 		[TestMethod]
-		public async Task ChunkingTests()
-		{
-			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
-
-			MemoryStorageClient store = new MemoryStorageClient();
-			TreeWriter writer = new TreeWriter(store, new TreeOptions());
-
-			byte[] chunk = RandomNumberGenerator.GetBytes(256);
-
-			byte[] data = new byte[chunk.Length * 1024];
-			for (int idx = 0; idx * chunk.Length < data.Length; idx++)
-			{
-				chunk.CopyTo(data.AsSpan(idx * chunk.Length));
-			}
-
-			ChunkingOptions options = new ChunkingOptions();
-			options.LeafOptions.MinSize = 1;
-			options.LeafOptions.TargetSize = 64;
-			options.LeafOptions.MaxSize = 1024;
-
-			ReadOnlyMemory<byte> remaining = data;
-
-			Dictionary<IoHash, long> uniqueChunks = new Dictionary<IoHash, long>();
-
-			List<LeafFileNode> nodes = new List<LeafFileNode>();
-			while (remaining.Length > 0)
-			{
-				LeafFileNode node = new LeafFileNode();
-				remaining = await node.AppendDataAsync(remaining, options, writer, CancellationToken.None);
-				nodes.Add(node);
-
-				IoHash hash = IoHash.Compute(node.Data.Span);
-				uniqueChunks[hash] = node.Length;
-			}
-
-			long uniqueSize = uniqueChunks.Sum(x => x.Value);
-			Assert.IsTrue(uniqueSize < data.Length / 3);
-		}
-		/*
-		[TestMethod]
-		public async Task ChildWriterAsync()
-		{
-			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
-
-			InMemoryBlobStore store = new InMemoryBlobStore(cache);
-
-			{
-				ITreeWriter writer = store.CreateTreeWriter(new TreeOptions());
-
-				ITreeWriter childWriter1 = writer.CreateChildWriter();
-				ITreeBlobRef childNode1 = await childWriter1.WriteNodeAsync(new ReadOnlySequence<byte>(new byte[] { 4, 5, 6 }), Array.Empty<ITreeBlobRef>());
-
-				ITreeWriter childWriter2 = writer.CreateChildWriter();
-				ITreeBlobRef childNode2 = await childWriter2.WriteNodeAsync(new ReadOnlySequence<byte>(new byte[] { 7, 8, 9 }), Array.Empty<ITreeBlobRef>());
-
-				RefName refName = new RefName("test");
-				await writer.WriteRefAsync(refName, new ReadOnlySequence<byte>(new byte[] { 1, 2, 3 }), new[] { childNode1, childNode2 });
-
-				Assert.AreEqual(3, store.Blobs.Count);
-				Assert.AreEqual(1, store.Refs.Count);
-
-				ITreeBlob? rootBlob = await store.TryReadTreeAsync(refName);
-				Assert.IsNotNull(rootBlob);
-				Assert.IsTrue(rootBlob.Data.AsSingleSegment().Span.SequenceEqual(new byte[] { 1, 2, 3 }));
-				Assert.AreEqual(2, rootBlob.Refs.Count);
-
-				ITreeBlob? childBlob1 = await rootBlob.Refs[0].GetTargetAsync();
-				Assert.IsTrue(childBlob1.Data.AsSingleSegment().Span.SequenceEqual(new byte[] { 4, 5, 6 }));
-				Assert.AreEqual(0, childBlob1.Refs.Count);
-
-				ITreeBlob? childBlob2 = await rootBlob.Refs[1].GetTargetAsync();
-				Assert.IsTrue(childBlob2.Data.AsSingleSegment().Span.SequenceEqual(new byte[] { 7, 8, 9 }));
-				Assert.AreEqual(0, childBlob2.Refs.Count);
-			}
-		}
-		*/
-		[TestMethod]
 		public async Task LargeFileTestAsync()
 		{
 			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
@@ -314,7 +252,7 @@ namespace EpicGames.Horde.Tests
 			// Generate a tree
 			DirectoryNode root;
 			{
-				TreeWriter writer = new TreeWriter(store, new TreeOptions { MaxBlobSize = 1024 });
+				using TreeWriter writer = new TreeWriter(store, new TreeOptions { MaxBlobSize = 1024 });
 
 				root = new DirectoryNode(DirectoryFlags.None);
 
@@ -323,8 +261,9 @@ namespace EpicGames.Horde.Tests
 				options.LeafOptions.TargetSize = 256;
 				options.LeafOptions.MaxSize = 64 * 1024;
 
-				FileNode file = await FileNode.CreateAsync(data, options, writer, CancellationToken.None);
-				root.AddFile("test", FileEntryFlags.None, file);
+				FileNodeWriter fileWriter = new FileNodeWriter(writer, options);
+				NodeHandle handle = await fileWriter.CreateAsync(data, CancellationToken.None);
+				root.AddFile("test", FileEntryFlags.None, fileWriter.Length, handle);
 
 				await writer.WriteAsync(new RefName("test"), root);
 
@@ -366,10 +305,7 @@ namespace EpicGames.Horde.Tests
 			if (oldNode is InteriorFileNode oldInteriorNode)
 			{
 				InteriorFileNode newInteriorNode = (InteriorFileNode)newNode;
-
-				Assert.AreEqual(oldInteriorNode.Length, newInteriorNode.Length);
 				Assert.AreEqual(oldInteriorNode.Children.Count, newInteriorNode.Children.Count);
-				Assert.AreEqual(oldInteriorNode.RollingHash, newInteriorNode.RollingHash);
 
 				int index = 0;
 				foreach ((TreeNodeRef<FileNode> oldFileRef, TreeNodeRef<FileNode> newFileRef) in oldInteriorNode.Children.Zip(newInteriorNode.Children))
@@ -383,7 +319,6 @@ namespace EpicGames.Horde.Tests
 			else if (oldNode is LeafFileNode oldLeafNode)
 			{
 				LeafFileNode newLeafNode = (LeafFileNode)newNode;
-				Assert.AreEqual(oldLeafNode.Length, newLeafNode.Length);
 				Assert.IsTrue(oldLeafNode.Data.Span.SequenceEqual(newLeafNode.Data.Span));
 			}
 			else

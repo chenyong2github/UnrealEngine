@@ -2,8 +2,10 @@
 
 using EpicGames.Core;
 using EpicGames.Serialization;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection.Metadata;
 
 namespace EpicGames.Horde.Storage.Nodes
 {
@@ -13,6 +15,37 @@ namespace EpicGames.Horde.Storage.Nodes
 	[TreeNode("{34A0793F-8364-42F4-8632-98A71C843229}", 1)]
 	public class CbNode : TreeNode
 	{
+		class HandleMapper
+		{
+			public IReadOnlyList<NodeLocator> Locators { get; }
+			public List<NodeHandle> Handles { get; }
+
+			public HandleMapper(IReadOnlyList<NodeLocator> locators)
+			{
+				Locators = locators;
+				Handles = new List<NodeHandle>(locators.Count);
+			}
+
+			public void IterateField(CbField field)
+			{
+				if (field.IsAttachment())
+				{
+					NodeLocator locator = Locators[Handles.Count];
+					Handles.Add(new NodeHandle(field.AsAttachment(), locator));
+				}
+				else if (field.IsArray())
+				{
+					CbArray array = field.AsArray();
+					array.IterateAttachments(IterateField);
+				}
+				else if (field.IsObject())
+				{
+					CbObject obj = field.AsObject();
+					obj.IterateAttachments(IterateField);
+				}
+			}
+		}
+
 		/// <summary>
 		/// The compact binary object
 		/// </summary>
@@ -41,7 +74,11 @@ namespace EpicGames.Horde.Storage.Nodes
 		public CbNode(ITreeNodeReader reader)
 		{
 			Object = new CbObject(reader.ReadFixedLengthBytes(reader.Length));
-			References = reader.References.ConvertAll(x => new TreeNodeRef(x));
+
+			HandleMapper mapper = new HandleMapper(reader.References);
+			Object.IterateAttachments(mapper.IterateField);
+
+			References = mapper.Handles.ConvertAll(x => new TreeNodeRef(x));
 		}
 
 		/// <inheritdoc/>

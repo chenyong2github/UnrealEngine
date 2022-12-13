@@ -21,10 +21,10 @@ namespace Horde.Build.Commands.Bundles
 			public Task DeleteRefAsync(RefName name, CancellationToken cancellationToken = default) => Task.CompletedTask;
 			public Task<Stream> ReadBlobAsync(BlobLocator locator, CancellationToken cancellationToken = default) => throw new NotImplementedException();
 			public Task<Stream> ReadBlobRangeAsync(BlobLocator locator, int offset, int length, CancellationToken cancellationToken = default) => throw new NotImplementedException();
-			public Task<NodeLocator> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default) => throw new NotImplementedException();
+			public Task<NodeHandle?> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default) => throw new NotImplementedException();
 			public Task<BlobLocator> WriteBlobAsync(Stream stream, Utf8String prefix = default, CancellationToken cancellationToken = default) => Task.FromResult(BlobLocator.Create(HostId.Empty));
-			public Task<NodeLocator> WriteRefAsync(RefName name, Bundle bundle, int exportIdx, Utf8String prefix = default, RefOptions? options = null, CancellationToken cancellationToken = default) => throw new NotImplementedException();
-			public Task WriteRefTargetAsync(RefName name, NodeLocator target, RefOptions? options = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
+			public Task<NodeHandle> WriteRefAsync(RefName name, Bundle bundle, int exportIdx, Utf8String prefix = default, RefOptions? options = null, CancellationToken cancellationToken = default) => throw new NotImplementedException();
+			public Task WriteRefTargetAsync(RefName name, NodeHandle target, RefOptions? options = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
 		}
 
 		public override async Task<int> ExecuteAsync(ILogger logger)
@@ -33,9 +33,10 @@ namespace Horde.Build.Commands.Bundles
 
 			TreeOptions options = new TreeOptions();
 			options.CompressionFormat = BundleCompressionFormat.None;
-			TreeWriter writer = new TreeWriter(store, options);
+			using TreeWriter writer = new TreeWriter(store, options);
 
 			ChunkingOptions chunkingOptions = new ChunkingOptions();
+//			chunkingOptions.LeafOptions = new ChunkingOptionsForNodeType(64 * 1024);
 
 			FileNode node = new LeafFileNode();
 
@@ -46,9 +47,10 @@ namespace Horde.Build.Commands.Bundles
 			long length = 0;
 			double nextTime = 2.0;
 
+			FileNodeWriter fileNodeWriter = new FileNodeWriter(writer, chunkingOptions);
 			for (; ; )
 			{
-				node = await node.AppendAsync(buffer, chunkingOptions, writer, default);
+				await fileNodeWriter.AppendAsync(buffer, default);
 				length += buffer.Length;
 
 				double time = timer.Elapsed.TotalSeconds;

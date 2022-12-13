@@ -67,23 +67,28 @@ namespace EpicGames.Horde.Tests
 		{
 			RefName refName = new RefName("test");
 			TreeReader reader = new TreeReader(_storage, null, NullLogger.Instance);
-			TreeWriter writer = new TreeWriter(_storage, new TreeOptions(), refName.Text);
+			using TreeWriter writer = new TreeWriter(_storage, new TreeOptions(), refName.Text);
 
 			ChunkingOptions options = new ChunkingOptions();
 			options.LeafOptions = new ChunkingOptionsForNodeType(8, 8, 8);
 
-			FileNode node = new LeafFileNode();
-			node = await node.AppendAsync(new byte[7], options, writer, CancellationToken.None);
+			FileNodeWriter fileNodeWriter = new FileNodeWriter(writer, options);
+
+			NodeHandle handle;
+			FileNode node;
+
+			handle = await fileNodeWriter.CreateAsync(new byte[7], CancellationToken.None);
+			node = await reader.ReadNodeAsync<FileNode>(handle.Locator);
 			Assert.IsTrue(node is LeafFileNode);
 			Assert.AreEqual(7, ((LeafFileNode)node).Data.Length);
 
-			node = new LeafFileNode();
-			node = await node.AppendAsync(new byte[8], options, writer, CancellationToken.None);
+			handle = await fileNodeWriter.CreateAsync(new byte[8], CancellationToken.None);
+			node = await reader.ReadNodeAsync<FileNode>(handle.Locator);
 			Assert.IsTrue(node is LeafFileNode);
 			Assert.AreEqual(8, ((LeafFileNode)node).Data.Length);
 
-			node = new LeafFileNode();
-			node = await node.AppendAsync(new byte[9], options, writer, CancellationToken.None);
+			handle = await fileNodeWriter.CreateAsync(new byte[9], CancellationToken.None);
+			node = await reader.ReadNodeAsync<FileNode>(handle.Locator);
 			Assert.IsTrue(node is InteriorFileNode);
 			Assert.AreEqual(2, ((InteriorFileNode)node).Children.Count);
 
@@ -184,8 +189,8 @@ namespace EpicGames.Horde.Tests
 			Assert.AreEqual(1, store.Blobs.Count);
 
 			// Check the ref
-			NodeLocator refTarget = await store.ReadRefTargetAsync(refName);
-			Bundle bundle = await store.ReadBundleAsync(refTarget.Blob);
+			NodeHandle refTarget = await store.ReadRefTargetAsync(refName);
+			Bundle bundle = await store.ReadBundleAsync(refTarget.Locator.Blob);
 			Assert.AreEqual(0, bundle.Header.Imports.Count);
 			Assert.AreEqual(3, bundle.Header.Exports.Count);
 
@@ -267,236 +272,5 @@ namespace EpicGames.Horde.Tests
 				Assert.IsNotNull(newNode4);
 			}
 		}
-		/*
-		[TestMethod]
-		public async Task CompactTest()
-		{
-			BundleOptions options = new BundleOptions();
-			options.MaxBlobSize = 1024 * 1024;
-			options.MaxInlineBlobSize = 1;
-
-			using Bundle<DirectoryNode> newBundle = Bundle.Create<DirectoryNode>(_storageClient, _namespaceId, new DirectoryNode(), options, _cache);
-
-			DirectoryNode node1 = newBundle.Root.AddDirectory("node1");
-			DirectoryNode node2 = node1.AddDirectory("node2");
-			DirectoryNode node3 = node2.AddDirectory("node3");
-			DirectoryNode node4 = newBundle.Root.AddDirectory("node4"); // same contents as node 3
-
-			RefId refId1 = new RefId("ref1");
-			await newBundle.WriteAsync(_bucketId, refId1, CbObject.Empty, false);
-
-			Assert.AreEqual(1, _storageClient.Refs.Count);
-			Assert.AreEqual(1, _storageClient.Blobs.Count);
-
-			IRef ref1 = _storageClient.Refs[(_namespaceId, _bucketId, refId1)];
-
-			BundleRoot root1 = CbSerializer.Deserialize<BundleRoot>(ref1.Value);
-			BundleObject rootObject1 = root1.Object;
-			Assert.AreEqual(1, rootObject1.Exports.Count);
-			Assert.AreEqual(1, rootObject1.ImportObjects.Count);
-
-			IoHash leafHash1 = rootObject1.ImportObjects[0].Object.Hash;
-			BundleObject leafObject1 = CbSerializer.Deserialize<BundleObject>(_storageClient.Blobs[(_namespaceId, leafHash1)]);
-			Assert.AreEqual(3, leafObject1.Exports.Count); // node1 + node2 + node3 (== node4)
-			Assert.AreEqual(0, leafObject1.ImportObjects.Count);
-
-			// Remove one of the nodes from the root without compacting. the existing blob should be reused.
-			newBundle.Root.DeleteDirectory("node1");
-
-			RefId refId2 = new RefId("ref2");
-			await newBundle.WriteAsync(_bucketId, refId2, CbObject.Empty, false);
-
-			IRef ref2 = _storageClient.Refs[(_namespaceId, _bucketId, refId2)];
-
-			BundleRoot root2 = CbSerializer.Deserialize<BundleRoot>(ref2.Value);
-			BundleObject rootObject2 = root2.Object;
-			Assert.AreEqual(1, rootObject2.Exports.Count);
-			Assert.AreEqual(1, rootObject2.ImportObjects.Count);
-
-			IoHash leafHash2 = rootObject2.ImportObjects[0].Object.Hash;
-			Assert.AreEqual(leafHash1, leafHash2);
-			Assert.AreEqual(3, leafObject1.Exports.Count); // unused: node1 + node2 + node3, used: node4 (== node3)
-			Assert.AreEqual(0, leafObject1.ImportObjects.Count);
-
-			// Repack it and check that we make a new object
-			RefId refId3 = new RefId("ref3");
-			await newBundle.WriteAsync(_bucketId, refId3, CbObject.Empty, true);
-
-			IRef ref3 = _storageClient.Refs[(_namespaceId, _bucketId, refId3)];
-
-			BundleRoot root3 = CbSerializer.Deserialize<BundleRoot>(ref3.Value);
-			BundleObject rootObject3 = root3.Object;
-			Assert.AreEqual(1, rootObject3.Exports.Count);
-			Assert.AreEqual(1, rootObject3.ImportObjects.Count);
-
-			IoHash leafHash3 = rootObject3.ImportObjects[0].Object.Hash;
-			Assert.AreNotEqual(leafHash1, leafHash3);
-
-			BundleObject leafObject3 = CbSerializer.Deserialize<BundleObject>(_storageClient.Blobs[(_namespaceId, leafHash3)]);
-			Assert.AreEqual(1, leafObject3.Exports.Count);
-			Assert.AreEqual(0, leafObject3.ImportObjects.Count);
-		}
-*/
-		[TestMethod]
-		public async Task CoreAppendTest()
-		{
-			TreeReader reader = new TreeReader(_storage, null, NullLogger.Instance);
-			TreeWriter writer = new TreeWriter(_storage);
-
-			byte[] data = new byte[4096];
-			new Random(0).NextBytes(data);
-
-			ChunkingOptions options = new ChunkingOptions();
-			options.LeafOptions = new ChunkingOptionsForNodeType(16, 64, 256);
-
-			FileNode node = new LeafFileNode();
-			for (int idx = 0; idx < data.Length; idx++)
-			{
-				node = await node.AppendAsync(data.AsMemory(idx, 1), options, writer, CancellationToken.None);
-
-				byte[] outputData = await node.ToByteArrayAsync(reader, CancellationToken.None);
-				Assert.IsTrue(data.AsMemory(0, idx + 1).Span.SequenceEqual(outputData.AsSpan(0, idx + 1)));
-			}
-		}
-
-		[TestMethod]
-		public async Task FixedSizeChunkingTests()
-		{
-			ChunkingOptions options = new ChunkingOptions();
-			options.LeafOptions = new ChunkingOptionsForNodeType(64, 64, 64);
-			options.InteriorOptions = new ChunkingOptionsForNodeType(IoHash.NumBytes * 4, IoHash.NumBytes * 4, IoHash.NumBytes * 4);
-
-			await ChunkingTests(options);
-		}
-
-		[TestMethod]
-		public async Task VariableSizeChunkingTests()
-		{
-			ChunkingOptions options = new ChunkingOptions();
-			options.LeafOptions = new ChunkingOptionsForNodeType(32, 64, 96);
-			options.InteriorOptions = new ChunkingOptionsForNodeType(IoHash.NumBytes * 1, IoHash.NumBytes * 4, IoHash.NumBytes * 12);
-
-			await ChunkingTests(options);
-		}
-
-		async Task ChunkingTests(ChunkingOptions options)
-		{
-			TreeWriter writer = new TreeWriter(_storage);
-
-			byte[] data = new byte[4096];
-			new Random(0).NextBytes(data);
-
-			for (int idx = 0; idx < data.Length; idx++)
-			{
-				data[idx] = (byte)idx;
-			}
-
-			FileNode root = new LeafFileNode();
-
-			const int NumIterations = 100;
-			for (int idx = 0; idx < NumIterations; idx++)
-			{
-				root = await root.AppendAsync(data, options, writer, CancellationToken.None);
-			}
-
-			TreeReader reader = new TreeReader(_storage, null, NullLogger.Instance);
-			byte[] result = await root.ToByteArrayAsync(reader, CancellationToken.None);
-			Assert.AreEqual(NumIterations * data.Length, result.Length);
-
-			for (int idx = 0; idx < NumIterations; idx++)
-			{
-				ReadOnlyMemory<byte> spanData = result.AsMemory(idx * data.Length, data.Length);
-				Assert.IsTrue(spanData.Span.SequenceEqual(data));
-			}
-
-			await CheckSizes(reader, root, options, true);
-		}
-
-		async Task CheckSizes(TreeReader reader, FileNode node, ChunkingOptions options, bool rightmost)
-		{
-			if (node is LeafFileNode leafNode)
-			{
-				Assert.IsTrue(rightmost || leafNode.Data.Length >= options.LeafOptions.MinSize);
-				Assert.IsTrue(leafNode.Data.Length <= options.LeafOptions.MaxSize);
-			}
-			else
-			{
-				InteriorFileNode interiorNode = (InteriorFileNode)node;
-
-				Assert.IsTrue(rightmost || interiorNode.Children.Count >= options.InteriorOptions.MinSize);
-				Assert.IsTrue(interiorNode.Children.Count <= options.InteriorOptions.MaxSize);
-
-				int childCount = interiorNode.Children.Count;
-				for (int idx = 0; idx < childCount; idx++)
-				{
-					FileNode childNode = await interiorNode.Children[idx].ExpandAsync(reader, CancellationToken.None);
-					await CheckSizes(reader, childNode, options, idx == childCount - 1);
-				}
-			}
-		}
-
-#if false
-		[TestMethod]
-		public async Task SpillTestAsync()
-		{
-			TreeOptions options = new TreeOptions();
-			options.MaxBlobSize = 1;
-
-			RefName refName = new RefName("ref");
-			ITreeWriter writer = _storage.CreateTreeWriter(refName.Text);
-
-			DirectoryNode root = new DirectoryNode(DirectoryFlags.None);
-
-			long totalLength = 0;
-			for (int idxA = 0; idxA < 10; idxA++)
-			{
-				DirectoryNode nodeA = root.AddDirectory($"{idxA}");
-				for (int idxB = 0; idxB < 10; idxB++)
-				{
-					DirectoryNode nodeB = nodeA.AddDirectory($"{idxB}");
-					for (int idxC = 0; idxC < 10; idxC++)
-					{
-						DirectoryNode nodeC = nodeB.AddDirectory($"{idxC}");
-						for (int idxD = 0; idxD < 10; idxD++)
-						{
-							FileEntry file = nodeC.AddFile($"{idxD}", FileEntryFlags.None);
-							byte[] data = Encoding.UTF8.GetBytes($"This is file {idxA}/{idxB}/{idxC}/{idxD}");
-							totalLength += data.Length;
-							await file.AppendAsync(data, new ChunkingOptions(), writer, CancellationToken.None);
-						}
-					}
-
-					int oldWorkingSetSize = GetWorkingSetSize(root);
-					await _storage.WriteTreeAsync(refName, root, new TreeOptions());
-					int newWorkingSetSize = GetWorkingSetSize(root);
-					Assert.IsTrue(newWorkingSetSize <= oldWorkingSetSize);
-					Assert.IsTrue(newWorkingSetSize <= 20);
-				}
-			}
-
-			Assert.IsTrue(_storage.Blobs.Count > 0);
-			Assert.IsTrue(_storage.Refs.Count == 1);
-
-			await _storage.WriteTreeAsync(refName, root, new TreeOptions(), CancellationToken.None);
-
-			Assert.AreEqual(totalLength, root.Length);
-
-			Assert.IsTrue(_storage.Blobs.Count > 0);
-			Assert.IsTrue(_storage.Refs.Count == 1);
-		}
-
-		int GetWorkingSetSize(TreeNode node)
-		{
-			int size = 0;
-			foreach (TreeNodeRef nodeRef in node.GetReferences())
-			{
-				if (nodeRef.Node != null)
-				{
-					size += 1 + GetWorkingSetSize(nodeRef.Node);
-				}
-			}
-			return size;
-		}
-#endif
 	}
 }
