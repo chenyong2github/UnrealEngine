@@ -31,6 +31,7 @@
 #include "Logging/LogMacros.h"
 #include "Logging/MessageLog.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialInstanceConstant.h"
 #include "Misc/PackageName.h"
 #include "Misc/ScopedSlowTask.h"
 #include "PackageTools.h"
@@ -442,6 +443,7 @@ FText UDatasmithImportFactory::GetDisplayName() const
 bool UDatasmithImportFactory::DoesSupportClass(UClass* InClass)
 {
 	return InClass == UMaterial::StaticClass()
+		|| InClass == UMaterialInstanceConstant::StaticClass()
 		|| InClass == UStaticMesh::StaticClass()
 		|| InClass == UDatasmithScene::StaticClass();
 }

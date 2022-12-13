@@ -1,13 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 #include "Material/InterchangeMaterialFactory.h"
 
+#include "InterchangeAssetImportData.h"
 #include "InterchangeImportCommon.h"
 #include "InterchangeImportLog.h"
 #include "InterchangeMaterialFactoryNode.h"
-#include "InterchangeTextureNode.h"
-#include "InterchangeTextureFactoryNode.h"
 #include "InterchangeShaderGraphNode.h"
 #include "InterchangeSourceData.h"
+#include "InterchangeTextureNode.h"
+#include "InterchangeTextureFactoryNode.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialExpression.h"
 #include "Materials/MaterialExpressionClearCoatNormalCustomOutput.h"
@@ -423,7 +424,7 @@ UObject* UInterchangeMaterialFactory::CreateAsset(const FCreateAssetParams& Argu
 		return nullptr;
 	}
 
-	const UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode = Cast<UInterchangeBaseMaterialFactoryNode>(Arguments.AssetNode);
+	UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode = Cast<UInterchangeBaseMaterialFactoryNode>(Arguments.AssetNode);
 	if (MaterialFactoryNode == nullptr)
 	{
 		return nullptr;
@@ -474,7 +475,26 @@ UObject* UInterchangeMaterialFactory::CreateAsset(const FCreateAssetParams& Argu
 				MaterialFactoryNode->ApplyAllCustomAttributeToObject(MaterialObject);
 			}
 		}
-		
+#if WITH_EDITORONLY_DATA
+		else
+		{
+			if(UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(MaterialObject))
+			{
+				//Apply the re import strategy 
+				UInterchangeAssetImportData* InterchangeAssetImportData = Cast<UInterchangeAssetImportData>(MaterialInstance->AssetImportData);
+				UInterchangeFactoryBaseNode* PreviousNode = nullptr;
+				if(InterchangeAssetImportData)
+				{
+					PreviousNode = InterchangeAssetImportData->NodeContainer->GetFactoryNode(InterchangeAssetImportData->NodeUniqueID);
+				}
+				UInterchangeFactoryBaseNode* CurrentNode = NewObject<UInterchangeMaterialFactoryNode>(GetTransientPackage());
+				UInterchangeBaseNode::CopyStorage(MaterialFactoryNode, CurrentNode);
+				CurrentNode->FillAllCustomAttributeFromObject(MaterialInstance);
+				UE::Interchange::FFactoryCommon::ApplyReimportStrategyToAsset(MaterialInstance, PreviousNode, CurrentNode, MaterialFactoryNode);
+			}
+		}
+#endif // #if WITH_EDITORONLY_DATA
+
 		//Getting the file Hash will cache it into the source data
 		Arguments.SourceData->GetFileContentHash();
 

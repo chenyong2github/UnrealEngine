@@ -24,6 +24,7 @@ public:
 	virtual void OpenAssetEditor( const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>() ) override;
 	virtual bool CanFilter() override { return true; }
 	virtual uint32 GetCategories() override { return FAssetTypeActions_MaterialInterface::GetCategories() | AssetCategoryBit; }
+	virtual bool IsImportedAsset() const override {	return true; }
 
 private:
 	/** Handler for when FindParent is selected */
