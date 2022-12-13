@@ -267,6 +267,16 @@ void FPropertyNode::RebuildChildren()
 	CachedReadAddresses.Reset();
 
 	bool bDestroySelf = false;
+	TSet<FString> OutExpandedChildPropertyPaths;
+
+	for (const TSharedPtr<FPropertyNode>& ChildNode : ChildNodes)
+	{
+		if (ChildNode->HasNodeFlags(EPropertyNodeFlags::Expanded))
+		{
+			OutExpandedChildPropertyPaths.Add(ChildNode->GetPropertyPath());
+		}
+	}
+	
 	DestroyTree(bDestroySelf);
 
 	if (MaxChildDepthAllowed != 0)
@@ -277,6 +287,13 @@ void FPropertyNode::RebuildChildren()
 		if (HasNodeFlags(EPropertyNodeFlags::CanBeExpanded) && (ChildNodes.Num() == 0))
 		{
 			InitChildNodes();
+			for (const TSharedPtr<FPropertyNode>& ChildNode : ChildNodes)
+			{
+				if ( OutExpandedChildPropertyPaths.Contains(ChildNode->GetPropertyPath()) )
+				{
+					ChildNode->SetNodeFlags(EPropertyNodeFlags::Expanded, true);
+				}
+			}
 		}
 	}
 
