@@ -370,18 +370,19 @@ void FWorldPartitionEditorModule::RunCommandletAsExternalProcess(const FString& 
 
 	FString CurrentExecutableName = FPlatformProcess::ExecutablePath();
 
-	TArray<FString> AdditionalArgs;
-	OnExecuteCommandletEvent.Broadcast(AdditionalArgs);
-
 	// Try to provide complete Path, if we can't try with project name
 	FString ProjectPath = FPaths::IsProjectFilePathSet() ? FPaths::GetProjectFilePath() : FApp::GetProjectName();
+		
+	TArray<FString> CommandletArgsArray;
+	CommandletArgsArray.Add(TEXT("\"") + ProjectPath + TEXT('"'));
+	CommandletArgsArray.Add(TEXT("-BaseDir=\"") + FString(FPlatformProcess::BaseDir()) + TEXT('"'));
+	CommandletArgsArray.Add(TEXT("-Unattended"));
+	CommandletArgsArray.Add(InCommandletArgs);
+
+	OnExecuteCommandletEvent.Broadcast(CommandletArgsArray);
 
 	FString Arguments;
-	Arguments += TEXT("\"") + ProjectPath + TEXT('"');
-	Arguments += TEXT(" -BaseDir=\"") + FString(FPlatformProcess::BaseDir()) + TEXT('"');
-	Arguments += TEXT(" -Unattended");
-	Arguments += TEXT(" ") + InCommandletArgs;
-	for (const FString& AdditionalArg : AdditionalArgs)
+	for (const FString& AdditionalArg : CommandletArgsArray)
 	{
 		Arguments += " ";
 		Arguments += AdditionalArg;
