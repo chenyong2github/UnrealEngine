@@ -218,6 +218,7 @@ TOnlineAsyncOpHandle<FCreateLobby> FLobbiesEOSGS::CreateLobby(FCreateLobby::Para
 		PrepareParams.ClientChanges.MemberAttributes = { Params.UserAttributes, {} };
 		PrepareParams.ClientChanges.JoinPolicy = Params.JoinPolicy;
 		PrepareParams.ClientChanges.LobbySchema = Params.SchemaId;
+		PrepareParams.ClientChanges.LocalName = Params.LocalName;
 		TOnlineResult<FLobbyClientDataPrepareClientChanges> PrepareResult = LobbyData->GetLobbyClientData()->PrepareClientChanges(MoveTemp(PrepareParams));
 		if (PrepareResult.IsError())
 		{
@@ -413,6 +414,7 @@ TOnlineAsyncOpHandle<FJoinLobby> FLobbiesEOSGS::JoinLobby(FJoinLobby::Params&& I
 
 		FLobbyClientDataPrepareClientChanges::Params PrepareParams;
 		PrepareParams.LocalAccountId = Params.LocalAccountId;
+		PrepareParams.ClientChanges.LocalName = Params.LocalName;
 		PrepareParams.ClientChanges.MemberAttributes = { Params.UserAttributes, {} };
 		TOnlineResult<FLobbyClientDataPrepareClientChanges> PrepareResult = LobbyData->GetLobbyClientData()->PrepareClientChanges(MoveTemp(PrepareParams));
 		if (PrepareResult.IsError())
