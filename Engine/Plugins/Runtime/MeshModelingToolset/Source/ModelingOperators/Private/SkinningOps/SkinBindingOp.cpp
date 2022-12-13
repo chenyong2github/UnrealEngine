@@ -380,7 +380,7 @@ void FSkinBindingOp::CreateSkinWeights_DirectDistance(
 {
 	using namespace AnimationCore;
 
-	FDynamicMeshVertexSkinWeightsAttribute *SkinWeights = InMesh.Attributes()->GetSkinWeightsAttribute(ProfileName);
+	FDynamicMeshVertexSkinWeightsAttribute *SkinWeights = GetOrCreateSkinWeightsAttribute(InMesh, ProfileName);
 		
 	const int32 NumVertices = InMesh.VertexCount();
 
@@ -445,7 +445,7 @@ void FSkinBindingOp::CreateSkinWeights_GeodesicVoxel(
 {
 	using namespace AnimationCore;
 
-	FDynamicMeshVertexSkinWeightsAttribute *SkinWeights = InMesh.Attributes()->GetSkinWeightsAttribute(ProfileName);
+	FDynamicMeshVertexSkinWeightsAttribute *SkinWeights = GetOrCreateSkinWeightsAttribute(InMesh, ProfileName);
 		
 	const int32 NumVertices = InMesh.VertexCount();
 

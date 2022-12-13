@@ -54,14 +54,14 @@ ReturnType SimpleMeshBoneWeightEdit(
 	ReturnType RetVal = DefaultValue;
 	if (Mesh)
 	{
-		Mesh->EditMesh([&](FDynamicMesh3& ReadMesh)
+		Mesh->EditMesh([&](FDynamicMesh3& EditMesh)
 		{
-			if (ReadMesh.HasAttributes())
+			if (EditMesh.HasAttributes())
 			{
-				if ( FDynamicMeshVertexSkinWeightsAttribute* BoneWeights = ReadMesh.Attributes()->GetSkinWeightsAttribute(Profile.GetProfileName()) )
+				if ( FDynamicMeshVertexSkinWeightsAttribute* BoneWeights = EditMesh.Attributes()->GetSkinWeightsAttribute(Profile.GetProfileName()) )
 				{
 					bIsValidBoneWeights = true;
-					RetVal = EditFunc(ReadMesh, *BoneWeights);
+					RetVal = EditFunc(EditMesh, *BoneWeights);
 				}
 			}
 		}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
@@ -83,6 +83,41 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBoneWeightFunctions::MeshHasBoneWeights
 	bHasBoneWeights = bHasBoneWeightProfile;
 	return TargetMesh;
 }
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshBoneWeightFunctions::MeshCreateBoneWeights(
+	UDynamicMesh* TargetMesh,
+	bool& bProfileExisted,
+	bool bReplaceExistingProfile,
+	FGeometryScriptBoneWeightProfile Profile)
+{
+	bProfileExisted = false;
+	if (TargetMesh)
+	{
+		TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
+		{
+			if (EditMesh.HasAttributes() == false)
+			{
+				EditMesh.EnableAttributes();
+			}
+
+			FDynamicMeshVertexSkinWeightsAttribute *Attribute = EditMesh.Attributes()->GetSkinWeightsAttribute(Profile.GetProfileName());
+			bProfileExisted = (Attribute != nullptr);
+			if ( Attribute == nullptr || bReplaceExistingProfile)
+			{
+				if ( bReplaceExistingProfile && bProfileExisted )
+				{
+					EditMesh.Attributes()->RemoveSkinWeightsAttribute(Profile.GetProfileName());
+				}
+
+				Attribute = new FDynamicMeshVertexSkinWeightsAttribute(&EditMesh);
+				EditMesh.Attributes()->AttachSkinWeightsAttribute(Profile.GetProfileName(), Attribute);
+			}			
+		}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
+	}
+	return TargetMesh;
+}
+
 
 
 UDynamicMesh* UGeometryScriptLibrary_MeshBoneWeightFunctions::GetMaxBoneWeightIndex(

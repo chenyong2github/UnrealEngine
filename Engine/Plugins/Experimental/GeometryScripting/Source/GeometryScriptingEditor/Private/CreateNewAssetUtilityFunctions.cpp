@@ -239,6 +239,11 @@ USkeletalMesh* UGeometryScriptLibrary_CreateNewAssetFunctions::CreateNewSkeletal
 		AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CreateNewSkeletalMeshAssetFromMesh_InvalidInput3", "CreateNewSkeletalMeshAssetFromMesh: FromDynamicMesh has no skin weight attributes"));
 		return nullptr;
 	}
+	if (InSkeleton == nullptr)
+	{
+		AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CreateNewSkeletalMeshAssetFromMesh_InvalidSkeleton", "CreateNewSkeletalMeshAssetFromMesh: Skeleton is Null"));
+		return nullptr;
+	}
 	
 	// todo: other safety checks
 
@@ -246,6 +251,7 @@ USkeletalMesh* UGeometryScriptLibrary_CreateNewAssetFunctions::CreateNewSkeletal
 
 	FSkeletalMeshAssetOptions AssetOptions;
 	AssetOptions.NewAssetPath = AssetPathAndName;
+	AssetOptions.Skeleton = InSkeleton;
 
 	AssetOptions.NumSourceModels = 1;
 

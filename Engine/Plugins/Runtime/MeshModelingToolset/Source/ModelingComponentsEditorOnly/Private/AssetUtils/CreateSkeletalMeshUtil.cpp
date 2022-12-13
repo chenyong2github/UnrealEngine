@@ -10,7 +10,7 @@
 #include "StaticToSkeletalMeshConverter.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
-
+#include "SkeletalMeshAttributes.h"
 
 UE::AssetUtils::ECreateSkeletalMeshResult UE::AssetUtils::CreateSkeletalMeshAsset(
 	const FSkeletalMeshAssetOptions& Options,
@@ -71,6 +71,8 @@ UE::AssetUtils::ECreateSkeletalMeshResult UE::AssetUtils::CreateSkeletalMeshAsse
 			{
 				ConstructedMeshDescriptions.AddDefaulted();
 				FDynamicMeshToMeshDescription Converter;
+				FSkeletalMeshAttributes Attributes(ConstructedMeshDescriptions.Last());
+				Attributes.Register();
 				Converter.Convert(DynamicMesh, ConstructedMeshDescriptions.Last(), !Options.bEnableRecomputeTangents);
 				MeshDescriptions.Add(&ConstructedMeshDescriptions.Last());
 			}
@@ -89,6 +91,14 @@ UE::AssetUtils::ECreateSkeletalMeshResult UE::AssetUtils::CreateSkeletalMeshAsse
 		{
 			Materials.Add(FSkeletalMaterial(MaterialInterface));
 		}
+		MaterialView = Materials;
+	}
+
+	// ensure there is at least one material
+	if (Materials.Num() == 0)
+	{
+		Materials.Add(FSkeletalMaterial());
+		MaterialView = Materials;
 	}
 	
 	if (!FStaticToSkeletalMeshConverter::InitializeSkeletalMeshFromMeshDescriptions(
@@ -107,5 +117,6 @@ UE::AssetUtils::ECreateSkeletalMeshResult UE::AssetUtils::CreateSkeletalMeshAsse
 		Options.Skeleton->SetPreviewMesh(NewSkeletalMesh);
 	}
 	
+	ResultsOut.SkeletalMesh = NewSkeletalMesh;
 	return ECreateSkeletalMeshResult::Ok;
 }

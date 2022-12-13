@@ -93,6 +93,21 @@ public:
 		UDynamicMesh* TargetMesh,
 		bool& bHasBoneWeights,
 		FGeometryScriptBoneWeightProfile Profile = FGeometryScriptBoneWeightProfile() );
+
+	/**
+	 * Create a new BoneWeights attribute on the TargetMesh, if it does not already exist. If it does exist, 
+	 * and bReplaceExistingProfile is passed as true, the attribute will be removed and re-added, to reset it. 
+	 * @param bProfileExisted will be returned true if the requested bone weight profile already existed
+	 * @param bReplaceExistingProfile if true, if the Profile already exists, it is reset
+	 * @param Profile identifier for the bone/skin weight profile
+	 */
+	UFUNCTION(BlueprintPure, Category = "GeometryScript|MeshQueries|BoneWeights", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	MeshCreateBoneWeights( 
+		UDynamicMesh* TargetMesh,
+		bool& bProfileExisted,
+		bool bReplaceExistingProfile = false,
+		FGeometryScriptBoneWeightProfile Profile = FGeometryScriptBoneWeightProfile() );
 	
 	/**
 	 * Determine the largest bone weight index that exists on the Mesh
