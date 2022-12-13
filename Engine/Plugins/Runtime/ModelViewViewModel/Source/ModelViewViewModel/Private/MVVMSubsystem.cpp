@@ -26,7 +26,13 @@ void UMVVMSubsystem::Deinitialize()
 }
 
 
-UMVVMView* UMVVMSubsystem::GetViewFromUserWidget(const UUserWidget* UserWidget) const
+UMVVMView* UMVVMSubsystem::K2_GetViewFromUserWidget(const UUserWidget* UserWidget) const
+{
+	return GetViewFromUserWidget(UserWidget);
+}
+
+
+UMVVMView* UMVVMSubsystem::GetViewFromUserWidget(const UUserWidget* UserWidget)
 {
 	return UserWidget ? UserWidget->GetExtension<UMVVMView>() : nullptr;
 }
@@ -250,25 +256,37 @@ namespace UE::MVVM::Private
 } //namespace
 
 
-TArray<FMVVMAvailableBinding> UMVVMSubsystem::GetAvailableBindings(const UClass* Class, const UClass* Accessor) const
+TArray<FMVVMAvailableBinding> UMVVMSubsystem::K2_GetAvailableBindings(const UClass* Class, const UClass* Accessor) const
+{
+	return GetAvailableBindings(Class, Accessor);
+}
+
+
+TArray<FMVVMAvailableBinding> UMVVMSubsystem::GetAvailableBindings(const UClass* Class, const UClass* Accessor)
 {
 	return UE::MVVM::Private::GetAvailableBindings(Class, Accessor);
 }
 
 
-TArray<FMVVMAvailableBinding> UMVVMSubsystem::GetAvailableBindingsForStruct(const UScriptStruct* Struct) const
+TArray<FMVVMAvailableBinding> UMVVMSubsystem::GetAvailableBindingsForStruct(const UScriptStruct* Struct)
 {
 	return UE::MVVM::Private::GetAvailableBindings(Struct, nullptr, nullptr);
 }
 
 
-FMVVMAvailableBinding UMVVMSubsystem::GetAvailableBinding(const UClass* Class, FMVVMBindingName BindingName, const UClass* Accessor) const
+FMVVMAvailableBinding UMVVMSubsystem::K2_GetAvailableBinding(const UClass* Class, FMVVMBindingName BindingName, const UClass* Accessor) const
+{
+	return GetAvailableBinding(Class, BindingName, Accessor);
+}
+
+
+FMVVMAvailableBinding UMVVMSubsystem::GetAvailableBinding(const UClass* Class, FMVVMBindingName BindingName, const UClass* Accessor)
 {
 	return UE::MVVM::Private::GetAvailableBinding(BindingName, Class, Accessor);
 }
 
 
-FMVVMAvailableBinding UMVVMSubsystem::GetAvailableBindingForVariant(UE::MVVM::FMVVMConstFieldVariant FieldVariant, const UClass* Accessor) const
+FMVVMAvailableBinding UMVVMSubsystem::GetAvailableBindingForField(UE::MVVM::FMVVMConstFieldVariant FieldVariant, const UClass* Accessor)
 {
 	return UE::MVVM::Private::GetAvailableBinding(FieldVariant, Accessor);
 }
