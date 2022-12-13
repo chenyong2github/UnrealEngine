@@ -378,18 +378,18 @@ FMeshDrawCommandSortKey CalculateTranslucentMeshStaticSortKey(const FPrimitiveSc
 	return SortKey;
 }
 
-FMeshDrawCommandSortKey CalculateBasePassMeshStaticSortKey(EDepthDrawingMode EarlyZPassMode, EBlendMode BlendMode, const FMeshMaterialShader* VertexShader, const FMeshMaterialShader* PixelShader)
+FMeshDrawCommandSortKey CalculateBasePassMeshStaticSortKey(EDepthDrawingMode EarlyZPassMode, const bool bIsMasked, const FMeshMaterialShader* VertexShader, const FMeshMaterialShader* PixelShader)
 {
 	FMeshDrawCommandSortKey SortKey;
 	SortKey.BasePass.VertexShaderHash = (VertexShader ? VertexShader->GetSortKey() : 0) & 0xFFFF;
 	SortKey.BasePass.PixelShaderHash = PixelShader ? PixelShader->GetSortKey() : 0;
 	if (EarlyZPassMode != DDM_None)
 	{
-		SortKey.BasePass.Masked = BlendMode == EBlendMode::BLEND_Masked ? 0 : 1;
+		SortKey.BasePass.Masked = bIsMasked ? 0 : 1;
 	}
 	else
 	{
-		SortKey.BasePass.Masked = BlendMode == EBlendMode::BLEND_Masked ? 1 : 0;
+		SortKey.BasePass.Masked = bIsMasked ? 1 : 0;
 	}
 
 	return SortKey;
@@ -1575,7 +1575,6 @@ void FBasePassMeshProcessor::CollectPSOInitializersForLMPolicy(
 	const FSceneTexturesConfig& SceneTexturesConfig,
 	const FVertexFactoryType* VertexFactoryType,
 	const FMaterial& RESTRICT MaterialResource,
-	EBlendMode BlendMode,
 	FMaterialShadingModelField ShadingModels,
 	const bool bRenderSkylight,
 	const bool bDitheredLODTransition,
@@ -1685,7 +1684,8 @@ bool FBasePassMeshProcessor::Process(
 	const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
 	const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
 	const FMaterial& RESTRICT MaterialResource,
-	EBlendMode BlendMode,
+	const bool bIsMasked,
+	const bool bIsTranslucent,
 	FMaterialShadingModelField ShadingModels,
 	const LightMapPolicyType& RESTRICT LightMapPolicy,
 	const typename LightMapPolicyType::ElementDataType& RESTRICT LightMapElementData,
@@ -1694,7 +1694,7 @@ bool FBasePassMeshProcessor::Process(
 {
 	const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
 
-	const bool bRenderSkylight = Scene && Scene->ShouldRenderSkylightInBasePass(BlendMode) && ShadingModels.IsLit();
+	const bool bRenderSkylight = Scene && Scene->ShouldRenderSkylightInBasePass(bIsTranslucent) && ShadingModels.IsLit();
 
 	TMeshProcessorShaders<
 		TBasePassVertexShaderPolicyParamType<LightMapPolicyType>,
@@ -1792,7 +1792,7 @@ bool FBasePassMeshProcessor::Process(
 	}
 	else
 	{
-		SortKey = CalculateBasePassMeshStaticSortKey(EarlyZPassMode, BlendMode, BasePassShaders.VertexShader.GetShader(), BasePassShaders.PixelShader.GetShader());
+		SortKey = CalculateBasePassMeshStaticSortKey(EarlyZPassMode, bIsMasked, BasePassShaders.VertexShader.GetShader(), BasePassShaders.PixelShader.GetShader());
 	}
 
 	BuildMeshDrawCommands(
@@ -1902,6 +1902,7 @@ bool FBasePassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatc
 	const EBlendMode BlendMode = Material.GetBlendMode();
 	const EStrataBlendMode StrataBlendMode = Material.GetStrataBlendMode();
 	const FMaterialShadingModelField ShadingModels = Material.GetShadingModels();
+	const bool bIsMasked = IsMaskedBlendMode(BlendMode, StrataBlendMode);
 	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode, StrataBlendMode);
 	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
 	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
@@ -2008,7 +2009,8 @@ bool FBasePassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatc
 					PrimitiveSceneProxy,
 					MaterialRenderProxy,
 					Material,
-					BlendMode,
+					bIsMasked,
+					bIsTranslucent,
 					ShadingModels,
 					FSelfShadowedVolumetricLightmapPolicy(),
 					ElementData,
@@ -2027,7 +2029,8 @@ bool FBasePassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatc
 					PrimitiveSceneProxy,
 					MaterialRenderProxy,
 					Material,
-					BlendMode,
+					bIsMasked,
+					bIsTranslucent,
 					ShadingModels,
 					FSelfShadowedCachedPointIndirectLightingPolicy(),
 					ElementData,
@@ -2043,7 +2046,8 @@ bool FBasePassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatc
 					PrimitiveSceneProxy,
 					MaterialRenderProxy,
 					Material,
-					BlendMode,
+					bIsMasked,
+					bIsTranslucent,
 					ShadingModels,
 					FSelfShadowedTranslucencyPolicy(),
 					ElementData.SelfShadowTranslucencyUniformBuffer,
@@ -2061,7 +2065,8 @@ bool FBasePassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatc
 				PrimitiveSceneProxy,
 				MaterialRenderProxy,
 				Material,
-				BlendMode,
+				bIsMasked,
+				bIsTranslucent,
 				ShadingModels,
 				FUniformLightMapPolicy(UniformLightMapPolicyType),
 				MeshBatch.LCI,
@@ -2295,7 +2300,6 @@ void FBasePassMeshProcessor::CollectPSOInitializersForSkyLight(
 	EPrimitiveType PrimitiveType, 
 	TArray<FPSOPrecacheData>& PSOInitializers)
 {
-	const EBlendMode BlendMode = Material.GetBlendMode();
 	const FMaterialShadingModelField ShadingModels = Material.GetShadingModels();
 
 	const bool bIsTranslucent = IsTranslucentBlendMode(Material);
@@ -2315,19 +2319,19 @@ void FBasePassMeshProcessor::CollectPSOInitializersForSkyLight(
 		if (bAllowStaticLighting && bUseVolumetricLightmap)
 		{
 			CollectPSOInitializersForLMPolicy< FSelfShadowedVolumetricLightmapPolicy >(
-				SceneTexturesConfig, VertexFactoryType, Material, BlendMode /*STRATA_TODO_BLENDMODE StrataBlendMode */, ShadingModels, bRenderSkyLight, bDitheredLODTransition,
+				SceneTexturesConfig, VertexFactoryType, Material, ShadingModels, bRenderSkyLight, bDitheredLODTransition,
 				FSelfShadowedVolumetricLightmapPolicy(), MeshFillMode, MeshCullMode, PrimitiveType, PSOInitializers);
 		}
 
 		if (IsIndirectLightingCacheAllowed(FeatureLevel) && bAllowIndirectLightingCache)
 		{
 			CollectPSOInitializersForLMPolicy< FSelfShadowedCachedPointIndirectLightingPolicy >(
-				SceneTexturesConfig, VertexFactoryType, Material, BlendMode /*STRATA_TODO_BLENDMODE StrataBlendMode */, ShadingModels, bRenderSkyLight, bDitheredLODTransition,
+				SceneTexturesConfig, VertexFactoryType, Material, ShadingModels, bRenderSkyLight, bDitheredLODTransition,
 				FSelfShadowedCachedPointIndirectLightingPolicy(), MeshFillMode, MeshCullMode, PrimitiveType, PSOInitializers);
 		}
 
 		CollectPSOInitializersForLMPolicy< FSelfShadowedTranslucencyPolicy >(
-			SceneTexturesConfig, VertexFactoryType, Material, BlendMode /*STRATA_TODO_BLENDMODE StrataBlendMode */, ShadingModels, bRenderSkyLight, bDitheredLODTransition,
+			SceneTexturesConfig, VertexFactoryType, Material, ShadingModels, bRenderSkyLight, bDitheredLODTransition,
 			FSelfShadowedTranslucencyPolicy(), MeshFillMode, MeshCullMode, PrimitiveType, PSOInitializers);
 	}
 
@@ -2335,7 +2339,7 @@ void FBasePassMeshProcessor::CollectPSOInitializersForSkyLight(
 	for (ELightMapPolicyType LightMapPolicyType : UniformLightMapPolicyTypes)
 	{
 		CollectPSOInitializersForLMPolicy< FUniformLightMapPolicy >(
-			SceneTexturesConfig, VertexFactoryType, Material, BlendMode /*STRATA_TODO_BLENDMODE StrataBlendMode */, ShadingModels, bRenderSkyLight, bDitheredLODTransition,
+			SceneTexturesConfig, VertexFactoryType, Material, ShadingModels, bRenderSkyLight, bDitheredLODTransition,
 			FUniformLightMapPolicy(LightMapPolicyType), MeshFillMode, MeshCullMode, PrimitiveType, PSOInitializers);
 	}
 }

@@ -2766,12 +2766,12 @@ void FScene::SetSkyLight(FSkyLightSceneProxy* LightProxy)
 		{
 			check(!Scene->SkyLightStack.Contains(LightProxy));
 			Scene->SkyLightStack.Push(LightProxy);
-			const bool bOriginalHadSkylight = Scene->ShouldRenderSkylightInBasePass(BLEND_Opaque);
+			const bool bOriginalHadSkylight = Scene->ShouldRenderSkylightInBasePass(false);
 
 			// Use the most recently enabled skylight
 			Scene->SkyLight = LightProxy;
 
-			const bool bNewHasSkylight = Scene->ShouldRenderSkylightInBasePass(BLEND_Opaque);
+			const bool bNewHasSkylight = Scene->ShouldRenderSkylightInBasePass(false);
 
 			if (bOriginalHadSkylight != bNewHasSkylight)
 			{
@@ -2793,7 +2793,7 @@ void FScene::DisableSkyLight(FSkyLightSceneProxy* LightProxy)
 	ENQUEUE_RENDER_COMMAND(FDisableSkyLightCommand)
 		([Scene, LightProxy](FRHICommandListImmediate& RHICmdList)
 	{
-		const bool bOriginalHadSkylight = Scene->ShouldRenderSkylightInBasePass(BLEND_Opaque);
+		const bool bOriginalHadSkylight = Scene->ShouldRenderSkylightInBasePass(false);
 
 		Scene->SkyLightStack.RemoveSingle(LightProxy);
 
@@ -2807,7 +2807,7 @@ void FScene::DisableSkyLight(FSkyLightSceneProxy* LightProxy)
 			Scene->SkyLight = NULL;
 		}
 
-		const bool bNewHasSkylight = Scene->ShouldRenderSkylightInBasePass(BLEND_Opaque);
+		const bool bNewHasSkylight = Scene->ShouldRenderSkylightInBasePass(false);
 
 		// Update the scene if we switched skylight enabled states
 		if (bOriginalHadSkylight != bNewHasSkylight)
@@ -6097,10 +6097,8 @@ bool FScene::IsPrimitiveBeingRemoved(FPrimitiveSceneInfo* PrimitiveSceneInfo) co
 	return RemovedPrimitiveSceneInfos.Find(PrimitiveSceneInfo) != nullptr;
 }
 
-bool FScene::ShouldRenderSkylightInBasePass(EBlendMode BlendMode) const // STRATA_TODO_BLENDMODE
+bool FScene::ShouldRenderSkylightInBasePass(bool bIsTranslucent) const
 {
-	const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode/*, StrataBlendMode*/); // STRATA_TODO_BLENDMODE
-
 	if (IsMobilePlatform(GetShaderPlatform()))
 	{
 		bool bRenderSkyLight = SkyLight && !SkyLight->bHasStaticLighting;

@@ -3342,7 +3342,7 @@ public:
 
 	virtual bool IsEditorScene() const override { return bIsEditorScene; }
 
-	bool ShouldRenderSkylightInBasePass(EBlendMode BlendMode) const;
+	bool ShouldRenderSkylightInBasePass(bool bIsTranslucent) const;
 
 	virtual TArray<FPrimitiveComponentId> GetScenePrimitiveComponentIds() const override
 	{
