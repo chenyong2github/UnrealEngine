@@ -88,4 +88,7 @@ struct FContextualAnimNewAnimSetParams
 
 	UPROPERTY(EditAnywhere, EditFixedSize, Category = "Settings", meta = (TitleProperty = "RoleName"))
 	TArray<FContextualAnimNewAnimSetData> Data;
+
+	UPROPERTY(EditAnywhere, Category = "Settings", meta = (ClampMin = "0", UIMin = "0", ClampMax = "1", UIMax = "1"))
+	float RandomWeight = 1.f;
 };

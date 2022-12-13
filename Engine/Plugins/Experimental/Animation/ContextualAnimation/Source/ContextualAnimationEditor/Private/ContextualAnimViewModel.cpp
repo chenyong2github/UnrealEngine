@@ -479,6 +479,7 @@ void FContextualAnimViewModel::AddNewAnimSet(const FContextualAnimNewAnimSetPara
 		AnimTrack.Animation = Data.Animation;
 		AnimTrack.bRequireFlyingMode = Data.bRequiresFlyingMode;
 		AnimSet.Tracks.Add(AnimTrack);
+		AnimSet.RandomWeight = Params.RandomWeight;
 	}
 
 	int32 SectionIdx = INDEX_NONE;
