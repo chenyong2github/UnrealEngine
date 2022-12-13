@@ -1948,8 +1948,6 @@ public:
 	/* Return true if the reduction settings are setup to reduce a LOD*/
 	ENGINE_API bool IsReductionActive(int32 LODIndex) const;
 
-	ENGINE_API bool IsReductionActive(int32 LodIndex, const FMeshDescription& MeshDescription) const;
-
 	/* Get a copy of the reduction settings for a specified LOD index. */
 	ENGINE_API struct FMeshReductionSettings GetReductionSettings(int32 LODIndex) const;
 

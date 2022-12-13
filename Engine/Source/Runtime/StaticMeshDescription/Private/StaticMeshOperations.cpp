@@ -2609,9 +2609,14 @@ namespace UE::Private
 
 int32 FStaticMeshOperations::GetUniqueVertexCount(const FMeshDescription& MeshDescription)
 {
-	constexpr uint32 NumTexCoords = MAX_MESH_TEXTURE_COORDS_MD;
 	FOverlappingCorners OverlappingCorners;
 	FStaticMeshOperations::FindOverlappingCorners(OverlappingCorners, MeshDescription, UE_THRESH_POINTS_ARE_SAME);
+	return GetUniqueVertexCount(MeshDescription, OverlappingCorners);
+}
+
+int32 FStaticMeshOperations::GetUniqueVertexCount(const FMeshDescription& MeshDescription, const FOverlappingCorners& OverlappingCorners)
+{
+	constexpr uint32 NumTexCoords = MAX_MESH_TEXTURE_COORDS_MD;
 	TArray< UE::Private::FPrivateVertexInfo > Verts;
 	Verts.Reserve(MeshDescription.Vertices().Num());
 	TMap< int32, int32 > VertsMap;

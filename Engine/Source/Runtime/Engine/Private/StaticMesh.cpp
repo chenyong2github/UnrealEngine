@@ -2476,25 +2476,6 @@ bool UStaticMesh::IsReductionActive(int32 LodIndex) const
 	return bReductionActive;
 }
 
-bool UStaticMesh::IsReductionActive(int32 LodIndex, const FMeshDescription& MeshDescription) const
-{
-	//Invalid LOD are not reduced
-	if (!IsSourceModelValid(LodIndex))
-	{
-		return false;
-	}
-	bool bReductionActive = false;
-	if (IMeshReduction* ReductionModule = FModuleManager::Get().LoadModuleChecked<IMeshReductionManagerModule>("MeshReductionInterface").GetStaticMeshReductionInterface())
-	{
-		FStaticMeshSourceModel* MutableSourceModel = const_cast<FStaticMeshSourceModel*>(&GetSourceModel(LodIndex));
-		MutableSourceModel->CacheMeshDescriptionVerticesCount = FStaticMeshOperations::GetUniqueVertexCount(MeshDescription);
-		MutableSourceModel->CacheMeshDescriptionTrianglesCount = MeshDescription.Triangles().Num();
-		FMeshReductionSettings ReductionSettings = GetReductionSettings(LodIndex);
-		bReductionActive = ReductionModule->IsReductionActive(ReductionSettings, MutableSourceModel->CacheMeshDescriptionVerticesCount, MutableSourceModel->CacheMeshDescriptionTrianglesCount);
-	}
-	return bReductionActive;
-}
-
 FMeshReductionSettings UStaticMesh::GetReductionSettings(int32 LODIndex) const
 {
 	check(IsSourceModelValid(LODIndex));

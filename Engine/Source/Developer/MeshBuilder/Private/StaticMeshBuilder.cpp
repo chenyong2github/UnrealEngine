@@ -407,8 +407,17 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 		if (bIsMeshDescriptionValid)
 		{
 			MeshDescriptionHelper.SetupRenderMeshDescription(StaticMesh, MeshDescriptions[LodIndex], false, true);
+			//Make sure the cache is good before looking for the active reduction
+			if (SrcModel.CacheMeshDescriptionTrianglesCount == MAX_uint32)
+			{
+				SrcModel.CacheMeshDescriptionTrianglesCount = static_cast<uint32>(MeshDescriptions[LodIndex].Triangles().Num());
+			}
+			if (SrcModel.CacheMeshDescriptionVerticesCount == MAX_uint32)
+			{
+				SrcModel.CacheMeshDescriptionVerticesCount = static_cast<uint32>(FStaticMeshOperations::GetUniqueVertexCount(MeshDescriptions[LodIndex], MeshDescriptionHelper.GetOverlappingCorners()));
+			}
 			//Get back the reduction status once we apply all build settings, vertex count can change depending on the build settings
-			bUseReduction = StaticMesh->IsReductionActive(LodIndex, MeshDescriptions[LodIndex]);
+			bUseReduction = StaticMesh->IsReductionActive(LodIndex);
 		}
 		else
 		{

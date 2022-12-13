@@ -188,4 +188,5 @@ public:
 	 * 
 	 */
 	static int32 GetUniqueVertexCount(const FMeshDescription& MeshDescription);
+	static int32 GetUniqueVertexCount(const FMeshDescription& MeshDescription, const FOverlappingCorners& OverlappingCorners);
 };

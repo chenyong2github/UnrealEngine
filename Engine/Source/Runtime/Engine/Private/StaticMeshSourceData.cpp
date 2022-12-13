@@ -209,11 +209,6 @@ bool FStaticMeshSourceModel::LoadMeshDescription(FMeshDescription& OutMeshDescri
 	{
 		// Unpack MeshDescription from the bulk data which was deserialized
 		StaticMeshDescriptionBulkData->GetBulkData().LoadMeshDescription(OutMeshDescription);
-		
-		//Set the tris/verts count cache in case we load an asset that was save before the cache exist
-		FStaticMeshSourceModel* MutableThis = const_cast<FStaticMeshSourceModel*>(this);
-		MutableThis->CacheMeshDescriptionTrianglesCount = static_cast<uint32>(OutMeshDescription.Triangles().Num());
-		MutableThis->CacheMeshDescriptionVerticesCount = static_cast<uint32>(FStaticMeshOperations::GetUniqueVertexCount(OutMeshDescription));
 		return true;
 	}
 
