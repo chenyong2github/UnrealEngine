@@ -69,6 +69,7 @@ private:
 	UEdGraphPin* GetCollisionHandlingOverridePin() const;
 	/** Get the collision handling method input pin */
 	UEdGraphPin* GetScaleMethodPin() const;
+	UEdGraphPin* TryGetScaleMethodPin() const;
 	/** Get the actor owner pin */
 	UEdGraphPin* GetOwnerPin() const;
 
