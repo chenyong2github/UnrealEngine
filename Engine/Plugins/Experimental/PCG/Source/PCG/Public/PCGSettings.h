@@ -109,7 +109,10 @@ public:
 	bool UseSeed() const { return bUseSeed; }
 
 #if WITH_EDITOR
-	virtual void ApplyDeprecation(UPCGNode* InOutNode) {}
+	/** UpdatePins will kick off invalid edges, so this is useful for moving edges around in case of pin changes. */
+	virtual void ApplyDeprecationBeforeUpdatePins(UPCGNode* InOutNode, TArray<TObjectPtr<UPCGPin>>& InputPins, TArray<TObjectPtr<UPCGPin>>& OutputPins) {}
+	/** Any final migration/recovery that can be done after pins are finalized. This function should also set DataVersion to LatestVersion. */
+	virtual void ApplyDeprecation(UPCGNode* InOutNode);
 
 	virtual FName GetDefaultNodeName() const { return NAME_None; }
 	virtual FText GetNodeTooltipText() const { return FText::GetEmpty(); }
@@ -189,7 +192,7 @@ protected:
 	TArray<FPCGPinProperties> DefaultPointOutputPinProperties() const;
 
 #if WITH_EDITOR
-protected:
+public:
 	/** The version number of the data after load and after any data migration. */
 	int32 DataVersion = -1;
 

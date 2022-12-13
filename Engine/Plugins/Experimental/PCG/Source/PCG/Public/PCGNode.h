@@ -39,7 +39,10 @@ public:
 	virtual void PostEditUndo() override;
 	/** ~End UObject interface */
 
-	/** Used to be able to force deprecation when things need to be deprecated at the graph level */
+	/** UpdatePins will kick off invalid edges, so this is useful for making pin changes graceful. */
+	void ApplyDeprecationBeforeUpdatePins();
+
+	/** Used to be able to force deprecation when things need to be deprecated at the graph level. */
 	void ApplyDeprecation();
 #endif
 

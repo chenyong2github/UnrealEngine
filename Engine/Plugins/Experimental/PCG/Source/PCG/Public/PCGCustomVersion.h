@@ -16,6 +16,8 @@ struct PCG_API FPCGCustomVersion
 		// Split projection nodes inputs to separate source edges and target edge
 		SplitProjectionNodeInputs = 1,
 		
+		MoveSelfPruningParamsOffFirstPin = 2,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

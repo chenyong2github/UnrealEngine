@@ -108,7 +108,6 @@ bool FPCGProjectionElement::ExecuteInternal(FPCGContext* Context) const
 #if WITH_EDITOR
 void UPCGProjectionSettings::ApplyDeprecation(UPCGNode* InOutNode)
 {
-	Super::ApplyDeprecation(InOutNode);
 	check(InOutNode);
 
 	if (DataVersion < FPCGCustomVersion::SplitProjectionNodeInputs)
@@ -138,10 +137,8 @@ void UPCGProjectionSettings::ApplyDeprecation(UPCGNode* InOutNode)
 		}
 	}
 
-	// Signal that data is up to date at end of deprecation code.
-	DataVersion = FPCGCustomVersion::LatestVersion;
+	Super::ApplyDeprecation(InOutNode);
 }
 #endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
-

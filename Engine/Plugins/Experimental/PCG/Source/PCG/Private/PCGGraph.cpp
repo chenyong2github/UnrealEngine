@@ -94,23 +94,14 @@ void UPCGGraph::PostLoad()
 		ExtraNode->ConditionalPostLoad();
 	}
 
-	// Update pins on all nodes
-	InputNode->UpdatePins();
-	OutputNode->UpdatePins();
+	// Finally, apply deprecation that changes edges/rebinds
+	ForEachNode([](UPCGNode* InNode) { return InNode->ApplyDeprecationBeforeUpdatePins(); });
 
-	for (UPCGNode* Node : Nodes)
-	{
-		Node->UpdatePins();
-	}
+	// Update pins on all nodes
+	ForEachNode([](UPCGNode* InNode) { return InNode->UpdatePins(); });
 
 	// Finally, apply deprecation that changes edges/rebinds
-	InputNode->ApplyDeprecation();
-	OutputNode->ApplyDeprecation();
-	
-	for (UPCGNode* Node : Nodes)
-	{
-		Node->ApplyDeprecation();
-	}
+	ForEachNode([](UPCGNode* InNode) { return InNode->ApplyDeprecation(); });
 
 	InputNode->OnNodeChangedDelegate.AddUObject(this, &UPCGGraph::OnNodeChanged);
 	OutputNode->OnNodeChangedDelegate.AddUObject(this, &UPCGGraph::OnNodeChanged);
@@ -411,6 +402,17 @@ bool UPCGGraph::RemoveEdge(UPCGNode* From, const FName& FromLabel, UPCGNode* To,
 #endif
 
 	return bChanged;
+}
+
+void UPCGGraph::ForEachNode(const TFunction<void(UPCGNode*)>& Action)
+{
+	Action(InputNode);
+	Action(OutputNode);
+
+	for (UPCGNode* Node : Nodes)
+	{
+		Action(Node);
+	}
 }
 
 bool UPCGGraph::RemoveAllInboundEdges(UPCGNode* InNode)

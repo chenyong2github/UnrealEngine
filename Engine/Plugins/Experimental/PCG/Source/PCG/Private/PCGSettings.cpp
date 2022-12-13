@@ -53,6 +53,13 @@ uint32 UPCGSettings::GetCrc32() const
 	return Ar.Crc32(const_cast<UPCGSettings*>(this));
 }
 
+#if WITH_EDITOR
+void UPCGSettings::ApplyDeprecation(UPCGNode* InOutNode)
+{
+	DataVersion = FPCGCustomVersion::LatestVersion;
+}
+#endif // WITH_EDITOR
+
 void UPCGSettings::PostLoad()
 {
 	Super::PostLoad();

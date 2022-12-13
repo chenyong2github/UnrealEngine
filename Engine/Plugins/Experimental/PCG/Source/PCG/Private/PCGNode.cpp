@@ -2,6 +2,7 @@
 
 #include "PCGNode.h"
 
+#include "PCGCustomVersion.h"
 #include "PCGEdge.h"
 #include "PCGGraph.h"
 #include "PCGSettings.h"
@@ -56,6 +57,20 @@ void UPCGNode::PostLoad()
 }
 
 #if WITH_EDITOR
+void UPCGNode::ApplyDeprecationBeforeUpdatePins()
+{
+	if (UPCGSettings* Settings = GetSettings())
+	{
+		const int VersionBefore = Settings->DataVersion;
+
+		Settings->ApplyDeprecationBeforeUpdatePins(this, InputPins, OutputPins);
+
+		// Version number should not be bumped in this before-update-pins migration, if it does
+		// we risk deprecation code not running in post-update-pins because version number is latest.
+		ensure(VersionBefore == Settings->DataVersion);
+	}
+}
+
 void UPCGNode::ApplyDeprecation()
 {
 	UPCGPin* DefaultOutputPin = OutputPins.IsEmpty() ? nullptr : OutputPins[0];
@@ -130,6 +145,9 @@ void UPCGNode::ApplyDeprecation()
 	if (UPCGSettings* Settings = GetSettings())
 	{
 		Settings->ApplyDeprecation(this);
+
+		// Once deprecation has run, version should be up to date.
+		ensure(Settings->DataVersion == FPCGCustomVersion::LatestVersion);
 	}
 }
 #endif
