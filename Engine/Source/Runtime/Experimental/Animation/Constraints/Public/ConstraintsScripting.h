@@ -9,6 +9,7 @@
 #include "ConstraintsScripting.generated.h"
 
 class UConstraintsManager;
+class UTransformableHandle;
 class UTransformableComponentHandle;
 class UTickableConstraint;
 class UTickableTransformConstraint;
@@ -44,6 +45,16 @@ public:
 	**/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig | Constraints")
 	static UTransformableComponentHandle* CreateTransformableComponentHandle(UWorld* InWorld, USceneComponent* InSceneComponent, const FName& InSocketName);
+
+	/**
+	* Create the transformable handle that deals with getting and setting transforms on this object
+	* @param InWorld, the world you are in
+	* @param InObject World to create the constraint
+	* @param InAttachmentName Optional name of the attachment to get the transform. Not that this can represent a scene component's socket name or a control rig control for example. 
+	* @return returns the handle for this scene component
+	**/
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig | Constraints")
+	static UTransformableHandle* CreateTransformableHandle(UWorld* InWorld, UObject* InObject, const FName& InAttachmentName = NAME_None);
 
 	/**
 	* Create Constraint based on the specified type.

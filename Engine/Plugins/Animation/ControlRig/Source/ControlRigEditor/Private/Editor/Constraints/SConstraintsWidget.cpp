@@ -25,6 +25,7 @@
 #include "ISequencer.h"
 #include "Tools/BakingHelper.h"
 #include "MovieSceneToolHelpers.h"
+#include "Styling/SlateIconFinder.h"
 
 #define LOCTEXT_NAMESPACE "SConstraintsWidget"
 
@@ -293,19 +294,16 @@ void SDroppableConstraintItem::CreateConstraint(
 		return;	
 	}
 
-	// has socket?
-	USceneComponent* ComponentWithSockets = nullptr;
-	if(USceneComponent* ParentComponent = InParent->GetRootComponent())
+	// gather sub components with sockets
+	const TInlineComponentArray<USceneComponent*> Components(InParent);
+	const TArray<USceneComponent*> ComponentsWithSockets = Components.FilterByPredicate([](const USceneComponent* Component)
 	{
-		if (ParentComponent->HasAnySockets())
-		{
-			ComponentWithSockets = ParentComponent;
-		}
-	}
+		return Component->HasAnySockets();
+	});
 
 	// create constraints
 	auto CreateConstraint = [InCreationDelegate, InConstraintType](
-		const TArray<AActor*>& Selection, AActor* InParent, const FName& InSocketName)
+		const TArray<AActor*>& Selection, UObject* InParent, const FName& InSocketName)
 	{
 		UWorld* World = GetCurrentWorld();
 		if (!IsValid(World))
@@ -320,7 +318,7 @@ void SDroppableConstraintItem::CreateConstraint(
 			{
 				FScopedTransaction Transaction(LOCTEXT("CreateConstraintKey", "Create Constraint Key"));
 				UTickableTransformConstraint* Constraint =
-					FTransformConstraintUtils::CreateAndAddFromActors(World, InParent, InSocketName, Child, InConstraintType);
+					FTransformConstraintUtils::CreateAndAddFromObjects(World, InParent, InSocketName, Child, NAME_None, InConstraintType);
 				if (Constraint)
 				{
 					FConstraintChannelHelper::SmartConstraintKey(Constraint, TOptional<bool>(), TOptional<FFrameNumber>());
@@ -335,34 +333,69 @@ void SDroppableConstraintItem::CreateConstraint(
 			InCreationDelegate.Execute();
 		}
 	};
-	
-	// Show socket chooser if we have sockets to select
-	if (ComponentWithSockets != nullptr)
-	{		
+
+	const int32 NumComponentsWithSockets = ComponentsWithSockets.Num();
+
+	// if no component socket available then constrain the whole actor 
+	if (NumComponentsWithSockets == 0)
+	{
+		return CreateConstraint(Selection, InParent, NAME_None);
+	}
+
+	// creates a menu encapsulating InContent  
+	auto CreateMenu = [](const TSharedRef<SWidget>& InContent, const FVector2D& InLocation)
+	{
 		const FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
 		const TSharedPtr< ILevelEditor > LevelEditor = LevelEditorModule.GetFirstLevelEditor();
-
-		FVector2D SummonLocation = FSlateApplication::Get().GetCursorPos();
-		SummonLocation.Y += 4 * FSlateApplication::Get().GetCursorSize().Y;
-		
-		// Create as context menu
 		FSlateApplication::Get().PushMenu(
 			LevelEditor.ToSharedRef(),
 			FWidgetPath(),
-			SNew(SSocketChooserPopup)
-			.SceneComponent( ComponentWithSockets )
-			.OnSocketChosen_Lambda([CreateConstraint, Selection, InParent](FName InSocketName)
-			{
-				CreateConstraint(Selection, InParent, InSocketName);
-			}),
-			SummonLocation,
-			FPopupTransitionEffect( FPopupTransitionEffect::ContextMenu )
-			);
-	}
-	else
+			InContent,
+		InLocation,
+		FPopupTransitionEffect( FPopupTransitionEffect::ContextMenu ) );
+	};
+
+	// creates a new socket chooser popup widget
+	auto GetSocketChooserWidget = [CreateConstraint, Selection](USceneComponent* Component)
 	{
-		CreateConstraint(Selection, InParent, NAME_None);
+		return SNew(SSocketChooserPopup)
+		.SceneComponent( Component )
+		.OnSocketChosen_Lambda([CreateConstraint, Selection, Component](FName InSocketName)
+		{
+			CreateConstraint(Selection, Component, InSocketName);
+		});
+	};
+
+	// decal the menu 
+	FVector2D SummonLocation = FSlateApplication::Get().GetCursorPos();
+	SummonLocation.Y += 4 * FSlateApplication::Get().GetCursorSize().Y;
+	
+	// if one component with sockets then constrain the component selecting the socket
+	if (NumComponentsWithSockets == 1)
+	{
+		return CreateMenu( GetSocketChooserWidget(ComponentsWithSockets[0]), SummonLocation);
 	}
+
+	// if there are several of them, then build a component chooser first then the socket chooser
+	static constexpr bool CloseAfterSelection = true;
+	FMenuBuilder MenuBuilder(CloseAfterSelection, nullptr);
+	MenuBuilder.BeginSection("ChooseComp", LOCTEXT("ChooseComponentSection", "Choose Component"));
+	{
+		for (USceneComponent* Component: ComponentsWithSockets)
+		{
+			MenuBuilder.AddMenuEntry(FText::FromName(Component->GetFName()),
+			FText(),
+				FSlateIconFinder::FindIconForClass(Component->GetClass(), TEXT("SCS.Component")),
+				FUIAction(FExecuteAction::CreateLambda([CreateMenu, GetSocketChooserWidget, Component]()
+				{
+					CreateMenu(GetSocketChooserWidget(Component), FSlateApplication::Get().GetCursorPos());
+				})),
+				NAME_None,
+			   EUserInterfaceActionType::Button);
+		}
+	}
+	MenuBuilder.EndSection();
+	CreateMenu(MenuBuilder.MakeWidget(), SummonLocation);
 }
 
 /**

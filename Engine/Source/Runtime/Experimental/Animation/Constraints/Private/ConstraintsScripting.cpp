@@ -5,6 +5,7 @@
 #include "TransformConstraint.h"
 #include "TransformableHandle.h"
 #include "ConstraintsManager.h"
+#include "TransformableRegistry.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ConstraintsScripting)
 
@@ -27,6 +28,25 @@ UTransformableComponentHandle* UConstraintsScriptingLibrary::CreateTransformable
 	}
 	return nullptr;
 }
+
+UTransformableHandle* UConstraintsScriptingLibrary::CreateTransformableHandle(UWorld* InWorld, UObject* InObject, const FName& InAttachmentName)
+{
+	UConstraintsManager* ConstraintsManager = UConstraintsManager::Get(InWorld);
+	if (!ConstraintsManager)
+	{
+		return nullptr;
+	}
+	
+	// look for customized transform handle
+	const FTransformableRegistry& Registry = FTransformableRegistry::Get();
+	if (const FTransformableRegistry::CreateHandleFuncT CreateFunction = Registry.GetCreateFunction(InObject->GetClass()))
+	{
+		return CreateFunction(ConstraintsManager, InObject, InAttachmentName);
+	}
+	
+	return nullptr;
+}
+
 
 UTickableTransformConstraint* UConstraintsScriptingLibrary::CreateFromType(
 	UWorld* InWorld,

@@ -268,6 +268,8 @@ void UTransformableComponentHandle::UnregisterDelegates() const
 	{
 		GEngine->OnActorMoving().RemoveAll(this);
 	}
+
+	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
 #endif
 }
 
@@ -276,11 +278,16 @@ void UTransformableComponentHandle::RegisterDelegates()
 	UnregisterDelegates();
 
 #if WITH_EDITOR
-	GEngine->OnActorMoving().AddUObject(this, &UTransformableComponentHandle::OnActorMoving);
+	if (GEngine)
+	{
+		GEngine->OnActorMoving().AddUObject(this, &UTransformableComponentHandle::OnActorMoving);
+	}
 	FCoreUObjectDelegates::OnObjectPropertyChanged.AddUObject(this, &UTransformableComponentHandle::OnPostPropertyChanged);
+	FCoreUObjectDelegates::OnObjectsReplaced.AddUObject(this, &UTransformableComponentHandle::OnObjectsReplaced);
 #endif
 }
 
+#if WITH_EDITOR
 void UTransformableComponentHandle::OnActorMoving(AActor* InActor)
 {
 	if (!Component.IsValid())
@@ -288,8 +295,8 @@ void UTransformableComponentHandle::OnActorMoving(AActor* InActor)
 		return;
 	}
 
-	const USceneComponent* SceneComponent = InActor ? InActor->GetRootComponent() : nullptr;
-	if (SceneComponent != Component)
+	const TInlineComponentArray<USceneComponent*> Components(InActor);
+	if (!Components.Contains(Component))
 	{
 		return;
 	}
@@ -314,11 +321,16 @@ void UTransformableComponentHandle::OnPostPropertyChanged(
 	{
 		if (const AActor* Actor = Cast<AActor>(InObject))
 		{
-			SceneComponent = Actor->GetRootComponent();
+			const TInlineComponentArray<USceneComponent*> Components(Actor);
+			const int32 Index = Components.IndexOfByKey(Component.Get());
+			if (Index != INDEX_NONE)
+			{
+				SceneComponent = Components[Index];
+			}
 		}
 	}
 	
-	if (SceneComponent!= Component)
+	if (SceneComponent != Component)
 	{
 		return;
 	}
@@ -344,6 +356,22 @@ void UTransformableComponentHandle::OnPostPropertyChanged(
 		OnHandleModified.Broadcast(this, EHandleEvent::GlobalTransformUpdated);
 	}
 }
+
+void UTransformableComponentHandle::OnObjectsReplaced(const TMap<UObject*, UObject*>& InOldToNewInstances)
+{
+	// in the context of blueprints being recompiled (cf. AActor::RerunConstructionScripts()), the component has to
+	// be updated. as this is called after it has been destroyed, we get the component even if it's pending kill
+	// otherwise Get() will return a nullptr.
+	static constexpr bool bEvenIfPendingKill = true;
+	if (UObject* NewObject = InOldToNewInstances.FindRef(Component.Get(bEvenIfPendingKill)))
+	{
+		if (USceneComponent* NewSceneComponent= Cast<USceneComponent>(NewObject))
+		{
+			Component = NewSceneComponent;
+		}
+	}
+}
+#endif
 
 TArrayView<FMovieSceneFloatChannel*>  UTransformableComponentHandle::GetFloatChannels(const UMovieSceneSection* InSection) const
 {
@@ -498,7 +526,12 @@ void UTransformableComponentHandle::ResolveBoundObjects(FMovieSceneSequenceID Lo
 	{
 		if (AActor* Actor = Cast<AActor>(ParentObject.Get()))
 		{
-			Component = Actor->GetRootComponent();
+			const TInlineComponentArray<USceneComponent*> Components(Actor);
+			const int32 Index = Components.IndexOfByPredicate([this](const USceneComponent* SubComponent)
+			{
+				return Component.IsValid() && (SubComponent->GetFName() == Component->GetFName()); 
+			});
+			Component = Index != INDEX_NONE ? Components[Index] : Actor->GetRootComponent();
 		}
 		else if (USceneComponent* Comp = Cast<USceneComponent>(ParentObject.Get()))
 		{

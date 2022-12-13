@@ -205,7 +205,9 @@ public:
 	void UnregisterDelegates() const;
 	void RegisterDelegates();
 	
-	/** @todo document */
+#if WITH_EDITOR
 	void OnActorMoving(AActor* InActor);
 	void OnPostPropertyChanged(UObject* InObject, FPropertyChangedEvent& InPropertyChangedEvent);
+	void OnObjectsReplaced(const TMap<UObject*, UObject*>& InOldToNewInstances);
+#endif
 };

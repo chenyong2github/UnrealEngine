@@ -18,36 +18,46 @@ class UTransformableHandle;
 class CONSTRAINTS_API FTransformableRegistry
 {
 public:
-	/** @todo document */
-	using CreateHandleFuncT = TFunction<UTransformableHandle*(const UObject*, UObject*)>;
-	using GetHashFuncT = TFunction<uint32(const UObject*)>;
+
+	/** Defines the function that will allocate a new transformable handle to wrap the object. */
+	using CreateHandleFuncT = TFunction<UTransformableHandle*(UObject*, UObject*, const FName&)>;
+	/** Defines the function that return a hash value from the object and the attachment name. */
+	using GetHashFuncT = TFunction<uint32(const UObject*, const FName&)>;
 	
 	~FTransformableRegistry();
 
-	/** @todo document */
+	/** Get registry singleton */
 	static FTransformableRegistry& Get();
 
-	/** @todo document */
+	/** Registers a InClass as transformable object. */
 	void Register(UClass* InClass, CreateHandleFuncT InHandleFunc, GetHashFuncT InHashFunc);
 
-	/** @todo document */
+	/** Get the associated hash function for that specific class. */
 	GetHashFuncT GetHashFunction(const UClass* InClass) const;
-	/** @todo document */
+	/** Get the associated handle creation function for that specific class. */
 	CreateHandleFuncT GetCreateFunction(const UClass* InClass) const;
 
+protected:
+	friend class FConstraintsModule;
+
+	/** Registers the basic transformable objects. (called when starting the constraints module). */
+	static void RegisterBaseObjects();
+	/** Registers the basic transformable objects. (called when shutting down the constraints module). */
+	static void UnregisterAllObjects();
+	
 private:
 	FTransformableRegistry() = default;
 
-	/** @todo document */
+	/** Per class information that need to be register. */
 	struct FTransformableInfo
 	{
 		CreateHandleFuncT CreateHandleFunc;
 		GetHashFuncT GetHashFunc;
 	};
 
-	/** @todo document */
+	/** Find the associated info for that specific class. */
 	const FTransformableInfo* FindInfo(const UClass* InClass) const;
 
-	/** @todo document */
+	/** List of all registered transformable objects. */
 	TMap<UClass*, FTransformableInfo> Transformables;
 };

@@ -213,6 +213,10 @@ void UConstraintsManager::Init(UWorld* World)
 
 UConstraintsManager* UConstraintsManager::Get(UWorld* InWorld)
 {
+	if (!IsValid(InWorld))
+	{
+		return nullptr;
+	}
 	// look for ConstraintsActor and return its manager
 	if (UConstraintsManager* Manager = Find(InWorld))
 	{
@@ -230,6 +234,11 @@ UConstraintsManager* UConstraintsManager::Get(UWorld* InWorld)
 
 UConstraintsManager* UConstraintsManager::Find(const UWorld* InWorld)
 {
+	if (!IsValid(InWorld))
+	{
+		return nullptr;
+	}
+	
 	// should we work with the persistent level?
 	const ULevel* Level = InWorld->GetCurrentLevel();
 

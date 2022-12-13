@@ -38,34 +38,52 @@ void FControlRigModule::ShutdownModule()
 
 void FControlRigModule::RegisterTransformableCustomization() const
 {
-	// Register UTransformableControlHandle and has function to handle control thru the transform constraints system
-	// as AControlRigShapeActor is only available if the ControlRig plugin is loaded.
-	auto CreateControlHandleFunc = [](const UObject* InObject, UObject* Outer)->UTransformableHandle*
+	// load the module to trigger default objects registration
+	static const FName ConstraintsModuleName(TEXT("Constraints"));
+	FModuleManager::Get().LoadModule(ConstraintsModuleName);
+	
+	// register UControlRig and AControlRigShapeActor
+	auto CreateControlHandle = [](UObject* Outer, UObject* InObject, const FName& InControlName)->UTransformableHandle*
 	{
-		if (const AControlRigShapeActor* ControlActor = Cast<AControlRigShapeActor>(InObject))
+		if (const UControlRig* ControlRig = Cast<UControlRig>(InObject))
 		{
-			if (UControlRig* ControlRig = ControlActor->ControlRig.Get())
-			{
-				UTransformableControlHandle* CtrlHandle = ControlRig->CreateTransformableControlHandle(Outer, ControlActor->ControlName);
-				return CtrlHandle;
-			}
+			return ControlRig->CreateTransformableControlHandle(Outer, InControlName);
 		}
 		return nullptr;
 	};
 
-	auto GetControlHashFunc = [](const UObject* InObject)->uint32
+	auto GetControlHash = [](const UObject* InObject, const FName& InControlName)->uint32
+	{
+		if (const UControlRig* ControlRig = Cast<UControlRig>(InObject))
+		{
+			return UTransformableControlHandle::ComputeHash(ControlRig, InControlName);
+		}
+		return 0;
+	};
+	
+	auto CreateControlHandleFromActor = [CreateControlHandle](UObject* Outer, UObject* InObject, const FName&)->UTransformableHandle*
 	{
 		if (const AControlRigShapeActor* ControlActor = Cast<AControlRigShapeActor>(InObject))
 		{
-			const uint32 ControlHash = UTransformableControlHandle::ComputeHash(
-				ControlActor->ControlRig.Get(), ControlActor->ControlName);
-			return ControlHash;
+			return CreateControlHandle(Outer, ControlActor->ControlRig.Get(), ControlActor->ControlName);
+		}
+		return nullptr;
+	};
+
+	auto GetControlHashFromActor = [GetControlHash](const UObject* InObject, const FName&)->uint32
+	{
+		if (const AControlRigShapeActor* ControlActor = Cast<AControlRigShapeActor>(InObject))
+		{
+			return GetControlHash(ControlActor->ControlRig.Get(), ControlActor->ControlName);
 		}
 		return 0;
 	};
 
+	// Register UTransformableControlHandle and has function to handle control thru the transform constraints system
+	// as AControlRigShapeActor is only available if the ControlRig plugin is loaded.
 	FTransformableRegistry& Registry = FTransformableRegistry::Get();
-	Registry.Register( AControlRigShapeActor::StaticClass(), CreateControlHandleFunc, GetControlHashFunc);
+	Registry.Register(AControlRigShapeActor::StaticClass(), CreateControlHandleFromActor, GetControlHashFromActor);
+	Registry.Register(UControlRig::StaticClass(), CreateControlHandle, GetControlHash);
 }
 
 IMPLEMENT_MODULE(FControlRigModule, ControlRig)

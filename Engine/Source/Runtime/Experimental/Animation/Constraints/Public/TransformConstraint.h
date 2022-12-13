@@ -408,11 +408,10 @@ struct CONSTRAINTS_API FTransformConstraintUtils
 		const ETransformConstraintType InType);
 
 	/** Creates respective handles and creates a new InType transform constraint. */	
-	static UTickableTransformConstraint* CreateAndAddFromActors(
+	static UTickableTransformConstraint* CreateAndAddFromObjects(
 		UWorld* InWorld,
-		AActor* InParent,
-		const FName& InSocketName,
-		AActor* InChild,
+		UObject* InParent, const FName& InParentSocketName,
+		UObject* InChild, const FName& InChildSocketName,
 		const ETransformConstraintType InType,
 		const bool bMaintainOffset = true);
 

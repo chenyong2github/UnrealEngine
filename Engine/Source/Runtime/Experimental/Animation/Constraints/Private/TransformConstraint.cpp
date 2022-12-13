@@ -1275,36 +1275,28 @@ void UTickableLookAtConstraint::PostEditChangeProperty(FPropertyChangedEvent& Pr
 namespace
 {
 
-UTransformableHandle* GetHandle(AActor* InActor, const FName& InSocketName, UObject* Outer)
+UTransformableHandle* GetHandle(UObject* InObject, const FName& InSocketName, UObject* Outer)
 {
 	// look for customized transform handle
 	const FTransformableRegistry& Registry = FTransformableRegistry::Get();
-	if (const FTransformableRegistry::CreateHandleFuncT CreateFunction = Registry.GetCreateFunction(InActor->GetClass()))
+	if (const FTransformableRegistry::CreateHandleFuncT CreateFunction = Registry.GetCreateFunction(InObject->GetClass()))
 	{
-		return CreateFunction(InActor, Outer);
+		return CreateFunction(Outer, InObject, InSocketName);
 	}
 
-	// need to make sure it's moveable
-	if (InActor->GetRootComponent())
-	{
-		return FTransformConstraintUtils::CreateHandleForSceneComponent(InActor->GetRootComponent(), InSocketName, Outer);
-
-	}
 	return nullptr;
 }
 	
-uint32 GetConstrainableHash(const AActor* InActor)
+uint32 GetConstrainableHash(const UObject* InObject)
 {
 	// look for customized hash function
 	const FTransformableRegistry& Registry = FTransformableRegistry::Get();
-	if (const FTransformableRegistry::GetHashFuncT HashFunction = Registry.GetHashFunction(InActor->GetClass()))
+	if (const FTransformableRegistry::GetHashFuncT HashFunction = Registry.GetHashFunction(InObject->GetClass()))
 	{
-		return HashFunction(InActor);
+		return HashFunction(InObject, NAME_None);
 	}
 
-	// scene component hash
-	const uint32 ComponentHash = GetTypeHash(InActor->GetRootComponent());
-	return ComponentHash;
+	return 0;
 }
 	
 }
@@ -1481,11 +1473,10 @@ bool AreHandlesConstrainable( UWorld* InWorld, UTransformableHandle* InParentHan
 
 }
 
-UTickableTransformConstraint* FTransformConstraintUtils::CreateAndAddFromActors(
+UTickableTransformConstraint* FTransformConstraintUtils::CreateAndAddFromObjects(
 	UWorld* InWorld,
-	AActor* InParent,
-	const FName& InSocketName,
-	AActor* InChild,
+	UObject* InParent, const FName& InParentSocketName,
+	UObject* InChild, const FName& InChildSocketName,
 	const ETransformConstraintType InType,
 	const bool bMaintainOffset)
 {
@@ -1505,13 +1496,13 @@ UTickableTransformConstraint* FTransformConstraintUtils::CreateAndAddFromActors(
 		return nullptr;
 	}
 
-	UTransformableHandle* ParentHandle = GetHandle(InParent, InSocketName, ConstraintsManager);
+	UTransformableHandle* ParentHandle = GetHandle(InParent, InParentSocketName, ConstraintsManager);
 	if (!ParentHandle)
 	{
 		return nullptr;
 	}
 	
-	UTransformableHandle* ChildHandle = GetHandle(InChild, NAME_None, ConstraintsManager);
+	UTransformableHandle* ChildHandle = GetHandle(InChild, InChildSocketName, ConstraintsManager);
 	if (!ChildHandle)
 	{
 		return nullptr;
