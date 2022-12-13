@@ -693,7 +693,7 @@ namespace MovementBaseUtility
 		return false;
 	}
 
-	bool GetLocalMovementBaseLocationInWorldSpace(const UPrimitiveComponent* MovementBase, const FName BoneName, const FVector& LocalLocation, FVector& OutLocationWorldSpace)
+	bool TransformLocationToWorld(const UPrimitiveComponent* MovementBase, const FName BoneName, const FVector& LocalLocation, FVector& OutLocationWorldSpace)
 	{
 		FVector OutLocation;
 		FQuat OutQuat;
@@ -702,7 +702,7 @@ namespace MovementBaseUtility
 		return bResult;
 	}
 
-	bool GetLocalMovementBaseLocation(const UPrimitiveComponent* MovementBase, const FName BoneName, const FVector& WorldSpaceLocation, FVector& OutLocalLocation)
+	bool TransformLocationToLocal(const UPrimitiveComponent* MovementBase, const FName BoneName, const FVector& WorldSpaceLocation, FVector& OutLocalLocation)
 	{
 		FVector OutLocation;
 		FQuat OutQuat;
@@ -711,21 +711,21 @@ namespace MovementBaseUtility
 		return bResult;
 	}
 
-	bool GetLocalMovementBaseAccelerationInWorldSpace(const UPrimitiveComponent* MovementBase, const FName BoneName, const FVector& LocalAccel, FVector& OutAccelWorldSpace)
+	bool TransformDirectionToWorld(const UPrimitiveComponent* MovementBase, const FName BoneName, const FVector& LocalDirection, FVector& OutDirectionWorldSpace)
 	{
 		FVector IgnoredLocation;
 		FQuat OutQuat;
 		const bool bResult = GetMovementBaseTransform(MovementBase, BoneName, IgnoredLocation, OutQuat);
-		OutAccelWorldSpace = OutQuat.RotateVector(LocalAccel);
+		OutDirectionWorldSpace = OutQuat.RotateVector(LocalDirection);
 		return bResult;
 	}
 
-	bool GetLocalMovementBaseAcceleration(const UPrimitiveComponent* MovementBase, const FName BoneName, const FVector& WorldSpaceAcceleration, FVector& OutLocalAcceleration)
+	bool TransformDirectionToLocal(const UPrimitiveComponent* MovementBase, const FName BoneName, const FVector& WorldSpaceDirection, FVector& OutLocalDirection)
 	{
 		FVector IgnoredLocation;
 		FQuat OutQuat;
 		const bool bResult = GetMovementBaseTransform(MovementBase, BoneName, IgnoredLocation, OutQuat);
-		OutLocalAcceleration = OutQuat.Inverse().RotateVector(WorldSpaceAcceleration);
+		OutLocalDirection = OutQuat.UnrotateVector(WorldSpaceDirection);
 		return bResult;
 	}
 

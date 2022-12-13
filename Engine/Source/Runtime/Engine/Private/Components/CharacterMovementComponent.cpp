@@ -256,11 +256,17 @@ namespace CharacterMovementCVars
 	 * This also may be a good option if using dynamic movement bases that become the player's primary frame of visual reference, such as when walking on a large boat or airship.
 	 * Not compatible with deprecated move RPCs. @see NetUsePackedMovementRPCs
 	 */
-	static int32 UseBaseRelativeAcceleration = 1;
-	FAutoConsoleVariableRef CVarUseBaseRelativeAcceleration(
-		TEXT("p.UseBaseRelativeAcceleration"),
-		UseBaseRelativeAcceleration,
+	static int32 NetUseBaseRelativeAcceleration = 1;
+	FAutoConsoleVariableRef CVarNetUseBaseRelativeAcceleration(
+		TEXT("p.NetUseBaseRelativeAcceleration"),
+		NetUseBaseRelativeAcceleration,
 		TEXT("If enabled, character acceleration will be treated as relative to dynamic movement bases."));
+
+	static int32 NetUseBaseRelativeVelocity = 1;
+	FAutoConsoleVariableRef CVarNetUseBaseRelativeVelocity(
+		TEXT("p.NetUseBaseRelativeVelocity"),
+		NetUseBaseRelativeVelocity,
+		TEXT("If enabled, character velocity corrections will be treated as relative to dynamic movement bases."));
 
 	static int32 UseTargetVelocityOnImpact = 1;
 	FAutoConsoleVariableRef CVarUseTargetVelocityOnImpact(
@@ -2787,7 +2793,7 @@ void UCharacterMovementComponent::SaveBaseLocation()
 		{
 			// Relative Location
 			FVector RelativeLocation;
-			MovementBaseUtility::GetLocalMovementBaseLocation(MovementBase, CharacterOwner->GetBasedMovement().BoneName, UpdatedComponent->GetComponentLocation(), RelativeLocation);
+			MovementBaseUtility::TransformLocationToLocal(MovementBase, CharacterOwner->GetBasedMovement().BoneName, UpdatedComponent->GetComponentLocation(), RelativeLocation);
 
 			// Rotation
 			if (bIgnoreBaseRotation)
@@ -9023,7 +9029,7 @@ void FCharacterNetworkMoveData::ClientFillNetworkMoveData(const FSavedMove_Chara
 		UPrimitiveComponent* ClientMovementBase = ClientMove.EndBase.Get();
 
 		const bool bSendBaseRelativeLocation     = MovementBaseUtility::UseRelativeLocation(ClientMovementBase);
-		const bool bSendBaseRelativeAcceleration = CharacterMovementCVars::UseBaseRelativeAcceleration && bSendBaseRelativeLocation;
+		const bool bSendBaseRelativeAcceleration = CharacterMovementCVars::NetUseBaseRelativeAcceleration && bSendBaseRelativeLocation;
 
 		const FVector SendLocation     = bSendBaseRelativeLocation ? ClientMove.SavedRelativeLocation : FRepMovement::RebaseOntoZeroOrigin(ClientMove.SavedLocation, ClientMove.CharacterOwner->GetCharacterMovement());
 		const FVector SendAcceleration = bSendBaseRelativeAcceleration ? ClientMove.SavedRelativeAcceleration : ClientMove.Acceleration;
@@ -9172,9 +9178,9 @@ void UCharacterMovementComponent::ServerMove_PerformMovement(const FCharacterNet
 	FVector ClientAccel = MoveData.Acceleration;
 
 	// Convert the move's acceleration to worldspace if necessary
-	if (CharacterMovementCVars::UseBaseRelativeAcceleration && MovementBaseUtility::IsDynamicBase(MoveData.MovementBase))
+	if (CharacterMovementCVars::NetUseBaseRelativeAcceleration && MovementBaseUtility::IsDynamicBase(MoveData.MovementBase))
 	{
-		MovementBaseUtility::GetLocalMovementBaseAccelerationInWorldSpace(MoveData.MovementBase, MoveData.MovementBaseBoneName, MoveData.Acceleration, ClientAccel);
+		MovementBaseUtility::TransformDirectionToWorld(MoveData.MovementBase, MoveData.MovementBaseBoneName, MoveData.Acceleration, ClientAccel);
 	}
 
 	const uint8 ClientMoveFlags = MoveData.CompressedMoveFlags;
@@ -9391,7 +9397,7 @@ void UCharacterMovementComponent::ServerMoveHandleClientError(float ClientTimeSt
 	FVector ClientLoc = RelativeClientLoc;
 	if (MovementBaseUtility::UseRelativeLocation(ClientMovementBase))
 	{
-		MovementBaseUtility::GetLocalMovementBaseLocationInWorldSpace(ClientMovementBase, ClientBaseBoneName, RelativeClientLoc, ClientLoc);
+		MovementBaseUtility::TransformLocationToWorld(ClientMovementBase, ClientBaseBoneName, RelativeClientLoc, ClientLoc);
 	}
 	else
 	{
@@ -9498,7 +9504,7 @@ void UCharacterMovementComponent::ServerMoveHandleClientError(float ClientTimeSt
 				if (MovementBaseUtility::UseRelativeLocation(LastServerMovementBasePtr))
 				{
 					// Relative Location
-					MovementBaseUtility::GetLocalMovementBaseLocation(LastServerMovementBasePtr, LastServerMovementBaseBoneName, UpdatedComponent->GetComponentLocation(), RelativeLocation);
+					MovementBaseUtility::TransformLocationToLocal(LastServerMovementBasePtr, LastServerMovementBaseBoneName, UpdatedComponent->GetComponentLocation(), RelativeLocation);
 					bUseLastBase = true;
 				}
 			}
@@ -9575,9 +9581,11 @@ void UCharacterMovementComponent::ServerMoveHandleClientError(float ClientTimeSt
 		ServerData->PendingAdjustment.NewRot = UpdatedComponent->GetComponentRotation();
 
 		ServerData->PendingAdjustment.bBaseRelativePosition = (bDeferServerCorrectionsWhenFalling && bUseLastBase) || MovementBaseUtility::UseRelativeLocation(MovementBase);
+		ServerData->PendingAdjustment.bBaseRelativeVelocity = false;
+		
+		// Relative location?
 		if (ServerData->PendingAdjustment.bBaseRelativePosition)
 		{
-			// Relative location
 			if (bDeferServerCorrectionsWhenFalling && bUseLastBase)
 			{
 				ServerData->PendingAdjustment.NewVel = RelativeVelocity;
@@ -9588,6 +9596,13 @@ void UCharacterMovementComponent::ServerMoveHandleClientError(float ClientTimeSt
 			else
 			{
 				ServerData->PendingAdjustment.NewLoc = CharacterOwner->GetBasedMovement().Location;
+				if (CharacterMovementCVars::NetUseBaseRelativeVelocity)
+				{
+					// Store world velocity converted to local space of movement base
+					ServerData->PendingAdjustment.bBaseRelativeVelocity = true;
+					const FVector CurrentVelocity = ServerData->PendingAdjustment.NewVel;
+					MovementBaseUtility::TransformDirectionToLocal(MovementBase, MovementBaseBoneName, CurrentVelocity, ServerData->PendingAdjustment.NewVel);
+				}
 			}
 			
 			// TODO: this could be a relative rotation, but all client corrections ignore rotation right now except the root motion one, which would need to be updated.
@@ -10034,6 +10049,7 @@ bool FCharacterMoveResponseDataContainer::Serialize(UCharacterMovementComponent&
 		SerializeOptionalValue<FName>(bIsSaving, Ar, ClientAdjustment.NewBaseBoneName, NAME_None);
 		SerializeOptionalValue<uint8>(bIsSaving, Ar, ClientAdjustment.MovementMode, MOVE_Walking);
 		Ar.SerializeBits(&ClientAdjustment.bBaseRelativePosition, 1);
+		Ar.SerializeBits(&ClientAdjustment.bBaseRelativeVelocity, 1);
 
 		if (bRootMotionMontageCorrection)
 		{
@@ -10352,13 +10368,21 @@ void UCharacterMovementComponent::ClientAdjustPosition_Implementation
 	//  Received Location is relative to dynamic base
 	if (bBaseRelativePosition)
 	{
-		MovementBaseUtility::GetLocalMovementBaseLocationInWorldSpace(NewBase, NewBaseBoneName, NewLocation, WorldShiftedNewLocation); // TODO: error handling if returns false	
+		MovementBaseUtility::TransformLocationToWorld(NewBase, NewBaseBoneName, NewLocation, WorldShiftedNewLocation); // TODO: error handling if returns false	
 	}
 	else
 	{
 		WorldShiftedNewLocation = FRepMovement::RebaseOntoLocalOrigin(NewLocation, this);
 	}
 
+	// Server's world velocity may need to be converted to velocity relative to the movement base orientation, if the base orientations don't match.
+	const FCharacterMoveResponseDataContainer& ResponseDataContainer = GetMoveResponseDataContainer();
+	if (ResponseDataContainer.ClientAdjustment.bBaseRelativeVelocity)
+	{
+		// Convert Relative Velocity -> World Velocity
+		const FVector CurrentVelocity = NewVelocity;
+		MovementBaseUtility::TransformDirectionToWorld(NewBase, NewBaseBoneName, CurrentVelocity, NewVelocity);
+	}
 
 	// Trigger event
 	OnClientCorrectionReceived(*ClientData, TimeStamp, WorldShiftedNewLocation, NewVelocity, NewBase, NewBaseBoneName, bHasBase, bBaseRelativePosition, ServerMovementMode);
@@ -11803,9 +11827,9 @@ void FSavedMove_Character::PostUpdate(ACharacter* Character, FSavedMove_Characte
 		}
 
 		// Save off movement base-relative acceleration if needed
-		if (CharacterMovementCVars::UseBaseRelativeAcceleration && MovementBaseUtility::IsDynamicBase(MovementBase))
+		if (CharacterMovementCVars::NetUseBaseRelativeAcceleration && MovementBaseUtility::IsDynamicBase(MovementBase))
 		{
-			MovementBaseUtility::GetLocalMovementBaseAcceleration(EndBase.Get(), EndBoneName, Acceleration, SavedRelativeAcceleration);
+			MovementBaseUtility::TransformDirectionToLocal(EndBase.Get(), EndBoneName, Acceleration, SavedRelativeAcceleration);
 		}
 
 		// Attachment state
@@ -11933,7 +11957,7 @@ FVector FSavedMove_Character::GetRevertedLocation() const
 	if (MovementBaseUtility::UseRelativeLocation(MovementBase))
 	{
 		FVector WorldSpacePosition;
-		MovementBaseUtility::GetLocalMovementBaseLocationInWorldSpace(MovementBase, StartBoneName, StartRelativeLocation, WorldSpacePosition);
+		MovementBaseUtility::TransformLocationToWorld(MovementBase, StartBoneName, StartRelativeLocation, WorldSpacePosition);
 		return WorldSpacePosition;
 	}
 

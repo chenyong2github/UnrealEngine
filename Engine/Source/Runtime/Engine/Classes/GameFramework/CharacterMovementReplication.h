@@ -262,19 +262,21 @@ public:
 		, NewBaseBoneName(NAME_None)
 		, bAckGoodMove(false)
 		, bBaseRelativePosition(false)
+		, bBaseRelativeVelocity(false)
 		, MovementMode(0)
 	{
 	}
 
 	float TimeStamp;
 	float DeltaTime;
-	FVector NewLoc;
-	FVector NewVel;
+	FVector NewLoc; // Note: if bBaseRelativePosition is set, this is a relative location to the Movement base.
+	FVector NewVel; // Note: if bBaseRelativeVelocity is set, this is a relative velocity to the Movement base.
 	FRotator NewRot;
 	UPrimitiveComponent* NewBase;
 	FName NewBaseBoneName;
 	bool bAckGoodMove;
 	bool bBaseRelativePosition;
+	bool bBaseRelativeVelocity;
 	uint8 MovementMode;
 };
 
