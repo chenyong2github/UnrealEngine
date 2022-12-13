@@ -7,6 +7,7 @@
 #include "WaterBodyActor.h"
 #include "WaterInfoRendering.h"
 #include "EngineUtils.h"
+#include "LandscapeComponent.h"
 #include "LandscapeProxy.h"
 #include "WaterUtils.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -14,6 +15,7 @@
 #include "WaterBodyOceanComponent.h"
 #include "RenderCaptureInterface.h"
 #include "WaterViewExtension.h"
+#include "Algo/AnyOf.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WaterZoneActor)
 
@@ -82,7 +84,7 @@ void AWaterZone::SetZoneExtent(FVector2D NewExtent)
 	OnExtentChanged();
 }
 
-FBox2D AWaterZone::GetZoneBounds() const
+FBox2D AWaterZone::GetZoneBounds2D() const
 {
 	// GetZoneExtents returns the full extent of the zone but BoxSphereBounds expects a half-extent.
 	const FVector2D WaterZoneLocation = FVector2D(GetActorLocation());
@@ -90,6 +92,15 @@ FBox2D AWaterZone::GetZoneBounds() const
 	const FBox2D WaterZoneBounds(WaterZoneLocation - WaterZoneHalfExtent, WaterZoneLocation + WaterZoneHalfExtent);
 
 	return WaterZoneBounds;
+}
+
+FBox AWaterZone::GetZoneBounds() const
+{
+	const FBox2D ZoneBounds2D = GetZoneBounds2D();
+	// #todo_water [roey]: Water zone doesn't have an explicit z bounds yet. For now just use the x or y.
+	const double StreamingBoundsZ = FMath::Max(ZoneExtent.X, ZoneExtent.Y);
+
+	return FBox(FVector3d(ZoneBounds2D.Min, -StreamingBoundsZ / 2.), FVector3d(ZoneBounds2D.Max, StreamingBoundsZ / 2.0));
 }
 
 void AWaterZone::SetRenderTargetResolution(FIntPoint NewResolution)
@@ -103,6 +114,15 @@ void AWaterZone::BeginPlay()
 	Super::BeginPlay();
 
 	MarkForRebuild(EWaterZoneRebuildFlags::All);
+
+	FWorldDelegates::LevelAddedToWorld.AddUObject(this, &AWaterZone::OnLevelAddedToWorld);
+	FWorldDelegates::LevelRemovedFromWorld.AddUObject(this, &AWaterZone::OnLevelRemovedFromWorld);
+}
+
+void AWaterZone::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	FWorldDelegates::LevelAddedToWorld.RemoveAll(this);
+	FWorldDelegates::LevelRemovedFromWorld.RemoveAll(this);
 }
 
 void AWaterZone::PostLoadSubobjects(FObjectInstancingGraph* OuterInstanceGraph)
@@ -321,11 +341,7 @@ TUniquePtr<class FWorldPartitionActorDesc> AWaterZone::CreateClassActorDesc() co
 
 FBox AWaterZone::GetStreamingBounds() const
 {
-	const FBox2D ZoneBounds2D = GetZoneBounds();
-	// #todo_water [roey]: Water zone doesn't have an explicit z bounds yet. For now just use the x or y.
-	const double StreamingBoundsZ = FMath::Max(ZoneExtent.X, ZoneExtent.Y);
-
-	return FBox(FVector3d(ZoneBounds2D.Min, -StreamingBoundsZ / 2.), FVector3d(ZoneBounds2D.Max, StreamingBoundsZ / 2.0));
+	return GetZoneBounds();
 }
 
 #endif // WITH_EDITOR
@@ -426,7 +442,7 @@ bool AWaterZone::UpdateWaterInfoTexture()
 		float GroundZMax = TNumericLimits<float>::Lowest();
 
 		TArray<TWeakObjectPtr<AActor>> GroundActors;
-		const FBox WaterZoneBounds(GetActorLocation() - FVector(GetZoneExtent() / 2., 0.), GetActorLocation() + FVector(GetZoneExtent() / 2., 0));
+		const FBox WaterZoneBounds = GetZoneBounds();
 		for (ALandscapeProxy* LandscapeProxy : TActorRange<ALandscapeProxy>(World))
 		{
 			const FBox LandscapeBox = LandscapeProxy->GetComponentsBoundingBox();
@@ -546,3 +562,58 @@ float AWaterZone::GetNonTessellatedLODSectionSize() const
 	return WaterMesh->GetTileSize() * NonTessellatedLODSectionScale;
 }
 
+void AWaterZone::OnLevelAddedToWorld(ULevel* InLevel, UWorld* InWorld)
+{
+	OnLevelChanged(InLevel, InWorld);
+}
+
+void AWaterZone::OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld)
+{
+	OnLevelChanged(InLevel, InWorld);
+}
+
+void AWaterZone::OnLevelChanged(ULevel* InLevel, UWorld* InWorld)
+{
+	if ((InLevel == nullptr) || (InWorld != GetWorld()))
+	{
+		return;
+	}
+
+	const FBox WaterZoneBounds = GetZoneBounds();
+	const bool bContainsGroundActors = Algo::AnyOf(InLevel->Actors, [this, &WaterZoneBounds](const AActor* Actor)
+	{
+		return IsAffectingWaterZone(WaterZoneBounds, Actor);
+	});
+
+	if (bContainsGroundActors)
+	{
+		MarkForRebuild(EWaterZoneRebuildFlags::UpdateWaterInfoTexture);
+	}
+}
+
+bool AWaterZone::IsAffectingWaterZone(const FBox& InWaterZoneBounds, const AActor* InActor) const
+{
+	if (InActor == nullptr)
+	{
+		return false;
+	}
+
+	if (const ALandscapeProxy* LandscapeProxy = Cast<const ALandscapeProxy>(InActor))
+	{
+		bool bIntersectsWaterZone = false;
+
+		LandscapeProxy->ForEachComponent<ULandscapeComponent>(false, [&bIntersectsWaterZone, &InWaterZoneBounds](const ULandscapeComponent* LandscapeComponent)
+		{
+			if (!bIntersectsWaterZone && (LandscapeComponent != nullptr))
+			{
+				const FBox LandscapeBox = LandscapeComponent->Bounds.GetBox();
+
+				bIntersectsWaterZone = InWaterZoneBounds.IntersectXY(LandscapeBox) && (LandscapeBox.GetVolume() > 0.0);
+			}
+		});
+
+		return bIntersectsWaterZone;
+	}
+
+	return false;
+}

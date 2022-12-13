@@ -45,7 +45,8 @@ public:
 	FVector2D GetZoneExtent() const { return ZoneExtent; }
 	void SetZoneExtent(FVector2D NewExtents);
 
-	FBox2D GetZoneBounds() const;
+	FBox2D GetZoneBounds2D() const;
+	FBox GetZoneBounds() const;
 
 	void SetRenderTargetResolution(FIntPoint NewResolution);
 	FIntPoint GetRenderTargetResolution() const { return RenderTargetResolution; }
@@ -53,6 +54,7 @@ public:
 	uint32 GetVelocityBlurRadius() const { return VelocityBlurRadius; }
 
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void PostLoadSubobjects(FObjectInstancingGraph* OuterInstanceGraph) override;
 	virtual void PostLoad() override;
 #if WITH_EDITORONLY_DATA
@@ -98,6 +100,19 @@ private:
 	bool UpdateOverlappingWaterBodies();
 
 	void OnExtentChanged();
+
+	/** Delegates called when levels are added or removed from world. */
+	void OnLevelAddedToWorld(ULevel* InLevel, UWorld* InWorld);
+	void OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld);
+	void OnLevelChanged(ULevel* InLevel, UWorld* InWorld);
+
+	/** Returns true if the provided actor can affect waterzone resources.
+	 *
+	 * @param	InWaterZoneBounds	The bounds of this waterzone.
+	 * @param	InActor		The Actor to check
+	 * @return true if the provided actor can affect waterzone resources.
+	 */
+	bool IsAffectingWaterZone(const FBox& InWaterZoneBounds, const AActor* InActor) const;
 
 #if WITH_EDITOR
 	void OnActorSelectionChanged(const TArray<UObject*>& NewSelection, bool bForceRefresh);

@@ -533,7 +533,7 @@ void UWaterSubsystem::MarkWaterZonesInRegionForRebuild(const FBox2D& InUpdateReg
 	{
 		for (AWaterZone* WaterZone : TActorRange<AWaterZone>(World))
 		{
-			const FBox2D WaterZoneBounds = WaterZone->GetZoneBounds();
+			const FBox2D WaterZoneBounds = WaterZone->GetZoneBounds2D();
 
 			if (WaterZoneBounds.Intersect(InUpdateRegion))
 			{
@@ -580,7 +580,7 @@ TSoftObjectPtr<AWaterZone> UWaterSubsystem::FindWaterZone(const FBox2D& Bounds) 
 
 	for (AWaterZone* WaterZone : TActorRange<AWaterZone>(World, AWaterZone::StaticClass(), EActorIteratorFlags::SkipPendingKill))
 	{
-		const FBox2D WaterZoneBounds = WaterZone->GetZoneBounds();
+		const FBox2D WaterZoneBounds = WaterZone->GetZoneBounds2D();
 
 		if (Bounds.Intersect(WaterZoneBounds))
 		{
