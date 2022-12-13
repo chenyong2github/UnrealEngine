@@ -4,9 +4,24 @@
 #include "RenderGraphBuilder.h"
 #include "RHIStaticStates.h"
 #include "ShaderParameterUtils.h"
+#include "PipelineStateCache.h"
 
+FMediaVertexDeclaration::FMediaVertexDeclaration() = default;
+FMediaVertexDeclaration::~FMediaVertexDeclaration() = default;
 
+void FMediaVertexDeclaration::InitRHI()
+{
+	FVertexDeclarationElementList Elements;
+	uint16 Stride = sizeof(FMediaElementVertex);
+	Elements.Add(FVertexElement(0, STRUCT_OFFSET(FMediaElementVertex, Position), VET_Float4, 0, Stride));
+	Elements.Add(FVertexElement(0, STRUCT_OFFSET(FMediaElementVertex, TextureCoordinate), VET_Float2, 1, Stride));
+	VertexDeclarationRHI = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
+}
 
+void FMediaVertexDeclaration::ReleaseRHI()
+{
+	VertexDeclarationRHI.SafeRelease();
+}
 
 TGlobalResource<FMediaVertexDeclaration> GMediaVertexDeclaration;
 
