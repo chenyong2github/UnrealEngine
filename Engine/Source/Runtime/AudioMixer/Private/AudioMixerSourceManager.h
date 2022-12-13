@@ -324,18 +324,49 @@ namespace Audio
 			// and that source gets initialized after the command executes
 			bool bDeferExecution;
 		};
+		
 
 		struct FCurrentAudioMixerThreadCommandInfo
 		{
+		private:
 			FName CallerDebugInfo;
 			FThreadSafeCounter64 QueueTimeInCycles;
+			
+		public:
+			void SetNewTask(FName InTask);
+			FName GetCurrentTaskName() const
+			{
+				return CallerDebugInfo;
+			}
+
+			float GetCurrentExecutionTimeMs() const
+			{
+				if(!CallerDebugInfo.IsNone())
+				{
+					return static_cast<float>(FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64() - QueueTimeInCycles.GetValue()));
+				}
+				return 0.f; // no task currently running
+			}
 
 			void LogWarning() const;
 			void LogError() const;
 			void Reset();
 		};
 
-		FCurrentAudioMixerThreadCommandInfo CurrentAudioMixerThreadCommandInfo;
+		struct FScopedAudioThreadCommandInfo
+		{
+			// ctor - name the task, reset the counter
+			FScopedAudioThreadCommandInfo() = delete;
+			FScopedAudioThreadCommandInfo(FName InTaskName, FCurrentAudioMixerThreadCommandInfo& InInfoRef);
+
+			// dtor - reset the task name and counter (not in a function)
+			~FScopedAudioThreadCommandInfo();
+
+			FCurrentAudioMixerThreadCommandInfo& InfoRef;
+			
+		};
+
+		mutable FCurrentAudioMixerThreadCommandInfo CurrentAudioMixerThreadCommandInfo; // mutable to allow const functions to register debug info
 
 		void AudioMixerThreadCommand(TFunction<void()> InFunction, FName CallingFunction = {}, bool bInDeferExecution = false);
 
