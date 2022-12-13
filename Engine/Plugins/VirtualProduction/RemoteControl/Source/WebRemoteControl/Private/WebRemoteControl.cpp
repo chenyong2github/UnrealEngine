@@ -275,8 +275,8 @@ void FWebRemoteControlModule::StartupModule()
 		return;
 	}
 
-	// By default, disable web remote control in -game and packaged game.
-	if (!WebRemoteControl::IsWebControlEnabledInEditor())
+	// By default, disable web remote control in -game, packaged game and on build machines
+	if (!WebRemoteControl::IsWebControlEnabledInEditor() || GIsBuildMachine)
 	{
 		UE_LOG(LogRemoteControl, Display, TEXT("Web remote control is disabled by default when running outside the editor. Use the -RCWebControlEnable flag when launching in order to use it."));
 		return;

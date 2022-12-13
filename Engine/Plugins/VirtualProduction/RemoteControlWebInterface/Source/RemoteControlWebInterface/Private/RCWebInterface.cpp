@@ -31,8 +31,9 @@ namespace RCWebInterface
 #if WITH_EDITOR
 		bIsEditor = GIsEditor;
 #endif
-		// By default, remote control web interface is disabled in -game and packaged game.
-		return (!IsRunningCommandlet() && bIsEditor) || FParse::Param(FCommandLine::Get(), TEXT("RCWebInterfaceEnable"));
+
+		// By default, remote control web interface is disabled in -game, packaged game, and on build machines.
+		return !GIsBuildMachine || (!IsRunningCommandlet() && bIsEditor) || FParse::Param(FCommandLine::Get(), TEXT("RCWebInterfaceEnable"));
 	}
 }
 
