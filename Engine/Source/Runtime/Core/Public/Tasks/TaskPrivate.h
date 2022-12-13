@@ -114,7 +114,9 @@ namespace UE::Tasks
 				uint32 LocalRefCount = RefCount.fetch_sub(1, std::memory_order_acq_rel) - 1;
 				if (LocalRefCount == 0)
 				{
+#if !defined(__clang_analyzer__)
 					delete this;
+#endif
 				}
 			}
 
