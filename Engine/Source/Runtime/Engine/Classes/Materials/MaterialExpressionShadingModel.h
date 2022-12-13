@@ -7,6 +7,8 @@
 #include "Materials/MaterialExpression.h"
 #include "MaterialExpressionShadingModel.generated.h"
 
+class FMaterialCompiler;
+
 /**
  * Compile a select "blend" between ShadingModels
  *

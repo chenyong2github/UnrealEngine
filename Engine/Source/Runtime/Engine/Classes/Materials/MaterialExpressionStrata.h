@@ -7,6 +7,7 @@
 #include "Materials/MaterialExpression.h"
 #include "MaterialExpressionStrata.generated.h"
 
+class FMaterialCompiler;
 
 /**
  * Compile a special blend function for strata when blending material attribute

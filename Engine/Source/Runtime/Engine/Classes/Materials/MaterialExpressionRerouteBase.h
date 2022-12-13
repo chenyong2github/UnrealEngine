@@ -5,6 +5,8 @@
 #include "Materials/MaterialExpression.h"
 #include "MaterialExpressionRerouteBase.generated.h"
 
+class FMaterialExpressionKey;
+
 UCLASS(abstract)
 class ENGINE_API UMaterialExpressionRerouteBase : public UMaterialExpression
 {

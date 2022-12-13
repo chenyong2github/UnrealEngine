@@ -26,6 +26,7 @@
 #include "Misc/PackageName.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "TextureResource.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #define VISUALIZE_PACKING 0
 

@@ -16,6 +16,7 @@
 #include "Engine/Engine.h"
 #include "UnrealClient.h"
 #include "PostProcess/PostProcessTonemap.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 /**
  * Contrast Adaptive Shading (CAS) is a Tier 2 Variable Rate Shading method which generates a VRS image by examining the contrast from the previous frame.

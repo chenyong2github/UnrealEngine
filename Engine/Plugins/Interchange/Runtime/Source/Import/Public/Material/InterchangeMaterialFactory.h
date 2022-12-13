@@ -14,6 +14,7 @@ class UInterchangeBaseMaterialFactoryNode;
 class UInterchangeMaterialExpressionFactoryNode;
 class UMaterial;
 class UMaterialExpression;
+class UMaterialExpressionMaterialFunctionCall;
 class UMaterialInstance;
 
 UCLASS(BlueprintType)

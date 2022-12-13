@@ -7,6 +7,7 @@
 #include "StereoRendering.h"
 #include "SceneView.h"
 #include "UnrealClient.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 /* CVar values used to control generator behavior */
 
