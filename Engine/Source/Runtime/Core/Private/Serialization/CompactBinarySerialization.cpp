@@ -607,28 +607,68 @@ private:
 	bool bNeedsNewLine{false};
 };
 
-void CompactBinaryToJson(const FCbObjectView& Object, FUtf8StringBuilderBase& Builder)
+void CompactBinaryToJson(const FCbFieldView& Field, FUtf8StringBuilderBase& Builder)
 {
 	TCbJsonWriter<UTF8CHAR, ANSICHAR> Writer(Builder);
-	Writer.WriteField(Object.AsFieldView());
+	Writer.WriteField(Field);
+}
+
+void CompactBinaryToJson(const FCbFieldView& Field, FWideStringBuilderBase& Builder)
+{
+	TCbJsonWriter<WIDECHAR> Writer(Builder);
+	Writer.WriteField(Field);
+}
+
+void CompactBinaryToJson(const FCbArrayView& Array, FUtf8StringBuilderBase& Builder)
+{
+	CompactBinaryToJson(Array.AsFieldView(), Builder);
+}
+
+void CompactBinaryToJson(const FCbArrayView& Array, FWideStringBuilderBase& Builder)
+{
+	CompactBinaryToJson(Array.AsFieldView(), Builder);
+}
+
+void CompactBinaryToJson(const FCbObjectView& Object, FUtf8StringBuilderBase& Builder)
+{
+	CompactBinaryToJson(Object.AsFieldView(), Builder);
 }
 
 void CompactBinaryToJson(const FCbObjectView& Object, FWideStringBuilderBase& Builder)
 {
-	TCbJsonWriter<WIDECHAR> Writer(Builder);
-	Writer.WriteField(Object.AsFieldView());
+	CompactBinaryToJson(Object.AsFieldView(), Builder);
+}
+
+void CompactBinaryToCompactJson(const FCbFieldView& Field, FUtf8StringBuilderBase& Builder)
+{
+	TCbJsonWriter<UTF8CHAR, ANSICHAR> Writer(Builder, ANSITEXTVIEW(""), ANSITEXTVIEW(""), ANSITEXTVIEW(""));
+	Writer.WriteField(Field);
+}
+
+void CompactBinaryToCompactJson(const FCbFieldView& Field, FWideStringBuilderBase& Builder)
+{
+	TCbJsonWriter<WIDECHAR> Writer(Builder, WIDETEXTVIEW(""), WIDETEXTVIEW(""), WIDETEXTVIEW(""));
+	Writer.WriteField(Field);
+}
+
+void CompactBinaryToCompactJson(const FCbArrayView& Array, FUtf8StringBuilderBase& Builder)
+{
+	CompactBinaryToCompactJson(Array.AsFieldView(), Builder);
+}
+
+void CompactBinaryToCompactJson(const FCbArrayView& Array, FWideStringBuilderBase& Builder)
+{
+	CompactBinaryToCompactJson(Array.AsFieldView(), Builder);
 }
 
 void CompactBinaryToCompactJson(const FCbObjectView& Object, FUtf8StringBuilderBase& Builder)
 {
-	TCbJsonWriter<UTF8CHAR, ANSICHAR> Writer(Builder, ANSITEXTVIEW(""), ANSITEXTVIEW(""), ANSITEXTVIEW(""));
-	Writer.WriteField(Object.AsFieldView());
+	CompactBinaryToCompactJson(Object.AsFieldView(), Builder);
 }
 
 void CompactBinaryToCompactJson(const FCbObjectView& Object, FWideStringBuilderBase& Builder)
 {
-	TCbJsonWriter<WIDECHAR> Writer(Builder, WIDETEXTVIEW(""), WIDETEXTVIEW(""), WIDETEXTVIEW(""));
-	Writer.WriteField(Object.AsFieldView());
+	CompactBinaryToCompactJson(Object.AsFieldView(), Builder);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
