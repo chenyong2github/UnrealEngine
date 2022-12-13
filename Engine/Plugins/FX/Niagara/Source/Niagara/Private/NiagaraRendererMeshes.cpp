@@ -540,14 +540,16 @@ void FNiagaraRendererMeshes::InitializeSortInfo(const FParticleMeshRenderData& P
 		{
 			// Ensure we don't break the maximum number of planes here
 			// (For an accurate shadow frustum, a tight hull is formed from the silhouette and back-facing planes of the view frustum)
-			check(ShadowFrustum->Planes.Num() <= FNiagaraGPUSortInfo::MaxCullPlanes);
-			OutSortInfo.CullPlanes = ShadowFrustum->Planes;
-
-			// Remove pre-shadow translation to get the planes in world space
-			const FVector PreShadowTranslation = View.GetPreShadowTranslation();
-			for (FPlane& Plane : OutSortInfo.CullPlanes)
+			if (ensure(ShadowFrustum->Planes.Num() <= FNiagaraGPUSortInfo::MaxCullPlanes))
 			{
-				Plane.W -= FVector::DotProduct(FVector(Plane), PreShadowTranslation);
+				OutSortInfo.CullPlanes = ShadowFrustum->Planes;
+
+				// Remove pre-shadow translation to get the planes in world space
+				const FVector PreShadowTranslation = View.GetPreShadowTranslation();
+				for (FPlane& Plane : OutSortInfo.CullPlanes)
+				{
+					Plane.W -= FVector::DotProduct(FVector(Plane), PreShadowTranslation);
+				}
 			}
 		}
 		else
