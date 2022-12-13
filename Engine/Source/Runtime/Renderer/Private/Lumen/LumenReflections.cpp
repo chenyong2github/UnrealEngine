@@ -227,7 +227,7 @@ FAutoConsoleVariableRef GVarLumenReflectionsVisualizeTracingCoherency(
 
 static TAutoConsoleVariable<int32> CVarLumenReflectionsAsyncCompute(
 	TEXT("r.Lumen.Reflections.AsyncCompute"),
-	1,
+	0,
 	TEXT("Whether to run Lumen reflection passes on the compute pipe if possible."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
