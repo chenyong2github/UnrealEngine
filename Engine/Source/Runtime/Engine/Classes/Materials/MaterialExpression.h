@@ -7,7 +7,9 @@
 #include "UObject/Object.h"
 #include "UObject/UnrealType.h"
 #include "Misc/Guid.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "MaterialShared.h"
+#endif
 #include "MaterialExpressionIO.h"
 
 #include "MaterialExpression.generated.h"
@@ -16,7 +18,9 @@ class UEdGraphNode;
 class UMaterial;
 class UTexture;
 struct FPropertyChangedEvent;
+struct FMaterialParameterMetadata;
 struct FMaterialShadingModelField;
+struct FStrataMaterialInfo;
 struct FStrataOperator;
 
 class UMaterialExpression;
@@ -26,6 +30,7 @@ class UMaterialExpressionExecEnd;
 
 class FMaterialHLSLGenerator;
 enum class EMaterialNewScopeFlag : uint8;
+enum class EMaterialParameterType : uint8;
 
 namespace UE
 {

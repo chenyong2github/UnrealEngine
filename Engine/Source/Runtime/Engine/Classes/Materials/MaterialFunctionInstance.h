@@ -17,18 +17,9 @@ class UMaterialFunctionInstance : public UMaterialFunctionInterface
 {
 	GENERATED_UCLASS_BODY()
 
-	void SetParent(UMaterialFunctionInterface* NewParent)
-	{
-		Parent = NewParent;
-		MaterialFunctionUsage = NewParent->GetMaterialFunctionUsage();
-		Base = GetBaseFunction();
-	}
+	ENGINE_API void SetParent(UMaterialFunctionInterface* NewParent);
 
-	virtual EMaterialFunctionUsage GetMaterialFunctionUsage() override
-	{
-		UMaterialFunctionInterface* BaseFunction = GetBaseFunction();
-		return BaseFunction ? BaseFunction->GetMaterialFunctionUsage() : EMaterialFunctionUsage::Default;
-	}
+	virtual EMaterialFunctionUsage GetMaterialFunctionUsage() override;
 
 	/** Parent function. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=MaterialFunctionInstance, AssetRegistrySearchable)

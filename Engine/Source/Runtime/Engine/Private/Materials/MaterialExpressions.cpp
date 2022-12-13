@@ -14717,6 +14717,19 @@ UMaterialFunctionInstance::UMaterialFunctionInstance(const FObjectInitializer& O
 #endif
 }
 
+void UMaterialFunctionInstance::SetParent(UMaterialFunctionInterface* NewParent)
+{
+	Parent = NewParent;
+	MaterialFunctionUsage = NewParent->GetMaterialFunctionUsage();
+	Base = GetBaseFunction();
+}
+
+EMaterialFunctionUsage UMaterialFunctionInstance::GetMaterialFunctionUsage()
+{
+	UMaterialFunctionInterface* BaseFunction = GetBaseFunction();
+	return BaseFunction ? BaseFunction->GetMaterialFunctionUsage() : EMaterialFunctionUsage::Default;
+}
+
 UMaterialFunction* UMaterialFunctionInstance::GetBaseFunction(FMFRecursionGuard RecursionGuard)
 {
 	if (!Parent || RecursionGuard.Contains(this))

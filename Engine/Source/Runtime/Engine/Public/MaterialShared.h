@@ -1605,35 +1605,19 @@ public:
 
 	ENGINE_API static void DeferredDelete(FMaterial* Material);
 
-	template<typename TMaterial>
-	static void DeleteMaterialsOnRenderThread(TArray<TRefCountPtr<TMaterial>>& MaterialsRenderThread)
-	{
-		if (MaterialsRenderThread.Num() > 0)
-		{
-			ENQUEUE_RENDER_COMMAND(DeferredDestroyMaterialArray)([MaterialsRenderThread = MoveTemp(MaterialsRenderThread)](FRHICommandListImmediate& RHICmdList) mutable
-			{
-				for (auto& Material : MaterialsRenderThread)
-				{
-					TMaterial* MaterialToDestroy = Material.GetReference();
-					MaterialToDestroy->PrepareDestroy_RenderThread();
-					Material.SafeRelease();
-					delete MaterialToDestroy;
-				}
-			});
-		}
-	}
+	ENGINE_API static void DeleteMaterialsOnRenderThread(TArray<TRefCountPtr<FMaterial>>& MaterialsRenderThread);
 
 	template<typename TMaterial>
 	static void DeferredDeleteArray(TArray<TRefCountPtr<TMaterial>>& Materials)
 	{
 		if (Materials.Num() > 0)
 		{
-			TArray<TRefCountPtr<TMaterial>> MaterialsRenderThread;
+			TArray<TRefCountPtr<FMaterial>> MaterialsRenderThread;
 			for (TRefCountPtr<TMaterial>& Material : Materials)
 			{
-				TMaterial* MaterialToDestroy = Material.GetReference();
+				FMaterial* MaterialToDestroy = Material.GetReference();
 				MaterialToDestroy->PrepareDestroy_GameThread();
-				MaterialsRenderThread.Add(MoveTemp(Material));
+				MaterialsRenderThread.Emplace(MoveTemp(Material));
 			}
 
 			Materials.Empty();
@@ -1646,11 +1630,11 @@ public:
 	{
 		if (Materials.Num() > 0)
 		{
-			TArray<TRefCountPtr<TMaterial>> MaterialsRenderThread;
-			for (TMaterial* Material : Materials)
+			TArray<TRefCountPtr<FMaterial>> MaterialsRenderThread;
+			for (FMaterial* Material : Materials)
 			{
 				Material->PrepareDestroy_GameThread();
-				MaterialsRenderThread.Add(Material);
+				MaterialsRenderThread.Emplace(Material);
 			}
 
 			Materials.Empty();

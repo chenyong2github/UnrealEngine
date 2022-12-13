@@ -11,9 +11,13 @@
 #include "Materials/MaterialInterface.h"
 #include "MaterialShared.h"
 #include "MaterialExpressionIO.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "Materials/MaterialExpressionMaterialAttributeLayers.h"
 #include "Materials/MaterialFunction.h"
+#endif
+#include "Materials/MaterialExpression.h"
+#include "Materials/MaterialFunctionInterface.h"
 #include "Materials/MaterialLayersFunctions.h"
 #include "Materials/MaterialOverrideNanite.h"
 #include "Templates/UniquePtr.h"
@@ -1283,81 +1287,9 @@ public:
 	ENGINE_API virtual bool IsComplete() const override;
 
 #if WITH_EDITORONLY_DATA
-	/**
-	 * @param	OutParameterNames		Storage array for the parameter names.
-	 * @param	OutParameterIds			Storage array for the parameter id's.
-	 *
-	 * @return	Returns a array of parameter names used in this material for the specified expression type.
-	 */
-	template<typename ExpressionType>
-	UE_DEPRECATED(5.0, "Use GetAllParameterInfoOfType or GetAllParametersOfType")
-	void GetAllParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
-	{
-		for (const TObjectPtr<UMaterialExpression>& Expression : GetExpressions())
-		{
-			FMaterialParameterInfo BaseParameterInfo;
-			BaseParameterInfo.Association = EMaterialParameterAssociation::GlobalParameter;
-			BaseParameterInfo.Index = INDEX_NONE;
-
-			// Note: Intentionally checking the requested type first as this catches MaterialLayers
-			// which are a top-level only parameter without having to deal with the below recursion
-			if (const ExpressionType* ParameterExpression = Cast<const ExpressionType>(Expression))
-			{
-				PRAGMA_DISABLE_DEPRECATION_WARNINGS
-				ParameterExpression->GetAllParameterInfo(OutParameterInfo, OutParameterIds, BaseParameterInfo);
-				PRAGMA_ENABLE_DEPRECATION_WARNINGS
-			}
-			else if (const UMaterialExpressionMaterialFunctionCall* FunctionExpression = Cast<const UMaterialExpressionMaterialFunctionCall>(Expression))
-			{
-				if (FunctionExpression->MaterialFunction)
-				{
-					PRAGMA_DISABLE_DEPRECATION_WARNINGS
-					FunctionExpression->MaterialFunction->GetAllParameterInfo<ExpressionType>(OutParameterInfo, OutParameterIds, BaseParameterInfo);
-					PRAGMA_ENABLE_DEPRECATION_WARNINGS
-				}
-			}
-			else if (const UMaterialExpressionMaterialAttributeLayers* LayersExpression = Cast<const UMaterialExpressionMaterialAttributeLayers>(Expression))
-			{
-				const TArray<UMaterialFunctionInterface*>* Layers = &LayersExpression->GetLayers();
-				const TArray<UMaterialFunctionInterface*>* Blends = &LayersExpression->GetBlends();
-
-				for (int32 LayerIndex = 0; LayerIndex < Layers->Num(); ++LayerIndex)
-				{
-					if (const UMaterialFunctionInterface* Layer = (*Layers)[LayerIndex])
-					{
-						BaseParameterInfo.Association = EMaterialParameterAssociation::LayerParameter;
-						BaseParameterInfo.Index = LayerIndex;
-						PRAGMA_DISABLE_DEPRECATION_WARNINGS
-						Layer->GetAllParameterInfo<ExpressionType>(OutParameterInfo, OutParameterIds, BaseParameterInfo);
-						PRAGMA_ENABLE_DEPRECATION_WARNINGS
-					}
-				}
-
-				for (int32 BlendIndex = 0; BlendIndex < Blends->Num(); ++BlendIndex)
-				{
-					if (const UMaterialFunctionInterface* Blend = (*Blends)[BlendIndex])
-					{
-						BaseParameterInfo.Association = EMaterialParameterAssociation::BlendParameter;
-						BaseParameterInfo.Index = BlendIndex;
-						PRAGMA_DISABLE_DEPRECATION_WARNINGS
-						Blend->GetAllParameterInfo<ExpressionType>(OutParameterInfo, OutParameterIds, BaseParameterInfo);
-						PRAGMA_ENABLE_DEPRECATION_WARNINGS
-					}
-				}
-			}
-
-			check(OutParameterInfo.Num() == OutParameterIds.Num());
-		}
-	}
-#endif // WITH_EDITORONLY_DATA
-
-#if WITH_EDITORONLY_DATA
 	ENGINE_API virtual bool IterateDependentFunctions(TFunctionRef<bool(UMaterialFunctionInterface*)> Predicate) const override;
 	ENGINE_API virtual void GetDependentFunctions(TArray<class UMaterialFunctionInterface*>& DependentFunctions) const override;
 #endif // WITH_EDITORONLY_DATA
-
-	UE_DEPRECATED(5.0, "No longer used.")
-	uint32 GetDecalBlendMode() const { return DecalBlendMode; }
 
 	/** Returns the material's decal response mode */
 	uint32 GetMaterialDecalResponse() const { return MaterialDecalResponse; }
@@ -1390,6 +1322,15 @@ public:
 		}
 	}
 
+	static ENGINE_API UMaterialFunctionInterface* GetExpressionFunctionPointer(const UMaterialExpression* Expression);
+
+	struct FLayersInterfaces
+	{
+		TConstArrayView<UMaterialFunctionInterface*> Layers;
+		TConstArrayView<UMaterialFunctionInterface*> Blends;
+	};
+	static ENGINE_API TOptional<FLayersInterfaces> GetExpressionLayers(const UMaterialExpression* Expression);
+
 	/** Get all expressions of the requested type, recursing through any function expressions in the material */
 	template<typename ExpressionType>
 	void GetAllExpressionsInMaterialAndFunctionsOfType(TArray<ExpressionType*>& OutExpressions) const
@@ -1402,19 +1343,13 @@ public:
 				OutExpressions.Add(ExpressionOfType);
 			}
 
-			UMaterialExpressionMaterialFunctionCall* ExpressionFunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression);
-			UMaterialExpressionMaterialAttributeLayers* LayersExpression = Cast<UMaterialExpressionMaterialAttributeLayers>(Expression);
-
-			if (ExpressionFunctionCall && ExpressionFunctionCall->MaterialFunction)
+			if (UMaterialFunctionInterface* MaterialFunction = GetExpressionFunctionPointer(Expression))
 			{
-				ExpressionFunctionCall->MaterialFunction->GetAllExpressionsOfType<ExpressionType>(OutExpressions);
+				MaterialFunction->GetAllExpressionsOfType<ExpressionType>(OutExpressions);
 			}
-			else if (LayersExpression)
+			else if (TOptional<FLayersInterfaces> LayersInterfaces = GetExpressionLayers(Expression))
 			{
-				const TArray<UMaterialFunctionInterface*>& Layers = LayersExpression->GetLayers();
-				const TArray<UMaterialFunctionInterface*>& Blends = LayersExpression->GetBlends();
-
-				for (auto* Layer : Layers)
+				for (UMaterialFunctionInterface* Layer : LayersInterfaces->Layers)
 				{
 					if (Layer)
 					{
@@ -1422,7 +1357,7 @@ public:
 					}
 				}
 
-				for (auto* Blend : Blends)
+				for (UMaterialFunctionInterface* Blend : LayersInterfaces->Blends)
 				{
 					if (Blend)
 					{
@@ -1445,22 +1380,16 @@ public:
 				return true;
 			}
 
-			UMaterialExpressionMaterialFunctionCall* ExpressionFunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression);
-			UMaterialExpressionMaterialAttributeLayers* LayersExpression = Cast<UMaterialExpressionMaterialAttributeLayers>(Expression);
-
-			if (ExpressionFunctionCall)
+			if (UMaterialFunctionInterface* MaterialFunction = GetExpressionFunctionPointer(Expression))
 			{
-				if (ExpressionFunctionCall->MaterialFunction && ExpressionFunctionCall->MaterialFunction->HasAnyExpressionsOfType<ExpressionType>())
+				if (MaterialFunction->HasAnyExpressionsOfType<ExpressionType>())
 				{
 					return true;
 				}
 			}
-			else if (LayersExpression)
+			else if (TOptional<FLayersInterfaces> LayersInterfaces = GetExpressionLayers(Expression))
 			{
-				const TArray<UMaterialFunctionInterface*>& Layers = LayersExpression->GetLayers();
-				const TArray<UMaterialFunctionInterface*>& Blends = LayersExpression->GetBlends();
-
-				for (auto* Layer : Layers)
+				for (auto* Layer : LayersInterfaces->Layers)
 				{
 					if (Layer && Layer->HasAnyExpressionsOfType<ExpressionType>())
 					{
@@ -1468,7 +1397,7 @@ public:
 					}
 				}
 
-				for (auto* Blend : Blends)
+				for (auto* Blend : LayersInterfaces->Blends)
 				{
 					if (Blend && Blend->HasAnyExpressionsOfType<ExpressionType>())
 					{
@@ -1858,27 +1787,22 @@ private:
 		for (int32 ExpressionIndex = 0; ExpressionIndex < InMaterialExpression.Num(); ExpressionIndex++)
 		{
 			UMaterialExpression* ExpressionPtr = InMaterialExpression[ExpressionIndex];
-			UMaterialExpressionMaterialFunctionCall* MaterialFunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(ExpressionPtr);
-			UMaterialExpressionMaterialAttributeLayers* MaterialLayers = Cast<UMaterialExpressionMaterialAttributeLayers>(ExpressionPtr);
 
 			if (ExpressionPtr && ExpressionPtr->GetParameterExpressionId() == InGUID)
 			{
 				check(ExpressionPtr->bIsParameterExpression);
 				return Cast<ExpressionType>(ExpressionPtr);
 			}
-			else if (MaterialFunctionCall && MaterialFunctionCall->MaterialFunction)
+			else if (UMaterialFunctionInterface* MaterialFunction = GetExpressionFunctionPointer(ExpressionPtr))
 			{
-				if (ExpressionType* Expression = FindExpressionByGUIDRecursive<ExpressionType>(InGUID, MaterialFunctionCall->MaterialFunction->GetExpressions()))
+				if (ExpressionType* Expression = FindExpressionByGUIDRecursive<ExpressionType>(InGUID, MaterialFunction->GetExpressions()))
 				{
 					return Expression;
 				}
 			}
-			else if (MaterialLayers)
+			else if (TOptional<FLayersInterfaces> LayersInterfaces = UMaterial::GetExpressionLayers(ExpressionPtr))
 			{
-				const TArray<UMaterialFunctionInterface*>& Layers = MaterialLayers->GetLayers();
-				const TArray<UMaterialFunctionInterface*>& Blends = MaterialLayers->GetBlends();
-
-				for (const auto* Layer : Layers)
+				for (const auto* Layer : LayersInterfaces->Layers)
 				{
 					if (Layer)
 					{
@@ -1889,7 +1813,7 @@ private:
 					}
 				}
 
-				for (const auto* Blend : Blends)
+				for (const auto* Blend : LayersInterfaces->Blends)
 				{
 					if (Blend)
 					{

@@ -31,6 +31,7 @@
 #include "MaterialCompiler.h"
 #include "MeshMaterialShaderType.h"
 #include "RendererInterface.h"
+#include "RenderingThread.h"
 #include "Materials/HLSLMaterialTranslator.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "EngineModule.h"
@@ -2203,6 +2204,23 @@ void FMaterial::DeferredDelete(FMaterial* InMaterial)
 		{
 			delete InMaterial;
 		}
+	}
+}
+
+void FMaterial::DeleteMaterialsOnRenderThread(TArray<TRefCountPtr<FMaterial>>& MaterialsRenderThread)
+{
+	if (MaterialsRenderThread.Num() > 0)
+	{
+		ENQUEUE_RENDER_COMMAND(DeferredDestroyMaterialArray)([MaterialsRenderThread = MoveTemp(MaterialsRenderThread)](FRHICommandListImmediate& RHICmdList) mutable
+		{
+			for (TRefCountPtr<FMaterial>& Material : MaterialsRenderThread)
+			{
+				FMaterial* MaterialToDestroy = Material.GetReference();
+				MaterialToDestroy->PrepareDestroy_RenderThread();
+				Material.SafeRelease();
+				delete MaterialToDestroy;
+			}
+		});
 	}
 }
 

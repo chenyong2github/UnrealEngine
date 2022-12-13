@@ -7,10 +7,13 @@
 #include "UObject/Object.h"
 #include "Misc/Guid.h"
 #include "Templates/Casts.h"
+#include "MaterialRecursionGuard.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "Materials/MaterialExpressionFontSampleParameter.h"
 #include "Materials/MaterialExpressionParameter.h"
 #include "Materials/MaterialExpressionTextureSampleParameter.h"
+#endif
 #include "StaticParameterSet.h"
 #include "MaterialFunctionInterface.generated.h"
 
@@ -19,6 +22,10 @@ class UMaterialFunction;
 class UTexture;
 struct FPropertyChangedEvent;
 class FMaterialHLSLGenerator;
+class FMaterialUpdateContext;
+class UMaterialInterface;
+class UMaterialExpression;
+struct FFunctionExpressionOutput;
 
 /** Usage set on a material function determines feature compatibility and validation. */
 UENUM()
@@ -182,38 +189,6 @@ public:
 #endif // WITH_EDITOR
 
 public:
-#if WITH_EDITORONLY_DATA
-	/** Finds the names of all matching type parameters */
-	template<typename ExpressionType>
-	UE_DEPRECATED(5.0, "Use GetAllParameterInfoOfType or GetAllParametersOfType")
-	void GetAllParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const
-	{
-		if (const UMaterialFunctionInterface* ParameterFunction = GetBaseFunctionInterface())
-		{
-			const UClass* TargetClass = UMaterialExpressionMaterialFunctionCall::StaticClass();
-			for (const TObjectPtr<UMaterialExpression>& Expression : ParameterFunction->GetExpressions())
-			{
-				if (const UMaterialExpressionMaterialFunctionCall* FunctionExpression = (Expression && Expression.IsA(TargetClass)) ? (const UMaterialExpressionMaterialFunctionCall*)Expression.Get() : nullptr)
-				{
-					if (FunctionExpression->MaterialFunction)
-					{
-						PRAGMA_DISABLE_DEPRECATION_WARNINGS
-						FunctionExpression->MaterialFunction->GetAllParameterInfo<const ExpressionType>(OutParameterInfo, OutParameterIds, InBaseParameterInfo);
-						PRAGMA_ENABLE_DEPRECATION_WARNINGS
-					}
-				}
-				else if (const ExpressionType* ParameterExpression = Cast<const ExpressionType>(Expression))
-				{
-					PRAGMA_DISABLE_DEPRECATION_WARNINGS
-					ParameterExpression->GetAllParameterInfo(OutParameterInfo, OutParameterIds, InBaseParameterInfo);
-					PRAGMA_ENABLE_DEPRECATION_WARNINGS
-				}
-			}
-
-			check(OutParameterInfo.Num() == OutParameterIds.Num());
-		}
-	}
-#endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
 	/** Finds the first matching parameter by name and type */
