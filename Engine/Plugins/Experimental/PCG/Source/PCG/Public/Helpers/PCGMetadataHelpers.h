@@ -6,6 +6,6 @@ class UPCGMetadata;
 
 namespace PCGMetadataHelpers
 {
-	bool HasSameRoot(const UPCGMetadata* Metadata1, const UPCGMetadata* Metadata2);
-	const UPCGMetadata* GetParentMetadata(const UPCGMetadata* Metadata);
+	PCG_API bool HasSameRoot(const UPCGMetadata* Metadata1, const UPCGMetadata* Metadata2);
+	PCG_API const UPCGMetadata* GetParentMetadata(const UPCGMetadata* Metadata);
 }
