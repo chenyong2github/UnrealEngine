@@ -986,7 +986,7 @@ public:
 	void UpdateFromParameterSet(const FStaticParameterSet& StaticParameters);
 
 	/** Appends string representations of this Id to a key string. */
-	void AppendKeyString(FString& KeyString) const;
+	void AppendKeyString(FString& KeyString, bool bIncludeSourceHashes = true) const;
 	void AppendStaticParametersString(FString& ParamsString) const;
 
 	const TArray<FStaticSwitchParameter> &GetStaticSwitchParameters() const 					{ return StaticSwitchParameters; }
@@ -1861,8 +1861,8 @@ public:
 	virtual FString GetAssetName() const { return GetFriendlyName(); }
 
 #if WITH_EDITOR
-	/** Similar to GetAssetName, but appends a hash of the asset path and static switch params (if editoronly data is available)
-	to differentiate materials that would collide when considering name alone. */
+	/** Similar to GetFriendlyName, but appends a hash of shader map ID portion of the DDC key (excluding source file hashes) to differentiate materials/material 
+		instances that would collide when considering the base material name alone (this name is used when creating debug output paths for disambiguation). */
 	ENGINE_API FString GetUniqueAssetName(EShaderPlatform Platform, const FMaterialShaderMapId& ShaderMapId) const;
 #else
 	/** GetUniqueAssetName just returns GetAssetName in non-editor builds */

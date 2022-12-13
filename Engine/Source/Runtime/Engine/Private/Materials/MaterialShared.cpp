@@ -2491,6 +2491,8 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 
 	// Just make sure that we don't already have a pending cache going on.
 	FinishCacheShaders();
+	
+	bool bBeginFoundCompiling = false;
 #endif // WITH_EDITOR
 
 	// If we loaded this material with inline shaders, use what was loaded (GameThreadShaderMap) instead of looking in the DDC
@@ -2525,10 +2527,13 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 			TRefCountPtr<FMaterialShaderMap> ShaderMap = FMaterialShaderMap::FindId(ShaderMapId, Platform);
 			if (ShaderMap)
 			{
+				// another material has registered this shader map and its compilation is in-progress
+				// we only need to ensure it contains all shaders required for this material
 				if (ShaderMap->GetCompilingId() != 0u)
 				{
 					SetCompilingShaderMap(ShaderMap);
 					ShaderMap = ShaderMap->GetFinalizedClone();
+					bBeginFoundCompiling = true;
 				}
 			}
 
@@ -2556,17 +2561,42 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 	// FinishCacheShaders once the DDC call initiated in BeginLoadFromDerivedDataCache above has finished.
 	// For client builds, this is executed in place without any lambda.
 #if WITH_EDITOR
-	CacheShadersCompletion = [this, Platform, ShaderMapId, DDCKeyHash, PrecompileMode, TargetPlatform, CompletionCallback = MoveTemp(CompletionCallback)]() {
+	CacheShadersCompletion = [this, Platform, ShaderMapId, DDCKeyHash, bBeginFoundCompiling, PrecompileMode, TargetPlatform, CompletionCallback = MoveTemp(CompletionCallback)]() {
 
 	ON_SCOPE_EXIT{ CacheShadersCompletion.Reset(); };
-
-	if (CacheShadersPending.IsValid())
+	
+	bool bFoundCompiling = bBeginFoundCompiling;
+	if (!GameThreadShaderMap)
 	{
-		TRefCountPtr<FMaterialShaderMap> LoadedShaderMap = CacheShadersPending->Get();
-		CacheShadersPending.Reset();
-
-		check(!LoadedShaderMap || LoadedShaderMap->GetFrozenContentSize() > 0u);
-		SetGameThreadShaderMap(LoadedShaderMap);
+		TRefCountPtr<FMaterialShaderMap> ShaderMap;
+		check(!bFoundCompiling); // sanity check
+		if (CacheShadersPending.IsValid()) // we started a load above, check the result
+		{
+			ShaderMap = CacheShadersPending->Get();
+			CacheShadersPending.Reset();
+		}
+		
+		if (!ShaderMap) // if we still don't have a shader map it wasn't initially in the inprocess cache and also was not in the DDC
+		{
+			// we need to check again if another material has created, registered and began compilation on the shader map we need
+			// since our previous call to FMaterialShaderMap::FindId in BeginCacheShaders
+			// this can occur if multiple materials referencing the same shadermap get a BeginCacheShaders call in the same tick
+			ShaderMap = FMaterialShaderMap::FindId(ShaderMapId, Platform);
+			if (ShaderMap)
+			{
+				// as above, it's possible (and in this case likely) that if we found a shader map that its compilation is already
+				// in progress, triggered by another material being processed in this tick. similarly we need to check that it contains
+				// all shaders required for this material (and queue compilation for any that are missing).
+				if (ShaderMap->GetCompilingId() != 0u)
+				{
+					SetCompilingShaderMap(ShaderMap);
+					ShaderMap = ShaderMap->GetFinalizedClone();
+					bFoundCompiling = true;
+				}
+			}
+		}
+		check(!ShaderMap || ShaderMap->GetFrozenContentSize() > 0u);
+		SetGameThreadShaderMap(ShaderMap);
 	}
 
 	// some of the above paths did not mark the shader map as associated with an asset, do so
@@ -2579,11 +2609,19 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 	UMaterialInterface* MaterialInterface = GetMaterialInterface();
 	const bool bMaterialInstance = MaterialInterface && MaterialInterface->IsA(UMaterialInstance::StaticClass());
 	const bool bRequiredComplete = !bMaterialInstance && IsRequiredComplete();
+	
 
 	bool bShaderMapValid = (bool)GameThreadShaderMap;
+#if WITH_EDITOR
+	if (bShaderMapValid && bRequiredComplete && !bFoundCompiling)
+#else
 	if (bShaderMapValid && bRequiredComplete)
+#endif
 	{
 		// Special engine materials (default materials) are required to be complete
+		// We can bypass this check in the case where we found a "required complete" shader map whose compilation is in progress;
+		// we will check if it's complete below and queue any jobs necessary if not (we only need to log warnings if we found a map without
+		// compilation in progress that is incomplete).
 		bShaderMapValid = GameThreadShaderMap->IsComplete(this, false);
 	}
 
@@ -2717,10 +2755,12 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 #if WITH_EDITOR
 FString FMaterial::GetUniqueAssetName(EShaderPlatform Platform, const FMaterialShaderMapId& ShaderMapId) const
 {
-	FString ToHash = GetAssetPath().GetPlainNameString();
-	ShaderMapId.AppendStaticParametersString(ToHash);
-	uint64 Hash = CityHash64((const char*)*ToHash, ToHash.Len());
-	return FString::Printf(TEXT("%s_%llx"), *GetAssetName(), Hash);
+	FString IdKeyStr;
+	// append the portion of the DDC key string associated with the shadermapid, but exclude the source code
+	// hashes, such that this name remains stable when source code edits are applied (including version bumps)
+	ShaderMapId.AppendKeyString(IdKeyStr, /* bIncludeSourceHashes */ false);
+	uint64 Hash = CityHash64((const char*)*IdKeyStr, IdKeyStr.Len() * sizeof(TCHAR));
+	return FString::Printf(TEXT("%s_%llx"), *GetFriendlyName(), Hash);
 }
 #endif // WITH_EDITOR
 

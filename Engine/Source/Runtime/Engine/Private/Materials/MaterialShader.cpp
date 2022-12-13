@@ -1027,7 +1027,7 @@ void FMaterialShaderMapId::AppendStaticParametersString(FString& ParamsString) c
 	}
 }
 
-void FMaterialShaderMapId::AppendKeyString(FString& KeyString) const
+void FMaterialShaderMapId::AppendKeyString(FString& KeyString, bool bIncludeSourceHashes) const
 {
 	check(IsContentValid());
 	BaseMaterialId.AppendString(KeyString);
@@ -1086,7 +1086,8 @@ void FMaterialShaderMapId::AppendKeyString(FString& KeyString) const
 		MakeArrayView(ShaderPipelineTypeDependencies),
 		MakeArrayView(VertexFactoryTypeDependencies),
 		LayoutParams, 
-		KeyString);
+		KeyString,
+		bIncludeSourceHashes);
 
 	BytesToHex(&TextureReferencesHash.Hash[0], sizeof(TextureReferencesHash.Hash), KeyString);
 

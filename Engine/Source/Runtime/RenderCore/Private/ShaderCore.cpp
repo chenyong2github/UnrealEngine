@@ -1781,7 +1781,8 @@ FSHAHash GetShaderTypeLayoutHash(const FTypeLayoutDesc& TypeDesc, FPlatformTypeL
 void AppendKeyStringShaderDependencies(
 	TConstArrayView<FShaderTypeDependency> ShaderTypeDependencies,
 	FPlatformTypeLayoutParameters LayoutParams,
-	FString& OutKeyString)
+	FString& OutKeyString,
+	bool bIncludeSourceHashes)
 {
 	// Simplified interface if we only have ShaderTypeDependencies
 	AppendKeyStringShaderDependencies(
@@ -1789,7 +1790,8 @@ void AppendKeyStringShaderDependencies(
 		TConstArrayView<FShaderPipelineTypeDependency>(),
 		TConstArrayView<FVertexFactoryTypeDependency>(),
 		LayoutParams,
-		OutKeyString);
+		OutKeyString,
+		bIncludeSourceHashes);
 }
 
 void AppendKeyStringShaderDependencies(
@@ -1797,7 +1799,8 @@ void AppendKeyStringShaderDependencies(
 	TConstArrayView<FShaderPipelineTypeDependency> ShaderPipelineTypeDependencies,
 	TConstArrayView<FVertexFactoryTypeDependency> VertexFactoryTypeDependencies,
 	FPlatformTypeLayoutParameters LayoutParams,
-	FString& OutKeyString)
+	FString& OutKeyString,
+	bool bIncludeSourceHashes)
 {
 	TSet<const TCHAR*> ReferencedUniformBufferNames;
 
@@ -1815,8 +1818,11 @@ void AppendKeyStringShaderDependencies(
 		OutKeyString.AppendChar('_');
 		OutKeyString.AppendInt(GetRayTracingPayloadTypeMaxSize(RayTracingPayloadType));
 
-		// Add the type's source hash so that we can invalidate cached shaders when .usf changes are made
-		ShaderTypeDependency.SourceHash.AppendString(OutKeyString);
+		if (bIncludeSourceHashes)
+		{
+			// Add the type's source hash so that we can invalidate cached shaders when .usf changes are made
+			ShaderTypeDependency.SourceHash.AppendString(OutKeyString);
+		}
 
 		if (const FShaderParametersMetadata* ParameterStructMetadata = ShaderType->GetRootParametersMetadata())
 		{
@@ -1840,7 +1846,11 @@ void AppendKeyStringShaderDependencies(
 
 		OutKeyString.AppendChar('_');
 		OutKeyString.Append(ShaderPipelineType->GetName());
-		Dependency.StagesSourceHash.AppendString(OutKeyString);
+
+		if (bIncludeSourceHashes)
+		{
+			Dependency.StagesSourceHash.AppendString(OutKeyString);
+		}
 
 		for (const FShaderType* ShaderType : ShaderPipelineType->GetStages())
 		{
@@ -1863,7 +1873,11 @@ void AppendKeyStringShaderDependencies(
 		const FVertexFactoryType* VertexFactoryType = FVertexFactoryType::GetVFByName(VFDependency.VertexFactoryTypeName);
 
 		OutKeyString.Append(VertexFactoryType->GetName());
-		VFDependency.VFSourceHash.AppendString(OutKeyString);
+
+		if (bIncludeSourceHashes)
+		{
+			VFDependency.VFSourceHash.AppendString(OutKeyString);
+		}
 
 		for (int32 Frequency = 0; Frequency < SF_NumFrequencies; Frequency++)
 		{

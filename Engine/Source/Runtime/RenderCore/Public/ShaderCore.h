@@ -1147,14 +1147,16 @@ class FVertexFactoryTypeDependency;
 extern RENDERCORE_API void AppendKeyStringShaderDependencies(
 	TConstArrayView<FShaderTypeDependency> ShaderTypeDependencies,
 	FPlatformTypeLayoutParameters LayoutParams,
-	FString& OutKeyString);
+	FString& OutKeyString,
+	bool bIncludeSourceHashes = true);
 
 extern RENDERCORE_API void AppendKeyStringShaderDependencies(
 	TConstArrayView<FShaderTypeDependency> ShaderTypeDependencies,
 	TConstArrayView<FShaderPipelineTypeDependency> ShaderPipelineTypeDependencies,
 	TConstArrayView<FVertexFactoryTypeDependency> VertexFactoryTypeDependencies,
 	FPlatformTypeLayoutParameters LayoutParams,
-	FString& OutKeyString);
+	FString& OutKeyString,
+	bool bIncludeSourceHashes = true);
 #endif // WITH_EDITOR
 
 /** Create a block of source code to be injected in the preprocessed shader code. The Block will be put into a #line directive
