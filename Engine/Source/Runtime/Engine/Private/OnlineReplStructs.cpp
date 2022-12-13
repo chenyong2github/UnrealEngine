@@ -470,11 +470,11 @@ bool FUniqueNetIdRepl::ExportTextItem(FString& ValueStr, FUniqueNetIdRepl const&
 			FName Type = GetType();
 			if (Type == UOnlineEngineInterface::Get()->GetDefaultOnlineSubsystemName())
 			{
-				ValueStr += FString::Printf(TEXT("\"%s\""), *ToString());
+				ValueStr += ToString();
 			}
 			else
 			{
-				ValueStr += FString::Printf(TEXT("%s:\"%s\""), *Type.ToString(), *ToString());
+				ValueStr += FString::Printf(TEXT("%s:%s"), *Type.ToString(), *ToString());
 			}
 		}
 		else
