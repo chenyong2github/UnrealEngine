@@ -200,6 +200,11 @@ void IPCGElement::PostExecute(FPCGContext* Context) const
 
 void IPCGElement::DisabledPassThroughData(FPCGContext* Context) const
 {
+	check(Context);
+
+	const UPCGSettings* Settings = Context->GetInputSettings<UPCGSettings>();
+	check(Settings);
+
 	// Copy as baseline
 	Context->OutputData = Context->InputData;
 
@@ -209,16 +214,15 @@ void IPCGElement::DisabledPassThroughData(FPCGContext* Context) const
 		return;
 	}
 
-	if (Context->Node->GetInputPins().Num() == 0)
+	if (Context->Node->GetInputPins().Num() == 0 || Context->Node->GetOutputPins().Num() == 0)
 	{
-		// No input pins, return nothing
+		// No input pins or not output pins, return nothing
 		Context->OutputData.TaggedData.Empty();
 
 		return;
 	}
 
 	const UPCGPin* PassThroughPin = Context->Node->GetPassThroughInputPin();
-
 	if (PassThroughPin == nullptr)
 	{
 		// No pin to grab pass through data from
@@ -227,24 +231,53 @@ void IPCGElement::DisabledPassThroughData(FPCGContext* Context) const
 		return;
 	}
 
-	// Find first incoming non-params data that is coming through the identified pin
-	TArray<FPCGTaggedData> InputsOnFirstPin = Context->InputData.GetInputsByPin(PassThroughPin->Properties.Label);
-	const int FirstNonParamsDataIndex = InputsOnFirstPin.IndexOfByPredicate([Context](const FPCGTaggedData& InData) { return Cast<UPCGParamData>(InData.Data) == nullptr; });
-	if (FirstNonParamsDataIndex != INDEX_NONE)
+	const EPCGDataType OutputType = Context->Node->GetOutputPins()[0]->Properties.AllowedTypes;
+
+	// Pass through input data if it is not params, and if the output type supports it (e.g. if we have a incoming
+	// surface connected to an input pin of type Any, do not pass the surface through to an output pin of type Point).
+	auto InputDataShouldPassThrough = [OutputType](const FPCGTaggedData& InData)
 	{
-		// Remove everything except the data we found above
-		for (int Index = Context->OutputData.TaggedData.Num() - 1; Index >= 0; --Index)
+		EPCGDataType InputType = InData.Data ? InData.Data->GetDataType() : EPCGDataType::None;
+		const bool bInputTypeNotWiderThanOutputType = !(InputType & ~OutputType);
+		return InputType != EPCGDataType::Param && bInputTypeNotWiderThanOutputType;
+	};
+
+	if (Settings->OnlyPassThroughOneEdgeWhenDisabled())
+	{
+		// Find first incoming non-params data that is coming through the pass through pin
+		TArray<FPCGTaggedData> InputsOnFirstPin = Context->InputData.GetInputsByPin(PassThroughPin->Properties.Label);
+		const int FirstNonParamsDataIndex = InputsOnFirstPin.IndexOfByPredicate(InputDataShouldPassThrough);
+
+		if (FirstNonParamsDataIndex != INDEX_NONE)
 		{
-			if (Index != FirstNonParamsDataIndex)
+			// Remove everything except the data we found above
+			for (int Index = Context->OutputData.TaggedData.Num() - 1; Index >= 0; --Index)
 			{
-				Context->OutputData.TaggedData.RemoveAt(Index);
+				if (Index != FirstNonParamsDataIndex)
+				{
+					Context->OutputData.TaggedData.RemoveAt(Index);
+				}
 			}
+		}
+		else
+		{
+			// No data found to return
+			Context->OutputData.TaggedData.Empty();
 		}
 	}
 	else
 	{
-		// No data found to return
-		Context->OutputData.TaggedData.Empty();
+		// Remove any incoming non-params data that is coming through the pass through pin
+		TArray<FPCGTaggedData> InputsOnFirstPin = Context->InputData.GetInputsByPin(PassThroughPin->Properties.Label);
+		for (int Index = InputsOnFirstPin.Num() - 1; Index >= 0; --Index)
+		{
+			const FPCGTaggedData& Data = InputsOnFirstPin[Index];
+
+			if (!InputDataShouldPassThrough(Data))
+			{
+				Context->OutputData.TaggedData.RemoveAt(Index);
+			}
+		}
 	}
 }
 

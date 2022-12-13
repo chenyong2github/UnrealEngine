@@ -30,7 +30,7 @@ class PCG_API UPCGBaseTextureData : public UPCGSurfaceData
 
 public:
 	// ~Begin UPCGData interface
-	virtual EPCGDataType GetDataType() const override { return EPCGDataType::BaseTexture | Super::GetDataType(); }
+	virtual EPCGDataType GetDataType() const override { return EPCGDataType::BaseTexture; }
 	// ~End UPCGData interface
 
 	//~Begin UPCGSpatialData interface
@@ -99,7 +99,7 @@ class PCG_API UPCGTextureData : public UPCGBaseTextureData
 
 public:
 	// ~Begin UPCGData interface
-	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Texture | Super::GetDataType(); }
+	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Texture; }
 	// ~End UPCGData interface
 
 	//~Begin UPCGSpatialData interface

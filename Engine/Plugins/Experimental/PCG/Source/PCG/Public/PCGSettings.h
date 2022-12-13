@@ -83,7 +83,7 @@ class PCG_API UPCGSettings : public UPCGSettingsInterface
 
 public:
 	// ~Begin UPCGData interface
-	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Settings | Super::GetDataType(); }
+	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Settings; }
 	// ~End UPCGData interface
 
 	// ~Begin UPCGSettingsInterface interface
@@ -126,6 +126,12 @@ public:
 
 	/** Derived classes can implement this to expose additional name information in the logs */
 	virtual FName AdditionalTaskName() const { return NAME_None; }
+
+	/** Returns true if InPin is in use by node (assuming node enabled). Can be used to communicate when a pin is not in use to user. */
+	virtual bool IsPinUsedByNodeExecution(const UPCGPin* InPin) const { return true; }
+
+	/** Returns true if only the first input edge is used from the primary pin when the node is disabled. */
+	virtual bool OnlyPassThroughOneEdgeWhenDisabled() const { return false; }
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta=(EditCondition=bUseSeed, EditConditionHides))
 	int Seed = 0xC35A9631; // random prime number

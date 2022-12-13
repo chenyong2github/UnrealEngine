@@ -12,6 +12,46 @@
 #include "Styling/SlateBrush.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 
+/** PCG pin primarily to give more control over pin coloring. */
+class SPCGEditorGraphNodePin : public SGraphPin
+{
+public:
+	SLATE_BEGIN_ARGS(SPCGEditorGraphNodePin) {}
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs, UEdGraphPin* InPin);
+
+	virtual FSlateColor GetPinColor() const override;
+};
+
+void SPCGEditorGraphNodePin::Construct(const FArguments& InArgs, UEdGraphPin* InPin)
+{
+	// Required to give the first argument.
+	SGraphPin::Construct(SGraphPin::FArguments(), InPin);
+}
+
+// Adapted from SGraphPin::GetPinColor
+FSlateColor SPCGEditorGraphNodePin::GetPinColor() const
+{
+	FSlateColor Color = SGraphPin::GetPinColor();
+
+	UEdGraphPin* GraphPin = GetPinObj();
+	if (GraphPin && !GraphPin->IsPendingKill())
+	{
+		const UPCGEditorGraphNodeBase* EditorNode = CastChecked<const UPCGEditorGraphNodeBase>(GraphPinObj->GetOwningNode());
+		const UPCGNode* PCGNode = EditorNode ? EditorNode->GetPCGNode() : nullptr;
+		const UPCGPin* PCGPin = PCGNode ? PCGNode->GetInputPin(GraphPin->GetFName()) : nullptr;
+
+		// Desaturate if pin is unused - intended to happen whether disabled or not
+		if (PCGPin && !PCGNode->IsPinUsedByNodeExecution(PCGPin))
+		{
+			Color = Color.GetSpecifiedColor().Desaturate(0.7f);
+		}
+	}
+
+	return Color;
+}
+
 void SPCGEditorGraphNode::Construct(const FArguments& InArgs, UPCGEditorGraphNodeBase* InNode)
 {
 	GraphNode = InNode;
@@ -52,6 +92,11 @@ TSharedRef<SWidget> SPCGEditorGraphNode::CreateTitleWidget(TSharedPtr<SNodeTitle
 	InlineEditableText->SetColorAndOpacity(TAttribute<FLinearColor>::Create(TAttribute<FLinearColor>::FGetter::CreateSP(this, &SPCGEditorGraphNode::GetNodeTitleTextColor)));
 
 	return InlineEditableText.ToSharedRef();
+}
+
+TSharedPtr<SGraphPin> SPCGEditorGraphNode::CreatePinWidget(UEdGraphPin* Pin) const
+{
+	return SNew(SPCGEditorGraphNodePin, Pin);
 }
 
 void SPCGEditorGraphNode::AddPin(const TSharedRef<SGraphPin>& PinToAdd)

@@ -22,7 +22,7 @@ public:
 	void Initialize(USplineComponent* InSpline);
 
 	// ~Begin UPCGData interface
-	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Spline | Super::GetDataType(); }
+	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Spline; }
 	// ~End UPCGData interface
 
 	//~Begin UPCGPolyLineData interface

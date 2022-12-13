@@ -14,7 +14,7 @@ class PCG_API UPCGSurfaceData : public UPCGSpatialDataWithPointCache
 
 public:
 	// ~Begin UPCGData interface
-	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Surface | Super::GetDataType(); }
+	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Surface; }
 	// ~End UPCGData interface
 
 	//~Begin UPCGSpatialData interface

@@ -18,7 +18,7 @@ public:
 	void Initialize(ULandscapeSplinesComponent* InSplineComponent);
 
 	// ~Begin UPCGData interface
-	virtual EPCGDataType GetDataType() const override { return EPCGDataType::LandscapeSpline | Super::GetDataType(); }
+	virtual EPCGDataType GetDataType() const override { return EPCGDataType::LandscapeSpline; }
 	// ~End UPCGData interface
 
 	//~Begin UPCGPolyLineData interface

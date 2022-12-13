@@ -23,6 +23,9 @@ public:
 
 	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
 
+	// If node disabled, don't union - pass through first edge
+	virtual bool OnlyPassThroughOneEdgeWhenDisabled() const { return true; }
+
 protected:
 	virtual FPCGElementPtr CreateElement() const override;
 	//~End UPCGSettings interface

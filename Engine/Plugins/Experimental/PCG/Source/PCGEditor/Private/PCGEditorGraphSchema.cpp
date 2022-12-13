@@ -2,9 +2,11 @@
 
 #include "PCGEditorGraphSchema.h"
 
-#include "Elements/PCGExecuteBlueprint.h"
+#include "PCGEdge.h"
 #include "PCGGraph.h"
+#include "PCGPin.h"
 #include "PCGSettings.h"
+#include "Elements/PCGExecuteBlueprint.h"
 
 #include "PCGEditorCommon.h"
 #include "PCGEditorGraph.h"
@@ -13,6 +15,7 @@
 #include "PCGEditorSettings.h"
 #include "PCGEditorUtils.h"
 
+#include "Algo/Find.h"
 #include "AssetRegistry/AssetData.h"
 #include "Engine/Blueprint.h"
 #include "Framework/Application/SlateApplication.h"
@@ -420,23 +423,25 @@ void FPCGEditorConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* Output
 	}
 
 	// Desaturate and connection if the node is disabled and the data on this wire won't be used
-	if (InputPin)
+	if (InputPin && OutputPin)
 	{
-		if (const UPCGEditorGraphNodeBase* EditorNode = CastChecked<const UPCGEditorGraphNodeBase>(InputPin->GetOwningNode()))
-		{
-			const UPCGNode* PCGNode = EditorNode->GetPCGNode();
-			if (PCGNode && PCGNode->GetSettings() && !PCGNode->GetSettings()->bEnabled)
-			{
-				const UPCGPin* PassThroughInputPin = PCGNode->GetPassThroughInputPin();
+		const UPCGEditorGraphNodeBase* EditorNode = CastChecked<const UPCGEditorGraphNodeBase>(InputPin->GetOwningNode());
+		const UPCGNode* PCGNode = EditorNode ? EditorNode->GetPCGNode() : nullptr;
+		const UPCGPin* PCGPin = PCGNode ? PCGNode->GetInputPin(InputPin->GetFName()) : nullptr;
+		const UPCGEditorGraphNodeBase* UpstreamEditorNode = CastChecked<const UPCGEditorGraphNodeBase>(OutputPin->GetOwningNode());
 
-				// If this wire does not connect to the pass-through pin, or if the wire is not the first link on that pin, then it will
-				// not be used by the node. In this case desaturate the wire.
-				const bool bConnectedToPassThrough = PassThroughInputPin && PassThroughInputPin->Properties.Label == InputPin->GetFName();
-				const bool bFirstWire = InputPin->LinkedTo[0] == OutputPin;
-				if (!bConnectedToPassThrough || !bFirstWire)
-				{
-					Params.WireColor = Params.WireColor.Desaturate(0.7f);
-				}
+		if (PCGPin && UpstreamEditorNode)
+		{
+			// Look for the PCG edge that correlates with passed in (OutputPin, InputPin) edge
+			const TObjectPtr<UPCGEdge>* PCGEdge = PCGPin->Edges.FindByPredicate([UpstreamEditorNode, OutputPin](const UPCGEdge* ConnectedPCGEdge)
+			{
+				return UpstreamEditorNode->GetPCGNode() == ConnectedPCGEdge->InputPin->Node && ConnectedPCGEdge->InputPin->Properties.Label == OutputPin->GetFName();
+			});
+
+			// If edge found and is not used, gray it out
+			if (PCGEdge && !PCGNode->IsEdgeUsedByNodeExecution(*PCGEdge))
+			{
+				Params.WireColor = Params.WireColor.Desaturate(0.7f);
 			}
 		}
 	}

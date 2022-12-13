@@ -19,7 +19,7 @@ public:
 	void Initialize(const FBox& InBounds, AActor* InTargetActor);
 
 	// ~Begin UPCGData interface
-	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Volume | Super::GetDataType(); }
+	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Volume; }
 	// ~End UPCGData interface
 
 	// ~Begin UPGCSpatialData interface

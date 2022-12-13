@@ -27,7 +27,7 @@ public:
 	// ~End UObject interface
 
 	// ~Begin UPCGData interface
-	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Landscape | Super::GetDataType(); }
+	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Landscape; }
 	// ~End UPCGData interface
 
 	// ~Begin UPGCSpatialData interface

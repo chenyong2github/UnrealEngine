@@ -15,7 +15,7 @@ public:
 	void Initialize(UPrimitiveComponent* InPrim);
 
 	// ~Begin UPCGData interface
-	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Primitive | Super::GetDataType(); }
+	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Primitive; }
 	// ~End UPCGData interface
 
 	// ~Begin UPCGSpatialData interface

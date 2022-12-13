@@ -108,10 +108,6 @@ class PCG_API UPCGWorldRayHitData : public UPCGSurfaceData
 public:
 	void Initialize(UWorld* InWorld, const FBox& InBounds = FBox(EForceInit::ForceInit));
 
-	//~Begin UPCGData interface
-	virtual EPCGDataType GetDataType() const override { return Super::GetDataType(); }
-	//~End UPCGData interface
-
 	//~Begin UPCGSpatialData interface
 	virtual FBox GetBounds() const override { return Bounds; }
 	virtual FBox GetStrictBounds() const override { return Bounds; }

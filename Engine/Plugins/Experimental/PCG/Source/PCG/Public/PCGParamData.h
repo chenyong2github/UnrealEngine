@@ -19,7 +19,7 @@ public:
 	UPCGParamData(const FObjectInitializer& ObjectInitializer);
 
 	// ~Begin UPCGData interface
-	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Param | Super::GetDataType(); }
+	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Param; }
 	// ~End UPCGData interface
 
 	UFUNCTION(BlueprintCallable, Category = Metadata)

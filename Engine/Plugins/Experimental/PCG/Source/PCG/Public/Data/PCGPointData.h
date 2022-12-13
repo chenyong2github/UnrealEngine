@@ -67,7 +67,7 @@ public:
 	typedef TOctree2<FPCGPointRef, FPCGPointRefSemantics> PointOctree;
 
 	// ~Begin UPCGData interface
-	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Point | Super::GetDataType(); }
+	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Point; }
 	// ~End UPCGData interface
 
 	// ~Begin UPCGSpatialData interface

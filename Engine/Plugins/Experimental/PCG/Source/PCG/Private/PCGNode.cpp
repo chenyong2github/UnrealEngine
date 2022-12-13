@@ -374,8 +374,10 @@ const UPCGPin* UPCGNode::GetPassThroughInputPin() const
 		return nullptr;
 	}
 
+	const EPCGDataType OutputType = GetOutputPins()[0]->Properties.AllowedTypes;
+
 	// We assume a node whose primary output is params is a param processing node.
-	const bool bNodeOutputsParams = (GetOutputPins()[0]->Properties.AllowedTypes == EPCGDataType::Param);
+	const bool bNodeOutputsParams = (OutputType == EPCGDataType::Param);
 
 	if (bNodeOutputsParams)
 	{
@@ -390,8 +392,94 @@ const UPCGPin* UPCGNode::GetPassThroughInputPin() const
 		// Params-only pins will be rejected/ignored.
 		auto FindNonParams = [](const TObjectPtr<UPCGPin>& InPin) { return InPin->Properties.AllowedTypes != EPCGDataType::Param; };
 		const TObjectPtr<UPCGPin>* FirstNonParamsPinPtr = Algo::FindByPredicate(GetInputPins(), FindNonParams);
-		return FirstNonParamsPinPtr ? *FirstNonParamsPinPtr : nullptr;
+
+		if (FirstNonParamsPinPtr)
+		{
+			// Finally in order to be a candidate for passing through, data must be compatible.
+			const UPCGPin* InputPin = *FirstNonParamsPinPtr;
+			const EPCGDataType InputType = InputPin->Properties.AllowedTypes;
+			const bool bTypesOverlap = !!(InputType & OutputType);
+			
+			// Misc note - it would be nice if we could be stricter, like line below this comment. However it would mean it will stop an Any
+			// input being passed through to a Point output, even if the incoming edge will be receiving points dynamically/during execution. If a
+			// user creates a BP node with an Any input, which they may do lazily or unknowingly, this blocks passthrough. So instead we'll indicate
+			// that this pin *may* be used as a passthrough, and during execution in DisabledPassThroughData() we check dynamic types.
+			//const bool bInputTypeNotWiderThanOutputType = !(InputType & ~OutputType);
+			
+			if (bTypesOverlap)
+			{
+				return *FirstNonParamsPinPtr;
+			}
+		}
+
+		return nullptr;
 	}
+}
+
+bool UPCGNode::IsPinUsedByNodeExecution(const UPCGPin* InPin) const
+{
+	check(InPin);
+
+	UPCGSettings* Settings = GetSettings();
+	if (!Settings)
+	{
+		// Safe default - assume used
+		return true;
+	}
+
+	// Disabled nodes only use the 'pass through pin'
+	if (!Settings->bEnabled)
+	{
+		return InPin == GetPassThroughInputPin();
+	}
+
+	// Let Settings signal whether it uses a pin or not
+	return Settings->IsPinUsedByNodeExecution(InPin);
+}
+
+bool UPCGNode::IsEdgeUsedByNodeExecution(const UPCGEdge* InEdge) const
+{
+	check(InEdge);
+
+	// Locate the pin on this node that the edge is connected to
+	const UPCGPin* Pin = nullptr;
+	if (InEdge->InputPin->Node == this)
+	{
+		Pin = InEdge->InputPin;
+	}
+	else if (InEdge->OutputPin->Node == this)
+	{
+		Pin = InEdge->OutputPin;
+	}
+
+	if (!ensure(Pin))
+	{
+		// Safe default - assume used
+		return true;
+	}
+
+	UPCGSettings* Settings = GetSettings();
+	if (!Settings)
+	{
+		// Safe default - assume used
+		return true;
+	}
+
+	// Disabled nodes only use the 'pass through pin'
+	if (!Settings->bEnabled)
+	{
+		// Only accept first edge if node is disabled
+		const bool bConnectedToPassThrough = (Pin == GetPassThroughInputPin());
+		const bool bMustBeFirstEdge = Settings->OnlyPassThroughOneEdgeWhenDisabled();
+		const bool bIsFirstEdge = Pin->Edges.Num() > 0 && Pin->Edges[0] == InEdge;
+		if (!bConnectedToPassThrough || (bMustBeFirstEdge && !bIsFirstEdge))
+		{
+			return false;
+		}
+	}
+
+	// Ask Settings if the pin is in use, good opportunity to gray out pins based on parameters
+	return Settings->IsPinUsedByNodeExecution(Pin);
 }
 
 void UPCGNode::SetSettingsInterface(UPCGSettingsInterface* InSettingsInterface, bool bUpdatePins)

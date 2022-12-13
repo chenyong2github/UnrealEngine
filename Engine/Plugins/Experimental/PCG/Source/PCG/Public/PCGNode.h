@@ -100,6 +100,12 @@ public:
 	/** Pin from which data is passed through when this node is disabled. */
 	virtual const UPCGPin* GetPassThroughInputPin() const;
 
+	/** True if the pin is being used by the node. UI will gray out unused pins. */
+	virtual bool IsPinUsedByNodeExecution(const UPCGPin* InPin) const;
+
+	/** True if the edge is being used by the node. UI will gray out unused pins. */
+	virtual bool IsEdgeUsedByNodeExecution(const UPCGEdge* InEdge) const;
+
 	const TArray<TObjectPtr<UPCGPin>>& GetInputPins() const { return InputPins; }
 	const TArray<TObjectPtr<UPCGPin>>& GetOutputPins() const { return OutputPins; }
 

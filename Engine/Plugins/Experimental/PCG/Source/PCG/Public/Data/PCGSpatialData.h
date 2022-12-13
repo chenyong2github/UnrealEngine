@@ -37,7 +37,7 @@ public:
 	UPCGSpatialData(const FObjectInitializer& ObjectInitializer);
 
 	// ~Begin UPCGData interface
-	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Spatial | Super::GetDataType(); }
+	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Spatial; }
 	// ~End UPCGData interface
 
 	/** Virtual call to allocate a new spacial data object, duplicate this spatial data into
