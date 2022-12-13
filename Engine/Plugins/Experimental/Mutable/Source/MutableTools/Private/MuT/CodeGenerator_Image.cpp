@@ -1432,7 +1432,11 @@ namespace mu
 
         pop->SetChild( pop->op.args.MeshProject.projector, projectorResult.op );
 
-		int32 LayoutBlockIndex = m_imageState.Last().m_pLayout->m_blocks.IndexOfByPredicate([&](const Layout::FBlock& Block) { return Block.m_id == m_imageState.Last().m_layoutBlockId; });
+		int32 LayoutBlockIndex = -1;
+		if (m_imageState.Last().m_pLayout)
+		{
+			LayoutBlockIndex = m_imageState.Last().m_pLayout->m_blocks.IndexOfByPredicate([&](const Layout::FBlock& Block) { return Block.m_id == m_imageState.Last().m_layoutBlockId; });
+		}
 		int32 GeneratedLayoutBlockId = -1;
 
         // Mesh
@@ -1452,7 +1456,11 @@ namespace mu
             GenerateMesh( MeshOptions, MeshResult, node.m_pMesh );
 
 			// Match the block id of the block we are generating with the id that resulted in the generated mesh
-			GeneratedLayoutBlockId = MeshResult.GeneratedLayouts[node.m_layout]->m_blocks[LayoutBlockIndex].m_id;
+			GeneratedLayoutBlockId = -1;
+			if (LayoutBlockIndex >= 0)
+			{
+				GeneratedLayoutBlockId = MeshResult.GeneratedLayouts[node.m_layout]->m_blocks[LayoutBlockIndex].m_id;
+			}
 
             pop->SetChild( pop->op.args.MeshProject.mesh, MeshResult.meshOp );
 
@@ -1477,7 +1485,7 @@ namespace mu
             else
             {
                 // Extract the mesh layout block
-                if ( m_imageState.Num() && m_imageState.Last().m_layoutBlockId >=0 )
+                if ( m_imageState.Num() && GeneratedLayoutBlockId>=0 )
                 {
                     Ptr<ASTOpMeshExtractLayoutBlocks> eop = new ASTOpMeshExtractLayoutBlocks();
                     eop->source = pop->children[pop->op.args.MeshProject.mesh].child();

@@ -494,8 +494,8 @@ void SMutableCodeViewer::Construct(const FArguments& InArgs, const TSharedPtr<mu
 	ToolbarBuilder.BeginSection("Export");
 
 	// Tree Sizes
-	constexpr float OperationsColumnWidth = 0.75f;
-	constexpr float ExtraDataColumnWidth = 0.25f;
+	constexpr float OperationsColumnWidth = 0.90f;
+	constexpr float ExtraDataColumnWidth = 0.10f;
 	
 	// Export
 	ToolbarBuilder.AddToolBarButton(
@@ -668,7 +668,7 @@ void SMutableCodeViewer::Construct(const FArguments& InArgs, const TSharedPtr<mu
 								.FillWidth(OperationsColumnWidth)
 								
 							+ SHeaderRow::Column(MutableCodeTreeViewColumns::AdditionalDataColumnID)
-								.DefaultLabel(LOCTEXT("AdditionalData", "Additional Data"))
+								.DefaultLabel(LOCTEXT("OperationFlags", "Flags"))
 								.FillWidth(ExtraDataColumnWidth)
 						)
 					]

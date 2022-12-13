@@ -10,9 +10,6 @@
 #include "MuR/Types.h"
 #include "MuT/StreamsPrivate.h"
 
-#include <memory>
-#include <utility>
-
 
 namespace mu
 {
@@ -163,6 +160,81 @@ namespace mu
 		}
 
 		return nullptr;
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	Ptr<ASTOp> ASTOpImageLayerColor::OptimiseSemantic(const FModelOptimizationOptions& options) const
+	{
+		Ptr<ASTOp> at;
+
+		// Plain masks optimization
+		if (!at && mask.child())
+		{
+			FVector4f colour;
+			if (mask.child()->IsImagePlainConstant(colour))
+			{
+				if (colour.IsNearlyZero3(UE_SMALL_NUMBER))
+				{
+					// If the mask is black, we can skip the entire operation
+					at = base.child();
+				}
+				else if (colour.Equals(FVector4f(1, 1, 1, 1), UE_SMALL_NUMBER))
+				{
+					// If the mask is white, we can remove it
+					Ptr<ASTOpImageLayerColor> nop = mu::Clone<ASTOpImageLayerColor>(this);
+					nop->mask = nullptr;
+					at = nop;
+				}
+			}
+		}
+
+		// Layer operations with constants that do nothing.
+		if (!at)
+		{
+			bool bRGBUnchanged = blendType == EBlendType::BT_NONE;
+			bool bAlphaUnchanged = blendTypeAlpha == EBlendType::BT_NONE;
+
+			FVector4f ColorConst(0,0,0,1);
+			if (!color || color.child()->GetOpType()==OP_TYPE::CO_CONSTANT)
+			{
+				if (color)
+				{
+					const ASTOpFixed* TypedColor = dynamic_cast<const ASTOpFixed*>(color.child().get());
+					const float* Value = TypedColor->op.args.ColourConstant.value;
+					ColorConst.Set(Value[0], Value[1], Value[2], Value[3]);
+				}
+
+				if (!bRGBUnchanged)
+				{
+					switch (blendType)
+					{ 
+					case EBlendType::BT_LIGHTEN: bRGBUnchanged = ColorConst.IsNearlyZero3(UE_SMALL_NUMBER); break;
+					case EBlendType::BT_MULTIPLY: bRGBUnchanged = ColorConst.Equals(FVector4f(1, 1, 1, 1)); break;
+					default: break;
+					}					
+				}
+
+				if (!bAlphaUnchanged)
+				{
+					// TODO: Update when alpha may come from alpha in the color.
+					switch (blendTypeAlpha)
+					{
+					case EBlendType::BT_LIGHTEN: bAlphaUnchanged = ColorConst.IsNearlyZero3(UE_SMALL_NUMBER); break;
+					case EBlendType::BT_MULTIPLY: bAlphaUnchanged = ColorConst.Equals(FVector4f(1, 1, 1, 1)); break;
+					default: break;
+					}
+				}
+			}
+
+			if (bRGBUnchanged && bAlphaUnchanged)
+			{
+				// Skip this operation.
+				at = base.child();
+			}
+		}
+
+		return at;
 	}
 
 

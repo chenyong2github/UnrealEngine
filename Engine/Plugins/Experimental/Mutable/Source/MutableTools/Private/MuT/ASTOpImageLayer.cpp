@@ -2,16 +2,16 @@
 
 #include "MuT/ASTOpImageLayer.h"
 
-#include "Containers/Map.h"
-#include "HAL/PlatformMath.h"
+#include "MuT/StreamsPrivate.h"
+#include "MuT/ASTOpImagePatch.h"
+#include "MuT/ASTOpImageLayerColor.h"
+#include "MuT/ASTOpSwitch.h"
 #include "MuR/ModelPrivate.h"
 #include "MuR/RefCounted.h"
 #include "MuR/Types.h"
-#include "MuT/StreamsPrivate.h"
-#include "MuT/ASTOpImagePatch.h"
 
-#include <memory>
-#include <utility>
+#include "Containers/Map.h"
+#include "HAL/PlatformMath.h"
 
 
 namespace mu
@@ -176,10 +176,31 @@ namespace mu
 		Ptr<ASTOp> at;
 
 		auto baseAt = base.child();
+		auto blendAt = blend.child();
+		auto maskAt = mask.child();
+
+		// Convert to image layer color if blend is plain
+		if (!at && blendAt->GetOpType() == OP_TYPE::IM_PLAINCOLOUR)
+		{
+			bool bUseMaskFromBlendAlpha = (Flags & OP::ImageLayerArgs::F_USE_MASK_FROM_BLENDED);
+
+			const ASTOpFixed* BlendPlainColor = dynamic_cast<const ASTOpFixed*>(blendAt.get());
+
+			// \TODO: Add support for embedded alpha to image layer color.
+			if (!bUseMaskFromBlendAlpha)
+			{
+				Ptr<ASTOpImageLayerColor> NewLayerColor = new ASTOpImageLayerColor;
+				NewLayerColor->base = baseAt;
+				NewLayerColor->mask = maskAt;
+				NewLayerColor->blendType = blendType;
+				NewLayerColor->blendTypeAlpha = blendTypeAlpha;
+				NewLayerColor->color = BlendPlainColor->children[BlendPlainColor->op.args.ImagePlainColour.colour].child();
+				at = NewLayerColor;
+			}
+		}
 
 		// Plain masks optimization
-		auto maskAt = mask.child();
-		if (maskAt)
+		if (!at && maskAt)
 		{
 			FVector4f colour;
 			if (maskAt->IsImagePlainConstant(colour))
@@ -316,7 +337,7 @@ namespace mu
 
 		case OP_TYPE::IM_SWITCH:
 		{
-			// Disabled:
+			// Warning:
 			// It seems to cause data explosion in optimizer in some models. Because
 			// all switch branches become unique constants
 
@@ -368,6 +389,7 @@ namespace mu
 //                }
 
 //                at = nop;
+
 			break;
 		}
 
@@ -397,6 +419,81 @@ namespace mu
 			break;
 		}
 
+		}
+
+		// If we failed to optimize so far, see if it is worth optimizing the blended only.
+		if (!at)
+		{
+			OP_TYPE BlendType = blendAt->GetOpType();
+			switch (BlendType)
+			{
+
+			case OP_TYPE::IM_SWITCH:
+			{
+				const ASTOpSwitch* BlendSwitch = dynamic_cast<const ASTOpSwitch*>(blendAt.get());
+
+				// If at least a switch option is a plain colour, sink the layer into the switch
+				bool bWorthSinking = false;
+				for (int32 v = 0; v < BlendSwitch->cases.Num(); ++v)
+				{
+					if (BlendSwitch->cases[v].branch)
+					{
+						// \TODO: Use the smarter query function to detect plain images?
+						if (BlendSwitch->cases[v].branch->GetOpType() == OP_TYPE::IM_PLAINCOLOUR)
+						{
+							bWorthSinking = true;
+							break;
+						}
+					}
+				}
+
+				if (bWorthSinking)
+				{
+					bool bMaskIsCompatibleSwitch = false;
+					const ASTOpSwitch* MaskSwitch = dynamic_cast<const ASTOpSwitch*>(maskAt.get());
+					if (maskAt && maskAt->GetOpType()== OP_TYPE::IM_SWITCH)
+					{
+						bMaskIsCompatibleSwitch = MaskSwitch->IsCompatibleWith(BlendSwitch);
+					}
+
+					Ptr<ASTOpSwitch> NewSwitch = mu::Clone<ASTOpSwitch>(BlendSwitch);
+
+					if (NewSwitch->def)
+					{
+						Ptr<ASTOpImageLayer> defOp = mu::Clone<ASTOpImageLayer>(this);
+						defOp->blend = BlendSwitch->def.child();
+						if (bMaskIsCompatibleSwitch)
+						{
+							defOp->mask = MaskSwitch->def.child();
+						}
+						NewSwitch->def = defOp;
+					}
+
+					for (int32 v = 0; v < NewSwitch->cases.Num(); ++v)
+					{
+						if (NewSwitch->cases[v].branch)
+						{
+							Ptr<ASTOpImageLayer> BranchOp = mu::Clone<ASTOpImageLayer>(this);
+							BranchOp->blend = BlendSwitch->cases[v].branch.child();
+							if (bMaskIsCompatibleSwitch)
+							{
+								BranchOp->mask = MaskSwitch->cases[v].branch.child();
+							}
+							NewSwitch->cases[v].branch = BranchOp;
+						}
+					}
+
+
+					at = NewSwitch;
+				}
+
+				break;
+			}
+
+			default:
+				break;
+
+			}
 		}
 
 		return at;

@@ -217,7 +217,7 @@ namespace mu
     Ptr<T> CloneOrTakeOver( const T* source )
     {
         Ptr<T> result;
-        if (source->GetRefCount()==1)
+        if (source->IsUnique())
         {
             result = const_cast<T*>(source);
         }

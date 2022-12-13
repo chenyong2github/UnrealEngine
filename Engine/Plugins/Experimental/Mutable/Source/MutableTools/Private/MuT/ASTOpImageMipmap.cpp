@@ -268,10 +268,9 @@ namespace mu
 		// Before sinking, see if it is worth splitting into miptail and mip.
 		if (!m_root->bPreventSplitTail
 			// \TODO: Review this: It seems it fails for a BC1 8x4 texture having blockSize=4, and level=0
-				//&&
-				//m_root->Levels
-				//!=
-				//m_root->BlockLevels 
+			&&
+			// No need to split if there is no difference between the levels considering blocks
+			m_root->Levels != m_root->BlockLevels 
 			)
 		{
 			// the block mipmaps can be done before composition is done.

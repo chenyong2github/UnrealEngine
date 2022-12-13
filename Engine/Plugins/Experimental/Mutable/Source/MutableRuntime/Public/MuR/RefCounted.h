@@ -26,22 +26,23 @@ namespace mu
 
 		inline void IncRef() const
 		{
-			m_refCount++;
+			std::atomic_fetch_add_explicit( &m_refCount, 1u, std::memory_order_relaxed );
 		}
 
 		inline void DecRef() const
 		{
 			LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
 
-			if (m_refCount.fetch_sub(1) == 1)
+			if (m_refCount.fetch_sub(1, std::memory_order_release) == 1)
 			{
+				std::atomic_thread_fence(std::memory_order_acquire);
 				delete this;
 			}
 		}
 
-		inline int32 GetRefCount() const
+		inline bool IsUnique() const
 		{
-			return m_refCount;
+			return m_refCount.load(std::memory_order_relaxed)==1;
 		}
 
 		RefCounted(const RefCounted&) = delete;

@@ -121,7 +121,7 @@ void ASTOp::RemoveChildren()
             if (c)
             {
                 // Are we clearing the last reference?
-                if (c.child()->GetRefCount()==1)
+                if (c.child()->IsUnique())
                 {
                     toDestroy.Add(c.child());
                     pending.Add(c.child().get());

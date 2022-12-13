@@ -106,7 +106,7 @@ namespace mu
 		mu::Ptr<ASTOp> sourceAt = Source.child();
 
 		EImageFormat format = Format;
-		bool isCompressedFormat = IsCompressedFormat(Format);
+		bool bIsCompressedFormat = IsCompressedFormat(Format);
 		//bool isBlockFormat = GetImageFormatData( format ).m_pixelsPerBlockX!=0;
 
 		// The instruction can be sunk
@@ -126,7 +126,7 @@ namespace mu
 		case OP_TYPE::IM_DISPLACE:
 		{
 			// This op doesn't support compressed formats
-			if (!isCompressedFormat)
+			if (!bIsCompressedFormat)
 			{
 				mu::Ptr<ASTOpFixed> newOp = mu::Clone<ASTOpFixed>(sourceAt);
 
@@ -142,7 +142,7 @@ namespace mu
 		case OP_TYPE::IM_RASTERMESH:
 		{
 			// This op doesn't support compressed formats
-			if (!isCompressedFormat
+			if (!bIsCompressedFormat
 				&&
 				dynamic_cast<const ASTOpFixed*>(sourceAt.get())->op.args.ImageRasterMesh.image)
 			{
@@ -304,7 +304,7 @@ namespace mu
 		if (!at) return nullptr;
 
 		EImageFormat format = currentFormatOp->Format;
-		bool isCompressedFormat = IsCompressedFormat(format);
+		bool bIsCompressedFormat = IsCompressedFormat(format);
 		bool isBlockFormat = GetImageFormatData(format).m_pixelsPerBlockX != 0;
 
 		// Already visited?
@@ -320,7 +320,7 @@ namespace mu
 
 		case OP_TYPE::IM_CONDITIONAL:
 		{
-			// We move the mask creation down the two paths
+			// We move the op down the two paths
 			auto newOp = mu::Clone<ASTOpConditional>(at);
 			newOp->yes = Visit(newOp->yes.child(), currentFormatOp);
 			newOp->no = Visit(newOp->no.child(), currentFormatOp);
@@ -330,7 +330,7 @@ namespace mu
 
 		case OP_TYPE::IM_SWITCH:
 		{
-			// We move the mask creation down all the paths
+			// We move the op down all the paths
 			auto newOp = mu::Clone<ASTOpSwitch>(at);
 			newOp->def = Visit(newOp->def.child(), currentFormatOp);
 			for (auto& c : newOp->cases)
@@ -411,7 +411,7 @@ namespace mu
 
 			// If its a compressed format, only sink formats on mipmap operations that
 			// generate the tail. To avoid optimization loop.
-			if (!isCompressedFormat || typedSource->bOnlyTail)
+			if (!bIsCompressedFormat || typedSource->bOnlyTail)
 			{
 				auto newOp = mu::Clone<ASTOpImageMipmap>(typedSource);
 
@@ -426,7 +426,7 @@ namespace mu
 		case OP_TYPE::IM_INTERPOLATE:
 		{
 			// This op doesn't support compressed formats
-			if (!isCompressedFormat)
+			if (!bIsCompressedFormat)
 			{
 				// Move the format down all the paths
 				auto newOp = mu::Clone<ASTOpFixed>(at);
@@ -447,7 +447,7 @@ namespace mu
 		case OP_TYPE::IM_INTERPOLATE3:
 		{
 			// This op doesn't support compressed formats
-			if (!isCompressedFormat)
+			if (!bIsCompressedFormat)
 			{
 				// We move the format down all the paths
 				auto newOp = mu::Clone<ASTOpFixed>(at);
