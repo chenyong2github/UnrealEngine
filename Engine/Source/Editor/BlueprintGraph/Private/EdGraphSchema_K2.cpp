@@ -2613,7 +2613,7 @@ TOptional<UEdGraphSchema_K2::FSearchForAutocastFunctionResults> UEdGraphSchema_K
 
 bool UEdGraphSchema_K2::FindSpecializedConversionNode(const UEdGraphPin* OutputPin, const UEdGraphPin* InputPin, bool bCreateNode, /*out*/ UK2Node*& TargetNode) const
 {
-	TOptional<FindSpecializedConversionNodeResults> Result = FindSpecializedConversionNode(OutputPin->PinType, *InputPin, bCreateNode);
+	TOptional<FFindSpecializedConversionNodeResults> Result = FindSpecializedConversionNode(OutputPin->PinType, *InputPin, bCreateNode);
 	if (Result)
 	{
 		TargetNode = Result->TargetNode;
@@ -2625,7 +2625,7 @@ bool UEdGraphSchema_K2::FindSpecializedConversionNode(const UEdGraphPin* OutputP
 
 bool UEdGraphSchema_K2::FindSpecializedConversionNode(const FEdGraphPinType& OutputPinType, const UEdGraphPin* InputPin, bool bCreateNode, UK2Node*& TargetNode) const
 {
-	TOptional<FindSpecializedConversionNodeResults> Result = FindSpecializedConversionNode(OutputPinType, *InputPin, bCreateNode);
+	TOptional<FFindSpecializedConversionNodeResults> Result = FindSpecializedConversionNode(OutputPinType, *InputPin, bCreateNode);
 	if (Result)
 	{
 		TargetNode = Result->TargetNode;
@@ -2635,9 +2635,9 @@ bool UEdGraphSchema_K2::FindSpecializedConversionNode(const FEdGraphPinType& Out
 	return false;
 }
 
-TOptional<UEdGraphSchema_K2::FindSpecializedConversionNodeResults> UEdGraphSchema_K2::FindSpecializedConversionNode(const FEdGraphPinType& OutputPinType, const UEdGraphPin& InputPin, bool bCreateNode) const
+TOptional<UEdGraphSchema_K2::FFindSpecializedConversionNodeResults> UEdGraphSchema_K2::FindSpecializedConversionNode(const FEdGraphPinType& OutputPinType, const UEdGraphPin& InputPin, bool bCreateNode) const
 {
-	TOptional<UEdGraphSchema_K2::FindSpecializedConversionNodeResults> Result;
+	TOptional<UEdGraphSchema_K2::FFindSpecializedConversionNodeResults> Result;
 	FEdGraphPinType InputPinType = InputPin.PinType;
 
 	const bool bConvertScalarToArray =
@@ -2842,7 +2842,7 @@ bool UEdGraphSchema_K2::CreateAutomaticConversionNodeAndConnections(UEdGraphPin*
 
 		TemplateConversionNode = TemplateNode;
 	}
-	else if (TOptional<FindSpecializedConversionNodeResults> ConversionResult = FindSpecializedConversionNode(OutputPin->PinType, *InputPin, true))
+	else if (TOptional<FFindSpecializedConversionNodeResults> ConversionResult = FindSpecializedConversionNode(OutputPin->PinType, *InputPin, true))
 	{
 		TemplateConversionNode = ConversionResult->TargetNode;
 	}
