@@ -26,6 +26,23 @@ struct FPCGLandscapeLayerWeight
 	float Weight = 0.0f;
 };
 
+namespace PCGLandscapeCache
+{
+	struct FSafeIndices
+	{
+		int32 X0Y0 = 0;
+		int32 X1Y0 = 0;
+		int32 X0Y1 = 0;
+		int32 X1Y1 = 0;
+
+		float XFraction = 0;
+		float YFraction = 0;
+	};
+
+	// this will ensure all indicies are valid in a Stride*Stride sized array
+	FSafeIndices CalcSafeIndices(FVector2D LocalPosition, int32 Stride);
+}
+
 struct FPCGLandscapeCacheEntry
 {
 	friend class UPCGLandscapeCache;
@@ -44,7 +61,7 @@ private:
 	int32 GetMemorySize() const;
 
 #if WITH_EDITOR
-	void BuildCacheData(ULandscapeInfo* LandscapeInfo, ULandscapeComponent* InComponent);
+	static FPCGLandscapeCacheEntry* CreateCacheEntry(ULandscapeInfo* LandscapeInfo, ULandscapeComponent* InComponent);
 #endif
 
 	// Serialize called from the landscape cache
