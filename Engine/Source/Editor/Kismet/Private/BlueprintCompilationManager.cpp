@@ -19,6 +19,7 @@
 #include "Engine/TimelineTemplate.h"
 #include "FileHelpers.h"
 #include "FindInBlueprintManager.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "IMessageLogListing.h"
 #include "K2Node_CreateDelegate.h"
 #include "K2Node_CustomEvent.h"
@@ -3327,6 +3328,7 @@ void FBlueprintCompilationManager::FlushCompilationQueue(FUObjectSerializeContex
 {
 	if(BPCMImpl)
 	{
+		LLM_SCOPE_BYNAME(TEXT("Blueprints"));
 		BPCMImpl->FlushCompilationQueueImpl(false, nullptr, nullptr, InLoadContext);
 
 		// We can't support save on compile or keeping old CDOs from GCing when reinstancing is deferred:

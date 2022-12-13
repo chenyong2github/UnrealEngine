@@ -136,6 +136,7 @@ void UObject::SetLinker( FLinkerLoad* LinkerLoad, int32 LinkerIndex, bool bShoul
 	}
 	if (Existing.Linker != LinkerLoad || Existing.LinkerIndex != LinkerIndex)
 	{
+		LLM_SCOPE_BYTAG(UObject_Linker);
 		LinkerAnnotation.AddAnnotation(this, FLinkerIndexPair(LinkerLoad, LinkerIndex));
 	}
 	if (bShouldDetachExisting)

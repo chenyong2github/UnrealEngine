@@ -8,6 +8,7 @@
 #include "Containers/UnrealString.h"
 #include "CoreGlobals.h"
 #include "CoreMinimal.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "HAL/PlatformMath.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "Misc/AssertionMacros.h"
@@ -51,6 +52,8 @@ struct FOpenPackageResult;
 struct FScopedSlowTask;
 struct FUObjectSerializeContext;
 template <typename FuncType> class TFunction;
+
+LLM_DECLARE_TAG(UObject_Linker);
 
 /*----------------------------------------------------------------------------
 	FLinkerLoad.

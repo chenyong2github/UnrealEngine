@@ -2,6 +2,7 @@
 
 #include "Engine/DataTable.h"
 #include "AssetRegistry/AssetData.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "Internationalization/TextPackageNamespaceUtil.h"
 #include "Internationalization/StabilizeLocalizationKeys.h"
 #include "Serialization/PropertyLocalizationDataGathering.h"
@@ -16,6 +17,8 @@
 #include "Engine/UserDefinedStruct.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DataTable)
+
+LLM_DEFINE_TAG(DataTable);
 
 namespace
 {
@@ -229,6 +232,7 @@ void UDataTable::HandleDataTableChanged(FName ChangedRowName)
 void UDataTable::Serialize(FStructuredArchiveRecord Record)
 {
 	FArchive& BaseArchive = Record.GetUnderlyingArchive();
+	LLM_SCOPE_BYTAG(DataTable);
 
 #if WITH_EDITORONLY_DATA
 	// Make sure and update RowStructName before calling the parent Serialize (which will save the properties)

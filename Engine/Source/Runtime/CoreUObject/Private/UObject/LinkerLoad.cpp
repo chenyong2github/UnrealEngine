@@ -76,6 +76,8 @@ DECLARE_FLOAT_ACCUMULATOR_STAT(TEXT("Fixup editor-only flags time"), STAT_Editor
 
 FName FLinkerLoad::NAME_LoadErrors("LoadErrors");
 
+LLM_DEFINE_TAG(UObject_Linker);
+
 /**
 * Helper function to determine and trace the most important asset class.
 */
@@ -483,6 +485,7 @@ FLinkerLoad* FLinkerLoad::CreateLinker(FUObjectSerializeContext* LoadContext, UP
 FLinkerLoad* FLinkerLoad::CreateLinker(FUObjectSerializeContext* LoadContext, UPackage* Parent, const FPackagePath& PackagePath, uint32 LoadFlags, FArchive* InLoader /*= nullptr*/, const FLinkerInstancingContext* InstancingContext /*= nullptr*/)
 {
 	check(LoadContext);
+	LLM_SCOPE_BYTAG(UObject_Linker);
 
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 	// we don't want the linker permanently created with the 
@@ -721,6 +724,7 @@ FUObjectSerializeContext* FLinkerLoad::GetSerializeContext()
 FLinkerLoad::ELinkerStatus FLinkerLoad::ProcessPackageSummary(TMap<TPair<FName, FPackageIndex>, FPackageIndex>* ObjectNameWithOuterToExportMap)
 {
 	TRACE_LOADTIME_BEGIN_PROCESS_SUMMARY(this);
+	LLM_SCOPE_BYTAG(UObject_Linker);
 
 	ELinkerStatus Status = LINKER_Loaded;
 	{
@@ -980,6 +984,7 @@ FLinkerLoad::FLinkerLoad(UPackage* InParent, const FPackagePath& InPackagePath, 
 #endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 {
 	static_assert((ExportHashCount & (ExportHashCount - 1)) == 0, "ExportHashCount must be power of two");
+	LLM_SCOPE_BYTAG(UObject_Linker);
 
 	if (PackagePath.GetHeaderExtension() == EPackageExtension::Unspecified)
 	{
@@ -4304,6 +4309,7 @@ UObject* FLinkerLoad::Create( UClass* ObjectClass, FName ObjectName, UObject* Ou
 
 void FLinkerLoad::Preload( UObject* Object )
 {
+	LLM_SCOPE_BYTAG(UObject_Linker);
 	//check(IsValidLowLevel());
 	check(Object);
 

@@ -469,6 +469,7 @@ static FAutoConsoleCommand DumpPendingUObjectModulesCmd(
 /** Enqueue the registration for this object. */
 void UObjectBase::Register(const TCHAR* PackageName,const TCHAR* InName)
 {
+	LLM_SCOPE(ELLMTag::UObject);
 	TMap<UObjectBase*, FPendingRegistrantInfo>& PendingRegistrants = FPendingRegistrantInfo::GetMap();
 
 	FPendingRegistrant* PendingRegistration = new FPendingRegistrant(this);
@@ -545,6 +546,7 @@ static void UObjectProcessRegistrants()
 
 void UObjectForceRegistration(UObjectBase* Object, bool bCheckForModuleRelease)
 {
+	LLM_SCOPE(ELLMTag::UObject);
 	TMap<UObjectBase*, FPendingRegistrantInfo>& PendingRegistrants = FPendingRegistrantInfo::GetMap();
 
 	FPendingRegistrantInfo* Info = PendingRegistrants.Find(Object);
@@ -687,6 +689,7 @@ void UClassRegisterAllCompiledInClasses()
 	TArray<UClass*> AddedClasses;
 #endif
 	SCOPED_BOOT_TIMING("UClassRegisterAllCompiledInClasses");
+	LLM_SCOPE(ELLMTag::UObject);
 
 	FClassDeferredRegistry& Registry = FClassDeferredRegistry::Get();
 
