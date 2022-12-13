@@ -940,7 +940,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FParticleSimulationPsParameters, )
 	SHADER_PARAMETER_SAMPLER(SamplerState, CurveTextureSampler)
 
 	SHADER_PARAMETER_TEXTURE_ARRAY(Texture3D, VectorFieldTextures, [MAX_VECTOR_FIELDS])
-	SHADER_PARAMETER_SAMPLER(SamplerState, VectorFieldTexturesSampler)
+	SHADER_PARAMETER_SAMPLER_ARRAY(SamplerState, VectorFieldTexturesSampler, [MAX_VECTOR_FIELDS])
 
 	SHADER_PARAMETER_STRUCT_INCLUDE(FParticlePerFrameSimulationShaderParameters, PerFrameParameters)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FGlobalDistanceFieldParameters2, GlobalDistanceFieldParameters)
@@ -1274,7 +1274,10 @@ void ExecuteSimulationCommands(
 		PsParameters.CurveTexture = GParticleCurveTexture.GetCurveTexture();
 		PsParameters.CurveTextureSampler = SamplerStateLinear;
 
-		PsParameters.VectorFieldTexturesSampler = SamplerStateLinear;
+		for (int32 i = 0; i < MAX_VECTOR_FIELDS; ++i)
+		{
+			PsParameters.VectorFieldTexturesSampler[i] = SamplerStateLinear;
+		}
 
 		if (CollisionMode != PCM_None)
 		{
