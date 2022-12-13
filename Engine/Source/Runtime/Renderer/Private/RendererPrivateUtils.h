@@ -3,6 +3,7 @@
 #pragma once
 
 #include "RenderResource.h"
+#include "RHI.h"
 
 class FTileTexCoordVertexBuffer : public FVertexBuffer
 {
