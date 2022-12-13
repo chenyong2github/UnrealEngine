@@ -759,7 +759,7 @@ void FUnixCrashContext::GenerateCrashInfoAndLaunchReporter() const
 				GConfig->GetBool(TEXT("CrashReportClient"), TEXT("bStartCRCFromEngineHandler"), bStartCRCFromEngineHandler, GEngineIni);
 			}
 
-			if (bReportingNonCrash && bStartCRCFromEngineHandler)
+			if (bReportingNonCrash)
 			{
 				bool bFoundEmptySlot = false;
 
