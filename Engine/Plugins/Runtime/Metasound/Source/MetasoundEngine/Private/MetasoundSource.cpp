@@ -647,7 +647,16 @@ ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorI
 		MoveTemp(InDefaultParameters)
 	};
 
-	return ISoundGeneratorPtr(new FMetasoundGenerator(MoveTemp(InitParams)));
+	TSharedPtr<FMetasoundGenerator> Generator = MakeShared<FMetasoundGenerator>(MoveTemp(InitParams));
+	TrackGenerator(InParams.InstanceID, Generator);
+
+	return ISoundGeneratorPtr(Generator);
+}
+
+void UMetaSoundSource::OnEndGenerate(ISoundGeneratorPtr Generator)
+{
+	using namespace Metasound;
+	ForgetGenerator(Generator);
 }
 
 bool UMetaSoundSource::GetAllDefaultParameters(TArray<FAudioParameter>& OutParameters) const
@@ -985,5 +994,41 @@ const TArray<Metasound::FVertexName>& UMetaSoundSource::GetOutputAudioChannelOrd
 		return Empty;
 	}
 }
+
+void UMetaSoundSource::TrackGenerator(uint64 Id, TSharedPtr<Metasound::FMetasoundGenerator> Generator)
+{
+	FScopeLock GeneratorMapLock(&GeneratorMapCriticalSection);
+	Generators.Add(Id, Generator);
+	OnGeneratorInstanceCreated.Broadcast(Id, Generator);
+}
+
+void UMetaSoundSource::ForgetGenerator(ISoundGeneratorPtr Generator)
+{
+	using namespace Metasound;
+	FMetasoundGenerator* AsMetasoundGenerator = static_cast<FMetasoundGenerator*>(Generator.Get());
+	FScopeLock GeneratorMapLock(&GeneratorMapCriticalSection);
+	for (auto It = Generators.begin(); It != Generators.end(); ++It)
+	{
+		if ((*It).Value.HasSameObject(AsMetasoundGenerator))
+		{
+			OnGeneratorInstanceDestroyed.Broadcast((*It).Key, StaticCastSharedPtr<Metasound::FMetasoundGenerator>(Generator));
+			Generators.Remove((*It).Key);
+			return;
+		}
+	}
+}
+
+TWeakPtr<Metasound::FMetasoundGenerator> UMetaSoundSource::GetGeneratorForAudioComponent(uint64 ComponentId) const
+{
+	using namespace Metasound;
+	FScopeLock GeneratorMapLock(&GeneratorMapCriticalSection);
+	const TWeakPtr<FMetasoundGenerator>* Result = Generators.Find(ComponentId);
+	if (!Result)
+	{
+		return TWeakPtr<FMetasoundGenerator>(nullptr);
+	}
+	return *Result;
+}
+
 #undef LOCTEXT_NAMESPACE // MetaSound
 

@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "EdGraph/EdGraph.h"
+#include "HAL/CriticalSection.h"
 #include "IAudioParameterTransmitter.h"
 #include "Metasound.h"
 #include "MetasoundAssetBase.h"
@@ -21,6 +22,7 @@ namespace Metasound
 {
 	// Forward declare
 	struct FMetaSoundEngineAssetHelper;
+	class FMetasoundGenerator;
 }
 
 /** Declares the output audio format of the UMetaSoundSource */
@@ -35,6 +37,9 @@ enum class EMetasoundSourceAudioFormat : uint8
 
 	COUNT UMETA(Hidden)
 };
+
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnGeneratorInstanceCreated, uint64, TSharedPtr<Metasound::FMetasoundGenerator>);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnGeneratorInstanceDestroyed, uint64, TSharedPtr<Metasound::FMetasoundGenerator>);
 
 /**
  * This Metasound type can be played as an audio source.
@@ -184,11 +189,17 @@ public:
 	virtual float GetDuration() const override;
 	virtual bool ImplementsParameterInterface(Audio::FParameterInterfacePtr InInterface) const override;
 	virtual ISoundGeneratorPtr CreateSoundGenerator(const FSoundGeneratorInitParams& InParams, TArray<FAudioParameter>&& InDefaultParameters) override;
+	virtual void OnEndGenerate(ISoundGeneratorPtr Generator) override;
 	virtual TSharedPtr<Audio::IParameterTransmitter> CreateParameterTransmitter(Audio::FParameterTransmitterInitParams&& InParams) const override;
 	virtual bool IsParameterValid(const FAudioParameter& InParameter) const override;
 	virtual bool IsLooping() const override;
 	virtual bool IsOneShot() const override;
 	virtual bool EnableSubmixSendsOnPreview() const override { return true; }
+
+	TWeakPtr<Metasound::FMetasoundGenerator> GetGeneratorForAudioComponent(uint64 ComponentId) const;
+	FOnGeneratorInstanceCreated OnGeneratorInstanceCreated;
+	FOnGeneratorInstanceDestroyed OnGeneratorInstanceDestroyed;
+
 protected:
 
 	Metasound::Frontend::FDocumentAccessPtr GetDocument() override
@@ -223,4 +234,9 @@ private:
 	Metasound::FMetasoundEnvironment CreateEnvironment(const FSoundGeneratorInitParams& InParams) const;
 	Metasound::FMetasoundEnvironment CreateEnvironment(const Audio::FParameterTransmitterInitParams& InParams) const;
 	const TArray<Metasound::FVertexName>& GetOutputAudioChannelOrder() const;
+
+	mutable FCriticalSection GeneratorMapCriticalSection;
+	TSortedMap<uint64, TWeakPtr<Metasound::FMetasoundGenerator>> Generators;
+	void TrackGenerator(uint64 Id, TSharedPtr<Metasound::FMetasoundGenerator> Generator);
+	void ForgetGenerator(ISoundGeneratorPtr Generator);
 };
