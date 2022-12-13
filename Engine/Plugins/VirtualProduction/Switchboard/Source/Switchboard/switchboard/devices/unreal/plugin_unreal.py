@@ -1528,6 +1528,14 @@ class DeviceUnreal(Device):
         return CONFIG.engine_exe_path(
             CONFIG.ENGINE_DIR.get_value(self.name), self.executable_filename)
 
+    @staticmethod
+    def any_devices_have_roles():
+        device_list = DeviceUnreal.active_unreal_devices
+        for device in device_list:
+            if len(device.get_vproles()[0]):
+                return True
+        return False
+
     def get_vproles(self):
         ''' Gets selected vp roles that are also present in the ini file
         Also returns any selected vp roles that are not in the ini file.
@@ -1671,7 +1679,9 @@ class DeviceUnreal(Device):
 
         (supported_roles, unsupported_roles) = self.get_vproles()
 
-        command_line_args += ' -VPRole=' + '|'.join(supported_roles)
+        if supported_roles or DeviceUnreal.any_devices_have_roles():
+            command_line_args += ' -VPRole=' + '|'.join(supported_roles)
+
         if unsupported_roles:
             LOGGER.error(
                 f"{self.name}: Omitted unsupported roles: "
