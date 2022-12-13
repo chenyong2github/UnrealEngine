@@ -22,6 +22,9 @@ public:
 	{
 		TypeId = PCG::Private::MetadataTypes<T>::Id;
 
+		// Make sure we don't parent with the wrong type id
+		check(!Parent || Parent->GetTypeId() == TypeId)
+
 		if (GetParent())
 		{
 			ValueKeyOffset = GetParent()->GetValueKeyOffsetForChild();
@@ -49,6 +52,11 @@ public:
 	}
 
 	const FPCGMetadataAttribute* GetParent() const { return static_cast<const FPCGMetadataAttribute*>(Parent); }
+
+	FPCGMetadataAttribute* TypedCopy(FName NewName, UPCGMetadata* InMetadata, bool bKeepParent, bool bCopyEntries = true, bool bCopyValues = true)
+	{
+		return static_cast<FPCGMetadataAttribute*>(Copy(NewName, InMetadata, bKeepParent, bCopyEntries, bCopyValues));
+	}
 
 	virtual FPCGMetadataAttributeBase* Copy(FName NewName, UPCGMetadata* InMetadata, bool bKeepParent, bool bCopyEntries = true, bool bCopyValues = true) const override
 	{
@@ -333,8 +341,9 @@ public:
 		}
 		else if (ValueKey >= ValueKeyOffset)
 		{
+			int32 Index = ValueKey - ValueKeyOffset;
 			FReadScopeLock ScopeLock(ValueLock);
-			return Values[ValueKey - ValueKeyOffset];
+			return Index < Values.Num() ? Values[Index] : DefaultValue;
 		}
 		else if (GetParent())
 		{
