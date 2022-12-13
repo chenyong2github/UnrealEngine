@@ -252,25 +252,51 @@ namespace Chaos::Softs
 			}
 
 
-			FXPBDCorotatedConstraints<FSolverReal, FSolverParticles>* CorotatedConstraint =
-				new FXPBDCorotatedConstraints<FSolverReal, FSolverParticles>(
-					Evolution->Particles(), Elements, /*bRecordMetric = */false, (FSolverReal)1000000.0);
-
 			int32 InitIndex = Evolution->AddConstraintInitRange(1, true);
-			Evolution->ConstraintInits()[InitIndex] =
-				[CorotatedConstraint](FSolverParticles& InParticles, const FSolverReal Dt)
-			{
-				CorotatedConstraint->Init();
-			};
-
-
 			int32 ConstraintIndex = Evolution->AddConstraintRuleRange(1, true);
-			Evolution->ConstraintRules()[ConstraintIndex] =
-				[CorotatedConstraint](FSolverParticles& InParticles, const FSolverReal Dt)
+
+			if (Property.bDoBlended) 
 			{
-				CorotatedConstraint->ApplyInParallel(InParticles, Dt);
-			};
-			CorotatedConstraints.Add(TUniquePtr<FXPBDCorotatedConstraints<FSolverReal, FSolverParticles>>(CorotatedConstraint));
+				FBlendedXPBDCorotatedConstraints<FSolverReal, FSolverParticles>* BlendedCorotatedConstraint =
+					new FBlendedXPBDCorotatedConstraints<FSolverReal, FSolverParticles>(
+						Evolution->Particles(), Elements, /*bRecordMetric = */false, Property.EMesh, (FSolverReal).3, Property.BlendedZeta);
+			
+				Evolution->ConstraintInits()[InitIndex] =
+					[BlendedCorotatedConstraint](FSolverParticles& InParticles, const FSolverReal Dt)
+				{
+					BlendedCorotatedConstraint->Init();
+				};
+
+				Evolution->ConstraintRules()[ConstraintIndex] =
+					[BlendedCorotatedConstraint](FSolverParticles& InParticles, const FSolverReal Dt)
+				{
+					BlendedCorotatedConstraint->ApplyInParallel(InParticles, Dt);
+				};
+			
+				BlendedCorotatedConstraints.Add(TUniquePtr<FBlendedXPBDCorotatedConstraints<FSolverReal, FSolverParticles>>(BlendedCorotatedConstraint));
+
+			}
+			else
+			{
+				FXPBDCorotatedConstraints<FSolverReal, FSolverParticles>* CorotatedConstraint =
+					new FXPBDCorotatedConstraints<FSolverReal, FSolverParticles>(
+						Evolution->Particles(), Elements, /*bRecordMetric = */false, Property.EMesh);
+
+				Evolution->ConstraintInits()[InitIndex] =
+					[CorotatedConstraint](FSolverParticles& InParticles, const FSolverReal Dt)
+				{
+					CorotatedConstraint->Init();
+				};
+
+				Evolution->ConstraintRules()[ConstraintIndex] =
+					[CorotatedConstraint](FSolverParticles& InParticles, const FSolverReal Dt)
+				{
+					CorotatedConstraint->ApplyInParallel(InParticles, Dt);
+				};
+
+				CorotatedConstraints.Add(TUniquePtr<FXPBDCorotatedConstraints<FSolverReal, FSolverParticles>>(CorotatedConstraint));
+			}
+		
 		}
 	}
 

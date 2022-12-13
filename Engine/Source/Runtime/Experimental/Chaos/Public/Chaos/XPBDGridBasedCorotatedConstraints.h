@@ -25,6 +25,7 @@ namespace Chaos::Softs
 		using Base::Measure;
 		using Base::DmInverse;
 		using Base::Mu;
+		using Base::Init;
 		using Base::Lambda;
 
 	public:

@@ -24,7 +24,10 @@ namespace Chaos::Softs
 			bool InbDoSelfCollision = false,
 			bool InbUseGridBasedConstraints = false,
 			FSolverReal InGridDx = (FSolverReal)1. ,
-			bool InbDoQuasistatics = false)
+			bool InbDoQuasistatics = false,
+			FSolverReal InEMesh = (FSolverReal)100000.,
+			bool InbDoBlended = false,
+			FSolverReal InBlendedZeta = (FSolverReal).1)
 			: NumSolverSubSteps(InNumSolverSubSteps)
 			, NumSolverIterations(InNumSolverIterations)
 			, FixTimeStep(InFixTimeStep)
@@ -36,6 +39,9 @@ namespace Chaos::Softs
 			, bUseGridBasedConstraints(InbUseGridBasedConstraints)
 			, GridDx(InGridDx)
 			, bDoQuasistatics(InbDoQuasistatics)
+			, EMesh(InEMesh)
+			, bDoBlended(InbDoBlended)
+			, BlendedZeta(InBlendedZeta)
 		{}
 
 		FDeformableSolverProperties(const FDeformableSolverProperties& InProp)
@@ -50,6 +56,9 @@ namespace Chaos::Softs
 			, bUseGridBasedConstraints(InProp.bUseGridBasedConstraints)
 			, GridDx(InProp.GridDx)
 			, bDoQuasistatics(InProp.bDoQuasistatics)
+			, EMesh(InProp.EMesh)
+			, bDoBlended(InProp.bDoBlended)
+			, BlendedZeta(InProp.BlendedZeta)
 		{}
 
 		int32 NumSolverSubSteps = 5;
@@ -63,6 +72,9 @@ namespace Chaos::Softs
 		bool bUseGridBasedConstraints = false;
 		FSolverReal GridDx = (FSolverReal)1.;
 		bool bDoQuasistatics = false;
+		FSolverReal EMesh = (FSolverReal)100000.;
+		bool bDoBlended = false;
+		FSolverReal BlendedZeta = (FSolverReal)0.;
 	};
 
 

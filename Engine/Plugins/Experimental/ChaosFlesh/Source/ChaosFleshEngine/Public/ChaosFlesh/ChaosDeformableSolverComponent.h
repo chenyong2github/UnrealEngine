@@ -95,6 +95,15 @@ public:
 	UPROPERTY(EditAnywhere, Category = Chaos)
 		bool bDoQuasistatics = false;
 
+	UPROPERTY(EditAnywhere, Category = Chaos)
+		float EMesh = 100000;
+
+	UPROPERTY(EditAnywhere, Category = Chaos)
+		bool bDoBlended = false;
+
+	UPROPERTY(EditAnywhere, Category = Chaos)
+		float BlendedZeta = 0;
+
 	//UPROPERTY(EditAnywhere, Category = Chaos)
 	//	bool bWaitForParallelDeformableTask = true;
 
