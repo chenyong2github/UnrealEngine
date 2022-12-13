@@ -283,7 +283,7 @@ UClass* FAmbisonicsSoundfieldFormat::GetCustomEncodingSettingsClass() const
 
 USoundfieldEncodingSettingsBase* FAmbisonicsSoundfieldFormat::GetDefaultEncodingSettings()
 {
-	check(IsInGameThread());
+	check(IsInGameThread() || IsInAudioThread());
 	return GetMutableDefault<UAmbisonicsEncodingSettings>();
 }
 
