@@ -404,6 +404,11 @@ bool FPlasticSourceControlProvider::UsesChangelists() const
 	return true;
 }
 
+bool FPlasticSourceControlProvider::UsesUncontrolledChangelists() const
+{
+	return true;
+}
+
 bool FPlasticSourceControlProvider::UsesCheckout() const
 {
 	return GetDefault<UPlasticSourceControlProjectSettings>()->bPromptForCheckoutOnChange;

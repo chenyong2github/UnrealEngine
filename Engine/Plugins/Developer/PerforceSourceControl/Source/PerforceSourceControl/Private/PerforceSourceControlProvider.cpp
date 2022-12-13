@@ -486,6 +486,11 @@ bool FPerforceSourceControlProvider::UsesChangelists() const
 	return true;
 }
 
+bool FPerforceSourceControlProvider::UsesUncontrolledChangelists() const
+{
+	return true;
+}
+
 bool FPerforceSourceControlProvider::UsesCheckout() const
 {
 	return true;

@@ -218,6 +218,11 @@ bool FSubversionSourceControlProvider::UsesChangelists() const
 	return false;
 }
 
+bool FSubversionSourceControlProvider::UsesUncontrolledChangelists() const
+{
+	return true;
+}
+
 bool FSubversionSourceControlProvider::UsesCheckout() const
 {
 	return true;

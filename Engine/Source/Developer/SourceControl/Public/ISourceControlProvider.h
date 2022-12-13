@@ -329,6 +329,11 @@ public:
 	virtual bool UsesChangelists() const = 0;
 
 	/**
+	 * Whether the provider supports uncontrolled changelists to allow work offline
+	 */
+	virtual bool UsesUncontrolledChangelists() const = 0;
+
+	/**
 	 * Whether the provider uses the checkout workflow
 	 */
 	virtual bool UsesCheckout() const = 0;

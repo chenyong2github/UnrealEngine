@@ -89,6 +89,11 @@ bool FDefaultSourceControlProvider::UsesChangelists() const
 	return false;
 }
 
+bool FDefaultSourceControlProvider::UsesUncontrolledChangelists() const
+{
+	return true;
+}
+
 bool FDefaultSourceControlProvider::UsesCheckout() const
 {
 	return false;

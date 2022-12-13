@@ -262,6 +262,11 @@ bool FGitSourceControlProvider::UsesChangelists() const
 	return false;
 }
 
+bool FGitSourceControlProvider::UsesUncontrolledChangelists() const
+{
+	return true;
+}
+
 bool FGitSourceControlProvider::UsesCheckout() const
 {
 	return false;

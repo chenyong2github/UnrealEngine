@@ -489,6 +489,15 @@ bool FConcertSourceControlProxy::UsesChangelists() const
 	return false;
 }
 
+bool FConcertSourceControlProxy::UsesUncontrolledChangelists() const
+{
+	if (ActualProvider)
+	{
+		return ActualProvider->UsesUncontrolledChangelists();
+	}
+	return true;
+}
+
 bool FConcertSourceControlProxy::UsesCheckout() const
 {
 	if (ActualProvider)
