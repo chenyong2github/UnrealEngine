@@ -437,8 +437,15 @@ public:
 	/** If this flag is set, we only regenerate simulation data when requested via CreateSimulationData() */
 	bool bManualDataCreate;
 	
-	/** Create the simulation data that can be shared among all instances (mass, volume, etc...)*/
+	/** 
+	* Create the simulation data that can be shared among all instances (mass, volume, etc...) 
+	* Note : this does not check if the simulation data is drty or not and will cause a load from the DDC
+	* use CreateSimulationDataIfNeeded() for avoiding extra runtime cost 
+	*/
 	void CreateSimulationData();
+
+	/** Create the simulation data ( calls CreateSimulationData) only if the simulation data is dirty */
+	void CreateSimulationDataIfNeeded();
 
 	/** Create the Nanite rendering data. */
 	static TUniquePtr<FGeometryCollectionNaniteData> CreateNaniteData(FGeometryCollection* Collection);

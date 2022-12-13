@@ -53,6 +53,12 @@ FAutoConsoleVariableRef CVarGeometryCollectionEnableForcedConvexGenerationInSeri
 	bGeometryCollectionEnableForcedConvexGenerationInSerialize,
 	TEXT("Enable generation of convex geometry on older destruction files.[def:true]"));
 
+bool bGeometryCollectionAlwaysRecreateSimulationData = false;
+FAutoConsoleVariableRef CVarGeometryCollectionAlwaysRecreateSimulationData(
+	TEXT("p.GeometryCollectionAlwaysRecreateSimulationData"),
+	bGeometryCollectionAlwaysRecreateSimulationData,
+	TEXT("always recreate the simulation data even if the simulation data is not marked as dirty - this has runtime cost in editor - only use as a last resort if default has issues [def:false]"));
+
 
 #if ENABLE_COOK_STATS
 namespace GeometryCollectionCookStats
@@ -951,6 +957,14 @@ void UGeometryCollection::CreateSimulationData()
 {
 	CreateSimulationDataImp(/*bCopyFromDDC=*/false);
 	SimulationDataGuid = StateGuid;
+}
+
+void UGeometryCollection::CreateSimulationDataIfNeeded()
+{
+	if (IsSimulationDataDirty() || bGeometryCollectionAlwaysRecreateSimulationData)
+	{
+		CreateSimulationData();
+	}
 }
 
 TUniquePtr<FGeometryCollectionNaniteData> UGeometryCollection::CreateNaniteData(FGeometryCollection* Collection)
