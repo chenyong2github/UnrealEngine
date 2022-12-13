@@ -400,6 +400,9 @@ public:
 			bool bIsMaterialUnlit = MaterialInterface->GetShadingModels().IsUnlit();
 			const bool bIsOpaque = IsOpaqueBlendMode(*MaterialInterface);
 			const bool bIsMasked = IsMaskedBlendMode(*MaterialInterface);
+			const bool bIsModulate = IsModulateBlendMode(*MaterialInterface);
+			const bool bIsTranslucentOnly = IsTranslucentOnlyBlendMode(*MaterialInterface);
+			const bool bIsAlphaHoldout = IsAlphaHoldoutBlendMode(*MaterialInterface);
 			check(ProxyMaterial);
 			FLightmassMaterialCompiler ProxyCompiler(Compiler);
 
@@ -442,7 +445,7 @@ public:
 					return MaterialInterface->CompileProperty(&ProxyCompiler, MP_Opacity);
 				}
 				// STRATA_TODO_BLENDMODE
-				else if (BlendMode == BLEND_Modulate)
+				else if (bIsModulate)
 				{
 					if (bIsMaterialUnlit)
 					{
@@ -454,7 +457,7 @@ public:
 					}
 				}
 				// STRATA_TODO_BLENDMODE
-				else if ((BlendMode == BLEND_Translucent) || (BlendMode == BLEND_Additive) || (BlendMode == BLEND_AlphaComposite) || (BlendMode == BLEND_AlphaHoldout))
+				else if (bIsTranslucentOnly || (BlendMode == BLEND_Additive) || (BlendMode == BLEND_AlphaComposite) || bIsAlphaHoldout)
 				{
 					int32 ColoredOpacity = INDEX_NONE;
 					if (bIsMaterialUnlit)

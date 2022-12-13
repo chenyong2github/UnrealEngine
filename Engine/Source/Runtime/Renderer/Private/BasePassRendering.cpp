@@ -1859,14 +1859,13 @@ bool FBasePassMeshProcessor::ShouldDraw(const FMaterial& Material)
 				if (AutoBeforeDOFTranslucencyBoundary > 0.0f)
 				{
 					bShouldDraw = bShouldDraw || (Material.IsTranslucencyAfterDOFEnabled() && StrataBlendMode != SBM_ColoredTransmittanceOnly);
-					bShouldDraw = bShouldDraw || (Material.IsTranslucencyAfterDOFEnabled() && (Material.IsDualBlendingEnabled(GetFeatureLevelShaderPlatform(FeatureLevel)) ||
-						BlendMode == BLEND_Modulate || StrataBlendMode == SBM_ColoredTransmittanceOnly));
+					bShouldDraw = bShouldDraw || (Material.IsTranslucencyAfterDOFEnabled() && (Material.IsDualBlendingEnabled(GetFeatureLevelShaderPlatform(FeatureLevel)) || IsModulateBlendMode(BlendMode, StrataBlendMode)));
 				}
 				break;
 
 			case ETranslucencyPass::TPT_TranslucencyStandardModulate:
 				bShouldDraw = !Material.IsTranslucencyAfterDOFEnabled() && !Material.IsTranslucencyAfterMotionBlurEnabled() 
-					&& (Material.IsDualBlendingEnabled(GetFeatureLevelShaderPlatform(FeatureLevel)) || BlendMode == BLEND_Modulate || StrataBlendMode == SBM_ColoredTransmittanceOnly);
+					&& (Material.IsDualBlendingEnabled(GetFeatureLevelShaderPlatform(FeatureLevel)) || IsModulateBlendMode(BlendMode, StrataBlendMode));
 				break;
 
 			case ETranslucencyPass::TPT_TranslucencyAfterDOF:
@@ -1926,8 +1925,7 @@ bool FBasePassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatc
 
 		bool bIsStandardTranslucency = !Material.IsTranslucencyAfterDOFEnabled() && !Material.IsTranslucencyAfterMotionBlurEnabled();
 		bool bIsAfterDOF = Material.IsTranslucencyAfterDOFEnabled() && !Material.IsTranslucencyAfterMotionBlurEnabled() && StrataBlendMode != SBM_ColoredTransmittanceOnly;
-		bool bIsAfterDOFModulate = Material.IsTranslucencyAfterDOFEnabled() && (Material.IsDualBlendingEnabled(GetFeatureLevelShaderPlatform(FeatureLevel)) ||
-			BlendMode == BLEND_Modulate || StrataBlendMode == SBM_ColoredTransmittanceOnly);
+		bool bIsAfterDOFModulate = Material.IsTranslucencyAfterDOFEnabled() && (Material.IsDualBlendingEnabled(GetFeatureLevelShaderPlatform(FeatureLevel)) || IsModulateBlendMode(BlendMode, StrataBlendMode));
 
 		// When AutoBeforeDOFTranslucencyBoundary is valid, we automatically move After DOF translucent meshes (never blurred by DOF)
 		// before DOF if those elements are behind the focus distance.

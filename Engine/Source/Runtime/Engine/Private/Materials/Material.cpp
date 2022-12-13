@@ -6643,10 +6643,10 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 			switch (InProperty)
 			{
 			case MP_Refraction:
-				Active = ((bIsTranslucentBlendMode && BlendMode != BLEND_AlphaHoldout && BlendMode != BLEND_Modulate) || ShadingModels.HasShadingModel(MSM_SingleLayerWater)) && bUsesDistortion;
+				Active = ((bIsTranslucentBlendMode && !IsAlphaHoldoutBlendMode(BlendMode, StrataBlendMode) && !IsModulateBlendMode(BlendMode, StrataBlendMode)) || ShadingModels.HasShadingModel(MSM_SingleLayerWater)) && bUsesDistortion;
 				break;
 			case MP_Opacity:
-				Active = (bIsTranslucentBlendMode && BlendMode != BLEND_Modulate) || ShadingModels.HasShadingModel(MSM_SingleLayerWater);
+				Active = (bIsTranslucentBlendMode && !IsModulateBlendMode(BlendMode, StrataBlendMode)) || ShadingModels.HasShadingModel(MSM_SingleLayerWater);
 				break;
 			case MP_OpacityMask:
 				Active = IsMaskedBlendMode(BlendMode, StrataBlendMode);
@@ -6678,10 +6678,10 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 			Active = false;
 			break;
 		case MP_Refraction:
-			Active = ((bIsTranslucentBlendMode && BlendMode != BLEND_AlphaHoldout && BlendMode != BLEND_Modulate) || ShadingModels.HasShadingModel(MSM_SingleLayerWater)) && bUsesDistortion;
+			Active = ((bIsTranslucentBlendMode && !IsAlphaHoldoutBlendMode(BlendMode, StrataBlendMode) && !IsModulateBlendMode(BlendMode, StrataBlendMode)) || ShadingModels.HasShadingModel(MSM_SingleLayerWater)) && bUsesDistortion;
 			break;
 		case MP_Opacity:
-			Active = (bIsTranslucentBlendMode && BlendMode != BLEND_Modulate) || ShadingModels.HasShadingModel(MSM_SingleLayerWater);
+			Active = (bIsTranslucentBlendMode && !IsModulateBlendMode(BlendMode, StrataBlendMode)) || ShadingModels.HasShadingModel(MSM_SingleLayerWater);
 			if (IsSubsurfaceShadingModel(ShadingModels))
 			{
 				Active = true;
@@ -6723,7 +6723,7 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 		case MP_EmissiveColor:
 			// Emissive is always active, even for light functions and post process materials, 
 			// but not for AlphaHoldout
-			Active = BlendMode != BLEND_AlphaHoldout;
+			Active = !IsAlphaHoldoutBlendMode(BlendMode, StrataBlendMode);
 			break;
 		case MP_WorldPositionOffset:
 			Active = true;

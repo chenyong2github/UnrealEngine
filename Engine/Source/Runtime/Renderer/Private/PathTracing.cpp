@@ -1085,12 +1085,12 @@ static bool NeedsAnyHitShader(bool bIsMasked, EBlendMode BlendMode) // STRATA_TO
 	{
 		return true;
 	}
-	switch (BlendMode)
+	else if (IsOpaqueBlendMode(BlendMode) || IsAlphaHoldoutBlendMode(BlendMode))
 	{
-	case BLEND_Opaque:
-	case BLEND_AlphaHoldout:
 		return false;
-	default:
+	}
+	else
+	{
 		return true;
 	}
 }

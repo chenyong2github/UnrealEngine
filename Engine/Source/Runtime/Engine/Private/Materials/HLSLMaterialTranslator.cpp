@@ -1081,14 +1081,14 @@ bool FHLSLMaterialTranslator::Translate()
 						((MaterialShadingModels.HasShadingModel(MSM_SubsurfaceProfile) && IsMaterialPropertyUsed(MP_CustomData0, Chunk[MP_CustomData0], FLinearColor(1, 0, 0, 0), 1))
 						|| (MaterialShadingModels.HasShadingModel(MSM_Eye) && IsMaterialPropertyUsed(MP_Opacity, Chunk[MP_Opacity], FLinearColor(1, 0, 0, 0), 1)));
 
-		if (BlendMode == BLEND_Modulate && MaterialShadingModels.IsLit() && !Material->IsDeferredDecal())
+		if (!bStrataEnabled && IsModulateBlendMode(BlendMode, StrataBlendMode) && MaterialShadingModels.IsLit() && !Material->IsDeferredDecal())
 		{
 			Errorf(TEXT("Dynamically lit translucency is not supported for BLEND_Modulate materials."));
 		}
 
 		if (Domain == MD_Surface)
 		{
-			if (BlendMode == BLEND_Modulate && Material->IsTranslucencyAfterDOFEnabled() && !RHISupportsDualSourceBlending(Platform))
+			if (IsModulateBlendMode(BlendMode, StrataBlendMode) && Material->IsTranslucencyAfterDOFEnabled() && !RHISupportsDualSourceBlending(Platform))
 			{
 				Errorf(TEXT("Translucency after DOF with BLEND_Modulate is only allowed on platforms that support dual-blending. Consider using BLEND_Translucent with black emissive"));
 			}
@@ -1119,7 +1119,7 @@ bool FHLSLMaterialTranslator::Translate()
 			}
 		}
 
-		if (BlendMode == BLEND_AlphaHoldout && !MaterialShadingModels.IsUnlit())
+		if (IsAlphaHoldoutBlendMode(BlendMode, StrataBlendMode) && !MaterialShadingModels.IsUnlit())
 		{
 			Errorf(TEXT("Alpha Holdout blend mode must use unlit shading model."));
 		}
@@ -1218,7 +1218,7 @@ bool FHLSLMaterialTranslator::Translate()
 			}
 		}
 
-		if (Domain == MD_DeferredDecal && !(BlendMode == BLEND_Translucent || BlendMode == BLEND_AlphaComposite || BlendMode == BLEND_Modulate))
+		if (Domain == MD_DeferredDecal && !(IsTranslucentOnlyBlendMode(BlendMode, StrataBlendMode) || BlendMode == BLEND_AlphaComposite || IsModulateBlendMode(BlendMode, StrataBlendMode)))
 		{
 			// We could make the change for the user but it would be confusing when going to DeferredDecal and back
 			// or we would have to pay a performance cost to make the change more transparently.
@@ -1242,7 +1242,7 @@ bool FHLSLMaterialTranslator::Translate()
 			}
 		}
 
-		if (BlendMode == BLEND_Modulate && Material->IsTranslucencyAfterMotionBlurEnabled())
+		if (IsModulateBlendMode(BlendMode, StrataBlendMode) && Material->IsTranslucencyAfterMotionBlurEnabled())
 		{
 			// We don't currently have a separate translucency modulation pass for After Motion Blur
 			Errorf(TEXT("Blend Mode \"Modulate\" materials are not currently supported in the \"After Motion Blur\" translucency pass."));

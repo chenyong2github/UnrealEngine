@@ -87,3 +87,17 @@ bool IsTranslucentOnlyBlendMode(EStrataBlendMode BlendMode)										{ return Bl
 bool IsTranslucentOnlyBlendMode(EBlendMode LegacyBlendMode, EStrataBlendMode StrataBlendMode)	{ return IsStrataEnabled() ? IsTranslucentOnlyBlendMode(StrataBlendMode) : IsTranslucentOnlyBlendMode(LegacyBlendMode); }
 bool IsTranslucentOnlyBlendMode(const FMaterial& In)											{ return IsStrataEnabled() ? IsTranslucentOnlyBlendMode(In.GetStrataBlendMode()) : IsTranslucentOnlyBlendMode(In.GetBlendMode()); }
 bool IsTranslucentOnlyBlendMode(const UMaterialInterface& In)									{ return IsStrataEnabled() ? IsTranslucentOnlyBlendMode(In.GetStrataBlendMode()) : IsTranslucentOnlyBlendMode(In.GetBlendMode()); }
+
+// AlphaHoldout blend mode
+bool IsAlphaHoldoutBlendMode(EBlendMode BlendMode)												{ return BlendMode == BLEND_AlphaHoldout; }
+bool IsAlphaHoldoutBlendMode(EStrataBlendMode BlendMode)										{ return BlendMode == SBM_AlphaHoldout; }
+bool IsAlphaHoldoutBlendMode(EBlendMode LegacyBlendMode, EStrataBlendMode StrataBlendMode)		{ return IsStrataEnabled() ? IsAlphaHoldoutBlendMode(StrataBlendMode) : IsAlphaHoldoutBlendMode(LegacyBlendMode); }
+bool IsAlphaHoldoutBlendMode(const FMaterial& In)												{ return IsStrataEnabled() ? IsAlphaHoldoutBlendMode(In.GetStrataBlendMode()) : IsAlphaHoldoutBlendMode(In.GetBlendMode()); }
+bool IsAlphaHoldoutBlendMode(const UMaterialInterface& In)										{ return IsStrataEnabled() ? IsAlphaHoldoutBlendMode(In.GetStrataBlendMode()) : IsAlphaHoldoutBlendMode(In.GetBlendMode()); }
+
+// Modulate blend mode
+bool IsModulateBlendMode(EBlendMode BlendMode)													{ return BlendMode == BLEND_Modulate; }
+bool IsModulateBlendMode(EStrataBlendMode BlendMode)											{ return BlendMode == SBM_ColoredTransmittanceOnly; }
+bool IsModulateBlendMode(EBlendMode LegacyBlendMode, EStrataBlendMode StrataBlendMode)			{ return IsStrataEnabled() ? IsModulateBlendMode(StrataBlendMode) : IsModulateBlendMode(LegacyBlendMode); }
+bool IsModulateBlendMode(const FMaterial& In)													{ return IsStrataEnabled() ? IsModulateBlendMode(In.GetStrataBlendMode()) : IsModulateBlendMode(In.GetBlendMode()); }
+bool IsModulateBlendMode(const UMaterialInterface& In)											{ return IsStrataEnabled() ? IsModulateBlendMode(In.GetStrataBlendMode()) : IsModulateBlendMode(In.GetBlendMode()); }

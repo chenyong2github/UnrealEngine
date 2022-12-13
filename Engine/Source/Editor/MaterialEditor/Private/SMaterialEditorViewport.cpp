@@ -177,11 +177,11 @@ FLinearColor FMaterialEditorViewportClient::GetBackgroundColor() const
 			if (MaterialInterface)
 			{
 				const EBlendMode PreviewBlendMode = (EBlendMode)MaterialInterface->GetBlendMode();
-				if (PreviewBlendMode == BLEND_Modulate)
+				if (IsModulateBlendMode(*MaterialInterface))
 				{
 					BackgroundColor = FLinearColor::White;
 				}
-				else if (PreviewBlendMode == BLEND_Translucent || PreviewBlendMode == BLEND_AlphaComposite || PreviewBlendMode == BLEND_AlphaHoldout)
+				else if (IsTranslucentOnlyBlendMode(*MaterialInterface) || PreviewBlendMode == BLEND_AlphaComposite || IsAlphaHoldoutBlendMode(*MaterialInterface))
 				{
 					BackgroundColor = FColor(64, 64, 64);
 				}
