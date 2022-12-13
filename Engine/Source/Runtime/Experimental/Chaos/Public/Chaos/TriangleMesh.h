@@ -298,6 +298,11 @@ namespace Chaos
 		bool EdgeIntersectionQuery(const TBVHType<T>& BVH, const TConstArrayView<TVec3<T>>& Points, const int32 EdgeIndex, const TVec3<T>& EdgePosition1, const TVec3<T>& EdgePosition2,
 			TFunctionRef<bool(const int32 EdgeIndex, const int32 TriangleIndex)> BroadphaseTest, TArray<TTriangleCollisionPoint<T>>& Result) const;
 
+		//! Returns \c false if \p Point is outside of the smooth normal cone, where a smooth projection doesn't exist.
+		template<typename T>
+		bool SmoothProject(const TBVHType<T>& BVH, const TConstArrayView<FVec3>& Points, const TArray<FVec3>& PointNormals,
+			const FVec3& Point, int32& TriangleIndex, FVec3& Weights, const int32 MaxIters=10) const;
+
 		template<typename T>
 		using TSpatialHashType = THierarchicalSpatialHash<int32, T>;
 

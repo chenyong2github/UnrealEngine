@@ -12,6 +12,84 @@
 
 namespace Chaos {
 
+// Set/Get i, j
+
+template <class T>
+inline void RowMaj3x3Set(T* A, const int32 i, const int32 j, const T Value)
+{
+	A[3 * i + j] = Value;
+}
+
+template <class T>
+inline const T& RowMaj3x3Get(const T* A, const int32 i, const int32 j)
+{
+	return A[3 * i + j];
+}
+
+template <class T>
+inline T& RowMaj3x3Get(T* A, const int32 i, const int32 j)
+{
+	return A[3 * i + j];
+}
+
+// Set/Get row
+
+template <class T>
+inline void RowMaj3x3SetRow(T* A, const int32 i, const T* Values)
+{
+	for (int32 j = 0; j < 3; j++)
+	{
+		RowMaj3x3Set(A, i, j, Values[i]);
+	}
+}
+
+template <class T, class TV>
+inline void RowMaj3x3SetRow(T* A, const int32 i, const TV Value)
+{
+	const T Tmp[3]{ static_cast<T>(Value[0]), static_cast<T>(Value[1]), static_cast<T>(Value[2]) };
+	RowMaj3x3SetRow(A, i, &Tmp[0]);
+}
+
+template <class T, class TV>
+inline void RowMaj3x3GetRow(T* A, const int32 i, TV& Row)
+{
+	for (int j = 0; j < 3; j++)
+	{
+		Row[j] = RowMaj3x3Get(A, i, j);
+	}
+}
+
+// Set/Get col
+
+template <class T>
+inline void RowMaj3x3SetCol(T* A, const int32 j, const T* Values)
+{
+	for (int32 i = 0; i < 3; i++)
+	{
+		RowMaj3x3Set(A, i, j, Values[i]);
+	}
+}
+
+template <class T, class TV>
+inline void RowMaj3x3SetCol(T* A, const int32 j, const TV Value)
+{
+	for (int32 i = 0; i < 3; i++)
+	{
+		RowMaj3x3Set(A, i, j, static_cast<T>(Value[i]));
+	}
+}
+
+template <class T, class TV>
+inline void RowMaj3x3GetCol(T* A, const int32 j, TV& Col)
+{
+	for (int i = 0; i < 3; i++)
+	{
+		Col[i] = RowMaj3x3Get(A, i, j);
+	}
+}
+
+// Determinant
+
 template <class T>
 inline T RowMaj3x3Determinant(const T A0, const T A1, const T A2, const T A3, const T A4, const T A5, const T A6, const T A7, const T A8)
 {
@@ -23,6 +101,8 @@ inline T RowMaj3x3Determinant(const T* A)
 {
 	return RowMaj3x3Determinant(A[0], A[1], A[2], A[3], A[4], A[5], A[6], A[7], A[8]);
 }
+
+// Inverse
 
 template <class T>
 inline void RowMaj3x3Inverse(const T Det, const T A0, const T A1, const T A2, const T A3, const T A4, const T A5, const T A6, const T A7, const T A8, T* Inv)
@@ -53,6 +133,14 @@ inline void RowMaj3x3Inverse(const T Det, const T* A, T* Inv)
 {
 	RowMaj3x3Inverse(Det, A[0], A[1], A[2], A[3], A[4], A[5], A[6], A[7], A[8], Inv);
 }
+
+template <class T>
+inline void RowMaj3x3Inverse(const T* A, T* Inv)
+{
+	RowMaj3x3Inverse(RowMaj3x3Determinant(A), A, Inv);
+}
+
+// Transpose
 
 template <class T>
 inline void RowMaj3x3Transpose(const T* A, T* Transpose)

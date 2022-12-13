@@ -14,6 +14,7 @@
 #include "HeadlessChaosTestRaycast.h"
 #include "HeadlessChaosTestSerialization.h"
 #include "HeadlessChaosTestSpatialHashing.h"
+#include "HeadlessChaosTestTriangleMesh.h"
 #include "Modules/ModuleManager.h"
 #include "RequiredProgramMainCPPInclude.h"
 #include "Chaos/PBDRigidsEvolution.h"
@@ -287,6 +288,11 @@ TEST(Handles, FrameworkTests)
 	ChaosTest::Handles::HandleArrayTest();
 	ChaosTest::Handles::HandleHeapTest();
 	ChaosTest::Handles::HandleSerializeTest();
+}
+
+TEST(TriangleMesh, TriangleMeshTests) {
+	ChaosTest::TriangleMeshProjectTest();
+	SUCCEED();
 }
 
 //TEST(Vehicle, VehicleTests) {
