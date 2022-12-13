@@ -96,6 +96,7 @@ void FContextualAnimAssetEditorToolkit::InitAssetEditor(const EToolkitMode::Type
 	EditingAssetWidget = PropertyModule.CreateDetailView(Args);
 	EditingAssetWidget->SetObject(SceneAsset);
 	EditingAssetWidget->OnFinishedChangingProperties().AddSP(this, &FContextualAnimAssetEditorToolkit::OnFinishedChangingProperties);
+	EditingAssetWidget->SetIsPropertyEditingEnabledDelegate(FIsPropertyEditingEnabled::CreateSP(this, &FContextualAnimAssetEditorToolkit::CanMakeEdits));
 
 	// Define Editor Layout
 	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_ContextualAnimAnimEditor_Layout_v0.10")
@@ -156,11 +157,13 @@ void FContextualAnimAssetEditorToolkit::BindCommands()
 	ToolkitCommands->MapAction(
 		Commands.ResetPreviewScene,
 		FExecuteAction::CreateSP(this, &FContextualAnimAssetEditorToolkit::ResetPreviewScene),
+		FCanExecuteAction::CreateSP(this, &FContextualAnimAssetEditorToolkit::CanMakeEdits),
 		EUIActionRepeatMode::RepeatDisabled);
 
 	ToolkitCommands->MapAction(
 		Commands.NewAnimSet,
 		FExecuteAction::CreateSP(this, &FContextualAnimAssetEditorToolkit::ShowNewAnimSetDialog),
+		FCanExecuteAction::CreateSP(this, &FContextualAnimAssetEditorToolkit::CanMakeEdits),
 		EUIActionRepeatMode::RepeatDisabled);
 
 	ToolkitCommands->MapAction(
@@ -181,6 +184,11 @@ void FContextualAnimAssetEditorToolkit::ToggleSimulateMode()
 bool FContextualAnimAssetEditorToolkit::IsSimulateModeActive() const
 {
 	return (ViewModel.IsValid() && !ViewModel->IsSimulateModeInactive());
+}
+
+bool FContextualAnimAssetEditorToolkit::CanMakeEdits() const
+{
+	return IsSimulateModeActive() == false;
 }
 
 void FContextualAnimAssetEditorToolkit::ExtendToolbar()
@@ -208,7 +216,11 @@ void FContextualAnimAssetEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuil
 	);
 
 	ToolbarBuilder.AddComboButton(
-		FUIAction(),
+		FUIAction(
+			FExecuteAction(),
+			FCanExecuteAction::CreateSP(this, &FContextualAnimAssetEditorToolkit::CanMakeEdits),
+			FIsActionChecked()
+		),
 		FOnGetContent::CreateSP(this, &FContextualAnimAssetEditorToolkit::BuildSectionsMenu),
 		LOCTEXT("Sections_Label", "Sections"),
 		FText::GetEmpty(),

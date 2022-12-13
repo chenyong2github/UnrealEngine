@@ -42,6 +42,8 @@ public:
 
 private:
 	
+	bool CanMakeEdits() const;
+
 	TSharedRef<SDockTab> SpawnTab_Viewport(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_AssetDetails(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Timeline(const FSpawnTabArgs& Args);

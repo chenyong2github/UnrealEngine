@@ -546,6 +546,8 @@ void FContextualAnimViewModel::ToggleSimulateMode()
 {
 	if (SimulateModeState == ESimulateModeState::Inactive)
 	{
+		MovieScene->SetReadOnly(true);
+
 		SimulateModeState = ESimulateModeState::Paused;
 
 		if (SceneInstance.IsValid())
@@ -555,6 +557,8 @@ void FContextualAnimViewModel::ToggleSimulateMode()
 	}
 	else
 	{
+		MovieScene->SetReadOnly(false);
+
 		SimulateModeState = ESimulateModeState::Inactive;
 
 		if (SceneInstance.IsValid())
@@ -720,6 +724,14 @@ void FContextualAnimViewModel::SequencerTimeChanged()
 void FContextualAnimViewModel::SequencerDataChanged(EMovieSceneDataChangeType DataChangeType)
 {
 	UE_LOG(LogContextualAnim, Log, TEXT("FContextualAnimViewModel::OnMovieSceneDataChanged DataChangeType: %d"), (int32)DataChangeType);
+
+	// Stop simulate mode if the user clicks the Unlock button on the Sequencer Panel while Simulate mode is active
+	// This is a temp solution, in the future we will hide that button along with the other Sequencer related buttons
+	if (DataChangeType == EMovieSceneDataChangeType::Unknown && SimulateModeState != ESimulateModeState::Inactive && Sequencer->IsReadOnly() == false)
+	{
+		ToggleSimulateMode();
+		return;
+	}
 
 	if(!SceneInstance.IsValid())
 	{
