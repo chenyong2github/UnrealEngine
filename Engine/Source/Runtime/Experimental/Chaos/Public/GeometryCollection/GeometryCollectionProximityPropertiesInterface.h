@@ -32,7 +32,7 @@ public :
 
 	struct FProximityProperties
 	{
-		EProximityMethod Method;
+		EProximityMethod Method = EProximityMethod::Precise;
 		float DistanceThreshold = 1.0f;
 		float RequireContactAmount = 0.0f;
 		EProximityContactMethod ContactMethod = EProximityContactMethod::MinOverlapInProjectionToMajorAxes;
