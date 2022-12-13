@@ -495,9 +495,9 @@ bool IsHairVisibilityComputeRasterEnabled()
 	return CVarHairStrandsVisibilityComputeRaster.GetValueOnAnyThread() == 1;
 }
 
-bool IsHairVisibilityComputeRasterForwardEnabled()
+bool IsHairVisibilityComputeRasterForwardEnabled(EShaderPlatform InPlatform)
 {
-	return CVarHairStrandsVisibilityComputeRaster.GetValueOnAnyThread() == 2;
+	return IsFeatureLevelSupported(InPlatform, ERHIFeatureLevel::SM6) && CVarHairStrandsVisibilityComputeRaster.GetValueOnAnyThread() == 2;
 }
 
 bool IsHairVisibilityComputeRasterContinuousLODEnabled()

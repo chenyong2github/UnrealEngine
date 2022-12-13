@@ -10,6 +10,7 @@
 #include "RenderGraphUtils.h"
 #include "HairStrandsInterface.h"
 #include "SceneRendering.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 extern int32 GHairVisibilityComputeRaster_Culling;
 extern int32 GHairVisibilityComputeRaster_MaxTiles;
@@ -23,6 +24,10 @@ extern int32 GHairVisibilityComputeRaster_Debug;
 void SetUpViewHairRenderInfo(const FViewInfo& ViewInfo, FVector4f& OutHairRenderInfo, uint32& OutHairRenderInfoBits, uint32& OutHairComponents);
 void SetUpViewHairRenderInfo(const FViewInfo& ViewInfo, bool bEnableMSAA, FVector4f& OutHairRenderInfo, uint32& OutHairRenderInfoBits, uint32& OutHairComponents);
 
+inline bool IsHairStrandsForwardRasterSupported(EShaderPlatform In) 
+{ 
+	return IsFeatureLevelSupported(In, ERHIFeatureLevel::SM6) && IsHairStrandsSupported(EHairStrandsShaderType::Strands, In); 
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////
 // Culling pass
@@ -48,7 +53,7 @@ class FHairCullSegmentCS : public FGlobalShader
 		END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsForwardRasterSupported(Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -82,10 +87,10 @@ END_SHADER_PARAMETER_STRUCT()
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Compute depth tile data based on scene data
 
-class FVisiblityRasterComputeForwardPrepareDepthGridCS : public FGlobalShader
+class FHairStrandsForwardRasterPrepareDepthGridCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FVisiblityRasterComputeForwardPrepareDepthGridCS);
-	SHADER_USE_PARAMETER_STRUCT(FVisiblityRasterComputeForwardPrepareDepthGridCS, FGlobalShader);
+	DECLARE_GLOBAL_SHADER(FHairStrandsForwardRasterPrepareDepthGridCS);
+	SHADER_USE_PARAMETER_STRUCT(FHairStrandsForwardRasterPrepareDepthGridCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FRasterComputeForwardCommonParameters, Common)
@@ -94,7 +99,7 @@ class FVisiblityRasterComputeForwardPrepareDepthGridCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsForwardRasterSupported(Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -102,15 +107,15 @@ public:
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FVisiblityRasterComputeForwardPrepareDepthGridCS, "/Engine/Private/HairStrands/HairStrandsForwardRaster.usf", "PrepareDepthGridCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FHairStrandsForwardRasterPrepareDepthGridCS, "/Engine/Private/HairStrands/HairStrandsForwardRaster.usf", "PrepareDepthGridCS", SF_Compute);
 
 /////////////////////////////////////////////////////////////////////////////////////////
 // Bin strands segments
 
-class FVisiblityRasterComputeForwardBinningCS : public FGlobalShader
+class FHairStrandsForwardRasterBinningCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FVisiblityRasterComputeForwardBinningCS);
-	SHADER_USE_PARAMETER_STRUCT(FVisiblityRasterComputeForwardBinningCS, FGlobalShader);
+	DECLARE_GLOBAL_SHADER(FHairStrandsForwardRasterBinningCS);
+	SHADER_USE_PARAMETER_STRUCT(FHairStrandsForwardRasterBinningCS, FGlobalShader);
 
 	class FDebug : SHADER_PERMUTATION_BOOL("PERMUTATION_DEBUG");
 	using FPermutationDomain = TShaderPermutationDomain<FDebug>;
@@ -129,7 +134,7 @@ class FVisiblityRasterComputeForwardBinningCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsForwardRasterSupported(Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -137,15 +142,15 @@ public:
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FVisiblityRasterComputeForwardBinningCS, "/Engine/Private/HairStrands/HairStrandsForwardRaster.usf", "BinningCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FHairStrandsForwardRasterBinningCS, "/Engine/Private/HairStrands/HairStrandsForwardRaster.usf", "BinningCS", SF_Compute);
 
 /////////////////////////////////////////////////////////////////////////////////////////
 // Compacted binned segments into contiguous list 
 
-class FVisiblityRasterComputeForwardCompactionCS : public FGlobalShader
+class FHairStrandsForwardRasterCompactionCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FVisiblityRasterComputeForwardCompactionCS);
-	SHADER_USE_PARAMETER_STRUCT(FVisiblityRasterComputeForwardCompactionCS, FGlobalShader);
+	DECLARE_GLOBAL_SHADER(FHairStrandsForwardRasterCompactionCS);
+	SHADER_USE_PARAMETER_STRUCT(FHairStrandsForwardRasterCompactionCS, FGlobalShader);
 
 	class FDebug : SHADER_PERMUTATION_BOOL("PERMUTATION_DEBUG");
 	using FPermutationDomain = TShaderPermutationDomain<FDebug>;
@@ -163,7 +168,7 @@ class FVisiblityRasterComputeForwardCompactionCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters &Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsForwardRasterSupported(Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters &Parameters, FShaderCompilerEnvironment &OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -171,15 +176,15 @@ public:
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FVisiblityRasterComputeForwardCompactionCS, "/Engine/Private/HairStrands/HairStrandsForwardRaster.usf", "CompactionCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FHairStrandsForwardRasterCompactionCS, "/Engine/Private/HairStrands/HairStrandsForwardRaster.usf", "CompactionCS", SF_Compute);
 
 /////////////////////////////////////////////////////////////////////////////////////////
 // Rasterized binned & shaded segements
 
-class FVisiblityRasterComputeForwardRasterizeCS : public FGlobalShader
+class FHairStrandsForwardRasterRasterizeCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FVisiblityRasterComputeForwardRasterizeCS);
-	SHADER_USE_PARAMETER_STRUCT(FVisiblityRasterComputeForwardRasterizeCS, FGlobalShader);
+	DECLARE_GLOBAL_SHADER(FHairStrandsForwardRasterRasterizeCS);
+	SHADER_USE_PARAMETER_STRUCT(FHairStrandsForwardRasterRasterizeCS, FGlobalShader);
 
 	class FDebug : SHADER_PERMUTATION_BOOL("PERMUTATION_DEBUG");
 	using FPermutationDomain = TShaderPermutationDomain<FDebug>;
@@ -202,7 +207,7 @@ class FVisiblityRasterComputeForwardRasterizeCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsForwardRasterSupported(Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -212,15 +217,15 @@ public:
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FVisiblityRasterComputeForwardRasterizeCS, "/Engine/Private/HairStrands/HairStrandsForwardRaster.usf", "RasterCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FHairStrandsForwardRasterRasterizeCS, "/Engine/Private/HairStrands/HairStrandsForwardRaster.usf", "RasterCS", SF_Compute);
 
 /////////////////////////////////////////////////////////////////////////////////////////
 // Debug pass
 
-class FVisiblityRasterComputeForwardDebugCS : public FGlobalShader
+class FHairStrandsForwardRasterDebugCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FVisiblityRasterComputeForwardDebugCS);
-	SHADER_USE_PARAMETER_STRUCT(FVisiblityRasterComputeForwardDebugCS, FGlobalShader);
+	DECLARE_GLOBAL_SHADER(FHairStrandsForwardRasterDebugCS);
+	SHADER_USE_PARAMETER_STRUCT(FHairStrandsForwardRasterDebugCS, FGlobalShader);
 
 	using FPermutationDomain = TShaderPermutationDomain<>;
 
@@ -237,7 +242,7 @@ class FVisiblityRasterComputeForwardDebugCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform); }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsForwardRasterSupported(Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -245,7 +250,7 @@ public:
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FVisiblityRasterComputeForwardDebugCS, "/Engine/Private/HairStrands/HairStrandsForwardRaster.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FHairStrandsForwardRasterDebugCS, "/Engine/Private/HairStrands/HairStrandsForwardRaster.usf", "MainCS", SF_Compute);
 
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -260,6 +265,11 @@ FRasterForwardCullingOutput AddHairStrandsForwardCullingPass(
 	bool bSupportCulling,
 	bool bForceRegister)
 {	
+	if (!IsHairStrandsForwardRasterSupported(ViewInfo.GetShaderPlatform()))
+	{
+		return FRasterForwardCullingOutput();
+	}
+
 	// Compute maximum number of PrimIDs
 	uint32 MaxNumPrimIDs = 0;
 	for (const FHairStrandsMacroGroupData &MacroGroup : MacroGroupDatas)
@@ -414,6 +424,11 @@ void AddHairStrandsForwardRasterPass(
 	const FRDGTextureRef SceneDepthTexture,
 	const FRDGTextureRef SceneColorTexture)
 {	
+	if (!IsHairStrandsForwardRasterSupported(ViewInfo.GetShaderPlatform()))
+	{
+		return;
+	}
+
 	const FIntPoint OutResolution = InResolution;
 
 	// See the comment on the GHairVisibilityComputeRaster_MaxTiles declaration for an explanation for the large upper bound.
@@ -506,8 +521,8 @@ void AddHairStrandsForwardRasterPass(
 	{
 		VisTileDepthGrid = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(BinTileRes, PF_R32_UINT, FClearValueBinding::None, TexCreate_UAV | TexCreate_ShaderResource), TEXT("Hair.VisTileDepthGrid"));
 
-		TShaderMapRef<FVisiblityRasterComputeForwardPrepareDepthGridCS> ComputeShaderPrepareDepthGrid(ViewInfo.ShaderMap);
-		FVisiblityRasterComputeForwardPrepareDepthGridCS::FParameters* Parameters = GraphBuilder.AllocParameters<FVisiblityRasterComputeForwardPrepareDepthGridCS::FParameters>();		
+		TShaderMapRef<FHairStrandsForwardRasterPrepareDepthGridCS> ComputeShaderPrepareDepthGrid(ViewInfo.ShaderMap);
+		FHairStrandsForwardRasterPrepareDepthGridCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairStrandsForwardRasterPrepareDepthGridCS::FParameters>();		
 		Parameters->Common = Common;
 		Parameters->SceneDepthTexture = SceneDepthTexture;
 		Parameters->OutVisTileDepthGrid = GraphBuilder.CreateUAV(VisTileDepthGrid);
@@ -534,7 +549,7 @@ void AddHairStrandsForwardRasterPass(
 
 	// Binning pass
 	{
-		FVisiblityRasterComputeForwardBinningCS::FParameters* Parameters = GraphBuilder.AllocParameters<FVisiblityRasterComputeForwardBinningCS::FParameters>();
+		FHairStrandsForwardRasterBinningCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairStrandsForwardRasterBinningCS::FParameters>();
 		Parameters->Common = Common;
 		Parameters->ViewUniformBuffer = ViewUniformShaderParameters;
 		Parameters->OutVisTilePrims = GraphBuilder.CreateUAV(BinData.VisTilePrims, PF_R32_UINT);
@@ -545,9 +560,9 @@ void AddHairStrandsForwardRasterPass(
 		Parameters->VisTileBinningGridTex = BinData.VisTileBinningGrid;
 		ShaderPrint::SetParameters(GraphBuilder, ViewInfo.ShaderPrintData, Parameters->ShaderPrintParameters);
 
-		FVisiblityRasterComputeForwardBinningCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FVisiblityRasterComputeForwardBinningCS::FDebug>(bDebugEnabled);
-		TShaderMapRef<FVisiblityRasterComputeForwardBinningCS> ComputeShaderBinning(ViewInfo.ShaderMap, PermutationVector);
+		FHairStrandsForwardRasterBinningCS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FHairStrandsForwardRasterBinningCS::FDebug>(bDebugEnabled);
+		TShaderMapRef<FHairStrandsForwardRasterBinningCS> ComputeShaderBinning(ViewInfo.ShaderMap, PermutationVector);
 		FComputeShaderUtils::AddPass(
 			GraphBuilder, 
 			RDG_EVENT_NAME("HairStrands::VisibilityComputeRasterBinning"),
@@ -558,7 +573,7 @@ void AddHairStrandsForwardRasterPass(
 
 	// Compaction
 	{
-		FVisiblityRasterComputeForwardCompactionCS::FParameters* Parameters = GraphBuilder.AllocParameters<FVisiblityRasterComputeForwardCompactionCS::FParameters>();
+		FHairStrandsForwardRasterCompactionCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairStrandsForwardRasterCompactionCS::FParameters>();
 		Parameters->Common = Common;
 		Parameters->ViewUniformBuffer = ViewUniformShaderParameters;
 		Parameters->InData  = BinData.VisTileDataSRV;
@@ -569,9 +584,9 @@ void AddHairStrandsForwardRasterPass(
 		Parameters->OutArgs = GraphBuilder.CreateUAV(BinData.CompactedVisTileArgs, PF_R32_UINT);
 		ShaderPrint::SetParameters(GraphBuilder, ViewInfo.ShaderPrintData, Parameters->ShaderPrintParameters);
 
-		FVisiblityRasterComputeForwardCompactionCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FVisiblityRasterComputeForwardCompactionCS::FDebug>(bDebugEnabled);
-		TShaderMapRef<FVisiblityRasterComputeForwardCompactionCS> ComputeShaderCompaction(ViewInfo.ShaderMap, PermutationVector);
+		FHairStrandsForwardRasterCompactionCS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FHairStrandsForwardRasterCompactionCS::FDebug>(bDebugEnabled);
+		TShaderMapRef<FHairStrandsForwardRasterCompactionCS> ComputeShaderCompaction(ViewInfo.ShaderMap, PermutationVector);
 		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrands::VisibilityComputeRasterCompaction"), ComputeShaderCompaction, Parameters, FIntVector(BinTileRes.X, BinTileRes.Y, 1));
 	}
 
@@ -594,7 +609,7 @@ void AddHairStrandsForwardRasterPass(
 		FRDGBufferUAVRef WorkCounterUAV = GraphBuilder.CreateUAV(WorkCounter, PF_R32_UINT);
 		AddClearUAVPass(GraphBuilder, WorkCounterUAV, 0);
 
-		FVisiblityRasterComputeForwardRasterizeCS::FParameters* Parameters = GraphBuilder.AllocParameters<FVisiblityRasterComputeForwardRasterizeCS::FParameters>();
+		FHairStrandsForwardRasterRasterizeCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairStrandsForwardRasterRasterizeCS::FParameters>();
 		Parameters->Common = Common;
 		Parameters->ViewUniformBuffer = ViewUniformShaderParameters;
 		Parameters->SceneDepthTexture = SceneDepthTexture;
@@ -609,15 +624,15 @@ void AddHairStrandsForwardRasterPass(
 		Parameters->RWWorkCounter = WorkCounterUAV;
 		ShaderPrint::SetParameters(GraphBuilder, ViewInfo.ShaderPrintData, Parameters->ShaderPrintParameters);
 
-		FVisiblityRasterComputeForwardRasterizeCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FVisiblityRasterComputeForwardRasterizeCS::FDebug>(bDebugEnabled);
-		TShaderMapRef<FVisiblityRasterComputeForwardRasterizeCS> ComputeShaderRaster(ViewInfo.ShaderMap, PermutationVector);
+		FHairStrandsForwardRasterRasterizeCS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FHairStrandsForwardRasterRasterizeCS::FDebug>(bDebugEnabled);
+		TShaderMapRef<FHairStrandsForwardRasterRasterizeCS> ComputeShaderRaster(ViewInfo.ShaderMap, PermutationVector);
 		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrands::VisibilityComputeRasterRaster(tiled)"), ComputeShaderRaster, Parameters, FIntVector(NumRasterizers, 1, 1));
 	}
 
 	if (bDebugEnabled)
 	{
-		FVisiblityRasterComputeForwardDebugCS::FParameters* Parameters = GraphBuilder.AllocParameters<FVisiblityRasterComputeForwardDebugCS::FParameters>();
+		FHairStrandsForwardRasterDebugCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairStrandsForwardRasterDebugCS::FParameters>();
 		Parameters->Common = Common;
 		Parameters->InstanceCount = InData.RasterizedInstanceCount;
 		Parameters->VisTileData = GraphBuilder.CreateSRV(BinData.CompactedVisTileData);
@@ -626,7 +641,7 @@ void AddHairStrandsForwardRasterPass(
 		Parameters->HairPixelCountPerTile_ForDebug = HairPixelCountPerTile_ForDebug;
 		ShaderPrint::SetParameters(GraphBuilder, ViewInfo.ShaderPrintData, Parameters->ShaderPrintParameters);
 
-		TShaderMapRef<FVisiblityRasterComputeForwardDebugCS> DebugComputeShader(ViewInfo.ShaderMap);
+		TShaderMapRef<FHairStrandsForwardRasterDebugCS> DebugComputeShader(ViewInfo.ShaderMap);
 		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrands::VisibilityComputeRaster(Debug)"), DebugComputeShader, Parameters, FIntVector(FMath::DivideAndRoundUp(Common.BinTileRes.X, 8), FMath::DivideAndRoundUp(Common.BinTileRes.Y, 8), 1));
 	}
 }

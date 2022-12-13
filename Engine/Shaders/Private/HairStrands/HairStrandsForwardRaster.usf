@@ -1024,7 +1024,6 @@ void RasterCS(
 	uint2 GroupThread2D    : SV_GroupThreadID,  /* 8x8 */
 	uint  GroupID          : SV_GroupID)		/* Rasterizer ID */
 {
-	#if 0
 	ResolvedView = ResolveView();
 	const uint BinTileNum = VisTileArgs[0];
 
@@ -1666,7 +1665,6 @@ void RasterCS(
 		} // 4. Raster
 
 	}// Work item
-	#endif
 }
 
 #endif //SHADER_RASTERCOMPUTE_RASTER

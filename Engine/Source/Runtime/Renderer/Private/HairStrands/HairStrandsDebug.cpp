@@ -1179,7 +1179,7 @@ static void AddDrawDebugClusterPass(
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-uint32 GetHairStrandsMeanSamplePerPixel();
+uint32 GetHairStrandsMeanSamplePerPixel(EShaderPlatform In);
 static void InternalRenderHairStrandsDebugInfo(
 	FRDGBuilder& GraphBuilder,
 	FScene* Scene,
@@ -1352,7 +1352,7 @@ static void InternalRenderHairStrandsDebugInfo(
 
 		const FIntPoint PPLLResolution = HairData.DebugData.PPLLData.NodeIndexTexture->Desc.Extent;
 		FHairVisibilityDebugPPLLCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairVisibilityDebugPPLLCS::FParameters>();
-		PassParameters->PPLLMeanListElementCountPerPixel = GetHairStrandsMeanSamplePerPixel();
+		PassParameters->PPLLMeanListElementCountPerPixel = GetHairStrandsMeanSamplePerPixel(View.GetShaderPlatform());
 		PassParameters->PPLLMaxTotalListElementCount = HairData.DebugData.PPLLData.NodeDataBuffer->Desc.NumElements;
 		PassParameters->PPLLCounter = HairData.DebugData.PPLLData.NodeCounterTexture;
 		PassParameters->PPLLNodeIndex = HairData.DebugData.PPLLData.NodeIndexTexture;

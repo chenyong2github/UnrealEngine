@@ -154,9 +154,9 @@ enum EHairVisibilityRenderMode
 };
 
 bool IsHairVisibilityComputeRasterEnabled();
-bool IsHairVisibilityComputeRasterForwardEnabled();
+bool IsHairVisibilityComputeRasterForwardEnabled(EShaderPlatform InPlatform);
 
-inline EHairVisibilityRenderMode GetHairVisibilityRenderMode()
+inline EHairVisibilityRenderMode GetHairVisibilityRenderMode(EShaderPlatform InPlatform)
 {
 	if (GHairVisibilityPPLL > 0)
 	{
@@ -166,7 +166,7 @@ inline EHairVisibilityRenderMode GetHairVisibilityRenderMode()
 	{
 		return HairVisibilityRenderMode_ComputeRaster;
 	}
-	else if (IsHairVisibilityComputeRasterForwardEnabled())
+	else if (IsHairVisibilityComputeRasterForwardEnabled(InPlatform))
 	{
 		return HairVisibilityRenderMode_ComputeRasterForward;
 	}
@@ -176,15 +176,15 @@ inline EHairVisibilityRenderMode GetHairVisibilityRenderMode()
 	}
 }
 
-inline bool IsMsaaEnabled()
+inline bool IsMsaaEnabled(EShaderPlatform InPlatform)
 {
-	const EHairVisibilityRenderMode Mode = GetHairVisibilityRenderMode();
+	const EHairVisibilityRenderMode Mode = GetHairVisibilityRenderMode(InPlatform);
 	return Mode == HairVisibilityRenderMode_MSAA_Visibility;
 }
 
-static uint32 GetMaxSamplePerPixel()
+static uint32 GetMaxSamplePerPixel(EShaderPlatform InPlatform)
 {
-	switch (GetHairVisibilityRenderMode())
+	switch (GetHairVisibilityRenderMode(InPlatform))
 	{
 		case HairVisibilityRenderMode_ComputeRaster:
 		{
@@ -249,10 +249,10 @@ static uint32 GetMaxSamplePerPixel()
 	return 1;
 }
 
-inline uint32 GetMeanSamplePerPixel()
+inline uint32 GetMeanSamplePerPixel(EShaderPlatform InPlatform)
 {
-	const uint32 SamplePerPixel = GetMaxSamplePerPixel();
-	switch (GetHairVisibilityRenderMode())
+	const uint32 SamplePerPixel = GetMaxSamplePerPixel(InPlatform);
+	switch (GetHairVisibilityRenderMode(InPlatform))
 	{
 	case HairVisibilityRenderMode_ComputeRasterForward:
 	case HairVisibilityRenderMode_ComputeRaster:
@@ -268,9 +268,9 @@ inline uint32 GetMeanSamplePerPixel()
 	return 1;
 }
 
-uint32 GetHairStrandsMeanSamplePerPixel()
+uint32 GetHairStrandsMeanSamplePerPixel(EShaderPlatform InPlatform)
 {
-	return GetMeanSamplePerPixel();
+	return GetMeanSamplePerPixel(InPlatform);
 }
 
 struct FRasterComputeOutput
@@ -284,9 +284,9 @@ struct FRasterComputeOutput
 	FRDGTextureRef PrimMatTexture = nullptr;
 };
 
-static uint32 GetTotalSampleCountForAllocation(FIntPoint Resolution)
+static uint32 GetTotalSampleCountForAllocation(FIntPoint Resolution, EShaderPlatform InPlatform)
 {
-	return Resolution.X * Resolution.Y * GetMeanSamplePerPixel();
+	return Resolution.X * Resolution.Y * GetMeanSamplePerPixel(InPlatform);
 }
 
 void SetUpViewHairRenderInfo(const FViewInfo& ViewInfo, bool bEnableMSAA, FVector4f& OutHairRenderInfo, uint32& OutHairRenderInfoBits, uint32& OutHairComponents)
@@ -295,7 +295,7 @@ void SetUpViewHairRenderInfo(const FViewInfo& ViewInfo, bool bEnableMSAA, FVecto
 	const float VelocityMagnitudeScale = FMath::Clamp(CVarHairVelocityMagnitudeScale.GetValueOnAnyThread(), 0, 512) * FMath::Min(PixelVelocity.X, PixelVelocity.Y);
 
 	// In the case we render coverage, we need to override some view uniform shader parameters to account for the change in MSAA sample count.
-	const uint32 HairVisibilitySampleCount = bEnableMSAA ? GetMaxSamplePerPixel() : 1;	// The coverage pass does not use MSAA
+	const uint32 HairVisibilitySampleCount = bEnableMSAA ? GetMaxSamplePerPixel(ViewInfo.GetShaderPlatform()) : 1;	// The coverage pass does not use MSAA
 	const float RasterizationScaleOverride = 0.0f;	// no override
 	FMinHairRadiusAtDepth1 MinHairRadius = ComputeMinStrandRadiusAtDepth1(
 		FIntPoint(ViewInfo.UnconstrainedViewRect.Width(), ViewInfo.UnconstrainedViewRect.Height()), ViewInfo.FOV, HairVisibilitySampleCount, RasterizationScaleOverride);
@@ -307,7 +307,7 @@ void SetUpViewHairRenderInfo(const FViewInfo& ViewInfo, bool bEnableMSAA, FVecto
 
 void SetUpViewHairRenderInfo(const FViewInfo& ViewInfo, FVector4f& OutHairRenderInfo, uint32& OutHairRenderInfoBits, uint32& OutHairComponents)
 {
-	SetUpViewHairRenderInfo(ViewInfo, IsMsaaEnabled(), OutHairRenderInfo, OutHairRenderInfoBits, OutHairComponents);
+	SetUpViewHairRenderInfo(ViewInfo, IsMsaaEnabled(ViewInfo.GetShaderPlatform()), OutHairRenderInfo, OutHairRenderInfoBits, OutHairComponents);
 }
 
 static bool IsCompatibleWithHairVisibility(const FMeshMaterialShaderPermutationParameters& Parameters)
@@ -1679,6 +1679,7 @@ static void AddHairVisibilityPrimitiveIdCompactionPass(
 	FRDGBufferRef& OutIndirectArgsBuffer,
 	uint32& OutMaxRenderNodeCount)
 {
+	const uint32 MaxSamplePerPixel = GetMaxSamplePerPixel(View.GetShaderPlatform());
 	FIntPoint Resolution;
 	if (bUsePPLL)
 	{
@@ -1689,7 +1690,7 @@ static void AddHairVisibilityPrimitiveIdCompactionPass(
 	}
 	else
 	{
-		check(PassParameters->MSAA_DepthTexture->Desc.NumSamples == GetMaxSamplePerPixel());
+		check(PassParameters->MSAA_DepthTexture->Desc.NumSamples == MaxSamplePerPixel);
 		check(PassParameters->MSAA_DepthTexture);
 		check(PassParameters->MSAA_IDTexture);
 		Resolution = PassParameters->MSAA_DepthTexture->Desc.Extent;
@@ -1720,9 +1721,9 @@ static void AddHairVisibilityPrimitiveIdCompactionPass(
 	const FIntPoint EffectiveResolution = bUsePPLL ? FIntPoint(View.ViewRect.Width(), View.ViewRect.Height()) : FIntPoint(HairRect.Width(), HairRect.Height());
 
 	// Select render node count according to current mode
-	const uint32 MSAASampleCount = GetHairVisibilityRenderMode() == HairVisibilityRenderMode_MSAA_Visibility ? GetMaxSamplePerPixel() : 1;
-	const uint32 PPLLMaxRenderNodePerPixel = GetMaxSamplePerPixel();
-	const uint32 MaxRenderNodeCount = GetTotalSampleCountForAllocation(EffectiveResolution);
+	const uint32 MSAASampleCount = GetHairVisibilityRenderMode(View.GetShaderPlatform()) == HairVisibilityRenderMode_MSAA_Visibility ? MaxSamplePerPixel : 1;
+	const uint32 PPLLMaxRenderNodePerPixel = MaxSamplePerPixel;
+	const uint32 MaxRenderNodeCount = GetTotalSampleCountForAllocation(EffectiveResolution, View.GetShaderPlatform());
 	check(TileData.IsValid());
 
 	OutCompactNodeVis = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(HairStrandsVisibilityInternal::NodeVis), MaxRenderNodeCount), TEXT("Hair.VisibilityNodeVis"));
@@ -1861,11 +1862,12 @@ static void AddHairVisibilityCompactionComputeRasterPass(
 	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(OutCoverageTexture), 0.f);
 
 	// Select render node count according to current mode
+	const uint32 MaxSamplePerPixel = GetMaxSamplePerPixel(View.GetShaderPlatform());
 	check(TileData.IsValid());
 	const FHairStrandsTiles::ETileType TileType = FHairStrandsTiles::ETileType::HairAll;
-	const uint32 MSAASampleCount = GetHairVisibilityRenderMode() == HairVisibilityRenderMode_MSAA_Visibility ? GetMaxSamplePerPixel() : 1;
-	const uint32 PPLLMaxRenderNodePerPixel = GetMaxSamplePerPixel();
-	const uint32 MaxRenderNodeCount = GetTotalSampleCountForAllocation(Resolution);
+	const uint32 MSAASampleCount = GetHairVisibilityRenderMode(View.GetShaderPlatform()) == HairVisibilityRenderMode_MSAA_Visibility ? MaxSamplePerPixel : 1;
+	const uint32 PPLLMaxRenderNodePerPixel = MaxSamplePerPixel;
+	const uint32 MaxRenderNodeCount = GetTotalSampleCountForAllocation(Resolution, View.GetShaderPlatform());
 	OutCompactNodeVis = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(HairStrandsVisibilityInternal::NodeVis), MaxRenderNodeCount), TEXT("Hair.VisibilityPrimitiveIdCompactNodeData"));
 	OutCompactNodeCoord = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MaxRenderNodeCount), TEXT("Hair.VisibilityPrimitiveIdCompactNodeCoord"));
 
@@ -1942,11 +1944,11 @@ static FRDGTextureRef AddHairVisibilityFillOpaqueDepth(
 	const FHairStrandsTiles& TileData,
 	const FRDGTextureRef& SceneDepthTexture)
 {
-	check(GetHairVisibilityRenderMode() == HairVisibilityRenderMode_MSAA_Visibility || GetHairVisibilityRenderMode() == HairVisibilityRenderMode_ComputeRaster);
+	check(GetHairVisibilityRenderMode(View.GetShaderPlatform()) == HairVisibilityRenderMode_MSAA_Visibility || GetHairVisibilityRenderMode(View.GetShaderPlatform()) == HairVisibilityRenderMode_ComputeRaster);
 	check(TileData.IsValid());
 
 	const FHairStrandsTiles::ETileType TileType = FHairStrandsTiles::ETileType::HairAll;
-	FRDGTextureRef OutVisibilityDepthTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(Resolution, PF_D24, FClearValueBinding::DepthFar, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, 1, GetMaxSamplePerPixel()), TEXT("Hair.VisibilityDepthTexture"));
+	FRDGTextureRef OutVisibilityDepthTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(Resolution, PF_D24, FClearValueBinding::DepthFar, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, 1, GetMaxSamplePerPixel(View.GetShaderPlatform())), TEXT("Hair.VisibilityDepthTexture"));
 
 	FHairVisibilityFillOpaqueDepthPS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairVisibilityFillOpaqueDepthPS::FParameters>();
 	Parameters->TileData = GetHairStrandsTileParameters(View, TileData, TileType);
@@ -2099,7 +2101,7 @@ static void AddHairVisibilityMSAAPass(
 	FRDGTextureRef& OutVisibilityIdTexture,
 	FRDGTextureRef& OutVisibilityDepthTexture)
 {
-	const uint32 MSAASampleCount = GetMaxSamplePerPixel();
+	const uint32 MSAASampleCount = GetMaxSamplePerPixel(ViewInfo->GetShaderPlatform());
 	{
 		{
 			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(Resolution, PF_R32_UINT, FClearValueBinding(EClearBinding::ENoneBound), TexCreate_NoFastClear | TexCreate_RenderTargetable | TexCreate_ShaderResource, 1, MSAASampleCount);
@@ -2147,7 +2149,7 @@ static void AddHairVisibilityPPLLPass(
 	const FIntRect HairRect = ViewInfo->ViewRect;
 	const FIntPoint EffectiveResolution(HairRect.Width(), HairRect.Height());
 
-	const uint32 PPLLMaxTotalListElementCount = GetTotalSampleCountForAllocation(EffectiveResolution);
+	const uint32 PPLLMaxTotalListElementCount = GetTotalSampleCountForAllocation(EffectiveResolution, ViewInfo->GetShaderPlatform());
 	{
 		OutVisibilityPPLLNodeData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FPackedHairVisPPLL), PPLLMaxTotalListElementCount), TEXT("Hair.VisibilityPPLLNodeData"));
 	}
@@ -2730,7 +2732,7 @@ void AddMeshDrawTransitionPass(
 			ExternalAccessQueue.Add(CulledVertexRadiusScaleBuffer);
 			ExternalAccessQueue.Add(DrawIndirectBuffer, ERHIAccess::IndirectArgs);
 
-			const EHairVisibilityRenderMode RasterMode = GetHairVisibilityRenderMode();
+			const EHairVisibilityRenderMode RasterMode = GetHairVisibilityRenderMode(ViewInfo.GetShaderPlatform());
 			if (RasterMode != HairVisibilityRenderMode_ComputeRaster && RasterMode != HairVisibilityRenderMode_ComputeRasterForward)
 			{
 				VFInput.Strands.PositionBuffer				= FRDGImportedBuffer();
@@ -3964,7 +3966,7 @@ void DrawHitProxies(
 {
 	// Proxy rendering is only supported/compatible with MSAA-visibility rendering. 
 	// PPLL is not supported, but it is supposed to be used only for final render.
-	const EHairVisibilityRenderMode RenderMode = GetHairVisibilityRenderMode();
+	const EHairVisibilityRenderMode RenderMode = GetHairVisibilityRenderMode(View.GetShaderPlatform());
 	if (RenderMode != HairVisibilityRenderMode_MSAA_Visibility && RenderMode != HairVisibilityRenderMode_ComputeRaster && RenderMode != HairVisibilityRenderMode_ComputeRasterForward)
 	{
 		return;
@@ -4193,7 +4195,7 @@ void RenderHairStrandsVisibilityBuffer(
 		{
 			FHairStrandsVisibilityData& VisibilityData = View.HairStrandsViewData.VisibilityData;
 			VisibilityData.NodeGroupSize = GetVendorOptimalGroupSize1D();
-			VisibilityData.MaxSampleCount = GetMaxSamplePerPixel();
+			VisibilityData.MaxSampleCount = GetMaxSamplePerPixel(View.GetShaderPlatform());
 
 			// Use the scene color for computing target resolution as the View.ViewRect, 
 			// doesn't include the actual resolution padding which make buffer size 
@@ -4201,7 +4203,7 @@ void RenderHairStrandsVisibilityBuffer(
 			check(SceneDepthTexture);
 			const FIntPoint Resolution = SceneDepthTexture->Desc.Extent;
 
-			const EHairVisibilityRenderMode RenderMode = GetHairVisibilityRenderMode();
+			const EHairVisibilityRenderMode RenderMode = GetHairVisibilityRenderMode(View.GetShaderPlatform());
 			check(
 				RenderMode == HairVisibilityRenderMode_MSAA_Visibility || 
 				RenderMode == HairVisibilityRenderMode_PPLL || 
@@ -4727,7 +4729,7 @@ void RenderHairStrandsVisibilityBuffer(
 						VisibilityData.SampleLightingTexture			= PassOutput.SampleLightingTexture;
 					}
 
-					VisibilityData.MaxSampleCount = GetMaxSamplePerPixel();
+					VisibilityData.MaxSampleCount = GetMaxSamplePerPixel(View.GetShaderPlatform());
 					VisibilityData.NodeIndex = CompactNodeIndex;
 					VisibilityData.CoverageTexture = CoverageTexture;
 					VisibilityData.HairOnlyDepthTexture = HairOnlyDepthTexture;
