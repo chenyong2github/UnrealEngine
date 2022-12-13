@@ -31,6 +31,9 @@ private:
 	void HandleModuleChanged(FName InModuleName, EModuleChangeReason InChangeReason);
 	
 private:
+	/** Stores a list of class names that custom layouts have been registered for */
+	TArray<FName> RegisteredClassLayoutNames;
+
 	FDelegateHandle ModuleChangedHandle;
 	FDelegateHandle OperatorAppHandle;
 };
