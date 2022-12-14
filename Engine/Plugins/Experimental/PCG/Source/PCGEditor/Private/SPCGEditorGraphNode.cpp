@@ -12,6 +12,8 @@
 #include "SLevelOfDetailBranchNode.h"
 #include "SPinTypeSelector.h"
 #include "Styling/SlateBrush.h"
+#include "Widgets/STooltip.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 
 /** PCG pin primarily to give more control over pin coloring. */
