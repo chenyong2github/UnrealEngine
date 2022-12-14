@@ -876,8 +876,8 @@ void CacheRayTracingPrimitive(
 	}
 
 	// Write flags
-	Flags = SceneInfo->Proxy->GetCachedRayTracingInstance(CachedRayTracingInstance);
-	UpdateRayTracingInstanceMaskAndFlagsIfNeeded(CachedRayTracingInstance, *(SceneInfo->Proxy));
+	OutFlags = SceneInfo->Proxy->GetCachedRayTracingInstance(OutCachedRayTracingInstance);
+	UpdateRayTracingInstanceMaskAndFlagsIfNeeded(OutCachedRayTracingInstance, *(SceneInfo->Proxy));
 
 	// Cache the coarse mesh streaming handle
 	SceneInfo->CoarseMeshStreamingHandle = SceneInfo->Proxy->GetCoarseMeshStreamingHandle();
