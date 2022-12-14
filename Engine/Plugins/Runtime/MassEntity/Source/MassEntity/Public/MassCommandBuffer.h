@@ -129,7 +129,7 @@ public:
 		PushCommand<FMassCommandDestroyEntities>(Entity);
 	}
 
-	void DestroyEntities(const TArray<FMassEntityHandle>& InEntitiesToDestroy)
+	void DestroyEntities(TConstArrayView<FMassEntityHandle> InEntitiesToDestroy)
 	{
 		PushCommand<FMassCommandDestroyEntities>(InEntitiesToDestroy);
 	}
