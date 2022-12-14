@@ -95,7 +95,7 @@ struct FGameplayDebuggerDebugActor
 {
 	GENERATED_USTRUCT_BODY()
 
-	UPROPERTY(NotReplicated)
+	UPROPERTY()
 	TWeakObjectPtr<AActor> Actor;
 
 	UPROPERTY()
