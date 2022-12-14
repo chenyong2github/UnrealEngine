@@ -2,7 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Metadata/PCGMetadataAttributeTpl.h"
+#include "PCGParamData.h"
+#include "Tests/Elements/PCGDataTableRowToParamDataTestStruct.h"
+#include "Tests/PCGTestsCommon.h"
 
 namespace PCGDataTableRowToParamDataTestHelpers
 {
