@@ -14,6 +14,7 @@
 #include "Engine/Canvas.h"
 #include "EngineUtils.h"
 #include "Algo/Transform.h"
+#include "UObject/UObjectIterator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DataLayerSubsystem)
 
