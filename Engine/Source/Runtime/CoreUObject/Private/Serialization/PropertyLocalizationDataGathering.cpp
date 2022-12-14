@@ -84,6 +84,8 @@ const FPropertyLocalizationDataGatherer::FGatherableFieldsForType& FPropertyLoca
 
 const FPropertyLocalizationDataGatherer::FGatherableFieldsForType& FPropertyLocalizationDataGatherer::CacheGatherableFieldsForType(const UStruct* InType)
 {
+	check(InType);
+
 	TUniquePtr<FGatherableFieldsForType> GatherableFieldsForType = MakeUnique<FGatherableFieldsForType>();
 
 	// Include the parent fields (this will recursively cache any parent types)
@@ -171,8 +173,11 @@ bool FPropertyLocalizationDataGatherer::CanGatherFromInnerProperty(const FProper
 
 	if (const FStructProperty* StructInnerProp = CastField<const FStructProperty>(InInnerProperty))
 	{
-		// Call the "Get" version as we may have already cached a result for this type
-		return !GetGatherableFieldsForType(StructInnerProp->Struct).IsEmpty();
+		if (StructInnerProp->Struct)
+		{
+			// Call the "Get" version as we may have already cached a result for this type
+			return !GetGatherableFieldsForType(StructInnerProp->Struct).IsEmpty();
+		}
 	}
 
 	return false;
@@ -504,7 +509,10 @@ void FPropertyLocalizationDataGatherer::GatherLocalizationDataFromChildTextPrope
 		// Property is a struct property.
 		else if (StructProperty)
 		{
-			GatherLocalizationDataFromStructWithCallbacks(PathToElement, StructProperty->Struct, ElementValueAddress, DefaultElementValueAddress, ElementChildPropertyGatherTextFlags);
+			if (StructProperty->Struct)
+			{
+				GatherLocalizationDataFromStructWithCallbacks(PathToElement, StructProperty->Struct, ElementValueAddress, DefaultElementValueAddress, ElementChildPropertyGatherTextFlags);
+			}
 		}
 		// Property is an object property.
 		else if (ObjectProperty && !(GatherTextFlags & EPropertyLocalizationGathererTextFlags::SkipSubObjects))

@@ -29,11 +29,14 @@ namespace
 
 		PropertyLocalizationDataGatherer.GatherLocalizationDataFromObject(DataTable, GatherTextFlags);
 
-		const FString PathToObject = DataTable->GetPathName();
-		for (const auto& Pair : DataTable->GetRowMap())
+		if (DataTable->RowStruct)
 		{
-			const FString PathToRow = PathToObject + TEXT(".") + Pair.Key.ToString();
-			PropertyLocalizationDataGatherer.GatherLocalizationDataFromStructWithCallbacks(PathToRow, DataTable->RowStruct, Pair.Value, nullptr, GatherTextFlags);
+			const FString PathToObject = DataTable->GetPathName();
+			for (const auto& Pair : DataTable->GetRowMap())
+			{
+				const FString PathToRow = PathToObject + TEXT(".") + Pair.Key.ToString();
+				PropertyLocalizationDataGatherer.GatherLocalizationDataFromStructWithCallbacks(PathToRow, DataTable->RowStruct, Pair.Value, nullptr, GatherTextFlags);
+			}
 		}
 	}
 #endif // WITH_EDITORONLY_DATA
