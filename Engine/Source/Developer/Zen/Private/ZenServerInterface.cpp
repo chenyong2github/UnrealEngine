@@ -184,6 +184,23 @@ DetermineLocalDataCachePath(const TCHAR* ConfigSection, FString& DataPath)
 		}
 	}
 
+	FString DataPathCommandLineOverride;
+	if (GConfig->GetString(ConfigSection, TEXT("LocalDataCachePathCommandLineOverride"), DataPathCommandLineOverride, GEngineIni))
+	{
+		FString DataPathCommandLineOverrideValue;
+		if (FParse::Value(FCommandLine::Get(), *(DataPathCommandLineOverride + TEXT("=")), DataPathCommandLineOverrideValue))
+		{
+			DataPath = DataPathCommandLineOverrideValue;
+			UE_LOG(LogZenServiceInstance, Log, TEXT("Found command line override %s=%s"), *DataPathCommandLineOverride, *DataPath);
+		}
+	}
+
+	// Paths starting with a '?' are looked up from config
+	if (DataPath.StartsWith(TEXT("?")) && !GConfig->GetString(TEXT("DerivedDataCacheSettings"), *DataPath + 1, DataPath, GEngineIni))
+	{
+		DataPath.Empty();
+	}
+
 	FString DataPathEditorOverrideSetting;
 	if (GConfig->GetString(ConfigSection, TEXT("LocalDataCachePathEditorOverrideSetting"), DataPathEditorOverrideSetting, GEngineIni))
 	{
@@ -732,6 +749,31 @@ DetermineCmdLineWithoutTransientComponents(const FServiceAutoLaunchSettings& InS
 	}
 
 	return Parms;
+}
+
+bool
+Private::IsLocalAutoLaunched(FStringView InstanceURL)
+{
+	if (!InstanceURL.IsEmpty() && !InstanceURL.Equals(TEXT("<DefaultInstance>")))
+	{
+		FString TempURL(InstanceURL);
+		return IsLocalHost(TempURL);
+	}
+	return true;
+}
+
+bool
+Private::GetLocalDataCachePathOverride(FString& OutDataPath)
+{
+	const TCHAR* AutoLaunchConfigSection = TEXT("Zen.AutoLaunch");
+	FString DataPath;
+	DetermineLocalDataCachePath(AutoLaunchConfigSection, DataPath);
+	if (DataPath.IsEmpty())
+	{
+		return false;
+	}
+	OutDataPath = DataPath;
+	return true;
 }
 
 bool

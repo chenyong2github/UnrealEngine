@@ -67,6 +67,12 @@ private:
 namespace UE::Zen
 {
 
+namespace Private
+{
+	UE_API bool IsLocalAutoLaunched(FStringView InstanceURL);
+	UE_API bool GetLocalDataCachePathOverride(FString& OutDataPath);
+}
+
 class FZenServiceInstance;
 class FZenLocalServiceRunContext;
 

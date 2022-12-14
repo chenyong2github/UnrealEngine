@@ -122,8 +122,6 @@ private:
 
 	static FCompositeBuffer SaveRpcPackage(const FCbPackage& Package);
 	THttpUniquePtr<IHttpRequest> CreateRpcRequest();
-	THttpUniquePtr<IHttpResponse> PerformBlockingRpc(FCbObject RequestObject, FCbPackage& OutResponse);
-	THttpUniquePtr<IHttpResponse> PerformBlockingRpc(const FCbPackage& RequestPackage, FCbPackage& OutResponse);
 	using FOnRpcComplete = TUniqueFunction<void(THttpUniquePtr<IHttpResponse>& HttpResponse, FCbPackage& Response)>;
 	void EnqueueAsyncRpc(IRequestOwner& Owner, FCbObject RequestObject, FOnRpcComplete&& OnComplete);
 	void EnqueueAsyncRpc(IRequestOwner& Owner, const FCbPackage& RequestPackage, FOnRpcComplete&& OnComplete);
@@ -1065,30 +1063,6 @@ THttpUniquePtr<IHttpRequest> FZenCacheStore::CreateRpcRequest()
 	return Request;
 }
 
-THttpUniquePtr<IHttpResponse> FZenCacheStore::PerformBlockingRpc(FCbObject RequestObject, FCbPackage& OutResponse)
-{
-	THttpUniquePtr<IHttpRequest> Request = CreateRpcRequest();
-	Request->SetContentType(EHttpMediaType::CbObject);
-	Request->SetBody(RequestObject.GetBuffer().MakeOwned());
-
-	FCbPackageReceiver Receiver(OutResponse);
-	THttpUniquePtr<IHttpResponse> Response;
-	Request->Send(&Receiver, Response);
-	return Response;
-}
-
-THttpUniquePtr<IHttpResponse> FZenCacheStore::PerformBlockingRpc(const FCbPackage& RequestPackage, FCbPackage& OutResponse)
-{
-	THttpUniquePtr<IHttpRequest> Request = CreateRpcRequest();
-	Request->SetContentType(EHttpMediaType::CbPackage);
-	Request->SetBody(SaveRpcPackage(RequestPackage));
-
-	FCbPackageReceiver Receiver(OutResponse);
-	THttpUniquePtr<IHttpResponse> Response;
-	Request->Send(&Receiver, Response);
-	return Response;
-}
-
 void FZenCacheStore::EnqueueAsyncRpc(IRequestOwner& Owner, FCbObject RequestObject, FOnRpcComplete&& OnComplete)
 {
 	THttpUniquePtr<IHttpRequest> Request = CreateRpcRequest();
@@ -1222,6 +1196,16 @@ TTuple<ILegacyCacheStore*, ECacheStoreFlags> CreateZenCacheStore(const TCHAR* No
 	{
 		Namespace = FApp::GetProjectName();
 		UE_LOG(LogDerivedDataCache, Warning, TEXT("%s: Missing required parameter 'Namespace', falling back to '%s'"), NodeName, *Namespace);
+	}
+
+	FString CachePathOverride;
+	if (UE::Zen::Private::IsLocalAutoLaunched(ServiceUrl) && UE::Zen::Private::GetLocalDataCachePathOverride(CachePathOverride))
+	{
+		if (CachePathOverride == TEXT("None"))
+		{
+			UE_LOG( LogDerivedDataCache, Log, TEXT("Disabling %s data cache - path set to 'None'."), NodeName );
+			return MakeTuple<ILegacyCacheStore*, ECacheStoreFlags>(nullptr, ECacheStoreFlags::None);
+		}
 	}
 
 	TUniquePtr<FZenCacheStore> Backend = MakeUnique<FZenCacheStore>(*ServiceUrl, *Namespace);
