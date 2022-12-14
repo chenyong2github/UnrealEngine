@@ -37,7 +37,7 @@ bool MobileUsesNoLightMapPermutation(const FMeshMaterialShaderPermutationParamet
 	const bool bDeferredShading = IsMobileDeferredShadingEnabled(Parameters.Platform);
 
 	if (!bDeferredShading && !bAllowStaticLighting && bIsLitMaterial && 
-		!IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) &&  // STRATA_TODO_BLENDMODE
+		!IsTranslucentBlendMode(Parameters.MaterialParameters) &&
 		!Parameters.MaterialParameters.ShadingModels.HasShadingModel(MSM_SingleLayerWater))
 	{
 		// We don't need NoLightMap permutation if CSM shader can handle no-CSM case with a branch inside shader

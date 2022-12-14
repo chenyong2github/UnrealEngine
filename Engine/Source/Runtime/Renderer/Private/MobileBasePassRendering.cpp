@@ -124,7 +124,7 @@ void MobileBasePassModifyCompilationEnvironment(const FMaterialShaderPermutation
 	OutEnvironment.SetDefine( TEXT("OUTPUT_MOBILE_HDR"), OutputFormat == HDR_LINEAR_64 ? 1u : 0u);
 	
 	const bool bTranslucentMaterial = 
-		IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) ||  // STRATA_TODO_BLENDMODE
+		IsTranslucentBlendMode(Parameters.MaterialParameters) ||
 		Parameters.MaterialParameters.ShadingModels.HasShadingModel(MSM_SingleLayerWater);
 
 	// This define simply lets the compilation environment know that we are using a Base Pass PixelShader.

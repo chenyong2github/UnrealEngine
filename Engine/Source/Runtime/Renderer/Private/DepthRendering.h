@@ -84,7 +84,7 @@ public:
 			return Parameters.VertexFactoryType->SupportsPositionOnly() && Parameters.MaterialParameters.bIsSpecialEngineMaterial;
 		}
 		
-		if (IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode)) // STRATA_TODO_BLENDMODE
+		if (IsTranslucentBlendMode(Parameters.MaterialParameters))
 		{
 			return Parameters.MaterialParameters.bIsTranslucencyWritingCustomDepth;
 		}
@@ -119,7 +119,7 @@ class FDepthOnlyPS : public FMeshMaterialShader
 public:
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		if (IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode)) // STRATA_TODO_BLENDMODE
+		if (IsTranslucentBlendMode(Parameters.MaterialParameters))
 		{
 			return Parameters.MaterialParameters.bIsTranslucencyWritingCustomDepth;
 		}

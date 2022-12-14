@@ -29,7 +29,7 @@ static bool IsAnisotropyPassCompatible(const EShaderPlatform Platform, FMaterial
 	return 
 		FDataDrivenShaderPlatformInfo::GetSupportsAnisotropicMaterials(Platform) &&
 		MaterialParameters.bHasAnisotropyConnected &&
-		!IsTranslucentBlendMode(MaterialParameters.BlendMode) && // STRATA_TODO_BLENDMODE
+		!IsTranslucentBlendMode(MaterialParameters) &&
 		MaterialParameters.ShadingModels.HasAnyShadingModel({ MSM_DefaultLit, MSM_ClearCoat });
 }
 

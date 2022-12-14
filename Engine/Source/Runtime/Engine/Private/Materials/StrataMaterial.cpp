@@ -53,51 +53,18 @@ inline bool IsStrataEnabled()
 	return bStrataEnabled;
 }
 
-// Opaque blend mode
-bool IsOpaqueBlendMode(EBlendMode BlendMode)													{ return BlendMode == BLEND_Opaque; }
-bool IsOpaqueBlendMode(EStrataBlendMode BlendMode)												{ return BlendMode == SBM_Opaque; }
-bool IsOpaqueBlendMode(EBlendMode LegacyBlendMode, EStrataBlendMode StrataBlendMode)			{ return IsStrataEnabled() ? IsOpaqueBlendMode(StrataBlendMode) : IsOpaqueBlendMode(LegacyBlendMode); }
-bool IsOpaqueBlendMode(const FMaterial& In)														{ return IsStrataEnabled() ? IsOpaqueBlendMode(In.GetStrataBlendMode()) : IsOpaqueBlendMode(In.GetBlendMode()); }
-bool IsOpaqueBlendMode(const UMaterialInterface& In)											{ return IsStrataEnabled() ? IsOpaqueBlendMode(In.GetStrataBlendMode()) : IsOpaqueBlendMode(In.GetBlendMode()); }
+#define IsGenericBlendMode(Name, LegacyCondition, StrataCondition) \
+	bool Is##Name##BlendMode(EBlendMode BlendMode)											{ return LegacyCondition; } \
+	bool Is##Name##BlendMode(EStrataBlendMode BlendMode)									{ return StrataCondition; } \
+	bool Is##Name##BlendMode(EBlendMode LegacyBlendMode, EStrataBlendMode StrataBlendMode)	{ return IsStrataEnabled() ? Is##Name##BlendMode(StrataBlendMode) : Is##Name##BlendMode(LegacyBlendMode); } \
+	bool Is##Name##BlendMode(const FMaterial& In)											{ return IsStrataEnabled() ? Is##Name##BlendMode(In.GetStrataBlendMode()) : Is##Name##BlendMode(In.GetBlendMode()); } \
+	bool Is##Name##BlendMode(const UMaterialInterface& In)									{ return IsStrataEnabled() ? Is##Name##BlendMode(In.GetStrataBlendMode()) : Is##Name##BlendMode(In.GetBlendMode()); } \
+	bool Is##Name##BlendMode(const FMaterialShaderParameters& In)							{ return IsStrataEnabled() ? Is##Name##BlendMode(In.StrataBlendMode) : Is##Name##BlendMode(In.BlendMode); }
 
-// Masked blend mode
-bool IsMaskedBlendMode(EBlendMode BlendMode)													{ return BlendMode == BLEND_Masked; }
-bool IsMaskedBlendMode(EStrataBlendMode BlendMode)												{ return BlendMode == SBM_Masked; }
-bool IsMaskedBlendMode(EBlendMode LegacyBlendMode, EStrataBlendMode StrataBlendMode)			{ return IsStrataEnabled() ? IsMaskedBlendMode(StrataBlendMode) : IsMaskedBlendMode(LegacyBlendMode); }
-bool IsMaskedBlendMode(const FMaterial& In)														{ return IsStrataEnabled() ? IsMaskedBlendMode(In.GetStrataBlendMode()) : IsMaskedBlendMode(In.GetBlendMode()); }
-bool IsMaskedBlendMode(const UMaterialInterface& In)											{ return IsStrataEnabled() ? IsMaskedBlendMode(In.GetStrataBlendMode()) : IsMaskedBlendMode(In.GetBlendMode()); }
-
-// Opaque or Masked blend mode
-bool IsOpaqueOrMaskedBlendMode(EBlendMode BlendMode)											{ return BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked; }
-bool IsOpaqueOrMaskedBlendMode(EStrataBlendMode BlendMode)										{ return BlendMode == SBM_Opaque || BlendMode == SBM_Masked; }
-bool IsOpaqueOrMaskedBlendMode(EBlendMode LegacyBlendMode, EStrataBlendMode StrataBlendMode)	{ return IsStrataEnabled() ? IsOpaqueOrMaskedBlendMode(StrataBlendMode) : IsOpaqueOrMaskedBlendMode(LegacyBlendMode); }
-bool IsOpaqueOrMaskedBlendMode(const FMaterial& In)												{ return IsStrataEnabled() ? IsOpaqueOrMaskedBlendMode(In.GetStrataBlendMode()) : IsOpaqueOrMaskedBlendMode(In.GetBlendMode()); }
-bool IsOpaqueOrMaskedBlendMode(const UMaterialInterface& In)									{ return IsStrataEnabled() ? IsOpaqueOrMaskedBlendMode(In.GetStrataBlendMode()) : IsOpaqueOrMaskedBlendMode(In.GetBlendMode()); }
-
-// General translucency (i.e., blend mode is something else than Opaque/Masked)
-bool IsTranslucentBlendMode(EBlendMode BlendMode)												{ return BlendMode != BLEND_Opaque && BlendMode != BLEND_Masked; }
-bool IsTranslucentBlendMode(EStrataBlendMode BlendMode)											{ return BlendMode != SBM_Opaque && BlendMode != SBM_Masked; }
-bool IsTranslucentBlendMode(EBlendMode LegacyBlendMode, EStrataBlendMode StrataBlendMode)		{ return IsStrataEnabled() ? IsTranslucentBlendMode(StrataBlendMode) : IsTranslucentBlendMode(LegacyBlendMode); }
-bool IsTranslucentBlendMode(const FMaterial& In)												{ return IsStrataEnabled() ? IsTranslucentBlendMode(In.GetStrataBlendMode()) : IsTranslucentBlendMode(In.GetBlendMode()); }
-bool IsTranslucentBlendMode(const UMaterialInterface& In)										{ return IsStrataEnabled() ? IsTranslucentBlendMode(In.GetStrataBlendMode()) : IsTranslucentBlendMode(In.GetBlendMode()); }
-
-// Explicit translucency blend modes
-bool IsTranslucentOnlyBlendMode(EBlendMode BlendMode)											{ return BlendMode == BLEND_Translucent; }
-bool IsTranslucentOnlyBlendMode(EStrataBlendMode BlendMode)										{ return BlendMode == SBM_TranslucentColoredTransmittance || BlendMode == SBM_TranslucentGreyTransmittance; }
-bool IsTranslucentOnlyBlendMode(EBlendMode LegacyBlendMode, EStrataBlendMode StrataBlendMode)	{ return IsStrataEnabled() ? IsTranslucentOnlyBlendMode(StrataBlendMode) : IsTranslucentOnlyBlendMode(LegacyBlendMode); }
-bool IsTranslucentOnlyBlendMode(const FMaterial& In)											{ return IsStrataEnabled() ? IsTranslucentOnlyBlendMode(In.GetStrataBlendMode()) : IsTranslucentOnlyBlendMode(In.GetBlendMode()); }
-bool IsTranslucentOnlyBlendMode(const UMaterialInterface& In)									{ return IsStrataEnabled() ? IsTranslucentOnlyBlendMode(In.GetStrataBlendMode()) : IsTranslucentOnlyBlendMode(In.GetBlendMode()); }
-
-// AlphaHoldout blend mode
-bool IsAlphaHoldoutBlendMode(EBlendMode BlendMode)												{ return BlendMode == BLEND_AlphaHoldout; }
-bool IsAlphaHoldoutBlendMode(EStrataBlendMode BlendMode)										{ return BlendMode == SBM_AlphaHoldout; }
-bool IsAlphaHoldoutBlendMode(EBlendMode LegacyBlendMode, EStrataBlendMode StrataBlendMode)		{ return IsStrataEnabled() ? IsAlphaHoldoutBlendMode(StrataBlendMode) : IsAlphaHoldoutBlendMode(LegacyBlendMode); }
-bool IsAlphaHoldoutBlendMode(const FMaterial& In)												{ return IsStrataEnabled() ? IsAlphaHoldoutBlendMode(In.GetStrataBlendMode()) : IsAlphaHoldoutBlendMode(In.GetBlendMode()); }
-bool IsAlphaHoldoutBlendMode(const UMaterialInterface& In)										{ return IsStrataEnabled() ? IsAlphaHoldoutBlendMode(In.GetStrataBlendMode()) : IsAlphaHoldoutBlendMode(In.GetBlendMode()); }
-
-// Modulate blend mode
-bool IsModulateBlendMode(EBlendMode BlendMode)													{ return BlendMode == BLEND_Modulate; }
-bool IsModulateBlendMode(EStrataBlendMode BlendMode)											{ return BlendMode == SBM_ColoredTransmittanceOnly; }
-bool IsModulateBlendMode(EBlendMode LegacyBlendMode, EStrataBlendMode StrataBlendMode)			{ return IsStrataEnabled() ? IsModulateBlendMode(StrataBlendMode) : IsModulateBlendMode(LegacyBlendMode); }
-bool IsModulateBlendMode(const FMaterial& In)													{ return IsStrataEnabled() ? IsModulateBlendMode(In.GetStrataBlendMode()) : IsModulateBlendMode(In.GetBlendMode()); }
-bool IsModulateBlendMode(const UMaterialInterface& In)											{ return IsStrataEnabled() ? IsModulateBlendMode(In.GetStrataBlendMode()) : IsModulateBlendMode(In.GetBlendMode()); }
+IsGenericBlendMode(Opaque,			BlendMode == BLEND_Opaque,								BlendMode == SBM_Opaque)																			// Opaque blend mode
+IsGenericBlendMode(Masked,			BlendMode == BLEND_Masked,								BlendMode == SBM_Masked)																			// Masked blend mode
+IsGenericBlendMode(OpaqueOrMasked,	BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked, BlendMode == SBM_Opaque || BlendMode == SBM_Masked)													// Opaque or Masked blend mode
+IsGenericBlendMode(Translucent,		BlendMode != BLEND_Opaque && BlendMode != BLEND_Masked, BlendMode != SBM_Opaque && BlendMode != SBM_Masked)													// General translucency (i.e., blend mode is something else than Opaque/Masked)
+IsGenericBlendMode(TranslucentOnly, BlendMode == BLEND_Translucent,							BlendMode == SBM_TranslucentColoredTransmittance || BlendMode == SBM_TranslucentGreyTransmittance) 	// Explicit translucency blend mode
+IsGenericBlendMode(AlphaHoldout,	BlendMode == BLEND_AlphaHoldout,						BlendMode == SBM_AlphaHoldout)																		// AlphaHoldout blend mode
+IsGenericBlendMode(Modulate,		BlendMode == BLEND_Modulate,							BlendMode == SBM_ColoredTransmittanceOnly)															// Modulate blend mode

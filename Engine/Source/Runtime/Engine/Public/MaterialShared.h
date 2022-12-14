@@ -3457,7 +3457,8 @@ struct FMaterialShaderParameters
 {
 	EMaterialDomain MaterialDomain;
 	FMaterialShadingModelField ShadingModels;
-	EBlendMode BlendMode; // STRATA_TODO_BLENDMODE
+	EBlendMode BlendMode;
+	EStrataBlendMode StrataBlendMode;
 	ERHIFeatureLevel::Type FeatureLevel;
 	EMaterialQualityLevel::Type QualityLevel;
 	int32 BlendableLocation;
@@ -3534,3 +3535,17 @@ inline bool ShouldIncludeMaterialInDefaultOpaquePass(const FMaterial& Material)
 	return !Material.IsSky()
 		&& !Material.GetShadingModels().HasShadingModel(MSM_SingleLayerWater);
 }
+
+ENGINE_API bool IsOpaqueBlendMode(const FMaterialShaderParameters& In);
+
+ENGINE_API bool IsOpaqueOrMaskedBlendMode(const FMaterialShaderParameters& In);
+
+ENGINE_API bool IsMaskedBlendMode(const FMaterialShaderParameters& In);
+
+ENGINE_API bool IsTranslucentOnlyBlendMode(const FMaterialShaderParameters& In);
+
+ENGINE_API bool IsTranslucentBlendMode(const FMaterialShaderParameters& In);
+
+ENGINE_API bool IsAlphaHoldoutBlendMode(const FMaterialShaderParameters& In);
+
+ENGINE_API bool IsModulateBlendMode(const FMaterialShaderParameters& In);

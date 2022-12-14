@@ -190,7 +190,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) && Parameters.MaterialParameters.bIsDistorted; // STRATA_TODO_BLENDMODE
+		return IsTranslucentBlendMode(Parameters.MaterialParameters) && Parameters.MaterialParameters.bIsDistorted;
 	}
 };
 
@@ -208,7 +208,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
-		return IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) && Parameters.MaterialParameters.bIsDistorted; // STRATA_TODO_BLENDMODE
+		return IsTranslucentBlendMode(Parameters.MaterialParameters) && Parameters.MaterialParameters.bIsDistorted;
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)

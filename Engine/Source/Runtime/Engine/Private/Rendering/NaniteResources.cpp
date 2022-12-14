@@ -428,7 +428,7 @@ bool FVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutat
 	bool bShouldCompile =
 		(Parameters.MaterialParameters.bIsUsedWithNanite || Parameters.MaterialParameters.bIsSpecialEngineMaterial) &&
 		IsSupportedMaterialDomain(Parameters.MaterialParameters.MaterialDomain) &&
-		IsSupportedBlendMode(Parameters.MaterialParameters.BlendMode) &&
+		IsSupportedBlendMode(Parameters.MaterialParameters.BlendMode) && // STRATA_TODO_BLENDMODE
 		(Parameters.ShaderType->GetFrequency() == SF_Pixel || Parameters.ShaderType->GetFrequency() == SF_RayHitGroup) &&
 		DoesPlatformSupportNanite(Parameters.Platform);
 

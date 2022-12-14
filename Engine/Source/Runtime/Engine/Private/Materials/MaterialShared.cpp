@@ -6244,6 +6244,7 @@ FMaterialShaderParameters::FMaterialShaderParameters(const FMaterial* InMaterial
 	MaterialDomain = InMaterial->GetMaterialDomain();
 	ShadingModels = InMaterial->GetShadingModels();
 	BlendMode = InMaterial->GetBlendMode();
+	StrataBlendMode = InMaterial->GetStrataBlendMode();
 	FeatureLevel = InMaterial->GetFeatureLevel();
 	QualityLevel = InMaterial->GetQualityLevel();
 	BlendableLocation = InMaterial->GetBlendableLocation();

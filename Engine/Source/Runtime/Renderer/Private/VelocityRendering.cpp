@@ -101,7 +101,7 @@ public:
 		const bool bIsMasked = !Parameters.MaterialParameters.bWritesEveryPixel;
 
 		// Compile for opaque and two-sided materials.
-		const bool bIsOpaqueAndTwoSided = (Parameters.MaterialParameters.bIsTwoSided && !IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode)); // STRATA_TODO_BLENDMODE
+		const bool bIsOpaqueAndTwoSided = (Parameters.MaterialParameters.bIsTwoSided && !IsTranslucentBlendMode(Parameters.MaterialParameters));
 
 		// Compile for materials which modify meshes.
 		const bool bMayModifyMeshes = Parameters.MaterialParameters.bMaterialMayModifyMeshPosition;

@@ -394,7 +394,7 @@ public:
 
 		const bool IsSingleLayerWater = Parameters.MaterialParameters.ShadingModels.HasShadingModel(MSM_SingleLayerWater);
 
-		const bool bTranslucent = IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode); // STRATA_TODO_BLENDMODE
+		const bool bTranslucent = IsTranslucentBlendMode(Parameters.MaterialParameters);
 		const bool bForceAllPermutations = SupportAllShaderPermutations && SupportAllShaderPermutations->GetValueOnAnyThread() != 0;
 		const bool bProjectSupportsStationarySkylight = !SupportStationarySkylight || SupportStationarySkylight->GetValueOnAnyThread() != 0 || bForceAllPermutations;
 
@@ -528,7 +528,7 @@ public:
 
 		const bool IsSingleLayerWater = Parameters.MaterialParameters.ShadingModels.HasShadingModel(MSM_SingleLayerWater);
 
-		const bool bTranslucent = IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode); // STRATA_TODO_BLENDMODE
+		const bool bTranslucent = IsTranslucentBlendMode(Parameters.MaterialParameters);
 		const bool bForceAllPermutations = SupportAllShaderPermutations && SupportAllShaderPermutations->GetValueOnAnyThread() != 0;
 		const bool bProjectSupportsStationarySkylight = !SupportStationarySkylight || SupportStationarySkylight->GetValueOnAnyThread() != 0 || bForceAllPermutations;
 

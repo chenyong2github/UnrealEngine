@@ -1079,13 +1079,13 @@ FRayTracingLightFunctionMap GatherLightFunctionLightsPathTracing(FScene* Scene, 
 	return RayTracingLightFunctionMap;
 }
 
-static bool NeedsAnyHitShader(bool bIsMasked, EBlendMode BlendMode) // STRATA_TODO_BLENDMODE
+static bool NeedsAnyHitShader(bool bIsMasked, EBlendMode BlendMode, EStrataBlendMode StrataBlendMode)
 {
 	if (bIsMasked)
 	{
 		return true;
 	}
-	else if (IsOpaqueBlendMode(BlendMode) || IsAlphaHoldoutBlendMode(BlendMode))
+	else if (IsOpaqueBlendMode(BlendMode, StrataBlendMode) || IsAlphaHoldoutBlendMode(BlendMode, StrataBlendMode))
 	{
 		return false;
 	}
@@ -1097,9 +1097,8 @@ static bool NeedsAnyHitShader(bool bIsMasked, EBlendMode BlendMode) // STRATA_TO
 
 static bool NeedsAnyHitShader(const FMaterial& RESTRICT MaterialResource)
 {
-	return NeedsAnyHitShader(MaterialResource.IsMasked(), MaterialResource.GetBlendMode());
+	return NeedsAnyHitShader(MaterialResource.IsMasked(), MaterialResource.GetBlendMode(), MaterialResource.GetStrataBlendMode());
 }
-
 
 template<bool UseAnyHitShader, bool UseIntersectionShader, bool UseSimplifiedShader>
 class TPathTracingMaterial : public FMeshMaterialShader
@@ -1124,7 +1123,7 @@ public:
 			// does the VF support ray tracing at all?
 			return false;
 		}
-		if (NeedsAnyHitShader(Parameters.MaterialParameters.bIsMasked, Parameters.MaterialParameters.BlendMode) != UseAnyHitShader) // STRATA_TODO_BLENDMODE
+		if (NeedsAnyHitShader(Parameters.MaterialParameters.bIsMasked, Parameters.MaterialParameters.BlendMode, Parameters.MaterialParameters.StrataBlendMode) != UseAnyHitShader)
 		{
 			// the anyhit permutation is only required if the material is masked or has a non-opaque blend mode
 			return false;

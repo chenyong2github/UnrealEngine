@@ -354,7 +354,7 @@ public:
 		
 		const bool bDeferredShadingEnabled = IsMobileDeferredShadingEnabled(Parameters.Platform);
 		const bool bMaterialUsesForwardShading = bIsLit && 
-			(IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) || Parameters.MaterialParameters.ShadingModels.HasShadingModel(MSM_SingleLayerWater)); // STRATA_TODO_BLENDMODE
+			(IsTranslucentBlendMode(Parameters.MaterialParameters) || Parameters.MaterialParameters.ShadingModels.HasShadingModel(MSM_SingleLayerWater));
 		// Translucent materials always support clustered shading on mobile deferred
 		const bool bForwardShading = !bDeferredShadingEnabled || bMaterialUsesForwardShading;
 		const bool bSupportsLocalLights = bForwardShading && MobileForwardEnableLocalLights(Parameters.Platform);
@@ -381,7 +381,7 @@ public:
 		const bool bMobileUsesShadowMaskTexture = MobileUsesShadowMaskTexture(Parameters.Platform);
 		const bool bEnableClusteredReflections = MobileForwardEnableClusteredReflections(Parameters.Platform);
 		const bool bIsLit = Parameters.MaterialParameters.ShadingModels.IsLit();
-		const bool bTranslucentMaterial = IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) || Parameters.MaterialParameters.ShadingModels.HasShadingModel(MSM_SingleLayerWater); // STRATA_TODO_BLENDMODE
+		const bool bTranslucentMaterial = IsTranslucentBlendMode(Parameters.MaterialParameters) || Parameters.MaterialParameters.ShadingModels.HasShadingModel(MSM_SingleLayerWater);
 		const bool bDeferredShadingEnabled = IsMobileDeferredShadingEnabled(Parameters.Platform);
 		const bool bForwardShading = !bDeferredShadingEnabled || bTranslucentMaterial;
 		const bool bRenderSkyLightInBasePass = bEnableSkyLight && bIsLit && (bForwardShading || bAllowStaticLighting);

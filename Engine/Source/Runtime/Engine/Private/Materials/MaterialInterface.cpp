@@ -94,7 +94,7 @@ bool IsCompatibleWithHairStrands(EShaderPlatform Platform, const FMaterialShader
 	return
 		IsHairStrandsGeometrySupported(Platform) &&
 		Parameters.bIsUsedWithHairStrands &&
-		(Parameters.BlendMode == BLEND_Opaque || Parameters.BlendMode == BLEND_Masked); // STRATA_TODO_BLENDMODE
+		IsOpaqueOrMaskedBlendMode(Parameters);
 }
 
 static EMaterialGetParameterValueFlags MakeParameterValueFlags(bool bOveriddenOnly)

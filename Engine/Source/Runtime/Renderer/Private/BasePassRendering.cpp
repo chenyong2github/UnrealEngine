@@ -871,7 +871,7 @@ void ModifyBasePassCSPSCompilationEnvironment(const FMeshMaterialShaderPermutati
 	OutEnvironment.SetDefine(TEXT("IS_BASE_PASS"), 1);
 	OutEnvironment.SetDefine(TEXT("IS_MOBILE_BASE_PASS"), 0);
 
-	const bool bTranslucent = IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode); // STRATA_TODO_BLENDMODE
+	const bool bTranslucent = IsTranslucentBlendMode(Parameters.MaterialParameters);
 	const bool bIsSingleLayerWater = Parameters.MaterialParameters.ShadingModels.HasShadingModel(MSM_SingleLayerWater);
 	const bool bSupportVirtualShadowMap = IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	if (bSupportVirtualShadowMap && (bTranslucent || bIsSingleLayerWater))

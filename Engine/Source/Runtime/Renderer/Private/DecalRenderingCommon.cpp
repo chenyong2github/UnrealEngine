@@ -120,7 +120,7 @@ namespace DecalRendering
 				MaterialShaderParameters.bHasDiffuseAlbedoConnected || 
 				MaterialShaderParameters.bHasF0Connected;
 			
-			Desc.BlendMode = MaterialShaderParameters.BlendMode;
+			Desc.BlendMode = MaterialShaderParameters.BlendMode; // STRATA_TODO_BLENDMODE
 			Desc.bWriteBaseColor = MaterialShaderParameters.bHasBaseColorConnected || bUseDiffuseAlbedoAndF0;
 			Desc.bWriteNormal = MaterialShaderParameters.bHasNormalConnected;
 			Desc.bWriteRoughnessSpecularMetallic = 
@@ -133,7 +133,7 @@ namespace DecalRendering
 		}
 		else
 		{
-			Desc.BlendMode = MaterialShaderParameters.BlendMode;
+			Desc.BlendMode = MaterialShaderParameters.BlendMode; // STRATA_TODO_BLENDMODE
 			Desc.bWriteBaseColor = MaterialShaderParameters.bHasBaseColorConnected;
 			Desc.bWriteNormal = MaterialShaderParameters.bHasNormalConnected;
 			Desc.bWriteRoughnessSpecularMetallic = MaterialShaderParameters.bHasRoughnessConnected || MaterialShaderParameters.bHasSpecularConnected || MaterialShaderParameters.bHasMetallicConnected;
