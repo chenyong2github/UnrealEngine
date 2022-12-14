@@ -76,6 +76,12 @@ static TAutoConsoleVariable<float> CVarSkySpecularOcclusionStrength(
 	TEXT("Strength of skylight specular occlusion from DFAO (default is 1.0)"),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarReflectionCaptureEnableDeferredReflectionsAndSkyLighting(
+	TEXT("r.ReflectionCapture.EnableDefferedReflectionsAndSkyLighting"),
+	1,
+	TEXT("Whether to evaluate deferred reflections and sky contribution when rendering reflection captures."),
+	ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<int32> CVarProbeSamplePerPixel(
 	TEXT("r.Lumen.ProbeHierarchy.SamplePerPixel"), 8,
 	TEXT("Number of sample to do per full res pixel."),
@@ -93,6 +99,11 @@ DECLARE_GPU_STAT(SkyLightDiffuse);
 
 int GetReflectionEnvironmentCVar();
 bool IsAmbientCubemapPassRequired(const FSceneView& View);
+
+bool IsDeferredReflectionsAndSkyLightingDisabledForReflectionCapture()
+{
+	return CVarReflectionCaptureEnableDeferredReflectionsAndSkyLighting.GetValueOnRenderThread() == 0;
+}
 
 class FDiffuseIndirectCompositePS : public FGlobalShader
 {
@@ -1730,6 +1741,12 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 	{
 		const FViewInfo& View = Views[ViewIndex];
 		bReflectionCapture = bReflectionCapture || View.bIsReflectionCapture;
+	}
+
+	if (bReflectionCapture 
+		&& IsDeferredReflectionsAndSkyLightingDisabledForReflectionCapture())
+	{
+		return;
 	}
 
 	// The specular sky light contribution is also needed by RT Reflections as a fallback.
