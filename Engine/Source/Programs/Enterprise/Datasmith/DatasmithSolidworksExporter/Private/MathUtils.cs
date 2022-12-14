@@ -78,6 +78,17 @@ namespace DatasmithSolidworks
 			return Result;
 		}
 
+		public static float[] TransformIdentity()
+		{
+			return new[]
+			{
+				1.0f, 0.0f, 0.0f, 0.0f,
+				0.0f, 1.0f, 0.0f, 0.0f,
+				0.0f, 0.0f, 1.0f, 0.0f,
+				0.0f, 0.0f, 0.0f, 1.0f
+			};
+		}
+
 		public static float[] LookAt(FVec3 InDirection, FVec3 InFromPoint, float InGeomScale)
 		{
 			float[] Ret = new float[16];

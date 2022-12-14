@@ -4,6 +4,7 @@ using SolidWorks.Interop.sldworks;
 using SolidWorks.Interop.swconst;
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 
 namespace DatasmithSolidworks
@@ -120,6 +121,11 @@ namespace DatasmithSolidworks
 			}
 		}
 
+		public override void ExportToDatasmithScene(FConfigurationExporter ConfigurationExporter)
+		{
+			ExportToDatasmithScene(ConfigurationExporter.Meshes);
+		}
+
 		public override void ExportToDatasmithScene(FMeshes Meshes)
 		{
 			string PartName = Path.GetFileNameWithoutExtension(PathName);
@@ -146,7 +152,7 @@ namespace DatasmithSolidworks
 						continue;
 					}
 					// todo: not make extra copy - use existing(i.e. instead of bHasConfigurations) 
-					FActorName ActorName = new FConfigurationExporter(Meshes).GetMeshActorName(RootComponentName, ConfigurationName);
+					FActorName ActorName = new FConfigurationExporter(Meshes, null).GetMeshActorName(RootComponentName, ConfigurationName);
 
 					bool bHasMesh = Exporter.ExportMesh($"{ActorName}_Mesh", MeshData, ActorName,
 						out Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh> NewMesh);
@@ -267,6 +273,24 @@ namespace DatasmithSolidworks
 			SwPartDoc.BodyVisibleChangeNotify -= new DPartDocEvents_BodyVisibleChangeNotifyEventHandler(OnPartBodyVisibleChangeNotify);
 			SwPartDoc.FileSaveAsNotify2 -= new DPartDocEvents_FileSaveAsNotify2EventHandler(OnPartFileSaveAsNotify2);
 			SwPartDoc.FileSavePostNotify -= new DPartDocEvents_FileSavePostNotifyEventHandler(OnPartFileSavePostNotify);
+		}
+
+		public override FObjectMaterials GetComponentMaterials(Component2 Comp)
+		{
+			return null;
+		}
+
+		public override void AddMeshForComponent(FComponentName ComponentName, string MeshName)
+		{
+		}
+
+		public override void AddComponentMaterials(FComponentName ComponentName, FObjectMaterials Materials)
+		{
+		}
+
+		public override ConcurrentDictionary<FComponentName, FObjectMaterials> LoadDocumentMaterials(HashSet<FComponentName> ComponentNamesToExportSet)
+		{
+			return null;
 		}
 
 		int OnPartDocumentDestroyNotify2(int DestroyType)

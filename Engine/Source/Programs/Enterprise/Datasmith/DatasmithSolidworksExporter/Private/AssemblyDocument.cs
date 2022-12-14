@@ -5,6 +5,7 @@ using SolidWorks.Interop.swconst;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -53,16 +54,50 @@ namespace DatasmithSolidworks
 		{
 		}
 
-		public override void ExportToDatasmithScene(FMeshes meshes)
+		// Export to datasmith scene extracted configurations data
+		public override void ExportToDatasmithScene(FConfigurationExporter ConfigurationExporter)
 		{
 			FSyncState OldSyncState = SyncState;
 
 			if (bFileExportInProgress)
 			{
+				// todo: separate DL from file export more explicitly
 				SyncState = new FSyncState();
 			}
 
 			SetExportStatus("Actors");
+
+			ProcessComponentsPendingDelete();
+
+			Configuration CurrentConfig = SwDoc.GetActiveConfiguration() as Configuration;
+
+			// Configurations combined tree should have single child(root component of each config is the same)
+			Debug.Assert(ConfigurationExporter.CombinedTree.Children.Count == 1);
+			ExportComponentRecursive(CurrentConfig.Name, ConfigurationExporter, ConfigurationExporter.CombinedTree.Children[0], null);
+			SyncState.DirtyComponents.Clear();
+
+			SyncState = OldSyncState;
+
+			// todo: check animation export for DL
+			// Export animations (only allow when exporting to file)
+			// if (bFileExportInProgress)
+			{
+				Component2 Root = CurrentConfig.GetRootComponent3(true);
+				List<FAnimation> Animations = FAnimationExtractor.ExtractAnimations(SwAsmDoc, Root);
+				if (Animations != null)
+				{
+					SetExportStatus($"Animations");
+
+					foreach (FAnimation Anim in Animations)
+					{
+						Exporter.ExportAnimation(Anim);
+					}
+				}
+			}
+		}
+
+		private void ProcessComponentsPendingDelete()
+		{
 			foreach (FComponentName CompName in SyncState.ComponentsToDelete)
 			{
 				FActorName ActorName = CompName.GetActorName();
@@ -79,6 +114,44 @@ namespace DatasmithSolidworks
 				SyncState.ComponentsTransformsMap.Remove(CompName);
 				Exporter.RemoveActor(ActorName);
 			}
+			SyncState.ComponentsToDelete.Clear();
+		}
+
+		public override ConcurrentDictionary<FComponentName, FObjectMaterials> LoadDocumentMaterials(HashSet<FComponentName> ComponentNamesToExportSet)
+		{
+			return FObjectMaterials.LoadAssemblyMaterials(this, ComponentNamesToExportSet, swDisplayStateOpts_e.swThisDisplayState, null);
+		}
+
+		public override void AddComponentMaterials(FComponentName ComponentName, FObjectMaterials Materials)
+		{
+			Addin.Instance.LogDebug($"AddComponentMaterials: {ComponentName} - {Materials}");
+			SyncState.ComponentsMaterialsMap[ComponentName] = Materials;
+		}
+
+		public override void AddMeshForComponent(FComponentName ComponentName, string MeshName)
+		{
+			SyncState.ComponentNameToMeshNameMap[ComponentName] = MeshName;
+		}
+
+		public override FObjectMaterials GetComponentMaterials(Component2 Comp)
+		{
+			FObjectMaterials ComponentMaterials = null;
+			SyncState.ComponentsMaterialsMap?.TryGetValue(new FComponentName(Comp), out ComponentMaterials);
+			return ComponentMaterials;
+		}
+
+		// Export to datasmith scene current configuration only
+		public override void ExportToDatasmithScene(FMeshes meshes)
+		{
+			FSyncState OldSyncState = SyncState;
+
+			if (bFileExportInProgress)
+			{
+				SyncState = new FSyncState();
+			}
+
+			SetExportStatus("Actors");
+			ProcessComponentsPendingDelete();
 
 			Configuration CurrentConfig = SwDoc.GetActiveConfiguration() as Configuration;
 
@@ -89,10 +162,7 @@ namespace DatasmithSolidworks
 			// actor hierarchy has been exported
 			Dictionary<Component2, FActorName> MeshesToExportMap = new Dictionary<Component2, FActorName>();
 		
-			// Store original component suppression state to revert it after export
-			// Component needs to be fully resolved to have its data loaded and even suppressed components are needed for configurations export(in case they are visible in other configs)
-			List<Tuple<Component2, int>> ComponentsSuppression = new List<Tuple<Component2, int>>();
-			ExportComponentRecursive(Root, null, MeshesToExportMap, ComponentsSuppression);
+			ExportComponentRecursive(Root, null, MeshesToExportMap);
 
 			// Export materials
 			SetExportStatus($"Component Materials");
@@ -148,8 +218,6 @@ namespace DatasmithSolidworks
 				string MeshName = Exporter.AddMesh(KVP.Value);
 				SyncState.ComponentNameToMeshNameMap[new FComponentName(KVP.Key)] = MeshName;
 			}
-
-			SyncState.ComponentsToDelete.Clear();
 			SyncState.DirtyComponents.Clear();
 
 			SyncState = OldSyncState;
@@ -167,11 +235,6 @@ namespace DatasmithSolidworks
 						Exporter.ExportAnimation(Anim);
 					}
 				}
-			}
-
-			foreach(var ComponentSuppression in ComponentsSuppression)
-			{
-				ComponentSuppression.Item1.SetSuppression2(ComponentSuppression.Item2);
 			}
 		}
 
@@ -276,19 +339,22 @@ namespace DatasmithSolidworks
 			}
 			else
 			{
-				DatasmithTransform = new float[]
-				{
-					1.0f, 0.0f, 0.0f, 0.0f,
-					0.0f, 1.0f, 0.0f, 0.0f,
-					0.0f, 0.0f, 1.0f, 0.0f,
-					0.0f, 0.0f, 0.0f, 1.0f
-				};
+				DatasmithTransform = MathUtils.TransformIdentity();
 			}
 
 			return DatasmithTransform;
 		}
 
-		private void ExportComponentRecursive(Component2 InComponent, Component2 InParent, Dictionary<Component2, FActorName> OutMeshesToExportMap, List<Tuple<Component2, int>> OutComponentSuppression)
+		/// <summary>
+		/// Get component transform in specified configuration
+		/// </summary>
+		private float[] GetComponentDatasmithTransform(FConfigurationTree.FComponentTreeNode InNode,
+			FConfigurationTree.FComponentConfig ComponentConfig)
+		{
+			return ComponentConfig?.Transform ?? InNode.CommonConfig.Transform ?? MathUtils.TransformIdentity();
+		}
+
+		private void ExportComponentRecursive(Component2 InComponent, Component2 InParent, Dictionary<Component2, FActorName> OutMeshesToExportMap)
 		{
 			bool bHasDirtyTransform = false;
 
@@ -323,12 +389,6 @@ namespace DatasmithSolidworks
 
 				// When exporting configurations we need to load all components to make their data available for export
 				// Suppressed or lightweight components don't have this
-				int Suppression = InComponent.GetSuppression();
-				if (bHasConfigurations && (Suppression !=  (int)swComponentSuppressionState_e.swComponentFullyResolved))
-				{
-					InComponent.SetSuppression2((int)swComponentSuppressionState_e.swComponentFullyResolved);
-					OutComponentSuppression.Add(new Tuple<Component2, int>(InComponent, Suppression));
-				}
 
 				if (!InComponent.IsSuppressed())
 				{
@@ -351,7 +411,8 @@ namespace DatasmithSolidworks
 
 				// ComponentDoc is null if component is suppressed or lightweight
 				ModelDoc2 ComponentDoc = InComponent.GetModelDoc2();
-				if (ComponentDoc is PartDoc) 
+				
+				if (ComponentDoc is PartDoc) // Also possible to test document type with swDocumentTypes_e.swDocPART
 				{
 					bool bFirstExport = !SyncState.ExportedComponentsMap.ContainsKey(ComponentName);
 					bNeedsGeometryExport = bFirstExport;
@@ -407,9 +468,119 @@ namespace DatasmithSolidworks
 				foreach (object Obj in Children)
 				{
 					Component2 Child = (Component2)Obj;
-					ExportComponentRecursive(Child, InComponent, OutMeshesToExportMap, OutComponentSuppression);
+					ExportComponentRecursive(Child, InComponent, OutMeshesToExportMap);
 				}
 			}
+		}
+
+		private void ExportComponentRecursive(string ActiveConfigName,
+			FConfigurationExporter ConfigurationExporter,
+			FConfigurationTree.FComponentTreeNode InNode, FConfigurationTree.FComponentTreeNode InParent)
+		{
+
+			FConfigurationTree.FComponentConfig ActiveComponentConfig = InNode.Configurations?.Find(Config => Config.ConfigName == ActiveConfigName);
+
+			if (NeedExportComponent(InNode, ActiveComponentConfig))
+			{
+				SetExportStatus(InNode.ComponentName.GetString());
+
+				FDatasmithActorExportInfo ActorExportInfo = new FDatasmithActorExportInfo();
+
+				FActorName ActorName = InNode.ActorName;
+
+				ActorExportInfo.Label = InNode.ComponentName.GetLabel();
+				ActorExportInfo.Name = ActorName;
+
+				if (InParent != null)
+				{
+					ActorExportInfo.ParentName = InParent.GetActorName();
+				}
+				
+				ActorExportInfo.bVisible = true;
+				ActorExportInfo.Type = Exporter.GetExportedActorType(ActorName) ?? EActorType.SimpleActor;
+				ActorExportInfo.Transform = GetComponentDatasmithTransform(InNode, ActiveComponentConfig);
+
+				SyncState.ComponentsTransformsMap[InNode.ComponentName] = ActorExportInfo.Transform;
+
+				ActorExportInfo.bVisible = ActiveComponentConfig?.bVisible ?? InNode.CommonConfig.bVisible;
+
+				if (InNode.IsPartComponent())
+				{
+					// This component has associated part document -- treat is as a mesh actor
+					ActorExportInfo.Type = EActorType.MeshActor;
+				}
+
+				if (ActorExportInfo.Type == EActorType.MeshActor )
+				{
+					// todo: deduplicate mesh name calculation
+					ActorExportInfo.MeshName = FDatasmithExporter.SanitizeName($"{ActorExportInfo.Name}_Mesh");
+				}
+
+				Exporter.ExportOrUpdateActor(ActorExportInfo);
+
+				SyncState.CleanComponents.Add(InNode.ComponentName);
+			}
+
+			// AddExportedComponent(InNode);
+
+			// Export component children
+			foreach (FConfigurationTree.FComponentTreeNode Child in InNode.EnumChildren())
+			{
+				ExportComponentRecursive(ActiveConfigName, ConfigurationExporter, Child, InNode);
+			}
+		}
+
+		public override void AddExportedComponent(FConfigurationTree.FComponentTreeNode InNode)
+		{
+			SyncState.ExportedComponentsMap[InNode.ComponentName] = InNode.Component;
+		}
+
+		public override bool NeedExportComponent(FConfigurationTree.FComponentTreeNode InComponent, FConfigurationTree.FComponentConfig ActiveComponentConfig)
+		{
+			bool bHasDirtyTransform = false;
+			if (SyncState.ComponentsTransformsMap.ContainsKey(InComponent.ComponentName))
+			{
+				float[] ComponentTm = GetComponentDatasmithTransform(InComponent, ActiveComponentConfig);
+				bHasDirtyTransform =
+					!MathUtils.TransformsAreEqual(SyncState.ComponentsTransformsMap[InComponent.ComponentName], ComponentTm);
+			}
+
+			bool bNeedExportComponent = bHasDirtyTransform || !SyncState.CleanComponents.Contains(InComponent.ComponentName);
+			return bNeedExportComponent;
+		}
+
+		public override bool NeedGeometryExport(FConfigurationTree.FComponentTreeNode InNode, FConfigurationTree.FComponentConfig ActiveComponentConfig)
+		{
+			bool bNeedsGeometryExport;
+			bool bFirstExport = !SyncState.ExportedComponentsMap.ContainsKey(InNode.ComponentName);
+			bNeedsGeometryExport = bFirstExport;
+
+			if (!bFirstExport && SyncState.DirtyComponents.ContainsKey(InNode.ComponentName))
+			{
+				uint DirtyState = SyncState.DirtyComponents[InNode.ComponentName];
+				bNeedsGeometryExport =
+					((DirtyState & (1u << (int)EComponentDirtyState.Material)) != 0) ||
+					((DirtyState & (1u << (int)EComponentDirtyState.Geometry)) != 0) ||
+					((DirtyState & (1u << (int)EComponentDirtyState.Delete)) != 0);
+			}
+
+			return bNeedsGeometryExport;
+		}
+
+		public override void AddPartDocument(FConfigurationTree.FComponentTreeNode InNode)
+		{
+			//TODO this will be null for new part, think of more solid solution
+			if (!SyncState.PartsMap.ContainsKey(InNode.PartPath))
+			{
+				ModelDoc2 ComponentDoc = InNode.Component.GetModelDoc2();
+				// New part
+				int PartDocId = Addin.Instance.GetDocumentId(ComponentDoc as ModelDoc2);
+				SyncState.PartsMap[InNode.PartPath] = new FPartDocument(PartDocId, ComponentDoc as PartDoc, Exporter, this,
+					InNode.ComponentName);
+				SyncState.PartsMap[InNode.PartPath].Init();
+			}
+
+			SyncState.ComponentToPartMap[InNode.ComponentName] = InNode.PartPath;
 		}
 
 		public void SetComponentDirty(FComponentName InComponent, EComponentDirtyState InState)

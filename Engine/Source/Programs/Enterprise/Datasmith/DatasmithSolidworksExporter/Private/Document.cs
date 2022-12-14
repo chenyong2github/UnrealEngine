@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
+using static DatasmithSolidworks.FAssemblyDocument;
 
 namespace DatasmithSolidworks
 {
@@ -22,7 +23,7 @@ namespace DatasmithSolidworks
 		public bool bHasConfigurations = false;
 		
 		protected FDatasmithFacadeScene DatasmithScene = null;
-		protected FDatasmithExporter Exporter = null;
+		public FDatasmithExporter Exporter = null;
 		protected int DocId = -1;
 		protected bool bDirectLinkSyncInProgress = false;
 		protected bool bFileExportInProgress = false;
@@ -88,7 +89,7 @@ namespace DatasmithSolidworks
 			bDocumentIsDirty = bInDirty;
 		}
 
-		protected void SetExportStatus(string InMessage)
+		public void SetExportStatus(string InMessage)
 		{
 			if (bDirectLinkSyncInProgress)
 			{
@@ -186,9 +187,7 @@ namespace DatasmithSolidworks
 			else
 			{
 				// Export to file
-
 				bFileExportInProgress = true;
-
 
 				string OutDir = Path.GetDirectoryName(DatasmithFileExportPath);
 				string CleanFileName = Path.GetFileNameWithoutExtension(DatasmithFileExportPath);
@@ -207,10 +206,14 @@ namespace DatasmithSolidworks
 
 				PreExport(Meshes, true);
 
-				List<FConfigurationData> Configs = new FConfigurationExporter(Meshes).ExportConfigurations(this);
+				string[] ConfigurationNames = SwDoc?.GetConfigurationNames();
+				FConfigurationExporter ConfigurationExporter = new FConfigurationExporter(Meshes, ConfigurationNames);
+
+				List<FConfigurationData> Configs = ConfigurationExporter.ExportConfigurations(this);
+
 				bHasConfigurations = (Configs != null) && (Configs.Count != 0);
 
-				ExportToDatasmithScene(Meshes);
+				ExportToDatasmithScene(ConfigurationExporter);
 			
 				ExportLights();
 				ExportConfigurations(Configs);
@@ -237,6 +240,12 @@ namespace DatasmithSolidworks
 				MaterialCheckerThread.Start();
 				MaterialCheckerEvent.Set();
 			}
+		}
+
+		// todo: make abstract
+		public virtual void ExportToDatasmithScene(FConfigurationExporter ConfigurationExporter)
+		{
+			throw new NotImplementedException();
 		}
 
 		public abstract bool HasMaterialUpdates();
@@ -314,5 +323,30 @@ namespace DatasmithSolidworks
 				OnDirectLinkSync();
 			}
 		}
+
+		public virtual bool NeedExportComponent(FConfigurationTree.FComponentTreeNode InComponent,
+			FConfigurationTree.FComponentConfig ActiveComponentConfig)
+		{
+			return false;
+		}
+
+		/// <summary>
+		/// Whether this component node needs geometry exported/reexported. Currenly doesn't use configuration
+		/// todo: DL configurations
+		/// </summary>
+		public virtual bool NeedGeometryExport(FConfigurationTree.FComponentTreeNode InNode, FConfigurationTree.FComponentConfig ActiveComponentConfig)
+		{
+			return false;
+		}
+
+		public virtual void AddPartDocument(FConfigurationTree.FComponentTreeNode InNode){}
+
+		public virtual void AddExportedComponent(FConfigurationTree.FComponentTreeNode InNode) {}
+
+		public abstract ConcurrentDictionary<FComponentName, FObjectMaterials> LoadDocumentMaterials(HashSet<FComponentName> ComponentNamesToExportSet);
+		public abstract void AddComponentMaterials(FComponentName ComponentName, FObjectMaterials Materials);
+		public abstract FObjectMaterials GetComponentMaterials(Component2 Comp);
+
+		public abstract void AddMeshForComponent(FComponentName ComponentName, string MeshName);
 	}
 }

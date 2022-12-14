@@ -40,10 +40,26 @@ namespace DatasmithSolidworks
 		};
 
 		// A node contains all the configuration data for a single component
+		[ComVisible(false)]
 		public class FComponentTreeNode
 		{
-			public FComponentName ComponentName;
-			public int ComponentID;
+			public readonly Component2 Component;
+
+			[ComVisible(false)]
+			public struct FComponentInfo
+			{
+				public FComponentName ComponentName;
+				public int ComponentId;
+				public string PartPath;
+			}
+
+			public FComponentInfo ComponentInfo = new FComponentInfo();
+
+			public int ComponentId => ComponentInfo.ComponentId;
+
+			public FComponentName ComponentName => ComponentInfo.ComponentName;
+			public FActorName ActorName => ComponentInfo.ComponentName.GetActorName();
+			public string PartPath => ComponentInfo.PartPath;
 
 			// Common configuration data
 			public FComponentConfig CommonConfig = new FComponentConfig();
@@ -60,6 +76,24 @@ namespace DatasmithSolidworks
 			public HashSet<FActorName> Meshes = null;
 
 			public List<FComponentTreeNode> Children;
+
+			public IEnumerable<FComponentTreeNode> EnumChildren()
+			{
+				if (Children == null)
+				{
+					yield break;
+				}
+
+				foreach (FComponentTreeNode Child in Children)
+				{
+					yield return Child;
+				}
+			}
+
+			public FComponentTreeNode(Component2 InComponent=null)
+			{
+				Component = InComponent;
+			}
 
 			public FComponentConfig AddConfiguration(string InConfigurationName, bool bIsDisplayState)
 			{
@@ -117,40 +151,54 @@ namespace DatasmithSolidworks
 			}
 
 			// Add all parameters except those which could be configuration-specific
-			public void AddParametersFrom(FComponentTreeNode InInput)
+
+			public FActorName GetActorName()
 			{
-				ComponentName = InInput.ComponentName;
-				ComponentID = InInput.ComponentID;
+				return ComponentName.GetActorName();
+			}
+
+			public bool IsPartComponent()
+			{
+				return ComponentInfo.PartPath != null;
 			}
 		};
 
 		static public void Merge(FComponentTreeNode OutCombined, FComponentTreeNode InTree, string InConfigurationName)
 		{
-			if (InTree.Children == null)
+			foreach (FComponentTreeNode Child in InTree.EnumChildren())
 			{
-				return;
-			}
+				if (OutCombined.Children == null)
+				{
+					OutCombined.Children = new List<FComponentTreeNode>();
+				}
 
-			if (OutCombined.Children == null)
-			{
-				OutCombined.Children = new List<FComponentTreeNode>();
-			}
-
-			foreach (FComponentTreeNode Child in InTree.Children)
-			{
 				// Find the same node in 'combined', merge parameters
 				FComponentTreeNode CombinedChild = OutCombined.Children.FirstOrDefault(X => X.ComponentName == Child.ComponentName);
 
 				if (CombinedChild == null)
 				{
-					// The node doesn't exist yet, so add it
-					CombinedChild = new FComponentTreeNode();
-					CombinedChild.AddParametersFrom(Child);
+					// The node doesn't exist yet, so add it. copying its info from the input node
+					CombinedChild = new FComponentTreeNode(Child.Component)
+					{
+						ComponentInfo = Child.ComponentInfo
+					};
+
 					OutCombined.Children.Add(CombinedChild);
 
 					// Copy common materials, which should be "default" for the component. Do not propagate these
 					// material to configurations, so configuration will only have material when it is changed.
 					OutCombined.CommonConfig.Materials = Child.CommonConfig.Materials;
+				}
+
+				if (CombinedChild.PartPath == null)
+				{
+					CombinedChild.ComponentInfo.PartPath = Child.PartPath;
+				}
+				else
+				{
+					// Either child didn't have PartPath resolved - when it's document is not loaded in this configuration(suppressed) or it's not a part
+					// Same component is not expected to have different PartPath in different configurations, seems like by SW design
+					Debug.Assert(Child.PartPath == null || CombinedChild.PartPath == Child.PartPath);
 				}
 
 				// Make a NodeConfig and copy parameter values from 'tree' node
@@ -188,14 +236,15 @@ namespace DatasmithSolidworks
 			if (InNode.Configurations != null && InNode.Configurations.Count > 0)
 			{
 				// Check transform
-				float[] Transform = InNode.Configurations[0].RelativeTransform;
+				float[] Transform = InNode.Configurations[0].Transform;
+				float[] RelativeTransform = InNode.Configurations[0].RelativeTransform;
 				bool bAllTransformsAreSame = true;
-				if (Transform != null)
+				if (RelativeTransform != null)
 				{
 					// There could be components without a transform, so we're checking if for null
 					for (int Idx = 1; Idx < InNode.Configurations.Count; Idx++)
 					{
-						if (!InNode.Configurations[Idx].RelativeTransform.SequenceEqual(Transform))
+						if (!InNode.Configurations[Idx].RelativeTransform.SequenceEqual(RelativeTransform))
 						{
 							bAllTransformsAreSame = false;
 							break;
@@ -203,10 +252,12 @@ namespace DatasmithSolidworks
 					}
 					if (bAllTransformsAreSame)
 					{
-						InNode.CommonConfig.RelativeTransform = Transform;
+						InNode.CommonConfig.Transform = Transform;
+						InNode.CommonConfig.RelativeTransform = RelativeTransform;
 						foreach (FComponentConfig Config in InNode.Configurations)
 						{
 							Config.RelativeTransform = null;
+							Config.Transform = null;
 						}
 					}
 				}
@@ -297,12 +348,9 @@ namespace DatasmithSolidworks
 			}
 
 			// Recurse to children
-			if (InNode.Children != null)
+			foreach (FComponentTreeNode Child in InNode.EnumChildren())
 			{
-				foreach (FComponentTreeNode Child in InNode.Children)
-				{
-					Compress(Child, ConfigurationExporter);
-				}
+				Compress(Child, ConfigurationExporter);
 			}
 		}
 
@@ -363,12 +411,9 @@ namespace DatasmithSolidworks
 			}
 
 			// Recurse to children
-			if (InNode.Children != null)
+			foreach (FComponentTreeNode Child in InNode.EnumChildren())
 			{
-				foreach (FComponentTreeNode Child in InNode.Children)
-				{
-					FillConfigurationData(ConfigurationExporter, Child, InConfigurationName, OutData, bIsDisplayState);
-				}
+				FillConfigurationData(ConfigurationExporter, Child, InConfigurationName, OutData, bIsDisplayState);
 			}
 		}
 	}

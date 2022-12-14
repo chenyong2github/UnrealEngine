@@ -76,6 +76,11 @@ namespace DatasmithSolidworks
 			return GetMaterial(PartMaterialID);
 		}
 
+		public override string ToString()
+		{
+			return $"FObjectMaterials:ComponentMaterialID='{ComponentMaterialID}', PartMaterialID='{PartMaterialID}'";
+		}
+
 		public FMaterial GetMaterial(Face2 InFace)
 		{
 			if (ComponentMaterialID != -1) // Highest priority
@@ -231,6 +236,8 @@ namespace DatasmithSolidworks
 
 		public static FObjectMaterials LoadComponentMaterials(FDocument InComponentOwner, Component2 InComponent, swDisplayStateOpts_e InDisplayState, string[] InDisplayStateNames)
 		{
+			Addin.Instance.LogDebug($"LoadComponentMaterials: {InComponentOwner.GetPathName()}, {InDisplayState}, {InDisplayStateNames}");
+
 			ModelDoc2 ComponentDoc = InComponent.GetModelDoc2() as ModelDoc2;
 			if (ComponentDoc == null || !(ComponentDoc is PartDoc))
 			{
@@ -239,6 +246,8 @@ namespace DatasmithSolidworks
 			}
 
 			int NumMaterials = InComponent.GetRenderMaterialsCount2((int)InDisplayState, InDisplayStateNames);
+			Addin.Instance.LogDebug($"  GetRenderMaterialsCount2: {NumMaterials}");
+
 			if (NumMaterials == 0)
 			{
 				return null;
@@ -293,8 +302,13 @@ namespace DatasmithSolidworks
 
 		public static ConcurrentDictionary<FComponentName, FObjectMaterials> LoadAssemblyMaterials(FAssemblyDocument InAsmDoc, HashSet<FComponentName> InComponentsSet, swDisplayStateOpts_e InDisplayState, string[] InDisplayStateNames)
 		{
+			Addin.Instance.LogDebug($"LoadAssemblyMaterials: {InAsmDoc.GetPathName()}, {InDisplayState}, {InDisplayStateNames}");
+			Addin.Instance.LogDebug($"  for components: {string.Join(", ", InComponentsSet)}");
+
 			IModelDocExtension Ext = InAsmDoc.SwDoc.Extension;
 			int NumMaterials = Ext.GetRenderMaterialsCount2((int)InDisplayState, InDisplayStateNames);
+
+			Addin.Instance.LogDebug($"  NumMaterials={NumMaterials}");
 
 			ConcurrentDictionary<FComponentName, FObjectMaterials> DocMaterials = new ConcurrentDictionary<FComponentName, FObjectMaterials>();
 
@@ -332,8 +346,8 @@ namespace DatasmithSolidworks
 							FObjectMaterials PartMaterials = LoadPartMaterials(InAsmDoc, Doc as PartDoc, InDisplayState, InDisplayStateNames);
 							if (PartMaterials != null)
 							{
-								// xxx: why trying to present PahtName as component name?
-								// xxx: how it can be a PartDoc in Assembly function
+								// todo: why trying to present PathName as component name?
+								//  how it can be a PartDoc in Assembly function
 								DocMaterials[FComponentName.FromCustomString((Doc as ModelDoc2).GetPathName())] = PartMaterials;
 							}
 							continue;
@@ -343,7 +357,9 @@ namespace DatasmithSolidworks
 			}
 
 			// Check for materials that are not per component (but instead per face, feature, part etc.)
-			Parallel.ForEach(InComponentsSet, CompName =>
+			// todo: consider replacing Parallel.ForEach with simple loop
+			Parallel.ForEach(InComponentsSet,
+				CompName =>
 			{
 				Component2 Comp = null;
 

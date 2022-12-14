@@ -15,7 +15,7 @@ namespace DatasmithSolidworks
 	{
 		public string Name;
 		public bool bIsDisplayStateConfiguration = false;
-		public Dictionary<FComponentName, float[]> ComponentTransform = new Dictionary<FComponentName, float[]>();
+		public Dictionary<FComponentName, float[]> ComponentTransform = new Dictionary<FComponentName, float[]>();  // Relative(to parent) transform
 		public Dictionary<FComponentName, bool> ComponentVisibility = new Dictionary<FComponentName, bool>();
 		public Dictionary<FComponentName, FObjectMaterials> ComponentMaterials = new Dictionary<FComponentName, FObjectMaterials>();
 
@@ -187,24 +187,28 @@ namespace DatasmithSolidworks
 	[ComVisible(false)]
 	public class FConfigurationExporter
 	{
-		private readonly FMeshes Meshes;
+		public readonly FMeshes Meshes;
+		public readonly string[] ConfigurationNames;
 
-		public FConfigurationExporter(FMeshes Meshes)
+		public FConfigurationTree.FComponentTreeNode CombinedTree;
+
+		public FConfigurationExporter(FMeshes InMeshes, string[] InConfigurationNames)
 		{
-			this.Meshes = Meshes;
+			Meshes = InMeshes;
+			ConfigurationNames = InConfigurationNames;
 		}
 
 		public List<FConfigurationData> ExportConfigurations(FDocument InDoc)
 		{
-			string[] CfgNames = InDoc.SwDoc?.GetConfigurationNames();
-
-			if (CfgNames == null || CfgNames.Length <= 1)
+			// todo: may refactor to union behavior for 'no configuration'(i.e. active) and one-to-many configurations export
+			// Not sure how CfgNames might be technically null though
+			if (ConfigurationNames == null) // || CfgNames.Length <= 1)
 			{
 				return null;
 			}
 
-			FConfigurationTree.FComponentTreeNode CombinedTree = new FConfigurationTree.FComponentTreeNode();
-			CombinedTree.ComponentName = FComponentName.FromCustomString("CombinedTree");
+			CombinedTree = new FConfigurationTree.FComponentTreeNode(null);
+			CombinedTree.ComponentInfo.ComponentName = FComponentName.FromCustomString("CombinedTree");
 
 			// Ensure recursion will not stop on the root node (this may happen if it is not explicitly marked as visible)
 			CombinedTree.bVisibilitySame = true;
@@ -215,7 +219,7 @@ namespace DatasmithSolidworks
 
 			List<string> ExportedConfigurationNames = new List<string>();
 
-			foreach (string CfgName in CfgNames)
+			foreach (string CfgName in ConfigurationNames)
 			{
 				IConfiguration swConfiguration = InDoc.SwDoc.GetConfigurationByName(CfgName) as IConfiguration;
 
@@ -233,14 +237,16 @@ namespace DatasmithSolidworks
 				}
 
 				FConfigurationTree.FComponentTreeNode ConfigNode = new FConfigurationTree.FComponentTreeNode();
-				ConfigNode.Children = new List<FConfigurationTree.FComponentTreeNode>();
-				ConfigNode.ComponentName = FComponentName.FromCustomString(ConfigName);
+				ConfigNode.ComponentInfo.ComponentName = FComponentName.FromCustomString(ConfigName);
 
+				ConfigNode.Children = new List<FConfigurationTree.FComponentTreeNode>();
+
+				Dictionary<Component2, FActorName> MeshesToExportMap = new Dictionary<Component2, FActorName>();
 
 				// Build the tree and get default materials (which aren't affected by any configuration)
 				// Use GetRootComponent3() with Resolve = true to ensure suppressed components will be loaded
 				// todo: docs says that Part document SW returns null. Not the case. But probably better to add a guard
-				CollectComponentsRecursive(InDoc, swConfiguration.GetRootComponent3(true), ConfigNode);
+				CollectComponentsRecursive(InDoc, swConfiguration.GetRootComponent3(true), ConfigNode, MeshesToExportMap);
 
 				ExportedConfigurationNames.Add(ConfigName);
 
@@ -258,6 +264,61 @@ namespace DatasmithSolidworks
 						string DisplayStateTreeName = $"{CfgName}_DisplayState_{FDatasmithExporter.SanitizeName(DisplayState)}";
 						SetComponentTreeMaterials(ConfigNode, MaterialsMap, DisplayStateTreeName, false);
 					}
+				}
+
+				// Export materials
+				InDoc.SetExportStatus($"Component Materials");
+				HashSet<FComponentName> ComponentNamesToExportSet = new HashSet<FComponentName>();
+				foreach (var KVP in MeshesToExportMap)
+				{
+					FComponentName ComponentName = new FComponentName(KVP.Key);
+					if (!ComponentNamesToExportSet.Contains(ComponentName))
+					{
+						ComponentNamesToExportSet.Add(ComponentName);
+					}
+				}
+
+				ConcurrentDictionary<FComponentName, FObjectMaterials> ModifiedComponentsMaterials = InDoc.LoadDocumentMaterials(ComponentNamesToExportSet);
+
+				if (ModifiedComponentsMaterials != null)
+				{
+					foreach (var MatKVP in ModifiedComponentsMaterials)
+					{
+						InDoc.AddComponentMaterials(MatKVP.Key, MatKVP.Value);
+					}
+				}
+				
+				// Export materials before exporting meshes(currently mesh export code is tied to FDatasmithExporter.ExportedMaterialsMap
+				// todo: separate material export and mesh export(see comment above)?
+				InDoc.Exporter.ExportMaterials(InDoc.ExportedMaterialsMap);
+
+				// Export meshes
+				InDoc.SetExportStatus($"Component Meshes");
+				ConcurrentDictionary<Component2, Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh>> CreatedMeshes = new ConcurrentDictionary<Component2, Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh>>();
+
+				foreach (KeyValuePair<Component2, FActorName> KVP in MeshesToExportMap)
+				{
+					Component2 Comp = KVP.Key;
+
+					ConcurrentBag<FBody> Bodies = FBody.FetchBodies(Comp);
+					FMeshData MeshData = FStripGeometry.CreateMeshData(Bodies, InDoc.GetComponentMaterials(Comp));
+
+					if (MeshData != null)
+					{
+						Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh> NewMesh = null;
+						if (InDoc.Exporter.ExportMesh($"{KVP.Value}_Mesh", MeshData, KVP.Value, out NewMesh))
+						{
+							CreatedMeshes[Comp] = NewMesh;
+						}
+					}
+				}
+
+				foreach (var KVP in CreatedMeshes)
+				{
+					FComponentName ComponentName = new FComponentName(KVP.Key);
+					string MeshName = InDoc.Exporter.AddMesh(KVP.Value);
+
+					InDoc.AddMeshForComponent(ComponentName, MeshName);
 				}
 
 				// Combine separate scene trees into the single one with configuration-specific data
@@ -327,10 +388,8 @@ namespace DatasmithSolidworks
 			swDisplayStateOpts_e Option = InDisplayState != null ? swDisplayStateOpts_e.swSpecifyDisplayState : swDisplayStateOpts_e.swThisDisplayState;
 			string[] DisplayStates = InDisplayState != null ? new string[] { InDisplayState } : null;
 
-			if (InDoc is FAssemblyDocument)
+			if (InDoc is FAssemblyDocument AsmDoc)
 			{
-				FAssemblyDocument AsmDoc = InDoc as FAssemblyDocument;
-
 				HashSet<FComponentName> InComponentsSet = new HashSet<FComponentName>();
 
 				foreach (FComponentName CompName in AsmDoc.SyncState.ExportedComponentsMap.Keys)
@@ -384,23 +443,27 @@ namespace DatasmithSolidworks
 				TargetConfig.Materials = Materials;
 			}
 
-			if (InComponentTree.Children != null)
+			foreach (FConfigurationTree.FComponentTreeNode Child in InComponentTree.EnumChildren())
 			{
-				foreach (FConfigurationTree.FComponentTreeNode Child in InComponentTree.Children)
-				{
-					SetComponentTreeMaterials(Child, InComponentMaterialsMap, InConfigurationName, bIsDisplayState);
-				}
+				SetComponentTreeMaterials(Child, InComponentMaterialsMap, InConfigurationName, bIsDisplayState);
 			}
 		}
 
-		private static void CollectComponentsRecursive(FDocument InDoc, Component2 InComponent, FConfigurationTree.FComponentTreeNode InParentNode)
+		private static void CollectComponentsRecursive(FDocument InDoc, Component2 InComponent,
+			FConfigurationTree.FComponentTreeNode InParentNode, Dictionary<Component2, FActorName> OutMeshesToExportMap)
 		{
-			FConfigurationTree.FComponentTreeNode NewNode = new FConfigurationTree.FComponentTreeNode();
+			FConfigurationTree.FComponentTreeNode NewNode = new FConfigurationTree.FComponentTreeNode(InComponent);
 			InParentNode.Children.Add(NewNode);
 
 			// Basic properties
-			NewNode.ComponentName = new FComponentName(InComponent);
-			NewNode.ComponentID = InComponent.GetID();
+			NewNode.ComponentInfo.ComponentName = new FComponentName(InComponent);
+			NewNode.ComponentInfo.ComponentId = InComponent.GetID();
+
+			// ComponentDoc is null if component is suppressed or lightweight
+			ModelDoc2 ModelDoc = (ModelDoc2)InComponent.GetModelDoc2();
+			NewNode.ComponentInfo.PartPath = (ModelDoc is PartDoc) ? ModelDoc.GetPathName() : null;  // Identify whether the component is a Part component
+
+
 			NewNode.CommonConfig.bVisible = InComponent.Visible != (int)swComponentVisibilityState_e.swComponentHidden;
 			NewNode.CommonConfig.bSuppressed = InComponent.IsSuppressed();
 
@@ -437,14 +500,25 @@ namespace DatasmithSolidworks
 				foreach (object ObjChild in Children)
 				{
 					Component2 Child = (Component2)ObjChild;
-					CollectComponentsRecursive(InDoc, Child, NewNode);
+					CollectComponentsRecursive(InDoc, Child, NewNode, OutMeshesToExportMap);
 				}
 
-				NewNode.Children.Sort(delegate (FConfigurationTree.FComponentTreeNode InA, FConfigurationTree.FComponentTreeNode InB)
-				{
-					return InA.ComponentID - InB.ComponentID;
-				});
+				// todo: sorting ensures that component order is stable in export(e.g. in variant property bindings order)
+				// but probably makes sense to to it at the datasmith export, explicitly
+				// especially that Children here begs for a dictionary, not list(child looked up by name form Children list)
+				NewNode.Children.Sort((InA, InB) => InA.ComponentId - InB.ComponentId);
 			}
+
+			if (InDoc.NeedExportComponent(NewNode, NewNode.CommonConfig))
+			{
+				if (NewNode.IsPartComponent() && InDoc.NeedGeometryExport(NewNode, NewNode.CommonConfig))
+				{
+					// Collect meshes to export when it's a part component
+					InDoc.AddPartDocument(NewNode);
+					OutMeshesToExportMap.Add(NewNode.Component, NewNode.ActorName);
+				}
+			}
+			InDoc.AddExportedComponent(NewNode);
 		}
 
 		public bool IsSameMesh(FComponentName ComponentName, string ConfigNameA, string ConfigNameB)

@@ -406,11 +406,14 @@ namespace DatasmithSolidworks
 
 			HashSet<int> MeshAddedMaterials = new HashSet<int>();
 
+			HashSet<int> MeshMaterialIds = new HashSet<int>();
+
 			for (int TriIndex = 0; TriIndex < InData.Triangles.Length; TriIndex++)
 			{
 				FTriangle Triangle = InData.Triangles[TriIndex];
 				int MatID = 0;
 
+				MeshMaterialIds.Add(Triangle.MaterialID);
 				if (Triangle.MaterialID >= 1)
 				{
 					if (!MeshAddedMaterials.Contains(Triangle.MaterialID))
@@ -437,6 +440,12 @@ namespace DatasmithSolidworks
 
 				Mesh.SetFace(TriIndex, Triangle[0], Triangle[1], Triangle[2], MatID);
 				Mesh.SetFaceUV(TriIndex, 0, Triangle[0], Triangle[1], Triangle[2]);
+			}
+
+			Addin.Instance.LogDebug($"  material ids assigned to faces: {string.Join(", ", MeshMaterialIds)})");
+			if (MeshAddedMaterials.Count > 0)
+			{
+				Addin.Instance.LogDebug($"  assigned materials: {string.Join(", ", MeshAddedMaterials)})");
 			}
 
 			OutMeshPair = new Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh>(MeshElement, Mesh);
@@ -739,6 +748,8 @@ namespace DatasmithSolidworks
 
 		public void ExportMaterials(ConcurrentDictionary<int, FMaterial> InMaterialsMap)
 		{
+			Addin.Instance.LogDebug($"ExportMaterials: \n  {string.Join("  \n", InMaterialsMap.Select(KVP => $"{KVP.Key}: {KVP.Value}" ))}");
+
 			ConcurrentBag<FDatasmithFacadeTexture> CreatedTextures = new ConcurrentBag<FDatasmithFacadeTexture>();
 			ConcurrentBag<FDatasmithFacadeMaterialInstance> CreatedMaterials = new ConcurrentBag<FDatasmithFacadeMaterialInstance>();
 			Parallel.ForEach(InMaterialsMap, MatKVP =>
@@ -756,7 +767,7 @@ namespace DatasmithSolidworks
 				}
 			});
 
-			Addin.Instance.LogDebug($"AddMaterials");
+			Addin.Instance.LogDebug($"  AddMaterials");
 			// Adding stuff to a datasmith scene cannot be multithreaded!
 			foreach (FDatasmithFacadeMaterialInstance Mat in CreatedMaterials)
 			{
