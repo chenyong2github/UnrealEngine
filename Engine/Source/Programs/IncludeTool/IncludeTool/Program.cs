@@ -658,7 +658,7 @@ namespace IncludeTool
 					}
 
 					// Print all the conflicting declarations
-					SymbolTable.PrintConflicts(Log);
+					SymbolTable.PrintConflicts(InputDir, Log);
 				}
 
 				// Build a list of forward declarations per file
