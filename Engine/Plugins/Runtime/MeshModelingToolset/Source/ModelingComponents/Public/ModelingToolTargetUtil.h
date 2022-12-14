@@ -187,6 +187,24 @@ MODELINGCOMPONENTS_API EDynamicMeshUpdateResult CommitDynamicMeshUVUpdate(UToolT
 MODELINGCOMPONENTS_API EDynamicMeshUpdateResult CommitDynamicMeshNormalsUpdate(UToolTarget* Target, const UE::Geometry::FDynamicMesh3* UpdatedMesh, bool bUpdateTangents = false);
 
 /**
+ * @return true if ToolTarget can be directly updated via an incremental edits, ie if it is acceptable to call ApplyIncrementalMeshEditChange() on the target
+ */
+MODELINGCOMPONENTS_API bool SupportsIncrementalMeshChanges(UToolTarget* Target);
+
+
+/**
+ * Apply an incremental mesh edit (MeshEditingFunc) to the ToolTarget. Tools/etc can use this to directly
+ * modify the ToolTarget's internal DynamicMesh, while (presumably) also emitting a FChange transaction that
+ * represents that Edit. This allows for undoable edits directly to a DynamicMeshComponent/etc in the level. 
+ * @return true if the incremental edit succeeds
+ */
+MODELINGCOMPONENTS_API bool ApplyIncrementalMeshEditChange(
+	UToolTarget* Target,
+	TFunctionRef<bool(UE::Geometry::FDynamicMesh3& EditMesh, UObject* TransactionTarget)> MeshEditingFunc );
+
+
+
+/**
  * FCreateMeshObjectParams::TypeHint is used by the ModelingObjectsCreationAPI to suggest what type of mesh object to create
  * inside various Tools. This should often be derived from the input mesh object type (eg if you plane-cut a Volume, the output
  * should be Volumes). This function interrogates the ToolTarget to try to determine this information

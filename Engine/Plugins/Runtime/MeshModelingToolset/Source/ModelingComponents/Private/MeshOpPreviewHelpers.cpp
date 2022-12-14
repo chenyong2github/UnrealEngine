@@ -189,10 +189,14 @@ void UMeshOpPreviewWithBackgroundCompute::ConfigureMaterials(UMaterialInterface*
 }
 
 
-void UMeshOpPreviewWithBackgroundCompute::ConfigureMaterials(TArray<UMaterialInterface*> StandardMaterialsIn, UMaterialInterface* WorkingMaterialIn)
+void UMeshOpPreviewWithBackgroundCompute::ConfigureMaterials(
+	TArray<UMaterialInterface*> StandardMaterialsIn, 
+	UMaterialInterface* WorkingMaterialIn,
+	UMaterialInterface* SecondaryMaterialIn)
 {
 	this->StandardMaterials = StandardMaterialsIn;
 	this->WorkingMaterial = WorkingMaterialIn;
+	this->SecondaryMaterial = SecondaryMaterialIn;
 
 	if (PreviewMesh != nullptr)
 	{
@@ -200,6 +204,19 @@ void UMeshOpPreviewWithBackgroundCompute::ConfigureMaterials(TArray<UMaterialInt
 	}
 }
 
+void UMeshOpPreviewWithBackgroundCompute::ConfigurePreviewMaterials(
+	UMaterialInterface* InProgressMaterialIn,
+	UMaterialInterface* SecondaryMaterialIn)
+{
+	this->WorkingMaterial = InProgressMaterialIn;
+	this->SecondaryMaterial = SecondaryMaterialIn;
+}
+
+void UMeshOpPreviewWithBackgroundCompute::DisablePreviewMaterials()
+{
+	this->WorkingMaterial = nullptr;
+	this->SecondaryMaterial = nullptr;
+}
 
 void UMeshOpPreviewWithBackgroundCompute::SetVisibility(bool bVisibleIn)
 {

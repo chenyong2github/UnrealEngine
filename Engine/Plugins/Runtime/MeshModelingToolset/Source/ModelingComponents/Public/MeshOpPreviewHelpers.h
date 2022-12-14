@@ -161,9 +161,26 @@ public:
 
 	/**
 	 * Configure the Standard and In-Progress materials
+	 * @param StandardMaterials list of materials corresponding to MaterialIDs on the Mesh
+	 * @param InProgressMaterial material displayed if the background compute takes longer than WorkingMaterialDelay
+	 * @param SecondaryMaterial optional secondary material passed to mesh component, call PreviewMesh->EnableSecondaryTriangleBuffers to enable
 	 */
-	void ConfigureMaterials(TArray<UMaterialInterface*> StandardMaterials, UMaterialInterface* InProgressMaterial);
+	void ConfigureMaterials(
+		TArray<UMaterialInterface*> StandardMaterials, 
+		UMaterialInterface* InProgressMaterial, 
+		UMaterialInterface* SecondaryMaterial = nullptr);
 
+	/** 
+	 * Configure the In-Progress and Secondary Materials
+	 * @param InProgressMaterial material displayed if the background compute takes longer than WorkingMaterialDelay
+	 * @param SecondaryMaterial optional secondary material passed to mesh component, call PreviewMesh->EnableSecondaryTriangleBuffers to enable
+	 */
+	void ConfigurePreviewMaterials(
+		UMaterialInterface* InProgressMaterial, 
+		UMaterialInterface* SecondaryMaterial);
+
+	/** Disable the In Progress and Secondary Materials */
+	void DisablePreviewMaterials();
 
 	/**
 	 * Set the visibility of the Preview mesh

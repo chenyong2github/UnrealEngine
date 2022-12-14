@@ -14,9 +14,20 @@ class INTERACTIVETOOLSFRAMEWORK_API USingleSelectionTool : public UInteractiveTo
 {
 GENERATED_BODY()
 public:
-	void SetTarget(UToolTarget* TargetIn)
+	/**
+	 * Set the ToolTarget for the Tool
+	 */
+	virtual void SetTarget(UToolTarget* TargetIn)
 	{
 		Target = TargetIn;
+	}
+
+	/**
+	 * @return the ToolTarget for the Tool
+	 */
+	virtual UToolTarget* GetTarget()
+	{
+		return Target;
 	}
 
 	/**

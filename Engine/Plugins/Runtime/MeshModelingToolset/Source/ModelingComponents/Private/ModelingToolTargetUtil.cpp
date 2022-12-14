@@ -486,6 +486,34 @@ UE::ToolTarget::EDynamicMeshUpdateResult UE::ToolTarget::CommitDynamicMeshNormal
 
 
 
+bool UE::ToolTarget::SupportsIncrementalMeshChanges(UToolTarget* Target)
+{
+	IPersistentDynamicMeshSource* DynamicMeshSource = Cast<IPersistentDynamicMeshSource>(Target);
+	if (DynamicMeshSource)
+	{
+		return DynamicMeshSource->HasDynamicMeshComponent();
+	}
+	return false;
+}
+
+
+bool UE::ToolTarget::ApplyIncrementalMeshEditChange(
+	UToolTarget* Target,
+	TFunctionRef<bool(FDynamicMesh3& EditMesh, UObject* TransactionTarget)> MeshEditChangeFunc )
+{
+	IPersistentDynamicMeshSource* DynamicMeshSource = Cast<IPersistentDynamicMeshSource>(Target);
+	if (DynamicMeshSource && DynamicMeshSource->HasDynamicMeshComponent())
+	{
+		bool bOK;
+		UDynamicMeshComponent* Component = DynamicMeshSource->GetDynamicMeshComponent();
+		Component->EditMesh([&](FDynamicMesh3& EditMesh)
+		{
+			bOK = MeshEditChangeFunc(EditMesh, Component);
+		});
+		return bOK;
+	}
+	return false;
+}
 
 
 bool UE::ToolTarget::ConfigureCreateMeshObjectParams(UToolTarget* SourceTarget, FCreateMeshObjectParams& DerivedParamsOut)
