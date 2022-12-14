@@ -4,6 +4,7 @@
 #include "GameplayTargetingSystem/Types/TargetingSystemTypes.h"
 #include "TargetingTask.h"
 #include "UObject/Object.h"
+#include "TargetingSortTask_Base.h"
 
 #include "TargetingFilterTask_SortByDistance.generated.h"
 
@@ -22,28 +23,14 @@ struct FTargetingRequestHandle;
 *	and sort by that value.
 */
 UCLASS(Blueprintable)
-class UTargetingFilterTask_SortByDistance : public UTargetingTask
+class UTargetingFilterTask_SortByDistance : public UTargetingSortTask_Base
 {
 	GENERATED_BODY()
 
-public:
-	UTargetingFilterTask_SortByDistance(const FObjectInitializer& ObjectInitializer);
-
-	/** Evaluation function called by derived classes to process the targeting request */
-	virtual void Execute(const FTargetingRequestHandle& TargetingHandle) const override;
-
 protected:
-	UPROPERTY(EditAnywhere, Category = "Target Sorting | Data")
-	uint8 bAscending : 1;
+	virtual float GetScoreForTarget(const FTargetingRequestHandle& TargetingHandle, const FTargetingDefaultResultData& TargetData) const override;
 
-	/** Debug Helper Methods */
-#if ENABLE_DRAW_DEBUG
 private:
-	virtual void DrawDebug(UTargetingSubsystem* TargetingSubsystem, FTargetingDebugInfo& Info, const FTargetingRequestHandle& TargetingHandle, float XOffset, float YOffset, int32 MinTextRowsToAdvance) const override;
-	void BuildPreSortDebugString(const FTargetingRequestHandle& TargetingHandle, const TArray<FTargetingDefaultResultData>& TargetResults) const;
-	void BuildPostSortDebugString(const FTargetingRequestHandle& TargetingHandle, const TArray<FTargetingDefaultResultData>& TargetResults) const;
-	void ResetSortDebugStrings(const FTargetingRequestHandle& TargetingHandle) const;
-#endif // ENABLE_DRAW_DEBUG
-	/** ~Debug Helper Methods */
+	/** Returns the Source location, whether that comes from the source actor or the Source location in the Source Context */
+	FVector GetSourceLocation(const FTargetingRequestHandle& TargetingHandle) const;
 };
-
