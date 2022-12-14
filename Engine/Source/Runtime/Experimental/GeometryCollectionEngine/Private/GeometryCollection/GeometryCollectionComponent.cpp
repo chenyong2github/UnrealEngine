@@ -785,11 +785,6 @@ void UGeometryCollectionComponent::SetSimulatePhysics(bool bEnabled)
 	{
 		RegisterAndInitializePhysicsProxy();
 	}
-
-	if (bEnabled)
-	{
-		RemoveAllAnchors();
-	}
 }
 
 void UGeometryCollectionComponent::AddForce(FVector Force, FName BoneName, bool bAccelChange)
