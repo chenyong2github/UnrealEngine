@@ -15,15 +15,8 @@ FPCGElementPtr UPCGPointExtentsModifierSettings::CreateElement() const
 TArray<FPCGPinProperties> UPCGPointExtentsModifierSettings::InputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Spatial);	
+	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Point);	
 	PinProperties.Emplace(PCGPinConstants::DefaultParamsLabel, EPCGDataType::Param);
-	return PinProperties;
-}
-
-TArray<FPCGPinProperties> UPCGPointExtentsModifierSettings::OutputPinProperties() const
-{
-	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Spatial);
 	return PinProperties;
 }
 
@@ -88,4 +81,3 @@ bool FPCGPointExtentsModifier::ExecuteInternal(FPCGContext* Context) const
 	
 	return true;
 }
-

@@ -34,8 +34,8 @@ public:
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Spatial; }
 #endif
 
-	virtual TArray<FPCGPinProperties> InputPinProperties() const;
-	virtual TArray<FPCGPinProperties> OutputPinProperties() const;
+	virtual TArray<FPCGPinProperties> InputPinProperties() const override;
+	virtual TArray<FPCGPinProperties> OutputPinProperties() const override { return Super::DefaultPointOutputPinProperties(); }
 
 protected:
 	virtual FPCGElementPtr CreateElement() const override;
