@@ -569,28 +569,21 @@ public class BlobService : IBlobService
 
     public async Task<BlobIdentifier[]> FilterOutKnownBlobs(NamespaceId ns, IEnumerable<BlobIdentifier> blobs)
     {
-        ConcurrentBag<BlobIdentifier> missingBlobs = new ConcurrentBag<BlobIdentifier>();
-
-        try
+        List<(BlobIdentifier, Task<bool>)> existTasks = new();
+        foreach (BlobIdentifier blob in blobs)
         {
-            await Parallel.ForEachAsync(blobs, async (identifier, ctx) =>
-            {
-                bool exists = await Exists(ns, identifier);
-
-                if (!exists)
-                {
-                    missingBlobs.Add(identifier);
-                }
-            });
+            existTasks.Add((blob, Exists(ns, blob)));
         }
-        catch (AggregateException e)
-        {
-            if (e.InnerException is PartialReferenceResolveException)
-            {
-                throw e.InnerException;
-            }
 
-            throw;
+        List<BlobIdentifier> missingBlobs = new();
+        foreach ((BlobIdentifier blob, Task<bool> existsTask) in existTasks)
+        {
+            bool exists = await existsTask;
+
+            if (!exists)
+            {
+                missingBlobs.Add(blob);
+            }
         }
 
         return missingBlobs.ToArray();
