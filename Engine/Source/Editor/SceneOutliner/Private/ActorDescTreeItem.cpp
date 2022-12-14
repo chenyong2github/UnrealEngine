@@ -326,7 +326,8 @@ bool FActorDescTreeItem::ShouldShowPinnedState() const
 		{
 			if (FWorldPartitionActorDesc const* ActorDesc = ActorDescHandle.Get())
 			{
-				if (!ActorDesc->GetIsSpatiallyLoaded())
+				// Only Spatially loaded actors can be pinned with the exception of non spatially loaded, runtime only actors (ex: HLODs)
+				if (!ActorDesc->GetIsSpatiallyLoaded() && !ActorDesc->GetActorIsRuntimeOnly())
 				{
 					return false;
 				}

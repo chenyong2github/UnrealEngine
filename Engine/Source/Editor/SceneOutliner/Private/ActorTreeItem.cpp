@@ -367,7 +367,9 @@ bool FActorTreeItem::ShouldShowPinnedState() const
 		// Pinning of Actors is only supported on the main world partition
 		const ULevel* Level = ActorPtr->GetLevel();
 		const UWorld* World = Level->GetWorld();
-		return World && !World->IsGameWorld() && !!World->GetWorldPartition() && Level->IsPersistentLevel() && ActorPtr->IsPackageExternal() && ActorPtr->GetIsSpatiallyLoaded();
+
+		// Only Spatially loaded actors can be pinned with the exception of non spatially loaded, runtime only actors (ex: HLODs)
+		return World && !World->IsGameWorld() && !!World->GetWorldPartition() && Level->IsPersistentLevel() && ActorPtr->IsPackageExternal() && (ActorPtr->GetIsSpatiallyLoaded() || ActorPtr->IsRuntimeOnly());
 	}
 
 	return false;
