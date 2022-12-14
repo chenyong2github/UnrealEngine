@@ -5,12 +5,12 @@
 #include "LightMapRendering.h"
 #include "ScenePrivate.h"
 #include "MeshPassProcessor.inl"
+#include "RayTracingInstance.h"
 
 #if RHI_RAYTRACING
 
 #include "RayTracingPayloadType.h"
 
-ENGINE_API uint8 ComputeBlendModeMask(const FMaterial& Material);
 FRHIRayTracingShader* GetRayTracingDefaultMissShader(const FGlobalShaderMap* ShaderMap);
 FRHIRayTracingShader* GetRayTracingDefaultOpaqueShader(const FGlobalShaderMap* ShaderMap);
 FRHIRayTracingShader* GetRayTracingDefaultHiddenShader(const FGlobalShaderMap* ShaderMap);
@@ -74,7 +74,7 @@ protected:
 			SharedCommand.SetShaders(PassShaders.GetUntypedShaders());
 		}
 
-		SharedCommand.InstanceMask = ComputeBlendModeMask(MaterialResource);
+		SharedCommand.InstanceMask = ComputeBlendModeMask(MaterialResource.GetBlendMode());
 		SharedCommand.bCastRayTracedShadows = MeshBatch.CastRayTracedShadow && MaterialResource.CastsRayTracedShadows();
 		SharedCommand.bOpaque = IsOpaqueBlendMode(MaterialResource) && !(VertexFactory->GetType()->SupportsRayTracingProceduralPrimitive() && FDataDrivenShaderPlatformInfo::GetSupportsRayTracingProceduralPrimitive(GMaxRHIShaderPlatform));
 		SharedCommand.bDecal = MaterialResource.GetMaterialDomain() == EMaterialDomain::MD_DeferredDecal;

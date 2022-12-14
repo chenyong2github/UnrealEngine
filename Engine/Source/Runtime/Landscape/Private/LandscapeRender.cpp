@@ -2378,7 +2378,6 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 			RayTracingInstance.Geometry = &SectionRayTracingStates[SubSectionIdx].Geometry;
 			RayTracingInstance.InstanceTransforms.Add(GetLocalToWorld());
 			RayTracingInstance.Materials.Add(MeshBatch);
-			RayTracingInstance.BuildInstanceMaskAndFlags(GetScene().GetFeatureLevel());
 			OutRayTracingInstances.Add(RayTracingInstance);
 
 			if (bNeedsRayTracingGeometryUpdate && VertexFactory->GetType()->SupportsRayTracingDynamicGeometry())

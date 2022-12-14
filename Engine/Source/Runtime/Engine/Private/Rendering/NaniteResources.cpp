@@ -1660,7 +1660,7 @@ void FSceneProxy::SetupRayTracingMaterials(int32 LODIndex, TArray<FMeshBatch>& M
 		MeshBatch.SegmentIndex = SectionIndex;
 		MeshBatch.LODIndex = 0;
 #if RHI_RAYTRACING
-		MeshBatch.CastRayTracedShadow = CastsDynamicShadow(); // Relying on BuildRayTracingInstanceMaskAndFlags(...) to check Material.CastsRayTracedShadows()
+		MeshBatch.CastRayTracedShadow = CastsDynamicShadow(); // Relying on BuildInstanceMaskAndFlags(...) to check Material.CastsRayTracedShadows()
 #endif
 		MeshBatch.Elements[0].PrimitiveUniformBufferResource = &GIdentityPrimitiveUniformBuffer;
 	}
@@ -1739,8 +1739,11 @@ void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringCont
 
 	if (CachedRayTracingInstanceMaskAndFlags.Mask == 0)
 	{
-		CachedRayTracingInstanceMaskAndFlags = BuildRayTracingInstanceMaskAndFlags(CachedRayTracingMaterials, GetScene().GetFeatureLevel());
+		CachedRayTracingInstanceMaskAndFlags = Context.BuildInstanceMaskAndFlags(RayTracingInstance, *this);
 	}
+	
+	// Skip computing the mask and flags in the renderer since we are using cached values.
+	RayTracingInstance.bInstanceMaskAndFlagsDirty = false;
 	RayTracingInstance.Mask = CachedRayTracingInstanceMaskAndFlags.Mask;
 	RayTracingInstance.bForceOpaque = CachedRayTracingInstanceMaskAndFlags.bForceOpaque;
 	RayTracingInstance.bDoubleSided = CachedRayTracingInstanceMaskAndFlags.bDoubleSided;
@@ -1814,7 +1817,7 @@ ERayTracingPrimitiveFlags FSceneProxy::GetCachedRayTracingInstance(FRayTracingIn
 
 	const bool bIsRayTracingFarField = IsRayTracingFarField();
 
-	RayTracingInstance.BuildInstanceMaskAndFlags(GetScene().GetFeatureLevel(), bIsRayTracingFarField ? ERayTracingInstanceLayer::FarField : ERayTracingInstanceLayer::NearField);
+	RayTracingInstance.InstanceLayer = bIsRayTracingFarField ? ERayTracingInstanceLayer::FarField : ERayTracingInstanceLayer::NearField;
 
 	// setup the flags
 	ERayTracingPrimitiveFlags ResultFlags = ERayTracingPrimitiveFlags::StaticMesh | ERayTracingPrimitiveFlags::CacheMeshCommands | ERayTracingPrimitiveFlags::CacheInstances;

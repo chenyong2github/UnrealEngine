@@ -166,6 +166,8 @@ struct FGPUTileDescription
 	int32 RenderPassIndex;
 };
 
+RENDERER_API uint8 BlendModeToRayTracingInstanceMask(const EBlendMode BlendMode);
+
 namespace GPULightmass
 {
 
@@ -658,7 +660,7 @@ void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Sc
 				bAllSegmentsUnlit &= Material.GetShadingModels().HasOnlyShadingModel(MSM_Unlit) || !MeshBatches[SegmentIndex].CastShadow;
 				bAllSegmentsOpaque &= IsOpaqueBlendMode(Material);
 				bAnySegmentsCastShadow |= MeshBatches[SegmentIndex].CastRayTracedShadow && Material.CastsRayTracedShadows();
-				InstanceMask |= ComputeBlendModeMask(Material);
+				InstanceMask |= BlendModeToRayTracingInstanceMask(Material.GetBlendMode());
 			}
 
 			InstanceMask |= bAnySegmentsCastShadow ? RAY_TRACING_MASK_SHADOW : 0;
@@ -710,7 +712,7 @@ void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Sc
 				bAllSegmentsUnlit &= Material.GetShadingModels().HasOnlyShadingModel(MSM_Unlit) || !MeshBatches[SegmentIndex].CastShadow;
 				bAllSegmentsOpaque &= IsOpaqueBlendMode(Material);
 				bAnySegmentsCastShadow |= MeshBatches[SegmentIndex].CastRayTracedShadow && Material.CastsRayTracedShadows();
-				InstanceMask |= ComputeBlendModeMask(Material);
+				InstanceMask |= BlendModeToRayTracingInstanceMask(Material.GetBlendMode());
 			}
 
 			InstanceMask |= bAnySegmentsCastShadow ? RAY_TRACING_MASK_SHADOW : 0;
@@ -1056,7 +1058,7 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 							bAllSegmentsUnlit &= Material.GetShadingModels().HasOnlyShadingModel(MSM_Unlit) || !MeshBatches[SegmentIndex].CastShadow;
 							bAllSegmentsOpaque &= IsOpaqueBlendMode(Material);
 							bAnySegmentsCastShadow |= MeshBatches[SegmentIndex].CastRayTracedShadow && Material.CastsRayTracedShadows();
-							InstanceMask |= ComputeBlendModeMask(Material);
+							InstanceMask |= BlendModeToRayTracingInstanceMask(Material.GetBlendMode());
 						}
 
 						InstanceMask |= bAnySegmentsCastShadow ? RAY_TRACING_MASK_SHADOW : 0;

@@ -2602,6 +2602,9 @@ struct FRayTracingDynamicGeometryUpdateParams
 	FMatrix44f WorldToInstance = FMatrix44f::Identity;
 };
 
+struct FRayTracingInstance;
+struct FRayTracingMaskAndFlags;
+
 struct FRayTracingMaterialGatheringContext
 {
 	const class FScene* Scene;
@@ -2611,6 +2614,16 @@ struct FRayTracingMaterialGatheringContext
 	FRDGBuilder& GraphBuilder;
 	FRayTracingMeshResourceCollector& RayTracingMeshResourceCollector;
 	TArray<FRayTracingDynamicGeometryUpdateParams> DynamicRayTracingGeometriesToUpdate;
+
+	FRayTracingMaterialGatheringContext(const FScene* InScene, const FSceneView* InReferenceView, const FSceneViewFamily& InReferenceViewFamily, FRDGBuilder& InGraphBuilder, FRayTracingMeshResourceCollector& InRayTracingMeshResourceCollector)
+	:Scene(InScene),
+	ReferenceView(InReferenceView),
+	ReferenceViewFamily(InReferenceViewFamily),
+	GraphBuilder(InGraphBuilder),
+	RayTracingMeshResourceCollector(InRayTracingMeshResourceCollector){}
+
+	ENGINE_API virtual ~FRayTracingMaterialGatheringContext() {}
+	ENGINE_API virtual FRayTracingMaskAndFlags BuildInstanceMaskAndFlags(const FRayTracingInstance& Instance, const FPrimitiveSceneProxy& ScenePrimitive) = 0;
 };
 #endif
 

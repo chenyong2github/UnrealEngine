@@ -436,7 +436,6 @@ public:
 					RayTracingInstance.Geometry = Geometry;
 					RayTracingInstance.InstanceTransformsView = MakeArrayView(&ThisLocalToWorld, 1);
 					RayTracingInstance.MaterialsView = MakeArrayView(NodeRayTracingMaterials);
-					RayTracingInstance.BuildInstanceMaskAndFlags(GetScene().GetFeatureLevel());
 
 					Context.DynamicRayTracingGeometriesToUpdate.Add(
 						FRayTracingDynamicGeometryUpdateParams

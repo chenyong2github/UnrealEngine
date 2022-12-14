@@ -614,7 +614,6 @@ void FWaterMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGath
 				RayTracingInstance.Geometry = &WaterInstanceRayTracingData.Geometry;
 				RayTracingInstance.InstanceTransforms.Add(GetLocalToWorld());
 				RayTracingInstance.Materials.Add(BaseMesh);
-				RayTracingInstance.BuildInstanceMaskAndFlags(GetScene().GetFeatureLevel());
 				OutRayTracingInstances.Add(RayTracingInstance);
 
 				Context.DynamicRayTracingGeometriesToUpdate.Add(

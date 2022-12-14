@@ -546,7 +546,7 @@ public:
 			const uint32 LODIndex = Instance->HairGroupPublicData->GetIntLODIndex();
 
 			FHairStrandsRaytracingResource* RTGeometry = nullptr;
-			uint8 RayTracingMask = RAY_TRACING_MASK_OPAQUE;
+			bool IsHairStrands = false;
 			uint32 InstanceViewRayTracingMask = EHairViewRayTracingMask::PathTracing | EHairViewRayTracingMask::RayTracing;
 			switch (GeometryType)
 			{
@@ -554,7 +554,7 @@ public:
 				{
 					RTGeometry = Instance->Strands.RenRaytracingResource;
 					InstanceViewRayTracingMask = Instance->Strands.ViewRayTracingMask;
-					RayTracingMask = RAY_TRACING_MASK_HAIR_STRANDS;
+					IsHairStrands = true;
 					break;
 				}
 				case EHairGeometryType::Cards:
@@ -588,7 +588,7 @@ public:
 					RayTracingInstance.Geometry = &RTGeometry->RayTracingGeometry;
 					RayTracingInstance.Materials.Add(*MeshBatch);
 					RayTracingInstance.InstanceTransforms.Add(OverrideLocalToWorld);
-					RayTracingInstance.BuildInstanceMaskAndFlags(GetScene().GetFeatureLevel(), ERayTracingInstanceLayer::NearField, RayTracingMask);
+					RayTracingInstance.bThinGeometry = IsHairStrands;
 
 					OutRayTracingInstances.Add(RayTracingInstance);
 				}

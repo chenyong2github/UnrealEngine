@@ -10,10 +10,15 @@
 
 #include "RayTracingDefinitions.h"
 #include "MaterialShared.h"
+#include "RayTracing/RayTracingInstanceMask.h"
 
-void FRayTracingInstance::BuildInstanceMaskAndFlags(ERHIFeatureLevel::Type FeatureLevel, ERayTracingInstanceLayer InstanceLayer, uint8 ExtraMask)
+void FRayTracingInstance::BuildInstanceMaskAndFlags(ERHIFeatureLevel::Type FeatureLevel)
 {
 	TArrayView<const FMeshBatch> MeshBatches = GetMaterials();
+
+	// add extra mask bit for hair.
+	uint8 ExtraMask = bThinGeometry ? RAY_TRACING_MASK_HAIR_STRANDS : 0;
+
 	FRayTracingMaskAndFlags MaskAndFlags = BuildRayTracingInstanceMaskAndFlags(MeshBatches, FeatureLevel, InstanceLayer, ExtraMask);
 
 	Mask = MaskAndFlags.Mask;
@@ -42,8 +47,9 @@ FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMe
 		if (MeshBatch.bUseForMaterial && MeshBatch.MaterialRenderProxy)
 		{
 			const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel);
-			Result.Mask |= ComputeBlendModeMask(Material);
-			bAllSegmentsOpaque &= IsOpaqueBlendMode(Material);
+			const EBlendMode BlendMode = Material.GetBlendMode();
+			Result.Mask |= BlendModeToRayTracingInstanceMask(BlendMode);
+			bAllSegmentsOpaque &= BlendMode == BLEND_Opaque;
 			bAnySegmentsCastShadow |= MeshBatch.CastRayTracedShadow && Material.CastsRayTracedShadows();
 			bAllSegmentsCastShadow &= MeshBatch.CastRayTracedShadow && Material.CastsRayTracedShadows();
 			bDoubleSided |= MeshBatch.bDisableBackfaceCulling || Material.IsTwoSided();
@@ -77,9 +83,9 @@ FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMe
 	return Result;
 }
 
-uint8 ComputeBlendModeMask(const FMaterial& Material)
+uint8 ComputeBlendModeMask(const EBlendMode BlendMode)
 {
-	return IsOpaqueOrMaskedBlendMode(Material) ? RAY_TRACING_MASK_OPAQUE : RAY_TRACING_MASK_TRANSLUCENT;
+	return BlendModeToRayTracingInstanceMask(BlendMode);
 }
 
 #endif

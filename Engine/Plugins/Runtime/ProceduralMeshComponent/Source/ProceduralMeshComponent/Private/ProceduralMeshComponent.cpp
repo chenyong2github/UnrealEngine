@@ -516,8 +516,6 @@ public:
 					BatchElement.MaxVertexIndex = Section->VertexBuffers.PositionVertexBuffer.GetNumVertices() - 1;
 
 					RayTracingInstance.Materials.Add(MeshBatch);
-
-					RayTracingInstance.BuildInstanceMaskAndFlags(GetScene().GetFeatureLevel());
 					OutRayTracingInstances.Add(RayTracingInstance);
 				}
 			}

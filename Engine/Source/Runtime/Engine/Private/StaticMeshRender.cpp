@@ -1895,9 +1895,14 @@ void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGat
 					MeshBatch.MeshIdInPrimitive = SectionIndex;
 				}
 			}
-
-			CachedRayTracingInstanceMaskAndFlags = BuildRayTracingInstanceMaskAndFlags(CachedRayTracingMaterials, GetScene().GetFeatureLevel());
+			
+			RayTracingInstance.MaterialsView = MakeArrayView(CachedRayTracingMaterials);
+			CachedRayTracingInstanceMaskAndFlags = Context.BuildInstanceMaskAndFlags(RayTracingInstance, *this);
 			CachedRayTracingMaterialsLODIndex = LODIndex;
+		}
+		else
+		{
+			RayTracingInstance.MaterialsView = MakeArrayView(CachedRayTracingMaterials);
 		}
 
 		RayTracingInstance.Geometry = &Geometry;
@@ -1905,7 +1910,6 @@ void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGat
 		// scene proxies live for the duration of Render(), making array views below safe
 		const FMatrix& ThisLocalToWorld = GetLocalToWorld();
 		RayTracingInstance.InstanceTransformsView = MakeArrayView(&ThisLocalToWorld, 1);
-		RayTracingInstance.MaterialsView = MakeArrayView(CachedRayTracingMaterials);
 
 		if (bEvaluateWPO && RenderData->LODVertexFactories[LODIndex].VertexFactory.GetType()->SupportsRayTracingDynamicGeometry())
 		{
@@ -1931,6 +1935,8 @@ void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGat
 			);
 		}
 		
+		// Skip computing the mask and flags in the renderer since we are using cached values.
+		RayTracingInstance.bInstanceMaskAndFlagsDirty = false;
 		RayTracingInstance.Mask = CachedRayTracingInstanceMaskAndFlags.Mask;
 		RayTracingInstance.bForceOpaque = CachedRayTracingInstanceMaskAndFlags.bForceOpaque;
 		RayTracingInstance.bDoubleSided = CachedRayTracingInstanceMaskAndFlags.bDoubleSided;

@@ -362,7 +362,6 @@ void FBaseDynamicMeshSceneProxy::DrawRayTracingBatch(FRayTracingMaterialGatherin
 
 	RayTracingInstance.Materials.Add(MeshBatch);
 
-	RayTracingInstance.BuildInstanceMaskAndFlags(GetScene().GetFeatureLevel());
 	OutRayTracingInstances.Add(RayTracingInstance);
 }
 

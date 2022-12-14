@@ -7,8 +7,6 @@
 
 #if RHI_RAYTRACING
 
-class FRayTracingGeometry;
-
 struct FRayTracingMaskAndFlags
 {
 	/** Instance mask that can be used to exclude the instance from specific effects (eg. ray traced shadows). */
@@ -26,6 +24,8 @@ enum class ERayTracingInstanceLayer : uint8
 	NearField,
 	FarField,
 };
+
+class FRayTracingGeometry;
 
 struct FRayTracingInstance
 {
@@ -69,6 +69,17 @@ struct FRayTracingInstance
 	/** Whether local bounds scale and center translation should be applied to the instance transform. */
 	bool bApplyLocalBoundsTransform = false;
 
+	/** Whether the instance is thin geometry (e.g., Hair strands)*/
+	bool bThinGeometry = false;
+
+	/** The instance layer*/
+	ERayTracingInstanceLayer InstanceLayer = ERayTracingInstanceLayer::NearField;
+
+	/** Mark InstanceMaskAndFlags dirty to be automatically updated in the renderer module (dirty by default).
+	* If caching is used, clean the dirty state by setting it to false so no duplicate update will be performed in the renderer module.
+	*/
+	bool bInstanceMaskAndFlagsDirty = true;
+
 	/** Instance mask that can be used to exclude the instance from specific effects (eg. ray traced shadows). */
 	uint8 Mask = 0xFF;
 
@@ -108,10 +119,10 @@ struct FRayTracingInstance
 	FShaderResourceViewRHIRef InstanceGPUTransformsSRV;
 
 	/** Build mask and flags based on materials specified in Materials. You can still override Mask after calling this function. */
-	ENGINE_API void BuildInstanceMaskAndFlags(ERHIFeatureLevel::Type FeatureLevel, ERayTracingInstanceLayer InstanceLayer = ERayTracingInstanceLayer::NearField, uint8 ExtraMask = 0);
+	void BuildInstanceMaskAndFlags(ERHIFeatureLevel::Type FeatureLevel);
 };
 
 /** Build mask and flags based on materials specified in Materials. You can still override Mask after calling this function. */
-ENGINE_API FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMeshBatch> MeshBatches, ERHIFeatureLevel::Type FeatureLevel, ERayTracingInstanceLayer InstanceLayer = ERayTracingInstanceLayer::NearField, uint8 ExtraMask = 0);
-ENGINE_API uint8 ComputeBlendModeMask(const FMaterial& Material);
+FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMeshBatch> MeshBatches, ERHIFeatureLevel::Type FeatureLevel, ERayTracingInstanceLayer InstanceLayer = ERayTracingInstanceLayer::NearField, uint8 ExtraMask = 0);
+uint8 ComputeBlendModeMask(const EBlendMode BlendMode);
 #endif

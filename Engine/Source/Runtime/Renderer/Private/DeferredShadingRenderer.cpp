@@ -41,6 +41,7 @@
 #include "RayTracing/RayTracingLighting.h"
 #include "RayTracing/RayTracingDecals.h"
 #include "RayTracing/RayTracingScene.h"
+#include "RayTracing/RayTracingInstanceMask.h"
 #include "RayTracingDynamicGeometryCollection.h"
 #include "RayTracingSkinnedGeometry.h"
 #include "SceneTextureParameters.h"
@@ -913,6 +914,25 @@ static void GatherRayTracingRelevantPrimitives(const FScene& Scene, const FViewI
 	Result.bValid = true;
 }
 
+// Class to implement build instance mask and flags so that rendering related mask build is maintained in any renderer module.
+// BuildInstanceMaskAndFlags() will be called in the Engine module where it does not know specifics of the ray tracing instance
+// masks used by the renderer (e.g., path tracer mask might be different from raytracing mask).
+struct FDeferredShadingRayTracingMaterialGatheringContext : public FRayTracingMaterialGatheringContext
+{
+	FDeferredShadingRayTracingMaterialGatheringContext(
+		const FScene* InScene,
+		const FSceneView* InReferenceView,
+		const FSceneViewFamily& InReferenceViewFamily,
+		FRDGBuilder& InGraphBuilder,
+		FRayTracingMeshResourceCollector& InRayTracingMeshResourceCollector)
+		:FRayTracingMaterialGatheringContext(InScene, InReferenceView, InReferenceViewFamily, InGraphBuilder, InRayTracingMeshResourceCollector){}
+
+	virtual FRayTracingMaskAndFlags BuildInstanceMaskAndFlags(const FRayTracingInstance& Instance, const FPrimitiveSceneProxy& ScenePrimitive) override
+	{
+		return BuildRayTracingInstanceMaskAndFlags(Instance, ScenePrimitive);
+	}
+};
+
 bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBuilder& GraphBuilder, FViewInfo& View, FRayTracingScene& RayTracingScene, FRayTracingRelevantPrimitiveList& RelevantPrimitiveList)
 {
 	checkf(IsRayTracingEnabled() && bAnyRayTracingPassEnabled, TEXT("GatherRayTracingWorldInstancesForView should only be called if ray tracing is used"))
@@ -960,14 +980,14 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 
 	View.RayTracingCullingParameters.Init(View);
 
-	FRayTracingMaterialGatheringContext MaterialGatheringContext
-	{
+	FDeferredShadingRayTracingMaterialGatheringContext MaterialGatheringContext
+	(
 		Scene,
 		&View,
 		ViewFamily,
 		GraphBuilder,
 		*View.RayTracingMeshResourceCollector
-	};
+	);
 
 	const float CurrentWorldTime = View.Family->Time.GetWorldTimeSeconds();
 	const bool bEnableInstanceDebugData = IsRayTracingInstanceDebugDataEnabled(View);
@@ -1133,6 +1153,9 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 					{
 						continue;
 					}
+
+					// Autobuild of InstanceMaskAndFlags if the mask and flags are not built
+					UpdateRayTracingInstanceMaskAndFlagsIfNeeded(Instance, *SceneProxy);
 
 					const uint32 InstanceIndex = RayTracingScene.Instances.Num();
 

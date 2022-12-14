@@ -1137,8 +1137,6 @@ void FNiagaraRendererSprites::GetDynamicRayTracingInstances(FRayTracingMaterialG
 			}
 		);
 
-		RayTracingInstance.BuildInstanceMaskAndFlags(FeatureLevel);
-
 		OutRayTracingInstances.Add(RayTracingInstance);
 	}
 }

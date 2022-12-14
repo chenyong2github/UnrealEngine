@@ -14,6 +14,7 @@
 #include "RendererModule.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "RayTracing/RayTracingMaterialHitShaders.h"
+#include "RayTracing/RayTracingInstanceMask.h"
 #include "VT/RuntimeVirtualTextureSceneProxy.h"
 #include "VT/VirtualTextureSystem.h"
 #include "GPUScene.h"
@@ -791,6 +792,7 @@ void FPrimitiveSceneInfo::UpdateCachedRayTracingInstances(FScene* Scene, const T
 
 			// Write flags
 			Flags = SceneInfo->Proxy->GetCachedRayTracingInstance(CachedRayTracingInstance);
+			UpdateRayTracingInstanceMaskAndFlagsIfNeeded(CachedRayTracingInstance, *(SceneInfo->Proxy));
 			UpdateCachedRayTracingInstance(SceneInfo, CachedRayTracingInstance, Flags);
 		}
 	}
@@ -874,7 +876,8 @@ void CacheRayTracingPrimitive(
 	}
 
 	// Write flags
-	OutFlags = SceneInfo->Proxy->GetCachedRayTracingInstance(OutCachedRayTracingInstance);
+	Flags = SceneInfo->Proxy->GetCachedRayTracingInstance(CachedRayTracingInstance);
+	UpdateRayTracingInstanceMaskAndFlagsIfNeeded(CachedRayTracingInstance, *(SceneInfo->Proxy));
 
 	// Cache the coarse mesh streaming handle
 	SceneInfo->CoarseMeshStreamingHandle = SceneInfo->Proxy->GetCoarseMeshStreamingHandle();

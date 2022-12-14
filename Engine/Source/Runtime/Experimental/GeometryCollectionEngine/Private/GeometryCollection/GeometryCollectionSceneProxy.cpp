@@ -1229,8 +1229,6 @@ void FGeometryCollectionSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 				}
 			);
 
-			RayTracingInstance.BuildInstanceMaskAndFlags(GetScene().GetFeatureLevel());
-
 			OutRayTracingInstances.Emplace(RayTracingInstance);
 		}
 
