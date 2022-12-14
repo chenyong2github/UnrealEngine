@@ -786,6 +786,7 @@ bool FCurlHttpRequest::SetupRequest()
 	bCurlRequestCompleted = false;
 	bCanceled = false;
 	CurlAddToMultiResult = CURLM_OK;
+	LastReportedBytesSent = 0;
 
 	// default no verb to a GET
 	if (Verb.IsEmpty())
@@ -992,6 +993,7 @@ bool FCurlHttpRequest::ProcessRequest()
 
 	// Clear out response. If this is a re-used request, Response could point to a stale response until SetupRequestHttpThread is called
 	Response = nullptr;
+	LastReportedBytesRead = 0;
 
 	bool bStarted = false;
 	if (!FHttpModule::Get().GetHttpManager().IsDomainAllowed(URL))
