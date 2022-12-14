@@ -64,6 +64,12 @@ void UMovieSceneFolder::AddChildFolder( UMovieSceneFolder* InChildFolder )
 		{
 			MovieSceneFolder->RemoveChildFolder(InChildFolder);
 		}
+
+		if (OwningScene->GetRootFolders().Contains(InChildFolder))
+		{
+			OwningScene->Modify();
+			OwningScene->RemoveRootFolder(InChildFolder);
+		}
 	}
 #endif
 

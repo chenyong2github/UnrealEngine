@@ -1005,7 +1005,7 @@ UMovieSceneFolder* UMovieSceneSequenceExtensions::AddRootFolderToSequence(UMovie
 	if (MovieScene)
 	{
 		MovieScene->Modify();
-		NewFolder = NewObject<UMovieSceneFolder>(MovieScene);
+		NewFolder = NewObject<UMovieSceneFolder>(MovieScene, NAME_None, RF_Transactional);
 		NewFolder->SetFolderName(FName(*NewFolderName));
 		MovieScene->AddRootFolder(NewFolder);
 	}

@@ -41,7 +41,7 @@ class MOVIESCENE_API UMovieSceneFolder : public UObject
 	/** Gets the folders contained by this folder. */
 	TArrayView<UMovieSceneFolder* const> GetChildFolders() const;
 
-	/** Adds a child folder to this folder. Automatically calls Modify() on the folder object. */
+	/** Adds a child folder to this folder. Removes the folder from any other folders (including root folders). Automatically calls Modify() on the folder object. */
 	void AddChildFolder( UMovieSceneFolder* InChildFolder );
 
 	/** Removes a child folder from this folder. Automatically calls Modify() on the folder object. */
