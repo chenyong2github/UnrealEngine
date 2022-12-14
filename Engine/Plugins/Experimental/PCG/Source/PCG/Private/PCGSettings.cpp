@@ -32,6 +32,21 @@ bool UPCGSettingsInterface::IsInstance() const
 	return this != GetSettings();
 }
 
+void UPCGSettingsInterface::SetEnabled(bool bInEnabled)
+{
+	if (bEnabled != bInEnabled)
+	{
+		bEnabled = bInEnabled;
+#if WITH_EDITOR
+		if (UPCGSettings* Settings = GetSettings())
+		{
+			const bool bIsStructuralChange = Settings->IsStructuralProperty(GET_MEMBER_NAME_CHECKED(UPCGSettingsInterface, bEnabled));
+			OnSettingsChangedDelegate.Broadcast(Settings, (bIsStructuralChange ? EPCGChangeType::Structural : EPCGChangeType::None) | EPCGChangeType::Settings);
+		}
+#endif
+	}
+}
+
 bool UPCGSettings::operator==(const UPCGSettings& Other) const
 {
 	if (this == &Other)

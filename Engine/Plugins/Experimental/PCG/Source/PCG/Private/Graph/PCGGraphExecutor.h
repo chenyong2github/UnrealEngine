@@ -181,7 +181,7 @@ public:
 
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
-	virtual bool IsPassthrough() const override { return true; }
+	virtual bool IsPassthrough(const UPCGSettings* InSettings) const override { return true; }
 };
 
 class FPCGGenericElement : public FSimplePCGElement

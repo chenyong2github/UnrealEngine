@@ -95,7 +95,7 @@ class FPCGSpawnActorElement : public FSimplePCGElement
 public:
 	virtual bool CanExecuteOnlyOnMainThread(FPCGContext* Context) const override { return true; }
 	virtual bool IsCacheable(const UPCGSettings* InSettings) const override { return false; }
-	virtual bool IsPassthrough() const override { return true; }
+	virtual bool IsPassthrough(const UPCGSettings* InSettings) const override { return !InSettings || InSettings->bEnabled; }
 
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;

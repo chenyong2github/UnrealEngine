@@ -100,7 +100,7 @@ protected:
 	/** Controls whether an element can skip its execution wholly when the input data has the cancelled tag */
 	virtual bool IsCancellable() const { return true; }
 	/** Used to specify that the element passes through the data without any manipulation - used to correct target pins, etc. */
-	virtual bool IsPassthrough() const { return false; }
+	virtual bool IsPassthrough(const UPCGSettings* InSettings) const { return false; }
 
 	/** Passes through data when the element is Disabled. Can be implemented to override what gets passed through. */
 	virtual void DisabledPassThroughData(FPCGContext* Context) const;

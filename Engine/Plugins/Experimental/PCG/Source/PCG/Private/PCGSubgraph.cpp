@@ -66,6 +66,11 @@ void UPCGBaseSubgraphSettings::GetTrackedActorTags(FPCGTagToSettingsMap& OutTagT
 	}
 }
 
+bool UPCGBaseSubgraphSettings::IsStructuralProperty(const FName& InPropertyName) const
+{
+	return InPropertyName == GET_MEMBER_NAME_CHECKED(UPCGSettingsInterface, bEnabled) || Super::IsStructuralProperty(InPropertyName);
+}
+
 void UPCGBaseSubgraphSettings::OnSubgraphChanged(UPCGGraph* InGraph, EPCGChangeType ChangeType)
 {
 	if (InGraph == GetSubgraph())

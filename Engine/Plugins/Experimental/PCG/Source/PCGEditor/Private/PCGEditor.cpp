@@ -1227,15 +1227,14 @@ void FPCGEditor::OnToggleEnabled()
 			if (PCGSettingsInterface->bEnabled != bNewCheckState)
 			{
 				PCGSettingsInterface->Modify();
-				PCGSettingsInterface->bEnabled = bNewCheckState;
-				PCGNode->OnNodeChangedDelegate.Broadcast(PCGNode, EPCGChangeType::Settings);
+				PCGSettingsInterface->SetEnabled(bNewCheckState);
 				bChanged = true;
 			}
 		}
 		
 		if (bChanged)
 		{
-			GraphEditorWidget->NotifyGraphChanged();	
+			GraphEditorWidget->NotifyGraphChanged();
 		}
 	}
 }

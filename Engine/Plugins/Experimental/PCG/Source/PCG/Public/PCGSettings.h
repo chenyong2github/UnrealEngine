@@ -56,6 +56,8 @@ public:
 	virtual const UPCGSettings* GetSettings() const PURE_VIRTUAL(UPCGSettingsInterface::GetSettings, return nullptr;);
 
 	bool IsInstance() const;
+	/** Dedicated method to change enable state because some nodes have more complex behavior on enable/disable (such as subgraphs) */
+	void SetEnabled(bool bInEnabled);
 
 #if WITH_EDITOR
 	FOnPCGSettingsChanged OnSettingsChangedDelegate;
@@ -80,6 +82,8 @@ UCLASS(Abstract, BlueprintType, ClassGroup = (Procedural))
 class PCG_API UPCGSettings : public UPCGSettingsInterface
 {
 	GENERATED_BODY()
+
+	friend class UPCGSettingsInterface;
 
 public:
 	// ~Begin UPCGData interface
@@ -258,5 +262,5 @@ public:
 
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
-	virtual bool IsPassthrough() const override { return true; }
+	virtual bool IsPassthrough(const UPCGSettings* InSettings) const override { return true; }
 };

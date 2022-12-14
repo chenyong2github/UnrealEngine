@@ -27,6 +27,7 @@ protected:
 
 	//~Begin UPCGSettings interface
 	virtual void GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings, TArray<TObjectPtr<const UPCGGraph>>& OutVisitedGraphs) const override;
+	virtual bool IsStructuralProperty(const FName& InPropertyName) const override;
 #endif
 
 	TArray<FPCGPinProperties> InputPinProperties() const override;
@@ -109,7 +110,7 @@ public:
 
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
-	virtual bool IsPassthrough() const override { return true; }
+	virtual bool IsPassthrough(const UPCGSettings* InSettings) const override { return !InSettings || InSettings->bEnabled; }
 };
 
 class PCG_API FPCGInputForwardingElement : public FSimplePCGElement
@@ -119,6 +120,6 @@ public:
 
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
-	virtual bool IsPassthrough() const override { return true; }
+	virtual bool IsPassthrough(const UPCGSettings* InSettings) const override { return true; }
 	FPCGDataCollection Input;
 };

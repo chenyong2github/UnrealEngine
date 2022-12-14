@@ -335,7 +335,9 @@ void IPCGElement::CleanupAndValidateOutput(FPCGContext* Context) const
 	const UPCGSettingsInterface* SettingsInterface = Context->GetInputSettingsInterface();
 	const UPCGSettings* Settings = SettingsInterface ? SettingsInterface->GetSettings() : nullptr;
 
-	if (!IsPassthrough() && Settings)
+	// Implementation note - disabled passthrough nodes can happen only in subgraphs/ spawn actor nodes
+	// which will behave properly when disabled. 
+	if (Settings && !IsPassthrough(Settings))
 	{
 		// Cleanup any residual labels if the node isn't supposed to produce them
 		// TODO: this is a bit of a crutch, could be refactored out if we review the way we push tagged data
