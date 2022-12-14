@@ -634,7 +634,7 @@ void FNetworkObjectList::AddSubObjectChannelReference(AActor* OwnerActor, UObjec
 	}
 }
 
-void FNetworkObjectList::RemoveMultipleSubObjectChannelReference(AActor* OwnerActor, const TArray< TWeakObjectPtr<UObject>, TInlineAllocator<16> >& SubObjectsToRemove, UObject* ReferenceOwner)
+void FNetworkObjectList::RemoveMultipleSubObjectChannelReference(AActor* OwnerActor, const TArrayView<TWeakObjectPtr<UObject>>& SubObjectsToRemove, UObject* ReferenceOwner)
 {
 	if (TSharedPtr<FNetworkObjectInfo>* InfoPtr = AllNetworkObjects.Find(OwnerActor))
 	{
@@ -649,7 +649,7 @@ void FNetworkObjectList::RemoveMultipleSubObjectChannelReference(AActor* OwnerAc
 	}
 }
 
-void FNetworkObjectList::RemoveMultipleInvalidSubObjectChannelReference(FNetworkObjectInfo* ActorNetInfo, const TArray< TWeakObjectPtr<UObject>, TInlineAllocator<16> >& SubObjectsToRemove, UObject* ReferenceOwner)
+void FNetworkObjectList::RemoveMultipleInvalidSubObjectChannelReference(FNetworkObjectInfo* ActorNetInfo, const TArrayView<TWeakObjectPtr<UObject>>& SubObjectsToRemove, UObject* ReferenceOwner)
 {
 	check(ActorNetInfo);
 
@@ -659,7 +659,7 @@ void FNetworkObjectList::RemoveMultipleInvalidSubObjectChannelReference(FNetwork
 	}
 }
 
-void FNetworkObjectList::RemoveMultipleActiveSubObjectChannelReference(FNetworkObjectInfo* ActorNetInfo, const TArray< TWeakObjectPtr<UObject>, TInlineAllocator<16> >& SubObjectsToRemove, UObject* ReferenceOwner)
+void FNetworkObjectList::RemoveMultipleActiveSubObjectChannelReference(FNetworkObjectInfo* ActorNetInfo, const TArrayView<TWeakObjectPtr<UObject>>& SubObjectsToRemove, UObject* ReferenceOwner)
 {
 	check(ActorNetInfo);
 
@@ -762,7 +762,7 @@ bool FNetworkObjectList::HandleRemoveInvalidSubObjectRef(FNetworkObjectInfo* Act
 }
 
 #if DO_REPLICATED_OBJECT_CHANNELREF_CHECKS
-void FNetworkObjectList::SwapMultipleReferencesForDormancy(AActor* OwnerActor, const TArray< TWeakObjectPtr<UObject>, TInlineAllocator<16> >& SubObjectsToSwap, UActorChannel* PreviousChannelRefOwner, UNetConnection* NewConnectionRefOwner)
+void FNetworkObjectList::SwapMultipleReferencesForDormancy(AActor* OwnerActor, const TArrayView<TWeakObjectPtr<UObject>>& SubObjectsToSwap, UActorChannel* PreviousChannelRefOwner, UNetConnection* NewConnectionRefOwner)
 {
 	if (TSharedPtr<FNetworkObjectInfo>* InfoPtr = AllNetworkObjects.Find(OwnerActor))
 	{
