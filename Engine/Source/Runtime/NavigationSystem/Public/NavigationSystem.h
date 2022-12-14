@@ -1284,6 +1284,9 @@ protected:
 	 *  Depends on runtime generation settings of each navigation data, always true in the editor
 	 */
 	bool IsAllowedToRebuild() const;
+
+	/** Handle forwarding the information where needed when the setting is changed*/
+	void OnGenerateNavigationOnlyAroundNavigationInvokersChanged();
 	
 	//----------------------------------------------------------------------//
 	// new stuff

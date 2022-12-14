@@ -865,27 +865,16 @@ void UNavigationSystemV1::PostEditChangeChainProperty(FPropertyChangedChainEvent
 
 void UNavigationSystemV1::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	static const FName NAME_EnableActiveTiles = GET_MEMBER_NAME_CHECKED(UNavigationSystemV1, bGenerateNavigationOnlyAroundNavigationInvokers);
+	static const FName NAME_GenerateNavigationOnlyAroundNavigationInvokers = GET_MEMBER_NAME_CHECKED(UNavigationSystemV1, bGenerateNavigationOnlyAroundNavigationInvokers);
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	if (PropertyChangedEvent.Property)
 	{
 		FName PropName = PropertyChangedEvent.Property->GetFName();
-		if (PropName == NAME_EnableActiveTiles)
+		if (PropName == NAME_GenerateNavigationOnlyAroundNavigationInvokers)
 		{
-			if (DefaultOctreeController.NavOctree.IsValid())
-			{
-				DefaultOctreeController.NavOctree->SetDataGatheringMode(DataGatheringMode);
-			}
-
-			for (auto NavData : NavDataSet)
-			{
-				if (NavData)
-				{
-					NavData->RestrictBuildingToActiveTiles(bGenerateNavigationOnlyAroundNavigationInvokers);
-				}
-			}
+			OnGenerateNavigationOnlyAroundNavigationInvokersChanged();
 		}
 		else if (PropName == GET_MEMBER_NAME_CHECKED(FNavDataConfig, AgentRadius))
 		{
@@ -4320,6 +4309,22 @@ bool UNavigationSystemV1::IsAllowedToRebuild() const
 	const UWorld* World = GetWorld();
 	
 	return World && (!World->IsGameWorld() || GetRuntimeGenerationType() == ERuntimeGenerationType::Dynamic);
+}
+
+void UNavigationSystemV1::OnGenerateNavigationOnlyAroundNavigationInvokersChanged()
+{
+	if (DefaultOctreeController.NavOctree.IsValid())
+	{
+		DefaultOctreeController.NavOctree->SetDataGatheringMode(DataGatheringMode);
+	}
+
+	for (auto NavData : NavDataSet)
+	{
+		if (NavData)
+		{
+			NavData->RestrictBuildingToActiveTiles(bGenerateNavigationOnlyAroundNavigationInvokers);
+		}
+	}
 }
 
 //----------------------------------------------------------------------//
