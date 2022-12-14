@@ -17,6 +17,8 @@ namespace AutomationUtils.Matchers
 
 		static readonly Regex s_appErrorPattern = new Regex(@"^\s*[A-Za-z]+: Error: appError called: ");
 
+		static readonly Regex s_assertionFailedPattern = new Regex(@"^Assertion failed: ");
+
 		public LogEventMatch? Match(ILogCursor cursor)
 		{
 			if (cursor.Contains("begin: stack for UAT"))
@@ -34,6 +36,11 @@ namespace AutomationUtils.Matchers
 			{
 				LogEventBuilder builder = new LogEventBuilder(cursor);
 				return builder.ToMatch(LogEventPriority.Normal, LogLevel.Error, KnownLogEvents.Engine_AppError);
+			}
+			if (cursor.IsMatch(s_assertionFailedPattern))
+			{
+				LogEventBuilder builder = new LogEventBuilder(cursor);
+				return builder.ToMatch(LogEventPriority.Normal, LogLevel.Error, KnownLogEvents.Engine_AssertionFailed);
 			}
 			if (cursor.Contains("AutomationTool: Stack:"))
 			{

@@ -86,6 +86,11 @@ namespace EpicGames.Core
 		public static EventId Engine_AppError { get; } = new EventId(305);
 
 		/// <summary>
+		/// Engine: Assertion failed
+		/// </summary>
+		public static EventId Engine_AssertionFailed { get; } = new EventId(306);
+
+		/// <summary>
 		/// Engine: Shader compiler output
 		/// </summary>
 		public static EventId Engine_ShaderCompiler { get; } = new EventId(310);

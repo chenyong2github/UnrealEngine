@@ -176,6 +176,18 @@ namespace Horde.Agent.Tests
 		}
 
 		[TestMethod]
+		public void AssertionFailedEventMatcher()
+		{
+			string[] lines =
+			{
+				@"Assertion failed: !NumUsed.GetValue() [File:Runtime/Core/Public/Containers/LockFreeFixedSizeAllocator.h] [Line: 201]"
+			};
+
+			List<LogEvent> logEvents = Parse(lines);
+			CheckEventGroup(logEvents, 0, 1, LogLevel.Error, KnownLogEvents.Engine_AssertionFailed);
+		}
+
+		[TestMethod]
 		public void SymbolStripSpuriousEventMatcher()
 		{
 			// Symbol stripping error
