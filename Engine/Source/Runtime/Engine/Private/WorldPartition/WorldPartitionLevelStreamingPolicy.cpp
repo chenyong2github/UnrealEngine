@@ -181,6 +181,20 @@ void UWorldPartitionLevelStreamingPolicy::RemapSoftObjectPath(FSoftObjectPath& O
 		}
 	}
 }
+
+bool UWorldPartitionLevelStreamingPolicy::ConvertEditorPathToRuntimePath(const FSoftObjectPath& InPath, FSoftObjectPath& OutPath) const
+{
+	if (const FName* CellName = ActorToCellRemapping.Find(*InPath.ToString()))
+	{
+		const UWorld* OuterWorld = WorldPartition->GetTypedOuter<UWorld>();
+		const UPackage* OuterWorldPackage = OuterWorld->GetPackage();
+		const FString OuterWorldPackageName = FPackageName::GetShortName(OuterWorldPackage->GetName());
+		const FString OuterWorldPackagePath = FPackageName::GetLongPackagePath(OuterWorldPackage->GetPathName());
+		OutPath = FString::Printf(TEXT("%s/%s/_Generated_/%s.%s:%s"), *OuterWorldPackagePath, *OuterWorldPackageName, *(CellName->ToString()), *OuterWorldPackageName, *InPath.GetSubPathString());
+		return true;
+	}
+	return false;
+}
 #endif
 
 UObject* UWorldPartitionLevelStreamingPolicy::GetSubObject(const TCHAR* SubObjectPath)

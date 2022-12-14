@@ -225,4 +225,49 @@ void FWorldPartitionHelpers::FakeEngineTick(UWorld* InWorld)
 	CommandletHelpers::TickEngine(InWorld);
 }
 
+bool FWorldPartitionHelpers::ConvertRuntimePathToEditorPath(const FSoftObjectPath& InPath, FSoftObjectPath& OutPath)
+{
+	//
+	// Try to convert from /.../WorldName/_Generated_/MainGrid_L0_X0_Y0_DL0.WorldName:PersistentLevel.ActorName
+	//                  to /.../WorldName.WorldName:PersistentLevel.ActorName
+	//
+	FString OutPathString = InPath.ToString();
+	const FStringView InPathView(OutPathString);
+
+	if (int32 GeneratedPos = InPathView.Find(TEXTVIEW("/_Generated_/"), 0); GeneratedPos != INDEX_NONE)
+	{
+		if (int32 NextDotPos = InPathView.Find(TEXTVIEW("."), GeneratedPos); NextDotPos != INDEX_NONE)
+		{
+			if (int32 NextColonPos = InPathView.Find(TEXTVIEW(":"), NextDotPos); NextColonPos != INDEX_NONE)
+			{
+				OutPathString.RemoveAt(GeneratedPos, NextDotPos - GeneratedPos);
+				OutPath = OutPathString;
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+bool FWorldPartitionHelpers::ConvertEditorPathToRuntimePath(const FSoftObjectPath& InPath, FSoftObjectPath& OutPath)
+{
+	//
+	// Try to convert from /.../WorldName.WorldName:PersistentLevel.ActorName
+	//                  to /.../WorldName/_Generated_/MainGrid_L0_X0_Y0_DL0.WorldName:PersistentLevel.ActorName
+	//
+	FSoftObjectPath Path(InPath);
+	FSoftObjectPath WorldPath(Path.GetAssetPath(), FString());
+
+	if (UWorld* World = Cast<UWorld>(WorldPath.ResolveObject()))
+	{
+		if (UWorldPartition* WorldPartition = World->GetWorldPartition())
+		{
+			return WorldPartition->ConvertEditorPathToRuntimePath(InPath, OutPath);
+		}
+	}
+
+	return false;
+}
+
 #endif // #if WITH_EDITOR

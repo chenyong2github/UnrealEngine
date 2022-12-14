@@ -16,8 +16,7 @@
 
 namespace WorldPartitionTests
 {
-	constexpr const uint32 TestFlags = EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter;
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FWorldPartitionSoftRefTest, TEST_NAME_ROOT ".Handle", TestFlags)
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FWorldPartitionSoftRefTest, TEST_NAME_ROOT ".Handle", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
 
 #if WITH_EDITOR
 	template <class LoadingContextType>

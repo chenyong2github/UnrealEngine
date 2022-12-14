@@ -164,6 +164,9 @@ public:
 	void RemapSoftObjectPath(FSoftObjectPath& ObjectPath);
 	bool IsValidPackageName(const FString& InPackageName);
 
+	// Editor/Runtime conversions
+	bool ConvertEditorPathToRuntimePath(const FSoftObjectPath& InPath, FSoftObjectPath& OutPath) const;
+
 	// Begin Cooking
 	void BeginCook(IWorldPartitionCookPackageContext& CookContext);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FWorldPartitionBeginCookDelegate, IWorldPartitionCookPackageContext&);

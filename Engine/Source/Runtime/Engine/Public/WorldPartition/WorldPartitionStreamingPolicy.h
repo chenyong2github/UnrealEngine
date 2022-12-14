@@ -65,6 +65,9 @@ public:
 	// PIE/Game methods
 	virtual void PrepareActorToCellRemapping() {}
 	virtual void RemapSoftObjectPath(FSoftObjectPath& ObjectPath) {}
+
+	// Editor/Runtime conversions
+	virtual bool ConvertEditorPathToRuntimePath(const FSoftObjectPath& InPath, FSoftObjectPath& OutPath) const { return false; }
 #endif
 
 #if !UE_BUILD_SHIPPING
