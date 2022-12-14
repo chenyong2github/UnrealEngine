@@ -591,6 +591,10 @@ bool FAudioDeviceManager::InitializeManager()
 		AudioSettings->RegisterParameterInterfaces();
 
 		const bool bIsAudioMixerEnabled = AudioDeviceModule->IsAudioMixerModule();
+		if (bIsAudioMixerEnabled)
+		{
+			FModuleManager::Get().LoadModuleChecked(TEXT("AudioMixer"));
+		}
 		AudioSettings->SetAudioMixerEnabled(bIsAudioMixerEnabled);
 
 		// Register all formats

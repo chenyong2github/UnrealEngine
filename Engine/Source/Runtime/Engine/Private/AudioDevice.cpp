@@ -2425,7 +2425,7 @@ void FAudioDevice::InitSoundSources()
 void FAudioDevice::InitializeSubsystemCollection()
 {
 	UE_LOG(LogAudio, Log, TEXT("Initializing audio subsystem collection for audio device with id %d"), DeviceID);
-	FModuleManager::Get().LoadModuleChecked("AudioMixer");
+
 	SubsystemCollectionRoot.Reset(NewObject<UAudioSubsystemCollectionRoot>(GetTransientPackage()));
 	check(SubsystemCollectionRoot.IsValid());
 
