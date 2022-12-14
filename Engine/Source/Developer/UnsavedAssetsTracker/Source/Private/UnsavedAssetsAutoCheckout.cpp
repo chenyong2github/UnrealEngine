@@ -4,12 +4,15 @@
 
 #include "ISourceControlModule.h"
 #include "Settings/EditorLoadingSavingSettings.h"
+#include "Containers/Ticker.h"
+#include "Misc/Paths.h"
 #include "SourceControlOperations.h"
 #include "UnsavedAssetsTrackerModule.h"
 
 FUnsavedAssetsAutoCheckout::FUnsavedAssetsAutoCheckout(FUnsavedAssetsTrackerModule* Module)
+	: bProcessCheckoutBatchPending(false)
 {
-	Module->OnUnsavedAssetAdded.AddRaw(this, &FUnsavedAssetsAutoCheckout::AsyncCheckout);
+	Module->OnUnsavedAssetAdded.AddRaw(this, &FUnsavedAssetsAutoCheckout::OnAsyncCheckout);
 	AsyncCheckoutComplete.BindRaw(this, &FUnsavedAssetsAutoCheckout::OnAsyncCheckoutComplete);
 }
 
@@ -17,32 +20,93 @@ FUnsavedAssetsAutoCheckout::~FUnsavedAssetsAutoCheckout()
 {
 }
 
-void FUnsavedAssetsAutoCheckout::AsyncCheckout(const FString& AbsoluteAssetFilepath)
+void FUnsavedAssetsAutoCheckout::OnAsyncCheckout(const FString& AbsoluteAssetFilepath)
 {
+	// Check if auto checkout is enabled.
 	const UEditorLoadingSavingSettings* Settings = GetDefault<UEditorLoadingSavingSettings>();
 	if (!Settings->GetAutomaticallyCheckoutOnAssetModification())
 	{
 		return;
 	}
-	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-	FSourceControlOperationRef CheckOutOperation = ISourceControlOperation::Create<FCheckOut>();
 
-	OperationToPath.Add(&CheckOutOperation.Get()) = AbsoluteAssetFilepath;
-	
-	FUnsavedAssetsTrackerModule::Get().PreUnsavedAssetAutoCheckout.Broadcast(AbsoluteAssetFilepath, CheckOutOperation);
-	
-	SourceControlProvider.Execute(CheckOutOperation, AbsoluteAssetFilepath, EConcurrency::Asynchronous, AsyncCheckoutComplete);
+	// Add to FilesToCheckout batch.
+	// Why are we batching? Because moving a large prefab (1000+ source files) would result in
+	// an equal amount of FCheckOut operation which didn't scale and locked the editor due to
+	// worker thread exhaustion.
+	CheckoutBatch.Add(AbsoluteAssetFilepath);
+
+	// If no batch process tick is pending, queue one.
+	if (!bProcessCheckoutBatchPending)
+	{
+		bProcessCheckoutBatchPending = true;
+
+		FTSTicker::GetCoreTicker().AddTicker(
+			FTickerDelegate::CreateSP(this, &FUnsavedAssetsAutoCheckout::OnProcessCheckoutBatch)
+		);
+	}
 }
 
 void FUnsavedAssetsAutoCheckout::OnAsyncCheckoutComplete(const FSourceControlOperationRef& CheckOutOperation, ECommandResult::Type Result)
 {
-	FString const& AbsoluteAssetFilepath = OperationToPath.FindAndRemoveChecked(&CheckOutOperation.Get());
+	const TArray<FString> FilesInBatch = OperationToPaths.FindAndRemoveChecked(&CheckOutOperation.Get());
+
 	if (Result == ECommandResult::Succeeded)
 	{
-		FUnsavedAssetsTrackerModule::Get().PostUnsavedAssetAutoCheckout.Broadcast(AbsoluteAssetFilepath, CheckOutOperation);	
+		for (const FString& File : FilesInBatch)
+		{
+			FUnsavedAssetsTrackerModule::Get().PostUnsavedAssetAutoCheckout.Broadcast(File, CheckOutOperation);
+		}
 	}
-	else if (Result == ECommandResult::Failed)
+
+	if (Result == ECommandResult::Failed)
 	{
-		FUnsavedAssetsTrackerModule::Get().PostUnsavedAssetAutoCheckoutFailure.Broadcast(AbsoluteAssetFilepath, CheckOutOperation);
+		for (const FString& File : FilesInBatch)
+		{
+			FUnsavedAssetsTrackerModule::Get().PostUnsavedAssetAutoCheckoutFailure.Broadcast(File, CheckOutOperation);
+		}
 	}
+}
+
+bool FUnsavedAssetsAutoCheckout::OnProcessCheckoutBatch(float)
+{
+	TArray<FString> FilesToCheckout;
+	FilesToCheckout.Reserve(CheckoutBatch.Num());
+
+	for (const FString& File : CheckoutBatch)
+	{
+		// Why are we checking for file exists?
+		// The OnUnsavedAssetAdded delegate triggers when dragging an asset in the viewport as well,
+		// before it's even placed in the scene or saved to disk. There's no point in attempting
+		// to do an FCheckOut for them.
+		if (FPaths::FileExists(File))
+		{
+			FilesToCheckout.Add(File);
+		}
+	}
+	CheckoutBatch.Empty();
+
+	if (FilesToCheckout.Num() > 0)
+	{
+		AsyncCheckout(FilesToCheckout);
+	}
+
+	bProcessCheckoutBatchPending = false;
+	return false; // One shot.
+}
+
+void FUnsavedAssetsAutoCheckout::AsyncCheckout(const TArray<FString>& FilesToCheckout)
+{
+	ensure(FilesToCheckout.Num() > 0);
+
+	FSourceControlOperationRef CheckOutOperation = ISourceControlOperation::Create<FCheckOut>();
+
+	OperationToPaths.Add(&CheckOutOperation.Get(), FilesToCheckout);
+
+	for (const FString& File : FilesToCheckout)
+	{
+		FUnsavedAssetsTrackerModule::Get().PreUnsavedAssetAutoCheckout.Broadcast(File, CheckOutOperation);
+	}
+
+	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+	SourceControlProvider.Execute(CheckOutOperation, FilesToCheckout, EConcurrency::Asynchronous, AsyncCheckoutComplete);
 }

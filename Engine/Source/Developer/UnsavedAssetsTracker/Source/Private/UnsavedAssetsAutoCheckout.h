@@ -17,11 +17,20 @@ class FUnsavedAssetsAutoCheckout : public TSharedFromThis<FUnsavedAssetsAutoChec
 public:
 	explicit FUnsavedAssetsAutoCheckout(FUnsavedAssetsTrackerModule* Module);
 	~FUnsavedAssetsAutoCheckout();
+
 private:
-	void AsyncCheckout(const FString& AbsoluteAssetFilepath);
+	void OnAsyncCheckout(const FString& AbsoluteAssetFilepath);
 	
 	FSourceControlOperationComplete AsyncCheckoutComplete;
 	void OnAsyncCheckoutComplete(const FSourceControlOperationRef&, ECommandResult::Type);
 
-	TMap<ISourceControlOperation*, FString> OperationToPath;
+	/* To process checkouts in a single batch once per tick */
+	bool OnProcessCheckoutBatch(float);
+	bool bProcessCheckoutBatchPending;
+
+	void AsyncCheckout(const TArray<FString>& FilesToCheckout);
+
+	TMap<ISourceControlOperation*, TArray<FString>> OperationToPaths;
+
+	TSet<FString> CheckoutBatch;
 };
