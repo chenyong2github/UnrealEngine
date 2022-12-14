@@ -35,14 +35,14 @@ public:
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Settings", meta = (EditCondition = "Selection == EPCGAttributePropertySelection::PointProperty", EditConditionHides))
 	EPCGPointProperties PointProperty = EPCGPointProperties::Position;
 
+	UPROPERTY()
+	TArray<FString> ExtraNames;
+
 	// Setters, retrurn true if something changed.
-	bool SetPointProperty(EPCGPointProperties InPointProperty);
-	bool SetAttributeName(FName InAttributeName);
+	bool SetPointProperty(EPCGPointProperties InPointProperty, bool bResetExtraNames = true);
+	bool SetAttributeName(FName InAttributeName, bool bResetExtraNames = true);
 
 	FName GetName() const;
-
-	// TODO: To be removed when UI widget is done.
-	void Update();
 
 #if WITH_EDITOR
 	// Return true if the underlying name is valid.

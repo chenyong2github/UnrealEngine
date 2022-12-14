@@ -36,7 +36,7 @@ void FPCGAttributePropertySelectorDetails::CustomizeHeader(TSharedRef<IPropertyH
 			PropertyHandle->CreatePropertyNameWidget()
 		]
 		.ValueContent()
-		.MinDesiredWidth(250.0f)
+		.MinDesiredWidth(350.0f)
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()

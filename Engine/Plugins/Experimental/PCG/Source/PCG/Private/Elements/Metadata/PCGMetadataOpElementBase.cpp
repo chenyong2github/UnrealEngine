@@ -138,9 +138,6 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 		}
 
 		FPCGAttributePropertySelector InputSource = Settings->GetInputSource(i);
-		// Make sure to update it to transform it into a property if needed.
-		// TODO: Remove when it will be handled in the UI widget logic.
-		InputSource.Update();
 
 		if (InputSource.Selection == EPCGAttributePropertySelection::Attribute && InputSource.AttributeName == NAME_None)
 		{
@@ -237,8 +234,6 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 	OperationData.OutputKeys.SetNum(Settings->GetOutputPinNum());
 
 	FPCGAttributePropertySelector OutputTarget = Settings->OutputTarget;
-	// Make sure to update it to transform it into a property if needed.
-	OutputTarget.Update();
 
 	if (OutputTarget.Selection == EPCGAttributePropertySelection::Attribute && OutputTarget.AttributeName == NAME_None)
 	{
@@ -260,9 +255,12 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 
 		FName OutputName = OutputTarget.GetName();
 
-		if (OutputTarget.Selection == EPCGAttributePropertySelection::Attribute)
+		if (OutputTarget.Selection == EPCGAttributePropertySelection::Attribute && OutputTarget.ExtraNames.IsEmpty())
 		{
-			// In case of attribute, there is no point of failure before duplicating. So duplicate, create the attribute and then the accessor.
+			// In case of an attribute, we check if we have extra selectors. If not, we can just delete the attribute
+			// and create a new one of the right type.
+			// But if we have extra selectors, we need to handle it the same way as properties.
+			// There is no point of failure before duplicating. So duplicate, create the attribute and then the accessor.
 			PCGMetadataElementCommon::DuplicateTaggedData(InputTaggedData[InputToForward], OutputData, OutMetadata);
 			FPCGMetadataAttributeBase* OutputAttribute = PCGMetadataElementCommon::ClearOrCreateAttribute(OutMetadata, OutputName, AttributeType{});
 			if (!OutputAttribute)
@@ -278,21 +276,25 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 
 			OperationData.OutputAccessors[OutputIndex] = PCGAttributeAccessorHelpers::CreateAccessor(Cast<UPCGData>(OutputData.Data), OutputTarget);
 		}
-		else if (OutputTarget.Selection == EPCGAttributePropertySelection::PointProperty)
+		else
 		{
-			// In case of property, we need to validate that the property can accept the output type. Verify this before duplicating.
+			// In case of property or attribute with extra accessor, we need to validate that the property/attribute can accept the output type.
+			// Verify this before duplicating.
 			OperationData.OutputAccessors[OutputIndex] = PCGAttributeAccessorHelpers::CreateAccessor(Cast<UPCGData>(OutputData.Data), OutputTarget);
 
 			if (OperationData.OutputAccessors[OutputIndex].IsValid())
 			{
-				// We matched a property, check if the output type is valid
+				// We matched an attribute/property, check if the output type is valid.
 				if (!PCG::Private::IsBroadcastable(PCG::Private::MetadataTypes<AttributeType>::Id, OperationData.OutputAccessors[OutputIndex]->GetUnderlyingType()))
 				{
-					PCGE_LOG(Error, "Property %s cannot be broadcasted to match types for input", *OutputName.ToString());
+					PCGE_LOG(Error, "Attribute/Property %s cannot be broadcasted to match types for input", *OutputName.ToString());
 					return false;
 				}
 
 				PCGMetadataElementCommon::DuplicateTaggedData(InputTaggedData[InputToForward], OutputData, OutMetadata);
+
+				// Re-create the accessor to point to the right data (since we just duplicated the data)
+				OperationData.OutputAccessors[OutputIndex] = PCGAttributeAccessorHelpers::CreateAccessor(Cast<UPCGData>(OutputData.Data), OutputTarget);
 			}
 		}
 

@@ -4,7 +4,7 @@
 
 #include "UObject/EnumProperty.h"
 
-inline TArray<const void*> PCGPropertyAccessor::GetContainerKeys(int32 Index, int32 Range, const IPCGAttributeAccessorKeys& Keys)
+TArray<const void*> PCGPropertyAccessor::GetContainerKeys(int32 Index, int32 Range, const IPCGAttributeAccessorKeys& Keys)
 {
 	TArray<const void*> ContainerKeys;
 	ContainerKeys.SetNum(Range);
@@ -17,7 +17,7 @@ inline TArray<const void*> PCGPropertyAccessor::GetContainerKeys(int32 Index, in
 	return ContainerKeys;
 }
 
-inline TArray<void*> PCGPropertyAccessor::GetContainerKeys(int32 Index, int32 Range, IPCGAttributeAccessorKeys& Keys)
+TArray<void*> PCGPropertyAccessor::GetContainerKeys(int32 Index, int32 Range, IPCGAttributeAccessorKeys& Keys)
 {
 	TArray<void*> ContainerKeys;
 	ContainerKeys.SetNum(Range);

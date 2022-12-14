@@ -134,6 +134,7 @@ public:
 	}
 
 	int16 GetUnderlyingType() const { return UnderlyingType; }
+	bool IsReadOnly() const { return bReadOnly; }
 
 protected:
 	IPCGAttributeAccessor(bool bInReadOnly, int16 InUnderlyingType)
