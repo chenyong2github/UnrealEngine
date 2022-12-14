@@ -242,11 +242,12 @@ public:
 		}
 		else
 		{
-			RemainingTasksCounter = BlockCompressAsyncTasks.Num();
-
-			for (FAsyncTask<FBlockCompressTask>* AsyncTask : BlockCompressAsyncTasks)
+			int32 AsyncTasksCount = BlockCompressAsyncTasks.Num();
+			RemainingTasksCounter = AsyncTasksCount;
+			
+			for (int32 TaskIndex = 0; TaskIndex < AsyncTasksCount; ++TaskIndex)
 			{
-				AsyncTask->StartBackgroundTask();
+				BlockCompressAsyncTasks[TaskIndex]->StartBackgroundTask();
 			}
 		}
 	}
