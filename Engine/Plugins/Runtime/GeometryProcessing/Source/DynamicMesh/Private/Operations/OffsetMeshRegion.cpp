@@ -16,6 +16,7 @@
 #include "Operations/PolyEditingUVUtil.h"
 #include "Operations/PolyEditingEdgeUtil.h"
 #include "Operations/QuadGridPatchUtil.h"
+#include "Operations/PolyModeling/PolyModelingMaterialUtil.h" 
 
 using namespace UE::Geometry;
 
@@ -122,6 +123,19 @@ static void LeftShiftArray(TArray<ValueType>& Values, int ShiftNum)
 }
 
 
+struct FStitchConfigOptions
+{
+	int NumSubdivisions = 0;
+	double UVScaleFactor = 1.0;
+	bool bGroupPerSubdivision = true;
+	bool bUVIslandPerGroup = true;
+	double CreaseAngleThreshold = 180.0;
+
+	int SetMaterialID = 0;
+	bool bInferMaterialID = false;
+};
+
+
 
 /**
  * Stitch pairs of border loops of Mesh defined by LoopPairs.
@@ -132,8 +146,7 @@ static bool StitchRegionBorderLoopPairs_Version1(
 	const TArray<FDynamicMeshEditor::FLoopPairSet>& LoopPairs,
 	const TArray<TArray<int32>>& LoopsPerEdgeNewGroupIDs,
 	const TArray<TArray<FMeshTriOrderedEdgeID>>& InnerTriOrderedEdgeLoops,
-	double UVScaleFactor,
-	int NumSubdivisions,
+	FStitchConfigOptions StitchConfig,
 	TArray<bool>& bLoopOK,
 	TArray<TArray<int32>>& PerLoopTrianglesOut,
 	TArray<TArray<int32>>& PerLoopGroupsOut )
@@ -156,19 +169,32 @@ static bool StitchRegionBorderLoopPairs_Version1(
 		const TArray<FMeshTriOrderedEdgeID>& InnerTriOrderedEdgeLoop = InnerTriOrderedEdgeLoops[LoopIndex];
 		int32 NV = OuterLoopV.Num();
 
+		// populate list of Material IDs attached to inner loop
+		TArray<int32> MaterialIDs;
+		FDynamicMeshMaterialAttribute* MaterialIDAttrib = (Mesh.HasAttributes() && Mesh.Attributes()->HasMaterialID()) ? 
+				Mesh.Attributes()->GetMaterialID() : nullptr;
+		if ( MaterialIDAttrib && StitchConfig.bInferMaterialID )
+		{
+			UE::Geometry::ComputeMaterialIDsForVertexPath(Mesh, InnerLoopV, true, MaterialIDs, StitchConfig.SetMaterialID);
+		}
+		else if ( MaterialIDAttrib )
+		{
+			MaterialIDs.Init(StitchConfig.SetMaterialID, NV);
+		}
+
 		// LoopStack is the set of NumSubdivisions+1 loops that will be stitched,
 		// where the "last" loop is the Outer loop. The "first" Inner loop is not 
 		// included in LoopStack, it has special handling below
 		TArray<TArray<int32>> LoopStack;
-		LoopStack.SetNum(NumSubdivisions+1);
-		LoopStack[NumSubdivisions] = OuterLoopV;
-		int LastTemp = LoopStack[NumSubdivisions][0];
+		LoopStack.SetNum(StitchConfig.NumSubdivisions+1);
+		LoopStack[StitchConfig.NumSubdivisions] = OuterLoopV;
+		int LastTemp = LoopStack[StitchConfig.NumSubdivisions][0];
 
 		// build interior loops if there are any
-		for ( int32 StackIdx = 0; StackIdx < NumSubdivisions; ++StackIdx )
+		for ( int32 StackIdx = 0; StackIdx < StitchConfig.NumSubdivisions; ++StackIdx )
 		{
 			LoopStack[StackIdx].Reserve(NV);
-			double t = (double)(StackIdx+1) / (double)(NumSubdivisions+1);
+			double t = (double)(StackIdx+1) / (double)(StitchConfig.NumSubdivisions+1);
 			for ( int32 k = 0; k < NV; ++k )
 			{
 				FVector3d A = Mesh.GetVertex(InnerLoopV[k]);
@@ -197,7 +223,7 @@ static bool StitchRegionBorderLoopPairs_Version1(
 		QuadPatch.ReverseRows();	// need LoopStack[0] to be the second span but it's currently the first one...
 
 		// incrementally stitch intermediate strips and accumulate into the Quad Patch
-		for ( int32 k = 1; k <= NumSubdivisions; ++k )
+		for ( int32 k = 1; k <= StitchConfig.NumSubdivisions; ++k )
 		{
 			FDynamicMeshEditResult StripResult;
 			bLoopOK[LoopIndex] = Editor.StitchVertexLoopsMinimal(LoopStack[k-1], LoopStack[k], StripResult);
@@ -214,17 +240,34 @@ static bool StitchRegionBorderLoopPairs_Version1(
 
 		// set group IDs on patch, propagating up the subdivisions columns
 		const TArray<int32>& PerEdgeNewGroupIDs = LoopsPerEdgeNewGroupIDs[LoopIndex];		// is it always guaranteed to be the same length??
-		QuadPatch.ForEachQuad( [&](int32 QuadRow, int32 QuadIndex, FIndex2i QuadTris)
+		QuadPatch.ForEachQuad( [&](int32 QuadRow, int32 QuadCol, FIndex2i QuadTris)
 		{
-			int32 GroupID = PerEdgeNewGroupIDs[QuadIndex];
+			int32 GroupID = PerEdgeNewGroupIDs[QuadCol];
 			Mesh.SetTriangleGroup(QuadTris.A, GroupID);
 			Mesh.SetTriangleGroup(QuadTris.B, GroupID);
+			if (MaterialIDAttrib)
+			{
+				MaterialIDAttrib->SetValue(QuadTris.A, MaterialIDs[QuadCol]);
+				MaterialIDAttrib->SetValue(QuadTris.B, MaterialIDs[QuadCol]);
+			}
 		});
 
 		// split quad patch by group ID into a set of quad patches
+		bool bSplitDueToCrease = false;
 		TArray<FQuadGridPatch> GroupStrips;
 		QuadPatch.SplitColumnsByPredicate(
-			[&](int32 ColumnIdx, int32 NextColumnIdx) { return PerEdgeNewGroupIDs[ColumnIdx] != PerEdgeNewGroupIDs[NextColumnIdx]; },
+			[&](int32 ColumnIdx, int32 NextColumnIdx) { 
+				if (PerEdgeNewGroupIDs[ColumnIdx] != PerEdgeNewGroupIDs[NextColumnIdx])
+				{
+					return true;
+				}
+				else if (QuadPatch.GetQuadOpeningAngleDeg(Mesh, NextColumnIdx, NextColumnIdx+1, 0) > StitchConfig.CreaseAngleThreshold)
+				{
+					bSplitDueToCrease = true;
+					return true;
+				}
+				return false;
+			},
 			GroupStrips);
 
 		// compute normals and UVs for each group-quad-patch
@@ -233,28 +276,54 @@ static bool StitchRegionBorderLoopPairs_Version1(
 			for (FQuadGridPatch& GroupPatch : GroupStrips)
 			{
 				UE::Geometry::ComputeNormalsForQuadPatch(Mesh, GroupPatch);
-				UE::Geometry::ComputeUVIslandForQuadPatch(Mesh, GroupPatch, UVScaleFactor);
+				if ( StitchConfig.bUVIslandPerGroup )
+				{
+					UE::Geometry::ComputeUVIslandForQuadPatch(Mesh, GroupPatch, StitchConfig.UVScaleFactor);
+				}
+			}
+		}
+		// if not per-group UV islands, do it for the entire strip)
+		if (StitchConfig.bUVIslandPerGroup == false)
+		{
+			UE::Geometry::ComputeUVIslandForQuadPatch(Mesh, QuadPatch, StitchConfig.UVScaleFactor);
+		}
+
+		// if we split groups due to a crease, we need to reassign groups in row 0
+		if (bSplitDueToCrease)
+		{
+			for (FQuadGridPatch& GroupPatch : GroupStrips)
+			{
+				int32 NewPatchGroup = Mesh.AllocateTriangleGroup();
+				GroupPatch.ForEachQuad([&](int32 Row, int32 Col, FIndex2i QuadTris)
+				{
+					Mesh.SetTriangleGroup(QuadTris.A, NewPatchGroup);
+					Mesh.SetTriangleGroup(QuadTris.B, NewPatchGroup);
+				});
 			}
 		}
 
 		// Assign a new group to each row of group-quad-patch
-		for (FQuadGridPatch& GroupPatch : GroupStrips)
+		if ( StitchConfig.bGroupPerSubdivision )
 		{
-			int32 NumQuadRows = GroupPatch.NumVertexRowsV-1;
-			TArray<int32> RowGroups;
-			RowGroups.SetNum(NumQuadRows);
-			for ( int32 k = 1; k < NumQuadRows; ++k )
+			for (FQuadGridPatch& GroupPatch : GroupStrips)
 			{
-				RowGroups[k] = Mesh.AllocateTriangleGroup();
-			}
-			GroupPatch.ForEachQuad([&](int32 Row, int32 Col, FIndex2i QuadTris)
-			{
-				if ( Row > 0 )
+				int32 NumQuadRows = GroupPatch.NumVertexRowsV-1;
+				TArray<int32> RowGroups;
+				RowGroups.SetNum(NumQuadRows);
+				// if we split at a crease we need to reassign first column too...
+				for ( int32 k =1; k < NumQuadRows; ++k )
 				{
-					Mesh.SetTriangleGroup(QuadTris.A, RowGroups[Row]);
-					Mesh.SetTriangleGroup(QuadTris.B, RowGroups[Row]);
+					RowGroups[k] = Mesh.AllocateTriangleGroup();
 				}
-			});
+				GroupPatch.ForEachQuad([&](int32 Row, int32 Col, FIndex2i QuadTris)
+				{
+					if ( Row > 0 )
+					{
+						Mesh.SetTriangleGroup(QuadTris.A, RowGroups[Row]);
+						Mesh.SetTriangleGroup(QuadTris.B, RowGroups[Row]);
+					}
+				});
+			}
 		}
 
 		// save the stitch triangles set and associated group IDs
@@ -464,12 +533,27 @@ bool FOffsetMeshRegion::ApplyOffset_Version1(FOffsetInfo& Region)
 	FDynamicMeshEditResult IgnoreResult;
 	TmpEditor.SplitBowtiesAtTriangles(RegionTriangles, IgnoreResult);
 
-	// Store offset groups
+	TMap<int32, int32> OffsetGroupMap;
+
+	// Remap GroupIDs in offset region
 	if (Mesh->HasTriangleGroups())
 	{
 		for (int32 TriangleID : RegionTriangles)
 		{
-			Region.OffsetGroups.AddUnique(Mesh->GetTriangleGroup(TriangleID));
+			int32 CurGroupID = Mesh->GetTriangleGroup(TriangleID);
+			int32 NewGroupID = CurGroupID;
+			int32* FoundNewGroupID = OffsetGroupMap.Find(CurGroupID);
+			if (FoundNewGroupID == nullptr)
+			{
+				NewGroupID = Mesh->AllocateTriangleGroup();
+				OffsetGroupMap.Add(CurGroupID, NewGroupID);
+				Region.OffsetGroups.Add(NewGroupID);
+			}
+			else
+			{
+				NewGroupID = *FoundNewGroupID;
+			}
+			Mesh->SetTriangleGroup(TriangleID, NewGroupID);
 		}
 	}
 
@@ -621,10 +705,18 @@ bool FOffsetMeshRegion::ApplyOffset_Version1(FOffsetInfo& Region)
 	}
 
 	// Stitch the loops
+	OffsetMeshRegionLocals::FStitchConfigOptions StitchConfig;
+	StitchConfig.UVScaleFactor = this->UVScaleFactor;
+	StitchConfig.NumSubdivisions = this->NumSubdivisions;
+	StitchConfig.bGroupPerSubdivision = this->bGroupPerSubdivision;
+	StitchConfig.bUVIslandPerGroup = this->bUVIslandPerGroup;
+	StitchConfig.CreaseAngleThreshold = this->CreaseAngleThresholdDeg;
+	StitchConfig.SetMaterialID = this->SetMaterialID;
+	StitchConfig.bInferMaterialID = this->bInferMaterialID;
 	TArray<bool> bLoopSuccess;
 	bool bSuccess = OffsetMeshRegionLocals::StitchRegionBorderLoopPairs_Version1( *Mesh, 
 			LoopPairs, LoopsEdgeGroups, OffsetTriOrderedEdgeLoops,
-			UVScaleFactor, NumSubdivisions,
+			StitchConfig,
 			bLoopSuccess, Region.StitchTriangles, Region.StitchPolygonIDs);
 
 	int NumInitialLoops = LoopPairs.Num();
@@ -650,6 +742,16 @@ bool FOffsetMeshRegion::ApplyOffset_Version1(FOffsetInfo& Region)
 		{
 			Editor.ReverseTriangleOrientations(RegionTriangles, true);
 		}
+	}
+
+	if (bSingleGroupPerArea && Mesh->HasTriangleGroups() && Region.OffsetGroups.Num() > 1)
+	{
+		int32 NewGroupID = Region.OffsetGroups[0];
+		for (int32 TriangleID : RegionTriangles)
+		{
+			Mesh->SetTriangleGroup(TriangleID, NewGroupID);
+		}
+		Region.OffsetGroups.SetNum(1);
 	}
 
 	return bSuccess;

@@ -36,6 +36,13 @@ public:
 	/** Quads stored as pairs of triangle indices, (NumVertexRowsV-1) rows of (NumVertexColsU-1) */
 	TArray<TArray<FIndex2i>> QuadTriangles;
 
+
+	int NumVertexCols() const { return NumVertexColsU; }
+	int NumVertexRows() const { return NumVertexRowsV; }
+	int NumQuadCols() const { return NumVertexColsU-1; }
+	int NumQuadRows() const { return NumVertexRowsV-1; }
+
+
 	/**
 	 * Initialize an Nx1 grid from a list of quads and the row of vertices on the "bottom" (ie first span)
 	 */
@@ -97,7 +104,7 @@ public:
 	/**
 	 * Call ApplyFunc for each quad, passing it's grid index and triangle pair
 	 */
-	void ForEachQuad(TFunctionRef<void(int32 QuadRow, int32 QuadIndex, FIndex2i QuadTris)> ApplyFunc) const
+	void ForEachQuad(TFunctionRef<void(int32 QuadRow, int32 QuadCol, FIndex2i QuadTris)> ApplyFunc) const
 	{
 		for ( int32 Row = 0; Row < NumVertexRowsV-1; ++Row )
 		{
@@ -125,6 +132,16 @@ public:
 		TFunctionRef<bool(int32 QuadColumn0, int32 QuadColumn1)> PredicateFunc,
 		TArray<FQuadGridPatch>& SplitPatchesOut) const;
 	
+
+
+	/**
+	 * Compute the opening angle between the two quads in Column0 and Column1 of the given Row.
+	 * This is based on the face normals of the two triangles connected to the edge between Column0 and Column1,
+	 * so any non-planarity of the quads is ignored.
+	 * @return unsigned opening angle in degrees in range [0,180], where 0 means quads are parallel
+	 */
+	double GetQuadOpeningAngleDeg(const FDynamicMesh3& Mesh, int32 Column0, int32 Column1, int32 Row) const;
+
 };
 
 

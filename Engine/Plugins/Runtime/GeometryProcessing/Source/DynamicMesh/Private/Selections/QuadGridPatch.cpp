@@ -232,3 +232,19 @@ void FQuadGridPatch::SplitColumnsByPredicate(
 	GetSubPatchByQuadRange(0, NumVertexRowsV-2, SpanStartIndex, CurIndex, SubPatch );
 	SplitPatchesOut.Add(MoveTemp(SubPatch));
 }
+
+
+
+double FQuadGridPatch::GetQuadOpeningAngleDeg(const FDynamicMesh3& Mesh, int32 Column0, int32 Column1, int32 Row) const
+{
+	check(Column1 == (Column0+1));
+	int32 Vertex0 = VertexSpans[Row][Column0];
+	int32 Vertex1 = VertexSpans[Row+1][Column0];
+	int32 EdgeID = Mesh.FindEdge(Vertex0, Vertex1);
+	check(EdgeID != IndexConstants::InvalidID);
+	FIndex2i EdgeTris = Mesh.GetEdgeT(EdgeID);
+	check(EdgeTris.B != IndexConstants::InvalidID);
+	FVector3d Normal0 = Mesh.GetTriNormal(EdgeTris.A);
+	FVector3d Normal1 = Mesh.GetTriNormal(EdgeTris.B);
+	return AngleD(Normal0, Normal1);
+}

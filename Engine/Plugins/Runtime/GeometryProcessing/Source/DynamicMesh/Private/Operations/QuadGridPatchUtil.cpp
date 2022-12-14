@@ -41,9 +41,20 @@ bool UE::Geometry::ComputeUVIslandForQuadPatch(
 	QuadPatch.GetAllTriangles(AllTriangles);
 	UVEditor.ResetUVs(AllTriangles);
 
-	// compute scale factor that tries to keep UV dimensions roughly consistent with connected area
-	double UVLengthScale = UE::Geometry::ComputeAverageUVScaleRatioAlongVertexPath(Mesh, *UVOverlay, QuadPatch.VertexSpans[0]);
-	// should we consider other spans here??
+	// compute UV scale factor that tries to keep UV dimensions roughly consistent with connected area
+	double UVLengthScale = 0, UVLengthWeight = 0;
+	for (int32 k = 0; k < 2; ++k)
+	{
+		const TArray<int32>& VertexSpan = (k == 0) ? QuadPatch.VertexSpans[0] : QuadPatch.VertexSpans.Last();
+		double PathLength = 0;
+		double UVLengthScaleTmp = UE::Geometry::ComputeAverageUVScaleRatioAlongVertexPath(Mesh, *UVOverlay, VertexSpan, &PathLength);
+		if (PathLength > 0)
+		{
+			UVLengthScale += UVLengthScaleTmp;
+			UVLengthWeight += 1.0;
+		}
+	}
+	UVLengthScale = (UVLengthWeight == 0 || UVLengthScale == 0) ? 1.0 : (UVLengthScale / UVLengthWeight);
 
 	TArray<TArray<int32>> UVElementSpans;
 	UVElementSpans.SetNum( QuadPatch.NumVertexRowsV );

@@ -106,6 +106,48 @@ public:
 	int32 NumSubdivisions = 0;
 
 	/**
+	 * If true, each extruded area gets a single new group, instead of remapping the input groups
+	 * This parameter is only supported in EVersion::Version1 and later
+	 */
+	bool bSingleGroupPerArea = true;
+
+	/**
+	 * If true, each subdivision level gets a new group
+	 * This parameter is only supported in EVersion::Version1 and later
+	 */
+	bool bGroupPerSubdivision = true;
+
+	/** 
+	 * if true, new UV island is assigned for each group in stitch region. 
+	 * This parameter is only supported in EVersion::Version1 and later
+	 * This parameter is only supported in EVersion::Version1 and later
+	 */
+	bool bUVIslandPerGroup = true;
+
+	/**
+	 * Split the extrude "tube" into separate groups based on the opening angle between quads.
+	 * This split is done relative to the above group options, so even if the tube would 
+	 * only have a single group, but the extrude area is a square, it will be split into
+	 * groups based on the corners.
+	 * This parameter is only supported in EVersion::Version1 and later
+	 */
+	double CreaseAngleThresholdDeg = 180.0;
+
+
+	/** 
+	 * Constant Material ID to set along the extrusion tubes 
+	 * This parameter is only supported in EVersion::Version1 and later
+	 */
+	int SetMaterialID = 0;
+
+	/** 
+	 * If true, Material IDs around the border of the extrude area are propagated "down" the extrusion tube 
+	 * This parameter is only supported in EVersion::Version1 and later
+	 */
+	bool bInferMaterialID = true;
+
+
+	/**
 	 * Support for different versions of the OffsetMeshRegion geometric operation.
 	 * We default to the latest version.
 	 */
