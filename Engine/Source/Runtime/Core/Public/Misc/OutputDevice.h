@@ -14,6 +14,8 @@
 class FString;
 class FText;
 
+namespace UE { class FLogRecord; }
+
 #ifndef USE_DEBUG_LOGGING
 #define USE_DEBUG_LOGGING 1
 #endif
@@ -145,6 +147,8 @@ public:
 	{
 		Serialize( V, Verbosity, Category );
 	}
+
+	virtual void SerializeRecord(const UE::FLogRecord& Record);
 
 	virtual void Flush()
 	{
