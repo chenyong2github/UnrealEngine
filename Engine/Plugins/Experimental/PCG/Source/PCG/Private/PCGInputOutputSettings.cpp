@@ -67,16 +67,18 @@ void UPCGGraphInputOutputSettings::PostLoad()
 TArray<FPCGPinProperties> UPCGGraphInputOutputSettings::GetPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
+	const bool bIsInputPin = bIsInput;
 	const EPCGDataType DefaultPinDataType = bIsInput ? EPCGDataType::Composite : EPCGDataType::Any;
-	Algo::Transform(StaticLabels(), PinProperties, [DefaultPinDataType](const FLabelAndTooltip& InLabelAndTooltip) {
-		return FPCGPinProperties(InLabelAndTooltip.Label, DefaultPinDataType, true, InLabelAndTooltip.Tooltip);
+	Algo::Transform(StaticLabels(), PinProperties, [bIsInputPin, DefaultPinDataType](const FLabelAndTooltip& InLabelAndTooltip) {
+		return FPCGPinProperties(InLabelAndTooltip.Label, DefaultPinDataType, /*bMultiConnections=*/true, /*bMultiData=*/true, InLabelAndTooltip.Tooltip);
 	});
 	
 	if (bShowAdvancedPins)
 	{
 		Algo::Transform(StaticAdvancedLabels(), PinProperties, [DefaultPinDataType](const FLabelAndTooltip& InLabelAndTooltip) {
-			const EPCGDataType PinType = (InLabelAndTooltip.Label == PCGInputOutputConstants::DefaultLandscapeLabel || InLabelAndTooltip.Label == PCGInputOutputConstants::DefaultLandscapeHeightLabel) ? EPCGDataType::Surface : DefaultPinDataType;
-			return FPCGPinProperties(InLabelAndTooltip.Label, PinType, true, InLabelAndTooltip.Tooltip);
+			const bool bIsLandscapePin = (InLabelAndTooltip.Label == PCGInputOutputConstants::DefaultLandscapeLabel || InLabelAndTooltip.Label == PCGInputOutputConstants::DefaultLandscapeHeightLabel);
+			const EPCGDataType PinType = bIsLandscapePin ? EPCGDataType::Surface : DefaultPinDataType;
+			return FPCGPinProperties(InLabelAndTooltip.Label, PinType, /*bMultiConnection=*/true, /*bMultiData=*/false, InLabelAndTooltip.Tooltip);
 		});
 	}
 

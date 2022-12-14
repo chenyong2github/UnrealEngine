@@ -6,13 +6,16 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGPin)
 
-FPCGPinProperties::FPCGPinProperties(const FName& InLabel, EPCGDataType InAllowedTypes, bool bInAllowMultipleConnections, const FText& InTooltip)
-	: Label(InLabel), AllowedTypes(InAllowedTypes), bAllowMultipleConnections(bInAllowMultipleConnections), Tooltip(InTooltip)
+FPCGPinProperties::FPCGPinProperties(const FName& InLabel, EPCGDataType InAllowedTypes, bool bInAllowMultipleConnections, bool bInAllowMultipleData, const FText& InTooltip)
+	: Label(InLabel), AllowedTypes(InAllowedTypes), bAllowMultipleData(bInAllowMultipleData), bAllowMultipleConnections(bInAllowMultipleConnections), Tooltip(InTooltip)
 {}
 
 bool FPCGPinProperties::operator==(const FPCGPinProperties& Other) const
 {
-	return Label == Other.Label && AllowedTypes == Other.AllowedTypes && bAllowMultipleConnections == Other.bAllowMultipleConnections;
+	return Label == Other.Label &&
+		AllowedTypes == Other.AllowedTypes &&
+		bAllowMultipleConnections == Other.bAllowMultipleConnections &&
+		bAllowMultipleData == Other.bAllowMultipleData;
 }
 
 UPCGPin::UPCGPin(const FObjectInitializer& ObjectInitializer)

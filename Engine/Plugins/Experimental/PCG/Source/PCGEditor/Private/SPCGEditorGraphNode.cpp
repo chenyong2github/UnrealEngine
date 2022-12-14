@@ -9,6 +9,8 @@
 #include "PCGSettings.h"
 
 #include "SGraphPin.h"
+#include "SLevelOfDetailBranchNode.h"
+#include "SPinTypeSelector.h"
 #include "Styling/SlateBrush.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 
@@ -16,7 +18,14 @@
 class SPCGEditorGraphNodePin : public SGraphPin
 {
 public:
-	SLATE_BEGIN_ARGS(SPCGEditorGraphNodePin) {}
+	SLATE_BEGIN_ARGS(SPCGEditorGraphNodePin)
+		: _PinLabelStyle(NAME_DefaultPinLabelStyle)
+		, _UsePinColorForText(false)
+		, _SideToSideMargin(5.0f)
+		{}
+		SLATE_ARGUMENT(FName, PinLabelStyle)
+		SLATE_ARGUMENT(bool, UsePinColorForText)
+		SLATE_ARGUMENT(float, SideToSideMargin)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, UEdGraphPin* InPin);
@@ -26,8 +35,187 @@ public:
 
 void SPCGEditorGraphNodePin::Construct(const FArguments& InArgs, UEdGraphPin* InPin)
 {
-	// Required to give the first argument.
-	SGraphPin::Construct(SGraphPin::FArguments(), InPin);
+	// TODO: replace this with base class when we have sufficient controls to change the padding
+	// IMPLEMENTATION NOTE: this is the code from SGraphPin::Construct
+	// e.g. SGraphPin::Construct(SGraphPin::FArguments().SideToSideMargin(0.0f), InPin);
+	// with additional padding exposed
+
+	bUsePinColorForText = InArgs._UsePinColorForText;
+	this->SetCursor(EMouseCursor::Default);
+
+	SetVisibility(MakeAttributeSP(this, &SPCGEditorGraphNodePin::GetPinVisiblity));
+
+	GraphPinObj = InPin;
+	check(GraphPinObj != NULL);
+
+	const UEdGraphSchema* Schema = GraphPinObj->GetSchema();
+	checkf(
+		Schema, 
+		TEXT("Missing schema for pin: %s with outer: %s of type %s"), 
+		*(GraphPinObj->GetName()),
+		GraphPinObj->GetOuter() ? *(GraphPinObj->GetOuter()->GetName()) : TEXT("NULL OUTER"), 
+		GraphPinObj->GetOuter() ? *(GraphPinObj->GetOuter()->GetClass()->GetName()) : TEXT("NULL OUTER")
+	);
+
+	const bool bIsInput = (GetDirection() == EGPD_Input);
+
+	// Create the pin icon widget
+	TSharedRef<SWidget> PinWidgetRef = SPinTypeSelector::ConstructPinTypeImage(
+		MakeAttributeSP(this, &SPCGEditorGraphNodePin::GetPinIcon ),
+		MakeAttributeSP(this, &SPCGEditorGraphNodePin::GetPinColor),
+		MakeAttributeSP(this, &SPCGEditorGraphNodePin::GetSecondaryPinIcon),
+		MakeAttributeSP(this, &SPCGEditorGraphNodePin::GetSecondaryPinColor));
+	PinImage = PinWidgetRef;
+
+	PinWidgetRef->SetCursor( 
+		TAttribute<TOptional<EMouseCursor::Type> >::Create (
+			TAttribute<TOptional<EMouseCursor::Type> >::FGetter::CreateRaw( this, &SPCGEditorGraphNodePin::GetPinCursor )
+		)
+	);
+
+	// Create the pin indicator widget (used for watched values)
+	static const FName NAME_NoBorder("NoBorder");
+	TSharedRef<SWidget> PinStatusIndicator =
+		SNew(SButton)
+		.ButtonStyle(FAppStyle::Get(), NAME_NoBorder)
+		.Visibility(this, &SPCGEditorGraphNodePin::GetPinStatusIconVisibility)
+		.ContentPadding(0)
+		.OnClicked(this, &SPCGEditorGraphNodePin::ClickedOnPinStatusIcon)
+		[
+			SNew(SImage)
+			.Image(this, &SPCGEditorGraphNodePin::GetPinStatusIcon)
+		];
+
+	TSharedRef<SWidget> LabelWidget = GetLabelWidget(InArgs._PinLabelStyle);
+
+	// Create the widget used for the pin body (status indicator, label, and value)
+	LabelAndValue =
+		SNew(SWrapBox)
+		.PreferredSize(150.f);
+
+	if (!bIsInput)
+	{
+		LabelAndValue->AddSlot()
+			.VAlign(VAlign_Center)
+			[
+				PinStatusIndicator
+			];
+
+		LabelAndValue->AddSlot()
+			.VAlign(VAlign_Center)
+			[
+				LabelWidget
+			];
+	}
+	else
+	{
+		LabelAndValue->AddSlot()
+			.VAlign(VAlign_Center)
+			[
+				LabelWidget
+			];
+
+		ValueWidget = GetDefaultValueWidget();
+
+		if (ValueWidget != SNullWidget::NullWidget)
+		{
+			TSharedPtr<SBox> ValueBox;
+			LabelAndValue->AddSlot()
+				.Padding(bIsInput ? FMargin(InArgs._SideToSideMargin, 0, 0, 0) : FMargin(0, 0, InArgs._SideToSideMargin, 0))
+				.VAlign(VAlign_Center)
+				[
+					SAssignNew(ValueBox, SBox)
+					.Padding(0.0f)
+					[
+						ValueWidget.ToSharedRef()
+					]
+				];
+
+			if (!DoesWidgetHandleSettingEditingEnabled())
+			{
+				ValueBox->SetEnabled(TAttribute<bool>(this, &SPCGEditorGraphNodePin::IsEditingEnabled));
+			}
+		}
+
+		LabelAndValue->AddSlot()
+			.VAlign(VAlign_Center)
+			[
+				PinStatusIndicator
+			];
+	}
+
+	TSharedPtr<SHorizontalBox> PinContent;
+	if (bIsInput)
+	{
+		// Input pin
+		FullPinHorizontalRowWidget = PinContent = 
+			SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(0, 0, InArgs._SideToSideMargin, 0)
+			[
+				PinWidgetRef
+			]
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				LabelAndValue.ToSharedRef()
+			];
+	}
+	else
+	{
+		// Output pin
+		FullPinHorizontalRowWidget = PinContent = SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				LabelAndValue.ToSharedRef()
+			]
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(InArgs._SideToSideMargin, 0, 0, 0)
+			[
+				PinWidgetRef
+			];
+	}
+
+	// Set up a hover for pins that is tinted the color of the pin.
+	
+	SBorder::Construct(SBorder::FArguments()
+		.BorderImage(this, &SPCGEditorGraphNodePin::GetPinBorder)
+		.BorderBackgroundColor(this, &SPCGEditorGraphNodePin::GetHighlightColor)
+		.OnMouseButtonDown(this, &SPCGEditorGraphNodePin::OnPinNameMouseDown)
+		.Padding(0) // NOTE: This is different from base class implementation
+		[
+			SNew(SBorder)
+			.BorderImage(CachedImg_Pin_DiffOutline)
+			.BorderBackgroundColor(this, &SPCGEditorGraphNodePin::GetPinDiffColor)
+			.Padding(0) // NOTE: This is different from base class implementation
+			[
+				SNew(SLevelOfDetailBranchNode)
+				.UseLowDetailSlot(this, &SPCGEditorGraphNodePin::UseLowDetailPinNames)
+				.LowDetail()
+				[
+					//@TODO: Try creating a pin-colored line replacement that doesn't measure text / call delegates but still renders
+					PinWidgetRef
+				]
+				.HighDetail()
+				[
+					PinContent.ToSharedRef()
+				]
+			]
+		]
+	);
+
+	TSharedPtr<IToolTip> TooltipWidget = SNew(SToolTip)
+		.Text(this, &SPCGEditorGraphNodePin::GetTooltipText);
+
+	SetToolTip(TooltipWidget);
+
 }
 
 // Adapted from SGraphPin::GetPinColor
@@ -103,14 +291,61 @@ void SPCGEditorGraphNode::AddPin(const TSharedRef<SGraphPin>& PinToAdd)
 {
 	check(PCGEditorGraphNode);
 	UPCGNode* PCGNode = PCGEditorGraphNode->GetPCGNode();
-	// Implementation note: we do not distinguish single/multiple pins on the output since that is not relevant
+
 	if (PCGNode && PinToAdd->GetPinObj())
 	{
-		if (UPCGPin* Pin = PCGNode->GetInputPin(PinToAdd->GetPinObj()->PinName))
+		const bool bIsInPin = PinToAdd->GetPinObj()->Direction == EEdGraphPinDirection::EGPD_Input;
+		const FName& PinName = PinToAdd->GetPinObj()->PinName;
+
+		if(UPCGPin* Pin = (bIsInPin ? PCGNode->GetInputPin(PinName) : PCGNode->GetOutputPin(PinName)))
 		{
-			if (Pin->Properties.bAllowMultipleConnections)
+			const bool bIsMultiData = Pin->Properties.bAllowMultipleData;
+			const bool bIsMultiConnections = Pin->Properties.bAllowMultipleConnections;
+
+			// Check for special types
+			if (Pin->Properties.AllowedTypes == EPCGDataType::Param)
 			{
-				PinToAdd->SetCustomPinIcon(FAppStyle::GetBrush("Graph.ArrayPin.Connected"), FAppStyle::GetBrush("Graph.ArrayPin.Disconnected"));
+				const FSlateBrush* ConnectedBrush = FPCGEditorStyle::Get().GetBrush(bIsInPin ? PCGEditorStyleConstants::Pin_Param_IN_C : PCGEditorStyleConstants::Pin_Param_OUT_C);
+				const FSlateBrush* DisconnectedBrush = FPCGEditorStyle::Get().GetBrush(bIsInPin ? PCGEditorStyleConstants::Pin_Param_IN_DC : PCGEditorStyleConstants::Pin_Param_OUT_DC);
+
+				PinToAdd->SetCustomPinIcon(ConnectedBrush, DisconnectedBrush);
+			}
+			else if (Pin->Properties.AllowedTypes == EPCGDataType::Composite)
+			{
+				const FSlateBrush* ConnectedBrush = FPCGEditorStyle::Get().GetBrush(bIsInPin ? PCGEditorStyleConstants::Pin_Composite_IN_C : PCGEditorStyleConstants::Pin_Composite_OUT_C);
+				const FSlateBrush* DisconnectedBrush = FPCGEditorStyle::Get().GetBrush(bIsInPin ? PCGEditorStyleConstants::Pin_Composite_IN_DC : PCGEditorStyleConstants::Pin_Composite_OUT_DC);
+
+				PinToAdd->SetCustomPinIcon(ConnectedBrush, DisconnectedBrush);
+			}
+			else
+			{
+				static const FName* PinBrushes[] =
+				{
+					&PCGEditorStyleConstants::Pin_SD_SC_IN_C,
+					&PCGEditorStyleConstants::Pin_SD_SC_IN_DC,
+					&PCGEditorStyleConstants::Pin_SD_MC_IN_C,
+					&PCGEditorStyleConstants::Pin_SD_MC_IN_DC,
+					&PCGEditorStyleConstants::Pin_MD_SC_IN_C,
+					&PCGEditorStyleConstants::Pin_MD_SC_IN_DC,
+					&PCGEditorStyleConstants::Pin_MD_MC_IN_C,
+					&PCGEditorStyleConstants::Pin_MD_MC_IN_DC,
+					&PCGEditorStyleConstants::Pin_SD_SC_OUT_C,
+					&PCGEditorStyleConstants::Pin_SD_SC_OUT_DC,
+					&PCGEditorStyleConstants::Pin_SD_MC_OUT_C,
+					&PCGEditorStyleConstants::Pin_SD_MC_OUT_DC,
+					&PCGEditorStyleConstants::Pin_MD_SC_OUT_C,
+					&PCGEditorStyleConstants::Pin_MD_SC_OUT_DC,
+					&PCGEditorStyleConstants::Pin_MD_MC_OUT_C,
+					&PCGEditorStyleConstants::Pin_MD_MC_OUT_DC
+				};
+
+				const int32 ConnectedIndex = (bIsInPin ? 0 : 8) + (bIsMultiData ? 4 : 0) + (bIsMultiConnections ? 2 : 0);
+				const int32 DisconnectedIndex = ConnectedIndex + 1;
+
+				const FSlateBrush* ConnectedBrush = FPCGEditorStyle::Get().GetBrush(*PinBrushes[ConnectedIndex]);
+				const FSlateBrush* DisconnectedBrush = FPCGEditorStyle::Get().GetBrush(*PinBrushes[DisconnectedIndex]);
+
+				PinToAdd->SetCustomPinIcon(ConnectedBrush, DisconnectedBrush);
 			}
 		}
 	}

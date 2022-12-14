@@ -37,6 +37,7 @@ namespace UnrealBuildTool.Rules
 					"GraphEditor",
 					"InputCore",
 					"Kismet",
+					"KismetWidgets",
 					"PCG",
 					"PropertyEditor",
 					"Slate",
