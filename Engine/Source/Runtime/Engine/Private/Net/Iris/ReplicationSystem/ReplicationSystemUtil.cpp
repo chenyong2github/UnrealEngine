@@ -313,7 +313,7 @@ void FReplicationSystemUtil::EndReplicationForActorComponentSubObject(UActorComp
 	EndReplicationForActorSubObject(ActorComponent->GetOwner(), SubObject);
 }
 
-void FReplicationSystemUtil::AddDependentActor(const AActor* Parent, AActor* Child)
+void FReplicationSystemUtil::AddDependentActor(const AActor* Parent, AActor* Child, EDependentObjectSchedulingHint SchedulingHint)
 {
 	// Can only add dependent actors on already replicating actors
 	FNetHandle ParentHandle = GetNetHandle(Parent);
@@ -324,7 +324,7 @@ void FReplicationSystemUtil::AddDependentActor(const AActor* Parent, AActor* Chi
 
 	if (const UWorld* World = Parent->GetWorld())
 	{
-		ReplicationSystemUtil::ForEachReplicationSystem(GEngine, World, [ParentHandle, Child](UReplicationSystem* ReplicationSystem)
+		ReplicationSystemUtil::ForEachReplicationSystem(GEngine, World, [ParentHandle, Child, SchedulingHint](UReplicationSystem* ReplicationSystem)
 		{
 			if (ReplicationSystem->IsServer())
 			{
@@ -336,13 +336,18 @@ void FReplicationSystemUtil::AddDependentActor(const AActor* Parent, AActor* Chi
 						const FNetRefHandle ChildRefHandle = Bridge->BeginReplication(Child);
 						if (ensureMsgf(ChildRefHandle.IsValid(), TEXT("FReplicationSystemUtil::AddDependentActor Child %s must be replicated"), *GetPathNameSafe(Child)))
 						{
-							Bridge->AddDependentObject(ParentRefHandle, ChildRefHandle);
+							Bridge->AddDependentObject(ParentRefHandle, ChildRefHandle, SchedulingHint);
 						}
 					}
 				}
 			}
 		});
 	}
+}
+
+void FReplicationSystemUtil::AddDependentActor(const AActor* Parent, AActor* Child)
+{
+	AddDependentActor(Parent, Child, EDependentObjectSchedulingHint::Default);
 }
 
 void FReplicationSystemUtil::RemoveDependentActor(const AActor* Parent, AActor* Child)

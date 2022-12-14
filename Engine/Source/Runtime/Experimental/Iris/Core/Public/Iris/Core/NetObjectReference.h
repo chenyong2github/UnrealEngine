@@ -32,7 +32,7 @@ enum class ENetObjectReferenceTraits : uint32
 ENUM_CLASS_FLAGS(ENetObjectReferenceTraits);
 
 /**
- * A refererence to a network addressable object.
+ * A reference to a network addressable object.
  */
 class FNetObjectReference
 {

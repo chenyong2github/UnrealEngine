@@ -29,6 +29,11 @@ void FNetDependencyData::FreeStoredDependencyDataForObject(FInternalNetRefIndex 
 			SubObjectConditionalsStorage.RemoveAt(Entry->SubObjectConditionalArrayIndex);
 		}
 
+		if (Entry->DependentObjectsInfoArrayIndex != FDependencyInfo::InvalidCacheIndex)
+		{
+			DependentObjectInfosStorage.RemoveAt(Entry->DependentObjectsInfoArrayIndex);
+		}
+
 		DependencyInfos.Remove(InternalIndex);
 	}
 }
@@ -44,6 +49,25 @@ FNetDependencyData::FDependencyInfo& FNetDependencyData::GetOrCreateCacheEntry(F
 	}
 
 	return *Entry;
+}
+
+FNetDependencyData::FDependentObjectInfoArray& FNetDependencyData::GetOrCreateDependentObjectInfoArray(FInternalNetRefIndex OwnerIndex)
+{
+	FDependencyInfo& Entry = GetOrCreateCacheEntry(OwnerIndex);
+	
+	if (Entry.DependentObjectsInfoArrayIndex == FDependencyInfo::InvalidCacheIndex)
+	{
+		FSparseArrayAllocationInfo AllocInfo = DependentObjectInfosStorage.AddUninitialized();
+		Entry.DependentObjectsInfoArrayIndex = AllocInfo.Index;
+
+		FDependentObjectInfoArray* DependentObjectsInfoArrayIndex = new (AllocInfo.Pointer) FDependentObjectInfoArray();
+		
+		return *DependentObjectsInfoArrayIndex;
+	}
+	else
+	{
+		return DependentObjectInfosStorage[Entry.DependentObjectsInfoArrayIndex];
+	}
 }
 
 FNetDependencyData::FSubObjectConditionalsArray& FNetDependencyData::GetOrCreateSubObjectConditionalsArray(FInternalNetRefIndex OwnerIndex)

@@ -7,6 +7,7 @@
 #include "Net/Core/NetHandle/NetHandle.h"
 #include "Iris/ReplicationSystem/ReplicationBridge.h"
 #include "Delegates/IDelegateInstance.h"
+#include "Iris/ReplicationSystem/ReplicationSystemTypes.h"
 
 #include "ObjectReplicationBridge.generated.h"
 
@@ -114,21 +115,13 @@ public:
 	{
 		virtual ~FCreationHeader() {};
 	};
-
-	// Dependent objects supprt 
-
-	enum class EDependentWarnFlags : uint32
-	{
-		None = 1 << 0U,
-		WarnAlreadyDependent = 1 << None, 
-	};
 	
 	/**
 	 * Adds a dependent object. A dependent object can replicate separately or if a parent replicates.
 	 * Dependent objects cannot be filtered out by dynamic filtering unless the parent is also filtered out.
 	 * @note: There is no guarantee that the data will end up in the same packet so it is a very loose form of dependency.
 	 */
-	IRISCORE_API void AddDependentObject(FNetRefHandle Parent, FNetRefHandle DependentObject, EDependentWarnFlags WarnFlags = EDependentWarnFlags::WarnAlreadyDependent);
+	IRISCORE_API void AddDependentObject(FNetRefHandle Parent, FNetRefHandle DependentObject, UE::Net::EDependentObjectSchedulingHint SchedulingHint = UE::Net::EDependentObjectSchedulingHint::Default);
 
 	/** Remove dependent object from parent. The dependent object will function as a standard standalone replicated object. */
 	IRISCORE_API void RemoveDependentObject(FNetRefHandle Parent, FNetRefHandle DependentObject);

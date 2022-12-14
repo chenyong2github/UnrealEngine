@@ -22,6 +22,11 @@ class UNetConnection;
 
 namespace UE::Net
 {
+	enum class EDependentObjectSchedulingHint : uint8;
+}
+
+namespace UE::Net
+{
 
 // Helper methods to interact with ReplicationSystem from engine code
 struct FReplicationSystemUtil
@@ -92,6 +97,8 @@ struct FReplicationSystemUtil
 	 * Dependent actors cannot be filtered out by dynamic filtering unless the parent is also filtered out.
 	 * @note There is no guarantee that the data will end up in the same packet so it is a very loose form of dependency.
 	 */
+	ENGINE_API static void AddDependentActor(const AActor* Parent, AActor* Child, EDependentObjectSchedulingHint SchedulingHint);
+
 	ENGINE_API static void AddDependentActor(const AActor* Parent, AActor* Child);
 
 	/** Remove dependent actor from parent. The dependent actor will function as a standard standalone replicated actor. */

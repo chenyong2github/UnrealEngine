@@ -372,7 +372,7 @@ void FReplicationWriter::Init(const FReplicationParameters& InParameters)
 	ObjectsPendingDestroy.Init(Parameters.MaxActiveReplicatedObjectCount);
 	ObjectsWithDirtyChanges.Init(Parameters.MaxActiveReplicatedObjectCount);
 	ObjectsInScope.Init(Parameters.MaxActiveReplicatedObjectCount);	
-	WriteContext.ObjectsWrittenThisTick.Init(Parameters.MaxActiveReplicatedObjectCount);
+	WriteContext.ObjectsWrittenThisPacket.Init(Parameters.MaxActiveReplicatedObjectCount);
 
 	// Attachments init
 	SetupReplicationInfoForAttachmentsToObjectsNotInScope();
@@ -799,6 +799,44 @@ void FReplicationWriter::UpdatePriorities(const float* UpdatedPriorities)
 	ObjectsWithDirtyChanges.ForAllSetBits(UpdatePriority);
 }
 
+void FReplicationWriter::ScheduleDependentObjects(uint32 Index, float ParentPriority, float* LocalPriorities, FScheduleObjectInfo* ScheduledObjectIndices, uint32& OutScheduledObjectCount)
+{
+	const float DependentObjectPriorityBump = UE_KINDA_SMALL_NUMBER;
+
+	for (const FDependentObjectInfo& DependentObjectInfo : NetRefHandleManager->GetDependentObjectInfos(Index))
+	{
+		const FInternalNetRefIndex DependentInternalIndex = DependentObjectInfo.NetRefIndex;
+		float UpdatedPriority = ParentPriority;
+
+		if (ObjectsWithDirtyChanges.GetBit(DependentInternalIndex))
+		{
+			const FReplicationInfo& DependentInfo = this->GetReplicationInfo(DependentInternalIndex);
+
+			const bool bReplicateBeforeParent =	(DependentObjectInfo.SchedulingHint == EDependentObjectSchedulingHint::ScheduleBeforeParent) || ((DependentObjectInfo.SchedulingHint == EDependentObjectSchedulingHint::ScheduleBeforeParentIfInitialState) && IsInitialState(DependentInfo.GetState()));
+
+			if (bReplicateBeforeParent)
+			{
+				// Bump prio of dependent object to be scheduled before its parent.
+				UpdatedPriority = FMath::Max(ParentPriority + DependentObjectPriorityBump, LocalPriorities[DependentInternalIndex]);
+				LocalPriorities[DependentInternalIndex] = UpdatedPriority;
+
+				// Schedule it, it does not matter if we add it to the scheduled list multiple times
+				FScheduleObjectInfo& ScheduledObjectInfo = ScheduledObjectIndices[OutScheduledObjectCount];
+				ScheduledObjectInfo.Index = DependentInternalIndex;
+				ScheduledObjectInfo.SortKey = UpdatedPriority;
+				++OutScheduledObjectCount;								
+			}
+		}
+		
+		// We go through all dependent objects here even though it might not be 100% correct, but it will make sure that we respect
+		// the scheduling order hint at least in relation to the parent, but a dependent object might also end up replicating before its parent`s parent
+		if (NetRefHandleManager->GetObjectsWithDependentObjectsInternalIndices().GetBit(DependentInternalIndex))
+		{
+			ScheduleDependentObjects(DependentInternalIndex, UpdatedPriority, LocalPriorities, ScheduledObjectIndices, OutScheduledObjectCount);
+		}
+	}
+}
+
 uint32 FReplicationWriter::ScheduleObjects(FScheduleObjectInfo* OutScheduledObjectIndices)
 {
 	IRIS_PROFILER_SCOPE(FReplicationWriter_ScheduleObjects);
@@ -814,8 +852,7 @@ uint32 FReplicationWriter::ScheduleObjects(FScheduleObjectInfo* OutScheduledObje
 	const FNetBitArray& UpdatedObjects = ObjectsWithDirtyChanges;
 	const FNetBitArray& SubObjects = NetRefHandleManager->GetSubObjectInternalIndices();
 
-	// Fill IndexList with all objects with dirty state that have positive priority excluding subobjects
-	auto FillIndexListFunc = [&LocalPriorities, &ScheduledObjectIndices, &ScheduledObjectCount](uint32 Index)
+	auto FillIndexListFunc = [&LocalPriorities, &ScheduledObjectIndices, &ScheduledObjectCount, this](uint32 Index)
 	{
 		const float UpdatedPriority = LocalPriorities[Index];
 
@@ -823,7 +860,16 @@ uint32 FReplicationWriter::ScheduleObjects(FScheduleObjectInfo* OutScheduledObje
 		ScheduledObjectInfo.Index = Index;
 		ScheduledObjectInfo.SortKey = UpdatedPriority;
 
-		ScheduledObjectCount += (UpdatedPriority >= FReplicationWriter::SchedulingThresholdPriority) ? 1 : 0;
+		if (UpdatedPriority >= FReplicationWriter::SchedulingThresholdPriority)
+		{
+			++ScheduledObjectCount;
+
+			// If we have dependent objects that needs to replicate before parent we need to schedule them as well.
+			if (NetRefHandleManager->GetObjectsWithDependentObjectsInternalIndices().GetBit(Index))
+			{
+				ScheduleDependentObjects(Index, UpdatedPriority, LocalPriorities, ScheduledObjectIndices, ScheduledObjectCount);
+			}
+		}
 	};
 
 	// Invoke functor for all updated objects that not are sub objects.
@@ -1595,8 +1641,6 @@ bool FReplicationWriter::CanSendObject(uint32 InternalIndex) const
 	const FReplicationInfo& Info = GetReplicationInfo(InternalIndex);
 	const EReplicatedObjectState State = Info.GetState();
 
-	const bool bIsInitialState = IsInitialState(State);
-
 	// Currently we do wait for CreateConfirmation before sending more data
 	// We might want to change this and allow "bombing" creation info until we get confirmation to minimize latency
 	// We also prevent objects from being transmitted if they are waiting on destroy/tear-off confirmation or cancelling destroy.
@@ -1625,16 +1669,36 @@ bool FReplicationWriter::CanSendObject(uint32 InternalIndex) const
 		}
 	}
 
-	// Currently we need to enforce a strict dependency on the initial dependencies
-	for (FInternalNetRefIndex DependentInternalIndex : NetRefHandleManager->GetDependentObjects(InternalIndex))
+	// Currently we enforce a strict dependency on the state of initial dependent objects unless they are already serialized in the same packet
+	if (NetRefHandleManager->GetObjectsWithDependentObjectsInternalIndices().GetBit(InternalIndex))
 	{
-		const FReplicationInfo& DependentInfo = GetReplicationInfo(DependentInternalIndex);
-		const bool bIsDependentObjectInitialState = IsInitialState(DependentInfo.GetState());
-
-		if (bIsDependentObjectInitialState && !CanSendObject(DependentInternalIndex))
+		for (const FDependentObjectInfo DependentObjectInfo : NetRefHandleManager->GetDependentObjectInfos(InternalIndex))
 		{
-			UE_LOG(LogIris, Log, TEXT("ReplicationWriter: Cannot send internal index (%u) due to waiting on init dependency internal index (%d)"), InternalIndex, DependentInternalIndex);
-			return false;
+			const FInternalNetRefIndex DependentInternalIndex = DependentObjectInfo.NetRefIndex;
+
+			// If the dependent object already has been written in this packet we are fine.
+			if (WriteContext.ObjectsWrittenThisPacket.GetBit(DependentInternalIndex))
+			{
+				continue;
+			}
+
+			const FReplicationInfo& DependentReplicationInfo = GetReplicationInfo(DependentInternalIndex);
+			if (IsInitialState(DependentReplicationInfo.GetState()))
+			{
+				// if we cannot send the initial dependent object we must wait until we can.
+				if (!CanSendObject(DependentInternalIndex))
+				{
+					UE_LOG(LogIris, Log, TEXT("ReplicationWriter: Cannot send internal index (%u) due to waiting on init dependency internal index (%d)"), InternalIndex, DependentInternalIndex);
+					return false;
+				}
+
+				// if the dependent object are scheduled before parent and did not fit in this packet, we cannot write the parent either and have to wait until creation is confirmed
+				if ((DependentObjectInfo.SchedulingHint == EDependentObjectSchedulingHint::ScheduleBeforeParent) && ObjectsWithDirtyChanges.GetBit(DependentInternalIndex))
+				{
+					UE_LOG(LogIris, Log, TEXT("ReplicationWriter: Cannot send internal index (%u) due to waiting on ScheduleBefore dependency internal index (%d)"), InternalIndex, DependentInternalIndex);
+					return false;
+				}
+			}
 		}
 	}
 
@@ -2047,10 +2111,11 @@ FReplicationWriter::EWriteObjectStatus FReplicationWriter::WriteObjectInBatch(FN
 
 	// If we have any dependent objects pending creation we currently include them in the batch in order to guarantee that they get sent in the same packet
 	// When we implement support for proper dependencies this can be changed.
-	for (FInternalNetRefIndex DependentInternalIndex : NetRefHandleManager->GetDependentObjects(InternalIndex))
+	for (const FDependentObjectInfo DependentObjectInfo : NetRefHandleManager->GetDependentObjectInfos(InternalIndex))
 	{
+		const FInternalNetRefIndex DependentInternalIndex = DependentObjectInfo.NetRefIndex;
 		const bool bIsDependentInitialState = IsInitialState(GetReplicationInfo(DependentInternalIndex).GetState());
-		if (bIsDependentInitialState && !WriteContext.ObjectsWrittenThisTick.GetBit(DependentInternalIndex))
+		if (bIsDependentInitialState && !WriteContext.ObjectsWrittenThisPacket.GetBit(DependentInternalIndex))
 		{
 			UE_NET_TRACE_SCOPE(DependentObjectData, *Context.GetBitStreamWriter(), Context.GetTraceCollector(), ENetTraceVerbosity::VeryVerbose);
 			EWriteObjectStatus DependentObjectWriteStatus = WriteObjectInBatch(Context, DependentInternalIndex, WriteObjectFlags, OutBatchInfo);
@@ -2397,7 +2462,7 @@ uint32 FReplicationWriter::WriteObjects(FNetSerializationContext& Context)
 
 	auto SendObjectFunction = [this, &Context, &WrittenObjectCount](FInternalNetRefIndex InternalIndex)
 	{
-		if (!this->WriteContext.ObjectsWrittenThisTick.GetBit(InternalIndex) && this->CanSendObject(InternalIndex))
+		if (!this->WriteContext.ObjectsWrittenThisPacket.GetBit(InternalIndex) && this->CanSendObject(InternalIndex))
 		{
 #if UE_NET_IRIS_CSV_STATS && CSV_PROFILER
 			FIrisStatsTimer Timer;
@@ -2476,6 +2541,9 @@ uint32 FReplicationWriter::WriteObjects(FNetSerializationContext& Context)
 	WriteContext.CurrentIndex = ObjectListIt;
 	WriteContext.SortedObjectCount = SortedCount;
 
+	// Reset objects written this packet
+	WriteContext.ObjectsWrittenThisPacket.Reset();
+
 	return WrittenObjectCount;
 }
 
@@ -2534,12 +2602,13 @@ int FReplicationWriter::HandleObjectBatchSuccess(const FBatchInfo& BatchInfo, FR
 		}
 
 		// Schedule rest of dependent objects for replication, note there is no guarantee that they will replicate in same packet
-		for (FInternalNetRefIndex DependentInternalIndex : NetRefHandleManager->GetDependentObjects(BatchObjectInfo.InternalIndex))
+		for (const FDependentObjectInfo DependentObjectInfo : NetRefHandleManager->GetDependentObjectInfos(BatchObjectInfo.InternalIndex))
 		{
-			if (ObjectsWithDirtyChanges.GetBit(DependentInternalIndex) && !WriteContext.ObjectsWrittenThisTick.GetBit(DependentInternalIndex))
+			const FInternalNetRefIndex DependentInternalIndex = DependentObjectInfo.NetRefIndex;
+			if (ObjectsWithDirtyChanges.GetBit(DependentInternalIndex) && !WriteContext.ObjectsWrittenThisPacket.GetBit(DependentInternalIndex))
 			{
 				WriteContext.DependentObjectsPendingSend.Push(DependentInternalIndex);
-				// Bumping the scheduling priority here will make sure that we will be scheduled the next update if we are not allowed to replicate this frame
+				// Bumping the scheduling priority here will make sure that they will be scheduled the next update if we are not allowed to replicate this frame
 				SchedulingPriorities[DependentInternalIndex] = FMath::Max(SchedulingPriorities[BatchObjectInfo.InternalIndex], SchedulingPriorities[DependentInternalIndex]);
 			}
 		}			
@@ -2568,7 +2637,7 @@ int FReplicationWriter::HandleObjectBatchSuccess(const FBatchInfo& BatchInfo, FR
 		if (BatchObjectInfo.InternalIndex != ObjectIndexForOOBAttachment)
 		{
 			// Mark this object as written this tick to avoid sending it multiple times
-			WriteContext.ObjectsWrittenThisTick.SetBit(BatchObjectInfo.InternalIndex);
+			WriteContext.ObjectsWrittenThisPacket.SetBit(BatchObjectInfo.InternalIndex);
 		}
 
 #if UE_NET_IRIS_CSV_STATS && CSV_PROFILER
@@ -2664,9 +2733,6 @@ UDataStream::EWriteResult FReplicationWriter::BeginWrite()
 
 	// Reset dependent object array
 	WriteContext.DependentObjectsPendingSend.Reset();
-
-	// Reset objects written this tick
-	WriteContext.ObjectsWrittenThisTick.Reset();
 
 	// $IRIS TODO: LinearAllocator/ScratchPad?
 	// Allocate space for indices to send

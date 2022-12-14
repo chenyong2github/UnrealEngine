@@ -202,7 +202,7 @@ public:
 	// DependentObjects
 	const FNetBitArray& GetDependentObjectInternalIndices() const { return DependentObjectInternalIndices; }
 	const FNetBitArray& GetObjectsWithDependentObjectsInternalIndices() const { return ObjectsWithDependentObjectsInternalIndices; }
-	bool AddDependentObject(FNetRefHandle ParentHandle, FNetRefHandle DependentHandle, EAddDependentObjectFlags Flags = EAddDependentObjectFlags::WarnIfAlreadyDependentObject);
+	bool AddDependentObject(FNetRefHandle ParentHandle, FNetRefHandle DependentHandle, EDependentObjectSchedulingHint SchedulingHint, EAddDependentObjectFlags Flags = EAddDependentObjectFlags::WarnIfAlreadyDependentObject);
 	void RemoveDependentObject(FNetRefHandle ParentHandle, FNetRefHandle DependentHandle);
 
 	// Remove DependentHandles from all dependent object tracking
@@ -221,7 +221,7 @@ public:
 	uint16 GetNetObjectRefCount(FInternalNetRefIndex ObjectInternalIndex) const { return ReplicatedObjectRefCount[ObjectInternalIndex]; }
 
 	// Get dependent objects for the given ParentIndex
-	inline TArrayView<const FInternalNetRefIndex> GetDependentObjects(FInternalNetRefIndex ParentIndex) const;
+	TArrayView<const FDependentObjectInfo> GetDependentObjectInfos(FInternalNetRefIndex ParentIndex) const { return SubObjects.GetDependentObjectInfoArray(ParentIndex); }
 
 	// Get all parents of the given DependentIndex
 	inline TArrayView<const FInternalNetRefIndex> GetDependentObjectParents(FInternalNetRefIndex DependentIndex) const;
@@ -255,10 +255,10 @@ public:
 	{
 		if (ObjectsWithDependentObjectsInternalIndices.GetBit(ObjectIndex))
 		{
-			for (const FInternalNetRefIndex DependentObjectIndex : GetDependentObjects(ObjectIndex))
+			for (const FDependentObjectInfo& DependentObjectInfo : GetDependentObjectInfos(ObjectIndex))
 			{
-				Functor(DependentObjectIndex);
-				ForAllDependentObjectsRecursive(DependentObjectIndex, Functor);
+				Functor(DependentObjectInfo.NetRefIndex);
+				ForAllDependentObjectsRecursive(DependentObjectInfo.NetRefIndex, Functor);
 			}
 			return;
 		}
@@ -439,14 +439,9 @@ TArrayView<const FInternalNetRefIndex> FNetRefHandleManager::GetChildSubObjects(
 	return SubObjects.GetInternalIndexArray<FNetDependencyData::EArrayType::ChildSubObjects>(OwnerIndex);
 }
 
-TArrayView<const FInternalNetRefIndex> FNetRefHandleManager::GetDependentObjects(FInternalNetRefIndex ParentIndex) const
-{
-	return SubObjects.GetInternalIndexArray<FNetDependencyData::EArrayType::DependentObjects>(ParentIndex);
-}
-
 TArrayView<const FInternalNetRefIndex> FNetRefHandleManager::GetDependentObjectParents(FInternalNetRefIndex DependentIndex) const
 {
-	return SubObjects.GetInternalIndexArray<FNetDependencyData::EArrayType::ParentObjects>(DependentIndex);
+	return SubObjects.GetInternalIndexArray<FNetDependencyData::EArrayType::DependentParentObjects>(DependentIndex);
 }
 	
 }

@@ -562,7 +562,7 @@ FNetRefHandle FNetRefHandleManager::GetSubObjectOwner(FNetRefHandle SubObjectRef
 	return OwnerInternalIndex != InvalidInternalIndex ? ReplicatedObjectData[OwnerInternalIndex].RefHandle : FNetRefHandle();
 }
 
-bool FNetRefHandleManager::AddDependentObject(FNetRefHandle ParentRefHandle, FNetRefHandle DependentObjectRefHandle, EAddDependentObjectFlags Flags)
+bool FNetRefHandleManager::AddDependentObject(FNetRefHandle ParentRefHandle, FNetRefHandle DependentObjectRefHandle, EDependentObjectSchedulingHint SchedulingHint, EAddDependentObjectFlags Flags)
 {
 	check(ParentRefHandle != DependentObjectRefHandle);
 
@@ -587,21 +587,26 @@ bool FNetRefHandleManager::AddDependentObject(FNetRefHandle ParentRefHandle, FNe
 	check(!SubObjectInternalIndices.GetBit(ParentInternalIndex));
 
 	// Add dependent to parents dependent object list
-	FNetDependencyData::FInternalNetRefIndexArray& ParentDependentObjectArray = SubObjects.GetOrCreateInternalIndexArray<FNetDependencyData::DependentObjects>(ParentInternalIndex);
-	const bool bDependentIsAlreadyDependant = ParentDependentObjectArray.Find(DependentObjectInternalIndex) != INDEX_NONE;
+	FNetDependencyData::FDependentObjectInfoArray& ParentDependentObjectsArray = SubObjects.GetOrCreateDependentObjectInfoArray(ParentInternalIndex);
+	const bool bDependentIsAlreadyDependant = ParentDependentObjectsArray.FindByPredicate([DependentObjectInternalIndex](const FDependentObjectInfo& Entry) { return Entry.NetRefIndex == DependentObjectInternalIndex;}) != nullptr;
 	if (!bDependentIsAlreadyDependant)
 	{
-		ParentDependentObjectArray.Add(DependentObjectInternalIndex);
+		FDependentObjectInfo DependentObjectInfo;
+
+		DependentObjectInfo.NetRefIndex = DependentObjectInternalIndex;
+		DependentObjectInfo.SchedulingHint = SchedulingHint;
+
+		ParentDependentObjectsArray.Add(DependentObjectInfo);
 	}
 
-	FNetDependencyData::FInternalNetRefIndexArray& DependentParentObjectArray = SubObjects.GetOrCreateInternalIndexArray<FNetDependencyData::ParentObjects>(DependentObjectInternalIndex);
+	FNetDependencyData::FInternalNetRefIndexArray& DependentParentObjectArray = SubObjects.GetOrCreateInternalIndexArray<FNetDependencyData::DependentParentObjects>(DependentObjectInternalIndex);
 	const bool bDependentHadParentAlready = DependentParentObjectArray.Find(ParentInternalIndex) != INDEX_NONE;
 	if (!bDependentHadParentAlready)
 	{
 		DependentParentObjectArray.Add(ParentInternalIndex);
 	}
 
-	// Update cached info to avoid to do map lookups to find out if we have are a dependent object or have dependent objects
+	// Update cached info to avoid to do map lookups to find out if we are a dependent object or have dependent objects
 	DependentObjectData.bIsDependentObject = true;
 	ParentObjectData.bHasDependentObjects = true;
 	ObjectsWithDependentObjectsInternalIndices.SetBit(ParentInternalIndex);
@@ -631,7 +636,7 @@ void FNetRefHandleManager::InternalRemoveDependentObject(FInternalNetRefIndex Pa
 {
 	if (EnumHasAnyFlags(Flags, ERemoveDependentObjectFlags::RemoveFromDependentParentObjects))
 	{
-		if (FNetDependencyData::FInternalNetRefIndexArray* ParentObjectArray = SubObjects.GetInternalIndexArray<FNetDependencyData::ParentObjects>(DependentInternalIndex))
+		if (FNetDependencyData::FInternalNetRefIndexArray* ParentObjectArray = SubObjects.GetInternalIndexArray<FNetDependencyData::DependentParentObjects>(DependentInternalIndex))
 		{
 			ParentObjectArray->Remove(ParentInternalIndex);
 			if (ParentObjectArray->Num() == 0)
@@ -645,12 +650,18 @@ void FNetRefHandleManager::InternalRemoveDependentObject(FInternalNetRefIndex Pa
 
 	if (EnumHasAnyFlags(Flags, ERemoveDependentObjectFlags::RemoveFromParentDependentObjects))
 	{
-		if (FNetDependencyData::FInternalNetRefIndexArray* ParentDependentObjectArray = SubObjects.GetInternalIndexArray<FNetDependencyData::DependentObjects>(ParentInternalIndex))
+		FReplicatedObjectData& ParentObjectData = GetReplicatedObjectDataNoCheck(ParentInternalIndex);
+		FNetDependencyData::FDependentObjectInfoArray* ParentDependentObjectsArray = ParentObjectData.bHasDependentObjects ? SubObjects.GetDependentObjectInfoArray(ParentInternalIndex) : nullptr;
+		if (ParentDependentObjectsArray)
 		{
-			ParentDependentObjectArray->Remove(DependentInternalIndex);
-			if (ParentDependentObjectArray->Num() == 0)
+			const int32 ArrayIndex =  ParentDependentObjectsArray->FindLastByPredicate([DependentInternalIndex](const FDependentObjectInfo& Entry) { return Entry.NetRefIndex == DependentInternalIndex;});
+			if (ArrayIndex != INDEX_NONE)
 			{
-				FReplicatedObjectData& ParentObjectData = GetReplicatedObjectDataNoCheck(ParentInternalIndex);
+				ParentDependentObjectsArray->RemoveAt(ArrayIndex);
+			}
+
+			if (ParentDependentObjectsArray->Num() == 0)
+			{
 				ParentObjectData.bHasDependentObjects = false;
 				ObjectsWithDependentObjectsInternalIndices.ClearBit(ParentInternalIndex);
 			}
@@ -661,7 +672,7 @@ void FNetRefHandleManager::InternalRemoveDependentObject(FInternalNetRefIndex Pa
 void FNetRefHandleManager::InternalRemoveDependentObject(FInternalNetRefIndex DependentInternalIndex)
 {
 	// Remove from all parents
-	if (FNetDependencyData::FInternalNetRefIndexArray* ParentObjectArray = SubObjects.GetInternalIndexArray<FNetDependencyData::ParentObjects>(DependentInternalIndex))
+	if (FNetDependencyData::FInternalNetRefIndexArray* ParentObjectArray = SubObjects.GetInternalIndexArray<FNetDependencyData::DependentParentObjects>(DependentInternalIndex))
 	{
 		for (FInternalNetRefIndex ParentInternalIndex : *ParentObjectArray)
 		{
@@ -672,12 +683,12 @@ void FNetRefHandleManager::InternalRemoveDependentObject(FInternalNetRefIndex De
 	}
 
 	// Remove from our dependents
-	if (FNetDependencyData::FInternalNetRefIndexArray* DependentObjectArray = SubObjects.GetInternalIndexArray<FNetDependencyData::DependentObjects>(DependentInternalIndex))
+	if (FNetDependencyData::FDependentObjectInfoArray* DependentObjectArray = SubObjects.GetDependentObjectInfoArray(DependentInternalIndex))
 	{
-		for (FInternalNetRefIndex ChildDepedentInternalIndex : *DependentObjectArray)
+		for (const FDependentObjectInfo& ChildDependentObjectInfo : *DependentObjectArray)
 		{
 			// Flag is set to only update data on the childDependentObject to avoid modifying the array we iterate over
-			InternalRemoveDependentObject(DependentInternalIndex, ChildDepedentInternalIndex, ERemoveDependentObjectFlags::RemoveFromDependentParentObjects);
+			InternalRemoveDependentObject(DependentInternalIndex, ChildDependentObjectInfo.NetRefIndex, ERemoveDependentObjectFlags::RemoveFromDependentParentObjects);
 		}
 		DependentObjectArray->Reset();		
 	}

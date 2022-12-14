@@ -207,7 +207,7 @@ private:
 		FWriteContext() : bIsValid(0) {}
 
 		// Objects we have written in this packet batch to avoid sending same object multiple times
-		FNetBitArray ObjectsWrittenThisTick;
+		FNetBitArray ObjectsWrittenThisPacket;
 		// DependentObjets that we should try to write this packet batch, aka. allow overcommit if we have pending DependentObjects when the packet is full
 		TArray<uint32, TInlineAllocator<32>> DependentObjectsPendingSend;
 		// Scheduled objects
@@ -369,6 +369,8 @@ private:
 	void CommitObjectRecord(uint32 InternalObjectIndex, const FObjectRecord& Record);
 
 	void CommitBatchRecord(const FBatchRecord& BatchRecord);
+
+	void ScheduleDependentObjects(uint32 Index, float ParentPriority, float* LocalPriorities, FScheduleObjectInfo* ScheduledObjectIndices, uint32& OutScheduledObjectCount);
 
 	uint32 ScheduleObjects(FScheduleObjectInfo* ScheduledObjectIndices);
 	
