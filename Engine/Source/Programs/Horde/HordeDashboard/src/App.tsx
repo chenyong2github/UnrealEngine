@@ -11,6 +11,7 @@ import dashboard from './backend/Dashboard';
 import { AdminToken } from './components/AdminToken';
 import { AgentView } from './components/AgentView';
 import { AuditLogView } from './components/AuditLog';
+import { AutomationView } from './components/AutomationView';
 import { DashboardView } from './components/DashboardView';
 import { DebugView } from './components/DebugView';
 import { DeviceView } from './components/DeviceView';
@@ -134,6 +135,7 @@ const Main: React.FC = () => {
          <Route path="/server/settings" component={ServerSettingsView} />
          <Route path="/audit/agent/:agentId" component={AuditLogView} />
          <Route path="/audit/issue/:issueId" component={AuditLogView} />
+         <Route path="/automation" component={AutomationView} />
          <Route path={["/debug/lease/:leaseId"]} component={DebugView} />
          {hordePlugins.routes.map((route, index) => {
             return <Route key={`key_plugin_route_${index}`} path={route.path} component={route.component} />;

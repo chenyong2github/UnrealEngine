@@ -333,8 +333,8 @@ export class Dashboard {
             [StatusColor.Running, dark ? "#146579" : theme.palette.blueLight],
             [StatusColor.Waiting, dark ? "#474542" : "#A19F9D"],
             [StatusColor.Ready, dark ? "#474542" : "#A19F9D"],
-            [StatusColor.Skipped, dark ? "#63625c" : "#F3F2F1"],
-            [StatusColor.Unspecified, "#637087"]
+            [StatusColor.Skipped, dark ? "#63625c" : "#C3C2C1"],
+            [StatusColor.Unspecified, "#646464"]
         ]);
 
         colors.set(StatusColor.Aborted, colors.get(StatusColor.Failure)!);

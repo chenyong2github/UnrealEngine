@@ -363,12 +363,6 @@ export const TopNav: React.FC<{ suppressServer?: boolean }> = observer(({ suppre
       });
 
       resourceItems.push({
-         key: "admin_devices",
-         text: "Devices",
-         link: `/devices`
-      });
-
-      resourceItems.push({
          key: "admin_perforce_servers",
          text: "Perforce Servers",
          link: `/perforce/servers`
@@ -380,6 +374,31 @@ export const TopNav: React.FC<{ suppressServer?: boolean }> = observer(({ suppre
          sectionProps: {
             title: "Resources",
             items: resourceItems,
+            bottomDivider: true
+         }
+      });
+
+      // Automation
+      const automatonItems: IContextualMenuItem[] = [];
+
+      automatonItems.push({
+         key: "admin_devices",
+         text: "Devices",
+         link: `/devices`
+      });
+
+      automatonItems.push({
+         key: "admin_tests",
+         text: "Tests",
+         link: `/automation`
+      });
+
+      subItems.push({
+         itemType: ContextualMenuItemType.Section,
+         key: `admin_automation`,
+         sectionProps: {
+            title: "Automation",
+            items: automatonItems,
             bottomDivider: true
          }
       });

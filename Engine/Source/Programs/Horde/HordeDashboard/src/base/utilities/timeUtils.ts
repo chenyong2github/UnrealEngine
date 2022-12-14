@@ -379,7 +379,7 @@ export const getHumanTime = (timeIn: Date | string | undefined): string => {
 };
 
 
-export const getShortNiceTime = (timeIn: Date | string | undefined, relative: boolean = false): string => {
+export const getShortNiceTime = (timeIn: Date | string | undefined, relative: boolean = false, includeHour:boolean = false): string => {
 
     if (!timeIn) {
         return "";
@@ -399,6 +399,11 @@ export const getShortNiceTime = (timeIn: Date | string | undefined, relative: bo
         timeStr = time.format('MMM Do');
     }
 
+    if (includeHour) {
+        const format = dashboard.display24HourClock ? "HH:mm:ss z" : "LT z";
+        timeStr += ` at ${time.format(format)}`;
+    }
+    
     return timeStr;
 
 };
