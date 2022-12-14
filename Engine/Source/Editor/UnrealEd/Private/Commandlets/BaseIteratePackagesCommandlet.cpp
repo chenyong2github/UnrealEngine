@@ -761,9 +761,13 @@ void UBaseIteratePackagesCommandlet::LoadAndSaveOnePackage(const FString& Filena
 
 				// Check for any special per object operations
 				ForEachObjectWithOuter(Package, [this, &bSavePackage](UObject* Object)
-				{
-					PerformAdditionalOperations(Object, bSavePackage);
-				});
+					{
+						if (!IsValid(Object))
+						{
+							return;
+						}
+						PerformAdditionalOperations(Object, bSavePackage);
+					});
 			}
 
 			PostPerformAdditionalOperations(Package);
