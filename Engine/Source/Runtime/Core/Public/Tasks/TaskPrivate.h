@@ -480,6 +480,12 @@ namespace UE::Tasks
 
 			CORE_API void ClearPipe();
 
+			bool TryExecuteTask()
+			{
+				UE::FInheritedContextScope InheritedContextScope = RestoreInheritedContext();
+				return TryExecuteTaskVirtual();
+			}
+
 		private:
 			// A task can be locked for execution (by prerequisites or if it's not launched yet) or for completion (by nested tasks).
 			// This method is called to unlock the task and so can result in its scheduling (and execution) or completion
@@ -592,12 +598,6 @@ namespace UE::Tasks
 
 			CORE_API void StartPipeExecution();
 			CORE_API void FinishPipeExecution();
-
-			bool TryExecuteTask()
-			{
-				UE::FInheritedContextScope InheritedContextScope = RestoreInheritedContext();
-				return TryExecuteTaskVirtual();
-			}
 
 		private:
 			EExtendedTaskPriority ExtendedPriority; // internal priorities, if any
