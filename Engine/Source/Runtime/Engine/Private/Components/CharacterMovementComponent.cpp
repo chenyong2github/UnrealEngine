@@ -308,6 +308,13 @@ namespace CharacterMovementCVars
 		TEXT("This enabled a workaround to allow impulses to be applied to geometry collection.\n"),
 		ECVF_Default);
 
+	static int32 bUseLastGoodRotationDuringCorrection = 1;
+	FAutoConsoleVariableRef CVarUseLastGoodRotationDuringCorrection(
+		TEXT("p.UseLastGoodRotationDuringCorrection"),
+		bUseLastGoodRotationDuringCorrection,
+		TEXT("When enabled, during a correction, restore the last good rotation before re-simulating saved moves if the server didn't specify one. This improves visual quality with options like bOrientToMovement or bUseControllerDesiredRotation that rotate over time."),
+		ECVF_Default);
+
 #if !UE_BUILD_SHIPPING
 
 	int32 NetShowCorrections = 0;
@@ -10382,6 +10389,14 @@ void UCharacterMovementComponent::ClientAdjustPosition_Implementation
 		// Convert Relative Velocity -> World Velocity
 		const FVector CurrentVelocity = NewVelocity;
 		MovementBaseUtility::TransformDirectionToWorld(NewBase, NewBaseBoneName, CurrentVelocity, NewVelocity);
+	}
+
+	// Fall back to the last-known good rotation if the server didn't send one
+	if (CharacterMovementCVars::bUseLastGoodRotationDuringCorrection
+		&& (bOrientRotationToMovement || bUseControllerDesiredRotation)
+		&& (!OptionalRotation.IsSet() && ClientData->LastAckedMove.IsValid()))
+	{
+		OptionalRotation = ClientData->LastAckedMove->SavedRotation;
 	}
 
 	// Trigger event
