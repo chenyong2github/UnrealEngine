@@ -3,17 +3,22 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Metadata/PCGMetadata.h"
-#include "Widgets/Input/SComboBox.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/SHeaderRow.h"
+#include "Widgets/Input/SComboBox.h"
 #include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STableRow.h"
 
 class FPCGEditor;
+class FPCGMetadataAttributeBase;
 class UPCGComponent;
 class UPCGEditorGraphNodeBase;
+class UPCGMetadata;
 class UPCGParamData;
 struct FPCGPoint;
+
+class SComboButton;
+class SHeaderRow;
+struct FSlateBrush;
 
 struct FPCGMetadataInfo
 {
@@ -71,17 +76,24 @@ private:
 	void RefreshAttributeList();
 	void RefreshDataComboBox();
 
+	const FSlateBrush* GetFilterBadgeIcon() const;
+	TSharedRef<SWidget> OnGenerateFilterMenu();
 	TSharedRef<SWidget> OnGenerateDataWidget(TSharedPtr<FName> InItem) const;
 	void OnSelectionChanged(TSharedPtr<FName> Item, ESelectInfo::Type SelectInfo);
 	FText OnGenerateSelectedDataText() const;
 	int32 GetSelectedDataIndex() const;
 	void GenerateColumnsFromMetadata(const UPCGMetadata* PCGMetadata);
 
+	void ToggleAllAttributes();
+	void ToggleAttribute(FName InAttributeName);
+	ECheckBoxState GetAnyAttributeEnabledState() const;
+	bool IsAttributeEnabled(FName InAttributeName) const;
+
 	TSharedRef<ITableRow> OnGenerateRow(PCGListviewItemPtr Item, const TSharedRef<STableViewBase>& OwnerTable) const;
 	void OnItemDoubleClicked(PCGListviewItemPtr Item) const;
 
-	void AddColumn(const FName& InColumnID, const FText& ColumnLabel, float ColumnWidth, EHorizontalAlignment HeaderHAlign = HAlign_Center, EHorizontalAlignment CellHAlign = HAlign_Right);
-	void RemoveColumn(const FName& InColumnID);
+	void AddColumn(const FName& InColumnId, const FText& ColumnLabel, float ColumnWidth, EHorizontalAlignment HeaderHAlign = HAlign_Center, EHorizontalAlignment CellHAlign = HAlign_Right);
+	void RemoveColumn(const FName& InColumnId);
 
 	void AddIndexColumn();
 	void RemoveIndexColumn();
@@ -110,6 +122,8 @@ private:
 	
 	TSharedPtr<STextBlock> NodeNameTextBlock;
 	TSharedPtr<STextBlock> InfoTextBlock;
+	TSharedPtr<SComboButton> FilterButton;
 
 	TMap<FName, FPCGMetadataInfo> MetadataInfos;
+	TArray<FName> HiddenAttributes;	
 };
