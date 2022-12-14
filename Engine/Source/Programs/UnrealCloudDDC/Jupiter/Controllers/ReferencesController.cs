@@ -115,9 +115,6 @@ namespace Jupiter.Controllers
                 return accessResult;
             }
 
-            using ActivitySource? MyActivitySource = new ActivitySource("MyCompany.MyProduct.MyService");
-            using Activity? activity = MyActivitySource.StartActivity("SayHello");
-            activity?.SetTag("test", "foo");
             try
             {
                 (ObjectRecord objectRecord, BlobContents? blob) = await _objectService.Get(ns, bucket, key, Array.Empty<string>());

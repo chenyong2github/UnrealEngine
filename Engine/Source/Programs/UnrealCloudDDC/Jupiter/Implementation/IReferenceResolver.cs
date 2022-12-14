@@ -91,13 +91,14 @@ namespace Jupiter.Implementation
             List<BlobIdentifier> unresolvedBlobReferences = new List<BlobIdentifier>();
 
             List<Task<CbObject>> pendingCompactBinaryAttachments = new();
+            List<Task< (ContentId, BlobIdentifier[]?)>> pendingContentIdResolves = new();
 
-            while (pendingCompactBinaryAttachments.Count != 0 || objectsToVisit.Count != 0)
+            while (pendingCompactBinaryAttachments.Count != 0 || pendingContentIdResolves.Count != 0 || objectsToVisit.Count != 0)
             {
+                List<Attachment> attachments = new List<Attachment>();
+
                 if (objectsToVisit.TryDequeue(out CbObject? parent))
                 {
-                    List<Attachment> attachments = new List<Attachment>();
-
                     parent.IterateAttachments(field =>
                     {
                         IoHash attachmentHash = field.AsAttachment();
@@ -107,32 +108,8 @@ namespace Jupiter.Implementation
 
                         if (field.IsBinaryAttachment())
                         {
-                            BlobIdentifier[]? resolvedBlobs = null;
-                            bool wasContentId = false;
-                            try
-                            {
-                                Task<(ContentId, BlobIdentifier[]?)> resolveContentId = ResolveContentId(ns, contentId);
-                                resolveContentId.Wait();
-                                resolvedBlobs = resolveContentId.Result.Item2;
-                                wasContentId = !(resolvedBlobs is { Length: 1 } && resolvedBlobs[0].Equals(blobIdentifier));
-                            }
-                            catch (InvalidContentIdException)
-                            {
-                                resolvedBlobs = null;
-                            }
-                            catch (BlobNotFoundException e)
-                            {
-                                unresolvedBlobReferences.Add(e.Blob);
-                            }
-                            
-                            if (wasContentId && resolvedBlobs != null)
-                            {
-                                attachments.Add(new ContentIdAttachment(contentId, resolvedBlobs));
-                            }
-                            else
-                            {
-                                attachments.Add(new BlobAttachment(blobIdentifier));
-                            }
+                            Task<(ContentId, BlobIdentifier[]?)> resolveContentId = ResolveContentId(ns, contentId);
+                            pendingContentIdResolves.Add(resolveContentId);
                         }
                         else if (field.IsObjectAttachment())
                         {
@@ -144,11 +121,50 @@ namespace Jupiter.Implementation
                             throw new NotImplementedException($"Unknown attachment type for field {field}");
                         }
                     });
+                }
 
-                    foreach (Attachment attachment in attachments)
+                // check for any content id resolves to finish
+                List<Task<(ContentId, BlobIdentifier[]?)>> finishedContentIdResolves = new();
+                foreach (Task<(ContentId, BlobIdentifier[]?)> pendingContentIdResolve in pendingContentIdResolves)
+                {
+                    if (pendingContentIdResolve.IsCompleted)
                     {
-                        yield return attachment;
+                        ContentId? contentId = null;
+                        BlobIdentifier[]? resolvedBlobs = null;
+                        BlobIdentifier? blobIdentifier = null;
+                        bool wasContentId = false;
+                        try
+                        {
+                            (contentId, resolvedBlobs) = await pendingContentIdResolve;
+                            blobIdentifier = contentId.AsBlobIdentifier();
+                            wasContentId = !(resolvedBlobs is { Length: 1 } && resolvedBlobs[0].Equals(blobIdentifier));
+                        }
+                        catch (InvalidContentIdException)
+                        {
+                            resolvedBlobs = null;
+                        }
+                        catch (BlobNotFoundException e)
+                        {
+                            unresolvedBlobReferences.Add(e.Blob);
+                        }
+
+                        if (wasContentId && resolvedBlobs != null)
+                        {
+                            attachments.Add(new ContentIdAttachment(contentId!, resolvedBlobs));
+                        }
+                        else
+                        {
+                            attachments.Add(new BlobAttachment(blobIdentifier!));
+                        }
+
+                        finishedContentIdResolves.Add(pendingContentIdResolve);
                     }
+                }
+
+                // cleanup finished tasks
+                foreach (Task<(ContentId, BlobIdentifier[]?)> finishedTask in finishedContentIdResolves)
+                {
+                    pendingContentIdResolves.Remove(finishedTask);
                 }
 
                 // check for any compact binary attachment fetches and add those to the objects we are handling
@@ -181,6 +197,11 @@ namespace Jupiter.Implementation
                 {
                     await Task.WhenAny(pendingCompactBinaryAttachments);
                 }
+
+                foreach (Attachment attachment in attachments)
+                {
+                    yield return attachment;
+                }
             }
 
             if (unresolvedBlobReferences.Count != 0)
@@ -205,7 +226,6 @@ namespace Jupiter.Implementation
                 else if (attachment is ContentIdAttachment contentIdAttachment)
                 {
                     // If we find a content id we resolve that into the actual blobs it references
-                    
                     foreach (BlobIdentifier b in contentIdAttachment.ReferencedBlobs)
                     {
                         (BlobIdentifier _, bool exists) = await CheckBlobExists(ns, b);

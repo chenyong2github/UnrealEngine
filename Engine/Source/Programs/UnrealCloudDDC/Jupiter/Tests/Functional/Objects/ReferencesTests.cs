@@ -586,7 +586,25 @@ namespace Jupiter.FunctionalTests.References
             }
         }
 
-        
+        [TestMethod]
+        public async Task PutLargeCompactBinary()
+        {
+            byte[] data = await File.ReadAllBytesAsync($"Objects/Payloads/lyra.cb");
+            BlobIdentifier objectHash = BlobIdentifier.FromBlob(data);
+            IoHashKey key = IoHashKey.FromName("largeCompactBinary");
+            using HttpContent requestContent = new ByteArrayContent(data);
+            requestContent.Headers.ContentType = new MediaTypeHeaderValue(CustomMediaTypeNames.UnrealCompactBinary);
+            requestContent.Headers.Add(CommonHeaders.HashHeaderName, objectHash.ToString());
+
+            HttpResponseMessage result = await _httpClient!.PutAsync(new Uri($"api/v1/refs/{TestNamespace}/bucket/{key}.uecb", UriKind.Relative), requestContent);
+            result.EnsureSuccessStatusCode();
+
+            CbObject cb = new CbObject(await result.Content.ReadAsByteArrayAsync());
+            CbArray needsField = cb["needs"].AsArray();
+            Assert.IsNotNull(needsField);
+            Assert.AreEqual(4924, needsField.Count);
+        }
+
         [TestMethod]
         public async Task PutGetCompactBinaryHierarchy()
         {
