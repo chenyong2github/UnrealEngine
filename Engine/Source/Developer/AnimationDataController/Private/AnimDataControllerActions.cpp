@@ -52,23 +52,37 @@ FString FCloseBracketAction::ToStringInternal() const
 	return TEXT("Closing Bracket");
 }
 
-FAddTrackAction::FAddTrackAction(const FBoneAnimationTrack& Track)
+FAddTrackAction::FAddTrackAction(const FName& InName, TArray<FTransform>&& InTransformData)
 {
-	Name = Track.Name;
-	BoneTreeIndex = Track.BoneTreeIndex;
-	Data = Track.InternalTrackData;
+	Name = InName;
+	TransformData = MoveTemp(InTransformData);
 }
 
 TUniquePtr<FChange> FAddTrackAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
 {
-	Controller->AddBoneTrack(Name, false);
-	
-	if (Data.PosKeys.Num() || Data.RotKeys.Num() || Data.ScaleKeys.Num())
+	Controller->AddBoneCurve(Name, false);
+
+	if (TransformData.Num())
 	{
-		Controller->SetBoneTrackKeys(Name, Data.PosKeys, Data.RotKeys, Data.ScaleKeys, false);
+		TArray<FVector3f> PosKeys;
+		TArray<FQuat4f> RotKeys;
+		TArray<FVector3f> ScaleKeys;
+
+		PosKeys.Reserve(TransformData.Num());
+		RotKeys.Reserve(TransformData.Num());
+		ScaleKeys.Reserve(TransformData.Num());	
+		
+		for (const FTransform& Transform : TransformData)
+		{
+			PosKeys.Add(FVector3f(Transform.GetLocation()));
+			RotKeys.Add(FQuat4f(Transform.GetRotation()));
+			ScaleKeys.Add(FVector3f(Transform.GetScale3D()));
+		}
+	
+		Controller->SetBoneTrackKeys(Name, PosKeys, RotKeys, ScaleKeys, false);	
 	}
 	
-	const FBoneAnimationTrack& AddedTrack = Model->GetBoneTrackByName(Name);
+
 	return MakeUnique<FRemoveTrackAction>(Name);
 }
 
@@ -77,16 +91,19 @@ FString FAddTrackAction::ToStringInternal() const
 	return FText::Format(LOCTEXT("AddTrackAction_Description", "Adding animation bone track '{0}'."), FText::FromName(Name)).ToString();
 }
 
-FRemoveTrackAction::FRemoveTrackAction(const FName& TrackName)
+FRemoveTrackAction::FRemoveTrackAction(const FName& InName)
+	: Name(InName)
 {
-	Name = TrackName;
 }
 
 TUniquePtr<FChange> FRemoveTrackAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
 {
-	const FBoneAnimationTrack& Track = Model->GetBoneTrackByName(Name);
+	ensure(Model->IsValidBoneTrackName(Name));
 
-	TUniquePtr<FChange> InverseAction = MakeUnique<FAddTrackAction>(Track);
+	TArray<FTransform> BoneTransforms;
+	Model->GetBoneTrackTransforms(Name, BoneTransforms);
+	TUniquePtr<FChange> InverseAction = MakeUnique<FAddTrackAction>(Name, MoveTemp(BoneTransforms));
+
 	Controller->RemoveBoneTrack(Name, false);
 	return InverseAction;
 }
@@ -96,19 +113,34 @@ FString FRemoveTrackAction::ToStringInternal() const
 	return FText::Format(LOCTEXT("RemoveTrackAction_Description", "Removing animation bone Track '{0}'."), FText::FromName(Name)).ToString();
 }
 
-FSetTrackKeysAction::FSetTrackKeysAction(const FBoneAnimationTrack& Track)
+FSetTrackKeysAction::FSetTrackKeysAction(const FName& InName, TArray<FTransform>& InTransformData)
 {
-	Name = Track.Name;
-
-	TrackData = Track.InternalTrackData;
+	Name = InName;
+	TransformData = MoveTemp(InTransformData);
 }
 
 TUniquePtr<FChange> FSetTrackKeysAction::ExecuteInternal(IAnimationDataModel* Model, IAnimationDataController* Controller)
 {
-	const FBoneAnimationTrack& Track = Model->GetBoneTrackByName(Name);
-	TUniquePtr<FChange> InverseAction = MakeUnique<FSetTrackKeysAction>(Track);
+	TArray<FTransform> CurrentBoneTransforms;
+	Model->GetBoneTrackTransforms(Name, CurrentBoneTransforms);
+	TUniquePtr<FChange> InverseAction = MakeUnique<FSetTrackKeysAction>(Name, CurrentBoneTransforms);
 
-	Controller->SetBoneTrackKeys(Name, TrackData.PosKeys, TrackData.RotKeys, TrackData.ScaleKeys, false);
+	TArray<FVector3f> PosKeys;
+	TArray<FQuat4f> RotKeys;
+	TArray<FVector3f> ScaleKeys;
+
+	PosKeys.Reserve(TransformData.Num());
+	RotKeys.Reserve(TransformData.Num());
+	ScaleKeys.Reserve(TransformData.Num());	
+	
+	for (const FTransform& Transform : TransformData)
+	{
+		PosKeys.Add(FVector3f(Transform.GetLocation()));
+		RotKeys.Add(FQuat4f(Transform.GetRotation()));
+		ScaleKeys.Add(FVector3f(Transform.GetScale3D()));
+	}
+	
+	Controller->SetBoneTrackKeys(Name, PosKeys, RotKeys, ScaleKeys, false);
 	return InverseAction;
 }
 

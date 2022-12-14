@@ -319,6 +319,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Store serialized graph function in the function data
 		RigVMSaveSerializedGraphInGraphFunctionData,
 
+		// Animation Sequence now stores its frame-rate on a per-platform basis
+		PerPlatformAnimSequenceTargetFrameRate,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

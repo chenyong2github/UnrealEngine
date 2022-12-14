@@ -39,7 +39,7 @@ public:
 	virtual void ResizePlayLength(float NewLength, float T0, float T1, bool bShouldTransact = true) override;
 	virtual void Resize(float Length, float T0, float T1, bool bShouldTransact = true) override;
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	virtual int32 AddBoneTrack(FName BoneName, bool bShouldTransact = true) override;
+	virtual bool AddBoneCurve(FName BoneName, bool bShouldTransact = true) override;
 	virtual int32 InsertBoneTrack(FName BoneName, int32 DesiredIndex, bool bShouldTransact = true) override;
 	virtual bool RemoveBoneTrack(FName BoneName, bool bShouldTransact = true) override;
 	virtual void RemoveAllBoneTracks(bool bShouldTransact = true) override;

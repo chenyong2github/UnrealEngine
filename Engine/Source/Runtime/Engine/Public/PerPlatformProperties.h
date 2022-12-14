@@ -15,6 +15,7 @@ PerPlatformProperties.h: Property types that can be overridden on a per-platform
 #include "Algo/Find.h"
 #include "Serialization/MemoryLayout.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
+#include "Misc/FrameRate.h"
 
 #include "PerPlatformProperties.generated.h"
 
@@ -413,6 +414,62 @@ struct TStructOpsTypeTraits<FPerPlatformBool>
 	enum
 	{
 		WithSerializeFromMismatchedTag = true,
+		WithSerializer = true
+	};
+};
+
+/** FPerPlatformFrameRate - FFrameRate property with per-platform overrides */
+USTRUCT(BlueprintType)
+struct ENGINE_API FPerPlatformFrameRate
+#if CPP
+:	public TPerPlatformProperty<FPerPlatformFrameRate, FFrameRate, NAME_FrameRate>
+#endif
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, Category = PerPlatform)
+	FFrameRate Default;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, Category = PerPlatform)
+	TMap<FName, FFrameRate> PerPlatform;
+#endif
+
+	FPerPlatformFrameRate()
+	:	Default(30, 1)
+	{
+	}
+
+	FPerPlatformFrameRate(FFrameRate InDefaultValue)
+	:	Default(InDefaultValue)
+	{
+	}
+	
+	bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FArchive& Ar)
+	{
+		if(const UStruct* FrameRateStruct = FindObject<UStruct>(FTopLevelAssetPath("/Script/CoreUObject.FrameRate")))
+		{
+			FFrameRate Value;
+			Ar << Value.Denominator;
+			Ar << Value.Numerator;
+			Default = Value;
+
+			return true;
+		}
+		
+		return false;
+	}
+};
+
+extern template ENGINE_API FArchive& operator<<(FArchive&, TPerPlatformProperty<FPerPlatformFrameRate, FFrameRate, NAME_FrameRate>&);
+
+template<>
+struct TStructOpsTypeTraits<FPerPlatformFrameRate>
+	: public TStructOpsTypeTraitsBase2<FPerPlatformFrameRate>
+{
+	enum
+	{
+		WithSerializeFromMismatchedTag = false,
 		WithSerializer = true
 	};
 };

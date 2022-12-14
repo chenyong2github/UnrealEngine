@@ -317,6 +317,9 @@ void FEditableSkeleton::RenameSmartname(const FName InContainerName, SmartName::
 
 			FAnimationCurveIdentifier CurveId(CurveToRename, ERawCurveTrackTypes::RCT_Float);
 
+			//Make sure skeleton is correct before compression 
+			Skeleton->RenameSmartnameAndModify(InContainerName, InNameUid, InNewName);
+			
 			// Remove curves from animation assets
 			for (FAssetData& Data : AnimationAssets)
 			{
@@ -349,14 +352,11 @@ void FEditableSkeleton::RenameSmartname(const FName InContainerName, SmartName::
 
 			GWarn->BeginSlowTask(LOCTEXT("RebuildingAnimations", "Rebaking/compressing modified animations"), true);
 
-			//Make sure skeleton is correct before compression 
-			Skeleton->RenameSmartnameAndModify(InContainerName, InNameUid, InNewName);
-
 			// Rebake/compress the animations
 			for (UAnimSequence* Seq : SequencesToRecompress)
 			{
 				GWarn->StatusUpdate(1, 2, FText::Format(LOCTEXT("RebuildingAnimationsStatus", "Rebuilding {0}"), FText::FromString(Seq->GetName())));
-				Seq->RequestSyncAnimRecompression();
+				Seq->CacheDerivedDataForCurrentPlatform();
 			}
 
 			GWarn->EndSlowTask();

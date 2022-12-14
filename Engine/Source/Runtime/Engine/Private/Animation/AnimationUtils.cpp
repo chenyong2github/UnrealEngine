@@ -515,6 +515,7 @@ FString FAnimationUtils::GetAnimationKeyFormatString(AnimationKeyFormat InFormat
  * @param TrackHeights [OUT]	The computed track heights
  *
  */
+#if WITH_EDITOR
 void FAnimationUtils::CalculateTrackHeights(const FCompressibleAnimData& CompressibleAnimData, int32 NumTracks, TArray<int32>& TrackHeights)
 {
 	TrackHeights.Empty();
@@ -549,6 +550,7 @@ void FAnimationUtils::CalculateTrackHeights(const FCompressibleAnimData& Compres
 		}
 	}
 }
+#endif // WITH_EDITOR
 
 /**
  * Checks a set of key times to see if the spacing is uniform or non-uniform.
@@ -632,6 +634,7 @@ struct FBoneTestItem
 	{}
 };
 
+#if WITH_EDITOR
 template<int32 PERTURBATION_ERROR_MODE>
 void CalcErrorsLoop(const TArray<FBoneTestItem>& BonesToTest, const FCompressibleAnimData& CompressibleAnimData, const TArray<FTransform>& RawAtoms, const TArray<FTransform>& RawTransforms, TArray<FTransform>& NewTransforms, FAnimPerturbationError& ThisBoneError)
 {
@@ -834,6 +837,7 @@ void FAnimationUtils::TallyErrorsFromPerturbation(
 		Error.MaxErrorInScaleDueToScale = FMath::Sqrt(Error.MaxErrorInScaleDueToScale);*/
 	}
 }
+#endif // WITH_EDITOR
 
 static UAnimBoneCompressionSettings* DefaultBoneCompressionSettings = nullptr;
 static UAnimBoneCompressionSettings* DefaultRecorderBoneCompressionSettings = nullptr;

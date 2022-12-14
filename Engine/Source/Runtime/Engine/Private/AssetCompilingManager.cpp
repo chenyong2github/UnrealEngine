@@ -26,6 +26,7 @@ LLM_DEFINE_TAG(AssetCompilation, NAME_None, NAME_None, GET_STATFNAME(STAT_AssetC
 #include "Algo/TopologicalSort.h"
 #include "Algo/Find.h"
 #include "ProfilingDebugging/CountersTrace.h"
+#include "Animation/AnimationSequenceCompiler.h"
 
 #if WITH_EDITOR
 #include "DerivedDataBuildSchedulerQueue.h"
@@ -313,6 +314,7 @@ FAssetCompilingManager::FAssetCompilingManager()
 	RegisterManager(&FTextureCompilingManager::Get());
 	RegisterManager(&FActorDeferredScriptManager::Get());
 	RegisterManager(&FSoundWaveCompilingManager::Get());
+	RegisterManager(&UE::Anim::FAnimSequenceCompilingManager::Get());
 
 	// Ensure that the thread pool is constructed before the memory queue is registered because
 	// the memory queue can call GetThreadPool() from a worker thread, and could lead to a race

@@ -355,4 +355,20 @@ bool TryParseString(FFrameRate& OutFrameRate, const TCHAR* InString)
 	return false;
 }
 
+FArchive& operator<<(FArchive& Ar, FFrameRate& FrameRate)
+{
+	Ar << FrameRate.Numerator;
+	Ar << FrameRate.Denominator;
+
+	return Ar;
+}
+
+bool FFrameRate::Serialize(FArchive& Ar)
+{
+	Ar << Numerator;
+	Ar << Denominator;
+	
+	return true;
+}
+
 #undef LOCTEXT_NAMESPACE

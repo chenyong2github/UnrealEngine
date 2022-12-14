@@ -33,6 +33,7 @@
 
 #include "Tracks/IMovieSceneTransformOrigin.h"
 #include "IMovieScenePlaybackClient.h"
+#include "Animation/AnimData/AnimDataModel.h"
 
 #include "Editor.h"
 #include "LevelEditorViewport.h"
@@ -1265,41 +1266,17 @@ void F3DTransformTrackEditor::ImportAnimSequenceTransforms(const FAssetData& Ass
 
 			TArray<FTempTransformKey> TempKeys;
 
-			const FBoneAnimationTrack& AnimationTrack = AnimSequence->GetDataModel()->GetBoneTrackByIndex(0);
-			const FRawAnimSequenceTrack& RawTrack = AnimationTrack.InternalTrackData;
+			TArray<FName> BoneTrackNames;
+			AnimSequence->GetDataModelInterface()->GetBoneTrackNames(BoneTrackNames);
 
-			const int32 KeyCount = FMath::Max(FMath::Max(RawTrack.PosKeys.Num(), RawTrack.RotKeys.Num()), RawTrack.ScaleKeys.Num());
-			for(int32 KeyIndex = 0; KeyIndex < KeyCount; KeyIndex++)
+			TArray<FTransform> BoneTransforms;
+			AnimSequence->GetDataModelInterface()->GetBoneTrackTransforms(BoneTrackNames[0], BoneTransforms);
+
+			for(int32 KeyIndex = 0; KeyIndex < BoneTransforms.Num(); KeyIndex++)
 			{
 				FTempTransformKey TempKey;
 				TempKey.Time = AnimSequence->GetTimeAtFrame(KeyIndex);
-
-				if(RawTrack.PosKeys.IsValidIndex(KeyIndex))
-				{
-					TempKey.Transform.SetTranslation(FVector(RawTrack.PosKeys[KeyIndex]));
-				}
-				else if(RawTrack.PosKeys.Num() > 0)
-				{
-					TempKey.Transform.SetTranslation(FVector(RawTrack.PosKeys[0]));
-				}
-				
-				if(RawTrack.RotKeys.IsValidIndex(KeyIndex))
-				{
-					TempKey.Transform.SetRotation(FQuat(RawTrack.RotKeys[KeyIndex]));
-				}
-				else if(RawTrack.RotKeys.Num() > 0)
-				{
-					TempKey.Transform.SetRotation(FQuat(RawTrack.RotKeys[0]));
-				}
-
-				if(RawTrack.ScaleKeys.IsValidIndex(KeyIndex))
-				{
-					TempKey.Transform.SetScale3D(FVector(RawTrack.ScaleKeys[KeyIndex]));
-				}
-				else if(RawTrack.ScaleKeys.Num() > 0)
-				{
-					TempKey.Transform.SetScale3D(FVector(RawTrack.ScaleKeys[0]));
-				}
+				TempKey.Transform = BoneTransforms[KeyIndex];
 
 				// apply component transform if any
 				TempKey.Transform = InvComponentTransform * TempKey.Transform;

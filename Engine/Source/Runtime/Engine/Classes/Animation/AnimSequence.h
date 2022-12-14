@@ -20,6 +20,8 @@
 #include "Animation/CustomAttributes.h"
 #include "Animation/AnimData/AnimDataNotifications.h"
 #include "Animation/AttributeCurve.h"
+#include "PerPlatformProperties.h"
+#include "IO/IoHash.h"
 
 #if WITH_EDITOR
 #include "AnimData/IAnimationDataModel.h"
@@ -31,12 +33,15 @@
 typedef TArray<FTransform> FTransformArrayA2;
 
 class USkeletalMesh;
+class FQueuedThreadPool;
+enum class EQueuedWorkPriority : uint8;
 struct FAnimCompressContext;
 struct FAnimSequenceDecompressionContext;
 struct FCompactPose;
-class ITargetPlatform;
 
-namespace UE { namespace Anim { namespace Compression { struct FScopedCompressionGuard; } } }
+namespace UE { namespace Anim { class FAnimSequenceCompilingManager; namespace Compression { struct FScopedCompressionGuard; } class FAnimationSequenceAsyncCacheTask; } }
+
+extern ENGINE_API int32 GPerformFrameStripping;
 
 // These two always should go together, but it is not right now. 
 // I wonder in the future, we change all compressed to be inside as well, so they all stay together
@@ -180,6 +185,7 @@ struct ENGINE_API FCompressedTrack
 };
 
 // Param structure for UAnimSequence::RequestAnimCompressionParams
+struct UE_DEPRECATED(5.2, "FRequestAnimCompressionParams has been deprecated") FRequestAnimCompressionParams;
 struct ENGINE_API FRequestAnimCompressionParams
 {
 	// Is the compression to be performed Async
@@ -195,12 +201,12 @@ struct ENGINE_API FRequestAnimCompressionParams
 	TSharedPtr<FAnimCompressContext> CompressContext;
 
 	// Constructors
-	FRequestAnimCompressionParams(bool bInAsyncCompression, bool bInAllowAlternateCompressor = false, bool bInOutput = false, const ITargetPlatform* = nullptr);
-	FRequestAnimCompressionParams(bool bInAsyncCompression, TSharedPtr<FAnimCompressContext> InCompressContext);
+	FRequestAnimCompressionParams(bool bInAsyncCompression, bool bInAllowAlternateCompressor = false, bool bInOutput = false, const ITargetPlatform* = nullptr) {}
+	FRequestAnimCompressionParams(bool bInAsyncCompression, TSharedPtr<FAnimCompressContext> InCompressContext) {}
 
 	// Frame stripping initialization funcs (allow stripping per platform)
-	void InitFrameStrippingFromCVar();
-	void InitFrameStrippingFromPlatform();
+	void InitFrameStrippingFromCVar() {}
+	void InitFrameStrippingFromPlatform() {}
 
 	const ITargetPlatform* TargetPlatform;
 };
@@ -380,12 +386,14 @@ public:
 	virtual void GetPreloadDependencies(TArray<UObject*>& OutDeps) override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
 	virtual bool IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform) override;
 	virtual void WillNeverCacheCookedPlatformDataAgain() override;
 	virtual void ClearCachedCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
 	virtual void ClearAllCachedCookedPlatformData() override;
 #endif // WITH_EDITOR
 	virtual void BeginDestroy() override;
+	virtual bool IsReadyForFinishDestroy() override;
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	static void AddReferencedObjects(UObject* This, FReferenceCollector& Collector);
 	//~ End UObject Interface
@@ -405,7 +413,7 @@ public:
 	virtual void RefreshCacheData() override;
 	virtual EAdditiveAnimationType GetAdditiveAnimType() const override { return AdditiveAnimType; }
 	virtual int32 GetNumberOfSampledKeys() const override;
-	virtual FFrameRate GetSamplingFrameRate() const override { return TargetFrameRate; }
+	virtual FFrameRate GetSamplingFrameRate() const override { return PlatformTargetFrameRate.Default; }
 	virtual void EvaluateCurveData(FBlendedCurve& OutCurve, float CurrentTime, bool bForceUseRawData = false) const override;
 	virtual float EvaluateCurveData(SmartName::UID_Type CurveUID, float CurrentTime, bool bForceUseRawData = false) const override;
 	virtual bool HasCurveData(SmartName::UID_Type CurveUID, bool bForceUseRawData) const override;
@@ -457,6 +465,7 @@ private:
 	void UpdateFrameRate();
 #endif
 	
+public:
 	const TArray<FTransform>& GetRetargetTransforms() const;
 	FName GetRetargetTransformsSourceName() const;
 
@@ -470,7 +479,6 @@ private:
 	*/
 	void RetargetBoneTransform(FTransform& BoneTransform, const int32 SkeletonBoneIndex, const FCompactPoseBoneIndex& BoneIndex, const FBoneContainer& RequiredBones, const bool bIsBakedAdditive) const;
 
-public:
 	/**
 	* Get Bone Transform of the additive animation for the Time given, relative to Parent for all RequiredBones
 	*
@@ -501,9 +509,9 @@ public:
 	 * @param	Time			Time on track to interpolate to.
 	 * @param	bUseRawData		If true, use raw animation data instead of compressed data.
 	 */
-	UE_DEPRECATED(5.1, "Use other GetBoneTransform signature")
-	void GetBoneTransform(FTransform& OutAtom, int32 TrackIndex, float Time, bool bUseRawData) const;
-	void GetBoneTransform(FTransform& OutAtom, int32 TrackIndex, double Time, bool bUseRawData) const;
+	UE_DEPRECATED(5.1, "Use other GetBoneTransform signature using double and skeleton index")
+	void GetBoneTransform(FTransform& OutAtom, int32 TrackIndex, float Time, bool bUseRawData) const {}
+	void GetBoneTransform(FTransform& OutAtom, FSkeletonPoseBoneIndex BoneIndex, double Time, bool bUseRawData) const;
 
 	/**
 	 * Get Bone Transform of the Time given, relative to Parent for the Track Given
@@ -513,7 +521,7 @@ public:
 	 * @param	DecompContext	Decompression context to use.
 	 * @param	bUseRawData		If true, use raw animation data instead of compressed data.
 	 */
-	void GetBoneTransform(FTransform& OutAtom, int32 TrackIndex, FAnimSequenceDecompressionContext& DecompContext, bool bUseRawData) const;
+	void GetBoneTransform(FTransform& OutAtom, FSkeletonPoseBoneIndex BoneIndex, FAnimSequenceDecompressionContext& DecompContext, bool bUseRawData) const;
 	// End Transform related functions 
 
 	// Begin Memory related functions
@@ -526,7 +534,7 @@ public:
 	/**
 	 * @return		The approximate size of raw animation data.
 	 */
-	int32 GetApproxRawSize() const;
+	int64 GetApproxRawSize() const;
 #endif // WITH_EDITOR
 
 	/**
@@ -541,35 +549,36 @@ public:
 
 	// Get compressed data for this UAnimSequence. May be built directly or pulled from DDC
 #if WITH_EDITOR
+	UE_DEPRECATED(5.2, "Public access to ShouldPerformStripping has been deprecated")
 	bool ShouldPerformStripping(const bool bPerformFrameStripping, const bool bPerformStrippingOnOddFramedAnims) const;
+
+	UE_DEPRECATED(5.2, "GetDDCCacheKeySuffix has been deprecated use CreateDerivedDataKeyHash instead")
 	FString GetDDCCacheKeySuffix(const bool bPerformStripping, const ITargetPlatform* TargetPlatform) const;
-	void ApplyCompressedData(const FString& DataCacheKeySuffix, const bool bPerformFrameStripping, const TArray<uint8>& Data);
+
+	UE_DEPRECATED(5.2, "ApplyCompressedData has been deprecated")
+	void ApplyCompressedData(const FString& DataCacheKeySuffix, const bool bPerformFrameStripping, const TArray<uint8>& Data) {}
 
 	void WaitOnExistingCompression(const bool bWantResults=true);
-	void RequestAnimCompression(FRequestAnimCompressionParams Params);
-	void RequestSyncAnimRecompression(bool bOutput = false)
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		RequestAnimCompression(FRequestAnimCompressionParams(false, false, bOutput));
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
+	
+	UE_DEPRECATED(5.2, "RequestAnimCompression has been deprecated use BeginCacheDerivedData or CacheDerivedData instead")
+	void RequestAnimCompression(
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		FRequestAnimCompressionParams Params) {}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-	void RequestAsyncAnimRecompression(bool bOutput = false)
-	{ 
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		RequestAnimCompression(FRequestAnimCompressionParams(true, false, bOutput));
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
+	UE_DEPRECATED(5.2, "RequestSyncAnimRecompression has been deprecated use CacheDerivedData instead")
+	void RequestSyncAnimRecompression(bool bOutput = false);
+
+	UE_DEPRECATED(5.2, "RequestSyncAnimRecompression has been deprecated use BeginCacheDerivedData instead")
+	void RequestAsyncAnimRecompression(bool bOutput = false);
 #endif
 
 protected:
-	void ApplyCompressedData(const TArray<uint8>& Data);
     void ClearCompressedBoneData();
     void ClearCompressedCurveData();
     // Write the compressed data to the supplied FArchive
     void SerializeCompressedData(FArchive& Ar, bool bDDCData);
 #if WITH_EDITOR
-	void SetCompressionComplete();
 	virtual void OnAnimModelLoaded() override;
 #endif
 public:
@@ -584,14 +593,18 @@ public:
 	*
 	* @param	TrackIndex		Track Index
 	*/
+	UE_DEPRECATED(5.2, "GetSkeletonIndexFromCompressedDataTrackIndex has been deprecated")
 	int32 GetSkeletonIndexFromCompressedDataTrackIndex(const int32 TrackIndex) const
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return GetCompressedTrackToSkeletonMapTable()[TrackIndex].BoneTreeIndex;
+    	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	// End Utility functions
 	
 #if WITH_EDITOR
-	void BakeTrackCurvesToRawAnimationTracks(TArray<FRawAnimSequenceTrack>& NewRawTracks, TArray<FName>& NewTrackNames, TArray<FTrackToSkeletonMap>& NewTrackToSkeletonMapTable);
+	UE_DEPRECATED(5.2, "BakeTrackCurvesToRawAnimationTracks has been deprecated")
+	void BakeTrackCurvesToRawAnimationTracks(TArray<FRawAnimSequenceTrack>& NewRawTracks, TArray<FName>& NewTrackNames, TArray<FTrackToSkeletonMap>& NewTrackToSkeletonMapTable) {}
 
 	/**
 	 * Add Key to Transform Curves
@@ -663,13 +676,16 @@ public:
 	bool CanBakeAdditive() const;
 
 	// Bakes out track data for the skeletons virtual bones into the raw data
-	void BakeOutVirtualBoneTracks(TArray<FRawAnimSequenceTrack>& NewRawTracks, TArray<FName>& NewAnimationTrackNames, TArray<FTrackToSkeletonMap>& NewTrackToSkeletonMapTable);
+	UE_DEPRECATED(5.2, "BakeOutVirtualBoneTracks has been deprecated")
+	void BakeOutVirtualBoneTracks(TArray<FRawAnimSequenceTrack>& NewRawTracks, TArray<FName>& NewAnimationTrackNames, TArray<FTrackToSkeletonMap>& NewTrackToSkeletonMapTable) {} 
 
 	// Performs multiple evaluations of the animation as a test of compressed data validatity
-	void TestEvalauteAnimation() const;
+	UE_DEPRECATED(5.2, "TestEvalauteAnimation has been deprecated")
+	void TestEvalauteAnimation() const {}
 
 	// Bakes out the additive version of this animation into the raw data.
-	void BakeOutAdditiveIntoRawData(TArray<FRawAnimSequenceTrack>& NewRawTracks, TArray<FName>& NewAnimationTrackNames, TArray<FTrackToSkeletonMap>& NewTrackToSkeletonMapTable, TArray<FFloatCurve>& NewCurveTracks, TArray<FRawAnimSequenceTrack>& AdditiveBaseAnimationData);
+	UE_DEPRECATED(5.2, "BakeOutAdditiveIntoRawData has been deprecated, this behaviour has moved to FCompressibleAnimData")
+	void BakeOutAdditiveIntoRawData(TArray<FRawAnimSequenceTrack>& NewRawTracks, TArray<FName>& NewAnimationTrackNames, TArray<FTrackToSkeletonMap>& NewTrackToSkeletonMapTable, TArray<FFloatCurve>& NewCurveTracks, TArray<FRawAnimSequenceTrack>& AdditiveBaseAnimationData) const {}
 
 	// Test whether at any point we will scale a bone to 0 (needed for validating additive anims)
 	bool DoesSequenceContainZeroScale() const;
@@ -748,12 +764,6 @@ public:
 	/** List of Unique marker names in this animation sequence */
 	TArray<FName>				UniqueMarkerNames;
 
-private:
-#if WITH_EDITOR
-	// Are we currently compressing this animation
-	bool bCompressionInProgress;
-#endif
-
 public:
 #if WITH_EDITOR
 	UE_DEPRECATED(5.0, "AddBoneCustomAttribute has been deprecated see UAnimDataController::AddAttribute")
@@ -796,21 +806,26 @@ protected:
 	// End UAnimSequenceBase virtual overrides
 
 	void EnsureValidRawDataGuid();
+	UE_DEPRECATED(5.2, "RecompressAnimationData has been deprecated")
 	void RecompressAnimationData();
-	void ResampleAnimationTrackData();
+	UE_DEPRECATED(5.2, "ResampleAnimationTrackData has been deprecated")
+	void ResampleAnimationTrackData() const {}
 	void CalculateNumberOfSampledKeys();
-	void ClearResampledAnimationTrackData();
+	UE_DEPRECATED(5.2, "ClearResampledAnimationTrackData has been deprecated")
+	void ClearResampledAnimationTrackData() {}
 
 	void DeleteBoneAnimationData();
 	void DeleteDeprecatedRawAnimationData();
 public:
-	const TArray<FBoneAnimationTrack>& GetResampledTrackData() const { return ResampledAnimationTrackData; }
 	void DeleteNotifyTrackData();
 #endif // WITH_EDITOR
 
 protected:
 	UPROPERTY(VisibleAnywhere, AssetRegistrySearchable, Category = "Animation")
 	FFrameRate TargetFrameRate;
+
+	UPROPERTY(VisibleAnywhere, AssetRegistrySearchable, Category = "Animation")
+	FPerPlatformFrameRate PlatformTargetFrameRate;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(VisibleAnywhere, AssetRegistrySearchable, Category = "Animation", Transient, DuplicateTransient)
@@ -819,13 +834,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Animation", Transient, DuplicateTransient)
 	int32 NumberOfSampledFrames;
 
-	UPROPERTY(VisibleAnywhere, Category = "Animation", Transient, DuplicateTransient)
-	TArray<FBoneAnimationTrack> ResampledAnimationTrackData;
-
 	bool bBlockCompressionRequests;
-
-	FString RequestedCompression_DDCKey;
-
 private:
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UE_DEPRECATED(5.0, "PerBoneCustomAttributeData has been deprecated see UAnimDataModel::AnimatedBoneAttributes")
@@ -838,6 +847,32 @@ protected:
 	UPROPERTY()
 	TMap<FAnimationAttributeIdentifier, FAttributeCurve> AttributeCurves;
 
+#if WITH_EDITOR
+	FIoHash CreateDerivedDataKeyHash(const ITargetPlatform* TargetPlatform);
+	FIoHash BeginCacheDerivedData(const ITargetPlatform* TargetPlatform);
+	bool PollCacheDerivedData(const FIoHash& KeyHash) const;
+	void EndCacheDerivedData(const FIoHash& KeyHash);
+
+	FIoHash DataKeyHash;
+	TMap<FIoHash, TUniquePtr<FCompressedAnimSequence>> DataByPlatformKeyHash;
+	TMap<FIoHash, TPimplPtr<UE::Anim::FAnimationSequenceAsyncCacheTask>> CacheTasksByKeyHash;
+
+protected:
+	bool TryCancelAsyncTasks();
+	void FinishAsyncTasks();
+	void Reschedule(FQueuedThreadPool* InThreadPool, EQueuedWorkPriority InPriority);
+	bool IsAsyncTaskComplete() const;
+	bool IsCompiling() const;
+public:	
+	void BeginCacheDerivedDataForCurrentPlatform();
+	void CacheDerivedDataForCurrentPlatform();
+	
+	// Synchronous caching of compressed animation data for provided target platform
+	FCompressedAnimSequence& CacheDerivedData(const ITargetPlatform* TargetPlatform);
+
+	FFrameRate GetTargetSamplingFrameRate(const ITargetPlatform* InPlatform) const;
+#endif
+
 public:
 	friend class UAnimationAsset;
 	friend struct FScopedAnimSequenceRawDataCache;
@@ -847,4 +882,5 @@ public:
 	friend class FAnimSequenceTestBase;
 	friend struct UE::Anim::Compression::FScopedCompressionGuard;
 	friend class FAnimDataControllerTestBase;
+	friend class UE::Anim::FAnimSequenceCompilingManager;
 };

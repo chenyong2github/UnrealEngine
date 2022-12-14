@@ -48,6 +48,7 @@ class UAnimBoneCompressionSettings;
 class UAnimBoneCompressionCodec;
 class USkeleton;
 struct FCompactPose;
+struct FBoneAnimationTrack;
 
 template<typename ArrayClass>
 struct ENGINE_API FCompressedOffsetDataBase
@@ -190,6 +191,7 @@ public:
 	}
 };
 
+#if WITH_EDITOR
 struct ENGINE_API FCompressibleAnimData
 {
 public:
@@ -222,7 +224,7 @@ public:
 
 	TArray<FFloatCurve> RawFloatCurves;
 
-	float SequenceLength;
+	double SequenceLength;
 
 	/** Number of keys within the (non-uniform) RawAnimationData tracks */
 	
@@ -245,7 +247,11 @@ public:
 
 	FCancelCompressionSignal IsCancelledSignal;
 
-	const ITargetPlatform* TargetPlatform;
+	bool bShouldPerformStripping = false;
+	TWeakObjectPtr<UAnimSequence> WeakSequence;
+	bool bDataFetched = false;
+
+	const ITargetPlatform* TargetPlatform = nullptr;
 
 	static int32 GetApproxRawDataArraySize(const TArray<FRawAnimSequenceTrack>& AnimData)
 	{
@@ -292,6 +298,8 @@ public:
 		return MemUsage;
 	}
 
+	void FetchData(const ITargetPlatform* InPlatform);
+	
 	void Update(struct FCompressedAnimSequence& CompressedData) const;
 
 	void AddReferencedObjects(FReferenceCollector& Collector)
@@ -305,12 +313,18 @@ public:
 		return IsCancelledSignal.IsCancelled();
 	}
 
+protected:
+	void BakeOutAdditiveIntoRawData(const FFrameRate& SampleRate, TArray<FBoneAnimationTrack>& ResampledTrackData, TArray<FFloatCurve>& FloatCurves);
+	void ResampleAnimationTrackData(const FFrameRate& SampleRate, TArray<FBoneAnimationTrack>& ResampledTrackData) const;
+
 private:
 	void WriteCompressionDataToJSON(TArrayView<FName> OriginalTrackNames, TArrayView<FRawAnimSequenceTrack> FinalRawAnimationData, TArrayView<FName> FinalTrackNames) const;
 };
 
 typedef TSharedPtr<FCompressibleAnimData, ESPMode::ThreadSafe> FCompressibleAnimPtr;
 typedef TSharedRef<FCompressibleAnimData, ESPMode::ThreadSafe> FCompressibleAnimRef;
+
+#endif // WITH_EDITOR
 
 // Wrapper Code
 template <typename T>
@@ -763,11 +777,19 @@ public:
 		return CompressedTrackToSkeletonMapTable[TrackIndex].BoneTreeIndex;
 	}
 
+	int32 GetTrackIndexFromSkeletonIndex(const int32 BoneIndex) const
+	{
+		return CompressedTrackToSkeletonMapTable.IndexOfByPredicate([BoneIndex](const FTrackToSkeletonMap& Entry) { return Entry.BoneTreeIndex == BoneIndex; });
+	}
+
 	// Return the number of bytes used
 	SIZE_T GetMemorySize() const;
 
+	void Reset();
 	void ClearCompressedBoneData();
 	void ClearCompressedCurveData();
+
+	bool IsValid(const UAnimSequence* AnimSequence) const;
 };
 
 struct FRootMotionReset
@@ -846,3 +868,8 @@ extern void DecompressPose(	FCompactPose& OutPose,
 							FName RetargetSource,
 							FName SourceName,
 							const FRootMotionReset& RootMotionReset);
+
+
+#if WITH_EDITOR
+extern FGuid GenerateGuidFromRawAnimData(const TArray<FRawAnimSequenceTrack>& RawAnimationData, const FRawCurveTracks& RawCurveData);
+#endif 

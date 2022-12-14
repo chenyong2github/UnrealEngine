@@ -795,8 +795,7 @@ namespace AnimationEditorUtils
 			GWarn->BeginSlowTask(LOCTEXT("AnimCompressing", "Compressing"), true);
 
 			{
-				TSharedPtr<FAnimCompressContext> CompressContext = MakeShareable(new FAnimCompressContext(false, true, AnimSequencePtrs.Num()));
-
+				UE::Anim::Compression::FAnimationCompressionMemorySummaryScope Scope;
 				for (UAnimSequence* AnimSeq : AnimSequencePtrs)
 				{
 					if (OverrideSettings != nullptr)
@@ -806,8 +805,8 @@ namespace AnimationEditorUtils
 
 					// Clear CompressCommandletVersion so we can recompress these animations later.
 					AnimSeq->CompressCommandletVersion = 0;
-					AnimSeq->RequestAnimCompression(FRequestAnimCompressionParams(true, CompressContext));
-					++CompressContext->AnimIndex;
+					AnimSeq->ClearAllCachedCookedPlatformData();
+					AnimSeq->CacheDerivedDataForCurrentPlatform();
 				}
 			}
 

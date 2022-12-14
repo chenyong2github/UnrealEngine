@@ -82,6 +82,12 @@ public:
 	virtual const FTransformCurve* FindTransformCurve(const FAnimationCurveIdentifier& CurveIdentifier) const override;
 	virtual const FRichCurve* FindRichCurve(const FAnimationCurveIdentifier& CurveIdentifier) const override;
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	virtual bool IsValidBoneTrackName(const FName& TrackName) const override;
+	virtual FTransform GetBoneTrackTransform(FName TrackName, const FFrameNumber& FrameNumber) const override;
+	virtual void GetBoneTrackTransforms(FName TrackName, const TArray<FFrameNumber>& FrameNumbers, TArray<FTransform>& OutTransforms) const override;	
+	virtual void GetBoneTrackTransforms(FName TrackName, TArray<FTransform>& OutTransforms) const override;
+	virtual void GetBoneTracksTransform(const TArray<FName>& TrackNames, const FFrameNumber& FrameNumber, TArray<FTransform>& OutTransforms) const override;	
+	virtual FTransform EvaluateBoneTrackTransform(FName TrackName, const FFrameTime& FrameTime, const EAnimInterpolationType& Interpolation) const override;	
 	virtual const FAnimationCurveData& GetCurveData() const override;
 	virtual int32 GetNumberOfTransformCurves() const override;
 	virtual int32 GetNumberOfFloatCurves() const override;
@@ -105,19 +111,27 @@ public:
 	virtual FAnimDataModelModifiedDynamicEvent& GetModifiedDynamicEvent() override { return ModifiedEventDynamic; }
     virtual void Evaluate(FAnimationPoseData& InOutPoseData, const UE::Anim::DataModel::FEvaluationContext& EvaluationContext) const override;
 	virtual bool HasBeenPopulated() const override { return bPopulated; }
+	virtual void IterateBoneKeys(const FName& BoneName, TFunction<bool(const FVector3f& Pos, const FQuat4f&, const FVector3f, const FFrameNumber&)> IterationFunction) const override;
 protected:
 	virtual void OnNotify(const EAnimDataModelNotifyType& NotifyType, const FAnimDataModelNotifPayload& Payload) override final;
+
+	virtual void LockEvaluationAndModification() const override final
+	{
+		EvaluationLock.Lock();
+	}
+	virtual void UnlockEvaluationAndModification() const override final
+	{
+		EvaluationLock.Unlock();
+	}
 	/** End IAnimationDataModel overrides */
 	
 	/** Controller helper functionality */
 	FTransformCurve* FindMutableTransformCurveById(const FAnimationCurveIdentifier& CurveIdentifier);
 	FFloatCurve* FindMutableFloatCurveById(const FAnimationCurveIdentifier& CurveIdentifier);
 	FAnimCurveBase* FindMutableCurveById(const FAnimationCurveIdentifier& CurveIdentifier);
-	FBoneAnimationTrack* FindMutableBoneTrackByName(FName Name);	
 	FRichCurve* GetMutableRichCurve(const FAnimationCurveIdentifier& CurveIdentifier);
 
 	void GenerateLegacyCurveData();
-	void GenerateLegacyBoneData();
 
 	void ValidateData() const;
 	void ValidateSequencerData() const;
@@ -133,10 +147,11 @@ protected:
 	void InitializeFKControlRig(UFKControlRig* FKControlRig, USkeleton* Skeleton) const;
 	UControlRig* GetControlRig() const;
 	
-	void IterateTransformControlCurve(const FName& BoneName, TFunction<void(const FTransform&, const FFrameNumber&)> IterationFunction) const;
+	void IterateTransformControlCurve(const FName& BoneName, TFunction<void(const FTransform&, const FFrameNumber&)> IterationFunction, const TArray<FFrameNumber>* InFrameNumbers = nullptr) const;
 	void GenerateTransformKeysForControl(const FName& BoneName, TArray<FTransform>& InOutTransforms, TArray<FFrameNumber>& InOutFrameNumbers) const;
 	void RemoveOutOfDateControls() const;
-
+	
+	void GenerateTransformKeysForControl(const FName& BoneName, const TArray<FFrameNumber>& FrameNumbers, TArray<FTransform>& InOutTransforms) const;
 private:	
 	/** Dynamic delegate event allows scripting to register to any broadcast-ed notify. */
 	UPROPERTY(BlueprintAssignable, Transient, Category = AnimationDataModel, meta = (ScriptName = "ModifiedEvent", AllowPrivateAccess = "true"))
@@ -144,9 +159,6 @@ private:
 	FAnimDataModelModifiedEvent ModifiedEvent;
 	TUniquePtr<IAnimationDataModel::FModelNotifier> Notifier;
 	UE::Anim::FAnimDataModelNotifyCollector Collector;
-
-	UPROPERTY(VisibleAnywhere, Category=AnimSequencer)
-	TArray<FBoneAnimationTrack> LegacyBoneAnimationTracks;
 
 	UPROPERTY(VisibleAnywhere, Category=AnimSequencer)
 	FAnimationCurveData LegacyCurveData;
@@ -174,3 +186,5 @@ private:
 
 	friend class UAnimSequencerController;
 };
+
+

@@ -238,7 +238,9 @@ public:
 
 	FString GetBaseDDCKey(uint32 NumChunks, const ITargetPlatform* TargetPlatform) const;
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	void RequestCompressedDataForChunk(const FString& ChunkDDCKey, FAnimStreamableChunk& Chunk, const int32 ChunkIndex, const uint32 FrameStart, const uint32 FrameEnd, TSharedRef<FAnimCompressContext> CompressContext, const ITargetPlatform* TargetPlatform);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 
 	bool bUseRawDataOnly;

@@ -1042,15 +1042,15 @@ bool UAnimCompress_RemoveLinearKeys::DoReduction(const FCompressibleAnimData& Co
 	// If the processor is to be run, then additive animations need to be converted from relative to absolute
 	const bool bNeedToConvertBackToAdditive = bRunningProcessor ? CompressibleAnimData.bIsValidAdditive : false;
 
-	FCompressibleAnimData TempConvertedAnimData;
+	TUniquePtr<FCompressibleAnimData> TempConvertedAnimData;
 
 	if (bNeedToConvertBackToAdditive)
 	{
-		TempConvertedAnimData = CompressibleAnimData; // duplicate so we can safely convert to additive
-		ConvertFromRelativeSpace(TempConvertedAnimData);
+		TempConvertedAnimData = MakeUnique<FCompressibleAnimData>(CompressibleAnimData); // duplicate so we can safely convert to additive
+		ConvertFromRelativeSpace(*TempConvertedAnimData);
 	}
 
-	const FCompressibleAnimData& CompressibleDataToOperateOn = bNeedToConvertBackToAdditive ? TempConvertedAnimData : CompressibleAnimData;
+	const FCompressibleAnimData& CompressibleDataToOperateOn = bNeedToConvertBackToAdditive ? *TempConvertedAnimData : CompressibleAnimData;
 
 	// Separate the raw data into tracks and remove trivial tracks (all the same value)
 	TArray<FTranslationTrack> TranslationData;

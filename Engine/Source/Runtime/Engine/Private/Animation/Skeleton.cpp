@@ -1045,10 +1045,11 @@ int32 USkeleton::GetRawAnimationTrackIndex(const int32 InSkeletonBoneIndex, cons
 	if (InSkeletonBoneIndex != INDEX_NONE)
 	{
 #if WITH_EDITOR
-		return InAnimSeq->GetDataModel()->GetBoneAnimationTracks().IndexOfByPredicate([InSkeletonBoneIndex](const FBoneAnimationTrack& AnimationTrack)
-			{
-				return AnimationTrack.BoneTreeIndex == InSkeletonBoneIndex;
-			});
+		TArray<FName> BoneTrackNames;
+		InAnimSeq->GetDataModel()->GetBoneTrackNames(BoneTrackNames);
+		const FName BoneName = ReferenceSkeleton.GetBoneName(InSkeletonBoneIndex);
+		
+		return BoneTrackNames.IndexOfByKey(BoneName);
 #else
 		return InAnimSeq->GetCompressedTrackToSkeletonMapTable().IndexOfByPredicate([InSkeletonBoneIndex](const FTrackToSkeletonMap& Mapping)
 			{

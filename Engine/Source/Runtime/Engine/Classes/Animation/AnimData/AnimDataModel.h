@@ -29,6 +29,8 @@ public:
 	virtual int32 GetNumberOfFrames() const override;
 	virtual int32 GetNumberOfKeys() const override;
 	virtual FFrameRate GetFrameRate() const override;
+	
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS	
 	virtual const TArray<FBoneAnimationTrack>& GetBoneAnimationTracks() const override;
 	virtual const FBoneAnimationTrack& GetBoneTrackByIndex(int32 TrackIndex) const override;
 	virtual const FBoneAnimationTrack& GetBoneTrackByName(FName TrackName) const override;
@@ -37,9 +39,16 @@ public:
 	virtual int32 GetBoneTrackIndex(const FBoneAnimationTrack& Track) const override;
 	virtual int32 GetBoneTrackIndexByName(FName TrackName) const override;
 	virtual bool IsValidBoneTrackIndex(int32 TrackIndex) const override;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	
 	virtual int32 GetNumBoneTracks() const override;
 	virtual void GetBoneTrackNames(TArray<FName>& OutNames) const override;
-
+	virtual FTransform GetBoneTrackTransform(FName TrackName, const FFrameNumber& FrameNumber) const override;
+	virtual void GetBoneTrackTransforms(FName TrackName, const TArray<FFrameNumber>& FrameNumbers, TArray<FTransform>& OutTransforms) const override;	
+	virtual void GetBoneTrackTransforms(FName TrackName, TArray<FTransform>& OutTransforms) const override;
+	virtual void GetBoneTracksTransform(const TArray<FName>& TrackNames, const FFrameNumber& FrameNumber, TArray<FTransform>& OutTransforms) const override;	
+	virtual FTransform EvaluateBoneTrackTransform(FName TrackName, const FFrameTime& FrameTime, const EAnimInterpolationType& Interpolation) const override;
+	virtual bool IsValidBoneTrackName(const FName& TrackName) const override;	
 	virtual const FAnimCurveBase* FindCurve(const FAnimationCurveIdentifier& CurveIdentifier) const override;
 	virtual const FFloatCurve* FindFloatCurve(const FAnimationCurveIdentifier& CurveIdentifier) const override;
 	virtual const FTransformCurve* FindTransformCurve(const FAnimationCurveIdentifier& CurveIdentifier) const override;
@@ -67,10 +76,13 @@ public:
 #endif
 	virtual TScriptInterface<IAnimationDataController> GetController() override;
 	virtual bool HasBeenPopulated() const override { return bPopulated; }
+	virtual void IterateBoneKeys(const FName& BoneName, TFunction<bool(const FVector3f& Pos, const FQuat4f&, const FVector3f, const FFrameNumber&)> IterationFunction) const override;
 protected:
 	virtual IAnimationDataModel::FModelNotifier& GetNotifier() override;
 	virtual FAnimDataModelModifiedDynamicEvent& GetModifiedDynamicEvent() override { return ModifiedEventDynamic; }
 	virtual void OnNotify(const EAnimDataModelNotifyType& NotifyType, const FAnimDataModelNotifPayload& Payload) override {}
+	virtual void LockEvaluationAndModification() const override final {}
+	virtual void UnlockEvaluationAndModification() const override final {}
 	/** End IAnimationDataModel overrides */
 
 private:

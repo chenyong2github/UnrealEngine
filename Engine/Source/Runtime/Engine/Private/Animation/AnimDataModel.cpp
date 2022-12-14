@@ -205,9 +205,121 @@ void UAnimDataModel::GetBoneTrackNames(TArray<FName>& OutNames) const
 	});
 }
 
+FTransform UAnimDataModel::GetBoneTrackTransform(FName TrackName, const FFrameNumber& FrameNumber) const
+{
+	const FBoneAnimationTrack* Track = GetBoneAnimationTracks().FindByPredicate([TrackName](const FBoneAnimationTrack& Track)
+	{
+		return Track.Name == TrackName;
+	});
+
+	if (Track)
+	{
+		const int32 KeyIndex = FrameNumber.Value;
+		if (Track->InternalTrackData.PosKeys.IsValidIndex(KeyIndex) &&
+			Track->InternalTrackData.RotKeys.IsValidIndex(KeyIndex) &&
+			Track->InternalTrackData.ScaleKeys.IsValidIndex(KeyIndex))
+		{
+			return FTransform(FQuat(Track->InternalTrackData.RotKeys[KeyIndex]),
+							FVector(Track->InternalTrackData.PosKeys[KeyIndex]),
+							FVector(Track->InternalTrackData.ScaleKeys[KeyIndex])
+			);
+		}
+	}
+
+	return FTransform::Identity;
+}
+
+void UAnimDataModel::GetBoneTrackTransforms(FName TrackName, const TArray<FFrameNumber>& FrameNumbers, TArray<FTransform>& OutTransforms) const
+{
+	const FBoneAnimationTrack* Track = GetBoneAnimationTracks().FindByPredicate([TrackName](const FBoneAnimationTrack& Track)
+	{
+		return Track.Name == TrackName;
+	});
+
+	OutTransforms.SetNum(FrameNumbers.Num());
+
+	if (Track)
+	{
+		for (int32 EntryIndex = 0; EntryIndex < FrameNumbers.Num(); ++EntryIndex)
+		{
+			OutTransforms[EntryIndex] = GetBoneTrackTransform(TrackName, FrameNumbers[EntryIndex]);
+		}
+	}
+}
+
+void UAnimDataModel::GetBoneTrackTransforms(FName TrackName, TArray<FTransform>& OutTransforms) const
+{
+	const FBoneAnimationTrack* Track = GetBoneAnimationTracks().FindByPredicate([TrackName](const FBoneAnimationTrack& Track)
+	{
+		return Track.Name == TrackName;
+	});
+	
+	OutTransforms.SetNum(NumberOfKeys);
+
+	if (Track)
+	{
+		for (int32 KeyIndex = 0; KeyIndex < NumberOfKeys; ++KeyIndex)
+		{
+			OutTransforms[KeyIndex] = GetBoneTrackTransform(TrackName, FFrameNumber(KeyIndex));
+		}
+	}
+}
+
+void UAnimDataModel::GetBoneTracksTransform(const TArray<FName>& TrackNames, const FFrameNumber& FrameNumber, TArray<FTransform>& OutTransforms) const
+{	
+	OutTransforms.SetNum(TrackNames.Num());
+	for (int32 EntryIndex = 0; EntryIndex < TrackNames.Num(); ++EntryIndex)
+	{
+		OutTransforms[EntryIndex] = GetBoneTrackTransform(TrackNames[EntryIndex], FrameNumber);
+	}
+}
+
+FTransform UAnimDataModel::EvaluateBoneTrackTransform(FName TrackName, const FFrameTime& FrameTime, const EAnimInterpolationType& Interpolation) const
+{
+	const float Alpha = Interpolation == EAnimInterpolationType::Step ? FMath::RoundToFloat(FrameTime.GetSubFrame()) : FrameTime.GetSubFrame();
+
+	if (FMath::IsNearlyEqual(Alpha, 1.0f))
+	{
+		return GetBoneTrackTransform(TrackName, FrameTime.CeilToFrame());
+	}
+	else if (FMath::IsNearlyZero(Alpha))
+	{
+		return GetBoneTrackTransform(TrackName, FrameTime.FloorToFrame());
+	}
+	
+	const FTransform From = GetBoneTrackTransform(TrackName, FrameTime.FloorToFrame());
+	const FTransform To = GetBoneTrackTransform(TrackName, FrameTime.CeilToFrame());
+
+	FTransform Blend;
+	Blend.Blend(From, To, Alpha);
+	return Blend;
+}
+
+bool UAnimDataModel::IsValidBoneTrackName(const FName& TrackName) const
+{
+	return BoneAnimationTracks.ContainsByPredicate([&TrackName](const FBoneAnimationTrack& SearchTrack)
+	{
+		return SearchTrack.Name == TrackName;
+	});
+}
+
 const FAnimationCurveData& UAnimDataModel::GetCurveData() const
 {
 	return CurveData;
+}
+
+void UAnimDataModel::IterateBoneKeys(const FName& BoneName, TFunction<bool(const FVector3f& Pos, const FQuat4f&, const FVector3f, const FFrameNumber&)> IterationFunction) const
+{
+	if (const FBoneAnimationTrack* Track = FindBoneTrackByName(BoneName))
+	{
+		for (int32 KeyIndex = 0; KeyIndex < GetNumberOfKeys(); ++KeyIndex)
+		{
+			if(!IterationFunction(Track->InternalTrackData.PosKeys[KeyIndex], Track->InternalTrackData.RotKeys[KeyIndex], Track->InternalTrackData.ScaleKeys[KeyIndex], KeyIndex))
+			{
+				return;
+			}
+		}
+	}
 }
 
 IAnimationDataModel::FModelNotifier& UAnimDataModel::GetNotifier()
@@ -686,11 +798,11 @@ void UAnimDataModel::Evaluate(FAnimationPoseData& InOutPoseData, const UE::Anim:
 		UE::Anim::Retargeting::FRetargetingScope RetargetingScope(OutPose, EvaluationContext);
 		if (bShouldInterpolate)
 		{		
-			ExtractPose<true>(GetBoneAnimationTracks(), ActiveCurves, OutPose, KeyIndex1, KeyIndex2, Alpha, TimePerFrame, RetargetingScope);
+			ExtractPose<true>(BoneAnimationTracks, ActiveCurves, OutPose, KeyIndex1, KeyIndex2, Alpha, TimePerFrame, RetargetingScope);
 		}
 		else
 		{
-			ExtractPose<false>(GetBoneAnimationTracks(), ActiveCurves, OutPose, KeyIndex1, KeyIndex2, Alpha, TimePerFrame, RetargetingScope);
+			ExtractPose<false>(BoneAnimationTracks, ActiveCurves, OutPose, KeyIndex1, KeyIndex2, Alpha, TimePerFrame, RetargetingScope);
 		}
 	}
 	

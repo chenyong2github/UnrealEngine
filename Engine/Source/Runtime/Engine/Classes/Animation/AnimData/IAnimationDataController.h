@@ -187,8 +187,12 @@ public:
 	*
 	* @return	The index at which the bone track was added, INDEX_NONE if adding it failed
 	*/
+	UE_DEPRECATED(5.2, "AddBoneTrack returning index is deprecated use AddBoneCurve returning bool instead.")
+	UFUNCTION(BlueprintCallable, Category = AnimationData,  meta=(DeprecatedFunction, DeprecationMessage="AddBoneTrack returning index is deprecated use AddBoneCurve returning bool instead."))
+	virtual int32 AddBoneTrack(FName BoneName, bool bShouldTransact = true) { AddBoneCurve(BoneName, bShouldTransact); return INDEX_NONE; }
+
 	UFUNCTION(BlueprintCallable, Category = AnimationData)
-	virtual int32 AddBoneTrack(FName BoneName, bool bShouldTransact = true) = 0;
+	virtual bool AddBoneCurve(FName BoneName, bool bShouldTransact = true) = 0;
 
 	/**
 	* Inserts a new bone animation track for the provided name, at the provided index. Broadcasts a EAnimDataModelNotifyType::TrackAdded notify if successful.
@@ -809,11 +813,11 @@ protected:
 	}
 
 	template<typename ActionClass, class... ActionArguments>
-	void ConditionalAction(bool bCondition, ActionArguments... Arguments)
+	void ConditionalAction(bool bCondition, ActionArguments&&... Arguments)
 	{
 		if (UE::FChangeTransactor::CanTransactChanges() && bCondition) \
 		{ 
-			ChangeTransactor.AddTransactionChange<ActionClass>(Arguments...); \
+			ChangeTransactor.AddTransactionChange<ActionClass>(Forward<ActionArguments>(Arguments)...); \
 		}
 	}
 protected:

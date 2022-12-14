@@ -21,6 +21,7 @@
 
 #include "AnimSequencerHelpers.h"
 #include "Animation/AnimationSettings.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 #define LOCTEXT_NAMESPACE "AnimSequencerController"
 
@@ -114,6 +115,7 @@ void UAnimSequencerController::ResizeNumberOfFrames(FFrameNumber NewLength, FFra
 				// Ensure that the start and end length of either removal or insertion are valid
 				if (T0 < T1)
 				{
+					IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
 					FTransaction Transaction = ConditionalTransaction(LOCTEXT("ResizePlayLength", "Resizing Play Length"), bShouldTransact);
 					
 					const TObjectPtr<UMovieScene>& MovieScene = Model->MovieScene;
@@ -176,6 +178,7 @@ void UAnimSequencerController::ResizeInFrames(FFrameNumber NewLength, FFrameNumb
 				// Ensure that the start and end length of either removal or insertion are valid
 				if (T0 < T1)
 				{
+					IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
 					FBracket Bracket = ConditionalBracket(LOCTEXT("ResizeModel", "Resizing Animation Data"), bShouldTransact);
 					const bool bInserted = NewLength > CurrentNumberOFrames;
 					ResizeNumberOfFrames(NewLength, T0, T1, bShouldTransact);
@@ -285,6 +288,7 @@ void UAnimSequencerController::SetFrameRate(FFrameRate FrameRate, bool bShouldTr
 
 		if (FrameRate.IsMultipleOf(CurrentFrameRate) || FrameRate.IsFactorOf(CurrentFrameRate) || !Model->bPopulated)
 		{
+			IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
 			FTransaction Transaction = ConditionalTransaction(LOCTEXT("SetFrameRate", "Setting Frame Rate"), bShouldTransact);
 			ConditionalAction<UE::Anim::FSetFrameRateAction>(bShouldTransact, Model.Get());
 
@@ -389,6 +393,7 @@ void UAnimSequencerController::FindOrAddCurveNamesOnSkeleton(USkeleton* Skeleton
 	{
 		if (IsSupportedCurveType(SupportedCurveType))
 		{
+			IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
 			FBracket Bracket = ConditionalBracket(LOCTEXT("FindOrAddRawCurveNames", "Updating Skeleton with Animation Curve Names"), bShouldTransact);
 			switch (SupportedCurveType)
 			{
@@ -467,6 +472,7 @@ bool UAnimSequencerController::RemoveBoneTracksMissingFromSkeleton(const USkelet
 			TArray<FName> TracksUpdated;
 			const FReferenceSkeleton& ReferenceSkeleton = Skeleton->GetReferenceSkeleton();
 
+			IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
 			if (UMovieSceneControlRigParameterSection* Section = Model->GetFKControlRigSection())
 			{
 				const TArray<FTransformParameterNameAndCurves>& BoneTrackCurves = Section->GetTransformParameterNamesAndCurves();
@@ -539,6 +545,7 @@ void UAnimSequencerController::UpdateAttributesFromSkeleton(const USkeleton* Ske
 
 		if (ToRemoveIdentifiers.Num() || ToDuplicateIdentifiers.Num())
 		{
+			IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
 			FBracket Bracket = ConditionalBracket(LOCTEXT("VerifyAttributeBoneNames", "Remapping Animation Attribute Data"), bShouldTransact);
 			for (const FAnimationAttributeIdentifier& Identifier : ToRemoveIdentifiers)
 			{
@@ -567,6 +574,7 @@ void UAnimSequencerController::ResetModel(bool bShouldTransact /*= true*/)
 
 	if (Model->bPopulated)
 	{
+		IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
 		FBracket Bracket = ConditionalBracket(LOCTEXT("ResetModel", "Clearing Animation Data"), bShouldTransact);
 
 		RemoveAllBoneTracks(bShouldTransact);
@@ -593,6 +601,7 @@ bool UAnimSequencerController::AddCurve(const FAnimationCurveIdentifier& CurveId
 		{
 			if (!Model->FindCurve(CurveId))
 			{
+				IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
 				FTransaction Transaction = ConditionalTransaction(LOCTEXT("AddRawCurve", "Adding Animation Curve"), bShouldTransact);
 
 				FCurveAddedPayload Payload;
@@ -665,6 +674,7 @@ bool UAnimSequencerController::DuplicateCurve(const FAnimationCurveIdentifier& C
 				{
 					if (!Model->FindCurve(NewCurveId))
 					{
+						IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
 						FTransaction Transaction = ConditionalTransaction(LOCTEXT("CopyRawCurve", "Duplicating Animation Curve"), bShouldTransact);
 
 						auto DuplicateCurve = [NewCurveId, NewCurveName = NewCurveId.InternalName, this](auto& LegacyCurveDataArray, const auto& SourceCurve)
@@ -739,6 +749,7 @@ bool UAnimSequencerController::RemoveCurve(const FAnimationCurveIdentifier& Curv
 		{
 			if (Model->FindCurve(CurveId) != nullptr)
 			{
+				IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
 				FTransaction Transaction = ConditionalTransaction(LOCTEXT("RemoveCurve", "Removing Animation Curve"), bShouldTransact);
 
 				switch (SupportedCurveType)
@@ -848,6 +859,7 @@ bool UAnimSequencerController::SetCurveFlag(const FAnimationCurveIdentifier& Cur
 	
 	if (Curve)
 	{
+		IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
 		FTransaction Transaction = ConditionalTransaction(LOCTEXT("SetCurveFlag", "Setting Raw Curve Flag"), bShouldTransact);
 
 		const int32 CurrentFlags = Curve->GetCurveTypeFlags();
@@ -894,6 +906,7 @@ bool UAnimSequencerController::SetCurveFlags(const FAnimationCurveIdentifier& Cu
 
 	if (Curve)
 	{
+		IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
 		FTransaction Transaction = ConditionalTransaction(LOCTEXT("SetCurveFlags", "Setting Raw Curve Flags"), bShouldTransact);
 
 		const int32 CurrentFlags = Curve->GetCurveTypeFlags();
@@ -928,6 +941,7 @@ bool UAnimSequencerController::SetTransformCurveKeys(const FAnimationCurveIdenti
 	{
 		if (Model->FindMutableTransformCurveById(CurveId) != nullptr)
 		{
+			IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
 			FBracket Bracket = ConditionalBracket(LOCTEXT("SetTransformCurveKeys_Bracket", "Setting Transform Curve Keys"), bShouldTransact);
 			
 			struct FKeys
@@ -1008,6 +1022,7 @@ bool UAnimSequencerController::SetTransformCurveKey(const FAnimationCurveIdentif
 
 	if (Model->FindMutableTransformCurveById(CurveId) != nullptr)
 	{
+		IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
 		FBracket Bracket = ConditionalBracket(LOCTEXT("AddTransformCurveKey_Bracket", "Setting Transform Curve Key"), bShouldTransact);
 		struct FKeys
 		{
@@ -1066,6 +1081,7 @@ bool UAnimSequencerController::RemoveTransformCurveKey(const FAnimationCurveIden
 		const TArray<FString> SubCurveNames = { TEXT( "Translation"), TEXT( "Rotation"), TEXT( "Scale") };
 		const TArray<FString> ChannelCurveNames = { TEXT("X"), TEXT("Y"), TEXT("Z") };
 
+		IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
 		FBracket Bracket = ConditionalBracket(LOCTEXT("RemoveTransformCurveKey_Bracket", "Deleting Animation Transform Curve Key"), bShouldTransact);
 		
 		for (int32 SubCurveIndex = 0; SubCurveIndex < 3; ++SubCurveIndex)
@@ -1102,6 +1118,7 @@ bool UAnimSequencerController::RenameCurve(const FAnimationCurveIdentifier& Curv
 			{
 				if (FAnimCurveBase* Curve = Model->FindMutableCurveById(CurveToRenameId))
 				{
+					IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
 					FTransaction Transaction = ConditionalTransaction(LOCTEXT("RenameCurve", "Renaming Curve"), bShouldTransact);
 
 					FCurveRenamedPayload Payload;
@@ -1164,6 +1181,7 @@ bool UAnimSequencerController::SetCurveColor(const FAnimationCurveIdentifier& Cu
 		{
 			if (const FFloatCurve* Curve = Model->FindMutableFloatCurveById(CurveId))
 			{
+				IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
 				FTransaction Transaction = ConditionalTransaction(LOCTEXT("ChangingCurveColor", "Changing Curve Color"), bShouldTransact);
 
 				ConditionalAction<UE::Anim::FSetCurveColorAction>(bShouldTransact,  CurveId, Curve->Color);
@@ -1204,6 +1222,7 @@ bool UAnimSequencerController::ScaleCurve(const FAnimationCurveIdentifier& Curve
 	{
 		if (FFloatCurve* Curve = Model->FindMutableFloatCurveById(CurveId))
 		{
+			IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
 			FTransaction Transaction = ConditionalTransaction(LOCTEXT("ScalingCurve", "Scaling Curve"), bShouldTransact);
 
 			Curve->FloatCurve.ScaleCurve(Origin, Factor);
@@ -1258,6 +1277,7 @@ bool UAnimSequencerController::SetCurveKey(const FAnimationCurveIdentifier& Curv
 		const FKeyHandle Handle = RichCurve->FindKey(Key.Time, 0.f);
 		if (Handle != FKeyHandle::Invalid())
 		{
+			IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
 			FTransaction Transaction = ConditionalTransaction(LOCTEXT("SetNamedCurveKey", "Setting Curve Key"), bShouldTransact);
 			// Cache old value for action
 			const FRichCurveKey CurrentKey = RichCurve->GetKey(Handle);
@@ -1306,6 +1326,7 @@ bool UAnimSequencerController::RemoveCurveKey(const FAnimationCurveIdentifier& C
 		const FKeyHandle Handle = RichCurve->FindKey(Time, 0.f);
 		if (Handle != FKeyHandle::Invalid())
 		{
+			IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
 			FTransaction Transaction = ConditionalTransaction(LOCTEXT("RemoveNamedCurveKey", "Removing Curve Key"), bShouldTransact);
 
 			// Cached current value for action
@@ -1345,6 +1366,7 @@ bool UAnimSequencerController::SetCurveKeys(const FAnimationCurveIdentifier& Cur
 		bool bKeysSet = false;
 		if (FRichCurve* RichCurve = Model->GetMutableRichCurve(CurveId))
 		{
+			IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
 			FTransaction Transaction = ConditionalTransaction(LOCTEXT("SettingNamedCurveKeys", "Setting Curve Keys"), bShouldTransact);
 			ConditionalAction<UE::Anim::FSetRichCurveKeysAction>(bShouldTransact,  CurveId, RichCurve->GetConstRefOfKeys());
 
@@ -1394,6 +1416,7 @@ bool UAnimSequencerController::SetCurveAttributes(const FAnimationCurveIdentifie
 	const FRichCurve* RichCurve = Model->GetMutableRichCurve(CurveId);
 	if (RichCurve)
 	{
+		IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
 		FTransaction Transaction = ConditionalTransaction(LOCTEXT("SettingNamedCurveAttributes", "Setting Curve Attributes"), bShouldTransact);
 
 		FCurveAttributes CurrentAttributes;
@@ -1480,15 +1503,15 @@ void UAnimSequencerController::NotifyBracketClosed()
 	Model->GetNotifier().Notify(EAnimDataModelNotifyType::BracketClosed);
 }
 
-int32 UAnimSequencerController::AddBoneTrack(FName BoneName, bool bShouldTransact /*= true*/)
+bool UAnimSequencerController::AddBoneCurve(FName BoneName, bool bShouldTransact /*= true*/)
 {
 	if (!ModelInterface->GetAnimationSequence())
 	{
-		return INDEX_NONE;
+		return false;
 	}
 
 	FTransaction Transaction = ConditionalTransaction(LOCTEXT("AddBoneTrack", "Adding Animation Data Track"), bShouldTransact);
-	return InsertBoneTrack(BoneName, INDEX_NONE, bShouldTransact);
+	return InsertBoneTrack(BoneName, INDEX_NONE, bShouldTransact) != INDEX_NONE;
 }
 
 int32 UAnimSequencerController::InsertBoneTrack(FName BoneName, int32 DesiredIndex, bool bShouldTransact /*= true*/)
@@ -1497,10 +1520,8 @@ int32 UAnimSequencerController::InsertBoneTrack(FName BoneName, int32 DesiredInd
 	{
 		return INDEX_NONE;
 	}
-	
-	const int32 TrackIndex = Model->GetBoneTrackIndexByName(BoneName);
 
-	if (TrackIndex == INDEX_NONE)
+	if (!Model->IsValidBoneTrackName(BoneName))
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_InsertBoneTrack);
 		if (Model->GetNumBoneTracks() >= MAX_ANIMATION_TRACKS)
@@ -1511,7 +1532,6 @@ int32 UAnimSequencerController::InsertBoneTrack(FName BoneName, int32 DesiredInd
 		else
 		{
 			// Determine correct index to do insertion at
-			const int32 InsertIndex = Model->LegacyBoneAnimationTracks.IsValidIndex(DesiredIndex) ? DesiredIndex : Model->LegacyBoneAnimationTracks.Num();
 			int32 BoneIndex = INDEX_NONE;
 
 			if (const UAnimSequence* AnimationSequence = Model->GetAnimationSequence())
@@ -1537,25 +1557,21 @@ int32 UAnimSequencerController::InsertBoneTrack(FName BoneName, int32 DesiredInd
 
 			if (BoneIndex != INDEX_NONE || IgnoreSkeletonValidation())
 			{
+				IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
 				FTransaction Transaction = ConditionalTransaction(LOCTEXT("InsertBoneTrack", "Inserting Animation Data Track"), bShouldTransact);
-
-				FBoneAnimationTrack& NewTrack = Model->LegacyBoneAnimationTracks.InsertDefaulted_GetRef(InsertIndex);
-				NewTrack.Name = BoneName;
-				NewTrack.BoneTreeIndex = BoneIndex;
 				
 				FAnimationTrackAddedPayload Payload;
 				Payload.Name = BoneName;
-				Payload.TrackIndex = InsertIndex;
 
 				if(!AddBoneControl(BoneName))
 				{
 					ReportErrorf(LOCTEXT("FailedToAddBoneControlElement", "Failed to add Bone control with name {0}"), FText::FromName(BoneName));
 				}
 				
-				ConditionalAction<UE::Anim::FRemoveTrackAction>(bShouldTransact,  BoneName);
+				ConditionalAction<UE::Anim::FRemoveTrackAction>(bShouldTransact, BoneName);
 				Model->GetNotifier().Notify<FAnimationTrackAddedPayload>(EAnimDataModelNotifyType::TrackAdded, Payload);
 
-				return InsertIndex;
+				return 0;
 			}
 		}
 	}
@@ -1564,7 +1580,7 @@ int32 UAnimSequencerController::InsertBoneTrack(FName BoneName, int32 DesiredInd
 		ReportWarningf(LOCTEXT("TrackNameAlreadyExistsWarning", "Track with name {0} already exists"), FText::FromName(BoneName));
 	}
 	
-	return TrackIndex;
+	return INDEX_NONE;
 }
 
 bool UAnimSequencerController::RemoveBoneTrack(FName BoneName, bool bShouldTransact /*= true*/)
@@ -1574,21 +1590,18 @@ bool UAnimSequencerController::RemoveBoneTrack(FName BoneName, bool bShouldTrans
 		return false;
 	}
 
-	const FBoneAnimationTrack* ExistingTrackPtr = Model->FindBoneTrackByName(BoneName);
-
-	if (ExistingTrackPtr != nullptr)
+	if (Model->IsValidBoneTrackName(BoneName))
 	{
+		IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
 		FTransaction Transaction = ConditionalTransaction(LOCTEXT("RemoveBoneTrack", "Removing Animation Data Track"), bShouldTransact);
-		const int32 TrackIndex = Model->LegacyBoneAnimationTracks.IndexOfByPredicate([ExistingTrackPtr](const FBoneAnimationTrack& Track)
+
+		if (bShouldTransact)
 		{
-			return Track.Name == ExistingTrackPtr->Name;
-		});
-
-		ensure(TrackIndex != INDEX_NONE);
-
-		ConditionalAction<UE::Anim::FAddTrackAction>(bShouldTransact, *ExistingTrackPtr);
-		Model->LegacyBoneAnimationTracks.RemoveAt(TrackIndex);
-
+			TArray<FTransform> BoneTransforms;
+			Model->GetBoneTrackTransforms(BoneName, BoneTransforms);
+			ConditionalAction<UE::Anim::FAddTrackAction>(bShouldTransact, BoneName, MoveTemp(BoneTransforms));			
+		}
+	
 		if(!RemoveBoneControl(BoneName))
 		{
 			ReportError(LOCTEXT("FailedToRemoveBoneControl", "Failed to remove bone control"));
@@ -1642,41 +1655,54 @@ bool UAnimSequencerController::SetBoneTrackKeys(FName BoneName, const TArray<FVe
 
 	if (MaxNumKeys > 0)
 	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_SetBoneTrackKeys);
 		const bool bValidPosKeys = PositionalKeys.Num() == MaxNumKeys;
 		const bool bValidRotKeys = RotationalKeys.Num() == MaxNumKeys;
 		const bool bValidScaleKeys = ScalingKeys.Num() == MaxNumKeys;
 
 		if (bValidPosKeys && bValidRotKeys && bValidScaleKeys)
 		{
-			if (FBoneAnimationTrack* TrackPtr = Model->FindMutableBoneTrackByName(BoneName))
+			if (UMovieSceneControlRigParameterSection* Section = Model->GetFKControlRigSection())
 			{
-				static const FText TransactionText = LOCTEXT("SetTrackKeysTransaction", "Setting Animation Data Track keys");
-				FTransaction Transaction = ConditionalTransaction(TransactionText, bShouldTransact);
-				ConditionalAction<UE::Anim::FSetTrackKeysAction>(bShouldTransact,  *TrackPtr);
-
-				if(UAnimationSequencerDataModel::ValidationMode == 1)
+				if (UControlRig* ControlRig = Model->GetControlRig())
 				{
-					TrackPtr->InternalTrackData.PosKeys = PositionalKeys;
-					TrackPtr->InternalTrackData.RotKeys = RotationalKeys;
-					TrackPtr->InternalTrackData.ScaleKeys = ScalingKeys;
+					if (URigHierarchy* Hierarchy = ControlRig->GetHierarchy())
+					{
+						const FRigElementKey BoneKey(BoneName, ERigElementType::Bone);
+						const FRigElementKey BoneNameControlKey(UFKControlRig::GetControlName(BoneName, ERigElementType::Bone), ERigElementType::Control);
+						
+						const bool bContainsBone = Hierarchy->Contains(BoneKey);
+						const bool bContainsBoneControl = Hierarchy->Contains(BoneNameControlKey);
+						if (bContainsBone && bContainsBoneControl)
+						{
+							IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
+							FTransaction Transaction = ConditionalTransaction(LOCTEXT("SetTrackKeysTransaction", "Setting Animation Data Track keys"), bShouldTransact);
+
+							if (bShouldTransact)
+							{
+								TArray<FTransform> BoneTransforms;
+								Model->GetBoneTrackTransforms(BoneName, BoneTransforms);
+								ConditionalAction<UE::Anim::FSetTrackKeysAction>(bShouldTransact, BoneName, BoneTransforms);							
+							}
+
+							if(!SetBoneCurveKeys(BoneName, PositionalKeys, RotationalKeys, ScalingKeys))
+							{
+								ReportError(LOCTEXT("FailedToSetBoneCurveKeys", "Failed to set bone curve keys"));
+							}
+
+							FAnimationTrackChangedPayload Payload;
+							Payload.Name = BoneName;
+
+							Model->GetNotifier().Notify(EAnimDataModelNotifyType::TrackChanged, Payload);
+
+							return true;
+						}
+					
+					}
+					else
+					{
+						ReportWarningf(LOCTEXT("InvalidTrackNameWarning", "Track with name {0} does not exist"), FText::FromName(BoneName));
+					}
 				}
-
-				if(!SetBoneCurveKeys(BoneName, PositionalKeys, RotationalKeys, ScalingKeys))
-				{
-					ReportError(LOCTEXT("FailedToSetBoneCurveKeys", "Failed to set bone curve keys"));
-				}
-
-				FAnimationTrackChangedPayload Payload;
-				Payload.Name = BoneName;
-
-				Model->GetNotifier().Notify(EAnimDataModelNotifyType::TrackChanged, Payload);
-
-				return true;
-			}
-			else
-			{
-				ReportWarningf(LOCTEXT("InvalidTrackNameWarning", "Track with name {0} does not exist"), FText::FromName(BoneName));
 			}
 		}
 		else
@@ -1749,50 +1775,42 @@ bool UAnimSequencerController::UpdateBoneTrackKeys(FName BoneName, const FInt32R
 			const int32 NumKeysToSet = RangeMax - RangeMin;
 			if (NumKeysToSet == MaxNumKeys)
 			{
-				if (FBoneAnimationTrack* TrackPtr = Model->FindMutableBoneTrackByName(BoneName))
+				if (Model->IsValidBoneTrackName(BoneName))
 				{
-					const FInt32Range TrackKeyRange(0, TrackPtr->InternalTrackData.PosKeys.Num());
+					const FInt32Range TrackKeyRange(0, Model->GetNumberOfKeys());
 					if(TrackKeyRange.Contains(KeyRangeToSet))
 					{
-						FRawAnimSequenceTrack& InternalTrackData = TrackPtr->InternalTrackData;
-						TArray<FVector3f>& TrackPosKeys = InternalTrackData.PosKeys;
-						TArray<FQuat4f>& TrackRotKeys = InternalTrackData.RotKeys;
-						TArray<FVector3f>& TrackScaleKeys = InternalTrackData.ScaleKeys;
-
+						IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
 						FTransaction Transaction = ConditionalTransaction(LOCTEXT("SetTrackKeysRangeTransaction", "Setting Animation Data Track keys"), bShouldTransact);
-						ConditionalAction<UE::Anim::FSetTrackKeysAction>(bShouldTransact, *TrackPtr);
 
+						if (bShouldTransact)
+						{
+							TArray<FTransform> BoneTransforms;
+							Model->GetBoneTrackTransforms(BoneName, BoneTransforms);
+							ConditionalAction<UE::Anim::FSetTrackKeysAction>(bShouldTransact, BoneName, BoneTransforms);
+						}
+						
+						TArray<FTransform> TransformKeys;
+						TArray<float> TimeValues;
+					
+						const FFrameRate& FrameRate = ModelInterface->GetFrameRate();
+						TransformKeys.Reserve(PositionalKeys.Num());
+						TimeValues.Reserve(PositionalKeys.Num());
 						int32 KeyIndex = 0;
 						for (int32 RangeIndex = RangeMin; RangeIndex < RangeMax; ++RangeIndex, ++KeyIndex)
 						{
-							TrackPosKeys[RangeIndex] = PositionalKeys[KeyIndex];
-							TrackRotKeys[RangeIndex] = RotationalKeys[KeyIndex];
-							TrackScaleKeys[RangeIndex] = ScalingKeys[KeyIndex];
+							TransformKeys.Add(FTransform(FQuat(RotationalKeys[KeyIndex]), FVector(PositionalKeys[KeyIndex]), FVector(ScalingKeys[KeyIndex])));
+							TimeValues.Add(FrameRate.AsSeconds(RangeIndex));
 						}
-
+					
+						if(!UpdateBoneCurveKeys(BoneName, TransformKeys, TimeValues))
 						{
-							TArray<FTransform> TransformKeys;
-							TArray<float> TimeValues;
-
-							const FFrameRate& FrameRate = ModelInterface->GetFrameRate();
-							TransformKeys.Reserve(PositionalKeys.Num());
-							TimeValues.Reserve(PositionalKeys.Num());
-							KeyIndex = 0;
-							for (int32 RangeIndex = RangeMin; RangeIndex < RangeMax; ++RangeIndex, ++KeyIndex)
-							{
-								TransformKeys.Add(FTransform(FQuat(RotationalKeys[KeyIndex]), FVector(PositionalKeys[KeyIndex]), FVector(ScalingKeys[KeyIndex])));
-								TimeValues.Add(FrameRate.AsSeconds(RangeIndex));
-							}
-
-							if(!UpdateBoneCurveKeys(BoneName, TransformKeys, TimeValues))
-							{
-								ReportError(LOCTEXT("FailedToUpdateBoneCurveKeys", "Failed to update bone curve keys"));
-							}
+							ReportError(LOCTEXT("FailedToUpdateBoneCurveKeys", "Failed to update bone curve keys"));
 						}
-
+						
 						FAnimationTrackChangedPayload Payload;
 						Payload.Name = BoneName;
-
+						
 						Model->GetNotifier().Notify(EAnimDataModelNotifyType::TrackChanged, Payload);
 
 						return true;
@@ -1908,6 +1926,7 @@ bool UAnimSequencerController::AddAttribute(const FAnimationAttributeIdentifier&
 
 		if (!bAttributeAlreadyExists)
 		{
+			IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
 			FTransaction Transaction = ConditionalTransaction(LOCTEXT("AddAttribute", "Adding Animated Bone Attribute"), bShouldTransact);
 
 			FAnimatedBoneAttribute& Attribute = Model->AnimatedBoneAttributes.AddDefaulted_GetRef();
@@ -1948,6 +1967,7 @@ bool UAnimSequencerController::RemoveAttribute(const FAnimationAttributeIdentifi
 
 		if (AttributeIndex != INDEX_NONE)
 		{
+			IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
 			FTransaction Transaction = ConditionalTransaction(LOCTEXT("RemoveAttribute", "Removing Animated Bone Attribute"), bShouldTransact);
 
 			ConditionalAction<UE::Anim::FAddAtributeAction>(bShouldTransact,  Model->AnimatedBoneAttributes[AttributeIndex]);
@@ -2040,6 +2060,7 @@ bool UAnimSequencerController::SetAttributeKey_Internal(const FAnimationAttribut
 			{
 				if (TypeStruct == AttributePtr->Identifier.GetType())
 				{
+					IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
 					FTransaction Transaction = ConditionalTransaction(LOCTEXT("SettingAttributeKey", "Setting Animated Bone Attribute key"), bShouldTransact);
 
 					FAttributeCurve& Curve = AttributePtr->Curve;
@@ -2103,6 +2124,7 @@ bool UAnimSequencerController::SetAttributeKeys_Internal(const FAnimationAttribu
 			{
 				if (TypeStruct == AttributePtr->Identifier.GetType())
 				{
+					IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
 					FTransaction Transaction = ConditionalTransaction(LOCTEXT("SettingAttributeKeys", "Setting Animated Bone Attribute keys"), bShouldTransact);
 
 					FAnimatedBoneAttribute& Attribute = *AttributePtr;
@@ -2160,6 +2182,7 @@ bool UAnimSequencerController::RemoveAttributeKey(const FAnimationAttributeIdent
 
 			if (KeyHandle != FKeyHandle::Invalid())
 			{
+				IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
 				FTransaction Transaction = ConditionalTransaction(LOCTEXT("RemovingAttributeKey", "Removing Animated Bone Attribute key"), bShouldTransact);
 
 				ConditionalAction<UE::Anim::FAddAtributeKeyAction>(bShouldTransact,  AttributeIdentifier, Curve.GetKey(KeyHandle));
@@ -2204,6 +2227,7 @@ bool UAnimSequencerController::DuplicateAttribute(const FAnimationAttributeIdent
 			{
 				if(const FAnimatedBoneAttribute* AttributePtr = Model->FindAttribute(AttributeIdentifier))
 				{
+					IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
 					FTransaction Transaction = ConditionalTransaction(LOCTEXT("DuplicateAttribute", "Duplicating Animation Attribute"), bShouldTransact);
 
 					FAnimatedBoneAttribute& DuplicateAttribute = Model->AnimatedBoneAttributes.AddDefaulted_GetRef();
@@ -2313,7 +2337,6 @@ void UAnimSequencerController::UpdateWithSkeleton(USkeleton* TargetSkeleton, boo
 		RemoveUnusedControlsAndCurves();		
 
 		// Forcefully re-generate legacy data structures
-		Model->GenerateLegacyBoneData();
 		Model->GenerateLegacyCurveData();
 	}
 	CloseBracket();
@@ -2326,6 +2349,7 @@ void UAnimSequencerController::PopulateWithExistingModel(TScriptInterface<IAnima
 	OpenBracket(LOCTEXT("PopulateWithExistingModel", "Copying Data from Legacy Animation Data Model"));
 	if (InModel.GetObject() && InModel.GetObject()->IsA<UAnimDataModel>())
 	{
+		IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);	
 		if (const UAnimSequence* AnimationSequence = Model->GetAnimationSequence())
 		{
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -2342,7 +2366,9 @@ void UAnimSequencerController::PopulateWithExistingModel(TScriptInterface<IAnima
 
 		SetFrameRate(ModelFrameRate, false);
 
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		const TArray<FBoneAnimationTrack>& BoneTracks = InModel->GetBoneAnimationTracks();
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		const bool bHasBoneTracks = BoneTracks.Num() > 0;
 
 		FFrameNumber NumberOfFrames = InModel->GetNumberOfFrames();
@@ -2375,7 +2401,7 @@ void UAnimSequencerController::PopulateWithExistingModel(TScriptInterface<IAnima
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_PopulateBoneTrack);
 				for (const FBoneAnimationTrack& BoneTrack : BoneTracks)
 				{
-					AddBoneTrack(BoneTrack.Name, false);
+					AddBoneCurve(BoneTrack.Name, false);
 					SetBoneTrackKeys(BoneTrack.Name, BoneTrack.InternalTrackData.PosKeys, BoneTrack.InternalTrackData.RotKeys, BoneTrack.InternalTrackData.ScaleKeys, false);		
 				}
 			}
@@ -2452,73 +2478,83 @@ void UAnimSequencerController::DeclareConstructClasses(TArray<FTopLevelAssetPath
 
 void UAnimSequencerController::InitializeModel()
 {
-	if (Model->GetAnimationSequence())
+	if (const UAnimSequence* AnimSequence = Model->GetAnimationSequence())
 	{
-		if (UMovieScene* MovieScene = NewObject<UMovieScene>(Model.Get(), FName("MovieScene"), RF_Transactional))
+		if (Model->MovieScene == nullptr)
 		{
-			Model->MovieScene = MovieScene;
-
-			MovieScene->SetTickResolutionDirectly(UAnimationSettings::Get()->GetDefaultFrameRate());
-			MovieScene->SetDisplayRate(UAnimationSettings::Get()->GetDefaultFrameRate());
-
-			const TRange<FFrameNumber> DataRange = TRange<FFrameNumber>::Inclusive(FFrameNumber(0), 1);
-			MovieScene->SetPlaybackRange(DataRange);
-			
-			if(UMovieSceneControlRigParameterTrack* Track = MovieScene->AddTrack<UMovieSceneControlRigParameterTrack>())
+			IAnimationDataModel::FEvaluationAndModificationLock Lock(*ModelInterface);
+			if (UMovieScene* MovieScene = NewObject<UMovieScene>(Model.Get(), FName("MovieScene"), RF_Transactional))
 			{
-				if(UFKControlRig* ControlRig = NewObject<UFKControlRig>(Track, UFKControlRig::StaticClass(), NAME_None, RF_Transactional))
+				Model->MovieScene = MovieScene;
+
+				MovieScene->SetTickResolutionDirectly(UAnimationSettings::Get()->GetDefaultFrameRate());
+				MovieScene->SetDisplayRate(UAnimationSettings::Get()->GetDefaultFrameRate());
+
+				const TRange<FFrameNumber> DataRange = TRange<FFrameNumber>::Inclusive(FFrameNumber(0), 1);
+				MovieScene->SetPlaybackRange(DataRange);
+
+				if (AnimSequence->GetLinkerCustomVersion(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::IntroducingAnimationDataModel)
 				{
-					Model->InitializeFKControlRig(ControlRig, Model->GetSkeleton());
-
-					// Remove all control elements (start fresh)
-					if (URigHierarchy* Hierarchy = ControlRig->GetHierarchy())
+					PRAGMA_DISABLE_DEPRECATION_WARNINGS
+					Model->CachedRawDataGUID = AnimSequence->GenerateGuidFromRawData();
+					PRAGMA_ENABLE_DEPRECATION_WARNINGS
+				}
+				
+				if(UMovieSceneControlRigParameterTrack* Track = MovieScene->AddTrack<UMovieSceneControlRigParameterTrack>())
+				{
+					if(UFKControlRig* ControlRig = NewObject<UFKControlRig>(Track, UFKControlRig::StaticClass(), NAME_None, RF_Transactional))
 					{
-						if (URigHierarchyController* Controller = Hierarchy->GetController())
+						Model->InitializeFKControlRig(ControlRig, Model->GetSkeleton());
+
+						// Remove all control elements (start fresh)
+						if (URigHierarchy* Hierarchy = ControlRig->GetHierarchy())
 						{
-							TArray<FRigElementKey> ControlElementKeysToRemove;
-							Hierarchy->ForEach<FRigControlElement>([&ControlElementKeysToRemove](const FRigControlElement* ControlElement) -> bool
+							if (URigHierarchyController* Controller = Hierarchy->GetController())
 							{
-								ControlElementKeysToRemove.Add(ControlElement->GetKey());
-								return true;
-							});
+								TArray<FRigElementKey> ControlElementKeysToRemove;
+								Hierarchy->ForEach<FRigControlElement>([&ControlElementKeysToRemove](const FRigControlElement* ControlElement) -> bool
+								{
+									ControlElementKeysToRemove.Add(ControlElement->GetKey());
+									return true;
+								});
 
-							Hierarchy->ForEach<FRigCurveElement>([&ControlElementKeysToRemove](const FRigCurveElement* CurveElement) -> bool
-							{
-								ControlElementKeysToRemove.Add(CurveElement->GetKey());							
-								return true;
-							});
+								Hierarchy->ForEach<FRigCurveElement>([&ControlElementKeysToRemove](const FRigCurveElement* CurveElement) -> bool
+								{
+									ControlElementKeysToRemove.Add(CurveElement->GetKey());							
+									return true;
+								});
 
-							for (const FRigElementKey& KeyToRemove : ControlElementKeysToRemove)
-							{
-								Controller->RemoveElement(KeyToRemove);
+								for (const FRigElementKey& KeyToRemove : ControlElementKeysToRemove)
+								{
+									Controller->RemoveElement(KeyToRemove);
+								}
 							}
+							else
+							{
+								ReportError(LOCTEXT("InvalidRigHierarchyController", "Non-valid RigHierarchyController found"));
+							}
+
+							ControlRig->RefreshActiveControls();
 						}
 						else
 						{
-							ReportError(LOCTEXT("InvalidRigHierarchyController", "Non-valid RigHierarchyController found"));
+							ReportError(LOCTEXT("InvalidRigHierarchy", "Unable to retrieve valid URigHierarchy"));
 						}
 
-						ControlRig->RefreshActiveControls();
+						UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(Track->CreateControlRigSection(0, ControlRig, true));				
+						Section->SetRange(DataRange);
 					}
 					else
 					{
-						ReportError(LOCTEXT("InvalidRigHierarchy", "Unable to retrieve valid URigHierarchy"));
+						ReportError(LOCTEXT("FailedToCreateControlRig", "Failed to create new UFKControlRig"));
 					}
-
-					UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(Track->CreateControlRigSection(0, ControlRig, true));				
-					Section->SetRange(DataRange);
+					
 				}
 				else
 				{
-					ReportError(LOCTEXT("FailedToCreateControlRig", "Failed to create new UFKControlRig"));
+					ReportError(LOCTEXT("FailedToCreateTrack", "Failed to create UMovieSceneControlRigParameterTrack"));
 				}
-				
 			}
-			else
-			{
-				ReportError(LOCTEXT("FailedToCreateTrack", "Failed to create UMovieSceneControlRigParameterTrack"));
-			}
-			
 		}
 		else
 		{
@@ -2579,6 +2615,19 @@ bool UAnimSequencerController::AddBoneControl(const FName& BoneName) const
 							Hierarchy->SetControlOffsetTransform(BoneControlElement, OffsetTransform, ERigTransformType::CurrentLocal, false, false, true);
 
 							Section->AddTransformParameter(BoneNameControlKey.Name, TOptional<FEulerTransform>(), false);
+
+							FTransformParameterNameAndCurves* ParameterCurvePair = Section->GetTransformParameterNamesAndCurves().FindByPredicate([BoneNameControlKey](const FTransformParameterNameAndCurves& Parameter)
+							{
+								return Parameter.ParameterName == BoneNameControlKey.Name;
+							});
+							check(ParameterCurvePair);
+
+							for (int32 Index = 0; Index < 3; ++Index)
+							{
+								ParameterCurvePair->Translation[Index].SetTickResolution(Model->GetFrameRate());
+								ParameterCurvePair->Rotation[Index].SetTickResolution(Model->GetFrameRate());
+								ParameterCurvePair->Scale[Index].SetTickResolution(Model->GetFrameRate());
+							}
 							
 							return true;
 						}
@@ -2709,7 +2758,6 @@ bool UAnimSequencerController::SetBoneCurveKeys(const FName& BoneName, const TAr
 					TArray<bool> AreKeysVarying;
 					AreKeysVarying.SetNumZeroed(9);
 					{
-						QUICK_SCOPE_CYCLE_COUNTER(STAT_SetBoneCurveKeys_ConstantCheck);
 						for (int32 KeyIndex = 1; KeyIndex < NumKeys; ++KeyIndex)
 						{
 							EulerAngles.Add(RotationalKeys[KeyIndex].Euler());
@@ -3129,7 +3177,7 @@ bool UAnimSequencerController::RenameCurveControl(const FName& CurveName, const 
 									ControlElement->Settings.DisplayName = FName(*(NewCurveName.ToString() + TEXT(" Curve")));
 
 									// Rename the curve driving the control value
-									FScalarParameterNameAndCurve* ParameterCurvePair = Section->GetScalarParameterNamesAndCurves().FindByPredicate([CurveControlKey](FScalarParameterNameAndCurve Parameter)
+									FScalarParameterNameAndCurve* ParameterCurvePair = Section->GetScalarParameterNamesAndCurves().FindByPredicate([CurveControlKey](const FScalarParameterNameAndCurve& Parameter)
 									{
 										return Parameter.ParameterName == CurveControlKey.Name;
 									});
@@ -3361,7 +3409,7 @@ bool UAnimSequencerController::SetCurveControlKey(const FName& CurveName, const 
 						Section->AddScalarParameter(CurveControlKey.Name, TOptional<float>(), true);
 					}
 
-					FScalarParameterNameAndCurve* ParameterCurvePair = Section->GetScalarParameterNamesAndCurves().FindByPredicate([CurveControlKey](FScalarParameterNameAndCurve Parameter)
+					FScalarParameterNameAndCurve* ParameterCurvePair = Section->GetScalarParameterNamesAndCurves().FindByPredicate([CurveControlKey](const FScalarParameterNameAndCurve& Parameter)
 					{
 						return Parameter.ParameterName == CurveControlKey.Name;
 					});
@@ -3432,7 +3480,7 @@ bool UAnimSequencerController::RemoveCurveControlKey(const FName& CurveName, flo
 				{
 					if(Section->HasScalarParameter(CurveControlKey.Name))
 					{
-						FScalarParameterNameAndCurve* ParameterCurvePair = Section->GetScalarParameterNamesAndCurves().FindByPredicate([CurveControlKey](FScalarParameterNameAndCurve Parameter)
+						FScalarParameterNameAndCurve* ParameterCurvePair = Section->GetScalarParameterNamesAndCurves().FindByPredicate([CurveControlKey](const FScalarParameterNameAndCurve& Parameter)
 						{
 							return Parameter.ParameterName == CurveControlKey.Name;
 						});
@@ -3506,7 +3554,7 @@ bool UAnimSequencerController::DuplicateCurveControl(const FName& CurveName, con
 						HierarchyController->AddControl(NewCurveControlKey.Name, FRigElementKey(), Settings, FRigControlValue::Make(CurveElement->Value), FTransform::Identity, FTransform::Identity, false);
 			
 						// Rename the curve driving the control value
-						const FScalarParameterNameAndCurve* ParameterCurvePair = Section->GetScalarParameterNamesAndCurves().FindByPredicate([CurveName](FScalarParameterNameAndCurve Parameter)
+						const FScalarParameterNameAndCurve* ParameterCurvePair = Section->GetScalarParameterNamesAndCurves().FindByPredicate([CurveName](const FScalarParameterNameAndCurve& Parameter)
 						{
 							return Parameter.ParameterName == UFKControlRig::GetControlName(CurveName, ERigElementType::Curve);
 						});
@@ -3515,7 +3563,7 @@ bool UAnimSequencerController::DuplicateCurveControl(const FName& CurveName, con
 						{
 							Section->AddScalarParameter(NewCurveControlKey.Name, TOptional<float>(), true);
 
-							FScalarParameterNameAndCurve* DuplicatedParameterCurvePair = Section->GetScalarParameterNamesAndCurves().FindByPredicate([NewCurveControlKey](FScalarParameterNameAndCurve Parameter)
+							FScalarParameterNameAndCurve* DuplicatedParameterCurvePair = Section->GetScalarParameterNamesAndCurves().FindByPredicate([NewCurveControlKey](const FScalarParameterNameAndCurve& Parameter)
 							{
 								return Parameter.ParameterName == NewCurveControlKey.Name;
 							});

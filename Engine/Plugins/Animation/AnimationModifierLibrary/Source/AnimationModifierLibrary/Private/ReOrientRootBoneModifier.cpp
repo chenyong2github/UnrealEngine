@@ -54,24 +54,25 @@ void UReOrientRootBoneModifier::ReOrientRootBone_Internal(UAnimSequence* Animati
 	}
 
 	// Collect tracks for the bones we are going to modify (root and direct children of the root)
-	TArray<const FBoneAnimationTrack*> BonesTracks;
-	BonesTracks.Add(&Model->GetBoneTrackByIndex(0));
-	for (int32 BoneIdx = 1; BoneIdx < RefSkeleton.GetNum(); BoneIdx++)
+	const FName RootBoneName = RefSkeleton.GetBoneName(0);
+	TArray<FName> RootBoneChildBones;
+
+	TArray<int32> ChildBoneIndices;
+	RefSkeleton.GetDirectChildBones(0, ChildBoneIndices);
+
+	for (const int32& ChildBoneIndex : ChildBoneIndices)
 	{
-		if (RefSkeleton.GetParentIndex(BoneIdx) == 0)
+		const FName ChildBoneName = RefSkeleton.GetBoneName(ChildBoneIndex);
+		if (Model->IsValidBoneTrackName(ChildBoneName))
 		{
-			const int32 BoneTrackIdx = Model->GetBoneTrackIndexByName(RefSkeleton.GetBoneName(BoneIdx));
-			if(BoneTrackIdx != INDEX_NONE)
-			{
-				BonesTracks.Add(&Model->GetBoneTrackByIndex(BoneTrackIdx));
-			}
+			RootBoneChildBones.Add(ChildBoneName);
 		}
 	}
 	
 	// Start editing animation data
 	const bool bShouldTransact = false;
 	Controller.OpenBracket(LOCTEXT("ReorientingRootBone_Bracket", "Reorienting root bone"), bShouldTransact);
-	
+
 	// For each key in the animation
 	const int32 Num = Model->GetNumberOfKeys();
 	for (int32 AnimKey = 0; AnimKey < Num; AnimKey++)
@@ -79,22 +80,20 @@ void UReOrientRootBoneModifier::ReOrientRootBone_Internal(UAnimSequence* Animati
 		const FInt32Range KeyRangeToSet(AnimKey, AnimKey + 1);
 
 		// Reorient the root bone
-		FTransform RootTransformOriginal;
-		FAnimationUtils::ExtractTransformForFrameFromTrack(BonesTracks[0]->InternalTrackData, AnimKey, RootTransformOriginal);
+		const FTransform RootTransformOriginal = Model->EvaluateBoneTrackTransform(RootBoneName, AnimKey, EAnimInterpolationType::Step);
 
 		FTransform RootTransformNew = RootTransformOriginal;
 		RootTransformNew.SetRotation(RootTransformOriginal.GetRotation() * Quat);
-		Controller.UpdateBoneTrackKeys(BonesTracks[0]->Name, KeyRangeToSet, { RootTransformNew.GetLocation() }, { RootTransformNew.GetRotation() }, { RootTransformNew.GetScale3D() });
+		Controller.UpdateBoneTrackKeys(RootBoneName, KeyRangeToSet, { RootTransformNew.GetLocation() }, { RootTransformNew.GetRotation() }, { RootTransformNew.GetScale3D() });
 
 		// Now the mesh is facing the wrong axis. Update direct children of the root with the local space transform that puts them back to where they were originally
-		for (int32 Idx = 1; Idx < BonesTracks.Num(); Idx++)
+
+		for (const FName& ChildBoneName : RootBoneChildBones)
 		{
-			FTransform OtherBoneTransform;
-			FAnimationUtils::ExtractTransformForFrameFromTrack(BonesTracks[Idx]->InternalTrackData, AnimKey, OtherBoneTransform);
-			
+			FTransform OtherBoneTransform = Model->EvaluateBoneTrackTransform(ChildBoneName, AnimKey, EAnimInterpolationType::Step);
 			OtherBoneTransform = OtherBoneTransform * RootTransformOriginal;
 			OtherBoneTransform = OtherBoneTransform.GetRelativeTransform(RootTransformNew);
-			Controller.UpdateBoneTrackKeys(BonesTracks[Idx]->Name, KeyRangeToSet, { OtherBoneTransform.GetLocation() }, { OtherBoneTransform.GetRotation() }, { OtherBoneTransform.GetScale3D() });
+			Controller.UpdateBoneTrackKeys(ChildBoneName, KeyRangeToSet, { OtherBoneTransform.GetLocation() }, { OtherBoneTransform.GetRotation() }, { OtherBoneTransform.GetScale3D() });
 		}
 	}
 

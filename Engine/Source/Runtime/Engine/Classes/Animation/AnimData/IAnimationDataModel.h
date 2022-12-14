@@ -155,48 +155,65 @@ public:
 	/**
 	* @return	Array containing all bone animation tracks 
 	*/
+	UE_DEPRECATED(5.2, "GetBoneAnimationTracks has been deprecated")
 	UFUNCTION(BlueprintCallable, Category = AnimationDataModel)
 	virtual const TArray<FBoneAnimationTrack>& GetBoneAnimationTracks() const = 0;
+
+	virtual FTransform EvaluateBoneTrackTransform(FName TrackName, const FFrameTime& FrameTime, const EAnimInterpolationType& Interpolation) const = 0;
+	virtual FTransform GetBoneTrackTransform(FName TrackName, const FFrameNumber& FrameNumber) const = 0;
+	virtual void GetBoneTrackTransforms(FName TrackName, const TArray<FFrameNumber>& FrameNumbers, TArray<FTransform>& OutTransforms) const = 0;
+	virtual void GetBoneTrackTransforms(FName TrackName, TArray<FTransform>& OutTransforms) const = 0;
+	virtual void GetBoneTracksTransform(const TArray<FName>& TrackNames, const FFrameNumber& FrameNumber, TArray<FTransform>& OutTransforms) const = 0;
 	
 	/**
 	* @return	Bone animation track for the provided index
 	*/
+	UE_DEPRECATED(5.2, "GetBoneTrackByIndex has been deprecated")
 	UFUNCTION(BlueprintCallable, Category = AnimationDataModel)
 	virtual const FBoneAnimationTrack& GetBoneTrackByIndex(int32 TrackIndex) const = 0;
 
 	/**
 	* @return	Bone animation track for the provided (bone) name
 	*/
+	UE_DEPRECATED(5.2, "GetBoneTrackByName has been deprecated")
 	UFUNCTION(BlueprintCallable, Category = AnimationDataModel)
 	virtual const FBoneAnimationTrack& GetBoneTrackByName(FName TrackName) const = 0;
 
 	/**
 	* @return	Bone animation track for the provided (bone) name if found, otherwise returns a nullptr 
 	*/
+	UE_DEPRECATED(5.2, "FindBoneTrackByName has been deprecated")
 	virtual const FBoneAnimationTrack* FindBoneTrackByName(FName Name) const = 0;
 
 	/**
 	* @return	Bone animation track for the provided index if valid, otherwise returns a nullptr 
 	*/
+	UE_DEPRECATED(5.2, "FindBoneTrackByIndex has been deprecated")
 	virtual const FBoneAnimationTrack* FindBoneTrackByIndex(int32 BoneIndex) const = 0;
 
 	/**
 	* @return	Internal track index for the provided bone animation track if found, otherwise returns INDEX_NONE 
 	*/
+	UE_DEPRECATED(5.2, "FindBoneTrackByIndex has been deprecated")
 	UFUNCTION(BlueprintCallable, Category = AnimationDataModel)
 	virtual int32 GetBoneTrackIndex(const FBoneAnimationTrack& Track) const = 0;
 
 	/**
 	* @return	Internal track index for the provided (bone) name if found, otherwise returns INDEX_NONE 
 	*/
+	UE_DEPRECATED(5.2, "GetBoneTrackIndexByName has been deprecated")
 	UFUNCTION(BlueprintCallable, Category = AnimationDataModel)
 	virtual int32 GetBoneTrackIndexByName(FName TrackName) const = 0;
 
 	/**
 	* @return	Whether or not the provided track index is valid 
 	*/
+	UE_DEPRECATED(5.2, "IsValidBoneTrackIndex has been deprecated")
 	UFUNCTION(BlueprintCallable, Category = AnimationDataModel)
 	virtual bool IsValidBoneTrackIndex(int32 TrackIndex) const = 0;
+
+	UFUNCTION(BlueprintCallable, Category = AnimationDataModel)
+	virtual bool IsValidBoneTrackName(const FName& TrackName) const = 0;
 
 	/**
 	* @return	Total number of bone animation tracks
@@ -339,9 +356,21 @@ public:
 #endif // WITH_EDITOR
 
 	virtual bool HasBeenPopulated() const = 0;
+	virtual void IterateBoneKeys(const FName& BoneName, TFunction<bool(const FVector3f& Pos, const FQuat4f&, const FVector3f, const FFrameNumber&)> IterationFunction) const = 0;
+
+	struct ENGINE_API FEvaluationAndModificationLock
+	{
+		FEvaluationAndModificationLock(IAnimationDataModel& InModel) : Model(InModel) { InModel.LockEvaluationAndModification(); }
+		~FEvaluationAndModificationLock()  { Model.UnlockEvaluationAndModification(); }
+	private:
+		IAnimationDataModel& Model;
+	};
 protected:
 	virtual FAnimDataModelModifiedDynamicEvent& GetModifiedDynamicEvent() = 0;
 	virtual void OnNotify(const EAnimDataModelNotifyType& NotifyType, const FAnimDataModelNotifPayload& Payload) = 0;
+
+	virtual void LockEvaluationAndModification() const = 0;
+	virtual void UnlockEvaluationAndModification() const = 0;	
 	
 	struct FModelNotifier;
 	virtual IAnimationDataModel::FModelNotifier& GetNotifier() = 0;

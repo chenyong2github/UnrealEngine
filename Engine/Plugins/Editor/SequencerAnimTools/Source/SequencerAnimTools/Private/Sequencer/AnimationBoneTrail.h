@@ -25,7 +25,7 @@ public:
 		, CachedAnimSequence(NewObject<UAnimSequence>())
 		, GlobalBoneTransforms()
 		, ComponentBoneTransforms()
-		, SkelToTrackIdx()
+		, SkelToBoneName()
 		, AnimRange()
 		, Spacing()
 		, bDirty(true)
@@ -56,7 +56,7 @@ private:
 	UAnimSequence* CachedAnimSequence;
 	TArray<TArray<FTransform>> GlobalBoneTransforms;
 	TArray<TArray<FTransform>> ComponentBoneTransforms;
-	TArray<int32> SkelToTrackIdx;
+	TArray<FName> SkelToBoneName;
 	TRange<double> AnimRange;
 	double Spacing;
 	bool bDirty;

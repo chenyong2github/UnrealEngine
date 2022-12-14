@@ -814,6 +814,7 @@ public:
 	 *
 	 * @return	Index of Track of Animation Sequence
 	 */
+	UE_DEPRECATED(5.2, "GetRawAnimationTrackIndex has been deprecated, use tracks are referenced by name instead")
 	ENGINE_API int32 GetRawAnimationTrackIndex(const int32 InSkeletonBoneIndex, const UAnimSequence* InAnimSeq);
 
 	/** 

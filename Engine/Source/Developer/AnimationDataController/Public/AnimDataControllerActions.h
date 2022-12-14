@@ -68,7 +68,7 @@ protected:
 class ANIMATIONDATACONTROLLER_API FAddTrackAction : public FAnimDataBaseAction
 {
 public:
-	explicit FAddTrackAction(const FBoneAnimationTrack& Track);
+	explicit FAddTrackAction(const FName& InName, TArray<FTransform>&& InTransformData);
 	virtual ~FAddTrackAction() {}
 protected:
 	FAddTrackAction() {}
@@ -77,14 +77,13 @@ protected:
 
 protected:
 	FName Name;
-	int32 BoneTreeIndex;
-	FRawAnimSequenceTrack Data;
+	TArray<FTransform> TransformData;
 };
 
 class ANIMATIONDATACONTROLLER_API FRemoveTrackAction : public FAnimDataBaseAction
 {
 public:
-	explicit FRemoveTrackAction(const FName& TrackName);
+	explicit FRemoveTrackAction(const FName& InName);
 	virtual ~FRemoveTrackAction() {}
 protected:
 	FRemoveTrackAction() {}
@@ -98,7 +97,7 @@ protected:
 class ANIMATIONDATACONTROLLER_API FSetTrackKeysAction : public FAnimDataBaseAction
 {
 public:
-	explicit FSetTrackKeysAction(const FBoneAnimationTrack& Track);
+	explicit FSetTrackKeysAction(const FName& InName, TArray<FTransform>& InTransformData);
 	virtual ~FSetTrackKeysAction() {}
 protected:
 	FSetTrackKeysAction() {}
@@ -107,9 +106,7 @@ protected:
 
 protected:
 	FName Name;
-	int32 TrackIndex;
-
-	FRawAnimSequenceTrack TrackData;
+	TArray<FTransform> TransformData;
 };
 
 class ANIMATIONDATACONTROLLER_API FResizePlayLengthInFramesAction : public FAnimDataBaseAction

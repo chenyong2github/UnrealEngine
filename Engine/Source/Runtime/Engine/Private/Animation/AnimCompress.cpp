@@ -16,6 +16,20 @@
 
 DEFINE_LOG_CATEGORY(LogAnimationCompression);
 
+#if WITH_EDITOR
+namespace UE
+{
+	namespace Anim
+	{
+		namespace Compression
+		{
+			std::atomic<bool> FAnimationCompressionMemorySummaryScope::ScopeExists = false;
+			TUniquePtr<FCompressionMemorySummary> FAnimationCompressionMemorySummaryScope::CompressionSummary = nullptr;
+		}
+	}
+}
+#endif // WITH_EDITOR
+
 UAnimCompress::UAnimCompress(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -46,10 +60,6 @@ void FCompressionMemorySummary::GatherPostCompressionStats(const FCompressedAnim
 #endif
 }
 
-void FAnimCompressContext::GatherPostCompressionStats(const FCompressedAnimSequence& CompressedData, const TArray<FBoneData>& BoneData, const FName AnimFName, double CompressionTime, bool bInPerformedCompression)
-{
-	CompressionSummary.GatherPostCompressionStats(CompressedData, BoneData, AnimFName, CompressionTime, bInPerformedCompression);
-}
 
 FCompressionMemorySummary::FCompressionMemorySummary(bool bInEnabled)
 	: bEnabled(bInEnabled)
@@ -202,35 +212,13 @@ uint8 MakeBitForFlag(uint32 Item, uint32 Position)
 
 //////////////////////////////////////////////////////////////////////////////////////
 // FCompressionMemorySummary
-
-void FCompressionMemorySummary::GatherPreCompressionStats(const FString& Name, int32 RawSize, int32 PreCompressedSize, int32 ProgressNumerator, int32 ProgressDenominator)
+void FCompressionMemorySummary::GatherPreCompressionStats(int32 RawSize, int32 PreCompressedSize)
 {
-	if (bEnabled)
-	{
-		bUsed = true;
-		FFormatNamedArguments Args;
-		Args.Add(TEXT("AnimSequenceName"), FText::FromString(Name));
-		Args.Add(TEXT("ProgressNumerator"), ProgressNumerator);
-		Args.Add(TEXT("ProgressDenominator"), ProgressDenominator);
-
-		GWarn->StatusUpdate(ProgressNumerator,
-			ProgressDenominator,
-			FText::Format(NSLOCTEXT("CompressionMemorySummary", "CompressingTaskStatusMessageFormat", "Compressing {AnimSequenceName} ({ProgressNumerator}/{ProgressDenominator})"), Args));
-
-		TotalRaw += RawSize;
-		TotalBeforeCompressed += PreCompressedSize;
-		++NumberOfAnimations;
-	}
+	bUsed = true;
+	TotalRaw += RawSize;
+	TotalBeforeCompressed += PreCompressedSize;
+	++NumberOfAnimations;
 }
-
-
-//////////////////////////////////////////////////////////////////////////////////////
-
-void FAnimCompressContext::GatherPreCompressionStats(const FString& Name, int32 RawSize, int32 PreviousCompressionSize)
-{
-	CompressionSummary.GatherPreCompressionStats(Name, RawSize, PreviousCompressionSize, AnimIndex, MaxAnimations);
-}
-
 
 //////////////////////////////////////////////////////////////////////////////////////
 // UAnimCompress

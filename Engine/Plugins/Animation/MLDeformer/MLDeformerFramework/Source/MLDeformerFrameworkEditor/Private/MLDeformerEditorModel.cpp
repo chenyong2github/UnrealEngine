@@ -1098,25 +1098,28 @@ namespace UE::MLDeformer
 		TArray<FName> AnimatedBoneList;
 		const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
 		const int32 NumBones = RefSkeleton.GetNum();
+
+		TArray<FName> TrackNames;
+		DataModel->GetBoneTrackNames(TrackNames);
+		TArray<FTransform> BoneTransforms;		
 		for (int32 Index = 0; Index < NumBones; ++Index)
 		{
 			const FName BoneName = RefSkeleton.GetBoneName(Index);
-			const int32 BoneTrackIndex = DataModel->GetBoneTrackIndexByName(BoneName);
-			if (BoneTrackIndex == INDEX_NONE)
+			if (!TrackNames.Contains(BoneName))
 			{
 				continue;
 			}
 
 			// Check if there is actually animation data.
-			const FBoneAnimationTrack& BoneAnimTrack = DataModel->GetBoneTrackByIndex(BoneTrackIndex);
-			const TArray<FQuat4f>& Rotations = BoneAnimTrack.InternalTrackData.RotKeys;
+			BoneTransforms.Reset();
+			DataModel->GetBoneTrackTransforms(BoneName, BoneTransforms);
 			bool bIsAnimated = false;
-			if (!Rotations.IsEmpty())
+			if (!BoneTransforms.IsEmpty())
 			{
-				const FQuat4f FirstQuat = Rotations[0];
-				for (const FQuat4f KeyValue : Rotations)
+				const FQuat FirstQuat = BoneTransforms[0].GetRotation();
+				for (const FTransform& KeyValue : BoneTransforms)
 				{
-					if (!KeyValue.Equals(FirstQuat))
+					if (!KeyValue.GetRotation().Equals(FirstQuat))
 					{
 						bIsAnimated = true;
 						break;

@@ -283,7 +283,7 @@ void FAnimationRecorder::StartRecord(USkeletalMeshComponent* Component, UAnimSeq
 		{
 			// add tracks for the bone existing
 			const FName BoneTreeName = AnimSkeleton->GetReferenceSkeleton().GetBoneName(BoneTreeIndex);
-			Controller.AddBoneTrack(BoneTreeName);			
+			Controller.AddBoneCurve(BoneTreeName);			
 			RawTracks.AddDefaulted();
 		}
 	}
@@ -489,15 +489,14 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 		}
 
 		// Populate bone tracks
-		const TArray<FBoneAnimationTrack>& BoneAnimationTracks = AnimationObject->GetDataModel()->GetBoneAnimationTracks();
-		for (int32 TrackIndex = 0; TrackIndex < BoneAnimationTracks.Num(); ++TrackIndex)
+		TArray<FName> TrackNames;
+		AnimationObject->GetDataModel()->GetBoneTrackNames(TrackNames);
+		for (int32 TrackIndex = 0; TrackIndex < TrackNames.Num(); ++TrackIndex)
 		{
-			const FBoneAnimationTrack& AnimationTrack = BoneAnimationTracks[TrackIndex];
 			const FRawAnimSequenceTrack& RawTrack = RawTracks[TrackIndex];
+			FName BoneName = TrackNames[TrackIndex];
 
-			FName BoneName = AnimationTrack.Name;
-
-			bool bShouldSkipName = ShouldSkipName(AnimationTrack.Name);
+			bool bShouldSkipName = ShouldSkipName(BoneName);
 
 			if (!bShouldSkipName)
 			{
@@ -854,7 +853,9 @@ bool FAnimationRecorder::Record(USkeletalMeshComponent* Component, FTransform co
 			Component->LeaderPoseComponent->GetSkinnedAsset() :
 			Component->GetSkinnedAsset();
 
-		const TArray<FBoneAnimationTrack>& BoneAnimationTracks = AnimationObject->GetDataModel()->GetBoneAnimationTracks();
+		TArray<FName> TrackNames;
+		const IAnimationDataModel* DataModel = AnimationObject->GetDataModel();
+		DataModel->GetBoneTrackNames(TrackNames);
 
 		if (FrameToAdd == 0)
 		{
@@ -862,10 +863,10 @@ bool FAnimationRecorder::Record(USkeletalMeshComponent* Component, FTransform co
 			SkeletonRootIndex = INDEX_NONE;
 			USkeleton* AnimSkeleton = AnimationObject->GetSkeleton();
 
-			for (const FBoneAnimationTrack& AnimationTrack : BoneAnimationTracks)
+			for (const FName& TrackName : TrackNames)
 			{
 				// verify if this bone exists in skeleton
-				const int32 BoneTreeIndex = AnimationTrack.BoneTreeIndex;
+				const int32 BoneTreeIndex = AnimSkeleton->GetReferenceSkeleton().FindBoneIndex(TrackName);
 				if (BoneTreeIndex != INDEX_NONE)
 				{
 					const int32 BoneIndex = AnimSkeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkinnedAsset, BoneTreeIndex);
@@ -873,7 +874,7 @@ bool FAnimationRecorder::Record(USkeletalMeshComponent* Component, FTransform co
 					const FTransform LocalTransform = SpacesBases[BoneIndex];
 					if (ParentIndex == INDEX_NONE)
 					{
-						if (bRemoveRootTransform && BoneAnimationTracks.Num() > 1)
+						if (bRemoveRootTransform && TrackNames.Num() > 1)
 						{
 							// Store initial root transform.
 							// We remove the initial transform of the root bone and transform root's children
@@ -900,13 +901,13 @@ bool FAnimationRecorder::Record(USkeletalMeshComponent* Component, FTransform co
 		FSerializedAnimation  SerializedAnimation;
 		USkeleton* AnimSkeleton = AnimationObject->GetSkeleton();
 
-		for (int32 TrackIndex = 0; TrackIndex < BoneAnimationTracks.Num(); ++TrackIndex)
+		for (int32 TrackIndex = 0; TrackIndex < TrackNames.Num(); ++TrackIndex)
 		{
-			const FBoneAnimationTrack& AnimationTrack = BoneAnimationTracks[TrackIndex];
+			const FName& TrackName = TrackNames[TrackIndex];
 			FRawAnimSequenceTrack& RawTrack = RawTracks[TrackIndex];
 
 			// verify if this bone exists in skeleton
-			const int32 BoneTreeIndex = AnimationTrack.BoneTreeIndex;
+			const int32 BoneTreeIndex = AnimSkeleton->GetReferenceSkeleton().FindBoneIndex(TrackName);
 			if (BoneTreeIndex != INDEX_NONE)
 			{
 				const int32 BoneIndex = AnimSkeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkinnedAsset, BoneTreeIndex);
@@ -947,9 +948,9 @@ bool FAnimationRecorder::Record(USkeletalMeshComponent* Component, FTransform co
 					if (FrameToAdd == 0)
 					{
 						const FTransform RefPose = Component->GetSkeletalMeshAsset()->GetRefSkeleton().GetRefBonePose()[BoneIndex];
-						RawTrack.PosKeys.Add((FVector3f)RefPose.GetTranslation());
+						RawTrack.PosKeys.Add(FVector3f(RefPose.GetTranslation()));
 						RawTrack.RotKeys.Add(FQuat4f(RefPose.GetRotation()));
-						RawTrack.ScaleKeys.Add((FVector3f)RefPose.GetScale3D());
+						RawTrack.ScaleKeys.Add(FVector3f(RefPose.GetScale3D()));
 					}
 				}
 			}

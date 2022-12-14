@@ -80,6 +80,7 @@ namespace Anim {
 	* @param	Time				Time value to sample at
 	* @param	InterpolationType	Method to be used to interpolate between different sample points
 	*/
+	UE_DEPRECATED(5.2, "GetBoneTransformFromModel with TrackIndex has been deprecated, use IAnimationDataModel::GetBoneTrackTransform instead")
 	ENGINE_API void GetBoneTransformFromModel(const IAnimationDataModel* Model, FTransform& OutTransform, int32 TrackIndex, double Time, const EAnimInterpolationType& Interpolation);
 	
 	/**
@@ -90,6 +91,7 @@ namespace Anim {
 	* @param	TrackIndex			Track / bone index which should be sampld
 	* @param	KeyIndex			Specific key index to sample
 	*/
+	UE_DEPRECATED(5.2, "GetBoneTransformFromModel with TrackIndex has been deprecated, use IAnimationDataModel::GetBoneTrackTransform instead")
 	ENGINE_API void GetBoneTransformFromModel(const IAnimationDataModel* Model, FTransform& OutTransform, int32 TrackIndex, int32 KeyIndex);
 
 	/**
@@ -156,15 +158,18 @@ namespace Anim {
 		ENGINE_API void RemoveKeys(UAnimSequence* InSequence, int32 StartKeyIndex, int32 NumKeysToRemove);
 
 		/**
-		* Finds the index of the first child track (bone) for the provided bone name
+		* Finds the name of the first child track (bone) for the provided bone name
 		*
 		* @param	InSequence			Animation Sequence to remove the animated frames from
 		* @param	Skeleton			Skeleton to use for retrieving child bone names
 		* @param	BoneName			Name of the bone to find the child track index for
 		*
-		* @return The first child track index for the provided bone name, if none found will return the end of the tracks array
+		* @return The first child track name for the provided bone name, if none found will return NAME_None
 		*/
-		ENGINE_API int32 FindFirstChildTrackIndex(const UAnimSequence* InSequence, const USkeleton* Skeleton, const FName& BoneName);
+		ENGINE_API FName FindFirstChildTrackName(const UAnimSequence* InSequence, const USkeleton* Skeleton, const FName& BoneName);
+
+		UE_DEPRECATED(5.2, "FindFirstChildTrackIndex has been deprecated, use FindFirstChildTrackName instead")
+		static int32 FindFirstChildTrackIndex(const UAnimSequence* InSequence, const USkeleton* Skeleton, const FName& BoneName) { return INDEX_NONE; }
 	}
 #endif // WITH_EDITOR
 

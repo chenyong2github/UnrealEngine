@@ -31,7 +31,6 @@
 #include "EditorLevelUtils.h"
 #include "IVREditorModule.h"
 #include "LevelEditorViewport.h"
-#include "Animation/AnimCompressionDerivedDataPublic.h"
 #include "AssetCompilingManager.h"
 
 namespace PackageAutoSaverJson
@@ -507,7 +506,6 @@ bool FPackageAutoSaver::CanAutoSave() const
 	const bool bAreShadersCompiling = GShaderCompilingManager->IsCompiling();
 	const bool bAreAssetsCompiling = FAssetCompilingManager::Get().GetNumRemainingAssets() > 0;
 	const bool bIsVREditorActive = IVREditorModule::Get().IsVREditorEnabled();	// @todo vreditor: Eventually we should support this while in VR (modal VR progress, with sufficient early warning)
-	const bool bAreAnimationsCompressing = GAsyncCompressedAnimationsTracker ? GAsyncCompressedAnimationsTracker->GetNumRemainingJobs() > 0 : false;
 	const bool bIsInterchangeActive = UInterchangeManager::GetInterchangeManager().IsInterchangeActive();
 
 	bool bIsSequencerPlaying = false;
@@ -533,7 +531,6 @@ bool FPackageAutoSaver::CanAutoSave() const
 		&& bHasGameOrProjectLoaded
 		&& !bAreShadersCompiling
 		&& !bAreAssetsCompiling
-		&& !bAreAnimationsCompressing
 		&& !bIsVREditorActive
 		&& !bIsSequencerPlaying
 		&& !bIsInterchangeActive

@@ -143,26 +143,28 @@ void FMovieScene3DTransformSectionRecorder::FinalizeSection(float CurrentTime)
 				int32 RootIndex = INDEX_NONE;
 				USkeleton* AnimSkeleton = AnimSequence->GetSkeleton();
 
-				const TArray<FBoneAnimationTrack>& BoneAnimationTracks = AnimSequence->GetDataModel()->GetBoneAnimationTracks();
-				for (const FBoneAnimationTrack& AnimationTrack : BoneAnimationTracks)
+				TArray<FName> TrackNames;
+				AnimSequence->GetDataModelInterface()->GetBoneTrackNames(TrackNames);
+
+				FName RootBoneName = NAME_None;
+				for (const FName& TrackName : TrackNames)
 				{
-					// verify if this bone exists in skeleton
-					const int32 BoneTreeIndex = AnimationTrack.BoneTreeIndex;
-					if (BoneTreeIndex != INDEX_NONE)
+					// Verify if this bone exists in skeleton
+					const int32 SkeletonTreeIndex = AnimSkeleton->GetReferenceSkeleton().FindBoneIndex(TrackName);
+					if (SkeletonTreeIndex != INDEX_NONE)
 					{
-						const int32 BoneIndex = AnimSkeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkinnedAsset, BoneTreeIndex);
+						const int32 BoneIndex = AnimSkeleton->GetMeshBoneIndexFromSkeletonBoneIndex(SkinnedAsset, SkeletonTreeIndex);
 						const int32 ParentIndex = SkinnedAsset->GetRefSkeleton().GetParentIndex(BoneIndex);
 						if (ParentIndex == INDEX_NONE)
 						{
-							// found root
+							// We've found the root (root bones do not have a valid parent)
 							RootIndex = BoneIndex;
+							RootBoneName = TrackName;
 							break;
 						}
 					}
 				}
-
-				ensure(BoneAnimationTracks.IsValidIndex(RootIndex));
-				check(RootIndex != INDEX_NONE);
+				check(RootBoneName != NAME_None);
 
 				FFrameRate TickResolution = MovieSceneSection->GetTypedOuter<UMovieScene>()->GetTickResolution();
 				const FFrameNumber StartTime = (RecordingStartTime * TickResolution).FloorToFrame();
@@ -170,38 +172,9 @@ void FMovieScene3DTransformSectionRecorder::FinalizeSection(float CurrentTime)
 				// we may need to offset the transform here if the animation was not recorded on the root component
 				FTransform InvComponentTransform = AnimRecorder->GetComponentTransform().Inverse();
 
-				const FRawAnimSequenceTrack& RawTrack = BoneAnimationTracks[RootIndex].InternalTrackData;
-				const int32 KeyCount = FMath::Max(FMath::Max(RawTrack.PosKeys.Num(), RawTrack.RotKeys.Num()), RawTrack.ScaleKeys.Num());
-				for (int32 KeyIndex = 0; KeyIndex < KeyCount; KeyIndex++)
+				for (int32 KeyIndex = 0; KeyIndex < AnimSequence->GetDataModelInterface()->GetNumberOfKeys(); KeyIndex++)
 				{
-					FTransform Transform;
-					if (RawTrack.PosKeys.IsValidIndex(KeyIndex))
-					{
-						Transform.SetTranslation(FVector(RawTrack.PosKeys[KeyIndex]));
-					}
-					else if (RawTrack.PosKeys.Num() > 0)
-					{
-						Transform.SetTranslation(FVector(RawTrack.PosKeys[0]));
-					}
-
-					if (RawTrack.RotKeys.IsValidIndex(KeyIndex))
-					{
-						Transform.SetRotation(FQuat(RawTrack.RotKeys[KeyIndex]));
-					}
-					else if (RawTrack.RotKeys.Num() > 0)
-					{
-						Transform.SetRotation(FQuat(RawTrack.RotKeys[0]));
-					}
-
-					if (RawTrack.ScaleKeys.IsValidIndex(KeyIndex))
-					{
-						Transform.SetScale3D(FVector(RawTrack.ScaleKeys[KeyIndex]));
-					}
-					else if (RawTrack.ScaleKeys.Num() > 0)
-					{
-						Transform.SetScale3D(FVector(RawTrack.ScaleKeys[0]));
-					}
-
+					const FTransform Transform = AnimSequence->GetDataModelInterface()->GetBoneTrackTransform(RootBoneName, FFrameNumber(KeyIndex));
 					FFrameNumber AnimationFrame = (AnimSequence->GetTimeAtFrame(KeyIndex) * TickResolution).FloorToFrame();
 					BufferedTransforms.Add(InvComponentTransform * Transform, StartTime + AnimationFrame);
 				}

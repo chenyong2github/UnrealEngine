@@ -191,7 +191,7 @@ class ENGINE_API FCompressionMemorySummary
 public:
 	FCompressionMemorySummary(bool bInEnabled);
 
-	void GatherPreCompressionStats(const FString& Name, int32 RawSize, int32 PreviousCompressionSize, int32 ProgressNumerator, int32 ProgressDenominator);
+	void GatherPreCompressionStats(int32 RawSize, int32 PreviousCompressionSize);
 
 	void GatherPostCompressionStats(const FCompressedAnimSequence& CompressedData, const TArray<FBoneData>& BoneData, const FName AnimFName, double CompressionTime, bool bInPerformedCompression);
 
@@ -224,27 +224,25 @@ private:
 //////////////////////////////////////////////////////////////////////////
 // FAnimCompressContext - Context information / storage for use during
 // animation compression
+
+struct UE_DEPRECATED(5.2, "FAnimCompressContext has been deprecated") FAnimCompressContext;
 struct ENGINE_API FAnimCompressContext
 {
 private:
 	FCompressionMemorySummary	CompressionSummary;
 
-	void GatherPreCompressionStats(const FString& Name, int32 RawSize, int32 PreviousCompressionSize);
+	void GatherPreCompressionStats(const FString& Name, int32 RawSize, int32 PreviousCompressionSize) {}
 
-	void GatherPostCompressionStats(const FCompressedAnimSequence& CompressedData, const TArray<FBoneData>& BoneData, const FName AnimFName, double CompressionTime, bool bInPerformedCompression);
-
-
+	void GatherPostCompressionStats(const FCompressedAnimSequence& CompressedData, const TArray<FBoneData>& BoneData, const FName AnimFName, double CompressionTime, bool bInPerformedCompression) {}
 public:
 	uint32						AnimIndex;
 	uint32						MaxAnimations;
-	bool						bAllowAlternateCompressor;
 	bool						bOutput;
 
-	FAnimCompressContext(bool bInAllowAlternateCompressor, bool bInOutput, uint32 InMaxAnimations = 1)
+	FAnimCompressContext(bool bInOutput, uint32 InMaxAnimations = 1)
 		: CompressionSummary(bInOutput)
 		, AnimIndex(0)
 		, MaxAnimations(InMaxAnimations)
-		, bAllowAlternateCompressor(bInAllowAlternateCompressor)
 		, bOutput(bInOutput)
 	{}
 
@@ -253,7 +251,6 @@ public:
 		: CompressionSummary(false)
 		, AnimIndex(Rhs.AnimIndex)
 		, MaxAnimations(Rhs.MaxAnimations)
-		, bAllowAlternateCompressor(Rhs.bAllowAlternateCompressor)
 		, bOutput(Rhs.bOutput)
 	{}
 
@@ -261,6 +258,54 @@ public:
 	friend class FDerivedDataAnimationCompression;
 	friend class UAnimSequence;
 };
+
+#if WITH_EDITOR
+namespace UE
+{
+	namespace Anim
+	{
+		namespace Compression
+		{		
+			// This is a version string that mimics the old versioning scheme. If you
+			// want to bump this version, generate a new guid using VS->Tools->Create GUID and
+			// return it here. Ex.
+			static FString AnimationCompressionVersionString = TEXT("FB8D0FF1ED0C4848951601EB6BB028F6");
+			
+			struct ENGINE_API FAnimationCompressionMemorySummaryScope
+			{
+				FAnimationCompressionMemorySummaryScope()
+				{
+					bool bExpected = false;
+					check(ScopeExists.compare_exchange_strong(bExpected, true));
+					CompressionSummary = MakeUnique<FCompressionMemorySummary>(true);
+				}
+
+				~FAnimationCompressionMemorySummaryScope()
+				{
+					bool bExpected = true;
+					check(ScopeExists.compare_exchange_strong(bExpected, false));
+					CompressionSummary.Reset();
+				}
+
+				static bool ShouldStoreCompressionResults()
+				{
+					return ScopeExists.load();
+				}
+	
+				static FCompressionMemorySummary& CompressionResultSummary()
+				{
+					check(ScopeExists.load());
+					return *CompressionSummary.Get();
+				}
+
+				static std::atomic<bool> ScopeExists;
+				static TUniquePtr<FCompressionMemorySummary> CompressionSummary;
+			};
+		}
+	}
+}
+#endif // WITH_EDITOR
+
 
 UCLASS(abstract, hidecategories=Object, MinimalAPI, EditInlineNew)
 class UAnimCompress : public UAnimBoneCompressionCodec

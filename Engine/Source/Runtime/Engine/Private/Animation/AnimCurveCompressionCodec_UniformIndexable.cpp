@@ -19,9 +19,10 @@ FAnimCurveBufferAccess::FAnimCurveBufferAccess(const UAnimSequenceBase* InSequen
 		{
 			if (InSequence->IsCurveCompressedDataValid())
 			{
-				if (UAnimCurveCompressionCodec_UniformIndexable* IndexableCompressedCurve = Cast<UAnimCurveCompressionCodec_UniformIndexable>(InSequence->CompressedData.CurveCompressionCodec))
+				const FCompressedAnimSequence& CompressedAnimSequence = InSequence->CompressedData;
+				if (UAnimCurveCompressionCodec_UniformIndexable* IndexableCompressedCurve = Cast<UAnimCurveCompressionCodec_UniformIndexable>(CompressedAnimSequence.CurveCompressionCodec))
 				{
-					bUseCompressedData = IndexableCompressedCurve->GetCurveBufferAndSamples(InSequence->CompressedData, InUID, CompressedBuffer, NumSamples, SampleRate);
+					bUseCompressedData = IndexableCompressedCurve->GetCurveBufferAndSamples(CompressedAnimSequence, InUID, CompressedBuffer, NumSamples, SampleRate);
 				}
 				else
 				{

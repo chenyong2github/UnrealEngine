@@ -1283,7 +1283,6 @@ namespace AnimationTransformDebug
 	// Data sturctutre to debug bone transform of animation issues
 	struct FAnimationTransformDebugData
 	{
-		int32 TrackIndex;
 		int32 BoneIndex;
 		FName BoneName;
 		TArray<FTransform>	RecalculatedLocalTransform;
@@ -1295,12 +1294,11 @@ namespace AnimationTransformDebug
 		TArray<FTransform>	SourceParentGlobalTransform;
 
 		FAnimationTransformDebugData()
-			: TrackIndex(INDEX_NONE), BoneIndex(INDEX_NONE), BoneName(NAME_None)
+			: BoneIndex(INDEX_NONE), BoneName(NAME_None)
 		{}
 
-		void SetTrackData(int32 InTrackIndex, int32 InBoneIndex, FName InBoneName)
+		void SetTrackData( int32 InBoneIndex, FName InBoneName)
 		{
-			TrackIndex = InTrackIndex;
 			BoneIndex = InBoneIndex;
 			BoneName = InBoneName;
 		}
@@ -2326,11 +2324,9 @@ void UnFbx::FFbxImporter::ImportBoneTracks(USkeleton* Skeleton, FAnimCurveImport
 				if (BoneTreeIndex != INDEX_NONE)
 				{
 					//add new track
-					Controller.AddBoneTrack(BoneName);
+					Controller.AddBoneCurve(BoneName);
 					Controller.SetBoneTrackKeys(BoneName, RawTrack.PosKeys, RawTrack.RotKeys, RawTrack.ScaleKeys);
-					const int32 TrackIndex = DestSeq->GetDataModel()->GetBoneTrackIndexByName(BoneName);
-
-					NewDebugData.SetTrackData(TrackIndex, BoneTreeIndex, BoneName);
+					NewDebugData.SetTrackData(BoneTreeIndex, BoneName);
 
 					// add mapping to skeleton bone track
 					TransformDebugData.Add(NewDebugData);

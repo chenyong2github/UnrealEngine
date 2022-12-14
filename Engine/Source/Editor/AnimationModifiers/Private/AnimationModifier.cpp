@@ -191,7 +191,7 @@ void UAnimationModifier::UpdateCompressedAnimationData()
 {
 	if (CurrentAnimSequence->DoesNeedRecompress())
 	{
-		CurrentAnimSequence->RequestSyncAnimRecompression(false);
+		CurrentAnimSequence->CacheDerivedDataForCurrentPlatform();
 	}
 }
 

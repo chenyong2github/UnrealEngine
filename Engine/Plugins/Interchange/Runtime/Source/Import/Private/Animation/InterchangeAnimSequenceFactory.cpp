@@ -432,7 +432,7 @@ namespace UE::Interchange::Private
 					&& TimeKeys.Num() == BakeKeyCount);
 
 				//add new track
-				Controller.AddBoneTrack(BoneName);
+				Controller.AddBoneCurve(BoneName);
 				Controller.SetBoneTrackKeys(BoneName, RawTrack.PosKeys, RawTrack.RotKeys, RawTrack.ScaleKeys);
 			}
 		}

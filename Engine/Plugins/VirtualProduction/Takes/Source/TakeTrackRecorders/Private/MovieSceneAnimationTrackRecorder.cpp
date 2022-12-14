@@ -409,7 +409,7 @@ bool UMovieSceneAnimationTrackRecorder::LoadRecordedFile(const FString& FileName
 									int32 MaxNumberOfKeys = 0;
 									for (int32 TrackIndex = 0; TrackIndex < Header.AnimationTrackNames.Num(); ++TrackIndex)
 									{
-										Controller.AddBoneTrack(Header.AnimationTrackNames[TrackIndex]);
+										Controller.AddBoneCurve(Header.AnimationTrackNames[TrackIndex]);
 
 										TArray<FVector3f> PosKeys;
 										TArray<FQuat4f> RotKeys;

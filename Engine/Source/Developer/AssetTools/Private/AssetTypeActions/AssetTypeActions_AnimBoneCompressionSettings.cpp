@@ -108,7 +108,7 @@ void FAssetTypeActions_AnimBoneCompressionSettings::ExecuteCompression(TWeakObje
 	for (UAnimSequence* AnimSeq : AnimSeqsToRecompress)
 	{
 		LoadingAnimSlowTask.EnterProgressFrame();
-		AnimSeq->RequestSyncAnimRecompression(false);
+		AnimSeq->CacheDerivedDataForCurrentPlatform();
 	}
 }
 

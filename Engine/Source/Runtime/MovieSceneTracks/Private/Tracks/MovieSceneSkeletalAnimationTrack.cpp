@@ -641,31 +641,9 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 	}
 }
 
-
-static int32 GetAnimationTrackIndex(const int32 BoneIndex, const UAnimSequence* AnimSeq)
-{
-	if (BoneIndex == INDEX_NONE)
-	{
-		return INDEX_NONE;
-	}
-
-	const TArray<FTrackToSkeletonMap>& TrackToSkelMap = AnimSeq->CompressedData.CompressedTrackToSkeletonMapTable;
-	for (int32 TrackIndex = 0; TrackIndex < TrackToSkelMap.Num(); ++TrackIndex)
-	{
-		const FTrackToSkeletonMap& TrackToSkeleton = TrackToSkelMap[TrackIndex];
-		if (TrackToSkeleton.BoneTreeIndex == BoneIndex)
-		{
-			return TrackIndex;
-		}
-	}
-
-	return INDEX_NONE;
-}
-
 static FTransform GetTransformForBoneRelativeToIndex(UAnimSequence* AnimSequence, USkeletalMeshComponent* MeshComponent, const FName& InBoneName,
 	const FCompactPoseBoneIndex& ParentCPIndex, double Seconds)
 {
-
 	FTransform  WorldTransform = FTransform::Identity;
 	//AnimSequence->GetBoneTransform doesn't seem to be as accurate as GetAnimationPose
 	FMemMark Mark(FMemStack::Get());

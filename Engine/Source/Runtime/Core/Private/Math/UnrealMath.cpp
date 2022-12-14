@@ -469,6 +469,7 @@ FQuat4f FRotator3f::Quaternion() const
 	{
 		logOrEnsureNanError(TEXT("Invalid input %s to FRotator::Quaternion - generated NaN output: %s"), *ToString(), *RotationQuat.ToString());
 		RotationQuat = FQuat4f::Identity;
+		FDebug::DumpStackTraceToLog(ELogVerbosity::Warning);
 	}
 #endif
 
@@ -538,6 +539,7 @@ FQuat4d FRotator3d::Quaternion() const
 	{
 		logOrEnsureNanError(TEXT("Invalid input %s to FRotator::Quaternion - generated NaN output: %s"), *ToString(), *RotationQuat.ToString());
 		RotationQuat = FQuat4d::Identity;
+		FDebug::DumpStackTraceToLog(ELogVerbosity::Warning);
 	}
 #endif
 

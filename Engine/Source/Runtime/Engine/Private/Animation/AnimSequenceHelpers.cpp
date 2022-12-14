@@ -94,44 +94,20 @@ void EvaluateTransformCurvesFromModel(const IAnimationDataModel* Model, TMap<FNa
 
 void GetBoneTransformFromModel(const IAnimationDataModel* Model, FTransform& OutTransform, int32 TrackIndex, double Time, const EAnimInterpolationType& Interpolation)
 {
-	const FBoneAnimationTrack& TrackData = Model->GetBoneTrackByIndex(TrackIndex);
-	const FRawAnimSequenceTrack& RawTrack = TrackData.InternalTrackData;
-	
-	FAnimationUtils::ExtractTransformFromTrack(RawTrack, Time, Model->GetNumberOfKeys(), Model->GetPlayLength(), Interpolation, OutTransform);
+	TArray<FName> TrackNames;
+	Model->GetBoneTrackNames(TrackNames);
+	OutTransform = Model->EvaluateBoneTrackTransform(TrackNames[TrackIndex], Model->GetFrameRate().AsFrameTime(Time), Interpolation);
 }
 
 void GetBoneTransformFromModel(const IAnimationDataModel* Model, FTransform& OutTransform, int32 TrackIndex, int32 KeyIndex)
 {
-	const FBoneAnimationTrack& TrackData = Model->GetBoneTrackByIndex(TrackIndex);
-	const FRawAnimSequenceTrack& RawTrack = TrackData.InternalTrackData;
-
-	// Bail out (with rather wacky data) if data is empty for some reason.
-	if (RawTrack.PosKeys.Num() == 0 || RawTrack.RotKeys.Num() == 0)
-	{
-		UE_LOG(LogAnimation, Log, TEXT("UAnimSequence::GetBoneTransform : No anim data in AnimSequence!"));
-		OutTransform.SetIdentity();
-		return;
-	}
-
-	const int32 PosKeyIndex = FMath::Min(KeyIndex, RawTrack.PosKeys.Num() - 1);
-	const int32 RotKeyIndex = FMath::Min(KeyIndex, RawTrack.RotKeys.Num() - 1);
-	static const FVector DefaultScale3D = FVector(1.f);
-
-	OutTransform.SetTranslation(FVector(RawTrack.PosKeys[PosKeyIndex]));
-	OutTransform.SetRotation(FQuat(RawTrack.RotKeys[RotKeyIndex]));
-	if (RawTrack.ScaleKeys.Num() > 0)
-	{
-		const int32 ScaleKeyIndex = FMath::Min(KeyIndex, RawTrack.ScaleKeys.Num() - 1);
-		OutTransform.SetScale3D(FVector(RawTrack.ScaleKeys[ScaleKeyIndex]));
-	}
-	else
-	{
-		OutTransform.SetScale3D(DefaultScale3D);
-	}
+	TArray<FName> TrackNames;
+	Model->GetBoneTrackNames(TrackNames);
+	OutTransform = Model->GetBoneTrackTransform(TrackNames[TrackIndex], KeyIndex);
 
 	for (const FTransformCurve& AdditiveTransformCurve : Model->GetTransformCurves())
 	{
-		if (AdditiveTransformCurve.Name.DisplayName == TrackData.Name)
+		if (AdditiveTransformCurve.Name.DisplayName == TrackNames[TrackIndex])
 		{
 			const float TimeInterval = Model->GetFrameRate().AsSeconds(KeyIndex);
 			const FTransform AdditiveTransform = AdditiveTransformCurve.Evaluate(TimeInterval, 1.f);
@@ -644,19 +620,32 @@ bool AnimationData::AddLoopingInterpolation(UAnimSequence* InSequence)
 		
 		IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("AddLoopingInterpolation_Bracket", "Adding looping interpolation"));
 
-		const TArray<FBoneAnimationTrack>& BoneAnimationTracks = DataModel->GetBoneAnimationTracks();
-		for (const FBoneAnimationTrack& AnimationTrack : BoneAnimationTracks)
+		TArray<FTransform> BoneTransforms;
+		TArray<FName> TrackNames;
+		DataModel->GetBoneTrackNames(TrackNames);
+ 
+		TArray<FVector3f> PositionalKeys, ScaleKeys;
+		TArray<FQuat4f> RotationalKeys;
+		for (const FName& TrackName : TrackNames)
 		{
-			auto PositionalKeys = AnimationTrack.InternalTrackData.PosKeys;
+			BoneTransforms.Reset();
+			PositionalKeys.Reset();
+			RotationalKeys.Reset();
+			ScaleKeys.Reset();
+			DataModel->GetBoneTrackTransforms(TrackName, BoneTransforms);
+
+			for (const FTransform& Transform : BoneTransforms)
+			{
+				PositionalKeys.Add(FVector3f(Transform.GetLocation()));
+				RotationalKeys.Add(FQuat4f(Transform.GetRotation()));
+				ScaleKeys.Add(FVector3f(Transform.GetScale3D()));
+			}
+		
 			LoopKeyData(PositionalKeys);
-
-			auto RotationalKeys = AnimationTrack.InternalTrackData.RotKeys;
 			LoopKeyData(RotationalKeys);
-
-			auto ScaleKeys = AnimationTrack.InternalTrackData.ScaleKeys;
 			LoopKeyData(ScaleKeys);
 
-			Controller.SetBoneTrackKeys(AnimationTrack.Name, PositionalKeys, RotationalKeys, ScaleKeys);
+			Controller.SetBoneTrackKeys(TrackName, PositionalKeys, RotationalKeys, ScaleKeys);
 		}
 
 		// New number of frames is equal to current number of keys, as we'll be adding one frame (Number of Frames + 1 == Number of Keys)
@@ -731,7 +720,6 @@ void AnimationData::DuplicateKeys(UAnimSequence* InSequence, int32 StartKeyIndex
 			const int32 NumFramesToInsert = NumDuplicates;
 			const int32 EndFrameIndex = StartKeyIndex + NumDuplicates;
 
-			TArray<FBoneAnimationTrack> BoneAnimationTracks = Model->GetBoneAnimationTracks();
 			auto InsertFrames = [&](auto& KeyData)
 			{
 				if (KeyData.Num() >= 1 && KeyData.IsValidIndex(CopyKeyIndex))
@@ -746,15 +734,50 @@ void AnimationData::DuplicateKeys(UAnimSequence* InSequence, int32 StartKeyIndex
 				}
 			};
 
-			for (FBoneAnimationTrack& AnimationTrack : BoneAnimationTracks)
+			TArray<FName> TrackNames;
+			Model->GetBoneTrackNames(TrackNames);
+			
+			TArray<FTransform> BoneTransforms;
+			BoneTransforms.Reserve(Model->GetNumberOfKeys());
+			
+			for (const FName& TrackName : TrackNames)
 			{
-				FRawAnimSequenceTrack& TrackData = AnimationTrack.InternalTrackData;
+				BoneTransforms.Reset();
+				Model->GetBoneTrackTransforms(TrackName, BoneTransforms);
 
-				InsertFrames(TrackData.PosKeys);
-				InsertFrames(TrackData.RotKeys);
-				InsertFrames(TrackData.ScaleKeys);
+				TArray<FVector3f> PosKeys;
+				PosKeys.SetNum(BoneTransforms.Num() + NumDuplicates);
+				TArray<FQuat4f> RotKeys;
+				RotKeys.SetNum(BoneTransforms.Num() + NumDuplicates);
+				TArray<FVector3f> ScaleKeys;
+				ScaleKeys.SetNum(BoneTransforms.Num() + NumDuplicates);
 
-				Controller.SetBoneTrackKeys(AnimationTrack.Name, TrackData.PosKeys, TrackData.RotKeys, TrackData.ScaleKeys);
+				ensure(BoneTransforms.IsValidIndex(SourceKeyIndex));
+				for (int32 TransformIndex = 0; TransformIndex < BoneTransforms.Num() + NumFramesToInsert; ++TransformIndex)
+				{
+					if (TransformIndex < StartKeyIndex)
+					{
+						PosKeys[TransformIndex] = FVector3f(BoneTransforms[TransformIndex].GetLocation());
+						RotKeys[TransformIndex] = FQuat4f(BoneTransforms[TransformIndex].GetRotation());
+						ScaleKeys[TransformIndex] = FVector3f(BoneTransforms[TransformIndex].GetScale3D());
+					}
+					if (TransformIndex >= StartKeyIndex && TransformIndex < StartKeyIndex + NumDuplicates)
+					{
+						PosKeys[TransformIndex] = FVector3f(BoneTransforms[SourceKeyIndex].GetLocation());
+						RotKeys[TransformIndex] = FQuat4f(BoneTransforms[SourceKeyIndex].GetRotation());
+						ScaleKeys[TransformIndex] = FVector3f(BoneTransforms[SourceKeyIndex].GetScale3D());
+					}
+					else if (TransformIndex >= StartKeyIndex + NumDuplicates)
+					{
+						PosKeys[TransformIndex] = FVector3f(BoneTransforms[TransformIndex - NumDuplicates].GetLocation());
+						RotKeys[TransformIndex] = FQuat4f(BoneTransforms[TransformIndex - NumDuplicates].GetRotation());
+						ScaleKeys[TransformIndex] = FVector3f(BoneTransforms[TransformIndex - NumDuplicates].GetScale3D());
+					}
+				}
+
+				Controller.SetBoneTrackKeys(TrackName, PosKeys, RotKeys, ScaleKeys);
+				
+				BoneTransforms.Reset();
 			}
 
 			// The number of keys has changed, which means that the sequence length and number of frames should be updated as well
@@ -803,16 +826,42 @@ void AnimationData::RemoveKeys(UAnimSequence* InSequence, int32 StartKeyIndex, i
 
 		const int32 NewNumberOfKeys = NumberOfKeys - NumKeysToRemove;
 
-		TArray<FBoneAnimationTrack> BoneAnimationTracks = Model->GetBoneAnimationTracks();
-		for (FBoneAnimationTrack& AnimationTrack : BoneAnimationTracks)
-		{
-			FRawAnimSequenceTrack& TrackData = AnimationTrack.InternalTrackData;
-
-			ShrinkKeys(TrackData.PosKeys);
-			ShrinkKeys(TrackData.RotKeys);
-			ShrinkKeys(TrackData.ScaleKeys);
+		TArray<FName> TrackNames;
+		Model->GetBoneTrackNames(TrackNames);
 			
-			Controller.SetBoneTrackKeys(AnimationTrack.Name, TrackData.PosKeys, TrackData.RotKeys, TrackData.ScaleKeys);
+		TArray<FTransform> BoneTransforms;
+		BoneTransforms.Reserve(Model->GetNumberOfKeys());
+			
+		for (const FName& TrackName : TrackNames)
+		{
+			BoneTransforms.Reset();
+
+			Model->GetBoneTrackTransforms(TrackName, BoneTransforms);
+
+			TArray<FVector3f> PosKeys;
+			PosKeys.SetNum(BoneTransforms.Num() - NumKeysToRemove);
+			TArray<FQuat4f> RotKeys;
+			RotKeys.SetNum(BoneTransforms.Num() - NumKeysToRemove);
+			TArray<FVector3f> ScaleKeys;
+			ScaleKeys.SetNum(BoneTransforms.Num() - NumKeysToRemove);
+
+			for (int32 TransformIndex = 0; TransformIndex < BoneTransforms.Num() - NumKeysToRemove; ++TransformIndex)
+			{
+				if (TransformIndex < StartKeyIndex)
+				{
+					PosKeys[TransformIndex] = FVector3f(BoneTransforms[TransformIndex].GetLocation());
+					RotKeys[TransformIndex] = FQuat4f(BoneTransforms[TransformIndex].GetRotation());
+					ScaleKeys[TransformIndex] = FVector3f(BoneTransforms[TransformIndex].GetScale3D());
+				}
+				if (TransformIndex >= StartKeyIndex)
+				{
+					PosKeys[TransformIndex] = FVector3f(BoneTransforms[TransformIndex + NumKeysToRemove].GetLocation());
+					RotKeys[TransformIndex] = FQuat4f(BoneTransforms[TransformIndex + NumKeysToRemove].GetRotation());
+					ScaleKeys[TransformIndex] = FVector3f(BoneTransforms[TransformIndex + NumKeysToRemove].GetScale3D());		
+				}
+			}
+			
+			Controller.SetBoneTrackKeys(TrackName, PosKeys, RotKeys, ScaleKeys);
 		}
 
 		const int32 NewNumberOfFrames = FMath::Max(NewNumberOfKeys - 1, 1);
@@ -824,7 +873,7 @@ void AnimationData::RemoveKeys(UAnimSequence* InSequence, int32 StartKeyIndex, i
 	}
 }
 
-int32 AnimationData::FindFirstChildTrackIndex(const UAnimSequence* InSequence, const USkeleton* Skeleton, const FName& BoneName)
+FName AnimationData::FindFirstChildTrackName(const UAnimSequence* InSequence, const USkeleton* Skeleton, const FName& BoneName)
 {
 	const IAnimationDataModel* DataModel = InSequence->GetDataModel();
 	const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
@@ -833,52 +882,53 @@ int32 AnimationData::FindFirstChildTrackIndex(const UAnimSequence* InSequence, c
 	if (BoneIndex == INDEX_NONE)
 	{
 		// get out, nothing to do
-		return INDEX_NONE;
+		return NAME_None;
 	}
 
 	// find children
-	TArray<int32> Childs;
-	if (Skeleton->GetChildBones(BoneIndex, Childs) > 0)
+	TArray<int32> ChildBoneIndices;
+	if (Skeleton->GetChildBones(BoneIndex, ChildBoneIndices) > 0)
 	{
 		// first look for direct children
-		for (auto ChildIndex : Childs)
+		for (const int32 ChildBoneIndex : ChildBoneIndices)
 		{
-			FName ChildBoneName = RefSkeleton.GetBoneName(ChildIndex);
-
-			int32 ChildTrackIndex = DataModel->GetBoneTrackIndexByName(ChildBoneName);
-			if (ChildTrackIndex != INDEX_NONE)
+			const FName ChildBoneName = RefSkeleton.GetBoneName(ChildBoneIndex);
+			if (DataModel->IsValidBoneTrackName(ChildBoneName))
 			{
 				// found the new track
-				return ChildTrackIndex;
+				return ChildBoneName;
 			}
 		}
 
 		int32 BestGrandChildIndex = INDEX_NONE;
+		FName BestGrandChildName = NAME_None;
 		// if you didn't find yet, now you have to go through all children
-		for (auto ChildIndex : Childs)
+		for (const int32 ChildBoneIndex : ChildBoneIndices)
 		{
-			FName ChildBoneName = RefSkeleton.GetBoneName(ChildIndex);
+			const FName ChildBoneName = RefSkeleton.GetBoneName(ChildBoneIndex);
 			// now I have to go through all childrewn and find who is earliest since I don't know which one might be the closest one
-			int32 GrandChildIndex = FindFirstChildTrackIndex(InSequence, Skeleton, ChildBoneName);
-			if (GrandChildIndex != INDEX_NONE)
+			const FName GrandChildName = FindFirstChildTrackName(InSequence, Skeleton, ChildBoneName);
+			if (GrandChildName != NAME_None)
 			{
+				const int32 GrandChildIndex = Skeleton->GetReferenceSkeleton().FindBoneIndex(GrandChildName);
 				if (BestGrandChildIndex == INDEX_NONE)
 				{
 					BestGrandChildIndex = GrandChildIndex;
+					BestGrandChildName = GrandChildName;
 				}
 				else if (BestGrandChildIndex > GrandChildIndex)
 				{
 					// best should be earlier track index
 					BestGrandChildIndex = GrandChildIndex;
+					BestGrandChildName = GrandChildName;
 				}
 			}
 		}
 
-		return BestGrandChildIndex;
+		return BestGrandChildName;
 	}
 
-	// there is no child, just add at the end
-	return DataModel->GetNumBoneTracks();
+	return NAME_None;
 }
 
 #endif // WITH_EDITOR

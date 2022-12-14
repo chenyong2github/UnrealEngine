@@ -7,9 +7,12 @@
 
 class UAnimBoneCompressionCodec;
 class UAnimSequenceBase;
+
+#if WITH_EDITORONLY_DATA
 struct FCompressibleAnimData;
 struct FCompressibleAnimDataResult;
 namespace UE::Anim::Compression { struct FAnimDDCKeyArgs; }
+#endif // WITH_EDITORONLY_DATA
 
 /*
  * This object is used to wrap a bone compression codec. It allows a clean integration in the editor by avoiding the need

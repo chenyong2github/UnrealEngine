@@ -57,14 +57,17 @@ void FPerPlatformPropertyCustomization<PerPlatformType>::CustomizeChildren(TShar
 	Args.PlatformOverrideNames = PlatformOverrideNames;
 	Args.OnAddPlatformOverride = FOnPlatformOverrideAction::CreateSP(this, &FPerPlatformPropertyCustomization<PerPlatformType>::AddPlatformOverride, StructPropertyHandle);
 	Args.OnRemovePlatformOverride = FOnPlatformOverrideAction::CreateSP(this, &FPerPlatformPropertyCustomization<PerPlatformType>::RemovePlatformOverride, StructPropertyHandle);
-	Args.OnGenerateWidgetForPlatformRow = FOnGenerateWidget::CreateSP(this, &FPerPlatformPropertyCustomization<PerPlatformType>::GetWidget, StructPropertyHandle);
-
+	Args.OnGenerateWidgetForPlatformRow = FOnGenerateWidget::CreateLambda([this, StructPropertyHandle, &StructBuilder](FName PlatformGroupName)
+	{
+		return GetWidget(PlatformGroupName, StructPropertyHandle, StructBuilder);
+	});
+	
 	StructBuilder.AddCustomBuilder(MakeShared<FPerPlatformPropertyCustomNodeBuilder>(MoveTemp(Args)));
 }
 
 
 template<typename PerPlatformType>
-TSharedRef<SWidget> FPerPlatformPropertyCustomization<PerPlatformType>::GetWidget(FName PlatformGroupName, TSharedRef<IPropertyHandle> StructPropertyHandle) const
+TSharedRef<SWidget> FPerPlatformPropertyCustomization<PerPlatformType>::GetWidget(FName PlatformGroupName, TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& StructBuilder) const
 {
 	TSharedPtr<IPropertyHandle>	EditProperty;
 
@@ -107,7 +110,7 @@ TSharedRef<SWidget> FPerPlatformPropertyCustomization<PerPlatformType>::GetWidge
 		// Iterate through source map, setting each key/value pair in the destination
 		for (const auto& It : *SourceMap)
 		{
-				EditProperty->SetInstanceMetaData(*It.Key.ToString(), *It.Value);
+			EditProperty->SetInstanceMetaData(*It.Key.ToString(), *It.Value);
 		}
 
 		// Copy instance metadata as well
@@ -120,6 +123,11 @@ TSharedRef<SWidget> FPerPlatformPropertyCustomization<PerPlatformType>::GetWidge
 
 	if (ensure(EditProperty.IsValid()))
 	{
+		if (EditProperty->GetProperty()->IsA<FStructProperty>())
+		{
+			return StructBuilder.GenerateStructValueWidget(EditProperty->AsShared());
+		}
+		
 		return EditProperty->CreatePropertyValueWidget(false);
 	}
 	
@@ -157,9 +165,9 @@ bool FPerPlatformPropertyCustomization<PerPlatformType>::AddPlatformOverride(FNa
 							KeyProperty->SetValue(PlatformGroupName);
 
 							// Set Value
-							typename PerPlatformType::ValueType DefaultValue;
-							DefaultProperty->GetValue(DefaultValue);
-							ChildProperty->SetValue(DefaultValue);
+							FString PropertyValueString;
+							DefaultProperty->GetValueAsFormattedString(PropertyValueString);
+							ChildProperty->SetValueFromFormattedString(PropertyValueString);
 
 							return true;
 						}
@@ -240,6 +248,7 @@ TSharedRef<IPropertyTypeCustomization> FPerPlatformPropertyCustomization<PerPlat
 template class FPerPlatformPropertyCustomization<FPerPlatformInt>;
 template class FPerPlatformPropertyCustomization<FPerPlatformFloat>;
 template class FPerPlatformPropertyCustomization<FPerPlatformBool>;
+template class FPerPlatformPropertyCustomization<FPerPlatformFrameRate>;
 
 #undef LOCTEXT_NAMESPACE
 

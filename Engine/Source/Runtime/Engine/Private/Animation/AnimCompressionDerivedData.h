@@ -30,10 +30,11 @@ private:
 	const FString AssetDDCKey;
 
 	// FAnimCompressContext to use during compression if we don't pull from the DDC
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TSharedPtr<FAnimCompressContext> CompressContext;
-
 public:
-	FDerivedDataAnimationCompression(const TCHAR* InTypeName, const FString& InAssetDDCKey, TSharedPtr<FAnimCompressContext> InCompressContext);
+	FDerivedDataAnimationCompression(const TCHAR* InTypeName, const FString& InAssetDDCKey, TSharedPtr<FAnimCompressContext> InCompressContext);	
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual ~FDerivedDataAnimationCompression();
 
 	void SetCompressibleData(FCompressibleAnimRef InCompressibleAnimData)

@@ -11,7 +11,7 @@
 #include "Animation/AnimEnums.h"
 #include "EngineLogs.h"
 
-ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogAnimationCompression, Log, All);
+ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogAnimationCompression, Display, All);
 
 // Thresholds
 #define TRANSLATION_ZEROING_THRESHOLD (0.0001f)

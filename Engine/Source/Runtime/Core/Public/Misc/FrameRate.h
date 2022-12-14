@@ -207,6 +207,10 @@ struct FFrameRate
 	{
 		return Rate.AsFrameTime(TimeInSeconds);
 	}
+	
+	friend CORE_API FArchive& operator<<(FArchive& Ar, FFrameRate& FrameRate);
+
+	CORE_API bool Serialize(FArchive& Ar);
 };
 
 inline double FFrameRate::AsInterval() const

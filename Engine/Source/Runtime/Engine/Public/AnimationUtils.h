@@ -120,7 +120,9 @@ public:
 	 * @param TrackHeights [OUT]	The computed track heights
 	 *
 	 */
+#if WITH_EDITOR
 	static void CalculateTrackHeights(const FCompressibleAnimData& CompressibleAnimData, int NumTracks, TArray<int32>& TrackHeights);
+#endif // WITH_EDITOR
 
 	/**
 	 * Checks a set of key times to see if the spacing is uniform or non-uniform.
@@ -137,6 +139,8 @@ public:
 	/**
 	 * Perturbs the bone(s) associated with each track in turn, measuring the maximum error introduced in end effectors as a result
 	 */
+	
+#if WITH_EDITOR
 	static void TallyErrorsFromPerturbation(
 		const FCompressibleAnimData& CompressibleAnimData,
 		int32 NumTracks,
@@ -145,7 +149,6 @@ public:
 		const FVector& ScaleNudge,
 		TArray<FAnimPerturbationError>& InducedErrors);
 
-#if WITH_EDITOR
 	/** Preload the bone, curve and recorder compression settings */
 	ENGINE_API static void PreloadCompressionSettings();
 #endif

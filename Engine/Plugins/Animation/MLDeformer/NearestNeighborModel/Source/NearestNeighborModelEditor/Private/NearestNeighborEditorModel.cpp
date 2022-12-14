@@ -561,11 +561,11 @@ namespace UE::NearestNeighborModel
 		Controller.SetNumberOfFrames(NumKeys - 1);
 		Controller.SetFrameRate(FFrameRate(30, 1));
 
-		const TArray<FBoneAnimationTrack>& DefaultTracks = DefaultAnim->GetDataModel()->GetBoneAnimationTracks();
-		const int32 NumTracks = DefaultTracks.Num();
-		for (int32 TrackIndex = 0; TrackIndex < NumTracks; TrackIndex++)
+		TArray<FName> TrackNames;		
+		DefaultAnim->GetDataModel()->GetBoneTrackNames(TrackNames);
+		const int32 NumTracks = TrackNames.Num();
+		for (const FName& TrackName : TrackNames)
 		{
-			const FName TrackName = DefaultTracks[TrackIndex].Name;
 			TArray<FVector3f> PosKeys;
 			TArray<FQuat4f> RotKeys;
 			TArray<FVector3f> ScaleKeys;
@@ -588,18 +588,13 @@ namespace UE::NearestNeighborModel
 					UE_LOG(LogNearestNeighborModel, Error, TEXT("CreateAnimOfClusterCenters: PickedAnim %d is null."), PickedAnimId);
 					return TTuple<UAnimSequence*, uint8>(nullptr, EUpdateResult::ERROR);
 				}
-				const FBoneAnimationTrack& Track = PickedAnim->GetDataModel()->GetBoneTrackByName(TrackName);
-				const FRawAnimSequenceTrack& RawTrack = Track.InternalTrackData;
-				if (PickedFrame < 0 || PickedFrame >= RawTrack.PosKeys.Num())
-				{
-					UE_LOG(LogNearestNeighborModel, Error, TEXT("CreateAnimOfClusterCenters: PickedFrame %d is out of range[0, %d)."), PickedFrame, RawTrack.PosKeys.Num());
-					return TTuple<UAnimSequence*, uint8>(nullptr, EUpdateResult::ERROR);
-				}
-				PosKeys[KeyIndex] = RawTrack.PosKeys[PickedFrame];
-				RotKeys[KeyIndex] = RawTrack.RotKeys[PickedFrame];
-				ScaleKeys[KeyIndex] = RawTrack.ScaleKeys[PickedFrame];
+
+				const FTransform BoneTransform = PickedAnim->GetDataModel()->GetBoneTrackTransform(TrackName, PickedFrame);				
+				PosKeys[KeyIndex] = FVector3f(BoneTransform.GetLocation());
+				RotKeys[KeyIndex] = FQuat4f(BoneTransform.GetRotation());
+				ScaleKeys[KeyIndex] = FVector3f(BoneTransform.GetScale3D());
 			}
-			Controller.AddBoneTrack(TrackName);
+			Controller.AddBoneCurve(TrackName);
 			Controller.SetBoneTrackKeys(TrackName, PosKeys, RotKeys, ScaleKeys);
 		}
 		Controller.NotifyPopulated();

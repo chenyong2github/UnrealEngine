@@ -111,8 +111,18 @@ USTRUCT(BlueprintType)
 struct FAnimationTrackAddedPayload : public FAnimationTrackPayload
 {
 	GENERATED_BODY()
+	
+	
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FAnimationTrackAddedPayload() = default;
+	FAnimationTrackAddedPayload(const FAnimationTrackAddedPayload&) = default;
+	FAnimationTrackAddedPayload(FAnimationTrackAddedPayload&&) = default;
+	FAnimationTrackAddedPayload& operator=(const FAnimationTrackAddedPayload&) = default;
+	FAnimationTrackAddedPayload& operator=(FAnimationTrackAddedPayload&&) = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Index of the track (bone) which was added */
+	UE_DEPRECATED(5.2, "FAnimationTrackAddedPayload::TrackIndex has been deprecated")
 	UPROPERTY(BlueprintReadOnly, Category = Payload)
 	int32 TrackIndex = INDEX_NONE;
 };

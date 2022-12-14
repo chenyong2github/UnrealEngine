@@ -1991,7 +1991,7 @@ struct CompressAnimationsFunctor
 			UE_LOG(LogPackageUtilities, Warning, TEXT("%s (%s) Resetting with to default compression settings."), *AnimSeq->GetName(), *AnimSeq->GetFullName());
 			AnimSeq->BoneCompressionSettings = nullptr;
 			AnimSeq->CurveCompressionSettings = nullptr;
-			AnimSeq->RequestAnimCompression(FRequestAnimCompressionParams(false, true, false));
+			AnimSeq->CacheDerivedDataForCurrentPlatform();
 
 			// Automatic compression should have picked a suitable compressor
 			if (!AnimSeq->IsCompressedDataValid())
@@ -1999,7 +1999,7 @@ struct CompressAnimationsFunctor
 				// Update CompressCommandletVersion in that case, and create a proper DDC entry
 				// (with actual compressor)
 				AnimSeq->CompressCommandletVersion = CompressCommandletVersion;
-				AnimSeq->RequestAnimCompression(FRequestAnimCompressionParams(false, false, false));
+				AnimSeq->BeginCacheDerivedDataForCurrentPlatform();
 				bDirtyPackage = true;
 			}
 

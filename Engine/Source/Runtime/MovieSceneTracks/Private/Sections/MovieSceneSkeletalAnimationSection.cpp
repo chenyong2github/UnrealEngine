@@ -11,6 +11,7 @@
 #include "Tracks/MovieSceneSkeletalAnimationTrack.h"
 #include "BoneContainer.h"
 #include "Animation/AnimationPoseData.h"
+#include "Animation/AnimSequenceDecompressionContext.h"
 #include "Animation/AttributesRuntime.h"
 #include "Misc/FrameRate.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
@@ -533,35 +534,35 @@ int32 UMovieSceneSkeletalAnimationSection::SetBoneIndexForRootMotionCalculations
 			//but if not first find first
 			int32 RootIndex = INDEX_NONE;
 #if WITH_EDITOR
+			TArray<FName> TrackNames;
+			AnimSequence->GetDataModelInterface()->GetBoneTrackNames(TrackNames);
+			const FReferenceSkeleton& RefSkeleton = AnimSequence->GetSkeleton()->GetReferenceSkeleton();
 			const IAnimationDataModel* DataModel = AnimSequence->GetDataModel();
-			const TArray<FBoneAnimationTrack>& BoneAnimationTracks = DataModel->GetBoneAnimationTracks();
-			const int32 NumTracks = BoneAnimationTracks.Num();
-			for (int32 TrackIndex = 0; TrackIndex < NumTracks; ++TrackIndex)
+			TArray<FTransform> OutTransforms;
+			for (int32 BoneIndex = 0; BoneIndex < RefSkeleton.GetNum(); ++BoneIndex)
 			{
-				const FBoneAnimationTrack& AnimationTrack = BoneAnimationTracks[TrackIndex];
-				// verify if this bone exists in skeleton
-				const int32 BoneTreeIndex = AnimationTrack.BoneTreeIndex;
-				if (BoneTreeIndex != INDEX_NONE)
+				const FName BoneName = RefSkeleton.GetBoneName(BoneIndex);
+				if (DataModel->IsValidBoneTrackName(BoneName))
 				{
-	
-						const FRawAnimSequenceTrack& InternalTrackData = AnimationTrack.InternalTrackData;
-						const TArray<FVector3f>& TrackPosKeys = InternalTrackData.PosKeys;
-						for (const FVector3f& Vector : TrackPosKeys)
+					DataModel->GetBoneTrackTransforms(BoneName, OutTransforms);
+					
+					for (const FTransform& Transform : OutTransforms)
+					{
+						if (Transform.GetScale3D().IsNearlyZero() == false)
 						{
-							if (Vector.IsNearlyZero() == false)
-							{
-								TempRootBoneIndex = BoneTreeIndex;
-								break;
-							}
-						}
-						if (TempRootBoneIndex.IsSet())
-						{
+							TempRootBoneIndex = BoneIndex;
 							break;
-						}				
-
+						}
+					}
+					
+					OutTransforms.Reset();
+					if (TempRootBoneIndex.IsSet())
+					{
+						break;
+					}
+					
 				}
 			}
-
 #else
 			const TArray<FTrackToSkeletonMap>& BoneMappings = AnimSequence->GetCompressedTrackToSkeletonMapTable();
 			const int32 NumTracks = BoneMappings.Num();
@@ -583,12 +584,8 @@ int32 UMovieSceneSkeletalAnimationSection::SetBoneIndexForRootMotionCalculations
 						const int32 NumFrames = AnimSequence->GetNumberOfSampledKeys();
 						for (int32 Index = 0; Index < NumFrames; ++Index)
 						{
-							float Pos = FMath::Clamp((float)AnimSequence->GetSamplingFrameRate().AsSeconds(Index), 0.f, AnimSequence->GetPlayLength());
+							const double Pos = FMath::Clamp(AnimSequence->GetSamplingFrameRate().AsSeconds(Index), 0.0, AnimSequence->GetPlayLength());
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-							//jurre this is what I am talking  about
-							// can't create tkhis since GetRetargetTransformsSourceName isn't  public.
-							//FAnimSequenceDecompressionContext DecompContext(AnimSequence->GetSamplingFrameRate(), AnimSequence->GetSamplingFrameRate().AsFrameNumber(AnimSequence->GetPlayLength()).Value, AnimSequence->Interpolation, AnimSequence->GetRetargetTransformsSourceName(), *AnimSequence->CompressedData.CompressedDataStructure, AnimSequence->GetSkeleton()->GetRefLocalPoses(), AnimSequence->CompressedData.CompressedTrackToSkeletonMapTable, AnimSequence->GetSkeleton(), AnimSequence->IsValidAdditive());
-
 							AnimSequence->GetBoneTransform(Transform, TrackIndex, Pos, false);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 							if (Transform.Equals(FTransform::Identity) == false)

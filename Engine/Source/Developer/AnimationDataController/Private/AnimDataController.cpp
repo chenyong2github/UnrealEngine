@@ -1279,15 +1279,15 @@ void UAnimDataController::ResizePlayLength(float Length, float T0, float T1, boo
 	ResizeNumberOfFrames(ConvertSecondsToFrameNumber(Length), ConvertSecondsToFrameNumber(T0), ConvertSecondsToFrameNumber(T1), bShouldTransact);
 }
 
-int32 UAnimDataController::AddBoneTrack(FName BoneName, bool bShouldTransact /*= true*/)
+bool UAnimDataController::AddBoneCurve(FName BoneName, bool bShouldTransact /*= true*/)
 {
 	if (!ModelInterface->GetAnimationSequence())
 	{
-		return INDEX_NONE;
+		return false;
 	}
 
 	FTransaction Transaction = ConditionalTransaction(LOCTEXT("AddBoneTrack", "Adding Animation Data Track"), bShouldTransact);
-	return InsertBoneTrack(BoneName, INDEX_NONE, bShouldTransact);
+	return InsertBoneTrack(BoneName, INDEX_NONE, bShouldTransact) != INDEX_NONE;
 }
 
 int32 UAnimDataController::InsertBoneTrack(FName BoneName, int32 DesiredIndex, bool bShouldTransact /*= true*/)
@@ -1343,7 +1343,6 @@ int32 UAnimDataController::InsertBoneTrack(FName BoneName, int32 DesiredIndex, b
 
 				FAnimationTrackAddedPayload Payload;
 				Payload.Name = BoneName;
-				Payload.TrackIndex = InsertIndex;
 
 				Model->GetNotifier().Notify<FAnimationTrackAddedPayload>(EAnimDataModelNotifyType::TrackAdded, Payload);
 				ConditionalAction<UE::Anim::FRemoveTrackAction>(bShouldTransact, BoneName);
@@ -1379,7 +1378,10 @@ bool UAnimDataController::RemoveBoneTrack(FName BoneName, bool bShouldTransact /
 
 		ensure(TrackIndex != INDEX_NONE);
 
-		ConditionalAction<UE::Anim::FAddTrackAction>(bShouldTransact,*ExistingTrackPtr);
+		TArray<FTransform> BoneTransforms;
+		Model->GetBoneTrackTransforms(BoneName, BoneTransforms);
+
+		ConditionalAction<UE::Anim::FAddTrackAction>(bShouldTransact, BoneName, MoveTemp(BoneTransforms));
 		Model->BoneAnimationTracks.RemoveAt(TrackIndex);
 
 		FAnimationTrackRemovedPayload Payload;
@@ -1439,7 +1441,9 @@ bool UAnimDataController::SetBoneTrackKeys(FName BoneName, const TArray<FVector>
 			{
 				FTransaction Transaction = ConditionalTransaction(LOCTEXT("SetTrackKeysTransaction", "Setting Animation Data Track keys"), bShouldTransact);
 
-				ConditionalAction<UE::Anim::FSetTrackKeysAction>(bShouldTransact, *TrackPtr);
+				TArray<FTransform> BoneTransforms;
+				Model->GetBoneTrackTransforms(BoneName, BoneTransforms);
+				ConditionalAction<UE::Anim::FSetTrackKeysAction>(bShouldTransact, BoneName, BoneTransforms);
 
 				TrackPtr->InternalTrackData.PosKeys.SetNum(MaxNumKeys);
 				TrackPtr->InternalTrackData.ScaleKeys.SetNum(MaxNumKeys);
@@ -1498,7 +1502,9 @@ bool UAnimDataController::SetBoneTrackKeys(FName BoneName, const TArray<FVector3
 		{
 			if (FBoneAnimationTrack* TrackPtr = Model->FindMutableBoneTrackByName(BoneName))
 			{
-				ConditionalAction<UE::Anim::FSetTrackKeysAction>(bShouldTransact, *TrackPtr);
+				TArray<FTransform> BoneTransforms;
+				Model->GetBoneTrackTransforms(BoneName, BoneTransforms);
+				ConditionalAction<UE::Anim::FSetTrackKeysAction>(bShouldTransact, BoneName, BoneTransforms);
 
 				TrackPtr->InternalTrackData.PosKeys = PositionalKeys;
 				TrackPtr->InternalTrackData.RotKeys = RotationalKeys;
@@ -1584,7 +1590,9 @@ bool UAnimDataController::UpdateBoneTrackKeys(FName BoneName, const FInt32Range&
 
 						FTransaction Transaction = ConditionalTransaction(LOCTEXT("SetTrackKeysRangeTransaction", "Setting Animation Data Track keys"), bShouldTransact);
 
-						ConditionalAction<UE::Anim::FSetTrackKeysAction>(bShouldTransact, *TrackPtr);
+						TArray<FTransform> BoneTransforms;
+						Model->GetBoneTrackTransforms(BoneName, BoneTransforms);
+						ConditionalAction<UE::Anim::FSetTrackKeysAction>(bShouldTransact, BoneName, BoneTransforms);
 
 						int32 KeyIndex = 0;
 						for (int32 FrameIndex = RangeMin; FrameIndex < RangeMax; ++FrameIndex, ++KeyIndex)
@@ -1667,7 +1675,9 @@ bool UAnimDataController::UpdateBoneTrackKeys(FName BoneName, const FInt32Range&
 
 						FTransaction Transaction = ConditionalTransaction(LOCTEXT("SetTrackKeysTransaction", "Setting Animation Data Track keys"), bShouldTransact);
 
-						ConditionalAction<UE::Anim::FSetTrackKeysAction>(bShouldTransact, *TrackPtr);
+						TArray<FTransform> BoneTransforms;
+						Model->GetBoneTrackTransforms(BoneName, BoneTransforms);
+						ConditionalAction<UE::Anim::FSetTrackKeysAction>(bShouldTransact, BoneName, BoneTransforms);
 
 						int32 KeyIndex = 0;
 						for (int32 FrameIndex = RangeMin; FrameIndex < RangeMax; ++FrameIndex, ++KeyIndex)
@@ -2123,7 +2133,9 @@ void UAnimDataController::UpdateWithSkeleton(USkeleton* TargetSkeleton, bool bSh
 
 void UAnimDataController::PopulateWithExistingModel(TScriptInterface<IAnimationDataModel> InModel)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	Model->BoneAnimationTracks = InModel->GetBoneAnimationTracks();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	Model->FrameRate = InModel->GetFrameRate();
 	Model->NumberOfFrames = InModel->GetNumberOfFrames();
 	Model->NumberOfKeys = InModel->GetNumberOfFrames() + 1;

@@ -109,6 +109,8 @@ void UAnimationSequencerDataModel::InitializeFKControlRig(UFKControlRig* FKContr
 	checkf(FKControlRig, TEXT("Invalid FKControlRig provided"));
 	if (Skeleton)
 	{
+		LockEvaluationAndModification();
+		
 		FKControlRig->SetObjectBinding(MakeShared<FControlRigObjectBinding>());
 		FKControlRig->GetObjectBinding()->BindToObject(Skeleton);
 
@@ -134,6 +136,8 @@ void UAnimationSequencerDataModel::InitializeFKControlRig(UFKControlRig* FKContr
 		FKControlRig->SetApplyMode(UseDirectFKControlRigMode == 1 ? EControlRigFKRigExecuteMode::Direct : EControlRigFKRigExecuteMode::Replace);
 		FKControlRig->SetBoneInitialTransformsFromRefSkeleton(Skeleton->GetReferenceSkeleton());
 		FKControlRig->Evaluate_AnyThread();
+		
+		UnlockEvaluationAndModification();
 	}
 }
 
@@ -214,7 +218,6 @@ void UAnimationSequencerDataModel::PreSave(FObjectPreSaveContext ObjectSaveConte
 void UAnimationSequencerDataModel::WillNeverCacheCookedPlatformDataAgain()
 {
 	Super::WillNeverCacheCookedPlatformDataAgain();
-	LegacyBoneAnimationTracks.Empty();
 }
 #endif
 
@@ -252,87 +255,68 @@ FFrameRate UAnimationSequencerDataModel::GetFrameRate() const
 
 const TArray<FBoneAnimationTrack>& UAnimationSequencerDataModel::GetBoneAnimationTracks() const
 {
-	return LegacyBoneAnimationTracks;
+	static TArray<FBoneAnimationTrack> TempTracks;
+	return TempTracks;
 }
 
 const FBoneAnimationTrack& UAnimationSequencerDataModel::GetBoneTrackByIndex(int32 TrackIndex) const
 {
-	checkf(LegacyBoneAnimationTracks.IsValidIndex(TrackIndex), TEXT("Unable to find animation track by index"));
-	return LegacyBoneAnimationTracks[TrackIndex];
+	static FBoneAnimationTrack TempTrack;
+	return TempTrack;
 }
 
 const FBoneAnimationTrack& UAnimationSequencerDataModel::GetBoneTrackByName(FName TrackName) const
 {
-	const FBoneAnimationTrack* TrackPtr = LegacyBoneAnimationTracks.FindByPredicate([TrackName](const FBoneAnimationTrack& Track)
-	{
-		return Track.Name == TrackName;
-	});
-
-	checkf(TrackPtr != nullptr, TEXT("Unable to find animation track by name"));
-
-	return *TrackPtr;
+	static FBoneAnimationTrack TempTrack;
+	return TempTrack;
 }
 
 const FBoneAnimationTrack* UAnimationSequencerDataModel::FindBoneTrackByName(FName Name) const
 {
-	return LegacyBoneAnimationTracks.FindByPredicate([Name](const FBoneAnimationTrack& Track)
-	{
-		return Track.Name == Name;
-	});
-}
-
-FBoneAnimationTrack* UAnimationSequencerDataModel::FindMutableBoneTrackByName(FName Name)
-{
-	return LegacyBoneAnimationTracks.FindByPredicate([&Name](const FBoneAnimationTrack& Track)
-	{
-		return Track.Name == Name;
-	});
+	return nullptr;
 }
 
 const FBoneAnimationTrack* UAnimationSequencerDataModel::FindBoneTrackByIndex(int32 BoneIndex) const
 {
-	const FBoneAnimationTrack* TrackPtr = LegacyBoneAnimationTracks.FindByPredicate([BoneIndex](const FBoneAnimationTrack& Track)
-	{
-		return Track.BoneTreeIndex == BoneIndex;
-	});
-
-	return TrackPtr;
+	return nullptr;
 }
 
 int32 UAnimationSequencerDataModel::GetBoneTrackIndex(const FBoneAnimationTrack& Track) const
 {
-	return LegacyBoneAnimationTracks.IndexOfByPredicate([&Track](const FBoneAnimationTrack& SearchTrack)
-	{
-		return SearchTrack.Name == Track.Name;
-	});
+	return INDEX_NONE;
 }
 
 int32 UAnimationSequencerDataModel::GetBoneTrackIndexByName(FName TrackName) const
 {
-	if (const FBoneAnimationTrack* TrackPtr = FindBoneTrackByName(TrackName))
-	{
-		return GetBoneTrackIndex(*TrackPtr);
-	}
-
 	return INDEX_NONE;
 }
 
 bool UAnimationSequencerDataModel::IsValidBoneTrackIndex(int32 TrackIndex) const
 {
-	return LegacyBoneAnimationTracks.IsValidIndex(TrackIndex);
+	return false;
 }
 
 int32 UAnimationSequencerDataModel::GetNumBoneTracks() const
 {
-	return LegacyBoneAnimationTracks.Num();
+	ValidateSequencerData();
+		
+	if(const UMovieSceneControlRigParameterSection* Section = GetFKControlRigSection())
+	{
+		return Section->GetTransformParameterNamesAndCurves().Num();
+	}
+
+	return 0;
 }
 
 void UAnimationSequencerDataModel::GetBoneTrackNames(TArray<FName>& OutNames) const
 {
-	Algo::Transform(LegacyBoneAnimationTracks, OutNames, [](const FBoneAnimationTrack& Track)
+	if(const UMovieSceneControlRigParameterSection* Section = GetFKControlRigSection())
 	{
-		return Track.Name; 
-	});
+		for (const FTransformParameterNameAndCurves& TransformParameter : Section->GetTransformParameterNamesAndCurves())
+	{
+			OutNames.Add(UFKControlRig::GetControlTargetName(TransformParameter.ParameterName, ERigElementType::Bone));
+		}
+	}
 }
 
 const FAnimationCurveData& UAnimationSequencerDataModel::GetCurveData() const
@@ -435,6 +419,70 @@ const FRichCurve* UAnimationSequencerDataModel::FindRichCurve(const FAnimationCu
 	}
 
 	return RichCurve;
+}
+
+bool UAnimationSequencerDataModel::IsValidBoneTrackName(const FName& TrackName) const
+{
+	ValidateSequencerData();
+
+	if (const UMovieSceneControlRigParameterSection* Section = GetFKControlRigSection())
+	{
+		const FName ControlName = UFKControlRig::GetControlName(TrackName, ERigElementType::Bone);
+		return Section->GetTransformParameterNamesAndCurves().ContainsByPredicate([ControlName](const FTransformParameterNameAndCurves& Curve) { return Curve.ParameterName == ControlName; });
+	}
+	
+	return false;
+}
+
+FTransform UAnimationSequencerDataModel::GetBoneTrackTransform(FName TrackName, const FFrameNumber& FrameNumber) const
+{
+	const TArray<FFrameNumber> FrameNumbers = { FrameNumber };
+	TArray<FTransform> Transforms;	
+	GenerateTransformKeysForControl(TrackName, FrameNumbers, Transforms);
+	return Transforms.Num() ? Transforms[0] : FTransform::Identity;
+}
+
+void UAnimationSequencerDataModel::GetBoneTrackTransforms(FName TrackName, const TArray<FFrameNumber>& FrameNumbers, TArray<FTransform>& OutTransforms) const
+{
+	GenerateTransformKeysForControl(TrackName, FrameNumbers, OutTransforms);
+}
+
+void UAnimationSequencerDataModel::GetBoneTrackTransforms(FName TrackName, TArray<FTransform>& OutTransforms) const
+{
+	IterateTransformControlCurve(TrackName, [&OutTransforms](const FTransform& Transform, const FFrameNumber& FrameNumber) -> void
+	{
+		OutTransforms.Add(Transform);
+	});
+}
+
+void UAnimationSequencerDataModel::GetBoneTracksTransform(const TArray<FName>& TrackNames, const FFrameNumber& FrameNumber, TArray<FTransform>& OutTransforms) const
+{
+	const TArray<FFrameNumber> FrameNumbers = { FrameNumber };
+	for (int32 EntryIndex = 0; EntryIndex < TrackNames.Num(); ++EntryIndex)
+	{
+		GenerateTransformKeysForControl(TrackNames[EntryIndex], FrameNumbers, OutTransforms);
+	}
+}
+
+FTransform UAnimationSequencerDataModel::EvaluateBoneTrackTransform(FName TrackName, const FFrameTime& FrameTime, const EAnimInterpolationType& Interpolation) const
+{
+	const float Alpha = Interpolation == EAnimInterpolationType::Step ? FMath::RoundToFloat(FrameTime.GetSubFrame()) : FrameTime.GetSubFrame();
+
+	if (FMath::IsNearlyEqual(Alpha, 1.0f))
+	{
+		return GetBoneTrackTransform(TrackName, FrameTime.CeilToFrame());
+	}
+	else if (FMath::IsNearlyZero(Alpha))
+	{
+		return GetBoneTrackTransform(TrackName, FrameTime.FloorToFrame());
+	}
+	
+	const FTransform From = GetBoneTrackTransform(TrackName, FrameTime.FloorToFrame());
+	const FTransform To = GetBoneTrackTransform(TrackName, FrameTime.CeilToFrame());
+
+	FTransform Blend;
+	Blend.Blend(From, To, Alpha);
+	return Blend;
 }
 
 const FAnimCurveBase& UAnimationSequencerDataModel::GetCurve(const FAnimationCurveIdentifier& CurveIdentifier) const
@@ -688,10 +736,6 @@ void UAnimationSequencerDataModel::OnNotify(const EAnimDataModelNotifyType& Noti
 		const TArray<EAnimDataModelNotifyType> BonesNotifyTypes = {EAnimDataModelNotifyType::TrackAdded, EAnimDataModelNotifyType::TrackChanged, EAnimDataModelNotifyType::TrackRemoved, EAnimDataModelNotifyType::Populated, EAnimDataModelNotifyType::Reset };
 		if(Collector.Contains(BonesNotifyTypes))
 		{
-			if(!ValidationMode)
-			{
-				GenerateLegacyBoneData();
-			}
 			RefreshControlsAndProxy();
 			ResetCachedGUID();
 		}
@@ -815,97 +859,6 @@ void UAnimationSequencerDataModel::GenerateLegacyCurveData()
 	}
 }
 
-void UAnimationSequencerDataModel::GenerateLegacyBoneData()
-{
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_GenerateLegacyBoneData);
-	// Reset current track-data
-	LegacyBoneAnimationTracks.Reset();
-
-	if(const USkeleton* TargetSkeleton = GetSkeleton())
-	{
-		const FReferenceSkeleton& ReferenceSkeleton = TargetSkeleton->GetReferenceSkeleton();
-		ValidateSequencerData();
-		
-		if(const UMovieSceneControlRigParameterSection* Section = GetFKControlRigSection())
-		{
-			if (const UControlRig* ControlRig = Section->GetControlRig())
-			{
-				if (const URigHierarchy* Hierarchy = ControlRig->GetHierarchy())
-				{
-					TArray<FTransform> Transforms;
-					TArray<FFrameNumber> FrameNumbers;
-
-					const TArray<FTransformParameterNameAndCurves>& TransformCurves = Section->GetTransformParameterNamesAndCurves();
-					LegacyBoneAnimationTracks.SetNumZeroed(TransformCurves.Num());
-					ParallelFor(TransformCurves.Num(), [this, &TransformCurves, Hierarchy, &ReferenceSkeleton](int32 CurveIndex)
-					{
-						const FTransformParameterNameAndCurves& TransformParameterCurve = TransformCurves[CurveIndex];
-
-						const FName TargetBoneName = UFKControlRig::GetControlTargetName(TransformParameterCurve.ParameterName, ERigElementType::Bone);
-						const FRigElementKey BoneElementKey(TargetBoneName, ERigElementType::Bone);
-						if (Hierarchy->Contains(BoneElementKey))
-						{							
-							// Only populate the track if any curve keys were set
-							const bool bContainsAnyKeys = [&TransformParameterCurve]()
-							{
-								for (int32 ChannelIndex = 0; ChannelIndex < 3; ++ChannelIndex)
-								{
-									if (TransformParameterCurve.Translation[ChannelIndex].HasAnyData() || TransformParameterCurve.Rotation[ChannelIndex].HasAnyData() || TransformParameterCurve.Scale[ChannelIndex].HasAnyData())
-									{
-										return true;
-									}
-								}
-
-								return false;
-							}();
-							
-							FBoneAnimationTrack& BoneTrack = LegacyBoneAnimationTracks[CurveIndex];
-							BoneTrack.Name = TargetBoneName;
-							BoneTrack.BoneTreeIndex = ReferenceSkeleton.FindBoneIndex(BoneTrack.Name);
-
-							if (bContainsAnyKeys)
-							{								
-								const int32 NumKeys = GetNumberOfKeys();
-								BoneTrack.InternalTrackData.PosKeys.SetNumUninitialized(NumKeys);
-								BoneTrack.InternalTrackData.RotKeys.SetNumUninitialized(NumKeys);
-								BoneTrack.InternalTrackData.ScaleKeys.SetNumUninitialized(NumKeys);
-
-								FVector3f EulerAngles;
-								for (int32 FrameIndex = 0; FrameIndex < NumKeys; ++FrameIndex)
-								{
-									for (int32 ChannelIndex = 0; ChannelIndex < 3; ++ChannelIndex)
-									{
-										BoneTrack.InternalTrackData.PosKeys[FrameIndex][ChannelIndex] = TransformParameterCurve.Translation[ChannelIndex].GetValues().Num() == 0 ? TransformParameterCurve.Translation[ChannelIndex].GetDefault().GetValue() : TransformParameterCurve.Translation[ChannelIndex].GetValues()[FrameIndex].Value;
-										EulerAngles[ChannelIndex] = TransformParameterCurve.Rotation[ChannelIndex].GetValues().Num() == 0 ? TransformParameterCurve.Rotation[ChannelIndex].GetDefault().GetValue() : TransformParameterCurve.Rotation[ChannelIndex].GetValues()[FrameIndex].Value;
-										BoneTrack.InternalTrackData.ScaleKeys[FrameIndex][ChannelIndex] = TransformParameterCurve.Scale[ChannelIndex].GetValues().Num() == 0 ? TransformParameterCurve.Scale[ChannelIndex].GetDefault().GetValue() : TransformParameterCurve.Scale[ChannelIndex].GetValues()[FrameIndex].Value;
-									}
-									
-									BoneTrack.InternalTrackData.RotKeys[FrameIndex] = FQuat4f::MakeFromEuler(EulerAngles);
-								}								
-							}
-						}
-					});
-
-					// Remove tracks for bones not present in the new hierarchy
-					LegacyBoneAnimationTracks.RemoveAll([](const FBoneAnimationTrack& Track) { return Track.Name.IsNone() && Track.InternalTrackData.PosKeys.Num() == 0; } );
-				}
-				else
-				{						
-					IAnimationDataController::ReportObjectErrorf(this, LOCTEXT("UnableToFindRigHierarchy", "Unable to retrieve RigHierarchy for ControlRig ({0})"), FText::FromString(ControlRig->GetPathName()));	      
-				}
-			}
-			else
-			{				
-				IAnimationDataController::ReportObjectErrorf(this, LOCTEXT("UnableToFindControlRig", "Unable to retrieve ControlRig for Model ({0})"), FText::FromString(GetPathName()));
-			}
-		}					
-	}
-	else
-	{
-		IAnimationDataController::ReportObjectErrorf(this, LOCTEXT("UnableToFindSkeleton", "Unable to retrieve target USkeleton for Animation Asset ({0})"), FText::FromString(GetOuter()->GetPathName()));	
-	}
-}
-
 void UAnimationSequencerDataModel::ValidateData() const
 {		
 	ValidateSequencerData();
@@ -990,82 +943,7 @@ void UAnimationSequencerDataModel::ValidateLegacyAgainstControlRigData() const
 	const UAnimSequence* OuterSequence = GetAnimationSequence();
 	if (const USkeleton* Skeleton = OuterSequence->GetSkeleton())
 	{
-		const FReferenceSkeleton& ReferenceSkeleton = Skeleton->GetReferenceSkeleton();
-
-		TArray<FTransform> Transforms;
-		TArray<FFrameNumber> FrameNumbers;
-		
-		for (const FBoneAnimationTrack& Track : LegacyBoneAnimationTracks)
-		{
-			const FName ExpectedBoneName = ReferenceSkeleton.GetBoneName(Track.BoneTreeIndex);
-			
-			const FRigElementKey BoneKey(ExpectedBoneName, ERigElementType::Bone);
-			const FRigBoneElement* BoneElement = Hierarchy->Find<FRigBoneElement>(BoneKey);
-			if(!BoneElement)
-			{
-				IAnimationDataController::ReportObjectErrorf(this, LOCTEXT("BoneElementNotFound", "Unable to find FRigBoneElement in RigHierarchy for Bone with name: {0}"), FText::FromString(ExpectedBoneName.ToString()));
-			}
-
-			const FRigElementKey BoneControlKey(UFKControlRig::GetControlName(ExpectedBoneName, ERigElementType::Bone), ERigElementType::Control);
-			const FRigControlElement* BoneControlElement = Hierarchy->Find<FRigControlElement>(BoneControlKey);
-
-			if (!BoneControlElement)
-			{
-				IAnimationDataController::ReportObjectErrorf(this, LOCTEXT("ControlElementNotFound", "Unable to find FRigControlElement in RigHierarchy for Bone with name: {0}"), FText::FromString(ExpectedBoneName.ToString()));
-			}		
-		
-			const FTransformParameterNameAndCurves* BoneCurveParameter = Section->GetTransformParameterNamesAndCurves().FindByPredicate([BoneControlKey](const FTransformParameterNameAndCurves& ParameterPair)
-			{
-				return ParameterPair.ParameterName == BoneControlKey.Name;
-			});
-			if (!(BoneCurveParameter || Track.InternalTrackData.PosKeys.Num() == 0))
-			{
-				IAnimationDataController::ReportObjectErrorf(this, LOCTEXT("ControlCurveNotFound", "Unable to find FTransformParameterNameAndCurves in RigHierarchy for Bone Control with name: {0}"), FText::FromName(BoneControlKey.Name));
-			}
-
-			GenerateTransformKeysForControl(ExpectedBoneName, Transforms, FrameNumbers);
-
-			const int32 NumExpectedKeys = Track.InternalTrackData.PosKeys.Num();
-			if (NumExpectedKeys != Transforms.Num())
-			{
-				IAnimationDataController::ReportObjectErrorf(this, LOCTEXT("UnexpectedNumberOfControlKeys",	"Unexpected number of Bone Control Curve keys for {0}, expected {1} but found {2}"), FText::FromName(ExpectedBoneName), FText::AsNumber(NumExpectedKeys), FText::AsNumber(Transforms.Num()));
-			}			
-
-			if (NumExpectedKeys == Transforms.Num())
-			{
-				for (int32 KeyIndex = 0; KeyIndex < NumExpectedKeys; ++KeyIndex)
-				{
-					const FTransform& TransformKey = Transforms[KeyIndex];
-
-					checkf(TransformKey.GetLocation().Equals(FVector(Track.InternalTrackData.PosKeys[KeyIndex])), TEXT("Unexpected positional key (%i) for bone %s, expected %s but found %s"), KeyIndex,
-						*ExpectedBoneName.ToString(),* Track.InternalTrackData.PosKeys[KeyIndex].ToCompactString(), *TransformKey.GetLocation().ToCompactString());
-
-					if(!TransformKey.GetLocation().Equals(FVector(Track.InternalTrackData.PosKeys[KeyIndex])))
-					{
-						IAnimationDataController::ReportObjectErrorf(this, LOCTEXT("UnexpectedPositionalKey", "Unexpected positional key ({0}) for bone {1}, expected {2} but found {3}"),							
-							FText::AsNumber(KeyIndex), FText::FromName(ExpectedBoneName), FText::FromString(Track.InternalTrackData.PosKeys[KeyIndex].ToCompactString()), FText::FromString(TransformKey.GetLocation().ToCompactString()));
-					}
-
-					const FQuat LegacyRotation = FQuat(Track.InternalTrackData.RotKeys[KeyIndex]).GetNormalized();
-					const double RotationDeltaDegrees = FMath::RadiansToDegrees(TransformKey.GetRotation().AngularDistance(LegacyRotation));
-			
-					if(RotationDeltaDegrees > 0.5f)
-					{
-						IAnimationDataController::ReportObjectErrorf(this, LOCTEXT("UnexpectedRotationalKey", "Unexpected rotational key ({0} degrees delta) ({1}) for bone {2}, expected {3} but found {4}"), FText::AsNumber(RotationDeltaDegrees), FText::AsNumber(KeyIndex), FText::FromName(ExpectedBoneName), FText::FromString(Track.InternalTrackData.RotKeys[KeyIndex].ToString()), FText::FromString(TransformKey.GetRotation().ToString()));
-					}
-
-					if (!TransformKey.GetScale3D().Equals(FVector(Track.InternalTrackData.ScaleKeys[KeyIndex])))
-					{
-						IAnimationDataController::ReportObjectErrorf(this, LOCTEXT("UnexpectedScalingKey", "Unexpected scaling key ({0}) for bone {1}, expected {2} but found {3}"), FText::AsNumber(KeyIndex),
-							FText::FromName(ExpectedBoneName), FText::FromString(Track.InternalTrackData.ScaleKeys[KeyIndex].ToCompactString()), FText::FromString(TransformKey.GetScale3D().ToCompactString()));
-					}
-				}
-			
-				Transforms.Reset();
-				FrameNumbers.Reset();
-			}
-		}
-		
+		const FReferenceSkeleton& ReferenceSkeleton = Skeleton->GetReferenceSkeleton();	
 		// Validate curve data against controls
 		for (const FFloatCurve& FloatCurve : LegacyCurveData.FloatCurves)
 		{
@@ -1117,7 +995,7 @@ void UAnimationSequencerDataModel::ValidateLegacyAgainstControlRigData() const
 	}	
 }
 
-void UAnimationSequencerDataModel::IterateTransformControlCurve(const FName& BoneName, TFunction<void(const FTransform&, const FFrameNumber&)> IterationFunction) const
+void UAnimationSequencerDataModel::IterateTransformControlCurve(const FName& BoneName, TFunction<void(const FTransform&, const FFrameNumber&)> IterationFunction, const TArray<FFrameNumber>* InFrameNumbers /*= nullptr*/) const
 {
 	ValidateSequencerData();
 	ValidateControlRigData();
@@ -1136,31 +1014,52 @@ void UAnimationSequencerDataModel::IterateTransformControlCurve(const FName& Bon
 		{
 			const FTransformParameterNameAndCurves& ControlCurve = *ControlCurvePtr;
 
-			FTransform Transform;
-			FVector3f Location;
-			FVector3f EulerAngles;
-			FVector3f Scale;
+			FVector3f Location(0.f);
+			FVector3f EulerAngles(0.f);
+			FVector3f Scale = FVector3f::OneVector;
 
-			for (int32 KeyIndex = 0; KeyIndex < GetNumberOfKeys(); ++KeyIndex)
+			// Check whether or not any data is contained
+			bool bContainsData = false;
+			bool bContainsKeys = false;
+			for (int32 ChannelIndex = 0; ChannelIndex < 3; ++ChannelIndex)
 			{
-				const FFrameNumber Frame(KeyIndex);
-				for (int32 ChannelIndex = 0; ChannelIndex < 3; ++ChannelIndex)
+				bContainsData |= ControlCurve.Translation[ChannelIndex].HasAnyData();
+				bContainsKeys |= ControlCurve.Translation[ChannelIndex].GetNumKeys() != 0;
+				bContainsData |= ControlCurve.Rotation[ChannelIndex].HasAnyData();		
+				bContainsKeys |= ControlCurve.Rotation[ChannelIndex].GetNumKeys() != 0;		
+				bContainsData |= ControlCurve.Scale[ChannelIndex].HasAnyData();
+				bContainsKeys |= ControlCurve.Scale[ChannelIndex].GetNumKeys() != 0;
+			}
+
+			if (bContainsData)
+			{
+				const int32 NumberOfKeysToIterate = InFrameNumbers != nullptr ? InFrameNumbers->Num() : GetNumberOfKeys();
+				for (int32 KeyIndex = 0; KeyIndex < NumberOfKeysToIterate; ++KeyIndex)
 				{
-					ControlCurve.Translation[ChannelIndex].Evaluate(Frame, Location[ChannelIndex]);
-					ControlCurve.Rotation[ChannelIndex].Evaluate(Frame, EulerAngles[ChannelIndex]);
-					ControlCurve.Scale[ChannelIndex].Evaluate(Frame, Scale[ChannelIndex]);
+					const FFrameNumber Frame = InFrameNumbers != nullptr ? (*InFrameNumbers)[KeyIndex] : FFrameNumber(KeyIndex);
+					for (int32 ChannelIndex = 0; ChannelIndex < 3; ++ChannelIndex)
+					{
+						ControlCurve.Translation[ChannelIndex].Evaluate(Frame, Location[ChannelIndex]);
+						ControlCurve.Rotation[ChannelIndex].Evaluate(Frame, EulerAngles[ChannelIndex]);
+						ControlCurve.Scale[ChannelIndex].Evaluate(Frame, Scale[ChannelIndex]);
+					}
+
+					FTransform Transform;
+					Transform.SetLocation(FVector(Location));
+					Transform.SetRotation(FQuat::MakeFromEuler(FVector(EulerAngles)));
+					Transform.SetScale3D(FVector(Scale));
+
+					Transform.NormalizeRotation();
+
+					IterationFunction(Transform, Frame);
 				}
-
-				Transform.SetLocation(FVector(Location));
-				Transform.SetRotation(FQuat::MakeFromEuler(FVector(EulerAngles)));
-				Transform.SetScale3D(FVector(Scale));
-
-				Transform.NormalizeRotation();
-
-				IterationFunction(Transform, Frame);
 			}
 		}
 	}
+	 else
+	 {
+		 ensure(false);
+	 }
 }
 
 void UAnimationSequencerDataModel::GenerateTransformKeysForControl(const FName& BoneName, TArray<FTransform>& InOutTransforms, TArray<FFrameNumber>& InOutFrameNumbers) const
@@ -1170,6 +1069,14 @@ void UAnimationSequencerDataModel::GenerateTransformKeysForControl(const FName& 
 		InOutTransforms.Add(Transform);
 		InOutFrameNumbers.Add(FrameNumber);
 	});
+}
+
+void UAnimationSequencerDataModel::GenerateTransformKeysForControl(const FName& BoneName, const TArray<FFrameNumber>& FrameNumbers, TArray<FTransform>& InOutTransforms) const
+{
+	IterateTransformControlCurve(BoneName, [&InOutTransforms](const FTransform& Transform, const FFrameNumber& FrameNumber) -> void
+	{
+		InOutTransforms.Add(Transform);
+	}, &FrameNumbers);
 }
 
 UMovieScene* UAnimationSequencerDataModel::GetMovieScene() const
@@ -1197,7 +1104,6 @@ void UAnimationSequencerDataModel::GeneratePoseData(UControlRig* ControlRig, FAn
 			FCompactPose& RigPose = InOutPoseData.GetPose();
 			RigPose.ResetToRefPose();
 			const FBoneContainer& RequiredBones = RigPose.GetBoneContainer();
-
 			FBlendedCurve& Curve = InOutPoseData.GetCurve();
 			UE::Anim::Retargeting::FRetargetingScope RetargetingScope(RigPose, EvaluationContext);
 			
@@ -1206,51 +1112,44 @@ void UAnimationSequencerDataModel::GeneratePoseData(UControlRig* ControlRig, FAn
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_GetMappings);
 				const FReferenceSkeleton& RefSkeleton = RequiredBones.GetReferenceSkeleton();
 
-				RigHierarchy->ForEach<FRigControlElement>([this, &RefSkeleton, &Curve, &RequiredBones, &RigHierarchy, &RetargetingScope, &RigPose, bValidCurve = Curve.IsValid(), SmartNameContainer=RequiredBones.GetSkeletonAsset()->GetSmartNameContainer(USkeleton::AnimCurveMappingName)](const FRigControlElement* ControlElement) -> bool
+				RigHierarchy->ForEach<FRigBoneElement>([&RefSkeleton, &RequiredBones, &RigHierarchy, &RetargetingScope, &RigPose](const FRigBoneElement* BoneElement) -> bool
 				{
-					if (ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
+					const FName& BoneName = BoneElement->GetName();
+					const int32 BoneIndex = RefSkeleton.FindBoneIndex(BoneName);
+					if (BoneIndex != INDEX_NONE)
 					{
-						const FName ExpectedBoneName = UFKControlRig::GetControlTargetName(ControlElement->GetName(), ERigElementType::Bone);
-						const int32 BoneIndex = RefSkeleton.FindBoneIndex(ExpectedBoneName);
-						if (BoneIndex != INDEX_NONE)
+						const int32 SkeletonBoneIndex = RequiredBones.GetSkeletonAsset()->GetReferenceSkeleton().FindBoneIndex(BoneName);
+						const FCompactPoseBoneIndex CompactPoseBoneIndex = RequiredBones.GetCompactPoseIndexFromSkeletonIndex(SkeletonBoneIndex);
+						if (CompactPoseBoneIndex != INDEX_NONE)
 						{
-							const FName& BoneName = ExpectedBoneName;
-							const FRigElementKey Key(BoneName, ERigElementType::Bone);
-
-							const bool bMatchingLegacyBone = !ValidationMode || LegacyBoneAnimationTracks.ContainsByPredicate([BoneName](const FBoneAnimationTrack& Track)
-							{
-								return Track.Name == BoneName;
-							});
-							ensureMsgf(bMatchingLegacyBone, TEXT("Non-matching bone vs legacy data %s"), *BoneName.ToString());
-						
-							const int32 SkeletonBoneIndex = RequiredBones.GetSkeletonAsset()->GetReferenceSkeleton().FindBoneIndex(BoneName);
-							const FCompactPoseBoneIndex CompactPoseBoneIndex = RequiredBones.GetCompactPoseIndexFromSkeletonIndex(SkeletonBoneIndex);
-							if (CompactPoseBoneIndex != INDEX_NONE)
-							{
-								RetargetingScope.AddTrackedBone(CompactPoseBoneIndex, SkeletonBoneIndex);
-				        
-								// Retrieve evaluated bone transform from Hierarchy
-								RigPose[CompactPoseBoneIndex] = RigHierarchy->GetLocalTransform(Key);
-							}
-						}
-					}
-					else if (ControlElement->Settings.ControlType == ERigControlType::Float && bValidCurve)
-					{
-						const FName ExpectedCurveName = UFKControlRig::GetControlTargetName(ControlElement->GetName(), ERigElementType::Curve);
-						const SmartName::UID_Type CurveIndex = SmartNameContainer->FindUID(ExpectedCurveName);
-						if (CurveIndex != INDEX_NONE)
-						{
-							const FRigElementKey Key(ExpectedCurveName, ERigElementType::Curve);	
-							if (Curve.IsEnabled(CurveIndex))
-							{
-								Curve.Set(CurveIndex, RigHierarchy->GetCurveValue(Key));
-							}
-							
+							RetargetingScope.AddTrackedBone(CompactPoseBoneIndex, SkeletonBoneIndex);
+							// Retrieve evaluated bone transform from Hierarchy
+							RigPose[CompactPoseBoneIndex] = RigHierarchy->GetLocalTransform(BoneElement->GetKey());
 						}
 					}
 
 					return true;
 				});
+
+				if (Curve.IsValid())
+				{
+					const FSmartNameMapping* SmartNameMapping = RequiredBones.GetSkeletonAsset()->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
+					RigHierarchy->ForEach<FRigCurveElement>([this, &RigHierarchy, &Curve, SmartNameMapping](const FRigCurveElement* CurveElement) -> bool
+					{
+						const FName& CurveName = CurveElement->GetName();
+						const SmartName::UID_Type CurveIndex = SmartNameMapping->FindUID(CurveName);
+						if (CurveIndex != INDEX_NONE)
+						{
+							if (Curve.IsEnabled(CurveIndex))
+							{
+								Curve.Set(CurveIndex, RigHierarchy->GetCurveValue(CurveElement->GetKey()));
+							}
+							
+						}
+						return true;
+					});
+				}
+
 			}			
 
 			{
@@ -1275,13 +1174,17 @@ void UAnimationSequencerDataModel::GeneratePoseData(UControlRig* ControlRig, FAn
 					FTransform Value = TransformCurve.Evaluate(EvaluationContext.SampleFrameRate.AsSeconds(EvaluationContext.SampleTime), 1.f);
 
 					const FCompactPoseBoneIndex BoneIndex(RigPose.GetBoneContainer().GetPoseBoneIndexForBoneName(CurveName));
-					if(ensure(BoneIndex != INDEX_NONE))
+					if(BoneIndex != INDEX_NONE)
 					{
 						const FTransform LocalTransform = RigPose[BoneIndex];
 						RigPose[BoneIndex].SetRotation(LocalTransform.GetRotation() * Value.GetRotation());
 						RigPose[BoneIndex].SetTranslation(LocalTransform.TransformPosition(Value.GetTranslation()));
 						RigPose[BoneIndex].SetScale3D(LocalTransform.GetScale3D() * Value.GetScale3D());
-					}					
+					}
+					else
+					{
+						IAnimationDataController::ReportObjectWarningf(this, LOCTEXT("TransformCurveBoneNotFound", "Failed to find BoneIndex for transform curve %s"), FText::FromName(CurveName));
+					}
 				}
 			}
 
@@ -1346,137 +1249,160 @@ void UAnimationSequencerDataModel::EvaluateTrack(UMovieSceneControlRigParameterT
 		check(ControlRig);
 
 		// Reset to ref-pose
-		ControlRig->GetHierarchy()->ResetPoseToInitial(ERigElementType::Bone);
-
-		const TArray<FScalarParameterNameAndCurve>& ScalarParameters = FKRigSection->GetScalarParameterNamesAndCurves();
-		for (const FScalarParameterNameAndCurve& TypedParameter : ScalarParameters)
+		if (URigHierarchy* RigHierarchy = ControlRig->GetHierarchy())
 		{
-			const FName& Name = TypedParameter.ParameterName;
-			float Value = 0.f;
+			RigHierarchy->ResetPoseToInitial(ERigElementType::Bone);
 
-			const FFrameTime CurveSampleTime = FFrameRate::TransformTime(EvaluationContext.SampleTime, EvaluationContext.SampleFrameRate, TypedParameter.ParameterCurve.GetTickResolution());
-			if(TypedParameter.ParameterCurve.Evaluate(CurveSampleTime, Value))
-			{					
-				const FRigControlElement* ControlElement = ControlRig->FindControl(Name);
-				if (ControlElement && ControlElement->Settings.ControlType == ERigControlType::Float)
-				{
-					ControlRig->SetControlValue<float>(Name, Value, false, EControlRigSetKey::Never, false);
-				}
-			}
-		}
-
-		const TArray<FTransformParameterNameAndCurves>& TransformParameters = FKRigSection->GetTransformParameterNamesAndCurves();
-		if (TransformParameters.Num())
-		{
-			QUICK_SCOPE_CYCLE_COUNTER(STAT_EvaluateTransformParameters);
-			
-			struct FEvaluationInfo
-			{
-				float Interp = 0.f;
-				int32 Index1 = INDEX_NONE, Index2 = INDEX_NONE;
-			};
-
-			TMovieSceneCurveChannelImpl<FMovieSceneFloatChannel>::FTimeEvaluationCache FromFrameTimeEvaluationCache;
-			TMovieSceneCurveChannelImpl<FMovieSceneFloatChannel>::FTimeEvaluationCache ToFrameTimeEvaluationCache;
-			for (const FTransformParameterNameAndCurves& TypedParameter : TransformParameters)
+			const TArray<FScalarParameterNameAndCurve>& ScalarParameters = FKRigSection->GetScalarParameterNamesAndCurves();
+			for (const FScalarParameterNameAndCurve& TypedParameter : ScalarParameters)
 			{
 				const FName& Name = TypedParameter.ParameterName;
-				const FRigControlElement* ControlElement = ControlRig->FindControl(Name);
-				if (ControlElement && ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
+				float Value = 0.f;
+
+				const FFrameTime CurveSampleTime = FFrameRate::TransformTime(EvaluationContext.SampleTime, EvaluationContext.SampleFrameRate, TypedParameter.ParameterCurve.GetTickResolution());
+				if(TypedParameter.ParameterCurve.Evaluate(CurveSampleTime, Value))
+				{					
+					FRigControlElement* ControlElement = ControlRig->FindControl(Name);
+					if (ControlElement && ControlElement->Settings.ControlType == ERigControlType::Float)
+					{
+						RigHierarchy->SetControlValue(ControlElement, FRigControlValue::Make<float>(Value), ERigControlValueType::Current, false, false, false, false);
+					}
+				}
+			}
+
+			const TArray<FTransformParameterNameAndCurves>& TransformParameters = FKRigSection->GetTransformParameterNamesAndCurves();
+			if (TransformParameters.Num())
+			{
+				QUICK_SCOPE_CYCLE_COUNTER(STAT_EvaluateTransformParameters);
+			
+				struct FEvaluationInfo
 				{
-					FEulerTransform EulerTransform;
+					float Interp = 0.f;
+					int32 Index1 = INDEX_NONE, Index2 = INDEX_NONE;
+				};
+
+				TMovieSceneCurveChannelImpl<FMovieSceneFloatChannel>::FTimeEvaluationCache FromFrameTimeEvaluationCache;
+				TMovieSceneCurveChannelImpl<FMovieSceneFloatChannel>::FTimeEvaluationCache ToFrameTimeEvaluationCache;
+
+				const int32 NumberOfKeys = GetNumberOfKeys();
+			
+				for (const FTransformParameterNameAndCurves& TypedParameter : TransformParameters)
+				{
+					const FName& Name = TypedParameter.ParameterName;
+					FRigControlElement* ControlElement = ControlRig->FindControl(Name);
+					if (ControlElement && ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
+					{
+						FEulerTransform EulerTransform(FEulerTransform::Identity);
 					
-					const double Alpha = BoneSampleTime.GetSubFrame();			
-					auto EvaluateToTransform = [&TypedParameter](const FFrameNumber& Frame, FTransform& InOutTransform, TMovieSceneCurveChannelImpl<FMovieSceneFloatChannel>::FTimeEvaluationCache& Cache)
-					{
-						auto EvaluateValue = [Frame, &Cache](const auto& Channel, auto& Target)
+						const double Alpha = BoneSampleTime.GetSubFrame();
+						auto EvaluateToTransform = [&TypedParameter](const FFrameNumber& Frame, FTransform& InOutTransform, TMovieSceneCurveChannelImpl<FMovieSceneFloatChannel>::FTimeEvaluationCache* Cache)
 						{
-							auto Value = 0.f;
-							TMovieSceneCurveChannelImpl<FMovieSceneFloatChannel>::EvaluateWithCache(&Channel, &Cache, Frame, Value);
-							Target = Value;
-						};
-
-						auto EvaluateVector = [EvaluateValue](const auto& VectorChannels, auto& TargetVector)
-						{
-							EvaluateValue(VectorChannels[0], TargetVector[0]);
-							EvaluateValue(VectorChannels[1], TargetVector[1]);
-							EvaluateValue(VectorChannels[2], TargetVector[2]);
-						};
-
-						FVector Location, Scale;
-						EvaluateVector(TypedParameter.Translation, Location);
-						InOutTransform.SetTranslation(Location);
-						EvaluateVector(TypedParameter.Scale, Scale);
-						InOutTransform.SetScale3D(Scale);
-
-						FRotator Rotator;
-						EvaluateValue(TypedParameter.Rotation[0], Rotator.Roll);
-						EvaluateValue(TypedParameter.Rotation[1], Rotator.Pitch);
-						EvaluateValue(TypedParameter.Rotation[2], Rotator.Yaw);
-						InOutTransform.SetRotation(Rotator.Quaternion());
-					};
-
-					auto ExtractTransform = [&TypedParameter](const FFrameNumber& Frame, FEulerTransform& InOutEulerTransform)
-					{
-						auto ExtractValue = [&TypedParameter, Frame](const auto& Channel, auto& Target)
-						{
-							if (Channel.GetDefault().IsSet())
+							auto EvaluateValue = [Frame, Cache](const auto& Channel, auto& Target)
 							{
-								Target = Channel.GetDefault().GetValue();
-							}
-							else
+								if (Channel.GetDefault().IsSet())
+								{
+									Target = Channel.GetDefault().GetValue();
+								}
+								else
+								{
+									auto Value = (float)Target;
+									TMovieSceneCurveChannelImpl<FMovieSceneFloatChannel>::EvaluateWithCache(&Channel, Cache, Frame, Value);
+									Target = Value;
+								}
+							};
+
+							auto EvaluateVector = [EvaluateValue](const auto& VectorChannels, auto& TargetVector)
 							{
-								Target = Channel.GetValues()[Frame.Value].Value;
+								EvaluateValue(VectorChannels[0], TargetVector[0]);
+								EvaluateValue(VectorChannels[1], TargetVector[1]);
+								EvaluateValue(VectorChannels[2], TargetVector[2]);
+							};
+
+							FVector Location(FVector::ZeroVector), Scale(FVector::OneVector);
+							EvaluateVector(TypedParameter.Translation, Location);
+							InOutTransform.SetTranslation(Location);
+							EvaluateVector(TypedParameter.Scale, Scale);
+							InOutTransform.SetScale3D(Scale);
+
+							FRotator Rotator;
+							EvaluateValue(TypedParameter.Rotation[0], Rotator.Roll);
+							EvaluateValue(TypedParameter.Rotation[1], Rotator.Pitch);
+							EvaluateValue(TypedParameter.Rotation[2], Rotator.Yaw);
+						
+							InOutTransform.SetRotation(Rotator.Quaternion());
+						};
+
+						auto ExtractTransform = [&TypedParameter, NumberOfKeys](const FFrameNumber& Frame, FEulerTransform& InOutEulerTransform, TMovieSceneCurveChannelImpl<FMovieSceneFloatChannel>::FTimeEvaluationCache* Cache)
+						{
+							auto ExtractValue = [&TypedParameter, Frame, Cache, NumberOfKeys](const auto& Channel, auto& Target)
+							{
+								if (Channel.HasAnyData())
+								{
+									const int32 NumValues = Channel.GetValues().Num();
+									// No keys, but has data so DefaultValue is set
+									if (NumValues == 0)
+									{
+										Target = Channel.GetDefault().GetValue();
+									}
+									// Uniform keys
+									else if (NumValues == NumberOfKeys)
+									{
+										Target = Channel.GetValues()[Frame.Value].Value;
+									}
+									// Non-uniform keys
+									else
+									{
+										auto Value = (float)Target;
+										TMovieSceneCurveChannelImpl<FMovieSceneFloatChannel>::EvaluateWithCache(&Channel, Cache, Frame, Value);
+										Target = Value;
+									}
+								}
+							};
+
+							auto ExtractVector = [ExtractValue](const auto& VectorChannels, auto& TargetVector)
+							{
+								ExtractValue(VectorChannels[0], TargetVector[0]);
+								ExtractValue(VectorChannels[1], TargetVector[1]);
+								ExtractValue(VectorChannels[2], TargetVector[2]);
+							};
+
+							ExtractVector(TypedParameter.Translation, InOutEulerTransform.Location);
+							ExtractVector(TypedParameter.Scale, InOutEulerTransform.Scale);
+
+							ExtractValue(TypedParameter.Rotation[0], InOutEulerTransform.Rotation.Roll);
+							ExtractValue(TypedParameter.Rotation[1], InOutEulerTransform.Rotation.Pitch);
+							ExtractValue(TypedParameter.Rotation[2], InOutEulerTransform.Rotation.Yaw);
+						};
+						// Assume no interpolation due to uniform keys
+						if (FMath::IsNearlyZero(Alpha))
+						{
+							if (EvaluationContext.InterpolationType == EAnimInterpolationType::Linear)
+							{
+								ExtractTransform(BoneSampleTime.FrameNumber, EulerTransform, &FromFrameTimeEvaluationCache);
 							}
-						};
-
-						auto ExtractVector = [ExtractValue](const auto& VectorChannels, auto& TargetVector)
+							else if (EvaluationContext.InterpolationType == EAnimInterpolationType::Step)
+							{
+								ExtractTransform(BoneSampleTime.FrameNumber, EulerTransform, &FromFrameTimeEvaluationCache);
+							}
+						}
+						// Interpolate between two uniform keys
+						else
 						{
-							ExtractValue(VectorChannels[0], TargetVector[0]);
-							ExtractValue(VectorChannels[1], TargetVector[1]);
-							ExtractValue(VectorChannels[2], TargetVector[2]);
-						};
+							const FFrameNumber FromFrame = BoneSampleTime.FloorToFrame();
+							const FFrameNumber ToFrame = BoneSampleTime.CeilToFrame();
 
-						ExtractVector(TypedParameter.Translation, InOutEulerTransform.Location);
-						ExtractVector(TypedParameter.Scale, InOutEulerTransform.Scale);
+							FTransform FromBoneTransform;
+							EvaluateToTransform(FromFrame, FromBoneTransform, &FromFrameTimeEvaluationCache);
+							FTransform ToBoneTransform;
+							EvaluateToTransform(ToFrame, ToBoneTransform, &ToFrameTimeEvaluationCache);
 
-						ExtractValue(TypedParameter.Rotation[0], InOutEulerTransform.Rotation.Roll);
-						ExtractValue(TypedParameter.Rotation[1], InOutEulerTransform.Rotation.Pitch);
-						ExtractValue(TypedParameter.Rotation[2], InOutEulerTransform.Rotation.Yaw);
-					};
-					
-					// Assume no interpolation due to uniform keys
-					if (FMath::IsNearlyZero(Alpha))
-					{
-						if (EvaluationContext.InterpolationType == EAnimInterpolationType::Linear)
-						{
 							FTransform FinalTransform;
-							EvaluateToTransform(BoneSampleTime.FrameNumber, FinalTransform, FromFrameTimeEvaluationCache);
+							FinalTransform.Blend(FromBoneTransform, ToBoneTransform, Alpha);
+						
 							EulerTransform = FEulerTransform(FinalTransform);
 						}
-						else if (EvaluationContext.InterpolationType == EAnimInterpolationType::Step)
-						{
-							ExtractTransform(BoneSampleTime.FrameNumber, EulerTransform);
-						}
+						RigHierarchy->SetControlValue(ControlElement, FRigControlValue::Make<FRigControlValue::FEulerTransform_Float>(EulerTransform), ERigControlValueType::Current, false, false, false, false);
 					}
-					// Interpolate between two uniform keys
-					else
-					{
-						const FFrameNumber FromFrame = BoneSampleTime.FloorToFrame();
-						const FFrameNumber ToFrame = BoneSampleTime.CeilToFrame();
-
-						FTransform FromBoneTransform;
-						EvaluateToTransform(FromFrame, FromBoneTransform, FromFrameTimeEvaluationCache);
-						FTransform ToBoneTransform;
-						EvaluateToTransform(ToFrame, ToBoneTransform, ToFrameTimeEvaluationCache);
-
-						FTransform FinalTransform;
-						FinalTransform.Blend(FromBoneTransform, ToBoneTransform, Alpha);
-						
-						EulerTransform = FEulerTransform(FinalTransform);
-					}
-					
-					ControlRig->SetControlValue<FRigControlValue::FEulerTransform_Float>(Name, EulerTransform, false, EControlRigSetKey::Never, false);
 				}
 			}
 		}
@@ -1558,6 +1484,125 @@ FRichCurve* UAnimationSequencerDataModel::GetMutableRichCurve(const FAnimationCu
 	}
 
 	return RichCurve;
+}
+
+void UAnimationSequencerDataModel::IterateBoneKeys(const FName& BoneName, TFunction<bool(const FVector3f& Pos, const FQuat4f&, const FVector3f, const FFrameNumber&)> IterationFunction) const
+{
+	ValidateSequencerData();
+	ValidateControlRigData();
+
+	const UMovieSceneControlRigParameterSection* Section = GetFKControlRigSection();
+	UControlRig* ControlRig = Section->GetControlRig();
+	const URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
+	
+	const FRigElementKey BoneControlKey(UFKControlRig::GetControlName(BoneName, ERigElementType::Bone), ERigElementType::Control);
+	if (Hierarchy->Contains(BoneControlKey))
+	{
+		if (const FTransformParameterNameAndCurves* ControlCurvePtr = Section->GetTransformParameterNamesAndCurves().FindByPredicate([CurveName = BoneControlKey.Name](const FTransformParameterNameAndCurves& TransformParameter)
+		{
+			return TransformParameter.ParameterName == CurveName;
+		}))
+		{
+			const FTransformParameterNameAndCurves& ControlCurve = *ControlCurvePtr;
+
+			struct FChannelInfo
+			{
+				bool bConstant = true;
+				bool bUniform = true;
+			};			
+			FChannelInfo PosChannels[3];
+			FChannelInfo RotChannels[3];
+			FChannelInfo ScaleChannels[3];
+
+			const int32 NumberOfKeys = GetNumberOfKeys();
+
+			int32 MaxNumberOfKeys = 1;
+			TSet<FFrameNumber> FrameNumbers;
+			for (int32 ChannelIndex = 0; ChannelIndex < 3; ++ChannelIndex)
+			{
+				auto ProcessChannel = [&MaxNumberOfKeys, NumberOfKeys](const FMovieSceneFloatChannel& Channel, FChannelInfo& Info)
+				{
+					if (Channel.HasAnyData())
+					{
+						if (Channel.GetNumKeys() == 0)
+						{
+							Info.bUniform = false;
+						}
+						else
+						{
+							Info.bConstant = false;
+							if (Channel.GetNumKeys() != NumberOfKeys)
+							{
+								Info.bUniform = false;
+							}
+
+							MaxNumberOfKeys = FMath::Max(MaxNumberOfKeys, Channel.GetNumKeys());
+						}
+					}
+				};
+
+				ProcessChannel(ControlCurve.Translation[ChannelIndex], PosChannels[ChannelIndex]);
+				ProcessChannel(ControlCurve.Rotation[ChannelIndex], RotChannels[ChannelIndex]);
+				ProcessChannel(ControlCurve.Scale[ChannelIndex], ScaleChannels[ChannelIndex]);
+			}
+
+
+			const int32 NumberOfKeysToIterate = MaxNumberOfKeys;
+			FVector3f PreviousPos, PreviousScale, PreviousRot;
+			FQuat4f PreviousQuat;
+
+			for (int32 KeyIndex = 0; KeyIndex < NumberOfKeysToIterate; ++KeyIndex)
+			{
+				const FFrameNumber Frame = KeyIndex;
+				
+				for (int32 ChannelIndex = 0; ChannelIndex < 3; ++ChannelIndex)
+				{
+					if (PosChannels[ChannelIndex].bConstant)
+					{
+						if (KeyIndex == 0)
+						{
+							PreviousPos[ChannelIndex] = ControlCurve.Translation[ChannelIndex].GetDefault().GetValue();
+						}
+					}
+					else
+					{
+						ControlCurve.Translation[ChannelIndex].Evaluate(Frame, PreviousPos[ChannelIndex]);
+					}
+					
+					if (RotChannels[ChannelIndex].bConstant)
+					{
+						if (KeyIndex == 0)
+						{
+							PreviousRot[ChannelIndex] = ControlCurve.Rotation[ChannelIndex].GetDefault().GetValue();
+						}
+					}
+					else
+					{
+						ControlCurve.Rotation[ChannelIndex].Evaluate(Frame, PreviousRot[ChannelIndex]);
+					}
+
+					if (ScaleChannels[ChannelIndex].bConstant)
+					{
+						if (KeyIndex == 0)
+						{
+							PreviousScale[ChannelIndex] = ControlCurve.Scale[ChannelIndex].GetDefault().GetValue();
+						}
+					}
+					else
+					{
+						ControlCurve.Scale[ChannelIndex].Evaluate(Frame, PreviousScale[ChannelIndex]);
+					}
+					
+				}
+
+				PreviousQuat = FQuat4f::MakeFromEuler(PreviousRot);
+				if(!IterationFunction(PreviousPos, PreviousQuat, PreviousScale, Frame))
+				{
+					return;
+				}
+			}
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE //"AnimSequencerDataModel"

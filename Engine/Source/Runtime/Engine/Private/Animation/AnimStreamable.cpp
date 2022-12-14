@@ -6,13 +6,13 @@
 
 #include "Animation/AnimStreamable.h"
 
+#include "AnimCompressionDerivedData.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "UObject/LinkerLoad.h"
 #include "UObject/ObjectSaveContext.h"
-#include "Animation/AnimCompressionDerivedData.h"
 #include "DerivedDataCacheInterface.h"
 #include "Animation/AnimBoneCompressionSettings.h"
 #include "Animation/AnimCurveCompressionSettings.h"
@@ -317,17 +317,6 @@ void UAnimStreamable::GetAnimationPose(FAnimationPoseData& OutAnimationPoseData,
 		//Need to evaluate raw data
 		ValidateModel();
 
-		// Warning if we have invalid data
-		for (const FBoneAnimationTrack& AnimationTrack : DataModelInterface->GetBoneAnimationTracks())
-		{
-			const FRawAnimSequenceTrack& TrackToExtract = AnimationTrack.InternalTrackData;
-			// Bail out (with rather wacky data) if data is empty for some reason.
-			if (TrackToExtract.PosKeys.Num() == 0 || TrackToExtract.RotKeys.Num() == 0)
-			{
-				UE_LOG(LogAnimation, Warning, TEXT("UAnimSequence::GetBoneTransform : No anim data in AnimSequence '%s' Track '%s'"), *GetPathName(), *AnimationTrack.Name.ToString());
-			}
-		}
-
 		const UE::Anim::DataModel::FEvaluationContext EvaluationContext(ExtractionContext.CurrentTime, DataModelInterface->GetFrameRate(), RetargetSource, MySkeleton->GetRefLocalPoses(RetargetSource), Interpolation);
 		DataModelInterface->Evaluate(OutAnimationPoseData, EvaluationContext);
 
@@ -606,7 +595,9 @@ void UAnimStreamable::RequestCompressedData(const ITargetPlatform* Platform)
 	const bool bInAllowAlternateCompressor = false;
 	const bool bInOutput				   = false;
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TSharedRef<FAnimCompressContext> CompressContext = MakeShared<FAnimCompressContext>(bInAllowAlternateCompressor, bInOutput);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	for (uint32 ChunkIndex = 0; ChunkIndex < NumChunks; ++ChunkIndex)
 	{
@@ -624,7 +615,7 @@ void UAnimStreamable::RequestCompressedData(const ITargetPlatform* Platform)
 		IStreamingManager::Get().GetAnimationStreamingManager().AddStreamingAnim(this);
 	}
 	//PlatformData.SetSkeletonVirtualBoneGuid(GetSkeleton()->GetVirtualBoneGuid()); //MDW DO THIS
-	//PlatformData.bUseRawDataOnly = false; //MDW Need to do something with this? 
+	//PlatformData.bUseRawDataOnly = false; //MDW Need to do something with this?
 }
 
 float UAnimStreamable::GetChunkSizeSeconds(const ITargetPlatform* Platform) const
@@ -642,12 +633,12 @@ float UAnimStreamable::GetChunkSizeSeconds(const ITargetPlatform* Platform) cons
 	return CVarPlatformChunkSizeSeconds;
 }
 
-template<typename KeyType>
-void MakeKeyChunk(const TArray<KeyType>& SrcKeys, TArray<KeyType>& DestKeys, int32 NumberOfKeys, const uint32 FrameStart, const uint32 FrameEnd)
+template<typename KeyInType, typename KeyOutType, typename Predicate>
+void MakeKeyChunk(const TArray<KeyInType>& SrcKeys, TArray<KeyOutType>& DestKeys, int32 NumberOfKeys, const uint32 FrameStart, const uint32 FrameEnd, Predicate InPredicate)
 {
 	if (SrcKeys.Num() == 1)
 	{
-		DestKeys.Add(SrcKeys[0]);
+		DestKeys.Add(::Invoke(InPredicate, SrcKeys[0]));
 	}
 	else
 	{
@@ -656,12 +647,16 @@ void MakeKeyChunk(const TArray<KeyType>& SrcKeys, TArray<KeyType>& DestKeys, int
 		DestKeys.Reset((FrameEnd - FrameStart) + 1);
 		for (uint32 FrameIndex = FrameStart; FrameIndex <= FrameEnd; ++FrameIndex)
 		{
-			DestKeys.Add(SrcKeys[FrameIndex]);
+			DestKeys.Add(::Invoke(InPredicate, SrcKeys[FrameIndex]));
 		}
 	}
 }
 
-void UAnimStreamable::RequestCompressedDataForChunk(const FString& ChunkDDCKey, FAnimStreamableChunk& Chunk, const int32 ChunkIndex, const uint32 FrameStart, const uint32 FrameEnd, TSharedRef<FAnimCompressContext> CompressContext, const ITargetPlatform* Platform)
+void UAnimStreamable::RequestCompressedDataForChunk(const FString& ChunkDDCKey, FAnimStreamableChunk& Chunk, const int32 ChunkIndex, const uint32 FrameStart, const uint32 FrameEnd,
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	TSharedRef<FAnimCompressContext> CompressContext,
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	const ITargetPlatform* Platform)
 {
 	// Need to unify with Anim Sequence!
 
@@ -690,22 +685,40 @@ void UAnimStreamable::RequestCompressedDataForChunk(const FString& ChunkDDCKey, 
 		{
 			FCompressibleAnimRef CompressibleData = MakeShared<FCompressibleAnimData, ESPMode::ThreadSafe>(BoneCompressionSettings, CurveCompressionSettings, GetSkeleton(), Interpolation, Chunk.SequenceLength, ChunkNumFrames+1, Platform);
 
-			const TArray<FBoneAnimationTrack>& BoneAnimationTracks = DataModelInterface->GetBoneAnimationTracks();
+			TArray<FName> TrackNames;
+			DataModelInterface->GetBoneTrackNames(TrackNames);
+			
 			CompressibleData->TrackToSkeletonMapTable.Empty();
 
-			for (const FBoneAnimationTrack& AnimTrack : BoneAnimationTracks)
+			TArray<FTransform> BoneTransforms;
+			for (const FName& TrackName : TrackNames)
 			{
-				const FRawAnimSequenceTrack& SrcTrack = AnimTrack.InternalTrackData;
-				FRawAnimSequenceTrack& DestTrack = CompressibleData->RawAnimationData.AddDefaulted_GetRef();
-
-				MakeKeyChunk(SrcTrack.PosKeys, DestTrack.PosKeys, NumberOfKeys, FrameStart, FrameEnd);
-				MakeKeyChunk(SrcTrack.RotKeys, DestTrack.RotKeys, NumberOfKeys, FrameStart, FrameEnd);
-				if (SrcTrack.ScaleKeys.Num() > 0)
+				const int32 BoneIndex = GetSkeleton()->GetReferenceSkeleton().FindBoneIndex(TrackName);
+				if (BoneIndex != INDEX_NONE)
 				{
-					MakeKeyChunk(SrcTrack.ScaleKeys, DestTrack.ScaleKeys, NumberOfKeys, FrameStart, FrameEnd);
-				}
+					FRawAnimSequenceTrack& DestTrack = CompressibleData->RawAnimationData.AddDefaulted_GetRef();
+					
+					BoneTransforms.Reset();
+					DataModelInterface->GetBoneTrackTransforms(TrackName, BoneTransforms);
+					
 
-				CompressibleData->TrackToSkeletonMapTable.Add(AnimTrack.BoneTreeIndex);
+					MakeKeyChunk(BoneTransforms, DestTrack.PosKeys, NumberOfKeys, FrameStart, FrameEnd, [](const FTransform& BoneTransform) -> FVector3f
+					{
+						return FVector3f(BoneTransform.GetLocation());
+					});
+					
+					MakeKeyChunk(BoneTransforms, DestTrack.RotKeys, NumberOfKeys, FrameStart, FrameEnd, [](const FTransform& BoneTransform) -> FQuat4f
+					{
+						return FQuat4f(BoneTransform.GetRotation());
+					});
+					
+					MakeKeyChunk(BoneTransforms, DestTrack.ScaleKeys, NumberOfKeys, FrameStart, FrameEnd, [](const FTransform& BoneTransform) -> FVector3f
+					{
+						return FVector3f(BoneTransform.GetScale3D());
+					});
+
+					CompressibleData->TrackToSkeletonMapTable.Add(BoneIndex);
+				}
 			}
 
 			if (FrameStart == 0)

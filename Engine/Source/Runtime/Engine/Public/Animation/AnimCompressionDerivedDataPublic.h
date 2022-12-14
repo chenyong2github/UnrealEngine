@@ -12,7 +12,7 @@ class UAnimSequence;
 class FDerivedDataAnimationCompression;
 struct FCompressibleAnimData;
 
-
+UE_DEPRECATED(5.2, "GAsyncCompressedAnimationsTracker has been deprecated")
 extern ENGINE_API class FAsyncCompressedAnimationsManagement* GAsyncCompressedAnimationsTracker;
 
 // Animation data that is currently being compressed
@@ -48,64 +48,32 @@ struct FQueuedAsyncCompressionWork
 	const bool bPerformFrameStripping;
 };
 
-
 // Manager for Async anim compression.
 //   Maintains active compressions
 //   tracks memory usage of async compression
 //   Gives API for blocking on compression
-class ENGINE_API FAsyncCompressedAnimationsManagement : public FTickableEditorObject, public FTickableCookObject, public FGCObject
+class UE_DEPRECATED(5.2, "FAsyncCompressedAnimationsManagement has been deprecated") FAsyncCompressedAnimationsManagement;
+class ENGINE_API FAsyncCompressedAnimationsManagement
 {
 public:
-	static FAsyncCompressedAnimationsManagement& Get();
+	static FAsyncCompressedAnimationsManagement& Get()
+	{
+		static FAsyncCompressedAnimationsManagement Management;
+		return Management;
+	}
 
 	// Request an async compression of an animation, may not actually run async if memory usage is already high
 	// Returns true if an async compression task was allowed.
-	bool RequestAsyncCompression(FDerivedDataAnimationCompression& Compressor, UAnimSequence* Anim, const bool bPerformFrameStripping, TArray<uint8>& OutData);
+	UE_DEPRECATED(5.2, "RequestAsyncCompression has been deprecated")
+	bool RequestAsyncCompression(FDerivedDataAnimationCompression& Compressor, UAnimSequence* Anim, const bool bPerformFrameStripping, TArray<uint8>& OutData) { return false; }
 
 	// Returns the number of remaining compression jobs (used for UI)
-	int32 GetNumRemainingJobs() const { return ActiveAsyncCompressionTasks.Num() + QueuedAsyncCompressionWork.Num(); }
+	UE_DEPRECATED(5.2, "GetNumRemainingJobs has been deprecated")
+	int32 GetNumRemainingJobs() const { return 0; }
 	
-	// Blocks on compression for the supplied animation. Returns false if there was no compression job to wait on. 
-	bool WaitOnExistingCompression(UAnimSequence* Anim, const bool bWantResults);
-private:
-
-	void StartAsyncWork(FDerivedDataAnimationCompression& Compressor, UAnimSequence* Anim, const uint64 NewTaskSize, const bool bPerformFrameStripping);
-
-	void StartQueuedTasks(int32 MaxActiveTasks);
-
-	bool WaitOnActiveCompression(UAnimSequence* Anim, bool bWantResults);
-
-	void OnActiveCompressionFinished(int32 ActiveAnimIndex);
-
-	FAsyncCompressedAnimationsManagement();
-
-	void Shutdown();
-
-	//Array of active and queued compression jobs
-	TArray<FActiveAsyncCompressionTask> ActiveAsyncCompressionTasks;
-	TArray<FQueuedAsyncCompressionWork> QueuedAsyncCompressionWork;
-	uint64 ActiveMemoryUsage;
-
-	//Cache the last tick time to keep queue pumping during large loading segments
-	double LastTickTime;
-
-	/* Begin FTickableEditorObject */
-	virtual void Tick(float DeltaTime) override;
-	virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Always; }
-	virtual TStatId GetStatId() const override;
-	/* End FTickableEditorObject */
-
-	/* Begin FTickableCookObject */
-	virtual void TickCook(float DeltaTime, bool bCookCompete) override;
-	/* End FTickableCookObject */
-
-	// FGCObject interface
-	void AddReferencedObjects(FReferenceCollector& Collector) override;
-	virtual FString GetReferencerName() const override
-	{
-		return TEXT("FAsyncCompressedAnimationsManagement");
-	}
-	// End of FGCObject interface
+	// Blocks on compression for the supplied animation. Returns false if there was no compression job to wait on.
+	UE_DEPRECATED(5.2, "WaitOnExistingCompression has been deprecated") 
+	bool WaitOnExistingCompression(UAnimSequence* Anim, const bool bWantResults) { return false; }
 };
 
 #endif

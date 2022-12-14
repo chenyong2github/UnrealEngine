@@ -2184,7 +2184,7 @@ bool UsdToUnreal::ConvertSkelAnim(
 
 		for ( int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex )
 		{
-			Controller.AddBoneTrack( BoneInfo[ BoneIndex ].Name, bShouldTransact );
+			Controller.AddBoneCurve( BoneInfo[ BoneIndex ].Name, bShouldTransact );
 			Controller.SetBoneTrackKeys( BoneInfo[ BoneIndex ].Name, JointTracks[ BoneIndex ].PosKeys, JointTracks[ BoneIndex ].RotKeys, JointTracks[ BoneIndex ].ScaleKeys, bShouldTransact );
 		}
 	}

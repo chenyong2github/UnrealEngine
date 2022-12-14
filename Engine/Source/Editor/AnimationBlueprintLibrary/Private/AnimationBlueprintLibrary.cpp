@@ -163,93 +163,10 @@ void UAnimationBlueprintLibrary::GetAnimationCurveNames(const UAnimSequence* Ani
 	}
 }
 
-void UAnimationBlueprintLibrary::GetRawTrackPositionData(const UAnimSequenceBase* AnimationSequenceBase, const FName TrackName, TArray<FVector>& PositionData)
+const FRawAnimSequenceTrack& UAnimationBlueprintLibrary::GetRawAnimationTrackByName(const UAnimSequenceBase* AnimationSequenceBase, const FName TrackName)
 {
-	PositionData.Empty();
-	if (IsValidRawAnimationTrackName(AnimationSequenceBase, TrackName))
-	{
-		const FRawAnimSequenceTrack& RawTrack =	GetRawAnimationTrackByName(AnimationSequenceBase, TrackName);
-		PositionData.Append(RawTrack.PosKeys);
-	}
-	else
-	{
-		const FString AnimSequenceName = (AnimationSequenceBase != nullptr) ? AnimationSequenceBase->GetName() : "Invalid Animation sequence";
-		UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Raw Animation Track name %s does not exist in Animation Sequence %s"), *TrackName.ToString(), *AnimSequenceName );
-	}	
-}
-
-void UAnimationBlueprintLibrary::GetRawTrackRotationData(const UAnimSequenceBase* AnimationSequenceBase, const FName TrackName, TArray<FQuat>& RotationData)
-{
-	RotationData.Empty();
-	if (IsValidRawAnimationTrackName(AnimationSequenceBase, TrackName))
-	{
-		const FRawAnimSequenceTrack& RawTrack = GetRawAnimationTrackByName(AnimationSequenceBase, TrackName);
-		RotationData.Append(RawTrack.RotKeys);
-	}
-	else
-	{	
-		const FString AnimSequenceName = (AnimationSequenceBase != nullptr) ? AnimationSequenceBase->GetName() : "Invalid Animation sequence";
-		UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Raw Animation Track name %s does not exist in Animation Sequence %s"), *TrackName.ToString(), *AnimSequenceName);
-	}
-}
-
-void UAnimationBlueprintLibrary::GetRawTrackScaleData(const UAnimSequenceBase* AnimationSequenceBase, const FName TrackName, TArray<FVector>& ScaleData)
-{
-	ScaleData.Empty();
-	if (IsValidRawAnimationTrackName(AnimationSequenceBase, TrackName))
-	{
-		const FRawAnimSequenceTrack& RawTrack = GetRawAnimationTrackByName(AnimationSequenceBase, TrackName);
-		ScaleData.Append(RawTrack.ScaleKeys);
-	}
-	else
-	{
-		const FString AnimSequenceName = (AnimationSequenceBase != nullptr) ? AnimationSequenceBase->GetName() : "Invalid Animation sequence";
-		UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Raw Animation Track name %s does not exist in Animation Sequence %s"), *TrackName.ToString(), *AnimSequenceName);
-	}
-}
-
-void UAnimationBlueprintLibrary::GetRawTrackData(const UAnimSequenceBase* AnimationSequenceBase, const FName TrackName, TArray<FVector>& PositionKeys, TArray<FQuat>& RotationKeys, TArray<FVector>& ScalingKeys)
-{
-	PositionKeys.Empty();
-	RotationKeys.Empty();
-	ScalingKeys.Empty();
-	if (IsValidRawAnimationTrackName(AnimationSequenceBase, TrackName))
-	{		
-		const FRawAnimSequenceTrack& RawTrack = GetRawAnimationTrackByName(AnimationSequenceBase, TrackName);
-		PositionKeys.Append(RawTrack.PosKeys);
-		RotationKeys.Append(RawTrack.RotKeys);
-		ScalingKeys.Append(RawTrack.ScaleKeys);
-	}
-	else
-	{
-		const FString AnimSequenceName = (AnimationSequenceBase != nullptr) ? AnimationSequenceBase->GetName() : "Invalid Animation sequence";
-		UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Raw Animation Track name %s does not exist in Animation Sequence %s"), *TrackName.ToString(), *AnimSequenceName);
-	}
-}
-
-bool UAnimationBlueprintLibrary::IsValidRawAnimationTrackName(const UAnimSequenceBase* AnimationSequenceBase, const FName TrackName)
-{
-	bool bValidName = false;
-
-	if (AnimationSequenceBase)
-	{
-		const int32 TrackIndex = AnimationSequenceBase->GetDataModel()->GetBoneTrackIndexByName(TrackName);
-		bValidName = (TrackIndex != INDEX_NONE);
-	}
-	else
-	{
-		UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Invalid Animation Sequence supplied for IsValidRawAnimationTrackName"));
-	}
-
-	return bValidName;
-}
-
-const FRawAnimSequenceTrack&  UAnimationBlueprintLibrary::GetRawAnimationTrackByName(const UAnimSequenceBase* AnimationSequenceBase, const FName TrackName)
-{
-	checkf(AnimationSequenceBase, TEXT("Invalid Animation Sequence supplied for GetRawAnimationTrackByName"));
-
-	const FBoneAnimationTrack& AnimationTrack = AnimationSequenceBase->GetDataModel()->GetBoneTrackByName(TrackName);
-	return AnimationTrack.InternalTrackData;
+	static FRawAnimSequenceTrack TempTrack;
+	return TempTrack;
 }
 
 void UAnimationBlueprintLibrary::GetBoneCompressionSettings(const UAnimSequence* AnimationSequence, UAnimBoneCompressionSettings*& CompressionSettings)
@@ -1889,116 +1806,6 @@ bool UAnimationBlueprintLibrary::ContainsMetaDataOfClass(const UAnimationAsset* 
 	return bContainsMetaData;	
 }
 
-void UAnimationBlueprintLibrary::GetBonePoseForTime(const UAnimSequenceBase* AnimationSequenceBase, FName BoneName, float Time, bool bExtractRootMotion, FTransform& Pose)
-{
-	Pose.SetIdentity();
-	if (AnimationSequenceBase)
-	{
-		TArray<FName> BoneNameArray;
-		TArray<FTransform> PoseArray;
-		BoneNameArray.Add(BoneName);
-		GetBonePosesForTime(AnimationSequenceBase, BoneNameArray, Time, bExtractRootMotion, PoseArray);
-		Pose = PoseArray[0];
-	}
-	else
-	{
-		UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Invalid Animation Sequence supplied for GetBonePoseForTime"));
-	}
-}
-
-void UAnimationBlueprintLibrary::GetBonePoseForFrame(const UAnimSequenceBase* AnimationSequenceBase, FName BoneName, int32 Frame, bool bExtractRootMotion, FTransform& Pose)
-{
-	Pose.SetIdentity();
-	if (AnimationSequenceBase)
-	{
-		GetBonePoseForTime(AnimationSequenceBase, BoneName, GetTimeAtFrameInternal(AnimationSequenceBase, Frame), bExtractRootMotion, Pose);
-	}
-	else
-	{
-		UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Invalid Animation Sequence supplied for GetBonePoseForFrame"));
-	}
-}
-
-void UAnimationBlueprintLibrary::GetBonePosesForTime(const UAnimSequenceBase* AnimationSequenceBase, TArray<FName> BoneNames, float Time, bool bExtractRootMotion, TArray<FTransform>& Poses, const USkeletalMesh* PreviewMesh /*= nullptr*/)
-{
-	Poses.Empty(BoneNames.Num());
-	if (AnimationSequenceBase && AnimationSequenceBase->GetSkeleton())
-	{
-		Poses.AddDefaulted(BoneNames.Num());
-
-		// Need this for FCompactPose
-		FMemMark Mark(FMemStack::Get());
-
-		const FReferenceSkeleton& RefSkeleton = (PreviewMesh)? PreviewMesh->GetRefSkeleton() : AnimationSequenceBase->GetSkeleton()->GetReferenceSkeleton();
-
-		if (IsValidTimeInternal(AnimationSequenceBase, Time))
-		{
-			if (BoneNames.Num())
-			{
-				for (int32 BoneNameIndex = 0; BoneNameIndex < BoneNames.Num(); ++BoneNameIndex)
-				{
-					const FName& BoneName = BoneNames[BoneNameIndex];
-					
-					FTransform& Transform = Poses[BoneNameIndex];
-					if (IsValidRawAnimationTrackName(AnimationSequenceBase, BoneName))
-					{
-						const EAnimInterpolationType InterpolationType = [AnimationSequenceBase]() -> EAnimInterpolationType
-					{
-							if (const UAnimSequence* AnimationSequence = Cast<const UAnimSequence>(AnimationSequenceBase))
-							{
-								return AnimationSequence->Interpolation;
-							}
-
-							return EAnimInterpolationType::Linear;
-						}();
-						UE::Anim::GetBoneTransformFromModel(AnimationSequenceBase->GetDataModel(), Transform, AnimationSequenceBase->GetDataModel()->GetBoneTrackIndexByName(BoneName), Time, InterpolationType);
-					}
-					else
-					{
-						
-						// otherwise, get ref pose if exists
-						const int32 BoneIndex = RefSkeleton.FindBoneIndex(BoneName);
-						if (BoneIndex != INDEX_NONE)
-						{
-							Transform = RefSkeleton.GetRefBonePose()[BoneIndex];
-						}
-						else
-						{
-							UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Invalid bone name %s for Animation Sequence %s supplied for GetBonePosesForTime"), *BoneName.ToString(), *AnimationSequenceBase->GetName());
-							Transform = FTransform::Identity;
-						}
-					}
-				}
-			}
-			else
-			{
-				UE_LOG(LogAnimationBlueprintLibrary, Error, TEXT("Invalid or no bone names specified to retrieve poses given Animation Sequence %s in GetBonePosesForTime"), *AnimationSequenceBase->GetName());
-			}			
-		}
-		else
-		{
-			UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Invalid time value %f for Animation Sequence %s supplied for GetBonePosesForTime"), Time, *AnimationSequenceBase->GetName());
-		}
-	}
-	else
-	{
-		UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Invalid Animation Sequence supplied for GetBonePosesForTime"));
-	}
-}
-
-void UAnimationBlueprintLibrary::GetBonePosesForFrame(const UAnimSequenceBase* AnimationSequenceBase, TArray<FName> BoneNames, int32 Frame, bool bExtractRootMotion, TArray<FTransform>& Poses, const USkeletalMesh* PreviewMesh /*= nullptr*/)
-{
-	Poses.Empty(BoneNames.Num());
-	if (AnimationSequenceBase)
-	{
-		GetBonePosesForTime(AnimationSequenceBase, BoneNames, GetTimeAtFrameInternal(AnimationSequenceBase, Frame), bExtractRootMotion, Poses, PreviewMesh);
-	}
-	else
-	{
-		UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Invalid Animation Sequence supplied for GetBonePosesForFrame"));
-	}
-}
-
 void UAnimationBlueprintLibrary::AddVirtualBone(const UAnimSequence* AnimationSequence, FName SourceBoneName, FName TargetBoneName, FName& VirtualBoneName)
 {
 	if (AnimationSequence)
@@ -2237,14 +2044,11 @@ bool UAnimationBlueprintLibrary::EvaluateRootBoneTimecodeAttributesAtTime(const 
 		return false;
 	}
 
-	const int32 RootBoneTrackIndex = 0;
-	const FBoneAnimationTrack* RootBoneTrack = AnimDataModel->FindBoneTrackByIndex(RootBoneTrackIndex);
-	if (!RootBoneTrack)
+	const FName RootBoneName = AnimationSequenceBase->GetSkeleton()->GetReferenceSkeleton().GetBoneName(0);
+	if (!AnimDataModel->IsValidBoneTrackName(RootBoneName))
 	{
 		return false;
 	}
-
-	const FName& RootBoneName = RootBoneTrack->Name;
 
 	TArray<const FAnimatedBoneAttribute*> RootBoneAttributes;
 	AnimDataModel->GetAttributesForBone(RootBoneName, RootBoneAttributes);
@@ -2426,14 +2230,11 @@ bool UAnimationBlueprintLibrary::EvaluateRootBoneTimecodeSubframeAttributeAtTime
 		return false;
 	}
 
-	const int32 RootBoneIndex = 0;
-	const FBoneAnimationTrack* RootBoneTrack = AnimDataModel->FindBoneTrackByIndex(RootBoneIndex);
-	if (!RootBoneTrack)
+	const FName RootBoneName = AnimationSequenceBase->GetSkeleton()->GetReferenceSkeleton().GetBoneName(0);
+	if (!AnimDataModel->IsValidBoneTrackName(RootBoneName))
 	{
 		return false;
 	}
-
-	const FName& RootBoneName = RootBoneTrack->Name;
 
 	FName TCSubframeAttrName(TEXT("TCSubframe"));
 	if (const UAnimationSettings* AnimationSettings = UAnimationSettings::Get())
@@ -2441,7 +2242,7 @@ bool UAnimationBlueprintLibrary::EvaluateRootBoneTimecodeSubframeAttributeAtTime
 		TCSubframeAttrName = AnimationSettings->BoneTimecodeCustomAttributeNameSettings.SubframeAttributeName;
 	}
 
-	FAnimationAttributeIdentifier SubframeAttributeIdentifier(TCSubframeAttrName, RootBoneIndex, RootBoneName, FFloatAnimationAttribute::StaticStruct());
+	FAnimationAttributeIdentifier SubframeAttributeIdentifier(TCSubframeAttrName, 0, RootBoneName, FFloatAnimationAttribute::StaticStruct());
 	const FAnimatedBoneAttribute* RootBoneSubframeAttribute = AnimDataModel->FindAttribute(SubframeAttributeIdentifier);
 	if (!RootBoneSubframeAttribute)
 	{
