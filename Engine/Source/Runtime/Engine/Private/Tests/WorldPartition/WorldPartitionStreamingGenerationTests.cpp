@@ -92,6 +92,28 @@ namespace WorldPartitionTests
 		{
 			return false;
 		}
+
+		FWorldPartitionHandle ActorHandle(ActorDescMainContainer, FGuid(TEXT("0D2B04D240BE5DE58FE437A8D2DBF5C9")));
+		if (!TestTrue(TEXT("Invalid Actor Handle"), ActorHandle.IsValid()))
+		{
+			return false;
+		}
+
+		if (!TestTrue(TEXT("Actor Handle Not Loaded"), !ActorHandle->GetActor()))
+		{
+			return false;
+		}
+
+		UObject* ResolvedObject = ActorHandle->GetActorSoftPath().TryLoad();
+		if (!TestTrue(TEXT("Actor Handle Loaded"), !!ActorHandle->GetActor()))
+		{
+			return false;
+		}
+
+		if (!TestTrue(TEXT("Resolving Runtime Actor From Editor Path Failed"), ResolvedObject == ActorHandle->GetActor()))
+		{
+			return false;
+		}
 #endif
 		return true;
 	}
