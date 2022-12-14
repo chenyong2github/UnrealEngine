@@ -24,6 +24,9 @@ ImagePtr ImagePixelFormat( int imageCompressionQuality, const Image* pBase,
 {
 	MUTABLE_CPUPROFILER_SCOPE(ImagePixelFormat);
 
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("From %d to %d"), int32(pBase->GetFormat()), int32(targetFormat)));
+
+
 	FIntVector2 resultSize;
     int resultLODCount = 0;
 

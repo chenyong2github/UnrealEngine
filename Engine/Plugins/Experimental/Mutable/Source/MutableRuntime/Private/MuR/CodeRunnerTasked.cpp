@@ -860,17 +860,16 @@ namespace mu
 
 		if (targetFormat != EImageFormat::IF_NONE)
 		{
-			vec2<int> resultSize;
-			int resultLODCount = 0;
-
-			resultSize[0] = m_base->GetSizeX();
-			resultSize[1] = m_base->GetSizeY();
-			resultLODCount = m_base->GetLODCount();
-
-			Ptr<Image> TempResult = ImagePixelFormat(m_imageCompressionQuality, m_base.get(), targetFormat , -1);
-			TempResult->m_flags = m_base->m_flags;
-
-			Result = TempResult;
+			if (targetFormat == m_base->GetFormat())
+			{
+				Result = CloneOrTakeOver<>(m_base.get());
+			}
+			else
+			{
+				Ptr<Image> TempResult = ImagePixelFormat(m_imageCompressionQuality, m_base.get(), targetFormat, -1);
+				TempResult->m_flags = m_base->m_flags;
+				Result = TempResult;
+			}
 		}
 		else
 		{
