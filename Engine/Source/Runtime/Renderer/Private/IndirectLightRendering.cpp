@@ -77,7 +77,7 @@ static TAutoConsoleVariable<float> CVarSkySpecularOcclusionStrength(
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarReflectionCaptureEnableDeferredReflectionsAndSkyLighting(
-	TEXT("r.ReflectionCapture.EnableDefferedReflectionsAndSkyLighting"),
+	TEXT("r.ReflectionCapture.EnableDeferredReflectionsAndSkyLighting"),
 	1,
 	TEXT("Whether to evaluate deferred reflections and sky contribution when rendering reflection captures."),
 	ECVF_RenderThreadSafe);
