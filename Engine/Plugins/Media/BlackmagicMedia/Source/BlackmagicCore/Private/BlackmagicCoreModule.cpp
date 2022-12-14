@@ -9,7 +9,11 @@ DEFINE_LOG_CATEGORY(LogBlackmagicCore);
 void FBlackmagicCoreModule::StartupModule()
 {
 	bCanForceBlackmagicUsage = FParse::Param(FCommandLine::Get(), TEXT("forceblackmagicusage"));
-	bInitialized = BlackmagicDesign::ApiInitialization();
+
+	if (CanUseBlackmagicCard())
+	{
+		bInitialized = BlackmagicDesign::ApiInitialization();
+	}
 }
 void FBlackmagicCoreModule::ShutdownModule()
 {

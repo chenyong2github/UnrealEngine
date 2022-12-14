@@ -50,14 +50,21 @@ public:
 
 	virtual bool IsInitialized() const override
 	{
-		FBlackmagicCoreModule* CoreModule = FModuleManager::GetModulePtr<FBlackmagicCoreModule>("BlackmagicCore");
-		return CoreModule->IsInitialized();
+		if (FBlackmagicCoreModule* CoreModule = FModuleManager::GetModulePtr<FBlackmagicCoreModule>("BlackmagicCore"))
+		{
+			return CoreModule->IsInitialized();
+		}
+
+		return false;
 	}
 
 	virtual bool CanBeUsed() const override 
 	{
-		FBlackmagicCoreModule* CoreModule = FModuleManager::GetModulePtr<FBlackmagicCoreModule>("BlackmagicCore");
-		return CoreModule->CanUseBlackmagicCard();
+		if (FBlackmagicCoreModule* CoreModule = FModuleManager::GetModulePtr<FBlackmagicCoreModule>("BlackmagicCore"))
+		{
+			return CoreModule->CanUseBlackmagicCard();
+		}
+		return false;
 	}
 
 public:
