@@ -318,6 +318,18 @@ ENGINE_API bool IsModulateBlendMode(EBlendMode LegacyBlendMode, EStrataBlendMode
 ENGINE_API bool IsModulateBlendMode(const FMaterial& In);
 ENGINE_API bool IsModulateBlendMode(const UMaterialInterface& In);
 
+ENGINE_API bool IsAdditiveBlendMode(EStrataBlendMode BlendMode);
+ENGINE_API bool IsAdditiveBlendMode(EBlendMode BlendMode);
+ENGINE_API bool IsAdditiveBlendMode(EBlendMode LegacyBlendMode, EStrataBlendMode StrataBlendMode);
+ENGINE_API bool IsAdditiveBlendMode(const FMaterial& In);
+ENGINE_API bool IsAdditiveBlendMode(const UMaterialInterface& In);
+
+ENGINE_API bool IsAlphaCompositeBlendMode(EStrataBlendMode BlendMode);
+ENGINE_API bool IsAlphaCompositeBlendMode(EBlendMode BlendMode);
+ENGINE_API bool IsAlphaCompositeBlendMode(EBlendMode LegacyBlendMode, EStrataBlendMode StrataBlendMode);
+ENGINE_API bool IsAlphaCompositeBlendMode(const FMaterial& In);
+ENGINE_API bool IsAlphaCompositeBlendMode(const UMaterialInterface& In);
+
 /** The default float precision for material's pixel shaders on mobile devices*/
 UENUM()
 enum EMaterialFloatPrecisionMode : int

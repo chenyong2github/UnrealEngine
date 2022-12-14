@@ -68,3 +68,5 @@ IsGenericBlendMode(Translucent,		BlendMode != BLEND_Opaque && BlendMode != BLEND
 IsGenericBlendMode(TranslucentOnly, BlendMode == BLEND_Translucent,							BlendMode == SBM_TranslucentColoredTransmittance || BlendMode == SBM_TranslucentGreyTransmittance) 	// Explicit translucency blend mode
 IsGenericBlendMode(AlphaHoldout,	BlendMode == BLEND_AlphaHoldout,						BlendMode == SBM_AlphaHoldout)																		// AlphaHoldout blend mode
 IsGenericBlendMode(Modulate,		BlendMode == BLEND_Modulate,							BlendMode == SBM_ColoredTransmittanceOnly)															// Modulate blend mode
+IsGenericBlendMode(Additive,		BlendMode == BLEND_Additive,							BlendMode == SBM_TranslucentGreyTransmittance)														// Additive blend mode
+IsGenericBlendMode(AlphaComposite,	BlendMode == BLEND_AlphaComposite,						BlendMode == SBM_TranslucentGreyTransmittance)														// AlphaComposite blend mode
