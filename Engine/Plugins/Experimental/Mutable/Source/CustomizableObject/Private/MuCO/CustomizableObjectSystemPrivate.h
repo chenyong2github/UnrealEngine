@@ -110,6 +110,7 @@ struct FMutableQueueElem
 
 		MutableQueueElem.PriorityType = NewPriorityType;
 		MutableQueueElem.Priority = NewPriority;
+		check(InOperation);
 		MutableQueueElem.Operation = InOperation;
 		MutableQueueElem.bIsDiscardResources = (InOperation->Type==FMutableOperation::EOperationType::Discard);
 
