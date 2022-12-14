@@ -8,6 +8,8 @@
 #include "UObject/ObjectPtr.h"
 #include "PlayerMappableKeySettings.generated.h"
 
+struct FEnhancedActionKeyMapping;
+
 /**
 * Hold setting information of an Action Input or a Action Key Mapping for setting screen and save purposes.
 */
@@ -18,6 +20,7 @@ class ENHANCEDINPUT_API UPlayerMappableKeySettings : public UObject
 
 public:
 
+	virtual FName MakeMappingName(const FEnhancedActionKeyMapping* OwningActionKeyMapping) const { return GetMappingName(); }
 	virtual FName GetMappingName() const { return Name; }
 
 #if WITH_EDITOR

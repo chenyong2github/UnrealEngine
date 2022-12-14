@@ -29,7 +29,7 @@ ENHANCEDINPUT_API FName FEnhancedActionKeyMapping::GetMappingName() const
 	{
 		if (UPlayerMappableKeySettings* MappableKeySettings = GetPlayerMappableKeySettings())
 		{
-			return MappableKeySettings->GetMappingName();
+			return MappableKeySettings->MakeMappingName(this);
 		}
 		return PlayerMappableOptions.Name;
 	}
