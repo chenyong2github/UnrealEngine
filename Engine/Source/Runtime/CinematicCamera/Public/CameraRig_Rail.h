@@ -56,9 +56,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Rail Components")
 	USplineComponent* GetRailSplineComponent() { return RailSplineComponent; }
 	
-private:
+protected:
 	/** Makes sure all components are arranged properly. Call when something changes that might affect components. */
-	void UpdateRailComponents();
+	virtual void UpdateRailComponents();
 #if WITH_EDITORONLY_DATA
 	void UpdatePreviewMeshes();
 #endif
