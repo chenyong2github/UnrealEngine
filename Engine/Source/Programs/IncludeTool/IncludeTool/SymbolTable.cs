@@ -189,6 +189,10 @@ namespace IncludeTool
 						{
 							continue;
 						}
+						if (FileName.Equals("TaskGraphFwd.h", StringComparison.OrdinalIgnoreCase))
+						{
+							continue;
+						}
 
 						Log.WriteLine("warning: conflicting declarations of '{0}':", SymbolName);
 						foreach(Symbol Symbol in Symbols)
