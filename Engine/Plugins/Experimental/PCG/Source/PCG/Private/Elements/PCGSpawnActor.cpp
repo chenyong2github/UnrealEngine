@@ -2,7 +2,6 @@
 
 #include "Elements/PCGSpawnActor.h"
 
-#include "Engine/Engine.h"
 #include "PCGComponent.h"
 #include "PCGHelpers.h"
 #include "PCGManagedResource.h"
@@ -11,13 +10,119 @@
 #include "Grid/PCGPartitionActor.h"
 #include "Helpers/PCGActorHelpers.h"
 #include "Helpers/PCGSettingsHelpers.h"
+#include "Metadata/Accessors/IPCGAttributeAccessor.h"
+#include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
+#include "Metadata/Accessors/PCGAttributeAccessorHelpers.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
 #include "GameFramework/Actor.h"
+#include "Engine/Blueprint.h"
+#include "Engine/BlueprintGeneratedClass.h"
+#include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "ISMPartition/ISMComponentDescriptor.h"
+#include "UObject/Package.h"
+#include "UObject/UObjectGlobals.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGSpawnActor)
+
+namespace PCGSpawnActorHelpers
+{
+	struct FActorSingleOverride
+	{
+		using ApplyOverrideFunction = TFunction<void(int32, const IPCGAttributeAccessorKeys&, IPCGAttributeAccessorKeys&)>;
+
+		FActorSingleOverride(const FPCGAttributePropertySelector& InputSelector, const FString& OutputProperty, AActor* TemplateActor, const UPCGPointData* PointData)
+		{
+			ActorOverrideInputAccessor = PCGAttributeAccessorHelpers::CreateConstAccessor(PointData, InputSelector);
+			ActorOverrideOutputAccessor = PCGAttributeAccessorHelpers::CreatePropertyAccessor(FName(OutputProperty), TemplateActor->GetClass());
+
+			if (!ActorOverrideInputAccessor.IsValid() || !ActorOverrideOutputAccessor.IsValid())
+			{
+				UE_LOG(LogPCG, Warning, TEXT("ActorOverride from input %s or output %s is invalid or unsupported. Will be skipped."), *InputSelector.GetName().ToString(), *OutputProperty);
+				return;
+			}
+
+			if (!PCG::Private::IsBroadcastable(ActorOverrideInputAccessor->GetUnderlyingType(), ActorOverrideOutputAccessor->GetUnderlyingType()))
+			{
+				UE_LOG(LogPCG, Warning, TEXT("ActorOverride cannot set input %s to output %s. Types are incompatibles. Will be skipped."), *InputSelector.GetName().ToString(), *OutputProperty);
+				ActorOverrideInputAccessor.Reset();
+				ActorOverrideOutputAccessor.Reset();
+				return;
+			}
+
+			auto CreateGetterSetter = [this](auto Dummy)
+			{
+				using Type = decltype(Dummy);
+
+				ActorOverrideFunction = [this](int32 Index, const IPCGAttributeAccessorKeys& InputKeys, IPCGAttributeAccessorKeys& OutputKey)
+				{
+					if (!IsValid())
+					{
+						return;
+					}
+
+					Type Value{};
+					if (ActorOverrideInputAccessor->Get<Type>(Value, Index, InputKeys, EPCGAttributeAccessorFlags::AllowBroadcast))
+					{
+						ActorOverrideOutputAccessor->Set<Type>(Value, OutputKey);
+					}
+				};
+			};
+
+			PCGMetadataAttribute::CallbackWithRightType(ActorOverrideOutputAccessor->GetUnderlyingType(), CreateGetterSetter);
+		}
+
+		bool IsValid() const
+		{
+			return ActorOverrideInputAccessor.IsValid() && ActorOverrideOutputAccessor.IsValid() && ActorOverrideFunction;
+		}
+
+		void Apply(int32 Index, const IPCGAttributeAccessorKeys& InputKeys, IPCGAttributeAccessorKeys& OutputKey)
+		{
+			ActorOverrideFunction(Index, InputKeys, OutputKey);
+		}
+
+	private:
+		TUniquePtr<const IPCGAttributeAccessor> ActorOverrideInputAccessor;
+		TUniquePtr<IPCGAttributeAccessor> ActorOverrideOutputAccessor;
+		ApplyOverrideFunction ActorOverrideFunction;
+	};
+
+	struct FActorOverrides
+	{
+		FActorOverrides(const TArray<FPCGActorPropertyOverride>& Overrides, AActor* TemplateActor, const UPCGPointData* PointData)
+			: InputKeys(PointData->GetPoints())
+			, OutputKey(TemplateActor)
+		{
+			ActorSingleOverrides.Reserve(Overrides.Num());
+
+			for (int32 i = 0; i < Overrides.Num(); ++i)
+			{
+				const FPCGAttributePropertySelector& InputSelector = Overrides[i].InputSource;
+				const FString& OutputProperty = Overrides[i].PropertyTarget;
+
+				ActorSingleOverrides.Emplace(InputSelector, OutputProperty, TemplateActor, PointData);
+			}
+		}
+
+		void Apply(int32 Index)
+		{
+			for (FActorSingleOverride& ActorSingleOverride : ActorSingleOverrides)
+			{
+				if (ActorSingleOverride.IsValid())
+				{
+					ActorSingleOverride.Apply(Index, InputKeys, OutputKey);
+				}
+			}
+		}
+
+	private:
+		FPCGAttributeAccessorKeysPoints InputKeys;
+		FPCGAttributeAccessorKeysSingleObjectPtr<AActor> OutputKey;
+		TArray<FActorSingleOverride> ActorSingleOverrides;
+	};
+}
 
 UPCGNode* UPCGSpawnActorSettings::CreateNode() const
 {
@@ -58,6 +163,58 @@ UPCGGraph* UPCGSpawnActorSettings::GetSubgraph() const
 	return nullptr;
 }
 
+void UPCGSpawnActorSettings::BeginDestroy()
+{
+#if WITH_EDITOR
+	TeardownBlueprintEvent();
+#endif // WITH_EDITOR
+
+	Super::BeginDestroy();
+}
+
+#if WITH_EDITOR
+void UPCGSpawnActorSettings::SetupBlueprintEvent()
+{
+	if (UBlueprintGeneratedClass* BlueprintClass = Cast<UBlueprintGeneratedClass>(TemplateActorClass))
+	{
+		if (UBlueprint* Blueprint = Cast<UBlueprint>(BlueprintClass->ClassGeneratedBy))
+		{
+			Blueprint->OnChanged().AddUObject(this, &UPCGSpawnActorSettings::OnBlueprintChanged);
+		}
+	}
+}
+
+void UPCGSpawnActorSettings::TeardownBlueprintEvent()
+{
+	if (UBlueprintGeneratedClass* BlueprintClass = Cast<UBlueprintGeneratedClass>(TemplateActorClass))
+	{
+		if (UBlueprint* Blueprint = Cast<UBlueprint>(BlueprintClass->ClassGeneratedBy))
+		{
+			Blueprint->OnChanged().RemoveAll(this);
+		}
+	}
+}
+#endif
+
+void UPCGSpawnActorSettings::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITOR
+	SetupBlueprintEvent();
+
+	if (TemplateActorClass)
+	{
+		if (TemplateActor)
+		{
+			TemplateActor->ConditionalPostLoad();
+		}
+
+		RefreshTemplateActor();
+	}
+#endif // WITH_EDITOR
+}
+
 #if WITH_EDITOR
 bool UPCGSpawnActorSettings::IsStructuralProperty(const FName& InPropertyName) const
 {
@@ -73,6 +230,77 @@ TObjectPtr<UPCGGraph> UPCGSpawnActorNode::GetSubgraph() const
 	return (Settings && Settings->Option != EPCGSpawnActorOption::NoMerging) ? Settings->GetSubgraph() : nullptr;
 }
 
+#if WITH_EDITOR
+void UPCGSpawnActorSettings::PreEditChange(FProperty* PropertyAboutToChange)
+{
+	if (PropertyAboutToChange && PropertyAboutToChange->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGSpawnActorSettings, TemplateActorClass))
+	{
+		TeardownBlueprintEvent();
+	}
+}
+
+void UPCGSpawnActorSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (PropertyChangedEvent.Property)
+	{
+		const FName& PropertyName = PropertyChangedEvent.Property->GetFName();
+
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UPCGSpawnActorSettings, TemplateActorClass))
+		{
+			SetupBlueprintEvent();
+			RefreshTemplateActor();
+		}
+	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+void UPCGSpawnActorSettings::PreEditUndo()
+{
+	TeardownBlueprintEvent();
+
+	Super::PreEditUndo();
+}
+
+void UPCGSpawnActorSettings::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	SetupBlueprintEvent();
+	RefreshTemplateActor();
+}
+
+void UPCGSpawnActorSettings::OnBlueprintChanged(UBlueprint* InBlueprint)
+{
+	RefreshTemplateActor();
+	DirtyCache();
+	OnSettingsChangedDelegate.Broadcast(this, EPCGChangeType::Settings);
+}
+#endif // WITH_EDITOR
+
+void UPCGSpawnActorSettings::RefreshTemplateActor()
+{
+	if (TemplateActorClass)
+	{
+		AActor* NewTemplateActor = NewObject<AActor>(GetTransientPackage(), TemplateActorClass, NAME_None, RF_ArchetypeObject | RF_Transactional | RF_Public);
+
+		if (TemplateActor)
+		{
+			UEngine::FCopyPropertiesForUnrelatedObjectsParams Options;
+			Options.bNotifyObjectReplacement = true;
+			UEngine::CopyPropertiesForUnrelatedObjects(TemplateActor, NewTemplateActor, Options);
+
+			TemplateActor->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors);
+		}
+
+		TemplateActor = NewTemplateActor;
+	}
+	else
+	{
+		TemplateActor = nullptr;
+	}
+}
+
 bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCSpawnActorElement::Execute);
@@ -84,6 +312,11 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 	if(!Settings->TemplateActorClass || Settings->TemplateActorClass->HasAnyClassFlags(CLASS_Abstract))
 	{
 		PCGE_LOG(Error, "Invalid template actor class (%s)", Settings->TemplateActorClass ? *Settings->TemplateActorClass->GetFName().ToString() : TEXT("None"));
+		return true;
+	}
+
+	if (!ensure(Settings->TemplateActor && Settings->TemplateActor->IsA(Settings->TemplateActorClass)))
+	{
 		return true;
 	}
 
@@ -137,7 +370,7 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 		}
 
 		const bool bHasAuthority = !Context->SourceComponent.IsValid() || (Context->SourceComponent->GetOwner() && Context->SourceComponent->GetOwner()->HasAuthority());
-		const bool bSpawnedActorsRequireAuthority = Settings->TemplateActorClass->GetDefaultObject<AActor>()->GetIsReplicated();
+		const bool bSpawnedActorsRequireAuthority = Settings->TemplateActor->GetIsReplicated();
 
 		// First, create target instance transforms
 		const UPCGPointData* PointData = SpatialData->ToPointData(Context);
@@ -232,8 +465,13 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 				TRACE_CPUPROFILER_EVENT_SCOPE(FPCGSpawnActorElement::ExecuteInternal::SpawnActors);
 				if (Settings->Option != EPCGSpawnActorOption::CollapseActors && (bHasAuthority || !bSpawnedActorsRequireAuthority))
 				{
+					AActor* TemplateActor = Settings->ActorOverrides.IsEmpty() ? Settings->TemplateActor.Get() : DuplicateObject(Settings->TemplateActor, GetTransientPackage());
+
+					PCGSpawnActorHelpers::FActorOverrides ActorOverrides(Settings->ActorOverrides, TemplateActor, PointData);
+
 					FActorSpawnParameters SpawnParams;
 					SpawnParams.Owner = TargetActor;
+					SpawnParams.Template = TemplateActor;
 					SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
 					if (PCGHelpers::IsRuntimeOrPIE())
@@ -254,9 +492,20 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 						Settings->bGenerationTrigger == EPCGSpawnActorGenerationTrigger::DoNotGenerateInEditor);
 #endif
 
-					for (const FPCGPoint& Point : Points)
+					for (int32 i = 0; i < Points.Num(); ++i)
 					{
+						const FPCGPoint& Point = Points[i];
+
+						ActorOverrides.Apply(i);
+
 						AActor* GeneratedActor = TargetActor->GetWorld()->SpawnActor(Settings->TemplateActorClass, &Point.Transform, SpawnParams);
+
+						if (!GeneratedActor)
+						{
+							PCGE_LOG(Error, "Failed to spawn actor on point with index %d", i);
+							continue;
+						}
+
 						// HACK: until UE-62747 is fixed, we have to force set the scale after spawning the actor
 						GeneratedActor->SetActorRelativeScale3D(Point.Transform.GetScale3D());
 						GeneratedActor->Tags.Append(NewActorTags);

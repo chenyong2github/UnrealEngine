@@ -92,6 +92,11 @@ namespace PCGAttributeAccessorHelpers
 
 TUniquePtr<IPCGAttributeAccessor> PCGAttributeAccessorHelpers::CreatePropertyAccessor(const FProperty* InProperty)
 {
+	if (!InProperty)
+	{
+		return TUniquePtr<IPCGAttributeAccessor>();
+	}
+
 	if (const FNumericProperty* NumericProperty = CastField<FNumericProperty>(InProperty))
 	{
 		if (NumericProperty->IsFloatingPoint())
@@ -152,6 +157,32 @@ TUniquePtr<IPCGAttributeAccessor> PCGAttributeAccessorHelpers::CreatePropertyAcc
 		else if (StructProperty->Struct == TBaseStructure<FSoftClassPath>::Get())
 		{
 			return MakeUnique<FPCGPropertyPathAccessor<FSoftClassPath>>(InProperty);
+		}
+	}
+
+	return TUniquePtr<IPCGAttributeAccessor>();
+}
+
+TUniquePtr<IPCGAttributeAccessor> PCGAttributeAccessorHelpers::CreatePropertyAccessor(const FName InPropertyName, const UClass* InClass)
+{
+	if (InClass)
+	{
+		if (const FProperty* Property = InClass->FindPropertyByName(InPropertyName))
+		{
+			return CreatePropertyAccessor(Property);
+		}
+	}
+
+	return TUniquePtr<IPCGAttributeAccessor>();
+}
+
+TUniquePtr<IPCGAttributeAccessor> PCGAttributeAccessorHelpers::CreatePropertyAccessor(const FName InPropertyName, const UStruct* InStruct)
+{
+	if (InStruct)
+	{
+		if (const FProperty* Property = InStruct->FindPropertyByName(InPropertyName))
+		{
+			return CreatePropertyAccessor(Property);
 		}
 	}
 
