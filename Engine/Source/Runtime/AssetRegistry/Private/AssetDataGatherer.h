@@ -87,14 +87,21 @@ public:
 	// Receiving Results (possibly while tick is running)
 	struct FResults
 	{
-		TRingBuffer<FAssetData*> Assets;
+		TMultiMap<FName, FAssetData*> Assets;
 		TRingBuffer<FString> Paths;
-		TRingBuffer<FPackageDependencyData> Dependencies;
+		TMultiMap<FName, FPackageDependencyData> Dependencies;
 		TRingBuffer<FString> CookedPackageNamesWithoutAssetData;
 		TRingBuffer<FName> VerseFiles;
 
 		SIZE_T GetAllocatedSize() const { return Assets.GetAllocatedSize() + Paths.GetAllocatedSize() + Dependencies.GetAllocatedSize() + CookedPackageNamesWithoutAssetData.GetAllocatedSize() + VerseFiles.GetAllocatedSize(); }
-		void Shrink() { Assets.Trim(); Paths.Trim(); Dependencies.Trim(); CookedPackageNamesWithoutAssetData.Trim(); VerseFiles.Trim(); }
+		void Shrink()
+		{
+			Assets.Shrink();
+			Paths.Trim();
+			Dependencies.Shrink();
+			CookedPackageNamesWithoutAssetData.Trim();
+			VerseFiles.Trim();
+		}
 	};
 	struct FResultContext
 	{
@@ -108,7 +115,7 @@ public:
 	/** Gets search results from the data gatherer. */
 	void GetAndTrimSearchResults(FResults& InOutResults, FResultContext& OutContext);
 	/** Gets just the AssetResults and DependencyResults from the data gatherer. */
-	void GetPackageResults(TRingBuffer<FAssetData*>& OutAssetResults, TRingBuffer<FPackageDependencyData>& OutDependencyResults);
+	void GetPackageResults(TMultiMap<FName, FAssetData*>& OutAssetResults, TMultiMap<FName, FPackageDependencyData>& OutDependencyResults);
 	/** Wait for all monitored assets under the given path to be added to search results. Returns immediately if the given path is not monitored. */
 	void WaitOnPath(FStringView LocalPath);
 	/**

@@ -3508,26 +3508,6 @@ void FAssetRegistryImpl::PrioritizeSearchPath(const FString& PathToPrioritize)
 		return;
 	}
 	GlobalGatherer->PrioritizeSearchPath(PathToPrioritize);
-
-	// Also prioritize the queue of background search results
-	int32 FirstNonPriorityIndex = 0;
-	for (int Index = 0; Index < BackgroundResults.Assets.Num(); ++Index)
-	{
-		FAssetData* PriorityElement = BackgroundResults.Assets[Index];
-		if (PriorityElement && PriorityElement->PackagePath.ToString().StartsWith(PathToPrioritize))
-		{
-			Swap(BackgroundResults.Assets[FirstNonPriorityIndex++], BackgroundResults.Assets[Index]);
-		}
-	}
-	FirstNonPriorityIndex = 0;
-	for (int Index = 0; Index < BackgroundResults.Paths.Num(); ++Index)
-	{
-		FString& PriorityElement = BackgroundResults.Paths[Index];
-		if (PriorityElement.StartsWith(PathToPrioritize))
-		{
-			Swap(BackgroundResults.Paths[FirstNonPriorityIndex++], BackgroundResults.Paths[Index]);
-		}
-	}
 }
 
 }
@@ -3974,35 +3954,31 @@ void FAssetRegistryImpl::TickGatherPackage(Impl::FEventContext& EventContext, co
 	// Gather results from the background search
 	GlobalGatherer->GetPackageResults(BackgroundResults.Assets, BackgroundResults.Dependencies);
 
-	TRingBuffer<FAssetData*> PackageAssets;
-	TRingBuffer<FPackageDependencyData> PackageDependencyDatas;
-	for (int n = 0; n < BackgroundResults.Assets.Num(); ++n)
-	{
-		FAssetData* Asset = BackgroundResults.Assets[n];
-		if (Asset->PackageName == PackageFName)
-		{
-			Swap(BackgroundResults.Assets[n], BackgroundResults.Assets.Last());
-			PackageAssets.Add(BackgroundResults.Assets.PopValue());
-			--n;
-		}
-	}
-	for (int n = 0; n < BackgroundResults.Dependencies.Num(); ++n)
-	{
-		FPackageDependencyData& DependencyData = BackgroundResults.Dependencies[n];
-		if (DependencyData.PackageName == PackageFName)
-		{
-			Swap(BackgroundResults.Dependencies[n], BackgroundResults.Dependencies.Last());
-			PackageDependencyDatas.Add(BackgroundResults.Dependencies.PopValue());
-			--n;
-		}
-	}
+	TArray<FAssetData*> PackageAssets;
+	TArray<FPackageDependencyData> PackageDependencyDatas;
+	BackgroundResults.Assets.MultiFind(PackageFName, PackageAssets);
+	BackgroundResults.Assets.Remove(PackageFName);
+	BackgroundResults.Dependencies.MultiFind(PackageFName, PackageDependencyDatas);
+	BackgroundResults.Dependencies.Remove(PackageFName);
 	if (PackageAssets.Num() > 0)
 	{
-		AssetSearchDataGathered(EventContext, -1., PackageAssets);
+		TMultiMap<FName, FAssetData*> PackageAssetsMap;
+		PackageAssetsMap.Reserve(PackageAssets.Num());
+		for (FAssetData* PackageAsset : PackageAssets)
+		{
+			PackageAssetsMap.Add(PackageFName, PackageAsset);
+		}
+		AssetSearchDataGathered(EventContext, -1., PackageAssetsMap);
 	}
 	if (PackageDependencyDatas.Num() > 0)
 	{
-		DependencyDataGathered(-1., PackageDependencyDatas);
+		TMultiMap<FName, FPackageDependencyData> PackageDependencyDatasMap;
+		PackageDependencyDatasMap.Reserve(PackageDependencyDatas.Num());
+		for (FPackageDependencyData& DependencyData : PackageDependencyDatas)
+		{
+			PackageDependencyDatasMap.Add(PackageFName, MoveTemp(DependencyData));
+		}
+		DependencyDataGathered(-1., PackageDependencyDatasMap);
 	}
 }
 
@@ -4520,7 +4496,7 @@ void FAssetRegistryImpl::ScanPathsSynchronous(Impl::FScanPathContext& Context)
 	Gatherer.ScanPathsSynchronous(Context.LocalPaths, Context.bForceRescan, Context.bIgnoreDenyListScanFilters, CacheFilename, Context.PackageDirs);
 	TArray<FName> FoundAssetPackageNames;
 
-	auto AssetsFoundCallback = [&Context, &FoundAssetPackageNames, this](const TRingBuffer<FAssetData*>& InFoundAssets)
+	auto AssetsFoundCallback = [&Context, &FoundAssetPackageNames, this](const TMultiMap<FName, FAssetData*>& InFoundAssets)
 	{
 		Context.NumFoundAssets = InFoundAssets.Num();
 
@@ -4528,8 +4504,9 @@ void FAssetRegistryImpl::ScanPathsSynchronous(Impl::FScanPathContext& Context)
 		FoundAssetPackageNames.Reserve(Context.NumFoundAssets);
 
 		// The gatherer may have added other assets that were scanned as part of the ongoing background scan; remove any assets that were not in the requested paths
-		for (FAssetData* AssetData : InFoundAssets)
+		for (const TPair<FName,FAssetData*>& Pair : InFoundAssets)
 		{
+			FAssetData* AssetData = Pair.Value;
 			bool bIsInRequestedPaths = false;
 
 			TStringBuilder<128> PackageNameStr;
@@ -4651,7 +4628,7 @@ void FAssetRegistryImpl::PostLoadAssetRegistryTags(FAssetData* AssetData)
 }
 #endif
 
-void FAssetRegistryImpl::AssetSearchDataGathered(Impl::FEventContext& EventContext, const double TickStartTime, TRingBuffer<FAssetData*>& AssetResults)
+void FAssetRegistryImpl::AssetSearchDataGathered(Impl::FEventContext& EventContext, const double TickStartTime, TMultiMap<FName, FAssetData*>& AssetResults)
 {
 	const bool bFlushFullBuffer = TickStartTime < 0;
 
@@ -4669,11 +4646,12 @@ void FAssetRegistryImpl::AssetSearchDataGathered(Impl::FEventContext& EventConte
 	}
 
 	// Add the found assets
-	while (AssetResults.Num() > 0)
+	for (TMultiMap<FName, FAssetData*>::TIterator Iter(AssetResults); Iter; ++Iter)
 	{
 		// Delete or take ownership of the BackgroundResult; it was originally new'd by an FPackageReader
-		TUniquePtr<FAssetData> BackgroundResult(AssetResults.PopFrontValue());
+		TUniquePtr<FAssetData> BackgroundResult(Iter.Value());
 		CA_ASSUME(BackgroundResult.Get() != nullptr);
+		Iter.RemoveCurrent();
 
 		// Try to update any asset data that may already exist
 		FCachedAssetKey Key(*BackgroundResult);
@@ -4776,15 +4754,16 @@ void FAssetRegistryImpl::PathDataGathered(Impl::FEventContext& EventContext, con
 	}
 }
 
-void FAssetRegistryImpl::DependencyDataGathered(const double TickStartTime, TRingBuffer<FPackageDependencyData>& DependsResults)
+void FAssetRegistryImpl::DependencyDataGathered(const double TickStartTime, TMultiMap<FName, FPackageDependencyData>& DependsResults)
 {
 	using namespace UE::AssetRegistry;
 	const bool bFlushFullBuffer = TickStartTime < 0;
 
 	TMap<FName, FName> CachedDepToRedirect;
-	while (DependsResults.Num() > 0)
+	for (TMultiMap<FName, FPackageDependencyData>::TIterator Iter(DependsResults); Iter; ++Iter)
 	{
-		FPackageDependencyData Result = DependsResults.PopFrontValue();
+		FPackageDependencyData Result = MoveTemp(Iter.Value());
+		Iter.RemoveCurrent();
 
 		checkf(!GIsEditor || Result.bHasPackageData, TEXT("We rely on PackageData being read for every gathered Asset in the editor."));
 		if (Result.bHasPackageData)

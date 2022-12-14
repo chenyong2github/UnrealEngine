@@ -3493,9 +3493,18 @@ void FAssetDataGatherer::GetAndTrimSearchResults(FResults& InOutResults, FResult
 		InArray.Reset();
 	};
 
-	MoveAppendRangeToRingBuffer(InOutResults.Assets, AssetResults);
+	for (FAssetData* AssetData : AssetResults)
+	{
+		InOutResults.Assets.Add(AssetData->PackageName, AssetData);
+	}
+	AssetResults.Reset();
 	MoveAppendRangeToRingBuffer(InOutResults.Paths, DiscoveredPaths);
-	MoveAppendRangeToRingBuffer(InOutResults.Dependencies, DependencyResults);
+	for (FPackageDependencyData& DependencyData : DependencyResults)
+	{
+		FName PackageName = DependencyData.PackageName;
+		InOutResults.Dependencies.Add(PackageName, MoveTemp(DependencyData));
+	}
+	DependencyResults.Reset();
 	MoveAppendRangeToRingBuffer(InOutResults.CookedPackageNamesWithoutAssetData, CookedPackageNamesWithoutAssetDataResults);
 	MoveAppendRangeToRingBuffer(InOutResults.VerseFiles, VerseResults);
 
@@ -3517,22 +3526,21 @@ void FAssetDataGatherer::GetAndTrimSearchResults(FResults& InOutResults, FResult
 	OutContext.bAbleToProgress = !bIsIdle;
 }
 
-void FAssetDataGatherer::GetPackageResults(TRingBuffer<FAssetData*>& OutAssetResults, TRingBuffer<FPackageDependencyData>& OutDependencyResults)
+void FAssetDataGatherer::GetPackageResults(TMultiMap<FName, FAssetData*>& OutAssetResults, TMultiMap<FName, FPackageDependencyData>& OutDependencyResults)
 {
 	FGathererScopeLock ResultsScopeLock(&ResultsLock);
 
-	auto MoveAppendRangeToRingBuffer = [](auto& OutRingBuffer, auto& InArray)
+	for (FAssetData* AssetData : AssetResults)
 	{
-		OutRingBuffer.Reserve(OutRingBuffer.Num() + InArray.Num());
-		for (auto& Element : InArray)
-		{
-			OutRingBuffer.Add(MoveTemp(Element));
-		}
-		InArray.Reset();
-	};
-
-	MoveAppendRangeToRingBuffer(OutAssetResults, AssetResults);
-	MoveAppendRangeToRingBuffer(OutDependencyResults, DependencyResults);
+		OutAssetResults.Add(AssetData->PackageName, AssetData);
+	}
+	AssetResults.Reset();
+	for (FPackageDependencyData& DependencyData : DependencyResults)
+	{
+		FName PackageName = DependencyData.PackageName;
+		OutDependencyResults.Add(PackageName, MoveTemp(DependencyData));
+	}
+	DependencyResults.Reset();
 }
 
 void FAssetDataGatherer::WaitOnPath(FStringView InPath)
