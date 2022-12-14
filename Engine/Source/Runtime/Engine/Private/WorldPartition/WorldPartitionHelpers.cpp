@@ -4,6 +4,7 @@
 
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionEditorHash.h"
+#include "Engine/World.h"
 #include "Algo/AnyOf.h"
 
 #include "Commandlets/Commandlet.h"
