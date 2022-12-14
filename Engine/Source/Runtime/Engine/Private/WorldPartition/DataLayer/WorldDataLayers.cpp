@@ -528,6 +528,8 @@ int32 AWorldDataLayers::RemoveDataLayers(const TArray<UDataLayerInstance*>& InDa
 	if (RemovedCount > 0)
 	{
 		UpdateContainsDeprecatedDataLayers();
+
+		ResolveActorDescContainers();
 	}
 
 	return RemovedCount;
@@ -546,6 +548,8 @@ bool AWorldDataLayers::RemoveDataLayer(const UDataLayerInstance* InDataLayerInst
 			UpdateContainsDeprecatedDataLayers();
 		}
 
+		ResolveActorDescContainers();
+		
 		return true;
 	}
 	return false;
@@ -933,6 +937,43 @@ void AWorldDataLayers::UpdateContainsDeprecatedDataLayers()
 			}
 		}
 	}
+}
+
+void AWorldDataLayers::ResolveActorDescContainers()
+{
+	if (UDataLayerSubsystem* DataLayerSubsystem = GetWorld()->GetSubsystem<UDataLayerSubsystem>())
+	{
+		DataLayerSubsystem->ResolveActorDescContainers();
+	}
+}
+
+void AWorldDataLayers::PreEditUndo()
+{
+	Super::PreEditUndo();
+	CachedDataLayerInstances = DataLayerInstances;
+}
+
+void AWorldDataLayers::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	bool bNeedResolve = CachedDataLayerInstances.Num() != DataLayerInstances.Num();
+	if (!bNeedResolve)
+	{
+		for (UDataLayerInstance* DataLayerInstance : DataLayerInstances)
+		{
+			if (!CachedDataLayerInstances.Contains(DataLayerInstance))
+			{
+				bNeedResolve = true;
+				break;
+			}
+		}
+	}
+	if (bNeedResolve)
+	{
+		ResolveActorDescContainers();
+	}
+	CachedDataLayerInstances.Empty();
 }
 
 #endif

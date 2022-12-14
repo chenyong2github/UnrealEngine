@@ -230,6 +230,8 @@ private:
 #if WITH_EDITOR
 	void RegisterEarlyLoadedWorldDataLayers();
 	void OnActorDescContainerInitialized(UActorDescContainer* InActorDescContainer);
+	void ResolveActorDescContainer(UActorDescContainer* InActorDescContainer);
+	void ResolveActorDescContainers();
 
 	mutable int32 DataLayerActorEditorContextID;
 #endif

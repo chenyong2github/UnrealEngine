@@ -51,6 +51,8 @@ public:
 	virtual void BeginPlay() override;
 
 #if WITH_EDITOR
+	virtual void PreEditUndo() override;
+	virtual void PostEditUndo() override;
 	virtual bool ShouldLevelKeepRefIfExternal() const override { return true; }
 	virtual bool ShouldImport(FStringView ActorPropString, bool IsMovingLevel) override { return false; }
 	virtual bool IsLockLocation() const { return true; }
@@ -185,6 +187,11 @@ private:
 #if WITH_EDITOR
 	void ConvertDataLayerToInstancces();
 	void UpdateContainsDeprecatedDataLayers();
+	void ResolveActorDescContainers();
+	friend class UDataLayerInstanceWithAsset;
+
+	// Used to compare state pre/post undo
+	TSet<TObjectPtr<UDataLayerInstance>> CachedDataLayerInstances;
 #endif
 
 #if !WITH_EDITOR
@@ -262,7 +269,7 @@ DataLayerInstanceType* AWorldDataLayers::CreateDataLayer(CreationsArgs... InCrea
 	DataLayerInstances.Add(NewDataLayer);
 
 	UpdateContainsDeprecatedDataLayers();
-
+	ResolveActorDescContainers();
 	return NewDataLayer;
 }
 

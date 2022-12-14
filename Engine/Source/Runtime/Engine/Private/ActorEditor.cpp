@@ -1720,7 +1720,11 @@ void AActor::FixupDataLayers(bool bRevertChangesOnLockedDataLayer /*= false*/)
 					}
 				};
 
-				CleanupDataLayers(DataLayerAssets);
+				// Only invalidate DataLayerAssets on cook. In Editor we want to be able to re-resolve if the asset gets readded to the WorldDataLayers actor
+				if (IsRunningCookCommandlet())
+				{
+					CleanupDataLayers(DataLayerAssets);
+				}
 				CleanupDataLayers(DataLayers);
 				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}

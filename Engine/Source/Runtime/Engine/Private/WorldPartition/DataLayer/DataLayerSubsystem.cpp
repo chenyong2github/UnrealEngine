@@ -764,6 +764,11 @@ uint32 UDataLayerSubsystem::GetDataLayerEditorContextHash() const
 
 void UDataLayerSubsystem::OnActorDescContainerInitialized(UActorDescContainer* InActorDescContainer)
 {
+	ResolveActorDescContainer(InActorDescContainer);
+}
+
+void UDataLayerSubsystem::ResolveActorDescContainer(UActorDescContainer* InActorDescContainer)
+{
 	check(InActorDescContainer);
 
 	auto GetWorldDataLayersActorDesc = [](const UActorDescContainer* InContainer) -> TArray<const FWorldDataLayersActorDesc*>
@@ -790,6 +795,17 @@ void UDataLayerSubsystem::OnActorDescContainerInitialized(UActorDescContainer* I
 		FWorldPartitionActorDesc* ActorDesc = *Iterator;
 		check(ActorDesc->GetContainer() == InActorDescContainer);
 		ActorDesc->SetDataLayerInstanceNames(FDataLayerUtils::ResolvedDataLayerInstanceNames(ActorDesc, WorldDataLayersActorDescs));
+	}
+}
+
+void UDataLayerSubsystem::ResolveActorDescContainers()
+{
+	for (TObjectIterator<UActorDescContainer> ContainerIt; ContainerIt; ++ContainerIt)
+	{
+		if (UActorDescContainer* ActorDescContainer = *ContainerIt; ActorDescContainer && GetWorld() == ActorDescContainer->GetWorld())
+		{
+			ResolveActorDescContainer(ActorDescContainer);
+		}
 	}
 }
 

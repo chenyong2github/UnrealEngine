@@ -18,12 +18,15 @@ public:
 	static FName MakeName(const UDataLayerAsset* DeprecatedDataLayer);
 	void OnCreated(const UDataLayerAsset* Asset);
 
+	virtual void PreEditUndo() override;
+	virtual void PostEditUndo() override;
 	virtual bool IsLocked() const override;
 	virtual bool IsReadOnly() const override;
 	virtual bool AddActor(AActor* Actor) const override;
 	virtual bool RemoveActor(AActor* Actor) const override;
 
 	virtual bool Validate(IStreamingGenerationErrorHandler* ErrorHandler) const override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
 	const UDataLayerAsset* GetAsset() const { return DataLayerAsset; }
@@ -40,4 +43,9 @@ public:
 private:
 	UPROPERTY(Category = "Data Layer", EditAnywhere)
 	TObjectPtr<const UDataLayerAsset> DataLayerAsset;
+
+#if WITH_EDITOR
+	// Used to compare state pre/post undo
+	TObjectPtr<const UDataLayerAsset> CachedDataLayerAsset;
+#endif
 };
