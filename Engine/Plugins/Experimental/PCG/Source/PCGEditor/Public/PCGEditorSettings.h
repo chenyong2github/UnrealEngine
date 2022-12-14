@@ -81,17 +81,45 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel))
 	FLinearColor SpatialDataPinColor;
 
+	/** Color used for composite shape spatial data pins */
+	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel))
+	FLinearColor CompositeDataPinColor;	
+	
 	/** Color used for concrete/simple spatial data pins */
 	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel))
 	FLinearColor ConcreteDataPinColor;
 
-	/** Color used for composite shape spatial data pins */
+	/** Color used for data pins of type Point */
 	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel))
-	FLinearColor CompositeDataPinColor;
+	FLinearColor PointDataPinColor;
 
-	/** Color used for render targets / GPU pins */
+	/** Color used for data pins of type Spline */
+	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel))
+	FLinearColor PolyLineDataPinColor;
+
+	/** Color used for data pins of type Surface */
+	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel))
+	FLinearColor SurfaceDataPinColor;
+
+	/** Color used for data pins of type Landscape */
+	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel))
+	FLinearColor LandscapeDataPinColor;
+
+	/** Color used for data pins of type Texture */
+	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel))
+	FLinearColor TextureDataPinColor;
+
+	/** Color used for data pins of type Render Target */
 	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel))
 	FLinearColor RenderTargetDataPinColor;
+
+	/** Color used for data pins of type Volume */
+	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel))
+	FLinearColor VolumeDataPinColor;
+
+	/** Color used for data pins of type Primitive */
+	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel))
+	FLinearColor PrimitiveDataPinColor;
 
 	/** Color used for param data pins */
 	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel))

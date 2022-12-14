@@ -43,10 +43,7 @@ enum class EPCGDataType : uint32
 	Concrete = Point | PolyLine | Surface | Volume | Primitive,
 
 	/** Boolean operations like union, difference, intersection. */
-	ShapeBoolean = 1 << 9 UMETA(Hidden),
-
-	/** Composite is any combination of concrete and booleans. */
-	Composite = ShapeBoolean | Concrete,
+	Composite = 1 << 9,
 
 	Spatial = Composite | Concrete,
 

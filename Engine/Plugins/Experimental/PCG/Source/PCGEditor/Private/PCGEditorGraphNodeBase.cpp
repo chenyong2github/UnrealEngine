@@ -374,21 +374,9 @@ FEdGraphPinType UPCGEditorGraphNodeBase::GetPinType(const UPCGPin* InPin)
 		return !!(PinType & AllowedType) && !(PinType & ~AllowedType);
 	};
 
-	if (CheckType(EPCGDataType::Spatial))
+	if (CheckType(EPCGDataType::Concrete))
 	{
-		// Categories within spatial, checking from narrow -> wide
-		if (CheckType(EPCGDataType::Concrete))
-		{
-			EdPinType.PinCategory = FPCGEditorCommon::ConcreteDataType;
-		}
-		else if (CheckType(EPCGDataType::Composite))
-		{
-			EdPinType.PinCategory = FPCGEditorCommon::CompositeDataType;
-		}
-		else
-		{
-			EdPinType.PinCategory = FPCGEditorCommon::SpatialDataType;
-		}
+		EdPinType.PinCategory = FPCGEditorCommon::ConcreteDataType;
 
 		// Assign subcategory if we have precise information
 		if (CheckType(EPCGDataType::Point))
@@ -398,6 +386,14 @@ FEdGraphPinType UPCGEditorGraphNodeBase::GetPinType(const UPCGPin* InPin)
 		else if (CheckType(EPCGDataType::PolyLine))
 		{
 			EdPinType.PinSubCategory = FPCGEditorCommon::PolyLineDataType;
+		}
+		else if (CheckType(EPCGDataType::Landscape))
+		{
+			EdPinType.PinSubCategory = FPCGEditorCommon::LandscapeDataType;
+		}
+		else if (CheckType(EPCGDataType::Texture))
+		{
+			EdPinType.PinSubCategory = FPCGEditorCommon::TextureDataType;
 		}
 		else if (CheckType(EPCGDataType::RenderTarget))
 		{
@@ -415,6 +411,14 @@ FEdGraphPinType UPCGEditorGraphNodeBase::GetPinType(const UPCGPin* InPin)
 		{
 			EdPinType.PinSubCategory = FPCGEditorCommon::PrimitiveDataType;
 		}
+	}
+	else if (CheckType(EPCGDataType::Composite))
+	{
+		EdPinType.PinCategory = FPCGEditorCommon::CompositeDataType;
+	}
+	else if (CheckType(EPCGDataType::Spatial))
+	{
+		EdPinType.PinCategory = FPCGEditorCommon::SpatialDataType;
 	}
 	else if (CheckType(EPCGDataType::Param))
 	{
