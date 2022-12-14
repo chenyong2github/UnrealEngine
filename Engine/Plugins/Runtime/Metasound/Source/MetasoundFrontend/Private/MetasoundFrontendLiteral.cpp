@@ -388,7 +388,7 @@ void FMetasoundFrontendLiteral::SetFromLiteral(const Metasound::FLiteral& InLite
 			// Only error if attempting to retrieve valid UObject from ProxyDataPtr
 			// as this function can safely is used to initialize from defaults (which
 			// is valid as a null proxy can safely correspond to a null UObject ptr).
-			if (InLiteral.Value.Get<Audio::IProxyDataPtr>().IsValid())
+			if (InLiteral.Value.Get<TSharedPtr<Audio::IProxyData>>().IsValid())
 			{
 				UE_LOG(LogMetaSound, Error, TEXT("Cannot set UObjectProxy from Metasound::FLiteral"));
 			}
@@ -432,7 +432,7 @@ void FMetasoundFrontendLiteral::SetFromLiteral(const Metasound::FLiteral& InLite
 			// Only error if attempting to retrieve valid UObject from ProxyDataPtr
 			// as this function can safely is used to initialize from defaults (which
 			// is valid as a null proxy can safely correspond to a null UObject ptr).
-			if (!InLiteral.Value.Get<TArray<Audio::IProxyDataPtr>>().IsEmpty())
+			if (!InLiteral.Value.Get<TArray<TSharedPtr<Audio::IProxyData>>>().IsEmpty())
 			{
 				UE_LOG(LogMetaSound, Error, TEXT("Cannot set UObjectProxy from Metasound::FLiteral"));
 			}

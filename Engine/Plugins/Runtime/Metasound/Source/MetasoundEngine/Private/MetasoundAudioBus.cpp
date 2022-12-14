@@ -7,7 +7,7 @@
 
 namespace Metasound
 {
-	FAudioBusAsset::FAudioBusAsset(const TUniquePtr<Audio::IProxyData>& InInitData)
+	FAudioBusAsset::FAudioBusAsset(const TSharedPtr<Audio::IProxyData>& InInitData)
 	{
 		if (InInitData.IsValid())
 		{

@@ -1121,11 +1121,11 @@ void USoundWave::Serialize( FArchive& Ar )
 				SoundWaveDataPtr->LoadingBehavior = ESoundWaveLoadingBehavior::PrimeOnLoad;
 				SoundWaveDataPtr->bLoadingBehaviorOverridden = true;
 
-				if (!InternalProxy.IsValid())
+				if (!Proxy.IsValid())
 				{
-					InternalProxy = CreateSoundWaveProxy();
+					Proxy = CreateSoundWaveProxy();
 				}
-				IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(InternalProxy, 1, [](EAudioChunkLoadResult) {});
+				IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(Proxy, 1, [](EAudioChunkLoadResult) {});
 			}
 		}
 	}
@@ -1712,9 +1712,9 @@ void USoundWave::PostLoad()
 	ESoundWaveLoadingBehavior ActualLoadingBehavior = GetLoadingBehavior();
 
 	// no need for a proxy if we can't render audio!
-	if (!InternalProxy.IsValid() && ActualLoadingBehavior != ESoundWaveLoadingBehavior::ForceInline && FApp::CanEverRenderAudio())
+	if (!Proxy.IsValid() && ActualLoadingBehavior != ESoundWaveLoadingBehavior::ForceInline && FApp::CanEverRenderAudio())
 	{
-		InternalProxy = CreateSoundWaveProxy();
+		Proxy = CreateSoundWaveProxy();
 	}
 
 	if (FApp::CanEverRenderAudio() && ShouldUseStreamCaching() && ActualLoadingBehavior != GetLoadingBehavior(false))
@@ -1735,7 +1735,7 @@ void USoundWave::PostLoad()
 			
 			if (bShouldPrime && bHasMultipleChunks)
 			{
-				IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(InternalProxy, 1, [](EAudioChunkLoadResult) {});
+				IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(Proxy, 1, [](EAudioChunkLoadResult) {});
 			}
 		}
 
@@ -1802,7 +1802,7 @@ void USoundWave::PostLoad()
 #endif // #if WITH_EDITORONLY_DATA
 		if (!ShouldUseStreamCaching())
 		{
-			IStreamingManager::Get().GetAudioStreamingManager().AddStreamingSoundWave(InternalProxy);
+			IStreamingManager::Get().GetAudioStreamingManager().AddStreamingSoundWave(Proxy);
 		}
 
 		// Only request loading the zeroth chunk when streaming is supported and we can render audio.
@@ -2703,9 +2703,9 @@ bool USoundWave::IsReadyForFinishDestroy()
 	bool bIsStreamingInProgress = false;
 	if (CurrentLoadingBehavior != ESoundWaveLoadingBehavior::ForceInline)
 	{
-		if (InternalProxy.IsValid())
+		if (Proxy.IsValid())
 		{
-			bIsStreamingInProgress = IStreamingManager::Get().GetAudioStreamingManager().IsStreamingInProgress(InternalProxy);
+			bIsStreamingInProgress = IStreamingManager::Get().GetAudioStreamingManager().IsStreamingInProgress(Proxy);
 		}
 	}
 
@@ -3221,11 +3221,11 @@ TArrayView<const uint8> USoundWave::GetZerothChunk(bool bForImmediatePlayback)
 		if (GetNumChunks() > 1)
 		{
 			// Prime first chunk for playback.
-			if (!InternalProxy.IsValid())
+			if (!Proxy.IsValid())
 			{
-				InternalProxy = CreateSoundWaveProxy();
+				Proxy = CreateSoundWaveProxy();
 			}
-			IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(InternalProxy, 1, [](EAudioChunkLoadResult InResult) {}, ENamedThreads::AnyThread, bForImmediatePlayback);
+			IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(Proxy, 1, [](EAudioChunkLoadResult InResult) {}, ENamedThreads::AnyThread, bForImmediatePlayback);
 		}
 
 		FBulkDataBuffer<uint8>::ViewType View = SoundWaveDataPtr->GetZerothChunkData().GetView();
@@ -3234,11 +3234,11 @@ TArrayView<const uint8> USoundWave::GetZerothChunk(bool bForImmediatePlayback)
 	}
 	else
 	{
-		if (!InternalProxy.IsValid())
+		if (!Proxy.IsValid())
 		{
-			InternalProxy = CreateSoundWaveProxy();
+			Proxy = CreateSoundWaveProxy();
 		}
-		FAudioChunkHandle ChunkHandle = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(InternalProxy, 0);
+		FAudioChunkHandle ChunkHandle = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(Proxy, 0);
 		return TArrayView<const uint8>(ChunkHandle.GetData(), ChunkHandle.Num());
 	}
 }
@@ -3305,22 +3305,16 @@ FSoundWaveProxyPtr USoundWave::CreateSoundWaveProxy()
 	return MakeShared<FSoundWaveProxy, ESPMode::ThreadSafe>(this);
 }
 
-TUniquePtr<Audio::IProxyData> USoundWave::CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams)
+TSharedPtr<Audio::IProxyData> USoundWave::CreateProxyData(const Audio::FProxyDataInitParams& InitParams)
 {
 	check(SoundWaveDataPtr);
 	LLM_SCOPE(ELLMTag::AudioSoundWaveProxies);
 
-#if WITH_EDITORONLY_DATA
-	if (!LoadZerothChunk())
+	if (!Proxy.IsValid())
 	{
-		return nullptr;
+		Proxy = CreateSoundWaveProxy();
 	}
-#endif // #if WITH_EDITORONLY_DATA
-
-	check(SoundWaveDataPtr);
-	SoundWaveDataPtr->InitializeDataFromSoundWave(*this);
-
-	return MakeUnique<FSoundWaveProxy>(this);
+	return Proxy;
 }
 
 void USoundWave::AddPlayingSource(const FSoundWaveClientPtr& Source)
@@ -3349,13 +3343,13 @@ void USoundWave::UpdatePlatformData()
 {
 	if (IsStreaming(nullptr) && FApp::CanEverRenderAudio())
 	{
-		if (!InternalProxy.IsValid())
+		if (!Proxy.IsValid())
 		{
-			InternalProxy = CreateSoundWaveProxy();
+			Proxy = CreateSoundWaveProxy();
 		}
 
 		// Make sure there are no pending requests in flight.
-		while (IStreamingManager::Get().GetAudioStreamingManager().IsStreamingInProgress(InternalProxy))
+		while (IStreamingManager::Get().GetAudioStreamingManager().IsStreamingInProgress(Proxy))
 		{
 			// Give up timeslice.
 			FPlatformProcess::Sleep(0);
@@ -3363,18 +3357,18 @@ void USoundWave::UpdatePlatformData()
 
 #if WITH_EDITORONLY_DATA
 		// Temporarily remove from streaming manager to release currently used data chunks
-		IStreamingManager::Get().GetAudioStreamingManager().RemoveStreamingSoundWave(InternalProxy);
+		IStreamingManager::Get().GetAudioStreamingManager().RemoveStreamingSoundWave(Proxy);
 
 		// Recache platform data if the source has changed.
 		CachePlatformData(true /* bAsyncCache */);
 
 		// Add back to the streaming manager to reload first chunk
-		IStreamingManager::Get().GetAudioStreamingManager().AddStreamingSoundWave(InternalProxy);
+		IStreamingManager::Get().GetAudioStreamingManager().AddStreamingSoundWave(Proxy);
 #endif
 	}
-	else if (InternalProxy.IsValid())
+	else if (Proxy.IsValid())
 	{
-		IStreamingManager::Get().GetAudioStreamingManager().RemoveStreamingSoundWave(InternalProxy);
+		IStreamingManager::Get().GetAudioStreamingManager().RemoveStreamingSoundWave(Proxy);
 	}
 }
 
@@ -3705,9 +3699,9 @@ void USoundWave::GetHandleForChunkOfAudio(TFunction<void(FAudioChunkHandle&&)> O
 {
 	ENamedThreads::Type ThreadToDispatchCallbackOn = (DispatchToGameThreadOnChunkRequestCVar != 0) ? ENamedThreads::GameThread : ENamedThreads::AnyThread;
 
-	if (!InternalProxy.IsValid() && FApp::CanEverRenderAudio())
+	if (!Proxy.IsValid() && FApp::CanEverRenderAudio())
 	{
-		InternalProxy = CreateSoundWaveProxy();
+		Proxy = CreateSoundWaveProxy();
 	}
 
 	// if we are requesting a chunk that is out of bounds,
@@ -3720,7 +3714,7 @@ void USoundWave::GetHandleForChunkOfAudio(TFunction<void(FAudioChunkHandle&&)> O
 	else if (bForceSync)
 	{
 		// For sync cases, we call GetLoadedChunk with bBlockForLoad = true, then execute the callback immediately.
-		FAudioChunkHandle ChunkHandle = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(InternalProxy, ChunkIndex, true);
+		FAudioChunkHandle ChunkHandle = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(Proxy, ChunkIndex, true);
 		OnLoadCompleted(MoveTemp(ChunkHandle));
 	}
 	else
@@ -3728,7 +3722,7 @@ void USoundWave::GetHandleForChunkOfAudio(TFunction<void(FAudioChunkHandle&&)> O
 		TWeakObjectPtr<USoundWave> WeakThis = MakeWeakObjectPtr(this);
 
 		// For async cases, we call RequestChunk and request the loaded chunk in the completion callback.
-		IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(InternalProxy, ChunkIndex, [ThreadToDispatchCallbackOn, WeakThis, OnLoadCompleted, ChunkIndex, CallbackThread](EAudioChunkLoadResult LoadResult)
+		IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(Proxy, ChunkIndex, [ThreadToDispatchCallbackOn, WeakThis, OnLoadCompleted, ChunkIndex, CallbackThread](EAudioChunkLoadResult LoadResult)
 		{
 			auto DispatchOnLoadCompletedCallback = [ThreadToDispatchCallbackOn, OnLoadCompleted, CallbackThread](FAudioChunkHandle&& InHandle)
 			{
@@ -3750,7 +3744,7 @@ void USoundWave::GetHandleForChunkOfAudio(TFunction<void(FAudioChunkHandle&&)> O
 			if (WeakThis.IsValid() && (LoadResult == EAudioChunkLoadResult::Completed || LoadResult == EAudioChunkLoadResult::AlreadyLoaded))
 			{
 				USoundWave* ThisSoundWave = WeakThis.Get();
-				FAudioChunkHandle ChunkHandle = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(ThisSoundWave->InternalProxy, ChunkIndex, (BlockOnChunkLoadCompletionCVar != 0));
+				FAudioChunkHandle ChunkHandle = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(ThisSoundWave->Proxy, ChunkIndex, (BlockOnChunkLoadCompletionCVar != 0));
 
 				// If we hit this, something went wrong in GetLoadedChunk.
 				if (!ChunkHandle.IsValid())
@@ -3788,12 +3782,12 @@ void USoundWave::RetainCompressedAudio(bool bForceSync /*= false*/)
 	}
 	else if (bForceSync)
 	{
-		if (!InternalProxy.IsValid())
+		if (!Proxy.IsValid())
 		{
-			InternalProxy = CreateSoundWaveProxy();
+			Proxy = CreateSoundWaveProxy();
 		}
 
-		SoundWaveDataPtr->FirstChunk = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(InternalProxy, 1, true);
+		SoundWaveDataPtr->FirstChunk = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(Proxy, 1, true);
 		UE_CLOG(!(SoundWaveDataPtr->FirstChunk.IsValid()), LogAudio, Display, TEXT("First chunk was invalid after synchronous load in RetainCompressedAudio(). This was likely because the cache was blown. Sound: %s"), *GetFullName());
 	}
 	else
@@ -3877,19 +3871,19 @@ void USoundWave::OverrideLoadingBehavior(ESoundWaveLoadingBehavior InLoadingBeha
 				// In editor, just make sure that data is available in the local DDC cache for quick access.
 				CachePlatformData(true /* bAsyncCache */);
 
-				if (!InternalProxy.IsValid())
+				if (!Proxy.IsValid())
 				{
-					InternalProxy = CreateSoundWaveProxy();
+					Proxy = CreateSoundWaveProxy();
 				}
 #else
 				if (GetNumChunks() > 1)
 				{
-					if (!InternalProxy.IsValid())
+					if (!Proxy.IsValid())
 					{
-						InternalProxy = CreateSoundWaveProxy();
+						Proxy = CreateSoundWaveProxy();
 					}
 
-					IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(InternalProxy, 1, [](EAudioChunkLoadResult) {});
+					IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(Proxy, 1, [](EAudioChunkLoadResult) {});
 				}
 #endif
 			}

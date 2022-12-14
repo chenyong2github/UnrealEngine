@@ -2,9 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CoreMiscDefines.h"
 #include "Templates/Casts.h"
-#include "Templates/UnrealTypeTraits.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/NameTypes.h"
+
+#include <type_traits>
 
 /**
  * Interfaces for Audio Proxy Objects 
@@ -28,7 +33,7 @@ namespace Audio
 {
 	// Forward Declarations
 	class IProxyData;
-	using IProxyDataPtr = TUniquePtr<IProxyData>;
+	using IProxyDataPtr UE_DEPRECATED(5.2, "Replace IProxyDataPtr with TSharedPtr<Audio::IProxyData>") = TUniquePtr<Audio::IProxyData>;
 
 	/*
 	 * Base class that allows us to typecheck proxy data before downcasting it in debug builds.
@@ -55,7 +60,7 @@ namespace Audio
 		template<typename ProxyType>
 		ProxyType& GetAs()
 		{
-			static_assert(TIsDerivedFrom<ProxyType, IProxyData>::Value, "Tried to downcast IProxyInitData to an unrelated type!");
+			static_assert(std::is_base_of_v<IProxyData, ProxyType>, "Tried to downcast IProxyInitData to an unrelated type!");
 			if (CheckTypeCast<ProxyType>())
 			{
 				return static_cast<ProxyType&>(*this);
@@ -71,7 +76,7 @@ namespace Audio
 		template<typename ProxyType>
 		const ProxyType& GetAs() const
 		{
-			static_assert(TIsDerivedFrom<ProxyType, IProxyData>::Value, "Tried to downcast IProxyInitData to an unrelated type!");
+			static_assert(std::is_base_of_v<IProxyData, ProxyType>, "Tried to downcast IProxyInitData to an unrelated type!");
 			if (CheckTypeCast<ProxyType>())
 			{
 				return static_cast<const ProxyType&>(*this);
@@ -88,7 +93,8 @@ namespace Audio
 			: ProxyTypeName(InProxyTypeName)
 		{}
 
-		virtual IProxyDataPtr Clone() const = 0;
+		UE_DEPRECATED(5.2, "Proxy data is stored in a TSharedPtr<> and no longer requires cloning")
+		virtual TUniquePtr<IProxyData> Clone() const { return nullptr; }
 	};
 
 	/**
@@ -109,7 +115,6 @@ namespace Audio
 		}
 	};
 
-
 	struct FProxyDataInitParams
 	{
 		FName NameOfFeatureRequestingProxy;
@@ -122,13 +127,16 @@ namespace Audio
 class AUDIOEXTENSIONS_API IAudioProxyDataFactory
 {
 public:
-	virtual TUniquePtr<Audio::IProxyData> CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams) = 0;
+	UE_DEPRECATED(5.2, "Call TSharedPtr<Audio::IProxyData> CreateProxyData(...) instead of a TUniquePtr<Audio::IProxyData> CreateNewProxyData(...).")
+	virtual TUniquePtr<Audio::IProxyData> CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams);
+
+	virtual TSharedPtr<Audio::IProxyData> CreateProxyData(const Audio::FProxyDataInitParams& InitParams);
 };
 
 namespace Audio
 {
 	// SFINAE used to optionally invoke subclasses of IAudioProxyDataFactory when we can.
-	template<typename UClassToUse, typename TEnableIf<TIsDerivedFrom<UClassToUse, IAudioProxyDataFactory>::Value, bool>::Type = true>
+	template<typename UClassToUse, typename std::enable_if_t<std::is_base_of_v<IAudioProxyDataFactory, UClassToUse>, bool> = true>
 	IAudioProxyDataFactory* CastToProxyDataFactory(UObject* InObject)
 	{
 		if (InObject)
@@ -143,7 +151,7 @@ namespace Audio
 		return nullptr;
 	}
 
-	template<typename UClassToUse, typename TEnableIf<!TIsDerivedFrom<UClassToUse, IAudioProxyDataFactory>::Value, bool>::Type = true>
+	template<typename UClassToUse, typename std::enable_if_t<!std::is_base_of_v<IAudioProxyDataFactory, UClassToUse>, bool>::Type = true>
 	IAudioProxyDataFactory* CastToProxyDataFactory(UObject* InObject)
 	{
 		return nullptr;

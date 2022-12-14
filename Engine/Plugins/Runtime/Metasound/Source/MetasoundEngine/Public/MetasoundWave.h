@@ -28,7 +28,7 @@ namespace Metasound
 		FWaveAsset(const FWaveAsset&) = default;
 		FWaveAsset& operator=(const FWaveAsset& Other) = default;
 
-		FWaveAsset(const TUniquePtr<Audio::IProxyData>& InInitData);
+		FWaveAsset(const TSharedPtr<Audio::IProxyData>& InInitData);
 
 		bool IsSoundWaveValid() const;
 

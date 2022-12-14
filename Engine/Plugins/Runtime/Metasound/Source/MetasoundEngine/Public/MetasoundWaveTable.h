@@ -45,7 +45,7 @@ namespace Metasound
 			return *this;
 		}
 
-		FWaveTableBankAsset(const Audio::IProxyDataPtr& InInitData)
+		FWaveTableBankAsset(const TSharedPtr<Audio::IProxyData>& InInitData)
 		{
 			if (InInitData.IsValid())
 			{

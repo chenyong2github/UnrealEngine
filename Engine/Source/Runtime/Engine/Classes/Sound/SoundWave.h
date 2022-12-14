@@ -472,7 +472,7 @@ public:
 
 private:
 	// cached proxy
-	FSoundWaveProxyPtr InternalProxy{ nullptr };
+	FSoundWaveProxyPtr Proxy{ nullptr };
 
 public:
 
@@ -906,7 +906,7 @@ public:
 	FSoundWaveProxyPtr CreateSoundWaveProxy();
 
 	//~Begin IAudioProxyDataFactory Interface.
-	virtual TUniquePtr<Audio::IProxyData> CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams) override;
+	virtual TSharedPtr<Audio::IProxyData> CreateProxyData(const Audio::FProxyDataInitParams& InitParams) override;
 	//~ End IAudioProxyDataFactory Interface.
 
 	// Called  when the procedural sound wave begins on the render thread. Only used in the audio mixer and when bProcedural is true.
@@ -1385,12 +1385,6 @@ public:
 	FSoundWaveProxy(const FSoundWaveProxy& Other) = default;
 
 	~FSoundWaveProxy();
-
-	Audio::IProxyDataPtr Clone() const override
-	{
-		LLM_SCOPE(ELLMTag::AudioSoundWaveProxies);
-		return MakeUnique<FSoundWaveProxy>(*this);
-	}
 
 	// USoundWave Interface
 	void ReleaseCompressedAudio();

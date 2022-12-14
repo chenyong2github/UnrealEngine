@@ -222,91 +222,11 @@ struct AUDIOEXTENSIONS_API FAudioParameter
 	// by InParam.
 	static void Merge(TArray<FAudioParameter>&& InParams, TArray<FAudioParameter>& OutParams);
 
-	FAudioParameter(FAudioParameter&& InParameter)
-		: ParamName(MoveTemp(InParameter.ParamName))
-		, FloatParam(MoveTemp(InParameter.FloatParam))
-		, BoolParam(MoveTemp(InParameter.BoolParam))
-		, IntParam(MoveTemp(InParameter.IntParam))
-		, ObjectParam(MoveTemp(InParameter.ObjectParam))
-		, StringParam(MoveTemp(InParameter.StringParam))
-		, ArrayFloatParam(MoveTemp(InParameter.ArrayFloatParam))
-		, ArrayBoolParam(MoveTemp(InParameter.ArrayBoolParam))
-		, ArrayIntParam(MoveTemp(InParameter.ArrayIntParam))
-		, ArrayObjectParam(MoveTemp(InParameter.ArrayObjectParam))
-		, ArrayStringParam(MoveTemp(InParameter.ArrayStringParam))
-		, ParamType(MoveTemp(InParameter.ParamType))
-		, TypeName(MoveTemp(InParameter.TypeName))
-		, ObjectProxies(MoveTemp(InParameter.ObjectProxies))		
-	{
-	}
+	FAudioParameter(FAudioParameter&& InParameter) = default;
+	FAudioParameter(const FAudioParameter& InParameter) = default;
 
-	FAudioParameter(const FAudioParameter& InParameter)
-		: ParamName(InParameter.ParamName)
-		, FloatParam(InParameter.FloatParam)
-		, BoolParam(InParameter.BoolParam)
-		, IntParam(InParameter.IntParam)
-		, ObjectParam(InParameter.ObjectParam)
-		, StringParam(InParameter.StringParam)
-		, ArrayFloatParam(InParameter.ArrayFloatParam)
-		, ArrayBoolParam(InParameter.ArrayBoolParam)
-		, ArrayIntParam(InParameter.ArrayIntParam)
-		, ArrayObjectParam(InParameter.ArrayObjectParam)
-		, ArrayStringParam(InParameter.ArrayStringParam)
-		, ParamType(InParameter.ParamType)
-		, TypeName(InParameter.TypeName)
-	{
-		ObjectProxies.Reset();
-		for (const Audio::IProxyDataPtr& DataPtr : InParameter.ObjectProxies)
-		{
-			ObjectProxies.Emplace(DataPtr->Clone());
-		}
-	}
-
-	FAudioParameter& operator=(const FAudioParameter& InParameter)
-	{
-		ParamName = InParameter.ParamName;
-		FloatParam = InParameter.FloatParam;
-		BoolParam = InParameter.BoolParam;
-		IntParam = InParameter.IntParam;
-		ObjectParam = InParameter.ObjectParam;
-		StringParam = InParameter.StringParam;
-		ArrayFloatParam = InParameter.ArrayFloatParam;
-		ArrayBoolParam = InParameter.ArrayBoolParam;
-		ArrayIntParam = InParameter.ArrayIntParam;
-		ArrayObjectParam = InParameter.ArrayObjectParam;
-		ArrayStringParam = InParameter.ArrayStringParam;
-		ParamType = InParameter.ParamType;
-		TypeName = InParameter.TypeName;
-
-		ObjectProxies.Reset();
-		for (const Audio::IProxyDataPtr& DataPtr : InParameter.ObjectProxies)
-		{
-			ObjectProxies.Emplace(DataPtr->Clone());
-		}
-
-		return *this;
-	}
-
-	FAudioParameter& operator=(FAudioParameter&& InParameter)
-	{
-		ParamName = MoveTemp(InParameter.ParamName);
-		FloatParam = MoveTemp(InParameter.FloatParam);
-		BoolParam = MoveTemp(InParameter.BoolParam);
-		IntParam = MoveTemp(InParameter.IntParam);
-		ObjectParam = MoveTemp(InParameter.ObjectParam);
-		StringParam = MoveTemp(InParameter.StringParam);
-		ArrayFloatParam = MoveTemp(InParameter.ArrayFloatParam);
-		ArrayBoolParam = MoveTemp(InParameter.ArrayBoolParam);
-		ArrayIntParam = MoveTemp(InParameter.ArrayIntParam);
-		ArrayObjectParam = MoveTemp(InParameter.ArrayObjectParam);
-		ArrayStringParam = MoveTemp(InParameter.ArrayStringParam);
-		ParamType = MoveTemp(InParameter.ParamType);
-		TypeName = MoveTemp(InParameter.TypeName);
-
-		ObjectProxies = MoveTemp(InParameter.ObjectProxies);
-
-		return *this;
-	}
+	FAudioParameter& operator=(const FAudioParameter& InParameter) = default;
+	FAudioParameter& operator=(FAudioParameter&& InParameter) = default;
 
 	// Name of the parameter
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayName="Name"), Category = AudioParameter)
@@ -360,7 +280,7 @@ struct AUDIOEXTENSIONS_API FAudioParameter
 	FName TypeName;
 
 	// Object proxies to be generated when parameter is passed to the AudioThread to represent ObjectParam/ArrayObjectParam safely
-	TArray<Audio::IProxyDataPtr> ObjectProxies;
+	TArray<TSharedPtr<Audio::IProxyData>> ObjectProxies;
 
 	// Common find algorithm for default/legacy parameter system
 	static const FAudioParameter* FindParam(const TArray<FAudioParameter>& InParams, FName InParamName)

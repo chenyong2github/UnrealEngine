@@ -33,11 +33,6 @@ public:
 
 	virtual ~FAudioBusProxy() override {}
 
-	virtual Audio::IProxyDataPtr Clone() const override
-	{
-		return MakeUnique<FAudioBusProxy>(*this);
-	}
-
 	uint32 AudioBusId = INDEX_NONE;
 	int32 NumChannels = INDEX_NONE;
 };
@@ -72,6 +67,6 @@ public:
 	//~ End UObject Interface.
 
 	//~ Begin IAudioProxy Interface
-	virtual TUniquePtr<Audio::IProxyData> CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams) override;
+	virtual TSharedPtr<Audio::IProxyData> CreateProxyData(const Audio::FProxyDataInitParams& InitParams) override;
 	//~ End IAudioProxy Interface
 };

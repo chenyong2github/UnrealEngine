@@ -24,7 +24,7 @@ FAutoConsoleVariableRef CVarDisableMetasoundWaveAssetCachePriming(
 
 namespace Metasound
 {
-	FWaveAsset::FWaveAsset(const TUniquePtr<Audio::IProxyData>& InInitData)
+	FWaveAsset::FWaveAsset(const TSharedPtr<Audio::IProxyData>& InInitData)
 	{
 		if (InInitData.IsValid())
 		{

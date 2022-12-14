@@ -21,10 +21,10 @@ USoundModulationPatch::USoundModulationPatch(const FObjectInitializer& ObjectIni
 {
 }
 
-TUniquePtr<Audio::IProxyData> USoundModulationPatch::CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams)
+TSharedPtr<Audio::IProxyData> USoundModulationPatch::CreateProxyData(const Audio::FProxyDataInitParams& InitParams)
 {
 	using namespace AudioModulation;
-	return MakeUnique<FSoundModulatorAssetProxy>(*this);
+	return MakeShared<FSoundModulatorAssetProxy>(*this);
 }
 
 TUniquePtr<Audio::IModulatorSettings> USoundModulationPatch::CreateProxySettings() const

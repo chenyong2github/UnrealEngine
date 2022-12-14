@@ -138,10 +138,10 @@ const Audio::FModulationMixFunction USoundControlBus::GetMixFunction() const
 	return Audio::FModulationParameter::GetDefaultMixFunction();
 }
 
-TUniquePtr<Audio::IProxyData> USoundControlBus::CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams)
+TSharedPtr<Audio::IProxyData> USoundControlBus::CreateProxyData(const Audio::FProxyDataInitParams& InitParams)
 {
 	using namespace AudioModulation;
-	return MakeUnique<FSoundModulatorAssetProxy>(*this);
+	return MakeShared<FSoundModulatorAssetProxy>(*this);
 }
 
 const Audio::FModulationParameter& USoundControlBus::GetOutputParameter() const

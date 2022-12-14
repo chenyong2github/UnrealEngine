@@ -155,18 +155,12 @@ namespace Metasound
 						return FLiteral();
 					}
 
-					Audio::IProxyDataPtr ObjectProxyClone = InValue.ObjectProxies.Last()->Clone();
-					return FLiteral(MoveTemp(ObjectProxyClone));
+					return FLiteral(InValue.ObjectProxies.Last());
 				}
 
 				case EAudioParameterType::ObjectArray:
 				{
-					TArray<Audio::IProxyDataPtr> ObjectProxiesClone;
-					Algo::Transform(InValue.ObjectProxies, ObjectProxiesClone, [](const Audio::IProxyDataPtr& DataPtr)
-					{
-						return DataPtr->Clone();
-					});
-					return FLiteral(MoveTemp(ObjectProxiesClone));
+					return FLiteral(InValue.ObjectProxies);
 				}
 
 				case EAudioParameterType::String:

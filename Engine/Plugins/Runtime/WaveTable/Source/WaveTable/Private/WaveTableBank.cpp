@@ -7,9 +7,9 @@
 #define LOCTEXT_NAMESPACE "WaveTable"
 
 
-TUniquePtr<Audio::IProxyData> UWaveTableBank::CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams)
+TSharedPtr<Audio::IProxyData> UWaveTableBank::CreateProxyData(const Audio::FProxyDataInitParams& InitParams)
 {
-	return MakeUnique<FWaveTableBankAssetProxy>(*this);
+	return MakeShared<FWaveTableBankAssetProxy>(*this);
 }
 
 #if WITH_EDITOR

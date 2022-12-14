@@ -10,10 +10,10 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SoundModulationParameter)
 
 
-TUniquePtr<Audio::IProxyData> USoundModulationParameter::CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams)
+TSharedPtr<Audio::IProxyData> USoundModulationParameter::CreateProxyData(const Audio::FProxyDataInitParams& InitParams)
 {
 	using namespace AudioModulation;
-	return MakeUnique<FSoundModulationPluginParameterAssetProxy>(this);
+	return MakeShared<FSoundModulationPluginParameterAssetProxy>(this);
 }
 
 #if WITH_EDITOR
@@ -265,10 +265,5 @@ namespace AudioModulation
 	FSoundModulationPluginParameterAssetProxy::FSoundModulationPluginParameterAssetProxy(USoundModulationParameter* InParameter)
 	{
 		Parameter = GetOrRegisterParameter(InParameter, TEXT("FSoundModulationPluginParameterAssetProxy construction"));
-	}
-
-	Audio::IProxyDataPtr FSoundModulationPluginParameterAssetProxy::Clone() const
-	{
-		return TUniquePtr<FSoundModulationPluginParameterAssetProxy>(new FSoundModulationPluginParameterAssetProxy(*this));
 	}
 }

@@ -104,7 +104,7 @@ public:
 	}
 
 	//~Begin IAudioProxyDataFactory Interface.
-	virtual TUniquePtr<Audio::IProxyData> CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams) override;
+	virtual TSharedPtr<Audio::IProxyData> CreateProxyData(const Audio::FProxyDataInitParams& InitParams) override;
 	//~ End IAudioProxyDataFactory Interface.
 
 #if WITH_EDITOR
@@ -260,8 +260,6 @@ namespace AudioModulation
 	public:
 		explicit FSoundModulationPluginParameterAssetProxy(USoundModulationParameter* InParameter);
 		FSoundModulationPluginParameterAssetProxy(const FSoundModulationPluginParameterAssetProxy& InProxy) = default;
-
-		virtual Audio::IProxyDataPtr Clone() const override;
 	};
 
 	/*

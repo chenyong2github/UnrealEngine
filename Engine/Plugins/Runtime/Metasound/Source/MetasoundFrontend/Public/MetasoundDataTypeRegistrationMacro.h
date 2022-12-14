@@ -32,6 +32,16 @@ namespace Metasound
 {
 	namespace MetasoundDataTypeRegistrationPrivate
 	{
+		template<typename DataType>
+		struct TDataTypeProxyConstructorDeprecation
+		{
+			private:
+				static constexpr bool bIsParsableWithDeprecatedPtr = TIsParsable<DataType, DataFactoryPrivate::ProxyDataPtrType_DEPRECATED>::Value;
+				static constexpr bool bIsParsableWithSharedProxyPtr = TIsParsable<DataType, TSharedPtr<Audio::IProxyData>>::Value;
+			public:
+				static constexpr bool bOnlySupportsDeprecatedProxyPtr = bIsParsableWithDeprecatedPtr && !bIsParsableWithSharedProxyPtr;
+		};
+
 		// Returns the Array version of a literal type if it exists.
 		template<ELiteralType LiteralType>
 		struct TLiteralArrayEnum 
@@ -171,14 +181,18 @@ namespace Metasound
 			RegistryInfo.bIsIntParsable = TIsParsable<TDataType, int32>::Value;
 			RegistryInfo.bIsFloatParsable = TIsParsable<TDataType, float>::Value;
 			RegistryInfo.bIsStringParsable = TIsParsable<TDataType, FString>::Value;
-			RegistryInfo.bIsProxyParsable = TIsParsable<TDataType, const Audio::IProxyDataPtr&>::Value;
+			RegistryInfo.bIsProxyParsable = TIsParsable<TDataType, const TSharedPtr<Audio::IProxyData>&>::Value;
+
+			RegistryInfo.bIsUniquePtrProxyParsable_DEPRECATED = TIsParsable<TDataType, const TUniquePtr<Audio::IProxyData>&>::Value;
 
 			RegistryInfo.bIsDefaultArrayParsable = TIsParsable<TDataType, TArray<FLiteral::FNone>>::Value;
 			RegistryInfo.bIsBoolArrayParsable = TIsParsable<TDataType, TArray<bool>>::Value;
 			RegistryInfo.bIsIntArrayParsable = TIsParsable<TDataType, TArray<int32>>::Value;
 			RegistryInfo.bIsFloatArrayParsable = TIsParsable<TDataType, TArray<float>>::Value;
 			RegistryInfo.bIsStringArrayParsable = TIsParsable<TDataType, TArray<FString>>::Value;
-			RegistryInfo.bIsProxyArrayParsable = TIsParsable<TDataType, const TArray<Audio::IProxyDataPtr>& >::Value;
+			RegistryInfo.bIsProxyArrayParsable = TIsParsable<TDataType, const TArray<TSharedPtr<Audio::IProxyData>>& >::Value;
+
+			RegistryInfo.bIsUniquePtrProxyArrayParsable_DEPRECATED = TIsParsable<TDataType, const TArray<TUniquePtr<Audio::IProxyData>>& >::Value;
 
 			RegistryInfo.bIsEnum = TEnumTraits<TDataType>::bIsEnum;
 			RegistryInfo.bIsVariable = TIsVariable<TDataType>::Value;
@@ -278,6 +292,15 @@ namespace Metasound
 			{
 				UE_LOG(LogMetaSound, Display, TEXT("Tried to call REGISTER_METASOUND_DATATYPE twice with the same class %s. ignoring the second call. Likely because REGISTER_METASOUND_DATATYPE is in a header that's used in multiple modules. Consider moving it to a private header or cpp file."), TDataReferenceTypeInfo<TDataType>::TypeName)
 				return false;
+			}
+
+	
+			if constexpr (MetasoundDataTypeRegistrationPrivate::TDataTypeProxyConstructorDeprecation<TDataType>::bOnlySupportsDeprecatedProxyPtr)
+			{
+				// TUniquePtr<Audio::IProxyData> deprecated in 5.2. Log a warning
+				// during data type registration to warn users to update their MetaSound
+				// data type constructor. 
+				UE_LOG(LogMetaSound, Warning, TEXT("MetaSound data type \"%s\" supports construction from deprecated TUniquePtr<Audio::IProxyData>. Please update the constructor to accept a \"const TSharedPtr<Audio::IProxyData>& \""), TDataReferenceTypeInfo<TDataType>::TypeName);
 			}
 
 			bAlreadyRegisteredThisDataType = true;
@@ -505,7 +528,7 @@ namespace Metasound
 					}
 				}
 
-				virtual Audio::IProxyDataPtr CreateProxy(UObject* InObject) const override
+				virtual TSharedPtr<Audio::IProxyData> CreateProxy(UObject* InObject) const override
 				{
 					// Only attempt to create proxy if the `UClassToUse` is not void.
 					if constexpr (!std::is_same<UClassToUse, void>::value)
@@ -519,12 +542,12 @@ namespace Metasound
 								Audio::FProxyDataInitParams ProxyInitParams;
 								ProxyInitParams.NameOfFeatureRequestingProxy = "MetaSound";
 
-								return ObjectAsFactory->CreateNewProxyData(ProxyInitParams);
+								return ObjectAsFactory->CreateProxyData(ProxyInitParams);
 							}
 						}
 					}
 
-					return Audio::IProxyDataPtr(nullptr);
+					return TSharedPtr<Audio::IProxyData>(nullptr);
 				}
 
 				virtual TOptional<FAnyDataReference> CreateDataReference(EDataReferenceAccessType InAccessType, const FLiteral& InLiteral, const FOperatorSettings& InOperatorSettings) const override

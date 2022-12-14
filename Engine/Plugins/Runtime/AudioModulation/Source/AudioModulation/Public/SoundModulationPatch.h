@@ -71,7 +71,7 @@ public:
 	FSoundControlModulationPatch PatchSettings;
 
 	/* USoundModulatorBase Implementation */
-	virtual TUniquePtr<Audio::IProxyData> CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams) override;
+	virtual TSharedPtr<Audio::IProxyData> CreateProxyData(const Audio::FProxyDataInitParams& InitParams) override;
 	virtual const Audio::FModulationParameter& GetOutputParameter() const override;
 
 	virtual TUniquePtr<Audio::IModulatorSettings> CreateProxySettings() const override;

@@ -81,8 +81,8 @@ namespace Metasound
 		struct FNone {};
 
 		using FVariantType = TVariant<
-			FNone, bool, int32, float, FString, Audio::IProxyDataPtr, // Single value types
-			TArray<FNone>, TArray<bool>, TArray<int32>, TArray<float>, TArray<FString>, TArray<Audio::IProxyDataPtr>, // Array of values types
+			FNone, bool, int32, float, FString, TSharedPtr<Audio::IProxyData>, // Single value types
+			TArray<FNone>, TArray<bool>, TArray<int32>, TArray<float>, TArray<FString>, TArray<TSharedPtr<Audio::IProxyData>>, // Array of values types
 			FInvalid
 		>;
 
@@ -203,7 +203,7 @@ namespace Metasound
 		}
 
 		template<>
-		FORCEINLINE ELiteralType GetLiteralArgTypeFromDecayed<Audio::IProxyDataPtr>()
+		FORCEINLINE ELiteralType GetLiteralArgTypeFromDecayed<TSharedPtr<Audio::IProxyData>>()
 		{
 			return ELiteralType::UObjectProxy;
 		}
@@ -239,7 +239,7 @@ namespace Metasound
 		}
 
 		template<>
-		FORCEINLINE ELiteralType GetLiteralArgTypeFromDecayed<TArray<Audio::IProxyDataPtr>>()
+		FORCEINLINE ELiteralType GetLiteralArgTypeFromDecayed<TArray<TSharedPtr<Audio::IProxyData>>>()
 		{
 			return ELiteralType::UObjectProxyArray;
 		}
@@ -287,20 +287,20 @@ namespace Metasound
 		};
 
 		template<>
-		struct TLiteralDefaultValueFromDecayed<Audio::IProxyDataPtr>
+		struct TLiteralDefaultValueFromDecayed<TSharedPtr<Audio::IProxyData>>
 		{
-			static Audio::IProxyDataPtr GetValue()
+			static TSharedPtr<Audio::IProxyData> GetValue()
 			{
-				return Audio::IProxyDataPtr(nullptr);
+				return TSharedPtr<Audio::IProxyData>(nullptr);
 			}
 		};
 
 		template<>
-		struct TLiteralDefaultValueFromDecayed<TArray<Audio::IProxyDataPtr>>
+		struct TLiteralDefaultValueFromDecayed<TArray<TSharedPtr<Audio::IProxyData>>>
 		{
-			static TArray<Audio::IProxyDataPtr> GetValue()
+			static TArray<TSharedPtr<Audio::IProxyData>> GetValue()
 			{
-				return TArray<Audio::IProxyDataPtr>();
+				return TArray<TSharedPtr<Audio::IProxyData>>();
 			}
 		};
 	}

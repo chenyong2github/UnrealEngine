@@ -12,6 +12,9 @@ namespace Metasound
 {
 	namespace DataFactoryPrivate
 	{
+		// Deprecated in 5.2. Use TSharedPtr<Audio::IProxyData> instead of TUniquePtr<Audio::IProxyData>.
+		using ProxyDataPtrType_DEPRECATED = TUniquePtr<Audio::IProxyData>;
+
 		/** Description of available constructors for a registered Metasound Data Type. 
 		 *
 		 * @tparam DataType - The registered Metasound Data Type.
@@ -825,8 +828,10 @@ namespace Metasound
 					return TIsParsable<DataType, FString>::Value;
 
 				case ELiteralType::UObjectProxy:
-
-					return TIsParsable<DataType, Audio::IProxyDataPtr>::Value;
+					// Support for current proxy pointer and deprected proxy pointer. Deprecation of prior proxy pointer occured in release 5.2
+					PRAGMA_DISABLE_DEPRECATION_WARNINGS
+					return TIsParsable<DataType, TSharedPtr<Audio::IProxyData>>::Value || TIsParsable<DataType, DataFactoryPrivate::ProxyDataPtrType_DEPRECATED>::Value;
+					PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 				case ELiteralType::NoneArray:
 
@@ -850,7 +855,9 @@ namespace Metasound
 
 				case ELiteralType::UObjectProxyArray:
 
-					return TIsParsable<DataType, TArray<Audio::IProxyDataPtr>>::Value;
+					PRAGMA_DISABLE_DEPRECATION_WARNINGS
+					return TIsParsable<DataType, TArray<TSharedPtr<Audio::IProxyData>>>::Value || TIsParsable<DataType, TArray<DataFactoryPrivate::ProxyDataPtrType_DEPRECATED>>::Value;
+					PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 				default:
 
@@ -1055,8 +1062,33 @@ namespace Metasound
 					return CreateExplicitArgs<FString>(InSettings, InLiteral.Value);
 
 				case ELiteralType::UObjectProxy:
+					{
+						constexpr bool bIsParsable = TIsParsable<DataType, TSharedPtr<Audio::IProxyData>>::Value;
 
-					return CreateExplicitArgs<Audio::IProxyDataPtr>(InSettings, InLiteral.Value);
+						PRAGMA_DISABLE_DEPRECATION_WARNINGS
+						constexpr bool bIsParsableWithDeprecatedPtr = TIsParsable<DataType, DataFactoryPrivate::ProxyDataPtrType_DEPRECATED>::Value;
+						PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+						// Temporarily convert TSharedPtr to TUniquePtr in scenario where only the deprecated proxy factory exists. 
+						if constexpr (!bIsParsable && bIsParsableWithDeprecatedPtr)
+						{
+							using FFactoryForDeprecatedPtr = TDataFactory<DataType, CreatorType>;
+
+							// The proxy is stored in a TUniquePtr<>, but it is released from the TUniquePtr<> before the TUniquePtr<> destructor is called. 
+							// This is done to match the interface for MetaSound data types which utilized a deprecated interface. It is not intended
+							// to pass ownership of the proxy to the TUniquePtr<>.
+							TUniquePtr<Audio::IProxyData> DeprecatedProxyDataPtr(InLiteral.Value.Get<TSharedPtr<Audio::IProxyData>>().Get());
+
+							auto Result = FFactoryForDeprecatedPtr::template CreateExplicitArgs(InSettings, (const TUniquePtr<Audio::IProxyData>&)DeprecatedProxyDataPtr);
+
+							DeprecatedProxyDataPtr.Release();
+							return Result;
+						}
+						else
+						{
+							return CreateExplicitArgs<TSharedPtr<Audio::IProxyData>>(InSettings, InLiteral.Value);
+						}
+					}
 
 				case ELiteralType::NoneArray:
 
@@ -1079,8 +1111,40 @@ namespace Metasound
 					return CreateExplicitArgs<TArray<FString>>(InSettings, InLiteral.Value);
 
 				case ELiteralType::UObjectProxyArray:
+					{
+						constexpr bool bIsParsable = TIsParsable<DataType, TArray<TSharedPtr<Audio::IProxyData>>>::Value;
+						PRAGMA_DISABLE_DEPRECATION_WARNINGS
+						constexpr bool bIsParsableWithDeprecatedPtr = TIsParsable<DataType, TArray<DataFactoryPrivate::ProxyDataPtrType_DEPRECATED>>::Value;
+						PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-					return CreateExplicitArgs<TArray<Audio::IProxyDataPtr>>(InSettings, InLiteral.Value);
+						// Temporarily convert TSharedPtr to TUniquePtr in scenario where only the deprecated proxy factory exists. 
+						if constexpr (!bIsParsable && bIsParsableWithDeprecatedPtr)
+						{
+							using FFactoryForDeprecatedPtr = TDataFactory<DataType, CreatorType>;
+
+							// The proxies are stored in a TArray<TUniquePtr<>>, but it is released before the TArray<TUniquePtr<>> destructor is called. 
+							// This is done to match the interface for MetaSound data types which utilized a deprecated interface. It is not intended
+							// to pass ownership of the proxies to the TArray<TUniquePtr<>>.
+							const TArray<TSharedPtr<Audio::IProxyData>>& ProxyDataPtrArray = InLiteral.Value.Get<TArray<TSharedPtr<Audio::IProxyData>>>();
+							TArray<TUniquePtr<Audio::IProxyData>> DeprecatedArray;
+
+							for (const TSharedPtr<Audio::IProxyData>& ProxyDataPtr : ProxyDataPtrArray)
+							{
+								DeprecatedArray.Emplace(ProxyDataPtr.Get());
+							}
+
+							auto Result = FFactoryForDeprecatedPtr::template CreateExplicitArgs(InSettings, (const TArray<TUniquePtr<Audio::IProxyData>>&)DeprecatedArray);
+
+							for (TUniquePtr<Audio::IProxyData>& DeprecatedPtr : DeprecatedArray)
+							{
+								DeprecatedPtr.Release();
+							}
+
+							return Result;
+						}
+					}
+
+					return CreateExplicitArgs<TArray<TSharedPtr<Audio::IProxyData>>>(InSettings, InLiteral.Value);
 
 				case ELiteralType::None:
 

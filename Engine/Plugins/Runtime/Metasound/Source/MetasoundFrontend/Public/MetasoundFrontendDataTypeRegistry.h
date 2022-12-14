@@ -39,12 +39,14 @@ namespace Metasound
 			bool bIsFloatParsable = false;
 			bool bIsStringParsable = false;
 			bool bIsProxyParsable = false;
+			bool bIsUniquePtrProxyParsable_DEPRECATED = false;
 			bool bIsDefaultArrayParsable = false;
 			bool bIsBoolArrayParsable = false;
 			bool bIsIntArrayParsable = false;
 			bool bIsFloatArrayParsable = false;
 			bool bIsStringArrayParsable = false;
 			bool bIsProxyArrayParsable = false;
+			bool bIsUniquePtrProxyArrayParsable_DEPRECATED = false;
 
 			// Is a TEnum wrapped enum
 			bool bIsEnum = false;
@@ -202,7 +204,7 @@ namespace Metasound
 
 			/** Create a proxy from a UObject. If this data type does not support
 			 * UObject proxies, return a nullptr. */
-			virtual Audio::IProxyDataPtr CreateProxy(UObject* InObject) const = 0;
+			virtual TSharedPtr<Audio::IProxyData> CreateProxy(UObject* InObject) const = 0;
 
 			/** Create a data channel for transmission. If this data type does not
 			 * support transmission, return a nullptr. */
@@ -253,7 +255,7 @@ namespace Metasound
 
 			virtual UClass* GetUClassForDataType(const FName& InDataType) const = 0;
 
-			virtual Audio::IProxyDataPtr CreateProxyFromUObject(const FName& InDataType, UObject* InObject) const = 0;
+			virtual TSharedPtr<Audio::IProxyData> CreateProxyFromUObject(const FName& InDataType, UObject* InObject) const = 0;
 
 			virtual FLiteral CreateDefaultLiteral(const FName& InDataType) const = 0;
 			virtual FLiteral CreateLiteralFromUObject(const FName& InDataType, UObject* InObject) const = 0;

@@ -215,7 +215,7 @@ class AUDIOEXTENSIONS_API USoundModulatorBase : public UObject, public IAudioPro
 public:
 	virtual const Audio::FModulationParameter& GetOutputParameter() const;
 
-	virtual TUniquePtr<Audio::IProxyData> CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams) override;
+	virtual TSharedPtr<Audio::IProxyData> CreateProxyData(const Audio::FProxyDataInitParams& InitParams) override;
 
 	virtual TUniquePtr<Audio::IModulatorSettings> CreateProxySettings() const;
 };
@@ -238,11 +238,6 @@ public:
 		: Parameter(InModulatorBase.GetOutputParameter())
 		, ModulatorSettings(InModulatorBase.CreateProxySettings())
 	{
-	}
-
-	virtual Audio::IProxyDataPtr Clone() const
-	{
-		return MakeUnique<FSoundModulatorAssetProxy>(*this);
 	}
 
 	virtual Audio::FModulatorHandle CreateModulatorHandle(IAudioModulationManager& InModulation) const
@@ -272,11 +267,6 @@ class AUDIOEXTENSIONS_API FSoundModulationParameterAssetProxy : public Audio::TP
 {
 public:
 	IMPL_AUDIOPROXY_CLASS(FSoundModulationParameterAssetProxy);
-
-	virtual Audio::IProxyDataPtr Clone() const override
-	{
-		return Audio::IProxyDataPtr();
-	}
 
 	virtual const Audio::FModulationParameter& GetParameter() const
 	{

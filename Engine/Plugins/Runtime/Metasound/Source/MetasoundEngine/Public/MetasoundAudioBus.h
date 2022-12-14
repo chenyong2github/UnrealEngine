@@ -23,7 +23,7 @@ namespace Metasound
 		FAudioBusAsset(const FAudioBusAsset&) = default;
 		FAudioBusAsset& operator=(const FAudioBusAsset& Other) = default;
 
-		FAudioBusAsset(const TUniquePtr<Audio::IProxyData>& InInitData);
+		FAudioBusAsset(const TSharedPtr<Audio::IProxyData>& InInitData);
 
 		const FAudioBusProxyPtr& GetAudioBusProxy() const
 		{

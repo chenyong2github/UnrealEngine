@@ -37,7 +37,7 @@ namespace AudioModulation
 			return *this;
 		}
 
-		FSoundModulatorAsset(const Audio::IProxyDataPtr& InInitData);
+		FSoundModulatorAsset(const TSharedPtr<Audio::IProxyData>& InInitData);
 
 		Audio::FModulatorId GetModulatorId() const
 		{
@@ -78,7 +78,7 @@ namespace AudioModulation
 		FSoundModulationParameterAsset() = default;
 		FSoundModulationParameterAsset(const FSoundModulationParameterAsset& InOther) = default;
 		FSoundModulationParameterAsset(FSoundModulationParameterAsset&& InOther) = default;
-		FSoundModulationParameterAsset(const Audio::IProxyDataPtr& InInitData);
+		FSoundModulationParameterAsset(const TSharedPtr<Audio::IProxyData>& InInitData);
 
 		FSoundModulationParameterAsset& operator=(const FSoundModulationParameterAsset& InOther) = default;
 		FSoundModulationParameterAsset& operator=(FSoundModulationParameterAsset && InOther) = default;

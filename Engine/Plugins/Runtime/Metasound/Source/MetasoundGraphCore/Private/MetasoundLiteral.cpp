@@ -43,7 +43,7 @@ namespace Metasound
 				return FLiteral(TLiteralTypeInfo<FString>::GetDefaultValue());
 
 			case ELiteralType::UObjectProxy:
-				return FLiteral(TLiteralTypeInfo<Audio::IProxyDataPtr>::GetDefaultValue());
+				return FLiteral(TLiteralTypeInfo<TSharedPtr<Audio::IProxyData>>::GetDefaultValue());
 			
 			case ELiteralType::NoneArray:
 				return FLiteral(TLiteralTypeInfo<TArray<FLiteral::FNone>>::GetDefaultValue());
@@ -61,7 +61,7 @@ namespace Metasound
 				return FLiteral(TLiteralTypeInfo<TArray<FString>>::GetDefaultValue());
 
 			case ELiteralType::UObjectProxyArray:
-				return FLiteral(TLiteralTypeInfo<TArray<Audio::IProxyDataPtr>>::GetDefaultValue());
+				return FLiteral(TLiteralTypeInfo<TArray<TSharedPtr<Audio::IProxyData>>>::GetDefaultValue());
 
 			case ELiteralType::Invalid:
 			default:
@@ -148,11 +148,11 @@ FString LexToString(const Metasound::FLiteral& InLiteral)
 		case ELiteralType::UObjectProxy:
 		{
 			FString ProxyType = TEXT("nullptr");
-			if (InLiteral.Value.Get<Audio::IProxyDataPtr>().IsValid())
+			if (InLiteral.Value.Get<TSharedPtr<Audio::IProxyData>>().IsValid())
 			{
-				ProxyType = InLiteral.Value.Get<Audio::IProxyDataPtr>()->GetProxyTypeName().ToString();
+				ProxyType = InLiteral.Value.Get<TSharedPtr<Audio::IProxyData>>()->GetProxyTypeName().ToString();
 			}
-			return FString::Printf(TEXT("Audio::IProxyDataPtr: %s"), *ProxyType);
+			return FString::Printf(TEXT("TSharedPtr<Audio::IProxyData>: %s"), *ProxyType);
 		}
 		break;
 
@@ -172,7 +172,7 @@ FString LexToString(const Metasound::FLiteral& InLiteral)
 			return TEXT("TArray<FString>");
 
 		case ELiteralType::UObjectProxyArray:
-			return TEXT("TArray<Audio::IProxyDataPtr>");
+			return TEXT("TArray<TSharedPtr<Audio::IProxyData>>");
 
 		case ELiteralType::Invalid:
 			return TEXT("INVALID");

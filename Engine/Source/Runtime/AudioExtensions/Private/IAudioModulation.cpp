@@ -379,11 +379,11 @@ const Audio::FModulationParameter& USoundModulatorBase::GetOutputParameter() con
 	return Audio::GetModulationParameter({ });
 }
 
-TUniquePtr<Audio::IProxyData> USoundModulatorBase::CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams)
+TSharedPtr<Audio::IProxyData> USoundModulatorBase::CreateProxyData(const Audio::FProxyDataInitParams& InitParams)
 {
 	// This should never be hit as all instances of modulators should implement their own version of the proxy data interface.
 	checkNoEntry();
-	return TUniquePtr<Audio::IProxyData>();
+	return TSharedPtr<Audio::IProxyData>();
 }
 
 TUniquePtr<Audio::IModulatorSettings> USoundModulatorBase::CreateProxySettings() const

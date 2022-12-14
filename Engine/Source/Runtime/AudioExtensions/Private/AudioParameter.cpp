@@ -129,11 +129,11 @@ void FAudioParameter::Merge(const FAudioParameter& InParameter, bool bInTakeName
 				ObjectProxies.Reset();
 			}
 
-			for (const Audio::IProxyDataPtr& ProxyPtr : InParameter.ObjectProxies)
+			for (const TSharedPtr<Audio::IProxyData>& ProxyPtr : InParameter.ObjectProxies)
 			{
 				if (ensure(ProxyPtr.IsValid()))
 				{
-					ObjectProxies.Emplace(ProxyPtr->Clone());
+					ObjectProxies.Emplace(ProxyPtr);
 				}
 			}
 		}
@@ -144,11 +144,11 @@ void FAudioParameter::Merge(const FAudioParameter& InParameter, bool bInTakeName
 			ObjectParam = InParameter.ObjectParam;
 
 			ObjectProxies.Reset();
-			for (const Audio::IProxyDataPtr& ProxyPtr : InParameter.ObjectProxies)
+			for (const TSharedPtr<Audio::IProxyData>& ProxyPtr : InParameter.ObjectProxies)
 			{
 				if (ensure(ProxyPtr.IsValid()))
 				{
-					ObjectProxies.Emplace(ProxyPtr->Clone());
+					ObjectProxies.Emplace(ProxyPtr);
 				}
 			}
 		}
@@ -163,11 +163,11 @@ void FAudioParameter::Merge(const FAudioParameter& InParameter, bool bInTakeName
 				ObjectProxies.Reset();
 			}
 
-			for (const Audio::IProxyDataPtr& ProxyPtr : InParameter.ObjectProxies)
+			for (const TSharedPtr<Audio::IProxyData>& ProxyPtr : InParameter.ObjectProxies)
 			{
 				if (ensure(ProxyPtr.IsValid()))
 				{
-					ObjectProxies.Emplace(ProxyPtr->Clone());
+					ObjectProxies.Emplace(ProxyPtr);
 				}
 			}
 		}

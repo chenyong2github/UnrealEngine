@@ -52,7 +52,7 @@ public:
 	TArray<FWaveTableBankEntry> Entries;
 
 	/* IAudioProxyDataFactory Implementation */
-	virtual TUniquePtr<Audio::IProxyData> CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams) override;
+	virtual TSharedPtr<Audio::IProxyData> CreateProxyData(const Audio::FProxyDataInitParams& InitParams) override;
 
 #if WITH_EDITOR
 	void RefreshWaveTables();
@@ -79,11 +79,6 @@ public:
 		{
 			return Entry.Transform.WaveTable;
 		});
-	}
-
-	virtual Audio::IProxyDataPtr Clone() const
-	{
-		return MakeUnique<FWaveTableBankAssetProxy>(*this);
 	}
 
 	virtual const TArray<WaveTable::FWaveTable>& GetWaveTables() const
