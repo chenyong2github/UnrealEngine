@@ -22,8 +22,14 @@ public:
 	float GetNearestNeighborActorsOffset() const { return NearestNeighborActorsOffset; }
 	static FName GetNearestNeighborActorsOffsetPropertyName() { return GET_MEMBER_NAME_CHECKED(UNearestNeighborModelVizSettings, NearestNeighborActorsOffset); }
 
+	static FName GetNearestNeighborIdsPropertyName() { return GET_MEMBER_NAME_CHECKED(UNearestNeighborModelVizSettings, NearestNeighborIds); }
+	void SetNearestNeighborIds(const TArray<uint32>& InNearestNeighborIds) { NearestNeighborIds = InNearestNeighborIds; }
+
 protected:
 	UPROPERTY(EditAnywhere, Category = "Live Settings")
 	float NearestNeighborActorsOffset = 2.0f;
+
+	UPROPERTY(VisibleAnywhere, Category = "Live Settings")
+	TArray<uint32> NearestNeighborIds;
 #endif
 };

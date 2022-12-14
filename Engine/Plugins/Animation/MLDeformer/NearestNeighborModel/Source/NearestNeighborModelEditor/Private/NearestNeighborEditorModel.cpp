@@ -134,7 +134,7 @@ namespace UE::NearestNeighborModel
 		FMLDeformerEditorModel::Tick(ViewportClient, DeltaTime);
 		if (!NearestNeighborActors.IsEmpty())
 		{
-			const UNearestNeighborModelVizSettings* NNViz = GetNearestNeighborModelVizSettings();
+			UNearestNeighborModelVizSettings* NNViz = GetNearestNeighborModelVizSettings();
 			const float Offset = NNViz->GetNearestNeighborActorsOffset();
 			for (FNearestNeighborEditorModelActor* NearestNeighborActor : NearestNeighborActors)
 			{
@@ -142,6 +142,15 @@ namespace UE::NearestNeighborModel
 				{
 					NearestNeighborActor->TickNearestNeighborActor();
 					NearestNeighborActor->SetMeshOffsetFactor(Offset);
+				}
+			}
+			const UMLDeformerComponent* MLDeformerComponent = GetTestMLDeformerComponent();
+			if (MLDeformerComponent)
+			{
+				const UNearestNeighborModelInstance* ModelInstance = static_cast<UNearestNeighborModelInstance*>(MLDeformerComponent->GetModelInstance());
+				if (ModelInstance)
+				{
+					NNViz->SetNearestNeighborIds(ModelInstance->GetNearestNeighborIds());
 				}
 			}
 		}

@@ -18,6 +18,7 @@ public:
     virtual bool SetupInputs() override;
 
 #if WITH_EDITORONLY_DATA
+    const TArray<uint32>& GetNearestNeighborIds() const { return NearestNeighborIds; }
     uint32 NearestNeighborId(int32 PartId) const { return NearestNeighborIds[PartId]; }
     int32 NeighborIdNum() const { return NearestNeighborIds.Num(); }
 #endif
