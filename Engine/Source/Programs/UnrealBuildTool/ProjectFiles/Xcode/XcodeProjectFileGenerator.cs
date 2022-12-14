@@ -10,6 +10,12 @@ using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
+	enum XcodePerPlatformMode
+	{
+		OneWorkspacePerPlatform,
+		OneTargetPerPlatform,
+	}
+
 	/// <summary>
 	/// Xcode project file generator implementation
 	/// </summary>
@@ -19,6 +25,9 @@ namespace UnrealBuildTool
 
 		// always seed the random number the same, so multiple runs of the generator will generate the same project
 		static Random Rand = new Random(0);
+
+		// how to handle multiple platforms
+		public static XcodePerPlatformMode PerPlatformMode = XcodePerPlatformMode.OneWorkspacePerPlatform;
 
 		/// <summary>
 		/// Mark for distribution builds
@@ -83,10 +92,9 @@ namespace UnrealBuildTool
 		/// </summary>
 		public override void CleanProjectFiles(DirectoryReference InPrimaryProjectDirectory, string InPrimaryProjectName, DirectoryReference InIntermediateProjectFilesPath, ILogger Logger)
 		{
-			DirectoryReference PrimaryProjDeleteFilename = DirectoryReference.Combine(InPrimaryProjectDirectory, InPrimaryProjectName + ".xcworkspace");
-			if (DirectoryReference.Exists(PrimaryProjDeleteFilename))
+			foreach (DirectoryReference ProjectFile in DirectoryReference.EnumerateDirectories(InPrimaryProjectDirectory, $"{InPrimaryProjectName}*.xcworkspace"))
 			{
-				DirectoryReference.Delete(PrimaryProjDeleteFilename, true);
+				DirectoryReference.Delete(ProjectFile, true);
 			}
 
 			// Delete the project files folder
@@ -167,99 +175,139 @@ namespace UnrealBuildTool
 			return WriteFileIfChanged(Path, WorkspaceSettingsContent.ToString(), Logger, new UTF8Encoding());
 		}
 
+		private string PrimaryProjectNameForPlatform(UnrealTargetPlatform? Platform)
+		{
+			return Platform == null ? PrimaryProjectName : $"{PrimaryProjectName} ({Platform})";
+		}
+
 		private bool WriteXcodeWorkspace(ILogger Logger)
 		{
 			bool bSuccess = true;
 
-			StringBuilder WorkspaceDataContent = new StringBuilder();
-
-			WorkspaceDataContent.Append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ProjectFileGenerator.NewLine);
-			WorkspaceDataContent.Append("<Workspace" + ProjectFileGenerator.NewLine);
-			WorkspaceDataContent.Append("   version = \"1.0\">" + ProjectFileGenerator.NewLine);
-
-			List<ProjectFile> BuildableProjects = new List<ProjectFile>();
-
-			System.Action< List<PrimaryProjectFolder> /* Folders */, string /* Ident */ >? AddProjectsFunction = null;
-			AddProjectsFunction = (FolderList, Ident) =>
+			// loop opver all projects to see if at least one is modern (if not, we don't bother splitting up by platform)
+			bool bHasModernProjects = false;
+			Action<List<PrimaryProjectFolder>>? FindModern = null;
+			FindModern = (FolderList) =>
+			{
+				foreach (PrimaryProjectFolder CurFolder in FolderList)
 				{
-					foreach (PrimaryProjectFolder CurFolder in FolderList)
+					var Modern = CurFolder.ChildProjects.FirstOrDefault(P =>
+						P.GetType() == typeof(XcodeProjectXcconfig.XcodeProjectFile) &&
+						!((XcodeProjectXcconfig.XcodeProjectFile)P).bHasLegacyProject);
+					if (Modern != null)
 					{
-						WorkspaceDataContent.Append(Ident + "   <Group" + ProjectFileGenerator.NewLine);
-						WorkspaceDataContent.Append(Ident + "      location = \"container:\"      name = \"" + CurFolder.FolderName + "\">" + ProjectFileGenerator.NewLine);
-
-						AddProjectsFunction!(CurFolder.SubFolders, Ident + "   ");
-				
-						// Filter out anything that isn't an XC project, and that shouldn't be in the workspace
-						IEnumerable<ProjectFile> SupportedProjects =
-								CurFolder.ChildProjects.Where(P => P.GetType() == typeof(XcodeProjectXcconfig.XcodeProjectFile) || P.GetType() == typeof(XcodeProjectLegacy.XcodeProjectFile))
-									.Where(P => XcodeProjectXcconfig.UnrealData.ShouldIncludeProjectInWorkspace(P, Logger))
-									.OrderBy(P => P.ProjectFilePath.GetFileName());
-
-						foreach (ProjectFile XcodeProject in SupportedProjects)
-						{
-							WorkspaceDataContent.Append(Ident + "      <FileRef" + ProjectFileGenerator.NewLine);
-							WorkspaceDataContent.Append(Ident + "         location = \"group:" + XcodeProject.ProjectFilePath.MakeRelativeTo(ProjectFileGenerator.PrimaryProjectPath) + "\">" + ProjectFileGenerator.NewLine);
-							WorkspaceDataContent.Append(Ident + "      </FileRef>" + ProjectFileGenerator.NewLine);							
-						}
-
-						BuildableProjects.AddRange(SupportedProjects);
-
-						WorkspaceDataContent.Append(Ident + "   </Group>" + ProjectFileGenerator.NewLine);
+						//Logger.LogWarning($"Project {Modern.ProjectFilePath} is modern");
+						bHasModernProjects = true;
 					}
-				};
-			AddProjectsFunction(RootFolder.SubFolders, "");
-			
-			WorkspaceDataContent.Append("</Workspace>" + ProjectFileGenerator.NewLine);
+					if (!bHasModernProjects)
+					{
+						FindModern!(CurFolder.SubFolders);
+					}
+				}
+			};
+			FindModern(RootFolder.SubFolders);
 
-			// Also, update project's schemes index so that the schemes are in a sensible order
-			// (Game, Editor, Client, Server, Programs)
-			int SchemeIndex = 0;
-			BuildableProjects.Sort((ProjA, ProjB) => {
+			// if we want one workspace with multiple platforms, and we have at least one modern project, then process each platform individually
+			// otherwise use null as Platform which means to merge all platforms
+			List<UnrealTargetPlatform?> PlatformsToProcess = bHasModernProjects ? WorkspacePlatforms : NullPlatformList; 
+			foreach (UnrealTargetPlatform? Platform in PlatformsToProcess)
+			{
+				StringBuilder WorkspaceDataContent = new();
+				WorkspaceDataContent.Append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ProjectFileGenerator.NewLine);
+				WorkspaceDataContent.Append("<Workspace" + ProjectFileGenerator.NewLine);
+				WorkspaceDataContent.Append("   version = \"1.0\">" + ProjectFileGenerator.NewLine);
 
-				ProjectTarget TargetA = ProjA.ProjectTargets.OfType<ProjectTarget>().OrderBy(T => T.TargetRules!.Type).First();
-				ProjectTarget TargetB = ProjB.ProjectTargets.OfType<ProjectTarget>().OrderBy(T => T.TargetRules!.Type).First();
+				List<XcodeProjectXcconfig.XcodeProjectFile> BuildableProjects = new();
 
-				TargetType TypeA = TargetA.TargetRules!.Type;
-				TargetType TypeB = TargetB.TargetRules!.Type;
+				System.Action<List<PrimaryProjectFolder> /* Folders */, string /* Ident */ >? AddProjectsFunction = null;
+				AddProjectsFunction = (FolderList, Ident) =>
+					{
+						foreach (PrimaryProjectFolder CurFolder in FolderList)
+						{
+							WorkspaceDataContent.Append(Ident + "   <Group" + ProjectFileGenerator.NewLine);
+							WorkspaceDataContent.Append(Ident + "      location = \"container:\"      name = \"" + CurFolder.FolderName + "\">" + ProjectFileGenerator.NewLine);
 
-				if (TypeA != TypeB)
+							AddProjectsFunction!(CurFolder.SubFolders, Ident + "   ");
+
+							// Filter out anything that isn't an XC project, and that shouldn't be in the workspace
+							IEnumerable<XcodeProjectXcconfig.XcodeProjectFile> SupportedProjects =
+									CurFolder.ChildProjects.Where(P => P.GetType() == typeof(XcodeProjectXcconfig.XcodeProjectFile))
+										.Select(P => (XcodeProjectXcconfig.XcodeProjectFile)P)
+										.Where(P => XcodeProjectXcconfig.UnrealData.ShouldIncludeProjectInWorkspace(P, Logger))
+										// @todo - still need to handle legacy project getting split up?
+										.Where(P => P.RootProjects.Count == 0 || P.RootProjects.ContainsValue(Platform))
+										.OrderBy(P => P.ProjectFilePath.GetFileName());
+
+							foreach (XcodeProjectXcconfig.XcodeProjectFile XcodeProject in SupportedProjects)
+							{
+								// we have to re-check for each project - if it's a legacy project, even if we wanted it split, it won't be, so always point to 
+								// the shared legacy project
+								FileReference PathToProject = XcodeProject.ProjectFilePath;
+								if (!XcodeProject.bHasLegacyProject && PerPlatformMode == XcodePerPlatformMode.OneWorkspacePerPlatform)
+								{
+									PathToProject = XcodeProject.ProjectFilePathForPlatform(Platform);
+								}
+								WorkspaceDataContent.Append(Ident + "      <FileRef" + ProjectFileGenerator.NewLine);
+								WorkspaceDataContent.Append(Ident + "         location = \"group:" + PathToProject.MakeRelativeTo(ProjectFileGenerator.PrimaryProjectPath) + "\">" + ProjectFileGenerator.NewLine);
+								WorkspaceDataContent.Append(Ident + "      </FileRef>" + ProjectFileGenerator.NewLine);
+							}
+
+							BuildableProjects.AddRange(SupportedProjects);
+
+							WorkspaceDataContent.Append(Ident + "   </Group>" + ProjectFileGenerator.NewLine);
+						}
+					};
+				AddProjectsFunction(RootFolder.SubFolders, "");
+
+				WorkspaceDataContent.Append("</Workspace>" + ProjectFileGenerator.NewLine);
+
+				// Also, update project's schemes index so that the schemes are in a sensible order
+				// (Game, Editor, Client, Server, Programs)
+				int SchemeIndex = 0;
+				BuildableProjects.Sort((ProjA, ProjB) =>
 				{
-					return TypeA.CompareTo(TypeB);
+
+					ProjectTarget TargetA = ProjA.ProjectTargets.OfType<ProjectTarget>().OrderBy(T => T.TargetRules!.Type).First();
+					ProjectTarget TargetB = ProjB.ProjectTargets.OfType<ProjectTarget>().OrderBy(T => T.TargetRules!.Type).First();
+
+					TargetType TypeA = TargetA.TargetRules!.Type;
+					TargetType TypeB = TargetB.TargetRules!.Type;
+
+					if (TypeA != TypeB)
+					{
+						return TypeA.CompareTo(TypeB);
+					}
+
+					return TargetA.Name.CompareTo(TargetB.Name);
+				});
+
+				foreach (XcodeProjectXcconfig.XcodeProjectFile XcodeProject in BuildableProjects)
+				{
+					FileReference SchemeManagementFile = XcodeProject.ProjectFilePathForPlatform(Platform) + "/xcuserdata/" + Environment.UserName + ".xcuserdatad/xcschemes/xcschememanagement.plist";
+					if (FileReference.Exists(SchemeManagementFile))
+					{
+						string SchemeManagementContent = FileReference.ReadAllText(SchemeManagementFile);
+						SchemeManagementContent = SchemeManagementContent.Replace("<key>orderHint</key>\n\t\t\t<integer>1</integer>", "<key>orderHint</key>\n\t\t\t<integer>" + SchemeIndex.ToString() + "</integer>");
+						FileReference.WriteAllText(SchemeManagementFile, SchemeManagementContent);
+						SchemeIndex++;
+					}
 				}
 
-				return TargetA.Name.CompareTo(TargetB.Name);
-			});
-
-			foreach (ProjectFile XcodeProject in BuildableProjects)
-			{
-				FileReference SchemeManagementFile = XcodeProject.ProjectFilePath + "/xcuserdata/" + Environment.UserName + ".xcuserdatad/xcschemes/xcschememanagement.plist";
-				if (FileReference.Exists(SchemeManagementFile))
+				string ProjectName = PrimaryProjectNameForPlatform(Platform);
+				string WorkspaceDataFilePath = PrimaryProjectPath + "/" + ProjectName + ".xcworkspace/contents.xcworkspacedata";
+				Logger.LogInformation($"Writing xcode workspace {Path.GetDirectoryName(WorkspaceDataFilePath)}");
+				bSuccess = WriteFileIfChanged(WorkspaceDataFilePath, WorkspaceDataContent.ToString(), Logger, new UTF8Encoding());
+				if (bSuccess)
 				{
-					string SchemeManagementContent = FileReference.ReadAllText(SchemeManagementFile);
-					SchemeManagementContent = SchemeManagementContent.Replace("<key>orderHint</key>\n\t\t\t<integer>1</integer>", "<key>orderHint</key>\n\t\t\t<integer>" + SchemeIndex.ToString() + "</integer>");
-					FileReference.WriteAllText(SchemeManagementFile, SchemeManagementContent);
-					SchemeIndex++;
+					string WorkspaceSettingsFilePath = PrimaryProjectPath + "/" + ProjectName + ".xcworkspace/xcuserdata/" + Environment.UserName + ".xcuserdatad/WorkspaceSettings.xcsettings";
+					bSuccess = WriteWorkspaceSettingsFile(WorkspaceSettingsFilePath, Logger);
+					string WorkspaceSharedSettingsFilePath = PrimaryProjectPath + "/" + ProjectName + ".xcworkspace/xcshareddata/WorkspaceSettings.xcsettings";
+					bSuccess = WriteWorkspaceSharedSettingsFile(WorkspaceSharedSettingsFilePath, Logger);
+
+					// cache the location of the workspace, for users of this to know where the final workspace is
+					XCWorkspace = new FileReference(WorkspaceDataFilePath).Directory;
 				}
 			}
-
-			string ProjectName = PrimaryProjectName;
-			//if (ProjectFilePlatform != XcodeProjectFilePlatform.All)
-			//{
-			//	ProjectName += ProjectFilePlatform == XcodeProjectFilePlatform.Mac ? "_Mac" : (ProjectFilePlatform == XcodeProjectFilePlatform.iOS ? "_IOS" : "_TVOS");
-			//}
-			string WorkspaceDataFilePath = PrimaryProjectPath + "/" + ProjectName + ".xcworkspace/contents.xcworkspacedata";
-			bSuccess = WriteFileIfChanged(WorkspaceDataFilePath, WorkspaceDataContent.ToString(), Logger, new UTF8Encoding());
-			if (bSuccess)
-			{
-				string WorkspaceSettingsFilePath = PrimaryProjectPath + "/" + ProjectName + ".xcworkspace/xcuserdata/" + Environment.UserName + ".xcuserdatad/WorkspaceSettings.xcsettings";
-				bSuccess = WriteWorkspaceSettingsFile(WorkspaceSettingsFilePath, Logger);
-				string WorkspaceSharedSettingsFilePath = PrimaryProjectPath + "/" + ProjectName + ".xcworkspace/xcshareddata/WorkspaceSettings.xcsettings";
-				bSuccess = WriteWorkspaceSharedSettingsFile(WorkspaceSharedSettingsFilePath, Logger);
-
-				// cache the location of the workspace, for users of this to know where the final workspace is
-				XCWorkspace = new FileReference(WorkspaceDataFilePath).Directory;
-			}
-
 
 			return bSuccess;
 		}
@@ -273,6 +321,11 @@ namespace UnrealBuildTool
 		/// A static copy of ProjectPlatforms from the base class
 		/// </summary>
 		static public List<UnrealTargetPlatform> XcodePlatforms = new();
+
+		static public List<UnrealTargetPlatform?> WorkspacePlatforms = new ();
+		static public List<UnrealTargetPlatform?> RunTargetPlatforms = new();
+		static public List<UnrealTargetPlatform?> NullPlatformList = new() { null };
+
 
 		/// <summary>
 		/// Should we generate only a run project (no build/index targets)
@@ -304,6 +357,15 @@ namespace UnrealBuildTool
 				{
 					XcodePlatforms.Add(UnrealTargetPlatform.TVOS);
 				}
+			}
+
+			if (PerPlatformMode == XcodePerPlatformMode.OneWorkspacePerPlatform)
+			{
+				WorkspacePlatforms = XcodePlatforms.Select<UnrealTargetPlatform, UnrealTargetPlatform?>(x => x).ToList();
+			}
+			else
+			{
+				WorkspacePlatforms = NullPlatformList;
 			}
 
 			foreach (string CurArgument in Arguments)

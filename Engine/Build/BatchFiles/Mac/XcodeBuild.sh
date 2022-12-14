@@ -9,24 +9,14 @@ if [ ["$UE_SKIP_UBT"] == ["1"] ]; then
 	exit 0
 fi
 
+echo Running Xcodebuild $@
+
 # Setup Environment
 source  Engine/Build/BatchFiles/Mac/SetupEnvironment.sh -dotnet Engine/Build/BatchFiles/Mac
 
-# remove environment variable passed from xcode which also has meaning to dotnet, breaking the build
-unset TARGETNAME
-
-# If this is a source drop of the engine make sure that the UnrealBuildTool is up-to-date
-if [ ! -f Engine/Build/InstalledBuild.txt ]; then
-	dotnet build Engine/Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj -c Development -v quiet
-
-	if [ $? -ne 0 ]; then
-		echo "Failed to build the build tool (UnrealBuildTool)"
-		exit 1
-	fi
-fi
-
-
 #echo "Raw Args: $*"
+
+BUILD_UBT=1
 
 case $1 in 
 	"clean")
@@ -36,7 +26,29 @@ case $1 in
 	"install")
 		ACTION="install"
 	;;	
+
+	"-nobuildubt")
+		BUILD_UBT=0
+	;;
 esac
+
+
+# If this is a source drop of the engine make sure that the UnrealBuildTool is up-to-date
+if [ $BUILD_UBT == 1 ]; then
+	# remove environment variable passed from xcode which also has meaning to dotnet, breaking the build
+	unset TARGETNAME
+	
+	if [ ! -f Engine/Build/InstalledBuild.txt ]; then
+		dotnet build Engine/Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj -c Development -v quiet
+
+		if [ $? -ne 0 ]; then
+			echo "Failed to build the build tool (UnrealBuildTool)"
+			exit 1
+		fi
+	fi
+fi
+
+
 
 if [ ["$ACTION"] == [""] ]; then
 	ACTION="build"
@@ -113,6 +125,9 @@ if [ "$ACTION" == "build" ]; then
 
 elif [ $ACTION == "clean" ]; then
 	AdditionalFlags="-clean"
+	
+elif [ $ACTION == "metadata" ]; then
+	AdditionalFlags="-mode=ExportXcodeMetadata"
 fi
 
 echo Running dotnet Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.dll $TARGET $PLATFORM $CONFIGURATION "$TRAILINGARGS" $UBT_ARCHFLAG $AdditionalFlags
