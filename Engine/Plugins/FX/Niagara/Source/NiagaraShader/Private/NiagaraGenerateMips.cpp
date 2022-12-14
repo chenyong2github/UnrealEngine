@@ -4,6 +4,7 @@
 #include "GlobalShader.h"
 #include "RenderGraphUtils.h"
 #include "RHIStaticStates.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraGenerateMips)
 
