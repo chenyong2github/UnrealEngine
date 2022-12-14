@@ -94,6 +94,16 @@ static FAutoConsoleVariableRef CVarNiagaraCompileWaitLoggingTerminationCap(
 	ECVF_Default
 );
 
+#if WITH_EDITORONLY_DATA
+static int GNiagaraOnDemandCompileEnabled = 1;
+static FAutoConsoleVariableRef CVarNiagaraOnDemandCompileEnabled(
+	TEXT("fx.Niagara.OnDemandCompileEnabled"),
+	GNiagaraOnDemandCompileEnabled,
+	TEXT("Compiles Niagara Systems on demand rather than on post load."),
+	ECVF_Default
+);
+#endif
+
 //////////////////////////////////////////////////////////////////////////
 
 class FNiagaraSystemNullCompletionTask
@@ -146,6 +156,7 @@ UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 , bIgnoreParticleReadsForAttributeTrim(false)
 , bDisableDebugSwitches(false)
 , bDisableDebugSwitchesOnCook(true)
+, bNeedsRequestCompile(false)
 #endif
 , bSupportLargeWorldCoordinates(true)
 , bDisableExperimentalVM(false)
@@ -580,6 +591,7 @@ void UNiagaraSystem::UpdateSystemAfterLoad()
 
 #if WITH_EDITORONLY_DATA
 	// check if the system needs to be compiled and start a compile task if necessary
+	bNeedsRequestCompile = false;
 	if (GetOutermost()->HasAnyPackageFlags(EPackageFlags::PKG_Cooked) == false)
 	{
 		bool bSystemScriptsAreSynchronized = true;
@@ -609,13 +621,17 @@ void UNiagaraSystem::UpdateSystemAfterLoad()
 
 		if (bSystemScriptsAreSynchronized == false || bEmitterScriptsAreSynchronized == false)
 		{
+			bNeedsRequestCompile = true;
 			if (IsRunningCommandlet())
 			{
 				// Call modify here so that the system will resave the compile ids and script vm when running the resave
 				// commandlet. We don't need it for normal post-loading.
 				Modify();
 			}
-			RequestCompile(false);
+			if ( !GIsEditor || GNiagaraOnDemandCompileEnabled == 0 )
+			{
+				RequestCompile(false);
+			}
 		}
 	}
 #endif
@@ -1417,6 +1433,11 @@ void UNiagaraSystem::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) co
 #if WITH_EDITORONLY_DATA
 bool UNiagaraSystem::HasOutstandingCompilationRequests(bool bIncludingGPUShaders) const
 {
+	if (bNeedsRequestCompile)
+	{
+		return true;
+	}
+
 	if (ActiveCompilations.Num() > 0)
 	{
 		return true;
@@ -2224,6 +2245,11 @@ void UNiagaraSystem::WaitForCompilationComplete(bool bIncludingGPUShaders, bool 
 	TRACE_CPUPROFILER_EVENT_SCOPE(WaitForNiagaraCompilation);
 	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_ON_CHANNEL(*GetPathName(), NiagaraChannel);
 
+	if (bNeedsRequestCompile)
+	{
+		RequestCompile(false);
+	}
+
 	// Calculate the slow progress for notifying via UI
 	TArray<FNiagaraShaderScript*, TInlineAllocator<16>> GPUScripts;
 	if (bIncludingGPUShaders)
@@ -2297,8 +2323,13 @@ void UNiagaraSystem::InvalidateActiveCompiles()
 	}
 }
 
-bool UNiagaraSystem::PollForCompilationComplete()
+bool UNiagaraSystem::PollForCompilationComplete(bool bFlushRequestCompile)
 {
+	if (bNeedsRequestCompile && bFlushRequestCompile)
+	{
+		RequestCompile(false);
+	}
+
 	if (ActiveCompilations.Num() > 0)
 	{
 		return QueryCompileComplete(false, true);
@@ -3030,6 +3061,8 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 {
 	check(IsInGameThread());
 	TRACE_CPUPROFILER_EVENT_SCOPE(UNiagaraSystem::RequestCompile)
+
+	bNeedsRequestCompile = false;
 
 	// We remove emitters and scripts on dedicated servers, so skip further work.
 	const bool bIsDedicatedServer = !GIsClient && GIsServer;

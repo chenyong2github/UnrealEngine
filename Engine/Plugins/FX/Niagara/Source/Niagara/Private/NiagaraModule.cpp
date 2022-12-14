@@ -451,7 +451,7 @@ void PollSystemCompilations()
 	for (TObjectIterator<UNiagaraSystem> SysIt; SysIt; ++SysIt)
 	{
 		UNiagaraSystem* System = *SysIt;
-		System->PollForCompilationComplete();
+		System->PollForCompilationComplete(false);
 		if (FPlatformTime::Seconds() - Start > GNiagaraMaxCompilePollTimePerFrame)
 		{
 			break;

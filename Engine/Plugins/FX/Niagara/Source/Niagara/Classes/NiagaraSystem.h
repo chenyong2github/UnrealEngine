@@ -413,7 +413,7 @@ public:
 	bool RequestCompile(bool bForce, FNiagaraSystemUpdateContext* OptionalUpdateContext = nullptr);
 
 	/** If we have a pending compile request, is it done with yet? */
-	bool PollForCompilationComplete();
+	bool PollForCompilationComplete(bool bFlushRequestCompile = true);
 
 	/** Blocks until all active compile jobs have finished */
 	void WaitForCompilationComplete(bool bIncludingGPUShaders = false, bool bShowProgress = true);
@@ -552,6 +552,9 @@ protected:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance", meta = (DisplayName="Disable Debug Switches"))
 	uint32 bDisableDebugSwitchesOnCook : 1;
 
+	/* When set the system needs to compile before it can be activated. */
+	uint32 bNeedsRequestCompile : 1;
+
 public:
 	/** Subscriptions to definitions of parameters. */
 	UPROPERTY()
@@ -655,6 +658,10 @@ public:
 
 	/** Cache data & accessors from the compiled data, allows us to avoid per instance. */
 	void CacheFromCompiledData();
+
+#if WITH_EDITORONLY_DATA
+	bool NeedsRequestCompile() const { return bNeedsRequestCompile; }
+#endif
 
 	FORCEINLINE TConstArrayView<FNiagaraEmitterExecutionIndex> GetEmitterExecutionOrder() const { return MakeArrayView(EmitterExecutionOrder); }
 	FORCEINLINE TConstArrayView<FNiagaraRendererExecutionIndex> GetRendererPostTickOrder() const { return MakeArrayView(RendererPostTickOrder); }

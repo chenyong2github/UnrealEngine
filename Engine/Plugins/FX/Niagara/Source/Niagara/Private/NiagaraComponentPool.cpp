@@ -325,6 +325,12 @@ void UNiagaraComponentPool::PrimePool(UNiagaraSystem* Template, UWorld* World)
 		return;
 	}
 
+	const uint32 PrimeCount = FMath::Min(Template->PoolPrimeSize, Template->MaxPoolSize);
+	if (PrimeCount == 0)
+	{
+		return;
+	}
+
 	if (World->bIsTearingDown)
 	{
 		UE_LOG(LogNiagara, Warning, TEXT("Failed to prime particle pool as we are tearing the world down."));
@@ -336,6 +342,14 @@ void UNiagaraComponentPool::PrimePool(UNiagaraSystem* Template, UWorld* World)
 		UE_LOG(LogNiagara, Verbose, TEXT("Failed to prime particle pool as the world does not have a scene."));
 		return;
 	}	
+
+#if WITH_EDITORONLY_DATA
+	if (Template->NeedsRequestCompile())
+	{
+		UE_LOG(LogNiagara, Verbose, TEXT("Failed to prime particle pool as the Niagara System needs to compile."));
+		return;
+	}
+#endif
 
 	if (Template->IsReadyToRun() == false)
 	{
@@ -365,17 +379,15 @@ void UNiagaraComponentPool::PrimePool(UNiagaraSystem* Template, UWorld* World)
 
 	FNiagaraCrashReporterScope CRScope(Template);
 
-	uint32 Count = FMath::Min(Template->PoolPrimeSize, Template->MaxPoolSize);
-
-	if(Count > 0)
+	if(PrimeCount > 0)
 	{
 		FNCPool& Pool = WorldParticleSystemPools.FindOrAdd(Template);
 
 		uint32 ExistingComponents = Pool.NumComponents();
-		if (ExistingComponents < Count)
+		if (ExistingComponents < PrimeCount)
 		{
 			TArray<UNiagaraComponent*> NewComps;
-			NewComps.SetNum(Count - ExistingComponents);
+			NewComps.SetNum(PrimeCount - ExistingComponents);
 			for (auto& Comp : NewComps)
 			{
 				Comp = Pool.Acquire(World, Template, ENCPoolMethod::ManualRelease, true);//Force the pool to create a new system.
