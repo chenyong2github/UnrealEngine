@@ -29,6 +29,7 @@
 #include "Misc/DisplayClusterLog.h"
 #include "Misc/DisplayClusterStrings.h"
 
+#include "Misc/TransactionObjectEvent.h"
 #include "Render/Viewport/Configuration/DisplayClusterViewportConfigurationHelpers_ICVFX.h"
 #include "Render/Viewport/DisplayClusterViewportStrings.h"
 #include "Render/Viewport/IDisplayClusterViewportManager.h"
@@ -701,6 +702,21 @@ static FName Name_RelativeLocation = USceneComponent::GetRelativeLocationPropert
 static FName Name_RelativeRotation = USceneComponent::GetRelativeRotationPropertyName();
 static FName Name_RelativeScale3D = USceneComponent::GetRelativeScale3DPropertyName();
 
+void ADisplayClusterRootActor::PostTransacted(const FTransactionObjectEvent& TransactionEvent)
+{
+	if (bRequiresComponentRefresh
+		&& TransactionEvent.GetEventType() == ETransactionObjectEventType::Finalized)
+	{
+		if ((GEditor && GEditor->bIsSimulatingInEditor && GetWorld() != nullptr) || ReregisterComponentsWhenModified())
+		{
+			UnregisterAllComponents();
+			ReregisterAllComponents();
+		}
+		bRequiresComponentRefresh = false;
+	}
+	Super::PostTransacted(TransactionEvent);
+}
+
 void ADisplayClusterRootActor::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChainEvent)
 {
 	const FProperty* RootProperty = PropertyChainEvent.PropertyChain.GetActiveNode()->GetValue();
@@ -715,6 +731,7 @@ void ADisplayClusterRootActor::PostEditChangeChainProperty(FPropertyChangedChain
 			// Do not propagate the PostEditChangeProperty because we are in an interactive edit of a suboject
 			// and we do not need to rerun any construction scripts.
 			bIsInteractiveEditingSubobject = true;
+			bRequiresComponentRefresh = true;
 		}
 	}
 

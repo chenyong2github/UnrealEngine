@@ -27,6 +27,7 @@
 
 #if WITH_EDITOR
 class IDisplayClusterConfiguratorBlueprintEditor;
+class FTransactionObjectEvent;
 #endif
 
 class IDisplayClusterStageActor;
@@ -493,6 +494,7 @@ protected:
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChainEvent) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditMove(bool bFinished) override;
+	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
 
 	/** Called when the asset has been reloaded in the editor. */
 	void HandleAssetReload(const EPackageReloadPhase InPackageReloadPhase, FPackageReloadedEvent* InPackageReloadedEvent);
@@ -504,6 +506,9 @@ private:
 
 	/** Flag to indicate if the user is currently interacting with a subobject of CurrentConfigData. */
 	bool bIsInteractiveEditingSubobject = false;
+
+	/** Flag to indicate if we need to reregister components. */
+	bool bRequiresComponentRefresh = false;
 
 	bool bIsSelectedInEditor = false;
 
