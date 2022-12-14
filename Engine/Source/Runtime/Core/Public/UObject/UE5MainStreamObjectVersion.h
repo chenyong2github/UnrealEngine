@@ -321,6 +321,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 
 		// Animation Sequence now stores its frame-rate on a per-platform basis
 		PerPlatformAnimSequenceTargetFrameRate,
+		
+		// New default for number of attributes on 2d grids
+		NiagaraGrid2DDefaultUnnamedAttributesZero,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

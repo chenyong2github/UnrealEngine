@@ -44,6 +44,9 @@ public:
 	static const FString CellSizeName;
 	static const FString WorldBBoxSizeName;
 
+	// Attribute names
+	static const FName NAME_Attribute;
+
 	// Global VM function names, also used by the shaders code generation methods.
 	static const FName NumCellsFunctionName;
 	static const FName CellSizeFunctionName;
@@ -189,8 +192,8 @@ public:
 	int32 NumCellsMaxAxis;
 
 	// Number of Attributes
-	UPROPERTY(EditAnywhere, Category = "Grid")
-	int32 NumAttributes;
+	UPROPERTY(EditAnywhere, Category = "Grid", AdvancedDisplay)
+	int32 NumAttributes = 0;
 
 	// Set grid resolution according to longest axis
 	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "false", EditConditionHides))
@@ -202,6 +205,9 @@ public:
 
 
 public:
+
+	virtual void Serialize(FArchive& Ar) override;
+
 	//~ UNiagaraDataInterface interface
 	// VM functionality
 	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;

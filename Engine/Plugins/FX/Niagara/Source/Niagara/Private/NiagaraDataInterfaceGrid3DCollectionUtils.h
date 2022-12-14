@@ -4,8 +4,17 @@
 
 #include "CoreMinimal.h"
 #include "NiagaraDataInterface.h"
+#include "NiagaraDataInterfaceRW.h"
+#include "NiagaraDataInterfaceRWUtils.h"
 
-struct FGrid3DCollectionAttributeHelper
+enum EGridAttributeRetrievalMode
+{
+	RGBAGrid = 0,
+	Indirection,
+	NoIndirection
+};
+
+struct FGrid3DCollectionAttributeHlslWriter
 {
 
 	// only support rgba textures when we have a single attribute that contains up to 4 channels
@@ -14,52 +23,30 @@ struct FGrid3DCollectionAttributeHelper
 
 	static TArray<FString> Channels;
 
-	struct FAttributeInfo
-	{
-		FName					Name;
-		FNiagaraTypeDefinition	TypeDef;
-		int32					NumChannels = 0;
-		int32					ChannelOffset = 0;
-		int32					AttributeIndex = 0;
-	};
+	explicit FGrid3DCollectionAttributeHlslWriter(const FNiagaraDataInterfaceGPUParamInfo& InParamInfo, TArray<FText>* OutWarnings = nullptr);
 
-	enum AttributeRetrievalMode
-	{
-		RGBAGrid = 0,
-		Indirection,
-		NoIndirection
-	};
-
-	explicit FGrid3DCollectionAttributeHelper(const FNiagaraDataInterfaceGPUParamInfo& InParamInfo, TArray<FText>* OutWarnings = nullptr);
+	const FNiagaraDataInterfaceRWAttributeHelper& GetAttributeHelper() { return AttributeHelper; }
 
 	bool UseRGBAGrid();
-
-	const FAttributeInfo* FindAttributeInfo(FName AttributeName) const;
 
 #if WITH_EDITORONLY_DATA
 	// Returns pixel offset for the channel
 	static FString GetPerAttributePixelOffset(const TCHAR* DataInterfaceHLSLSymbol);
 	FString GetPerAttributePixelOffset() const;
+	
 	// Returns UVW offset for the channel
 	static FString GetPerAttributeUVWOffset(const TCHAR* DataInterfaceHLSLSymbol);
 	FString GetPerAttributeUVWOffset() const;
 
-	// Translates named attribute into actual attribute index
-	FString GetAttributeIndex(bool bUseAttributeIndirection, const FAttributeInfo* AttributeInfo, int Channel = 0) const;
-	FString GetGridChannelString();
-	void GetChannelStrings(int AttributeIndex, int AttributeNumChannels, FString& NumChannelsString, FString& AttrGridChannels);
-	void GetChannelStrings(const FAttributeInfo* AttributeInfo, FString& NumChannelsString, FString& AttrGridChannels);
-
-	bool WriteGetHLSL(AttributeRetrievalMode AttributeStorage, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, FString& OutHLSL);
-	bool WriteGetAtIndexHLSL(AttributeRetrievalMode AttributeStorage, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int NumChannels, FString& OutHLSL);
-	bool WriteSetAtIndexHLSL(AttributeRetrievalMode AttributeStorage, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int NumChannels, FString& OutHLSL);
-	bool WriteSampleAtIndexHLSL(AttributeRetrievalMode AttributeStorage, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int NumChannels, bool IsCubic, FString& OutHLSL);
-	bool WriteSetHLSL(AttributeRetrievalMode AttributeStorage, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, FString& OutHLSL);
-	bool WriteSampleHLSL(AttributeRetrievalMode AttributeStorage, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, bool IsCubic, FString& OutHLSL);
-	bool WriteAttributeGetIndexHLSL(AttributeRetrievalMode AttributeStorage, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, FString& OutHLSL);
+	bool WriteGetHLSL(EGridAttributeRetrievalMode AttributeStorage, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, FString& OutHLSL);
+	bool WriteGetAtIndexHLSL(EGridAttributeRetrievalMode AttributeStorage, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int NumChannels, FString& OutHLSL);
+	bool WriteSetAtIndexHLSL(EGridAttributeRetrievalMode AttributeStorage, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int NumChannels, FString& OutHLSL);
+	bool WriteSampleAtIndexHLSL(EGridAttributeRetrievalMode AttributeStorage, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int NumChannels, bool IsCubic, FString& OutHLSL);
+	bool WriteSetHLSL(EGridAttributeRetrievalMode AttributeStorage, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, FString& OutHLSL);
+	bool WriteSampleHLSL(EGridAttributeRetrievalMode AttributeStorage, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, bool IsCubic, FString& OutHLSL);
+	bool WriteAttributeGetIndexHLSL(EGridAttributeRetrievalMode AttributeStorage, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, FString& OutHLSL);
 #endif //WITH_EDITORONLY_DATA
 
 	const FNiagaraDataInterfaceGPUParamInfo& ParamInfo;
-	TArray<FAttributeInfo>						AttributeInfos;
-	int32										TotalChannels = 0;
+	FNiagaraDataInterfaceRWAttributeHelper				AttributeHelper;	
 };

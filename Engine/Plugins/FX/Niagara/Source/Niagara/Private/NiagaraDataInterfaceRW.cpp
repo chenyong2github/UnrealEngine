@@ -4,6 +4,8 @@
 #include "ShaderParameterUtils.h"
 #include "ClearQuad.h"
 
+#include "UObject/UE5MainStreamObjectVersion.h"
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceRW)
 
 
@@ -16,6 +18,9 @@ const FString UNiagaraDataInterfaceRWBase::NumCellsName(TEXT("_NumCells"));
 const FString UNiagaraDataInterfaceRWBase::UnitToUVName(TEXT("_UnitToUV"));
 const FString UNiagaraDataInterfaceRWBase::CellSizeName(TEXT("_CellSize"));
 const FString UNiagaraDataInterfaceRWBase::WorldBBoxSizeName(TEXT("_WorldBBoxSize"));
+
+// Attribute names
+const FName UNiagaraDataInterfaceRWBase::NAME_Attribute("Attribute");
 
 // Global VM function names, also used by the shaders code generation methods.
 const FName UNiagaraDataInterfaceRWBase::NumCellsFunctionName("GetNumCells");
@@ -490,10 +495,22 @@ UNiagaraDataInterfaceGrid2D::UNiagaraDataInterfaceGrid2D(FObjectInitializer cons
 	, NumCellsX(3)
 	, NumCellsY(3)
 	, NumCellsMaxAxis(3)
-	, NumAttributes(1)
+	, NumAttributes(0)
 	, SetGridFromMaxAxis(false)	
 	, WorldBBoxSize(100., 100.)
 {
+}
+
+void UNiagaraDataInterfaceGrid2D::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+
+	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::NiagaraGrid2DDefaultUnnamedAttributesZero)
+	{
+		NumAttributes = 1;
+	}
+
+	Super::Serialize(Ar);
 }
 
 #if WITH_EDITOR

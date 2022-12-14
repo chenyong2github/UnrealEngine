@@ -29,6 +29,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Reader")
 	FString DIName;
 
+	virtual void Serialize(FArchive& Ar) override { UNiagaraDataInterfaceRWBase::Serialize(Ar); }
+
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 	virtual bool InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
 	virtual void GetEmitterDependencies(UNiagaraSystem* Asset, TArray<FVersionedNiagaraEmitter>& Dependencies) const override;

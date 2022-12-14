@@ -1025,9 +1025,8 @@ void UNiagaraDataInterfaceParticleRead::GetVMExternalFunction(const FVMExternalF
 
 	bool bBindSuccessful = false;
 	FNDIParticleRead_InstanceData* PIData = static_cast<FNDIParticleRead_InstanceData*>(InstanceData);
-	static const FName NAME_Attribute("Attribute");
 
-	const FVMFunctionSpecifier* FunctionSpecifier = BindingInfo.FindSpecifier(NAME_Attribute);
+	const FVMFunctionSpecifier* FunctionSpecifier = BindingInfo.FindSpecifier(UNiagaraDataInterfaceRWBase::NAME_Attribute);
 	if (FunctionSpecifier == nullptr)
 	{
 		UE_LOG(LogNiagara, Error, TEXT("VMExternalFunction '%s' does not have a function specifier 'attribute'!"), *BindingInfo.Name.ToString());
@@ -2297,8 +2296,7 @@ FNiagaraDataInterfaceParametersCS* UNiagaraDataInterfaceParticleRead::CreateShad
 	for (int32 FuncIdx = 0; FuncIdx < NumFuncs; ++FuncIdx)
 	{
 		const FNiagaraDataInterfaceGeneratedFunction& Func = ParameterInfo.GeneratedFunctions[FuncIdx];
-		static const FName NAME_Attribute("Attribute");
-		const FName* AttributeName = Func.FindSpecifierValue(NAME_Attribute);
+		const FName* AttributeName = Func.FindSpecifierValue(UNiagaraDataInterfaceRWBase::NAME_Attribute);
 		if (AttributeName != nullptr)
 		{
 			ShaderStorage->AttributeNames[FuncIdx] = *AttributeName;
@@ -2472,9 +2470,7 @@ void UNiagaraDataInterfaceParticleRead::GetFeedback(UNiagaraSystem* Asset, UNiag
 				{
 					for (const auto& Func : DIInfo.RegisteredFunctions)
 					{
-						static const FName NAME_Attribute("Attribute");
-
-						const FName* AttributeName = Func.FunctionSpecifiers.Find(NAME_Attribute);
+						const FName* AttributeName = Func.FunctionSpecifiers.Find(UNiagaraDataInterfaceRWBase::NAME_Attribute);
 						ENiagaraParticleDataValueType AttributeType = ENiagaraParticleDataValueType::Invalid;
 						if (AttributeName != nullptr)
 						{

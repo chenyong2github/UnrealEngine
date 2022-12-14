@@ -114,7 +114,7 @@ bool UNiagaraDataInterfaceGrid3DCollectionReader::InitPerInstanceData(void* PerI
 
 			// #todo(dmp): slight hack here - these aren't always the same, but we generally can't use unnamed attrs very well
 			NumAttribChannelsFound = NumNamedAttribChannelsFound;
-			bool UseRGBATexture = FGrid3DCollectionAttributeHelper::ShouldUseRGBAGrid(NumAttribChannelsFound, Vars.Num());
+			bool UseRGBATexture = FGrid3DCollectionAttributeHlslWriter::ShouldUseRGBAGrid(NumAttribChannelsFound, Vars.Num());
 
 			FGrid3DCollectionRWInstanceData_GameThread* Grid3DInstanceData = GridInterface->GetSystemInstancesToProxyData_GT().FindRef(SystemInstance->GetId());
 			InstanceData->OtherDI = GridInterface;
@@ -132,9 +132,7 @@ bool UNiagaraDataInterfaceGrid3DCollectionReader::InitPerInstanceData(void* PerI
 			ENQUEUE_RENDER_COMMAND(FUpdateData)(
 				[RT_Proxy, InstanceID = SystemInstance->GetId(), RT_ProxyToUse = ProxyToUse](FRHICommandListImmediate& RHICmdList)
 			{
-				check(!RT_Proxy->SystemInstancesToProxyData_RT.Contains(InstanceID));
-				//check(RT_ProxyToUse->SystemInstancesToProxyData_RT.Contains(InstanceID));
-				//FGrid3DCollectionRWInstanceData_RenderThread* DataToRead = RT_ProxyToUse->SystemInstancesToProxyData_RT.Find(InstanceID);
+				check(!RT_Proxy->SystemInstancesToProxyData_RT.Contains(InstanceID));				
 
 				FGrid3DCollectionRWInstanceData_RenderThread* TargetData = &RT_Proxy->SystemInstancesToProxyData_RT.Add(InstanceID);
 				TargetData->OtherProxy = RT_ProxyToUse;
@@ -230,7 +228,7 @@ bool UNiagaraDataInterfaceGrid3DCollectionReader::PerInstanceTickPostSimulate(vo
 
 		// #todo(dmp): slight hack here - these aren't always the same, but we generally can't use unnamed attrs very well
 		NumAttribChannelsFound = NumNamedAttribChannelsFound;
-		bool UseRGBATexture = FGrid3DCollectionAttributeHelper::ShouldUseRGBAGrid(NumAttribChannelsFound, Vars.Num());
+		bool UseRGBATexture = FGrid3DCollectionAttributeHlslWriter::ShouldUseRGBAGrid(NumAttribChannelsFound, Vars.Num());
 
 		if (InstanceData->OtherInstanceData == nullptr)
 		{

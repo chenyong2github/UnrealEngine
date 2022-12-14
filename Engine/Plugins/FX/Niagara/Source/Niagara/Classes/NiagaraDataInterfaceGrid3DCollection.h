@@ -127,7 +127,7 @@ class NIAGARA_API UNiagaraDataInterfaceGrid3DCollection : public UNiagaraDataInt
 
 public:
 	// Number of attributes stored on the grid
-	UPROPERTY(EditAnywhere, Category = "Grid")
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Grid")
 	int32 NumAttributes;
 
 	/** Reference to a user parameter if we're reading one. */
@@ -234,7 +234,6 @@ public:
 	static const FString UnitClampMinName;
 	static const FString UnitClampMaxName;
 
-	static const FName NAME_Attribute;
 	static const FString GridName;
 	static const FString OutputGridName;
 	static const FString SamplerName;

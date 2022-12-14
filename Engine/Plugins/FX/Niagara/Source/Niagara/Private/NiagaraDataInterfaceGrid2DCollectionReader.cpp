@@ -23,6 +23,8 @@ UNiagaraDataInterfaceGrid2DCollectionReader::UNiagaraDataInterfaceGrid2DCollecti
 
 	FNiagaraTypeDefinition Def(UTextureRenderTarget::StaticClass());
 	RenderTargetUserParameter.Parameter.SetType(Def);
+
+	bUseIndirection = true;
 }
 
 bool UNiagaraDataInterfaceGrid2DCollectionReader::Equals(const UNiagaraDataInterface* Other) const
@@ -107,18 +109,29 @@ bool UNiagaraDataInterfaceGrid2DCollectionReader::InitPerInstanceData(void* PerI
 		if (GridInterface && ProxyToUse)
 		{
 
+			int32 NumAttribChannelsFound = 0;
+			int32 NumNamedAttribChannelsFound = 0;
+			TArray<FNiagaraVariableBase> Vars;
+			TArray<uint32> Offsets;
+			FindAttributes(Vars, Offsets, NumNamedAttribChannelsFound, nullptr, true);
+
 			FGrid2DCollectionRWInstanceData_GameThread* Grid2DInstanceData = GridInterface->GetSystemInstancesToProxyData_GT().FindRef(SystemInstance->GetId());
 			InstanceData->OtherDI = GridInterface;
 			InstanceData->OtherInstanceData = Grid2DInstanceData;
+
+			// error if the reader is trying to access a grid that has both named and unnamed attributes
+			if (InstanceData->OtherInstanceData != nullptr && GridInterface->NumAttributes > 0 && GridInterface->NumAttributes != InstanceData->OtherInstanceData->NumAttributes)
+			{
+				UE_LOG(LogNiagara, Error, TEXT("Grid2DCollectionReaders are not compatible with Emitter %s and DataInterface %s.  Do not use unnamed and named grids together."), *this->EmitterName, *this->DIName);
+				return false;
+			}
 
 			// Push Updates to Proxy.
 			FNiagaraDataInterfaceProxyGrid2DCollectionProxy* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyGrid2DCollectionProxy>();
 			ENQUEUE_RENDER_COMMAND(FUpdateData)(
 				[RT_Proxy, InstanceID = SystemInstance->GetId(), RT_ProxyToUse = ProxyToUse](FRHICommandListImmediate& RHICmdList)
 			{
-				check(!RT_Proxy->SystemInstancesToProxyData_RT.Contains(InstanceID));
-				//check(RT_ProxyToUse->SystemInstancesToProxyData_RT.Contains(InstanceID));
-				//FGrid2DCollectionRWInstanceData_RenderThread* DataToRead = RT_ProxyToUse->SystemInstancesToProxyData_RT.Find(InstanceID);
+				check(!RT_Proxy->SystemInstancesToProxyData_RT.Contains(InstanceID));				
 
 				FGrid2DCollectionRWInstanceData_RenderThread* TargetData = &RT_Proxy->SystemInstancesToProxyData_RT.Add(InstanceID);
 				TargetData->OtherProxy = RT_ProxyToUse;

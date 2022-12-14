@@ -67,7 +67,6 @@ const FString UNiagaraDataInterfaceGrid3DCollection::OneOverNumTilesName(TEXT("_
 const FString UNiagaraDataInterfaceGrid3DCollection::UnitClampMinName(TEXT("_UnitClampMin"));
 const FString UNiagaraDataInterfaceGrid3DCollection::UnitClampMaxName(TEXT("_UnitClampMax"));
 
-const FName UNiagaraDataInterfaceGrid3DCollection::NAME_Attribute("Attribute");
 const FString UNiagaraDataInterfaceGrid3DCollection::GridName(TEXT("_Grid"));
 const FString UNiagaraDataInterfaceGrid3DCollection::OutputGridName(TEXT("_OutputGrid"));
 const FString UNiagaraDataInterfaceGrid3DCollection::SamplerName(TEXT("_GridSampler"));
@@ -354,7 +353,7 @@ bool UNiagaraDataInterfaceGrid3DCollection::AppendCompileHash(FNiagaraCompileHas
 
 
 	InVisitor->UpdatePOD(TEXT("UNiagaraDataInterfaceGrid3DCollectionVersion"), (int32)FNiagaraGridCollection3DDIFunctionVersion::LatestVersion);
-	InVisitor->UpdatePOD(TEXT("UNiagaraDataInterfaceGrid3DCollectionSupportsRGBAGrid"), FGrid3DCollectionAttributeHelper::SupportsRGBAGrid() ? 1 : 0);
+	InVisitor->UpdatePOD(TEXT("UNiagaraDataInterfaceGrid3DCollectionSupportsRGBAGrid"), FGrid3DCollectionAttributeHlslWriter::SupportsRGBAGrid() ? 1 : 0);
 	//InVisitor->UpdateShaderFile(TemplateShaderFilePath);
 	InVisitor->UpdateShaderParameters<FNDIGrid3DShaderParameters>();
 
@@ -629,7 +628,7 @@ void UNiagaraDataInterfaceGrid3DCollection::GetFunctions(TArray<FNiagaraFunction
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexY")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexZ")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec4Def(), TEXT("Value")));
-		Sig.FunctionSpecifiers.Add(FName(NAME_Attribute));
+		Sig.FunctionSpecifiers.Add(FName(UNiagaraDataInterfaceRWBase::NAME_Attribute));
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.bExperimental = true;
@@ -652,7 +651,7 @@ void UNiagaraDataInterfaceGrid3DCollection::GetFunctions(TArray<FNiagaraFunction
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexY")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexZ")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec4Def(), TEXT("Value")));
-		Sig.FunctionSpecifiers.Add(FName(NAME_Attribute));
+		Sig.FunctionSpecifiers.Add(FName(UNiagaraDataInterfaceRWBase::NAME_Attribute));
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.bExperimental = true;
@@ -673,7 +672,7 @@ void UNiagaraDataInterfaceGrid3DCollection::GetFunctions(TArray<FNiagaraFunction
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Grid")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Unit")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec4Def(), TEXT("Value")));
-		Sig.FunctionSpecifiers.Add(FName(NAME_Attribute));
+		Sig.FunctionSpecifiers.Add(FName(UNiagaraDataInterfaceRWBase::NAME_Attribute));
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.bExperimental = true;
@@ -694,7 +693,7 @@ void UNiagaraDataInterfaceGrid3DCollection::GetFunctions(TArray<FNiagaraFunction
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Grid")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Unit")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec4Def(), TEXT("Value")));
-		Sig.FunctionSpecifiers.Add(FName(NAME_Attribute));
+		Sig.FunctionSpecifiers.Add(FName(UNiagaraDataInterfaceRWBase::NAME_Attribute));
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.bExperimental = true;
@@ -717,7 +716,7 @@ void UNiagaraDataInterfaceGrid3DCollection::GetFunctions(TArray<FNiagaraFunction
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexY")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexZ")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Value")));
-		Sig.FunctionSpecifiers.Add(FName(NAME_Attribute));
+		Sig.FunctionSpecifiers.Add(FName(UNiagaraDataInterfaceRWBase::NAME_Attribute));
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.bExperimental = true;
@@ -741,7 +740,7 @@ void UNiagaraDataInterfaceGrid3DCollection::GetFunctions(TArray<FNiagaraFunction
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexY")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexZ")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Value")));
-		Sig.FunctionSpecifiers.Add(FName(NAME_Attribute));
+		Sig.FunctionSpecifiers.Add(FName(UNiagaraDataInterfaceRWBase::NAME_Attribute));
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.bExperimental = true;
@@ -762,7 +761,7 @@ void UNiagaraDataInterfaceGrid3DCollection::GetFunctions(TArray<FNiagaraFunction
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Grid")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Unit")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Value")));
-		Sig.FunctionSpecifiers.Add(FName(NAME_Attribute));
+		Sig.FunctionSpecifiers.Add(FName(UNiagaraDataInterfaceRWBase::NAME_Attribute));
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.bExperimental = true;
@@ -783,7 +782,7 @@ void UNiagaraDataInterfaceGrid3DCollection::GetFunctions(TArray<FNiagaraFunction
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Grid")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Unit")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Value")));
-		Sig.FunctionSpecifiers.Add(FName(NAME_Attribute));
+		Sig.FunctionSpecifiers.Add(FName(UNiagaraDataInterfaceRWBase::NAME_Attribute));
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.bExperimental = true;
@@ -806,7 +805,7 @@ void UNiagaraDataInterfaceGrid3DCollection::GetFunctions(TArray<FNiagaraFunction
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexY")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexZ")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), TEXT("Value")));
-		Sig.FunctionSpecifiers.Add(FName(NAME_Attribute));
+		Sig.FunctionSpecifiers.Add(FName(UNiagaraDataInterfaceRWBase::NAME_Attribute));
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.bExperimental = true;
@@ -830,7 +829,7 @@ void UNiagaraDataInterfaceGrid3DCollection::GetFunctions(TArray<FNiagaraFunction
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexY")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexZ")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), TEXT("Value")));
-		Sig.FunctionSpecifiers.Add(FName(NAME_Attribute));
+		Sig.FunctionSpecifiers.Add(FName(UNiagaraDataInterfaceRWBase::NAME_Attribute));
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.bExperimental = true;
@@ -851,7 +850,7 @@ void UNiagaraDataInterfaceGrid3DCollection::GetFunctions(TArray<FNiagaraFunction
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Grid")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Unit")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), TEXT("Value")));
-		Sig.FunctionSpecifiers.Add(FName(NAME_Attribute));
+		Sig.FunctionSpecifiers.Add(FName(UNiagaraDataInterfaceRWBase::NAME_Attribute));
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.bExperimental = true;
@@ -872,7 +871,7 @@ void UNiagaraDataInterfaceGrid3DCollection::GetFunctions(TArray<FNiagaraFunction
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Grid")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Unit")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), TEXT("Value")));
-		Sig.FunctionSpecifiers.Add(FName(NAME_Attribute));
+		Sig.FunctionSpecifiers.Add(FName(UNiagaraDataInterfaceRWBase::NAME_Attribute));
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.bExperimental = true;
@@ -895,7 +894,7 @@ void UNiagaraDataInterfaceGrid3DCollection::GetFunctions(TArray<FNiagaraFunction
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexY")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexZ")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Value")));
-		Sig.FunctionSpecifiers.Add(FName(NAME_Attribute));
+		Sig.FunctionSpecifiers.Add(FName(UNiagaraDataInterfaceRWBase::NAME_Attribute));
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.bExperimental = true;
@@ -918,7 +917,7 @@ void UNiagaraDataInterfaceGrid3DCollection::GetFunctions(TArray<FNiagaraFunction
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexY")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexZ")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Value")));
-		Sig.FunctionSpecifiers.Add(FName(NAME_Attribute));
+		Sig.FunctionSpecifiers.Add(FName(UNiagaraDataInterfaceRWBase::NAME_Attribute));
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.bExperimental = true;
@@ -939,7 +938,7 @@ void UNiagaraDataInterfaceGrid3DCollection::GetFunctions(TArray<FNiagaraFunction
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Grid")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Unit")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Value")));
-		Sig.FunctionSpecifiers.Add(FName(NAME_Attribute));
+		Sig.FunctionSpecifiers.Add(FName(UNiagaraDataInterfaceRWBase::NAME_Attribute));
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.bExperimental = true;
@@ -960,7 +959,7 @@ void UNiagaraDataInterfaceGrid3DCollection::GetFunctions(TArray<FNiagaraFunction
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Grid")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Unit")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Value")));
-		Sig.FunctionSpecifiers.Add(FName(NAME_Attribute));
+		Sig.FunctionSpecifiers.Add(FName(UNiagaraDataInterfaceRWBase::NAME_Attribute));
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.bExperimental = true;
@@ -1100,7 +1099,7 @@ void UNiagaraDataInterfaceGrid3DCollection::GetFunctions(TArray<FNiagaraFunction
 		Sig.Name = GetVector4AttributeIndexFunctionName;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Grid")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("AttributeIndex")));
-		Sig.FunctionSpecifiers.Add(FName(NAME_Attribute));
+		Sig.FunctionSpecifiers.Add(FName(UNiagaraDataInterfaceRWBase::NAME_Attribute));
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.bExperimental = true;
@@ -1115,7 +1114,7 @@ void UNiagaraDataInterfaceGrid3DCollection::GetFunctions(TArray<FNiagaraFunction
 		Sig.Name = GetVectorAttributeIndexFunctionName;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Grid")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("AttributeIndex")));
-		Sig.FunctionSpecifiers.Add(FName(NAME_Attribute));
+		Sig.FunctionSpecifiers.Add(FName(UNiagaraDataInterfaceRWBase::NAME_Attribute));
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.bExperimental = true;
@@ -1130,7 +1129,7 @@ void UNiagaraDataInterfaceGrid3DCollection::GetFunctions(TArray<FNiagaraFunction
 		Sig.Name = GetVector2DAttributeIndexFunctionName;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Grid")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("AttributeIndex")));
-		Sig.FunctionSpecifiers.Add(FName(NAME_Attribute));
+		Sig.FunctionSpecifiers.Add(FName(UNiagaraDataInterfaceRWBase::NAME_Attribute));
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.bExperimental = true;
@@ -1145,7 +1144,7 @@ void UNiagaraDataInterfaceGrid3DCollection::GetFunctions(TArray<FNiagaraFunction
 		Sig.Name = GetFloatAttributeIndexFunctionName;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Grid")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("AttributeIndex")));
-		Sig.FunctionSpecifiers.Add(FName(NAME_Attribute));
+		Sig.FunctionSpecifiers.Add(FName(UNiagaraDataInterfaceRWBase::NAME_Attribute));
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
 		Sig.bExperimental = true;
@@ -1538,25 +1537,25 @@ void UNiagaraDataInterfaceGrid3DCollection::GetVMExternalFunction(const FVMExter
 	}
 	else if (BindingInfo.Name == GetVector4AttributeIndexFunctionName)
 	{
-		FName AttributeName = BindingInfo.FindSpecifier(NAME_Attribute)->Value;
+		FName AttributeName = BindingInfo.FindSpecifier(UNiagaraDataInterfaceRWBase::NAME_Attribute)->Value;
 		check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 1);
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceGrid3DCollection, VMGetAttributeIndex)::Bind(this, OutFunc, AttributeName, 4);
 	}
 	else if (BindingInfo.Name == GetVectorAttributeIndexFunctionName)
 	{
-		FName AttributeName = BindingInfo.FindSpecifier(NAME_Attribute)->Value;
+		FName AttributeName = BindingInfo.FindSpecifier(UNiagaraDataInterfaceRWBase::NAME_Attribute)->Value;
 		check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 1);
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceGrid3DCollection, VMGetAttributeIndex)::Bind(this, OutFunc, AttributeName, 3);
 	}
 	else if (BindingInfo.Name == GetVector2DAttributeIndexFunctionName)
 	{
-		FName AttributeName = BindingInfo.FindSpecifier(NAME_Attribute)->Value;
+		FName AttributeName = BindingInfo.FindSpecifier(UNiagaraDataInterfaceRWBase::NAME_Attribute)->Value;
 		check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 1);
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceGrid3DCollection, VMGetAttributeIndex)::Bind(this, OutFunc, AttributeName, 2);
 	}
 	else if (BindingInfo.Name == GetFloatAttributeIndexFunctionName)
 	{
-		FName AttributeName = BindingInfo.FindSpecifier(NAME_Attribute)->Value;
+		FName AttributeName = BindingInfo.FindSpecifier(UNiagaraDataInterfaceRWBase::NAME_Attribute)->Value;
 		check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 1);
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceGrid3DCollection, VMGetAttributeIndex)::Bind(this, OutFunc, AttributeName, 1);
 	}
@@ -1655,10 +1654,12 @@ void UNiagaraDataInterfaceGrid3DCollection::GetParameterDefinitionHLSL(const FNi
 
 	// format of the grid is defined by number of attributes
 	FString FloatBufferSuffix = "";
-	FGrid3DCollectionAttributeHelper Helper(ParamInfo);
-	if (Helper.UseRGBAGrid() && Helper.TotalChannels > 1)
+	FGrid3DCollectionAttributeHlslWriter AttributeWriter(ParamInfo);
+
+	int TotalChannels = AttributeWriter.GetAttributeHelper().GetTotalChannels();
+	if (AttributeWriter.UseRGBAGrid() && TotalChannels > 1)
 	{
-		FloatBufferSuffix = FString::FromInt(Helper.TotalChannels);
+		FloatBufferSuffix = FString::FromInt(TotalChannels);
 	}
 
 	TMap<FString, FStringFormatArg> ArgsDeclarations = {
@@ -1667,7 +1668,7 @@ void UNiagaraDataInterfaceGrid3DCollection::GetParameterDefinitionHLSL(const FNi
 		{ TEXT("SamplerName"),		ParamInfo.DataInterfaceHLSLSymbol + SamplerName},
 		{ TEXT("OutputGridName"),	ParamInfo.DataInterfaceHLSLSymbol + OutputGridName},
 		{ TEXT("FloatBufferSuffix"),FloatBufferSuffix},
-		{ TEXT("NumChannels"),		Helper.UseRGBAGrid() ? Helper.TotalChannels : 1}, // float grids only have a single channel for the underlying buffer
+		{ TEXT("NumChannels"),		AttributeWriter.UseRGBAGrid() ? TotalChannels : 1}, // float grids only have a single channel for the underlying buffer
 		{ TEXT("NumTiles"),			ParamInfo.DataInterfaceHLSLSymbol + NumTilesName},
 		{ TEXT("OneOverNumTiles"),	ParamInfo.DataInterfaceHLSLSymbol + OneOverNumTilesName},
 		{ TEXT("UnitClampMin"),		ParamInfo.DataInterfaceHLSLSymbol + UnitClampMinName},
@@ -2054,8 +2055,8 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 		return true;
 	}
 
-	FGrid3DCollectionAttributeHelper ParamHelper(ParamInfo);
-	FString GridChannelString = ParamHelper.GetGridChannelString();
+	FGrid3DCollectionAttributeHlslWriter AttributeWriter(ParamInfo);
+	FString GridChannelString = AttributeWriter.GetAttributeHelper().GetGridChannelString();
 
 	TMap<FString, FStringFormatArg> ArgsBounds =
 	{
@@ -2081,7 +2082,7 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	if (FunctionInfo.DefinitionName == GetValueFunctionName || FunctionInfo.DefinitionName == GetPreviousValueAtIndexFunctionName)
 	{
 		// if we have an rgba grid, then we must query for the rgba value at the current point, and get the specific channel requested
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{			
 			FString RGBAHlsl;
 			RGBAHlsl.Appendf(TEXT("void {FunctionName}(int In_IndexX, int In_IndexY, int In_IndexZ, int In_AttributeIndex, out float Out_Val)\n"));
@@ -2093,11 +2094,11 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 			RGBAHlsl.Appendf(TEXT("        Out_Val = TmpVal.r;\n"));
 			RGBAHlsl.Appendf(TEXT("    }\n"));
 
-			for (int i = 0; i < ParamHelper.TotalChannels - 1; ++i)
+			for (int i = 0; i < AttributeWriter.GetAttributeHelper().GetTotalChannels() - 1; ++i)
 			{
 				RGBAHlsl.Appendf(TEXT("    else if (In_AttributeIndex == %d)\n"), i + 1);
 				RGBAHlsl.Appendf(TEXT("    {\n"));
-				RGBAHlsl.Appendf(TEXT("        Out_Val = TmpVal.%s;\n"), *FGrid3DCollectionAttributeHelper::Channels[i + 1]);
+				RGBAHlsl.Appendf(TEXT("        Out_Val = TmpVal.%s;\n"), *FGrid3DCollectionAttributeHlslWriter::Channels[i + 1]);
 				RGBAHlsl.Appendf(TEXT("    }\n"));
 			}
 
@@ -2137,7 +2138,7 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 
 		// if we are using an rgba grid, then we must query the float4 value from the uav, then set the channel we are requesting
 		// note that the dynamic branching seems necessary otherwise it didn't work as expected.  Might be due to code optimization
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{			
 			FString RGBAHlsl;
 			RGBAHlsl.Appendf(TEXT("void {FunctionName}(int In_IndexX, int In_IndexY, int In_IndexZ, int In_AttributeIndex, float In_Value, out int val)\n"));
@@ -2150,12 +2151,12 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 			RGBAHlsl.Appendf(TEXT("        {OutputGrid}[int3(In_IndexX, In_IndexY, In_IndexZ)] = TmpVal;\n"));
 			RGBAHlsl.Appendf(TEXT("    }\n"));
 
-			for (int i = 0; i < ParamHelper.TotalChannels - 1; ++i)
+			for (int i = 0; i < AttributeWriter.GetAttributeHelper().GetTotalChannels() - 1; ++i)
 			{
 				RGBAHlsl.Appendf(TEXT("    else if (In_AttributeIndex == %d)\n"), i + 1);
 				RGBAHlsl.Appendf(TEXT("    {\n"));
 				RGBAHlsl.Appendf(TEXT("		   float{GridChannels} TmpVal = {OutputGrid}.Load(int4(In_IndexX, In_IndexY, In_IndexZ, 0));\n"));
-				RGBAHlsl.Appendf(TEXT("        TmpVal.%s = In_Value;\n"), *FGrid3DCollectionAttributeHelper::Channels[i + 1]);
+				RGBAHlsl.Appendf(TEXT("        TmpVal.%s = In_Value;\n"), *FGrid3DCollectionAttributeHlslWriter::Channels[i + 1]);
 				RGBAHlsl.Appendf(TEXT("        {OutputGrid}[int3(In_IndexX, In_IndexY, In_IndexZ)] = TmpVal;\n"));
 				RGBAHlsl.Appendf(TEXT("    }\n"));
 			}
@@ -2195,7 +2196,7 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == CopyPreviousToCurrentForCellFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
 			static const TCHAR* FormatBounds = TEXT(R"(
 				void {FunctionName}(int In_IndexX, int In_IndexY, int In_IndexZ)
@@ -2226,7 +2227,7 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == CopyMaskedPreviousToCurrentForCellFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{			
 			static const TCHAR* FormatBounds = TEXT(R"(
 				void {FunctionName}(int In_IndexX, int In_IndexY, int In_IndexZ, int NumAttributesSet, int AttributeMask)
@@ -2306,9 +2307,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == SetVector4ValueFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteSetHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, OutHLSL);
+			AttributeWriter.WriteSetHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, OutHLSL);
 		}
 		else
 		{
@@ -2318,9 +2319,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == GetPreviousVector4ValueFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteGetHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, OutHLSL);
+			AttributeWriter.WriteGetHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, OutHLSL);
 		}
 		else
 		{
@@ -2331,9 +2332,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == SamplePreviousGridVector4FunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteSampleHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, false, OutHLSL);
+			AttributeWriter.WriteSampleHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, false, OutHLSL);
 		}
 		else
 		{
@@ -2343,9 +2344,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == CubicSamplePreviousGridVector4FunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteSampleHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, true, OutHLSL);
+			AttributeWriter.WriteSampleHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, true, OutHLSL);
 		}
 		else
 		{
@@ -2355,9 +2356,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == SetVector3ValueFunctionName || FunctionInfo.DefinitionName == SetVectorValueFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteSetHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, OutHLSL);
+			AttributeWriter.WriteSetHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, OutHLSL);
 		}
 		else
 		{
@@ -2367,9 +2368,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == GetPreviousVectorValueFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteGetHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, OutHLSL);
+			AttributeWriter.WriteGetHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, OutHLSL);
 		}
 		else
 		{
@@ -2380,9 +2381,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == SamplePreviousGridVectorFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteSampleHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, false, OutHLSL);
+			AttributeWriter.WriteSampleHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, false, OutHLSL);
 		}
 		else
 		{
@@ -2393,9 +2394,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == CubicSamplePreviousGridVectorFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteSampleHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, true, OutHLSL);
+			AttributeWriter.WriteSampleHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, true, OutHLSL);
 		}
 		else
 		{
@@ -2404,9 +2405,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == SetVector2ValueFunctionName || FunctionInfo.DefinitionName == SetVector2DValueFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteSetHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, OutHLSL);
+			AttributeWriter.WriteSetHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, OutHLSL);
 		}
 		else
 		{
@@ -2417,9 +2418,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == GetPreviousVector2DValueFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteGetHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, OutHLSL);
+			AttributeWriter.WriteGetHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, OutHLSL);
 		}
 		else
 		{
@@ -2430,9 +2431,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == SamplePreviousGridVector2DFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteSampleHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, false, OutHLSL);
+			AttributeWriter.WriteSampleHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, false, OutHLSL);
 		}
 		else
 		{
@@ -2442,9 +2443,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == CubicSamplePreviousGridVector2DFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteSampleHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, true, OutHLSL);
+			AttributeWriter.WriteSampleHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, true, OutHLSL);
 		}
 		else
 		{
@@ -2453,9 +2454,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == SetFloatValueFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteSetHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, OutHLSL);
+			AttributeWriter.WriteSetHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, OutHLSL);
 		}
 		else
 		{
@@ -2466,9 +2467,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == GetPreviousFloatValueFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteGetHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, OutHLSL);
+			AttributeWriter.WriteGetHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, OutHLSL);
 		}
 		else
 		{
@@ -2479,9 +2480,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == SamplePreviousGridFloatFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteSampleHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, false, OutHLSL);
+			AttributeWriter.WriteSampleHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, false, OutHLSL);
 		}
 		else
 		{
@@ -2492,9 +2493,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == CubicSamplePreviousGridFloatFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteSampleHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, true, OutHLSL);
+			AttributeWriter.WriteSampleHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, true, OutHLSL);
 		}
 		else
 		{
@@ -2504,9 +2505,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == GetVector4AttributeIndexFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteAttributeGetIndexHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, OutHLSL);
+			AttributeWriter.WriteAttributeGetIndexHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, OutHLSL);
 		}
 		else
 		{
@@ -2516,9 +2517,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == GetVectorAttributeIndexFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteAttributeGetIndexHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, OutHLSL);
+			AttributeWriter.WriteAttributeGetIndexHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, OutHLSL);
 		}
 		else
 		{
@@ -2528,9 +2529,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == GetVector2DAttributeIndexFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteAttributeGetIndexHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, OutHLSL);
+			AttributeWriter.WriteAttributeGetIndexHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, OutHLSL);
 		}
 		else
 		{
@@ -2540,9 +2541,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == GetFloatAttributeIndexFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteAttributeGetIndexHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, OutHLSL);
+			AttributeWriter.WriteAttributeGetIndexHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, OutHLSL);
 		}
 		else
 		{
@@ -2554,7 +2555,7 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	{
 		
 	// if we have an rgba grid, then we must sample for the rgba value at the current point, and get the specific channel requested
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{			
 			FString RGBAHlsl;
 			RGBAHlsl.Appendf(TEXT("void {FunctionName}(float In_UnitX, float In_UnitY, float In_UnitZ, int In_AttributeIndex, out float Out_Val)\n"));
@@ -2567,11 +2568,11 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 			RGBAHlsl.Appendf(TEXT("        Out_Val = TmpVal.r;\n"));
 			RGBAHlsl.Appendf(TEXT("    }\n"));
 
-			for (int i = 0; i < ParamHelper.TotalChannels - 1; ++i)
+			for (int i = 0; i < AttributeWriter.GetAttributeHelper().GetTotalChannels() - 1; ++i)
 			{
 				RGBAHlsl.Appendf(TEXT("    else if (In_AttributeIndex == %d)\n"), i + 1);
 				RGBAHlsl.Appendf(TEXT("    {\n"));
-				RGBAHlsl.Appendf(TEXT("        Out_Val = TmpVal.%s;\n"), *FGrid3DCollectionAttributeHelper::Channels[i + 1]);
+				RGBAHlsl.Appendf(TEXT("        Out_Val = TmpVal.%s;\n"), *FGrid3DCollectionAttributeHlslWriter::Channels[i + 1]);
 				RGBAHlsl.Appendf(TEXT("    }\n"));
 			}
 
@@ -2601,7 +2602,7 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == CubicSampleGridFunctionName || FunctionInfo.DefinitionName == CubicSamplePreviousGridAtIndexFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
 			//#todo(dmp): maybe fix this at some point or deprecate?
 			UE_LOG(LogNiagara, Error, TEXT("RGBA grids are not supported for this function"));
@@ -2629,7 +2630,7 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == SamplePreviousFullGridFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
 			//#todo(dmp): maybe fix this at some point or deprecate?
 			UE_LOG(LogNiagara, Error, TEXT("RGBA grids are not supported for this function"));
@@ -2650,7 +2651,7 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == CubicSamplePreviousFullGridFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
 			//#todo(dmp): maybe fix this at some point or deprecate?
 			UE_LOG(LogNiagara, Error, TEXT("RGBA grids are not supported for this function"));
@@ -2670,9 +2671,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == SetVector4ValueAtIndexFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteSetAtIndexHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, 4, OutHLSL);
+			AttributeWriter.WriteSetAtIndexHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, 4, OutHLSL);
 		}
 		else
 		{
@@ -2682,9 +2683,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == SetVector3ValueAtIndexFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteSetAtIndexHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, 3, OutHLSL);
+			AttributeWriter.WriteSetAtIndexHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, 3, OutHLSL);
 		}
 		else
 		{
@@ -2694,9 +2695,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == SetVector2ValueAtIndexFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteSetAtIndexHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, 2, OutHLSL);
+			AttributeWriter.WriteSetAtIndexHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, 2, OutHLSL);
 		}
 		else
 		{
@@ -2706,9 +2707,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == SetFloatValueAtIndexFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteSetAtIndexHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, 1, OutHLSL);
+			AttributeWriter.WriteSetAtIndexHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, 1, OutHLSL);
 		}
 		else
 		{
@@ -2718,9 +2719,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == GetPreviousVector4ValueAtIndexFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteGetAtIndexHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, 4, OutHLSL);
+			AttributeWriter.WriteGetAtIndexHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, 4, OutHLSL);
 		}
 		else
 		{
@@ -2730,9 +2731,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == GetPreviousVector3ValueAtIndexFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteGetAtIndexHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, 3, OutHLSL);
+			AttributeWriter.WriteGetAtIndexHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, 3, OutHLSL);
 		}
 		else
 		{
@@ -2742,9 +2743,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == GetPreviousVector2ValueAtIndexFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteGetAtIndexHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, 2, OutHLSL);
+			AttributeWriter.WriteGetAtIndexHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, 2, OutHLSL);
 		}
 		else
 		{
@@ -2754,9 +2755,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == GetPreviousFloatValueAtIndexFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteGetAtIndexHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, 1, OutHLSL);
+			AttributeWriter.WriteGetAtIndexHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, 1, OutHLSL);
 		}
 		else
 		{
@@ -2766,9 +2767,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == SamplePreviousGridVector4AtIndexFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteSampleAtIndexHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, 4, false, OutHLSL);
+			AttributeWriter.WriteSampleAtIndexHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, 4, false, OutHLSL);
 		}
 		else
 		{
@@ -2778,9 +2779,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == SamplePreviousGridVector3AtIndexFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteSampleAtIndexHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, 3, false, OutHLSL);
+			AttributeWriter.WriteSampleAtIndexHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, 3, false, OutHLSL);
 		}
 		else
 		{
@@ -2790,9 +2791,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == SamplePreviousGridVector2AtIndexFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteSampleAtIndexHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, 2, false, OutHLSL);
+			AttributeWriter.WriteSampleAtIndexHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, 2, false, OutHLSL);
 		}
 		else
 		{
@@ -2802,9 +2803,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == SamplePreviousGridFloatAtIndexFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteSampleAtIndexHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, 1, false, OutHLSL);
+			AttributeWriter.WriteSampleAtIndexHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, 1, false, OutHLSL);
 		}
 		else
 		{
@@ -2814,9 +2815,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == CubicSamplePreviousGridVector4AtIndexFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteSampleAtIndexHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, 4, true, OutHLSL);
+			AttributeWriter.WriteSampleAtIndexHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, 4, true, OutHLSL);
 		}
 		else
 		{
@@ -2826,9 +2827,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == CubicSamplePreviousGridVector3AtIndexFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteSampleAtIndexHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, 3, true, OutHLSL);
+			AttributeWriter.WriteSampleAtIndexHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, 3, true, OutHLSL);
 		}
 		else
 		{
@@ -2838,9 +2839,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == CubicSamplePreviousGridVector2AtIndexFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteSampleAtIndexHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, 2, true, OutHLSL);
+			AttributeWriter.WriteSampleAtIndexHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, 2, true, OutHLSL);
 		}
 		else
 		{
@@ -2850,9 +2851,9 @@ bool UNiagaraDataInterfaceGrid3DCollection::GetFunctionHLSL(const FNiagaraDataIn
 	}
 	else if (FunctionInfo.DefinitionName == CubicSamplePreviousGridFloatAtIndexFunctionName)
 	{
-		if (ParamHelper.UseRGBAGrid())
+		if (AttributeWriter.UseRGBAGrid())
 		{
-			ParamHelper.WriteSampleAtIndexHLSL(FGrid3DCollectionAttributeHelper::AttributeRetrievalMode::RGBAGrid, FunctionInfo, 1, true, OutHLSL);
+			AttributeWriter.WriteSampleAtIndexHLSL(EGridAttributeRetrievalMode::RGBAGrid, FunctionInfo, 1, true, OutHLSL);
 		}
 		else
 		{
@@ -3002,7 +3003,7 @@ FNiagaraDataInterfaceParametersCS* UNiagaraDataInterfaceGrid3DCollection::Create
 	{
 		const FNiagaraDataInterfaceGeneratedFunction& Func = ParameterInfo.GeneratedFunctions[FuncIdx];
 
-		const FName* AttributeName = Func.FindSpecifierValue(NAME_Attribute);
+		const FName* AttributeName = Func.FindSpecifierValue(UNiagaraDataInterfaceRWBase::NAME_Attribute);
 		if (AttributeName != nullptr)
 		{
 			int32 ComponentCount = UNiagaraDataInterfaceGrid3DCollection::GetComponentCountFromFuncName(Func.DefinitionName);
@@ -3091,7 +3092,7 @@ bool UNiagaraDataInterfaceGrid3DCollection::GenerateIterationSourceNamespaceRead
 }
 bool UNiagaraDataInterfaceGrid3DCollection::GenerateIterationSourceNamespaceWriteAttributesHLSL(FNiagaraDataInterfaceGPUParamInfo& DIInstanceInfo, const FNiagaraVariable& IterationSourceVar, TConstArrayView<FNiagaraVariable> InArguments, TConstArrayView<FNiagaraVariable> InAttributes, TConstArrayView<FString> InAttributeHLSLNames, TConstArrayView<FNiagaraVariable> InAllAttributes, bool bSpawnOnly, bool bPartialWrites, TArray<FText>& OutErrors, FString& OutHLSL) const
 {
-	FGrid3DCollectionAttributeHelper ParamHelper(DIInstanceInfo);
+	FGrid3DCollectionAttributeHlslWriter AttributeWriter(DIInstanceInfo);
 
 	FString DIVarName;
 	OutHLSL += TEXT("\t//Generated by UNiagaraDataInterfaceGrid3DCollection::GenerateIterationSourceNamespaceWriteAttributesHLSL\n");
@@ -3113,7 +3114,7 @@ bool UNiagaraDataInterfaceGrid3DCollection::GenerateIterationSourceNamespaceWrit
 		int ComponentCount = GetComponentCountFromFuncName(TypeDefinitionToSetFunctionName(InAllAttributes[i].GetType()));
 		TotalChannels += ComponentCount;
 	}
-	bool UseRGBATexture = FGrid3DCollectionAttributeHelper::ShouldUseRGBAGrid(TotalChannels, InAttributes.Num());
+	bool UseRGBATexture = FGrid3DCollectionAttributeHlslWriter::ShouldUseRGBAGrid(TotalChannels, InAttributes.Num());
 
 	TArray<FString> RootArray;
 	IterationSourceVar.GetName().ToString().ParseIntoArray(RootArray, TEXT("."));
@@ -3362,7 +3363,7 @@ bool UNiagaraDataInterfaceGrid3DCollection::InitPerInstanceData(void* PerInstanc
 	}
 
 	// if we have 4 or less attributes, pack data into rgba textures rather than a single large float texture with attributes tiled spatially
-	bool UseRGBATexture = FGrid3DCollectionAttributeHelper::ShouldUseRGBAGrid(NumAttribChannelsFound, InstanceData->Vars.Num());
+	bool UseRGBATexture = FGrid3DCollectionAttributeHlslWriter::ShouldUseRGBAGrid(NumAttribChannelsFound, InstanceData->Vars.Num());
 
 	if (UseRGBATexture)
 	{
@@ -4316,7 +4317,7 @@ void UNiagaraDataInterfaceGrid3DCollection::CollectAttributesForScript(UNiagaraS
 			TConstArrayView<FNiagaraDataInterfaceGPUParamInfo> ParamInfoArray = Script->GetDataInterfaceGPUParamInfos();
 			for (const FNiagaraDataInterfaceGeneratedFunction& Func : ParamInfoArray[*IndexOfDataInterface].GeneratedFunctions)
 			{
-				if (const FName* AttributeName = Func.FindSpecifierValue(NAME_Attribute))
+				if (const FName* AttributeName = Func.FindSpecifierValue(UNiagaraDataInterfaceRWBase::NAME_Attribute))
 				{
 					FNiagaraVariableBase NewVar(UNiagaraDataInterfaceGrid3DCollection::GetValueTypeFromFuncName(Func.DefinitionName), *AttributeName);
 					if (UNiagaraDataInterfaceGrid3DCollection::CanCreateVarFromFuncName(Func.DefinitionName))
