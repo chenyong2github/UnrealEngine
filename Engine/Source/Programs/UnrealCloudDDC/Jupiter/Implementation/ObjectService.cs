@@ -116,6 +116,9 @@ namespace Jupiter.Implementation
 
         public async Task<(ContentId[], BlobIdentifier[])> Put(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash, CbObject payload)
         {
+            IServerTiming? serverTiming = _httpContextAccessor.HttpContext?.RequestServices.GetService<IServerTiming>();
+            using ServerTimingMetricScoped? serverTimingScope = serverTiming?.CreateServerTimingMetricScope("ref.put", "Inserting ref");
+
             bool hasReferences = HasAttachments(payload);
 
             // if we have no references we are always finalized, e.g. there are no referenced blobs to upload
@@ -183,6 +186,9 @@ namespace Jupiter.Implementation
         
         private async Task<(ContentId[], BlobIdentifier[])> DoFinalize(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier blobHash, CbObject payload)
         {
+            IServerTiming? serverTiming = _httpContextAccessor.HttpContext?.RequestServices.GetService<IServerTiming>();
+            using ServerTimingMetricScoped? serverTimingScope = serverTiming?.CreateServerTimingMetricScope("ref.finalize", "Finalizing the ref");
+
             Task addRefToBlobsTask = _blobIndex.AddRefToBlobs(ns, bucket, key, new [] {blobHash});
 
             ContentId[] missingReferences = Array.Empty<ContentId>();
@@ -195,9 +201,8 @@ namespace Jupiter.Implementation
                 {
                     IAsyncEnumerable<BlobIdentifier> references = _referenceResolver.GetReferencedBlobs(ns, payload);
                     BlobIdentifier[] referencesArray = await references.ToArrayAsync();
-                    Task addRefsTask = _blobIndex.AddRefToBlobs(ns, bucket, key, referencesArray);
-                    missingBlobs = await _blobService.FilterOutKnownBlobs(ns, referencesArray);
-                    await addRefsTask;
+                    // TODO: Blobs could be added to the blob index as we find them in the async enumerable
+                    await _blobIndex.AddRefToBlobs(ns, bucket, key, referencesArray);
                 }
                 catch (PartialReferenceResolveException e)
                 {

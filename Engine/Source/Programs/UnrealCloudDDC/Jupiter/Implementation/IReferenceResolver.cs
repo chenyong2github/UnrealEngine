@@ -66,8 +66,23 @@ namespace Jupiter.Implementation
 
     public interface IReferenceResolver
     {
-
+        /// <summary>
+        /// Returns the blobs referenced from the cb object and any children
+        /// These blobs are guaranteed to exist, if any blob is missing
+        /// PartialReferenceResolveException or ReferenceIsMissingBlobsException are raised
+        /// </summary>
+        /// <param name="ns">The namespace to check</param>
+        /// <param name="cb">The compact binary object to resolve references for</param>
+        /// <returns></returns>
         IAsyncEnumerable<BlobIdentifier> GetReferencedBlobs(NamespaceId ns, CbObject cb);
+
+        /// <summary>
+        /// Returns which attachments exist in the cb object or any children
+        /// These attachments are not guaranteed to reference blobs that actually exist
+        /// </summary>
+        /// <param name="ns">The namespace to check</param>
+        /// <param name="cb">The compact binary object to resolve references for</param>
+        /// <returns></returns>
         IAsyncEnumerable<Attachment> GetAttachments(NamespaceId ns, CbObject cb);
     }
 
@@ -213,6 +228,7 @@ namespace Jupiter.Implementation
         public async IAsyncEnumerable<BlobIdentifier> GetReferencedBlobs(NamespaceId ns, CbObject cb)
         {
             List<Task<(BlobIdentifier, bool)>> pendingBlobExistsChecks = new();
+            List<Task<(ContentIdAttachment, bool)>> pendingContentIdChecks = new();
             List<ContentId> unresolvedContentIdReferences = new List<ContentId>();
             List<BlobIdentifier> unresolvedBlobReferences = new List<BlobIdentifier>();
 
@@ -226,17 +242,7 @@ namespace Jupiter.Implementation
                 else if (attachment is ContentIdAttachment contentIdAttachment)
                 {
                     // If we find a content id we resolve that into the actual blobs it references
-                    foreach (BlobIdentifier b in contentIdAttachment.ReferencedBlobs)
-                    {
-                        (BlobIdentifier _, bool exists) = await CheckBlobExists(ns, b);
-                        if (!exists)
-                        {
-                            unresolvedContentIdReferences.Add(contentIdAttachment.Identifier);
-                            continue;
-                        }
-
-                        yield return b;
-                    }
+                    pendingContentIdChecks.Add(CheckContentIdExists(ns, contentIdAttachment));
                 }
                 else if (attachment is ObjectAttachment objectAttachment)
                 {
@@ -263,6 +269,22 @@ namespace Jupiter.Implementation
                 }
             }
 
+            foreach (Task<(ContentIdAttachment, bool)> pendingContentIdTask in pendingContentIdChecks)
+            {
+                (ContentIdAttachment contentIdAttachment, bool exists) = await pendingContentIdTask;
+
+                if (!exists)
+                {
+                    unresolvedContentIdReferences.Add(contentIdAttachment.Identifier);
+                    continue;
+                }
+
+                foreach (BlobIdentifier b in contentIdAttachment.ReferencedBlobs)
+                {
+                    yield return b;
+                }
+            }
+
             // if there were any content ids we did not recognize we throw a partial reference exception
             if (unresolvedContentIdReferences.Count != 0)
             {
@@ -273,6 +295,23 @@ namespace Jupiter.Implementation
             {
                 throw new ReferenceIsMissingBlobsException(unresolvedBlobReferences);
             }
+        }
+
+        private async Task<(ContentIdAttachment, bool)> CheckContentIdExists(NamespaceId ns, ContentIdAttachment contentIdAttachment)
+        {
+            bool allBlobsExist = true;
+            foreach (BlobIdentifier b in contentIdAttachment.ReferencedBlobs)
+            {
+                (BlobIdentifier _, bool exists) = await CheckBlobExists(ns, b);
+
+                if (!exists)
+                {
+                    allBlobsExist = false;
+                    break;
+                }
+            }
+
+            return (contentIdAttachment, allBlobsExist);
         }
 
         private async Task<CbObject> ParseCompactBinaryAttachment(NamespaceId ns, BlobIdentifier blobIdentifier)
