@@ -134,7 +134,10 @@ void ALandscapeSplineActor::PostEditMove(bool bFinished)
 
 	if (bFinished)
 	{
-		GetLandscapeInfo()->RequestSplineLayerUpdate();
+		if (ULandscapeInfo* LandscapeInfo = GetLandscapeInfo())
+		{
+			LandscapeInfo->RequestSplineLayerUpdate();
+		}
 	}
 }
 
