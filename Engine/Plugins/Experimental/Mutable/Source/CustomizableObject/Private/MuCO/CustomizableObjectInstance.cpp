@@ -2716,7 +2716,7 @@ FTexturePlatformData* UCustomizableInstancePrivateData::MutableCreateImagePlatfo
 	//check(SizeX == MaxPossibleSize || SizeY == MaxPossibleSize || FullLODCount == 1);
 	if (!(SizeX == MaxPossibleSize || SizeY == MaxPossibleSize || FullLODCount == 1))
 	{
-		UE_LOG(LogMutable, Warning, TEXT("Building instance: unsuported texture size %d x %d."), SizeX, SizeY);
+		UE_LOG(LogMutable, Warning, TEXT("Building instance: unsupported texture size %d x %d."), SizeX, SizeY);
 		//return nullptr;
 	}
 

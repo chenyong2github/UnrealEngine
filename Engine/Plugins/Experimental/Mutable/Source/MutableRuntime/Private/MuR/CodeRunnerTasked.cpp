@@ -664,7 +664,7 @@ namespace mu
 		EImageFormat InitialFormat = m_base->GetFormat();
 		check(InitialFormat < EImageFormat::IF_COUNT);
 
-		if (Args.mask)
+		if (Args.mask && m_mask)
 		{
 			if (m_base->GetSize() != m_mask->GetSize())
 			{
@@ -698,7 +698,7 @@ namespace mu
 			pNew = mu::CloneOrTakeOver<mu::Image>(m_base.get());
 			//pNew = new Image(m_base->GetSizeX(), m_base->GetSizeY(), m_base->GetLODCount(), m_base->GetFormat());
 
-			if (Args.mask)
+			if (Args.mask && m_mask)
 			{			
 				// \todo: precalculated tables for softlight
 				switch (EBlendType(Args.blendType))
@@ -750,7 +750,7 @@ namespace mu
 				AlphaOffset = 1;
 			}
 
-			if (Args.mask)
+			if (Args.mask && m_mask)
 			{
 				// \todo: precalculated tables for softlight
 				switch (EBlendType(Args.blendTypeAlpha))
