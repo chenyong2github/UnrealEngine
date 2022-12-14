@@ -455,6 +455,18 @@ void UPCGSubsystem::CancelAllGeneration()
 	}
 }
 
+bool UPCGSubsystem::IsGraphCurrentlyExecuting(UPCGGraph* Graph)
+{
+	check(GraphExecutor);
+
+	if (!Graph)
+	{
+		return false;
+	}
+
+	return GraphExecutor->IsGraphCurrentlyExecuting(Graph);
+}
+
 TArray<FPCGTaskId> UPCGSubsystem::DispatchToRegisteredLocalComponents(UPCGComponent* OriginalComponent, const TFunction<FPCGTaskId(UPCGComponent*)>& InFunc) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGSubsystem::DispatchToRegisteredLocalComponents);

@@ -122,6 +122,9 @@ private:
 	/** Cancels the current execution of the selected graph */
 	void OnCancelExecution_Clicked();
 
+	/* Returns true if inspected graph is currently scheduled or executing */
+	bool IsCurrentlyGenerating() const;
+
 	/** Can determinism be tested on the selected node(s) */
 	bool CanRunDeterminismNodeTest() const;
 	/** Run the determinism test on the selected node(s) */
@@ -246,6 +249,9 @@ private:
 
 	/** Returns whether a property should be visible (used for instance vs. settings properties) */
 	bool IsVisibleProperty(const FPropertyAndParent& InPropertyAndParent, IDetailsView* InDetailsView) const;
+
+	/** Helper to get to the subsystem. */
+	static class UPCGSubsystem* GetSubsystem();
 
 	TSharedRef<SDockTab> SpawnTab_GraphEditor(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_PropertyDetails(const FSpawnTabArgs& Args);

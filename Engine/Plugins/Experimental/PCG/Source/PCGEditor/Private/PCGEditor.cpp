@@ -368,7 +368,8 @@ void FPCGEditor::BindCommands()
 
 	ToolkitCommands->MapAction(
 		PCGEditorCommands.CancelExecution,
-		FExecuteAction::CreateSP(this, &FPCGEditor::OnCancelExecution_Clicked));
+		FExecuteAction::CreateSP(this, &FPCGEditor::OnCancelExecution_Clicked),
+		FCanExecuteAction::CreateSP(this, &FPCGEditor::IsCurrentlyGenerating));
 
 	ToolkitCommands->MapAction(
 		PCGEditorCommands.RunDeterminismGraphTest,
@@ -456,10 +457,22 @@ void FPCGEditor::OnForceGraphRegeneration_Clicked()
 
 void FPCGEditor::OnCancelExecution_Clicked()
 {
-	if (PCGEditorGraph)
+	UPCGSubsystem* Subsystem = GetSubsystem();
+	if (PCGEditorGraph && Subsystem)
 	{
-		GEditor->GetEditorWorldContext().World()->GetSubsystem<UPCGSubsystem>()->CancelGeneration(PCGEditorGraph->GetPCGGraph());
+		Subsystem->CancelGeneration(PCGEditorGraph->GetPCGGraph());
 	}
+}
+
+bool FPCGEditor::IsCurrentlyGenerating() const
+{
+	UPCGSubsystem* Subsystem = GetSubsystem();
+	if (PCGGraphBeingEdited && Subsystem)
+	{
+		return Subsystem->IsGraphCurrentlyExecuting(PCGGraphBeingEdited);
+	}
+
+	return false;
 }
 
 bool FPCGEditor::CanRunDeterminismNodeTest() const
@@ -2014,6 +2027,12 @@ bool FPCGEditor::IsVisibleProperty(const FPropertyAndParent& InPropertyAndParent
 	}
 
 	return true;
+}
+
+UPCGSubsystem* FPCGEditor::GetSubsystem()
+{
+	UWorld* World = GEditor ? GEditor->GetEditorWorldContext().World() : nullptr;
+	return World ? World->GetSubsystem<UPCGSubsystem>() : nullptr;
 }
 
 TSharedRef<SDockTab> FPCGEditor::SpawnTab_GraphEditor(const FSpawnTabArgs& Args)

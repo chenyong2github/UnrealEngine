@@ -91,6 +91,9 @@ public:
 	/** Cancels currently running generation on given graph */
 	void CancelGeneration(UPCGGraph* Graph);
 
+	/** Returns true if there are any tasks for this graph currently scheduled or executing. */
+	bool IsGraphCurrentlyExecuting(UPCGGraph* Graph);
+
 	/** Cancels everything running */
 	void CancelAllGeneration();
 

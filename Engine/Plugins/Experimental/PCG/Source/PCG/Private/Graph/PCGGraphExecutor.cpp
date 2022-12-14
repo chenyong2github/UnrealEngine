@@ -229,6 +229,22 @@ void FPCGGraphExecutor::Cancel(TFunctionRef<bool(TWeakObjectPtr<UPCGComponent>)>
 #endif
 }
 
+bool FPCGGraphExecutor::IsGraphCurrentlyExecuting(UPCGGraph* InGraph)
+{
+	bool bAnyPresent = false;
+
+	// This makes use of the Cancel function which runs over all tasks, but it always returns false so no tasks are cancelled.
+	auto CheckIfAnyGraphTasksPresent = [InGraph, &bAnyPresent](TWeakObjectPtr<UPCGComponent> Component)
+	{
+		bAnyPresent |= Component.IsValid() && Component->GetGraph() == InGraph;
+		return false;
+	};
+
+	Cancel(CheckIfAnyGraphTasksPresent);
+
+	return bAnyPresent;
+}
+
 FPCGTaskId FPCGGraphExecutor::ScheduleGeneric(TFunction<bool()> InOperation, UPCGComponent* InSourceComponent, const TArray<FPCGTaskId>& TaskDependencies)
 {
 	// Since we have no context, the generic task will consume no input

@@ -85,6 +85,9 @@ public:
 	/** Cancels all tasks */
 	TArray<UPCGComponent*> CancelAll();
 
+	/** Returns true if any task is scheduled or executing for the given graph. */
+	bool IsGraphCurrentlyExecuting(UPCGGraph* InGraph);
+
 	// Back compatibility function. Use ScheduleGenericWithContext
 	FPCGTaskId ScheduleGeneric(TFunction<bool()> InOperation, UPCGComponent* InSourceComponent, const TArray<FPCGTaskId>& TaskDependencies);
 
