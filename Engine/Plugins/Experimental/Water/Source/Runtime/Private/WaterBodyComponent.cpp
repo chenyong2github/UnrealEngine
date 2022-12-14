@@ -396,6 +396,12 @@ void UWaterBodyComponent::UpdateWaterZones()
 		}
 		else
 		{
+			// Don't attempt to find a water zone while cooking and just rely on the serialized pointer from the editor.
+			if (IsRunningCookCommandlet())
+			{
+				return;
+			}
+
 			const FBox Bounds3D = Bounds.GetBox();
 			if (const UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(GetWorld()))
 			{

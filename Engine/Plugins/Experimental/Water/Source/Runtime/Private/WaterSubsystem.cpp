@@ -545,12 +545,12 @@ void UWaterSubsystem::MarkWaterZonesInRegionForRebuild(const FBox2D& InUpdateReg
 
 TSoftObjectPtr<AWaterZone> UWaterSubsystem::FindWaterZone(const FBox2D& Bounds) const
 {
-	if (!GetWorld())
+
+	const UWorld* World = GetWorld();
+	if (!World)
 	{
 		return {};
 	}
-
-	const UWorld* World = GetWorld();
 
 	// Score each overlapping water zone and then pick the best.
 	TMap<TSoftObjectPtr<AWaterZone>, int32> ViableZones;
@@ -559,7 +559,7 @@ TSoftObjectPtr<AWaterZone> UWaterSubsystem::FindWaterZone(const FBox2D& Bounds) 
 	// Within the editor, we also want to check unloaded actors to ensure that the water body has serialized the best possible water zone, rather than just looking through what might be loaded now.
 	if (GEditor && !World->IsGameWorld())
 	{
-		if (UWorldPartition* WorldPartition = GetWorld()->GetWorldPartition())
+		if (UWorldPartition* WorldPartition = World->GetWorldPartition())
 		{
 			FWorldPartitionHelpers::ForEachActorDesc<AWaterZone>(WorldPartition, [Bounds, &ViableZones](const FWorldPartitionActorDesc* ActorDesc)
 			{
