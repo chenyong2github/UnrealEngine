@@ -2,7 +2,6 @@
 
 #include "BlackmagicCustomTimeStep.h"
 
-#include "Blackmagic.h"
 #include "BlackmagicMediaPrivate.h"
 #include "IBlackmagicMediaModule.h"
 

@@ -15,6 +15,12 @@
 	"SupportedTargetPlatforms": [ "Win64", "Linux" ],
 	"Modules": [
 		{
+			"Name": "BlackmagicCore",
+			"Type": "Runtime",
+			"LoadingPhase": "PreLoadingScreen",
+			"PlatformAllowList": [ "Win64", "Linux" ]
+		},
+		{
 			"Name": "BlackmagicMedia",
 			"Type": "Runtime",
 			"LoadingPhase": "PreLoadingScreen",

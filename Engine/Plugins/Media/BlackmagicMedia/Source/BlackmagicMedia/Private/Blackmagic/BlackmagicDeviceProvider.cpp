@@ -2,7 +2,7 @@
 
 #include "BlackmagicDeviceProvider.h"
 
-#include "Blackmagic.h"
+#include "BlackmagicCoreModule.h"
 #include "BlackmagicLib.h"
 #include "BlackmagicMediaPrivate.h"
 #include "BlackmagicMediaSource.h"
@@ -344,7 +344,15 @@ TArray<FMediaIODevice> FBlackmagicDeviceProvider::GetDevices() const
 TArray<FMediaIOMode> FBlackmagicDeviceProvider::GetModes(const FMediaIODevice& InDevice, bool bInOutput) const
 {
 	TArray<FMediaIOMode> Results;
-	if (!FBlackmagic::IsInitialized() || !InDevice.IsValid() || !FBlackmagic::CanUseBlackmagicCard())
+
+	if (FBlackmagicCoreModule* CoreModule = FModuleManager::GetModulePtr<FBlackmagicCoreModule>("BlackmagicCore"))
+	{
+		if (!CoreModule->IsInitialized() || !InDevice.IsValid() || !CoreModule->CanUseBlackmagicCard())
+		{
+			return Results;
+		}
+	}
+	else
 	{
 		return Results;
 	}

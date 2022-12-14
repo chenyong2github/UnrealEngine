@@ -24,7 +24,7 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"Blackmagic",
+					"BlackmagicCore",
 					"Core",
 					"CoreUObject",
 					"Engine",

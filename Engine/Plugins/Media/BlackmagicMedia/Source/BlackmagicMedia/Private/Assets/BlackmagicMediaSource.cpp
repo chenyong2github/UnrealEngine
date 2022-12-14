@@ -2,7 +2,6 @@
 
 #include "BlackmagicMediaSource.h"
 
-#include "Blackmagic.h"
 #include "BlackmagicDeviceProvider.h"
 #include "BlackmagicMediaPrivate.h"
 #include "IBlackmagicMediaModule.h"

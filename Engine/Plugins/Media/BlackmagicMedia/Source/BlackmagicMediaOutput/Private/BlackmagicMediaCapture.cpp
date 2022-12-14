@@ -393,7 +393,7 @@ void UBlackmagicMediaCapture::StopCaptureImpl(bool bAllowPendingFrameToBeProcess
 				{
 					for (FTextureRHIRef& Texture : TexturesToRelease)
 					{
-						BlackmagicDesign::UnregisterDMATexture(Texture->GetTexture2D()->GetNativeResource());
+						BlackmagicDesign::UnregisterDMATexture(Texture->GetTexture2D());
 					}
 
 					TexturesToRelease.Reset();
@@ -578,9 +578,8 @@ void UBlackmagicMediaCapture::LockDMATexture_RenderThread(FTextureRHIRef InTextu
 		{
 			TexturesToRelease.Add(InTexture);
 
-			FRHITexture2D* Texture = InTexture->GetTexture2D();
 			BlackmagicDesign::FRegisterDMATextureArgs Args;
-			Args.RHITexture = Texture->GetNativeResource();
+			Args.RHITexture = InTexture->GetTexture2D();
 			//Args.RHIResourceMemory = Texture->GetNativeResource(); todo: VulkanTexture->Surface->GetAllocationHandle for Vulkan
 			BlackmagicDesign::RegisterDMATexture(Args);
 
@@ -588,7 +587,7 @@ void UBlackmagicMediaCapture::LockDMATexture_RenderThread(FTextureRHIRef InTextu
 
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(UBlackmagicMediaCapture::LockDMATexture);
-			BlackmagicDesign::LockDMATexture(InTexture->GetTexture2D()->GetNativeResource());
+			BlackmagicDesign::LockDMATexture(InTexture->GetTexture2D());
 		}
 	}
 }
@@ -596,7 +595,7 @@ void UBlackmagicMediaCapture::LockDMATexture_RenderThread(FTextureRHIRef InTextu
 void UBlackmagicMediaCapture::UnlockDMATexture_RenderThread(FTextureRHIRef InTexture)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UBlackmagicMediaCapture::UnlockDMATexture);
-	BlackmagicDesign::UnlockDMATexture(InTexture->GetTexture2D()->GetNativeResource());
+	BlackmagicDesign::UnlockDMATexture(InTexture->GetTexture2D());
 }
 
 void UBlackmagicMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, void* InBuffer, int32 Width, int32 Height, int32 BytesPerRow)
@@ -691,7 +690,7 @@ void UBlackmagicMediaCapture::OnRHIResourceCaptured_RenderingThread(const FCaptu
 		BlackmagicDesign::FTimecode Timecode = BlackmagicMediaCaptureDevice::ConvertToBlackmagicTimecode(InBaseData.SourceFrameTimecode, InBaseData.SourceFrameTimecodeFramerate.AsDecimal(), FrameRate.AsDecimal());
 
 		BlackmagicDesign::FFrameDescriptor_GPUDMA Frame;
-		Frame.RHITexture = InTexture->GetTexture2D()->GetNativeResource();
+		Frame.RHITexture = InTexture->GetTexture2D();
 		Frame.Timecode = Timecode;
 		Frame.FrameIdentifier = InBaseData.SourceFrameNumber;
 		Frame.bEvenFrame = GFrameCounterRenderThread % 2 == 0;

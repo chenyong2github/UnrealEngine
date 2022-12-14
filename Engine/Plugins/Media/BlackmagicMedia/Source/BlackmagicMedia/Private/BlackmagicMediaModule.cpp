@@ -2,10 +2,10 @@
 
 #include "IBlackmagicMediaModule.h"
 
-#include "Blackmagic/Blackmagic.h"
+#include "BlackmagicCoreModule.h"
 #include "BlackmagicDeviceProvider.h"
 #include "BlackmagicMediaPrivate.h"
-#include "BlackmagicMediaPlayer.h"
+#include "Player/BlackmagicMediaPlayer.h"
 #include "Brushes/SlateImageBrush.h"
 #include "IMediaIOCoreModule.h"
 #include "Interfaces/IPluginManager.h"
@@ -27,7 +27,15 @@ public:
 	//~ IBlackmagicMediaModule interface
 	virtual TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> CreatePlayer(IMediaEventSink& EventSink) override
 	{
-		if (!FBlackmagic::IsInitialized())
+		
+		if (FBlackmagicCoreModule* CoreModule = FModuleManager::GetModulePtr<FBlackmagicCoreModule>("BlackmagicCore"))
+		{
+			if (!CoreModule->IsInitialized())
+			{
+				return nullptr;
+			}
+		}
+		else
 		{
 			return nullptr;
 		}
@@ -40,9 +48,17 @@ public:
 		return StyleSet;
 	}
 
-	virtual bool IsInitialized() const override { return FBlackmagic::IsInitialized(); }
+	virtual bool IsInitialized() const override
+	{
+		FBlackmagicCoreModule* CoreModule = FModuleManager::GetModulePtr<FBlackmagicCoreModule>("BlackmagicCore");
+		return CoreModule->IsInitialized();
+	}
 
-	virtual bool CanBeUsed() const override { return FBlackmagic::CanUseBlackmagicCard(); }
+	virtual bool CanBeUsed() const override 
+	{
+		FBlackmagicCoreModule* CoreModule = FModuleManager::GetModulePtr<FBlackmagicCoreModule>("BlackmagicCore");
+		return CoreModule->CanUseBlackmagicCard();
+	}
 
 public:
 
@@ -50,15 +66,6 @@ public:
 	virtual void StartupModule() override
 	{
 		// initialize
-		if (CanBeUsed())
-		{
-			if (!FBlackmagic::Initialize())
-			{
-				UE_LOG(LogBlackmagicMedia, Error, TEXT("Failed to initialize Blackmagic"));
-				return;
-			}
-		}
-
 		CreateStyle();
 		
 		IMediaIOCoreModule::Get().RegisterDeviceProvider(&DeviceProvider);
@@ -70,8 +77,6 @@ public:
 		{
 			IMediaIOCoreModule::Get().UnregisterDeviceProvider(&DeviceProvider);
 		}
-
-		FBlackmagic::Shutdown();
 	}
 
 private:
