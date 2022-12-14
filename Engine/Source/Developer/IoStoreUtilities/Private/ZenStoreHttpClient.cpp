@@ -129,7 +129,7 @@ FZenStoreHttpClient::TryCreateProject(FStringView InProjectId,
 	return bConnectionSucceeded;
 }
 
-bool FZenStoreHttpClient::TryCreateOplog(FStringView InProjectId, FStringView InOplogId, bool bFullBuild)
+bool FZenStoreHttpClient::TryCreateOplog(FStringView InProjectId, FStringView InOplogId, FStringView InOplogLifetimeMarkerPath, bool bFullBuild)
 {
 	if (!IsConnected())
 	{
@@ -157,10 +157,16 @@ bool FZenStoreHttpClient::TryCreateOplog(FStringView InProjectId, FStringView In
 	}
 	else
 	{
-		FMemoryView Payload;
+		FCbWriter Writer;
+		Writer.BeginObject();
+		Writer.AddString("gcpath", InOplogLifetimeMarkerPath);
+		Writer.EndObject();
+
+		FCbFieldIterator OplogCreateInfo = Writer.Save();
 
 		Request->Reset();
-		Res = Request->PerformBlockingPost(OplogPath, Payload);
+
+		Res = Request->PerformBlockingPost(OplogPath, OplogCreateInfo.AsObjectView());
 
 		if (Res != Zen::FZenHttpRequest::Result::Success)
 		{
@@ -639,7 +645,7 @@ bool FZenStoreHttpClient::TryCreateProject(FStringView InProjectId, FStringView 
 	return false;
 }
 
-bool FZenStoreHttpClient::TryCreateOplog(FStringView InProjectId, FStringView InOplogId, bool bFullBuild)
+bool FZenStoreHttpClient::TryCreateOplog(FStringView InProjectId, FStringView InOplogId, FStringView InOplogLifetimeMarkerPath, bool bFullBuild)
 {
 	return false;
 }

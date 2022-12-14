@@ -35,7 +35,7 @@ public:
 	bool TryCreateProject(FStringView InProjectId, FStringView InOplogId, FStringView ServerRoot, 
 					FStringView EngineRoot, FStringView ProjectRoot,
 					FStringView ProjectFilePath);
-	bool TryCreateOplog(FStringView InProjectId, FStringView InOplogId, bool bFullBuild);
+	bool TryCreateOplog(FStringView InProjectId, FStringView InOplogId, FStringView InOplogLifetimeMarkerPath, bool bFullBuild);
 
 	void InitializeReadOnly(FStringView InProjectId, FStringView InOplogId);
 
