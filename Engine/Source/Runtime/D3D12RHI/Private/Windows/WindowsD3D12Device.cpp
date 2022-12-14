@@ -1285,52 +1285,44 @@ static void DisableRayTracingSupport()
 static void ClearPSODriverCache()
 {
 #if !PLATFORM_HOLOLENS
-	TArray<FString> Files;
-	IFileManager& FileManager = IFileManager::Get();
-    FString PSOPath;
-	if (IsRHIDeviceNVIDIA())
+	FString LocalAppDataFolder = FPlatformMisc::GetEnvironmentVariable(TEXT("LOCALAPPDATA"));
+	if (!LocalAppDataFolder.IsEmpty())
 	{
-		PSOPath = FPlatformMisc::GetEnvironmentVariable(TEXT("LOCALAPPDATA"));
-		if (!PSOPath.IsEmpty())
+		auto ClearFolder = [](const FString& PSOPath, const TCHAR* Extension)
 		{
-			PSOPath = FString::Printf(L"%s\\NVIDIA\\DXCache", *PSOPath);
-			FileManager.FindFiles(Files, *PSOPath, TEXT(".bin"));
-			FileManager.FindFiles(Files, *PSOPath, TEXT(".toc"));
-		}
-		else
-		{
-			UE_LOG(LogD3D12RHI, Error, TEXT("clearPSODriverCache failed: please ensure that LOCALAPPDATA points to C:\\Users\\<username>\\AppData\\Local"));
-		}
-	}
-	else if (IsRHIDeviceAMD())
-	{
-		PSOPath = FPlatformMisc::GetEnvironmentVariable(TEXT("LOCALAPPDATA"));
-		if (!PSOPath.IsEmpty())
-		{
-			PSOPath = FString::Printf(L"%s\\AMD\\DxCache", *PSOPath);
-			FileManager.FindFiles(Files, *PSOPath, TEXT(".bin"));
-		}
-		else
-		{
-			UE_LOG(LogD3D12RHI, Error, TEXT("clearPSODriverCache failed: please ensure that LOCALAPPDATA points to C:\\Users\\<username>\\AppData\\Local"));
-		}
-	}
-	else if (IsRHIDeviceIntel())
-	{
-		UE_LOG(LogD3D12RHI, Warning, TEXT("clearPSODriverCache not implemented yet for Intel"));
-	}
+			TArray<FString> Files;
+			IFileManager& FileManager = IFileManager::Get();
+			FileManager.FindFiles(Files, *PSOPath, Extension);
+			for (FString& File : Files)
+			{
+				FString FilePath = FString::Printf(L"%s\\%s", *PSOPath, *File);
+				FileManager.Delete(*FilePath, /*RequireExists*/ false, /*EvenReadOnly*/ true, /*Quiet*/ true);
+			}
+		};
 
-	if (!PSOPath.IsEmpty() && Files.IsEmpty())
-	{
-		UE_LOG(LogD3D12RHI, Warning, TEXT("clearPSODriverCache hasn't found any file under \"%s\""), *PSOPath);
-	}
+		if (IsRHIDeviceNVIDIA())
+		{
+			FString PSOPath = FString::Printf(L"%s\\NVIDIA\\DXCache", *LocalAppDataFolder);
+			ClearFolder(PSOPath, TEXT(".bin"));
+			ClearFolder(PSOPath, TEXT(".toc"));
+		}
+		else if (IsRHIDeviceAMD())
+		{
+			FString PSOPath = FString::Printf(L"%s\\AMD\\DxCache", *LocalAppDataFolder);
+			ClearFolder(PSOPath, TEXT(".bin"));
 
-	for (FString& File : Files)
-	{
-		FString FilePath = FString::Printf(L"%s\\%s", *PSOPath, *File);
-		FileManager.Delete(*FilePath, /*RequireExists*/ false, /*EvenReadOnly*/ true, /*Quiet*/ true);
+			PSOPath = FString::Printf(L"%s\\AMD\\DxcCache", *LocalAppDataFolder);
+			ClearFolder(PSOPath, TEXT(".parc"));
+		}
+		else if (IsRHIDeviceIntel())
+		{
+			UE_LOG(LogD3D12RHI, Warning, TEXT("clearPSODriverCache not implemented yet for Intel"));
+		}
 	}
-
+	else
+	{
+		UE_LOG(LogD3D12RHI, Error, TEXT("clearPSODriverCache failed: please ensure that LOCALAPPDATA points to C:\\Users\\<username>\\AppData\\Local"));
+	}
 #endif
 }
 
@@ -1351,6 +1343,12 @@ void FD3D12DynamicRHI::Init()
 #endif
 
 	check(!GIsRHIInitialized);
+
+	if (FParse::Param(FCommandLine::Get(), TEXT("clearPSODriverCache")))
+	{
+		ClearPSODriverCache();
+	}
+
 
 	const DXGI_ADAPTER_DESC& AdapterDesc = GetAdapter().GetD3DAdapterDesc();
 
@@ -1550,11 +1548,6 @@ void FD3D12DynamicRHI::Init()
 		}
 	}
 #endif // INTEL_EXTENSIONS
-
-	if (FParse::Param(FCommandLine::Get(), TEXT("clearPSODriverCache")))
-    {
-	    ClearPSODriverCache();
-    }
 
 	GRHIPersistentThreadGroupCount = 1440; // TODO: Revisit based on vendor/adapter/perf query
 
