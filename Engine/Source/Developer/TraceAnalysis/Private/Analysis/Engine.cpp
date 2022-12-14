@@ -3119,6 +3119,14 @@ FProtocol5Stage::EStatus FProtocol5Stage::OnDataNormal(const FMachineContext& Co
 		
 		// Extract all the events in the stream for this thread
 		FStreamReader* ThreadReader = Transport.GetThreadStream(i);
+
+		// Stop analysis if this thread has accumulated too much data.
+		// This can happen on corrupted traces (ex. with serial sync events missing or out of order).
+		if (ThreadReader->GetRemaining() > 512 * 1024 * 1024)
+		{
+			return EStatus::Error;
+		}
+
 		if (ParseEvents(*ThreadReader, EventDescs) < 0)
 		{
 			return EStatus::Error;

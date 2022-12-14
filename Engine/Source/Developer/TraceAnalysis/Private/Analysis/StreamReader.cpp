@@ -101,13 +101,13 @@ uint8* FStreamBuffer::Append(uint32 Size)
 ////////////////////////////////////////////////////////////////////////////////
 void FStreamBuffer::Consolidate()
 {
-	int32 Remaining = End - Cursor;
+	int32 Remaining = GetRemaining();
 	DemandHint += Remaining;
 
 	if (DemandHint >= BufferSize)
 	{
-		const uint32 GrowthSizeMask = (64 << 10) - 1;
-		BufferSize = (DemandHint + GrowthSizeMask + 1) & ~GrowthSizeMask;
+		check(DemandHint < (1u << 31));
+		BufferSize = FMath::Max(64u << 10, FMath::RoundUpToPowerOfTwo(DemandHint + 1));
 		Buffer = (uint8*)FMemory::Realloc(Buffer, BufferSize);
 	}
 
