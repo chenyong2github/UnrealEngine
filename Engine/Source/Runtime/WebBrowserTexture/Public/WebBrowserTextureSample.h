@@ -59,8 +59,6 @@ public:
 	*/
 	bool Initialize(const FIntPoint& InDim)
 	{
-		BufferSize = 0;
-
 		if (InDim.GetMin() <= 0)
 		{ 
 			return false;
