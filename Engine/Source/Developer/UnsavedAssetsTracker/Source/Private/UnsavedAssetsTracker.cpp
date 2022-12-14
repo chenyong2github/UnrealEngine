@@ -323,6 +323,12 @@ void FUnsavedAssetsTracker::OnPackageDeleted(UPackage* Package)
 
 void FUnsavedAssetsTracker::OnActorDeleted(AActor* Actor)
 {
+	UWorld* World = Actor->GetWorld();
+	if (World && World->IsGameWorld())
+	{
+		return;
+	}
+
 	bSyncWithDirtyPackageList = true;
 }
 
