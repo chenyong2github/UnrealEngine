@@ -1163,9 +1163,6 @@ namespace mu
         //! True if the instruction is worth caching when generating models
         bool cached;
 
-        //! True if the instruction is worth executing in the GPU
-        bool gpuizable;
-
         //! For image instructions, for every image format, true if it is supported as the base
         //! format of the operation.
         //! TODO: Move to tools library?

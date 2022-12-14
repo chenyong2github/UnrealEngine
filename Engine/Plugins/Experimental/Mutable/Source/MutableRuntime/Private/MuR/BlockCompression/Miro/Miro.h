@@ -99,6 +99,30 @@ namespace miro
     extern void ASTC4x4RGL_to_RGB( uint32 sx, uint32 sy, const uint8* from, uint8* to );
     extern void ASTC4x4RGL_to_RGBA( uint32 sx, uint32 sy, const uint8* from, uint8* to );
 
+	//! ASTC 8x8 RGBA low support
+	extern void ASTC8x8RGBAL_to_RGBA(uint32 sx, uint32 sy, const uint8* from, uint8* to);
+	extern void ASTC8x8RGBAL_to_RGB(uint32 sx, uint32 sy, const uint8* from, uint8* to);
+
+	//! ASTC 8x8 RGB low support
+	extern void ASTC8x8RGBL_to_RGB(uint32 sx, uint32 sy, const uint8* from, uint8* to);
+	extern void ASTC8x8RGBL_to_RGBA(uint32 sx, uint32 sy, const uint8* from, uint8* to);
+
+	//! ASTC 8x8 RG low support
+	extern void ASTC8x8RGL_to_RGB(uint32 sx, uint32 sy, const uint8* from, uint8* to);
+	extern void ASTC8x8RGL_to_RGBA(uint32 sx, uint32 sy, const uint8* from, uint8* to);
+
+	//! ASTC 12x12 RGBA low support
+	extern void ASTC12x12RGBAL_to_RGBA(uint32 sx, uint32 sy, const uint8* from, uint8* to);
+	extern void ASTC12x12RGBAL_to_RGB(uint32 sx, uint32 sy, const uint8* from, uint8* to);
+
+	//! ASTC 12x12 RGB low support
+	extern void ASTC12x12RGBL_to_RGB(uint32 sx, uint32 sy, const uint8* from, uint8* to);
+	extern void ASTC12x12RGBL_to_RGBA(uint32 sx, uint32 sy, const uint8* from, uint8* to);
+
+	//! ASTC 12x12 RG low support
+	extern void ASTC12x12RGL_to_RGB(uint32 sx, uint32 sy, const uint8* from, uint8* to);
+	extern void ASTC12x12RGL_to_RGBA(uint32 sx, uint32 sy, const uint8* from, uint8* to);
+
 #endif
 
 }

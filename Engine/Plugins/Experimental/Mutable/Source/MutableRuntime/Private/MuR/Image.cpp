@@ -39,11 +39,19 @@ namespace mu
         FImageFormatData( 4, 4, 16, 3 ),	// IF_BC6
         FImageFormatData( 4, 4, 16, 4 ),	// IF_BC7
 
-        FImageFormatData( 1, 1, 4, 4 ),	// IF_BGRA_UBYTE
+        FImageFormatData( 1, 1, 4, 4 ),		// IF_BGRA_UBYTE
 
         FImageFormatData( 4, 4, 16, 3 ),	// IF_ASTC_4x4_RGB_LDR
         FImageFormatData( 4, 4, 16, 4 ),	// IF_ASTC_4x4_RGBA_LDR
         FImageFormatData( 4, 4, 16, 2 ),	// IF_ASTC_4x4_RG_LDR
+		
+		FImageFormatData(8, 8, 16, 3),		// IF_ASTC_8x8_RGB_LDR,
+		FImageFormatData(8, 8, 16, 4),		// IF_ASTC_8x8_RGBA_LDR,
+		FImageFormatData(8, 8, 16, 2),		// IF_ASTC_8x8_RG_LDR,
+		FImageFormatData(12, 12, 16, 3),	// IF_ASTC_12x12_RGB_LDR
+		FImageFormatData(12, 12, 16, 4),	// IF_ASTC_12x12_RGBA_LDR
+		FImageFormatData(12, 12, 16, 2),	// IF_ASTC_12x12_RG_LDR
+
     };
 
 

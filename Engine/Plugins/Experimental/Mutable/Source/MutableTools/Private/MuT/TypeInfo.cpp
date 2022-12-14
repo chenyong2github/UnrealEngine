@@ -39,6 +39,12 @@ namespace mu
 		"ASTC_4x4_RGBA_LDR",
 		"ASTC_4x4_RG_LDR",
 
+		"ASTC_8x8_RGB_LDR",
+		"ASTC_8x8_RGBA_LDR",
+		"ASTC_8x8_RG_LDR",
+		"ASTC_12x12_RGB_LDR",
+		"ASTC_12x12_RGBA_LDR",
+		"ASTC_12x12_RG_LDR",
 	};
 
 

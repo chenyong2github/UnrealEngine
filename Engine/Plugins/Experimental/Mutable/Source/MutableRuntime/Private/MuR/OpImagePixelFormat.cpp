@@ -552,6 +552,78 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
                 break;
             }
 
+			case EImageFormat::IF_ASTC_8x8_RGB_LDR:
+			{
+				for (int m = 0; m < resultLODCount; ++m)
+				{
+					FIntVector2 mipSize = pResult->CalculateMipSize(m);
+					miro::ASTC8x8RGBL_to_RGB(mipSize[0], mipSize[1],
+						pBase->GetMipData(baseLOD + m),
+						pResult->GetMipData(m));
+				}
+				break;
+			}
+
+			case EImageFormat::IF_ASTC_8x8_RGBA_LDR:
+			{
+				for (int m = 0; m < resultLODCount; ++m)
+				{
+					FIntVector2 mipSize = pResult->CalculateMipSize(m);
+					miro::ASTC8x8RGBAL_to_RGB(mipSize[0], mipSize[1],
+						pBase->GetMipData(baseLOD + m),
+						pResult->GetMipData(m));
+				}
+				break;
+			}
+
+			case EImageFormat::IF_ASTC_8x8_RG_LDR:
+			{
+				for (int m = 0; m < resultLODCount; ++m)
+				{
+					FIntVector2 mipSize = pResult->CalculateMipSize(m);
+					miro::ASTC8x8RGL_to_RGB(mipSize[0], mipSize[1],
+						pBase->GetMipData(baseLOD + m),
+						pResult->GetMipData(m));
+				}
+				break;
+			}
+
+			case EImageFormat::IF_ASTC_12x12_RGB_LDR:
+			{
+				for (int m = 0; m < resultLODCount; ++m)
+				{
+					FIntVector2 mipSize = pResult->CalculateMipSize(m);
+					miro::ASTC12x12RGBL_to_RGB(mipSize[0], mipSize[1],
+						pBase->GetMipData(baseLOD + m),
+						pResult->GetMipData(m));
+				}
+				break;
+			}
+
+			case EImageFormat::IF_ASTC_12x12_RGBA_LDR:
+			{
+				for (int m = 0; m < resultLODCount; ++m)
+				{
+					FIntVector2 mipSize = pResult->CalculateMipSize(m);
+					miro::ASTC12x12RGBAL_to_RGB(mipSize[0], mipSize[1],
+						pBase->GetMipData(baseLOD + m),
+						pResult->GetMipData(m));
+				}
+				break;
+			}
+
+			case EImageFormat::IF_ASTC_12x12_RG_LDR:
+			{
+				for (int m = 0; m < resultLODCount; ++m)
+				{
+					FIntVector2 mipSize = pResult->CalculateMipSize(m);
+					miro::ASTC12x12RGL_to_RGB(mipSize[0], mipSize[1],
+						pBase->GetMipData(baseLOD + m),
+						pResult->GetMipData(m));
+				}
+				break;
+			}
+
             default:
                 // Case not implemented
                 check( false );
@@ -730,6 +802,78 @@ bool ImagePixelFormatInPlace( int imageCompressionQuality, Image* pResult, const
                 }
                 break;
             }
+
+			case EImageFormat::IF_ASTC_8x8_RGB_LDR:
+			{
+				for (int m = 0; m < resultLODCount; ++m)
+				{
+					FIntVector2 mipSize = pResult->CalculateMipSize(m);
+					miro::ASTC8x8RGBL_to_RGBA(mipSize[0], mipSize[1],
+						pBase->GetMipData(baseLOD + m),
+						pResult->GetMipData(m));
+				}
+				break;
+			}
+
+			case EImageFormat::IF_ASTC_8x8_RGBA_LDR:
+			{
+				for (int m = 0; m < resultLODCount; ++m)
+				{
+					FIntVector2 mipSize = pResult->CalculateMipSize(m);
+					miro::ASTC8x8RGBAL_to_RGBA(mipSize[0], mipSize[1],
+						pBase->GetMipData(baseLOD + m),
+						pResult->GetMipData(m));
+				}
+				break;
+			}
+
+			case EImageFormat::IF_ASTC_8x8_RG_LDR:
+			{
+				for (int m = 0; m < resultLODCount; ++m)
+				{
+					FIntVector2 mipSize = pResult->CalculateMipSize(m);
+					miro::ASTC8x8RGL_to_RGBA(mipSize[0], mipSize[1],
+						pBase->GetMipData(baseLOD + m),
+						pResult->GetMipData(m));
+				}
+				break;
+			}
+
+			case EImageFormat::IF_ASTC_12x12_RGB_LDR:
+			{
+				for (int m = 0; m < resultLODCount; ++m)
+				{
+					FIntVector2 mipSize = pResult->CalculateMipSize(m);
+					miro::ASTC12x12RGBL_to_RGBA(mipSize[0], mipSize[1],
+						pBase->GetMipData(baseLOD + m),
+						pResult->GetMipData(m));
+				}
+				break;
+			}
+
+			case EImageFormat::IF_ASTC_12x12_RGBA_LDR:
+			{
+				for (int m = 0; m < resultLODCount; ++m)
+				{
+					FIntVector2 mipSize = pResult->CalculateMipSize(m);
+					miro::ASTC12x12RGBAL_to_RGBA(mipSize[0], mipSize[1],
+						pBase->GetMipData(baseLOD + m),
+						pResult->GetMipData(m));
+				}
+				break;
+			}
+
+			case EImageFormat::IF_ASTC_12x12_RG_LDR:
+			{
+				for (int m = 0; m < resultLODCount; ++m)
+				{
+					FIntVector2 mipSize = pResult->CalculateMipSize(m);
+					miro::ASTC12x12RGL_to_RGBA(mipSize[0], mipSize[1],
+						pBase->GetMipData(baseLOD + m),
+						pResult->GetMipData(m));
+				}
+				break;
+			}
 
 			case EImageFormat::IF_RGB_UBYTE_RLE:
 			{
