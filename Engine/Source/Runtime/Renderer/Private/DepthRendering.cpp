@@ -676,14 +676,14 @@ void FDeferredShadingSceneRenderer::RenderPrePassHMD(FRDGBuilder& GraphBuilder, 
 	}
 }
 
-FMeshDrawCommandSortKey CalculateDepthPassMeshStaticSortKey(EBlendMode BlendMode, const FMeshMaterialShader* VertexShader, const FMeshMaterialShader* PixelShader)
+FMeshDrawCommandSortKey CalculateDepthPassMeshStaticSortKey(bool bIsMasked, const FMeshMaterialShader* VertexShader, const FMeshMaterialShader* PixelShader)
 {
 	FMeshDrawCommandSortKey SortKey;
 	if (GEarlyZSortMasked)
 	{
 		SortKey.BasePass.VertexShaderHash = (VertexShader ? VertexShader->GetSortKey() : 0) & 0xFFFF;
 		SortKey.BasePass.PixelShaderHash = PixelShader ? PixelShader->GetSortKey() : 0;
-		SortKey.BasePass.Masked = BlendMode == EBlendMode::BLEND_Masked ? 1 : 0;
+		SortKey.BasePass.Masked = bIsMasked ? 1 : 0;
 	}
 	else
 	{
@@ -727,7 +727,6 @@ bool FDepthPassMeshProcessor::Process(
 	const FMeshBatch& RESTRICT MeshBatch,
 	uint64 BatchElementMask,
 	int32 StaticMeshId,
-	EBlendMode BlendMode,
 	const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
 	const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
 	const FMaterial& RESTRICT MaterialResource,
@@ -770,7 +769,8 @@ bool FDepthPassMeshProcessor::Process(
 	FMeshMaterialShaderElementData ShaderElementData;
 	ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, true);
 
-	const FMeshDrawCommandSortKey SortKey = CalculateDepthPassMeshStaticSortKey(BlendMode, DepthPassShaders.VertexShader.GetShader(), DepthPassShaders.PixelShader.GetShader());
+	const bool bIsMasked = IsMaskedBlendMode(MaterialResource);
+	const FMeshDrawCommandSortKey SortKey = CalculateDepthPassMeshStaticSortKey(bIsMasked, DepthPassShaders.VertexShader.GetShader(), DepthPassShaders.PixelShader.GetShader());
 
 	BuildMeshDrawCommands(
 		MeshBatch,
@@ -878,7 +878,6 @@ bool FDepthPassMeshProcessor::UseDefaultMaterial(const FMaterial& Material, bool
 
 bool FDepthPassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId, const FMaterialRenderProxy& MaterialRenderProxy, const FMaterial& Material)
 {
-	const EBlendMode BlendMode = Material.GetBlendMode();
 	const bool bIsTranslucent = IsTranslucentBlendMode(Material);
 	bool ShouldRenderInDepthPass = (!PrimitiveSceneProxy || PrimitiveSceneProxy->ShouldRenderInDepthPass());
 
@@ -907,11 +906,11 @@ bool FDepthPassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT MeshBat
 
 		if (bPositionOnly)
 		{
-			bResult = Process<true>(MeshBatch, BatchElementMask, StaticMeshId, BlendMode /*STRATA_TODO_BLENDMODE StrataBlendMode */, PrimitiveSceneProxy, *EffectiveMaterialRenderProxy, *EffectiveMaterial, MeshFillMode, MeshCullMode);
+			bResult = Process<true>(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, *EffectiveMaterialRenderProxy, *EffectiveMaterial, MeshFillMode, MeshCullMode);
 		}
 		else
 		{
-			bResult = Process<false>(MeshBatch, BatchElementMask, StaticMeshId, BlendMode /*STRATA_TODO_BLENDMODE StrataBlendMode */, PrimitiveSceneProxy, *EffectiveMaterialRenderProxy, *EffectiveMaterial, MeshFillMode, MeshCullMode);
+			bResult = Process<false>(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, *EffectiveMaterialRenderProxy, *EffectiveMaterial, MeshFillMode, MeshCullMode);
 		}
 	}
 

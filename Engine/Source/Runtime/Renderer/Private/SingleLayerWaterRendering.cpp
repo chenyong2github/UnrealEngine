@@ -1669,8 +1669,7 @@ private:
 		const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
 		const FMaterial& RESTRICT MaterialResource,
 		ERasterizerFillMode MeshFillMode,
-		ERasterizerCullMode MeshCullMode,
-		EBlendMode BlendMode);
+		ERasterizerCullMode MeshCullMode);
 
 	template<bool bPositionOnly>
 	void CollectPSOInitializersInternal(
@@ -1727,20 +1726,18 @@ bool FSingleLayerWaterDepthPrepassMeshProcessor::TryAddMeshBatch(
 	if (Material.GetShadingModels().HasShadingModel(MSM_SingleLayerWater))
 	{
 		// Determine the mesh's material and blend mode.
-		const EBlendMode BlendMode = Material.GetBlendMode();
-		const EStrataBlendMode StrataBlendMode = Material.GetStrataBlendMode();
 		const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
 		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
 		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
 
-		if (IsOpaqueBlendMode(BlendMode, StrataBlendMode)
+		if (IsOpaqueBlendMode(Material)
 			&& MeshBatch.VertexFactory->SupportsPositionOnlyStream()
 			&& !Material.MaterialModifiesMeshPosition_RenderThread()
 			&& Material.WritesEveryPixel())
 		{
 			const FMaterialRenderProxy& DefaultProxy = *UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
 			const FMaterial& DefaultMaterial = *DefaultProxy.GetMaterialNoFallback(FeatureLevel);
-			return Process<true>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, DefaultProxy, DefaultMaterial, MeshFillMode, MeshCullMode, BlendMode);
+			return Process<true>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, DefaultProxy, DefaultMaterial, MeshFillMode, MeshCullMode);
 		}
 		else
 		{
@@ -1756,7 +1753,7 @@ bool FSingleLayerWaterDepthPrepassMeshProcessor::TryAddMeshBatch(
 				check(EffectiveMaterial);
 			}
 
-			return Process<false>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, *EffectiveMaterialRenderProxy, *EffectiveMaterial, MeshFillMode, MeshCullMode, BlendMode);
+			return Process<false>(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, *EffectiveMaterialRenderProxy, *EffectiveMaterial, MeshFillMode, MeshCullMode);
 		}
 	}
 
@@ -1772,8 +1769,7 @@ bool FSingleLayerWaterDepthPrepassMeshProcessor::Process(
 	const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
 	const FMaterial& RESTRICT MaterialResource,
 	ERasterizerFillMode MeshFillMode,
-	ERasterizerCullMode MeshCullMode,
-	EBlendMode BlendMode)
+	ERasterizerCullMode MeshCullMode)
 {
 	TMeshProcessorShaders<TDepthOnlyVS<bPositionOnly>, FDepthOnlyPS> DepthPassShaders;
 	FShaderPipelineRef ShaderPipeline;
@@ -1793,7 +1789,8 @@ bool FSingleLayerWaterDepthPrepassMeshProcessor::Process(
 	FMeshMaterialShaderElementData ShaderElementData;
 	ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, true);
 
-	FMeshDrawCommandSortKey SortKey = CalculateDepthPassMeshStaticSortKey(BlendMode, DepthPassShaders.VertexShader.GetShader(), DepthPassShaders.PixelShader.GetShader());
+	const bool bIsMasked = IsMaskedBlendMode(MaterialResource);
+	FMeshDrawCommandSortKey SortKey = CalculateDepthPassMeshStaticSortKey(bIsMasked, DepthPassShaders.VertexShader.GetShader(), DepthPassShaders.PixelShader.GetShader());
 
 	BuildMeshDrawCommands(
 		MeshBatch,
