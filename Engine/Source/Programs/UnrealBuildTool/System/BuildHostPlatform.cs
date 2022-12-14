@@ -363,6 +363,7 @@ namespace UnrealBuildTool
 		internal override IEnumerable<ProjectFileFormat> GetDefaultProjectFileFormats()
 		{
 			yield return ProjectFileFormat.XCode;
+			yield return ProjectFileFormat.VisualStudioMac;
 #if __VPROJECT_AVAILABLE__
 			yield return ProjectFileFormat.VProject;
 #endif

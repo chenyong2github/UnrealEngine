@@ -165,7 +165,7 @@ namespace UnrealBuildTool
 			Logger.LogDebug("");
 
 			// Create each project generator and run it
-			List<ProjectFileGenerator> Generators = new List<ProjectFileGenerator>();
+			Dictionary<ProjectFileFormat, ProjectFileGenerator> Generators = new();
 			foreach (ProjectFileFormat ProjectFileFormat in ProjectFileFormats.Distinct())
 			{
 				ProjectFileGenerator Generator;
@@ -221,7 +221,7 @@ namespace UnrealBuildTool
 					default:
 						throw new BuildException("Unhandled project file type '{0}", ProjectFileFormat);
 				}
-				Generators.Add(Generator);
+				Generators[ProjectFileFormat] = Generator;
 			}
 
 			// Check there are no superfluous command line arguments
@@ -230,11 +230,14 @@ namespace UnrealBuildTool
 
 			// Now generate project files
 			ProjectFileGenerator.bGenerateProjectFiles = true;
-			foreach(ProjectFileGenerator Generator in Generators)
+			foreach(KeyValuePair< ProjectFileFormat, ProjectFileGenerator> Pair in Generators)
 			{
-				ProjectFileGenerator.Current = Generator;
-				Arguments.ApplyTo(Generator);
-				bool bGenerateSuccess = Generator.GenerateProjectFiles(PlatformProjectGenerators, Arguments.GetRawArray(), Logger);
+				Logger.LogInformation("");
+				Logger.LogInformation($"Generating {Pair.Key} project files:");
+
+				ProjectFileGenerator.Current = Pair.Value;
+				Arguments.ApplyTo(Pair.Value);
+				bool bGenerateSuccess = Pair.Value.GenerateProjectFiles(PlatformProjectGenerators, Arguments.GetRawArray(), Logger);
 				ProjectFileGenerator.Current = null;
 
 				if (!bGenerateSuccess)
