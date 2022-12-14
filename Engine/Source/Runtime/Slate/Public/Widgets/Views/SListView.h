@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/ArrayView.h"
 #include "InputCoreTypes.h"
 #include "Input/Reply.h"
 #include "Layout/Visibility.h"
@@ -218,7 +219,9 @@ public:
 		this->OnItemScrolledIntoView = InArgs._OnItemScrolledIntoView;
 		this->OnFinishedScrolling = InArgs._OnFinishedScrolling;
 
-		this->ItemsSource = InArgs._ListItemsSource;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		this->SetItemsSource(InArgs._ListItemsSource);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		this->OnContextMenuOpening = InArgs._OnContextMenuOpening;
 		this->OnClick = InArgs._OnMouseButtonClick;
 		this->OnDoubleClick = InArgs._OnMouseButtonDoubleClick;
@@ -243,11 +246,10 @@ public:
 		this->bEnableAnimatedScrolling = InArgs._EnableAnimatedScrolling;
 		this->FixedLineScrollOffset = InArgs._FixedLineScrollOffset;
 
-		this->OnItemToString_Debug =
-			InArgs._OnItemToString_Debug.IsBound()
+		this->OnItemToString_Debug = InArgs._OnItemToString_Debug.IsBound()
 			? InArgs._OnItemToString_Debug
-			: GetDefaultDebugDelegate();
-		OnEnteredBadState = InArgs._OnEnteredBadState;
+			: SListView< ItemType >::GetDefaultDebugDelegate();
+		this->OnEnteredBadState = InArgs._OnEnteredBadState;
 
 		this->OnKeyDownHandler = InArgs._OnKeyDownHandler;
 
@@ -264,7 +266,7 @@ public:
 				ErrorString += TEXT("Please specify an OnGenerateRow. \n");
 			}
 
-			if ( this->ItemsSource == nullptr )
+			if ( !this->HasValidItemsSource() )
 			{
 				ErrorString += TEXT("Please specify a ListItemsSource. \n");
 			}
@@ -285,15 +287,16 @@ public:
 		{
 			// Make the TableView
 			ConstructChildren( 0, InArgs._ItemHeight, EListItemAlignment::LeftAligned, InArgs._HeaderRow, InArgs._ExternalScrollbar, InArgs._Orientation, InArgs._OnListViewScrolled, InArgs._ScrollBarStyle, InArgs._PreventThrottling );
-			if(ScrollBar.IsValid())
+			if(this->ScrollBar.IsValid())
 			{
-				ScrollBar->SetDragFocusCause(InArgs._ScrollbarDragFocusCause);
-				ScrollBar->SetUserVisibility(InArgs._ScrollbarVisibility);
+				this->ScrollBar->SetDragFocusCause(InArgs._ScrollbarDragFocusCause);
+				this->ScrollBar->SetUserVisibility(InArgs._ScrollbarVisibility);
 			}
 			this->AddMetadata(MakeShared<TTableViewMetadata<ItemType>>(this->SharedThis(this)));
 		}
 	}
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	SListView(ETableViewMode::Type InListMode = ETableViewMode::List)
 		: STableViewBase(InListMode)
 		, WidgetGenerator(this)
@@ -311,6 +314,7 @@ public:
 		bCanChildrenBeAccessible = true;
 #endif
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 public:
 
@@ -332,7 +336,7 @@ public:
 			}
 		}
 
-		const TArray<ItemType>& ItemsSourceRef = (*this->ItemsSource);
+		const TArrayView<const ItemType> ItemsSourceRef = GetItems();
 
 		// Don't respond to key-presses containing "Alt" as a modifier
 		if ( ItemsSourceRef.Num() > 0 && !InKeyEvent.IsAltDown() )
@@ -479,9 +483,9 @@ public:
 
 	virtual FNavigationReply OnNavigation(const FGeometry& MyGeometry, const FNavigationEvent& InNavigationEvent) override
 	{
-		if (this->ItemsSource && this->bHandleDirectionalNavigation && (this->bHandleGamepadEvents || InNavigationEvent.GetNavigationGenesis() != ENavigationGenesis::Controller))
+		if (this->HasValidItemsSource() && this->bHandleDirectionalNavigation && (this->bHandleGamepadEvents || InNavigationEvent.GetNavigationGenesis() != ENavigationGenesis::Controller))
 		{
-			const TArray<ItemType>& ItemsSourceRef = (*this->ItemsSource);
+			const TArrayView<const ItemType> ItemsSourceRef = this->GetItems();
 
 			const int32 NumItemsPerLine = GetNumItemsPerLine();
 			const int32 CurSelectionIndex = (!TListTypeTraits<ItemType>::IsPtrValid(SelectorItem)) ? -1 : ItemsSourceRef.Find(TListTypeTraits<ItemType>::NullableItemTypeConvertToItemType(SelectorItem));
@@ -946,7 +950,7 @@ public:
 			return;
 		}
 
-		const TArray<ItemType>& ItemsSourceRef = (*ItemsSource);
+		const TArrayView<const ItemType> ItemsSourceRef = GetItems();
 
 		int32 RangeStartIndex = 0;
 		if( TListTypeTraits<ItemType>::IsPtrValid(RangeSelectionStart) )
@@ -1296,7 +1300,7 @@ public:
 		if ( TableViewMode != ETableViewMode::Tree )
 		{
 			bool bSelectionChanged = false;
-			if ( ItemsSource == nullptr )
+			if ( !HasValidItemsSource() )
 			{
 				// We are no longer observing items so there is no more selection.
 				this->Private_ClearSelection();
@@ -1307,9 +1311,10 @@ public:
 				// We are observing some items; they are potentially different.
 				// Unselect any that are no longer being observed.
 				TItemSet NewSelectedItems;
-				for ( int32 ItemIndex = 0; ItemIndex < ItemsSource->Num(); ++ItemIndex )
+				const TArrayView<const ItemType> Items = GetItems();
+				for ( int32 ItemIndex = 0; ItemIndex < Items.Num(); ++ItemIndex )
 				{
-					ItemType CurItem = (*ItemsSource)[ItemIndex];
+					ItemType CurItem = Items[ItemIndex];
 					const bool bItemIsSelected = ( nullptr != SelectedItems.Find( CurItem ) );
 					if ( bItemIsSelected )
 					{
@@ -1349,7 +1354,8 @@ public:
 		// Ensure that we always begin and clean up a generation pass.
 		FGenerationPassGuard GenerationPassGuard(WidgetGenerator);
 
-		if (ItemsSource && ItemsSource->Num() > 0)
+		const TArrayView<const ItemType> Items = GetItems();
+		if (Items.Num() > 0)
 		{
 			// Items in view, including fractional items
 			float ItemsInView = 0.0f;
@@ -1362,7 +1368,7 @@ public:
 
 			// Index of the item at which we start generating based on how far scrolled down we are
 			// Note that we must generate at LEAST one item.
-			int32 StartIndex = FMath::Clamp( (int32)(FMath::FloorToDouble(CurrentScrollOffset)), 0, ItemsSource->Num() - 1 );
+			int32 StartIndex = FMath::Clamp( (int32)(FMath::FloorToDouble(CurrentScrollOffset)), 0, Items.Num() - 1 );
 
 			// Length of the first item that is generated. This item is at the location where the user requested we scroll
 			float FirstItemLength = 0.0f;
@@ -1374,9 +1380,9 @@ public:
 			const float LayoutScaleMultiplier = MyGeometry.GetAccumulatedLayoutTransform().GetScale();
 			FTableViewDimensions MyDimensions(this->Orientation, MyGeometry.GetLocalSize());
 			
-			for( int32 ItemIndex = StartIndex; !bHasFilledAvailableArea && ItemIndex < ItemsSource->Num(); ++ItemIndex )
+			for( int32 ItemIndex = StartIndex; !bHasFilledAvailableArea && ItemIndex < Items.Num(); ++ItemIndex )
 			{
-				const ItemType& CurItem = (*ItemsSource)[ItemIndex];
+				const ItemType& CurItem = Items[ItemIndex];
 
 				if (!TListTypeTraits<ItemType>::IsPtrValid(CurItem))
 				{
@@ -1424,7 +1430,7 @@ public:
 					? ItemLength * ItemsInView	// For the first item, ItemsInView <= 1.0f
 					: ItemLength;
 
-				bAtEndOfList = ItemIndex >= ItemsSource->Num() - 1;
+				bAtEndOfList = ItemIndex >= Items.Num() - 1;
 
 				if (bIsFirstItem && ViewLengthUsedSoFar >= MyDimensions.ScrollAxis)
 				{
@@ -1449,7 +1455,7 @@ public:
 
 				for (int32 ItemIndex = StartIndex - 1; LengthGeneratedSoFar < MyDimensions.ScrollAxis && ItemIndex >= 0; --ItemIndex)
 				{
-					const ItemType& CurItem = (*ItemsSource)[ItemIndex];
+					const ItemType& CurItem = Items[ItemIndex];
 					if (TListTypeTraits<ItemType>::IsPtrValid(CurItem))
 					{
 						const float ItemLength = GenerateWidgetForItem(CurItem, ItemIndex, StartIndex, LayoutScaleMultiplier);
@@ -1466,7 +1472,7 @@ public:
 					}
 				}
 
-				return FReGenerateResults(NewScrollOffsetForBackfill, LengthGeneratedSoFar, ItemsSource->Num() - NewScrollOffsetForBackfill, true);
+				return FReGenerateResults(NewScrollOffsetForBackfill, LengthGeneratedSoFar, Items.Num() - NewScrollOffsetForBackfill, true);
 			}
 
 			return FReGenerateResults(CurrentScrollOffset, LengthGeneratedSoFar, ItemsInView, false);
@@ -1548,7 +1554,7 @@ public:
 		}
 		
 
-		const TArray<ItemType>& ItemsSourceRef = (*this->ItemsSource);
+		const TArrayView<const ItemType> ItemsSourceRef = this->GetItems();
 
 		for (int32 ItemIndex = 0; ItemIndex < InItems.Num(); ++ItemIndex)
 		{
@@ -1598,7 +1604,7 @@ public:
 	/** @return how many items there are in the TArray being observed */
 	virtual int32 GetNumItemsBeingObserved() const override
 	{
-		return ItemsSource == nullptr ? 0 : ItemsSource->Num();
+		return GetItems().Num();
 	}
 
 	virtual TSharedRef<ITableRow> GenerateNewPinnedWidget(ItemType InItem, const int32 ItemIndex, const int32 NumPinnedItems)
@@ -1654,16 +1660,45 @@ public:
 	 * Establishes a wholly new list of items being observed by the list.
 	 * Wipes all existing state and requests and will fully rebuild on the next tick.
 	 */
+	void SetItemsSource(const TArray<ItemType>* InListItemsSource)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		if (ItemsSource != InListItemsSource)
+		{
+			if (IsConstructed())
+			{
+				Private_ClearSelection();
+				CancelScrollIntoView();
+				ClearWidgets();
+				RebuildList();
+			}
+			ItemsSource = InListItemsSource;
+		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	UE_DEPRECATED(5.2, "SetListItemsSource is deprecated. Please use the correct SetItemsSource implementation.")
 	void SetListItemsSource(const TArray<ItemType>& InListItemsSource)
 	{
-		if (ItemsSource != &InListItemsSource)
+		SetItemsSource(&InListItemsSource);
+	}
+
+	bool HasValidItemsSource() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return ItemsSource != nullptr;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	TArrayView<const ItemType> GetItems() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		if (ItemsSource)
 		{
-			Private_ClearSelection();
-			CancelScrollIntoView();
-			ClearWidgets();
-			RebuildList();
-			ItemsSource = &InListItemsSource;
+			return *ItemsSource;
 		}
+		return TArrayView<const ItemType>();
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	/**
@@ -2017,9 +2052,10 @@ protected:
 	 */
 	virtual EScrollIntoViewResult ScrollIntoView( const FGeometry& ListViewGeometry ) override
 	{
-		if (ItemsSource && TListTypeTraits<ItemType>::IsPtrValid(ItemToScrollIntoView))
+		if (HasValidItemsSource() && TListTypeTraits<ItemType>::IsPtrValid(ItemToScrollIntoView))
 		{
-			const int32 IndexOfItem = ItemsSource->Find( TListTypeTraits<ItemType>::NullableItemTypeConvertToItemType( ItemToScrollIntoView ) );
+			const TArrayView<const ItemType> Items = GetItems();
+			const int32 IndexOfItem = Items.Find( TListTypeTraits<ItemType>::NullableItemTypeConvertToItemType( ItemToScrollIntoView ) );
 			if (IndexOfItem != INDEX_NONE)
 			{
 				double NumLiveWidgets = GetNumLiveWidgets();
@@ -2053,14 +2089,14 @@ protected:
 					NewScrollOffset -= (NumLiveWidgets / 2.0);
 
 					// Limit offset to top and bottom of the list.
-					const double MaxScrollOffset = FMath::Max(0.0, static_cast<double>(ItemsSource->Num()) - NumLiveWidgets);
+					const double MaxScrollOffset = FMath::Max(0.0, static_cast<double>(Items.Num()) - NumLiveWidgets);
 					NewScrollOffset = FMath::Clamp<double>(NewScrollOffset, 0.0, MaxScrollOffset);
 
 					SetScrollOffset((float)NewScrollOffset);
 				}
 				else if (bNavigateOnScrollIntoView)
 				{
-					if (TSharedPtr<ITableRow> TableRow = WidgetFromItem((*ItemsSource)[IndexOfItem]))
+					if (TSharedPtr<ITableRow> TableRow = WidgetFromItem(Items[IndexOfItem]))
 					{
 						const FGeometry& WidgetGeometry = TableRow->AsWidget()->GetCachedGeometry();
 						const FTableViewDimensions WidgetTopLeft(this->Orientation, WidgetGeometry.GetAbsolutePositionAtCoordinates(FVector2D::ZeroVector));
@@ -2208,13 +2244,14 @@ protected:
 			//           Scroll "one widget's length" at a time until we've scrolled as far as the user asked us to.
 			//           Generate widgets on demand so we can figure out how big they are.
 
-			if (ItemsSource && ItemsSource->Num() > 0)
+			const TArrayView<const ItemType> Items = GetItems();
+			if (Items.Num() > 0)
 			{
 				int32 ItemIndex = StartingItemIndex;
 				const float LayoutScaleMultiplier = MyGeometry.GetAccumulatedLayoutTransform().GetScale();
-				while( AbsScrollByAmount != 0 && ItemIndex < ItemsSource->Num() && ItemIndex >= 0 )
+				while( AbsScrollByAmount != 0 && ItemIndex < Items.Num() && ItemIndex >= 0 )
 				{
-					const ItemType& CurItem = (*ItemsSource)[ItemIndex];
+					const ItemType& CurItem = Items[ItemIndex];
 					if (!TListTypeTraits<ItemType>::IsPtrValid(CurItem))
 					{
 						// If the CurItem is not valid, we do not generate a new widget for it, we skip it.
@@ -2246,7 +2283,7 @@ protected:
 
 						if (AbsScrollByAmount > RemainingDistance)
 						{
-							if (ItemIndex != ItemsSource->Num())
+							if (ItemIndex != Items.Num())
 							{
 								AbsScrollByAmount -= RemainingDistance;
 								NewScrollOffset = 1.0 + (int32)NewScrollOffset;
@@ -2254,7 +2291,7 @@ protected:
 							}
 							else
 							{
-								NewScrollOffset = ItemsSource->Num();
+								NewScrollOffset = Items.Num();
 								break;
 							}
 						} 
@@ -2324,12 +2361,13 @@ protected:
 		if (OnIsSelectableOrNavigable.IsBound())
 		{
 			// Walk through the list until we either find a navigable item or run out of entries.
+			const TArrayView<const ItemType> Items = GetItems();
 			while (!OnIsSelectableOrNavigable.Execute(ItemToSelect))
 			{
 				SelectionIdx += (bSelectForward ? 1 : -1);
-				if (ItemsSource->IsValidIndex(SelectionIdx))
+				if (Items.IsValidIndex(SelectionIdx))
 				{
-					ItemToSelect = (*ItemsSource)[SelectionIdx];
+					ItemToSelect = Items[SelectionIdx];
 				}
 				else
 				{
@@ -2350,7 +2388,8 @@ protected:
 		{
 			if (!OnIsSelectableOrNavigable.Execute(ItemToSelect))
 			{
-				int32 NewSelectionIdx = ItemsSource->Find(ItemToSelect);
+				const TArrayView<const ItemType> Items = GetItems();
+				int32 NewSelectionIdx = Items.Find(ItemToSelect);
 
 				// By default, we walk forward
 				bool bSelectNextItem = true;
@@ -2361,7 +2400,7 @@ protected:
 					if (TListTypeTraits<ItemType>::IsPtrValid(LastSelectedItem))
 					{
 						ItemType NonNullLastSelectedItem = TListTypeTraits<ItemType>::NullableItemTypeConvertToItemType(LastSelectedItem);
-						const int32 LastSelectedItemIdx = ItemsSource->Find(NonNullLastSelectedItem);
+						const int32 LastSelectedItemIdx = Items.Find(NonNullLastSelectedItem);
 
 						bSelectNextItem = LastSelectedItemIdx < NewSelectionIdx;
 					}
@@ -2371,9 +2410,9 @@ protected:
 				do
 				{
 					NewSelectionIdx += (bSelectNextItem ? 1 : -1);
-					if (ItemsSource->IsValidIndex(NewSelectionIdx))
+					if (Items.IsValidIndex(NewSelectionIdx))
 					{
-						ItemToSelect = (*ItemsSource)[NewSelectionIdx];
+						ItemToSelect = Items[NewSelectionIdx];
 					}
 					else
 					{
@@ -2478,6 +2517,7 @@ protected:
 	/** A set of which items should be highlighted */
 	TItemSet HighlightedItems;
 
+	UE_DEPRECATED(5.2, "Protected access to ItemsSource is deprecated. Please use GetItems, SetItemsSoure or HasValidItemsSource.")
 	/** Pointer to the array of data items that we are observing */
 	const TArray<ItemType>* ItemsSource;
 

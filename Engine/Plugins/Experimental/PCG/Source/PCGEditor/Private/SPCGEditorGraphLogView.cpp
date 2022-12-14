@@ -360,7 +360,7 @@ FReply SPCGEditorGraphLogView::Refresh()
 			});
 	}
 
-	ListView->SetListItemsSource(ListViewItems);
+	ListView->SetItemsSource(&ListViewItems);
 
 	return FReply::Handled();
 }

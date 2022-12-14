@@ -12,11 +12,11 @@ public:
 	{
 		if (bScrollToSelectedOnFocus && (InFocusEvent.GetCause() == EFocusCause::Navigation || InFocusEvent.GetCause() == EFocusCause::SetDirectly))
 		{
-			if (this->ItemsSource && this->ItemsSource->Num() > 0)
+			if (this->GetItems().Num() > 0)
 			{
 				if (this->GetNumItemsSelected() == 0)
 				{
-					ItemType FirstItem = (*this->ItemsSource)[0];
+					ItemType FirstItem = this->GetItems()[0];
 					this->SetSelection(FirstItem, ESelectInfo::OnNavigation);
 					this->RequestNavigateToItem(FirstItem, InFocusEvent.GetUser());
 				}

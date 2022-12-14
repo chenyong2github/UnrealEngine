@@ -569,7 +569,7 @@ void SPCGEditorGraphAttributeListView::RefreshAttributeList()
 {
 	// Swapping to an empty item list to force a widget clear, otherwise the widgets will try to update during add column and access invalid data
 	static const TArray<PCGListviewItemPtr> EmptyList;
-	ListView->SetListItemsSource(EmptyList);
+	ListView->SetItemsSource(&EmptyList);
 	
 	ListViewItems.Empty();
 	ListViewHeader->ClearColumns();
@@ -659,7 +659,7 @@ void SPCGEditorGraphAttributeListView::RefreshAttributeList()
 		}
 	}
 
-	ListView->SetListItemsSource(ListViewItems);
+	ListView->SetItemsSource(&ListViewItems);
 }
 
 void SPCGEditorGraphAttributeListView::RefreshDataComboBox()

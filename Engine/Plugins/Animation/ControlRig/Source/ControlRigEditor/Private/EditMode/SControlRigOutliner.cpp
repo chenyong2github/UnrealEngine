@@ -856,16 +856,16 @@ TArray<FMultiRigData> SMultiRigHierarchyTreeView::GetSelectedData() const
 
 TSharedPtr<FMultiRigTreeElement> SMultiRigHierarchyTreeView::FindItemAtPosition(FVector2D InScreenSpacePosition) const
 {
-	if (ItemsPanel.IsValid() && ItemsSource != nullptr)
+	if (ItemsPanel.IsValid() && HasValidItemsSource())
 	{
 		const FGeometry MyGeometry = ItemsPanel->GetCachedGeometry();
 		FArrangedChildren ArrangedChildren(EVisibility::Visible);
 		ItemsPanel->ArrangeChildren(MyGeometry, ArrangedChildren, true);
 
 		const int32 Index = ItemsPanel->FindChildUnderPosition(ArrangedChildren, InScreenSpacePosition);
-		if (ItemsSource->IsValidIndex(Index))
+		if (GetItems().IsValidIndex(Index))
 		{
-			return ItemsSource->operator[](Index);
+			return GetItems()[Index];
 		}
 	}
 	return TSharedPtr<FMultiRigTreeElement>();

@@ -823,7 +823,7 @@ void FCurveTableEditor::RefreshCachedCurveTable()
 	// New Selection 
 	TArray<FCurveEditorTreeItemID> NewSelectedItems;
 
-	TableView->SetListItemsSource(EmptyItems);
+	TableView->SetItemsSource(&EmptyItems);
 	
 	CurveEditor->RemoveAllTreeItems();
 
@@ -927,7 +927,7 @@ void FCurveTableEditor::RefreshCachedCurveTable()
 		}
 	}
 
-	TableView->SetListItemsSource(CurveEditorTree->GetSourceItems());
+	TableView->SetItemsSource(&CurveEditorTree->GetSourceItems());
 
 	TGuardValue<bool> SelectionGuard(bUpdatingTableViewSelection, true);
 	CurveEditor->SetTreeSelection(MoveTemp(NewSelectedItems));

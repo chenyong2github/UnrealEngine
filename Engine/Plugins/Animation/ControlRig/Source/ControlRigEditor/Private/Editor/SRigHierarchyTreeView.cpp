@@ -750,7 +750,7 @@ TArray<FRigElementKey> SRigHierarchyTreeView::GetSelectedKeys() const
 
 TSharedPtr<FRigTreeElement> SRigHierarchyTreeView::FindItemAtPosition(FVector2D InScreenSpacePosition) const
 {
-	if(ItemsPanel.IsValid() && ItemsSource != nullptr)
+	if(ItemsPanel.IsValid() && HasValidItemsSource())
 	{
 		const FGeometry MyGeometry = ItemsPanel->GetCachedGeometry();
 		FArrangedChildren ArrangedChildren(EVisibility::Visible);
@@ -763,7 +763,7 @@ TSharedPtr<FRigTreeElement> SRigHierarchyTreeView::FindItemAtPosition(FVector2D 
 			if(ItemWidget->WeakRigTreeElement.IsValid())
 			{
 				const FRigElementKey Key = ItemWidget->WeakRigTreeElement.Pin()->Key;
-				const TSharedPtr<FRigTreeElement>* ResultPtr = ItemsSource->FindByPredicate([Key](const TSharedPtr<FRigTreeElement>& Item) -> bool
+				const TSharedPtr<FRigTreeElement>* ResultPtr = GetItems().FindByPredicate([Key](const TSharedPtr<FRigTreeElement>& Item) -> bool
 				{
 					return Item->Key == Key;
 				});

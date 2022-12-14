@@ -561,7 +561,7 @@ FReply SOutlinerView::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& 
 
 FReply SOutlinerView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
-	const TArray<TWeakViewModelPtr<IOutlinerExtension>>& ItemsSourceRef = (*this->ItemsSource);
+	const TArrayView<const TWeakViewModelPtr<IOutlinerExtension>> ItemsSourceRef = GetItems();
 
 	auto IsSelectable = [](const TWeakViewModelPtr<IOutlinerExtension>& WeakModel)
 	{
@@ -984,7 +984,7 @@ void SOutlinerView::UpdatePhysicalGeometry(bool bIsRefresh)
 	}
 }
 
-bool ShouldExpand(const TArray<TWeakViewModelPtr<IOutlinerExtension>>& Selection, ETreeRecursion Recursion, TSharedPtr<FOutlinerViewModel> Outliner)
+bool ShouldExpand(const TArrayView<const TWeakViewModelPtr<IOutlinerExtension>>& Selection, ETreeRecursion Recursion, TSharedPtr<FOutlinerViewModel> Outliner)
 {
 	bool bAllExpanded = true;
 	for (TWeakViewModelPtr<IOutlinerExtension> WeakItem : Selection)
@@ -1033,9 +1033,9 @@ void SOutlinerView::ToggleExpandCollapseNodes(ETreeRecursion Recursion, bool bEx
 			}
 		}
 	}
-	else if (ItemsSource->Num() > 0)
+	else if (GetItems().Num() > 0)
 	{
-		bool bExpand = ShouldExpand(*ItemsSource, Recursion, Outliner);
+		bool bExpand = ShouldExpand(GetItems(), Recursion, Outliner);
 
 		if (bExpandAll)
 		{
@@ -1046,7 +1046,7 @@ void SOutlinerView::ToggleExpandCollapseNodes(ETreeRecursion Recursion, bool bEx
 			bExpand = false;
 		}
 
-		for (TWeakViewModelPtr<IOutlinerExtension> WeakItem : *ItemsSource)
+		for (TWeakViewModelPtr<IOutlinerExtension> WeakItem : GetItems())
 		{
 			if (TViewModelPtr<IOutlinerExtension> Item = WeakItem.Pin())
 			{

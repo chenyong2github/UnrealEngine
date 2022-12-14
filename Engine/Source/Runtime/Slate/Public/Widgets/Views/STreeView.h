@@ -330,7 +330,7 @@ public:
 		, TreeItemsSource( nullptr )
 		, bTreeItemsAreDirty( true )
 	{
-		this->ItemsSource = &LinearizedItems;
+		this->SetItemsSource(&LinearizedItems);
 	}
 
 public:

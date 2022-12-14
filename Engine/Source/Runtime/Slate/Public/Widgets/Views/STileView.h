@@ -149,7 +149,7 @@ public:
 		this->OnRowReleased = InArgs._OnTileReleased;
 		this->OnItemScrolledIntoView = InArgs._OnItemScrolledIntoView;
 		
-		this->ItemsSource = InArgs._ListItemsSource;
+		this->SetItemsSource(InArgs._ListItemsSource);
 		this->OnContextMenuOpening = InArgs._OnContextMenuOpening;
 		this->OnClick = InArgs._OnMouseButtonClick;
 		this->OnDoubleClick = InArgs._OnMouseButtonDoubleClick;
@@ -161,7 +161,6 @@ public:
 
 		this->AllowOverscroll = InArgs._AllowOverscroll;
 		this->ConsumeMouseWheel = InArgs._ConsumeMouseWheel;
-
 		this->WheelScrollMultiplier = InArgs._WheelScrollMultiplier;
 
 		this->bHandleGamepadEvents = InArgs._HandleGamepadEvents;
@@ -186,7 +185,7 @@ public:
 				ErrorString += TEXT("Please specify an OnGenerateTile. \n");
 			}
 
-			if ( this->ItemsSource == nullptr )
+			if ( !this->HasValidItemsSource() )
 			{
 				ErrorString += TEXT("Please specify a ListItemsSource. \n");
 			}
@@ -196,12 +195,12 @@ public:
 		{
 			// Let the coder know what they forgot
 			this->ChildSlot
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			[
-				SNew(STextBlock)
-				.Text(FText::FromString(ErrorString))
-			];
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(FText::FromString(ErrorString))
+				];
 		}
 		else
 		{
@@ -227,9 +226,9 @@ public:
 
 	virtual FNavigationReply OnNavigation(const FGeometry& MyGeometry, const FNavigationEvent& InNavigationEvent) override
 	{
-		if (this->ItemsSource && this->bHandleDirectionalNavigation && (this->bHandleGamepadEvents || InNavigationEvent.GetNavigationGenesis() != ENavigationGenesis::Controller))
+		if (this->HasValidItemsSource() && this->bHandleDirectionalNavigation && (this->bHandleGamepadEvents || InNavigationEvent.GetNavigationGenesis() != ENavigationGenesis::Controller))
 		{
-			const TArray<ItemType>& ItemsSourceRef = (*this->ItemsSource);
+			const TArrayView<const ItemType>& ItemsSourceRef = this->GetItems();
 
 			const int32 NumItemsPerLine = GetNumItemsPerLine();
 			const int32 CurSelectionIndex = (!TListTypeTraits<ItemType>::IsPtrValid(this->SelectorItem)) ? 0 : ItemsSourceRef.Find(TListTypeTraits<ItemType>::NullableItemTypeConvertToItemType(this->SelectorItem));
@@ -271,14 +270,14 @@ public:
 		// Clear all the items from our panel. We will re-add them in the correct order momentarily.
 		this->ClearWidgets();
 		
-		const TArray<ItemType>* SourceItems = this->ItemsSource;
-		if (SourceItems && SourceItems->Num() > 0)
+		const TArrayView<const ItemType> tems = this->GetItems();
+		if (tems.Num() > 0)
 		{
 			// Item width and height is constant by design.
 			FTableViewDimensions TileDimensions = GetTileDimensions();
 			FTableViewDimensions AllottedDimensions(this->Orientation, MyGeometry.GetLocalSize());
 
-			const int32 NumItems = SourceItems->Num();
+			const int32 NumItems = tems.Num();
 			const int32 NumItemsPerLine = GetNumItemsPerLine();
 			const int32 NumItemsPaddedToFillLastLine = (NumItems % NumItemsPerLine != 0)
 				? NumItems + NumItemsPerLine - NumItems % NumItemsPerLine
@@ -306,7 +305,7 @@ public:
 			double NumLinesShownOnScreen = 0;
 			for( int32 ItemIndex = StartIndex; !bHasFilledAvailableArea && ItemIndex < NumItems; ++ItemIndex )
 			{
-				const ItemType& CurItem = (*SourceItems)[ItemIndex];
+				const ItemType& CurItem = tems[ItemIndex];
 
 				if (bNewLine)
 				{
@@ -366,7 +365,7 @@ public:
 
 	virtual int32 GetNumItemsBeingObserved() const override
 	{
-		const int32 NumItemsBeingObserved = this->ItemsSource == nullptr ? 0 : this->ItemsSource->Num();
+		const int32 NumItemsBeingObserved = this->GetItems().Num();
 		const int32 NumItemsPerLine = GetNumItemsPerLine();
 		
 		int32 NumEmptySpacesAtEnd = 0;
@@ -428,9 +427,9 @@ protected:
 	 */
 	virtual typename SListView<ItemType>::EScrollIntoViewResult ScrollIntoView(const FGeometry& ListViewGeometry) override
 	{
-		if (TListTypeTraits<ItemType>::IsPtrValid(this->ItemToScrollIntoView) && this->ItemsSource != nullptr)
+		if (TListTypeTraits<ItemType>::IsPtrValid(this->ItemToScrollIntoView) && this->HasValidItemsSource())
 		{
-			const int32 IndexOfItem = this->ItemsSource->Find(TListTypeTraits<ItemType>::NullableItemTypeConvertToItemType(this->ItemToScrollIntoView));
+			const int32 IndexOfItem = this->GetItems().Find(TListTypeTraits<ItemType>::NullableItemTypeConvertToItemType(this->ItemToScrollIntoView));
 			if (IndexOfItem != INDEX_NONE)
 			{
 				const float NumLinesInView = FTableViewDimensions(this->Orientation, ListViewGeometry.GetLocalSize()).ScrollAxis / GetTileDimensions().ScrollAxis;
