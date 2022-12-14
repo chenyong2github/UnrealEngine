@@ -21,6 +21,7 @@
 #include "HitProxies.h"
 #include "SceneTypes.h"
 #include "ConvexVolume.h"
+#include "PrimitiveUniformShaderParameters.h"
 #include "RendererInterface.h"
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Engine/TextureLightProfile.h"
@@ -2335,7 +2336,7 @@ public:
 /** 
  * Encapsulates the gathering of meshes from the various FPrimitiveSceneProxy classes. 
  */
-class FMeshElementCollector
+class ENGINE_API FMeshElementCollector
 {
 public:
 
@@ -2391,7 +2392,7 @@ public:
 	/** 
 	 * Adds a mesh batch to the collector for the specified view so that it can be rendered.
 	 */
-	ENGINE_API void AddMesh(int32 ViewIndex, FMeshBatch& MeshBatch);
+	void AddMesh(int32 ViewIndex, FMeshBatch& MeshBatch);
 
 	/** Add a material render proxy that will be cleaned up automatically */
 	void RegisterOneFrameMaterialProxy(FMaterialRenderProxy* Proxy)
@@ -2421,85 +2422,34 @@ public:
 		ParallelTasks.Emplace(Task);
 	}
 
-	ENGINE_API void ProcessTasks();
+	void ProcessTasks();
 
-	ENGINE_API ERHIFeatureLevel::Type GetFeatureLevel() const
+	FORCEINLINE ERHIFeatureLevel::Type GetFeatureLevel() const
 	{
 		return FeatureLevel;
 	}
 
 protected:
 
-	ENGINE_API FMeshElementCollector(ERHIFeatureLevel::Type InFeatureLevel, FSceneRenderingBulkObjectAllocator& InBulkAllocator);
+	FMeshElementCollector(ERHIFeatureLevel::Type InFeatureLevel, FSceneRenderingBulkObjectAllocator& InBulkAllocator);
 
-	~FMeshElementCollector()
-	{
-		DeleteTemporaryProxies();
-	}
+	~FMeshElementCollector();
 
-	void DeleteTemporaryProxies()
-	{
-		check(!ParallelTasks.Num()); // We should have blocked on this already
-		for (int32 ProxyIndex = 0; ProxyIndex < TemporaryProxies.Num(); ProxyIndex++)
-		{
-			delete TemporaryProxies[ProxyIndex];
-		}
+	void DeleteTemporaryProxies();
 
-		TemporaryProxies.Empty();
-	}
+	void SetPrimitive(const FPrimitiveSceneProxy* InPrimitiveSceneProxy, FHitProxyId DefaultHitProxyId);
 
-	void SetPrimitive(const FPrimitiveSceneProxy* InPrimitiveSceneProxy, FHitProxyId DefaultHitProxyId)
-	{
-		check(InPrimitiveSceneProxy);
-		PrimitiveSceneProxy = InPrimitiveSceneProxy;
-
-		for (int32 ViewIndex = 0; ViewIndex < SimpleElementCollectors.Num(); ViewIndex++)
-		{
-			SimpleElementCollectors[ViewIndex]->HitProxyId = DefaultHitProxyId;
-			SimpleElementCollectors[ViewIndex]->PrimitiveMeshId = 0;
-		}
-
-		for (int32 ViewIndex = 0; ViewIndex < MeshIdInPrimitivePerView.Num(); ++ViewIndex)
-		{
-			MeshIdInPrimitivePerView[ViewIndex] = 0;
-		}
-	}
-
-	void ClearViewMeshArrays()
-	{
-		Views.Empty();
-		MeshBatches.Empty();
-		SimpleElementCollectors.Empty();
-		MeshIdInPrimitivePerView.Empty();
-		DynamicPrimitiveCollectorPerView.Empty();
-		NumMeshBatchElementsPerView.Empty();
-		DynamicIndexBuffer = nullptr;
-		DynamicVertexBuffer = nullptr;
-		DynamicReadBuffer = nullptr;
-	}
+	void ClearViewMeshArrays();
 
 	void AddViewMeshArrays(
-		FSceneView* InView, 
-		TArray<FMeshBatchAndRelevance,SceneRenderingAllocator>* ViewMeshes,
-		FSimpleElementCollector* ViewSimpleElementCollector, 
+		FSceneView* InView,
+		TArray<FMeshBatchAndRelevance, SceneRenderingAllocator>* ViewMeshes,
+		FSimpleElementCollector* ViewSimpleElementCollector,
 		FGPUScenePrimitiveCollector* InDynamicPrimitiveCollector,
 		ERHIFeatureLevel::Type InFeatureLevel,
 		FGlobalDynamicIndexBuffer* InDynamicIndexBuffer,
 		FGlobalDynamicVertexBuffer* InDynamicVertexBuffer,
-		FGlobalDynamicReadBuffer* InDynamicReadBuffer)
-	{
-		Views.Add(InView);
-		MeshIdInPrimitivePerView.Add(0);
-		MeshBatches.Add(ViewMeshes);
-		NumMeshBatchElementsPerView.Add(0);
-		SimpleElementCollectors.Add(ViewSimpleElementCollector);
-		DynamicPrimitiveCollectorPerView.Add(InDynamicPrimitiveCollector);
-
-		check(InDynamicIndexBuffer && InDynamicVertexBuffer && InDynamicReadBuffer);
-		DynamicIndexBuffer = InDynamicIndexBuffer;
-		DynamicVertexBuffer = InDynamicVertexBuffer;
-		DynamicReadBuffer = InDynamicReadBuffer;
-	}
+		FGlobalDynamicReadBuffer* InDynamicReadBuffer);
 
 	/** 
 	 * Using TChunkedArray which will never realloc as new elements are added
@@ -2627,21 +2577,17 @@ struct FRayTracingMaterialGatheringContext
 };
 #endif
 
-class FDynamicPrimitiveUniformBuffer : public FOneFrameResource
+class ENGINE_API FDynamicPrimitiveUniformBuffer : public FOneFrameResource
 {
 public:
-	FDynamicPrimitiveUniformBuffer() = default;
+	FDynamicPrimitiveUniformBuffer();
 	// FDynamicPrimitiveUniformBuffer is non-copyable
 	FDynamicPrimitiveUniformBuffer(const FDynamicPrimitiveUniformBuffer&) = delete;
-
-	virtual ~FDynamicPrimitiveUniformBuffer()
-	{
-		UniformBuffer.ReleaseResource();
-	}
+	virtual ~FDynamicPrimitiveUniformBuffer();
 
 	TUniformBuffer<FPrimitiveUniformShaderParameters> UniformBuffer;
 
-	ENGINE_API void Set(
+	void Set(
 		const FMatrix& LocalToWorld,
 		const FMatrix& PreviousLocalToWorld,
 		const FVector& ActorPositionWS, 
@@ -2664,7 +2610,7 @@ public:
 		bool bOutputVelocity,
 		const FCustomPrimitiveData* CustomPrimitiveData);
 
-	ENGINE_API void Set(
+	void Set(
 		const FMatrix& LocalToWorld,
 		const FMatrix& PreviousLocalToWorld,
 		const FBoxSphereBounds& WorldBounds,
@@ -2675,7 +2621,7 @@ public:
 		bool bOutputVelocity);
 
 	/** Pass-through implementation which calls the overloaded Set function with LocalBounds for PreSkinnedLocalBounds. */
-	ENGINE_API void Set(
+	void Set(
 		const FMatrix& LocalToWorld,
 		const FMatrix& PreviousLocalToWorld,
 		const FBoxSphereBounds& WorldBounds,

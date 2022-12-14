@@ -6513,10 +6513,10 @@ FParticleSystemSceneProxy::FParticleSystemSceneProxy(UParticleSystemComponent* C
 		)
 	, DynamicData(InDynamicData)
 	, LastDynamicData(NULL)
-	, DeselectedWireframeMaterialInstance(
+	, DeselectedWireframeMaterialInstance(new FColoredMaterialRenderProxy(
 		GEngine->WireframeMaterial ? GEngine->WireframeMaterial->GetRenderProxy() : NULL,
 		GetSelectionColor(FLinearColor(1.0f, 0.0f, 0.0f, 1.0f),false,false)
-		)
+		))
 	, PendingLODDistance(0.0f)
 	, VisualizeLODIndex(Component->GetCurrentLODIndex())
 	, LastFramePreRendered(-1)
@@ -6550,6 +6550,9 @@ FParticleSystemSceneProxy::~FParticleSystemSceneProxy()
 
 	delete DynamicData;
 	DynamicData = NULL;
+
+	delete DeselectedWireframeMaterialInstance;
+	DeselectedWireframeMaterialInstance = nullptr;
 }
 
 FMeshBatch* FParticleSystemSceneProxy::GetPooledMeshBatch()

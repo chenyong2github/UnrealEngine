@@ -314,6 +314,74 @@ FMeshElementCollector::FMeshElementCollector(ERHIFeatureLevel::Type InFeatureLev
 {	
 }
 
+FMeshElementCollector::~FMeshElementCollector()
+{
+	DeleteTemporaryProxies();
+}
+
+void FMeshElementCollector::DeleteTemporaryProxies()
+{
+	check(!ParallelTasks.Num()); // We should have blocked on this already
+	for (int32 ProxyIndex = 0; ProxyIndex < TemporaryProxies.Num(); ProxyIndex++)
+	{
+		delete TemporaryProxies[ProxyIndex];
+	}
+
+	TemporaryProxies.Empty();
+}
+
+void FMeshElementCollector::SetPrimitive(const FPrimitiveSceneProxy* InPrimitiveSceneProxy, FHitProxyId DefaultHitProxyId)
+{
+	check(InPrimitiveSceneProxy);
+	PrimitiveSceneProxy = InPrimitiveSceneProxy;
+
+	for (int32 ViewIndex = 0; ViewIndex < SimpleElementCollectors.Num(); ViewIndex++)
+	{
+		SimpleElementCollectors[ViewIndex]->HitProxyId = DefaultHitProxyId;
+		SimpleElementCollectors[ViewIndex]->PrimitiveMeshId = 0;
+	}
+
+	for (int32 ViewIndex = 0; ViewIndex < MeshIdInPrimitivePerView.Num(); ++ViewIndex)
+	{
+		MeshIdInPrimitivePerView[ViewIndex] = 0;
+	}
+}
+
+void FMeshElementCollector::ClearViewMeshArrays()
+{
+	Views.Empty();
+	MeshBatches.Empty();
+	SimpleElementCollectors.Empty();
+	MeshIdInPrimitivePerView.Empty();
+	DynamicPrimitiveCollectorPerView.Empty();
+	NumMeshBatchElementsPerView.Empty();
+	DynamicIndexBuffer = nullptr;
+	DynamicVertexBuffer = nullptr;
+	DynamicReadBuffer = nullptr;
+}
+
+void FMeshElementCollector::AddViewMeshArrays(
+	FSceneView* InView,
+	TArray<FMeshBatchAndRelevance, SceneRenderingAllocator>* ViewMeshes,
+	FSimpleElementCollector* ViewSimpleElementCollector,
+	FGPUScenePrimitiveCollector* InDynamicPrimitiveCollector,
+	ERHIFeatureLevel::Type InFeatureLevel,
+	FGlobalDynamicIndexBuffer* InDynamicIndexBuffer,
+	FGlobalDynamicVertexBuffer* InDynamicVertexBuffer,
+	FGlobalDynamicReadBuffer* InDynamicReadBuffer)
+{
+	Views.Add(InView);
+	MeshIdInPrimitivePerView.Add(0);
+	MeshBatches.Add(ViewMeshes);
+	NumMeshBatchElementsPerView.Add(0);
+	SimpleElementCollectors.Add(ViewSimpleElementCollector);
+	DynamicPrimitiveCollectorPerView.Add(InDynamicPrimitiveCollector);
+
+	check(InDynamicIndexBuffer && InDynamicVertexBuffer && InDynamicReadBuffer);
+	DynamicIndexBuffer = InDynamicIndexBuffer;
+	DynamicVertexBuffer = InDynamicVertexBuffer;
+	DynamicReadBuffer = InDynamicReadBuffer;
+}
 
 void FMeshElementCollector::ProcessTasks()
 {
@@ -389,6 +457,12 @@ void FMeshElementCollector::AddMesh(int32 ViewIndex, FMeshBatch& MeshBatch)
 
 	TArray<FMeshBatchAndRelevance,SceneRenderingAllocator>& ViewMeshBatches = *MeshBatches[ViewIndex];
 	new (ViewMeshBatches) FMeshBatchAndRelevance(MeshBatch, PrimitiveSceneProxy, FeatureLevel);	
+}
+
+FDynamicPrimitiveUniformBuffer::FDynamicPrimitiveUniformBuffer() = default;
+FDynamicPrimitiveUniformBuffer::~FDynamicPrimitiveUniformBuffer()
+{
+	UniformBuffer.ReleaseResource();
 }
 
 void FDynamicPrimitiveUniformBuffer::Set(

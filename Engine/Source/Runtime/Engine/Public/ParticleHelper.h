@@ -17,7 +17,9 @@
 #include "PrimitiveViewRelevance.h"
 #include "PrimitiveSceneProxy.h"
 #include "Materials/MaterialInterface.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "MaterialShared.h"
+#endif
 #include "MeshBatch.h"
 #include "MeshParticleVertexFactory.h"
 #include "PrimitiveSceneProxy.h"
@@ -25,6 +27,7 @@
 
 #define _ENABLE_PARTICLE_LOD_INGAME_
 
+class FColoredMaterialRenderProxy;
 class FParticleSystemSceneProxy;
 class UParticleModuleRequired;
 class UParticleSystemComponent;
@@ -2471,7 +2474,7 @@ public:
 
 	inline FRHIUniformBuffer* GetWorldSpacePrimitiveUniformBuffer() const { return WorldSpacePrimitiveUniformBuffer.GetUniformBufferRHI(); }
 
-	const FColoredMaterialRenderProxy* GetDeselectedWireframeMatInst() const	{	return &DeselectedWireframeMaterialInstance;	}
+	const FColoredMaterialRenderProxy* GetDeselectedWireframeMatInst() const { return DeselectedWireframeMaterialInstance; }
 
 	/** Gets a mesh batch from the pool. */
 	FMeshBatch* GetPooledMeshBatch();
@@ -2514,7 +2517,7 @@ protected:
 	FParticleDynamicData* DynamicData;			// RENDER THREAD USAGE ONLY
 	FParticleDynamicData* LastDynamicData;		// RENDER THREAD USAGE ONLY
 
-	FColoredMaterialRenderProxy DeselectedWireframeMaterialInstance;
+	FColoredMaterialRenderProxy* DeselectedWireframeMaterialInstance;
 
 	int32 LODMethod;
 	float PendingLODDistance;

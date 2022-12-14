@@ -13,6 +13,7 @@
 #include "Engine/BlendableInterface.h"
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RHIDefinitions.h"
+#include "EngineDefines.h" // SDPG_NumBits moved to here
 #endif
 #include "SceneUtils.h"
 #include "Engine/EngineTypes.h"
@@ -2324,8 +2325,4 @@ UCLASS()
 class UScene : public UObject
 {
 	GENERATED_UCLASS_BODY()
-
-
-	/** bits needed to store DPG value */
-	#define SDPG_NumBits	3
 };

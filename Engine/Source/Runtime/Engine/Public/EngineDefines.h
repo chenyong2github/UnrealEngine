@@ -54,3 +54,6 @@
 #define UE_DOUBLE_HUGE_DISTANCE		562949953421312.0		/* Maximum distance representable by a double whilst maintaining precision of at least 0.0625 units (1/16th of a cm) - Precision issues may occur for positions/distances represented by double types that exceed this value */
 
 #define DEFAULT_ORTHOZOOM			10000.0					/* Default 2D viewport zoom */
+
+/** bits needed to store DPG value */
+#define SDPG_NumBits 3

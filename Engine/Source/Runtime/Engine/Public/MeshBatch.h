@@ -2,20 +2,36 @@
 
 #pragma once
 
+#include "CoreTypes.h"
+#include "Containers/ArrayView.h"
+#include "EngineDefines.h"
+#include "GPUSceneWriter.h"
+#include "HitProxies.h"
+#include "InstanceUniformShaderParameters.h"
+#include "RHIDefinitions.h"
+#include "VT/RuntimeVirtualTextureEnum.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "CoreMinimal.h"
 #include "UniformBuffer.h"
-#include "HitProxies.h"
 #include "MaterialShared.h"
 #include "Engine/Scene.h"
 #include "PrimitiveUniformShaderParameters.h"
-#include "InstanceUniformShaderParameters.h"
-#include "VT/RuntimeVirtualTextureEnum.h"
-#include "EngineDefines.h"
-#include "GPUSceneWriter.h"
+#endif
 
 #define USE_MESH_BATCH_VALIDATION !UE_BUILD_SHIPPING
 
+class FIndexBuffer;
 class FLightCacheInterface;
+class FMaterial;
+class FMaterialRenderProxy;
+class FPrimitiveSceneProxy;
+class FPrimitiveUniformShaderParameters;
+class FVertexFactory;
+struct FInstanceDynamicData;
+struct FInstanceSceneData;
+struct FMaterialShaderParameters;
+struct FRenderBounds;
 
 enum EPrimitiveIdMode
 {
@@ -389,47 +405,16 @@ struct FMeshBatch
 	int8 VisualizeLODIndex;
 #endif
 
-	FORCEINLINE bool IsTranslucent(ERHIFeatureLevel::Type InFeatureLevel) const
-	{
-		// Note: blend mode does not depend on the feature level we are actually rendering in.
-		return IsTranslucentBlendMode(MaterialRenderProxy->GetIncompleteMaterialWithFallback(InFeatureLevel));
-	}
+	ENGINE_API bool IsTranslucent(ERHIFeatureLevel::Type InFeatureLevel) const;
 
 	// todo: can be optimized with a single function that returns multiple states (Translucent, Decal, Masked) 
-	FORCEINLINE bool IsDecal(ERHIFeatureLevel::Type InFeatureLevel) const
-	{
-		// Note: does not depend on the feature level we are actually rendering in.
-		const FMaterial& Mat = MaterialRenderProxy->GetIncompleteMaterialWithFallback(InFeatureLevel);
-		return Mat.IsDeferredDecal();
-	}
+	ENGINE_API bool IsDecal(ERHIFeatureLevel::Type InFeatureLevel) const;
 
-	FORCEINLINE bool IsDualBlend(ERHIFeatureLevel::Type InFeatureLevel) const
-	{
-		const FMaterial& Mat = MaterialRenderProxy->GetIncompleteMaterialWithFallback(InFeatureLevel);
-		return Mat.IsDualBlendingEnabled(GShaderPlatformForFeatureLevel[InFeatureLevel]);
-	}
+	ENGINE_API bool IsDualBlend(ERHIFeatureLevel::Type InFeatureLevel) const;
 
-	FORCEINLINE bool UseForHairStrands(ERHIFeatureLevel::Type InFeatureLevel) const
-	{
-		if (ERHIFeatureLevel::SM5 != InFeatureLevel)
-			return false;
+	ENGINE_API bool UseForHairStrands(ERHIFeatureLevel::Type InFeatureLevel) const;
 
-		const FMaterial& Mat = MaterialRenderProxy->GetIncompleteMaterialWithFallback(InFeatureLevel);
-		return IsCompatibleWithHairStrands(&Mat, InFeatureLevel);
-	}
-
-	FORCEINLINE bool IsMasked(ERHIFeatureLevel::Type InFeatureLevel) const
-	{
-		// Note: blend mode does not depend on the feature level we are actually rendering in.
-		return MaterialRenderProxy->GetIncompleteMaterialWithFallback(InFeatureLevel).IsMasked();
-	}
-
-	/** Converts from an int32 index into a int8 */
-	static int8 QuantizeLODIndex(int32 NewLODIndex)
-	{
-		checkSlow(NewLODIndex >= SCHAR_MIN && NewLODIndex <= SCHAR_MAX);
-		return (int8)NewLODIndex;
-	}
+	ENGINE_API bool IsMasked(ERHIFeatureLevel::Type InFeatureLevel) const;
 
 	FORCEINLINE int32 GetNumPrimitives() const
 	{
