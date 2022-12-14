@@ -396,7 +396,6 @@ public:
 		if( Property == MP_EmissiveColor )
 		{
 			UMaterial* ProxyMaterial = MaterialInterface->GetMaterial();
-			EBlendMode BlendMode = MaterialInterface->GetBlendMode();
 			bool bIsMaterialUnlit = MaterialInterface->GetShadingModels().IsUnlit();
 			const bool bIsOpaque = IsOpaqueBlendMode(*MaterialInterface);
 			const bool bIsMasked = IsMaskedBlendMode(*MaterialInterface);

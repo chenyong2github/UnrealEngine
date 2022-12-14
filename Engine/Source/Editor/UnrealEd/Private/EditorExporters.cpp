@@ -1066,9 +1066,7 @@ static void ExportMaterialPropertyTexture(const FString& BMPFilename, UMaterialI
 	TArray<FColor> OutputBMP;
 	FIntPoint OutSize{};
 
-	const TEnumAsByte<EBlendMode> BlendMode = Material->GetBlendMode();
-
-	bool bIsValidProperty = FMaterialUtilities::SupportsExport(BlendMode, MatProp);
+	bool bIsValidProperty = FMaterialUtilities::SupportsExport(IsOpaqueBlendMode(*Material), MatProp);
 	if (bIsValidProperty)
 	{
 		FMeshData MeshSettings;

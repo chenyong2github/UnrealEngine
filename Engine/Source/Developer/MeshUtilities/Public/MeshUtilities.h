@@ -52,6 +52,7 @@ class FSignedDistanceFieldBuildMaterialData
 {
 public:
 	EBlendMode BlendMode = BLEND_Opaque;
+	EStrataBlendMode StrataBlendMode = SBM_Opaque;
 	bool bTwoSided = false;
 	bool bAffectDistanceFieldLighting = true;
 };

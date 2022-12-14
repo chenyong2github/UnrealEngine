@@ -558,7 +558,6 @@ public:
 			const bool bIsOpaqueOrMasked = IsOpaqueOrMaskedBlendMode(*MaterialInterface);
 			UMaterial* ProxyMaterial = MaterialInterface->GetMaterial();
 			check(ProxyMaterial);
-			EBlendMode BlendMode = MaterialInterface->GetBlendMode();
 			FExportMaterialCompiler ProxyCompiler(Compiler);
 			const uint32 ForceCast_Exact_Replicate = MFCF_ForceCast | MFCF_ExactMatch | MFCF_ReplicateValue;
 									
@@ -726,30 +725,26 @@ public:
 		return Ar << V.MaterialInterface;
 	}
 
-	static bool WillFillData(EBlendMode InBlendMode, EMaterialProperty InMaterialProperty)
+	static bool WillFillData(bool bIsOpaque, EMaterialProperty InMaterialProperty)
 	{
 		if (InMaterialProperty == MP_EmissiveColor)
 		{
 			return true;
 		}
 
-		switch (InBlendMode)
+		if (bIsOpaque)
 		{
-		case BLEND_Opaque:
+			switch (InMaterialProperty)
 			{
-				switch (InMaterialProperty)
-				{
-				case MP_BaseColor:			return true;
-				case MP_Specular:			return true;
-				case MP_Normal:				return true;
-				case MP_Tangent:			return true;
-				case MP_Metallic:			return true;
-				case MP_Roughness:			return true;
-				case MP_Anisotropy:			return true;
-				case MP_AmbientOcclusion:	return true;
-				}
+			case MP_BaseColor:			return true;
+			case MP_Specular:			return true;
+			case MP_Normal:				return true;
+			case MP_Tangent:			return true;
+			case MP_Metallic:			return true;
+			case MP_Roughness:			return true;
+			case MP_Anisotropy:			return true;
+			case MP_AmbientOcclusion:	return true;
 			}
-			break;
 		}
 		return false;
 	}
@@ -960,9 +955,9 @@ FIntPoint FMaterialUtilities::FindMaxTextureSize(UMaterialInterface* InMaterialI
 	return MaxSize;
 }
 
-bool FMaterialUtilities::SupportsExport(EBlendMode InBlendMode, EMaterialProperty InMaterialProperty)
+bool FMaterialUtilities::SupportsExport(bool bIsOpaque, EMaterialProperty InMaterialProperty)
 {
-	return FExportMaterialProxy::WillFillData(InBlendMode, InMaterialProperty);
+	return FExportMaterialProxy::WillFillData(bIsOpaque, InMaterialProperty);
 }
 
 static bool ExportLandscapeMaterial(const ALandscapeProxy* InLandscape, const TSet<FPrimitiveComponentId>& ShowOnlyPrimitives, const TSet<FPrimitiveComponentId>& HiddenPrimitives, FFlattenMaterial& OutFlattenMaterial)

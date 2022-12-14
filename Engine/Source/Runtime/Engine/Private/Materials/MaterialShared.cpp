@@ -1687,7 +1687,7 @@ EMaterialFloatPrecisionMode FMaterialResource::GetMaterialFloatPrecisionMode() c
 
 bool FMaterialResource::IsUsingAlphaToCoverage() const
 {
-	return Material->bUseAlphaToCoverage && Material->MaterialDomain == EMaterialDomain::MD_Surface && Material->GetBlendMode() == EBlendMode::BLEND_Masked && !WritesEveryPixel();
+	return Material->bUseAlphaToCoverage && Material->MaterialDomain == EMaterialDomain::MD_Surface && IsMaskedBlendMode(*Material) && !WritesEveryPixel();
 }
 
 bool FMaterialResource::IsUsingPreintegratedGFForSimpleIBL() const

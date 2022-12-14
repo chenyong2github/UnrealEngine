@@ -372,7 +372,7 @@ protected:
 		{
 			SortKey.BasePass.VertexShaderHash = (VertexShader ? VertexShader->GetSortKey() : 0) & 0xFFFF;
 			SortKey.BasePass.PixelShaderHash = PixelShader ? PixelShader->GetSortKey() : 0;
-			SortKey.BasePass.Masked = Material.GetBlendMode() == EBlendMode::BLEND_Masked ? 1 : 0;
+			SortKey.BasePass.Masked = IsMaskedBlendMode(Material) ? 1 : 0;
 		}
 
 		return SortKey;

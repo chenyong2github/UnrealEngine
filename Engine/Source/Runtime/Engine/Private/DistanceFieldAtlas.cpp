@@ -183,6 +183,7 @@ void FDistanceFieldVolumeData::CacheDerivedData(const FString& InStaticMeshDeriv
 		if (MaterialInterface)
 		{
 			MaterialData.BlendMode = MaterialInterface->GetBlendMode();
+			MaterialData.StrataBlendMode = MaterialInterface->GetStrataBlendMode();
 			MaterialData.bTwoSided = MaterialInterface->IsTwoSided();
 		}
 	}
@@ -191,8 +192,9 @@ void FDistanceFieldVolumeData::CacheDerivedData(const FString& InStaticMeshDeriv
 
 	for (int32 MaterialIndex = 0; MaterialIndex < Mesh->GetStaticMaterials().Num(); MaterialIndex++)
 	{
-		DistanceFieldKey += FString::Printf(TEXT("_M%u_%u_%u"), 
+		DistanceFieldKey += FString::Printf(TEXT("_M%u_%u_%u_%u"), 
 			(uint32)BuildMaterialData[MaterialIndex].BlendMode,
+			(uint32)BuildMaterialData[MaterialIndex].StrataBlendMode,
 			BuildMaterialData[MaterialIndex].bTwoSided ? 1 : 0,
 			BuildMaterialData[MaterialIndex].bAffectDistanceFieldLighting ? 1 : 0);
 	}

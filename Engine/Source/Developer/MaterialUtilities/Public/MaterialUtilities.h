@@ -272,7 +272,7 @@ public:
 	/**
 	 * Whether material utilities support exporting specified material blend mode and property 
 	 */
-	static bool SupportsExport(EBlendMode InBlendMode, EMaterialProperty InMaterialProperty);
+	static bool SupportsExport(bool bIsOpaque, EMaterialProperty InMaterialProperty);
 
 	/**
 	 * Flattens specified landscape material

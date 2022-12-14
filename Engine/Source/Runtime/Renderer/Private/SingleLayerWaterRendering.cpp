@@ -1817,11 +1817,9 @@ void FSingleLayerWaterDepthPrepassMeshProcessor::CollectPSOInitializers(const FS
 		const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(PreCacheParams);
 		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(Material, OverrideSettings);
 		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(Material, OverrideSettings);
-		const EBlendMode BlendMode = Material.GetBlendMode();
-		const EStrataBlendMode StrataBlendMode = Material.GetStrataBlendMode();
 		const bool bSupportPositionOnlyStream = VertexFactoryType->SupportsPositionOnly();
 
-		if (IsOpaqueBlendMode(BlendMode, StrataBlendMode)
+		if (IsOpaqueBlendMode(Material)
 			&& bSupportPositionOnlyStream
 			&& !Material.MaterialModifiesMeshPosition_GameThread()
 			&& Material.WritesEveryPixel())

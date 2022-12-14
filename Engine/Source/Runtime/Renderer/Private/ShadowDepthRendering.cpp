@@ -2033,7 +2033,6 @@ bool FShadowDepthPassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT M
 	const FMaterialRenderProxy& MaterialRenderProxy,
 	const FMaterial& Material)
 {
-	const EBlendMode BlendMode = Material.GetBlendMode();
 	const bool bShouldCastShadow = Material.ShouldCastDynamicShadows();
 
 	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
