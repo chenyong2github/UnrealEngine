@@ -381,11 +381,10 @@ bool FNaniteMeshProcessor::TryAddMeshBatch(
 	const FMaterial& Material
 )
 {
-	const EBlendMode BlendMode = Material.GetBlendMode();
 	const bool bIsTranslucent = IsTranslucentBlendMode(Material);
 	const FMaterialShadingModelField ShadingModels = Material.GetShadingModels();
 
-	check(Nanite::IsSupportedBlendMode(BlendMode));
+	check(Nanite::IsSupportedBlendMode(Material));
 	check(Nanite::IsSupportedMaterialDomain(Material.GetMaterialDomain()));
 
 	const bool bRenderSkylight = Scene && Scene->ShouldRenderSkylightInBasePass(bIsTranslucent) && ShadingModels != MSM_Unlit;
@@ -459,9 +458,8 @@ void FNaniteMeshProcessor::CollectPSOInitializers(
 	}
 
 	// Check if Nanite can be used by this material
-	const EBlendMode BlendMode = Material.GetBlendMode();
 	const FMaterialShadingModelField ShadingModels = Material.GetShadingModels();
-	bool bShouldDraw = Nanite::IsSupportedBlendMode(BlendMode) && Nanite::IsSupportedMaterialDomain(Material.GetMaterialDomain());
+	bool bShouldDraw = Nanite::IsSupportedBlendMode(Material) && Nanite::IsSupportedMaterialDomain(Material.GetMaterialDomain());
 	if (!bShouldDraw)
 	{
 		return;

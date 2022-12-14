@@ -151,7 +151,7 @@ bool SupportsNaniteRendering(const FVertexFactory* RESTRICT VertexFactory, const
 		const FMaterialShaderMap* ShaderMap = Material.GetRenderingThreadShaderMap();
 
 		return (Material.IsUsedWithNanite() || Material.IsSpecialEngineMaterial()) &&
-			Nanite::IsSupportedBlendMode(Material.GetBlendMode()) &&
+			Nanite::IsSupportedBlendMode(Material) &&
 			Nanite::IsSupportedMaterialDomain(Material.GetMaterialDomain()) &&
 			(Nanite::IsWorldPositionOffsetSupported() || !ShaderMap->UsesWorldPositionOffset());
 	}
@@ -166,7 +166,7 @@ bool SupportsNaniteRendering(const FVertexFactoryType* RESTRICT VertexFactoryTyp
 	{
 		const FMaterialShaderMap* ShaderMap = Material.GetGameThreadShaderMap();
 		return (Material.IsUsedWithNanite() || Material.IsSpecialEngineMaterial()) &&
-			Nanite::IsSupportedBlendMode(Material.GetBlendMode()) &&
+			Nanite::IsSupportedBlendMode(Material) &&
 			Nanite::IsSupportedMaterialDomain(Material.GetMaterialDomain()) &&
 			(Nanite::IsWorldPositionOffsetSupported() || !ShaderMap->UsesWorldPositionOffset());
 	}

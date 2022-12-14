@@ -864,8 +864,7 @@ bool FLumenCardNaniteMeshProcessor::TryAddMeshBatch(
 	const FMaterialRenderProxy& MaterialRenderProxy,
 	const FMaterial& Material)
 {
-	const EBlendMode BlendMode = Material.GetBlendMode();
-	check(Nanite::IsSupportedBlendMode(BlendMode));
+	check(Nanite::IsSupportedBlendMode(Material));
 	check(Nanite::IsSupportedMaterialDomain(Material.GetMaterialDomain()));
 
 	TShaderMapRef<FNaniteMultiViewMaterialVS> VertexShader(GetGlobalShaderMap(FeatureLevel));
@@ -922,8 +921,7 @@ void FLumenCardNaniteMeshProcessor::CollectPSOInitializers(
 		return;
 	}
 
-	const EBlendMode BlendMode = Material.GetBlendMode();
-	if (!Nanite::IsSupportedBlendMode(BlendMode) || Material.GetMaterialDomain())
+	if (!Nanite::IsSupportedBlendMode(Material) || Material.GetMaterialDomain())
 	{
 		return;
 	}

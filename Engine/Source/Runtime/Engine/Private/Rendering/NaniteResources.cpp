@@ -428,7 +428,7 @@ bool FVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutat
 	bool bShouldCompile =
 		(Parameters.MaterialParameters.bIsUsedWithNanite || Parameters.MaterialParameters.bIsSpecialEngineMaterial) &&
 		IsSupportedMaterialDomain(Parameters.MaterialParameters.MaterialDomain) &&
-		IsSupportedBlendMode(Parameters.MaterialParameters.BlendMode) && // STRATA_TODO_BLENDMODE
+		IsSupportedBlendMode(Parameters.MaterialParameters) &&
 		(Parameters.ShaderType->GetFrequency() == SF_Pixel || Parameters.ShaderType->GetFrequency() == SF_RayHitGroup) &&
 		DoesPlatformSupportNanite(Parameters.Platform);
 
@@ -2027,7 +2027,7 @@ void AuditMaterials(const UStaticMeshComponent* Component, FMaterialAudit& Audit
 				Entry.bHasPerInstanceCustomData	= CachedMaterialData.bHasPerInstanceCustomData;
 				Entry.bHasPixelDepthOffset		= Material->HasPixelDepthOffsetConnected();
 				Entry.bHasWorldPositionOffset	= Material->HasVertexPositionOffsetConnected();
-				Entry.bHasUnsupportedBlendMode	= !IsSupportedBlendMode(Entry.Material->GetBlendMode());
+				Entry.bHasUnsupportedBlendMode	= !IsSupportedBlendMode(*Entry.Material);
 				Entry.bHasInvalidUsage			= !Material->CheckMaterialUsage_Concurrent(MATUSAGE_Nanite);
 			}
 
@@ -2137,17 +2137,20 @@ void FixupMaterials(FMaterialAudit& Audit)
 	}
 }
 
-bool IsSupportedBlendMode(EBlendMode Mode) // STRATA_TODO_BLENDMODE
+inline bool IsSupportedBlendMode(const EBlendMode& BlendMode, const EStrataBlendMode& StrataBlendMode)
 {
 	if (GNaniteErrorOnMaskedBlendMode != 0)
 	{
-		return Mode == EBlendMode::BLEND_Opaque;
+		return IsOpaqueBlendMode(BlendMode, StrataBlendMode);
 	}
 	else
 	{
-		return Mode == EBlendMode::BLEND_Opaque || Mode == EBlendMode::BLEND_Masked;
+		return IsOpaqueOrMaskedBlendMode(BlendMode, StrataBlendMode);
 	}
 }
+bool IsSupportedBlendMode(const FMaterialShaderParameters& In)	{ return IsSupportedBlendMode(In.BlendMode, In.StrataBlendMode); }
+bool IsSupportedBlendMode(const FMaterial& In)					{ return IsSupportedBlendMode(In.GetBlendMode(), In.GetStrataBlendMode()); }
+bool IsSupportedBlendMode(const UMaterialInterface& In)			{ return IsSupportedBlendMode(In.GetBlendMode(), In.GetStrataBlendMode()); }
 
 bool IsSupportedMaterialDomain(EMaterialDomain Domain)
 {
@@ -2221,7 +2224,7 @@ bool FNaniteVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPe
 		Parameters.ShaderType->GetFrequency() == SF_Compute &&
 		(Parameters.MaterialParameters.bIsUsedWithNanite || Parameters.MaterialParameters.bIsSpecialEngineMaterial) &&
 		Nanite::IsSupportedMaterialDomain(Parameters.MaterialParameters.MaterialDomain) &&
-		Nanite::IsSupportedBlendMode(Parameters.MaterialParameters.BlendMode) &&
+		Nanite::IsSupportedBlendMode(Parameters.MaterialParameters) &&
 		DoesPlatformSupportNanite(Parameters.Platform);
 
 	return bShouldCompile;
