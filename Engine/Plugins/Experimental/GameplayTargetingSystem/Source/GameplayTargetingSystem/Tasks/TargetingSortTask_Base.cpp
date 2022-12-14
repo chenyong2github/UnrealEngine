@@ -2,6 +2,7 @@
 
 #include "TargetingSortTask_Base.h"
 
+#include "GameFramework/Actor.h"
 #include "GameplayTargetingSystem/TargetingSystem/TargetingSubsystem.h"
 #include "Kismet/KismetMathLibrary.h"
 
