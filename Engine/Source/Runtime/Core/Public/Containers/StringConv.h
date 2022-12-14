@@ -754,7 +754,7 @@ public:
 	 *
 	 * @return A const pointer to the converted string.
 	 */
-	FORCEINLINE const ToType* Get() const
+	FORCEINLINE const ToType* Get() const UE_LIFETIMEBOUND
 	{
 		return Ptr;
 	}
@@ -882,10 +882,11 @@ public:
 	/**
 	 * Accessor for the string.
 	 * @note The string may not be null-terminated if constructed from an explicitly sized buffer that didn't include the null-terminator.
+	 * @note Setting to UE_LIFETIMEBOUND even though TStringPointer doesn't own the pointer, because we want StringCast to give consistent warnings no matter what implementation choice it makes
 	 *
 	 * @return A const pointer to the string.
 	 */
-	FORCEINLINE const ToType* Get() const
+	FORCEINLINE const ToType* Get() const UE_LIFETIMEBOUND
 	{
 		return Ptr;
 	}
@@ -1125,7 +1126,7 @@ public:
 		FPlatformString::Convert(Dest, DestLen, Source, SrcLen);
 	}
 
-	FORCEINLINE FromType* Get()
+	FORCEINLINE FromType* Get() UE_LIFETIMEBOUND
 	{
 		return (FromType*)AllocatorType::GetAllocation();
 	}
@@ -1151,7 +1152,8 @@ public:
 	{
 	}
 
-	FORCEINLINE T* Get() const
+	// @note Setting to UE_LIFETIMEBOUND even though TPassthruPointer doesn't own the pointer, because we want StringMemoryPassthru to give consistent warnings no matter what implementation choice it makes
+	FORCEINLINE T* Get() const UE_LIFETIMEBOUND
 	{
 		return Ptr;
 	}
