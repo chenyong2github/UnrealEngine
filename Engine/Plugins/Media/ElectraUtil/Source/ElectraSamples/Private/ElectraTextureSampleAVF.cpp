@@ -13,6 +13,7 @@
 #include "RHIStaticStates.h"
 #include "MediaShaders.h"
 #include "Containers/ResourceArray.h"
+#include "PipelineStateCache.h"
 #else
 #include "Containers/Array.h"
 #endif

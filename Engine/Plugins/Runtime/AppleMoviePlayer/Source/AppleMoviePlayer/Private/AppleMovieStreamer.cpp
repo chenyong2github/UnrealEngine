@@ -3,6 +3,7 @@
 #include "AppleMovieStreamer.h"
 
 #include "Rendering/RenderingCommon.h"
+#include "RenderingThread.h"
 #include "Slate/SlateTextures.h"
 #include "MoviePlayer.h"
 #include "Misc/CommandLine.h"
