@@ -230,9 +230,9 @@ void FNiagaraRendererSprites::PrepareParticleSpriteRenderData(FParticleSpriteRen
 
 	// Do we have anything to render?
 	const FMaterial& Material = MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel);
-	const EBlendMode BlendMode = Material.GetBlendMode();
-	ParticleSpriteRenderData.BlendMode = BlendMode; // STRATA_TODO_BLENDMODE
-	ParticleSpriteRenderData.bHasTranslucentMaterials = IsTranslucentBlendMode(BlendMode);
+	ParticleSpriteRenderData.BlendMode = Material.GetBlendMode();
+	ParticleSpriteRenderData.StrataBlendMode = Material.GetStrataBlendMode();
+	ParticleSpriteRenderData.bHasTranslucentMaterials = IsTranslucentBlendMode(Material);
 
 	// If these conditions change please update the DebugHUD display also to reflect it
 	const bool bLowLatencyTranslucencyEnabled = ParticleSpriteRenderData.bHasTranslucentMaterials &&
@@ -265,7 +265,7 @@ void FNiagaraRendererSprites::PrepareParticleSpriteRenderData(FParticleSpriteRen
 		const EShaderPlatform ShaderPlatform = SceneProxy->GetComputeDispatchInterface()->GetShaderPlatform();
 
 		// Determine if we need sorting
-		ParticleSpriteRenderData.bNeedsSort = SortMode != ENiagaraSortMode::None && (BlendMode == BLEND_AlphaComposite || IsAlphaHoldoutBlendMode(Material) || IsTranslucentOnlyBlendMode(Material) || !bSortOnlyWhenTranslucent);
+		ParticleSpriteRenderData.bNeedsSort = SortMode != ENiagaraSortMode::None && (IsAlphaCompositeBlendMode(Material) || IsAlphaHoldoutBlendMode(Material) || IsTranslucentOnlyBlendMode(Material) || !bSortOnlyWhenTranslucent);
 		const bool bNeedCustomSort = ParticleSpriteRenderData.bNeedsSort && (SortMode == ENiagaraSortMode::CustomAscending || SortMode == ENiagaraSortMode::CustomDecending);
 		ParticleSpriteRenderData.RendererLayout = bNeedCustomSort ? RendererLayoutWithCustomSort : RendererLayoutWithoutCustomSort;
 		ParticleSpriteRenderData.SortVariable = bNeedCustomSort ? ENiagaraSpriteVFLayout::CustomSorting : ENiagaraSpriteVFLayout::Position;
@@ -575,23 +575,23 @@ FNiagaraSpriteUniformBufferRef FNiagaraRendererSprites::CreateViewUniformBuffer(
 			PerViewUniformParameters.PixelCoverageEnabled = ParticleSpriteRenderData.bHasTranslucentMaterials;
 			if (PerViewUniformParameters.PixelCoverageEnabled)
 			{
-				switch (ParticleSpriteRenderData.BlendMode)
+				if (IsTranslucentOnlyBlendMode(ParticleSpriteRenderData.BlendMode, ParticleSpriteRenderData.StrataBlendMode))
 				{
-					case BLEND_Translucent:
-						ParticleSpriteRenderData.bHasTranslucentMaterials = true;
-						PerViewUniformParameters.PixelCoverageColorBlend = FVector4f(PixelCoverageBlend, PixelCoverageBlend, PixelCoverageBlend, 0.0f);
-						break;
-					case BLEND_Additive:
-						ParticleSpriteRenderData.bHasTranslucentMaterials = true;
-						PerViewUniformParameters.PixelCoverageColorBlend = FVector4f(PixelCoverageBlend, PixelCoverageBlend, PixelCoverageBlend, PixelCoverageBlend);
-						break;
+					ParticleSpriteRenderData.bHasTranslucentMaterials = true;
+					PerViewUniformParameters.PixelCoverageColorBlend = FVector4f(PixelCoverageBlend, PixelCoverageBlend, PixelCoverageBlend, 0.0f);
+				}
+				else if (IsAdditiveBlendMode(ParticleSpriteRenderData.BlendMode, ParticleSpriteRenderData.StrataBlendMode))
+				{
+					ParticleSpriteRenderData.bHasTranslucentMaterials = true;
+					PerViewUniformParameters.PixelCoverageColorBlend = FVector4f(PixelCoverageBlend, PixelCoverageBlend, PixelCoverageBlend, PixelCoverageBlend);
+				}
+				else
+				{
 					//-TODO: Support these blend modes
 					//BLEND_Modulate
 					//BLEND_AlphaComposite
 					//BLEND_AlphaHoldout
-					default:
-						ParticleSpriteRenderData.bHasTranslucentMaterials = false;
-						break;
+					ParticleSpriteRenderData.bHasTranslucentMaterials = false;
 				}
 			}
 		}

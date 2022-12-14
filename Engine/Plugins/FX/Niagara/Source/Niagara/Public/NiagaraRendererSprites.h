@@ -42,7 +42,8 @@ private:
 		const FNiagaraDynamicDataSprites*	DynamicDataSprites = nullptr;
 		class FNiagaraDataBuffer*			SourceParticleData = nullptr;
 
-		EBlendMode							BlendMode = BLEND_Opaque; // STRATA_TODO_BLENDMODE
+		EBlendMode							BlendMode = BLEND_Opaque;
+		EStrataBlendMode					StrataBlendMode = SBM_Opaque;
 		bool								bHasTranslucentMaterials = false;
 		bool								bSortCullOnGpu = false;
 		bool								bNeedsSort = false;

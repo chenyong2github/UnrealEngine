@@ -2933,8 +2933,8 @@ void UMaterial::BackwardsCompatibilityVirtualTextureOutputConversion()
 			{
 				OutputExpression->GetInput(5)->Connect(EditorOnly->Opacity.OutputIndex, EditorOnly->Opacity.Expression);
 			}
-			// STRATA_TODO_BLENDMODE
-			if (BlendMode != BLEND_Opaque)
+
+			if (!IsOpaqueBlendMode(BlendMode, StrataBlendMode))
 			{
 				// Full alpha blend modes were mostly/always used with MD_RuntimeVirtualTexture to allow pin connections.
 				// But we will assume the intention for any associated MD_Surface output is opaque or alpha mask and force convert here.
@@ -2944,6 +2944,7 @@ void UMaterial::BackwardsCompatibilityVirtualTextureOutputConversion()
 					EditorOnly->Opacity.Expression = nullptr;
 				}
 				BlendMode = EditorOnly->OpacityMask.IsConnected() ? BLEND_Masked : BLEND_Opaque;
+				StrataBlendMode = EditorOnly->OpacityMask.IsConnected() ? SBM_Masked : SBM_Opaque;
 				bCanMaskedBeAssumedOpaque = !EditorOnly->OpacityMask.Expression && !(EditorOnly->OpacityMask.UseConstant && EditorOnly->OpacityMask.Constant < 0.999f);
 			}
 		}

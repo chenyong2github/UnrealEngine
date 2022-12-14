@@ -112,7 +112,7 @@ UMaterialInterface* FMaterialUtilities::CreateProxyMaterialAndTextures(UPackage*
 	Material->BasePropertyOverrides.DitheredLODTransition = MaterialData.Material->IsDitheredLODTransition();
 	Material->BasePropertyOverrides.bOverride_DitheredLODTransition = MaterialData.Material->IsDitheredLODTransition();
 
-	if (MaterialData.Material->GetBlendMode() != BLEND_Opaque) // STRATA_TODO_BLENDMODE
+	if (!IsOpaqueBlendMode(*MaterialData.Material))
 	{
 		Material->BasePropertyOverrides.bOverride_BlendMode = true;
 		Material->BasePropertyOverrides.BlendMode = MaterialData.Material->GetBlendMode();

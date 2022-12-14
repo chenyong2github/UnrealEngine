@@ -12,7 +12,6 @@ DebugViewModeInterface.cpp: Contains definitions for rendering debug viewmodes.
 
 FDebugViewModeInterface* FDebugViewModeInterface::Singleton = nullptr;
 
-// STRATA_TODO_BLENDMODE
 void FDebugViewModeInterface::SetDrawRenderState(EDebugViewShaderMode DebugViewMode, const FMaterial& InMaterial, FRenderState& DrawRenderState, bool bHasDepthPrepassForMaskedMaterial) const
 {
 	if (DebugViewMode == DVSM_QuadComplexity || DebugViewMode == DVSM_ShaderComplexityBleedingQuadOverhead || DebugViewMode == DVSM_ShaderComplexityContainedQuadOverhead || DebugViewMode == DVSM_ShaderComplexity)
@@ -56,7 +55,7 @@ void FDebugViewModeInterface::SetDrawRenderState(EDebugViewShaderMode DebugViewM
 			DrawRenderState.BlendState = TStaticBlendState<>::GetRHI();
 
 			// If not selected, use depth equal to make alpha test stand out (goes with EarlyZPassMode = DDM_AllOpaque) 
-			if (IsMaskedBlendMode(InMaterial) && bHasDepthPrepassForMaskedMaterial) // STRATA_TODO_BLENDMODE
+			if (IsMaskedBlendMode(InMaterial) && bHasDepthPrepassForMaskedMaterial)
 			{
 				DrawRenderState.DepthStencilState = TStaticDepthStencilState<false, CF_Equal>::GetRHI();
 			}
