@@ -54,8 +54,18 @@ UUMGSequenceTickManager::UUMGSequenceTickManager(const FObjectInitializer& Init)
 
 void UUMGSequenceTickManager::AddWidget(UUserWidget* InWidget)
 {
+	// This is functionally the same as OnWidgetTicked, but they remain
+	// separate functions to convey the semantic difference
 	TWeakObjectPtr<UUserWidget> WeakWidget = InWidget;
-	WeakUserWidgetData.Add(WeakWidget, FSequenceTickManagerWidgetData());
+
+	if (FSequenceTickManagerWidgetData* WidgetData = WeakUserWidgetData.Find(WeakWidget))
+	{
+		WidgetData->bIsTicking = true;
+	}
+	else
+	{
+		WeakUserWidgetData.Add(WeakWidget, FSequenceTickManagerWidgetData());
+	}
 }
 
 void UUMGSequenceTickManager::RemoveWidget(UUserWidget* InWidget)
@@ -70,6 +80,10 @@ void UUMGSequenceTickManager::OnWidgetTicked(UUserWidget* InWidget)
 	if (FSequenceTickManagerWidgetData* WidgetData = WeakUserWidgetData.Find(InWidget))
 	{
 		WidgetData->bIsTicking = true;
+	}
+	else
+	{
+		WeakUserWidgetData.Add(InWidget, FSequenceTickManagerWidgetData());
 	}
 }
 
@@ -141,6 +155,9 @@ void UUMGSequenceTickManager::TickWidgetAnimations(float DeltaSeconds)
 				{
 					// Wait until the runner has finished evaluating before we tear stuff down
 					UserWidget->TearDownAnimations();
+					UserWidget->UpdateCanTick();
+
+					// Resetting the animation tick manager is ok here because TearDownAnimations will always clear out all animations
 					UserWidget->AnimationTickManager = nullptr;
 
 					WidgetIter.RemoveCurrent();
@@ -148,21 +165,21 @@ void UUMGSequenceTickManager::TickWidgetAnimations(float DeltaSeconds)
 			}
 			else if (!WidgetData.bIsTicking)
 			{
-				// If this widget has not told us it is ticking, and its last known state was
-				// ticking, we disable animations for that widget. Once it ticks again, the animation
-				// will be updated naturally, and doesn't need anything re-enabling.
+				// If this widget has not told us it is ticking, we disable animations for that widget.
+				// Once it ticks again, the animation will be updated naturally, and doesn't need anything re-enabling.
 				// 
 				// @todo: There is a chance that relative animations hitting this code path will resume with
 				// different relative bases due to the way the ecs data is destroyed and re-created.
 				// In order to fix this we would have to annex that data instead of destroying it.
 				if (!bIsCurrentlyEvaluating)
 				{
-					if (WidgetData.bLastKnownTickState)
-					{
-						UserWidget->DisableAnimations();
-					}
+					UserWidget->DisableAnimations();
 
-					WidgetData.bLastKnownTickState = false;
+					// Do not null out UUserWidget::AnimationTickManager because although we removed animation _data_
+					// the animations themselves are still playing. As such any UUMGSequencePlayers may hold a reference to this
+					// tick manager's linker, and therefore also need to keep this tick manager alive since the linker is not outered to this tick manager
+
+					WidgetIter.RemoveCurrent();
 				}
 			}
 			else
@@ -182,7 +199,6 @@ void UUMGSequenceTickManager::TickWidgetAnimations(float DeltaSeconds)
 
 				// Assume this widget will no longer tick, until we're told otherwise by way of OnWidgetTicked
 				WidgetData.bIsTicking = false;
-				WidgetData.bLastKnownTickState = true;
 			}
 		}
 	}
@@ -212,6 +228,8 @@ void UUMGSequenceTickManager::TickWidgetAnimations(float DeltaSeconds)
 			}
 		}
 	}
+
+	WeakUserWidgetData.Shrink();
 }
 
 void UUMGSequenceTickManager::ForceFlush()

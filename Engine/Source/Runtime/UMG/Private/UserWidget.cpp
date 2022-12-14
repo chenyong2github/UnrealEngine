@@ -415,8 +415,11 @@ UUMGSequencePlayer* UUserWidget::GetOrAddSequencePlayer(UWidgetAnimation* InAnim
 		if (!AnimationTickManager)
 		{
 			AnimationTickManager = UUMGSequenceTickManager::Get(this);
-			AnimationTickManager->AddWidget(this);
 		}
+
+		// Always ensure that this widget's animations are ticked for at least the first frame
+		// If this widget is currently offscreen it would very well not be being tracked by the tick manager
+		AnimationTickManager->AddWidget(this);
 
 		// @todo UMG sequencer - Restart animations which have had Play called on them?
 		UUMGSequencePlayer* FoundPlayer = nullptr;
