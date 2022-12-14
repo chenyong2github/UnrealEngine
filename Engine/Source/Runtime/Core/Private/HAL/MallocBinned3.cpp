@@ -1280,14 +1280,13 @@ void FMallocBinned3::FreeExternal(void* Ptr)
 		double StartTime = FPlatformTime::Seconds();
 #endif
 		{
+			LLM(FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Platform, Ptr));
 #if USE_CACHED_PAGE_ALLOCATOR_FOR_LARGE_ALLOCS
 			GetCachedOSPageAllocator().Free(Ptr, VMPages * FPlatformMemory::FPlatformVirtualMemoryBlock::GetCommitAlignment());
 #else
 			FPlatformMemory::FPlatformVirtualMemoryBlock Block(Ptr, VMPages);
 			Block.FreeVirtual();
 #endif
-			LLM(FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Platform, Ptr));
-
 		}
 #if BINNED3_TIME_LARGE_BLOCKS
 		double Add = FPlatformTime::Seconds() - StartTime;
