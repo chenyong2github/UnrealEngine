@@ -354,7 +354,6 @@ FBufferRHIRef FRenderResource::CreateRHIBufferInternal(
 void FRenderResource::SetOwnerName(const FName& InOwnerName)
 {
 #if RHI_ENABLE_RESOURCE_INFO
-	check(IsInGameThread() || IsInParallelGameThread());
 	OwnerName = InOwnerName;
 #endif
 }
