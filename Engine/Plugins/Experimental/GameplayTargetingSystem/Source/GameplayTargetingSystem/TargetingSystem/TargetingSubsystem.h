@@ -157,11 +157,16 @@ private:
 	/** Internal method to process the tasks for a given targeting request */
 	void ProcessTargetingRequestTasks(FTargetingRequestHandle& TargetingHandle, float& TimeLeft);
 
+	/** Method to find the currect executing task for the given handle */
+	UTargetingTask* FindCurrentExecutingTask(FTargetingRequestHandle Handle) const;
+
 	/** The set of target requests queued up for async processing */
 	UPROPERTY(Transient)
 	TArray<FTargetingRequestHandle> AsyncTargetingRequests;
 
-	UTargetingTask* FindCurrentExecutingTask(FTargetingRequestHandle Handle) const;
+	/** Flag indicating the targeting system is currently in its tick processing targeting tasks for async request */
+	bool bTickingAsycnRequests = false;
+
 	/** ~Targeting Request Methods */
 
 	/** Blueprint Helper Methods */

@@ -179,30 +179,35 @@ void UTargetingSubsystem::Tick(float DeltaTime)
 	// @note: Might need to implement a scheme to prevent bottlenecking on a single request
 	// or getting stuck from constant queuing of requests
 
-	float TimeLeft = TargetingSystemCVars::MaxAsyncTickTime;
-
 	const int32 NumRequests = AsyncTargetingRequests.Num();
-	for (int32 RequestIterator = 0; RequestIterator < NumRequests; ++RequestIterator)
 	{
-		const double StepStartTime = FPlatformTime::Seconds();
+		bTickingAsycnRequests = true;
 
-		FTargetingRequestHandle& TargetingHandle = AsyncTargetingRequests[RequestIterator];
-		TARGETING_LOG(Verbose, TEXT("UTargetingSubsystem::Tick - Started Processing Async Request [%d] with Handle [%d]"), RequestIterator, TargetingHandle.Handle);
-
-		ProcessTargetingRequestTasks(TargetingHandle, TimeLeft);
-
-		if (TargetingSystemCVars::bUseAsyncTargetingTimeSlicing)
+		float TimeLeft = TargetingSystemCVars::MaxAsyncTickTime;
+		for (int32 RequestIterator = 0; RequestIterator < NumRequests; ++RequestIterator)
 		{
-			const double StepDuration = (FPlatformTime::Seconds() - StepStartTime);
-			TARGETING_LOG(VeryVerbose, TEXT("UTargetingSubsystem::Tick - Finished Processing Async Request [%d] in [%f] seconds."), RequestIterator, StepDuration);
+			const double StepStartTime = FPlatformTime::Seconds();
 
-			TimeLeft -= StepDuration;
-			if (TimeLeft <= 0.0f)
+			FTargetingRequestHandle& TargetingHandle = AsyncTargetingRequests[RequestIterator];
+			TARGETING_LOG(Verbose, TEXT("UTargetingSubsystem::Tick - Started Processing Async Request [%d] with Handle [%d]"), RequestIterator, TargetingHandle.Handle);
+
+			ProcessTargetingRequestTasks(TargetingHandle, TimeLeft);
+
+			if (TargetingSystemCVars::bUseAsyncTargetingTimeSlicing)
 			{
-				TARGETING_LOG(VeryVerbose, TEXT("UTargetingSubsystem::Tick - Over alloted time, skipping remaining targeting requets this frame."));
-				break;
+				const double StepDuration = (FPlatformTime::Seconds() - StepStartTime);
+				TARGETING_LOG(VeryVerbose, TEXT("UTargetingSubsystem::Tick - Finished Processing Async Request [%d] in [%f] seconds."), RequestIterator, StepDuration);
+
+				TimeLeft -= StepDuration;
+				if (TimeLeft <= 0.0f)
+				{
+					TARGETING_LOG(VeryVerbose, TEXT("UTargetingSubsystem::Tick - Over alloted time, skipping remaining targeting requets this frame."));
+					break;
+				}
 			}
 		}
+
+		bTickingAsycnRequests = false;
 	}
 	
 	{
@@ -360,9 +365,39 @@ void UTargetingSubsystem::RemoveAsyncTargetingRequestWithHandle(FTargetingReques
 {
 	if (TargetingHandle.IsValid())
 	{
-		if (UTargetingTask* ExecutingTask = FindCurrentExecutingTask(TargetingHandle))
+		// this is possible if remove is called during the completion callback
+		bool bRequestComplete = false;
+		if (FTargetingRequestData* RequestData = FTargetingRequestData::Find(TargetingHandle))
 		{
-			ExecutingTask->CancelAsync();
+			bRequestComplete = RequestData->bComplete;
+		}
+		
+		if (!bRequestComplete)
+		{
+			if (UTargetingTask* ExecutingTask = FindCurrentExecutingTask(TargetingHandle))
+			{
+				ExecutingTask->CancelAsync();
+			}
+		}
+
+		// if we are removing while processing the tick, we don't want to break the array, so defer cleanup
+		if (bTickingAsycnRequests)
+		{
+			// flag for complete, so it cleans up when process is done
+			if (FTargetingRequestData* RequestData = FTargetingRequestData::Find(TargetingHandle))
+			{
+				RequestData->bComplete = true;
+			}
+			
+			// since it is removed, ensure requeue is disabled
+			if (FTargetingAsyncTaskData* AsyncTaskData = FTargetingAsyncTaskData::Find(TargetingHandle))
+			{
+				AsyncTaskData->bRequeueOnCompletion = false;
+			}
+
+			// reset the handle for the caller, since they won't need it anymore
+			TargetingHandle.Reset();
+			return;
 		}
 
 		AsyncTargetingRequests.RemoveAll([TargetingHandle](const FTargetingRequestHandle& Handle)
