@@ -1885,28 +1885,6 @@ void FEntityManager::InitializeChildAllocation(const FComponentMask& ParentType,
 	}
 }
 
-void FEntityManager::InitializeMutualComponents(FMovieSceneEntityID EntityID)
-{
-	FEntityLocation Location = EntityLocations[EntityID.AsIndex()];
-	if (Location.IsValid())
-	{
-		return;
-	}
-
-	const FComponentMask& EntityType = EntityAllocationMasks[Location.GetAllocationIndex()];
-	FEntityAllocation* Allocation = EntityAllocations[Location.GetAllocationIndex()];
-
-	FEntityRange Range = { Allocation, Location.GetEntryIndexWithinAllocation(), 1 };
-
-	for (const TInlineValue<FMutualEntityInitializer>& MutualInit : ComponentRegistry->Factories.MutualInitializers)
-	{
-		if (MutualInit->IsRelevant(EntityType))
-		{
-			MutualInit->Run(Range);
-		}
-	}
-}
-
 void FEntityManager::AddMutualComponents()
 {
 	AddMutualComponents(FEntityComponentFilter());
@@ -1965,16 +1943,6 @@ void FEntityManager::AddMutualComponents(const FEntityComponentFilter& InFilter)
 
 				void* Components = ComponentHeader.GetValuePtr(0);
 				ComponentTypeInfo.ConstructItems(Components, NewAllocation->Num());
-			}
-		}
-
-		FEntityRange Range = { NewAllocation, 0, NewAllocation->Num() };
-		for (const TInlineValue<FMutualEntityInitializer>& MutualInit : ComponentRegistry->Factories.MutualInitializers)
-		{
-			// Only run mutual initializers for _new_ component types (ie, ones that were actually added)
-			if (NewComponents.Contains(MutualInit->GetComponentA()) && Pair.Value.Contains(MutualInit->GetComponentB()))
-			{
-				MutualInit->Run(Range);
 			}
 		}
 

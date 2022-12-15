@@ -241,15 +241,6 @@ void FEntityFactories::DefineMutuallyInclusiveComponent(FComponentTypeID InCompo
 	Masks.AllMutualFirsts.Set(InComponentA);
 }
 
-void FEntityFactories::DefineMutuallyInclusiveComponent(TInlineValue<FMutualEntityInitializer>&& InInitializer)
-{
-	check(InInitializer.IsValid());
-
-	DefineChildComponent(InInitializer->GetComponentA(), InInitializer->GetComponentB());
-	// Note: after this line, InInitializer is reset
-	MutualInitializers.Add(MoveTemp(InInitializer));
-}
-
 void FEntityFactories::DefineComplexInclusiveComponents(const FComplexInclusivityFilter& InFilter, FComponentTypeID InComponent)
 {
 	FComponentMask ComponentsToInclude { InComponent };
@@ -375,17 +366,6 @@ int32 FEntityFactories::ComputeMutuallyInclusiveComponents(FComponentMask& Compo
 	return NumNewComponents;
 }
 
-void FEntityFactories::RunInitializers(const FComponentMask& Type, const FEntityRange& InEntityRange)
-{
-	for (TInlineValue<FMutualEntityInitializer>& MutualInit : MutualInitializers)
-	{
-		if (MutualInit->IsRelevant(Type))
-		{
-			MutualInit->Run(InEntityRange);
-		}
-	}
-}
-
 void FEntityFactories::RunInitializers(const FComponentMask& ParentType, const FComponentMask& ChildType, const FEntityAllocation* ParentAllocation, TArrayView<const int32> ParentAllocationOffsets, const FEntityRange& InChildEntityRange)
 {
 	// First off, run child initializers
@@ -396,9 +376,6 @@ void FEntityFactories::RunInitializers(const FComponentMask& ParentType, const F
 			ChildInit->Run(InChildEntityRange, ParentAllocation, ParentAllocationOffsets);
 		}
 	}
-
-	// Run generic initializers
-	RunInitializers(ChildType, InChildEntityRange);
 }
 
 }	// using namespace MovieScene

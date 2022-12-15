@@ -191,31 +191,6 @@ private:
 
 
 
-template<typename ComponentTypeA, typename ComponentTypeB>
-struct TMutualEntityInitializer : FMutualEntityInitializer
-{
-	using CallbackType = void (*)(ComponentTypeA* ComponentsA, ComponentTypeB* ComponentsB, int32 Num);
-
-	explicit TMutualEntityInitializer(TComponentTypeID<ComponentTypeA> InComponentA, TComponentTypeID<ComponentTypeB> InComponentB, CallbackType InCallback)
-		: FMutualEntityInitializer(InComponentA, InComponentB)
-		, Callback(InCallback)
-	{}
-
-private:
-
-	virtual void Run(const FEntityRange& Range) override
-	{
-		TComponentLock<TWrite<ComponentTypeA>> A = Range.Allocation->WriteComponents(ComponentA.ReinterpretCast<ComponentTypeA>(), FEntityAllocationWriteContext::NewAllocation());
-		TComponentLock<TWrite<ComponentTypeB>> B = Range.Allocation->WriteComponents(ComponentB.ReinterpretCast<ComponentTypeB>(), FEntityAllocationWriteContext::NewAllocation());
-
-		Callback(&A[Range.ComponentStartOffset], &B[Range.ComponentStartOffset], Range.Num);
-	}
-
-	CallbackType Callback;
-};
-
-
-
 template<typename ComponentType>
 inline void FEntityFactories::DuplicateChildComponent(TComponentTypeID<ComponentType> InComponent)
 {

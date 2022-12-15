@@ -138,11 +138,6 @@ struct FEntityFactories
 	MOVIESCENE_API void DefineMutuallyInclusiveComponent(FComponentTypeID InComponentA, FComponentTypeID InComponentB);
 
 	/**
-	 * Specifies a mutual inclusivity relationship. The helper method above is easier and preferrable.
-	 */
-	MOVIESCENE_API void DefineMutuallyInclusiveComponent(TInlineValue<FMutualEntityInitializer>&& InInitializer);
-
-	/**
 	 * Specifies that if an entity matches the given filter, the specified components should be created on it.
 	 * @note: include "EntitySystem/MovieSceneEntityFactoryTemplates.h" for definition
 	 */
@@ -173,11 +168,9 @@ struct FEntityFactories
 	 */
 	MOVIESCENE_API int32 ComputeMutuallyInclusiveComponents(FComponentMask& ComponentMask);
 
-	MOVIESCENE_API void RunInitializers(const FComponentMask& Type, const FEntityRange& InEntityRange);
 	MOVIESCENE_API void RunInitializers(const FComponentMask& ParentType, const FComponentMask& ChildType, const FEntityAllocation* ParentAllocation, TArrayView<const int32> ParentAllocationOffsets, const FEntityRange& InChildEntityRange);
 
 	TArray<TInlineValue<FChildEntityInitializer>> ChildInitializers;
-	TArray<TInlineValue<FMutualEntityInitializer>> MutualInitializers;
 
 	TMultiMap<FComponentTypeID, FComponentTypeID> ParentToChildComponentTypes;
 	FMovieSceneEntitySystemDirectedGraph MutualInclusivityGraph;

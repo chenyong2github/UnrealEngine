@@ -220,10 +220,6 @@ struct TEntityBuilderImpl<TIntegerSequence<int, Indices...>, T...> : IEntityBuil
 	{
 		if (Entity.Data.Allocation != nullptr)
 		{
-			if (bAddMutualComponents)
-			{
-				EntityManager->InitializeMutualComponents(Entity.EntityID);
-			}
 			VisitTupleElements([Entity](auto& In){ In.Apply(Entity.Data.Allocation, Entity.Data.ComponentOffset); }, this->Payload);
 		}
 	}

@@ -47,7 +47,6 @@ struct FChildEntityInitializer;
 struct FComponentRegistry;
 struct FEntityAllocationIteratorProxy;
 struct FFreeEntityOperation;
-struct FMutualEntityInitializer;
 struct IComponentTypeHandler;
 struct IMovieSceneEntityMutation;
 template <typename T> struct TReadOptional;
@@ -408,11 +407,6 @@ public:
 	 * Runs all initializers for the specified parent/child allocation
 	 */
 	void InitializeChildAllocation(const FComponentMask& ParentType, const FComponentMask& ChildType, const FEntityAllocation* ParentAllocation, TArrayView<const int32> ParentAllocationOffsets, const FEntityRange& InChildEntityRange);
-
-	/**
-	 * Initialize a single entity using the mutual initializers
-	 */
-	void InitializeMutualComponents(FMovieSceneEntityID EntityID);
 
 	/**
 	 * Destroy a previously registered instanced child initializer using its index
