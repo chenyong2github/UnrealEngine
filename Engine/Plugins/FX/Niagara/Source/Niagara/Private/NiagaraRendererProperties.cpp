@@ -323,14 +323,19 @@ void UNiagaraRendererProperties::ChangeToPositionBinding(FNiagaraVariableAttribu
 
 bool UNiagaraRendererProperties::UpdateMaterialStaticParameters(const FNiagaraRendererMaterialParameters& MaterialParameters, UMaterialInstanceConstant* MIC)
 {
-	FStaticParameterSet StaticParameterSet;
-
 	UNiagaraEmitter* NiagaraEmitter = GetTypedOuter<UNiagaraEmitter>();
 	UNiagaraSystem* NiagaraSystem = GetTypedOuter<UNiagaraSystem>();
 	if (NiagaraEmitter == nullptr || NiagaraSystem == nullptr)
 	{
 		return false;
 	}
+
+	TArray<FMaterialParameterInfo> AllStaticSwitchParameterInfos;
+	{
+		TArray<FGuid> ParameterGuids;
+		MIC->GetAllStaticSwitchParameterInfo(AllStaticSwitchParameterInfos, ParameterGuids);
+	}
+	FStaticParameterSet StaticParameterSet;
 
 	bool bModified = false;
 	for (const FNiagaraRendererMaterialStaticBoolParameter& ParameterBinding : MaterialParameters.StaticBoolParameters)
@@ -352,37 +357,43 @@ bool UNiagaraRendererProperties::UpdateMaterialStaticParameters(const FNiagaraRe
 						continue;
 					}
 
-					FStaticSwitchParameter* StaticParameter = StaticParameterSet.StaticSwitchParameters.FindByPredicate(
-						[ParameterBinding](const FStaticSwitchParameter& StaticParameter)
-						{
-							return StaticParameter.ParameterInfo.Name == ParameterBinding.MaterialParameterName;
-						}
-					);
-
-					const bool bNewValue = StaticVariable.GetValue<bool>();
-					if (StaticParameter == nullptr)
+					for (const FMaterialParameterInfo& ParameterInfo : AllStaticSwitchParameterInfos)
 					{
-						FGuid ParameterGuid;
-						bool bDefaultValue = false;
-						if (MIC->GetStaticSwitchParameterDefaultValue(ParameterBinding.MaterialParameterName, bDefaultValue, ParameterGuid))
+						if (ParameterInfo.Name != ParameterBinding.MaterialParameterName)
 						{
-							if (bDefaultValue != bNewValue)
+							continue;
+						}
+
+						FStaticSwitchParameter* StaticParameter = StaticParameterSet.StaticSwitchParameters.FindByPredicate(
+							[ParameterInfo](const FStaticSwitchParameter& StaticParameter)
 							{
-								StaticParameterSet.SetParameterValue(ParameterBinding.MaterialParameterName, FMaterialParameterValue(bNewValue), EMaterialSetParameterValueFlags::None);
+								return StaticParameter.ParameterInfo == ParameterInfo;
+							}
+						);
+
+						const bool bNewValue = StaticVariable.GetValue<bool>();
+						if (StaticParameter == nullptr)
+						{
+							FGuid ParameterGuid;
+							bool bDefaultValue = false;
+							if (MIC->GetStaticSwitchParameterDefaultValue(ParameterInfo, bDefaultValue, ParameterGuid))
+							{
+								if (bDefaultValue != bNewValue)
+								{
+									StaticParameterSet.SetParameterValue(ParameterInfo, FMaterialParameterValue(bNewValue), EMaterialSetParameterValueFlags::None);
+									bModified = true;
+								}
+							}
+						}
+						else
+						{
+							if (StaticParameter && StaticParameter->Value != bNewValue)
+							{
+								StaticParameter->Value = bNewValue;
 								bModified = true;
 							}
 						}
 					}
-					else
-					{
-						if (StaticParameter && StaticParameter->Value != bNewValue)
-						{
-							StaticParameter->Value = bNewValue;
-							bModified = true;
-						}
-					}
-
-					break;
 				}
 			}
 		);

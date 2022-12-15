@@ -1126,11 +1126,22 @@ TSharedRef<SWidget> FNiagaraMaterialAttributeBindingCustomization::OnGetMaterial
 
 void FNiagaraMaterialAttributeBindingCustomization::GetMaterialParameters(TArray<TPair<FName, FString>>& OutBindingNameAndDescription) const
 {
+	TSet<FName> AddedParameterNames;
 	auto TransformMaterialParameterInfo =
-		[&OutBindingNameAndDescription](UMaterialInterface* Material, TArray<FMaterialParameterInfo>& ParameterInfos)
+		[&OutBindingNameAndDescription, &AddedParameterNames](UMaterialInterface* Material, TArray<FMaterialParameterInfo>& ParameterInfos)
 		{
 			for (const FMaterialParameterInfo& ParameterInfo : ParameterInfos)
 			{
+				if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter)
+				{
+					continue;
+				}
+				if (AddedParameterNames.Contains(ParameterInfo.Name))
+				{
+					continue;
+				}
+				AddedParameterNames.Add(ParameterInfo.Name);
+
 				FString ParameterDesc;
 				Material->GetParameterDesc(ParameterInfo, ParameterDesc);
 				OutBindingNameAndDescription.Emplace(ParameterInfo.Name, ParameterDesc);
@@ -2185,6 +2196,7 @@ TSharedRef<SWidget> FNiagaraRendererMaterialParameterCustomization::OnGetMateria
 	UNiagaraRendererProperties* RenderProperties = WeakRenderProperties.Get();
 	if (RenderProperties != nullptr && PropertyHandle.IsValid())
 	{
+		TSet<FName> AddedParameterNames;
 		TArray<UMaterialInterface*> UsedMaterials;
 		RenderProperties->GetUsedMaterials(nullptr, UsedMaterials);
 
@@ -2200,6 +2212,17 @@ TSharedRef<SWidget> FNiagaraRendererMaterialParameterCustomization::OnGetMateria
 
 			for (const FMaterialParameterInfo& MaterialParameterInfo : MaterialParameterInfos)
 			{
+				if (MaterialParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter)
+				{
+					continue;
+				}
+
+				if (AddedParameterNames.Contains(MaterialParameterInfo.Name))
+				{
+					continue;
+				}
+				AddedParameterNames.Add(MaterialParameterInfo.Name);
+
 				FString ParameterDesc;
 				Material->GetParameterDesc(MaterialParameterInfo, ParameterDesc);
 
@@ -2274,6 +2297,10 @@ void FNiagaraRendererMaterialStaticBoolParameterCustomization::GetMaterialParame
 {
 	TArray<FGuid> Guids;
 	Material->GetAllStaticSwitchParameterInfo(OutMaterialParameterInfos, Guids);
+	for (FMaterialParameterInfo& MaterialParameterInfo : OutMaterialParameterInfos)
+	{
+		MaterialParameterInfo.Association = EMaterialParameterAssociation::GlobalParameter;
+	}
 }
 
 TSharedRef<SWidget> FNiagaraRendererMaterialStaticBoolParameterCustomization::OnGetStaticVariablelBindingNameMenuContent(TSharedPtr<IPropertyHandle> PropertyHandle) const
