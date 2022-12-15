@@ -3,8 +3,9 @@
 #include "Data/PCGIntersectionData.h"
 #include "Data/PCGPointData.h"
 #include "Helpers/PCGAsync.h"
-#include "PCGHelpers.h"
+#include "Math/NumericLimits.h"
 #include "Metadata/PCGMetadataAccessor.h"
+#include "PCGHelpers.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGIntersectionData)
 
@@ -112,6 +113,47 @@ bool UPCGIntersectionData::HasNonTrivialTransform() const
 {
 	check(A && B);
 	return A->HasNonTrivialTransform() || B->HasNonTrivialTransform();
+}
+
+const UPCGSpatialData* UPCGIntersectionData::FindShapeFromNetwork(const int InDimension) const
+{
+	check(A && B);
+
+	if (InDimension >= 0)
+	{
+		// Return first candidate that matches Dimension
+		if (const UPCGSpatialData* CandidateA = A->FindShapeFromNetwork(InDimension))
+		{
+			return CandidateA;
+		}
+
+		if (const UPCGSpatialData* CandidateB = B->FindShapeFromNetwork(InDimension))
+		{
+			return CandidateB;
+		}
+	}
+	else
+	{
+		// Return lowest Dimension candidate
+		const UPCGSpatialData* Result = nullptr;
+
+		int LowestDimension = MAX_uint32;
+		const UPCGSpatialData* LowestDimensionalShape = nullptr;
+
+		if (const UPCGSpatialData* CandidateA = A->FindShapeFromNetwork(InDimension))
+		{
+			Result = CandidateA;
+			LowestDimension = CandidateA->GetDimension();
+		}
+
+		const UPCGSpatialData* CandidateB = B->FindShapeFromNetwork(InDimension);
+		if (CandidateB && CandidateB->GetDimension() < LowestDimension)
+		{
+			Result = CandidateB;
+		}
+	}
+
+	return nullptr;
 }
 
 const UPCGPointData* UPCGIntersectionData::CreatePointData(FPCGContext* Context) const

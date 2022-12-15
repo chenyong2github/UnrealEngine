@@ -20,6 +20,9 @@ struct PCG_API FPCGCustomVersion
 
 		MoveParamsOffFirstPinDensityNodes = 3,
 
+		// Split samplers to give a sampling shape and a bounding shape inputs
+		SplitSamplerNodesInputs = 4,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

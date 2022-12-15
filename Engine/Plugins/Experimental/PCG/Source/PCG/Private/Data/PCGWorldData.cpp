@@ -252,7 +252,7 @@ const UPCGPointData* UPCGWorldRayHitData::CreatePointData(FPCGContext* Context, 
 	PCGSurfaceSampler::FSurfaceSamplerSettings SamplerSettings;
 	if (SamplerSettings.Initialize(nullptr, Context, EffectiveBounds))
 	{
-		PCGSurfaceSampler::SampleSurface(Context, this, SamplerSettings, Data);
+		PCGSurfaceSampler::SampleSurface(Context, this, nullptr, SamplerSettings, Data);
 	}
 
 	return Data;

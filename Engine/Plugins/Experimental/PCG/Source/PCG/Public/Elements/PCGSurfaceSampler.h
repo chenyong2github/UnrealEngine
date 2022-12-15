@@ -3,13 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "PCGNode.h"
-#include "PCGSettings.h"
+
 #include "PCGElement.h"
+#include "PCGSettings.h"
 
 #include "PCGSurfaceSampler.generated.h"
 
-class FPCGSurfaceSamplerElement;
+class UPCGNode;
 class UPCGPointData;
 class UPCGSpatialData;
 
@@ -21,6 +21,30 @@ class PCG_API UPCGSurfaceSamplerSettings : public UPCGSettings
 public:
 	UPCGSurfaceSamplerSettings();
 
+	//~Begin UObject interface
+	virtual void PostLoad() override;
+	//~End UObject interface
+
+	//~Begin UPCGSettings interface
+#if WITH_EDITOR
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("SurfaceSampler")); }
+	virtual FText GetNodeTooltipText() const override;
+	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Sampler; }
+	virtual bool IsPinUsedByNodeExecution(const UPCGPin* InPin) const override;
+#endif
+
+	virtual TArray<FPCGPinProperties> InputPinProperties() const override;
+	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
+
+#if WITH_EDITOR
+	virtual void ApplyDeprecationBeforeUpdatePins(UPCGNode* InOutNode, TArray<TObjectPtr<UPCGPin>>& InputPins, TArray<TObjectPtr<UPCGPin>>& OutputPins) override;
+#endif
+
+protected:
+	virtual FPCGElementPtr CreateElement() const override;
+	// ~End UPCGSettings interface
+
+public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta=(ClampMin="0"))
 	float PointsPerSquaredMeter = 0.1f;
 
@@ -33,6 +57,13 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta=(ClampMin="0"))
 	float Looseness = 1.0f;
 
+	/** If no Bounding Shape input is provided the actor bounds are used to limit the sample generation area.
+	* This option allows ignoring the actor bounds and generating over the entire surface. Use with caution as this
+	* may generate a lot of points.
+	*/
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	bool bUnbounded = false;
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Points")
 	bool bApplyDensityToPoints = true;
 
@@ -43,22 +74,6 @@ public:
 	UPROPERTY(Transient, BlueprintReadWrite, EditAnywhere, Category = "Settings|Debug")
 	bool bKeepZeroDensityPoints = false;
 #endif
-
-	//~Begin UObject interface
-	virtual void PostLoad() override;
-	//~End UObject interface
-
-#if WITH_EDITOR
-	//~Begin UPCGSettings interface
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("SurfaceSampler")); }
-	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Sampler; }
-#endif
-
-	virtual TArray<FPCGPinProperties> OutputPinProperties() const override { return Super::DefaultPointOutputPinProperties(); }
-
-protected:
-	virtual FPCGElementPtr CreateElement() const override;
-	// ~End UPCGSettings interface
 };
 
 class FPCGSurfaceSamplerElement : public FSimplePCGElement
@@ -98,8 +113,10 @@ namespace PCGSurfaceSampler
 		int64 TargetPointCount;
 		float Ratio;
 		int Seed;
+
+		FVector::FReal InputBoundsMaxZ;
 	};
 
-	UPCGPointData* SampleSurface(FPCGContext* Context, const UPCGSpatialData* SpatialInput, const FSurfaceSamplerSettings& LoopData);
-	void SampleSurface(FPCGContext* Context, const UPCGSpatialData* SpatialInput, const FSurfaceSamplerSettings& LoopData, UPCGPointData* SampledData);
+	UPCGPointData* SampleSurface(FPCGContext* Context, const UPCGSpatialData* InSurface, const UPCGSpatialData* InBoundingShape, const FSurfaceSamplerSettings& LoopData);
+	void SampleSurface(FPCGContext* Context, const UPCGSpatialData* InSurface, const UPCGSpatialData* InBoundingShape, const FSurfaceSamplerSettings& LoopData, UPCGPointData* SampledData);
 }
