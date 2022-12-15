@@ -58,7 +58,10 @@ private:
 	/** Executes when after the state has been changed */
 	UPROPERTY(BlueprintAssignable, Category = "Connections")
 	FChangeConnectionStateEvent OnPostStateChanged;
-	
+
+	/**
+	 * The states
+	 */
 	UPROPERTY(EditAnywhere, Category = "Connections")
 	TMap<FName, FVCamWidgetConnectionState> States { { DefaultState, {} } };
 

@@ -2,6 +2,7 @@
 
 #include "WidgetConnectionConfigTypeCustomization.h"
 
+#include "BaseWidgetBlueprint.h"
 #include "ConnectionTargetNodeBuilder.h"
 #include "Customizations/StateSwitcher/SStringSelectionComboBox.h"
 #include "LogVCamEditor.h"
@@ -82,7 +83,8 @@ namespace UE::VCamCoreEditor::Private
 		{
 			PropertyUtils->ForceRefresh();
 		}));
-		
+
+		const TWeakPtr<IPropertyUtilities> WeakPropertyUtils = CustomizationUtils.GetPropertyUtilities();
 		Row.CustomWidget()
 			.NameContent()
 			[
@@ -100,7 +102,7 @@ namespace UE::VCamCoreEditor::Private
 					})
 					// Property list is only build once: when the Blueprint is recompiled,
 					// the details view SHOULD refresh automatically and thus all of this is reconstructed. 
-					.ItemList(GetPropertyItemList(CustomizationUtils))
+					.ItemList(this, &FWidgetConnectionConfigTypeCustomization::GetPropertyItemList, WeakPropertyUtils)
 					.OnItemSelected_Lambda([WidgetReferencePropertyHandle](const FString& SelectedItem)
 					{
 						WidgetReferencePropertyHandle->SetValue(SelectedItem);
@@ -109,12 +111,18 @@ namespace UE::VCamCoreEditor::Private
 			];
 	}
 	
-	TArray<FString> FWidgetConnectionConfigTypeCustomization::GetPropertyItemList(IPropertyTypeCustomizationUtils& CustomizationUtils) const
+	TArray<FString> FWidgetConnectionConfigTypeCustomization::GetPropertyItemList(TWeakPtr<IPropertyUtilities> WeakPropertyUtils) const
 	{
+		TSharedPtr<IPropertyUtilities> PropertyUtilities = WeakPropertyUtils.Pin();
+		if (!PropertyUtilities)
+		{
+			return {};
+		}
+		
 		TArray<FString> PropertyItemList;
 		PropertyItemList.Add(FName(NAME_None).ToString());
 		
-		const TArray<TWeakObjectPtr<UObject>>& SelectedObjects = CustomizationUtils.GetPropertyUtilities()->GetSelectedObjects();
+		const TArray<TWeakObjectPtr<UObject>>& SelectedObjects = PropertyUtilities->GetSelectedObjects();
 		if (!ensure(SelectedObjects.Num() == 1) || !SelectedObjects[0].IsValid())
 		{
 			return PropertyItemList;
@@ -126,8 +134,18 @@ namespace UE::VCamCoreEditor::Private
 		{
 			return {};
 		}
+
+		// Two use cases are expected: Editing an instance from 1. UMG Designer tab 2. Class Defaults in Graph tab
+		// When editing Class Defaults, the WidgetTree is expected to be nullptr when editing class defaults so let's grab it from the asset.
+		const TObjectPtr<UWidgetTree> WidgetTree = Widget->WidgetTree
+			? Widget->WidgetTree
+			: GetWidgetTreeThroughBlueprintAsset(Widget);
+		if (!WidgetTree)
+		{
+			return {};
+		}
 		
-		Widget->WidgetTree->ForEachWidget([&PropertyItemList](UWidget* Widget)
+		WidgetTree->ForEachWidget([&PropertyItemList](UWidget* Widget)
 		{
 			const bool bIsVCamWidgetProperty = Widget && Widget->GetClass()->IsChildOf(UVCamWidget::StaticClass());
 			if (bIsVCamWidgetProperty)
@@ -136,6 +154,20 @@ namespace UE::VCamCoreEditor::Private
 			}
 		});
 		return PropertyItemList;
+	}
+
+	TObjectPtr<UWidgetTree> FWidgetConnectionConfigTypeCustomization::GetWidgetTreeThroughBlueprintAsset(UUserWidget* ClassDefaultWidget)
+	{
+		if (!ensure(ClassDefaultWidget->HasAnyFlags(RF_ClassDefaultObject)))
+		{
+			return nullptr;
+		}
+		
+		UObject* Blueprint = ClassDefaultWidget->GetClass()->ClassGeneratedBy;
+		UBaseWidgetBlueprint* WidgetBlueprint = Cast<UBaseWidgetBlueprint>(Blueprint);
+		return WidgetBlueprint
+			? WidgetBlueprint->WidgetTree
+			: nullptr;
 	}
 
 	void FWidgetConnectionConfigTypeCustomization::CustomizeConnectionTargetsReferenceProperty(

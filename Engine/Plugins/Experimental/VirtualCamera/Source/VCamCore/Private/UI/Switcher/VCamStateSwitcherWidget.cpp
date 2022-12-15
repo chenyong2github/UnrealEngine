@@ -46,21 +46,12 @@ bool UVCamStateSwitcherWidget::SetCurrentState(FName NewState, bool bForceUpdate
 #if WITH_EDITOR
 void UVCamStateSwitcherWidget::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-
 	if (!States.Contains(DefaultState))
 	{
 		States.Add(DefaultState, {});
 	}
-
-	if (PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UVCamStateSwitcherWidget, CurrentState))
-	{
-		constexpr bool bForceUpdate = true;
-		if (!SetCurrentState(CurrentState, bForceUpdate))
-		{
-			SetCurrentState(DefaultState, bForceUpdate);
-		}
-	}
+	
+	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif 
 
@@ -69,5 +60,9 @@ void UVCamStateSwitcherWidget::NativePreConstruct()
 	Super::NativePreConstruct();
 
 	constexpr bool bForceUpdate = true;
-	SetCurrentState(CurrentState, bForceUpdate);
+	const bool bIsCurrentStateValid = SetCurrentState(CurrentState, bForceUpdate); 
+	if (!bIsCurrentStateValid)
+	{
+		SetCurrentState(DefaultState, bForceUpdate);
+	}
 }

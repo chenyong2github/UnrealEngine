@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "IPropertyTypeCustomization.h"
 
+class UWidgetTree;
+class UUserWidget;
 class IDetailPropertyRow;
 
 namespace UE::VCamCoreEditor::Private
@@ -24,7 +26,8 @@ namespace UE::VCamCoreEditor::Private
 	private:
 
 		void CustomizeWidgetReferenceProperty(TSharedRef<IPropertyHandle> WidgetReferencePropertyHandle, IDetailPropertyRow& Row, IPropertyTypeCustomizationUtils& CustomizationUtils) const;
-		TArray<FString> GetPropertyItemList(IPropertyTypeCustomizationUtils& CustomizationUtils) const;
+		TArray<FString> GetPropertyItemList(TWeakPtr<IPropertyUtilities> WeakPropertyUtils) const;
+		static TObjectPtr<UWidgetTree> GetWidgetTreeThroughBlueprintAsset(UUserWidget* ClassDefaultWidget); 
 
 		void CustomizeConnectionTargetsReferenceProperty(TSharedRef<IPropertyHandle> StructPropertyHandle, TSharedRef<IPropertyHandle> ConnectionTargetsPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils) const;
 		TAttribute<TArray<FName>> CreateGetConnectionsFromChildWidgetAttribute(TSharedRef<IPropertyHandle> StructPropertyHandle, IPropertyTypeCustomizationUtils& CustomizationUtils) const;
