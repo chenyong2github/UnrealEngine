@@ -172,6 +172,7 @@ void FLandscapeEditorStructCustomization_FLandscapeImportLayer::CustomizeChildre
 					.AllowedClass(ULandscapeLayerInfoObject::StaticClass())
 					.PropertyHandle(PropertyHandle_LayerInfo)
 					.OnShouldFilterAsset_Static(&ShouldFilterLayerInfo, LayerName)
+					.AllowCreate(false)
 				]
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
