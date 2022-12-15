@@ -119,6 +119,7 @@
 #include "LevelEditor.h"
 #include "IAssetViewport.h"
 #include "SLevelViewport.h"
+#include "Application/ThrottleManager.h"
 
 #include "ModelingToolsActions.h"
 #include "ModelingToolsManagerActions.h"
@@ -1226,6 +1227,12 @@ void UModelingToolsEditorMode::OnToolPostBuild(
 
 void UModelingToolsEditorMode::OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 {
+	// disable slate throttling so that Tool background computes responding to sliders can properly be processed
+	// on Tool Tick. Otherwise, when a Tool kicks off a background update in a background thread, the computed
+	// result will be ignored until the user moves the slider, ie you cannot hold down the mouse and wait to see
+	// the result. This apparently broken behavior is currently by-design.
+	FSlateThrottleManager::Get().DisableThrottle(true);
+
 	FModelingToolActionCommands::UpdateToolCommandBinding(Tool, Toolkit->GetToolkitCommands(), false);
 	
 	if( FEngineAnalytics::IsAvailable() )
@@ -1238,6 +1245,9 @@ void UModelingToolsEditorMode::OnToolStarted(UInteractiveToolManager* Manager, U
 
 void UModelingToolsEditorMode::OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 {
+	// re-enable slate throttling (see OnToolStarted)
+	FSlateThrottleManager::Get().DisableThrottle(false);
+
 	FModelingToolActionCommands::UpdateToolCommandBinding(Tool, Toolkit->GetToolkitCommands(), true);
 	
 	if( FEngineAnalytics::IsAvailable() )

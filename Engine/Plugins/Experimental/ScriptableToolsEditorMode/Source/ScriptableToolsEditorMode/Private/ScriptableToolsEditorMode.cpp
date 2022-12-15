@@ -10,6 +10,7 @@
 #include "EditorModeManager.h"
 #include "UnrealWidget.h"
 #include "Framework/Commands/UICommandList.h"
+#include "Application/ThrottleManager.h"
 
 #include "ScriptableToolsEditorModeToolkit.h"
 #include "ScriptableToolsEditorModeManagerCommands.h"
@@ -262,10 +263,17 @@ void UScriptableToolsEditorMode::OnToolPostBuild(
 
 void UScriptableToolsEditorMode::OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 {
+	// disable slate throttling so that Tool background computes responding to sliders can properly be processed
+	// on Tool Tick. Otherwise, when a Tool kicks off a background update in a background thread, the computed
+	// result will be ignored until the user moves the slider, ie you cannot hold down the mouse and wait to see
+	// the result. This apparently broken behavior is currently by-design.
+	FSlateThrottleManager::Get().DisableThrottle(true);
 }
 
 void UScriptableToolsEditorMode::OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 {
+	// re-enable slate throttling (see OnToolStarted)
+	FSlateThrottleManager::Get().DisableThrottle(false);
 }
 
 void UScriptableToolsEditorMode::BindCommands()
