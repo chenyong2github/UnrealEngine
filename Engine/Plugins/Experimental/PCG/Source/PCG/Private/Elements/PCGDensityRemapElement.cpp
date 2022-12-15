@@ -2,12 +2,24 @@
 
 #include "Elements/PCGDensityRemapElement.h"
 
+#include "PCGCustomVersion.h"
+#include "PCGEdge.h"
 #include "PCGHelpers.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
 #include "Math/RandomStream.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGDensityRemapElement)
+
+TArray<FPCGPinProperties> UPCGDensityRemapSettings::InputPinProperties() const
+{
+	TArray<FPCGPinProperties> PinProperties;
+	// TODO in the future type checking of edges will be stricter and a conversion node will be added to convert from other types
+	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Point);
+	PinProperties.Emplace(PCGPinConstants::DefaultParamsLabel, EPCGDataType::Param, /*bInAllowMultipleConnections=*/false);
+
+	return PinProperties;
+}
 
 FPCGElementPtr UPCGDensityRemapSettings::CreateElement() const
 {
@@ -73,3 +85,16 @@ bool FPCGDensityRemapElement::ExecuteInternal(FPCGContext* Context) const
 	return true;
 }
 
+#if WITH_EDITOR
+void UPCGDensityRemapSettings::ApplyDeprecationBeforeUpdatePins(UPCGNode* InOutNode, TArray<TObjectPtr<UPCGPin>>& InputPins, TArray<TObjectPtr<UPCGPin>>& OutputPins)
+{
+	Super::ApplyDeprecationBeforeUpdatePins(InOutNode, InputPins, OutputPins);
+
+	check(InOutNode);
+
+	if (DataVersion < FPCGCustomVersion::MoveParamsOffFirstPinDensityNodes)
+	{
+		PCGSettingsHelpers::DeprecationBreakOutParamsToPin(InOutNode, InputPins, OutputPins);
+	}
+}
+#endif // WITH_EDITOR

@@ -3,6 +3,7 @@
 #include "Helpers/PCGSettingsHelpers.h"
 
 #include "PCGComponent.h"
+#include "PCGEdge.h"
 #include "PCGHelpers.h"
 #include "PCGSettings.h"
 
@@ -211,5 +212,44 @@ namespace PCGSettingsHelpers
 
 		const int SettingsSeed = InParams ? PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGSettings, Seed), InSettings->Seed, InParams) : InSettings->Seed;
 		return InComponent ? PCGHelpers::ComputeSeed(SettingsSeed, InComponent->Seed) : SettingsSeed;
+	}
+
+	void DeprecationBreakOutParamsToPin(UPCGNode* InOutNode, TArray<TObjectPtr<UPCGPin>>& InputPins, TArray<TObjectPtr<UPCGPin>>& OutputPins)
+	{
+		// Check basic conditions for which the code below should run.
+		check(InputPins.Num() == 1);
+		check(InputPins[0] && InputPins[0]->Properties.AllowedTypes == EPCGDataType::Any);
+
+		UPCGPin* InPin = InputPins[0];
+
+		// Add params pin with good defaults (UpdatePins will ensure pin details are correct later).
+		UPCGPin* NewParamsPin = NewObject<UPCGPin>(InOutNode);
+		NewParamsPin->Node = InOutNode;
+		NewParamsPin->Properties.AllowedTypes = EPCGDataType::Param;
+		NewParamsPin->Properties.Label = PCGPinConstants::DefaultParamsLabel;
+		NewParamsPin->Properties.bAllowMultipleConnections = false;
+		InputPins.Add(NewParamsPin);
+
+		// Make list of param pins that In pin is currently connected to.
+		TArray<UPCGPin*> UpstreamParamPins;
+		for (const UPCGEdge* Connection : InPin->Edges)
+		{
+			if (Connection->InputPin && Connection->InputPin->Properties.AllowedTypes == EPCGDataType::Param)
+			{
+				UpstreamParamPins.Add(Connection->InputPin);
+			}
+		}
+
+		// Break all connections to param pins, and connect the first such pin to the new params pin on this node.
+		for (UPCGPin* Pin : UpstreamParamPins)
+		{
+			InPin->BreakEdgeTo(Pin);
+
+			// Params never support multiple connections as a rule (user must merge params themselves), so just connect first.
+			if (!NewParamsPin->IsConnected())
+			{
+				NewParamsPin->AddEdgeTo(Pin);
+			}
+		}
 	}
 }

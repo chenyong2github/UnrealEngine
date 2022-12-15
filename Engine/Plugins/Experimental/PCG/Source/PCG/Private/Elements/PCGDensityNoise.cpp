@@ -2,6 +2,8 @@
 
 #include "Elements/PCGDensityNoise.h"
 
+#include "PCGCustomVersion.h"
+#include "PCGEdge.h"
 #include "PCGHelpers.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
@@ -12,6 +14,16 @@
 UPCGDensityNoiseSettings::UPCGDensityNoiseSettings()
 {
 	bUseSeed = true;
+}
+
+TArray<FPCGPinProperties> UPCGDensityNoiseSettings::InputPinProperties() const
+{
+	TArray<FPCGPinProperties> PinProperties;
+	// TODO in the future type checking of edges will be stricter and a conversion node will be added to convert from other types
+	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Point);
+	PinProperties.Emplace(PCGPinConstants::DefaultParamsLabel, EPCGDataType::Param, /*bInAllowMultipleConnections=*/false);
+
+	return PinProperties;
 }
 
 FPCGElementPtr UPCGDensityNoiseSettings::CreateElement() const
@@ -82,3 +94,16 @@ bool FPCGDensityNoiseElement::ExecuteInternal(FPCGContext* Context) const
 	return true;
 }
 
+#if WITH_EDITOR
+void UPCGDensityNoiseSettings::ApplyDeprecationBeforeUpdatePins(UPCGNode* InOutNode, TArray<TObjectPtr<UPCGPin>>& InputPins, TArray<TObjectPtr<UPCGPin>>& OutputPins)
+{
+	Super::ApplyDeprecationBeforeUpdatePins(InOutNode, InputPins, OutputPins);
+
+	check(InOutNode);
+
+	if (DataVersion < FPCGCustomVersion::MoveParamsOffFirstPinDensityNodes)
+	{
+		PCGSettingsHelpers::DeprecationBreakOutParamsToPin(InOutNode, InputPins, OutputPins);
+	}
+}
+#endif // WITH_EDITOR

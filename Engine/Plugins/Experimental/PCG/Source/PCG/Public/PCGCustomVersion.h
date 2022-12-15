@@ -18,6 +18,8 @@ struct PCG_API FPCGCustomVersion
 		
 		MoveSelfPruningParamsOffFirstPin = 2,
 
+		MoveParamsOffFirstPinDensityNodes = 3,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

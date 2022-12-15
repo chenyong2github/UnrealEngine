@@ -256,14 +256,6 @@ TArray<FPCGPinProperties> UPCGSelfPruningSettings::InputPinProperties() const
 	return PinProperties;
 }
 
-TArray<FPCGPinProperties> UPCGSelfPruningSettings::OutputPinProperties() const
-{
-	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Point);
-
-	return PinProperties;
-}
-
 FPCGElementPtr UPCGSelfPruningSettings::CreateElement() const
 {
 	return MakeShared<FPCGSelfPruningElement>();
@@ -296,44 +288,7 @@ void UPCGSelfPruningSettings::ApplyDeprecationBeforeUpdatePins(UPCGNode* InOutNo
 
 	if (DataVersion < FPCGCustomVersion::MoveSelfPruningParamsOffFirstPin)
 	{
-		// A dedicated pin for params will be added when the pins are updated. Here we detect any params connections to the In pin
-		// and disconnect them, and move the first params connection to a new params pin.
-		
-		// Check basic conditions for which the code below should run.
-		check(InputPins.Num() == 1);
-		check(InputPins[0] && InputPins[0]->Properties.AllowedTypes == EPCGDataType::Any);
-
-		UPCGPin* InPin = InputPins[0];
-
-		// Add params pin with good defaults (UpdatePins will ensure pin details are correct later).
-		UPCGPin* NewParamsPin = NewObject<UPCGPin>(InOutNode);
-		NewParamsPin->Node = InOutNode;
-		NewParamsPin->Properties.AllowedTypes = EPCGDataType::Param;
-		NewParamsPin->Properties.Label = PCGPinConstants::DefaultParamsLabel;
-		NewParamsPin->Properties.bAllowMultipleConnections = false;
-		InputPins.Add(NewParamsPin);
-
-		// Make list of param pins that In pin is currently connected to.
-		TArray<UPCGPin*> UpstreamParamPins;
-		for (const UPCGEdge* Connection : InPin->Edges)
-		{
-			if (Connection->InputPin && Connection->InputPin->Properties.AllowedTypes == EPCGDataType::Param)
-			{
-				UpstreamParamPins.Add(Connection->InputPin);
-			}
-		}
-
-		// Break all connections to param pins, and connect the first such pin to the new params pin on this node.
-		for (UPCGPin* Pin : UpstreamParamPins)
-		{
-			InPin->BreakEdgeTo(Pin);
-
-			// Params never support multiple connections as a rule (user must merge params themselves), so just connect first.
-			if (!NewParamsPin->IsConnected())
-			{
-				NewParamsPin->AddEdgeTo(Pin);
-			}
-		}
+		PCGSettingsHelpers::DeprecationBreakOutParamsToPin(InOutNode, InputPins, OutputPins);
 	}
 }
 #endif // WITH_EDITOR
