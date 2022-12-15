@@ -13,6 +13,7 @@
 #include "InterchangeShaderGraphNode.h"
 #include "InterchangeTexture2DNode.h"
 #include "InterchangeTextureNode.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/FileHelper.h"
