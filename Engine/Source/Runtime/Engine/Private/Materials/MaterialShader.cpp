@@ -725,7 +725,7 @@ void FMaterialShaderMapId::Serialize(FArchive& Ar, bool bLoadedByCookedMaterial)
 
 #if WITH_EDITOR
 /** Hashes the material-specific part of this shader map Id. */
-void FMaterialShaderMapId::GetMaterialHash(FSHAHash& OutHash) const
+void FMaterialShaderMapId::GetMaterialHash(FSHAHash& OutHash, bool bWithStaticParameters) const
 {
 	check(IsContentValid());
 	FSHA1 HashState;
@@ -746,9 +746,12 @@ void FMaterialShaderMapId::GetMaterialHash(FSHAHash& OutHash) const
 
 
 	//Hash the static parameters
-	for (const FStaticSwitchParameter& StaticSwitchParameter : StaticSwitchParameters)
+	if (bWithStaticParameters)
 	{
-		StaticSwitchParameter.UpdateHash(HashState);
+		for (const FStaticSwitchParameter& StaticSwitchParameter : StaticSwitchParameters)
+		{
+			StaticSwitchParameter.UpdateHash(HashState);
+		}
 	}
 	for (const FStaticComponentMaskParameter& StaticComponentMaskParameter : StaticComponentMaskParameters)
 	{
@@ -795,7 +798,7 @@ void FMaterialShaderMapId::GetMaterialHash(FSHAHash& OutHash) const
 * @param ReferenceSet	The set to compare against
 * @return				true if the sets are equal
 */
-bool FMaterialShaderMapId::operator==(const FMaterialShaderMapId& ReferenceSet) const
+bool FMaterialShaderMapId::Equals(const FMaterialShaderMapId& ReferenceSet, bool bWithStaticParameters) const
 {
 	// Ensure data is in valid state for comparison
 	check(IsContentValid() && ReferenceSet.IsContentValid());
@@ -849,7 +852,7 @@ bool FMaterialShaderMapId::operator==(const FMaterialShaderMapId& ReferenceSet) 
 #if WITH_EDITOR
 	if (!IsCookedId())
 	{
-		if (StaticSwitchParameters.Num() != ReferenceSet.StaticSwitchParameters.Num()
+		if ((bWithStaticParameters && StaticSwitchParameters.Num() != ReferenceSet.StaticSwitchParameters.Num())
 			|| StaticComponentMaskParameters.Num() != ReferenceSet.StaticComponentMaskParameters.Num()
 			|| TerrainLayerWeightParameters.Num() != ReferenceSet.TerrainLayerWeightParameters.Num()
 			|| ReferencedFunctions.Num() != ReferenceSet.ReferencedFunctions.Num()
@@ -861,7 +864,7 @@ bool FMaterialShaderMapId::operator==(const FMaterialShaderMapId& ReferenceSet) 
 			return false;
 		}
 
-		if (StaticSwitchParameters != ReferenceSet.StaticSwitchParameters
+		if ((bWithStaticParameters && StaticSwitchParameters != ReferenceSet.StaticSwitchParameters)
 			|| StaticComponentMaskParameters != ReferenceSet.StaticComponentMaskParameters
 			|| TerrainLayerWeightParameters != ReferenceSet.TerrainLayerWeightParameters
 			|| MaterialLayersId != ReferenceSet.MaterialLayersId)

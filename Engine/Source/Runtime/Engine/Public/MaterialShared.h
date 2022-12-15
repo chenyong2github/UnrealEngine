@@ -960,8 +960,15 @@ public:
 
 #if WITH_EDITOR
 	/** Hashes the material-specific part of this shader map Id. */
-	ENGINE_API void GetMaterialHash(FSHAHash& OutHash) const;
+	ENGINE_API void GetMaterialHash(FSHAHash& OutHash, bool bWithStaticParameters) const;
+
+	ENGINE_API void GetMaterialHash(FSHAHash& OutHash) const
+	{
+		GetMaterialHash(OutHash, true);
+	}
 #endif
+
+	ENGINE_API bool Equals(const FMaterialShaderMapId& ReferenceSet, bool bWithStaticParameters) const;
 
 	/** 
 	* Tests this set against another for equality
@@ -969,11 +976,14 @@ public:
 	* @param ReferenceSet	The set to compare against
 	* @return				true if the sets are equal
 	*/
-	bool operator==(const FMaterialShaderMapId& ReferenceSet) const;
+	bool operator==(const FMaterialShaderMapId& ReferenceSet) const
+	{
+		return Equals(ReferenceSet, true);
+	}
 
 	bool operator!=(const FMaterialShaderMapId& ReferenceSet) const
 	{
-		return !(*this == ReferenceSet);
+		return !Equals(ReferenceSet, true);
 	}
 
 	/** Ensure content is valid - for example overrides are set deterministically for serialization and sorting */

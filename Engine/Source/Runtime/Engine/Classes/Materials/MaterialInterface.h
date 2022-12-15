@@ -1112,7 +1112,7 @@ extern void ProcessSerializedInlineShaderMaps(UMaterialInterface* Owner, TArray<
 extern FMaterialResource* FindMaterialResource(const TArray<FMaterialResource*>& MaterialResources, ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type QualityLevel, bool bAllowDefaultQuality);
 extern FMaterialResource* FindMaterialResource(TArray<FMaterialResource*>& MaterialResources, ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type QualityLevel, bool bAllowDefaultQuality);
 
-extern FMaterialResource* FindOrCreateMaterialResource(TArray<FMaterialResource*>& MaterialResources,
+ENGINE_API FMaterialResource* FindOrCreateMaterialResource(TArray<FMaterialResource*>& MaterialResources,
 	UMaterial* OwnerMaterial,
 	UMaterialInstance* OwnerMaterialInstance,
 	ERHIFeatureLevel::Type InFeatureLevel,
