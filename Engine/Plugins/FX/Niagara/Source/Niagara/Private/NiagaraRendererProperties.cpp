@@ -91,7 +91,9 @@ bool FNiagaraRendererLayout::SetVariable(const FNiagaraDataSetCompiledData* Comp
 bool FNiagaraRendererLayout::SetVariableFromBinding(const FNiagaraDataSetCompiledData* CompiledData, const FNiagaraVariableAttributeBinding& VariableBinding, int32 VFVarOffset)
 {
 	if (VariableBinding.IsParticleBinding())
+	{
 		return SetVariable(CompiledData, VariableBinding.GetDataSetBindableVariable(), VFVarOffset);
+	}
 	return false;
 }
 
@@ -208,6 +210,14 @@ void FNiagaraRendererMaterialParameters::GetFeedback(TArrayView<UMaterialInterfa
 			for (int32 i = 0; i < VectorParameters.Num(); ++i)
 			{
 				VectorParametersValid[i] |= ContainsParameter(VectorParameters[i].MaterialParameterName);
+			}
+		}
+		if (AttributeBindingsValid.Num() > 0)
+		{
+			Material->GetAllDoubleVectorParameterInfo(TempParameterInfo, TempParameterIds);
+			for (int32 i = 0; i < AttributeBindings.Num(); ++i)
+			{
+				AttributeBindingsValid[i] |= ContainsParameter(AttributeBindings[i].MaterialParameterName);
 			}
 		}
 		if (AttributeBindingsValid.Num() > 0 || TextureParametersValid.Num() > 0)

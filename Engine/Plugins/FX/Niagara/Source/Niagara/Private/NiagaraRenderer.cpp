@@ -527,7 +527,6 @@ void FNiagaraRenderer::ProcessMaterialParameterBindings(const FNiagaraRendererMa
 				{
 					for (const FNiagaraMaterialAttributeBinding& Binding : MaterialParameters.AttributeBindings)
 					{
-
 						if (Binding.GetParamMapBindableVariable().GetType() == FNiagaraTypeDefinition::GetVec4Def() ||
 							(Binding.GetParamMapBindableVariable().GetType().IsDataInterface() && Binding.NiagaraChildVariable.GetType() == FNiagaraTypeDefinition::GetVec4Def()))
 						{
@@ -554,10 +553,10 @@ void FNiagaraRenderer::ProcessMaterialParameterBindings(const FNiagaraRendererMa
 						{
 							FNiagaraPosition Var(ForceInitToZero);
 							InEmitter->GetBoundRendererValue_GT(Binding.GetParamMapBindableVariable(), Binding.NiagaraChildVariable, &Var);
-							FNiagaraLWCConverter LwcConverter = SystemInstance->GetLWCConverter(InEmitter->GetCachedEmitterData() ? InEmitter->GetCachedEmitterData()->bLocalSpace : false);
-							FVector WorldPos = LwcConverter.ConvertSimulationPositionToWorld(Var);
+							const FNiagaraLWCConverter LwcConverter = SystemInstance->GetLWCConverter(false);
+							const FVector WorldPos = LwcConverter.ConvertSimulationPositionToWorld(Var);
 
-							//TODO: should we use SetDoubleVectorParamValue() instead to prevent accuracy loss? 
+							MatDyn->SetDoubleVectorParameterValue(Binding.MaterialParameterName, WorldPos);
 							MatDyn->SetVectorParameterValue(Binding.MaterialParameterName, WorldPos);
 						}
 						else if (Binding.GetParamMapBindableVariable().GetType() == FNiagaraTypeDefinition::GetVec2Def() ||

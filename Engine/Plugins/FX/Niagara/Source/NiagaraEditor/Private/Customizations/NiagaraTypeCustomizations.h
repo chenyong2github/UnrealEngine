@@ -262,7 +262,7 @@ private:
 	TSharedRef<SWidget> OnCreateWidgetForMaterialAction(struct FCreateWidgetForActionData* const InCreateData);
 	void OnMaterialActionSelected(const TArray< TSharedPtr<FEdGraphSchemaAction> >& SelectedActions, ESelectInfo::Type InSelectionType);
 
-	bool IsCompatibleNiagaraVariable(const struct FNiagaraVariable& InVar) const;
+	TArray<FNiagaraTypeDefinition> GetAllowedVariableTypes() const;
 	static FText MakeCurrentText(const FNiagaraVariableBase& BaseVar, const FNiagaraVariableBase& ChildVar);
 
 	TSharedPtr<IPropertyHandle> PropertyHandle;

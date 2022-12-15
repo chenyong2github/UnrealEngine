@@ -812,35 +812,92 @@ TSharedRef<SWidget> FNiagaraMaterialAttributeBindingCustomization::OnGetNiagaraM
 	return MenuContent;
 }
 
-
-bool FNiagaraMaterialAttributeBindingCustomization::IsCompatibleNiagaraVariable(const FNiagaraVariable& InVar) const
+TArray<FNiagaraTypeDefinition> FNiagaraMaterialAttributeBindingCustomization::GetAllowedVariableTypes() const
 {
+	TArray<FNiagaraTypeDefinition> AllowedTypes;
+	if (BaseSystem && TargetParameterBinding && PropertyHandle)
 	{
+		TArray<UObject*> Objects;
+		PropertyHandle->GetOuterObjects(Objects);
+	
+		if (Objects.Num() == 1)
+		{
+			UNiagaraRendererProperties* RendererProperties = Cast<UNiagaraRendererProperties>(Objects[0]);
+			TArray<UMaterialInterface*> Materials;
+			if (RendererProperties)
+			{
+				RendererProperties->GetUsedMaterials(nullptr, Materials);
+			}
+	
+			
+			auto MatchMaterialParameter =
+				[MaterialName=TargetParameterBinding->MaterialParameterName](const FMaterialParameterInfo& InParameter)
+				{
+					return InParameter.Name == MaterialName;
+				};
 
-		if (InVar.GetType() == FNiagaraTypeDefinition::GetFloatDef() ||
-			InVar.GetType() == FNiagaraTypeDefinition::GetVec4Def() ||
-			InVar.GetType() == FNiagaraTypeDefinition::GetColorDef() ||
-			InVar.GetType() == FNiagaraTypeDefinition::GetVec2Def() ||
-			InVar.GetType() == FNiagaraTypeDefinition::GetVec3Def() ||
-			InVar.GetType() == FNiagaraTypeDefinition::GetPositionDef() ||
-			InVar.GetType() == FNiagaraTypeDefinition::GetUObjectDef() ||
-			InVar.GetType() == FNiagaraTypeDefinition::GetUTextureDef() ||
-			InVar.GetType() == FNiagaraTypeDefinition::GetUTextureRenderTargetDef() )
-		{
-			return true;
-		}
-		else if (InVar.GetType().IsDataInterface())
-		{
-			return true;
+			TArray<FMaterialParameterInfo> TempParameterInfo;
+			TArray<FGuid> ParameterIds;
+			bool bHasTextureBinding = false;
+			bool bHasScalarBinding = false;
+			bool bHasVectorBinding = false;
+			bool bHasDoubleVectorBinding = false;
+			for (UMaterialInterface* Material : Materials)
+			{
+				if (!Material)
+				{
+					continue;
+				}
+	
+				Material->GetAllTextureParameterInfo(TempParameterInfo, ParameterIds);
+				bHasTextureBinding |= TempParameterInfo.ContainsByPredicate(MatchMaterialParameter);
+				TempParameterInfo.Reset();
+	
+				Material->GetAllScalarParameterInfo(TempParameterInfo, ParameterIds);
+				bHasScalarBinding |= TempParameterInfo.ContainsByPredicate(MatchMaterialParameter);
+				TempParameterInfo.Reset();
+
+				Material->GetAllVectorParameterInfo(TempParameterInfo, ParameterIds);
+				bHasVectorBinding |= TempParameterInfo.ContainsByPredicate(MatchMaterialParameter);
+				TempParameterInfo.Reset();
+
+				Material->GetAllDoubleVectorParameterInfo(TempParameterInfo, ParameterIds);
+				bHasDoubleVectorBinding |= TempParameterInfo.ContainsByPredicate(MatchMaterialParameter);
+				TempParameterInfo.Reset();
+
+				ParameterIds.Reset();
+			}
+
+			if (bHasTextureBinding)
+			{
+				AllowedTypes.AddUnique(FNiagaraTypeDefinition::GetUObjectDef());
+				AllowedTypes.AddUnique(FNiagaraTypeDefinition::GetUTextureDef());
+				AllowedTypes.AddUnique(FNiagaraTypeDefinition::GetUTextureRenderTargetDef());
+			}
+			if (bHasScalarBinding)
+			{
+				AllowedTypes.AddUnique(FNiagaraTypeDefinition::GetFloatDef());
+			}
+			if (bHasVectorBinding)
+			{
+				AllowedTypes.AddUnique(FNiagaraTypeDefinition::GetVec4Def());
+				AllowedTypes.AddUnique(FNiagaraTypeDefinition::GetColorDef());
+				AllowedTypes.AddUnique(FNiagaraTypeDefinition::GetVec2Def());
+				AllowedTypes.AddUnique(FNiagaraTypeDefinition::GetVec3Def());
+			}
+			if (bHasDoubleVectorBinding)
+			{
+				AllowedTypes.AddUnique(FNiagaraTypeDefinition::GetPositionDef());
+			}
 		}
 	}
-	return false;
+	return AllowedTypes;
 }
 
 TArray<TPair<FNiagaraVariableBase, FNiagaraVariableBase> > FNiagaraMaterialAttributeBindingCustomization::GetNiagaraNames() const
 {
 	TArray<TPair<FNiagaraVariableBase, FNiagaraVariableBase>> Names;
-	TArray < FNiagaraVariableBase > BaseVars;
+	TArray<FNiagaraVariableBase> BaseVars;
 
 	if (BaseSystem && BaseEmitter.Emitter && TargetParameterBinding)
 	{
@@ -884,29 +941,33 @@ TArray<TPair<FNiagaraVariableBase, FNiagaraVariableBase> > FNiagaraMaterialAttri
 				return BaseVariable.GetType().GetClass()->GetDefaultObject<UNiagaraDataInterface>();
 			};
 
-		for (const FNiagaraVariableBase& BaseVar : BaseVars)
+		if (BaseVars.Num() > 0)
 		{
-			if (BaseVar.IsDataInterface())
+			const TArray<FNiagaraTypeDefinition> AllowedVariableTypes = GetAllowedVariableTypes();
+			for (const FNiagaraVariableBase& BaseVar : BaseVars)
 			{
-				UNiagaraDataInterface* DI = FindCachedDI(BaseVar);
-				if (DI && DI->CanExposeVariables())
+				if (BaseVar.IsDataInterface())
 				{
-					TArray<FNiagaraVariableBase> ChildVars;
-					DI->GetExposedVariables(ChildVars);
-					for (const FNiagaraVariableBase& ChildVar : ChildVars)
+					UNiagaraDataInterface* DI = FindCachedDI(BaseVar);
+					if (DI && DI->CanExposeVariables())
 					{
-						if (IsCompatibleNiagaraVariable(ChildVar))
+						TArray<FNiagaraVariableBase> ChildVars;
+						DI->GetExposedVariables(ChildVars);
+						for (const FNiagaraVariableBase& ChildVar : ChildVars)
 						{
-							Names.AddUnique(TPair<FNiagaraVariableBase, FNiagaraVariableBase>(BaseVar, ChildVar));
+							if (!AllowedVariableTypes.Num() || AllowedVariableTypes.Contains(ChildVar.GetType()))
+							{
+								Names.AddUnique(TPair<FNiagaraVariableBase, FNiagaraVariableBase>(BaseVar, ChildVar));
+							}
 						}
 					}
 				}
-			}
-			else if (IsCompatibleNiagaraVariable(BaseVar))
-			{
-				if (RenderProps && TargetParameterBinding && RenderProps->IsSupportedVariableForBinding(BaseVar, TargetParameterBinding->MaterialParameterName))
+				else if (!AllowedVariableTypes.Num() || AllowedVariableTypes.Contains(BaseVar.GetType()))
 				{
-					Names.AddUnique(TPair<FNiagaraVariableBase, FNiagaraVariableBase>(BaseVar, FNiagaraVariableBase()));
+					if (RenderProps && TargetParameterBinding && RenderProps->IsSupportedVariableForBinding(BaseVar, TargetParameterBinding->MaterialParameterName))
+					{
+						Names.AddUnique(TPair<FNiagaraVariableBase, FNiagaraVariableBase>(BaseVar, FNiagaraVariableBase()));
+					}
 				}
 			}
 		}
@@ -1107,6 +1168,9 @@ void FNiagaraMaterialAttributeBindingCustomization::GetMaterialParameters(TArray
 				TransformMaterialParameterInfo(Material, TempParameterInfo);
 
 				Material->GetAllVectorParameterInfo(TempParameterInfo, ParameterIds);
+				TransformMaterialParameterInfo(Material, TempParameterInfo);
+
+				Material->GetAllDoubleVectorParameterInfo(TempParameterInfo, ParameterIds);
 				TransformMaterialParameterInfo(Material, TempParameterInfo);
 
 				ParameterIds.Reset();
