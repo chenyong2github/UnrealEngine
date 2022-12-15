@@ -153,7 +153,7 @@ bool FDesktopPlatformBase::GetEngineIdentifierFromRootDir(const FString &RootDir
 	}
 
 	// Otherwise just try to add it
-	return RegisterEngineInstallation(RootDir, OutIdentifier);
+	return RegisterEngineInstallation(NormalizedRootDir, OutIdentifier);
 }
 
 bool FDesktopPlatformBase::GetDefaultEngineIdentifier(FString &OutId)

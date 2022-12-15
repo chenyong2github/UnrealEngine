@@ -135,7 +135,7 @@ bool FDesktopPlatformLinux::RegisterEngineInstallation(const FString &RootDir, F
 		ConfigFile.Read(ConfigPath);
 
 		FConfigSection &Section = ConfigFile.FindOrAdd(TEXT("Installations"));
-		OutIdentifier = FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphensInBraces);
+		OutIdentifier = FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphens);
 		Section.AddUnique(*OutIdentifier, RootDir);
 
 		ConfigFile.Dirty = true;
@@ -205,13 +205,13 @@ void FDesktopPlatformLinux::EnumerateEngineInstallations(TMap<FString, FString> 
 		{
 			FGuid IdGuid;
 			FGuid::Parse(Key->ToString(), IdGuid);
-			EngineId = IdGuid.ToString(EGuidFormats::DigitsWithHyphensInBraces);
+			EngineId = IdGuid.ToString(EGuidFormats::DigitsWithHyphens);
 		}
 		else
 		{
 			if (!OutInstallations.FindKey(EngineDir))
 			{
-				EngineId = FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphensInBraces);
+				EngineId = FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphens);
 				SectionsToAdd.AddUnique(*EngineId, EngineDir);
 
 				ConfigFile.Dirty = true;
