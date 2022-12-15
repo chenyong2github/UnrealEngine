@@ -162,6 +162,7 @@ namespace Horde.Build.Perforce
 				handle._fileWriter.Reset();
 				handle._path = path;
 				handle._size = size;
+				handle._sizeWritten = 0;
 				handle._flags = flags;
 
 				_openHandles.Add(fd, handle);
