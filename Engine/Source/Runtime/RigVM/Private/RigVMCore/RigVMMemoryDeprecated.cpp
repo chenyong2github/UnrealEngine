@@ -6,6 +6,7 @@
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/Package.h"
 #include "RigVMModule.h"
+#include "UObject/CoreRedirects.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMMemoryDeprecated)
 
@@ -596,6 +597,17 @@ void FRigVMMemoryContainer::Load(FArchive& Ar)
 	for (const FString& ScriptStructPath : ScriptStructPaths)
 	{
 		UScriptStruct* ScriptStruct = FindObject<UScriptStruct>(nullptr, *ScriptStructPath);
+
+		// try to find a redirect
+		if (ScriptStruct == nullptr)
+		{
+			const FCoreRedirectObjectName OldObjectName(ScriptStructPath);
+			const FCoreRedirectObjectName NewObjectName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Struct, OldObjectName);
+			if (OldObjectName != NewObjectName)
+			{
+				ScriptStruct = FindObject<UScriptStruct>(nullptr, *NewObjectName.ToString());
+			}
+		}
 
 		// this might have happened if a given script struct no longer 
 		// exists or cannot be loaded.
