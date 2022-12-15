@@ -680,11 +680,13 @@ void Main(
 
 	// Compute final value
 	{
-	#if STRATA_OPTIMIZED_UNLIT
+	#if STRATA_OPAQUE_MATERIAL && STRATA_OPTIMIZED_UNLIT
 		OutColor = float4(DualBlendSurfaceLuminancePostCoverage, 1);
 	#elif STRATA_OPAQUE_MATERIAL
 		OutColor = float4(Color, 1);
-	#elif STRATA_TRANSLUCENT_MATERIAL
+	#endif
+
+	#if STRATA_TRANSLUCENT_MATERIAL
 			
 	#if STRATA_LEGACY_PREMULT_ALPHA_OVERRIDE && !STRATA_OPTIMIZED_UNLIT
 		// This data patching is working because DualBlendSurfaceCoverage is always 1 when converting material from legacy to Strata with premultiplied alpha blending.

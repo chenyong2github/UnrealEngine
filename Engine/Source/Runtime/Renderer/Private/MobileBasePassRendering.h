@@ -299,8 +299,8 @@ namespace MobileBasePass
 		FMaterialShadingModelField ShadingModels, 
 		bool bPrimReceivesCSM, 
 		bool bUsedDeferredShading,
-		ERHIFeatureLevel::Type FeatureLevel,
-		EBlendMode BlendMode);
+		bool bIsTranslucent,
+		ERHIFeatureLevel::Type FeatureLevel);
 
 	bool GetShaders(
 		ELightMapPolicyType LightMapPolicyType,
@@ -456,7 +456,8 @@ private:
 		const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
 		const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
 		const FMaterial& RESTRICT MaterialResource,
-		EBlendMode BlendMode,
+		const bool bIsMasked,
+		const bool bIsTranslucent,
 		FMaterialShadingModelField ShadingModels,
 		const ELightMapPolicyType LightMapPolicyType,
 		const bool bCanReceiveCSM,
