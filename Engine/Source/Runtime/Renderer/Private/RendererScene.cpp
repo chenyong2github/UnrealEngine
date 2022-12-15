@@ -1443,6 +1443,11 @@ bool FScene::RequestGPUSceneUpdate(FPrimitiveSceneInfo& PrimitiveSceneInfo, EPri
 	return PrimitiveSceneInfo.RequestGPUSceneUpdate(PrimitiveDirtyState);
 }
 
+void FScene::RefreshNaniteRasterBins(FPrimitiveSceneInfo& PrimitiveSceneInfo)
+{
+	PrimitiveSceneInfo.RefreshNaniteRasterBins();
+}
+
 SIZE_T FScene::GetSizeBytes() const
 {
 	return sizeof(*this) 

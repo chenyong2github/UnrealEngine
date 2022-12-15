@@ -406,6 +406,7 @@ void AddPostProcessingPasses(
 		PostProcessMaterialInputs.SetInput(EPostProcessMaterialInput::Velocity, Velocity);
 		PostProcessMaterialInputs.SceneTextures = GetSceneTextureShaderParameters(Inputs.SceneTextures);
 		PostProcessMaterialInputs.CustomDepthTexture = CustomDepth.Texture;
+		PostProcessMaterialInputs.bManualStencilTest = Inputs.bSeparateCustomStencil;
 		PostProcessMaterialInputs.SceneWithoutWaterTextures = &SceneWithoutWaterTextures;
 
 		return PostProcessMaterialInputs;
@@ -971,6 +972,7 @@ void AddPostProcessingPasses(
 				PassInputs.SetInput(EPostProcessMaterialInput::CombinedBloom, Bloom);
 				PassInputs.SceneTextures = GetSceneTextureShaderParameters(Inputs.SceneTextures);
 				PassInputs.CustomDepthTexture = CustomDepth.Texture;
+				PassInputs.bManualStencilTest = Inputs.bSeparateCustomStencil;
 
 				SceneColor = AddPostProcessMaterialPass(GraphBuilder, View, PassInputs, HighestPriorityMaterial);
 			}

@@ -48,6 +48,11 @@ struct FCustomDepthTextures
 	FRDGTextureRef Depth{};
 	FRDGTextureSRVRef Stencil{};
 
+	// Denotes that the depth and stencil buffers had to be split to separate, non-depth textures (and thus Depth cannot be bound
+	// as a depth/stencil buffer). This can happen when Nanite renders custom depth on platforms with HW that cannot write stencil
+	// values per-pixel from a shader.
+	bool bSeparateStencilBuffer = false;
+
 	// Actions to use when initially rendering to custom depth / stencil.
 	ERenderTargetLoadAction DepthAction = ERenderTargetLoadAction::EClear;
 	ERenderTargetLoadAction StencilAction = ERenderTargetLoadAction::EClear;

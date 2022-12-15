@@ -405,7 +405,7 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("BasePass Total Raster Bins"), STAT_NaniteBasePa
 DECLARE_DWORD_COUNTER_STAT(TEXT("BasePass Total Shading Draws"), STAT_NaniteBasePassTotalShadingDraws, STATGROUP_Nanite);
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("BasePass Visible Raster Bins"), STAT_NaniteBasePassVisibleRasterBins, STATGROUP_Nanite);
-DECLARE_DWORD_COUNTER_STAT(TEXT("BasePass Visible Shading Draws"), STAT_NaniteBassPassVisibleShadingDraws, STATGROUP_Nanite);
+DECLARE_DWORD_COUNTER_STAT(TEXT("BasePass Visible Shading Draws"), STAT_NaniteBasePassVisibleShadingDraws, STATGROUP_Nanite);
 
 CSV_DEFINE_CATEGORY(LightCount, true);
 
@@ -2847,6 +2847,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	}
 
 	TArray<Nanite::FRasterResults, TInlineAllocator<2>> NaniteRasterResults;
+	TArray<Nanite::FPackedView, TInlineAllocator<2>> NaniteViews;
 	{
 		if (bNaniteEnabled && Views.Num() > 0)
 		{
@@ -2871,12 +2872,12 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				uint32 TotalShadingDraws = 0;
 				uint32 VisibleShadingDraws = 0;
 				NaniteRasterResults[0].VisibilityResults.GetShadingDrawStats(VisibleShadingDraws, TotalShadingDraws);
-	
+
 				SET_DWORD_STAT(STAT_NaniteBasePassTotalRasterBins, TotalRasterBins);
 				SET_DWORD_STAT(STAT_NaniteBasePassTotalShadingDraws, TotalShadingDraws);
 
 				SET_DWORD_STAT(STAT_NaniteBasePassVisibleRasterBins, VisibleRasterBins);
-				SET_DWORD_STAT(STAT_NaniteBassPassVisibleShadingDraws, VisibleShadingDraws);
+				SET_DWORD_STAT(STAT_NaniteBasePassVisibleShadingDraws, VisibleShadingDraws);
 			}
 
 			const FIntPoint RasterTextureSize = SceneTextures.Depth.Target->Desc.Extent;
@@ -2961,6 +2962,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 						&HZBTestRect
 					);
 
+					NaniteViews.Add(PackedView);
+
 					Nanite::FCullingContext CullingContext{};
 
 					// Nanite::VisBuffer (Culling and Rasterization)
@@ -3018,7 +3021,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 								VelocityBuffer,
 								RasterResults.MaterialDepth,
 								RasterResults.MaterialResolve,
-								bNeedsPrePass,
 								bEmitStencilMask
 							);
 						}
@@ -3150,7 +3152,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	if (CustomDepthPassLocation == ECustomDepthPassLocation::BeforeBasePass)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_CustomDepthPass_BeforeBasePass);
-		if (RenderCustomDepthPass(GraphBuilder, SceneTextures.CustomDepth, SceneTextures.GetSceneTextureShaderParameters(FeatureLevel)))
+		if (RenderCustomDepthPass(GraphBuilder, SceneTextures.CustomDepth, SceneTextures.GetSceneTextureShaderParameters(FeatureLevel), NaniteRasterResults, NaniteViews, GNaniteProgrammableRasterPrimary != 0))
 		{
 			SceneTextures.SetupMode |= ESceneTextureSetupMode::CustomDepth;
 			SceneTextures.UniformBuffer = CreateSceneTextureUniformBuffer(GraphBuilder, &SceneTextures, FeatureLevel, SceneTextures.SetupMode);
@@ -3505,7 +3507,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	if (CustomDepthPassLocation == ECustomDepthPassLocation::AfterBasePass)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_CustomDepthPass_AfterBasePass);
-		if (RenderCustomDepthPass(GraphBuilder, SceneTextures.CustomDepth, SceneTextures.GetSceneTextureShaderParameters(FeatureLevel)))
+		if (RenderCustomDepthPass(GraphBuilder, SceneTextures.CustomDepth, SceneTextures.GetSceneTextureShaderParameters(FeatureLevel), NaniteRasterResults, NaniteViews, GNaniteProgrammableRasterPrimary != 0))
 		{
 			SceneTextures.SetupMode |= ESceneTextureSetupMode::CustomDepth;
 			SceneTextures.UniformBuffer = CreateSceneTextureUniformBuffer(GraphBuilder, &SceneTextures, FeatureLevel, SceneTextures.SetupMode);
@@ -4048,6 +4050,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		PostProcessingInputs.CustomDepthTexture = SceneTextures.CustomDepth.Depth;
 		PostProcessingInputs.ExposureIlluminance = ExposureIlluminance;
 		PostProcessingInputs.SceneTextures = SceneTextures.UniformBuffer;
+		PostProcessingInputs.bSeparateCustomStencil = SceneTextures.CustomDepth.bSeparateStencilBuffer;
 
 		GraphBuilder.FlushSetupQueue();
 

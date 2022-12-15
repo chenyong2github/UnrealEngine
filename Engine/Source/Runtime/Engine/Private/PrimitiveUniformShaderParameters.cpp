@@ -219,6 +219,11 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		Builder.InstanceLocalBounds(InstanceBounds[0]);
 	}
 
+	if (Proxy->ShouldRenderCustomDepth())
+	{
+		Builder.CustomDepthStencil(Proxy->GetCustomDepthStencilValue(), Proxy->GetStencilWriteMask());
+	}
+
 	Setup(Builder.Build());
 }
 
@@ -307,7 +312,8 @@ void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& P
 	Data[31].W = FMath::AsFloat(PrimitiveUniformShaderParameters.NaniteRayTracingDataOffset);
 
 	Data[32].X = PrimitiveUniformShaderParameters.BoundsScale;
-	// .YZW Unused
+	Data[32].Y = FMath::AsFloat(PrimitiveUniformShaderParameters.CustomStencilValueAndMask);
+	// .ZW Unused
 
 	// Set all the custom primitive data float4. This matches the loop in SceneData.ush
 	const int32 CustomPrimitiveDataStartIndex = 33;

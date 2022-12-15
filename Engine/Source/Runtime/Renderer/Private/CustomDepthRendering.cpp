@@ -36,8 +36,12 @@ static TAutoConsoleVariable<bool> CVarCustomDepthEnableFastClear(
 	TEXT("r.CustomDepthEnableFastClear"), false,
 	TEXT("Enable HTile on the custom depth buffer (default:false).\n"),
 	ECVF_RenderThreadSafe);
-	
+
+DECLARE_DWORD_COUNTER_STAT(TEXT("Nanite Custom Depth Instances"), STAT_NaniteCustomDepthInstances, STATGROUP_Nanite);
+
 DECLARE_GPU_DRAWCALL_STAT_NAMED(CustomDepth, TEXT("Custom Depth"));
+
+using FNaniteCustomDepthDrawList = TArray<Nanite::FInstanceDraw, SceneRenderingAllocator>;
 
 ECustomDepthPassLocation GetCustomDepthPassLocation(EShaderPlatform Platform)
 {
@@ -79,6 +83,12 @@ FCustomDepthTextures FCustomDepthTextures::Create(FRDGBuilder& GraphBuilder, FIn
 	if (!CVarCustomDepthEnableFastClear.GetValueOnRenderThread())
 	{
 		CreateFlags |= TexCreate_NoFastClear;
+	}
+
+	// For Nanite, check to create the depth texture as a UAV
+	if (UseComputeDepthExport() && Nanite::GetSupportsCustomDepthRendering())
+	{
+		CreateFlags |= TexCreate_UAV;
 	}
 
 	const FRDGTextureDesc CustomDepthDesc = FRDGTextureDesc::Create2D(CustomDepthExtent, PF_DepthStencil, FClearValueBinding::DepthFar, CreateFlags);
@@ -135,9 +145,66 @@ static FViewShaderParameters CreateViewShaderParametersWithoutJitter(const FView
 	return Parameters;
 }
 
-bool FSceneRenderer::RenderCustomDepthPass(FRDGBuilder& GraphBuilder, FCustomDepthTextures& CustomDepthTextures, const FSceneTextureShaderParameters& SceneTextures)
+static FNaniteCustomDepthDrawList BuildNaniteCustomDepthDrawList(const FViewInfo& View, uint32 ViewIndex, const FNaniteVisibilityResults& VisibilityResults)
+{
+	FNaniteCustomDepthDrawList Output;
+	for (const FPrimitiveInstanceRange& InstanceRange : View.NaniteCustomDepthInstances)
+	{
+		if (VisibilityResults.ShouldRenderCustomDepthPrimitive(InstanceRange.PrimitiveIndex))
+		{
+			const uint32 FirstOutputIndex = Output.Num();
+			Output.AddUninitialized(InstanceRange.NumInstances);
+			for (uint32 RelativeIndex = 0; RelativeIndex < uint32(InstanceRange.NumInstances); ++RelativeIndex)
+			{
+				const Nanite::FInstanceDraw Draw { InstanceRange.InstanceSceneDataOffset + RelativeIndex, ViewIndex };
+				Output[FirstOutputIndex + RelativeIndex] = Draw;
+			}
+		}
+	}
+
+	return MoveTemp(Output);
+}
+
+bool FSceneRenderer::RenderCustomDepthPass(
+	FRDGBuilder& GraphBuilder,
+	FCustomDepthTextures& CustomDepthTextures,
+	const FSceneTextureShaderParameters& SceneTextures,
+	TConstArrayView<Nanite::FRasterResults> PrimaryNaniteRasterResults,
+	TConstArrayView<Nanite::FPackedView> PrimaryNaniteViews,
+	bool bNaniteProgrammableRaster)
 {
 	if (!CustomDepthTextures.IsValid())
+	{
+		return false;
+	}
+
+	// Determine if any of the views have custom depth and if any of them have Nanite that is rendering custom depth
+	bool bAnyCustomDepth = false;
+	TArray<FNaniteCustomDepthDrawList, SceneRenderingAllocator> NaniteDrawLists;
+	NaniteDrawLists.AddDefaulted(Views.Num());
+	uint32 TotalNaniteInstances = 0;
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+	{
+		FViewInfo& View = Views[ViewIndex];
+		if (View.ShouldRenderView() && View.bHasCustomDepthPrimitives)
+		{
+			if (PrimaryNaniteRasterResults.IsValidIndex(ViewIndex))
+			{
+				const FNaniteVisibilityResults& VisibilityResults = PrimaryNaniteRasterResults[ViewIndex].VisibilityResults;
+
+				// Get the Nanite instance draw list for this view. (NOTE: Always use view index 0 for now because we're not doing
+				// multi-view yet).
+				NaniteDrawLists[ViewIndex] = BuildNaniteCustomDepthDrawList(View, 0u, VisibilityResults);
+
+				TotalNaniteInstances += NaniteDrawLists[ViewIndex].Num();
+			}
+			bAnyCustomDepth = true;
+		}
+	}
+
+	SET_DWORD_STAT(STAT_NaniteCustomDepthInstances, TotalNaniteInstances);
+
+	if (!bAnyCustomDepth)
 	{
 		return false;
 	}
@@ -145,7 +212,7 @@ bool FSceneRenderer::RenderCustomDepthPass(FRDGBuilder& GraphBuilder, FCustomDep
 	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderCustomDepthPass);
 	RDG_GPU_STAT_SCOPE(GraphBuilder, CustomDepth);
 
-	bool bCustomDepthRendered = false;
+	// Render non-Nanite Custom Depth primitives
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
 		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
@@ -189,12 +256,106 @@ bool FSceneRenderer::RenderCustomDepthPass(FRDGBuilder& GraphBuilder, FCustomDep
 				SetStereoViewport(RHICmdList, View, 1.0f);
 				View.ParallelMeshDrawCommandPasses[EMeshPass::CustomDepth].DispatchDraw(nullptr, RHICmdList, &PassParameters->InstanceCullingDrawParams);
 			});
-
-			bCustomDepthRendered = true;
 		}
 	}
 
-	if (bCustomDepthRendered)
+	if (TotalNaniteInstances > 0)
+	{
+		RDG_EVENT_SCOPE(GraphBuilder, "Nanite CustomDepth");
+
+		const FIntPoint RasterTextureSize = CustomDepthTextures.Depth->Desc.Extent;
+		FIntRect RasterTextureRect(0, 0, RasterTextureSize.X, RasterTextureSize.Y);
+		if (Views.Num() == 1)
+		{
+			const FViewInfo& View = Views[0];
+			if (View.ViewRect.Min.X == 0 && View.ViewRect.Min.Y == 0)
+			{
+				RasterTextureRect = View.ViewRect;
+			}
+		}
+
+		const bool bWriteCustomStencil = IsCustomDepthPassWritingStencil();
+
+		Nanite::FSharedContext SharedContext{};
+		SharedContext.FeatureLevel = Scene->GetFeatureLevel();
+		SharedContext.ShaderMap = GetGlobalShaderMap(SharedContext.FeatureLevel);
+		SharedContext.Pipeline = Nanite::EPipeline::Primary;
+
+		// TODO: If !bWriteCustomStencil, we could copy off the depth and rasterize depth-only (probable optimization)
+		Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(
+			GraphBuilder,
+			SharedContext,
+			RasterTextureSize,
+			RasterTextureRect,
+			false, // bVisualize
+			Nanite::EOutputBufferMode::VisBuffer,
+			true, // bClearTarget
+			nullptr, // RectMinMaxBufferSRV
+			0, // NumRects
+			nullptr, // ExternalDepthBuffer
+			true // bCustomPass
+		);
+
+		Nanite::FCullingContext::FConfiguration CullingConfig = { 0 };
+		CullingConfig.bUpdateStreaming = true;
+		CullingConfig.bForceHWRaster = RasterContext.RasterScheduling == Nanite::ERasterScheduling::HardwareOnly;
+		CullingConfig.bProgrammableRaster = bNaniteProgrammableRaster;
+
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+		{
+			RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
+
+			FViewInfo& View = Views[ViewIndex];
+
+			if (!View.ShouldRenderView() || NaniteDrawLists[ViewIndex].Num() == 0)
+			{
+				continue;
+			}
+
+			Nanite::FCullingContext CullingContext{};
+
+			// Rasterize the view
+			{
+				CullingContext = Nanite::InitCullingContext(
+					GraphBuilder,
+					SharedContext,
+					*Scene,
+					/* PrevHZB = */ nullptr,
+					View.ViewRect,
+					CullingConfig
+				);
+
+				Nanite::FRasterState RasterState;
+				Nanite::CullRasterize(
+					GraphBuilder,
+					Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
+					PrimaryNaniteRasterResults[ViewIndex].VisibilityResults,
+					*Scene,
+					View,
+					{ PrimaryNaniteViews[ViewIndex] },
+					SharedContext,
+					CullingContext,
+					RasterContext,
+					RasterState,
+					&NaniteDrawLists[ViewIndex]
+				);
+			}
+
+			// Emit depth
+			Nanite::EmitCustomDepthStencilTargets(
+				GraphBuilder,
+				*Scene,
+				View,
+				CullingContext.PageConstants,
+				CullingContext.VisibleClustersSWHW,
+				CullingContext.ViewsBuffer,
+				RasterContext.VisBuffer64,
+				bWriteCustomStencil,
+				CustomDepthTextures
+			);
+		}
+	}
+	else
 	{
 		const FSceneTexturesConfig& Config = FSceneTexturesConfig::Get();
 		FRDGTextureRef CustomDepth = CustomDepthTextures.Depth;
@@ -208,9 +369,10 @@ bool FSceneRenderer::RenderCustomDepthPass(FRDGBuilder& GraphBuilder, FCustomDep
 		}
 
 		CustomDepthTextures.Stencil = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateWithPixelFormat(CustomDepth, PF_X24_G8));
+		CustomDepthTextures.bSeparateStencilBuffer = false;
 	}
 
-	return bCustomDepthRendered;
+	return true;
 }
 
 class FCustomDepthPassMeshProcessor : public FSceneRenderingAllocatorObject<FCustomDepthPassMeshProcessor>, public FMeshPassProcessor
