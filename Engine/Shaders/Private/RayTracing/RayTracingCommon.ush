@@ -931,13 +931,6 @@ struct FDecalShaderParams
 	}
 	float3 GetInputTranslatedWorldPosition() { return float3(Data[0], Data[1], Data[2]); }
 
-	void SetPixelCoord(uint2 PixelCoord)
-	{
-		Data[3] = asfloat(PixelCoord.x);
-		Data[4] = asfloat(PixelCoord.y);
-	}
-	uint2 GetPixelCoord() { return asuint(float2(Data[3], Data[4])); }
-
 	void SetMetallic(float In) { Data[0] = In; }
 	float GetMetallic() { return Data[0]; }
 
