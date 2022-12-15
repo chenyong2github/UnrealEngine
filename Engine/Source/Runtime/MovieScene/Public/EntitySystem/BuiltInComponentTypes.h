@@ -386,6 +386,9 @@ public:
 		FComponentTypeID MigratedFromFastPath;
 
 		FComponentTypeID ImportedEntity;
+
+		FComponentTypeID SubInstance;
+
 		FComponentTypeID Root;
 
 		FComponentTypeID FixedTime;

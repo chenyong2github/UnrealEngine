@@ -202,6 +202,7 @@ void UMovieSceneSubSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* Enti
 	OutImportedEntity->AddBuilder(
 		FEntityBuilder().AddTag(FBuiltInComponentTypes::Get()->Tags.Root)
 	);
+
 	BuildDefaultSubSectionComponents(EntityLinker, Params, OutImportedEntity);
 }
 
@@ -484,17 +485,19 @@ void UMovieSceneSubSection::BuildDefaultSubSectionComponents(UMovieSceneEntitySy
 {
 	using namespace UE::MovieScene;
 
-	if (Easing.GetEaseInDuration() > 0 || Easing.GetEaseOutDuration() > 0)
-	{
-		FBuiltInComponentTypes* Components = FBuiltInComponentTypes::Get();
+	FBuiltInComponentTypes* Components = FBuiltInComponentTypes::Get();
 
-		const FSubSequencePath      PathToRoot         = EntityLinker->GetInstanceRegistry()->GetInstance(Params.Sequence.InstanceHandle).GetSubSequencePath();
-		const FMovieSceneSequenceID ResolvedSequenceID = PathToRoot.ResolveChildSequenceID(this->GetSequenceID());
+	const bool bHasEasing = Easing.GetEaseInDuration() > 0 || Easing.GetEaseOutDuration() > 0;
 
-		OutImportedEntity->AddBuilder(
-			FEntityBuilder().Add(Components->HierarchicalEasingProvider, ResolvedSequenceID)
-		);
-	}
+	const FSubSequencePath PathToRoot = EntityLinker->GetInstanceRegistry()->GetInstance(Params.Sequence.InstanceHandle).GetSubSequencePath();
+	FMovieSceneSequenceID ResolvedSequenceID = PathToRoot.ResolveChildSequenceID(this->GetSequenceID());
+
+	OutImportedEntity->AddBuilder(
+		FEntityBuilder()
+		.Add(Components->SequenceID, ResolvedSequenceID)
+		.AddTag(Components->Tags.SubInstance)
+		.AddConditional(Components->HierarchicalEasingProvider, ResolvedSequenceID, bHasEasing)
+	);
 }
 
 

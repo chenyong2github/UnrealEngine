@@ -1841,3 +1841,17 @@ void UMovieSceneSequencePlayer::SetWeight(double InWeight, FMovieSceneSequenceID
 		SequenceWeights->SetWeight(SequenceID, InWeight);
 	}
 }
+
+void UMovieSceneSequencePlayer::RemoveWeight()
+{
+	RemoveWeight(MovieSceneSequenceID::Root);
+}
+
+void UMovieSceneSequencePlayer::RemoveWeight(FMovieSceneSequenceID SequenceID)
+{
+	UMovieSceneEntitySystemLinker* Linker = RootTemplateInstance.GetEntitySystemLinker();
+	if (Linker && SequenceWeights)
+	{
+		SequenceWeights->RemoveWeight(SequenceID);
+	}
+}

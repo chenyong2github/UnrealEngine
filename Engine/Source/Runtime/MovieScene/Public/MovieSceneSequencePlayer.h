@@ -264,6 +264,12 @@ public:
 	void SetWeight(double InWeight);
 
 	/**
+	 * Removes a previously assigned weight
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
+	void RemoveWeight();
+
+	/**
 	 * Set a manual weight to be multiplied with all blendable elements within the specified sequence
 	 * @note: It is recommended that a weight between 0 and 1 is supplied, though this is not enforced
 	 * @note: It is recommended that either FMovieSceneSequencePlaybackSettings::DynamicWeighting should be true for this player or the asset it's playing back should be set to enable dynamic weight to avoid undesirable behavior
@@ -271,6 +277,11 @@ public:
 	 * @param InWeight    The weight to suuply to all elements in this sequence
 	 */
 	void SetWeight(double InWeight, FMovieSceneSequenceID SequenceID);
+
+	/**
+	 * Removes a previously assigned weight
+	 */
+	void RemoveWeight(FMovieSceneSequenceID SequenceID);
 
 public:
 

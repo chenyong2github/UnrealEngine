@@ -102,6 +102,7 @@ void FSequenceWeights::RemoveWeight(FMovieSceneSequenceID InSequenceID)
 	if (EntityID && ensureAlways(Linker))
 	{
 		Linker->EntityManager.AddComponent(EntityID, FBuiltInComponentTypes::Get()->Tags.NeedsUnlink);
+		WeightEntitiesBySequenceID.Remove(InSequenceID);
 	}
 }
 

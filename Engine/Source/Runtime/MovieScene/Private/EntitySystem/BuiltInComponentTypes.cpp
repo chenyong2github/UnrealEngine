@@ -141,6 +141,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	Tags.HasUnresolvedBinding    = ComponentRegistry->NewTag(TEXT("Has Unresolved Binding"));
 	Tags.MigratedFromFastPath    = ComponentRegistry->NewTag(TEXT("Migrated From Fast Path"));
 	Tags.Root                    = ComponentRegistry->NewTag(TEXT("Root"));
+	Tags.SubInstance             = ComponentRegistry->NewTag(TEXT("Sub Instance"));
 	Tags.ImportedEntity          = ComponentRegistry->NewTag(TEXT("Imported Entity"));
 	Tags.Finished                = ComponentRegistry->NewTag(TEXT("Finished Evaluating"));
 	Tags.Ignored                 = ComponentRegistry->NewTag(TEXT("Ignored"));
@@ -280,7 +281,6 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 		// Easing components should be duplicated to children
 		ComponentRegistry->Factories.DuplicateChildComponent(Easing);
 		ComponentRegistry->Factories.DuplicateChildComponent(HierarchicalEasingChannel);
-		ComponentRegistry->Factories.DuplicateChildComponent(HierarchicalEasingProvider);
 
 		// Easing needs a time to evaluate
 		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(Easing, EvalTime);
