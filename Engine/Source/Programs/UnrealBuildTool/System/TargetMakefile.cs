@@ -921,7 +921,12 @@ namespace UnrealBuildTool
 		/// <returns>Path to the makefile</returns>
 		public static FileReference GetLocation(FileReference? ProjectFile, string TargetName, UnrealTargetPlatform Platform, string Architecture, UnrealTargetConfiguration Configuration)
 		{
-			DirectoryReference BaseDirectory = DirectoryReference.FromFile(ProjectFile) ?? Unreal.EngineDirectory;
+			DirectoryReference BaseDirectory = Unreal.EngineDirectory;
+			// Programs with .uprojects still want the Intermediate under Engine (see UEBuildTarget constructor for similar code) 
+			if (ProjectFile != null && !ProjectFile.ContainsName("Programs", 0))
+			{
+				BaseDirectory = ProjectFile.Directory;
+			}
 			return FileReference.Combine(BaseDirectory, UEBuildTarget.GetPlatformIntermediateFolder(Platform, Architecture, false), TargetName, Configuration.ToString(), "Makefile.bin");
 		}
 	}

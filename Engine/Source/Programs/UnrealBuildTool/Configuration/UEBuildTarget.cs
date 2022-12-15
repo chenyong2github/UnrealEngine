@@ -1180,10 +1180,18 @@ namespace UnrealBuildTool
 				}
 			}
 
+			// track where intermediates and receipt files will be saved under (Programs with .uproject files still want to put the receipt
+			// under Engine/Binaries, not Engine/Programs/Foo/Binaries
+			DirectoryReference OutputRootDirectory = Unreal.EngineDirectory;
+
 			// Figure out what the project directory is. If we have a uproject file, use that. Otherwise use the engine directory.
 			if (ProjectFile != null)
 			{
 				ProjectDirectory = ProjectFile.Directory;
+				if (Rules.Type != TargetType.Program)
+				{
+					OutputRootDirectory = ProjectDirectory;
+				}
 			}
 			else
 			{
