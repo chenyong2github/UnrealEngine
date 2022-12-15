@@ -70,8 +70,10 @@ namespace UE::Anim
 			UAnimSequence& InAnimSequence,
 			const ITargetPlatform* InTargetPlatform);
 
+		~FAnimationSequenceAsyncCacheTask();
+
 		void Cancel();
-		void Wait();
+		void Wait(bool bPerformWork = true);
 		bool Poll() const;
 		void Reschedule(FQueuedThreadPool* InThreadPool, EQueuedWorkPriority InPriority) const;
 	private:

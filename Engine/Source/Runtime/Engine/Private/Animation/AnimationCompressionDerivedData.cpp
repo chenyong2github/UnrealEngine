@@ -34,6 +34,15 @@ FAnimationSequenceAsyncCacheTask::FAnimationSequenceAsyncCacheTask(const FIoHash
 	BeginCache(InKeyHash);
 }
 
+FAnimationSequenceAsyncCacheTask::~FAnimationSequenceAsyncCacheTask()
+{
+	if (!Poll())
+	{
+		Cancel();
+		Wait(false);
+	}
+}
+
 void FAnimationSequenceAsyncCacheTask::Cancel()
 {
 	if (BuildTask)
@@ -44,11 +53,11 @@ void FAnimationSequenceAsyncCacheTask::Cancel()
 	Owner.Cancel();
 }
 
-void FAnimationSequenceAsyncCacheTask::Wait()
+void FAnimationSequenceAsyncCacheTask::Wait(bool bPerformWork /*= true*/)
 {
 	if (BuildTask != nullptr)
 	{
-		BuildTask->EnsureCompletion();
+		BuildTask->EnsureCompletion(bPerformWork);
 	}
 
 	Owner.Wait();
