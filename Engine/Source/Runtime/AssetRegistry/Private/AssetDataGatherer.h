@@ -148,8 +148,10 @@ public:
 	void SetInitialPluginsLoaded();
 	/** Report whether the gatherer is configured to load depends data in addition to asset data. */
 	bool IsGatheringDependencies() const;
-	/** Return whether the current process enables reading and writing AssetDataGatherer cache files. */
-	bool IsCacheEnabled() const;
+	/** Return whether the current process enables reading AssetDataGatherer cache files. */
+	bool IsCacheReadEnabled() const;
+	/** Return whether the current process enables writing AssetDataGatherer cache files. */
+	bool IsCacheWriteEnabled() const;
 	/** Calculate the cache filename that should be used for the given list of package paths. */
 	FString GetCacheFilename(TConstArrayView<FString> CacheFilePackagePaths);
 	/** Attempt to read the cache file at the given LocalPath, and store all of its results in the in-memory cache. */
@@ -351,8 +353,10 @@ private:
 	 * Read/writable anywhere.
 	 */
 	std::atomic<bool> bSaveAsyncCacheTriggered;
-	/** True if the current process allows reading/writing of AssetDataGatherer cache files. */
-	std::atomic<bool> bCacheEnabled;
+	/** True if the current process allows reading of AssetDataGatherer cache files. */
+	std::atomic<bool> bCacheReadEnabled;
+	/** True if the current process allows writing of AssetDataGatherer cache files. */
+	std::atomic<bool> bCacheWriteEnabled;
 
 	// Variable section for variables that are read/writable only within ResultsLock.
 
@@ -389,11 +393,16 @@ private:
 	 */
 	int32 NumPathsToSearchAtLastSyncPoint;
 	/**
-	 * Track whether we are using a monolithic cache that should be loaded/saved during tick.
-	 * Wether we are or not, the AssetRegistry can also call LoadCacheFile/ScanPathsSynchronous to load/save smaller files.
+	 * Track whether we are allowed to read from a monolithic cache that should be loaded during tick.
+	 * Even if we are or not, if bCacheReadEnabled the AssetRegistry can also call LoadCacheFile/ScanPathsSynchronous to load/save smaller files.
 	 * Read/writable only within ResultsLock.
 	 */
-	bool bUseMonolithicCache;
+	bool bReadMonolithicCache;
+	/**
+	 * Track whether we are allowed to write to the monolithic cache.
+	 * Read/writable only within ResultsLock.
+	 */
+	bool bWriteMonolithicCache;
 	/** If bHasLoadedMonolithicCache is true, track whether the cache has been loaded. Read/writable only within ResultsLock. */
 	bool bHasLoadedMonolithicCache;
 	/** Track whether the Discovery subsystem has gone idle and we have read all filenames from it. Read/writable only within ResultsLock. */

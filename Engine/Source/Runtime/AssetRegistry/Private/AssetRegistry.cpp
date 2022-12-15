@@ -4467,7 +4467,7 @@ void FAssetRegistryImpl::ScanPathsSynchronous(Impl::FScanPathContext& Context)
 
 	// Add a cache file for any not-yet-scanned dirs
 	TArray<FString> CacheFilePackagePaths;
-	if (!Context.bForceRescan && Gatherer.IsCacheEnabled())
+	if (!Context.bForceRescan && (Gatherer.IsCacheReadEnabled() || Gatherer.IsCacheWriteEnabled()))
 	{
 		for (int n = 0; n < Context.LocalDirs.Num(); ++n)
 		{
