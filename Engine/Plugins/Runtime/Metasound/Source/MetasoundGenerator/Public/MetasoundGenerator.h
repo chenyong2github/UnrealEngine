@@ -4,6 +4,7 @@
 #include "Analysis/MetasoundFrontendGraphAnalyzer.h"
 #include "Async/Async.h"
 #include "Async/AsyncWork.h"
+#include "Containers/MpscQueue.h"
 #include "DSP/Dsp.h"
 #include "MetasoundAudioFormats.h"
 #include "MetasoundExecutableOperator.h"
