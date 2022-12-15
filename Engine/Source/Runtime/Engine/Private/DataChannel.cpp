@@ -3762,12 +3762,6 @@ bool UActorChannel::ReplicateRegisteredSubObjects(FOutBunch& Bunch, FReplication
 	}
 #endif
 
-#if UE_NET_REPACTOR_NAME_DEBUG
-	// View address in memory viewer
-	const bool bSubObjectNameDebug = GCVarNetSubObjectNameDebug && GMetAsyncDemoNameDebugChance && Connection->IsReplay();
-	volatile PTRINT SubObjName = bSubObjectNameDebug ? UE_NET_ALLOCA_NAME_DEBUG_BUFFER() : 0;
-#endif
-
 	const TStaticBitArray<COND_Max> ConditionMap = FSendingRepState::BuildConditionMapFromRepFlags(RepFlags);
 
 	bool bWroteSomethingImportant = false;
@@ -3775,22 +3769,8 @@ bool UActorChannel::ReplicateRegisteredSubObjects(FOutBunch& Bunch, FReplication
 	// Start with the Actor's subobjects
 	{
 		SetCurrentSubObjectOwner(Actor);
-		for (const FSubObjectRegistry::FEntry& SubObjectInfo : FSubObjectRegistryGetter::GetSubObjects(Actor).GetRegistryList())
-		{
-			if (CanSubObjectReplicateToClient(SubObjectInfo.NetCondition, SubObjectInfo.Key, ConditionMap))
-			{
-				checkf(IsValid(SubObjectInfo.SubObject), TEXT("Found invalid subobject (%s) registered in %s"), *GetNameSafe(SubObjectInfo.SubObject), *Actor->GetName());
 
-#if UE_NET_REPACTOR_NAME_DEBUG
-				if (bSubObjectNameDebug)
-				{
-					StoreSubObjectName(SubObjName, SubObjectInfo);
-				}
-#endif
-
-				bWroteSomethingImportant |= WriteSubObjectInBunch(SubObjectInfo.SubObject, Bunch, RepFlags);
-			}
-		}
+		bWroteSomethingImportant |= WriteSubObjects(Actor, FSubObjectRegistryGetter::GetSubObjects(Actor), Bunch, RepFlags, ConditionMap);
 	}
 
 	// Now the replicated actor components
@@ -3801,13 +3781,6 @@ bool UActorChannel::ReplicateRegisteredSubObjects(FOutBunch& Bunch, FReplication
 			UActorComponent* ReplicatedComponent = RepComponentInfo.Component;
 
 			checkf(IsValid(ReplicatedComponent), TEXT("Found invalid replicated component (%s) registered in %s"), *GetNameSafe(ReplicatedComponent), *Actor->GetName());
-
-#if UE_NET_REPACTOR_NAME_DEBUG
-			if (bSubObjectNameDebug)
-			{
-				StoreSubObjectName(SubObjName, RepComponentInfo);
-			}
-#endif
 
 			SetCurrentSubObjectOwner(ReplicatedComponent);
 			if (ReplicatedComponent->IsUsingRegisteredSubObjectList())
@@ -3934,7 +3907,7 @@ bool UActorChannel::ReplicateSubobject(UActorComponent* ReplicatedComponent, FOu
 			*Actor->GetName(), *ReplicatedComponent->GetName());
 
 		// Write all the subobjects of the component
-		bWroteSomethingImportant |= WriteSubObjects(ReplicatedComponent, Bunch, RepFlags, ConditionMap);
+		bWroteSomethingImportant |= WriteComponentSubObjects(ReplicatedComponent, Bunch, RepFlags, ConditionMap);
 
 #if SUBOBJECT_TRANSITION_VALIDATION
 		if (UE::Net::GCVarCompareSubObjectsReplicated)
@@ -3957,7 +3930,7 @@ bool UActorChannel::ReplicateSubobject(UActorComponent* ReplicatedComponent, FOu
 	}
 }
 
-bool UActorChannel::WriteSubObjects(UActorComponent* ReplicatedComponent, FOutBunch& Bunch, FReplicationFlags RepFlags, const TStaticBitArray<COND_Max>& ConditionMap)
+bool UActorChannel::WriteComponentSubObjects(UActorComponent* ReplicatedComponent, FOutBunch& Bunch, FReplicationFlags RepFlags, const TStaticBitArray<COND_Max>& ConditionMap)
 {
 	using namespace UE::Net;
 	if (const FSubObjectRegistry* SubObjectList = FSubObjectRegistryGetter::GetSubObjectsOfActorCompoment(Actor, ReplicatedComponent))
@@ -3968,10 +3941,15 @@ bool UActorChannel::WriteSubObjects(UActorComponent* ReplicatedComponent, FOutBu
 	return false;
 }
 
-bool UActorChannel::WriteSubObjects(UActorComponent* ReplicatedComponent, const UE::Net::FSubObjectRegistry& SubObjectList, FOutBunch& Bunch, FReplicationFlags RepFlags, const TStaticBitArray<COND_Max>& ConditionMap)
+bool UActorChannel::WriteSubObjects(UObject* SubObjectOwner, const UE::Net::FSubObjectRegistry& SubObjectList, FOutBunch& Bunch, FReplicationFlags RepFlags, const TStaticBitArray<COND_Max>& ConditionMap)
 {
 	using namespace UE::Net;
 	using namespace UE::Net::Private;
+
+	if (SubObjectList.IsEmpty())
+	{
+		return false;
+	}
 
 	bool bWroteSomethingImportant = false;
 
@@ -3981,22 +3959,42 @@ bool UActorChannel::WriteSubObjects(UActorComponent* ReplicatedComponent, const 
 	volatile PTRINT SubObjName = bSubObjectNameDebug ? UE_NET_ALLOCA_NAME_DEBUG_BUFFER() : 0;
 #endif
 
-	for (const FSubObjectRegistry::FEntry& SubObjectInfo : SubObjectList.GetRegistryList())
-	{
-		checkf(IsValid(SubObjectInfo.SubObject), TEXT("Found invalid subobject (%s) registered in %s::%s"), *GetNameSafe(SubObjectInfo.SubObject), *Actor->GetName(), *GetNameSafe(ReplicatedComponent));
-
-		if (CanSubObjectReplicateToClient(SubObjectInfo.NetCondition, SubObjectInfo.Key, ConditionMap))
-		{
-#if UE_NET_REPACTOR_NAME_DEBUG
-			if (bSubObjectNameDebug)
-			{
-				StoreSubObjectName(SubObjName, SubObjectInfo);
-			}
+#if UE_NET_SUBOBJECTLIST_WEAKPTR
+	TArray<int32, TInlineAllocator<8>> InvalidSubObjects;
 #endif
 
-			bWroteSomethingImportant |= WriteSubObjectInBunch(SubObjectInfo.SubObject, Bunch, RepFlags);
+	const TArray<FSubObjectRegistry::FEntry>& SubObjects = SubObjectList.GetRegistryList();
+
+	for (int32 Index=0; Index < SubObjects.Num(); ++Index)
+	{
+		const FSubObjectRegistry::FEntry& SubObjectInfo = SubObjects[Index];
+
+		if (UObject* SubObjectToReplicate = SubObjectInfo.GetSubObject())
+		{
+			checkf(IsValid(SubObjectToReplicate), TEXT("Found invalid subobject (%s) registered in %s::%s"), *GetNameSafe(SubObjectToReplicate), *Actor->GetName(), *GetNameSafe(SubObjectOwner));
+
+			if (CanSubObjectReplicateToClient(SubObjectInfo.NetCondition, SubObjectInfo.Key, ConditionMap))
+			{
+#if UE_NET_REPACTOR_NAME_DEBUG
+				if (bSubObjectNameDebug)
+				{
+					StoreSubObjectName(SubObjName, SubObjectInfo);
+				}
+#endif
+				bWroteSomethingImportant |= WriteSubObjectInBunch(SubObjectToReplicate, Bunch, RepFlags);
+			}
 		}
+#if UE_NET_SUBOBJECTLIST_WEAKPTR
+		else
+		{
+			InvalidSubObjects.Add(Index);
+		}
+#endif
 	}
+
+#if UE_NET_SUBOBJECTLIST_WEAKPTR
+	const_cast<FSubObjectRegistry&>(SubObjectList).CleanRegistryIndexes(InvalidSubObjects);
+#endif
 
 	return bWroteSomethingImportant;
 }

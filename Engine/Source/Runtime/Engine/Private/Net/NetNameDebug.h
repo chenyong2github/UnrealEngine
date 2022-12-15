@@ -51,7 +51,7 @@ namespace UE::Net::Private
 
 	inline void StoreSubObjectName(PTRINT BufferPtr, const FSubObjectRegistry::FEntry& SubObjectInfo)
 	{
-		StoreSubObjectName(BufferPtr, SubObjectInfo.SubObjectClassName, SubObjectInfo.SubObjectName, SubObjectInfo.SubObject);
+		StoreSubObjectName(BufferPtr, SubObjectInfo.SubObjectClassName, SubObjectInfo.SubObjectName, SubObjectInfo.GetSubObject());
 	}
 
 	inline void StoreSubObjectName(PTRINT BufferPtr, const FReplicatedComponentInfo& ComponentInfo)

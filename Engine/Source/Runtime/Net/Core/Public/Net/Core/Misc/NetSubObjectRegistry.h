@@ -10,6 +10,10 @@
 class UActorComponent;
 class UObject;
 
+#ifndef UE_NET_SUBOBJECTLIST_WEAKPTR
+	#define UE_NET_SUBOBJECTLIST_WEAKPTR 1
+#endif
+
 namespace UE::Net
 {
 	class FSubObjectRegistryGetter;
@@ -41,13 +45,32 @@ public:
 	/** Remove the subobject from the replicated list. Returns true if the subobject had been registered. */
 	bool RemoveSubObject(UObject* InSubObject);
 
+	bool IsEmpty() const { return Registry.Num() == 0; }
+
+	/**
+	* Remove all the indexes specified by the passed array
+	* @param IndexesToClean Array of indexes sorted from smallest to biggest. The sorted order is assumed to have been done by the caller
+	*/
+	void CleanRegistryIndexes(const TArrayView<int32>& IndexesToClean);
+
 	/** Find the NetCondition of a SubObject. Returns COND_MAX if not registered */
 	ELifetimeCondition GetNetCondition(UObject* SubObject) const;
 
 	struct FEntry
 	{
-		/** Raw pointer since users are obligated to call RemoveReplicatedSubobject before destroying the subobject otherwise it will cause a crash.  */
+	private:
+		/** 
+		* Subobjects can be stored via raw pointers or weakobject pointers.  
+		* Use raw pointers in a environment where you want the fastest replication code and can guarantee that every replicated subobject will be properly unregistered before getting deleted. Server's are one such place.
+		* Otherwise use weak pointers in a environment where the replicated subobjects might get garbage'd before being unregistered.  PIE or clients using the list for demo recording are exemples of that.
+		*/
+#if UE_NET_SUBOBJECTLIST_WEAKPTR
+		FWeakObjectPtr SubObject;
+#else
 		UObject* SubObject = nullptr;
+#endif
+
+	public:
 
 		/** Store the object key info for fast access later */
 		FObjectKey Key;
@@ -74,8 +97,17 @@ public:
 		{
 		}
 
-		bool operator==(const FEntry& rhs) const { return Key == rhs.Key; }
-		bool operator==(const UObject* rhs) const { return SubObject == rhs; }
+		inline bool operator==(const FEntry& rhs) const	{ return Key == rhs.Key; }
+		inline bool operator==(const UObject* rhs) const	{ return SubObject == rhs; }
+
+		inline UObject* GetSubObject() const
+		{
+#if UE_NET_SUBOBJECTLIST_WEAKPTR
+			return SubObject.Get();
+#else
+			return SubObject;
+#endif
+		}
 	};
 
 	/** Returns the list of registered subobjects */

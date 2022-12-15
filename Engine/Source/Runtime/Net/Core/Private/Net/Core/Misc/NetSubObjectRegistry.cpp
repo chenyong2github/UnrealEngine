@@ -50,4 +50,29 @@ bool FSubObjectRegistry::IsSubObjectInRegistry(const UObject* SubObject) const
 	return Registry.FindByKey(SubObject) != nullptr;
 }
 
+void FSubObjectRegistry::CleanRegistryIndexes(const TArrayView<int32>& IndexesToClean)
+{
+#if !UE_BUILD_SHIPPING
+	// Test to make sure the array is sorted 
+	int32 LastRemovedIndex = INT32_MAX;
+#endif
+	
+	for (int32 i=IndexesToClean.Num()-1; i >= 0; --i)
+	{
+		const int32 IndexToRemove = IndexesToClean[i];
+
+#if !UE_BUILD_SHIPPING
+		const bool bIsSorted = IndexToRemove < LastRemovedIndex;
+		ensureMsgf(bIsSorted, TEXT("CleanRegistryIndexes did not receive a sorted array. Index value %d (position %d) was >= then Index value %d (position %d)"), LastRemovedIndex, i + 1, IndexToRemove, i);
+		LastRemovedIndex = IndexToRemove;
+		if (!bIsSorted)
+		{
+			continue;
+		}
+#endif
+
+		Registry.RemoveAtSwap(IndexToRemove);
+	}
+}
+
 } //namespace UE::Net
