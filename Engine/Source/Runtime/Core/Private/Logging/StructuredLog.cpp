@@ -277,7 +277,9 @@ void FLogTemplate::FormatTo(FStringBuilderBase& Out, const TCHAR* Format, const 
 	{
 		if (IndexHint >= 0)
 		{
-			for (; Index < IndexHint && It; ++Index, ++It);
+			for (; Index < IndexHint && It; ++Index, ++It)
+			{
+			}
 			if (IndexHint < Index)
 			{
 				It = Fields.CreateViewIterator();
