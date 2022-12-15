@@ -108,10 +108,10 @@ struct FReplicationSystemUtil
 	ENGINE_API static void BeginReplicationForActorsInWorld(UWorld* World);
 
 	/** Notify the ReplicationSystem of a dormancy change. */
-	ENGINE_API static void NotifyActorDormancyChange(AActor* Actor, ENetDormancy OldDormancyState);
+	ENGINE_API static void NotifyActorDormancyChange(UReplicationSystem* ReplicationSystem, AActor* Actor, ENetDormancy OldDormancyState);
 
 	/** Trigger replication of dirty state for actor wanting to be dormant. */
-	ENGINE_API static void FlushNetDormancy(AActor* Actor, bool bWasDormInitial);
+	ENGINE_API static void FlushNetDormancy(UReplicationSystem* ReplicationSystem, AActor* Actor, bool bWasDormInitial);
 
 	/** Enable or disable a replication condition. This will affect the replication of properties with conditions. */
 	ENGINE_API static void SetReplicationCondition(FNetHandle NetHandle, EReplicationCondition Condition, bool bEnableCondition);

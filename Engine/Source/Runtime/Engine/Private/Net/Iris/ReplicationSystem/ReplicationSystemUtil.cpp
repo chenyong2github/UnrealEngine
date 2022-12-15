@@ -429,57 +429,43 @@ void FReplicationSystemUtil::BeginReplicationForActorsInWorld(UWorld* World)
 	}
 }
 
-void FReplicationSystemUtil::NotifyActorDormancyChange(AActor* Actor, ENetDormancy OldDormancyState)
+void FReplicationSystemUtil::NotifyActorDormancyChange(UReplicationSystem* ReplicationSystem, AActor* Actor, ENetDormancy OldDormancyState)
 {
-	FNetHandle ActorHandle = GetNetHandle(Actor);
-	if (!ActorHandle.IsValid())
+	if (!ReplicationSystem || !ReplicationSystem->IsServer())
 	{
 		return;
 	}
-	
+
 	const ENetDormancy Dormancy = Actor->NetDormancy;
 	const bool bIsPendingDormancy = (Dormancy > DORM_Awake);
 
-	if (const UWorld* World = Actor->GetWorld())
+	if (UObjectReplicationBridge* Bridge = ReplicationSystem->GetReplicationBridgeAs<UObjectReplicationBridge>())
 	{
-		ReplicationSystemUtil::ForEachReplicationSystem(GEngine, World, [ActorHandle, bIsPendingDormancy](UReplicationSystem* ReplicationSystem)
+		const FNetRefHandle ActorRefHandle = Bridge->GetReplicatedRefHandle(Actor);
+		if (ActorRefHandle.IsValid())
 		{
-			if (ReplicationSystem->IsServer())
-			{
-				if (UObjectReplicationBridge* Bridge = ReplicationSystem->GetReplicationBridgeAs<UObjectReplicationBridge>())
-				{
-					const FNetRefHandle ActorRefHandle = Bridge->GetReplicatedRefHandle(ActorHandle);
-					if (ActorRefHandle.IsValid())
-					{
-						Bridge->SetObjectWantsToBeDormant(ActorRefHandle, bIsPendingDormancy);
-					}
-				}
-			}
-		});
+			Bridge->SetObjectWantsToBeDormant(ActorRefHandle, bIsPendingDormancy);
+		}
 	}
 }
 
-void FReplicationSystemUtil::FlushNetDormancy(AActor* Actor, bool bWasDormInitial)
+void FReplicationSystemUtil::FlushNetDormancy(UReplicationSystem* ReplicationSystem, AActor* Actor, bool bWasDormInitial)
 {
+	if (!ReplicationSystem || !ReplicationSystem->IsServer())
+	{
+		return;
+	}
+
 	FNetHandle ActorHandle = GetNetHandle(Actor);
 	if (ActorHandle.IsValid())
 	{
-		if (const UWorld* World = Actor->GetWorld())
+		if (UObjectReplicationBridge* Bridge = ReplicationSystem->GetReplicationBridgeAs<UObjectReplicationBridge>())
 		{
-			ReplicationSystemUtil::ForEachReplicationSystem(GEngine, World, [ActorHandle, bWasDormInitial](UReplicationSystem* ReplicationSystem)
+			const FNetRefHandle ActorRefHandle = Bridge->GetReplicatedRefHandle(ActorHandle);
+			if (ActorRefHandle.IsValid())
 			{
-				if (ReplicationSystem->IsServer())
-				{
-					if (UObjectReplicationBridge* Bridge = ReplicationSystem->GetReplicationBridgeAs<UObjectReplicationBridge>())
-					{
-						const FNetRefHandle ActorRefHandle = Bridge->GetReplicatedRefHandle(ActorHandle);
-						if (ActorRefHandle.IsValid())
-						{
-							Bridge->ForceUpdateWantsToBeDormantObject(ActorRefHandle);
-						}
-					}
-				}
-			});
+				Bridge->ForceUpdateWantsToBeDormantObject(ActorRefHandle);
+			}
 		}
 	}
 	else

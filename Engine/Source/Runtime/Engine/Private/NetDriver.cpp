@@ -3623,9 +3623,9 @@ void UNetDriver::FlushActorDormancy(AActor* Actor, bool bWasDormInitial)
 	}
 
 #if UE_WITH_IRIS
-	if (ReplicationSystem && ReplicationSystem->IsServer())
+	if (ReplicationSystem)
 	{
-		UE::Net::FReplicationSystemUtil::FlushNetDormancy(Actor, bWasDormInitial);
+		UE::Net::FReplicationSystemUtil::FlushNetDormancy(ReplicationSystem, Actor, bWasDormInitial);
 	}
 	else
 #endif // UE_WITH_IRIS
@@ -3644,7 +3644,7 @@ void UNetDriver::NotifyActorDormancyChange(AActor* Actor, ENetDormancy OldDorman
 #if UE_WITH_IRIS
 	if (ReplicationSystem)
 	{
-		UE::Net::FReplicationSystemUtil::NotifyActorDormancyChange(Actor, OldDormancyState);
+		UE::Net::FReplicationSystemUtil::NotifyActorDormancyChange(ReplicationSystem, Actor, OldDormancyState);
 	}
 	else
 #endif // UE_WITH_IRIS
