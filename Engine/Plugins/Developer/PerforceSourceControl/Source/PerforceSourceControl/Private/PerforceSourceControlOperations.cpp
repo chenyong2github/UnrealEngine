@@ -1397,7 +1397,7 @@ static void ParseUpdateStatusResults(const FP4RecordSet& InRecords, const TArray
 	for (const FText& Error : ErrorMessages)
 	{
 		//@todo P4 could be returning localized error messages
-		int32 NoSuchFilePos = Error.ToString().Find(TEXT(" - no such file(s).\n"), ESearchCase::IgnoreCase, ESearchDir::FromStart);
+		const int32 NoSuchFilePos = Error.ToString().Find(TEXT(" - no such file(s).\n"), ESearchCase::IgnoreCase, ESearchDir::FromStart);
 		if(NoSuchFilePos != INDEX_NONE)
 		{
 			// found an error about a file that is not in the depot
@@ -1409,7 +1409,19 @@ static void ParseUpdateStatusResults(const FP4RecordSet& InRecords, const TArray
 		}
 
 		//@todo P4 could be returning localized error messages
-		int32 NotUnderClientRootPos = Error.ToString().Find(TEXT("' is not under client's root"), ESearchCase::IgnoreCase, ESearchDir::FromStart);
+		const int32 ProtectedPos = Error.ToString().Find(TEXT(" - protected namespace - access denied.\n"), ESearchCase::IgnoreCase, ESearchDir::FromStart);
+		if (ProtectedPos != INDEX_NONE)
+		{
+			// found an error about a file that is not in the depot
+			FString FullPath(Error.ToString().Left(ProtectedPos));
+			FPaths::NormalizeFilename(FullPath);
+			OutStates.Add(FPerforceSourceControlState(FullPath));
+			FPerforceSourceControlState& State = OutStates.Last();
+			State.State = EPerforceState::NotInDepot;
+		}
+
+		//@todo P4 could be returning localized error messages
+		const int32 NotUnderClientRootPos = Error.ToString().Find(TEXT("' is not under client's root"), ESearchCase::IgnoreCase, ESearchDir::FromStart);
 		if(NotUnderClientRootPos != INDEX_NONE)
 		{
 			// found an error about a file that is not under the client root
