@@ -2023,6 +2023,11 @@ void FStarshipCoreStyle::SetupTableViewStyles(TSharedRef<FStyle>& Style)
 		.SetOddRowBackgroundBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(0.0f, 0.0f, 0.0f, 0.1f)));
 	Style->Set("TableView.DarkRow", DarkTableRowStyle);
 
+	const FTableRowStyle AlternatingTableRowStyle = FTableRowStyle(DefaultTableRowStyle)
+		.SetEvenRowBackgroundBrush(FSlateColorBrush(FStyleColors::Recessed))
+		.SetOddRowBackgroundBrush(FSlateColorBrush(FStyleColors::Background));
+	Style->Set("TableView.AlternatingRow", AlternatingTableRowStyle);
+
 	Style->Set("TreeArrow_Collapsed", new IMAGE_BRUSH_SVG("Starship/Common/caret-right", Icon16x16, FStyleColors::Foreground));
 	Style->Set("TreeArrow_Collapsed_Hovered", new IMAGE_BRUSH_SVG("Starship/Common/caret-right", Icon16x16, FStyleColors::ForegroundHover));
 	Style->Set("TreeArrow_Expanded", new IMAGE_BRUSH_SVG("Starship/Common/caret-down", Icon16x16, FStyleColors::Foreground));
