@@ -262,8 +262,9 @@ public:
 	 * Ensure that all the same extended attributes available in ToMatch are also enabled.
 	 * By default, clears existing attributes, so that there will be an exact match
 	 * If bClearExisting is passed as false, existing attributes are not removed/cleared.
+	 * If bDiscardExtraAttributes=true and bClearExisting=false, extra attributes not in ToMatch are discarded, but existing attributes are not cleared/reset
 	 */
-	void EnableMatchingAttributes(const FDynamicMesh3& ToMatch, bool bClearExisting = true);
+	void EnableMatchingAttributes(const FDynamicMesh3& ToMatch, bool bClearExisting = true, bool bDiscardExtraAttributes = false);
 
 	/**
 	 * Serialization operator for FDynamicMesh3.

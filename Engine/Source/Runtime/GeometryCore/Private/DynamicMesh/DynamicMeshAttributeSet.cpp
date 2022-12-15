@@ -275,10 +275,10 @@ void FDynamicMeshAttributeSet::SplitAllBowties(bool bParallel)
 
 
 
-void FDynamicMeshAttributeSet::EnableMatchingAttributes(const FDynamicMeshAttributeSet& ToMatch, bool bClearExisting)
+void FDynamicMeshAttributeSet::EnableMatchingAttributes(const FDynamicMeshAttributeSet& ToMatch, bool bClearExisting, bool bDiscardExtraAttributes)
 {
 	int32 ExistingUVLayers = NumUVLayers();
-	int32 RequiredUVLayers = (bClearExisting) ? ToMatch.NumUVLayers() : FMath::Max(ExistingUVLayers, ToMatch.NumUVLayers());
+	int32 RequiredUVLayers = (bClearExisting || bDiscardExtraAttributes) ? ToMatch.NumUVLayers() : FMath::Max(ExistingUVLayers, ToMatch.NumUVLayers());
 	SetNumUVLayers(RequiredUVLayers);
 	for (int32 k = bClearExisting ? 0 : ExistingUVLayers; k < NumUVLayers(); k++)
 	{
@@ -286,14 +286,14 @@ void FDynamicMeshAttributeSet::EnableMatchingAttributes(const FDynamicMeshAttrib
 	}
 
 	int32 ExistingNormalLayers = NumNormalLayers();
-	int32 RequiredNormalLayers = (bClearExisting) ? ToMatch.NumUVLayers() : FMath::Max(ExistingNormalLayers, ToMatch.NumNormalLayers());
+	int32 RequiredNormalLayers = (bClearExisting || bDiscardExtraAttributes) ? ToMatch.NumUVLayers() : FMath::Max(ExistingNormalLayers, ToMatch.NumNormalLayers());
 	SetNumNormalLayers(RequiredNormalLayers);
 	for (int32 k = bClearExisting ? 0 : ExistingNormalLayers; k < NumNormalLayers(); k++)
 	{
 		NormalLayers[k].ClearElements();
 	}
 
-	bool bWantColorLayer = ToMatch.HasPrimaryColors() || (this->HasPrimaryColors() && bClearExisting == false);
+	bool bWantColorLayer = (bClearExisting || bDiscardExtraAttributes) ? ToMatch.HasPrimaryColors() : ( ToMatch.HasPrimaryColors() || this->HasPrimaryColors() );
 	if (bClearExisting || bWantColorLayer == false)
 	{
 		DisablePrimaryColors();
@@ -303,7 +303,7 @@ void FDynamicMeshAttributeSet::EnableMatchingAttributes(const FDynamicMeshAttrib
 		EnablePrimaryColors();
 	}
 
-	bool bWantMaterialID = ToMatch.HasMaterialID() || (this->HasMaterialID() && bClearExisting == false);
+	bool bWantMaterialID = (bClearExisting || bDiscardExtraAttributes) ? ToMatch.HasMaterialID() : ( ToMatch.HasMaterialID() || this->HasMaterialID() );
 	if (bClearExisting || bWantMaterialID == false)
 	{
 		DisableMaterialID();
@@ -313,9 +313,9 @@ void FDynamicMeshAttributeSet::EnableMatchingAttributes(const FDynamicMeshAttrib
 		EnableMaterialID();
 	}
 
-
+	// polygroup layers are handled by count, not by name...maybe wrong
 	int32 ExistingPolygroupLayers = NumPolygroupLayers();
-	int32 RequiredPolygroupLayers = (bClearExisting) ? ToMatch.NumPolygroupLayers() : FMath::Max(ExistingPolygroupLayers, ToMatch.NumPolygroupLayers());
+	int32 RequiredPolygroupLayers = (bClearExisting || bDiscardExtraAttributes) ? ToMatch.NumPolygroupLayers() : FMath::Max(ExistingPolygroupLayers, ToMatch.NumPolygroupLayers());
 	SetNumPolygroupLayers(RequiredPolygroupLayers);
 	for (int32 k = bClearExisting ? 0 : ExistingPolygroupLayers; k < NumPolygroupLayers(); k++)
 	{
@@ -326,8 +326,9 @@ void FDynamicMeshAttributeSet::EnableMatchingAttributes(const FDynamicMeshAttrib
 		}
 	}
 
+	// weightmap layers are handled by count, not by name...maybe wrong
 	int32 ExistingWeightLayers = NumWeightLayers();
-	int32 RequiredWeightLayers = (bClearExisting) ? ToMatch.NumWeightLayers() : FMath::Max(ExistingWeightLayers, ToMatch.NumWeightLayers());
+	int32 RequiredWeightLayers = (bClearExisting || bDiscardExtraAttributes) ? ToMatch.NumWeightLayers() : FMath::Max(ExistingWeightLayers, ToMatch.NumWeightLayers());
 	SetNumWeightLayers(RequiredWeightLayers);
 	for (int32 k = bClearExisting ? 0 : ExistingWeightLayers; k < NumWeightLayers(); k++)
 	{
@@ -338,22 +339,72 @@ void FDynamicMeshAttributeSet::EnableMatchingAttributes(const FDynamicMeshAttrib
 		}
 	}
 
-	// currently SkinWeightAttributes and generic attributes do not respect bClearExisting, ie they are always cleared
-
-	ResetRegisteredAttributes();
-	
-	SkinWeightAttributes.Reset();
-	for (const TPair<FName, TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>>& AttribPair : ToMatch.SkinWeightAttributes)
+	// SkinWeights and GenericAttributes require more complex handling...
+	if (bClearExisting)
 	{
-		AttachSkinWeightsAttribute(AttribPair.Key,
-			static_cast<FDynamicMeshVertexSkinWeightsAttribute *>(AttribPair.Value->MakeNew(ParentMesh)));
+		// discard existing
+		SkinWeightAttributes.Reset();
+		GenericAttributes.Reset();
+		ResetRegisteredAttributes();
+
+		// register new attributes by name
+		for (const TPair<FName, TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>>& AttribPair : ToMatch.SkinWeightAttributes)
+		{
+			AttachSkinWeightsAttribute(AttribPair.Key,
+				static_cast<FDynamicMeshVertexSkinWeightsAttribute *>(AttribPair.Value->MakeNew(ParentMesh)));	
+		}
+	}
+	else
+	{
+		// get rid of any attributes in current SkinWeights and Generic sets that are not in ToMatch
+		if (bDiscardExtraAttributes)
+		{
+			SkinWeightAttributesMap ExistingSkinWeights = MoveTemp(SkinWeightAttributes);
+			GenericAttributesMap ExistingGenericAttributes = MoveTemp(GenericAttributes);
+			SkinWeightAttributes.Reset();
+			GenericAttributes.Reset();
+			ResetRegisteredAttributes();
+			for (TPair<FName, TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>>& AttribPair : ExistingSkinWeights)
+			{
+				if ( ToMatch.SkinWeightAttributes.Contains(AttribPair.Key) )
+				{
+					AttachSkinWeightsAttribute(AttribPair.Key, AttribPair.Value.Release());
+				}
+			}
+			for (TPair<FName, TUniquePtr<FDynamicMeshAttributeBase>>& AttribPair : ExistingGenericAttributes)
+			{
+				if ( ToMatch.GenericAttributes.Contains(AttribPair.Key) )
+				{
+					AttachAttribute(AttribPair.Key, AttribPair.Value.Release());
+				}
+			}
+		}
+
+		// add any new SkinWeight attributes that did not previously exist
+		for (const TPair<FName, TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>>& AttribPair : ToMatch.SkinWeightAttributes)
+		{
+			TUniquePtr<FDynamicMeshVertexSkinWeightsAttribute>* FoundMatch = SkinWeightAttributes.Find(AttribPair.Key);
+			if (FoundMatch == nullptr)
+			{
+				AttachSkinWeightsAttribute(AttribPair.Key,
+					static_cast<FDynamicMeshVertexSkinWeightsAttribute *>(AttribPair.Value->MakeNew(ParentMesh)));	
+			}
+		}
+
+		// add any new Generic attributes that did not previously exist, matching by name
+		for (const TPair<FName, TUniquePtr<FDynamicMeshAttributeBase>>& AttribPair : ToMatch.GenericAttributes)
+		{
+			TUniquePtr<FDynamicMeshAttributeBase>* FoundMatch = GenericAttributes.Find(AttribPair.Key);
+			if (FoundMatch == nullptr)
+			{
+				AttachAttribute(AttribPair.Key, AttribPair.Value->MakeNew(ParentMesh));	
+			}
+		}
 	}
 
-	GenericAttributes.Reset();
-	for (const TPair<FName, TUniquePtr<FDynamicMeshAttributeBase>>& AttribPair : ToMatch.GenericAttributes)
-	{
-		AttachAttribute(AttribPair.Key, AttribPair.Value->MakeNew(ParentMesh));
-	}
+
+
+
 }
 
 

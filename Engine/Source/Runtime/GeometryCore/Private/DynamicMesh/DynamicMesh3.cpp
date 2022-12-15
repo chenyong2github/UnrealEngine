@@ -335,10 +335,10 @@ void FDynamicMesh3::Clear()
 }
 
 
-void FDynamicMesh3::EnableMatchingAttributes(const FDynamicMesh3& ToMatch, bool bClearExisting)
+void FDynamicMesh3::EnableMatchingAttributes(const FDynamicMesh3& ToMatch, bool bClearExisting, bool bDiscardExtraAttributes)
 {
-	bool bWantVertexNormals = ToMatch.HasVertexNormals() || (this->HasVertexNormals() && bClearExisting == false);
-	if (bClearExisting || bWantVertexNormals == false)
+	bool bWantVertexNormals = (bClearExisting || bDiscardExtraAttributes) ? ToMatch.HasVertexNormals() : ( ToMatch.HasVertexNormals() || this->HasVertexNormals() );
+	if (bClearExisting || bWantVertexNormals == false )
 	{
 		DiscardVertexNormals();
 	}
@@ -347,8 +347,8 @@ void FDynamicMesh3::EnableMatchingAttributes(const FDynamicMesh3& ToMatch, bool 
 		EnableVertexNormals(FVector3f::UnitZ());
 	}
 
-	bool bWantVertexColors = ToMatch.HasVertexColors() || (this->HasVertexColors() && bClearExisting == false);
-	if (bClearExisting || bWantVertexColors == false)
+	bool bWantVertexColors = (bClearExisting || bDiscardExtraAttributes) ? ToMatch.HasVertexColors() : ( ToMatch.HasVertexColors() || this->HasVertexColors() );
+	if (bClearExisting || bWantVertexColors == false )
 	{
 		DiscardVertexColors();
 	}
@@ -357,9 +357,8 @@ void FDynamicMesh3::EnableMatchingAttributes(const FDynamicMesh3& ToMatch, bool 
 		EnableVertexColors(FVector3f::Zero());
 	}
 
-
-	bool bWantVertexUVs = ToMatch.HasVertexUVs() || (this->HasVertexUVs() && bClearExisting == false);
-	if (bClearExisting || bWantVertexUVs == false)
+	bool bWantVertexUVs = (bClearExisting || bDiscardExtraAttributes) ? ToMatch.HasVertexUVs() : ( ToMatch.HasVertexUVs() || this->HasVertexUVs() );
+	if (bClearExisting || bWantVertexUVs == false )
 	{
 		DiscardVertexUVs();
 	}
@@ -368,9 +367,8 @@ void FDynamicMesh3::EnableMatchingAttributes(const FDynamicMesh3& ToMatch, bool 
 		EnableVertexUVs(FVector2f::Zero());
 	}
 
-
-	bool bWantTriangleGroups = ToMatch.HasTriangleGroups() || (this->HasTriangleGroups() && bClearExisting == false);
-	if (bClearExisting || bWantTriangleGroups == false)
+	bool bWantTriangleGroups = (bClearExisting || bDiscardExtraAttributes) ? ToMatch.HasTriangleGroups() : ( ToMatch.HasTriangleGroups() || this->HasTriangleGroups() );
+	if (bClearExisting || bWantTriangleGroups == false )
 	{
 		DiscardTriangleGroups();
 	}
@@ -379,9 +377,8 @@ void FDynamicMesh3::EnableMatchingAttributes(const FDynamicMesh3& ToMatch, bool 
 		EnableTriangleGroups();
 	}
 
-
-	bool bWantAttributes = ToMatch.HasAttributes() || (this->HasAttributes() && bClearExisting == false);
-	if (bClearExisting || bWantAttributes == false)
+	bool bWantAttributes = (bClearExisting || bDiscardExtraAttributes) ? ToMatch.HasAttributes() : ( ToMatch.HasAttributes() || this->HasAttributes() );
+	if (bClearExisting || bWantAttributes == false )
 	{
 		DiscardAttributes();
 	}
@@ -391,9 +388,8 @@ void FDynamicMesh3::EnableMatchingAttributes(const FDynamicMesh3& ToMatch, bool 
 	}
 	if (HasAttributes() && ToMatch.HasAttributes())
 	{
-		Attributes()->EnableMatchingAttributes(*ToMatch.Attributes(), bClearExisting);
+		Attributes()->EnableMatchingAttributes(*ToMatch.Attributes(), bClearExisting, bDiscardExtraAttributes);
 	}
-
 }
 
 

@@ -370,15 +370,14 @@ void FGeometryScriptAppendMeshOptions::UpdateAttributesForCombineMode(FDynamicMe
 {
 	if (CombineMode == EGeometryScriptCombineAttributesMode::EnableAllMatching)
 	{
-		Target.EnableMatchingAttributes(Source, false);
+		Target.EnableMatchingAttributes(Source, false, false);
 	}
 	else if (CombineMode == EGeometryScriptCombineAttributesMode::UseSource)
 	{
-		Target.EnableMatchingAttributes(Source, true);
+		Target.EnableMatchingAttributes(Source, false, true);
 	}
 	// else the mode is UseTarget, which already corresponds to the default behavior for AppendMesh
 }
-
 
 UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMesh(
 	UDynamicMesh* TargetMesh,
@@ -422,7 +421,6 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMesh(
 
 	return TargetMesh;
 }
-
 
 
 UDynamicMesh* UGeometryScriptLibrary_MeshBasicEditFunctions::AppendMeshTransformed(
