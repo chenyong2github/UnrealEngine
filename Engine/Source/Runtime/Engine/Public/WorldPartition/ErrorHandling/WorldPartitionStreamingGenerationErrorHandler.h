@@ -17,6 +17,11 @@ public:
 	virtual void OnInvalidReference(const FWorldPartitionActorDescView& ActorDescView, const FGuid& ReferenceGuid) {}
 
 	/** 
+	 * Called when an actor has an invalid runtime grid.
+	 */
+	virtual void OnInvalidRuntimeGrid(const FWorldPartitionActorDescView& ActorDescView, FName GridName) = 0;
+
+	/** 
 	 * Called when an actor references an invalid actor.
 	 */
 	virtual void OnInvalidReference(const FWorldPartitionActorDescView& ActorDescView, const FGuid& ReferenceGuid, FWorldPartitionActorDescView* ReferenceActorDescView) = 0;

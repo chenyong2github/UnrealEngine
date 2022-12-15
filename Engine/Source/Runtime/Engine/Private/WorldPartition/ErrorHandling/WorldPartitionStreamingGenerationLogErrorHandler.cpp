@@ -6,6 +6,11 @@
 #include "WorldPartition/DataLayer/DataLayerInstanceWithAsset.h"
 #include "GameFramework/Actor.h"
 
+void FStreamingGenerationLogErrorHandler::OnInvalidRuntimeGrid(const FWorldPartitionActorDescView& ActorDescView, FName GridName)
+{
+	UE_LOG(LogWorldPartition, Log, TEXT("Actor %s has an invalid runtime grid %s"), *GetFullActorName(ActorDescView), *GridName.ToString());
+}
+
 void FStreamingGenerationLogErrorHandler::OnInvalidReference(const FWorldPartitionActorDescView& ActorDescView, const FGuid& ReferenceGuid, FWorldPartitionActorDescView* ReferenceActorDescView)
 {
 	UE_LOG(LogWorldPartition, Log, TEXT("Actor %s has an invalid reference to %s"), *GetFullActorName(ActorDescView), ReferenceActorDescView ? *GetFullActorName(*ReferenceActorDescView) : *ReferenceGuid.ToString());
