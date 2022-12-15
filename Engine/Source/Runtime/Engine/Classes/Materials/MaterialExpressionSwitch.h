@@ -7,6 +7,7 @@
 #include "UObject/ObjectMacros.h"
 #include "MaterialExpressionIO.h"
 #include "Materials/MaterialExpression.h"
+#include "MaterialValueType.h"
 #include "MaterialExpressionSwitch.generated.h"
 
 struct FPropertyChangedEvent;
