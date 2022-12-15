@@ -2496,7 +2496,8 @@ void UAnimSequencerController::InitializeModel()
 				if (AnimSequence->GetLinkerCustomVersion(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::IntroducingAnimationDataModel)
 				{
 					PRAGMA_DISABLE_DEPRECATION_WARNINGS
-					Model->CachedRawDataGUID = AnimSequence->GenerateGuidFromRawData();
+					// Disabled for now as DDC had invalid data cached causing collapsed animations
+					//Model->CachedRawDataGUID = AnimSequence->GenerateGuidFromRawData();
 					PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				}
 				
