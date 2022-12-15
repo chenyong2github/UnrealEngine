@@ -22,6 +22,8 @@ FString FPCGMetadataTypesConstantStruct::ToString() const
 			return FString::Printf(TEXT("\"%s\""), *StringValue);
 		case EPCGMetadataTypesConstantStructStringMode::SoftObjectPath:
 			return FString::Printf(TEXT("\"%s\""), *(SoftObjectPathValue.GetAssetName()));
+		case EPCGMetadataTypesConstantStructStringMode::SoftClassPath:
+			return FString::Printf(TEXT("\"%s\""), *(SoftClassPathValue.GetAssetName()));
 		default:
 			break;
 		}
