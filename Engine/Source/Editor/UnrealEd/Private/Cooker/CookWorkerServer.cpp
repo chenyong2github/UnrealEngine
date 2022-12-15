@@ -100,9 +100,8 @@ void FCookWorkerServer::AbortAllAssignmentsInLock(TSet<FPackageData*>& OutPendin
 void FCookWorkerServer::AbortAssignment(FPackageData& PackageData, ECookDirectorThread TickThread,
 	ENotifyRemote NotifyRemote)
 {
-	TArray<FPackageData*, TInlineAllocator<1>> PackageDatas;
-	PackageDatas.Add(&PackageData);
-	AbortAssignments(PackageDatas, TickThread, NotifyRemote);
+	FPackageData* PackageDataPtr = &PackageData;
+	AbortAssignments(TConstArrayView<FPackageData*>(&PackageDataPtr, 1), TickThread, NotifyRemote);
 }
 
 void FCookWorkerServer::AbortAssignments(TConstArrayView<FPackageData*> PackageDatas, ECookDirectorThread TickThread,
