@@ -148,6 +148,18 @@ namespace EpicGames.Horde.Storage
 
 		#endregion
 
+		#region Nodes
+
+		/// <summary>
+		/// Finds nodes with the given alias. Unlike refs, aliases do not serve as GC roots.
+		/// </summary>
+		/// <param name="alias">Alias for the node</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Nodes matching the given handle</returns>
+		IAsyncEnumerable<NodeHandle> FindNodesAsync(Utf8String alias, CancellationToken cancellationToken = default);
+
+		#endregion
+
 		#region Refs
 
 		/// <summary>
@@ -233,6 +245,13 @@ namespace EpicGames.Horde.Storage
 
 			/// <inheritdoc/>
 			public Task<BlobLocator> WriteBlobAsync(Stream stream, Utf8String prefix = default, CancellationToken cancellationToken = default) => _inner.WriteBlobAsync(stream, prefix, cancellationToken);
+
+			#endregion
+
+			#region Nodes
+
+			/// <inheritdoc/>
+			public IAsyncEnumerable<NodeHandle> FindNodesAsync(Utf8String alias, CancellationToken cancellationToken = default) => _inner.FindNodesAsync(alias, cancellationToken);
 
 			#endregion
 

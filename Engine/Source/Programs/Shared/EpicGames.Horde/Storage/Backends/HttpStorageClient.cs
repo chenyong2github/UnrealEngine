@@ -1,14 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Web;
+using System.Xml.Linq;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using Microsoft.Extensions.Caching.Memory;
@@ -31,6 +35,18 @@ namespace EpicGames.Horde.Storage.Backends
 			public BlobLocator Locator { get; set; }
 			public Uri? UploadUrl { get; set; }
 			public bool? SupportsRedirects { get; set; }
+		}
+
+		class FindNodeResponse
+		{
+			public IoHash Hash { get; set; }
+			public BlobLocator Blob { get; set; }
+			public int ExportIdx { get; set; }
+		}
+
+		class FindNodesResponse
+		{
+			public List<FindNodeResponse> Nodes { get; set; } = new List<FindNodeResponse>();
 		}
 
 		class ReadRefResponse
@@ -170,6 +186,32 @@ namespace EpicGames.Horde.Storage.Backends
 						response.EnsureSuccessStatusCode();
 						WriteBlobResponse? data = await response.Content.ReadFromJsonAsync<WriteBlobResponse>(cancellationToken: cancellationToken);
 						return data!;
+					}
+				}
+			}
+		}
+
+		#endregion
+
+		#region Nodes
+
+		/// <inheritdoc/>
+		public override async IAsyncEnumerable<NodeHandle> FindNodesAsync(Utf8String alias, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+		{
+			_logger.LogDebug("Finding nodes with alias {Alias}", alias);
+			using (HttpClient httpClient = _createClient())
+			{
+				using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, $"nodes?alias={HttpUtility.UrlEncode(alias.ToString())}"))
+				{
+					using (HttpResponseMessage response = await httpClient.SendAsync(request, cancellationToken))
+					{
+						response.EnsureSuccessStatusCode();
+
+						FindNodesResponse? message = await response.Content.ReadFromJsonAsync<FindNodesResponse>(cancellationToken: cancellationToken);
+						foreach (FindNodeResponse node in message!.Nodes)
+						{
+							yield return new NodeHandle(node.Hash, node.Blob, node.ExportIdx);
+						}
 					}
 				}
 			}

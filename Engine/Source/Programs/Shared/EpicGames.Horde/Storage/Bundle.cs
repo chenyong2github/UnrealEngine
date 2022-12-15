@@ -5,13 +5,13 @@ using K4os.Compression.LZ4;
 using System;
 using System.Buffers;
 using System.Buffers.Binary;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -28,6 +28,11 @@ namespace EpicGames.Horde.Storage
 		/// Initial version number
 		/// </summary>
 		Initial = 0,
+
+		/// <summary>
+		/// Added the <see cref="BundleExport.Alias"/> property
+		/// </summary>
+		ExportAliases = 1,
 
 		/// <summary>
 		/// Last item in the enum. Used for <see cref="Latest"/>
@@ -231,7 +236,7 @@ namespace EpicGames.Horde.Storage
 			CompressionFormat = (BundleCompressionFormat)reader.ReadUnsignedVarInt();
 			Types = reader.ReadVariableLengthArray(() => new BundleType(reader));
 			Imports = reader.ReadVariableLengthArray(() => new BundleImport(reader));
-			Exports = reader.ReadVariableLengthArray(() => new BundleExport(reader));
+			Exports = reader.ReadVariableLengthArray(() => new BundleExport(reader, version));
 
 			if (CompressionFormat == BundleCompressionFormat.None)
 			{
@@ -510,7 +515,7 @@ namespace EpicGames.Horde.Storage
 		/// Uncompressed length of this node
 		/// </summary>
 		public int Length { get; }
-		
+
 		/// <summary>
 		/// Nodes referenced by this export. Indices in this array correspond to a lookup table consisting
         /// of the imported nodes in the order they are declared in the header, followed by nodes listed in the
@@ -519,35 +524,52 @@ namespace EpicGames.Horde.Storage
 		public IReadOnlyList<int> References { get; }
 
 		/// <summary>
+		/// Alias for the content of this node. Used for content addressing.
+		/// </summary>
+		public Utf8String Alias { get; }
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BundleExport(int typeIdx, IoHash hash, int length, IReadOnlyList<int> references)
+		public BundleExport(int typeIdx, IoHash hash, int length, IReadOnlyList<int> references, Utf8String alias = default)
 		{
 			TypeIdx = typeIdx;
 			Hash = hash;
 			Length = length;
 			References = references;
+			Alias = alias;
 		}
 
 		/// <summary>
 		/// Deserialize an export
 		/// </summary>
 		/// <param name="reader">Reader to deserialize from</param>
-		public BundleExport(IMemoryReader reader)
+		/// <param name="version">Version number of the bundle</param>
+		public BundleExport(IMemoryReader reader, BundleVersion version)
 		{
 			TypeIdx = (int)reader.ReadUnsignedVarInt();
 			Hash = reader.ReadIoHash();
 			Length = (int)reader.ReadUnsignedVarInt();
 
 			int numReferences = (int)reader.ReadUnsignedVarInt();
-			int[] references = new int[numReferences];
-
-			for (int idx = 0; idx < numReferences; idx++)
+			if (numReferences == 0)
 			{
-				references[idx] = (int)reader.ReadUnsignedVarInt();
+				References = Array.Empty<int>();
+			}
+			else
+			{
+				int[] references = new int[numReferences];
+				for (int idx = 0; idx < numReferences; idx++)
+				{
+					references[idx] = (int)reader.ReadUnsignedVarInt();
+				}
+				References = references;
 			}
 
-			References = references;
+			if (version >= BundleVersion.ExportAliases)
+			{
+				Alias = reader.ReadUtf8String();
+			}
 		}
 
 		/// <summary>
@@ -565,6 +587,8 @@ namespace EpicGames.Horde.Storage
 			{
 				writer.WriteUnsignedVarInt(References[idx]);
 			}
+
+			writer.WriteUtf8String(Alias);
 		}
 	}
 

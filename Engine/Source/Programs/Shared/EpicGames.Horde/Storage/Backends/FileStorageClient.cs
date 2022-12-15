@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
@@ -68,6 +70,16 @@ namespace EpicGames.Horde.Storage.Backends
 			}
 
 			return id;
+		}
+
+		#endregion
+
+		#region Nodes
+
+		/// <inheritdoc/>
+		public override IAsyncEnumerable<NodeHandle> FindNodesAsync(Utf8String alias, CancellationToken cancellationToken = default)
+		{
+			throw new NotSupportedException("File storage client does not currently support aliases.");
 		}
 
 		#endregion

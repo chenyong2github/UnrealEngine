@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -30,6 +31,13 @@ namespace EpicGames.Horde.Storage
 
 		/// <inheritdoc/>
 		public abstract Task<BlobLocator> WriteBlobAsync(Stream stream, Utf8String prefix = default, CancellationToken cancellationToken = default);
+
+		#endregion
+
+		#region Nodes
+
+		/// <inheritdoc/>
+		public abstract IAsyncEnumerable<NodeHandle> FindNodesAsync(Utf8String alias, CancellationToken cancellationToken = default);
 
 		#endregion
 

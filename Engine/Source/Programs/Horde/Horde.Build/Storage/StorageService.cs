@@ -5,9 +5,11 @@ using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections;
 using System.Collections.Generic;
+using System.Composition;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security.Claims;
 using System.Threading;
@@ -109,7 +111,7 @@ namespace Horde.Build.Storage
 				_outer = outer;
 				Config = config;
 				Backend = backend;
-				SupportsRedirects = backend is IStorageBackendWithRedirects;
+				SupportsRedirects = (backend is IStorageBackendWithRedirects) && !config.EnableAliases;
 
 				_prefix = config.Prefix;
 				if (_prefix.Length > 0 && !_prefix.EndsWith("/", StringComparison.Ordinal))
@@ -172,11 +174,46 @@ namespace Horde.Build.Storage
 			/// <inheritdoc/>
 			public override async Task<BlobLocator> WriteBlobAsync(Stream stream, Utf8String prefix = default, CancellationToken cancellationToken = default)
 			{
-				BlobLocator locator = await _outer.AddBlobAsync(NamespaceId, prefix, cancellationToken);
+				BlobLocator locator;
+				if (Config.EnableAliases)
+				{
+					using (MemoryStream memoryStream = new MemoryStream())
+					{
+						// Read the blob into memory
+						await stream.CopyToAsync(memoryStream, cancellationToken);
 
-				string path = GetBlobPath(locator.BlobId);
-				await Backend.WriteAsync(path, stream, cancellationToken);
+						// Reset the position back to zero and read the header
+						memoryStream.Position = 0;
+						BundleHeader header = await BundleHeader.FromStreamAsync(memoryStream, cancellationToken);
 
+						List<ExportInfo> exports = new List<ExportInfo>();
+						for (int idx = 0; idx < header.Exports.Count; idx++)
+						{
+							BundleExport export = header.Exports[idx];
+							if (!export.Alias.IsEmpty)
+							{
+								exports.Add(new ExportInfo(export.Alias.ToString(), export.Hash, idx));
+							}
+						}
+
+						// Add the blob record
+						locator = await _outer.AddBlobAsync(NamespaceId, prefix, exports, cancellationToken);
+
+						// Write it to the backend
+						string path = GetBlobPath(locator.BlobId);
+						memoryStream.Position = 0;
+						await Backend.WriteAsync(path, memoryStream, cancellationToken);
+					}
+				}
+				else
+				{
+					// Add the blob record
+					locator = await _outer.AddBlobAsync(NamespaceId, prefix, null, cancellationToken);
+
+					// Write it to the backend
+					string path = GetBlobPath(locator.BlobId);
+					await Backend.WriteAsync(path, stream, cancellationToken);
+				}
 				return locator;
 			}
 
@@ -189,7 +226,7 @@ namespace Horde.Build.Storage
 					return null;
 				}
 
-				BlobLocator locator = await _outer.AddBlobAsync(NamespaceId, prefix, cancellationToken);
+				BlobLocator locator = await _outer.AddBlobAsync(NamespaceId, prefix, null, cancellationToken);
 				string path = GetBlobPath(locator.BlobId);
 
 				Uri? url = await redirectBackend.GetWriteRedirectAsync(path, cancellationToken);
@@ -206,6 +243,13 @@ namespace Horde.Build.Storage
 				string path = GetBlobPath(blobId);
 				await Backend.DeleteAsync(path, cancellationToken);
 			}
+
+			#endregion
+
+			#region Nodes
+
+			/// <inheritdoc/>
+			public override IAsyncEnumerable<NodeHandle> FindNodesAsync(Utf8String alias, CancellationToken cancellationToken = default) => _outer.FindNodesAsync(NamespaceId, alias, cancellationToken);
 
 			#endregion
 
@@ -258,6 +302,29 @@ namespace Horde.Build.Storage
 			}
 		}
 
+		class ExportInfo
+		{
+			[BsonElement("alias")]
+			public string Alias { get; set; } = String.Empty;
+
+			[BsonElement("hash")]
+			public IoHash Hash { get; set; }
+
+			[BsonElement("idx")]
+			public int Index { get; set; }
+
+			public ExportInfo()
+			{
+			}
+
+			public ExportInfo(string alias, IoHash hash, int index)
+			{
+				Alias = alias;
+				Hash = hash;
+				Index = index;
+			}
+		}
+
 		class BlobInfo
 		{
 			public ObjectId Id { get; set; }
@@ -271,8 +338,11 @@ namespace Horde.Build.Storage
 			[BsonElement("blob")]
 			public BlobId BlobId { get; set; }
 
-			[BsonElement("imp")]
+			[BsonElement("imp"), BsonIgnoreIfNull]
 			public List<ObjectId>? Imports { get; set; }
+
+			[BsonElement("exp"), BsonIgnoreIfNull]
+			public List<ExportInfo>? Exports { get; set; }
 
 			[BsonIgnore]
 			public BlobLocator Locator => new BlobLocator(HostId, BlobId);
@@ -408,6 +478,7 @@ namespace Horde.Build.Storage
 			List<MongoIndex<BlobInfo>> blobIndexes = new List<MongoIndex<BlobInfo>>();
 			blobIndexes.Add(keys => keys.Ascending(x => x.Imports));
 			blobIndexes.Add(keys => keys.Ascending(x => x.NamespaceId).Ascending(x => x.BlobId), unique: true);
+			blobIndexes.Add(keys => keys.Ascending(x => x.NamespaceId).Ascending($"{nameof(BlobInfo.Exports)}.{nameof(ExportInfo.Alias)}"));
 			_blobCollection = mongoService.GetCollection<BlobInfo>("Storage.Blobs", blobIndexes);
 
 			List<MongoIndex<RefInfo>> refIndexes = new List<MongoIndex<RefInfo>>();
@@ -689,7 +760,7 @@ namespace Horde.Build.Storage
 		#region Blobs
 
 		/// <inheritdoc/>
-		async Task<BlobLocator> AddBlobAsync(NamespaceId namespaceId, Utf8String prefix = default, CancellationToken cancellationToken = default)
+		async Task<BlobLocator> AddBlobAsync(NamespaceId namespaceId, Utf8String prefix = default, List<ExportInfo>? exports = null, CancellationToken cancellationToken = default)
 		{
 			HostId hostId = HostId.Empty;
 
@@ -697,6 +768,7 @@ namespace Horde.Build.Storage
 			BlobId blobId = (prefix.Length > 0) ? new BlobId($"{prefix}/{id}") : new BlobId(id.ToString());
 
 			BlobInfo blobInfo = new BlobInfo(id, namespaceId, hostId, blobId);
+			blobInfo.Exports = exports;
 			await _blobCollection.InsertOneAsync(blobInfo, new InsertOneOptions { }, cancellationToken);
 
 			return new BlobLocator(hostId, blobId);
@@ -770,6 +842,34 @@ namespace Horde.Build.Storage
 
 					// Update the last imported blob id
 					await _gcState.UpdateAsync(state => state.LastImportBlobInfoId = latestInfoId);
+				}
+			}
+		}
+
+		#endregion
+
+		#region Nodes
+
+		/// <summary>
+		/// Finds nodes with the given type and hash
+		/// </summary>
+		/// <param name="namespaceId">Namespace to search</param>
+		/// <param name="alias">Alias for the node</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Sequence of thandles</returns>
+		async IAsyncEnumerable<NodeHandle> FindNodesAsync(NamespaceId namespaceId, Utf8String alias, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+		{
+			await foreach (BlobInfo blobInfo in _blobCollection.Find(x => x.NamespaceId == namespaceId && x.Exports!.Any(y => y.Alias == alias)).ToAsyncEnumerable(cancellationToken))
+			{
+				if (blobInfo.Exports != null)
+				{
+					foreach (ExportInfo exportInfo in blobInfo.Exports)
+					{
+						if (exportInfo.Alias == alias)
+						{
+							yield return new NodeHandle(exportInfo.Hash, blobInfo.Locator, exportInfo.Index);
+						}
+					}
 				}
 			}
 		}

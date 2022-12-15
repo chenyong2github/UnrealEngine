@@ -5,6 +5,7 @@ using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
@@ -18,6 +19,8 @@ namespace EpicGames.Horde.Storage.Backends
 	/// </summary>
 	public class MemoryStorageClient : StorageClientBase
 	{
+		record class ExportEntry(NodeHandle Handle, ExportEntry? Next);
+
 		/// <summary>
 		/// Map of blob id to blob data
 		/// </summary>
@@ -27,6 +30,11 @@ namespace EpicGames.Horde.Storage.Backends
 		/// Map of ref name to ref data
 		/// </summary>
 		readonly ConcurrentDictionary<RefName, NodeHandle> _refs = new ConcurrentDictionary<RefName, NodeHandle>();
+
+		/// <summary>
+		/// Content addressed data lookup
+		/// </summary>
+		readonly ConcurrentDictionary<Utf8String, ExportEntry> _exports = new ConcurrentDictionary<Utf8String, ExportEntry>();
 
 		/// <inheritdoc cref="_blobs"/>
 		public IReadOnlyDictionary<BlobLocator, Bundle> Blobs => _blobs;
@@ -61,8 +69,38 @@ namespace EpicGames.Horde.Storage.Backends
 		public override async Task<BlobLocator> WriteBlobAsync(Stream stream, Utf8String prefix = default, CancellationToken cancellationToken = default)
 		{
 			BlobLocator locator = BlobLocator.Create(HostId.Empty, prefix);
-			_blobs[locator] = await Bundle.FromStreamAsync(stream, cancellationToken);
+			Bundle bundle = await Bundle.FromStreamAsync(stream, cancellationToken);
+			_blobs[locator] = bundle;
+
+			for (int idx = 0; idx < bundle.Header.Exports.Count; idx++)
+			{
+				BundleExport export = bundle.Header.Exports[idx];
+				if(!export.Alias.IsEmpty)
+				{
+					NodeHandle handle = new NodeHandle(export.Hash, locator, idx);
+					_exports.AddOrUpdate(export.Alias, _ => new ExportEntry(handle, null), (_, entry) => new ExportEntry(handle, entry));
+				}
+			}
+
 			return locator;
+		}
+
+		#endregion
+
+		#region Nodes
+
+		/// <inheritdoc/>
+		public override async IAsyncEnumerable<NodeHandle> FindNodesAsync(Utf8String alias, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+		{
+			if(_exports.TryGetValue(alias, out ExportEntry? entry))
+			{
+				for (; entry != null; entry = entry.Next)
+				{
+					cancellationToken.ThrowIfCancellationRequested();
+					await Task.Yield();
+					yield return entry.Handle;
+				}
+			}
 		}
 
 		#endregion

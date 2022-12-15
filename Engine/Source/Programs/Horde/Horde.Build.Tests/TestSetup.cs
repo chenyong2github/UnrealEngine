@@ -157,6 +157,8 @@ namespace Horde.Build.Tests
 			settings.AdminClaimType = HordeClaimTypes.Role;
 			settings.AdminClaimValue = "app-horde-admins";
 			settings.WithAws = true;
+
+			settings.ForceConfigUpdateOnStartup = true;
 		}
 
 		protected override void ConfigureServices(IServiceCollection services)
@@ -252,6 +254,7 @@ namespace Horde.Build.Tests
 
 			services.AddSingleton<ILegacyStorageClient, BasicStorageClient>();
 
+			services.AddSingleton<ConfigUpdateService>();
 			services.AddSingleton<StorageService>();
 
 			services.AddSingleton<ISingletonDocument<AgentSoftwareChannels>>(new SingletonDocumentStub<AgentSoftwareChannels>());

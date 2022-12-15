@@ -17,6 +17,10 @@
 				"id": "default-backend",
 				"type":"FileSystem",
 				"baseDir": "Storage" // Default base directory is C:\ProgramData\HordeServer
+			},
+			{
+				"id": "memory-backend", // Used for automated tests
+				"type": "Memory"
 			}
 		],
 		"namespaces": [
@@ -43,6 +47,10 @@
 				"id": "horde-tools",
 				"prefix": "Tools/",
 				"backend": "default-backend"
+			},
+			{
+				"id": "memory",
+				"backend": "memory-backend"
 			}
 		]
 	},

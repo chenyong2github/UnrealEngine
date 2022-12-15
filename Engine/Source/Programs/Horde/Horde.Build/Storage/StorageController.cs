@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -37,6 +38,47 @@ namespace Horde.Build.Storage
 		/// Flag for whether the client could use a redirect instead (ie. not post content to the server, and get an upload url back).
 		/// </summary>
 		public bool? SupportsRedirects { get; set; }
+	}
+
+	/// <summary>
+	/// Response object for finding a node
+	/// </summary>
+	public class FindNodeResponse
+	{
+		/// <summary>
+		/// Hash of the target node
+		/// </summary>
+		public IoHash Hash { get; set; }
+
+		/// <summary>
+		/// Locator for the target blob
+		/// </summary>
+		public BlobLocator Blob { get; set; }
+
+		/// <summary>
+		/// Export index for the ref
+		/// </summary>
+		public int ExportIdx { get; set; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public FindNodeResponse(NodeHandle target)
+		{
+			Hash = target.Hash;
+			Blob = target.Locator.Blob;
+			ExportIdx = target.Locator.ExportIdx;
+		}
+	}
+	/// <summary>
+	/// Response object for searching for nodes with a given alias
+	/// </summary>
+	public class FindNodesResponse
+	{
+		/// <summary>
+		/// Hash of the target node
+		/// </summary>
+		public List<FindNodeResponse> Nodes { get; set; } = new List<FindNodeResponse>();
 	}
 
 	/// <summary>
@@ -230,6 +272,37 @@ namespace Horde.Build.Storage
 			}
 			return File(stream, "application/octet-stream");
 #pragma warning restore CA2000 // Dispose objects before losing scope
+		}
+
+		/// <summary>
+		/// Retrieves data from the storage service. 
+		/// </summary>
+		/// <param name="namespaceId">Namespace to fetch from</param>
+		/// <param name="alias">Alias of the node to find</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		[HttpGet]
+		[Route("/api/v1/storage/{namespaceId}/nodes")]
+		public async Task<ActionResult<FindNodesResponse>> FindNodesAsync(NamespaceId namespaceId, string alias, CancellationToken cancellationToken = default)
+		{
+			if (!await _storageService.AuthorizeAsync(namespaceId, User, AclAction.ReadBlobs, null, cancellationToken))
+			{
+				return Forbid(AclAction.WriteBlobs);
+			}
+
+			IStorageClientImpl client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
+
+			FindNodesResponse response = new FindNodesResponse();
+			await foreach (NodeHandle handle in client.FindNodesAsync(alias, cancellationToken))
+			{
+				response.Nodes.Add(new FindNodeResponse(handle));
+			}
+
+			if (response.Nodes.Count == 0)
+			{
+				return NotFound();
+			}
+
+			return response;
 		}
 
 		/// <summary>

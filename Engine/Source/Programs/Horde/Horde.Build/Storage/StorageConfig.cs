@@ -134,6 +134,11 @@ namespace Horde.Build.Storage
 		public double GcDelayHrs { get; set; } = 6.0;
 
 		/// <summary>
+		/// Support querying exports by their aliases
+		/// </summary>
+		public bool EnableAliases { get; set; }
+
+		/// <summary>
 		/// Access list for this namespace
 		/// </summary>
 		public AclConfig Acl { get; set; } = new AclConfig();
