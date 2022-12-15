@@ -4,6 +4,7 @@
 
 #include "CommonButtonBase.h"
 #include "Components/DynamicEntryBoxBase.h"
+#include "Tickable.h"
 #include "CommonBoundActionBar.generated.h"
 
 class IWidgetCompilerLog;
@@ -13,13 +14,20 @@ class IConsoleVariable;
  * A box populated with current actions available per CommonUI's Input Handler.
  */
 UCLASS(Blueprintable, ClassGroup = UI, meta = (Category = "Common UI"))
-class COMMONUI_API UCommonBoundActionBar : public UDynamicEntryBoxBase
+class COMMONUI_API UCommonBoundActionBar : public UDynamicEntryBoxBase, public FTickableGameObject
 {
 	GENERATED_BODY()
 
 public:
 	UFUNCTION(BlueprintCallable, Category = CommonBoundActionBar)
 	void SetDisplayOwningPlayerActionsOnly(bool bShouldOnlyDisplayOwningPlayerActions);
+
+	//~ FTickableGameObject Begin
+	virtual void Tick(float DeltaTime) override;
+	virtual ETickableTickType GetTickableTickType() const override;
+	virtual TStatId GetStatId() const override;
+	virtual bool IsTickableWhenPaused() const override;
+	//~ FTickableGameObject End
 
 protected:
 	virtual void OnWidgetRebuilt() override;

@@ -35,6 +35,29 @@ void UCommonBoundActionBar::SetDisplayOwningPlayerActionsOnly(bool bShouldOnlyDi
 	}
 }
 
+void UCommonBoundActionBar::Tick(float DeltaTime)
+{
+	if (bIsRefreshQueued)
+	{
+		HandleDeferredDisplayUpdate();
+	}
+}
+
+ETickableTickType UCommonBoundActionBar::GetTickableTickType() const
+{
+	return ETickableTickType::Always;
+}
+
+TStatId UCommonBoundActionBar::GetStatId() const
+{
+	RETURN_QUICK_DECLARE_CYCLE_STAT(UCommonBoundActionBar, STATGROUP_Tickables);
+}
+
+bool UCommonBoundActionBar::IsTickableWhenPaused() const
+{
+	return true;
+}
+
 void UCommonBoundActionBar::OnWidgetRebuilt()
 {
 	Super::OnWidgetRebuilt();
@@ -100,13 +123,9 @@ void UCommonBoundActionBar::ValidateCompiledDefaults(IWidgetCompilerLog& Compile
 
 void UCommonBoundActionBar::HandleBoundActionsUpdated(bool bFromOwningPlayer)
 {
-	if (!bIsRefreshQueued && (bFromOwningPlayer || !bDisplayOwningPlayerActionsOnly))
+	if (bFromOwningPlayer || !bDisplayOwningPlayerActionsOnly)
 	{
 		bIsRefreshQueued = true;
-
-		UGameInstance* GameInstance = GetGameInstance();
-		check(GameInstance);
-		GameInstance->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateUObject(this, &UCommonBoundActionBar::HandleDeferredDisplayUpdate));
 	}
 }
 
