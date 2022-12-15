@@ -67,8 +67,8 @@ TSharedRef< FSlateStyleSet > FLogVisualizerStyle::Create()
 		Style.Set("LogVisualizerApp.TabIcon", new IMAGE_BRUSH_SVG("Starship/Common/VisualLogger", Icon16x16));
 		
 		Style.Set("LogVisualizer.LogBar.Background", new BOX_BRUSH("Common/ProgressBar_Background", FMargin(5.f / 12.f)));
-		Style.Set("LogVisualizer.LogBar.Selected", new CORE_BOX_BRUSH("Common/TaskGraph_Selected", FMargin(5.f / 12.f)));
-		Style.Set("LogVisualizer.LogBar.EntryDefault", new CORE_BOX_BRUSH("Common/TaskGraph_Mono", FMargin(5.f / 12.f)));
+		Style.Set("LogVisualizer.LogBar.Selected", new CORE_BOX_BRUSH("Common/ProfileVisualizer_Selected", FMargin(5.f / 12.f)));
+		Style.Set("LogVisualizer.LogBar.EntryDefault", new CORE_BOX_BRUSH("Common/ProfileVisualizer_Mono", FMargin(5.f / 12.f)));
 		Style.Set("LogVisualizer.LogBar.TimeMark", new BOX_BRUSH("Icons/LV_BarMark", FMargin(5.f / 12.f)));
 
 		//Style.Set("ToolPanel.GroupBorder", FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"));

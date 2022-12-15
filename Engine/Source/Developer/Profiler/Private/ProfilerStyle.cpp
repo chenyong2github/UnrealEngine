@@ -199,7 +199,7 @@ FProfilerStyle::FProfilerStyle()
 
 		Set("Profiler.Misc.Disconnect", new IMAGE_BRUSH("Icons/Profiler/profiler_Disconnect_32x", Icon32x32));
 
-		Set("TaskGraph.Mono", new BOX_BRUSH("Common/TaskGraph_Mono", FMargin(5.f / 12.f)));
+		Set("ProfileVisualizer.Mono", new BOX_BRUSH("Common/ProfileVisualizer_Mono", FMargin(5.f / 12.f)));
 	}
 
 
