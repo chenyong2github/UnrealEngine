@@ -65,6 +65,7 @@ namespace Chaos
 		bool AreAllDynamic(TArrayView<FPhysicsObjectHandle> InObjects);
 		bool AreAllDisabled(TArrayView<FPhysicsObjectHandle> InObjects);
 		float GetMass(TArrayView<FPhysicsObjectHandle> InObjects);
+		FBox GetBounds(TArrayView<FPhysicsObjectHandle> InObjects);
 		FBox GetWorldBounds(TArrayView<FPhysicsObjectHandle> InObjects);
 		FClosestPhysicsObjectResult GetClosestPhysicsBodyFromLocation(TArrayView<FPhysicsObjectHandle> InObjects, const FVector& WorldLocation);
 

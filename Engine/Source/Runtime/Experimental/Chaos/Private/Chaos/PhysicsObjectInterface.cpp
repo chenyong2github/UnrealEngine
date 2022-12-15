@@ -358,6 +358,38 @@ namespace Chaos
 	}
 
 	template<EThreadContext Id>
+	FBox FReadPhysicsObjectInterface<Id>::GetBounds(TArrayView<FPhysicsObjectHandle> InObjects)
+	{
+		FBox RetBox(ForceInit);
+		for (FPhysicsObjectHandle Object : InObjects)
+		{
+			if (!Object)
+			{
+				continue;
+			}
+
+			const TThreadParticle<Id>* Particle = Object->GetParticle<Id>();
+			if (!Particle)
+			{
+				continue;
+			}
+
+			FBox ParticleBox(ForceInit);
+			if (const FImplicitObject* Geometry = Particle->Geometry().Get(); Geometry && Geometry->HasBoundingBox())
+			{
+				const Chaos::FAABB3 Box = Geometry->BoundingBox();
+				ParticleBox = FBox{ Box.Min(), Box.Max() };
+			}
+
+			if (ParticleBox.IsValid)
+			{
+				RetBox += ParticleBox;
+			}
+		}
+		return RetBox;
+	}
+
+	template<EThreadContext Id>
 	FBox FReadPhysicsObjectInterface<Id>::GetWorldBounds(TArrayView<FPhysicsObjectHandle> InObjects)
 	{
 		FBox RetBox(ForceInit);
