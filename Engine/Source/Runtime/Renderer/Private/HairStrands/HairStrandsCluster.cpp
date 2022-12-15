@@ -13,7 +13,7 @@
 #include "ShaderParameterStruct.h"
 #include "ScenePrivate.h"
 
-static int32 GHairVirtualVoxel_NumPixelPerVoxel = 0.5f;
+static int32 GHairVirtualVoxel_NumPixelPerVoxel = 1;
 static FAutoConsoleVariableRef CVarHairVirtualVoxel_NumPixelPerVoxel(TEXT("r.HairStrands.Voxelization.VoxelSizeInPixel"), GHairVirtualVoxel_NumPixelPerVoxel, TEXT("Target size of voxel size in pixels"), ECVF_RenderThreadSafe);
 
 class FHairMacroGroupAABBCS : public FGlobalShader
