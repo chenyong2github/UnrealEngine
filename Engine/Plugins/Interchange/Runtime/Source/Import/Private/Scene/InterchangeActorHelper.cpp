@@ -14,6 +14,7 @@
 
 #include "Components/MeshComponent.h"
 #include "Engine/World.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 
 #if WITH_EDITOR

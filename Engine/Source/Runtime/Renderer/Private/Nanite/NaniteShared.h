@@ -10,6 +10,7 @@
 #include "RenderGraphUtils.h"
 #include "Rendering/NaniteResources.h"
 #include "NaniteFeedback.h"
+#include "MaterialDomain.h"
 #include "MaterialShaderType.h"
 #include "MaterialShader.h"
 #include "Misc/ScopeRWLock.h"

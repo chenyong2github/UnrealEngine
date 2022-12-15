@@ -7,6 +7,7 @@
 #include "PrimitiveSceneProxy.h"
 #include "TextureResource.h"
 #include "VertexFactory.h"
+#include "MaterialDomain.h"
 #include "MaterialShared.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/TextureRenderTarget2D.h"

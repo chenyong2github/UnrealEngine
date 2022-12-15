@@ -20,6 +20,7 @@ LandscapeEdit.cpp: Landscape editing
 #include "LandscapeInfo.h"
 #include "LandscapeComponent.h"
 #include "LandscapeLayerInfoObject.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialExpressionLandscapeVisibilityMask.h"

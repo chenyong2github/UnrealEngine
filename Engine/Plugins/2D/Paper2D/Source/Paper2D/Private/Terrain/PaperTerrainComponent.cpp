@@ -2,6 +2,7 @@
 
 #include "PaperTerrainComponent.h"
 #include "UObject/ConstructorHelpers.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "Engine/Polys.h"
 #include "Components/SplineComponent.h"

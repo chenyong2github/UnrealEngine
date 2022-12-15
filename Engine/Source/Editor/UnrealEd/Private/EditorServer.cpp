@@ -42,6 +42,7 @@
 #include "CollisionQueryParams.h"
 #include "WorldCollision.h"
 #include "Engine/World.h"
+#include "MaterialDomain.h"
 #include "Materials/MaterialInterface.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/MeshComponent.h"

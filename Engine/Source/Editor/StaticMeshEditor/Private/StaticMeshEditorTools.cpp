@@ -16,6 +16,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"

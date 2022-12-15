@@ -25,6 +25,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 
 #include "Async/ParallelFor.h"

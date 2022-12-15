@@ -6,6 +6,7 @@
 #include "Curves/CurveFloat.h"
 #include "InteractiveTool.h"
 #include "InteractiveToolManager.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
 

@@ -38,6 +38,7 @@ Landscape.cpp: Terrain rendering
 #include "DerivedDataCacheInterface.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "LandscapeMeshCollisionComponent.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "LandscapeMaterialInstanceConstant.h"
 #include "Engine/CollisionProfile.h"

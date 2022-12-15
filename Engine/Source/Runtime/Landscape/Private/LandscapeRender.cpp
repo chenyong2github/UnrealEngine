@@ -11,6 +11,7 @@ LandscapeRender.cpp: New terrain rendering
 #include "LandscapePrivate.h"
 #include "LandscapeMeshProxyComponent.h"
 #include "LandscapeNaniteComponent.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
 #include "Materials/MaterialExpressionLandscapeLayerCoords.h"

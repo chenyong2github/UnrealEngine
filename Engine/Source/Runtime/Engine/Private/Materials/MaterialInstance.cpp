@@ -16,6 +16,7 @@
 #include "Engine/Texture2D.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "UnrealEngine.h"
+#include "MaterialDomain.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
 #include "Materials/MaterialExpressionVectorParameter.h"
 #include "Materials/MaterialExpressionDoubleVectorParameter.h"

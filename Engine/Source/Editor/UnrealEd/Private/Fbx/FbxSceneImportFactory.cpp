@@ -14,6 +14,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Engine/EngineTypes.h"
 #include "Components/SceneComponent.h"
+#include "MaterialDomain.h"
 #include "Materials/MaterialInterface.h"
 #include "Components/StaticMeshComponent.h"
 #include "ActorFactories/ActorFactoryEmptyActor.h"

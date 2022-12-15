@@ -2,6 +2,7 @@
 
 #include "DynamicMeshActor.h"
 #include "Engine/CollisionProfile.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DynamicMeshActor)

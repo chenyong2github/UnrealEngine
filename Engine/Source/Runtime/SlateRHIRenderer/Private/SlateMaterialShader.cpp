@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SlateMaterialShader.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "RHIStaticStates.h"
 #include "ShaderParameterUtils.h"

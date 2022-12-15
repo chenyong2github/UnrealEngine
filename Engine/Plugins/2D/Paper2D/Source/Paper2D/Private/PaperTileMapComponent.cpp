@@ -2,6 +2,7 @@
 
 #include "PaperTileMapComponent.h"
 #include "UObject/ConstructorHelpers.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "Paper2DPrivate.h"
 #include "PaperRenderSceneProxy.h"

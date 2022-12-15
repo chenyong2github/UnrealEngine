@@ -38,6 +38,7 @@ THIRD_PARTY_INCLUDES_END
 #include "Utils.h"
 
 #include "MeshUtilities.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "Modules/ModuleManager.h"
 

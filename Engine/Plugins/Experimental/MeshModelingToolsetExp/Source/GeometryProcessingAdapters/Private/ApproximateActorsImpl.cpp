@@ -34,6 +34,7 @@
 #include "Scene/SceneCapturePhotoSet.h"
 #include "AssetUtils/Texture2DBuilder.h"
 
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "MaterialUtilities.h"

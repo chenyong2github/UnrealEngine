@@ -27,6 +27,7 @@
 #include "Layout/Children.h"
 #include "Layout/Geometry.h"
 #include "Layout/Margin.h"
+#include "MaterialDomain.h"
 #include "MaterialShared.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInterface.h"

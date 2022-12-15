@@ -8,6 +8,7 @@
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
 #include "Materials/Material.h"
+#include "MaterialDomain.h"
 #include "Particles/ParticleSystem.h"
 #include "Engine/StaticMesh.h"
 #include "StaticMeshResources.h"

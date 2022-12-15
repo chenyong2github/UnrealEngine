@@ -6,6 +6,7 @@
 #include "Containers/StringConv.h"
 #include "Misc/CoreMisc.h"
 #include "ARSessionConfigCookSupport.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInterface.h"
 

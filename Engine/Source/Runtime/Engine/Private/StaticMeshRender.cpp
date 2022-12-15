@@ -11,6 +11,7 @@
 #include "EngineGlobals.h"
 #include "HitProxies.h"
 #include "PrimitiveViewRelevance.h"
+#include "MaterialDomain.h"
 #include "Materials/MaterialInterface.h"
 #include "SceneInterface.h"
 #include "PrimitiveSceneProxy.h"

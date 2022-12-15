@@ -8,6 +8,7 @@
 #include "Engine/Level.h"
 #include "Engine/MapBuildDataRegistry.h"
 #include "Materials/Material.h"
+#include "MaterialDomain.h"
 #include "Engine/CollisionProfile.h"
 #include "UObject/RenderingObjectVersion.h"
 #include "Engine/Texture2D.h"

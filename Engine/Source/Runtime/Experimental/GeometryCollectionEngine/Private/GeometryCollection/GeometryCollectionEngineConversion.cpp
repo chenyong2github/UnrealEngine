@@ -21,6 +21,7 @@
 #include "GeometryCollectionProxyData.h"
 #include "GeometryCollection/GeometryCollectionUtility.h"
 #include "Logging/LogMacros.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "MeshDescription.h"

@@ -26,6 +26,7 @@
 #include "GlobalDistanceFieldParameters.h"
 #include "StaticBoundShaderState.h"
 #include "Materials/Material.h"
+#include "MaterialDomain.h"
 #include "ParticleVertexFactory.h"
 #include "SceneUtils.h"
 #include "SceneManagement.h"

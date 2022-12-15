@@ -22,6 +22,7 @@
 #include "Materials/MaterialShaderMapLayout.h"
 #include "UObject/UObjectIterator.h"
 #include "ComponentReregisterContext.h"
+#include "MaterialDomain.h"
 #include "Materials/MaterialExpressionBreakMaterialAttributes.h"
 #include "Materials/MaterialExpressionShadingModel.h"
 #include "Materials/MaterialExpressionRerouteBase.h"

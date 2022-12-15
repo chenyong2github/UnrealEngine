@@ -22,6 +22,7 @@
 
 #include "UObject/UObjectBaseUtility.h"
 #include "UObject/Package.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Modules/ModuleManager.h"

@@ -7,6 +7,7 @@
 #include "VertexFactory.h"
 #include "MaterialShared.h"
 #include "Engine/CollisionProfile.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "LocalVertexFactory.h"
 #include "SceneManagement.h"

@@ -2,6 +2,7 @@
 
 #include "VolumeToMeshTool.h"
 #include "InteractiveToolManager.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "ToolBuilderUtil.h"
 

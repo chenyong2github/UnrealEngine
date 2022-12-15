@@ -13,6 +13,7 @@
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "CollisionQueryParams.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "ParticleHelper.h"
 #include "Distributions/DistributionFloatConstant.h"

@@ -12,6 +12,7 @@
 #include "UObject/MetaData.h"
 #include "UObject/Package.h"
 #include "Misc/PackageName.h"
+#include "MaterialDomain.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/Material.h"
 #include "Factories/Factory.h"

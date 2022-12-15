@@ -19,6 +19,7 @@
 #include "Kismet2/ComponentEditorUtils.h"
 #include "LevelEditorSubsystem.h"
 #include "MaterialEditor/DEditorParameterValue.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "PropertyHandle.h"
 #include "RemoteControlActor.h"

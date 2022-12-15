@@ -8,6 +8,7 @@
 #include "LocalVertexFactory.h"
 #include "UObject/GCObject.h"
 #include "PrimitiveViewRelevance.h"
+#include "MaterialDomain.h"
 #include "Materials/MaterialInterface.h"
 #include "PrimitiveSceneProxy.h"
 #include "Engine/Font.h"

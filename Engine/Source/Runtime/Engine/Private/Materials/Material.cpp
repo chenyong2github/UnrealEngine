@@ -69,6 +69,7 @@
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "MaterialCompiler.h"
+#include "MaterialDomain.h"
 #include "MaterialShaderType.h"
 #include "Materials/MaterialInstanceSupport.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
@@ -6460,6 +6461,21 @@ bool UMaterial::IsTranslucencyWritingVelocity() const
 bool UMaterial::IsMasked() const
 {
 	return IsMaskedBlendMode(GetBlendMode(), GetStrataBlendMode()) || (IsTranslucentOnlyBlendMode(GetBlendMode(), GetStrataBlendMode()) && GetCastDynamicShadowAsMasked());
+}
+
+bool UMaterial::IsDeferredDecal() const
+{
+	return MaterialDomain == MD_DeferredDecal;
+}
+
+bool UMaterial::IsUIMaterial() const
+{
+	return MaterialDomain == MD_UI;
+}
+
+bool UMaterial::IsPostProcessMaterial() const
+{
+	return MaterialDomain == MD_PostProcess;
 }
 
 USubsurfaceProfile* UMaterial::GetSubsurfaceProfile_Internal() const

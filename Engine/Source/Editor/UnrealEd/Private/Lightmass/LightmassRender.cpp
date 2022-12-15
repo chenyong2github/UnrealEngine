@@ -10,6 +10,7 @@
 #include "Misc/Paths.h"
 #include "Misc/Guid.h"
 #include "RenderingThread.h"
+#include "MaterialDomain.h"
 #include "MaterialShared.h"
 #include "Materials/Material.h"
 #include "CanvasItem.h"

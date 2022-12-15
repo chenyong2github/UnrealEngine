@@ -9,6 +9,7 @@
 #include "MeshBatch.h"
 #include "ShaderParameterUtils.h"
 #include "Rendering/ColorVertexBuffer.h"
+#include "MaterialDomain.h"
 #include "MeshMaterialShader.h"
 #include "HairStrandsInterface.h"
 #include "GroomInstance.h"

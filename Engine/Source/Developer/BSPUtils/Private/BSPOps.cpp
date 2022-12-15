@@ -4,6 +4,7 @@
 #include "BSPOps.h"
 #include "EngineDefines.h"
 #include "Model.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "Engine/BrushBuilder.h"
 #include "Editor/EditorEngine.h"

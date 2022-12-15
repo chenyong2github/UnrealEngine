@@ -8,6 +8,7 @@
 #include "Containers/ResourceArray.h"
 #include "EngineGlobals.h"
 #include "VertexFactory.h"
+#include "MaterialDomain.h"
 #include "MaterialShared.h"
 #include "Materials/Material.h"
 #include "LocalVertexFactory.h"

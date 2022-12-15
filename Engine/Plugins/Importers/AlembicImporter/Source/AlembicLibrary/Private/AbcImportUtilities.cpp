@@ -9,6 +9,7 @@
 #include "AbcPolyMesh.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Containers/ArrayView.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "UObject/Package.h"
 

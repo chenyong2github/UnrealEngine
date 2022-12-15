@@ -7,6 +7,7 @@
 #include "Misc/FeedbackContext.h"
 #include "Materials/MaterialInterface.h"
 #include "Model.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "Engine/Polys.h"
 #include "BSPOps.h"

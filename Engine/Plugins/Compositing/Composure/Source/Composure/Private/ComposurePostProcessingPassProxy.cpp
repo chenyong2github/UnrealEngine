@@ -3,6 +3,7 @@
 #include "ComposurePostProcessingPassProxy.h"
 #include "ComposurePostProcessBlendable.h"
 #include "Components/SceneCaptureComponent2D.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "ComposureInternals.h" // for COMPOSURE_GET_MATERIAL()

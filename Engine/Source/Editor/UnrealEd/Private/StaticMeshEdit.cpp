@@ -26,6 +26,7 @@
 #include "FbxImporter.h"
 #include "Misc/ScopedSlowTask.h"
 
+#include "MaterialDomain.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/Material.h"
 #include "PerPlatformProperties.h"

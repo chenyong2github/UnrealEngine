@@ -21,6 +21,7 @@
 #include "Engine/TextureLightProfile.h"
 #include "ModelLight.h"
 #include "LandscapeLight.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "Camera/CameraActor.h"
 #include "Components/PointLightComponent.h"

@@ -7,6 +7,7 @@
 #include "DynamicMesh/MeshTangents.h"
 #include "Async/ParallelFor.h"
 #include "Materials/Material.h"
+#include "MaterialDomain.h"
 #include "MaterialShared.h"
 
 /**

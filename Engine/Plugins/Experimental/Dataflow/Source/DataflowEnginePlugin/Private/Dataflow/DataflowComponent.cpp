@@ -8,6 +8,7 @@
 #include "GeometryCollection/Facades/CollectionRenderingFacade.h"
 #include "GeometryCollection/Facades/CollectionBoundsFacade.h"
 #include "GeometryCollection/GeometryCollection.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DataflowComponent)

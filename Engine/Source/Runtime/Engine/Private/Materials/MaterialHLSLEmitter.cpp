@@ -11,6 +11,7 @@
 #include "Materials/MaterialExpressionFunctionOutput.h"
 #include "Materials/MaterialExpressionVolumetricAdvancedMaterialOutput.h"
 #include "Materials/Material.h"
+#include "MaterialDomain.h"
 #include "MaterialHLSLTree.h"
 #include "MaterialCachedHLSLTree.h"
 #include "ShaderCore.h"

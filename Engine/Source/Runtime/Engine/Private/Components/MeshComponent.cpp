@@ -2,6 +2,7 @@
 
 #include "Components/MeshComponent.h"
 #include "Materials/Material.h"
+#include "MaterialDomain.h"
 #include "Engine/Texture2D.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "ContentStreaming.h"

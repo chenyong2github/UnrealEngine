@@ -7,6 +7,7 @@
 #include "Components/DecalComponent.h"
 #include "Engine/World.h"
 #include "Materials/Material.h"
+#include "MaterialDomain.h"
 #include "TimerManager.h"
 #include "SceneManagement.h"
 #include "Materials/MaterialInstanceDynamic.h"

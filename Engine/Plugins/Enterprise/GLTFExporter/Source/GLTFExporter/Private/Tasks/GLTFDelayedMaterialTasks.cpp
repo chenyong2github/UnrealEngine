@@ -6,6 +6,7 @@
 #include "Converters/GLTFMaterialUtility.h"
 #include "Builders/GLTFContainerBuilder.h"
 #include "Utilities/GLTFProxyMaterialUtilities.h"
+#include "MaterialDomain.h"
 #include "Materials/GLTFProxyMaterialInfo.h"
 #include "Materials/MaterialInstance.h"
 #include "Materials/MaterialExpressionConstant.h"

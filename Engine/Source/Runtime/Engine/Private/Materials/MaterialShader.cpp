@@ -11,6 +11,7 @@
 #include "Materials/MaterialFunctionInterface.h"
 #include "ProfilingDebugging/DiagnosticTable.h"
 #include "MeshMaterialShaderType.h"
+#include "MaterialDomain.h"
 #include "MaterialShaderMapLayout.h"
 #include "ShaderCompiler.h"
 #include "DataDrivenShaderPlatformInfo.h"

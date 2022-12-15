@@ -10,6 +10,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "Components/MeshComponent.h"
 #include "Exporters/Exporter.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "Components/DecalComponent.h"
 #include "ScopedTransaction.h"

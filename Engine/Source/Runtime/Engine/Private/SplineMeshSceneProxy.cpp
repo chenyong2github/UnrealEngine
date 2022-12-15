@@ -2,6 +2,7 @@
 
 #include "SplineMeshSceneProxy.h"
 #include "Materials/Material.h"
+#include "MaterialDomain.h"
 #include "MeshMaterialShader.h"
 #include "StaticMeshComponentLODInfo.h"
 

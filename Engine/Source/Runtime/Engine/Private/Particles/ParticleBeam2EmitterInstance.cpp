@@ -10,6 +10,7 @@
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
 #include "Materials/Material.h"
+#include "MaterialDomain.h"
 #include "ParticleHelper.h"
 #include "ParticleEmitterInstances.h"
 #include "Particles/ParticleSystemComponent.h"

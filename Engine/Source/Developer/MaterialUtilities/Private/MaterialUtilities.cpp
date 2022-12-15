@@ -26,6 +26,7 @@
 #include "CanvasTypes.h"
 #include "Materials/MaterialExpressionTextureSample.h"
 #include "MaterialCompiler.h"
+#include "MaterialDomain.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Materials/MaterialParameterCollection.h"
 #include "LandscapeProxy.h"

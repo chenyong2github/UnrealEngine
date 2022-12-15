@@ -11,6 +11,7 @@
 #include "GlobalShader.h"
 #include "HAL/IConsoleManager.h"
 #include "HeightfieldMinMaxTexture.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "RHIStaticStates.h"
 #include "RenderGraphBuilder.h"

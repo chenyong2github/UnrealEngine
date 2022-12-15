@@ -29,6 +29,7 @@
 #include "Factories/MaterialInstanceConstantFactoryNew.h"
 #include "Factories/TextureFactory.h"
 
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionAdd.h"
 #include "Materials/MaterialExpressionConstant.h"

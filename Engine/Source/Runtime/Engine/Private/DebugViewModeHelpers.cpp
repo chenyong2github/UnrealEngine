@@ -9,6 +9,7 @@
 #include "Materials/MaterialInterface.h"
 #include "Materials/Material.h"
 #include "MaterialShaderType.h"
+#include "MaterialDomain.h"
 #include "MeshMaterialShader.h"
 #include "ShaderCompiler.h"
 #include "Misc/ScopedSlowTask.h"

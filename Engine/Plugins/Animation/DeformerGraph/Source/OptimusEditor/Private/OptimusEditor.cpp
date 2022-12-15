@@ -32,6 +32,7 @@
 #include "IPersonaViewport.h"
 #include "ISkeletonEditorModule.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "MessageLogModule.h"
 #include "OptimusDataTypeRegistry.h"

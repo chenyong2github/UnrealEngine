@@ -3,6 +3,7 @@
 #include "LandscapeNaniteComponent.h"
 #include "LandscapeEdit.h"
 #include "LandscapeRender.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "NaniteSceneProxy.h"
 #include "Materials/MaterialInstanceConstant.h"

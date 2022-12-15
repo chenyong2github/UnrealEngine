@@ -31,6 +31,7 @@
 #include "Engine/Scene.h"
 #include "RenderUtils.h"
 #include "TextureCompiler.h"
+#include "MaterialDomain.h"
 #include "MaterialShaderQualitySettings.h"
 #include "ShaderPlatformQualitySettings.h"
 #include "ObjectCacheContext.h"

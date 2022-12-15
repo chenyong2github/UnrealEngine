@@ -5,6 +5,7 @@
 #include "HLSLTree/HLSLTreeCommon.h"
 #include "HLSLTree/HLSLTreeEmit.h"
 #include "Misc/StringBuilder.h"
+#include "MaterialDomain.h"
 #include "MaterialShared.h"
 #include "MaterialCachedData.h"
 #include "MaterialSceneTextureId.h"

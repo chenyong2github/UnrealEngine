@@ -5,6 +5,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/SkinnedAssetCommon.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "StaticMeshCompiler.h"

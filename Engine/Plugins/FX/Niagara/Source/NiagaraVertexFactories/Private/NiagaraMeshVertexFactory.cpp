@@ -8,6 +8,7 @@
 #include "ParticleHelper.h"
 #include "ParticleResources.h"
 #include "ShaderParameterUtils.h"
+#include "MaterialDomain.h"
 #include "MeshMaterialShader.h"
 #include "GlobalRenderResources.h"
 #include "DataDrivenShaderPlatformInfo.h"

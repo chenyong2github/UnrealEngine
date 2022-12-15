@@ -35,6 +35,7 @@
 #include "Logging/LogCategory.h"
 #include "Logging/LogMacros.h"
 #include "Logging/TokenizedMessage.h"
+#include "MaterialDomain.h"
 #include "MaterialShared.h"
 #include "MaterialTypes.h"
 #include "Materials/Material.h"

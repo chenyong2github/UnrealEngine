@@ -11,6 +11,7 @@
 #include "Engine/Level.h"
 #include "Model.h"
 #include "Materials/Material.h"
+#include "MaterialDomain.h"
 #include "Engine/BrushBuilder.h"
 #include "Components/BrushComponent.h"
 #include "ActorEditorUtils.h"

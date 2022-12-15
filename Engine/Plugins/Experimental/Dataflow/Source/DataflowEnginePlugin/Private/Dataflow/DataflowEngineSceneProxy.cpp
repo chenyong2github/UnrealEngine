@@ -9,6 +9,7 @@
 #include "DynamicMeshBuilder.h"
 #include "Engine/CollisionProfile.h"
 #include "GeometryCollection/Facades/CollectionRenderingFacade.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "PrimitiveSceneProxy.h"
 #include "StaticMeshResources.h"

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 
 #include "Components/BaseDynamicMeshSceneProxy.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "RayTracingDefinitions.h"
 #include "RayTracingInstance.h"

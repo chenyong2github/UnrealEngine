@@ -10,6 +10,7 @@
 #include "NiagaraGPUSortInfo.h"
 #include "NiagaraSystem.h"
 
+#include "MaterialDomain.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Modules/ModuleManager.h"
 

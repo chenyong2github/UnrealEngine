@@ -6,6 +6,7 @@
 #include "ConversionUtils/DynamicMeshViaMeshDescriptionUtil.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "Engine/StaticMesh.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "RenderingThread.h"
 #include "Widgets/Notifications/SNotificationList.h"

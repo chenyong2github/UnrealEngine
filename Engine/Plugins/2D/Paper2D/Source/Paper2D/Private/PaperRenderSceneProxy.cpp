@@ -3,6 +3,7 @@
 #include "PaperRenderSceneProxy.h"
 #include "Containers/ResourceArray.h"
 #include "SceneManagement.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "EngineGlobals.h"

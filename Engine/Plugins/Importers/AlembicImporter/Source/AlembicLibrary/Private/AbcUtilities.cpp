@@ -6,6 +6,7 @@
 #include "AbcImportSettings.h"
 #include "AbcImportUtilities.h"
 #include "GeometryCache.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 
 void FAbcUtilities::GetFrameMeshData(FAbcFile& AbcFile, int32 FrameIndex, FGeometryCacheMeshData& OutMeshData, int32 ConcurrencyIndex)

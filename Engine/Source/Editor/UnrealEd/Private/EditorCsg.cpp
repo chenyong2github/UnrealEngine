@@ -6,6 +6,7 @@
 #include "Misc/MessageDialog.h"
 #include "Misc/ScopedSlowTask.h"
 #include "GameFramework/Actor.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "Engine/Brush.h"
 #include "Editor/EditorEngine.h"

@@ -16,6 +16,7 @@
 #include "Factories/TextureFactory.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Input/Reply.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "Materials/MaterialFunction.h"

@@ -8,6 +8,7 @@
 #include "WorldCollision.h"
 #include "PrimitiveSceneProxy.h"
 #include "VertexFactory.h"
+#include "MaterialDomain.h"
 #include "MaterialShared.h"
 #include "SceneManagement.h"
 #include "Engine/CollisionProfile.h"

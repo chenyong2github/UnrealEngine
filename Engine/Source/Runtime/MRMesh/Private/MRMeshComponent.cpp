@@ -6,6 +6,7 @@
 #include "LocalVertexFactory.h"
 #include "Containers/ResourceArray.h"
 #include "SceneManagement.h"
+#include "MaterialDomain.h"
 #include "MaterialShared.h"
 #include "Materials/Material.h"
 #include "RenderingThread.h"

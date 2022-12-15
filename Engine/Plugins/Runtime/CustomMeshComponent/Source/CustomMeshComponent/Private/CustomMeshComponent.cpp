@@ -6,6 +6,7 @@
 #include "PrimitiveViewRelevance.h"
 #include "PrimitiveSceneProxy.h"
 #include "VertexFactory.h"
+#include "MaterialDomain.h"
 #include "MaterialShared.h"
 #include "Engine/CollisionProfile.h"
 #include "Materials/Material.h"

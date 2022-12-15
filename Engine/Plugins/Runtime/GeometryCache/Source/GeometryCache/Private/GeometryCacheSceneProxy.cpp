@@ -12,6 +12,7 @@
 #include "GeometryCacheTrackStreamable.h"
 #include "GeometryCacheModule.h"
 #include "GeometryCacheHelpers.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "MaterialShared.h"
 #include "RayTracingDefinitions.h"

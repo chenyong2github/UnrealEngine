@@ -12,6 +12,7 @@
 #include "Engine/Level.h"
 #include "Engine/MapBuildDataRegistry.h"
 #include "Materials/Material.h"
+#include "MaterialDomain.h"
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/RenderingObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"

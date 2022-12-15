@@ -16,6 +16,7 @@
 #include "Animation/AnimTypes.h"
 #include "Engine/SkeletalMesh.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "Animation/AnimSequence.h"
 #include "Factories/FbxAssetImportData.h"

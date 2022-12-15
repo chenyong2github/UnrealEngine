@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "MaterialDomain.h"
 #include "MaterialShared.h"
 #include "MaterialCompiler.h"
 #include "TextureCompiler.h"

@@ -7,6 +7,7 @@
 #include "HairCardsVertexFactory.h"
 #include "RHIStaticStates.h"
 #include "SceneView.h"
+#include "MaterialDomain.h"
 #include "MeshBatch.h"
 #include "ShaderParameterUtils.h"
 #include "Rendering/ColorVertexBuffer.h"

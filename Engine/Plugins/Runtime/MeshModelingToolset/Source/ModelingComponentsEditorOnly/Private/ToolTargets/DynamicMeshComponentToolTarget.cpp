@@ -6,6 +6,7 @@
 #include "DynamicMeshToMeshDescription.h"
 #include "MeshDescriptionToDynamicMesh.h"
 #include "StaticMeshAttributes.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "ModelingToolTargetUtil.h"
 

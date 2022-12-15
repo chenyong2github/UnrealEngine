@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GeometryCollectionRendering.h"
+#include "MaterialDomain.h"
 #include "MeshBatch.h"
 #include "MeshDrawShaderBindings.h"
 #include "MeshMaterialShader.h"

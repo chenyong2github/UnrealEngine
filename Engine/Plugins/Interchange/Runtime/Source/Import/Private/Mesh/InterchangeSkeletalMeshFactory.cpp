@@ -25,6 +25,7 @@
 #include "InterchangeSkeletonHelper.h"
 #include "InterchangeSourceData.h"
 #include "InterchangeTranslatorBase.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "Math/GenericOctree.h"
 #include "Mesh/InterchangeSkeletalMeshPayload.h"

@@ -13,6 +13,7 @@
 #include "HAL/PlatformCrt.h"
 #include "Logging/LogCategory.h"
 #include "Logging/LogMacros.h"
+#include "MaterialDomain.h"
 #include "MaterialShared.h"
 #include "Materials/Material.h"
 #include "Math/BoxSphereBounds.h"

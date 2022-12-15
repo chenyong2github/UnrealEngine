@@ -19,6 +19,7 @@
 #include "PrimitiveSceneProxy.h"
 #include "Engine/MapBuildDataRegistry.h"
 #include "Model.h"
+#include "MaterialDomain.h"
 #include "MaterialShared.h"
 #include "Materials/Material.h"
 #include "MeshBatch.h"

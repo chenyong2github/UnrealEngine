@@ -3,6 +3,7 @@
 #include "NiagaraRenderer.h"
 #include "Engine/Texture.h"
 #include "ParticleResources.h"
+#include "MaterialDomain.h"
 #include "NiagaraDataSet.h"
 #include "NiagaraSceneProxy.h"
 #include "NiagaraStats.h"

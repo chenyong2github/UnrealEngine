@@ -4,6 +4,7 @@
 
 #include "Engine/CollisionProfile.h"
 #include "LocalVertexFactory.h"
+#include "MaterialDomain.h"
 #include "MaterialShared.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/Material.h"

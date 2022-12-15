@@ -4,6 +4,7 @@
 #include "Async/ParallelFor.h"
 #include "Engine/CollisionProfile.h"
 #include "PrimitiveSceneProxy.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "DynamicMeshBuilder.h"
 #include "StaticMeshResources.h"

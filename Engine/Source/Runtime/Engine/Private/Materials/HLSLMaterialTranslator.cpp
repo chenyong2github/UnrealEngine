@@ -6,6 +6,7 @@
 
 #include "HLSLMaterialTranslator.h"
 #include "VT/VirtualTextureScalability.h"
+#include "MaterialDomain.h"
 #include "Materials/MaterialExpressionCustom.h"
 #include "Materials/MaterialExpressionMaterialAttributeLayers.h"
 #include "Materials/MaterialExpressionStrata.h"

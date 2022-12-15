@@ -32,6 +32,7 @@
 //Meshes includes
 #include "MeshUtilities.h"
 #include "RawMesh.h"
+#include "MaterialDomain.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/Material.h"
 #include "GeomFitUtils.h"

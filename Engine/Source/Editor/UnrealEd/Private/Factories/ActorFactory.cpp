@@ -12,6 +12,7 @@ ActorFactory.cpp:
 #include "Engine/Blueprint.h"
 #include "GameFramework/Pawn.h"
 #include "Engine/World.h"
+#include "MaterialDomain.h"
 #include "Materials/MaterialInterface.h"
 #include "Model.h"
 #include "ActorFactories/ActorFactoryAmbientSound.h"

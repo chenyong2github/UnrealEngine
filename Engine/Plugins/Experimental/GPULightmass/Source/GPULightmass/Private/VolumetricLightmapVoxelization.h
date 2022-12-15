@@ -8,6 +8,7 @@
 #include "ShaderCompilerCore.h"
 #include "GlobalShader.h"
 #include "MeshBatch.h"
+#include "MaterialDomain.h"
 #include "MaterialShaderType.h"
 #include "MaterialShader.h"
 #include "MeshPassProcessor.h"
