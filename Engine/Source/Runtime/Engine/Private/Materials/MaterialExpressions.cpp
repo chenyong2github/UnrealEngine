@@ -219,6 +219,7 @@
 #include "Materials/MaterialExpressionTextureBase.h"
 #include "Materials/MaterialExpressionTextureObject.h"
 #include "Materials/MaterialExpressionTextureProperty.h"
+#include "Materials/MaterialExpressionSwitch.h"
 #include "Materials/MaterialExpressionTextureSample.h"
 #include "Materials/MaterialExpressionParticleSubUV.h"
 #include "Materials/MaterialExpressionParticleSubUVProperties.h"
@@ -13262,6 +13263,167 @@ void UMaterialFunctionInterfaceEditorOnlyData::Serialize(FArchive& Ar)
 		}
 	}
 #endif
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionSwitch
+///////////////////////////////////////////////////////////////////////////////
+UMaterialExpressionSwitch::UMaterialExpressionSwitch(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITORONLY_DATA
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Math;
+		FConstructorStatics()
+			: NAME_Math(LOCTEXT("Math", "Math"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+#endif // WITH_EDITORONLY_DATA
+
+	Description = TEXT("Switch");
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Math);
+#endif
+
+	Inputs.Add(FSwitchCustomInput());
+	Inputs[0].InputName = TEXT("");
+
+#if WITH_EDITORONLY_DATA
+	bCollapsed = false;
+#endif // WITH_EDITORONLY_DATA
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionSwitch::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	// if the input is hooked up, use it, otherwise use the internal constant
+	int32 CompiledSwitchValue = SwitchValue.GetTracedInput().Expression ? SwitchValue.Compile(Compiler) : Compiler->Constant(ConstSwitchValue);
+	int32 CompiledDefault = Default.GetTracedInput().Expression ? Default.Compile(Compiler) : Compiler->Constant(ConstDefault);
+
+	TArray<int32> CompiledInputs;
+
+	for (int32 i = 0; i < Inputs.Num(); i++)
+	{
+		if (!Inputs[i].Input.GetTracedInput().Expression)
+		{
+			return Compiler->Errorf(TEXT("Texture Multiplexer missing input %d (%s)"), i + 1, *Inputs[i].InputName.ToString());
+		}
+		int32 InputCode = Inputs[i].Input.Compile(Compiler);
+		if (InputCode < 0)
+		{
+			return InputCode;
+		}
+		CompiledInputs.Add(InputCode);
+	}
+
+	return Compiler->Switch(CompiledSwitchValue, CompiledDefault, CompiledInputs);
+}
+
+
+void UMaterialExpressionSwitch::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(Description);
+}
+
+
+const TArray<FExpressionInput*> UMaterialExpressionSwitch::GetInputs()
+{
+	TArray<FExpressionInput*> Result;
+	Result.Add(&SwitchValue);
+	Result.Add(&Default);
+	for (int32 i = 0; i < Inputs.Num(); i++)
+	{
+		Result.Add(&Inputs[i].Input);
+	}
+	return Result;
+}
+
+FExpressionInput* UMaterialExpressionSwitch::GetInput(int32 InputIndex)
+{
+	if (InputIndex < 0 || InputIndex > Inputs.Num() + 1)
+	{
+		return nullptr;
+	}
+	switch (InputIndex)
+	{
+	case 0:
+		return &SwitchValue;
+	case 1:
+		return &Default;
+	default:
+		return &Inputs[InputIndex - 2].Input;
+	}
+}
+
+FName UMaterialExpressionSwitch::GetInputName(int32 InputIndex) const
+{
+	if (InputIndex < 0 || InputIndex > Inputs.Num() + 1)
+	{
+		return NAME_None;
+	}
+	switch (InputIndex)
+	{
+	case 0:
+		return FName(TEXT("SwitchValue"));
+	case 1:
+		return FName(TEXT("Default"));
+	default:
+		return Inputs[InputIndex - 2].InputName;
+	}
+}
+
+void UMaterialExpressionSwitch::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	// strip any spaces from input name
+	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	if (PropertyThatChanged && PropertyThatChanged->GetFName() == GET_MEMBER_NAME_CHECKED(FCustomInput, InputName))
+	{
+		for (FSwitchCustomInput& Input : Inputs)
+		{
+			FString InputName = Input.InputName.ToString();
+			if (InputName.ReplaceInline(TEXT(" "), TEXT("")) > 0)
+			{
+				Input.InputName = *InputName;
+			}
+		}
+	}
+
+	RebuildOutputs();
+
+	if (PropertyChangedEvent.MemberProperty && GraphNode)
+	{
+		const FName PropertyName = PropertyChangedEvent.MemberProperty->GetFName();
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UMaterialExpressionCustom, Inputs))
+		{
+			GraphNode->ReconstructNode();
+		}
+	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+void UMaterialExpressionSwitch::RebuildOutputs()
+{
+	Outputs.Reset(1);
+	bShowOutputNameOnPin = false;
+	Outputs.Add(FExpressionOutput(TEXT("")));
+}
+
+#endif // WITH_EDITOR
+
+void UMaterialExpressionSwitch::Serialize(FStructuredArchive::FRecord Record)
+{
+	Super::Serialize(Record);
+	FArchive& UnderlyingArchive = Record.GetUnderlyingArchive();
+
+	UnderlyingArchive.UsingCustomVersion(FRenderingObjectVersion::GUID);
+	UnderlyingArchive.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+	UnderlyingArchive.UsingCustomVersion(FUE5LWCRenderingStreamObjectVersion::GUID);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

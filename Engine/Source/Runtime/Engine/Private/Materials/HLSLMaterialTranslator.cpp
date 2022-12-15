@@ -6842,6 +6842,109 @@ int32 FHLSLMaterialTranslator::DBufferTextureLookup(int32 ViewportUV, uint32 DBu
 	return AddCodeChunk(MCT_Float4, TEXT("MaterialExpressionDBufferTextureLookup(Parameters, %s, %d)"), *CoerceParameter(BufferUV, MCT_Float2), (int)DBufferTextureIndex);
 }
 
+int32 FHLSLMaterialTranslator::Switch(int32 SwitchValueInput, int32 DefaultInput, TArray<int32>& CompiledInputs)
+{
+	if (SwitchValueInput == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	if (DefaultInput == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	if (CompiledInputs.Num() == 0)
+	{
+		return INDEX_NONE;
+	}
+
+	for (int32 Input : CompiledInputs)
+	{
+		if (Input == INDEX_NONE)
+		{
+			return INDEX_NONE;
+		}
+	}
+
+	// If our selector is constant, we can skip the generation of code below and simply
+    // grab/return the appropriate input directly. This should greatly simplify the
+    // expression in constant parameter cases.
+	FMaterialUniformExpression* ExpressionSwitchValue = GetParameterUniformExpression(SwitchValueInput);
+	EMaterialValueType SwitchValueType = GetParameterType(SwitchValueInput);
+	if (SwitchValueType == MCT_Float && ExpressionSwitchValue && ExpressionSwitchValue->IsConstant())
+	{		
+		FLinearColor Value;
+		FMaterialRenderContext DummyContext(nullptr, *Material, nullptr);
+		ExpressionSwitchValue->GetNumberValue(DummyContext, Value);
+
+		for (int32 InputIndex = 0; InputIndex < CompiledInputs.Num(); ++InputIndex)
+		{
+			if (Value.R >= InputIndex && Value.R < InputIndex + 1)
+			{
+				return CompiledInputs[InputIndex];
+			}
+		}
+		return DefaultInput;
+	}
+	
+	EMaterialValueType ResultType = GetParameterType(CompiledInputs[0]);
+	for (int32 Input : CompiledInputs)
+	{
+		ResultType = GetArithmeticResultType(ResultType, GetParameterType(Input));
+	}
+
+	FString SwitchCode = TEXT("");
+	FString SwitchValueParameter = CoerceParameter(SwitchValueInput, MCT_Float);
+	FString DefaultParameter = CoerceParameter(DefaultInput, ResultType);
+
+
+	// TODO: The following represents two potential implementations for the dynamic switch logic in HLSL.
+	// The first option is an expression that mathamatically cancels out any "unmatched" case,
+	// leaving only the desired value passing through. This approach works, but is less optimal 
+	// due to needing to evalulate every potential case value as part of the process.
+	// The second option is potentially more optimal, as it uses a native switch statement in HLSL, something
+	// that the compiler should be able to optimize more easily with less unneeded evaluations. However,
+	// this approach currently doesn't work well with the existing material translation code in the engine.
+	// The existing design supports expressions returning floating point type values, which are used by
+	// the analyical derivative components elsewhere. Attempting to return a void type or insert type-less
+	// statements into the generated code has been problematic.
+	//
+	// Ideally, the second option can be made to function correctly and replace the first, which is why
+	// it's being left in as a preprocessor switch for the time being. However, for expedieceny, we want
+	//to use the first option for the time being, to provide a working, if less efficicent, switch implementation.
+#if 1
+	// We form the "switch" statement from an equivalent math expression,
+    // using step functions and additions to select between inputs.
+	for (int32 InputIndex = 0; InputIndex < CompiledInputs.Num(); ++InputIndex)
+	{
+		FString InputParameter = CoerceParameter(CompiledInputs[InputIndex], ResultType);
+		SwitchCode += FString::Printf(TEXT("step(%f, floor(%s) + 0.5f) * step(floor(%s) + 0.5f, %f) * %s +"),
+			float(InputIndex), *SwitchValueParameter,        // If greater than the lower bound
+			*SwitchValueParameter, float(InputIndex) + 1.0f, // and less  than the upper bound parameters
+			*InputParameter);                             // return the selected selected input
+	}
+	SwitchCode += FString::Printf(TEXT("(step(floor(%s) + 0.5f, %f) + step(%f, floor(%s) + 0.5f)) * %s"),
+	    *SwitchValueParameter, float(0),                    // If less than Zero,
+		float(CompiledInputs.Num()), *SwitchValueParameter, // and greater than number of inputs,
+		*DefaultParameter);                              // return the default
+	return AddCodeChunk(ResultType, *SwitchCode);
+#else
+	int32 ReturnValue = AddCodeChunk(ResultType, TEXT("0"));
+	FString ReturnParameter = CoerceParameter(ReturnValue, ResultType);
+
+	SwitchCode += FString::Printf(TEXT("switch(%s){"), *SwitchValueParameter);
+	for (int32 InputIndex = 0; InputIndex < CompiledInputs.Num(); ++InputIndex)
+	{
+		FString InputParameter = CoerceParameter(CompiledInputs[InputIndex], ResultType);
+		SwitchCode += FString::Printf(TEXT("case %d: %s = %s; break;"), InputIndex, *ReturnParameter, *InputParameter);
+	}
+	SwitchCode += FString::Printf(TEXT("default: %s = %s; }"), *ReturnParameter, *DefaultParameter);
+	
+	return AddCodeChunkInner(MCT_VoidStatement, EDerivativeStatus::NotAware, true, *SwitchCode);
+#endif
+}
+
 int32 FHLSLMaterialTranslator::Texture(UTexture* InTexture, int32& TextureReferenceIndex, EMaterialSamplerType SamplerType, ESamplerSourceMode SamplerSource, ETextureMipValueMode MipValueMode)
 {
 	EMaterialValueType ShaderType = InTexture->GetMaterialType();
