@@ -144,6 +144,13 @@ public:
 	bool TryStartDedicatedPrimaryThread();
 
 	/**
+	 * Serializes the log record via all current output devices.
+	 *
+	 * The format string pointed to by the record must remain valid indefinitely.
+	 */
+	void SerializeRecord(const UE::FLogRecord& Record) final;
+
+	/**
 	 * Serializes the passed in data via all current output devices.
 	 *
 	 * @param Data   Text to log.
