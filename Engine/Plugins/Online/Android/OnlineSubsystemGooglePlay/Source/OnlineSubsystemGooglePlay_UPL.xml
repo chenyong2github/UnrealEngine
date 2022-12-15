@@ -101,7 +101,6 @@ import java.security.NoSuchAlgorithmException;
 				GoogleApiClient.Builder gbuilder = new GoogleApiClient.Builder(this);
 				gbuilder.addConnectionCallbacks(this);
 				gbuilder.addOnConnectionFailedListener(this);
-				gbuilder.addApiIfAvailable(Games.API, Games.SCOPE_GAMES);
 				googleClient = gbuilder.build();
 			}
 			catch (Exception e)

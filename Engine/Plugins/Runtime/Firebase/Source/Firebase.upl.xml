@@ -20,15 +20,6 @@
 	<androidManifestUpdates>
 		<if condition="bEnabled">
 			<true>
-				<addElements tag="application">
-					<service
-					  android:name="com.epicgames.unreal.notifications.EpicFirebaseInstanceIDService"
-					  android:exported="false" >
-						<intent-filter>
-							<action android:name="com.google.firebase.INSTANCE_ID_EVENT"/>
-						</intent-filter>
-					</service>
-				</addElements>
 				<setElement result="ServiceElement" value="service" />
 				<addAttribute tag="$ServiceElement" name="android:name" value="$S(FirebaseService)" />
 				<addAttribute tag="$ServiceElement" name="android:exported" value="false" />
@@ -58,8 +49,8 @@
 			<true>
 				<!-- Needs to be same version number as play-services -->
 				<insert>dependencies {
-	implementation 'com.google.firebase:firebase-core:11.8.0'
-	implementation 'com.google.firebase:firebase-messaging:11.8.0'
+	implementation 'com.google.firebase:firebase-core:21.1.1'
+	implementation 'com.google.firebase:firebase-messaging:23.0.8'
 }
 
 // init firebase
