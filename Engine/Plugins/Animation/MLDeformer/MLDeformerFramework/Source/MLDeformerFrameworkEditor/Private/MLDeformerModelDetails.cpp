@@ -381,6 +381,7 @@ namespace UE::MLDeformer
 	FReply FMLDeformerModelDetails::OnFilterAnimatedBonesOnly() const
 	{
 		EditorModel->InitBoneIncludeListToAnimatedBonesOnly();
+		EditorModel->SetResamplingInputOutputsNeeded(true);
 		DetailLayoutBuilder->ForceRefreshDetails();
 		return FReply::Handled();
 	}
@@ -388,6 +389,7 @@ namespace UE::MLDeformer
 	FReply FMLDeformerModelDetails::OnFilterAnimatedCurvesOnly() const
 	{
 		EditorModel->InitCurveIncludeListToAnimatedCurvesOnly();
+		EditorModel->SetResamplingInputOutputsNeeded(true);
 		DetailLayoutBuilder->ForceRefreshDetails();
 		return FReply::Handled();
 	}

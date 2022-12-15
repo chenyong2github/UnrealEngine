@@ -151,15 +151,16 @@ namespace UE::MLDeformer
 
 	void FMLDeformerMorphModelEditorModel::UpdateMorphErrorValues(TArrayView<UMorphTarget*> MorphTargets)
 	{
+		// If we don't have morph targets yet, there is nothing to do.
 		UMLDeformerMorphModel* MorphModel = GetMorphModel();
-
-		// Check if we have max morph weight information.
-		// If we do not have this we can't really update the morph error values.
-		TArrayView<const float> MaxMorphWeights = MorphModel->GetMorphTargetMaxWeights();
-		if (MaxMorphWeights.IsEmpty())
+		if (MorphModel->GetNumMorphTargets() == 0)
 		{
 			return;
 		}
+
+		// Check if we have max morph weight information.
+		// If we do not have this yet, we have to initialize the weights to 1.
+		TArrayView<const float> MaxMorphWeights = MorphModel->GetMorphTargetMaxWeights();
 
 		// Preallocate space for the standard deviation of each morph target.
 		TArray<float> ErrorValues;
@@ -170,7 +171,7 @@ namespace UE::MLDeformer
 		for (int32 MorphIndex = 0; MorphIndex < MorphTargets.Num() - 1; ++MorphIndex)	// We have one extra morph for the means, skip that one.
 		{
 			const UMorphTarget* MorphTarget = MorphTargets[MorphIndex + 1];
-			const float MaxWeight = MaxMorphWeights[MorphIndex];
+			const float MaxWeight = !MaxMorphWeights.IsEmpty() ? MaxMorphWeights[MorphIndex] : 1.0f;
 
 			// Get the array of deltas.
 			int32 NumDeltas = 0;

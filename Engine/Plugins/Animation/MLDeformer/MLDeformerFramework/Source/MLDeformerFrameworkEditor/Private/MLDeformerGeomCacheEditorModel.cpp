@@ -149,15 +149,6 @@ namespace UE::MLDeformer
 			return;
 		}
 
-		// Allow the special case where there is just one mesh and track.
-		if (NumGeomCacheTracks != 1 || NumSkelMeshes != 1)
-		{
-			if (!GeomCacheSampler->GetFailedImportedMeshNames().IsEmpty())
-			{
-				return;
-			}
-		}
-
 		bIsReadyForTraining = true;
 	}
 
