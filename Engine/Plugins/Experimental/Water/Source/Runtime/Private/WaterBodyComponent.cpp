@@ -1369,6 +1369,7 @@ void UWaterBodyComponent::UpdateAll(const FOnWaterBodyChangedParams& InParams)
 	// #todo_water: this should be reconsidered along with the entire concept of non-dynamic water bodies now that evening is runtime-generated.
 	if (bShapeOrPositionChanged)
 	{
+		UpdateWaterZones();
 		UpdateWaterBodyRenderData();
 	}
 }
