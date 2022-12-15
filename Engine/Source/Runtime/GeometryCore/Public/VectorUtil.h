@@ -531,5 +531,31 @@ namespace VectorUtil
 }; // namespace VectorUtil
 
 
+
+/**
+ * Snap Value to steps of Increment (centered at 0, ie steps are -Increment, 0, Increment, 2*Increment, ...).
+ * Optional Offset can be used to snap relative value.
+ */
+template<typename RealType>
+RealType SnapToIncrement(RealType Value, RealType Increment, RealType Offset = 0)
+{
+	if (!FMath::IsFinite(Value))
+	{
+		return (RealType)0;
+	}
+	Value -= Offset;
+	RealType ValueSign = FMath::Sign(Value);
+	Value = FMath::Abs(Value);
+	int64 IntegerIncrement = (int64)(Value / Increment);
+	RealType Remainder = (RealType)fmod(Value, Increment);
+	if (Remainder > Increment / 2.0)
+	{
+		++IntegerIncrement;
+	}
+	return ValueSign * (RealType)IntegerIncrement * Increment + Offset;
+}
+
+
+
 }  // end namespace Geometry
 }  // end namespace UE

@@ -168,6 +168,7 @@ public:
 		Config.PositionGridDimensions = FVector(EditorGridSize, EditorGridSize, EditorGridSize);
 		Config.bEnableRotationGridSnapping = (GetDefault<ULevelEditorViewportSettings>()->RotGridEnabled != 0);
 		Config.RotationGridAngles = GEditor->GetRotGridSize();
+		Config.bEnableAbsoluteWorldSnapping = ToolsContext->GetAbsoluteWorldSnappingEnabled();
 		return Config;
 	}
 
@@ -839,6 +840,11 @@ void UEditorInteractiveToolsContext::SetEnableRenderingDuringHitProxyPass(bool b
 void UEditorInteractiveToolsContext::SetForceCombinedGizmoMode(bool bEnabled)
 {
 	bForceCombinedGizmoMode = bEnabled;
+}
+
+void UEditorInteractiveToolsContext::SetAbsoluteWorldSnappingEnabled(bool bEnabled)
+{
+	bEnableAbsoluteWorldSnapping = bEnabled;
 }
 
 void UEditorInteractiveToolsContext::OnLevelEditorCreated(TSharedPtr<ILevelEditor> InLevelEditor)

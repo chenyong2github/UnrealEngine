@@ -247,6 +247,33 @@ public:
 
 
 /**
+ * FToolContextOptionalToggle is used to store a boolean flag where the value of 
+ * the boolean may either be set directly, or it may be set by querying some external context.
+ * This struct does not directly do anything, it just wraps up the multiple flags/states
+ * needed to provide such functionality
+ */
+struct INTERACTIVETOOLSFRAMEWORK_API FToolContextOptionalToggle
+{
+	bool bEnabledDirectly = false;
+	bool bEnabledInContext = false;
+	bool bInheritFromContext = false;
+
+	FToolContextOptionalToggle() {}
+	FToolContextOptionalToggle(bool bEnabled, bool bSetInheritFromContext)
+	{
+		bEnabledDirectly = bEnabled;
+		bInheritFromContext = bSetInheritFromContext;
+	}
+
+	void UpdateContextValue(bool bNewValue) { bEnabledInContext = bNewValue; }
+	bool InheritFromContext() const { return bInheritFromContext; }
+
+	/** @return true if Toggle is currently set to Enabled/On, under the current configuration */
+	bool IsEnabled() const { return (bInheritFromContext) ? bEnabledInContext : bEnabledDirectly; }
+};
+
+
+/**
  * UCombinedTransformGizmo provides standard Transformation Gizmo interactions,
  * applied to a UTransformProxy target object. By default the Gizmo will be
  * a standard XYZ translate/rotate Gizmo (axis and plane translation).
@@ -310,7 +337,6 @@ public:
 	virtual void Shutdown() override;
 	virtual void Tick(float DeltaTime) override;
 
-
 	/**
 	 * Set the active target object for the Gizmo
 	 * @param Target active target
@@ -372,10 +398,16 @@ public:
 	}
 
 	/**
-	 * If true, then when using world frame, Axis and Plane translation snap to the world grid via the ContextQueriesAPI (in PositionSnapFunction)
+	 * bSnapToWorldGrid controls whether any position snapping is applied, if possible, for Axis and Plane translations, via the ContextQueriesAPI
+	 * Despite the name, this flag controls both world-space grid snapping and relative snapping
 	 */
 	UPROPERTY()
 	bool bSnapToWorldGrid = true;
+
+	/**
+	 * Specify whether Relative snapping for Translations should be used in World frame mode. Relative snapping is always used in Local mode.
+	 */
+	FToolContextOptionalToggle RelativeTranslationSnapping = FToolContextOptionalToggle(true, true);
 
 	/**
 	 * Optional grid size which overrides the Context Grid
@@ -399,6 +431,8 @@ public:
 	UPROPERTY()
 	bool bSnapToWorldRotGrid = true;
 
+
+
 	/**
 	 * Whether to use the World/Local coordinate system provided by the context via the ContextyQueriesAPI.
 	 */
@@ -411,6 +445,8 @@ public:
 	 */
 	UPROPERTY()
 	EToolContextCoordinateSystem CurrentCoordinateSystem = EToolContextCoordinateSystem::Local;
+
+
 
 
 	/**
@@ -549,14 +585,16 @@ protected:
 		UPrimitiveComponent* AxisComponent, USceneComponent* RootComponent,
 		IGizmoAxisSource* AxisSource,
 		IGizmoTransformSource* TransformSource, 
-		IGizmoStateTarget* StateTarget);
+		IGizmoStateTarget* StateTarget,
+		int AxisIndex);
 
 	/** @return a new instance of the standard plane-translation Gizmo */
 	virtual UInteractiveGizmo* AddPlaneTranslationGizmo(
 		UPrimitiveComponent* AxisComponent, USceneComponent* RootComponent,
 		IGizmoAxisSource* AxisSource,
 		IGizmoTransformSource* TransformSource,
-		IGizmoStateTarget* StateTarget);
+		IGizmoStateTarget* StateTarget,
+		int XAxisIndex, int YAxisIndex);
 
 	/** @return a new instance of the standard axis-rotation Gizmo */
 	virtual UInteractiveGizmo* AddAxisRotationGizmo(
@@ -586,8 +624,10 @@ protected:
 		IGizmoTransformSource* TransformSource,
 		IGizmoStateTarget* StateTarget);
 
-	// Axis and Plane TransformSources use this function to execute worldgrid snap queries
+	// Axis and Plane TransformSources use these function to execute snapping queries
 	bool PositionSnapFunction(const FVector& WorldPosition, FVector& SnappedPositionOut) const;
+	bool PositionAxisDeltaSnapFunction(double AxisDelta, double& SnappedDeltaOut, int AxisIndex) const;
 	FQuat RotationSnapFunction(const FQuat& DeltaRotation) const;
+	bool RotationAxisAngleSnapFunction(double AxisAngleDelta, double& SnappedAxisAngleDeltaOut, int AxisIndex) const;
 
 };

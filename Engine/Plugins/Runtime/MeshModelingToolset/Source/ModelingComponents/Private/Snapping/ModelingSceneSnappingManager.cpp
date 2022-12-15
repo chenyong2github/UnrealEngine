@@ -21,6 +21,8 @@
 #include "RawIndexBuffer.h"
 #include "StaticMeshResources.h"
 #include "UObject/UObjectGlobals.h"
+#include "VectorUtil.h"
+#include "SegmentTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ModelingSceneSnappingManager)
 
@@ -29,57 +31,8 @@ using namespace UE::Geometry;
 #define LOCTEXT_NAMESPACE "USceneSnappingManager"
 
 
-
 // defined in SceneGeometrySpatialCache.cpp
 extern TAutoConsoleVariable<bool> CVarEnableModelingVolumeSnapping;
-
-
-static double SnapToIncrement(double fValue, double fIncrement, double offset = 0)
-{
-	if (!FMath::IsFinite(fValue))
-	{
-		return 0;
-	}
-	fValue -= offset;
-	double sign = FMath::Sign(fValue);
-	fValue = FMath::Abs(fValue);
-	int64 nInc = (int64)(fValue / fIncrement);
-	double fRem = (double)fmod(fValue, fIncrement);
-	if (fRem > fIncrement / 2.0)
-	{
-		++nInc;
-	}
-	return sign * (double)nInc * fIncrement + offset;
-}
-
-//@ todo this are mirrored from GeometryProcessing, which is still experimental...replace w/ direct calls once GP component is standardized
-static double OpeningAngleDeg(FVector3d A, FVector3d B, const FVector3d& P)
-{
-	A -= P;
-	A.Normalize();
-	B -= P;
-	B.Normalize();
-	double Dot = FMath::Clamp(FVector3d::DotProduct(A,B), -1.0, 1.0);
-	return FMathd::ACos(Dot) * (180.0 / 3.141592653589);
-}
-
-static FVector3d NearestSegmentPt(FVector3d A, FVector3d B, const FVector3d& P)
-{
-	FVector3d Direction = (B - A);
-	double Length = Direction.Size();
-	Direction /= Length;
-	double t = FVector3d::DotProduct( (P - A), Direction);
-	if (t >= Length)
-	{
-		return B;
-	}
-	if (t <= 0)
-	{
-		return A;
-	}
-	return A + t * Direction;
-}
-
 
 
 
@@ -524,9 +477,9 @@ bool UModelingSceneSnappingManager::ExecuteSceneSnapQueryPosition(const FSceneSn
 
 			FVector GridSize = Request.GridSize.Get(SnappingConfig.PositionGridDimensions);
 
-			SnapResult.Position.X = (FVector::FReal)SnapToIncrement(Request.Position.X, GridSize.X);
-			SnapResult.Position.Y = (FVector::FReal)SnapToIncrement(Request.Position.Y, GridSize.Y);
-			SnapResult.Position.Z = (FVector::FReal)SnapToIncrement(Request.Position.Z, GridSize.Z);
+			SnapResult.Position.X = (FVector::FReal)UE::Geometry::SnapToIncrement(Request.Position.X, GridSize.X);
+			SnapResult.Position.Y = (FVector::FReal)UE::Geometry::SnapToIncrement(Request.Position.Y, GridSize.Y);
+			SnapResult.Position.Z = (FVector::FReal)UE::Geometry::SnapToIncrement(Request.Position.Z, GridSize.Z);
 
 			Results.Add(SnapResult);
 			FoundResultCount++;
@@ -549,7 +502,7 @@ bool UModelingSceneSnappingManager::ExecuteSceneSnapQueryPosition(const FSceneSn
 		{
 			for (int j = 0; j < 3; ++j)
 			{
-				double VisualAngle = OpeningAngleDeg((FVector3d)RequestIn.Position, (FVector3d)SnapResult.TriVertices[j], WorldRay.Origin);
+				double VisualAngle = UE::Geometry::VectorUtil::OpeningAngleD((FVector3d)RequestIn.Position, (FVector3d)SnapResult.TriVertices[j], WorldRay.Origin);
 				if (VisualAngle < SmallestSnapAngle)
 				{
 					SmallestSnapAngle = VisualAngle;
@@ -569,8 +522,9 @@ bool UModelingSceneSnappingManager::ExecuteSceneSnapQueryPosition(const FSceneSn
 		{
 			for (int j = 0; j < 3; ++j)
 			{
-				FVector3d EdgeNearestPt = NearestSegmentPt((FVector3d)SnapResult.TriVertices[j], (FVector3d)SnapResult.TriVertices[(j+1)%3], (FVector3d)RequestIn.Position);
-				double VisualAngle = OpeningAngleDeg((FVector3d)RequestIn.Position, EdgeNearestPt, WorldRay.Origin);
+				UE::Geometry::FSegment3d Segment(SnapResult.TriVertices[j], SnapResult.TriVertices[(j+1)%3]);
+				FVector3d EdgeNearestPt = Segment.NearestPoint(RequestIn.Position);
+				double VisualAngle = UE::Geometry::VectorUtil::OpeningAngleD(RequestIn.Position, EdgeNearestPt, WorldRay.Origin);
 				if (VisualAngle < SmallestSnapAngle )
 				{
 					SmallestSnapAngle = VisualAngle;
@@ -622,7 +576,7 @@ bool UModelingSceneSnappingManager::ExecuteSceneSnapQueryPosition(const FSceneSn
 	if (bHitSceneCache)
 	{
 		// is this check necessary? isn't this always going to be zero for a scene hit??
-		double VisualAngle = OpeningAngleDeg((FVector3d)Request.Position, HitPoint.WorldPoint, RayStart);
+		double VisualAngle = UE::Geometry::VectorUtil::OpeningAngleD((FVector3d)Request.Position, HitPoint.WorldPoint, RayStart);
 		if (VisualAngle < (double)Request.VisualAngleThresholdDegrees)
 		{
 			FVector3d A, B, C;
@@ -657,7 +611,7 @@ bool UModelingSceneSnappingManager::ExecuteSceneSnapQueryPosition(const FSceneSn
 	if (bHitWorld)
 	{
 		// is this check necessary? isn't this always going to be zero for a scene hit??
-		double VisualAngle = OpeningAngleDeg((FVector3d)Request.Position, (FVector3d)HitResult.ImpactPoint, RayStart);
+		double VisualAngle = UE::Geometry::VectorUtil::OpeningAngleD((FVector3d)Request.Position, (FVector3d)HitResult.ImpactPoint, RayStart);
 		if (VisualAngle < (double)Request.VisualAngleThresholdDegrees)
 		{
 			FSceneSnapQueryResult SnapResult;

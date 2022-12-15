@@ -196,6 +196,18 @@ protected:
 
 	bool bRestrictiveMode = false;
 
+
+
+
+public:
+	//
+	// Settings that are currently stored during a single session but are not stored in the config file
+	// (may promote them to persistent settings in the future)
+	//
+
+	/** Toggle Absolute World Grid Position snapping */
+	UPROPERTY(Transient)
+	bool bEnableAbsoluteWorldSnapping = false;
 };
 
 

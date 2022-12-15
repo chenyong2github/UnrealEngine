@@ -377,6 +377,7 @@ void UModelingToolsEditorMode::Enter()
 	if (ModelingModeSettings)
 	{
 		GetInteractiveToolsContext()->SetForceCombinedGizmoMode(ModelingModeSettings->bRespectLevelEditorGizmoMode == false);
+		GetInteractiveToolsContext()->SetAbsoluteWorldSnappingEnabled(ModelingModeSettings->bEnableAbsoluteWorldSnapping);
 	}
 
 	// register snapping manager

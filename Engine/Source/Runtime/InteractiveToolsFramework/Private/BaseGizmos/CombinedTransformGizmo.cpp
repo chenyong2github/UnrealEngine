@@ -15,6 +15,9 @@
 #include "BaseGizmos/GizmoLineHandleComponent.h"
 #include "BaseGizmos/GizmoViewContext.h"
 
+#include "MathUtil.h"
+#include "VectorUtil.h"
+
 // need this to implement hover
 #include "BaseGizmos/GizmoBaseComponent.h"
 
@@ -426,10 +429,12 @@ void UCombinedTransformGizmo::Tick(float DeltaTime)
 	{
 		CurrentCoordinateSystem = GetGizmoManager()->GetContextQueriesAPI()->GetCurrentCoordinateSystem();
 	}
-	
 	check(CurrentCoordinateSystem == EToolContextCoordinateSystem::World || CurrentCoordinateSystem == EToolContextCoordinateSystem::Local)
-	bool bUseLocalAxes = (CurrentCoordinateSystem == EToolContextCoordinateSystem::Local);
+	
+	FToolContextSnappingConfiguration SnappingConfig = GetGizmoManager()->GetContextQueriesAPI()->GetCurrentSnappingSettings();
+	RelativeTranslationSnapping.UpdateContextValue(SnappingConfig.bEnableAbsoluteWorldSnapping == false);
 
+	bool bUseLocalAxes = (CurrentCoordinateSystem == EToolContextCoordinateSystem::Local);
 	if (AxisXSource != nullptr && AxisYSource != nullptr && AxisZSource != nullptr)
 	{
 		AxisXSource->bLocalAxes = bUseLocalAxes;
@@ -524,19 +529,19 @@ void UCombinedTransformGizmo::SetActiveTarget(UTransformProxy* Target, IToolCont
 	// todo should we hold onto these?
 	if (GizmoActor->TranslateX != nullptr)
 	{
-		UInteractiveGizmo* NewGizmo = AddAxisTranslationGizmo(GizmoActor->TranslateX, GizmoComponent, AxisXSource, TransformSource, StateTarget);
+		UInteractiveGizmo* NewGizmo = AddAxisTranslationGizmo(GizmoActor->TranslateX, GizmoComponent, AxisXSource, TransformSource, StateTarget, 0);
 		ActiveComponents.Add(GizmoActor->TranslateX);
 		TranslationSubGizmos.Add( FSubGizmoInfo{ GizmoActor->TranslateX, NewGizmo } );
 	}
 	if (GizmoActor->TranslateY != nullptr)
 	{
-		UInteractiveGizmo* NewGizmo = AddAxisTranslationGizmo(GizmoActor->TranslateY, GizmoComponent, AxisYSource, TransformSource, StateTarget);
+		UInteractiveGizmo* NewGizmo = AddAxisTranslationGizmo(GizmoActor->TranslateY, GizmoComponent, AxisYSource, TransformSource, StateTarget, 1);
 		ActiveComponents.Add(GizmoActor->TranslateY);
 		TranslationSubGizmos.Add(FSubGizmoInfo{ GizmoActor->TranslateY, NewGizmo });
 	}
 	if (GizmoActor->TranslateZ != nullptr)
 	{
-		UInteractiveGizmo* NewGizmo = AddAxisTranslationGizmo(GizmoActor->TranslateZ, GizmoComponent, AxisZSource, TransformSource, StateTarget);
+		UInteractiveGizmo* NewGizmo = AddAxisTranslationGizmo(GizmoActor->TranslateZ, GizmoComponent, AxisZSource, TransformSource, StateTarget, 2);
 		ActiveComponents.Add(GizmoActor->TranslateZ);
 		TranslationSubGizmos.Add(FSubGizmoInfo{ GizmoActor->TranslateZ, NewGizmo });
 	}
@@ -544,19 +549,19 @@ void UCombinedTransformGizmo::SetActiveTarget(UTransformProxy* Target, IToolCont
 
 	if (GizmoActor->TranslateYZ != nullptr)
 	{
-		UInteractiveGizmo* NewGizmo = AddPlaneTranslationGizmo(GizmoActor->TranslateYZ, GizmoComponent, AxisXSource, TransformSource, StateTarget);
+		UInteractiveGizmo* NewGizmo = AddPlaneTranslationGizmo(GizmoActor->TranslateYZ, GizmoComponent, AxisXSource, TransformSource, StateTarget, 1, 2);
 		ActiveComponents.Add(GizmoActor->TranslateYZ);
 		TranslationSubGizmos.Add(FSubGizmoInfo{ GizmoActor->TranslateYZ, NewGizmo });
 	}
 	if (GizmoActor->TranslateXZ != nullptr)
 	{
-		UInteractiveGizmo* NewGizmo = AddPlaneTranslationGizmo(GizmoActor->TranslateXZ, GizmoComponent, AxisYSource, TransformSource, StateTarget);
+		UInteractiveGizmo* NewGizmo = AddPlaneTranslationGizmo(GizmoActor->TranslateXZ, GizmoComponent, AxisYSource, TransformSource, StateTarget, 2, 0);	// flip here corresponds to UGizmoComponentAxisSource::GetTangentVectors()
 		ActiveComponents.Add(GizmoActor->TranslateXZ);
 		TranslationSubGizmos.Add(FSubGizmoInfo{ GizmoActor->TranslateXZ, NewGizmo });
 	}
 	if (GizmoActor->TranslateXY != nullptr)
 	{
-		UInteractiveGizmo* NewGizmo = AddPlaneTranslationGizmo(GizmoActor->TranslateXY, GizmoComponent, AxisZSource, TransformSource, StateTarget);
+		UInteractiveGizmo* NewGizmo = AddPlaneTranslationGizmo(GizmoActor->TranslateXY, GizmoComponent, AxisZSource, TransformSource, StateTarget, 0, 1);
 		ActiveComponents.Add(GizmoActor->TranslateXY);
 		TranslationSubGizmos.Add(FSubGizmoInfo{ GizmoActor->TranslateXY, NewGizmo });
 	}
@@ -713,7 +718,8 @@ UInteractiveGizmo* UCombinedTransformGizmo::AddAxisTranslationGizmo(
 	UPrimitiveComponent* AxisComponent, USceneComponent* RootComponent,
 	IGizmoAxisSource* AxisSource,
 	IGizmoTransformSource* TransformSource,
-	IGizmoStateTarget* StateTargetIn)
+	IGizmoStateTarget* StateTargetIn,
+	int AxisIndex)
 {
 	// create axis-position gizmo, axis-position parameter will drive translation
 	UAxisPositionGizmo* TranslateGizmo = Cast<UAxisPositionGizmo>(GetGizmoManager()->CreateGizmo(AxisPositionBuilderIdentifier));
@@ -725,6 +731,7 @@ UInteractiveGizmo* UCombinedTransformGizmo::AddAxisTranslationGizmo(
 	// parameter source maps axis-parameter-change to translation of TransformSource's transform
 	UGizmoAxisTranslationParameterSource* ParamSource = UGizmoAxisTranslationParameterSource::Construct(AxisSource, TransformSource, this);
 	ParamSource->PositionConstraintFunction = [this](const FVector& Pos, FVector& Snapped) { return PositionSnapFunction(Pos, Snapped); };
+	ParamSource->AxisDeltaConstraintFunction = [this, AxisIndex](double AxisDelta, double& SnappedAxisDelta) { return PositionAxisDeltaSnapFunction(AxisDelta, SnappedAxisDelta, AxisIndex); };
 	TranslateGizmo->ParameterSource = ParamSource;
 
 	// sub-component provides hit target
@@ -753,7 +760,8 @@ UInteractiveGizmo* UCombinedTransformGizmo::AddPlaneTranslationGizmo(
 	UPrimitiveComponent* AxisComponent, USceneComponent* RootComponent,
 	IGizmoAxisSource* AxisSource,
 	IGizmoTransformSource* TransformSource,
-	IGizmoStateTarget* StateTargetIn)
+	IGizmoStateTarget* StateTargetIn,
+	int XAxisIndex, int YAxisIndex)
 {
 	// create axis-position gizmo, axis-position parameter will drive translation
 	UPlanePositionGizmo* TranslateGizmo = Cast<UPlanePositionGizmo>(GetGizmoManager()->CreateGizmo(PlanePositionBuilderIdentifier));
@@ -765,6 +773,8 @@ UInteractiveGizmo* UCombinedTransformGizmo::AddPlaneTranslationGizmo(
 	// parameter source maps axis-parameter-change to translation of TransformSource's transform
 	UGizmoPlaneTranslationParameterSource* ParamSource = UGizmoPlaneTranslationParameterSource::Construct(AxisSource, TransformSource, this);
 	ParamSource->PositionConstraintFunction = [this](const FVector& Pos, FVector& Snapped) { return PositionSnapFunction(Pos, Snapped); };
+	ParamSource->AxisXDeltaConstraintFunction = [this, XAxisIndex](double AxisDelta, double& SnappedAxisDelta) { return PositionAxisDeltaSnapFunction(AxisDelta, SnappedAxisDelta, XAxisIndex); };
+	ParamSource->AxisYDeltaConstraintFunction = [this, YAxisIndex](double AxisDelta, double& SnappedAxisDelta) { return PositionAxisDeltaSnapFunction(AxisDelta, SnappedAxisDelta, YAxisIndex); };
 	TranslateGizmo->ParameterSource = ParamSource;
 
 	// sub-component provides hit target
@@ -806,7 +816,9 @@ UInteractiveGizmo* UCombinedTransformGizmo::AddAxisRotationGizmo(
 
 	// parameter source maps angle-parameter-change to rotation of TransformSource's transform
 	UGizmoAxisRotationParameterSource* AngleSource = UGizmoAxisRotationParameterSource::Construct(AxisSource, TransformSource, this);
-	AngleSource->RotationConstraintFunction = [this](const FQuat& DeltaRotation){ return RotationSnapFunction(DeltaRotation); };
+	// axis rotation is currently only relative so it should only ever snap angle-deltas
+	//AngleSource->RotationConstraintFunction = [this](const FQuat& DeltaRotation){ return RotationSnapFunction(DeltaRotation); };
+	AngleSource->AngleDeltaConstraintFunction = [this](double AngleDelta, double& SnappedDelta){ return RotationAxisAngleSnapFunction(AngleDelta, SnappedDelta, 0); };
 	RotateGizmo->AngleSource = AngleSource;
 
 	// sub-component provides hit target
@@ -971,84 +983,149 @@ bool UCombinedTransformGizmo::PositionSnapFunction(const FVector& WorldPosition,
 {
 	SnappedPositionOut = WorldPosition;
 
-	// only snap if we want snapping obvs
-	if (bSnapToWorldGrid == false)
+	// only snap world positions if we want world position snapping...
+	if (bSnapToWorldGrid == false || RelativeTranslationSnapping.IsEnabled() == true)
 	{
 		return false;
 	}
 
-	// only snap to world grid when using world axes
+	// we can only snap positions in world coordinate system
 	EToolContextCoordinateSystem CoordSystem = GetGizmoManager()->GetContextQueriesAPI()->GetCurrentCoordinateSystem();
 	if (CoordSystem != EToolContextCoordinateSystem::World)
 	{
 		return false;
 	}
 
-	USceneSnappingManager* SnapManager = USceneSnappingManager::Find(GetGizmoManager());
-	if (!SnapManager)
+	// need a snapping manager
+	if ( USceneSnappingManager* SnapManager = USceneSnappingManager::Find(GetGizmoManager()) )
 	{
-		return false;
-	}
+		FSceneSnapQueryRequest Request;
+		Request.RequestType = ESceneSnapQueryType::Position;
+		Request.TargetTypes = ESceneSnapQueryTargetType::Grid;
+		if ( bGridSizeIsExplicit )
+		{
+			Request.GridSize = ExplicitGridSize;
+		}
+		TArray<FSceneSnapQueryResult> Results;
+		Results.Reserve(1);
 
-	FSceneSnapQueryRequest Request;
-	Request.RequestType = ESceneSnapQueryType::Position;
-	Request.TargetTypes = ESceneSnapQueryTargetType::Grid;
-	Request.Position = WorldPosition;
-	if ( bGridSizeIsExplicit )
-	{
-		Request.GridSize = ExplicitGridSize;
+		Request.Position = WorldPosition;
+		if (SnapManager->ExecuteSceneSnapQuery(Request, Results))
+		{
+			SnappedPositionOut = Results[0].Position;
+			return true;
+		};
 	}
-	TArray<FSceneSnapQueryResult> Results;
-	if (SnapManager->ExecuteSceneSnapQuery(Request, Results))
-	{
-		SnappedPositionOut = Results[0].Position;
-		return true;
-	};
 
 	return false;
 }
 
+
+bool UCombinedTransformGizmo::PositionAxisDeltaSnapFunction(double AxisDelta, double& SnappedDeltaOut, int AxisIndex) const
+{
+	if (!bSnapToWorldGrid) return false;
+
+	EToolContextCoordinateSystem CoordSystem = GetGizmoManager()->GetContextQueriesAPI()->GetCurrentCoordinateSystem();
+	bool bUseRelativeSnapping = RelativeTranslationSnapping.IsEnabled() || (CoordSystem != EToolContextCoordinateSystem::World);
+	if (!bUseRelativeSnapping)
+	{
+		return false;
+	}
+
+	if ( USceneSnappingManager* SnapManager = USceneSnappingManager::Find(GetGizmoManager()) )
+	{
+		FSceneSnapQueryRequest Request;
+		Request.RequestType = ESceneSnapQueryType::Position;
+		Request.TargetTypes = ESceneSnapQueryTargetType::Grid;
+		if ( bGridSizeIsExplicit )
+		{
+			Request.GridSize = ExplicitGridSize;
+		}
+		TArray<FSceneSnapQueryResult> Results;
+		Results.Reserve(1);
+		
+		// this is a bit of a hack, since the snap query only snaps world points, and the grid may not be
+		// uniform. A point on the specified X/Y/Z at the delta-distance is snapped, this is ideally
+		// equivalent to actually computing a snap of the axis-delta
+		Request.Position = FVector::Zero();
+		Request.Position[AxisIndex] = AxisDelta;
+		if (SnapManager->ExecuteSceneSnapQuery(Request, Results))
+		{
+			SnappedDeltaOut = Results[0].Position[AxisIndex];
+			return true;
+		};
+	}
+	return false;
+}
+
+
+
+
 FQuat UCombinedTransformGizmo::RotationSnapFunction(const FQuat& DeltaRotation) const
 {
+	// note: this is currently unused. Although we can snap to the "rotation grid", since the
+	// gizmo only supports axis rotations, it doesn't make sense. Leaving in for now in case
+	// a "tumble" handle is added, in which case it makes sense to snap to the world rotation grid...
+
 	FQuat SnappedDeltaRotation = DeltaRotation;
 
-	// only snap if we want snapping obvs
-	if (!bSnapToWorldGrid)
+	// only snap world positions if we want world position snapping...
+	if (bSnapToWorldRotGrid == false )
 	{
 		return SnappedDeltaRotation;
 	}
 
-	// To match our position snapping behavior, only snap when using world axes.
-	// Note that if we someday want to snap in local mode, this function will need further
-	// changing because the quaternion is given and snapped in world space, whereas we
-	// would want to snap it relative to the local frame start orientation.
+	// can only snap absolute rotations in World coordinates
 	EToolContextCoordinateSystem CoordSystem = GetGizmoManager()->GetContextQueriesAPI()->GetCurrentCoordinateSystem();
 	if (CoordSystem != EToolContextCoordinateSystem::World)
 	{
 		return SnappedDeltaRotation;
 	}
 
-	USceneSnappingManager* SnapManager = USceneSnappingManager::Find(GetGizmoManager());
-	if (!SnapManager)
+	// need a snapping manager
+	if ( USceneSnappingManager* SnapManager = USceneSnappingManager::Find(GetGizmoManager()) )
 	{
-		return SnappedDeltaRotation;
+		FSceneSnapQueryRequest Request;
+		Request.RequestType   = ESceneSnapQueryType::Rotation;
+		Request.TargetTypes   = ESceneSnapQueryTargetType::Grid;
+		Request.DeltaRotation = DeltaRotation;
+		if ( bRotationGridSizeIsExplicit )
+		{
+			Request.RotGridSize = ExplicitRotationGridSize;
+		}
+		TArray<FSceneSnapQueryResult> Results;
+		if (SnapManager->ExecuteSceneSnapQuery(Request, Results))
+		{
+			SnappedDeltaRotation = Results[0].DeltaRotation;
+		};
 	}
-
-	FSceneSnapQueryRequest Request;
-	Request.RequestType   = ESceneSnapQueryType::Rotation;
-	Request.TargetTypes   = ESceneSnapQueryTargetType::Grid;
-	Request.DeltaRotation = DeltaRotation;
-	if ( bRotationGridSizeIsExplicit )
-	{
-		Request.RotGridSize = ExplicitRotationGridSize;
-	}
-	TArray<FSceneSnapQueryResult> Results;
-	if (SnapManager->ExecuteSceneSnapQuery(Request, Results))
-	{
-		SnappedDeltaRotation = Results[0].DeltaRotation;
-	};
 
 	return SnappedDeltaRotation;
+}
+
+
+
+
+
+bool UCombinedTransformGizmo::RotationAxisAngleSnapFunction(double AxisAngleDelta, double& SnappedAxisAngleDeltaOut, int AxisIndex) const
+{
+	if (!bSnapToWorldRotGrid) return false;
+
+	FToolContextSnappingConfiguration SnappingConfig = GetGizmoManager()->GetContextQueriesAPI()->GetCurrentSnappingSettings();
+	if ( SnappingConfig.bEnableRotationGridSnapping )
+	{
+		double SnapDelta = SnappingConfig.RotationGridAngles.Yaw;		// could use AxisIndex here?
+		if ( bRotationGridSizeIsExplicit )
+		{
+			SnapDelta = ExplicitRotationGridSize.Yaw;
+		}
+		AxisAngleDelta *= FMathd::RadToDeg;
+		SnappedAxisAngleDeltaOut = UE::Geometry::SnapToIncrement(AxisAngleDelta, SnapDelta);
+		SnappedAxisAngleDeltaOut *= FMathd::DegToRad;
+		return true;
+	}
+
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

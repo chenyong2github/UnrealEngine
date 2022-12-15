@@ -6,7 +6,6 @@
 #include "BaseGizmos/GizmoInterfaces.h"
 #include "BaseGizmos/ParameterSourcesFloat.h"
 #include "BaseGizmos/ParameterSourcesVec2.h"
-#include "BaseGizmos/GizmoMath.h"
 #include "ParameterToTransformAdapters.generated.h"
 
 
@@ -30,6 +29,14 @@ class INTERACTIVETOOLSFRAMEWORK_API UGizmoAxisTranslationParameterSource : publi
 	GENERATED_BODY()
 public:
 
+
+	/**
+	 * Optional axis delta constraint function. This can be used to snap/constrain the "parameter delta" value,
+	 * for example to snap it to fixed increments along the axis. 
+	 * @return true if constrained delta was found and should be used, false to ignore
+	 */
+	TUniqueFunction<bool(double AxisDelta, double& SnappedDelta)> AxisDeltaConstraintFunction = [](double, double&) { return false; };
+
 	/**
 	 * Optional position constraint function. Called during interaction with the new transform origin.
 	 * To snap the transform to a new position, return as second value, and return true from your lambda.
@@ -43,45 +50,10 @@ public:
 		return Parameter;
 	}
 
-	virtual void SetParameter(float NewValue) override
-	{
-		Parameter = NewValue;
-		LastChange.CurrentValue = NewValue;
+	virtual void SetParameter(float NewValue) override;
 
-		// construct translation as delta from initial position
-		FVector Translation = LastChange.GetChangeDelta() * CurTranslationAxis;
-
-		// translate the initial transform
-		FTransform NewTransform = InitialTransform;
-		NewTransform.AddToTranslation(Translation);
-
-		// apply position constraint
-		FVector SnappedPos;
-		if (PositionConstraintFunction(NewTransform.GetTranslation(), SnappedPos))
-		{
-			FVector SnappedLinePos = GizmoMath::ProjectPointOntoLine(SnappedPos, CurTranslationOrigin, CurTranslationAxis);
-			NewTransform.SetTranslation(SnappedLinePos);
-		}
-
-		TransformSource->SetTransform(NewTransform);
-
-		OnParameterChanged.Broadcast(this, LastChange);
-	}
-
-	virtual void BeginModify()
-	{
-		check(AxisSource);
-
-		LastChange = FGizmoFloatParameterChange(Parameter);
-
-		InitialTransform = TransformSource->GetTransform();
-		CurTranslationAxis = AxisSource->GetDirection();
-		CurTranslationOrigin = AxisSource->GetOrigin();
-	}
-
-	virtual void EndModify()
-	{
-	}
+	virtual void BeginModify() override;
+	virtual void EndModify() override;
 
 
 public:
@@ -150,12 +122,21 @@ class INTERACTIVETOOLSFRAMEWORK_API UGizmoPlaneTranslationParameterSource : publ
 public:
 
 	/**
+	 * Optional axis delta constraint function. This can be used to snap/constrain the "parameter delta" value,
+	 * for example to snap it to fixed increments along the axis. 
+	 * The AxisDeltaConstraintFunction is used separately for the X and Y axes of the plane translation
+	 * @return true if constrained delta was found and should be used, false to ignore
+	 */
+	TUniqueFunction<bool(double AxisDelta, double& SnappedDelta)> AxisXDeltaConstraintFunction = [](double, double&) { return false; };
+	TUniqueFunction<bool(double AxisDelta, double& SnappedDelta)> AxisYDeltaConstraintFunction = [](double, double&) { return false; };
+
+	/**
 	 * Optional position constraint function. Called during interaction with the new transform origin.
 	 * To snap the transform to a new position, return as second value, and return true from your lambda.
 	 * Note that returned snap point will be projected onto the current translation origin/axis.
 	 * @return true if constraint point was found and should be used, false to ignore
 	 */
-	TUniqueFunction<bool(const FVector&, FVector&)> PositionConstraintFunction = [](const FVector&, FVector&) { return false; };
+	TUniqueFunction<bool(const FVector& Input, FVector& PreProjectedOutput)> PositionConstraintFunction = [](const FVector&, FVector&) { return false; };
 
 
 	virtual FVector2D GetParameter() const override
@@ -163,47 +144,10 @@ public:
 		return Parameter;
 	}
 
-	virtual void SetParameter(const FVector2D& NewValue) override
-	{
-		Parameter = NewValue;
-		LastChange.CurrentValue = NewValue;
+	virtual void SetParameter(const FVector2D& NewValue) override;
 
-		// construct translation as delta from initial position
-		FVector2D Delta = LastChange.GetChangeDelta();
-		FVector Translation = Delta.X*CurTranslationAxisX + Delta.Y*CurTranslationAxisY;
-
-		// apply translation to initial transform
-		FTransform NewTransform = InitialTransform;
-		NewTransform.AddToTranslation(Translation);
-
-		// apply position constraint
-		FVector SnappedPos;
-		if (PositionConstraintFunction(NewTransform.GetTranslation(), SnappedPos))
-		{
-			FVector PlanePos = GizmoMath::ProjectPointOntoPlane(SnappedPos, CurTranslationOrigin, CurTranslationNormal);
-			NewTransform.SetTranslation(PlanePos);
-		}
-
-		TransformSource->SetTransform(NewTransform);
-
-		OnParameterChanged.Broadcast(this, LastChange);
-	}
-
-	virtual void BeginModify()
-	{
-		check(AxisSource);
-
-		LastChange = FGizmoVec2ParameterChange(Parameter);
-
-		// save initial transformation and axis information
-		InitialTransform = TransformSource->GetTransform();
-		CurTranslationOrigin = AxisSource->GetOrigin();
-		AxisSource->GetAxisFrame(CurTranslationNormal, CurTranslationAxisX, CurTranslationAxisY);
-	}
-
-	virtual void EndModify()
-	{
-	}
+	virtual void BeginModify() override;
+	virtual void EndModify() override;
 
 
 public:
@@ -278,6 +222,14 @@ class INTERACTIVETOOLSFRAMEWORK_API UGizmoAxisRotationParameterSource : public U
 {
 	GENERATED_BODY()
 public:
+
+	/**
+	 * Optional axis-delta-angle constraint function. This can be used to snap/constrain the "angle delta" value,
+	 * for example to snap it to fixed angle steps around the axis. 
+	 * @return true if constrained angle was found and should be used, false to ignore
+	 */
+	TUniqueFunction<bool(double AngleDelta, double& SnappedAngleDelta)> AngleDeltaConstraintFunction = [](double, double&) { return false; };
+
 	/**
 	 * Optional rotation constraint function. Called during interaction with the rotation delta
 	 * To snap the rotation delta, return the snapped quat
@@ -290,48 +242,10 @@ public:
 		return Angle;
 	}
 
-	virtual void SetParameter(float NewValue) override
-	{
-		Angle = NewValue;
-		LastChange.CurrentValue = NewValue;
+	virtual void SetParameter(float NewValue) override;
 
-		// construct rotation as delta from initial position
-		FQuat DeltaRotation(CurRotationAxis, LastChange.GetChangeDelta());
-		DeltaRotation = RotationConstraintFunction(DeltaRotation);
-
-		// rotate the vector from the rotation origin to the transform origin, 
-		// to get the translation of the origin produced by the rotation
-		FVector DeltaPosition = InitialTransform.GetLocation() - CurRotationOrigin;
-		DeltaPosition = DeltaRotation * DeltaPosition;
-		FVector NewLocation = CurRotationOrigin + DeltaPosition;
-
-		// rotate the initial transform by the rotation
-		FQuat NewRotation = DeltaRotation * InitialTransform.GetRotation();
-
-		// construct new transform
-		FTransform NewTransform = InitialTransform;
-		NewTransform.SetLocation(NewLocation);
-		NewTransform.SetRotation(NewRotation);
-		TransformSource->SetTransform(NewTransform);
-
-		OnParameterChanged.Broadcast(this, LastChange);
-	}
-
-	virtual void BeginModify()
-	{
-		check(AxisSource != nullptr);
-
-		LastChange = FGizmoFloatParameterChange(Angle);
-
-		// save initial transformation and axis information
-		InitialTransform = TransformSource->GetTransform();
-		CurRotationAxis = AxisSource->GetDirection();
-		CurRotationOrigin = AxisSource->GetOrigin();
-	}
-
-	virtual void EndModify()
-	{
-	}
+	virtual void BeginModify() override;
+	virtual void EndModify() override;
 
 
 public:
@@ -422,51 +336,10 @@ public:
 		return Parameter;
 	}
 
-	virtual void SetParameter(const FVector2D& NewValue) override
-	{
-		Parameter = NewValue;
-		LastChange.CurrentValue = NewValue;
+	virtual void SetParameter(const FVector2D& NewValue) override;
 
-		// Convert 2D parameter delta to a 1D uniform scale change
-		// This possibly be exposed as a TFunction to allow customization?
-		double SignedDelta = LastChange.GetChangeDelta().X + LastChange.GetChangeDelta().Y;
-		SignedDelta *= ScaleMultiplier;
-		SignedDelta += 1.0;
-
-		FTransform NewTransform = InitialTransform;
-		FVector StartScale = InitialTransform.GetScale3D();
-		FVector NewScale = SignedDelta * StartScale;
-		NewTransform.SetScale3D(NewScale);
-
-		// apply position constraint
-		//FVector SnappedPos;
-		//if (PositionConstraintFunction(NewTransform.GetScale(), SnappedPos))
-		//{
-		//	FVector PlanePos = GizmoMath::ProjectPointOntoPlane(SnappedPos, CurTranslationOrigin, CurTranslationNormal);
-		//	NewTransform.SetTranslation(PlanePos);
-		//}
-
-		TransformSource->SetTransform(NewTransform);
-
-		OnParameterChanged.Broadcast(this, LastChange);
-	}
-
-	virtual void BeginModify()
-	{
-		check(AxisSource);
-
-		LastChange = FGizmoVec2ParameterChange(Parameter);
-
-		// save initial transformation and axis information
-		InitialTransform = TransformSource->GetTransform();
-		CurScaleOrigin = AxisSource->GetOrigin();
-		// note: currently not used!
-		AxisSource->GetAxisFrame(CurScaleNormal, CurScaleAxisX, CurScaleAxisY);
-	}
-
-	virtual void EndModify()
-	{
-	}
+	virtual void BeginModify() override;
+	virtual void EndModify() override;
 
 
 public:
@@ -558,56 +431,10 @@ public:
 		return Parameter;
 	}
 
-	virtual void SetParameter(float NewValue) override
-	{
-		Parameter = NewValue;
-		LastChange.CurrentValue = NewValue;
+	virtual void SetParameter(float NewValue) override;
 
-		// construct translation as delta from initial position
-		float ScaleDelta = LastChange.GetChangeDelta() * ScaleMultiplier;
-
-		// translate the initial transform
-		FTransform NewTransform = InitialTransform;
-		FVector StartScale = InitialTransform.GetScale3D();
-		FVector NewScale = StartScale + ScaleDelta * CurScaleAxis;
-
-		if (bClampToZero)
-		{
-			NewScale = FVector::Max(FVector::ZeroVector, NewScale);
-		}
-
-		NewTransform.SetScale3D(NewScale);
-
-
-		// apply position constraint
-		//FVector SnappedPos;
-		//if (ScaleConstraintFunction(NewTransform.GetTranslation(), SnappedPos))
-		//{
-		//	FVector SnappedLinePos = GizmoMath::ProjectPointOntoLine(SnappedPos, CurTranslationOrigin, CurTranslationAxis);
-		//	NewTransform.SetTranslation(SnappedLinePos);
-		//}
-
-		TransformSource->SetTransform(NewTransform);
-
-		OnParameterChanged.Broadcast(this, LastChange);
-	}
-
-	virtual void BeginModify()
-	{
-		check(AxisSource);
-
-		LastChange = FGizmoFloatParameterChange(Parameter);
-
-		InitialTransform = TransformSource->GetTransform();
-		
-		CurScaleAxis = AxisSource->GetDirection();
-		CurScaleOrigin = AxisSource->GetOrigin();
-	}
-
-	virtual void EndModify()
-	{
-	}
-
+	virtual void BeginModify() override;
+	virtual void EndModify() override;
 
 public:
 	/** The Parameter line-equation value is converted to a 3D Translation along this Axis */
@@ -698,58 +525,10 @@ public:
 		return Parameter;
 	}
 
-	virtual void SetParameter(const FVector2D& NewValue) override
-	{
-		Parameter = NewValue;
-		LastChange.CurrentValue = NewValue;
+	virtual void SetParameter(const FVector2D& NewValue) override;
 
-		// construct Scale as delta from initial position
-		FVector2D Delta = LastChange.GetChangeDelta() * ScaleMultiplier;
-
-		if (bUseEqualScaling)
-		{
-			Delta = FVector2D(Delta.X + Delta.Y);
-		}
-
-		FTransform NewTransform = InitialTransform;
-		FVector StartScale = InitialTransform.GetScale3D();
-		FVector NewScale = StartScale + Delta.X*CurScaleAxisX + Delta.Y*CurScaleAxisY;
-
-		if (bClampToZero)
-		{
-			NewScale = FVector::Max(NewScale, FVector::ZeroVector);
-		}
-
-		NewTransform.SetScale3D(NewScale);
-
-		// apply position constraint
-		//FVector SnappedPos;
-		//if (PositionConstraintFunction(NewTransform.GetScale(), SnappedPos))
-		//{
-		//	FVector PlanePos = GizmoMath::ProjectPointOntoPlane(SnappedPos, CurTranslationOrigin, CurTranslationNormal);
-		//	NewTransform.SetTranslation(PlanePos);
-		//}
-
-		TransformSource->SetTransform(NewTransform);
-
-		OnParameterChanged.Broadcast(this, LastChange);
-	}
-
-	virtual void BeginModify()
-	{
-		check(AxisSource);
-
-		LastChange = FGizmoVec2ParameterChange(Parameter);
-
-		// save initial transformation and axis information
-		InitialTransform = TransformSource->GetTransform();
-		CurScaleOrigin = AxisSource->GetOrigin();
-		AxisSource->GetAxisFrame(CurScaleNormal, CurScaleAxisX, CurScaleAxisY);
-	}
-
-	virtual void EndModify()
-	{
-	}
+	virtual void BeginModify() override;
+	virtual void EndModify() override;
 
 
 public:

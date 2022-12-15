@@ -157,6 +157,9 @@ struct INTERACTIVETOOLSFRAMEWORK_API FToolContextSnappingConfiguration
 	bool bEnableRotationGridSnapping = false;
 	/** Specify rotation snapping step size */
 	FRotator RotationGridAngles = FRotator::ZeroRotator;
+
+	/** Specify whether Position snapping in World Coordinate System should be Absolute or Relative */
+	bool bEnableAbsoluteWorldSnapping = false;
 };
 
 

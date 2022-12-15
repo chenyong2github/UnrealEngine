@@ -142,7 +142,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Z = (RealType)Quat.Z;
 		W = (RealType)Quat.W;
 	}
-
+	explicit inline operator UE::Math::TVector4<RealType>() const
+	{
+		return UE::Math::TVector4<RealType>(X,Y,Z,W);
+	}
 };
 
 

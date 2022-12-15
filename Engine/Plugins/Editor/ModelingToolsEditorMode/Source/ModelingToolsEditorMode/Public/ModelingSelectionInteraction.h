@@ -178,6 +178,9 @@ protected:
 	FVector3d InitialGizmoScale;
 	UE::Geometry::FFrame3d LastUpdateGizmoFrame;
 	FVector3d LastUpdateGizmoScale;
+	FVector3d LastTranslationDelta;
+	FVector4d LastRotateDelta;
+	FVector3d LastScaleDelta;
 	bool bInActiveTransform = false;
 
 	void UpdateGizmoOnSelectionChange();

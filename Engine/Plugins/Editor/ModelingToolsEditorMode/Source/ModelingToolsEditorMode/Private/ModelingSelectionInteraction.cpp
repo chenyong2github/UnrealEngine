@@ -338,6 +338,10 @@ void UModelingSelectionInteraction::OnBeginGizmoTransform(UTransformProxy* Proxy
 	InitialGizmoFrame = FFrame3d(Transform);
 	InitialGizmoScale = FVector3d(Transform.GetScale3D());
 
+	LastTranslationDelta = FVector3d::Zero();
+	LastRotateDelta = FVector4d::Zero();
+	LastScaleDelta = FVector3d::Zero();
+
 	bInActiveTransform = SelectionManager->BeginTransformation();
 
 	OnTransformBegin.Broadcast();
@@ -380,8 +384,15 @@ void UModelingSelectionInteraction::ApplyPendingTransformInteractions()
 
 	const bool bLastUpdateUsedWorldFrame = true;	// for later local-frame support
 
-	if (TranslationDelta.SquaredLength() > 0.0001 || RotateDelta.SquaredLength() > 0.0001 || CurScaleDelta.SquaredLength() > 0.0001)
+	// if any of the deltas have deviated from the last delta, forward the transformation change on to targets
+	if ( (TranslationDelta - LastTranslationDelta).SizeSquared() > FMathf::ZeroTolerance
+		|| ((FVector4d)RotateDelta - LastRotateDelta).SizeSquared() > FMathf::ZeroTolerance
+		|| (CurScaleDelta- LastScaleDelta).SizeSquared() > FMathf::ZeroTolerance)
 	{
+		LastTranslationDelta = TranslationDelta;
+		LastRotateDelta = (FVector4d)RotateDelta;
+		LastScaleDelta = CurScaleDelta;
+
 		if (bLastUpdateUsedWorldFrame)
 		{
 			// For a world frame gizmo, the scaling needs to happen in world aligned gizmo space, but the 

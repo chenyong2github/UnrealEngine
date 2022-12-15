@@ -77,19 +77,19 @@ void URepositionableTransformGizmo::SetActiveTarget(UTransformProxy* Target, ITo
 	// modify their alignment functions separately if we need to.
 	if (GizmoActor->TranslateX != nullptr)
 	{
-		UInteractiveGizmo* SubGizmo = AddAxisTranslationGizmo(GizmoActor->TranslateX, GizmoComponent, AxisXSource, TransformSource, RepositionStateTarget);
+		UInteractiveGizmo* SubGizmo = AddAxisTranslationGizmo(GizmoActor->TranslateX, GizmoComponent, AxisXSource, TransformSource, RepositionStateTarget, 0);
 		ModifyPivotAxisGizmo(SubGizmo);
 		PivotAlignmentGizmos.Add(SubGizmo);
 	}
 	if (GizmoActor->TranslateY != nullptr)
 	{
-		UInteractiveGizmo* SubGizmo = AddAxisTranslationGizmo(GizmoActor->TranslateY, GizmoComponent, AxisYSource, TransformSource, RepositionStateTarget);
+		UInteractiveGizmo* SubGizmo = AddAxisTranslationGizmo(GizmoActor->TranslateY, GizmoComponent, AxisYSource, TransformSource, RepositionStateTarget, 1);
 		ModifyPivotAxisGizmo(SubGizmo);
 		PivotAlignmentGizmos.Add(SubGizmo);
 	}
 	if (GizmoActor->TranslateZ != nullptr)
 	{
-		UInteractiveGizmo* SubGizmo = AddAxisTranslationGizmo(GizmoActor->TranslateZ, GizmoComponent, AxisZSource, TransformSource, RepositionStateTarget);
+		UInteractiveGizmo* SubGizmo = AddAxisTranslationGizmo(GizmoActor->TranslateZ, GizmoComponent, AxisZSource, TransformSource, RepositionStateTarget, 2);
 		ModifyPivotAxisGizmo(SubGizmo);
 		PivotAlignmentGizmos.Add(SubGizmo);
 	}
@@ -97,19 +97,19 @@ void URepositionableTransformGizmo::SetActiveTarget(UTransformProxy* Target, ITo
 
 	if (GizmoActor->TranslateYZ != nullptr)
 	{
-		UInteractiveGizmo* SubGizmo = AddPlaneTranslationGizmo(GizmoActor->TranslateYZ, GizmoComponent, AxisXSource, TransformSource, RepositionStateTarget);
+		UInteractiveGizmo* SubGizmo = AddPlaneTranslationGizmo(GizmoActor->TranslateYZ, GizmoComponent, AxisXSource, TransformSource, RepositionStateTarget, 1, 2);
 		ModifyPivotPlaneGizmo(SubGizmo);
 		PivotAlignmentGizmos.Add(SubGizmo);
 	}
 	if (GizmoActor->TranslateXZ != nullptr)
 	{
-		UInteractiveGizmo* SubGizmo = AddPlaneTranslationGizmo(GizmoActor->TranslateXZ, GizmoComponent, AxisYSource, TransformSource, RepositionStateTarget);
+		UInteractiveGizmo* SubGizmo = AddPlaneTranslationGizmo(GizmoActor->TranslateXZ, GizmoComponent, AxisYSource, TransformSource, RepositionStateTarget, 2, 0);
 		ModifyPivotPlaneGizmo(SubGizmo);
 		PivotAlignmentGizmos.Add(SubGizmo);
 	}
 	if (GizmoActor->TranslateXY != nullptr)
 	{
-		UInteractiveGizmo* SubGizmo = AddPlaneTranslationGizmo(GizmoActor->TranslateXY, GizmoComponent, AxisZSource, TransformSource, RepositionStateTarget);
+		UInteractiveGizmo* SubGizmo = AddPlaneTranslationGizmo(GizmoActor->TranslateXY, GizmoComponent, AxisZSource, TransformSource, RepositionStateTarget, 0, 1);
 		ModifyPivotPlaneGizmo(SubGizmo);
 		PivotAlignmentGizmos.Add(SubGizmo);
 	}
