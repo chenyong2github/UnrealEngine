@@ -42,10 +42,8 @@ protected:
 	void ForEachActiveRuntimeCell(TFunctionRef<void(const UWorldPartitionRuntimeCell*)> Func) const;
 
 private:
-#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TMap<FName, FName> ActorToCellRemapping;
-#endif
 
 	UPROPERTY()
 	TMap<FName, FName> SubObjectsToCellRemapping;
