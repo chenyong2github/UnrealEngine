@@ -18,12 +18,12 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "CurveEditorSettings.h"
+#include "CurveDrawInfo.h"
 
 class FCurveEditor;
 class FSlateRect;
 class FText;
 class SCurveEditorPanel;
-struct FCurveDrawParams;
 class FCurveModel;
 class SRetainerWidget;
 
