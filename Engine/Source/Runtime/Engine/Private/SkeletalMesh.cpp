@@ -1519,12 +1519,6 @@ bool USkeletalMesh::IsReadyForFinishDestroy()
 		return false;
 	}
 
-	// Match BeginDestroy() by checking for HasPendingInitOrStreaming().
-	if (HasPendingInitOrStreaming())
-	{
-		return false;
-	}
-
 	ReleaseResources();
 
 	// see if we have hit the resource flush fence
