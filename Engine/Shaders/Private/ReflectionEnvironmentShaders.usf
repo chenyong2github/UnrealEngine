@@ -513,6 +513,10 @@ void FilterPS(
 	if( Roughness < 0.01 )
 	{
 		OutColor = SourceCubemapTexture.SampleLevel(SourceCubemapSampler, CubeCoordinates, 0 );
+		
+		// Prevent NaNs from going into the cube map
+		OutColor = -min(-OutColor, 0);
+		
 	#ifdef USE_COMPUTE
 		OutTextureMipColor[uint3(FaceCoord, SelectedCubeFace)] = OutColor;
 	#endif
@@ -592,6 +596,9 @@ void FilterPS(
 
 		OutColor = FilteredColor / Weight;
 	}
+
+	// Prevent NaNs from going into the cube map
+	OutColor = -min(-OutColor, 0);
 
 #ifdef USE_COMPUTE
 	OutTextureMipColor[uint3(FaceCoord, SelectedCubeFace)] = OutColor;
