@@ -264,11 +264,40 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Reads a variable length list
+		/// </summary>
+		/// <param name="reader">Reader to deserialize from</param>
+		/// <param name="readItem">Delegate to write an individual item</param>
+		public static List<T> ReadList<T>(this IMemoryReader reader, Func<IMemoryReader, T> readItem)
+		{
+			int length = (int)reader.ReadUnsignedVarInt();
+
+			List<T> list = new List<T>(length);
+			for (int idx = 0; idx < length; idx++)
+			{
+				list.Add(readItem(reader));
+			}
+
+			return list;
+		}
+
+		/// <summary>
 		/// Reads a variable length array
 		/// </summary>
 		/// <param name="reader">Reader to deserialize from</param>
 		/// <param name="readItem">Delegate to write an individual item</param>
 		public static T[] ReadVariableLengthArray<T>(this IMemoryReader reader, Func<T> readItem)
+		{
+			int length = (int)reader.ReadUnsignedVarInt();
+			return ReadFixedLengthArray(reader, length, readItem);
+		}
+
+		/// <summary>
+		/// Reads a variable length array
+		/// </summary>
+		/// <param name="reader">Reader to deserialize from</param>
+		/// <param name="readItem">Delegate to write an individual item</param>
+		public static T[] ReadVariableLengthArray<T>(this IMemoryReader reader, Func<IMemoryReader, T> readItem)
 		{
 			int length = (int)reader.ReadUnsignedVarInt();
 			return ReadFixedLengthArray(reader, length, readItem);
@@ -294,10 +323,36 @@ namespace EpicGames.Core
 		[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0060:Remove unused parameter")]
 		public static T[] ReadFixedLengthArray<T>(this IMemoryReader reader, int length, Func<T> readItem)
 		{
+			if (length == 0)
+			{
+				return Array.Empty<T>();
+			}
+
 			T[] array = new T[length];
 			for (int idx = 0; idx < length; idx++)
 			{
 				array[idx] = readItem();
+			}
+			return array;
+		}
+
+		/// <summary>
+		/// Writes a fixed length array
+		/// </summary>
+		/// <param name="reader">Reader to deserialize from</param>
+		/// <param name="length">Length of the array to read</param>
+		/// <param name="readItem">Delegate to read an individual item</param>
+		public static T[] ReadFixedLengthArray<T>(this IMemoryReader reader, int length, Func<IMemoryReader, T> readItem)
+		{
+			if (length == 0)
+			{
+				return Array.Empty<T>();
+			}
+
+			T[] array = new T[length];
+			for (int idx = 0; idx < length; idx++)
+			{
+				array[idx] = readItem(reader);
 			}
 			return array;
 		}
@@ -326,10 +381,44 @@ namespace EpicGames.Core
 		/// Reads a dictionary from the writer
 		/// </summary>
 		/// <param name="reader">Reader to serialize from</param>
+		/// <param name="dictionary">The dictionary to read</param>
+		/// <param name="readKey">Delegate to write an individual key</param>
+		/// <param name="readValue">Delegate to write an individual value</param>
+		public static void ReadDictionary<TKey, TValue>(this IMemoryReader reader, Dictionary<TKey, TValue> dictionary, Func<IMemoryReader, TKey> readKey, Func<IMemoryReader, TValue> readValue) where TKey : notnull
+		{
+			int count = (int)reader.ReadUnsignedVarInt();
+			dictionary.EnsureCapacity(count);
+
+			for (int idx = 0; idx < count; idx++)
+			{
+				TKey key = readKey(reader);
+				TValue value = readValue(reader);
+				dictionary.Add(key, value);
+			}
+		}
+
+		/// <summary>
+		/// Reads a dictionary from the writer
+		/// </summary>
+		/// <param name="reader">Reader to serialize from</param>
 		/// <param name="readKey">Delegate to write an individual key</param>
 		/// <param name="readValue">Delegate to write an individual value</param>
 		/// <param name="comparer">Comparer for the new dictionary</param>
 		public static Dictionary<TKey, TValue> ReadDictionary<TKey, TValue>(this IMemoryReader reader, Func<TKey> readKey, Func<TValue> readValue, IEqualityComparer<TKey>? comparer = null) where TKey : notnull
+		{
+			Dictionary<TKey, TValue> dictionary = new Dictionary<TKey, TValue>(comparer);
+			ReadDictionary(reader, dictionary, readKey, readValue);
+			return dictionary;
+		}
+
+		/// <summary>
+		/// Reads a dictionary from the writer
+		/// </summary>
+		/// <param name="reader">Reader to serialize from</param>
+		/// <param name="readKey">Delegate to write an individual key</param>
+		/// <param name="readValue">Delegate to write an individual value</param>
+		/// <param name="comparer">Comparer for the new dictionary</param>
+		public static Dictionary<TKey, TValue> ReadDictionary<TKey, TValue>(this IMemoryReader reader, Func<IMemoryReader, TKey> readKey, Func<IMemoryReader, TValue> readValue, IEqualityComparer<TKey>? comparer = null) where TKey : notnull
 		{
 			Dictionary<TKey, TValue> dictionary = new Dictionary<TKey, TValue>(comparer);
 			ReadDictionary(reader, dictionary, readKey, readValue);
@@ -352,6 +441,10 @@ namespace EpicGames.Core
 		public static string ReadString(this IMemoryReader reader, Encoding encoding)
 		{
 			int length = (int)reader.ReadUnsignedVarInt();
+			if (length == 0)
+			{
+				return String.Empty;
+			}
 
 			ReadOnlySpan<byte> span = reader.GetSpan(length).Slice(0, length);
 			string str = encoding.GetString(span);

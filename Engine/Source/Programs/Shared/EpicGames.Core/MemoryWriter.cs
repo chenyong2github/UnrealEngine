@@ -513,6 +513,17 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Writes a variable length array
+		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="list">The array to write</param>
+		/// <param name="writeItem">Delegate to write an individual item</param>
+		public static void WriteList<T>(this IMemoryWriter writer, IReadOnlyList<T> list, Action<IMemoryWriter, T> writeItem)
+		{
+			WriteVariableLengthArray(writer, list, writeItem);
+		}
+
+		/// <summary>
 		/// Writes a variable length span of bytes
 		/// </summary>
 		/// <param name="writer">Writer to serialize to</param>
@@ -565,6 +576,18 @@ namespace EpicGames.Core
 		/// Writes a variable length array
 		/// </summary>
 		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="list">The array to write</param>
+		/// <param name="writeItem">Delegate to write an individual item</param>
+		public static void WriteVariableLengthArray<T>(this IMemoryWriter writer, IReadOnlyList<T> list, Action<IMemoryWriter, T> writeItem)
+		{
+			writer.WriteUnsignedVarInt(list.Count);
+			WriteFixedLengthArray(writer, list, writeItem);
+		}
+
+		/// <summary>
+		/// Writes a variable length array
+		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
 		/// <param name="array">The array to write</param>
 		/// <param name="writeItem">Delegate to write an individual item</param>
 		public static void WriteVariableLengthArrayWithInt32Length<T>(this IMemoryWriter writer, T[] array, Action<T> writeItem)
@@ -587,6 +610,19 @@ namespace EpicGames.Core
 				writeItem(list[idx]);
 			}
 		}
+		/// <summary>
+		/// Writes a fixed length array
+		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="list">The array to write</param>
+		/// <param name="writeItem">Delegate to write an individual item</param>
+		public static void WriteFixedLengthArray<T>(this IMemoryWriter writer, IReadOnlyList<T> list, Action<IMemoryWriter, T> writeItem)
+		{
+			for (int idx = 0; idx < list.Count; idx++)
+			{
+				writeItem(writer, list[idx]);
+			}
+		}
 
 		/// <summary>
 		/// Writes a dictionary to the writer
@@ -602,6 +638,23 @@ namespace EpicGames.Core
 			{
 				writeKey(kvp.Key);
 				writeValue(kvp.Value);
+			}
+		}
+
+		/// <summary>
+		/// Writes a dictionary to the writer
+		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="dictionary">The dictionary to write</param>
+		/// <param name="writeKey">Delegate to write an individual key</param>
+		/// <param name="writeValue">Delegate to write an individual value</param>
+		public static void WriteDictionary<TKey, TValue>(this IMemoryWriter writer, IReadOnlyDictionary<TKey, TValue> dictionary, Action<IMemoryWriter, TKey> writeKey, Action<IMemoryWriter, TValue> writeValue) where TKey : notnull
+		{
+			writer.WriteUnsignedVarInt(dictionary.Count);
+			foreach (KeyValuePair<TKey, TValue> kvp in dictionary)
+			{
+				writeKey(writer, kvp.Key);
+				writeValue(writer, kvp.Value);
 			}
 		}
 

@@ -90,6 +90,11 @@ namespace EpicGames.Core
 		/// <returns></returns>
 		public Utf8String Clone()
 		{
+			if (Memory.Length == 0)
+			{
+				return default;
+			}
+
 			byte[] newBuffer = new byte[Memory.Length];
 			Memory.CopyTo(newBuffer);
 			return new Utf8String(newBuffer);
