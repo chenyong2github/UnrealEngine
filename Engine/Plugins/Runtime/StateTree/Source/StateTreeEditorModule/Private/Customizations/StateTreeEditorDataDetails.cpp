@@ -142,7 +142,7 @@ void FStateTreeEditorDataDetails::CustomizeDetails(IDetailLayoutBuilder& DetailB
 	ParametersCategory.SetSortOrder(2);
 	{
 		// Show parameters as a category.
-		IPropertyUtilities* PropUtils = &DetailBuilder.GetPropertyUtilities().Get();
+		TSharedPtr<IPropertyUtilities> PropUtils = DetailBuilder.GetPropertyUtilities();
 		TSharedPtr<IPropertyHandle> RootParametersProperty = DetailBuilder.GetProperty(TEXT("RootParameters")); // FStateTreeStateParameters
 		check(RootParametersProperty);
 		RootParametersProperty->MarkHiddenByCustomization();

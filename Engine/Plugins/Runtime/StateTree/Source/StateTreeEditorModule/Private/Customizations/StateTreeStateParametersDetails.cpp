@@ -24,7 +24,7 @@
 class FStateTreeStateParametersInstanceDataDetails : public FPropertyBagInstanceDataDetails
 {
 public:
-	FStateTreeStateParametersInstanceDataDetails(TSharedPtr<IPropertyHandle> InStructProperty, IPropertyUtilities* InPropUtils, const bool bInFixedLayout, FGuid InID, UStateTreeEditorData* InEditorData)
+	FStateTreeStateParametersInstanceDataDetails(TSharedPtr<IPropertyHandle> InStructProperty, TSharedPtr<IPropertyUtilities> InPropUtils, const bool bInFixedLayout, FGuid InID, UStateTreeEditorData* InEditorData)
 		: FPropertyBagInstanceDataDetails(InStructProperty, InPropUtils, bInFixedLayout)
 		, EditorData(InEditorData)
 	{
@@ -99,7 +99,7 @@ TSharedRef<IPropertyTypeCustomization> FStateTreeStateParametersDetails::MakeIns
 void FStateTreeStateParametersDetails::CustomizeHeader(TSharedRef<class IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
 	StructProperty = StructPropertyHandle;
-	PropUtils = StructCustomizationUtils.GetPropertyUtilities().Get();
+	PropUtils = StructCustomizationUtils.GetPropertyUtilities();
 
 	ParametersProperty = StructProperty->GetChildHandle(TEXT("Parameters"));
 	FixedLayoutProperty = StructProperty->GetChildHandle(TEXT("bFixedLayout"));

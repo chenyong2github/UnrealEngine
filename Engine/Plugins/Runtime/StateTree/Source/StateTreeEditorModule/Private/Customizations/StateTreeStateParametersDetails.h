@@ -5,6 +5,7 @@
 #include "IPropertyTypeCustomization.h"
 
 class IPropertyHandle;
+class IPropertyUtilities;
 class UStateTree;
 class UStateTreeEditorData;
 
@@ -26,7 +27,7 @@ private:
 
 	void FindOuterObjects();
 
-	class IPropertyUtilities* PropUtils = nullptr;
+	TSharedPtr<IPropertyUtilities> PropUtils;
 
 	TSharedPtr<IPropertyHandle> ParametersProperty;
 	TSharedPtr<IPropertyHandle> FixedLayoutProperty;
