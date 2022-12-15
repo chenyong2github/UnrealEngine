@@ -1185,7 +1185,6 @@ void FLevelEditorSequencerIntegration::ResetToAnimatedState(UWorld* World)
 		{
 			if (Options.bRequiresLevelEvents)
 			{
-				In.InvalidateCachedData();
 				In.ForceEvaluate();
 
 				for (const TSharedPtr<ISequencerTrackEditor>& TrackEditor : In.GetTrackEditors())

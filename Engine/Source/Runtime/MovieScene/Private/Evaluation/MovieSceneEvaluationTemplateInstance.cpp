@@ -407,8 +407,9 @@ void FMovieSceneRootEvaluationTemplateInstance::PlaybackContextChanged(IMovieSce
 		if (Runner->IsAttachedToLinker())
 		{
 			Runner->DetachFromLinker();
-			Runner->AttachToLinker(EntitySystemLinker);
 		}
+
+		Runner->AttachToLinker(EntitySystemLinker);
 	}
 
 	RootInstanceHandle = EntitySystemLinker->GetInstanceRegistry()->AllocateRootInstance(&Player);

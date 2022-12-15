@@ -387,6 +387,12 @@ void FPreAnimatedStateExtension::RestoreGlobalState(const FRestoreStateParams& P
 
 	GroupMetaData.Shrink();
 
+	// Invalidate cached data for any sequence instance that belongs to the terminal instance
+	if (Params.TerminalInstanceHandle.IsValid())
+	{
+		Linker->GetInstanceRegistry()->MutateInstance(Params.TerminalInstanceHandle).InvalidateCachedData(Linker);
+	}
+
 	bEntriesInvalidated = true;
 }
 
