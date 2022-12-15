@@ -62,6 +62,7 @@ protected:
 	 * 	Wait until the given gameplay tag query has become true or false, based on TriggerCondition, looking at the target actors ASC.
 	 *  If the the tag query already satisfies the TriggerCondition when this task is started, it will immediately broadcast the Triggered
 	 *  event. It will keep listening as long as bOnlyTriggerOnce = false.
+	 *  If used in an ability graph, this async action will wait even after activation ends. It's recommended to use WaitGameplayTagQuery instead.
 	 */
  	UFUNCTION(BlueprintCallable, Category = "Ability|Tasks", meta = (DefaultToSelf = "TargetActor", BlueprintInternalUseOnly = "TRUE"))
  	static UAbilityAsync_WaitGameplayTagQuery* WaitGameplayTagQueryOnActor(AActor* TargetActor, 
