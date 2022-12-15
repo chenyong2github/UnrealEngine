@@ -361,6 +361,7 @@ public:
 	void MarkFileAlreadyScanned(FStringView BaseName);
 	/** Set the direct priority of this ScanDir and update the accumulated priority to match it. */
 	void SetDirectPriority(EPriority InPriority);
+	EPriority GetDirectPriority() const;
 
 	/**
 	 * Called from the Tick; handle the list of subdirs and files that were found from IterateDirectoryStat called
