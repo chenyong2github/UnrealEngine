@@ -17,6 +17,7 @@
 
 #define WebBrowserTextureRESOURCE_TRACE_RENDER 0
 
+DEFINE_LOG_CATEGORY(LogWebBrowserTexture);
 
 /* FWebBrowserTextureResource structors
  *****************************************************************************/
@@ -27,9 +28,8 @@ FWebBrowserTextureResource::FWebBrowserTextureResource(UWebBrowserTexture& InOwn
 	, Owner(InOwner)
 	, OwnerDim(InOwnerDim)
 	, OwnerSize(InOwnerSize)
-{ 
-	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("FWebBrowserTextureResource:FWebBrowserTextureResource %d %d"), OwnerDim.X, OwnerDim.Y);
-
+{
+	UE_LOG(LogWebBrowserTexture, VeryVerbose, TEXT("FWebBrowserTextureResource:FWebBrowserTextureResource %d %d"), OwnerDim.X, OwnerDim.Y);
 }
 
 
@@ -144,7 +144,7 @@ void FWebBrowserTextureResource::ReleaseDynamicRHI()
 
 void FWebBrowserTextureResource::ClearTexture(const FLinearColor& ClearColor)
 {
-	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("FWebBrowserTextureResource:ClearTexture"));
+	UE_LOG(LogWebBrowserTexture, VeryVerbose, TEXT("FWebBrowserTextureResource:ClearTexture"));
 	// create output render target if we don't have one yet
 	const ETextureCreateFlags OutputCreateFlags = ETextureCreateFlags::Dynamic | ETextureCreateFlags::SRGB;
 
@@ -189,11 +189,11 @@ void FWebBrowserTextureResource::CopySample(const TSharedPtr<FWebBrowserTextureS
 	// we create our own output render target and copy the data into it.
 	if (SampleTexture2D != nullptr)
 	{
-	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("FWebBrowserTextureResource:CopySample 1"));
+		UE_LOG(LogWebBrowserTexture, VeryVerbose, TEXT("FWebBrowserTextureResource:CopySample 1"));
 		// use sample's texture as the new render target.
 		if (TextureRHI != SampleTexture2D)
 		{
-			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("FWebBrowserTextureResource:CopySample 11"));
+			UE_LOG(LogWebBrowserTexture, VeryVerbose, TEXT("FWebBrowserTextureResource:CopySample 11"));
 			UpdateTextureReference(SampleTexture2D);
 
 			OutputTarget.SafeRelease();
@@ -202,14 +202,14 @@ void FWebBrowserTextureResource::CopySample(const TSharedPtr<FWebBrowserTextureS
 	}
 	else
 	{
-		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("FWebBrowserTextureResource:CopySample 2"));
+		UE_LOG(LogWebBrowserTexture, VeryVerbose, TEXT("FWebBrowserTextureResource:CopySample 2"));
 		// create a new output render target if necessary
 		const ETextureCreateFlags OutputCreateFlags = TexCreate_Dynamic | TexCreate_SRGB;
 		const FIntPoint SampleDim = Sample->GetDim();
 
 		if ((ClearColor != CurrentClearColor) || !OutputTarget.IsValid() || (OutputTarget->GetSizeXY() != SampleDim) || ((OutputTarget->GetFlags() & OutputCreateFlags) != OutputCreateFlags))
 		{
-			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("FWebBrowserTextureResource:CopySample 1"));
+			UE_LOG(LogWebBrowserTexture, VeryVerbose, TEXT("FWebBrowserTextureResource:CopySample 1"));
 
 			const FRHITextureCreateDesc Desc =
 				FRHITextureCreateDesc::Create2D(TEXT("FWebBrowserTextureResource"))
@@ -230,6 +230,8 @@ void FWebBrowserTextureResource::CopySample(const TSharedPtr<FWebBrowserTextureS
 			UpdateTextureReference(OutputTarget);
 		}
 
+		UE_LOG(LogWebBrowserTexture, VeryVerbose, TEXT("WebBrowserTextureResource:CopySample: %d x %d"), SampleDim.X, SampleDim.Y);
+
 		// copy sample data to output render target
 		FUpdateTextureRegion2D Region(0, 0, 0, 0, SampleDim.X, SampleDim.Y);
 		RHIUpdateTexture2D(RenderTargetTextureRHI.GetReference(), 0, Region, Sample->GetStride(), (uint8*)Sample->GetBuffer());
@@ -240,7 +242,7 @@ void FWebBrowserTextureResource::CopySample(const TSharedPtr<FWebBrowserTextureS
 
 void FWebBrowserTextureResource::UpdateResourceSize()
 {
-	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("FWebBrowserTextureResource:UpdateResourceSize"));
+	UE_LOG(LogWebBrowserTexture, VeryVerbose, TEXT("FWebBrowserTextureResource:UpdateResourceSize"));
 
 	SIZE_T ResourceSize = 0;
 
@@ -260,7 +262,6 @@ void FWebBrowserTextureResource::UpdateResourceSize()
 
 void FWebBrowserTextureResource::UpdateTextureReference(FRHITexture2D* NewTexture)
 {
-	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("FWebBrowserTextureResource:UpdateTextureReference"));
 	TextureRHI = NewTexture;
 	RenderTargetTextureRHI = NewTexture;
 
@@ -274,4 +275,5 @@ void FWebBrowserTextureResource::UpdateTextureReference(FRHITexture2D* NewTextur
 	{
 		OwnerDim = FIntPoint::ZeroValue;
 	}
+	UE_LOG(LogWebBrowserTexture, VeryVerbose, TEXT("FWebBrowserTextureResource:UpdateTextureReference: %d x %d"), OwnerDim.X, OwnerDim.Y);
 }

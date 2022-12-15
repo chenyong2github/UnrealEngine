@@ -59,6 +59,14 @@ public:
 	bool CanGoBack();
 	bool CanGoForward();
 
+	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	virtual FReply OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+
+	void SendTouchDown(FVector2D Position);
+	void SendTouchUp(FVector2D Position);
+	void SendTouchMove(FVector2D Position);
+
 	// WebViewClient callbacks
 
 	jbyteArray HandleShouldInterceptRequest(jstring JUrl);
@@ -96,6 +104,7 @@ protected:
 
 	TWeakPtr<FAndroidWebBrowserWindow> WebBrowserWindowPtr;
 private:
+	FVector2D ConvertMouseEventToLocal(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 
 	/** Enable 3D appearance for Android. */
 	bool IsAndroid3DBrowser;

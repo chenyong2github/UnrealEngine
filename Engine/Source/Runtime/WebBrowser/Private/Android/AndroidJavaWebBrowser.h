@@ -30,6 +30,9 @@ public:
 	void Close();
 	void GoBack();
 	void GoForward();
+	void SendTouchDown(float x, float y);
+	void SendTouchUp(float x, float y);
+	void SendTouchMove(float x, float y);
 	void SetAndroid3DBrowser(bool InIsAndroid3DBrowser);
 	void SetVisibility(bool InIsVisible);
 	void Update(const int posX, const int posY, const int sizeX, const int sizeY);
@@ -49,6 +52,7 @@ private:
 	FJavaClassMethod ReloadMethod;
 	FJavaClassMethod CloseMethod;
 	FJavaClassMethod GoBackOrForwardMethod;
+	FJavaClassMethod SendTouchEventMethod;
 	FJavaClassMethod SetAndroid3DBrowserMethod;
 	FJavaClassMethod SetVisibilityMethod;
 

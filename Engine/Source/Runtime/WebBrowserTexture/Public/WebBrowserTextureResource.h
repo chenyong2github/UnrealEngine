@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Containers/Queue.h"
+#include "Logging/LogMacros.h"
 #include "Math/Color.h"
 #include "Misc/Guid.h"
 #include "Misc/Timespan.h"
@@ -14,6 +15,8 @@
 #include "WebBrowserTextureSample.h"
 
 class UWebBrowserTexture;
+
+WEBBROWSERTEXTURE_API DECLARE_LOG_CATEGORY_EXTERN(LogWebBrowserTexture, Log, All);
 
 /**
  * Texture resource type for webbrowser textures.

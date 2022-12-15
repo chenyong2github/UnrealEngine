@@ -120,6 +120,8 @@ void SAndroidWebBrowserWidget::Construct(const FArguments& Args)
 	GConfig->GetBool(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("bEnableDomStorage"), bEnableDomStorage, GEngineIni);
 
 	FIntPoint viewportSize = WebBrowserWindowPtr.Pin()->GetViewportSize();
+	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("SAndroidWebBrowserWidget::Construct viewport=%d x %d"), viewportSize.X, viewportSize.Y);
+
 	JavaWebBrowser = MakeShared<FJavaAndroidWebBrowser, ESPMode::ThreadSafe>(false, FAndroidMisc::ShouldUseVulkan(), viewportSize.X, viewportSize.Y,
 		reinterpret_cast<jlong>(this), !(UE_BUILD_SHIPPING || UE_BUILD_TEST), Args._UseTransparency, bEnableDomStorage);
 
@@ -196,31 +198,49 @@ void SAndroidWebBrowserWidget::Tick(const FGeometry& AllottedGeometry, const dou
 		JavaWebBrowser->SetVideoTextureValid(false);
 	}
 
-	// Calculate UIScale, which can vary frame-to-frame thanks to device rotation
-	// UI Scale is calculated relative to vertical axis of 1280x720 / 720x1280
-	float UIScale;
-	FPlatformRect ScreenRect = FAndroidWindow::GetScreenRect();
-	int32_t ScreenWidth, ScreenHeight;
-	FAndroidWindow::CalculateSurfaceSize(ScreenWidth, ScreenHeight);
-	if (ScreenWidth > ScreenHeight)
+
+	FIntPoint viewportSize = WebBrowserWindowPtr.Pin()->GetViewportSize();
+
+	if (IsAndroid3DBrowser)
 	{
-		UIScale = (float)ScreenHeight / (ScreenRect.Bottom - ScreenRect.Top);
+		//FVector2D LocalSize = AllottedGeometry.GetLocalSize();
+		//FIntPoint IntLocalSize = FIntPoint((int32)LocalSize.X, (int32)LocalSize.Y);
+
+		//if (viewportSize != IntLocalSize)
+		//{
+		//	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("SAndroidWebBrowser::Tick: updating viewport to localSize = %d x %d"), IntLocalSize.X, IntLocalSize.Y);
+		//	WebBrowserWindowPtr.Pin()->SetViewportSize(IntLocalSize, FIntPoint(0, 0));
+		//}
+
+		JavaWebBrowser->Update(0, 0, viewportSize.X, viewportSize.Y);
 	}
 	else
 	{
-		UIScale = (float)ScreenHeight / (ScreenRect.Bottom - ScreenRect.Top);
+		// Calculate UIScale, which can vary frame-to-frame thanks to device rotation
+		// UI Scale is calculated relative to vertical axis of 1280x720 / 720x1280
+		float UIScale;
+		FPlatformRect ScreenRect = FAndroidWindow::GetScreenRect();
+		int32_t ScreenWidth, ScreenHeight;
+		FAndroidWindow::CalculateSurfaceSize(ScreenWidth, ScreenHeight);
+		if (ScreenWidth > ScreenHeight)
+		{
+			UIScale = (float)ScreenHeight / (ScreenRect.Bottom - ScreenRect.Top);
+		}
+		else
+		{
+			UIScale = (float)ScreenHeight / (ScreenRect.Bottom - ScreenRect.Top);
+		}
+
+		FVector2D Position = AllottedGeometry.GetAccumulatedRenderTransform().GetTranslation() * UIScale;
+		FVector2D Size = TransformVector(AllottedGeometry.GetAccumulatedRenderTransform(), AllottedGeometry.GetLocalSize()) * UIScale;
+
+		// Convert position to integer coordinates
+		FIntPoint IntPos(FMath::RoundToInt(Position.X), FMath::RoundToInt(Position.Y));
+		// Convert size to integer taking the rounding of position into account to avoid double round-down or double round-up causing a noticeable error.
+		FIntPoint IntSize = FIntPoint(FMath::RoundToInt(Position.X + Size.X), FMath::RoundToInt(Size.Y + Position.Y)) - IntPos;
+
+		JavaWebBrowser->Update(IntPos.X, IntPos.Y, IntSize.X, IntSize.Y);
 	}
-
-	FVector2D Position = AllottedGeometry.GetAccumulatedRenderTransform().GetTranslation() * UIScale;
-	FVector2D Size = TransformVector(AllottedGeometry.GetAccumulatedRenderTransform(), AllottedGeometry.GetLocalSize()) * UIScale;
-
-	// Convert position to integer coordinates
-	FIntPoint IntPos(FMath::RoundToInt(Position.X), FMath::RoundToInt(Position.Y));
-	// Convert size to integer taking the rounding of position into account to avoid double round-down or double round-up causing a noticeable error.
-	FIntPoint IntSize = FIntPoint(FMath::RoundToInt(Position.X + Size.X), FMath::RoundToInt(Size.Y + Position.Y)) - IntPos;
-
-	JavaWebBrowser->Update(IntPos.X, IntPos.Y, IntSize.X, IntSize.Y);
-
 
 	if (IsAndroid3DBrowser)
 	{
@@ -236,8 +256,6 @@ void SAndroidWebBrowserWidget::Tick(const FGeometry& AllottedGeometry, const dou
 		{
 			// create new video sample
 			auto NewTextureSample = TextureSamplePool->AcquireShared();
-
-			FIntPoint viewportSize = WebBrowserWindowPtr.Pin()->GetViewportSize();
 
 			if (!NewTextureSample->Initialize(viewportSize))
 			{
@@ -272,7 +290,7 @@ void SAndroidWebBrowserWidget::Tick(const FGeometry& AllottedGeometry, const dou
 
 					if (!PinnedJavaWebBrowser->GetVideoLastFrameData(Buffer, SampleCount, &bRegionChanged))
 					{
-						FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Fetch RT: ShouldUseVulkan couldn't get texture buffer"));
+						//FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Fetch RT: ShouldUseVulkan couldn't get texture buffer"));
 						return;
 					}
 
@@ -297,8 +315,6 @@ void SAndroidWebBrowserWidget::Tick(const FGeometry& AllottedGeometry, const dou
 				FGuid PlayerGuid;
 				FIntPoint Size;
 			};
-
-			FIntPoint viewportSize = WebBrowserWindowPtr.Pin()->GetViewportSize();
 
 			FWriteWebBrowserParams WriteWebBrowserParams = { JavaWebBrowser, WebBrowserTexture->GetExternalTextureGuid(), viewportSize };
 			ENQUEUE_RENDER_COMMAND(WriteAndroidWebBrowser)(
@@ -361,8 +377,6 @@ void SAndroidWebBrowserWidget::Tick(const FGeometry& AllottedGeometry, const dou
 		{
 			// create new video sample
 			auto NewTextureSample = TextureSamplePool->AcquireShared();
-
-			FIntPoint viewportSize = WebBrowserWindowPtr.Pin()->GetViewportSize();
 
 			if (!NewTextureSample->Initialize(viewportSize))
 			{
@@ -475,6 +489,82 @@ bool SAndroidWebBrowserWidget::CanGoBack()
 bool SAndroidWebBrowserWidget::CanGoForward()
 {
 	return HistoryPosition < HistorySize-1;
+}
+
+void SAndroidWebBrowserWidget::SendTouchDown(FVector2D Position)
+{
+	FVector2D WidgetSize = GetCachedGeometry().GetLocalSize();
+	JavaWebBrowser->SendTouchDown(Position.X / WidgetSize.X, Position.Y / WidgetSize.Y);
+}
+
+void SAndroidWebBrowserWidget::SendTouchUp(FVector2D Position)
+{
+	FVector2D WidgetSize = GetCachedGeometry().GetLocalSize();
+	JavaWebBrowser->SendTouchUp(Position.X / WidgetSize.X, Position.Y / WidgetSize.Y);
+}
+
+void SAndroidWebBrowserWidget::SendTouchMove(FVector2D Position)
+{
+	FVector2D WidgetSize = GetCachedGeometry().GetLocalSize();
+	JavaWebBrowser->SendTouchMove(Position.X / WidgetSize.X, Position.Y / WidgetSize.Y);
+}
+
+FVector2D SAndroidWebBrowserWidget::ConvertMouseEventToLocal(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	FGeometry MouseGeometry = MyGeometry;
+
+	float DPIScale = MouseGeometry.Scale;
+	FVector2D LocalPos = MouseGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition()) * DPIScale;
+
+	return LocalPos;
+}
+
+FReply SAndroidWebBrowserWidget::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	FReply Reply = FReply::Unhandled();
+
+	FKey Button = MouseEvent.GetEffectingButton();
+	bool bSupportedButton = (Button == EKeys::LeftMouseButton); // || Button == EKeys::RightMouseButton || Button == EKeys::MiddleMouseButton);
+
+	if (bSupportedButton)
+	{
+		Reply = FReply::Handled();
+		SendTouchDown(ConvertMouseEventToLocal(MyGeometry, MouseEvent));
+	}
+
+	return Reply;
+}
+
+FReply SAndroidWebBrowserWidget::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	FReply Reply = FReply::Unhandled();
+
+	FKey Button = MouseEvent.GetEffectingButton();
+	bool bSupportedButton = (Button == EKeys::LeftMouseButton); // || Button == EKeys::RightMouseButton || Button == EKeys::MiddleMouseButton);
+
+	if (bSupportedButton)
+	{
+		Reply = FReply::Handled();
+		SendTouchUp(ConvertMouseEventToLocal(MyGeometry, MouseEvent));
+	}
+
+	return Reply;
+}
+
+FReply SAndroidWebBrowserWidget::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	FReply Reply = FReply::Unhandled();
+
+	FKey Button = MouseEvent.GetEffectingButton();
+	bool bSupportedButton = (Button == EKeys::LeftMouseButton); // || Button == EKeys::RightMouseButton || Button == EKeys::MiddleMouseButton);
+
+	if (bSupportedButton)
+	{
+		Reply = FReply::Handled();
+		SendTouchMove(ConvertMouseEventToLocal(MyGeometry, MouseEvent));
+	}
+
+	return Reply;
 }
 
 void SAndroidWebBrowserWidget::SetWebBrowserVisibility(bool InIsVisible)

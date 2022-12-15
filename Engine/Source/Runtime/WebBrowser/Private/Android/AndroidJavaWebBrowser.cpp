@@ -25,6 +25,11 @@ static jfieldID FindField(JNIEnv* JEnv, jclass Class, const ANSICHAR* FieldName,
 	return Field;
 }
 
+// From https://developer.android.com/reference/android/view/MotionEvent#constants_1
+#define MOTIONEVENT_ACTION_DOWN		0
+#define MOTIONEVENT_ACTION_UP		1
+#define MOTIONEVENT_ACTION_MOVE		2
+
 FJavaAndroidWebBrowser::FJavaAndroidWebBrowser(bool swizzlePixels, bool vulkanRenderer, int32 width, int32 height,
 	jlong widgetPtr, bool bEnableRemoteDebugging, bool bUseTransparency, bool bEnableDomStorage)
 	: FJavaClassObject(GetClassName(), "(JIIZZZZZ)V", widgetPtr, width, height,  swizzlePixels, vulkanRenderer, bEnableRemoteDebugging, bUseTransparency, bEnableDomStorage)
@@ -41,6 +46,7 @@ FJavaAndroidWebBrowser::FJavaAndroidWebBrowser(bool swizzlePixels, bool vulkanRe
 	, ReloadMethod(GetClassMethod("Reload", "()V"))
 	, CloseMethod(GetClassMethod("Close", "()V"))
 	, GoBackOrForwardMethod(GetClassMethod("GoBackOrForward", "(I)V"))
+	, SendTouchEventMethod(GetClassMethod("SendTouchEvent", "(IFF)V"))
 	, SetAndroid3DBrowserMethod(GetClassMethod("SetAndroid3DBrowser", "(Z)V"))
 	, SetVisibilityMethod(GetClassMethod("SetVisibility", "(Z)V"))
 {
@@ -206,6 +212,21 @@ void FJavaAndroidWebBrowser::GoBack()
 void FJavaAndroidWebBrowser::GoForward()
 {
 	CallMethod<void>(GoBackOrForwardMethod, 1);
+}
+
+void FJavaAndroidWebBrowser::SendTouchDown(float x, float y)
+{
+	CallMethod<void>(SendTouchEventMethod, MOTIONEVENT_ACTION_DOWN, x, y);
+}
+
+void FJavaAndroidWebBrowser::SendTouchUp(float x, float y)
+{
+	CallMethod<void>(SendTouchEventMethod, MOTIONEVENT_ACTION_UP, x, y);
+}
+
+void FJavaAndroidWebBrowser::SendTouchMove(float x, float y)
+{
+	CallMethod<void>(SendTouchEventMethod, MOTIONEVENT_ACTION_MOVE, x, y);
 }
 
 void FJavaAndroidWebBrowser::SetAndroid3DBrowser(bool InIsAndroid3DBrowser)

@@ -102,6 +102,8 @@ class WebViewControl
 
 		nativePtr = inNativePtr;
 
+		//GameActivity.Log.debug("WebViewControl width=" + width + ", height=" + height);
+
 		GameActivity._activity.runOnUiThread(new Runnable()
 		{
 			@Override
@@ -302,6 +304,30 @@ class WebViewControl
 		return webView.canGoBackOrForward(Steps);
 	}
 
+	public void SendTouchEvent(int event, float x, float y)
+	{
+		final int actionType = event;
+		final long actionTime = SystemClock.uptimeMillis();
+		final float actionX = webView.getLeft() + (x * webView.getWidth());
+		final float actionY = webView.getTop() + (y * webView.getHeight());
+		//GameActivity.Log.debug("SendTouchEvent(event=" + event + ", x=" + x + ", y=" + y + ") = " + actionX + ", " + actionY);
+		GameActivity._activity.runOnUiThread(new Runnable()
+		{
+			@Override
+			public void run()
+			{
+				long eventTime = SystemClock.uptimeMillis();
+				webView.onTouchEvent(MotionEvent.obtain(
+					actionTime,
+					eventTime,
+					actionType,
+					actionX,
+					actionY,
+					0
+				));
+			}
+		});
+	}
 
 	// called from C++ paint event
 	public void Update(final int x, final int y, final int width, final int height)

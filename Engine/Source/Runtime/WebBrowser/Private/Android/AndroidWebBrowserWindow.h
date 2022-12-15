@@ -246,6 +246,8 @@ private:
 
 	bool OnJsMessageReceived(const FString& Command, const TArray<FString>& Params, const FString& Origin);
 
+	FVector2D ConvertMouseEventToLocal(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, bool bIsPopup);
+
 	TSharedPtr<SAndroidWebBrowserWidget> BrowserWidget;
 
 	/** Current title of this window. */
