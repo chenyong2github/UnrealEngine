@@ -21,6 +21,7 @@ class MESHMODELINGTOOLSEXP_API USeamSculptToolBuilder : public UMeshSurfacePoint
 
 public:
 	virtual UMeshSurfacePointTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
+	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 };
 
 

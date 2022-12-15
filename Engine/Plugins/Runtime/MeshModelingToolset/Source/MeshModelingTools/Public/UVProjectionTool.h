@@ -35,6 +35,7 @@ public:
 	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 
 	virtual bool WantsInputSelectionIfAvailable() const override { return true; }
+	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 };
 
 

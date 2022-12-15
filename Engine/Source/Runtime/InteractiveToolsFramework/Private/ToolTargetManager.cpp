@@ -91,7 +91,15 @@ void UToolTargetManager::EnumerateSelectedAndTargetableComponents(const FToolBui
 }
 
 
-
+int32 UToolTargetManager::CountSelectedAndTargetableWithPredicate(const FToolBuilderState& SceneState,
+	const FToolTargetTypeRequirements& TargetRequirements,
+	TFunctionRef<bool(UActorComponent&)> ComponentPred) const
+{
+	return ToolBuilderUtil::CountComponents(SceneState, [&](UActorComponent* Object)
+	{
+		return CanBuildTarget(Object, TargetRequirements) && ComponentPred(*Object);
+	});
+}
 
 UToolTarget* UToolTargetManager::BuildFirstSelectedTargetable(const FToolBuilderState& SceneState, const FToolTargetTypeRequirements& TargetType)
 {

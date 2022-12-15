@@ -21,9 +21,10 @@
 #include "DynamicMesh/MeshIndexUtil.h"
 #include "DynamicMesh/DynamicMeshChangeTracker.h"
 #include "DynamicMeshToMeshDescription.h"
+#include "ToolTargetManager.h"
 
-#include "TargetInterfaces/MeshDescriptionCommitter.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+
 #include "ModelingToolTargetUtil.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SeamSculptTool)
@@ -44,6 +45,12 @@ UMeshSurfacePointTool* USeamSculptToolBuilder::CreateNewTool(const FToolBuilderS
 }
 
 
+bool USeamSculptToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+{
+	return UMeshSurfacePointMeshEditingToolBuilder::CanBuildTool(SceneState) && 
+		SceneState.TargetManager->CountSelectedAndTargetableWithPredicate(SceneState, GetTargetRequirements(),
+			[](UActorComponent& Component) { return ToolBuilderUtil::ComponentTypeCouldHaveUVs(Component); }) > 0;
+}
 
 
 

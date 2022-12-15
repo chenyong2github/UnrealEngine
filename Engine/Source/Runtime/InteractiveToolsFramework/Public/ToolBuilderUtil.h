@@ -57,6 +57,14 @@ namespace ToolBuilderUtil
 	/** Find first first available Actor of given type, or return nullptr if not found */
 	template<typename ActorType>
 	ActorType* FindFirstActorOfType(const FToolBuilderState& InputState);
+
+	/** Determine if component support UVs. */
+	INTERACTIVETOOLSFRAMEWORK_API
+	bool ComponentTypeCouldHaveUVs(const UActorComponent& Component);
+
+	/** Determine if component is a volume or not. */
+	INTERACTIVETOOLSFRAMEWORK_API
+	bool IsVolume(const UActorComponent& Component);
 }
 
 /*

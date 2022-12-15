@@ -30,6 +30,7 @@ class MESHMODELINGTOOLSEDITORONLY_API UParameterizeMeshToolBuilder : public USin
 	GENERATED_BODY()
 public:
 	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
+	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 };
 
 

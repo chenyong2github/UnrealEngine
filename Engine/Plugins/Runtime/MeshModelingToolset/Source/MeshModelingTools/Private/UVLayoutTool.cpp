@@ -15,9 +15,9 @@
 #include "ParameterizationOps/UVLayoutOp.h"
 #include "Properties/UVLayoutProperties.h"
 
-#include "TargetInterfaces/MaterialProvider.h"
-#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ModelingToolTargetUtil.h"
+#include "ToolTargetManager.h"
+
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(UVLayoutTool)
 
@@ -34,7 +34,12 @@ UMultiSelectionMeshEditingTool* UUVLayoutToolBuilder::CreateNewTool(const FToolB
 	return NewObject<UUVLayoutTool>(SceneState.ToolManager);
 }
 
-
+bool UUVLayoutToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+{
+	return UMultiSelectionMeshEditingToolBuilder::CanBuildTool(SceneState) &&
+		SceneState.TargetManager->CountSelectedAndTargetableWithPredicate(SceneState, GetTargetRequirements(),
+			[](UActorComponent& Component) { return ToolBuilderUtil::ComponentTypeCouldHaveUVs(Component); }) > 0;
+}
 
 /*
  * Tool

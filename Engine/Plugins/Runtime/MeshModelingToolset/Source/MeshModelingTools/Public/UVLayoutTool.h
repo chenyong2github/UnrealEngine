@@ -34,6 +34,7 @@ class MESHMODELINGTOOLS_API UUVLayoutToolBuilder : public UMultiSelectionMeshEdi
 
 public:
 	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
+	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 };
 
 

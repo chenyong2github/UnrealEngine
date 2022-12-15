@@ -6,6 +6,8 @@
 #include "GameFramework/Actor.h"
 #include "Engine/Selection.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/BrushComponent.h"
+#include "Components/MeshComponent.h"
 
 int ToolBuilderUtil::CountComponents(const FToolBuilderState& InputState, const TFunction<bool(UActorComponent*)>& Predicate)
 {
@@ -129,3 +131,14 @@ TArray<AActor*> ToolBuilderUtil::FindAllActors(const FToolBuilderState& InputSta
 	return InputState.SelectedActors.FilterByPredicate(Predicate);
 }
 
+
+bool ToolBuilderUtil::ComponentTypeCouldHaveUVs(const UActorComponent& Component)
+{
+	return Cast<UMeshComponent>(&Component) != nullptr;
+}
+
+
+bool ToolBuilderUtil::IsVolume(const UActorComponent& Component)
+{
+	return Cast<UBrushComponent>(&Component) != nullptr;
+}

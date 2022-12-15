@@ -19,6 +19,8 @@
 #include "Parameterization/DynamicMeshUVEditor.h"
 #include "Operations/MeshConvexHull.h"
 #include "MinVolumeBox3.h"
+#include "ToolTargetManager.h"
+
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(UVProjectionTool)
 
@@ -33,6 +35,13 @@ using namespace UE::Geometry;
 USingleSelectionMeshEditingTool* UUVProjectionToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
 	return NewObject<UUVProjectionTool>(SceneState.ToolManager);
+}
+
+bool UUVProjectionToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+{
+	return USingleSelectionMeshEditingToolBuilder::CanBuildTool(SceneState) && 
+		SceneState.TargetManager->CountSelectedAndTargetableWithPredicate(SceneState, GetTargetRequirements(),
+			[](UActorComponent& Component) { return ToolBuilderUtil::ComponentTypeCouldHaveUVs(Component); }) > 0;
 }
 
 /*

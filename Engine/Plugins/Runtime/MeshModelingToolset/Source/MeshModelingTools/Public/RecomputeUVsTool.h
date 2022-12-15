@@ -34,6 +34,7 @@ class MESHMODELINGTOOLS_API URecomputeUVsToolBuilder : public USingleSelectionMe
 
 public:
 	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
+	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 };
 
 

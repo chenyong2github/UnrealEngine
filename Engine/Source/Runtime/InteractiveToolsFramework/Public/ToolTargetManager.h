@@ -101,7 +101,15 @@ public:
 		const FToolTargetTypeRequirements& TargetRequirements,
 		TFunctionRef<void(UActorComponent*)> ComponentFunc) const;
 
-	
+	/**
+	 * Looks through the currently selected components and actors and counts the number of
+	 * inputs that could be used to create qualifying tool targets with an additional test predicate.
+	 */
+	virtual int32 CountSelectedAndTargetableWithPredicate(const FToolBuilderState& SceneState,
+		const FToolTargetTypeRequirements& TargetRequirements,
+		TFunctionRef<bool(UActorComponent&)> ComponentPred) const;
+
+
 	/**
 	 * Looks through the currently selected components and actors and builds a target out of
 	 * the first encountered element that satisfies the requirements. 

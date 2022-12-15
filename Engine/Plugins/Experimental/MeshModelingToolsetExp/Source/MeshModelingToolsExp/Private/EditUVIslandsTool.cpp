@@ -13,6 +13,7 @@
 #include "BaseBehaviors/SingleClickBehavior.h"
 #include "ToolSetupUtil.h"
 #include "ModelingToolTargetUtil.h"
+#include "ToolTargetManager.h"
 
 #include "Materials/MaterialInstanceDynamic.h"
 
@@ -32,6 +33,12 @@ UMeshSurfacePointTool* UEditUVIslandsToolBuilder::CreateNewTool(const FToolBuild
 	return DeformTool;
 }
 
+bool UEditUVIslandsToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+{
+	return UMeshSurfacePointToolBuilder::CanBuildTool(SceneState) && 		
+		SceneState.TargetManager->CountSelectedAndTargetableWithPredicate(SceneState, GetTargetRequirements(),
+		[](UActorComponent& Component) { return ToolBuilderUtil::ComponentTypeCouldHaveUVs(Component); }) > 0;
+}
 
 /*
 * Tool methods

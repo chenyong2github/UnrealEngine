@@ -10,6 +10,7 @@
 #include "Properties/ParameterizeMeshProperties.h"
 #include "Polygroups/PolygroupUtil.h"
 #include "Polygroups/PolygroupSet.h"
+#include "ToolTargetManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ParameterizeMeshTool)
 
@@ -25,6 +26,13 @@ USingleSelectionMeshEditingTool* UParameterizeMeshToolBuilder::CreateNewTool(con
 {
 	UParameterizeMeshTool* NewTool = NewObject<UParameterizeMeshTool>(SceneState.ToolManager);
 	return NewTool;
+}
+
+bool UParameterizeMeshToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+{
+	return USingleSelectionMeshEditingToolBuilder::CanBuildTool(SceneState) &&
+		SceneState.TargetManager->CountSelectedAndTargetableWithPredicate(SceneState, GetTargetRequirements(),
+			[](UActorComponent& Component) { return ToolBuilderUtil::ComponentTypeCouldHaveUVs(Component); }) == 1;
 }
 
 /*

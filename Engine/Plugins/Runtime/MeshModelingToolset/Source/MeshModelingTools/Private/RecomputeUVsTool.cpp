@@ -8,6 +8,8 @@
 #include "ToolSetupUtil.h"
 #include "ModelingToolTargetUtil.h"
 #include "ParameterizationOps/RecomputeUVsOp.h"
+#include "ToolTargetManager.h"
+
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RecomputeUVsTool)
 
@@ -24,6 +26,13 @@ USingleSelectionMeshEditingTool* URecomputeUVsToolBuilder::CreateNewTool(const F
 {
 	URecomputeUVsTool* NewTool = NewObject<URecomputeUVsTool>(SceneState.ToolManager);
 	return NewTool;
+}
+
+bool URecomputeUVsToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+{
+	return USingleSelectionMeshEditingToolBuilder::CanBuildTool(SceneState) && 
+		SceneState.TargetManager->CountSelectedAndTargetableWithPredicate(SceneState, GetTargetRequirements(),
+			[](UActorComponent& Component) { return ToolBuilderUtil::ComponentTypeCouldHaveUVs(Component); }) > 0;
 }
 
 /*
