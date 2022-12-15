@@ -56,6 +56,7 @@
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/LoaderAdapter/LoaderAdapterActorList.h"
 #include "WorldPartition/LoaderAdapter/LoaderAdapterShape.h"
+#include "WorldPartition/LoaderAdapter/LoaderAdapterPinnedActors.h"
 #include "WorldPartition/WorldPartitionActorDescViewProxy.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
 #include "WorldPartition/Cook/WorldPartitionCookPackage.h"
@@ -280,21 +281,6 @@ public:
 	{
 		bIncludeSpatiallyLoadedActors = false;
 		bIncludeNonSpatiallyLoadedActors = true;
-	}
-};
-
-class FLoaderAdapterPinnedActors: public FLoaderAdapterActorList
-{
-public:
-	FLoaderAdapterPinnedActors(UWorld* InWorld)
-		: FLoaderAdapterActorList(InWorld)
-	{}
-
-protected:
-	virtual bool PassActorDescFilter(const FWorldPartitionHandle& ActorHandle) const override
-	{
-		// We want to be able to pin any type of actors (HLODs, etc).
-		return ActorHandle.IsValid() && !ActorsToRemove.Contains(ActorHandle);
 	}
 };
 

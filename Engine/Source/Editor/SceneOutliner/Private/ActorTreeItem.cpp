@@ -19,6 +19,7 @@
 #include "SSocketChooser.h"
 #include "LevelInstance/LevelInstanceInterface.h"
 #include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/LoaderAdapter/LoaderAdapterPinnedActors.h"
 #include "ToolMenu.h"
 #include "Engine/Level.h"
 
@@ -362,17 +363,7 @@ TSharedRef<SWidget> FActorTreeItem::GenerateLabelWidget(ISceneOutliner& Outliner
 
 bool FActorTreeItem::ShouldShowPinnedState() const
 {
-	if (const AActor* ActorPtr = Actor.Get())
-	{
-		// Pinning of Actors is only supported on the main world partition
-		const ULevel* Level = ActorPtr->GetLevel();
-		const UWorld* World = Level->GetWorld();
-
-		// Only Spatially loaded actors can be pinned with the exception of non spatially loaded, runtime only actors (ex: HLODs)
-		return World && !World->IsGameWorld() && !!World->GetWorldPartition() && Level->IsPersistentLevel() && ActorPtr->IsPackageExternal() && (ActorPtr->GetIsSpatiallyLoaded() || ActorPtr->IsRuntimeOnly());
-	}
-
-	return false;
+	return FLoaderAdapterPinnedActors::SupportsPinning(Actor.Get());
 }
 
 bool FActorTreeItem::ShouldShowVisibilityState() const

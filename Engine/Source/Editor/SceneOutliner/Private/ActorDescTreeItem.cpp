@@ -4,6 +4,7 @@
 #include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
+#include "WorldPartition/LoaderAdapter/LoaderAdapterPinnedActors.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Layout/WidgetPath.h"
 #include "Framework/Application/MenuStack.h"
@@ -116,24 +117,13 @@ private:
 	{
 		if (TSharedPtr<FActorDescTreeItem> TreeItem = TreeItemPtr.Pin())
 		{
-			if (const FWorldPartitionActorDesc* ActorDesc = TreeItem->ActorDescHandle.Get())
+			if (FWorldPartitionActorDesc* ActorDesc = TreeItem->ActorDescHandle.Get())
 			{
 				FFormatNamedArguments Args;
 				Args.Add(TEXT("ActorLabel"), FText::FromString(TreeItem->GetDisplayString()));
-				
-				UActorDescContainer* ActorDescContainer = ActorDesc->GetContainer();
-				UWorld* World = ActorDescContainer != nullptr ? ActorDescContainer->GetWorld() : nullptr;
-				UWorldPartition* WorldPartition = World != nullptr ? World->GetWorldPartition() : nullptr;
-				if (WorldPartition && (!ActorDesc->GetIsSpatiallyLoaded() || WorldPartition->IsActorPinned(ActorDesc->GetGuid())))
-				{
-					Args.Add(TEXT("UnloadState"), LOCTEXT("UnloadedDataLayer", "(Unloaded DataLayer)"));
-				}
-				else
-				{
-					Args.Add(TEXT("UnloadState"), LOCTEXT("UnloadedActorLabel", "(Unloaded)"));
-				}
+				Args.Add(TEXT("UnloadState"), FLoaderAdapterPinnedActors::GetUnloadedReason(ActorDesc));
 
-				return FText::Format(LOCTEXT("UnloadedActorDisplay", "{ActorLabel} {UnloadState}"), Args);
+				return FText::Format(LOCTEXT("UnloadedActorDisplay", "{ActorLabel} ({UnloadState})"), Args);
 			}
 		}
 		return FText();
@@ -319,37 +309,7 @@ bool FActorDescTreeItem::GetVisibility() const
 
 bool FActorDescTreeItem::ShouldShowPinnedState() const
 {
-	if (ActorDescHandle.IsValid())
-	{
-		// Pinning of ActorDescs is only supported on the main world partition
-		if (UActorDescContainer* Container = ActorDescHandle->GetContainer())
-		{
-			if (FWorldPartitionActorDesc const* ActorDesc = ActorDescHandle.Get())
-			{
-				// Only Spatially loaded actors can be pinned with the exception of non spatially loaded, runtime only actors (ex: HLODs)
-				if (!ActorDesc->GetIsSpatiallyLoaded() && !ActorDesc->GetActorIsRuntimeOnly())
-				{
-					return false;
-				}
-			}
-
-			if (Container->IsMainPartitionContainer())
-			{
-				return true;
-			}
-			else if (ActorDescHandle->GetContentBundleGuid().IsValid())
-			{
-				const UWorld* ContainerWorld = Container->GetWorld();
-				const UWorldPartition* ContainerWorldPartition = ContainerWorld ? ContainerWorld->GetWorldPartition() : nullptr;
-				if (ContainerWorldPartition && ContainerWorldPartition->IsMainWorldPartition())
-				{
-					return ActorDescHandle->GetActorSoftPath().GetAssetPath().GetPackageName() == ContainerWorld->GetPackage()->GetFName();
-				}
-			}
-		}
-	}
-
-	return false;
+	return FLoaderAdapterPinnedActors::SupportsPinning(ActorDescHandle.Get());
 }
 
 bool FActorDescTreeItem::GetPinnedState() const
