@@ -11,6 +11,7 @@
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
 #include "Misc/RuntimeErrors.h"
+#include "Misc/URLRequestFilter.h"
 #include "UObject/GCObject.h"
 #include "EngineGlobals.h"
 #include "Components/ActorComponent.h"
@@ -2653,7 +2654,9 @@ void UKismetSystemLibrary::LaunchURL(const FString& URL)
 {
 	if (!URL.IsEmpty())
 	{
-		FPlatformProcess::LaunchURL(*URL, nullptr, nullptr);
+		UE::Core::FURLRequestFilter Filter(TEXT("SystemLibrary.LaunchURLFilter"), GEngineIni);
+
+		FPlatformProcess::LaunchURLFiltered(*URL, nullptr, nullptr, Filter);
 	}
 }
 

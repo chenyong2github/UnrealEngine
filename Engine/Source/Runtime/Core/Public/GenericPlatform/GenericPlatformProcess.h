@@ -9,7 +9,6 @@
 #include "HAL/PlatformCrt.h"
 #include "HAL/PlatformMisc.h"
 #include "Misc/EnumClassFlags.h"
-#include "Misc/EnumClassFlags.h"
 #include "Templates/Function.h"
 
 class FEvent;
@@ -70,6 +69,10 @@ namespace ENamedThreads
 	enum Type : int32;
 }
 
+namespace UE::Core
+{
+	class FURLRequestFilter;
+}
 
 /** Generic implementation for the process handle. */
 template< typename T, T InvalidHandleValue >
@@ -387,6 +390,18 @@ struct CORE_API FGenericPlatformProcess
 	 * to properly escape a URL fragment, use FGenericPlatformHttp::UrlEncode.
 	 */
 	static void LaunchURL( const TCHAR* URL, const TCHAR* Parms, FString* Error );
+
+	/**
+	 * Launch a uniform resource locator (i.e. http://www.epicgames.com/unreal).
+	 * This is expected to return immediately as the URL is launched by another
+	 * task. The URL param must already be a valid URL. The URL is passed through
+	 * the filter parameter for an added measure of security if the URL is from
+	 * and untrusted source. If you're looking for code to properly escape
+	 * a URL fragment, use FGenericPlatformHttp::UrlEncode.
+	 * 
+	 * @return true if URL passed the filter and was launched, false if it was rejected by the filter.
+	 */
+	static bool LaunchURLFiltered(const TCHAR* URL, const TCHAR* Parms, FString* Error, const UE::Core::FURLRequestFilter& Filter);
 
 	/**
 	 * Checks if the platform can launch a uniform resource locator (i.e. http://www.epicgames.com/unreal).

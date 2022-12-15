@@ -18,6 +18,7 @@
 #include "Misc/EngineVersion.h"
 #include "Misc/LazySingleton.h"
 #include "Misc/Fork.h"
+#include "Misc/URLRequestFilter.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Async/TaskGraphInterfaces.h"
 
@@ -225,6 +226,22 @@ const FString FGenericPlatformProcess::GetModulesDirectory()
 void FGenericPlatformProcess::LaunchURL( const TCHAR* URL, const TCHAR* Parms, FString* Error )
 {
 	UE_LOG(LogHAL, Fatal, TEXT("FGenericPlatformProcess::LaunchURL not implemented on this platform"));
+}
+
+bool FGenericPlatformProcess::LaunchURLFiltered(const TCHAR* URL, const TCHAR* Parms, FString* Error, const UE::Core::FURLRequestFilter& Filter)
+{
+	const bool bAllowedByFilter = Filter.IsRequestAllowed(URL);
+
+	if (bAllowedByFilter)
+	{
+		FPlatformProcess::LaunchURL(URL, Parms, Error);
+	}
+	else if (Error)
+	{
+		*Error = TEXT("URL rejected by filter");
+	}
+
+	return bAllowedByFilter;
 }
 
 bool FGenericPlatformProcess::CanLaunchURL(const TCHAR* URL)
