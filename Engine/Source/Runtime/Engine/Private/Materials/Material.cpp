@@ -375,6 +375,12 @@ void FMaterialResource::GetShaderMapId(EShaderPlatform Platform, const ITargetPl
 		MaterialInstance->GetStaticParameterValues(CompositedStaticParameters);
 		OutId.UpdateFromParameterSet(CompositedStaticParameters);
 	}
+	else
+	{
+		FStaticParameterSet CompositedStaticParameters;
+		Material->GetStaticParameterValues(CompositedStaticParameters);
+		OutId.UpdateFromParameterSet(CompositedStaticParameters);
+	}
 #endif // WITH_EDITOR
 }
 
@@ -387,6 +393,10 @@ void FMaterialResource::GetStaticParameterSet(EShaderPlatform Platform, FStaticP
 	if (MaterialInstance)
 	{
 		MaterialInstance->GetStaticParameterValues(OutSet);
+	}
+	else
+	{
+		Material->GetStaticParameterValues(OutSet);
 	}
 }
 #endif // WITH_EDITORONLY_DATA

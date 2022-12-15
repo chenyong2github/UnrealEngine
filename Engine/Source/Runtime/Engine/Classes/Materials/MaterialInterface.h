@@ -28,6 +28,7 @@
 #include "MaterialRecursionGuard.h"
 #include "MaterialShaderPrecompileMode.h"
 #include "RHIFeatureLevel.h"
+#include "StaticParameterSet.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RHI.h"
@@ -536,6 +537,10 @@ public:
 	virtual FGraphEventArray PrecachePSOs(const TConstArrayView<const FVertexFactoryType*>& VertexFactoryTypes, const struct FPSOPrecacheParams& PreCacheParams) { return FGraphEventArray(); }
 
 #if WITH_EDITORONLY_DATA
+	/**
+	* Builds a composited set of static parameters, including inherited and overridden values
+	*/
+	ENGINE_API void GetStaticParameterValues(FStaticParameterSet& OutStaticParameters);
 
 	/**
 	* Get the value of the given static switch parameter
@@ -1093,6 +1098,11 @@ private:
 	static UEnum* SamplerTypeEnum;
 
 #if WITH_EDITOR
+protected:
+	mutable TOptional<FStaticParameterSet> CachedStaticParameterValues;
+	mutable uint8 AllowCachingStaticParameterValuesCounter = 0;
+
+private:
 	/**
 	* Whether or not this material interface should force the preview to be a plane mesh.
 	*/

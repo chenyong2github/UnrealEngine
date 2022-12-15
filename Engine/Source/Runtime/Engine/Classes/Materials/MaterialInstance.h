@@ -7,7 +7,6 @@
 #include "UObject/ObjectMacros.h"
 #include "Misc/Guid.h"
 #include "Materials/MaterialInterface.h"
-#include "StaticParameterSet.h"
 #include "Materials/MaterialInstanceBasePropertyOverrides.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
@@ -690,11 +689,6 @@ protected:
 	TUniquePtr<FMaterialInstanceCachedData> CachedData;
 
 private:
-#if WITH_EDITOR
-	mutable TOptional<FStaticParameterSet> CachedStaticParameterValues;
-	mutable uint8 AllowCachingStaticParameterValuesCounter = 0;
-#endif // WITH_EDITOR
-
 	/** Inline material resources serialized from disk. To be processed on game thread in PostLoad. */
 	TArray<FMaterialResource> LoadedMaterialResources;
 
@@ -859,11 +853,6 @@ public:
 #if WITH_EDITORONLY_DATA
 
 	ENGINE_API void SetStaticSwitchParameterValueEditorOnly(const FMaterialParameterInfo& ParameterInfo, bool Value);
-
-	/**
-	 * Builds a composited set of static parameters, including inherited and overridden values
-	 */
-	ENGINE_API void GetStaticParameterValues(FStaticParameterSet& OutStaticParameters);
 #endif // WITH_EDITORONLY_DATA
 
 	ENGINE_API virtual void GetAllParametersOfType(EMaterialParameterType Type, TMap<FMaterialParameterInfo, FMaterialParameterMetadata>& OutParameters) const override;
