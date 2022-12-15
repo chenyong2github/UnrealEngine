@@ -118,7 +118,7 @@ FString FPackageMigrationContext::FScopedMountPoint::GetNewPackageNameForMigrati
 
 
 	FString NewPackageName;
-	NewPackageName.Reserve(GetRootPath().Len() - CurrentPackageWithoutMountPoint.Len());
+	NewPackageName.Reserve(GetRootPath().Len() + CurrentPackageWithoutMountPoint.Len());
 	NewPackageName.Append(GetRootPath());
 	NewPackageName.Append(CurrentPackageWithoutMountPoint);
 
