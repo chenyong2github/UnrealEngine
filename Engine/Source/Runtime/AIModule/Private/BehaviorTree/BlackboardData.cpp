@@ -52,7 +52,7 @@ bool FBlackboardEntry::operator==(const FBlackboardEntry& Other) const
 		((KeyType && Other.KeyType && KeyType->GetClass() == Other.KeyType->GetClass()) || (KeyType == NULL && Other.KeyType == NULL));
 }
 
-UBlackboardData::UBlackboardData(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
+UBlackboardData::UBlackboardData(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer), FirstKeyID(0)
 {
 }
 
