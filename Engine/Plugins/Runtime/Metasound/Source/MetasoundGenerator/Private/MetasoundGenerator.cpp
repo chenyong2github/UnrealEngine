@@ -14,6 +14,7 @@
 #include "MetasoundTrace.h"
 #include "MetasoundTrigger.h"
 #include "MetasoundVertexData.h"
+#include "MetasoundFrontendDataTypeRegistry.h"
 
 
 namespace Metasound
@@ -87,11 +88,29 @@ namespace Metasound
 				FinishTrigger = VertexData.GetOutputs().GetOrConstructDataReadReference<FTrigger>(SourceOneShotInterface::Outputs::OnFinished, InitParams.OperatorSettings, false);
 			}
 
+			// Create the parameter setter map so parameter packs can be cracked
+			// open and distributed as appropriate...
+			TMap<FName, FParameterSetter> ParameterSetters;
+			FInputVertexInterfaceData& GraphInputs = VertexData.GetInputs();
+			for (auto InputIterator = GraphInputs.begin(); InputIterator != GraphInputs.end(); ++InputIterator)
+			{
+				const FInputDataVertex& InputVertex = (*InputIterator).GetVertex();
+				const Frontend::IParameterAssignmentFunction& Setter = IDataTypeRegistry::Get().GetRawAssignmentFunction(InputVertex.DataTypeName);
+				if (Setter)
+				{
+					FParameterSetter ParameterSetter(InputVertex.DataTypeName,
+						(*InputIterator).GetDataReference()->GetRaw(),
+						Setter);
+					ParameterSetters.Add(InputVertex.VertexName, ParameterSetter);
+				}
+			}
+
 			// Set data needed for graph
 			FMetasoundGeneratorData GeneratorData
 			{
 				InitParams.OperatorSettings,
 				MoveTemp(GraphOperator),
+				MoveTemp(ParameterSetters),
 				MoveTemp(GraphAnalyzer),
 				MoveTemp(OutputBuffers),
 				MoveTemp(PlayTrigger),
@@ -212,6 +231,10 @@ namespace Metasound
 		NumFramesPerExecute = InParams.OperatorSettings.GetNumFramesPerBlock();
 		NumSamplesPerExecute = NumChannels * NumFramesPerExecute;
 
+		// Create the routing for parameter packs
+		ParameterPackSendAddress = UMetasoundParameterPack::CreateSendAddressFromEnvironment(InParams.Environment);
+		ParameterPackReceiver = FDataTransmissionCenter::Get().RegisterNewReceiver<FMetasoundParameterStorageWrapper>(ParameterPackSendAddress, FReceiverInitParams{ InParams.OperatorSettings });
+
 		BuilderTask = MakeUnique<FBuilderTask>(this, MoveTemp(InParams), true /* bTriggerGenerator */);
 		
 		if (Metasound::ConsoleVariables::bEnableAsyncMetaSoundGeneratorBuilder)
@@ -236,6 +259,10 @@ namespace Metasound
 			BuilderTask->EnsureCompletion();
 			BuilderTask = nullptr;
 		}
+
+		// Remove routing for parameter packs
+		ParameterPackReceiver.Reset();
+		FDataTransmissionCenter::Get().UnregisterDataChannelIfUnconnected(ParameterPackSendAddress);
 	}
 
 	void FMetasoundGenerator::SetPendingGraph(FMetasoundGeneratorData&& InData, bool bTriggerGraph)
@@ -327,10 +354,17 @@ namespace Metasound
 
 		GraphAnalyzer = MoveTemp(InData->GraphAnalyzer);
 
+		ParameterSetters = MoveTemp(InData->ParameterSetters);
+
 		if (bTriggerGraph)
 		{
 			OnPlayTriggerRef->TriggerFrame(0);
 		}
+	}
+
+	void FMetasoundGenerator::QueueParameterPack(TSharedPtr<FMetasoundParameterPackStorage> ParameterPack)
+	{
+		ParameterPackQueue.Enqueue(ParameterPack);
 	}
 
 	int32 FMetasoundGenerator::GetNumChannels() const
@@ -384,6 +418,8 @@ namespace Metasound
 
 		while (NumSamplesRemaining > 0)
 		{
+			UnpackAndTransmitUpdatedParameters();
+
 			// Call metasound graph operator.
 			RootExecuter.Execute();
 
@@ -485,5 +521,42 @@ namespace Metasound
 			}
 		}
 		// TODO: memcpy for single channel. 
+	}
+
+	void FMetasoundGenerator::UnpackAndTransmitUpdatedParameters()
+	{
+		using namespace Frontend;
+
+		TUniqueFunction<void(FMetasoundParameterPackStorage*)> ProcessPack = [&](FMetasoundParameterPackStorage* Pack)
+			{
+				for (auto Walker = Pack->begin(); Walker != Pack->end(); ++Walker)
+				{
+					if (const FParameterSetter* ParameterSetter = ParameterSetters.Find(Walker->Name))
+					{
+						if (ParameterSetter->DataType == Walker->TypeName)
+						{
+							ParameterSetter->SetParameterWithPayload(Walker->GetPayload());
+						}
+					}
+				}
+			};
+
+		// First handle packs that have come from the IAudioParameterInterface system...
+		if (ParameterPackReceiver.IsValid())
+		{
+			FMetasoundParameterStorageWrapper Pack;
+			while (ParameterPackReceiver->CanPop())
+			{
+				ParameterPackReceiver->Pop(Pack);
+				ProcessPack(Pack.Get().Get());
+			}
+		}
+
+		// Now handle packs that came from QueueParameterPack...
+		TSharedPtr<FMetasoundParameterPackStorage> QueuedParameterPack;
+		while (ParameterPackQueue.Dequeue(QueuedParameterPack))
+		{
+			ProcessPack(QueuedParameterPack.Get());
+		}
 	}
 } 

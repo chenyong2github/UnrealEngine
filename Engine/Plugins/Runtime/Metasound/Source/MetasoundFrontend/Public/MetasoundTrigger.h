@@ -41,6 +41,12 @@ namespace Metasound
 			 */
 			FTrigger(const FOperatorSettings& InSettings);
 
+			/** For use when a Trigger request is found in a Parameter Pack
+			 *
+			 * @param ParamPackPayload - A pointer to a bool which should always be 'true'.
+			 */
+			void AssignRawParameter(const void* ParamPackPayload);
+
 			/** Trigger a specific frame in the future.
 			 *
 			 * @param InFrameToTrigger - Index of frame to trigger.

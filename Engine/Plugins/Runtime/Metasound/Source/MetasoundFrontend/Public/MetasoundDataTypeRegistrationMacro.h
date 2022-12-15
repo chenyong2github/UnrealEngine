@@ -212,7 +212,7 @@ namespace Metasound
 			return RegistryInfo;
 		}
 
-		/** Returns an IEnumDataTypeInterface pointer for the data type. If the 
+		/** Returns an IEnumDataTypeInterface pointer for the data type. If the
 		 * data type has no IEnumDataTypeInterface, the returned pointer will be
 		 * invalid.
 		 *
@@ -270,9 +270,16 @@ namespace Metasound
 			return EnumInterfacePtr;
 		}
 
+		template <typename T, typename V = void>
+		struct HasRawParameterAssignmentOp { bool value = false; };
+
+		template <typename T>
+		struct HasRawParameterAssignmentOp<T, decltype(&T::AssignRawParameter, void())> { bool value = true; };
+
+
 		/** Registers a data type with the MetaSound Frontend. This allows the data type
-		 * to be used in Input and Output nodes by informing the Frontend how to 
-		 * instantiate an instance. 
+		 * to be used in Input and Output nodes by informing the Frontend how to
+		 * instantiate an instance.
 		 *
 		 * @tparam TDataType - The data type to register.
 		 * @tparam PreferredArgType - The preferred constructor argument type to use when creating an instance of the data type.
@@ -311,9 +318,18 @@ namespace Metasound
 			public:
 
 				FDataTypeRegistryEntry()
-				: Info(CreateDataTypeInfo<TDataType, PreferredArgType, UClassToUse>())
-				, EnumInterface(GetEnumDataTypeInterface<TDataType>())
+					: Info(CreateDataTypeInfo<TDataType, PreferredArgType, UClassToUse>())
+					, EnumInterface(GetEnumDataTypeInterface<TDataType>())
 				{
+					if constexpr (HasRawParameterAssignmentOp<TDataType>().value)
+					{
+						RawAssignmentFunction = [](const void* src, void* dest) { reinterpret_cast<TDataType*>(dest)->AssignRawParameter(src); };
+					}
+					else if constexpr (std::is_copy_assignable_v<TDataType>)
+					{
+						RawAssignmentFunction = [](const void* src, void* dest) { *(reinterpret_cast<TDataType*>(dest)) = *(reinterpret_cast<const TDataType*>(src)); };
+					}
+
 					// Create class info using prototype node
 					// TODO: register nodes with static class info instead of prototype instance.
 
@@ -589,6 +605,11 @@ namespace Metasound
 					return MakeUnique<FDataTypeRegistryEntry>();
 				}
 
+				virtual const Frontend::IParameterAssignmentFunction& GetRawAssignmentFunction() const override
+				{
+					return RawAssignmentFunction;
+				}
+
 			private:
 				Frontend::FDataTypeRegistryInfo Info;
 				FMetasoundFrontendClass InputClass;
@@ -601,6 +622,7 @@ namespace Metasound
 				FMetasoundFrontendClass VariableAccessorClass;
 				FMetasoundFrontendClass VariableDeferredAccessorClass;
 				TSharedPtr<Frontend::IEnumDataTypeInterface> EnumInterface;
+				Frontend::IParameterAssignmentFunction RawAssignmentFunction;
 			};
 
 			bool bSucceeded = Frontend::IDataTypeRegistry::Get().RegisterDataType(MakeUnique<FDataTypeRegistryEntry>());

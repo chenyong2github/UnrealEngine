@@ -522,6 +522,8 @@ namespace Metasound
 				virtual TOptional<FAnyDataReference> CreateDataReference(const FName& InDataType, EDataReferenceAccessType InAccessType, const FLiteral& InLiteral, const FOperatorSettings& InOperatorSettings) const override;
 				virtual TSharedPtr<IDataChannel, ESPMode::ThreadSafe> CreateDataChannel(const FName& InDataType, const FOperatorSettings& InOperatorSettings) const override;
 
+				virtual const IParameterAssignmentFunction& GetRawAssignmentFunction(const FName& InDataType) const override;
+
 				virtual bool GetFrontendInputClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const override;
 				virtual bool GetFrontendConstructorInputClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const override;
 				virtual bool GetFrontendLiteralClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const override;
@@ -893,6 +895,16 @@ namespace Metasound
 					return Entry->CreateDataChannel(InOperatorSettings);
 				}
 				return nullptr;
+			}
+
+			const IParameterAssignmentFunction& FDataTypeRegistry::GetRawAssignmentFunction(const FName& InDataType) const
+			{
+				static IParameterAssignmentFunction NoOp;
+				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType))
+				{
+					return Entry->GetRawAssignmentFunction();
+				}
+				return NoOp;
 			}
 
 			bool FDataTypeRegistry::GetFrontendInputClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const

@@ -53,7 +53,8 @@ namespace Metasound
 			{
 				"Audio:Mono",
 				"Audio:Stereo",
-				GetMetasoundDataTypeName<Frontend::FAnalyzerAddress>()
+				GetMetasoundDataTypeName<Frontend::FAnalyzerAddress>(),
+				"MetasoundParameterPack"
 			};
 
 			static const FText OverrideInputDefaultText = LOCTEXT("OverridePresetInputDefault", "Override Inherited Default");

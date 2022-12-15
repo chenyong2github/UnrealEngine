@@ -18,6 +18,8 @@ namespace Metasound
 {
 	namespace Frontend
 	{
+		using IParameterAssignmentFunction = TUniqueFunction<void(const void*,void*)>;
+
 		/** FDataTypeRegsitryInfo contains runtime inspectable behavior of a registered
 		 * MetaSound data type.
 		 */
@@ -184,6 +186,9 @@ namespace Metasound
 			/** Create a receive node for this data type. */
 			virtual TUniquePtr<INode> CreateReceiveNode(const FNodeInitData&) const = 0;
 
+			/* Get function that should be used when a parameter pack contains a setting this data type. */ 
+			virtual const IParameterAssignmentFunction& GetRawAssignmentFunction() const = 0;
+
 			/** Create a init variable node for this data type. 
 			 *
 			 *  @param InInitParams - Contains a literal used to create the variable.
@@ -265,6 +270,9 @@ namespace Metasound
 			virtual TOptional<FAnyDataReference> CreateDataReference(const FName& InDataType, EDataReferenceAccessType InAccessType, const FLiteral& InLiteral, const FOperatorSettings& InOperatorSettings) const = 0;
 
 			virtual TSharedPtr<IDataChannel, ESPMode::ThreadSafe> CreateDataChannel(const FName& InDataType, const FOperatorSettings& InOperatorSettings) const = 0;
+
+			/* Get function that should be used when a parameter pack contains a setting for the specified data type. */ 
+			virtual const IParameterAssignmentFunction& GetRawAssignmentFunction(const FName& InDataType) const = 0;
 
 			/** Return an FMetasoundFrontendClass representing an input node of the data type. */
 			virtual bool GetFrontendInputClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const = 0;

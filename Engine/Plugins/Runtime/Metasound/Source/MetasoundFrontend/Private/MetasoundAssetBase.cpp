@@ -33,6 +33,7 @@
 #include "StructSerializer.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/MetaData.h"
+#include "MetasoundParameterPack.h"
 
 #define LOCTEXT_NAMESPACE "MetaSound"
 
@@ -824,6 +825,9 @@ TArray<FMetasoundFrontendClassInput> FMetasoundAssetBase::GetPublicClassInputs()
 
 	Algo::CopyIf(Doc.RootGraph.Interface.Inputs, PublicInputs, IsPublic);
 
+	// Add the parameter pack input that ALL Metasounds have
+	PublicInputs.Add(UMetasoundParameterPack::GetClassInput());
+	
 	return PublicInputs;
 }
 

@@ -123,6 +123,9 @@ namespace Metasound
 
 		/** Creates a copy of the parameter type. */
 		virtual TUniquePtr<IDataReference> Clone() const = 0;
+
+		/** provides a raw pointer to the storage where the data actually resides. */
+		virtual void* GetRaw() const = 0;
 	};
 	
 	/** Test if an IDataReference contains the same data type as the template
@@ -206,6 +209,12 @@ namespace Metasound
 		virtual const void* const GetDataTypeId() const override
 		{
 			return GetMetasoundDataTypeId<DataType>();
+		}
+
+		/** Return a raw pointer to the data. */
+		virtual void* GetRaw() const override
+		{
+			return &ObjectReference.Get();
 		}
 
 	protected:
@@ -597,6 +606,13 @@ namespace Metasound
 		{
 			check(DataRefPtr.IsValid());
 			return DataRefPtr->Clone();
+		}
+
+		/** Return a raw pointer to the data. */
+		void* GetRaw() const
+		{
+			check(DataRefPtr.IsValid());
+			return DataRefPtr->GetRaw();
 		}
 
 		/** Returns the current value of a reference. 

@@ -29,6 +29,13 @@ namespace Metasound
 		: FTrigger(InSettings, false)
 	{}
 
+	void FTrigger::AssignRawParameter(const void* ParamPackPayload)
+	{
+		// We don't even need to check the payload. If the parameter pack contained
+		// a Trigger bool, it must be true. There is no concept of "un-trigger" :-) 
+		TriggerFrame(0);
+	}
+
 	void FTrigger::TriggerFrame(int32 InFrameToTrigger)
 	{
 		// Insert trigger frame index into sorted triggered frames
