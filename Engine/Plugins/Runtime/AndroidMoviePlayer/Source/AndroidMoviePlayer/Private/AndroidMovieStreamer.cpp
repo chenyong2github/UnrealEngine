@@ -7,6 +7,7 @@
 #include "Android/AndroidPlatformFile.h"
 
 #include "Rendering/RenderingCommon.h"
+#include "RenderingThread.h"
 #include "RenderUtils.h"
 #include "Slate/SlateTextures.h"
 #include "MoviePlayer.h"
