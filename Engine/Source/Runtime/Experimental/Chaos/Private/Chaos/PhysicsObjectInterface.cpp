@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/PhysicsObjectInterface.h"
+
+#include "Chaos/CastingUtilities.h"
+#include "Chaos/GeometryQueries.h"
 #include "Chaos/PhysicsObjectInternal.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "Math/Transform.h"
@@ -156,6 +159,111 @@ namespace Chaos
 	}
 
 	template<EThreadContext Id>
+	TArray<FPerShapeData*> FReadPhysicsObjectInterface<Id>::GetAllShapes(TArrayView<FPhysicsObjectHandle> InObjects)
+	{
+		TArray<FPerShapeData*> AllShapes;
+
+		for (FPhysicsObjectHandle Object : InObjects)
+		{
+			if (!Object)
+			{
+				continue;
+			}
+
+			if (TThreadParticle<Id>* Particle = Object->GetParticle<Id>())
+			{
+				const Chaos::FShapesArray& ShapesArray = Particle->ShapesArray();
+				for (const TUniquePtr<Chaos::FPerShapeData>& Shape : ShapesArray)
+				{
+					AllShapes.Add(Shape.Get());
+				}
+			}
+		}
+
+		return AllShapes;
+	}
+
+	template<EThreadContext Id>
+	bool FReadPhysicsObjectInterface<Id>::GetPhysicsObjectOverlap(FPhysicsObjectHandle ObjectA, FPhysicsObjectHandle ObjectB, bool bTraceComplex, Chaos::FMTDInfo* OutMTD)
+	{
+		TArray<FPerShapeData*> ShapesA = GetAllShapes({ &ObjectA, 1 });
+		const FTransform TransformA(GetR(ObjectA), GetX(ObjectA));
+		const FBox BoxA = GetWorldBounds({&ObjectA, 1});
+
+		TArray<FPerShapeData*> ShapesB = GetAllShapes({ &ObjectB, 1 });
+		const FTransform TransformB(GetR(ObjectB), GetX(ObjectB));
+		const FBox BoxB = GetWorldBounds({ &ObjectB, 1 });
+
+		if (!BoxA.Intersect(BoxB))
+		{
+			return false;
+		}
+
+		for (FPerShapeData* A : ShapesA)
+		{
+			if (!A)
+			{
+				continue;
+			}
+
+			FCollisionFilterData ShapeFilterA = A->GetQueryData();
+			const bool bShapeIsComplexA = (ShapeFilterA.Word3 & static_cast<uint8>(EFilterFlags::ComplexCollision)) != 0;
+			const bool bShapeIsSimpleA = (ShapeFilterA.Word3 & static_cast<uint8>(EFilterFlags::SimpleCollision)) != 0;
+			const bool bShouldTraceA = (bTraceComplex && bShapeIsComplexA) || (!bTraceComplex && bShapeIsSimpleA);
+			if (!bShouldTraceA)
+			{
+				continue;
+			}
+
+			const FAABB3 BoxShapeA = A->GetGeometry()->CalculateTransformedBounds(TransformA);
+
+			for (FPerShapeData* B : ShapesB)
+			{
+				if (!B)
+				{
+					continue;
+				}
+
+				FCollisionFilterData ShapeFilterB = B->GetQueryData();
+				const bool bShapeIsComplexB = (ShapeFilterB.Word3 & static_cast<uint8>(EFilterFlags::ComplexCollision)) != 0;
+				const bool bShapeIsSimpleB = (ShapeFilterB.Word3 & static_cast<uint8>(EFilterFlags::SimpleCollision)) != 0;
+				const bool bShouldTraceB = (bTraceComplex && bShapeIsComplexB) || (!bTraceComplex && bShapeIsSimpleB);
+
+				if (!bShouldTraceB)
+				{
+					continue;
+				}
+
+				const FAABB3 BoxShapeB = B->GetGeometry()->CalculateTransformedBounds(TransformB);
+
+				if (!BoxShapeA.Intersects(BoxShapeB))
+				{
+					continue;
+				}
+
+				const bool bOverlap = Chaos::Utilities::CastHelper(
+					*B->GetGeometry(),
+					// ...Why is this transform passed?
+					TransformB,
+					[A, &TransformA, &TransformB, OutMTD](const auto& Downcast, const auto&)
+					{
+						return Chaos::OverlapQuery(*A->GetGeometry(), TransformA, Downcast, TransformB, 0, OutMTD);
+					}
+				);
+
+				// Is this actually correct? For now I'm mirroring the behavior in Overlap_GeomInternal
+				// but if the goal is to compute the MTD, shouldn't we need to iterate over all pairs of shapes?
+				if (bOverlap)
+				{
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	template<EThreadContext Id>
 	bool FReadPhysicsObjectInterface<Id>::AreAllValid(TArrayView<FPhysicsObjectHandle> InObjects)
 	{
 		bool bCheck = !InObjects.IsEmpty();
@@ -250,7 +358,7 @@ namespace Chaos
 	}
 
 	template<EThreadContext Id>
-	FBox FReadPhysicsObjectInterface<Id>::GetBounds(TArrayView<FPhysicsObjectHandle> InObjects)
+	FBox FReadPhysicsObjectInterface<Id>::GetWorldBounds(TArrayView<FPhysicsObjectHandle> InObjects)
 	{
 		FBox RetBox(ForceInit);
 		for (FPhysicsObjectHandle Object : InObjects)
@@ -266,10 +374,12 @@ namespace Chaos
 				continue;
 			}
 
+			const FTransform WorldTransform = GetTransform(Object);
+
 			FBox ParticleBox(ForceInit);
 			if (const FImplicitObject* Geometry = Particle->Geometry().Get(); Geometry && Geometry->HasBoundingBox())
 			{
-				Chaos::FAABB3 Box = Geometry->BoundingBox();
+				const Chaos::FAABB3 Box = Geometry->BoundingBox().TransformedAABB(WorldTransform);
 				ParticleBox = FBox{ Box.Min(), Box.Max() };
 			}
 

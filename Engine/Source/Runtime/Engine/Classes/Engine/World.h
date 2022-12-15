@@ -2162,6 +2162,20 @@ public:
 	bool ComponentSweepMulti(TArray<struct FHitResult>& OutHits, class UPrimitiveComponent* PrimComp, const FVector& Start, const FVector& End, const FQuat& Rot,    const FComponentQueryParams& Params) const;
 	bool ComponentSweepMulti(TArray<struct FHitResult>& OutHits, class UPrimitiveComponent* PrimComp, const FVector& Start, const FVector& End, const FRotator& Rot, const FComponentQueryParams& Params) const;
 
+	/**
+	 *  Sweep the geometry of the supplied component using a specific channel, and determine the set of components that it hits.
+	 *  @note The overload taking rotation as an FQuat is slightly faster than the version using FRotator (which will be converted to an FQuat)..
+	 *  @param  OutHits         Array of hits found between ray and the world
+	 *  @param  PrimComp        Component's geometry to test against the world. Transform of this component is ignored
+	 *  @param  Start           Start location of the trace
+	 *  @param  End             End location of the trace
+	 *  @param  Rot             Rotation of PrimComp geometry for test against the world (rotation remains constant over sweep)
+	 *  @param  Params          Additional parameters used for the trace
+	 *  @return TRUE if OutHits contains any blocking hit entries
+	 */
+	bool ComponentSweepMultiByChannel(TArray<struct FHitResult>& OutHits, class UPrimitiveComponent* PrimComp, const FVector& Start, const FVector& End, const FQuat& Rot, ECollisionChannel TraceChannel, const FComponentQueryParams& Params) const;
+	bool ComponentSweepMultiByChannel(TArray<struct FHitResult>& OutHits, class UPrimitiveComponent* PrimComp, const FVector& Start, const FVector& End, const FRotator& Rot, ECollisionChannel TraceChannel, const FComponentQueryParams& Params) const;
+
 	// COMPONENT OVERLAP
 
 	/**
@@ -4233,6 +4247,12 @@ FORCEINLINE_DEBUGGABLE bool UWorld::ComponentSweepMulti(TArray<struct FHitResult
 {
 	// Pass through to FQuat version.
 	return ComponentSweepMulti(OutHits, PrimComp, Start, End, Rot.Quaternion(), Params);
+}
+
+FORCEINLINE_DEBUGGABLE bool UWorld::ComponentSweepMultiByChannel(TArray<struct FHitResult>& OutHits, class UPrimitiveComponent* PrimComp, const FVector& Start, const FVector& End, const FRotator& Rot, ECollisionChannel TraceChannel, const FComponentQueryParams& Params) const
+{
+	// Pass through to FQuat version.
+	return ComponentSweepMultiByChannel(OutHits, PrimComp, Start, End, Rot.Quaternion(), TraceChannel, Params);
 }
 
 FORCEINLINE_DEBUGGABLE ENetMode UWorld::GetNetMode() const

@@ -36,6 +36,8 @@ struct CHAOS_API FClosestPhysicsObjectResult
 namespace Chaos
 {
 	class FPBDRigidsSolver;
+	class FPerShapeData;
+	struct FMTDInfo;
 
 	/**
 	 * FReadPhysicsObjectInterface will assume that these operations are safe to call (i.e. the relevant scenes have been read locked on the game thread).
@@ -53,6 +55,9 @@ namespace Chaos
 		FVector GetWorldCoM(FPhysicsObjectHandle Object);
 		FQuat GetR(FPhysicsObjectHandle Object);
 
+		TArray<FPerShapeData*> GetAllShapes(TArrayView<FPhysicsObjectHandle> InObjects);
+		bool GetPhysicsObjectOverlap(FPhysicsObjectHandle ObjectA, FPhysicsObjectHandle ObjectB, bool bTraceComplex, Chaos::FMTDInfo* OutMTD);
+
 		bool AreAllValid(TArrayView<FPhysicsObjectHandle> InObjects);
 		bool AreAllKinematic(TArrayView<FPhysicsObjectHandle> InObjects);
 		bool AreAllSleeping(TArrayView<FPhysicsObjectHandle> InObjects);
@@ -60,7 +65,7 @@ namespace Chaos
 		bool AreAllDynamic(TArrayView<FPhysicsObjectHandle> InObjects);
 		bool AreAllDisabled(TArrayView<FPhysicsObjectHandle> InObjects);
 		float GetMass(TArrayView<FPhysicsObjectHandle> InObjects);
-		FBox GetBounds(TArrayView<FPhysicsObjectHandle> InObjects);
+		FBox GetWorldBounds(TArrayView<FPhysicsObjectHandle> InObjects);
 		FClosestPhysicsObjectResult GetClosestPhysicsBodyFromLocation(TArrayView<FPhysicsObjectHandle> InObjects, const FVector& WorldLocation);
 
 		friend class FPhysicsObjectInterface;

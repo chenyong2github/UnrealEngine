@@ -31,10 +31,12 @@ namespace ChaosInterface
 	{
 		using namespace Chaos;
 		int32 ResultObjectType = GetInnerType(InGeometry.GetType());
+		const Chaos::FImplicitObject* CurrentGeometry = &InGeometry;
 
-		if (ResultObjectType == ImplicitObjectType::Transformed)
+		while (CurrentGeometry && ResultObjectType == ImplicitObjectType::Transformed)
 		{
-			ResultObjectType = GetInnerType(static_cast<const TImplicitObjectTransformed<FReal, 3>*>(&InGeometry)->Object()->GetType());
+			CurrentGeometry = static_cast<const TImplicitObjectTransformed<FReal, 3>*>(CurrentGeometry)->Object().Get();
+			ResultObjectType = GetInnerType(CurrentGeometry->GetType());
 		}
 
 		return ImplicitTypeToCollisionType(ResultObjectType);
