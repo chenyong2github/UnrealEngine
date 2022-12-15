@@ -15,6 +15,11 @@
 #include "Materials/MaterialExpressionTextureSampleParameter.h"
 #endif
 #include "StaticParameterSet.h"
+
+#if WITH_EDITOR
+#include "Materials/MaterialExpression.h"
+#endif
+
 #include "MaterialFunctionInterface.generated.h"
 
 class UMaterial;

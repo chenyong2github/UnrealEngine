@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Materials/MaterialExpression.h"
 #include "UObject/ObjectMacros.h"
+#include "MaterialTypes.h"
 
 #include "MaterialExpressionSparseVolumeTextureSample.generated.h"
 

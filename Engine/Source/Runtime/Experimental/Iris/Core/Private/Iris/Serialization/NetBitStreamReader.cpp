@@ -4,6 +4,7 @@
 #include "Iris/Serialization/NetBitStreamUtils.h"
 #include "HAL/PlatformMemory.h"
 #include "Misc/AssertionMacros.h"
+#include <stdint.h>
 
 namespace UE::Net
 {
