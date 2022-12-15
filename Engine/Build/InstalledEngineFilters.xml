@@ -248,6 +248,15 @@
 
 
 	<!-- Win64 editor specific dependencies -->
+	<Property Name="ExtraSignFilesWin64">
+		<!-- CsvTools binaries which are manually updated in P4 -->
+		Engine/Binaries/DotNET/CsvTools/...
+		Engine/Binaries/ThirdParty/svn/Win64/...
+		Engine/Binaries/Win64/UnrealTraceServer.exe
+		Engine/Binaries/Win64/EpicWebHelper.exe
+		Engine/Build/Windows/cl-filter/...
+		Engine/Extras/ThirdPartyNotUE/cwrsync/bin/...
+	</Property>
 	
 	<Property Name="CopyEditorFilterWin64" Value="$(CopyEditorFilter)">
 		<!-- Build batch files -->
@@ -463,6 +472,10 @@
 	</Property>
 
 	<!-- Android -->
+	<Property Name="ExtraSignFilesAndroid">
+		Engine/Binaries/DotNET/Android/...
+	</Property>
+
 	<Property Name="CopyAndroidFilter">
 		<!-- Build Files -->
 		Engine/Binaries/DotNET/Android/...
@@ -555,6 +568,12 @@
 	</Property>
 
 	<!-- Linux -->
+	<Property Name="ExtraSignFilesLinux">
+		<!-- Linux cross build Debug tools -->
+		Engine/Binaries/Linux/dump_syms.exe
+		Engine/Binaries/Linux/BreakpadSymbolEncoder.exe
+	</Property>
+
 	<Property Name="CopyLinuxFilter">
 		Engine/Binaries/ThirdParty/OpenAL/...
 		Engine/Binaries/ThirdParty/ICU/icu4c-53_1/Unix/x86_64-unknown-linux-gnu/*.so

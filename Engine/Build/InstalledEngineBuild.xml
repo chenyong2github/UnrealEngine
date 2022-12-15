@@ -130,6 +130,7 @@
 	<Macro Name="Platform_Append_DDCPlatformsWin64"/>
 	<Macro Name="Platform_TagDDCFiles"/>
 	<Macro Name="Platform_Tag_UnrealGame"/>
+	<Macro Name="Platform_ExtraSignFiles"/>
 
 	<!-- Include any scripts from platform extensions -->
 	<Property Name="ExtensionPlatforms" Value=""/>
@@ -955,6 +956,7 @@
 			<!-- Define filter and exception properties for the installed build -->
 			<Property Name="CopyInstalledFilter" Value="$(CopyEditorFilterWin64)"/>
 			<Property Name="CopyInstalledExceptions" Value="$(CopyEditorExceptionsWin64)"/>
+			<Property Name="ExtraSignFiles" Value="$(ExtraSignFilesWin64)"/>
 
 			<!-- Tag files that always need to be part of an installed build -->
 			<Tag Files="#Compile UnrealHeaderTool Win64" With="#Installed Win64"/>
@@ -977,6 +979,7 @@
 				<Property Name="Platforms" Value="$(Platforms)Android;"/>
 				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyAndroidFilter)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyAndroidExceptions)"/>
+				<Property Name="ExtraSignFiles" Value="$(ExtraSignFiles);$(ExtraSignFilesAndroid)"/>
 			</Do>
 			<Do If="'$(WithIOS)' == true">
 				<Tag Files="#UnrealGame IOS;#Compile UnrealHeaderTool Mac" Except="#UnrealGame IOS Unstripped" With="#Installed Win64"/>
@@ -998,6 +1001,7 @@
 				<Property Name="Platforms" Value="$(Platforms)Linux;"/>
 				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyLinuxFilterWin64)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyLinuxExceptions)"/>
+				<Property Name="ExtraSignFiles" Value="$(ExtraSignFiles);$(ExtraSignFilesLinux)"/>
 			</Do>
 			<Do If="'$(WithLinuxArm64)' == true">
 				<Tag Files="#UnrealGame LinuxArm64" Except="#UnrealGame LinuxArm64 Unstripped" With="#Installed Win64"/>
@@ -1005,8 +1009,11 @@
 				<Property Name="Platforms" Value="$(Platforms)LinuxArm64;"/>
 				<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyLinuxFilter)"/>
 				<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyLinuxExceptions)"/>
+				<Property Name="ExtraSignFiles" Value="$(ExtraSignFiles);$(ExtraSignFilesLinux)"/>
 			</Do>
 			<Expand Name="Platform_Tag_UnrealGame"/>
+			<Expand Name="Platform_ExtraSignFiles"/>
+
 			<!-- Tag any dependencies from all previous build products -->
 			<Tag Files="#Installed Win64" Filter="*.target" With="#TargetReceipts"/>
 			<TagReceipt Files="#TargetReceipts" RuntimeDependencies="true" With="#Installed Win64"/>
@@ -1026,7 +1033,10 @@
 
 			<Do If="'$(SignExecutables)' == true">
 				<!-- Tag files that need to be signed -->
-				<Tag Files="#Compile UnrealHeaderTool Win64;#Build Tools Win64" Filter="$(WindowsSignFilter)" Except="$(CopyInstalledExceptions);$(SignExceptions)" With="#Sign Tools for Installed Win64"/>
+				<Tag Files="#Compile UnrealHeaderTool Win64;#Build Tools Win64;#Rules Assemblies" Filter="$(WindowsSignFilter)" Except="$(CopyInstalledExceptions);$(SignExceptions)" With="#Sign Tools for Installed Win64"/>
+				<Tag Files="$(ExtraSignFiles)" Filter="$(WindowsSignFilter)" Except="$(CopyInstalledExceptions);$(SignExceptions)" With="#Sign Tools for Installed Win64"/>
+				<Tag Files="#DatasmithPluginBinaries Win64" Filter="$(WindowsSignFilter)" Except="$(CopyInstalledExceptions);$(SignExceptions)" With="#Sign Tools for Installed Win64" If="$(CompileDatasmithPlugins)"/>
+				<Tag Files="#Build Tools CS Binaries;" Filter="$(WindowsSignFilter)" Except="$(CopyWin64CsToolsExceptions);$(SignExceptions);" With="#Sign CS Tools for Installed Win64"/>
 			</Do>
 
 			<!-- Tag files that need to be copied directly -->
@@ -1045,6 +1055,7 @@
 			<Do If="'$(SignExecutables)' == true">
 				<!-- Copy then Sign required files in their final location -->
 				<Copy Files="#Sign Tools for Installed Win64" From="$(RootDir)" To="$(LocalInstalledDir)" Tag="#Files to Sign"/>
+				<Copy Files="#Sign CS Tools for Installed Win64" From="$(CsToolsDir)" To="$(LocalInstalledDir)" Tag="#Files to Sign"/>
 				<Sign Files="#Files to Sign" Tag="#Installed Build Win64 Files"/>
 			</Do>
 

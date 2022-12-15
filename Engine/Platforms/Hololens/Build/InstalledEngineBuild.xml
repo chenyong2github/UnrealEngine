@@ -31,13 +31,30 @@
 
 	<Extend Name="Platform_Agent_Target_Win64_Licensee">
 		<Agent Name="Target HoloLens" Type="Win64_Licensee">
-			<Node Name="Compile UnrealGame HoloLens" Requires="Compile UnrealHeaderTool Win64" Produces="#UnrealGame HoloLens">
+			<Node Name="Compile UnrealGame HoloLens" Requires="Compile UnrealHeaderTool Win64" Produces="#UnrealGame HoloLens;#UnrealGame HoloLens Unstripped;#UnrealGame HoloLens Stripped;#UnrealGame HoloLens Unsigned;#UnrealGame HoloLens Signed">
 				<ForEach Name="Configuration" Values="$(GameConfigurations)">
 					<Compile Target="UnrealGame" Platform="HoloLens" Configuration="$(Configuration)" Tag="#UnrealGame HoloLens" Arguments="-precompile -allmodules -nolink -architecture=arm64 $(TargetDebugInfoArg)"/>
 					<Compile Target="UnrealGame" Platform="HoloLens" Configuration="$(Configuration)" Tag="#UnrealGame HoloLens" Arguments="-precompile -architecture=arm64 $(TargetDebugInfoArg)" Clean="false"/>
 					<Compile Target="UnrealGame" Platform="HoloLens" Configuration="$(Configuration)" Tag="#UnrealGame HoloLens" Arguments="-precompile -allmodules -nolink -architecture=x64 $(TargetDebugInfoArg)"/>
 					<Compile Target="UnrealGame" Platform="HoloLens" Configuration="$(Configuration)" Tag="#UnrealGame HoloLens" Arguments="-precompile -architecture=x64 $(TargetDebugInfoArg)" Clean="false"/>
 				</ForEach>
+
+				<Switch>
+					<Case If="'$(WithFullDebugInfo)' == true">
+						<!-- Copy files for local debug builds -->
+						<Copy Files="#UnrealGame HoloLens Unstripped" From="$(RootDir)" To="$(SavedOutput)"/>
+					</Case>
+					<Default>
+						<!-- Otherwise, strip the files for distribution -->
+						<Strip BaseDir="$(RootDir)" OutputDir="$(SavedOutput)" Platform="Win64" Files="#UnrealGame HoloLens Unstripped" Tag="#UnrealGame HoloLens Stripped"/>
+					</Default>
+				</Switch>
+
+				<Do If="'$(SignExecutables)' == true">
+					<Tag Files="#UnrealGame HoloLens" Filter="$(WindowsSignFilter)" With="#UnrealGame HoloLens Unsigned"/>
+					<Copy Files="#UnrealGame HoloLens Unsigned" From="$(RootDir)" To="$(SavedOutput)" Tag="#Game_ToSign_HoloLens"/>
+					<Sign Files="#Game_ToSign_HoloLens" Tag="#UnrealGame HoloLens Signed"/>
+				</Do>
 			</Node>
 		</Agent>
 		<Aggregate Name="TargetPlatforms_HoloLens" Label="Platforms/HoloLens" Requires="Compile UnrealGame HoloLens"/>
@@ -45,7 +62,7 @@
 
 	<Extend Name="Platform_AddInstalledRequirements">
 		<Do If="$(WithHoloLens)">
-			<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UnrealGame HoloLens"/>
+			<Property Name="InstalledRequirements" Value="$(InstalledRequirements);#UnrealGame HoloLens;#UnrealGame HoloLens Unstripped;#UnrealGame HoloLens Stripped;#UnrealGame HoloLens Unsigned;#UnrealGame HoloLens Signed"/>
 		</Do>
 	</Extend>
 
@@ -73,6 +90,15 @@
 		</Do>
 	</Extend>
 
+	<Extend Name="Platform_ExtraSignFiles">
+		<Do If="$(WithHoloLens)">
+			<Property Name="ExtraSignFilesHoloLens">
+				Engine\Platforms\Hololens\Binaries\DotNET\AutomationTool\AutomationScripts\...
+			</Property>
+			<Property Name="ExtraSignFiles" Value="$(ExtraSignFiles);$(ExtraSignFilesHoloLens)"/>
+		</Do>
+	</Extend>
+
 	<Extend Name="Platform_Tag_UnrealGame">
 		<Do If="$(WithHoloLens)">
 			<Property Name="CopyHoloLensFilter">
@@ -88,12 +114,11 @@
 
 			<Property Name="CopyHoloLensExceptions">
 			</Property>
-			
-			<Tag Files="#UnrealGame HoloLens;#UnrealGame HoloLens Includes" With="#Installed Win64"/>
+			<Tag Files="#UnrealGame HoloLens" Except="#UnrealGame HoloLens Unstripped;#UnrealGame HoloLens Unsigned" With="#Installed Win64"/>
+			<Tag Files="#UnrealGame HoloLens Stripped;#UnrealGame HoloLens Signed" With="#Saved Output"/>
 			<Property Name="Platforms" Value="$(Platforms)HoloLens;"/>
 			<Property Name="CopyInstalledFilter" Value="$(CopyInstalledFilter);$(CopyHoloLensFilter)"/>
 			<Property Name="CopyInstalledExceptions" Value="$(CopyInstalledExceptions);$(CopyHoloLensExceptions)"/>
-
 		</Do>
 		<Do If="!$(WithHoloLens)">
 			<Property Name="CopyHoloLensCsToolsExceptions">
