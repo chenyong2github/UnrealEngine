@@ -151,7 +151,8 @@ public:
 	void SetLine(int32 InLine) { Line = InLine; }
 
 	/** Formats the message using the format, template, and fields. */
-	UE_API void FormatMessageTo(FStringBuilderBase& Out) const;
+	UE_API void FormatMessageTo(FUtf8StringBuilderBase& Out) const;
+	UE_API void FormatMessageTo(FWideStringBuilderBase& Out) const;
 
 private:
 	const TCHAR* Format = nullptr;
