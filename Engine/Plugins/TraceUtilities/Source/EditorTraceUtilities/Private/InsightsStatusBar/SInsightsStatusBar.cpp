@@ -6,6 +6,8 @@
 #include "EditorTraceUtilitiesStyle.h"
 #include "EditorTraceUtilities.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/Commands/Commands.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "GenericPlatform/GenericPlatformFile.h"
@@ -14,8 +16,11 @@
 #include "Trace/Trace.h"
 #include "Math/Color.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/DateTime.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
+#include "ProfilingDebugging/MiscTrace.h"
+#include "ProfilingDebugging/TraceScreenshot.h"
 #include "SRecentTracesList.h"
 #include "Styling/StyleColors.h"
 #include "ToolMenus.h"
@@ -54,6 +59,40 @@ public:
 	{
 		FUnrealInsightsLauncher::Get()->TryOpenTraceFromDestination(FTraceAuxiliary::GetTraceDestination());
 	}
+};
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// FInsightsStatusBarWidgetCommands
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FInsightsStatusBarWidgetCommands : public TCommands<FInsightsStatusBarWidgetCommands>
+{
+public:
+	FInsightsStatusBarWidgetCommands()
+		: TCommands<FInsightsStatusBarWidgetCommands>(
+			TEXT("InsightsStatusBarWidgetCommands"),
+			NSLOCTEXT("Contexts", "InsightsStatusBarWidgetCommands", "Insights Status Bar"),
+			NAME_None,
+			FEditorTraceUtilitiesStyle::Get().GetStyleSetName())
+	{
+	}
+
+	virtual ~FInsightsStatusBarWidgetCommands()
+	{
+	}
+
+	// UI_COMMAND takes long for the compiler to optimize
+	UE_DISABLE_OPTIMIZATION_SHIP
+	virtual void RegisterCommands() override
+	{
+		UI_COMMAND(Command_TraceScreenshot, "Trace Screenshot", "Takes a screenshot and sends it to the trace.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::F9));
+		UI_COMMAND(Command_TraceBookmark, "Trace Bookmark", "Traces a bookmark.", EUserInterfaceActionType::Button, FInputChord());
+	}
+	UE_ENABLE_OPTIMIZATION_SHIP
+
+	TSharedPtr<FUICommandInfo> Command_TraceScreenshot;
+	TSharedPtr<FUICommandInfo> Command_TraceBookmark;
 };
 
 TSharedRef<SWidget> CreateInsightsStatusBarWidget()
@@ -190,14 +229,43 @@ void SInsightsStatusBarWidget::Construct(const FArguments& InArgs)
 	FTraceAuxiliary::OnTraceStarted.AddSP(this, &SInsightsStatusBarWidget::OnTraceStarted);
 	FTraceAuxiliary::OnTraceStopped.AddSP(this, &SInsightsStatusBarWidget::OnTraceStopped);
 	FTraceAuxiliary::OnSnapshotSaved.AddSP(this, &SInsightsStatusBarWidget::OnSnapshotSaved);
+
+	InitCommandList();
 }
 
 TSharedRef<SWidget> SInsightsStatusBarWidget::MakeTraceMenu()
 {
-	FMenuBuilder MenuBuilder(true, nullptr);
+	FMenuBuilder MenuBuilder(true, CommandList.ToSharedRef());
 
-	MenuBuilder.BeginSection("TraceDataFiltering", LOCTEXT("TraceMenu_Section_DataFiltering", "Trace Data Filtering"));
+	MenuBuilder.BeginSection("TraceData", LOCTEXT("TraceMenu_Section_Data", "Trace Data"));
 	{
+		MenuBuilder.AddSubMenu
+		(
+			LOCTEXT("Channels", "Channels"),
+			LOCTEXT("Channels_Desc", "Select what trace channels to enable when tracing."),
+			FNewMenuDelegate::CreateSP(this, &SInsightsStatusBarWidget::Channels_BuildMenu),
+			false,
+			FSlateIcon(FEditorTraceUtilitiesStyle::Get().GetStyleSetName(), ("Icons.Trace.Menu"))
+		);
+
+		MenuBuilder.AddMenuEntry
+		(
+			FInsightsStatusBarWidgetCommands::Get().Command_TraceScreenshot,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FEditorTraceUtilitiesStyle::Get().GetStyleSetName(), "Icons.Screenshot.Menu")
+		);
+
+		MenuBuilder.AddMenuEntry
+		(
+			FInsightsStatusBarWidgetCommands::Get().Command_TraceBookmark,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FEditorTraceUtilitiesStyle::Get().GetStyleSetName(), "Icons.Bookmark.Menu")
+		);
+
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("StatNamedEventsLabel", "Stat Named Events"),
 			LOCTEXT("StatNamedEventsDesc", "Enable or disable named events in the stats system."),
@@ -207,15 +275,6 @@ TSharedRef<SWidget> SInsightsStatusBarWidget::MakeTraceMenu()
 					  FIsActionChecked::CreateLambda([]() { return GCycleStatsShouldEmitNamedEvents > 0; })),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
-		);
-
-		MenuBuilder.AddSubMenu
-		(
-			LOCTEXT("Channels", "Channels"),
-			LOCTEXT("Channels_Desc", "Select what trace channels to enable when tracing."),
-			FNewMenuDelegate::CreateSP(this, &SInsightsStatusBarWidget::Channels_BuildMenu),
-			false,
-			FSlateIcon(FEditorTraceUtilitiesStyle::Get().GetStyleSetName(), ("Icons.Trace.Menu"))
 		);
 	}
 	MenuBuilder.EndSection();
@@ -402,6 +461,14 @@ void SInsightsStatusBarWidget::Traces_BuildMenu(FMenuBuilder& MenuBuilder)
 			SNew(SRecentTracesList, TraceStorePath)
 		],
 		FText(), true);
+}
+
+void SInsightsStatusBarWidget::InitCommandList()
+{
+	FInsightsStatusBarWidgetCommands::Register();
+	CommandList = MakeShared<FUICommandList>();
+	CommandList->MapAction(FInsightsStatusBarWidgetCommands::Get().Command_TraceScreenshot, FExecuteAction::CreateSP(this, &SInsightsStatusBarWidget::TraceScreenshot_Execute), FCanExecuteAction::CreateSP(this, &SInsightsStatusBarWidget::TraceScreenshot_CanExecute));
+	CommandList->MapAction(FInsightsStatusBarWidgetCommands::Get().Command_TraceBookmark, FExecuteAction::CreateSP(this, &SInsightsStatusBarWidget::TraceBookmark_Execute), FCanExecuteAction::CreateSP(this, &SInsightsStatusBarWidget::TraceBookmark_CanExecute));
 }
 
 FText SInsightsStatusBarWidget::GetTitleToolTipText() const
@@ -794,6 +861,28 @@ bool SInsightsStatusBarWidget::ToggleChannel_IsChecked(int32 Index)
 	}
 
 	return false;
+}
+
+
+bool SInsightsStatusBarWidget::TraceScreenshot_CanExecute()
+{
+	return SHOULD_TRACE_SCREENSHOT();
+}
+
+void SInsightsStatusBarWidget::TraceScreenshot_Execute()
+{
+	FTraceScreenshot::RequestScreenshot(TEXT(""), false);
+}
+
+bool SInsightsStatusBarWidget::TraceBookmark_CanExecute()
+{
+	return SHOULD_TRACE_BOOKMARK();
+}
+
+void SInsightsStatusBarWidget::TraceBookmark_Execute()
+{
+	FString Bookmark = FDateTime::Now().ToString(TEXT("Bookmark_%Y%m%d_%H%M%S"));
+	TRACE_BOOKMARK(*Bookmark);
 }
 
 #undef LOCTEXT_NAMESPACE

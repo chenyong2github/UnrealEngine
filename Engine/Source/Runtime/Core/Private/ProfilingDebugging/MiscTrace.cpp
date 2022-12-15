@@ -139,4 +139,9 @@ bool FMiscTrace::ShouldTraceScreenshot()
 {
 	return UE_TRACE_CHANNELEXPR_IS_ENABLED(ScreenshotChannel);
 }
+
+bool FMiscTrace::ShouldTraceBookmark()
+{
+	return UE_TRACE_CHANNELEXPR_IS_ENABLED(BookmarkChannel);
+}
 #endif

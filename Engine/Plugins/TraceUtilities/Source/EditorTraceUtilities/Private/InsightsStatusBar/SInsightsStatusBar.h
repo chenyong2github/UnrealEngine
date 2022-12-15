@@ -9,6 +9,7 @@
 #include "Widgets/SCompoundWidget.h"
 
 class FMenuBuilder;
+class FUICommandList;
 
 TSharedRef<SWidget> CreateInsightsStatusBarWidget();
 
@@ -99,6 +100,14 @@ private:
 	void CreateChannelsInfo();
 	void UpdateChannelsInfo();
 
+	void InitCommandList();
+
+	bool TraceScreenshot_CanExecute();
+	void TraceScreenshot_Execute();
+
+	bool TraceBookmark_CanExecute();
+	void TraceBookmark_Execute();
+
 private:
 	static const TCHAR* DefaultPreset;
 	static const TCHAR* MemoryPreset;
@@ -118,4 +127,6 @@ private:
 
 	TArray<FChannelData> ChannelsInfo;
 	bool bShouldUpdateChannels = false;
+
+	TSharedPtr<FUICommandList> CommandList;
 };

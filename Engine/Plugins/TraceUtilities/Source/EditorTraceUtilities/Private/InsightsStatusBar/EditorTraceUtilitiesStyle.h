@@ -46,6 +46,9 @@ public:
 		Set("Icons.TraceStore.Menu", new CORE_IMAGE_BRUSH_SVG("Starship/Insights/TraceStore", Icon16x16));
 		Set("Icons.File.Menu", new CORE_IMAGE_BRUSH_SVG("Starship/Common/file", Icon16x16));
 
+		Set("Icons.Screenshot.Menu", new CORE_IMAGE_BRUSH_SVG("../Editor/Slate/Starship/Common/HighResolutionScreenshot", Icon16x16));
+		Set("Icons.Bookmark.Menu", new CORE_IMAGE_BRUSH_SVG("../Editor/Slate/Starship/Common/Bookmarks", Icon16x16));
+
 		FSlateStyleRegistry::RegisterSlateStyle(*this);
 	}
 
