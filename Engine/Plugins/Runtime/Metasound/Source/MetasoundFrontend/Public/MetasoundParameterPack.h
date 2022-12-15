@@ -357,11 +357,6 @@ public:
 
 	FMetasoundParameterPackProxy(const FMetasoundParameterPackProxy& Other) = default;
 
-	Audio::IProxyDataPtr Clone() const override
-	{
-		return MakeUnique<FMetasoundParameterPackProxy>(*this);
-	}
-
 	FSharedMetasoundParameterStoragePtr GetParamStorage()
 	{
 		return ParameterStoragePtr;
