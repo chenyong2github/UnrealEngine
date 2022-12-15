@@ -745,7 +745,7 @@ bool FTimingProfilerManager::Exec(const TCHAR* Cmd, FOutputDevice& Ar)
 		Insights::FTimingExporter Exporter(*FInsightsManager::Get()->GetSession().Get());
 		Insights::FTimingExporter::FExportTimerStatisticsParams Params; // default (all timing events)
 
-		// These variables needs to be in the same scope with the call to Exporter.ExportTimingEventsAsText().
+		// These variables needs to be in the same scope with the call to Exporter.ExportTimerStatisticsAsText().
 		TArray<FName> Columns; // referenced by Params.Columns
 		TSet<uint32> IncludedThreads; // referenced in Params.ThreadFilter lambda function
 		TSet<uint32> IncludedTimers; // referenced in Params.TimingEventFilter lambda function
@@ -814,9 +814,13 @@ bool FTimingProfilerManager::Exec(const TCHAR* Cmd, FOutputDevice& Ar)
 				}
 				else if (Token.StartsWith(RegionToken))
 				{
+					// Comma-delimited list of region names. Supports *?-type wildcard.
+					// Each region is exported to a separate file. The '*' char in Filename (if any)
+					// will be replaced with the resolved name of the region.
 					// Default: -Region=
-					// Example: -Region=RegionName
+					// Example: -Region="RegionName,Game_*,OtherRegion"
 					Token.RightChopInline(UE_ARRAY_COUNT(RegionToken) - 1);
+					Token.TrimQuotesInline();
 					Params.Region = TCHAR_TO_ANSI(*Token);
 				}
 				else
@@ -832,11 +836,11 @@ bool FTimingProfilerManager::Exec(const TCHAR* Cmd, FOutputDevice& Ar)
 		{
 			Params.ThreadFilter = [](unsigned int){ return true; };
 		}
-		
+
 		int32 Result = Exporter.ExportTimerStatisticsAsText(Filename, Params);
 		return Result > 0;
 	}
-	
+
 	return false;
 }
 

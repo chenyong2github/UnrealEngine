@@ -24,13 +24,13 @@ namespace Insights
 
 FTimingExporter::FTimingExporter(const TraceServices::IAnalysisSession& InSession)
 	: Session(InSession)
-{	
+{
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FTimingExporter::~FTimingExporter()
-{	
+{
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -548,62 +548,157 @@ int32 FTimingExporter::ExportTimingEventsAsText(const FString& Filename, FExport
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-	
+
 int32 FTimingExporter::ExportTimerStatisticsAsText(const FString& Filename, FExportTimerStatisticsParams& Params) const
 {
 	TraceServices::ITable<TraceServices::FTimingProfilerAggregatedStats>* StatsTable;
 
-	double RegionStartTime = 0;
-	double RegionEndTime = std::numeric_limits<double>::max();
-	
+	if (!Params.Region.IsEmpty())
+	{
+		class FRegionNameSpec
+		{
+		public:
+			FRegionNameSpec(FString& InNamePatternList)
+			{
+				InNamePatternList.ParseIntoArray(NamePatterns, TEXT(","), true);
+			}
+
+			bool Match(const FString& InBookmarkName, FString& OutRegionName, bool& bOutIsRegionStart)
+			{
+				if (InBookmarkName.StartsWith(TEXT("RegionStart:")))
+				{
+					bOutIsRegionStart = true;
+					OutRegionName = InBookmarkName.RightChop(12);
+				}
+				else if (InBookmarkName.StartsWith(TEXT("RegionEnd:")))
+				{
+					bOutIsRegionStart = false;
+					OutRegionName = InBookmarkName.RightChop(10);
+				}
+				else
+				{
+					return false;
+				}
+				for (const FString& NamePattern : NamePatterns)
+				{
+					if (OutRegionName.MatchesWildcard(NamePattern))
+					{
+						return true;
+					}
+				}
+				return false;
+			}
+
+		private:
+			TArray<FString> NamePatterns;
+		};
+		FRegionNameSpec RegionNameSpec(Params.Region);
+
+		struct FTimeRegion
+		{
+			double Start;
+			double End;
+		};
+		TMap<FString, FTimeRegion> Regions;
+
+		// Detect regions
+		{
+			TraceServices::FAnalysisSessionReadScope SessionReadScope(Session);
+
+			const TraceServices::IBookmarkProvider& BookmarkProvider = TraceServices::ReadBookmarkProvider(Session);
+
+			UE_LOG(TraceInsights, Log, TEXT("Looking for regions: '%s'"), *Params.Region);
+
+			BookmarkProvider.EnumerateBookmarks(0.0, std::numeric_limits<double>::max(),
+				[&RegionNameSpec, &Regions](const TraceServices::FBookmark& InBookmark)
+				{
+					FString BaseRegionName;
+					bool bIsRegionStart;
+					if (RegionNameSpec.Match(InBookmark.Text, BaseRegionName, bIsRegionStart))
+					{
+						FTimeRegion* Region = nullptr;
+						FString RegionName = BaseRegionName;
+						int32 Index = 2;
+
+						while (true)
+						{
+							Region = Regions.Find(RegionName);
+
+							if (!Region)
+							{
+								Region = &Regions.Add(RegionName);
+								Region->Start = -std::numeric_limits<double>::infinity();
+								Region->End = std::numeric_limits<double>::infinity();
+							}
+
+							if (bIsRegionStart)
+							{
+								if (Region->Start == -std::numeric_limits<double>::infinity() &&
+									InBookmark.Time <= Region->End)
+								{
+									Region->Start = InBookmark.Time;
+									break;
+								}
+							}
+							else
+							{
+								if (Region->End == std::numeric_limits<double>::infinity() &&
+									InBookmark.Time >= Region->Start)
+								{
+									Region->End = InBookmark.Time;
+									break;
+								}
+							}
+
+							RegionName = FString::Printf(TEXT("%s%d"), *BaseRegionName, Index++);
+						}
+					}
+				});
+		}
+
+		if (Regions.Num() == 0)
+		{
+			UE_LOG(TraceInsights, Error, TEXT("Unable to find any region ('RegionStart:' and 'RegionEnd:' bookmarks) with name pattern '%s'."), *Params.Region);
+			return -1;
+		}
+
+		FStopwatch Stopwatch;
+		Stopwatch.Start();
+
+		// Export timing statistics for each region.
+		for (auto& KV : Regions)
+		{
+			FString RegionFilename = Filename.Replace(TEXT("*"), *KV.Key);
+			FExportTimerStatisticsParams RegionParams = Params;
+			RegionParams.Region.Reset();
+			RegionParams.IntervalStartTime = KV.Value.Start;
+			RegionParams.IntervalEndTime = KV.Value.End;
+			UE_LOG(TraceInsights, Display, TEXT("Exporting timing statistics for region '%s' [%f .. %f] to '%s'"), *KV.Key, RegionParams.IntervalStartTime, RegionParams.IntervalEndTime, *RegionFilename);
+			ExportTimerStatisticsAsText(RegionFilename, RegionParams);
+		}
+
+		Stopwatch.Stop();
+		const double TotalTime = Stopwatch.GetAccumulatedTime();
+		UE_LOG(TraceInsights, Log, TEXT("Exported timing statistics for %d regions in %.3fs."), Regions.Num(), TotalTime);
+		return Regions.Num();
+	}
+
+	check(Params.Region.IsEmpty());
+
 	{
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(Session);
-		
+
 		const TraceServices::ITimingProfilerProvider* TimingProfilerProvider = TraceServices::ReadTimingProfilerProvider(Session);
 		if (!TimingProfilerProvider)
 		{
 			UE_LOG(TraceInsights, Error, TEXT("Unable to access TimingProfilerProvider for ExportTimerStatisticsAsText"));
 			return -1;
 		}
-		
-		if (!Params.Region.IsEmpty())
-		{
-			
-			const TraceServices::IBookmarkProvider& BookmarkProvider = TraceServices::ReadBookmarkProvider(Session);
-			const FString RegionStartName = TEXT("RegionStart:") + Params.Region;
-			const FString RegionEndName = TEXT("RegionEnd:") + Params.Region;
-			UE_LOG(TraceInsights, Log, TEXT("Looking for the following bookmarks: '%s' and '%s'"), *RegionStartName, *RegionEndName);
-			
-			BookmarkProvider.EnumerateBookmarks(0, std::numeric_limits<double>::max(),
-				[&RegionStartTime, &RegionEndTime, &RegionStartName, &RegionEndName](const TraceServices::FBookmark& InBookmark){
-					if (RegionStartTime == 0 && RegionStartName.Equals(InBookmark.Text))
-					{
-						RegionStartTime = InBookmark.Time;
-					}
-					if (RegionEndTime == std::numeric_limits<double>::max() && RegionEndName.Equals(InBookmark.Text))
-					{
-						RegionEndTime = InBookmark.Time;
-					}
-			});
-
-			if (RegionStartTime == 0 || RegionEndTime == std::numeric_limits<double>::max())
-			{
-				UE_LOG(TraceInsights, Error, TEXT("Unable to find 'RegionStart:' and 'RegionEnd:' bookmarks for region '%s'"), *Params.Region);
-				return -1;
-			}
-		}
-
-		if (RegionStartTime != 0 && RegionEndTime != std::numeric_limits<double>::max())
-		{
-			Params.IntervalStartTime = RegionStartTime;
-			Params.IntervalEndTime = RegionEndTime;
-			UE_LOG(TraceInsights, Display, TEXT("Limit selection to region '%s' from %f to %f"), *Params.Region, RegionStartTime, RegionEndTime);
-		}
 
 		//@Todo: this does not yet handle the -column and -timers parameters.
 		StatsTable = TimingProfilerProvider->CreateAggregation(Params.IntervalStartTime, Params.IntervalEndTime, Params.ThreadFilter, true);
 	}
-		
+
 	FStopwatch Stopwatch;
 	Stopwatch.Start();
 
@@ -713,7 +808,7 @@ TFunction<bool(uint32)> FTimingExporter::MakeThreadFilterExclusive(const TSet<ui
 			return ThreadId != ExcludedThreadId;
 		};
 	}
-	
+
 	return [&ExcludedThreads](uint32 ThreadId) -> bool
 	{
 		return !ExcludedThreads.Contains(ThreadId);
@@ -730,7 +825,7 @@ FTimingExporter::FTimingEventFilterFunc FTimingExporter::MakeTimingEventFilterBy
 	}
 
 	OutIncludedTimers.Reset();
-	
+
 	TMap<FString, uint32> Timers;
 
 	// Iterate the GPU & CPU timers.
@@ -811,7 +906,7 @@ FTimingExporter::FTimingEventFilterFunc FTimingExporter::MakeTimingEventFilterBy
 	{
 		return nullptr;
 	}
-		
+
 	if (ExcludedTimers.Num() == 1)
 	{
 		const uint32 ExcludedTimerId = ExcludedTimers[FSetElementId::FromInteger(0)];
