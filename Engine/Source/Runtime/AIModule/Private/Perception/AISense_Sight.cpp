@@ -993,12 +993,6 @@ void UAISense_Sight::OnListenerRemovedImpl(const FPerceptionListener& RemovedLis
 void UAISense_Sight::RemoveAllQueriesByListener(const FPerceptionListener& Listener, const TFunction<void(const FAISightQuery&)>& OnRemoveFunc/*= nullptr */)
 {
 	SCOPE_CYCLE_COUNTER(STAT_AI_Sense_Sight_RemoveByListener);
-
-	if ((SightQueriesInRange.Num() + SightQueriesOutOfRange.Num()) == 0)
-	{
-		return;
-	}
-
 	UE_MT_SCOPED_WRITE_ACCESS(QueriesListAccessDetector);
 
 	const uint32 ListenerId = Listener.GetListenerID();
