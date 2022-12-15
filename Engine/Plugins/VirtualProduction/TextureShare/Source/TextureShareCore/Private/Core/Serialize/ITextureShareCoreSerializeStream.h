@@ -67,8 +67,7 @@ public:
 		{
 			if (IsWriteStream())
 			{
-				const wchar_t* WCharValue = FTCHARToWChar(*InOutData).Get();
-				SerializeData(WCharValue, sizeof(wchar_t) * StrLen);
+				SerializeData(FTCHARToWChar(*InOutData).Get(), sizeof(wchar_t) * StrLen);
 			}
 			else
 			{
