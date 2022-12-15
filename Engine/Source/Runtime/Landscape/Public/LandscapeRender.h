@@ -39,6 +39,10 @@ LandscapeRender.h: New terrain rendering
 class FLandscapeComponentSceneProxy;
 enum class ERuntimeVirtualTextureMaterialType : uint8;
 
+#if RHI_RAYTRACING
+struct FLandscapeRayTracingImpl;
+#endif
+
 #if WITH_EDITOR
 namespace ELandscapeViewMode
 {
@@ -638,25 +642,7 @@ public:
 	static const int8 MAX_SUBSECTION_COUNT = 2*2;
 
 #if RHI_RAYTRACING
-	struct FLandscapeSectionRayTracingState
-	{
-		int8 CurrentLOD;
-		float FractionalLOD;
-		float HeightmapLODBias;
-		uint32 ReferencedTextureRHIHash;
-
-		FRayTracingGeometry Geometry;
-		FRWBuffer RayTracingDynamicVertexBuffer;
-		FLandscapeVertexFactoryMVFUniformBufferRef UniformBuffer;
-
-		FLandscapeSectionRayTracingState() 
-			: CurrentLOD(-1)
-			, FractionalLOD(-1000.0f)
-			, HeightmapLODBias(-1000.0f)
-			, ReferencedTextureRHIHash(0) {}
-	};
-
-	TStaticArray<FLandscapeSectionRayTracingState, MAX_SUBSECTION_COUNT> SectionRayTracingStates;
+	TPimplPtr<FLandscapeRayTracingImpl> RayTracingImpl;
 #endif
 
 	friend FLandscapeRenderSystem;

@@ -94,6 +94,7 @@ class FVirtualShadowMapArrayCacheManager;
 struct FHairStrandsInstance;
 struct FPathTracingState;
 class FSparseVolumeTextureViewerSceneProxy;
+class FLandscapeRayTracingStateList;
 
 /** Holds information about a single primitive's occlusion. */
 class FPrimitiveOcclusionHistory
@@ -997,6 +998,9 @@ public:
 	// Last valid RTPSO is saved, so it could be used as fallback in future frames if background PSO compilation is enabled.
 	// This RTPSO can be used only if the only difference from previous PSO is the material hit shaders.
 	FRayTracingPipelineStateSignature LastRayTracingMaterialPipelineSignature;
+
+	// List of landscape ray tracing state associated with this view, so it can be cleaned up if the view gets deleted.
+	TPimplPtr<FLandscapeRayTracingStateList> LandscapeRayTracingStates;
 #endif
 
 	TUniquePtr<FForwardLightingViewResources> ForwardLightingResources;
