@@ -45,7 +45,7 @@ struct FFrame;
 template<typename TItemType> class IFilter;
 
 USTRUCT(BlueprintType)
-struct FDataLayerCreationParameters
+struct DATALAYEREDITOR_API FDataLayerCreationParameters
 {
 	GENERATED_USTRUCT_BODY()
 
