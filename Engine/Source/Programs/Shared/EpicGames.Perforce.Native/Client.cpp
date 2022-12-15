@@ -535,7 +535,11 @@ public:
 
 	virtual void Close(Error* e) override
 	{
-		User.OutputIo(FileId, "close", nullptr, 0);
+		if (FileId != -1)
+		{
+			User.OutputIo(FileId, "close", nullptr, 0);
+			FileId = -1;
+		}
 	}
 
 	virtual int Stat() override
