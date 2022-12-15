@@ -3,13 +3,13 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Misc/AssertionMacros.h"
 #include "HAL/UnrealMemory.h"
+#include "Misc/AssertionMacros.h"
 #include "Templates/RemoveReference.h"
+#include "Templates/SharedPointerFwd.h"
 #include "Templates/TypeCompatibleBytes.h"
 #include <atomic>
 #include <type_traits>
-
 
 /** Default behavior. */
 #define THREAD_SANITISE_UNSAFEPTR 0
@@ -19,33 +19,6 @@
 #else
 	#define TSAN_SAFE_UNSAFEPTR TSAN_SAFE
 #endif
-
-/**
- * ESPMode is used select between either 'fast' or 'thread safe' shared pointer types.
- * This is only used by templates at compile time to generate one code path or another.
- */
-enum class ESPMode : uint8
-{
-	/** Forced to be not thread-safe. */
-	NotThreadSafe = 0,
-
-	/** Thread-safe, never spin locks, but slower */
-	ThreadSafe = 1,
-
-	/**
-	 * Fast was sometimes ThreadSafe and sometimes NotThreadSafe, but Fast is a misnomer.
-	 * Deprecated since ThreadSafe became the default.
-	 */
-	Fast UE_DEPRECATED(5.0, "ESPMode::Fast has been deprecated - please use ESPMode::ThreadSafe instead") = 1
-};
-
-
-// Forward declarations.  By default, thread safety features are turned on. (Mode = ESPMode::ThreadSafe).
-// If you need more concerned with performance of ref-counting, you should use ESPMode::NotThreadSafe.
-template< class ObjectType, ESPMode Mode = ESPMode::ThreadSafe > class TSharedRef;
-template< class ObjectType, ESPMode Mode = ESPMode::ThreadSafe > class TSharedPtr;
-template< class ObjectType, ESPMode Mode = ESPMode::ThreadSafe > class TWeakPtr;
-template< class ObjectType, ESPMode Mode = ESPMode::ThreadSafe > class TSharedFromThis;
 
 
 /**
