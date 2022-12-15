@@ -322,6 +322,11 @@ void UStateTreeComponent::OnGameplayTaskInitialized(UGameplayTask& Task)
 	}
 }
 
+void UStateTreeComponent::SetStartLogicAutomatically(const bool bInStartLogicAutomatically)
+{
+	bStartLogicAutomatically = bInStartLogicAutomatically;
+}
+
 void UStateTreeComponent::SendStateTreeEvent(const FStateTreeEvent& Event)
 {
 	SendStateTreeEvent(Event.Tag, Event.Payload, Event.Origin);
