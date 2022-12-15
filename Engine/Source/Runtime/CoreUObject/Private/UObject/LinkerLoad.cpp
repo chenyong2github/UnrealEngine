@@ -1635,7 +1635,21 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageTrailer()
 		Seek(Summary.PayloadTocOffset);
 		
 		PackageTrailer = MakeUnique<UE::FPackageTrailer>();
-		if (!PackageTrailer->TryLoad(*this))
+
+		bool bResult = PackageTrailer->TryLoad(*this);
+		if (!bResult && Summary.GetFileVersionUE().ToValue() == (int32)EUnrealEngineObjectUE5Version::DATA_RESOURCES)
+		{
+			// There was an issue that was causing incorrect values to be written to PayloadTocOffset for
+			// a limited time. In these cases we can try the slower ::TryLoadBackwards method of loading 
+			// the trailer. Note that we only do this if the FileVersion is 
+			// EUnrealEngineObjectUE5Version::DATA_RESOURCES as the bug was introduced while this was the
+			// current version, so any package with an older or newer version should be safe.
+
+			Seek(TotalSize());
+			bResult = PackageTrailer->TryLoadBackwards(*this);
+		}
+
+		if (!bResult)
 		{
 			// If the archive has an error then we found a package trailer but it failed to serialize
 			// correctly and we most likely have a problem with the file.
