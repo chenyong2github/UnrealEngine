@@ -9,6 +9,7 @@
 #include "ChaosClothAsset/ClothAdapter.h"
 #include "ChaosClothAsset/ClothEditorRestSpaceViewportClient.h"
 #include "ChaosClothAsset/ClothPatternToDynamicMesh.h"
+#include "ChaosClothAsset/ClothEditorPreviewScene.h"
 #include "AssetEditorModeManager.h"
 #include "Drawing/MeshElementsVisualizer.h"
 #include "EditorViewportClient.h"
@@ -258,21 +259,21 @@ void UChaosClothAssetEditorMode::Exit()
 	WireframesToTick.Reset();
 	DynamicMeshComponents.Reset();
 	PropertyObjectsToTick.Empty();
-	PreviewWorld = nullptr;
+	PreviewScene = nullptr;
 
 	Super::Exit();
 }
 
-void UChaosClothAssetEditorMode::SetPreviewWorld(TObjectPtr<UWorld> InWorld)
+void UChaosClothAssetEditorMode::SetPreviewScene(FChaosClothPreviewScene* InPreviewScene)
 {
-	PreviewWorld = InWorld;
+	PreviewScene = InPreviewScene;
 }
 
 void UChaosClothAssetEditorMode::UpdateSimulationMeshes()
 {
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("ChaosClothAssetEditorApplyChangesTransaction", "Cloth Editor Apply Changes"));
 
-	UChaosClothAsset* ChaosClothAsset = ClothComponent->GetClothAsset();
+	UChaosClothAsset* ChaosClothAsset = PreviewScene->ClothComponent->GetClothAsset();
 	ChaosClothAsset->Modify();
 
 	UE::Chaos::ClothAsset::FClothAdapter ClothAdapter(ChaosClothAsset->GetClothCollection());
@@ -347,7 +348,7 @@ void UChaosClothAssetEditorMode::UpdateSimulationMeshes()
 
 	// Reset cloth component
 	{
-		const FComponentReregisterContext Context(ClothComponent);
+		const FComponentReregisterContext Context(PreviewScene->ClothComponent);
 	}
 
 	GetToolManager()->EndUndoTransaction();
@@ -393,12 +394,12 @@ void UChaosClothAssetEditorMode::ReinitializeDynamicMeshComponents()
 	WireframesToTick.Empty();
 	DynamicMeshSourceInfos.Empty();
 
-	if (!ClothComponent)
+	if (!PreviewScene->ClothComponent)
 	{
 		return;
 	}
 
-	const UChaosClothAsset* ChaosClothAsset = ClothComponent->GetClothAsset();
+	const UChaosClothAsset* ChaosClothAsset = PreviewScene->ClothComponent->GetClothAsset();
 
 	if (!ChaosClothAsset)
 	{
@@ -571,7 +572,7 @@ void UChaosClothAssetEditorMode::RefocusRestSpaceViewportClient()
 void UChaosClothAssetEditorMode::InitializeTargets(const TArray<TObjectPtr<UObject>>& AssetsIn)
 {
 	// InitializeContexts needs to have been called first so that we have the 3d preview world ready.
-	check(PreviewWorld);
+	check(PreviewScene);
 
 	OriginalObjectsToEdit = AssetsIn;
 
@@ -587,13 +588,11 @@ void UChaosClothAssetEditorMode::InitializeTargets(const TArray<TObjectPtr<UObje
 	{
 		if (UChaosClothAsset* ChaosClothAsset = Cast<UChaosClothAsset>(Asset))
 		{
-			ClothComponent = NewObject<UChaosClothComponent>();
-			ClothComponent->SetClothAsset(ChaosClothAsset);
-			ClothComponent->RegisterComponentWithWorld(PreviewWorld);
+			PreviewScene->CreateClothComponent(ChaosClothAsset);
 
 			USelection* SelectedComponents = GetModeManager()->GetSelectedComponents();
 			SelectedComponents->Modify();
-			SelectedComponents->Select(ClothComponent);
+			SelectedComponents->Select(PreviewScene->ClothComponent);
 
 			break;
 		}
@@ -602,7 +601,7 @@ void UChaosClothAssetEditorMode::InitializeTargets(const TArray<TObjectPtr<UObje
 	ReinitializeDynamicMeshComponents();
 
 	DataflowComponent = NewObject<UDataflowComponent>();
-	DataflowComponent->RegisterComponentWithWorld(PreviewWorld);
+	DataflowComponent->RegisterComponentWithWorld(PreviewScene->GetWorld());
 
 	bShouldFocusRestSpaceView = true;
 }
@@ -623,25 +622,25 @@ void UChaosClothAssetEditorMode::HardResetSimulation()
 
 void UChaosClothAssetEditorMode::SuspendSimulation()
 {
-	if (ClothComponent)
+	if (PreviewScene && PreviewScene->ClothComponent)
 	{
-		ClothComponent->SuspendSimulation();
+		PreviewScene->ClothComponent->SuspendSimulation();
 	}
 }
 
 void UChaosClothAssetEditorMode::ResumeSimulation()
 {
-	if (ClothComponent)
+	if (PreviewScene && PreviewScene->ClothComponent)
 	{
-		ClothComponent->ResumeSimulation();
+		PreviewScene->ClothComponent->ResumeSimulation();
 	}
 }
 
 bool UChaosClothAssetEditorMode::IsSimulationSuspended() const
 {
-	if (ClothComponent)
+	if (PreviewScene && PreviewScene->ClothComponent)
 	{
-		return ClothComponent->IsSimulationSuspended();
+		return PreviewScene->ClothComponent->IsSimulationSuspended();
 	}
 
 	return false;
@@ -682,7 +681,7 @@ void UChaosClothAssetEditorMode::ModeTick(float DeltaTime)
 
 	if (bShouldClearTeleportFlag)
 	{
-		ClothComponent->ResetTeleportMode();
+		PreviewScene->ClothComponent->ResetTeleportMode();
 		bShouldClearTeleportFlag = false;
 	}
 
@@ -690,20 +689,20 @@ void UChaosClothAssetEditorMode::ModeTick(float DeltaTime)
 	{
 		if (bHardReset)
 		{
-			const FComponentReregisterContext Context(ClothComponent);
+			const FComponentReregisterContext Context(PreviewScene->ClothComponent);
 		}
 		else
 		{
-			ClothComponent->ForceNextUpdateTeleportAndReset();
+			PreviewScene->ClothComponent->ForceNextUpdateTeleportAndReset();
 		}
 
 		bShouldResetSimulation = false;
 		bShouldClearTeleportFlag = true;		// clear the flag next tick
 	}
 
-	if (PreviewWorld)
+	if (PreviewScene->GetWorld())
 	{
-		PreviewWorld->Tick(ELevelTick::LEVELTICK_All, DeltaTime);
+		PreviewScene->GetWorld()->Tick(ELevelTick::LEVELTICK_All, DeltaTime);
 	}
 }
 
@@ -782,9 +781,9 @@ FBox UChaosClothAssetEditorMode::SelectionBoundingBox() const
 
 FBox UChaosClothAssetEditorMode::PreviewBoundingBox() const
 {
-	if (ClothComponent)
+	if (PreviewScene->ClothComponent)
 	{
-		FBoxSphereBounds Bounds = ClothComponent->Bounds;
+		FBoxSphereBounds Bounds = PreviewScene->ClothComponent->Bounds;
 		return Bounds.GetBox();
 	}
 

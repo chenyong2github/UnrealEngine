@@ -31,11 +31,13 @@
 #include "Engine/Canvas.h"
 #include "PropertyEditorModule.h"
 #include "Algo/RemoveIf.h"
+#include "AdvancedPreviewSceneModule.h"
 
 #define LOCTEXT_NAMESPACE "ChaosClothAssetEditorToolkit"
 
 const FName FChaosClothAssetEditorToolkit::ClothPreviewTabID(TEXT("ChaosClothAssetEditor_ClothPreviewTab"));
 const FName FChaosClothAssetEditorToolkit::OutlinerTabID(TEXT("ChaosClothAssetEditor_OutlinerTab"));
+const FName FChaosClothAssetEditorToolkit::PreviewSceneDetailsTabID(TEXT("ChaosClothAssetEditor_PreviewSceneDetailsTab"));
 const FName FChaosClothAssetEditorToolkit::GraphCanvasTabId(TEXT("ChaosClothAssetEditor_GraphCanvas"));
 const FName FChaosClothAssetEditorToolkit::NodeDetailsTabId(TEXT("ChaosClothAssetEditor_NodeDetails"));
 
@@ -146,6 +148,7 @@ FChaosClothAssetEditorToolkit::FChaosClothAssetEditorToolkit(UAssetEditor* InOwn
 					->SetSizeCoefficient(0.3f)
 					->AddTab(DetailsTabID, ETabState::OpenedTab)
 					->AddTab(OutlinerTabID, ETabState::OpenedTab)
+					->AddTab(PreviewSceneDetailsTabID, ETabState::OpenedTab)
 					->SetExtensionId("DetailsArea")
 					->SetHideTabWell(true)
 				)
@@ -164,7 +167,7 @@ FChaosClothAssetEditorToolkit::FChaosClothAssetEditorToolkit(UAssetEditor* InOwn
 	PreviewSceneArgs.bShouldSimulatePhysics = 1;
 	PreviewSceneArgs.bCreatePhysicsScene = 1;
 	
-	ClothPreviewScene = MakeUnique<FAdvancedPreviewScene>(PreviewSceneArgs);
+	ClothPreviewScene = MakeShared<FChaosClothPreviewScene>(PreviewSceneArgs);
 	ClothPreviewScene->SetFloorVisibility(false, true);
 	ClothPreviewEditorModeManager = MakeShared<FAssetEditorModeManager>();
 	ClothPreviewEditorModeManager->SetPreviewScene(ClothPreviewScene.Get());
@@ -242,8 +245,8 @@ void FChaosClothAssetEditorToolkit::InitializeEdMode(UBaseCharacterFXEditorMode*
 	UChaosClothAssetEditorMode* ClothMode = Cast<UChaosClothAssetEditorMode>(EdMode);
 	check(ClothMode);
 
-	// The mode will need to be able to get to the live preview world
-	ClothMode->SetPreviewWorld(ClothPreviewEditorModeManager->GetWorld());
+	check(ClothPreviewScene.IsValid());
+	ClothMode->SetPreviewScene(ClothPreviewScene.Get());
 
 	TArray<TObjectPtr<UObject>> ObjectsToEdit;
 	OwningAssetEditor->GetObjectsToEdit(ObjectsToEdit);
@@ -409,7 +412,7 @@ void FChaosClothAssetEditorToolkit::PostInitAssetEditor()
 	ViewportClient->ReceivedFocus(ViewportClient->Viewport);
 
 	// Set up 3D viewport
-	ClothPreviewViewportClient->SetClothComponent(ClothMode->ClothComponent);
+	ClothPreviewViewportClient->SetClothComponent(ClothPreviewScene->ClothComponent);
 	ClothPreviewViewportClient->SetClothEdMode(ClothMode);
 	ClothPreviewViewportClient->SetClothEditorToolkit(StaticCastSharedRef<FChaosClothAssetEditorToolkit>(this->AsShared()));
 
@@ -501,6 +504,11 @@ void FChaosClothAssetEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabMan
 		.SetDisplayName(LOCTEXT("Outliner", "Outliner"))
 		.SetGroup(AssetEditorTabsCategory.ToSharedRef())
 		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Outliner"));
+
+	InTabManager->RegisterTabSpawner(PreviewSceneDetailsTabID, FOnSpawnTab::CreateSP(this, &FChaosClothAssetEditorToolkit::SpawnTab_PreviewSceneDetails))
+		.SetDisplayName(LOCTEXT("PreviewSceneDetails", "Preview Scene Details"))
+		.SetGroup(AssetEditorTabsCategory.ToSharedRef())
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 
 	InTabManager->RegisterTabSpawner(GraphCanvasTabId, FOnSpawnTab::CreateSP(this, &FChaosClothAssetEditorToolkit::SpawnTab_GraphCanvas))
 		.SetDisplayName(LOCTEXT("DataflowTab", "Graph"))
@@ -600,6 +608,15 @@ TSharedRef<SDockTab> FChaosClothAssetEditorToolkit::SpawnTab_Outliner(const FSpa
 	return DockableTab;
 }
 
+
+TSharedRef<SDockTab> FChaosClothAssetEditorToolkit::SpawnTab_PreviewSceneDetails(const FSpawnTabArgs& Args)
+{
+	SAssignNew(PreviewSceneDockTab, SDockTab)
+		.Label(LOCTEXT("PreviewSceneDetailsTitle", "Preview Scene Details"));
+
+	return PreviewSceneDockTab.ToSharedRef();
+}
+
 TSharedRef<SDockTab> FChaosClothAssetEditorToolkit::SpawnTab_GraphCanvas(const FSpawnTabArgs& Args)
 {
 	check(Args.GetTabId() == GraphCanvasTabId);
@@ -654,11 +671,23 @@ void FChaosClothAssetEditorToolkit::InitDetailsViewPanel()
 		SetEditingObject(ObjectToEditInDetailsView);
 	}
 
-	const UChaosClothAssetEditorMode* const ClothMode = CastChecked<UChaosClothAssetEditorMode>(EditorModeManager->GetActiveScriptableMode(UChaosClothAssetEditorMode::EM_ChaosClothAssetEditorModeId));
+	TArray<FAdvancedPreviewSceneModule::FDetailDelegates> Delegates;	
+
+	ensure(ClothPreviewScene.IsValid());
+	FAdvancedPreviewSceneModule& AdvancedPreviewSceneModule = FModuleManager::LoadModuleChecked<FAdvancedPreviewSceneModule>("AdvancedPreviewScene");
+	AdvancedPreviewSettingsWidget = AdvancedPreviewSceneModule.CreateAdvancedPreviewSceneSettingsWidget(ClothPreviewScene.ToSharedRef(), 
+		ClothPreviewScene->GetPreviewSceneDescription(),
+		TArray<FAdvancedPreviewSceneModule::FDetailCustomizationInfo>(), 
+		TArray<FAdvancedPreviewSceneModule::FPropertyTypeCustomizationInfo>(),
+		Delegates);
+
+	if (PreviewSceneDockTab.IsValid())
+	{
+		PreviewSceneDockTab->SetContent(AdvancedPreviewSettingsWidget.ToSharedRef());
+	}
 
 	TSharedPtr<UE::Chaos::ClothAsset::FClothCollection> ClothCollection;
-
-	if (const TObjectPtr<UChaosClothComponent> ClothComponent = ClothMode->ClothComponent)
+	if (const TObjectPtr<UChaosClothComponent> ClothComponent = ClothPreviewScene->ClothComponent)
 	{
 		if (UChaosClothAsset* const ClothAsset = ClothComponent->GetClothAsset())
 		{

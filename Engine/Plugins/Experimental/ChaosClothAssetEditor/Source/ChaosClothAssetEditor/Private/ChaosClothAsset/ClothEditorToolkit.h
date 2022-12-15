@@ -4,8 +4,8 @@
 
 #include "BaseCharacterFXEditorToolkit.h"
 #include "Dataflow/DataflowObjectInterface.h"
+#include "ChaosClothAsset/ClothEditorPreviewScene.h"
 
-class FAdvancedPreviewScene;
 class FChaosClothAssetEditor3DViewportClient;
 template<typename T> class SComboBox;
 class SClothCollectionOutliner;
@@ -14,6 +14,7 @@ class UChaosClothAsset;
 class SGraphEditor;
 class IStructureDetailsView;
 class UEdGraphNode;
+class UChaosClothComponent;
 
 namespace Dataflow
 {
@@ -50,6 +51,7 @@ private:
 
 	static const FName ClothPreviewTabID;
 	static const FName OutlinerTabID;
+	static const FName PreviewSceneDetailsTabID;
 
 	// FTickableEditorObject
 	virtual void Tick(float DeltaTime) override;
@@ -89,13 +91,14 @@ private:
 
 	TSharedRef<SDockTab> SpawnTab_ClothPreview(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Outliner(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_PreviewSceneDetails(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_GraphCanvas(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_NodeDetails(const FSpawnTabArgs& Args);
 
 	void InitDetailsViewPanel();
 
-	/** Scene in which the 3D sim space preview meshes live. */
-	TUniquePtr<FAdvancedPreviewScene> ClothPreviewScene;
+	/** Scene in which the 3D sim space preview meshes live. Ownership shared with AdvancedPreviewSettingsWidget*/
+	TSharedPtr<FChaosClothPreviewScene> ClothPreviewScene;
 
 	TSharedPtr<class FEditorViewportTabContent> ClothPreviewTabContent;
 	AssetEditorViewportFactoryFunction ClothPreviewViewportDelegate;
@@ -103,6 +106,9 @@ private:
 	TSharedPtr<FAssetEditorModeManager> ClothPreviewEditorModeManager;
 
 	TWeakPtr<SEditorViewport> RestSpaceViewport;
+
+	TSharedPtr<SDockTab> PreviewSceneDockTab;
+	TSharedPtr<SWidget> AdvancedPreviewSettingsWidget;
 
 	TSharedPtr<SClothCollectionOutliner> Outliner;
 

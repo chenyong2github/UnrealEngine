@@ -27,6 +27,7 @@ class FEditorViewportClient;
 class FChaosClothEditorRestSpaceViewportClient;
 class FViewport;
 class UDataflowComponent;
+class FChaosClothPreviewScene;
 
 /**
  * The cloth editor mode is the mode used in the cloth asset editor. It holds most of the inter-tool state.
@@ -91,9 +92,7 @@ private:
 	// to turn them into the input objects that tools get (since these need preview meshes, etc).
 	static const FToolTargetTypeRequirements& GetToolTargetRequirements();
 
-	// Both SetPreviewWorld and InitializeTargets functions must be called for things to function properly. SetPreviewWorld should
-	// be done first so that the 3d preview world is ready for creating meshes in InitializeTargets.
-	void SetPreviewWorld(TObjectPtr<UWorld> InWorld);
+	void SetPreviewScene(FChaosClothPreviewScene* PreviewScene);
 
 	// Bounding box for rest space meshes
 	virtual FBox SceneBoundingBox() const override;
@@ -101,18 +100,14 @@ private:
 	void SetRestSpaceViewportClient(TWeakPtr<FChaosClothEditorRestSpaceViewportClient, ESPMode::ThreadSafe> ViewportClient);
 	void RefocusRestSpaceViewportClient();
 
-	// Preview simulation mesh
-	UPROPERTY()
-	TObjectPtr<UChaosClothComponent> ClothComponent;
 
 	// Rest space wireframes. They have to get ticked to be able to respond to setting changes. 
 	UPROPERTY()
 	TArray<TObjectPtr<UMeshElementsVisualizer>> WireframesToTick;
 
-	// Here largely for convenience to avoid having to pass it around functions.
-	UPROPERTY()
-	TObjectPtr<UWorld> PreviewWorld = nullptr;
-	
+	// Preview Scene, here largely for convenience to avoid having to pass it around functions. Owned by the ClothEditorToolkit.
+	FChaosClothPreviewScene* PreviewScene = nullptr;
+
 	// Mode-level property objects (visible or not) that get ticked.
 	UPROPERTY()
 	TArray<TObjectPtr<UInteractiveToolPropertySet>> PropertyObjectsToTick;
