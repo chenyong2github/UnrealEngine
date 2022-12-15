@@ -29,7 +29,10 @@ enum class EPriority : uint8
 	/** Optional information (e.g. use of the ReferenceViewer) is unavailable until the file/directory is completed */
 	High,
 	/** Nothing has requested the file/directory yet */
-	Normal
+	Normal,
+
+	Highest = Blocking,
+	Lowest = Normal,
 };
 constexpr uint32 CountEPriority = static_cast<uint32>(EPriority::Normal) + 1;
 
