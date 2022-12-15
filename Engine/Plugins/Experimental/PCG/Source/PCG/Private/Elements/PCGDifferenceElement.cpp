@@ -21,7 +21,7 @@ TArray<FPCGPinProperties> UPCGDifferenceSettings::InputPinProperties() const
 TArray<FPCGPinProperties> UPCGDifferenceSettings::OutputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Composite);
+	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Spatial);
 
 	return PinProperties;
 }

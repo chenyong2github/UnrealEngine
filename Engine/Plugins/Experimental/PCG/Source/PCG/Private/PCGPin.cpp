@@ -208,8 +208,6 @@ bool UPCGPin::IsCompatible(const UPCGPin* OtherPin) const
 	const bool bDownstreamComposite = !!(DownstreamPin->Properties.AllowedTypes & EPCGDataType::Composite);
 	if (bUpstreamConcrete && bDownstreamComposite)
 	{
-		// TODO: Bug - this allows any concrete to connect to any other concrete. We need conversion nodes
-		// where appropriate, or block incompatible edges.
 		return true;
 	}
 

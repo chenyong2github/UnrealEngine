@@ -24,6 +24,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
 	void Initialize(const UPCGSpatialData* InA, const UPCGSpatialData* InB);
 
+	// ~Begin UPCGData interface
+	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Composite; }
+	// ~End UPCGData interface
+
 	//~Begin UPCGSpatialData interface
 	virtual int GetDimension() const override;
 	virtual FBox GetBounds() const override;

@@ -205,20 +205,16 @@ void IPCGElement::DisabledPassThroughData(FPCGContext* Context) const
 	const UPCGSettings* Settings = Context->GetInputSettings<UPCGSettings>();
 	check(Settings);
 
-	// Copy as baseline
-	Context->OutputData = Context->InputData;
-
 	if (!Context->Node)
 	{
 		// Full pass-through if we don't have a node
+		Context->OutputData = Context->InputData;
 		return;
 	}
 
 	if (Context->Node->GetInputPins().Num() == 0 || Context->Node->GetOutputPins().Num() == 0)
 	{
 		// No input pins or not output pins, return nothing
-		Context->OutputData.TaggedData.Empty();
-
 		return;
 	}
 
@@ -226,10 +222,11 @@ void IPCGElement::DisabledPassThroughData(FPCGContext* Context) const
 	if (PassThroughPin == nullptr)
 	{
 		// No pin to grab pass through data from
-		Context->OutputData.TaggedData.Empty();
-
 		return;
 	}
+
+	// Grab data from pass-through pin
+	Context->OutputData.TaggedData = Context->InputData.GetInputsByPin(PassThroughPin->Properties.Label);
 
 	const EPCGDataType OutputType = Context->Node->GetOutputPins()[0]->Properties.AllowedTypes;
 
@@ -239,9 +236,17 @@ void IPCGElement::DisabledPassThroughData(FPCGContext* Context) const
 	{
 		EPCGDataType InputType = InData.Data ? InData.Data->GetDataType() : EPCGDataType::None;
 		const bool bInputTypeNotWiderThanOutputType = !(InputType & ~OutputType);
-		return InputType != EPCGDataType::Param && bInputTypeNotWiderThanOutputType;
+
+		// Right now we allow edges from Spatial to Concrete. This can happen for example if a point processing node
+		// is receving a Spatial data, and the node is disabled, it will want to pass the Spatial data through. In the
+		// future we will force collapses/conversions. For now, allow an incoming Spatial to pass out through a Concrete.
+		// TODO remove!
+		const bool bAllowSpatialToConcrete = !!(InputType & EPCGDataType::Spatial) && !!(OutputType & EPCGDataType::Concrete);
+
+		return InputType != EPCGDataType::Param && (bInputTypeNotWiderThanOutputType || bAllowSpatialToConcrete);
 	};
 
+	// Now remove any non-params edges, and if only one edge should come through, remove the others
 	if (Settings->OnlyPassThroughOneEdgeWhenDisabled())
 	{
 		// Find first incoming non-params data that is coming through the pass through pin
