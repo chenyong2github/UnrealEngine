@@ -2957,38 +2957,41 @@ void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool b
 	}
 
 #if WITH_EDITOR
-	// Wait on any async DDC handles
-	if (bExecuteNextStep && AsyncPreRegisterDDCRequests.Num())
+	if (bExecuteNextStep)
 	{
-		if (!bConsiderTimeLimit)
+		// Wait on any async DDC handles
+		if (AsyncPreRegisterDDCRequests.Num())
 		{
-			QUICK_SCOPE_CYCLE_COUNTER(UWorld_AddToWorld_WaitFor_AsyncPreRegisterLevelStreamingTasks);
+			if (!bConsiderTimeLimit)
+			{
+				QUICK_SCOPE_CYCLE_COUNTER(UWorld_AddToWorld_WaitFor_AsyncPreRegisterLevelStreamingTasks);
 
-			for (TSharedPtr<FAsyncPreRegisterDDCRequest>& Request : AsyncPreRegisterDDCRequests)
-			{
-				Request->WaitAsynchronousCompletion();
-			}
-			AsyncPreRegisterDDCRequests.Empty();
-		}
-		else
-		{
-			for (int32 Index = 0; Index < AsyncPreRegisterDDCRequests.Num(); Index++)
-			{
-				if (AsyncPreRegisterDDCRequests[Index]->PollAsynchronousCompletion())
+				for (TSharedPtr<FAsyncPreRegisterDDCRequest>& Request : AsyncPreRegisterDDCRequests)
 				{
-					AsyncPreRegisterDDCRequests.RemoveAtSwap(Index--);
+					Request->WaitAsynchronousCompletion();
 				}
-				else
+				AsyncPreRegisterDDCRequests.Empty();
+			}
+			else
+			{
+				for (int32 Index = 0; Index < AsyncPreRegisterDDCRequests.Num(); Index++)
 				{
-					bExecuteNextStep = false;
-					break;
+					if (AsyncPreRegisterDDCRequests[Index]->PollAsynchronousCompletion())
+					{
+						AsyncPreRegisterDDCRequests.RemoveAtSwap(Index--);
+					}
+					else
+					{
+						bExecuteNextStep = false;
+						break;
+					}
 				}
 			}
 		}
+
+		// Gives a chance to any assets being used for PIE/game to complete
+		FAssetCompilingManager::Get().ProcessAsyncTasks();
 	}
-
-	// Gives a chance to any assets being used for PIE/game to complete
-	FAssetCompilingManager::Get().ProcessAsyncTasks();
 #endif
 
 	// Updates the level components (Actor components and UModelComponents).
