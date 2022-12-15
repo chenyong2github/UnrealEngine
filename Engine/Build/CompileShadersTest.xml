@@ -20,7 +20,7 @@
 		<Property Name="AnalyticsArg" Value="-analytics"/>
 	</Do>
 	
-	<Property Name="CommandletArguments" Value="-targetplatform=Windows -Collection=Audit_InCook -noshaderddc"/>
+	<Option Name="CommandletArguments" Description="Arguments to pass to the CompileShaders commandlet." DefaultValue="-targetplatform=Windows -Collection=Audit_InCook -noshaderddc"/>
 	<Property Name="PrivateCommandletArguments" Value="$(CommandletArguments)  $(AnalyticsArg)"/>
 	
 	<!-- Projects setup-->
