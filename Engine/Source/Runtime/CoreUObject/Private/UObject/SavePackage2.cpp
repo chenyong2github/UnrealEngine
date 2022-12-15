@@ -2046,9 +2046,6 @@ ESavePackageResult WriteExports(FStructuredArchive::FRecord& StructuredArchiveRo
 					SaveContext.GetFilename(), TEXT("SAVE_BulkDataByReference is incompatible with bUpdatingLoadedPath"));
 				return ESavePackageResult::Error;
 			}
-
-			// Nothing to do, load bulk data from the .uasset source file
-			return ESavePackageResult::Success;
 		}
 	}
 

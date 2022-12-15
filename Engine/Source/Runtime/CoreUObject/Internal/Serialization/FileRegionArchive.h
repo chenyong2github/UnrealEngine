@@ -28,7 +28,6 @@ public:
 
 	virtual void PopFileRegionType() override final
 	{
-		check(CurrentRegion.Type != EFileRegionType::None);
 		CurrentRegion.Length = Tell() - CurrentRegion.Offset;
 		FileRegions.Add(CurrentRegion);
 		CurrentRegion = FFileRegion();
