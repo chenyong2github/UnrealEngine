@@ -321,6 +321,11 @@ struct RIGVM_API FRigVMExecuteContext
 		NameCache = InOtherContext->NameCache;
 	}
 
+	/**
+	 * Serialize this type from another
+	 */
+	bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
+
 protected:
 
 	virtual void Reset()
@@ -362,6 +367,16 @@ protected:
 	friend class URigVM;
 	friend class URigVMNativized;
 };
+
+template<>
+struct TStructOpsTypeTraits<FRigVMExecuteContext> : public TStructOpsTypeTraitsBase2<FRigVMExecuteContext>
+{
+	enum
+	{
+		WithStructuredSerializeFromMismatchedTag = true,
+	};
+};
+
 
 /**
  * The execute context is used for mutable nodes to
