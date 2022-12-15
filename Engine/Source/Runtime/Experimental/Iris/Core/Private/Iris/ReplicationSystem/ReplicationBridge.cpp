@@ -247,7 +247,7 @@ void UReplicationBridge::ReadAndExecuteDestructionInfoFromRemote(FReplicationBri
 	{
 		// Need to forward this as we do not really know how to destroy the actual instance
 		constexpr bool bTearOff = false;
-		constexpr bool bShouldDestroyInstance = false;
+		constexpr bool bShouldDestroyInstance = true;
 		CallDetachInstanceFromRemote(ReferenceToDestroy.GetRefHandle(), bTearOff, bShouldDestroyInstance);
 	}
 }
