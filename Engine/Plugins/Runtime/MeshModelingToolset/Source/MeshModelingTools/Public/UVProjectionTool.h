@@ -111,7 +111,7 @@ public:
 	EUVProjectionMethod ProjectionType = EUVProjectionMethod::Plane;
 
 	/** Width, length, and height of the projection shape before rotation */
-	UPROPERTY(EditAnywhere, Category = "UV Projection")
+	UPROPERTY(EditAnywhere, Category = "UV Projection", meta = (Delta = 0.5, LinearDeltaSensitivity = 1))
 	FVector Dimensions = FVector(100.0f, 100.0f, 100.0f);
 
 	/** If true, changes to Dimensions result in all components be changed proportionally */
@@ -155,11 +155,11 @@ public:
 	//
 
 	/** Rotation in degrees applied after computing projection */
-	UPROPERTY(EditAnywhere, Category = "UV Transform")
+	UPROPERTY(EditAnywhere, Category = "UV Transform", meta = (ClampMin = -360, ClampMax = 360))
 	float Rotation = 0.0;
 
 	/** Scaling applied after computing projection */
-	UPROPERTY(EditAnywhere, Category = "UV Transform")
+	UPROPERTY(EditAnywhere, Category = "UV Transform", meta = (Delta = 0.01, LinearDeltaSensitivity = 1))
 	FVector2D Scale = FVector2D::UnitVector;
 
 	/** Translation applied after computing projection */

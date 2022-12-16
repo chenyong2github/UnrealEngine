@@ -93,7 +93,7 @@ public:
 
 	/** Seed for randomization */
 	UPROPERTY(EditAnywhere, Category = Options,
-		meta = (EditCondition = "DisplacementType == EDisplaceMeshToolDisplaceType::RandomNoise || DisplacementType == EDisplaceMeshToolDisplaceType::PerlinNoise"))
+		meta = (EditCondition = "DisplacementType == EDisplaceMeshToolDisplaceType::RandomNoise || DisplacementType == EDisplaceMeshToolDisplaceType::PerlinNoise", Delta = 1, LinearDeltaSensitivity = 50))
 	int RandomSeed = 31337;
 
 	/** Type of the  mesh subdivision. */
@@ -173,7 +173,7 @@ public:
 	/** When sampling from the texture map, how to scale the mesh UV's in the x and y directions. For a mesh with
 	UV's in the range 0 to 1, setting a scale above 1 will result in tiling the texture map, and scaling below
 	1 will result in using only part of the texture map.*/
-	UPROPERTY(EditAnywhere, Category = Options)
+	UPROPERTY(EditAnywhere, Category = Options, meta = (Delta = 0.01, LinearDeltaSensitivity = 1))
 	FVector2D UVScale = FVector2D(1,1);
 
 	/** When sampling from the texture map, how to offset the mesh UV's. This will result in offsetting the
@@ -211,7 +211,7 @@ public:
 
 	/** Unit vector representing the direction to filter along. */
 	UPROPERTY(EditAnywhere, Category = DirectionalFilterOptions, 
-		meta = (EditCondition = "bEnableFilter == true"))
+		meta = (EditCondition = "bEnableFilter == true", Delta = 0.5, LinearDeltaSensitivity = 1))
 	FVector FilterDirection = {0.0f, 0.0f, 1.0f};
 
 	/** Scalar value determining how close to the filter direction the vertex normals must be in order to be displaced.
@@ -280,7 +280,7 @@ public:
 	float SineWavePhaseShift = 0.0f;
 
 	/** Unit vector representing the direction of wave displacement. */
-	UPROPERTY(EditAnywhere, Category = SineWaveOptions)
+	UPROPERTY(EditAnywhere, Category = SineWaveOptions, meta = (Delta = 0.5, LinearDeltaSensitivity = 1))
 	FVector SineWaveDirection = { 0.0f, 0.0f, 1.0f };
 };
 

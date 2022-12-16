@@ -38,7 +38,7 @@ class MESHMODELINGTOOLSEDITORONLYEXP_API USubdividePolyToolProperties : public U
 
 public:
 
-	UPROPERTY(EditAnywhere, Category=Settings, meta = (UIMin = "1", ClampMin = "1"))
+	UPROPERTY(EditAnywhere, Category=Settings, meta = (UIMin = "1", ClampMin = "1", Delta = 1, LinearDeltaSensitivity = 50))
 	int SubdivisionLevel = 3;
 
 	// Controls whether the user can select Catmull-Clark or is forced to use Loop

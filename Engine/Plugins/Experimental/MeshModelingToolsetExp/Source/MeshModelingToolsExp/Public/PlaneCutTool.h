@@ -67,7 +67,7 @@ public:
 	bool bKeepBothHalves = false;
 
 	/** If keeping both halves, separate the two pieces by this amount */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "bKeepBothHalves == true", UIMin = "0", ClampMin = "0") )
+	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "bKeepBothHalves == true", UIMin = "0", ClampMin = "0", Delta = 0.5, LinearDeltaSensitivity = 1))
 	float SpacingBetweenHalves = 0;
 
 	UPROPERTY(EditAnywhere, Category = Options)

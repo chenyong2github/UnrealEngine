@@ -105,7 +105,7 @@ class MESHMODELINGTOOLSEXP_API UPatternToolSettings : public UInteractiveToolPro
 	GENERATED_BODY()
 public:
 	/** The seed used to introduce random transform variations when enabled */
-	UPROPERTY(EditAnywhere, Category = General, meta = (NoResetToDefault))
+	UPROPERTY(EditAnywhere, Category = General, meta = (NoResetToDefault, Delta = 1, LinearDeltaSensitivity = 50))
 	int32 Seed = FMath::Rand();
 
 	/** Whether or not the pattern items should be projected along the negative Z axis of the plane mechanic */
@@ -113,7 +113,7 @@ public:
 	bool bProjectElementsDown = false;
 
 	/** How much each pattern item should be moved along the negative Z axis of the plane mechanic if Project Elements Down is enabled */
-	UPROPERTY(EditAnywhere, Category = General, meta = (EditCondition = "bProjectElementsDown == true", EditConditionHides))
+	UPROPERTY(EditAnywhere, Category = General, meta = (EditCondition = "bProjectElementsDown == true", EditConditionHides, Delta = 0.1, LinearDeltaSensitivity = 1))
 	float ProjectionOffset = 0.0f;
 
 	/** Hide the source meshes when enabled */
@@ -150,7 +150,7 @@ public:
 	bool bIgnoreTransforms = false;
 	
 	/** Value added to the all pattern elements' bounding boxes for adjusting the behavior of packed spacing mode manually */
-	UPROPERTY(EditAnywhere, Category = BoundingBox)
+	UPROPERTY(EditAnywhere, Category = BoundingBox, meta = (Delta = 0.1, LinearDeltaSensitivity = 1))
 	float Adjustment = 0.0f;
 
 	/** If true, the bounding boxes of each element are rendered in green and the combined bounding box of all source elements is rendered in red */
@@ -280,7 +280,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = RadialPattern, meta = (Units = "Degrees", ClampMin = -180, ClampMax = 180))
 	double AngleShift = 0.0;
 
-	/** If true, Pattern elements are rotated to align with the Circle tangen */
+	/** If true, Pattern elements are rotated to align with the Circle tangent */
 	UPROPERTY(EditAnywhere, Category = RadialPattern)
 	bool bOriented = true;
 };
@@ -305,15 +305,15 @@ public:
 	bool bJitter = false;
 
 	/** Rotation applied to all Pattern Elements, or to first Pattern Element for Interpolated rotation */
-	UPROPERTY(EditAnywhere, Category = Rotation)
+	UPROPERTY(EditAnywhere, Category = Rotation, meta = (UIMin = -360, UIMax = 360))
 	FRotator StartRotation = FRotator::ZeroRotator;
 
 	/** Rotation applied to last Pattern Elements for Interpolated rotation */
-	UPROPERTY(EditAnywhere, Category = Rotation, meta = (EditCondition = "bInterpolate"))
+	UPROPERTY(EditAnywhere, Category = Rotation, meta = (EditCondition = "bInterpolate", UIMin = -360, UIMax = 360))
 	FRotator EndRotation = FRotator::ZeroRotator;
 
 	/** Upper bound of the range which is sampled to randomly rotate each Pattern Element if Jitter is true */
-	UPROPERTY(EditAnywhere, Category = Rotation, meta = (ClampMin = 0, EditCondition = "bJitter"))
+	UPROPERTY(EditAnywhere, Category = Rotation, meta = (ClampMin = 0, EditCondition = "bJitter", UIMin = -360, UIMax = 360))
 	FRotator Jitter = FRotator::ZeroRotator;
 };
 
@@ -371,15 +371,15 @@ public:
 	bool bJitter = false;
 	
 	/** Scale applied to all Pattern Elements, or to first Pattern Element for Interpolated scale */
-	UPROPERTY(EditAnywhere, Category = Scale, meta = (ClampMin = 0.001))
+	UPROPERTY(EditAnywhere, Category = Scale, meta = (ClampMin = 0.001, Delta = 0.01, LinearDeltaSensitivity = 1))
 	FVector StartScale = FVector::OneVector;
 	
 	/** Scale applied to last Pattern Element for Interpolated scale */
-	UPROPERTY(EditAnywhere, Category = Scale, meta = (ClampMin = 0.001, EditCondition = "bInterpolate"))
+	UPROPERTY(EditAnywhere, Category = Scale, meta = (ClampMin = 0.001, EditCondition = "bInterpolate", Delta = 0.01, LinearDeltaSensitivity = 1))
 	FVector EndScale = FVector::OneVector;
 
 	/** Upper bound of the range which is sampled to randomly scale each Pattern Element if Jitter is true */
-	UPROPERTY(EditAnywhere, Category = Scale, meta = (ClampMin = 0.001, EditCondition = "bJitter"))
+	UPROPERTY(EditAnywhere, Category = Scale, meta = (ClampMin = 0.001, EditCondition = "bJitter", Delta = 0.01, LinearDeltaSensitivity = 1))
 	FVector Jitter = FVector(MinScale);
 };
 

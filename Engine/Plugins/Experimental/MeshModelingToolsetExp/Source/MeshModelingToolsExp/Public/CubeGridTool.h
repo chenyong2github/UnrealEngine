@@ -113,7 +113,7 @@ public:
 
 	/** How many blocks each push/pull invocation will do at a time.*/
 	UPROPERTY(EditAnywhere, Category = Options, meta = (
-		UIMin = "0", ClampMin = "0"))
+		UIMin = "0", ClampMin = "0", Delta = 1, LinearDeltaSensitivity = 50))
 	int32 BlocksPerStep = 1;
 
 	/** 

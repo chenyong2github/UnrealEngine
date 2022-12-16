@@ -142,7 +142,7 @@ public:
 	bool bHitBackFaces = true;
 
 	/** The group that will be assigned to triangles */
-	UPROPERTY(EditAnywhere, Category = ActionType, meta = (UIMin = 0, ClampMin = 0) )
+	UPROPERTY(EditAnywhere, Category = ActionType, meta = (UIMin = 0, ClampMin = 0, Delta = 1, LinearDeltaSensitivity = 50))
 	int32 SetGroup = 1;
 
 	/** If true, only triangles with no group assigned will be painted */
@@ -150,7 +150,7 @@ public:
 	bool bOnlySetUngrouped = false;
 
 	/** Group to set as Erased value */
-	UPROPERTY(EditAnywhere, Category = ActionType, meta = (UIMin = 0, ClampMin = 0))
+	UPROPERTY(EditAnywhere, Category = ActionType, meta = (UIMin = 0, ClampMin = 0, Delta = 1, LinearDeltaSensitivity = 50))
 	int32 EraseGroup = 0;
 
 	/** When enabled, only the current group configured in the Paint brush is erased */

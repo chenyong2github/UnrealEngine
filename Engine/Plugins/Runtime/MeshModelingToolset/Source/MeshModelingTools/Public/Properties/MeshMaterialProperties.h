@@ -26,7 +26,7 @@ public:
 	TWeakObjectPtr<UMaterialInterface> Material;
 
 	/** Scale factor for generated UVs */
-	UPROPERTY(EditAnywhere, Category = Material, meta = (DisplayName = "UV Scale", HideEditConditionToggle, EditConditionHides, EditCondition = "bShowExtendedOptions"))
+	UPROPERTY(EditAnywhere, Category = Material, meta = (DisplayName = "UV Scale", HideEditConditionToggle, EditConditionHides, EditCondition = "bShowExtendedOptions", Delta = 0.01, LinearDeltaSensitivity = 1))
 	float UVScale = 1.0;
 
 	/** If true, UV scale will be relative to world space. This means objects of different sizes created with the same UV scale have the same average texel size. */

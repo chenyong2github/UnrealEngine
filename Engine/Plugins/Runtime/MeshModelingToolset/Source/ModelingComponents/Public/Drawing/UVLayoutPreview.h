@@ -47,7 +47,7 @@ public:
 	float Scale = 1.0;
 
 	/** Offset relative to the center of the selected object */
-	UPROPERTY(EditAnywhere, Category = "Preview UV Layout", meta = (EditCondition = "bEnabled"))
+	UPROPERTY(EditAnywhere, Category = "Preview UV Layout", meta = (EditCondition = "bEnabled", Delta = 0.5, LinearDeltaSensitivity = 1))
 	FVector2D Offset = FVector2D(1.0, 0.5);
 
 	/** Show wireframe mesh in the preview UV layout */

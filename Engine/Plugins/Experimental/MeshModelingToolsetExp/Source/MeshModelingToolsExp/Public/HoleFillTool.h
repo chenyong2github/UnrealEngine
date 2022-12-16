@@ -52,15 +52,15 @@ public:
 
 	/** Number of vertex rings outside of the fill region to allow remeshing */
 	UPROPERTY(EditAnywhere, Category = SmoothHoleFillOptions, 
-		meta = (UIMin = "0", ClampMin = "0", EditCondition = "!bConstrainToHoleInterior"))
+		meta = (UIMin = "0", ClampMin = "0", EditCondition = "!bConstrainToHoleInterior", Delta = 1, LinearDeltaSensitivity = 50))
 	int RemeshingExteriorRegionWidth;
 
 	/** Number of vertex rings outside of the fill region to perform smoothing */
-	UPROPERTY(EditAnywhere, Category = SmoothHoleFillOptions, meta = (UIMin = "0", ClampMin = "0"))
+	UPROPERTY(EditAnywhere, Category = SmoothHoleFillOptions, meta = (UIMin = "0", ClampMin = "0", Delta = 1, LinearDeltaSensitivity = 50))
 	int SmoothingExteriorRegionWidth;
 
 	/** Number of vertex rings away from the fill region boundary to constrain smoothing */
-	UPROPERTY(EditAnywhere, Category = SmoothHoleFillOptions, meta = (UIMin = "0", ClampMin = "0"))
+	UPROPERTY(EditAnywhere, Category = SmoothHoleFillOptions, meta = (UIMin = "0", ClampMin = "0", Delta = 1, LinearDeltaSensitivity = 50))
 	int SmoothingInteriorRegionWidth;
 
 	/** Desired Smoothness. This is not a linear quantity, but larger numbers produce smoother results */

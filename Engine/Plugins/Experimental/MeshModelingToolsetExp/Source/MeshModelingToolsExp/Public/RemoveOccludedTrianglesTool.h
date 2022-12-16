@@ -95,13 +95,13 @@ public:
 	bool bOnlySelfOcclude = false;
 
 	/** Shrink (erode) the boundary of the set of triangles to remove. */
-	UPROPERTY(EditAnywhere, Category = OcclusionCalculation, meta = (UIMin = "0", ClampMin = "0"))
+	UPROPERTY(EditAnywhere, Category = OcclusionCalculation, meta = (UIMin = "0", ClampMin = "0", Delta = 1, LinearDeltaSensitivity = 1))
 	int ShrinkRemoval = 0;
 
-	UPROPERTY(EditAnywhere, Category = RemoveIslands, meta = (UIMin = "0", ClampMin = "0"))
+	UPROPERTY(EditAnywhere, Category = RemoveIslands, meta = (UIMin = "0", ClampMin = "0", Delta = 0.5, LinearDeltaSensitivity = 1))
 	double MinAreaIsland = 0;
 
-	UPROPERTY(EditAnywhere, Category = RemoveIslands, meta = (UIMin = "0", ClampMin = "0"))
+	UPROPERTY(EditAnywhere, Category = RemoveIslands, meta = (UIMin = "0", ClampMin = "0", Delta = 1, LinearDeltaSensitivity = 1))
 	int MinTriCountIsland = 0;
 
 	/** What action to perform on occluded triangles */

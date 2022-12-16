@@ -45,7 +45,7 @@ public:
 	URemeshMeshToolProperties();
 
 	/** Target triangle count */
-	UPROPERTY(EditAnywhere, Category = Remeshing, meta = (EditCondition = "bUseTargetEdgeLength == false"))
+	UPROPERTY(EditAnywhere, Category = Remeshing, meta = (ClampMin = 0, EditCondition = "bUseTargetEdgeLength == false"))
 	int TargetTriangleCount;
 
 	/** Smoothing type */
