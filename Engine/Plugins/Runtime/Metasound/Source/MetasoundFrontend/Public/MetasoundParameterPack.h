@@ -150,7 +150,7 @@ struct FMetasoundParameterPackStorage
 			{
 				if (ParamWalker->TypeName == InTypeName)
 				{
-					return reinterpret_cast<FMetasoundParameterPackItem<T>*>(ParamWalker);
+					return static_cast<FMetasoundParameterPackItem<T>*>(ParamWalker);
 				}
 				return nullptr;
 			}
