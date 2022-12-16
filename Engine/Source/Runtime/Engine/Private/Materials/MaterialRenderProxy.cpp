@@ -677,12 +677,12 @@ void FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions()
 			{
 				// Don't bother caching if we'll be falling back to a different FMaterialRenderProxy for rendering anyway
 				const FMaterial* Material = MaterialProxy->GetMaterialNoFallback(InFeatureLevel);
-		if (Material && Material->GetRenderingThreadShaderMap())
-		{
-			FMaterialRenderContext MaterialRenderContext(MaterialProxy, *Material, nullptr);
-			MaterialRenderContext.bShowSelection = GIsEditor;
-			MaterialProxy->EvaluateUniformExpressions(MaterialProxy->UniformExpressionCache[(int32)InFeatureLevel], MaterialRenderContext, UpdaterIfEnabled);
-		}
+				if (Material && Material->GetRenderingThreadShaderMap())
+				{
+					FMaterialRenderContext MaterialRenderContext(MaterialProxy, *Material, nullptr);
+					MaterialRenderContext.bShowSelection = GIsEditor;
+					MaterialProxy->EvaluateUniformExpressions(MaterialProxy->UniformExpressionCache[(int32)InFeatureLevel], MaterialRenderContext, UpdaterIfEnabled);
+				}
 			});
 
 		MaterialProxy->FinishCacheUniformExpressions();
