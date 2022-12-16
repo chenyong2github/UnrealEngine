@@ -354,14 +354,6 @@ namespace UE { namespace TasksTests
 			Outer.Wait();
 		}
 
-		{
-			FTaskEvent T1{ UE_SOURCE_LOCATION };
-			FTaskEvent T2{ UE_SOURCE_LOCATION };
-			TArrayView<const FTask> Prereqs{ T1, T2 };
-			FTask Task = Launch(UE_SOURCE_LOCATION, [] {}, Prerequisites(Prereqs));
-			Task.Wait();
-		}
-
 #if TASKGRAPH_NEW_FRONTEND
 		{	// a basic test for a named thread task
 			FTask GTTask = Launch

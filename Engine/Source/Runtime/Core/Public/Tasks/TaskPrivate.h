@@ -469,11 +469,9 @@ namespace UE::Tasks
 				Subsequents.PopAllAndClose(Subs); // gets `Subs` in LIFO order
 				// try to maintain FIFO order where it's possible. e.g. if multiple piped tasks (subsequents) depend on the same (this) task, 
 				// preserve the piping order, which is also the order in which subsequents were added as dependencies of this task
-				Algo::Reverse(Subs);
-
-				for (FTaskBase* Sub : Subs)
+				for (int32 i = Subs.Num() - 1; i >= 0; --i)
 				{
-					Sub->TryUnlock();
+					Subs[i]->TryUnlock();
 				}
 
 				// release nested tasks
