@@ -1216,7 +1216,8 @@ namespace UnrealBuildTool
 				{
 					throw new BuildException($"Monolithic editors now require VC Toolchain 14.29.30133 (the toolchain for Visual Studio 16.11) ({EnvVars.CompilerVersion} < {VersionNumber.Parse("14.29.30133")})");
 				}
-				Arguments.Add("/PDBPAGESIZE:8192");
+				Arguments.Add("/PDBPAGESIZE:16384");
+				Arguments.Add("/PDBCompress");
 			}
 
 			//
