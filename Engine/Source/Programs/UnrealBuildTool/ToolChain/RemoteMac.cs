@@ -929,6 +929,14 @@ namespace UnrealBuildTool
 			if(Unreal.IsEngineInstalled())
 			{
 				EngineFilters.Add(FileReference.Combine(Unreal.EngineDirectory, "Build", "Rsync", "RsyncEngineInstalled.txt"));
+
+				// Upload MarketplaceRules.dll (if it exists) when in InstallBuild. The path is specified in RulesCompiler::CreateMarketplaceRulesAssembly()
+				DirectoryReference MarketplaceEngineDir = DirectoryReference.Combine(UnrealBuildTool.WritableEngineDirectory, "Intermediate", "Build", "BuildRules");
+				if(DirectoryReference.Exists(MarketplaceEngineDir))
+				{
+					Logger.LogInformation("[Remote] Uploading MarketplaceRules Engine files located in {MarketplaceEngineDir}", MarketplaceEngineDir);
+					UploadDirectory(MarketplaceEngineDir, Logger);
+				}
 			}
 			EngineFilters.Add(FileReference.Combine(Unreal.EngineDirectory, "Build", "Rsync", "RsyncEngine.txt"));
 
