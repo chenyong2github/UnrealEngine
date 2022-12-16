@@ -153,25 +153,25 @@ void FStateTreeBindingExtension::ExtendWidgetRow(FDetailWidgetRow& InWidgetRow, 
 
 	FProperty* Property = InPropertyHandle->GetProperty();
 
-	bool bIsDataRef = false;
+	bool bIsStructRef = false;
 	bool bIsAnyEnum = false;
 	if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 	{
 		bIsAnyEnum = StructProperty->Struct == FStateTreeAnyEnum::StaticStruct();
-		bIsDataRef = StructProperty->Struct == FStateTreeStructRef::StaticStruct();
+		bIsStructRef = StructProperty->Struct == FStateTreeStructRef::StaticStruct();
 	}
 
-	const UScriptStruct* DataRefBaseStruct = nullptr;
-	if (bIsDataRef)
+	const UScriptStruct* StructRefBaseStruct = nullptr;
+	if (bIsStructRef)
 	{
 		FString BaseStructName;
-		DataRefBaseStruct = UE::StateTree::Compiler::GetBaseStructFromMetaData(Property, BaseStructName);
+		StructRefBaseStruct = UE::StateTree::Compiler::GetBaseStructFromMetaData(Property, BaseStructName);
 	}
 	
 	FPropertyBindingWidgetArgs Args;
 	Args.Property = InPropertyHandle->GetProperty();
 
-	Args.OnCanBindProperty = FOnCanBindProperty::CreateLambda([EditorBindings, OwnerObject, InPropertyHandle, bIsAnyEnum, bIsDataRef, DataRefBaseStruct](FProperty* InProperty)
+	Args.OnCanBindProperty = FOnCanBindProperty::CreateLambda([EditorBindings, OwnerObject, InPropertyHandle, bIsAnyEnum, bIsStructRef, StructRefBaseStruct](FProperty* InProperty)
 		{
 			if (!EditorBindings || !OwnerObject)
 			{
@@ -211,7 +211,7 @@ void FStateTreeBindingExtension::ExtendWidgetRow(FDetailWidgetRow& InWidgetRow, 
 					bCanBind = bAllowAnyBinding || AnyEnum.Enum == EnumProperty->GetEnum();
 				}
 			}
-			else if (bIsDataRef && DataRefBaseStruct != nullptr)
+			else if (bIsStructRef && StructRefBaseStruct != nullptr)
 			{
 				if (const FStructProperty* SourceStructProperty = CastField<FStructProperty>(InProperty))
 				{
@@ -219,11 +219,11 @@ void FStateTreeBindingExtension::ExtendWidgetRow(FDetailWidgetRow& InWidgetRow, 
 					{
 						FString SourceBaseStructName;
 						const UScriptStruct* SourceDataRefBaseStruct = UE::StateTree::Compiler::GetBaseStructFromMetaData(SourceStructProperty, SourceBaseStructName);
-						bCanBind = SourceDataRefBaseStruct && SourceDataRefBaseStruct->IsChildOf(DataRefBaseStruct);
+						bCanBind = SourceDataRefBaseStruct && SourceDataRefBaseStruct->IsChildOf(StructRefBaseStruct);
 					}
 					else
 					{
-						bCanBind = SourceStructProperty->Struct && SourceStructProperty->Struct->IsChildOf(DataRefBaseStruct);
+						bCanBind = SourceStructProperty->Struct && SourceStructProperty->Struct->IsChildOf(StructRefBaseStruct);
 					}
 				}
 			}

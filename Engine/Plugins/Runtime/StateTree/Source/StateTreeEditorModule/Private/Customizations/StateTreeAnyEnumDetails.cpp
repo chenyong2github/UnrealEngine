@@ -71,7 +71,7 @@ FText FStateTreeAnyEnumDetails::GetDescription() const
 		return LOCTEXT("MultipleSelected", "Multiple Selected");
 	}
 
-	return LOCTEXT("Invalid", "Invalid");
+	return LOCTEXT("None", "None");
 }
 
 TSharedRef<SWidget> FStateTreeAnyEnumDetails::OnGetComboContent() const
@@ -105,7 +105,7 @@ TSharedRef<SWidget> FStateTreeAnyEnumDetails::OnGetComboContent() const
 
 	if (!bSuccess)
 	{
-		MenuBuilder.AddMenuEntry(LOCTEXT("Empty", "Empty"), TAttribute<FText>(), FSlateIcon(), FUIAction());
+		MenuBuilder.AddMenuEntry(LOCTEXT("None", "None"), TAttribute<FText>(), FSlateIcon(), FUIAction());
 	}
 
 	return MenuBuilder.MakeWidget();

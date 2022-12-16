@@ -259,12 +259,15 @@ bool UStateTreeEditorData::GetStructByID(const FGuid StructID, FStateTreeBindabl
 	{
 		for (const FStateTreeExternalDataDesc& Desc : Schema->GetContextDataDescs())
 		{
-			OutStructDesc.Struct = Desc.Struct;
-			OutStructDesc.Name = Desc.Name;
-			OutStructDesc.ID = Desc.ID;
-			bResult = true;
-			break;
-		}	
+			if (StructID == Desc.ID)
+			{
+				OutStructDesc.Struct = Desc.Struct;
+				OutStructDesc.Name = Desc.Name;
+				OutStructDesc.ID = Desc.ID;
+				bResult = true;
+				break;
+			}
+		}
 	}
 
 	// Evaluators
@@ -274,11 +277,14 @@ bool UStateTreeEditorData::GetStructByID(const FGuid StructID, FStateTreeBindabl
 		{
 			if (const FStateTreeEvaluatorBase* Evaluator = Node.Node.GetPtr<FStateTreeEvaluatorBase>())
 			{
-				OutStructDesc.Struct = Evaluator->GetInstanceDataType();
-				OutStructDesc.Name = Evaluator->Name;
-				OutStructDesc.ID = Node.ID;
-				bResult = true;
-				break;
+				if (StructID == Node.ID)
+				{
+					OutStructDesc.Struct = Evaluator->GetInstanceDataType();
+					OutStructDesc.Name = Evaluator->Name;
+					OutStructDesc.ID = Node.ID;
+					bResult = true;
+					break;
+				}
 			}
 		}
 	}
