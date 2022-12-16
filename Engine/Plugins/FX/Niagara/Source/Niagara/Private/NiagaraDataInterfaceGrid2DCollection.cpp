@@ -2538,6 +2538,8 @@ void FGrid2DCollectionRWInstanceData_RenderThread::BeginSimulate(FRDGBuilder& Gr
 
 		const FRDGTextureDesc TextureDesc = FRDGTextureDesc::Create2DArray(NumCells, PixelFormat, FClearValueBinding::Black, ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV, NumAttributes);
 
+		const TCHAR* GridTextureName = TEXT("Grid2D::GridTexture");
+	#if 0
 		TStringBuilder<128> StringBuilder;
 		SourceDIName.AppendString(StringBuilder);
 		StringBuilder.Append("_");
@@ -2547,8 +2549,10 @@ void FGrid2DCollectionRWInstanceData_RenderThread::BeginSimulate(FRDGBuilder& Gr
 			StringBuilder.Append("_");
 		}
 		StringBuilder.Append("Grid2DCollection");
+		GridTextureName = *StringBuilder;
+	#endif
+		DestinationData->Initialize(GraphBuilder, GridTextureName, TextureDesc);
 
-		DestinationData->Initialize(GraphBuilder, *StringBuilder, TextureDesc);
 		// This destination buffer will sometimes have old data in it.  Force it to clear.
 		AddClearUAVPass(GraphBuilder, DestinationData->GetOrCreateUAV(GraphBuilder), FVector4f(ForceInitToZero));
 	}
