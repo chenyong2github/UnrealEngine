@@ -199,6 +199,7 @@ private:
 	NSwarm::FSwarmInterface&	Swarm;
 	bool						bSwarmConnectionIsValid;
 	FGuid						SceneGuid;
+	FSHAHash					LightmassExecutableHash;
 	FString						ChannelName;
 
 	TArray<FBox>				ImportanceVolumes;

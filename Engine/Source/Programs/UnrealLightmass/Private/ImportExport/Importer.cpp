@@ -3,7 +3,8 @@
 #include "Importer.h"
 #include "LightmassSwarm.h"
 #include "LightmassScene.h"
-
+#include "Misc/FileHelper.h"
+#include "Misc/SecureHash.h"
 
 namespace Lightmass
 {
@@ -12,6 +13,10 @@ FLightmassImporter::FLightmassImporter( FLightmassSwarm* InSwarm )
 :	Swarm( InSwarm )
 ,	LevelScale(0.0f)
 {
+	// Compute the hash of UnrealLightmass executable (which is the current running process) and store it into LightmassExecutableHash
+	TArray<uint8> Bytes;
+	FFileHelper::LoadFileToArray(Bytes, FPlatformProcess::ExecutablePath());
+	FSHA1::HashBuffer(&Bytes[0], Bytes.Num(), LightmassExecutableHash.Hash);
 }
 
 FLightmassImporter::~FLightmassImporter()

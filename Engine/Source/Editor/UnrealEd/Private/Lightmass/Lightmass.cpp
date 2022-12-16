@@ -53,6 +53,7 @@
 #include "Misc/MessageDialog.h"
 #include "Modules/ModuleManager.h"
 #include "ImageCoreUtils.h"
+#include "Misc/FileHelper.h"
 
 extern FSwarmDebugOptions GSwarmDebugOptions;
 
@@ -505,6 +506,13 @@ FLightmassExporter::FLightmassExporter( UWorld* InWorld )
 	{
 		SceneGuid = FGuid::NewGuid();
 	}
+
+	// Compute the hash of UnrealLightmass executable and store it into LightmassExecutableHash
+	// Guaranteed success as the executable has been checked by CheckLightmassExecutableVersion()
+	TArray<uint8> Bytes;
+	FFileHelper::LoadFileToArray(Bytes, *FPlatformProcess::GenerateApplicationPath(TEXT("UnrealLightmass"), EBuildConfiguration::Development));
+	FSHA1::HashBuffer(&Bytes[0], Bytes.Num(), LightmassExecutableHash.Hash);
+	
 	ChannelName = Lightmass::CreateChannelName(SceneGuid, Lightmass::LM_SCENE_VERSION, Lightmass::LM_SCENE_EXTENSION);
 }
 
@@ -1226,7 +1234,7 @@ void FLightmassExporter::WriteStaticMeshes()
 		BaseMeshData.Guid = StaticMesh->GetLightingGuid();
 
 		// create a channel name to write the mesh out to
-		FString NewChannelName = Lightmass::CreateChannelName(BaseMeshData.Guid, Lightmass::LM_STATICMESH_VERSION, Lightmass::LM_STATICMESH_EXTENSION);
+		FString NewChannelName = Lightmass::CreateChannelNameWithLMExecutableHash(BaseMeshData.Guid, Lightmass::LM_STATICMESH_VERSION, LightmassExecutableHash, Lightmass::LM_STATICMESH_EXTENSION);
 
 		// Warn the user if there is an invalid lightmap UV channel specified.
 		if( StaticMesh->GetLightMapCoordinateIndex() > 0
@@ -1367,7 +1375,7 @@ void FLightmassExporter::BuildMaterialMap(UMaterialInterface* Material)
 		GetMaterialHash(Material, MaterialHash);
 
 		// create a channel name to write the material out to
-		FString NewChannelName = Lightmass::CreateChannelName(MaterialHash, Lightmass::LM_MATERIAL_VERSION, Lightmass::LM_MATERIAL_EXTENSION);
+		FString NewChannelName = Lightmass::CreateChannelNameWithLMExecutableHash(MaterialHash, Lightmass::LM_MATERIAL_VERSION, LightmassExecutableHash, Lightmass::LM_MATERIAL_EXTENSION);
 
 		// only export the material if it's not currently in the cache
 		int32 ErrorCode;

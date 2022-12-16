@@ -501,26 +501,32 @@ namespace Lightmass
 	 *
 	 * @param Guid Unique ID of the channel
 	 * @param Version Version of the data inside
+	 * @param LMExecutableHash Hash of UnrealLightmass executable, to avoid stale cache content from a different build
 	 * @param Extension Type of the data
 	 *
 	 * @return Standard channel name
-	 */
+	*/
+	FORCEINLINE FString CreateChannelNameWithLMExecutableHash(const FGuid& Guid, const int32 Version, const FSHAHash& LMExecutableHash, const FString& Extension)
+	{
+		return FString::Printf(TEXT("v%d.%08X%08X%08X%08X.%s.%s"), Version, Guid.A, Guid.B, Guid.C, Guid.D, *LMExecutableHash.ToString(), *Extension);
+	}
 	FORCEINLINE FString CreateChannelName(const FGuid& Guid, const int32 Version, const FString& Extension)
 	{
 		return FString::Printf(TEXT("v%d.%08X%08X%08X%08X.%s"), Version, Guid.A, Guid.B, Guid.C, Guid.D, *Extension);
 	}
 
 	/**
-	 * Creates a standardized channel name based a FSA Hash, version and type
+	 * Creates a standardized channel name based a FSA Hash, version and type. Used for exporting materials
 	 *
 	 * @param Hash Unique ID of the channel
 	 * @param Version Version of the data inside
+	 * @param LMExecutableHash Hash of UnrealLightmass executable, to avoid stale cache content from a different build
 	 * @param Extension Type of the data
 	 *
 	 * @return Standard channel name
 	 */
-	FORCEINLINE FString CreateChannelName(const FSHAHash& Hash, const int32 Version, const FString& Extension)
+	FORCEINLINE FString CreateChannelNameWithLMExecutableHash(const FSHAHash& Hash, const int32 Version, const FSHAHash& LMExecutableHash, const FString& Extension)
 	{
-		return FString::Printf(TEXT("v%d.%s.%s"), Version, *Hash.ToString(), *Extension);
+		return FString::Printf(TEXT("v%d.%s.%s.%s"), Version, *Hash.ToString(), *LMExecutableHash.ToString(), *Extension);
 	}
 } // namespace Lightmass

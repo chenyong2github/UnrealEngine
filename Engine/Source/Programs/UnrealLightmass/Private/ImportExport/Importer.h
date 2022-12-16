@@ -21,11 +21,12 @@ protected:
 	 *
 	 * @param Key Key of object
 	 * @param Version Version of object to load
+	 * @param LMExecutableHash Hash of Lightmass executable to avoid stale cache content
 	 * @param Extension Type of object to load (@todo UE5: This could be removed if Version could imply extension)
 	 * @return The object that was loaded or found, or NULL if the Guid failed
 	 */
 	template <class ObjType, class LookupMapType, class KeyType>
-	ObjType* ConditionalImportObjectWithKey(const KeyType& Key, const int32 Version, const TCHAR* Extension, int32 ChannelFlags, LookupMapType& LookupMap);
+	ObjType* ConditionalImportObjectWithKey(const KeyType& Key, const int32 Version, const FSHAHash& LMExecutableHash, const TCHAR* Extension, int32 ChannelFlags, LookupMapType& LookupMap);
 
 public:
 
@@ -70,7 +71,7 @@ public:
 	template <class ObjType, class LookupMapType>
 	ObjType* ConditionalImportObject(const FGuid& Guid, const int32 Version, const TCHAR* Extension, int32 ChannelFlags, LookupMapType& LookupMap)
 	{
-		return ConditionalImportObjectWithKey<ObjType, LookupMapType, FGuid>(Guid, Version, Extension, ChannelFlags, LookupMap);
+		return ConditionalImportObjectWithKey<ObjType, LookupMapType, FGuid>(Guid, Version, LightmassExecutableHash, Extension, ChannelFlags, LookupMap);
 	}
 
 	/**
@@ -84,7 +85,7 @@ public:
 	template <class ObjType, class LookupMapType>
 	ObjType* ConditionalImportObject(const FSHAHash& Hash, const int32 Version, const TCHAR* Extension, int32 ChannelFlags, LookupMapType& LookupMap)
 	{
-		return ConditionalImportObjectWithKey<ObjType, LookupMapType, FSHAHash>(Hash, Version, Extension, ChannelFlags, LookupMap);
+		return ConditionalImportObjectWithKey<ObjType, LookupMapType, FSHAHash>(Hash, Version, LightmassExecutableHash, Extension, ChannelFlags, LookupMap);
 	}
 
 	void SetLevelScale(float InScale) { LevelScale = InScale; }
@@ -109,6 +110,7 @@ public:
 private:
 
 	class FLightmassSwarm*	Swarm;
+	FSHAHash LightmassExecutableHash;
 
 	TMap<FGuid,class FLight*>										Lights;
 	TMap<FGuid,class FStaticMesh*>									StaticMeshes;
@@ -183,14 +185,14 @@ bool FLightmassImporter::ImportGuidArray( ArrayType& Array, int32 Count, const L
  * @return The object that was loaded or found, or NULL if the Guid failed
  */
 template <class ObjType, class LookupMapType, class KeyType>
-ObjType* FLightmassImporter::ConditionalImportObjectWithKey(const KeyType& Key, const int32 Version, const TCHAR* Extension, int32 ChannelFlags, LookupMapType& LookupMap)
+ObjType* FLightmassImporter::ConditionalImportObjectWithKey(const KeyType& Key, const int32 Version, const FSHAHash& LMExecutableHash, const TCHAR* Extension, int32 ChannelFlags, LookupMapType& LookupMap)
 {
 	// look to see if it exists already
 	ObjType* Obj = LookupMap.FindRef(Key);
 	if (Obj == NULL)
 	{
 		// open a new channel and make it current
-		if (Swarm->OpenChannel(*CreateChannelName(Key, Version, Extension), ChannelFlags, true) >= 0)
+		if (Swarm->OpenChannel(*CreateChannelNameWithLMExecutableHash(Key, Version, LMExecutableHash, Extension), ChannelFlags, true) >= 0)
 		{
 			Obj = new ObjType;
 
