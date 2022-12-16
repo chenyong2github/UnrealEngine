@@ -8251,13 +8251,19 @@ void UStaticMesh::OnLodStrippingQualityLevelChanged(IConsoleVariable* Variable){
 #if WITH_EDITOR || PLATFORM_DESKTOP
 	if (GEngine && GEngine->UseStaticMeshMinLODPerQualityLevels)
 	{
+		TArray<UStaticMesh*> StaticMeshes;
 		for (TObjectIterator<UStaticMesh> It; It; ++It)
 		{
 			UStaticMesh* StaticMesh = *It;
 			if (StaticMesh && StaticMesh->GetQualityLevelMinLOD().PerQuality.Num() > 0)
 			{
-				FStaticMeshComponentRecreateRenderStateContext Context(StaticMesh, false);
+				StaticMeshes.Add(StaticMesh);
 			}
+		}
+
+		if (StaticMeshes.Num() > 0)
+		{
+			FStaticMeshComponentRecreateRenderStateContext Context(StaticMeshes, false);
 		}
 	}
 #endif
