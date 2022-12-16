@@ -118,103 +118,90 @@ namespace Metasound
 			const FWaveTableBankAsset& WaveTableBankAsset = *WaveTableBankReadRef;
 
 			FWaveTableBankAssetProxyPtr Proxy = WaveTableBankAsset.GetProxy();
-			if (Proxy.IsValid())
+			if (Proxy.IsValid() == false)
 			{
-				const TArray<FWaveTable>& WaveTables = Proxy->GetWaveTables();
-				if (!WaveTables.IsEmpty())
-				{
-					int32 NumSamples = WaveTables.Last().Num();
-					FWaveTable& OutputWaveTable = *OutTable;
-					OutputWaveTable.SetNum(NumSamples);
-					OutputWaveTable.Zero();
+				LastTableIndex = -1.0f;
+				return;
+			}
+			
+			const TArray<FWaveTable>& WaveTables = Proxy->GetWaveTables();
+			if (WaveTables.IsEmpty())
+			{
+				LastTableIndex = -1.0f;
+				return;
+			}
+			
+			int32 NumSamples = WaveTables.Last().Num();
+			FWaveTable& OutputWaveTable = *OutTable;
+			OutputWaveTable.SetNum(NumSamples);
+			OutputWaveTable.Zero();
 
-					if (NumSamples > 0)
-					{
-						auto WrapIndex = [Max = WaveTables.Num()](float& InOutIndex)
-						{
-							InOutIndex = FMath::Abs(InOutIndex); // Avoids remainder offset flip at 0 crossing
-							const int32 WrapIndex = FMath::TruncToInt32(InOutIndex) % Max;
-							const float Remainder = FMath::Frac(InOutIndex);
-							InOutIndex = WrapIndex + Remainder;
-						};
+			if (NumSamples <= 0)
+			{
+				LastTableIndex = -1.0f;
+				return;
+			}
+			
+			auto WrapIndex = [Max = WaveTables.Num()](float& InOutIndex)
+			{
+				InOutIndex = FMath::Abs(InOutIndex); // Avoids remainder offset flip at 0 crossing
+				const int32 WrapIndex = FMath::TruncToInt32(InOutIndex) % Max;
+				const float Remainder = FMath::Frac(InOutIndex);
+				InOutIndex = WrapIndex + Remainder;
+			};
 
-						float NextTableIndex = *TableIndexReadRef;
-						WrapIndex(NextTableIndex);
+			float NextTableIndex = *TableIndexReadRef;
+			WrapIndex(NextTableIndex);
 
-						if (WaveTables.Num() == 1)
-						{
-							OutputWaveTable = WaveTables.Last();
-						}
-						else
-						{
-							if (LastTableIndex < 0.0f)
-							{
-								LastTableIndex = NextTableIndex;
-							}
-							else
-							{
-								WrapIndex(LastTableIndex);
-							}
-
-							const int32 StartHighIndex = FMath::CeilToInt32(LastTableIndex) % WaveTables.Num();
-							const int32 StartLowIndex = FMath::FloorToInt32(LastTableIndex);
-
-							const float StartHighGain = LastTableIndex - StartLowIndex;
-							const float StartLowGain = 1.0f - StartHighGain;
-
-							const int32 EndHighIndex = FMath::CeilToInt32(NextTableIndex) % WaveTables.Num();
-							const int32 EndLowIndex = FMath::FloorToInt32(NextTableIndex);
-
-							const float EndHighGain = NextTableIndex - EndLowIndex;
-							const float EndLowGain = 1.0f - EndHighGain;
-
-							for (int32 TableIndex = 0; TableIndex < WaveTables.Num(); ++TableIndex)
-							{
-								float Gain = 0.0f;
-								float GainDelta = 0.0f;
-
-								if (TableIndex == StartLowIndex)
-								{
-									Gain = StartLowGain;
-								}
-								else if (TableIndex == StartHighIndex)
-								{
-									Gain = StartHighGain;
-								}
-
-								if (TableIndex == EndLowIndex)
-								{
-									GainDelta = (EndLowGain - Gain) / NumSamples;
-								}
-								else if (TableIndex == EndHighIndex)
-								{
-									GainDelta = (EndHighGain - Gain) / NumSamples;
-								}
-
-								if (Gain > 0.0f || GainDelta > 0.0f)
-								{
-									const FWaveTable& InputWaveTable = WaveTables[TableIndex];
-									Audio::ArrayMixIn(InputWaveTable.GetView(), OutputWaveTable.GetView(), Gain);
-								}
-							}
-						}
-
-						LastTableIndex = NextTableIndex;
-					}
-					else
-					{
-						LastTableIndex = -1.0f;
-					}
-				}
-				else
-				{
-					LastTableIndex = -1.0f;
-				}
+			if (WaveTables.Num() == 1)
+			{
+				OutputWaveTable = WaveTables.Last();
 			}
 			else
 			{
-				LastTableIndex = -1.0f;
+				if (LastTableIndex < 0.0f)
+				{
+					LastTableIndex = NextTableIndex;
+				}
+				else
+				{
+					WrapIndex(LastTableIndex);
+				}
+
+				const int32 StartHighIndex = FMath::CeilToInt32(LastTableIndex) % WaveTables.Num();
+				const int32 StartLowIndex = FMath::FloorToInt32(LastTableIndex);
+
+				const float StartHighGain = LastTableIndex - StartLowIndex;
+				const float StartLowGain = 1.0f - StartHighGain;
+
+				float FinalValue = 0.f;
+
+				for (int32 TableIndex = 0; TableIndex < WaveTables.Num(); ++TableIndex)
+				{
+					float Gain = 0.0f;
+
+					if (TableIndex == StartLowIndex)
+					{
+						Gain = StartLowGain;
+					}
+					else if (TableIndex == StartHighIndex)
+					{
+						Gain = StartHighGain;
+					}
+
+					if (Gain > 0.0f)
+					{
+						const FWaveTableView& InputWaveTable = WaveTables[TableIndex].GetView();
+						
+						Audio::ArrayMixIn(InputWaveTable.SampleView, OutputWaveTable.GetSamples(), Gain);
+						FinalValue += InputWaveTable.FinalValue * Gain;
+					}
+				}
+				
+				OutputWaveTable.SetFinalValue(FinalValue);
 			}
+
+			LastTableIndex = NextTableIndex;
 		}
 
 	private:

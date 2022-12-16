@@ -12,6 +12,34 @@ TSharedPtr<Audio::IProxyData> UWaveTableBank::CreateProxyData(const Audio::FProx
 	return MakeShared<FWaveTableBankAssetProxy>(*this);
 }
 
+void UWaveTableBank::Serialize(FArchive& Ar)
+{
+	if (Ar.IsLoading() || Ar.IsSaving())
+	{
+		for (FWaveTableBankEntry& Entry : Entries)
+		{
+			if (Entry.Transform.FinalValue == WaveTable::InvalidWaveTableValue)
+			{
+#if WITH_EDITOR
+				RefreshWaveTables();
+				return;
+#else
+				if(Entry.Transform.WaveTable.IsEmpty())
+				{
+					Entry.Transform.FinalValue = 0.f;
+				}
+				else
+				{
+					Entry.Transform.FinalValue = Entry.Transform.WaveTable.Last();
+				}
+#endif
+			}
+		}
+	}
+
+	UObject::Serialize(Ar);
+}
+
 #if WITH_EDITOR
 void UWaveTableBank::RefreshWaveTables()
 {
@@ -26,13 +54,14 @@ void UWaveTableBank::RefreshWaveTables()
 	WaveTableLengthSec = 0.0f;
 	for (FWaveTableBankEntry& Entry : Entries)
 	{
+		float& FinalValue = Entry.Transform.FinalValue;
 		TArray<float>& TransformWaveTable = Entry.Transform.WaveTable;
 		TransformWaveTable.Empty();
 
 		const int32 WaveTableSize = WaveTable::GetWaveTableSize(Resolution, Entry.Transform.Curve, MaxPCMSize);
 		TransformWaveTable.AddZeroed(WaveTableSize);
 
-		Entry.Transform.CreateWaveTable(TransformWaveTable, bBipolar);
+		Entry.Transform.CreateWaveTable(TransformWaveTable, FinalValue, bBipolar);
 		WaveTableSizeMB += sizeof(float) * WaveTableSize;
 		WaveTableLengthSec = FMath::Max(WaveTableLengthSec, WaveTableSize / 48000.f);
 	}

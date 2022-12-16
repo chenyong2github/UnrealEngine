@@ -3,13 +3,8 @@
 
 #include "DSP/FloatArrayMath.h"
 #include "HAL/Platform.h"
-#include "Misc/AssertionMacros.h"
-#include "UObject/SoftObjectPath.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Package.h"
+#include "WaveTable.h"
 #include "WaveTableSampler.h"
-
 
 namespace WaveTable
 {
@@ -24,7 +19,9 @@ namespace WaveTable
 	void FImporter::Process(TArray<float>& OutWaveTable)
 	{
 		// 1. Get editable section of source PCM
-		TArrayView<const float> EditSourceView = Settings.GetEditSourceView();
+		const TArrayView<const float> View = Settings.GetEditSourceView();
+		const FWaveTableView EditSourceView = FWaveTableView(View, View.Last());
+		
 		if (!EditSourceView.IsEmpty())
 		{
 			// 2. Resample into table

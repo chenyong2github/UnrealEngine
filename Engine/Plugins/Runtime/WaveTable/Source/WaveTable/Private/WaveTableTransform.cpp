@@ -11,8 +11,9 @@ void FWaveTableTransform::Apply(float& InOutValue, bool bInBipolar) const
 {
 	if (WaveTable.IsEmpty())
 	{
+		float DummyVal = 0.f;
 		TArrayView<float> ValueView = { &InOutValue, 1 };
-		bInBipolar ? SampleCurveBipolar(ValueView) : SampleCurveUnipolar(ValueView);
+		bInBipolar ? SampleCurveBipolar(ValueView, DummyVal) : SampleCurveUnipolar(ValueView, DummyVal);
 	}
 	else
 	{
@@ -20,10 +21,9 @@ void FWaveTableTransform::Apply(float& InOutValue, bool bInBipolar) const
 		TArrayView<float> ValueView = { &InOutValue, 1 };
 		WaveTable::FWaveTableSampler::Interpolate(WaveTable, ValueView);
 	}
-
 }
 
-void FWaveTableTransform::SampleCurveBipolar(TArrayView<float> InOutTable) const
+void FWaveTableTransform::SampleCurveBipolar(TArrayView<float> InOutTable, float& OutFinalValue) const
 {
 	// Clamp the input
 	Audio::ArrayClampInPlace(InOutTable, 0.0f, 1.0f);
@@ -37,6 +37,8 @@ void FWaveTableTransform::SampleCurveBipolar(TArrayView<float> InOutTable) const
 			{
 				ValueData[i] = CurveCustom.Eval(ValueData[i]);
 			}
+				
+			OutFinalValue = CurveCustom.Eval(1.f);
 			break;
 		}
 
@@ -48,6 +50,8 @@ void FWaveTableTransform::SampleCurveBipolar(TArrayView<float> InOutTable) const
 				{
 					ValueData[i] = CurveShared->FloatCurve.Eval(ValueData[i]);
 				}
+				
+				OutFinalValue = CurveShared->FloatCurve.Eval(1.f);
 			}
 			break;
 		}
@@ -58,6 +62,8 @@ void FWaveTableTransform::SampleCurveBipolar(TArrayView<float> InOutTable) const
 			{
 				ValueData[i] = FMath::Lerp(1.0f, -1.0f, ValueData[i]);
 			}
+				
+			OutFinalValue = -1.f;
 		}
 		break;
 
@@ -67,6 +73,8 @@ void FWaveTableTransform::SampleCurveBipolar(TArrayView<float> InOutTable) const
 			{
 				ValueData[i] = FMath::Lerp(-1.0f, 1.0f, ValueData[i]);
 			}
+			
+			OutFinalValue = 1.f;
 		}
 		break;
 
@@ -79,6 +87,8 @@ void FWaveTableTransform::SampleCurveBipolar(TArrayView<float> InOutTable) const
 				ValueData[i] *= (FMath::Pow(10.0f, Scalar * (ValueData[i] - 1.0f)));
 				ValueData[i] -= 0.5f;
 			}
+
+			OutFinalValue = 1.f;
 		}
 		break;
 
@@ -91,6 +101,8 @@ void FWaveTableTransform::SampleCurveBipolar(TArrayView<float> InOutTable) const
 				ValueData[i] = ((ValueData[i] - 1.0f) * FMath::Pow(10.0f, -1.0f * Scalar * ValueData[i])) + 1.0f;
 				ValueData[i] -= 0.5f;
 			}
+
+			OutFinalValue = -1.f;
 		}
 		break;
 
@@ -100,6 +112,8 @@ void FWaveTableTransform::SampleCurveBipolar(TArrayView<float> InOutTable) const
 			{
 				ValueData[i] = (Scalar * FMath::LogX(10.0f, ValueData[i])) + 0.5f;
 			}
+				
+			OutFinalValue = 1.f;
 		}
 		break;
 
@@ -109,6 +123,8 @@ void FWaveTableTransform::SampleCurveBipolar(TArrayView<float> InOutTable) const
 			{
 				ValueData[i] = FMath::Sin(HALF_PI * ValueData[i]) - 0.5f;
 			}
+
+			OutFinalValue = 1.f;
 		}
 		break;
 
@@ -118,6 +134,8 @@ void FWaveTableTransform::SampleCurveBipolar(TArrayView<float> InOutTable) const
 			{
 				ValueData[i] = 0.5f * FMath::Sin(((PI * ValueData[i]) - HALF_PI));
 			}
+
+			OutFinalValue = 1.f;
 		}
 		break;
 
@@ -127,6 +145,8 @@ void FWaveTableTransform::SampleCurveBipolar(TArrayView<float> InOutTable) const
 			{
 				ValueData[i] = FMath::Sin(2.0f * PI * ValueData[i]);
 			}
+
+			OutFinalValue = 0.f;
 		}
 		break;
 
@@ -135,11 +155,13 @@ void FWaveTableTransform::SampleCurveBipolar(TArrayView<float> InOutTable) const
 			if (WaveTable.IsEmpty())
 			{
 				Audio::ArraySetToConstantInplace(InOutTable, 0.0f);
+				OutFinalValue = 0.f;
 			}
 			else
 			{
 				constexpr auto InterpMode = WaveTable::FWaveTableSampler::EInterpolationMode::MaxValue;
 				WaveTable::FWaveTableSampler::Interpolate(WaveTable, InOutTable, InterpMode);
+				OutFinalValue = WaveTable.Last();
 			}
 		}
 		break;
@@ -154,7 +176,7 @@ void FWaveTableTransform::SampleCurveBipolar(TArrayView<float> InOutTable) const
 	Audio::ArrayClampInPlace(InOutTable, -1.0f, 1.0f);
 }
 
-void FWaveTableTransform::SampleCurveUnipolar(TArrayView<float> InOutTable) const
+void FWaveTableTransform::SampleCurveUnipolar(TArrayView<float> InOutTable, float& OutFinalValue) const
 {
 	// Clamp the input
 	Audio::ArrayClampInPlace(InOutTable, 0.0f, 1.0f);
@@ -168,6 +190,8 @@ void FWaveTableTransform::SampleCurveUnipolar(TArrayView<float> InOutTable) cons
 			{
 				ValueData[i] = CurveCustom.Eval(ValueData[i]);
 			}
+				
+			OutFinalValue = CurveCustom.Eval(1.f);
 			break;
 		}
 
@@ -179,6 +203,7 @@ void FWaveTableTransform::SampleCurveUnipolar(TArrayView<float> InOutTable) cons
 				{
 					ValueData[i] = CurveShared->FloatCurve.Eval(ValueData[i]);
 				}
+				OutFinalValue = CurveShared->FloatCurve.Eval(1.f);
 			}
 			break;
 		}
@@ -189,12 +214,15 @@ void FWaveTableTransform::SampleCurveUnipolar(TArrayView<float> InOutTable) cons
 			{
 				ValueData[i] = 1.0f - InOutTable[i];
 			}
+				
+			OutFinalValue = 0.f;
 		}
 		break;
 
 		case EWaveTableCurve::Linear:
 		{
 			// Do nothing, as output values == clamped input values
+			OutFinalValue = 1.f;
 		}
 		break;
 	
@@ -206,6 +234,8 @@ void FWaveTableTransform::SampleCurveUnipolar(TArrayView<float> InOutTable) cons
 			{
 				ValueData[i] *= (FMath::Pow(10.0f, Scalar * (ValueData[i] - 1.0f)));
 			}
+
+			OutFinalValue = 1.f;
 		}
 		break;
 
@@ -217,6 +247,8 @@ void FWaveTableTransform::SampleCurveUnipolar(TArrayView<float> InOutTable) cons
 			{
 				ValueData[i] = ((ValueData[i] - 1.0f) * FMath::Pow(10.0f, -1.0f * Scalar * ValueData[i])) + 1.0f;
 			}
+
+			OutFinalValue = 0.f;
 		}
 		break;
 
@@ -226,6 +258,8 @@ void FWaveTableTransform::SampleCurveUnipolar(TArrayView<float> InOutTable) cons
 			{
 				ValueData[i] = (Scalar * FMath::LogX(10.0f, ValueData[i])) + 1.0f;
 			}
+
+			OutFinalValue = 1.f;
 		}
 		break;
 
@@ -235,6 +269,8 @@ void FWaveTableTransform::SampleCurveUnipolar(TArrayView<float> InOutTable) cons
 			{
 				ValueData[i] = FMath::Sin(HALF_PI * ValueData[i]);
 			}
+				
+			OutFinalValue = 1.f;
 		}
 		break;
 
@@ -244,6 +280,8 @@ void FWaveTableTransform::SampleCurveUnipolar(TArrayView<float> InOutTable) cons
 			{
 				ValueData[i] = 0.5f * FMath::Sin(((PI * ValueData[i]) - HALF_PI)) + 0.5f;
 			}
+
+			OutFinalValue = 1.f;
 		}
 		break;
 
@@ -253,6 +291,8 @@ void FWaveTableTransform::SampleCurveUnipolar(TArrayView<float> InOutTable) cons
 			{
 				ValueData[i] = 0.5f * FMath::Sin(2.0f * PI * ValueData[i]) + 0.5f;
 			}
+
+			OutFinalValue = 0.f;
 		}
 		break;
 
@@ -261,11 +301,13 @@ void FWaveTableTransform::SampleCurveUnipolar(TArrayView<float> InOutTable) cons
 			if (WaveTable.IsEmpty())
 			{
 				Audio::ArraySetToConstantInplace(InOutTable, 0.0f);
+				OutFinalValue = 0.f;
 			}
 			else
 			{
 				constexpr auto InterpMode = WaveTable::FWaveTableSampler::EInterpolationMode::MaxValue;
 				WaveTable::FWaveTableSampler::Interpolate(WaveTable, InOutTable, InterpMode);
+				OutFinalValue = WaveTable.Last();
 			}
 		}
 		break;
@@ -294,18 +336,19 @@ void FWaveTableTransform::CacheCurve()
 }
 
 #if WITH_EDITOR
-void FWaveTableTransform::CopyToWaveTable(TArrayView<float> InOutTable, bool bInBipolar) const
+void FWaveTableTransform::CopyToWaveTable(TArrayView<float> InOutTable, float& OutFinalValue, bool bInBipolar) const
 {
 	const float Delta = 1.0f / InOutTable.Num();
+	
 	for (int32 i = 0; i < InOutTable.Num(); ++i)
 	{
 		InOutTable[i] = i * Delta;
 	}
 
-	bInBipolar ? SampleCurveBipolar(InOutTable) : SampleCurveUnipolar(InOutTable);
+	bInBipolar ? SampleCurveBipolar(InOutTable, OutFinalValue) : SampleCurveUnipolar(InOutTable, OutFinalValue);
 }
 
-void FWaveTableTransform::CreateWaveTable(TArray<float>& InOutTable, bool bInBipolar) const
+void FWaveTableTransform::CreateWaveTable(TArray<float>& InOutTable, float& OutFinalValue, bool bInBipolar) const
 {
 	switch (Curve)
 	{
@@ -328,7 +371,7 @@ void FWaveTableTransform::CreateWaveTable(TArray<float>& InOutTable, bool bInBip
 		case EWaveTableCurve::Sin_Full:
 		default:
 		{
-			CopyToWaveTable(InOutTable, bInBipolar);
+			CopyToWaveTable(InOutTable, OutFinalValue, bInBipolar);
 		}
 		break;
 	}

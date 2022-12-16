@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "WaveTableSampler.h"
 
+#include "WaveTable.h"
 #include "DSP/Dsp.h"
 #include "DSP/FloatArrayMath.h"
 
@@ -181,8 +182,13 @@ namespace WaveTable
 		Settings.Phase = InPhase;
 	}
 
-	float FWaveTableSampler::Process(TArrayView<const float> InTableView, float& OutSample, ESingleSampleMode InMode)
+	float FWaveTableSampler::Process(const FWaveTableView& InTableView, float& OutSample, ESingleSampleMode InMode)
 	{
+		if(InTableView.IsEmpty())
+		{
+			return 0.f;
+		}
+		
 		TArrayView<float> OutSamplesView { &OutSample, 1 };
 		float Index = Process(InTableView, { }, { }, { }, OutSamplesView);
 
@@ -197,36 +203,27 @@ namespace WaveTable
 		// to see if interpolation needs to be re-evaluated.
 		// This check is expensive in the context of buffer
 		// eval and thus only supported in "single-sample" mode.
-		const bool bIsFinalInterp = Index > InTableView.Num() - 1;
+		const bool bIsFinalInterp = Index > InTableView.SampleView.Num() - 1;
 		const bool bHasCompleted = Index == 0 && (Settings.Phase > 0.0f || LastIndex > 0);
 		if (bIsFinalInterp || bHasCompleted)
 		{
+			float ModeValue = 0.f;
+			
 			switch (InMode)
 			{
-				case ESingleSampleMode::Hold:
-				{
-					OutSample = InTableView.Last();
-
-				}
-				break;
-
 				case ESingleSampleMode::Zero:
 				case ESingleSampleMode::Unit:
 				{
-					const float ModeValue = static_cast<float>(InMode);
-					if (bIsFinalInterp)
-					{
-						TArray<float> FinalInterp = { InTableView.Last(), ModeValue };
-						OutSample = FMath::Frac(Index);
-						Interpolate(FinalInterp, OutSamplesView, Settings.InterpolationMode);
-					}
-					else
-					{
-						OutSample = ModeValue;
-					}
+					ModeValue = static_cast<float>(InMode);
 				}
 				break;
 
+				case ESingleSampleMode::Hold:
+				{
+					ModeValue = InTableView.FinalValue;
+				}
+				break;
+				
 				case ESingleSampleMode::Loop:
 				{
 					checkNoEntry(); // Should be handled above
@@ -235,6 +232,17 @@ namespace WaveTable
 
 				default:
 				break;
+			}
+
+			if (bIsFinalInterp)
+			{
+				TArray<float> FinalInterp = { InTableView.SampleView.Last(), ModeValue };
+				OutSample = FMath::Frac(Index);
+				Interpolate(FinalInterp, OutSamplesView, Settings.InterpolationMode);
+			}
+			else
+			{
+				OutSample = ModeValue;
 			}
 
 			if (!FMath::IsNearlyEqual(Settings.Amplitude, 1.0f))
@@ -251,18 +259,18 @@ namespace WaveTable
 		return Index;
 	}
 
-	float FWaveTableSampler::Process(TArrayView<const float> InTableView, TArrayView<float> OutSamplesView)
+	float FWaveTableSampler::Process(const FWaveTableView& InTableView, TArrayView<float> OutSamplesView)
 	{
 		return Process(InTableView, { }, { }, { }, OutSamplesView);
 	}
 
-	float FWaveTableSampler::Process(TArrayView<const float> InTableView, TArrayView<const float> InFreqModulator, TArrayView<const float> InPhaseModulator, TArrayView<const float> InSyncTriggers, TArrayView<float> OutSamplesView)
+	float FWaveTableSampler::Process(const FWaveTableView& InTableView, TArrayView<const float> InFreqModulator, TArrayView<const float> InPhaseModulator, TArrayView<const float> InSyncTriggers, TArrayView<float> OutSamplesView)
 	{
 		float CurViewLastIndex = 0.0f;
 
 		if (!OutSamplesView.IsEmpty())
 		{
-			if (InTableView.IsEmpty())
+			if (InTableView.SampleView.IsEmpty())
 			{
 				Audio::ArraySetToConstantInplace(OutSamplesView, 0.0f);
 			}
@@ -270,13 +278,13 @@ namespace WaveTable
 			{
 				// Compute index frequency & phase and stuff into samples
 				// view. Interpolator will convert to associated values.
-				ComputeIndexFrequency(InTableView, InFreqModulator, InSyncTriggers, OutSamplesView);
-				ComputeIndexPhase(InTableView, InPhaseModulator, OutSamplesView);
+				ComputeIndexFrequency(InTableView.SampleView, InFreqModulator, InSyncTriggers, OutSamplesView);
+				ComputeIndexPhase(InTableView.SampleView, InPhaseModulator, OutSamplesView);
 
 				// Capture last index and return in case caller is interested in progress/phase through table (ex. for enveloping).
 				CurViewLastIndex = OutSamplesView.Last();
 
-				Interpolate(InTableView, OutSamplesView, Settings.InterpolationMode);
+				Interpolate(InTableView.SampleView, OutSamplesView, Settings.InterpolationMode);
 			}
 
 			if (!FMath::IsNearlyEqual(Settings.Amplitude, 1.0f))

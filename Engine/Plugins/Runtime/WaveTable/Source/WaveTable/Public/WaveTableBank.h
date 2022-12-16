@@ -27,13 +27,13 @@ class WAVETABLE_API UWaveTableBank : public UObject, public IAudioProxyDataFacto
 	GENERATED_BODY()
 
 public:
-	// Number of sampled cached for each curve in the given bank.
+	// Number of samples cached for each curve in the given bank.
 	UPROPERTY(EditAnywhere, Category = Options)
 	EWaveTableResolution Resolution = EWaveTableResolution::Res_256;
 
-	// Determines if output from curve/wavetable are to be clamped between [-1.0f, 1.0f]
-	// (i.e. for waveform generation, oscillation, etc.) or between [0.0f, 1.0f]
-	// (i.e. for enveloping) when sampling curve/wavetable
+	// Determines if output from curve/wavetable are to be clamped between 
+	// [-1.0f, 1.0f] (i.e. for waveform generation, oscillation, etc.)
+	// or [0.0f, 1.0f] (i.e. for enveloping) when sampling curve/wavetable
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bBipolar = true;
 
@@ -53,6 +53,8 @@ public:
 
 	/* IAudioProxyDataFactory Implementation */
 	virtual TSharedPtr<Audio::IProxyData> CreateProxyData(const Audio::FProxyDataInitParams& InitParams) override;
+
+	virtual void Serialize(FArchive& Ar) override;
 
 #if WITH_EDITOR
 	void RefreshWaveTables();
@@ -77,7 +79,7 @@ public:
 	{
 		Algo::Transform(InWaveTableBank.Entries, WaveTables, [](const FWaveTableBankEntry& Entry)
 		{
-			return Entry.Transform.WaveTable;
+			return WaveTable::FWaveTable(Entry.Transform.WaveTable, Entry.Transform.FinalValue);
 		});
 	}
 

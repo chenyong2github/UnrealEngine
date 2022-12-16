@@ -21,12 +21,6 @@
 
 namespace Metasound
 {
-	DECLARE_METASOUND_ENUM(WaveTable::FWaveTableSampler::ESingleSampleMode, WaveTable::FWaveTableSampler::ESingleSampleMode::Zero, METASOUNDENGINE_API,
-	FEnumWaveTableEnvelopeMode, FEnumWaveTableEnvelopeModeTypeInfo, FEnumWaveTableEnvelopeModeReadRef, FEnumWaveTableEnvelopeModeWriteRef);
-
-	DECLARE_METASOUND_ENUM(WaveTable::FWaveTableSampler::EInterpolationMode, WaveTable::FWaveTableSampler::EInterpolationMode::Linear, METASOUNDENGINE_API,
-	FEnumWaveTableInterpolationMode, FEnumWaveTableInterpModeTypeInfo, FEnumWaveTableInterpModeReadRef, FEnumWaveTableInterpModeWriteRef);
-
 	DEFINE_METASOUND_ENUM_BEGIN(WaveTable::FWaveTableSampler::ESingleSampleMode, FEnumWaveTableEnvelopeMode, "WaveTableEnvelopeMode")
 		DEFINE_METASOUND_ENUM_ENTRY(WaveTable::FWaveTableSampler::ESingleSampleMode::Loop, "LoopDisplayName", "Loop", "EnvMode_LoopDescription", "Interpolates last value and first value in WaveTable, starting over interpolation of envelope on completion."),
 		DEFINE_METASOUND_ENUM_ENTRY(WaveTable::FWaveTableSampler::ESingleSampleMode::Hold, "HoldDisplayName", "Hold", "EnvMode_HoldDescription", "Holds last value in table if elapsed beyond WaveTable length"),
@@ -188,11 +182,9 @@ namespace Metasound
 		{
 			using namespace WaveTable;
 
-			float LastValue = *OutWriteRef;
-
 			if (bPaused)
 			{
-				return LastValue;
+				return *OutWriteRef;
 			}
 
 			switch (InSampleMode)
@@ -201,7 +193,7 @@ namespace Metasound
 				return 1.0f;
 
 				case FWaveTableSampler::ESingleSampleMode::Hold:
-				return LastValue;
+				return WaveTableReadRef->GetView().FinalValue;
 
 				case FWaveTableSampler::ESingleSampleMode::Zero:
 				case FWaveTableSampler::ESingleSampleMode::Loop:
@@ -268,9 +260,9 @@ namespace Metasound
 				}
 			}
 
-			TArrayView<const float> WaveTableView = WaveTableReadRef->GetView();
+			const WaveTable::FWaveTableView& WaveTableView = WaveTableReadRef->GetView();
 
-			if (WaveTableView.IsEmpty())
+			if (WaveTableView.SampleView.IsEmpty())
 			{
 				if (Elapsed >= 0.0f)
 				{

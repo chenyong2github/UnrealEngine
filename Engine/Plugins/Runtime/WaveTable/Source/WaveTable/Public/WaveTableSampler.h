@@ -9,6 +9,8 @@
 
 namespace WaveTable
 {
+	struct FWaveTableView;
+
 	class WAVETABLE_API FWaveTableSampler
 	{
 	public:
@@ -67,9 +69,9 @@ namespace WaveTable
 		// Interpolates and converts values in the given table for each provided index in the index-to-samples TArrayView (an array of sub-sample, floating point, indices)
 		static void Interpolate(TArrayView<const float> InTableView, TArrayView<float> InOutIndexToSamplesView, EInterpolationMode InterpMode = EInterpolationMode::Linear);
 
-		float Process(TArrayView<const float> InTableView, float& OutSample, ESingleSampleMode InMode = ESingleSampleMode::Zero);
-		float Process(TArrayView<const float> InTableView, TArrayView<float> OutSamplesView);
-		float Process(TArrayView<const float> InTableView, TArrayView<const float> InFreqModulator, TArrayView<const float> InPhaseModulator, TArrayView<const float> InSyncTriggers, TArrayView<float> OutSamplesView);
+		float Process(const FWaveTableView& InTableView, float& OutSample, ESingleSampleMode InMode = ESingleSampleMode::Zero);
+		float Process(const FWaveTableView& InTableView, TArrayView<float> OutSamplesView);
+		float Process(const FWaveTableView& InTableView, TArrayView<const float> InFreqModulator, TArrayView<const float> InPhaseModulator, TArrayView<const float> InSyncTriggers, TArrayView<float> OutSamplesView);
 
 		void Reset();
 

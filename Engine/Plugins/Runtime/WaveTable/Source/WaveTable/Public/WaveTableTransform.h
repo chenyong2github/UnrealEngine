@@ -5,15 +5,15 @@
 #include "Containers/ArrayView.h"
 #include "Curves/CurveFloat.h"
 #include "Curves/RichCurve.h"
-#include "HAL/Platform.h"
-#include "Templates/Function.h"
-#include "UObject/SoftObjectPath.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectMacros.h"
 #include "WaveTableSettings.h"
 
 #include "WaveTableTransform.generated.h"
 
+// use a value outside the [-1,1] range to detect uninitialized values
+namespace WaveTable
+{
+	constexpr float InvalidWaveTableValue = TNumericLimits<float>::Min();
+}
 
 USTRUCT(BlueprintType)
 struct WAVETABLE_API FWaveTableTransform
@@ -43,6 +43,9 @@ struct WAVETABLE_API FWaveTableTransform
 	UPROPERTY()
 	TArray<float> WaveTable;
 
+	UPROPERTY()
+	float FinalValue = WaveTable::InvalidWaveTableValue;
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category = WaveTable)
 	FWaveTableSettings WaveTableSettings;
@@ -56,11 +59,11 @@ struct WAVETABLE_API FWaveTableTransform
 	// size of the resulting WaveTable is the provided ArrayView's size. If curve is itself
 	// set to 'File' and internally cached as WaveTable, will re-sample using max value
 	// interpolation. Does *not* apply destructive edits for using WaveTableSettings PCM data.
-	void CopyToWaveTable(TArrayView<float> InOutTable, bool bInBipolar) const;
+	void CopyToWaveTable(TArrayView<float> InOutTable, float& OutFinalValue, bool bInBipolar) const;
 
 	// Caches WaveTable for curve using the provided array length as resolution.
 	// Applies destructive edits as provided by WaveTableSettings if curve set to 'File'.
-	void CreateWaveTable(TArray<float>& InOutTable, bool bInBipolar) const;
+	void CreateWaveTable(TArray<float>& InOutTable, float& OutFinalValue, bool bInBipolar) const;
 #endif // WITH_EDITOR
 
 	/** Caches curve data.  Should a shared curve be selected, curve points are copied locally
@@ -72,8 +75,8 @@ struct WAVETABLE_API FWaveTableTransform
 
 private:
 	/** Clamps & applies transform to provided values as bipolar signal*/
-	void SampleCurveBipolar(TArrayView<float> InOutValues) const;
+	void SampleCurveBipolar(TArrayView<float> InOutValues, float& OutFinalValue) const;
 
 	/** Clamps & applies transform to provided values as unipolar signal */
-	void SampleCurveUnipolar(TArrayView<float> InOutValues) const;
+	void SampleCurveUnipolar(TArrayView<float> InOutValues, float& OutFinalValue) const;
 };

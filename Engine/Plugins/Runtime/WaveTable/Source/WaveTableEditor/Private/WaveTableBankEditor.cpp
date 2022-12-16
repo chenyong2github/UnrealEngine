@@ -198,16 +198,18 @@ namespace WaveTable
 					TArray<float> KeyTable;
 					KeyTable.AddZeroed(PointCount);
 
+					float FinalValue = 0.f;
+
 					// Optimization for really big source files if set to 'File'. Do not recreate WaveTable on the fly
 					// for large samples as caching mechanism is too slow for rapid regeneration (i.e. when making
 					// interactive edits).
 					if (Transform->WaveTableSettings.SourcePCMData.Num() < BankEditorPrivate::MaxLiveEditSamples)
 					{
-						Transform->CreateWaveTable(KeyTable, bIsBipolar);
+						Transform->CreateWaveTable(KeyTable, FinalValue, bIsBipolar);
 					}
 					else
 					{
-						Transform->CopyToWaveTable(KeyTable, bIsBipolar);
+						Transform->CopyToWaveTable(KeyTable, FinalValue, bIsBipolar);
 					}
 
 					const float Delta = 1.0 / KeyTable.Num();
