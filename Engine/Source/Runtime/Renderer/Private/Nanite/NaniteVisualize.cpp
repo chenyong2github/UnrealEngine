@@ -11,6 +11,7 @@
 #include "SceneManagement.h"
 #include "Rendering/NaniteStreamingManager.h"
 #include "DebugViewModeHelpers.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "NaniteSceneProxy.h"
 #include "ShaderPrint.h"
 

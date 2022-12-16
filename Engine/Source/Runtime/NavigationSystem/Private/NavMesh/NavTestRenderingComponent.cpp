@@ -4,6 +4,7 @@
 #include "Engine/Engine.h"
 #include "Engine/Canvas.h"
 #include "SceneManagement.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "NavigationTestingActor.h"
 #include "NavMesh/RecastNavMesh.h"
 #include "Debug/DebugDrawService.h"

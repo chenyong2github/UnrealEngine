@@ -17,6 +17,7 @@
 #include "MaterialShaderQualitySettingsCustomization.h"
 #include "MaterialShaderQualitySettings.h"
 #include "ComponentRecreateRenderStateContext.h"
+#include "RenderingThread.h"
 #include "ShaderPlatformQualitySettings.h"
 #include "Misc/CoreDelegates.h"
 

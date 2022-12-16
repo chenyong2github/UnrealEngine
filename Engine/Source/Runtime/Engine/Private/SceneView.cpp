@@ -15,6 +15,7 @@
 #include "Engine/Engine.h"
 #include "Widgets/SWindow.h"
 #include "SceneManagement.h"
+#include "ShaderCore.h"
 #include "EngineModule.h"
 #include "BufferVisualizationData.h"
 #include "NaniteVisualizationData.h"

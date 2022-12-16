@@ -42,6 +42,7 @@
 #include "Engine/StaticMesh.h"
 #include "Components/StaticMeshComponent.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "RenderingThread.h"
 #include "StaticMeshAttributes.h"
 #include "GeometryFlowTypes.h"
 

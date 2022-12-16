@@ -8,6 +8,7 @@
 
 #if RHI_RAYTRACING
 
+#include "Materials/MaterialRenderProxy.h"
 #include "MaterialShared.h"
 #include "RayTracing/RayTracingInstanceMask.h"
 #include "MeshPassProcessor.h"

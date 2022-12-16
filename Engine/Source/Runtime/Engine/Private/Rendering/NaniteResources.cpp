@@ -12,6 +12,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/InstancedStaticMesh.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "RenderingThread.h"
 #include "UnifiedBuffer.h"
 #include "CommonRenderResources.h"

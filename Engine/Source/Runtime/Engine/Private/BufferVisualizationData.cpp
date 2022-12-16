@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "BufferVisualizationData.h"
+
 #include "HAL/IConsoleManager.h"
 #include "Materials/Material.h"
 #include "Misc/ConfigCacheIni.h"
+#include "ShaderCore.h"
 
 #define LOCTEXT_NAMESPACE "FBufferVisualizationData"
 

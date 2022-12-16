@@ -40,6 +40,7 @@
 #include "SceneViewExtension.h"
 #include "GenerateMips.h"
 #include "RectLightTextureManager.h"
+#include "Materials/MaterialRenderProxy.h"
 
 #if WITH_EDITOR
 // All scene captures on the given render thread frame will be dumped

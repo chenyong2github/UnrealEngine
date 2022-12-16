@@ -40,9 +40,9 @@
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RHI.h"
 #include "MaterialDomain.h"
-#endif
 #include "Materials/MaterialAttributeDefinitionMap.h"
 #include "Materials/MaterialRenderProxy.h"
+#endif
 
 #include "Shader/Preshader.h"
 

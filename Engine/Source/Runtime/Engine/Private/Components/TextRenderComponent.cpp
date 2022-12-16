@@ -26,6 +26,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "StaticMeshResources.h"
 #include "Containers/Ticker.h"
+#include "PSOPrecache.h"
 
 #define LOCTEXT_NAMESPACE "TextRenderComponent"
 

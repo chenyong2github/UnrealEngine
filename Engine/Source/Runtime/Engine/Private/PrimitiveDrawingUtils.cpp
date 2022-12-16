@@ -7,6 +7,7 @@
 #include "RawIndexBuffer.h"
 #include "MaterialShared.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "CanvasItem.h"
 #include "CanvasTypes.h"
 #include "SceneUtils.h"

@@ -18,6 +18,7 @@
 #include "PrimitiveSceneProxy.h"
 #include "Engine/Engine.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "UObject/UObjectIterator.h"
 #include "ParticleVertexFactory.h"
 #include "MeshBatch.h"

@@ -12,6 +12,7 @@
 #include "Engine/CollisionProfile.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "LocalVertexFactory.h"
 #include "SceneManagement.h"
 #include "DynamicMeshBuilder.h"

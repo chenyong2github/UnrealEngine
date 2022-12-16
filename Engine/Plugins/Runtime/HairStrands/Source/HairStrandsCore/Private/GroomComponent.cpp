@@ -3,6 +3,7 @@
 #include "GroomComponent.h"
 #include "GeometryCacheComponent.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "MaterialShared.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/Engine.h"

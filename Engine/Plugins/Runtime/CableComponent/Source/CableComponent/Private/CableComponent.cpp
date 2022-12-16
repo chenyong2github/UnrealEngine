@@ -13,6 +13,7 @@
 #include "SceneManagement.h"
 #include "Engine/CollisionProfile.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "LocalVertexFactory.h"
 #include "Engine/Engine.h"
 #include "CableComponentStats.h"

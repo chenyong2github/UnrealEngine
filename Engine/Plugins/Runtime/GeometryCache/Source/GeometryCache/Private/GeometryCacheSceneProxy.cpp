@@ -14,6 +14,7 @@
 #include "GeometryCacheHelpers.h"
 #include "MaterialDomain.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "MaterialShared.h"
 #include "RayTracingDefinitions.h"
 #include "RayTracingInstance.h"

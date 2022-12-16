@@ -45,6 +45,7 @@
 #include "RendererModule.h"
 #include "EngineModule.h"
 #include "GPUScene.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "MaterialSceneTextureId.h"
 #include "SkyAtmosphereRendering.h"
 #include "VisualizeTexture.h"

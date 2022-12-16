@@ -15,6 +15,7 @@
 #include "Engine/LightMapTexture2D.h"
 #include "Engine/ShadowMapTexture2D.h"
 #include "Engine/TextureLightProfile.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "TextureResource.h"
 #include "VT/LightmapVirtualTexture.h"
 #include "UnrealEngine.h"

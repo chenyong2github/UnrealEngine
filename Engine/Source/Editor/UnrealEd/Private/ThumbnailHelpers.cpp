@@ -20,6 +20,7 @@
 #include "FXSystem.h"
 #include "ContentStreaming.h"
 #include "Materials/Material.h"
+#include "MaterialShared.h"
 #include "Animation/AnimSingleNodeInstance.h"
 #include "Engine/TextureCube.h"
 #include "Animation/BlendSpace1D.h"

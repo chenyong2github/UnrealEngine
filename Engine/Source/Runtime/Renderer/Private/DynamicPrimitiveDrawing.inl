@@ -8,6 +8,7 @@
 
 #include "CoreTypes.h"
 #include "CoreFwd.h"
+#include "Materials/MaterialRenderProxy.h"
 
 class FBatchedElements;
 class FDynamicPrimitiveResource;

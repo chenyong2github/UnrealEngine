@@ -2,6 +2,7 @@
 
 #include "MaterialCachedData.h"
 #include "MaterialCachedHLSLTree.h"
+#include "Materials/MaterialAttributeDefinitionMap.h"
 #include "Materials/MaterialExpressionBreakMaterialAttributes.h"
 #include "Materials/MaterialExpressionShadingModel.h"
 #include "Materials/MaterialExpressionReroute.h"

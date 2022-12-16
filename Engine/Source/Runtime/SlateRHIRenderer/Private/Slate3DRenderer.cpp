@@ -2,7 +2,7 @@
 
 #include "Slate3DRenderer.h"
 #include "Fonts/FontCache.h"
-#include "MaterialShared.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "Widgets/SWindow.h"
 #include "SceneUtils.h"
 #include "SlateRHIRenderer.h"

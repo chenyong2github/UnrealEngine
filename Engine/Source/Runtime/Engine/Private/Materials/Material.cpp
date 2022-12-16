@@ -17,6 +17,7 @@
 #include "UObject/UObjectAnnotation.h"
 #include "UObject/LinkerLoad.h"
 #include "EngineGlobals.h"
+#include "Materials/MaterialAttributeDefinitionMap.h"
 #include "Materials/MaterialInstance.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "UnrealEngine.h"
@@ -119,6 +120,8 @@
 #include "Curves/CurveLinearColorAtlas.h"
 #include "HAL/ThreadHeartBeat.h"
 #include "Misc/ScopedSlowTask.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Material)
 
 #if ENABLE_COOK_STATS
 #include "ProfilingDebugging/ScopedTimers.h"
@@ -6487,6 +6490,13 @@ USubsurfaceProfile* UMaterial::GetSubsurfaceProfile_Internal() const
 bool UMaterial::CastsRayTracedShadows() const
 {
 	return bCastRayTracedShadows;
+}
+
+void UMaterial::SetShadingModel(EMaterialShadingModel NewModel)
+{
+	ensure(ShadingModel < MSM_NUM);
+	ShadingModel = NewModel;
+	ShadingModels = FMaterialShadingModelField(ShadingModel);
 }
 
 // This is used to list the supported properties (i.e. when Strata is enabled/disabled)

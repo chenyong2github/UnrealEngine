@@ -9,6 +9,7 @@
 #include "MaterialDomain.h"
 #include "MaterialShaderType.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "CommonRenderResources.h"
 #include "Rendering/NaniteResources.h"
 #include "PrimitiveSceneInfo.h"

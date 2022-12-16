@@ -8,6 +8,7 @@
 #include "NavigationSystem.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "NavigationOctree.h"
 #include "NavMesh/RecastHelpers.h"
 #include "NavMesh/RecastNavMesh.h"

@@ -20,6 +20,7 @@
 #include "Engine/Texture2D.h"
 #include "ComponentReregisterContext.h"
 #include "VectorFieldVisualization.h"
+#include "Serialization/MemoryWriter.h"
 #include "ShaderParameterUtils.h"
 #include "GlobalShader.h"
 #include "FXSystem.h"

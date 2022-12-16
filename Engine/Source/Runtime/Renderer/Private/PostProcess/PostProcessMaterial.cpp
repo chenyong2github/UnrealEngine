@@ -7,6 +7,7 @@
 #include "PostProcess/PostProcessMaterial.h"
 #include "RendererModule.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "MaterialShaderType.h"
 #include "MaterialShader.h"
 #include "SceneUtils.h"

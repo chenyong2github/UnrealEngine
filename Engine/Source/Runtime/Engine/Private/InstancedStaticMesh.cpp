@@ -28,6 +28,7 @@
 #include "EngineStats.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "MaterialDomain.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "MeshMaterialShader.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "StaticMeshComponentLODInfo.h"

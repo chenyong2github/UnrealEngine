@@ -2,6 +2,7 @@
 
 #include "MeshBatch.h"
 #include "MaterialShared.h"
+#include "Materials/MaterialRenderProxy.h"
 
 bool FMeshBatch::IsTranslucent(ERHIFeatureLevel::Type InFeatureLevel) const
 {

@@ -29,6 +29,7 @@
 #include "Materials/MaterialInterface.h"
 #include "RenderingThread.h"
 #include "Materials/Material.h"
+#include "MaterialShared.h"
 #include "CanvasTypes.h"
 #include "Engine/Brush.h"
 #include "ISourceControlOperation.h"

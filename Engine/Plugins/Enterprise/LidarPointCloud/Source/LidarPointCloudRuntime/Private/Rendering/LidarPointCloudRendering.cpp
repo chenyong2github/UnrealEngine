@@ -13,6 +13,7 @@
 #include "SceneManagement.h"
 #include "LocalVertexFactory.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialRenderProxy.h"
 #if RHI_RAYTRACING
 #include "RayTracingInstance.h"
 #endif

@@ -22,6 +22,7 @@
 #include "MaterialDomain.h"
 #include "MaterialShared.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "MeshBatch.h"
 #include "SceneManagement.h"
 #include "Engine/Engine.h"

@@ -18,6 +18,8 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialInstance.h"
 #include "Materials/MaterialInstanceConstant.h"
+#include "MaterialShared.h"
+#include "Misc/Paths.h"
 #include "MDLImporterOptions.h"
 #include "MDLMaterialImporter.h"
 #include "UObject/StrongObjectPtr.h"

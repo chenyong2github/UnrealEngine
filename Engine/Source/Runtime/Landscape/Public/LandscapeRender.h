@@ -16,6 +16,7 @@ LandscapeRender.h: New terrain rendering
 #include "UniformBuffer.h"
 #include "VertexFactory.h"
 #include "MaterialShared.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "LandscapeProxy.h"
 #include "RendererInterface.h"
 #include "MeshBatch.h"

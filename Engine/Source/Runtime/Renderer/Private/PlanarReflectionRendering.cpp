@@ -25,6 +25,7 @@
 #include "PostProcess/SceneFilterRendering.h"
 #include "PostProcess/PostProcessing.h"
 #include "LightRendering.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "Components/SceneCaptureComponent.h"
 #include "Components/PlanarReflectionComponent.h"
 #include "PlanarReflectionSceneProxy.h"

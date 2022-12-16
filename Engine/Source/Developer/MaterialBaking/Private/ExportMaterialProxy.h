@@ -18,8 +18,10 @@
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "Materials/MaterialInterface.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "SceneTypes.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialAttributeDefinitionMap.h"
 #include "Materials/MaterialExpressionCustomOutput.h"
 
 struct FExportMaterialCompiler : public FProxyMaterialCompiler

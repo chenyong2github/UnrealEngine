@@ -38,6 +38,7 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "MaterialUtilities.h"
+#include "ShaderCore.h"
 
 #include "Engine/MeshMerging.h"
 

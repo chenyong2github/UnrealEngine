@@ -4,6 +4,7 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialInstance.h"
 #include "PropertyEditorModule.h"
+#include "RenderingThread.h"
 #include "IOSRuntimeSettings.h"
 #include "IOSTargetSettingsCustomization.h"
 #include "ISettingsModule.h"

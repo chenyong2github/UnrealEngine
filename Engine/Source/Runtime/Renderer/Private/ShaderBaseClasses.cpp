@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "ShaderBaseClasses.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "PostProcess/SceneRenderTargets.h"
 #include "RendererModule.h"
 #include "ScenePrivate.h"

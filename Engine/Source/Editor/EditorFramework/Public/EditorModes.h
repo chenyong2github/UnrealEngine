@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Logging/LogMacros.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "MaterialShared.h"
 #include "Math/Color.h"
 #include "SceneManagement.h"

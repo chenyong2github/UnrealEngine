@@ -11,6 +11,7 @@
 #include "IGLTFMaterialBakingModule.h"
 #include "GLTFMaterialBakingStructures.h"
 #include "Materials/MaterialExpressionTextureSample.h"
+#include "Materials/MaterialAttributeDefinitionMap.h"
 #endif
 #include "Engine/RendererSettings.h"
 #include "Modules/ModuleManager.h"

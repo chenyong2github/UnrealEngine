@@ -13,9 +13,11 @@
 #include "Misc/PackageName.h"
 #include "LegacyScreenPercentageDriver.h"
 
+#include "Materials/MaterialAttributeDefinitionMap.h"
 #include "Materials/MaterialExpressionConstant.h"
 #include "Materials/MaterialExpressionConstant4Vector.h"
 #include "Materials/MaterialExpressionMultiply.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "Engine/TextureCube.h"
 #include "Engine/Texture2DArray.h"
 #include "SceneView.h"

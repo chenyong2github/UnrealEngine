@@ -30,6 +30,7 @@
 #include "Engine/LatentActionManager.h"
 #include "MessageLogModule.h"
 #include "Tickable.h"
+#include "RenderingThread.h"
 
 #define LOCTEXT_NAMESPACE "LogStereoPanorama"
 

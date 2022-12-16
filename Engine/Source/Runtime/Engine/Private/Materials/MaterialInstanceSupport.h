@@ -10,6 +10,7 @@
 #include "RenderingThread.h"
 #include "MaterialShared.h"
 #include "Materials/MaterialInstance.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "HAL/LowLevelMemTracker.h"
 #include <limits>
 

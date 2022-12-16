@@ -12,6 +12,7 @@
 #include "Engine/Engine.h"
 #include "Engine/Canvas.h"
 #include "Debug/DebugDrawService.h"
+#include "Materials/MaterialRenderProxy.h"
 
 // FPrimitiveSceneProxy interface.
 

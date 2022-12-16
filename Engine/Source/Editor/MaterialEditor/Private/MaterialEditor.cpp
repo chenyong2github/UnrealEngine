@@ -32,6 +32,7 @@
 #include "MaterialEditor/PreviewMaterial.h"
 #include "ThumbnailRendering/SceneThumbnailInfoWithPrimitive.h"
 #include "Particles/ParticleSystemComponent.h"
+#include "Materials/MaterialAttributeDefinitionMap.h"
 #include "Materials/MaterialInstance.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInstanceConstant.h"

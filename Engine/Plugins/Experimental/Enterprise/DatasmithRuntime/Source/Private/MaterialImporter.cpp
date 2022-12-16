@@ -17,6 +17,7 @@
 #include "Engine/TextureLightProfile.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "MaterialShared.h"
 
 namespace DatasmithRuntime
 {

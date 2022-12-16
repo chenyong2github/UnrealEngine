@@ -21,6 +21,7 @@
 #include "Engine/SkeletalMeshLODSettings.h"
 #include "MaterialShared.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "MaterialDomain.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "Animation/SmartName.h"

@@ -6,6 +6,7 @@
 #include "Engine/Canvas.h"
 #include "Debug/DebugDrawService.h"
 #include "HAL/IConsoleManager.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "MaterialShared.h"
 #include "PostProcess/SceneRenderTargets.h"
 #include "ProfilingDebugging/CsvProfiler.h"

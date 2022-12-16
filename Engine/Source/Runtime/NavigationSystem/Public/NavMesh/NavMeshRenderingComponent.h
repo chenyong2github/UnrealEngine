@@ -18,6 +18,7 @@
 
 class APlayerController;
 class ARecastNavMesh;
+class FColoredMaterialRenderProxy;
 class FMeshElementCollector;
 class FPrimitiveDrawInterface;
 class UCanvas;

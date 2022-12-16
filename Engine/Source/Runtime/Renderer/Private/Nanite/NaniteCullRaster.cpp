@@ -16,6 +16,7 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "DynamicResolutionState.h"
 #include "Lumen/Lumen.h"
 

@@ -32,6 +32,7 @@
 #include "Materials/MaterialExpressionVertexColor.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "MaterialShared.h"
 #include "Misc/FileHelper.h"
 #include "Modules/ModuleManager.h"
 #include "RenderUtils.h"

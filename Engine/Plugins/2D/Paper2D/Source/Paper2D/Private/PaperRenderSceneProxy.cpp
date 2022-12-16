@@ -5,6 +5,7 @@
 #include "SceneManagement.h"
 #include "MaterialDomain.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "EngineGlobals.h"
 #include "Components/PrimitiveComponent.h"

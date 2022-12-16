@@ -8,6 +8,7 @@
 #include "PipelineStateCache.h"
 #include "PlanarReflectionRendering.h"
 #include "LocalLightSceneProxy.h"
+#include "Materials/MaterialRenderProxy.h"
 
 int32 GMobileUseClusteredDeferredShading = 0;
 static FAutoConsoleVariableRef CVarMobileUseClusteredDeferredShading(

@@ -3,6 +3,7 @@
 #include "ModelingComponentsModule.h"
 #include "Components/BaseDynamicMeshComponent.h"
 #include "Materials/Material.h"
+#include "Misc/CoreDelegates.h"
 
 #define LOCTEXT_NAMESPACE "FModelingComponentsModule"
 

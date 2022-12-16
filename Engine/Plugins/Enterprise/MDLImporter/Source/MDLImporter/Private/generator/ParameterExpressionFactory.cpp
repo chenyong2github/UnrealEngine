@@ -11,6 +11,7 @@
 
 #include "Containers/Map.h"
 #include "Engine/Texture2D.h"
+#include "Misc/Paths.h"
 
 MDLSDK_INCLUDES_START
 #include "mi/neuraylib/icompiled_material.h"

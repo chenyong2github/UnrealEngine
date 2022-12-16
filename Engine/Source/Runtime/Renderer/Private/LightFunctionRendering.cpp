@@ -14,6 +14,7 @@
 #include "SceneUtils.h"
 #include "RHIStaticStates.h"
 #include "PostProcess/SceneRenderTargets.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "MaterialShaderType.h"
 #include "SceneRenderTargetParameters.h"
 #include "MaterialShader.h"

@@ -7,6 +7,7 @@
 #include "PrimitiveSceneProxy.h"
 #include "VertexFactory.h"
 #include "MaterialDomain.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "MaterialShared.h"
 #include "Engine/CollisionProfile.h"
 #include "Materials/Material.h"

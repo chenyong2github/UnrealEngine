@@ -5,6 +5,7 @@
 #include "Engine/StaticMesh.h"
 #include "FXRenderingUtils.h"
 #include "IXRTrackingSystem.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "NiagaraComponent.h"
 #include "NiagaraCullProxyComponent.h"
 #include "NiagaraDataSet.h"

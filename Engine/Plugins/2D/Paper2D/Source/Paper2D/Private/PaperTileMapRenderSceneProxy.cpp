@@ -6,6 +6,7 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "PaperTileMap.h"
 #include "PaperTileMapComponent.h"
 

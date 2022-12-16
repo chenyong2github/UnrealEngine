@@ -13,6 +13,7 @@
 #include "Framework/Commands/InputChord.h"
 #include "EditorUndoClient.h"
 #include "MaterialDomain.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "MaterialShared.h"
 #include "Toolkits/IToolkitHost.h"
 #include "WorkflowOrientedApp/WorkflowTabFactory.h"

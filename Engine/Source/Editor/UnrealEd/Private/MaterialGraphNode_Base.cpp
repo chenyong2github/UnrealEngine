@@ -8,6 +8,7 @@
 #include "EdGraph/EdGraphSchema.h"
 #include "MaterialGraph/MaterialGraph.h"
 #include "MaterialGraph/MaterialGraphSchema.h"
+#include "MaterialValueType.h"
 
 /////////////////////////////////////////////////////
 // UMaterialGraphNode_Base

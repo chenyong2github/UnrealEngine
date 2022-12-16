@@ -10,6 +10,7 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
 #include "Materials/MaterialExpressionTextureSampleParameter.h"
+#include "MaterialShared.h"
 #include "TexturePaintHelpers.h"
 
 //////////////////////////////////////////////////////////////////////////

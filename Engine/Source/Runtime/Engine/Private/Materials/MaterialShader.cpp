@@ -7,6 +7,7 @@
 #include "Stats/StatsMisc.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
+#include "Materials/MaterialAttributeDefinitionMap.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialFunctionInterface.h"
 #include "ProfilingDebugging/DiagnosticTable.h"

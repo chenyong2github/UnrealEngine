@@ -9,6 +9,7 @@
 #include "MaterialGraph/MaterialGraph.h"
 #include "MaterialGraph/MaterialGraphSchema.h"
 #include "MaterialEditorUtilities.h"
+#include "Materials/MaterialAttributeDefinitionMap.h"
 #include "GraphEditorSettings.h"
 
 #define LOCTEXT_NAMESPACE "MaterialGraphNode_Root"

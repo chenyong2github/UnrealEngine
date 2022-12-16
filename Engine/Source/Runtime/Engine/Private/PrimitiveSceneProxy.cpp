@@ -13,6 +13,7 @@
 #include "SceneManagement.h"
 #include "PrimitiveSceneInfo.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "MaterialDomain.h"
 #include "SceneManagement.h"
 #include "VT/RuntimeVirtualTexture.h"

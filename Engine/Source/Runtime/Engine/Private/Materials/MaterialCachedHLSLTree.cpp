@@ -5,6 +5,7 @@
 #if WITH_EDITOR
 
 #include "Materials/Material.h"
+#include "Materials/MaterialAttributeDefinitionMap.h"
 #include "Materials/MaterialExpressionCustomOutput.h"
 #include "MaterialHLSLGenerator.h"
 

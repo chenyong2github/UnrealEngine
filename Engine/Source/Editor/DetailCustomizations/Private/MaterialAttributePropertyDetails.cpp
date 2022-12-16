@@ -12,6 +12,7 @@
 #include "IDetailPropertyRow.h"
 #include "Internationalization/Text.h"
 #include "MaterialShared.h"
+#include "Materials/MaterialAttributeDefinitionMap.h"
 #include "Materials/MaterialExpressionGetMaterialAttributes.h"
 #include "Materials/MaterialExpressionSetMaterialAttributes.h"
 #include "Misc/AssertionMacros.h"

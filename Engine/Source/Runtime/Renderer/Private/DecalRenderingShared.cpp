@@ -8,6 +8,7 @@
 #include "StaticBoundShaderState.h"
 #include "Components/DecalComponent.h"
 #include "GlobalShader.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "MaterialShaderType.h"
 #include "MaterialShader.h"
 #include "DebugViewModeRendering.h"

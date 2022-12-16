@@ -9,6 +9,7 @@
 #include "Widgets/SWindow.h"
 #include "Framework/Application/SlateApplication.h"
 #include "EngineGlobals.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "MaterialShared.h"
 #include "RendererInterface.h"
 #include "StaticBoundShaderState.h"

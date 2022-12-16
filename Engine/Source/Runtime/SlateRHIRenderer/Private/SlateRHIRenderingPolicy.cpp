@@ -21,6 +21,7 @@
 #include "SlateMaterialResource.h"
 #include "SlateUpdatableBuffer.h"
 #include "SlatePostProcessor.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "Modules/ModuleManager.h"
 #include "PipelineStateCache.h"
 #include "Math/RandomStream.h"

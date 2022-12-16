@@ -6,8 +6,10 @@
 #include "Materials/Material.h"
 #include "RenderUtils.h"
 
+class FMaterial;
 class FRHIBlendState;
 class FRHIRasterizerState;
+struct FMaterialShaderParameters;
 struct FShaderCompilerEnvironment;
 
 /** Packed decal description which contains all the information to define render passes and shader compilation setup. */

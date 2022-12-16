@@ -4,6 +4,7 @@
 
 #include "MaterialExporterUSDOptions.h"
 #include "Materials/Material.h"
+#include "MaterialShared.h"
 #include "Misc/EngineVersion.h"
 #include "UnrealUSDWrapper.h"
 #include "USDClassesModule.h"

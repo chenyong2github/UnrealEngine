@@ -22,6 +22,7 @@
 #include "MeshPassProcessor.h"
 #include "RenderGraphUtils.h"
 #include "UnrealClient.h"
+#include "Materials/MaterialRenderProxy.h"
 
 DECLARE_GPU_STAT_NAMED(CanvasDrawTriangles, TEXT("CanvasDrawTriangles"));
 

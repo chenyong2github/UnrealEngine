@@ -15,6 +15,7 @@
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstance.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "TextureDerivedDataTask.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "Misc/IQueuedWork.h"

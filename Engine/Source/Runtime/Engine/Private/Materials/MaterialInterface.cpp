@@ -33,6 +33,7 @@
 #include "TextureCompiler.h"
 #include "MaterialDomain.h"
 #include "MaterialShaderQualitySettings.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "ShaderPlatformQualitySettings.h"
 #include "ObjectCacheContext.h"
 #include "MaterialCachedData.h"

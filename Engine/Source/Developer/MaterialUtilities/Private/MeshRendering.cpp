@@ -16,6 +16,7 @@
 #include "PackedNormal.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Misc/App.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "MaterialUtilities.h"
 #include "MeshBuilderOneFrameResources.h"
 #include "Misc/FileHelper.h"

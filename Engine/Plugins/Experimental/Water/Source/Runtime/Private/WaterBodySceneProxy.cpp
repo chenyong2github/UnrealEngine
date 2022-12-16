@@ -8,6 +8,7 @@
 #include "WaterUtils.h"
 #include "WaterBodyComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "SceneInterface.h"
 #include "PrimitiveSceneInfo.h"
 #include "Algo/Transform.h"

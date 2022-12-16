@@ -3,6 +3,7 @@
 
 #if WITH_EDITOR
 
+#include "Materials/MaterialAttributeDefinitionMap.h"
 #include "Materials/MaterialExpression.h"
 #include "Materials/MaterialExpressionTextureBase.h"
 #include "Materials/MaterialExpressionExecBegin.h"
@@ -14,6 +15,7 @@
 #include "MaterialDomain.h"
 #include "MaterialHLSLTree.h"
 #include "MaterialCachedHLSLTree.h"
+#include "MaterialShared.h"
 #include "ShaderCore.h"
 #include "HLSLTree/HLSLTree.h"
 #include "HLSLTree/HLSLTreeCommon.h"

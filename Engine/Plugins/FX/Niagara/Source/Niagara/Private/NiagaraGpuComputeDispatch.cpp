@@ -8,6 +8,7 @@
 #include "Engine/Canvas.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/World.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "Misc/ScopeExit.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 

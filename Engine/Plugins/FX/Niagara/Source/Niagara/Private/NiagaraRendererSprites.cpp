@@ -2,6 +2,7 @@
 
 #include "NiagaraRendererSprites.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "NiagaraComponent.h"
 #include "NiagaraCullProxyComponent.h"
 #include "NiagaraCutoutVertexBuffer.h"

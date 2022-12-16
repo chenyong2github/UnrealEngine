@@ -9,7 +9,14 @@
 #include "HAL/ThreadSafeBool.h"
 #include "RenderCommandFence.h"
 #include "Materials/MaterialInterface.h"
+
+#if WITH_EDITOR
+#include "RHIDefinitions.h"
+#endif
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "MaterialShared.h"
+#endif
 #include "MaterialExpressionIO.h"
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
@@ -25,6 +32,7 @@
 #include "Physics/PhysicsInterfaceCore.h"
 #include "Material.generated.h"
 
+enum EMaterialDomain : int;
 class ITargetPlatform;
 class UMaterialExpressionComment;
 class UPhysicalMaterial;
@@ -434,25 +442,25 @@ class UMaterial : public UMaterialInterface
 	 * Certain pieces of material functionality are only valid in certain domains, for example vertex normal is only valid on a surface.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Material, AssetRegistrySearchable)
-	TEnumAsByte<enum EMaterialDomain> MaterialDomain;
+	TEnumAsByte<EMaterialDomain> MaterialDomain;
 
 	/** Determines how the material's color is blended with background colors. */
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category=Material, AssetRegistrySearchable)
-	TEnumAsByte<enum EBlendMode> BlendMode;
+	TEnumAsByte<EBlendMode> BlendMode;
 
 	/** Determines how the material's color is blended with background colors. */
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Material, AssetRegistrySearchable)
-	TEnumAsByte<enum EStrataBlendMode> StrataBlendMode;
+	TEnumAsByte<EStrataBlendMode> StrataBlendMode;
 
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "No longer used."))
-	TEnumAsByte<enum EDecalBlendMode> DecalBlendMode;
+	TEnumAsByte<EDecalBlendMode> DecalBlendMode;
 
 	/** 
 	 * Defines how the material reacts on DBuffer decals (Affects look, performance and texture/sample usage).
 	 * Non DBuffer Decals can be disabled on the primitive (e.g. static mesh)
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Material, AdvancedDisplay, meta=(DisplayName = "Decal Response (DBuffer)"), AssetRegistrySearchable)
-	TEnumAsByte<enum EMaterialDecalResponse> MaterialDecalResponse;
+	TEnumAsByte<EMaterialDecalResponse> MaterialDecalResponse;
 
 	/** An override material which will be used instead of this one when rendering with nanite. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Nanite, meta = (EditInline, ShowOnlyInnerProperties))
@@ -467,7 +475,7 @@ class UMaterial : public UMaterialInterface
 private:
 	/** Determines how inputs are combined to create the material's final color. */
 	UPROPERTY(EditAnywhere, Category=Material, AssetRegistrySearchable)
-	TEnumAsByte<enum EMaterialShadingModel> ShadingModel; 
+	TEnumAsByte<EMaterialShadingModel> ShadingModel; 
 
 public:
 	/** Whether the material should cast shadows as masked even though it has a translucent blend mode. */
@@ -540,11 +548,11 @@ public:
 	 * This can be used to avoid artifacts caused by certain post processing effects.
 	 */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Translucency)
-	TEnumAsByte<enum EMaterialTranslucencyPass> TranslucencyPass;
+	TEnumAsByte<EMaterialTranslucencyPass> TranslucencyPass;
 
 	/** Sets the lighting mode that will be used on this material if it is translucent. */
 	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category=Translucency, meta=(DisplayName = "Lighting Mode"))
-	TEnumAsByte<enum ETranslucencyLightingMode> TranslucencyLightingMode;
+	TEnumAsByte<ETranslucencyLightingMode> TranslucencyLightingMode;
 
 	/** Indicates that the translucent material should not be affected by bloom or DOF. (Note: Depth testing is not available) */
 	UPROPERTY(EditAnywhere, Category = Translucency, meta = (DisplayName = "Mobile Separate Translucency"), AdvancedDisplay)
@@ -816,7 +824,7 @@ public:
 	 *	This setting has no effect on older mobile devices that do not support high precision.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Mobile)
-	TEnumAsByte<enum EMaterialFloatPrecisionMode> FloatPrecisionMode;
+	TEnumAsByte<EMaterialFloatPrecisionMode> FloatPrecisionMode;
 
 	/* Use lightmap directionality and per pixel normals. If disabled, lighting from lightmaps will be flat but cheaper. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Mobile)
@@ -944,7 +952,7 @@ public:
 	
 	/** Where the node is inserted in the (post processing) graph, only used if domain is PostProcess */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=PostProcessMaterial, meta=(DisplayName = "Blendable Location"))
-	TEnumAsByte<enum EBlendableLocation> BlendableLocation;
+	TEnumAsByte<EBlendableLocation> BlendableLocation;
 
 	/** If this is enabled, the blendable will output alpha */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PostProcessMaterial, meta = (DisplayName = "Output Alpha"))
@@ -964,11 +972,11 @@ public:
 	uint8 StencilRefValue = 0;
 
 	UPROPERTY()
-	TEnumAsByte<enum ERefractionMode> RefractionMode_DEPRECATED;
+	TEnumAsByte<ERefractionMode> RefractionMode_DEPRECATED;
 
 	/** Controls how the Refraction input is interpreted and how the refraction offset into scene color is computed for this material. */
 	UPROPERTY(EditAnywhere, Category=Refraction)
-	TEnumAsByte<enum ERefractionMode> RefractionMethod;
+	TEnumAsByte<ERefractionMode> RefractionMethod;
 
 	/** If multiple nodes with the same  type are inserted at the same point, this defined order and if they get combined, only used if domain is PostProcess */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PostProcessMaterial, meta = (DisplayName = "Blendable Priority"))
@@ -1096,7 +1104,7 @@ public:
 
 	ENGINE_API virtual FGraphEventArray PrecachePSOs(const TConstArrayView<const FVertexFactoryType*>& VertexFactoryTypes, const FPSOPrecacheParams& PreCacheParams) override;
 
-	ENGINE_API void SetShadingModel(EMaterialShadingModel NewModel) { ensure(ShadingModel < MSM_NUM); ShadingModel = NewModel; ShadingModels = FMaterialShadingModelField(ShadingModel); }
+	ENGINE_API void SetShadingModel(EMaterialShadingModel NewModel);
 
 	/** Checks to see if an input property should be active, based on the state of the material */
 	ENGINE_API virtual bool IsPropertyActive(EMaterialProperty InProperty) const override;

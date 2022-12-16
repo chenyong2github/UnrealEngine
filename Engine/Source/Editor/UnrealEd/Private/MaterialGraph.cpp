@@ -11,6 +11,7 @@
 #include "MaterialGraph/MaterialGraphNode_Root.h"
 #include "MaterialGraph/MaterialGraphSchema.h"
 
+#include "Materials/MaterialAttributeDefinitionMap.h"
 #include "Materials/MaterialExpressionComment.h"
 #include "Materials/MaterialExpressionComposite.h"
 #include "Materials/MaterialExpressionPinBase.h"

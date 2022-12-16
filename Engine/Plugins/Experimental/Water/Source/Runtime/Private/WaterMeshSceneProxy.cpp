@@ -9,6 +9,7 @@
 #include "SceneManagement.h"
 #include "Engine/Engine.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "DrawDebugHelpers.h"
 #include "Math/ColorList.h"
 #include "RayTracingInstance.h"

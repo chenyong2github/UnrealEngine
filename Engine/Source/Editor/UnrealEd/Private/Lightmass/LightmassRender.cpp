@@ -13,6 +13,8 @@
 #include "MaterialDomain.h"
 #include "MaterialShared.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialAttributeDefinitionMap.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "CanvasItem.h"
 #include "CanvasTypes.h"
 #include "Engine/TextureRenderTarget2D.h"

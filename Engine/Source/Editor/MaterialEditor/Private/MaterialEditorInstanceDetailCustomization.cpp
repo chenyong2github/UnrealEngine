@@ -27,6 +27,7 @@
 #include "Materials/MaterialExpressionTextureSampleParameter.h"
 #include "Materials/MaterialExpressionFontSampleParameter.h"
 #include "Materials/MaterialExpressionMaterialAttributeLayers.h"
+#include "MaterialShared.h"
 #include "EditorSupportDelegates.h"
 #include "DetailWidgetRow.h"
 #include "PropertyHandle.h"

@@ -27,6 +27,7 @@
 #include "MaterialDomain.h"
 #include "MaterialExpressionIO.h"
 #include "Materials/HLSLMaterialTranslator.h"
+#include "Materials/MaterialAttributeDefinitionMap.h"
 #include "Materials/MaterialExpression.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "Materials/MaterialExpressionMaterialAttributeLayers.h"

@@ -16,6 +16,7 @@
 #include "Engine/Engine.h"
 #include "Engine/Player.h"
 #include "Materials/Material.h"
+#include "ShaderCore.h"
 #include "EngineUtils.h"
 #include "GameFramework/SpectatorPawn.h"
 #include "GameFramework/SpectatorPawnMovement.h"

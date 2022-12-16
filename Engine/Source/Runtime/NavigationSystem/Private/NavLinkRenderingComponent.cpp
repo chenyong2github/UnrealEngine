@@ -8,6 +8,7 @@
 #include "Engine/Engine.h"
 #include "MaterialShared.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "Engine/CollisionProfile.h"
 #include "SceneManagement.h"
 #include "NavAreas/NavArea.h"

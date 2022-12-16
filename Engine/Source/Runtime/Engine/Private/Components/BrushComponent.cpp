@@ -20,6 +20,7 @@
 #include "Engine/Brush.h"
 #include "MaterialShared.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "GameFramework/Volume.h"
 #include "Engine/Polys.h"
 #include "Engine/Engine.h"

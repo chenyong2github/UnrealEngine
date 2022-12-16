@@ -15,6 +15,7 @@
 #include "VertexFactory.h"
 #include "MaterialShared.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "LocalVertexFactory.h"
 #include "Engine/Engine.h"
 #include "SceneManagement.h"

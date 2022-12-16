@@ -8,6 +8,8 @@
 
 #if RHI_RAYTRACING
 
+#include "Materials/MaterialRenderProxy.h"
+
 static int32 GRTDynGeomSharedVertexBufferSizeInMB = 4;
 static FAutoConsoleVariableRef CVarRTDynGeomSharedVertexBufferSizeInMB(
 	TEXT("r.RayTracing.DynamicGeometry.SharedVertexBufferSizeInMB"),

@@ -3,6 +3,7 @@
 
 #if WITH_EDITOR
 
+#include "Materials/MaterialAttributeDefinitionMap.h"
 #include "Materials/MaterialExpression.h"
 #include "Materials/MaterialExpressionTextureBase.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"

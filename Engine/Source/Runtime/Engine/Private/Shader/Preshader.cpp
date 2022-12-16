@@ -2,6 +2,7 @@
 #include "Shader/Preshader.h"
 #include "Shader/PreshaderEvaluate.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "Materials/MaterialUniformExpressions.h"
 #include "Engine/Texture.h"
 #include "VT/RuntimeVirtualTexture.h"

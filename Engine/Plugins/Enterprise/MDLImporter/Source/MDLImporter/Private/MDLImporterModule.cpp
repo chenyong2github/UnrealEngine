@@ -15,6 +15,7 @@
 #include "Materials/MaterialInstance.h"
 #include "Misc/Paths.h"
 #include "Interfaces/IPluginManager.h"
+#include "ShaderCore.h"
 
 #define LOCTEXT_NAMESPACE "MDL Importer"
 

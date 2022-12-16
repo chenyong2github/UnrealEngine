@@ -18,6 +18,7 @@
 #include "ConvexVolume.h"
 #include "AI/NavigationSystemBase.h"
 #include "Engine/MapBuildDataRegistry.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "MaterialShared.h"
 #include "UObject/UObjectIterator.h"
 #include "MeshBatch.h"

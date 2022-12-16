@@ -15,6 +15,7 @@
 #include "RayTracingDefinitions.h"
 #include "RayTracingDynamicGeometryCollection.h"
 #include "RayTracingInstance.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "MaterialDomain.h"
 #include "Math/NumericLimits.h"
 #include "NiagaraCullProxyComponent.h"
