@@ -14,4 +14,10 @@ public:
 	virtual FColor GetTypeColor() const override { return FColor(237, 28, 36); }
 	virtual UClass* GetSupportedClass() const override { return UPoseAsset::StaticClass(); }
 	virtual bool CanFilter() override { return true; }
+
+	virtual void GetActions(const TArray<UObject*>& InObjects, struct FToolMenuSection& Section) override;
+
+private:
+
+	void ExecuteUpdateSource(TArray<TWeakObjectPtr<UPoseAsset>> Objects);
 };
