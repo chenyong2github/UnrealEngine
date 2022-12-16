@@ -356,7 +356,7 @@ void UParticleModuleLocationDirect::Update(FParticleEmitterInstance* Owner, int3
 
 uint32 UParticleModuleLocationDirect::RequiredBytes(UParticleModuleTypeDataBase* TypeData)
 {
-	return sizeof(FVector3f);
+	return sizeof(FVector);
 }
 
 /*-----------------------------------------------------------------------------

@@ -2876,7 +2876,7 @@ void UParticleModuleAcceleration::Update(FParticleEmitterInstance* Owner, int32 
 
 uint32 UParticleModuleAcceleration::RequiredBytes(UParticleModuleTypeDataBase* TypeData)
 {
-	// FVector UsedAcceleration
+	// FVector3f UsedAcceleration
 	return sizeof(FVector3f);
 }
 
