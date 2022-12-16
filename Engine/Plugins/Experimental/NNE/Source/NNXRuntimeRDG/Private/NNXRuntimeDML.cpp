@@ -13,11 +13,8 @@
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
 
-#include "NNXShaderParameters.h"
+#include "Algo/Find.h"
 
-#include "HAL/FileManager.h"
-
-// NOTE: For now we only have DML on Windows, we should add support for XSX
 #ifdef NNE_USE_DIRECTML
 
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -36,14 +33,13 @@ THIRD_PARTY_INCLUDES_END
 #endif
 
 #include "ID3D12DynamicRHI.h"
-//#include "D3D12RHI/Private/D3D12Device.h"	// It could be great if we could get the FD3D12DescriptorHeapManager instance
+
+#define NNE_USE_D3D12_RESOURCES
+#define NNX_RUNTIME_DML_NAME TEXT("NNXRuntimeDml")
+
 
 namespace NNX
 {
-
-#define NNX_RUNTIME_DML_NAME TEXT("NNXRuntimeDml")
-
-	
 /**
  * Utility function to get operator type
  */
@@ -305,14 +301,6 @@ namespace DmlUtil
 //
 //
 //
-//HACK: ATM we do not free the descriptors on inference model destruction, so we need to have a big pool until
-//this is fixed. NNXQA Tests will still fail if run repeatedly in the same session until this is fixed.
-constexpr const uint32 MaxNumDescriptors = 4096;
-
-
-//
-//
-//
 class FDeviceContextDml
 {
 public:
@@ -321,20 +309,23 @@ public:
 	ID3D12Device*					D3D12Device{ nullptr }; // Borrowed reference from RHI
 	TComPtr<IDMLDevice>				Device{ nullptr };
 	TComPtr<IDMLCommandRecorder>	CmdRec{ nullptr };
-	TComPtr<ID3D12DescriptorHeap>	DescHeap{ nullptr };
-	uint32							NumDescriptors{ 0 };
-	uint32							DescriptorSize{ 0 };
 };
 
 //
 // DirectML operator
 //
-class FMLOperatorDml : public IOperatorRDG
+class FMLOperatorDml
 {
 public:
 
+	virtual ~FMLOperatorDml() = default;
+
 	virtual bool Initialize(FDeviceContextDml* DevCtx, TArrayView<const FTensor> InputTensors, TArrayView<const FTensor> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) = 0;
-	virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<FTensorRDGRef> InInputTensors, TConstArrayView<FTensorRDGRef> InOutputTensors) = 0;
+
+	IDMLOperator* GetOperator()
+	{
+		return DmlOp;
+	}
 
 protected:
 
@@ -357,9 +348,8 @@ protected:
 		DML_BUFFER_TENSOR_DESC& BuffDesc = DmlTensorDesc.BuffDesc;
 
 		BuffDesc = DML_BUFFER_TENSOR_DESC{};
-
 		BuffDesc.DataType = DmlDataType;
-		BuffDesc.Flags = DML_TENSOR_FLAG_NONE;
+		BuffDesc.Flags = TensorDesc.HasPreparedData() ? DML_TENSOR_FLAG_OWNED_BY_DML : DML_TENSOR_FLAG_NONE;
 		BuffDesc.DimensionCount = TensorDesc.GetShape().Rank();
 		BuffDesc.Sizes = DmlTensorDesc.Sizes.GetData();
 		BuffDesc.Strides = nullptr;
@@ -416,7 +406,7 @@ protected:
 		BuffDesc = DML_BUFFER_TENSOR_DESC{};
 
 		BuffDesc.DataType = DmlDataType;
-		BuffDesc.Flags = DML_TENSOR_FLAG_NONE;
+		BuffDesc.Flags = TensorDesc.HasPreparedData() ? DML_TENSOR_FLAG_OWNED_BY_DML : DML_TENSOR_FLAG_NONE;
 		BuffDesc.DimensionCount = DmlTensorDesc.Sizes.Num();
 		BuffDesc.Sizes = DmlTensorDesc.Sizes.GetData();
 		BuffDesc.Strides = DmlTensorDesc.Strides.GetData();
@@ -427,94 +417,29 @@ protected:
 		return true;
 	}
 	
-	bool CompileOperator(const DML_OPERATOR_DESC& DmlOpDesc)
+	bool CreateOperator(const DML_OPERATOR_DESC& DmlOpDesc)
 	{
 		IDMLDevice* Device = DevCtx->Device;
 
 		// Create operator
-		IDMLOperator* DmlOp = nullptr;
+		IDMLOperator* Op = nullptr;
 
 		HRESULT Res;
-		
-		Res = Device->CreateOperator(&DmlOpDesc, DML_PPV_ARGS(&DmlOp));
-		if (!DmlOp)
+
+		Res = Device->CreateOperator(&DmlOpDesc, DML_PPV_ARGS(&Op));
+		if (!Op)
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Failed to creat DML operator, hres:%d"), Res);
+			UE_LOG(LogNNX, Warning, TEXT("Error:Failed to create DML operator, hres:%d"), Res);
 			return false;
 		}
 
-		// Compile operator
-		Res = Device->CompileOperator(DmlOp, DML_EXECUTION_FLAG_NONE, DML_PPV_ARGS(&CompiledOp));
-		if (!CompiledOp)
-		{
-			UE_LOG(LogNNX, Warning, TEXT("Failed to compile DML operator"));
-			return false;
-		}
+		DmlOp = Op;
 
-		// Initialize the operator
-		IDMLCompiledOperator* DmlOps[] = { CompiledOp };
-		TComPtr<IDMLOperatorInitializer>	DmlOpInit;
-
-		Res = Device->CreateOperatorInitializer(1, DmlOps, DML_PPV_ARGS(&DmlOpInit));
-		if (!DmlOpInit)
-		{
-			UE_LOG(LogNNX, Warning, TEXT("Failed to create DML operator initializer"));
-			return false;
-		}
-
-		DML_BINDING_PROPERTIES InitBindProps = DmlOpInit->GetBindingProperties();
-		DML_BINDING_PROPERTIES ExecBindProps = CompiledOp->GetBindingProperties();
-
-		// To create a descriptor heap we need the binding properties
-		const uint32_t NumRequiredDescriptors = std::max(InitBindProps.RequiredDescriptorCount, ExecBindProps.RequiredDescriptorCount);
-
-		if (DevCtx->NumDescriptors + NumRequiredDescriptors >= MaxNumDescriptors)
-		{
-			UE_LOG(LogNNX, Warning, TEXT("Maximum number of descriptors reached"));
-			return false;
-		}
-
-		// Create a binding table over the descriptor heap we just created
-		DML_BINDING_TABLE_DESC DmlBindingTableDesc{};
-
-		DmlBindingTableDesc.Dispatchable = DmlOpInit;
-		DmlBindingTableDesc.CPUDescriptorHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(DevCtx->DescHeap->GetCPUDescriptorHandleForHeapStart(), DevCtx->NumDescriptors, DevCtx->DescriptorSize);
-		DmlBindingTableDesc.GPUDescriptorHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(DevCtx->DescHeap->GetGPUDescriptorHandleForHeapStart(), DevCtx->NumDescriptors, DevCtx->DescriptorSize);
-		DmlBindingTableDesc.SizeInDescriptors = NumRequiredDescriptors;
-
-		Res = DevCtx->Device->CreateBindingTable(&DmlBindingTableDesc, DML_PPV_ARGS(&BindingTable));
-		if (!BindingTable)
-		{
-			UE_LOG(LogNNX, Warning, TEXT("Failed to create DML binding table, res:%d"), Res);
-			return false;
-		}
-
-		NumDescriptors = NumRequiredDescriptors;
-		DescOffset = DevCtx->NumDescriptors;
-		
-		DevCtx->NumDescriptors += NumRequiredDescriptors;
-
-		return true;
+		return DmlOp.IsValid();
 	}
 
-	void ResetBindingTable(DML_BINDING_TABLE_DESC& Desc)
-	{
-		Desc.Dispatchable = CompiledOp;
-		Desc.CPUDescriptorHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(DevCtx->DescHeap->GetCPUDescriptorHandleForHeapStart(), DescOffset, DevCtx->DescriptorSize);
-		Desc.GPUDescriptorHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(DevCtx->DescHeap->GetGPUDescriptorHandleForHeapStart(), DescOffset, DevCtx->DescriptorSize);
-		Desc.SizeInDescriptors = NumDescriptors;
-
-		BindingTable->Reset(&Desc);
-	}
-
-	FDeviceContextDml*		DevCtx;
-
-	IDMLCompiledOperator*	CompiledOp;
-	IDMLBindingTable*		BindingTable;
-	uint32					DescOffset;
-	uint32					NumDescriptors;
-	//uint64					TempMemSize;
-	//uint64					ResidentMemSize;
+	FDeviceContextDml*			DevCtx;
+	TComPtr<IDMLOperator>		DmlOp;
 };
 
 /**
@@ -556,7 +481,6 @@ public:
 	//
 	virtual bool Initialize(FDeviceContextDml* InDevCtx, TArrayView<const FTensor> InputTensors, TArrayView<const FTensor> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
 	{
-		// TODO: Setup attributes
 		Num = InputTensors[0].GetVolume();
 
 		DevCtx = InDevCtx;
@@ -586,13 +510,7 @@ public:
 		DmlOpDesc.Type = GetDmlElementWiseUnaryOpType<DmlElementWiseOpDescType>();
 		DmlOpDesc.Desc = &DmlElemWiseOpDesc;
 
-		if (!CompileOperator(DmlOpDesc))
-		{
-			UE_LOG(LogNNX, Warning, TEXT("Failed to compile DML operator"));
-			return false;
-		}
-
-		return true;
+		return CreateOperator(DmlOpDesc);
 	}
 
 private:
@@ -639,120 +557,6 @@ private:
 		Desc.InputTensor = &TensorDesc.Desc;
 		Desc.OutputTensor = &TensorDesc.Desc;
 		Desc.Alpha = Alpha;
-	}
-
-public:
-
-	//
-	//
-	//
-	virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<FTensorRDGRef> InInputTensors, TConstArrayView<FTensorRDGRef> InOutputTensors) override
-	{
-		ID3D12DynamicRHI* DynamicRHI = GetID3D12DynamicRHI();
-
-		FMLElementWiseUnaryParameters* Params = GraphBuilder.AllocParameters<FMLElementWiseUnaryParameters>();
-
-		check(InInputTensors[0] != nullptr);
-		check(InOutputTensors[0] != nullptr);
-		Params->Input = InInputTensors[0]->GetBuffer();
-		Params->Output = InOutputTensors[0]->GetBuffer();
-		Params->Alpha = Alpha;
-		Params->Beta = Beta;
-		Params->Gamma = Gamma;
-		Params->Num = Num;
-
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("FMLElementWiseUnaryDml_Transition"),
-			Params,
-			ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
-			[Params](FRHICommandListImmediate& RHICmdList)
-			{
-				FRHIBuffer* InputBuffer = Params->Input->GetRHI();
-				FRHIBuffer* OutputBuffer = Params->Output->GetRHI();
-
-				FRHITransitionInfo Transitions[] =
-				{
-					FRHITransitionInfo(InputBuffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-					FRHITransitionInfo(OutputBuffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
-				};
-
-				RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));
-
-				// FIXME: We need to flush commands here to transition the resources manually
-				RHICmdList.SubmitCommandsHint();
-			});
-
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("FMLElementWiseUnaryDml_Dispatch"),
-			Params,
-			ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
-			[this, DynamicRHI, Params](FRHICommandListImmediate& RHICmdList)
-			{
-				FRHIBuffer* InputBuffer = Params->Input->GetRHI();
-				FRHIBuffer* OutputBuffer = Params->Output->GetRHI();
-
-				// We need to defer the DML command list record
-				RHICmdList.EnqueueLambda(
-					[this, DynamicRHI, InputBuffer, OutputBuffer](FRHICommandListImmediate& RHICmdList)
-					{
-						DML_BINDING_TABLE_DESC DmlBindingTableDesc{};
-
-						ResetBindingTable(DmlBindingTableDesc);
-
-						// Get native resources for DML binding
-						ID3D12Resource* InputResource = DynamicRHI->RHIGetResource(InputBuffer);
-						ID3D12Resource* OutputResource = DynamicRHI->RHIGetResource(OutputBuffer);
-
-						// TODO: Bind resources to DML binding table
-						DML_BUFFER_BINDING	InputBuffBind{ InputResource, 0, InputResource->GetDesc().Width };
-						DML_BUFFER_BINDING	OutputBuffBind{ OutputResource, 0, OutputResource->GetDesc().Width };
-
-						DML_BINDING_DESC	InputBindDesc{ DML_BINDING_TYPE_BUFFER, &InputBuffBind };
-						DML_BINDING_DESC	OutputBindDesc{ DML_BINDING_TYPE_BUFFER, &OutputBuffBind };
-
-						BindingTable->BindInputs(1, &InputBindDesc);
-						BindingTable->BindOutputs(1, &OutputBindDesc);
-
-						// Record command list
-						ID3D12GraphicsCommandList* CmdList = nullptr;
-
-						CmdList = DynamicRHI->RHIGetGraphicsCommandList(DevCtx->DeviceIndex);
-
-						// FIXME: Can't set resource barriers with FRHITransitionInfo
-						//D3D12_RESOURCE_BARRIER PreResourceBarriers[] =
-						//{
-						//	CD3DX12_RESOURCE_BARRIER::Transition(
-						//		InputResource,
-						//		//D3D12_RESOURCE_STATE_COPY_DEST,
-						//		D3D12_RESOURCE_STATE_COMMON,
-						//		D3D12_RESOURCE_STATE_UNORDERED_ACCESS),
-
-						//	CD3DX12_RESOURCE_BARRIER::Transition(
-						//		OutputResource,
-						//		D3D12_RESOURCE_STATE_COMMON,
-						//		D3D12_RESOURCE_STATE_UNORDERED_ACCESS)
-						//};
-
-						//CmdList->ResourceBarrier(2, PreResourceBarriers);
-
-						CmdList->SetDescriptorHeaps(1, &DevCtx->DescHeap);
-						DevCtx->CmdRec->RecordDispatch(CmdList, CompiledOp, BindingTable);
-
-						//D3D12_RESOURCE_BARRIER PostResourceBarriers[] =
-						//{
-						//	CD3DX12_RESOURCE_BARRIER::UAV(OutputResource),
-
-						//	CD3DX12_RESOURCE_BARRIER::Transition(
-						//		OutputResource,
-						//		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-						//		D3D12_RESOURCE_STATE_COPY_SOURCE)
-						//};
-
-						//CmdList->ResourceBarrier(2, PostResourceBarriers);
-					}
-				);
-			}
-		);
 	}
 };
 
@@ -848,13 +652,7 @@ public:
 		DmlOpDesc.Type = GetDmlElementWiseBinaryOpType<TDmlElementWiseOpDescType>();
 		DmlOpDesc.Desc = &DmlElemWiseOpDesc;
 
-		if (!CompileOperator(DmlOpDesc))
-		{
-			UE_LOG(LogNNX, Warning, TEXT("Failed to compile DML operator"));
-			return false;
-		}
-
-		return true;
+		return CreateOperator(DmlOpDesc);
 	}
 
 private:
@@ -879,99 +677,6 @@ private:
 		Desc.InputTensor = &LHSTensor.Desc;
 		Desc.SlopeTensor = &RHSTensor.Desc;
 		Desc.OutputTensor = &OutputTensor.Desc;
-	}
-
-public:
-
-	//
-	//
-	//
-	virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<FTensorRDGRef> InInputTensors, TConstArrayView<FTensorRDGRef> InOutputTensors) override
-	{
-		ID3D12DynamicRHI* DynamicRHI = GetID3D12DynamicRHI();
-
-		FMLElementWiseBinaryParameters* Params = GraphBuilder.AllocParameters<FMLElementWiseBinaryParameters>();
-
-		check(InInputTensors[0] != nullptr);
-		check(InInputTensors[1] != nullptr);
-		check(InOutputTensors[0] != nullptr);
-		Params->LHSInput = InInputTensors[0]->GetBuffer();
-		Params->RHSInput = InInputTensors[1]->GetBuffer();
-		Params->Output = InOutputTensors[0]->GetBuffer();
-		Params->Num = Num;
-
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("FMLElementWiseBinaryDml_Transition"),
-			Params,
-			ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
-			[Params](FRHICommandListImmediate& RHICmdList)
-			{
-				FRHIBuffer* InputABuffer = Params->LHSInput->GetRHI();
-				FRHIBuffer* InputBBuffer = Params->RHSInput->GetRHI();
-				FRHIBuffer* OutputBuffer = Params->Output->GetRHI();
-
-				FRHITransitionInfo Transitions[] =
-				{
-					FRHITransitionInfo(InputABuffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-					FRHITransitionInfo(InputBBuffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-					FRHITransitionInfo(OutputBuffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
-				};
-
-				RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));
-
-				// FIXME: We need to flush commands here to transition the resources manually
-				RHICmdList.SubmitCommandsHint();
-			});
-
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("FMLElementWiseBinaryDml_Dispatch"),
-			Params,
-			ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
-			[this, DynamicRHI, Params](FRHICommandListImmediate& RHICmdList)
-			{
-				FRHIBuffer* InputBufferA = Params->LHSInput->GetRHI();
-				FRHIBuffer* InputBufferB = Params->RHSInput->GetRHI();
-				FRHIBuffer* OutputBuffer = Params->Output->GetRHI();
-
-				// We need to defer the DML command list record
-				RHICmdList.EnqueueLambda(
-					[this, DynamicRHI, InputBufferA, InputBufferB, OutputBuffer](FRHICommandListImmediate& RHICmdList)
-					{
-						DML_BINDING_TABLE_DESC DmlBindingTableDesc{};
-
-						ResetBindingTable(DmlBindingTableDesc);
-
-						// Get native resources for DML binding
-						ID3D12Resource* InputAResource = DynamicRHI->RHIGetResource(InputBufferA);
-						ID3D12Resource* InputBResource = DynamicRHI->RHIGetResource(InputBufferB);
-						ID3D12Resource* OutputResource = DynamicRHI->RHIGetResource(OutputBuffer);
-
-						// TODO: Bind resources to DML binding table
-						DML_BUFFER_BINDING	InputABuffBind = { InputAResource, 0, InputAResource->GetDesc().Width };
-						DML_BUFFER_BINDING	InputBBuffBind = { InputBResource, 0, InputBResource->GetDesc().Width };
-						DML_BUFFER_BINDING	OutputBuffBind{ OutputResource, 0, OutputResource->GetDesc().Width };
-
-						DML_BINDING_DESC	InputABindDesc{ DML_BINDING_TYPE_BUFFER, &InputABuffBind };
-						DML_BINDING_DESC	InputBBindDesc{ DML_BINDING_TYPE_BUFFER, &InputBBuffBind };
-						DML_BINDING_DESC	OutputBindDesc{ DML_BINDING_TYPE_BUFFER, &OutputBuffBind };
-
-						DML_BINDING_DESC	InputBindings[] = { InputABindDesc, InputBBindDesc };
-
-						BindingTable->BindInputs(2, InputBindings);
-						BindingTable->BindOutputs(1, &OutputBindDesc);
-
-						// Record command list
-						ID3D12GraphicsCommandList* CmdList = nullptr;
-
-						CmdList = DynamicRHI->RHIGetGraphicsCommandList(DevCtx->DeviceIndex);
-
-						CmdList->SetDescriptorHeaps(1, &DevCtx->DescHeap);
-						DevCtx->CmdRec->RecordDispatch(CmdList, CompiledOp, BindingTable);
-
-					}
-				);
-			}
-		);
 	}
 };
 
@@ -1060,115 +765,9 @@ public:
 		DmlOpDesc.Type = DML_OPERATOR_GEMM;
 		DmlOpDesc.Desc = &DmlGemmOpDesc;
 
-		if (!CompileOperator(DmlOpDesc))
-		{
-			UE_LOG(LogNNX, Warning, TEXT("Failed to compile DML operator"));
-			return false;
-		}
-
-		return true;
+		return CreateOperator(DmlOpDesc);
 	}
 
-	//
-	//
-	//
-	virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<FTensorRDGRef> InInputTensors, TConstArrayView<FTensorRDGRef> InOutputTensors) override
-	{
-		ID3D12DynamicRHI* DynamicRHI = GetID3D12DynamicRHI();
-
-		const int32 NumInputs = InInputTensors.Num();
-		const bool bIsUsingBias = NumInputs > 2;
-
-		FMLGemmParameters* Params = GraphBuilder.AllocParameters<FMLGemmParameters>();
-
-		check(InInputTensors[0] != nullptr);
-		check(InInputTensors[1] != nullptr);
-		check(!bIsUsingBias || InInputTensors[2] != nullptr);
-		check(InOutputTensors[0] != nullptr);
-		Params->A = InInputTensors[0]->GetBuffer();
-		Params->B = InInputTensors[1]->GetBuffer();
-		Params->C = bIsUsingBias ? InInputTensors[2]->GetBuffer() : nullptr;
-		Params->Y = InOutputTensors[0]->GetBuffer();
-
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("FMLGemmDml_Transition"),
-			Params,
-			ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
-			[Params](FRHICommandListImmediate& RHICmdList)
-			{
-				FRHIBuffer* InputABuffer = Params->A->GetRHI();
-				FRHIBuffer* InputBBuffer = Params->B->GetRHI();
-				FRHIBuffer* InputCBuffer = Params->C ? Params->C->GetRHI() : nullptr;
-				FRHIBuffer* OutputBuffer = Params->Y->GetRHI();
-
-				FRHITransitionInfo Transitions[] =
-				{
-					FRHITransitionInfo(InputABuffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-					FRHITransitionInfo(InputBBuffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-					FRHITransitionInfo(OutputBuffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-					FRHITransitionInfo(InputCBuffer, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
-				};
-
-				RHICmdList.Transition(MakeArrayView(Transitions, Params->C ? 4 : 3));
-
-				// FIXME: We need to flush commands here to transition the resources manually
-				RHICmdList.SubmitCommandsHint();
-			});
-
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("FMLGemmDml_Dispatch"),
-			Params,
-			ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
-			[this, DynamicRHI, Params](FRHICommandListImmediate& RHICmdList)
-			{
-				FRHIBuffer* InputBufferA = Params->A->GetRHI();
-				FRHIBuffer* InputBufferB = Params->B->GetRHI();
-				FRHIBuffer* InputBufferC = Params->C ? Params->C->GetRHI() : nullptr;
-				FRHIBuffer* OutputBuffer = Params->Y->GetRHI();
-
-				// We need to defer the DML command list record
-				RHICmdList.EnqueueLambda(
-					[this, DynamicRHI, InputBufferA, InputBufferB, InputBufferC, OutputBuffer](FRHICommandListImmediate& RHICmdList)
-					{
-						DML_BINDING_TABLE_DESC DmlBindingTableDesc{};
-
-						ResetBindingTable(DmlBindingTableDesc);
-
-						// Get native resources for DML binding
-						ID3D12Resource* InputAResource = DynamicRHI->RHIGetResource(InputBufferA);
-						ID3D12Resource* InputBResource = DynamicRHI->RHIGetResource(InputBufferB);
-						ID3D12Resource* InputCResource = InputBufferC ? DynamicRHI->RHIGetResource(InputBufferC) : nullptr;
-						ID3D12Resource* OutputResource = DynamicRHI->RHIGetResource(OutputBuffer);
-
-						// TODO: Bind resources to DML binding table
-						DML_BUFFER_BINDING	InputABuffBind { InputAResource, 0, InputAResource->GetDesc().Width };
-						DML_BUFFER_BINDING	InputBBuffBind { InputBResource, 0, InputBResource->GetDesc().Width };
-						DML_BUFFER_BINDING	InputCBuffBind { InputCResource, 0, InputCResource ? InputCResource->GetDesc().Width : 0 };
-						DML_BUFFER_BINDING	OutputBuffBind { OutputResource, 0, OutputResource->GetDesc().Width };
-
-						DML_BINDING_DESC	InputABindDesc{ DML_BINDING_TYPE_BUFFER, &InputABuffBind };
-						DML_BINDING_DESC	InputBBindDesc{ DML_BINDING_TYPE_BUFFER, &InputBBuffBind };
-						DML_BINDING_DESC	InputCBindDesc{ DML_BINDING_TYPE_BUFFER, &InputCBuffBind };
-						DML_BINDING_DESC	OutputBindDesc{ DML_BINDING_TYPE_BUFFER, &OutputBuffBind };
-
-						DML_BINDING_DESC	InputBindings[] = { InputABindDesc, InputBBindDesc, InputCBindDesc };
-
-						BindingTable->BindInputs(3, InputBindings);
-						BindingTable->BindOutputs(1, &OutputBindDesc);
-
-						// Record command list
-						ID3D12GraphicsCommandList* CmdList = nullptr;
-
-						CmdList = DynamicRHI->RHIGetGraphicsCommandList(DevCtx->DeviceIndex);
-
-						CmdList->SetDescriptorHeaps(1, &DevCtx->DescHeap);
-						DevCtx->CmdRec->RecordDispatch(CmdList, CompiledOp, BindingTable);
-
-					}
-				);
-			}
-		);
-	}
 };
 
 //
@@ -1176,6 +775,10 @@ public:
 //
 class FMLInferenceModelDml : public FMLInferenceModelRDG
 {
+	class FGraphBuilder;
+	class FBindingTable;
+	class FDebugName;
+
 public:
 
 	FMLInferenceModelDml();
@@ -1190,10 +793,39 @@ protected:
 
 private:
 
+	bool InitCompiledOp(TConstArrayView<int32> OpInputIndices, uint64 TensorDataSize);
+
 	FMLOperatorDml* OpCreate(const FString& Name, TArrayView<const FTensor> InputTensorDesc, TArrayView<const FTensor> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes);
+		
+	FBufferRHIRef CreateRHIBuffer(FRHICommandListImmediate& RHICmdList, uint32 Size, EBufferUsageFlags Usage, ERHIAccess Access, const TCHAR* DbgName);
+	ID3D12Resource* CreateD3D12Buffer(uint32 Size, D3D12_RESOURCE_STATES ResourceState = D3D12_RESOURCE_STATE_COMMON, D3D12_HEAP_TYPE HeapType = D3D12_HEAP_TYPE_DEFAULT, const TCHAR* DebugName = nullptr);
 	
-	TArray<FMLOperatorDml*>		Operators;
-	FDeviceContextDml*			DevCtx;
+	// TODO: FIXME: This should go into RDG
+	static constexpr int32 MaxNumInputs = 32;
+	static constexpr int32 MaxNumOutputs = 4;
+
+	using FRHIBufferInputArray = TArray<FRHIBuffer*, TInlineAllocator<MaxNumInputs>>;
+	using FRHIBufferOutputArray = TArray<FRHIBuffer*, TInlineAllocator<MaxNumOutputs>>;
+
+	TComPtr<IDMLOperatorInitializer>	OpInit;
+	TComPtr<IDMLCompiledOperator>		CompiledOp;
+	FDeviceContextDml*					DevCtx;
+	TUniquePtr<FBindingTable>			BindingTable;
+	TComPtr<ID3D12DescriptorHeap>		DescHeap;
+	uint32								DescCount;
+	uint32								DescSize;
+
+	FRHIBufferInputArray				InputBuffers;
+	FRHIBufferOutputArray				OutputBuffers;
+#ifdef NNE_USE_D3D12_RESOURCES
+	TComPtr<ID3D12Resource>				PersistBuff;
+	TComPtr<ID3D12Resource>				TempBuff;
+#else
+	FBufferRHIRef						PersistBuff;
+#endif
+	uint64								MemSizeTemp;
+	uint64								MemSizePersist;
+	ID3D12DynamicRHI*					DynamicRHI;
 };
 
 //
@@ -1283,6 +915,10 @@ FMLRuntimeDml::~FMLRuntimeDml()
 //
 bool FMLRuntimeDml::Init()
 {
+	RegisterElementWiseUnaryOperators();
+	RegisterElementWiseBinaryOperators();
+	RegisterGemmOperator();
+
 	HRESULT Res;
 
 	// In order to use DirectML we need D3D12
@@ -1290,7 +926,7 @@ bool FMLRuntimeDml::Init()
 
 	if (GDynamicRHI && GDynamicRHI->GetInterfaceType() == ERHIInterfaceType::D3D12)
 	{
-		RHI = static_cast<ID3D12DynamicRHI*>(GDynamicRHI);
+		RHI = GetID3D12PlatformDynamicRHI();
 
 		if (!RHI)
 		{
@@ -1311,10 +947,6 @@ bool FMLRuntimeDml::Init()
 			return false;
 		}
 	}
-
-	RegisterElementWiseUnaryOperators();
-	RegisterElementWiseBinaryOperators();
-	RegisterGemmOperator();
 
 	Ctx.DeviceIndex = 0;
 	Ctx.D3D12Device = RHI->RHIGetDevice(Ctx.DeviceIndex);
@@ -1358,32 +990,32 @@ bool FMLRuntimeDml::Init()
 	Res = DMLCreateDevice(Ctx.D3D12Device, DmlCreateFlags, DML_PPV_ARGS(&Ctx.Device));
 	if (!Ctx.Device)
 	{
-		UE_LOG(LogNNX, Warning, TEXT("Failed to create DML device, res:%x"), Res);
+		UE_LOG(LogNNX, Warning, TEXT("Failed to create DirectML device, res:%x"), Res);
 		return false;
 	}
+
+	DML_FEATURE_QUERY_TENSOR_DATA_TYPE_SUPPORT	Fp16Query = { DML_TENSOR_DATA_TYPE_FLOAT16 };
+	DML_FEATURE_DATA_TENSOR_DATA_TYPE_SUPPORT	Fp16Supported = {};
 	
+	Ctx.Device->CheckFeatureSupport(DML_FEATURE_TENSOR_DATA_TYPE_SUPPORT, sizeof(Fp16Query), &Fp16Query, sizeof(Fp16Supported), &Fp16Supported);
+
+	DML_FEATURE_LEVEL					FeatureLevels[] = { DML_FEATURE_LEVEL_5_0 };
+	DML_FEATURE_QUERY_FEATURE_LEVELS	FeatureLevelQuery = { UE_ARRAY_COUNT(FeatureLevels), FeatureLevels };
+	DML_FEATURE_DATA_FEATURE_LEVELS		FeatureLevelSupported = {};
+
+	Res = Ctx.Device->CheckFeatureSupport(DML_FEATURE_FEATURE_LEVELS, sizeof(FeatureLevelQuery), &FeatureLevelQuery, sizeof(FeatureLevelSupported), &FeatureLevelSupported);
+	if (FAILED(Res) || FeatureLevelSupported.MaxSupportedFeatureLevel < DML_FEATURE_LEVEL_5_0)
+	{
+		UE_LOG(LogNNX, Warning, TEXT("DirectML feature level %x not supported"), FeatureLevels[0]);
+		return false;
+	}
+
 	Res = Ctx.Device->CreateCommandRecorder(DML_PPV_ARGS(&Ctx.CmdRec));
 	if (!Ctx.CmdRec)
 	{
 		UE_LOG(LogNNX, Warning, TEXT("Failed to create DML command recorder, res:%x"), Res);
 		return false;
 	}
-
-	// TODO: Use D3D12RHI descriptor heaps
-	D3D12_DESCRIPTOR_HEAP_DESC	HeapDesc = {};
-
-	HeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-	HeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	HeapDesc.NumDescriptors = MaxNumDescriptors;
-
-	Res = Ctx.D3D12Device->CreateDescriptorHeap(&HeapDesc, IID_PPV_ARGS(&Ctx.DescHeap));
-	if (!Ctx.DescHeap)
-	{
-		UE_LOG(LogNNX, Warning, TEXT("Failed to create D3D12 descriptor heap, res:%x"), Res);
-		return false;
-	}
-
-	Ctx.DescriptorSize = Ctx.D3D12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	return true;
 }
@@ -1476,6 +1108,662 @@ bool FMLRuntimeDml::RegisterGemmOperator()
 //
 //
 //
+class FMLInferenceModelDml::FDebugName
+{
+	static constexpr int32 Size = 128;
+
+public:
+
+	FDebugName()
+	{
+		Str[0] = '\0';
+		Length = 0;
+	}
+
+	FDebugName(const FString& InStr)
+	{
+		FTCHARToUTF8 Conv(*InStr);
+
+		Length = Conv.Length() + 1 < Size ? Conv.Length() + 1 : Size - 1;
+		FCStringAnsi::Strncpy(Str, Conv.Get(), Length);
+		Str[Length] = '\0';
+	}
+
+	FDebugName(FStringView InStr)
+	{
+		FTCHARToUTF8 Conv(InStr.GetData());
+
+		Length = Conv.Length() + 1 < Size ? Conv.Length() + 1 : Size - 1;
+		FCStringAnsi::Strncpy(Str, Conv.Get(), Length);
+		Str[Length] = '\0';
+	}
+	~FDebugName()
+	{
+	}
+
+	const char* Get() const
+	{
+		return Str;
+	}
+
+private:
+
+	char	Str[Size];
+	int32	Length;
+};
+
+//
+//
+//
+class FMLInferenceModelDml::FBindingTable
+{
+public:
+
+	bool Init(FMLInferenceModelDml* InModel)
+	{
+		Model = InModel;
+		DynamicRHI = InModel->DynamicRHI;
+
+		return true;
+	}
+
+#ifdef NNE_USE_D3D12_RESOURCES
+	void Bind(IDMLOperatorInitializer* OpInit, TConstArrayView<FRHIBuffer*> InputBuffers, ID3D12Resource* PersistBuff, ID3D12Resource* TempBuff = nullptr)
+#else
+	void Bind(IDMLOperatorInitializer* OpInit, TConstArrayView<FRHIBuffer*> InputBuffers, FRHIBuffer* PersistBuff, FRHIBuffer* TempBuff = nullptr)
+#endif
+	{
+		Reset(OpInit);
+
+		TArray<DML_BUFFER_BINDING, TInlineAllocator<MaxNumInputs>> Inputs;
+
+		for (FRHIBuffer* Buffer : InputBuffers)
+		{
+			if (Buffer)
+			{
+				Inputs.Emplace(MakeBind(Buffer));
+			}
+			else
+			{
+				Inputs.Add({});
+			}
+		}
+
+		DML_BUFFER_ARRAY_BINDING	InputBindArray{ Inputs.Num(), Inputs.GetData() };
+		DML_BINDING_DESC			InputBindArrayDesc{ DML_BINDING_TYPE_BUFFER_ARRAY, &InputBindArray };
+		
+		BindingTable->BindInputs(1, &InputBindArrayDesc);
+		
+#ifdef NNE_USE_D3D12_RESOURCES
+		DML_BUFFER_BINDING			PersistBind = { PersistBuff, 0, PersistBuff->GetDesc().Width };
+#else
+		DML_BUFFER_BINDING			PersistBind = MakeBind(PersistBuff);
+#endif
+		DML_BINDING_DESC			PersistBindDesc{ DML_BINDING_TYPE_BUFFER, &PersistBind };
+
+		BindingTable->BindOutputs(1, &PersistBindDesc);
+
+		DML_BUFFER_BINDING			TempBind{};
+		DML_BINDING_DESC			TempBindDesc{ DML_BINDING_TYPE_BUFFER, &TempBind };
+
+		if (TempBuff)
+		{
+#ifdef NNE_USE_D3D12_RESOURCES
+			TempBind = { PersistBuff, 0, PersistBuff->GetDesc().Width };
+#else
+			TempBind = MakeBind(TempBuff);
+#endif
+			BindingTable->BindTemporaryResource(&TempBindDesc);
+		}
+	}
+
+#ifdef NNE_USE_D3D12_RESOURCES
+	void Bind(IDMLCompiledOperator* Op, TConstArrayView<FRHIBuffer*> InputBuffers, TConstArrayView<FRHIBuffer*> OutputBuffers, ID3D12Resource* PersistBuff = nullptr, ID3D12Resource* TempBuff = nullptr)
+#else
+	
+	void Bind(IDMLCompiledOperator* Op, TConstArrayView<FRHIBuffer*> InputBuffers, TConstArrayView<FRHIBuffer*> OutputBuffers, FRHIBuffer* PersistBuff = nullptr, FRHIBuffer* TempBuff = nullptr)
+#endif
+	{
+		Reset(Op);
+
+		for (FRHIBuffer* Buffer : InputBuffers)
+		{
+			AddBind(Buffer, InputBinds, InputBindDescs);
+		}
+
+		for (FRHIBuffer* Buffer : OutputBuffers)
+		{
+			AddBind(Buffer, OutputBinds, OutputBindDescs);
+		}
+
+		BindingTable->BindInputs(InputBinds.Num(), InputBindDescs.GetData());
+		BindingTable->BindOutputs(OutputBinds.Num(), OutputBindDescs.GetData());
+
+		DML_BUFFER_BINDING			PersistBind;
+		DML_BINDING_DESC			PersistBindDesc{ DML_BINDING_TYPE_BUFFER, &PersistBind };
+
+		if (PersistBuff)
+		{
+#ifdef NNE_USE_D3D12_RESOURCES
+			PersistBind = { PersistBuff, 0, PersistBuff->GetDesc().Width };
+#else
+			PersistBind =  MakeBind(PersistBuff);MakeBind(PersistBuff);
+#endif
+			BindingTable->BindPersistentResource(&PersistBindDesc);
+		}
+
+		DML_BUFFER_BINDING			TempBind{};
+		DML_BINDING_DESC			TempBindDesc{ DML_BINDING_TYPE_BUFFER, &TempBind };
+
+		if (TempBuff)
+		{
+			
+#ifdef NNE_USE_D3D12_RESOURCES
+			TempBind = { TempBuff, 0, TempBuff->GetDesc().Width };
+#else
+			TempBind = MakeBind(TempBuff);
+#endif
+			BindingTable->BindTemporaryResource(&TempBindDesc);
+		}
+	}
+
+
+	IDMLBindingTable* Get()
+	{
+		return BindingTable;
+	}
+
+private:
+
+	bool Reset(IDMLDispatchable* Disp)
+	{
+		InputBinds.Reset();
+		InputBindDescs.Reset();
+		OutputBinds.Reset();
+		OutputBindDescs.Reset();
+		
+		DML_BINDING_PROPERTIES BindingProps = Disp->GetBindingProperties();
+		DML_BINDING_TABLE_DESC Desc{};
+
+		Desc.Dispatchable = Disp;
+		Desc.CPUDescriptorHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(Model->DescHeap->GetCPUDescriptorHandleForHeapStart(), 0, Model->DescSize);
+		Desc.GPUDescriptorHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(Model->DescHeap->GetGPUDescriptorHandleForHeapStart(), 0, Model->DescSize);
+		Desc.SizeInDescriptors = Model->DescCount;
+
+		HRESULT Res;
+
+		if (!BindingTable)
+		{
+			Res = Model->DevCtx->Device->CreateBindingTable(&Desc, DML_PPV_ARGS(&BindingTable));
+			if (!BindingTable)
+			{
+				UE_LOG(LogNNX, Warning, TEXT("Failed to create DML binding table, res:%d"), Res);
+				return false;
+			}
+		}
+		else
+		{
+			BindingTable->Reset(&Desc);
+		}
+
+		return true;
+	}
+
+	template<class TBindingArray, class TDescArray>
+	void AddBind(FRHIBuffer* Buffer, TBindingArray& Bindings, TDescArray& Descs)
+	{
+		if (Buffer)
+		{
+			DML_BUFFER_BINDING& Bind = Bindings.Add_GetRef(MakeBind(Buffer));
+			Descs.Add({ DML_BINDING_TYPE_BUFFER, &Bind });
+		}
+		else
+		{
+			DML_BUFFER_BINDING& Bind = Bindings.Add_GetRef({});
+			Descs.Add({ DML_BINDING_TYPE_BUFFER, &Bind });
+		}
+	}
+
+	DML_BUFFER_BINDING MakeBind(FRHIBuffer* Buffer)
+	{
+		ID3D12Resource* Resource = DynamicRHI->RHIGetResource(Buffer);
+
+		return DML_BUFFER_BINDING{ Resource, 0, Buffer->GetSize() };
+	}
+
+	TComPtr<IDMLBindingTable>										BindingTable;
+	TArray<DML_BUFFER_BINDING, TInlineAllocator<MaxNumInputs>>		InputBinds;
+	TArray<DML_BINDING_DESC, TInlineAllocator<MaxNumInputs>>		InputBindDescs;
+	TArray<DML_BUFFER_BINDING, TInlineAllocator<MaxNumOutputs>>		OutputBinds;
+	TArray<DML_BINDING_DESC, TInlineAllocator<MaxNumOutputs>>		OutputBindDescs;
+	ID3D12DynamicRHI*												DynamicRHI;
+	FMLInferenceModelDml*											Model;
+};
+
+//
+//
+//
+class FMLInferenceModelDml::FGraphBuilder
+{
+public:
+
+	struct FOpDesc
+	{
+		FMLOperatorDml* Op;
+		int32			InputStart;
+		int32			InputCount;
+		int32			OutputStart;
+		int32			OutputCount;
+		FDebugName		DbgName;
+	};
+
+	struct FGraphDesc
+	{
+		TConstArrayView<FTensor>	AllTensors;
+		TConstArrayView<int32>		InputIndices;
+		TConstArrayView<int32>		OutputIndices;
+		TConstArrayView<int32>		WeightIndices;
+		TConstArrayView<int32>		IntermediateIndices;
+		TConstArrayView<FTensorRDG>	WeightTensors;
+		TConstArrayView<FOpDesc>	Operators;
+		TConstArrayView<int32>		OpInputIndices;
+		TConstArrayView<int32>		OpOutputIndices;
+	};
+	
+private:
+
+	enum class EEdgeType
+	{
+		Input,
+		Output,
+		Intermediate
+	};
+
+	struct FEdge
+	{
+		EEdgeType	Type;
+		int32		TensorIdx{ -1 };
+		int32		NodeSrc{ -1 };
+		int32		NodeSrcOutput{ -1 };
+		int32		NodeDst{ -1 };
+		int32		NodeDstInput{ -1 };
+		
+		FEdge(EEdgeType InType)
+			: Type(InType)
+		{
+		}
+
+		FEdge& SetTensorIdx(int32 Value)
+		{
+			TensorIdx = Value;
+			return *this;
+		}
+
+		FEdge& SetNodeSrc(int32 Value)
+		{
+			NodeSrc = Value;
+			return *this;
+		}
+
+		FEdge& SetNodeSrcOutput(int32 Value)
+		{
+			NodeSrcOutput = Value;
+			return *this;
+		}
+
+		FEdge& SetNodeDst(int32 Value)
+		{
+			NodeDst = Value;
+			return *this;
+		}
+
+		FEdge& SetNodeDstInput(int32 Value)
+		{
+			NodeDstInput = Value;
+			return *this;
+		}
+	};
+
+public:
+
+	IDMLCompiledOperator* Compile(FDeviceContextDml* DevCtx, const FGraphDesc& InGraph)
+	{
+		IDMLDevice*				Device = DevCtx->Device;
+		TComPtr<IDMLDevice1>	Device1;
+
+		Device1.FromQueryInterface(__uuidof(IDMLDevice1), DevCtx->Device);
+		check(Device1);
+		if (!Device1)
+		{
+			return nullptr;
+		}
+
+		if (!AddEdges(InGraph))
+		{
+			return nullptr;
+		}
+
+		TArray<DML_INPUT_GRAPH_EDGE_DESC>			InputEdges;
+		TArray<DML_OUTPUT_GRAPH_EDGE_DESC>			OutputEdges;
+		TArray<DML_INTERMEDIATE_GRAPH_EDGE_DESC>	IntermediateEdges;
+		TArray<FDebugName>							DbgInputNames;
+		TArray<FDebugName>							DbgIntermediateNames;
+		TArray<FDebugName>							DbgOutputNames;
+
+		DbgInputNames.Reserve(InGraph.AllTensors.Num());
+		DbgIntermediateNames.Reserve(InGraph.AllTensors.Num());
+
+		for (const FEdge& Edge : Edges)
+		{
+			if (Edge.Type == EEdgeType::Input)
+			{
+				check(Edge.NodeSrcOutput >= 0);
+				check(Edge.NodeDst >= 0);
+				check(Edge.NodeDstInput >= 0);
+
+				DML_INPUT_GRAPH_EDGE_DESC& Input = InputEdges.Add_GetRef({});
+
+				Input.GraphInputIndex = Edge.NodeSrcOutput;
+				Input.ToNodeIndex = Edge.NodeDst;
+				Input.ToNodeInputIndex = Edge.NodeDstInput;
+				
+				const FDebugName& DbgName = DbgInputNames.Add_GetRef(InGraph.AllTensors[Edge.TensorIdx].GetName());
+				Input.Name = DbgName.Get();
+			}
+			else if (Edge.Type == EEdgeType::Output)
+			{
+				check(Edge.NodeDstInput >= 0);
+				check(Edge.NodeSrc >= 0);
+				check(Edge.NodeSrcOutput >= 0);
+
+				DML_OUTPUT_GRAPH_EDGE_DESC&	Output = OutputEdges.Add_GetRef({});
+
+				Output.GraphOutputIndex = Edge.NodeDstInput;
+				Output.FromNodeIndex = Edge.NodeSrc;
+				Output.FromNodeOutputIndex = Edge.NodeSrcOutput;
+
+				const FDebugName& DbgName = DbgOutputNames.Add_GetRef(InGraph.AllTensors[Edge.TensorIdx].GetName());
+				Output.Name = DbgName.Get();
+			}
+			else if (Edge.Type == EEdgeType::Intermediate)
+			{
+				DML_INTERMEDIATE_GRAPH_EDGE_DESC& Intermediate = IntermediateEdges.Add_GetRef({});
+
+				check(Edge.NodeSrc >= 0);
+				check(Edge.NodeSrcOutput >= 0);
+				check(Edge.NodeDst >= 0);
+				check(Edge.NodeDstInput >= 0);
+
+				Intermediate.FromNodeIndex = Edge.NodeSrc;
+				Intermediate.FromNodeOutputIndex = Edge.NodeSrcOutput;
+				Intermediate.ToNodeIndex = Edge.NodeDst;
+				Intermediate.ToNodeInputIndex = Edge.NodeDstInput;
+
+				const FDebugName& DbgName = DbgIntermediateNames.Add_GetRef(InGraph.AllTensors[Edge.TensorIdx].GetName());
+				Intermediate.Name = DbgName.Get();
+			}
+		}
+			
+		TArray<DML_GRAPH_NODE_DESC>		Nodes;
+		TArray<DML_GRAPH_EDGE_DESC>		InputEdgeDescs;
+		TArray<DML_GRAPH_EDGE_DESC>		OutputEdgeDescs;
+		TArray<DML_GRAPH_EDGE_DESC>		IntermediateEdgeDescs;
+
+		Nodes.SetNumUninitialized(Operators.Num());
+
+		for (int32 Idx = 0; Idx < Operators.Num(); ++Idx)
+		{
+			DML_GRAPH_NODE_DESC& NodeDesc = Nodes[Idx];
+
+			NodeDesc.Type = DML_GRAPH_NODE_TYPE_OPERATOR;
+			NodeDesc.Desc = &Operators[Idx];
+		}
+
+		for (int32 Idx = 0; Idx < InputEdges.Num(); ++Idx)
+		{
+			DML_GRAPH_EDGE_DESC& Edge = InputEdgeDescs.Add_GetRef({});
+
+			Edge.Type = DML_GRAPH_EDGE_TYPE_INPUT;
+			Edge.Desc = &InputEdges[Idx];
+		}			
+
+		for (int32 Idx = 0; Idx < OutputEdges.Num(); ++Idx)
+		{
+			DML_GRAPH_EDGE_DESC& Edge = OutputEdgeDescs.Add_GetRef({});
+
+			Edge.Type = DML_GRAPH_EDGE_TYPE_OUTPUT;
+			Edge.Desc = &OutputEdges[Idx];				
+		}
+
+		for (int32 Idx = 0; Idx < IntermediateEdges.Num(); ++Idx)
+		{
+			DML_GRAPH_EDGE_DESC& Edge = IntermediateEdgeDescs.Add_GetRef({});
+
+			Edge.Type = DML_GRAPH_EDGE_TYPE_INTERMEDIATE;
+			Edge.Desc = &IntermediateEdges[Idx];
+		}
+			
+		DML_GRAPH_DESC	Graph = DML_GRAPH_DESC{};
+
+		Graph.InputCount = InputEdges.Num();
+		Graph.OutputCount = OutputEdges.Num();
+		Graph.NodeCount = Operators.Num();
+		Graph.Nodes = Nodes.GetData();
+		Graph.InputEdgeCount = InputEdgeDescs.Num();
+		Graph.InputEdges = InputEdgeDescs.GetData();
+		Graph.OutputEdgeCount = OutputEdgeDescs.Num();
+		Graph.OutputEdges = OutputEdgeDescs.GetData();
+		Graph.IntermediateEdgeCount = IntermediateEdgeDescs.Num();
+		Graph.IntermediateEdges = IntermediateEdgeDescs.GetData();
+
+		IDMLCompiledOperator* Op = nullptr;
+		HRESULT Res;
+			
+		Res = Device1->CompileGraph(&Graph, DML_EXECUTION_FLAG_NONE, DML_PPV_ARGS(&Op));
+		if (FAILED(Res))
+		{
+			UE_LOG(LogNNX, Warning, TEXT("Error:Failed to compile DML graph"));
+			Op = nullptr;
+		};
+
+		return Op;
+	}
+
+private:
+
+	bool AddEdges(const FGraphDesc& InGraph)
+	{
+		Edges.Reset();
+		Operators.Reset();
+		NumInputs = 0;
+		NumOutputs = 0;
+
+		for (int32 Idx = 0; Idx < InGraph.InputIndices.Num(); ++Idx)
+		{
+			const int32 TensorIdx = InGraph.InputIndices[Idx];
+			AddInput(TensorIdx);
+		}
+
+		for (int32 Idx = 0; Idx < InGraph.WeightIndices.Num(); ++Idx)
+		{
+			const int32 TensorIdx = InGraph.WeightIndices[Idx];
+			AddInput(TensorIdx);
+		}
+
+		//const int32 OutputIndexStart = InGraph.InputIndices.Num() + InGraph.WeightIndices.Num() + InGraph.IntermediateIndices.Num();
+
+		for (int32 Idx = 0; Idx < InGraph.OutputIndices.Num(); ++Idx)
+		{
+			const int32 TensorIdx = InGraph.OutputIndices[Idx];
+			AddOutput(TensorIdx);
+		}
+
+		Operators.Reset(InGraph.Operators.Num());
+		for (const FOpDesc& OpDesc : InGraph.Operators)
+		{
+			AddOp(OpDesc, InGraph);
+		}
+
+		// TODO: FIXME: Validate edges here
+		
+		return true;
+	}
+
+	void AddInput(int32 TensorIdx)
+	{
+		AddEdge(
+			FEdge(EEdgeType::Input)
+				.SetTensorIdx(TensorIdx)
+				.SetNodeSrcOutput(NumInputs)
+		);
+
+		++NumInputs;
+	}
+
+	void AddOutput(int32 TensorIdx)
+	{
+		AddEdge(
+			FEdge(EEdgeType::Output)
+				.SetTensorIdx(TensorIdx)
+				.SetNodeDstInput(NumOutputs)
+		);
+
+		++NumOutputs;
+	}
+
+	void AddIntermediate(int32 TensorIdx, int32 NodeSrc, int32 NodeSrcOutput)
+	{
+		FEdge* ConnEdge = Edges.FindByPredicate(
+				[TensorIdx](const FEdge& Curr)
+				{
+					return Curr.TensorIdx == TensorIdx;
+				}
+		);
+
+		if (ConnEdge)
+		{
+			ConnectEdgeSrc(TensorIdx, NodeSrc, NodeSrcOutput);
+		}
+		else
+		{
+			AddEdge(
+				FEdge(EEdgeType::Intermediate)
+					.SetTensorIdx(TensorIdx)
+					.SetNodeSrc(NodeSrc)
+					.SetNodeSrcOutput(NodeSrcOutput)
+			);
+		}
+	}
+
+	void AddEdge(const FEdge& Edge)
+	{
+		FEdge* StartEdge = Edges.FindByPredicate(
+				[Edge](const FEdge& Curr)
+				{
+					return Curr.TensorIdx == Edge.TensorIdx;
+				}
+		);
+
+		check(StartEdge == nullptr);
+		Edges.Add(Edge);
+	}
+
+	bool ConnectEdgeDst(int32 TensorIdx, int32 NodeDst, int32 NodeDstInput)
+	{
+		FEdge* StartEdge = Edges.FindByPredicate(
+				[TensorIdx](const FEdge& Curr)
+				{
+					return Curr.TensorIdx == TensorIdx;
+				}
+		);
+
+		bool bFoundEdge = false;
+
+		for (FEdge* Curr = StartEdge; Curr->TensorIdx == TensorIdx; ++Curr)
+		{
+			if (Curr->NodeDst == -1 && Curr->NodeDstInput == -1)
+			{
+				Curr->NodeDst = NodeDst;
+				Curr->NodeDstInput = NodeDstInput;
+				bFoundEdge = true;
+				break;
+			}
+			else if (Curr->NodeDst == NodeDst && Curr->NodeDstInput == NodeDstInput)
+			{
+				bFoundEdge = true;
+				break;
+			}
+		}
+
+		checkf(bFoundEdge, TEXT("ConnectEdgeDst() has failed"));
+		return bFoundEdge;
+	}
+
+	bool ConnectEdgeSrc(int32 TensorIdx, int32 NodeSrc, int32 NodeSrcOutput)
+	{
+		FEdge* StartEdge =
+			Edges.FindByPredicate(
+				[TensorIdx](const FEdge& Curr)
+				{
+					return Curr.TensorIdx == TensorIdx;
+				}
+		);
+
+		bool bFoundEdge = false;
+
+		for (FEdge* Curr = StartEdge; Curr->TensorIdx == TensorIdx; ++Curr)
+		{
+			if (Curr->NodeSrc == -1 && Curr->NodeSrcOutput == -1)
+			{
+				Curr->NodeSrc = NodeSrc;
+				Curr->NodeSrcOutput = NodeSrcOutput;
+				bFoundEdge = true;
+				break;
+			}
+			else if (Curr->NodeSrc == NodeSrc && Curr->NodeSrcOutput == NodeSrcOutput)
+			{
+				bFoundEdge = true;
+				break;
+			}
+		}
+
+		checkf(bFoundEdge, TEXT("ConnectEdgeSrc() has failed"));
+		return bFoundEdge;
+	}
+
+	void AddOp(const FOpDesc& InOp, const FGraphDesc& InGraph)
+	{
+		DML_OPERATOR_GRAPH_NODE_DESC& OpDesc = Operators.Add_GetRef({});
+
+		OpDesc.Operator = InOp.Op->GetOperator();
+		OpDesc.Name = InOp.DbgName.Get();
+
+		const int32 NodeIdx = Operators.Num() - 1;
+
+		for (int32 Idx = 0; Idx < InOp.InputCount; ++Idx)
+		{
+			const int32 TensorIdx = InGraph.OpInputIndices[Idx + InOp.InputStart];				
+			
+			ConnectEdgeDst(TensorIdx, NodeIdx, Idx);
+		}
+
+		for (int32 Idx = 0; Idx < InOp.OutputCount; ++Idx)
+		{
+			const int32 TensorIdx = InGraph.OpOutputIndices[Idx + InOp.OutputStart];
+
+			AddIntermediate(TensorIdx, NodeIdx, Idx);
+		}
+	}
+
+	TArray<FEdge>							Edges;
+	TArray<DML_OPERATOR_GRAPH_NODE_DESC>	Operators;
+	int32									NumInputs;
+	int32									NumOutputs;
+};
+
+//
+//
+//
 FMLInferenceModelDml::FMLInferenceModelDml()
 {
 	bUseManualTransitions = true;
@@ -1486,7 +1774,6 @@ FMLInferenceModelDml::FMLInferenceModelDml()
 //
 FMLInferenceModelDml::~FMLInferenceModelDml()
 {
-	// TODO: Release all the operators
 }
 
 //
@@ -1503,78 +1790,382 @@ bool FMLInferenceModelDml::Init(TConstArrayView<uint8> ModelData, FDeviceContext
 	}
 
 	DevCtx = InDevCtx;
+	DynamicRHI = GetID3D12PlatformDynamicRHI();
+
+	HRESULT Res = DevCtx->Device->CreateOperatorInitializer(0, nullptr, DML_PPV_ARGS(&OpInit));
+	if (!OpInit)
+	{
+		UE_LOG(LogNNX, Warning, TEXT("Error:Failed to create DML operator initializer"));
+		return false;
+	}
+
+	// DirectML requires all tensors to be concrete
+	// TODO jira 168972: Handle dynamic tensor desc, op should init from symbolic shapes
+	TArray<FTensor>	Tensors;
+
+	Tensors.Reset(AllSymbolicTensorDescs.Num());
+	for (const FTensorDesc& TensorDesc : AllSymbolicTensorDescs)
+	{
+		Tensors.Emplace(FTensor::MakeFromSymbolicDesc(TensorDesc));
+	}
+
+	FGraphBuilder				DmlGraphBuilder;
+	FGraphBuilder::FGraphDesc	DmlGraphDesc;
+
+	DmlGraphDesc.AllTensors = Tensors;
+	DmlGraphDesc.InputIndices = InputTensorIndices;
+	DmlGraphDesc.OutputIndices = OutputTensorIndices;
+	DmlGraphDesc.WeightIndices = WeightTensorIndices;
+	DmlGraphDesc.IntermediateIndices = IntermediateTensorIndices;
+	DmlGraphDesc.WeightTensors = WeightTensorRDGs;
+	
+	TArray<FGraphBuilder::FOpDesc>	DmlGraphOperators;
+	TArray<int32>					OpInputIndices;
+	TArray<int32>					OpOutputIndices;
+	uint64							TensorDataSize = 0;
 
 	// Loop over all operators in the model and create them
 	for (int32 Idx = 0; Idx < Format.Operators.Num(); ++Idx)
 	{
 		const FString TypeName = Format.Operators[Idx].TypeName;
 
-		TArray<FTensor> OpInputTensors;
-		TArray<FTensor> OpOutputTensors;
-		UE::NNECore::FAttributeMap AttributeMap;
+		FGraphBuilder::FOpDesc		OpDesc;
+		TArray<FTensor>				OpInputTensors;
+		TArray<FTensor>				OpOutputTensors;
+		UE::NNECore::FAttributeMap	AttributeMap;
+
+		OpDesc.InputStart = OpInputIndices.Num();
+		OpDesc.OutputStart = OpOutputIndices.Num();
 
 		for (int32 InputTensorIndex : Format.Operators[Idx].InTensors)
 		{
-			FTensorDesc SymbolicTensorDesc = AllSymbolicTensorDescs[InputTensorIndex];
-			//TODO jira 168972: Handle dynamic tensor desc, op should init from symbolic shapes
-			OpInputTensors.Emplace(FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc));
+			const int32 WeightTensorIdx = WeightTensorIndices.Find(InputTensorIndex);
+
+			if (WeightTensorIdx >= 0)
+			{
+				TConstArrayView<uint8> TensorData = OpInputTensors.Emplace_GetRef(WeightTensorRDGs[WeightTensorIdx]).GetPreparedData<uint8>();
+				
+				TensorDataSize += Align(TensorData.Num(), DML_MINIMUM_BUFFER_TENSOR_ALIGNMENT);
+			}
+			else
+			{
+				FTensorDesc SymbolicTensorDesc = AllSymbolicTensorDescs[InputTensorIndex];
+				//TODO jira 168972: Handle dynamic tensor desc, op should init from symbolic shapes
+				OpInputTensors.Emplace(FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc));
+			}
+
+			OpInputIndices.Emplace(InputTensorIndex);
 		}
+
 		for (int32 OutputTensorIndex : Format.Operators[Idx].OutTensors)
 		{
 			FTensorDesc SymbolicTensorDesc = AllSymbolicTensorDescs[OutputTensorIndex];
 			//TODO jira 168972: Handle dynamic tensor desc, op should init from symbolic shapes
 			OpOutputTensors.Emplace(FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc));
+			OpOutputIndices.Emplace(OutputTensorIndex);
 		}
+
 		for (const FMLFormatAttributeDesc& Desc : Format.Operators[Idx].Attributes)
 		{
 			AttributeMap.SetAttribute(Desc.Name, Desc.Value);
 		}
 
-		FMLOperatorDml* Op = OpCreate(TypeName, OpInputTensors, OpOutputTensors, AttributeMap);
+		OpDesc.Op = OpCreate(TypeName, OpInputTensors, OpOutputTensors, AttributeMap);
 
-		if (!Op) //Op.Shader.IsNull())
+		if (!OpDesc.Op)
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Failed to create operator:%s"), *TypeName);
-
-			// TODO: Cleanup operators
+			UE_LOG(LogNNX, Warning, TEXT("Error:Failed to create operator:%s"), *TypeName);
 			return false;
 		}
 
-		Operators.Add(Op);
+		OpDesc.InputCount = OpInputTensors.Num();
+		OpDesc.OutputCount = OpOutputTensors.Num();
+		OpDesc.DbgName = TypeName;
+
+		DmlGraphOperators.Emplace(OpDesc);
 	}
+
+	DmlGraphDesc.Operators = DmlGraphOperators;
+	DmlGraphDesc.OpInputIndices = OpInputIndices;
+	DmlGraphDesc.OpOutputIndices = OpOutputIndices;
+
+	CompiledOp = DmlGraphBuilder.Compile(DevCtx, DmlGraphDesc);
+	if (!CompiledOp)
+	{
+		return false;
+	}
+
+	return InitCompiledOp(OpInputIndices, TensorDataSize);
+}
+
+//
+//
+//
+bool FMLInferenceModelDml::InitCompiledOp(TConstArrayView<int32> OpInputIndices, uint64 TensorDataSize)
+{
+	static constexpr EBufferUsageFlags	WeightBuffUsage = BUF_UnorderedAccess;
+	static constexpr ERHIAccess			WeightBuffAccess = ERHIAccess::UAVMask;
+
+	static constexpr EBufferUsageFlags	PersistBuffFlags = BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess;
+	static constexpr ERHIAccess			PersistBuffAccess = ERHIAccess::UAVMask;
+
+	static constexpr EBufferUsageFlags	TempBuffFlags = BUF_Volatile | BUF_UnorderedAccess;
+	static constexpr ERHIAccess			TempBuffAccess = ERHIAccess::UAVMask;
+
+	HRESULT					Res;
+	IDMLDevice*				Device = DevCtx->Device;
+	IDMLCompiledOperator*	CompiledOps[] = { CompiledOp };
+	
+	Res = OpInit->Reset(UE_ARRAY_COUNT(CompiledOps), CompiledOps);
+	if (FAILED(Res))
+	{
+		UE_LOG(LogNNX, Warning, TEXT("Error:Failed to reset DirectML operator initializer"));
+		return false;
+	}
+
+	DML_BINDING_PROPERTIES InitBindProps = OpInit->GetBindingProperties();
+	DML_BINDING_PROPERTIES ExecBindProps = CompiledOp->GetBindingProperties();
+
+	DescCount = std::max(InitBindProps.RequiredDescriptorCount, ExecBindProps.RequiredDescriptorCount);
+	
+	D3D12_DESCRIPTOR_HEAP_DESC	HeapDesc = {};
+
+	HeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	HeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	HeapDesc.NumDescriptors = DescCount;
+
+	Res = DevCtx->D3D12Device->CreateDescriptorHeap(&HeapDesc, IID_PPV_ARGS(&DescHeap));
+	if (!DescHeap)
+	{
+		UE_LOG(LogNNX, Warning, TEXT("Failed to create descriptor heap, res:%x"), Res);
+		return false;
+	}
+
+	DescSize = DevCtx->D3D12Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	BindingTable.Reset(new FBindingTable());
+	if (!BindingTable->Init(this))
+	{
+		return false;
+	}
+
+	MemSizeTemp = ExecBindProps.TemporaryResourceSize;
+	MemSizePersist = ExecBindProps.PersistentResourceSize;
+
+	FEvent* Signal = FGenericPlatformProcess::GetSynchEventFromPool(false);
+
+	ENQUEUE_RENDER_COMMAND(FMLInferenceModelDml_SetTensorData)
+	(
+		[
+			this, 
+			Signal, 
+			InitTempMemSize = InitBindProps.TemporaryResourceSize,
+			TensorDataSize
+		]
+		(FRHICommandListImmediate& RHICmdList)
+		{
+			FRHIBufferInputArray	Inputs;
+
+			for (int32 InputIdx : InputTensorIndices)
+			{
+				Inputs.Emplace(nullptr);
+			}
+
+			FGPUFenceRHIRef UploadFence = RHICmdList.CreateGPUFence(TEXT("FMLInferenceModel_UploadFence"));
+			FRHIBuffer*		UploadBuff = CreateRHIBuffer(RHICmdList, TensorDataSize, BUF_ShaderResource | BUF_Dynamic | BUF_FastVRAM, ERHIAccess::CopySrc, TEXT("FMLInferenceModel_UploadBuffer"));
+			uint8*			UploadBuffPtr = static_cast<uint8*>(RHICmdList.LockBuffer(UploadBuff, 0, TensorDataSize, RLM_WriteOnly_NoOverwrite));
+			uint64			UploadOffset = 0;
+
+			TArray<CD3DX12_RESOURCE_BARRIER, TInlineAllocator<MaxNumInputs>>	Barriers;
+
+			for (const FTensorRDG& Tensor : WeightTensorRDGs)
+			{
+				TConstArrayView<uint8>	TensorData = Tensor.GetPreparedData<uint8>();
+
+				FBufferRHIRef WeightBuff;
+
+				WeightBuff = CreateRHIBuffer(RHICmdList, TensorData.Num(), WeightBuffUsage, WeightBuffAccess, TEXT("FMLInferenceModelDml_TensorWeights"));
+				
+				FMemory::Memcpy(UploadBuffPtr + UploadOffset, TensorData.GetData(), TensorData.Num());
+				RHICmdList.CopyBufferRegion(WeightBuff, 0, UploadBuff, UploadOffset, TensorData.Num());
+				UploadOffset += Align(TensorData.Num(), DML_MINIMUM_BUFFER_TENSOR_ALIGNMENT);
+
+				Inputs.Emplace(WeightBuff);
+				
+				Barriers.Emplace(
+					CD3DX12_RESOURCE_BARRIER::Transition(
+						DynamicRHI->RHIGetResource(WeightBuff),
+						D3D12_RESOURCE_STATE_COPY_DEST,
+						D3D12_RESOURCE_STATE_UNORDERED_ACCESS)
+				);
+			}
+
+			RHICmdList.UnlockBuffer(UploadBuff);
+			RHICmdList.WriteGPUFence(UploadFence);
+
+			if (MemSizePersist)
+			{
+#ifdef NNE_USE_D3D12_RESOURCES
+				PersistBuff = CreateD3D12Buffer(MemSizePersist);
+#else		
+				PersistBuff = CreateRHIBuffer(RHICmdList, MemSizePersist, PersistBuffFlags, PersistBuffAccess, TEXT("FMLInferendeModelDml_PeristBuff"));
+#endif
+			}
+
+			if (MemSizeTemp)
+			{
+#ifdef NNE_USE_D3D12_RESOURCES
+				TempBuff = CreateD3D12Buffer(MemSizeTemp);
+#else
+				TempBuff = CreateRHIBuffer(RHICmdList, MemSizeTemp, TempBuffFlags, TempBuffAccess, TEXT("FMLInferendeModelDml_TempBuff"));
+#endif
+			}
+
+#ifdef NNE_USE_D3D12_RESOURCES
+			ID3D12Resource* InitTempBuff = nullptr;
+#else
+			FBufferRHIRef InitTempBuff;
+#endif
+
+			if (InitTempMemSize)
+			{
+#ifdef NNE_USE_D3D12_RESOURCES
+				InitTempBuff = CreateD3D12Buffer(InitTempMemSize);
+#else
+				TempBuff = CreateRHIBuffer(RHICmdList, InitTempMemSize, TempBuffFlags, TempBuffAccess, TEXT("FMLInferendeModelDml_InitTempBuff"));
+#endif
+			}
+
+			RHICmdList.EnqueueLambda(
+				[this, Inputs, Barriers, InitTempBuff, UploadFence](FRHICommandListImmediate& RHICmdList)
+				{
+					while (UploadFence->NumPendingWriteCommands.GetValue() > 0)
+					{
+						FPlatformProcess::Sleep(0.001);
+					}
+
+					ID3D12GraphicsCommandList* D3DCmdList = nullptr;
+
+					D3DCmdList = DynamicRHI->RHIGetGraphicsCommandList(DevCtx->DeviceIndex);
+
+					BindingTable->Bind(OpInit, Inputs, PersistBuff, InitTempBuff);
+			
+					D3DCmdList = DynamicRHI->RHIGetGraphicsCommandList(DevCtx->DeviceIndex);
+					D3DCmdList->ResourceBarrier(Barriers.Num(), Barriers.GetData());
+					D3DCmdList->SetDescriptorHeaps(1, &DescHeap);
+					DevCtx->CmdRec->RecordDispatch(D3DCmdList, OpInit, BindingTable->Get());
+
+					DynamicRHI->RHIFinishExternalComputeWork(DevCtx->DeviceIndex, D3DCmdList);
+				}
+			);			
+			
+			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+			Signal->Trigger();
+		}
+	);
+
+	Signal->Wait();
+	FGenericPlatformProcess::ReturnSynchEventToPool(Signal);
 
 	return true;
 }
+
+BEGIN_SHADER_PARAMETER_STRUCT(FTensorBufferParamsDml, )
+	RDG_BUFFER_ACCESS(Buffer, ERHIAccess::UAVCompute)
+END_SHADER_PARAMETER_STRUCT()
 
 //
 //
 //
 void FMLInferenceModelDml::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 {
-	static constexpr int32 MaxExpectedInput = 10;
-	TArray<FTensorRDGRef, TInlineAllocator<MaxExpectedInput>> InputTensors;
+	const ERDGPassFlags TransitionBuffFlags = ERDGPassFlags::Compute | ERDGPassFlags::NeverCull;
 
-	static constexpr int32 MaxExpectedOutput = 2;
-	TArray<FTensorRDGRef, TInlineAllocator<MaxExpectedOutput>> OutputTensors;
+	InputBuffers.SetNumUninitialized(InputTensorIndices.Num() + WeightTensorIndices.Num());
+	OutputBuffers.SetNumUninitialized(OutputTensorIndices.Num());
 
-	// Add passes for all operators
-	for (int32 Idx = 0; Idx < Operators.Num(); ++Idx)
+	for (int32 Idx = 0; Idx < InputTensorIndices.Num(); ++Idx)
 	{
-		InputTensors.Empty();
-		for (int32 i : OperatorInputTensorIndices[Idx])
-		{
-			InputTensors.Emplace(AllTensorRDGs[i]);
-		}
-		OutputTensors.Empty();
-		for (int32 i : OperatorOutputTensorIndices[Idx])
-		{
-			OutputTensors.Emplace(AllTensorRDGs[i]);
-		}
+		FTensorBufferParamsDml* Params = GraphBuilder.AllocParameters<FTensorBufferParamsDml>();
+		Params->Buffer = AllTensorRDGs[InputTensorIndices[Idx]]->GetBuffer();
 
-		FMLOperatorDml* Op = Operators[Idx];
-
-		Op->Dispatch(GraphBuilder, InputTensors, OutputTensors);
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("FMLInferenceModelDml_Dispatch_GetInputBuffer"),
+			Params,
+			TransitionBuffFlags,
+			[this, Idx, Params](FRHICommandListImmediate& RHICmdList)
+			{
+				InputBuffers[Idx] = Params->Buffer->GetRHI();
+			}
+		);
 	}
+
+	for (int32 Idx = 0; Idx < WeightTensorIndices.Num(); ++Idx)
+	{
+		InputBuffers[Idx + InputTensorIndices.Num()] = nullptr;
+	}
+
+	for (int32 Idx = 0; Idx < OutputTensorIndices.Num(); ++Idx)
+	{
+		FTensorBufferParamsDml* Params = GraphBuilder.AllocParameters<FTensorBufferParamsDml>();
+		Params->Buffer = AllTensorRDGs[OutputTensorIndices[Idx]]->GetBuffer();
+
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("FMLInferenceModelDml_Dispatch_GetOutputBuffer"),
+			Params,
+			TransitionBuffFlags,
+			[this, Idx, Params](FRHICommandListImmediate& RHICmdList)
+			{
+				OutputBuffers[Idx] = Params->Buffer->GetRHI();
+			}
+		);
+	}
+	
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("FMLInferenceModelDml_Dispatch"),
+		ERDGPassFlags::None | ERDGPassFlags::NeverCull,
+		[this](FRHICommandListImmediate& RHICmdList)
+		{
+			RHICmdList.EnqueueLambda(
+				[this](FRHICommandListImmediate& RHICmdList)
+				{
+					TArray<CD3DX12_RESOURCE_BARRIER, TInlineAllocator<MaxNumInputs + MaxNumOutputs>>	Barriers;
+
+					for (FRHIBuffer* Buffer : InputBuffers)
+					{
+						if (!Buffer)
+						{
+							continue;
+						}
+
+						ID3D12Resource* Resource = DynamicRHI->RHIGetResource(Buffer);
+
+						// TODO: FIXME: Don't assume COPY_DEST state
+						Barriers.Emplace(
+							CD3DX12_RESOURCE_BARRIER::Transition(
+								Resource,
+								D3D12_RESOURCE_STATE_COPY_DEST,
+								D3D12_RESOURCE_STATE_UNORDERED_ACCESS)
+						);
+					}
+
+					// TODO: We should use this instead of NNE_USE_D3D12_RESOURCES
+					//FBufferRHIRef TempBuff = MemSizeTemp ? CreateRHIBuffer(RHICmdList, MemSizeTemp, TempBuffUsage, TempBuffAccess, TEXT("FMLInferenceModelDml_Dispatch_TempBuff")) : nullptr;
+
+					BindingTable->Bind(CompiledOp, InputBuffers, OutputBuffers, PersistBuff, TempBuff);
+
+					ID3D12GraphicsCommandList* D3DCmdList = nullptr;
+
+					D3DCmdList = DynamicRHI->RHIGetGraphicsCommandList(DevCtx->DeviceIndex);
+					D3DCmdList->SetDescriptorHeaps(1, &DescHeap);
+					D3DCmdList->ResourceBarrier(Barriers.Num(), Barriers.GetData());
+					DevCtx->CmdRec->RecordDispatch(D3DCmdList, CompiledOp, BindingTable->Get());
+
+					DynamicRHI->RHIFinishExternalComputeWork(DevCtx->DeviceIndex, D3DCmdList);
+				}
+			);
+		}
+	);
 }
 
 //
@@ -1582,8 +2173,6 @@ void FMLInferenceModelDml::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder
 //
 FMLOperatorDml* FMLInferenceModelDml::OpCreate(const FString& OpName, TArrayView<const FTensor> InputTensorDescs, TArrayView<const FTensor> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes)
 {
-	// TODO: Check if D3D12 device is valid
-
 	FMLOperatorRegistryDml::OperatorCreateFunc CreateFn = FMLOperatorRegistryDml::Get()->OpFind(OpName);
 
 	if (!CreateFn)
@@ -1592,7 +2181,7 @@ FMLOperatorDml* FMLInferenceModelDml::OpCreate(const FString& OpName, TArrayView
 		return nullptr;
 	}
 
-	FMLOperatorDml*	Op = CreateFn();
+	FMLOperatorDml* Op = CreateFn();
 
 	if (!Op->Initialize(DevCtx, InputTensorDescs, OutputTensorDescs, Attributes))
 	{
@@ -1602,7 +2191,54 @@ FMLOperatorDml* FMLInferenceModelDml::OpCreate(const FString& OpName, TArrayView
 		return nullptr;
 	}
 
+	Op->GetOperator()->SetName(*OpName);
+
 	return Op;
+}
+
+FBufferRHIRef FMLInferenceModelDml::CreateRHIBuffer(FRHICommandListImmediate& RHICmdList, uint32 Size, EBufferUsageFlags Usage, ERHIAccess Access, const TCHAR* DbgName)
+{
+	FBufferRHIRef Buff = nullptr;
+
+	if (Size)
+	{
+		FRHIResourceCreateInfo CreateInfo(DbgName);
+		
+		Buff = RHICmdList.CreateBuffer(Size, Usage, 1, Access, CreateInfo);
+	}
+
+	check(Buff);
+	return Buff;
+}
+
+ID3D12Resource* FMLInferenceModelDml::CreateD3D12Buffer(uint32 Size, D3D12_RESOURCE_STATES ResourceState, D3D12_HEAP_TYPE HeapType, const TCHAR* DebugName)
+{
+	ID3D12Resource* Resource = nullptr;
+
+	D3D12_RESOURCE_DESC ResourceDesc = CD3DX12_RESOURCE_DESC::Buffer(Size,D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	CD3DX12_HEAP_PROPERTIES HeapProps = CD3DX12_HEAP_PROPERTIES(HeapType);
+	HRESULT Res;
+
+	Res = DevCtx->D3D12Device->CreateCommittedResource(
+		&HeapProps,
+		D3D12_HEAP_FLAG_NONE,
+		&ResourceDesc,
+		ResourceState,
+		nullptr,
+		IID_PPV_ARGS(&Resource));
+
+	if (FAILED(Res))
+	{
+		UE_LOG(LogNNX, Warning, TEXT("Error:FMLInferenceModel failed to create D3D12 resource"));
+		return nullptr;
+	}
+
+	if (Resource && DebugName)
+	{
+		Resource->SetName(DebugName);
+	}
+
+	return Resource;
 }
 
 //
@@ -1645,48 +2281,40 @@ IRuntime* FMLRuntimeDmlStartup()
 {
 	if (!GDmlRuntime)
 	{
-		//const FString ModulesDir = FPlatformProcess::GetModulesDirectory();;
-		//const FString GameDir = FModuleManager::Get().GetGameBinariesDirectory();
-		//const FString PluginDir = FPlatformProcess::BaseDir();
-
 #ifdef DIRECTML_BIN_PATH
 
-		//const FString PluginDir = IPluginManager::Get().FindPlugin(TEXT("NeuralNetworkInference"))->GetBaseDir();
+		ID3D12DynamicRHI* DynamicRHI = GetID3D12PlatformDynamicRHI();
+
 		const FString DirectMLRuntimeBinPath = TEXT(PREPROCESSOR_TO_STRING(DIRECTML_BIN_PATH));
-		//const FString DirectMLDLLPath = DirectMLRuntimeBinPath / TEXT(PREPROCESSOR_TO_STRING(DIRECTML_DLL_NAME));
+		FString DirectMLDLLPaths[2];
+		int32	NumPaths = 1;
 		
+		DirectMLDLLPaths[0] = DirectMLRuntimeBinPath / TEXT("DirectML.dll");
+
+		if (DynamicRHI->IsD3DDebugEnabled())
+		{
+			DirectMLDLLPaths[1] = DirectMLRuntimeBinPath / TEXT("DirectML.Debug.dll");
+			++NumPaths;
+		}
+
 		FPlatformProcess::PushDllDirectory(*DirectMLRuntimeBinPath);
-		
-		const FString DirectMLDLLPaths[] =
-		{
-			DirectMLRuntimeBinPath / TEXT("DirectML.Debug.dll"),
-			DirectMLRuntimeBinPath / TEXT("DirectML.dll"),
-		};
 
-		// Sanity check
-		for (int32 Idx = 0; Idx < UE_ARRAY_COUNT(DirectMLDLLPaths); ++Idx)
+		for (int32 Idx = 0; Idx < NumPaths; ++Idx)
 		{
-			const FString& DirectMLDLLPath = DirectMLDLLPaths[Idx];
-
-			if (!FPaths::FileExists(DirectMLDLLPath))
+			if (!FPaths::FileExists(DirectMLDLLPaths[Idx]))
 			{
 				const FString ErrorMessage = FString::Format(TEXT("DirectML DLL file not found in \"{0}\"."),
-					{ IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*DirectMLDLLPath) });
+					{ IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*DirectMLDLLPaths[Idx])});
 				UE_LOG(LogNNX, Warning, TEXT("NNXRuntimeDll:%s"), *ErrorMessage);
 				checkf(false, TEXT("%s"), *ErrorMessage);
 			}
 
-			FPlatformProcess::GetDllHandle(*DirectMLDLLPath);
+			FPlatformProcess::GetDllHandle(*DirectMLDLLPaths[Idx]);
 		}
 
 		FPlatformProcess::PopDllDirectory(*DirectMLRuntimeBinPath);
 #endif
 
-//#if DEBUG
-		//FPlatformProcess::GetDllHandle(TEXT("DirectML.Debug.dll"));
-//#else
-//		FPlatformProcess::GetDllHandle(TEXT("DirectML.dll"));
-//#endif
 		GDmlRuntime = FDmlRuntimeCreate();
 	}
 
@@ -1703,7 +2331,6 @@ void FMLRuntimeDmlShutdown()
 		GDmlRuntime.Release();
 	}
 }
-
 
 } // namespace NNX
  

@@ -240,6 +240,7 @@ bool FMLInferenceModelRDG::LoadModel(TConstArrayView<uint8> ModelData, FMLRuntim
 
 		FSymbolicTensorShape SymbolicShape = FSymbolicTensorShape::Make(FormatTensorDesc.Shape);
 		FTensorDesc SymbolicTensor = FTensorDesc::Make(FormatTensorDesc.Name, SymbolicShape, FormatTensorDesc.DataType);
+		
 		AllSymbolicTensorDescs.Emplace(SymbolicTensor);
 		
 		if (FormatTensorDesc.Type == EMLFormatTensorType::Input)
@@ -498,6 +499,16 @@ int FMLInferenceModelRDG::EnqueueRDG(FRDGBuilder& RDGBuilder, TConstArrayView<FM
 		TensorRDG.SetBuffer(TensorBuffer);
 	}
 
+	// TODO: FIXME: DirectML uses RHI buffers instead of RDG bufers
+	//For now weights tensors are not uploaded to GPU thus GetBuffer will return nullptr for them.
+	//checkCode(for (const FTensorRDG* TensorRDG : AllTensorRDGs) { if (TensorRDG != nullptr) { check(TensorRDG->GetBuffer() != nullptr); } });
+
+	//Insert weights tensors
+	for (int32 i = 0; i < WeightTensorIndices.Num(); ++i)
+	{
+		AllTensorRDGs[WeightTensorIndices[i]] = &WeightTensorRDGs[i];
+	}
+	
 	// We can now dispatch operators
 	AddDispatchOps_RenderThread(RDGBuilder);
 

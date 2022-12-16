@@ -63,6 +63,7 @@ public:
 	{
 		check(Shape.IsCompatibleWith(TensorDesc.GetShape()));
 		FTensorRDG TensorRDG;
+		TensorRDG.Buffer = nullptr;
 		TensorRDG.Name = TensorDesc.GetName();
 		TensorRDG.DataType = TensorDesc.GetDataType();
 		TensorRDG.Shape = Shape;

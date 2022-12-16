@@ -36,9 +36,9 @@
 					"target": "NeuralMorphModel_global",
 					"tags": [ "SmokeTest" ],
 					"runtimes": [
-						{ "name": "NNXRuntimeORTDml", "relative_error": 0.02 },
-						{ "name": "NNXRuntimeHlsl", "relative_error": 0.02 },
-						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Model with multiple layer not yet implemented." }
+						{ "name": "NNXRuntimeORTDml", "relative_error": 0.025 },
+						{ "name": "NNXRuntimeDml", "relative_error": 0.025 },
+						{ "name": "NNXRuntimeHlsl",	"skip": true, "comment": "Model with multiple layer not yet implemented."	}
 					]
 				},
 				{
