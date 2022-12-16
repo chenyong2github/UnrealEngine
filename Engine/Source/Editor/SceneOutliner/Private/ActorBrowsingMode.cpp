@@ -931,6 +931,7 @@ void FActorBrowsingMode::OnSelectUnloadedActors(const TArray<FGuid>& ActorGuids)
 	if (ItemsToSelect.Num())
 	{
 		SceneOutliner->SetItemSelection(ItemsToSelect, true);
+		SceneOutliner->ScrollItemIntoView(ItemsToSelect.Last());
 	}
 }
 
