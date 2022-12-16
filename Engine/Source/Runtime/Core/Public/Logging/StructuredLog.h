@@ -281,13 +281,13 @@ inline void LogIfActive(FieldArgTypes&&... FieldArgs)
 	{
 		if (Verbosity == ELogVerbosity::Fatal || !Log.Category.IsSuppressed(Verbosity))
 		{
-			if constexpr (sizeof...(FieldArgTypes))
+			if constexpr (sizeof...(FieldArgTypes) == 0)
 			{
-				LogWithFields<Log, LogFieldsType>(Forward<FieldArgTypes>(FieldArgs)...);
+				LogWithNoFields(Log);
 			}
 			else
 			{
-				LogWithNoFields(Log);
+				LogWithFields<Log, LogFieldsType>(Forward<FieldArgTypes>(FieldArgs)...);
 			}
 		}
 	}
