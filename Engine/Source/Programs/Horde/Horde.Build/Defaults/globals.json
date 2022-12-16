@@ -50,7 +50,8 @@
 			},
 			{
 				"id": "memory",
-				"backend": "memory-backend"
+				"backend": "memory-backend",
+				"enableAliases": true
 			}
 		]
 	},
