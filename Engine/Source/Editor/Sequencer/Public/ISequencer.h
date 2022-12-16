@@ -32,6 +32,8 @@
 #include "Widgets/Input/NumericTypeInterface.h"
 #include "Widgets/SWidget.h"
 
+#include "ISequencer.generated.h"
+
 class AActor;
 class ACameraActor;
 class FSequencerKeyCollection;

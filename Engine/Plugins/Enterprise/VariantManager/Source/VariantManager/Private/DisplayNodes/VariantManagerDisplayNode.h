@@ -7,6 +7,8 @@
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 //#include "DisplayNodes/SVariantManagerEditableLabel.h"
 
+#include "VariantManagerDisplayNode.generated.h"
+
 enum class EItemDropZone;
 class FMenuBuilder;
 class FVariantManager;

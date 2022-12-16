@@ -7,6 +7,8 @@
 #include "UObject/ObjectMacros.h"
 #include "Features/IModularFeature.h"
 
+#include "IPropertyAccessCompiler.generated.h"
+
 class UObject;
 struct FPropertyAccessLibrary;
 

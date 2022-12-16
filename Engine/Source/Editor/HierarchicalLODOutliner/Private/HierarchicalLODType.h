@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 
+#include "HierarchicalLODType.generated.h"
+
 UENUM()	
 enum class EHierarchicalLODActionType : uint8
 {

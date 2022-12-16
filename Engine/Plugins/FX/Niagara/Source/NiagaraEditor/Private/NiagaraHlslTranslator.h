@@ -11,6 +11,8 @@
 #include "NiagaraScriptSource.h"
 #include "NiagaraSimulationStageCompileData.h"
 
+#include "NiagaraHlslTranslator.generated.h"
+
 class Error;
 class UNiagaraGraph;
 class UNiagaraNode;

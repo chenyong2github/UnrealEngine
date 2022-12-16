@@ -15,6 +15,8 @@
 #include "ShadowMap.h"
 #include "ImageUtils.h"
 
+#include "MaterialUtilities.generated.h"
+
 class ALandscapeProxy;
 class Error;
 class ULandscapeComponent;

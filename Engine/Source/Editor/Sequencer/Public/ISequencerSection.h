@@ -22,6 +22,8 @@
 #include "Widgets/SNullWidget.h"
 #include "Widgets/SWidget.h"
 
+#include "ISequencerSection.generated.h"
+
 class FMenuBuilder;
 class FSequencerSectionPainter;
 class IDetailsView;

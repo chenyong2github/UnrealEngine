@@ -9,6 +9,8 @@
 #include "Templates/SharedPointer.h"
 #include "UObject/ObjectMacros.h"
 
+#include "BlueprintActionMenuUtils.generated.h"
+
 class UClass;
 class UK2Node;
 struct FBlueprintActionContext;

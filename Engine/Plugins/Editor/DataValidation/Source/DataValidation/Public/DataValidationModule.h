@@ -8,6 +8,8 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
+#include "DataValidationModule.generated.h"
+
 UENUM(BlueprintType)
 enum class EDataValidationUsecase : uint8
 {

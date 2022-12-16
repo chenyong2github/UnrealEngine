@@ -26,6 +26,8 @@
 #include "Styling/AppStyle.h"
 #include "Algo/Transform.h"
 
+#include "ControlRigElementDetails.generated.h"
+
 class IPropertyHandle;
 
 class FRigElementKeyDetails : public IPropertyTypeCustomization

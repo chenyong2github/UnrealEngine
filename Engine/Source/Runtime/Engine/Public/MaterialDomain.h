@@ -5,6 +5,8 @@
 #include "UObject/ObjectMacros.h"
 #include "Containers/UnrealString.h"
 
+#include "MaterialDomain.generated.h"
+
 /** Defines the domain of a material. */
 UENUM()
 enum EMaterialDomain : int

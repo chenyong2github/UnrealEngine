@@ -8,6 +8,8 @@
 #include "UObject/Class.h"
 #include "Engine/Selection.h"
 
+#include "KismetDebugUtilities.generated.h"
+
 static_assert(DO_BLUEPRINT_GUARD, "KismetDebugUtilities assumes BP exception tracking is enabled");
 
 class UBlueprint;

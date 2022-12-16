@@ -12,6 +12,7 @@
 #include "Views/SCurveEditorViewStacked.h"
 #include "Views/SInteractiveCurveEditorView.h"
 
+#include "WaveTableCurveEditorViewStacked.generated.h"
 
 // Forward Declarations
 class UCurveFloat;
