@@ -7,7 +7,10 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGPin)
 
 FPCGPinProperties::FPCGPinProperties(const FName& InLabel, EPCGDataType InAllowedTypes, bool bInAllowMultipleConnections, bool bInAllowMultipleData, const FText& InTooltip)
-	: Label(InLabel), AllowedTypes(InAllowedTypes), bAllowMultipleData(bInAllowMultipleData), bAllowMultipleConnections(bInAllowMultipleConnections), Tooltip(InTooltip)
+	: Label(InLabel), AllowedTypes(InAllowedTypes), bAllowMultipleData(bInAllowMultipleData), bAllowMultipleConnections(bInAllowMultipleConnections)
+#if WITH_EDITORONLY_DATA
+	, Tooltip(InTooltip)
+#endif
 {}
 
 bool FPCGPinProperties::operator==(const FPCGPinProperties& Other) const
@@ -33,6 +36,22 @@ void UPCGPin::PostLoad()
 		Properties = FPCGPinProperties(Label_DEPRECATED);
 		Label_DEPRECATED = NAME_None;
 	}
+}
+
+FText UPCGPin::GetTooltip() const
+{
+#if WITH_EDITOR
+	return Properties.Tooltip;
+#else
+	return FText::GetEmpty();
+#endif
+}
+
+void UPCGPin::SetTooltip(const FText& InTooltip)
+{
+#if WITH_EDITOR
+	Properties.Tooltip = InTooltip;
+#endif
 }
 
 bool UPCGPin::AddEdgeTo(UPCGPin* OtherPin)

@@ -32,8 +32,10 @@ struct PCG_API FPCGPinProperties
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	bool bAllowMultipleConnections = true;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, Category = Settings)
 	FText Tooltip;
+#endif
 };
 
 UCLASS(ClassGroup = (Procedural))
@@ -59,6 +61,12 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Settings, meta = (ShowOnlyInnerProperties))
 	FPCGPinProperties Properties;
+
+	UFUNCTION(BlueprintCallable, Category = Settings)
+	FText GetTooltip() const;
+	
+	UFUNCTION(BlueprintCallable, Category = Settings)
+	void SetTooltip(const FText& InTooltip);
 
 	bool IsCompatible(const UPCGPin* OtherPin) const;
 	bool CanConnect(const UPCGPin* OtherPin) const;
