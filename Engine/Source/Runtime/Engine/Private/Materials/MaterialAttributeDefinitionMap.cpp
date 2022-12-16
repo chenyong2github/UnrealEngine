@@ -9,6 +9,7 @@
 #include "Materials/MaterialExpressionShadingModel.h"
 #include "Materials/MaterialExpressionStrata.h"
 #include "SceneTypes.h"
+#include "StrataDefinitions.h"
 
 #define LOCTEXT_NAMESPACE "MaterialShared"
 
