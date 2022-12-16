@@ -129,8 +129,15 @@ public:
 	/** Stop executing. */
 	EStateTreeRunStatus Stop();
 
-	/** Tick the state tree logic. */
+	/**
+	 * Tick the state tree logic.
+	 * @param DeltaTime time to advance the logic.
+	 * @returns tree run status after the tick.
+	 */
 	EStateTreeRunStatus Tick(const float DeltaTime);
+
+	/** @return the tree run status. */
+	EStateTreeRunStatus GetStateTreeRunStatus() const;
 
 	/** @return the status of the last tick function */
 	EStateTreeRunStatus GetLastTickStatus() const;

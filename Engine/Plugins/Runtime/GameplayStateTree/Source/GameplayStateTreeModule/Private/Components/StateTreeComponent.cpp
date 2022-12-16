@@ -186,7 +186,13 @@ void UStateTreeComponent::TickComponent(float DeltaTime, enum ELevelTick TickTyp
 	FStateTreeExecutionContext Context(*GetOwner(), *StateTreeRef.GetStateTree(), InstanceData);
 	if (SetContextRequirements(Context))
 	{
-		Context.Tick(DeltaTime);
+		const EStateTreeRunStatus PreviousRunStatus = Context.GetStateTreeRunStatus();
+		const EStateTreeRunStatus CurrentRunStatus = Context.Tick(DeltaTime);
+
+		if (CurrentRunStatus != PreviousRunStatus)
+		{
+			OnStateTreeRunStatusChanged.Broadcast(CurrentRunStatus);
+		}
 	}
 }
 
@@ -204,8 +210,14 @@ void UStateTreeComponent::StartLogic()
 	if (SetContextRequirements(Context))
 	{
 		Context.SetParameters(StateTreeRef.GetParameters());
-		Context.Start();
+		const EStateTreeRunStatus PreviousRunStatus = Context.GetStateTreeRunStatus();
+		const EStateTreeRunStatus CurrentRunStatus = Context.Start();
 		bIsRunning = true;
+		
+		if (CurrentRunStatus != PreviousRunStatus)
+		{
+			OnStateTreeRunStatusChanged.Broadcast(CurrentRunStatus);
+		}
 	}
 }
 
@@ -223,8 +235,14 @@ void UStateTreeComponent::RestartLogic()
 	if (SetContextRequirements(Context))
 	{
 		Context.SetParameters(StateTreeRef.GetParameters());
-		Context.Start();
+		const EStateTreeRunStatus PreviousRunStatus = Context.GetStateTreeRunStatus();
+		const EStateTreeRunStatus CurrentRunStatus = Context.Start();
 		bIsRunning = true;
+		
+		if (CurrentRunStatus != PreviousRunStatus)
+		{
+			OnStateTreeRunStatusChanged.Broadcast(CurrentRunStatus);
+		}
 	}
 }
 
@@ -246,8 +264,14 @@ void UStateTreeComponent::StopLogic(const FString& Reason)
 	FStateTreeExecutionContext Context(*GetOwner(), *StateTreeRef.GetStateTree(), InstanceData);
 	if (SetContextRequirements(Context))
 	{
-		Context.Stop();
+		const EStateTreeRunStatus PreviousRunStatus = Context.GetStateTreeRunStatus();
+		const EStateTreeRunStatus CurrentRunStatus = Context.Stop();
 		bIsRunning = false;
+
+		if (CurrentRunStatus != PreviousRunStatus)
+		{
+			OnStateTreeRunStatusChanged.Broadcast(CurrentRunStatus);
+		}
 	}
 }
 
@@ -382,6 +406,16 @@ void UStateTreeComponent::SendStateTreeEvent(const FGameplayTag Tag, const FCons
 	}
 }
 
+EStateTreeRunStatus UStateTreeComponent::GetStateTreeRunStatus() const
+{
+	FStateTreeExecutionContext Context(*GetOwner(), *StateTreeRef.GetStateTree(), const_cast<FStateTreeInstanceData&>(InstanceData));
+	if (Context.IsValid())
+	{
+		return Context.GetStateTreeRunStatus();
+	}
+
+	return EStateTreeRunStatus::Unset;
+}
 
 #if WITH_GAMEPLAY_DEBUGGER
 FString UStateTreeComponent::GetDebugInfoString() const

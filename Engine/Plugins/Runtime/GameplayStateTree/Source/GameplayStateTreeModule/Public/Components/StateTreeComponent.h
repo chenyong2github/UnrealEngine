@@ -12,6 +12,8 @@
 
 class UStateTree;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FStateTreeRunStatusChanged, EStateTreeRunStatus, StateTreeRunStatus);
+
 UCLASS(ClassGroup = AI, HideCategories = (Activation, Collision), meta = (BlueprintSpawnableComponent))
 class GAMEPLAYSTATETREEMODULE_API UStateTreeComponent : public UBrainComponent, public IGameplayTaskOwnerInterface
 {
@@ -55,6 +57,14 @@ public:
 
 	/** Sends event to the running StateTree. */
 	void SendStateTreeEvent(const FGameplayTag Tag, const FConstStructView Payload = FConstStructView(), const FName Origin = FName());
+
+	/** Returns the current run status of the StateTree. */
+	UFUNCTION(BlueprintPure, Category = "Gameplay|StateTree")
+	EStateTreeRunStatus GetStateTreeRunStatus() const;
+
+	/** Called when the run status of the StateTree has changed */
+	UPROPERTY(BlueprintAssignable, Category = "Gameplay|StateTree")
+	FStateTreeRunStatusChanged OnStateTreeRunStatusChanged;
 
 #if WITH_GAMEPLAY_DEBUGGER
 	virtual FString GetDebugInfoString() const override;

@@ -13,8 +13,8 @@ STATETREEMODULE_API DECLARE_LOG_CATEGORY_EXTERN(LogStateTree, Warning, All);
 #define WITH_STATETREE_DEBUG (!(UE_BUILD_SHIPPING || UE_BUILD_SHIPPING_WITH_EDITOR || UE_BUILD_TEST) && 1)
 #endif // WITH_STATETREE_DEBUG
 
-/** Status describing current ticking state. */
-UENUM()
+/** Status describing current run status of a State Tree. */
+UENUM(BlueprintType)
 enum class EStateTreeRunStatus : uint8
 {
 	/** Tree is still running. */

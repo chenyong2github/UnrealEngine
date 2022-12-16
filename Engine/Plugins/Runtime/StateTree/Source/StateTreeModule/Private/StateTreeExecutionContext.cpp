@@ -429,6 +429,26 @@ EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime)
 	return Exec->TreeRunStatus;
 }
 
+EStateTreeRunStatus FStateTreeExecutionContext::GetStateTreeRunStatus() const
+{
+	if (!IsValid())
+	{
+		STATETREE_LOG(Warning, TEXT("%s: StateTree context is not initialized properly ('%s' using StateTree '%s')"),
+			ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
+		return EStateTreeRunStatus::Failed;
+	}
+
+	if (!InstanceData.IsValid())
+	{
+		STATETREE_LOG(Error, TEXT("%s: GetStateTreeRunStatus called on %s using StateTree %s with invalid instance data. Start() must be called before GetStateTreeRunStatus()."),
+			ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
+		return EStateTreeRunStatus::Failed;
+	}
+
+	const FStateTreeExecutionState& Exec = GetExecState();
+	return Exec.TreeRunStatus;
+}
+
 void FStateTreeExecutionContext::SendEvent(const FStateTreeEvent& Event) const
 {
 	SendEvent(Event.Tag, Event.Payload, Event.Origin);
