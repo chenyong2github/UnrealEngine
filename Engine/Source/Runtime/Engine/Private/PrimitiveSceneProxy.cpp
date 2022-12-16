@@ -963,7 +963,7 @@ void FPrimitiveSceneProxy::SetCustomDepthEnabled_GameThread(const bool bInRender
 		[this, bInRenderCustomDepth](FRHICommandList& RHICmdList)
 		{
 			this->SetCustomDepthEnabled_RenderThread(bInRenderCustomDepth);
-	});
+		});
 }
 
 /**
@@ -974,7 +974,19 @@ void FPrimitiveSceneProxy::SetCustomDepthEnabled_GameThread(const bool bInRender
 void FPrimitiveSceneProxy::SetCustomDepthEnabled_RenderThread(const bool bInRenderCustomDepth)
 {
 	check(IsInRenderingThread());
-	bRenderCustomDepth = bInRenderCustomDepth;
+	if (bRenderCustomDepth != bInRenderCustomDepth)
+	{
+		bRenderCustomDepth = bInRenderCustomDepth;
+		PrimitiveSceneInfo->SetNeedsUniformBufferUpdate(true);
+		Scene->RequestGPUSceneUpdate(*PrimitiveSceneInfo, EPrimitiveDirtyState::ChangedOther);
+		
+		if (IsNaniteMesh())
+		{
+			// We have to invalidate the primitive scene info's Nanite raster bins to refresh
+			// whether or not they should render custom depth.
+			Scene->RefreshNaniteRasterBins(*PrimitiveSceneInfo);
+		}
+	}
 }
 
 /**
@@ -1001,7 +1013,12 @@ void FPrimitiveSceneProxy::SetCustomDepthStencilValue_GameThread(const int32 InC
 void FPrimitiveSceneProxy::SetCustomDepthStencilValue_RenderThread(const int32 InCustomDepthStencilValue)
 {
 	check(IsInRenderingThread());
-	CustomDepthStencilValue = InCustomDepthStencilValue;
+	if (CustomDepthStencilValue != InCustomDepthStencilValue)
+	{
+		CustomDepthStencilValue = InCustomDepthStencilValue;
+		PrimitiveSceneInfo->SetNeedsUniformBufferUpdate(true);
+		Scene->RequestGPUSceneUpdate(*PrimitiveSceneInfo, EPrimitiveDirtyState::ChangedOther);	
+	}
 }
 
 void FPrimitiveSceneProxy::SetDistanceFieldSelfShadowBias_RenderThread(float NewBias)

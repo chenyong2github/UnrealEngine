@@ -194,6 +194,7 @@ FPrimitiveSceneInfo::FPrimitiveSceneInfo(UPrimitiveComponent* InComponent, FScen
 	bRegisteredVirtualTextureProducerCallback(false),
 	bRegisteredWithVelocityData(false),
 	bCacheShadowAsStatic(InComponent->Mobility != EComponentMobility::Movable),
+	bNaniteRasterBinsRenderCustomDepth(false),
 	LevelUpdateNotificationIndex(INDEX_NONE),
 	InstanceSceneDataOffset(INDEX_NONE),
 	NumInstanceSceneDataEntries(0),
@@ -707,6 +708,11 @@ void FPrimitiveSceneInfo::RemoveCachedNaniteDrawCommands()
 		for (int32 RasterBinIndex = 0; RasterBinIndex < NanitePassRasterBins.Num(); ++RasterBinIndex)
 		{
 			const FNaniteRasterBin& RasterBin = NanitePassRasterBins[RasterBinIndex];
+			if (NaniteMeshPassIndex == ENaniteMeshPass::BasePass && bNaniteRasterBinsRenderCustomDepth)
+			{
+				// need to unregister these bins for custom pass first
+				RasterPipelines.UnregisterBinForCustomPass(RasterBin.BinIndex);
+			}
 			RasterPipelines.Unregister(RasterBin);
 		}
 
@@ -725,6 +731,7 @@ void FPrimitiveSceneInfo::RemoveCachedNaniteDrawCommands()
 		NaniteMaterialSlots[NaniteMeshPassIndex].Reset();
 	}
 
+	bNaniteRasterBinsRenderCustomDepth = false;
 #if WITH_EDITOR
 	NaniteHitProxyIds.Reset();
 #endif
@@ -1928,6 +1935,32 @@ bool FPrimitiveSceneInfo::RequestGPUSceneUpdate(EPrimitiveDirtyState PrimitiveDi
 	}
 
 	return false;
+}
+
+void FPrimitiveSceneInfo::RefreshNaniteRasterBins()
+{
+	const bool bShouldRenderCustomDepth = Proxy->ShouldRenderCustomDepth();
+	if (bShouldRenderCustomDepth == bNaniteRasterBinsRenderCustomDepth)
+	{
+		// nothing to do
+		return;
+	}
+
+	TArray<FNaniteRasterBin>& NanitePassRasterBins = NaniteRasterBins[ENaniteMeshPass::BasePass];
+	FNaniteRasterPipelines& RasterPipelines = Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass];
+	for (const FNaniteRasterBin& RasterBin : NanitePassRasterBins)
+	{
+		if (bShouldRenderCustomDepth)
+		{
+			RasterPipelines.RegisterBinForCustomPass(RasterBin.BinIndex);
+		}
+		else
+		{
+			RasterPipelines.UnregisterBinForCustomPass(RasterBin.BinIndex);
+		}
+	}
+
+	bNaniteRasterBinsRenderCustomDepth = bShouldRenderCustomDepth;
 }
 
 void FPrimitiveSceneInfo::GatherLightingAttachmentGroupPrimitives(TArray<FPrimitiveSceneInfo*, SceneRenderingAllocator>& OutChildSceneInfos)

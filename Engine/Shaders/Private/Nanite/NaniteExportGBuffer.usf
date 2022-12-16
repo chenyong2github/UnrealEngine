@@ -15,10 +15,28 @@ ByteAddressBuffer MaterialHitProxyTable;
 uint DummyZero; // TODO: Remove me
 uint StencilClear;
 uint StencilDecal;
+uint bWriteCustomStencil; // only used to repurpose EmitSceneDepthStencilPS for custom depth/stencil where possible
 
 Texture2D<UlongType> VisBuffer64;
 Texture2D<uint> MaterialResolve;
 StructuredBuffer<uint> MaterialTileRemap;
+
+// These are only used for custom depth/stencil output
+Texture2D<float> CustomDepth;
+Texture2D<uint2> CustomStencil;
+
+uint GetCustomStencilValue(FPrimitiveSceneData PrimitiveData)
+{
+	uint CustomStencilMask = (PrimitiveData.CustomStencilValueAndMask >> 8u) & 0xFFu;
+	if (CustomStencilMask == 0)
+	{
+		// "Default" mask value of 0 means depth pass = replace, depth fail = keep
+		// TODO: Proper support for ignore-depth, bitwise-or modes (requires a separate 32-bit target)
+		CustomStencilMask = 0xFFu;
+	}
+
+	return PrimitiveData.CustomStencilValueAndMask & CustomStencilMask;
+}
 
 void MarkStencilPS(
 	in float4 SvPosition	: SV_Position,
@@ -212,15 +230,16 @@ void EmitSceneDepthStencilPS
 	{
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
 		const FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster, false);
+		const FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
 		const FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
 		const uint MaterialSlot = GetMaterialShadingSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
-		const bool IsDecalReceiver = (GetPrimitiveData(InstanceData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0 && View.ShowDecalsMask > 0;
+		const bool IsDecalReceiver = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0 && View.ShowDecalsMask > 0;
 		
 #if VELOCITY_EXPORT
 		// Don't output velocity here for WPO clusters, as their velocity must be calculated in the base pass
 		const bool bWPOEnabled = (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0;
-		const bool bOutputVelocity = !bWPOEnabled && (GetPrimitiveData(InstanceData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_OUTPUT_VELOCITY) != 0;
+		const bool bOutputVelocity = !bWPOEnabled && (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_OUTPUT_VELOCITY) != 0;
 		if (bOutputVelocity)
 		{
 			FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
@@ -244,14 +263,70 @@ void EmitSceneDepthStencilPS
 		OutDepth = asfloat(DepthInt);
 		OutMaterialResolve = PackMaterialResolve(MaterialSlot, IsDecalReceiver);
 
-		OutStencil = CondMask(IsDecalReceiver, StencilDecal, StencilClear);
+		if (bWriteCustomStencil)
+		{
+			OutStencil = GetCustomStencilValue(PrimitiveData);
+		}
+		else
+		{
+			OutStencil = CondMask(IsDecalReceiver, StencilDecal, StencilClear);
 
-		//@todo - proper support
-		OutStencil |= 1 << LIGHTING_CHANNELS_TEXTURE_DISTANCE_FIELD_REPRESENTATION_BIT;
+			//@todo - proper support
+			OutStencil |= 1 << LIGHTING_CHANNELS_TEXTURE_DISTANCE_FIELD_REPRESENTATION_BIT;
+		}
 	}
 	else
 	{
 		discard;
+	}
+}
+
+void EmitCustomDepthStencilPS
+(
+	in float4	SvPosition	: SV_Position
+#if WRITE_CUSTOM_STENCIL
+	, out uint2	OutStencil	: SV_Target0
+#endif
+	, out float	OutDepth	: SV_Depth
+)
+{
+	uint2 PixelPos = (uint2)SvPosition.xy;
+	UlongType VisPixel = VisBuffer64[PixelPos];
+
+	// We'll read the custom depth/stencil values from SRV and output them to separate texture RT and depth
+	float SceneDepth = CustomDepth[PixelPos];
+	uint SceneStencil = CustomStencil[PixelPos] STENCIL_COMPONENT_SWIZZLE;
+
+#if WRITE_CUSTOM_STENCIL
+	OutStencil = (uint2)0;
+#endif
+
+	uint DepthInt = 0;
+	uint VisibleClusterIndex = 0;
+	uint TriIndex = 0;
+	UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
+	
+	const float NaniteDepth = asfloat(DepthInt);
+
+	if (VisibleClusterIndex != 0xFFFFFFFF && NaniteDepth > SceneDepth)
+	{
+		OutDepth = NaniteDepth;
+
+	#if WRITE_CUSTOM_STENCIL
+		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
+		const FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster, false);
+		const FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
+
+		OutStencil STENCIL_COMPONENT_SWIZZLE = GetCustomStencilValue(PrimitiveData);
+	#endif
+	}
+	else
+	{
+		OutDepth = SceneDepth;
+
+	#if WRITE_CUSTOM_STENCIL
+		OutStencil STENCIL_COMPONENT_SWIZZLE = SceneStencil;
+	#endif
 	}
 }
 

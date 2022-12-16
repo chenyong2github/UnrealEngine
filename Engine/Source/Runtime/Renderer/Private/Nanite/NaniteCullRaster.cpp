@@ -2729,6 +2729,12 @@ FBinningData AddPass_Rasterize(
 			auto& RasterBin = *RasterBinIter;
 			const FNaniteRasterEntry& RasterEntry = RasterBin.Value;
 
+			if (RasterContext.bCustomPass && !RasterPipelines.ShouldBinRenderInCustomPass(RasterEntry.BinIndex))
+			{
+				// Predicting that this bin will be empty if we rasterize it in the Custom Pass (i.e. Custom)
+				continue;
+			}
+
 			// Test for visibility
 			if (!VisibilityResults.IsRasterBinVisible(RasterEntry.BinIndex))
 			{
@@ -3095,7 +3101,6 @@ void AddClearVisBufferPass(
 	const FSharedContext& SharedContext,
 	const EPixelFormat PixelFormat64,
 	const FRasterContext& RasterContext,
-	const FIntPoint& TextureSize,
 	const FIntRect& TextureRect,
 	bool bClearTarget,
 	FRDGBufferSRVRef RectMinMaxBufferSRV,
@@ -3174,7 +3179,8 @@ FRasterContext InitRasterContext(
 	bool bClearTarget,
 	FRDGBufferSRVRef RectMinMaxBufferSRV,
 	uint32 NumRects,
-	FRDGTextureRef ExternalDepthBuffer
+	FRDGTextureRef ExternalDepthBuffer,
+	bool bCustomPass
 )
 {
 	// If an external depth buffer is provided, it must match the context size
@@ -3188,6 +3194,7 @@ FRasterContext InitRasterContext(
 
 	FRasterContext RasterContext{};
 
+	RasterContext.bCustomPass = bCustomPass;
 	RasterContext.VisualizeActive = VisualizationData.IsActive() && bVisualize;
 	if (RasterContext.VisualizeActive)
 	{
@@ -3258,7 +3265,6 @@ FRasterContext InitRasterContext(
 		SharedContext,
 		PixelFormat64,
 		RasterContext,
-		TextureSize,
 		TextureRect,
 		bClearTarget,
 		RectMinMaxBufferSRV,

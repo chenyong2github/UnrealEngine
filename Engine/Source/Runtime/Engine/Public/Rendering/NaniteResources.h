@@ -393,5 +393,6 @@ ENGINE_API ERayTracingMode GetRayTracingMode();
 extern ENGINE_API TGlobalResource< FVertexFactoryResource > GVertexFactoryResource;
 
 ENGINE_API bool GetSupportsRayTracingProceduralPrimitive(EShaderPlatform InShaderPlatform);
+ENGINE_API bool GetSupportsCustomDepthRendering();
 
 } // namespace Nanite

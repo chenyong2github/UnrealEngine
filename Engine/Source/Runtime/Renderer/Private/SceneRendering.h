@@ -1220,6 +1220,13 @@ struct FRayTracingCullingParameters
 
 #endif
 
+struct FPrimitiveInstanceRange
+{
+	int32 PrimitiveIndex;
+	int32 InstanceSceneDataOffset;
+	int32 NumInstances;
+};
+
 /** A FSceneView with additional state used by the scene renderer. */
 class FViewInfo : public FSceneView
 {
@@ -1305,6 +1312,9 @@ public:
 
     /** Get all stencil values written into the custom depth pass */
 	TSet<uint32, DefaultKeyFuncs<uint32>, SceneRenderingSetAllocator> CustomDepthStencilValues;
+
+	/** Get the GPU Scene instance ranges of visible Nanite primitives writing custom depth. */
+	TArray<FPrimitiveInstanceRange, SceneRenderingAllocator> NaniteCustomDepthInstances;
 
 	/** Mesh batches with for mesh decal rendering. */
 	TArray<FMeshDecalBatch, SceneRenderingAllocator> MeshDecalBatches;
@@ -2392,7 +2402,13 @@ protected:
 	/** Updates state for the end of the frame. */
 	void RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef ViewFamilyTexture);
 
-	bool RenderCustomDepthPass(FRDGBuilder& GraphBuilder, FCustomDepthTextures& CustomDepthTextures, const FSceneTextureShaderParameters& SceneTextures);
+	bool RenderCustomDepthPass(
+		FRDGBuilder& GraphBuilder,
+		FCustomDepthTextures& CustomDepthTextures,
+		const FSceneTextureShaderParameters& SceneTextures,
+		TConstArrayView<Nanite::FRasterResults> PrimaryNaniteRasterResults,
+		TConstArrayView<Nanite::FPackedView> PrimaryNaniteViews,
+		bool bNaniteProgrammableRaster);
 
 	void OnStartRender(FRHICommandListImmediate& RHICmdList);
 

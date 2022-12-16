@@ -52,6 +52,8 @@ BEGIN_SHADER_PARAMETER_STRUCT(FPostProcessMaterialParameters, )
 	SHADER_PARAMETER(FVector4f, SceneWithoutSingleLayerWaterMinMaxUV)
 	SHADER_PARAMETER(FVector2f, SceneWithoutSingleLayerWaterTextureSize)
 	SHADER_PARAMETER(FVector2f, SceneWithoutSingleLayerWaterInvTextureSize)
+	SHADER_PARAMETER(uint32, ManualStencilReferenceValue)
+	SHADER_PARAMETER(uint32, ManualStencilTestMask)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
@@ -102,7 +104,10 @@ struct FPostProcessMaterialInputs
 	/** The output texture format to use if a new texture is created. Uses the input format if left unknown. */
 	EPixelFormat OutputFormat = PF_Unknown;
 
-	/** Custom stencil texture used for stencil operations. */
+	/** Whether or not the stencil test must be done in the pixel shader rather than rasterizer state. */
+	bool bManualStencilTest;
+
+	/** Custom depth/stencil used for stencil operations. */
 	FRDGTextureRef CustomDepthTexture = nullptr;
 
 	/** The uniform buffer containing all scene textures. */

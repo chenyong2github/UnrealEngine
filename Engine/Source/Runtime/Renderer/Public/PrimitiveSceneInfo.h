@@ -496,6 +496,9 @@ public:
 		RequestGPUSceneUpdate(PrimitiveDirtyState);
 	}
 
+	/** Refreshes a primitive's references to raster bins. To be called after changes that might have invalidated them. */
+	RENDERER_API void RefreshNaniteRasterBins();
+
 	/** 
 	 * Builds an array of all primitive scene info's in this primitive's attachment group. 
 	 * This only works on potential parents (!LightingAttachmentRoot.IsValid()) and will include the current primitive in the output array.
@@ -661,6 +664,9 @@ private:
 
 	/** True if the primitive should be treated as static for the purpose of caching shadows */
 	bool bCacheShadowAsStatic : 1;
+
+	/** True if the Nanite raster bins were registered with custom depth enabled */
+	bool bNaniteRasterBinsRenderCustomDepth : 1;
 
 	/** Index into the scene's PrimitivesNeedingLevelUpdateNotification array for this primitive scene info level. */
 	int32 LevelUpdateNotificationIndex;
