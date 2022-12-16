@@ -94,6 +94,8 @@ class WORLDCONDITIONS_API UWorldConditionQuerySharedDefinition : public UObject
 public:
 	GENERATED_BODY()
 
+	virtual void PostLoad() override;
+	
 	/** All the conditions of the world conditions. */
 	UPROPERTY()
 	FInstancedStructContainer Conditions;
