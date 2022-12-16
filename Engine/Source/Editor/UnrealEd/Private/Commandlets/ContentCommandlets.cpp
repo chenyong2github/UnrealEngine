@@ -1780,22 +1780,24 @@ void UResavePackagesCommandlet::CheckInFiles(const TArray<FString>& InFilesToSub
 
 bool UResavePackagesCommandlet::TryVirtualization(const TArray<FString>& FilesToSubmit, FText& InOutDescription)
 {
-	TArray<FText> PayloadErrors;
-	TArray<FText> DescriptionTags;
+	using namespace UE::Virtualization;
 
-	UE::Virtualization::IVirtualizationSystem& System = UE::Virtualization::IVirtualizationSystem::Get();
+	IVirtualizationSystem& System = IVirtualizationSystem::Get();
 	if (!System.IsEnabled())
 	{
 		return true;
 	}
 
-	UE::Virtualization::EVirtualizationResult Result = System.TryVirtualizePackages(FilesToSubmit, DescriptionTags, PayloadErrors);
-	if (Result == UE::Virtualization::EVirtualizationResult::Success)
+	FVirtualizationResult VirtualizationResults;
+	EVirtualizationOptions VirtualizationOptions = EVirtualizationOptions::None;
+
+	EVirtualizationResult Result = System.TryVirtualizePackages(FilesToSubmit, VirtualizationOptions, VirtualizationResults);
+	if (Result == EVirtualizationResult::Success)
 	{
 		FTextBuilder NewDescription;
 		NewDescription.AppendLine(InOutDescription);
 
-		for (const FText& Line : DescriptionTags)
+		for (const FText& Line : VirtualizationResults.DescriptionTags)
 		{
 			NewDescription.AppendLine(Line);
 		}
@@ -1806,7 +1808,7 @@ bool UResavePackagesCommandlet::TryVirtualization(const TArray<FString>& FilesTo
 	}
 	else if (System.AllowSubmitIfVirtualizationFailed())
 	{
-		for (const FText& Error : PayloadErrors)
+		for (const FText& Error : VirtualizationResults.Errors)
 		{
 			UE_LOG(LogContentCommandlet, Warning, TEXT("%s"), *Error.ToString());
 		}
@@ -1816,7 +1818,7 @@ bool UResavePackagesCommandlet::TryVirtualization(const TArray<FString>& FilesTo
 	}
 	else
 	{
-		for (const FText& Error : PayloadErrors)
+		for (const FText& Error : VirtualizationResults.Errors)
 		{
 			UE_LOG(LogContentCommandlet, Error, TEXT("%s"), *Error.ToString());
 		}

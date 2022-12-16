@@ -38,27 +38,33 @@ static FText GSavedChangeListDescription;
 
 bool TryToVirtualizeFilesToSubmit(const TArray<FString>& FilesToSubmit, FText& Description, FText& OutFailureMsg)
 {
-	// TODO: Once this is removed and not deprecated move the following arrays inside of the System.IsEnabled() scope
-	TArray<FText> PayloadErrors;
-	TArray<FText> DescriptionTags;
+	using namespace UE::Virtualization;
+
+	{
+		TArray<FText> PayloadErrors;
+		TArray<FText> DescriptionTags;
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	ISourceControlModule::Get().GetOnPreSubmitFinalize().Broadcast(FilesToSubmit, DescriptionTags, PayloadErrors);
+		ISourceControlModule::Get().GetOnPreSubmitFinalize().Broadcast(FilesToSubmit, DescriptionTags, PayloadErrors);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
-	UE::Virtualization::IVirtualizationSystem& System = UE::Virtualization::IVirtualizationSystem::Get();
+	IVirtualizationSystem& System = IVirtualizationSystem::Get();
 	if (!System.IsEnabled())
 	{
 		return true;
 	}
 
-	UE::Virtualization::EVirtualizationResult Result = System.TryVirtualizePackages(FilesToSubmit, DescriptionTags, PayloadErrors);
-	if (Result == UE::Virtualization::EVirtualizationResult::Success)
+	FVirtualizationResult VirtualizationResults;
+	EVirtualizationOptions VirtualizationOptions = EVirtualizationOptions::None;
+
+	EVirtualizationResult Result = System.TryVirtualizePackages(FilesToSubmit, VirtualizationOptions, VirtualizationResults);
+	if (Result == EVirtualizationResult::Success)
 	{
 		FTextBuilder NewDescription;
 		NewDescription.AppendLine(Description);
 
-		for (const FText& Line : DescriptionTags)
+		for (const FText& Line : VirtualizationResults.DescriptionTags)
 		{
 			NewDescription.AppendLine(Line);
 		}
@@ -69,7 +75,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	else if (System.AllowSubmitIfVirtualizationFailed())
 	{
-		for (const FText& Error : PayloadErrors)
+		for (const FText& Error : VirtualizationResults.Errors)
 		{
 			FMessageLog("SourceControl").Warning(Error);
 		}
@@ -79,7 +85,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	else
 	{
-		for (const FText& Error : PayloadErrors)
+		for (const FText& Error : VirtualizationResults.Errors)
 		{
 			FMessageLog("SourceControl").Error(Error);
 		}

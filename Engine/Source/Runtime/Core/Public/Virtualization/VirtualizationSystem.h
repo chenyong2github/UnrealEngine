@@ -443,6 +443,62 @@ private:
 	EStatus Status = EStatus::Pending;
 };
 
+/** Contains the results of the package virtualization process */
+struct FVirtualizationResult
+{
+	/** A list of errors encountered during the process */
+	TArray<FText> Errors;
+
+	/** A list of tags associated with the group of packages that were virtualized */
+	TArray<FText> DescriptionTags;
+
+	/** A list of packages that were actually virtualized and had locally stored payloads removed */
+	TArray<FString> VirtualizedPackages;
+	/** A list of packages that were checked out of revision control during the process */
+	TArray<FString> CheckedOutPackages;
+
+	/** The length of time that the process took in seconds */
+	double TimeTaken = 0.0;
+
+	/** Returns members to the default state */
+	void Reset()
+	{
+		Errors.Reset();
+		DescriptionTags.Reset();
+		VirtualizedPackages.Reset();
+		CheckedOutPackages.Reset();
+	}
+
+	/** Add an error message to the result */
+	void AddError(const FText& ErrorMsg)
+	{
+		Errors.Add(ErrorMsg);
+	}
+
+	/** Add an error message to the result */
+	void AddError(FText&& ErrorMsg)
+	{
+		Errors.Add(MoveTemp(ErrorMsg));
+	}
+
+	/** Returns how many errors the process has currently encountered */
+	int32 GetNumErrors() const
+	{
+		return Errors.Num();
+	}
+
+};
+
+/** Options used when virtualizing packages */
+enum class EVirtualizationOptions : uint32
+{
+	None = 0,
+	/** Attempt to check out files from revision control if needed */
+	Checkout = 1 << 0
+};
+
+ENUM_CLASS_FLAGS(EVirtualizationOptions);
+
 /** 
  * The set of parameters to be used when initializing the virtualization system. The 
  * members must remain valid for the duration of the call to ::Initialize. It is not
@@ -691,25 +747,32 @@ public:
 		return QueryPayloadStatuses(Ids, StorageType, OutStatuses) != EQueryResult::Success;
 	}
 
+	UE_DEPRECATED(5.2, "Use The other overload that takes a EVirtualizationOptions parameter")
+	virtual EVirtualizationResult TryVirtualizePackages(TConstArrayView<FString> PackagePaths, TArray<FText>& OutDescriptionTags, TArray<FText>& OutErrors)
+	{
+		FVirtualizationResult Info;
+		EVirtualizationResult Result = TryVirtualizePackages(PackagePaths, EVirtualizationOptions::None, Info);
+
+		OutDescriptionTags = MoveTemp(Info.DescriptionTags);
+		OutErrors = MoveTemp(Info.Errors);
+
+		return Result;
+	}
+	
 	/**
 	 * Runs the virtualization process on a set of packages. All of the packages will be parsed and any found to be containing locally stored
 	 * payloads will have them removed but before they are removed they will be pushed to persistent storage.
-	 * 
-	 * @param PackagePaths			An array of file paths to packages that should be virtualized. If a path resolves to a file that is not 
+	 *
+	 * @param PackagePaths			An array of file paths to packages that should be virtualized. If a path resolves to a file that is not
 	 *								a valid package then it will be silently skipped and will not be considered an error.
-	 * @param OutDescriptionTags	The process may produce description tags associated with the packages which will be placed in this array.
-	 *								These tags can be used to improve logging, or be appended to change list descriptions etc. Note that the 
-	 *								array will be emptied before the process.
-	 *								is run and will not contain any pre-existing entries.
-	 * @param OutErrors				Any error encountered during the process will be added here. If any error is added to the array then it
-	 *								can be assumed that the process will return false. Note that the array will be emptied before the process
-	 *								is run and will not contain any pre-existing entries.
-	 * 
+	 * @param Options				An enum bitfield containing various options for the process. @see EVirtualizationOptions
+	 * @param OutResultInfo			A struct that will contain info about the process. @see FVirtualizationResult
+	 *
 	 * @return						A EVirtualizationResult enum with the status of the process. If the status is not EVirtualizationResult::Success
 	 *								then the parameter OutErrors should contain at least one entry.
 	 */
-	virtual EVirtualizationResult TryVirtualizePackages(TConstArrayView<FString> PackagePaths, TArray<FText>& OutDescriptionTags, TArray<FText>& OutErrors) = 0;
-	
+	virtual EVirtualizationResult TryVirtualizePackages(TConstArrayView<FString> PackagePaths, EVirtualizationOptions Options, FVirtualizationResult& OutResultInfo) = 0;
+
 	/**
 	 * Runs the rehydration process on a set of packages. This involves downloading virtualized payloads and placing them back in the trailer of
 	 * the given packages.
@@ -735,7 +798,7 @@ public:
 	 * @param OutErrors			Any errors encountered while rehydration will be added here
 	 * @param OutPackages		The rehydrated packages as memory buffers. Each entry should match the corresponding entry in PackagePaths. This array is
 	 *							only guaranteed to be correct if the method returns ERehydrationResult::Success.
-	 * @param OutInfo			Information about thge rehydration process, each entry should match the corresponding entry in PackagePaths assuming that
+	 * @param OutInfo			Information about the rehydration process, each entry should match the corresponding entry in PackagePaths assuming that
 	 *							the method returns ERehydrationResult::Success. This parameter is optional, if the information is not required then
 	 *							pass in nullptr to skip.
 	 * @return					ERehydrationResult::Success if the rehydration suceeeds and OutPackages/OutInfocan be trued, otherwise it will return an

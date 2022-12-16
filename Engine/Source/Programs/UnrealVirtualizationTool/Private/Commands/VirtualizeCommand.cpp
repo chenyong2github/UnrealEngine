@@ -79,6 +79,10 @@ bool FVirtualizeCommand::Initialize(const TCHAR* CmdLine)
 		{
 			bShouldSubmitChangelist = true;
 		}
+		else if (Switch == TEXT("Checkout"))
+		{
+			bShouldCheckout = true;
+		}
 	}
 
 	// Process the provided changelist if one was found
@@ -156,13 +160,19 @@ bool FVirtualizeCommand::Run(const TArray<FProject>& Projects)
 
 		TArray<FString> ProjectPackages = Project.GetAllPackages();
 
-		TArray<FText> Errors;
-		UE::Virtualization::IVirtualizationSystem::Get().TryVirtualizePackages(ProjectPackages, DescriptionTags, Errors);
+		EVirtualizationOptions Options = EVirtualizationOptions::None;
+		if(bShouldCheckout)
+		{
+			Options |= EVirtualizationOptions::Checkout;
+		}
 
-		if (!Errors.IsEmpty())
+		FVirtualizationResult ResultInfo;
+		UE::Virtualization::IVirtualizationSystem::Get().TryVirtualizePackages(ProjectPackages, Options, ResultInfo);
+
+		if (!ResultInfo.Errors.IsEmpty())
 		{
 			UE_LOG(LogVirtualizationTool, Error, TEXT("The virtualization process failed with the following errors:"));
-			for (const FText& Error : Errors)
+			for (const FText& Error : ResultInfo.Errors)
 			{
 				UE_LOG(LogVirtualizationTool, Error, TEXT("\t%s"), *Error.ToString());
 			}

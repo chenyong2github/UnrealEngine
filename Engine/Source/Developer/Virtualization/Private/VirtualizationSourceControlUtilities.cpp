@@ -10,6 +10,8 @@
 #include "Misc/PackageSegment.h"
 #include "SourceControlOperations.h"
 
+#define LOCTEXT_NAMESPACE "Virtualization"
+
 // When enabled we push the source control work to the main thread via the task graph system.
 // Note that when enabled this can potentially cause thread locks so is no a production ready 
 // fix. Realistically we need to fix the SourceControl API to accept requests from any thread 
@@ -147,3 +149,67 @@ bool FVirtualizationSourceControlUtilities::SyncPayloadSidecarFileInternal(const
 }
 
 } // namespace UE::Virtualization::Experimental
+
+namespace UE::Virtualization
+{
+
+bool TryCheckoutFiles(const TArray<FString>& FilesToCheckState, TArray<FText>& OutErrors, TArray<FString>* OutFilesCheckedOut)
+{
+	TArray<FSourceControlStateRef> PathStates;
+	PathStates.Reserve(FilesToCheckState.Num());
+
+	ISourceControlProvider& SCCProvider = ISourceControlModule::Get().GetProvider();
+
+	if (!SCCProvider.IsEnabled())
+	{
+		FText Message = LOCTEXT("VA_RevDisabled", "Cannot check out packages as revision control is disabled");
+		OutErrors.Add(MoveTemp(Message));
+
+		return false;
+	}
+
+	ECommandResult::Type UpdateResult = SCCProvider.GetState(FilesToCheckState, PathStates, EStateCacheUsage::ForceUpdate);
+	if (UpdateResult != ECommandResult::Type::Succeeded)
+	{
+		FText Message = LOCTEXT("VA_FileState", "Failed to find the state of package files in revision control when trying to check them out");
+		OutErrors.Add(MoveTemp(Message));
+
+		return false;
+	}
+
+	TArray<FString> FilesToCheckout;
+	FilesToCheckout.Reserve(PathStates.Num());
+
+	for (const FSourceControlStateRef& State : PathStates)
+	{
+		if (State->IsSourceControlled() && !State->CanEdit() && State->CanCheckout())
+		{
+			FilesToCheckout.Add(State->GetFilename());
+		}
+	}
+
+	if (!FilesToCheckout.IsEmpty())
+	{
+		ECommandResult::Type CheckoutResult = SCCProvider.Execute(ISourceControlOperation::Create<FCheckOut>(), FilesToCheckout);
+		if (CheckoutResult == ECommandResult::Type::Succeeded)
+		{
+			if (OutFilesCheckedOut != nullptr)
+			{
+				*OutFilesCheckedOut = MoveTemp(FilesToCheckout);
+			}	
+		}
+		else
+		{
+			FText Message = LOCTEXT("VA_Checkout", "Failed to checkout packages from revision control");
+			OutErrors.Add(MoveTemp(Message));
+
+			return false;
+		}
+	}
+
+	return true;
+}
+
+} //namespace UE::Virtualization
+
+#undef LOCTEXT_NAMESPACE

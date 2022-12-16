@@ -19,6 +19,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "Virtualization/VirtualizationSystem.h"
 #include "VirtualizationManager.h"
+#include "VirtualizationSourceControlUtilities.h"
 
 #define LOCTEXT_NAMESPACE "Virtualization"
 
@@ -154,7 +155,7 @@ private:
 	TMap<FIoHash, FPayloadData> PayloadLookupTable;
 };
 
-void VirtualizePackages(TConstArrayView<FString> PackagePaths, TArray<FText>& OutErrors)
+void VirtualizePackages(TConstArrayView<FString> PackagePaths, EVirtualizationOptions Options, FVirtualizationResult& OutResultInfo)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UE::Virtualization::VirtualizePackages);
 
@@ -168,7 +169,7 @@ void VirtualizePackages(TConstArrayView<FString> PackagePaths, TArray<FText>& Ou
 	Progress.MakeDialog();
 
 	// Other systems may have added errors to this array, we need to check so later we can determine if this function added any additional errors.
-	const int32 NumErrors = OutErrors.Num();
+	const int32 NumErrors = OutResultInfo.GetNumErrors();
 
 	struct FPackageInfo
 	{
@@ -215,7 +216,7 @@ void VirtualizePackages(TConstArrayView<FString> PackagePaths, TArray<FText>& Ou
 				{
 					FText Message = FText::Format(LOCTEXT("Virtualization_PkgHasReferences", "Cannot virtualize the package '{1}' as it has referenced payloads in the trailer"),
 						FText::FromString(PackagePath.GetDebugName()));
-					OutErrors.Add(Message);
+					OutResultInfo.AddError(MoveTemp(Message));
 					return;
 				}
 
@@ -300,7 +301,7 @@ void VirtualizePackages(TConstArrayView<FString> PackagePaths, TArray<FText>& Ou
 		if (!System.PushData(PayloadsToSubmit, EStorageType::Persistent))
 		{
 			FText Message = LOCTEXT("Virtualization_PushFailure", "Failed to push payloads");
-			OutErrors.Add(Message);
+			OutResultInfo.AddError(MoveTemp(Message));
 			return;
 		}
 
@@ -331,7 +332,7 @@ void VirtualizePackages(TConstArrayView<FString> PackagePaths, TArray<FText>& Ou
 					FText Message = FText::Format(	LOCTEXT("Virtualization_UpdateStatusFailed", "Unable to update the status for the payload '{0}' in the package '{1}'"),
 													FText::FromString(LexToString(Request.GetIdentifier())),
 													FText::FromString(PackageInfo.Path.GetDebugName()));
-					OutErrors.Add(Message);
+					OutResultInfo.AddError(MoveTemp(Message));
 					return;
 				}
 			}
@@ -352,7 +353,7 @@ void VirtualizePackages(TConstArrayView<FString> PackagePaths, TArray<FText>& Ou
 
 		const FPackagePath& PackagePath = PackageInfo.Path; // No need to validate path, we checked this earlier
 
-		FString NewPackagePath = DuplicatePackageWithUpdatedTrailer(PackagePath.GetLocalFullPath(), PackageInfo.Trailer, OutErrors);
+		FString NewPackagePath = DuplicatePackageWithUpdatedTrailer(PackagePath.GetLocalFullPath(), PackageInfo.Trailer, OutResultInfo.Errors);
 
 		if (!NewPackagePath.IsEmpty())
 		{
@@ -369,22 +370,44 @@ void VirtualizePackages(TConstArrayView<FString> PackagePaths, TArray<FText>& Ou
 
 	UE_LOG(LogVirtualization, Display, TEXT("%d package(s) had their trailer container modified and need to be updated"), PackagesToReplace.Num());
 
-	if (NumErrors == OutErrors.Num())
+	if (NumErrors == OutResultInfo.GetNumErrors())
 	{
 		// TODO: Consider using the SavePackage model (move the original, then replace, so we can restore all of the original packages if needed)
 		// having said that, once a package is in PackagesToReplace it should still be safe to submit so maybe we don't need this level of protection?
 
+		
 		// We need to reset the loader of any package that we want to re-save over
-		for (int32 Index = 0; Index < PackagesToReplace.Num(); ++Index)
+		for (const TPair<FPackagePath, FString>& Pair : PackagesToReplace)
 		{
-			const TPair<FPackagePath, FString>& Pair = PackagesToReplace[Index];
-
 			UPackage* Package = FindObjectFast<UPackage>(nullptr, Pair.Key.GetPackageFName());
 			if (Package != nullptr)
 			{
 				UE_LOG(LogVirtualization, Verbose, TEXT("Detaching '%s' from disk so that it can be virtualized"), *Pair.Key.GetDebugName());
 				ResetLoadersForSave(Package, *Pair.Key.GetLocalFullPath());
 			}
+		}
+
+		// Should we try to check out packages from revision control?
+		if (EnumHasAnyFlags(Options, EVirtualizationOptions::Checkout))
+		{
+			TArray<FString> FilesToCheckState;
+			FilesToCheckState.Reserve(PackagesToReplace.Num());
+
+			for (const TPair<FPackagePath, FString>& Pair : PackagesToReplace)
+			{
+				FilesToCheckState.Add(Pair.Key.GetLocalFullPath());
+			}
+
+			if (!TryCheckoutFiles(FilesToCheckState, OutResultInfo.Errors, &OutResultInfo.CheckedOutPackages))
+			{
+				return;
+			}
+		}
+
+		// Now check to see if there are package files that cannot be edited because they are read only
+		for (int32 Index = 0; Index < PackagesToReplace.Num(); ++Index)
+		{
+			const TPair<FPackagePath, FString>& Pair = PackagesToReplace[Index];
 
 			if (!CanWriteToFile(Pair.Key.GetLocalFullPath()))
 			{
@@ -408,18 +431,22 @@ void VirtualizePackages(TConstArrayView<FString> PackagePaths, TArray<FText>& Ou
 			const FString OriginalPackagePath = Iterator.Key.GetLocalFullPath();
 			const FString& NewPackagePath = Iterator.Value;
 
-			if (!IFileManager::Get().Move(*OriginalPackagePath, *NewPackagePath))
+			if (IFileManager::Get().Move(*OriginalPackagePath, *NewPackagePath))
+			{
+				OutResultInfo.VirtualizedPackages.Add(OriginalPackagePath);
+			}
+			else
 			{
 				FText Message = FText::Format(	LOCTEXT("Virtualization_MoveFailed", "Unable to replace the package '{0}' with the virtualized version"),
 												FText::FromString(Iterator.Key.GetDebugName()));
-				OutErrors.Add(Message);
+				OutResultInfo.AddError(MoveTemp(Message));
 				continue;
 			}
 		}
 	}
 
-	const double TimeInSeconds = FPlatformTime::Seconds() - StartTime;
-	UE_LOG(LogVirtualization, Verbose, TEXT("Virtualization pre submit check took %.3f(s)"), TimeInSeconds);
+	OutResultInfo.TimeTaken = FPlatformTime::Seconds() - StartTime;
+	UE_LOG(LogVirtualization, Verbose, TEXT("Virtualization pre submit check took %.3f(s)"), OutResultInfo.TimeTaken);
 }
 
 } // namespace UE::Virtualization

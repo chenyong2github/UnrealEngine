@@ -37,6 +37,7 @@ protected:
 	FString SourceChangelistNumber;
 
 	bool bShouldSubmitChangelist = false;
+	bool bShouldCheckout = false;
 };
 
 /** Used to convert the legacy command line -Mode=Changelist to the new style of command */

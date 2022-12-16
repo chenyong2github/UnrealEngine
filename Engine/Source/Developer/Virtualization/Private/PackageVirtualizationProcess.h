@@ -9,6 +9,9 @@
 namespace UE::Virtualization
 {
 
-void VirtualizePackages(TConstArrayView<FString> PackagePaths, TArray<FText>& OutErrors);
+enum class EVirtualizationOptions : uint32;
+struct FVirtualizationResult;
+
+void VirtualizePackages(TConstArrayView<FString> PackagePaths, EVirtualizationOptions Options, FVirtualizationResult& OutResultInfo);
 
 } // namespace UE::Virtualization
