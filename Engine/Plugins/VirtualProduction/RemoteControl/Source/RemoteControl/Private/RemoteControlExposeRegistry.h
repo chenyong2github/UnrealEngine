@@ -197,6 +197,8 @@ public:
 
 	virtual void PostLoad() override;
 
+	virtual void PostDuplicate(bool bDuplicateForPIE) override;
+
 private:
 	/** Get a raw pointer to an entity using its id. */
 	TSharedPtr<FRemoteControlEntity> GetEntity(const FGuid& EntityId);

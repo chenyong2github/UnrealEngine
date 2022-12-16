@@ -101,6 +101,7 @@ URCVirtualPropertyInContainer* URCVirtualPropertyContainerBase::DuplicateVirtual
 	if (URCVirtualPropertyInContainer* NewVirtualProperty = DuplicateObject<URCVirtualPropertyInContainer>(InVirtualProperty, InVirtualProperty->GetOuter()))
 	{
 		NewVirtualProperty->PropertyName = GenerateUniquePropertyName(InVirtualProperty->PropertyName, this);
+		NewVirtualProperty->Id = FGuid::NewGuid();
 
 		// Sync Property Bag
 		Bag.AddProperty(NewVirtualProperty->PropertyName, InVirtualProperty->GetProperty());

@@ -162,6 +162,12 @@ void URemoteControlExposeRegistry::PostLoad()
 	CacheLabels();
 }
 
+void URemoteControlExposeRegistry::PostDuplicate(bool bDuplicateForPIE)
+{
+	UObject::PostDuplicate(bDuplicateForPIE);
+	CacheLabels();
+}
+
 TSharedPtr<FRemoteControlEntity> URemoteControlExposeRegistry::GetEntity(const FGuid& EntityId)
 {
 	/** Get a raw pointer to an entity using its id. */

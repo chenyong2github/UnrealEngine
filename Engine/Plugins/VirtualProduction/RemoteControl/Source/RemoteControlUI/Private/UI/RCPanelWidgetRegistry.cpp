@@ -181,7 +181,11 @@ void FRCPanelWidgetRegistry::Refresh(UObject* InObject)
 {
 	if (TSharedPtr<IPropertyRowGenerator>* Generator = ObjectToRowGenerator.Find({InObject}))
 	{
-		(*Generator)->SetObjects({InObject});
+		const TArray<TWeakObjectPtr<UObject>>& SelectedObjects = (*Generator)->GetSelectedObjects();
+		if (SelectedObjects.Num() != 1 || SelectedObjects[0] != InObject)
+		{
+			(*Generator)->SetObjects({InObject});
+		}
 	}
 	else if (IsNDisplayObject(InObject))
 	{
