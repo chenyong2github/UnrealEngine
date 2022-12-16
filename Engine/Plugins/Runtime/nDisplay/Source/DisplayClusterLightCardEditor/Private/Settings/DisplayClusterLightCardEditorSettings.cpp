@@ -39,6 +39,11 @@ FText FDisplayClusterLightCardEditorRecentItem::GetItemDisplayName() const
 	}
 	if (const UObject* Object = ObjectPath.LoadSynchronous())
 	{
+		if (const UClass* Class = Cast<UClass>(Object))
+		{
+			return Class->GetDisplayNameText();
+		}
+		
 		FString ObjectName = Object->GetName();
 		ObjectName.RemoveFromEnd(TEXT("_C"));
 		return FText::FromString(MoveTemp(ObjectName));
@@ -49,6 +54,17 @@ FText FDisplayClusterLightCardEditorRecentItem::GetItemDisplayName() const
 
 const FSlateBrush* FDisplayClusterLightCardEditorRecentItem::GetSlateBrush() const
 {
+	if (ItemType == Type_Dynamic)
+	{
+		if (const UObject* Object = ObjectPath.LoadSynchronous())
+		{
+			if (const UClass* Class = Cast<UClass>(Object))
+			{
+				return FSlateIconFinder::FindIconBrushForClass(Class);
+			}
+		}
+	}
+
 	if (ItemType == Type_LightCard || ItemType == Type_Flag || ItemType == Type_Dynamic)
 	{
 		return FSlateIconFinder::FindIconBrushForClass(ADisplayClusterLightCardActor::StaticClass());

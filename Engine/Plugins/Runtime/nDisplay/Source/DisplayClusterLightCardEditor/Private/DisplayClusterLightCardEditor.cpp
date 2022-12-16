@@ -2,6 +2,7 @@
 
 #include "DisplayClusterLightCardEditor.h"
 
+#include "DisplayClusterChromakeyCardActor.h"
 #include "DisplayClusterLightCardEditorCommands.h"
 #include "DisplayClusterLightCardEditorUtils.h"
 #include "DisplayClusterLightCardEditorStyle.h"
@@ -24,6 +25,7 @@
 #include "DisplayClusterRootActor.h"
 #include "Blueprints/DisplayClusterBlueprintLib.h"
 #include "Components/DisplayClusterCameraComponent.h"
+#include "Components/DisplayClusterICVFXCameraComponent.h"
 
 #include "ContentBrowserModule.h"
 #include "FileHelpers.h"
@@ -133,6 +135,13 @@ TArray<AActor*> FDisplayClusterLightCardEditor::FindAllManagedActors() const
 		TSet<ADisplayClusterLightCardActor*> RootActorLightCardActors;
 		UDisplayClusterBlueprintLib::FindLightCardsForRootActor(ActiveRootActor.Get(), RootActorLightCardActors);
 
+		// Find chromakey cards
+		{
+			TSet<ADisplayClusterChromakeyCardActor*> ChromakeyCardActors;
+			UDisplayClusterBlueprintLib::FindChromakeyCardsForRootActor(ActiveRootActor.Get(), ChromakeyCardActors);
+			RootActorLightCardActors.Append(reinterpret_cast<TSet<ADisplayClusterLightCardActor*>&>(ChromakeyCardActors));
+		}
+		
 		for (TObjectPtr<ADisplayClusterLightCardActor> LightCardActor : RootActorLightCardActors)
 		{
 			ManagedActors.Add(LightCardActor);
@@ -210,8 +219,12 @@ AActor* FDisplayClusterLightCardEditor::SpawnActor(TSubclassOf<AActor> InActorCl
 	
 	FDisplayClusterLightCardEditorHelper::FSpawnActorArgs SpawnArgs;
 	{
+		const UClass* ClassToUse = InTemplate ? InTemplate->GetClass() : InActorClass.Get();
+		FString ActorNameStr = InActorName.IsNone() ? ClassToUse->GetDisplayNameText().ToString() : InActorName.ToString();
+		ActorNameStr.RemoveSpacesInline();
+		
 		SpawnArgs.ActorClass = InActorClass;
-		SpawnArgs.ActorName = InActorName;
+		SpawnArgs.ActorName = *ActorNameStr;
 		SpawnArgs.RootActor = ActiveRootActor.Get();
 		SpawnArgs.Template = InTemplate;
 		SpawnArgs.Level = InLevel;

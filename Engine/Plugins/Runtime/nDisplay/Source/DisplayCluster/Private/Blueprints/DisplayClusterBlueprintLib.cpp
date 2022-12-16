@@ -4,9 +4,11 @@
 #include "Blueprints/DisplayClusterBlueprintAPIImpl.h"
 #include "UObject/Package.h"
 
+#include "DisplayClusterChromakeyCardActor.h"
 #include "DisplayClusterLightCardActor.h"
 #include "DisplayClusterRootActor.h"
 #include "DisplayClusterConfigurationTypes.h"
+#include "Components/DisplayClusterICVFXCameraComponent.h"
 
 #if WITH_EDITOR
 #include "ScopedTransaction.h"
@@ -139,7 +141,7 @@ void UDisplayClusterBlueprintLib::DuplicateLightCards(TArray<ADisplayClusterLigh
 	}
 }
 
-void UDisplayClusterBlueprintLib::FindLightCardsForRootActor(ADisplayClusterRootActor* RootActor, TSet<ADisplayClusterLightCardActor*>& OutLightCards)
+void UDisplayClusterBlueprintLib::FindLightCardsForRootActor(const ADisplayClusterRootActor* RootActor, TSet<ADisplayClusterLightCardActor*>& OutLightCards)
 {
 	if (!RootActor)
 	{
@@ -181,6 +183,61 @@ void UDisplayClusterBlueprintLib::FindLightCardsForRootActor(ADisplayClusterRoot
 				{
 					OutLightCards.Add(*ActorIt);
 					break;
+				}
+			}
+		}
+	}
+}
+
+void UDisplayClusterBlueprintLib::FindChromakeyCardsForRootActor(const ADisplayClusterRootActor* RootActor,
+                                                                 TSet<ADisplayClusterChromakeyCardActor*>& OutChromakeyCards)
+{
+	if (!RootActor)
+	{
+		return;
+	}
+
+	TArray<UDisplayClusterICVFXCameraComponent*> CameraComponents;
+	RootActor->GetComponents(CameraComponents);
+
+	for (const UDisplayClusterICVFXCameraComponent* Camera : CameraComponents)
+	{
+		const FDisplayClusterConfigurationICVFX_VisibilityList& RootActorChromakeyCards = Camera->GetCameraSettingsICVFX().Chromakey.ChromakeyRenderTexture.ShowOnlyList;
+
+		for (const TSoftObjectPtr<AActor>& ChromakeyCardActor : RootActorChromakeyCards.Actors)
+		{
+			if (!ChromakeyCardActor.IsValid() || !ChromakeyCardActor->IsA<ADisplayClusterChromakeyCardActor>())
+			{
+				continue;
+			}
+
+			OutChromakeyCards.Add(Cast<ADisplayClusterChromakeyCardActor>(ChromakeyCardActor.Get()));
+		}
+
+		// If there are any layers that are specified as light card layers, iterate over all actors in the world and 
+		// add any that are members of any of the light card layers to the list. Only add an actor once, even if it is
+		// in multiple layers
+		if (RootActorChromakeyCards.ActorLayers.IsEmpty())
+		{
+			continue;
+		}
+
+		if (const UWorld* World = RootActor->GetWorld())
+		{
+			for (TActorIterator<ADisplayClusterChromakeyCardActor> ActorIt(World); ActorIt; ++ActorIt)
+			{
+				if (!IsValid(*ActorIt))
+				{
+					continue;
+				}
+
+				for (const FActorLayer& ActorLayer : RootActorChromakeyCards.ActorLayers)
+				{
+					if (ActorIt->Layers.Contains(ActorLayer.Name))
+					{
+						OutChromakeyCards.Add(*ActorIt);
+						break;
+					}
 				}
 			}
 		}

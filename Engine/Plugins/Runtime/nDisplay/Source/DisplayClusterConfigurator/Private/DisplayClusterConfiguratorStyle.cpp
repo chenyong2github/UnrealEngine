@@ -79,6 +79,9 @@ void FDisplayClusterConfiguratorStyle::Initialize()
 
 		Set("ClassIcon.DisplayClusterLightCardActor.Flag", new IMAGE_BRUSH_SVG("Icons/LightCard/LightCardFlag", Icon16x16));
 		Set("ClassThumbnail.DisplayClusterLightCardActor.Flag", new IMAGE_BRUSH_SVG("Icons/UVLightCard/LightCardFlag", Icon64x64));
+
+		Set("ClassIcon.DisplayClusterChromakeyCardActor", new IMAGE_BRUSH_SVG("Icons/LightCard/LightCardChromakey", Icon16x16));
+		Set("ClassThumbnail.DisplayClusterChromakeyCardActor", new IMAGE_BRUSH_SVG("Icons/UVLightCard/LightCardChromakey", Icon64x64));
 	}
 
 	// Config Editor Tabs

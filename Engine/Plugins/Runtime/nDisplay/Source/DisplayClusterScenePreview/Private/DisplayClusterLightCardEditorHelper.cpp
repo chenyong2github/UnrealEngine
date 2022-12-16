@@ -7,6 +7,7 @@
 
 #include "DisplayClusterConfigurationTypes.h"
 
+#include "DisplayClusterChromakeyCardActor.h"
 #include "DisplayClusterLightCardActor.h"
 #include "DisplayClusterRootActor.h"
 #include "Components/DisplayClusterCameraComponent.h"
@@ -868,7 +869,12 @@ AActor* FDisplayClusterLightCardEditorHelper::SpawnStageActor(const FSpawnActorA
 			}
 		}
 
-		if (!bIsPreview)
+		if (ADisplayClusterChromakeyCardActor* ChromakeyCardActor = Cast<ADisplayClusterChromakeyCardActor>(NewActor))
+		{
+			// Only add to chroma key layer, not light card layer
+			ChromakeyCardActor->AddToChromakeyLayer(RootActor);
+		}
+		else if (!bIsPreview)
 		{
 			AddLightCardsToRootActor({ NewLightCard }, RootActor, InSpawnArgs.AddLightCardArgs);
 		}

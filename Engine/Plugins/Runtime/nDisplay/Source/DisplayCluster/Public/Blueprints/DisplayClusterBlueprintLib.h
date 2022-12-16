@@ -7,6 +7,7 @@
 #include "Blueprints/IDisplayClusterBlueprintAPI.h"
 #include "DisplayClusterBlueprintLib.generated.h"
 
+class ADisplayClusterChromakeyCardActor;
 class ADisplayClusterLightCardActor;
 class ADisplayClusterRootActor;
 
@@ -34,5 +35,9 @@ public:
 
 	/** Gets a list of all light card actors on the level linked to the specified root actor. */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "DisplayCluster Module API"), Category = "NDisplay")
-	static DISPLAYCLUSTER_API void FindLightCardsForRootActor(ADisplayClusterRootActor* RootActor, TSet<ADisplayClusterLightCardActor*>& OutLightCards);
+	static DISPLAYCLUSTER_API void FindLightCardsForRootActor(const ADisplayClusterRootActor* RootActor, TSet<ADisplayClusterLightCardActor*>& OutLightCards);
+
+	/** Gets a list of all chromakey card actors on the level linked to the specified root actor. */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "DisplayCluster Module API"), Category = "NDisplay")
+	static DISPLAYCLUSTER_API void FindChromakeyCardsForRootActor(const ADisplayClusterRootActor* RootActor, TSet<ADisplayClusterChromakeyCardActor*>& OutChromakeyCards);
 };
