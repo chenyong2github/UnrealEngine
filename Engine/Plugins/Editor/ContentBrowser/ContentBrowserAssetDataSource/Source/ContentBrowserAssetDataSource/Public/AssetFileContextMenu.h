@@ -203,9 +203,6 @@ private:
 	bool CanExecutePropertyMatrix(FText& OutErrorMessage) const;
 	bool CanExecutePropertyMatrix() const;
 
-	/** Handler to check to see if a "Show MetaData" command is allowed */
-	bool CanExecuteShowAssetMetaData() const;
-
 	/** Handler to check to see if "Capture Thumbnail" can be executed */
 	bool CanExecuteCaptureThumbnail() const;
 
@@ -238,6 +235,9 @@ private:
 
 	/** Generates a list of selected assets in the content browser */
 	void GetSelectedAssets(TArray<UObject*>& Assets, bool SkipRedirectors) const;
+
+	/** Generates a list of selected assets in the content browser, and returns the asset data so you do not have to load them */
+	void GetSelectedAssetData(TArray<FAssetData>& AssetDataList, bool SkipRedirectors) const;
 
 private:
 	TArray<FAssetData> SelectedAssets;
