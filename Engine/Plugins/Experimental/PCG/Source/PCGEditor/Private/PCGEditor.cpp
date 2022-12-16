@@ -1196,6 +1196,8 @@ void FPCGEditor::OnStartInspectNode()
 	PCGGraphNodeBeingInspected = PCGGraphNodeBase;
 	PCGGraphNodeBeingInspected->SetInspected(true);
 	OnInspectedNodeChangedDelegate.Broadcast(PCGGraphNodeBeingInspected);
+
+	GetTabManager()->TryInvokeTab(FPCGEditor_private::AttributesID);
 }
 
 void FPCGEditor::OnStopInspectNode()
