@@ -76,6 +76,9 @@ void UUIFrameworkWidget::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, Id, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, bIsEnabled, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, Visibility, Params);
+
+	Params.Condition = COND_InitialOnly;
+	DOREPLIFETIME_WITH_PARAMS_FAST(UUIFrameworkWidget, WidgetClass, Params);
 }
 
 FUIFrameworkWidgetTree* UUIFrameworkWidget::GetWidgetTree() const

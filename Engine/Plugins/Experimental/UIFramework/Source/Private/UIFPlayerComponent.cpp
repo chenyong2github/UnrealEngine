@@ -272,10 +272,10 @@ void UUIFrameworkPlayerComponent::LocalWidgetWasAddedToTree(const FUIFrameworkWi
 	APlayerController* LocalOwner = GetPlayerController();
 	check(!LocalOwner->HasAuthority());
 
-	if (Entry.Child)
+	if (Entry.Child && Entry.Child->LocalIsReplicationReady())
 	{
 		TSoftClassPtr<UWidget> WidgetClass = Entry.Child->GetUMGWidgetClass();
-		if (WidgetClass.Get() != nullptr)
+		if (WidgetClass.IsValid())
 		{
 			if (Entry.IsParentValid() && Entry.IsChildValid())
 			{

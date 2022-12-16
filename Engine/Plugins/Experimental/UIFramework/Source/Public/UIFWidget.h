@@ -99,6 +99,11 @@ public:
 	}
 
 	//~ Local functions
+	virtual bool LocalIsReplicationReady() const
+	{
+		return true;
+	}
+
 	UWidget* LocalGetUMGWidget() const
 	{
 		return LocalUMGWidget;
@@ -132,7 +137,7 @@ private:
 	void OnRep_Visibility();
 
 protected:
-	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = "UI Framework")
+	UPROPERTY(BlueprintReadOnly, Replicated, EditDefaultsOnly, Category = "UI Framework")
 	TSoftClassPtr<UWidget> WidgetClass; // todo: make this private and use a constructor argument
 
 private:
