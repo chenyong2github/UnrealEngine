@@ -354,6 +354,14 @@ namespace UE { namespace TasksTests
 			Outer.Wait();
 		}
 
+		{
+			FTaskEvent T1{ UE_SOURCE_LOCATION };
+			FTaskEvent T2{ UE_SOURCE_LOCATION };
+			TArrayView<const FTask> Prereqs{ T1, T2 };
+			FTask Task = Launch(UE_SOURCE_LOCATION, [] {}, Prerequisites(Prereqs));
+			Task.Wait();
+		}
+
 #if TASKGRAPH_NEW_FRONTEND
 		{	// a basic test for a named thread task
 			FTask GTTask = Launch
@@ -569,6 +577,18 @@ namespace UE { namespace TasksTests
 
 			Event.Trigger(); // unblock
 			Task.Wait();
+		}
+
+		{	// multiple "inline" tasks piped in one go, check that pipe maintains FIFO order in this case
+			FPipe Pipe{ UE_SOURCE_LOCATION };
+			FTaskEvent Block{ UE_SOURCE_LOCATION };
+			bool bFirstDone = false;
+			bool bSecondDone = false;
+			FTask Task1 = Pipe.Launch(UE_SOURCE_LOCATION, [&] { check(!bSecondDone); bFirstDone = true; }, Prerequisites(Block), ETaskPriority::Normal, EExtendedTaskPriority::Inline);
+			FTask Task2 = Pipe.Launch(UE_SOURCE_LOCATION, [&] { check(bFirstDone); bSecondDone = true; }, Prerequisites(Block), ETaskPriority::Normal, EExtendedTaskPriority::Inline);
+			Block.Trigger();
+			Wait(TArray{ Task1, Task2 });
+			check(bFirstDone && bSecondDone);
 		}
 
 		UE_BENCHMARK(5, PipeStressTest<200, 100>);
