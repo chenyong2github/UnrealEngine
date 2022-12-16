@@ -8,10 +8,14 @@
 #include "BaseGizmos/TransformProxy.h"
 #include "Drawing/LineSetComponent.h"
 
+// for background compute of preview geometry
+#include "PlanarCut.h"
+#include "FractureToolBackgroundTask.h"
+
 #include "FractureToolCutter.generated.h"
 
 class FFractureToolContext;
-
+class UDynamicMeshComponent;
 struct FNoiseSettings;
 
 /** Settings specifically related to the one-time destructive fracturing of a mesh **/
@@ -55,8 +59,16 @@ public:
 	UPROPERTY()
 	bool bGroupFractureToggleEnabled = true;
 
+	/** Amount of space to leave between cut pieces */
+	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (UIMin = "0.0", ClampMin = "0.0", EditCondition = "bGroutSettingEnabled", HideEditConditionToggle, EditConditionHides))
+	float Grout = 0.0f;
+
+	// This flag allows tools to disable the above Grout setting if/when it's not applicable
+	UPROPERTY()
+	bool bGroutSettingEnabled = true;
+
 	/** Draw points marking the centers of pieces to be cut out by the fracture pattern.  */
-	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (EditCondition = "bDrawSitesToggleEnabled", HideEditConditionToggle, EditConditionHides, DisplayName = "Draw Sites"))
+	UPROPERTY(EditAnywhere, Category = Visualization, meta = (EditCondition = "bDrawSitesToggleEnabled", HideEditConditionToggle, EditConditionHides, DisplayName = "Draw Sites"))
 	bool bDrawSites;
 
 	// This flag allows tools to disable the above bDrawSites option if/when it is not applicable
@@ -64,16 +76,28 @@ public:
 	bool bDrawSitesToggleEnabled = true;
 
 	/** Draw the edges of the fracture pattern.  */
-	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (DisplayName = "Draw Diagram"))
+	UPROPERTY(EditAnywhere, Category = Visualization, meta = (DisplayName = "Draw Diagram"))
 	bool bDrawDiagram;
 
-	/** Amount of space to leave between cut pieces */
-	UPROPERTY(EditAnywhere, Category = CommonFracture, meta = (UIMin = "0.0", ClampMin = "0.0", EditCondition = "bGroutSettingEnabled", HideEditConditionToggle, EditConditionHides))
-	float Grout = 0.0f;
+	/** Whether to show a solid preview of the cutting geometry, including any noise displacement */
+	UPROPERTY(EditAnywhere, Category = Visualization, meta = (EditCondition = "bNoisePreviewToggleEnabled", HideEditConditionToggle, EditConditionHides))
+	bool bDrawNoisePreview = false;
 
-	// This flag allows tools to disable the above Noise settings if/when they are not applicable
+	// This flag allows tools to disable the above bDrawNoisePreview option if/when it is not applicable
 	UPROPERTY()
-	bool bGroutSettingEnabled = true;
+	bool bNoisePreviewToggleEnabled = true;
+
+	/** Fraction of cells to show in noise preview */
+	UPROPERTY(EditAnywhere, Category = Visualization, meta = (ClampMin = "0.0", ClampMax = "1.0", EditCondition = "bDrawNoisePreview && bDrawSitesToggleEnabled", HideEditConditionToggle, EditConditionHides))
+	float FractionPreviewCells = .1;
+
+	/** Scale of the noise preview plane */
+	UPROPERTY(EditAnywhere, Category = Visualization, meta = (ClampMin = ".01", ClampMax = "1000", UIMin = ".25", UIMax = "10", EditCondition = "bDrawNoisePreview && bNoisePreviewHasScale", HideEditConditionToggle, EditConditionHides))
+	double NoisePreviewScale = 1.;
+
+	// This flag allows tools to disable the noise preview scale setting if it's not applicable
+	UPROPERTY()
+	bool bNoisePreviewHasScale = false;
 
 	/** Size of the Perlin noise displacement (in cm). If 0, no noise will be applied */
 	UPROPERTY(EditAnywhere, Category = Noise, meta = (UIMin = "0.0", EditCondition = "bNoiseSettingsEnabled", HideEditConditionToggle, EditConditionHides))
@@ -218,6 +242,71 @@ protected:
 };
 
 
+struct FVoronoiDiagramInput
+{
+	FTransform Transform;
+	int32 SourceComponentIdx;
+	int32 BoneIdx;
+	TArray<FVector> Sites;
+	FBox Bounds;
+	int32 NoiseSeed;
+};
+
+struct FCellDiagramResult
+{
+	FCellDiagramResult(FPlanarCells Diagram, int32 SourceComponentIdx, int32 BoneIdx, FTransform Transform, FBox Bounds, int32 NoiseSeed)
+		: Diagram(Diagram), SourceComponentIdx(SourceComponentIdx), BoneIdx(BoneIdx), Transform(Transform), Bounds(Bounds), NoiseSeed(NoiseSeed)
+	{}
+
+	FPlanarCells Diagram;
+	int32 SourceComponentIdx;
+	int32 BoneIdx;
+	FTransform Transform;
+	FBox Bounds;
+	int32 NoiseSeed;
+};
+
+struct FCellNoisePreviewResult
+{
+	UE::Geometry::FDynamicMesh3 NoiseMesh;
+	int32 SourceComponentIdx;
+	int32 BoneIdx;
+	FTransform Transform;
+};
+
+class FCellNoisePreviewOp : public UE::Geometry::TGenericDataOperator<TArray<FCellNoisePreviewResult>>
+{
+public:
+	FCellNoisePreviewOp(TArray<FCellDiagramResult>&& ComputedDiagrams) : ComputedDiagrams(MoveTemp(ComputedDiagrams))
+	{}
+	virtual ~FCellNoisePreviewOp() = default;
+
+	TArray<FCellDiagramResult> ComputedDiagrams;
+	float PointSpacing;
+	float Grout;
+
+	float KeepCellsFrac = .1;
+
+	// TGenericDataOperator interface:
+	virtual void CalculateResult(FProgressCancel* Progress) override;
+};
+
+class FVoronoiCellsOp : public UE::Geometry::TGenericDataOperator<TArray<FCellDiagramResult>>
+{
+public:
+
+	FVoronoiCellsOp(TArray<FVoronoiDiagramInput>&& Inputs) : Diagrams(MoveTemp(Inputs))
+	{}
+
+	virtual ~FVoronoiCellsOp() = default;
+
+	TArray<FVoronoiDiagramInput> Diagrams;
+
+	// TGenericDataOperator interface:
+	virtual void CalculateResult(FProgressCancel* Progress) override;
+};
+
+
 UCLASS(Abstract, DisplayName = "Voronoi Base", Category = "FractureTools")
 class UFractureToolVoronoiCutterBase : public UFractureToolCutterBase
 {
@@ -226,6 +315,7 @@ public:
 
 	UFractureToolVoronoiCutterBase(const FObjectInitializer& ObjInit);
 
+	virtual void OnTick(float DeltaTime) override;
 	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) override;
 
 	virtual void FractureContextChanged() override;
@@ -242,6 +332,13 @@ protected:
 		VoronoiSites.Empty();
 		SitesMappings.Empty();
 		ClearEdges();
+		ClearMeshes();
+		if (ComputeCells)
+		{
+			UE::Fracture::CancelBackgroundTask<FVoronoiCellsOp>(ComputeCells);
+			UE::Fracture::CancelBackgroundTask<FCellNoisePreviewOp>(ComputeNoisePreview);
+			ComputeRelaunchDelay = .5;
+		}
 	}
 
 	void ClearEdges()
@@ -258,11 +355,27 @@ protected:
 		VoronoiLineSets.Empty();
 	}
 
+	void ClearMeshes();
+
 	virtual void UpdateVisualizations(TArray<FFractureToolContext>& FractureContexts);
+	virtual void AddLineVisualizations(TArray<FCellDiagramResult>& DiagramResults);
+	virtual void AddNoiseVisualizations(TArray<FCellNoisePreviewResult>& NoiseResults);
 
 private:
 	UPROPERTY()
 	TArray<TObjectPtr<ULineSetComponent>> VoronoiLineSets;
+	TArray<TObjectPtr<UDynamicMeshComponent>> VoronoiNoisePreviews;
+
+
+	//
+	// Background compute
+	//
+	TUniquePtr<UE::Fracture::TBackgroundOpExecuter<FVoronoiCellsOp>> ComputeCells = nullptr;
+	TUniquePtr<UE::Fracture::TBackgroundOpExecuter<FCellNoisePreviewOp>> ComputeNoisePreview = nullptr;
+
+	TArray<FVoronoiDiagramInput> DiagramInputs;
+	bool bDiagramUpdated = false;
+	float ComputeRelaunchDelay = 0;
 
 	TArray<int32> CellMember;
 	TArray<FVector> VoronoiSites;

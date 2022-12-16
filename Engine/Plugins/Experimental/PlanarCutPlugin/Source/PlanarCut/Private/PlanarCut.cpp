@@ -41,6 +41,7 @@
 #include "DynamicMeshToMeshDescription.h"
 
 #include "Algo/Rotate.h"
+#include "Algo/Reverse.h"
 
 #include "GeometryMeshConversion.h"
 
@@ -717,6 +718,89 @@ FPlanarCells::FPlanarCells(const FBox &Region, const TArrayView<const FColor> Im
 }
 
 
+void FPlanarCells::DiscardCells(TFunctionRef<bool(int32)> KeepFunc, bool bKeepNeighbors)
+{
+	TArray<int32> OldToNew;
+	OldToNew.Init(-1, NumCells);
+	int32 KeptCells = 0;
+	for (int32 CellIdx = 0; CellIdx < NumCells; ++CellIdx)
+	{
+		if (KeepFunc(CellIdx))
+		{
+			OldToNew[CellIdx] = KeptCells++;
+		}
+	}
+	if (bKeepNeighbors && KeptCells < NumCells)
+	{
+		for (const TPair<int32, int32>& Neighbors : PlaneCells)
+		{
+			if (Neighbors.Key < 0 || Neighbors.Value < 0)
+			{
+				continue;
+			}
+			bool bKeptKey = KeepFunc(Neighbors.Key);
+			bool bKeptValue = KeepFunc(Neighbors.Value);
+			if (bKeptKey != bKeptValue)
+			{
+				int32 Nbr = bKeptKey ? Neighbors.Value : Neighbors.Key;
+				if (OldToNew[Nbr] < 0)
+				{
+					OldToNew[Nbr] = KeptCells++;
+				}
+			}
+		}
+	}
+	if (KeptCells == NumCells)
+	{
+		return;
+	}
+
+	NumCells = KeptCells;
+	for (int32 PlaneIdx = 0; PlaneIdx < Planes.Num(); ++PlaneIdx)
+	{
+		TPair<int32, int32> Cells = PlaneCells[PlaneIdx];
+		Cells.Key = Cells.Key > -1 ? OldToNew[Cells.Key] : -1;
+		Cells.Value = Cells.Value > -1 ? OldToNew[Cells.Value] : -1;
+		if (Cells.Key == Cells.Value && Cells.Key == -1)
+		{
+			PlaneCells.RemoveAtSwap(PlaneIdx, 1, false);
+			Planes.RemoveAtSwap(PlaneIdx, 1, false);
+			PlaneBoundaries.RemoveAtSwap(PlaneIdx, 1, false);
+			PlaneIdx--; // consider the swapped-in value in the next iteration
+		}
+		else
+		{
+			// on boundary to outside, the 'outside' index must always be second
+			// if the discards above broke that invariant, flip the plane to fix it
+			if (Cells.Key < 0)
+			{
+				Swap(Cells.Key, Cells.Value);
+				Algo::Reverse(PlaneBoundaries[PlaneIdx]);
+				Planes[PlaneIdx] = Planes[PlaneIdx].Flip();
+			}
+			PlaneCells[PlaneIdx] = Cells;
+		}
+	}
+
+	// Compress vertices array to only the used vertices
+	TArray<int32> OldToNewVertex;
+	OldToNewVertex.Init(-1, PlaneBoundaryVertices.Num());
+	TArray<FVector> NewBoundaryVertices;
+	for (TArray<int32>& PlaneBoundary : PlaneBoundaries)
+	{
+		for (int32& VID : PlaneBoundary)
+		{
+			int32& NewVID = OldToNewVertex[VID];
+			if (NewVID < 0)
+			{
+				NewVID = NewBoundaryVertices.Add(PlaneBoundaryVertices[VID]);
+			}
+			VID = NewVID;
+		}
+	}
+	PlaneBoundaryVertices = MoveTemp(NewBoundaryVertices);
+}
+
 
 
 // Simpler invocation of CutWithPlanarCells w/ reasonable defaults
@@ -804,6 +888,51 @@ int32 CutMultipleWithMultiplePlanes(
 	ReindexScope.Done();
 
 	return NewGeomStartIdx;
+}
+
+void CreateCuttingSurfacePreview(
+	const FPlanarCells& Cells,
+	const FBox& Bounds,
+	double Grout,
+	int32 RandomSeed,
+	FDynamicMesh3& OutCuttingMeshes,
+	TFunctionRef<bool(int)> FilterCellsFunc,
+	const TOptional<FTransform>& TransformCollection,
+	FProgressCancel* Progress,
+	FVector CellsOrigin
+)
+{
+	FTransform CollectionToWorld = TransformCollection.Get(FTransform::Identity);
+	// Put Collection in the same local space as the Cells
+	FTransform CollectionToWorldCentered = CollectionToWorld * FTransform(-CellsOrigin);
+
+	FProgressCancel::FProgressScope SurfaceScope = FProgressCancel::CreateScopeTo(Progress, .99);
+	UE::Geometry::FAxisAlignedBox3d GeoBounds(Bounds);
+	double OnePercentExtend = GeoBounds.MaxDim() * .01;
+	FRandomStream RandomStream(RandomSeed);
+	FCellMeshes CellMeshes(0, RandomStream, Cells, GeoBounds, Grout, OnePercentExtend, false);
+	SurfaceScope.Done();
+
+	if (Progress && Progress->Cancelled())
+	{
+		return;
+	}
+
+	FProgressCancel::FProgressScope AppendScope = FProgressCancel::CreateScopeTo(Progress, 1.0);
+	OutCuttingMeshes.Clear();
+	OutCuttingMeshes.EnableAttributes();
+	FDynamicMeshEditor Editor(&OutCuttingMeshes);
+
+	FMeshIndexMappings IndexMaps; // Needed for Editor.AppendMesh, not used otherwise
+	for (int32 CellIdx = 0; CellIdx < CellMeshes.CellMeshes.Num(); ++CellIdx)
+	{
+		if (FilterCellsFunc(CellIdx))
+		{
+			Editor.AppendMesh(&CellMeshes.CellMeshes[CellIdx].AugMesh, IndexMaps);
+		}
+	}
+	
+	AppendScope.Done();
 }
 
 // Cut multiple Geometry groups inside a GeometryCollection with PlanarCells, and add each cut cell back to the GeometryCollection as a new child of their source Geometry

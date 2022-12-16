@@ -123,7 +123,7 @@ TUniquePtr<UE::Geometry::FDynamicMeshOperator> UFractureToolPlaneCut::MakeNewOpe
 				NoisePreviewOp->NoisePivots.Add(NoisePivots[Idx]);
 			});
 	}
-	NoisePreviewOp->PlaneSize *= PlaneCutSettings->NoisePreviewScale;
+	NoisePreviewOp->PlaneSize *= CutterSettings->NoisePreviewScale;
 
 	return NoisePreviewOp;
 }
@@ -146,6 +146,9 @@ void UFractureToolPlaneCut::Setup()
 	GizmoSettings->Setup(this);
 	PlaneCutSettings->bCanCutWithMultiplePlanes = !GizmoSettings->bUseGizmo;
 	NotifyOfPropertyChangeByTool(PlaneCutSettings);
+	CutterSettings->bDrawSitesToggleEnabled = false;
+	CutterSettings->bNoisePreviewHasScale = true;
+	CutterSettings->bDrawNoisePreview = true; // default-enable the plane noise preview
 
 	// Initialize the background compute object for the noise preview
 	if (GEditor && !NoisePreview)
@@ -322,7 +325,7 @@ void UFractureToolPlaneCut::FractureContextChanged()
 
 	if (NoisePreview)
 	{
-		NoisePreview->SetVisibility(PlaneCutSettings->bShowNoisePreview);
+		NoisePreview->SetVisibility(CutterSettings->bDrawNoisePreview);
 	}
 
 	RenderCuttingPlaneSize = FLT_MAX;

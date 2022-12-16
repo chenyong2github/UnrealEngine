@@ -211,7 +211,7 @@ protected:
 
 	// Geometry collection components referenced by visualizations
 	UPROPERTY()
-	TArray<TObjectPtr<const UGeometryCollectionComponent>> VisualizedCollections;
+	TArray<TObjectPtr<UGeometryCollectionComponent>> VisualizedCollections;
 
 	virtual void ClearVisualizations()
 	{

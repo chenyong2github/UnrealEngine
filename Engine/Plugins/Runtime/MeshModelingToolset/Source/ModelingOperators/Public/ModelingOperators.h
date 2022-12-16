@@ -116,6 +116,8 @@ protected:
 	TUniquePtr<ResultType> Result;
 
 public:
+
+	using ResultTypeName = ResultType;
 	
 	TGenericDataOperator(bool bCreateInitialObject = true)
 	{

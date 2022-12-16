@@ -26,6 +26,7 @@ UFractureToolBrick::UFractureToolBrick(const FObjectInitializer& ObjInit)
 {
 	BrickSettings = NewObject<UFractureBrickSettings>(GetTransientPackage(), UFractureBrickSettings::StaticClass());
 	BrickSettings->OwnerTool = this;
+	CutterSettings->bNoisePreviewToggleEnabled = false; // TODO: support noise preview for bricks
 }
 
 FText UFractureToolBrick::GetDisplayText() const

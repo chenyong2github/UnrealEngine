@@ -29,14 +29,6 @@ public:
 	UPROPERTY()
 	bool bCanCutWithMultiplePlanes = false;
 
-	/** Whether to show the noise displacement on the preview visualization of the cutting planes */
-	UPROPERTY(EditAnywhere, Category = Visualization)
-	bool bShowNoisePreview = true;
-
-	/** Scale of the noise preview plane */
-	UPROPERTY(EditAnywhere, Category = Visualization, meta = (ClampMin = ".01", ClampMax = "1000", UIMin = ".25", UIMax = "10", EditCondition = "bShowNoisePreview", HideEditConditionToggle))
-	double NoisePreviewScale = 1.;
-
 };
 
 

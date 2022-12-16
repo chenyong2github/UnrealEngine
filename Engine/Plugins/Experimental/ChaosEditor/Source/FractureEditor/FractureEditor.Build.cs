@@ -44,7 +44,8 @@ public class FractureEditor : ModuleRules
 				"Chaos",
 				"ToolWidgets",
 				"DeveloperSettings",
-				"FractureEngine"
+				"FractureEngine",
+				"GeometryFramework"
 
 				// ... add private dependencies that you statically link with here ...	
 			}

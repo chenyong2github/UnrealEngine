@@ -110,6 +110,9 @@ struct PLANARCUT_API FPlanarCells
 
 	FInternalSurfaceMaterials InternalSurfaceMaterials;
 
+	// Discards cells from the diagram, used to support visualization of a subset of cells
+	void DiscardCells(TFunctionRef<bool(int32)> KeepFunc, bool bKeepNeighbors);
+
 	/**
 	 * @return true if this is a single, unbounded cutting plane
 	 */
@@ -212,6 +215,31 @@ int32 PLANARCUT_API CutWithPlanarCells(
 	const TOptional<FTransform>& TransformCollection = TOptional<FTransform>(),
 	bool bIncludeOutsideCellInOutput = true,
 	bool bSetDefaultInternalMaterialsFromCollection = true,
+	FProgressCancel* Progress = nullptr,
+	FVector CellsOrigin = FVector::ZeroVector
+);
+
+/**
+ * Generate cutting mesh surfaces as a single mesh
+ * Useful for creating a preview of the cut surface.
+ * 
+ * @param Cells				Defines the cutting planes and division of space
+ * @param Grout				Separation to leave between cutting cells
+ * @param RandomSeed				Seed to be used for random noise displacement
+ * @param OutCuttingMeshes			Dynamic mesh representing the preview surface
+ * @param FilterCellsFunc			Filter which cells should be included in the preview
+ * @param TransformCollection		Optional transform that would be applied to the to-cut surface; if unset, defaults to Identity
+ * @param Progress						Optionally tracks progress and supports early-cancel
+ * @param CellsOrigin					Optionally provide a local origin of the cutting Cells
+ */
+void PLANARCUT_API CreateCuttingSurfacePreview(
+	const FPlanarCells& Cells,
+	const FBox& Bounds,
+	double Grout,
+	int32 RandomSeed,
+	UE::Geometry::FDynamicMesh3& OutCuttingMeshes,
+	TFunctionRef<bool(int)> FilterCellsFunc,
+	const TOptional<FTransform>& TransformCollection = TOptional<FTransform>(),
 	FProgressCancel* Progress = nullptr,
 	FVector CellsOrigin = FVector::ZeroVector
 );

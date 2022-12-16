@@ -14,9 +14,11 @@
 #include "GeometryCollection/GeometryCollectionObject.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
+#include "Components/DynamicMeshComponent.h"
 
 #include "Voronoi/Voronoi.h"
 #include "PlanarCut.h"
+#include "DynamicMesh/MeshTransforms.h"
 
 #include "FractureToolBackgroundTask.h"
 
@@ -240,6 +242,68 @@ void UFractureToolCutterBase::UpdateDefaultRandomSeed()
 }
 
 
+void FCellNoisePreviewOp::CalculateResult(FProgressCancel* Progress)
+{
+	Result->SetNum(ComputedDiagrams.Num());
+	for (int32 DiagramIdx = 0; DiagramIdx < ComputedDiagrams.Num(); ++DiagramIdx)
+	{
+		if (Progress && Progress->Cancelled())
+		{
+			return;
+		}
+
+		FCellDiagramResult& Info = ComputedDiagrams[DiagramIdx];
+		int32 NumCells = Info.Diagram.NumCells;
+		int32 KeepCellStep = 1.0f / FMath::Clamp(KeepCellsFrac, FLT_EPSILON, 1.0f);
+		auto KeepCellFunc = [KeepCellStep](int32 Idx) -> bool
+		{
+			return 0 == (Idx % KeepCellStep);
+		};
+		Info.Diagram.DiscardCells(KeepCellFunc, true);
+		FCellNoisePreviewResult& Preview = (*Result)[DiagramIdx];
+
+		if (Progress && Progress->Cancelled())
+		{
+			return;
+		}
+
+		CreateCuttingSurfacePreview(Info.Diagram, Info.Bounds, Grout, Info.NoiseSeed, Preview.NoiseMesh, KeepCellFunc, Info.Transform, Progress, Info.Transform.GetTranslation());
+
+		if (Progress && Progress->Cancelled())
+		{
+			return;
+		}
+
+		FVector Origin = Info.Transform.GetTranslation();
+		const UE::Geometry::FTransformSRT3d GeoTransform(Info.Transform);
+		MeshTransforms::ApplyTransform(Preview.NoiseMesh, GeoTransform, true);
+
+		Preview.BoneIdx = Info.BoneIdx;
+		Preview.Transform = Info.Transform;
+		Preview.SourceComponentIdx = Info.SourceComponentIdx;
+	}
+}
+
+void FVoronoiCellsOp::CalculateResult(FProgressCancel* Progress)
+{
+	for (FVoronoiDiagramInput& DiagramInfo : Diagrams)
+	{
+		if (Progress && Progress->Cancelled())
+		{
+			return;
+		}
+		FVector Origin = DiagramInfo.Transform.GetTranslation();
+		for (FVector& Site : DiagramInfo.Sites)
+		{
+			Site -= Origin;
+		}
+		DiagramInfo.Bounds.Max -= Origin;
+		DiagramInfo.Bounds.Min -= Origin;
+
+		FVoronoiDiagram Voronoi(DiagramInfo.Sites, DiagramInfo.Bounds, .1f);
+		Result->Emplace(FPlanarCells(DiagramInfo.Sites, Voronoi), DiagramInfo.SourceComponentIdx, DiagramInfo.BoneIdx, DiagramInfo.Transform, DiagramInfo.Bounds, DiagramInfo.NoiseSeed);
+	}
+}
 
 UFractureToolVoronoiCutterBase::UFractureToolVoronoiCutterBase(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
@@ -250,6 +314,69 @@ UFractureToolVoronoiCutterBase::UFractureToolVoronoiCutterBase(const FObjectInit
 		const uint8 Hue = (uint8)(FMath::FRand() * 255.f);
 		FColor DesatRandomColor = FLinearColor::MakeFromHSV8(Hue, 190, 255).ToFColor(true);
 		Colors.Add(DesatRandomColor);
+	}
+}
+
+void UFractureToolVoronoiCutterBase::OnTick(float DeltaTime)
+{
+	ComputeRelaunchDelay -= DeltaTime;
+	if (bDiagramUpdated)
+	{
+		if (ComputeCells)
+		{
+			CancelBackgroundTask<FVoronoiCellsOp>(ComputeCells);
+			CancelBackgroundTask<FCellNoisePreviewOp>(ComputeNoisePreview);
+			ComputeRelaunchDelay = .5;
+		}
+		if (ComputeRelaunchDelay <= 0)
+		{
+			ComputeCells = StartBackgroundTask<FVoronoiCellsOp>(MakeUnique<FVoronoiCellsOp>(MoveTemp(DiagramInputs)));
+			bDiagramUpdated = false;
+		}
+	}
+	if (!CutterSettings->bDrawNoisePreview)
+	{
+		ClearMeshes();
+		CancelBackgroundTask<FCellNoisePreviewOp>(ComputeNoisePreview);
+	}
+	if (ComputeCells)
+	{
+		if (ComputeNoisePreview)
+		{
+			CancelBackgroundTask<FCellNoisePreviewOp>(ComputeNoisePreview);
+		}
+		TickBackgroundTask<FVoronoiCellsOp>(ComputeCells, false, [&](TUniquePtr<TArray<FCellDiagramResult>>&& Result) -> bool
+		{
+			AddLineVisualizations(*Result.Get());
+			ComputeRelaunchDelay = 0;
+			// TODO: Consider saving this result and passing it to the actual fracture Execute, rather than recomputing it (maybe not worth added complexity though)
+			TUniquePtr<FCellNoisePreviewOp> NoiseOp = MakeUnique<FCellNoisePreviewOp>(MoveTemp(*Result));
+
+			// Transfer noise settings
+			FNoiseSettings Settings;
+			CutterSettings->TransferNoiseSettings(Settings);
+			for (FCellDiagramResult& DiagramInfo : NoiseOp->ComputedDiagrams)
+			{
+				DiagramInfo.Diagram.SetNoise(Settings);
+			}
+			NoiseOp->PointSpacing = CollisionSettings->GetPointSpacing();
+			NoiseOp->Grout = CutterSettings->Grout;
+			NoiseOp->KeepCellsFrac = CutterSettings->FractionPreviewCells;
+			ensure(!ComputeNoisePreview);
+			if (CutterSettings->bDrawNoisePreview)
+			{
+				ComputeNoisePreview = StartBackgroundTask<FCellNoisePreviewOp>(MoveTemp(NoiseOp));
+			}
+			return true;
+		});
+	}
+	if (ComputeNoisePreview)
+	{
+		TickBackgroundTask<FCellNoisePreviewOp>(ComputeNoisePreview, false, [&](TUniquePtr<TArray<FCellNoisePreviewResult>>&& Result) -> bool
+		{
+			AddNoiseVisualizations(*Result.Get());
+			return true;
+		});
 	}
 }
 
@@ -268,6 +395,7 @@ void UFractureToolVoronoiCutterBase::Render(const FSceneView* View, FViewport* V
 
 void UFractureToolVoronoiCutterBase::UpdateLineSetExplodedVectors()
 {
+	bool bHasMeshes = VoronoiNoisePreviews.Num() == VoronoiLineSets.Num();
 	EnumerateVisualizationMapping(EdgesMappings, VoronoiLineSets.Num(), [&](int32 Idx, FVector ExplodedVector)
 	{
 		if (!VoronoiLineSets[Idx])
@@ -277,62 +405,127 @@ void UFractureToolVoronoiCutterBase::UpdateLineSetExplodedVectors()
 		// TODO: If we add diagrams even when visibility is toggled off, we also need to update visibility here, e.g.: VoronoiLineSets[Idx]->SetVisibility(CutterSettings->bDrawDiagram);
 		AActor* Actor = VoronoiLineSets[Idx]->GetOwner();
 		VoronoiLineSets[Idx]->SetRelativeLocation(Actor->GetTransform().InverseTransformVector(ExplodedVector));
+		if (bHasMeshes)
+		{
+			AActor* MeshActor = VoronoiNoisePreviews[Idx]->GetOwner();
+			VoronoiNoisePreviews[Idx]->SetRelativeLocation(MeshActor->GetTransform().InverseTransformVector(ExplodedVector));
+		}
 	});
 }
 
-void UFractureToolVoronoiCutterBase::UpdateVisualizations(TArray<FFractureToolContext>& FractureContexts)
+void UFractureToolVoronoiCutterBase::AddNoiseVisualizations(TArray<FCellNoisePreviewResult>& NoiseResults)
 {
-	ClearVisualizations();
+	ClearMeshes();
 
-	int32 MaxSitesToShowEdges = 100000; // computing all the voronoi diagrams can make the program non-responsive above this
-	int32 MaxSitesToShowSites = 1000000; // PDI struggles to render the site positions above this
-	bool bEstAboveMaxSites = false;
-
-	for (FFractureToolContext& FractureContext : FractureContexts)
+	int32 NumCollections = NoiseResults.Num();
+	if (!ensure(VisualizedCollections.Num() == NumCollections))
 	{
-		if (!FractureContext.GetBounds().IsValid) // skip contexts w/ invalid bounds
+		return;
+	}
+
+	if (!GEditor)
+	{
+		return;		
+	}
+	UWorld* World = GEditor->GetEditorWorldContext().World();
+
+	for (int32 CollectionIdx = 0; CollectionIdx < NumCollections; ++CollectionIdx)
+	{
+		UGeometryCollectionComponent* Component = VisualizedCollections[CollectionIdx].Get();
+		if (!ensure(Component))
 		{
 			continue;
 		}
-		int32 CollectionIdx = VisualizedCollections.Emplace(FractureContext.GetGeometryCollectionComponent());
-		int32 BoneIdx = FractureContext.GetSelection().Num() == 1 ? FractureContext.GetSelection()[0] : INDEX_NONE;
-		SitesMappings.AddMapping(CollectionIdx, BoneIdx, VoronoiSites.Num());
-		EdgesMappings.AddMapping(CollectionIdx, BoneIdx, VoronoiLineSets.Num());
+		FCellNoisePreviewResult& Res = NoiseResults[CollectionIdx];
 
-		// Generate voronoi diagrams and cache visualization info
-		TArray<FVector> LocalVoronoiSites;
-		GenerateVoronoiSites(FractureContext, LocalVoronoiSites);
-		// if diagram(s) become too large, skip the visualization
-		if (LocalVoronoiSites.Num() * FractureContexts.Num() > MaxSitesToShowSites || VoronoiSites.Num() + LocalVoronoiSites.Num() > MaxSitesToShowSites)
+		UDynamicMeshComponent* DynamicMeshComponent = NewObject<UDynamicMeshComponent>(Component);
+		DynamicMeshComponent->SetSceneProxyVerifyUsedMaterials(false);
+		DynamicMeshComponent->RegisterComponent();
+		VoronoiNoisePreviews.Add(DynamicMeshComponent);
+		DynamicMeshComponent->GetMesh()->Copy(Res.NoiseMesh);
+		DynamicMeshComponent->NotifyMeshUpdated();
+
+		// TODO: this material-access logic can go to the base class and be used by FractureToolPlaneCut as well
+		// Note the ToolSetupUtil functions optionally take a UInteractiveToolManager to provide fallback materials,
+		// but fracture mode does not set that up, so they may return a null material.
+		UMaterialInterface* NoiseMaterial = ToolSetupUtil::GetDefaultSculptMaterial(nullptr);
+		if (!NoiseMaterial)
 		{
-			UE_LOG(LogFractureTool, Warning, TEXT("Voronoi diagram(s) number of sites too large; will not display Voronoi diagram sites"));
-			ClearVisualizations();
-			break;
+			NoiseMaterial = ToolSetupUtil::GetDefaultMaterial();
 		}
-		VoronoiSites.Append(LocalVoronoiSites);
-		if (bEstAboveMaxSites || LocalVoronoiSites.Num() * FractureContexts.Num() > MaxSitesToShowEdges || VoronoiSites.Num() > MaxSitesToShowEdges)
+		DynamicMeshComponent->SetNumMaterials(1);
+		DynamicMeshComponent->SetMaterial(0, NoiseMaterial);
+	}
+}
+
+void UFractureToolVoronoiCutterBase::AddLineVisualizations(TArray<FCellDiagramResult>& DiagramResults)
+{
+	ClearEdges();
+
+	int32 NumCollections = DiagramResults.Num();
+	if (!ensure(VisualizedCollections.Num() == NumCollections))
+	{
+		RestoreEditorViewFlags();
+		return;
+	}
+
+	int32 TotalSites = 0;
+	for (const FCellDiagramResult& Result : DiagramResults)
+	{
+		TotalSites += Result.Diagram.NumCells;
+	}
+	// even though the diagrams are computed in the background, creating the line set component w/ all the voronoi diagrams edges causes a large hitch
+	// if the number of sites becomes too large, and the becomes diagram unreadably dense, so it's better to not draw it
+	constexpr int32 MaxSitesToShowEdges = 100000;
+	if (TotalSites > MaxSitesToShowEdges)
+	{
+		UE_LOG(LogFractureTool, Warning, TEXT("Voronoi diagram(s) number of sites too large; will not display Voronoi diagram edges"));
+		RestoreEditorViewFlags();
+		return;
+	}
+	for (int32 CollectionIdx = 0; CollectionIdx < DiagramResults.Num(); ++CollectionIdx)
+	{
+		const FCellDiagramResult& Result = DiagramResults[CollectionIdx];
+		check(CollectionIdx == Result.SourceComponentIdx);
+		EdgesMappings.AddMapping(CollectionIdx, Result.BoneIdx, VoronoiLineSets.Num());
+		UGeometryCollectionComponent* Component = VisualizedCollections[CollectionIdx].Get();
+		if (!ensure(Component))
 		{
-			UE_LOG(LogFractureTool, Warning, TEXT("Voronoi diagram(s) number of sites too large; will not display Voronoi diagram edges"));
-			ClearEdges();
-			bEstAboveMaxSites = true;
+			continue;
 		}
-		else if (CutterSettings->bDrawDiagram)
+		int32 NumBoundaries = Result.Diagram.PlaneBoundaries.Num();
+		if (CutterSettings->bDrawDiagram && NumBoundaries > 0)
 		{
-			FBox VoronoiBounds = GetVoronoiBounds(FractureContext, LocalVoronoiSites);
-			ULineSetComponent* VoronoiLineSet = NewObject<ULineSetComponent>(FractureContext.GetGeometryCollectionComponent());
-			VoronoiLineSet->SetupAttachment(FractureContext.GetGeometryCollectionComponent());
+			ULineSetComponent* VoronoiLineSet = NewObject<ULineSetComponent>(Component);
+			VoronoiLineSet->SetupAttachment(Component);
 			VoronoiLineSet->SetLineMaterial(ToolSetupUtil::GetDefaultLineComponentMaterial(nullptr, false));
-			// TODO: If we switch to adding diagrams even when visibility is toggled off, we also need to update visibility here, e.g.: VoronoiLineSets[Idx]->SetVisibility(CutterSettings->bDrawDiagram);
+			// TODO: If we switch to adding diagrams even when visibility is toggled off, we also need to update visibility here, 
+			// e.g.: VoronoiLineSet->SetVisibility(CutterSettings->bDrawDiagram);
 			VoronoiLineSet->RegisterComponent();
-			TArray<TTuple<FVector, FVector>> VoronoiEdges;
-			GetVoronoiEdges(LocalVoronoiSites, VoronoiBounds, VoronoiEdges, CellMember);
-			FTransform ToWorld = FractureContext.GetTransform();
-			VoronoiLineSet->ReserveLines(VoronoiEdges.Num());
-			for (int32 Idx = 0; Idx < VoronoiEdges.Num(); ++Idx)
+			int32 NumLines = 0;
+			for (int32 BoundaryIdx = 0; BoundaryIdx < NumBoundaries; ++BoundaryIdx)
 			{
-				const TTuple<FVector, FVector>& Line = VoronoiEdges[Idx];
-				VoronoiLineSet->AddLine(ToWorld.InverseTransformPosition(VoronoiEdges[Idx].Key), ToWorld.InverseTransformPosition(VoronoiEdges[Idx].Value), Colors[CellMember[Idx] % 100], 1.3, .1);
+				NumLines += Result.Diagram.PlaneBoundaries[BoundaryIdx].Num();
 			}
+			int32 LinesPerIndexHint = NumLines / NumBoundaries + 1;
+			FVector Origin = Result.Transform.GetTranslation();
+			VoronoiLineSet->AddLines(
+				NumBoundaries,
+				[&](int32 BoundaryIdx, TArray<FRenderableLine>& LinesOut)
+				{
+					const TArray<int32>& Boundary = Result.Diagram.PlaneBoundaries[BoundaryIdx];
+					TPair<int32, int32> Cells = Result.Diagram.PlaneCells[BoundaryIdx];
+					int32 Cell = Cells.Key > -1 ? Cells.Key : Cells.Value;
+					for (int32 PrevIdx = Boundary.Num() - 1, Idx = 0; Idx < Boundary.Num(); PrevIdx = Idx++)
+					{
+						FVector A = Result.Transform.InverseTransformPosition(Result.Diagram.PlaneBoundaryVertices[Boundary[PrevIdx]] + Origin);
+						FVector B = Result.Transform.InverseTransformPosition(Result.Diagram.PlaneBoundaryVertices[Boundary[Idx]] + Origin);
+
+						LinesOut.Emplace(A, B, Colors[Cell % 100], 1.3, .1);
+					}
+				},
+				LinesPerIndexHint,
+				false);
 			VoronoiLineSets.Add(VoronoiLineSet);
 		}
 	}
@@ -346,6 +539,51 @@ void UFractureToolVoronoiCutterBase::UpdateVisualizations(TArray<FFractureToolCo
 	{
 		RestoreEditorViewFlags();
 	}
+}
+
+void UFractureToolVoronoiCutterBase::UpdateVisualizations(TArray<FFractureToolContext>& FractureContexts)
+{
+	ClearVisualizations();
+
+	int32 MaxSitesToShowSites = 1000000; // PDI struggles to render the site positions above this
+	bool bEstAboveMaxSites = false;
+
+	DiagramInputs.Reset(FractureContexts.Num());
+	bDiagramUpdated = true;
+
+	for (FFractureToolContext& FractureContext : FractureContexts)
+	{
+		if (!FractureContext.GetBounds().IsValid) // skip contexts w/ invalid bounds
+		{
+			continue;
+		}
+		int32 CollectionIdx = VisualizedCollections.Emplace(FractureContext.GetGeometryCollectionComponent());
+		int32 BoneIdx = FractureContext.GetSelection().Num() == 1 ? FractureContext.GetSelection()[0] : INDEX_NONE;
+		SitesMappings.AddMapping(CollectionIdx, BoneIdx, VoronoiSites.Num());
+
+		// Store the voronoi diagrams we'd like to preview; Tick() will launch the background thread to compute them
+		TArray<FVector> LocalVoronoiSites;
+		GenerateVoronoiSites(FractureContext, LocalVoronoiSites);
+
+		FVoronoiDiagramInput& Diagram = DiagramInputs.Emplace_GetRef();
+		Diagram.Bounds = GetVoronoiBounds(FractureContext, LocalVoronoiSites);
+		Diagram.Sites = LocalVoronoiSites;
+		Diagram.SourceComponentIdx = CollectionIdx;
+		Diagram.Transform = FractureContext.GetTransform();
+		Diagram.BoneIdx = BoneIdx;
+		Diagram.NoiseSeed = FractureContext.GetSeed();
+
+		// Voronoi site point visualization doesn't need background compute, but is skipped if there are too many sites
+		if (LocalVoronoiSites.Num() * FractureContexts.Num() > MaxSitesToShowSites || VoronoiSites.Num() + LocalVoronoiSites.Num() > MaxSitesToShowSites)
+		{
+			UE_LOG(LogFractureTool, Warning, TEXT("Voronoi diagram(s) number of sites too large; will not display Voronoi diagram sites"));
+			ClearVisualizations();
+			break;
+		}
+		VoronoiSites.Append(LocalVoronoiSites);
+	}
+
+	RestoreEditorViewFlags();
 }
 
 void UFractureToolVoronoiCutterBase::FractureContextChanged()
@@ -439,6 +677,19 @@ int32 UFractureToolVoronoiCutterBase::ExecuteFracture(const FFractureToolContext
 	}
 
 	return INDEX_NONE;
+}
+
+void UFractureToolVoronoiCutterBase::ClearMeshes()
+{
+	for (UDynamicMeshComponent* NoisePreview : VoronoiNoisePreviews)
+	{
+		if (NoisePreview)
+		{
+			NoisePreview->UnregisterComponent();
+			NoisePreview->DestroyComponent();
+		}
+	}
+	VoronoiNoisePreviews.Empty();
 }
 
 FBox UFractureToolVoronoiCutterBase::GetVoronoiBounds(const FFractureToolContext& FractureContext, const TArray<FVector>& Sites) const

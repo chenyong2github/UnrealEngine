@@ -70,6 +70,68 @@ public:
 	}
 };
 
+template<class OpType>
+using TBackgroundOpExecuter = UE::Geometry::FAsyncTaskExecuterWithProgressCancel<UE::Geometry::TModelingOpTask<OpType>>;
+
+
+// Start a background task
+// Note: If automatically starting tasks in response to user actions, consider using a timeout to prevent launching too many tasks at once
+// (TODO: consider encapsulating the timeout logic in a small struct here)
+template<class OpType>
+TUniquePtr<TBackgroundOpExecuter<OpType>> StartBackgroundTask(TUniquePtr<OpType>&& NewOp)
+{
+	TUniquePtr<TBackgroundOpExecuter<OpType>> BackgroundTask = MakeUnique<TBackgroundOpExecuter<OpType>>(MoveTemp(NewOp));
+	BackgroundTask->StartBackgroundTask();
+	return BackgroundTask;
+}
+
+// Tick a background task started by StartBackgroundTask (above)
+// @return the result of SuccessCallback if the task has completed, false otherwise
+template<class OpType>
+bool TickBackgroundTask(TUniquePtr<TBackgroundOpExecuter<OpType>>& BackgroundTask, bool bCancel, TFunctionRef<bool(TUniquePtr<typename OpType::ResultTypeName>&&)> SuccessCallback)
+{
+	bool bSuccess = false;
+	if (bCancel)
+	{
+		BackgroundTask.Release()->CancelAndDelete();
+	}
+	else if (BackgroundTask->IsDone())
+	{
+		bSuccess = !BackgroundTask->GetTask().IsAborted();
+	}
+
+	if (bSuccess)
+	{
+		check(BackgroundTask != nullptr && BackgroundTask->IsDone());
+		TUniquePtr<OpType> Op = BackgroundTask->GetTask().ExtractOperator();
+		if (!ensure(Op))
+		{
+			return false;
+		}
+
+		TUniquePtr<typename OpType::ResultTypeName> Result = Op->ExtractResult();
+		if (!Result.IsValid())
+		{
+			return false;
+		}
+		bool bResult = SuccessCallback(MoveTemp(Result));
+		BackgroundTask.Release();
+		return bResult;
+	}
+
+	return false;
+}
+
+// Cancel the background task (or ignore if the pointer is empty)
+template<class OpType>
+void CancelBackgroundTask(TUniquePtr<TBackgroundOpExecuter<OpType>>& BackgroundTask)
+{
+	if (BackgroundTask)
+	{
+		BackgroundTask.Release()->CancelAndDelete();
+	}
+}
+
 
 // Run a blocking geometry collection op, but with a responsive cancel option
 template<class GeometryCollectionOpType, typename ResultType>
