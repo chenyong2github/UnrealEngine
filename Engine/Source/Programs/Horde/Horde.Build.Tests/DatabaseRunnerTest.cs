@@ -11,7 +11,7 @@ namespace Horde.Build.Tests
         [TestMethod]
         public void RunMongoDbTest()
         {
-	        MongoDbRunnerLocal runner = new MongoDbRunnerLocal();
+	        using MongoDbRunnerLocal runner = new MongoDbRunnerLocal();
 	        runner.Start();
             Thread.Sleep(100);
             runner.Stop();
@@ -20,7 +20,7 @@ namespace Horde.Build.Tests
         [TestMethod]
         public void RunRedisTest()
         {
-	        RedisRunner runner = new RedisRunner();
+	        using RedisRunner runner = new RedisRunner();
 	        runner.Start();
 	        Thread.Sleep(100);
 	        runner.Stop();
