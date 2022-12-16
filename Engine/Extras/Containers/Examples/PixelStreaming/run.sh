@@ -6,6 +6,9 @@ if [[ ! -z "$1" ]]; then
 	UNREAL_ENGINE_RELEASE="$1"
 fi
 
+# Extract the short version of the release number (i.e. just `major.minor` rather than `major.minor.hotfix`)
+UNREAL_ENGINE_RELEASE_SHORT=`echo "$UNREAL_ENGINE_RELEASE" | grep --extended-regexp --only-matching -e '[0-9]+\.[0-9]+'`
+
 # Determine whether we are instructing Docker Compose to rebuild the project container image even if it already exists
 COMPOSE_FLAGS=""
 if [[ "$*" == *"--rebuild"* ]]; then
@@ -29,12 +32,19 @@ else
 	exit 1
 fi
 
+# Determine whether to use the old, standalone version of Docker Compose or the new plugin version
+COMPOSE_COMMAND='docker compose'
+if [[ ! -z `which docker-compose` ]]; then
+	COMPOSE_COMMAND='docker-compose'
+fi
+
 # Retrieve the public IP address of the host system
 PUBLIC_IP=$($HTTPS_COMMAND 'https://api.ipify.org')
 
 # Run the Pixel Streaming example
 export UNREAL_ENGINE_RELEASE
+export UNREAL_ENGINE_RELEASE_SHORT
 export EXTRA_PEERCONNECTION_OPTIONS
 export PUBLIC_IP
 export PWD=$(pwd)
-docker-compose up --force-recreate $COMPOSE_FLAGS
+$COMPOSE_COMMAND up --force-recreate $COMPOSE_FLAGS

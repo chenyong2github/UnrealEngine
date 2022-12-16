@@ -27,11 +27,11 @@ function generateDockerfile {
 		# This will combine the generated Dockerfiles into a single Dockerfile that uses a multi-stage build
 		--combine
 		
-		# These flags prevent Dockerfiles from being generated for the `ue4-engine` and `ue4-full` images, which we are not interested in
-		--no-engine --no-full
+		# This specifies the individual images whose Dockerfiles will be combined
+		--target=build-prerequisites,source,minimal
 		
 		# This disables building the Engine for AArch64 when creating an Installed Build, and enables support for client and dedicated server targets
-		--opt buildgraph-args='-set:HostPlatformOnly=true -set:WithLinuxArm64=false -set:WithClient=true -set:WithServer=true'
+		--opt buildgraph-args='-set:WithLinuxArm64=false -set:WithClient=true -set:WithServer=true'
 		
 		# This enables the use of BuildKit build secrets, which is necessary in order to build images independently of ue4-docker itself
 		--opt credential-mode=secrets

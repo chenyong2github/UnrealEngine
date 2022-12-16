@@ -57,6 +57,7 @@ args=(
 	--build-arg "CHANGELIST=${CHANGELIST_OVERRIDE}"
 	--secret id=username,src=username.txt
 	--secret id=password,src=password.txt
+	--platform linux/amd64
 	--progress=plain
 )
 
@@ -90,12 +91,6 @@ docker buildx build \
 	-t "ghcr.io/epicgames/unreal-engine:dev-slim-${UNREAL_ENGINE_RELEASE}" \
 	"${args[@]}" \
 	./dev-slim
-
-# Build the container image for the Pixel Streaming signalling server, which pulls files from our other images
-docker build \
-	-t "ghcr.io/epicgames/pixel-streaming-signalling-server:${UNREAL_ENGINE_RELEASE}" \
-	--build-arg "UNREAL_ENGINE_RELEASE=${UNREAL_ENGINE_RELEASE}" \
-	./signalling-server
 
 # Build the container image for the Multi-User Editing server, which pulls files from our other images
 docker build \
