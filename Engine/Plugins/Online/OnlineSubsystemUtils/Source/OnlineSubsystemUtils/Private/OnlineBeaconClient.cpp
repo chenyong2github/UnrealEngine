@@ -409,19 +409,12 @@ void AOnlineBeaconClient::NotifyControlMessage(UNetConnection* Connection, uint8
 			{
 				// build a URL
 				FURL URL(nullptr, TEXT(""), TRAVEL_Absolute);
-				FString URLString;
-
-				// Append authentication token to URL options
-				IOnlineIdentityPtr IdentityPtr = Online::GetIdentityInterface(GetWorld());
-				if (IdentityPtr.IsValid())
+				FString AuthTicket = GetAuthTicket(*Connection->PlayerId);
+				if (!AuthTicket.IsEmpty())
 				{
-					TSharedPtr<FUserOnlineAccount> UserAcct = IdentityPtr->GetUserAccount(*Connection->PlayerId);
-					if (UserAcct.IsValid())
-					{
-						URL.AddOption(*FString::Printf(TEXT("AuthTicket=%s"), *UserAcct->GetAccessToken()));
-					}
+					URL.AddOption(*FString::Printf(TEXT("AuthTicket=%s"), *AuthTicket));
 				}
-				URLString = URL.ToString();
+				FString URLString = URL.ToString();
 
 				// compute the player's online platform name
 				FName OnlinePlatformName = NAME_None;
@@ -554,6 +547,23 @@ void AOnlineBeaconClient::NotifyControlMessage(UNetConnection* Connection, uint8
 			}
 		}
 	}	
+}
+
+FString AOnlineBeaconClient::GetAuthTicket(const FUniqueNetIdRepl& PlayerId)
+{
+	FString AuthTicket;
+
+	IOnlineIdentityPtr IdentityPtr = Online::GetIdentityInterface(GetWorld());
+	if (IdentityPtr.IsValid())
+	{
+		TSharedPtr<FUserOnlineAccount> UserAcct = IdentityPtr->GetUserAccount(*PlayerId);
+		if (UserAcct.IsValid())
+		{
+			AuthTicket = *UserAcct->GetAccessToken();
+		}
+	}
+
+	return AuthTicket;
 }
 
 void AOnlineBeaconClient::FinalizeEncryptedConnection(const FEncryptionKeyResponse& Response, TWeakObjectPtr<UNetConnection> WeakConnection)

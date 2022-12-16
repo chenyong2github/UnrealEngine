@@ -132,6 +132,15 @@ class ONLINESUBSYSTEMUTILS_API AOnlineBeaconClient : public AOnlineBeacon
 	const FUniqueNetIdRepl& GetUniqueId() const;
 
 	/**
+	* Get the authentication ticket to send when the server requires auth.
+	* 
+	* @param PlayerId unique id of the user on this connection
+	* 
+	* @return AuthTicket value to send to server
+	*/
+	virtual FString GetAuthTicket(const FUniqueNetIdRepl& PlayerId);
+
+	/**
 	 * Get the connection state
 	 * Higher level than the net connection because of the handshaking of the actors
 	 *
