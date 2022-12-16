@@ -240,10 +240,13 @@ uint32 FCookDirector::RunCommunicationThread()
 
 		double CurrentTime = FPlatformTime::Seconds();
 		float RemainingDuration = StartTime + TickPeriod - CurrentTime;
-		uint32 WaitTimeMilliseconds = static_cast<uint32>(RemainingDuration * .001f);
-		if (ShutdownEvent->Wait(WaitTimeMilliseconds))
+		if (RemainingDuration > .001f)
 		{
-			break;
+			uint32 WaitTimeMilliseconds = static_cast<uint32>(RemainingDuration * 1000);
+			if (ShutdownEvent->Wait(WaitTimeMilliseconds))
+			{
+				break;
+			}
 		}
 	}
 	return 0;
