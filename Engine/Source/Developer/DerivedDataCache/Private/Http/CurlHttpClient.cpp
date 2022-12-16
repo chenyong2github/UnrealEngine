@@ -168,7 +168,7 @@ private:
 	void Destroy() final { delete this; }
 
 	void ThreadLoop();
-	void CompleteRequest(CURL* Curl);
+	void CompleteRequest(CURL* Curl, CURLcode* OptionalReturnCode);
 
 	static void CurlLock(CURL* Curl, curl_lock_data Data, curl_lock_access Access, void* Param);
 	static void CurlUnlock(CURL* Curl, curl_lock_data Data, void* Param);
@@ -489,7 +489,7 @@ void FCurlHttpConnectionPool::ThreadLoop()
 					AssertMultiCodeOk(curl_multi_add_handle(CurlMulti, Curl));
 					break;
 				case EThreadCommandType::Cancel:
-					CompleteRequest(Curl);
+					CompleteRequest(Curl, nullptr);
 					break;
 				}
 			}
@@ -502,7 +502,7 @@ void FCurlHttpConnectionPool::ThreadLoop()
 		{
 			if (Message->msg == CURLMSG_DONE)
 			{
-				CompleteRequest(Message->easy_handle);
+				CompleteRequest(Message->easy_handle, &Message->data.result);
 			}
 		}
 
@@ -511,12 +511,12 @@ void FCurlHttpConnectionPool::ThreadLoop()
 	}
 }
 
-void FCurlHttpConnectionPool::CompleteRequest(CURL* Curl)
+void FCurlHttpConnectionPool::CompleteRequest(CURL* Curl, CURLcode* OptionalReturnCode)
 {
 	AssertMultiCodeOk(curl_multi_remove_handle(CurlMulti, Curl));
 	void* Request = nullptr;
 	curl_easy_getinfo(Curl, CURLINFO_PRIVATE, &Request);
-	((FCurlHttpRequest*)Request)->OnComplete(CURLE_OK);
+	((FCurlHttpRequest*)Request)->OnComplete(OptionalReturnCode ? *OptionalReturnCode : CURLE_OK);
 }
 
 void FCurlHttpConnectionPool::CurlLock(CURL* Curl, curl_lock_data Data, curl_lock_access Access, void* Param)

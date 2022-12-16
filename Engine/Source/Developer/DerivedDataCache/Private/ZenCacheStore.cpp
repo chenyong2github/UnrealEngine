@@ -952,9 +952,11 @@ public:
 	FAsyncCbPackageReceiver(
 		THttpUniquePtr<IHttpRequest>&& InRequest,
 		IRequestOwner* InOwner,
+		Zen::FZenServiceInstance& InZenServiceInstance,
 		FOnRpcComplete&& InOnRpcComplete)
 		: Request(MoveTemp(InRequest))
 		, Owner(InOwner)
+		, ZenServiceInstance(InZenServiceInstance)
 		, BaseReceiver(Package, this)
 		, OnRpcComplete(MoveTemp(InOnRpcComplete))
 	{
@@ -977,11 +979,34 @@ private:
 		return &BaseReceiver;
 	}
 
+	bool ShouldRecoverAndRetry(IHttpResponse& LocalResponse)
+	{
+		if (!ZenServiceInstance.IsServiceRunningLocally())
+		{
+			return false;
+		}
+
+		if ((LocalResponse.GetErrorCode() == EHttpErrorCode::Connect) ||
+			(LocalResponse.GetErrorCode() == EHttpErrorCode::TlsConnect) ||
+			(LocalResponse.GetErrorCode() == EHttpErrorCode::TimedOut))
+		{
+			return true;
+		}
+
+		return false;
+	}
+
 	IHttpReceiver* OnComplete(IHttpResponse& LocalResponse) final
 	{
-		Request.Reset();
-		Owner->End(this, [Self = this]
+		Owner->End(this, [Self = this, &LocalResponse]
 		{
+			if (Self->ShouldRecoverAndRetry(LocalResponse) && Self->ZenServiceInstance.TryRecovery())
+			{
+				new FAsyncCbPackageReceiver(MoveTemp(Self->Request), Self->Owner, Self->ZenServiceInstance, MoveTemp(Self->OnRpcComplete));
+				return;
+			}
+
+			Self->Request.Reset();
 			if (Self->OnRpcComplete)
 			{
 				// Launch a task for the completion function since it can execute arbitrary code.
@@ -999,6 +1024,7 @@ private:
 	THttpUniquePtr<IHttpResponse> Response;
 	TRefCountPtr<IHttpResponseMonitor> Monitor;
 	IRequestOwner* Owner;
+	Zen::FZenServiceInstance& ZenServiceInstance;
 	FCbPackage Package;
 	FCbPackageReceiver BaseReceiver;
 	FOnRpcComplete OnRpcComplete;
@@ -1068,7 +1094,7 @@ void FZenCacheStore::EnqueueAsyncRpc(IRequestOwner& Owner, FCbObject RequestObje
 	THttpUniquePtr<IHttpRequest> Request = CreateRpcRequest();
 	Request->SetContentType(EHttpMediaType::CbObject);
 	Request->SetBody(RequestObject.GetBuffer().MakeOwned());
-	new FAsyncCbPackageReceiver(MoveTemp(Request), &Owner, MoveTemp(OnComplete));
+	new FAsyncCbPackageReceiver(MoveTemp(Request), &Owner, ZenService.GetInstance(), MoveTemp(OnComplete));
 }
 
 void FZenCacheStore::EnqueueAsyncRpc(IRequestOwner& Owner, const FCbPackage& RequestPackage, FOnRpcComplete&& OnComplete)
@@ -1076,7 +1102,7 @@ void FZenCacheStore::EnqueueAsyncRpc(IRequestOwner& Owner, const FCbPackage& Req
 	THttpUniquePtr<IHttpRequest> Request = CreateRpcRequest();
 	Request->SetContentType(EHttpMediaType::CbPackage);
 	Request->SetBody(SaveRpcPackage(RequestPackage));
-	new FAsyncCbPackageReceiver(MoveTemp(Request), &Owner, MoveTemp(OnComplete));
+	new FAsyncCbPackageReceiver(MoveTemp(Request), &Owner, ZenService.GetInstance(), MoveTemp(OnComplete));
 }
 
 void FZenCacheStore::LegacyStats(FDerivedDataCacheStatsNode& OutNode)

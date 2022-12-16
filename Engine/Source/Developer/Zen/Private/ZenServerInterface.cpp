@@ -1103,15 +1103,81 @@ FZenServiceInstance::IsServiceReady()
 		
 		if (Result == Zen::FZenHttpRequest::Result::Success && Zen::IsSuccessCode(Request.GetResponseCode()))
 		{
-			UE_LOG(LogZenServiceInstance, Display, TEXT("Z$ HTTP DDC service status: %s."), *Request.GetResponseAsString());
+			UE_LOG(LogZenServiceInstance, Display, TEXT("ZenServer HTTP service status: %s."), *Request.GetResponseAsString());
 			return true;
 		}
 		else
 		{
-			UE_LOG(LogZenServiceInstance, Warning, TEXT("Unable to reach Z$ HTTP DDC service at %s. Status: %d . Response: %s"), ZenDomain.ToString(), Request.GetResponseCode(), *Request.GetResponseAsString());
+			UE_LOG(LogZenServiceInstance, Warning, TEXT("Unable to reach ZenServer HTTP service at %s. Status: %d . Response: %s"), ZenDomain.ToString(), Request.GetResponseCode(), *Request.GetResponseAsString());
 		}
 	}
 	return false;
+}
+
+bool 
+FZenServiceInstance::TryRecovery()
+{
+	if (!bHasLaunchedLocal)
+	{
+		return false;
+	}
+
+	static FCriticalSection RecoveryCriticalSection;
+	static std::atomic<int64> LastRecoveryTicks;
+	static bool bLastRecoveryResult = false;
+	const FTimespan MaximumWaitForHealth = FTimespan::FromSeconds(30);
+	const FTimespan MinimumDurationSinceLastRecovery = FTimespan::FromMinutes(2);
+
+	FTimespan TimespanSinceLastRecovery = FDateTime::UtcNow() - FDateTime(LastRecoveryTicks.load(std::memory_order_relaxed));
+
+	if (TimespanSinceLastRecovery > MinimumDurationSinceLastRecovery)
+	{
+		FScopeLock Lock(&RecoveryCriticalSection);
+		// Update timespan since it may have changed since we waited to enter the crit section
+		TimespanSinceLastRecovery = FDateTime::UtcNow() - FDateTime(LastRecoveryTicks.load(std::memory_order_relaxed));
+		if (TimespanSinceLastRecovery > MinimumDurationSinceLastRecovery)
+		{
+			UE_LOG(LogZenServiceInstance, Display, TEXT("Local ZenServer recovery being attempted..."));
+			FZenLocalServiceRunContext RunContext;
+			if (TryGetLocalServiceRunContext(RunContext))
+			{
+				StopLocalService(*RunContext.GetDataPath());
+				StartLocalService(RunContext);
+				UE_LOG(LogZenServiceInstance, Display, TEXT("Local ZenServer recovery finished."));
+			}
+			else
+			{
+				UE_LOG(LogZenServiceInstance, Warning, TEXT("Local ZenServer recovery failed due to lack of run context."));
+			}
+			
+			FDateTime StartedWaitingForHealth = FDateTime::UtcNow();
+			bLastRecoveryResult = IsServiceReady();
+			while (!bLastRecoveryResult)
+			{
+				FTimespan WaitForHealth = StartedWaitingForHealth - FDateTime::UtcNow();
+				if (WaitForHealth > MaximumWaitForHealth)
+				{
+					UE_LOG(LogZenServiceInstance, Warning, TEXT("Local ZenServer recovery timed out waiting for service to become healthy"));
+					break;
+				}
+
+				FPlatformProcess::Sleep(0.5f);
+				bLastRecoveryResult = IsServiceReady();
+			}
+			LastRecoveryTicks.store(FDateTime::UtcNow().GetTicks(), std::memory_order_relaxed);
+			
+			if (bLastRecoveryResult)
+			{
+				UE_LOG(LogZenServiceInstance, Display, TEXT("Local ZenServer post recovery status: Healthy"));
+			}
+			else
+			{
+				UE_LOG(LogZenServiceInstance, Display, TEXT("Local ZenServer post recovery status: NOT healthy"));
+			}
+		}
+	}
+
+	return bLastRecoveryResult;
 }
 
 uint16
