@@ -185,6 +185,12 @@ public:
 		bFileRegionsEnabled = bEnabled;
 	}
 
+	/** Sets whether a separate file regions should be declared for each bulkdata */
+	void SetDeclareRegionForEachAdditionalFile(bool bValue)
+	{
+		bDeclareRegionForEachAdditionalFile = bValue;
+	}
+
 	/** Sets whether saving bulk data by reference, i.e. leaving the bulk data payload in the original .uasset file when using EditorDomain. */
 	void SetSaveBulkDataByReference(bool bValue)
 	{
@@ -302,6 +308,8 @@ private:
 	int64 MemoryMappingAlignment = -1;
 	/** Whether file regions are enabled. */
 	bool bFileRegionsEnabled = false;
+	/** Whether a separate file region should be declared for each bulkdata. */
+	bool bDeclareRegionForEachAdditionalFile = false;
 	/** Whether saving bulk data by reference. */
 	bool bSaveBulkDataByReference = false;
 	/** Whether saving bulk data to separate files. */

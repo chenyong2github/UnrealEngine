@@ -203,7 +203,7 @@ FBlake3Hash GGlobalConstructClassesHash;
 int64 GMaxBulkDataSize = -1;
 
 // Change to a new guid when EditorDomain needs to be invalidated
-const TCHAR* EditorDomainVersion = TEXT("382517D23ED840A48501AE70D95B3CE2");
+const TCHAR* EditorDomainVersion = TEXT("25CC763ED9BB4CEF9823E7B41FA7C771");
 
 // Identifier of the CacheBuckets for EditorDomain tables
 const TCHAR* EditorDomainPackageBucketName = TEXT("EditorDomainPackage");
@@ -1642,8 +1642,9 @@ protected:
 		BulkDataSize = 0;
 		for (const FBulkDataRecord& BulkRecord : Record.BulkDatas)
 		{
-			checkf(BulkRecord.Info.BulkDataType == IPackageWriter::FBulkDataInfo::AppendToExports,
-				TEXT("Does not support BulkData types other than AppendToExports."));
+			checkf(BulkRecord.Info.BulkDataType == IPackageWriter::FBulkDataInfo::AppendToExports ||
+				BulkRecord.Info.BulkDataType == IPackageWriter::FBulkDataInfo::BulkSegment,
+				TEXT("Does not support BulkData types other than AppendToExports and BulkSegment."));
 
 			const uint8* BufferStart = reinterpret_cast<const uint8*>(BulkRecord.Buffer.GetData());
 			uint64 SizeFromRegions = 0;

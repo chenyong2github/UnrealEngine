@@ -1012,6 +1012,12 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 				SaveContext.GetLinker()->SetFileRegionsEnabled(TargetPlatform->SupportsFeature(ETargetPlatformFeatures::CookFileRegionMetadata));
 			}
 		}
+		else if (SaveContext.GetPackageWriter() && SaveContext.GetSavePackageContext() &&
+			SaveContext.GetSavePackageContext()->PackageWriterCapabilities.bDeclareRegionForEachAdditionalFile)
+		{
+			SaveContext.GetLinker()->SetFileRegionsEnabled(true);
+			SaveContext.GetLinker()->SetDeclareRegionForEachAdditionalFile(true);
+		}
 #endif
 		if (SaveContext.IsCooking() == false)
 		{

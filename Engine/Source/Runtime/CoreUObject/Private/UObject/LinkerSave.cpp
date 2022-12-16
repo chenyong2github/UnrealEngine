@@ -4,6 +4,7 @@
 #include "HAL/FileManager.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/Optional.h"
 #include "Serialization/BulkData.h"
 #include "Serialization/LargeMemoryWriter.h"
 #include "UObject/Package.h"
@@ -584,10 +585,21 @@ bool FLinkerSave::SerializeBulkData(FBulkData& BulkData, const FBulkDataSerializ
 	const EBulkDataFlags BulkDataFlags	= static_cast<EBulkDataFlags>(BulkData.GetBulkDataFlags());
 	int32 ResourceIndex					= DataResourceMap.Num();
 	const int64 PayloadSize				= BulkData.GetBulkDataSize();
-	const EFileRegionType RegionToUse	= bFileRegionsEnabled && IsCooking() ? Params.RegionType : EFileRegionType::None;
+	TOptional<EFileRegionType> RegionToUse;
 	const bool bSupportsMemoryMapping	= IsCooking() && MemoryMappingAlignment >= 0;
 	const bool bSaveAsResourceIndex		= IsCooking();
 	
+	if (bFileRegionsEnabled)
+	{
+		if (IsCooking())
+		{
+			RegionToUse = Params.RegionType;
+		}
+		else if (bDeclareRegionForEachAdditionalFile)
+		{
+			RegionToUse = EFileRegionType::None;
+		}
+	}
 	FBulkMetaResource SerializedMeta;
 	SerializedMeta.Flags = BulkDataFlags;
 	SerializedMeta.ElementCount = PayloadSize / Params.ElementSize;
@@ -643,7 +655,7 @@ bool FLinkerSave::SerializeBulkData(FBulkData& BulkData, const FBulkDataSerializ
 		if (bSaveByReference)
 		{
 			check(IsCooking() == false);
-			FBulkData::SetBulkDataFlagsOn(SerializedMeta.Flags, static_cast<EBulkDataFlags>(BULKDATA_NoOffsetFixUp | BULKDATA_WorkspaceDomainPayload));
+			FBulkData::SetBulkDataFlagsOn(SerializedMeta.Flags, static_cast<EBulkDataFlags>(BULKDATA_NoOffsetFixUp | BULKDATA_WorkspaceDomainPayload | BULKDATA_PayloadInSeperateFile));
 		}
 
 		if (bSaveBulkDataToSeparateFiles && FBulkData::HasFlags(SerializedMeta.Flags, BULKDATA_OptionalPayload))

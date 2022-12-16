@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Serialization/BulkData.h"
+
 #include "Async/MappedFileHandle.h"
 #include "HAL/IConsoleManager.h"
 #include "IO/IoDispatcher.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/Optional.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "Serialization/LargeMemoryWriter.h"
 #include "Serialization/LargeMemoryReader.h"
@@ -1226,8 +1228,13 @@ void FBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAttemptFileMapping
 			const int64 MetaOffset = Ar.Tell();
 			Ar << SerializedMeta;
 
+			TOptional<EFileRegionType> FileRegionTypeOptional;
+			if (FileRegionType != EFileRegionType::None)
+			{
+				FileRegionTypeOptional = FileRegionType;
+			}
 			SerializedMeta.Offset = Ar.Tell();
-			SerializedMeta.SizeOnDisk = SerializePayload(Ar, SerializedMeta.Flags, FileRegionType);
+			SerializedMeta.SizeOnDisk = SerializePayload(Ar, SerializedMeta.Flags, FileRegionTypeOptional);
 			{
 				FArchive::FScopeSeekTo _(Ar, MetaOffset);
 				Ar << SerializedMeta;
@@ -1403,7 +1410,7 @@ void FBulkData::SerializeBulkData(FArchive& Ar, void* Data, int64 DataSize, EBul
 	}
 }
 
-int64 FBulkData::SerializePayload(FArchive& Ar, EBulkDataFlags SerializationFlags, EFileRegionType RegionType)
+int64 FBulkData::SerializePayload(FArchive& Ar, EBulkDataFlags SerializationFlags, const TOptional<EFileRegionType>& RegionType)
 {
 	check(Ar.IsSaving());
 
@@ -1413,14 +1420,14 @@ int64 FBulkData::SerializePayload(FArchive& Ar, EBulkDataFlags SerializationFlag
 
 	if (int64 PayloadSize = GetBulkDataSize(); PayloadSize > 0)
 	{
-		if (RegionType != EFileRegionType::None)
+		if (RegionType)
 		{
-			Ar.PushFileRegionType(RegionType);
+			Ar.PushFileRegionType(*RegionType);
 		}
 
 		SerializeBulkData(Ar, GetDataBufferForWrite(), PayloadSize, SerializationFlags);
 
-		if (RegionType != EFileRegionType::None)
+		if (RegionType)
 		{
 			Ar.PopFileRegionType();
 		}

@@ -21,6 +21,7 @@
 #include "Misc/AssertionMacros.h"
 #include "Misc/CompressionFlags.h"
 #include "Misc/EnumClassFlags.h"
+#include "Misc/OptionalFwd.h"
 #include "Misc/PackagePath.h"
 #include "Misc/PackageSegment.h"
 #include "Serialization/Archive.h"
@@ -1044,7 +1045,7 @@ protected:
 
 private:
 
-	int64 SerializePayload(FArchive& Ar, EBulkDataFlags SerializationFlags, EFileRegionType RegionType);
+	int64 SerializePayload(FArchive& Ar, EBulkDataFlags SerializationFlags, const TOptional<EFileRegionType>& RegionType);
 #if WITH_EDITOR
 	/**
 	 * Detaches the bulk data from the passed in archive. Needs to match the archive we are currently
