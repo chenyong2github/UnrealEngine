@@ -48,6 +48,7 @@
 #include "ITurnkeyIOModule.h"
 #include "AnalyticsEventAttribute.h"
 #if WITH_EDITOR
+#include "LevelEditor.h"
 #include "Experimental/ZenServerInterface.h"
 #endif
 
@@ -1981,7 +1982,12 @@ TSharedRef<SWidget> FTurnkeySupportModule::MakeTurnkeyMenuWidget() const
 		}
 	}
 
+#if WITH_EDITOR
+	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+	FToolMenuContext MenuContext(FTurnkeySupportCommands::ActionList, LevelEditorModule.GetToolBarExtensibilityManager()->GetAllExtenders());
+#else
 	FToolMenuContext MenuContext(FTurnkeySupportCommands::ActionList);
+#endif
 	return UToolMenus::Get()->GenerateWidget(MenuName, MenuContext);
 
 }

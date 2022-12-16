@@ -52,7 +52,7 @@ FString FTurnkeyEditorSupport::GetUATOptions()
 void FTurnkeyEditorSupport::AddEditorOptions(FToolMenuSection& Section)
 {
 #if WITH_EDITOR
-	Section.AddSeparator(NAME_None);
+	Section.AddSeparator("TurnkeyOptionsSeparator");
 
 	Section.AddMenuEntry(
 		NAME_None,
