@@ -8,6 +8,8 @@
 #include "Framework/Application/IMenu.h"
 #include "Widgets/Input/IVirtualKeyboardEntry.h"
 
+#include "ISlateEditableTextWidget.generated.h"
+
 struct FTextLocation;
 
 enum class ECursorMoveMethod

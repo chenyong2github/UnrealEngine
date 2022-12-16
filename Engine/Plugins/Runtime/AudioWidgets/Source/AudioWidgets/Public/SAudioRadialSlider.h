@@ -18,6 +18,8 @@
 #include "Widgets/Input/SEditableText.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
 
+#include "SAudioRadialSlider.generated.h"
+
 class SRadialSlider;
 
 UENUM()

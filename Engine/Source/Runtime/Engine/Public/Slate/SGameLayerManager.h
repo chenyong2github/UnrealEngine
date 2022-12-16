@@ -14,6 +14,8 @@
 #include "Styling/SlateTypes.h"
 #include "UObject/ObjectKey.h"
 
+#include "SGameLayerManager.generated.h"
+
 class FPaintArgs;
 class FSceneViewport;
 class FSlateWindowElementList;

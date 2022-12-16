@@ -14,6 +14,8 @@
 #include "Animation/MorphTarget.h"
 #include "Templates/DontCopy.h"
 
+#include "SkeletalMeshLODImporterData.generated.h"
+
 struct FMeshDescription;
 class FSkeletalMeshLODModel;
 

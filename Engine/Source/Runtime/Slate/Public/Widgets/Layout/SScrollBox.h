@@ -22,6 +22,8 @@
 #include "Framework/Layout/InertialScrollManager.h"
 #include "Framework/Layout/Overscroll.h"
 
+#include "SScrollBox.generated.h"
+
 class FPaintArgs;
 class FSlateWindowElementList;
 class SScrollPanel;

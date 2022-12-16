@@ -6,6 +6,8 @@
 #include "Net/Core/Analytics/NetStatsUtils.h"
 #include "GameFramework/PlayerState.h"
 
+#include "NetPing.generated.h"
+
 // Forward declarations
 enum class EPingType : uint32;
 class FInternetAddr;

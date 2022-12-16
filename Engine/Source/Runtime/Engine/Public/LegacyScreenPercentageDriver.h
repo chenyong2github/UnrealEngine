@@ -1,13 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	RendererPrivate.h: Renderer interface private definitions.
-=============================================================================*/
-
 #pragma once
 
 #include "SceneView.h"
 
+#include "LegacyScreenPercentageDriver.generated.h"
 
 /**
  * Default screen percentage interface that just apply View->FinalPostProcessSettings.ScreenPercentage.

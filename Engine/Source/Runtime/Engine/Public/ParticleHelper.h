@@ -25,6 +25,8 @@
 #include "PrimitiveSceneProxy.h"
 #include "Particles/ParticlePerfStats.h"
 
+#include "ParticleHelper.generated.h"
+
 #define _ENABLE_PARTICLE_LOD_INGAME_
 
 class FColoredMaterialRenderProxy;

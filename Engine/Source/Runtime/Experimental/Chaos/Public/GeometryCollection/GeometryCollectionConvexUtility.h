@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "GeometryCollection/ManagedArrayCollection.h"
 
+#include "GeometryCollectionConvexUtility.generated.h"
+
 class FGeometryCollection;
 
 namespace Chaos

@@ -4,6 +4,8 @@
 
 #include "UObject/ObjectMacros.h"
 
+#include "ViewportSplitScreen.generated.h"
+
 /** 
  * Various data declarations relating to split screen on a GameViewportClient
  *

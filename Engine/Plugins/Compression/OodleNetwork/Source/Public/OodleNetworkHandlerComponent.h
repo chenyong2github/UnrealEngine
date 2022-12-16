@@ -14,6 +14,8 @@
 
 #include "oodle2net.h"
 
+#include "OodleNetworkHandlerComponent.generated.h"
+
 DECLARE_LOG_CATEGORY_EXTERN(OodleNetworkHandlerComponentLog, Log, All);
 
 // The maximum packet size that this component can handle - UNetConnection's should never allow MaxPacket to exceed MAX_PACKET_SIZE

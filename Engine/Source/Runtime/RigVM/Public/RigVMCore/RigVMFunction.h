@@ -15,6 +15,8 @@
 #include "UObject/NameTypes.h"
 #include "UObject/ObjectMacros.h"
 
+#include "RigVMFunction.generated.h"
+
 class UScriptStruct;
 struct FRigVMExtendedExecuteContext;
 struct FRigVMMemoryHandle;

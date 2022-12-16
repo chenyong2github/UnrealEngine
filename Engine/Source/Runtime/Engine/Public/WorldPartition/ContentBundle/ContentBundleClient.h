@@ -7,6 +7,8 @@
 
 #include "WorldPartition/ContentBundle/ContentBundleStatus.h"
 
+#include "ContentBundleClient.generated.h"
+
 class UContentBundleDescriptor;
 class UWorld;
 

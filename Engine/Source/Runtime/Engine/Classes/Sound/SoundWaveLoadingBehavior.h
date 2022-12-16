@@ -4,7 +4,7 @@
 #include "CoreTypes.h"
 #include "UObject/ObjectMacros.h"
 
-#include <UObject/ObjectMacros.h>
+#include "SoundWaveLoadingBehavior.generated.h"
 
 /**
  * Only used when stream caching is enabled. Determines how we are going to load or retain a given audio asset.

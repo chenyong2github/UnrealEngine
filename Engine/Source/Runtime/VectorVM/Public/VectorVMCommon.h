@@ -6,6 +6,8 @@
 #include <atomic>
 #include "UObject/ObjectMacros.h"
 
+#include "VectorVMCommon.generated.h"
+
 //TODO: move to a per platform header and have VM scale vectorization according to vector width.
 #define VECTOR_WIDTH (128)
 #define VECTOR_WIDTH_BYTES (16)

@@ -9,6 +9,8 @@
 #include "MovieSceneSequenceID.h"
 #include "HAL/PreprocessorHelpers.h"
 
+#include "MovieSceneFwd.generated.h"
+
 #ifndef UE_MOVIESCENE_EVENTS
 	#define UE_MOVIESCENE_EVENTS WITH_EDITOR
 #endif

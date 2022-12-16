@@ -34,6 +34,8 @@
 #include "Stats/Stats.h"
 #include "UObject/ObjectMacros.h"
 
+#include "AnimPhysicsSolver.generated.h"
+
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Anim Dynamics Physics Update"), STAT_AnimDynamicsUpdate, STATGROUP_Physics, ENGINE_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Linear Limit Pre-Update"), STAT_AnimDynamicsLinearPre, STATGROUP_Physics, ENGINE_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Linear Limit Post-Update"), STAT_AnimDynamicsLinearPost, STATGROUP_Physics, ENGINE_API);

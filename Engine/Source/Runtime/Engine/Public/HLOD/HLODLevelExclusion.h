@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+#include "HLODLevelExclusion.generated.h"
+
 /** Bitflag enum to allow editing of UPrimitiveComponent::ExcludeFromHLODLevels as a bitmask in the properties */
 UENUM(meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
 enum class EHLODLevelExclusion : uint8

@@ -18,6 +18,8 @@
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
+#include "ToolContextInterfaces.generated.h"
+
 // predeclarations so we don't have to include these in all tools
 class AActor;
 class FPrimitiveDrawInterface;

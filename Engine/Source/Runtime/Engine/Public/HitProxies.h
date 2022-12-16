@@ -12,6 +12,8 @@
 #include "GenericPlatform/ICursor.h"
 #include "Elements/Framework/TypedElementHandle.h"
 
+#include "HitProxies.generated.h"
+
 class FReferenceCollector;
 
 /**

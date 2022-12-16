@@ -7,6 +7,8 @@
 #include "UObject/ObjectPtr.h"
 #include "Features/IModularFeature.h"
 
+#include "IMotionController.generated.h"
+
 enum class EControllerHand : uint8;
 
 UENUM(BlueprintType)

@@ -36,6 +36,8 @@
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
+#include "FindInBlueprintManager.generated.h"
+
 class FArchive;
 class SDockTab;
 class SWidget;

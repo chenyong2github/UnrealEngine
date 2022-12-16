@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 
+#include "BlackboardKeyEnums.generated.h"
 
 namespace EBlackboardCompare
 {

@@ -7,6 +7,8 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 
+#include "ResonanceAudioEnums.generated.h"
+
 DECLARE_LOG_CATEGORY_EXTERN(LogResonanceAudio, Display, All);
 
 UENUM(BlueprintType)

@@ -5,6 +5,8 @@
 #include "CoreTypes.h"
 #include "UObject/ObjectMacros.h"
 
+#include "GeometryCollectionProximityUtility.generated.h"
+
 class FGeometryCollection;
 namespace UE::GeometryCollectionConvexUtility
 {

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 
+#include "NetEnums.generated.h"
 
 /** Types of network failures broadcast from the engine */
 UENUM(BlueprintType)

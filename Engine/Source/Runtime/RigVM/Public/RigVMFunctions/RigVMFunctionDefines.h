@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 
+#include "RigVMFunctionDefines.generated.h"
+
 UENUM()
 enum class ERigVMTransformSpace : uint8
 {

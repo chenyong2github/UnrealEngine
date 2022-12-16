@@ -23,6 +23,8 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/UnrealNames.h"
 
+#include "CoreOnline.generated.h"
+
 class FDefaultSetAllocator;
 class FLazySingleton;
 

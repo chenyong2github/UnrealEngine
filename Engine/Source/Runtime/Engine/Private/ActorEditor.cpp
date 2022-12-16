@@ -119,12 +119,12 @@ bool AActor::CanEditChange(const FProperty* PropertyThatWillChange) const
 	return Super::CanEditChange(PropertyThatWillChange);
 }
 
-static FName Name_RelativeLocation = USceneComponent::GetRelativeLocationPropertyName();
-static FName Name_RelativeRotation = USceneComponent::GetRelativeRotationPropertyName();
-static FName Name_RelativeScale3D = USceneComponent::GetRelativeScale3DPropertyName();
-
 void AActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	static const FName Name_RelativeLocation = USceneComponent::GetRelativeLocationPropertyName();
+	static const FName Name_RelativeRotation = USceneComponent::GetRelativeRotationPropertyName();
+	static const FName Name_RelativeScale3D = USceneComponent::GetRelativeScale3DPropertyName();
+
 	FProperty* MemberPropertyThatChanged = PropertyChangedEvent.MemberProperty;
 	const FName MemberPropertyName = MemberPropertyThatChanged != NULL ? MemberPropertyThatChanged->GetFName() : NAME_None;
 

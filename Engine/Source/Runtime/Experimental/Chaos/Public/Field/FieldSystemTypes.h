@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
+
 #include "UObject/ObjectMacros.h"
+
+#include "FieldSystemTypes.generated.h"
 
 /**
 *

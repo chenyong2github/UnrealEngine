@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 
+#include "KeyParams.generated.h"
+
 UENUM()
 enum class EMovieSceneKeyInterpolation : uint8
 {

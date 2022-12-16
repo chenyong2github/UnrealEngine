@@ -7,6 +7,8 @@
 #include "GeometryCollectionProxyData.h"
 #include "GeometryCollection/GeometryCollection.h"
 
+#include "GeometryCollectionEngineTypes.generated.h"
+
 UENUM()
 enum class ECollectionAttributeEnum : uint8
 {

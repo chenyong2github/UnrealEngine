@@ -8,6 +8,8 @@
 
 #include "CoreMinimal.h"
 
+#include "BakingTypes.generated.h"
+
 UENUM()
 enum class EBakeTextureResolution 
 {

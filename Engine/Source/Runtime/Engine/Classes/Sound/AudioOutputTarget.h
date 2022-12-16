@@ -3,6 +3,8 @@
 
 #include "UObject/ObjectMacros.h"
 
+#include "AudioOutputTarget.generated.h"
+
 UENUM()
 namespace EAudioOutputTarget
 {

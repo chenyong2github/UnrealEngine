@@ -6,6 +6,8 @@
 
 #include "CoreTypes.h"
 
+#include "HLODBatchingPolicy.generated.h"
+
 /** Determines how the geometry of a component will be incorporated in proxy (simplified) HLODs. */
 UENUM()
 enum class EHLODBatchingPolicy : uint8

@@ -15,6 +15,8 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
+#include "FbxImportUIDetails.generated.h"
+
 class FString;
 class FText;
 class IDetailLayoutBuilder;

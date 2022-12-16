@@ -17,6 +17,8 @@
 #endif
 #include "RHIFeatureLevel.h"
 
+#include "SceneUtils.generated.h"
+
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogSceneUtils, Log, All);
 
 class FRHICommandListImmediate;

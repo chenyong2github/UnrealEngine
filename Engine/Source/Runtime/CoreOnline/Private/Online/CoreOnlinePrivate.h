@@ -5,6 +5,8 @@
 #include "Online/CoreOnline.h"
 #include "UObject/ObjectMacros.h"
 
+#include "CoreOnlinePrivate.generated.h"
+
 // This exists purely to guarantee a package is created, or the engine will not boot.
 UENUM(BlueprintType)
 enum class ECoreOnlineDummy : uint8
