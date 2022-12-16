@@ -134,6 +134,7 @@ public:
 				TRACE_CPUPROFILER_EVENT_SCOPE(FUniformExpressionCacheAsyncUpdater::Update);
 				FTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
 				FMemMark Mark(FMemStack::Get());
+				RHICmdList->SwitchPipeline(ERHIPipeline::Graphics);
 
 				for (const FItem& Item : Items)
 				{
@@ -231,6 +232,17 @@ bool FMaterialRenderProxy::GetTextureValue(const FHashedMaterialParameterInfo& P
 	if (GetParameterValue(EMaterialParameterType::RuntimeVirtualTexture, ParameterInfo, Value, Context))
 	{
 		*OutValue = Value.RuntimeVirtualTexture;
+		return true;
+	}
+	return false;
+}
+
+bool FMaterialRenderProxy::GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const USparseVolumeTexture** OutValue, const FMaterialRenderContext& Context) const
+{
+	FMaterialParameterValue Value;
+	if (GetParameterValue(EMaterialParameterType::SparseVolumeTexture, ParameterInfo, Value, Context))
+	{
+		*OutValue = Value.SparseVolumeTexture;
 		return true;
 	}
 	return false;
@@ -614,10 +626,12 @@ const FMaterial& FMaterialRenderProxy::GetMaterialWithFallback(ERHIFeatureLevel:
 		} while (!Material || !Material->IsRenderingThreadShaderMapComplete());
 		OutFallbackMaterialRenderProxy = FallbackMaterialProxy;
 
+#if WITH_EDITOR
 		if (BaseMaterial)
 		{
 			BaseMaterial->SubmitCompileJobs_RenderThread(EShaderCompileJobPriority::Normal);
 		}
+#endif // WITH_EDITOR
 	}
 	return *Material;
 }
