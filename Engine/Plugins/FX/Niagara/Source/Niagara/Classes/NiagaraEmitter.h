@@ -626,7 +626,10 @@ public:
 
 	/** Returns all available versions for this emitter. */
 	NIAGARA_API virtual TArray<FNiagaraAssetVersion> GetAllAvailableVersions() const override;
-	
+
+	template <typename TAction>
+	void ForEachVersionData(TAction Func) const;
+
 #if WITH_EDITORONLY_DATA
 	NIAGARA_API virtual TSharedPtr<FNiagaraVersionDataAccessor> GetVersionDataAccessor(const FGuid& Version) override; 
 
@@ -991,6 +994,15 @@ private:
 
 	void ResolveScalabilitySettings();
 };
+
+template <typename TAction>
+void UNiagaraEmitter::ForEachVersionData(TAction Func) const
+{
+	for (const FVersionedNiagaraEmitterData& Data : VersionData)
+	{
+		Func(Data);
+	}
+}
 
 template <typename TAction>
 void FVersionedNiagaraEmitterData::ForEachRenderer(TAction Func) const
