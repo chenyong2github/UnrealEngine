@@ -1879,7 +1879,10 @@ void AddPass_PrimitiveFilter(
 	CullingContext.HiddenPrimitivesBuffer = nullptr;
 	CullingContext.ShowOnlyPrimitivesBuffer = nullptr;
 
-	if (CVarNaniteFilterPrimitives.GetValueOnRenderThread() != 0 && ((HiddenPrimitiveCount + ShowOnlyPrimitiveCount) > 0 || HiddenFilterFlags != EFilterFlags::None))
+	const bool bAnyPrimitiveFilter = (HiddenPrimitiveCount + ShowOnlyPrimitiveCount) > 0;
+	const bool bAnyFilterFlags = PrimitiveCount > 0 && HiddenFilterFlags != EFilterFlags::None;
+	
+	if (CVarNaniteFilterPrimitives.GetValueOnRenderThread() != 0 && (bAnyPrimitiveFilter || bAnyFilterFlags))
 	{
 		check(PrimitiveCount > 0);
 		const uint32 DWordCount = FMath::DivideAndRoundUp(PrimitiveCount, 32u); // 32 primitive bits per uint32
