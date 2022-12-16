@@ -140,6 +140,11 @@ public:
 	/* Copy the settings from a specific instance name */
 	void LoadSettings(const FName& InInstanceName);
 
+	/** Helper functions for backwards compatibility with filters that save state until they are ported to EditorConfig */
+	void SaveSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString);
+	void LoadSettings(const FName& InInstanceName, const FString& IniFilename, const FString& IniSection, const FString& SettingsString);
+
+
 	virtual void SetFilterLayout(EFilterBarLayout InFilterBarLayout) override;
 
 protected:

@@ -616,6 +616,41 @@ void SFilterList::SaveSettings()
 	SaveConfig();
 }
 
+void SFilterList::SaveSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString)
+{
+	// Workaround for backwards compatibility with filters that save settings until they are ported to EditorConfig
+	for ( const TSharedPtr<SFilter> Filter : this->Filters )
+	{
+		const FString FilterName = Filter->GetFilterName();
+
+		// If it is a FrontendFilter
+		if ( Filter->GetFrontendFilter().IsValid() )
+		{
+			const TSharedPtr<FFilterBase<FAssetFilterType>>& FrontendFilter = Filter->GetFrontendFilter();
+			const FString CustomSettingsString = FString::Printf(TEXT("%s.CustomSettings.%s"), *SettingsString, *FilterName);
+			FrontendFilter->SaveSettings(IniFilename, IniSection, CustomSettingsString);
+		}
+	}
+	
+	SaveSettings();
+}
+
+void SFilterList::LoadSettings(const FName& InInstanceName, const FString& IniFilename, const FString& IniSection, const FString& SettingsString)
+{
+	// Workaround for backwards compatibility with filters that save settings until they are ported to EditorConfig
+	for ( auto FrontendFilterIt = this->AllFrontendFilters.CreateIterator(); FrontendFilterIt; ++FrontendFilterIt )
+	{
+		TSharedRef<FFilterBase<FAssetFilterType>>& FrontendFilter = *FrontendFilterIt;
+		const FString& FilterName = FrontendFilter->GetName();
+
+		const FString CustomSettingsString = FString::Printf(TEXT("%s.CustomSettings.%s"), *SettingsString, *FilterName);
+		FrontendFilter->LoadSettings(IniFilename, IniSection, CustomSettingsString);
+	}
+	
+	LoadSettings(InInstanceName);
+}
+
+
 void SFilterList::LoadSettings(const FName& InInstanceName)
 {
 	// If this instance doesn't want to use the shared settings, load the settings normally
