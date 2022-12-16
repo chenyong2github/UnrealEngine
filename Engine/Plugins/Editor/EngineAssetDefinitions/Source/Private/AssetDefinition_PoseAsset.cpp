@@ -3,6 +3,7 @@
 #include "AssetDefinition_PoseAsset.h"
 #include "ToolMenuSection.h"
 #include "Animation/PoseAsset.h"
+#include "Animation/AnimSequence.h"
 #include "Misc/MessageDialog.h"
 #include "Styling/AppStyle.h"
 #include "ToolMenus.h"
