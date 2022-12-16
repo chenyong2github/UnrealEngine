@@ -189,8 +189,8 @@ FLogTemplate* FLogTemplate::Create(const TCHAR* Format, const FLogField* Fields,
 	checkf(bPositional || Algo::AllOf(FieldsView, &FLogField::Name),
 		TEXT("Log fields must be entirely named or entirely anonymous. [[%s]]"), Format);
 	checkf(bPositional || Algo::AllOf(FieldsView,
-		[](const FLogField& Field) { return *Field.Name && FAsciiSet::HasOnly(Field.Name, ValidLogFieldName); }),
-		TEXT("Log field names must match \"[A-Za-z0-9_]+\" in [[%s]]."), Format);
+		[](const FLogField& Field) { return *Field.Name && *Field.Name != '_' && FAsciiSet::HasOnly(Field.Name, ValidLogFieldName); }),
+		TEXT("Log field names must match \"[A-Za-z0-9][A-Za-z0-9_]*\" in [[%s]]."), Format);
 
 	TArray<FLogTemplateOp, TInlineAllocator<16>> Ops;
 
@@ -244,10 +244,13 @@ FLogTemplate* FLogTemplate::Create(const TCHAR* Format, const FLogField* Fields,
 		const TCHAR* const FieldStart = TextStart;
 		const TCHAR* const FieldNameEnd = FAsciiSet::Skip(FieldStart + 1, ValidLogFieldName);
 		checkf(*FieldNameEnd, TEXT("Log format has an unterminated field reference. Use '{{' to escape '{' if needed. [[%s]]"), Format);
-		checkf(*FieldNameEnd == TEXT('}'), TEXT("Log format has invalid character '%c' in field name. Use '{{' to escape '{' if needed. Names must match \"[A-Za-z0-9_]+\". [[%s]]"), *FieldNameEnd, Format);
+		checkf(*FieldNameEnd == TEXT('}'), TEXT("Log format has invalid character '%c' in field name. "
+			"Use '{{' to escape '{' if needed. Names must match \"[A-Za-z0-9][A-Za-z0-9_]*\". [[%s]]"), *FieldNameEnd, Format);
 		const TCHAR* const FieldEnd = FieldNameEnd + 1;
 		const int32 FieldLen = UE_PTRDIFF_TO_INT32(FieldEnd - FieldStart);
 		const int32 FieldNameLen = FieldLen - 2;
+		checkf(FieldStart[1] != TEXT('_'), TEXT("Log format uses reserved field name '%.*s' with leading '_'. "
+			"Names must match \"[A-Za-z0-9][A-Za-z0-9_]*\". [[%s]]"), FieldNameLen, FieldStart + 1, Format);
 
 		if (bFindFields && !bPositional)
 		{
@@ -589,7 +592,6 @@ void LogWithFieldArray(const FStaticLogRecord& Log, const FLogField* Fields, con
 	}
 #endif
 
-	FOutputDevice* LogOverride = nullptr;
 	switch (Log.Verbosity)
 	{
 	case ELogVerbosity::Error:
