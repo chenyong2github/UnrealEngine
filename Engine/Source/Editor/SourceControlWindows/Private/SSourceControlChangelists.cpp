@@ -516,7 +516,7 @@ void SSourceControlChangelistsWidget::Construct(const FArguments& InArgs)
 				[
 					SNew(STextBlock)
 					.Text_Lambda([]() { return FUncontrolledChangelistsModule::Get().GetReconcileStatus(); })
-					.Visibility_Lambda([]() { return FUncontrolledChangelistsModule::Get().IsEnabled() ? EVisibility::Visible : EVisibility::Collapsed; })
+					.Visibility_Lambda([]() { return AreUncontrolledChangelistsEnabled() ? EVisibility::Visible : EVisibility::Collapsed; })
 				]
 			]
 		]
