@@ -9,7 +9,6 @@
 #include "Materials/Material.h"
 #include "MaterialShaderType.h"
 #include "MaterialShader.h"
-#include "RenderUtils.h"
 #include "SceneUtils.h"
 #include "PostProcess/SceneRenderTargets.h"
 #include "PostProcess/SceneFilterRendering.h"
@@ -50,7 +49,7 @@ TAutoConsoleVariable<int32> CVarPostProcessingDisableMaterials(
 	TEXT(" Allows to disable post process materials. \n"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
-static bool IsPostProcessStencilTestAllowed()
+bool IsPostProcessStencilTestAllowed()
 {
 	return CVarPostProcessAllowStencilTest.GetValueOnRenderThread() != 0;
 }
@@ -64,7 +63,7 @@ enum class EMaterialCustomDepthPolicy : uint32
 	Enabled
 };
 
-static EMaterialCustomDepthPolicy GetMaterialCustomDepthPolicy(const FMaterial* Material)
+EMaterialCustomDepthPolicy GetMaterialCustomDepthPolicy(const FMaterial* Material)
 {
 	check(Material);
 
@@ -72,25 +71,20 @@ static EMaterialCustomDepthPolicy GetMaterialCustomDepthPolicy(const FMaterial* 
 	if (Material->IsStencilTestEnabled() && IsPostProcessStencilTestAllowed())
 	{
 		// Custom stencil texture allocated and available.
-		if (GetCustomDepthMode() != ECustomDepthMode::EnabledWithStencil)
+		if (GetCustomDepthMode() == ECustomDepthMode::EnabledWithStencil)
 		{
-			UE_LOG(LogRenderer, Warning, TEXT("PostProcessMaterial uses stencil test, but stencil not allocated. Set r.CustomDepth to 3 to allocate custom stencil."));
-		}
-		else if (Material->GetBlendableLocation() == BL_AfterTonemapping)
-		{
-			// We can't support custom stencil after tonemapping due to target size differences
-			UE_LOG(LogRenderer, Warning, TEXT("PostProcessMaterial uses stencil test, but is set to blend After Tonemapping. This is not supported."));
+			return EMaterialCustomDepthPolicy::Enabled;
 		}
 		else
 		{
-			return EMaterialCustomDepthPolicy::Enabled;
+			UE_LOG(LogRenderer, Warning, TEXT("PostProcessMaterial uses stencil test, but stencil not allocated. Set r.CustomDepth to 3 to allocate custom stencil."));
 		}
 	}
 
 	return EMaterialCustomDepthPolicy::Disabled;
 }
 
-static FRHIDepthStencilState* GetMaterialStencilState(const FMaterial* Material)
+FRHIDepthStencilState* GetMaterialStencilState(const FMaterial* Material)
 {
 	static FRHIDepthStencilState* StencilStates[] =
 	{
@@ -110,14 +104,14 @@ static FRHIDepthStencilState* GetMaterialStencilState(const FMaterial* Material)
 	return StencilStates[Material->GetStencilCompare()];
 }
 
-static bool IsMaterialBlendEnabled(const FMaterial* Material)
+bool IsMaterialBlendEnabled(const FMaterial* Material)
 {
 	check(Material);
 
 	return Material->GetBlendableOutputAlpha() && CVarPostProcessAllowBlendModes.GetValueOnRenderThread() != 0;
 }
 
-static FRHIBlendState* GetMaterialBlendState(const FMaterial* Material)
+FRHIBlendState* GetMaterialBlendState(const FMaterial* Material)
 {
 	static FRHIBlendState* BlendStates[] =
 	{
@@ -156,7 +150,7 @@ static FRHIBlendState* GetMaterialBlendState(const FMaterial* Material)
 	return BlendStates[Material->GetBlendMode()];
 }
 
-static bool PostProcessStencilTest(const uint32 StencilValue, const uint32 StencilComp, const uint32 StencilRef)
+bool PostProcessStencilTest(const uint32 StencilValue, const uint32 StencilComp, const uint32 StencilRef)
 {
 	bool bStencilTestPassed = true;
 
@@ -188,39 +182,6 @@ static bool PostProcessStencilTest(const uint32 StencilValue, const uint32 Stenc
 	}
 
 	return !bStencilTestPassed;
-}
-
-static uint32 GetManualStencilTestMask(uint32 StencilComp)
-{
-	// These enum values must match their #define counterparts in PostProcessMaterialShaders.ush
-	enum StencilTestMask
-	{
-		Equal	= (1 << 0),
-		Less	= (1 << 1),
-		Greater	= (1 << 2)
-	};
-	uint32 Mask = 0;
-
-	switch (StencilComp)
-	{
-	case EMaterialStencilCompare::MSC_Less:
-		return Less;
-	case EMaterialStencilCompare::MSC_LessEqual:
-		return Less | Equal;
-	case EMaterialStencilCompare::MSC_GreaterEqual:
-		return Greater | Equal;
-	case EMaterialStencilCompare::MSC_Equal:
-		return Equal;
-	case EMaterialStencilCompare::MSC_Greater:
-		return Greater;
-	case EMaterialStencilCompare::MSC_NotEqual:
-		return Less | Greater;
-	case EMaterialStencilCompare::MSC_Never:
-		return 0;
-	case EMaterialStencilCompare::MSC_Always:
-	default:
-		return Less | Equal | Greater;
-	}
 }
 
 class FPostProcessMaterialShader : public FMaterialShader
@@ -287,9 +248,6 @@ class FPostProcessMaterialPS : public FPostProcessMaterialShader
 public:
 	DECLARE_SHADER_TYPE(FPostProcessMaterialPS, Material);
 
-	class FManualStencilTestDim : SHADER_PERMUTATION_BOOL("MANUAL_STENCIL_TEST");
-	using FPermutationDomain = TShaderPermutationDomain<FManualStencilTestDim>;
-
 	static void SetParameters(FRHICommandList& RHICmdList, const TShaderRef<FPostProcessMaterialPS>& Shader, const FViewInfo& View, const FMaterialRenderProxy* Proxy, const FMaterial& Material, const FParameters& Parameters)
 	{
 		FPostProcessMaterialShader::SetParameters(RHICmdList, Shader, Shader.GetPixelShader(), View, Proxy, Material, Parameters);
@@ -299,20 +257,6 @@ public:
 	FPostProcessMaterialPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FPostProcessMaterialShader(Initializer)
 	{}
-
-	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
-	{
-		FPermutationDomain PermutationVector(Parameters.PermutationId);
-
-		// Currently, we only need the manual stencil test permutations if stencil test is enabled and Nanite is supported.
-		// See comments in CustomDepthRendering.h for more details.
-		if (PermutationVector.Get<FManualStencilTestDim>())
-		{
-			return Parameters.MaterialParameters.bIsStencilTestEnabled && DoesPlatformSupportNanite(Parameters.Platform);
-		}
-
-		return true;
-	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -342,16 +286,22 @@ public:
 	}
 };
 
-static void GetMaterialInfo(
+void GetMaterialInfo(
 	const UMaterialInterface* InMaterialInterface,
 	ERHIFeatureLevel::Type InFeatureLevel,
-	const FPostProcessMaterialInputs& Inputs,
+	EPixelFormat InOutputFormat,
 	const FMaterial*& OutMaterial,
 	const FMaterialRenderProxy*& OutMaterialProxy,
 	const FMaterialShaderMap*& OutMaterialShaderMap,
 	TShaderRef<FPostProcessMaterialVS>& OutVertexShader,
 	TShaderRef<FPostProcessMaterialPS>& OutPixelShader)
 {
+	FMaterialShaderTypes ShaderTypes;
+	{
+		ShaderTypes.AddShaderType< FPostProcessMaterialVS>();
+		ShaderTypes.AddShaderType< FPostProcessMaterialPS>();
+	}
+
 	const FMaterialRenderProxy* MaterialProxy = InMaterialInterface->GetRenderProxy();
 	check(MaterialProxy);
 
@@ -362,17 +312,6 @@ static void GetMaterialInfo(
 		Material = MaterialProxy->GetMaterialNoFallback(InFeatureLevel);
 		if (Material && Material->GetMaterialDomain() == MD_PostProcess)
 		{
-			FMaterialShaderTypes ShaderTypes;
-			{
-				const bool bManualStencilTest = Inputs.bManualStencilTest && Material->IsStencilTestEnabled();
-
-				FPostProcessMaterialPS::FPermutationDomain PermutationVectorPS;
-				PermutationVectorPS.Set<FPostProcessMaterialPS::FManualStencilTestDim>(bManualStencilTest);
-
-				ShaderTypes.AddShaderType<FPostProcessMaterialVS>();
-				ShaderTypes.AddShaderType<FPostProcessMaterialPS>(PermutationVectorPS.ToDimensionValueId());
-			}
-
 			if (Material->TryGetShaders(ShaderTypes, nullptr, Shaders))
 			{
 				break;
@@ -387,7 +326,7 @@ static void GetMaterialInfo(
 	{
 		// Only allowed to have blend/stencil test if output format is compatible with ePId_Input0. 
 		// PF_Unknown implies output format is that of EPId_Input0
-		ensure(Inputs.OutputFormat == PF_Unknown);
+		ensure(InOutputFormat == PF_Unknown);
 	}
 
 	const FMaterialShaderMap* MaterialShaderMap = Material->GetRenderingThreadShaderMap();
@@ -440,10 +379,7 @@ FScreenPassTexture AddPostProcessMaterialPass(
 	const FMaterialShaderMap* MaterialShaderMap = nullptr;
 	TShaderRef<FPostProcessMaterialVS> VertexShader;
 	TShaderRef<FPostProcessMaterialPS> PixelShader;
-	GetMaterialInfo(MaterialInterface, FeatureLevel, Inputs, Material, MaterialRenderProxy, MaterialShaderMap, VertexShader, PixelShader);
-
-	check(VertexShader.IsValid());
-	check(PixelShader.IsValid());
+	GetMaterialInfo(MaterialInterface, FeatureLevel, Inputs.OutputFormat, Material, MaterialRenderProxy, MaterialShaderMap, VertexShader, PixelShader);
 
 	FRHIDepthStencilState* DefaultDepthStencilState = FScreenPassPipelineState::FDefaultDepthStencilState::GetRHI();
 	FRHIDepthStencilState* DepthStencilState = DefaultDepthStencilState;
@@ -453,9 +389,7 @@ FScreenPassTexture AddPostProcessMaterialPass(
 	// Allocate custom depth stencil texture(s) and depth stencil state.
 	const EMaterialCustomDepthPolicy CustomStencilPolicy = GetMaterialCustomDepthPolicy(Material);
 
-	if (CustomStencilPolicy == EMaterialCustomDepthPolicy::Enabled &&
-		!Inputs.bManualStencilTest &&
-		HasBeenProduced(Inputs.CustomDepthTexture))
+	if (CustomStencilPolicy == EMaterialCustomDepthPolicy::Enabled && HasBeenProduced(Inputs.CustomDepthTexture))
 	{
 		check(Inputs.CustomDepthTexture);
 		DepthStencilTexture = Inputs.CustomDepthTexture;
@@ -557,8 +491,6 @@ FScreenPassTexture AddPostProcessMaterialPass(
 			ERenderTargetLoadAction::ELoad,
 			FExclusiveDepthStencil::DepthRead_StencilRead);
 	}
-	PostProcessMaterialParameters->ManualStencilReferenceValue = MaterialStencilRef;
-	PostProcessMaterialParameters->ManualStencilTestMask = GetManualStencilTestMask(Material->GetStencilCompare());
 
 	PostProcessMaterialParameters->PostProcessInput_BilinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();;
 
@@ -683,10 +615,7 @@ FScreenPassTexture AddPostProcessMaterialPass(
 		// If there is override output, we need to output to that
 		if (Inputs.OverrideOutput.IsValid())
 		{
-			const FIntPoint SrcPoint = View.ViewRect.Min;
-			const FIntPoint DstPoint = OutputViewport.Rect.Min;
-			const FIntPoint Size = OutputViewport.Rect.Max - DstPoint;
-			AddDrawTexturePass(GraphBuilder, View, Output.Texture, Inputs.OverrideOutput.Texture, SrcPoint, DstPoint, Size);
+			AddDrawTexturePass(GraphBuilder, View, Output.Texture, Inputs.OverrideOutput.Texture);
 			Output = Inputs.OverrideOutput;
 		}
 	}

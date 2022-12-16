@@ -61,8 +61,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 	SHADER_PARAMETER(FVector2f,		InstanceDrawDistanceMinMaxSquared)
 	SHADER_PARAMETER(float,			InstanceWPODisableDistanceSquared)
 	SHADER_PARAMETER(uint32,		NaniteRayTracingDataOffset)
+	SHADER_PARAMETER(FVector3f,		Unused)
 	SHADER_PARAMETER(float,			BoundsScale)
-	SHADER_PARAMETER(uint32,		CustomStencilValueAndMask)
 	SHADER_PARAMETER_ARRAY(FVector4f, CustomPrimitiveData, [FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s]) // Custom data per primitive that can be accessed through material expression parameters and modified through UStaticMeshComponent
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
@@ -94,7 +94,6 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 #define PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET		0x1000000
 #define PRIMITIVE_SCENE_DATA_FLAG_INSTANCE_DRAW_DISTANCE_CULL			0x2000000
 #define PRIMITIVE_SCENE_DATA_FLAG_WPO_DISABLE_DISTANCE					0x4000000
-#define PRIMITIVE_SCENE_DATA_FLAG_WRITES_CUSTOM_DEPTH_STENCIL			0x8000000
 
 struct FPrimitiveUniformShaderParametersBuilder
 {
@@ -130,7 +129,6 @@ public:
 		bHasNaniteImposter							= false;
 		bHasInstanceDrawDistanceCull				= false;
 		bHasWPODisableDistance						= false;
-		bWritesCustomDepthStencil					= false;
 
 		Parameters.BoundsScale						= 1.0f;
 
@@ -326,28 +324,6 @@ public:
 		return *this;
 	}
 
-	inline FPrimitiveUniformShaderParametersBuilder& CustomDepthStencil(uint8 StencilValue, EStencilMask StencilWriteMask)
-	{
-		// Translate the enum to a mask that can be consumed by the GPU with fewer operations
-		uint32 GPUStencilMask;
-		switch (StencilWriteMask)
-		{		
-		case SM_Default:
-			GPUStencilMask = 0u; // Use zero to mean replace
-			break;
-		case SM_255:
-			GPUStencilMask = 0xFFu;
-			break;
-		default:
-			GPUStencilMask = (1u << uint32(StencilWriteMask - SM_1)) & 0xFFu;
-			break;
-		}
-		Parameters.CustomStencilValueAndMask = (GPUStencilMask << 8u) | StencilValue;
-		bWritesCustomDepthStencil = true;
-
-		return *this;
-	}
-
 	ENGINE_API FPrimitiveUniformShaderParametersBuilder& InstanceDrawDistance(FVector2f DistanceMinMax);
 
 	ENGINE_API FPrimitiveUniformShaderParametersBuilder& InstanceWorldPositionOffsetDisableDistance(float WPODisableDistance);
@@ -446,7 +422,6 @@ public:
 		Parameters.Flags |= bForceHidden ? PRIMITIVE_SCENE_DATA_FLAG_FORCE_HIDDEN : 0u;
 		Parameters.Flags |= bHasInstanceDrawDistanceCull ? PRIMITIVE_SCENE_DATA_FLAG_INSTANCE_DRAW_DISTANCE_CULL : 0u;
 		Parameters.Flags |= bHasWPODisableDistance ? PRIMITIVE_SCENE_DATA_FLAG_WPO_DISABLE_DISTANCE : 0u;
-		Parameters.Flags |= bWritesCustomDepthStencil ? PRIMITIVE_SCENE_DATA_FLAG_WRITES_CUSTOM_DEPTH_STENCIL : 0u;
 		return Parameters;
 	}
 
@@ -486,7 +461,6 @@ private:
 	uint32 bHasNaniteImposter : 1;
 	uint32 bHasInstanceDrawDistanceCull : 1;
 	uint32 bHasWPODisableDistance : 1;
-	uint32 bWritesCustomDepthStencil : 1;
 };
 
 inline TUniformBufferRef<FPrimitiveUniformShaderParameters> CreatePrimitiveUniformBufferImmediate(

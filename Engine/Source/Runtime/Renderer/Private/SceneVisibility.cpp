@@ -2299,7 +2299,6 @@ struct FRelevancePacket : public FSceneRenderingAllocatorObject<FRelevancePacket
 	TArray<FSortedTrianglesMeshBatch> SortedTrianglesMeshBatches;
 	FDrawCommandRelevancePacket DrawCommandPacket;
 	TSet<uint32> CustomDepthStencilValues;
-	FRelevancePrimSet<FPrimitiveInstanceRange> NaniteCustomDepthInstances;
 
 	struct FPrimitiveLODMask
 	{
@@ -2527,18 +2526,6 @@ struct FRelevancePacket : public FSceneRenderingAllocatorObject<FRelevancePacket
 			{
 				bHasCustomDepthPrimitives = true;
 				CustomDepthStencilValues.Add(PrimitiveSceneInfo->Proxy->GetCustomDepthStencilValue());
-
-				if (PrimitiveSceneInfo->Proxy->IsNaniteMesh())
-				{
-					check(PrimitiveSceneInfo->IsIndexValid());
-					NaniteCustomDepthInstances.AddPrim(
-						FPrimitiveInstanceRange {
-							PrimitiveSceneInfo->GetIndex(),
-							PrimitiveSceneInfo->GetInstanceSceneDataOffset(),
-							PrimitiveSceneInfo->GetNumInstanceSceneDataEntries()
-						}
-					);
-				}
 			}
 
 			extern bool GUseTranslucencyShadowDepths;
@@ -2998,7 +2985,6 @@ struct FRelevancePacket : public FSceneRenderingAllocatorObject<FRelevancePacket
 		WriteView.bHasDistortionPrimitives |= bHasDistortionPrimitives;
 		WriteView.bHasCustomDepthPrimitives |= bHasCustomDepthPrimitives;
 		WriteView.CustomDepthStencilValues.Append(CustomDepthStencilValues);
-		NaniteCustomDepthInstances.AppendTo(WriteView.NaniteCustomDepthInstances);
 		WriteView.bUsesCustomDepth |= bUsesCustomDepth;
 		WriteView.bUsesCustomStencil |= bUsesCustomStencil;
 		WriteView.StrataViewData.MaxBSDFCount = FMath::Max(WriteView.StrataViewData.MaxBSDFCount, 8u - FMath::CountLeadingZeros8(StrataBSDFCountMask));

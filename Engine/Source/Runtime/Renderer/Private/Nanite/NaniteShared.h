@@ -546,19 +546,9 @@ public:
 		return FNaniteRasterBinIndexTranslator(GetRegularBinCount());
 	}
 
-	/**
-	 * These "Custom Pass" methods allow for a rasterization pass that renders a subset of the objects in the mesh pass that
-	 * registered these pipelines, and aims to exclude rasterizing unused bins for performance (e.g. Custom Depth pass).
-	 **/
-	void RegisterBinForCustomPass(uint16 BinIndex);
-	void UnregisterBinForCustomPass(uint16 BinIndex);
-	bool ShouldBinRenderInCustomPass(uint16 BinIndex) const;
-
 private:
 	TBitArray<> PipelineBins;
 	TBitArray<> PerPixelEvalPipelineBins;
-	TArray<uint32> CustomPassRefCounts;
-	TArray<uint32> PerPixelEvalCustomPassRefCounts;
 	FNaniteRasterPipelineMap PipelineMap;
 };
 
@@ -689,7 +679,6 @@ public:
 	FNaniteVisibilityResults(const FNaniteVisibilityResults& Other)
 	: RasterBinVisibility(Other.RasterBinVisibility)
 	, ShadingDrawVisibility(Other.ShadingDrawVisibility)
-	, VisibleCustomDepthPrimitives(Other.VisibleCustomDepthPrimitives)
 	, BinIndexTranslator(Other.BinIndexTranslator)
 	, TotalRasterBins(Other.TotalRasterBins)
 	, TotalShadingDraws(Other.TotalShadingDraws)
@@ -732,20 +721,9 @@ public:
 		BinIndexTranslator = InTranslator;
 	}
 
-	bool ShouldRenderCustomDepthPrimitive(uint32 PrimitiveId) const
-	{
-		if (!bRasterTestValid && !bShadingTestValid)
-		{
-			// no valid test results, so we didn't visibility test any primitives
-			return true;
-		}
-		return VisibleCustomDepthPrimitives.Contains(PrimitiveId);
-	}
-
 private:
 	TBitArray<> RasterBinVisibility;
 	TArray<uint32> ShadingDrawVisibility;
-	TSet<uint32> VisibleCustomDepthPrimitives;
 	FNaniteRasterBinIndexTranslator BinIndexTranslator;
 	uint32 TotalRasterBins		= 0;
 	uint32 TotalShadingDraws	= 0;
@@ -774,7 +752,6 @@ public:
 		const FPrimitiveSceneInfo* SceneInfo = nullptr;
 		PrimitiveBinsType RasterBins;
 		PrimitiveDrawType ShadingDraws;
-		bool bWritesCustomDepthStencil = false;
 	};
 
 	typedef TMap<const FPrimitiveSceneInfo*, FPrimitiveReferences> PrimitiveMapType;
@@ -798,7 +775,6 @@ public:
 	void RemoveReferences(const FPrimitiveSceneInfo* SceneInfo);
 
 private:
-	FPrimitiveReferences& FindOrAddPrimitiveReferences(const FPrimitiveSceneInfo* SceneInfo);
 	void WaitForTasks();
 
 	// Translator should remain valid between Begin/FinishVisibilityFrame. That is, no adding or removing raster bins

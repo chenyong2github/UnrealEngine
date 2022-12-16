@@ -17,7 +17,6 @@ struct FNaniteMaterialPassCommand;
 struct FLumenMeshCaptureMaterialPass;
 class  FLumenCardPassUniformParameters;
 class  FCardPageRenderData;
-struct FCustomDepthTextures;
 
 // VertexCountPerInstance
 // InstanceCount
@@ -478,20 +477,8 @@ void EmitDepthTargets(
 	FRDGTextureRef VelocityBuffer,
 	FRDGTextureRef& OutMaterialDepth,
 	FRDGTextureRef& OutMaterialResolve,
+	bool bPrePass,
 	bool bStencilMask
-);
-
-
-void EmitCustomDepthStencilTargets(
-	FRDGBuilder& GraphBuilder,
-	const FScene& Scene,
-	const FViewInfo& View,
-	const FIntVector4& PageConstants,
-	FRDGBufferRef VisibleClustersSWHW,
-	FRDGBufferRef ViewsBuffer,
-	FRDGTextureRef VisBuffer64,
-	bool bWriteCustomStencil,
-	FCustomDepthTextures& CustomDepthTextures
 );
 
 void DrawBasePass(

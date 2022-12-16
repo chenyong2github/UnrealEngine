@@ -128,8 +128,6 @@ struct FRasterContext
 
 	uint32				VisualizeModeBitMask;
 	bool				VisualizeActive;
-
-	bool				bCustomPass;
 };
 
 struct FRasterResults
@@ -181,8 +179,7 @@ FRasterContext InitRasterContext(
 	bool bClearTarget = true,
 	FRDGBufferSRVRef RectMinMaxBufferSRV = nullptr,
 	uint32 NumRects = 0,
-	FRDGTextureRef ExternalDepthBuffer = nullptr,
-	bool bCustomPass = false
+	FRDGTextureRef ExternalDepthBuffer = nullptr
 );
 
 void CullRasterize(

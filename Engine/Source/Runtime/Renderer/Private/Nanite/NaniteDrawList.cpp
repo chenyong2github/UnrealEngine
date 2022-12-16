@@ -262,9 +262,6 @@ void FNaniteDrawListContext::Apply(FScene& Scene)
 					AddShadingBin(*PrimitiveSceneInfo, ShadingBin, ENaniteMeshPass::Type(MeshPass), uint8(MaterialSectionIndex));
 				}
 			}
-
-			// This will register the primitive's raster bins for custom depth, if necessary
-			PrimitiveSceneInfo->RefreshNaniteRasterBins();
 		}
 	}
 }

@@ -34,7 +34,6 @@ struct FPostProcessingInputs
 	FRDGTextureRef CustomDepthTexture = nullptr;
 	FRDGTextureRef ExposureIlluminance = nullptr;
 	FTranslucencyViewResourcesMap TranslucencyViewResourcesMap;
-	bool bSeparateCustomStencil = false;
 
 	void Validate() const
 	{

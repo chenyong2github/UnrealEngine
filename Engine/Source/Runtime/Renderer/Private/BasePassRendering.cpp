@@ -1352,6 +1352,7 @@ void FDeferredShadingSceneRenderer::RenderBasePassInternal(
 				VelocityBuffer,
 				RasterResults.MaterialDepth,
 				RasterResults.MaterialResolve,
+				ShouldRenderPrePass(),
 				bEmitStencilMask
 			);
 		}

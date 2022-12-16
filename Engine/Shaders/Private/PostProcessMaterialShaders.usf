@@ -60,9 +60,6 @@ SamplerState PostProcessInput_BilinearSampler;
 
 #include "/Engine/Generated/Material.ush"
 
-uint ManualStencilReferenceValue;
-uint ManualStencilTestMask;
-
 struct FPostProcessMaterialVSToPS
 {
 	float4 Position : SV_POSITION;
@@ -159,28 +156,6 @@ void MainVS_VideoOverlay(
 
 #elif PIXELSHADER
 
-#define STENCIL_TEST_EQUAL		0x1u
-#define STENCIL_TEST_LESS		0x2u
-#define STENCIL_TEST_GREATER	0x4u
-
-// Perform the stencil test manually by discarding test failure.
-// This is necessary when Nanite writes custom stencil and the platform cannot support writing arbitrary values directly to
-// the custom stencil buffer per-pixel
-void ManualStencilTest(uint2 PixelPos)
-{
-	const uint Stencil = CalcSceneCustomStencil(PixelPos);
-	const int Diff = ManualStencilReferenceValue - Stencil;
-	const uint Test =
-		(Stencil == ManualStencilReferenceValue	? STENCIL_TEST_EQUAL	: 0) |
-		(Stencil <  ManualStencilReferenceValue	? STENCIL_TEST_LESS		: 0) |
-		(Stencil >  ManualStencilReferenceValue	? STENCIL_TEST_GREATER	: 0);
-
-	if ((Test & ManualStencilTestMask) == 0)
-	{
-		discard;
-	}
-}
-
 void MainPS(
 	in FPostProcessMaterialVSToPS Input,
 	out float4 OutColor : SV_Target0
@@ -193,10 +168,6 @@ void MainPS(
 	// can be optimized
 	float4 SvPosition = Input.Position;
 	float2 ViewportUV = (SvPosition.xy - PostProcessOutput_ViewportMin.xy) * PostProcessOutput_ViewportSizeInverse.xy;
-
-#if MANUAL_STENCIL_TEST
-	ManualStencilTest((uint2)SvPosition.xy);
-#endif
 
 #if NUM_TEX_COORD_INTERPOLATORS
 	{

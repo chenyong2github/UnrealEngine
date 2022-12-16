@@ -14,10 +14,9 @@
 // .x = platform config
 // .y = tiles wide
 // .z = "decal receive" stencil value
-// .w = max visible clusters
+// .w = unused
 uint4 DepthExportConfig;
 uint4 ViewRect;
-uint bWriteCustomStencil;
 
 // Requirements:
 // COMPILER_SUPPORTS_TO_SCALAR_MEMORY
@@ -116,37 +115,20 @@ void DepthExport(uint2 GroupId : SV_GroupID, uint ThreadIndex : SV_GroupIndex)
 				FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
 				checkSlow(VisibleCluster.InstanceId < PageConstants.x);
 				const FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster, false);
-				const FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
 				const FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
 				const uint MaterialSlot = GetMaterialShadingSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
 				MaterialDepthValue = asfloat(GetMaterialDepthId(MaterialSlot, MaterialDepthTable));
 
-				const bool IsDecalReceiver = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0 && View.ShowDecalsMask > 0;
+				const bool IsDecalReceiver = (GetPrimitiveData(InstanceData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0 && View.ShowDecalsMask > 0;
 
 				SceneDepthValue = NaniteDepthValue;
 				SceneDepth[PixelPos.xy] = SceneDepthValue; // Write uncompressed depth value out
 
-				uint OutStencil;
-				if (bWriteCustomStencil)
-				{
-					uint CustomStencilMask = (PrimitiveData.CustomStencilValueAndMask >> 8u) & 0xFFu;
-					if (CustomStencilMask == 0)
-					{
-						// "Default" mask value of 0 means depth pass = replace, depth fail = keep
-						// TODO: Proper support for ignore-depth, bitwise-or modes (requires a separate 32-bit target)
-						CustomStencilMask = 0xFFu;
-					}
+				uint OutStencil = CondMask(IsDecalReceiver, DepthExportConfig.z, 0u);
 
-					OutStencil = PrimitiveData.CustomStencilValueAndMask & CustomStencilMask;
-				}
-				else 
-				{
-					OutStencil = select(IsDecalReceiver, DepthExportConfig.z, 0u);
-					// TODO: Implement support for lighting channels
-					OutStencil |= 1 << LIGHTING_CHANNELS_TEXTURE_DISTANCE_FIELD_REPRESENTATION_BIT;
-				}
-
+				// TODO: Implement support for lighting channels
+				OutStencil |= 1 << LIGHTING_CHANNELS_TEXTURE_DISTANCE_FIELD_REPRESENTATION_BIT;
 				SceneStencil[PixelPos.xy] = OutStencil;
 
 			#if VELOCITY_EXPORT
@@ -174,13 +156,10 @@ void DepthExport(uint2 GroupId : SV_GroupID, uint ThreadIndex : SV_GroupIndex)
 				}
 			#endif
 
-			#if MATERIAL_DATA_EXPORT
 				MaterialResolve[PixelPos.xy] = PackMaterialResolve(MaterialSlot, IsDecalReceiver);
-			#endif
 			}
 		}
 
-	#if MATERIAL_DATA_EXPORT
 		MaterialDepth[PixelPos.xy] = MaterialDepthValue;
 
 		const float TileMinMaterialDepth = WaveActiveMin(MaterialDepthValue);
@@ -190,7 +169,6 @@ void DepthExport(uint2 GroupId : SV_GroupID, uint ThreadIndex : SV_GroupIndex)
 		{
 			MaterialHTile[TileIndex] = EncodeTileMinMaxDepth(TileMinMaterialDepth, TileMaxMaterialDepth, PlatformConfig);
 		}
-	#endif
 
 		// Only write out SceneDepth and expand SceneHTile if there are Nanite fragments that survive depth testing against the scene
 		if (WaveActiveAnyTrue(NanitePixelVisible))

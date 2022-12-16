@@ -132,14 +132,6 @@ static FAutoConsoleVariableRef CVarNaniteRaytracingProceduralPrimitive(
 	TEXT("Whether to raytrace nanite meshes using procedural primitives instead of a proxy."),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
-int32 GNaniteCustomDepthEnabled = 1;
-static FAutoConsoleVariableRef CVarNaniteCustomDepthStencil(
-	TEXT("r.Nanite.CustomDepth"),
-	GNaniteCustomDepthEnabled,
-	TEXT("Whether to allow Nanite to render in the CustomDepth pass"),
-	ECVF_RenderThreadSafe
-);
-
 namespace Nanite
 {
 ERayTracingMode GetRayTracingMode()
@@ -150,11 +142,6 @@ ERayTracingMode GetRayTracingMode()
 bool GetSupportsRayTracingProceduralPrimitive(EShaderPlatform InShaderPlatform)
 {
 	return GNaniteRaytracingProceduralPrimitive && VF_NANITE_PROCEDURAL_INTERSECTOR && FDataDrivenShaderPlatformInfo::GetSupportsRayTracingProceduralPrimitive(InShaderPlatform);
-}
-
-bool GetSupportsCustomDepthRendering()
-{
-	return GNaniteCustomDepthEnabled != 0;
 }
 
 static_assert(sizeof(FPackedCluster) == NANITE_NUM_PACKED_CLUSTER_FLOAT4S * 16, "NANITE_NUM_PACKED_CLUSTER_FLOAT4S out of sync with sizeof(FPackedCluster)");
@@ -1012,7 +999,6 @@ FPrimitiveViewRelevance FSceneProxy::GetViewRelevance(const FSceneView* View) co
 	FPrimitiveViewRelevance Result;
 	Result.bDrawRelevance = IsShown(View) && View->Family->EngineShowFlags.NaniteMeshes;
 	Result.bShadowRelevance = IsShadowCast(View);
-	Result.bRenderCustomDepth = Nanite::GetSupportsCustomDepthRendering() && ShouldRenderCustomDepth();
 	Result.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
 
 	// Always render the Nanite mesh data with static relevance.
