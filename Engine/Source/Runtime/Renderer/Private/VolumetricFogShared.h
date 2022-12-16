@@ -9,6 +9,7 @@
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVoxelizeVolumePassUniformParameters, )
 	SHADER_PARAMETER_STRUCT(FSceneTextureUniformParameters, SceneTextures)
 	SHADER_PARAMETER(FMatrix44f, ViewToVolumeClip)
+	SHADER_PARAMETER(FVector2f, ClipRatio)
 	SHADER_PARAMETER(FVector4f, FrameJitterOffset0)
 	SHADER_PARAMETER_STRUCT(FVolumetricFogGlobalData, VolumetricFog)
 	SHADER_PARAMETER(FVector3f, RenderVolumetricCloudParametersCloudLayerCenterKm)

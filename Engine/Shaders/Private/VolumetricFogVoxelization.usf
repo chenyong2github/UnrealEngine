@@ -314,8 +314,11 @@ void VoxelizePS(
 	UpdateMaterialCloudParam(MaterialParameters, AbsoluteWorldPosition, ResolvedView, CloudLayerParams, TRACING_SHADOW_DISTANCE_OFF, SPACE_SKIPPING_SLICE_DEPTH_OFF);
 #endif
 
+	// Scale rendered position to account for frustum difference between fog voxelization and rendered scene
+	float4 AdjustedSvPosition = SvPosition * float4(VoxelizeVolumePass.ClipRatio, 1, 1);
+
 	FPixelMaterialInputs PixelMaterialInputs;
-	CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, true);
+	CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, AdjustedSvPosition, true);
 
 	float3 EmissiveColor = SampleEmissive(PixelMaterialInputs);
 	float3 Albedo = SampleAlbedo(PixelMaterialInputs, ResolvedView);

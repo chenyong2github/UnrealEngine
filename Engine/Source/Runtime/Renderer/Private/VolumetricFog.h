@@ -47,6 +47,8 @@ private:
 	FRDGTextureRef DefaultLightFunctionAtlasItemTexture;
 };
 
+extern FIntVector GetVolumetricFogGridSize(FIntPoint ViewRectSize, int32& OutVolumetricFogGridPixelSize);
+
 extern bool DoesPlatformSupportVolumetricFog(const FStaticShaderPlatform Platform);
 extern bool DoesPlatformSupportVolumetricFogVoxelization(const FStaticShaderPlatform Platform);
 

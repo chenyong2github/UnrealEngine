@@ -249,6 +249,7 @@ class FWriteToBoundingSphereVS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVolumetricFogIntegrationParameters, VolumetricFogParameters)
 		SHADER_PARAMETER(FMatrix44f, ViewToVolumeClip)
+		SHADER_PARAMETER(FVector2f, ClipRatio)
 		SHADER_PARAMETER(FVector4f, ViewSpaceBoundingSphere)
 		SHADER_PARAMETER(int32, MinZ)
 	END_SHADER_PARAMETER_STRUCT()
@@ -608,6 +609,15 @@ void FDeferredShadingSceneRenderer::RenderLocalLightsForVolumetricFog(
 						VSPassParameters.MinZ = VolumeZBounds.X;
 						VSPassParameters.ViewSpaceBoundingSphere = FVector4f(FVector4f(View.ViewMatrices.GetViewMatrix().TransformPosition(LightBounds.Center)), LightBounds.W); // LWC_TODO: precision loss
 						VSPassParameters.ViewToVolumeClip = FMatrix44f(View.ViewMatrices.ComputeProjectionNoAAMatrix());	// LWC_TODO: Precision loss?
+
+						// Calculate how much the Fog froxel volume "overhangs" the actual view frustum to the right and bottom
+						const FIntPoint FogRect = View.ViewRect.Size();
+						int32 VolumetricFogGridPixelSize;
+						const FIntVector VolumetricFogGridSize = GetVolumetricFogGridSize(FogRect, VolumetricFogGridPixelSize);
+						const FVector2f FogPhysicalSize = (FVector2f(VolumetricFogGridSize.X, VolumetricFogGridSize.Y) * VolumetricFogGridPixelSize);
+						const FVector2f ClipRatio = FogPhysicalSize / FVector2f(FogRect);
+						VSPassParameters.ClipRatio = ClipRatio;
+
 						VSPassParameters.VolumetricFogParameters = PassParameters->VolumetricFogParameters;
 						SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), VSPassParameters);
 
