@@ -6,6 +6,8 @@
 
 #include "Android/AndroidApplication.h"
 
+#include <android/bitmap.h>
+
 #if UE_BUILD_SHIPPING
 // always clear any exceptions in SHipping
 #define CHECK_JNI_RESULT(Id) if (Id == 0) { JEnv->ExceptionClear(); }
@@ -31,9 +33,10 @@ static jfieldID FindField(JNIEnv* JEnv, jclass Class, const ANSICHAR* FieldName,
 #define MOTIONEVENT_ACTION_MOVE		2
 
 FJavaAndroidWebBrowser::FJavaAndroidWebBrowser(bool swizzlePixels, bool vulkanRenderer, int32 width, int32 height,
-	jlong widgetPtr, bool bEnableRemoteDebugging, bool bUseTransparency, bool bEnableDomStorage)
-	: FJavaClassObject(GetClassName(), "(JIIZZZZZ)V", widgetPtr, width, height,  swizzlePixels, vulkanRenderer, bEnableRemoteDebugging, bUseTransparency, bEnableDomStorage)
+	jlong widgetPtr, bool bEnableRemoteDebugging, bool bUseTransparency, bool bEnableDomStorage, bool bShouldUseBitmapRender)
+	: FJavaClassObject(GetClassName(), "(JIIZZZZZZ)V", widgetPtr, width, height,  swizzlePixels, vulkanRenderer, bEnableRemoteDebugging, bUseTransparency, bEnableDomStorage, bShouldUseBitmapRender)
 	, ReleaseMethod(GetClassMethod("release", "()V"))
+	, GetVideoLastFrameBitmapMethod(GetClassMethod("getVideoLastFrameBitmap", "()Lcom/epicgames/unreal/WebViewControl$FrameUpdateInfo;"))
 	, GetVideoLastFrameDataMethod(GetClassMethod("getVideoLastFrameData", "()Lcom/epicgames/unreal/WebViewControl$FrameUpdateInfo;"))
 	, GetVideoLastFrameMethod(GetClassMethod("getVideoLastFrame", "(I)Lcom/epicgames/unreal/WebViewControl$FrameUpdateInfo;"))
 	, DidResolutionChangeMethod(GetClassMethod("didResolutionChange", "()Z"))
@@ -58,6 +61,7 @@ FJavaAndroidWebBrowser::FJavaAndroidWebBrowser(bool swizzlePixels, bool vulkanRe
 	// get field IDs for FrameUpdateInfo class members
 	FrameUpdateInfoClass = FAndroidApplication::FindJavaClassGlobalRef("com/epicgames/unreal/WebViewControl$FrameUpdateInfo");
 	FrameUpdateInfo_Buffer = FindField(JEnv, FrameUpdateInfoClass, "Buffer", "Ljava/nio/Buffer;", false);
+	FrameUpdateInfo_Bitmap = FindField(JEnv, FrameUpdateInfoClass, "Bitmap", "Landroid/graphics/Bitmap;", false);
 	FrameUpdateInfo_FrameReady = FindField(JEnv, FrameUpdateInfoClass, "FrameReady", "Z", false);
 	FrameUpdateInfo_RegionChanged = FindField(JEnv, FrameUpdateInfoClass, "RegionChanged", "Z", false);
 }
@@ -73,6 +77,66 @@ FJavaAndroidWebBrowser::~FJavaAndroidWebBrowser()
 void FJavaAndroidWebBrowser::Release()
 {
 	CallMethod<void>(ReleaseMethod);
+}
+
+bool FJavaAndroidWebBrowser::GetVideoLastFrameBitmap(void* outPixels, int64 outCount)
+{
+	// This can return an exception in some cases
+	JNIEnv* JEnv = FAndroidApplication::GetJavaEnv();
+	auto Result = NewScopedJavaObject(JEnv, JEnv->CallObjectMethod(Object, GetVideoLastFrameBitmapMethod.Method));
+	if (JEnv->ExceptionCheck())
+	{
+		JEnv->ExceptionDescribe();
+		JEnv->ExceptionClear();
+		return false;
+	}
+
+	if (!Result)
+	{
+		return false;
+	}
+
+	auto bitmap = NewScopedJavaObject(JEnv, JEnv->GetObjectField(*Result, FrameUpdateInfo_Bitmap));
+	if (bitmap)
+	{
+		AndroidBitmapInfo BitmapInfo;
+
+		AndroidBitmap_getInfo(JEnv, *bitmap, &BitmapInfo);
+		if (BitmapInfo.format != ANDROID_BITMAP_FORMAT_RGBA_8888)
+		{
+			return false;
+		}
+		int32 BitmapBytes = BitmapInfo.stride * BitmapInfo.height;
+
+		BitmapBytes = FMath::Min(outCount, BitmapBytes);
+		if (BitmapBytes > 0)
+		{
+			void* BitmapDataPtr;
+
+			if (AndroidBitmap_lockPixels(JEnv, *bitmap, &BitmapDataPtr) >= 0)
+			{
+				// unfortunately the order is wrong (RGBA instead of BGRA)
+				//memcpy(outPixels, BitmapDataPtr, BitmapBytes);
+				int32 NumPixels = BitmapBytes >> 2;
+				uint8* SrcData = (uint8*)BitmapDataPtr;
+				uint8* DstData = (uint8*)outPixels;
+				while (NumPixels--)
+				{
+					*DstData++ = SrcData[2];
+					*DstData++ = SrcData[1];
+					*DstData++ = SrcData[0];
+					*DstData++ = SrcData[3];
+					SrcData += 4;
+				}
+				AndroidBitmap_unlockPixels(JEnv, *bitmap);
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	return false;
 }
 
 bool FJavaAndroidWebBrowser::GetVideoLastFrameData(void* & outPixels, int64 & outCount, bool *bRegionChanged)

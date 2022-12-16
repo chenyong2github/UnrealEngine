@@ -15,9 +15,10 @@
 class FJavaAndroidWebBrowser : public FJavaClassObject
 {
 public:
-	FJavaAndroidWebBrowser(bool swizzlePixels, bool vulkanRenderer, int32 width, int32 height, jlong widgetPtr, bool bEnableRemoteDebugging, bool bUseTransparency, bool bEnableDomStorage);
+	FJavaAndroidWebBrowser(bool swizzlePixels, bool vulkanRenderer, int32 width, int32 height, jlong widgetPtr, bool bEnableRemoteDebugging, bool bUseTransparency, bool bEnableDomStorage, bool bShouldUseBitmapRender);
 	virtual ~FJavaAndroidWebBrowser();
 	void Release();
+	bool GetVideoLastFrameBitmap(void* outPixels, int64 outCount);
 	bool GetVideoLastFrameData(void* & outPixels, int64 & outCount, bool *bRegionChanged);
 	bool GetVideoLastFrame(int32 destTexture);
 	bool DidResolutionChange();
@@ -40,6 +41,7 @@ private:
 	static FName GetClassName();
 
 	FJavaClassMethod ReleaseMethod;
+	FJavaClassMethod GetVideoLastFrameBitmapMethod;
 	FJavaClassMethod GetVideoLastFrameDataMethod;
 	FJavaClassMethod GetVideoLastFrameMethod;
 	FJavaClassMethod DidResolutionChangeMethod;
@@ -59,6 +61,7 @@ private:
 	// FrameUpdateInfo member field ids
 	jclass FrameUpdateInfoClass;
 	jfieldID FrameUpdateInfo_Buffer;
+	jfieldID FrameUpdateInfo_Bitmap;
 	jfieldID FrameUpdateInfo_FrameReady;
 	jfieldID FrameUpdateInfo_RegionChanged;
 	

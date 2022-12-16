@@ -109,6 +109,12 @@ private:
 	/** Enable 3D appearance for Android. */
 	bool IsAndroid3DBrowser;
 
+	/** Should use bitmap rendering for 3D. */
+	bool bShouldUseBitmapRender;
+
+	/** Mouse captured */
+	bool bMouseCapture;
+
 	/** The Java side webbrowser interface. */
 	TSharedPtr<FJavaAndroidWebBrowser, ESPMode::ThreadSafe> JavaWebBrowser;
 

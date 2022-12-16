@@ -17,6 +17,7 @@ import android.webkit.WebResourceResponse;
 import android.webkit.JsResult;
 import android.webkit.JsPromptResult;
 import android.graphics.Bitmap;
+import android.graphics.Bitmap.Config;
 import android.graphics.Paint;
 import android.graphics.Color;
 import android.webkit.WebBackForwardList;
@@ -76,12 +77,18 @@ class WebViewControl
 	private boolean VulkanRenderer = false;
 	private volatile boolean WaitOnBitmapRender = false;
 
+	private Bitmap TargetBitmap = null;
+	private Canvas TargetCanvas = null;
+	private java.nio.Buffer TargetBitmapFrameData = null;
+
+
 	private BitmapRenderer mBitmapRenderer = null;
 	private OESTextureRenderer mOESTextureRenderer = null;
 
 	public class FrameUpdateInfo 
 	{
 		public java.nio.Buffer Buffer;
+		public Bitmap Bitmap;
 		public boolean FrameReady;
 		public boolean RegionChanged;
 		public float UScale;
@@ -90,7 +97,7 @@ class WebViewControl
 		public float VOffset;
 	}
 
-	public WebViewControl(long inNativePtr, int width, int height, boolean swizzlePixels, boolean vulkanRenderer, final boolean bEnableRemoteDebugging, final boolean bUseTransparency, final boolean bEnableDomStorage)
+	public WebViewControl(long inNativePtr, int width, int height, boolean swizzlePixels, boolean vulkanRenderer, final boolean bEnableRemoteDebugging, final boolean bUseTransparency, final boolean bEnableDomStorage, final boolean bShouldUseBitmapRender)
 	{
 		final WebViewControl w = this;
 
@@ -101,6 +108,17 @@ class WebViewControl
 		WaitOnBitmapRender = false;
 
 		nativePtr = inNativePtr;
+
+		if (bShouldUseBitmapRender)
+		{
+			TargetBitmap = Bitmap.createBitmap(initialWidth, initialHeight, Config.ARGB_8888);
+			TargetCanvas = new Canvas(TargetBitmap);
+		}
+		else
+		{
+			TargetBitmap = null;
+			TargetCanvas = null;
+		}
 
 		//GameActivity.Log.debug("WebViewControl width=" + width + ", height=" + height);
 
@@ -136,8 +154,9 @@ class WebViewControl
 				webView.getSettings().setLoadWithOverviewMode(true);
 				webView.getSettings().setUseWideViewPort(true);
 
-				//3D is the default
-				webView.SetAndroid3DBrowser(true);
+				//3D is the default if not using Bitmap
+				webView.SetBitmapDraw(TargetCanvas);
+				webView.SetAndroid3DBrowser(TargetBitmap == null);
 
 				if (bUseTransparency)
 				{
@@ -161,7 +180,7 @@ class WebViewControl
 	boolean PendingSetAndroid3DBrowser;
 	public void SetAndroid3DBrowser(boolean InIsAndroid3DBrowser)
 	{
-		PendingSetAndroid3DBrowser = InIsAndroid3DBrowser;
+		PendingSetAndroid3DBrowser = (TargetBitmap == null) ? InIsAndroid3DBrowser : false;
 		GameActivity._activity.runOnUiThread(new Runnable()
 		{
 			@Override
@@ -210,6 +229,16 @@ class WebViewControl
 		{
 			while (WaitOnBitmapRender) ;
 			releaseOESTextureRenderer();
+		}
+
+		if (TargetCanvas != null)
+		{
+			TargetCanvas = null;
+		}
+		if (TargetBitmap != null)
+		{
+			TargetBitmap.recycle();
+			TargetBitmap = null;
 		}
 
 		Close();
@@ -349,7 +378,7 @@ class WebViewControl
 					// add to the activitiy, on top of the SurfaceView
 					ViewGroup.LayoutParams params = new ViewGroup.LayoutParams(ViewGroup.LayoutParams.FILL_PARENT, ViewGroup.LayoutParams.FILL_PARENT);			
 					GameActivity._activity.addContentView(positionLayout, params);
-					if(!webView.IsAndroid3DBrowser)
+					if(!webView.IsAndroid3DBrowser && TargetBitmap == null)
 					{
 						//GameActivity.Log.warn("request focus create");
 						webView.requestFocus();
@@ -408,7 +437,7 @@ class WebViewControl
 							NextURL = null;
 						}
 						else
-						if(!webView.IsAndroid3DBrowser)
+						if(!webView.IsAndroid3DBrowser && TargetBitmap == null)
 						{
 							//GameActivity.Log.warn("request focus");
 							webView.requestFocus();
@@ -504,8 +533,46 @@ class WebViewControl
 		}
 	}
 
+	public FrameUpdateInfo getVideoLastFrameBitmap()
+	{
+		if (TargetBitmap == null)
+		{
+			return null;
+		}
+
+		// trigger a draw (it will go to onDraw to do the actual update)
+		webView.draw(TargetCanvas);
+
+		FrameUpdateInfo frameUpdateInfo = new FrameUpdateInfo();
+
+		frameUpdateInfo.Bitmap = TargetBitmap;
+		frameUpdateInfo.FrameReady = true;
+		frameUpdateInfo.RegionChanged = false;
+		return frameUpdateInfo;
+	}
+
 	public FrameUpdateInfo getVideoLastFrameData()
 	{
+		if (TargetBitmap != null)
+		{
+			if (null == TargetBitmapFrameData)
+			{
+				TargetBitmapFrameData = java.nio.ByteBuffer.allocateDirect(initialWidth * initialHeight * 4);
+			}
+
+			// note RGBA vs BGRA so not really correct
+			TargetBitmapFrameData.position(0);
+			TargetBitmap.copyPixelsToBuffer(TargetBitmapFrameData);
+			TargetBitmapFrameData.position(0);
+
+			FrameUpdateInfo frameUpdateInfo = new FrameUpdateInfo();
+
+			frameUpdateInfo.Buffer = TargetBitmapFrameData;
+			frameUpdateInfo.FrameReady = true;
+			frameUpdateInfo.RegionChanged = false;
+			return frameUpdateInfo;
+		}
+
 		initBitmapRenderer();
 		if (null != mBitmapRenderer)
 		{
@@ -1557,6 +1624,8 @@ class WebViewControl
 	{
 		private android.view.Surface mSurface = null;
 		public boolean IsAndroid3DBrowser = false;
+		public boolean bBitmapDraw = false;
+		Canvas TargetCanvas = null;
 
 		// default constructors
 		public GLWebView(Context context) {
@@ -1580,10 +1649,24 @@ class WebViewControl
 			setOnTouchListener(new View.OnTouchListener() {
 				@Override
 				public boolean onTouch(View v, MotionEvent event) {
-					return IsAndroid3DBrowser;
+					return IsAndroid3DBrowser || bBitmapDraw;
 				}
 			});
 		
+		}
+
+		public void SetBitmapDraw(Canvas InCanvas)
+		{
+			boolean InBitmapDraw = InCanvas != null;
+			synchronized(this)
+			{
+				if(bBitmapDraw != InBitmapDraw)
+				{
+					TargetCanvas = InCanvas;
+					bBitmapDraw = InBitmapDraw;
+					webView.setFocusableInTouchMode(!(IsAndroid3DBrowser || bBitmapDraw));
+				}
+			}
 		}
 
 		public void SetAndroid3DBrowser(boolean InIsAndroid3DBrowser)
@@ -1593,7 +1676,7 @@ class WebViewControl
 				if(IsAndroid3DBrowser != InIsAndroid3DBrowser)
 				{
 					IsAndroid3DBrowser = InIsAndroid3DBrowser;
-					webView.setFocusableInTouchMode(!IsAndroid3DBrowser);
+					webView.setFocusableInTouchMode(!(IsAndroid3DBrowser || bBitmapDraw));
 				}
 			}
 		}
@@ -1608,6 +1691,17 @@ class WebViewControl
 		@Override
 		public void onDraw( Canvas canvas ) 
 		{
+			if (bBitmapDraw)
+			{
+				TargetCanvas.save();
+				float xScale = TargetCanvas.getWidth() / (float) canvas.getWidth();
+				TargetCanvas.translate(-getScrollX(), -getScrollY());
+				super.onDraw(TargetCanvas);
+				TargetCanvas.restore();
+				//GameActivity.Log.debug("onDraw: res: " + TargetCanvas.getWidth() + " x " + TargetCanvas.getHeight() + ", scroll:" + getScrollX() + " x " + getScrollY());
+				return;
+			}
+
 			//returns canvas attached to gl texture to draw on
 			Canvas glAttachedCanvas = null;
 			if(!IsAndroid3DBrowser)

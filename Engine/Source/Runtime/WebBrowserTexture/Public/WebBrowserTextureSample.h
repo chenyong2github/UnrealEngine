@@ -110,6 +110,31 @@ public:
 	}
 
 	/**
+	* Initialize the sample for copy externally.
+	*
+	* @return The size of the buffer
+	* @see InitializeTexture
+	*/
+	int32 InitializeBufferForCopy()
+	{
+		SIZE_T RequiredBufferSize = Dim.X * Dim.Y * sizeof(int32);
+		if (BufferSize < RequiredBufferSize)
+		{
+			if (BufferSize == 0)
+			{
+				Buffer = FMemory::Malloc(RequiredBufferSize);
+			}
+			else
+			{
+				Buffer = FMemory::Realloc(Buffer, RequiredBufferSize);
+			}
+
+			BufferSize = RequiredBufferSize;
+		}
+		return BufferSize;
+	}
+
+	/**
 	* Initialize the sample with a texture resource.
 	*
 	* @return The texture resource object that will hold the sample data.

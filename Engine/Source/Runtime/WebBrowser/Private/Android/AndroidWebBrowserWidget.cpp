@@ -29,6 +29,8 @@
 
 #include <jni.h>
 
+extern bool AndroidThunkCpp_IsOculusMobileApplication();
+
 FCriticalSection SAndroidWebBrowserWidget::WebControlsCS;
 TMap<int64, TWeakPtr<SAndroidWebBrowserWidget>> SAndroidWebBrowserWidget::AllWebControls;
 
@@ -112,6 +114,9 @@ void SAndroidWebBrowserWidget::Construct(const FArguments& Args)
 	WebBrowserWindowPtr = Args._WebBrowserWindow;
 	IsAndroid3DBrowser = true;
 
+	bShouldUseBitmapRender = AndroidThunkCpp_IsOculusMobileApplication();
+	bMouseCapture = false;
+
 	HistorySize = 0;
 	HistoryPosition = 0;
 
@@ -123,7 +128,7 @@ void SAndroidWebBrowserWidget::Construct(const FArguments& Args)
 	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("SAndroidWebBrowserWidget::Construct viewport=%d x %d"), viewportSize.X, viewportSize.Y);
 
 	JavaWebBrowser = MakeShared<FJavaAndroidWebBrowser, ESPMode::ThreadSafe>(false, FAndroidMisc::ShouldUseVulkan(), viewportSize.X, viewportSize.Y,
-		reinterpret_cast<jlong>(this), !(UE_BUILD_SHIPPING || UE_BUILD_TEST), Args._UseTransparency, bEnableDomStorage);
+		reinterpret_cast<jlong>(this), !(UE_BUILD_SHIPPING || UE_BUILD_TEST), Args._UseTransparency, bEnableDomStorage, bShouldUseBitmapRender);
 
 	TextureSamplePool = new FWebBrowserTextureSamplePool();
 	WebBrowserTextureSamplesQueue = MakeShared<FWebBrowserTextureSampleQueue, ESPMode::ThreadSafe>();
@@ -271,41 +276,69 @@ void SAndroidWebBrowserWidget::Tick(const FGeometry& AllottedGeometry, const dou
 			}
 			WriteWebBrowserParams = { JavaWebBrowser, WebBrowserTextureSamplesQueue, NewTextureSample, (int32)(viewportSize.X * viewportSize.Y * sizeof(int32)) };
 
-			ENQUEUE_RENDER_COMMAND(WriteAndroidWebBrowser)(
-				[Params = WriteWebBrowserParams](FRHICommandListImmediate& RHICmdList)
-				{
-					auto PinnedJavaWebBrowser = Params.JavaWebBrowserPtr.Pin();
-					auto PinnedSamples = Params.WebBrowserTextureSampleQueuePtr.Pin();
-
-					if (!PinnedJavaWebBrowser.IsValid() || !PinnedSamples.IsValid())
+			if (bShouldUseBitmapRender)
+			{
+				ENQUEUE_RENDER_COMMAND(WriteAndroidWebBrowser)(
+					[Params = WriteWebBrowserParams](FRHICommandListImmediate& RHICmdList)
 					{
-						return;
-					}
+						auto PinnedJavaWebBrowser = Params.JavaWebBrowserPtr.Pin();
+						auto PinnedSamples = Params.WebBrowserTextureSampleQueuePtr.Pin();
 
-					bool bRegionChanged = false;
+						if (!PinnedJavaWebBrowser.IsValid() || !PinnedSamples.IsValid())
+						{
+							return;
+						}
 
-					// write frame into buffer
-					void* Buffer = nullptr;
-					int64 SampleCount = 0;
+						int32 SampleBufferSize = Params.NewTextureSamplePtr->InitializeBufferForCopy();
+						void* Buffer = (void*)Params.NewTextureSamplePtr->GetBuffer();
 
-					if (!PinnedJavaWebBrowser->GetVideoLastFrameData(Buffer, SampleCount, &bRegionChanged))
+						if (!PinnedJavaWebBrowser->GetVideoLastFrameBitmap(Buffer, SampleBufferSize))
+						{
+							return;
+						}
+
+						PinnedSamples->RequestFlush();
+						PinnedSamples->Enqueue(Params.NewTextureSamplePtr);
+					});
+			}
+			else
+			{
+				ENQUEUE_RENDER_COMMAND(WriteAndroidWebBrowser)(
+					[Params = WriteWebBrowserParams](FRHICommandListImmediate& RHICmdList)
 					{
-						//FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Fetch RT: ShouldUseVulkan couldn't get texture buffer"));
-						return;
-					}
+						auto PinnedJavaWebBrowser = Params.JavaWebBrowserPtr.Pin();
+						auto PinnedSamples = Params.WebBrowserTextureSampleQueuePtr.Pin();
 
-					if (SampleCount != Params.SampleCount)
-					{
-						FPlatformMisc::LowLevelOutputDebugStringf(TEXT("SAndroidWebBrowserWidget::Fetch: Sample count mismatch (Buffer=%llu, Available=%llu"), Params.SampleCount, SampleCount);
-					}
-					check(Params.SampleCount <= SampleCount);
+						if (!PinnedJavaWebBrowser.IsValid() || !PinnedSamples.IsValid())
+						{
+							return;
+						}
 
-					// must make a copy (buffer is owned by Java, not us!)
-					Params.NewTextureSamplePtr->InitializeBuffer(Buffer, true);
+						bool bRegionChanged = false;
 
-					PinnedSamples->RequestFlush();
-					PinnedSamples->Enqueue(Params.NewTextureSamplePtr);
-				});
+						// write frame into buffer
+						void* Buffer = nullptr;
+						int64 SampleCount = 0;
+
+						if (!PinnedJavaWebBrowser->GetVideoLastFrameData(Buffer, SampleCount, &bRegionChanged))
+						{
+							//FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Fetch RT: ShouldUseVulkan couldn't get texture buffer"));
+							return;
+						}
+
+						if (SampleCount != Params.SampleCount)
+						{
+							FPlatformMisc::LowLevelOutputDebugStringf(TEXT("SAndroidWebBrowserWidget::Fetch: Sample count mismatch (Buffer=%llu, Available=%llu"), Params.SampleCount, SampleCount);
+						}
+						check(Params.SampleCount <= SampleCount);
+
+						// must make a copy (buffer is owned by Java, not us!)
+						Params.NewTextureSamplePtr->InitializeBuffer(Buffer, true);
+
+						PinnedSamples->RequestFlush();
+						PinnedSamples->Enqueue(Params.NewTextureSamplePtr);
+					});
+			}
 		}
 		else if (GSupportsImageExternal && WebBrowserTexture != nullptr)
 		{
@@ -530,6 +563,7 @@ FReply SAndroidWebBrowserWidget::OnMouseButtonDown(const FGeometry& MyGeometry, 
 	{
 		Reply = FReply::Handled();
 		SendTouchDown(ConvertMouseEventToLocal(MyGeometry, MouseEvent));
+		bMouseCapture = true;
 	}
 
 	return Reply;
@@ -546,6 +580,7 @@ FReply SAndroidWebBrowserWidget::OnMouseButtonUp(const FGeometry& MyGeometry, co
 	{
 		Reply = FReply::Handled();
 		SendTouchUp(ConvertMouseEventToLocal(MyGeometry, MouseEvent));
+		bMouseCapture = false;
 	}
 
 	return Reply;
@@ -555,10 +590,7 @@ FReply SAndroidWebBrowserWidget::OnMouseMove(const FGeometry& MyGeometry, const 
 {
 	FReply Reply = FReply::Unhandled();
 
-	FKey Button = MouseEvent.GetEffectingButton();
-	bool bSupportedButton = (Button == EKeys::LeftMouseButton); // || Button == EKeys::RightMouseButton || Button == EKeys::MiddleMouseButton);
-
-	if (bSupportedButton)
+	if (bMouseCapture)
 	{
 		Reply = FReply::Handled();
 		SendTouchMove(ConvertMouseEventToLocal(MyGeometry, MouseEvent));
