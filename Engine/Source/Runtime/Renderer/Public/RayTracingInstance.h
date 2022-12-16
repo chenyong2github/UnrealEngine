@@ -129,7 +129,7 @@ struct FRayTracingInstance
 
 
 /** Build mask and flags based on materials specified in Materials. You can still override Mask after calling this function. */
-UE_DEPRECATED(5.2, "Use BuildRayTracingInstanceMaskAndFlags() with ERayTracingViewMaskMode instead. Calling this function leads to incorrect path tracing result")
+UE_DEPRECATED(5.2, "Use BuildRayTracingInstanceMaskAndFlags() with FSceneProxyRayTracingMaskInfo instead. Calling this function leads to incorrect path tracing result")
 FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMeshBatch> MeshBatches, ERHIFeatureLevel::Type FeatureLevel, ERayTracingInstanceLayer InstanceLayer = ERayTracingInstanceLayer::NearField, uint8 ExtraMask = 0);
 
 UE_DEPRECATED(5.2, "Use BlendModeToRayTracingInstanceMask() instead. Calling this function leads to incorrect path tracing result.")

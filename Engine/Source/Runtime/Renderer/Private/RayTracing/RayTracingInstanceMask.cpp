@@ -42,6 +42,8 @@ uint8 ComputeRayTracingInstanceMask(ERayTracingInstanceMaskType MaskType, ERayTr
 		case ERayTracingInstanceMaskType::VisibleInPrimaryRay:
 			Mask = 0;
 			break;
+		case ERayTracingInstanceMaskType::VisibleInIndirectRay:
+			Mask = 0;
 		default:
 			checkNoEntry();
 			break;
@@ -76,6 +78,9 @@ uint8 ComputeRayTracingInstanceMask(ERayTracingInstanceMaskType MaskType, ERayTr
 		case ERayTracingInstanceMaskType::VisibleInPrimaryRay:
 			Mask = PATHTRACER_MASK_CAMERA | PATHTRACER_MASK_HAIR_CAMERA;
 			break;
+		case ERayTracingInstanceMaskType::VisibleInIndirectRay:
+			Mask = PATHTRACER_MASK_INDIRECT | PATHTRACER_MASK_HAIR_INDIRECT;
+			break;
 		default:
 			checkNoEntry();
 			break;
@@ -102,6 +107,7 @@ FSceneProxyRayTracingMaskInfo GetSceneProxyRayTracingMaskInfo(const FPrimitiveSc
 
 	bool bAffectsIndirectLightingOnly = PrimitiveSceneProxy.AffectsIndirectLightingWhileHidden() && !PrimitiveSceneProxy.IsDrawnInGame();
 	bool bCastHiddenShadow = PrimitiveSceneProxy.CastsHiddenShadow() && !PrimitiveSceneProxy.IsDrawnInGame();
+	bool bAffectsDynamicIndirectLighting = PrimitiveSceneProxy.AffectsDynamicIndirectLighting();
 
 	ERayTracingViewMaskMode MaskMode = ERayTracingViewMaskMode::RayTracing;
 
@@ -122,13 +128,12 @@ FSceneProxyRayTracingMaskInfo GetSceneProxyRayTracingMaskInfo(const FPrimitiveSc
 		}
 	}
 
-	return {bAffectsIndirectLightingOnly, bCastHiddenShadow, MaskMode};
+	return {bAffectsIndirectLightingOnly, bCastHiddenShadow, bAffectsDynamicIndirectLighting, MaskMode};
 }
 
 
 FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMeshBatch> MeshBatches, ERHIFeatureLevel::Type FeatureLevel,
-	ERayTracingViewMaskMode MaskMode, bool bAffectIndirectLightingOnly, ERayTracingInstanceLayer InstanceLayer, bool bCastHiddenShadow,
-	uint8 ExtraMask)
+	const FSceneProxyRayTracingMaskInfo& SceneProxyRayTracingMaskInfo, ERayTracingInstanceLayer InstanceLayer, uint8 ExtraMask)
 {
 	FRayTracingMaskAndFlags Result;
 
@@ -138,6 +143,7 @@ FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMe
 	bool bAnySegmentsCastShadow = false;
 	bool bAllSegmentsCastShadow = true;
 	bool bDoubleSided = false;
+	ERayTracingViewMaskMode MaskMode = SceneProxyRayTracingMaskInfo.MaskMode;
 	Result.Mask = ExtraMask;
 
 	for (int32 SegmentIndex = 0; SegmentIndex < MeshBatches.Num(); SegmentIndex++)
@@ -181,14 +187,20 @@ FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMe
 		}
 	}
 
-	if (bAffectIndirectLightingOnly)
+	if (!SceneProxyRayTracingMaskInfo.bAffectsDynamicIndirectLighting)
+	{
+		// If the object does not affect indirect lighting, remove all indirect bits.
+		Result.Mask &= ~ComputeRayTracingInstanceMask(ERayTracingInstanceMaskType::VisibleInIndirectRay, MaskMode);
+	}
+
+	if (SceneProxyRayTracingMaskInfo.bAffectsIndirectLightingOnly)
 	{
 		Result.Mask &= ~ComputeRayTracingInstanceMask(ERayTracingInstanceMaskType::VisibleInPrimaryRay, MaskMode);
 	}
 
-	if (bCastHiddenShadow && bAnySegmentsCastShadow)
+	if (SceneProxyRayTracingMaskInfo.bCastHiddenShadow && bAnySegmentsCastShadow)
 	{
-		if (!bAffectIndirectLightingOnly)
+		if (!SceneProxyRayTracingMaskInfo.bAffectsIndirectLightingOnly)
 		{
 			// objects should not be in any visible group if any segments cast shadow and the caster is hidden
 			// and not affecting indirect.
@@ -219,7 +231,7 @@ FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(const FRayTracingIns
 	FRayTracingMaskAndFlags MaskAndFlags =
 		BuildRayTracingInstanceMaskAndFlags(
 			MeshBatches, PrimitiveSceneProxy.GetScene().GetFeatureLevel(), 
-			MaskInfo.MaskMode, MaskInfo.bAffectsIndirectLightingOnly, Instance.InstanceLayer, MaskInfo.bCastHiddenShadow, ExtraMask);
+			MaskInfo, Instance.InstanceLayer, ExtraMask);
 
 	MaskAndFlags.bForceOpaque = MaskAndFlags.bForceOpaque || Instance.bForceOpaque;
 	MaskAndFlags.bDoubleSided = MaskAndFlags.bDoubleSided || Instance.bDoubleSided;
@@ -245,6 +257,12 @@ void SetupRayTracingMeshCommandMaskAndStatus(FRayTracingMeshCommand& MeshCommand
 
 	if (MaskMode == ERayTracingViewMaskMode::PathTracing || MaskMode == ERayTracingViewMaskMode::LightMapTracing)
 	{
+		if (!MaskInfo.bAffectsDynamicIndirectLighting)
+		{
+			// If the object does not affect indirect lighting, remove all indirect bits.
+			MeshCommand.InstanceMask &= ~ComputeRayTracingInstanceMask(ERayTracingInstanceMaskType::VisibleInIndirectRay, MaskMode);
+		}
+
 		if (MaskInfo.bAffectsIndirectLightingOnly)
 		{
 			MeshCommand.InstanceMask &= ~ComputeRayTracingInstanceMask(ERayTracingInstanceMaskType::VisibleInPrimaryRay, MaskMode);

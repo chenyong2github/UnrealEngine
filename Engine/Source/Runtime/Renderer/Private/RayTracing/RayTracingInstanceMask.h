@@ -24,6 +24,7 @@ enum class ERayTracingInstanceMaskType : uint8
 
 	// path tracing specific mask type
 	VisibleInPrimaryRay,
+	VisibleInIndirectRay
 };
 
 /** MeshCommands mode shares the same status for ray tracing view mask mode*/
@@ -47,6 +48,7 @@ struct FSceneProxyRayTracingMaskInfo
 {
 	bool bAffectsIndirectLightingOnly = false;
 	bool bCastHiddenShadow = false;
+	bool bAffectsDynamicIndirectLighting = true;
 	ERayTracingViewMaskMode MaskMode = ERayTracingViewMaskMode::RayTracing;
 };
 
@@ -58,7 +60,7 @@ FSceneProxyRayTracingMaskInfo GetSceneProxyRayTracingMaskInfo(const FPrimitiveSc
 //-------------------------------------------------------
 
 FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMeshBatch> MeshBatches, ERHIFeatureLevel::Type FeatureLevel,
-	ERayTracingViewMaskMode MaskMode, bool bAffectIndirectLightingOnly, ERayTracingInstanceLayer InstanceLayer, bool bCastHiddenShadow, uint8 ExtraMask = 0);
+	const FSceneProxyRayTracingMaskInfo& SceneProxyRayTracingMaskInfo, ERayTracingInstanceLayer InstanceLayer, uint8 ExtraMask = 0);
 
 // Build mask and flags without modification of RayTracingInstance
 FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(const FRayTracingInstance& Instance, const FPrimitiveSceneProxy& PrimitiveSceneProxy, const FSceneViewFamily* SceneViewFamily);
