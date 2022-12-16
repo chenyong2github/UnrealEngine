@@ -97,7 +97,8 @@ namespace ToolSceneQueriesUtil
 	struct FFindSceneSnapPointParams
 	{
 		// Required inputs/outputs
-		const UInteractiveTool* Tool = nullptr;
+		const USceneSnappingManager* SnappingManager = nullptr;
+		FViewCameraState CameraState;
 		const FVector3d* Point = nullptr;
 		FVector3d* SnapPointOut = nullptr;
 

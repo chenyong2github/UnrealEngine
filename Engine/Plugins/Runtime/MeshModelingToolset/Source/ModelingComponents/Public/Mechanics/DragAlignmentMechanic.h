@@ -17,21 +17,34 @@
 
 #include "DragAlignmentMechanic.generated.h"
 
-PREDECLARE_USE_GEOMETRY_CLASS(FGroupTopologyDeformer);
+namespace UE::Geometry { class FGroupTopologyDeformer; }
 class UPrimitiveComponent;
 class UIntervalGizmo;
 class UCombinedTransformGizmo;
+class USceneSnappingManager;
+class UKeyAsModifierInputBehavior;
+
 
 /**
- * Mechanic that can be added to (potentially multiple) UCombinedTransformGizmo object to allow them to snap to
- * scene geometry in rotation and translation when the Ctrl key is pressed.
+ * FDragAlignmentBase is a base class for shared functionality of UDragAlignmentMechanic and UDragAlignmentInteraction.
+ * This interaction can be attached to (potentially multiple) UCombinedTransformGizmo object to allow them to snap to
+ * scene geometry in rotation and translation when a modifier key is pressed. 
  */
-UCLASS()
-class MODELINGCOMPONENTS_API UDragAlignmentMechanic : public UInteractionMechanic, public IModifierToggleBehaviorTarget
+class MODELINGCOMPONENTS_API FDragAlignmentBase
 {
-	GENERATED_BODY()
+public:
+	virtual ~FDragAlignmentBase() {}
+
+	//
+	// Subclasses must implement these various API functions for the interaction to function
+	//
+	virtual USceneSnappingManager* GetSnappingManager() = 0;
+	virtual FViewCameraState GetCameraState() = 0;
+	virtual bool GetAlignmentModeEnabled() const = 0;
+	virtual UObject* GetUObjectContainer() = 0;
 
 public:
+
 
 	/**
 	 * Adds this mechanic to the given gizmo. Can be called on multiple gizmos, and works both for UCombinedTransformGizmo
@@ -57,19 +70,21 @@ public:
 	 */
 	void InitializeDeformedMeshRayCast(
 		TFunction<UE::Geometry::FDynamicMeshAABBTree3* ()> GetSpatialIn,
-		const FTransform3d& TargetTransform, const FGroupTopologyDeformer* LinearDeformer);
+		const FTransform3d& TargetTransform, const UE::Geometry::FGroupTopologyDeformer* LinearDeformer);
 
-	virtual void Setup(UInteractiveTool* ParentToolIn) override;
-	virtual void Shutdown() override;
+
+protected:
+
+	/**
+	 * Subclasses must call this to initialize the internal functions/states/etc
+	 */
+	virtual void SetupInternal();
 
 	/**
 	 * This will draw a line from the last input position to the last output position. This
 	 * gets cleared when the transform is ended. 
 	 */
-	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
-
-	// IModifierToggleBehaviorTarget implementation
-	virtual void OnUpdateModifierState(int ModifierID, bool bIsOn) override;
+	virtual void RenderInternal(IToolsContextRenderAPI* RenderAPI);
 
 protected:
 	// These are modifiable in case we someday want to make it easier to customize them further.
@@ -95,12 +110,86 @@ protected:
 	FHitResult LastHitResult;
 	FVector3d LastProjectedResult;
 
-	bool bAlignmentToggle = false;
-	int32 AlignmentModifierID = 1;
-
 	virtual bool CastRay(const FRay& WorldRay, FVector& OutputPoint,
 		const TArray<const UPrimitiveComponent*>* ComponentsToIgnore, 
 		const TArray<const UPrimitiveComponent*>* InvisibleComponentsToInclude,
 		bool bUseFilter);
+
 	void OnGizmoTransformChanged(FTransform NewTransform);
+};
+
+
+/**
+ * Mechanic that can be added to (potentially multiple) UCombinedTransformGizmo object to allow them to snap to
+ * scene geometry in rotation and translation when the Ctrl key is pressed.
+ */
+UCLASS()
+class MODELINGCOMPONENTS_API UDragAlignmentMechanic : public UInteractionMechanic, public FDragAlignmentBase, public IModifierToggleBehaviorTarget
+{
+	GENERATED_BODY()
+
+public:
+
+	virtual USceneSnappingManager* GetSnappingManager();
+	virtual FViewCameraState GetCameraState();
+	virtual bool GetAlignmentModeEnabled() const { return bAlignmentToggle;}
+	virtual UObject* GetUObjectContainer() { return this; }
+
+public:
+
+	virtual void Setup(UInteractiveTool* ParentToolIn) override;
+	virtual void Shutdown() override;
+
+
+	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
+
+	// IModifierToggleBehaviorTarget implementation
+	virtual void OnUpdateModifierState(int ModifierID, bool bIsOn) override;
+
+protected:
+	bool bAlignmentToggle = false;
+	int32 AlignmentModifierID = 1;
+
+};
+
+
+/**
+ * Interaction that can be added to (potentially multiple) UCombinedTransformGizmo object to allow them to snap to
+ * scene geometry in rotation and translation. Generally driven by an externally-provided UKeyAsModifierInputBehavior,
+ * or alternately can be directly updated by calling ::OnUpdateModifierState()
+ */
+UCLASS()
+class MODELINGCOMPONENTS_API UDragAlignmentInteraction : public UObject, public FDragAlignmentBase, public IModifierToggleBehaviorTarget
+{
+	GENERATED_BODY()
+
+public:
+	virtual USceneSnappingManager* GetSnappingManager() { return SceneSnappingManager.Get(); }
+	virtual FViewCameraState GetCameraState() { return LastRenderCameraState; }
+	virtual bool GetAlignmentModeEnabled() const { return bAlignmentToggle;}
+	virtual UObject* GetUObjectContainer() { return this; }
+
+
+public:
+	virtual void Setup(USceneSnappingManager* SnappingManager);
+
+	// Client must call this every frame to do alignment visualization rendering
+	virtual void Render(IToolsContextRenderAPI* RenderAPI);
+
+
+public:
+	// Client can call this on setup to connect the interaction to an external Key behavior.
+	// This function is hardcoded to register the the Ctrl key as the modifier that drives the snapping toggle
+	virtual void RegisterAsBehaviorTarget(UKeyAsModifierInputBehavior* KeyModifierBehavior);
+
+	// IModifierToggleBehaviorTarget implementation
+	virtual void OnUpdateModifierState(int ModifierID, bool bIsOn) override;
+
+protected:
+	TWeakObjectPtr<USceneSnappingManager> SceneSnappingManager;
+
+	FViewCameraState LastRenderCameraState;		// could maybe move this to FDragAlignmentBase and get rid of GetCameraState() API function...
+
+	bool bAlignmentToggle = false;
+	int32 AlignmentModifierID = 1;
 };

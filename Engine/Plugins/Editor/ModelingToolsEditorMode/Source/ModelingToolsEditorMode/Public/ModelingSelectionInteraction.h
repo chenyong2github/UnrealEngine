@@ -20,6 +20,8 @@ class URectangleMarqueeMechanic;
 class UPathSelectionInteraction;
 class FCanvas;
 class IToolsContextRenderAPI;
+class UDragAlignmentInteraction;
+class UKeyAsModifierInputBehavior;
 
 
 UENUM()
@@ -69,6 +71,7 @@ public:
 	UGeometrySelectionManager* GetSelectionManager() { return SelectionManager; }
 	UE::Geometry::FGeometrySelectionUpdateConfig GetActiveSelectionUpdateConfig() const;
 
+	virtual void Render(IToolsContextRenderAPI* RenderAPI);
 	virtual void DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI);
 
 
@@ -173,6 +176,12 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UCombinedTransformGizmo> TransformGizmo;
+
+	UPROPERTY()
+	TObjectPtr<UDragAlignmentInteraction> DragAlignmentInteraction;
+
+	UPROPERTY()
+	TObjectPtr<UKeyAsModifierInputBehavior> DragAlignmentToggleBehavior;
 
 	UE::Geometry::FFrame3d InitialGizmoFrame;
 	FVector3d InitialGizmoScale;

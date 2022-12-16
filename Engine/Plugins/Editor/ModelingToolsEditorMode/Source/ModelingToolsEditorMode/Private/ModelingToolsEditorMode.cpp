@@ -1076,6 +1076,8 @@ void UModelingToolsEditorMode::OnToolsContextRender(IToolsContextRenderAPI* Rend
 {
 	if (SelectionInteraction)
 	{
+		SelectionInteraction->Render(RenderAPI);
+
 		// Bake in transform changes. Note that if we do this in OnToolsContextTick, it will 
 		// still block rendering updates if it is too expensive, unless it is only done every second Tick
 		SelectionInteraction->ApplyPendingTransformInteractions();

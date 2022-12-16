@@ -143,7 +143,8 @@ bool ToolSceneQueriesUtil::FindSceneSnapPoint(const UInteractiveTool* Tool, cons
 {
 	FFindSceneSnapPointParams Params;
 
-	Params.Tool = Tool;
+	Params.SnappingManager = USceneSnappingManager::Find(Tool->GetToolManager());
+	Tool->GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(Params.CameraState);
 	Params.Point = &Point;
 	Params.SnapPointOut = &SnapPointOut;
 	Params.bVertices = bVertices;
@@ -159,15 +160,12 @@ bool ToolSceneQueriesUtil::FindSceneSnapPoint(FFindSceneSnapPointParams& Params)
 {
 	double UseThreshold = (Params.VisualAngleThreshold <= 0) ? GetDefaultVisualAngleSnapThreshD() : Params.VisualAngleThreshold;
 
-	USceneSnappingManager* SnapManager = USceneSnappingManager::Find(Params.Tool->GetToolManager());
-	if (!SnapManager)
+	if (!Params.SnappingManager)
 	{
 		return false;
 	}
 
-	FViewCameraState CameraState;
-	Params.Tool->GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(CameraState);
-	UseThreshold *= CameraState.GetFOVAngleNormalizationFactor();
+	UseThreshold *= Params.CameraState.GetFOVAngleNormalizationFactor();
 
 	FSceneSnapQueryRequest Request;
 	Request.RequestType = ESceneSnapQueryType::Position;
@@ -186,7 +184,7 @@ bool ToolSceneQueriesUtil::FindSceneSnapPoint(FFindSceneSnapPointParams& Params)
 	Request.InvisibleComponentsToInclude = Params.InvisibleComponentsToInclude;
 
 	TArray<FSceneSnapQueryResult> Results;
-	if (SnapManager->ExecuteSceneSnapQuery(Request, Results))
+	if (Params.SnappingManager->ExecuteSceneSnapQuery(Request, Results))
 	{
 		*Params.SnapPointOut = (FVector3d)Results[0].Position;
 

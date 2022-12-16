@@ -11,9 +11,10 @@
 #include "BaseBehaviors/SingleClickBehavior.h"
 #include "BaseBehaviors/SingleClickOrDragBehavior.h"
 #include "BaseBehaviors/MouseHoverBehavior.h"
+#include "BaseBehaviors/KeyAsModifierInputBehavior.h"
 
 #include "Mechanics/RectangleMarqueeMechanic.h"
-
+#include "Mechanics/DragAlignmentMechanic.h"
 
 using namespace UE::Geometry;
 
@@ -53,11 +54,19 @@ void UModelingSelectionInteraction::Initialize(
 	UpdateActiveDragMode();
 
 	TransformProxy = NewObject<UTransformProxy>(this);
-	// todo: make this repositionable etc. Maybe make this function a delegate? or allow caller to provide the gizmo?
-	TransformGizmo = UE::TransformGizmoUtil::Create3AxisTransformGizmo(
-		SelectionManager->GetToolsContext()->GizmoManager, this, TEXT("ModelingSelectionInteraction") );
+	TransformGizmo = UE::TransformGizmoUtil::CreateCustomRepositionableTransformGizmo( 
+		SelectionManager->GetToolsContext()->GizmoManager, ETransformGizmoSubElements::FullTranslateRotateScale,
+		this, TEXT("ModelingSelectionInteraction") );
 	TransformGizmo->SetActiveTarget(TransformProxy, SelectionManager->GetToolsContext()->GizmoManager);
 	TransformGizmo->SetVisibility(false);
+
+	DragAlignmentInteraction = NewObject<UDragAlignmentInteraction>(this);
+	DragAlignmentInteraction->Setup( USceneSnappingManager::Find(SelectionManager->GetToolsContext()->GizmoManager) );
+
+	DragAlignmentToggleBehavior = NewObject<UKeyAsModifierInputBehavior>(this);
+	DragAlignmentInteraction->RegisterAsBehaviorTarget(DragAlignmentToggleBehavior);
+	BehaviorSet->Add(DragAlignmentToggleBehavior, this);
+	DragAlignmentInteraction->AddToGizmo(TransformGizmo);
 
 	// listen for change events on transform proxy
 	TransformProxy->OnTransformChanged.AddUObject(this, &UModelingSelectionInteraction::OnGizmoTransformChanged);
@@ -82,6 +91,13 @@ void UModelingSelectionInteraction::Shutdown()
 	}
 }
 
+void UModelingSelectionInteraction::Render(IToolsContextRenderAPI* RenderAPI)
+{
+	if (DragAlignmentInteraction)
+	{
+		DragAlignmentInteraction->Render(RenderAPI);
+	}
+}
 
 void UModelingSelectionInteraction::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI)
 {

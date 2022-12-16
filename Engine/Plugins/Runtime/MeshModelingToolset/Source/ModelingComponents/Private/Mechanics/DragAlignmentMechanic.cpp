@@ -11,66 +11,14 @@
 #include "SceneManagement.h" //FPrimitiveDrawInterface
 #include "ToolDataVisualizer.h"
 #include "ToolSceneQueriesUtil.h"
+#include "SceneQueries/SceneSnappingManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DragAlignmentMechanic)
 
 using namespace UE::Geometry;
 
-void UDragAlignmentMechanic::Setup(UInteractiveTool* ParentToolIn)
-{	
-	UInteractionMechanic::Setup(ParentToolIn);
 
-	// Register modifier listeners.
-	UKeyAsModifierInputBehavior* AlignmentToggleBehavior = NewObject<UKeyAsModifierInputBehavior>();
-	AlignmentToggleBehavior->Initialize(this, AlignmentModifierID, FInputDeviceState::IsCtrlKeyDown);
-	ParentTool->AddInputBehavior(AlignmentToggleBehavior);
-
-	// Set up the function that casts rays into the world.
-	WorldRayCast = [this, ParentToolIn](const FRay& WorldRay, FHitResult& HitResult, 
-		const TArray<const UPrimitiveComponent*>* ComponentsToIgnore,
-		const TArray<const UPrimitiveComponent*>* InvisibleComponentsToInclude)
-	{
-		bool bSuccess = false;
-		FVector3d QueryPoint = (FVector3d)WorldRay.PointAt(1);
-		FVector3d SnapPoint;
-		ToolSceneQueriesUtil::FSnapGeometry SnapGeometry;
-
-		// Try to snap to visible vertices/edges first
-		ToolSceneQueriesUtil::FFindSceneSnapPointParams SnapParams;
-		SnapParams.Tool = ParentTool.Get();
-		SnapParams.Point = &QueryPoint;
-		SnapParams.SnapPointOut = &SnapPoint;
-		SnapParams.bEdges = true;
-		SnapParams.bVertices = true;
-		SnapParams.VisualAngleThreshold = VisualAngleSnapThreshold;
-		SnapParams.SnapGeometryOut = &SnapGeometry;
-		SnapParams.ComponentsToIgnore = ComponentsToIgnore;
-		SnapParams.InvisibleComponentsToInclude = InvisibleComponentsToInclude;
-
-		if (ToolSceneQueriesUtil::FindSceneSnapPoint(SnapParams))
-		{
-			HitResult = FHitResult(WorldRay.Origin, (FVector)SnapPoint);
-			HitResult.ImpactPoint = (FVector)SnapPoint;
-			HitResult.Distance = WorldRay.GetParameter(HitResult.ImpactPoint);
-			HitResult.Item = SnapGeometry.PointCount == 1 ? VERT_HIT_TYPE_ID : EDGE_HIT_TYPE_ID;
-			bSuccess = true;
-		}
-		// If we failed, try to hit a simple triangle
-		else if (ToolSceneQueriesUtil::FindNearestVisibleObjectHit(ParentToolIn, HitResult, WorldRay, ComponentsToIgnore))
-		{
-			HitResult.Item = TRIANGLE_HIT_TYPE_ID;
-			bSuccess = true;
-		}
-
-		return bSuccess;
-	};
-}
-
-void UDragAlignmentMechanic::Shutdown()
-{
-}
-
-void UDragAlignmentMechanic::AddToGizmo(UCombinedTransformGizmo* TransformGizmo, const TArray<const UPrimitiveComponent*>* ComponentsToIgnoreInAlignment, 
+void FDragAlignmentBase::AddToGizmo(UCombinedTransformGizmo* TransformGizmo, const TArray<const UPrimitiveComponent*>* ComponentsToIgnoreInAlignment, 
 	const TArray<const UPrimitiveComponent*>* InvisibleComponentsToIncludeInAlignment)
 {
 	// If we have components to ignore/include, we need a copy of the array so that the alignment
@@ -88,7 +36,7 @@ void UDragAlignmentMechanic::AddToGizmo(UCombinedTransformGizmo* TransformGizmo,
 
 	// Set the alignment functions.
 	TransformGizmo->SetWorldAlignmentFunctions(
-		[this]() { return bAlignmentToggle; },
+		[this]() { return GetAlignmentModeEnabled(); },
 		[this, ComponentsToIgnorePersistent, ComponentsToIncludePersistent](const FRay& WorldRay, FVector& OutputPoint) {
 			return CastRay(WorldRay, OutputPoint, ComponentsToIgnorePersistent.Get(), ComponentsToIncludePersistent.Get(), true);
 		});
@@ -101,7 +49,7 @@ void UDragAlignmentMechanic::AddToGizmo(UCombinedTransformGizmo* TransformGizmo,
 	if (URepositionableTransformGizmo* RepositionableGizmo = Cast<URepositionableTransformGizmo>(TransformGizmo))
 	{
 		RepositionableGizmo->SetPivotAlignmentFunctions(
-			[this]() { return bAlignmentToggle; },
+			[this]() { return GetAlignmentModeEnabled(); },
 			[this, ComponentsToIncludePersistent](const FRay& WorldRay, FVector& OutputPoint) {
 				return CastRay(WorldRay, OutputPoint, nullptr, ComponentsToIncludePersistent.Get(), false); // don't ignore anything
 			});
@@ -109,25 +57,25 @@ void UDragAlignmentMechanic::AddToGizmo(UCombinedTransformGizmo* TransformGizmo,
 
 	// Register listeners to help with rendering. They get us the location that the gizmo ended
 	// up being placed, so that we can draw a line from the hit point to that location.
-	TransformGizmo->ActiveTarget->OnTransformChanged.AddWeakLambda(this, [this](UTransformProxy*, FTransform NewTransform){
+	TransformGizmo->ActiveTarget->OnTransformChanged.AddWeakLambda(GetUObjectContainer(), [this](UTransformProxy*, FTransform NewTransform) {
 		OnGizmoTransformChanged(NewTransform);
 	});
-	TransformGizmo->ActiveTarget->OnPivotChanged.AddWeakLambda(this, [this](UTransformProxy*, FTransform NewTransform) {
+	TransformGizmo->ActiveTarget->OnPivotChanged.AddWeakLambda(GetUObjectContainer(), [this](UTransformProxy*, FTransform NewTransform) {
 		OnGizmoTransformChanged(NewTransform);
-		});
+	});
 
 	// Register a listener to stop drawing once the gizmo is done moving.
-	TransformGizmo->ActiveTarget->OnEndTransformEdit.AddWeakLambda(this, [this](UTransformProxy*) { 
+	TransformGizmo->ActiveTarget->OnEndTransformEdit.AddWeakLambda(GetUObjectContainer(), [this](UTransformProxy*) { 
 		bPreviewEndpointsValid = false; 
 		bWaitingOnProjectedResult = false;
 	});
-	TransformGizmo->ActiveTarget->OnEndPivotEdit.AddWeakLambda(this, [this](UTransformProxy*) {
+	TransformGizmo->ActiveTarget->OnEndPivotEdit.AddWeakLambda(GetUObjectContainer(), [this](UTransformProxy*) {
 		bPreviewEndpointsValid = false;
 		bWaitingOnProjectedResult = false;
 		});
 }
 
-void UDragAlignmentMechanic::AddToGizmo(UIntervalGizmo* IntervalGizmo, const TArray<const UPrimitiveComponent*>* ComponentsToIgnoreInAlignment,
+void FDragAlignmentBase::AddToGizmo(UIntervalGizmo* IntervalGizmo, const TArray<const UPrimitiveComponent*>* ComponentsToIgnoreInAlignment,
 	const TArray<const UPrimitiveComponent*>* InvisibleComponentsToIncludeInAlignment)
 {
 	// If we have components to ignore/include, we need a copy of the array so that the alignment
@@ -145,27 +93,27 @@ void UDragAlignmentMechanic::AddToGizmo(UIntervalGizmo* IntervalGizmo, const TAr
 
 	// Set the alignment functions.
 	IntervalGizmo->SetWorldAlignmentFunctions(
-		[this]() { return bAlignmentToggle; },
+		[this]() { return GetAlignmentModeEnabled(); },
 		[this, ComponentsToIgnorePersistent, ComponentsToIncludePersistent](const FRay& WorldRay, FVector& OutputPoint) {
 			return CastRay(WorldRay, OutputPoint, ComponentsToIgnorePersistent.Get(), ComponentsToIncludePersistent.Get(), true);
 		});
 
 	// Register listener to help with rendering. It gets us the final location of the interval endpoint
 	// so that we can draw a line from the hit point to that location.
-	IntervalGizmo->OnIntervalChanged.AddWeakLambda(this, [this](UIntervalGizmo* Gizmo, FVector Direction, float NewParam) {
+	IntervalGizmo->OnIntervalChanged.AddWeakLambda(GetUObjectContainer(), [this](UIntervalGizmo* Gizmo, FVector Direction, float NewParam) {
 		FTransform Transform = Gizmo->GetGizmoTransform();
 		Transform.AddToTranslation(Transform.Rotator().RotateVector(Direction) * NewParam);
 		OnGizmoTransformChanged(Transform);
 		});
 
 	// Register a listener to stop drawing once the gizmo is done moving.
-	IntervalGizmo->OnEndIntervalGizmoEdit.AddWeakLambda(this, [this](UIntervalGizmo*) {
+	IntervalGizmo->OnEndIntervalGizmoEdit.AddWeakLambda(GetUObjectContainer(), [this](UIntervalGizmo*) {
 		bPreviewEndpointsValid = false;
 		bWaitingOnProjectedResult = false;
 		});
 }
 
-void UDragAlignmentMechanic::OnGizmoTransformChanged(FTransform NewTransform)
+void FDragAlignmentBase::OnGizmoTransformChanged(FTransform NewTransform)
 {
 	// Ignore changes that weren't preceded by a successful query (likely programatic)
 	if (bWaitingOnProjectedResult) 
@@ -176,7 +124,7 @@ void UDragAlignmentMechanic::OnGizmoTransformChanged(FTransform NewTransform)
 	bWaitingOnProjectedResult = false;
 }
 
-void UDragAlignmentMechanic::InitializeDeformedMeshRayCast(TFunction<FDynamicMeshAABBTree3* ()> GetSpatialIn, 
+void FDragAlignmentBase::InitializeDeformedMeshRayCast(TFunction<FDynamicMeshAABBTree3* ()> GetSpatialIn, 
 	const FTransform3d &TargetTransform, const FGroupTopologyDeformer* LinearDeformer)
 {
 	if (LinearDeformer)
@@ -277,7 +225,7 @@ void UDragAlignmentMechanic::InitializeDeformedMeshRayCast(TFunction<FDynamicMes
  *  filtered to avoid hitting deformed triangles.
  * @return true if something was hit.
  */
-bool UDragAlignmentMechanic::CastRay(const FRay& WorldRay, FVector& OutputPoint,
+bool FDragAlignmentBase::CastRay(const FRay& WorldRay, FVector& OutputPoint,
 	const TArray<const UPrimitiveComponent*>* ComponentsToIgnore, 
 	const TArray<const UPrimitiveComponent*>* InvisibleComponentsToInclude,
 	bool bUseFilter)
@@ -309,10 +257,60 @@ bool UDragAlignmentMechanic::CastRay(const FRay& WorldRay, FVector& OutputPoint,
 	return bHit;
 }
 
-void UDragAlignmentMechanic::Render(IToolsContextRenderAPI* RenderAPI)
+
+
+
+
+
+void FDragAlignmentBase::SetupInternal()
+{
+	// Set up the function that casts rays into the world.
+	WorldRayCast = [this](const FRay& WorldRay, FHitResult& HitResult, 
+		const TArray<const UPrimitiveComponent*>* ComponentsToIgnore,
+		const TArray<const UPrimitiveComponent*>* InvisibleComponentsToInclude)
+	{
+		bool bSuccess = false;
+		FVector3d QueryPoint = (FVector3d)WorldRay.PointAt(1);
+		FVector3d SnapPoint;
+		ToolSceneQueriesUtil::FSnapGeometry SnapGeometry;
+
+		// Try to snap to visible vertices/edges first
+		ToolSceneQueriesUtil::FFindSceneSnapPointParams SnapParams;
+		SnapParams.SnappingManager = GetSnappingManager();
+		SnapParams.CameraState = CachedCameraState;
+		SnapParams.Point = &QueryPoint;
+		SnapParams.SnapPointOut = &SnapPoint;
+		SnapParams.bEdges = true;
+		SnapParams.bVertices = true;
+		SnapParams.VisualAngleThreshold = VisualAngleSnapThreshold;
+		SnapParams.SnapGeometryOut = &SnapGeometry;
+		SnapParams.ComponentsToIgnore = ComponentsToIgnore;
+		SnapParams.InvisibleComponentsToInclude = InvisibleComponentsToInclude;
+
+		if (ToolSceneQueriesUtil::FindSceneSnapPoint(SnapParams))
+		{
+			HitResult = FHitResult(WorldRay.Origin, (FVector)SnapPoint);
+			HitResult.ImpactPoint = (FVector)SnapPoint;
+			HitResult.Distance = WorldRay.GetParameter(HitResult.ImpactPoint);
+			HitResult.Item = SnapGeometry.PointCount == 1 ? VERT_HIT_TYPE_ID : EDGE_HIT_TYPE_ID;
+			bSuccess = true;
+		}
+		// If we failed, try to hit a simple triangle
+		else if (ToolSceneQueriesUtil::FindNearestVisibleObjectHit(GetSnappingManager(), HitResult, WorldRay, ComponentsToIgnore))
+		{
+			HitResult.Item = TRIANGLE_HIT_TYPE_ID;
+			bSuccess = true;
+		}
+
+		return bSuccess;
+	};
+}
+
+
+void FDragAlignmentBase::RenderInternal(IToolsContextRenderAPI* RenderAPI)
 {
 	// Cache the camera state
-	GetParentTool()->GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(CachedCameraState);
+	CachedCameraState = GetCameraState();
 
 	if (!bPreviewEndpointsValid)
 	{
@@ -363,6 +361,43 @@ void UDragAlignmentMechanic::Render(IToolsContextRenderAPI* RenderAPI)
 	Renderer.EndFrame();
 }
 
+
+
+
+void UDragAlignmentMechanic::Setup(UInteractiveTool* ParentToolIn)
+{	
+	UInteractionMechanic::Setup(ParentToolIn);
+
+	// Register modifier listeners.
+	UKeyAsModifierInputBehavior* AlignmentToggleBehavior = NewObject<UKeyAsModifierInputBehavior>();
+	AlignmentToggleBehavior->Initialize(this, AlignmentModifierID, FInputDeviceState::IsCtrlKeyDown);
+	ParentTool->AddInputBehavior(AlignmentToggleBehavior);
+
+	SetupInternal();
+}
+
+void UDragAlignmentMechanic::Shutdown()
+{
+}
+
+
+void UDragAlignmentMechanic::Render(IToolsContextRenderAPI* RenderAPI)
+{
+	RenderInternal(RenderAPI);
+}
+
+USceneSnappingManager* UDragAlignmentMechanic::GetSnappingManager()
+{
+	return USceneSnappingManager::Find(GetParentTool()->GetToolManager());
+}
+
+FViewCameraState UDragAlignmentMechanic::GetCameraState()
+{
+	FViewCameraState CurState;
+	GetParentTool()->GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(CurState);
+	return CurState;
+}
+
 void UDragAlignmentMechanic::OnUpdateModifierState(int ModifierID, bool bIsOn)
 {
 	if (ModifierID == AlignmentModifierID)
@@ -375,3 +410,34 @@ void UDragAlignmentMechanic::OnUpdateModifierState(int ModifierID, bool bIsOn)
 	}
 }
 
+
+
+
+void UDragAlignmentInteraction::Setup(USceneSnappingManager* SnappingManager)
+{
+	this->SceneSnappingManager = SnappingManager;
+	SetupInternal();
+}
+
+void UDragAlignmentInteraction::RegisterAsBehaviorTarget(UKeyAsModifierInputBehavior* KeyModifierBehavior)
+{
+	KeyModifierBehavior->Initialize(this, AlignmentModifierID, FInputDeviceState::IsCtrlKeyDown);
+}
+
+
+void UDragAlignmentInteraction::OnUpdateModifierState(int ModifierID, bool bIsOn)
+{
+	if (ModifierID == AlignmentModifierID)
+	{
+		bAlignmentToggle = bIsOn;
+	}
+	if (!bAlignmentToggle)
+	{
+		bPreviewEndpointsValid = false;
+	}
+}
+void UDragAlignmentInteraction::Render(IToolsContextRenderAPI* RenderAPI)
+{
+	LastRenderCameraState = RenderAPI->GetCameraState();
+	RenderInternal(RenderAPI);
+}
