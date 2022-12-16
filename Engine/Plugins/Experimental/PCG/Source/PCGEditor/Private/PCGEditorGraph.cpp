@@ -92,7 +92,11 @@ void UPCGEditorGraph::CreateLinks(UPCGEditorGraphNodeBase* GraphNode, bool bCrea
 
 			if (!InPin)
 			{
-				UE_LOG(LogPCGEditor, Error, TEXT("Invalid InputPin for %s"), *InputPin->Properties.Label.ToString());
+				if (!Cast<UPCGEditorGraphNodeInput>(GraphNode))
+				{
+					UE_LOG(LogPCGEditor, Error, TEXT("Invalid InputPin for %s"), *InputPin->Properties.Label.ToString());
+				}
+
 				continue;
 			}
 
@@ -129,7 +133,11 @@ void UPCGEditorGraph::CreateLinks(UPCGEditorGraphNodeBase* GraphNode, bool bCrea
 
 			if (!OutPin)
 			{
-				UE_LOG(LogPCGEditor, Error, TEXT("Invalid OutputPin for %s"), *OutputPin->Properties.Label.ToString());
+				if (!Cast<UPCGEditorGraphNodeOutput>(GraphNode))
+				{
+					UE_LOG(LogPCGEditor, Error, TEXT("Invalid OutputPin for %s"), *OutputPin->Properties.Label.ToString());
+				}
+				
 				continue;
 			}
 
