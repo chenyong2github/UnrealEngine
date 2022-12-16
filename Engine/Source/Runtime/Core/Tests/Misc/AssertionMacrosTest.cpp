@@ -120,11 +120,13 @@ struct FSuspendLogParsing
 	FSuspendLogParsing()
 	{
 		UE_LOG(LogCore, Display, TEXT("<-- Suspend Log Parsing -->"));
+		GLog->Flush();
 	}
 
 	~FSuspendLogParsing()
 	{
 		UE_LOG(LogCore, Display, TEXT("<-- Resume Log Parsing -->"));
+		GLog->Flush();
 	}
 };
 
