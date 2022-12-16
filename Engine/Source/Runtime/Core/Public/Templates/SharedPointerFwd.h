@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "HAL/Platform.h" // For "uint8"
+
 /**
  * ESPMode is used select between either 'fast' or 'thread safe' shared pointer types.
  * This is only used by templates at compile time to generate one code path or another.
