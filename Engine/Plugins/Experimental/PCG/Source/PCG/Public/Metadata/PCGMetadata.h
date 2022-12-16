@@ -143,6 +143,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
 	bool HasAttribute(FName AttributeName) const;
 
+	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
+	bool HasCommonAttributes(const UPCGMetadata* InMetadata) const;
+
 	int32 GetAttributeCount() const;
 
 	template <typename T>

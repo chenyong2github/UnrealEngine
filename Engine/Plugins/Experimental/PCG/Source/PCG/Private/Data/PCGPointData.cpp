@@ -151,7 +151,10 @@ namespace PCGPointHelpers
 
 		auto CopyPoint = [&OutPoint, &OutMetadata, &SourceMetadata](const FPCGPoint& PointToCopy)
 		{
+			PCGMetadataEntryKey OutPointEntryKey = OutPoint.MetadataEntry;
 			OutPoint = PointToCopy;
+			OutPoint.MetadataEntry = OutPointEntryKey;
+
 			if (OutMetadata)
 			{
 				OutMetadata->SetPointAttributes(PointToCopy, SourceMetadata, OutPoint);

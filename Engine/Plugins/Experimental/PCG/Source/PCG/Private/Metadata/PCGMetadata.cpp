@@ -321,6 +321,29 @@ bool UPCGMetadata::HasAttribute(FName AttributeName) const
 	return Attributes.Contains(AttributeName);
 }
 
+bool UPCGMetadata::HasCommonAttributes(const UPCGMetadata* InMetadata) const
+{
+	if (!InMetadata)
+	{
+		return false;
+	}
+
+	bool bHasCommonAttribute = false;
+
+	AttributeLock.ReadLock();
+	for (const TPair<FName, FPCGMetadataAttributeBase*>& AttributePair : Attributes)
+	{
+		if (InMetadata->HasAttribute(AttributePair.Key))
+		{
+			bHasCommonAttribute = true;
+			break;
+		}
+	}
+	AttributeLock.ReadUnlock();
+
+	return bHasCommonAttribute;
+}
+
 int32 UPCGMetadata::GetAttributeCount() const
 {
 	FReadScopeLock ScopeLock(AttributeLock);

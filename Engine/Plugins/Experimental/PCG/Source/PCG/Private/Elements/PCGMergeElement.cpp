@@ -97,34 +97,32 @@ bool FPCGMergeElement::ExecuteInternal(FPCGContext* Context) const
 		return true;
 	}
 
-	bool bIsFirst = true;
 	TArray<FPCGPoint>& TargetPoints = TargetPointData->GetMutablePoints();
 	
-	for (FPCGTaggedData& Source : Sources)
+	for(int32 SourceIndex = 0; SourceIndex < Sources.Num(); ++SourceIndex)
 	{
-		const UPCGPointData* SourcePointData = Cast<const UPCGPointData>(Source.Data);
+		const UPCGPointData* SourcePointData = Cast<const UPCGPointData>(Sources[SourceIndex].Data);
 
 		if (!SourcePointData)
 		{
 			continue;
 		}
 
-		if (bIsFirst)
-		{
-			check(!bMergeMetadata || TargetPointData->Metadata->GetParent() == SourcePointData->Metadata);
-			TargetPoints.Append(SourcePointData->GetPoints());
-			bIsFirst = false;
-		}
-		else
-		{
-			int32 PointOffset = TargetPoints.Num();
-			TargetPoints.Append(SourcePointData->GetPoints());
+		int32 PointOffset = TargetPoints.Num();
+		TargetPoints.Append(SourcePointData->GetPoints());
 
-			if (bMergeMetadata && TargetPointData->Metadata && SourcePointData->Metadata && !SourcePointData->GetPoints().IsEmpty())
+		if ((!bMergeMetadata || SourceIndex != 0) && !SourcePointData->GetPoints().IsEmpty())
+		{
+			TArrayView<FPCGPoint> TargetPointsSubset = MakeArrayView(&TargetPoints[PointOffset], SourcePointData->GetPoints().Num());
+			for (FPCGPoint& Point : TargetPointsSubset)
 			{
-				TargetPointData->Metadata->SetPointAttributes(MakeArrayView(SourcePointData->GetPoints()), SourcePointData->Metadata, MakeArrayView(&TargetPoints[PointOffset], SourcePointData->GetPoints().Num()));
+				Point.MetadataEntry = PCGInvalidEntryKey;
 			}
-			// TBD: should we null out the metadata entry keys on the vertices if we didn't setup the metadata?
+
+			if (bMergeMetadata && TargetPointData->Metadata && SourcePointData->Metadata && SourcePointData->Metadata->GetAttributeCount() > 0)
+			{
+				TargetPointData->Metadata->SetPointAttributes(MakeArrayView(SourcePointData->GetPoints()), SourcePointData->Metadata, TargetPointsSubset);
+			}
 		}
 	}
 	

@@ -218,6 +218,7 @@ const UPCGPointData* UPCGUnionData::CreatePointData(FPCGContext* Context) const
 
 	UPCGPointData* PointData = NewObject<UPCGPointData>();
 	PointData->InitializeFromData(this, Data[0]->Metadata);
+	check(PointData->Metadata);
 
 	// Initialize metadata
 	for (TObjectPtr<const UPCGSpatialData> Datum : Data)
@@ -239,15 +240,28 @@ const UPCGPointData* UPCGUnionData::CreatePointData(FPCGContext* Context) const
 	case EPCGUnionType::KeepAll:
 		{
 			TArray<FPCGPoint>& TargetPoints = PointData->GetMutablePoints();
-			for (TObjectPtr<const UPCGSpatialData> Datum : Data)
+			for(int32 DataIndex = 0; DataIndex < Data.Num(); ++DataIndex)
 			{
+				TObjectPtr<const UPCGSpatialData> Datum = Data[DataIndex];
+
 				const UPCGPointData* DatumPointData = Datum->ToPointData(Context);
-				int32 TargetPointIndex = TargetPoints.Num();
+
+				int32 TargetPointOffset = TargetPoints.Num();
 				TargetPoints.Append(DatumPointData->GetPoints());
 
-				if (PointData->Metadata && DatumPointData->GetPoints().Num() > 0)
+				if (DataIndex > 0 && DatumPointData->GetPoints().Num() > 0)
 				{
-					PointData->Metadata->SetPointAttributes(MakeArrayView(DatumPointData->GetPoints()), DatumPointData->Metadata, MakeArrayView(&TargetPoints[TargetPointIndex], DatumPointData->GetPoints().Num()));
+					// TODO: could optimize case where there is a common parent between Data 0 and current data, for points that still point to common parent metadata.
+					TArrayView<FPCGPoint> TargetPointsSubset = MakeArrayView(&TargetPoints[TargetPointOffset], DatumPointData->GetPoints().Num());
+					for (FPCGPoint& Point : TargetPointsSubset)
+					{
+						Point.MetadataEntry = PCGInvalidEntryKey;
+					}
+
+					if (PointData->Metadata && DatumPointData->Metadata && DatumPointData->Metadata->GetAttributeCount() > 0)
+					{
+						PointData->Metadata->SetPointAttributes(MakeArrayView(DatumPointData->GetPoints()), DatumPointData->Metadata, TargetPointsSubset);
+					}
 				}
 			}
 
