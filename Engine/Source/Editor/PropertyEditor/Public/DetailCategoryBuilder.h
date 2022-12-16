@@ -187,11 +187,15 @@ public:
 	 */
 	virtual bool IsParentLayoutValid() const = 0;
 
-
 	/**
 	 * @return The localized display name of the category
 	 */
 	virtual const FText& GetDisplayName() const = 0;
+
+	/**
+	 * Set a new display name for this category.
+	 */
+	virtual void SetDisplayName(const FText& DisplayName) = 0;
 
 	/**
 	 * Sets whether or not this category is hidden or shown
