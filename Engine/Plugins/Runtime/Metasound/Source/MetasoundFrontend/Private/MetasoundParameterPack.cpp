@@ -16,9 +16,9 @@ namespace MetasoundParameterPack
 	FName RoutingName("ParamPack");
 }
 
-TUniquePtr<Audio::IProxyData> UMetasoundParameterPack::CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams)
+TSharedPtr<Audio::IProxyData> UMetasoundParameterPack::CreateProxyData(const Audio::FProxyDataInitParams& InitParams)
 {
-	return MakeUnique<FMetasoundParameterPackProxy>(ParameterStorage);
+	return MakeShared<FMetasoundParameterPackProxy>(ParameterStorage);
 }
 
 Metasound::FSendAddress UMetasoundParameterPack::CreateSendAddressFromEnvironment(const Metasound::FMetasoundEnvironment& InEnvironment)

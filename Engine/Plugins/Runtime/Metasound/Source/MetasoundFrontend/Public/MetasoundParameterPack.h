@@ -331,7 +331,7 @@ public:
 		return *TheParameter;
 	}
 
-	TUniquePtr<Audio::IProxyData> CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams) override;
+	TSharedPtr<Audio::IProxyData> CreateProxyData(const Audio::FProxyDataInitParams& InitParams) override;
 	
 	// A couple of utilities for use by MetasoundAssetBase and MetasoundGenerator to set
 	// up the routing for parameter packs
@@ -377,7 +377,7 @@ public:
 	FMetasoundParameterStorageWrapper() = default;
 	FMetasoundParameterStorageWrapper(const FMetasoundParameterStorageWrapper&) = default;
 	FMetasoundParameterStorageWrapper& operator=(const FMetasoundParameterStorageWrapper& Other) = default;
-	FMetasoundParameterStorageWrapper(const TUniquePtr<Audio::IProxyData>& InInitData)
+	FMetasoundParameterStorageWrapper(const TSharedPtr<Audio::IProxyData>& InInitData)
 	{
 		if (InInitData.IsValid())
 		{
