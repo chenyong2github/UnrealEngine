@@ -15,6 +15,7 @@ public class DMXEditor : ModuleRules
 				"DMXProtocol",
 				"DMXProtocolEditor",
 				"DMXRuntime",
+				"Sequencer",
 				"ToolMenus"
 			}
 		);
@@ -41,7 +42,6 @@ public class DMXEditor : ModuleRules
 				"MainFrame",
 				"MovieScene",
 				"PropertyEditor",
-				"Sequencer",
 				"Slate",
 				"SlateCore",
 				"TakesCore",

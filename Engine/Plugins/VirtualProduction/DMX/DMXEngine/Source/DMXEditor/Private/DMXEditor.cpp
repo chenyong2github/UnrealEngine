@@ -26,12 +26,12 @@
 #include "Widgets/FixturePatch/SDMXFixturePatchEditor.h"
 #include "Widgets/FixtureType/SDMXFixtureTypeEditor.h"
 #include "Widgets/LibrarySettings/SDMXLibraryEditorTab.h"
-#include "Widgets/OutputConsole/SDMXOutputConsole.h"
 
 #include "DesktopPlatformModule.h"
 #include "IDesktopPlatform.h"
 #include "ScopedTransaction.h"
 #include "Utils.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Misc/MessageDialog.h"
 #include "Modules/ModuleManager.h"

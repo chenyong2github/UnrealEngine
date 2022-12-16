@@ -2,16 +2,20 @@
 
 #pragma once
 
+#include "DMXPIEManager.h"
+
 #include "AssetTypeCategories.h"
 #include "CoreMinimal.h"
-#include "DMXPIEManager.h"
 #include "ISequencerModule.h"
-#include "Modules/ModuleInterface.h"
 #include "PropertyEditorDelegates.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Modules/ModuleInterface.h"
 #include "Toolkits/AssetEditorToolkit.h"
 
 class FDMXEditor;
 class UDMXLibrary;
+
+class FExtender;
 class IAssetTools;
 class IAssetTypeActions;
 
@@ -25,7 +29,6 @@ class DMXEDITOR_API FDMXEditorModule
 	, public IHasToolBarExtensibility
 {
 public:
-
 	//~ Begin IModuleInterface implementation
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
@@ -55,9 +58,11 @@ public:
 	 */
 	TSharedRef<FDMXEditor> CreateEditor( const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UDMXLibrary* DMXLibrary );
 
+	/** Get Level Editor Toolbar Menu extender */
+	TSharedPtr<FExtender> GetLevelEditorToolbarDMXMenuExtender() const { return LevelEditorToolbarDMXMenuExtender; }
+
 	static EAssetTypeCategories::Type GetAssetCategory() { return DMXEditorAssetCategory; }
 
-public:
 	/** DataTable Editor app identifier string */
 	static const FName DMXEditorAppIdentifier;
 
@@ -77,6 +82,9 @@ private:
 
 	/** Creates the level editor toolbar extender */
 	void ExtendLevelEditorToolbar();
+
+	/** Creates the Extender for the Level Editor Toolbar DMX Menu */
+	void CreateLevelEditorToolbarDMXMenuExtender();
 
 	/** Generates the level editor toolbar DMX Menu */
 	static TSharedRef<class SWidget> GenerateDMXLevelEditorToolbarMenu();
@@ -110,9 +118,6 @@ private:
 	/** Called when the nomad tab spawner tries to spawn an activity monitor tab */
 	static TSharedRef<class SDockTab> OnSpawnActivityMonitorTab(const class FSpawnTabArgs& InSpawnTabArgs);
 
-	/** Called when the nomad tab spawner tries to spawn an output console tab */
-	static TSharedRef<class SDockTab> OnSpawnOutputConsoleTab(const class FSpawnTabArgs& InSpawnTabArgs);
-
 	/** Called when the nomad tab spawner tries to spawn a patch tool tab */
 	static TSharedRef<class SDockTab> OnSpawnPatchToolTab(const class FSpawnTabArgs& InSpawnTabArgs);
 
@@ -121,9 +126,6 @@ private:
 
 	/** Called when Open Universe Montior command is selected */
 	static void OnOpenActivityMonitor();
-
-	/** Called when Open Output Console command is selected */
-	static void OnOpenOutputConsole();
 
 	/** Called when Open Patch Tool command is selected */
 	static void OnOpenPatchTool();
@@ -198,6 +200,9 @@ private:
 
 	/** Unregisteres all nomad tab spawners */
 	void UnregisterNomadTabSpawners();
+
+	/** Extender for the Level Editor Toolbar Menu */
+	static TSharedPtr<FExtender> LevelEditorToolbarDMXMenuExtender;
 
 	/** List of registered class that must be unregistered when the module shuts down */
 	TSet<FName> RegisteredClassNames;
