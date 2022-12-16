@@ -171,7 +171,7 @@ bool FShaderMapBase::Serialize(FArchive& Ar, bool bInlineShaderResources, bool b
 		// Serialize a copy of ShaderPlatform directly into the archive
 		// This will allow us to correctly deserialize the stream, even if we're not able to load the frozen content
 		const EShaderPlatform ShaderPlatform = GetShaderPlatform();
-		FString ShaderPlatformName = FDataDrivenShaderPlatformInfo::GetName(GetShaderPlatform()).ToString();
+		FName ShaderPlatformName = FDataDrivenShaderPlatformInfo::GetName(ShaderPlatform);
 		Ar << ShaderPlatformName;
 
 		if (Ar.IsCooking())
@@ -187,7 +187,7 @@ bool FShaderMapBase::Serialize(FArchive& Ar, bool bInlineShaderResources, bool b
 		{
 			FSHAHash ResourceHash = Code->ResourceHash;
 			Ar << ResourceHash;
-			FShaderLibraryCooker::AddShaderCode(GetShaderPlatform(), Code, GetAssociatedAssets());
+			FShaderLibraryCooker::AddShaderCode(ShaderPlatform, Code, GetAssociatedAssets());
 		}
 		else
 #endif // WITH_EDITOR
@@ -207,10 +207,10 @@ bool FShaderMapBase::Serialize(FArchive& Ar, bool bInlineShaderResources, bool b
 		bool bShareCode = false;
 		Ar << bShareCode;
 
-		FString ShaderPlatformName;
+		FName ShaderPlatformName;
 		Ar << ShaderPlatformName;
 		
-		const EShaderPlatform ShaderPlatform = FDataDrivenShaderPlatformInfo::GetShaderPlatformFromName(FName(ShaderPlatformName));
+		const EShaderPlatform ShaderPlatform = FDataDrivenShaderPlatformInfo::GetShaderPlatformFromName(ShaderPlatformName);
 
 		if (bShareCode)
 		{
@@ -300,7 +300,7 @@ static uint16 MakeShaderHash(const FHashedName& TypeName, int32 PermutationId)
 }
 
 FShaderMapContent::FShaderMapContent(EShaderPlatform InPlatform)
-	: ShaderHash(128u), ShaderPlatformName(FDataDrivenShaderPlatformInfo::GetName(InPlatform).ToString())
+	: ShaderHash(128u), ShaderPlatformName(FDataDrivenShaderPlatformInfo::GetName(InPlatform))
 {}
 
 FShaderMapContent::~FShaderMapContent()
@@ -310,7 +310,7 @@ FShaderMapContent::~FShaderMapContent()
 
 EShaderPlatform FShaderMapContent::GetShaderPlatform() const
 {
-	return FDataDrivenShaderPlatformInfo::GetShaderPlatformFromName(FName(ShaderPlatformName));
+	return FDataDrivenShaderPlatformInfo::GetShaderPlatformFromName(ShaderPlatformName);
 }
 
 FShader* FShaderMapContent::GetShader(const FHashedName& TypeName, int32 PermutationId) const

@@ -2201,7 +2201,7 @@ protected:
 	LAYOUT_FIELD(TMemoryImageArray<TMemoryImagePtr<FShader>>, Shaders);
 	LAYOUT_FIELD(TMemoryImageArray<TMemoryImagePtr<FShaderPipeline>>, ShaderPipelines);
 	/** The ShaderPlatform Name this shader map was compiled with */
-	LAYOUT_FIELD(FMemoryImageString, ShaderPlatformName);
+	LAYOUT_FIELD(FMemoryImageName, ShaderPlatformName);
 };
 
 class RENDERCORE_API FShaderMapBase
