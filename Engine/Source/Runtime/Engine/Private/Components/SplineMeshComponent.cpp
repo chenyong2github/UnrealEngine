@@ -494,8 +494,8 @@ void USplineMeshComponent::CalculateScaleZAndMinZ(float& OutScaleZ, float& OutMi
 		if (FMath::IsNearlyEqual(SplineBoundaryMin, SplineBoundaryMax))
 		{
 			FBoxSphereBounds StaticMeshBounds = GetStaticMesh()->GetBounds();
-			OutScaleZ = 0.5f / USplineMeshComponent::GetAxisValue(StaticMeshBounds.BoxExtent, ForwardAxis); // 1/(2 * Extent)
-			OutMinZ = USplineMeshComponent::GetAxisValue(StaticMeshBounds.Origin, ForwardAxis) * OutScaleZ - 0.5f;
+			OutScaleZ = 0.5f / USplineMeshComponent::GetAxisValueRef(StaticMeshBounds.BoxExtent, ForwardAxis); // 1/(2 * Extent)
+			OutMinZ = USplineMeshComponent::GetAxisValueRef(StaticMeshBounds.Origin, ForwardAxis) * OutScaleZ - 0.5f;
 		}
 		else
 		{
@@ -721,8 +721,8 @@ FBoxSphereBounds USplineMeshComponent::CalcBounds(const FTransform& LocalToWorld
 	if (bHasCustomBoundary)
 	{
 		// If there's a custom boundary, alter the min/max of the spline we need to evaluate
-		const float MeshMin = GetAxisValue(MeshBounds.Origin - MeshBounds.BoxExtent, ForwardAxis);
-		const float MeshMax = GetAxisValue(MeshBounds.Origin + MeshBounds.BoxExtent, ForwardAxis);
+		const float MeshMin = GetAxisValueRef(MeshBounds.Origin - MeshBounds.BoxExtent, ForwardAxis);
+		const float MeshMax = GetAxisValueRef(MeshBounds.Origin + MeshBounds.BoxExtent, ForwardAxis);
 
 		const float MeshMinT = (MeshMin - SplineBoundaryMin) / (SplineBoundaryMax - SplineBoundaryMin);
 		const float MeshMaxT = (MeshMax - SplineBoundaryMin) / (SplineBoundaryMax - SplineBoundaryMin);
@@ -821,7 +821,7 @@ FTransform USplineMeshComponent::GetSocketTransform(FName InSocketName, ERelativ
 		{
 			FTransform SocketTransform;
 			SocketTransform = FTransform(Socket->RelativeRotation, Socket->RelativeLocation * GetAxisMask(ForwardAxis), Socket->RelativeScale);
-			SocketTransform = SocketTransform * CalcSliceTransform(GetAxisValue(Socket->RelativeLocation, ForwardAxis));
+			SocketTransform = SocketTransform * CalcSliceTransform(GetAxisValueRef(Socket->RelativeLocation, ForwardAxis));
 
 			switch (TransformSpace)
 			{
@@ -862,8 +862,8 @@ FTransform USplineMeshComponent::CalcSliceTransform(const float DistanceAlong) c
 	else if (GetStaticMesh())
 	{
 		const FBoxSphereBounds StaticMeshBounds = GetStaticMesh()->GetBounds();
-		const float MeshMinZ = GetAxisValue(StaticMeshBounds.Origin, ForwardAxis) - GetAxisValue(StaticMeshBounds.BoxExtent, ForwardAxis);
-		const float MeshRangeZ = 2.0f * GetAxisValue(StaticMeshBounds.BoxExtent, ForwardAxis);
+		const float MeshMinZ = GetAxisValueRef(StaticMeshBounds.Origin, ForwardAxis) - GetAxisValueRef(StaticMeshBounds.BoxExtent, ForwardAxis);
+		const float MeshRangeZ = 2.0f * GetAxisValueRef(StaticMeshBounds.BoxExtent, ForwardAxis);
 		if (MeshRangeZ > UE_SMALL_NUMBER)
 		{
 			Alpha = (DistanceAlong - MeshMinZ) / MeshRangeZ;
@@ -933,11 +933,11 @@ bool USplineMeshComponent::GetPhysicsTriMeshData(struct FTriMeshCollisionData* C
 		GetStaticMesh()->GetPhysicsTriMeshData(CollisionData, InUseAllTriData);
 
 		FVector3f Mask = FVector3f(1, 1, 1);
-		GetAxisValue(Mask, ForwardAxis) = 0;
+		GetAxisValueRef(Mask, ForwardAxis) = 0;
 
 		for (FVector3f& CollisionVert : CollisionData->Vertices)
 		{
-			CollisionVert = (FVector3f)CalcSliceTransform(GetAxisValue(CollisionVert, ForwardAxis)).TransformPosition(FVector(CollisionVert * Mask));
+			CollisionVert = (FVector3f)CalcSliceTransform(GetAxisValueRef(CollisionVert, ForwardAxis)).TransformPosition(FVector(CollisionVert * Mask));
 		}
 
 		CollisionData->bDeformableMesh = true;
@@ -1054,7 +1054,7 @@ bool USplineMeshComponent::DoCustomNavigableGeometryExport(FNavigableGeometryExp
 			if (NavCollision->HasConvexGeometry())
 			{
 				FVector Mask = FVector(1, 1, 1);
-				GetAxisValue(Mask, ForwardAxis) = 0;
+				GetAxisValueRef(Mask, ForwardAxis) = 0;
 
 				TArray<FVector> VertexBuffer;
 				VertexBuffer.Reserve(FMath::Max(NavCollision->GetConvexCollision().VertexBuffer.Num(), NavCollision->GetTriMeshCollision().VertexBuffer.Num()));
@@ -1062,7 +1062,7 @@ bool USplineMeshComponent::DoCustomNavigableGeometryExport(FNavigableGeometryExp
 				for (int32 i = 0; i < NavCollision->GetConvexCollision().VertexBuffer.Num(); ++i)
 				{
 					FVector Vertex = NavCollision->GetConvexCollision().VertexBuffer[i];
-					Vertex = CalcSliceTransform(GetAxisValue(Vertex, ForwardAxis)).TransformPosition(Vertex * Mask);
+					Vertex = CalcSliceTransform(GetAxisValueRef(Vertex, ForwardAxis)).TransformPosition(Vertex * Mask);
 					VertexBuffer.Add(Vertex);
 				}
 				GeomExport.ExportCustomMesh(VertexBuffer.GetData(), VertexBuffer.Num(),
@@ -1073,7 +1073,7 @@ bool USplineMeshComponent::DoCustomNavigableGeometryExport(FNavigableGeometryExp
 				for (int32 i = 0; i < NavCollision->GetTriMeshCollision().VertexBuffer.Num(); ++i)
 				{
 					FVector Vertex = NavCollision->GetTriMeshCollision().VertexBuffer[i];
-					Vertex = CalcSliceTransform(GetAxisValue(Vertex, ForwardAxis)).TransformPosition(Vertex * Mask);
+					Vertex = CalcSliceTransform(GetAxisValueRef(Vertex, ForwardAxis)).TransformPosition(Vertex * Mask);
 					VertexBuffer.Add(Vertex);
 				}
 				GeomExport.ExportCustomMesh(VertexBuffer.GetData(), VertexBuffer.Num(),
@@ -1130,12 +1130,12 @@ void USplineMeshComponent::RecreateCollision()
 		else
 		{
 			FVector Mask = FVector(1, 1, 1);
-			GetAxisValue(Mask, ForwardAxis) = 0;
+			GetAxisValueRef(Mask, ForwardAxis) = 0;
 
 			// distortion of a sphere can't be done nicely, so we just transform the origin and size
 			for (FKSphereElem& SphereElem : BodySetup->AggGeom.SphereElems)
 			{
-				const float Z = GetAxisValue(SphereElem.Center, ForwardAxis);
+				const float Z = GetAxisValueRef(SphereElem.Center, ForwardAxis);
 				FTransform SliceTransform = CalcSliceTransform(Z);
 				SphereElem.Center *= Mask;
 
@@ -1146,7 +1146,7 @@ void USplineMeshComponent::RecreateCollision()
 			// distortion of a sphyl can't be done nicely, so we just transform the origin and size
 			for (FKSphylElem& SphylElem : BodySetup->AggGeom.SphylElems)
 			{
-				const float Z = GetAxisValue(SphylElem.Center, ForwardAxis);
+				const float Z = GetAxisValueRef(SphylElem.Center, ForwardAxis);
 				FTransform SliceTransform = CalcSliceTransform(Z);
 				SphylElem.Center *= Mask;
 
@@ -1187,7 +1187,7 @@ void USplineMeshComponent::RecreateCollision()
 					// pretransform the point by its local transform so we are working in untransformed local space
 					FVector TransformedPoint = TM.TransformPosition(Point);
 					// apply the transform to spline space
-					Point = CalcSliceTransform(GetAxisValue(TransformedPoint, ForwardAxis)).TransformPosition(TransformedPoint * Mask);
+					Point = CalcSliceTransform(GetAxisValueRef(TransformedPoint, ForwardAxis)).TransformPosition(TransformedPoint * Mask);
 				}
 
 				// Set the local transform as an identity as points have already been transformed

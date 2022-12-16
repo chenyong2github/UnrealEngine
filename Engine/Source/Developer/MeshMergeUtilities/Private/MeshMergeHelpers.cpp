@@ -741,7 +741,7 @@ void FMeshMergeHelpers::PropagateSplineDeformationToMesh(const USplineMeshCompon
 		{
 			const FVertexInstanceID VertexInstanceID = InOutMeshDescription.GetTriangleVertexInstance(TriangleID, Corner);
 			const FVertexID VertexID = InOutMeshDescription.GetVertexInstanceVertex(VertexInstanceID);
-			const float& AxisValue = USplineMeshComponent::GetAxisValue(VertexPositions[VertexID], InSplineMeshComponent->ForwardAxis);
+			const float& AxisValue = USplineMeshComponent::GetAxisValueRef(VertexPositions[VertexID], InSplineMeshComponent->ForwardAxis);
 			FTransform SliceTransform = InSplineMeshComponent->CalcSliceTransform(AxisValue);
 			FVector TangentY = FVector::CrossProduct((FVector)VertexInstanceNormals[VertexInstanceID], (FVector)VertexInstanceTangents[VertexInstanceID]).GetSafeNormal() * VertexInstanceBinormalSigns[VertexInstanceID];
 			VertexInstanceTangents[VertexInstanceID] = (FVector3f)SliceTransform.TransformVector((FVector)VertexInstanceTangents[VertexInstanceID]);
@@ -754,7 +754,7 @@ void FMeshMergeHelpers::PropagateSplineDeformationToMesh(const USplineMeshCompon
 	// Apply spline deformation for each vertex position
 	for (const FVertexID VertexID : InOutMeshDescription.Vertices().GetElementIDs())
 	{
-		float& AxisValue = USplineMeshComponent::GetAxisValue(VertexPositions[VertexID], InSplineMeshComponent->ForwardAxis);
+		float& AxisValue = USplineMeshComponent::GetAxisValueRef(VertexPositions[VertexID], InSplineMeshComponent->ForwardAxis);
 		FTransform SliceTransform = InSplineMeshComponent->CalcSliceTransform(AxisValue);
 		AxisValue = 0.0f;
 		VertexPositions[VertexID] = (FVector3f)SliceTransform.TransformPosition((FVector)VertexPositions[VertexID]);
@@ -769,7 +769,7 @@ void FMeshMergeHelpers::PropagateSplineDeformationToPhysicsGeometry(USplineMeshC
 	{
 		for (FVector& Position : Elem.VertexData)
 		{
-			const float& AxisValue = USplineMeshComponent::GetAxisValue(Position, SplineMeshComponent->ForwardAxis);
+			const float& AxisValue = USplineMeshComponent::GetAxisValueRef(Position, SplineMeshComponent->ForwardAxis);
 			FTransform SliceTransform = SplineMeshComponent->CalcSliceTransform(AxisValue);
 			Position = SliceTransform.TransformPosition(Position * Mask);
 		}
@@ -780,13 +780,13 @@ void FMeshMergeHelpers::PropagateSplineDeformationToPhysicsGeometry(USplineMeshC
 	for (FKSphereElem& Elem : InOutPhysicsGeometry.SphereElems)
 	{
 		const FVector WorldSpaceCenter = Elem.GetTransform().TransformPosition(Elem.Center);
-		Elem.Center = SplineMeshComponent->CalcSliceTransform(USplineMeshComponent::GetAxisValue(WorldSpaceCenter, SplineMeshComponent->ForwardAxis)).TransformPosition(Elem.Center * Mask);
+		Elem.Center = SplineMeshComponent->CalcSliceTransform(USplineMeshComponent::GetAxisValueRef(WorldSpaceCenter, SplineMeshComponent->ForwardAxis)).TransformPosition(Elem.Center * Mask);
 	}
 
 	for (FKSphylElem& Elem : InOutPhysicsGeometry.SphylElems)
 	{
 		const FVector WorldSpaceCenter = Elem.GetTransform().TransformPosition(Elem.Center);
-		Elem.Center = SplineMeshComponent->CalcSliceTransform(USplineMeshComponent::GetAxisValue(WorldSpaceCenter, SplineMeshComponent->ForwardAxis)).TransformPosition(Elem.Center * Mask);
+		Elem.Center = SplineMeshComponent->CalcSliceTransform(USplineMeshComponent::GetAxisValueRef(WorldSpaceCenter, SplineMeshComponent->ForwardAxis)).TransformPosition(Elem.Center * Mask);
 	}
 }
 

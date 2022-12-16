@@ -4244,8 +4244,8 @@ void FFbxExporter::ExportSplineMeshToFbx(const USplineMeshComponent* SplineMeshC
 		int32 UnrealPosIndex = UniqueVerts[PosIndex];
 		FVector Position = (FVector)RenderMesh.VertexBuffers.PositionVertexBuffer.VertexPosition(UnrealPosIndex);
 
-		const FTransform SliceTransform = SplineMeshComp->CalcSliceTransform(USplineMeshComponent::GetAxisValue(Position, SplineMeshComp->ForwardAxis));
-		USplineMeshComponent::GetAxisValue(Position, SplineMeshComp->ForwardAxis) = 0;
+		const FTransform SliceTransform = SplineMeshComp->CalcSliceTransform(USplineMeshComponent::GetAxisValueRef(Position, SplineMeshComp->ForwardAxis));
+		USplineMeshComponent::GetAxisValueRef(Position, SplineMeshComp->ForwardAxis) = 0;
 		Position = SliceTransform.TransformPosition(Position);
 
 		ControlPoints[PosIndex] = FbxVector4(Position.X, -Position.Y, Position.Z);
@@ -4291,7 +4291,7 @@ void FFbxExporter::ExportSplineMeshToFbx(const USplineMeshComponent* SplineMeshC
 	for (int32 VertIndex = 0; VertIndex < VertexCount; ++VertIndex)
 	{
 		FVector Position = (FVector)RenderMesh.VertexBuffers.PositionVertexBuffer.VertexPosition(VertIndex);
-		const FTransform SliceTransform = SplineMeshComp->CalcSliceTransform(USplineMeshComponent::GetAxisValue(Position, SplineMeshComp->ForwardAxis));
+		const FTransform SliceTransform = SplineMeshComp->CalcSliceTransform(USplineMeshComponent::GetAxisValueRef(Position, SplineMeshComp->ForwardAxis));
 		FVector Normal = FVector(RenderMesh.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(VertIndex));
 		Normal = SliceTransform.TransformVector(Normal);
 		FbxVector4& FbxNormal = FbxNormals[VertIndex];

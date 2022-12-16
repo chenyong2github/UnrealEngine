@@ -2912,11 +2912,11 @@ void ULandscapeSplineSegment::UpdateSplinePoints(bool bUpdateCollision, bool bUp
 			FVector Scale = MeshEntry->Scale;
 			if (MeshEntry->bScaleToWidth)
 			{
-				Scale *= Width / USplineMeshComponent::GetAxisValue(MeshBounds.BoxExtent, CrossAxis(MeshEntry->ForwardAxis, MeshEntry->UpAxis));
+				Scale *= Width / USplineMeshComponent::GetAxisValueRef(MeshBounds.BoxExtent, CrossAxis(MeshEntry->ForwardAxis, MeshEntry->UpAxis));
 			}
 
-			const float MeshLength = static_cast<float>(FMath::Abs(USplineMeshComponent::GetAxisValue(MeshBounds.BoxExtent, MeshEntry->ForwardAxis) * 2.0 *
-				USplineMeshComponent::GetAxisValue(Scale, MeshEntry->ForwardAxis)));
+			const float MeshLength = static_cast<float>(FMath::Abs(USplineMeshComponent::GetAxisValueRef(MeshBounds.BoxExtent, MeshEntry->ForwardAxis) * 2.0 *
+				USplineMeshComponent::GetAxisValueRef(Scale, MeshEntry->ForwardAxis)));
 			float MeshT = (MeshLength / SplineLength);
 
 			// Improve our approximation if we're not going off the end of the spline
@@ -3048,7 +3048,7 @@ void ULandscapeSplineSegment::UpdateSplinePoints(bool bUpdateCollision, bool bUp
 			FVector Scale = MeshEntry->Scale;
 			if (MeshEntry->bScaleToWidth)
 			{
-				Scale *= Width / USplineMeshComponent::GetAxisValue(MeshBounds.BoxExtent, SideAxis);
+				Scale *= Width / USplineMeshComponent::GetAxisValueRef(MeshBounds.BoxExtent, SideAxis);
 			}
 
 			FVector2D Offset = MeshEntry->CenterAdjust;
@@ -3056,11 +3056,11 @@ void ULandscapeSplineSegment::UpdateSplinePoints(bool bUpdateCollision, bool bUp
 			{
 				if (bDoOrientationRoll)
 				{
-					Offset.Y -= USplineMeshComponent::GetAxisValue(MeshBounds.Origin, SideAxis);
+					Offset.Y -= USplineMeshComponent::GetAxisValueRef(MeshBounds.Origin, SideAxis);
 				}
 				else
 				{
-					Offset.X -= USplineMeshComponent::GetAxisValue(MeshBounds.Origin, SideAxis);
+					Offset.X -= USplineMeshComponent::GetAxisValueRef(MeshBounds.Origin, SideAxis);
 				}
 			}
 
@@ -3098,7 +3098,7 @@ void ULandscapeSplineSegment::UpdateSplinePoints(bool bUpdateCollision, bool bUp
 			FVector ScaleEnd = MeshEntry->Scale;
 			if (MeshEntry->bScaleToWidth)
 			{
-				ScaleEnd *= WidthEnd / USplineMeshComponent::GetAxisValue(MeshBounds.BoxExtent, SideAxis);
+				ScaleEnd *= WidthEnd / USplineMeshComponent::GetAxisValueRef(MeshBounds.BoxExtent, SideAxis);
 			}
 
 			FVector2D OffsetEnd = MeshEntry->CenterAdjust;
@@ -3106,11 +3106,11 @@ void ULandscapeSplineSegment::UpdateSplinePoints(bool bUpdateCollision, bool bUp
 			{
 				if (bDoOrientationRoll)
 				{
-					OffsetEnd.Y -= USplineMeshComponent::GetAxisValue(MeshBounds.Origin, SideAxis);
+					OffsetEnd.Y -= USplineMeshComponent::GetAxisValueRef(MeshBounds.Origin, SideAxis);
 				}
 				else
 				{
-					OffsetEnd.X -= USplineMeshComponent::GetAxisValue(MeshBounds.Origin, SideAxis);
+					OffsetEnd.X -= USplineMeshComponent::GetAxisValueRef(MeshBounds.Origin, SideAxis);
 				}
 			}
 
@@ -3151,7 +3151,7 @@ void ULandscapeSplineSegment::UpdateSplinePoints(bool bUpdateCollision, bool bUp
 				MeshComponent->SplineParams.EndPos   = RelativeTransform.TransformPosition(MeshComponent->SplineParams.EndPos);
 			}
 
-			if (USplineMeshComponent::GetAxisValue(MeshEntry->Scale, MeshEntry->ForwardAxis) < 0)
+			if (USplineMeshComponent::GetAxisValueRef(MeshEntry->Scale, MeshEntry->ForwardAxis) < 0)
 			{
 				Swap(MeshComponent->SplineParams.StartPos, MeshComponent->SplineParams.EndPos);
 				Swap(MeshComponent->SplineParams.StartTangent, MeshComponent->SplineParams.EndTangent);

@@ -2822,7 +2822,7 @@ void FEdModeFoliage::ApplyPaintBucket_Add(AActor* Actor)
 			{
 				// Transform spline mesh verts correctly
 				FVector Mask = FVector(1, 1, 1);
-				USplineMeshComponent::GetAxisValue(Mask, SplineMesh->ForwardAxis) = 0;
+				USplineMeshComponent::GetAxisValueRef(Mask, SplineMesh->ForwardAxis) = 0;
 
 				for (int32 Idx = 0; Idx < Indices.Num(); Idx += 3)
 				{
@@ -2830,9 +2830,9 @@ void FEdModeFoliage::ApplyPaintBucket_Add(AActor* Actor)
 					const int32 Index1 = Indices[Idx + 1];
 					const int32 Index2 = Indices[Idx + 2];
 
-					const FVector Vert0 = SplineMesh->CalcSliceTransform(USplineMeshComponent::GetAxisValue(PositionVertexBuffer.VertexPosition(Index0), SplineMesh->ForwardAxis)).TransformPosition((FVector)PositionVertexBuffer.VertexPosition(Index0) * Mask);
-					const FVector Vert1 = SplineMesh->CalcSliceTransform(USplineMeshComponent::GetAxisValue(PositionVertexBuffer.VertexPosition(Index1), SplineMesh->ForwardAxis)).TransformPosition((FVector)PositionVertexBuffer.VertexPosition(Index1) * Mask);
-					const FVector Vert2 = SplineMesh->CalcSliceTransform(USplineMeshComponent::GetAxisValue(PositionVertexBuffer.VertexPosition(Index2), SplineMesh->ForwardAxis)).TransformPosition((FVector)PositionVertexBuffer.VertexPosition(Index2) * Mask);
+					const FVector Vert0 = SplineMesh->CalcSliceTransform(USplineMeshComponent::GetAxisValueRef(PositionVertexBuffer.VertexPosition(Index0), SplineMesh->ForwardAxis)).TransformPosition((FVector)PositionVertexBuffer.VertexPosition(Index0) * Mask);
+					const FVector Vert1 = SplineMesh->CalcSliceTransform(USplineMeshComponent::GetAxisValueRef(PositionVertexBuffer.VertexPosition(Index1), SplineMesh->ForwardAxis)).TransformPosition((FVector)PositionVertexBuffer.VertexPosition(Index1) * Mask);
+					const FVector Vert2 = SplineMesh->CalcSliceTransform(USplineMeshComponent::GetAxisValueRef(PositionVertexBuffer.VertexPosition(Index2), SplineMesh->ForwardAxis)).TransformPosition((FVector)PositionVertexBuffer.VertexPosition(Index2) * Mask);
 
 					new(PotentialTriangles)FFoliagePaintBucketTriangle(LocalToWorld
 						, Vert0

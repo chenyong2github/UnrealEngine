@@ -362,11 +362,21 @@ public:
 	 */
 	FTransform CalcSliceTransformAtSplineOffset(const float Alpha) const;
 
-	inline static const double& GetAxisValue(const FVector3d& InVector, ESplineMeshAxis::Type InAxis);
-	inline static double& GetAxisValue(FVector3d& InVector, ESplineMeshAxis::Type InAxis);
+	UE_DEPRECATED(5.2, "Use GetAxisValueRef() instead.")
+	static const double& GetAxisValue(const FVector3d& InVector, ESplineMeshAxis::Type InAxis) { return GetAxisValueRef(InVector, InAxis); }
+	UE_DEPRECATED(5.2, "Use GetAxisValueRef() instead.")
+	static double& GetAxisValue(FVector3d& InVector, ESplineMeshAxis::Type InAxis) { return GetAxisValueRef(InVector, InAxis); }
 
-	inline static const float& GetAxisValue(const FVector3f& InVector, ESplineMeshAxis::Type InAxis);
-	inline static float& GetAxisValue(FVector3f& InVector, ESplineMeshAxis::Type InAxis);
+	UE_DEPRECATED(5.2, "Use GetAxisValueRef() instead.")
+	static const float& GetAxisValue(const FVector3f& InVector, ESplineMeshAxis::Type InAxis) { return GetAxisValueRef(InVector, InAxis); }
+	UE_DEPRECATED(5.2, "Use GetAxisValueRef() instead.")
+	static float& GetAxisValue(FVector3f& InVector, ESplineMeshAxis::Type InAxis) { return GetAxisValueRef(InVector, InAxis); }
+
+	inline static const double& GetAxisValueRef(const FVector3d& InVector, ESplineMeshAxis::Type InAxis);
+	inline static double& GetAxisValueRef(FVector3d& InVector, ESplineMeshAxis::Type InAxis);
+
+	inline static const float& GetAxisValueRef(const FVector3f& InVector, ESplineMeshAxis::Type InAxis);
+	inline static float& GetAxisValueRef(FVector3f& InVector, ESplineMeshAxis::Type InAxis);
 
 	/** Returns a vector which, when componentwise-multiplied by another vector, will zero all the components not corresponding to the supplied ESplineMeshAxis */
 	inline static FVector GetAxisMask(ESplineMeshAxis::Type InAxis);
@@ -388,7 +398,7 @@ public:
 	FSplineMeshInstanceData() = default;
 	explicit FSplineMeshInstanceData(const USplineMeshComponent* SourceComponent);
 
-	virtual ~FSplineMeshInstanceData() = default;
+	virtual ~FSplineMeshInstanceData() override = default;
 
 	virtual bool ContainsData() const override
 	{
@@ -414,7 +424,7 @@ public:
 	FVector EndTangent = FVector::ZeroVector;
 };
 
-const double& USplineMeshComponent::GetAxisValue(const FVector3d& InVector, ESplineMeshAxis::Type InAxis)
+const double& USplineMeshComponent::GetAxisValueRef(const FVector3d& InVector, ESplineMeshAxis::Type InAxis)
 {
 	switch (InAxis)
 	{
@@ -430,7 +440,7 @@ const double& USplineMeshComponent::GetAxisValue(const FVector3d& InVector, ESpl
 	}
 }
 
-double& USplineMeshComponent::GetAxisValue(FVector3d& InVector, ESplineMeshAxis::Type InAxis)
+double& USplineMeshComponent::GetAxisValueRef(FVector3d& InVector, ESplineMeshAxis::Type InAxis)
 {
 	switch (InAxis)
 	{
@@ -447,7 +457,7 @@ double& USplineMeshComponent::GetAxisValue(FVector3d& InVector, ESplineMeshAxis:
 }
 
 
-const float& USplineMeshComponent::GetAxisValue(const FVector3f& InVector, ESplineMeshAxis::Type InAxis)
+const float& USplineMeshComponent::GetAxisValueRef(const FVector3f& InVector, ESplineMeshAxis::Type InAxis)
 {
 	switch (InAxis)
 	{
@@ -463,7 +473,7 @@ const float& USplineMeshComponent::GetAxisValue(const FVector3f& InVector, ESpli
 	}
 }
 
-float& USplineMeshComponent::GetAxisValue(FVector3f& InVector, ESplineMeshAxis::Type InAxis)
+float& USplineMeshComponent::GetAxisValueRef(FVector3f& InVector, ESplineMeshAxis::Type InAxis)
 {
 	switch (InAxis)
 	{
