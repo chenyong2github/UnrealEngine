@@ -217,8 +217,10 @@ namespace PCGSettingsHelpers
 	void DeprecationBreakOutParamsToPin(UPCGNode* InOutNode, TArray<TObjectPtr<UPCGPin>>& InputPins, TArray<TObjectPtr<UPCGPin>>& OutputPins)
 	{
 		// Check basic conditions for which the code below should run.
-		check(InputPins.Num() == 1);
-		check(InputPins[0] && InputPins[0]->Properties.AllowedTypes == EPCGDataType::Any);
+		if(InputPins.IsEmpty() || !InputPins[0] || InputPins[0]->Properties.AllowedTypes != EPCGDataType::Any)
+		{
+			return;
+		}
 
 		UPCGPin* InPin = InputPins[0];
 

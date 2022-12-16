@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/PCGPointFilter.h"
+
+#include "PCGCustomVersion.h"
 #include "Data/PCGSpatialData.h"
 #include "Data/PCGPointData.h"
 #include "Helpers/PCGSettingsHelpers.h"
@@ -64,12 +66,14 @@ namespace PCGPointFilterHelpers
 TArray<FPCGPinProperties> UPCGPointFilterSettings::InputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPointFilterConstants::DataToFilterLabel, EPCGDataType::Any);
+	PinProperties.Emplace(PCGPointFilterConstants::DataToFilterLabel, EPCGDataType::Point);
 
 	if (!bUseConstantThreshold)
 	{
 		PinProperties.Emplace(PCGPointFilterConstants::FilterLabel, EPCGDataType::Any, /*bInAllowMultipleConnections=*/ false);
 	}
+
+	PinProperties.Emplace(PCGPinConstants::DefaultParamsLabel, EPCGDataType::Param, /*bAllowMultipleConnections=*/false, /*bAllowMultiData=*/false);
 
 	return PinProperties;
 }
@@ -175,6 +179,19 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif // WITH_EDITOR
 }
 
+#if WITH_EDITOR
+void UPCGPointFilterSettings::ApplyDeprecationBeforeUpdatePins(UPCGNode* InOutNode, TArray<TObjectPtr<UPCGPin>>& InputPins, TArray<TObjectPtr<UPCGPin>>& OutputPins)
+{
+	Super::ApplyDeprecationBeforeUpdatePins(InOutNode, InputPins, OutputPins);
+
+	check(InOutNode);
+	if (DataVersion < FPCGCustomVersion::MovePointFilterParamsOffFirstPin)
+	{
+		PCGSettingsHelpers::DeprecationBreakOutParamsToPin(InOutNode, InputPins, OutputPins);
+	}
+}
+#endif // WITH_EDITOR
+
 bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGPointFilterElement::Execute);
@@ -195,7 +212,7 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 	check(Settings);
 
 	TArray<FPCGTaggedData> DataToFilter = Context->InputData.GetInputsByPin(PCGPointFilterConstants::DataToFilterLabel);
-	UPCGParamData* Params = Context->InputData.GetParams(); //TODO: by pin?
+	UPCGParamData* Params = Context->InputData.GetParamsOnParamsPin();
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 	TArray<FPCGTaggedData> FilterData = Context->InputData.GetInputsByPin(PCGPointFilterConstants::FilterLabel);
 
@@ -203,8 +220,9 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 	Outputs.Append(Context->InputData.GetAllSettings());
 
 	const EPCGPointFilterOperator Operator = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGPointFilterSettings, Operator), Settings->Operator, Params);
-
-	bool bUseSpatialQuery = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGPointFilterSettings, bUseSpatialQuery), Settings->bUseSpatialQuery, Params);
+	const bool bUseSpatialQuery = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGPointFilterSettings, bUseSpatialQuery), Settings->bUseSpatialQuery, Params);
+	const bool bUseConstantThreshold = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGPointFilterSettings, bUseConstantThreshold), Settings->bUseConstantThreshold, Params);
+	// TODO: allow selector overrides for ThresholdAttribute and TargetAttribute
 
 	// If there is no input, do nothing
 	if (DataToFilter.IsEmpty())
@@ -219,7 +237,7 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 	UPCGPointData* ThresholdPointData = nullptr;
 	const UPCGSpatialData* ThresholdSpatialData = nullptr;
 
-	if (Settings->bUseConstantThreshold)
+	if (bUseConstantThreshold)
 	{
 		auto ConstantThreshold = [&ThresholdAccessor, &ThresholdKeys](auto&& Value)
 		{
@@ -243,7 +261,7 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 				// If the threshold is spatial, and we use spatial query, it means we'll have to sample points.
 				// Don't create an accessor yet (ThresholdData = nullptr), it will be created further down.
 				// Otherwise, we convert it to point data and create the accessor.
-				if (Settings->bUseSpatialQuery)
+				if (bUseSpatialQuery)
 				{
 					ThresholdSpatialData = TentativeThresholdSpatialData;
 					ThresholdData = nullptr;
@@ -276,7 +294,11 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 	for (const FPCGTaggedData& Input : DataToFilter)
 	{
 		const UPCGSpatialData* SpatialInput = Cast<const UPCGSpatialData>(Input.Data);
-		check(SpatialInput);
+		if (!SpatialInput)
+		{
+			PCGE_LOG(Error, "Please move non-spatial data to other pins");
+			continue;
+		}
 
 		const UPCGPointData* OriginalData = SpatialInput->ToPointData(Context);
 		if (!OriginalData)
@@ -350,7 +372,7 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 		}
 
 		// And also validate that types are comparable
-		if (Settings->Operator != EPCGPointFilterOperator::Equal && Settings->Operator != EPCGPointFilterOperator::NotEqual)
+		if (Operator != EPCGPointFilterOperator::Equal && Operator != EPCGPointFilterOperator::NotEqual)
 		{
 			bool bCanCompare = PCGMetadataAttribute::CallbackWithRightType(TargetAccessor->GetUnderlyingType(), [](auto Dummy) -> bool
 			{
@@ -376,7 +398,7 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 		InFilterPoints.Reserve(OriginalPoints.Num());
 		OutFilterPoints.Reserve(OriginalPoints.Num());
 
-		auto Operation = [&InFilterPoints, &OutFilterPoints, Settings, &ThresholdAccessor, &ThresholdKeys, &TargetAccessor, &TargetKeys, &OriginalPoints, ThresholdPointData, ThresholdSpatialData](auto Dummy) -> bool
+		auto Operation = [&InFilterPoints, &OutFilterPoints, &Operator, &ThresholdAccessor, &ThresholdKeys, &TargetAccessor, &TargetKeys, &OriginalPoints, ThresholdPointData, ThresholdSpatialData](auto Dummy) -> bool
 		{
 			using Type = decltype(Dummy);
 
@@ -434,7 +456,7 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 
 				for (int32 j = 0; j < Range; ++j)
 				{
-					if (SkipTests[j] || PCGPointFilterHelpers::ApplyCompare(TargetValues[j], ThresholdValues[j], Settings->Operator))
+					if (SkipTests[j] || PCGPointFilterHelpers::ApplyCompare(TargetValues[j], ThresholdValues[j], Operator))
 					{
 						InFilterPoints.Add(OriginalPoints[StartIndex + j]);
 					}

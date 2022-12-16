@@ -157,6 +157,12 @@ UPCGParamData* FPCGDataCollection::GetParams() const
 	return nullptr;
 }
 
+UPCGParamData* FPCGDataCollection::GetParamsOnParamsPin() const
+{
+	TArray<FPCGTaggedData> ParamsOnDefaultPin = GetParamsByPin(PCGPinConstants::DefaultParamsLabel);
+	return (ParamsOnDefaultPin.IsEmpty() ? nullptr : Cast<UPCGParamData>(ParamsOnDefaultPin[0].Data));
+}
+
 const UPCGSettings* FPCGDataCollection::GetSettings(const UPCGSettings* InDefaultSettings) const
 {
 	if (!InDefaultSettings)

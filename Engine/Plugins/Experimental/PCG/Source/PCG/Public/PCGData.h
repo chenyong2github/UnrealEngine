@@ -64,14 +64,24 @@ struct PCG_API FPCGDataCollection
 {
 	GENERATED_BODY()
 
+	/** Returns all spatial data in the collection */
 	TArray<FPCGTaggedData> GetInputs() const;
+	/** Returns all data on a given pin */
 	TArray<FPCGTaggedData> GetInputsByPin(const FName& InPinLabel) const;
+	/** Returns all spatial data in the collection with the given tag */
 	TArray<FPCGTaggedData> GetTaggedInputs(const FString& InTag) const;
+	/** Returns all settings in the collection */
 	TArray<FPCGTaggedData> GetAllSettings() const;
+	/** Returns all params in the collection */
 	TArray<FPCGTaggedData> GetAllParams() const;
+	/** Returns all params in the collection with a given tag */
 	TArray<FPCGTaggedData> GetTaggedParams(const FString& InTag) const;
+	/** Returns all params on a given pin */
 	TArray<FPCGTaggedData> GetParamsByPin(const FName& InPinLabel) const;
-	UPCGParamData* GetParams() const;
+	/** Returns the first params found in the collection */
+	UPCGParamData* GetParams() const; 
+	/** Returns the first/only param found on the default params pin */
+	UPCGParamData* GetParamsOnParamsPin() const;
 
 	const UPCGSettingsInterface* GetSettingsInterface() const;
 	const UPCGSettingsInterface* GetSettingsInterface(const UPCGSettingsInterface* InDefaultSettingsInterface) const;
