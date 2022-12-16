@@ -152,7 +152,16 @@ void ApplyDecal(inout FPathTracingPayload HitPayload, FDecalShaderParams Params)
 FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCameraRay, bool bLastBounce, bool bIncludeEmission, uint NumVisibleLights, inout FVolumeSegment VolumeSegment)
 {
 	const uint RayFlags = bIsCameraRay && EnableCameraBackfaceCulling ? RAY_FLAG_CULL_BACK_FACING_TRIANGLES : 0;
-	const uint InstanceInclusionMask = RAY_TRACING_MASK_OPAQUE + RAY_TRACING_MASK_TRANSLUCENT + (length2(PathState.Ray.Origin) < Pow2(PATH_TRACING_SKIP_HAIR_DISTANCE) ? RAY_TRACING_MASK_HAIR_STRANDS : 0);
+	uint InstanceInclusionMask = 0; 
+	if (bIsCameraRay)
+	{
+		InstanceInclusionMask = PATHTRACER_MASK_CAMERA | (length2(PathState.Ray.Origin) < Pow2(PATH_TRACING_SKIP_HAIR_DISTANCE) ? PATHTRACER_MASK_HAIR_CAMERA : 0);
+	}
+	else
+	{
+		InstanceInclusionMask = PATHTRACER_MASK_INDIRECT | (length2(PathState.Ray.Origin) < Pow2(PATH_TRACING_SKIP_HAIR_DISTANCE) ? PATHTRACER_MASK_HAIR_INDIRECT : 0);
+	}
+	
 	const uint MissShaderIndex = 0;
 	float2 RISRandSample = RandomSequence_GenerateSample2D(PathState.RandSequence);
 	FRISContext HitSample = InitRISContext(RISRandSample.x);
@@ -466,7 +475,7 @@ float3 TraceTransparentVisibilityRay(FRayDesc Ray, float PathRoughness, uint Mis
 	}
 
 	const uint RayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
-	const uint InstanceInclusionMask = RAY_TRACING_MASK_SHADOW | (length2(Ray.Origin) < Pow2(PATH_TRACING_SKIP_HAIR_DISTANCE) ? RAY_TRACING_MASK_THIN_SHADOW : 0);
+	const uint InstanceInclusionMask = PATHTRACER_MASK_SHADOW | (length2(Ray.Origin) < Pow2(PATH_TRACING_SKIP_HAIR_DISTANCE) ? PATHTRACER_MASK_HAIR_SHADOW : 0);
 	const uint RayContributionToHitGroupIndex = RAY_TRACING_SHADER_SLOT_SHADOW;
 	const uint MultiplierForGeometryContributionToShaderIndex = RAY_TRACING_NUM_SHADER_SLOTS;
 
@@ -533,7 +542,10 @@ FProbeResult TraceProbeRay(FRayDesc Ray)
 	// TODO: use smaller payload + flag to skip shading work? (only want smooth+geo normals)
 	//       however supporting blockers would require some shading ...
 	const uint RayFlags = 0;
-	const uint InstanceInclusionMask = RAY_TRACING_MASK_ALL - RAY_TRACING_MASK_THIN_SHADOW - RAY_TRACING_MASK_HAIR_STRANDS; // Ignore hair strands for SSS rays
+	const uint InstanceInclusionMask = PATHTRACER_MASK_ALL
+										- PATHTRACER_MASK_HAIR_SHADOW 
+										- PATHTRACER_MASK_HAIR_INDIRECT
+										- PATHTRACER_MASK_HAIR_CAMERA; // Ignore hair strands for SSS rays
 	const uint MissShaderIndex = 0;
 	TraceRay(
 		TLAS,

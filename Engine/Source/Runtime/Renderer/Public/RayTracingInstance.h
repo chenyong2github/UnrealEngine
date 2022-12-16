@@ -7,6 +7,8 @@
 
 #if RHI_RAYTRACING
 
+class FRayTracingGeometry;
+
 struct FRayTracingMaskAndFlags
 {
 	/** Instance mask that can be used to exclude the instance from specific effects (eg. ray traced shadows). */
@@ -25,7 +27,9 @@ enum class ERayTracingInstanceLayer : uint8
 	FarField,
 };
 
-class FRayTracingGeometry;
+/** MeshCommands mode shares the same status for ray tracing view mask mode*/
+//@TODO refactor ERayTracingViewMaskMode and ERayTracingMeshCommandsMode to a single header.
+enum class ERayTracingViewMaskMode : uint8;
 
 struct FRayTracingInstance
 {
@@ -118,11 +122,16 @@ struct FRayTracingInstance
 	/** When instance transforms are only available in GPU, this SRV holds them. */
 	FShaderResourceViewRHIRef InstanceGPUTransformsSRV;
 
-	/** Build mask and flags based on materials specified in Materials. You can still override Mask after calling this function. */
+	/** Build mask and flags based on materials specified in Materials. You can still override Mask after calling this function.*/
+	UE_DEPRECATED(5.2, "Use BuildInstanceMaskAndFlags() with PrimitiveSceneProxy instead. Calling this function leads to incorrect path tracing result")
 	void BuildInstanceMaskAndFlags(ERHIFeatureLevel::Type FeatureLevel);
 };
 
+
 /** Build mask and flags based on materials specified in Materials. You can still override Mask after calling this function. */
+UE_DEPRECATED(5.2, "Use BuildRayTracingInstanceMaskAndFlags() with ERayTracingViewMaskMode instead. Calling this function leads to incorrect path tracing result")
 FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMeshBatch> MeshBatches, ERHIFeatureLevel::Type FeatureLevel, ERayTracingInstanceLayer InstanceLayer = ERayTracingInstanceLayer::NearField, uint8 ExtraMask = 0);
+
+UE_DEPRECATED(5.2, "Use BlendModeToRayTracingInstanceMask() instead. Calling this function leads to incorrect path tracing result.")
 uint8 ComputeBlendModeMask(const EBlendMode BlendMode);
 #endif

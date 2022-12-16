@@ -5109,10 +5109,20 @@ inline void FScene::UpdateRayTracingGroupBounds_UpdatePrimitives(const Experimen
 static inline bool IsPrimitiveRelevantToPathTracing(FPrimitiveSceneInfo* PrimitiveSceneInfo)
 {
 #if RHI_RAYTRACING
+	bool bIsAffectsIndirectLightingWhileHidden = false;
+	bool bCastsHiddenShadow = false;
+	if (PrimitiveSceneInfo->Proxy)
+	{
+		bIsAffectsIndirectLightingWhileHidden = PrimitiveSceneInfo->Proxy->AffectsIndirectLightingWhileHidden();
+		bCastsHiddenShadow = PrimitiveSceneInfo->Proxy->CastsHiddenShadow();
+	}
+
 	// returns true if the primitive is likely to impact the path traced image
 	return PrimitiveSceneInfo->bIsRayTracingRelevant &&
 		   PrimitiveSceneInfo->bIsVisibleInRayTracing &&
-		   PrimitiveSceneInfo->bDrawInGame &&
+		   (PrimitiveSceneInfo->bDrawInGame || 
+			   bIsAffectsIndirectLightingWhileHidden ||
+			   bCastsHiddenShadow) &&
 		   PrimitiveSceneInfo->bShouldRenderInMainPass;
 #else
 	return false;

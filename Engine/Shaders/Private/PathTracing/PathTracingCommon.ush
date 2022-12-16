@@ -8,6 +8,7 @@
 
 #include "../RayTracing/RayTracingCommon.ush"
 #include "../OctahedralCommon.ush"
+#include "/Engine/Shared/PathTracingDefinitions.h"
 
 // These flags are analogous to RAY_TRACING_PAYLOAD_* flags. There are currently 6 bits available
 #define PATH_TRACING_PAYLOAD_OUTPUT_FLAG_FRONT_FACE                   (1 << 0) // Indicates that ray has hit the front face of a primitive. Set by closest hit shader.

@@ -418,7 +418,8 @@ bool FRayTracingMeshProcessor::Process(
 		MaterialResource,
 		PassDrawRenderState,
 		RayTracingShaders,
-		ShaderElementData);
+		ShaderElementData,
+		ERayTracingViewMaskMode::RayTracing);
 
 	return true;
 }

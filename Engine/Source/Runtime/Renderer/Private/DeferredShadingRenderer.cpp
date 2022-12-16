@@ -698,6 +698,28 @@ struct FRayTracingRelevantPrimitive
 		Key ^= bAllSegmentsTranslucent ? 0x1ull << 45 : 0x0;
 		return Key ^ reinterpret_cast<uint64>(RayTracingGeometryRHI);
 	}
+
+	void UpdateMasks(const ERayTracingPrimitiveFlags Flags, ERayTracingViewMaskMode MaskMode)
+	{
+		FRayTracingMeshCommand Command;
+		Command.InstanceMask = InstanceMask;
+		Command.bOpaque = bAllSegmentsOpaque;
+		Command.bCastRayTracedShadows = bAnySegmentsCastShadow;
+		Command.bDecal = bAnySegmentsDecal;
+		Command.bTwoSided = bTwoSided;
+		Command.bIsSky = bIsSky;
+		Command.bIsTranslucent = bAllSegmentsTranslucent;
+
+		UpdateRayTracingMeshCommandMasks(Command, Flags, MaskMode);
+
+		InstanceMask = Command.InstanceMask;
+		bAllSegmentsOpaque = Command.bOpaque;
+		bAnySegmentsCastShadow = Command.bCastRayTracedShadows;
+		bAnySegmentsDecal = Command.bDecal;
+		bTwoSided = Command.bTwoSided;
+		bIsSky = Command.bIsSky;
+		bAllSegmentsTranslucent = Command.bIsTranslucent;
+	}
 };
 
 struct FRayTracingRelevantPrimitiveList
@@ -879,6 +901,8 @@ static void GatherRayTracingRelevantPrimitives(const FScene& Scene, const FViewI
 					RelevantPrimitive.CachedRayTracingMeshCommandIndices = SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD[LODIndex];
 					RelevantPrimitive.StateHash = SceneInfo->CachedRayTracingMeshCommandsHashPerLOD[LODIndex];
 
+					ERayTracingViewMaskMode MaskMode = static_cast<ERayTracingViewMaskMode>(Scene.CachedRayTracingMeshCommandsMode);
+					
 					for (int32 CommandIndex : RelevantPrimitive.CachedRayTracingMeshCommandIndices)
 					{
 						if (CommandIndex >= 0)
@@ -900,12 +924,7 @@ static void GatherRayTracingRelevantPrimitives(const FScene& Scene, const FViewI
 						}
 					}
 
-					RelevantPrimitive.InstanceMask |= RelevantPrimitive.bAnySegmentsCastShadow ? RAY_TRACING_MASK_SHADOW : 0;
-
-					if (EnumHasAllFlags(Flags, ERayTracingPrimitiveFlags::FarField))
-					{
-						RelevantPrimitive.InstanceMask = RAY_TRACING_MASK_FAR_FIELD;
-					}
+					RelevantPrimitive.UpdateMasks(Flags, MaskMode);
 				}
 			}
 		});
@@ -929,7 +948,7 @@ struct FDeferredShadingRayTracingMaterialGatheringContext : public FRayTracingMa
 
 	virtual FRayTracingMaskAndFlags BuildInstanceMaskAndFlags(const FRayTracingInstance& Instance, const FPrimitiveSceneProxy& ScenePrimitive) override
 	{
-		return BuildRayTracingInstanceMaskAndFlags(Instance, ScenePrimitive);
+		return BuildRayTracingInstanceMaskAndFlags(Instance, ScenePrimitive, &ReferenceViewFamily);
 	}
 };
 
@@ -1155,7 +1174,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 					}
 
 					// Autobuild of InstanceMaskAndFlags if the mask and flags are not built
-					UpdateRayTracingInstanceMaskAndFlagsIfNeeded(Instance, *SceneProxy);
+					UpdateRayTracingInstanceMaskAndFlagsIfNeeded(Instance, *SceneProxy, &ViewFamily);
 
 					const uint32 InstanceIndex = RayTracingScene.Instances.Num();
 

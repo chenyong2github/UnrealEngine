@@ -21,6 +21,19 @@
 #define PATHTRACER_FLAG_CAST_VOL_SHADOW_MASK 				(1 << 10)
 #define PATHTRACER_FLAG_HAS_RECT_TEXTURE_MASK				(1 << 11)
 
+#define PATHTRACER_MASK_CAMERA								0x01			// opaque and alpha tested meshes and particles as a whole (primary ray) excluding hairs
+#define PATHTRACER_MASK_HAIR_CAMERA							0x02			// For primary ray tracing against hair
+#define PATHTRACER_MASK_SHADOW								0x04			// Whether the geometry is visible for shadow rays
+#define PATHTRACER_MASK_HAIR_SHADOW							0x08			// Whether hair is visible for shadow rays
+#define PATHTRACER_MASK_INDIRECT							0x10			// opaque and alpha tested meshes and particles as a whole (indirect ray) excluding hairs
+#define PATHTRACER_MASK_HAIR_INDIRECT						0x20			// For indirect ray tracing against hair
+#define PATHTRACER_MASK_EMPTY_SLOT1							0x40			
+#define PATHTRACER_MASK_EMPTY_SLOT2							0x80			
+
+#define PATHTRACER_MASK_IGNORE								0x00			// used when mapping general tracing mask to path tracing mask
+#define PATHTRACER_MASK_UNUSED	(PATHTRACER_MASK_EMPTY_SLOT1|PATHTRACER_MASK_EMPTY_SLOT2)	
+#define PATHTRACER_MASK_ALL									0xFF
+
 // Constants for the path tracer light grid
 #define PATHTRACER_LIGHT_GRID_SINGULAR_MASK					0x80000000u
 #define PATHTRACER_LIGHT_GRID_LIGHT_COUNT_MASK				0x7FFFFFFFu

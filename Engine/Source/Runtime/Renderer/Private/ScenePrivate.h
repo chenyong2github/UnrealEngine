@@ -2805,7 +2805,7 @@ public:
 	TAtomic<uint32> PathTracingInvalidationCounter;
 
 #if RHI_RAYTRACING
-	/** What mode where the cached RT commands prepared for last? */
+	/** What mode was the cached RT commands prepared for last? */
 	ERayTracingMeshCommandsMode CachedRayTracingMeshCommandsMode;
 #endif
 
