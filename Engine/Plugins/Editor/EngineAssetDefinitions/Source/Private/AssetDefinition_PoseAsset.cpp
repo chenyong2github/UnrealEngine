@@ -6,6 +6,7 @@
 #include "Misc/MessageDialog.h"
 #include "Styling/AppStyle.h"
 #include "ToolMenus.h"
+#include "ScopedTransaction.h"
 #include "Framework/Application/SlateApplication.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
