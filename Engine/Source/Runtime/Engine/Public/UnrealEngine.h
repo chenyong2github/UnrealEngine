@@ -31,6 +31,7 @@ ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogEngine, Log, All);
 //	}	
 //
 
+
 class FLocalPlayerIterator
 {
 protected:
