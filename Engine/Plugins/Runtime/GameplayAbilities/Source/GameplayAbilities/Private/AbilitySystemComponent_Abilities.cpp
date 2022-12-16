@@ -2021,6 +2021,7 @@ void UAbilitySystemComponent::ClientActivateAbilityFailed_Implementation(FGamepl
 	{
 		if (Ability->CurrentActivationInfo.GetActivationPredictionKey().Current == PredictionKey)
 		{
+			Ability->CurrentActivationInfo.SetActivationRejected();
 			Ability->K2_EndAbility();
 		}
 	}
