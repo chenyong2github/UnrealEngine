@@ -515,11 +515,12 @@ void SPaperEditorViewport::PaintSoftwareCursor(const FGeometry& AllottedGeometry
 	if (bShowSoftwareCursor)
 	{
 		const FSlateBrush* Brush = FAppStyle::GetBrush(TEXT("SoftwareCursor_Grab"));
+		const FVector2D CursorSize = Brush->ImageSize / AllottedGeometry.Scale;
 
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			DrawLayerId,
-			AllottedGeometry.ToPaintGeometry( GraphCoordToPanelCoord(SoftwareCursorPosition) / AllottedGeometry.Scale - ( Brush->ImageSize / 2 ), Brush->ImageSize ),
+			AllottedGeometry.ToPaintGeometry( GraphCoordToPanelCoord(SoftwareCursorPosition) / AllottedGeometry.Scale - ( CursorSize / 2 ), CursorSize ),
 			Brush);
 	}
 }

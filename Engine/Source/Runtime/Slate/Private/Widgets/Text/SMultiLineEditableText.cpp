@@ -635,11 +635,12 @@ int32 SMultiLineEditableText::OnPaint( const FPaintArgs& Args, const FGeometry& 
 	if (bIsSoftwareCursor)
 	{
 		const FSlateBrush* Brush = FCoreStyle::Get().GetBrush(TEXT("SoftwareCursor_Grab"));
+		const FVector2D CursorSize = Brush->ImageSize / AllottedGeometry.Scale;
 
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			++LayerId,
-			AllottedGeometry.ToPaintGeometry(SoftwareCursorPosition - (Brush->ImageSize / 2), Brush->ImageSize),
+			AllottedGeometry.ToPaintGeometry(SoftwareCursorPosition - (CursorSize / 2), CursorSize),
 			Brush
 			);
 	}

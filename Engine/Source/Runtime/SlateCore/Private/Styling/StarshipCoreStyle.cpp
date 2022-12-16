@@ -271,7 +271,7 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 
 	// Cursor icons
 	{
-		Style->Set("SoftwareCursor_Grab", new IMAGE_BRUSH("Icons/cursor_grab", Icon16x16));
+		Style->Set("SoftwareCursor_Grab", new IMAGE_BRUSH("Icons/cursor_grab", Icon24x24));
 		Style->Set("SoftwareCursor_CardinalCross", new IMAGE_BRUSH("Icons/cursor_cardinal_cross", Icon24x24));
 	}
 

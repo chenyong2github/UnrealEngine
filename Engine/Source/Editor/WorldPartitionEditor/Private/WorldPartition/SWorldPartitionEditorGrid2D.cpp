@@ -1740,11 +1740,12 @@ int32 SWorldPartitionEditorGrid2D::PaintSoftwareCursor(const FGeometry& Allotted
 	if (bIsPanning)
 	{
 		const FSlateBrush* Brush = FAppStyle::GetBrush(TEXT("SoftwareCursor_Grab"));
+		const FVector2D CursorSize = Brush->ImageSize / AllottedGeometry.Scale;
 
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			LayerId,
-			AllottedGeometry.ToPaintGeometry(MouseCursorPos - (Brush->ImageSize * 0.5f), Brush->ImageSize),
+			AllottedGeometry.ToPaintGeometry(MouseCursorPos - (CursorSize * 0.5f), CursorSize),
 			Brush
 		);
 	}

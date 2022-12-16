@@ -191,6 +191,7 @@ int32 SViewport::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeome
 		{
 			Brush = FCoreStyle::Get().GetBrush(TEXT("SoftwareCursor_CardinalCross"));
 		}
+		const FVector2D CursorSize = Brush->ImageSize / AllottedGeometry.Scale;
 
 		FVector2D CursorPositionLocalSpace = ViewportInterfacePin->GetSoftwareCursorPosition() / AllottedGeometry.Scale;
 
@@ -198,7 +199,7 @@ int32 SViewport::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeome
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			LayerId,
-			AllottedGeometry.ToPaintGeometry( CursorPositionLocalSpace - ( Brush->ImageSize / 2 ), Brush->ImageSize ),
+			AllottedGeometry.ToPaintGeometry( CursorPositionLocalSpace - (CursorSize / 2 ), CursorSize),
 			Brush
 		);
 	}
