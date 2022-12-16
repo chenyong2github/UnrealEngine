@@ -66,7 +66,7 @@ bool FPCGProjectionElement::ExecuteInternal(FPCGContext* Context) const
 
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 	const bool bKeepZeroDensityPoints = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGProjectionSettings, bKeepZeroDensityPoints), Settings->bKeepZeroDensityPoints, Params);
 #else
 	const bool bKeepZeroDensityPoints = false;
@@ -83,7 +83,7 @@ bool FPCGProjectionElement::ExecuteInternal(FPCGContext* Context) const
 		}
 
 		UPCGProjectionData* ProjectionData = ProjectionSource->ProjectOn(ProjectionTarget, ProjectionParams);
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 		ProjectionData->bKeepZeroDensityPoints = bKeepZeroDensityPoints;
 #endif
 

@@ -26,7 +26,7 @@ public:
 	UPCGGraph(const FObjectInitializer& ObjectInitializer);
 	/** ~Begin UObject interface */
 	virtual void PostLoad() override;
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
 #endif
 

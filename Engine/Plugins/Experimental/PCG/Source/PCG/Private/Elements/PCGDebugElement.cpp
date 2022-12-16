@@ -18,7 +18,7 @@ namespace PCGDebugElement
 	void ExecuteDebugDisplay(FPCGContext* Context)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(PCGDebugElement::ExecuteDebugDisplay);
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 		// Early validation: if we don't have a valid PCG component, we're not going to add the debug display info
 		if (!Context->SourceComponent.IsValid())
 		{

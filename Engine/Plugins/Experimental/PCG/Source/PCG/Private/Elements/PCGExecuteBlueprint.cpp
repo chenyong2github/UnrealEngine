@@ -43,7 +43,7 @@ void UPCGBlueprintElement::PostLoad()
 	Super::PostLoad();
 	Initialize();
 
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 	if (!InputPinLabels_DEPRECATED.IsEmpty())
 	{
 		for (const FName& Label : InputPinLabels_DEPRECATED)
@@ -246,7 +246,7 @@ void UPCGBlueprintSettings::PostLoad()
 {
 	Super::PostLoad();
 
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 	if (BlueprintElement_DEPRECATED && !BlueprintElementType)
 	{
 		BlueprintElementType = BlueprintElement_DEPRECATED;
@@ -268,13 +268,13 @@ void UPCGBlueprintSettings::PostLoad()
 	if (BlueprintElementInstance)
 	{
 		BlueprintElementInstance->ConditionalPostLoad();
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 		BlueprintElementInstance->bCreatesArtifacts |= bCreatesArtifacts_DEPRECATED;
 		BlueprintElementInstance->bCanBeMultithreaded |= bCanBeMultithreaded_DEPRECATED;
 #endif
 	}
 
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 	bCreatesArtifacts_DEPRECATED = false;
 	bCanBeMultithreaded_DEPRECATED = false;
 #endif
@@ -400,12 +400,12 @@ EPCGSettingsType UPCGBlueprintSettings::GetType() const
 
 void UPCGBlueprintSettings::GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings, TArray<TObjectPtr<const UPCGGraph>>& OutVisitedGraphs) const
 {
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 	for (const FName& Tag : TrackedActorTags)
 	{
 		OutTagToSettings.FindOrAdd(Tag).Add(this);
 	}
-#endif // WITH_EDITORONLY_DATA
+#endif // WITH_EDITOR
 }
 
 UObject* UPCGBlueprintSettings::GetJumpTargetForDoubleClick() const

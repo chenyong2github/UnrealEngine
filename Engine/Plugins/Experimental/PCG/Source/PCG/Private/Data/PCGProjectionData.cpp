@@ -210,7 +210,7 @@ const UPCGPointData* UPCGProjectionData::CreatePointData(FPCGContext* Context) c
 		const FPCGPoint& SourcePoint = SourcePoints[Index];
 
 		FPCGPoint PointFromTarget;
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 		if (!Target->ProjectPoint(SourcePoint.Transform, SourcePoint.GetLocalBounds(), ProjectionParams, PointFromTarget, TempTargetMetadata) && !bKeepZeroDensityPoints)
 #else
 		if (!Target->ProjectPoint(SourcePoint.Transform, SourcePoint.GetLocalBounds(), ProjectionParams, PointFromTarget, TempTargetMetadata))

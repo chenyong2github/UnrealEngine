@@ -196,7 +196,7 @@ const UPCGPointData* UPCGDifferenceData::CreatePointData(FPCGContext* Context) c
 				Data->Metadata->MergePointAttributesSubset(Point, SourcePointData->Metadata, SourcePointData->Metadata, PointFromDiff, TempDiffMetadata, TempDiffMetadata, OutPoint, EPCGMetadataOp::Sub);
 			}
 
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 			return OutPoint.Density > 0 || bKeepZeroDensityPoints;
 #else
 			return OutPoint.Density > 0;

@@ -14,7 +14,7 @@
 APCGWorldActor::APCGWorldActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 	bIsSpatiallyLoaded = false;
 	bDefaultOutlinerExpansionState = false;
 #endif

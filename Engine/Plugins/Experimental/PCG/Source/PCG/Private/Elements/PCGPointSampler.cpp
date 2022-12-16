@@ -35,7 +35,7 @@ bool FPCGPointSamplerElement::ExecuteInternal(FPCGContext* Context) const
 	Outputs.Append(Context->InputData.GetAllSettings());
 
 	const float Ratio = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGPointSamplerSettings, Ratio), Settings->Ratio, Params);
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 	const bool bKeepZeroDensityPoints = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGPointSamplerSettings, bKeepZeroDensityPoints), Settings->bKeepZeroDensityPoints, Params);
 #else
 	const bool bKeepZeroDensityPoints = false;
@@ -89,7 +89,7 @@ bool FPCGPointSamplerElement::ExecuteInternal(FPCGContext* Context) const
 		Output.Data = SampledData;
 
 		// TODO: randomize on the fractional number of points
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 		int TargetNumPoints = (bKeepZeroDensityPoints ? OriginalPointCount : OriginalPointCount * Ratio);
 #else
 		int TargetNumPoints = OriginalPointCount * Ratio;
@@ -118,7 +118,7 @@ bool FPCGPointSamplerElement::ExecuteInternal(FPCGContext* Context) const
 					OutPoint = Point;
 					return true;
 				}
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 				else if (bKeepZeroDensityPoints)
 				{
 					OutPoint = Point;

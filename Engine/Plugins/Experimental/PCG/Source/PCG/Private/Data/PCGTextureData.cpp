@@ -217,7 +217,7 @@ const UPCGPointData* UPCGBaseTextureData::CreatePointData(FPCGContext* Context) 
 		if (PCGTextureSampling::Sample<FLinearColor>(LocalCoordinate, Surface, this, Width, Height, Color, [this](int32 Index) { return ColorData[Index]; }))
 		{
 			const float Density = ((DensityFunction == EPCGTextureDensityFunction::Ignore) ? 1.0f : PCGTextureSampling::SampleFloatChannel(Color, ColorChannel));
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 			if (Density > 0 || bKeepZeroDensityPoints)
 #else
 			if (Density > 0)

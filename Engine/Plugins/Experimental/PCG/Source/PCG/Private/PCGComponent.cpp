@@ -802,7 +802,7 @@ void UPCGComponent::PostLoad()
 {
 	Super::PostLoad();
 
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 	if (!ExclusionTags_DEPRECATED.IsEmpty() && ExcludedTags.IsEmpty())
 	{
 		ExcludedTags.Append(ExclusionTags_DEPRECATED);

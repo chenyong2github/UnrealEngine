@@ -41,7 +41,7 @@ UPCGGraph::UPCGGraph(const FObjectInitializer& ObjectInitializer)
 	OutputNode->SetSettingsInterface(OutputSettings, /*bUpdatePins=*/false);
 	OutputNode->UpdatePins(PinAllocator);
 	
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 	OutputNode->PositionX = 200;
 #endif
 
@@ -122,7 +122,7 @@ void UPCGGraph::PostLoad()
 #endif
 }
 
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 void UPCGGraph::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
 {
 	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);

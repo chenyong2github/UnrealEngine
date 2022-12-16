@@ -29,7 +29,7 @@ bool FPCGIntersectionElement::ExecuteInternal(FPCGContext* Context) const
 	UPCGParamData* Params = Context->InputData.GetParams();
 
 	const EPCGIntersectionDensityFunction DensityFunction = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGIntersectionSettings, DensityFunction), Settings->DensityFunction, Params);
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 	const bool bKeepZeroDensityPoints = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGIntersectionSettings, bKeepZeroDensityPoints), Settings->bKeepZeroDensityPoints, Params);
 #else
 	const bool bKeepZeroDensityPoints = false;
@@ -64,7 +64,7 @@ bool FPCGIntersectionElement::ExecuteInternal(FPCGContext* Context) const
 		IntersectionData = (IntersectionData ? IntersectionData : FirstSpatialData)->IntersectWith(SpatialData);
 		// Propagate settings
 		IntersectionData->DensityFunction = DensityFunction;
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 		IntersectionData->bKeepZeroDensityPoints = bKeepZeroDensityPoints;
 #endif
 

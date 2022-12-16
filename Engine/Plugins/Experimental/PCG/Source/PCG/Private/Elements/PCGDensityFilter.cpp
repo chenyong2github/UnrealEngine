@@ -42,7 +42,7 @@ bool FPCGDensityFilterElement::ExecuteInternal(FPCGContext* Context) const
 	const bool bInvertFilter = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGDensityFilterSettings, bInvertFilter), Settings->bInvertFilter, Params);
 	const float LowerBound = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGDensityFilterSettings, LowerBound), Settings->LowerBound, Params);
 	const float UpperBound = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGDensityFilterSettings, UpperBound), Settings->UpperBound, Params);
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 	const bool bKeepZeroDensityPoints = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGDensityFilterSettings, bKeepZeroDensityPoints), Settings->bKeepZeroDensityPoints, Params);
 #else
 	const bool bKeepZeroDensityPoints = false;
@@ -104,7 +104,7 @@ bool FPCGDensityFilterElement::ExecuteInternal(FPCGContext* Context) const
 				OutPoint = Point;
 				return true;
 			}
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 			else if (bKeepZeroDensityPoints)
 			{
 				OutPoint = Point;

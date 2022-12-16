@@ -112,7 +112,7 @@ bool FPCGDifferenceElement::ExecuteInternal(FPCGContext* Context) const
 					DifferenceData = (UnionData ? UnionData : FirstSpatialData)->Subtract(SpatialData);
 					DifferenceData->SetDensityFunction(Settings->DensityFunction);
 					DifferenceData->bDiffMetadata = Settings->bDiffMetadata;
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 					DifferenceData->bKeepZeroDensityPoints = Settings->bKeepZeroDensityPoints;
 #endif
 
@@ -150,7 +150,7 @@ void FPCGDifferenceElement::LabellessProcessing(FPCGContext* Context) const
 	UPCGParamData* Params = Context->InputData.GetParams();
 
 	const EPCGDifferenceDensityFunction DensityFunction = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGDifferenceSettings, DensityFunction), Settings->DensityFunction, Params);
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 	const bool bKeepZeroDensityPoints = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGDifferenceSettings, bKeepZeroDensityPoints), Settings->bKeepZeroDensityPoints, Params);
 #else
 	const bool bKeepZeroDensityPoints = false;
@@ -167,7 +167,7 @@ void FPCGDifferenceElement::LabellessProcessing(FPCGContext* Context) const
 		{
 			DifferenceData = FirstSpatialData->Subtract(SpatialData);
 			DifferenceData->SetDensityFunction(DensityFunction);
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 			DifferenceData->bKeepZeroDensityPoints = bKeepZeroDensityPoints;
 #endif
 

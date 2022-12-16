@@ -207,7 +207,7 @@ UPCGPointData* UPCGIntersectionData::CreateAndFilterPointData(FPCGContext* Conte
 		const FPCGPoint& Point = SourcePoints[Index];
 
 		FPCGPoint PointFromY;
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 		if (!Y->SamplePoint(Point.Transform, Point.GetLocalBounds(), PointFromY, TempYMetadata) && !bKeepZeroDensityPoints)
 #else
 		if (!Y->SamplePoint(Point.Transform, Point.GetLocalBounds(), PointFromY, TempYMetadata))

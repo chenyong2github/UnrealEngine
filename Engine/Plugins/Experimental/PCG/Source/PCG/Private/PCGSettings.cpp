@@ -19,11 +19,11 @@ class FPCGSettingsObjectCrc32 : public FArchiveObjectCrc32
 public:
 	virtual bool ShouldSkipProperty(const FProperty* InProperty) const override
 	{
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 		return InProperty && (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGSettings, DebugSettings) || InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGSettings, DeterminismSettings));
 #else
 		return FArchiveObjectCrc32::ShouldSkipProperty(InProperty);
-#endif // WITH_EDITORONLY_DATA
+#endif // WITH_EDITOR
 	}
 };
 
@@ -79,7 +79,7 @@ void UPCGSettings::PostLoad()
 {
 	Super::PostLoad();
 
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 	if (ExecutionMode_DEPRECATED != EPCGSettingsExecutionMode::Enabled)
 	{
 		bEnabled = ExecutionMode_DEPRECATED != EPCGSettingsExecutionMode::Disabled;
@@ -225,7 +225,7 @@ void UPCGSettingsInstance::PostLoad()
 	}
 #endif
 
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 	OriginalSettings = Settings;
 #endif
 }
@@ -252,7 +252,7 @@ void UPCGSettingsInstance::SetSettings(UPCGSettings* InSettings)
 #endif
 
 	Settings = InSettings;
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 	OriginalSettings = Settings;
 #endif
 
