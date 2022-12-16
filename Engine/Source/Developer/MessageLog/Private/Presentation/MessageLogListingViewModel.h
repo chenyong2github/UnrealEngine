@@ -253,7 +253,16 @@ private:
 	{
 		int32 NotificationId;
 		TWeakPtr<class SNotificationItem> NotificationItem;
-		FOpenNotification(int32 InNotificationId, const TWeakPtr<class SNotificationItem>& InNotificationItem) : NotificationId(InNotificationId), NotificationItem(InNotificationItem) {}
+		const FText NotificationMessage;
+
+		FOpenNotification(int32 InNotificationId,
+		                  const TWeakPtr<class SNotificationItem>& InNotificationItem,
+		                  const FText InNotificationMessage)
+			: NotificationId(InNotificationId)
+			, NotificationItem(InNotificationItem)
+			, NotificationMessage( InNotificationMessage)
+		{
+		}
 		FOpenNotification() : NotificationId(INDEX_NONE) {}
 	};
 	TArray<FOpenNotification> OpenNotifications;
