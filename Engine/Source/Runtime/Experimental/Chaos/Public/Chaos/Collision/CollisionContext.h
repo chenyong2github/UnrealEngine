@@ -5,7 +5,10 @@
 
 namespace Chaos
 {
-	class FCollisionContextAllocator;
+	namespace Private
+	{
+		class FCollisionContextAllocator;
+	}
 	class FMultiShapePairCollisionDetector;
 
 	class FCollisionDetectorSettings
@@ -70,8 +73,8 @@ namespace Chaos
 		const FCollisionDetectorSettings& GetSettings() const { return *Settings; }
 		void SetSettings(const FCollisionDetectorSettings& InSettings) { Settings = &InSettings; }
 
-		FCollisionContextAllocator* GetAllocator() const { return Allocator; }
-		void SetAllocator(FCollisionContextAllocator* InAllocator) { Allocator = InAllocator; }
+		Private::FCollisionContextAllocator* GetAllocator() const { return Allocator; }
+		void SetAllocator(Private::FCollisionContextAllocator* InAllocator) { Allocator = InAllocator; }
 
 		FMultiShapePairCollisionDetector* GetMultiShapePairCollisionDetector() const { return MultiShapeCollisionDetector; }
 		void SetMultiShapePairCollisionDetector(FMultiShapePairCollisionDetector* InDetector) { MultiShapeCollisionDetector = InDetector; }
@@ -79,7 +82,7 @@ namespace Chaos
 
 		const FCollisionDetectorSettings* Settings;
 
-		FCollisionContextAllocator* Allocator;
+		Private::FCollisionContextAllocator* Allocator;
 
 		// This is used in the older collision detection path which is still used for particles that do not flatten their implicit hierrarchies
 		// into the Particle's ShapesArray. Currently this is only Clusters.

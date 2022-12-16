@@ -22,7 +22,6 @@
 
 namespace Chaos
 {
-	class FCollisionConstraintAllocator;
 	class FChaosArchive;
 	class IResimCacheBase;
 	class FEvolutionResimCache;

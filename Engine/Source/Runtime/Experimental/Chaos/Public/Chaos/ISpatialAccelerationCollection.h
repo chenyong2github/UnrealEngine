@@ -9,8 +9,11 @@
 
 namespace Chaos
 {
+	namespace Private
+	{
+		class FCollisionConstraintAllocator;
+	}
 	class FAsyncCollisionReceiver;
-	class FCollisionConstraintAllocator;
 	class FCollisionDetectorSettings;
 	class FSpatialAccelerationBroadPhase;
 	class IResimCacheBase;
@@ -31,7 +34,7 @@ public:
 	virtual void SwapSubstructure(ISpatialAccelerationCollection<TPayloadType, T, d>& Other, FSpatialAccelerationIdx Idx) = 0;	
 
 	/** This is kind of a hack to avoid virtuals. We simply route calls into templated functions */
-	virtual void PBDComputeConstraintsLowLevel(T Dt, FSpatialAccelerationBroadPhase& BroadPhase, FCollisionConstraintAllocator* Allocator, const FCollisionDetectorSettings& Settings, IResimCacheBase* ResimCache) const = 0;
+	virtual void PBDComputeConstraintsLowLevel(T Dt, FSpatialAccelerationBroadPhase& BroadPhase, Private::FCollisionConstraintAllocator* Allocator, const FCollisionDetectorSettings& Settings, IResimCacheBase* ResimCache) const = 0;
 	virtual TArray<FSpatialAccelerationIdx> GetAllSpatialIndices() const = 0;
 
 	bool IsBucketActive(uint8 BucketIdx) const

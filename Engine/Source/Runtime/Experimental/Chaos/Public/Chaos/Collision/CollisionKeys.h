@@ -72,6 +72,11 @@ namespace Chaos
 			return Key.Key64;
 		}
 
+		friend bool operator<(const FCollisionParticlePairKey& L, const FCollisionParticlePairKey& R)
+		{
+			return L.Key.Key64 < R.Key.Key64;
+		}
+
 	private:
 		void GenerateKey(const FGeometryParticleHandle* Particle0, const FGeometryParticleHandle* Particle1)
 		{

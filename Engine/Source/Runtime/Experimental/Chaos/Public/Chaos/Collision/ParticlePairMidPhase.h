@@ -17,8 +17,11 @@
 
 namespace Chaos
 {
+	namespace Private
+	{
+		class FCollisionConstraintAllocator;
+	}
 	class FCollisionContext;
-	class FCollisionConstraintAllocator;
 	class FParticlePairMidPhase;
 	class FPBDCollisionConstraints;
 	class FPerShapeData;

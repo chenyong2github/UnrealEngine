@@ -247,7 +247,7 @@ public:
 
 	const FPBDCollisionConstraint& GetConstraint(int32 Index) const;
 
-	FCollisionConstraintAllocator& GetConstraintAllocator() { return ConstraintAllocator; }
+	Private::FCollisionConstraintAllocator& GetConstraintAllocator() { return ConstraintAllocator; }
 
 	void UpdateConstraintMaterialProperties(FPBDCollisionConstraint& Contact);
 
@@ -275,7 +275,7 @@ private:
 
 	const FPBDRigidsSOAs& Particles;
 
-	FCollisionConstraintAllocator ConstraintAllocator;
+	Private::FCollisionConstraintAllocator ConstraintAllocator;
 	int32 NumActivePointConstraints;
 	TArray<FPBDCollisionConstraintHandle*> TempCollisions;	// Reused from tick to tick to build contact lists
 

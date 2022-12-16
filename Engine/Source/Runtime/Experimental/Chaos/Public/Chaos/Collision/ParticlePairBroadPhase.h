@@ -34,7 +34,7 @@ namespace Chaos
 		 */
 		void ProduceOverlaps(
 			FReal Dt, 
-			FCollisionConstraintAllocator* Allocator,
+			Private::FCollisionConstraintAllocator* Allocator,
 			const FCollisionDetectorSettings& Settings)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_Collisions_ParticlePairBroadPhase);

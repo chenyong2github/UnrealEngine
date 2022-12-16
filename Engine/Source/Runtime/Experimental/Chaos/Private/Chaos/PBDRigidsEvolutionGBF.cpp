@@ -712,7 +712,7 @@ void FPBDRigidsEvolutionGBF::TransferJointConstraintCollisions()
 	// which is quite difficult for large mass ratios and would require many iterations.
 	if (DoTransferJointConstraintCollisions)
 	{
-		FCollisionConstraintAllocator& CollisionAllocator = CollisionConstraints.GetConstraintAllocator();
+		Private::FCollisionConstraintAllocator& CollisionAllocator = CollisionConstraints.GetConstraintAllocator();
 
 		// @todo(chaos): we should only visit the joints that have ContactTransferScale > 0 
 		for (int32 JointConstraintIndex = 0; JointConstraintIndex < GetJointConstraints().NumConstraints(); ++JointConstraintIndex)

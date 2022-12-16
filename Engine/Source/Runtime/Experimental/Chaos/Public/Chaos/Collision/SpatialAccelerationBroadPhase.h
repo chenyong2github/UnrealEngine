@@ -33,8 +33,9 @@ namespace Chaos
 			{
 			}
 
-			FBroadphaseOverlap(FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1)
+			FBroadphaseOverlap(FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1, const int32 InSearchParticleIndex)
 				: Particles{ Particle0, Particle1 }
+				, SearchParticleIndex(InSearchParticleIndex)
 			{
 			}
 
@@ -44,6 +45,7 @@ namespace Chaos
 			}
 
 			FGeometryParticleHandle* Particles[2];
+			int32 SearchParticleIndex;
 		};
 
 		/**
@@ -252,11 +254,13 @@ namespace Chaos
 				
 				if (bAccept)
 				{
+					int32 SearchParticleIndex = 0;
 					if (bSwapOrder)
 					{
 						Swap(Particle1, Particle2);
+						SearchParticleIndex = 1;
 					}
-					Context.Overlaps.Emplace(Particle1, Particle2);
+					Context.Overlaps.Emplace(Particle1, Particle2, SearchParticleIndex);
 				}
 
 				return true;
@@ -330,7 +334,7 @@ namespace Chaos
 		 */
 		void ProduceOverlaps(
 			FReal Dt, 
-			FCollisionConstraintAllocator* Allocator,
+			Private::FCollisionConstraintAllocator* Allocator,
 			const FCollisionDetectorSettings& Settings,
 			IResimCacheBase* ResimCache
 			)
@@ -377,7 +381,7 @@ namespace Chaos
 			ViewType& OverlapView, 
 			FReal Dt,
 			const SpatialAccelerationType& InSpatialAcceleration, 
-			FCollisionConstraintAllocator* Allocator,
+			Private::FCollisionConstraintAllocator* Allocator,
 			const FCollisionDetectorSettings& Settings)
 		{
 			// Reset all the contexts (we don't always use all of them, but don't reduce the array size so that the element arrays don't need reallocating)
@@ -411,7 +415,7 @@ namespace Chaos
 
 				// Retrieve the midphase/collision allocator for this context
 				Allocator->SetMaxContexts(NumWorkers);
-				FCollisionContextAllocator* ContextAllocator = Allocator->GetContextAllocator(WorkerIndex);
+				Private::FCollisionContextAllocator* ContextAllocator = Allocator->GetContextAllocator(WorkerIndex);
 
 				// Build the collision context for the worker
 				BroadphaseContexts[WorkerIndex].CollisionContext.SetSettings(Settings);
@@ -455,7 +459,7 @@ namespace Chaos
 		void ProduceOverlaps(
 			FReal Dt, 
 			const T_SPATIALACCELERATION& InSpatialAcceleration, 
-			FCollisionConstraintAllocator* Allocator,
+			Private::FCollisionConstraintAllocator* Allocator,
 			const FCollisionDetectorSettings& Settings,
 			IResimCacheBase* ResimCache
 			)
@@ -556,7 +560,10 @@ namespace Chaos
 
 				for (auto& Elem : GlobalElems)
 				{
-					Context.Overlaps.Emplace(Particle1, Elem.Payload.GetGeometryParticleHandle_PhysicsThread());
+					if (Particle1 != Elem.Payload.GetGeometryParticleHandle_PhysicsThread())
+					{
+						Context.Overlaps.Emplace(Particle1, Elem.Payload.GetGeometryParticleHandle_PhysicsThread(), 1);
+					}
 				}
 			}
 		}
@@ -565,11 +572,15 @@ namespace Chaos
 		// @todo(chaos): optimize
 		void AssignMidphases(Private::FBroadphaseContext& BroadphaseContext)
 		{
-			BroadphaseContext.MidPhases.Reset(BroadphaseContext.Overlaps.Num());
-			for (Private::FBroadphaseOverlap& Overlap : BroadphaseContext.Overlaps)
+			Private::FCollisionContextAllocator* ContextAllocator = BroadphaseContext.CollisionContext.GetAllocator();
+
+			BroadphaseContext.MidPhases.SetNum(BroadphaseContext.Overlaps.Num());
+
+			for (int32 OverlapIndex = 0, OverlapEnd = BroadphaseContext.Overlaps.Num(); OverlapIndex < OverlapEnd; ++OverlapIndex)
 			{
-				FParticlePairMidPhase* MidPhase = BroadphaseContext.CollisionContext.GetAllocator()->GetMidPhase(Overlap.Particles[0], Overlap.Particles[1], Overlap.Particles[0], BroadphaseContext.CollisionContext);
-				BroadphaseContext.MidPhases.Add(MidPhase);
+				Private::FBroadphaseOverlap& Overlap = BroadphaseContext.Overlaps[OverlapIndex];
+
+				BroadphaseContext.MidPhases[OverlapIndex] = ContextAllocator->GetMidPhase(Overlap.Particles[0], Overlap.Particles[1], Overlap.Particles[Overlap.SearchParticleIndex], BroadphaseContext.CollisionContext);
 			}
 		}
 

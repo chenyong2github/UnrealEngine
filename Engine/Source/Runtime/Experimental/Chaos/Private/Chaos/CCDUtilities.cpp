@@ -93,7 +93,7 @@ namespace Chaos
 		return INDEX_NONE;
 	}
 
-	void FCCDManager::ApplyConstraintsPhaseCCD(const FReal Dt, FCollisionConstraintAllocator *CollisionAllocator, const int32 NumDynamicParticles)
+	void FCCDManager::ApplyConstraintsPhaseCCD(const FReal Dt, Private::FCollisionConstraintAllocator *CollisionAllocator, const int32 NumDynamicParticles)
 	{
 		SweptConstraints = CollisionAllocator->GetCCDConstraints();
 		if (SweptConstraints.Num() > 0)
@@ -896,7 +896,7 @@ namespace Chaos
 		}
 	}
 
-	void FCCDManager::UpdateSweptConstraints(const FReal Dt, FCollisionConstraintAllocator *CollisionAllocator)
+	void FCCDManager::UpdateSweptConstraints(const FReal Dt, Private::FCollisionConstraintAllocator *CollisionAllocator)
 	{
 		// Buld the set of collision whose contact data will be out of date because we moved one or both of its particles. 
 		// This is all collision constraints, including non-swept ones, for any particle that was relocated by the CCD sweep 
