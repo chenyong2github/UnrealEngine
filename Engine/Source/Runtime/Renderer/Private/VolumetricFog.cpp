@@ -610,13 +610,7 @@ void FDeferredShadingSceneRenderer::RenderLocalLightsForVolumetricFog(
 						VSPassParameters.ViewSpaceBoundingSphere = FVector4f(FVector4f(View.ViewMatrices.GetViewMatrix().TransformPosition(LightBounds.Center)), LightBounds.W); // LWC_TODO: precision loss
 						VSPassParameters.ViewToVolumeClip = FMatrix44f(View.ViewMatrices.ComputeProjectionNoAAMatrix());	// LWC_TODO: Precision loss?
 
-						// Calculate how much the Fog froxel volume "overhangs" the actual view frustum to the right and bottom
-						const FIntPoint FogRect = View.ViewRect.Size();
-						int32 VolumetricFogGridPixelSize;
-						const FIntVector VolumetricFogGridSize = GetVolumetricFogGridSize(FogRect, VolumetricFogGridPixelSize);
-						const FVector2f FogPhysicalSize = (FVector2f(VolumetricFogGridSize.X, VolumetricFogGridSize.Y) * VolumetricFogGridPixelSize);
-						const FVector2f ClipRatio = FogPhysicalSize / FVector2f(FogRect);
-						VSPassParameters.ClipRatio = ClipRatio;
+						VSPassParameters.ClipRatio = GetVolumetricFogFroxelToScreenSVPosRatio(View.ViewRect.Size());
 
 						VSPassParameters.VolumetricFogParameters = PassParameters->VolumetricFogParameters;
 						SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), VSPassParameters);
@@ -855,6 +849,17 @@ FIntVector GetVolumetricFogGridSize(FIntPoint ViewRectSize, int32& OutVolumetric
 	}
 	OutVolumetricFogGridPixelSize = VolumetricFogGridPixelSize;
 	return FIntVector(VolumetricFogGridSizeXY.X, VolumetricFogGridSizeXY.Y, GetVolumetricFogGridSizeZ());
+}
+
+FVector2f GetVolumetricFogFroxelToScreenSVPosRatio(FIntPoint ViewRectSize)
+{
+	// Calculate how much the Fog froxel volume "overhangs" the actual view frustum to the right and bottom.
+	// This needs to be applied on SVPos because froxel pixel size (see r.VolumetricFog.GridPixelSize) does not align perfectly with view rect.
+	int32 VolumetricFogGridPixelSize;
+	const FIntVector VolumetricFogGridSize = GetVolumetricFogGridSize(ViewRectSize, VolumetricFogGridPixelSize);
+	const FVector2f FogPhysicalSize = FVector2f(VolumetricFogGridSize.X, VolumetricFogGridSize.Y) * VolumetricFogGridPixelSize;
+	const FVector2f ClipRatio = FogPhysicalSize / FVector2f(ViewRectSize);
+	return ClipRatio;
 }
 
 void SetupVolumetricFogGlobalData(const FViewInfo& View, FVolumetricFogGlobalData& Parameters)
