@@ -656,9 +656,9 @@ void UNiagaraEmitter::PostLoad()
 		LibraryVisibility = ENiagaraScriptLibraryVisibility::Library;
 	}
 
-	if (this->IsAsset() == false && GetPackage()->bIsCookedForEditor)
+	if (this->GetOuter()->IsA<UNiagaraSystem>() || this->GetOuter()->IsA<UNiagaraEmitter>())
 	{
-		// Remove thunbnails for non-asset emitters in cooked packages to prevent problems due to issues with cooked data being referenced by non-cooked data.
+		// Remove thunbnails for non-asset emitters to prevent problems with cooked for editor emitters being referenced by uncooked emitters and systems.
 		ThumbnailImage = nullptr;
 	}
 #endif
