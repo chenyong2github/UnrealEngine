@@ -912,6 +912,9 @@ public:
 	/** Wait for any SAVE_Async file writes to complete **/
 	static void WaitForAsyncFileWrites();
 
+	/** Return true if SAVE_Async file writes are pending **/
+	static bool HasAsyncFileWrites();
+
 	/**
 	* Determines if a package contains no more assets.
 	*

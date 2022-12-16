@@ -1979,6 +1979,11 @@ void UPackage::WaitForAsyncFileWrites()
 	}
 }
 
+bool UPackage::HasAsyncFileWrites()
+{
+	return OutstandingAsyncWrites.GetValue() > 0;
+}
+
 bool UPackage::IsEmptyPackage(UPackage* Package, const UObject* LastReferencer)
 {
 	// Don't count null or volatile packages as empty, just let them be NULL or get GCed
