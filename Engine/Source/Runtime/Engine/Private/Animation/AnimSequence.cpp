@@ -5208,7 +5208,10 @@ void UAnimSequence::FinishAsyncTasks()
 #if WITH_EDITOR
 		SynchronousAnimatedBoneAttributesCompression();
 		//This is only safe during sync anim compression
-		SetSkeletonVirtualBoneGuid(GetSkeleton()->GetVirtualBoneGuid());
+		if (GetSkeleton())
+		{
+			SetSkeletonVirtualBoneGuid(GetSkeleton()->GetVirtualBoneGuid());
+		}
 #endif
 		
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
