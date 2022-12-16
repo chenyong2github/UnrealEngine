@@ -285,6 +285,7 @@ bool FSceneRenderer::RenderCustomDepthPass(
 		Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(
 			GraphBuilder,
 			SharedContext,
+			ViewFamily,
 			RasterTextureSize,
 			RasterTextureRect,
 			false, // bVisualize
