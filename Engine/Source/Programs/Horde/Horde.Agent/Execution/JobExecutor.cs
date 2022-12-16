@@ -343,6 +343,22 @@ namespace Horde.Agent.Execution
 			}
 		}
 
+		protected static void DeleteCachedBuildGraphManifests(DirectoryReference workspaceDir, ILogger logger)
+		{
+			DirectoryReference manifestDir = DirectoryReference.Combine(workspaceDir, "Engine", "Saved", "BuildGraph");
+			if (DirectoryReference.Exists(manifestDir))
+			{
+				try
+				{
+					FileUtils.ForceDeleteDirectoryContents(manifestDir);
+				}
+				catch (Exception ex)
+				{
+					logger.LogWarning(ex, "Unable to delete contents of {ManifestDir}", manifestDir.ToString());
+				}
+			}
+		}
+
 		private async Task StorePreprocessedFile(FileReference? localFile, string stepId, DirectoryReference? sharedStorageDir, ILogger logger, CancellationToken cancellationToken)
 		{
 			if (localFile != null)
@@ -1011,6 +1027,11 @@ namespace Horde.Agent.Execution
 			}
 		}
 
+		internal IReadOnlyDictionary<string, string> GetEnvVars()
+		{
+			return new Dictionary<string, string>(_envVars);
+		}
+		
 		static async Task ExecuteCleanupScriptAsync(FileReference cleanupScript, LogParser filter, ILogger logger)
 		{
 			if (FileReference.Exists(cleanupScript))

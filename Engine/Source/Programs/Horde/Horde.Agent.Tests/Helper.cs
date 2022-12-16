@@ -174,7 +174,7 @@ namespace Horde.Agent.Tests
 			return Wrap(new GetStepResponse());
 		}
 
-		private static AsyncUnaryCall<T> Wrap<T>(T res)
+		public static AsyncUnaryCall<T> Wrap<T>(T res)
 		{
 			return new AsyncUnaryCall<T>(Task.FromResult(res), Task.FromResult(Metadata.Empty),
 				() => Status.DefaultSuccess, () => Metadata.Empty, null!);

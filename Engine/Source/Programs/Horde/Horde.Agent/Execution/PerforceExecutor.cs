@@ -157,7 +157,7 @@ namespace Horde.Agent.Execution
 			}
 		}
 
-		private static void DeleteEngineUserSettings(ILogger logger)
+		internal static void DeleteEngineUserSettings(ILogger logger)
 		{
 			if(RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{

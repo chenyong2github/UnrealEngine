@@ -230,8 +230,7 @@ namespace Horde.Agent.Tests
 			using CancellationTokenSource cts = new ();
 			cts.CancelAfter(20000);
 
-			FakeHordeRpcServer fakeServer = new();// ("bogusServerName", cts.Token);
-
+			await using FakeHordeRpcServer fakeServer = new();
 			await using ISession session = FakeServerSessionFactory.CreateSession(fakeServer.GetConnection());
 
 			LeaseManager manager = new LeaseManager(session, null!, serviceProvider.GetRequiredService<IEnumerable<LeaseHandler>>(), serviceProvider.GetRequiredService<IOptions<AgentSettings>>(), NullLogger.Instance);
@@ -272,11 +271,14 @@ namespace Horde.Agent.Tests
 	/// Provides a corresponding gRPC client class that can be used with the WorkerService
 	/// to test client-server interactions.
 	/// </summary>
-	internal class FakeHordeRpcServer
+	internal class FakeHordeRpcServer : IAsyncDisposable
 	{
 		private readonly string _serverName;
 		private bool _isStopping = false;
 		private Dictionary<string, Lease> _leases = new();
+
+		private readonly Dictionary<string, GetStreamResponse> _streamIdToStreamResponse = new();
+		private readonly Dictionary<string, GetJobResponse> _jobIdToJobResponse = new();
 		private readonly Mock<HordeRpc.HordeRpcClient> _mockClient;
 		private readonly Mock<IRpcClientRef<HordeRpc.HordeRpcClient>> _mockClientRef;
 		private readonly Mock<IRpcConnection> _mockConnection;
@@ -284,28 +286,56 @@ namespace Horde.Agent.Tests
 		public readonly TaskCompletionSource<bool> CreateSessionReceived = new();
 		public readonly TaskCompletionSource<bool> UpdateSessionReceived = new();
 
+		private readonly RpcConnectionStub _connection;
+		private readonly FakeHordeRpcClient _client;
+
+		private class FakeHordeRpcClient : HordeRpc.HordeRpcClient
+		{
+			private readonly FakeHordeRpcServer _outer;
+
+			public FakeHordeRpcClient(FakeHordeRpcServer outer)
+			{
+				_outer = outer;
+			}
+
+			public override AsyncUnaryCall<GetStreamResponse> GetStreamAsync(GetStreamRequest request, CallOptions options)
+			{
+				if (_outer._streamIdToStreamResponse.TryGetValue(request.StreamId, out GetStreamResponse? streamResponse))
+				{
+					return HordeRpcClientStub.Wrap(streamResponse);
+				}
+
+				throw new RpcException(new Status(StatusCode.NotFound, $"Stream ID {request.StreamId} not found"));
+			}
+
+			public override AsyncUnaryCall<GetJobResponse> GetJobAsync(GetJobRequest request, CallOptions options)
+			{
+				if (_outer._jobIdToJobResponse.TryGetValue(request.JobId, out GetJobResponse? jobResponse))
+				{
+					return HordeRpcClientStub.Wrap(jobResponse);
+				}
+
+				throw new RpcException(new Status(StatusCode.NotFound, $"Job ID {request.JobId} not found"));
+			}
+
+			public override AsyncDuplexStreamingCall<UpdateSessionRequest, UpdateSessionResponse> UpdateSession(Metadata headers = null!, DateTime? deadline = null, CancellationToken cancellationToken = default)
+			{
+				return _outer.GetUpdateSessionCall(CancellationToken.None);
+			}
+		}
+		
 		public FakeHordeRpcServer()
 		{
 			_serverName = "FakeServer";
 			_mockClient = new (MockBehavior.Strict);
 			_logger = NullLogger<FakeHordeRpcServer>.Instance;
-
-			_mockClient
-				.Setup(m => m.CreateSessionAsync(It.IsAny<CreateSessionRequest>(), null, null, It.IsAny<CancellationToken>()))
-				.Returns<CreateSessionRequest, Metadata, DateTime?, CancellationToken>((request, metadata, expireTime, cancellationToken) => CreateAsyncUnaryCall(OnCreateSessionRequest(request)));
-			
-			_mockClient
-				.Setup(m => m.QueryServerStateV2(null, null, It.IsAny<CancellationToken>()))
-				.Returns(() => GetQueryServerStateCall(CancellationToken.None));
-			
-			_mockClient
-				.Setup(m => m.UpdateSession(null, It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
-				.Returns(() => GetUpdateSessionCall(CancellationToken.None));
+			_client = new FakeHordeRpcClient(this);
+			_connection = new RpcConnectionStub(null!, _client);
 
 			_mockClientRef = new Mock<IRpcClientRef<HordeRpc.HordeRpcClient>>();
 			_mockClientRef
 				.Setup(m => m.Client)
-				.Returns(() => _mockClient.Object);
+				.Returns(() => _client);
 
 			_mockConnection = new(MockBehavior.Strict);
 			_mockConnection
@@ -340,14 +370,51 @@ namespace Horde.Agent.Tests
 			return _leases[leaseId];
 		}
 
-		public HordeRpc.HordeRpcClient GetClient()
+		public void AddStream(string streamId, string streamName)
 		{
-			return _mockClient.Object;
+			if (_streamIdToStreamResponse.ContainsKey(streamId))
+			{
+				throw new Exception($"Stream ID {streamId} already added");
+			}
+			
+			_streamIdToStreamResponse[streamId] = new GetStreamResponse
+			{
+				Name = streamName,
+			};
+		}
+
+		public void AddAgentType(string streamId, string agentType)
+		{
+			if (!_streamIdToStreamResponse.TryGetValue(streamId, out GetStreamResponse? streamResponse))
+			{
+				throw new Exception($"Stream ID {streamId} not found");
+			}
+			
+			string tempDir = Path.Join(Path.GetTempPath(), $"horde-agent-type-{agentType}-" + Guid.NewGuid().ToString()[..8]);
+			Directory.CreateDirectory(tempDir);
+
+			streamResponse.AgentTypes[agentType] = new GetAgentTypeResponse
+			{
+				TempStorageDir = tempDir
+			};
+		}
+		
+		public void AddJob(string jobId, string streamId, int change, int preflightChange)
+		{
+			if (!_streamIdToStreamResponse.ContainsKey(streamId))
+			{
+				throw new Exception($"Stream ID {streamId} not found");
+			}
+
+			_jobIdToJobResponse[jobId] = new GetJobResponse
+			{
+				StreamId = streamId, Change = change, PreflightChange = preflightChange
+			};
 		}
 
 		public IRpcConnection GetConnection()
 		{
-			return _mockConnection.Object;
+			return _connection;
 		}
 
 		public CreateSessionResponse OnCreateSessionRequest(CreateSessionRequest request)
@@ -430,6 +497,22 @@ namespace Horde.Agent.Tests
 				() => Status.DefaultSuccess,
 				() => new Metadata(),
 				() => { });
+		}
+
+		public async ValueTask DisposeAsync()
+		{
+			await _connection.DisposeAsync();
+			
+			foreach (GetStreamResponse stream in _streamIdToStreamResponse.Values)
+			{
+				foreach (GetAgentTypeResponse agentType in stream.AgentTypes.Values)
+				{
+					if (Directory.Exists(agentType.TempStorageDir))
+					{
+						Directory.Delete(agentType.TempStorageDir, true);
+					}
+				}
+			}
 		}
 	}
 
