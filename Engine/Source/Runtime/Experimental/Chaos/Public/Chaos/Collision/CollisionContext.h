@@ -60,6 +60,13 @@ namespace Chaos
 		{
 		}
 
+		void Reset()
+		{
+			Settings = nullptr;
+			Allocator = nullptr;
+			MultiShapeCollisionDetector = nullptr;
+		}
+
 		const FCollisionDetectorSettings& GetSettings() const { return *Settings; }
 		void SetSettings(const FCollisionDetectorSettings& InSettings) { Settings = &InSettings; }
 
