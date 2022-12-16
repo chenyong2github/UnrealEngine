@@ -143,6 +143,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual bool IsRuntimeRelevant(const FActorContainerID& InContainerID) const { return true; }
 	virtual void CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler) const;
 
+	UE_DEPRECATED(5.2, "ShouldValidateRuntimeGrid is deprecated and should not be used.")
+	virtual bool ShouldValidateRuntimeGrid() const { return true; }
+
 	bool operator==(const FWorldPartitionActorDesc& Other) const
 	{
 		return Guid == Other.Guid;

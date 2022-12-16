@@ -597,6 +597,13 @@ class FWorldPartitionStreamingGenerator
 				// Validate runtime grid
 				auto IsRuntimeGridValid = [this](const FWorldPartitionActorDescView& ActorDescView)
 				{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+					if (!ActorDescView.ShouldValidateRuntimeGrid())
+					{
+						return true;
+					}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 					return IsValidGrid(ActorDescView.GetRuntimeGrid());
 				};
 

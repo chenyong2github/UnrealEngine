@@ -188,6 +188,13 @@ FName FWorldPartitionActorDescView::GetActorLabelOrName() const
 	return ActorDesc->GetActorLabelOrName();
 }
 
+bool FWorldPartitionActorDescView::ShouldValidateRuntimeGrid() const
+{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return ActorDesc->ShouldValidateRuntimeGrid();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
 void FWorldPartitionActorDescView::SetForcedNonSpatiallyLoaded()
 {
 	if (!bIsForcedNonSpatiallyLoaded)

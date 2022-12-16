@@ -30,10 +30,8 @@ public:
 	FTopLevelAssetPath GetBaseClass() const;
 	FTopLevelAssetPath GetNativeClass() const;
 	UClass* GetActorNativeClass() const;
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UE_DEPRECATED(5.2, "GetOrigin is deprecated.")
 	FVector GetOrigin() const;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	FName GetRuntimeGrid() const;
 	bool GetIsSpatiallyLoaded() const;
 	bool GetActorIsEditorOnly() const;
@@ -53,10 +51,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	FSoftObjectPath GetActorSoftPath() const;
 	FName GetActorLabel() const;
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UE_DEPRECATED(5.2, "GetBounds is deprecated, GetEditorBounds or GetRuntimeBounds should be used instead.")
 	FBox GetBounds() const;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	FBox GetEditorBounds() const;
 	FBox GetRuntimeBounds() const;
@@ -76,6 +72,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	void CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler) const;
 
 	FName GetActorLabelOrName() const;
+
+	UE_DEPRECATED(5.2, "ShouldValidateRuntimeGrid is deprecated and should not be used.")
+	bool ShouldValidateRuntimeGrid() const;
 
 	void SetForcedNonSpatiallyLoaded();
 	void SetInvalidRuntimeGrid();
