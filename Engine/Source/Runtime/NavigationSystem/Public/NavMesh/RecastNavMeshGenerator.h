@@ -856,6 +856,7 @@ public:
 	void ReAddTiles(const TArray<FIntPoint>& Tiles);
 
 	bool IsBuildingRestrictedToActiveTiles() const { return bRestrictBuildingToActiveTiles; }
+	bool IsInActiveSet(const FIntPoint& Tile) const;
 
 	/** sets a limit to number of asynchronous tile generators running at one time
 	 *	@note if used at runtime will not result in killing tasks above limit count
@@ -865,7 +866,6 @@ public:
 	static void CalcPolyRefBits(ARecastNavMesh* NavMeshOwner, int32& MaxTileBits, int32& MaxPolyBits);
 
 protected:
-	bool IsInActiveSet(const FIntPoint& Tile) const;
 	virtual void RestrictBuildingToActiveTiles(bool InRestrictBuildingToActiveTiles);
 	
 	/** Blocks until build for specified list of tiles is complete and discard results */
