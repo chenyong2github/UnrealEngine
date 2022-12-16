@@ -136,40 +136,12 @@ void FMaterialShader::VerifyExpressionAndShaderMaps(const FMaterialRenderProxy* 
 		|| UniformExpressionCache->CachedUniformExpressionShaderMap != ShaderMap;
 	if (!bUniformExpressionSetMismatch)
 	{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		if (UniformExpressionCache->LocalUniformBuffer.IsValid())
+		if (DebugUniformExpressionUBLayout.GetHash() != UniformExpressionCache->UniformBuffer->GetLayout().GetHash())
 		{
-			if (UniformExpressionCache->LocalUniformBuffer.BypassUniform)
-			{
-				if (DebugUniformExpressionUBLayout.GetHash() != UniformExpressionCache->LocalUniformBuffer.BypassUniform->GetLayout().GetHash())
-				{
-					UE_LOG(LogShaders, Warning, TEXT("Material Expression UB mismatch!"));
-					DumpUB(DebugUniformExpressionUBLayout);
-					DumpUB(UniformExpressionCache->LocalUniformBuffer.BypassUniform->GetLayout());
-					bUniformExpressionSetMismatch = true;
-				}
-			}
-			else
-			{
-				if (DebugUniformExpressionUBLayout.GetHash() != UniformExpressionCache->LocalUniformBuffer.WorkArea->Layout->GetHash())
-				{
-					UE_LOG(LogShaders, Warning, TEXT("Material Expression UB mismatch!"));
-					DumpUB(DebugUniformExpressionUBLayout);
-					DumpUB(*UniformExpressionCache->LocalUniformBuffer.WorkArea->Layout);
-					bUniformExpressionSetMismatch = true;
-				}
-			}
-		}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		else
-		{
-			if (DebugUniformExpressionUBLayout.GetHash() != UniformExpressionCache->UniformBuffer->GetLayout().GetHash())
-			{
-				UE_LOG(LogShaders, Warning, TEXT("Material Expression UB mismatch!"));
-				DumpUB(DebugUniformExpressionUBLayout);
-				DumpUB(UniformExpressionCache->UniformBuffer->GetLayout());
-				bUniformExpressionSetMismatch = true;
-			}
+			UE_LOG(LogShaders, Warning, TEXT("Material Expression UB mismatch!"));
+			DumpUB(DebugUniformExpressionUBLayout);
+			DumpUB(UniformExpressionCache->UniformBuffer->GetLayout());
+			bUniformExpressionSetMismatch = true;
 		}
 	}
 	if (bUniformExpressionSetMismatch)

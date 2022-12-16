@@ -15,6 +15,7 @@
 #include "HAL/IConsoleManager.h"
 #include "RHIShaderPlatform.h"
 #include "RHIFeatureLevel.h"
+#include "RHIImmutableSamplerState.h"
 #endif
 
 /** Alignment of the shader parameters struct is required to be 16-byte boundaries. */
@@ -135,12 +136,6 @@ enum { MAX_TEXTURE_MIP_COUNT = 15 };
 
 /** Maximum number of static/skeletal mesh LODs */
 enum { MAX_MESH_LOD_COUNT = 8 };
-
-/** Maximum number of immutable samplers in a PSO. */
-enum
-{
-	MaxImmutableSamplers = 2
-};
 
 /** The maximum number of vertex elements which can be used by a vertex declaration. */
 enum

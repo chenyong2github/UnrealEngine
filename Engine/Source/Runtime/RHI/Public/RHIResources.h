@@ -26,6 +26,7 @@
 #include "Containers/ConsumeAllMpmcQueue.h"
 #include "Misc/CoreDelegates.h"
 #include "RHIFwd.h"
+#include "RHIImmutableSamplerState.h"
 
 class FRHIComputeCommandList;
 class FRHICommandListImmediate;
@@ -3132,35 +3133,6 @@ private:
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	FRHIGeometryShader* GeometryShaderRHI = nullptr;
 #endif
-};
-
-struct FImmutableSamplerState
-{
-	using TImmutableSamplers = TStaticArray<FRHISamplerState*, MaxImmutableSamplers>;
-
-	FImmutableSamplerState()
-		: ImmutableSamplers(InPlace, nullptr)
-	{}
-
-	void Reset()
-	{
-		for (uint32 Index = 0; Index < MaxImmutableSamplers; ++Index)
-		{
-			ImmutableSamplers[Index] = nullptr;
-		}
-	}
-
-	bool operator==(const FImmutableSamplerState& rhs) const
-	{
-		return ImmutableSamplers == rhs.ImmutableSamplers;
-	}
-
-	bool operator!=(const FImmutableSamplerState& rhs) const
-	{
-		return ImmutableSamplers != rhs.ImmutableSamplers;
-	}
-
-	TImmutableSamplers ImmutableSamplers;
 };
 
 // Hints for some RHIs that support subpasses
