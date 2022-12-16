@@ -92,6 +92,9 @@ public:
 		/** The Verse path to the root of this plugin's content directory */
 		FString VersePath;
 
+		/** If to generate Verse source code definitions from assets contained in this plugin */
+		bool bEnableVerseAssetReflection = false;
+
 		/** Whether this plugin should be enabled/disabled by default for any project. */
 		EPluginEnabledByDefault EnabledByDefault = EPluginEnabledByDefault::Unspecified;
 

@@ -231,6 +231,8 @@ bool FPluginDescriptor::Read(const FJsonObject& Object, FText* OutFailReason /*=
 		}
 	}
 
+	Object.TryGetBoolField(TEXT("EnableVerseAssetReflection"), bEnableVerseAssetReflection);
+
 	bool bEnabledByDefault;
 	if(Object.TryGetBoolField(TEXT("EnabledByDefault"), bEnabledByDefault))
 	{
@@ -349,6 +351,11 @@ void FPluginDescriptor::UpdateJson(FJsonObject& JsonObject) const
 	if (VerseScope != EVerseScope::User)
 	{
 		JsonObject.SetStringField(TEXT("VerseScope"), EVerseScope::ToString(VerseScope));
+	}
+
+	if (bEnableVerseAssetReflection)
+	{
+		JsonObject.SetBoolField(TEXT("EnableVerseAssetReflection"), bEnableVerseAssetReflection);
 	}
 
 	if (EnabledByDefault != EPluginEnabledByDefault::Unspecified)

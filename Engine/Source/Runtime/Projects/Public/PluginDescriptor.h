@@ -95,6 +95,9 @@ struct PROJECTS_API FPluginDescriptor
 	/** Origin/visibility of Verse code in this plugin's Content/Verse folder */
 	EVerseScope::Type VerseScope = EVerseScope::User;
 
+	/** If to generate Verse source code definitions from assets contained in this plugin */
+	bool bEnableVerseAssetReflection = false;
+
 	/** Whether this plugin should be enabled by default for all projects */
 	EPluginEnabledByDefault EnabledByDefault;
 
