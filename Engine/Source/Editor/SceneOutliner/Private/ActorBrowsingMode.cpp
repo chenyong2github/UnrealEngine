@@ -932,6 +932,11 @@ void FActorBrowsingMode::OnSelectUnloadedActors(const TArray<FGuid>& ActorGuids)
 	{
 		SceneOutliner->SetItemSelection(ItemsToSelect, true);
 		SceneOutliner->ScrollItemIntoView(ItemsToSelect.Last());
+
+		if (const FActorDescTreeItem* ActorDescItem = ItemsToSelect.Last()->CastTo<FActorDescTreeItem>())
+		{
+			ActorDescItem->FocusActorBounds();
+		}
 	}
 }
 
