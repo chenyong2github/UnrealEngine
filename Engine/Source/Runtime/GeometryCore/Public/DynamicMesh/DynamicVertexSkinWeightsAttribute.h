@@ -429,7 +429,8 @@ public:
 
 				// Set buffer size to hold number of vertex bone weight arrays, size for vertex each bone weight array, and all individual bone weights.
 				// We also serialize out size of uncompressed buffer to allow for allocation to correct size during loading.
-				uint32 BufferSize = 1 + VertexBoneWeights.Num() + NumBoneWeights;
+				const uint32 NumVertexBoneWeightArrays = bUseVertexCompactMap ? Parent->VertexCount() : VertexBoneWeights.Num();
+				uint32 BufferSize = 1 + NumVertexBoneWeightArrays + IntCastChecked<uint32>(NumBoneWeights);
 				Buffer.SetNumUninitialized(BufferSize);
 				Ar << BufferSize;
 
@@ -447,9 +448,9 @@ public:
 				};
 
 				int32* BufferPtr = Buffer.GetData();
+				*BufferPtr++ = NumVertexBoneWeightArrays;
 				if (!bUseVertexCompactMap)
 				{
-					*BufferPtr++ = VertexBoneWeights.Num();
 					for (const FBoneWeights& BoneWeights : VertexBoneWeights)
 					{
 						WriteBoneWeights(BoneWeights, BufferPtr);
@@ -457,7 +458,6 @@ public:
 				}
 				else
 				{
-					*BufferPtr++ = Parent->VertexCount();
 					for (int32 Vid = 0, Num = VertexBoneWeights.Num(); Vid < Num; ++Vid)
 					{
 						const int32 VidCompact = CompactMaps->GetVertexMapping(Vid);

@@ -1124,6 +1124,26 @@ bool FDynamicMeshAttributeSet::IsSameAs(const FDynamicMeshAttributeSet& Other, b
 	}
 	if (!SkinWeightAttributes.IsEmpty())
 	{
+		auto VertexBoneWeightsAreIdentical = [](const AnimationCore::FBoneWeights& BoneWeights, const AnimationCore::FBoneWeights& BoneWeightsOther) -> bool
+		{
+			if (BoneWeights.Num() != BoneWeightsOther.Num())
+			{
+				return false;
+			}
+
+			for (int32 Index = 0; Index < BoneWeights.Num(); ++Index)
+			{
+				// If the weight is the same, the order is nondeterministic. Hence, we need to "manually" look for the same values.
+				const int32 IndexOther = BoneWeightsOther.FindWeightIndexByBone(BoneWeights[Index].GetBoneIndex());
+				if (IndexOther == INDEX_NONE || BoneWeights[Index].GetRawWeight() != BoneWeightsOther[IndexOther].GetRawWeight())
+				{
+					return false;
+				}
+			}
+
+			return true;
+		};
+		
 		SkinWeightAttributesMap::TConstIterator It(SkinWeightAttributes);
 		SkinWeightAttributesMap::TConstIterator ItOther(Other.SkinWeightAttributes);
 		while (It && ItOther)
@@ -1135,29 +1155,45 @@ bool FDynamicMeshAttributeSet::IsSameAs(const FDynamicMeshAttributeSet& Other, b
 			const FDynamicMeshVertexSkinWeightsAttribute* SkinWeights = It->Value.Get();
 			const FDynamicMeshVertexSkinWeightsAttribute* SkinWeightsOther = ItOther->Value.Get();
 
-			if (SkinWeights->VertexBoneWeights.Num() != SkinWeightsOther->VertexBoneWeights.Num())
+			if (!bIgnoreDataLayout)
 			{
-				return false;
-			}
-
-			for (int32 i = 0, Num = SkinWeights->VertexBoneWeights.Num(); i < Num; ++i)
-			{
-				AnimationCore::FBoneWeights BoneWeights = SkinWeights->VertexBoneWeights[i];
-				AnimationCore::FBoneWeights BoneWeightsOther = SkinWeightsOther->VertexBoneWeights[i];
-
-				if (BoneWeights.Num() != BoneWeightsOther.Num())
+				if (SkinWeights->VertexBoneWeights.Num() != SkinWeightsOther->VertexBoneWeights.Num())
 				{
 					return false;
 				}
 
-				for (int32 Index = 0; Index < BoneWeights.Num(); ++Index)
+				for (int32 i = 0, Num = SkinWeights->VertexBoneWeights.Num(); i < Num; ++i)
 				{
-					// If the weight is the same, the order is nondeterministic. Hence, we need to "manually" look for the same values.
-					const int32 IndexOther = BoneWeightsOther.FindWeightIndexByBone(BoneWeights[Index].GetBoneIndex());
-					if (IndexOther == INDEX_NONE || BoneWeights[Index].GetRawWeight() != BoneWeightsOther[IndexOther].GetRawWeight())
+					if (!VertexBoneWeightsAreIdentical(SkinWeights->VertexBoneWeights[i], SkinWeightsOther->VertexBoneWeights[i]))
 					{
 						return false;
 					}
+				}
+			}
+			else
+			{
+				const FRefCountVector& VertexRefCounts = SkinWeights->Parent->GetVerticesRefCounts();
+				const FRefCountVector& VertexRefCountsOther = SkinWeightsOther->Parent->GetVerticesRefCounts();
+				
+				if (VertexRefCounts.GetCount() != VertexRefCountsOther.GetCount())
+				{
+					return false;
+				}
+
+				FRefCountVector::IndexIterator ItVid = VertexRefCounts.BeginIndices();
+				const FRefCountVector::IndexIterator ItVidEnd = VertexRefCounts.EndIndices();
+				FRefCountVector::IndexIterator ItVidOther = VertexRefCountsOther.BeginIndices();
+				const FRefCountVector::IndexIterator ItVidEndOther = VertexRefCountsOther.EndIndices();
+
+				while (ItVid != ItVidEnd && ItVidOther != ItVidEndOther)
+				{
+					if (!VertexBoneWeightsAreIdentical(SkinWeights->VertexBoneWeights[*ItVid], SkinWeightsOther->VertexBoneWeights[*ItVidOther]))
+					{
+						return false;
+					}
+
+					++ItVid;
+					++ItVidOther;
 				}
 			}
 
