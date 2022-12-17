@@ -353,6 +353,10 @@ void FDynamicMeshAttributeSet::EnableMatchingAttributes(const FDynamicMeshAttrib
 			AttachSkinWeightsAttribute(AttribPair.Key,
 				static_cast<FDynamicMeshVertexSkinWeightsAttribute *>(AttribPair.Value->MakeNew(ParentMesh)));	
 		}
+		for (const TPair<FName, TUniquePtr<FDynamicMeshAttributeBase>>& AttribPair : ToMatch.GenericAttributes)
+		{
+			AttachAttribute(AttribPair.Key, AttribPair.Value->MakeNew(ParentMesh));
+		}
 	}
 	else
 	{
