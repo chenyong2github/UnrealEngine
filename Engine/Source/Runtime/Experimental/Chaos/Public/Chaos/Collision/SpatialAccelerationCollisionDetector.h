@@ -24,12 +24,8 @@ namespace Chaos
 			return BroadPhase;
 		}
 
-		virtual void DetectCollisions(const FReal Dt, FEvolutionResimCache* ResimCache) override
+		void RunBroadPhase(const FReal Dt, FEvolutionResimCache* ResimCache)
 		{
-			SCOPE_CYCLE_COUNTER(STAT_Collisions_Detect);
-			CHAOS_SCOPED_TIMER(DetectCollisions);
-			CSV_SCOPED_TIMING_STAT(Chaos, DetectCollisions);
-
 			if (!GetCollisionContainer().GetCollisionsEnabled())
 			{
 				return;
@@ -37,13 +33,24 @@ namespace Chaos
 
 			GetCollisionContainer().BeginDetectCollisions();
 
-			// Collision detection pipeline: BroadPhase -[parallel]-> NarrowPhase -[parallel]-> CollisionAllocator -[serial]-> Container
+			// Run the broadphase and generate a midphase object for every overlapping particle pair
 			BroadPhase.ProduceOverlaps(Dt, &GetCollisionContainer().GetConstraintAllocator(), GetCollisionContainer().GetDetectorSettings(), ResimCache);
+		}
+
+		void RunNarrowPhase(const FReal Dt, FEvolutionResimCache* ResimCache)
+		{
+			if (!GetCollisionContainer().GetCollisionsEnabled())
+			{
+				return;
+			}
+
+			// Run collision detection on the output of the broadphase
+			BroadPhase.ProduceCollisions(Dt);
 
 			GetCollisionContainer().EndDetectCollisions();
 
 			// If we have a resim cache restore and save contacts
-			if(ResimCache)
+			if (ResimCache)
 			{
 				// Ensure we have at least one allocator
 				GetCollisionContainer().GetConstraintAllocator().SetMaxContexts(1);
@@ -56,6 +63,16 @@ namespace Chaos
 
 				ResimCache->SaveConstraints(GetCollisionContainer().GetConstraints());
 			}
+		}
+
+		virtual void DetectCollisions(const FReal Dt, FEvolutionResimCache* ResimCache) override
+		{
+			SCOPE_CYCLE_COUNTER(STAT_Collisions_Detect);
+			CHAOS_SCOPED_TIMER(DetectCollisions);
+			CSV_SCOPED_TIMING_STAT(Chaos, DetectCollisions);
+
+			RunBroadPhase(Dt, ResimCache);
+			RunNarrowPhase(Dt, ResimCache);
 		}
 
 	private:

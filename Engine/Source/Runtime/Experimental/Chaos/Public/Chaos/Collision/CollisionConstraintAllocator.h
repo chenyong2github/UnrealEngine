@@ -394,6 +394,17 @@ namespace Chaos
 			}
 
 			/**
+			 * Collect all the midphases created on the context allocators (probably on multiple threads) and register them
+			*/
+			void ProcessNewMidPhases()
+			{
+				for (TUniquePtr<FCollisionContextAllocator>& ContextAllocator : ContextAllocators)
+				{
+					ContextAllocator->ProcessNewMidPhases(this);
+				}
+			}
+
+			/**
 			 * @brief If we add new constraints after collision detection, do what needs to be done to add them to the system
 			*/
 			void ProcessInjectedConstraints()
@@ -473,6 +484,7 @@ namespace Chaos
 
 			/**
 			 * @brief Iterate over all collisions, including sleeping ones
+			 * Visitor signature: ECollisionVisitorResult(const FPBDCollisionConstraint&)
 			*/
 			template<typename TLambda>
 			void VisitConstCollisions(const TLambda& Visitor) const
@@ -485,7 +497,23 @@ namespace Chaos
 					}
 				}
 			}
-		
+
+			/**
+			 * @brief Iterate over all midphases
+			 * Visitor signature: ECollisionVisitorResult(FParticlePairMidPhase&)
+			*/
+			template<typename TLambda>
+			void VisitMidPhases(const TLambda& Visitor)
+			{
+				for (FParticlePairMidPhasePtr& MidPhase : ParticlePairMidPhases)
+				{
+					if (Visitor(*MidPhase) == ECollisionVisitorResult::Stop)
+					{
+						return;
+					}
+				}
+			}
+
 		private:
 			friend class FCollisionContextAllocator;
 
@@ -495,15 +523,6 @@ namespace Chaos
 				ProcessNewMidPhases();
 
 				ProcessNewConstraints();
-			}
-
-			// Collect all the midphases created on the context allocators (probably on multiple threads) and register them
-			void ProcessNewMidPhases()
-			{
-				for (TUniquePtr<FCollisionContextAllocator>& ContextAllocator : ContextAllocators)
-				{
-					ContextAllocator->ProcessNewMidPhases(this);
-				}
 			}
 
 			void AddMidPhase(FParticlePairMidPhasePtr&& MidPhase)

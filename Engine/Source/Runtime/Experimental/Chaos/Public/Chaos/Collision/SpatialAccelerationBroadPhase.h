@@ -26,14 +26,14 @@ namespace Chaos
 		/**
 		 * Output element from the broadphase
 		*/
-		class FBroadphaseOverlap
+		class FBroadPhaseOverlap
 		{
 		public:
-			FBroadphaseOverlap()
+			FBroadPhaseOverlap()
 			{
 			}
 
-			FBroadphaseOverlap(FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1, const int32 InSearchParticleIndex)
+			FBroadPhaseOverlap(FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1, const int32 InSearchParticleIndex)
 				: Particles{ Particle0, Particle1 }
 				, SearchParticleIndex(InSearchParticleIndex)
 			{
@@ -51,10 +51,10 @@ namespace Chaos
 		/**
 		 * Per-thread context for the broadphase.
 		*/
-		class FBroadphaseContext
+		class FBroadPhaseContext
 		{
 		public:
-			FBroadphaseContext()
+			FBroadPhaseContext()
 			{
 			}
 
@@ -65,7 +65,7 @@ namespace Chaos
 				CollisionContext.Reset();
 			}
 
-			TArray<FBroadphaseOverlap> Overlaps;
+			TArray<FBroadPhaseOverlap> Overlaps;
 			TArray<FParticlePairMidPhase*> MidPhases;
 			FCollisionContext CollisionContext;
 		};
@@ -234,7 +234,7 @@ namespace Chaos
 		 */
 		struct FSimOverlapVisitor
 		{
-			FSimOverlapVisitor(FGeometryParticleHandle* ParticleHandle, const FCollisionFilterData& InSimFilterData, const FIgnoreCollisionManager& InIgnoreCollisionManager, const bool bInIsResimming, Private::FBroadphaseContext& InContext)
+			FSimOverlapVisitor(FGeometryParticleHandle* ParticleHandle, const FCollisionFilterData& InSimFilterData, const FIgnoreCollisionManager& InIgnoreCollisionManager, const bool bInIsResimming, Private::FBroadPhaseContext& InContext)
 				: Context(InContext)
 				, IgnoreCollisionManager(InIgnoreCollisionManager)
 				, SimFilterData(InSimFilterData)
@@ -298,7 +298,7 @@ namespace Chaos
 			}
 
 		private:
-			Private::FBroadphaseContext& Context;
+			Private::FBroadPhaseContext& Context;
 			const FIgnoreCollisionManager& IgnoreCollisionManager;
 			FCollisionFilterData SimFilterData;
 			FUniqueIdx ParticleUniqueIdx; // unique id of the particle visiting, used to skip self intersection as early as possible
@@ -330,7 +330,7 @@ namespace Chaos
 		}
 
 		/**
-		 * Generate all overlapping pairs and pass them to the narrow phase.
+		 * Generate all overlapping pairs and spawn a misphase object to handle collisions for each of them
 		 */
 		void ProduceOverlaps(
 			FReal Dt, 
@@ -367,7 +367,35 @@ namespace Chaos
 			{
 				check(false);  //question: do we want to support a dynamic dispatch version?
 			}
+
+			{
+				CSV_SCOPED_TIMING_STAT(PhysicsVerbose, DetectCollisions_AssignMidPhases);
+
+				// Find or assign a midphase to each overlapping particle pair
+				const auto& AssignMidphasesWorker = [this, Dt](const int32 ContextIndex)
+				{
+					AssignMidphases(BroadphaseContexts[ContextIndex]);
+				};
+				PhysicsParallelFor(NumActiveBroadphaseContexts, AssignMidphasesWorker, bDisableCollisionParallelFor);
+
+				// Merge all the midphases from each worker into the primary allocator
+				Allocator->ProcessNewMidPhases();
+			}
 		}
+
+		/**
+		 * Generate all the collision constraints for the set of overlapping objects produced byt he broad phase
+		*/
+		void ProduceCollisions(FReal Dt)
+		{
+			CSV_SCOPED_TIMING_STAT(PhysicsVerbose, DetectCollisions_MidPhase);
+			const auto& ProcessMidphasesWorker = [this, Dt](const int32 ContextIndex)
+			{
+				ProcessMidphases(Dt, BroadphaseContexts[ContextIndex]);
+			};
+			PhysicsParallelFor(NumActiveBroadphaseContexts, ProcessMidphasesWorker, bDisableCollisionParallelFor);
+		}
+	
 		
 		/** @brief This function is the outer loop of collision detection. It loops over the
 		 * particles view and do the broadphase + narrowphase collision detection
@@ -385,11 +413,11 @@ namespace Chaos
 			const FCollisionDetectorSettings& Settings)
 		{
 			// Reset all the contexts (we don't always use all of them, but don't reduce the array size so that the element arrays don't need reallocating)
-			for (Private::FBroadphaseContext& BroadphaseContext : BroadphaseContexts)
+			for (Private::FBroadPhaseContext& BroadphaseContext : BroadphaseContexts)
 			{
 				BroadphaseContext.Reset();
 			}
-			int32 NumActiveContexts = 0;
+			NumActiveBroadphaseContexts = 0;
 
 			// A set of contexts, one for each worker thread, containing the allocation buffers etc.
 			// NOTE: Ideally contexts arrays would not resize after the initial creation, but actually it might because
@@ -399,11 +427,11 @@ namespace Chaos
 			// Fortunately, we only get calls to ContextCreator for a sub-view (with a possibly different NumWorkers)
 			// after the previous sub-view's parallel-for has completed, so we don't need to worry about context addresses 
 			// changing (we could use TChunkedArray, or allocate contexts on the heap if we ever need to handle that).
-			const auto& ContextCreator = [this, Allocator, &Settings, &OverlapView, &NumActiveContexts](const int32 WorkerIndex, const int32 NumWorkers) -> int32
+			const auto& ContextCreator = [this, Allocator, &Settings, &OverlapView](const int32 WorkerIndex, const int32 NumWorkers) -> int32
 			{
 				// Make sure we have enough contexts 
 				// (NOTE: ContextCreator gets called for every worker, but in serial and always with the same NumWorkers)
-				NumActiveContexts = NumWorkers;
+				NumActiveBroadphaseContexts = NumWorkers;
 				if (NumWorkers > BroadphaseContexts.Num())
 				{
 					check(WorkerIndex == 0);	// Should be the same for all subsequent workers
@@ -432,26 +460,6 @@ namespace Chaos
 					ProduceParticleOverlaps<bNeedsResim, bOnlyRigid>(Dt, Particle1.Handle(), InSpatialAcceleration, BroadphaseContexts[ContextIndex]);
 				};
 				OverlapView.ParallelFor(ContextCreator, ProduceOverlapsWorker, bDisableCollisionParallelFor);
-			}
-
-			// Find or assign a midphase to each overlapping particle pair
-			{
-				CSV_SCOPED_TIMING_STAT(PhysicsVerbose, DetectCollisions_AssignMidPhases);
-				const auto& AssignMidphasesWorker = [this, Dt](const int32 ContextIndex)
-				{
-					AssignMidphases(BroadphaseContexts[ContextIndex]);
-				};
-				PhysicsParallelFor(NumActiveContexts, AssignMidphasesWorker, bDisableCollisionParallelFor);
-			}
-
-			// Use the midphase to create contacts between the shapes on the two partiucles
-			{
-				CSV_SCOPED_TIMING_STAT(PhysicsVerbose, DetectCollisions_MidPhase);
-				const auto& ProcessMidphasesWorker = [this, Dt](const int32 ContextIndex)
-				{
-					ProcessMidphases(Dt, BroadphaseContexts[ContextIndex]);
-				};
-				PhysicsParallelFor(NumActiveContexts, ProcessMidphasesWorker, bDisableCollisionParallelFor);
 			}
 		}
 
@@ -506,7 +514,7 @@ namespace Chaos
 		    FReal Dt,
 		    FGeometryParticleHandle* Particle1,
 		    const T_SPATIALACCELERATION& InSpatialAcceleration,
-			Private::FBroadphaseContext& Context)
+			Private::FBroadPhaseContext& Context)
 		{
 			// @todo(chaos):We shouldn't need this data here (see uses below)
 			bool bIsKinematic1 = true;
@@ -570,7 +578,7 @@ namespace Chaos
 
 		// Find or assign midphases to each of the overlapping particle pairs
 		// @todo(chaos): optimize
-		void AssignMidphases(Private::FBroadphaseContext& BroadphaseContext)
+		void AssignMidphases(Private::FBroadPhaseContext& BroadphaseContext)
 		{
 			Private::FCollisionContextAllocator* ContextAllocator = BroadphaseContext.CollisionContext.GetAllocator();
 
@@ -578,14 +586,14 @@ namespace Chaos
 
 			for (int32 OverlapIndex = 0, OverlapEnd = BroadphaseContext.Overlaps.Num(); OverlapIndex < OverlapEnd; ++OverlapIndex)
 			{
-				Private::FBroadphaseOverlap& Overlap = BroadphaseContext.Overlaps[OverlapIndex];
+				Private::FBroadPhaseOverlap& Overlap = BroadphaseContext.Overlaps[OverlapIndex];
 
 				BroadphaseContext.MidPhases[OverlapIndex] = ContextAllocator->GetMidPhase(Overlap.Particles[0], Overlap.Particles[1], Overlap.Particles[Overlap.SearchParticleIndex], BroadphaseContext.CollisionContext);
 			}
 		}
 
 		// Process all the midphases: generate constraints and execute the narrowphase
-		void ProcessMidphases(const FReal Dt, const Private::FBroadphaseContext& BroadphaseContext)
+		void ProcessMidphases(const FReal Dt, const Private::FBroadPhaseContext& BroadphaseContext)
 		{
 			// Prefetch initial set of MidPhases
 			const int32 PrefetchLookahead = 4;
@@ -612,7 +620,8 @@ namespace Chaos
 
 		const FPBDRigidsSOAs& Particles;
 		const FAccelerationStructure* SpatialAcceleration;
-		TArray<Private::FBroadphaseContext> BroadphaseContexts;
+		TArray<Private::FBroadPhaseContext> BroadphaseContexts;
+		int32 NumActiveBroadphaseContexts;
 		FIgnoreCollisionManager IgnoreCollisionManager;
 	};
 

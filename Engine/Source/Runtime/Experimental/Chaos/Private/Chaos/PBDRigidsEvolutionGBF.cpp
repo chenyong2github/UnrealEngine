@@ -365,7 +365,9 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 		CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_DetectCollisions);
 		CollisionDetector.GetBroadPhase().SetSpatialAcceleration(InternalAcceleration);
 
-		CollisionDetector.DetectCollisions(Dt, GetCurrentStepResimCache());
+		CollisionDetector.RunBroadPhase(Dt, GetCurrentStepResimCache());
+
+		CollisionDetector.RunNarrowPhase(Dt, GetCurrentStepResimCache());
 	}
 
 	if (PostDetectCollisionsCallback != nullptr)
