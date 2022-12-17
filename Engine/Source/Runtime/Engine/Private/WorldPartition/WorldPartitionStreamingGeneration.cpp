@@ -780,6 +780,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					}
 				}
 			});		
+			
+			if (!ensureMsgf(NbValidationPasses < 100000, TEXT("Infinite loop in validation passes for %s"), ContainerDescriptor.Container ? *ContainerDescriptor.Container->GetContainerPackage().ToString() : TEXT("[unknown world]")))
+			{
+				break;
+			}
 		}
 	}
 
