@@ -43,6 +43,7 @@ struct FRenderTarget2DArrayRWInstanceData_RenderThread
 	}
 
 	FIntVector Size = FIntVector(EForceInit::ForceInitToZero);
+	int MipLevels = 0;
 	bool bWroteThisFrame = false;
 	bool bReadThisFrame = false;
 
@@ -124,8 +125,10 @@ public:
 	virtual bool GetExposedVariableValue(const FNiagaraVariableBase& InVariable, void* InPerInstanceData, FNiagaraSystemInstance* InSystemInstance, void* OutData) const override;
 
 	//~ UNiagaraDataInterface interface END
-	void VMGetSize(FVectorVMExternalFunctionContext& Context); 
+	void VMGetSize(FVectorVMExternalFunctionContext& Context);
 	void VMSetSize(FVectorVMExternalFunctionContext& Context);
+	void VMGetNumMipLevels(FVectorVMExternalFunctionContext& Context);
+	void VMSetFormat(FVectorVMExternalFunctionContext& Context);
 
 	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (DisplayPriority = 2, EditCondition = "!bInheritUserParameterSettings", EditConditionHides))
 	FIntVector Size;

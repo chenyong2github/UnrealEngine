@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 int2					{ParameterName}_TextureSize;
+int						{ParameterName}_MipLevels;
 RWTexture2D<float4>		{ParameterName}_RWTexture;
 Texture2D<float4>		{ParameterName}_Texture;
 SamplerState			{ParameterName}_TextureSampler;
@@ -18,6 +19,11 @@ void GetRenderTargetValue_{ParameterName}(int IndexX, int IndexY, out float4 Val
 	Value = {ParameterName}_Texture.Load(int3(IndexX, IndexY, 0));
 }
 
+void LoadRenderTargetValue_{ParameterName}(int IndexX, int IndexY, int MipLevel, out float4 Value)
+{
+	Value = {ParameterName}_Texture.Load(int3(IndexX, IndexY, MipLevel));
+}
+
 void SampleRenderTargetValue_{ParameterName}(float2 UV, out float4 Value)
 {
 	Value = {ParameterName}_Texture.SampleLevel({ParameterName}_TextureSampler, UV, 0.0f);
@@ -27,6 +33,11 @@ void GetRenderTargetSize_{ParameterName}(out int Width, out int Height)
 {
 	Width = {ParameterName}_TextureSize.x;
 	Height = {ParameterName}_TextureSize.y;
+}
+
+void GetNumMipLevels_{ParameterName}(out int OutMipLevels)
+{
+	OutMipLevels = {ParameterName}_MipLevels;
 }
 
 void LinearToIndex_{ParameterName}(int Linear, out int IndexX, out int IndexY)

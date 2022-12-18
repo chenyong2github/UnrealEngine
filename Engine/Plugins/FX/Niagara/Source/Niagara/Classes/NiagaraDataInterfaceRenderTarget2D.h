@@ -46,6 +46,7 @@ struct FRenderTarget2DRWInstanceData_RenderThread
 	}
 
 	FIntPoint Size = FIntPoint(EForceInit::ForceInitToZero);
+	int MipLevels = 0;
 	ENiagaraMipMapGeneration MipMapGeneration = ENiagaraMipMapGeneration::Disabled;
 	ENiagaraMipMapGenerationType MipMapGenerationType = ENiagaraMipMapGenerationType::Linear;
 	bool bRebuildMips = false;
@@ -132,8 +133,10 @@ public:
 	virtual bool RenderVariableToCanvas(FNiagaraSystemInstanceID SystemInstanceID, FName VariableName, class FCanvas* Canvas, const FIntRect& DrawRect) const override;
 	//~ UNiagaraDataInterface interface END
 
-	void VMGetSize(FVectorVMExternalFunctionContext& Context); 
+	void VMGetSize(FVectorVMExternalFunctionContext& Context);
 	void VMSetSize(FVectorVMExternalFunctionContext& Context);
+	void VMGetNumMipLevels(FVectorVMExternalFunctionContext& Context);
+	void VMSetFormat(FVectorVMExternalFunctionContext& Context);
 
 	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (DisplayPriority = 2, EditCondition = "!bInheritUserParameterSettings", EditConditionHides))
 	FIntPoint Size;

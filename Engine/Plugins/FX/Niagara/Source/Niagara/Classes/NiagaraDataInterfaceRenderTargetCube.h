@@ -42,6 +42,7 @@ struct FRenderTargetCubeRWInstanceData_RenderThread
 	}
 
 	int Size = 0;
+	int MipLevels = 0;
 	bool bWroteThisFrame = false;
 	bool bReadThisFrame = false;
 	bool bNeedsTransition = false;
@@ -119,6 +120,8 @@ public:
 	
 	void VMGetSize(FVectorVMExternalFunctionContext& Context);
 	void VMSetSize(FVectorVMExternalFunctionContext& Context);
+	void VMGetNumMipLevels(FVectorVMExternalFunctionContext& Context);
+	void VMSetFormat(FVectorVMExternalFunctionContext& Context);
 
 	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (DisplayPriority = 2, EditCondition = "!bInheritUserParameterSettings", EditConditionHides))
 	int Size;

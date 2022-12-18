@@ -30,6 +30,7 @@ namespace NDIRenderTargetVolumeLocal
 {
 	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
 		SHADER_PARAMETER(FIntVector3, TextureSize)
+		SHADER_PARAMETER(int, MipLevels)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float4>, RWTexture)
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture3D<float4>, Texture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, TextureSampler)
@@ -39,14 +40,16 @@ namespace NDIRenderTargetVolumeLocal
 
 	// Global VM function names, also used by the shaders code generation methods.
 	static const FName SetValueFunctionName("SetRenderTargetValue");
-	static const FName GetValueFunctionName("GetRenderTargetValue");
+	static const FName LoadValueFunctionName("LoadRenderTargetValue");
 	static const FName SampleValueFunctionName("SampleRenderTargetValue");
 	static const FName SetSizeFunctionName("SetRenderTargetSize");
-	static const FName SetFormatFunctionName("SetRenderTargetFormat");
 	static const FName GetSizeFunctionName("GetRenderTargetSize");
+	static const FName GetNumMipLevelsName("GetNumMipLevels");
+	static const FName SetFormatFunctionName("SetRenderTargetFormat");
 	static const FName LinearToIndexName("LinearToIndex");
 	static const FName ExecToIndexName("ExecToIndex");
 	static const FName ExecToUnitName("ExecToUnit");
+	static const FName Deprecated_GetValueFunctionName("GetRenderTargetValue");
 
 	struct EFunctionVersion
 	{
@@ -148,179 +151,117 @@ void UNiagaraDataInterfaceRenderTargetVolume::GetFunctions(TArray<FNiagaraFuncti
 	const int32 EmitterSystemOnlyBitmask = ENiagaraScriptUsageMask::Emitter | ENiagaraScriptUsageMask::System;
 	OutFunctions.Reserve(OutFunctions.Num() + 7);
 
+	FNiagaraFunctionSignature DefaultSig;
+	DefaultSig.Inputs.Emplace(FNiagaraTypeDefinition(GetClass()), TEXT("RenderTarget"));
+	DefaultSig.bMemberFunction = true;
+	DefaultSig.bRequiresContext = false;
+	DefaultSig.bSupportsCPU = true;
+	DefaultSig.bSupportsGPU = true;
+	DefaultSig.SetFunctionVersion(EFunctionVersion::LatestVersion);
+
 	{
-		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
+		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(DefaultSig);
 		Sig.Name = GetSizeFunctionName;
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("RenderTarget")));
-		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Width")));
-		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Height")));
-		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Depth")));
-
-		Sig.bExperimental = true;
-		Sig.bMemberFunction = true;
-		Sig.bRequiresContext = false;
-	#if WITH_EDITORONLY_DATA
-		Sig.FunctionVersion = EFunctionVersion::LatestVersion;
-	#endif
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("Width"));
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("Height"));
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("Depth"));
 	}
 
 	{
-		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
+		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(DefaultSig);
 		Sig.Name = SetSizeFunctionName;
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("RenderTarget")));
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Width")));
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Height")));
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Depth")));
-		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Success")));
-
+		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("Width"));
+		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("Height"));
+		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("Depth"));
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Success"));
 		Sig.ModuleUsageBitmask = EmitterSystemOnlyBitmask;
-		Sig.bExperimental = true;
-		Sig.bMemberFunction = true;
 		Sig.bRequiresExecPin = true;
-		Sig.bRequiresContext = false;
-		Sig.bSupportsCPU = true;
 		Sig.bSupportsGPU = false;
-	#if WITH_EDITORONLY_DATA
-		Sig.FunctionVersion = EFunctionVersion::LatestVersion;
-	#endif
 	}
 
 	{
-		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
+		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(DefaultSig);
+		Sig.Name = GetNumMipLevelsName;
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("MipLevels"));
+	}
+
+	{
+		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(DefaultSig);
 		Sig.Name = SetFormatFunctionName;
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("RenderTarget")));		
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(StaticEnum<ETextureRenderTargetFormat>()), TEXT("Format")));
-		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Success")));
-
+		Sig.Inputs.Emplace(FNiagaraTypeDefinition(StaticEnum<ETextureRenderTargetFormat>()), TEXT("Format"));
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Success"));
 		Sig.ModuleUsageBitmask = EmitterSystemOnlyBitmask;
-		Sig.bExperimental = true;
-		Sig.bMemberFunction = true;
 		Sig.bRequiresExecPin = true;
-		Sig.bRequiresContext = false;
-		Sig.bSupportsCPU = true;
 		Sig.bSupportsGPU = false;
-#if WITH_EDITORONLY_DATA
-		Sig.FunctionVersion = EFunctionVersion::LatestVersion;
-#endif
 	}
 
 	{
-		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
+		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(DefaultSig);
 		Sig.Name = SetValueFunctionName;
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("RenderTarget")));
-		Sig.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Enabled"))).SetValue(true);
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexX")));
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexY")));
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexZ")));
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetColorDef(), TEXT("Value")));
-
-		Sig.bExperimental = true;
-		Sig.bMemberFunction = true;
+		Sig.Inputs.Emplace_GetRef(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Enabled")).SetValue(true);
+		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexX"));
+		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexY"));
+		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexZ"));
+		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetColorDef(), TEXT("Value"));
 		Sig.bRequiresExecPin = true;
-		Sig.bRequiresContext = false;
 		Sig.bWriteFunction = true;
 		Sig.bSupportsCPU = false;
-		Sig.bSupportsGPU = true;
-	#if WITH_EDITORONLY_DATA
-		Sig.FunctionVersion = EFunctionVersion::LatestVersion;
-	#endif
 	}
 
 	{
-		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
-		Sig.Name = GetValueFunctionName;
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("RenderTarget")));
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexX")));
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexY")));
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexZ")));
-		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetColorDef(), TEXT("Value")));
-
-		Sig.bHidden = NiagaraDataInterfaceRenderTargetCommon::GAllowReads != 1;
-		Sig.bExperimental = true;
-		Sig.bMemberFunction = true;
-		Sig.bRequiresContext = false;
-		Sig.bWriteFunction = true;
+		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(DefaultSig);
+		Sig.Name = LoadValueFunctionName;
+		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexX"));
+		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexY"));
+		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexZ"));
+		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("MipLevel"));
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetColorDef(), TEXT("Value"));
 		Sig.bSupportsCPU = false;
-		Sig.bSupportsGPU = true;
-#if WITH_EDITORONLY_DATA
-		Sig.FunctionVersion = EFunctionVersion::LatestVersion;
-#endif
 	}
 
 	{
-		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
+		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(DefaultSig);
+		Sig.Name = Deprecated_GetValueFunctionName;
+		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexX"));
+		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexY"));
+		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexZ"));
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetColorDef(), TEXT("Value"));
+		Sig.bSupportsCPU = false;
+	}
+
+	{
+		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(DefaultSig);
 		Sig.Name = SampleValueFunctionName;
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("RenderTarget")));
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("UVW")));
-		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetColorDef(), TEXT("Value")));
-
-		Sig.bHidden = NiagaraDataInterfaceRenderTargetCommon::GAllowReads != 1;
-		Sig.bExperimental = true;
-		Sig.bMemberFunction = true;
-		Sig.bRequiresContext = false;
-		Sig.bWriteFunction = true;
+		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("UVW"));
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetColorDef(), TEXT("Value"));
 		Sig.bSupportsCPU = false;
-		Sig.bSupportsGPU = true;
-#if WITH_EDITORONLY_DATA
-		Sig.FunctionVersion = EFunctionVersion::LatestVersion;
-#endif
 	}
 
 	{
-		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
+		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(DefaultSig);
 		Sig.Name = LinearToIndexName;
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("RenderTarget")));
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Linear")));
-		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexX")));
-		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexY")));
-		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexZ")));
-
-		Sig.bExperimental = true;
-		Sig.bMemberFunction = true;
-		Sig.bRequiresContext = false;
-		Sig.bWriteFunction = true;
+		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("Linear"));
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexX"));
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexY"));
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexZ"));
 		Sig.bSupportsCPU = false;
-		Sig.bSupportsGPU = true;
-	#if WITH_EDITORONLY_DATA
-		Sig.FunctionVersion = EFunctionVersion::LatestVersion;
-	#endif
 	}
 
 	{
-		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
+		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(DefaultSig);
 		Sig.Name = ExecToIndexName;
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("RenderTarget")));
-		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexX")));
-		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexY")));
-		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexZ")));
-
-		Sig.bExperimental = true;
-		Sig.bMemberFunction = true;
-		Sig.bRequiresContext = false;
-		Sig.bWriteFunction = true;
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexX"));
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexY"));
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexZ"));
 		Sig.bSupportsCPU = false;
-		Sig.bSupportsGPU = true;
-	#if WITH_EDITORONLY_DATA
-		Sig.FunctionVersion = EFunctionVersion::LatestVersion;
-	#endif
 	}
 
 	{
-		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
+		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(DefaultSig);
 		Sig.Name = ExecToUnitName;
-		Sig.Inputs.Emplace(FNiagaraTypeDefinition(GetClass()), TEXT("RenderTarget"));
 		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Unit"));
-
-		Sig.bExperimental = true;
-		Sig.bMemberFunction = true;
-		Sig.bRequiresContext = false;
-		Sig.bWriteFunction = true;
 		Sig.bSupportsCPU = false;
-		Sig.bSupportsGPU = true;
-#if WITH_EDITORONLY_DATA
-		Sig.FunctionVersion = EFunctionVersion::LatestVersion;
-#endif
-}
+	}
 }
 
 #if WITH_EDITORONLY_DATA
@@ -347,9 +288,6 @@ bool UNiagaraDataInterfaceRenderTargetVolume::UpgradeFunctionCall(FNiagaraFuncti
 }
 #endif
 
-DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceRenderTargetVolume, VMGetSize);
-DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceRenderTargetVolume, VMSetSize);
-DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceRenderTargetVolume, VMSetFormat);
 void UNiagaraDataInterfaceRenderTargetVolume::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)
 {
 	using namespace NDIRenderTargetVolumeLocal;
@@ -357,18 +295,19 @@ void UNiagaraDataInterfaceRenderTargetVolume::GetVMExternalFunction(const FVMExt
 	Super::GetVMExternalFunction(BindingInfo, InstanceData, OutFunc);
 	if (BindingInfo.Name == GetSizeFunctionName)
 	{
-		check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 3);
-		NDI_FUNC_BINDER(UNiagaraDataInterfaceRenderTargetVolume, VMGetSize)::Bind(this, OutFunc);
+		OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceRenderTargetVolume::VMGetSize);
 	}
 	else if (BindingInfo.Name == SetSizeFunctionName)
 	{
-		check(BindingInfo.GetNumInputs() == 4 && BindingInfo.GetNumOutputs() == 1);
-		NDI_FUNC_BINDER(UNiagaraDataInterfaceRenderTargetVolume, VMSetSize)::Bind(this, OutFunc);
+		OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceRenderTargetVolume::VMSetSize);
+	}
+	else if (BindingInfo.Name == GetNumMipLevelsName)
+	{
+		OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceRenderTargetVolume::VMGetNumMipLevels);
 	}
 	else if (BindingInfo.Name == SetFormatFunctionName)
 	{
-		check(BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 1);
-		NDI_FUNC_BINDER(UNiagaraDataInterfaceRenderTargetVolume, VMSetFormat)::Bind(this, OutFunc);
+		OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceRenderTargetVolume::VMSetFormat);
 	}
 }
 
@@ -454,7 +393,8 @@ bool UNiagaraDataInterfaceRenderTargetVolume::GetFunctionHLSL(const FNiagaraData
 	using namespace NDIRenderTargetVolumeLocal;
 
 	if ((FunctionInfo.DefinitionName == SetValueFunctionName) ||
-		(FunctionInfo.DefinitionName == GetValueFunctionName) ||
+		(FunctionInfo.DefinitionName == Deprecated_GetValueFunctionName) ||
+		(FunctionInfo.DefinitionName == LoadValueFunctionName) ||
 		(FunctionInfo.DefinitionName == SampleValueFunctionName) ||
 		(FunctionInfo.DefinitionName == GetSizeFunctionName) ||
 		(FunctionInfo.DefinitionName == LinearToIndexName) ||
@@ -492,6 +432,7 @@ void UNiagaraDataInterfaceRenderTargetVolume::SetShaderParameters(const FNiagara
 
 	NDIRenderTargetVolumeLocal::FShaderParameters* Parameters = Context.GetParameterNestedStruct<NDIRenderTargetVolumeLocal::FShaderParameters>();
 	Parameters->TextureSize = InstanceData_RT->Size;
+	Parameters->MipLevels = InstanceData_RT->MipLevels;
 
 	const bool bRTWrite = Context.IsResourceBound(&Parameters->RWTexture);
 	const bool bRTRead = Context.IsResourceBound(&Parameters->Texture);
@@ -923,6 +864,41 @@ void UNiagaraDataInterfaceRenderTargetVolume::VMSetSize(FVectorVMExternalFunctio
 	}
 }
 
+void UNiagaraDataInterfaceRenderTargetVolume::VMGetSize(FVectorVMExternalFunctionContext& Context)
+{
+	VectorVM::FUserPtrHandler<FRenderTargetVolumeRWInstanceData_GameThread> InstData(Context);
+	FNDIOutputParam<int> OutSizeX(Context);
+	FNDIOutputParam<int> OutSizeY(Context);
+	FNDIOutputParam<int> OutSizeZ(Context);
+
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
+	{
+		OutSizeX.SetAndAdvance(InstData->Size.X);
+		OutSizeY.SetAndAdvance(InstData->Size.Y);
+		OutSizeZ.SetAndAdvance(InstData->Size.Z);
+	}
+}
+
+void UNiagaraDataInterfaceRenderTargetVolume::VMGetNumMipLevels(FVectorVMExternalFunctionContext& Context)
+{
+	VectorVM::FUserPtrHandler<FRenderTargetVolumeRWInstanceData_GameThread> InstData(Context);
+	FNDIOutputParam<int> OutMipLevels(Context);
+
+	int32 NumMipLevels = 1;
+	if (InstData->TargetTexture != nullptr)
+	{
+		NumMipLevels = InstData->TargetTexture->GetNumMips();
+	}
+	//else if (InstData->MipMapGeneration != ENiagaraMipMapGeneration::Disabled)
+	//{
+	//	NumMipLevels = FMath::FloorLog2(FMath::Max(InstData->Size.X, InstData->Size.Y)) + 1;
+	//}
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
+	{
+		OutMipLevels.SetAndAdvance(NumMipLevels);
+	}
+}
+
 void UNiagaraDataInterfaceRenderTargetVolume::VMSetFormat(FVectorVMExternalFunctionContext& Context)
 {
 	// This should only be called from a system or emitter script due to a need for only setting up initially.
@@ -948,22 +924,6 @@ void UNiagaraDataInterfaceRenderTargetVolume::VMSetFormat(FVectorVMExternalFunct
 		}
 	}
 }
-
-void UNiagaraDataInterfaceRenderTargetVolume::VMGetSize(FVectorVMExternalFunctionContext& Context)
-{
-	VectorVM::FUserPtrHandler<FRenderTargetVolumeRWInstanceData_GameThread> InstData(Context);
-	FNDIOutputParam<int> OutSizeX(Context);
-	FNDIOutputParam<int> OutSizeY(Context);
-	FNDIOutputParam<int> OutSizeZ(Context);
-
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
-	{
-		OutSizeX.SetAndAdvance(InstData->Size.X);
-		OutSizeY.SetAndAdvance(InstData->Size.Y);
-		OutSizeZ.SetAndAdvance(InstData->Size.Z);
-	}
-}
-
 
 bool UNiagaraDataInterfaceRenderTargetVolume::PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
 {
@@ -1071,6 +1031,7 @@ bool UNiagaraDataInterfaceRenderTargetVolume::PerInstanceTickPostSimulate(void* 
 			{
 				FRenderTargetVolumeRWInstanceData_RenderThread* TargetData = &RT_Proxy->SystemInstancesToProxyData_RT.FindOrAdd(RT_InstanceID);
 				TargetData->Size = RT_InstanceData.Size;
+				TargetData->MipLevels = RT_TargetTexture->GetCurrentMipCount();
 				//TargetData->MipMapGeneration = RT_InstanceData.MipMapGeneration;
 			#if WITH_EDITORONLY_DATA
 				TargetData->bPreviewTexture = RT_InstanceData.bPreviewTexture;

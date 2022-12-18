@@ -32,14 +32,6 @@ namespace NiagaraDataInterfaceRenderTargetCommon
 		ECVF_Default
 	);
 
-	int GAllowReads = 0;
-	static FAutoConsoleVariableRef CVarNiagaraRenderTargetAllowReads(
-		TEXT("fx.Niagara.RenderTarget.AllowReads"),
-		GAllowReads,
-		TEXT("Enables read operations to be visible in the UI, very experimental."),
-		ECVF_Default
-	);
-
 	static bool GNiagaraRenderTargetOverrideFormatEnabled = false;
 	static ETextureRenderTargetFormat GNiagaraRenderTargetOverrideFormat = ETextureRenderTargetFormat::RTF_RGBA32f;
 
