@@ -219,6 +219,8 @@ public:
 
 	void SetDisplayTypes(EVPWidgetDisplayType InEditorDisplayType, EVPWidgetDisplayType InGameDisplayType, EVPWidgetDisplayType InPIEDisplayType);
 	
+	void SetOverrideWidget(UUserWidget* InWidget);
+	
 	/**
 	 * If using EVPWidgetDisplayType::PostProcess, you can specify a custom post process settings that should be modified.
 	 * By default, a new post process component is added to AWorldSettings.

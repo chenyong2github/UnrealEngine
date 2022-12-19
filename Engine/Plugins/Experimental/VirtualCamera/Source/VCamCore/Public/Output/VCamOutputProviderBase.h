@@ -182,6 +182,12 @@ private:
 	
 	UPROPERTY(Transient)
 	bool bWasActive = false;
+
+#if WITH_EDITORONLY_DATA
+	/** Used for saving widget remapping settings across enabling & disabling in the same session, see FOutputProviderLayoutCustomization. */
+	UPROPERTY(Transient)
+	TObjectPtr<UUserWidget> SavedConnectionRemappingData = nullptr;
+#endif
 	
 	bool IsOuterComponentEnabled() const;
 };

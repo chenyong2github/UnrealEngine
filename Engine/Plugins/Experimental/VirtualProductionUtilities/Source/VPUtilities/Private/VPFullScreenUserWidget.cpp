@@ -875,6 +875,14 @@ void UVPFullScreenUserWidget::SetDisplayTypes(EVPWidgetDisplayType InEditorDispl
 	PIEDisplayType = InPIEDisplayType;
 }
 
+void UVPFullScreenUserWidget::SetOverrideWidget(UUserWidget* InWidget)
+{
+	if (ensureMsgf(!IsDisplayed(), TEXT("For simplicity of API you can only override the widget before displaying.")))
+	{
+		Widget = InWidget;
+	}
+}
+
 void UVPFullScreenUserWidget::SetCustomPostProcessSettingsSource(TWeakObjectPtr<UObject> InCustomPostProcessSettingsSource)
 {
 	PostProcessDisplayType.SetCustomPostProcessSettingsSource(InCustomPostProcessSettingsSource);

@@ -231,7 +231,16 @@ void UVCamOutputProviderBase::DisplayUMG()
 
 		if (ActorWorld)
 		{
+#if WITH_EDITOR
+			if (SavedConnectionRemappingData && SavedConnectionRemappingData->GetClass() == UMGClass)
+			{
+				UMGWidget->SetOverrideWidget(SavedConnectionRemappingData);
+			}
 			UMGWidget->Display(ActorWorld);
+			SavedConnectionRemappingData = UMGWidget->GetWidget();
+#else
+			UMGWidget->Display(ActorWorld);
+#endif
 			UE_LOG(LogVCamOutputProvider, Log, TEXT("DisplayUMG widget displayed in WorldType %d"), WorldType);
 		}
 
