@@ -20,6 +20,14 @@ namespace UE::VCamCore::LevelViewportUtils::Private
 {
 	namespace Locking
 	{
+		enum class EViewportFlags
+		{
+			None,
+			IsNotUsed   = 1 << 0,
+			ForceUse	= 1 << 1,
+		};
+		ENUM_CLASS_FLAGS(EViewportFlags)
+		
 #if WITH_EDITOR
 		static void UpdateLockStateForEditor(FVCamViewportLockState& ViewportLockState, EVCamTargetViewportID ViewportID, bool bNewLockState, AActor* ActorToLockWith = nullptr)
 		{
@@ -87,9 +95,15 @@ namespace UE::VCamCore::LevelViewportUtils::Private
 			}
 		}
 		
-		static void UpdateLockState(FVCamViewportLockState& ViewportLockState, EVCamTargetViewportID ViewportID, bool bForcfullySetUnlocked, AActor* ActorToLockWith = nullptr)
+		static void UpdateLockState(FVCamViewportLockState& ViewportLockState, EVCamTargetViewportID ViewportID, EViewportFlags ViewportFlags, AActor* ActorToLockWith = nullptr)
 		{
-			const bool bNewLockState = ViewportLockState.bLockViewportToCamera & !bForcfullySetUnlocked;
+			const bool bForceUse = (ViewportFlags & EViewportFlags::ForceUse) != EViewportFlags::None;
+			const bool bIsUsed = (ViewportFlags & EViewportFlags::IsNotUsed) == EViewportFlags::None;
+			const bool bNewLockState = bForceUse || (ViewportLockState.bLockViewportToCamera && bIsUsed);
+
+#if WITH_EDITOR
+			ViewportLockState.bIsForceLocked = bForceUse;
+#endif
 			for (const FWorldContext& Context : GEngine->GetWorldContexts())
 			{
 #if WITH_EDITOR
@@ -109,16 +123,28 @@ namespace UE::VCamCore::LevelViewportUtils::Private
 	void UpdateViewportLocksFromOutputs(TArray<TObjectPtr<UVCamOutputProviderBase>> OutputProviders, FVCamViewportLocker& LockData, AActor* ActorToLockWith)
 	{
 		TSet<EVCamTargetViewportID> Viewports;
+		TSet<EVCamTargetViewportID> ForcefullyLockedViewports;
+		
 		Algo::TransformIf(OutputProviders, Viewports,
 			[](TObjectPtr<UVCamOutputProviderBase> Output){ return Output && Output->IsActive(); },
+			[](TObjectPtr<UVCamOutputProviderBase> Output) { return Output->GetTargetViewport(); }
+			);
+		Algo::TransformIf(OutputProviders, ForcefullyLockedViewports,
+			[](TObjectPtr<UVCamOutputProviderBase> Output){ return Output && Output->IsActive() && Output->NeedsForceLockToViewport(); },
 			[](TObjectPtr<UVCamOutputProviderBase> Output) { return Output->GetTargetViewport(); }
 			);
 		
 		check(LockData.Locks.Num() == 4);
 		for (TPair<EVCamTargetViewportID, FVCamViewportLockState>& ViewportData : LockData.Locks)
 		{
-			const bool bShouldUnlock = !Viewports.Contains(ViewportData.Key);
-			Locking::UpdateLockState(ViewportData.Value, ViewportData.Key, bShouldUnlock, ActorToLockWith);
+			const bool bIsForceLocked = ForcefullyLockedViewports.Contains(ViewportData.Key);
+			const bool bIsNotUsed = !Viewports.Contains(ViewportData.Key);
+			
+			Locking::EViewportFlags Flags = Locking::EViewportFlags::None;
+			Flags |= bIsForceLocked ? Locking::EViewportFlags::ForceUse : Locking::EViewportFlags::None;
+			Flags |= bIsNotUsed ? Locking::EViewportFlags::IsNotUsed : Locking::EViewportFlags::None;
+			
+			Locking::UpdateLockState(ViewportData.Value, ViewportData.Key, Flags, ActorToLockWith);
 		}
 	}
 
@@ -126,7 +152,7 @@ namespace UE::VCamCore::LevelViewportUtils::Private
 	{
 		for (TPair<EVCamTargetViewportID, FVCamViewportLockState>& ViewportData : LockData.Locks)
 		{
-			Locking::UpdateLockState(ViewportData.Value, ViewportData.Key, false);
+			Locking::UpdateLockState(ViewportData.Value, ViewportData.Key, Locking::EViewportFlags::IsNotUsed);
 		}
 	}
 

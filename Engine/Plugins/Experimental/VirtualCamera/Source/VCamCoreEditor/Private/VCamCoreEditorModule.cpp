@@ -19,6 +19,7 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
+#include "Customizations/VCamViewportLockerTypeCustomization.h"
 #include "Customizations/OutputProvider/ConnectionRemapCustomization_VCamWidget.h"
 #include "Customizations/OutputProvider/OutputProviderTypeCustomization.h"
 #include "Output/VCamOutputViewport.h"
@@ -124,6 +125,10 @@ namespace UE::VCamCoreEditor::Private
 			UVCamOutputProviderBase::StaticClass()->GetFName(), 
 			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FOutputProviderTypeCustomization::MakeInstance)
 		);
+		PropertyModule.RegisterCustomPropertyTypeLayout(
+			FVCamViewportLocker::StaticStruct()->GetFName(), 
+			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FVCamViewportLockerTypeCustomization::MakeInstance)
+		);
 		
 		PropertyModule.RegisterCustomClassLayout(
 			UVCamOutputProviderBase::StaticClass()->GetFName(),
@@ -151,6 +156,7 @@ namespace UE::VCamCoreEditor::Private
 		PropertyModule.UnregisterCustomPropertyTypeLayout(FVCamConnectionTargetSettings::StaticStruct()->GetFName());
 		PropertyModule.UnregisterCustomPropertyTypeLayout(FWidgetConnectionConfig::StaticStruct()->GetFName());
 		PropertyModule.UnregisterCustomPropertyTypeLayout(UVCamOutputProviderBase::StaticClass()->GetFName());
+		PropertyModule.UnregisterCustomPropertyTypeLayout(FVCamViewportLocker::StaticStruct()->GetFName());
 		
 		PropertyModule.UnregisterCustomClassLayout(UVCamOutputProviderBase::StaticClass()->GetFName());
 		PropertyModule.UnregisterCustomClassLayout(AVCamBaseActor::StaticClass()->GetFName());

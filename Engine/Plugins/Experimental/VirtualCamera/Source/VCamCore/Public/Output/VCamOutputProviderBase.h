@@ -90,24 +90,12 @@ public:
 	UVPFullScreenUserWidget* GetUMGWidget() { return UMGWidget; };
 
 	/** Temporarily disable the output.  Caller must eventually call RestoreOutput. */
-	void SuspendOutput()
-	{
-		if (IsActive())
-		{
-			bWasActive = true;
-			SetActive(false);
-		}
-	}
-
+	void SuspendOutput();
 	/** Restore the output state from previous call to disable output. */
-	void RestoreOutput()
-	{
-		if (bWasActive && !IsActive())
-		{
-			SetActive(true);
-		}
-		bWasActive = false;
-	}
+	void RestoreOutput();
+	
+	/** @return Whether this output provider should requires the viewport to be locked to the camera in order to function correctly. */
+	bool NeedsForceLockToViewport() const;
 
 	/** Calls the VCamModifierInterface on the widget if it exists and also requests any child VCam Widgets to reconnect */
 	void NotifyWidgetOfComponentChange() const;
@@ -148,7 +136,6 @@ protected:
 	void RestoreOverrideResolutionForViewport(EVCamTargetViewportID ViewportToRestore);
 	/** Applies OverrideResolution to the passed in viewport - bUseOverrideResolution was already checked. */
 	void ApplyOverrideResolutionForViewport(EVCamTargetViewportID Viewport);
-
 	void ReapplyOverrideResolution(EVCamTargetViewportID Viewport);
 
 	void DisplayUMG();

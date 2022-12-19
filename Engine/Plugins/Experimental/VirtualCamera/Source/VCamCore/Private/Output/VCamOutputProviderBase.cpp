@@ -268,6 +268,30 @@ void UVCamOutputProviderBase::DestroyUMG()
 	}
 }
 
+void UVCamOutputProviderBase::SuspendOutput()
+{
+	if (IsActive())
+	{
+		bWasActive = true;
+		SetActive(false);
+	}
+}
+
+void UVCamOutputProviderBase::RestoreOutput()
+{
+	if (bWasActive && !IsActive())
+	{
+		SetActive(true);
+	}
+	bWasActive = false;
+}
+
+bool UVCamOutputProviderBase::NeedsForceLockToViewport() const
+{
+	// The widget is displayed via a post process material, which is applied to the camera's post process settings, hence anything will only be visible when locked.
+	return DisplayType == EVPWidgetDisplayType::PostProcess;
+}
+
 void UVCamOutputProviderBase::NotifyWidgetOfComponentChange() const
 {
 	if (UMGWidget && UMGWidget->IsDisplayed())
