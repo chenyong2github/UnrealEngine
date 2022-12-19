@@ -10,6 +10,7 @@
 
 class UInputAction;
 class UVCamModifier;
+class UVCamWidget;
 
 /*
  * Function Library primarily used for exposing functionality of UI related structs to Blueprints 
@@ -49,4 +50,26 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "VCam Connections", meta = (DisplayName = "Get Connected Input Action"))
 	static UInputAction* GetConnectedInputAction_VCamConnection(const FVCamConnection& Connection);
+
+
+	
+	/** Gets a connection by its ID.  */
+	UFUNCTION(BlueprintPure, Category = "VCam Connections", meta = (DisplayName = "Get Connection By Name", DefaultToSelf = "Widget"))
+	static bool GetConnectionByName_VCamWidget(UVCamWidget* Widget, FName ConnectionId, FVCamConnection& OutConnection);
+
+	/** Gets whether the ConnectionId is connected on the widget. */
+	UFUNCTION(BlueprintPure, Category = "VCam Connections", meta = (DisplayName = "Is Connected By Name", DefaultToSelf = "Widget"))
+	static bool IsConnected_VCamWidget(UVCamWidget* Widget, FName ConnectionId, bool& bOutIsConnected);
+	
+	/** Gets the connection point the connection ConnectionId attempts to connect to on the widget. */
+	UFUNCTION(BlueprintPure, Category = "VCam Connections", meta = (DisplayName = "Get Connection Point Name By Name", DefaultToSelf = "Widget"))
+	static bool GetConnectionPointName_VCamWidget(UVCamWidget* Widget, FName ConnectionId, FName& OutConnectionPointName);
+	
+	/** Gets the modifier connected to ConnectionId on the widget. */
+	UFUNCTION(BlueprintPure, Category = "VCam Connections", meta = (DisplayName = "Get Connected Modifier By Name", DefaultToSelf = "Widget"))
+	static bool GetConnectedModifier_VCamWidget(UVCamWidget* Widget, FName ConnectionId, UVCamModifier*& OutModifier);
+
+	/** Gets the input action mapped to ConnectionId on the widget. */
+	UFUNCTION(BlueprintPure, Category = "VCam Connections", meta = (DisplayName = "Get Connected Input Action By Name", DefaultToSelf = "Widget"))
+	static bool GetConnectedInputAction_VCamWidget(UVCamWidget* Widget, FName ConnectionId, UInputAction*& OutInputAction);
 };
