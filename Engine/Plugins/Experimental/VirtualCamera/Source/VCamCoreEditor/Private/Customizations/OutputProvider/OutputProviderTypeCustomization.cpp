@@ -31,6 +31,15 @@ namespace UE::VCamCoreEditor::Private
 			: nullptr;
 		if (!CustomizedOutputProvider)
 		{
+			ChildBuilder.AddCustomRow(FText::GetEmpty())
+				.NameContent()
+				[
+					PropertyHandle->CreatePropertyNameWidget()
+				]
+				.ValueContent()
+				[
+					PropertyHandle->CreatePropertyValueWidget()
+				];
 			return;
 		}
 		
