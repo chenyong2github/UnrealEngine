@@ -3,7 +3,6 @@
 #include "CommonListView.h"
 #include "CommonWidgetPaletteCategories.h"
 #include "SCommonButtonTableRow.h"
-#include "CommonUIPrivate.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonListView)
 

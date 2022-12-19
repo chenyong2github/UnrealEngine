@@ -1,12 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonInputPrivate.h"
+#include "CommonInputSettings.h"
 #include "ICommonInputModule.h"
-#include "Engine/AssetManager.h"
 #include "UObject/Package.h"
 #if WITH_EDITOR
 #include "ISettingsModule.h"
-#include "ISettingsSection.h"
 #endif // WITH_EDITOR
 
 /**

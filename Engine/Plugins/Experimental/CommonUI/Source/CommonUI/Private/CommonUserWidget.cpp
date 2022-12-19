@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonUserWidget.h"
-#include "CommonUIPrivate.h"
 
 #include "Engine/GameInstance.h"
 #include "CommonInputSubsystem.h"

@@ -1,15 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonCustomNavigation.h"
-#include "CommonUIPrivate.h"
-#include "CommonUISettings.h"
 #include "CommonWidgetPaletteCategories.h"
 
 #include "Types/NavigationMetaData.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Components/BorderSlot.h"
 
-#include "Framework/Application/SlateApplication.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonCustomNavigation)
 

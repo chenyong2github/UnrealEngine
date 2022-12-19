@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnalogSlider.h"
-#include "CommonUITypes.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "CommonInputSubsystem.h"
+#include "CommonInputTypeEnum.h"
+#include "SAnalogSlider.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnalogSlider)
 

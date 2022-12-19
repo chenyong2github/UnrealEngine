@@ -1,15 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Input/CommonUIActionRouterBase.h"
+#include "CommonInputSubsystem.h"
 #include "Engine/GameInstance.h"
+#include "CommonInputTypeEnum.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Input/CommonAnalogCursor.h"
 #include "Input/CommonUIInputSettings.h"
 #include "Input/UIActionBinding.h"
 #include "Input/UIActionRouterTypes.h"
-#include "CommonInputSettings.h"
-#include "CommonInputActionDomain.h"
-#include "ICommonInputModule.h"
 
 #include "Framework/Application/SlateUser.h"
 #include "Slate/SObjectWidget.h"
@@ -18,13 +17,10 @@
 #include "GameFramework/HUD.h"
 #include "Engine/Console.h"
 #include "Engine/Canvas.h"
-#include "Stats/Stats.h"
 
 #include "CommonGameViewportClient.h"
-#include "CommonUIPrivate.h"
 #include "CommonActivatableWidget.h"
 #include "CommonUIUtils.h"
-#include "CommonUISubsystemBase.h"
 #include "Slate/SGameLayerManager.h"
 #include "Framework/Commands/InputBindingManager.h"
 

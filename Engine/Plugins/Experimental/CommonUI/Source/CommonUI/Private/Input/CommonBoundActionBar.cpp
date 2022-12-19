@@ -2,13 +2,14 @@
 
 #include "Input/CommonBoundActionBar.h"
 #include "CommonInputSubsystem.h"
+#include "CommonInputTypeEnum.h"
 #include "Editor/WidgetCompilerLog.h"
+#include "CommonUITypes.h"
 #include "Engine/GameInstance.h"
 #include "Engine/GameViewportClient.h"
-#include "Engine/LocalPlayer.h"
 #include "Input/CommonBoundActionButtonInterface.h"
 #include "Input/CommonUIActionRouterBase.h"
-#include "Input/UIActionRouterTypes.h"
+#include "Input/UIActionBinding.h"
 #include "TimerManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonBoundActionBar)

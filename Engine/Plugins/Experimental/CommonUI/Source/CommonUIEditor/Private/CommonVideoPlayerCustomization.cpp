@@ -1,15 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonVideoPlayerCustomization.h"
-#include "PropertyCustomizationHelpers.h"
 #include "CommonVideoPlayer.h"
-#include "ITransportControl.h"
+#include "DetailWidgetRow.h"
 #include "EditorWidgetsModule.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Images/SImage.h"
-#include "Styling/AppStyle.h"
 #include "DetailLayoutBuilder.h"
-#include "DetailCategoryBuilder.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Modules/ModuleManager.h"
 

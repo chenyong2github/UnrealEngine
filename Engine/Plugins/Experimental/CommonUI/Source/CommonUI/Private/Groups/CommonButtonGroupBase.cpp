@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Groups/CommonButtonGroupBase.h"
-#include "CommonUIPrivate.h"
+#include <memory>
+#include <tuple>
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonButtonGroupBase)
 

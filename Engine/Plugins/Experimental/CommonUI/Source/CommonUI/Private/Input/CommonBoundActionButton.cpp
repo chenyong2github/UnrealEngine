@@ -5,6 +5,7 @@
 #include "Input/UIActionBinding.h"
 #include "CommonActionWidget.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Internationalization/LocKeyFuncs.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonBoundActionButton)
 

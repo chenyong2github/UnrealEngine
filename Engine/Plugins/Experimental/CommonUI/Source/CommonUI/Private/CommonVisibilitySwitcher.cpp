@@ -6,6 +6,7 @@
 #include "CommonUIPrivate.h"
 #include "CommonVisibilitySwitcherSlot.h"
 #include "CommonWidgetPaletteCategories.h"
+#include "Containers/StringConv.h"
 #include "Widgets/Layout/SBox.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonVisibilitySwitcher)

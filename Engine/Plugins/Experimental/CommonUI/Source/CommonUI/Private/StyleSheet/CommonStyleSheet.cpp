@@ -3,9 +3,7 @@
 #include "StyleSheet/CommonStyleSheet.h"
 #include "StyleSheet/CommonStyleSheetTypes.h"
 
-#include "Blueprint/UserWidget.h"
 #include "CommonTextBlock.h"
-#include "Components/Widget.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonStyleSheet)
 

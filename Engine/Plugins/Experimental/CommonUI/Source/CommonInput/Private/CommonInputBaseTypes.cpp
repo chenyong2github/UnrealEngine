@@ -2,13 +2,13 @@
 
 #include "CommonInputBaseTypes.h"
 #include "Engine/UserInterfaceSettings.h"
-#include "Engine/StreamableManager.h"
-#include "Engine/AssetManager.h"
-#include "CommonInputSettings.h"
+#include "CommonInputTypeEnum.h"
 #include "ICommonInputModule.h"
+#include "Engine/PlatformSettings.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
+#include "InputCoreTypes.h"
 #include "UObject/ObjectSaveContext.h"
-#include "CommonInputBaseTypes.h"
+#include "Styling/SlateBrush.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonInputBaseTypes)
 

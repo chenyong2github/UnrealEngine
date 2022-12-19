@@ -1,29 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonRichTextBlock.h"
+#include "ICommonUIModule.h"
 #include "Widgets/Text/SRichTextBlock.h"
+#include "Rendering/SlateRenderer.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
-#include "Widgets/Layout/SScaleBox.h"
 
-#include "Framework/Application/SlateApplication.h"
-#include "Framework/Text/SlateTextLayout.h"
-#include "Framework/Text/ITextDecorator.h"
-#include "Framework/Text/SlateWidgetRun.h"
 #include "Framework/Text/SlateTextRun.h"
 
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 #include "Misc/DefaultValueHelper.h"
 #include "Fonts/FontMeasure.h"
-#include "Styling/SlateBrush.h"
 #include "CommonUIUtils.h"
 #include "CommonWidgetPaletteCategories.h"
 #include "CommonUIEditorSettings.h"
 #include "CommonUIRichTextData.h"
-#include "Types/ReflectionMetadata.h"
-#include "Framework/Text/IRichTextMarkupWriter.h"
 #include "Framework/Text/RichTextMarkupProcessing.h"
 #include "Framework/Application/SlateApplication.h"
 

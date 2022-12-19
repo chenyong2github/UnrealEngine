@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonActivatableWidget.h"
+#include "CommonInputSettings.h"
 #include "CommonUIPrivate.h"
 #include "Engine/GameInstance.h"
-#include "Input/CommonUIActionRouterBase.h"
 #include "Input/CommonUIInputTypes.h"
 #include "Input/UIActionBinding.h"
 #include "Input/UIActionRouterTypes.h"

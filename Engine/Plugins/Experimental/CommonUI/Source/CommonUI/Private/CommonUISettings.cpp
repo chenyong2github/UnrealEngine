@@ -2,11 +2,8 @@
 
 #include "CommonUISettings.h"
 
+#include "Engine/PlatformSettingsManager.h"
 #include "Materials/MaterialInterface.h"
-#include "Materials/Material.h"
-#include "UObject/Class.h"
-#include "UObject/ReflectedTypeAccessors.h"
-#include "GameplayTagContainer.h"
 #include "Misc/ConfigCacheIni.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonUISettings)

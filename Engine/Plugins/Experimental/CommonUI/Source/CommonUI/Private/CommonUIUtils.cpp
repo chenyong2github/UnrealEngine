@@ -1,10 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
  
 #include "CommonUIUtils.h"
-#include "ICommonUIModule.h"
-#include "CommonUIPrivate.h"
-#include "CommonUIEditorSettings.h"
-#include "Blueprint/WidgetTree.h"
+#include "Components/PanelWidget.h"
 #include "Editor/WidgetCompilerLog.h"
 
 #define LOCTEXT_NAMESPACE "CommonUIUtils"

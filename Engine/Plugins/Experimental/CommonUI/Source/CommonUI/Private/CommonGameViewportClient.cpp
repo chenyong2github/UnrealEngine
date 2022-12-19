@@ -2,21 +2,14 @@
 
 #include "CommonGameViewportClient.h"
 #include "Engine/Console.h"
-#include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
-#include "GameFramework/GameUserSettings.h"
-#include "GameFramework/PlayerController.h"
-#include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
-#include "UnrealClient.h"
+#include "InputKeyEventArgs.h"
 
 #if WITH_EDITOR
-#include "Editor.h"
-#include "EditorViewportClient.h"
 #endif // WITH_EDITOR
 
 #include "Input/CommonUIActionRouterBase.h"
-#include "Framework/Application/SlateUser.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonGameViewportClient)
 

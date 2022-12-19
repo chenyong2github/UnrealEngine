@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonNumericTextBlock.h"
-#include "CommonUIPrivate.h"
 #include "CommonWidgetPaletteCategories.h"
+#include "Engine/World.h"
 #include "TimerManager.h"
+#include "UObject/UnrealType.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Math/UnitConversion.h"

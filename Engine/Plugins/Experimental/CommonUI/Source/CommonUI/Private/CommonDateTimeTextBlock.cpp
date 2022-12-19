@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonDateTimeTextBlock.h"
-#include "CommonUIPrivate.h"
 #include "CommonWidgetPaletteCategories.h"
+#include "Engine/World.h"
 #include "TimerManager.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Framework/Application/SlateApplication.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonDateTimeTextBlock)
 

@@ -2,23 +2,20 @@
 
 #include "CommonInputSubsystem.h"
 #include "CommonInputPrivate.h"
+#include "CommonInputTypeEnum.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Misc/ConfigCacheIni.h"
 
+#include "Engine/PlatformSettingsManager.h"
 #include "Framework/Application/IInputProcessor.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Application/SlateUser.h"
 #include "Engine/World.h"
 #include "Engine/GameViewportClient.h"
 #include "Widgets/SViewport.h"
-#include "HAL/IConsoleManager.h"
 #include "CommonInputSettings.h"
-#include "Containers/Ticker.h"
-#include "GenericPlatform/GenericPlatformTime.h"
 #include "ICommonInputModule.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/Engine.h"
-#include "Stats/Stats.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonInputSubsystem)
 

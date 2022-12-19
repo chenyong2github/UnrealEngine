@@ -2,15 +2,7 @@
 
 
 #include "CommonUIEditorSettings.h"
-#include "CommonTextBlock.h"
-#include "CommonButtonBase.h"
-#include "CommonBorder.h"
 
-#include "Materials/MaterialInterface.h"
-#include "Materials/Material.h"
-#include "Engine/UserInterfaceSettings.h"
-#include "Engine/StreamableManager.h"
-#include "Engine/AssetManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonUIEditorSettings)
 

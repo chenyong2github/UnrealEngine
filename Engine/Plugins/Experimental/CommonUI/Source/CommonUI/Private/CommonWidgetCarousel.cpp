@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonWidgetCarousel.h"
-#include "CommonUIPrivate.h"
 #include "CommonWidgetPaletteCategories.h"
-#include "Containers/Ticker.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonWidgetCarousel)
 

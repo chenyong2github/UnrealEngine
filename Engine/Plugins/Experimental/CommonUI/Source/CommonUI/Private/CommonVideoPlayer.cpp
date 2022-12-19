@@ -9,7 +9,6 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "MediaSoundComponent.h"
-#include "ShaderPipelineCache.h"
 #include "IMediaEventSink.h"
 #include "Widgets/Images/SImage.h"
 

@@ -1,15 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonTabListWidgetBase.h"
-#include "CommonUIPrivate.h"
 
-#include "Blueprint/WidgetLayoutLibrary.h"
 #include "CommonAnimatedSwitcher.h"
-#include "CommonUISubsystemBase.h"
-#include "CommonUIUtils.h"
-#include "Containers/Ticker.h"
 #include "Groups/CommonButtonGroupBase.h"
-#include "ICommonUIModule.h"
 #include "Input/CommonUIInputTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonTabListWidgetBase)

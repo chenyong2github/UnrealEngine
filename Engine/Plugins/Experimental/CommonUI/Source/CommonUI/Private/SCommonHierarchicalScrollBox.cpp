@@ -1,10 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SCommonHierarchicalScrollBox.h"
-#include "Types/SlateConstants.h"
 #include "Types/NavigationMetaData.h"
-#include "Input/HittestGrid.h"
-#include "Framework/Application/SlateApplication.h"
 
 void SCommonHierarchicalScrollBox::AppendFocusableChildren(TArray<TSharedRef<SWidget>>& OutChildren, TSharedRef<SWidget> Owner)
 {

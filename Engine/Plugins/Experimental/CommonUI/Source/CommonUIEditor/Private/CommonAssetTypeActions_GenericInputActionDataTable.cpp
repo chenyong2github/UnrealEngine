@@ -4,7 +4,6 @@
 #include "DataTableEditorModule.h"
 #include "Input/CommonGenericInputActionDataTable.h"
 #include "Misc/MessageDialog.h"
-#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 

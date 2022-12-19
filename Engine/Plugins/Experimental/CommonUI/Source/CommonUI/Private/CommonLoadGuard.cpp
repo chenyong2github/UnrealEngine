@@ -1,14 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonLoadGuard.h"
-#include "CommonUIPrivate.h"
 #include "Components/SizeBoxSlot.h"
-#include "CommonTextBlock.h"
 #include "CommonWidgetPaletteCategories.h"
-#include "UObject/ConstructorHelpers.h"
 #include "CommonUIObjectVersion.h"
+#include "Engine/AssetManager.h"
 #include "Widgets/SOverlay.h"
+#include "Engine/StreamableManager.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SScaleBox.h"

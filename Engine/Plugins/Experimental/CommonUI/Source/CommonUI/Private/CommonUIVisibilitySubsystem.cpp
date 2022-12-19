@@ -2,13 +2,10 @@
 
 #include "CommonUIVisibilitySubsystem.h"
 
-#include "NativeGameplayTags.h"
-#include "Engine/PlatformSettings.h"
-#include "CommonInputBaseTypes.h"
+#include "CommonInputTypeEnum.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/GameInstance.h"
 #include "CommonInputSubsystem.h"
-#include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "ICommonUIModule.h"
 #include "CommonUISettings.h"

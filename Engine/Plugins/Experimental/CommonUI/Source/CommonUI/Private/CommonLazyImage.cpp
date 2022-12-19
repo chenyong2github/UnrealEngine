@@ -4,6 +4,7 @@
 #include "CommonWidgetPaletteCategories.h"
 
 #include "Engine/Texture2D.h"
+#include "ICommonUIModule.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "CommonUISettings.h"
 #include "Engine/Texture2DDynamic.h"

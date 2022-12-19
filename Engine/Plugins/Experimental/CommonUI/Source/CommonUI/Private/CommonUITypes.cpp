@@ -1,10 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
  
 #include "CommonUITypes.h"
+#include "CommonInputBaseTypes.h"
+#include "CommonInputTypeEnum.h"
 #include "CommonUIPrivate.h"
-#include "ICommonInputModule.h"
-#include "CommonInputSettings.h"
+#include "CommonInputSubsystem.h"
 #include "HAL/PlatformInput.h"
+#include "Styling/SlateTypes.h"
+#include "Styling/StyleDefaults.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonUITypes)
 

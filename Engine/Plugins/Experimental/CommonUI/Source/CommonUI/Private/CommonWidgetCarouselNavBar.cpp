@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonWidgetCarouselNavBar.h"
-#include "CommonUIPrivate.h"
 #include "CommonWidgetPaletteCategories.h"
 #include "CommonWidgetCarousel.h"
 #include "Groups/CommonButtonGroupBase.h"
-#include "Widgets/SBoxPanel.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonWidgetCarouselNavBar)
 

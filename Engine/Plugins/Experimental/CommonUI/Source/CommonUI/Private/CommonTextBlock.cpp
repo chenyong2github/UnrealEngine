@@ -1,14 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonTextBlock.h"
-#include "CommonUIPrivate.h"
-#include "Containers/Ticker.h"
 #include "CommonUIEditorSettings.h"
 #include "CommonUIUtils.h"
 #include "CommonWidgetPaletteCategories.h"
+#include "ICommonUIModule.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Layout/ArrangedChildren.h"
 #include "Layout/LayoutUtils.h"
-#include "Types/ReflectionMetadata.h"
 #include "StyleSheet/CommonStyleSheet.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonTextBlock)

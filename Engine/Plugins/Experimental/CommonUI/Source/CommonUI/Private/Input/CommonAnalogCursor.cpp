@@ -1,27 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Input/CommonAnalogCursor.h"
+#include "CommonInputTypeEnum.h"
 #include "CommonUIPrivate.h"
-#include "Slate/SObjectWidget.h"
-#include "Blueprint/UserWidget.h"
 #include "Input/CommonUIActionRouterBase.h"
 #include "CommonInputSubsystem.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Engine/LocalPlayer.h"
 #include "Framework/Application/SlateUser.h"
-#include "Framework/Views/TableViewMetadata.h"
 #include "Input/CommonUIInputSettings.h"
 #include "Engine/Console.h"
-#include "CommonInputBaseTypes.h"
 #include "Widgets/SViewport.h"
 #include "Engine/GameViewportClient.h"
 
 #include "Components/ListView.h"
 #include "Components/ScrollBar.h"
 #include "Components/ScrollBox.h"
-#include "Engine/Engine.h"
 #include "Slate/SGameLayerManager.h"
-#include "Types/ReflectionMetadata.h"
 #include "UnrealClient.h"
 
 #define LOCTEXT_NAMESPACE "CommonAnalogCursor"

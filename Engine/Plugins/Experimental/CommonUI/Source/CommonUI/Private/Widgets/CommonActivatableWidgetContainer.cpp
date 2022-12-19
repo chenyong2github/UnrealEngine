@@ -1,13 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/CommonActivatableWidgetContainer.h"
-#include "CommonWidgetPaletteCategories.h"
 #include "CommonActivatableWidget.h"
-#include "CommonUIUtils.h"
-#include "Input/CommonUIActionRouterBase.h"
+#include "Slate/SCommonAnimatedSwitcher.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/Layout/SSpacer.h"
-#include "Stats/Stats.h"
 #include "TimerManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonActivatableWidgetContainer)

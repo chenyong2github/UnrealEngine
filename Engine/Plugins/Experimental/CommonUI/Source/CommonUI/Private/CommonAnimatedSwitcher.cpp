@@ -3,9 +3,7 @@
 #include "CommonAnimatedSwitcher.h"
 
 #include "CommonWidgetPaletteCategories.h"
-#include "Components/PanelSlot.h"
 #include "Components/WidgetSwitcherSlot.h"
-#include "Templates/UnrealTemplate.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/SOverlay.h"
 

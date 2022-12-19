@@ -2,19 +2,15 @@
 
 #include "CommonUISubsystemBase.h"
 
-#include "Subsystems/SubsystemCollection.h"
 
-#include "Blueprint/UserWidget.h"
-#include "CommonUIPrivate.h"
+#include "CommonInputBaseTypes.h"
 #include "CommonInputSubsystem.h"
-#include "ICommonInputModule.h"
-#include "CommonInputSettings.h"
-#include "CommonActivatableWidget.h"
+#include "CommonInputTypeEnum.h"
+#include "CommonUITypes.h"
 #include "IAnalyticsProviderET.h"
-#include "AnalyticsEventAttribute.h"
-#include "UObject/UObjectIterator.h"
-#include "Input/CommonUIActionRouterBase.h"
-#include "Engine/LocalPlayer.h"
+#include "Components/Widget.h"
+#include "Engine/GameInstance.h"
+#include "Styling/StyleDefaults.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonUISubsystemBase)
 

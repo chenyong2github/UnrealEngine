@@ -2,8 +2,8 @@
 
 #include "CommonLazyWidget.h"
 #include "CommonActivatableWidget.h"
-#include "CommonUISettings.h"
 #include "CommonWidgetPaletteCategories.h"
+#include "Engine/AssetManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonLazyWidget)
 

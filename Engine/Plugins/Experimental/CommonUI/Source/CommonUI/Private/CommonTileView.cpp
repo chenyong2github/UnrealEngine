@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonTileView.h"
-#include "CommonUIPrivate.h"
+#include "Components/ListView.h"
 #include "SCommonButtonTableRow.h"
 #include "SCommonTileView.h"
 

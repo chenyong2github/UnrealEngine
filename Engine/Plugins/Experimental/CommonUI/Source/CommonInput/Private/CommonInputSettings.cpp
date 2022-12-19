@@ -1,16 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonInputSettings.h"
-#include "CommonInputPrivate.h"
-#include "Engine/UserInterfaceSettings.h"
-#include "Engine/StreamableManager.h"
-#include "Engine/AssetManager.h"
-#include "Misc/DataDrivenPlatformInfoRegistry.h"
-#include "CommonInputActionDomain.h"
-#include "CommonInputBaseTypes.h"
-#include "Engine/PlatformSettings.h"
+#include "Engine/DataTable.h"
+#include "Engine/PlatformSettingsManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonInputSettings)
+
+#if !WITH_EDITOR
+#include "CommonInputPrivate.h"
+#endif
 
 UCommonInputSettings::UCommonInputSettings(const FObjectInitializer& Initializer)
 	: Super(Initializer)

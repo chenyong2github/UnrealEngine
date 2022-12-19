@@ -2,8 +2,6 @@
 
 #include "CommonVisualAttachment.h"
 #include "SVisualAttachmentBox.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Framework/Application/SlateApplication.h"
 #include "Components/SizeBoxSlot.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonVisualAttachment)

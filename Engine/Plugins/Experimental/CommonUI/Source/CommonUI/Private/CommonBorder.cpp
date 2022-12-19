@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonBorder.h"
-#include "CommonUIPrivate.h"
 #include "CommonUIEditorSettings.h"
 #include "CommonWidgetPaletteCategories.h"
 
 #include "Framework/Application/SlateApplication.h"
+#include "ICommonUIModule.h"
 #include "Misc/CoreDelegates.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SViewport.h"

@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SAnalogSlider.h"
-#include "Rendering/DrawElements.h"
 #include "Misc/App.h"
 
 void SAnalogSlider::Construct(const SAnalogSlider::FArguments& InDeclaration)
