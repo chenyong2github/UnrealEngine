@@ -1,5 +1,4 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-// IWYU pragma: begin_exports
 
 #pragma once
 
@@ -7,6 +6,8 @@
 #include "HAL/PlatformMath.h"
 #include "Math/MathFwd.h"
 #include "Math/UnrealMathUtility.h"
+
+// IWYU pragma: begin_exports
 
 #if !WITH_DIRECTXMATH && !PLATFORM_ENABLE_VECTORINTRINSICS_NEON && !(defined(__cplusplus_cli) && !PLATFORM_HOLOLENS) && PLATFORM_ENABLE_VECTORINTRINSICS
 

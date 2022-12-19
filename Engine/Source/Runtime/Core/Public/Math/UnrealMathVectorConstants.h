@@ -3,6 +3,7 @@
 #pragma once
 
 // HEADER_UNIT_SKIP - Not included directly
+// IWYU pragma: private
 
 #include "Math/UnrealMathUtility.h"
 
