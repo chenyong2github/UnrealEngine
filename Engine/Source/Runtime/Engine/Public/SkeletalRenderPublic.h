@@ -26,6 +26,7 @@ class UMorphTarget;
 struct FSkelMeshRenderSection;
 struct FCachedGeometry;
 class FGPUSkinCacheEntry;
+class FMeshDeformerGeometry;
 class FRayTracingGeometry;
 
 /** data for a single skinned skeletal mesh vertex */
@@ -51,6 +52,13 @@ enum class EPreviousBoneTransformUpdateMode
 	UpdatePrevious,
 
 	DuplicateCurrentToPrevious,
+};
+
+struct FSkinBatchVertexFactoryUserData
+{
+	FGPUSkinCacheEntry* SkinCacheEntry = nullptr;
+	FMeshDeformerGeometry* DeformerGeometry = nullptr;
+	int32 Section = -1;
 };
 
 /**
@@ -94,7 +102,14 @@ public:
 	 * @param	ChunkIdx - not used
 	 * @return	vertex factory for rendering the LOD, 0 to suppress rendering
 	 */
-	virtual const FVertexFactory* GetSkinVertexFactory(const FSceneView* View, int32 LODIndex,int32 ChunkIdx, ESkinVertexFactoryMode VFMode = ESkinVertexFactoryMode::Default) const = 0;
+	virtual const FVertexFactory* GetSkinVertexFactory(const FSceneView* View, int32 LODIndex, int32 ChunkIdx, ESkinVertexFactoryMode VFMode = ESkinVertexFactoryMode::Default) const = 0;
+
+	/**
+	 * @param	LODIndex - Index to LODs
+	 * @param	ChunkIdx - Index to render sections.
+	 * @return	VertexFactoryUserData for storing on a FMeshBatch.
+	 */
+	virtual const FSkinBatchVertexFactoryUserData* GetVertexFactoryUserData(const int32 LODIndex, int32 ChunkIdx, ESkinVertexFactoryMode VFMode) const { return nullptr; }
 
 	/**
 	 * Re-skin cached vertices for an LOD and update the vertex buffer. Note that this

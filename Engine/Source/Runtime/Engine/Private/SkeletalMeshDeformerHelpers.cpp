@@ -1,157 +1,300 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "SkeletalMeshDeformerHelpers.h"
 
+#include "DataDrivenShaderPlatformInfo.h"
 #include "GPUSkinVertexFactory.h"
 #include "SkeletalRenderGPUSkin.h"
+#include "RenderGraphBuilder.h"
 
 FRHIShaderResourceView* FSkeletalMeshDeformerHelpers::GetBoneBufferForReading(
-	FSkeletalMeshObject const* MeshObject,
-	int32 LODIndex,
-	int32 SectionIndex,
-	bool bPreviousFrame)
+	FSkeletalMeshObject const* InMeshObject,
+	int32 InLodIndex,
+	int32 InSectionIndex,
+	bool bInPreviousFrame)
 {
-	if (MeshObject->IsCPUSkinned())
+	if (InMeshObject->IsCPUSkinned())
 	{
 		return nullptr;
 	}
 
-	FSkeletalMeshObjectGPUSkin const* MeshObjectGPU = static_cast<FSkeletalMeshObjectGPUSkin const*>(MeshObject);
-	FGPUBaseSkinVertexFactory const* BaseVertexFactory = MeshObjectGPU->GetBaseSkinVertexFactory(LODIndex, SectionIndex);
-	bool bHasBoneBuffer = BaseVertexFactory != nullptr && BaseVertexFactory->GetShaderData().HasBoneBufferForReading(bPreviousFrame);
+	FSkeletalMeshObjectGPUSkin const* MeshObjectGPU = static_cast<FSkeletalMeshObjectGPUSkin const*>(InMeshObject);
+	FGPUBaseSkinVertexFactory const* BaseVertexFactory = MeshObjectGPU->GetBaseSkinVertexFactory(InLodIndex, InSectionIndex);
+	bool bHasBoneBuffer = BaseVertexFactory != nullptr && BaseVertexFactory->GetShaderData().HasBoneBufferForReading(bInPreviousFrame);
 	if (!bHasBoneBuffer)
 	{
 		return nullptr;
 	}
 
-	return BaseVertexFactory->GetShaderData().GetBoneBufferForReading(bPreviousFrame).VertexBufferSRV;
+	return BaseVertexFactory->GetShaderData().GetBoneBufferForReading(bInPreviousFrame).VertexBufferSRV;
 }
 
 FRHIShaderResourceView* FSkeletalMeshDeformerHelpers::GetMorphTargetBufferForReading(
-	FSkeletalMeshObject const* MeshObject,
-	int32 LODIndex,
-	int32 SectionIndex,
-	uint32 FrameNumber,
-	bool bPreviousFrame)
+	FSkeletalMeshObject const* InMeshObject,
+	int32 InLodIndex,
+	int32 InSectionIndex,
+	uint32 InFrameNumber,
+	bool bInPreviousFrame)
 {
-	if (MeshObject->IsCPUSkinned())
+	if (InMeshObject->IsCPUSkinned())
 	{
 		return nullptr;
 	}
 
-	FSkeletalMeshObjectGPUSkin const* MeshObjectGPU = static_cast<FSkeletalMeshObjectGPUSkin const*>(MeshObject);
-	FGPUBaseSkinVertexFactory const* BaseVertexFactory = MeshObjectGPU->GetBaseSkinVertexFactory(LODIndex, SectionIndex);
-	FMorphVertexBuffer const* MorphVertexBuffer = BaseVertexFactory != nullptr ? BaseVertexFactory->GetMorphVertexBuffer(bPreviousFrame) : nullptr;
+	FSkeletalMeshObjectGPUSkin const* MeshObjectGPU = static_cast<FSkeletalMeshObjectGPUSkin const*>(InMeshObject);
+	FGPUBaseSkinVertexFactory const* BaseVertexFactory = MeshObjectGPU->GetBaseSkinVertexFactory(InLodIndex, InSectionIndex);
+	FMorphVertexBuffer const* MorphVertexBuffer = BaseVertexFactory != nullptr ? BaseVertexFactory->GetMorphVertexBuffer(bInPreviousFrame) : nullptr;
 
 	return MorphVertexBuffer != nullptr ? MorphVertexBuffer->GetSRV() : nullptr;
 }
 
 FSkeletalMeshDeformerHelpers::FClothBuffers FSkeletalMeshDeformerHelpers::GetClothBuffersForReading(
-	FSkeletalMeshObject const* MeshObject,
-	int32 LODIndex,
-	int32 SectionIndex,
-	uint32 FrameNumber,
-	bool bPreviousFrame)
+	FSkeletalMeshObject const* InMeshObject,
+	int32 InLodIndex,
+	int32 InSectionIndex,
+	uint32 InFrameNumber,
+	bool bInPreviousFrame)
 {
-	if (MeshObject->IsCPUSkinned())
+	if (InMeshObject->IsCPUSkinned())
 	{
 		return FClothBuffers();
 	}
 
-	FSkeletalMeshObjectGPUSkin const* MeshObjectGPU = static_cast<FSkeletalMeshObjectGPUSkin const*>(MeshObject);
-	FGPUBaseSkinVertexFactory const* BaseVertexFactory = MeshObjectGPU->GetBaseSkinVertexFactory(LODIndex, SectionIndex);
+	FSkeletalMeshObjectGPUSkin const* MeshObjectGPU = static_cast<FSkeletalMeshObjectGPUSkin const*>(InMeshObject);
+	FGPUBaseSkinVertexFactory const* BaseVertexFactory = MeshObjectGPU->GetBaseSkinVertexFactory(InLodIndex, InSectionIndex);
 	FGPUBaseSkinAPEXClothVertexFactory const* ClothVertexFactory = BaseVertexFactory != nullptr ? BaseVertexFactory->GetClothVertexFactory() : nullptr;
 
-	if (ClothVertexFactory == nullptr || !ClothVertexFactory->GetClothShaderData().HasClothBufferForReading(bPreviousFrame))
+	if (ClothVertexFactory == nullptr || !ClothVertexFactory->GetClothShaderData().HasClothBufferForReading(bInPreviousFrame))
 	{
 		return FClothBuffers();
 	}
 
-	FSkeletalMeshRenderData const& SkeletalMeshRenderData = MeshObject->GetSkeletalMeshRenderData();
-	FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(LODIndex);
-	FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[SectionIndex];
+	FSkeletalMeshRenderData const& SkeletalMeshRenderData = InMeshObject->GetSkeletalMeshRenderData();
+	FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(InLodIndex);
+	FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[InSectionIndex];
 
 	FClothBuffers Ret;
 	Ret.ClothInfluenceBuffer = ClothVertexFactory->GetClothBuffer();
 	Ret.ClothInfluenceBufferOffset = ClothVertexFactory->GetClothIndexOffset(RenderSection.BaseVertexIndex);
-	Ret.ClothSimulatedPositionAndNormalBuffer = ClothVertexFactory->GetClothShaderData().GetClothBufferForReading(bPreviousFrame).VertexBufferSRV;
-	Ret.ClothToLocal = ClothVertexFactory->GetClothShaderData().GetClothToLocalForReading(bPreviousFrame);
+	Ret.ClothSimulatedPositionAndNormalBuffer = ClothVertexFactory->GetClothShaderData().GetClothBufferForReading(bInPreviousFrame).VertexBufferSRV;
+	Ret.ClothToLocal = ClothVertexFactory->GetClothShaderData().GetClothToLocalForReading(bInPreviousFrame);
 	return Ret;
 }
 
-void FSkeletalMeshDeformerHelpers::SetVertexFactoryBufferOverrides(
-	FSkeletalMeshObject* MeshObject,
-	int32 LODIndex,
-	EOverrideType OverrideType,
-	TRefCountPtr<FRDGPooledBuffer> const& PositionBuffer,
-	TRefCountPtr<FRDGPooledBuffer> const& TangentBuffer,
-	TRefCountPtr<FRDGPooledBuffer> const& ColorBuffer)
+FRDGBuffer* FSkeletalMeshDeformerHelpers::AllocateVertexFactoryPositionBuffer(FRDGBuilder& GraphBuilder, FSkeletalMeshObject* InMeshObject, int32 InLodIndex, TCHAR const* InBufferName)
 {
-	if (MeshObject->IsCPUSkinned())
+	if (InMeshObject->IsCPUSkinned())
 	{
-		return;
+		return nullptr;
 	}
 
-	FGPUSkinPassthroughVertexFactory::EOverrideFlags OverrideFlags = FGPUSkinPassthroughVertexFactory::EOverrideFlags::All;
-	if (OverrideType == EOverrideType::Partial)
-	{
-		OverrideFlags = FGPUSkinPassthroughVertexFactory::EOverrideFlags::None;
- 		OverrideFlags |= (PositionBuffer.IsValid() ? FGPUSkinPassthroughVertexFactory::EOverrideFlags::Position : FGPUSkinPassthroughVertexFactory::EOverrideFlags::None);
- 		OverrideFlags |= (TangentBuffer.IsValid() ? FGPUSkinPassthroughVertexFactory::EOverrideFlags::Tangent : FGPUSkinPassthroughVertexFactory::EOverrideFlags::None);
- 		OverrideFlags |= (ColorBuffer.IsValid() ? FGPUSkinPassthroughVertexFactory::EOverrideFlags::Color : FGPUSkinPassthroughVertexFactory::EOverrideFlags::None);
-	}
+	FSkeletalMeshRenderData const& SkeletalMeshRenderData = InMeshObject->GetSkeletalMeshRenderData();
+	FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(InLodIndex);
+	const int32 NumVertices = LodRenderData->GetNumVertices();
 
-	FSkeletalMeshObjectGPUSkin* MeshObjectGPU = static_cast<FSkeletalMeshObjectGPUSkin*>(MeshObject);
-	const FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD& LOD = MeshObjectGPU->LODs[LODIndex];
-	
-	const int32 NumSections = MeshObject->GetRenderSections(LODIndex).Num();
-	for (int32 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex)
-	{
-		FGPUBaseSkinVertexFactory const* BaseVertexFactory = MeshObjectGPU->GetBaseSkinVertexFactory(LODIndex, SectionIndex);
-		FGPUSkinPassthroughVertexFactory* TargetVertexFactory = LOD.GPUSkinVertexFactories.PassthroughVertexFactories[SectionIndex].Get();
-		TargetVertexFactory->InvalidateStreams();
-		TargetVertexFactory->UpdateVertexDeclaration(OverrideFlags, BaseVertexFactory, PositionBuffer, TangentBuffer, ColorBuffer);
-	}
-}
+	FSkeletalMeshObjectGPUSkin* MeshObjectGPU = static_cast<FSkeletalMeshObjectGPUSkin*>(InMeshObject);
+	FGPUBaseSkinVertexFactory const* BaseVertexFactory = MeshObjectGPU->GetBaseSkinVertexFactory(InLodIndex, 0);
+	uint32 Frame = BaseVertexFactory->GetShaderData().UpdatedFrameNumber;
 
-void FSkeletalMeshDeformerHelpers::ResetVertexFactoryBufferOverrides_GameThread(FSkeletalMeshObject* MeshObject, int32 LODIndex)
-{
-	if (MeshObject->IsCPUSkinned())
-	{
-		return;
-	}
+	FMeshDeformerGeometry& DeformerGeometry = MeshObjectGPU->GetDeformerGeometry(InLodIndex);
 
-	ENQUEUE_RENDER_COMMAND(ResetSkinPassthroughVertexFactory)([MeshObject, LODIndex](FRHICommandList& CmdList)
+	FRDGBuffer* PositionBuffer = nullptr;
+	if (DeformerGeometry.Position && Frame == DeformerGeometry.PositionUpdatedFrame)
 	{
-		SetVertexFactoryBufferOverrides(MeshObject, LODIndex, EOverrideType::All, nullptr, nullptr, nullptr);
-	});
-}
+		PositionBuffer = GraphBuilder.RegisterExternalBuffer(DeformerGeometry.Position);
+	}
+	else
+	{
+		DeformerGeometry.PrevPosition = DeformerGeometry.Position;
+		DeformerGeometry.PrevPositionSRV = DeformerGeometry.PositionSRV;
+
+		const uint32 PosBufferBytesPerElement = 4;
+		PositionBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(PosBufferBytesPerElement, NumVertices * 3), InBufferName, ERDGBufferFlags::None);
+		DeformerGeometry.Position = GraphBuilder.ConvertToExternalBuffer(PositionBuffer);
+		DeformerGeometry.PositionSRV = DeformerGeometry.Position->GetOrCreateSRV(FRHIBufferSRVCreateInfo(PF_R32_FLOAT));
+		DeformerGeometry.PositionUpdatedFrame = Frame;
+		GraphBuilder.SetBufferAccessFinal(PositionBuffer, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask);
 
 #if RHI_RAYTRACING
+		// Update ray tracing geometry whenever we recreate the position buffer.
+		FSkeletalMeshRenderData& SkelMeshRenderData = MeshObjectGPU->GetSkeletalMeshRenderData();
+		FSkeletalMeshLODRenderData& LODModel = SkelMeshRenderData.LODRenderData[InLodIndex];
 
-void FSkeletalMeshDeformerHelpers::UpdateRayTracingGeometry(
-	FSkeletalMeshObject* MeshObject,
-	int32 LODIndex,
-	TRefCountPtr<FRDGPooledBuffer> const& PositionBuffer)
+		const int32 NumSections = InMeshObject->GetRenderSections(InLodIndex).Num();
+
+		TArray<FBufferRHIRef> VertexBuffers;
+		VertexBuffers.SetNum(NumSections);
+		for (int32 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex)
+		{
+			VertexBuffers[SectionIndex] = DeformerGeometry.Position->GetRHI();
+		}
+
+		MeshObjectGPU->UpdateRayTracingGeometry(LODModel, InLodIndex, VertexBuffers);
+#endif // RHI_RAYTRACING
+	}
+
+	return PositionBuffer;
+}
+
+FRDGBuffer* FSkeletalMeshDeformerHelpers::AllocateVertexFactoryTangentBuffer(FRDGBuilder& GraphBuilder, FSkeletalMeshObject* InMeshObject, int32 InLodIndex, TCHAR const* InBufferName)
 {
-	if (MeshObject->IsCPUSkinned())
+	if (InMeshObject->IsCPUSkinned())
+	{
+		return nullptr;
+	}
+
+	FSkeletalMeshRenderData const& SkeletalMeshRenderData = InMeshObject->GetSkeletalMeshRenderData();
+	FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(InLodIndex);
+	const int32 NumVertices = LodRenderData->GetNumVertices();
+
+	FSkeletalMeshObjectGPUSkin* MeshObjectGPU = static_cast<FSkeletalMeshObjectGPUSkin*>(InMeshObject);
+	FGPUBaseSkinVertexFactory const* BaseVertexFactory = MeshObjectGPU->GetBaseSkinVertexFactory(InLodIndex, 0);
+	uint32 Frame = BaseVertexFactory->GetShaderData().UpdatedFrameNumber;
+
+	FMeshDeformerGeometry& DeformerGeometry = MeshObjectGPU->GetDeformerGeometry(InLodIndex);
+
+	FRDGBuffer* TangentBuffer = nullptr;
+	if (DeformerGeometry.Tangent && Frame == DeformerGeometry.TangentUpdatedFrame)
+	{
+		TangentBuffer = GraphBuilder.RegisterExternalBuffer(DeformerGeometry.Tangent);
+	}
+	else
+	{
+		const uint32 TangentBufferBytesPerElement = 8;
+		TangentBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(TangentBufferBytesPerElement, NumVertices * 2), InBufferName, ERDGBufferFlags::None);
+		DeformerGeometry.Tangent = GraphBuilder.ConvertToExternalBuffer(TangentBuffer);
+		const EPixelFormat TangentsFormat = IsOpenGLPlatform(GMaxRHIShaderPlatform) ? PF_R16G16B16A16_SINT : PF_R16G16B16A16_SNORM;
+		DeformerGeometry.TangentSRV = DeformerGeometry.Tangent->GetOrCreateSRV(FRHIBufferSRVCreateInfo(TangentsFormat));
+		DeformerGeometry.TangentUpdatedFrame = Frame;
+		GraphBuilder.SetBufferAccessFinal(TangentBuffer, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask);
+	}
+
+	return TangentBuffer;
+}
+
+FRDGBuffer* FSkeletalMeshDeformerHelpers::AllocateVertexFactoryColorBuffer(FRDGBuilder& GraphBuilder, FSkeletalMeshObject* InMeshObject, int32 InLodIndex, TCHAR const* InBufferName)
+{
+	if (InMeshObject->IsCPUSkinned())
+	{
+		return nullptr;
+	}
+
+	FSkeletalMeshRenderData const& SkeletalMeshRenderData = InMeshObject->GetSkeletalMeshRenderData();
+	FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(InLodIndex);
+	const int32 NumVertices = LodRenderData->GetNumVertices();
+
+	FSkeletalMeshObjectGPUSkin* MeshObjectGPU = static_cast<FSkeletalMeshObjectGPUSkin*>(InMeshObject);
+	FGPUBaseSkinVertexFactory const* BaseVertexFactory = MeshObjectGPU->GetBaseSkinVertexFactory(InLodIndex, 0);
+	uint32 Frame = BaseVertexFactory->GetShaderData().UpdatedFrameNumber;
+
+	FMeshDeformerGeometry& DeformerGeometry = MeshObjectGPU->GetDeformerGeometry(InLodIndex);
+
+	FRDGBuffer* ColorBuffer = nullptr;
+	if (DeformerGeometry.Color && Frame == DeformerGeometry.ColorUpdatedFrame)
+	{
+		ColorBuffer = GraphBuilder.RegisterExternalBuffer(DeformerGeometry.Color);
+	}
+	else
+	{
+		const uint32 ColorBufferBytesPerElement = 4;
+		ColorBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(ColorBufferBytesPerElement, NumVertices), InBufferName, ERDGBufferFlags::None);
+		DeformerGeometry.Color = GraphBuilder.ConvertToExternalBuffer(ColorBuffer);
+		DeformerGeometry.ColorSRV = DeformerGeometry.Color->GetOrCreateSRV(FRHIBufferSRVCreateInfo(PF_R8G8B8A8));
+		DeformerGeometry.ColorUpdatedFrame = Frame;
+		GraphBuilder.SetBufferAccessFinal(ColorBuffer, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask);
+	}
+
+	return ColorBuffer;
+}
+
+void FSkeletalMeshDeformerHelpers::UpdateVertexFactoryBufferOverrides(FSkeletalMeshObject* InMeshObject, int32 InLodIndex)
+{
+	if (InMeshObject->IsCPUSkinned())
 	{
 		return;
 	}
 
-	FSkeletalMeshObjectGPUSkin* MeshObjectGPU = static_cast<FSkeletalMeshObjectGPUSkin*>(MeshObject);
-	FSkeletalMeshRenderData& SkelMeshRenderData = MeshObjectGPU->GetSkeletalMeshRenderData();
-	FSkeletalMeshLODRenderData& LODModel = SkelMeshRenderData.LODRenderData[LODIndex];
+	FSkeletalMeshObjectGPUSkin* MeshObjectGPU = static_cast<FSkeletalMeshObjectGPUSkin*>(InMeshObject);
+	FMeshDeformerGeometry& DeformerGeometry = MeshObjectGPU->GetDeformerGeometry(InLodIndex);
+	
+	TArray<FGPUSkinPassthroughVertexFactory::EVertexAtttribute, TInlineAllocator<4>> Attributes;
+	TArray<FRHIShaderResourceView*, TInlineAllocator<4>> SRVs;
 
-	const int32 NumSections = MeshObject->GetRenderSections(LODIndex).Num();
-
-	TArray<FBufferRHIRef> VertexBufffers;
-	VertexBufffers.SetNum(NumSections);
-	for (int32 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex)
+	if (DeformerGeometry.PositionSRV)
 	{
-		VertexBufffers[SectionIndex] = PositionBuffer->GetRHI();
+		Attributes.Add(FGPUSkinPassthroughVertexFactory::EVertexAtttribute::Position);
+		SRVs.Add(DeformerGeometry.PositionSRV);
+	}
+	if (DeformerGeometry.TangentSRV)
+	{
+		Attributes.Add(FGPUSkinPassthroughVertexFactory::EVertexAtttribute::Tangent);
+		SRVs.Add(DeformerGeometry.TangentSRV);
+	}
+	if (DeformerGeometry.ColorSRV)
+	{
+		Attributes.Add(FGPUSkinPassthroughVertexFactory::EVertexAtttribute::Color);
+		SRVs.Add(DeformerGeometry.ColorSRV);
 	}
 
-	MeshObjectGPU->UpdateRayTracingGeometry(LODModel, LODIndex, VertexBufffers);
+	if (Attributes.Num() == 0)
+	{
+		return;
+	}
+
+	const FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD& LOD = MeshObjectGPU->LODs[InLodIndex];
+	const int32 NumSections = InMeshObject->GetRenderSections(InLodIndex).Num();
+	for (int32 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex)
+	{
+		FGPUBaseSkinVertexFactory const* BaseVertexFactory = MeshObjectGPU->GetBaseSkinVertexFactory(InLodIndex, SectionIndex);
+		FGPUSkinPassthroughVertexFactory* TargetVertexFactory = LOD.GPUSkinVertexFactories.PassthroughVertexFactories[SectionIndex].Get();
+		
+		TargetVertexFactory->AddVertexAttributes(BaseVertexFactory, Attributes, SRVs);
+	}
 }
 
+void FSkeletalMeshDeformerHelpers::ResetVertexFactoryBufferOverrides_GameThread(FSkeletalMeshObject* InMeshObject, int32 LODIndex)
+{
+	if (InMeshObject->IsCPUSkinned())
+	{
+		return;
+	}
+
+	ENQUEUE_RENDER_COMMAND(ResetSkinPassthroughVertexFactory)([InMeshObject, LODIndex](FRHICommandList& CmdList)
+	{
+		FSkeletalMeshObjectGPUSkin* MeshObjectGPU = static_cast<FSkeletalMeshObjectGPUSkin*>(InMeshObject);
+		FMeshDeformerGeometry& DeformerGeometry = MeshObjectGPU->GetDeformerGeometry(LODIndex);
+
+		// This can be called per frame even when already reset. So early out if we don't need to do anything.
+		const bool bIsReset = DeformerGeometry.PositionUpdatedFrame == 0 && DeformerGeometry.TangentUpdatedFrame == 0 && DeformerGeometry.ColorUpdatedFrame == 0;
+		if (bIsReset)
+		{
+			return;
+		}
+
+		// Reset stored buffers.
+		DeformerGeometry.Reset();
+
+		// Reset vertex factories.
+		const FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD& LOD = MeshObjectGPU->LODs[LODIndex];
+		const int32 NumSections = InMeshObject->GetRenderSections(LODIndex).Num();
+		for (int32 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex)
+		{
+			FGPUBaseSkinVertexFactory const* BaseVertexFactory = MeshObjectGPU->GetBaseSkinVertexFactory(LODIndex, SectionIndex);
+			FGPUSkinPassthroughVertexFactory* TargetVertexFactory = LOD.GPUSkinVertexFactories.PassthroughVertexFactories[SectionIndex].Get();
+			TargetVertexFactory->ResetVertexAttributes();
+			FGPUSkinPassthroughVertexFactory::FDataType Data;
+			BaseVertexFactory->CopyDataTypeForLocalVertexFactory(Data);
+			TargetVertexFactory->SetData(Data);
+		}
+
+#if RHI_RAYTRACING
+		// Reset ray tracing geometry.
+		FSkeletalMeshRenderData& SkelMeshRenderData = MeshObjectGPU->GetSkeletalMeshRenderData();
+		FSkeletalMeshLODRenderData& LODModel = SkelMeshRenderData.LODRenderData[LODIndex];
+		FBufferRHIRef VertexBuffer = LODModel.StaticVertexBuffers.PositionVertexBuffer.VertexBufferRHI;
+
+		TArray<FBufferRHIRef> VertexBuffers;
+		VertexBuffers.Init(VertexBuffer, NumSections);
+		MeshObjectGPU->UpdateRayTracingGeometry(LODModel, LODIndex, VertexBuffers);
 #endif // RHI_RAYTRACING
+	});
+}

@@ -56,6 +56,7 @@ struct FClothSimulData;
 struct FSkelMeshRenderSection;
 struct FVertexBufferAndSRV;
 struct FRayTracingGeometrySegment;
+struct FSkinBatchVertexFactoryUserData;
 
 // Can the skin cache be used (ie shaders added, etc)
 extern ENGINE_API bool IsGPUSkinCacheAvailable(EShaderPlatform Platform);
@@ -88,12 +89,6 @@ struct FClothSimulEntry
 		   << V.Normal;
 		return Ar;
 	}
-};
-
-struct FGPUSkinBatchElementUserData
-{
-	FGPUSkinCacheEntry* Entry;
-	int32 Section;
 };
 
 enum class EGPUSkinCacheEntryMode
@@ -154,17 +149,16 @@ public:
 		const FGPUSkinCacheEntry* Entry,
 		int32 Section,
 		const FGPUSkinPassthroughVertexFactory* VertexFactory,
-		FShaderResourceParameter GPUSkinCachePositionBuffer,
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams);
 
 	static void Release(FGPUSkinCacheEntry*& SkinCacheEntry);
 
-	static inline FGPUSkinBatchElementUserData* GetFactoryUserData(FGPUSkinCacheEntry* Entry, int32 Section)
+	static inline const FSkinBatchVertexFactoryUserData* GetVertexFactoryUserData(FGPUSkinCacheEntry* Entry, int32 Section)
 	{
 		if (Entry)
 		{
-			return InternalGetFactoryUserData(Entry, Section);
+			return InternalGetVertexFactoryUserData(Entry, Section);
 		}
 		return nullptr;
 	}
@@ -394,6 +388,7 @@ public:
 	FGPUSkinCacheEntry const* GetSkinCacheEntry(uint32 ComponentId) const;
 	static FRWBuffer* GetPositionBuffer(FGPUSkinCacheEntry const* Entry, uint32 SectionIndex);
 	static FRWBuffer* GetPreviousPositionBuffer(FGPUSkinCacheEntry const* Entry, uint32 SectionIndex);
+	static uint32 GetUpdatedFrame(FGPUSkinCacheEntry const* Entry, uint32 SectionIndex);
 
 	// Deprecated function. Can remove include of CachedGeometry.h when this is removed.
 	UE_DEPRECATED(5.1, "Use GetPositionBuffer() or similar instead.")
@@ -440,7 +435,7 @@ protected:
 	void Cleanup();
 	static void TransitionAllToReadable(FRHICommandList& RHICmdList, const TSet<FSkinCacheRWBuffer*>& BuffersToTransitionToRead);
 	static void ReleaseSkinCacheEntry(FGPUSkinCacheEntry* SkinCacheEntry);
-	static FGPUSkinBatchElementUserData* InternalGetFactoryUserData(FGPUSkinCacheEntry* Entry, int32 Section);
+	static const FSkinBatchVertexFactoryUserData* InternalGetVertexFactoryUserData(FGPUSkinCacheEntry* Entry, int32 Section);
 	void InvalidateAllEntries();
 	uint64 UsedMemoryInBytes;
 	uint64 ExtraRequiredMemory;

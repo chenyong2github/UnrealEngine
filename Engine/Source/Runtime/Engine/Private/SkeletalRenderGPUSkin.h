@@ -19,6 +19,7 @@
 #include "ClothingSystemRuntimeTypes.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
+#include "Animation/MeshDeformerGeometry.h"
 
 enum class EGPUSkinCacheEntryMode;
 class FGPUSkinCache;
@@ -350,11 +351,14 @@ public:
 	void UpdateDynamicData_RenderThread(FGPUSkinCache* GPUSkinCache, FRHICommandListImmediate& RHICmdList, FDynamicSkelMeshObjectDataGPUSkin* InDynamicData, FSceneInterface* Scene, uint32 FrameNumberToPrepare, uint32 RevisionNumber);
 	virtual void PreGDMECallback(FGPUSkinCache* GPUSkinCache, uint32 FrameNumber) override;
 	virtual const FVertexFactory* GetSkinVertexFactory(const FSceneView* View, int32 LODIndex,int32 ChunkIdx, ESkinVertexFactoryMode VFMode = ESkinVertexFactoryMode::Default) const override;
+	virtual const FSkinBatchVertexFactoryUserData* GetVertexFactoryUserData(const int32 LODIndex, int32 ChunkIdx, ESkinVertexFactoryMode VFMode) const override;
 	virtual void CacheVertices(int32 LODIndex, bool bForce) const override {}
 	virtual bool IsCPUSkinned() const override { return false; }
 	virtual TArray<FTransform>* GetComponentSpaceTransforms() const override;
 	virtual const TArray<FMatrix44f>& GetReferenceToLocalMatrices() const override;
 	virtual bool GetCachedGeometry(FCachedGeometry& OutCachedGeometry) const override;
+	
+	FMeshDeformerGeometry& GetDeformerGeometry(int32 LODIndex);
 
 #if RHI_RAYTRACING
 	/** Geometry for ray tracing. */
@@ -618,6 +622,9 @@ protected:
 
 		/** Color buffer to user, could be from asset or component override */
 		FColorVertexBuffer* MeshObjectColorBuffer;
+
+		/** Mesh deformer output buffers */
+		FMeshDeformerGeometry DeformerGeometry;
 
 		/**
 		 * Update the contents of the morphtarget vertex buffer by accumulating all 

@@ -1544,6 +1544,21 @@ const FVertexFactory* FSkeletalMeshObjectGPUSkin::GetSkinVertexFactory(const FSc
 	return GetBaseSkinVertexFactory(LODIndex, ChunkIdx);
 }
 
+const FSkinBatchVertexFactoryUserData* FSkeletalMeshObjectGPUSkin::GetVertexFactoryUserData(const int32 LODIndex, int32 ChunkIdx, ESkinVertexFactoryMode VFMode) const
+{
+#if RHI_RAYTRACING
+	FGPUSkinCacheEntry* Entry = VFMode == ESkinVertexFactoryMode::RayTracing ? GetSkinCacheEntryForRayTracing() : SkinCacheEntry;
+#else
+	FGPUSkinCacheEntry* Entry = SkinCacheEntry;
+#endif
+	if (Entry != nullptr)
+	{
+		return FGPUSkinCache::GetVertexFactoryUserData(SkinCacheEntry, ChunkIdx);
+	}
+
+	return &LODs[LODIndex].DeformerGeometry.VertexFactoryUserData;
+}
+
 FGPUBaseSkinVertexFactory const* FSkeletalMeshObjectGPUSkin::GetBaseSkinVertexFactory(int32 LODIndex, int32 ChunkIdx) const
 {
 	const FSkeletalMeshObjectLOD& LOD = LODs[LODIndex];
@@ -1801,17 +1816,6 @@ static FGPUBaseSkinVertexFactory* CreateVertexFactory(TArray<TUniquePtr<FGPUBase
 	return VertexFactory;
 }
 
-void FGPUSkinPassthroughVertexFactory::SetData(const FDataType& InData)
-{
-	FLocalVertexFactory::SetData(InData);
-	const int32 DefaultBaseVertexIndex = 0;
-	const int32 DefaultPreSkinBaseVertexIndex = 0;
-	if (RHISupportsManualVertexFetch(GetFeatureLevelShaderPlatform(GetFeatureLevel())))
-	{
-		UniformBuffer = CreateLocalVFUniformBuffer(this, Data.LODLightmapDataIndex, nullptr, DefaultBaseVertexIndex, DefaultPreSkinBaseVertexIndex);
-	}
-}
-
 void UpdateVertexFactory(TArray<TUniquePtr<FGPUBaseSkinVertexFactory>>& VertexFactories,
 	const FSkeletalMeshObjectGPUSkin::FVertexFactoryBuffers& InVertexBuffers)
 {
@@ -1846,7 +1850,9 @@ static void CreatePassthroughVertexFactory(ERHIFeatureLevel::Type InFeatureLevel
 	ENQUEUE_RENDER_COMMAND(InitPassthroughGPUSkinVertexFactory)(
 		[NewPassthroughVertexFactory, SourceVertexFactory](FRHICommandList& RHICmdList)
 		{
-			SourceVertexFactory->CopyDataTypeForPassthroughFactory(NewPassthroughVertexFactory);
+			FLocalVertexFactory::FDataType Data;
+			SourceVertexFactory->CopyDataTypeForLocalVertexFactory(Data);
+			NewPassthroughVertexFactory->SetData(Data);
 			NewPassthroughVertexFactory->InitResource();
 		}
 	);
@@ -2260,6 +2266,11 @@ const TArray<FMatrix44f>& FSkeletalMeshObjectGPUSkin::GetReferenceToLocalMatrice
 	return DynamicData->ReferenceToLocal;
 }
 
+FMeshDeformerGeometry& FSkeletalMeshObjectGPUSkin::GetDeformerGeometry(int32 LODIndex)
+{
+	return LODs[LODIndex].DeformerGeometry;
+}
+
 bool FSkeletalMeshObjectGPUSkin::GetCachedGeometry(FCachedGeometry& OutCachedGeometry) const
 {
 	OutCachedGeometry = FCachedGeometry();
@@ -2297,22 +2308,20 @@ bool FSkeletalMeshObjectGPUSkin::GetCachedGeometry(FCachedGeometry& OutCachedGeo
 		}
 		else
 		{
-			// Pull the cached geometry SRV directly out of the vertex factory.
-			// This catches cases where we have setup deformed data outside of the skin cache (eg mesh deformers).
-			// This approach _could_ be used for the skin cache case as well, except that skin cache only 
-			// actually pokes the vertex factory once instead of every frame. It flips current/previous buffers
-			// by setting SRVs directly in GetShaderBindings().
-			FGPUSkinPassthroughVertexFactory* VertexFactory = VertexFactories.PassthroughVertexFactories[SectionIndex].Get();
-			if (VertexFactory == nullptr || VertexFactory->GetPositionsSRV() == nullptr)
+			
+			// Get the cached geometry SRVs from the deformer geometry.
+			FMeshDeformerGeometry const& DeformerGeometry = LODs[LodIndex].DeformerGeometry;
+
+			if (!DeformerGeometry.Position.IsValid())
 			{
 				// Reset all output if one section isn't available.
 				OutCachedGeometry.Sections.Reset();
 				return false;
 			}
 
-			CachedSection.PositionBuffer = VertexFactory->GetPositionsSRV();
-			FRHIShaderResourceView* PreviousPositionBuffer = VertexFactory->GetPreviousPositionsSRV();
-			CachedSection.PreviousPositionBuffer = PreviousPositionBuffer != nullptr ? PreviousPositionBuffer : CachedSection.PositionBuffer;
+			CachedSection.PositionBuffer = DeformerGeometry.PositionSRV;
+			CachedSection.PreviousPositionBuffer = DeformerGeometry.PrevPositionSRV;
+			CachedSection.PreviousPositionBuffer = CachedSection.PreviousPositionBuffer != nullptr ? CachedSection.PreviousPositionBuffer : CachedSection.PositionBuffer;
 		}
 				
 		CachedSection.IndexBuffer = LODRenderData.MultiSizeIndexContainer.GetIndexBuffer()->GetSRV();

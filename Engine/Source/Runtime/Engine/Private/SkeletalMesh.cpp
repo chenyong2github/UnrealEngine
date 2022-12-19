@@ -65,6 +65,7 @@
 #include "Templates/UniquePtr.h"
 #include "AnimationRuntime.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/MeshDeformerGeometry.h"
 #include "Animation/SkinWeightProfile.h"
 #include "Streaming/SkeletalMeshUpdate.h"
 #include "HAL/FileManager.h"
@@ -6422,57 +6423,71 @@ void FSkeletalMeshSceneProxy::CreateBaseMeshBatch(const FSceneView* View, const 
 	BatchElement.IndexBuffer = LODData.MultiSizeIndexContainer.GetIndexBuffer();
 	BatchElement.MinVertexIndex = LODData.RenderSections[SectionIndex].GetVertexBufferIndex();
 	BatchElement.MaxVertexIndex = LODData.RenderSections[SectionIndex].GetVertexBufferIndex() + LODData.RenderSections[SectionIndex].GetNumVertices() - 1;
-#if RHI_RAYTRACING
-	FGPUSkinBatchElementUserData* VertexFactoryUserData = FGPUSkinCache::GetFactoryUserData(VFMode == ESkinVertexFactoryMode::RayTracing ? MeshObject->GetSkinCacheEntryForRayTracing() : MeshObject->SkinCacheEntry, SectionIndex);
-#else
-	FGPUSkinBatchElementUserData* VertexFactoryUserData = FGPUSkinCache::GetFactoryUserData(MeshObject->SkinCacheEntry, SectionIndex);
-#endif
-	BatchElement.VertexFactoryUserData = VertexFactoryUserData;
+
+	FSkinBatchVertexFactoryUserData const* VertexFactoryUserData = MeshObject->GetVertexFactoryUserData(LODIndex, SectionIndex, VFMode);
+	BatchElement.VertexFactoryUserData = (void*)VertexFactoryUserData;
+
 	BatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
 	BatchElement.NumPrimitives = LODData.RenderSections[SectionIndex].NumTriangles;
 
-	UpdateLooseParametersUniformBuffer(View, SectionIndex, Mesh, VertexFactoryUserData);
+	// todo: Move this uniform buffer update to somewhere that doesn't require a const cast?
+	FVertexFactory* NonConstVertexFactory = const_cast<FVertexFactory*>(Mesh.VertexFactory);
+	UpdateLooseParametersUniformBuffer(View, SectionIndex, VertexFactoryUserData, NonConstVertexFactory);
 }
 
-void FSkeletalMeshSceneProxy::UpdateLooseParametersUniformBuffer(const FSceneView* View, const int32 SectionIndex, const FMeshBatch& Mesh, const FGPUSkinBatchElementUserData* BatchUserData) const
+void FSkeletalMeshSceneProxy::UpdateLooseParametersUniformBuffer(const FSceneView* View, const int32 SectionIndex, const FSkinBatchVertexFactoryUserData* BatchUserData, FVertexFactory* VertexFactory) const
 {
 	// Loose parameters uniform buffer is only needed for PassThroughVF which is a type of LocalVF.
 	// Check it is a LocalVF StaticType and bGPUSkinPassThrough flag is set. Early out if either condition is not met.
-	if (!Mesh.VertexFactory || Mesh.VertexFactory->GetType() != &FLocalVertexFactory::StaticType)
+	if (VertexFactory == nullptr || VertexFactory->GetType() != &FLocalVertexFactory::StaticType)
 	{
 		return;
 	}
-	const FLocalVertexFactory* LocalVertexFactory = static_cast<const FLocalVertexFactory*>(Mesh.VertexFactory);
+	FLocalVertexFactory* LocalVertexFactory = static_cast<FLocalVertexFactory*>(VertexFactory);
 	if (!LocalVertexFactory->bGPUSkinPassThrough)
 	{
 		return;
 	}
-	
-	FLocalVertexFactoryLooseParameters Parameters;
+	// We always expect a valid BatchUserData for PassthroughVF.
+	if (!ensure(BatchUserData != nullptr))
+	{
+		return;
+	}
 
-	FVertexFactory* NonConstVertexFactory = const_cast<FVertexFactory*>(Mesh.VertexFactory);
-	FGPUSkinPassthroughVertexFactory* PassthroughVertexFactory = static_cast<FGPUSkinPassthroughVertexFactory*>(NonConstVertexFactory);
+	uint32 UpdatedFrameNumber = 0;
+	FRHIShaderResourceView* PositionSRV = nullptr;
+	FRHIShaderResourceView* PrevPositionSRV = nullptr;
+
+	if (BatchUserData->SkinCacheEntry != nullptr)
+	{
+		// Using Skin Cache.
+		UpdatedFrameNumber = FGPUSkinCache::GetUpdatedFrame(BatchUserData->SkinCacheEntry, SectionIndex);
+		PositionSRV = FGPUSkinCache::GetPositionBuffer(BatchUserData->SkinCacheEntry, SectionIndex)->SRV;
+		PrevPositionSRV = FGPUSkinCache::GetPreviousPositionBuffer(BatchUserData->SkinCacheEntry, SectionIndex)->SRV;
+	}
+	else if (BatchUserData->DeformerGeometry != nullptr)
+	{
+		// Using Mesh Deformers.
+		FMeshDeformerGeometry& DeformerGeometry = *BatchUserData->DeformerGeometry;
+		UpdatedFrameNumber = DeformerGeometry.PositionUpdatedFrame;
+		PositionSRV = DeformerGeometry.PositionSRV;
+		PrevPositionSRV = DeformerGeometry.PrevPositionSRV;
+	}
+
 	// Bone data is updated whenever animation triggers a dynamic update, animation can skip frames hence the frequency is not necessary every frame.
 	// So check if bone data is updated this frame, if not then the previous frame data is stale and not suitable for motion blur.
-	bool bBoneDataUpdatedThisFrame = (View->Family->FrameNumber == PassthroughVertexFactory->GetUpdatedFrameNumber());
+	bool bBoneDataUpdatedThisFrame = (View->Family->FrameNumber == UpdatedFrameNumber);
 	// If world is paused, use current frame bone matrices, so velocity is canceled and skeletal mesh isn't blurred from motion.
 	bool bVerticesInMotion = !View->Family->bWorldIsPaused && bBoneDataUpdatedThisFrame;
 
-	const bool bUsesSkinCache = BatchUserData != nullptr;
-	if (bUsesSkinCache)
-	{
-		Parameters.GPUSkinPassThroughPreviousPositionBuffer = bVerticesInMotion ?
-			FGPUSkinCache::GetPreviousPositionBuffer(BatchUserData->Entry, SectionIndex)->SRV :
-			FGPUSkinCache::GetPositionBuffer(BatchUserData->Entry, SectionIndex)->SRV;
-	}
-	else // Mesh deformer
-	{
-		Parameters.GPUSkinPassThroughPreviousPositionBuffer = (bVerticesInMotion && PassthroughVertexFactory->PrevPositionRDG) ?
-			PassthroughVertexFactory->PrevPositionRDG->GetOrCreateSRV(FRHIBufferSRVCreateInfo(PF_R32_FLOAT)) :
-			PassthroughVertexFactory->GetPositionsSRV();
-	}
+	PositionSRV = (PositionSRV == nullptr) ? LocalVertexFactory->GetPositionsSRV() : PositionSRV;
+	PrevPositionSRV = (PrevPositionSRV == nullptr || !bVerticesInMotion) ? PositionSRV : PrevPositionSRV;
 
-	PassthroughVertexFactory->LooseParametersUniformBuffer.UpdateUniformBufferImmediate(Parameters);
+	FLocalVertexFactoryLooseParameters Parameters;
+	Parameters.GPUSkinPassThroughPositionBuffer = PositionSRV;
+	Parameters.GPUSkinPassThroughPreviousPositionBuffer = PrevPositionSRV;
+	
+	LocalVertexFactory->LooseParametersUniformBuffer.UpdateUniformBufferImmediate(Parameters);
 }
 
 uint8 FSkeletalMeshSceneProxy::GetCurrentFirstLODIdx_Internal() const

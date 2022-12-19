@@ -19,8 +19,6 @@
 #include "Matrix3x4.h"
 #include "SkeletalMeshTypes.h"
 
-class FRDGPooledBuffer;
-
 template <class T> class TConsoleVariableData;
 
 // Uniform buffer for APEX cloth
@@ -420,7 +418,7 @@ public:
 		return Data->TangentBasisComponents[Index];
 	}
 
-	void CopyDataTypeForPassthroughFactory(class FGPUSkinPassthroughVertexFactory* PassthroughVertexFactory);
+	void CopyDataTypeForLocalVertexFactory(FLocalVertexFactory::FDataType& OutDestData) const;
 
 protected:
 	/**
@@ -487,130 +485,6 @@ private:
 	int32 MorphDeltaStreamIndex = -1;
 };
 
-/** 
- * Vertex factory with vertex stream components for GPU-skinned streams, enabled for passthrough mode when vertices have been pre-skinned 
- */
-class FGPUSkinPassthroughVertexFactory : public FLocalVertexFactory
-{
-	typedef FLocalVertexFactory Super;
-
-public:
-	FGPUSkinPassthroughVertexFactory(ERHIFeatureLevel::Type InFeatureLevel);
-	~FGPUSkinPassthroughVertexFactory();
-
-	inline int32 GetPositionStreamIndex() const
-	{
-		check(PositionStreamIndex > -1);
-		return PositionStreamIndex;
-	}
-
-	inline int32 GetTangentStreamIndex() const
-	{
-		return TangentStreamIndex;
-	}
-
-	void SetData(const FDataType& InData);
-
-	uint32 GetUpdatedFrameNumber() const { return UpdatedFrameNumber; }
-
-	//TODO should be supported
-	bool SupportsPositionOnlyStream() const override { return false; }
-	bool SupportsPositionAndNormalOnlyStream() const override { return false; }
-
-	inline void InvalidateStreams()
-	{
-		PositionStreamIndex = -1;
-		TangentStreamIndex = -1;
-
-		PositionVBAlias.ReleaseRHI();
-		TangentVBAlias.ReleaseRHI();
-		ColorVBAlias.ReleaseRHI();
-	}
-
-	virtual void ReleaseRHI() override;
-
-	/** Poke values into the vertex factory. */
-	inline void UpdateVertexDeclaration(
-		FGPUBaseSkinVertexFactory const* SourceVertexFactory, 
-		struct FRWBuffer* PositionRWBuffer, 
-		struct FRWBuffer* TangentRWBuffer)
-	{
-		UpdatedFrameNumber = SourceVertexFactory->GetShaderData().UpdatedFrameNumber;
-		if (PositionStreamIndex == -1)
-		{
-			InternalUpdateVertexDeclaration(SourceVertexFactory, PositionRWBuffer, TangentRWBuffer);
-		}
-	}
-
-	/** Flags for override bitmask passed to UpdateVertexDeclaration(). */
-	enum class EOverrideFlags
-	{
-		None		= 0,
-		Position	= 1 << 0,
-		Tangent		= 1 << 1,
-		Color		= 1 << 2,
-		All			= 0xff,
-	};
-
-	/** Poke values into the vertex factory. */
-	inline void UpdateVertexDeclaration(
-		EOverrideFlags OverrideFlags,
-		FGPUBaseSkinVertexFactory const* SourceVertexFactory,
-		TRefCountPtr<FRDGPooledBuffer> const& PositionBuffer,
-		TRefCountPtr<FRDGPooledBuffer> const& TangentBuffer,
-		TRefCountPtr<FRDGPooledBuffer> const& ColorBuffer)
-	{
-		UpdatedFrameNumber = SourceVertexFactory->GetShaderData().UpdatedFrameNumber;
-		if (PositionStreamIndex == -1)
-		{
-			InternalUpdateVertexDeclaration(OverrideFlags, SourceVertexFactory, PositionBuffer, TangentBuffer, ColorBuffer);
-		}
-	}
-
-	inline FRHIShaderResourceView* GetPreviousPositionsSRV() const
-	{
-		return PrevPositionSRVAlias;
-	}
-
-protected:
-	friend class FLocalVertexFactoryShaderParameters;
-	friend class FSkeletalMeshSceneProxy;
-
-	// Reference holders for RDG buffers
-	TRefCountPtr<FRDGPooledBuffer> PositionRDG;
-	TRefCountPtr<FRDGPooledBuffer> PrevPositionRDG;
-	TRefCountPtr<FRDGPooledBuffer> TangentRDG;
-	TRefCountPtr<FRDGPooledBuffer> ColorRDG;
-	// Vertex buffer required for creating the Vertex Declaration
-	FVertexBuffer PositionVBAlias;
-	FVertexBuffer TangentVBAlias;
-	FVertexBuffer ColorVBAlias;
-	// SRVs required for binding
-	FRHIShaderResourceView* PositionSRVAlias = nullptr;
-	FRHIShaderResourceView* PrevPositionSRVAlias = nullptr;
-	FRHIShaderResourceView* TangentSRVAlias = nullptr;
-	FRHIShaderResourceView* ColorSRVAlias = nullptr;
-	// Cached stream indices
-	int32 PositionStreamIndex = -1;
-	int32 TangentStreamIndex = -1;
-	// Frame number of the bone data that is last updated
-	uint32 UpdatedFrameNumber = 0;
-
-	void InternalUpdateVertexDeclaration(
-		FGPUBaseSkinVertexFactory const* SourceVertexFactory);
-	void InternalUpdateVertexDeclaration(
-		FGPUBaseSkinVertexFactory const* SourceVertexFactory, 
-		struct FRWBuffer* PositionRWBuffer, 
-		struct FRWBuffer* TangentRWBuffer);
-	void InternalUpdateVertexDeclaration(
-		EOverrideFlags OverrideFlags,
-		FGPUBaseSkinVertexFactory const* SourceVertexFactory,
-		TRefCountPtr<FRDGPooledBuffer> const& PositionBuffer,
-		TRefCountPtr<FRDGPooledBuffer> const& TangentBuffer,
-		TRefCountPtr<FRDGPooledBuffer> const& ColorBuffer);
-};
-
-ENUM_CLASS_FLAGS(FGPUSkinPassthroughVertexFactory::EOverrideFlags)
 
 /** Vertex factory with vertex stream components for GPU-skinned and morph target streams */
 class FGPUBaseSkinAPEXClothVertexFactory
@@ -838,3 +712,65 @@ protected:
 	FGPUSkinAPEXClothDataType* ClothDataPtr = nullptr;
 };
 
+
+/**
+ * Vertex factory with vertex stream components for GPU-skinned streams.
+ * This enables Passthrough mode where vertices have been pre-skinned.
+ * Individual vertex attributes can be flagged so that they can be overriden by externally owned buffers.
+ */
+class FGPUSkinPassthroughVertexFactory : public FLocalVertexFactory
+{
+public:
+	FGPUSkinPassthroughVertexFactory(ERHIFeatureLevel::Type InFeatureLevel);
+
+	// Begin FVertexFactory Interface.
+	bool SupportsPositionOnlyStream() const override { return false; }
+	bool SupportsPositionAndNormalOnlyStream() const override { return false; }
+	// End FVertexFactory Interface.
+
+	/** Vertex attributes that we can override. */
+	enum EVertexAtttribute
+	{
+		Position,
+		Tangent,
+		Color,
+		TexCoord,
+		NumAttributes
+	};
+
+	/** 
+	 * Reset all added vertex attributes and SRVs. 
+	 * This doesn't reset the vertex factory itself. Call SetData() to do that.
+	 */
+	void ResetVertexAttributes();
+
+	/** 
+	 * Add vertex attributes that will be in the vertex stream. 
+	 * We accumulate with any attributes that have already been added by previous calls to this function.
+	 * If any attributes are being added for the first time then we recreate the vertex declaration here.
+	 * The InSRVs array size should match the InAttributes array size. 
+	 * SRVs will only be used by platforms that support manual vertex fetch.
+	 * The SRVs are cached per attribute. If any passed in SRV is changed from the cached value then we recreate the vertex factory uniform buffer here.
+	 * Note that on platforms that support manual vertex fetch, only Position will be in the final vertex stream and other attributes will be read through an SRV.
+	 */
+	void AddVertexAttributes(FGPUBaseSkinVertexFactory const* InSourceVertexFactory, TArrayView<EVertexAtttribute> const& InAttributes, TArrayView<FRHIShaderResourceView*> const& InSRVs);
+
+	/** 
+	 * Get the vertex stream index for a vertex attribute.
+	 * This will be -1 for attributes that haven't been set in AddVertexAttributes().
+	 * It may also be -1 for attributes that are read through manual vertex fetch.
+	 */
+	int32 GetAttributeStreamIndex(EVertexAtttribute InAttribute) const;
+
+private:
+	void OverrideAttributeData();
+	void OverrideSRVs(FGPUBaseSkinVertexFactory const* InSourceVertexFactory);
+	void BuildStreamIndices();
+	void CreateUniformBuffer();
+
+	uint32 VertexAttributeMask = 0;
+	TStaticArray<int32, EVertexAtttribute::NumAttributes> StreamIndices;
+	TStaticArray<FRHIShaderResourceView*, EVertexAtttribute::NumAttributes> SRVs;
+	
+	static TStaticArray<FVertexBuffer, EVertexAtttribute::NumAttributes> DummyVBs;
+};

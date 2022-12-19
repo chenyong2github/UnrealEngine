@@ -28,6 +28,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLocalVertexFactoryUniformShaderParameters,
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLocalVertexFactoryLooseParameters,)
+	SHADER_PARAMETER_SRV(Buffer<float>, GPUSkinPassThroughPositionBuffer)
 	SHADER_PARAMETER_SRV(Buffer<float>, GPUSkinPassThroughPreviousPositionBuffer)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
@@ -254,17 +255,5 @@ private:
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams) const;
 
-	void GetElementShaderBindingsSkinCache(
-		class FGPUSkinPassthroughVertexFactory const* PassthroughVertexFactory,
-		struct FGPUSkinBatchElementUserData* BatchUserData,
-		FMeshDrawSingleShaderBindings& ShaderBindings,
-		FVertexInputStreamArray& VertexStreams) const;
-
-	void GetElementShaderBindingsMeshDeformer(
-		class FGPUSkinPassthroughVertexFactory const* PassthroughVertexFactory,
-		FMeshDrawSingleShaderBindings& ShaderBindings,
-		FVertexInputStreamArray& VertexStreams) const;
-
-	LAYOUT_FIELD(FShaderResourceParameter, GPUSkinCachePositionBuffer);
 	LAYOUT_FIELD(FShaderParameter, IsGPUSkinPassThrough);
 };

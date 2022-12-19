@@ -5,9 +5,9 @@
 #include "CoreMinimal.h"
 #include "RenderGraphResources.h"
 
-class FSkeletalMeshObject;
-class FRDGPooledBuffer;
+class FRDGBuffer;
 class FRHIShaderResourceView;
+class FSkeletalMeshObject;
 
 /** Functions that expose some internal functionality of FSkeletalMeshObject required by MeshDeformer systems. */
 class FSkeletalMeshDeformerHelpers
@@ -18,18 +18,18 @@ public:
 
 	/** Get direct access to bone matrix buffer SRV. */
 	ENGINE_API static FRHIShaderResourceView* GetBoneBufferForReading(
-		FSkeletalMeshObject const* MeshObject,
-		int32 LODIndex,
-		int32 SectionIndex,
-		bool bPreviousFrame);
+		FSkeletalMeshObject const* InMeshObject,
+		int32 InLodIndex,
+		int32 InSectionIndex,
+		bool bInPreviousFrame);
 
 	/** Get direct access to morph target buffer SRV. */
 	ENGINE_API static FRHIShaderResourceView* GetMorphTargetBufferForReading(
-		FSkeletalMeshObject const* MeshObject,
-		int32 LODIndex,
-		int32 SectionIndex,
-		uint32 FrameNumber,
-		bool bPreviousFrame);
+		FSkeletalMeshObject const* InMeshObject,
+		int32 InLodIndex,
+		int32 InSectionIndex,
+		uint32 InFrameNumber,
+		bool bInPreviousFrame);
 
 	/** Buffer SRVs from the cloth system. */
 	struct ENGINE_API FClothBuffers
@@ -42,44 +42,49 @@ public:
 
 	/** Get direct access to cloth buffer SRVs. */
 	ENGINE_API static FClothBuffers GetClothBuffersForReading(
-		FSkeletalMeshObject const* MeshObject,
-		int32 LODIndex,
-		int32 SectionIndex,
-		uint32 FrameNumber,
-		bool bPreviousFrame);
+		FSkeletalMeshObject const* InMeshObject,
+		int32 InLodIndex,
+		int32 InSectionIndex,
+		uint32 InFrameNumber,
+		bool bInPreviousFrame);
 
 #pragma endregion GetInternals
 
 #pragma region SetInternals
 
-	/** Buffer override behavior for SetVertexFactoryBufferOverrides. */
-	enum class EOverrideType
-	{
-		All,		// Clear overrides for each buffer input that is null.
-		Partial,	// Leave existing overrides for each buffer input that is null.
-	};
+	/** 
+	 * Allocate and bind a new position buffer and return it for writing.
+	 * Ownership is handled by the MeshObject.
+	 * If we call this more than once for the same MeshObject in the same frame then we return the allocation from the first call.
+	 */
+	ENGINE_API static FRDGBuffer* AllocateVertexFactoryPositionBuffer(FRDGBuilder& GraphBuilder, FSkeletalMeshObject* InMeshObject, int32 InLodIndex, TCHAR const* InBufferName);
 
-	/** Apply buffer overrides to the pass through vertex factory. */
-	ENGINE_API static void SetVertexFactoryBufferOverrides(
-		FSkeletalMeshObject* MeshObject,
-		int32 LODIndex, 
-		EOverrideType OverrideType,
-		TRefCountPtr<FRDGPooledBuffer> const& PositionBuffer, 
-		TRefCountPtr<FRDGPooledBuffer> const& TangentBuffer, 
-		TRefCountPtr<FRDGPooledBuffer> const& ColorBuffer);
+	/**
+	 * Allocate and bind a new tangent buffer and return it for writing.
+	 * Ownership is handled by the MeshObject.
+	 * If we call this more than once for the same MeshObject in the same frame then we return the allocation from the first call.
+	 */
+	ENGINE_API static FRDGBuffer* AllocateVertexFactoryTangentBuffer(FRDGBuilder& GraphBuilder,	FSkeletalMeshObject* InMeshObject, int32 InLodIndex, TCHAR const* InBufferName);
 
-	/** Reset all buffer overrides that were applied through SetVertexFactoryBufferOverrides. */
-	ENGINE_API static void ResetVertexFactoryBufferOverrides_GameThread(FSkeletalMeshObject* MeshObject, int32 LODIndex);
+	/**
+	 * Allocate and bind a new color buffer and return it for writing.
+	 * Ownership is handled by the MeshObject.
+	 * If we call this more than once for the same MeshObject in the same frame then we return the allocation from the first call.
+	 */
+	ENGINE_API static FRDGBuffer* AllocateVertexFactoryColorBuffer(FRDGBuilder& GraphBuilder, FSkeletalMeshObject* InMeshObject, int32 InLodIndex, TCHAR const* InBufferName);
 
-#if RHI_RAYTRACING
+	/** 
+	 * Update all of the MeshObject's passthrough vertex factories with the currently allocated vertex buffers. 
+	 * Usually call this after all AllocateVertexFactory*() functions for a frame.
+	 */
+	ENGINE_API static void UpdateVertexFactoryBufferOverrides(FSkeletalMeshObject* InMeshObject, int32 InLodIndex);
 
-	/** Update ray tracing geometry with new position vertex buffer. */
-	ENGINE_API static void UpdateRayTracingGeometry(
-		FSkeletalMeshObject* MeshObject,
-		int32 LODIndex,
-		TRefCountPtr<FRDGPooledBuffer> const& PositionBuffer);
-
-#endif // RHI_RAYTRACING
+	/** 
+	 * Release all of the the buffers that have been allocated through the AllocateVertexFactory*() functions.
+	 * Reset all of the MeshObject's passthrough vertex factories.  
+	 * Usually called on the game thread when we know that the mesh deformer is not able to update to force bind pose rendering.
+	 */
+	ENGINE_API static void ResetVertexFactoryBufferOverrides_GameThread(FSkeletalMeshObject* InMeshObject, int32 InLodIndex);
 
 #pragma endregion SetInternals
 };

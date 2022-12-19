@@ -537,28 +537,25 @@ void FGPUBaseSkinVertexFactory::SetData(const FGPUSkinDataType* InData)
 	UpdateRHI();
 }
 
-void FGPUBaseSkinVertexFactory::CopyDataTypeForPassthroughFactory(FGPUSkinPassthroughVertexFactory* PassthroughVertexFactory)
+void FGPUBaseSkinVertexFactory::CopyDataTypeForLocalVertexFactory(FLocalVertexFactory::FDataType& OutDestData) const
 {
-	FGPUSkinPassthroughVertexFactory::FDataType DestDataType;
 	check(Data.IsValid());
 
-	DestDataType.PositionComponent = Data->PositionComponent;
-	DestDataType.TangentBasisComponents[0] = Data->TangentBasisComponents[0];
-	DestDataType.TangentBasisComponents[1] = Data->TangentBasisComponents[1];
-	DestDataType.TextureCoordinates = Data->TextureCoordinates;
-	DestDataType.ColorComponent = Data->ColorComponent;
-	DestDataType.PreSkinPositionComponent = Data->PositionComponent;
-	DestDataType.PositionComponentSRV = Data->PositionComponentSRV;
-	DestDataType.PreSkinPositionComponentSRV = Data->PositionComponentSRV;
-	DestDataType.TangentsSRV = Data->TangentsSRV;
-	DestDataType.ColorComponentsSRV = Data->ColorComponentsSRV;
-	DestDataType.ColorIndexMask = Data->ColorIndexMask;
-	DestDataType.TextureCoordinatesSRV = Data->TextureCoordinatesSRV;
-	DestDataType.LightMapCoordinateIndex = Data->LightMapCoordinateIndex;
-	DestDataType.NumTexCoords = Data->NumTexCoords;
-	DestDataType.LODLightmapDataIndex = Data->LODLightmapDataIndex;
-
-	PassthroughVertexFactory->SetData(DestDataType);
+	OutDestData.PositionComponent = Data->PositionComponent;
+	OutDestData.TangentBasisComponents[0] = Data->TangentBasisComponents[0];
+	OutDestData.TangentBasisComponents[1] = Data->TangentBasisComponents[1];
+	OutDestData.TextureCoordinates = Data->TextureCoordinates;
+	OutDestData.ColorComponent = Data->ColorComponent;
+	OutDestData.PreSkinPositionComponent = Data->PositionComponent;
+	OutDestData.PositionComponentSRV = Data->PositionComponentSRV;
+	OutDestData.PreSkinPositionComponentSRV = Data->PositionComponentSRV;
+	OutDestData.TangentsSRV = Data->TangentsSRV;
+	OutDestData.ColorComponentsSRV = Data->ColorComponentsSRV;
+	OutDestData.ColorIndexMask = Data->ColorIndexMask;
+	OutDestData.TextureCoordinatesSRV = Data->TextureCoordinatesSRV;
+	OutDestData.LightMapCoordinateIndex = Data->LightMapCoordinateIndex;
+	OutDestData.NumTexCoords = Data->NumTexCoords;
+	OutDestData.LODLightmapDataIndex = Data->LODLightmapDataIndex;
 }
 
 
@@ -933,168 +930,6 @@ IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_TYPE(TGPUSkinVertexFactory, "/Engine/Privat
 
 
 /*-----------------------------------------------------------------------------
-FGPUSkinPassthroughVertexFactory
------------------------------------------------------------------------------*/
-FGPUSkinPassthroughVertexFactory::FGPUSkinPassthroughVertexFactory(ERHIFeatureLevel::Type InFeatureLevel)
-	: FLocalVertexFactory(InFeatureLevel, "FGPUSkinPassthroughVertexFactory")
-{
-	bGPUSkinPassThrough = true;
-}
-
-FGPUSkinPassthroughVertexFactory::~FGPUSkinPassthroughVertexFactory()
-{
-}
-
-void FGPUSkinPassthroughVertexFactory::ReleaseRHI()
-{
-	FLocalVertexFactory::ReleaseRHI();
-
-	// When adding anything else to this function be aware of the bypassing code in InternalUpdateVertexDeclaration.
-	PositionRDG = nullptr;
-	PrevPositionRDG = nullptr;
-	TangentRDG = nullptr;
-	ColorRDG = nullptr;
-	PositionVBAlias.ReleaseRHI();
-	TangentVBAlias.ReleaseRHI();
-	ColorVBAlias.ReleaseRHI();
-}
-
-void FGPUSkinPassthroughVertexFactory::InternalUpdateVertexDeclaration(FGPUBaseSkinVertexFactory const* SourceVertexFactory)
-{
-	if (PositionVBAlias.VertexBufferRHI != nullptr)
-	{
-		Data.PositionComponent.VertexBuffer = &PositionVBAlias;
-		Data.PositionComponent.Offset = 0;
-		Data.PositionComponent.VertexStreamUsage = EVertexStreamUsage::Overridden;
-		Data.PositionComponent.Stride = 3 * sizeof(float);
-	}
-	else
-	{
-		Data.PositionComponent = SourceVertexFactory->GetPositionStreamComponent();
-	}
-
-	if (TangentVBAlias.VertexBufferRHI != nullptr)
-	{
-		Data.TangentBasisComponents[0].VertexBuffer = &TangentVBAlias;
-		Data.TangentBasisComponents[0].Offset = 0;
-		Data.TangentBasisComponents[0].Type = VET_Short4N;
-		Data.TangentBasisComponents[0].Stride = 16;
-		Data.TangentBasisComponents[0].VertexStreamUsage = EVertexStreamUsage::Overridden | EVertexStreamUsage::ManualFetch;
-
-		Data.TangentBasisComponents[1].VertexBuffer = &TangentVBAlias;
-		Data.TangentBasisComponents[1].Offset = 8;
-		Data.TangentBasisComponents[1].Type = VET_Short4N;
-		Data.TangentBasisComponents[1].Stride = 16;
-		Data.TangentBasisComponents[1].VertexStreamUsage = EVertexStreamUsage::Overridden | EVertexStreamUsage::ManualFetch;
-	}
-	else
-	{
-		Data.TangentBasisComponents[0] = SourceVertexFactory->GetTangentStreamComponent(0);
-		Data.TangentBasisComponents[1] = SourceVertexFactory->GetTangentStreamComponent(1);
-	}
-
-	if (ColorVBAlias.VertexBufferRHI)
-	{
-		Data.ColorComponent.VertexBuffer = &ColorVBAlias;
-		Data.ColorComponent.Offset = 0;
-		Data.ColorComponent.Type = VET_Color;
-		Data.ColorComponent.Stride = 4;
-		Data.ColorComponent.VertexStreamUsage = EVertexStreamUsage::Overridden | EVertexStreamUsage::ManualFetch;
-		
-		Data.ColorIndexMask = ~0u;
-	}
-
-	Data.PositionComponentSRV = PositionSRVAlias ? PositionSRVAlias : SourceVertexFactory->GetPositionsSRV().GetReference();
-	Data.PreSkinPositionComponentSRV = SourceVertexFactory->GetPositionsSRV().GetReference();
-	Data.TangentsSRV = TangentSRVAlias ? TangentSRVAlias : SourceVertexFactory->GetTangentsSRV().GetReference();
-	Data.ColorComponentsSRV = ColorSRVAlias ? ColorSRVAlias : SourceVertexFactory->GetColorComponentsSRV().GetReference();
-
-	// hack to allow us to release the alias pointers properly in ReleaseRHI.
-	// To be cleaned up in UE-68826
-	FLocalVertexFactory::ReleaseRHI();
-	FLocalVertexFactory::ReleaseDynamicRHI();
-	FLocalVertexFactory::InitDynamicRHI();
-	FLocalVertexFactory::InitRHI();
-
-	// Find added streams
-	PositionStreamIndex = -1;
-	TangentStreamIndex = -1;
-
-	for (int32 Index = 0; Index < Streams.Num(); ++Index)
-	{
-		if (Streams[Index].VertexBuffer->VertexBufferRHI.GetReference() == Data.PositionComponent.VertexBuffer->VertexBufferRHI.GetReference())
-		{
-			PositionStreamIndex = Index;
-		}
-		if (TangentVBAlias.VertexBufferRHI != nullptr)
-		{
-			if (Streams[Index].VertexBuffer->VertexBufferRHI.GetReference() == Data.TangentBasisComponents[0].VertexBuffer->VertexBufferRHI.GetReference())
-			{
-				TangentStreamIndex = Index;
-			}
-		}
-	}
-	checkf(PositionStreamIndex != -1, TEXT("Unable to find stream for RWBuffer Vertex buffer!"));
-}
-
-void FGPUSkinPassthroughVertexFactory::InternalUpdateVertexDeclaration(
-	FGPUBaseSkinVertexFactory const* SourceVertexFactory, 
-	struct FRWBuffer* PositionRWBuffer, 
-	struct FRWBuffer* TangentRWBuffer)
-{
-	PositionRDG = nullptr;
-	PrevPositionRDG = nullptr;
-	TangentRDG = nullptr;
-	ColorRDG = nullptr;
-
-	PositionVBAlias.VertexBufferRHI = PositionRWBuffer ? PositionRWBuffer->Buffer : nullptr;
-	TangentVBAlias.VertexBufferRHI = TangentRWBuffer ? TangentRWBuffer->Buffer : nullptr;
-	ColorVBAlias.VertexBufferRHI = nullptr;
-
-	PositionSRVAlias = PositionRWBuffer ? PositionRWBuffer->SRV : nullptr;
-	PrevPositionSRVAlias = nullptr;
-	TangentSRVAlias = TangentRWBuffer ? TangentRWBuffer->SRV : nullptr;
-	ColorSRVAlias = nullptr;
-
-	InternalUpdateVertexDeclaration(SourceVertexFactory);
-}
-
-void FGPUSkinPassthroughVertexFactory::InternalUpdateVertexDeclaration(
-	EOverrideFlags OverrideFlags,
-	FGPUBaseSkinVertexFactory const* SourceVertexFactory, 
-	TRefCountPtr<FRDGPooledBuffer> const& PositionBuffer, 
-	TRefCountPtr<FRDGPooledBuffer> const& TangentBuffer,
-	TRefCountPtr<FRDGPooledBuffer> const& ColorBuffer)
-{
-	if (EnumHasAnyFlags(OverrideFlags, EOverrideFlags::Position))
-	{
-		PrevPositionRDG = PositionBuffer.IsValid() ? PositionRDG : nullptr;
-		PositionRDG = PositionBuffer;
-	}
-	if (EnumHasAnyFlags(OverrideFlags, EOverrideFlags::Tangent))
-	{
-		TangentRDG = TangentBuffer;
-	}
-	if (EnumHasAnyFlags(OverrideFlags, EOverrideFlags::Color))
-	{
-		ColorRDG = ColorBuffer;
-	}
-
-	PositionVBAlias.VertexBufferRHI = PositionRDG.IsValid() ? PositionRDG->GetRHI() : nullptr;
-	TangentVBAlias.VertexBufferRHI = TangentRDG.IsValid() ? TangentRDG->GetRHI() : nullptr;
-	ColorVBAlias.VertexBufferRHI = ColorRDG.IsValid() ? ColorRDG->GetRHI() : nullptr;
-
-	PositionSRVAlias = PositionRDG.IsValid() ? PositionRDG->GetOrCreateSRV(FRHIBufferSRVCreateInfo(PF_R32_FLOAT)) : nullptr;
-	PrevPositionSRVAlias = PrevPositionRDG.IsValid() ? PrevPositionRDG->GetOrCreateSRV(FRHIBufferSRVCreateInfo(PF_R32_FLOAT)) : nullptr;
-	const EPixelFormat TangentsFormat = IsOpenGLPlatform(GMaxRHIShaderPlatform) ? PF_R16G16B16A16_SINT : PF_R16G16B16A16_SNORM;
-	TangentSRVAlias = TangentRDG.IsValid() ? TangentRDG->GetOrCreateSRV(FRHIBufferSRVCreateInfo(TangentsFormat)) : nullptr;
-	ColorSRVAlias = ColorRDG.IsValid() ? ColorRDG->GetOrCreateSRV(FRHIBufferSRVCreateInfo(PF_R8G8B8A8)) : nullptr;
-
-	InternalUpdateVertexDeclaration(SourceVertexFactory);
-}
-
-
-/*-----------------------------------------------------------------------------
 	FGPUBaseSkinAPEXClothVertexFactory
 -----------------------------------------------------------------------------*/
 bool FGPUBaseSkinAPEXClothVertexFactory::IsClothEnabled(EShaderPlatform Platform)
@@ -1423,6 +1258,164 @@ IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_TYPE(TGPUSkinAPEXClothVertexFactory, "/Engi
 	| EVertexFactoryFlags::SupportsDynamicLighting
 	| EVertexFactoryFlags::SupportsPSOPrecaching
 );
+
+
+/*-----------------------------------------------------------------------------
+FGPUSkinPassthroughVertexFactory
+-----------------------------------------------------------------------------*/
+FGPUSkinPassthroughVertexFactory::FGPUSkinPassthroughVertexFactory(ERHIFeatureLevel::Type InFeatureLevel)
+	: FLocalVertexFactory(InFeatureLevel, "FGPUSkinPassthroughVertexFactory")
+{
+	bGPUSkinPassThrough = true;
+
+	ResetVertexAttributes();
+}
+
+void FGPUSkinPassthroughVertexFactory::ResetVertexAttributes()
+{
+	VertexAttributeMask = 0;
+	for (int32 Index = 0; Index < EVertexAtttribute::NumAttributes; ++Index)
+	{
+		StreamIndices[Index] = -1;
+		SRVs[Index] = nullptr;
+	}
+}
+
+// We don't set actual vertex buffers in our FDataType because we always expect to override the values in GetElementShaderBindings().
+// We use some empty dummy objects instead so that the correct vertex declaration is built and so that we can track which attributes are at which stream index.
+TStaticArray<FVertexBuffer, FGPUSkinPassthroughVertexFactory::EVertexAtttribute::NumAttributes> FGPUSkinPassthroughVertexFactory::DummyVBs;
+
+void FGPUSkinPassthroughVertexFactory::OverrideAttributeData()
+{
+	if (VertexAttributeMask & (1 << EVertexAtttribute::Position))
+	{
+		Data.PositionComponent.VertexBuffer = &DummyVBs[EVertexAtttribute::Position];
+		Data.PositionComponent.Offset = 0;
+		Data.PositionComponent.VertexStreamUsage = EVertexStreamUsage::Overridden;
+		Data.PositionComponent.Stride = 3 * sizeof(float);
+	}
+
+	if (VertexAttributeMask & (1 << EVertexAtttribute::Tangent))
+	{
+		Data.TangentBasisComponents[0].VertexBuffer = &DummyVBs[EVertexAtttribute::Tangent];
+		Data.TangentBasisComponents[0].Offset = 0;
+		Data.TangentBasisComponents[0].Type = VET_Short4N;
+		Data.TangentBasisComponents[0].Stride = 16;
+		Data.TangentBasisComponents[0].VertexStreamUsage = EVertexStreamUsage::Overridden | EVertexStreamUsage::ManualFetch;
+
+		Data.TangentBasisComponents[1].VertexBuffer = &DummyVBs[EVertexAtttribute::Tangent];
+		Data.TangentBasisComponents[1].Offset = 8;
+		Data.TangentBasisComponents[1].Type = VET_Short4N;
+		Data.TangentBasisComponents[1].Stride = 16;
+		Data.TangentBasisComponents[1].VertexStreamUsage = EVertexStreamUsage::Overridden | EVertexStreamUsage::ManualFetch;
+	}
+
+	if (VertexAttributeMask & (1 << EVertexAtttribute::Color))
+	{
+		Data.ColorComponent.VertexBuffer = &DummyVBs[EVertexAtttribute::Color];
+		Data.ColorComponent.Offset = 0;
+		Data.ColorComponent.VertexStreamUsage = EVertexStreamUsage::Overridden | EVertexStreamUsage::ManualFetch;
+		Data.ColorComponent.Stride = sizeof(uint32);
+	}
+
+	if (VertexAttributeMask & (1 << EVertexAtttribute::TexCoord))
+	{
+		Data.TextureCoordinates[0].VertexBuffer = &DummyVBs[EVertexAtttribute::TexCoord];
+		Data.TextureCoordinates[0].Offset = 0;
+		Data.TextureCoordinates[0].VertexStreamUsage = EVertexStreamUsage::Overridden | EVertexStreamUsage::ManualFetch;
+		Data.TextureCoordinates[0].Stride = 2 * sizeof(float);
+
+		Data.NumTexCoords = 1;
+	}
+}
+
+void FGPUSkinPassthroughVertexFactory::OverrideSRVs(FGPUBaseSkinVertexFactory const* InSourceVertexFactory)
+{
+	Data.PositionComponentSRV = SRVs[EVertexAtttribute::Position] ? SRVs[EVertexAtttribute::Position] : (FRHIShaderResourceView*)InSourceVertexFactory->GetPositionsSRV();
+	Data.TangentsSRV = SRVs[EVertexAtttribute::Tangent] ? SRVs[EVertexAtttribute::Tangent] : (FRHIShaderResourceView*)InSourceVertexFactory->GetTangentsSRV();
+	Data.ColorComponentsSRV = SRVs[EVertexAtttribute::Color] ? SRVs[EVertexAtttribute::Color] : (FRHIShaderResourceView*)InSourceVertexFactory->GetColorComponentsSRV();
+	Data.TextureCoordinatesSRV = SRVs[EVertexAtttribute::TexCoord] ? SRVs[EVertexAtttribute::TexCoord] : (FRHIShaderResourceView*)InSourceVertexFactory->GetTextureCoordinatesSRV();
+}
+
+void FGPUSkinPassthroughVertexFactory::BuildStreamIndices()
+{
+	for (int32 AttributeIndex = 0; AttributeIndex < EVertexAtttribute::NumAttributes; ++AttributeIndex)
+	{
+		StreamIndices[AttributeIndex] = -1;
+
+		for (int32 StreamIndex = 0; StreamIndex < Streams.Num(); ++StreamIndex)
+		{
+			if (Streams[StreamIndex].VertexBuffer == &DummyVBs[AttributeIndex])
+			{
+				StreamIndices[AttributeIndex] = StreamIndex;
+				break;
+			}
+		}
+	}
+}
+
+void FGPUSkinPassthroughVertexFactory::CreateUniformBuffer()
+{
+	if (RHISupportsManualVertexFetch(GetFeatureLevelShaderPlatform(GetFeatureLevel())))
+	{
+		const int32 DefaultBaseVertexIndex = 0;
+		const int32 DefaultPreSkinBaseVertexIndex = 0;
+		UniformBuffer = CreateLocalVFUniformBuffer(this, Data.LODLightmapDataIndex, nullptr, DefaultBaseVertexIndex, DefaultPreSkinBaseVertexIndex);
+	}
+}
+
+void FGPUSkinPassthroughVertexFactory::AddVertexAttributes(FGPUBaseSkinVertexFactory const* InSourceVertexFactory, TArrayView<EVertexAtttribute> const& InAttributes, TArrayView<FRHIShaderResourceView*> const& InSRVs)
+{
+	// Check for new attributes or modified SRVs.
+	bool bNeedFullUpdate = false;
+	bool bNeedSRVUpdate = false;
+	
+	for (int32 Index = 0; Index < InAttributes.Num(); ++Index)
+	{
+		const uint32 MaskBit = 1 << InAttributes[Index];
+		if ((VertexAttributeMask & MaskBit) == 0)
+		{
+			VertexAttributeMask |= MaskBit;
+			bNeedFullUpdate = true;
+		}
+
+		if (SRVs[InAttributes[Index]] != InSRVs[Index])
+		{
+			SRVs[InAttributes[Index]] = InSRVs[Index];
+			bNeedSRVUpdate = true;
+		}
+	}
+
+	if (bNeedFullUpdate)
+	{
+		// Reset the vertex factory data from the source vertex factory.
+		InSourceVertexFactory->CopyDataTypeForLocalVertexFactory(Data);
+
+		// Override the vertex factory data for our added attributes.
+		OverrideAttributeData();
+		OverrideSRVs(InSourceVertexFactory);
+
+		// Rebuild the vertex declaration.
+		UpdateRHI();
+
+		// Rebuild the vertex stream indices.
+		BuildStreamIndices();
+	}
+	else if (bNeedSRVUpdate)
+	{
+		// Override the vertex factory data for our added attributes.
+		OverrideSRVs(InSourceVertexFactory);
+
+		// Only need to recreate the vertex factory uniform buffer.
+		CreateUniformBuffer();
+	}
+}
+
+int32 FGPUSkinPassthroughVertexFactory::GetAttributeStreamIndex(EVertexAtttribute InAttribute) const
+{
+	return StreamIndices[InAttribute];
+}
+
 
 #undef IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_PARAMETER_TYPE
 #undef IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_TYPE

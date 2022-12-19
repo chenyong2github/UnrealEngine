@@ -136,23 +136,15 @@ void FOptimusSkinnedMeshWriteDataProviderProxy::AllocateResources(FRDGBuilder& G
 {
 	// Allocate required buffers
 	const int32 LodIndex = SkeletalMeshObject->GetLOD();
-	FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
-	FSkeletalMeshLODRenderData const* LodRenderData = &SkeletalMeshRenderData.LODRenderData[LodIndex];
-	const int32 NumVertices = LodRenderData->GetNumVertices();
 
 	// We will extract buffers from RDG.
 	// It could be better to for memory to use QueueBufferExtraction instead of ConvertToExternalBuffer but that will require an extra hook after graph execution.
 	TRefCountPtr<FRDGPooledBuffer> PositionBufferExternal;
-	TRefCountPtr<FRDGPooledBuffer> TangentBufferExternal;
-	TRefCountPtr<FRDGPooledBuffer> ColorBufferExternal;
 
 	if (OutputMask & 1)
 	{
-		const uint32 PosBufferBytesPerElement = 4;
-		PositionBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(PosBufferBytesPerElement, NumVertices * 3), TEXT("SkinnedMeshPositionBuffer"), ERDGBufferFlags::None);
+		PositionBuffer = FSkeletalMeshDeformerHelpers::AllocateVertexFactoryPositionBuffer(GraphBuilder, SkeletalMeshObject, LodIndex, TEXT("OptimusSkinnedMeshPosition"));
 		PositionBufferUAV = GraphBuilder.CreateUAV(PositionBuffer, PF_R32_FLOAT, ERDGUnorderedAccessViewFlags::SkipBarrier);
-		PositionBufferExternal = GraphBuilder.ConvertToExternalBuffer(PositionBuffer);
-		GraphBuilder.SetBufferAccessFinal(PositionBuffer, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask);
 	}
 	else
 	{
@@ -164,11 +156,8 @@ void FOptimusSkinnedMeshWriteDataProviderProxy::AllocateResources(FRDGBuilder& G
 
 	if (OutputMask & 2)
 	{
-		const uint32 TangentBufferBytesPerElement = 8;
-		TangentBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(TangentBufferBytesPerElement, NumVertices * 2), TEXT("SkinnedMeshTangentBuffer"), ERDGBufferFlags::None);
+		TangentBuffer = FSkeletalMeshDeformerHelpers::AllocateVertexFactoryTangentBuffer(GraphBuilder, SkeletalMeshObject, LodIndex, TEXT("OptimusSkinnedMeshTangent"));
 		TangentBufferUAV = GraphBuilder.CreateUAV(TangentBuffer, TangentsFormat, ERDGUnorderedAccessViewFlags::SkipBarrier);
-		TangentBufferExternal = GraphBuilder.ConvertToExternalBuffer(TangentBuffer);
-		GraphBuilder.SetBufferAccessFinal(TangentBuffer, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask);
 	}
 	else
 	{
@@ -177,29 +166,15 @@ void FOptimusSkinnedMeshWriteDataProviderProxy::AllocateResources(FRDGBuilder& G
 
 	if (OutputMask & 8)
 	{
-		const uint32 ColorBufferBytesPerElement = 4;
-		ColorBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(ColorBufferBytesPerElement, NumVertices), TEXT("SkinnedMeshColorBuffer"), ERDGBufferFlags::None);
+		ColorBuffer = FSkeletalMeshDeformerHelpers::AllocateVertexFactoryColorBuffer(GraphBuilder, SkeletalMeshObject, LodIndex, TEXT("OptimusSkinnedMeshColor"));
 		ColorBufferUAV = GraphBuilder.CreateUAV(ColorBuffer, PF_B8G8R8A8, ERDGUnorderedAccessViewFlags::SkipBarrier);
-		ColorBufferExternal = GraphBuilder.ConvertToExternalBuffer(ColorBuffer);
-		GraphBuilder.SetBufferAccessFinal(ColorBuffer, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask);
 	}
 	else
 	{
 		ColorBufferUAV = GraphBuilder.CreateUAV(GraphBuilder.RegisterExternalBuffer(GWhiteVertexBufferWithRDG->Buffer), PF_B8G8R8A8);
 	}
 
-	// Set to vertex factories
-	const int32 NumSections = LodRenderData->RenderSections.Num();
-	FSkeletalMeshDeformerHelpers::SetVertexFactoryBufferOverrides(SkeletalMeshObject, LodIndex, FSkeletalMeshDeformerHelpers::EOverrideType::Partial, PositionBufferExternal, TangentBufferExternal, ColorBufferExternal);
-
-#if RHI_RAYTRACING
-	if (PositionBufferExternal.IsValid())
-	{
-		// This can create RHI resources but it queues and doesn't actually build ray tracing structures. Not sure if we need to put inside a render graph pass?
-		// Also note that for ray tracing we may want to support a second graph execution if ray tracing LOD needs to be different to render LOD.
-		FSkeletalMeshDeformerHelpers::UpdateRayTracingGeometry(SkeletalMeshObject, LodIndex, PositionBufferExternal);
-	}
-#endif
+	FSkeletalMeshDeformerHelpers::UpdateVertexFactoryBufferOverrides(SkeletalMeshObject, LodIndex);
 }
 
 void FOptimusSkinnedMeshWriteDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)

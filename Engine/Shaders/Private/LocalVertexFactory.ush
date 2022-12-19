@@ -171,8 +171,6 @@ bool IsGPUSkinPassThrough()
 }
 
 #if RAYHITGROUPSHADER || COMPUTESHADER
-Buffer<float> GPUSkinCachePositionBuffer;
-
 uint GetNumRayTracingDynamicMeshVerticesIndirect()
 {
 	return 0;
@@ -221,11 +219,15 @@ FVertexFactoryInput LoadVertexFactoryInputForDynamicUpdate(uint TriangleIndex, i
 
 	if (IsGPUSkinPassThrough())
 	{
+		// GPUSkinPassThrough can change the PositionBuffer every frame but doesn't always update the corresponding 
+		// LocalVF.VertexFetch_PositionBuffer since it relies on fixed function vertex buffer fetch and so doesn't need
+		// to pay the cost of recreating the UniformBuffer.
+		// For the compute shader case we store the PositionBuffer SRV in the loose uniform buffer.
 		Input.VertexId = TriangleIndex * 3 + VertexIndex;
 		uint VertexOffset = LocalVF.VertexFetch_Parameters[VF_VertexOffset] + Input.VertexId;
-		Input.Position.x = GPUSkinCachePositionBuffer[VertexOffset * 3 + 0];
-		Input.Position.y = GPUSkinCachePositionBuffer[VertexOffset * 3 + 1];
-		Input.Position.z = GPUSkinCachePositionBuffer[VertexOffset * 3 + 2];
+		Input.Position.x = LocalVFLooseParameters.GPUSkinPassThroughPositionBuffer[VertexOffset * 3 + 0];
+		Input.Position.y = LocalVFLooseParameters.GPUSkinPassThroughPositionBuffer[VertexOffset * 3 + 1];
+		Input.Position.z = LocalVFLooseParameters.GPUSkinPassThroughPositionBuffer[VertexOffset * 3 + 2];
 	}
 	else
 	{
