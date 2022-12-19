@@ -2,6 +2,16 @@
 
 #include "UI/VCamWidget.h"
 
+UVCamWidget::UVCamWidget(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// We have two events so C++ lambdas can be used since dynamic delegates do not support it.
+	OnPostConnectionsReinitializedDelegate.AddLambda([this]()
+	{
+		OnPostConnectionsReinitializedDelegate_Blueprint.Broadcast();
+	});
+}
+
 void UVCamWidget::NativeDestruct()
 {
 	Super::NativeDestruct();
@@ -58,6 +68,7 @@ bool UVCamWidget::ReinitializeConnections()
 	}
 
 	PostConnectionsInitialized();
+	OnPostConnectionsReinitializedDelegate.Broadcast();
 	return true;
 }
 

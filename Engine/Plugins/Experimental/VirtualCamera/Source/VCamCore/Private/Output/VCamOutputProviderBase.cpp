@@ -33,6 +33,14 @@ namespace UE::VCamCore::Private
 	static const FName LevelEditorName(TEXT("LevelEditor"));
 }
 
+UVCamOutputProviderBase::UVCamOutputProviderBase()
+{
+	OnActivatedDelegate.AddLambda([this](bool bNewValue)
+	{
+		OnActivatedDelegate_Blueprint.Broadcast(bNewValue);
+	});
+}
+
 void UVCamOutputProviderBase::BeginDestroy()
 {
 	Deinitialize();
@@ -83,6 +91,8 @@ void UVCamOutputProviderBase::Activate()
 	{
 		ApplyOverrideResolutionForViewport(TargetViewport);
 	}
+	
+	OnActivatedDelegate.Broadcast(true);
 }
 
 void UVCamOutputProviderBase::Deactivate()
@@ -91,7 +101,10 @@ void UVCamOutputProviderBase::Deactivate()
 	{
 		RestoreOverrideResolutionForViewport(TargetViewport);
 	}
+	
 	DestroyUMG();
+	
+	OnActivatedDelegate.Broadcast(false);
 }
 
 void UVCamOutputProviderBase::Tick(const float DeltaTime)
@@ -470,6 +483,12 @@ void UVCamOutputProviderBase::PostEditChangeProperty(FPropertyChangedEvent& Prop
 				RestoreOverrideResolutionForViewport(static_cast<EVCamTargetViewportID>(i));
 			}
 			ApplyOverrideResolutionForViewport(TargetViewport);
+
+			if (bIsActive)
+			{
+				SetActive(false);
+				SetActive(true);
+			}
 		}
 		else if (PropertyName == NAME_OverrideResolution || PropertyName == NAME_bUseOverrideResolution)
 		{

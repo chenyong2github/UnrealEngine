@@ -25,6 +25,13 @@ class VCAMCORE_API UVCamOutputProviderBase : public UObject
 	GENERATED_BODY()
 public:
 
+	DECLARE_MULTICAST_DELEGATE_OneParam(FActivationDelegate, bool /*bNewIsActive*/);
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FActivationDelegate_Blueprint, bool, bNewIsActive);
+	FActivationDelegate OnActivatedDelegate; 
+	/** Called when the activation state of this output provider changes. */
+	UPROPERTY(BlueprintAssignable, meta = (DisplayName = "OnActivated"))
+	FActivationDelegate_Blueprint OnActivatedDelegate_Blueprint;
+
 	/** Override the default output resolution with a custom value - NOTE you must toggle bIsActive off then back on for this to take effect */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output", meta = (DisplayPriority = "5"))
 	bool bUseOverrideResolution = false;
@@ -33,6 +40,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output", meta = (DisplayPriority = "6"), meta = (EditCondition = "bUseOverrideResolution", ClampMin = 1))
 	FIntPoint OverrideResolution = { 2048, 1536 };
 
+	UVCamOutputProviderBase();
+	
 	//~ Begin UObject Interface
 	virtual void BeginDestroy() override;
 	//~ End UObject Interface
@@ -72,7 +81,6 @@ public:
 	EVCamTargetViewportID GetTargetViewport() const { return TargetViewport; }
 	UFUNCTION(BlueprintCallable, Category = "Output")
 	void SetTargetViewport(EVCamTargetViewportID Value) { TargetViewport = Value; }
-	static FName GetTargetViewportPropertyName() { return GET_MEMBER_NAME_CHECKED(UVCamOutputProviderBase, TargetViewport); }
 	
 	UFUNCTION(BlueprintPure, Category = "Output")
 	TSubclassOf<UUserWidget> GetUMGClass() const { return UMGClass; }
@@ -112,6 +120,11 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
+
+	static FName GetIsActivePropertyName()			{ return GET_MEMBER_NAME_CHECKED(UVCamOutputProviderBase, bIsActive); }
+	static FName GetTargetViewportPropertyName()	{ return GET_MEMBER_NAME_CHECKED(UVCamOutputProviderBase, TargetViewport); }
+	static FName GetUMGClassPropertyName()			{ return GET_MEMBER_NAME_CHECKED(UVCamOutputProviderBase, UMGClass); }
+	
 protected:
 	
 	// If set, this output provider will execute every frame

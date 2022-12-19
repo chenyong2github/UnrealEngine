@@ -43,6 +43,23 @@ bool UVCamStateSwitcherWidget::SetCurrentState(FName NewState, bool bForceUpdate
 	return true;
 }
 
+TArray<FName> UVCamStateSwitcherWidget::GetStates() const
+{
+	TArray<FName> Keys;
+	States.GenerateKeyArray(Keys);
+	return Keys;
+}
+
+bool UVCamStateSwitcherWidget::GetStateInfo(FName State, FVCamWidgetConnectionState& OutStateInfo) const
+{
+	if (const FVCamWidgetConnectionState* StateInfo = States.Find(State))
+	{
+		OutStateInfo = *StateInfo;
+		return true;
+	}
+	return false;
+}
+
 #if WITH_EDITOR
 void UVCamStateSwitcherWidget::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {

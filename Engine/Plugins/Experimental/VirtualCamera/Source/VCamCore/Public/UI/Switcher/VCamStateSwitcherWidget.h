@@ -39,6 +39,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Connections")
 	FName GetCurrentState() const { return CurrentState; }
 
+	UFUNCTION(BlueprintPure, Category = "Connections")
+	TArray<FName> GetStates() const;
+
+	UFUNCTION(BlueprintPure, Category = "Connections")
+	bool GetStateInfo(FName State, FVCamWidgetConnectionState& OutStateInfo) const;
+
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif

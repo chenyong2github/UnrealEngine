@@ -8,12 +8,12 @@
 
 struct FVCamConnectionTargetSettings;
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct VCAMCORE_API FVCamWidgetConnectionState
 {
 	GENERATED_BODY()
 
 	/** A list of widgets to update */
-	UPROPERTY(EditAnywhere, Category = "Connection")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Connection")
 	TArray<FWidgetConnectionConfig> WidgetConfigs;
 };

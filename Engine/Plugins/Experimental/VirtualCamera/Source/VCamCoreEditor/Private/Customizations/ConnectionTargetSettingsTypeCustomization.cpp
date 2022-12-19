@@ -218,9 +218,6 @@ namespace UE::VCamCoreEditor::Private
 		TAttribute<bool> HasDataSourceAttr
 		) const
 	{
-		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-		LevelEditorModule.OnActorSelectionChanged();
-		
 		Row.CustomWidget()
 			.NameContent()
 			[
@@ -292,9 +289,7 @@ namespace UE::VCamCoreEditor::Private
 									FUIAction(
 										FExecuteAction::CreateLambda([PropertyHandle, Name]()
 										{
-											PropertyHandle->NotifyPreChange();
 											PropertyHandle->SetValue(Name);
-											PropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 										})),
 										NAME_None,
 										EUserInterfaceActionType::Button

@@ -30,6 +30,9 @@ class VCAMCORE_API UVCamWidget : public UUserWidget
 {
 	GENERATED_BODY()
 public:
+
+	UVCamWidget(const FObjectInitializer& ObjectInitializer);
+	
 	virtual void NativeDestruct() override;
 	
 	/*
@@ -60,6 +63,13 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="VCam Input", meta=(EditCondition="bRegisterForInput"))
 	int32 InputContextPriority = 0;
+
+	DECLARE_MULTICAST_DELEGATE(FConnectionsReinitializedDelegate);
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE(FConnectionsReinitializedDelegate_Blueprint);
+	FConnectionsReinitializedDelegate OnPostConnectionsReinitializedDelegate;
+	/** Called when ReinitializeConnections is called. */
+	UPROPERTY(BlueprintAssignable, meta = (DisplayName = "OnConnectionsReinitialized"))
+	FConnectionsReinitializedDelegate_Blueprint OnPostConnectionsReinitializedDelegate_Blueprint;
 	
 	/*
 	 * Event called when a specific connection has been updated
