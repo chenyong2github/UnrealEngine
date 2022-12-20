@@ -42,9 +42,6 @@ namespace UE::VCamCoreEditor::Private
 		
 		struct FWidgetData
 		{
-			/** Handle to UVCamWidget::OnPostConnectionsReinitialized */
-			FDelegateHandle OnPostConnectionsReinitializedDelegateHandle;
-
 			TSharedPtr<IConnectionRemapCustomization> Customization;
 			
 			/** Utils for IConnectionRemapCustomizations */
@@ -59,7 +56,6 @@ namespace UE::VCamCoreEditor::Private
 		TSharedRef<SHorizontalBox> CreateControlWidgets(const TWeakObjectPtr<UVCamWidget>& Widget) const;
 		
 		void OnActivationChanged(bool bNewIsActivated) const;
-		void OnPostConnectionsReinitialized() const;
 		void ForceRefreshDetailsIfSafe() const;
 		
 		static void ClearWidgetData(TMap<TWeakObjectPtr<UVCamWidget>, FWidgetData>& InEditableWidgets);

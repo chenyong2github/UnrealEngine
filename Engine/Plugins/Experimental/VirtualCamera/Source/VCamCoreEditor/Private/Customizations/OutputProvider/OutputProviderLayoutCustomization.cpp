@@ -277,12 +277,9 @@ namespace UE::VCamCoreEditor::Private
 					else if (TSharedPtr<IConnectionRemapCustomization> Customization = FVCamCoreEditorModule::Get().CreateConnectionRemapCustomization(VCamWidget->GetClass()))
 					{
 						const TWeakObjectPtr<UVCamWidget> WeakVCamWidget(VCamWidget);
-						FDelegateHandle OnPostConnectionsReinitializedDelegateHandle = VCamWidget->OnPostConnectionsReinitializedDelegate.AddSP(
-							this, &FOutputProviderLayoutCustomization::OnPostConnectionsReinitialized
-							);
 						EditableWidgets.Emplace(
 							WeakVCamWidget,
-							FWidgetData{ OnPostConnectionsReinitializedDelegateHandle, Customization, MakeShared<FConnectionRemapUtilsImpl>(WeakDetailBuilder.Pin().ToSharedRef()) }
+							FWidgetData{ Customization, MakeShared<FConnectionRemapUtilsImpl>(WeakDetailBuilder.Pin().ToSharedRef()) }
 							);
 					}
 
@@ -369,11 +366,6 @@ namespace UE::VCamCoreEditor::Private
 	{
 		ForceRefreshDetailsIfSafe();
 	}
-	
-	void FOutputProviderLayoutCustomization::OnPostConnectionsReinitialized() const
-	{
-		ForceRefreshDetailsIfSafe();
-	}
 
 	void FOutputProviderLayoutCustomization::ForceRefreshDetailsIfSafe() const
 	{
@@ -385,13 +377,6 @@ namespace UE::VCamCoreEditor::Private
 
 	void FOutputProviderLayoutCustomization::ClearWidgetData(TMap<TWeakObjectPtr<UVCamWidget>, FWidgetData>& InEditableWidgets)
 	{
-		for (TPair<TWeakObjectPtr<UVCamWidget>, FWidgetData>& WidgetData : InEditableWidgets)
-		{
-			if (WidgetData.Key.IsValid())
-			{
-				WidgetData.Key->OnPostConnectionsReinitializedDelegate.Remove(WidgetData.Value.OnPostConnectionsReinitializedDelegateHandle);
-			}
-		}
 		InEditableWidgets.Empty();
 	}
 }
