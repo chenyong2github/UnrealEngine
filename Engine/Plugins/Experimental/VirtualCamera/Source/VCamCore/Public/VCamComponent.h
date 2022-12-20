@@ -6,7 +6,6 @@
 
 #include "EVCamTargetViewportID.h"
 #include "Modifier/ModifierStackEntry.h"
-#include "Output/VCamOutputProviderBase.h"
 
 #include "EnhancedActionKeyMapping.h"
 #include "EnhancedInputSubsystemInterface.h"
@@ -23,6 +22,7 @@
 
 #include "VCamComponent.generated.h"
 
+class UVCamOutputProviderBase;
 DECLARE_LOG_CATEGORY_EXTERN(LogVCamComponent, Log, All);
 
 class UCineCameraComponent;

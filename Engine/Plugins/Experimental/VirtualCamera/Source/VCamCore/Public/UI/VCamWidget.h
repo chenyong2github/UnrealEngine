@@ -3,12 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "VCamComponent.h"
 #include "UI/VCamConnectionStructs.h"
 #include "Blueprint/UserWidget.h"
-
 #include "VCamWidget.generated.h"
 
+class UInputMappingContext;
 class UInputAction;
 class UVCamModifier;
 

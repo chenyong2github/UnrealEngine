@@ -4,6 +4,7 @@
 
 #include "Modifier/VCamModifier.h"
 #include "Modifier/VCamModifierContext.h"
+#include "Output/VCamOutputProviderBase.h"
 #include "Util/LevelViewportUtils.h"
 #include "VCamCoreCustomVersion.h"
 
@@ -38,7 +39,6 @@
 #include "VPSettings.h"
 #include "VPRolesSubsystem.h"
 #endif
-
 
 DEFINE_LOG_CATEGORY(LogVCamComponent);
 

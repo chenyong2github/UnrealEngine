@@ -2,6 +2,8 @@
 
 #include "UI/VCamWidget.h"
 
+#include "VCamComponent.h"
+
 UVCamWidget::UVCamWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

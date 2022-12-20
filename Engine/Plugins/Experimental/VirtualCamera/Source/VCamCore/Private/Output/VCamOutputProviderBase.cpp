@@ -14,6 +14,8 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Slate/SceneViewport.h"
 #include "UObject/UObjectBaseUtility.h"
+#include "Util/ConnectionUtils.h"
+#include "Util/WidgetSnapshotUtils.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -231,20 +233,20 @@ void UVCamOutputProviderBase::DisplayUMG()
 
 		if (ActorWorld)
 		{
-#if WITH_EDITOR
-			if (SavedConnectionRemappingData && SavedConnectionRemappingData->GetClass() == UMGClass)
+			UMGWidget->Display(ActorWorld);
+			if (UUserWidget* Subwidget = UMGWidget->GetWidget(); ensure(Subwidget) && WidgetSnapshot.HasData())
 			{
-				UMGWidget->SetOverrideWidget(SavedConnectionRemappingData);
+				UE::VCamCore::WidgetSnapshotUtils::Private::ApplyTreeHierarchySnapshot(WidgetSnapshot, *Subwidget);
+				// Note that NotifyWidgetOfComponentChange will cause InitializeConnections to be called - this is important for the connections to get applied!
 			}
-			UMGWidget->Display(ActorWorld);
-			SavedConnectionRemappingData = UMGWidget->GetWidget();
-#else
-			UMGWidget->Display(ActorWorld);
-#endif
 			UE_LOG(LogVCamOutputProvider, Log, TEXT("DisplayUMG widget displayed in WorldType %d"), WorldType);
 		}
 
 		NotifyWidgetOfComponentChange();
+#if WITH_EDITOR
+		// Start registering after the initial calls to InitializeConnections to prevent unneeded snapshotting.
+		StartDetectAndSnapshotWhenConnectionsChange();
+#endif
 	}
 }
 
@@ -254,6 +256,16 @@ void UVCamOutputProviderBase::DestroyUMG()
 	{
 		if (UMGWidget->IsDisplayed())
 		{
+#if WITH_EDITOR
+			// The state only needs to be saved in the editor
+			if (UUserWidget* Subwidget = UMGWidget->GetWidget(); ensure(Subwidget))
+			{
+				StopDetectAndSnapshotWhenConnectionsChange();
+				Modify();
+				WidgetSnapshot = UE::VCamCore::WidgetSnapshotUtils::Private::TakeTreeHierarchySnapshot(*Subwidget);
+			}
+#endif
+			
 			UMGWidget->Hide();
 			UE_LOG(LogVCamOutputProvider, Log, TEXT("DestroyUMG widget %s hidden"), *UMGWidget->GetName());
 		}
@@ -503,6 +515,7 @@ void UVCamOutputProviderBase::PostEditChangeProperty(FPropertyChangedEvent& Prop
 		}
 		else if (PropertyName == NAME_UMGClass)
 		{
+			WidgetSnapshot.Reset();
 			if (bIsActive)
 			{
 				SetActive(false);
@@ -531,4 +544,54 @@ void UVCamOutputProviderBase::PostEditChangeProperty(FPropertyChangedEvent& Prop
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
+
+void UVCamOutputProviderBase::StartDetectAndSnapshotWhenConnectionsChange()
+{
+	check(UMGWidget);
+	UUserWidget* Widget = UMGWidget->GetWidget();
+	check(Widget);
+	
+	Widget->WidgetTree->ForEachWidget([this](UWidget* Widget)
+	{
+		if (UVCamWidget* VCamWidget = Cast<UVCamWidget>(Widget))
+		{
+			const TWeakObjectPtr<UVCamWidget> WeakWidget = VCamWidget;
+			VCamWidget->OnPostConnectionsReinitializedDelegate.AddUObject(this, &UVCamOutputProviderBase::OnConnectionReinitialized, WeakWidget);
+		}
+	});
+}
+
+void UVCamOutputProviderBase::StopDetectAndSnapshotWhenConnectionsChange()
+{
+	check(UMGWidget);
+	UUserWidget* Widget = UMGWidget->GetWidget();
+	check(Widget);
+	
+	Widget->WidgetTree->ForEachWidget([this](UWidget* Widget)
+	{
+		if (UVCamWidget* VCamWidget = Cast<UVCamWidget>(Widget))
+		{
+			const TWeakObjectPtr<UVCamWidget> WeakWidget = VCamWidget;
+			VCamWidget->OnPostConnectionsReinitializedDelegate.RemoveAll(this);
+		}
+	});
+}
+
+void UVCamOutputProviderBase::OnConnectionReinitialized(TWeakObjectPtr<UVCamWidget> Widget)
+{
+	if (Widget.IsValid())
+	{
+		if (WidgetSnapshot.HasData())
+		{
+			Modify();
+			UE::VCamCore::WidgetSnapshotUtils::Private::RetakeSnapshotForWidgetInHierarchy(WidgetSnapshot, *Widget.Get());
+		}
+		else if (UMGWidget && ensure(UMGWidget->GetWidget()))
+		{
+			Modify();
+			WidgetSnapshot = UE::VCamCore::WidgetSnapshotUtils::Private::TakeTreeHierarchySnapshot(*UMGWidget->GetWidget());
+		}
+	}
+}
+
 #endif

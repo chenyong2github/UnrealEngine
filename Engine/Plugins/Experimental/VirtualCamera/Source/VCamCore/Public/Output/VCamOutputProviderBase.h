@@ -6,14 +6,16 @@
 #include "CineCameraComponent.h"
 #include "EVCamTargetViewportID.h"
 #include "VPFullScreenUserWidget.h"
+#include "UI/WidgetSnapshots.h"
 #include "VCamOutputProviderBase.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogVCamOutputProvider, Log, All);
 
-class UUserWidget;
-class UVPFullScreenUserWidget;
-class SWindow;
 class FSceneViewport;
+class SWindow;
+class UUserWidget;
+class UVCamWidget;
+class UVPFullScreenUserWidget;
 
 #if WITH_EDITOR
 class FLevelEditorViewportClient;
@@ -169,12 +171,16 @@ private:
 	
 	UPROPERTY(Transient)
 	bool bWasActive = false;
-
-#if WITH_EDITORONLY_DATA
-	/** Used for saving widget remapping settings across enabling & disabling in the same session, see FOutputProviderLayoutCustomization. */
-	UPROPERTY(Transient)
-	TObjectPtr<UUserWidget> SavedConnectionRemappingData = nullptr;
-#endif
+	
+	/** FOutputProviderLayoutCustomization allows remapping connections and their bound widgets. This is used to persist those overrides since UUserWidgets cannot be saved. */
+	UPROPERTY()
+	FWidgetTreeSnapshot WidgetSnapshot;
 	
 	bool IsOuterComponentEnabled() const;
+
+#if WITH_EDITOR
+	void StartDetectAndSnapshotWhenConnectionsChange();
+	void StopDetectAndSnapshotWhenConnectionsChange();
+	void OnConnectionReinitialized(TWeakObjectPtr<UVCamWidget> Widget);
+#endif
 };
