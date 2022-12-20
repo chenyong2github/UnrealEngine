@@ -69,11 +69,15 @@ namespace EpicGames.Core
 		}
 
 		/// <inheritdoc/>
-		public Memory<byte> GetMemory(int minSize)
+		public Span<byte> GetSpan(int sizeHint) => GetMemory(sizeHint).Span;
+
+		/// <inheritdoc/>
+		public Memory<byte> GetMemory(int sizeHint)
 		{
-			if (_currentChunk.Length + minSize > _currentChunk.Data.Length)
+			int requiredSize = _currentChunk.Length + Math.Max(sizeHint, 1);
+			if (requiredSize > _currentChunk.Data.Length)
 			{
-				_currentChunk = new Chunk(_currentChunk.RunningIndex + _currentChunk.Length, Math.Max(minSize, _chunkSize));
+				_currentChunk = new Chunk(_currentChunk.RunningIndex + _currentChunk.Length, Math.Max(sizeHint, _chunkSize));
 				_chunks.Add(_currentChunk);
 			}
 			return _currentChunk.Data.AsMemory(_currentChunk.Length);
