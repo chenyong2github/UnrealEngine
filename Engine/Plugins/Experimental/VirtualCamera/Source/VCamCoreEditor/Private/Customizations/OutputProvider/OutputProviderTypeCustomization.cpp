@@ -31,6 +31,7 @@ namespace UE::VCamCoreEditor::Private
 			: nullptr;
 		if (!CustomizedOutputProvider)
 		{
+			// If user just clicked + Add button, reference will be null. Let the user select a class.
 			ChildBuilder.AddCustomRow(FText::GetEmpty())
 				.NameContent()
 				[
@@ -49,7 +50,8 @@ namespace UE::VCamCoreEditor::Private
 		{
 			return;
 		}
-		
+
+		// AddExternalObjects causes FOutputProviderLayoutCustomization to customize the details.
 		IDetailPropertyRow* DetailRow = ChildBuilder.AddExternalObjects({ CustomizedOutputProvider },
 			FAddPropertyParams()
 				.CreateCategoryNodes(false)		// Avoid creating intermediate group expansion
