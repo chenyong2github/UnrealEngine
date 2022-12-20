@@ -5,7 +5,6 @@
 
 #include "CommonInputBaseTypes.h"
 #include "CommonInputSubsystem.h"
-#include "CommonInputTypeEnum.h"
 #include "CommonUITypes.h"
 #include "IAnalyticsProviderET.h"
 #include "Components/Widget.h"

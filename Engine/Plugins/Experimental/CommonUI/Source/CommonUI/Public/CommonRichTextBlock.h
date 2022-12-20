@@ -3,9 +3,11 @@
 #pragma once
 
 #include "Components/RichTextBlock.h"
-#include "Styling/SlateBrush.h"
 
 #include "CommonRichTextBlock.generated.h"
+
+class ITextDecorator;
+enum class ETextTransformPolicy : uint8;
 
 class STextScroller;
 class UCommonTextStyle;
@@ -95,3 +97,7 @@ private:
 
 	TSharedPtr<STextScroller> MyTextScroller;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Styling/SlateBrush.h"
+#endif

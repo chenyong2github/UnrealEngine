@@ -2,18 +2,21 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Object.h"
-#include "UObject/SoftObjectPath.h"
-#include "Templates/SharedPointer.h"
 
-#include "ICommonUIModule.h"
-#include "CommonUITypes.h"
 #include "CommonUIRichTextData.h"
-#include "GameplayTagContainer.h"
 #include "NativeGameplayTags.h"
+#include "Styling/SlateBrush.h"
+
+class UMaterialInterface;
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CommonUITypes.h"
+#include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
+#include "ICommonUIModule.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/Object.h"
+#include "UObject/SoftObjectPath.h"
 #include "CommonTextBlock.h"
 #endif
 

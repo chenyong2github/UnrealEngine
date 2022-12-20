@@ -3,8 +3,8 @@
 #pragma once
 
 #include "Framework/Application/AnalogCursor.h"
-#include "Layout/Geometry.h"
 #include "InputCoreTypes.h"
+#include "Rendering/SlateRenderTransform.h"
 
 class UCommonUIActionRouterBase;
 class UCommonInputSubsystem;
@@ -124,3 +124,7 @@ private:
 	int32 ShoulderButtonStatus = EShoulderButtonFlags::None;
 #endif
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Layout/Geometry.h"
+#endif

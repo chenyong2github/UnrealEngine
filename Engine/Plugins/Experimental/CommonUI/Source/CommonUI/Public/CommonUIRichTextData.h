@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "UObject/Object.h"
-#include "UObject/SoftObjectPtr.h"
 #include "Engine/DataTable.h"
 
 #include "CommonUIRichTextData.generated.h"
@@ -42,3 +40,8 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Inline Icons", meta = (RowType = "/Script/CommonUI.RichTextIconData"))
 	TObjectPtr<UDataTable> InlineIconSet;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "UObject/Object.h"
+#include "UObject/SoftObjectPtr.h"
+#endif

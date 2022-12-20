@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CommonUITypes.h"
 #include "Components/Border.h"
 #include "CommonBorder.generated.h"
+
+struct FDesignerChangedEventArgs;
 
 /* 
  * ---- All properties must be EditDefaultsOnly, BlueprintReadOnly !!! -----
@@ -83,3 +84,7 @@ private:
 	const UCommonBorderStyle* GetStyleCDO() const;
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CommonUITypes.h"
+#endif

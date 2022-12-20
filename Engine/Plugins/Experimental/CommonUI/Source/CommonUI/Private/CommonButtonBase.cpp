@@ -3,7 +3,6 @@
 #include "CommonButtonBase.h"
 
 #include "CommonActionWidget.h"
-#include "CommonInputTypeEnum.h"
 #include "CommonUISubsystemBase.h"
 #include "CommonInputSubsystem.h"
 #include "CommonUIEditorSettings.h"

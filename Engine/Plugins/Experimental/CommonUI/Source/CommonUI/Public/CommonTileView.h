@@ -5,6 +5,8 @@
 #include "Components/TileView.h"
 #include "CommonTileView.generated.h"
 
+class STableViewBase;
+
 /**
  * TileView specialized to navigate on focus for consoles & enable scrolling when not focused for touch
  */

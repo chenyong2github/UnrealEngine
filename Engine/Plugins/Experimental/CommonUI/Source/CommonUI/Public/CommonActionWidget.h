@@ -2,10 +2,15 @@
 
 #pragma once
 
-#include "CommonUITypes.h"
+#include "Components/Widget.h"
 #include "Input/UIActionBindingHandle.h"
 
+#include "Engine/DataTable.h"
 #include "CommonActionWidget.generated.h"
+
+class UCommonInputSubsystem;
+enum class ECommonInputType : uint8;
+struct FCommonInputActionDataBase;
 
 class SBox;
 class SImage;
@@ -123,3 +128,7 @@ protected:
 
 	bool bAlwaysHideOverride = false;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CommonUITypes.h"
+#endif

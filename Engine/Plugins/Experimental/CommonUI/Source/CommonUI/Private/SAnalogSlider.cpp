@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SAnalogSlider.h"
+#include "Input/NavigationReply.h"
 #include "Misc/App.h"
+#include "Input/Reply.h"
 
 void SAnalogSlider::Construct(const SAnalogSlider::FArguments& InDeclaration)
 {

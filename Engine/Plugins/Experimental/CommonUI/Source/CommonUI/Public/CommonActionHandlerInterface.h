@@ -4,7 +4,13 @@
 
 #include "CommonUITypes.h"
 
+#include "Components/Widget.h"
+#include "UObject/Interface.h"
 #include "CommonActionHandlerInterface.generated.h"
+
+enum EInputEvent : int;
+namespace ETouchType { enum Type : int; }
+struct FKey;
 
 /** Action Delegates */
 

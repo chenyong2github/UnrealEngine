@@ -2,15 +2,14 @@
 
 #pragma once
 
-#include "CommonUITypes.h"
-#include "ICommonUIModule.h"
-#include "Engine/StreamableManager.h"
 #include "Components/ContentWidget.h"
+#include "Widgets/Accessibility/SlateWidgetAccessibleTypes.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Animation/CurveSequence.h"
-#include "Engine/AssetManager.h"
 
 #include "CommonLoadGuard.generated.h"
+
+struct FStreamableHandle;
+struct FTextBlockStyle;
 
 class UCommonTextStyle;
 class STextBlock;
@@ -248,3 +247,11 @@ private:
 
 	FOnLoadGuardStateChangedEvent OnLoadingStateChangedEvent;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Animation/CurveSequence.h"
+#include "CommonUITypes.h"
+#include "Engine/AssetManager.h"
+#include "Engine/StreamableManager.h"
+#include "ICommonUIModule.h"
+#endif

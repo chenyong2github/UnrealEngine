@@ -3,9 +3,11 @@
 #pragma once
 
 #include "CommonUserWidget.h"
-#include "CommonUITypes.h"
 
+#include "Engine/DataTable.h"
 #include "CommonTabListWidgetBase.generated.h"
+
+class UCommonAnimatedSwitcher;
 
 class UCommonButtonBase;
 class UCommonButtonGroupBase;
@@ -231,3 +233,7 @@ private:
 	FUIActionBindingHandle NextTabActionHandle;
 	FUIActionBindingHandle PrevTabActionHandle;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CommonUITypes.h"
+#endif

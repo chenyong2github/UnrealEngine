@@ -3,8 +3,14 @@
 #pragma once
 
 #include "Input/UIActionBindingHandle.h"
-#include "Input/UIActionBinding.h"
-#include "Input/CommonUIInputSettings.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+enum EInputEvent : int;
+enum class EProcessHoldActionResult;
+struct FKey;
+struct FUIActionBinding;
+template <typename OptionalType> struct TOptional;
 
 // Note: Everything in here should be considered completely private to each other and CommonUIActionRouter.
 //		They were all originally defined directly in CommonUIActionRouter.cpp, but it was annoying having to scroll around so much.
@@ -216,3 +222,8 @@ private:
 	// WeakPtr because the root itself can be the primary active node - results in a circular ref leak using a full SharedPtr here
 	TWeakPtr<FActivatableTreeNode> LeafmostActiveNode;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Input/CommonUIInputSettings.h"
+#include "Input/UIActionBinding.h"
+#endif

@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Widgets/SWidget.h"
 #include "Components/SizeBox.h"
 
 #include "CommonVisualAttachment.generated.h"
@@ -34,3 +31,9 @@ protected:
 private:
 	TSharedPtr<class SVisualAttachmentBox> MyAttachmentBox;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "UObject/ObjectMacros.h"
+#include "Widgets/SWidget.h"
+#endif

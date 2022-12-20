@@ -6,6 +6,8 @@
 
 #include "CommonVisibilitySwitcherSlot.generated.h"
 
+class SOverlay;
+
 class SBox;
 enum class ESlateVisibility : uint8;
 

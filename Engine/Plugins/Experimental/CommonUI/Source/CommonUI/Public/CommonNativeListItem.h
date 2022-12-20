@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Templates/SharedPointer.h"
 
 /** 
  * Base item class for any UMG ListViews based on native, non-UObject items.
@@ -88,3 +88,7 @@ private:
 	TSharedPtr<SListView<TSharedPtr<FMyCustomListItem>>> MyListView;
 }
 */
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
 
 class UWidget;
@@ -92,3 +90,8 @@ namespace CommonUIUtils
 	COMMONUI_API void ValidateBoundWidgetHierarchy(const UWidgetTree& WidgetTree, IWidgetCompilerLog& CompileLog, ECollisionPolicy CollisionPolicy, FName ParentWidgetName, TArray<FName>&& ChildNames);
 #endif
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Blueprint/UserWidget.h"
+#include "CoreMinimal.h"
+#endif

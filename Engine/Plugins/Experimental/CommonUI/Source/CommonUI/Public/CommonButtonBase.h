@@ -3,12 +3,15 @@
 #pragma once
 
 #include "CommonUserWidget.h"
-#include "CommonUITypes.h"
 #include "Components/Button.h"
-#include "Misc/Optional.h"
+#include "Engine/DataTable.h"
 #include "Types/ISlateMetaData.h"
 #include "CommonInputModeTypes.h"
 #include "CommonButtonBase.generated.h"
+
+class UCommonButtonBase;
+class UMaterialInstanceDynamic;
+enum class ECommonInputType : uint8;
 
 class UCommonTextStyle;
 class SBox;
@@ -860,3 +863,8 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = Input, meta = (BindWidget, OptionalWidget = true, AllowPrivateAccess = true))
 	TObjectPtr<UCommonActionWidget> InputActionWidget;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CommonUITypes.h"
+#include "Misc/Optional.h"
+#endif

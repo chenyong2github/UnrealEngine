@@ -5,6 +5,8 @@
 #include "Slate/SObjectTableRow.h"
 #include "CommonButtonBase.h"
 
+class STableViewBase;
+
 /** 
  * A CommonUI version of the object table row that is aware of UCommonButtonBase.
  * Instead of bothering with handling mouse events directly, we rely on the entry being a button itself and respond to events from it.

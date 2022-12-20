@@ -2,16 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Object.h"
-#include "UObject/SoftObjectPath.h"
-#include "Templates/SubclassOf.h"
-#include "InputCoreTypes.h"
-#include "Engine/StreamableManager.h"
-#include "Templates/SharedPointer.h"
 
-#include "ICommonUIModule.h"
-#include "CommonUITypes.h"
 #include "CommonTextBlock.h"
 #include "CommonButtonBase.h"
 #include "CommonBorder.h"
@@ -67,3 +58,15 @@ private:
 private:
 	bool bDefaultDataLoaded;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CommonUITypes.h"
+#include "CoreMinimal.h"
+#include "Engine/StreamableManager.h"
+#include "ICommonUIModule.h"
+#include "InputCoreTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Object.h"
+#include "UObject/SoftObjectPath.h"
+#endif

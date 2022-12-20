@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "UIActionBindingHandle.h"
+#include "Engine/DataTable.h"
 #include "UITag.h"
-#include "Misc/EnumRange.h"
 #include "CommonInputModeTypes.h"
-#include "InputCoreTypes.h"
+#include "Engine/EngineBaseTypes.h"
 
 struct COMMONUI_API FBindUIActionArgs
 {
@@ -69,3 +68,9 @@ struct COMMONUI_API FBindUIActionArgs
 	DECLARE_DELEGATE_OneParam(FOnHoldActionProgressed, float);
 	FOnHoldActionProgressed OnHoldActionProgressed;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "InputCoreTypes.h"
+#include "Misc/EnumRange.h"
+#include "UIActionBindingHandle.h"
+#endif

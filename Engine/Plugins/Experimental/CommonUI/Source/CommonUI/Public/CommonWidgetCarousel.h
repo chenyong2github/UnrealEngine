@@ -9,6 +9,9 @@ class UCommonWidgetCarousel;
 
 #include "CommonWidgetCarousel.generated.h"
 
+enum EHorizontalAlignment : int;
+enum EVerticalAlignment : int;
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCurrentPageIndexChanged, UCommonWidgetCarousel*, CarouselWidget, int32, CurrentPageIndex);
 
 /**

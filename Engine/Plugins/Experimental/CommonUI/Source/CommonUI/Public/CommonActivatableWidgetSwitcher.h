@@ -4,8 +4,6 @@
 
 #include "CommonAnimatedSwitcher.h"
 
-#include "Misc/Optional.h"
-#include "UObject/WeakObjectPtrTemplates.h"
 
 #include "CommonActivatableWidgetSwitcher.generated.h"
 
@@ -41,3 +39,8 @@ private:
 
 	TOptional<TWeakObjectPtr<UCommonActivatableWidget>> WeakOwningActivatableWidget;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Misc/Optional.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#endif

@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "Components/Widget.h"
-#include "Slate/SCommonAnimatedSwitcher.h"
 #include "Blueprint/UserWidgetPool.h"
 #include "CommonActivatableWidgetContainer.generated.h"
+
+class SCommonAnimatedSwitcher;
+enum class ECommonSwitcherTransition : uint8;
+enum class ETransitionCurve : uint8;
 
 class UCommonActivatableWidget;
 class SOverlay;
@@ -217,3 +219,8 @@ class COMMONUI_API UCommonActivatableWidgetQueue : public UCommonActivatableWidg
 protected:
 	virtual void OnWidgetAddedToList(UCommonActivatableWidget& AddedWidget) override;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Components/Widget.h"
+#include "Slate/SCommonAnimatedSwitcher.h"
+#endif

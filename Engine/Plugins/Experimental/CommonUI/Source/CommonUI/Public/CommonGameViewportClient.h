@@ -2,13 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "InputCoreTypes.h"
-#include "InputKeyEventArgs.h"
-#include "Input/Reply.h"
 #include "Engine/GameViewportClient.h"
 #include "CommonGameViewportClient.generated.h"
+
+class FReply;
 
 DECLARE_DELEGATE_FourParams(FOnRerouteInputDelegate, FInputDeviceId /* InputDeviceId */, FKey /* Key */, EInputEvent /* EventType */, FReply& /* Reply */);
 DECLARE_DELEGATE_FourParams(FOnRerouteAxisDelegate, FInputDeviceId /* InputDeviceId */, FKey /* Key */, float /* Delta */, FReply& /* Reply */);
@@ -67,3 +64,11 @@ protected:
 
 	FOnRerouteInputDelegate RerouteBlockedInput;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Input/Reply.h"
+#include "InputCoreTypes.h"
+#include "InputKeyEventArgs.h"
+#include "UObject/ObjectMacros.h"
+#endif

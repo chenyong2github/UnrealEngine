@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Widgets/Layout/SBox.h"
 
 /**
@@ -24,3 +23,7 @@ private:
 
 	FVector2D ContentAnchor = FVector2D::ZeroVector;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#endif

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CommonUITypes.h"
+#include "Blueprint/UserWidget.h"
 #include "Input/UIActionBindingHandle.h"
 
 #include "CommonUserWidget.generated.h"
@@ -88,3 +88,7 @@ private:
 	TArray<FUIActionBindingHandle> ActionBindings;
 	TArray<TWeakObjectPtr<const UWidget>> ScrollRecipients;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CommonUITypes.h"
+#endif

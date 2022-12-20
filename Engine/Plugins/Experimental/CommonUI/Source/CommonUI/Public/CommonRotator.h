@@ -2,15 +2,13 @@
 
 #pragma once
 
-#include "CommonUserWidget.h"
-#include "CommonUITypes.h"
 #include "CommonButtonBase.h"
-#include "CommonTextBlock.h"
-#include "CommonBorder.h"
 
-#include "Types/NavigationMetaData.h"
 
+#include "Input/NavigationReply.h"
 #include "CommonRotator.generated.h"
+
+class UCommonTextBlock;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRotated, int32, Value);
 
@@ -86,3 +84,11 @@ protected:
 	/** The index of the current text item */
 	int32 SelectedIndex;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CommonBorder.h"
+#include "CommonTextBlock.h"
+#include "CommonUITypes.h"
+#include "CommonUserWidget.h"
+#include "Types/NavigationMetaData.h"
+#endif

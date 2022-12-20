@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CommonUserWidget.h"
 #include "CommonTextBlock.h"
-#include "Tickable.h"
 #include "CommonNumericTextBlock.generated.h"
 
 USTRUCT(BlueprintType)
@@ -219,3 +217,8 @@ private:
 		float Duration;
 	} SizeInterpolationState;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CommonUserWidget.h"
+#include "Tickable.h"
+#endif

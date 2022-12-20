@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "Components/Widget.h"
 #include "CommonUILibrary.generated.h"
+
+class UWidget;
+template <typename T> class TSubclassOf;
 
 UCLASS()
 class COMMONUI_API UCommonUILibrary : public UBlueprintFunctionLibrary
@@ -21,3 +21,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Common UI", meta=(DeterminesOutputType=Type))
 	static UWidget* FindParentWidgetOfType(UWidget* StartingWidget, TSubclassOf<UWidget> Type);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Components/Widget.h"
+#include "CoreMinimal.h"
+#include "UObject/ObjectMacros.h"
+#endif

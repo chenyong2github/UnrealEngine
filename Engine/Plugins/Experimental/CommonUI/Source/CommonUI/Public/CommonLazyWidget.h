@@ -2,9 +2,10 @@
 
 #pragma once
 
+#include "Blueprint/UserWidget.h"
 #include "CommonLoadGuard.h"
-#include "Components/Widget.h"
 
+#include "Engine/StreamableManager.h"
 #include "CommonLazyWidget.generated.h"
 
 class UCommonMcpItemDefinition;
@@ -73,3 +74,7 @@ private:
 
 	FOnLazyContentChangedEvent OnContentChangedEvent;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Components/Widget.h"
+#endif

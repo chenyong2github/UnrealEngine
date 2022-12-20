@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Input/UIActionRouterTypes.h"
-#include "CommonInputTypeEnum.h"
 #include "CommonUITypes.h"
 #include "Input/CommonUIActionRouterBase.h"
 #include "CommonActivatableWidget.h"

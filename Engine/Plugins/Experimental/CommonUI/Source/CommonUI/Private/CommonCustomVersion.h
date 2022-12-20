@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Guid.h"
+
+struct FGuid;
 
 // Custom serialization version for all packages containing CommonUI asset types
 struct FCommonCustomVersion
@@ -27,3 +27,8 @@ struct FCommonCustomVersion
 private:
 	FCommonCustomVersion() {}
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Misc/Guid.h"
+#endif

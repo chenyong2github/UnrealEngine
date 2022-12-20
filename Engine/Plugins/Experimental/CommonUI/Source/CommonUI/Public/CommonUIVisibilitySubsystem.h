@@ -4,6 +4,7 @@
 
 #include "Subsystems/LocalPlayerSubsystem.h"
 #include "GameplayTagContainer.h"
+#include "UObject/WeakObjectPtr.h"
 #include "CommonUIVisibilitySubsystem.generated.h"
 
 class UWidget;

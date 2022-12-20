@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonButtonTypes.h"
+#include "Input/Reply.h"
 
 //////////////////////////////////////////////////////////////////////////
 // SCommonButton

@@ -4,6 +4,8 @@
 
 #include "Widgets/Input/SSlider.h"
 
+struct FAnalogInputEvent;
+
 /**
  * A Slate slider control is a linear scale and draggable handle.
  */

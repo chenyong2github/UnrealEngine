@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "CommonUITypes.h"
 #include "CommonBorder.h"
 #include "GameplayTagContainer.h"
 #include "CommonHardwareVisibilityBorder.generated.h"
+
+enum class ESlateVisibility : uint8;
 
 class UCommonUIVisibilitySubsystem;
 
@@ -43,3 +43,8 @@ protected:
 
 	void HandleInputMethodChanged(UCommonUIVisibilitySubsystem*);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CommonUITypes.h"
+#include "CoreMinimal.h"
+#endif

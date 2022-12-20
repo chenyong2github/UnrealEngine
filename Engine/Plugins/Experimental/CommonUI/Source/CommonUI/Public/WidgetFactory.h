@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "Blueprint/UserWidget.h"
-#include "Widgets/Views/STableRow.h"
-#include "Slate/SObjectTableRow.h"
-#include "Widgets/Views/STableViewBase.h"
 #include "CommonPoolableWidgetInterface.h"
+#include "Slate/SObjectWidget.h"
+
+class ITableRow;
+class STableViewBase;
 
 #define ENABLE_WIDGET_FACTORY_POOLING 1
 
@@ -281,3 +281,10 @@ private:
 };
 
 using FUserWidgetFactory = TWidgetFactory<UUserWidget>;
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Blueprint/UserWidget.h"
+#include "Slate/SObjectTableRow.h"
+#include "Widgets/Views/STableRow.h"
+#include "Widgets/Views/STableViewBase.h"
+#endif

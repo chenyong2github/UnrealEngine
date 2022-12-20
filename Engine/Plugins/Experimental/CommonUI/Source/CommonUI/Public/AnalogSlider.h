@@ -3,12 +3,11 @@
 #pragma once
 
 #include "Components/Slider.h"
-#include "SAnalogSlider.h"
-#include "CommonInputSubsystem.h"
 
-#include "Types/NavigationMetaData.h"
 
 #include "AnalogSlider.generated.h"
+
+enum class ECommonInputType : uint8;
 
 class SAnalogSlider;
 
@@ -41,3 +40,9 @@ public:
 protected:
 	TSharedPtr<SAnalogSlider> MyAnalogSlider;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CommonInputSubsystem.h"
+#include "SAnalogSlider.h"
+#include "Types/NavigationMetaData.h"
+#endif

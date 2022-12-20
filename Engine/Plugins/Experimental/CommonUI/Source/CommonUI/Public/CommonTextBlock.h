@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "CommonUITypes.h"
-#include "Widgets/Layout/SScrollBox.h"
 #include "Components/TextBlock.h"
+#include "Widgets/Accessibility/SlateWidgetAccessibleTypes.h"
+#include "Widgets/SCompoundWidget.h"
 #include "CommonTextBlock.generated.h"
+
+struct FTextBlockStyle;
 
 class UCommonStyleSheet;
 
@@ -260,3 +262,8 @@ private:
 
 	void ApplyFontSizeMultiplier() const;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CommonUITypes.h"
+#include "Widgets/Layout/SScrollBox.h"
+#endif

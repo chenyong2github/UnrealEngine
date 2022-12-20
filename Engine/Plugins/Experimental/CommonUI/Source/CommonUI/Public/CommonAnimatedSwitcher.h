@@ -4,7 +4,6 @@
 
 #include "Components/WidgetSwitcher.h"
 #include "Slate/SCommonAnimatedSwitcher.h"
-#include "Components/Widget.h"
 
 #include "CommonAnimatedSwitcher.generated.h"
 
@@ -94,3 +93,7 @@ protected:
 private:
 	void SetActiveWidgetIndex_Internal(int32 Index);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Components/Widget.h"
+#endif

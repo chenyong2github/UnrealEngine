@@ -7,6 +7,8 @@
 
 #include "CommonLazyImage.generated.h"
 
+class UTexture;
+
 class UCommonMcpItemDefinition;
 
 /**

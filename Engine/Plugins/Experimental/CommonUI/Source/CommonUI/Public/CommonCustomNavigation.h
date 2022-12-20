@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CommonUITypes.h"
 #include "Components/Border.h"
 #include "CommonCustomNavigation.generated.h"
 
@@ -38,3 +37,7 @@ protected:
 	bool OnNavigation(EUINavigation NavigationType);
 
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CommonUITypes.h"
+#endif

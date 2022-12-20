@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CommonUserWidget.h"
-#include "Input/UIActionBindingHandle.h"
 #include "CommonInputActionDomain.h"
 #include "CommonActivatableWidget.generated.h"
 
@@ -253,3 +252,7 @@ protected:
 	virtual void InternalProcessDeactivation();
 	void Reset();
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Input/UIActionBindingHandle.h"
+#endif

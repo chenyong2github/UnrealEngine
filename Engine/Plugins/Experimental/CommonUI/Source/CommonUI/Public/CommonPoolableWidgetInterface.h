@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "UObject/ScriptMacros.h"
 #include "CommonPoolableWidgetInterface.generated.h"
 
 UINTERFACE()
@@ -27,3 +25,8 @@ protected:
 	UFUNCTION(BlueprintNativeEvent, Category = "Common Poolable Widget")
 	void OnReleaseToPool();
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "UObject/ScriptMacros.h"
+#endif

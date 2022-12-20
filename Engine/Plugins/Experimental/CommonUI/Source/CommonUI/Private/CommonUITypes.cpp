@@ -2,7 +2,6 @@
  
 #include "CommonUITypes.h"
 #include "CommonInputBaseTypes.h"
-#include "CommonInputTypeEnum.h"
 #include "CommonUIPrivate.h"
 #include "CommonInputSubsystem.h"
 #include "HAL/PlatformInput.h"

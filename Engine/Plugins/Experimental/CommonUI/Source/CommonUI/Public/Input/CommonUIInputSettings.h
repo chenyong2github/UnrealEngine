@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "UObject/Object.h"
-#include "Input/CommonUIInputTypes.h"
+#include "InputCoreTypes.h"
 #include "UITag.h"
 #include "CommonUIInputSettings.generated.h"
 
@@ -162,3 +161,8 @@ private:
 //	int32 InputModePriorities[(uint8)ECommonInputMode::MAX];
 //#endif
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Input/CommonUIInputTypes.h"
+#include "UObject/Object.h"
+#endif

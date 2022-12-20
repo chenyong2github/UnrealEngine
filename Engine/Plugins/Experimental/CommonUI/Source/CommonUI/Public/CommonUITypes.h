@@ -3,11 +3,13 @@
 #pragma once
 
 #include "Engine/DataTable.h"
-#include "Blueprint/UserWidget.h"
-#include "Misc/EnumRange.h"
-#include "Styling/SlateTypes.h"
-#include "CommonInputBaseTypes.h"
+#include "InputCoreTypes.h"
+#include "Styling/SlateBrush.h"
 #include "CommonUITypes.generated.h"
+
+class UUserWidget;
+enum class ECommonInputType : uint8;
+struct FScrollBoxStyle;
 
 class UCommonInputSubsystem;
 
@@ -175,3 +177,10 @@ public:
 
 DECLARE_DYNAMIC_DELEGATE_OneParam(FOnItemClicked, UUserWidget*, Widget);
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnItemSelected, UUserWidget*, Widget, bool, Selected);
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Blueprint/UserWidget.h"
+#include "CommonInputBaseTypes.h"
+#include "Misc/EnumRange.h"
+#include "Styling/SlateTypes.h"
+#endif

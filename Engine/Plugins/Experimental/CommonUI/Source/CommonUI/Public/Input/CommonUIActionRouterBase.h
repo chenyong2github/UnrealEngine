@@ -2,13 +2,18 @@
 
 #pragma once
 
+#include "CommonInputModeTypes.h"
 #include "Subsystems/LocalPlayerSubsystem.h"
-#include "CommonUIInputTypes.h"
-#include "CommonInputBaseTypes.h"
-#include "Misc/Passkey.h"
 #include "Containers/Ticker.h"
 
+#include "Engine/EngineBaseTypes.h"
+#include "Input/UIActionBindingHandle.h"
+#include "InputCoreTypes.h"
+#include "UObject/WeakObjectPtr.h"
 #include "CommonUIActionRouterBase.generated.h"
+
+class SWidget;
+struct FBindUIActionArgs;
 
 class AHUD;
 class FWeakWidgetPath;
@@ -229,3 +234,9 @@ private:
 
 	TMap<TObjectPtr<UCommonInputActionDomain>, FActionDomainSortedRootList> ActionDomainRootNodes;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CommonInputBaseTypes.h"
+#include "CommonUIInputTypes.h"
+#include "Misc/Passkey.h"
+#endif

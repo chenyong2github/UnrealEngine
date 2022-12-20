@@ -2,8 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Engine/EngineBaseTypes.h"
+#include "Containers/UnrealString.h"
+#include "Misc/Optional.h"
+
+enum class EMouseCaptureMode : uint8;
+struct FScriptContainerElement;
 
 class UWidget;
 enum class ECommonInputMode : uint8;
@@ -91,3 +94,8 @@ private:
 	EMouseCaptureMode MouseCaptureMode;
 	bool bHideCursorDuringViewportCapture = true;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Engine/EngineBaseTypes.h"
+#endif

@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Toolkits/IToolkitHost.h"
 #include "AssetTypeActions_CSVAssetBase.h"
 
 class UCommonGenericInputActionDataTable;
@@ -25,3 +23,8 @@ private:
 	/** Called via context menu to open data within the data table editor */
 	void OpenInDataTableEditor(TArray< TWeakObjectPtr<UCommonGenericInputActionDataTable> > Objects);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CoreMinimal.h"
+#include "Toolkits/IToolkitHost.h"
+#endif

@@ -3,10 +3,12 @@
 #pragma once
 
 #include "Subsystems/GameInstanceSubsystem.h"
-#include "Engine/DataTable.h"
-#include "Styling/SlateBrush.h"
 
 #include "CommonUISubsystemBase.generated.h"
+
+enum class ECommonInputType : uint8;
+struct FDataTableRowHandle;
+struct FSlateBrush;
 
 class IAnalyticsProviderET;
 class UWidget;
@@ -47,3 +49,8 @@ private:
 
 	TWeakPtr<class IAnalyticsProviderET> AnalyticProviderWeakPtr;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Engine/DataTable.h"
+#include "Styling/SlateBrush.h"
+#endif

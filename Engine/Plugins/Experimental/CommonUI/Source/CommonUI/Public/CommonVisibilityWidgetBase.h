@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "CommonUITypes.h"
 #include "CommonBorder.h"
 #include "CommonVisibilityWidgetBase.generated.h"
+
+enum class ECommonInputType : uint8;
+enum class ESlateVisibility : uint8;
 
 /**
  * A container that controls visibility based on Input type and Platform
@@ -49,3 +50,8 @@ protected:
 	UFUNCTION()
 	static const TArray<FName>& GetRegisteredPlatforms();
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CommonUITypes.h"
+#include "CoreMinimal.h"
+#endif

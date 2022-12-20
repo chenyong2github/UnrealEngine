@@ -2,7 +2,6 @@
 
 #include "CommonVisibilityWidgetBase.h"
 #include "CommonInputSubsystem.h"
-#include "CommonInputTypeEnum.h"
 #include "CommonUIPrivate.h"
 
 #include "CommonInputBaseTypes.h"
