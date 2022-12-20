@@ -12,16 +12,15 @@ struct FVCamConnectionTargetSettings;
 namespace UE::VCamCoreEditor
 {
 	DECLARE_DELEGATE_OneParam(FOnTargetSettingsChanged, const FVCamConnectionTargetSettings& NewSettings);
+	/** Data for requesting to add connection target settings to details panel */
 	struct FAddConnectionArgs
 	{
 		IDetailGroup& DetailGroup;
 
+		/** Unique ID used for mapping data */
 		FName ConnectionName;
-
-		/** Name of the property.  */
-		FName PropertyName;
-		/** A containing a FVCamConnectionTargetSettings property with name PropertyName */
-		FStructOnScope StructData;
+		/** Contains the data to display */
+		const FVCamConnection& ConnectionData;
 
 		/** Called when the settings are changed. Copy the passed settings to your UPROPERTY(). */
 		FOnTargetSettingsChanged OnTargetSettingsChangedDelegate;
@@ -29,11 +28,10 @@ namespace UE::VCamCoreEditor
 		/** The font to use for displaying property texts. */
 		FSlateFontInfo Font;
 
-		FAddConnectionArgs(IDetailGroup& DetailGroup, FName ConnectionName, FName PropertyName, FStructOnScope StructData, FOnTargetSettingsChanged OnTargetSettingsChangedDelegate, FSlateFontInfo Font)
+		FAddConnectionArgs(IDetailGroup& DetailGroup, FName ConnectionName, const FVCamConnection& ConnectionData, FOnTargetSettingsChanged OnTargetSettingsChangedDelegate, FSlateFontInfo Font)
 			: DetailGroup(DetailGroup)
 			, ConnectionName(ConnectionName)
-			, PropertyName(PropertyName)
-			, StructData(MoveTemp(StructData))
+			, ConnectionData(ConnectionData)
 			, OnTargetSettingsChangedDelegate(MoveTemp(OnTargetSettingsChangedDelegate))
 			, Font(MoveTemp(Font))
 		{}
@@ -44,7 +42,7 @@ namespace UE::VCamCoreEditor
 	{
 	public:
 
-		/** Adds a property row representing TargetSettings to DetailGroup. */
+		/** Adds a property row representing FVCamConnection::TargetSettings to DetailGroup. */
 		virtual void AddConnection(FAddConnectionArgs Params) = 0;
 
 		/** @return the font used for properties and details */

@@ -39,18 +39,11 @@ namespace UE::VCamCoreEditor::Private
 				continue;
 			}
 			
-			// Overwrite bManuallyConfigureConnection because otherwise its EditCondition will hide the property!
-			FVCamConnection ConnectionCopy = Connection.Value;
-			ConnectionCopy.bManuallyConfigureConnection = true;
-			TStructOnScope<FVCamConnection> StructOnScope(ConnectionCopy);
-			
 			const FName ConnectionName = Connection.Key;
 			Args.Utils->AddConnection(FAddConnectionArgs{
 				Args.WidgetGroup,
 				ConnectionName,
-				GET_MEMBER_NAME_CHECKED(FVCamConnection, ConnectionTargetSettings),
-				// Object slicing occurs here
-				static_cast<FStructOnScope>(MoveTemp(StructOnScope)),
+				Connection.Value,
 				FOnTargetSettingsChanged::CreateSP(this, &FConnectionRemapCustomization_VCamWidget::OnTargetSettingsChanged, ConnectionName),
 				Args.Utils->GetRegularFont()
 			});

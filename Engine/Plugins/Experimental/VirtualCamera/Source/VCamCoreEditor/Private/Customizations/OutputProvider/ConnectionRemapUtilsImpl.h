@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ConnectionContainerDummy.h"
 #include "DetailLayoutBuilder.h"
 #include "Customization/IConnectionRemapUtils.h"
 
@@ -23,7 +24,7 @@ namespace UE::VCamCoreEditor::Private
 	private:
 		
 		TWeakPtr<IDetailLayoutBuilder> Builder;
-		TMap<FName, TSharedPtr<FStructOnScope>> AddedConnections;
+		TMap<FName, TSharedPtr<TStructOnScope<FConnectionContainerDummy>>> AddedConnections;
 	};
 
 }

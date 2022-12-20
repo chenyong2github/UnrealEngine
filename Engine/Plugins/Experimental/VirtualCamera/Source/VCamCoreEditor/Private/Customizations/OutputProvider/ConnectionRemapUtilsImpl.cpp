@@ -21,33 +21,45 @@ namespace UE::VCamCoreEditor::Private
 			return;
 		}
 		
-		TSharedPtr<FStructOnScope> StructData;
-		if (const TSharedPtr<FStructOnScope>* ExistingStructData = AddedConnections.Find(Args.ConnectionName))
+		TSharedPtr<TStructOnScope<FConnectionContainerDummy>> StructData;
+		if (const TSharedPtr<TStructOnScope<FConnectionContainerDummy>>* ExistingStructData = AddedConnections.Find(Args.ConnectionName))
 		{
 			StructData = *ExistingStructData;
 		}
 		else
 		{
-			StructData = MakeShared<FStructOnScope>(MoveTemp(Args.StructData));
+			FConnectionContainerDummy DummyContainer { Args.ConnectionData };
+			// Overwrite bManuallyConfigureConnection because otherwise its EditCondition will hide the property!
+			DummyContainer.Connection.bManuallyConfigureConnection = true;
+			TStructOnScope<FConnectionContainerDummy> StructOnScope(DummyContainer);
+
+			// Object slicing occurs intentionally
+			StructData = MakeShared<TStructOnScope<FConnectionContainerDummy>>(MoveTemp(StructOnScope));
 			AddedConnections.Add(Args.ConnectionName, StructData);
 		}
-		
-		const TSharedPtr<IPropertyHandle> PropertyHandle = BuilderPin->AddStructurePropertyData(StructData, Args.PropertyName);
-		if (!ensureMsgf(PropertyHandle, TEXT("No property of %s found on struct"), *Args.PropertyName.ToString()))
+
+		const FName TargetSettingsPropertyName = GET_MEMBER_NAME_CHECKED(FConnectionContainerDummy, Connection);
+		const TSharedPtr<IPropertyHandle> ConnectionHandle = BuilderPin->AddStructurePropertyData(StructData, TargetSettingsPropertyName);
+		if (!ensure(ConnectionHandle))
+		{
+			return;
+		}
+		const TSharedPtr<IPropertyHandle> TargetConnectionSettings = ConnectionHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FVCamConnection, ConnectionTargetSettings));
+		if (!ensure(TargetConnectionSettings))
 		{
 			return;
 		}
 		
-		PropertyHandle->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateLambda([PropertyHandle, Callback = MoveTemp(Args.OnTargetSettingsChangedDelegate)]()
+		TargetConnectionSettings->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateLambda([TargetConnectionSettings, Callback = MoveTemp(Args.OnTargetSettingsChangedDelegate)]()
 		{
 			void* Data;
-			if (ensure(PropertyHandle->GetValueData(Data) == FPropertyAccess::Success))
+			if (ensure(TargetConnectionSettings->GetValueData(Data) == FPropertyAccess::Success))
 			{
 				Callback.Execute(*(FVCamConnectionTargetSettings*)Data);
 			}
 		}));
 
-		Args.DetailGroup.AddPropertyRow(PropertyHandle.ToSharedRef())
+		Args.DetailGroup.AddPropertyRow(TargetConnectionSettings.ToSharedRef())
 			.DisplayName(FText::FromName(Args.ConnectionName)) 
 			.CustomWidget(true)
 			.NameContent()
@@ -58,7 +70,7 @@ namespace UE::VCamCoreEditor::Private
 			]
 			.ValueContent()
 			[
-				PropertyHandle->CreatePropertyValueWidget()
+				TargetConnectionSettings->CreatePropertyValueWidget()
 			];
 	}
 
