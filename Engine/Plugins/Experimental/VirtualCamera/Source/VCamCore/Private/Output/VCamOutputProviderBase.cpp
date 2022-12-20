@@ -16,6 +16,7 @@
 #include "UObject/UObjectBaseUtility.h"
 #include "Util/ConnectionUtils.h"
 #include "Util/WidgetSnapshotUtils.h"
+#include "Util/WidgetTreeUtils.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -316,26 +317,22 @@ void UVCamOutputProviderBase::NotifyWidgetOfComponentChange() const
 			if (UVCamComponent* OwningComponent = GetTypedOuter<UVCamComponent>())
 			{
 				UVCamComponent* VCamComponent = bIsActive ? OwningComponent : nullptr;
-
-				if (DisplayedWidget->Implements<UVCamModifierInterface>())
-				{
-					IVCamModifierInterface::Execute_OnVCamComponentChanged(DisplayedWidget, VCamComponent);
-				}
-
+				
 				// Find all VCam Widgets inside the displayed widget and Initialize them with the owning VCam Component
-				if (IsValid(DisplayedWidget->WidgetTree))
+				UE::VCamCore::ForEachWidgetToConsiderForVCam(*DisplayedWidget, [VCamComponent](UWidget* Widget)
 				{
-					DisplayedWidget->WidgetTree->ForEachWidget([VCamComponent](UWidget* Widget)
+					if (UVCamWidget* VCamWidget = Cast<UVCamWidget>(Widget))
 					{
-						if (UVCamWidget* VCamWidget = Cast<UVCamWidget>(Widget))
-						{
-							VCamWidget->InitializeConnections(VCamComponent);
-						}
-					});
-				}
+						VCamWidget->InitializeConnections(VCamComponent);
+					}
+					
+					if (Widget->Implements<UVCamModifierInterface>())
+					{
+						IVCamModifierInterface::Execute_OnVCamComponentChanged(Widget, VCamComponent);
+					}
+				});
 			}
 		}
-
 	}
 }
 
@@ -551,7 +548,7 @@ void UVCamOutputProviderBase::StartDetectAndSnapshotWhenConnectionsChange()
 	UUserWidget* Widget = UMGWidget->GetWidget();
 	check(Widget);
 	
-	Widget->WidgetTree->ForEachWidget([this](UWidget* Widget)
+	UE::VCamCore::ForEachWidgetToConsiderForVCam(*Widget, [this](UWidget* Widget)
 	{
 		if (UVCamWidget* VCamWidget = Cast<UVCamWidget>(Widget))
 		{
@@ -567,11 +564,10 @@ void UVCamOutputProviderBase::StopDetectAndSnapshotWhenConnectionsChange()
 	UUserWidget* Widget = UMGWidget->GetWidget();
 	check(Widget);
 	
-	Widget->WidgetTree->ForEachWidget([this](UWidget* Widget)
+	UE::VCamCore::ForEachWidgetToConsiderForVCam(*Widget, [this](UWidget* Widget)
 	{
 		if (UVCamWidget* VCamWidget = Cast<UVCamWidget>(Widget))
 		{
-			const TWeakObjectPtr<UVCamWidget> WeakWidget = VCamWidget;
 			VCamWidget->OnPostConnectionsReinitializedDelegate.RemoveAll(this);
 		}
 	});

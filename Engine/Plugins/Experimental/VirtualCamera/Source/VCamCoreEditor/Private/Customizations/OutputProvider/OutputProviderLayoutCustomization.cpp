@@ -14,8 +14,10 @@
 #include "Editor.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IDetailGroup.h"
+#include "LogVCamEditor.h"
 #include "PropertyCustomizationHelpers.h"
 #include "SSimpleComboButton.h"
+#include "Util/WidgetTreeUtils.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBox.h"
@@ -249,7 +251,7 @@ namespace UE::VCamCoreEditor::Private
 	void FOutputProviderLayoutCustomization::RebuildWidgetData()
 	{
 		const UVPFullScreenUserWidget* FullScreenUserWidget = CustomizedOutputProvider->GetUMGWidget();
-		const UUserWidget* RootWidget = FullScreenUserWidget ? FullScreenUserWidget->GetWidget() : nullptr;
+		UUserWidget* RootWidget = FullScreenUserWidget ? FullScreenUserWidget->GetWidget() : nullptr;
 		UWidgetTree* WidgetTree = RootWidget ? RootWidget->WidgetTree : nullptr;
 		if (!WidgetTree)
 		{
@@ -258,38 +260,25 @@ namespace UE::VCamCoreEditor::Private
 
 		// Move so EditableWidgets gets reset and does not retain old references
 		TMap<TWeakObjectPtr<UVCamWidget>, FWidgetData> OldEditableWidgets = MoveTemp(EditableWidgets);
-		
-		TQueue<UWidgetTree*> SearchQueue;
-		SearchQueue.Enqueue(WidgetTree);
-		UWidgetTree* CurrentTree;
-		while (SearchQueue.Dequeue(CurrentTree))
+		VCamCore::ForEachWidgetToConsiderForVCam(*RootWidget, [this, &OldEditableWidgets](UWidget* Widget)
 		{
-			// We recurse ourselves because the other functions skip UUserWidgets
-			CurrentTree->ForEachWidget([this, &OldEditableWidgets, &SearchQueue](UWidget* Widget)
+			if (UVCamWidget* VCamWidget = Cast<UVCamWidget>(Widget))
 			{
-				if (UVCamWidget* VCamWidget = Cast<UVCamWidget>(Widget))
+				FWidgetData ExistingWidgetData;
+				if (OldEditableWidgets.RemoveAndCopyValue(VCamWidget, ExistingWidgetData))
 				{
-					FWidgetData ExistingWidgetData;
-					if (OldEditableWidgets.RemoveAndCopyValue(VCamWidget, ExistingWidgetData))
-					{
-						EditableWidgets.Emplace(VCamWidget, MoveTemp(ExistingWidgetData));
-					}
-					else if (TSharedPtr<IConnectionRemapCustomization> Customization = FVCamCoreEditorModule::Get().CreateConnectionRemapCustomization(VCamWidget->GetClass()))
-					{
-						const TWeakObjectPtr<UVCamWidget> WeakVCamWidget(VCamWidget);
-						EditableWidgets.Emplace(
-							WeakVCamWidget,
-							FWidgetData{ Customization, MakeShared<FConnectionRemapUtilsImpl>(WeakDetailBuilder.Pin().ToSharedRef()) }
-							);
-					}
-
-					if (VCamWidget->WidgetTree)
-					{
-						SearchQueue.Enqueue(VCamWidget->WidgetTree);
-					}
+					EditableWidgets.Emplace(VCamWidget, MoveTemp(ExistingWidgetData));
 				}
-			});
-		}
+				else if (TSharedPtr<IConnectionRemapCustomization> Customization = FVCamCoreEditorModule::Get().CreateConnectionRemapCustomization(VCamWidget->GetClass()))
+				{
+					const TWeakObjectPtr<UVCamWidget> WeakVCamWidget(VCamWidget);
+					EditableWidgets.Emplace(
+						WeakVCamWidget,
+						FWidgetData{ Customization, MakeShared<FConnectionRemapUtilsImpl>(WeakDetailBuilder.Pin().ToSharedRef()) }
+						);
+				}
+			}
+		});
 		
 		// The hierarchy may have changed so anything that is left is not part of the hierarchy and can be unsubscribed from
 		ClearWidgetData(OldEditableWidgets);

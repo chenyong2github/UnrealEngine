@@ -10,6 +10,7 @@
 #include "Serialization/ObjectReader.h"
 #include "Serialization/ObjectWriter.h"
 #include "UI/WidgetSnapshots.h"
+#include "Util/WidgetTreeUtils.h"
 
 namespace UE::VCamCore::WidgetSnapshotUtils::Private
 {
@@ -33,7 +34,7 @@ namespace UE::VCamCore::WidgetSnapshotUtils::Private
 		}
 
 		FWidgetTreeSnapshot Result;
-		Widget.WidgetTree->ForEachWidget([&Result, &SnapshotSettings](UWidget* Widget)
+		UE::VCamCore::ForEachWidgetToConsiderForVCam(Widget, [&Result, &SnapshotSettings](UWidget* Widget)
 		{
 			if (Widget && SnapshotSettings.IsClassAllowed(Widget->GetClass()))
 			{
@@ -58,7 +59,7 @@ namespace UE::VCamCore::WidgetSnapshotUtils::Private
 			return false;
 		}
 
-		Widget.WidgetTree->ForEachWidget([&Snapshot](UWidget* Widget)
+		UE::VCamCore::ForEachWidgetToConsiderForVCam(Widget,[&Snapshot](UWidget* Widget)
 		{
 			if (const FWidgetSnapshot* WidgetSnapshot = Snapshot.WidgetSnapshots.Find(Widget->GetFName()))
 			{
