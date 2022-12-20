@@ -3,6 +3,7 @@
 using EpicGames.Core;
 using EpicGames.Redis.Converters;
 using EpicGames.Serialization;
+using ProtoBuf;
 using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
@@ -199,6 +200,13 @@ namespace EpicGames.Redis
 			if (s_nativeConverters.TryGetValue(typeof(T), out nativeConverter))
 			{
 				return (IRedisConverter<T>)nativeConverter;
+			}
+
+			// Check if the type supports protobuf serialization
+			ProtoContractAttribute? protoAttribute = type.GetCustomAttribute<ProtoContractAttribute>();
+			if (protoAttribute != null)
+			{
+				return new RedisProtobufConverter<T>();
 			}
 
 			// Check if there's a regular converter we can use to convert to/from a string

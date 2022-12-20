@@ -3,13 +3,20 @@
 using System;
 using System.ComponentModel;
 using System.Globalization;
+using System.Runtime.Serialization;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Redis.Converters;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using ProtoBuf;
+using ProtoBuf.Meta;
 using StackExchange.Redis;
+using System.Buffers;
+using System.Collections.Generic;
+using System.Reflection.Emit;
+using System.Reflection;
 
 namespace EpicGames.Redis.Tests
 {
@@ -114,6 +121,28 @@ namespace EpicGames.Redis.Tests
 			TestUtf8StringRecord output = converter.FromRedisValue(value);
 			Assert.AreEqual(123, output.Number);
 			Assert.AreEqual(123, output.Instance.Number);
+		}
+
+		[ProtoContract]
+		class ProtoClass
+		{
+			[ProtoMember(1)]
+			public string Text { get; set; } = null!;
+		}
+
+		[TestMethod]
+		public void ProtobufTest()
+		{
+			ProtoClass cls = new ProtoClass();
+			cls.Text = "hello world";
+
+			RedisValue value = RedisSerializer.Serialize(cls);
+
+			ProtoClass clsPb = Serializer.Deserialize<ProtoClass>(value);
+			Assert.AreEqual(clsPb.Text, "hello world");
+
+			ProtoClass clsRedis = RedisSerializer.Deserialize<ProtoClass>(value);
+			Assert.AreEqual(clsRedis.Text, "hello world");
 		}
 	}
 }
