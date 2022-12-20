@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "ActorSequenceComponent.h"
 #include "MovieSceneSequenceEditor.h"
 #include "ActorSequence.h"
 #include "Engine/Level.h"

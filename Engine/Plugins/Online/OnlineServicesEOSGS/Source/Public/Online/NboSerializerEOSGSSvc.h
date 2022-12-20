@@ -6,6 +6,7 @@
 
 #include "Online/AuthEOSGS.h"
 #include "Online/LobbiesEOSGS.h"
+#include "Online/OnlineIdEOSGS.h"
 #include "Online/SessionsEOSGS.h"
 #include "Online/CoreOnline.h"
 #include "Online/NboSerializerCommonSvc.h"

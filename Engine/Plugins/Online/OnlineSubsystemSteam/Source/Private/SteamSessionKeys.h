@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Interfaces/OnlineSessionInterface.h"
 #include "OnlineSubsystemSteamPrivate.h"
 #include "OnlineSessionSettings.h"
 
