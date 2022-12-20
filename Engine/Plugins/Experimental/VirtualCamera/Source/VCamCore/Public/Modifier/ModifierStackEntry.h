@@ -16,7 +16,7 @@ struct FModifierStackEntry
 
 	// Identifier for this modifier in the stack
     UPROPERTY(EditAnywhere, Category="Modifier")
-    FName Name;
+    FName Name = NAME_None;
 
 	// Controls whether the modifier actually gets applied
 	UPROPERTY(EditAnywhere, Category="Modifier")
@@ -37,6 +37,10 @@ struct FModifierStackEntry
 		EditorGuid = FGuid::NewGuid();
 #endif
 	}
+
+	FModifierStackEntry(UVCamModifier& Modifier)
+		: GeneratedModifier(&Modifier)
+	{}
 
 	// If ModifierClass is provided then you must also supply a valid outer for the generated modifier
 	FModifierStackEntry(const FName& InName, const TSubclassOf<UVCamModifier> InModifierClass, UObject* InOuter)

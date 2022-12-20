@@ -125,6 +125,9 @@ struct VCAMCORE_API FVCamConnection
 	 */
 	bool AttemptConnection(UVCamComponent* VCamComponent);
 
+	/** Whether under the filter criteria of this struct it is legal to connection to ConnectionPoint from Modifier. */
+	bool IsConnectionValid(UVCamModifier& Modifier, FName ConnectionPointName, bool bLogWarnings = false) const;
+
 	/*
 	 * Clears any currently connected modifier and action
 	 */

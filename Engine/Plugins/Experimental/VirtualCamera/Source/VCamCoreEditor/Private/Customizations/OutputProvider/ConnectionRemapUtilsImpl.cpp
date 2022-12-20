@@ -22,14 +22,14 @@ namespace UE::VCamCoreEditor::Private
 		}
 		
 		TSharedPtr<FStructOnScope> StructData;
-		if (const TSharedPtr<FStructOnScope>* ExistingStructData = AddedConnections.Find(Args.PropertyName))
+		if (const TSharedPtr<FStructOnScope>* ExistingStructData = AddedConnections.Find(Args.ConnectionName))
 		{
 			StructData = *ExistingStructData;
 		}
 		else
 		{
 			StructData = MakeShared<FStructOnScope>(MoveTemp(Args.StructData));
-			AddedConnections.Add(Args.PropertyName, StructData);
+			AddedConnections.Add(Args.ConnectionName, StructData);
 		}
 		
 		const TSharedPtr<IPropertyHandle> PropertyHandle = BuilderPin->AddStructurePropertyData(StructData, Args.PropertyName);

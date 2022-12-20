@@ -182,17 +182,19 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "VirtualCamera")
 	void GetAllModifiers(TArray<UVCamModifier*>& Modifiers) const;
+	
 	/** Returns all the modifier names used to identifying connection points. */
 	UFUNCTION(BlueprintPure, Category = "VirtualCamera")
 	TArray<FName> GetAllModifierNames() const;
+
+	const TArray<FModifierStackEntry>& GetModifierStack() const { return ModifierStack; }
+
 	/** Returns the Modifier in the Stack with the given index if it exist. */
 	UFUNCTION(BlueprintPure, Category = "VirtualCamera")
 	UVCamModifier* GetModifierByIndex(const int32 Index) const;
-	/**
-	 * Tries to find a Modifier in the Stack with the given name. The returned Modifier must be checked before it is used. */
+	/** Tries to find a Modifier in the Stack with the given name. The returned Modifier must be checked before it is used. */
 	UFUNCTION(BlueprintPure, Category = "VirtualCamera")
 	UVCamModifier* GetModifierByName(const FName Name) const;
-
 	/** Given a specific Modifier class, returns a list of matching Modifiers */
 	UFUNCTION(BlueprintPure, Category = "VirtualCamera", Meta = (DeterminesOutputType = "ModifierClass", DynamicOutputParam = "FoundModifiers"))
 	void GetModifiersByClass(UPARAM(meta = (AllowAbstract = "false")) TSubclassOf<UVCamModifier> ModifierClass, TArray<UVCamModifier*>& FoundModifiers) const;

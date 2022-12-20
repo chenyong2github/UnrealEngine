@@ -29,8 +29,8 @@ namespace UE::VCamCoreEditor::Private
 		
 		void AddScopeRow(IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils);
 
-		void CustomizeModifier(TSharedRef<IPropertyHandle> ModifierHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils, IDetailPropertyRow& Row) const;
-		void CustomizeConnectionPoint(TSharedRef<IPropertyHandle> ModifierHandle, TSharedRef<IPropertyHandle> ConnectionPointHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils, IDetailPropertyRow& Row) const;
+		void CustomizeModifier(TSharedRef<IPropertyHandle> ModifierHandle, IDetailPropertyRow& Row, TSharedPtr<IPropertyHandle> OptionalVCamConnectionParentStructHandle) const;
+		void CustomizeConnectionPoint(TSharedRef<IPropertyHandle> ModifierHandle, TSharedRef<IPropertyHandle> ConnectionPointHandle, IDetailPropertyRow& Row, TSharedPtr<IPropertyHandle> OptionalVCamConnectionParentStructHandle) const;
 
 		enum class EComponentSource
 		{

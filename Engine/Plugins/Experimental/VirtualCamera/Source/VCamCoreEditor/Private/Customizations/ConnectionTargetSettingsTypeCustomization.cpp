@@ -13,6 +13,7 @@
 #include "Modules/ModuleManager.h"
 #include "Selection.h"
 #include "SSimpleComboButton.h"
+#include "Util/ConnectionUtils.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
@@ -48,12 +49,13 @@ namespace UE::VCamCoreEditor::Private
 		IDetailChildrenBuilder& ChildBuilder,
 		IPropertyTypeCustomizationUtils& CustomizationUtils)
 	{
-		uint32 NumChildren;
-		PropertyHandle->GetNumChildren( NumChildren );	
 		const FName WidgetProperty = GET_MEMBER_NAME_CHECKED(FVCamConnectionTargetSettings, TargetModifierName);
 		const FName ConnectionTargetsProperty = GET_MEMBER_NAME_CHECKED(FVCamConnectionTargetSettings, TargetConnectionPoint);
 		TSharedPtr<IPropertyHandle> TargetModifierNameProperty;
 		TSharedPtr<IPropertyHandle> TargetConnectionPointProperty;
+		
+		uint32 NumChildren;
+		PropertyHandle->GetNumChildren( NumChildren);	
 		for (uint32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
 		{
 			TSharedPtr<IPropertyHandle> ChildProperty = PropertyHandle->GetChildHandle(ChildIndex);
@@ -69,11 +71,19 @@ namespace UE::VCamCoreEditor::Private
 		
 		AddScopeRow(ChildBuilder, CustomizationUtils);
 		
+		const TSharedPtr<IPropertyHandle> ParentHandle = PropertyHandle->GetParentHandle();
+		const bool bIsValidHandle = ParentHandle
+			|| !CastField<FStructProperty>(PropertyHandle->GetProperty())
+			|| CastField<FStructProperty>(PropertyHandle->GetProperty())->Struct == FVCamConnection::StaticStruct();
+		const TSharedPtr<IPropertyHandle> OptionalVCamConnectionParentStructHandle = bIsValidHandle
+			? ParentHandle
+			: nullptr;
+		
 		IDetailPropertyRow& ModifierRow = ChildBuilder.AddProperty(TargetModifierNameProperty.ToSharedRef());
-		CustomizeModifier(TargetModifierNameProperty.ToSharedRef(), ChildBuilder, CustomizationUtils, ModifierRow);
+		CustomizeModifier(TargetModifierNameProperty.ToSharedRef(), ModifierRow, OptionalVCamConnectionParentStructHandle);
 
 		IDetailPropertyRow& TargetConnectionRow = ChildBuilder.AddProperty(TargetModifierNameProperty.ToSharedRef());
-		CustomizeConnectionPoint(TargetModifierNameProperty.ToSharedRef(), TargetConnectionPointProperty.ToSharedRef(), ChildBuilder, CustomizationUtils, TargetConnectionRow);
+		CustomizeConnectionPoint(TargetModifierNameProperty.ToSharedRef(), TargetConnectionPointProperty.ToSharedRef(), TargetConnectionRow, OptionalVCamConnectionParentStructHandle);
 	}
 
 	void FConnectionTargetSettingsTypeCustomization::AddScopeRow(IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
@@ -112,18 +122,31 @@ namespace UE::VCamCoreEditor::Private
 
 	void FConnectionTargetSettingsTypeCustomization::CustomizeModifier(
 		TSharedRef<IPropertyHandle> ModifierHandle,
-		IDetailChildrenBuilder& ChildBuilder,
-		IPropertyTypeCustomizationUtils& CustomizationUtils,
-		IDetailPropertyRow& Row
+		IDetailPropertyRow& Row,
+		TSharedPtr<IPropertyHandle> OptionalVCamConnectionParentStructHandle // Can be null
 		) const
 	{
 		CustomizeNameProperty(ModifierHandle, Row,
-			TAttribute<TArray<FName>>::CreateLambda([]() -> TArray<FName>
+			TAttribute<TArray<FName>>::CreateLambda([OptionalVCamConnectionParentStructHandle]() -> TArray<FName>
 			{
 				UVCamComponent* DataSource = GetUserFocusedConnectionPointSource().Component.Get();
-				return DataSource
-					? DataSource->GetAllModifierNames()
-					: TArray<FName>{};
+				if (!DataSource)
+				{
+					return {};
+				}
+
+				// If the property is within a FVCamConnection, narrow down the list of suggested modifiers
+				void* ValueData = nullptr;
+				if (OptionalVCamConnectionParentStructHandle
+					&& OptionalVCamConnectionParentStructHandle->IsValidHandle()
+					&& OptionalVCamConnectionParentStructHandle->GetValueData(ValueData) == FPropertyAccess::Success
+					&& ValueData)
+				{
+					const FVCamConnection* ConnectionData = static_cast<FVCamConnection*>(ValueData);
+					return VCamCore::ConnectionUtils::FindCompatibleModifierNames(*ConnectionData, *DataSource);
+				}
+				
+				return DataSource->GetAllModifierNames();
 			}),
 			TAttribute<bool>::CreateLambda([](){ return GetUserFocusedConnectionPointSource().ComponentSource != EComponentSource::None; })
 			);
@@ -132,13 +155,12 @@ namespace UE::VCamCoreEditor::Private
 	void FConnectionTargetSettingsTypeCustomization::CustomizeConnectionPoint(
 		TSharedRef<IPropertyHandle> ModifierHandle,
 		TSharedRef<IPropertyHandle> ConnectionPointHandle,
-		IDetailChildrenBuilder& ChildBuilder,
-		IPropertyTypeCustomizationUtils& CustomizationUtils,
-		IDetailPropertyRow& Row
+		IDetailPropertyRow& Row,
+		TSharedPtr<IPropertyHandle> OptionalVCamConnectionParentStructHandle // Can be null
 		) const
 	{
 		CustomizeNameProperty(ConnectionPointHandle, Row,
-			TAttribute<TArray<FName>>::CreateLambda([ModifierHandle]() -> TArray<FName>
+			TAttribute<TArray<FName>>::CreateLambda([ModifierHandle, OptionalVCamConnectionParentStructHandle]() -> TArray<FName>
 			{
 				FName ModifierName;
 				if (ModifierHandle->GetValue(ModifierName) != FPropertyAccess::Success)
@@ -147,13 +169,30 @@ namespace UE::VCamCoreEditor::Private
 				}
 
 				UVCamComponent* DataSource = GetUserFocusedConnectionPointSource().Component.Get();
+				if (!DataSource)
+				{
+					return {};
+				}
+				
 				UVCamModifier* Modifier = DataSource->GetModifierByName(ModifierName);
+				if (!Modifier)
+				{
+					return {};
+				}
+
+				// If the property is within a FVCamConnection, narrow down the list of suggested modifiers
+				void* ValueData = nullptr;
+				if (OptionalVCamConnectionParentStructHandle
+					&& OptionalVCamConnectionParentStructHandle->IsValidHandle()
+					&& OptionalVCamConnectionParentStructHandle->GetValueData(ValueData) == FPropertyAccess::Success
+					&& ValueData)
+				{
+					const FVCamConnection* ConnectionData = static_cast<FVCamConnection*>(ValueData);
+					return VCamCore::ConnectionUtils::FindCompatibleConnectionPoints(*ConnectionData, *Modifier);
+				}
 
 				TArray<FName> ConnectionPoints;
-				if (Modifier)
-				{
-					Modifier->ConnectionPoints.GenerateKeyArray(ConnectionPoints);
-				}
+				Modifier->ConnectionPoints.GenerateKeyArray(ConnectionPoints);
 				return ConnectionPoints;
 			}),
 			TAttribute<bool>::CreateLambda([ModifierHandle]()
@@ -193,18 +232,20 @@ namespace UE::VCamCoreEditor::Private
 		}
 
 		// Level Editor
+		USelection* Selection = GEditor->GetSelectedActors();
+		if (Selection)
 		{
-			USelection* Selection = GEditor->GetSelectedActors();
-			UObject* SelectedObject = Selection && Selection->Num() == 1
-				? Selection->GetSelectedObject(0)
-				: nullptr;
-			AActor* SelectedActor = Cast<AActor>(SelectedObject);
-			UVCamComponent* VCamComponent = SelectedActor
-				? SelectedActor->FindComponentByClass<UVCamComponent>()
-				: nullptr;
-			if (IsValid(VCamComponent))
+			for (int32 i = 0; i < Selection->Num(); ++i)
 			{
-				return { EComponentSource::LevelSelection, VCamComponent };
+				UObject* SelectedObject = Selection->GetSelectedObject(i);
+				AActor* SelectedActor = Cast<AActor>(SelectedObject);
+				UVCamComponent* VCamComponent = SelectedActor
+					? SelectedActor->FindComponentByClass<UVCamComponent>()
+					: nullptr;
+				if (IsValid(VCamComponent))
+				{
+					return { EComponentSource::LevelSelection, VCamComponent };
+				}
 			}
 		}
 			
