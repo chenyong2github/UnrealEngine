@@ -6,6 +6,8 @@
 
 #pragma once
 
+// IWYU pragma: begin_keep
+
 // Boilerplate
 #include "Misc/MonolithicHeaderBoilerplate.h"
 MONOLITHIC_HEADER_BOILERPLATE()
@@ -112,3 +114,5 @@ MONOLITHIC_HEADER_BOILERPLATE()
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Sound/SoundBase.h"
 #include "Sound/SoundWave.h"
+
+// IWYU pragma: end_keep

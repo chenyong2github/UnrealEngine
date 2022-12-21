@@ -6,6 +6,8 @@
 
 #pragma once
 
+// IWYU pragma: begin_keep
+
 #include "Misc/MonolithicHeaderBoilerplate.h"
 MONOLITHIC_HEADER_BOILERPLATE()
 
@@ -329,3 +331,5 @@ MONOLITHIC_HEADER_BOILERPLATE()
 #include "TimerManager.h"
 #include "SlateCore.h"
 #include "SlateBasics.h"
+
+// IWYU pragma: end_keep

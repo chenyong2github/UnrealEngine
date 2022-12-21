@@ -6,6 +6,8 @@
 
 #pragma once
 
+// IWYU pragma: begin_keep
+
 #include "Misc/MonolithicHeaderBoilerplate.h"
 MONOLITHIC_HEADER_BOILERPLATE()
 
@@ -42,3 +44,5 @@ MONOLITHIC_HEADER_BOILERPLATE()
 #include "ParticleHelper.h"
 #include "Distributions.h"
 #include "ParticleEmitterInstances.h"
+
+// IWYU pragma: end_keep
