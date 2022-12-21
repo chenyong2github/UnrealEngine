@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Net/DataBunch.h"
+#include "Engine/ControlChannel.h"
 #include "Engine/NetConnection.h"
 #include "Net/Core/Trace/NetTrace.h"
 #include "Net/Core/Trace/Private/NetTraceInternal.h"

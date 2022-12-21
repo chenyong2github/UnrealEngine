@@ -17,13 +17,10 @@
 #include "Iris/Serialization/NetSerializationContext.h"
 #include "Iris/Core/IrisProfiler.h"
 #include "Iris/Core/IrisMemoryTracker.h"
+#include "Net/Core/Trace/NetTrace.h"
 #include "PacketHandler.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #endif // UE_WITH_IRIS
-
-#if UE_WITH_IRIS && UE_NET_TRACE_ENABLED
-#include "Net/Core/Trace/NetTrace.h"
-#endif
 
 namespace UE::Net::Private
 {
