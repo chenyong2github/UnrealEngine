@@ -1,20 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PhysicsEngine/PhysicsHandleComponent.h"
-#include "EngineDefines.h"
-#include "PhysxUserData.h"
 #include "Components/PrimitiveComponent.h"
-#include "PhysicsPublic.h"
-#include "Physics/PhysicsInterfaceCore.h"
 
-#include "Chaos/ParticleHandle.h"
-#include "Chaos/KinematicGeometryParticles.h"
-#include "Chaos/PBDJointConstraintTypes.h"
 #include "Chaos/PBDJointConstraintData.h"
 #include "Chaos/Sphere.h"
-#include "Physics/PhysicsInterfaceScene.h"
+#include "Physics/Experimental/PhysScene_Chaos.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
-#include "ChaosCheck.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PhysicsHandleComponent)
 

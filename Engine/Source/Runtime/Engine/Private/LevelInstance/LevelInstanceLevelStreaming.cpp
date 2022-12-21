@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelInstance/LevelInstanceLevelStreaming.h"
+#include "Engine/Engine.h"
 #include "Engine/Level.h"
+#include "Engine/LevelStreaming.h"
 #include "LevelInstance/LevelInstanceInterface.h"
 #include "LevelInstance/LevelInstancePrivate.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
@@ -9,15 +11,15 @@
 #include "Engine/World.h"
 #include "Misc/PackageName.h"
 #include "GameFramework/WorldSettings.h"
+#include "Misc/Paths.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "UObject/Linker.h"
+#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LevelInstanceLevelStreaming)
 
 #if WITH_EDITOR
 #include "LevelInstance/LevelInstanceEditorInstanceActor.h"
-#include "Editor.h"
-#include "EditorLevelUtils.h"
 #include "LevelUtils.h"
 #include "ActorFolder.h"
 #endif

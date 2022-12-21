@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PrimitiveUniformShaderParameters.h"
-#include "InstanceUniformShaderParameters.h"
-#include "PrimitiveSceneProxy.h"
 #include "PrimitiveSceneInfo.h"
 #include "NaniteSceneProxy.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
+#include "SceneInterface.h"
 #include "UnrealEngine.h"
 #include "DataDrivenShaderPlatformInfo.h"
 

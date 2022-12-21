@@ -1,18 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Materials/MaterialRenderProxy.h"
-#include "Async/TaskGraphFwd.h"
 #include "Engine/Texture.h"
 #include "EngineModule.h"
 #include "ExternalTexture.h"
-#include "HAL/IConsoleManager.h"
 #include "Materials/Material.h"
-#include "Materials/MaterialInterface.h"
 #include "MaterialDomain.h"
 #include "MaterialShared.h"
+#include "RenderCore.h"
 #include "RendererInterface.h"
 #include "RenderingThread.h"
-#include "RHI.h"
 #include "TextureResource.h"
 #include "VT/RuntimeVirtualTexture.h"
 

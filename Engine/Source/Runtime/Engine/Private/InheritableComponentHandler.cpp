@@ -1,13 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/InheritableComponentHandler.h"
-#include "Components/ActorComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/SCS_Node.h"
-#include "UObject/PropertyPortFlags.h"
-#include "UObject/LinkerLoad.h"
+#include "EngineLogs.h"
 #include "UObject/BlueprintsObjectVersion.h"
-#include "UObject/UObjectHash.h" // for FindObjectWithOuter()
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InheritableComponentHandler)
 

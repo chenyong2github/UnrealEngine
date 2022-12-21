@@ -5,11 +5,13 @@
 =============================================================================*/
 
 #include "MeshParticleVertexFactory.h"
+#include "MeshDrawShaderBindings.h"
 #include "ParticleHelper.h"
-#include "ShaderParameterUtils.h"
 #include "MeshMaterialShader.h"
 #include "GlobalRenderResources.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "MeshUVChannelInfo.h"
+#include "Misc/DelayedAutoRegister.h"
 
 class FMeshParticleVertexFactoryShaderParameters : public FVertexFactoryShaderParameters
 {

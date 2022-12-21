@@ -1,22 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/SkinWeightProfileManager.h"
-#include "Stats/Stats.h"
-#include "Animation/SkinWeightProfile.h"
-#include "Rendering/SkeletalMeshLODRenderData.h"
-#include "Rendering/SkinWeightVertexBuffer.h"
 #include "Engine/SkeletalMesh.h"
-#include "Engine/World.h"
+#include "Engine/SkinnedAsset.h"
 #include "Rendering/SkeletalMeshRenderData.h"
-#include "RenderingThread.h"
-#include "RHICommandList.h"
-#include "UObject/WeakObjectPtrTemplates.h"
-#include "Algo/Transform.h"
-#include "Engine/Engine.h"
-#include "Engine/Canvas.h"
-#include "GameFramework/HUD.h"
-#include "Logging/LogMacros.h"
-#include "ProfilingDebugging/CsvProfiler.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkinWeightProfileManager)
 

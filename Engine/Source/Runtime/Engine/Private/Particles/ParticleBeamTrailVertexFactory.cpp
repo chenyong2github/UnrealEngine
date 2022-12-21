@@ -5,9 +5,10 @@
 =============================================================================*/
 
 #include "ParticleBeamTrailVertexFactory.h"
+#include "MeshDrawShaderBindings.h"
 #include "ParticleHelper.h"
-#include "ShaderParameterUtils.h"
 #include "MeshMaterialShader.h"
+#include "Misc/DelayedAutoRegister.h"
 #include "PipelineStateCache.h"
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FParticleBeamTrailUniformParameters,"BeamTrailVF");

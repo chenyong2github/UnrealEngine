@@ -1,25 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/WorldPartitionRuntimeLevelStreamingCell.h"
+#include "Engine/LevelStreaming.h"
 #include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
-#include "WorldPartition/WorldPartition.h"
 #include "Engine/Level.h"
-#include "Engine/World.h"
+#include "Misc/HierarchicalLogArchive.h"
 #include "Misc/Paths.h"
 
-#include "WorldPartition/HLOD/HLODSubsystem.h"
-#include "WorldPartition/HLOD/HLODActor.h"
-#include "WorldPartition/WorldPartitionDebugHelper.h"
+#include "WorldPartition/WorldPartitionActorDescView.h"
 #include "WorldPartition/WorldPartitionLevelStreamingPolicy.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionRuntimeLevelStreamingCell)
 
 #if WITH_EDITOR
-#include "WorldPartition/ActorDescContainer.h"
-#include "WorldPartition/WorldPartitionLevelHelper.h"
-#include "Engine/LevelStreamingAlwaysLoaded.h"
-#include "Algo/ForEach.h"
-#include "AssetCompilingManager.h"
 #endif
 
 UWorldPartitionRuntimeLevelStreamingCell::UWorldPartitionRuntimeLevelStreamingCell(const FObjectInitializer& ObjectInitializer)

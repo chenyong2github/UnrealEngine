@@ -2,19 +2,15 @@
 #include "Sound/SoundSubmix.h"
 
 #include "AudioDevice.h"
-#include "AudioDeviceManager.h"
-#include "Engine/Engine.h"
-#include "EngineGlobals.h"
-#include "Sound/SoundSubmixSend.h"
-#include "UObject/UObjectIterator.h"
-#include "DSP/Dsp.h"
-#include "DSP/SpectrumAnalyzer.h"
+#include "Sound/SampleBufferIO.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SoundSubmix)
 
 #if WITH_EDITOR
 #include "Framework/Notifications/NotificationManager.h"
+#include "IAudioEndpoint.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "ISoundfieldEndpoint.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
 #include "Async/Async.h"

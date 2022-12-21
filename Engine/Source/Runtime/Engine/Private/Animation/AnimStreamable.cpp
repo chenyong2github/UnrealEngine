@@ -6,17 +6,20 @@
 
 #include "Animation/AnimStreamable.h"
 
-#include "AnimCompressionDerivedData.h"
+#include "Animation/AnimCompress.h"
 #include "Interfaces/ITargetPlatform.h"
+#include "Animation/AnimData/IAnimationDataController.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
+#include "Animation/AnimSequence.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
+#include "AnimationUtils.h"
 #include "DeviceProfiles/DeviceProfile.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 #include "UObject/LinkerLoad.h"
 #include "UObject/ObjectSaveContext.h"
 #include "DerivedDataCacheInterface.h"
 #include "Animation/AnimBoneCompressionSettings.h"
 #include "Animation/AnimCurveCompressionSettings.h"
-#include "Animation/AnimBoneCompressionCodec.h"
 #include "Animation/AnimCurveCompressionCodec.h"
 #include "BonePose.h"
 #include "CommonFrameRates.h"
@@ -24,7 +27,6 @@
 #include "ITimeManagementModule.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "Animation/AnimationPoseData.h"
-#include "Animation/AttributesRuntime.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 
 #include "Animation/AnimSequenceHelpers.h"
@@ -32,6 +34,10 @@
 #include "Animation/AnimData/IAnimationDataModel.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimStreamable)
+
+#if WITH_EDITOR
+#include "Animation/AnimCompressionDerivedData.h"
+#endif
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(ENGINE_API, Animation);
 

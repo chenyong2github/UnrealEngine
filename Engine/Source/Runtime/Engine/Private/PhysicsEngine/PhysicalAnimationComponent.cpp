@@ -1,16 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PhysicsEngine/PhysicalAnimationComponent.h"
+#include "Chaos/ImplicitFwd.h"
 #include "SceneManagement.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Physics/Experimental/PhysScene_Chaos.h"
 #include "PhysicsEngine/PhysicsAsset.h"
-#include "PhysXPublic.h"
-#include "Physics/PhysicsInterfaceCore.h"
-#include "Physics/PhysicsInterfaceScene.h"
 #include "Chaos/ChaosConstraintSettings.h"
-#include "Chaos/ParticleHandle.h"
 #include "Chaos/Sphere.h"
-#include "ChaosCheck.h"
+#include "PhysicsEngine/ConstraintInstance.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PhysicalAnimationComponent)

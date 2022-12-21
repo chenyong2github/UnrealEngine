@@ -5,21 +5,18 @@
 =============================================================================*/
 
 #include "GPUSkinVertexFactory.h"
-#include "SceneView.h"
 #include "MeshBatch.h"
 #include "GPUSkinCache.h"
-#include "ShaderParameterUtils.h"
+#include "MeshDrawShaderBindings.h"
 #include "MeshMaterialShader.h"
+#include "Misc/DelayedAutoRegister.h"
 #include "SkeletalRenderGPUSkin.h"
-#include "PlatformInfo.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
-#include "Logging/LogMacros.h"
-#include "Misc/CoreMisc.h"
 #include "RenderGraphResources.h"
+#include "RenderUtils.h"
 #include "ShaderPlatformCachedIniValue.h"
 #include "Engine/RendererSettings.h"
-#include "RHI.h"
 
 #if INTEL_ISPC
 #include "GPUSkinVertexFactory.ispc.generated.h"

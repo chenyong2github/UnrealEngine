@@ -4,23 +4,12 @@
 	TickTaskManager.cpp: Manager for ticking tasks
 =============================================================================*/
 
-#include "CoreMinimal.h"
-#include "Stats/Stats.h"
-#include "HAL/IConsoleManager.h"
-#include "Misc/App.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Class.h"
-#include "UObject/Package.h"
-#include "Containers/SortedMap.h"
-#include "Async/TaskGraphInterfaces.h"
-#include "Engine/EngineBaseTypes.h"
-#include "Engine/EngineTypes.h"
 #include "Engine/Level.h"
 #include "Engine/World.h"
+#include "Stats/StatsTrace.h"
 #include "TickTaskManagerInterface.h"
 #include "Async/ParallelFor.h"
 #include "Misc/TimeGuard.h"
-#include "ProfilingDebugging/CsvProfiler.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogTick, Log, All);
 

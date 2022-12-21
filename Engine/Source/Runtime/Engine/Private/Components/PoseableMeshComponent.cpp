@@ -9,6 +9,7 @@
 #include "Animation/AnimStats.h"
 #include "Animation/AnimInstance.h"
 #include "Engine/SkinnedAsset.h"
+#include "UObject/Stack.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PoseableMeshComponent)
 

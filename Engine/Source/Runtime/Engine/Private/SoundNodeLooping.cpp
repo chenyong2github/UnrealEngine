@@ -2,9 +2,7 @@
 
 
 #include "Sound/SoundNodeLooping.h"
-#include "Audio.h"
 #include "ActiveSound.h"
-#include "Sound/SoundBase.h"
 #include "Sound/SoundNodeWavePlayer.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SoundNodeLooping)

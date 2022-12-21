@@ -1,23 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
 #include "Math/RandomStream.h"
-#include "EngineGlobals.h"
-#include "RHI.h"
-#include "RawIndexBuffer.h"
 #include "MaterialShared.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialRenderProxy.h"
 #include "CanvasItem.h"
 #include "CanvasTypes.h"
-#include "SceneUtils.h"
+#include "Rendering/SkeletalMeshLODRenderData.h"
 #include "UnrealEngine.h"
 #include "DynamicMeshBuilder.h"
 #include "PrimitiveSceneProxy.h"
-#include "StaticMeshResources.h"
 #include "Engine/LightMapTexture2D.h"
-#include "Rendering/SkeletalMeshRenderData.h"
+#include "SceneInterface.h"
 #include "UnrealClient.h"
+#include "SceneManagement.h"
 
 /** Emits draw events for a given FMeshBatch and the FPrimitiveSceneProxy corresponding to that mesh element. */
 #if WANTS_DRAW_MESH_EVENTS

@@ -3,6 +3,7 @@
 #include "Animation/AnimSubsystem_Tag.h"
 #include "Animation/AnimClassInterface.h"
 #include "Animation/AnimInstance.h"
+#include "Animation/AnimSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimSubsystem_Tag)
 

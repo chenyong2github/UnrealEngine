@@ -3,6 +3,7 @@
 
 #include "Sound/SoundNodeSwitch.h"
 #include "ActiveSound.h"
+#include "IAudioParameterTransmitter.h"
 #include "Sound/SoundCue.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SoundNodeSwitch)

@@ -1,23 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Atmosphere/AtmosphericFog.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "Atmosphere/AtmosphericFogComponent.h"
 #include "UObject/ConstructorHelpers.h"
-#include "EngineDefines.h"
-#include "RenderingThread.h"
 #include "Components/ArrowComponent.h"
-#include "UObject/UObjectHash.h"
-#include "UObject/UObjectIterator.h"
 #include "Engine/Texture2D.h"
-#include "ComponentReregisterContext.h"
 #include "Atmosphere/AtmosphericFog.h"
 #include "Components/BillboardComponent.h"
-#include "ScenePrivate.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AtmosphericFog)
 
 #if WITH_EDITOR
-#include "ObjectEditorUtils.h"
 #endif
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS

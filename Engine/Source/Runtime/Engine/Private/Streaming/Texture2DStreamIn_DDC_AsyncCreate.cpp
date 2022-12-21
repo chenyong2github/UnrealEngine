@@ -5,7 +5,8 @@ Texture2DStreamIn_DDC_AsyncCreate.h: Load texture 2D mips from the DDC using asy
 =============================================================================*/
 
 #include "Streaming/Texture2DStreamIn_DDC_AsyncCreate.h"
-#include "RenderUtils.h"
+#include "Streaming/Texture2DStreamIn_DDC.h"
+#include "Streaming/Texture2DUpdate.h"
 
 #if WITH_EDITORONLY_DATA
 

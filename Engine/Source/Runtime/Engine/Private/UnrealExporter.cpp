@@ -6,29 +6,21 @@
 
 // Engine includes.
 #include "UnrealExporter.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
 #include "UObject/UnrealType.h"
-#include "Components/ActorComponent.h"
 #include "Exporters/Exporter.h"
-#include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Misc/OutputDeviceFile.h"
 #include "Serialization/BufferArchive.h"
-#include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
-#include "UObject/Package.h"
-#include "UObject/PropertyPortFlags.h"
-#include "GameFramework/Actor.h"
 #include "Model.h"
 #include "Misc/FeedbackContext.h"
 #include "AssetExportTask.h"
 #include "UObject/GCObjectScopeGuard.h"
-#include "Engine/Selection.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
+#include "Selection.h"
 #endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogExporter, Log, All);

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Net/UnrealNetwork.h"
+#include "UObject/CoreNet.h"
 
 FPreReplayScrub                                      FNetworkReplayDelegates::OnPreScrub;
 FReplayScrubTeardown                                 FNetworkReplayDelegates::OnScrubTeardown;

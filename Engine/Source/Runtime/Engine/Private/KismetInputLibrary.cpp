@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Kismet/KismetInputLibrary.h"
-#include "EngineGlobals.h"
 #include "Engine/Engine.h"
 #include "Framework/Application/SlateApplication.h"
-#include "GenericPlatform/GenericApplication.h" // for EModifierKey, FModifierKeysState
+#include "Framework/Commands/InputChord.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(KismetInputLibrary)
 

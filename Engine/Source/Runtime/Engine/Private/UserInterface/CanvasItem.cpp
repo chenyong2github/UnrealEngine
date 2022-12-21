@@ -7,19 +7,15 @@
 #include "CanvasItem.h"
 #include "BatchedElements.h"
 #include "EngineStats.h"
-#include "EngineGlobals.h"
-#include "HitProxies.h"
 #include "Materials/Material.h"
 #include "CanvasRendererItem.h"
-#include "CanvasTypes.h"
 #include "Engine/Canvas.h"
-#include "Engine/Texture.h"
 #include "Engine/Texture2D.h"
-#include "Engine/Engine.h"
 #include "Fonts/FontCache.h"
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
 #include "EngineFontServices.h"
+#include "Math/RotationMatrix.h"
 #include "TextureResource.h"
 
 DECLARE_CYCLE_STAT(TEXT("CanvasTileTextureItem Time"),STAT_Canvas_TileTextureItemTime,STATGROUP_Canvas);
@@ -33,8 +29,8 @@ DECLARE_CYCLE_STAT(TEXT("CanvasBorderItem Time"),STAT_Canvas_BorderItemTime,STAT
 
 
 #if WITH_EDITOR
-#include "Engine/Selection.h"
 #include "Editor.h"
+#include "Selection.h"
 
 FCanvasItemTestbed::LineVars FCanvasItemTestbed::TestLine;
 bool FCanvasItemTestbed::bTestState = false;

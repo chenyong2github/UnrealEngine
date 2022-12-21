@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/WorldPartitionMiniMapVolume.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "Engine/CollisionProfile.h"
 #include "Components/BrushComponent.h"
 

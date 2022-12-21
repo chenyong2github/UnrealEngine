@@ -2,19 +2,14 @@
 #if WITH_EDITOR
 
 #include "MaterialHLSLTree.h"
-#include "HLSLTree/HLSLTreeCommon.h"
+#include "Engine/Texture.h"
 #include "HLSLTree/HLSLTreeEmit.h"
-#include "Misc/StringBuilder.h"
 #include "MaterialDomain.h"
 #include "MaterialShared.h"
 #include "MaterialCachedData.h"
-#include "MaterialSceneTextureId.h"
 #include "Materials/MaterialFunctionInterface.h"
 #include "Engine/BlendableInterface.h" // BL_AfterTonemapping
-#include "VT/RuntimeVirtualTexture.h"
 #include "VT/VirtualTextureScalability.h"
-#include "Engine/Texture2D.h"
-#include "Engine/Font.h"
 
 namespace UE::HLSLTree::Material
 {

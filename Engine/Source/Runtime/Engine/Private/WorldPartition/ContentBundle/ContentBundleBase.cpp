@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "WorldPartition/ContentBundle/ContentBundleBase.h"
 
-#include "WorldPartition/WorldPartition.h"
+#include "UObject/Class.h"
 #include "WorldPartition/ContentBundle/ContentBundleDescriptor.h"
 #include "WorldPartition/ContentBundle/ContentBundleClient.h"
 #include "WorldPartition/ContentBundle/ContentBundleLog.h"
 #include "WorldPartition/ContentBundle/ContentBundlePaths.h"
-#include "Engine/World.h"
+#include "WorldPartition/ContentBundle/ContentBundleStatus.h"
 
 FContentBundleBase::FContentBundleBase(TSharedPtr<FContentBundleClient>& InClient, UWorld* InWorld)
 	: Client(InClient)

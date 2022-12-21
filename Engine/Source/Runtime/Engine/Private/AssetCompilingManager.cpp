@@ -9,19 +9,14 @@ DECLARE_LLM_MEMORY_STAT(TEXT("AssetCompilation"), STAT_AssetCompilationLLM, STAT
 DECLARE_LLM_MEMORY_STAT(TEXT("AssetCompilation"), STAT_AssetCompilationSummaryLLM, STATGROUP_LLM);
 LLM_DEFINE_TAG(AssetCompilation, NAME_None, NAME_None, GET_STATFNAME(STAT_AssetCompilationLLM), GET_STATFNAME(STAT_AssetCompilationSummaryLLM));
 
+#include "Misc/QueuedThreadPool.h"
 #include "Misc/QueuedThreadPoolWrapper.h"
 #include "Misc/CommandLine.h"
-#include "UObject/UObjectIterator.h"
-#include "HAL/IConsoleManager.h"
 #include "ActorDeferredScriptManager.h"
 #include "StaticMeshCompiler.h"
 #include "TextureCompiler.h"
 #include "SoundWaveCompiler.h"
-#include "Components/StaticMeshComponent.h"
-#include "Materials/MaterialInstance.h"
 #include "ObjectCacheContext.h"
-#include "AsyncCompilationHelpers.h"
-#include "Experimental/Misc/ExecutionResource.h"
 #include "SkinnedAssetCompiler.h"
 #include "Algo/TopologicalSort.h"
 #include "Algo/Find.h"

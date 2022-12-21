@@ -5,21 +5,23 @@
 =============================================================================*/
 
 #include "Engine/GameEngine.h"
+#include "Brushes/SlateNoResource.h"
 #include "Engine/GameInstance.h"
+#include "Engine/NetConnection.h"
 #include "Framework/Docking/TabManager.h"
 #include "GenericPlatform/GenericPlatformSurvey.h"
-#include "Misc/CommandLine.h"
 #include "Misc/TimeGuard.h"
 #include "Misc/App.h"
 #include "GameMapsSettings.h"
 #include "EngineStats.h"
-#include "EngineGlobals.h"
+#include "Rendering/SlateRenderer.h"
 #include "RenderingThread.h"
 #include "Engine/EngineConsoleCommandExecutor.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/LevelStreaming.h"
 #include "Engine/PlatformInterfaceBase.h"
 #include "ContentStreaming.h"
+#include "Subsystems/EngineSubsystem.h"
 #include "UnrealEngine.h"
 #include "HAL/PlatformSplash.h"
 #include "UObject/Package.h"
@@ -28,9 +30,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "AudioDeviceManager.h"
 #include "Net/NetworkProfiler.h"
-#include "RendererInterface.h"
 #include "EngineModule.h"
-#include "GeneralProjectSettings.h"
 #include "Misc/PackageName.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "ShaderPipelineCache.h"
@@ -57,27 +57,22 @@
 #include "StudioAnalytics.h"
 #include "Engine/DemoNetDriver.h"
 
-#include "Tickable.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "DynamicResolutionProxy.h"
 #include "DynamicResolutionState.h"
 #include "MoviePlayerProxy.h"
-#include "ProfilingDebugging/CsvProfiler.h"
-#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "RenderTargetPool.h"
 #include "RenderGraphBuilder.h"
 #include "CustomResourcePool.h"
 
 #if WITH_EDITOR
 #include "PIEPreviewDeviceProfileSelectorModule.h"
-#include "IPIEPreviewDeviceModule.h"
 #endif
 
 #if !UE_SERVER
 	#include "IMediaModule.h"
 #endif
 
-#include "ChaosSolversModule.h"
 
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
@@ -829,10 +824,7 @@ UEngine::UEngine(const FObjectInitializer& ObjectInitializer)
 //@todo kairos: Move this and maybe the above engine handling code to somewhere else. I can't put this into Core
 // with Embedded because of the Json dependency that I don't want/can't? add to Core. Maybe ApplicationCore?
 
-#include "Misc/CoreMisc.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Misc/Parse.h"
-#include "Serialization/JsonReader.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameEngine)
 

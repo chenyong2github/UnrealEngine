@@ -2,14 +2,7 @@
 
 #include "Sound/SoundConcurrency.h"
 
-#include "ActiveSound.h"
-#include "AudioDefines.h"
 #include "AudioDevice.h"
-#include "AudioVirtualLoop.h"
-#include "Components/AudioComponent.h"
-#include "DSP/VolumeFader.h"
-#include "HAL/IConsoleManager.h"
-#include "Sound/SoundBase.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SoundConcurrency)
 

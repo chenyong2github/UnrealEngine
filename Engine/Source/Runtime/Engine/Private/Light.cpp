@@ -3,8 +3,8 @@
 
 #include "Engine/Light.h"
 #include "Engine/Level.h"
+#include "Engine/SpotLight.h"
 #include "Engine/World.h"
-#include "Components/LightComponent.h"
 #include "Components/ArrowComponent.h"
 #include "Engine/PointLight.h"
 #include "Engine/DirectionalLight.h"

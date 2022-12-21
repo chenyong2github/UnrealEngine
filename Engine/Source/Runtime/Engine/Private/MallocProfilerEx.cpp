@@ -5,8 +5,6 @@
 =============================================================================*/
 
 #include "MallocProfilerEx.h"
-#include "UObject/UObjectGlobals.h"
-#include "RHI.h"
 
 #if USE_MALLOC_PROFILER
 

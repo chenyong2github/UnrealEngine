@@ -4,17 +4,17 @@
 =============================================================================*/
 #include "EngineUtils.h"
 #include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "GameFramework/Pawn.h"
-#include "Misc/Paths.h"
+#include "Elements/Framework/TypedElementHandle.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Modules/ModuleManager.h"
 #include "UObject/UObjectIterator.h"
-#include "UObject/Package.h"
 #include "Misc/PackageName.h"
 #include "Misc/EngineVersion.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/LightWeightInstanceSubsystem.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
-#include "EngineGlobals.h"
 #include "Components/PrimitiveComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/LevelStreaming.h"
@@ -23,17 +23,11 @@
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 #include "Misc/MapErrors.h"
-#include "EngineModule.h"
-#include "Engine/AssetManager.h"
 #include "Misc/PathViews.h"
-#include "IO/IoDispatcher.h"
 
 #include "ProfilingDebugging/DiagnosticTable.h"
 #include "Interfaces/ITargetPlatform.h"
 
-#include "TextureResource.h"
-#include "Engine/Texture2D.h"
-#include "VirtualTexturing.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEngineUtils, Log, All);
 

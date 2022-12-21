@@ -2,8 +2,7 @@
 
 #include "LumenVisualizationData.h"
 #include "HAL/IConsoleManager.h"
-#include "Materials/Material.h"
-#include "Misc/ConfigCacheIni.h"
+#include "Internationalization/Internationalization.h"
 
 #define LOCTEXT_NAMESPACE "FLumenVisualizationData"
 

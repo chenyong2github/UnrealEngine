@@ -2,11 +2,11 @@
 
 
 #include "Sound/SoundEffectPreset.h"
+#include "Sound/SoundEffectBase.h"
 #include "Sound/SoundEffectSource.h"
 #include "Engine/Engine.h"
 #include "AudioDeviceManager.h"
-#include "CoreGlobals.h"
-#include "Audio.h"
+#include "UObject/ObjectPtr.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SoundEffectPreset)
 

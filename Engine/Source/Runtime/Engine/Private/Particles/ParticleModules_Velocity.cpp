@@ -5,15 +5,16 @@
 	Velocity-related particle module implementations.
 =============================================================================*/
 
-#include "CoreMinimal.h"
-#include "ParticleHelper.h"
+#include "ParticleEmitterInstances.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "Distributions/DistributionFloatUniform.h"
 #include "Distributions/DistributionVectorConstant.h"
 #include "Distributions/DistributionVectorUniform.h"
 #include "Distributions/DistributionVectorConstantCurve.h"
 #include "Particles/Lifetime/ParticleModuleLifetimeBase.h"
+#include "Particles/ParticleEmitter.h"
 #include "Particles/Velocity/ParticleModuleVelocityBase.h"
+#include "Particles/ParticleModule.h"
 #include "Particles/Velocity/ParticleModuleVelocity.h"
 #include "Particles/Velocity/ParticleModuleVelocityCone.h"
 #include "Particles/Velocity/ParticleModuleVelocityInheritParent.h"
@@ -21,6 +22,7 @@
 #include "Particles/Velocity/ParticleModuleVelocity_Seeded.h"
 #include "Particles/ParticleLODLevel.h"
 #include "Particles/ParticleModuleRequired.h"
+#include "SceneManagement.h"
 
 UParticleModuleVelocityBase::UParticleModuleVelocityBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

@@ -1,21 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/Framework/TypedElementCommonActions.h"
+#include "Elements/Framework/TypedElementListProxy.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Elements/Framework/TypedElementRegistry.h"
 #include "Elements/Framework/TypedElementUtil.h"
-
-#include "Containers/StringFwd.h"
-#include "Containers/StringView.h"
-#include "Containers/UnrealString.h"
-#include "Exporters/Exporter.h"
 #include "HAL/PlatformApplicationMisc.h"
-#include "Math/Box.h"
-#include "Math/Transform.h"
-#include "Misc/CString.h"
-#include "Misc/Parse.h"
-#include "UObject/GCObjectScopeGuard.h"
-#include "UObject/Stack.h"
+
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TypedElementCommonActions)
 

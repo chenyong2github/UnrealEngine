@@ -8,7 +8,6 @@
 #include "Engine/VolumeTexture.h"
 #include "EngineLogs.h"
 #include "RenderUtils.h"
-#include "SceneTypes.h"
 
 //*****************************************************************************
 

@@ -2,11 +2,7 @@
 
 #include "ODSCThread.h"
 #include "ODSCLog.h"
-#include "HAL/Event.h"
 #include "HAL/FileManager.h"
-#include "HAL/PlatformProcess.h"
-#include "HAL/RunnableThread.h"
-#include "ShaderCompiler.h"
 
 FODSCRequestPayload::FODSCRequestPayload(EShaderPlatform InShaderPlatform, ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type InQualityLevel, const FString& InMaterialName, const FString& InVertexFactoryName, const FString& InPipelineName, const TArray<FString>& InShaderTypeNames, const FString& InRequestHash)
 	: ShaderPlatform(InShaderPlatform), FeatureLevel(InFeatureLevel), QualityLevel(InQualityLevel), MaterialName(InMaterialName), VertexFactoryName(InVertexFactoryName), PipelineName(InPipelineName), ShaderTypeNames(std::move(InShaderTypeNames)), RequestHash(InRequestHash)

@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Rendering/StaticLightingSystemInterface.h"
-#include "ComponentRecreateRenderStateContext.h"
-#include "Misc/ScopedSlowTask.h"
-#include "Engine/World.h"
 #include "Components/LightComponent.h"
+#include "Components/PrimitiveComponent.h"
 
 #define LOCTEXT_NAMESPACE "StaticLightingSystem"
 

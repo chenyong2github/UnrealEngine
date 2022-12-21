@@ -5,16 +5,16 @@
 =============================================================================*/
 
 #include "Engine/Brush.h"
-#include "EngineGlobals.h"
 #include "Engine/Polys.h"
-#include "Engine/Engine.h"
 #include "Engine/Level.h"
+#include "EngineLogs.h"
 #include "Model.h"
 #include "Materials/Material.h"
 #include "MaterialDomain.h"
 #include "Engine/BrushBuilder.h"
 #include "Components/BrushComponent.h"
 #include "ActorEditorUtils.h"
+#include "UObject/UnrealType.h"
 
 #if WITH_EDITOR
 #include "Editor.h"

@@ -4,8 +4,6 @@
 	ParticleMemoryStatManager.cpp: Particle dynamic data memory manager implementation.
 =============================================================================*/
 
-#include "CoreMinimal.h"
-#include "Stats/Stats.h"
 #include "EngineStats.h"
 #include "ParticleHelper.h"
 

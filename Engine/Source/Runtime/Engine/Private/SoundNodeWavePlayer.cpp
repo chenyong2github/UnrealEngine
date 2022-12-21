@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sound/SoundNodeWavePlayer.h"
-#include "Audio.h"
 #include "ActiveSound.h"
-#include "Sound/SoundWave.h"
 #include "UObject/FrameworkObjectVersion.h"
 #include "Async/Async.h"
 

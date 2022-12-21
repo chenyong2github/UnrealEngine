@@ -2,12 +2,12 @@
 
 
 #include "Components/SphereComponent.h"
-#include "WorldCollision.h"
+#include "CollisionShape.h"
+#include "PhysicsEngine/BodySetup.h"
 #include "PrimitiveViewRelevance.h"
 #include "PrimitiveSceneProxy.h"
 #include "PhysicsEngine/SphereElem.h"
 #include "SceneManagement.h"
-#include "PhysicsEngine/BodySetup.h"
 #include "PrimitiveSceneProxy.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SphereComponent)

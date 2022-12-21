@@ -5,16 +5,14 @@
 ==============================================================================*/
 
 #include "Particles/ParticleSortingGPU.h"
-#include "UniformBuffer.h"
-#include "ShaderParameters.h"
-#include "Shader.h"
-#include "SceneUtils.h"
-#include "ParticleHelper.h"
 #include "Particles/ParticleSimulationGPU.h"
+#include "PipelineStateCache.h"
 #include "ShaderParameterUtils.h"
 #include "GlobalShader.h"
 #include "GPUSort.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "RHIContext.h"
+#include "ShaderParameterMacros.h"
 
 /*------------------------------------------------------------------------------
 	Shaders used to generate particle sort keys.

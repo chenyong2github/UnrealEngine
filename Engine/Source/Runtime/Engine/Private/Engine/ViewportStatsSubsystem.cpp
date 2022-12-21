@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/ViewportStatsSubsystem.h"
+#include "CanvasItem.h"
 #include "Engine/World.h"
-#include "Logging/LogMacros.h"
-#include "UnrealClient.h"		// FViewport
+#include "CanvasTypes.h"
 #include "Engine/Engine.h"      // GEngine
-#include "Engine/Canvas.h"		// FCanvas, UCanvas
 #include "TimerManager.h"		// FTimerDelegate, FTimerHandle
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ViewportStatsSubsystem)

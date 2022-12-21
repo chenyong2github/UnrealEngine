@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Distributions.h"
+#include "Math/InterpCurve.h"
 #include "UObject/UnrealType.h"
 #include "Distributions/Distribution.h"
 #include "Distributions/DistributionFloat.h"

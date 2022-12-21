@@ -5,26 +5,19 @@
 =============================================================================*/
 
 #include "Components/ReflectionCaptureComponent.h"
-#include "Serialization/MemoryWriter.h"
+#include "Misc/Compression.h"
 #include "UObject/Package.h"
-#include "UObject/RenderingObjectVersion.h"
+#include "RenderUtils.h"
 #include "UObject/ReflectionCaptureObjectVersion.h"
+#include "SceneInterface.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
+#include "Stats/StatsTrace.h"
 #include "UObject/ConstructorHelpers.h"
-#include "GameFramework/Actor.h"
-#include "RHI.h"
-#include "RenderingThread.h"
-#include "RenderResource.h"
-#include "Misc/ScopeLock.h"
 #include "Components/BillboardComponent.h"
 #include "Engine/CollisionProfile.h"
-#include "Serialization/MemoryReader.h"
-#include "UObject/UObjectHash.h"
-#include "UObject/UObjectIterator.h"
 #include "Engine/Texture2D.h"
 #include "SceneManagement.h"
 #include "Engine/ReflectionCapture.h"
-#include "DerivedDataCacheInterface.h"
 #include "EngineModule.h"
 #include "ShaderCompiler.h"
 #include "Engine/SphereReflectionCapture.h"
@@ -36,18 +29,14 @@
 #include "EngineUtils.h"
 #include "Components/PlaneReflectionCaptureComponent.h"
 #include "Components/BoxComponent.h"
-#include "Components/SkyLightComponent.h"
-#include "ProfilingDebugging/CookStats.h"
 #include "Engine/MapBuildDataRegistry.h"
-#include "ComponentRecreateRenderStateContext.h"
-#include "Engine/TextureCube.h"
 #include "Math/PackedVector.h"
 #include "GlobalRenderResources.h"
+#include "UObject/UObjectAnnotation.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ReflectionCaptureComponent)
 
 #if WITH_EDITOR
-#include "Factories/TextureFactory.h"
 #include "TextureCompiler.h"
 #endif
 

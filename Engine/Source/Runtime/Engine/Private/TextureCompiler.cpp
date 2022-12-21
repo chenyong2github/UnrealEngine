@@ -1,28 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TextureCompiler.h"
+#include "UObject/UnrealType.h"
 
 #if WITH_EDITOR
 
-#include "Engine/Texture.h"
+#include "Editor.h"
 #include "ObjectCacheContext.h"
+#include "EngineLogs.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "Misc/QueuedThreadPoolWrapper.h"
-#include "RendererInterface.h"
-#include "EngineModule.h"
-#include "Misc/ScopedSlowTask.h"
+#include "RenderingThread.h"
 #include "UObject/StrongObjectPtr.h"
 #include "Materials/MaterialInterface.h"
-#include "Materials/MaterialInstance.h"
-#include "Materials/Material.h"
 #include "Materials/MaterialRenderProxy.h"
 #include "TextureDerivedDataTask.h"
 #include "ProfilingDebugging/CountersTrace.h"
-#include "Misc/IQueuedWork.h"
 #include "Components/PrimitiveComponent.h"
-#include "AsyncCompilationHelpers.h"
-#include "AssetCompilingManager.h"
-#include "LevelEditor.h"
 #include "TextureResource.h"
 
 #define LOCTEXT_NAMESPACE "TextureCompiler"

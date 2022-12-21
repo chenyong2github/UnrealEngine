@@ -5,8 +5,9 @@
 =============================================================================*/
 
 #include "GameFramework/Volume.h"
-#include "EngineDefines.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "Components/BrushComponent.h"
+#include "UObject/UnrealType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(Volume)
 

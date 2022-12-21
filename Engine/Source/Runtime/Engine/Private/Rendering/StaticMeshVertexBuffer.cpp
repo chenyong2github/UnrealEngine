@@ -4,8 +4,10 @@
 #include "EngineUtils.h"
 #include "Components.h"
 #include "GPUSkinCache.h"
+#include "MeshUVChannelInfo.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "RHIResourceUpdates.h"
+#include "StaticMeshVertexData.h"
 
 FStaticMeshVertexBuffer::FStaticMeshVertexBuffer() :
 	TangentsData(nullptr),

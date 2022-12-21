@@ -5,7 +5,6 @@
 =============================================================================*/
 
 #include "MeshMaterialShader.h"
-#include "MaterialShaderMapLayout.h"
 #include "ShaderCompiler.h"
 #include "ProfilingDebugging/CookStats.h"
 

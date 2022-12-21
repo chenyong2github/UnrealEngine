@@ -2,6 +2,7 @@
 
 #include "Animation/BlendProfile.h"
 #include "AlphaBlend.h"
+#include "Animation/AnimationAsset.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BlendProfile)
 

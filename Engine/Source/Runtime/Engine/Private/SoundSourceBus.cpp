@@ -2,11 +2,8 @@
 
 
 #include "Sound/SoundSourceBus.h"
-#include "AudioDeviceManager.h"
-#include "EngineGlobals.h"
-#include "Engine/Engine.h"
-#include "UObject/UObjectIterator.h"
-#include "ActiveSound.h"
+#include "Sound/SoundSourceBusSend.h"
+#include "Sound/SoundSubmixSend.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SoundSourceBus)
 

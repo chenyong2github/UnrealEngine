@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Kismet/BlueprintTypeConversions.h"
+#include "UObject/ScriptMacros.h"
+#include "UObject/Stack.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BlueprintTypeConversions)
 

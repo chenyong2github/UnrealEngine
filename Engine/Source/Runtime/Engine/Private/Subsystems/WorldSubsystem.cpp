@@ -2,6 +2,7 @@
 
 #include "Subsystems/WorldSubsystem.h"
 #include "Engine/World.h"
+#include "Subsystems/Subsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldSubsystem)
 

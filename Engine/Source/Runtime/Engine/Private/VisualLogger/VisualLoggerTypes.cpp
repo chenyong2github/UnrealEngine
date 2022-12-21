@@ -1,10 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VisualLogger/VisualLoggerTypes.h"
+
+#if ENABLE_VISUAL_LOG
 #include "Engine/World.h"
-#include "Misc/Paths.h"
+#include "UObject/Interface.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "VisualLogger/VisualLoggerDebugSnapshotInterface.h"
+#include "VisualLogger/VisualLoggerCustomVersion.h"
+#endif
 
 namespace
 {

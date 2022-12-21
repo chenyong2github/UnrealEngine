@@ -1,20 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
 #include "Physics/Tests/PhysicsTestHelpers.h"
-#include "Physics/GenericPhysicsInterface.h"
-#include "Physics/PhysicsInterfaceCore.h"
-#include "PhysicsEngine/BodyInstance.h"
 #include "Engine/StaticMeshActor.h"
-#include "Engine/World.h"
-#include "Engine/EngineTypes.h"
-#include "Components/PrimitiveComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 
 #if WITH_EDITOR
-#include "Tests/AutomationEditorCommon.h"
 #endif
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPhysicsBodyInstanceTest, "System.Physics.Interface.BodyInstance", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

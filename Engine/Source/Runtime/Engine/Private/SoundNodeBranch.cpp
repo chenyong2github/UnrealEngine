@@ -3,6 +3,7 @@
 
 #include "Sound/SoundNodeBranch.h"
 #include "ActiveSound.h"
+#include "IAudioParameterTransmitter.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SoundNodeBranch)
 

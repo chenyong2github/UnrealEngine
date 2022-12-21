@@ -1,9 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "WorldPartition/ActorDescContainerCollection.h"
 
-#include "WorldPartition/ActorDescContainer.h"
-#include "UObject/UObjectGlobals.h"
-#include "WorldPartition/WorldPartition.h"
 
 #if WITH_EDITOR
 FActorDescContainerCollection::~FActorDescContainerCollection()

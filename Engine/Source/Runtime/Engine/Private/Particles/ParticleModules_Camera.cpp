@@ -5,13 +5,14 @@
 	Camera-related particle module implementations.
 =============================================================================*/
 
-#include "CoreMinimal.h"
-#include "ParticleHelper.h"
+#include "ParticleEmitterInstances.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "Distributions/DistributionFloatConstant.h"
 #include "Particles/Camera/ParticleModuleCameraBase.h"
 #include "Particles/Camera/ParticleModuleCameraOffset.h"
+#include "Particles/ParticleEmitter.h"
 #include "Particles/ParticleLODLevel.h"
+#include "Particles/ParticleModule.h"
 #include "Particles/ParticleModuleRequired.h"
 
 UParticleModuleCameraBase::UParticleModuleCameraBase(const FObjectInitializer& ObjectInitializer)

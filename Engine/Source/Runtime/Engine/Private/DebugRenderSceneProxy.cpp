@@ -7,11 +7,12 @@
 =============================================================================*/
 
 #include "DebugRenderSceneProxy.h"
+#include "DynamicMeshBuilder.h"
 #include "SceneManagement.h"
-#include "EngineGlobals.h"
 #include "Engine/Engine.h"
 #include "Engine/Canvas.h"
 #include "Debug/DebugDrawService.h"
+#include "Materials/Material.h"
 #include "Materials/MaterialRenderProxy.h"
 
 // FPrimitiveSceneProxy interface.

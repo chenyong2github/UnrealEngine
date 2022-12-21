@@ -2,14 +2,16 @@
 
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionActorDescUtils.h"
+#include "AssetRegistry/ARFilter.h"
 #include "AssetRegistry/AssetData.h"
+#include "Modules/ModuleManager.h"
 #include "WorldPartition/WorldPartitionLog.h"
 #include "Engine/Level.h"
 #include "GameFramework/Actor.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "AssetRegistry/IAssetRegistry.h"
 #include "UObject/CoreRedirects.h"
 #include "Misc/Base64.h"
+#include "WorldPartition/WorldPartitionActorDesc.h"
 
 static FName NAME_ActorMetaDataClass(TEXT("ActorMetaDataClass"));
 static FName NAME_ActorMetaData(TEXT("ActorMetaData"));

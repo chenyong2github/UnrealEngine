@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameFramework/HUDHitBox.h"
-#include "EngineGlobals.h"
 #include "Engine/Engine.h"
 #include "CanvasItem.h"
 #include "CanvasTypes.h"

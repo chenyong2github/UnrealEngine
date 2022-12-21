@@ -5,17 +5,19 @@
 =============================================================================*/
 
 #include "ParticleEmitterInstances.h"
-#include "EngineGlobals.h"
 #include "Engine/Engine.h"
+#include "Engine/World.h"
 #include "Materials/Material.h"
 #include "MaterialDomain.h"
+#include "Materials/MaterialRelevance.h"
 #include "Particles/ParticleSystem.h"
 #include "Engine/StaticMesh.h"
+#include "Particles/Orientation/ParticleModuleOrientationAxisLock.h"
 #include "StaticMeshResources.h"
 #include "FXSystem.h"
 
-#include "HAL/PlatformStackWalk.h"
 
+#include "Particles/ParticleEmitter.h"
 #include "Particles/SubUV/ParticleModuleSubUV.h"
 #include "Particles/Collision/ParticleModuleCollisionGPU.h"
 #include "Particles/Event/ParticleModuleEventGenerator.h"
@@ -23,13 +25,19 @@
 #include "Particles/Material/ParticleModuleMeshMaterial.h"
 #include "Particles/Modules/Location/ParticleModulePivotOffset.h"
 #include "Particles/Orbit/ParticleModuleOrbit.h"
+#include "Particles/ParticleModule.h"
 #include "Particles/Spawn/ParticleModuleSpawn.h"
+#include "Particles/ParticleSpriteEmitter.h"
 #include "Particles/TypeData/ParticleModuleTypeDataBase.h"
+#include "Particles/ParticleSystemComponent.h"
 #include "Particles/TypeData/ParticleModuleTypeDataMesh.h"
 #include "Particles/ParticleLODLevel.h"
 #include "Particles/ParticleModuleRequired.h"
 
 #include "Components/PointLightComponent.h"
+#include "Particles/Spawn/ParticleModuleSpawnBase.h"
+#include "Particles/SubUVAnimation.h"
+#include "Stats/StatsTrace.h"
 
 /*-----------------------------------------------------------------------------
 FParticlesStatGroup

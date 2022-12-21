@@ -2,23 +2,21 @@
 
 #include "Animation/AnimData/AnimDataModel.h"
 
-#include "AnimationRuntime.h"
-#include "AnimEncoding.h"
-#include "UObject/NameTypes.h"
-
+#include "Animation/AnimData/CurveIdentifier.h"
 #include "Animation/AnimSequence.h"
 
-#include "Algo/Transform.h"
 #include "Algo/Accumulate.h"
-#include "Animation/AnimSequenceHelpers.h"
-#include "Animation/SmartName.h"
-#include "Animation/AttributesRuntime.h"
+#include "EngineLogs.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
+#include "Misc/SecureHash.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimDataModel)
 
 #if WITH_EDITOR
+#include "Animation/AnimSequenceHelpers.h"
+#include "AnimationRuntime.h"
+#include "AnimEncoding.h"
 #include "IAnimationDataControllerModule.h"
 #include "Modules/ModuleManager.h"
 #endif // WITH_EDITOR

@@ -5,14 +5,9 @@
 =============================================================================*/
 
 #include "Model.h"
-#include "Materials/MaterialInterface.h"
-#include "RenderUtils.h"
-#include "Misc/App.h"
-#include "Engine/Brush.h"
 #include "Containers/TransArray.h"
 #include "EngineUtils.h"
 #include "Engine/Polys.h"
-#include "DynamicMeshBuilder.h"
 #include "StaticLighting.h"
 
 float UModel::BSPTexelScale = 100.0f;

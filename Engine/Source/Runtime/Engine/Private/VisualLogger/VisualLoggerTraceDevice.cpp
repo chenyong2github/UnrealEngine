@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "VisualLogger/VisualLoggerTraceDevice.h"
-#include "VisualLogger/VisualLogger.h"
 #include "Serialization/BufferArchive.h"
 #include "ObjectTrace.h"
 
-#include "Trace/Trace.inl"
+#include "VisualLogger/VisualLoggerCustomVersion.h"
 
 #if ENABLE_VISUAL_LOG
 

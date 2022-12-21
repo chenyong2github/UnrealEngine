@@ -4,22 +4,15 @@
 #if WITH_EDITOR
 
 #include "Materials/MaterialAttributeDefinitionMap.h"
-#include "Materials/MaterialExpression.h"
-#include "Materials/MaterialExpressionTextureBase.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "Materials/MaterialExpressionFunctionInput.h"
 #include "Materials/MaterialExpressionFunctionOutput.h"
 #include "Materials/MaterialExpressionCustomOutput.h"
-#include "Materials/MaterialExpressionVertexInterpolator.h"
 #include "Materials/MaterialExpressionExecBegin.h"
 #include "Materials/MaterialFunction.h"
 #include "MaterialHLSLTree.h"
 #include "Materials/Material.h"
 #include "MaterialCachedHLSLTree.h"
-#include "ShaderCore.h"
-#include "HLSLTree/HLSLTree.h"
-#include "HLSLTree/HLSLTreeCommon.h"
-#include "Containers/LazyPrintf.h"
 #include "Misc/MemStackUtility.h"
 
 FMaterialHLSLGenerator::FMaterialHLSLGenerator(UMaterial* Material,

@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "StereoLayerRendering.h"
+#include "Misc/DelayedAutoRegister.h"
 
 IMPLEMENT_TYPE_LAYOUT(FStereoLayerPS_Base);
 IMPLEMENT_SHADER_TYPE(,FStereoLayerVS,TEXT("/Engine/Private/StereoLayerShader.usf"),TEXT("MainVS"),SF_Vertex);

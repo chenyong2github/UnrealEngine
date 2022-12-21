@@ -5,17 +5,11 @@
 =============================================================================*/
 
 #include "Components/RectLightComponent.h"
+#include "SceneInterface.h"
 #include "UObject/ConstructorHelpers.h"
-#include "Misc/LargeWorldRenderPosition.h"
-#include "RenderingThread.h"
 #include "Engine/Texture2D.h"
-#include "SceneManagement.h"
-#include "PointLightSceneProxy.h"
 #include "RectLightSceneProxy.h"
 
-#include "RHIUtilities.h"
-#include "GlobalShader.h"
-#include "ShaderParameterUtils.h"
 #include "DataDrivenShaderPlatformInfo.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RectLightComponent)

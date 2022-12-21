@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
-#include "Engine/EngineTypes.h"
 #include "GameFramework/Actor.h"
+#include "Math/RotationMatrix.h"
 
 
 FBasedPosition::FBasedPosition()

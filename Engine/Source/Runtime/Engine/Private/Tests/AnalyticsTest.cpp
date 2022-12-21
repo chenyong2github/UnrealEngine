@@ -1,13 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
-#include "Misc/CommandLine.h"
-#include "Misc/Guid.h"
+#include "IAnalyticsProviderET.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/App.h"
 #include "EngineAnalytics.h"
-#include "AnalyticsEventAttribute.h"
-#include "Interfaces/IAnalyticsProvider.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 

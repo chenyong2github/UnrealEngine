@@ -2,7 +2,6 @@
 
 #include "Engine/UserInterfaceSettings.h"
 
-#include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
 
 #include "Engine/DPICustomScalingRule.h"

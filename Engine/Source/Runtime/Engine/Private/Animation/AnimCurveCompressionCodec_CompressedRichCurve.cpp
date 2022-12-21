@@ -1,9 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimCurveCompressionCodec_CompressedRichCurve.h"
-#include "Animation/AnimSequence.h"
+#include "Animation/AnimCompressionTypes.h"
 #include "HAL/IConsoleManager.h"
-#include "Serialization/MemoryWriter.h"
 #include "AnimationCompression.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimCurveCompressionCodec_CompressedRichCurve)

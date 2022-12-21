@@ -5,11 +5,9 @@ DebugViewModeInterface.cpp: Contains definitions for rendering debug viewmodes.
 =============================================================================*/
 
 #include "DebugViewModeInterface.h"
-#include "DrawDebugHelpers.h"
 
 #if ENABLE_DRAW_DEBUG
 
-#include "Materials/Material.h"
 #include "RHIStaticStates.h"
 #include "MaterialShared.h"
 

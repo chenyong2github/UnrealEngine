@@ -2,6 +2,7 @@
 
 #include "Elements/Component/ComponentElementData.h"
 #include "Elements/Framework/TypedElementHandle.h"
+#include "UObject/Stack.h"
 
 UE_DEFINE_TYPED_ELEMENT_DATA_RTTI(FComponentElementData);
 

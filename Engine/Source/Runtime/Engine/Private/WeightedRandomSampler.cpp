@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WeightedRandomSampler.h"
+#include "Misc/DelayedAutoRegister.h"
 
 IMPLEMENT_ABSTRACT_TYPE_LAYOUT(FWeightedRandomSampler);
 

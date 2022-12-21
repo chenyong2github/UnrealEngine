@@ -1,20 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Collision/CollisionConversions.h"
+#include "BodySetupCore.h"
 #include "Engine/World.h"
+#include "Chaos/Capsule.h"
 #include "Components/PrimitiveComponent.h"
 
-#include "Collision/CollisionDebugDrawing.h"
-#include "Components/LineBatchComponent.h"
+#include "EngineLogs.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
-#include "PhysicalMaterials/PhysicalMaterialMask.h"
 #include "PhysicsEngine/PhysicsSettings.h"
-#include "PhysicsEngine/BodySetup.h"
-#include "Physics/PhysicsInterfaceUtils.h"
 
 #include "Physics/Experimental/ChaosInterfaceWrapper.h"
-#include "Physics/Experimental/PhysInterface_Chaos.h"
-#include "Chaos/ParticleHandle.h"
 
 #include "PhysicsEngine/CollisionQueryFilterCallback.h"
 #include "GameFramework/LightWeightInstanceManager.h"

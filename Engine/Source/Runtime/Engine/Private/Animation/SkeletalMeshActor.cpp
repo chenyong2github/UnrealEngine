@@ -1,15 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/SkeletalMeshActor.h"
+#include "Animation/AnimationAsset.h"
 #include "Net/UnrealNetwork.h"
-#include "Animation/AnimInstance.h"
-#include "Animation/AnimSequence.h"
-#include "Animation/AnimMontage.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
 #include "Misc/UObjectToken.h"
 #include "Misc/MapErrors.h"
-#include "Animation/AnimBlueprintGeneratedClass.h"
 #include "Engine/CollisionProfile.h"
 #include "Logging/MessageLog.h"
 

@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/ObjectLibrary.h"
+#include "Blueprint/BlueprintSupport.h"
 #include "Modules/ModuleManager.h"
-#include "Engine/BlueprintCore.h"
 #include "Engine/Blueprint.h"
 #include "Engine/BlueprintGeneratedClass.h"
+#include "Misc/PackageName.h"
 #include "UnrealEngine.h"
 #include "EngineUtils.h"
 #include "AssetRegistry/ARFilter.h"

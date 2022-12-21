@@ -2,22 +2,13 @@
 
 
 #include "Sound/SoundClass.h"
-#include "Sound/AudioSettings.h"
-#include "EngineGlobals.h"
-#include "Engine/Engine.h"
-#include "Audio.h"
-#include "Styling/CoreStyle.h"
-#include "AudioDeviceManager.h"
-#include "UObject/UObjectHash.h"
+#include "Sound/AudioOutputTarget.h"
 #include "UObject/UObjectIterator.h"
-#include "Sound/SoundMix.h"
-#include "AudioDeviceManager.h"
 #include "AudioDevice.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SoundClass)
 
 #if WITH_EDITOR
-#include "SoundClassGraph/SoundClassGraph.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #endif // WITH_EDITOR

@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/InputVectorAxisDelegateBinding.h"
-#include "GameFramework/Actor.h"
 #include "Components/InputComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InputVectorAxisDelegateBinding)

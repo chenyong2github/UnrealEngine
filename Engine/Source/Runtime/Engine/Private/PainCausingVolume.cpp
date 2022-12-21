@@ -2,7 +2,6 @@
 
 #include "GameFramework/PainCausingVolume.h"
 #include "TimerManager.h"
-#include "GameFramework/Pawn.h"
 #include "Engine/DamageEvents.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PainCausingVolume)

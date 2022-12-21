@@ -1,22 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/ArrowComponent.h"
-#include "EngineGlobals.h"
-#include "RHI.h"
-#include "RenderingThread.h"
-#include "RenderResource.h"
-#include "VertexFactory.h"
-#include "LocalVertexFactory.h"
 #include "PrimitiveViewRelevance.h"
 #include "PrimitiveSceneProxy.h"
 #include "Engine/Engine.h"
-#include "MaterialShared.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialRenderProxy.h"
 #include "Engine/CollisionProfile.h"
+#include "SceneInterface.h"
 #include "SceneManagement.h"
 #include "DynamicMeshBuilder.h"
-#include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "StaticMeshResources.h"
 

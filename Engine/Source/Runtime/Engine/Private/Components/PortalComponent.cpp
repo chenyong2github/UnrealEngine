@@ -4,7 +4,7 @@
 	
 =============================================================================*/
 
-#include "CoreMinimal.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Components/BillboardComponent.h"
 #include "Engine/CollisionProfile.h"

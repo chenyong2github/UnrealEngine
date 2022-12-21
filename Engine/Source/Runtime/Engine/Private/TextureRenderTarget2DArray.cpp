@@ -5,13 +5,12 @@
 =============================================================================*/
 
 #include "Engine/TextureRenderTarget2DArray.h"
-#include "RenderUtils.h"
+#include "RenderingThread.h"
 #include "TextureRenderTarget2DArrayResource.h"
 #include "UnrealEngine.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Engine/Texture2DArray.h"
-#include "ClearQuad.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TextureRenderTarget2DArray)
 

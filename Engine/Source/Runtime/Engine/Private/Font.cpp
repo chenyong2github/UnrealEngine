@@ -6,13 +6,12 @@
 
 #include "Engine/Font.h"
 #include "Engine/Texture2D.h"
-#include "Fonts/FontBulkData.h"
 #include "Fonts/FontCache.h"
 #include "Framework/Application/SlateApplication.h"
 #include "EngineFontServices.h"
-#include "EditorFramework/AssetImportData.h"
 #include "Engine/FontFace.h"
 #include "HAL/FileManager.h"
+#include "Templates/Casts.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(Font)
 

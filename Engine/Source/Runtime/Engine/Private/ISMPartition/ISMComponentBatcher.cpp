@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ISMPartition/ISMComponentBatcher.h"
+#include "Components/StaticMeshComponent.h"
 
 void FISMComponentBatcher::Add(const UActorComponent* InComponent)
 {

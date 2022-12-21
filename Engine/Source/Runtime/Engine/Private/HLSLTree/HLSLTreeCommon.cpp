@@ -3,10 +3,8 @@
 
 #include "HLSLTree/HLSLTreeCommon.h"
 #include "HLSLTree/HLSLTreeEmit.h"
-#include "Misc/StringBuilder.h"
 #include "RenderUtils.h"
 #include "Shader/Preshader.h"
-#include "Engine/Texture.h"
 
 namespace UE::HLSLTree
 {

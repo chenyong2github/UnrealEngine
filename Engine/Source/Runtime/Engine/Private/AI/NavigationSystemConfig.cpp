@@ -3,7 +3,7 @@
 #include "AI/NavigationSystemConfig.h"
 #include "AI/NavigationSystemBase.h"
 #include "Engine/Engine.h"
-#include "Engine/World.h"
+#include "UObject/UnrealType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NavigationSystemConfig)
 

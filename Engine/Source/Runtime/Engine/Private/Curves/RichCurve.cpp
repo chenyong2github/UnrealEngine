@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Curves/RichCurve.h"
-#include "Templates/Function.h"
-#include "Containers/ArrayView.h"
 #include "Curves/CurveEvaluation.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 

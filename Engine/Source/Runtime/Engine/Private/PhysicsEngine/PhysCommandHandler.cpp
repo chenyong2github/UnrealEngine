@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 
-#include "CoreMinimal.h"
-#include "EngineDefines.h"
+#include "EngineLogs.h"
 #include "PhysicsPublic.h"
-#include "Physics/PhysicsInterfaceCore.h"
+#include "Trace/Trace.inl"
 
 FPhysCommandHandler::~FPhysCommandHandler()
 {

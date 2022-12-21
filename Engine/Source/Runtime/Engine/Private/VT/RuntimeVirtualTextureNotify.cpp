@@ -5,7 +5,6 @@
 #include "Components/PrimitiveComponent.h"
 #include "Components/RuntimeVirtualTextureComponent.h"
 #include "UObject/UObjectIterator.h"
-#include "VT/RuntimeVirtualTexture.h"
 
 namespace RuntimeVirtualTexture
 {

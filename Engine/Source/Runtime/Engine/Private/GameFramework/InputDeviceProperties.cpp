@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameFramework/InputDeviceProperties.h"
-#include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Curves/CurveLinearColor.h"
 #include "Curves/CurveFloat.h"

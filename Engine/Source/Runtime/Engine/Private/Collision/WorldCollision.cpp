@@ -5,18 +5,11 @@
 =============================================================================*/
 
 #include "WorldCollision.h"
-#include "Misc/CoreMisc.h"
+#include "Components/PrimitiveComponent.h"
 #include "Engine/World.h"
-#include "EngineDefines.h"
-#include "PhysicsEngine/BodyInstance.h"
-#include "Components/SkeletalMeshComponent.h"
-#include "Engine/CollisionProfile.h"
 #include "Framework/Docking/TabManager.h"
 #include "Collision.h"
-#include "Physics/PhysicsInterfaceCore.h"
 #include "PhysicsEngine/PhysicsObjectExternalInterface.h"
-#include "PhysXPublic.h"
-#include "Physics/PhysicsInterfaceTypes.h"
 #include "Chaos/ImplicitObject.h"
 
 using namespace PhysicsInterfaceTypes;

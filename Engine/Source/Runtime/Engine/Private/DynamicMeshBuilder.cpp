@@ -5,14 +5,10 @@
 =============================================================================*/
 
 #include "DynamicMeshBuilder.h"
-#include "RenderingThread.h"
-#include "RenderResource.h"
 #include "DataDrivenShaderPlatformInfo.h"
-#include "UniformBuffer.h"
-#include "VertexFactory.h"
-#include "MeshBatch.h"
+#include "LocalVertexFactory.h"
 #include "MeshBuilderOneFrameResources.h"
-#include "SceneManagement.h"
+#include "Math/Vector2DHalf.h"
 #include "ResourcePool.h"
 
 class FGlobalDynamicMeshPoolPolicy

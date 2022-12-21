@@ -8,7 +8,6 @@
 #include "Animation/AnimCurveTypes.h"
 #include "Animation/SkeletonRemappingRegistry.h"
 #include "Animation/SkeletonRemapping.h"
-#include "HAL/LowLevelMemTracker.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BoneContainer)
 

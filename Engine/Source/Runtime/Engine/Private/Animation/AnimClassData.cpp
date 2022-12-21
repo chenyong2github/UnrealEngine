@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimClassData.h"
-#include "Animation/AnimNode_Root.h"
-#include "PropertyAccess.h"
+#include "Animation/AnimBlueprintGeneratedClass.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimClassData)
 

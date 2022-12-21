@@ -6,6 +6,7 @@
 #include "ParticleHelper.h"
 #include "Kismet/GameplayStatics.h"
 #include "Animation/AnimSequenceBase.h"
+#include "UObject/UnrealType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotify_PlayParticleEffect)
 

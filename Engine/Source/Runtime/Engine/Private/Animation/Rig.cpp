@@ -5,6 +5,7 @@
 =============================================================================*/ 
 
 #include "Animation/Rig.h"
+#include "Animation/Skeleton.h"
 #include "UObject/FrameworkObjectVersion.h"
 #include "AnimationRuntime.h"
 

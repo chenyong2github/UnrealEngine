@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MaterialCachedHLSLTree.h"
+#include "Stats/StatsTrace.h"
 
 #if WITH_EDITOR
 

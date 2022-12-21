@@ -4,23 +4,17 @@
 
 #include "Elements/Framework/TypedElementRegistry.h"
 #include "Elements/Framework/TypedElementOwnerStore.h"
-#include "Elements/Framework/TypedElementUtil.h"
-#include "Elements/Interfaces/TypedElementWorldInterface.h"
 
 #include "Elements/Object/ObjectElementData.h"
-#include "UObject/Object.h"
 
 #include "Elements/Actor/ActorElementData.h"
 #include "GameFramework/Actor.h"
 
 #include "Elements/Component/ComponentElementData.h"
-#include "Components/ActorComponent.h"
 
 #include "Elements/SMInstance/SMInstanceElementData.h"
 #include "Components/InstancedStaticMeshComponent.h"
 
-#include "Containers/UnrealString.h"
-#include "UObject/Stack.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EngineElementsLibrary)
 

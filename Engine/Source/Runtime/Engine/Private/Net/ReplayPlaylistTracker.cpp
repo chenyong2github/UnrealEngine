@@ -4,6 +4,7 @@
 #include "Engine/DemoNetDriver.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "Net/UnrealNetwork.h"
 
 FReplayPlaylistTracker::FReplayPlaylistTracker(const FReplayPlaylistParams& Params, UGameInstance* InGameInstance) :
 	bIsStartingReplay(false),

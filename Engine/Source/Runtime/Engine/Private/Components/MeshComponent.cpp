@@ -6,9 +6,11 @@
 #include "Engine/Texture2D.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "ContentStreaming.h"
+#include "Materials/MaterialRelevance.h"
 #include "Streaming/TextureStreamingHelpers.h"
 #include "Engine/World.h"
 #include "PSOPrecache.h"
+#include "UObject/UnrealType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MeshComponent)
 

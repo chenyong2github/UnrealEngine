@@ -2,13 +2,14 @@
 
 #include "Engine/SkinnedAssetCommon.h"
 #include "Animation/AnimSequence.h"
-#include "Rendering/SkeletalMeshModel.h"
 #include "Engine/SkeletalMeshLODSettings.h"
 #include "Engine/TextureStreamingTypes.h"
+#include "Materials/MaterialInterface.h"
 #include "UObject/CoreObjectVersion.h"
-#include "UObject/EditorObjectVersion.h"
 #include "Interfaces/ITargetPlatform.h"
+#include "Rendering/SkeletalMeshLODModel.h"
 #include "UObject/RenderingObjectVersion.h"
+#include "SkeletalMeshLegacyCustomVersions.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkinnedAssetCommon)
 

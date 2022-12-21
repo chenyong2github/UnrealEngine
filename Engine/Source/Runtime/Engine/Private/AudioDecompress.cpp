@@ -4,10 +4,10 @@
 #include "AudioDecompress.h"
 #include "AudioDevice.h"
 #include "Interfaces/IAudioFormat.h"
-#include "ContentStreaming.h"
-#include "HAL/LowLevelMemTracker.h"
 #include "ADPCMAudioInfo.h"
 #include "Misc/CoreStats.h"
+#include "Misc/ScopeRWLock.h"
+#include "Stats/StatsTrace.h"
 
 IStreamedCompressedInfo::IStreamedCompressedInfo()
 	: bIsStreaming(false)

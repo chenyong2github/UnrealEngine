@@ -7,18 +7,16 @@
 #include "WorldPartition/WorldPartitionMiniMapHelper.h"
 
 #if WITH_EDITOR
+#include "Camera/CameraTypes.h"
 #include "Components/SceneCaptureComponent2D.h"
+#include "Engine/Scene.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/SceneCapture2D.h"
 #include "Engine/Level.h"
 #include "Engine/World.h"
-#include "ShaderCompiler.h"
 #include "AssetCompilingManager.h"
-#include "DistanceFieldAtlas.h"
-#include "PackageSourceControlHelper.h"
-#include "ProfilingDebugging/ScopedTimers.h"
+#include "Math/OrthoMatrix.h"
 #include "WorldPartition/WorldPartitionMiniMap.h"
-#include "WorldPartition/WorldPartition.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionMiniMapHelper, All, All);
 

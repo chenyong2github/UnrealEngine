@@ -6,13 +6,10 @@
 
 #include "Streaming/TextureInstanceState.h"
 #include "Components/PrimitiveComponent.h"
+#include "Engine/Texture.h"
 #include "Streaming/TextureInstanceView.inl"
-#include "Engine/World.h"
-#include "Engine/TextureStreamingTypes.h"
 #include "Components/PrimitiveComponent.h"
-#include "Engine/Texture2D.h"
-#include "UObject/UObjectHash.h"
-#include "Templates/RefCounting.h"
+#include "Streaming/TextureInstanceView.h"
 
 FRenderAssetInstanceState::FRenderAssetInstanceState(bool bForDynamicInstances)
 #if DO_CHECK

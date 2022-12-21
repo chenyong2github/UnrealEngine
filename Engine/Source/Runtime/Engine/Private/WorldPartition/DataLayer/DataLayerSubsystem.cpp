@@ -1,27 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
+#include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/DataLayer/DataLayerLoadingPolicy.h"
+#include "WorldPartition/DataLayer/DataLayer.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "WorldPartition/DataLayer/DataLayerEditorContext.h"
 #include "WorldPartition/DataLayer/WorldDataLayersActorDesc.h"
-#include "WorldPartition/DataLayer/DataLayerAsset.h"
 #include "WorldPartition/WorldPartitionDebugHelper.h"
+#include "WorldPartition/WorldPartitionLog.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
-#include "WorldPartition/WorldPartition.h"
-#include "Engine/Engine.h"
-#include "Engine/World.h"
 #include "Engine/Canvas.h"
-#include "EngineUtils.h"
-#include "Algo/Transform.h"
 #include "UObject/UObjectIterator.h"
+#include "WorldPartition/WorldPartitionStreamingSource.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DataLayerSubsystem)
 
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Modules/ModuleManager.h"
-#include "ProfilingDebugging/ScopedTimers.h"
 #include "WorldPartition/DataLayer/DataLayerUtils.h"
 #include "WorldPartition/DataLayer/IDataLayerEditorModule.h"
 #include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"

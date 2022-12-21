@@ -1,20 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sound/SoundCue.h"
-#include "Misc/App.h"
-#include "EngineDefines.h"
-#include "EngineGlobals.h"
-#include "Engine/Engine.h"
+#include "EdGraph/EdGraph.h"
 #include "Misc/CoreDelegates.h"
-#include "Components/AudioComponent.h"
+#include "EdGraph/EdGraphSchema.h"
 #include "UObject/UObjectIterator.h"
 #include "EngineUtils.h"
-#include "Sound/SoundClass.h"
-#include "Sound/SoundNode.h"
-#include "Sound/SoundNodeAssetReferencer.h"
-#include "Sound/SoundNodeMixer.h"
+#include "IAudioParameterTransmitter.h"
 #include "Sound/SoundNodeAttenuation.h"
-#include "Sound/SoundNodeModulator.h"
 #include "Sound/SoundNodeQualityLevel.h"
 #include "Sound/SoundNodeRandom.h"
 #include "Sound/SoundNodeSoundClass.h"
@@ -22,21 +15,10 @@
 #include "GameFramework/GameUserSettings.h"
 #include "AudioCompressionSettingsUtils.h"
 #include "AudioDevice.h"
-#include "AudioThread.h"
-#include "DSP/Dsp.h"
 #if WITH_EDITOR
-#include "Kismet2/BlueprintEditorUtils.h"
-#include "SoundCueGraph/SoundCueGraphNode.h"
-#include "SoundCueGraph/SoundCueGraph.h"
-#include "SoundCueGraph/SoundCueGraphNode_Root.h"
-#include "SoundCueGraph/SoundCueGraphSchema.h"
-#include "Audio.h"
 #endif // WITH_EDITOR
 
 #include "Interfaces/ITargetPlatform.h"
-#include "AudioCompressionSettings.h"
-#include "Sound/AudioSettings.h"
-#include "Templates/SharedPointer.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SoundCue)
 

@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "GameFramework/GameNetworkManager.h"
+#include "EngineLogs.h"
 #include "TimerManager.h"
 #include "Engine/World.h"
 #include "GameFramework/GameModeBase.h"

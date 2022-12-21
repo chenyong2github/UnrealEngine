@@ -4,14 +4,13 @@
 #include "BatchedElements.h"
 #include "Camera/CameraShakeBase.h"
 #include "Camera/CameraShakeSourceComponent.h"
-#include "Camera/PlayerCameraManager.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/LocalPlayer.h"
-#include "DisplayDebugHelpers.h"
-#include "EngineGlobals.h"
 #include "GameFramework/PlayerController.h"
+#include "HAL/IConsoleManager.h"
+#include "Stats/Stats.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CameraModifier_CameraShake)
 

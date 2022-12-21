@@ -6,33 +6,22 @@
 
 #include "WorldPartition/WorldPartitionStreamingPolicy.h"
 #include "Algo/Find.h"
-#include "WorldPartition/WorldPartitionRuntimeCell.h"
-#include "WorldPartition/WorldPartitionStreamingSource.h"
+#include "Logging/LogScopedCategoryAndVerbosityOverride.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
-#include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionLog.h"
 #include "WorldPartition/WorldPartitionReplay.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
-#include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/HLOD/HLODSubsystem.h"
 #include "WorldPartition/ContentBundle/ContentBundle.h"
-#include "WorldPartition/ContentBundle/ContentBundleWorldSubsystem.h"
 #include "WorldPartition/WorldPartitionDebugHelper.h"
-#include "Engine/World.h"
 #include "Engine/Level.h"
-#include "Engine/Engine.h"
-#include "Engine/Canvas.h"
-#include "Engine/NetDriver.h"
 #include "Engine/NetConnection.h"
-#include "DrawDebugHelpers.h"
-#include "DisplayDebugHelpers.h"
-#include "RenderUtils.h"
-#include "Algo/RemoveIf.h"
+#include "WorldPartition/WorldPartitionRuntimeHash.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionStreamingPolicy)
 
 #if WITH_EDITOR
-#include "Editor.h"
 #include "LevelEditorViewport.h"
 #endif
 

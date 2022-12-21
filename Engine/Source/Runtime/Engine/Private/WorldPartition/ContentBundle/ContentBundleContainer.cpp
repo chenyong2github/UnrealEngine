@@ -6,11 +6,9 @@
 #include "WorldPartition/ContentBundle/ContentBundleClient.h"
 #include "WorldPartition/ContentBundle/ContentBundleEngineSubsystem.h"
 #include "WorldPartition/WorldPartition.h"
-#include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/ContentBundle/ContentBundleEditor.h"
 #include "WorldPartition/ContentBundle/ContentBundleWorldSubsystem.h"
 #include "WorldPartition/ContentBundle/ContentBundleLog.h"
-#include "UObject/UObjectGlobals.h"
 
 FContentBundleContainer::FContentBundleContainer(UWorld* WorldToInjectIn)
 	: InjectedWorld(WorldToInjectIn)

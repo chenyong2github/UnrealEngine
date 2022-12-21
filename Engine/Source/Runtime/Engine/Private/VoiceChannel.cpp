@@ -5,7 +5,7 @@
 =============================================================================*/
 
 #include "Engine/VoiceChannel.h"
-#include "Net/DataBunch.h"
+#include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/NetConnection.h"
 #include "Net/OnlineEngineInterface.h"

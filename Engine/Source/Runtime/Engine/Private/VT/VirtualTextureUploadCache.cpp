@@ -3,8 +3,9 @@
 #include "VirtualTextureUploadCache.h"
 
 #include "RenderGraphBuilder.h"
-#include "RHI.h"
+#include "RenderUtils.h"
 #include "VirtualTextureChunkManager.h"
+#include "Stats/StatsTrace.h"
 
 // Allow uploading CPU buffer directly to GPU texture
 // This is slow under D3D11

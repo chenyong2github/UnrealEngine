@@ -2,6 +2,8 @@
 
 #include "Rendering/MultiSizeIndexContainer.h"
 #include "EngineLogs.h"
+#include "RawIndexBuffer.h"
+#include "Stats/Stats.h"
 
 FMultiSizeIndexContainer::~FMultiSizeIndexContainer()
 {

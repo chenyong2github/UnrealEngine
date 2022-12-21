@@ -1,23 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ObjectCacheContext.h"
+#include "Engine/SkinnedAsset.h"
 #include "UObject/UObjectIterator.h"
-#include "UObject/ObjectKey.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstance.h"
 #include "Materials/MaterialInterface.h"
 #include "Engine/StaticMesh.h"
-#include "Engine/SkeletalMesh.h"
 #include "Engine/Texture.h"
-#include "Components/PrimitiveComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "Containers/Queue.h"
 #include "Logging/LogMacros.h"
 #include "HAL/LowLevelMemStats.h"
 #include "Misc/ScopeRWLock.h"
-#include "Logging/LogCategory.h"
-#include "Templates/UniquePtr.h"
 
 #define LOCTEXT_NAMESPACE "ObjectCache"
 
@@ -37,8 +33,6 @@ EInternalObjectFlags GetObjectCacheInternalFlagsExclusion()
 
 #if WITH_EDITOR
 #include "ObjectCacheEventSink.h"
-#include "Containers/LockFreeList.h"
-#include "Containers/LockFreeFixedSizeAllocator.h"
 
 static TAutoConsoleVariable<int32> CVarObjectReverseLookupMode(
 	TEXT("Editor.ObjectReverseLookupMode"),

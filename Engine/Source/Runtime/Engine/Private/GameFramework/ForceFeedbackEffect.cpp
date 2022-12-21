@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameFramework/ForceFeedbackEffect.h"
-#include "GenericPlatform/IInputInterface.h"
+#include "GameFramework/ForceFeedbackParameters.h"
 #include "Misc/App.h"
 #include "GameFramework/InputDeviceProperties.h"
-#include "GameFramework/InputDeviceSubsystem.h"
-#include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ForceFeedbackEffect)
 

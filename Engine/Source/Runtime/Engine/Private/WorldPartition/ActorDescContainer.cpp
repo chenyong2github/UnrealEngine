@@ -5,14 +5,14 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ActorDescContainer)
 
 #if WITH_EDITOR
+#include "AssetRegistry/ARFilter.h"
 #include "Editor.h"
-#include "UObject/LinkerInstancingContext.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Engine/Level.h"
 #include "WorldPartition/WorldPartition.h"
-#include "WorldPartition/WorldPartitionHandle.h"
+#include "Modules/ModuleManager.h"
 #include "WorldPartition/WorldPartitionActorDescUtils.h"
 #include "UObject/ObjectSaveContext.h"
-#include "Engine/World.h"
 
 UActorDescContainer::FActorDescContainerInitializeDelegate UActorDescContainer::OnActorDescContainerInitialized;
 #endif

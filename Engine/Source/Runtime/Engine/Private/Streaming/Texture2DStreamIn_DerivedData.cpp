@@ -3,7 +3,10 @@
 #include "Streaming/Texture2DStreamIn_DerivedData.h"
 
 #include "EngineLogs.h"
+#include "Rendering/Texture2DResource.h"
 #include "Streaming/TextureStreamingHelpers.h"
+#include "Streaming/Texture2DStreamIn.h"
+#include "Streaming/Texture2DUpdate.h"
 
 namespace UE
 {

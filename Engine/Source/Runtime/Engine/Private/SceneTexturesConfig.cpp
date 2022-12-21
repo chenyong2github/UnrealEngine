@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SceneTexturesConfig.h"
-#include "RenderGraphResources.h"
+#include "RenderUtils.h"
 #include "ShaderCompiler.h"
 #include "SceneInterface.h"
 #include "Engine/Engine.h"
+#include "ShadowRendering.h"
 #include "StereoRendering.h"
 #include "StereoRenderTargetManager.h"
 

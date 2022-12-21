@@ -2,7 +2,6 @@
 
 
 #include "Particles/FXBudget.h"
-#include "Particles/ParticlePerfStats.h"
 #include "Particles/ParticlePerfStatsManager.h"
 #include "InGamePerformanceTracker.h"
 

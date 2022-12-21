@@ -1,14 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Particles/SubUVAnimation.h"
+#include "Containers/ClosableMpscQueue.h"
 #include "Engine/Texture2D.h"
-#include "Misc/Guid.h"
+#include "Experimental/Containers/HazardPointer.h"
 #include "Math/RandomStream.h"
-#include "UObject/UObjectHash.h"
+#include "Math/ConvexHull2d.h"
 #include "ParticleHelper.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "DerivedDataCacheInterface.h"
 #include "ComponentReregisterContext.h"
+#include "RHI.h"
+#include "RHIDefinitions.h"
 
 #define LOCTEXT_NAMESPACE "FSubUVDerivedData"
 

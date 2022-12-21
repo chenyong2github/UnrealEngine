@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Kismet/KismetTextLibrary.h"
+#include "Internationalization/PolyglotTextData.h"
 #include "Internationalization/TextFormatter.h"
-#include "Internationalization/StringTableRegistry.h"
+#include "Internationalization/TextKey.h"
 
 #define LOCTEXT_NAMESPACE "Kismet"
 

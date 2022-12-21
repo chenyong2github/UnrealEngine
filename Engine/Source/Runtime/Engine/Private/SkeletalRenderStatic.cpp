@@ -6,11 +6,9 @@
 
 #include "SkeletalRenderStatic.h"
 #include "Engine/SkinnedAssetCommon.h"
-#include "EngineStats.h"
-#include "Components/SkeletalMeshComponent.h"
-#include "SceneManagement.h"
-#include "SkeletalRender.h"
+#include "RenderUtils.h"
 #include "Rendering/SkeletalMeshRenderData.h"
+#include "RenderingThread.h"
 
 FSkeletalMeshObjectStatic::FSkeletalMeshObjectStatic(USkinnedMeshComponent* InMeshComponent, FSkeletalMeshRenderData* InSkelMeshRenderData, ERHIFeatureLevel::Type InFeatureLevel)
 	: FSkeletalMeshObject(InMeshComponent, InSkelMeshRenderData, InFeatureLevel)

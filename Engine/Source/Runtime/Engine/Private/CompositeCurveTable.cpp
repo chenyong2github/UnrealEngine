@@ -1,15 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/CompositeCurveTable.h"
+#include "Engine/CurveTable.h"
 #include "Misc/MessageDialog.h"
 #include "UObject/LinkerLoad.h"
 
-#include "EditorFramework/AssetImportData.h"
 #if WITH_EDITOR
 #include "CurveTableEditorUtils.h"
 #endif
 
-#include "HAL/IConsoleManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CompositeCurveTable)
 

@@ -2,7 +2,6 @@
 
 #include "LocationVolume.h"
 #include "Engine/World.h"
-#include "EngineDefines.h"
 #include "Components/BrushComponent.h"
 #include "WorldPartition/LoaderAdapter/LoaderAdapterActor.h"
 

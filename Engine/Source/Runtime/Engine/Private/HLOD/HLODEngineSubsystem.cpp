@@ -7,7 +7,6 @@
 #if WITH_EDITOR
 
 #include "EngineUtils.h"
-#include "Engine/EngineTypes.h"
 #include "Engine/LODActor.h"
 #include "Engine/HLODProxy.h"
 #include "Editor.h"
@@ -16,7 +15,6 @@
 #include "Modules/ModuleManager.h"
 #include "IHierarchicalLODUtilities.h"
 #include "HierarchicalLODUtilitiesModule.h"
-#include "GameFramework/WorldSettings.h"
 #include "UObject/ObjectSaveContext.h"
 
 void UHLODEngineSubsystem::Initialize(FSubsystemCollectionBase& Collection)

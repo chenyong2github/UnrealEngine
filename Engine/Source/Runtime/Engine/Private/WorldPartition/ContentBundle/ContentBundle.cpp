@@ -1,18 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "WorldPartition/ContentBundle/ContentBundle.h"
 
+#include "WorldPartition/ContentBundle/ContentBundleStatus.h"
 #include "WorldPartition/WorldPartition.h"
-#include "WorldPartition/ContentBundle/ContentBundlePaths.h"
 #include "WorldPartition/ContentBundle/ContentBundleDescriptor.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/ContentBundle/ContentBundleLog.h"
-#include "Engine/World.h"
-#include "Misc/Paths.h"
 
 #if WITH_EDITOR
-#include "WorldPartition/ContentBundle/ContentBundleEditor.h"
 #include "WorldPartition/ContentBundle/ContentBundleWorldSubsystem.h"
-#include "Editor.h"
 #endif
 
 int32 FContentBundle::ContentBundlesEpoch = 0;

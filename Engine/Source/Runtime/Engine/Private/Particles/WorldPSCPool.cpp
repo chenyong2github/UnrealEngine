@@ -1,11 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Particles/WorldPSCPool.h"
-#include "HAL/IConsoleManager.h"
 #include "Engine/World.h"
 #include "GameFramework/WorldSettings.h"
+#include "Particles/Emitter.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "ParticleHelper.h"
+#include "Particles/ParticleSystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPSCPool)
 

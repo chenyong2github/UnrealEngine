@@ -2,10 +2,7 @@
 
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
 
-#include "Logging/MessageLog.h"
-#include "Logging/TokenizedMessage.h"
-#include "Misc/UObjectToken.h"
-#include "Misc/MapErrors.h"
+#include "UObject/UnrealType.h"
 #include "WorldPartition/DataLayer/DataLayerUtils.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationErrorHandler.h"

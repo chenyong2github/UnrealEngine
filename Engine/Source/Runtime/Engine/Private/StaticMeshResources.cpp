@@ -5,6 +5,9 @@
 =============================================================================*/
 
 #include "StaticMeshResources.h"
+#include "RenderingThread.h"
+#include "SceneInterface.h"
+#include "UObject/UObjectIterator.h"
 
 
 FStaticMeshComponentRecreateRenderStateContext::FStaticMeshComponentRecreateRenderStateContext(UStaticMesh* InStaticMesh, bool InUnbuildLighting, bool InRefreshBounds)

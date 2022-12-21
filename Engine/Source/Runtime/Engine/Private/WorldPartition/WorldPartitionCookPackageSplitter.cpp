@@ -4,12 +4,7 @@
 
 #if WITH_EDITOR
 
-#include "Misc/ConfigCacheIni.h"
-#include "WorldPartition/WorldPartitionRuntimeLevelStreamingCell.h"
-#include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
-#include "WorldPartition/WorldPartitionRuntimeCell.h"
-#include "WorldPartition/WorldPartitionRuntimeHash.h"
-#include "WorldPartition/WorldPartitionSubsystem.h"
+#include "Engine/Level.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionLog.h"
 #include "Editor.h"

@@ -1,14 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "LevelInstance/LevelInstanceEditorObject.h"
+#include "Misc/PackageName.h"
+#include "UObject/ObjectSaveContext.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LevelInstanceEditorObject)
 
 #if WITH_EDITOR
 #include "Editor.h"
 #include "EditorLevelUtils.h"
+#include "Engine/LevelStreaming.h"
 #include "LevelUtils.h"
 #include "LevelInstance/LevelInstanceEditorLevelStreaming.h"
-#include "Engine/World.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "LevelInstanceSubsystem"

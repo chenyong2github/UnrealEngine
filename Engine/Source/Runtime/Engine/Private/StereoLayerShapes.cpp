@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StereoLayerShapes.h"
-#include "RHI.h"
 
 const FName FQuadLayer::ShapeName = FName("QuadLayer");
 const FName FCylinderLayer::ShapeName = FName("CylinderLayer");

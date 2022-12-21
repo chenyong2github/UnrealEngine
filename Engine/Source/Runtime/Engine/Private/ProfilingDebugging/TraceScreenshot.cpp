@@ -1,19 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "ProfilingDebugging/TraceScreenshot.h"
 
-#include "Containers/Map.h"
-#include "Engine/Engine.h"
-#include "Engine/GameViewportClient.h"
 #include "ImageUtils.h"
-#include "HAL/PlatformTime.h"
-#include "HAL/PlatformTLS.h"
-#include "HAL/TlsAutoCleanup.h"
 #include "Misc/DateTime.h"
 #include "Misc/CString.h"
 #include "Misc/Paths.h"
 #include "ProfilingDebugging/MiscTrace.h"
 #include "Tasks/Task.h"
-#include "Trace/Trace.inl"
 #include "UnrealClient.h"
 
 static void TraceScreenshotCommandCallback(const TArray<FString>& Args)

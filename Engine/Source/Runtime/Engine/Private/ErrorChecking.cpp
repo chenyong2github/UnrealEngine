@@ -5,13 +5,7 @@
 	Actor Error checking functions
   ===========================================================================*/
 
-#include "CoreMinimal.h"
-#include "Serialization/ArchiveUObject.h"
-#include "UObject/Class.h"
-#include "Engine/Brush.h"
-#include "GameFramework/Volume.h"
 #include "UObject/Package.h"
-#include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 #include "Misc/MapErrors.h"

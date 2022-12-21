@@ -6,13 +6,14 @@
 
 #include "Materials/MaterialInterface.h"
 
+#include "MeshUVChannelInfo.h"
 #include "RenderingThread.h"
 #include "DataDrivenShaderPlatformInfo.h"
 #include "PrimitiveViewRelevance.h"
 #include "MaterialShared.h"
 #include "Materials/Material.h"
 #include "UObject/ObjectSaveContext.h"
-#include "UObject/UObjectHash.h"
+#include "UObject/PropertyPortFlags.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "EditorFramework/AssetImportData.h"
@@ -21,10 +22,7 @@
 #include "Engine/World.h"
 #include "ObjectCacheEventSink.h"
 #include "Engine/SubsurfaceProfile.h"
-#include "Engine/TextureStreamingTypes.h"
-#include "Algo/BinarySearch.h"
 #include "Interfaces/ITargetPlatform.h"
-#include "Components.h"
 #include "Components/PrimitiveComponent.h"
 #include "ContentStreaming.h"
 #include "MeshBatch.h"
@@ -37,7 +35,6 @@
 #include "ShaderPlatformQualitySettings.h"
 #include "ObjectCacheContext.h"
 #include "MaterialCachedData.h"
-#include "Misc/ScopedSlowTask.h"
 #include "Components/DecalComponent.h"
 
 #if WITH_EDITOR
@@ -1562,7 +1559,6 @@ const UClass* UMaterialInterface::GetEditorOnlyDataClass() const
 	return UMaterialInterfaceEditorOnlyData::StaticClass();
 }
 
-#include "Materials/MaterialInstanceDynamic.h"
 
 UMaterialInterfaceEditorOnlyData* UMaterialInterface::CreateEditorOnlyData()
 {

@@ -4,7 +4,6 @@
 
 #include "Elements/Actor/ActorElementWorldInterface.h"
 #include "Elements/Component/ComponentElementData.h"
-#include "Elements/Framework/TypedElementRegistry.h"
 
 #include "Components/PrimitiveComponent.h"
 

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GrowOnlySpanAllocator.h"
+#include "CoreGlobals.h"
 
 
 // Allocate a range.  Returns allocated StartOffset.

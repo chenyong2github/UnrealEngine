@@ -1,13 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Instances/InstancedPlacementClientInfo.h"
+#include "UObject/UnrealType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InstancedPlacementClientInfo)
 
 #if WITH_EDITORONLY_DATA
+#include "Elements/SMInstance/SMInstanceElementId.h"
 #include "Misc/ITransaction.h"
 #include "Instances/InstancedPlacementPartitionActor.h"
-#include "Elements/Framework/EngineElementsLibrary.h"
 #include "Engine/World.h"
 
 FArchive& operator<<(FArchive& Ar, FPlacementInstance& Instance)

@@ -2,8 +2,6 @@
 
 #include "Rendering/PositionVertexBuffer.h"
 
-#include "CoreMinimal.h"
-#include "RHI.h"
 #include "Components.h"
 
 #include "StaticMeshVertexData.h"

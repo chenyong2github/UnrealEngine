@@ -9,7 +9,6 @@
 
 #if WITH_EDITOR
 #include "Settings/AnimBlueprintSettings.h"
-#include "Modules/ModuleManager.h"
 #endif
 #if WITH_EDITORONLY_DATA
 #include "AnimationEditorUtils.h"

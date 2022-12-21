@@ -3,6 +3,8 @@
 #include "Engine/AssetManagerTypes.h"
 #include "Engine/AssetManager.h"
 #include "Engine/AssetManagerSettings.h"
+#include "Engine/DeveloperSettings.h"
+#include "UObject/UnrealType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AssetManagerTypes)
 

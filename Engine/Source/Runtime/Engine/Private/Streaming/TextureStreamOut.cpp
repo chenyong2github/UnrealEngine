@@ -7,6 +7,7 @@ TextureStreamOut.cpp : Implement a generic texture stream out strategy.
 #include "Streaming/TextureStreamOut.h"
 #include "Engine/Texture.h"
 #include "Streaming/RenderAssetUpdate.inl"
+#include "Streaming/TextureMipAllocator.h"
 
 bool FTextureStreamOut::IsSameThread(FTextureMipAllocator::ETickThread TickThread, int32 TaskThread)
 {

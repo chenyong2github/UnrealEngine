@@ -2,12 +2,9 @@
 
 #include "Animation/AnimBoneCompressionSettings.h"
 #include "Animation/AnimBoneCompressionCodec.h"
-#include "Animation/AnimSequence.h"
 #include "Animation/AnimationSettings.h"
 #include "AnimationUtils.h"
 #include "AnimationCompression.h"
-#include "Serialization/MemoryWriter.h"
-#include "UObject/Package.h"
 #include "Async/ParallelFor.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimBoneCompressionSettings)

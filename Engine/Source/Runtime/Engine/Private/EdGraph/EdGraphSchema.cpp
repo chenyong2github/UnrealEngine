@@ -1,22 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EdGraph/EdGraphSchema.h"
+#include "HAL/IConsoleManager.h"
 #include "UObject/MetaData.h"
-#include "UObject/UnrealType.h"
 #include "UObject/TextProperty.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SBoxPanel.h"
-#include "Styling/CoreStyle.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Textures/SlateIcon.h"
-#include "Framework/Commands/UIAction.h"
-#include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "EdGraph/EdGraph.h"
 #if WITH_EDITOR
 #include "Misc/ConfigCacheIni.h"
-#include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ScopedTransaction.h"
 #include "EditorCategoryUtils.h"
 #include "Settings/EditorStyleSettings.h"

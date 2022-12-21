@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Physics/PhysicsInterfaceUtils.h"
-#include "PhysXPublic.h"
-#include "WorldCollision.h"
+#include "CollisionQueryParams.h"
 #include "Physics/PhysicsFiltering.h"
-#include "Physics/PhysicsInterfaceTypes.h"
+#include "PhysicsInterfaceTypesCore.h"
 
 FCollisionFilterData CreateObjectQueryFilterData(const bool bTraceComplex, const int32 MultiTrace/*=1 if multi. 0 otherwise*/, const struct FCollisionObjectQueryParams & ObjectParam)
 {

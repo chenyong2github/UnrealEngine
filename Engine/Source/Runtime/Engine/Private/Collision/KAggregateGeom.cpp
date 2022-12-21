@@ -4,24 +4,24 @@
 	PhysCollision.cpp: Skeletal mesh collision code
 =============================================================================*/ 
 
-#include "CoreMinimal.h"
 #include "EngineDefines.h"
 #include "EngineLogs.h"
+#include "Math/BoxSphereBounds.h"
 #include "PhysicsEngine/ShapeElem.h"
 #include "PhysicsEngine/ConvexElem.h"
 #include "PhysicsEngine/BoxElem.h"
+#include "PhysicsEngine/LevelSetElem.h"
 #include "PhysicsEngine/SphereElem.h"
 #include "PhysicsEngine/SphylElem.h"
 #include "PhysicsEngine/AggregateGeom.h"
 #include "Engine/Polys.h"
-#include "PhysXIncludes.h"
 #include "Chaos/Convex.h"
 #include "Chaos/Levelset.h"
+#include "PhysicsEngine/TaperedCapsuleElem.h"
 #if INTEL_ISPC
 #include "KAggregateGeom.ispc.generated.h"
 #endif
 
-#include "Chaos/ImplicitObject.h"
 
 
 #define MIN_HULL_VERT_DISTANCE		(0.1f)

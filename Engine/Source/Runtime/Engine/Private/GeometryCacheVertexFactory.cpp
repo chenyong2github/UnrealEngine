@@ -5,12 +5,14 @@
 =============================================================================*/
 
 #include "GeometryCacheVertexFactory.h"
-#include "SceneView.h"
+#include "GlobalRenderResources.h"
 #include "MeshBatch.h"
-#include "ShaderParameterUtils.h"
+#include "MeshDrawShaderBindings.h"
 #include "MeshMaterialShader.h"
+#include "Misc/DelayedAutoRegister.h"
 #include "PackedNormal.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "RenderUtils.h"
 
 /*-----------------------------------------------------------------------------
 FGeometryCacheVertexFactoryShaderParameters

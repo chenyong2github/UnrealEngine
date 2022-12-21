@@ -4,23 +4,14 @@
 	TileRendering.cpp: Tile rendering implementation.
 =============================================================================*/
 
-#include "RHI.h"
-#include "ShowFlags.h"
-#include "RenderResource.h"
-#include "RenderingThread.h"
-#include "VertexFactory.h"
-#include "PackedNormal.h"
-#include "LocalVertexFactory.h"
-#include "SceneView.h"
 #include "CanvasRender.h"
 #include "CanvasRendererItem.h"
-#include "MeshBatch.h"
+#include "PrimitiveUniformShaderParameters.h"
 #include "RHIStaticStates.h"
-#include "RendererInterface.h"
-#include "SceneUtils.h"
 #include "EngineModule.h"
 #include "MeshPassProcessor.h"
 #include "RenderGraphUtils.h"
+#include "RenderUtils.h"
 #include "UnrealClient.h"
 #include "Materials/MaterialRenderProxy.h"
 

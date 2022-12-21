@@ -2,8 +2,9 @@
 
 
 #include "OpusAudioInfo.h"
-#include "ContentStreaming.h"
 #include "Interfaces/IAudioFormat.h"
+#include <opus_defines.h>
+#include <opus_types.h>
 
 #if !defined(WITH_OPUS)
 	#define WITH_OPUS (PLATFORM_WINDOWS || PLATFORM_MAC || PLATFORM_UNIX)

@@ -5,13 +5,9 @@
 	Location-related particle module implementations.
 =============================================================================*/
 
-#include "CoreMinimal.h"
 #include "Misc/MessageDialog.h"
-#include "Stats/Stats.h"
-#include "GameFramework/Actor.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "RawIndexBuffer.h"
-#include "ParticleHelper.h"
+#include "ParticleEmitterInstances.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "Distributions/DistributionFloatConstant.h"
 #include "Distributions/DistributionVectorConstant.h"
@@ -33,13 +29,19 @@
 #include "Particles/Location/ParticleModuleLocationWorldOffset.h"
 #include "Particles/Location/ParticleModuleLocationWorldOffset_Seeded.h"
 #include "Particles/Location/ParticleModuleLocation_Seeded.h"
+#include "Particles/ParticleEmitter.h"
 #include "Particles/TypeData/ParticleModuleTypeDataGpu.h"
 #include "Particles/ParticleLODLevel.h"
+#include "Particles/ParticleModule.h"
 #include "Particles/ParticleModuleRequired.h"
 #include "Animation/SkeletalMeshActor.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/SkeletalMeshSocket.h"
+#include "Particles/ParticleSystem.h"
 #include "Rendering/SkeletalMeshRenderData.h"
+#include "Particles/TypeData/ParticleModuleTypeDataBase.h"
+#include "SceneManagement.h"
+#include "UObject/UnrealType.h"
 
 
 UParticleModuleLocationBase::UParticleModuleLocationBase(const FObjectInitializer& ObjectInitializer)

@@ -2,18 +2,11 @@
 
 #include "Physics/Experimental/ChaosInterfaceUtils.h"
 
-#include "Chaos/Box.h"
+#include "BodySetupEnums.h"
 #include "Chaos/Capsule.h"
-#include "Chaos/CastingUtilities.h"
+#include "Chaos/CollisionConvexMesh.h"
 #include "Chaos/Convex.h"
-#include "Chaos/GeometryParticles.h"
-#include "Chaos/ImplicitObject.h"
-#include "Chaos/ImplicitObjectScaled.h"
-#include "Chaos/Levelset.h"
-#include "Chaos/Sphere.h"
-#include "Chaos/TriangleMesh.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
-#include "Chaos/UniformGrid.h"
 
 #include "Physics/PhysicsInterfaceTypes.h"
 
@@ -23,7 +16,7 @@
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "PhysicsEngine/SphylElem.h"
 #include "PhysicsEngine/SphereElem.h"
-#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
+#include "PhysicsEngine/TaperedCapsuleElem.h"
 
 #define FORCE_ANALYTICS 0
 #define CREATE_STRAIGHT_CAPSULE_GEOMETRY_FOR_TAPERED_CAPSULES

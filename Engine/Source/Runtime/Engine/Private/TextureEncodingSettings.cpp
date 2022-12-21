@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TextureEncodingSettings.h"
+#include "Engine/TextureDefines.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TextureEncodingSettings)
 

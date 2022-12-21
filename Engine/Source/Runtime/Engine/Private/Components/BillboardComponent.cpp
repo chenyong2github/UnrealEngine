@@ -2,12 +2,10 @@
 
 #include "Components/BillboardComponent.h"
 #include "UObject/ConstructorHelpers.h"
-#include "EngineGlobals.h"
 #include "PrimitiveViewRelevance.h"
 #include "PrimitiveSceneProxy.h"
 #include "Components/LightComponent.h"
 #include "Engine/CollisionProfile.h"
-#include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "Engine/Texture2D.h"
 #include "SceneManagement.h"
@@ -15,7 +13,6 @@
 #include "Engine/Engine.h"
 #include "Engine/LevelStreaming.h"
 #include "LevelUtils.h"
-#include "TextureCompiler.h"
 #include "TextureResource.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BillboardComponent)

@@ -2,6 +2,8 @@
 
 #include "Engine/PoseWatch.h"
 #include "Animation/AnimBlueprint.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PoseWatch)
 

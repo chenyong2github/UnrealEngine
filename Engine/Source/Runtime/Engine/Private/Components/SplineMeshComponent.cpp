@@ -1,22 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/SplineMeshComponent.h"
-#include "Serialization/MemoryWriter.h"
+#include "BodySetupEnums.h"
 #include "Modules/ModuleManager.h"
-#include "RenderingThread.h"
-#include "VertexFactory.h"
-#include "LocalVertexFactory.h"
 #include "Engine/CollisionProfile.h"
+#include "Materials/MaterialInterface.h"
 #include "StaticMeshResources.h"
+#include "MeshDrawShaderBindings.h"
 #include "SplineMeshSceneProxy.h"
-#include "ShaderParameterUtils.h"
 #include "AI/NavigationSystemHelpers.h"
 #include "AI/Navigation/NavCollisionBase.h"
 #include "Engine/StaticMeshSocket.h"
 #include "Engine/StaticMesh.h"
+#include "PhysicsEngine/BoxElem.h"
 #include "PhysicsEngine/ConvexElem.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "MeshMaterialShader.h"
+#include "PhysicsEngine/SphylElem.h"
+#include "RenderUtils.h"
+#include "SceneInterface.h"
+#include "UObject/UnrealType.h"
 
 #if WITH_EDITOR
 #include "IHierarchicalLODUtilities.h"
@@ -1234,6 +1237,7 @@ void USplineMeshComponent::ApplyComponentInstanceData(FSplineMeshInstanceData* S
 }
 
 
+#include "PhysicsEngine/SphereElem.h"
 #include "StaticMeshLight.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SplineMeshComponent)

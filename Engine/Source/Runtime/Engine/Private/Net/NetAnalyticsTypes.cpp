@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Net/NetAnalyticsTypes.h"
-#include "Algo/BinarySearch.h"
-#include "Serialization/Archive.h"
 #include "HAL/IConsoleManager.h"
 
 namespace NetAnalyticsCVars

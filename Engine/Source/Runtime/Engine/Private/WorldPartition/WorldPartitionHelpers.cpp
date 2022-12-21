@@ -8,6 +8,7 @@
 #include "Algo/AnyOf.h"
 
 #include "Commandlets/Commandlet.h"
+#include "WorldPartition/WorldPartitionLog.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionHelpers, Log, All);
 

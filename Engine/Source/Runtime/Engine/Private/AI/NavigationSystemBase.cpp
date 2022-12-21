@@ -3,11 +3,8 @@
 #include "AI/NavigationSystemBase.h"
 #include "Engine/Engine.h"
 #include "Engine/Level.h"
-#include "Engine/World.h"
 #include "GameFramework/WorldSettings.h"
-#include "AI/Navigation/NavigationTypes.h"
 #include "AI/Navigation/NavAreaBase.h"
-#include "AI/Navigation/NavAgentInterface.h"
 #include "AI/Navigation/PathFollowingAgentInterface.h"
 #include "AI/NavigationSystemConfig.h"
 #include "AI/Navigation/NavigationDataChunk.h"
@@ -20,8 +17,6 @@ DEFINE_LOG_CATEGORY(LogNavLink);
 DEFINE_LOG_CATEGORY(LogAStar);
 
 #if !UE_BUILD_SHIPPING
-#include "CoreGlobals.h"
-#include "Misc/ConfigCacheIni.h"
 #endif // !UE_BUILD_SHIPPING
 
 namespace FNavigationSystem

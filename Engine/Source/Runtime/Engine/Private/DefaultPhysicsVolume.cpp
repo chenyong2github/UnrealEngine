@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameFramework/DefaultPhysicsVolume.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "Components/BrushComponent.h"
 

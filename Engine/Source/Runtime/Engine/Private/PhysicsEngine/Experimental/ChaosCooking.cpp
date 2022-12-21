@@ -1,9 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PhysicsEngine/Experimental/ChaosCooking.h"
+#include "Chaos/CollisionConvexMesh.h"
 #include "ChaosDerivedDataUtil.h"
-#include "Chaos/Particles.h"
-#include "Chaos/AABB.h"
 #include "Chaos/Convex.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
 

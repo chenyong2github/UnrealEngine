@@ -5,23 +5,21 @@
 =============================================================================*/
 
 #include "PrimitiveSceneProxy.h"
-#include "Engine/Brush.h"
+#include "PrimitiveViewRelevance.h"
 #include "UObject/Package.h"
-#include "EngineModule.h"
 #include "EngineUtils.h"
 #include "Components/BrushComponent.h"
-#include "SceneManagement.h"
 #include "PrimitiveSceneInfo.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialRenderProxy.h"
 #include "MaterialDomain.h"
-#include "SceneManagement.h"
+#include "RenderUtils.h"
 #include "VT/RuntimeVirtualTexture.h"
 #include "PrimitiveInstanceUpdateCommand.h"
-#include "InstanceUniformShaderParameters.h"
 #include "NaniteSceneProxy.h" // TODO: PROG_RASTER
 #include "ComponentRecreateRenderStateContext.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "SceneInterface.h"
 
 #if WITH_EDITOR
 #include "FoliageHelper.h"

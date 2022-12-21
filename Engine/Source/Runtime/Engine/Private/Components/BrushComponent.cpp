@@ -5,20 +5,13 @@
 =============================================================================*/
 
 #include "Components/BrushComponent.h"
+#include "BodySetupEnums.h"
 #include "PrimitiveSceneProxy.h"
-#include "EngineGlobals.h"
-#include "RHI.h"
-#include "RenderingThread.h"
-#include "RenderResource.h"
+#include "SceneInterface.h"
 #include "UObject/Package.h"
-#include "VertexFactory.h"
-#include "PackedNormal.h"
-#include "LocalVertexFactory.h"
 #include "PrimitiveViewRelevance.h"
 #include "PrimitiveSceneProxy.h"
 #include "Model.h"
-#include "Engine/Brush.h"
-#include "MaterialShared.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialRenderProxy.h"
 #include "GameFramework/Volume.h"
@@ -29,7 +22,6 @@
 #include "ActorEditorUtils.h"
 #include "SceneManagement.h"
 #include "PhysicsEngine/BodySetup.h"
-#include "StaticMeshResources.h"
 #include "DynamicMeshBuilder.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BrushComponent)

@@ -2,9 +2,7 @@
 
 
 #include "Sound/SoundMix.h"
-#include "EngineGlobals.h"
 #include "Engine/Engine.h"
-#include "Styling/CoreStyle.h"
 #include "AudioDeviceManager.h"
 #include "Sound/SoundClass.h"
 
@@ -12,6 +10,7 @@
 
 #if WITH_EDITOR
 #include "Framework/Notifications/NotificationManager.h"
+#include "UObject/UnrealType.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #endif
 

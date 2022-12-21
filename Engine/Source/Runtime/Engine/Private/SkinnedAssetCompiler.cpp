@@ -1,33 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SkinnedAssetCompiler.h"
-#include "AssetCompilingManager.h"
 #include "Engine/SkinnedAsset.h"
 #include "Engine/SkeletalMesh.h" // For AddSkeletalMeshes
+#include "UObject/UnrealType.h"
 
 #if WITH_EDITOR
 
+#include "EngineLogs.h"
 #include "ObjectCacheContext.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "Misc/QueuedThreadPoolWrapper.h"
-#include "EngineModule.h"
 #include "Engine/SkinnedAssetAsyncCompileUtils.h"
-#include "Misc/ScopedSlowTask.h"
 #include "UObject/StrongObjectPtr.h"
 #include "ShaderCompiler.h"
 #include "TextureCompiler.h"
-#include "Misc/IQueuedWork.h"
-#include "LevelEditor.h"
-#include "SLevelViewport.h"
-#include "Components/PrimitiveComponent.h"
-#include "Components/SkinnedMeshComponent.h"
-#include "ContentStreaming.h"
-#include "DrawDebugHelpers.h"
-#include "GameFramework/PlayerController.h"
-#include "GameFramework/Character.h"
-#include "Components/CapsuleComponent.h"
-#include "AI/NavigationSystemBase.h"
-#include "EngineUtils.h"
 #include "ProfilingDebugging/CountersTrace.h"
 
 #define LOCTEXT_NAMESPACE "SkinnedAssetCompiler"

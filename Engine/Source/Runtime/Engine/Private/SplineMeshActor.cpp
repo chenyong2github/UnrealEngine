@@ -7,7 +7,6 @@
 #include "Engine/SplineMeshActor.h"
 #include "Components/SplineMeshComponent.h"
 #include "Engine/CollisionProfile.h"
-#include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 #include "Misc/MapErrors.h"

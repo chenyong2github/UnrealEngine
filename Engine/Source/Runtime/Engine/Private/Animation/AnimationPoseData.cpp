@@ -2,12 +2,8 @@
 
 #include "Animation/AnimationPoseData.h"
 #include "Animation/AnimNodeBase.h"
-#include "Animation/AnimInstance.h"
-#include "Animation/AnimCurveTypes.h"
 #include "Animation/AnimSlotEvaluationPose.h"
-#include "Animation/AttributesRuntime.h"
 
-#include "BonePose.h"
 
 FAnimationPoseData::FAnimationPoseData(FPoseContext& InPoseContext)
 	: Pose(InPoseContext.Pose), Curve(InPoseContext.Curve), Attributes(InPoseContext.CustomAttributes)

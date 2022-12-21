@@ -6,15 +6,11 @@
 
 #include "WorldPartition/WorldPartitionLevelStreamingPolicy.h"
 #include "Engine/Engine.h"
-#include "WorldPartition/WorldPartitionRuntimeCell.h"
-#include "WorldPartition/WorldPartition.h"
-#include "WorldPartition/WorldPartitionRuntimeLevelStreamingCell.h"
+#include "Engine/LevelStreaming.h"
 #include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
-#include "WorldPartition/WorldPartitionLevelHelper.h"
 #include "WorldPartition/WorldPartitionDebugHelper.h"
 #include "Engine/Level.h"
-#include "Engine/World.h"
 #include "Engine/Canvas.h"
 #include "Engine/LevelStreamingGCHelper.h"
 

@@ -5,20 +5,18 @@ ParticleCurveTexture.cpp: Texture used to hold particle curves.
 ==============================================================================*/
 
 #include "Particles/ParticleCurveTexture.h"
-#include "Misc/App.h"
+#include "ProfilingDebugging/RealtimeGPUProfiler.h"
 #include "RenderingThread.h"
-#include "UniformBuffer.h"
-#include "Shader.h"
-#include "StaticBoundShaderState.h"
+#include "RHIBreadcrumbs.h"
 #include "RHIStaticStates.h"
-#include "SceneUtils.h"
 #include "ParticleHelper.h"
 #include "ParticleResources.h"
+#include "RHIContext.h"
 #include "ShaderParameterUtils.h"
 #include "GlobalShader.h"
 #include "FXSystem.h"
 #include "PipelineStateCache.h"
-#include "ClearQuad.h"
+#include "ShaderParameterMacros.h"
 
 /** The texture size allocated for particle curves. */
 extern const int32 GParticleCurveTextureSizeX = 512;

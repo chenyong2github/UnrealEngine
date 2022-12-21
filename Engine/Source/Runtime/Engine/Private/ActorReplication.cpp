@@ -1,14 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
+#include "Engine/World.h"
 #include "GameFramework/Pawn.h"
-#include "UObject/CoreNet.h"
-#include "EngineGlobals.h"
-#include "Engine/EngineTypes.h"
-#include "Components/ActorComponent.h"
-#include "GameFramework/Actor.h"
-#include "Components/PrimitiveComponent.h"
-#include "GameFramework/PlayerController.h"
 #include "Engine/Engine.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/BlueprintGeneratedClass.h"
@@ -18,7 +11,6 @@
 #include "GameFramework/GameNetworkManager.h"
 #include "NetworkingDistanceConstants.h"
 #include "PhysicsReplication.h"
-#include "PhysicsPublic.h"
 #include "DrawDebugHelpers.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Interfaces/Interface_ActorSubobject.h"
@@ -33,8 +25,6 @@
 #include "Net/Iris/ReplicationSystem/ActorReplicationBridge.h"
 #endif // UE_WITH_IRIS
 #include "Physics/Experimental/PhysScene_Chaos.h"
-#include "PBDRigidsSolver.h"
-#include "ChaosSolversModule.h"
 
 /*-----------------------------------------------------------------------------
 	AActor networking implementation.

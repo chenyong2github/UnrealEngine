@@ -3,6 +3,7 @@
 #include "CookedMetaData.h"
 #include "UObject/Package.h"
 #include "UObject/MetaData.h"
+#include "UObject/UnrealType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CookedMetaData)
 

@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/LatentActionManager.h"
-#include "UObject/Class.h"
 #include "LatentActions.h"
+#include "Stats/Stats.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LatentActionManager)
 

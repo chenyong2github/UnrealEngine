@@ -5,7 +5,6 @@
 =============================================================================*/ 
 
 #include "Animation/AnimCompress_LeastDestructive.h"
-#include "Animation/AnimCompress_BitwiseCompressOnly.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimCompress_LeastDestructive)
 

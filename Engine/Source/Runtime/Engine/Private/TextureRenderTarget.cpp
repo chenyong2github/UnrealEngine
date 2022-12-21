@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Engine/TextureRenderTarget.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 #include "TextureResource.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TextureRenderTarget)

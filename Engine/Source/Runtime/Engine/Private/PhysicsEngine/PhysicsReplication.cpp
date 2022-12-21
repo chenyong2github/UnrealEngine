@@ -5,24 +5,16 @@
 =============================================================================*/ 
 
 #include "PhysicsReplication.h"
-#include "PhysicsEngine/BodyInstance.h"
 #include "Engine/World.h"
-#include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "DrawDebugHelpers.h"
+#include "Physics/Experimental/PhysScene_Chaos.h"
 #include "PhysicsEngine/PhysicsSettings.h"
-#include "PhysicsPublic.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
-#include "Engine/Player.h"
-#include "Physics/PhysicsInterfaceCore.h"
-#include "Physics/PhysicsInterfaceScene.h"
-#include "Physics/PhysScene_PhysX.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Chaos/ChaosMarshallingManager.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "PBDRigidsSolver.h"
-#include "Chaos/PBDRigidsEvolutionGBF.h"
 
 namespace CharacterMovementCVars
 {

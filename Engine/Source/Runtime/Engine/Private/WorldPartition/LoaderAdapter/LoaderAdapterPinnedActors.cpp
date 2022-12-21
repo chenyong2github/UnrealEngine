@@ -6,8 +6,6 @@
 
 #include "Engine/World.h"
 #include "Engine/Level.h"
-#include "WorldPartition/WorldPartitionActorDesc.h"
-#include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/WorldPartition.h"
 
 #define LOCTEXT_NAMESPACE "FLoaderAdapterPinnedActors"

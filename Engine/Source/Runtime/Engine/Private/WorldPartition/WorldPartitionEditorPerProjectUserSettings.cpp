@@ -2,8 +2,9 @@
 
 #include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
 #include "Engine/World.h"
-#include "WorldPartition/WorldPartition.h"
 #include "GameFramework/WorldSettings.h"
+#include "Misc/PackageName.h"
+#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionEditorPerProjectUserSettings)
 

@@ -3,6 +3,7 @@
 
 #include "Sound/SoundNodeModulatorContinuous.h"
 #include "ActiveSound.h"
+#include "IAudioParameterTransmitter.h"
 
 float FModulatorContinuousParams::GetValue(const FActiveSound& ActiveSound) const
 {

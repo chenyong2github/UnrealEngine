@@ -9,7 +9,6 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EdGraph)
 
 #if WITH_EDITOR
-#include "UObject/UObjectHash.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "EdGraph"

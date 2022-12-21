@@ -1,12 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/DataLayer/DataLayerEditorContext.h"
+#include "WorldPartition/DataLayer/WorldDataLayers.h"
 
 #if WITH_EDITOR
 
-#include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
-#include "Engine/World.h"
 
 /*
  * FDataLayerEditorContext

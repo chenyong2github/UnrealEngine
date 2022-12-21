@@ -5,7 +5,6 @@
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionLog.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
-#include "WorldPartition/ActorDescContainer.h"
 
 FWorldPartitionActorDescView::FWorldPartitionActorDescView()
 	: FWorldPartitionActorDescView(nullptr)

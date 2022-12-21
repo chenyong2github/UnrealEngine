@@ -5,7 +5,8 @@ Texture2DStreamOut_AsyncCreate.cpp: Definitions of classes used for texture.
 =============================================================================*/
 
 #include "Streaming/Texture2DStreamOut_AsyncCreate.h"
-#include "RenderUtils.h"
+#include "Rendering/Texture2DResource.h"
+#include "Streaming/Texture2DUpdate.h"
 
 
 // ****************************

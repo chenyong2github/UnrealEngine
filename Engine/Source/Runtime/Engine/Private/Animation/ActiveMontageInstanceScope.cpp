@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/ActiveMontageInstanceScope.h"
+#include "Animation/AnimNodeMessages.h"
 
 namespace UE::Anim {
 

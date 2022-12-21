@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/SpotLight.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "Components/ArrowComponent.h"
 #include "Components/SpotLightComponent.h"
 

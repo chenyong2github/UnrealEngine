@@ -5,15 +5,7 @@
 #if TRACE_FILTERING_ENABLED
 
 #include "TraceFilters.h"
-#include "HAL/IConsoleManager.h"
-#include "Algo/Transform.h"
-#include "Containers/Map.h"
 
-#include "UObject/UObjectBase.h"
-#include "Engine/World.h"
-#include "GameFramework/Actor.h"
-#include "Components/ActorComponent.h"
-#include "Logging/LogMacros.h"
 #include "ObjectTrace.h"
 
 struct ENGINE_API FTraceFilterObjectAnnotation

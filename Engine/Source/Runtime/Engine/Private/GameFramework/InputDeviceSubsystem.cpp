@@ -2,12 +2,7 @@
 
 #include "GameFramework/InputDeviceSubsystem.h"
 #include "GameFramework/InputDeviceProperties.h"
-#include "UnrealEngine.h"	// For GEngine
-#include "Engine/Engine.h"	// For FWorldContext
-#include "Application/SlateApplicationBase.h"
 #include "Framework/Application/IInputProcessor.h"
-#include "GenericPlatform/GenericPlatformApplicationMisc.h"	// For FInputDeviceScope
-#include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 #include "Framework/Application/SlateApplication.h"			// For RegisterInputPreProcessor
 #include "GameFramework/PlayerController.h"
 #include "Misc/App.h"	// For FApp::GetDeltaTime()

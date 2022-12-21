@@ -5,7 +5,7 @@
 =============================================================================*/
 
 #include "HitProxies.h"
-#include "Misc/ScopeLock.h"
+#include "Elements/Framework/TypedElementHandle.h"
 
 /// @cond DOXYGEN_WARNINGS
 

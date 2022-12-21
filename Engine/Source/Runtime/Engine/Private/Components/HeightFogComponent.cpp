@@ -4,10 +4,8 @@
 	HeightFogComponent.cpp: Height fog implementation.
 =============================================================================*/
 
-#include "CoreMinimal.h"
-#include "UObject/CoreNet.h"
+#include "GameFramework/Info.h"
 #include "UObject/ConstructorHelpers.h"
-#include "EngineDefines.h"
 #include "Engine/World.h"
 #include "SceneInterface.h"
 #include "Engine/Texture2D.h"

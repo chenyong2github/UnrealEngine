@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Lightmass/PrecomputedVisibilityVolume.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "Engine/CollisionProfile.h"
 #include "Components/BrushComponent.h"
 

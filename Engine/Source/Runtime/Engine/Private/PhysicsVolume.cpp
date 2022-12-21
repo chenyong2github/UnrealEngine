@@ -2,10 +2,8 @@
 
 #include "GameFramework/PhysicsVolume.h"
 #include "Engine/World.h"
-#include "Components/PrimitiveComponent.h"
 #include "Components/BrushComponent.h"
 #include "PhysicsEngine/PhysicsSettings.h"
-#include "Engine/OverlapInfo.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PhysicsVolume)
 

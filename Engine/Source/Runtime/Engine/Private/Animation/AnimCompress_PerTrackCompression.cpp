@@ -5,9 +5,11 @@
 =============================================================================*/ 
 
 #include "Animation/AnimCompress_PerTrackCompression.h"
-#include "AnimationCompression.h"
-#include "AnimEncoding.h"
 #include "AnimEncoding_PerTrackCompression.h"
+#include "Animation/AnimSequence.h"
+#include "Animation/AnimSequenceDecompressionContext.h"
+#include "AnimationUtils.h"
+#include "UObject/UnrealType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimCompress_PerTrackCompression)
 

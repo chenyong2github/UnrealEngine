@@ -2,7 +2,7 @@
 
 #if WITH_EDITOR
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationErrorHandler.h"
-#include "UObject/SoftObjectPath.h"
+#include "WorldPartition/WorldPartitionActorDescView.h"
 
 FString IStreamingGenerationErrorHandler::GetActorName(const FWorldPartitionActorDescView& ActorDescView)
 {

@@ -11,13 +11,11 @@
 #include "SceneInterface.h"
 #include "Components/StaticMeshComponent.h"
 #include "AudioDevice.h"
-#include "Engine/TextureCube.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "Components/LineBatchComponent.h"
 #include "Components/ReflectionCaptureComponent.h"
 #include "GameFramework/GameModeBase.h"
-#include "GameFramework/GameMode.h"
 
 FPreviewScene::FPreviewScene(FPreviewScene::ConstructionValues CVS)
 	: PreviewWorld(nullptr)

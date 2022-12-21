@@ -1,18 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
-#include "WorldPartition/HLOD/HLODActor.h"
-#include "WorldPartition/HLOD/HLODActorDesc.h"
-#include "Engine/World.h"
-#include "Engine/LevelScriptBlueprint.h"
-#include "ActorReferencesUtils.h"
+#include "Engine/Level.h"
+#include "Misc/HierarchicalLogArchive.h"
+#include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionActorDescView.h"
+#include "WorldPartition/WorldPartitionStreamingSource.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionRuntimeHash)
 
 #if WITH_EDITOR
-#include "WorldPartition/WorldPartitionHandle.h"
-#include "WorldPartition/DataLayer/WorldDataLayers.h"
-#include "WorldPartition/WorldPartitionStreamingGenerationContext.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "WorldPartition"

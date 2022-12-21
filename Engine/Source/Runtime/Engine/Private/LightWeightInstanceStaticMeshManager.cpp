@@ -2,9 +2,10 @@
 
 #include "GameFramework/LightWeightInstanceStaticMeshManager.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
-#include "Engine/World.h"
+#include "Components/PrimitiveComponent.h"
 #include "Net/UnrealNetwork.h"
-#include "TimerManager.h"
+#include "Elements/SMInstance/SMInstanceElementId.h"
+#include "Templates/Greater.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LightWeightInstanceStaticMeshManager)
 

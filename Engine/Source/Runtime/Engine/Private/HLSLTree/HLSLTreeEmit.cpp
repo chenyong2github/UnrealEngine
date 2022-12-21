@@ -3,13 +3,10 @@
 
 #include "HLSLTree/HLSLTreeEmit.h"
 #include "HLSLTree/HLSLTree.h"
-#include "Misc/StringBuilder.h"
-#include "Misc/MemStack.h"
 #include "Misc/MemStackUtility.h"
-#include "Shader/ShaderTypes.h"
-#include "Shader/Preshader.h"
 #include "MaterialShared.h" // TODO - split preshader out into its own module
 #include "Misc/LargeWorldRenderPosition.h"
+#include "Shader/PreshaderTypes.h"
 
 namespace UE::HLSLTree
 {

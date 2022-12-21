@@ -6,14 +6,11 @@
 
 #include "Net/NetworkProfiler.h"
 #include "HAL/FileManager.h"
-#include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
 #include "Misc/App.h"
-#include "Engine/EngineBaseTypes.h"
 #include "Engine/World.h"
-#include "Serialization/MemoryWriter.h"
-#include "HAL/IConsoleManager.h"
 #include "TimerManager.h"
+#include "UObject/UnrealType.h"
 
 #if USE_NETWORK_PROFILER
 

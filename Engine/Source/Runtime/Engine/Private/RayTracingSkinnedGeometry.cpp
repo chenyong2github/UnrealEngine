@@ -5,7 +5,6 @@
 #if RHI_RAYTRACING
 
 #include "RenderGraphBuilder.h"
-#include "RHI.h"
 #include "RayTracingGeometry.h"
 
 DECLARE_GPU_STAT(SkinnedGeometryBuildBLAS);

@@ -3,11 +3,10 @@
 #if WITH_EDITOR
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationTokenizedMessageErrorHandler.h"
 
-#include "GameFramework/Actor.h"
-#include "Logging/MessageLog.h"
 #include "Misc/PackageName.h"
 #include "Misc/UObjectToken.h"
 #include "WorldPartition/DataLayer/DataLayerInstanceWithAsset.h"
+#include "WorldPartition/WorldPartitionActorDescView.h"
 
 #define LOCTEXT_NAMESPACE "WorldPartition"
 

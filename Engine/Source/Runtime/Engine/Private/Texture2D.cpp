@@ -7,27 +7,18 @@
 #include "Engine/Texture2D.h"
 
 #include "Algo/AnyOf.h"
-#include "Misc/App.h"
-#include "HAL/PlatformFileManager.h"
-#include "HAL/FileManager.h"
-#include "HAL/LowLevelMemTracker.h"
-#include "Misc/Paths.h"
 #include "Containers/ResourceArray.h"
-#include "UObject/UObjectIterator.h"
+#include "EngineLogs.h"
 #include "UObject/Package.h"
-#include "UObject/LinkerLoad.h"
-#include "UObject/CoreRedirects.h"
 #include "RenderUtils.h"
 #include "RenderGraphBuilder.h"
-#include "ContentStreaming.h"
 #include "EngineUtils.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "DerivedDataCache.h"
-#include "DerivedDataRequestOwner.h"
-#include "Engine/TextureStreamingTypes.h"
-#include "Streaming/TextureStreamingHelpers.h"
+#include "Rendering/Texture2DResource.h"
 #include "Streaming/Texture2DStreamOut_AsyncCreate.h"
+#include "RenderingThread.h"
 #include "Streaming/Texture2DStreamOut_AsyncReallocate.h"
 #include "Streaming/Texture2DStreamOut_Virtual.h"
 #include "Streaming/Texture2DStreamIn_DDC_AsyncCreate.h"
@@ -43,13 +34,9 @@
 #include "Streaming/Texture2DMipDataProvider_DDC.h"
 #include "Streaming/Texture2DMipDataProvider_IO.h"
 #include "Engine/TextureMipDataProviderFactory.h"
-#include "AsyncCompilationHelpers.h"
-#include "Async/AsyncFileHandle.h"
 #include "EngineModule.h"
-#include "Engine/Texture2DArray.h"
 #include "VT/UploadingVirtualTexture.h"
-#include "VT/VirtualTexturePoolConfig.h"
-#include "ProfilingDebugging/LoadTimeTracker.h"
+#include "VT/VirtualTextureBuiltData.h"
 #include "VT/VirtualTextureScalability.h"
 #include "ImageUtils.h"
 #include "TextureCompiler.h"
@@ -60,8 +47,6 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(Texture2D)
 
 #if WITH_EDITORONLY_DATA
-#include "Misc/TVariant.h"
-#include "DerivedDataCacheKey.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "UTexture2D"
@@ -143,6 +128,9 @@ static int32 MobileReduceLoadedMips(int32 NumTotalMips)
 int32 GDefragmentationRetryCounter = 10;
 /** Number of times to retry to reallocate a texture before trying a panic defragmentation, subsequent times. */
 int32 GDefragmentationRetryCounterLong = 100;
+
+struct FStreamingRenderAsset;
+struct FRenderAssetStreamingManager;
 
 /** Turn on ENABLE_RENDER_ASSET_TRACKING in ContentStreaming.cpp and setup GTrackedTextures to track specific textures/meshes through the streaming system. */
 extern bool TrackTextureEvent( FStreamingRenderAsset* StreamingTexture, UStreamableRenderAsset* Texture, bool bForceMipLevelsToBeResident, const FRenderAssetStreamingManager* Manager );

@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SaveGameSystem.h"
-#include "HAL/PlatformMisc.h"
 #include "HAL/ThreadHeartBeat.h"
 #include "Containers/Ticker.h"
+#include "Tasks/Pipe.h"
 
 
 UE::Tasks::FPipe ISaveGameSystem::AsyncTaskPipe{ TEXT("SaveGamePipe") };

@@ -5,13 +5,14 @@
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "EngineModule.h"
-#include "Engine/TextureLODSettings.h"
-#include "Interfaces/ITargetPlatform.h"
 #include "RendererInterface.h"
+#include "RenderingThread.h"
 #include "Shader/ShaderTypes.h"
+#include "UObject/UnrealType.h"
 #include "VT/RuntimeVirtualTextureNotify.h"
 #include "VT/UploadingVirtualTexture.h"
 #include "VT/VirtualTexture.h"
+#include "VT/VirtualTextureBuiltData.h"
 #include "VT/VirtualTextureLevelRedirector.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RuntimeVirtualTexture)

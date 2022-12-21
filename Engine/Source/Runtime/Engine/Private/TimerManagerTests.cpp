@@ -1,10 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
+#include "Engine/World.h"
 #include "Misc/AutomationTest.h"
-#include "EngineGlobals.h"
-#include "Engine/EngineBaseTypes.h"
-#include "Engine/EngineTypes.h"
 #include "TimerManager.h"
 #include "Engine/Engine.h"
 

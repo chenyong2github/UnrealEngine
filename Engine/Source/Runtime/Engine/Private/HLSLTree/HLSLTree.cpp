@@ -3,11 +3,9 @@
 
 #include "HLSLTree/HLSLTree.h"
 #include "HLSLTree/HLSLTreeEmit.h"
-#include "Misc/StringBuilder.h"
-#include "Misc/MemStack.h"
 #include "Misc/MemStackUtility.h"
-#include "Shader/ShaderTypes.h"
 #include "Shader/Preshader.h"
+#include "Shader/PreshaderTypes.h"
 
 namespace UE::HLSLTree
 {

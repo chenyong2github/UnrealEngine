@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "WorldPartition/DataLayer/WorldDataLayersCollection.h"
 #include "Engine/Level.h"
+#include "WorldPartition/DataLayer/WorldDataLayers.h"
 
 bool FWorldDataLayersCollection::RegisterWorldDataLayer(AWorldDataLayers* InWorldDataLayers)
 {

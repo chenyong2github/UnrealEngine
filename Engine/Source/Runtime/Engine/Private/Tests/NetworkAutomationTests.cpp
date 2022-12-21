@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 
-#include "CoreMinimal.h"
-#include "Misc/AutomationTest.h"
-#include "EngineGlobals.h"
 #include "Engine/Engine.h"
+#include "Engine/EngineTypes.h"
 #include "Tests/AutomationCommon.h"
 
 #if WITH_DEV_AUTOMATION_TESTS

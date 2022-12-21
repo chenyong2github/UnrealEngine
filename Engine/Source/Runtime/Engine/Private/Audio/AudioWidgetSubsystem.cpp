@@ -1,16 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Audio/AudioWidgetSubsystem.h"
 
+#include "AssetRegistry/ARFilter.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "Audio/SoundEffectPresetWidgetInterface.h"
+#include "AssetRegistry/AssetData.h"
 #include "Blueprint/BlueprintSupport.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/Blueprint.h"
-#include "Engine/World.h"
-#include "Interfaces/IPluginManager.h"
-#include "Internationalization/Text.h"
-#include "Misc/CoreDelegates.h"
-#include "Misc/FileHelper.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/CoreRedirects.h"
 

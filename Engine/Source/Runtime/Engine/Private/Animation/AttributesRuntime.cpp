@@ -1,25 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AttributesRuntime.h"
-#include "Animation/CustomAttributes.h"
-#include "Animation/AnimTypes.h"
+#include "Animation/AnimData/AnimDataModel.h"
 #include "Animation/AnimationSettings.h"
 #include "Animation/AnimationAsset.h"
 #include "Animation/MirrorDataTable.h"
-#include "AnimationRuntime.h"
 
-#include "Containers/UnrealString.h"
-#include "Containers/Array.h"
-#include "Containers/ArrayView.h"
-#include "Containers/Map.h"
-#include "Misc/AssertionMacros.h"
 #include "Stats/Stats.h"
-#include "BoneIndices.h"
-#include "BoneContainer.h" 
 
 #include "Animation/IAttributeBlendOperator.h" 
 #include "Animation/AttributeBlendData.h"
-#include "Animation/BuiltInAttributeTypes.h"
 
 #include "Animation/AttributeTypes.h"
 

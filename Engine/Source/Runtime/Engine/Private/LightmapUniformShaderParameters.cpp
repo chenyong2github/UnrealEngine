@@ -1,9 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LightmapUniformShaderParameters.h"
-#include "SceneManagement.h"
 #include "LightMap.h"
-#include "VT/LightmapVirtualTexture.h"
+#include "RenderUtils.h"
 #include "UnrealEngine.h"
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FPrecomputedLightingUniformParameters, "PrecomputedLightingBuffer");

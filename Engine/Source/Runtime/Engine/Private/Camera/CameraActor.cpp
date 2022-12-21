@@ -2,6 +2,7 @@
 
 #include "Camera/CameraActor.h"
 #include "Engine/World.h"
+#include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "Camera/CameraComponent.h"
 

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/PostProcessVolume.h"
+#include "Engine/BlendableInterface.h"
 #include "Engine/CollisionProfile.h"
 #include "Components/BrushComponent.h"
 #include "EngineUtils.h"

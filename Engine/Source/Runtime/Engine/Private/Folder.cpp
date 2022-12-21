@@ -5,9 +5,8 @@
 #include "Engine/LevelStreaming.h"
 #include "Engine/World.h"
 #include "LevelInstance/LevelInstanceInterface.h"
-#include "LevelInstance/LevelInstanceSubsystem.h"
 #include "ActorFolder.h"
-#include "LevelUtils.h"
+#include "Misc/Paths.h"
 
 #if WITH_EDITOR
 

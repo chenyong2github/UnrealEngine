@@ -2,9 +2,8 @@
 
 #include "Animation/SmartName.h"
 #include "UObject/FrameworkObjectVersion.h"
-#include "Animation/Skeleton.h"
-#include "UObject/AnimPhysObjectVersion.h"
 #include "Misc/ScopeRWLock.h"
+#include "UObject/PropertyPortFlags.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SmartName)
 

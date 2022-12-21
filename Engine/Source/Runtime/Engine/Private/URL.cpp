@@ -4,14 +4,10 @@
 	URL.cpp: Various file-management functions.
 =============================================================================*/
 
-#include "CoreMinimal.h"
-#include "Misc/CoreMisc.h"
-#include "Misc/Paths.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/PackageName.h"
 #include "GameMapsSettings.h"
-#include "Engine/EngineBaseTypes.h"
 #include "Engine/World.h"
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"

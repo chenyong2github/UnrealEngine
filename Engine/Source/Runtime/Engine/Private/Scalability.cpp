@@ -2,18 +2,16 @@
 
 #include "Scalability.h"
 #include "GenericPlatform/GenericPlatformSurvey.h"
+#include "IAnalyticsProviderET.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ConfigUtilities.h"
 #include "HAL/IConsoleManager.h"
+#include "RHIShaderPlatform.h"
 #include "SynthBenchmark.h"
 #include "EngineAnalytics.h"
-#include "AnalyticsEventAttribute.h"
-#include "Interfaces/IAnalyticsProvider.h"
 #include "Interfaces/IProjectManager.h"
 
 #if WITH_EDITOR
-#include "RHI.h"
-#include "RHIDefinitions.h"
 #endif
 
 Scalability::FOnScalabilitySettingsChanged Scalability::OnScalabilitySettingsChanged;

@@ -2,26 +2,12 @@
 
 // Physics engine integration utilities
 
-#include "CoreMinimal.h"
-#include "EngineDefines.h"
-#include "Engine/EngineTypes.h"
 #include "Engine/World.h"
-#include "PhysxUserData.h"
-#include "PhysicsEngine/BodyInstance.h"
-#include "Components/PrimitiveComponent.h"
 #include "Model.h"
-#include "PhysicsPublic.h"
-#include "PhysicsEngine/PhysXSupport.h"
+#include "Physics/Experimental/PhysScene_Chaos.h"
 #include "PhysicsEngine/ConvexElem.h"
 #include "PhysicsEngine/BodySetup.h"
-#include "Physics/PhysicsInterfaceCore.h"
-#include "Physics/PhysicsInterfaceScene.h"
-#include "PhysXSupportCore.h"
-#include "PhysicsSolver.h"
-#include "Chaos/PBDRigidsEvolutionGBF.h"
-#include "Chaos/ChaosArchive.h"
 #include "Chaos/TrackedGeometryManager.h"
-#include "RewindData.h"
 
 /** 
  * Picks a snap distance for a UModel planes->verts conversion. To preserve PhysX behavior SMALL_NUMBER is used for its snap distance.

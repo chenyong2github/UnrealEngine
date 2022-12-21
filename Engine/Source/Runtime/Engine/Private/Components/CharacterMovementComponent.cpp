@@ -6,37 +6,31 @@
 =============================================================================*/
 
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Animation/AnimMontage.h"
 #include "EngineStats.h"
-#include "Components/PrimitiveComponent.h"
 #include "AI/NavigationSystemBase.h"
 #include "AI/Navigation/NavigationDataInterface.h"
+#include "Engine/NetConnection.h"
 #include "GameFramework/WorldSettings.h"
+#include "Physics/Experimental/PhysScene_Chaos.h"
 #include "UObject/Package.h"
-#include "GameFramework/PlayerController.h"
 #include "GameFramework/PhysicsVolume.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Engine/NetDriver.h"
 #include "DrawDebugHelpers.h"
 #include "GameFramework/GameNetworkManager.h"
 #include "GameFramework/Character.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/GameStateBase.h"
 #include "Engine/Canvas.h"
-#include "AI/Navigation/PathFollowingAgentInterface.h"
 #include "AI/Navigation/AvoidanceManager.h"
 #include "Components/BrushComponent.h"
-#include "Misc/App.h"
-#include "CharacterMovementComponentAsync.h"
 #include "PBDRigidsSolver.h"
 #include "Engine/NetworkObjectList.h"
 #include "Net/PerfCountersHelpers.h"
-#include "Physics/PhysicsInterfaceScene.h"
-#include "ProfilingDebugging/CsvProfiler.h"
 #if UE_WITH_IRIS
 #include "Net/Iris/ReplicationSystem/ReplicationSystemUtil.h"
 #include "Net/Iris/ReplicationSystem/ActorReplicationBridge.h"
 #endif
-#include "Engine/ScopedMovementUpdate.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CharacterMovementComponent)
 

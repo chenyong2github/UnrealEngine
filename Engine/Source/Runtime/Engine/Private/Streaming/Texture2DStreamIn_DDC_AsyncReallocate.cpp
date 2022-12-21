@@ -5,7 +5,8 @@ Texture2DStreamIn_DDC_AsyncReallocate.cpp: Load texture 2D mips from the DDC usi
 =============================================================================*/
 
 #include "Streaming/Texture2DStreamIn_DDC_AsyncReallocate.h"
-#include "RenderUtils.h"
+#include "Streaming/Texture2DStreamIn_DDC.h"
+#include "Streaming/Texture2DUpdate.h"
 
 #if WITH_EDITORONLY_DATA
 

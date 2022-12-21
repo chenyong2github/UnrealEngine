@@ -2,13 +2,8 @@
 #include "Sound/SoundBase.h"
 
 #include "AudioDevice.h"
-#include "AudioParameter.h"
 #include "Engine/AssetUserData.h"
-#include "EngineDefines.h"
-#include "IAudioParameterInterfaceRegistry.h"
 #include "IAudioParameterTransmitter.h"
-#include "Sound/AudioSettings.h"
-#include "Sound/SoundClass.h"
 #include "Sound/SoundSubmix.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SoundBase)

@@ -6,7 +6,6 @@
 =============================================================================*/
 
 #include "GameFramework/SpectatorPawnMovement.h"
-#include "GameFramework/Pawn.h"
 #include "Misc/App.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SpectatorPawnMovement)

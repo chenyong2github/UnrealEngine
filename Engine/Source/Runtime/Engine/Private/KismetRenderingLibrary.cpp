@@ -1,29 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Kismet/KismetRenderingLibrary.h"
+#include "Camera/CameraTypes.h"
 #include "HAL/FileManager.h"
+#include "Components/SkinnedMeshComponent.h"
 #include "Materials/MaterialInterface.h"
+#include "Engine/World.h"
 #include "Misc/Paths.h"
+#include "Misc/PackageName.h"
 #include "Serialization/BufferArchive.h"
-#include "EngineGlobals.h"
+#include "RHIContext.h"
 #include "RenderingThread.h"
 #include "Engine/Engine.h"
-#include "CanvasTypes.h"
 #include "Engine/Canvas.h"
-#include "Misc/App.h"
 #include "TextureResource.h"
-#include "SceneUtils.h"
 #include "Logging/MessageLog.h"
 #include "Engine/GameViewportClient.h"
-#include "Engine/TextureRenderTarget2D.h"
 #include "Engine/TextureRenderTarget2DArray.h"
 #include "Engine/TextureRenderTargetVolume.h"
 #include "ImageUtils.h"
-#include "OneColorShader.h"
-#include "PipelineStateCache.h"
 #include "ClearQuad.h"
 #include "Engine/Texture2D.h"
-#include "RHI.h"
+#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(KismetRenderingLibrary)
 
@@ -31,7 +29,6 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "IAssetTools.h"
-#include "IContentBrowserSingleton.h"
 #include "PackageTools.h"
 #endif
 

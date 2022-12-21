@@ -5,7 +5,8 @@ Texture2DStreamOut_Virtual.cpp: Definitions of classes used for texture.
 =============================================================================*/
 
 #include "Streaming/Texture2DStreamOut_Virtual.h"
-#include "RenderUtils.h"
+#include "Rendering/Texture2DResource.h"
+#include "Streaming/Texture2DUpdate.h"
 
 FTexture2DStreamOut_Virtual::FTexture2DStreamOut_Virtual(UTexture2D* InTexture)
 	: FTexture2DUpdate(InTexture) 

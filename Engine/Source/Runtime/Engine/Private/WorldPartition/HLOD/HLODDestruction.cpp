@@ -2,8 +2,9 @@
 
 #include "WorldPartition/HLOD/HLODDestruction.h"
 
-#include "GameFramework/Actor.h"
+#include "Engine/LevelStreaming.h"
 #include "LevelUtils.h"
+#include "UObject/ScriptInterface.h"
 #include "WorldPartition/HLOD/DestructibleHLODComponent.h"
 #include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/HLOD/HLODSubsystem.h"

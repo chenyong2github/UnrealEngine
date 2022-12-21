@@ -4,16 +4,13 @@
 #include "Animation/AnimData/IAnimationDataModel.h"
 #include "Animation/AnimData/IAnimationDataController.h"
 
-#include "UObject/NameTypes.h"
 
+#include "Animation/AnimSequence.h"
 #include "BonePose.h"
-#include "BoneContainer.h"
-#include "Animation/AnimTypes.h"
 
 #include "AnimationRuntime.h"
 #include "AnimEncoding.h"
 #include "AnimationUtils.h"
-#include "Animation/AnimationPoseData.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "Misc/MessageDialog.h"

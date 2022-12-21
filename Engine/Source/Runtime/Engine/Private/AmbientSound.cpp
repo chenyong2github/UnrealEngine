@@ -6,7 +6,6 @@
 
 #include "Sound/AmbientSound.h"
 #include "Components/AudioComponent.h"
-#include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 #include "Misc/MapErrors.h"

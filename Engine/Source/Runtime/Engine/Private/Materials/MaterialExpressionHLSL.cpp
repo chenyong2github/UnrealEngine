@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "CoreMinimal.h"
 
 #if WITH_EDITOR
 
+#include "MaterialExpressionIO.h"
 #include "Materials/MaterialAttributeDefinitionMap.h"
 #include "Materials/MaterialExpression.h"
 #include "Materials/MaterialExpressionExecBegin.h"
@@ -52,7 +52,6 @@
 #include "Materials/MaterialExpressionTextureSample.h"
 #include "Materials/MaterialExpressionTextureSampleParameter.h"
 #include "Materials/MaterialExpressionFontSample.h"
-#include "Materials/MaterialExpressionFontSampleParameter.h"
 #include "Materials/MaterialExpressionTextureObject.h"
 #include "Materials/MaterialExpressionTextureObjectParameter.h"
 #include "Materials/MaterialExpressionSceneTexture.h"
@@ -143,14 +142,9 @@
 #include "Materials/MaterialFunctionInterface.h"
 #include "MaterialHLSLTree.h"
 #include "MaterialShared.h"
-#include "HLSLTree/HLSLTree.h"
-#include "HLSLTree/HLSLTreeCommon.h"
 #include "Engine/Engine.h"
-#include "Engine/Texture2D.h"
 #include "Engine/Font.h"
 #include "Curves/CurveLinearColorAtlas.h"
-#include "Curves/CurveLinearColor.h"
-#include "RenderUtils.h"
 #include "Misc/MemStackUtility.h"
 #include "MaterialHLSLGenerator.h"
 

@@ -5,14 +5,16 @@
 =============================================================================*/
 
 #include "Engine/TextureCubeArray.h"
-#include "Containers/ResourceArray.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
+#include "Engine/TextureCube.h"
 #include "EngineUtils.h"
+#include "EngineLogs.h"
 #include "ImageUtils.h"
 #include "Misc/CoreStats.h"
 #include "Misc/ScopedSlowTask.h"
 #include "RenderUtils.h"
+#include "Stats/StatsTrace.h"
 #include "TextureCompiler.h"
 #include "TextureResource.h"
 #include "UObject/Package.h"

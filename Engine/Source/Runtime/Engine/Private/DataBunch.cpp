@@ -6,8 +6,8 @@
 
 #include "Net/DataBunch.h"
 #include "Engine/NetConnection.h"
-#include "Engine/ControlChannel.h"
 #include "Net/Core/Trace/NetTrace.h"
+#include "Net/Core/Trace/Private/NetTraceInternal.h"
 
 const int32 MAX_BUNCH_SIZE = 1024 * 1024; 
 

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SpanAllocator.h"
+#include "CoreGlobals.h"
 
 void FSpanAllocator::Consolidate()
 {

@@ -1,28 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/World.h"
-#include "Collision.h"
-#include "PhysicsEngine/PhysicsSettings.h"
-#include "Components/PrimitiveComponent.h"
-#include "PhysicalMaterials/PhysicalMaterial.h"
-#include "PhysicsEngine/BodySetup.h"
 #include "CollisionDebugDrawingPublic.h"
-#include "Templates/EnableIf.h"
-#include "Physics/PhysicsInterfaceCore.h"
-#include "Physics/PhysicsInterfaceScene.h"
+#include "Physics/Experimental/PhysScene_Chaos.h"
 #include "Physics/PhysicsInterfaceUtils.h"
 #include "Collision/CollisionConversions.h"
+#include "PhysicsEngine/CollisionQueryFilterCallback.h"
 #include "PhysicsEngine/ScopedSQHitchRepeater.h"
-#include "PhysicsInterfaceDeclaresCore.h"
 
 #include "Collision/CollisionDebugDrawing.h"
 
 float DebugLineLifetime = 2.f;
 
-#include "PhysicsEngine/PhysXSupport.h"
 #include "PhysicsEngine/CollisionAnalyzerCapture.h"
 
-#include "ChaosSolversModule.h"
 #include "Physics/Experimental/ChaosInterfaceWrapper.h"
 #include "PBDRigidsSolver.h"
 

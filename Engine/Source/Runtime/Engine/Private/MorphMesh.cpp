@@ -4,15 +4,10 @@
 	MorphMesh.cpp: Unreal morph target mesh and blending implementation.
 =============================================================================*/
 
-#include "CoreMinimal.h"
-#include "ProfilingDebugging/ResourceSize.h"
 #include "EngineUtils.h"
-#include "Animation/MorphTarget.h"
 #include "Engine/SkeletalMesh.h"
-#include "HAL/LowLevelMemTracker.h"
 #include "Rendering/SkeletalMeshModel.h"
-#include "Rendering/SkeletalMeshLODModel.h"
-#include "UObject/EditorObjectVersion.h"
+#include "Serialization/MemoryArchive.h"
 
 //////////////////////////////////////////////////////////////////////////
 

@@ -2,13 +2,14 @@
 
 
 #include "Components/CapsuleComponent.h"
-#include "WorldCollision.h"
+#include "CollisionShape.h"
+#include "PhysicsEngine/BodySetup.h"
 #include "PrimitiveViewRelevance.h"
 #include "PrimitiveSceneProxy.h"
 #include "SceneManagement.h"
 #include "PhysicsEngine/SphylElem.h"
-#include "PhysicsEngine/BodySetup.h"
 #include "PrimitiveSceneProxy.h"
+#include "UObject/UnrealType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CapsuleComponent)
 

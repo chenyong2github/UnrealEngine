@@ -2,10 +2,8 @@
 
 #include "Sound/QuartzQuantizationUtilities.h"
 
-#include "CoreGlobals.h"
-#include "Math/NumericLimits.h"
-#include "Math/UnrealMathUtility.h"
 #include "AudioMixerDevice.h"
+#include "Quartz/AudioMixerClock.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(QuartzQuantizationUtilities)
 

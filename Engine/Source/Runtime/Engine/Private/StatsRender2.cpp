@@ -5,13 +5,7 @@
  * This file contains the rendering functions used in the stats code
  */
 
-#include "CoreMinimal.h"
-#include "Misc/CoreMisc.h"
-#include "RenderUtils.h"
-#include "Stats/Stats.h"
-#include "EngineGlobals.h"
 #include "Engine/Engine.h"
-#include "CanvasItem.h"
 #include "Engine/Canvas.h"
 #include "Engine/Texture2D.h"
 #include "TextureResource.h"

@@ -1,19 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/AudioComponent.h"
-#include "ActiveSound.h"
-#include "Audio.h"
 #include "Audio/ActorSoundParameterInterface.h"
 #include "AudioDevice.h"
-#include "AudioThread.h"
 #include "Components/BillboardComponent.h"
-#include "DSP/VolumeFader.h"
 #include "Engine/Texture2D.h"
+#include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
-#include "Misc/App.h"
 #include "Quartz/AudioMixerClockHandle.h"
+#include "Quartz/QuartzSubsystem.h"
 #include "Sound/SoundCue.h"
 #include "Sound/SoundNodeAttenuation.h"
+#include "Stats/StatsTrace.h"
 #include "UObject/FrameworkObjectVersion.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AudioComponent)

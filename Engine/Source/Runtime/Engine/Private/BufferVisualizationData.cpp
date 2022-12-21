@@ -2,8 +2,7 @@
 
 #include "BufferVisualizationData.h"
 
-#include "HAL/IConsoleManager.h"
-#include "Materials/Material.h"
+#include "Materials/MaterialInterface.h"
 #include "Misc/ConfigCacheIni.h"
 #include "ShaderCore.h"
 

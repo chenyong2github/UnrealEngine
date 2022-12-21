@@ -1,18 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
-#include "Misc/Paths.h"
-#include "Misc/CommandLine.h"
-#include "Stats/Stats.h"
-#include "HAL/IConsoleManager.h"
-#include "UObject/UObjectGlobals.h"
-#include "Async/TaskGraphInterfaces.h"
-#include "EngineDefines.h"
 #include "Engine/World.h"
-#include "Physics/PhysicsInterfaceCore.h"
-#include "Physics/PhysicsInterfaceScene.h"
-#include "Modules/ModuleManager.h"
+#include "Physics/Experimental/PhysInterface_Chaos.h"
 #include "PhysicsInitialization.h"
+#include "Physics/Experimental/PhysScene_Chaos.h"
 #include "PhysicsEngine/PhysicsSettings.h"
 
 #include "ChaosSolversModule.h"

@@ -1,14 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Shader/Preshader.h"
+#include "Misc/DelayedAutoRegister.h"
 #include "Shader/PreshaderEvaluate.h"
-#include "Materials/Material.h"
 #include "Materials/MaterialRenderProxy.h"
 #include "Materials/MaterialUniformExpressions.h"
 #include "Engine/Texture.h"
+#include "Shader/PreshaderTypes.h"
+#include "SparseVolumeTexture/SparseVolumeTexture.h"
 #include "VT/RuntimeVirtualTexture.h"
 #include "Hash/xxhash.h"
 #include "ExternalTexture.h"
-#include "SparseVolumeTexture/SparseVolumeTexture.h"
+#include "TextureResource.h"
 
 IMPLEMENT_TYPE_LAYOUT(UE::Shader::FPreshaderData);
 IMPLEMENT_TYPE_LAYOUT(UE::Shader::FPreshaderStructType);

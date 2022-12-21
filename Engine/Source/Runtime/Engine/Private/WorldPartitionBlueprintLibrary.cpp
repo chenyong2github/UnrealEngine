@@ -6,8 +6,8 @@
 
 #if WITH_EDITOR
 #include "Subsystems/UnrealEditorSubsystem.h"
+#include "WorldPartition/LoaderAdapter/LoaderAdapterActorList.h"
 #include "WorldPartition/WorldPartition.h"
-#include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
 #include "Editor.h"
 #endif

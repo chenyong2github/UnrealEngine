@@ -2,7 +2,9 @@
 
 #include "GameFramework/RootMotionSource.h"
 #include "DrawDebugHelpers.h"
+#include "Engine/World.h"
 #include "GameFramework/Character.h"
+#include "EngineLogs.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Curves/CurveVector.h"
 #include "Curves/CurveFloat.h"

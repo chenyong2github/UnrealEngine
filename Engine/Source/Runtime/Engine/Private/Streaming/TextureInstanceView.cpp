@@ -6,7 +6,6 @@
 
 #include "Streaming/TextureInstanceView.h"
 #include "Streaming/TextureInstanceView.inl"
-#include "Engine/TextureStreamingTypes.h"
 #include "Streaming/TextureStreamingHelpers.h"
 #include "Components/PrimitiveComponent.h"
 #include "ContentStreaming.h"

@@ -5,18 +5,50 @@
 =============================================================================*/
 
 #include "HLSLMaterialTranslator.h"
+#include "Containers/LazyPrintf.h"
 #include "VT/VirtualTextureScalability.h"
+#include "Engine/Engine.h"
 #include "MaterialDomain.h"
+#include "Engine/Texture.h"
 #include "Materials/MaterialAttributeDefinitionMap.h"
+#include "Field/FieldSystemTypes.h"
 #include "Materials/MaterialExpressionCustom.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Materials/MaterialExpressionMaterialAttributeLayers.h"
-#include "Materials/MaterialExpressionStrata.h"
+#include "Materials/HLSLMaterialDerivativeAutogen.h"
 #include "Materials/MaterialFunction.h"
 #include "MaterialExpressionSettings.h"
 #include "Engine/RendererSettings.h"
-#include "ShaderPlatformCachedIniValue.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "Materials/Material.h"
 #include <functional>
+#include "Materials/MaterialExpressionAbsorptionMediumMaterialOutput.h"
+#include "Materials/MaterialExpressionCustomOutput.h"
+#include "Materials/MaterialExpressionFunctionInput.h"
+#include "Materials/MaterialExpressionFunctionOutput.h"
+#include "Materials/MaterialExpressionMaterialFunctionCall.h"
+#include "Materials/MaterialExpressionNoise.h"
+#include "Materials/MaterialExpressionSingleLayerWaterMaterialOutput.h"
+#include "Materials/MaterialExpressionTextureBase.h"
+#include "Materials/MaterialExpressionThinTranslucentMaterialOutput.h"
+#include "Materials/MaterialExpressionVectorNoise.h"
+#include "Materials/MaterialExpressionViewProperty.h"
+#include "Materials/MaterialExpressionVolumetricAdvancedMaterialOutput.h"
+#include "Materials/MaterialExpressionWorldPosition.h"
+#include "Materials/StrataMaterial.h"
+#include "ParameterCollection.h"
+#include "RenderUtils.h"
+#include "Stats/StatsMisc.h"
+#include "Stats/StatsTrace.h"
+#include "StrataDefinitions.h"
+#include "VT/RuntimeVirtualTexture.h"
+#include <memory>
+#include <tuple>
+
+#if WITH_EDITORONLY_DATA
+#include "Materials/MaterialExpressionStrata.h"
+#include "ShaderPlatformCachedIniValue.h"
+#endif
 
 static int32 GetLWCTruncateMode()
 {

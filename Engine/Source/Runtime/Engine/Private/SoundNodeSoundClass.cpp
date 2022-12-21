@@ -4,6 +4,7 @@
 #include "Sound/SoundNodeSoundClass.h"
 #include "ActiveSound.h"
 #include "Sound/SoundClass.h"
+#include "Sound/SoundWaveLoadingBehavior.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SoundNodeSoundClass)
 

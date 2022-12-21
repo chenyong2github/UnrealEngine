@@ -2,9 +2,9 @@
 
 
 #include "Sound/SoundNodeEnveloper.h"
-#include "Audio.h"
 #include "ActiveSound.h"
 #include "Distributions/DistributionFloatConstantCurve.h"
+#include "Math/InterpCurve.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SoundNodeEnveloper)
 

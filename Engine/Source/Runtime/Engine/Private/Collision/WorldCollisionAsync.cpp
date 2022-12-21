@@ -4,18 +4,10 @@
 	WorldCollisionAsync.cpp: UWorld async collision implementation
 =============================================================================*/
 
-#include "CoreMinimal.h"
-#include "Stats/Stats.h"
-#include "Async/TaskGraphInterfaces.h"
-#include "EngineDefines.h"
-#include "Engine/EngineTypes.h"
-#include "CollisionQueryParams.h"
-#include "WorldCollision.h"
 #include "Engine/World.h"
+#include "Misc/App.h"
 #include "Misc/Fork.h"
-#include "PhysicsEngine/BodyInstance.h"
-#include "Physics/PhysicsInterfaceCore.h"
-#include "ProfilingDebugging/CsvProfiler.h"
+#include "Physics/Experimental/PhysInterface_Chaos.h"
 
 CSV_DEFINE_CATEGORY(WorldCollision, true);
 

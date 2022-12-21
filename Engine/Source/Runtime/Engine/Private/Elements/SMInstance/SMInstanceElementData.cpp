@@ -4,7 +4,9 @@
 #include "Elements/Framework/TypedElementHandle.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "ComponentRecreateRenderStateContext.h"
+#include "GameFramework/Actor.h"
 #include "HAL/IConsoleManager.h"
+#include "UObject/Stack.h"
 
 UE_DEFINE_TYPED_ELEMENT_DATA_RTTI(FSMInstanceElementData);
 

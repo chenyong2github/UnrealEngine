@@ -2,8 +2,6 @@
 
 
 #include "Sound/SoundNodeAttenuation.h"
-#include "EngineDefines.h"
-#include "ActiveSound.h"
 #include "AudioDevice.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SoundNodeAttenuation)

@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VisualLogger/VisualLoggerKismetLibrary.h"
-#include "EngineDefines.h"
 #include "VisualLogger/VisualLogger.h"
 #include "Logging/MessageLog.h"
 

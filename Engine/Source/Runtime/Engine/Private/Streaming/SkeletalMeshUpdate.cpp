@@ -5,11 +5,10 @@ SkeletalMeshUpdate.cpp: Helpers to stream in and out skeletal mesh LODs.
 =============================================================================*/
 
 #include "Streaming/SkeletalMeshUpdate.h"
+#include "HAL/PlatformFile.h"
 #include "RenderUtils.h"
-#include "Containers/ResourceArray.h"
 #include "ContentStreaming.h"
 #include "Streaming/TextureStreamingHelpers.h"
-#include "HAL/PlatformFileManager.h"
 #include "Serialization/MemoryReader.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Components/SkinnedMeshComponent.h"

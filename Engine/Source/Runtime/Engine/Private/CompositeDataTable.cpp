@@ -1,21 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/CompositeDataTable.h"
-#include "Serialization/PropertyLocalizationDataGathering.h"
-#include "Serialization/ObjectWriter.h"
-#include "Serialization/ObjectReader.h"
+#include "Engine/DataTable.h"
 #include "UObject/LinkerLoad.h"
-#include "DataTableCSV.h"
-#include "Policies/PrettyJsonPrintPolicy.h"
-#include "DataTableJSON.h"
-#include "EditorFramework/AssetImportData.h"
-#include "Engine/UserDefinedStruct.h"
 #include "Misc/MessageDialog.h"
 #if WITH_EDITOR
 #include "DataTableEditorUtils.h"
 #endif
 
-#include "HAL/IConsoleManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CompositeDataTable)
 

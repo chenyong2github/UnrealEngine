@@ -1,23 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AsyncCompilationHelpers.h"
+#include "UObject/UnrealType.h"
 
 #if WITH_EDITOR
 
-#include "Framework/Notifications/NotificationManager.h"
-#include "Widgets/Notifications/SNotificationList.h"
+#include "Misc/DelayedAutoRegister.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Misc/QueuedThreadPool.h"
 #include "ObjectCacheContext.h"
 #include "Misc/CommandLine.h"
-#include "Misc/Parse.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "Misc/QueuedThreadPoolWrapper.h"
-#include "HAL/IConsoleManager.h"
-#include "AssetCompilingManager.h"
 #include "HAL/PlatformStackWalk.h"
-#include "Hash/CityHash.h"
 #include "ShaderCompiler.h"
-#include "Misc/ScopeRWLock.h"
 #include "ProfilingDebugging/StallDetector.h"
 #include "UObject/UObjectThreadContext.h"
 

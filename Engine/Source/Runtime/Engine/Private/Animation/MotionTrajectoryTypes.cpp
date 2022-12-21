@@ -6,6 +6,7 @@
 #include "DrawDebugHelpers.h"
 #include "Animation/AnimTypes.h"
 #include "HAL/IConsoleManager.h"
+#include "Misc/StringFormatArg.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MotionTrajectoryTypes)
 

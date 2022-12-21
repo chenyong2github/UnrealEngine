@@ -2,6 +2,8 @@
 
 // Includes
 #include "Net/TrafficControl.h"
+#include "CoreGlobals.h"
+#include "EngineLogs.h"
 
 FNetworkCongestionControl::FNetworkCongestionControl(double ConfiguredNetSpeed, uint32 MaxPackets) :
 	Analyzer(this),

@@ -3,6 +3,7 @@
 #include "Animation/CachedAnimData.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimStateMachineTypes.h"
+#include "EngineLogs.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CachedAnimData)
 

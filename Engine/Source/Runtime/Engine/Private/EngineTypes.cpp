@@ -2,17 +2,9 @@
 
 #include "Engine/EngineTypes.h"
 #include "UObject/UnrealType.h"
-#include "HAL/IConsoleManager.h"
-#include "Engine/EngineBaseTypes.h"
-#include "Components/SceneComponent.h"
 #include "GameFramework/Actor.h"
-#include "GameFramework/LightWeightInstanceSubsystem.h"
-#include "GameFramework/LightWeightInstanceManager.h"
-#include "Engine/World.h"
-#include "Components/PrimitiveComponent.h"
 #include "Engine/MeshMerging.h"
 #include "Engine/CollisionProfile.h"
-#include "PhysicalMaterials/PhysicalMaterial.h"
 
 FAttachmentTransformRules FAttachmentTransformRules::KeepRelativeTransform(EAttachmentRule::KeepRelative, false);
 FAttachmentTransformRules FAttachmentTransformRules::KeepWorldTransform(EAttachmentRule::KeepWorld, false);

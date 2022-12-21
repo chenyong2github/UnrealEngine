@@ -4,7 +4,6 @@
 	ShaderPipelineCompiler.cpp: Platform independent shader pipeline compilations.
 =============================================================================*/
 
-#include "CoreMinimal.h"
 #include "Interfaces/IShaderFormat.h"
 #include "ShaderCompiler.h"
 

@@ -5,21 +5,18 @@
 =============================================================================*/ 
 
 #include "Animation/AnimBlueprintGeneratedClass.h"
+#include "Animation/AnimNodeFunctionRef.h"
 #include "Serialization/ObjectWriter.h"
+#include "Animation/ExposedValueHandler.h"
 #include "Serialization/ObjectReader.h"
 #include "ObjectEditorUtils.h"
-#include "Animation/AnimNodeBase.h"
-#include "Animation/AnimInstance.h"
 #include "UObject/AnimObjectVersion.h"
 #include "UObject/Package.h"
 #include "UObject/ReleaseObjectVersion.h"
-#include "Animation/AnimNode_LinkedAnimGraph.h"
 #include "Animation/AnimNode_Root.h"
 #include "Animation/AnimNode_LinkedInputPose.h"
 #include "Animation/AnimNode_LinkedAnimLayer.h"
 #include "Animation/AnimNode_StateMachine.h"
-#include "Animation/AnimSubsystem.h"
-#include "EdGraph/EdGraphNode.h"
 #include "Animation/AnimSubsystemInstance.h"
 #include "Engine/PoseWatch.h"
 

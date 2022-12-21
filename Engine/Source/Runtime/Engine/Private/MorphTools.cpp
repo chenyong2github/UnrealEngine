@@ -4,15 +4,13 @@
 	MorphTools.cpp: Morph target creation helper classes.
 =============================================================================*/ 
 
-#include "CoreMinimal.h"
-#include "RawIndexBuffer.h"
 #include "Engine/SkeletalMesh.h"
-#include "Animation/MorphTarget.h"
-#include "Rendering/SkeletalMeshModel.h"
+#include "EngineLogs.h"
 #include "Rendering/SkeletalMeshLODModel.h"
-#include "UObject/GarbageCollection.h"
 #include "Algo/AnyOf.h"
 #include "Interfaces/ITargetPlatform.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
+#include "UObject/UE5PrivateFrostyStreamObjectVersion.h"
 
 FArchive& operator<<(FArchive& Ar, FMorphTargetLODModel& M)
 {

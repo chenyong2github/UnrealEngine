@@ -6,14 +6,13 @@
 
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "Animation/MirrorDataTable.h"
+#include "Engine/SkinnedAsset.h"
 #include "UObject/FrameworkObjectVersion.h"
 #include "Serialization/ObjectWriter.h"
 #include "Serialization/ObjectReader.h"
-#include "Components/SkinnedMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
 #include "UObject/ReleaseObjectVersion.h"
-#include "Logging/MessageLog.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/FortniteNCBranchObjectVersion.h"
 

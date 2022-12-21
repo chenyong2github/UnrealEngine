@@ -7,9 +7,7 @@
 #include "Elements/Interfaces/TypedElementHierarchyInterface.h"
 
 #include "ConvexVolume.h"
-#include "Math/Box.h"
-#include "ShowFlags.h"
-#include "UObject/Stack.h"
+#include "Math/BoxSphereBounds.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TypedElementWorldInterface)
 

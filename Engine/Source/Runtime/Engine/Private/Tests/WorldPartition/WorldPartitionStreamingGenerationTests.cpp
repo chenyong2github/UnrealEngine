@@ -4,12 +4,7 @@
 
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartition.h"
-#include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
-#include "WorldPartition/ActorDescContainer.h"
-#include "Engine/World.h"
-#include "Engine/Level.h"
-#include "PackageTools.h"
 #include "EditorWorldUtils.h"
 #endif
 

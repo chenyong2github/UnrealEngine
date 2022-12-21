@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelInstance/LevelInstanceActorGuid.h"
-#include "GameFramework/Actor.h"
 #include "Engine/World.h"
+#include "UObject/PropertyPortFlags.h"
 
 #if !WITH_EDITOR
 void FLevelInstanceActorGuid::AssignIfInvalid()

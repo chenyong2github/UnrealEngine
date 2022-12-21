@@ -3,12 +3,11 @@
 #include "Elements/SMInstance/SMInstanceElementWorldInterface.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
-#include "Elements/Framework/EngineElementsLibrary.h"
-#include "Elements/Framework/TypedElementRegistry.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Elements/SMInstance/SMInstanceElementData.h"
 
 #include "Engine/StaticMesh.h"
+#include "GameFramework/Actor.h"
 #include "ShowFlags.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SMInstanceElementWorldInterface)

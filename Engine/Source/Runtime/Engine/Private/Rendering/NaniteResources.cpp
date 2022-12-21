@@ -1,50 +1,38 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Rendering/NaniteResources.h"
+#include "EngineLogs.h"
 #include "Rendering/NaniteStreamingManager.h"
-#include "PrimitiveSceneInfo.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
-#include "Serialization/MemoryWriter.h"
-#include "Serialization/MemoryReader.h"
 #include "EngineUtils.h"
-#include "Engine/Engine.h"
 #include "Engine/MapBuildDataRegistry.h"
-#include "Engine/StaticMesh.h"
 #include "Engine/InstancedStaticMesh.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialRenderProxy.h"
-#include "RenderingThread.h"
-#include "UnifiedBuffer.h"
 #include "CommonRenderResources.h"
-#include "StaticMeshComponentLODInfo.h"
-#include "StaticMeshResources.h"
 #include "DistanceFieldAtlas.h"
-#include "RenderGraphUtils.h"
-#include "PhysicsEngine/BodySetup.h"
-#include "AI/Navigation/NavCollisionBase.h"
-#include "Misc/Compression.h"
-#include "HAL/LowLevelMemStats.h"
-#include "Interfaces/ITargetPlatform.h"
 #include "NaniteSceneProxy.h"
 #include "NaniteVertexFactory.h"
 #include "Rendering/NaniteCoarseMeshStreamingManager.h"
-#include "Elements/SMInstance/SMInstanceManager.h"
 #include "Elements/SMInstance/SMInstanceElementData.h" // For SMInstanceElementDataUtil::SMInstanceElementsEnabled
 #include "MaterialCachedData.h"
-#include "EngineStats.h"
 #include "ScenePrivate.h"
+#include "StaticMeshComponentLODInfo.h"
+#include "Stats/StatsTrace.h"
 
 #if WITH_EDITOR
 #include "DerivedDataCache.h"
-#include "DerivedDataValueId.h"
 #include "DerivedDataRequestOwner.h"
-#include "DerivedDataCacheRecord.h"
 #include "Rendering/StaticLightingSystemInterface.h"
 #endif
 
 #if RHI_RAYTRACING
-#include "RayTracingInstance.h"
 #endif
+
+#if NANITE_ENABLE_DEBUG_RENDERING
+#include "AI/Navigation/NavCollisionBase.h"
+#endif
+
 
 DEFINE_GPU_STAT(NaniteStreaming);
 DEFINE_GPU_STAT(NaniteReadback);

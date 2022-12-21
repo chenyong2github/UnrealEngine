@@ -2,20 +2,21 @@
 
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimMontageEvaluationState.h"
-#include "Animation/AnimNodeBase.h"
+#include "Animation/AnimNodeFunctionRef.h"
 #include "Animation/AnimSlotEvaluationPose.h"
+#include "Animation/AnimNotifies/AnimNotify.h"
 #include "Animation/PoseAsset.h"
-#include "AnimationRuntime.h"
-#include "Animation/BlendSpace.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
-#include "AnimationUtils.h"
+#include "Animation/AnimStats.h"
 #include "Logging/MessageLog.h"
 #include "Animation/AnimNode_AssetPlayerBase.h"
 #include "Animation/AnimNode_StateMachine.h"
 #include "Animation/AnimNode_TransitionResult.h"
 #include "Animation/AnimNode_SaveCachedPose.h"
 #include "Animation/AnimNode_LinkedInputPose.h"
+#include "Animation/AnimSubsystemInstance.h"
 #include "Animation/BlendProfile.h"
+#include "Animation/AnimationPoseData.h"
 #include "Animation/BlendProfileScratchData.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/Engine.h"
@@ -24,25 +25,20 @@
 #include "GameFramework/WorldSettings.h"
 #include "Animation/AnimNode_Root.h"
 #include "Animation/AnimNode_LinkedAnimLayer.h"
-#include "Animation/AnimMontage.h"
-#include "Animation/AnimInstance.h"
 #include "Animation/AnimSyncScope.h"
 #include "Animation/AnimNotifyStateMachineInspectionLibrary.h"
 #include "Animation/MirrorDataTable.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
-#include "Animation/AnimStateMachineTypes.h"
-#include "Animation/AnimTrace.h"
 #if WITH_EDITOR
-#include "Engine/PoseWatchRenderData.h"
 #include "Engine/PoseWatch.h"
 #endif
 
 #define DO_ANIMSTAT_PROCESSING(StatName) DEFINE_STAT(STAT_ ## StatName)
-#include "Animation/AnimMTStats.h"
+#include "Animation/AnimMTStats.h" // IWYU pragma: keep
 #undef DO_ANIMSTAT_PROCESSING
 
 #define DO_ANIMSTAT_PROCESSING(StatName) DEFINE_STAT(STAT_ ## StatName ## _WorkerThread)
-#include "Animation/AnimMTStats.h"
+#include "Animation/AnimMTStats.h" // IWYU pragma: keep
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimInstanceProxy)
 

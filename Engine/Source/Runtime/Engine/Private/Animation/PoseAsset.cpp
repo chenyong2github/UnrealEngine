@@ -2,23 +2,21 @@
 
 #include "Animation/PoseAsset.h"
 
+#include "Animation/AnimStats.h"
 #include "UObject/FrameworkObjectVersion.h"
+#include "BonePose.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "AnimationRuntime.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimSequence.h"
-#include "Animation/AnimSequenceBase.h"
 #include "Animation/AnimationPoseData.h"
-#include "Animation/AnimData/IAnimationDataModel.h"
+#include "Animation/AnimData/AnimDataModel.h"
 #include "Animation/AnimSequenceHelpers.h"
 #include "Engine/SkeletalMesh.h"
-#include "Framework/Notifications/NotificationManager.h"
 #include "UObject/LinkerLoad.h"
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/Package.h"
-#include "UObject/UE5MainStreamObjectVersion.h"
-#include "UObject/UE5ReleaseStreamObjectVersion.h"
-#include "Widgets/Notifications/SNotificationList.h"
+#include "UObject/UnrealType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PoseAsset)
 

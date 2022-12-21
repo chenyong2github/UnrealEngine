@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ExternalTexture.h"
+#include "MaterialShared.h"
 #include "Materials/MaterialRenderProxy.h"
 
 

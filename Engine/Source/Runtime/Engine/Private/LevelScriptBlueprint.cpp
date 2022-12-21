@@ -2,7 +2,6 @@
 
 #include "Engine/LevelScriptBlueprint.h"
 #include "Misc/PackageName.h"
-#include "Engine/LevelScriptActor.h"
 #include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LevelScriptBlueprint)

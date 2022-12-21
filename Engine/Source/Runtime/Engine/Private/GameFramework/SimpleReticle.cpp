@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameFramework/SimpleReticle.h"
-#include "CanvasItem.h"
 #include "Engine/Canvas.h"
 
 void FSimpleReticle::Draw( UCanvas* InCanvas, FLinearColor InColor )

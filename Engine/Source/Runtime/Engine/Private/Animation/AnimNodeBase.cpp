@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimNodeBase.h"
-#include "Animation/AnimClassInterface.h"
 #include "Animation/AnimInstanceProxy.h"
-#include "Animation/AnimTrace.h"
-#include "UObject/CoreObjectVersion.h"
 #include "Animation/AnimAttributes.h"
+#include "Animation/AnimNodeFunctionRef.h"
 #include "Animation/AnimSubsystem_Base.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNodeBase)

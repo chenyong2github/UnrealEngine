@@ -3,6 +3,7 @@
 #include "Net/VoiceConfig.h"
 #include "Engine/World.h"
 #include "GameFramework/GameStateBase.h"
+#include "GameFramework/PlayerState.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(VoiceConfig)
 

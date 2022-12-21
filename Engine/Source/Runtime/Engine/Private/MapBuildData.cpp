@@ -4,23 +4,20 @@
 MapBuildData.cpp
 =============================================================================*/
 
-#include "CoreMinimal.h"
-#include "Misc/Guid.h"
-#include "Engine/Level.h"
-#include "GameFramework/Actor.h"
 #include "LightMap.h"
+#include "RenderUtils.h"
 #include "UObject/UObjectAnnotation.h"
 #include "PrecomputedLightVolume.h"
 #include "PrecomputedVolumetricLightmap.h"
 #include "StaticMeshComponentLODInfo.h"
 #include "Engine/MapBuildDataRegistry.h"
 #include "ShadowMap.h"
+#include "Stats/StatsTrace.h"
 #include "UObject/Package.h"
 #include "EngineUtils.h"
 #include "Components/ModelComponent.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "UObject/MobileObjectVersion.h"
-#include "UObject/RenderingObjectVersion.h"
 #include "UObject/ReflectionCaptureObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
@@ -30,9 +27,9 @@ MapBuildData.cpp
 #if WITH_EDITOR
 #include "LandscapeComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "UObject/UObjectIterator.h"
 #include "VT/LightmapVirtualTexture.h"
 #include "AssetCompilingManager.h"
-#include "Factories/TextureFactory.h"
 #endif
 #include "Engine/TextureCube.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"

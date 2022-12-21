@@ -2,6 +2,7 @@
 
 #include "Animation/AnimNotifies/AnimNotify.h"
 
+#include "Animation/AnimNotifyQueue.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimSequenceBase.h"
 #include "UObject/ObjectSaveContext.h"

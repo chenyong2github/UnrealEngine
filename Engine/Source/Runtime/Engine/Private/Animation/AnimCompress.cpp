@@ -5,12 +5,11 @@
 =============================================================================*/ 
 
 #include "Animation/AnimCompress.h"
+#include "Animation/AnimSequence.h"
 #include "Misc/MessageDialog.h"
-#include "Serialization/MemoryWriter.h"
-#include "Serialization/MemoryReader.h"
+#include "Animation/AnimSequenceDecompressionContext.h"
 #include "Misc/FeedbackContext.h"
-#include "AnimationCompression.h"
-#include "AnimEncoding.h"
+#include "AnimationUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimCompress)
 

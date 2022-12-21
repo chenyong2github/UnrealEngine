@@ -5,8 +5,8 @@
 =============================================================================*/
 
 #include "GameFramework/GameSession.h"
+#include "Engine/World.h"
 #include "Misc/CommandLine.h"
-#include "EngineGlobals.h"
 #include "Engine/Engine.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/GameModeBase.h"

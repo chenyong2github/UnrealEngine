@@ -1,21 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Physics/PhysicsInterfaceDeclares.h"
-#include "Physics/PhysicsInterfaceCore.h"
-#include "Physics/PhysicsInterfaceScene.h"
-#include "PhysicsInterfaceDeclaresCore.h"
-
-#include "PhysicsEngine/CollisionQueryFilterCallback.h"
-#include "PhysicsCore.h"
 
 
+
+#include "Physics/Experimental/ChaosInterfaceWrapper.h"
 #include "SQAccelerator.h"
 
-#include "SQVerifier.h"
 #include "PhysTestSerializer.h"
 
 #include "PBDRigidsSolver.h"
-#include "Chaos/PBDRigidsEvolutionGBF.h"
+#include "Physics/Experimental/PhysScene_Chaos.h"
 
 int32 ForceStandardSQ = 0;
 FAutoConsoleVariableRef CVarForceStandardSQ(TEXT("p.ForceStandardSQ"), ForceStandardSQ, TEXT("If enabled, we force the standard scene query even if custom SQ structure is enabled"));

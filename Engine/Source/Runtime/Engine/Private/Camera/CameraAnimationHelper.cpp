@@ -2,6 +2,8 @@
 
 #include "Camera/CameraAnimationHelper.h"
 #include "Camera/CameraTypes.h"
+#include "Math/RotationMatrix.h"
+#include "Math/Vector4.h"
 
 void FCameraAnimationHelper::ApplyOffset(const FMinimalViewInfo& InPOV, const FCameraAnimationHelperOffset& InOffset, FVector& OutLocation, FRotator& OutRotation)
 {

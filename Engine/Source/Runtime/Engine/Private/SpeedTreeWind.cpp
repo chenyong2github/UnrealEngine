@@ -21,6 +21,7 @@
 // Preprocessor / Includes
 
 #include "SpeedTreeWind.h"
+#include "RHIResources.h"
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FSpeedTreeUniformParameters, "SpeedTreeData");
 

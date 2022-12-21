@@ -5,14 +5,13 @@
 =============================================================================*/
 
 #include "SkeletalMeshMerge.h"
-#include "GPUSkinPublicDefs.h"
-#include "RawIndexBuffer.h"
 #include "Animation/Skeleton.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/SkeletalMeshSocket.h"
 #include "Engine/SkinnedAssetCommon.h"
+#include "EngineLogs.h"
 #include "Rendering/SkeletalMeshRenderData.h"
-#include "Rendering/SkeletalMeshLODRenderData.h"
+#include "Materials/MaterialInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkeletalMeshMerge)
 

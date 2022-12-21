@@ -5,22 +5,20 @@
 =============================================================================*/
 
 #include "Materials/MaterialUniformExpressions.h"
-#include "CoreGlobals.h"
+#include "Engine/Texture.h"
 #include "SceneManagement.h"
-#include "Materials/MaterialInstance.h"
-#include "Materials/MaterialInstanceSupport.h"
+#include "Materials/MaterialInterface.h"
 #include "Materials/MaterialParameterCollection.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "RHIStaticStates.h"
 #include "Shader/PreshaderEvaluate.h"
 #include "ExternalTexture.h"
-#include "Misc/UObjectToken.h"
 
-#include "RenderCore.h"
 #include "GlobalRenderResources.h"
-#include "VirtualTexturing.h"
-#include "VT/RuntimeVirtualTexture.h"
+#include "Shader/PreshaderTypes.h"
 #include "SparseVolumeTexture/SparseVolumeTexture.h"
-
+#include "VT/RuntimeVirtualTexture.h"
+#include "TextureResource.h"
 static bool IsASparseVolumeTexture(const FMaterialTextureParameterInfo& Parameter)
 {
 	return Parameter.VirtualTextureLayerIndex != 255; // See FMaterialUniformExpressionTexture::GetTextureParameterInfo and constructor

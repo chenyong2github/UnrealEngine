@@ -2,7 +2,6 @@
 
 #include "PhysicsEngine/PhysSubstepTasks.h"
 #include "PhysicsEngine/PhysicsSettings.h"
-#include "Physics/PhysScene_PhysX.h"
 
 struct FSubstepCallbackGuard
 {

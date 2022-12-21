@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AttributeTypes.h"
+#include "Animation/AttributeBlendOperator.h"
 #include "Animation/BuiltInAttributeTypes.h"
+#include "AnimationRuntime.h"
 #include "Misc/DelayedAutoRegister.h"
 #include "Animation/AnimationSettings.h"
 #include "Engine/UserDefinedStruct.h"

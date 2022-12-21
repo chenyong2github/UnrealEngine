@@ -11,13 +11,13 @@
 #if WITH_EDITOR
 #include "Engine/World.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/StringFormatArg.h"
 #include "Modules/ModuleManager.h"
-#include "Serialization/ArchiveCrc32.h"
+#include "UObject/UnrealType.h"
 #include "WorldPartition/HLOD/HLODActor.h"
-#include "WorldPartition/HLOD/HLODBuilder.h"
+#include "WorldPartition/HLOD/IWorldPartitionHLODUtilities.h"
 #include "WorldPartition/HLOD/IWorldPartitionHLODUtilitiesModule.h"
 #include "WorldPartition/WorldPartition.h"
-#include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionActorDescView.h"
 #endif
 

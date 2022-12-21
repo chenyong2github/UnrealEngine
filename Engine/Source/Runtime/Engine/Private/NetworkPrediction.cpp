@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
 #include "Interfaces/NetworkPredictionInterface.h"
+#include "UObject/Interface.h"
 
 
 UNetworkPredictionInterface::UNetworkPredictionInterface(const FObjectInitializer& ObjectInitializer)

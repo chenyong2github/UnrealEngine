@@ -2,7 +2,9 @@
 
 #include "WorldPartition/DataLayer/DataLayerInstanceWithAsset.h"
 #include "Engine/Level.h"
+#include "Misc/StringFormatArg.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "UObject/UnrealType.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationErrorHandler.h"
 

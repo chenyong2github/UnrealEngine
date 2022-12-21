@@ -3,6 +3,8 @@
 #include "Misc/AutomationTest.h"
 #include "Net/NetPacketNotify.h"
 #include "Logging/LogScopedVerbosityOverride.h"
+#include "Net/Util/SequenceHistory.h"
+#include "Net/Util/SequenceNumber.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 

@@ -8,21 +8,15 @@
 
 #include "GameFramework/Pawn.h"
 #include "Engine/Level.h"
+#include "Engine/Player.h"
 #include "GameFramework/DamageType.h"
 #include "Engine/GameInstance.h"
-#include "Engine/World.h"
-#include "GameFramework/Controller.h"
-#include "Components/PrimitiveComponent.h"
 #include "AI/NavigationSystemBase.h"
-#include "Components/InputComponent.h"
-#include "GameFramework/PlayerController.h"
 #include "Engine/Engine.h"
 #include "Engine/Canvas.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/PackageName.h"
-#include "UnrealEngine.h"
-#include "GameFramework/Character.h"
 #include "GameFramework/PawnMovementComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "DisplayDebugHelpers.h"
@@ -33,7 +27,6 @@
 #include "GameFramework/GameNetworkManager.h"
 #include "GameFramework/InputSettings.h"
 #include "Engine/DemoNetDriver.h"
-#include "Misc/NetworkVersion.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(Pawn)
 

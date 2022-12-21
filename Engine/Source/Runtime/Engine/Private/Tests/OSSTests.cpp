@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
-#include "Misc/AutomationTest.h"
 #if WITH_EDITOR
 
 #include "Tests/AutomationCommon.h"

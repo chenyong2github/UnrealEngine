@@ -5,9 +5,10 @@ AnimationStreaming.cpp: Manager to handle streaming animation data
 =============================================================================*/
 
 #include "Animation/AnimationStreaming.h"
-#include "Misc/CoreStats.h"
 #include "Animation/AnimStreamable.h"
 #include "Algo/Find.h"
+#include "EngineLogs.h"
+#include "HAL/PlatformFile.h"
 
 static int32 SpoofFailedAnimationChunkLoad = 0;
 FAutoConsoleVariableRef CVarSpoofFailedAnimationChunkLoad(

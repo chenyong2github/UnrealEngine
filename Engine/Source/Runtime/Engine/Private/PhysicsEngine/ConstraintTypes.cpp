@@ -2,9 +2,7 @@
 
 #include "PhysicsEngine/ConstraintTypes.h"
 #include "HAL/IConsoleManager.h"
-#include "PhysicsPublic.h"
-#include "PhysXIncludes.h"
-#include "Physics/PhysicsInterfaceCore.h"
+#include "Physics/Experimental/PhysInterface_Chaos.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ConstraintTypes)
 

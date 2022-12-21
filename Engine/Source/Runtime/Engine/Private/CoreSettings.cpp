@@ -3,10 +3,6 @@
 #include "Engine/CoreSettings.h"
 #include "HAL/IConsoleManager.h"
 #include "UObject/UnrealType.h"
-#include "Misc/App.h"
-#include "Framework/Notifications/NotificationManager.h"
-#include "Widgets/Notifications/SNotificationList.h"
-#include "Misc/ConfigCacheIni.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CoreSettings)
 

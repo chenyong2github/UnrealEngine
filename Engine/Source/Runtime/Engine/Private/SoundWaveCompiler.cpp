@@ -2,6 +2,7 @@
 
 #include "SoundWaveCompiler.h"
 #include "Audio.h"
+#include "Misc/QueuedThreadPool.h"
 #include "UObject/Package.h"
 
 #if WITH_EDITOR
@@ -9,14 +10,9 @@
 #include "ObjectCacheContext.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "Misc/QueuedThreadPoolWrapper.h"
-#include "EngineModule.h"
-#include "Misc/ScopedSlowTask.h"
 #include "UObject/StrongObjectPtr.h"
 #include "ProfilingDebugging/CountersTrace.h"
-#include "Misc/IQueuedWork.h"
 #include "Sound/SoundWave.h"
-#include "AsyncCompilationHelpers.h"
-#include "AssetCompilingManager.h"
 
 #define LOCTEXT_NAMESPACE "SoundWaveCompiler"
 

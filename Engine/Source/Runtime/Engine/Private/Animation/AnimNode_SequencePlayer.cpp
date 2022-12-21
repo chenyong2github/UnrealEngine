@@ -3,9 +3,10 @@
 #include "Animation/AnimNode_SequencePlayer.h"
 
 #include "Animation/AnimMontage.h"
-#include "AnimEncoding.h"
 #include "Animation/AnimInstanceProxy.h"
-#include "Animation/AnimTrace.h"
+#include "Animation/AnimationPoseData.h"
+#include "Animation/ExposedValueHandler.h"
+#include "Logging/TokenizedMessage.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_SequencePlayer)
 

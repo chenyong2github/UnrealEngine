@@ -7,6 +7,7 @@ FTextureStreamIn.cpp : Implement a generic texture stream in strategy.
 #include "Streaming/TextureStreamIn.h"
 #include "Engine/Texture.h"
 #include "Streaming/RenderAssetUpdate.inl"
+#include "Streaming/TextureMipAllocator.h"
 
 template class TRenderAssetUpdate<FTextureUpdateContext>;
 

@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioCompressionSettingsUtils.h"
-#include "AudioCompressionSettings.h"
 #include "AudioStreamingCache.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
-#include "HAL/PlatformMisc.h"
 
 #define ENABLE_PLATFORM_COMPRESSION_OVERRIDES 1
 

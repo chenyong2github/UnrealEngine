@@ -7,6 +7,7 @@
 
 
 #include "HardwareInfo.h"
+#include "CoreGlobals.h"
 
 
 static TMap< FName, FString > HardwareDetailsMap;

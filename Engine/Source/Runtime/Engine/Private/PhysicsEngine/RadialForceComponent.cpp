@@ -1,15 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PhysicsEngine/RadialForceComponent.h"
+#include "PhysicsEngine/RigidBodyBase.h"
 #include "UObject/ConstructorHelpers.h"
-#include "GameFramework/Actor.h"
-#include "WorldCollision.h"
 #include "Engine/World.h"
 #include "Components/BillboardComponent.h"
 #include "Engine/Texture2D.h"
 #include "GameFramework/MovementComponent.h"
 #include "PhysicsEngine/RadialForceActor.h"
 #include "DestructibleInterface.h"
+#include "UObject/UnrealType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RadialForceComponent)
 

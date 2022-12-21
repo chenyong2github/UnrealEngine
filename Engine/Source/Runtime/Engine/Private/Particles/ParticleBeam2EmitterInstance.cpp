@@ -5,25 +5,27 @@
 	Particle beam emitter instance implementation.
 =============================================================================*/
 
-#include "CoreMinimal.h"
-#include "Stats/Stats.h"
-#include "EngineGlobals.h"
 #include "Engine/Engine.h"
+#include "GameFramework/Actor.h"
 #include "Materials/Material.h"
 #include "MaterialDomain.h"
-#include "ParticleHelper.h"
 #include "ParticleEmitterInstances.h"
+#include "Particles/Beam/ParticleModuleBeamBase.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "Particles/Beam/ParticleModuleBeamModifier.h"
 #include "Particles/Beam/ParticleModuleBeamNoise.h"
 #include "Particles/Beam/ParticleModuleBeamSource.h"
 #include "Particles/Beam/ParticleModuleBeamTarget.h"
 #include "Particles/Event/ParticleModuleEventGenerator.h"
+#include "Particles/ParticleEmitter.h"
 #include "Particles/Spawn/ParticleModuleSpawn.h"
+#include "Particles/ParticleModule.h"
 #include "Particles/TypeData/ParticleModuleTypeDataBase.h"
+#include "Particles/ParticleSystem.h"
 #include "Particles/TypeData/ParticleModuleTypeDataBeam2.h"
 #include "Particles/ParticleLODLevel.h"
 #include "Particles/ParticleModuleRequired.h"
+#include "Stats/StatsTrace.h"
 
 /** Beam particle stat objects */
 

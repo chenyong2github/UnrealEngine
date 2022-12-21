@@ -5,10 +5,10 @@
 =============================================================================*/
 
 #include "PrecomputedLightVolume.h"
-#include "Stats/Stats.h"
-#include "EngineDefines.h"
+#include "SceneInterface.h"
 #include "UObject/RenderingObjectVersion.h"
 #include "SceneManagement.h"
+#include "Stats/StatsTrace.h"
 #include "UnrealEngine.h"
 #include "Engine/MapBuildDataRegistry.h"
 #include "Interfaces/ITargetPlatform.h"

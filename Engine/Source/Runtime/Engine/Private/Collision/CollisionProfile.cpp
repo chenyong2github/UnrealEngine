@@ -2,12 +2,9 @@
 
 #include "Engine/CollisionProfile.h"
 #include "Misc/ConfigCacheIni.h"
-#include "UObject/Package.h"
-#include "CollisionQueryParams.h"
-#include "PhysicsEngine/BodyInstance.h"
 #include "Components/PrimitiveComponent.h"
-#include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
+#include "UObject/UnrealType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CollisionProfile)
 

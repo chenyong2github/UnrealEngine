@@ -5,17 +5,20 @@
 =============================================================================*/
 
 #include "Components/ModelComponent.h"
+#include "BodySetupEnums.h"
 #include "Engine/Level.h"
 #include "Engine/MapBuildDataRegistry.h"
+#include "Engine/World.h"
 #include "Materials/Material.h"
+#include "EngineLogs.h"
 #include "MaterialDomain.h"
 #include "Engine/CollisionProfile.h"
-#include "UObject/RenderingObjectVersion.h"
-#include "Engine/Texture2D.h"
 #include "LightMap.h"
+#include "Model.h"
 #include "ShadowMap.h"
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "UObject/UObjectAnnotation.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ModelComponent)
 

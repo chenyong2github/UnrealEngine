@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ODSC/ODSCManager.h"
+#include "Misc/CoreDelegates.h"
 #include "ODSCLog.h"
 #include "ODSCThread.h"
 #include "Containers/BackgroundableTicker.h"
-#include "EngineModule.h"
-#include "ShaderCompiler.h"
 
 DEFINE_LOG_CATEGORY(LogODSC);
 

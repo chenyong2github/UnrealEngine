@@ -1,16 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Internationalization/StringTable.h"
+#include "Internationalization/GatherableTextData.h"
 #include "Internationalization/StringTableCore.h"
 #include "Internationalization/StringTableRegistry.h"
-#include "UObject/SoftObjectPtr.h"
 #include "Misc/PackageName.h"
 #include "UObject/Package.h"
 #include "UObject/GCObject.h"
-#include "Misc/ScopeLock.h"
 #include "Templates/Casts.h"
 #include "Application/SlateApplicationBase.h"
 #include "Serialization/PropertyLocalizationDataGathering.h"
+#include "UObject/SoftObjectPath.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StringTable)
 

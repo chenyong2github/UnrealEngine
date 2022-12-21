@@ -2,17 +2,19 @@
 
 #include "Components/RuntimeVirtualTextureComponent.h"
 
-#include "Components/PrimitiveComponent.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "GameDelegates.h"
+#include "Engine/Texture.h"
 #include "Logging/MessageLog.h"
+#include "GameFramework/Actor.h"
 #include "Misc/UObjectToken.h"
 #include "Misc/MapErrors.h"
 #include "SceneInterface.h"
 #include "UObject/UObjectIterator.h"
+#include "UObject/UnrealType.h"
 #include "VT/RuntimeVirtualTexture.h"
 #include "VT/VirtualTextureBuilder.h"
 #include "RenderUtils.h"
-#include "UObject/FortniteMainBranchObjectVersion.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RuntimeVirtualTextureComponent)
 

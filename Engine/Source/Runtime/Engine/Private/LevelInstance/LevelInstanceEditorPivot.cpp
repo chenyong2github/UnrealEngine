@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelInstance/LevelInstanceEditorPivot.h"
+#include "Engine/Level.h"
 #include "LevelInstance/LevelInstanceEditorPivotInterface.h"
 
 #if WITH_EDITOR
 
 #include "LevelInstance/LevelInstanceInterface.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
-#include "Engine/World.h"
 #include "Engine/LevelStreaming.h"
 #include "GameFramework/WorldSettings.h"
 #include "LevelUtils.h"

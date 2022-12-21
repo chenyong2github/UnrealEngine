@@ -4,12 +4,10 @@
 
 #include "Elements/Actor/ActorElementData.h"
 #include "Elements/Component/ComponentElementData.h"
-#include "Elements/Framework/TypedElementRegistry.h"
 #include "Engine/World.h"
 
 #include "ActorEditorUtils.h"
 #include "Components/PrimitiveComponent.h"
-#include "GameFramework/Actor.h"
 #include "GameFramework/Volume.h"
 #include "ShowFlags.h"
 

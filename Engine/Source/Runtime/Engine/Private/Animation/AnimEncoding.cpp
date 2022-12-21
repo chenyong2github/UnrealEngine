@@ -5,12 +5,8 @@
 =============================================================================*/ 
 
 #include "AnimEncoding.h"
-#include "Serialization/MemoryWriter.h"
-#include "Serialization/MemoryReader.h"
-#include "AnimationCompression.h"
 
 // known codecs
-#include "AnimEncoding_ConstantKeyLerp.h"
 #include "AnimEncoding_VariableKeyLerp.h"
 #include "AnimEncoding_PerTrackCompression.h"
 

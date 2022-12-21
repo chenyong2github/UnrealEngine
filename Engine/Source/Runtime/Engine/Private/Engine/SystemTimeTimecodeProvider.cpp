@@ -2,9 +2,8 @@
 
 #include "Engine/SystemTimeTimecodeProvider.h"
 
-#include "HAL/PlatformTime.h"
-#include "Misc/CoreMisc.h"
-#include "Misc/DateTime.h"
+#include "Engine/TimecodeProvider.h"
+#include <cmath>
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SystemTimeTimecodeProvider)
 

@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Net/NetPacketNotify.h"
-#include "Serialization/BitWriter.h"
+#include "CoreGlobals.h"
 #include "Serialization/BitReader.h"
+#include "Net/Util/SequenceHistory.h"
+#include "Net/Util/SequenceNumber.h"
 
 FNetPacketNotify::FNetPacketNotify()
 	: AckRecord(64)

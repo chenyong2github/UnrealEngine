@@ -2,14 +2,10 @@
 
 #include "Collision/CollisionDebugDrawing.h"
 #include "Components/PrimitiveComponent.h"
-#include "Physics/PhysicsInterfaceUtils.h"
 #include "DrawDebugHelpers.h"
-#include "PhysXPublic.h"
 
-#include "Chaos/Box.h"
 #include "Chaos/Capsule.h"
-#include "Chaos/ImplicitObject.h"
-#include "Chaos/Sphere.h"
+#include "WorldCollision.h"
 
 
 #if ENABLE_DRAW_DEBUG

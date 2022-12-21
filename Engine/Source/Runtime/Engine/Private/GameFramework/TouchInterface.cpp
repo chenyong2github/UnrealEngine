@@ -2,7 +2,6 @@
 
 #include "GameFramework/TouchInterface.h"
 #include "Engine/Texture2D.h"
-#include "Styling/CoreStyle.h"
 #include "Widgets/Input/SVirtualJoystick.h"
 #include "Slate/DeferredCleanupSlateBrush.h"
 

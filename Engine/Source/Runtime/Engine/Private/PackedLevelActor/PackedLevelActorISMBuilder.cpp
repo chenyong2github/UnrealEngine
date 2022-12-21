@@ -7,10 +7,8 @@
 #include "PackedLevelActor/PackedLevelActorBuilder.h"
 #include "PackedLevelActor/PackedLevelActor.h"
 
-#include "Templates/TypeHash.h"
 
 #include "Components/StaticMeshComponent.h"
-#include "Components/InstancedStaticMeshComponent.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 

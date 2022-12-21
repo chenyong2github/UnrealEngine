@@ -2,17 +2,12 @@
 
 #include "ProfilingDebugging/LevelStreamingProfilingSubsystem.h"
 
-#include "Containers/StringFwd.h"
-#include "EngineUtils.h"
+#include "Engine/Level.h"
 #include "Engine/LevelStreaming.h"
-#include "Engine/World.h"
 #include "HAL/FileManager.h"
-#include "HAL/PlatformTime.h"
-#include "Misc/Optional.h"
 #include "Misc/Paths.h"
-#include "Misc/StringBuilder.h"
-#include "ProfilingDebugging/CsvProfiler.h"
 #include "Streaming/LevelStreamingDelegates.h"
+#include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LevelStreamingProfilingSubsystem)

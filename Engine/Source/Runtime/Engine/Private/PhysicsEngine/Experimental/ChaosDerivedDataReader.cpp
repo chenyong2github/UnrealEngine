@@ -2,7 +2,7 @@
 
 #include "Physics/Experimental/ChaosDerivedDataReader.h"
 
-#include "Chaos/ChaosArchive.h"
+#include "Chaos/CollisionConvexMesh.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
 #include "Chaos/Convex.h"
 

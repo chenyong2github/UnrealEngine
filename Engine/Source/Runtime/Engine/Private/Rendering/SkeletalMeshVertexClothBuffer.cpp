@@ -1,10 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Rendering/SkeletalMeshVertexClothBuffer.h"
+#include "Containers/ClosableMpscQueue.h"
 #include "Rendering/SkeletalMeshVertexBuffer.h"
 #include "EngineUtils.h"
+#include "Experimental/Containers/HazardPointer.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
+#include "PixelFormat.h"
 #include "RHIResourceUpdates.h"
+#include "RHI.h"
+#include "RHICommandList.h"
 
 /**
 * Constructor

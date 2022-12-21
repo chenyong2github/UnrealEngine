@@ -4,33 +4,27 @@
 	StaticMeshBuild.cpp: Static mesh building.
 =============================================================================*/
 
-#include "CoreMinimal.h"
-#include "Serialization/BulkData.h"
-#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMeshSourceData.h"
 #include "Math/GenericOctreePublic.h"
+#include "EngineLogs.h"
 #include "Math/GenericOctree.h"
 #include "Engine/StaticMesh.h"
-#include "UObject/UObjectIterator.h"
+#include "MeshDescription.h"
 #include "StaticMeshResources.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "DistanceFieldAtlas.h"
 #include "MeshCardRepresentation.h"
+#include "SceneInterface.h"
 
 #if WITH_EDITOR
-#include "Templates/UniquePtr.h"
 #include "Async/Async.h"
 #include "ObjectCacheContext.h"
 #include "IMeshBuilderModule.h"
 #include "IMeshReductionManagerModule.h"
-#include "Interfaces/ITargetPlatformManagerModule.h"
+#include "RenderingThread.h"
 #include "StaticMeshCompiler.h"
-#include "MeshUtilities.h"
-#include "StaticMeshDescription.h"
 #include "MeshUtilitiesCommon.h"
-#include "Misc/FeedbackContext.h"
 #include "Misc/ScopedSlowTask.h"
-#include "Misc/App.h"
-#include <atomic>
 
 #include "Rendering/StaticLightingSystemInterface.h"
 #endif // #if WITH_EDITOR

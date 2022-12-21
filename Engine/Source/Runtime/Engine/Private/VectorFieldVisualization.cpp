@@ -5,14 +5,14 @@
 ==============================================================================*/
 
 #include "VectorFieldVisualization.h"
+#include "MeshDrawShaderBindings.h"
 #include "RHIStaticStates.h"
+#include "Misc/DelayedAutoRegister.h"
 #include "SceneManagement.h"
 #include "VectorField.h"
-#include "EngineGlobals.h"
 #include "Engine/Engine.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialRenderProxy.h"
-#include "ShaderParameterUtils.h"
 #include "FXSystem.h"
 #include "MeshMaterialShader.h"
 #include "DataDrivenShaderPlatformInfo.h"

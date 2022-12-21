@@ -7,13 +7,11 @@
 #include "PackedLevelActor/PackedLevelActorBuilder.h"
 #include "PackedLevelActor/PackedLevelActor.h"
 
-#include "LevelInstance/LevelInstanceActor.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 
 #include "Engine/Blueprint.h"
 #include "Engine/Level.h"
 
-#include "Misc/Crc.h"
 
 FPackedLevelActorBuilderID FPackedLevelActorRecursiveBuilder::BuilderID = 'RECP';
 

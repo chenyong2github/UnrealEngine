@@ -2,6 +2,7 @@
 
 #include "SceneInterface.h"
 #include "RenderGraphBuilder.h"
+#include "SceneTypes.h"
 
 TArray<FPrimitiveComponentId> FSceneInterface::GetScenePrimitiveComponentIds() const
 { 

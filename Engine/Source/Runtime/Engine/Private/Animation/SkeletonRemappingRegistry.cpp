@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SkeletonRemappingRegistry.h"
+#include "Misc/ScopeRWLock.h"
 #include "SkeletonRemapping.h"
 #include "Animation/Skeleton.h"
 

@@ -1,20 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/GameInstance.h"
+#include "AnalyticsEventAttribute.h"
 #include "GameFramework/WorldSettings.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/CommandLine.h"
 #include "GameMapsSettings.h"
-#include "EngineGlobals.h"
-#include "Engine/EngineTypes.h"
-#include "TimerManager.h"
-#include "Engine/LatentActionManager.h"
-#include "Engine/World.h"
 #include "AI/NavigationSystemBase.h"
 #include "Misc/Paths.h"
-#include "Online/CoreOnline.h"
-#include "GameFramework/PlayerController.h"
-#include "Engine/Engine.h"
 #include "Engine/Console.h"
 #include "Engine/GameViewportClient.h"
 #include "Misc/ScopedSlowTask.h"
@@ -26,22 +19,17 @@
 #include "GameFramework/PlayerState.h"
 #include "GameFramework/GameSession.h"
 #include "Net/OnlineEngineInterface.h"
-#include "Kismet/GameplayStatics.h"
 #include "Framework/Application/SlateApplication.h"
-#include "GenericPlatform/GenericApplication.h"
 #include "Misc/PackageName.h"
 #include "Net/ReplayPlaylistTracker.h"
 #include "ReplaySubsystem.h"
-#include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
-#include "ProfilingDebugging/CpuProfilerTrace.h"
-#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameInstance)
 
 #if WITH_EDITOR
+#include "Settings/LevelEditorPlayNetworkEmulationSettings.h"
 #include "Settings/LevelEditorPlaySettings.h"
 #include "Editor/EditorEngine.h"
-#include "EngineAnalytics.h"
 #include "StudioAnalytics.h"
 #endif
 

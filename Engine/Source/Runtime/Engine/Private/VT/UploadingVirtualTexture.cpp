@@ -1,13 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UploadingVirtualTexture.h"
+#include "HAL/PlatformFile.h"
 #include "VirtualTextureChunkManager.h"
-#include "VirtualTexturing.h"
-#include "SceneUtils.h"
 #include "FileCache/FileCache.h"
+#include "VT/VirtualTextureBuiltData.h"
 #include "VirtualTextureChunkDDCCache.h"
-#include "UObject/PackageResourceManager.h"
-#include "Misc/PackageSegment.h"
 
 DECLARE_MEMORY_STAT(TEXT("File Cache Size"), STAT_FileCacheSize, STATGROUP_VirtualTextureMemory);
 DECLARE_MEMORY_STAT(TEXT("Total Header Size"), STAT_TotalHeaderSize, STATGROUP_VirtualTextureMemory);

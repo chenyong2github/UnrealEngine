@@ -4,6 +4,8 @@
 #include "Net/Core/PushModel/PushModel.h"
 #include "EngineLogs.h"
 #include "HAL/IConsoleManager.h"
+#include "Net/Core/PushModel/PushModelMacros.h"
+#include "UObject/UnrealType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NetPushModelHelpers)
 

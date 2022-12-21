@@ -5,13 +5,12 @@
 	Color-related particle module implementations.
 =============================================================================*/
 
-#include "CoreMinimal.h"
+#include "Distributions/Distribution.h"
 #include "UObject/UnrealType.h"
+#include "ParticleEmitterInstances.h"
 #include "UObject/Package.h"
+#include "Particles/ParticleModule.h"
 #include "Particles/ParticleSystem.h"
-#include "ParticleHelper.h"
-#include "Distributions.h"
-#include "Distributions/DistributionFloat.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "Distributions/DistributionFloatConstant.h"
 #include "Distributions/DistributionVectorConstant.h"

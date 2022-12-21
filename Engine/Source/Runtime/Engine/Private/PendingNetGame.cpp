@@ -6,16 +6,13 @@
 
 #include "Engine/PendingNetGame.h"
 #include "Engine/GameInstance.h"
-#include "Misc/NetworkGuid.h"
 #include "EngineGlobals.h"
-#include "GameFramework/OnlineReplStructs.h"
 #include "Engine/Engine.h"
-#include "PacketHandlers/StatelessConnectHandlerComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/LocalPlayer.h"
-#include "Misc/NetworkVersion.h"
 #include "Net/NetworkProfiler.h"
 #include "Net/DataChannel.h"
+#include "PacketHandler.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PendingNetGame)
 

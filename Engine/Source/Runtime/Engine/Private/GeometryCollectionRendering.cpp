@@ -1,14 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GeometryCollectionRendering.h"
+#include "GlobalRenderResources.h"
 #include "MaterialDomain.h"
-#include "MeshBatch.h"
 #include "MeshDrawShaderBindings.h"
 #include "MeshMaterialShader.h"
-#include "ShaderParameterUtils.h"
 #include "DataDrivenShaderPlatformInfo.h"
-#include "Rendering/ColorVertexBuffer.h"
+#include "Misc/DelayedAutoRegister.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
+#include "PrimitiveUniformShaderParameters.h"
+#include "RenderUtils.h"
 
 IMPLEMENT_TYPE_LAYOUT(FGeometryCollectionVertexFactoryShaderParameters);
 

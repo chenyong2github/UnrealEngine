@@ -6,10 +6,8 @@ Texture2DMipDataProvider_IO.cpp : Implementation of FTextureMipDataProvider usin
 
 #include "Texture2DMipDataProvider_IO.h"
 #include "Engine/Texture.h"
+#include "HAL/PlatformFile.h"
 #include "TextureResource.h"
-#include "HAL/PlatformFileManager.h"
-#include "HAL/FileManager.h"
-#include "Misc/Paths.h"
 #include "Streaming/TextureStreamingHelpers.h"
 #include "ContentStreaming.h"
 

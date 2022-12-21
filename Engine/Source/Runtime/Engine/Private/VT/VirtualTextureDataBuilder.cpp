@@ -3,14 +3,11 @@
 #if WITH_EDITOR
 
 #include "VirtualTextureDataBuilder.h"
+#include "IImageWrapperModule.h"
 #include "Modules/ModuleManager.h"
 #include "Modules/ModuleManager.h"
-#include "Async/TaskGraphInterfaces.h"
 #include "Async/ParallelFor.h"
-#include "EngineLogs.h"
-#include "Misc/DataDrivenPlatformInfoRegistry.h"
 #include "Misc/ScopedSlowTask.h"
-#include "TextureCompressorModule.h"
 #include "TextureBuildUtilities.h"
 #include "TextureDerivedDataTask.h"
 #include "ImageCoreUtils.h"

@@ -6,7 +6,8 @@ Texture2DStreamIn_AsyncCreate.cpp: Implementation of FTextureMipAllocator using 
 
 #include "Texture2DMipAllocator_AsyncCreate.h"
 #include "RenderUtils.h"
-#include "Containers/ResourceArray.h"
+#include "Rendering/StreamableTextureResource.h"
+#include "Streaming/TextureMipAllocator.h"
 
 FTexture2DMipAllocator_AsyncCreate::FTexture2DMipAllocator_AsyncCreate(UTexture* Texture)
 	: FTextureMipAllocator(Texture, ETickState::AllocateMips, ETickThread::Async)

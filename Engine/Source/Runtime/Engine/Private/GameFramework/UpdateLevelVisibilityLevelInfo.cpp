@@ -2,8 +2,6 @@
 #include "GameFramework/UpdateLevelVisibilityLevelInfo.h"
 #include "Engine/Level.h"
 #include "HAL/IConsoleManager.h"
-#include "Serialization/Archive.h"
-#include "UObject/CoreNet.h"
 #include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(UpdateLevelVisibilityLevelInfo)

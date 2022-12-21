@@ -1,24 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/RendererSettings.h"
-#include "PixelFormat.h"
-#include "RHI.h"
 #include "GPUSkinVertexFactory.h"
 #include "ColorSpace.h"
+#include "HAL/PlatformFile.h"
 #include "SceneManagement.h"
+#include "Misc/Paths.h"
+#include "RenderUtils.h"
+#include "UObject/UnrealType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RendererSettings)
 
 #if WITH_EDITOR
 #include "Editor/EditorEngine.h"
+#include "Misc/App.h"
 #include "Misc/MessageDialog.h"
-#include "UnrealEdMisc.h"
-#include "Misc/ConfigCacheIni.h"
 #include "HAL/PlatformFileManager.h"
 
+#if PLATFORM_WINDOWS
+#include "Framework/Docking/TabManager.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
-#include "Framework/Docking/TabManager.h"
+#endif
 
 /** The editor object. */
 extern UNREALED_API class UEditorEngine* GEditor;

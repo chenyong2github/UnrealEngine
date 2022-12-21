@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/InterpToMovementComponent.h"
-#include "EngineDefines.h"
 #include "GameFramework/DamageType.h"
 #include "Engine/World.h"
 #include "GameFramework/WorldSettings.h"

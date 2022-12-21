@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Animation/AnimNotifies/AnimNotifyState_DisableRootMotion.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
-#include "Animation/AnimSequenceBase.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimInstance.h"
 #include "Components/SkeletalMeshComponent.h"

@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InGamePerformanceTracker.h"
-#include "HAL/IConsoleManager.h"
 #include "Engine/World.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogInGamePerformanceTracker, Log, All);

@@ -5,7 +5,7 @@ Texture2DStreamOut_AsyncReallocate.cpp: Definitions of classes used for texture.
 =============================================================================*/
 
 #include "Streaming/Texture2DStreamOut_AsyncReallocate.h"
-#include "RenderUtils.h"
+#include "Streaming/Texture2DUpdate.h"
 
 // ****************************
 // ******* Update Steps *******

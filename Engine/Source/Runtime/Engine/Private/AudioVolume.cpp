@@ -6,7 +6,7 @@
 
 #include "Sound/AudioVolume.h"
 #include "Engine/CollisionProfile.h"
-#include "AudioThread.h"
+#include "Engine/World.h"
 #include "Sound/ReverbEffect.h"
 #include "AudioDevice.h"
 #include "Components/BrushComponent.h"

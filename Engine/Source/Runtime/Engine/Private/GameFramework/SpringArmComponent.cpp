@@ -2,10 +2,9 @@
 
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/Pawn.h"
-#include "CollisionQueryParams.h"
-#include "WorldCollision.h"
 #include "Engine/World.h"
 #include "DrawDebugHelpers.h"
+#include "Math/RotationMatrix.h"
 #include "PhysicsEngine/PhysicsSettings.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SpringArmComponent)

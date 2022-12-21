@@ -1,12 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Audio/SoundParameterControllerInterface.h"
 
-#include "ActiveSound.h"
-#include "Audio.h"
 #include "AudioDevice.h"
-#include "AudioThread.h"
-#include "IAudioExtensionPlugin.h"
-#include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "IAudioParameterTransmitter.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SoundParameterControllerInterface)
 

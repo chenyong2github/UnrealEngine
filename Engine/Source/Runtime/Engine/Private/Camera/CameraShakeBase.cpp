@@ -5,7 +5,8 @@
 #include "Camera/PlayerCameraManager.h"
 #include "Engine/Engine.h"
 #include "IXRTrackingSystem.h"
-#include "Misc/EnumClassFlags.h"
+#include "Math/RotationMatrix.h"
+#include "Stats/Stats.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CameraShakeBase)
 

@@ -4,8 +4,6 @@
 
 #if WITH_EDITOR
 
-#include "Misc/AssertionMacros.h"
-#include "Misc/StringBuilder.h"
 
 namespace UE::Cook
 {

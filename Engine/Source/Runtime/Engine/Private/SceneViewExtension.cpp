@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SceneViewExtension.h"
-#include "RenderGraphUtils.h"
-#include "SceneTexturesConfig.h"
+#include "Engine/Engine.h"
 
 //
 // FSceneViewExtensionBase

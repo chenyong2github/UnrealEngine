@@ -1,27 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Physics/ImmediatePhysics/ImmediatePhysicsChaos/ImmediatePhysicsSimulation_Chaos.h"
+#include "Chaos/PBDRigidsSOAs.h"
 #include "Physics/ImmediatePhysics/ImmediatePhysicsChaos/ImmediatePhysicsActorHandle_Chaos.h"
 #include "Physics/ImmediatePhysics/ImmediatePhysicsChaos/ImmediatePhysicsJointHandle_Chaos.h"
+#include "Physics/ImmediatePhysics/ImmediatePhysicsShared/ImmediatePhysicsCore.h"
 #include "Physics/ImmediatePhysics/ImmediatePhysicsStats.h"
 
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "PhysicsEngine/BodyInstance.h"
-#include "PhysicsEngine/ConstraintInstance.h"
 
-#include "Chaos/ChaosDebugDraw.h"
-#include "Chaos/Collision/ParticlePairBroadPhase.h"
 #include "Chaos/Collision/ParticlePairCollisionDetector.h"
 #include "Chaos/DebugDrawQueue.h"
 #include "Chaos/Evolution/PBDMinEvolution.h"
 #include "Chaos/Joint/ChaosJointLog.h"
 #include "Chaos/MassConditioning.h"
-#include "Chaos/ParticleHandle.h"
-#include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDJointConstraints.h"
-#include "Chaos/PBDRigidParticles.h"
-#include "Chaos/PBDRigidsEvolutionGBF.h"
-#include "ChaosLog.h"
+#include "Stats/StatsTrace.h"
 
 
 //PRAGMA_DISABLE_OPTIMIZATION

@@ -6,12 +6,9 @@
 
 #if WITH_EDITOR
 #include "Editor.h"
-#include "Editor/EditorEngine.h"
-#include "FileHelpers.h"
-#include "Engine/World.h"
+#include "Engine/Level.h"
 #include "Misc/ScopedSlowTask.h"
 #include "WorldPartition/WorldPartition.h"
-#include "WorldPartition/WorldPartitionEditorHash.h"
 #include "WorldPartition/WorldPartitionActorDescViewProxy.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"

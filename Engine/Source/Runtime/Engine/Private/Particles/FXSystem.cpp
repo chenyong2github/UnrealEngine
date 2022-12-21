@@ -5,17 +5,15 @@
 =============================================================================*/
 
 #include "FXSystem.h"
-#include "RenderingThread.h"
-#include "VectorField.h"
 #include "Particles/FXSystemPrivate.h"
 #include "Particles/FXSystemSet.h"
 #include "GPUSort.h"
 #include "Particles/ParticleCurveTexture.h"
+#include "Particles/ParticleSortingGPU.h"
 #include "VectorField/VectorField.h"
 #include "Components/VectorFieldComponent.h"
-#include "SceneUtils.h"
+#include "SceneInterface.h"
 #include "SceneRendering.h" // needed for STATGROUP_CommandListMarkers
-#include "GPUSortManager.h"
 #include "DataDrivenShaderPlatformInfo.h"
 
 

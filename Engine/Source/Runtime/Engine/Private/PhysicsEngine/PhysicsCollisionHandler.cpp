@@ -1,10 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PhysicsEngine/PhysicsCollisionHandler.h"
-#include "ChaosLog.h"
 #include "Kismet/GameplayStatics.h"
-#include "PhysicsPublic.h"
-#include "PhysicsEngine/BodyInstance.h"
 #include "Components/PrimitiveComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PhysicsCollisionHandler)

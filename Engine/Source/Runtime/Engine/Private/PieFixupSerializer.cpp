@@ -4,6 +4,7 @@
 
 #include "Components/InstancedStaticMeshComponent.h"
 #include "UObject/Package.h"
+#include "UObject/UnrealType.h"
 
 class FMulticastDelegateProperty;
 

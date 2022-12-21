@@ -5,20 +5,17 @@
 
 #if WITH_EDITOR
 
-#include "WorldPartition/ContentBundle/ContentBundle.h"
+#include "Engine/Engine.h"
 #include "WorldPartition/WorldPartition.h"
+#include "Engine/Level.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
-#include "WorldPartition/WorldPartitionRuntimeCell.h"
+#include "WorldPartition/ContentBundle/ContentBundleStatus.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/ContentBundle/ContentBundleDescriptor.h"
 #include "WorldPartition/ContentBundle/ContentBundleEditorSubsystemInterface.h"
 #include "WorldPartition/ContentBundle/ContentBundleWorldSubsystem.h"
 #include "WorldPartition/ContentBundle/ContentBundleLog.h"
 #include "WorldPartition/ContentBundle/ContentBundlePaths.h"
-#include "Engine/World.h"
-#include "PackageTools.h"
-#include "ObjectTools.h"
-#include "Editor.h"
 #include "WorldPartition/Cook/WorldPartitionCookPackageContextInterface.h"
 #include "WorldPartition/Cook/WorldPartitionCookPackage.h"
 

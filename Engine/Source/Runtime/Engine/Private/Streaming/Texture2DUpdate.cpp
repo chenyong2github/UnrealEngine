@@ -5,8 +5,8 @@ Texture2DUpdate.cpp: Helpers to stream in and out mips.
 =============================================================================*/
 
 #include "Streaming/Texture2DUpdate.h"
-#include "RenderUtils.h"
 #include "Containers/ResourceArray.h"
+#include "Rendering/Texture2DResource.h"
 #include "Streaming/RenderAssetUpdate.inl"
 
 // Instantiate TRenderAssetUpdate for FTexture2DUpdateContext

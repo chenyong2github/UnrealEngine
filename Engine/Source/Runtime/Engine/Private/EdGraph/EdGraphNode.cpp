@@ -8,20 +8,16 @@
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/ReleaseObjectVersion.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
-#include "EdGraph/EdGraphPin.h"
 #include "Textures/SlateIcon.h"
-#include "EdGraph/EdGraph.h"
 #include "EngineLogs.h"
 #if WITH_EDITOR
 #include "CookerSettings.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Misc/FeedbackContext.h"
-#include "UObject/PropertyPortFlags.h"
 #include "ScopedTransaction.h"
 #include "FindInBlueprintManager.h"
 #include "DiffResults.h"
 #endif
-#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "EdGraph"
 

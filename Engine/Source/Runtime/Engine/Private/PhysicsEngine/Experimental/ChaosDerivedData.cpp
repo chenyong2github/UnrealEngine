@@ -2,18 +2,8 @@
 
 #include "ChaosDerivedData.h"
 
-#include "CoreMinimal.h"
-#include "Chaos/Core.h"
-#include "Chaos/CollisionConvexMesh.h"
-#include "Chaos/ChaosArchive.h"
-#include "ChaosDerivedDataUtil.h"
-#include "Chaos/Particles.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
-#include "Chaos/Convex.h"
 
-#include "Serialization/Archive.h"
-#include "PhysicsEngine/BodySetup.h"
-#include "PhysicsEngine/PhysicsSettings.h"
 #include "Serialization/MemoryWriter.h"
 #include "ChaosCooking.h"
 

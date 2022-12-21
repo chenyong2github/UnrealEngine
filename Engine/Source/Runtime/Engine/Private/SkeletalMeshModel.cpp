@@ -1,13 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Rendering/SkeletalMeshModel.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 
 #if WITH_EDITOR
-#include "Misc/CoreStats.h"
-#include "Engine/SkeletalMesh.h"
+#include "Engine/SkinnedAsset.h"
 #include "Engine/SkinnedAssetCommon.h"
 #include "Serialization/MemoryWriter.h"
 #include "EngineUtils.h"
+#include "SkeletalMeshLegacyCustomVersions.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 
 FSkeletalMeshModel::FSkeletalMeshModel()

@@ -5,10 +5,12 @@
 =============================================================================*/
 
 #include "LocalVertexFactory.h"
-#include "SceneView.h"
+#include "Animation/MeshDeformerGeometry.h"
 #include "MeshBatch.h"
+#include "MeshDrawShaderBindings.h"
+#include "SkeletalRenderPublic.h"
 #include "SpeedTreeWind.h"
-#include "ShaderParameterUtils.h"
+#include "Misc/DelayedAutoRegister.h"
 #include "Rendering/ColorVertexBuffer.h"
 #include "MaterialDomain.h"
 #include "MeshMaterialShader.h"
@@ -17,8 +19,8 @@
 #include "GPUSkinCache.h"
 #include "GPUSkinVertexFactory.h"
 #include "Animation/MeshDeformerProvider.h"
-#include "RenderGraphResources.h"
-#include "SkeletalRenderGPUSkin.h"
+#include "RenderUtils.h"
+#include "SceneInterface.h"
 
 IMPLEMENT_TYPE_LAYOUT(FLocalVertexFactoryShaderParametersBase);
 IMPLEMENT_TYPE_LAYOUT(FLocalVertexFactoryShaderParameters);

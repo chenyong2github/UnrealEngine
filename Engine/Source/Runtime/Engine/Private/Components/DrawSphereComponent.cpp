@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/DrawSphereComponent.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "Engine/CollisionProfile.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DrawSphereComponent)

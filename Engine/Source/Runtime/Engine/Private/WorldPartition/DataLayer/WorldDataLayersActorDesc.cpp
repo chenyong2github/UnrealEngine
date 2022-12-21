@@ -6,7 +6,6 @@
 
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/DataLayer/DataLayerInstanceWithAsset.h"
-#include "WorldPartition/DataLayer/DataLayerAsset.h"
 #include "WorldPartition/WorldPartitionActorContainerID.h"
 #include "UObject/FortniteNCBranchObjectVersion.h"
 

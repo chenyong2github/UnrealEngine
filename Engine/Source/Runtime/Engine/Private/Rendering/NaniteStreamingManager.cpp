@@ -1,18 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Rendering/NaniteStreamingManager.h"
-#include "EngineUtils.h"
-#include "Engine/Engine.h"
-#include "RenderingThread.h"
-#include "UnifiedBuffer.h"
-#include "CommonRenderResources.h"
-#include "FileCache/FileCache.h"
-#include "DistanceFieldAtlas.h"
-#include "ClearQuad.h"
+#include "GlobalShader.h"
 #include "RenderGraphUtils.h"
-#include "Logging/LogMacros.h"
 #include "Async/ParallelFor.h"
-#include "Misc/Compression.h"
+#include "RenderUtils.h"
+#include "Rendering/NaniteResources.h"
+#include "Stats/StatsTrace.h"
 
 #if WITH_EDITOR
 #include "DerivedDataCache.h"

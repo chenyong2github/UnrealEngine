@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/WorldPartitionEditorSpatialHash.h"
-#include "WorldPartition/WorldPartition.h"
-#include "WorldPartition/WorldPartitionLog.h"
+#include "HAL/IConsoleManager.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
-#include "WorldPartition/IWorldPartitionEditorModule.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionEditorSpatialHash)
 

@@ -5,7 +5,8 @@ Texture2DStreamIn_IO_AsyncCreate.cpp: Async create path for streaming in texture
 =============================================================================*/
 
 #include "Streaming/Texture2DStreamIn_IO_AsyncCreate.h"
-#include "RenderUtils.h"
+#include "Streaming/Texture2DStreamIn_IO.h"
+#include "Streaming/Texture2DUpdate.h"
 
 FTexture2DStreamIn_IO_AsyncCreate::FTexture2DStreamIn_IO_AsyncCreate(UTexture2D* InTexture, bool InPrioritizedIORequest)
 	: FTexture2DStreamIn_IO(InTexture, InPrioritizedIORequest) 

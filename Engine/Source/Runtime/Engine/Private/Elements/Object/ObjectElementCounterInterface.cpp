@@ -2,6 +2,7 @@
 
 #include "Elements/Object/ObjectElementCounterInterface.h"
 #include "Elements/Object/ObjectElementData.h"
+#include "UObject/Class.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ObjectElementCounterInterface)
 

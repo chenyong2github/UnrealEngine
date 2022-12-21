@@ -8,10 +8,10 @@
 #include "Engine/World.h"
 #include "Materials/Material.h"
 #include "MaterialDomain.h"
+#include "SceneInterface.h"
 #include "TimerManager.h"
 #include "SceneManagement.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "HAL/LowLevelMemTracker.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DecalComponent)
 

@@ -5,12 +5,12 @@
 =============================================================================*/
 
 #include "ModelLight.h"
-#include "EngineDefines.h"
 #include "Engine/Level.h"
 #include "Engine/MapBuildDataRegistry.h"
 #include "Components/LightComponent.h"
 #include "Misc/ScopedSlowTask.h"
 #include "ComponentReregisterContext.h"
+#include "RenderUtils.h"
 #include "UnrealEngine.h"
 #include "TextureLayout.h"
 #include "Collision.h"

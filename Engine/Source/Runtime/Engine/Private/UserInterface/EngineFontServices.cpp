@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EngineFontServices.h"
-#include "Misc/CoreMisc.h"
 #include "Fonts/FontCache.h"
 #include "Framework/Application/SlateApplication.h"
 

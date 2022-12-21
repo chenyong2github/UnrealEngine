@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EdGraph/EdGraphNode_Documentation.h"
+#include "Textures/SlateIcon.h"
 
 #if WITH_EDITOR
 #include "Layout/SlateRect.h"

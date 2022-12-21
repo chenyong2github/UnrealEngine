@@ -5,12 +5,11 @@
 =============================================================================*/
 
 #include "Components/PointLightComponent.h"
+#include "RenderUtils.h"
 #include "UObject/ConstructorHelpers.h"
-#include "Misc/LargeWorldRenderPosition.h"
-#include "RenderingThread.h"
 #include "Engine/Texture2D.h"
-#include "SceneManagement.h"
 #include "PointLightSceneProxy.h"
+#include "UObject/UnrealType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PointLightComponent)
 

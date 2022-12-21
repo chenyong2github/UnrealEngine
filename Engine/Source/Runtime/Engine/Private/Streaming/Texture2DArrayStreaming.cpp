@@ -5,7 +5,11 @@ Texture2DArrayStreaming.cpp: Helpers to stream in and out texture 2D array LODs.
 =============================================================================*/
 
 #include "Streaming/Texture2DArrayStreaming.h"
+#include "RHIContext.h"
 #include "RenderUtils.h"
+#include "Rendering/StreamableTextureResource.h"
+#include "RenderingThread.h"
+#include "Streaming/TextureMipAllocator.h"
 
 //*****************************************************************************
 //******************* FTexture2DArrayMipAllocator_Reallocate ******************

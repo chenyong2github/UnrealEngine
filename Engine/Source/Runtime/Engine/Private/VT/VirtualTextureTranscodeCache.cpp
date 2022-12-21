@@ -4,10 +4,11 @@
 
 #include "BlockCodingHelpers.h"
 #include "EngineModule.h"
+#include "Misc/Compression.h"
 #include "RendererInterface.h"
 #include "UploadingVirtualTexture.h"
+#include "VT/VirtualTextureBuiltData.h"
 #include "VirtualTextureChunkManager.h"
-#include "VirtualTextureUploadCache.h"
 
 static int32 TranscodeRetireAge = 60; //1 second @ 60 fps
 static FAutoConsoleVariableRef CVarVTTranscodeRetireAge(

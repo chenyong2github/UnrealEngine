@@ -5,12 +5,13 @@
 	Material-related particle module implementations.
 =============================================================================*/
 
-#include "CoreMinimal.h"
 #include "Particles/Material/ParticleModuleMaterialBase.h"
 #include "Particles/Material/ParticleModuleMeshMaterial.h"
+#include "Particles/ParticleModule.h"
 #include "Particles/TypeData/ParticleModuleTypeDataMesh.h"
 #include "Particles/ParticleModuleRequired.h"
 #include "Particles/ParticleLODLevel.h"
+#include "Templates/Casts.h"
 
 UParticleModuleMaterialBase::UParticleModuleMaterialBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

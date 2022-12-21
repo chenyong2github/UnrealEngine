@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimNotifyLibrary.h"
+#include "Animation/AnimNodeMessages.h"
 #include "Animation/AnimNotifyQueue.h"
 #include "Animation/AnimNotifyEndDataContext.h"
 

@@ -1,14 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/MemberReference.h"
+#include "EngineLogs.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Stats/Stats.h"
 #include "UObject/CoreRedirects.h"
+#include "UObject/UObjectIterator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MemberReference)
 
 #if WITH_EDITOR
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "BlueprintCompilationManager.h"
 #endif
 
 //////////////////////////////////////////////////////////////////////////

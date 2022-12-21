@@ -6,11 +6,10 @@
 
 #include "Engine/DebugCameraHUD.h"
 #include "Engine/GameViewportClient.h"
-#include "EngineGlobals.h"
-#include "CollisionQueryParams.h"
 #include "Components/MeshComponent.h"
 #include "Engine/Engine.h"
 #include "DrawDebugHelpers.h"
+#include "Engine/World.h"
 #include "GameFramework/PawnMovementComponent.h"
 #include "GameFramework/SpectatorPawn.h"
 #include "GameFramework/LightWeightInstanceSubsystem.h"

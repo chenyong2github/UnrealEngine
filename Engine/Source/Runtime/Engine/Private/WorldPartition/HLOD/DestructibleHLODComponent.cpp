@@ -3,11 +3,8 @@
 #include "WorldPartition/HLOD/DestructibleHLODComponent.h"
 
 #include "Components/StaticMeshComponent.h"
-#include "Engine/StaticMesh.h"
 #include "Engine/Texture2DDynamic.h"
-#include "GameFramework/Actor.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "Materials/MaterialInterface.h"
 #include "Net/UnrealNetwork.h"
 #include "RenderingThread.h"
 #include "TextureResource.h"

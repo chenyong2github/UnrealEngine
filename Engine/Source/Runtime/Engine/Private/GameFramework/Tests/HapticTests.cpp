@@ -1,13 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 //
 
-#include "UObject/Package.h"
-#include "Misc/AutomationTest.h"
 #include "Tests/AutomationCommon.h"
 #include "GenericPlatform/IInputInterface.h"
-#include "IMotionController.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Haptics/HapticFeedbackEffect_Base.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogHapticTest, Display, All);
 

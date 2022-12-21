@@ -2,7 +2,7 @@
 
 #include "Elements/SMInstance/SMInstanceElementId.h"
 
-#include "Misc/ScopeLock.h"
+#include "Templates/Casts.h"
 #include "UObject/Package.h"
 #include "Components/InstancedStaticMeshComponent.h"
 

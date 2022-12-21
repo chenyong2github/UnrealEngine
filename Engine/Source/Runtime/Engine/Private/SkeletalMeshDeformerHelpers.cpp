@@ -2,9 +2,10 @@
 #include "SkeletalMeshDeformerHelpers.h"
 
 #include "DataDrivenShaderPlatformInfo.h"
-#include "GPUSkinVertexFactory.h"
-#include "SkeletalRenderGPUSkin.h"
 #include "RenderGraphBuilder.h"
+#include "RenderGraphResources.h"
+#include "SkeletalRenderGPUSkin.h"
+#include "RenderingThread.h"
 
 FRHIShaderResourceView* FSkeletalMeshDeformerHelpers::GetBoneBufferForReading(
 	FSkeletalMeshObject const* InMeshObject,

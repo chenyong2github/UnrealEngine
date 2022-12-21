@@ -2,6 +2,7 @@
 
 #include "Rendering/MotionVectorSimulation.h"
 #include "Components/SceneComponent.h"
+#include "HAL/IConsoleManager.h"
 
 // Global switch for enabling/disabling motion vector simulation under some circumstances (ie on camera cut frames)
 int32 GMotionVectorSimulation = 0;

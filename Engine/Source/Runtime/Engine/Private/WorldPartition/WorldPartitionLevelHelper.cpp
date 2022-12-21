@@ -5,22 +5,20 @@
  */
 
 #include "WorldPartition/WorldPartitionLevelHelper.h"
+#include "Misc/PackageName.h"
 #include "WorldPartition/WorldPartitionPackageHelper.h"
+#include "WorldPartition/WorldPartitionRuntimeCell.h"
 
 #if WITH_EDITOR
 
 #include "Engine/Level.h"
-#include "FileHelpers.h"
+#include "Misc/Paths.h"
 #include "Model.h"
 #include "UnrealEngine.h"
-#include "UObject/UObjectHash.h"
-#include "WorldPartition/ActorDescContainer.h"
-#include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionPackageHelper.h"
 #include "AssetCompilingManager.h"
 #include "LevelUtils.h"
-#include "Templates/SharedPointer.h"
 #include "ActorFolder.h"
 
 FWorldPartitionLevelHelper& FWorldPartitionLevelHelper::Get()

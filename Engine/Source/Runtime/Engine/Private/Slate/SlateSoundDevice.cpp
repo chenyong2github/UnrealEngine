@@ -2,9 +2,7 @@
 
 #include "Slate/SlateSoundDevice.h"
 #include "Sound/SlateSound.h"
-#include "ActiveSound.h"
 #include "AudioDevice.h"
-#include "Sound/SoundBase.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSlateSoundDevice, Log, All);
 

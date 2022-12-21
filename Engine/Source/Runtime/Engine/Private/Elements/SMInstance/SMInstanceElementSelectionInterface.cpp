@@ -2,8 +2,6 @@
 
 #include "Elements/SMInstance/SMInstanceElementSelectionInterface.h"
 #include "Elements/SMInstance/SMInstanceElementData.h"
-#include "Components/InstancedStaticMeshComponent.h"
-#include "Elements/Framework/TypedElementList.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SMInstanceElementSelectionInterface)
 

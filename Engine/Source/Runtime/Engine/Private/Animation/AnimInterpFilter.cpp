@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimInterpFilter.h"
+#include "Engine/EngineTypes.h"
 
 //======================================================================================================================
 // FFIRFilter

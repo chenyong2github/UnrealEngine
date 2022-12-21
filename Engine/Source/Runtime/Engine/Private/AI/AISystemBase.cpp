@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AI/AISystemBase.h"
-#include "Templates/Casts.h"
 #include "GameFramework/GameModeBase.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AISystemBase)

@@ -1,24 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "AudioDeviceManager.h"
 
-#include "Audio.h"
 #include "Audio/AudioDebug.h"
 #include "AudioAnalytics.h"
-#include "AudioDefines.h"
-#include "AudioDevice.h"
 #include "AudioMixerDevice.h"
 #include "Engine/World.h"
+#include "Features/IModularFeatures.h"
 #include "Misc/App.h"
-#include "Sound/AudioSettings.h"
-#include "Sound/SoundWave.h"
 #include "GameFramework/GameUserSettings.h"
-#include "Misc/App.h"
-#include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/CoreDelegates.h"
 #include "UObject/UObjectIterator.h"
 
-#include "AudioDecompress.h"
 #include "Sound/AudioFormatSettings.h"
 #include "ADPCMAudioInfo.h"
 #include "VorbisAudioInfo.h"
@@ -35,7 +28,6 @@
 #include "Settings/LevelEditorMiscSettings.h"
 #endif
 
-#include "IAudioLinkFactory.h"
 
 static int32 GCVarEnableAudioThreadWait = 1;
 TAutoConsoleVariable<int32> CVarEnableAudioThreadWait(

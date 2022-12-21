@@ -1,30 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
+#include "Engine/LevelStreaming.h"
 #include "WorldPartition/WorldPartition.h"
+#include "UObject/PropertyPortFlags.h"
 #include "WorldPartition/HLOD/HLODSubsystem.h"
-#include "Engine/World.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionLevelStreamingDynamic)
 
 #if WITH_EDITOR
-#include "UObject/Package.h"
-#include "UObject/UObjectHash.h"
 #include "Misc/PackageName.h"
-#include "Engine/Engine.h"
 #include "Engine/Level.h"
-#include "Engine/World.h"
 #include "Misc/PathViews.h"
-#include "Model.h"
 #include "ContentStreaming.h"
-#include "GameFramework/WorldSettings.h"
-#include "UnrealEngine.h"
-#include "WorldPartition/WorldPartitionSubsystem.h"
-#include "WorldPartition/WorldPartitionStreamingPolicy.h"
-#include "WorldPartition/WorldPartitionLevelStreamingPolicy.h"
-#include "WorldPartition/WorldPartitionLevelHelper.h"
-#include "WorldPartition/WorldPartitionRuntimeHash.h"
-#include "WorldPartition/HLOD/HLODActor.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "World"

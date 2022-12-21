@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UserActivityTracking.h"
+#include "Engine/EngineTypes.h"
 #include "Misc/CoreDelegates.h"
+#include "Stats/Stats.h"
 
 FUserActivityTracking::FOnActivityChanged FUserActivityTracking::OnActivityChanged;
 

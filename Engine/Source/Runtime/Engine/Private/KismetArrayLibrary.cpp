@@ -3,6 +3,7 @@
 #include "Kismet/KismetArrayLibrary.h"
 #include "GameFramework/Actor.h"
 #include "Blueprint/BlueprintSupport.h"
+#include "Math/RandomStream.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(KismetArrayLibrary)
 

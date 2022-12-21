@@ -2,10 +2,10 @@
 
 #include "WorldPartition/RuntimeSpatialHash/RuntimeSpatialHashGridHelper.h"
 #include "ActorPartition/PartitionActor.h"
-#include "WorldPartition/WorldPartitionStreamingGenerationContext.h"
-#include "Algo/Transform.h"
 #include "ProfilingDebugging/ScopedTimers.h"
-#include "WorldPartition/DataLayer/DataLayerInstance.h"
+#include "WorldPartition/WorldPartitionLog.h"
+#include "WorldPartition/WorldPartitionStreamingGeneration.h"
+#include "WorldPartition/WorldPartitionStreamingSource.h"
 
 bool GRuntimeSpatialHashUseAlignedGridLevels = true;
 static FAutoConsoleVariableRef CVarRuntimeSpatialHashUseAlignedGridLevels(

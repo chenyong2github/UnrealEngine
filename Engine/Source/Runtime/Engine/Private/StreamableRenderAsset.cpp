@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/StreamableRenderAsset.h"
-#include "Misc/App.h"
 #include "Containers/Ticker.h"
-#include "ContentStreaming.h"
 #include "RenderAssetUpdate.h"
 #include "Rendering/NaniteCoarseMeshStreamingManager.h"
+#include "RenderingThread.h"
 #include "UObject/Package.h"
+#include "UObject/UnrealType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StreamableRenderAsset)
 

@@ -4,9 +4,7 @@
 #include "TimerManager.h"
 #include "Engine/World.h"
 #include "DrawDebugHelpers.h"
-#include "GameFramework/MovementComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "AI/RVOAvoidanceInterface.h"
 #include "AI/Navigation/NavEdgeProviderInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AvoidanceManager)

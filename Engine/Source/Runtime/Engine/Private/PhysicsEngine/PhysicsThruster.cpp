@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PhysicsEngine/PhysicsThruster.h"
-#include "UObject/ConstructorHelpers.h"
-#include "Components/PrimitiveComponent.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "Components/ArrowComponent.h"
 #include "Components/BillboardComponent.h"
 #include "Engine/Texture2D.h"

@@ -5,8 +5,9 @@
 =============================================================================*/
 
 #include "ParticleResources.h"
-#include "ParticleCurveTexture.h"
+#include "Containers/ClosableMpscQueue.h"
 #include "RHI.h"
+#include "Experimental/Containers/HazardPointer.h"
 
 /** The size of the scratch vertex buffer. */
 const int32 GParticleScratchVertexBufferSize = 64 * (1 << 10); // 64KB

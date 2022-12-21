@@ -1,12 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/TextureLODSettings.h"
-#include "Engine/Texture2D.h"
 #include "Engine/TextureCube.h"
+#include "HAL/IConsoleManager.h"
 #include "Interfaces/ITargetPlatform.h"
-#include "Interfaces/ITargetPlatformManagerModule.h"
-#include "VT/VirtualTextureBuiltData.h"
-#include "PlatformInfo.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TextureLODSettings)
 

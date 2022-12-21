@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ExternalPackageHelper.h"
+#include "Misc/ArchiveMD5.h"
 
 #if WITH_EDITOR
 

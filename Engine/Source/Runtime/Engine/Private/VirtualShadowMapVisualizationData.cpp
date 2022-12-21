@@ -2,9 +2,6 @@
 
 #include "VirtualShadowMapVisualizationData.h"
 #include "VirtualShadowMapDefinitions.h"
-#include "HAL/IConsoleManager.h"
-#include "Materials/Material.h"
-#include "Misc/ConfigCacheIni.h"
 #include "SceneManagement.h"
 
 #define LOCTEXT_NAMESPACE "FVirtualShadowMapVisualizationData"

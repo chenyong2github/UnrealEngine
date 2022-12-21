@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimNotifies/AnimNotifyState.h"
-#include "Animation/AnimTypes.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
 #include "Animation/AnimNotifyEndDataContext.h"
+#include "Animation/AnimNotifyQueue.h"
 #include "UObject/ObjectSaveContext.h"
 #include "Animation/AnimSequenceBase.h"
 #include "UObject/Package.h"

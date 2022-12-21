@@ -3,10 +3,6 @@
 #include "Sound/SoundAttenuation.h"
 
 #include "AudioDevice.h"
-#include "EngineDefines.h"
-#include "Internationalization/Internationalization.h"
-#include "Sound/SoundBase.h"
-#include "Templates/SharedPointer.h"
 #include "UObject/AnimPhysObjectVersion.h"
 
 /*-----------------------------------------------------------------------------

@@ -5,13 +5,12 @@
 =============================================================================*/
 
 #include "Rendering/StreamableTextureResource.h"
-#include "Engine/Texture.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Misc/CoreStats.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "ProfilingDebugging/ScopedDebugInfo.h"
-#include "RenderUtils.h"
+#include "Stats/StatsTrace.h"
 
 #if STATS
 int64 GUITextureMemory = 0;

@@ -2,8 +2,6 @@
 
 #include "Animation/MirrorSyncScope.h"
 #include "Animation/AnimSyncScope.h"
-#include "Animation/AnimInstanceProxy.h"
-#include "Animation/MirrorDataTable.h"
 #include "Animation/AnimNodeBase.h"
 
 IMPLEMENT_ANIMGRAPH_MESSAGE(UE::Anim::FMirrorSyncScope);

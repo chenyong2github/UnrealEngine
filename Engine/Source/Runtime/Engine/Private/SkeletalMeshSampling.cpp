@@ -3,8 +3,6 @@
 #include "Engine/SkeletalMeshSampling.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/SkinnedAssetCommon.h"
-#include "RawIndexBuffer.h"
-#include "Rendering/SkeletalMeshLODRenderData.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "UObject/NiagaraObjectVersion.h"
 

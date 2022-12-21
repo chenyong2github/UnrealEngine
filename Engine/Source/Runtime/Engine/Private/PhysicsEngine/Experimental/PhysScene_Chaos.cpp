@@ -2,54 +2,27 @@
 
 #include "Physics/Experimental/PhysScene_Chaos.h"
 
-#include "CoreMinimal.h"
-#include "GameDelegates.h"
 
-#include "Async/AsyncWork.h"
-#include "Async/ParallelFor.h"
-#include "Engine/Engine.h"
 
-#include "Misc/CoreDelegates.h"
-#include "Misc/ScopeLock.h"
-#include "PhysicsEngine/BodySetup.h"
+#include "Chaos/PBDJointConstraintData.h"
 #include "PhysicsEngine/PhysicsAsset.h"
+#include "Chaos/Particle/ParticleUtilities.h"
 #include "PhysicsEngine/PhysicsSettings.h"
-#include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Physics/PhysicsInterfaceUtils.h"
 #include "PhysicsReplication.h"
-#include "Physics/Experimental/PhysicsUserData_Chaos.h"
+#include "PhysicsEngine/ConstraintInstance.h"
 #include "PhysicsEngine/PhysicsCollisionHandler.h"
 
-#include "PhysicsSolver.h"
 #include "ChaosSolversModule.h"
-#include "ChaosLog.h"
-#include "ChaosStats.h"
 
-#include "Field/FieldSystem.h"
 
-#include "PhysicsProxy/PerSolverFieldSystem.h"
-#include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
-#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "PhysicsProxy/SkeletalMeshPhysicsProxy.h"
 #include "PhysicsProxy/StaticMeshPhysicsProxy.h"
-#include "PhysicsProxy/JointConstraintProxy.h"
-#include "Chaos/UniformGrid.h"
-#include "Chaos/BoundingVolume.h"
-#include "Chaos/Framework/DebugSubstep.h"
-#include "Chaos/PBDSpringConstraints.h"
-#include "Chaos/PBDJointConstraints.h"
-#include "Chaos/PerParticleGravity.h"
-#include "PBDRigidActiveParticlesBuffer.h"
-#include "Chaos/GeometryParticlesfwd.h"
-#include "Chaos/Box.h"
 #include "EventsData.h"
-#include "EventManager.h"
-#include "RewindData.h"
 #include "Chaos/PhysicsSolverBaseImpl.h"
-#include "Chaos/Defines.h"
 
 #if !UE_BUILD_SHIPPING
-#include "Engine/World.h"
 #include "DrawDebugHelpers.h"
 
 TAutoConsoleVariable<int32> CVar_ChaosDrawHierarchyEnable(TEXT("P.Chaos.DrawHierarchy.Enable"), 0, TEXT("Enable / disable drawing of the physics hierarchy"));

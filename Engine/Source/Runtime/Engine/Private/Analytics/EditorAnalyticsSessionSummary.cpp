@@ -7,11 +7,9 @@
 #include "Editor.h"
 #include "IVREditorModule.h"
 #include "Framework/Application/SlateApplication.h"
-#include "HAL/PlatformTime.h"
 #include "Interfaces/IAnalyticsPropertyStore.h"
 #include "Kismet2/DebuggerCommands.h"
 #include "ProfilingDebugging/StallDetector.h"
-#include "UObject/Package.h"
 #include "ShaderCompiler.h"
 
 namespace EditorAnalyticsProperties

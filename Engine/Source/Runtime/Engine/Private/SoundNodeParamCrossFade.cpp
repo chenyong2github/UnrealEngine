@@ -3,6 +3,7 @@
 
 #include "Sound/SoundNodeParamCrossFade.h"
 #include "ActiveSound.h"
+#include "IAudioParameterTransmitter.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SoundNodeParamCrossFade)
 

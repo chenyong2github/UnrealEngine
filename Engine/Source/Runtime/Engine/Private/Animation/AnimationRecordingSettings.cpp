@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimationRecordingSettings.h"
-#include "Animation/AnimTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimationRecordingSettings)
 

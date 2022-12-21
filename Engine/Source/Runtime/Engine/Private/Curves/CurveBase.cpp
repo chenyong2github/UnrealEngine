@@ -5,7 +5,6 @@
 #include "JsonObjectConverter.h"
 #include "Serialization/Csv/CsvParser.h"
 #include "EditorFramework/AssetImportData.h"
-#include "Serialization/JsonWriter.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CurveBase)
 

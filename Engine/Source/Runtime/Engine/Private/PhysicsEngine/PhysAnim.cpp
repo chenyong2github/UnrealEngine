@@ -4,22 +4,14 @@
 	PhysAnim.cpp: Code for supporting animation/physics blending
 =============================================================================*/ 
 
-#include "CoreMinimal.h"
-#include "Stats/Stats.h"
-#include "Misc/MemStack.h"
-#include "Misc/App.h"
-#include "HAL/IConsoleManager.h"
-#include "Async/TaskGraphInterfaces.h"
-#include "EngineDefines.h"
-#include "Engine/EngineTypes.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimStats.h"
+#include "Engine/World.h"
 #include "SkeletalRenderPublic.h"
 #include "Components/LineBatchComponent.h"
-#include "PhysicsPublic.h"
+#include "Math/QuatRotationTranslationMatrix.h"
 #include "Rendering/SkeletalMeshRenderData.h"
-#include "Physics/PhysicsInterfaceCore.h"
-#include "Physics/PhysicsInterfaceScene.h"
+#include "Physics/Experimental/PhysScene_Chaos.h"
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 

@@ -1,23 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
-#include "Stats/Stats.h"
-#include "Engine/EngineTypes.h"
-#include "CollisionQueryParams.h"
-#include "Engine/World.h"
 #include "Components/PrimitiveComponent.h"
 #include "AI/NavigationSystemBase.h"
-#include "Components/LineBatchComponent.h"
+#include "EngineLogs.h"
 #include "Logging/MessageLog.h"
+#include "Physics/Experimental/PhysScene_Chaos.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "DrawDebugHelpers.h"
 #include "PhysicsReplication.h"
-#include "Physics/PhysicsInterfaceCore.h"
 #include "UObject/UObjectThreadContext.h"
-#include "Physics/PhysicsInterfaceScene.h"
 #include "PhysicsEngine/PhysicsObjectExternalInterface.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
-#include "Chaos/PhysicsObjectInterface.h"
 
 //////////////// PRIMITIVECOMPONENT ///////////////
 

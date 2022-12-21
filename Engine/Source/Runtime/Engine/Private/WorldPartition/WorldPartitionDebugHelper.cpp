@@ -5,13 +5,8 @@
 #include "GlobalRenderResources.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/WorldPartition.h"
-#include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
-#include "ProfilingDebugging/ProfilingHelpers.h"
 #include "Engine/Canvas.h"
-#include "Engine/Font.h"
-#include "HAL/IConsoleManager.h"
-#include "Algo/AnyOf.h"
 #include "Algo/AllOf.h"
 
 bool FWorldPartitionDebugHelper::bCanDrawContentBundles = true;

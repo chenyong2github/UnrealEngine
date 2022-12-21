@@ -2,6 +2,7 @@
 
 
 #include "GameFramework/SpectatorPawn.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "Components/SphereComponent.h"
 #include "GameFramework/SpectatorPawnMovement.h"
 #include "GameFramework/WorldSettings.h"

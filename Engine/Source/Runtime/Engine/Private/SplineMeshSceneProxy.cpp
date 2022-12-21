@@ -4,7 +4,9 @@
 #include "Materials/Material.h"
 #include "MaterialDomain.h"
 #include "MeshMaterialShader.h"
+#include "Misc/DelayedAutoRegister.h"
 #include "StaticMeshComponentLODInfo.h"
+#include "StaticMeshResources.h"
 
 IMPLEMENT_TYPE_LAYOUT(FSplineMeshVertexFactoryShaderParameters);
 

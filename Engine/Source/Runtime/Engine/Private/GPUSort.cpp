@@ -5,14 +5,12 @@
 =============================================================================*/
 
 #include "GPUSort.h"
-#include "RenderResource.h"
 #include "Math/RandomStream.h"
+#include "RHIBreadcrumbs.h"
 #include "RenderingThread.h"
-#include "UniformBuffer.h"
-#include "ShaderParameters.h"
-#include "Shader.h"
+#include "RHIContext.h"
 #include "ShaderCompilerCore.h"
-#include "SceneUtils.h"
+#include "ShaderParameterMacros.h"
 #include "ShaderParameterUtils.h"
 #include "GlobalShader.h"
 #include "PipelineStateCache.h"

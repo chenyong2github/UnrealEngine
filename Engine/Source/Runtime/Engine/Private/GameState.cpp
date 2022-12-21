@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "GameFramework/GameState.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "TimerManager.h"
 #include "GameFramework/GameMode.h"
 #include "GameFramework/WorldSettings.h"

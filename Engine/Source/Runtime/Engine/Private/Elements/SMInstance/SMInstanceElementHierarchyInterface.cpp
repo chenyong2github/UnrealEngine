@@ -3,7 +3,6 @@
 #include "Elements/SMInstance/SMInstanceElementHierarchyInterface.h"
 
 #include "Elements/SMInstance/SMInstanceElementData.h"
-#include "Elements/Framework/TypedElementRegistry.h"
 #include "Components/InstancedStaticMeshComponent.h"
 
 #include "Elements/Framework/EngineElementsLibrary.h"

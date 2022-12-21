@@ -1,20 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/WorldPartitionSubsystem.h"
-#include "Engine/Engine.h"
 #include "SceneView.h"
 #include "UnrealEngine.h"
 #include "WorldPartition/WorldPartition.h"
-#include "WorldPartition/WorldPartitionStreamingPolicy.h"
 #include "WorldPartition/WorldPartitionDebugHelper.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "WorldPartition/ContentBundle/ContentBundleWorldSubsystem.h"
-#include "HAL/IConsoleManager.h"
 #include "Engine/Canvas.h"
-#include "Engine/Console.h"
 #include "Engine/CoreSettings.h"
-#include "ConsoleSettings.h"
 #include "Debug/DebugDrawService.h"
+#include "WorldPartition/WorldPartitionLog.h"
+#include "WorldPartition/WorldPartitionRuntimeHash.h"
+#include "WorldPartition/WorldPartitionStreamingSource.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionSubsystem)
 

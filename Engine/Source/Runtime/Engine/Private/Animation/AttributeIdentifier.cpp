@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimData/AttributeIdentifier.h"
+#include "Animation/AnimData/AnimDataModel.h"
 #include "Animation/AttributeTypes.h"
 #include "Animation/Skeleton.h"
 #include "Animation/AnimSequence.h"
+#include "EngineLogs.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AttributeIdentifier)
 

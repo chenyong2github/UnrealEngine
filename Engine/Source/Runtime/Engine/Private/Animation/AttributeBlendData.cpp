@@ -3,7 +3,7 @@
 
 #include "Animation/AttributeBlendData.h"
 #include "Animation/AnimationAsset.h"
-#include "AnimationRuntime.h"
+#include "Animation/AttributesRuntime.h"
 
 namespace UE { namespace Anim {
 

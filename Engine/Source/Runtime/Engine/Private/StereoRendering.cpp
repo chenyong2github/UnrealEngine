@@ -3,7 +3,6 @@
 #include "StereoRendering.h"
 #include "SceneView.h"
 
-#include "Engine/Engine.h"
 
 bool IStereoRendering::IsStereoEyeView(const FSceneView& View)
 {

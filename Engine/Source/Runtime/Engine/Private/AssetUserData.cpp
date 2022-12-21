@@ -2,6 +2,7 @@
 
 #include "Engine/AssetUserData.h"
 #include "Interfaces/Interface_AssetUserData.h"
+#include "UObject/Interface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AssetUserData)
 

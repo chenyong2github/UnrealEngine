@@ -7,14 +7,14 @@
 #include "DrawDebugHelpers.h"
 #include "Engine/GameInstance.h"
 #include "Engine/GameViewportClient.h"
-#include "EngineGlobals.h"
 #include "Engine/Engine.h"
-#include "CanvasItem.h"
+#include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/WorldSettings.h"
 #include "Components/LineBatchComponent.h"
 #include "Engine/Canvas.h"
 #include "GameFramework/HUD.h"
+#include "Math/ScaleMatrix.h"
 
 #if ENABLE_DRAW_DEBUG
 

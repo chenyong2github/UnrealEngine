@@ -5,21 +5,20 @@
 	Particle trail2 emitter instance implementation.
 =============================================================================*/
 
-#include "CoreMinimal.h"
-#include "Stats/Stats.h"
-#include "EngineDefines.h"
-#include "EngineGlobals.h"
 #include "Components/MeshComponent.h"
-#include "Engine/Engine.h"
+#include "Engine/World.h"
 #include "Materials/Material.h"
 #include "MaterialDomain.h"
-#include "ParticleHelper.h"
 #include "ParticleEmitterInstances.h"
+#include "Particles/ParticleEmitter.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "Particles/Event/ParticleModuleEventGenerator.h"
 #include "Particles/Lifetime/ParticleModuleLifetime.h"
+#include "Particles/ParticleModule.h"
 #include "Particles/Spawn/ParticleModuleSpawn.h"
+#include "Particles/ParticleSystem.h"
 #include "Particles/Spawn/ParticleModuleSpawnPerUnit.h"
+#include "Particles/Spawn/ParticleModuleSpawnBase.h"
 #include "Particles/Trail/ParticleModuleTrailSource.h"
 #include "Particles/TypeData/ParticleModuleTypeDataBase.h"
 #include "Particles/TypeData/ParticleModuleTypeDataAnimTrail.h"
@@ -27,6 +26,7 @@
 #include "Particles/ParticleLODLevel.h"
 #include "Particles/ParticleModuleRequired.h"
 #include "Scalability.h"
+#include "Stats/StatsTrace.h"
 /** trail stats */
 
 

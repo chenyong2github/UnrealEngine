@@ -2,12 +2,11 @@
 
 #include "WorldPartition/HLOD/HLODBuilder.h"
 
-#include "AssetCompilingManager.h"
+#include "Components/StaticMeshComponent.h"
 #include "Engine/HLODProxy.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/Texture.h"
-#include "Engine/Level.h"
-#include "Components/InstancedStaticMeshComponent.h"
+#include "HLOD/HLODBatchingPolicy.h"
 #include "ISMPartition/ISMComponentBatcher.h"
 #include "ISMPartition/ISMComponentDescriptor.h"
 #include "Materials/MaterialInterface.h"

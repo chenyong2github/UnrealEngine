@@ -1,25 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ObjectTrace.h"
-#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ObjectTrace)
 
 #if OBJECT_TRACE_ENABLED
 
-#include "CoreMinimal.h"
-#include "GameFramework/WorldSettings.h"
-#include "Trace/Trace.inl"
-#include "UObject/Object.h"
-#include "UObject/Class.h"
-#include "UObject/Package.h"
-#include "UObject/UObjectAnnotation.h"
-#include "UObject/WeakObjectPtrTemplates.h"
-#include "UObject/WeakObjectPtr.h"
-#include "Misc/CommandLine.h"
-#include "HAL/IConsoleManager.h"
-#include "Engine/World.h"
-#include "TraceFilter.h"
 #include "SceneView.h"
 #if WITH_EDITOR
 #include "Editor.h"

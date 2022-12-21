@@ -8,7 +8,6 @@
 #include "Commandlets/SmokeTestCommandlet.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/App.h"
-#include "EngineGlobals.h"
 #include "Engine/Engine.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SmokeTestCommandlet)

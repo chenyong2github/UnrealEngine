@@ -2,10 +2,9 @@
 
 #include "WorldPartition/HLOD/HLODActorDesc.h"
 #include "UObject/Package.h"
+#include "WorldPartition/HLOD/HLODStats.h"
 
 #if WITH_EDITOR
-#include "Algo/Transform.h"
-#include "Algo/RemoveIf.h"
 #include "HAL/FileManager.h"
 #include "Misc/PackageName.h"
 #include "UObject/UE5MainStreamObjectVersion.h"

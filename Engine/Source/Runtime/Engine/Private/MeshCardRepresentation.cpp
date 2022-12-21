@@ -5,27 +5,19 @@
 =============================================================================*/
 
 #include "MeshCardRepresentation.h"
-#include "HAL/RunnableThread.h"
-#include "HAL/Runnable.h"
-#include "Misc/App.h"
-#include "Serialization/MemoryReader.h"
-#include "Serialization/MemoryWriter.h"
-#include "Modules/ModuleManager.h"
+#include "Engine/StaticMeshSourceData.h"
 #include "StaticMeshResources.h"
+#include "EngineLogs.h"
 #include "ProfilingDebugging/CookStats.h"
-#include "Templates/UniquePtr.h"
 #include "Engine/StaticMesh.h"
+#include "Materials/MaterialInterface.h"
 #include "Misc/AutomationTest.h"
-#include "Async/ParallelFor.h"
 #include "DistanceFieldAtlas.h"
 #include "Misc/QueuedThreadPoolWrapper.h"
-#include "Async/Async.h"
 #include "ObjectCacheContext.h"
 
 #if WITH_EDITOR
-#include "AssetCompilingManager.h"
 #include "DerivedDataCacheInterface.h"
-#include "MeshUtilities.h"
 #include "StaticMeshCompiler.h"
 #endif
 

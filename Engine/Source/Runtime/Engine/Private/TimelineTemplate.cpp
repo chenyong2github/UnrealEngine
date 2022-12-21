@@ -3,7 +3,6 @@
 #include "Engine/TimelineTemplate.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "UObject/Package.h"
-#include "Engine/Blueprint.h"
 #include "EngineLogs.h"
 #include "Curves/CurveFloat.h"
 #include "Curves/CurveLinearColor.h"

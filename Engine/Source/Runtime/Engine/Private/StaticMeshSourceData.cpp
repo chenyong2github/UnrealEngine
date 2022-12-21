@@ -2,19 +2,18 @@
 
 #include "Engine/StaticMeshSourceData.h"
 #include "Engine/StaticMesh.h"
-#include "MeshDescription.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
 #include "StaticMeshDescription.h"
 #include "StaticMeshOperations.h"
 #include "ProfilingDebugging/CookStats.h"
+#include "UObject/EditorObjectVersion.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StaticMeshSourceData)
 
 #if WITH_EDITOR
 #include "DerivedDataCacheInterface.h"
 #include "RawMesh.h"
-#include "Misc/ScopeLock.h"
 #endif
 
 

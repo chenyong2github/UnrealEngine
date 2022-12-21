@@ -1,13 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AI/NavigationModifier.h"
+#include "Math/ConvexHull2d.h"
 #include "UObject/UnrealType.h"
 #include "EngineStats.h"
-#include "GameFramework/Actor.h"
 #include "Components/BrushComponent.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "AI/NavigationSystemBase.h"
 #include "AI/Navigation/NavAreaBase.h"
+#include "PhysicsEngine/BoxElem.h"
+#include "PhysicsEngine/ConvexElem.h"
+#include "PhysicsEngine/SphereElem.h"
+#include "PhysicsEngine/SphylElem.h"
 
 // if square distance between two points is less than this the those points
 // will be considered identical when calculating convex hull

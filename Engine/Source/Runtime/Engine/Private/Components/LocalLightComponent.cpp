@@ -5,11 +5,8 @@
 =============================================================================*/
 
 #include "Components/LocalLightComponent.h"
-#include "UObject/ConstructorHelpers.h"
-#include "RenderingThread.h"
-#include "Engine/Texture2D.h"
-#include "SceneManagement.h"
-#include "PointLightSceneProxy.h"
+#include "LocalLightSceneProxy.h"
+#include "UObject/UnrealType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LocalLightComponent)
 

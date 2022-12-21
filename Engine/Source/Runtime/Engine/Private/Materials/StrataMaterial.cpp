@@ -2,7 +2,9 @@
 
 #include "StrataMaterial.h"
 #include "MaterialCompiler.h"
-#include "Materials/MaterialInterface.h"
+#include "StrataDefinitions.h"
+
+
 
 FString GetStrataBSDFName(uint8 BSDFType)
 {

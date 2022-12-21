@@ -4,13 +4,7 @@
 	Replication.cpp: Engine actor replication implementation
 =============================================================================*/
 
-#include "CoreMinimal.h"
-#include "UObject/CoreNet.h"
-#include "EngineGlobals.h"
-#include "GameFramework/PlayerController.h"
-#include "Engine/LocalPlayer.h"
-#include "UnrealEngine.h"
-#include "Net/UnrealNetwork.h"
+#include "Camera/PlayerCameraManager.h"
 
 //
 // Static variables for networking.

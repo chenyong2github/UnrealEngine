@@ -1,13 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sound/DialogueWave.h"
-#include "Internationalization/InternationalizationMetadata.h"
 #include "Internationalization/GatherableTextData.h"
+#include "Misc/StringFormatArg.h"
 #include "Serialization/PropertyLocalizationDataGathering.h"
-#include "Engine/EngineTypes.h"
-#include "Engine/Engine.h"
 #include "ActiveSound.h"
-#include "Sound/AudioSettings.h"
 #include "Sound/SoundWave.h"
 #include "Sound/DialogueSoundWaveProxy.h"
 #include "Sound/DialogueVoice.h"

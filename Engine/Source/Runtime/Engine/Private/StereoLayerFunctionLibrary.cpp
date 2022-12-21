@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 //
 #include "Kismet/StereoLayerFunctionLibrary.h"
-#include "EngineGlobals.h"
 #include "TextureResource.h"
 #include "Engine/Texture.h"
 #include "Engine/Engine.h"
-#include "IStereoLayers.h"
 #include "StereoRendering.h"
 #include "IXRTrackingSystem.h"
 #include "IXRLoadingScreen.h"

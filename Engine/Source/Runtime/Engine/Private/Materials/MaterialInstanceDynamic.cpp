@@ -5,16 +5,13 @@
 ==============================================================================*/
 
 #include "Materials/MaterialInstanceDynamic.h"
+#include "GameFramework/Actor.h"
 #include "Materials/Material.h"
 #include "UObject/Package.h"
 #include "Materials/MaterialInstanceSupport.h"
 #include "Engine/Texture.h"
 #include "Misc/RuntimeErrors.h"
-#include "UnrealEngine.h"
 #include "ObjectCacheEventSink.h"
-#include "Materials/MaterialUniformExpressions.h"
-#include "Stats/StatsMisc.h"
-#include "HAL/LowLevelMemTracker.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialInstanceDynamic)
 

@@ -5,10 +5,12 @@
 =============================================================================*/
 
 #include "ParticleVertexFactory.h"
+#include "MeshDrawShaderBindings.h"
 #include "ParticleHelper.h"
+#include "Misc/DelayedAutoRegister.h"
 #include "ParticleResources.h"
-#include "ShaderParameterUtils.h"
 #include "MeshMaterialShader.h"
+#include "PipelineStateCache.h"
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FParticleSpriteUniformParameters, "SpriteVF");
 

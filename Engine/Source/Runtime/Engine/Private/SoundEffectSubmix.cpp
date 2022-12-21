@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sound/SoundEffectSubmix.h"
-#include "Sound/SoundMix.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SoundEffectSubmix)
 

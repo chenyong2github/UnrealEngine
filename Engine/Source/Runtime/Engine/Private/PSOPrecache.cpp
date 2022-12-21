@@ -5,7 +5,9 @@
 =============================================================================*/
 
 #include "PSOPrecache.h"
+#include "Misc/App.h"
 #include "SceneInterface.h"
+#include "PipelineStateCache.h"
 #include "VertexFactory.h"
 
 static TAutoConsoleVariable<int32> CVarPrecacheGlobalComputeShaders(

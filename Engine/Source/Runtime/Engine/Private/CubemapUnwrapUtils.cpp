@@ -7,15 +7,16 @@
 #include "CubemapUnwrapUtils.h"
 #include "CanvasItem.h"
 #include "CanvasTypes.h"
+#include "GameTime.h"
 #include "ShaderParameterUtils.h"
+#include "RHIContext.h"
 #include "SimpleElementShaders.h"
+#include "RenderingThread.h"
 #include "TextureResource.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/TextureCube.h"
 #include "Engine/TextureRenderTargetCube.h"
-#include "PipelineStateCache.h"
 #include "RHIStaticStates.h"
-#include "DataDrivenShaderPlatformInfo.h"
 
 IMPLEMENT_SHADER_TYPE(,FCubemapTexturePropertiesVS,TEXT("/Engine/Private/SimpleElementVertexShader.usf"),TEXT("Main"),SF_Vertex);
 IMPLEMENT_SHADER_TYPE(,FCubemapTexturePropertiesPS,TEXT("/Engine/Private/SimpleElementPixelShader.usf"),TEXT("CubemapTextureProperties"),SF_Pixel);

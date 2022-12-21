@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/ActorInstanceHandle.h"
-#include "WorldPartition/DataLayer/DataLayerInstance.h"
-#include "GameFramework/Actor.h"
 #include "GameFramework/LightWeightInstanceSubsystem.h"
 #include "Engine/World.h"
 

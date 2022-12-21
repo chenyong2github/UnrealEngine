@@ -5,8 +5,10 @@
 =============================================================================*/
 
 #include "Engine/TextureCube.h"
+#include "EngineLogs.h"
 #include "Misc/CoreStats.h"
 #include "RenderUtils.h"
+#include "Stats/StatsTrace.h"
 #include "TextureResource.h"
 #include "EngineUtils.h"
 #include "DeviceProfiles/DeviceProfile.h"

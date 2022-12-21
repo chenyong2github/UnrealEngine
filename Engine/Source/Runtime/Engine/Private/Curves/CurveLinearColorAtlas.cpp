@@ -5,10 +5,8 @@
 =============================================================================*/
 
 #include "Curves/CurveLinearColorAtlas.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "Curves/CurveLinearColor.h"
-#include "Components/MeshComponent.h"
-#include "HAL/LowLevelMemTracker.h"
-#include "Materials/MaterialInstanceDynamic.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CurveLinearColorAtlas)
 

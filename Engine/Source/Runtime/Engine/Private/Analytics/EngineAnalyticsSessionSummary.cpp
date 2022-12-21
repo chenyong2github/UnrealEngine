@@ -2,24 +2,22 @@
 
 #include "Analytics/EngineAnalyticsSessionSummary.h"
 #include "AnalyticsSessionSummaryManager.h"
-#include "EngineGlobals.h"
+#include "Engine/EngineTypes.h"
 #include "GeneralProjectSettings.h"
 #include "Engine/Engine.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
-#include "HAL/ExceptionHandling.h"
-#include "HAL/FileManager.h"
-#include "HAL/PlatformProcess.h"
-#include "HAL/PlatformTime.h"
 #include "Interfaces/IAnalyticsPropertyStore.h"
 #include "Interfaces/IPluginManager.h"
 #include "Interfaces/IProjectManager.h"
 #include "Misc/App.h"
-#include "Misc/CommandLine.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/EngineVersion.h"
 #include "UserActivityTracking.h"
 #include "RHI.h"
-#include "DynamicRHI.h"
+
+#if PLATFORM_WINDOWS
+#include "HAL/FileManager.h"
+#endif
 
 extern ENGINE_API float GAverageFPS;
 extern CORE_API bool GIsGPUCrashed;

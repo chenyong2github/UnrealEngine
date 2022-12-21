@@ -5,9 +5,8 @@
 =============================================================================*/ 
 
 #include "Animation/AnimCompress_RemoveLinearKeys.h"
-#include "AnimationCompression.h"
-#include "AnimEncoding.h"
-#include "Misc/FeedbackContext.h"
+#include "Animation/AnimSequence.h"
+#include "AnimationUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimCompress_RemoveLinearKeys)
 

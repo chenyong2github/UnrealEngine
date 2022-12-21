@@ -2,13 +2,10 @@
 
 
 #include "Sound/SoundNodeQualityLevel.h"
-#include "EngineGlobals.h"
 #include "ActiveSound.h"
+#include "EdGraph/EdGraph.h"
 #include "Sound/AudioSettings.h"
 #include "Sound/SoundCue.h"
-#include "Sound/SoundNode.h"
-#include "GameFramework/GameUserSettings.h"
-#include "Engine/Engine.h"
 #include "AudioCompressionSettingsUtils.h"
 
 #if WITH_EDITORONLY_DATA

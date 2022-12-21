@@ -2,19 +2,19 @@
 
 #include "PhysicsField/PhysicsFieldComponent.h"
 #include "ChaosStats.h"
-#include "SceneManagement.h"
-#include "EngineGlobals.h"
 #include "Engine/Engine.h"
+#include "Engine/World.h"
 #include "Field/FieldSystemNodes.h"
 
-#include "RHIStaticStates.h"
 #include "DataDrivenShaderPlatformInfo.h"
-#include "Shader.h"
 #include "GlobalShader.h"
-#include "ShaderParameters.h"
-#include "ShaderParameterStruct.h"
+#include "PipelineStateCache.h"
 #include "ShaderParameterUtils.h"
-#include "RenderGraphUtils.h"
+#include "ProfilingDebugging/RealtimeGPUProfiler.h"
+#include "RHIBreadcrumbs.h"
+#include "RHIContext.h"
+#include "RenderingThread.h"
+#include "SceneInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PhysicsFieldComponent)
 

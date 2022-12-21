@@ -2,11 +2,12 @@
 
 #include "Engine/SubsurfaceProfile.h"
 #include "DataDrivenShaderPlatformInfo.h"
-#include "RendererInterface.h"
+#include "Math/Float16.h"
 #include "Rendering/BurleyNormalizedSSS.h"
 #include "EngineModule.h"
 #include "RenderTargetPool.h"
 #include "PixelShaderUtils.h"
+#include "RenderingThread.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SubsurfaceProfile)
 

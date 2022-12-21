@@ -4,11 +4,10 @@
 	TriggerActors.cpp: Trigger implementation
 =============================================================================*/
 
-#include "CoreMinimal.h"
-#include "Engine/EngineTypes.h"
-#include "GameFramework/Actor.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "Components/BillboardComponent.h"
 #include "Engine/Texture2D.h"
+#include "Engine/TriggerBase.h"
 #include "Engine/TriggerBox.h"
 #include "Engine/TriggerCapsule.h"
 #include "Engine/TriggerSphere.h"

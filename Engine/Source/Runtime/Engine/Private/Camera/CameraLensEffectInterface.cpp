@@ -2,12 +2,11 @@
 
 #include "Camera/CameraLensEffectInterface.h"
 
-#include "Math/Vector.h"
-#include "Math/Rotator.h"
 #include "GameFramework/Actor.h"
 #include "Logging/MessageLog.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "UObject/ScriptInterface.h"
+#include "UObject/Stack.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CameraLensEffectInterface)
 

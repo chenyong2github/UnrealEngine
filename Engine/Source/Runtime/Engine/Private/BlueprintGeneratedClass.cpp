@@ -1,20 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/BlueprintGeneratedClass.h"
+#include "Blueprint/BlueprintSupport.h"
 #include "HAL/IConsoleManager.h"
-#include "Misc/CoreMisc.h"
+#include "EngineLogs.h"
 #include "Stats/StatsMisc.h"
-#include "UObject/UObjectHash.h"
 #include "UObject/CoreNet.h"
 #include "UObject/CoreRedirects.h"
-#include "UObject/Package.h"
-#include "UObject/LinkerLoad.h"
 #include "UObject/ObjectSaveContext.h"
-#include "Serialization/ObjectReader.h"
 #include "Serialization/ObjectWriter.h"
 #include "CookedMetaData.h"
-#include "Engine/Blueprint.h"
-#include "Components/ActorComponent.h"
 #include "Curves/CurveFloat.h"
 #include "Engine/DynamicBlueprintBinding.h"
 #include "Components/TimelineComponent.h"
@@ -22,11 +17,10 @@
 #include "Engine/LevelScriptActor.h"
 #include "Engine/SCS_Node.h"
 #include "Engine/InheritableComponentHandler.h"
-#include "Misc/ScopeLock.h"
-#include "UObject/CoreObjectVersion.h"
 #include "Net/Core/PushModel/PushModel.h"
-#include "UObject/CoreObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
+#include "UObject/Package.h"
+#include "UObject/PrimaryAssetId.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 
@@ -34,11 +28,10 @@
 
 #if WITH_EDITOR
 #include "CookerSettings.h"
+#include "Editor/EditorEngine.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "Kismet2/KismetEditorUtilities.h"
 #include "BlueprintCompilationManager.h"
 #include "Engine/LevelScriptBlueprint.h"
-#include "Editor/EditorEngine.h"
 extern UNREALED_API UEditorEngine* GEditor;
 #endif //WITH_EDITOR
 

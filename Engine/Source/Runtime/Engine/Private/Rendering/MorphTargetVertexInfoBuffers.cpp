@@ -4,7 +4,6 @@
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
 #include "Animation/MorphTarget.h"
-#include "RHI.h"
 #include "DataDrivenShaderPlatformInfo.h"
 
 extern int32 GSkinCacheRecomputeTangents;

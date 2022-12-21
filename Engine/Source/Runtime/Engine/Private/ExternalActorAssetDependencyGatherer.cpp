@@ -3,9 +3,10 @@
 
 #if WITH_EDITOR
 
+#include "AssetRegistry/ARFilter.h"
 #include "Engine/World.h"
+#include "AssetRegistry/AssetRegistryState.h"
 #include "Engine/Level.h"
-#include "HAL/FileManager.h"
 
 // Register FExternalActorAssetDependencyGatherer for UWorld class
 REGISTER_ASSETDEPENDENCY_GATHERER(FExternalActorAssetDependencyGatherer, UWorld);

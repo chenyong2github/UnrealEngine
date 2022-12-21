@@ -4,22 +4,10 @@
 	RendererSupport.cpp: Central place for various rendering functionality that exists in Engine
 =============================================================================*/
 
-#include "CoreMinimal.h"
-#include "HAL/IConsoleManager.h"
 #include "Misc/FeedbackContext.h"
-#include "Modules/ModuleManager.h"
-#include "UObject/UObjectHash.h"
 #include "Engine/Level.h"
-#include "EngineGlobals.h"
-#include "RenderDeferredCleanup.h"
-#include "Containers/List.h"
-#include "Shader.h"
 #include "VertexFactory.h"
-#include "SceneTypes.h"
-#include "Materials/MaterialInterface.h"
-#include "MaterialShared.h"
 #include "Materials/Material.h"
-#include "UObject/UObjectIterator.h"
 #include "ComponentReregisterContext.h"
 #include "UnrealEngine.h"
 #include "Framework/Application/SlateApplication.h"
@@ -30,7 +18,6 @@
 #include "EngineModule.h"
 #include "Misc/HotReloadInterface.h"
 #include "ComponentReregisterContext.h"
-#include "Templates/UniquePtr.h"
 #include "ShaderCompiler.h"
 #include "SceneInterface.h"
 

@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "WorldPartition/ContentBundle/ContentBundleEditorSubsystemInterface.h"
+#include "CoreGlobals.h"
 
 #if WITH_EDITOR
 

@@ -2,13 +2,9 @@
 
 #include "PhysicsEngine/CollisionQueryFilterCallback.h"
 #include "PhysicsEngine/ScopedSQHitchRepeater.h"
-#include "Physics/PhysicsInterfaceUtils.h"
 #include "Physics/PhysicsFiltering.h"
-#include "PhysicsEngine/BodyInstance.h"
 #include "Components/PrimitiveComponent.h"
-#include "Collision.h"
 
-#include "ChaosInterfaceWrapperCore.h"
 #include "Physics/Experimental/ChaosInterfaceWrapper.h"
 #include "Chaos/GeometryParticles.h"
 

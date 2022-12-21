@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BonePose.h"
+#include "Animation/AnimCurveTypes.h"
 #include "AnimationRuntime.h"
 #include "AnimEncoding.h"
-#include "HAL/ThreadSingleton.h"
 #include "Animation/AnimSequenceHelpers.h"
 #if INTEL_ISPC
 #include "BonePose.ispc.generated.h"

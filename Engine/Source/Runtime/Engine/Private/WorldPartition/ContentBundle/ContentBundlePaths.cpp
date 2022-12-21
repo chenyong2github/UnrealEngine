@@ -8,10 +8,8 @@
 #include "WorldPartition/ContentBundle/ContentBundleBase.h"
 #include "WorldPartition/ContentBundle/ContentBundleDescriptor.h"
 #include "Misc/Paths.h"
-#include "Misc/PathViews.h"
 
 #if WITH_EDITOR
-#include "String/Find.h"
 #include "PackageTools.h"
 #endif
 

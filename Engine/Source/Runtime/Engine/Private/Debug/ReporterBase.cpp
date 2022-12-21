@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Debug/ReporterBase.h"
-#include "CanvasItem.h"
 #include "Engine/Canvas.h"
 #include "GlobalRenderResources.h"
 

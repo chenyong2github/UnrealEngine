@@ -3,24 +3,24 @@
 #include "Animation/SkinWeightProfile.h"
 
 #include "Animation/SkinWeightProfileManager.h"
+#include "RenderingThread.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "ContentStreaming.h"
-#include "Engine/GameEngine.h"
+#include "UObject/AnimObjectVersion.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/World.h"
 #include "Rendering/SkeletalMeshRenderData.h"
-#include "Rendering/SkinWeightVertexBuffer.h"
 #include "SkeletalMeshTypes.h"
 #include "UObject/AnimObjectVersion.h"
 #include "UObject/ObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UObjectIterator.h"
-#include "UObject/WeakObjectPtrTemplates.h"
 
 #if WITH_EDITOR
-#include "Animation/DebugSkelMeshComponent.h"
 #include "Rendering/SkeletalMeshLODImporterData.h"
+#else
+#include "Engine/GameEngine.h"
 #endif
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkinWeightProfile)

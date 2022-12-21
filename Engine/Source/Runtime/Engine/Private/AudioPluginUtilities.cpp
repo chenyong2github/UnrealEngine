@@ -2,10 +2,9 @@
 
 #include "AudioPluginUtilities.h"
 
-#include "CoreGlobals.h"
-#include "CoreMinimal.h"
 #include "Features/IModularFeatures.h"
 #include "HAL/IConsoleManager.h"
+#include "IAudioExtensionPlugin.h"
 #include "Misc/ConfigCacheIni.h"
 
 

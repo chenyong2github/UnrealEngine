@@ -2,6 +2,7 @@
 
 #include "VT/RuntimeVirtualTextureVolume.h"
 
+#include "Async/TaskGraphInterfaces.h"
 #include "Components/BoxComponent.h"
 #include "Components/RuntimeVirtualTextureComponent.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"

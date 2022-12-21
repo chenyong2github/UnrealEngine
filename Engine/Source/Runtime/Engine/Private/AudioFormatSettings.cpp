@@ -1,12 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sound/AudioFormatSettings.h"
+#include "Features/IModularFeatures.h"
 #include "Sound/SoundWave.h"
-#include "Algo/Transform.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Containers/UnrealString.h"
 #include "Audio.h"
-#include "AudioMixerTypes.h"
 
 namespace Audio
 {

@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/NetworkObjectList.h"
-#include "Engine/Engine.h"
-#include "Engine/Level.h"
+#include "Engine/NetConnection.h"
 #include "EngineUtils.h"
-#include "Serialization/Archive.h"
 #include "Net/NetworkGranularMemoryLogging.h"
 #include "Engine/ActorChannel.h"
 #include "UObject/Package.h"

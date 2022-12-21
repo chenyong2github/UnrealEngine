@@ -5,21 +5,12 @@ AudioStreaming.cpp: Implementation of audio streaming classes.
 =============================================================================*/
 
 #include "AudioStreamingCache.h"
-#include "Misc/CoreStats.h"
-#include "Sound/AudioSettings.h"
-#include "DerivedDataCacheInterface.h"
-#include "Engine/Canvas.h"
-#include "Serialization/MemoryReader.h"
-#include "HAL/PlatformFile.h"
-#include "HAL/PlatformFileManager.h"
-#include "Async/AsyncFileHandle.h"
 #include "Async/Async.h"
-#include "Misc/ScopeLock.h"
-#include "HAL/IConsoleManager.h"
-#include "HAL/LowLevelMemTracker.h"
-#include "AudioDecompress.h"
-#include "AudioDevice.h"
+#include "Audio.h"
 #include "AudioCompressionSettingsUtils.h"
+#include "CanvasTypes.h"
+#include "Engine/Engine.h"
+#include "Stats/StatsTrace.h"
 
 
 DEFINE_LOG_CATEGORY(LogAudioStreamCaching);
@@ -1857,7 +1848,6 @@ void FAudioChunkCache::SetCacheLookupIDForChunk(const FChunkKey& InChunkKey, uin
 }
 
 
-#include "UnrealEngine.h"
 
 int32 FCachedAudioStreamingManager::RenderStatAudioStreaming(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation)
 {
@@ -1939,6 +1929,7 @@ uint64 FCachedAudioStreamingManager::TrimMemory(uint64 NumBytesToFree)
 	return TotalBytesFreed;
 }
 
+#include "CanvasTypes.h"
 #include "Engine/Font.h"
 
 TPair<int, int> FAudioChunkCache::DebugDisplayLegacy(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation) const

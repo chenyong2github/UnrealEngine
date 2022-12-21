@@ -5,7 +5,6 @@
 #include "Engine/World.h"
 #include "PackedLevelActor/PackedLevelActorBuilder.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
-#include "Components/InstancedStaticMeshComponent.h"
 #include "LevelInstance/LevelInstancePrivate.h"
 #include "UObject/Package.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"

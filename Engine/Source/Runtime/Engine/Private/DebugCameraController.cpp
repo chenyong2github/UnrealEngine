@@ -6,26 +6,23 @@
 =============================================================================*/
 
 #include "Engine/DebugCameraController.h"
+#include "Components/MeshComponent.h"
 #include "Engine/DebugCameraControllerSettings.h"
-#include "EngineGlobals.h"
 #include "Components/InputComponent.h"
-#include "CollisionQueryParams.h"
-#include "Engine/World.h"
-#include "Components/StaticMeshComponent.h"
-#include "Engine/MapBuildDataRegistry.h"
 #include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
 #include "Engine/Player.h"
-#include "Materials/Material.h"
+#include "FinalPostProcessSettings.h"
 #include "ShaderCore.h"
 #include "EngineUtils.h"
 #include "GameFramework/SpectatorPawn.h"
 #include "GameFramework/SpectatorPawnMovement.h"
 #include "Engine/DebugCameraHUD.h"
-#include "LightMap.h"
 #include "Components/DrawFrustumComponent.h"
 #include "GameFramework/PlayerInput.h"
 #include "GameFramework/GameStateBase.h"
 #include "BufferVisualizationData.h"
+#include "Materials/MaterialInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DebugCameraController)
 

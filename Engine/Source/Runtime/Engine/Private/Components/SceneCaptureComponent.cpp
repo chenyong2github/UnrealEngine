@@ -5,12 +5,10 @@
 =============================================================================*/
 
 #include "Components/SceneCaptureComponent.h"
-#include "Misc/ScopeLock.h"
-#include "UObject/RenderingObjectVersion.h"
+#include "Camera/CameraTypes.h"
 #include "UObject/EditorObjectVersion.h"
+#include "SceneInterface.h"
 #include "UObject/ConstructorHelpers.h"
-#include "GameFramework/Actor.h"
-#include "RenderingThread.h"
 #include "Components/StaticMeshComponent.h"
 #include "Materials/Material.h"
 #include "Components/BillboardComponent.h"
@@ -30,8 +28,6 @@
 #include "PlanarReflectionSceneProxy.h"
 #include "Components/BoxComponent.h"
 #include "Logging/MessageLog.h"
-#include "Engine/BlueprintGeneratedClass.h"
-#include "Engine/SimpleConstructionScript.h"
 #include "Engine/SCS_Node.h"
 #include "Engine/TextureRenderTarget2D.h"
 

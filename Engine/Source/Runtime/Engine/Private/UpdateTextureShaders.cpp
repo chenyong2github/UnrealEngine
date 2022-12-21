@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UpdateTextureShaders.h"
+#include "Misc/DelayedAutoRegister.h"
 
 IMPLEMENT_TYPE_LAYOUT(FUpdateTexture2DSubresourceCS);
 

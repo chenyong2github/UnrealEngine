@@ -2,7 +2,6 @@
 
 #include "Engine/SkinnedAssetAsyncCompileUtils.h"
 #include "Engine/SkinnedAsset.h"
-#include "Engine/SkeletalMesh.h"
 
 #if WITH_EDITOR
 

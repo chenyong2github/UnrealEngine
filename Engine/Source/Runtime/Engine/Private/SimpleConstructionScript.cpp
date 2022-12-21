@@ -1,12 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/SimpleConstructionScript.h"
-#include "Engine/Blueprint.h"
 #include "Components/InputComponent.h"
-#include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/SCS_Node.h"
+#include "EngineLogs.h"
 #include "UObject/BlueprintsObjectVersion.h"
-#include "UObject/LinkerLoad.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SimpleConstructionScript)
 
@@ -14,7 +12,6 @@
 #include "Kismet2/CompilerResultsLog.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/ComponentEditorUtils.h"
-#include "Kismet2/Kismet2NameValidators.h"
 #endif
 
 //////////////////////////////////////////////////////////////////////////

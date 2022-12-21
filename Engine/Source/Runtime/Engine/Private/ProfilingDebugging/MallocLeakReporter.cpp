@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ProfilingDebugging/MallocLeakReporter.h"
-#include "Misc/Parse.h"
-#include "Containers/Ticker.h"
-#include "UObject/UObjectGlobals.h"
+#include "Engine/Engine.h"
 #include "Misc/Paths.h"
+#include "Engine/World.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogLeakDetector, Log, All);

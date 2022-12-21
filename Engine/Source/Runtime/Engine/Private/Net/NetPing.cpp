@@ -4,6 +4,7 @@
 #include "Stats/Stats.h"
 #include "Icmp.h"
 #include "Net/DataChannel.h"
+#include "Stats/StatsTrace.h"
 
 
 #if STATS

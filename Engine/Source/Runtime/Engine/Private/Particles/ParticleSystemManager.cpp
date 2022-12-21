@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Particles/ParticleSystemManager.h"
+#include "Misc/App.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "ParticleHelper.h"
+#include "Particles/ParticleSystem.h"
 #include "UObject/UObjectIterator.h"
 #include "FXSystem.h"
 #include "Distributions/Distribution.h"
-#include "Async/ParallelFor.h"
 #include "Particles/ParticleEmitter.h"
 #include "Particles/ParticlePerfStatsManager.h"
 

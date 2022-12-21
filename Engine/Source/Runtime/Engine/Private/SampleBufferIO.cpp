@@ -1,12 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sound/SampleBufferIO.h"
-#include "AudioMixer.h"
 #include "HAL/PlatformFileManager.h"
-#include "GenericPlatform/GenericPlatformFile.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/PackageName.h"
-#include "Sound/SoundWave.h"
 #include "AudioDevice.h"
 #include "Async/Async.h"
 #include "UObject/Package.h"

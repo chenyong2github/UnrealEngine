@@ -2,23 +2,17 @@
 
 #include "Physics/ImmediatePhysics/ImmediatePhysicsChaos/ImmediatePhysicsActorHandle_Chaos.h"
 
-#include "Chaos/Box.h"
-#include "Chaos/Capsule.h"
-#include "Chaos/Evolution/PBDMinEvolution.h"
-#include "Chaos/ImplicitObjectScaled.h"
+#include "BodySetupEnums.h"
 #include "Chaos/MassProperties.h"
+#include "Chaos/PBDRigidsSOAs.h"
 #include "Chaos/Particle/ParticleUtilities.h"
-#include "Chaos/ParticleHandle.h"
-#include "Chaos/PBDRigidParticles.h"
-#include "Chaos/PBDRigidsEvolutionGBF.h"
-#include "Chaos/Sphere.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
-#include "Chaos/Utilities.h"
 
 #include "Physics/Experimental/ChaosInterfaceUtils.h"
 
-#include "PhysicsEngine/BodyInstance.h"
+#include "Physics/ImmediatePhysics/ImmediatePhysicsShared/ImmediatePhysicsCore.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "Physics/PhysicsInterfaceTypes.h"
 #include "PhysicsEngine/BodyUtils.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 

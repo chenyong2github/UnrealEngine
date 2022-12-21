@@ -1,11 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Commandlets/Commandlet.h"
+#include "Engine/World.h"
 #include "Misc/AutomationTest.h"
 
 #include "Engine/Engine.h"
 #include "EngineModule.h"
+#include "Misc/App.h"
 #include "RenderingThread.h"
+#include "Misc/CoreDelegates.h"
 #include "RendererInterface.h"
 #include "HAL/ThreadManager.h"
 #include "Framework/Application/SlateApplication.h"

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HLOD/HLODProxyMesh.h"
+#include "Engine/LODActor.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HLODProxyMesh)
 

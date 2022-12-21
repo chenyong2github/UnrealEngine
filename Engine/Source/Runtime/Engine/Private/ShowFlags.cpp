@@ -5,7 +5,9 @@
 =============================================================================*/
 
 #include "ShowFlags.h"
+#include "Engine/EngineBaseTypes.h"
 #include "HAL/IConsoleManager.h"
+#include "Misc/ScopeRWLock.h"
 #include "SystemSettings.h"
 
 static bool IsValidNameChar(TCHAR c)
@@ -140,7 +142,7 @@ bool FEngineShowFlags::GetSingleFlag(uint32 Index) const
 	switch( Index )
 	{
 	#define SHOWFLAG_ALWAYS_ACCESSIBLE(a,...) case SF_##a: return a != 0;
-	#include "ShowFlagsValues.inl"
+	#include "ShowFlagsValues.inl" // IWYU pragma: keep
 	default:
 		if (Index >= SF_FirstCustom)
 		{
@@ -180,7 +182,7 @@ void FEngineShowFlags::SetSingleFlag(uint32 Index, bool bSet)
 	#if UE_BUILD_OPTIMIZED_SHOWFLAGS 
 		#define SHOWFLAG_FIXED_IN_SHIPPING(v,a,...) case SF_##a: break;
 	#endif
-	#include "ShowFlagsValues.inl"
+	#include "ShowFlagsValues.inl" // IWYU pragma: keep
 	default:
 		UpdateNewCustomShowFlags();
 		if (Index >= SF_FirstCustom && (Index - SF_FirstCustom) < (uint32)CustomShowFlags.Num())
@@ -209,7 +211,7 @@ int32 FEngineShowFlags::FindIndexByName(const TCHAR* Name, const TCHAR* CommaSep
 
 		#define SHOWFLAG_ALWAYS_ACCESSIBLE(a,...) if(Search == PREPROCESSOR_TO_STRING(a)) { return (int32)SF_##a; }
 
-		#include "ShowFlagsValues.inl"
+		#include "ShowFlagsValues.inl" // IWYU pragma: keep
 
 		ECustomShowFlag CustomFlagIndex = FindCustomShowFlagByName(Name);
 		if (CustomFlagIndex != ECustomShowFlag::None)
@@ -259,7 +261,7 @@ FString FEngineShowFlags::FindNameByIndex(uint32 InIndex)
 
 	switch (InIndex)
 	{
-		#include "ShowFlagsValues.inl"
+		#include "ShowFlagsValues.inl" // IWYU pragma: keep
 	default:
 		return GetCustomShowFlagName(ECustomShowFlag(InIndex - SF_FirstCustom));
 		break;
@@ -275,7 +277,7 @@ void FEngineShowFlags::AddNameByIndex(uint32 InIndex, FString& Out)
 	#define SHOWFLAG_ALWAYS_ACCESSIBLE(a,...) case SF_##a: Out += PREPROCESSOR_TO_STRING(a); break;
 	switch (InIndex)
 	{
-		#include "ShowFlagsValues.inl"
+		#include "ShowFlagsValues.inl" // IWYU pragma: keep
 		default:
 			FString Name = GetCustomShowFlagName(ECustomShowFlag(InIndex - SF_FirstCustom));
 			if (Name.IsEmpty() == false)

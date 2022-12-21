@@ -1,21 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Camera/CameraShakeSourceComponent.h"
-#include "Camera/CameraModifier_CameraShake.h"
 #include "Camera/CameraShakeBase.h"
-#include "CinematicCameraModule.h"
 #include "Components/BillboardComponent.h"
-#include "Engine/Engine.h"
 #include "Engine/Texture2D.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
-#include "Modules/ModuleManager.h"
 #include "UObject/ConstructorHelpers.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CameraShakeSourceComponent)
 
 #if WITH_EDITOR
 #include "Framework/Notifications/NotificationManager.h"
+#include "UObject/UnrealType.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #endif
 

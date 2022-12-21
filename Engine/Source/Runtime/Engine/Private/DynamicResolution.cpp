@@ -4,14 +4,11 @@
 #include "DynamicResolutionState.h"
 
 #include "Engine/Engine.h"
+#include "Misc/App.h"
 #include "RenderingThread.h"
+#include "RenderTimer.h"
 #include "SceneView.h"
-#include "RenderCore.h"
-#include "RHI.h"
-#include "RHICommandList.h"
-#include "DynamicRHI.h"
-#include "UnrealEngine.h"
-#include "RenderGraphEvent.h"
+#include "Stats/StatsTrace.h"
 
 #if PLATFORM_DESKTOP
 	#define COMPILE_DYNAMIC_FRAME_TIME 1

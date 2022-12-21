@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/ServerStatReplicator.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "Net/UnrealNetwork.h"
-#include "Stats/Stats.h"
 #include "EngineStats.h"
-#include "Engine/World.h"
 #include "Engine/NetDriver.h"
+#include "Stats/StatsTrace.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ServerStatReplicator)
 

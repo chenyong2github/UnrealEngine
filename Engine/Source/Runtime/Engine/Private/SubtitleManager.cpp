@@ -1,14 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SubtitleManager.h"
-#include "EngineGlobals.h"
 #include "Engine/Engine.h"
 #include "CanvasItem.h"
 #include "CanvasTypes.h"
 #include "Audio.h"
 #include "Components/AudioComponent.h"
 #include "AudioThread.h"
+#include "Engine/World.h"
 #include "UnrealClient.h"
+#include "EngineLogs.h"
 
 DEFINE_LOG_CATEGORY(LogSubtitle);
 

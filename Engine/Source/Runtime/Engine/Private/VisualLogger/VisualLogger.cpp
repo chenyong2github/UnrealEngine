@@ -1,20 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VisualLogger/VisualLogger.h"
-#include "Misc/CoreMisc.h"
 #include "EngineStats.h"
-#include "GameFramework/Actor.h"
-#include "Modules/ModuleInterface.h"
 #include "Misc/CommandLine.h"
-#include "Serialization/CustomVersion.h"
 #include "Modules/ModuleManager.h"
-#include "AI/NavDataGenerator.h"
+#include "AI/NavDataGenerator.h" // IWYU pragma: keep
 #include "AI/NavigationSystemBase.h"
 #include "Framework/Docking/TabManager.h"
 #include "VisualLogger/VisualLoggerBinaryFileDevice.h"
+#include "VisualLogger/VisualLoggerCustomVersion.h"
 #include "VisualLogger/VisualLoggerTraceDevice.h"
 #include "VisualLogger/VisualLoggerDebugSnapshotInterface.h"
-#include "Engine/Engine.h"
 
 #if WITH_EDITOR
 #include "Editor/EditorEngine.h"

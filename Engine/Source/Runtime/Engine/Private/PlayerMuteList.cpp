@@ -3,9 +3,6 @@
 #include "GameFramework/PlayerMuteList.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
-#include "Engine/LocalPlayer.h"
-#include "Net/OnlineEngineInterface.h"
-#include "GameFramework/GameSession.h"
 #include "GameFramework/PlayerState.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PlayerMuteList)

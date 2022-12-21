@@ -1,9 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Rendering/SkeletalMeshVertexBuffer.h"
+#include "Containers/ClosableMpscQueue.h"
 #include "EngineUtils.h"
-#include "SkeletalMeshTypes.h"
-#include "Rendering/SkeletalMeshLODModel.h"
+#include "EngineLogs.h"
+#include "Experimental/Containers/HazardPointer.h"
+#include "RHI.h"
+#include "SkeletalMeshLegacyCustomVersions.h"
 
 /**
 * Destructor

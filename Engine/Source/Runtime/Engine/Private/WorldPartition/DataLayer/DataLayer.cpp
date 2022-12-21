@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "WorldPartition/DataLayer/DataLayer.h"
+#include "UObject/UnrealType.h"
 #include "WorldPartition/DataLayer/DataLayerUtils.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 

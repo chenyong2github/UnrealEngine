@@ -5,27 +5,16 @@
 =============================================================================*/ 
 
 #include "PhysicalMaterials/PhysicalMaterialMask.h"
+#include "Physics/Experimental/PhysInterface_Chaos.h"
+#include "UObject/UnrealType.h"
 
 #if WITH_EDITOR
 
+#include "AssetRegistry/AssetData.h"
 #include "EditorFramework/AssetImportData.h"
-#include "Editor.h"
-#include "EditorDirectories.h"
-#include "ObjectTools.h"
-#include "PackageTools.h"
 #include "Modules/ModuleManager.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "AssetToolsModule.h"
-#include "IAssetTools.h"
-#include "DesktopPlatformModule.h"
-#include "IDesktopPlatform.h"
 #include "Engine/Texture.h"
-#include "Factories/TextureFactory.h"
-#include "HAL/PlatformApplicationMisc.h"
-#include "HAL/FileManager.h"
-#include "Misc/FileHelper.h"
-#include "Misc/Paths.h"
-#include "Misc/PackageName.h"
 
 #endif
 

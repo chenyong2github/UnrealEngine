@@ -6,6 +6,7 @@ BurleyNormalizedSSS.cpp: Compute the transmition profile for Burley normalized S
 
 
 #include "Rendering/BurleyNormalizedSSS.h"
+#include "Math/Vector.h"
 
 // estimated from the sampling interval, 1/TargetBufferSize(1/32) and MaxTransmissionProfileDistance. If any is changed, this parameter should be re-estimated.
 const float ProfileRadiusOffset = 0.06;

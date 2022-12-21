@@ -5,12 +5,10 @@
 #include "Scalability.h"
 #include "UObject/Package.h"
 #include "UObject/UnrealType.h"
-#include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "HAL/IConsoleManager.h"
 
 #include "DeviceProfiles/DeviceProfileFragment.h"
-#include "DeviceProfiles/DeviceProfileManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DeviceProfile)
 

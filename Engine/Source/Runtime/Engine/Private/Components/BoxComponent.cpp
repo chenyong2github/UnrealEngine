@@ -2,12 +2,12 @@
 
 
 #include "Components/BoxComponent.h"
-#include "WorldCollision.h"
+#include "CollisionShape.h"
+#include "PhysicsEngine/BodySetup.h"
 #include "PrimitiveViewRelevance.h"
 #include "PrimitiveSceneProxy.h"
 #include "SceneManagement.h"
 #include "PhysicsEngine/BoxElem.h"
-#include "PhysicsEngine/BodySetup.h"
 #include "PrimitiveSceneProxy.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BoxComponent)

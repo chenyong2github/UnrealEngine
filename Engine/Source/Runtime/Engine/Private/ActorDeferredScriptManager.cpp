@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ActorDeferredScriptManager.h"
-#include "CoreGlobals.h"
 #include "GameFramework/Actor.h"
 #include "StaticMeshCompiler.h"
 

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/HLOD/HLODStats.h"
+#include "UObject/NameTypes.h"
 
 
 const FName FWorldPartitionHLODStats::InputActorCount(TEXT("InputActorCount"));

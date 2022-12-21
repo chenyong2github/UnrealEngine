@@ -6,6 +6,7 @@
 
 #include "Curves/CurveLinearColor.h"
 #include "CanvasItem.h"
+#include "Math/Float16Color.h"
 #include "UObject/ReleaseObjectVersion.h"
 #include "Logging/MessageLog.h"
 

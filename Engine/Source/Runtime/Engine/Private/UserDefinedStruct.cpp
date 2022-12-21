@@ -1,23 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/UserDefinedStruct.h"
+#include "Templates/SubclassOf.h"
 #include "UObject/Package.h"
 #include "UObject/Package.h"
-#include "UObject/UObjectHash.h"
-#include "UObject/StructOnScope.h"
 #include "UObject/UnrealType.h"
 #include "UObject/LinkerLoad.h"
 #include "UObject/ObjectSaveContext.h"
 #include "CookedMetaData.h"
 #include "UObject/FrameworkObjectVersion.h"
-#include "Misc/SecureHash.h"
-#include "UObject/PropertyPortFlags.h"
 #include "Misc/PackageName.h"
 #include "Blueprint/BlueprintSupport.h"
 
 #if WITH_EDITOR
 #include "UserDefinedStructure/UserDefinedStructEditorData.h"
-#include "Kismet2/StructureEditorUtils.h"
 #endif //WITH_EDITOR
 
 FUserStructOnScopeIgnoreDefaults::FUserStructOnScopeIgnoreDefaults(const UUserDefinedStruct* InUserStruct)

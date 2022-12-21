@@ -3,8 +3,10 @@
 #include "Engine/SkinnedAsset.h"
 #include "Engine/SkinnedAssetAsyncCompileUtils.h"
 #include "Engine/SkinnedAssetCommon.h"
+#include "Engine/World.h"
 #include "SkinnedAssetCompiler.h"
 #include "Animation/AnimStats.h"
+#include "Materials/MaterialInterface.h"
 #include "SkeletalRenderGPUSkin.h"
 #include "PSOPrecache.h"
 

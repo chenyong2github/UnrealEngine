@@ -5,13 +5,13 @@
 =============================================================================*/
 
 #include "Engine/TextureRenderTargetCube.h"
-#include "RenderUtils.h"
+#include "RenderingThread.h"
 #include "TextureResource.h"
+#include "UObject/UnrealType.h"
 #include "UnrealEngine.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Engine/TextureCube.h"
-#include "ClearQuad.h"
 #if WITH_EDITOR
 #include "Components/SceneCaptureComponentCube.h"
 #include "UObject/UObjectIterator.h"

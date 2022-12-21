@@ -6,17 +6,12 @@ Texture2DMipDataProvider_DDC.cpp : Implementation of FTextureMipDataProvider usi
 
 #include "Texture2DMipDataProvider_DDC.h"
 #include "EngineLogs.h"
-#include "Engine/Texture.h"
 #include "Rendering/StreamableTextureResource.h"
-#include "SceneTypes.h"
 #include "Serialization/MemoryReader.h"
-#include "Streaming/TextureStreamingHelpers.h"
-#include "TextureResource.h"
 
 #if WITH_EDITORONLY_DATA
 
 #include "DerivedDataCache.h"
-#include "DerivedDataCacheKey.h"
 
 FTexture2DMipDataProvider_DDC::FTexture2DMipDataProvider_DDC(const UTexture* Texture)
 	: FTextureMipDataProvider(Texture, ETickState::Init, ETickThread::Async)

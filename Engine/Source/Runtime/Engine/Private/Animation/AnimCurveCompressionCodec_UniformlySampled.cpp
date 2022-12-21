@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimCurveCompressionCodec_UniformlySampled.h"
-#include "Animation/AnimSequence.h"
-#include "Serialization/MemoryWriter.h"
+#include "Animation/AnimCompressionTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimCurveCompressionCodec_UniformlySampled)
 

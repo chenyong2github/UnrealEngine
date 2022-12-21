@@ -4,11 +4,6 @@
 
 #if WITH_EDITOR
 #include "Landscape.h"
-#include "LandscapeInfo.h"
-#include "LandscapeProxy.h"
-#include "LandscapeStreamingProxy.h"
-#include "WorldPartition/ActorDescContainer.h"
-#include "WorldPartition/WorldPartitionHandle.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 

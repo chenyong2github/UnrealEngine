@@ -6,19 +6,17 @@
 
 #include "GameFramework/GameMode.h"
 #include "Engine/GameInstance.h"
-#include "EngineGlobals.h"
 #include "Engine/Engine.h"
+#include "Engine/World.h"
 #include "GameFramework/WorldSettings.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/NetDriver.h"
-#include "GameFramework/LocalMessage.h"
 #include "GameFramework/EngineMessage.h"
 #include "GameFramework/GameState.h"
 #include "GameFramework/PlayerState.h"
 #include "GameFramework/GameSession.h"
 #include "GameFramework/CheatManager.h"
 #include "GameDelegates.h"
-#include "GameMapsSettings.h"
 #include "MoviePlayerProxy.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameMode)

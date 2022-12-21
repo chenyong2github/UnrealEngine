@@ -4,10 +4,8 @@
 
 #if WITH_EDITOR
 
+#include "Engine/World.h"
 #include "WorldPartition/WorldPartition.h"
-#include "WorldPartition/WorldPartitionSubsystem.h"
-#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
-#include "WorldPartition/HLOD/HLODSubsystem.h"
 #include "Engine/LODActor.h"
 #include "Engine/LevelBounds.h"
 #include "Engine/LevelStreaming.h"

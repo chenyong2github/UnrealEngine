@@ -1,18 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Slate/SlateGameResources.h"
-#include "Curves/CurveBase.h"
-#include "Curves/CurveFloat.h"
 #include "AssetRegistry/AssetData.h"
+#include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
+#include "Styling/SlateWidgetStyle.h"
 #include "Styling/SlateWidgetStyleAsset.h"
 #include "EngineUtils.h"
 #include "Slate/SlateBrushAsset.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
 #include "Curves/CurveVector.h"
 #include "Curves/CurveLinearColor.h"
+#include "Styling/SlateWidgetStyleContainerBase.h"
 
 TSharedRef<FSlateGameResources> FSlateGameResources::New( const FName& InStyleSetName, const FString& ScopeToDirectory, const FString& InBasePath )
 {

@@ -5,9 +5,11 @@
 ==============================================================================*/
 
 #include "SimpleElementShaders.h"
+#include "Engine/EngineTypes.h"
 #include "ShaderParameterUtils.h"
+#include "Misc/DelayedAutoRegister.h"
 #include "SceneView.h"
-#include "Misc/LargeWorldRenderPosition.h"
+#include "RHIContext.h"
 #include "SceneRelativeViewMatrices.h"
 
 /*------------------------------------------------------------------------------

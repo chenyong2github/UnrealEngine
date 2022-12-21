@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/ExposedValueHandler.h"
-#include "UObject/Class.h"
 #include "Animation/AnimSubsystem_PropertyAccess.h"
 #include "Animation/AnimNodeBase.h"
-#include "Animation/AnimClassInterface.h"
 #include "Animation/AnimInstanceProxy.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ExposedValueHandler)

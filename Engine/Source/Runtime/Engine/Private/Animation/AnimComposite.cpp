@@ -5,8 +5,9 @@
 =============================================================================*/ 
 
 #include "Animation/AnimComposite.h"
+#include "Animation/AnimData/IAnimationDataController.h"
 #include "Animation/AnimationPoseData.h"
-#include "Animation/AttributesRuntime.h"
+#include "EngineLogs.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimComposite)
 

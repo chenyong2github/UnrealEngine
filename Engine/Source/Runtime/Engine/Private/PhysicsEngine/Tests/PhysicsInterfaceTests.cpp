@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
-#include "Physics/Tests/PhysicsTestHelpers.h"
-#include "Physics/PhysicsInterfaceCore.h"
+#include "Physics/Experimental/PhysInterface_Chaos.h"
+#include "PhysicsInterfaceTypesCore.h"
 #if WITH_EDITOR
-#include "Tests/AutomationEditorCommon.h"
 #endif
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPhysicsInterfaceTest, "System.Physics.Interface.ObjectCreation", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

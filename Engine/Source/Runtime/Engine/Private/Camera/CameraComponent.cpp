@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Camera/CameraComponent.h"
+#include "Camera/CameraTypes.h"
 #include "UObject/ConstructorHelpers.h"
-#include "EngineGlobals.h"
+#include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/Controller.h"
 #include "Components/StaticMeshComponent.h"
@@ -10,17 +11,15 @@
 #include "Engine/Engine.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/StaticMesh.h"
-#include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 #include "Rendering/MotionVectorSimulation.h"
 #include "Misc/MapErrors.h"
 #include "Components/DrawFrustumComponent.h"
-#include "IHeadMountedDisplay.h"
 #include "IXRTrackingSystem.h"
 #include "IXRCamera.h"
 #include "Math/UnitConversion.h"
-#include "Widgets/Input/NumericTypeInterface.h"
+#include "UObject/UnrealType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CameraComponent)
 

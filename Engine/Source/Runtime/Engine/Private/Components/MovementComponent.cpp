@@ -2,13 +2,11 @@
 
 
 #include "GameFramework/MovementComponent.h"
-#include "CollisionQueryParams.h"
 #include "Engine/World.h"
 #include "Components/PrimitiveComponent.h"
 #include "GameFramework/PhysicsVolume.h"
 #include "Logging/MessageLog.h"
 #include "PhysicsEngine/PhysicsSettings.h"
-#include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovementComponent)

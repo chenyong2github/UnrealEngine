@@ -1,15 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataStreamChannel.h"
-#include "Engine/NetConnection.h"
-#include "Net/Core/Misc/ResizableCircularQueue.h"
-#include "Net/DataBunch.h"
-#include "Net/Core/Trace/NetTrace.h"
-#include "PacketHandler.h"
+#include "HAL/IConsoleManager.h"
+#include "Templates/Casts.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DataStreamChannel)
 
 #if UE_WITH_IRIS
+#include "Engine/NetConnection.h"
 #include "Iris/IrisConfig.h"
 #include "Iris/DataStream/DataStreamManager.h"
 #include "Iris/PacketControl/PacketNotification.h"
@@ -19,9 +17,13 @@
 #include "Iris/Serialization/NetSerializationContext.h"
 #include "Iris/Core/IrisProfiler.h"
 #include "Iris/Core/IrisMemoryTracker.h"
-#include "ProfilingDebugging/CsvProfiler.h"
 #include "PacketHandler.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 #endif // UE_WITH_IRIS
+
+#if UE_WITH_IRIS && UE_NET_TRACE_ENABLED
+#include "Net/Core/Trace/NetTrace.h"
+#endif
 
 namespace UE::Net::Private
 {

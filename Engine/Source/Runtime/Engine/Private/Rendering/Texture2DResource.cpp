@@ -8,7 +8,6 @@
 #include "EngineLogs.h"
 #include "Engine/Texture2D.h"
 #include "RenderUtils.h"
-#include "SceneTypes.h"
 #include "RenderingThread.h"
 #include "Containers/ResourceArray.h"
 

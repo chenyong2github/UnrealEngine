@@ -5,11 +5,9 @@ AsyncTextureStreaming.cpp: Definitions of classes used for texture streaming asy
 =============================================================================*/
 
 #include "Streaming/AsyncTextureStreaming.h"
-#include "Misc/App.h"
 #include "RHI.h"
 #include "Streaming/StreamingManagerTexture.h"
 #include "Engine/Level.h"
-#include "Engine/World.h"
 
 void FAsyncRenderAssetStreamingData::Init(
 	TArray<FStreamingViewInfo> InViewInfos,

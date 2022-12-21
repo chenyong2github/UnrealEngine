@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimationAsset.h"
+#include "Animation/AnimData/IAnimationDataController.h"
 #include "Animation/AnimMontage.h"
 #include "Engine/AssetUserData.h"
 #include "Engine/SkeletalMesh.h"
@@ -8,13 +9,10 @@
 #include "Animation/AnimMetaData.h"
 #include "Animation/AnimSequence.h"
 #include "AnimationUtils.h"
-#include "Animation/AnimInstance.h"
 #include "UObject/LinkerLoad.h"
 #include "Animation/BlendSpace.h"
 #include "Animation/PoseAsset.h"
-#include "Animation/AnimSequenceHelpers.h"
 #include "Animation/AnimNodeBase.h"
-#include "UObject/UObjectThreadContext.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimationAsset)
 

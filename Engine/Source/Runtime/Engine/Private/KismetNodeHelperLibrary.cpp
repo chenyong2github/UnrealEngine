@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Kismet/KismetNodeHelperLibrary.h"
-#include "EngineLogs.h"
 #include "Misc/RuntimeErrors.h"
+#include "UObject/Class.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(KismetNodeHelperLibrary)
 

@@ -5,11 +5,9 @@
 =============================================================================*/ 
 
 #include "AnimEncoding_PerTrackCompression.h"
-#include "HAL/IConsoleManager.h"
-#include "Serialization/MemoryWriter.h"
-#include "Serialization/MemoryReader.h"
-#include "Animation/AnimEncodingHeapAllocator.h"
+#include "Animation/AnimCompressionTypes.h"
 #include "AnimationCompression.h"
+#include "Animation/AnimSequenceDecompressionContext.h"
 #if INTEL_ISPC
 #include "AnimEncoding_PerTrackCompression.ispc.generated.h"
 

@@ -2,11 +2,11 @@
 
 
 #include "Sound/SoundNode.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EngineUtils.h"
 #include "Sound/SoundCue.h"
 #include "Misc/App.h"
 #include "Sound/SoundNodeWavePlayer.h"
-#include "ContentStreaming.h"
 #include "AudioCompressionSettingsUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SoundNode)

@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DistributedBuildControllerInterface.h"
+#include "Async/Future.h"
 #include "HAL/FileManager.h"
+#include "Misc/CommandLine.h"
 #include "ShaderCompiler.h"
 
 namespace DistributedShaderCompilerVariables

@@ -3,8 +3,6 @@
 
 #if WITH_EDITOR
 
-#include "Engine/World.h"
-#include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/WorldPartition.h"
 

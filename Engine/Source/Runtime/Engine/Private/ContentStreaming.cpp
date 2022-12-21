@@ -5,27 +5,19 @@
 =============================================================================*/
 
 #include "ContentStreaming.h"
-#include "Engine/Texture2D.h"
-#include "Engine/StaticMesh.h"
-#include "Engine/SkeletalMesh.h"
-#include "LandscapeComponent.h"
-#include "Misc/CommandLine.h"
-#include "Misc/ConfigCacheIni.h"
-#include "UObject/UObjectHash.h"
-#include "UObject/UObjectIterator.h"
-#include "EngineGlobals.h"
-#include "Components/MeshComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "Engine/Engine.h"
+#include "Engine/Texture2D.h"
+#include "Misc/ConfigCacheIni.h"
+#include "RHI.h"
+#include "UObject/UObjectIterator.h"
 #include "Engine/Level.h"
-#include "Streaming/TextureStreamingHelpers.h"
+#include "RenderingThread.h"
 #include "Streaming/StreamingManagerTexture.h"
-#include "AudioStreaming.h"
 #include "Animation/AnimationStreaming.h"
 #include "AudioStreamingCache.h"
 #include "AudioCompressionSettingsUtils.h"
 #include "VT/VirtualTextureChunkManager.h"
-#include "Interfaces/ITargetPlatform.h"
-#include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Rendering/NaniteCoarseMeshStreamingManager.h"
 
 /*-----------------------------------------------------------------------------
@@ -1240,7 +1232,6 @@ void FStreamingManagerCollection::PropagateLightingScenarioChange()
 
 #if WITH_EDITOR
 #include "AudioDevice.h"
-#include "AudioDeviceManager.h"
 
 void FStreamingManagerCollection::OnAudioStreamingParamsChanged()
 {

@@ -10,9 +10,7 @@
 
 #if WITH_EDITOR
 
-#include "Engine/TextureStreamingTypes.h"
 #include "Engine/Texture.h"
-#include "Misc/Crc.h"
 
 void UActorTextureStreamingBuildDataComponent::InitializeTextureStreamingContainer(uint32 InPackedTextureStreamingQualityLevelFeatureLevel)
 {

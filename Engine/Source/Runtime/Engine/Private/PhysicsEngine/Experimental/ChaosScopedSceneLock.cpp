@@ -2,7 +2,7 @@
 
 #include "Physics/Experimental/ChaosScopedSceneLock.h"
 
-#include "Chaos/ChaosEngineInterface.h"
+#include "Chaos/PBDJointConstraintData.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
 #include "PhysicsEngine/ConstraintInstance.h"
 #include "PhysicsEngine/PhysicsObjectExternalInterface.h"

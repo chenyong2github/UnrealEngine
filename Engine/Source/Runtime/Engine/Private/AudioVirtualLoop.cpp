@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "AudioVirtualLoop.h"
 
-#include "ActiveSound.h"
 #include "Audio/AudioDebug.h"
 #include "AudioDevice.h"
 #include "AudioMixerTrace.h"
-#include "Sound/SoundBase.h"
 
 
 static int32 bVirtualLoopsEnabledCVar = 1;

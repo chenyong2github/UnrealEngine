@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimSubsystem_Base.h"
+#include "Animation/AnimSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimSubsystem_Base)
 

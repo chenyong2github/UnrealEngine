@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameDelegates.h"
+#include "Delegates/DelegateBase.h"
 
 FGameDelegates& FGameDelegates::Get()
 {

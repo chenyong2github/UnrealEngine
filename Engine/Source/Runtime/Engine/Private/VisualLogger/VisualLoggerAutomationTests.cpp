@@ -1,14 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VisualLogger/VisualLoggerAutomationTests.h"
+#include "Engine/World.h"
 #include "Misc/AutomationTest.h"
-#include "EngineDefines.h"
-#include "EngineGlobals.h"
 #include "Engine/Engine.h"
 #include "Engine/Level.h"
-#include "GameFramework/Actor.h"
 
-#include "VisualLogger/VisualLoggerTypes.h"
 #include "VisualLogger/VisualLogger.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(VisualLoggerAutomationTests)

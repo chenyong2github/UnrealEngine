@@ -5,22 +5,20 @@
 	Parameter-related particle module implementations.
 =============================================================================*/
 
-#include "CoreMinimal.h"
-#include "Materials/Material.h"
-#include "ParticleHelper.h"
+#include "ParticleEmitterInstances.h"
 #include "Particles/ParticleModule.h"
 #include "Distributions/DistributionFloatConstant.h"
-#include "Materials/MaterialExpressionDynamicParameter.h"
-#include "Materials/MaterialInstanceConstant.h"
 #include "MaterialCachedData.h"
 #include "Particles/Parameter/ParticleModuleParameterBase.h"
 #include "Particles/Parameter/ParticleModuleParameterDynamic.h"
 #include "Particles/Parameter/ParticleModuleParameterDynamic_Seeded.h"
+#include "Particles/ParticleEmitter.h"
 #include "Particles/TypeData/ParticleModuleTypeDataMesh.h"
 #include "Particles/ParticleLODLevel.h"
 #include "Particles/ParticleModuleRequired.h"
 #include "Particles/Material/ParticleModuleMeshMaterial.h"
 #include "Engine/InterpCurveEdSetup.h"
+#include "Particles/TypeData/ParticleModuleTypeDataBase.h"
 
 UParticleModuleParameterBase::UParticleModuleParameterBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

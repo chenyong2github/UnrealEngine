@@ -1,10 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimSync.h"
-#include "Animation/AnimNodeBase.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimStats.h"
 #include "AnimationUtils.h"
 #include "Animation/MirrorDataTable.h"
+#include "AnimationRuntime.h"
+#include "Misc/StringFormatArg.h"
+#include "Stats/StatsHierarchical.h"
 
 namespace UE { namespace Anim {
 

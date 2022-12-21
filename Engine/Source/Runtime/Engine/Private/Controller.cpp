@@ -5,11 +5,7 @@
 
 =============================================================================*/
 #include "GameFramework/Controller.h"
-#include "GameFramework/Pawn.h"
-#include "CollisionQueryParams.h"
-#include "Engine/World.h"
 #include "AI/NavigationSystemBase.h"
-#include "GameFramework/PlayerController.h"
 #include "Net/UnrealNetwork.h"
 #include "NetworkingDistanceConstants.h"
 #include "VisualLogger/VisualLogger.h"

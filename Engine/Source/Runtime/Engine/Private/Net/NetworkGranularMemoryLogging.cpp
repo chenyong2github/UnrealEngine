@@ -8,7 +8,6 @@
 #include "EngineLogs.h"
 #include "HAL/IConsoleManager.h"
 #include "Containers/Ticker.h"
-#include "Templates/Sorting.h"
 #include "Stats/Stats.h"
 #include "Containers/Ticker.h"
 

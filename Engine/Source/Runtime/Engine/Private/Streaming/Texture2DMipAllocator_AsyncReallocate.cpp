@@ -6,7 +6,8 @@ Texture2DStreamIn_AsyncReallocate.cpp: Load texture 2D mips using ITextureMipDat
 
 #include "Texture2DMipAllocator_AsyncReallocate.h"
 #include "RenderUtils.h"
-#include "Containers/ResourceArray.h"
+#include "Rendering/StreamableTextureResource.h"
+#include "Streaming/TextureMipAllocator.h"
 
 extern TAutoConsoleVariable<int32> CVarFlushRHIThreadOnSTreamingTextureLocks;
 

@@ -9,7 +9,7 @@
 #include "Engine/World.h"
 #include "Engine/ActorChannel.h"
 #include "Engine/NetworkObjectList.h"
-#include "GameFramework/PlayerController.h"
+#include "NetworkReplayStreaming.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ReplayNetConnection)
 

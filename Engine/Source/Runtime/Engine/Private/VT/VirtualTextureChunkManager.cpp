@@ -3,14 +3,13 @@
 #include "VirtualTextureChunkManager.h"
 
 #include "RHI.h"
-#include "ScreenRendering.h"
+#include "RenderUtils.h"
 #include "UploadingVirtualTexture.h"
-#include "VirtualTextureBuiltData.h"
-#include "BlockCodingHelpers.h"
-#include "FileCache/FileCache.h"
-#include "Containers/LruCache.h"
+#include "VT/VirtualTextureTranscodeCache.h"
+#include "VT/VirtualTextureUploadCache.h"
 
 #if WITH_EDITOR
+#include "RenderingThread.h"
 #include "VirtualTextureChunkDDCCache.h"
 #endif
 

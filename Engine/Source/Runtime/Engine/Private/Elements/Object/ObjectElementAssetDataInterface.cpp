@@ -3,7 +3,6 @@
 #include "Elements/Object/ObjectElementAssetDataInterface.h"
 
 #include "Elements/Object/ObjectElementData.h"
-#include "UObject/Object.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ObjectElementAssetDataInterface)
 

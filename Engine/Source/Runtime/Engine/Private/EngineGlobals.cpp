@@ -5,15 +5,8 @@
 =============================================================================*/
 
 #include "EngineGlobals.h"
-#include "HAL/IConsoleManager.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Class.h"
-#include "UObject/UObjectIterator.h"
-#include "Components/ActorComponent.h"
 #include "ComponentReregisterContext.h"
 #include "EditorSupportDelegates.h"
-#include "UObject/UObjectHash.h"
-#include "UObject/Package.h"
 #include "MaterialShared.h"
 #include "Modules/ModuleManager.h"
 #include "Materials/Material.h"

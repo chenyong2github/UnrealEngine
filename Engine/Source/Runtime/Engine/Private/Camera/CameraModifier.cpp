@@ -2,8 +2,6 @@
 
 #include "Camera/CameraModifier.h"
 #include "Camera/PlayerCameraManager.h"
-#include "Engine/Canvas.h"
-#include "DisplayDebugHelpers.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CameraModifier)
 

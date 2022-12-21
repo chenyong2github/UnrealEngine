@@ -3,6 +3,7 @@
 #include "DataDrivenCVars/DataDrivenCVars.h"
 #include "HAL/ConsoleManager.h"
 #include "Engine/Engine.h"
+#include "Subsystems/SubsystemCollection.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DataDrivenCVars)
 

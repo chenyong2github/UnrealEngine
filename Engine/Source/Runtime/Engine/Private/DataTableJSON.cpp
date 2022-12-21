@@ -1,13 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataTableJSON.h"
-#include "UObject/UnrealType.h"
 #include "UObject/EnumProperty.h"
-#include "DataTableUtils.h"
 #include "Engine/DataTable.h"
-#include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
-#include "Engine/UserDefinedStruct.h"
 
 
 namespace

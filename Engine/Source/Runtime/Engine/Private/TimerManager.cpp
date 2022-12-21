@@ -5,14 +5,13 @@
 =============================================================================*/
 
 #include "TimerManager.h"
-#include "Engine/EngineTypes.h"
+#include "Containers/StringConv.h"
 #include "Engine/GameInstance.h"
-#include "HAL/IConsoleManager.h"
+#include "Logging/LogScopedCategoryAndVerbosityOverride.h"
 #include "Misc/CoreDelegates.h"
-#include "Engine/World.h"
+#include "Stats/StatsTrace.h"
 #include "UnrealEngine.h"
 #include "Misc/TimeGuard.h"
-#include "ProfilingDebugging/CsvProfiler.h"
 #include "HAL/PlatformStackWalk.h"
 
 DECLARE_CYCLE_STAT(TEXT("SetTimer"), STAT_SetTimer, STATGROUP_Engine);

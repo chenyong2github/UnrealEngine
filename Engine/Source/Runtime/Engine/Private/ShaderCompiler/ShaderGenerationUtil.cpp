@@ -5,26 +5,20 @@
 =============================================================================*/
 
 #include "ShaderCompiler.h"
-#include "ShaderCore.h"
 
 #include "DataDrivenShaderPlatformInfo.h"
+#include "HAL/PlatformFile.h"
+#include "Interfaces/ITargetPlatform.h"
 #include "Misc/FileHelper.h"
-#include "Misc/CoreMisc.h"
-#include "Misc/ScopeLock.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "HAL/PlatformFileManager.h"
 #include "RenderUtils.h"
-#include "RHI.h"
 #include "SceneManagement.h"
-#include "Engine/EngineTypes.h"
 
-#include "GBufferInfo.h"
 
 #if WITH_EDITOR
-#include "Common/TargetPlatformBase.h"
 #endif
 
-#include "RHIDefinitions.h"
 
 #include "ShaderMaterial.h"
 

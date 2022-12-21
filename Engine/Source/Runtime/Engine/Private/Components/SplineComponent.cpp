@@ -5,13 +5,15 @@
 =============================================================================*/
 
 #include "Components/SplineComponent.h"
+#include "Engine/Engine.h"
 #include "UObject/EditorObjectVersion.h"
+#include "Math/RotationMatrix.h"
 #include "PrimitiveViewRelevance.h"
 #include "PrimitiveSceneProxy.h"
 #include "SceneManagement.h"
-#include "UnrealEngine.h"
 #include "Net/UnrealNetwork.h"
 #include "Net/Core/PushModel/PushModel.h"
+#include "Styling/SlateColor.h"
 #include "Styling/StyleColors.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SplineComponent)

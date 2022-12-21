@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ObjectEditorUtils.h"
+#include "Internationalization/TextKey.h"
 #include "UObject/Package.h"
-#include "UObject/PropertyPortFlags.h"
 
 #if WITH_EDITOR
 #include "EditorCategoryUtils.h"

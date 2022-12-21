@@ -2,13 +2,11 @@
 
 #include "Materials/MaterialAttributeDefinitionMap.h"
 
-#include "Engine/EngineTypes.h"
 #include "MaterialCompiler.h"
 #include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionShadingModel.h"
 #include "Materials/MaterialExpressionStrata.h"
-#include "SceneTypes.h"
 #include "StrataDefinitions.h"
 
 #define LOCTEXT_NAMESPACE "MaterialShared"

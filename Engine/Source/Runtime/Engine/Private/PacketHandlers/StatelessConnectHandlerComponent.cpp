@@ -1,17 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PacketHandlers/StatelessConnectHandlerComponent.h"
-#include "Stats/Stats.h"
 #include "Serialization/MemoryWriter.h"
 #include "EngineStats.h"
 #include "Misc/SecureHash.h"
 #include "Engine/NetConnection.h"
 #include "Net/Core/Misc/PacketAudit.h"
-#include "Misc/NetworkVersion.h"
-#include "Misc/StringBuilder.h"
 #include "Misc/ConfigCacheIni.h"
 
-#include <limits>
+#include "Stats/StatsTrace.h"
 
 DEFINE_LOG_CATEGORY(LogHandshake);
 

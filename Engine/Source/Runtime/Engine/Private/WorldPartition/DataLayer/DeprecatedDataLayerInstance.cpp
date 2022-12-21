@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/DataLayer/DeprecatedDataLayerInstance.h"
+#include "Misc/StringFormatArg.h"
 #include "WorldPartition/DataLayer/DataLayerUtils.h"
+#include "WorldPartition/DataLayer/DataLayer.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DeprecatedDataLayerInstance)

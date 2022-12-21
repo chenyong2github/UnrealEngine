@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Subsystems/AudioEngineSubsystem.h"
-#include "AudioDeviceHandle.h"
+#include "AudioDeviceManager.h"
 #include "AudioMixerDevice.h"
+#include "Subsystems/Subsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AudioEngineSubsystem)
 

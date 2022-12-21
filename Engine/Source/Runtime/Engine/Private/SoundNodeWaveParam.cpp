@@ -2,8 +2,8 @@
 
 
 #include "Sound/SoundNodeWaveParam.h"
-#include "Audio.h"
 #include "ActiveSound.h"
+#include "IAudioParameterTransmitter.h"
 #include "Sound/SoundWave.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SoundNodeWaveParam)

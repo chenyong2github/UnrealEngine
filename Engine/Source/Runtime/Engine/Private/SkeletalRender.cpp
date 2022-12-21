@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "SkeletalRender.h"
+#include "Engine/SkinnedAsset.h"
 #include "Engine/SkinnedAssetCommon.h"
 #include "SkeletalRenderPublic.h"
 #include "SceneManagement.h"

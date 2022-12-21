@@ -6,11 +6,10 @@
 
 #include "Engine/SkeletalMesh.h"
 #include "Engine/SkinnedAssetCommon.h"
-#include "Factories/FbxSkeletalMeshImportData.h"
 #include "ImportUtils/SkeletalMeshImportUtils.h"
-#include "Logging/LogMacros.h"
-#include "Logging/LogVerbosity.h"
+#include "Materials/MaterialInterface.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Misc/ScopeRWLock.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "Serialization/BulkDataReader.h"
 #include "Serialization/BulkDataWriter.h"

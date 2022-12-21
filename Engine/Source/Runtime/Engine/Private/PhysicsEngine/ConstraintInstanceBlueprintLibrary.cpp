@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PhysicsEngine/ConstraintInstanceBlueprintLibrary.h"
+#include "PhysicsEngine/ConstraintInstance.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ConstraintInstanceBlueprintLibrary)
 

@@ -5,17 +5,14 @@
  *=============================================================================*/
 
 #include "ActorFolder.h"
+#include "Folder.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ActorFolder)
 
 #if WITH_EDITOR
 
-#include "Engine/World.h"
-#include "EditorActorFolders.h"
+#include "Engine/Level.h"
 #include "ExternalPackageHelper.h"
-#include "AssetRegistry/AssetData.h"
-#include "AssetRegistry/AssetRegistryModule.h"
-#include "AssetRegistry/IAssetRegistry.h"
 #include "ActorFolderDesc.h"
 
 UActorFolder* UActorFolder::Create(ULevel* InLevel, const FString& InFolderLabel, UActorFolder* InParent)

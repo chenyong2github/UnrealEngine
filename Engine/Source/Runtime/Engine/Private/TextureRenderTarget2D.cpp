@@ -6,14 +6,14 @@
 
 #include "Engine/TextureRenderTarget2D.h"
 #include "Misc/MessageDialog.h"
+#include "RenderingThread.h"
 #include "TextureResource.h"
 #include "Engine/Texture2D.h"
-#include "UnrealEngine.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
-#include "UObject/RenderingObjectVersion.h"
 #include "GenerateMips.h"
 #include "RenderGraphUtils.h"
+#include "UObject/UnrealType.h"
 #if WITH_EDITOR
 #include "Components/SceneCaptureComponent2D.h"
 #include "UObject/UObjectIterator.h"
@@ -677,7 +677,6 @@ void FTextureRenderTarget2DResource::ReleaseDynamicRHI()
 	RemoveFromDeferredUpdateList();
 }
 
-#include "SceneUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TextureRenderTarget2D)
 

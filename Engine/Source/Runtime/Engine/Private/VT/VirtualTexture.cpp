@@ -4,8 +4,9 @@
 
 #include "EngineModule.h"
 #include "FileCache/FileCache.h"
+#include "RenderUtils.h"
 #include "RendererInterface.h"
-#include "Serialization/Archive.h"
+#include "Serialization/CustomVersion.h"
 #include "VT/VirtualTextureBuiltData.h"
 #include "EngineModule.h"
 

@@ -1,11 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/Scene.h"
+#include "Engine/EngineTypes.h"
 #include "HAL/IConsoleManager.h"
+#include "SceneUtils.h"
 #include "UObject/RenderingObjectVersion.h"
 #include "UObject/ReleaseObjectVersion.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "UObject/UnrealType.h"
 
 int32 GetMobilePlanarReflectionMode()
 {

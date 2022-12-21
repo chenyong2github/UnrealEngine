@@ -5,9 +5,9 @@
 =============================================================================*/
 
 #include "Components/DirectionalLightComponent.h"
+#include "Math/InverseRotationMatrix.h"
 #include "UObject/ConstructorHelpers.h"
-#include "RenderingThread.h"
-#include "ConvexVolume.h"
+#include "RenderUtils.h"
 #include "SceneInterface.h"
 #include "Engine/Texture2D.h"
 #include "SceneManagement.h"
@@ -15,6 +15,7 @@
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "UObject/UnrealType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DirectionalLightComponent)
 

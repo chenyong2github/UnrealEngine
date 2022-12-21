@@ -2,8 +2,6 @@
 
 #include "Physics/Experimental/ChaosInterfaceWrapper.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
-#include "Chaos/ParticleHandle.h"
-#include "PhysxUserData.h"
 #include "PBDRigidsSolver.h"
 
 

@@ -6,6 +6,7 @@ RenderAssetUpdate.cpp: Base class of helpers to stream in and out texture/mesh L
 
 #include "RenderAssetUpdate.h"
 #include "Engine/StreamableRenderAsset.h"
+#include "RenderingThread.h"
 #include "Streaming/TextureStreamingHelpers.h"
 #include "UObject/UObjectIterator.h"
 

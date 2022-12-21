@@ -2,9 +2,12 @@
 
 #include "Engine/HLODProxy.h"
 
+#include "Concepts/StaticStructProvider.h"
 #include "Engine/Level.h"
 #include "Engine/LODActor.h"
+#include "Engine/World.h"
 #include "GameFramework/WorldSettings.h"
+#include "HLOD/HLODProxyDesc.h"
 #include "Materials/Material.h"
 
 #if WITH_EDITOR
@@ -15,8 +18,6 @@
 #include "HierarchicalLOD.h"
 #include "ObjectTools.h"
 #endif
-#include "Interfaces/ITargetPlatformManagerModule.h"
-#include "Materials/MaterialInstance.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Engine/Texture.h"
 #include "Engine/StaticMesh.h"
@@ -24,7 +25,6 @@
 #include "StaticMeshComponentLODInfo.h"
 #include "LevelUtils.h"
 #include "Engine/LevelStreaming.h"
-#include "Math/UnrealMathUtility.h"
 #include "StaticMeshResources.h"
 #include "UObject/ObjectSaveContext.h"
 

@@ -3,7 +3,6 @@
 #include "Components/LODSyncComponent.h"
 
 #include "Components/PrimitiveComponent.h"
-#include "GameFramework/Actor.h"
 #include "LODSyncInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LODSyncComponent)

@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 //
 
-#include "CoreMinimal.h"
 #include "AudioDevice.h"
+#include "GenericPlatform/IInputInterface.h"
 #include "Haptics/HapticFeedbackEffect_Base.h"
 #include "Haptics/HapticFeedbackEffect_Curve.h"
-#include "Sound/SoundWave.h"
 #include "Haptics/HapticFeedbackEffect_SoundWave.h"
 #include "Haptics/HapticFeedbackEffect_Buffer.h"
 DEFINE_LOG_CATEGORY_STATIC(LogHaptics, Display, All);

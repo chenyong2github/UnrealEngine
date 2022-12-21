@@ -8,8 +8,6 @@ Level.cpp: Level-related functions
 #include "Engine/Level.h"
 #include "Engine/World.h"
 #include "UObject/FastReferenceCollector.h"
-#include "UObject/UObjectArray.h"
-#include "UObject/Package.h"
 #include "UObject/UObjectClusters.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LevelActorContainer)

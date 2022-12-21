@@ -2,8 +2,11 @@
 
 #include "Camera/CameraStackTypes.h"
 #include "Camera/CameraTypes.h"
+#include "Engine/EngineTypes.h"
 #include "SceneView.h"
+#include "Math/OrthoMatrix.h"
 #include "UnrealClient.h"
+#include "Math/PerspectiveMatrix.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CameraStackTypes)
 

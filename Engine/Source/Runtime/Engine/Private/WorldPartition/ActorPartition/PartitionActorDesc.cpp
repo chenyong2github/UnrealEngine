@@ -2,10 +2,8 @@
 
 #include "WorldPartition/ActorPartition/PartitionActorDesc.h"
 #include "ActorPartition/ActorPartitionSubsystem.h"
-#include "ActorPartition/PartitionActor.h"
 
 #if WITH_EDITOR
-#include "Engine/Level.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 
 void FPartitionActorDesc::Init(const AActor* InActor)

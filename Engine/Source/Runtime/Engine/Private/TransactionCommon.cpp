@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TransactionCommon.h"
+#include "Serialization/ArchiveSerializedPropertyChain.h"
 #include "UObject/UnrealType.h"
 #include "Components/ActorComponent.h"
 

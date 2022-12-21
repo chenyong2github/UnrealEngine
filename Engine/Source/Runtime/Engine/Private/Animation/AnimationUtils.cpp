@@ -5,8 +5,11 @@
 =============================================================================*/ 
 
 #include "AnimationUtils.h"
+#include "Animation/AnimSequence.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Animation/AnimSequenceDecompressionContext.h"
 #include "UObject/Package.h"
+#include "Animation/Skeleton.h"
 #include "AnimationRuntime.h"
 #include "Animation/AnimSet.h"
 #include "Animation/AnimationSettings.h"
@@ -15,7 +18,6 @@
 #include "Animation/AnimCurveCompressionSettings.h"
 #include "AnimationCompression.h"
 #include "Engine/SkeletalMeshSocket.h"
-#include "AnimEncoding.h"
 #include "UObject/LinkerLoad.h"
 
 /** Array to keep track of SkeletalMeshes we have built metadata for, and log out the results just once. */

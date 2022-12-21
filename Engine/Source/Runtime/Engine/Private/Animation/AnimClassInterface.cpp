@@ -4,7 +4,6 @@
 #include "Animation/AnimNodeBase.h"
 #include "Animation/AnimSubsystem_PropertyAccess.h"
 #include "Animation/AnimSubsystem_Base.h"
-#include "PropertyAccess.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimClassInterface)
 

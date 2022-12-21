@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InstanceUniformShaderParameters.h"
-#include "PrimitiveSceneProxy.h"
-#include "PrimitiveSceneInfo.h"
 #include "DataDrivenShaderPlatformInfo.h"
 
 uint32 FInstanceSceneShaderData::GetDataStrideInFloat4s()

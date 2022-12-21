@@ -5,16 +5,15 @@
 =============================================================================*/
 
 #include "Net/DataChannel.h"
+#include "Containers/StaticBitArray.h"
 #include "Engine/GameInstance.h"
+#include "Engine/ChildConnection.h"
 #include "Engine/Level.h"
+#include "Engine/World.h"
 #include "GameFramework/WorldSettings.h"
-#include "Misc/MemStack.h"
-#include "Misc/ScopeExit.h"
+#include "Net/Core/Trace/Private/NetTraceInternal.h"
 #include "UObject/UObjectIterator.h"
-#include "UObject/ObjectKey.h"
-#include "UObject/CoreNetTypes.h"
 #include "EngineStats.h"
-#include "EngineGlobals.h"
 #include "Engine/Engine.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "DrawDebugHelpers.h"
@@ -22,24 +21,20 @@
 #include "Net/DataReplication.h"
 #include "Engine/ActorChannel.h"
 #include "Engine/ControlChannel.h"
-#include "Engine/PackageMapClient.h"
 #include "Engine/DemoNetDriver.h"
 #include "Engine/NetworkObjectList.h"
-#include "Engine/ReplicationDriver.h"
 #include "Stats/StatsMisc.h"
-#include "ProfilingDebugging/CsvProfiler.h"
 #include "Net/NetworkGranularMemoryLogging.h"
 #include "Net/Subsystems/NetworkSubsystem.h"
 #include "Net/Core/Trace/NetTrace.h"
-#include "Net/Core/Misc/NetSubObjectRegistry.h"
 #include "Net/NetSubObjectRegistryGetter.h"
-#include "Misc/NetworkVersion.h"
-#include "Net/Core/PushModel/PushModel.h"
 #include "HAL/LowLevelMemStats.h"
 #include "Net/NetPing.h"
 #include "PacketHandler.h"
-#include "Net/NetNameDebug.h"
 
+#if UE_NET_REPACTOR_NAME_DEBUG
+#include "Net/NetNameDebug.h"
+#endif
 
 DEFINE_LOG_CATEGORY(LogNet);
 DEFINE_LOG_CATEGORY(LogNetSubObject);

@@ -2,11 +2,10 @@
 
 #include "SkeletalDebugRendering.h"
 #include "DrawDebugHelpers.h"
+#include "Math/RotationMatrix.h"
 #include "SceneManagement.h"
-#include "Engine/PoseWatch.h"
 #include "Engine/PoseWatchRenderData.h"
-#include "BonePose.h"
-#include "HitProxies.h"
+#include "ReferenceSkeleton.h"
 
 
 namespace SkeletalDebugRendering

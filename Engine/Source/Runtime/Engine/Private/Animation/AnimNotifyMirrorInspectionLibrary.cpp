@@ -1,12 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimNotifyMirrorInspectionLibrary.h"
+#include "Animation/AnimNodeMessages.h"
 #include "Animation/AnimNotifyQueue.h"
-#include "Animation/AnimationAsset.h"
-#include "Animation/AnimClassInterface.h"
-#include "Animation/AnimNode_StateMachine.h"
 #include "Animation/MirrorSyncScope.h"
-#include "Animation/ActiveStateMachineScope.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotifyMirrorInspectionLibrary)
 

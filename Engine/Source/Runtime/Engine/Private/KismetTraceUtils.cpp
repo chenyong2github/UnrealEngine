@@ -1,9 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "KismetTraceUtils.h"
-#include "GameFramework/Actor.h"
+#include "CollisionQueryParams.h"
 #include "PhysicsEngine/PhysicsSettings.h"
-#include "GameFramework/Actor.h"
+#include "Engine/HitResult.h"
+#include "EngineLogs.h"
+#include "Kismet/KismetSystemLibrary.h"
+#include "Math/RotationMatrix.h"
 
 static const float KISMET_TRACE_DEBUG_IMPACTPOINT_SIZE = 16.f;
 

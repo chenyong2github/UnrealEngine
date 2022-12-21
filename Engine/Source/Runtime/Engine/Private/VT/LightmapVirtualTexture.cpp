@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VT/LightmapVirtualTexture.h"
-#include "LightMap.h"
+#include "Async/TaskGraphInterfaces.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LightmapVirtualTexture)
 

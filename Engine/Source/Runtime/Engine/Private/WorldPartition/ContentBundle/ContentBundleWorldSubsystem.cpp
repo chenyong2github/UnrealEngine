@@ -1,17 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "WorldPartition/ContentBundle/ContentBundleWorldSubsystem.h"
 
-#include "Engine/Engine.h"
+#include "WorldPartition/ContentBundle/ContentBundleContainer.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/ContentBundle/ContentBundle.h"
 #include "WorldPartition/ContentBundle/ContentBundleDescriptor.h"
-#include "WorldPartition/ContentBundle/ContentBundleEngineSubsystem.h"
-#include "WorldPartition/ContentBundle/ContentBundleClient.h"
+#include "WorldPartition/ContentBundle/ContentBundleStatus.h"
 #include "WorldPartition/WorldPartition.h"
-#include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/WorldPartitionDebugHelper.h"
-#include "Engine/Canvas.h"
-#include "Engine/World.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ContentBundleWorldSubsystem)
 

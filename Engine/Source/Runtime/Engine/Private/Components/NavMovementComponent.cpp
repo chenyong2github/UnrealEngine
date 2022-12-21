@@ -3,7 +3,6 @@
 #include "GameFramework/NavMovementComponent.h"
 #include "AI/NavigationSystemBase.h"
 #include "Components/CapsuleComponent.h"
-#include "AI/Navigation/PathFollowingAgentInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NavMovementComponent)
 

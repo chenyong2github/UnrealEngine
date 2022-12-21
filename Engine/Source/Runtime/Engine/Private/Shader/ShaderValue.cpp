@@ -1,10 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Shader/ShaderTypes.h"
-#include "Misc/StringBuilder.h"
 #include "Hash/xxhash.h"
 #include "Misc/MemStackUtility.h"
-#include "Misc/LargeWorldRenderPosition.h"
-#include "Engine/Texture.h"
 
 namespace UE
 {

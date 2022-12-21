@@ -6,29 +6,27 @@
 
 #include "Engine/LODActor.h"
 
+#include "HLOD/HLODBatchingPolicy.h"
 #include "UObject/UObjectIterator.h"
 #include "Engine/CollisionProfile.h"
-#include "Logging/TokenizedMessage.h"
+#include "HLOD/HLODProxyDesc.h"
 #include "Misc/MapErrors.h"
 #include "Logging/MessageLog.h"
+#include "Materials/MaterialInterface.h"
 #include "Misc/UObjectToken.h"
 
 #include "Engine/StaticMesh.h"
+#include "SceneManagement.h"
 #include "StaticMeshResources.h"
 #include "EngineUtils.h"
 #include "UObject/FrameworkObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "Engine/HLODProxy.h"
-#include "UObject/PropertyPortFlags.h"
+#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LODActor)
 
 #if WITH_EDITOR
-#include "Editor.h"
-#include "HierarchicalLODUtilitiesModule.h"
-#include "IHierarchicalLODUtilities.h"
-#include "ObjectTools.h"
-#include "HierarchicalLOD.h"
 #include "UObject/ObjectSaveContext.h"
 #endif
 

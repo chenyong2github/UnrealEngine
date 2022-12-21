@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
 #include "Styling/AppStyle.h"
 #include "Engine/EngineBaseTypes.h"
+#include "Styling/SlateBrush.h"
 
 #define LOCTEXT_NAMESPACE "UViewModeUtils"
 

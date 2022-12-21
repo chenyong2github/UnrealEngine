@@ -2,8 +2,9 @@
 
 #include "AttributeCurve.h"
 
-#include "Animation/AttributeBlendOperator.h"
 #include "Animation/AttributeTypes.h"
+#include "Animation/IAttributeBlendOperator.h"
+#include "Templates/Casts.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AttributeCurve)
 

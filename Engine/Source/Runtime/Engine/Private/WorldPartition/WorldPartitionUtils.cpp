@@ -3,12 +3,12 @@
 #if WITH_EDITOR
 
 #include "WorldPartition/WorldPartitionUtils.h"
-#include "WorldPartition/WorldPartitionRuntimeCellInterface.h"
+#include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
-#include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "WorldPartition/Cook/WorldPartitionCookPackageContext.h"
 #include "WorldPartition/ContentBundle/ContentBundleEditor.h"
 #include "WorldPartition/ContentBundle/ContentBundleWorldSubsystem.h"
+#include "WorldPartition/WorldPartitionLog.h"
 
 #define LOCTEXT_NAMESPACE "WorldPartition"
 

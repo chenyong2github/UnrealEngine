@@ -4,28 +4,23 @@
 
 #if WITH_EDITOR
 
+#include "Engine/Level.h"
 #include "PackedLevelActor/PackedLevelActor.h"
-#include "PackedLevelActor/IPackedLevelActorBuilder.h"
+#include "IAssetTools.h"
 #include "PackedLevelActor/PackedLevelActorISMBuilder.h"
 #include "PackedLevelActor/PackedLevelActorRecursiveBuilder.h"
 
 #include "LevelInstance/LevelInstanceSubsystem.h"
 
 #include "Kismet2/KismetEditorUtilities.h"
-#include "Engine/Blueprint.h"
-#include "Engine/SimpleConstructionScript.h"
 #include "Engine/SCS_Node.h"
 
-#include "Misc/ScopeExit.h"
 #include "Misc/Paths.h"
-#include "Logging/LogMacros.h"
 #include "Logging/MessageLog.h"
 
-#include "Components/SceneComponent.h"
 #include "GameFramework/WorldSettings.h"
 #include "Engine/LevelBounds.h"
 #include "Engine/LevelStreaming.h"
-#include "Engine/Brush.h"
 #include "FileHelpers.h"
 #include "Editor.h"
 #include "AssetToolsModule.h"

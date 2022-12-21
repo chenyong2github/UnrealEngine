@@ -4,7 +4,6 @@
 
 #include "Analytics/RPCDoSDetectionAnalytics.h"
 #include "Net/RPCDoSDetectionConfig.h"
-#include "AnalyticsEventAttribute.h"
 #include "Interfaces/IAnalyticsProvider.h"
 #include "EngineLogs.h"
 #include "Serialization/JsonWriter.h"

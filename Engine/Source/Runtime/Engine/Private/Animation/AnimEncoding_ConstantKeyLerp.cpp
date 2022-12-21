@@ -5,9 +5,6 @@
 =============================================================================*/ 
 
 #include "AnimEncoding_ConstantKeyLerp.h"
-#include "HAL/IConsoleManager.h"
-#include "Serialization/MemoryReader.h"
-#include "Serialization/MemoryWriter.h"
 #if INTEL_ISPC
 #include "AnimEncoding_ConstantKeyLerp.ispc.generated.h"
 

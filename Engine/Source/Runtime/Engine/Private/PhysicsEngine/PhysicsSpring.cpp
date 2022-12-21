@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
-#include "Engine/EngineTypes.h"
-#include "CollisionQueryParams.h"
-#include "WorldCollision.h"
 #include "Engine/World.h"
 #include "Components/PrimitiveComponent.h"
 #include "PhysicsEngine/PhysicsSpringComponent.h"

@@ -1,16 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelInstance/LevelInstanceEditorLevelStreaming.h"
+#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LevelInstanceEditorLevelStreaming)
 
 #if WITH_EDITOR
+#include "Engine/Engine.h"
 #include "LevelInstance/LevelInstanceInterface.h"
+#include "Engine/Level.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
+#include "Engine/LevelStreaming.h"
 #include "LevelInstance/LevelInstanceEditorPivot.h"
 #include "EditorLevelUtils.h"
-#include "Editor.h"
 #include "Engine/LevelBounds.h"
+#include "Engine/World.h"
 #include "GameFramework/WorldSettings.h"
 #include "PackageTools.h"
 #endif

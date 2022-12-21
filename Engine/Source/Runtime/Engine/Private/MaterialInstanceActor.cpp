@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Materials/MaterialInstanceActor.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "Components/BillboardComponent.h"
 #include "Engine/Texture2D.h"
 #include "Misc/MessageDialog.h"

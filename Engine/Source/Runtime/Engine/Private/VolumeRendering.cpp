@@ -6,8 +6,8 @@
 
 #include "VolumeRendering.h"
 #include "ScreenRendering.h"
-#include "RHIStaticStates.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "ShaderCompilerCore.h"
 
 FWriteToSliceVS::FWriteToSliceVS() = default;
 

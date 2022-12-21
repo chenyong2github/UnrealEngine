@@ -7,7 +7,6 @@
 #include "HModel.h"
 #include "SceneView.h"
 #include "Model.h"
-#include "Components/ModelComponent.h"
 #include "Raster.h"
 #include "Engine/Polys.h"
 #include "Engine/Brush.h"

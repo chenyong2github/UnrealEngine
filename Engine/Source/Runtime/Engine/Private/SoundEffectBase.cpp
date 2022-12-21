@@ -2,9 +2,7 @@
 
 #include "Sound/SoundEffectBase.h"
 
-#include "Audio.h"
 #include "Sound/SoundEffectPreset.h"
-#include "Templates/SharedPointer.h"
 
 
 FSoundEffectBase::FSoundEffectBase()

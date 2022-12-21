@@ -2,7 +2,6 @@
 
 #include "Tests/TransactionDiffingTests.h"
 #include "Misc/AutomationTest.h"
-#include "Misc/TransactionObjectEvent.h"
 #include "TransactionCommon.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TransactionDiffingTests)

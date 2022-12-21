@@ -2,12 +2,7 @@
 
 
 #include "ADPCMAudioInfo.h"
-#include "CoreMinimal.h"
-#include "HAL/IConsoleManager.h"
 #include "Interfaces/IAudioFormat.h"
-#include "Sound/SoundWave.h"
-#include "Audio.h"
-#include "ContentStreaming.h"
 
 static int32 bDisableADPCMSeekingCVar = 0;
 FAutoConsoleVariableRef CVarDisableADPCMSeeking(

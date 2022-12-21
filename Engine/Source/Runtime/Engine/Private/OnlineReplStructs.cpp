@@ -8,12 +8,12 @@
 #include "UObject/CoreNet.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
-#include "UObject/PropertyPortFlags.h"
 #include "Dom/JsonValue.h"
 #include "EngineLogs.h"
 #include "Net/OnlineEngineInterface.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/OutputDeviceNull.h"
+#include "UObject/UnrealType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(OnlineReplStructs)
 

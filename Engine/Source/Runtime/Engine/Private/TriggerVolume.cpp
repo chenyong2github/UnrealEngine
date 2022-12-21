@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/TriggerVolume.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "Components/BrushComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TriggerVolume)

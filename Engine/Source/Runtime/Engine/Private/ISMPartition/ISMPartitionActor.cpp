@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "ISMPartition/ISMPartitionActor.h"
-#include "ISMPartition/ISMComponentDescriptor.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
-#include "Engine/World.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Elements/SMInstance/SMInstanceElementId.h"
 #include "EngineUtils.h"
+#include "ISMPartition/ISMPartitionClient.h"
+#include "UObject/UObjectIterator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ISMPartitionActor)
 

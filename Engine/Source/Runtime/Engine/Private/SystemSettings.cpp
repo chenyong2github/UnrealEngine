@@ -5,7 +5,7 @@
 =============================================================================*/
 
 #include "SystemSettings.h"
-#include "Misc/CommandLine.h"
+#include "HAL/IConsoleManager.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ConfigUtilities.h"
 #include "Engine/Texture2D.h"

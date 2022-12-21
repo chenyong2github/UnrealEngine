@@ -5,19 +5,18 @@
 =============================================================================*/
 
 #include "PrecomputedVolumetricLightmap.h"
-#include "Stats/Stats.h"
-#include "EngineDefines.h"
-#include "UObject/RenderingObjectVersion.h"
+#include "Engine/Texture.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
-#include "SceneManagement.h"
-#include "UnrealEngine.h"
 #include "Engine/MapBuildDataRegistry.h"
-#include "Interfaces/ITargetPlatform.h"
+#include "Engine/World.h"
 #include "UObject/MobileObjectVersion.h"
 #include "RenderGraphUtils.h"
 // FIXME: temp fix for ordering issue between WorldContext.World()->InitWorld(); and GShaderCompilingManager->ProcessAsyncResults(false, true); in UnrealEngine.cpp
+#include "RenderingThread.h"
 #include "ShaderCompiler.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "SceneInterface.h"
+#include "Stats/StatsTrace.h"
 
 DECLARE_MEMORY_STAT(TEXT("Volumetric Lightmap"),STAT_VolumetricLightmapBuildData,STATGROUP_MapBuildData);
 

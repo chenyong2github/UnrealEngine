@@ -4,9 +4,7 @@
 	ParticleBeamModules.cpp: Particle module implementations for beams.
 =============================================================================*/
 
-#include "CoreMinimal.h"
 #include "Particles/ParticleSystem.h"
-#include "ParticleHelper.h"
 #include "Particles/ParticleModule.h"
 #include "ParticleEmitterInstances.h"
 #include "Particles/ParticleSystemComponent.h"
@@ -17,6 +15,7 @@
 #include "Particles/Beam/ParticleModuleBeamNoise.h"
 #include "Particles/Beam/ParticleModuleBeamSource.h"
 #include "Particles/Beam/ParticleModuleBeamTarget.h"
+#include "Particles/TypeData/ParticleModuleTypeDataBase.h"
 #include "Particles/TypeData/ParticleModuleTypeDataBeam2.h"
 #include "Particles/ParticleEmitter.h"
 #include "Particles/ParticleLODLevel.h"
@@ -24,6 +23,7 @@
 #include "Engine/InterpCurveEdSetup.h"
 #include "Engine/World.h"
 #include "ParticleBeamTrailVertexFactory.h"
+#include "UObject/UnrealType.h"
 
 /*-----------------------------------------------------------------------------
 	Abstract base modules used for categorization.

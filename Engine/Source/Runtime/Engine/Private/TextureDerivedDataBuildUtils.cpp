@@ -3,22 +3,15 @@
 #include "TextureDerivedDataBuildUtils.h"
 
 #if WITH_EDITOR
-#include "ChildTextureFormat.h"
 #include "DerivedDataBuild.h"
 #include "DerivedDataBuildFunctionRegistry.h"
 #include "DerivedDataSharedString.h"
 #include "Engine/Texture.h"
-#include "HAL/CriticalSection.h"
 #include "Interfaces/ITextureFormat.h"
-#include "Interfaces/ITextureFormatManagerModule.h"
-#include "Interfaces/ITextureFormatModule.h"
 #include "Misc/ScopeRWLock.h"
-#include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryWriter.h"
-#include "String/Find.h"
 #include "TextureCompressorModule.h"
 #include "TextureFormatManager.h"
-#include "TextureResource.h"
 
 const FGuid& GetTextureDerivedDataVersion();
 const FGuid& GetTextureSLEDerivedDataVersion();

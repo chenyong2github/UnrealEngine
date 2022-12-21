@@ -5,8 +5,8 @@ TextureMipDataProvider.cpp: Base class for providing the mip data used by FTextu
 =============================================================================*/
 
 #include "Streaming/TextureMipDataProvider.h"
-#include "Engine/Texture.h"
 #include "Rendering/StreamableTextureResource.h"
+#include "Templates/Casts.h"
 
 FTextureUpdateContext::FTextureUpdateContext(const UTexture* InTexture, EThreadType InCurrentThread) 
 	: Texture(InTexture)

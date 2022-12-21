@@ -1,32 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimTrace.h"
-#include "TraceFilter.h"
+#include "Trace/Detail/Important/ImportantLogScope.h"
+#include "Trace/Detail/Important/SharedBuffer.h"
 
 #if ANIM_TRACE_ENABLED
 
-#include "Trace/Trace.inl"
-#include "Animation/AnimationAsset.h"
 #include "Animation/AnimInstanceProxy.h"
-#include "ObjectTrace.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Components/Widget.h"
-#include "GameFramework/Controller.h"
-#include "GameFramework/Pawn.h"
-#include "Misc/CommandLine.h"
 #include "Engine/SkeletalMesh.h"
-#include "Engine/World.h"
-#include "Math/TransformNonVectorized.h"
-#include "Animation/AnimNodeBase.h"
 #include "Animation/AnimMontage.h"
-#include "Animation/BlendSpace.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
 #include "Animation/AnimNode_SequencePlayer.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
-#include "Animation/AnimTypes.h"
-#include "TraceFilter.h"
-#include "Animation/AnimAttributes.h"
+#include "Trace/Detail/Atomic.h"
 #include "UObject/UObjectAnnotation.h"
 
 UE_TRACE_CHANNEL_DEFINE(AnimationChannel);

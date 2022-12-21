@@ -2,9 +2,7 @@
 
 
 #include "Sound/SoundNodeDistanceCrossFade.h"
-#include "ActiveSound.h"
 #include "AudioDevice.h"
-#include "Sound/SoundBase.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SoundNodeDistanceCrossFade)
 

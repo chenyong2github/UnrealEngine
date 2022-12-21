@@ -1,12 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Engine/SkeletalMeshEditorData.h"
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "Templates/SubclassOf.h"
-#include "EngineDefines.h"
-#include "Engine/EngineTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkeletalMeshEditorData)
 

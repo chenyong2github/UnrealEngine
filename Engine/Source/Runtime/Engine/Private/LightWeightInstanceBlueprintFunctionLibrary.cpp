@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameFramework/LightWeightInstanceBlueprintFunctionLibrary.h"
+#include "GameFramework/Actor.h"
 #include "GameFramework/LightWeightInstanceSubsystem.h"
-#include "GameFramework/LightWeightInstanceManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LightWeightInstanceBlueprintFunctionLibrary)
 

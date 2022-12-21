@@ -7,12 +7,10 @@
 #include "GPUSortManager.h"
 #include "GPUSort.h"
 #include "GlobalShader.h"
-#include "ShaderPermutation.h"
+#include "Math/Float16.h"
 #include "ShaderParameterUtils.h"
-#include "ProfilingDebugging/RealtimeGPUProfiler.h"
 #include "FXSystem.h" // FXConsoleVariables::bAllowGPUSorting
 
-#include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
 
 //*****************************************************************************

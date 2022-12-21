@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "PerQualityLevelProperties.h"
-#include "Serialization/Archive.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Misc/DataDrivenPlatformInfoRegistry.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PerQualityLevelProperties)
 

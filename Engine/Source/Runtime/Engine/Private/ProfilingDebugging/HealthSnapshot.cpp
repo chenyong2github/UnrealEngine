@@ -7,9 +7,6 @@
 #include "ChartCreation.h"
 
 #include "HAL/MemoryMisc.h"
-#include "HAL/LowLevelMemTracker.h"
-#include "HAL/ThreadSafeCounter64.h"
-#include "HAL/IConsoleManager.h"
 #include "Engine/Engine.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HealthSnapshot)

@@ -5,14 +5,10 @@ StreamingTexture.cpp: Definitions of classes used for texture.
 =============================================================================*/
 
 #include "Streaming/StreamingTexture.h"
-#include "Engine/Texture.h"
-#include "Misc/App.h"
 #include "Streaming/StreamingManagerTexture.h"
-#include "HAL/FileManager.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/SkinnedAssetCommon.h"
-#include "LandscapeComponent.h"
 #include "StaticMeshResources.h"
 
 #if PLATFORM_DESKTOP

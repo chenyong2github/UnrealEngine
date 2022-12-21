@@ -4,4 +4,3 @@
 	AnimData.cpp: Anim data template code and related.
 =============================================================================*/ 
 
-#include "Animation/AnimClassData.h"

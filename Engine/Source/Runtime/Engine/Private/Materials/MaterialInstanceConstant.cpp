@@ -14,7 +14,6 @@
 
 #if WITH_EDITOR
 #include "MaterialCachedHLSLTree.h"
-#include "MaterialEditor/DEditorScalarParameterValue.h"
 #include "ObjectCacheEventSink.h"
 #endif
 

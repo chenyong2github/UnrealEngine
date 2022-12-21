@@ -2,7 +2,6 @@
 
 #include "Kismet/KismetInternationalizationLibrary.h"
 #include "Internationalization/TextLocalizationManager.h"
-#include "Internationalization/Internationalization.h"
 #include "Internationalization/Culture.h"
 #include "Misc/ConfigCacheIni.h"
 

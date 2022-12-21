@@ -2,10 +2,10 @@
 
 
 #include "VorbisAudioInfo.h"
-#include "Misc/Paths.h"
 #include "Interfaces/IAudioFormat.h"
-#include "ContentStreaming.h"
 #include "Audio.h"
+#include <ogg/os_types.h>
+#include <vorbis/codec.h>
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsHWrapper.h"
 #endif
@@ -13,8 +13,6 @@
 #if WITH_OGGVORBIS
 
 #pragma pack(push, 8)
-#include "ogg/ogg.h"
-#include "vorbis/vorbisenc.h"
 #include "vorbis/vorbisfile.h"
 #pragma pack(pop)
 #endif

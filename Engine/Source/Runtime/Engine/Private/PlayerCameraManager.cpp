@@ -2,11 +2,7 @@
 
 #include "Camera/PlayerCameraManager.h"
 #include "GameFramework/Pawn.h"
-#include "CollisionQueryParams.h"
-#include "UObject/ObjectMacros.h"
-#include "WorldCollision.h"
 #include "Engine/World.h"
-#include "GameFramework/Controller.h"
 #include "Camera/CameraActor.h"
 #include "Engine/Canvas.h"
 #include "Features/IModularFeatures.h"
@@ -15,7 +11,6 @@
 #include "AudioDevice.h"
 #include "Particles/EmitterCameraLensEffectBase.h"
 #include "Camera/CameraComponent.h"
-#include "Camera/CameraModifier.h"
 #include "Camera/CameraModifier_CameraShake.h"
 #include "Camera/CameraModularFeature.h"
 #include "Camera/CameraPhotography.h"
@@ -25,7 +20,6 @@
 #include "GameFramework/GameNetworkManager.h"
 #include "TimerManager.h"
 #include "Camera/CameraLensEffectInterface.h"
-#include "UObject/ScriptInterface.h"
 #include "GameDelegates.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPlayerCameraManager, Log, All);

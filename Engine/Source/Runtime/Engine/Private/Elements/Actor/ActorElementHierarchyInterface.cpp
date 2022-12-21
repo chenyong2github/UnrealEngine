@@ -3,7 +3,6 @@
 #include "Elements/Actor/ActorElementHierarchyInterface.h"
 
 #include "Elements/Actor/ActorElementData.h"
-#include "Elements/Framework/TypedElementRegistry.h"
 #include "GameFramework/Actor.h"
 
 #include "Elements/Framework/EngineElementsLibrary.h"

@@ -5,25 +5,24 @@
 =============================================================================*/
 
 #include "Engine/InstancedStaticMesh.h"
+#include "Elements/SMInstance/SMInstanceElementId.h"
 #include "Engine/Level.h"
-#include "InstancedStaticMeshDelegates.h"
 #include "AI/NavigationSystemBase.h"
 #include "Engine/MapBuildDataRegistry.h"
 #include "Components/LightComponent.h"
-#include "Logging/TokenizedMessage.h"
+#include "EngineLogs.h"
 #include "Logging/MessageLog.h"
+#include "Materials/Material.h"
 #include "UnrealEngine.h"
 #include "AI/NavigationSystemHelpers.h"
 #include "AI/Navigation/NavCollisionBase.h"
-#include "ShaderParameterUtils.h"
+#include "MeshDrawShaderBindings.h"
 #include "Misc/UObjectToken.h"
-#include "PhysXPublic.h"
-#include "PhysicsEngine/PhysXSupport.h"
+#include "Misc/DelayedAutoRegister.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "GameFramework/WorldSettings.h"
 #include "ComponentRecreateRenderStateContext.h"
-#include "SceneManagement.h"
-#include "Algo/Transform.h"
+#include "PrimitiveInstanceUpdateCommand.h"
 #include "UObject/MobileObjectVersion.h"
 #include "EngineStats.h"
 #include "Interfaces/ITargetPlatform.h"
@@ -31,30 +30,28 @@
 #include "Materials/MaterialRenderProxy.h"
 #include "MeshMaterialShader.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
+#include "RenderUtils.h"
 #include "StaticMeshComponentLODInfo.h"
-#include "StaticMeshSceneProxy.h"
 #include "NaniteSceneProxy.h"
 #include "MaterialCachedData.h"
 #include "Collision.h"
 #include "CollisionDebugDrawingPublic.h"
-#include "PipelineStateCache.h"
 #include "DataDrivenShaderPlatformInfo.h"
 
 #include "Elements/Framework/EngineElementsLibrary.h"
-#include "Elements/SMInstance/SMInstanceElementData.h"
 #include "Elements/Interfaces/TypedElementWorldInterface.h"
+#include "UObject/UObjectIterator.h"
 
 #if RHI_RAYTRACING
-#include "RayTracingInstance.h"
 #endif
 
 #if WITH_EDITOR
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #endif // WITH_EDITOR
+#include "Templates/Greater.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "UObject/EditorObjectVersion.h"
-#include "UObject/RenderingObjectVersion.h"
 
 
 #if WITH_EDITOR

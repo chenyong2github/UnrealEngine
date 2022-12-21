@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Internationalization/EnginePackageLocalizationCache.h"
-#include "Misc/ScopeLock.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/PackageName.h"
 #include "AssetRegistry/AssetData.h"
