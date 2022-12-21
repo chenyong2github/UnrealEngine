@@ -2,6 +2,7 @@
 // ApplicationLifecycleComponent.cpp: Component to handle receiving notifications from the OS about application state (activated, suspended, termination, etc)
 
 #include "Components/ApplicationLifecycleComponent.h"
+#include "Templates/IsConst.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ApplicationLifecycleComponent)
 

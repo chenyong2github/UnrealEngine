@@ -6,7 +6,6 @@
 
 #include "ContentStreaming.h"
 #include "Components/PrimitiveComponent.h"
-#include "Engine/Engine.h"
 #include "Engine/Texture2D.h"
 #include "Misc/ConfigCacheIni.h"
 #include "RHI.h"
@@ -19,6 +18,12 @@
 #include "AudioCompressionSettingsUtils.h"
 #include "VT/VirtualTextureChunkManager.h"
 #include "Rendering/NaniteCoarseMeshStreamingManager.h"
+
+#if WITH_EDITOR
+#include "AudioDevice.h"
+#else
+#include "Engine/Engine.h"
+#endif
 
 /*-----------------------------------------------------------------------------
 	Globals.
@@ -1231,7 +1236,6 @@ void FStreamingManagerCollection::PropagateLightingScenarioChange()
 }
 
 #if WITH_EDITOR
-#include "AudioDevice.h"
 
 void FStreamingManagerCollection::OnAudioStreamingParamsChanged()
 {

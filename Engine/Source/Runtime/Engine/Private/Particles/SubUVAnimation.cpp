@@ -11,7 +11,6 @@
 #include "DerivedDataCacheInterface.h"
 #include "ComponentReregisterContext.h"
 #include "RHI.h"
-#include "RHIDefinitions.h"
 
 #define LOCTEXT_NAMESPACE "FSubUVDerivedData"
 

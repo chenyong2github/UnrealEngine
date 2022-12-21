@@ -8,6 +8,7 @@
 #include "RendererInterface.h"
 #include "UploadingVirtualTexture.h"
 #include "VT/VirtualTextureBuiltData.h"
+#include "VT/VirtualTextureUploadCache.h"
 #include "VirtualTextureChunkManager.h"
 
 static int32 TranscodeRetireAge = 60; //1 second @ 60 fps

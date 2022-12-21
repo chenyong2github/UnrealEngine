@@ -5,7 +5,6 @@
 =============================================================================*/
 
 #include "Engine/Level.h"
-#include "Collision.h"
 #include "Misc/TimeGuard.h"
 #include "GameFramework/WorldSettings.h"
 #include "UObject/UObjectStats.h"
@@ -23,10 +22,8 @@
 #include "IXRTrackingSystem.h"
 #include "Camera/CameraPhotography.h"
 #include "UObject/Stack.h"
-
-#if ENABLE_COLLISION_ANALYZER
 #include "PhysicsEngine/CollisionAnalyzerCapture.h"
-#endif
+
 #if !UE_SERVER
 #include "IMediaModule.h"
 #endif
@@ -1194,10 +1191,6 @@ void UWorld::FlushDeferredParameterCollectionInstanceUpdates()
 		bMaterialParameterCollectionInstanceNeedsDeferredUpdate = false;
 	}
 }
-
-#if ENABLE_COLLISION_ANALYZER
-#endif // ENABLE_COLLISION_ANALYZER
-
 
 #if (CSV_PROFILER && !UE_BUILD_SHIPPING)
 static TAutoConsoleVariable<int32> CVarRecordTickCountsToCSV(

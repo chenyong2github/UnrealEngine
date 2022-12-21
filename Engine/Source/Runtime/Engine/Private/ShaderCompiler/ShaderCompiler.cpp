@@ -16,6 +16,7 @@
 #include "EditorSupportDelegates.h"
 #include "Engine/RendererSettings.h"
 #include "Features/IModularFeatures.h"
+#include "HAL/PlatformFile.h"
 #include "HAL/PlatformFileManager.h"
 #include "Interfaces/IShaderFormat.h"
 #include "Interfaces/ITargetPlatform.h"

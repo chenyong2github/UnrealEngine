@@ -5,7 +5,6 @@
 =============================================================================*/
 
 #include "SkeletalRenderStatic.h"
-#include "Engine/SkinnedAssetCommon.h"
 #include "RenderUtils.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "RenderingThread.h"

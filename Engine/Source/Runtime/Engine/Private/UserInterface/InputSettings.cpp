@@ -7,6 +7,7 @@
 #include "GameFramework/InputSettings.h"
 #include "Engine/PlatformSettingsManager.h"
 #include "Misc/CommandLine.h"
+#include "UObject/UnrealType.h"
 #include "UObject/UObjectIterator.h"
 #include "HAL/PlatformApplicationMisc.h"
 
@@ -17,7 +18,6 @@
 #endif
 
 #if PLATFORM_WINDOWS
-#include "UObject/UnrealType.h"
 #include "Windows/WindowsHWrapper.h"
 #endif
 

@@ -19,7 +19,7 @@
 #include "Engine/InheritableComponentHandler.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
-#include "UObject/Package.h"
+#include "UObject/Package.h" // IWYU pragma: keep
 #include "UObject/PrimaryAssetId.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
@@ -28,11 +28,10 @@
 
 #if WITH_EDITOR
 #include "CookerSettings.h"
-#include "Editor/EditorEngine.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "BlueprintCompilationManager.h"
 #include "Engine/LevelScriptBlueprint.h"
-extern UNREALED_API UEditorEngine* GEditor;
+extern UNREALED_API class UEditorEngine* GEditor;
 #endif //WITH_EDITOR
 
 DEFINE_STAT(STAT_PersistentUberGraphFrameMemory);

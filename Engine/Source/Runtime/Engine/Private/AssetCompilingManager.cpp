@@ -2,8 +2,8 @@
 
 #include "AssetCompilingManager.h"
 
-#include "HAL/LowLevelMemStats.h"
-#include "HAL/LowLevelMemTracker.h"
+#include "HAL/LowLevelMemStats.h" // IWYU pragma: keep
+#include "HAL/LowLevelMemTracker.h" // IWYU pragma: keep
 
 DECLARE_LLM_MEMORY_STAT(TEXT("AssetCompilation"), STAT_AssetCompilationLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("AssetCompilation"), STAT_AssetCompilationSummaryLLM, STATGROUP_LLM);

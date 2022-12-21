@@ -5,6 +5,7 @@
 #include "RHI.h"
 #include "RenderUtils.h"
 #include "UploadingVirtualTexture.h"
+#include "VT/VirtualTextureBuiltData.h"
 #include "VT/VirtualTextureTranscodeCache.h"
 #include "VT/VirtualTextureUploadCache.h"
 

@@ -6,7 +6,6 @@
 
 #include "SkeletalRenderCPUSkin.h"
 #include "EngineStats.h"
-#include "Engine/SkinnedAssetCommon.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "PrimitiveSceneProxy.h"
 #include "RenderUtils.h"
