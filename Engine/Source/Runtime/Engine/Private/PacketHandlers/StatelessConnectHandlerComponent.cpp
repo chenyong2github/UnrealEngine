@@ -7,8 +7,8 @@
 #include "Engine/NetConnection.h"
 #include "Net/Core/Misc/PacketAudit.h"
 #include "Misc/ConfigCacheIni.h"
-
 #include "Stats/StatsTrace.h"
+#include <limits> // IWYU pragma: keep
 
 DEFINE_LOG_CATEGORY(LogHandshake);
 

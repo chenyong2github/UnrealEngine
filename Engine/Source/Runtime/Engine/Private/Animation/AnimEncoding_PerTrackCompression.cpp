@@ -23,6 +23,7 @@ static_assert(sizeof(ispc::BoneTrackPair) == sizeof(BoneTrackPair), "sizeof(ispc
 #if !INTEL_ISPC || UE_BUILD_SHIPPING
 static constexpr bool bAnim_PerTrackCompression_ISPC_Enabled = INTEL_ISPC && ANIM_PER_TRACK_COMPRESSION_ISPC_ENABLED_DEFAULT;
 #else
+#include "HAL/IConsoleManager.h"
 static bool bAnim_PerTrackCompression_ISPC_Enabled = ANIM_PER_TRACK_COMPRESSION_ISPC_ENABLED_DEFAULT;
 static FAutoConsoleVariableRef CVarAnimPerTrackCompressionISPCEnabled(TEXT("a.PerTrackCompression.ISPC"), bAnim_PerTrackCompression_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in per track anim encoding"));
 #endif

@@ -30,7 +30,7 @@
 
 
 #include "UObject/SavePackage.h"
-
+#include <limits> // IWYU pragma: keep
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionRuntimeSpatialHashHLOD, Log, All);
 

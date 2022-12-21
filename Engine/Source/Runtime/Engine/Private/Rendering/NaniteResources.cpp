@@ -31,6 +31,7 @@
 
 #if NANITE_ENABLE_DEBUG_RENDERING
 #include "AI/Navigation/NavCollisionBase.h"
+#include "PhysicsEngine/BodySetup.h"
 #endif
 
 

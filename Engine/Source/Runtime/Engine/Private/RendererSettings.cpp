@@ -20,6 +20,7 @@
 #if PLATFORM_WINDOWS
 #include "Framework/Docking/TabManager.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #endif
 

@@ -7,6 +7,7 @@
 #include <ogg/os_types.h>
 #include <vorbis/codec.h>
 #if PLATFORM_WINDOWS
+#include "Misc/Paths.h"
 #include "Windows/WindowsHWrapper.h"
 #endif
 
