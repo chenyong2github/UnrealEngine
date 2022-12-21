@@ -16,6 +16,10 @@
 #include "SceneInterface.h"
 #include "Stats/StatsTrace.h"
 
+#if RHI_RAYTRACING
+#include "Engine/SkinnedAssetCommon.h"
+#endif
+
 struct FMorphTargetDelta;
 
 template<typename VertexType, int32 NumberOfUVs>

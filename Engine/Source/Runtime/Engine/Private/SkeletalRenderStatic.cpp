@@ -9,6 +9,10 @@
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "RenderingThread.h"
 
+#if RHI_RAYTRACING
+#include "Engine/SkinnedAssetCommon.h"
+#endif
+
 FSkeletalMeshObjectStatic::FSkeletalMeshObjectStatic(USkinnedMeshComponent* InMeshComponent, FSkeletalMeshRenderData* InSkelMeshRenderData, ERHIFeatureLevel::Type InFeatureLevel)
 	: FSkeletalMeshObject(InMeshComponent, InSkelMeshRenderData, InFeatureLevel)
 {
