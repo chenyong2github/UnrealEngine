@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Bad?
+
 #if WITH_EDITOR
 #include "Editor/EditorEngine.h"
 #include "LevelEditor.h"

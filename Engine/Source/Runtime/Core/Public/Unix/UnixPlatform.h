@@ -6,6 +6,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Not included directly
+
 #include <linux/version.h>
 #include <signal.h>
 #include "Clang/ClangPlatform.h"

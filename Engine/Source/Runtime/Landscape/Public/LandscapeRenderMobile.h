@@ -6,6 +6,8 @@ DEPRECATED LandscapeRenderMobile.h: This file will be removed
 #pragma once
 #pragma message("LandscapeRenderMobile.h is deprecated. Please remove all usage of LandscapeRenderMobile.h")
 
+// HEADER_UNIT_SKIP - Deprecated
+
 #include "CoreMinimal.h"
 #include "RenderResource.h"
 

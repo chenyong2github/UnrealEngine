@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+// HEADER_UNIT_SKIP - Special include
+
 #if USE_USD_SDK
 
 #include "CoreMinimal.h"

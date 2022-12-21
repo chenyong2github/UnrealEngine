@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Bad header
+
 #include "CoreMinimal.h"
 
 namespace Metasound

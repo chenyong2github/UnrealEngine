@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+// HEADER_UNIT_SKIP - Not included directly
+
 // Base defines, must define these for the platform, there are no defaults
 #ifndef PLATFORM_DESKTOP
 	#define PLATFORM_DESKTOP					1

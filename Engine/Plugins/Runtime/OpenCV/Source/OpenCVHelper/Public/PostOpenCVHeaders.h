@@ -6,6 +6,8 @@
 #error Mismatched PreOpenCVHeadersTypes.h detected.
 #endif
 
+// HEADER_UNIT_SKIP - Special include
+
 #include "OpenCVUtils.h"
 
 #if PLATFORM_WINDOWS

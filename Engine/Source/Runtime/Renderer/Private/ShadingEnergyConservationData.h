@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Not included directly
+
 // These values were generated using FBuildShadingEnergyConservationTableCS
 
 // How to update those tables?

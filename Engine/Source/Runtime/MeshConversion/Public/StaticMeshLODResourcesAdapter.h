@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Bad includes
+
 #include "CoreMinimal.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshResources.h"

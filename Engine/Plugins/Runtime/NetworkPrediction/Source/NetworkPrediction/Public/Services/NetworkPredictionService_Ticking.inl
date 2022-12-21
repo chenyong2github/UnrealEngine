@@ -1,8 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+
+// HEADER_UNIT_SKIP - Not included directly
+
 #include "NetworkPredictionSimulation.h"
 #include "NetworkPredictionInstanceData.h"
+#include "NetworkPredictionTickState.h"
 
 // Common util used by the ticking services. Might make sense to move to FNetworkPredictionDriverBase if needed elsewhere
 template<typename ModelDef>

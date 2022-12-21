@@ -6,6 +6,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Internal
+
 class FMarkHeightfieldPagesCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FMarkHeightfieldPagesCS);

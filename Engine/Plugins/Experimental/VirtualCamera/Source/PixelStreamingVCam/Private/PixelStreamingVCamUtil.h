@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Bad header
+
 #include "Misc/Paths.h"
 #include "Interfaces/IPluginManager.h"
 #include "PixelStreamingVCamLogging.h"

@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Included through other header
+
 #include "Misc/Char.h"
 #if PLATFORM_USE_GENERIC_STRING_IMPLEMENTATION
 	#include "GenericPlatform/GenericWidePlatformString.h"

@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Skip this for now
+
 #include "CoreMinimal.h"
 
 struct XrSpaceLocation;

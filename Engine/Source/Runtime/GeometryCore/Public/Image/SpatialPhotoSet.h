@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Bad include. Some headers are in Engine
+
 #include "VectorTypes.h"
 #include "FrameTypes.h"
 #include "SceneView.h"

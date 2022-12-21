@@ -3,6 +3,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Bad header.. code is not compiling
+
 #include "CoreTypes.h"
 #include "HAL/UnrealMemory.h"
 

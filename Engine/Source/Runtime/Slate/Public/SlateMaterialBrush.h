@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Not included directly
+
 #include "CoreMinimal.h"
 #include "Layout/Margin.h"
 #include "Styling/SlateBrush.h"

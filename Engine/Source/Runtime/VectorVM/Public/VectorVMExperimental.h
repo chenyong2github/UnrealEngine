@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+// HEADER_UNIT_SKIP - Not included directly
+
 #define VECTORVM_SUPPORTS_AVX 0
 #define VECTORVM_SUPPORTS_COMPUTED_GOTO 0
 

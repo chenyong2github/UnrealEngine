@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Bad include
+
 #include "Widgets/Views/STreeView.h"
 #include "SGeometryCollectionTreeItem.h"
 

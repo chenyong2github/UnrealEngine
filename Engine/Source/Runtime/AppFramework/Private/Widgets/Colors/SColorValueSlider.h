@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Bad header, does not compile
+
 #include "CoreMinimal.h"
 #include "Misc/Attribute.h"
 #include "InputCoreTypes.h"

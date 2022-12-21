@@ -1,5 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+// HEADER_UNIT_SKIP - Is included in ways that does not support header units
+// IWYU pragma: private
+
 #ifndef ONLINE_ERROR_NAMESPACE
 #error "ONLINE_ERROR_NAMESPACE not defined"
 #endif

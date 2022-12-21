@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Not included directly
+
 #include "Templates/SharedPointer.h"
 
 class FControlFlowContainerBase : public TSharedFromThis<FControlFlowContainerBase>

@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
- 
+
+// HEADER_UNIT_SKIP - Bad includes! Audio is not available in this module
+
 #include "CoreMinimal.h"
 #include "DSP/AudioFFT.h"
 #include "DSP/FFTAlgorithm.h"

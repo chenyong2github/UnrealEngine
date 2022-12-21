@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Not included directly
+
 #include "Containers/UnrealString.h"
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
@@ -53,4 +55,4 @@ private:
 	FString											DeviceName;
 };
 
-#include "AndroidTargetDeviceOutput.inl"
+#include "AndroidTargetDeviceOutput.inl" // IWYU pragma: export

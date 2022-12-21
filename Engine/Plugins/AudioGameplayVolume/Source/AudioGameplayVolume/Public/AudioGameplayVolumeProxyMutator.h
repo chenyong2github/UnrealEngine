@@ -11,6 +11,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Deprecated
+
 #ifdef _MSC_VER
 #pragma message(__FILE__"(15): warning: use AudioGameplayVolumeSubsystem.h and AudioGameplayVolumeMutator.h instead of AudioGameplayVolumeProxyMutator.h")
 #else

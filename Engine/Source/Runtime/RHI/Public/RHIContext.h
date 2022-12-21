@@ -6,6 +6,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Should always be included after RHI.h (this code needs cleanup.. this file is included in the middle of RHI.h)
+
 #include "Misc/AssertionMacros.h"
 #include "Math/Color.h"
 #include "Math/IntPoint.h"

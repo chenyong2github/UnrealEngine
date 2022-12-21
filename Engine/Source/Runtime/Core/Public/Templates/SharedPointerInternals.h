@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Included through SharedPointer.h
+
 #include "CoreTypes.h"
 #include "HAL/UnrealMemory.h"
 #include "Misc/AssertionMacros.h"

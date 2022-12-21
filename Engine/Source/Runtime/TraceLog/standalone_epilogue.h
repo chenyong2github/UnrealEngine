@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+// HEADER_UNIT_SKIP - Not included directly
+
 // {{{1 amalgamation-tail //////////////////////////////////////////////////////
 
 #if PLATFORM_WINDOWS

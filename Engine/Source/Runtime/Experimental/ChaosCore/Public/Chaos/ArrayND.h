@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+// HEADER_UNIT_SKIP - Bad include. Some headers are in Chaos while this is in ChaosCore
+
 #include "Chaos/Core.h"
 #include "Chaos/Array.h"
 #include "Chaos/UniformGrid.h"

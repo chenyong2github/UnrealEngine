@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Not included directly
+
 #if !defined(TRACE_UE_COMPAT_LAYER)
 #	if defined(__UNREAL__) && __UNREAL__
 #		define TRACE_UE_COMPAT_LAYER	0

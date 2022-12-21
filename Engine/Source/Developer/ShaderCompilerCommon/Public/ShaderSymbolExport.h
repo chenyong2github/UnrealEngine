@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Bad includes (ZipArchiveWriter.h)
+
 #if WITH_ENGINE
 
 #include "CoreTypes.h"

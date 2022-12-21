@@ -1,5 +1,7 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
+
+// HEADER_UNIT_SKIP - Not included directly
 
 #include "Protocol4.h"
 #include "Protocol5.h"

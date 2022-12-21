@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Not included directly
+
 #ifdef _MSC_VER
     #pragma warning(push)
     #pragma warning(disable : 4005 4365 4987)

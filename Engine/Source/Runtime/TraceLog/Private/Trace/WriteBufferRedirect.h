@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Internal
+
 #include "Trace/Detail/Writer.inl"
 
 namespace UE {

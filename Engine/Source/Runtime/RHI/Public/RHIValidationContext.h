@@ -6,6 +6,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Should always be included through RHIValidation.h
+
 #include "RHIValidationCommon.h"
 #include "RHIValidationUtils.h"
 

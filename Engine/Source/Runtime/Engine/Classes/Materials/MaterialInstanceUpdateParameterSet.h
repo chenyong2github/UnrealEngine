@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Not included directly
+
 #include "Materials/Material.h"
 #include "Materials/MaterialInstance.h"
 

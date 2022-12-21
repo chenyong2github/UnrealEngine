@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Special header
+
 #if PLATFORM_WINDOWS
 
 #ifndef MDLSDK_INCLUDES_START

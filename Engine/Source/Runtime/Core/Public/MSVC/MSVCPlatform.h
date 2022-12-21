@@ -6,6 +6,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Not included directly
+
 #if _MSC_VER < 1920
 	#error "Compiler is expected to support if constexpr"
 #endif

@@ -6,6 +6,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Should always be included through RHI.h (this code needs cleanup.. this file is included in the middle of RHI.h)
+
 #include "Experimental/ConcurrentLinearAllocator.h"
 
 #if ENABLE_RHI_VALIDATION

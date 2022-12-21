@@ -2,4 +2,6 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Not included directly
+
 #include "Windows/WindowsHWrapper.h"

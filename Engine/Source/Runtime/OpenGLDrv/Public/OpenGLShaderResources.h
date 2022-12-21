@@ -6,6 +6,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Not included directly
+
 #include "HAL/UnrealMemory.h"
 #include "Templates/UnrealTemplate.h"
 #include "Containers/Array.h"

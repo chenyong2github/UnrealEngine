@@ -2,6 +2,8 @@
 
 #pragma once
 
+// HEADER_UNIT_SKIP - Not used?
+
 #include "Templates/MemoryOps.h"
 
 #if _MSC_VER
