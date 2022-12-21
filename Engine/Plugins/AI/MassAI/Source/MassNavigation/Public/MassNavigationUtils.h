@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Math/Quat.h"
 #include "Math/UnrealMathUtility.h"
 
 namespace UE::MassNavigation

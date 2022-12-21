@@ -3,6 +3,7 @@
 #pragma once
 
 #include "DragAndDrop/DecoratedDragDropOp.h"
+#include "Widgets/IUSDTreeViewItem.h"
 
 enum class EUsdDragDropOpType
 {

@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreTypes.h"
+
 struct PIXELSTREAMING_API FPixelStreamingPlayerConfig
 {
 	bool SupportsDataChannel = false;

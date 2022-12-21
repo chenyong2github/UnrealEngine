@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
+
 namespace UE::EditorPixelStreaming
 {
 	enum class PIXELSTREAMINGEDITOR_API EStreamTypes : uint8

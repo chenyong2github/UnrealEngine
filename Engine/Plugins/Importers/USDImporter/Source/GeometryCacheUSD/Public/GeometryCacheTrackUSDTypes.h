@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Templates/Function.h"
+#include "UObject/WeakObjectPtr.h"
 
 class UGeometryCacheTrackUsd;
 struct FGeometryCacheMeshData;

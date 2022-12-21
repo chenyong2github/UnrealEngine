@@ -2,6 +2,10 @@
 
 #pragma once
 
+#include "Containers/Map.h"
+#include "HAL/CriticalSection.h"
+#include "Misc/ScopeLock.h"
+
 namespace UE::PixelStreaming
 {
 	template <typename KeyType, typename ValueType>

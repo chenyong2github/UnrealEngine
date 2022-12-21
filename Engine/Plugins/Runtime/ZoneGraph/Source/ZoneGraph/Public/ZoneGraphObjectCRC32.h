@@ -7,6 +7,8 @@
 
 #if WITH_EDITORONLY_DATA
 
+#include "UObject/UnrealType.h"
+
 /**
  * Archive based object hashing to be used with ZoneGraph data calculation.
  * If a property is has "IncludeInHash" meta tag, any of it's child properties will be included in the hash.

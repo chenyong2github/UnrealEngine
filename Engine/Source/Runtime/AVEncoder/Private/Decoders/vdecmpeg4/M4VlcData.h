@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Decoders/vdecmpeg4/M4VlcDecoder.h"
+
 namespace vdecmpeg4
 {
 

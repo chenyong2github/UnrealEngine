@@ -2,8 +2,7 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "Editor.h"
-
-class IPropertyHandle;
+#include "PropertyHandle.h"
 
 #define LOCTEXT_NAMESPACE "MassMovementEditor"
 

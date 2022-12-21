@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "RHIResources.h"
+#include "RHI.h"
 #include "WebRTCIncludes.h"
 
 namespace UE::PixelStreaming

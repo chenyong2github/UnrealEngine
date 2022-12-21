@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreTypes.h"
+
 class PIXELSTREAMING_API IPixelStreamingAudioInput
 {
 public:

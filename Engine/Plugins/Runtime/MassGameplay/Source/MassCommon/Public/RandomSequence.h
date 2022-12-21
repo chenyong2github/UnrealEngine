@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -30,9 +30,9 @@ namespace UE::RandomSequence
 	 */
 	FORCEINLINE uint32 FibocciHash(const int32 SeqIndex)
 	{
-		constexpr uint32_t K = 2654435769u; // 2^32 / phi (golden ratio)
+		constexpr uint32 K = 2654435769u; // 2^32 / phi (golden ratio)
 		// Offset the sequence by 1, so that index 0 is not always 0.
-		return (uint32_t)(SeqIndex + 1) * K;
+		return (uint32)(SeqIndex + 1) * K;
 	}
 	
 	/**
@@ -42,7 +42,7 @@ namespace UE::RandomSequence
 	FORCEINLINE float FRand(const int32 SeqIndex)
 	{
 		float Result;
-		*(uint32_t*)&Result = 0x3F800000U | (FibocciHash(SeqIndex) >> 9);
+		*(uint32*)&Result = 0x3F800000U | (FibocciHash(SeqIndex) >> 9);
 		return Result - 1.0f; 
 	}
 
