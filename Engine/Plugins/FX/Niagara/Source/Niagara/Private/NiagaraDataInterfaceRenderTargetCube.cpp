@@ -51,6 +51,7 @@ namespace NDIRenderTargetCubeLocal
 		{
 			InitialVersion = 0,
 			AddedOptionalExecute = 1,
+			AddedMipLevel = 2,
 
 			VersionPlusOne,
 			LatestVersion = VersionPlusOne - 1
@@ -168,6 +169,7 @@ void UNiagaraDataInterfaceRenderTargetCube::GetFunctions(TArray<FNiagaraFunction
 		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(DefaultSig);
 		Sig.Name = SampleValueFunctionName;
 		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("UVW"));
+		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetFloatDef(), TEXT("MipLevel"));
 		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetColorDef(), TEXT("Value"));
 		Sig.bSupportsCPU = false;
 	}
@@ -194,7 +196,6 @@ void UNiagaraDataInterfaceRenderTargetCube::GetFunctions(TArray<FNiagaraFunction
 	{
 		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(DefaultSig);
 		Sig.Name = ExecToUnitName;
-		Sig.Inputs.Emplace(FNiagaraTypeDefinition(GetClass()), TEXT("RenderTarget"));
 		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetVec2Def(), TEXT("Unit"));
 		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("Face"));
 		Sig.bSupportsCPU = false;
@@ -214,6 +215,14 @@ bool UNiagaraDataInterfaceRenderTargetCube::UpgradeFunctionCall(FNiagaraFunction
 		{
 			check(FunctionSignature.Inputs.Num() == 5);
 			FunctionSignature.Inputs.Insert_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Enabled")), 1).SetValue(true);
+			bWasChanged = true;
+		}
+	}
+	if (FunctionSignature.FunctionVersion < EFunctionVersion::AddedMipLevel)
+	{
+		if (FunctionSignature.Name == SampleValueFunctionName)
+		{
+			FunctionSignature.Inputs.Emplace(FNiagaraTypeDefinition::GetFloatDef(), TEXT("MipLevel"));
 			bWasChanged = true;
 		}
 	}

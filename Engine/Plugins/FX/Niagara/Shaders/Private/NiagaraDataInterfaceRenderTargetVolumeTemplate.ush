@@ -24,9 +24,9 @@ void LoadRenderTargetValue_{ParameterName}(int IndexX, int IndexY, int IndexZ, i
 	Value = {ParameterName}_Texture.Load(int4(IndexX, IndexY, IndexZ, MipLevel));
 }
 
-void SampleRenderTargetValue_{ParameterName}(float3 UVW, out float4 Value)
+void SampleRenderTargetValue_{ParameterName}(float3 UVW, float MipLevel, out float4 Value)
 {
-	Value = {ParameterName}_Texture.SampleLevel({ParameterName}_TextureSampler, UVW, 0.0f);
+	Value = {ParameterName}_Texture.SampleLevel({ParameterName}_TextureSampler, UVW, MipLevel);
 }
 
 void GetRenderTargetSize_{ParameterName}(out int Width, out int Height, out int Slices)

@@ -57,6 +57,7 @@ namespace NDIRenderTargetVolumeLocal
 		{
 			InitialVersion = 0,
 			AddedOptionalExecute = 1,
+			AddedMipLevel = 2,
 
 			VersionPlusOne,
 			LatestVersion = VersionPlusOne - 1
@@ -233,6 +234,7 @@ void UNiagaraDataInterfaceRenderTargetVolume::GetFunctions(TArray<FNiagaraFuncti
 		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(DefaultSig);
 		Sig.Name = SampleValueFunctionName;
 		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("UVW"));
+		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetFloatDef(), TEXT("MipLevel"));
 		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetColorDef(), TEXT("Value"));
 		Sig.bSupportsCPU = false;
 	}
@@ -277,6 +279,14 @@ bool UNiagaraDataInterfaceRenderTargetVolume::UpgradeFunctionCall(FNiagaraFuncti
 		{
 			check(FunctionSignature.Inputs.Num() == 5);
 			FunctionSignature.Inputs.Insert_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Enabled")), 1).SetValue(true);
+			bWasChanged = true;
+		}
+	}
+	if (FunctionSignature.FunctionVersion < EFunctionVersion::AddedMipLevel)
+	{
+		if (FunctionSignature.Name == SampleValueFunctionName)
+		{
+			FunctionSignature.Inputs.Emplace(FNiagaraTypeDefinition::GetFloatDef(), TEXT("MipLevel"));
 			bWasChanged = true;
 		}
 	}

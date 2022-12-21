@@ -60,6 +60,7 @@ struct FNDIRenderTarget2DFunctionVersion
 	{
 		InitialVersion = 0,
 		AddedOptionalExecute = 1,
+		AddedMipLevel = 2,
 
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
@@ -186,6 +187,7 @@ void UNiagaraDataInterfaceRenderTarget2D::GetFunctions(TArray<FNiagaraFunctionSi
 		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(DefaultSig);
 		Sig.Name = SampleValueFunctionName;
 		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetVec2Def(), TEXT("UV"));
+		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetFloatDef(), TEXT("MipLevel"));
 		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetColorDef(), TEXT("Value"));
 		Sig.bSupportsCPU = false;
 	}
@@ -238,6 +240,14 @@ bool UNiagaraDataInterfaceRenderTarget2D::UpgradeFunctionCall(FNiagaraFunctionSi
 		{
 			check(FunctionSignature.Inputs.Num() == 4);
 			FunctionSignature.Inputs.Insert_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Enabled")), 1).SetValue(true);
+			bWasChanged = true;
+		}
+	}
+	if (FunctionSignature.FunctionVersion < FNDIRenderTarget2DFunctionVersion::AddedMipLevel)
+	{
+		if (FunctionSignature.Name == SampleValueFunctionName)
+		{
+			FunctionSignature.Inputs.Emplace(FNiagaraTypeDefinition::GetFloatDef(), TEXT("MipLevel"));
 			bWasChanged = true;
 		}
 	}

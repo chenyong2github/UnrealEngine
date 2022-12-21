@@ -58,6 +58,7 @@ struct FNDIRenderTarget2DArrayFunctionVersion
 	{
 		InitialVersion = 0,
 		AddedOptionalExecute = 1,
+		AddedMipLevel = 2,
 
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
@@ -196,9 +197,9 @@ void UNiagaraDataInterfaceRenderTarget2DArray::GetFunctions(TArray<FNiagaraFunct
 	{
 		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(DefaultSig);
 		Sig.Name = SampleValueFunctionName;
-		Sig.Inputs.Emplace(FNiagaraTypeDefinition(GetClass()), TEXT("RenderTarget"));
 		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetVec2Def(), TEXT("UV"));
 		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetIntDef(), TEXT("Slice"));
+		Sig.Inputs.Emplace(FNiagaraTypeDefinition::GetFloatDef(), TEXT("MipLevel"));
 		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetColorDef(), TEXT("Value"));
 		Sig.bSupportsCPU = false;
 	}
@@ -234,14 +235,24 @@ void UNiagaraDataInterfaceRenderTarget2DArray::GetFunctions(TArray<FNiagaraFunct
 #if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfaceRenderTarget2DArray::UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature)
 {
+	using namespace NDIRenderTarget2DArrayLocal;
+
 	bool bWasChanged = false;
 
 	if (FunctionSignature.FunctionVersion < FNDIRenderTarget2DArrayFunctionVersion::AddedOptionalExecute)
 	{
-		if (FunctionSignature.Name == NDIRenderTarget2DArrayLocal::SetValueFunctionName)
+		if (FunctionSignature.Name == SetValueFunctionName)
 		{
 			check(FunctionSignature.Inputs.Num() == 5);
 			FunctionSignature.Inputs.Insert_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Enabled")), 1).SetValue(true);
+			bWasChanged = true;
+		}
+	}
+	if (FunctionSignature.FunctionVersion < FNDIRenderTarget2DArrayFunctionVersion::AddedMipLevel)
+	{
+		if (FunctionSignature.Name == SampleValueFunctionName)
+		{
+			FunctionSignature.Inputs.Emplace(FNiagaraTypeDefinition::GetFloatDef(), TEXT("MipLevel"));
 			bWasChanged = true;
 		}
 	}
