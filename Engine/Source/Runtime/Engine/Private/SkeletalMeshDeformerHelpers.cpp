@@ -217,26 +217,27 @@ void FSkeletalMeshDeformerHelpers::UpdateVertexFactoryBufferOverrides(FSkeletalM
 	FSkeletalMeshObjectGPUSkin* MeshObjectGPU = static_cast<FSkeletalMeshObjectGPUSkin*>(InMeshObject);
 	FMeshDeformerGeometry& DeformerGeometry = MeshObjectGPU->GetDeformerGeometry(InLodIndex);
 	
-	TArray<FGPUSkinPassthroughVertexFactory::EVertexAtttribute, TInlineAllocator<4>> Attributes;
-	TArray<FRHIShaderResourceView*, TInlineAllocator<4>> SRVs;
+	FGPUSkinPassthroughVertexFactory::FAddVertexAttributeDesc Desc;
+	Desc.FrameNumber = DeformerGeometry.PositionUpdatedFrame;
 
 	if (DeformerGeometry.PositionSRV)
 	{
-		Attributes.Add(FGPUSkinPassthroughVertexFactory::EVertexAtttribute::Position);
-		SRVs.Add(DeformerGeometry.PositionSRV);
+		Desc.VertexAttributes.Add(FGPUSkinPassthroughVertexFactory::VertexPosition);
+		Desc.SRVs[FGPUSkinPassthroughVertexFactory::Position] = DeformerGeometry.PositionSRV;
+		Desc.SRVs[FGPUSkinPassthroughVertexFactory::PreviousPosition] = DeformerGeometry.PrevPositionSRV;
 	}
 	if (DeformerGeometry.TangentSRV)
 	{
-		Attributes.Add(FGPUSkinPassthroughVertexFactory::EVertexAtttribute::Tangent);
-		SRVs.Add(DeformerGeometry.TangentSRV);
+		Desc.VertexAttributes.Add(FGPUSkinPassthroughVertexFactory::VertexTangent);
+		Desc.SRVs[FGPUSkinPassthroughVertexFactory::Tangent] = DeformerGeometry.TangentSRV;
 	}
 	if (DeformerGeometry.ColorSRV)
 	{
-		Attributes.Add(FGPUSkinPassthroughVertexFactory::EVertexAtttribute::Color);
-		SRVs.Add(DeformerGeometry.ColorSRV);
+		Desc.VertexAttributes.Add(FGPUSkinPassthroughVertexFactory::VertexColor);
+		Desc.SRVs[FGPUSkinPassthroughVertexFactory::Color] = DeformerGeometry.ColorSRV;
 	}
 
-	if (Attributes.Num() == 0)
+	if (Desc.VertexAttributes.Num() == 0)
 	{
 		return;
 	}
@@ -247,8 +248,7 @@ void FSkeletalMeshDeformerHelpers::UpdateVertexFactoryBufferOverrides(FSkeletalM
 	{
 		FGPUBaseSkinVertexFactory const* BaseVertexFactory = MeshObjectGPU->GetBaseSkinVertexFactory(InLodIndex, SectionIndex);
 		FGPUSkinPassthroughVertexFactory* TargetVertexFactory = LOD.GPUSkinVertexFactories.PassthroughVertexFactories[SectionIndex].Get();
-		
-		TargetVertexFactory->AddVertexAttributes(BaseVertexFactory, Attributes, SRVs);
+		TargetVertexFactory->SetVertexAttributes(BaseVertexFactory, Desc);
 	}
 }
 

@@ -172,6 +172,65 @@ void FLocalVertexFactoryShaderParameters::Bind(const FShaderParameterMap& Parame
 	IsGPUSkinPassThrough.Bind(ParameterMap, TEXT("bIsGPUSkinPassThrough"));
 }
 
+static bool IsGPUSkinPassThroughSupported(EShaderPlatform Platform)
+{
+	// Enable the GPUSkin passthrough path if we might use the GPUSkinCache or MeshDeformers.
+	static IMeshDeformerProvider* MeshDeformerProvider = IMeshDeformerProvider::Get();
+	bool bMeshDeformersAvailable = MeshDeformerProvider && MeshDeformerProvider->IsSupported(Platform);
+	return bMeshDeformersAvailable || IsGPUSkinCacheAvailable(Platform);
+}
+
+static void GetMeshDeformerVertexStreams(FMeshDeformerGeometry const& InDeformerGeometry, FGPUSkinPassthroughVertexFactory const* InVertexFactory, FVertexInputStreamArray& InOutVertexStreams)
+{
+	const int32 PositionStreamIndex = InVertexFactory->GetAttributeStreamIndex(FGPUSkinPassthroughVertexFactory::VertexPosition);
+	if (PositionStreamIndex > -1 && InDeformerGeometry.Position.IsValid())
+	{
+		InOutVertexStreams.Add(FVertexInputStream(PositionStreamIndex, 0, InDeformerGeometry.Position->GetRHI()));
+	}
+
+	const int32 TangentStreamIndex = InVertexFactory->GetAttributeStreamIndex(FGPUSkinPassthroughVertexFactory::VertexTangent);
+	if (TangentStreamIndex > -1 && InDeformerGeometry.Tangent.IsValid())
+	{
+		InOutVertexStreams.Add(FVertexInputStream(TangentStreamIndex, 0, InDeformerGeometry.Tangent->GetRHI()));
+	}
+
+	const int32 ColorStreamIndex = InVertexFactory->GetAttributeStreamIndex(FGPUSkinPassthroughVertexFactory::VertexColor);
+	if (ColorStreamIndex > -1 && InDeformerGeometry.Color.IsValid())
+	{
+		InOutVertexStreams.Add(FVertexInputStream(ColorStreamIndex, 0, InDeformerGeometry.Color->GetRHI()));
+	}
+}
+
+static void GetElementShaderBindingsGPUSkinPassThrough(
+	const FMeshMaterialShader* Shader,
+	ERHIFeatureLevel::Type FeatureLevel,
+	const FVertexFactory* VertexFactory,
+	const FMeshBatchElement& BatchElement,
+	class FMeshDrawSingleShaderBindings& ShaderBindings,
+	FVertexInputStreamArray& VertexStreams)
+{
+	// Bind vertex streams.
+	FSkinBatchVertexFactoryUserData* BatchUserData = (FSkinBatchVertexFactoryUserData*)BatchElement.VertexFactoryUserData;
+	FGPUSkinPassthroughVertexFactory const* PassthroughVertexFactory = static_cast<FGPUSkinPassthroughVertexFactory const*>(VertexFactory);
+
+	if (BatchUserData != nullptr && BatchUserData->SkinCacheEntry != nullptr)
+	{
+		// Using Skin Cache.
+		FGPUSkinCache::GetShaderVertexStreams(BatchUserData->SkinCacheEntry, BatchUserData->SectionIndex, PassthroughVertexFactory, VertexStreams);
+	}
+	else if (BatchUserData != nullptr && BatchUserData->DeformerGeometry != nullptr)
+	{
+		// Using Mesh Deformers.
+		GetMeshDeformerVertexStreams(*BatchUserData->DeformerGeometry, PassthroughVertexFactory, VertexStreams);
+	}
+
+	// Bind the vertex factory uniform buffer.
+	if (PassthroughVertexFactory->SupportsManualVertexFetch(FeatureLevel) || UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel))
+	{
+		ShaderBindings.Add(Shader->GetUniformBufferParameter<FLocalVertexFactoryUniformShaderParameters>(), PassthroughVertexFactory->GetUniformBuffer());
+	}
+}
+
 void FLocalVertexFactoryShaderParameters::GetElementShaderBindings(
 	const FSceneInterface* Scene,
 	const FSceneView* View,
@@ -189,10 +248,7 @@ void FLocalVertexFactoryShaderParameters::GetElementShaderBindings(
 	if (LocalVertexFactory->bGPUSkinPassThrough)
 	{
 		GetElementShaderBindingsGPUSkinPassThrough(
-			Scene,
-			View,
 			Shader,
-			InputStreamType,
 			FeatureLevel,
 			VertexFactory,
 			BatchElement,
@@ -218,54 +274,6 @@ void FLocalVertexFactoryShaderParameters::GetElementShaderBindings(
 	}
 
 	ShaderBindings.Add(Shader->GetUniformBufferParameter<FLocalVertexFactoryLooseParameters>(), LocalVertexFactory->LooseParametersUniformBuffer);
-}
-
-bool IsGPUSkinPassThroughSupported(EShaderPlatform Platform)
-{
-	// Enable the GPUSkin passthrough path if we might use the GPUSkinCache or MeshDeformers.
-	static IMeshDeformerProvider* MeshDeformerProvider = IMeshDeformerProvider::Get();
-	bool bMeshDeformersAvailable = MeshDeformerProvider && MeshDeformerProvider->IsSupported(Platform);
-	return bMeshDeformersAvailable || IsGPUSkinCacheAvailable(Platform);
-}
-
-void FLocalVertexFactoryShaderParameters::GetElementShaderBindingsGPUSkinPassThrough(
-	const FSceneInterface* Scene,
-	const FSceneView* View,
-	const FMeshMaterialShader* Shader,
-	const EVertexInputStreamType InputStreamType,
-	ERHIFeatureLevel::Type FeatureLevel,
-	const FVertexFactory* VertexFactory,
-	const FMeshBatchElement& BatchElement,
-	class FMeshDrawSingleShaderBindings& ShaderBindings,
-	FVertexInputStreamArray& VertexStreams) const
-{
-	FGPUSkinPassthroughVertexFactory const* PassthroughVertexFactory = static_cast<FGPUSkinPassthroughVertexFactory const*>(VertexFactory);
-	if (PassthroughVertexFactory->SupportsManualVertexFetch(FeatureLevel) || UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel))
-	{
-		ShaderBindings.Add(Shader->GetUniformBufferParameter<FLocalVertexFactoryUniformShaderParameters>(), PassthroughVertexFactory->GetUniformBuffer());
-	}
-
- 	FSkinBatchVertexFactoryUserData* BatchUserData = (FSkinBatchVertexFactoryUserData*)BatchElement.VertexFactoryUserData;
-	if (!ensure(BatchUserData != nullptr))
-	{
-		return;
-	}
-
- 	if (BatchUserData->SkinCacheEntry != nullptr)
- 	{
-		// Using Skin Cache.
-		FGPUSkinCache::GetShaderBindings(BatchUserData->SkinCacheEntry, BatchUserData->Section, PassthroughVertexFactory, ShaderBindings, VertexStreams);
- 	}
- 	else if (BatchUserData->DeformerGeometry != nullptr)
- 	{
-		// Using Mesh Deformers.
-		FMeshDeformerGeometry* DeformerGeometry = BatchUserData->DeformerGeometry;
-		if (DeformerGeometry->Position.IsValid())
-		{
-			int32 PositionStreamIndex = PassthroughVertexFactory->GetAttributeStreamIndex(FGPUSkinPassthroughVertexFactory::EVertexAtttribute::Position);
-			VertexStreams.Add(FVertexInputStream(PositionStreamIndex, 0, DeformerGeometry->Position->GetRHI()));
-		}
-	}
 }
 
 /**
@@ -521,6 +529,7 @@ void FLocalVertexFactory::InitRHI()
 	}
 
 	FLocalVertexFactoryLooseParameters LooseParameters;
+	LooseParameters.FrameNumber = -1;
 	LooseParameters.GPUSkinPassThroughPositionBuffer = GNullVertexBuffer.VertexBufferSRV;
 	LooseParameters.GPUSkinPassThroughPreviousPositionBuffer = GNullVertexBuffer.VertexBufferSRV;
 	LooseParametersUniformBuffer = TUniformBufferRef<FLocalVertexFactoryLooseParameters>::CreateUniformBufferImmediate(LooseParameters, UniformBuffer_MultiFrame);

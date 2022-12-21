@@ -145,11 +145,10 @@ public:
 		FGPUSkinCacheEntry*& InOutEntry
 		);
 
-	static void GetShaderBindings(
+	static void GetShaderVertexStreams(
 		const FGPUSkinCacheEntry* Entry,
 		int32 Section,
 		const FGPUSkinPassthroughVertexFactory* VertexFactory,
-		class FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams);
 
 	static void Release(FGPUSkinCacheEntry*& SkinCacheEntry);

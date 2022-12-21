@@ -305,7 +305,7 @@ public:
 		for (int32 Index = 0; Index < Sections.Num(); ++Index)
 		{
 			BatchElementsUserData[Index].SkinCacheEntry = this;
-			BatchElementsUserData[Index].Section = Index;
+			BatchElementsUserData[Index].SectionIndex = Index;
 		}
 
 		UpdateSkinWeightBuffer();
@@ -414,23 +414,18 @@ public:
 			return IntermediateAccumulatedTangentBuffer;
 		}
 
-		void UpdateFrameNumber()
-		{
-			UpdatedFrameNumber = SourceVertexFactory->GetShaderData().UpdatedFrameNumber;
-		}
-
 		void UpdateVertexFactoryDeclaration()
 		{
-			FGPUSkinPassthroughVertexFactory::EVertexAtttribute Attribs[2] = { FGPUSkinPassthroughVertexFactory::EVertexAtttribute::Position, FGPUSkinPassthroughVertexFactory::EVertexAtttribute::Tangent };
-			FRHIShaderResourceView* SRVs[2] = { nullptr, GetTangentRWBuffer()->Buffer.SRV };
-			TargetVertexFactory->AddVertexAttributes(SourceVertexFactory, Attribs, SRVs);
+			FGPUSkinPassthroughVertexFactory::FAddVertexAttributeDesc Desc;
+			Desc.FrameNumber = SourceVertexFactory->GetShaderData().UpdatedFrameNumber;
+			Desc.VertexAttributes.Add(FGPUSkinPassthroughVertexFactory::VertexPosition);
+			Desc.VertexAttributes.Add(FGPUSkinPassthroughVertexFactory::VertexTangent);
+			Desc.SRVs[FGPUSkinPassthroughVertexFactory::Position] = GetPositionRWBuffer()->Buffer.SRV;
+			Desc.SRVs[FGPUSkinPassthroughVertexFactory::PreviousPosition] = GetPreviousPositionRWBuffer()->Buffer.SRV;
+			Desc.SRVs[FGPUSkinPassthroughVertexFactory::Tangent] = GetTangentRWBuffer()->Buffer.SRV;
+			TargetVertexFactory->SetVertexAttributes(SourceVertexFactory, Desc);
 		}
 	};
-
-	void UpdateFrameNumber(int32 Section)
-	{
-		DispatchData[Section].UpdateFrameNumber();
-	}
 
 	void UpdateVertexFactoryDeclaration(int32 Section)
 	{
@@ -1410,7 +1405,6 @@ void FGPUSkinCache::DoDispatch(FRHICommandListImmediate& RHICmdList)
 	for (int32 i = 0; i < BatchCount; ++i)
 	{
 		FDispatchEntry& DispatchItem = BatchDispatches[i];
-		DispatchItem.SkinCacheEntry->UpdateFrameNumber(DispatchItem.Section);
 		DispatchItem.SkinCacheEntry->UpdateVertexFactoryDeclaration(DispatchItem.Section);
 	}
 
@@ -1465,7 +1459,6 @@ void FGPUSkinCache::DoDispatch(FRHICommandListImmediate& RHICmdList, FGPUSkinCac
 		DispatchUpdateSkinTangents(RHICmdList, SkinCacheEntry, Section, StagingBuffer, false);
 	}
 
-	SkinCacheEntry->UpdateFrameNumber(Section);
 	SkinCacheEntry->UpdateVertexFactoryDeclaration(Section);
 
 	TransitionAllToReadable(RHICmdList, BuffersToTransitionToRead);
@@ -1764,11 +1757,10 @@ void FGPUSkinCache::Release(FGPUSkinCacheEntry*& SkinCacheEntry)
 	}
 }
 
-void FGPUSkinCache::GetShaderBindings(
+void FGPUSkinCache::GetShaderVertexStreams(
 	const FGPUSkinCacheEntry* Entry, 
 	int32 Section,
 	const FGPUSkinPassthroughVertexFactory* VertexFactory,
-	FMeshDrawSingleShaderBindings& ShaderBindings,
 	FVertexInputStreamArray& VertexStreams)
 {
 	INC_DWORD_STAT(STAT_GPUSkinCache_NumSetVertexStreams);
@@ -1778,12 +1770,11 @@ void FGPUSkinCache::GetShaderBindings(
 
 	FGPUSkinCacheEntry::FSectionDispatchData const& DispatchData = Entry->DispatchData[Section];
 
-	//UE_LOG(LogSkinCache, Warning, TEXT("*** SetVertexStreams E %p Sec %d(%p) LOD %d"), Entry, Section, Entry->DispatchData[Section].Section, Entry->LOD);
-
-	int32 PositionStreamIndex = VertexFactory->GetAttributeStreamIndex(FGPUSkinPassthroughVertexFactory::EVertexAtttribute::Position);
+	const int32 PositionStreamIndex = VertexFactory->GetAttributeStreamIndex(FGPUSkinPassthroughVertexFactory::EVertexAtttribute::VertexPosition);
+	check(PositionStreamIndex > -1);
 	VertexStreams.Add(FVertexInputStream(PositionStreamIndex, 0, DispatchData.GetPositionRWBuffer()->Buffer.Buffer));
 
-	int32 TangentStreamIndex = VertexFactory->GetAttributeStreamIndex(FGPUSkinPassthroughVertexFactory::EVertexAtttribute::Tangent);
+	const int32 TangentStreamIndex = VertexFactory->GetAttributeStreamIndex(FGPUSkinPassthroughVertexFactory::EVertexAtttribute::VertexTangent);
 	if (TangentStreamIndex > -1 && DispatchData.GetTangentRWBuffer())
 	{
 		VertexStreams.Add(FVertexInputStream(TangentStreamIndex, 0, DispatchData.GetTangentRWBuffer()->Buffer.Buffer));

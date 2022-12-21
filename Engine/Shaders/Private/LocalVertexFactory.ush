@@ -1152,34 +1152,35 @@ float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryInte
 float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
 	FLWCMatrix PreviousLocalToWorld = GetInstanceData(Intermediates).PrevLocalToWorld;
+	float4 PrevLocalPosition = Input.Position;
 
-	float4 PrevLocalPosition;
 #if SUPPORT_GPUSKIN_PASSTHROUGH
 	if (IsGPUSkinPassThrough())
 	{
-		uint Offset = Input.VertexId * 3;
-		float3 PreviousPos;
-		PreviousPos.x = LocalVFLooseParameters.GPUSkinPassThroughPreviousPositionBuffer[Offset + 0];
-		PreviousPos.y = LocalVFLooseParameters.GPUSkinPassThroughPreviousPositionBuffer[Offset + 1];
-		PreviousPos.z = LocalVFLooseParameters.GPUSkinPassThroughPreviousPositionBuffer[Offset + 2];
-		PrevLocalPosition = float4(PreviousPos, 1);	
+		// Duplicates logic in FGPUSkinVertexFactoryShaderParameters::GetElementShaderBindings().
+		if (ResolvedView.FrameNumber == LocalVFLooseParameters.FrameNumber && ResolvedView.WorldIsPaused == 0)
+		{
+			uint Offset = Input.VertexId * 3;
+			float3 PreviousPos;
+			PreviousPos.x = LocalVFLooseParameters.GPUSkinPassThroughPreviousPositionBuffer[Offset + 0];
+			PreviousPos.y = LocalVFLooseParameters.GPUSkinPassThroughPreviousPositionBuffer[Offset + 1];
+			PreviousPos.z = LocalVFLooseParameters.GPUSkinPassThroughPreviousPositionBuffer[Offset + 2];
+			PrevLocalPosition = float4(PreviousPos, 1);	
+		}
 	}
 	else
 #endif // SUPPORT_GPUSKIN_PASSTHROUGH
 	{
-	#if USE_INSTANCING
+#if USE_INSTANCING
 		float4x4 InstanceTransform = GetInstancePrevTransform(Intermediates);
 		PrevLocalPosition = mul(Input.Position, InstanceTransform);
 #elif USE_SPLINEDEFORM
-	// Just like CalcWorldPosition...
-	float4x3 SliceTransform = CalcSliceTransform(dot(Input.Position.xyz, SplineMeshDir));
-
-	// Transform into mesh space
+		// Just like CalcWorldPosition...
+		float4x3 SliceTransform = CalcSliceTransform(dot(Input.Position.xyz, SplineMeshDir));
+		// Transform into mesh space
 		PrevLocalPosition = float4(mul(Input.Position, SliceTransform), Input.Position.w);
-#else
-		PrevLocalPosition = Input.Position;
-#endif	// USE_INSTANCING
-}
+#endif
+	}
 
 	return TransformPreviousLocalPositionToTranslatedWorld(PrevLocalPosition.xyz, PreviousLocalToWorld);
 }

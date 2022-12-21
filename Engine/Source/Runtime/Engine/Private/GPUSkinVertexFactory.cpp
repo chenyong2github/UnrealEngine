@@ -1276,6 +1276,7 @@ void FGPUSkinPassthroughVertexFactory::ResetVertexAttributes()
 		StreamIndices[Index] = -1;
 		SRVs[Index] = nullptr;
 	}
+	UpdatedFrameNumber = ~0U;
 }
 
 // We don't set actual vertex buffers in our FDataType because we always expect to override the values in GetElementShaderBindings().
@@ -1284,65 +1285,92 @@ TStaticArray<FVertexBuffer, FGPUSkinPassthroughVertexFactory::EVertexAtttribute:
 
 void FGPUSkinPassthroughVertexFactory::OverrideAttributeData()
 {
-	if (VertexAttributeMask & (1 << EVertexAtttribute::Position))
+	if (VertexAttributeMask & (1 << EVertexAtttribute::VertexPosition))
 	{
-		Data.PositionComponent.VertexBuffer = &DummyVBs[EVertexAtttribute::Position];
+		Data.PositionComponent.VertexBuffer = &DummyVBs[EVertexAtttribute::VertexPosition];
 		Data.PositionComponent.Offset = 0;
 		Data.PositionComponent.VertexStreamUsage = EVertexStreamUsage::Overridden;
 		Data.PositionComponent.Stride = 3 * sizeof(float);
 	}
 
-	if (VertexAttributeMask & (1 << EVertexAtttribute::Tangent))
+	if (VertexAttributeMask & (1 << EVertexAtttribute::VertexTangent))
 	{
-		Data.TangentBasisComponents[0].VertexBuffer = &DummyVBs[EVertexAtttribute::Tangent];
+		Data.TangentBasisComponents[0].VertexBuffer = &DummyVBs[EVertexAtttribute::VertexTangent];
 		Data.TangentBasisComponents[0].Offset = 0;
 		Data.TangentBasisComponents[0].Type = VET_Short4N;
 		Data.TangentBasisComponents[0].Stride = 16;
 		Data.TangentBasisComponents[0].VertexStreamUsage = EVertexStreamUsage::Overridden | EVertexStreamUsage::ManualFetch;
 
-		Data.TangentBasisComponents[1].VertexBuffer = &DummyVBs[EVertexAtttribute::Tangent];
+		Data.TangentBasisComponents[1].VertexBuffer = &DummyVBs[EVertexAtttribute::VertexTangent];
 		Data.TangentBasisComponents[1].Offset = 8;
 		Data.TangentBasisComponents[1].Type = VET_Short4N;
 		Data.TangentBasisComponents[1].Stride = 16;
 		Data.TangentBasisComponents[1].VertexStreamUsage = EVertexStreamUsage::Overridden | EVertexStreamUsage::ManualFetch;
 	}
 
-	if (VertexAttributeMask & (1 << EVertexAtttribute::Color))
+	if (VertexAttributeMask & (1 << EVertexAtttribute::VertexColor))
 	{
-		Data.ColorComponent.VertexBuffer = &DummyVBs[EVertexAtttribute::Color];
+		Data.ColorComponent.VertexBuffer = &DummyVBs[EVertexAtttribute::VertexColor];
 		Data.ColorComponent.Offset = 0;
 		Data.ColorComponent.VertexStreamUsage = EVertexStreamUsage::Overridden | EVertexStreamUsage::ManualFetch;
 		Data.ColorComponent.Stride = sizeof(uint32);
 	}
 
-	if (VertexAttributeMask & (1 << EVertexAtttribute::TexCoord))
+	// TexCoord vertex attributes are written in pairs.
+	for (uint32 TexCoordPairIndex = 0; TexCoordPairIndex < 4; ++TexCoordPairIndex)
 	{
-		Data.TextureCoordinates[0].VertexBuffer = &DummyVBs[EVertexAtttribute::TexCoord];
-		Data.TextureCoordinates[0].Offset = 0;
-		Data.TextureCoordinates[0].VertexStreamUsage = EVertexStreamUsage::Overridden | EVertexStreamUsage::ManualFetch;
-		Data.TextureCoordinates[0].Stride = 2 * sizeof(float);
+		const uint32 TexCoordIndex0 = 2 * TexCoordPairIndex;
+		const uint32 MaskTexCoord0 = (1 << (EVertexAtttribute::VertexTexCoord0 + TexCoordIndex0));
+		const uint32 MaskTexCoord1 = MaskTexCoord0 << 1;
 
-		Data.NumTexCoords = 1;
+		if (VertexAttributeMask & (MaskTexCoord0 | MaskTexCoord1))
+		{
+			const bool bHasTexCoord1 = (VertexAttributeMask & MaskTexCoord1);
+
+			// Note that we use the dummy VB from TexCoord0, so that is what we need to search for later in BuildStreamIndices().
+			Data.TextureCoordinates[TexCoordPairIndex].VertexBuffer = &DummyVBs[EVertexAtttribute::VertexTexCoord0 + TexCoordIndex0];
+			Data.TextureCoordinates[TexCoordPairIndex].Offset = 0;
+			Data.TextureCoordinates[TexCoordPairIndex].VertexStreamUsage = EVertexStreamUsage::Overridden | EVertexStreamUsage::ManualFetch;
+			Data.TextureCoordinates[TexCoordPairIndex].Stride = sizeof(float) * (bHasTexCoord1 ? 4 : 2);
+
+			Data.NumTexCoords = FMath::Max<int32>(Data.NumTexCoords, TexCoordIndex0 + (bHasTexCoord1 ? 2 : 1));
+		}
 	}
 }
 
 void FGPUSkinPassthroughVertexFactory::OverrideSRVs(FGPUBaseSkinVertexFactory const* InSourceVertexFactory)
 {
-	Data.PositionComponentSRV = SRVs[EVertexAtttribute::Position] ? SRVs[EVertexAtttribute::Position] : (FRHIShaderResourceView*)InSourceVertexFactory->GetPositionsSRV();
-	Data.TangentsSRV = SRVs[EVertexAtttribute::Tangent] ? SRVs[EVertexAtttribute::Tangent] : (FRHIShaderResourceView*)InSourceVertexFactory->GetTangentsSRV();
-	Data.ColorComponentsSRV = SRVs[EVertexAtttribute::Color] ? SRVs[EVertexAtttribute::Color] : (FRHIShaderResourceView*)InSourceVertexFactory->GetColorComponentsSRV();
-	Data.TextureCoordinatesSRV = SRVs[EVertexAtttribute::TexCoord] ? SRVs[EVertexAtttribute::TexCoord] : (FRHIShaderResourceView*)InSourceVertexFactory->GetTextureCoordinatesSRV();
+	Data.TangentsSRV = SRVs[EShaderResource::Tangent] ? SRVs[EShaderResource::Tangent] : (FRHIShaderResourceView*)InSourceVertexFactory->GetTangentsSRV();
+	Data.ColorComponentsSRV = SRVs[EShaderResource::Color] ? SRVs[EShaderResource::Color] : (FRHIShaderResourceView*)InSourceVertexFactory->GetColorComponentsSRV();
+	Data.TextureCoordinatesSRV = SRVs[EShaderResource::TexCoord] ? SRVs[EShaderResource::TexCoord] : (FRHIShaderResourceView*)InSourceVertexFactory->GetTextureCoordinatesSRV();
 }
 
 void FGPUSkinPassthroughVertexFactory::BuildStreamIndices()
 {
+	// Iterate to find matching streams.
 	for (int32 AttributeIndex = 0; AttributeIndex < EVertexAtttribute::NumAttributes; ++AttributeIndex)
 	{
 		StreamIndices[AttributeIndex] = -1;
 
+		// Don't search if vertex attribute is not requested.
+		if ((VertexAttributeMask & (1 << AttributeIndex)) == 0)
+		{
+			continue;
+		}
+
+		FVertexBuffer const* BufferToFind = &DummyVBs[AttributeIndex];
+		
+		// Each TexCoord streams each containing two attributes, so map the second attribute to the first one when searching.
+		if (AttributeIndex == EVertexAtttribute::VertexTexCoord1 || AttributeIndex == EVertexAtttribute::VertexTexCoord3 ||
+			AttributeIndex == EVertexAtttribute::VertexTexCoord5 || AttributeIndex == EVertexAtttribute::VertexTexCoord7)
+		{
+			BufferToFind = &DummyVBs[AttributeIndex - 1];
+		}
+
+		// Search for matching stream.
 		for (int32 StreamIndex = 0; StreamIndex < Streams.Num(); ++StreamIndex)
 		{
-			if (Streams[StreamIndex].VertexBuffer == &DummyVBs[AttributeIndex])
+			if (Streams[StreamIndex].VertexBuffer == BufferToFind)
 			{
 				StreamIndices[AttributeIndex] = StreamIndex;
 				break;
@@ -1361,26 +1389,59 @@ void FGPUSkinPassthroughVertexFactory::CreateUniformBuffer()
 	}
 }
 
-void FGPUSkinPassthroughVertexFactory::AddVertexAttributes(FGPUBaseSkinVertexFactory const* InSourceVertexFactory, TArrayView<EVertexAtttribute> const& InAttributes, TArrayView<FRHIShaderResourceView*> const& InSRVs)
+void FGPUSkinPassthroughVertexFactory::CreateLooseUniformBuffer(FGPUBaseSkinVertexFactory const* InSourceVertexFactory, uint32 InFrameNumber)
 {
-	// Check for new attributes or modified SRVs.
+	FRHIShaderResourceView* PositionSRV = SRVs[EShaderResource::Position] != nullptr ? SRVs[EShaderResource::Position] : (FRHIShaderResourceView*)InSourceVertexFactory->GetPositionsSRV();
+	FRHIShaderResourceView* PrevPositionSRV = SRVs[EShaderResource::PreviousPosition] != nullptr ? SRVs[EShaderResource::PreviousPosition] : PositionSRV;
+
+	FLocalVertexFactoryLooseParameters Parameters;
+	Parameters.FrameNumber = InFrameNumber;
+	Parameters.GPUSkinPassThroughPositionBuffer = PositionSRV;
+	Parameters.GPUSkinPassThroughPreviousPositionBuffer = PrevPositionSRV;
+	LooseParametersUniformBuffer.UpdateUniformBufferImmediate(Parameters);
+}
+
+void FGPUSkinPassthroughVertexFactory::SetVertexAttributes(FGPUBaseSkinVertexFactory const* InSourceVertexFactory, FAddVertexAttributeDesc const& InDesc)
+{
+	// Check for new vertex attributes.
 	bool bNeedFullUpdate = false;
-	bool bNeedSRVUpdate = false;
-	
-	for (int32 Index = 0; Index < InAttributes.Num(); ++Index)
+	for (int32 Index = 0; Index < InDesc.VertexAttributes.Num(); ++Index)
 	{
-		const uint32 MaskBit = 1 << InAttributes[Index];
+		const uint32 MaskBit = 1 << InDesc.VertexAttributes[Index];
 		if ((VertexAttributeMask & MaskBit) == 0)
 		{
 			VertexAttributeMask |= MaskBit;
 			bNeedFullUpdate = true;
 		}
+	}
 
-		if (SRVs[InAttributes[Index]] != InSRVs[Index])
+	// Check for modified SRVs.
+	bool bNeedUniformBufferUpdate = false;
+	bool bNeedLooseUniformBufferUpdate = false;
+	for (int32 Index = 0; Index < EShaderResource::NumShaderResources; ++Index)
+	{
+		if (SRVs[Index] != InDesc.SRVs[Index])
 		{
-			SRVs[InAttributes[Index]] = InSRVs[Index];
-			bNeedSRVUpdate = true;
+			SRVs[Index] = InDesc.SRVs[Index];
+
+			if (Index == EShaderResource::Position || Index == EShaderResource::PreviousPosition)
+			{
+				// Position SRVs are stored in the special "loose" uniform buffer used only by the passthrough vertex factory.
+				bNeedLooseUniformBufferUpdate = true;
+			}
+			else
+			{
+				// All other SRVs are stored in the main vertex factory uniform buffer.
+				bNeedUniformBufferUpdate = true;
+			}
 		}
+	}
+
+	if (UpdatedFrameNumber != InDesc.FrameNumber)
+	{
+		// Loose uniform buffer include the latest frame number.
+		UpdatedFrameNumber = InDesc.FrameNumber;
+		bNeedLooseUniformBufferUpdate = true;
 	}
 
 	if (bNeedFullUpdate)
@@ -1393,18 +1454,25 @@ void FGPUSkinPassthroughVertexFactory::AddVertexAttributes(FGPUBaseSkinVertexFac
 		OverrideSRVs(InSourceVertexFactory);
 
 		// Rebuild the vertex declaration.
+		// This will also update the uniform buffer.
 		UpdateRHI();
 
 		// Rebuild the vertex stream indices.
 		BuildStreamIndices();
 	}
-	else if (bNeedSRVUpdate)
+	else if (bNeedUniformBufferUpdate)
 	{
 		// Override the vertex factory data for our added attributes.
 		OverrideSRVs(InSourceVertexFactory);
 
 		// Only need to recreate the vertex factory uniform buffer.
 		CreateUniformBuffer();
+	}
+
+	if (bNeedLooseUniformBufferUpdate)
+	{
+		// Update the loose uniform buffer.
+		CreateLooseUniformBuffer(InSourceVertexFactory, InDesc.FrameNumber);
 	}
 }
 

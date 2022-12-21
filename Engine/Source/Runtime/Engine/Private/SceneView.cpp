@@ -2686,6 +2686,7 @@ void FSceneView::SetupCommonViewUniformBufferParameters(
 	ViewUniformShaderParameters.Random = FMath::Rand();
 	ViewUniformShaderParameters.FrameNumber = Family->FrameNumber;
 
+	ViewUniformShaderParameters.WorldIsPaused = Family->bWorldIsPaused;
 	ViewUniformShaderParameters.CameraCut = bCameraCut ? 1 : 0;
 
 	ViewUniformShaderParameters.MinRoughness = FMath::Clamp(CVarGlobalMinRoughnessOverride.GetValueOnRenderThread(), 0.02f, 1.0f);

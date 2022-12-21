@@ -728,32 +728,61 @@ public:
 	bool SupportsPositionAndNormalOnlyStream() const override { return false; }
 	// End FVertexFactory Interface.
 
-	/** Vertex attributes that we can override. */
-	enum EVertexAtttribute
-	{
-		Position,
-		Tangent,
-		Color,
-		TexCoord,
-		NumAttributes
-	};
-
-	/** 
-	 * Reset all added vertex attributes and SRVs. 
+	/**
+	 * Reset all added vertex attributes and SRVs.
 	 * This doesn't reset the vertex factory itself. Call SetData() to do that.
 	 */
 	void ResetVertexAttributes();
 
+	/** Vertex attributes that we can override. */
+	enum EVertexAtttribute
+	{
+		VertexPosition,
+		VertexTangent,
+		VertexColor,
+		VertexTexCoord0,
+		VertexTexCoord1,
+		VertexTexCoord2,
+		VertexTexCoord3,
+		VertexTexCoord4,
+		VertexTexCoord5,
+		VertexTexCoord6,
+		VertexTexCoord7,
+		NumAttributes
+	};
+	
+	/** SRVs that we can provide. */
+	enum EShaderResource
+	{
+		Position,
+		PreviousPosition,
+		Tangent,
+		Color,
+		TexCoord,
+		NumShaderResources
+	};
+
+	/** Structure used for calls to SetVertexAttributes(). */
+	struct FAddVertexAttributeDesc
+	{
+		FAddVertexAttributeDesc() : SRVs(InPlace, nullptr) {}
+
+		/** Frame number at animation update. Used to determine if animation motion is valid and needs to output velocity. */
+		uint32 FrameNumber = ~0U;
+		/** Vertex attributes to use in vertex declaration. */
+		TArray<EVertexAtttribute, TFixedAllocator<EVertexAtttribute::NumAttributes>> VertexAttributes;
+		/** SRVs for binding. These are only be used by platforms that support manual vertex fetch. */
+		TStaticArray<FRHIShaderResourceView*, EShaderResource::NumShaderResources> SRVs;
+	};
+
 	/** 
-	 * Add vertex attributes that will be in the vertex stream. 
-	 * We accumulate with any attributes that have already been added by previous calls to this function.
-	 * If any attributes are being added for the first time then we recreate the vertex declaration here.
-	 * The InSRVs array size should match the InAttributes array size. 
-	 * SRVs will only be used by platforms that support manual vertex fetch.
+	 * Set vertex attributes and SRVs to be used. 
+	 * The vertex declaration is made by accumulating attributes set here along with all that already been added by previous calls to this function.
+	 * If any attributes are being added for the first time then we pay the cost to recreate the vertex declaration here.
 	 * The SRVs are cached per attribute. If any passed in SRV is changed from the cached value then we recreate the vertex factory uniform buffer here.
 	 * Note that on platforms that support manual vertex fetch, only Position will be in the final vertex stream and other attributes will be read through an SRV.
 	 */
-	void AddVertexAttributes(FGPUBaseSkinVertexFactory const* InSourceVertexFactory, TArrayView<EVertexAtttribute> const& InAttributes, TArrayView<FRHIShaderResourceView*> const& InSRVs);
+	void SetVertexAttributes(FGPUBaseSkinVertexFactory const* InSourceVertexFactory, FAddVertexAttributeDesc const& InDesc);
 
 	/** 
 	 * Get the vertex stream index for a vertex attribute.
@@ -767,10 +796,12 @@ private:
 	void OverrideSRVs(FGPUBaseSkinVertexFactory const* InSourceVertexFactory);
 	void BuildStreamIndices();
 	void CreateUniformBuffer();
+	void CreateLooseUniformBuffer(FGPUBaseSkinVertexFactory const* InSourceVertexFactory, uint32 InFrameNumber);
 
-	uint32 VertexAttributeMask = 0;
+	uint32 VertexAttributeMask;
 	TStaticArray<int32, EVertexAtttribute::NumAttributes> StreamIndices;
-	TStaticArray<FRHIShaderResourceView*, EVertexAtttribute::NumAttributes> SRVs;
-	
+	TStaticArray<FRHIShaderResourceView*, EShaderResource::NumShaderResources> SRVs;
+	uint32 UpdatedFrameNumber;
+
 	static TStaticArray<FVertexBuffer, EVertexAtttribute::NumAttributes> DummyVBs;
 };

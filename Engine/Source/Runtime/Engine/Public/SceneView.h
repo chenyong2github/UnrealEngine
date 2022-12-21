@@ -701,6 +701,7 @@ enum ETranslucencyVolumeCascade
 	VIEW_UNIFORM_BUFFER_MEMBER(uint32, StateFrameIndexMod8) \
 	VIEW_UNIFORM_BUFFER_MEMBER(uint32, StateFrameIndex) \
 	VIEW_UNIFORM_BUFFER_MEMBER(uint32, DebugViewModeMask) \
+	VIEW_UNIFORM_BUFFER_MEMBER(uint32, WorldIsPaused) \
 	VIEW_UNIFORM_BUFFER_MEMBER_EX(float, CameraCut, EShaderPrecisionModifier::Half) \
 	VIEW_UNIFORM_BUFFER_MEMBER_EX(float, UnlitViewmodeMask, EShaderPrecisionModifier::Half) \
 	VIEW_UNIFORM_BUFFER_MEMBER_EX(FLinearColor, DirectionalLightColor, EShaderPrecisionModifier::Half) \

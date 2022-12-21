@@ -58,7 +58,7 @@ struct FSkinBatchVertexFactoryUserData
 {
 	FGPUSkinCacheEntry* SkinCacheEntry = nullptr;
 	FMeshDeformerGeometry* DeformerGeometry = nullptr;
-	int32 Section = -1;
+	int32 SectionIndex = -1;
 };
 
 /**
