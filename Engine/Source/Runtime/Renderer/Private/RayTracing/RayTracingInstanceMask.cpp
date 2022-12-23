@@ -44,6 +44,7 @@ uint8 ComputeRayTracingInstanceMask(ERayTracingInstanceMaskType MaskType, ERayTr
 			break;
 		case ERayTracingInstanceMaskType::VisibleInIndirectRay:
 			Mask = 0;
+			break;
 		default:
 			checkNoEntry();
 			break;
