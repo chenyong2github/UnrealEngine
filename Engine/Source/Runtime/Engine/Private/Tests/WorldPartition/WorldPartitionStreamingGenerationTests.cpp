@@ -73,23 +73,6 @@ namespace WorldPartitionTests
 			return false;
 		}
 
-		FSoftObjectPath ActorRuntimePath;
-		if (!TestTrue(TEXT("Actor Path Editor to Runtime Conversion Failed"), FWorldPartitionHelpers::ConvertEditorPathToRuntimePath(ActorRef->GetActorSoftPath(), ActorRuntimePath)))
-		{
-			return false;
-		}
-
-		FSoftObjectPath ActorEditorPath;
-		if (!TestTrue(TEXT("Actor Path Runtime to Editor Conversion Failed"), FWorldPartitionHelpers::ConvertRuntimePathToEditorPath(ActorRuntimePath, ActorEditorPath)))
-		{
-			return false;
-		}
-
-		if (!TestTrue(TEXT("Actor Path Editor to Runtime to Editor Conversion Failed"), ActorEditorPath == ActorRef->GetActorSoftPath()))
-		{
-			return false;
-		}
-
 		FWorldPartitionHandle ActorHandle(ActorDescMainContainer, FGuid(TEXT("0D2B04D240BE5DE58FE437A8D2DBF5C9")));
 		if (!TestTrue(TEXT("Invalid Actor Handle"), ActorHandle.IsValid()))
 		{
@@ -108,6 +91,68 @@ namespace WorldPartitionTests
 		}
 
 		if (!TestTrue(TEXT("Resolving Runtime Actor From Editor Path Failed"), ResolvedObject == ActorHandle->GetActor()))
+		{
+			return false;
+		}
+
+		auto TestEditorRuntimePathConversion = [this](const FSoftObjectPath& InEditorPath) -> bool
+		{
+			FSoftObjectPath RuntimePath;
+			if (!TestTrue(TEXT("Path Editor to Runtime Conversion Failed"), FWorldPartitionHelpers::ConvertEditorPathToRuntimePath(InEditorPath, RuntimePath)))
+			{
+				return false;
+			}
+
+			FSoftObjectPath EditorPath;
+			if (!TestTrue(TEXT("Path Runtime to Editor Conversion Failed"), FWorldPartitionHelpers::ConvertRuntimePathToEditorPath(RuntimePath, EditorPath)))
+			{
+				return false;
+			}
+
+			if (!TestTrue(TEXT("Path Editor to Runtime to Editor Conversion Failed"), EditorPath == InEditorPath))
+			{
+				return false;
+			}
+
+			return true;
+		};
+
+		// Test path conversions to an actor
+		if (!TestEditorRuntimePathConversion(FSoftObjectPath(Actor)))
+		{
+			return false;
+		}
+
+		// Test path conversions to an actor component
+		if (!TestEditorRuntimePathConversion(FSoftObjectPath(Actor->GetRootComponent())))
+		{
+			return false;
+		}
+
+		// Test path conversions to an instanced level
+		UPackage* WorldPackage = World->GetPackage();
+		WorldPackage->Rename(*FString(WorldPackage->GetName() + TEXT("_LevelInstance_1")));
+
+		// Test path conversions to an instanced actor
+		if (!TestEditorRuntimePathConversion(FSoftObjectPath(Actor)))
+		{
+			return false;
+		}
+
+		// Test path conversions to an instanced actor component
+		if (!TestEditorRuntimePathConversion(FSoftObjectPath(Actor->GetRootComponent())))
+		{
+			return false;
+		}
+
+		// Test path conversions to a newly spawned actor
+		AActor* NewActor = World->SpawnActor(AActor::StaticClass());
+		if (!TestTrue(TEXT("Sapwning Actor Failed"), !!NewActor))
+		{
+			return false;
+		}
+
+		if (!TestEditorRuntimePathConversion(FSoftObjectPath(NewActor)))
 		{
 			return false;
 		}

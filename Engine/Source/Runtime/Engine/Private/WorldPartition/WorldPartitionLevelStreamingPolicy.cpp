@@ -180,15 +180,51 @@ void UWorldPartitionLevelStreamingPolicy::RemapSoftObjectPath(FSoftObjectPath& O
 
 bool UWorldPartitionLevelStreamingPolicy::ConvertEditorPathToRuntimePath(const FSoftObjectPath& InPath, FSoftObjectPath& OutPath) const
 {
-	if (const FName* CellName = ActorToCellRemapping.Find(*InPath.ToString()))
+	const UWorld* OuterWorld = WorldPartition->GetTypedOuter<UWorld>();
+	const UPackage* OuterWorldPackage = OuterWorld->GetPackage();
+	const FTopLevelAssetPath WorldAssetPath(OuterWorld);
+
+	if (!OuterWorldPackage->HasAnyPackageFlags(PKG_PlayInEditor))
 	{
-		const UWorld* OuterWorld = WorldPartition->GetTypedOuter<UWorld>();
-		const UPackage* OuterWorldPackage = OuterWorld->GetPackage();
-		const FString OuterWorldPackageName = FPackageName::GetShortName(OuterWorldPackage->GetName());
-		const FString OuterWorldPackagePath = FPackageName::GetLongPackagePath(OuterWorldPackage->GetPathName());
-		OutPath = FString::Printf(TEXT("%s/%s/_Generated_/%s.%s:%s"), *OuterWorldPackagePath, *OuterWorldPackageName, *(CellName->ToString()), *OuterWorldPackageName, *InPath.GetSubPathString());
-		return true;
+		if (InPath.GetAssetPath() == WorldAssetPath)
+		{
+			FString SubAssetName;
+			FString SubAssetContext;
+			if (InPath.GetSubPathString().Split(TEXT("."), &SubAssetContext, &SubAssetName))
+			{
+				if (SubAssetContext == TEXT("PersistentLevel"))
+				{
+					FString SubObjectName;
+					FString SubObjectContext(SubAssetName);
+					SubAssetName.Split(TEXT("."), &SubObjectContext, &SubObjectName);
+
+					FString LevelInstanceTag;
+					FString WorldAssetPackageName = *WorldAssetPath.GetPackageName().ToString();
+					FString WorldAssetName = WorldAssetPath.GetAssetName().ToString();
+
+					// In the editor, the _LevelInstance_ID is appended to the persistent level, while at runtime it is appended to each cell package, so we need to remap it there if present.
+					const int32 LevelInstancePos = WorldAssetPackageName.Find(TEXT("_LevelInstance_"), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+					if (LevelInstancePos != INDEX_NONE)
+					{
+						LevelInstanceTag = WorldAssetPackageName.RightChop(LevelInstancePos);
+						WorldAssetPackageName.LeftInline(LevelInstancePos);
+					}
+
+					// Try to find the corresponding streaming cell, if it doesn't exists the actor must be in the persistent level.
+					if (const FName* CellName = SubObjectsToCellRemapping.Find(*SubObjectContext))
+					{
+						OutPath = FString::Printf(TEXT("%s/_Generated_/%s%s.%s:%s"), *WorldAssetPackageName, *(CellName->ToString()), *LevelInstanceTag, *WorldAssetPath.GetAssetName().ToString(), *InPath.GetSubPathString());
+					}
+					else
+					{
+						OutPath = FString::Printf(TEXT("%s/_Generated_/%s%s.%s:%s"), *WorldAssetPackageName, *WorldAssetName, *LevelInstanceTag, *WorldAssetPath.GetAssetName().ToString(), *InPath.GetSubPathString());
+					}
+					return true;
+				}
+			}
+		}
 	}
+
 	return false;
 }
 #endif

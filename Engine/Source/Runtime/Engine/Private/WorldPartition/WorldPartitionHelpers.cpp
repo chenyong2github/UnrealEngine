@@ -243,6 +243,16 @@ bool FWorldPartitionHelpers::ConvertRuntimePathToEditorPath(const FSoftObjectPat
 			if (int32 NextColonPos = InPathView.Find(TEXTVIEW(":"), NextDotPos); NextColonPos != INDEX_NONE)
 			{
 				OutPathString.RemoveAt(GeneratedPos, NextDotPos - GeneratedPos);
+
+				// In the editor, the _LevelInstance_ID is appended to the persistent level, while at runtime it is appended to each cell package, so we need to remap it there if present.
+				FString WorldAssetPackageName = InPath.GetAssetPath().GetPackageName().ToString();
+				const int32 LevelInstancePos = WorldAssetPackageName.Find(TEXT("_LevelInstance_"), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+				if (LevelInstancePos != INDEX_NONE)
+				{
+					FString LevelInstanceTag = WorldAssetPackageName.RightChop(LevelInstancePos);
+					OutPathString.InsertAt(GeneratedPos, LevelInstanceTag);
+				}
+
 				OutPath = OutPathString;
 				return true;
 			}
