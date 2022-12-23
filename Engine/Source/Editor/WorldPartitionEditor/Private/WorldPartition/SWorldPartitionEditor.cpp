@@ -40,9 +40,12 @@ SWorldPartitionEditor::~SWorldPartitionEditor()
 	{
 		if (UWorldPartition* WorldPartition = World->GetWorldPartition())
 		{
-			check(WorldPartition->World == World);
-			check(WorldPartition->WorldPartitionEditor == this);
-			WorldPartition->WorldPartitionEditor = nullptr;
+			check(WorldPartition->World == World);			
+			if (WorldPartition->WorldPartitionEditor)
+			{
+				check(WorldPartition->WorldPartitionEditor == this);
+				WorldPartition->WorldPartitionEditor = nullptr;
+			}
 		}
 	}
 }
