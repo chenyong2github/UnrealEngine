@@ -4,6 +4,7 @@
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Editor.h"
+#include "EditorPythonScriptingLibrary.h"
 #include "HAL/FileManager.h"
 #include "AssetRegistry/IAssetRegistry.h"
 #include "Modules/ModuleManager.h"
@@ -85,35 +86,41 @@ namespace InternalEditorPythonRunner
 		/** Opens the dialog in a new window */
 		static void OpenDialog()
 		{
-			TSharedRef<SWindow> PythonWindow = SNew(SWindow)
-				.Title(LOCTEXT("PythonWindowsDialog", "Executing Python..."))
-				.SizingRule(ESizingRule::Autosized)
-				.SupportsMaximize(false)
-				.SupportsMinimize(false)
-				[
-					SAssignNew(ExecuterDialog, SExecutingDialog)
-				];
-
-			IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
-
-			if (MainFrameModule.GetParentWindow().IsValid())
+			if (FSlateApplication::IsInitialized())
 			{
-				FSlateApplication::Get().AddWindowAsNativeChild(PythonWindow, MainFrameModule.GetParentWindow().ToSharedRef());
-			}
-			else
-			{
-				FSlateApplication::Get().AddWindow(PythonWindow);
+				TSharedRef<SWindow> PythonWindow = SNew(SWindow)
+					.Title(LOCTEXT("PythonWindowsDialog", "Executing Python..."))
+					.SizingRule(ESizingRule::Autosized)
+					.SupportsMaximize(false)
+					.SupportsMinimize(false)
+					[
+						SAssignNew(ExecuterDialog, SExecutingDialog)
+					];
+
+				IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
+
+				if (MainFrameModule.GetParentWindow().IsValid())
+				{
+					FSlateApplication::Get().AddWindowAsNativeChild(PythonWindow, MainFrameModule.GetParentWindow().ToSharedRef());
+				}
+				else
+				{
+					FSlateApplication::Get().AddWindow(PythonWindow);
+				}
 			}
 		}
 
 		/** Closes the dialog. */
 		void CloseDialog()
 		{
-			TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow(AsShared());
-
-			if (Window.IsValid())
+			if (FSlateApplication::IsInitialized())
 			{
-				Window->RequestDestroyWindow();
+				TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow(AsShared());
+
+				if (Window.IsValid())
+				{
+					Window->RequestDestroyWindow();
+				}
 			}
 		}
 
@@ -149,7 +156,10 @@ namespace InternalEditorPythonRunner
 		{
 			if (bIsRunning)
 			{
-				CloseEditor();
+				if (!UEditorPythonScriptingLibrary::GetKeepPythonScriptAlive())
+				{
+					CloseEditor();
+				}
 			}
 
 			// if we are here the editor is ready.
