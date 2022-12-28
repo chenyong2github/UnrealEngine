@@ -33,4 +33,22 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Render Grid")
 	static TArray<URenderGrid*> GetAllRenderGridAssets();
+
+
+	/**
+	 * Returns the given render grid asset that exists at the given object path (whether it's on disk or in memory).
+	 * Will load the render grid asset if it's currently unloaded.
+	 * 
+	 * This is a potentially slow operation, so avoid doing this every tick.
+	 */
+	static URenderGridBlueprint* GetRenderGridBlueprintAsset(const FString& ObjectPath);
+
+	/**
+	 * Returns the given render grid asset that exists at the given object path (whether it's on disk or in memory).
+	 * Will load the render grid asset if it's currently unloaded.
+	 * 
+	 * This is a potentially slow operation, so avoid doing this every tick.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Render Grid")
+	static URenderGrid* GetRenderGridAsset(const FString& ObjectPath);
 };

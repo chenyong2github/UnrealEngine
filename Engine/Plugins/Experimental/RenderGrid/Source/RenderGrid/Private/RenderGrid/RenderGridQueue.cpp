@@ -305,10 +305,25 @@ void URenderGridMoviePipelineRenderJob::ExecuteFinished(UMoviePipelineExecutorBa
 
 TQueue<TObjectPtr<URenderGridQueue>> URenderGridQueue::ExecutingQueues;
 URenderGridQueue::FOnExecutionQueueChanged URenderGridQueue::OnExecutionQueueChangedDelegate;
+bool URenderGridQueue::bExitOnCompletion = false;
 
 bool URenderGridQueue::IsExecutingAny()
 {
 	return (GetCurrentlyExecutingQueue() != nullptr);
+}
+
+void URenderGridQueue::CloseEditorOnCompletion()
+{
+	bExitOnCompletion = true;
+	RequestAppExitIfSetToExitOnCompletion();
+}
+
+void URenderGridQueue::RequestAppExitIfSetToExitOnCompletion()
+{
+	if (bExitOnCompletion && !IsExecutingAny())
+	{
+		FPlatformMisc::RequestExit(false);
+	}
 }
 
 URenderGridQueue* URenderGridQueue::GetCurrentlyExecutingQueue()
@@ -355,8 +370,13 @@ void URenderGridQueue::DoNextExecutingQueue()
 		{
 			Queue->Queue->Start(); // can be called twice here, which is fine (once in GetCurrentlyExecutingQueue() if the previous Queue became invalid, and then once again here)
 		}
+		OnExecutionQueueChanged().Broadcast();
 	}
-	OnExecutionQueueChanged().Broadcast();
+	else
+	{
+		OnExecutionQueueChanged().Broadcast();
+		RequestAppExitIfSetToExitOnCompletion();
+	}
 }
 
 

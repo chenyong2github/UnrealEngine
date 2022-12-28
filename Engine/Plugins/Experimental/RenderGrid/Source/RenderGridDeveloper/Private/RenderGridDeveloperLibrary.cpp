@@ -42,3 +42,28 @@ TArray<URenderGrid*> URenderGridDeveloperLibrary::GetAllRenderGridAssets()
 	}
 	return Result;
 }
+
+
+URenderGridBlueprint* URenderGridDeveloperLibrary::GetRenderGridBlueprintAsset(const FString& ObjectPath)
+{
+	if (FSoftObjectPath AssetPath = FSoftObjectPath(ObjectPath); AssetPath.IsValid())
+	{
+		if (URenderGridBlueprint* RenderGridBlueprint = Cast<URenderGridBlueprint>(AssetPath.TryLoad()); IsValid(RenderGridBlueprint))
+		{
+			return RenderGridBlueprint;
+		}
+	}
+	return nullptr;
+}
+
+URenderGrid* URenderGridDeveloperLibrary::GetRenderGridAsset(const FString& ObjectPath)
+{
+	if (URenderGridBlueprint* RenderGridBlueprint = GetRenderGridBlueprintAsset(ObjectPath); IsValid(RenderGridBlueprint))
+	{
+		if (URenderGrid* RenderGrid = RenderGridBlueprint->GetRenderGridWithBlueprintGraph(); IsValid(RenderGrid))
+		{
+			return RenderGrid;
+		}
+	}
+	return nullptr;
+}

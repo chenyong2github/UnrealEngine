@@ -161,12 +161,20 @@ class RENDERGRID_API URenderGridQueue : public UObject, public FTickableGameObje
 {
 	GENERATED_BODY()
 
-
 public:
+	/** Returns true if it's currently executing any rendering queues. */
 	static bool IsExecutingAny();
 
 	DECLARE_MULTICAST_DELEGATE(FOnExecutionQueueChanged);
+	/** The event that will be fired when the currently executing rendering queue changes (like for example when the previous one has completed its execution). */
 	static FOnExecutionQueueChanged& OnExecutionQueueChanged() { return OnExecutionQueueChangedDelegate; }
+
+	/** Call this function to make it so that the editor will be closed when all rendering queues finish execution. This function has to be only called once. */
+	UFUNCTION(BlueprintCallable, Category="Render Grid Queue", Meta=(Keywords="execution execute finish close stop end done quit"))
+	static void CloseEditorOnCompletion();
+
+private:
+	static void RequestAppExitIfSetToExitOnCompletion();
 
 private:
 	/** Returns the currently executing queue, or NULL if there isn't any currently executing. */
@@ -185,6 +193,8 @@ private:
 	/** The delegate for when data in the ExecutingQueues has changed. */
 	static FOnExecutionQueueChanged OnExecutionQueueChangedDelegate;
 
+	/** Whether the editor should be closed when all rendering queues finish their execution. */
+	static bool bExitOnCompletion;
 
 public:
 	//~ Begin FTickableGameObject interface
@@ -242,6 +252,10 @@ public:
 	/** Returns true if this queue is the one that's currently rendering, returns false if it hasn't started yet, or if it's waiting in the queue, or if it has finished. */
 	UFUNCTION(BlueprintPure, Category="Render Grid Queue", Meta=(Keywords="stopped quited exited killed terminated ended succeeded completed finished canceled cancelled"))
 	bool IsCurrentlyRendering() const { return (GetCurrentlyExecutingQueue() == this); }
+
+	/** Retrieves the rendering status of the given render grid job. */
+	UFUNCTION(BlueprintPure, Category="Render Grid Queue", Meta=(Keywords="rendering obtain text"))
+	URenderGrid* GetRenderGrid() const { return RenderGrid; }
 
 	/** Retrieves the rendering status of the given render grid job. */
 	UFUNCTION(BlueprintPure, Category="Render Grid Queue", Meta=(Keywords="rendering progression obtain text"))
