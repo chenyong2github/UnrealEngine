@@ -51,7 +51,7 @@ struct FGLTFExportMaterialCompiler : public FProxyMaterialCompiler
 	virtual int32 WorldPosition(EWorldPositionIncludedOffsets WorldPositionIncludedOffsets) override
 	{
 #if WITH_EDITOR
-		return Compiler->MaterialBakingWorldPosition();
+		return MaterialBakingWorldPosition();
 #else
 		return Compiler->WorldPosition(WorldPositionIncludedOffsets);
 #endif
@@ -148,7 +148,9 @@ struct FGLTFExportMaterialCompiler : public FProxyMaterialCompiler
 #if WITH_EDITOR
 	virtual int32 MaterialBakingWorldPosition() override
 	{
-		return Compiler->MaterialBakingWorldPosition();
+		// Depending on how the mesh data was retrieved, baking position may only be in local-space
+		const int32 BakingPosition = Compiler->MaterialBakingWorldPosition();
+		return Compiler->TransformPosition(MCB_Local, MCB_World, BakingPosition);
 	}
 #endif
 

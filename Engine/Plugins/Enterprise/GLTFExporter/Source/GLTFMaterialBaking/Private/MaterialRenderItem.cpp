@@ -134,19 +134,15 @@ void FGLTFMeshMaterialRenderItem::QueueMaterial(FCanvasRenderContext& RenderCont
 		{
 			FPrimitiveUniformShaderParameters PrimitiveParams = FPrimitiveUniformShaderParametersBuilder{}
 				.Defaults()
-					.LocalToWorld(FMatrix::Identity)
+					.LocalToWorld(PrimitiveData->LocalToWorld)
 					.ActorWorldPosition(PrimitiveData->ActorPosition)
-					.WorldBounds(PrimitiveData->ObjectBounds)
-					.LocalBounds(PrimitiveData->ObjectLocalBounds)
+					.WorldBounds(PrimitiveData->WorldBounds)
+					.LocalBounds(PrimitiveData->LocalBounds)
 					.PreSkinnedLocalBounds(PrimitiveData->PreSkinnedLocalBounds)
 					.CustomPrimitiveData(PrimitiveData->CustomPrimitiveData)
 					.ReceivesDecals(false)
 					//.DrawsVelocity(false)
 				.Build();
-
-			// Overwrite object orientation, since original calculation is derived from LocalToWorld matrix,
-			// which currently needs to be identity matrix to avoid transforming the "2D" vertices used for baking
-			PrimitiveParams.ObjectOrientation = FVector3f(PrimitiveData->ObjectOrientation);
 
 			const_cast<TUniformBuffer<FPrimitiveUniformShaderParameters>*>(MeshElement.Elements[0].PrimitiveUniformBufferResource)->SetContents(PrimitiveParams);
 		}
@@ -177,6 +173,9 @@ void FGLTFMeshMaterialRenderItem::QueueMaterial(FCanvasRenderContext& RenderCont
 
 void FGLTFMeshMaterialRenderItem::PopulateWithQuadData()
 {
+	// Pre-transform all vertices with the inverse of LocalToWorld to negate its effect during material baking 
+	const FMatrix44f WorldToLocal = (MeshSettings->PrimitiveData != nullptr) ? FMatrix44f(MeshSettings->PrimitiveData->LocalToWorld.Inverse()) : FMatrix44f::Identity;
+	
 	Vertices.Empty(4);
 	Indices.Empty(6);
 
@@ -193,8 +192,11 @@ void FGLTFMeshMaterialRenderItem::PopulateWithQuadData()
 		FDynamicMeshVertex* Vert = new(Vertices)FDynamicMeshVertex();
 		const int32 X = VertIndex & 1;
 		const int32 Y = (VertIndex >> 1) & 1;
-		Vert->Position.Set(ScaleX * X, ScaleY * Y, 0);
-		Vert->SetTangents(FVector3f(1, 0, 0), FVector3f(0, 1, 0), FVector3f(0, 0, 1));
+		Vert->Position = WorldToLocal.TransformPosition(FVector3f(ScaleX * X, ScaleY * Y, 0));
+		FVector3f TangentX = WorldToLocal.TransformVector(FVector3f(1, 0, 0));
+		FVector3f TangentZ = WorldToLocal.TransformVector(FVector3f(0, 1, 0));
+		FVector3f TangentY = WorldToLocal.TransformVector(FVector3f(0, 0, 1));
+		Vert->SetTangents(TangentX, TangentZ, TangentY);
 		FMemory::Memzero(&Vert->TextureCoordinate, sizeof(Vert->TextureCoordinate));
 		for (int32 TexcoordIndex = 0; TexcoordIndex < MAX_STATIC_TEXCOORDS; TexcoordIndex++)
 		{
@@ -210,6 +212,9 @@ void FGLTFMeshMaterialRenderItem::PopulateWithQuadData()
 
 void FGLTFMeshMaterialRenderItem::PopulateWithMeshData()
 {
+	// Pre-transform all vertices with the inverse of LocalToWorld to negate its effect during material baking 
+	const FMatrix44f WorldToLocal = (MeshSettings->PrimitiveData != nullptr) ? FMatrix44f(MeshSettings->PrimitiveData->LocalToWorld.Inverse()) : FMatrix44f::Identity;
+
 	const FMeshDescription* RawMesh = MeshSettings->MeshDescription;
 
 	FStaticMeshConstAttributes Attributes(*RawMesh);
@@ -267,15 +272,15 @@ void FGLTFMeshMaterialRenderItem::PopulateWithMeshData()
 				{
 					// compute vertex position from original UV
 					const FVector2D& UV = FVector2D(VertexInstanceUVs.Get(SrcVertexInstanceID, MeshSettings->TextureCoordinateIndex));
-					Vert->Position.Set(UV.X * ScaleX, UV.Y * ScaleY, 0);
+					Vert->Position = WorldToLocal.TransformPosition(FVector3f(UV.X * ScaleX, UV.Y * ScaleY, 0));
 				}
 				else
 				{
 					const FVector2D& UV = MeshSettings->CustomTextureCoordinates[SrcVertIndex];
-					Vert->Position.Set(UV.X * ScaleX, UV.Y * ScaleY, 0);
+					Vert->Position = WorldToLocal.TransformPosition(FVector3f(UV.X * ScaleX, UV.Y * ScaleY, 0));
 				}
-				FVector3f TangentX = VertexInstanceTangents[SrcVertexInstanceID];
-				FVector3f TangentZ = VertexInstanceNormals[SrcVertexInstanceID];
+				FVector3f TangentX = WorldToLocal.TransformVector(VertexInstanceTangents[SrcVertexInstanceID]);
+				FVector3f TangentZ = WorldToLocal.TransformVector(VertexInstanceNormals[SrcVertexInstanceID]);
 				FVector3f TangentY = FVector3f::CrossProduct(TangentZ, TangentX).GetSafeNormal() * VertexInstanceBinormalSigns[SrcVertexInstanceID];
 				Vert->SetTangents(TangentX, TangentY, TangentZ);
 				for (int32 TexcoordIndex = 0; TexcoordIndex < NumTexcoords; TexcoordIndex++)

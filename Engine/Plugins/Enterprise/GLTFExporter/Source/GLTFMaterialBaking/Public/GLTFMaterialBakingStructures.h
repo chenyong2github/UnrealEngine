@@ -69,10 +69,10 @@ struct FGLTFMaterialDataEx
 struct FGLTFPrimitiveData
 {
 	FGLTFPrimitiveData(const FBoxSphereBounds& LocalBounds = FBoxSphereBounds(ForceInitToZero))
-		: ActorPosition(ForceInitToZero)
-		, ObjectOrientation(FVector::UpVector)
-		, ObjectBounds(LocalBounds)
-		, ObjectLocalBounds(LocalBounds)
+		: LocalToWorld(FMatrix::Identity)
+		, ActorPosition(ForceInitToZero)
+		, WorldBounds(LocalBounds)
+		, LocalBounds(LocalBounds)
 		, PreSkinnedLocalBounds(LocalBounds)
 		, CustomPrimitiveData(nullptr)
 	{}
@@ -86,10 +86,10 @@ struct FGLTFPrimitiveData
 	{}
 
 	FGLTFPrimitiveData(const UMeshComponent* MeshComponent)
-		: ActorPosition(MeshComponent->GetComponentLocation())
-		, ObjectOrientation(MeshComponent->GetRenderMatrix().GetUnitAxis(EAxis::Z))
-		, ObjectBounds(MeshComponent->CalcBounds(MeshComponent->GetComponentTransform()))
-		, ObjectLocalBounds(MeshComponent->CalcLocalBounds())
+		: LocalToWorld(MeshComponent->GetRenderMatrix())
+		, ActorPosition(MeshComponent->GetActorPositionForRenderer())
+		, WorldBounds(MeshComponent->Bounds)
+		, LocalBounds(MeshComponent->GetLocalBounds())
 		, CustomPrimitiveData(&MeshComponent->GetCustomPrimitiveData())
 	{
 		if (const USkinnedMeshComponent* SkinnedMeshComponent = Cast<USkinnedMeshComponent>(MeshComponent))
@@ -98,21 +98,21 @@ struct FGLTFPrimitiveData
 		}
 		else
 		{
-			PreSkinnedLocalBounds = ObjectLocalBounds;
+			PreSkinnedLocalBounds = LocalBounds;
 		}
 	}
 
-	/** The location of the actor in world-space */
+	/** The mesh component's local-to-world transform */
+	FMatrix LocalToWorld;
+	/** The actor's location in world-space */
 	FVector ActorPosition;
-	/** The up vector of the object in world-space */
-	FVector ObjectOrientation;
-	/** The bounds of the object in world-space */
-	FBoxSphereBounds ObjectBounds;
-	/** The bounds of the object in local-space */
-	FBoxSphereBounds ObjectLocalBounds;
-	/** The pre-skinning bounds for the object in local-space */
+	/** The mesh component's bounds in world-space */
+	FBoxSphereBounds WorldBounds;
+	/** The mesh component's bounds in local-space */
+	FBoxSphereBounds LocalBounds;
+	/** The mesh component's pre-skinning bounds in local-space */
 	FBoxSphereBounds PreSkinnedLocalBounds;
-	/** The custom primitive data for the mesh component */
+	/** The mesh component's custom primitive data */
 	const FCustomPrimitiveData* CustomPrimitiveData;
 };
 

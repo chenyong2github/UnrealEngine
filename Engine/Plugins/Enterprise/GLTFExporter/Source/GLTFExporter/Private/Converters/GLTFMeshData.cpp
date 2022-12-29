@@ -2,7 +2,6 @@
 
 #include "Converters/GLTFMeshData.h"
 #include "Converters/GLTFNameUtilities.h"
-
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -14,6 +13,83 @@
 #include "StaticMeshComponentLODInfo.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "StaticMeshAttributes.h"
+#endif
+
+#if WITH_EDITOR
+#include "StaticMeshOperations.h"
+#include "Components/SplineMeshComponent.h"
+
+namespace
+{
+	// TODO: replace hack with FMeshMergeHelpers::RetrieveMesh after support for bApplyComponentTransform is approved and merged
+	void RetrieveMeshHack(const UStaticMeshComponent* StaticMeshComponent, int32 LODIndex, FMeshDescription& OutMeshDescription, bool bPropagateVertexColours, bool bApplyComponentTransform)
+	{
+		const UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
+		check(StaticMesh);
+
+		// Export the mesh data using static mesh render data
+		FMeshMergeHelpers::ExportStaticMeshLOD(StaticMesh->GetRenderData()->LODResources[LODIndex], OutMeshDescription, StaticMesh->GetStaticMaterials());
+
+		// Make sure the mesh is not irreparably malformed.
+		if (OutMeshDescription.VertexInstances().Num() <= 0)
+		{
+			return;
+		}
+
+		// If we have a component, use it to retrieve transform & vertex colors (if requested)
+		if (StaticMeshComponent)
+		{
+			// Handle spline mesh deformation
+			const bool bIsSplineMeshComponent = StaticMeshComponent->IsA<USplineMeshComponent>();
+			if (bIsSplineMeshComponent)
+			{
+				const USplineMeshComponent* SplineMeshComponent = Cast<USplineMeshComponent>(StaticMeshComponent);
+				// Deform mesh data according to the Spline Mesh Component's data
+				FMeshMergeHelpers::PropagateSplineDeformationToMesh(SplineMeshComponent, OutMeshDescription);
+			}
+
+			// If specified propagate painted vertex colors into our raw mesh
+			if (bPropagateVertexColours)
+			{
+				FMeshMergeHelpers::PropagatePaintedColorsToMesh(StaticMeshComponent, LODIndex, OutMeshDescription);
+			}
+
+			// If specified transform vertices from local to world space
+			if (bApplyComponentTransform)
+			{
+				FStaticMeshOperations::ApplyTransform(OutMeshDescription, StaticMeshComponent->GetComponentTransform());
+			}
+		}
+
+		FMeshBuildSettings BuildSettings;
+		
+		// If editor data is not available, we won't have access to source model
+		const bool bHasSourceModels = StaticMesh->IsSourceModelValid(0);
+		if (bHasSourceModels)
+		{ 
+			// Imported meshes will have a valid mesh description
+			const bool bImportedMesh = bHasSourceModels ? false : StaticMesh->IsMeshDescriptionValid(LODIndex);
+
+			// Use build settings from base mesh for LOD entries that were generated inside Editor.
+			BuildSettings = bImportedMesh ? StaticMesh->GetSourceModel(LODIndex).BuildSettings : StaticMesh->GetSourceModel(0).BuildSettings;
+		}
+
+		// Figure out if we should recompute normals and tangents. By default generated LODs should not recompute normals
+		EComputeNTBsFlags ComputeNTBsOptions = EComputeNTBsFlags::BlendOverlappingNormals;
+		if (BuildSettings.bRemoveDegenerates)
+		{
+			// If removing degenerate triangles, ignore them when computing tangents.
+			ComputeNTBsOptions |= EComputeNTBsFlags::IgnoreDegenerateTriangles;
+		}
+		if (BuildSettings.bUseMikkTSpace)
+		{
+			ComputeNTBsOptions |= EComputeNTBsFlags::UseMikkTSpace;
+		}
+
+		FStaticMeshOperations::ComputeTriangleTangentsAndNormals(OutMeshDescription, 0.0f);
+		FStaticMeshOperations::RecomputeNormalsAndTangentsIfNeeded(OutMeshDescription, ComputeNTBsOptions);
+	}
+}
 #endif
 
 FGLTFMeshData::FGLTFMeshData(const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, int32 LODIndex)
@@ -35,7 +111,7 @@ FGLTFMeshData::FGLTFMeshData(const UStaticMesh* StaticMesh, const UStaticMeshCom
 
 #if WITH_EDITOR
 		PrimitiveData = { StaticMeshComponent };
-		FMeshMergeHelpers::RetrieveMesh(StaticMeshComponent, LODIndex, Description, true);
+		RetrieveMeshHack(StaticMeshComponent, LODIndex, Description, true, false);
 
 		constexpr int32 LightMapLODIndex = 0; // TODO: why is this zero?
 		if (StaticMeshComponent->LODData.IsValidIndex(LightMapLODIndex))
@@ -109,15 +185,15 @@ FGLTFMeshData::FGLTFMeshData(const USkeletalMesh* SkeletalMesh, const USkeletalM
 			SpawnParams.ObjectFlags |= RF_Transient;
 			SpawnParams.bAllowDuringConstructionScript = true;
 
-			if (AActor* Actor = World->SpawnActor<AActor>(SpawnParams))
+			if (AActor* TempActor = World->SpawnActor<AActor>(SpawnParams))
 			{
-				USkeletalMeshComponent* Component = NewObject<USkeletalMeshComponent>(Actor, TEXT(""), RF_Transient);
-				Component->RegisterComponent();
-				Component->SetSkeletalMesh(const_cast<USkeletalMesh*>(SkeletalMesh));
+				USkeletalMeshComponent* TempComponent = NewObject<USkeletalMeshComponent>(TempActor, TEXT(""), RF_Transient);
+				TempComponent->RegisterComponent();
+				TempComponent->SetSkeletalMesh(const_cast<USkeletalMesh*>(SkeletalMesh));
 
-				FMeshMergeHelpers::RetrieveMesh(Component, LODIndex, Description, true);
+				FMeshMergeHelpers::RetrieveMesh(TempComponent, LODIndex, Description, true);
 
-				World->DestroyActor(Actor, false, false);
+				World->DestroyActor(TempActor, false, false);
 			}
 		}
 #endif
