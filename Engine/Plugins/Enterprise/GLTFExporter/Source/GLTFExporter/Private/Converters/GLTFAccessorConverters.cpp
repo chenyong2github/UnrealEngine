@@ -4,29 +4,49 @@
 #include "Utilities/GLTFCoreUtilities.h"
 #include "Converters/GLTFBufferAdapter.h"
 #include "Builders/GLTFConvertBuilder.h"
-
 #include "Rendering/ColorVertexBuffer.h"
 #include "Rendering/PositionVertexBuffer.h"
-#include "RawIndexBuffer.h"
-#include "RHI.h"
-#include "RHIResources.h"
 #include "Rendering/SkinWeightVertexBuffer.h"
 #include "Rendering/StaticMeshVertexBuffer.h"
 
-// TODO: Unreal-style implementation of std::conditional to avoid mixing in STL. Should be added to the engine.
-template <bool Condition, class TypeIfTrue, class TypeIfFalse>
-class TConditional
+namespace
 {
-public:
-	typedef TypeIfFalse Type;
-};
+	template <typename DestinationType, typename SourceType>
+	struct TGLTFVertexNormalUtilities
+	{
+		static DestinationType Convert(const SourceType& Normal)
+		{
+			return FGLTFCoreUtilities::ConvertNormal(Normal);
+		}
+	};
 
-template <class TypeIfTrue, class TypeIfFalse>
-class TConditional<true, TypeIfTrue, TypeIfFalse>
-{
-public:
-	typedef TypeIfTrue Type;
-};
+	template <typename SourceType>
+	struct TGLTFVertexNormalUtilities<FGLTFVector3, SourceType>
+	{
+		static FGLTFVector3 Convert(const SourceType& Normal)
+		{
+			return FGLTFCoreUtilities::ConvertNormal(Normal.ToFVector3f());
+		}
+	};
+
+	template <typename DestinationType, typename SourceType>
+	struct TGLTFVertexTangentUtilities
+	{
+		static DestinationType Convert(const SourceType& Tangent)
+		{
+			return FGLTFCoreUtilities::ConvertTangent(Tangent);
+		}
+	};
+
+	template <typename SourceType>
+	struct TGLTFVertexTangentUtilities<FGLTFVector4, SourceType>
+	{
+		static FGLTFVector4 Convert(const SourceType& Tangent)
+		{
+			return FGLTFCoreUtilities::ConvertTangent(Tangent.ToFVector4f());
+		}
+	};
+}
 
 FGLTFJsonAccessor* FGLTFPositionBufferConverter::Convert(const FGLTFMeshSection* MeshSection, const FPositionVertexBuffer* VertexBuffer)
 {
@@ -201,10 +221,8 @@ FGLTFJsonBufferView* FGLTFNormalBufferConverter::ConvertBufferView(const FGLTFMe
 	for (uint32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
 	{
 		const uint32 MappedVertexIndex = IndexMap[VertexIndex];
-		const FVector3f SafeNormal = TangentData[MappedVertexIndex].TangentZ.ToFVector3f().GetSafeNormal();
-
-		typedef typename TConditional<TIsSame<DestinationType, FGLTFVector3>::Value, FVector3f, SourceType>::Type IntermediateType;
-		Normals[VertexIndex] = FGLTFCoreUtilities::ConvertNormal(IntermediateType(SafeNormal));
+		const SourceType Normal = TangentData[MappedVertexIndex].TangentZ;
+		Normals[VertexIndex] = TGLTFVertexNormalUtilities<DestinationType, SourceType>::Convert(Normal);
 	}
 
 	return Builder.AddBufferView(Normals, EGLTFJsonBufferTarget::ArrayBuffer);
@@ -280,10 +298,8 @@ FGLTFJsonBufferView* FGLTFTangentBufferConverter::ConvertBufferView(const FGLTFM
 	for (uint32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
 	{
 		const uint32 MappedVertexIndex = IndexMap[VertexIndex];
-		const FVector3f SafeTangent = VertexTangents[MappedVertexIndex].TangentX.ToFVector3f().GetSafeNormal();
-
-		typedef typename TConditional<TIsSame<DestinationType, FGLTFVector4>::Value, FVector3f, SourceType>::Type IntermediateType;
-		Tangents[VertexIndex] = FGLTFCoreUtilities::ConvertTangent(IntermediateType(SafeTangent));
+		const SourceType Tangent = VertexTangents[MappedVertexIndex].TangentX;
+		Tangents[VertexIndex] = TGLTFVertexTangentUtilities<DestinationType, SourceType>::Convert(Tangent);
 	}
 
 	return Builder.AddBufferView(Tangents, EGLTFJsonBufferTarget::ArrayBuffer);

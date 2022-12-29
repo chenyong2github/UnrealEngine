@@ -27,33 +27,38 @@ FGLTFVector3 FGLTFCoreUtilities::ConvertScale(const FVector3f& Scale)
 
 FGLTFVector3 FGLTFCoreUtilities::ConvertNormal(const FVector3f& Normal)
 {
-	return ConvertVector(Normal);
-}
-
-FGLTFInt16Vector4 FGLTFCoreUtilities::ConvertNormal(const FPackedRGBA16N& Normal)
-{
-	return { Normal.X, Normal.Z, Normal.Y, 0 };
+	const FVector3f SafeNormal = Normal.GetSafeNormal();
+	return ConvertVector(SafeNormal);
 }
 
 FGLTFInt8Vector4 FGLTFCoreUtilities::ConvertNormal(const FPackedNormal& Normal)
 {
-	return { Normal.Vector.X, Normal.Vector.Z, Normal.Vector.Y, 0 };
+	const FPackedNormal SafeNormal = Normal.ToFVector3f().GetSafeNormal();
+	return { SafeNormal.Vector.X, SafeNormal.Vector.Z, SafeNormal.Vector.Y, 0 };
 }
 
-FGLTFVector4 FGLTFCoreUtilities::ConvertTangent(const FVector3f& Tangent)
+FGLTFInt16Vector4 FGLTFCoreUtilities::ConvertNormal(const FPackedRGBA16N& Normal)
 {
-	// glTF stores tangent as Vec4, with W component indicating handedness of tangent basis.
-	return { Tangent.X, Tangent.Z, Tangent.Y, 1.0f };
+	const FPackedRGBA16N SafeNormal = Normal.ToFVector3f().GetSafeNormal();
+	return { SafeNormal.X, SafeNormal.Z, SafeNormal.Y, 0 };
 }
 
-FGLTFInt16Vector4 FGLTFCoreUtilities::ConvertTangent(const FPackedRGBA16N& Tangent)
+FGLTFVector4 FGLTFCoreUtilities::ConvertTangent(const FVector4f& Tangent)
 {
-	return { Tangent.X, Tangent.Z, Tangent.Y, MAX_int16 /* = 1.0 */ };
+	const FVector3f SafeTangent = Tangent.GetSafeNormal();
+	return { SafeTangent.X, SafeTangent.Z, SafeTangent.Y, Tangent.W < 0 ? -1.0f : +1.0f };
 }
 
 FGLTFInt8Vector4 FGLTFCoreUtilities::ConvertTangent(const FPackedNormal& Tangent)
 {
-	return { Tangent.Vector.X, Tangent.Vector.Z, Tangent.Vector.Y, MAX_int8 /* = 1.0 */ };
+	const FPackedNormal SafeTangent = Tangent.ToFVector3f().GetSafeNormal();
+	return { SafeTangent.Vector.X, SafeTangent.Vector.Z, SafeTangent.Vector.Y, Tangent.Vector.W < 0 ? MIN_int8 : MAX_int8 };
+}
+
+FGLTFInt16Vector4 FGLTFCoreUtilities::ConvertTangent(const FPackedRGBA16N& Tangent)
+{
+	const FPackedRGBA16N SafeTangent = Tangent.ToFVector3f().GetSafeNormal();
+	return { SafeTangent.X, SafeTangent.Z, SafeTangent.Y, Tangent.W < 0 ? MIN_int16 : MAX_int16 };
 }
 
 FGLTFVector2 FGLTFCoreUtilities::ConvertUV(const FVector2f& UV)

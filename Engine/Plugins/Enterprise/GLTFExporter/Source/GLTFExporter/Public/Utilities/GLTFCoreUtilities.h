@@ -26,12 +26,12 @@ struct GLTFEXPORTER_API FGLTFCoreUtilities
 	static FGLTFVector3 ConvertScale(const FVector3f& Scale);
 
 	static FGLTFVector3 ConvertNormal(const FVector3f& Normal);
-	static FGLTFInt16Vector4 ConvertNormal(const FPackedRGBA16N& Normal);
 	static FGLTFInt8Vector4 ConvertNormal(const FPackedNormal& Normal);
+	static FGLTFInt16Vector4 ConvertNormal(const FPackedRGBA16N& Normal);
 
-	static FGLTFVector4 ConvertTangent(const FVector3f& Tangent);
-	static FGLTFInt16Vector4 ConvertTangent(const FPackedRGBA16N& Tangent);
+	static FGLTFVector4 ConvertTangent(const FVector4f& Tangent);
 	static FGLTFInt8Vector4 ConvertTangent(const FPackedNormal& Tangent);
+	static FGLTFInt16Vector4 ConvertTangent(const FPackedRGBA16N& Tangent);
 
 	static FGLTFVector2 ConvertUV(const FVector2f& UV);
 	static FGLTFVector2 ConvertUV(const FVector2DHalf& UV);
