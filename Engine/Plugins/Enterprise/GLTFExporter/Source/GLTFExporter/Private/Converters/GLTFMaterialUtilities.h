@@ -29,7 +29,7 @@ struct FGLTFPropertyBakeOutput
 	FLinearColor ConstantValue;
 };
 
-struct FGLTFMaterialUtility
+struct FGLTFMaterialUtilities
 {
 	static UMaterialInterface* GetDefaultMaterial();
 

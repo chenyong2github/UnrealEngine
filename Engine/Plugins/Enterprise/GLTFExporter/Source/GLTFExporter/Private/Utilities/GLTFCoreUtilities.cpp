@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Utilities/GLTFCoreUtilities.h"
-#include "Converters/GLTFTextureUtility.h"
+#include "Converters/GLTFTextureUtilities.h"
 
 float FGLTFCoreUtilities::ConvertLength(const float Length, const float ConversionScale)
 {

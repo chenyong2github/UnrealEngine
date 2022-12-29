@@ -6,7 +6,7 @@
 #include "Builders/GLTFConvertBuilder.h"
 #include "Converters/GLTFMeshSectionConverters.h"
 #include "Converters/GLTFMaterialArray.h"
-#include "Converters/GLTFNameUtility.h"
+#include "Converters/GLTFNameUtilities.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
 

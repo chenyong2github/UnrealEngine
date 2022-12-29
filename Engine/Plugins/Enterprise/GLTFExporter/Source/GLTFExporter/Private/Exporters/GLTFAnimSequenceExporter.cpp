@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Exporters/GLTFAnimSequenceExporter.h"
-#include "Exporters/GLTFExporterUtility.h"
+#include "Exporters/GLTFExporterUtilities.h"
 #include "Builders/GLTFContainerBuilder.h"
 #include "Animation/AnimSequence.h"
 #include "Engine/SkeletalMesh.h"
@@ -34,7 +34,7 @@ bool UGLTFAnimSequenceExporter::AddObject(FGLTFContainerBuilder& Builder, const 
 		return false;
 	}
 
-	const USkeletalMesh* SkeletalMesh = FGLTFExporterUtility::GetPreviewMesh(AnimSequence);
+	const USkeletalMesh* SkeletalMesh = FGLTFExporterUtilities::GetPreviewMesh(AnimSequence);
 	if (SkeletalMesh == nullptr)
 	{
 		Builder.LogError(

@@ -3,13 +3,13 @@
 #include "Converters/GLTFSamplerConverters.h"
 #include "Builders/GLTFContainerBuilder.h"
 #include "Utilities/GLTFCoreUtilities.h"
-#include "Converters/GLTFTextureUtility.h"
+#include "Converters/GLTFTextureUtilities.h"
 
 void FGLTFSamplerConverter::Sanitize(TextureAddress& AddressX, TextureAddress& AddressY, TextureFilter& Filter, TextureGroup& LODGroup)
 {
 	if (Filter == TF_Default)
 	{
-		Filter = FGLTFTextureUtility::GetDefaultFilter(LODGroup);
+		Filter = FGLTFTextureUtilities::GetDefaultFilter(LODGroup);
 	}
 
 	LODGroup = TEXTUREGROUP_MAX; // Ignore it, since Filter should cover any missing information

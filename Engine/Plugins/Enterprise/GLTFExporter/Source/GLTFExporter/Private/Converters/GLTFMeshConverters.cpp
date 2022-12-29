@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Converters/GLTFMeshConverters.h"
-#include "Converters/GLTFMeshUtility.h"
-#include "Converters/GLTFMaterialUtility.h"
+#include "Converters/GLTFMeshUtilities.h"
+#include "Converters/GLTFMaterialUtilities.h"
 #include "Builders/GLTFConvertBuilder.h"
 #include "Tasks/GLTFDelayedMeshTasks.h"
 #include "Engine/SkeletalMesh.h"
@@ -13,7 +13,7 @@
 
 void FGLTFStaticMeshConverter::Sanitize(const UStaticMesh*& StaticMesh, const UStaticMeshComponent*& StaticMeshComponent, FGLTFMaterialArray& Materials, int32& LODIndex)
 {
-	FGLTFMeshUtility::ResolveMaterials(Materials, StaticMeshComponent, StaticMesh);
+	FGLTFMeshUtilities::ResolveMaterials(Materials, StaticMeshComponent, StaticMesh);
 	Builder.ResolveProxies(Materials);
 
 	LODIndex = Builder.SanitizeLOD(StaticMesh, StaticMeshComponent, LODIndex);
@@ -21,7 +21,7 @@ void FGLTFStaticMeshConverter::Sanitize(const UStaticMesh*& StaticMesh, const US
 	if (StaticMeshComponent != nullptr)
 	{
 		const bool bUsesMeshData = Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::UseMeshData &&
-			FGLTFMaterialUtility::NeedsMeshData(Materials); // TODO: if this expensive, cache the results for each material
+			FGLTFMaterialUtilities::NeedsMeshData(Materials); // TODO: if this expensive, cache the results for each material
 
 		const bool bIsReferencedByVariant = Builder.GetObjectVariants(StaticMeshComponent) != nullptr;
 
@@ -45,7 +45,7 @@ FGLTFJsonMesh* FGLTFStaticMeshConverter::Convert(const UStaticMesh* StaticMesh, 
 	}
 #endif
 
-	const int32 MaterialCount = FGLTFMeshUtility::GetMaterials(StaticMesh).Num();
+	const int32 MaterialCount = FGLTFMeshUtilities::GetMaterials(StaticMesh).Num();
 	FGLTFJsonMesh* JsonMesh = Builder.AddMesh();
 	JsonMesh->Primitives.AddDefaulted(MaterialCount);
 
@@ -55,7 +55,7 @@ FGLTFJsonMesh* FGLTFStaticMeshConverter::Convert(const UStaticMesh* StaticMesh, 
 
 void FGLTFSkeletalMeshConverter::Sanitize(const USkeletalMesh*& SkeletalMesh, const USkeletalMeshComponent*& SkeletalMeshComponent, FGLTFMaterialArray& Materials, int32& LODIndex)
 {
-	FGLTFMeshUtility::ResolveMaterials(Materials, SkeletalMeshComponent, SkeletalMesh);
+	FGLTFMeshUtilities::ResolveMaterials(Materials, SkeletalMeshComponent, SkeletalMesh);
 	Builder.ResolveProxies(Materials);
 
 	LODIndex = Builder.SanitizeLOD(SkeletalMesh, SkeletalMeshComponent, LODIndex);
@@ -63,7 +63,7 @@ void FGLTFSkeletalMeshConverter::Sanitize(const USkeletalMesh*& SkeletalMesh, co
 	if (SkeletalMeshComponent != nullptr)
 	{
 		const bool bUsesMeshData = Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::UseMeshData &&
-			FGLTFMaterialUtility::NeedsMeshData(Materials); // TODO: if this expensive, cache the results for each material
+			FGLTFMaterialUtilities::NeedsMeshData(Materials); // TODO: if this expensive, cache the results for each material
 
 		const bool bIsReferencedByVariant = Builder.GetObjectVariants(SkeletalMeshComponent) != nullptr;
 
@@ -88,7 +88,7 @@ FGLTFJsonMesh* FGLTFSkeletalMeshConverter::Convert(const USkeletalMesh* Skeletal
 	}
 #endif
 
-	const int32 MaterialCount = FGLTFMeshUtility::GetMaterials(SkeletalMesh).Num();
+	const int32 MaterialCount = FGLTFMeshUtilities::GetMaterials(SkeletalMesh).Num();
 	FGLTFJsonMesh* JsonMesh = Builder.AddMesh();
 	JsonMesh->Primitives.AddDefaulted(MaterialCount);
 

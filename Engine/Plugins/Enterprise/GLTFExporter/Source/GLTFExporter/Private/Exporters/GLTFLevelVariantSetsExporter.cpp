@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Exporters/GLTFLevelVariantSetsExporter.h"
-#include "Exporters/GLTFExporterUtility.h"
+#include "Exporters/GLTFExporterUtilities.h"
 #include "Builders/GLTFContainerBuilder.h"
 #include "Engine/World.h"
 #include "LevelVariantSets.h"
@@ -26,7 +26,7 @@ bool UGLTFLevelVariantSetsExporter::AddObject(FGLTFContainerBuilder& Builder, co
 		return false;
 	}
 
-	TArray<UWorld*> Worlds = FGLTFExporterUtility::GetAssociatedWorlds(LevelVariantSets);
+	TArray<UWorld*> Worlds = FGLTFExporterUtilities::GetAssociatedWorlds(LevelVariantSets);
 	if (Worlds.Num() == 0)
 	{
 		Builder.LogError(

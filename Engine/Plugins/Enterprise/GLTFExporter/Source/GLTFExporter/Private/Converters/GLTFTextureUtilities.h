@@ -9,7 +9,7 @@ class UTexture;
 class UTexture2D;
 class UTextureRenderTarget2D;
 
-struct FGLTFTextureUtility
+struct FGLTFTextureUtilities
 {
 	static bool IsAlphaless(EPixelFormat PixelFormat);
 

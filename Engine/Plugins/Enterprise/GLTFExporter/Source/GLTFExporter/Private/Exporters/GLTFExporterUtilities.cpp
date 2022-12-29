@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Exporters/GLTFExporterUtility.h"
+#include "Exporters/GLTFExporterUtilities.h"
 #include "AssetRegistry/AssetData.h"
 #include "Materials/MaterialInstance.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -14,7 +14,7 @@
 #include "Editor.h"
 #endif
 
-void FGLTFExporterUtility::GetSelectedActors(TSet<AActor*>& OutSelectedActors)
+void FGLTFExporterUtilities::GetSelectedActors(TSet<AActor*>& OutSelectedActors)
 {
 #if WITH_EDITOR
 	USelection* Selection = GEditor->GetSelectedActors();
@@ -28,7 +28,7 @@ void FGLTFExporterUtility::GetSelectedActors(TSet<AActor*>& OutSelectedActors)
 #endif
 }
 
-const UStaticMesh* FGLTFExporterUtility::GetPreviewMesh(const UMaterialInterface* Material)
+const UStaticMesh* FGLTFExporterUtilities::GetPreviewMesh(const UMaterialInterface* Material)
 {
 #if WITH_EDITORONLY_DATA
 	do
@@ -48,7 +48,7 @@ const UStaticMesh* FGLTFExporterUtility::GetPreviewMesh(const UMaterialInterface
 	return DefaultPreviewMesh;
 }
 
-const UStaticMesh* FGLTFExporterUtility::GetSphereMesh()
+const UStaticMesh* FGLTFExporterUtilities::GetSphereMesh()
 {
 	const UStaticMesh* SphereMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/EditorMeshes/EditorSphere.EditorSphere"));
 	if (SphereMesh == nullptr)
@@ -63,7 +63,7 @@ const UStaticMesh* FGLTFExporterUtility::GetSphereMesh()
 	return SphereMesh;
 }
 
-const USkeletalMesh* FGLTFExporterUtility::GetPreviewMesh(const UAnimSequence* AnimSequence)
+const USkeletalMesh* FGLTFExporterUtilities::GetPreviewMesh(const UAnimSequence* AnimSequence)
 {
 	const USkeletalMesh* PreviewMesh = AnimSequence->GetPreviewMesh();
 	if (PreviewMesh == nullptr)
@@ -82,7 +82,7 @@ const USkeletalMesh* FGLTFExporterUtility::GetPreviewMesh(const UAnimSequence* A
 	return PreviewMesh;
 }
 
-const USkeletalMesh* FGLTFExporterUtility::FindCompatibleMesh(const USkeleton *Skeleton)
+const USkeletalMesh* FGLTFExporterUtilities::FindCompatibleMesh(const USkeleton *Skeleton)
 {
 	const FName SkeletonMemberName = USkeletalMesh::GetSkeletonMemberName();
 
@@ -105,7 +105,7 @@ const USkeletalMesh* FGLTFExporterUtility::FindCompatibleMesh(const USkeleton *S
 	return nullptr;
 }
 
-TArray<UWorld*> FGLTFExporterUtility::GetAssociatedWorlds(const UObject* Object)
+TArray<UWorld*> FGLTFExporterUtilities::GetAssociatedWorlds(const UObject* Object)
 {
 	TArray<UWorld*> Worlds;
 	TArray<FAssetIdentifier> Dependencies;

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Exporters/GLTFLevelSequenceExporter.h"
-#include "Exporters/GLTFExporterUtility.h"
+#include "Exporters/GLTFExporterUtilities.h"
 #include "Builders/GLTFContainerBuilder.h"
 #include "LevelSequence.h"
 
@@ -25,7 +25,7 @@ bool UGLTFLevelSequenceExporter::AddObject(FGLTFContainerBuilder& Builder, const
 		return false;
 	}
 
-	TArray<UWorld*> Worlds = FGLTFExporterUtility::GetAssociatedWorlds(LevelSequence);
+	TArray<UWorld*> Worlds = FGLTFExporterUtilities::GetAssociatedWorlds(LevelSequence);
 	if (Worlds.Num() == 0)
 	{
 		Builder.LogError(

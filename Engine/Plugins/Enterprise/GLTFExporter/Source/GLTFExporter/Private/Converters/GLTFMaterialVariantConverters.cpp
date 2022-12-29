@@ -1,7 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Converters/GLTFMaterialVariantConverters.h"
-#include "Converters/GLTFVariantUtility.h"
+#include "Converters/GLTFVariantUtilities.h"
 #include "Builders/GLTFContainerBuilder.h"
 #include "Components/MeshComponent.h"
 #include "VariantObjectBinding.h"
@@ -89,7 +89,7 @@ bool FGLTFMaterialVariantConverter::TryParseMaterialProperty(FGLTFJsonPrimitive*
 	{
 		Builder.LogWarning(FString::Printf(
 			TEXT("Variant property %s must belong to a mesh component, the property will be skipped"),
-			*FGLTFVariantUtility::GetLogContext(Property)));
+			*FGLTFVariantUtilities::GetLogContext(Property)));
 		return false;
 	}
 
@@ -98,7 +98,7 @@ bool FGLTFMaterialVariantConverter::TryParseMaterialProperty(FGLTFJsonPrimitive*
 	{
 		Builder.LogWarning(FString::Printf(
 			TEXT("Variant property %s must belong to an actor, the property will be skipped"),
-			*FGLTFVariantUtility::GetLogContext(Property)));
+			*FGLTFVariantUtilities::GetLogContext(Property)));
 		return false;
 	}
 
@@ -106,7 +106,7 @@ bool FGLTFMaterialVariantConverter::TryParseMaterialProperty(FGLTFJsonPrimitive*
 	{
 		Builder.LogWarning(FString::Printf(
 			TEXT("Variant property %s doesn't belong to an actor selected for export, the property will be skipped"),
-			*FGLTFVariantUtility::GetLogContext(Property)));
+			*FGLTFVariantUtilities::GetLogContext(Property)));
 		return false;
 	}
 
@@ -117,7 +117,7 @@ bool FGLTFMaterialVariantConverter::TryParseMaterialProperty(FGLTFJsonPrimitive*
 	{
 		Builder.LogWarning(FString::Printf(
 			TEXT("Failed to parse material index for variant property %s, the property will be skipped"),
-			*FGLTFVariantUtility::GetLogContext(Property)));
+			*FGLTFVariantUtilities::GetLogContext(Property)));
 		return false;
 	}
 
@@ -132,7 +132,7 @@ bool FGLTFMaterialVariantConverter::TryParseMaterialProperty(FGLTFJsonPrimitive*
 
 		Builder.LogWarning(FString::Printf(
 			TEXT("No material assigned, the property will be skipped. Context: %s"),
-			*FGLTFVariantUtility::GetLogContext(Property)));
+			*FGLTFVariantUtilities::GetLogContext(Property)));
 		return false;
 	}
 
@@ -143,7 +143,7 @@ bool FGLTFMaterialVariantConverter::TryParseMaterialProperty(FGLTFJsonPrimitive*
 	FGLTFJsonMesh* JsonMesh = Builder.AddUniqueMesh(Target);
 
 	OutPrimitive = &JsonMesh->Primitives[MaterialIndex];
-	OutMaterial = FGLTFVariantUtility::AddUniqueMaterial(Builder, Material, Target, MaterialIndex);
+	OutMaterial = FGLTFVariantUtilities::AddUniqueMaterial(Builder, Material, Target, MaterialIndex);
 
 	return true;
 }

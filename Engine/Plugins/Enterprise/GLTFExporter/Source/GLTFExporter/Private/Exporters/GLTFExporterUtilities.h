@@ -11,7 +11,7 @@ class UMaterialInterface;
 class UAnimSequence;
 class USkeleton;
 
-struct FGLTFExporterUtility
+struct FGLTFExporterUtilities
 {
 	static void GetSelectedActors(TSet<AActor*>& OutSelectedActors);
 

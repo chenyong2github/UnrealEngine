@@ -7,7 +7,7 @@
 
 class USceneComponent;
 
-struct FGLTFNameUtility
+struct FGLTFNameUtilities
 {
 	template <typename EnumType, typename = typename TEnableIf<TIsEnum<EnumType>::Value>::Type>
 	static FString GetName(EnumType Value)

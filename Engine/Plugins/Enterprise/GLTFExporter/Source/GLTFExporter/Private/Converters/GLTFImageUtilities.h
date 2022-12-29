@@ -8,7 +8,7 @@
 enum class ERGBFormat : int8;
 enum class EImageFormat : int8;
 
-struct FGLTFImageUtility
+struct FGLTFImageUtilities
 {
 	static const TCHAR* GetFileExtension(EGLTFJsonMimeType MimeType);
 

@@ -11,7 +11,7 @@ class UAnimSequence;
 class UMovieScene3DTransformSection;
 class USkeleton;
 
-struct FGLTFBoneUtility
+struct FGLTFBoneUtilities
 {
 	static FTransform GetBindTransform(const FReferenceSkeleton& RefSkeleton, int32 BoneIndex);
 

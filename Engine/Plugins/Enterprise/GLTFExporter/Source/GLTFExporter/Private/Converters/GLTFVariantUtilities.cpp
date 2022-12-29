@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Converters/GLTFVariantUtility.h"
+#include "Converters/GLTFVariantUtilities.h"
 #include "Builders/GLTFConvertBuilder.h"
 #include "LevelVariantSets.h"
 #include "VariantSet.h"
@@ -8,7 +8,7 @@
 #include "VariantObjectBinding.h"
 #include "PropertyValue.h"
 
-bool FGLTFVariantUtility::TryGetPropertyValue(UPropertyValue* Property, void* OutData, uint32 OutSize)
+bool FGLTFVariantUtilities::TryGetPropertyValue(UPropertyValue* Property, void* OutData, uint32 OutSize)
 {
 	if (Property == nullptr || !Property->HasRecordedData())
 	{
@@ -22,36 +22,36 @@ bool FGLTFVariantUtility::TryGetPropertyValue(UPropertyValue* Property, void* Ou
 	return true;
 }
 
-FString FGLTFVariantUtility::GetLogContext(const UPropertyValue* Property)
+FString FGLTFVariantUtilities::GetLogContext(const UPropertyValue* Property)
 {
 	const UVariantObjectBinding* Parent = Property->GetParent();
 	return GetLogContext(Parent) + TEXT("/") + Property->GetFullDisplayString();
 }
 
-FString FGLTFVariantUtility::GetLogContext(const UVariantObjectBinding* Binding)
+FString FGLTFVariantUtilities::GetLogContext(const UVariantObjectBinding* Binding)
 {
 	const UVariant* Parent = const_cast<UVariantObjectBinding*>(Binding)->GetParent();
 	return GetLogContext(Parent) + TEXT("/") + Binding->GetDisplayText().ToString();
 }
 
-FString FGLTFVariantUtility::GetLogContext(const UVariant* Variant)
+FString FGLTFVariantUtilities::GetLogContext(const UVariant* Variant)
 {
 	const UVariantSet* Parent = const_cast<UVariant*>(Variant)->GetParent();
 	return GetLogContext(Parent) + TEXT("/") + Variant->GetDisplayText().ToString();
 }
 
-FString FGLTFVariantUtility::GetLogContext(const UVariantSet* VariantSet)
+FString FGLTFVariantUtilities::GetLogContext(const UVariantSet* VariantSet)
 {
 	const ULevelVariantSets* Parent = const_cast<UVariantSet*>(VariantSet)->GetParent();
 	return GetLogContext(Parent) + TEXT("/") + VariantSet->GetDisplayText().ToString();
 }
 
-FString FGLTFVariantUtility::GetLogContext(const ULevelVariantSets* LevelVariantSets)
+FString FGLTFVariantUtilities::GetLogContext(const ULevelVariantSets* LevelVariantSets)
 {
 	return LevelVariantSets->GetName();
 }
 
-FGLTFJsonMaterial* FGLTFVariantUtility::AddUniqueMaterial(FGLTFConvertBuilder& Builder, const UMaterialInterface* Material, const UMeshComponent* MeshComponent, int32 MaterialIndex)
+FGLTFJsonMaterial* FGLTFVariantUtilities::AddUniqueMaterial(FGLTFConvertBuilder& Builder, const UMaterialInterface* Material, const UMeshComponent* MeshComponent, int32 MaterialIndex)
 {
 	if (Builder.ExportOptions->ExportMaterialVariants == EGLTFMaterialVariantMode::UseMeshData)
 	{

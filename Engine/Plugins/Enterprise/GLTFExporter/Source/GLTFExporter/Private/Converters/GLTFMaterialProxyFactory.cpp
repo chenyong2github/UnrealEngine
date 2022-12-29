@@ -3,8 +3,8 @@
 #if WITH_EDITOR
 
 #include "Converters/GLTFMaterialProxyFactory.h"
-#include "Converters/GLTFMaterialUtility.h"
-#include "Converters/GLTFImageUtility.h"
+#include "Converters/GLTFMaterialUtilities.h"
+#include "Converters/GLTFImageUtilities.h"
 #include "Utilities/GLTFProxyMaterialUtilities.h"
 #include "Materials/GLTFProxyMaterialInfo.h"
 #include "Materials/Material.h"
@@ -28,7 +28,7 @@ UMaterialInterface* FGLTFMaterialProxyFactory::Create(UMaterialInterface* Origin
 		return OriginalMaterial;
 	}
 
-	if (FGLTFMaterialUtility::NeedsMeshData(OriginalMaterial))
+	if (FGLTFMaterialUtilities::NeedsMeshData(OriginalMaterial))
 	{
 		Builder.LogWarning(FString::Printf(
 			TEXT("Material %s uses mesh data but prebaking will only use a simple quad as mesh data currently"),
@@ -278,7 +278,7 @@ TUniquePtr<IGLTFImageConverter> FGLTFMaterialProxyFactory::CreateImageConverter(
 
 		virtual FGLTFJsonImage* Convert(TGLTFSuperfluous<FString> Name, bool bIgnoreAlpha, FIntPoint Size, TGLTFSharedArray<FColor> Pixels) override
 		{
-			const FString Filename = FGLTFImageUtility::GetUniqueFilename(Name, TEXT(""), UniqueFilenames);
+			const FString Filename = FGLTFImageUtilities::GetUniqueFilename(Name, TEXT(""), UniqueFilenames);
 			UniqueFilenames.Add(Filename);
 
 			FGLTFJsonImage* Image = Factory.Builder.AddImage();

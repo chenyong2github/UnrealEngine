@@ -4,7 +4,7 @@
 #include "Builders/GLTFContainerBuilder.h"
 #include "Engine/Level.h"
 #include "Utilities/GLTFCoreUtilities.h"
-#include "Converters/GLTFBoneUtility.h"
+#include "Converters/GLTFBoneUtilities.h"
 #include "LevelSequence.h"
 #include "LevelSequenceActor.h"
 #include "LevelSequencePlayer.h"
@@ -22,7 +22,7 @@ void FGLTFDelayedAnimSequenceTask::Process()
 	JsonAnimation->Name = AnimSequence->GetName() + TEXT("_") + FString::FromInt(JsonAnimation->Index); // Ensure unique name due to limitation in certain gltf viewers
 
 	TArray<float> Timestamps;
-	FGLTFBoneUtility::GetFrameTimestamps(AnimSequence, Timestamps);
+	FGLTFBoneUtilities::GetFrameTimestamps(AnimSequence, Timestamps);
 	const int32 FrameCount = Timestamps.Num();
 
 	// TODO: add animation data accessor converters to reuse track information
@@ -44,10 +44,10 @@ void FGLTFDelayedAnimSequenceTask::Process()
 	}
 
 	TArray<FBoneIndexType> BoneIndices;
-	FGLTFBoneUtility::GetBoneIndices(AnimSequence->GetSkeleton(), BoneIndices);
+	FGLTFBoneUtilities::GetBoneIndices(AnimSequence->GetSkeleton(), BoneIndices);
 
 	TArray<TArray<FTransform>> FrameTransforms;
-	FGLTFBoneUtility::GetBoneTransformsByFrame(AnimSequence, Timestamps, BoneIndices, FrameTransforms);
+	FGLTFBoneUtilities::GetBoneTransformsByFrame(AnimSequence, Timestamps, BoneIndices, FrameTransforms);
 
 	for (const FBoneIndexType BoneIndex : BoneIndices)
 	{

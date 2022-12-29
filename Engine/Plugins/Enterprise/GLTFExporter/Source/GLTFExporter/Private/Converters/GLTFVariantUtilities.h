@@ -14,7 +14,7 @@ class UVariant;
 class UVariantObjectBinding;
 class UPropertyValue;
 
-struct FGLTFVariantUtility
+struct FGLTFVariantUtilities
 {
 	template <typename T>
 	static bool TryGetPropertyValue(UPropertyValue* Property, T& OutValue)

@@ -3,7 +3,7 @@
 #include "Converters/GLTFLightConverters.h"
 #include "Builders/GLTFContainerBuilder.h"
 #include "Utilities/GLTFCoreUtilities.h"
-#include "Converters/GLTFNameUtility.h"
+#include "Converters/GLTFNameUtilities.h"
 #include "Components/LightComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/SpotLightComponent.h"
@@ -18,7 +18,7 @@ FGLTFJsonLight* FGLTFLightConverter::Convert(const ULightComponent* LightCompone
 	}
 
 	FGLTFJsonLight* Light = Builder.AddLight();
-	Light->Name = FGLTFNameUtility::GetName(LightComponent);
+	Light->Name = FGLTFNameUtilities::GetName(LightComponent);
 	Light->Type = Type;
 
 	const float ConversionScale = Type == EGLTFJsonLightType::Directional ? 1.0f : (0.01f * 0.01f); // Conversion from cm2 to m2

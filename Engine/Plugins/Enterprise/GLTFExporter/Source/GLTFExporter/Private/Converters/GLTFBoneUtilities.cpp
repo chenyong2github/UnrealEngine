@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Converters/GLTFBoneUtility.h"
+#include "Converters/GLTFBoneUtilities.h"
 #include "BonePose.h"
 #include "Sections/MovieScene3DTransformSection.h"
 #include "Animation/AnimationPoseData.h"
@@ -8,7 +8,7 @@
 #include "Animation/AttributesRuntime.h"
 #include "ReferenceSkeleton.h"
 
-FTransform FGLTFBoneUtility::GetBindTransform(const FReferenceSkeleton& RefSkeleton, int32 BoneIndex)
+FTransform FGLTFBoneUtilities::GetBindTransform(const FReferenceSkeleton& RefSkeleton, int32 BoneIndex)
 {
 	const TArray<FMeshBoneInfo>& BoneInfos = RefSkeleton.GetRefBoneInfo();
 	const TArray<FTransform>& BonePoses = RefSkeleton.GetRefBonePose();
@@ -25,7 +25,7 @@ FTransform FGLTFBoneUtility::GetBindTransform(const FReferenceSkeleton& RefSkele
 	return BindTransform;
 }
 
-void FGLTFBoneUtility::GetFrameTimestamps(const UAnimSequence* AnimSequence, TArray<float>& OutFrameTimestamps)
+void FGLTFBoneUtilities::GetFrameTimestamps(const UAnimSequence* AnimSequence, TArray<float>& OutFrameTimestamps)
 {
 	const int32 FrameCount = AnimSequence->GetNumberOfSampledKeys();
 	OutFrameTimestamps.AddUninitialized(FrameCount);
@@ -39,7 +39,7 @@ void FGLTFBoneUtility::GetFrameTimestamps(const UAnimSequence* AnimSequence, TAr
 	}
 }
 
-void FGLTFBoneUtility::GetBoneIndices(const USkeleton* Skeleton, TArray<FBoneIndexType>& OutBoneIndices)
+void FGLTFBoneUtilities::GetBoneIndices(const USkeleton* Skeleton, TArray<FBoneIndexType>& OutBoneIndices)
 {
 	const int32 BoneCount = Skeleton->GetReferenceSkeleton().GetNum();
 	OutBoneIndices.AddUninitialized(BoneCount);
@@ -50,7 +50,7 @@ void FGLTFBoneUtility::GetBoneIndices(const USkeleton* Skeleton, TArray<FBoneInd
 	}
 }
 
-void FGLTFBoneUtility::GetBoneTransformsByFrame(const UAnimSequence* AnimSequence, const TArray<float>& FrameTimestamps, const TArray<FBoneIndexType>& BoneIndices, TArray<TArray<FTransform>>& OutBoneTransformsByFrame)
+void FGLTFBoneUtilities::GetBoneTransformsByFrame(const UAnimSequence* AnimSequence, const TArray<float>& FrameTimestamps, const TArray<FBoneIndexType>& BoneIndices, TArray<TArray<FTransform>>& OutBoneTransformsByFrame)
 {
 #if WITH_EDITOR
 	const bool bUseRawData = AnimSequence->OnlyUseRawData();

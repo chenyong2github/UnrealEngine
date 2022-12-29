@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Builders/GLTFBuilder.h"
-#include "Converters/GLTFMeshUtility.h"
+#include "Converters/GLTFMeshUtilities.h"
 #include "Misc/Paths.h"
 #include "UserData/GLTFMaterialUserData.h"
 
@@ -79,15 +79,15 @@ TextureAddress FGLTFBuilder::GetBakeTilingForMaterialProperty(const UMaterialInt
 int32 FGLTFBuilder::SanitizeLOD(const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, int32 LODIndex) const
 {
 	return LODIndex > 0
-		? FMath::Min(LODIndex, FGLTFMeshUtility::GetMaximumLOD(StaticMesh))
-		: FGLTFMeshUtility::GetLOD(StaticMesh, StaticMeshComponent, ExportOptions->DefaultLevelOfDetail);
+		? FMath::Min(LODIndex, FGLTFMeshUtilities::GetMaximumLOD(StaticMesh))
+		: FGLTFMeshUtilities::GetLOD(StaticMesh, StaticMeshComponent, ExportOptions->DefaultLevelOfDetail);
 }
 
 int32 FGLTFBuilder::SanitizeLOD(const USkeletalMesh* SkeletalMesh, const USkeletalMeshComponent* SkeletalMeshComponent, int32 LODIndex) const
 {
 	return LODIndex > 0
-		? FMath::Min(LODIndex, FGLTFMeshUtility::GetMaximumLOD(SkeletalMesh))
-		: FGLTFMeshUtility::GetLOD(SkeletalMesh, SkeletalMeshComponent, ExportOptions->DefaultLevelOfDetail);
+		? FMath::Min(LODIndex, FGLTFMeshUtilities::GetMaximumLOD(SkeletalMesh))
+		: FGLTFMeshUtilities::GetLOD(SkeletalMesh, SkeletalMeshComponent, ExportOptions->DefaultLevelOfDetail);
 }
 
 const UGLTFExportOptions* FGLTFBuilder::SanitizeExportOptions(const UGLTFExportOptions* Options)

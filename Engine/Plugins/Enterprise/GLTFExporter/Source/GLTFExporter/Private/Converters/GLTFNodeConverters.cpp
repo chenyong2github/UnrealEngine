@@ -3,7 +3,7 @@
 #include "Converters/GLTFNodeConverters.h"
 #include "Builders/GLTFContainerBuilder.h"
 #include "Utilities/GLTFCoreUtilities.h"
-#include "Converters/GLTFNameUtility.h"
+#include "Converters/GLTFNameUtilities.h"
 #include "LevelSequenceActor.h"
 #include "Camera/CameraComponent.h"
 #include "Components/LightComponent.h"
@@ -102,7 +102,7 @@ FGLTFJsonNode* FGLTFComponentConverter::Convert(const USceneComponent* SceneComp
 	const FTransform3f RelativeTransform = bIsRootNode ? Transform : Transform.GetRelativeTransform(ParentTransform);
 
 	FGLTFJsonNode* Node = Builder.AddNode();
-	Node->Name = FGLTFNameUtility::GetName(SceneComponent);
+	Node->Name = FGLTFNameUtilities::GetName(SceneComponent);
 	Node->Translation = FGLTFCoreUtilities::ConvertPosition(RelativeTransform.GetTranslation(), Builder.ExportOptions->ExportUniformScale);
 	Node->Rotation = FGLTFCoreUtilities::ConvertRotation(RelativeTransform.GetRotation());
 	Node->Scale = FGLTFCoreUtilities::ConvertScale(RelativeTransform.GetScale3D());
@@ -156,7 +156,7 @@ void FGLTFComponentConverter::ConvertComponentSpecialization(const USceneCompone
 		{
 			// TODO: conversion of camera direction should be done in separate converter
 			FGLTFJsonNode* CameraNode = Builder.AddNode();
-			CameraNode->Name = FGLTFNameUtility::GetName(CameraComponent);
+			CameraNode->Name = FGLTFNameUtilities::GetName(CameraComponent);
 			CameraNode->Rotation = FGLTFCoreUtilities::GetLocalCameraRotation();
 			CameraNode->Camera = Builder.AddUniqueCamera(CameraComponent);
 			Node->Children.Add(CameraNode);
@@ -168,7 +168,7 @@ void FGLTFComponentConverter::ConvertComponentSpecialization(const USceneCompone
 		{
 			// TODO: conversion of light direction should be done in separate converter
 			FGLTFJsonNode* LightNode = Builder.AddNode();
-			LightNode->Name = FGLTFNameUtility::GetName(LightComponent);
+			LightNode->Name = FGLTFNameUtilities::GetName(LightComponent);
 			LightNode->Rotation = FGLTFCoreUtilities::GetLocalLightRotation();
 			LightNode->Light = Builder.AddUniqueLight(LightComponent);
 			Node->Children.Add(LightNode);

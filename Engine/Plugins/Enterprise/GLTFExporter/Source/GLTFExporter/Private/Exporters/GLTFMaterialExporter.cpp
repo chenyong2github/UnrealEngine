@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Exporters/GLTFMaterialExporter.h"
-#include "Exporters/GLTFExporterUtility.h"
+#include "Exporters/GLTFExporterUtilities.h"
 #include "Builders/GLTFContainerBuilder.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInterface.h"
@@ -23,7 +23,7 @@ bool UGLTFMaterialExporter::AddObject(FGLTFContainerBuilder& Builder, const UObj
 
 	if (Builder.ExportOptions->bExportPreviewMesh)
 	{
-		const UStaticMesh* PreviewMesh = FGLTFExporterUtility::GetPreviewMesh(Material);
+		const UStaticMesh* PreviewMesh = FGLTFExporterUtilities::GetPreviewMesh(Material);
 		if (PreviewMesh != nullptr)
 		{
 			FGLTFJsonMesh* Mesh = Builder.AddUniqueMesh(PreviewMesh, { Material });

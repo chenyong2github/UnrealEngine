@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Converters/GLTFMaterialConverters.h"
-#include "Converters/GLTFMaterialUtility.h"
+#include "Converters/GLTFMaterialUtilities.h"
 #include "Builders/GLTFConvertBuilder.h"
 #include "Tasks/GLTFDelayedMaterialTasks.h"
 
@@ -11,7 +11,7 @@ void FGLTFMaterialConverter::Sanitize(const UMaterialInterface*& Material, const
 
 	if (MeshData == nullptr ||
 		Builder.ExportOptions->BakeMaterialInputs != EGLTFMaterialBakeMode::UseMeshData ||
-		!FGLTFMaterialUtility::NeedsMeshData(Material))
+		!FGLTFMaterialUtilities::NeedsMeshData(Material))
 	{
 		MeshData = nullptr;
 		SectionIndices = {};
@@ -45,7 +45,7 @@ void FGLTFMaterialConverter::Sanitize(const UMaterialInterface*& Material, const
 
 FGLTFJsonMaterial* FGLTFMaterialConverter::Convert(const UMaterialInterface* Material, const FGLTFMeshData* MeshData, FGLTFIndexArray SectionIndices)
 {
-	if (Material != FGLTFMaterialUtility::GetDefaultMaterial())
+	if (Material != FGLTFMaterialUtilities::GetDefaultMaterial())
 	{
 		FGLTFJsonMaterial* JsonMaterial = Builder.AddMaterial();
 		Builder.ScheduleSlowTask<FGLTFDelayedMaterialTask>(Builder, UVOverlapChecker, Material, MeshData, SectionIndices, JsonMaterial);

@@ -3,7 +3,7 @@
 #include "Converters/GLTFCameraConverters.h"
 #include "Builders/GLTFContainerBuilder.h"
 #include "Utilities/GLTFCoreUtilities.h"
-#include "Converters/GLTFNameUtility.h"
+#include "Converters/GLTFNameUtilities.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/Actor.h"
 
@@ -17,7 +17,7 @@ FGLTFJsonCamera* FGLTFCameraConverter::Convert(const UCameraComponent* CameraCom
 	}
 
 	FGLTFJsonCamera* JsonCamera = Builder.AddCamera();
-	JsonCamera->Name = FGLTFNameUtility::GetName(CameraComponent);
+	JsonCamera->Name = FGLTFNameUtilities::GetName(CameraComponent);
 	JsonCamera->Type = Type;
 
 	FMinimalViewInfo DesiredView;

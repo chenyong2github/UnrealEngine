@@ -14,7 +14,7 @@ class FSkinWeightDataVertexBuffer;
 class FSkinWeightLookupVertexBuffer;
 class FStaticMeshVertexBuffer;
 
-struct FGLTFBufferUtility
+struct FGLTFBufferUtilities
 {
 	static bool HasCPUAccess(const FRawStaticIndexBuffer* IndexBuffer);
 	static bool HasCPUAccess(const FRawStaticIndexBuffer16or32Interface* IndexBuffer);

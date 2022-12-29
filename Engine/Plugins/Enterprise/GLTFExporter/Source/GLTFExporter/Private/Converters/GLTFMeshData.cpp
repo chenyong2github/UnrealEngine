@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Converters/GLTFMeshData.h"
-#include "Converters/GLTFNameUtility.h"
+#include "Converters/GLTFNameUtilities.h"
 
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -31,7 +31,7 @@ FGLTFMeshData::FGLTFMeshData(const UStaticMesh* StaticMesh, const UStaticMeshCom
 
 	if (StaticMeshComponent != nullptr)
 	{
-		Name = FGLTFNameUtility::GetName(StaticMeshComponent);
+		Name = FGLTFNameUtilities::GetName(StaticMeshComponent);
 
 #if WITH_EDITOR
 		PrimitiveData = { StaticMeshComponent };
@@ -83,7 +83,7 @@ FGLTFMeshData::FGLTFMeshData(const USkeletalMesh* SkeletalMesh, const USkeletalM
 
 	if (SkeletalMeshComponent != nullptr)
 	{
-		Name = FGLTFNameUtility::GetName(SkeletalMeshComponent);
+		Name = FGLTFNameUtilities::GetName(SkeletalMeshComponent);
 
 #if WITH_EDITOR
 		PrimitiveData = { SkeletalMeshComponent };

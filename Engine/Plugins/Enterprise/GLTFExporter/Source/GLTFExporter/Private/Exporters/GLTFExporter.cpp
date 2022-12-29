@@ -2,7 +2,7 @@
 
 #include "Exporters/GLTFExporter.h"
 #include "Engine/Engine.h"
-#include "Exporters/GLTFExporterUtility.h"
+#include "Exporters/GLTFExporterUtilities.h"
 #include "Exporters/GLTFExporterAnalytics.h"
 #include "Misc/Paths.h"
 #include "Options/GLTFExportOptions.h"
@@ -47,7 +47,7 @@ bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& A
 	TSet<AActor*> SelectedActors;
 	if (bSelectedOnly)
 	{
-		FGLTFExporterUtility::GetSelectedActors(SelectedActors);
+		FGLTFExporterUtilities::GetSelectedActors(SelectedActors);
 	}
 
 	// TODO: add support for UAssetExportTask::IgnoreObjectList?

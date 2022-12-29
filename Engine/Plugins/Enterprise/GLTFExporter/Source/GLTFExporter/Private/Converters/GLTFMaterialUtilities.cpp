@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Converters/GLTFMaterialUtility.h"
-#include "Converters/GLTFTextureUtility.h"
-#include "Converters/GLTFNameUtility.h"
+#include "Converters/GLTFMaterialUtilities.h"
+#include "Converters/GLTFTextureUtilities.h"
+#include "Converters/GLTFNameUtilities.h"
 #include "Materials/Material.h"
 #include "Utilities/GLTFProxyMaterialUtilities.h"
 #include "Misc/DefaultValueHelper.h"
@@ -19,49 +19,49 @@
 #include "Materials/MaterialExpressionCustomOutput.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
 
-UMaterialInterface* FGLTFMaterialUtility::GetDefaultMaterial()
+UMaterialInterface* FGLTFMaterialUtilities::GetDefaultMaterial()
 {
 	static UMaterial* DefaultMaterial = FGLTFProxyMaterialUtilities::GetBaseMaterial(EGLTFJsonShadingModel::Default);
 	return DefaultMaterial;
 }
 
-bool FGLTFMaterialUtility::IsClearCoatBottomNormalEnabled()
+bool FGLTFMaterialUtilities::IsClearCoatBottomNormalEnabled()
 {
 	return GetDefault<URendererSettings>()->bClearCoatEnableSecondNormal != 0;
 }
 
 #if WITH_EDITOR
 
-bool FGLTFMaterialUtility::IsNormalMap(const FGLTFMaterialPropertyEx& Property)
+bool FGLTFMaterialUtilities::IsNormalMap(const FGLTFMaterialPropertyEx& Property)
 {
 	return Property == MP_Normal || Property == FGLTFMaterialPropertyEx::ClearCoatBottomNormal;
 }
 
-bool FGLTFMaterialUtility::IsSRGB(const FGLTFMaterialPropertyEx& Property)
+bool FGLTFMaterialUtilities::IsSRGB(const FGLTFMaterialPropertyEx& Property)
 {
 	return Property == MP_BaseColor || Property == MP_EmissiveColor || Property == MP_SubsurfaceColor || Property == FGLTFMaterialPropertyEx::TransmittanceColor;
 }
 
-FGuid FGLTFMaterialUtility::GetAttributeID(const FGLTFMaterialPropertyEx& Property)
+FGuid FGLTFMaterialUtilities::GetAttributeID(const FGLTFMaterialPropertyEx& Property)
 {
 	return Property.IsCustomOutput()
 		? FMaterialAttributeDefinitionMap::GetCustomAttributeID(Property.CustomOutput.ToString())
 		: FMaterialAttributeDefinitionMap::GetID(Property.Type);
 }
 
-FGuid FGLTFMaterialUtility::GetAttributeIDChecked(const FGLTFMaterialPropertyEx& Property)
+FGuid FGLTFMaterialUtilities::GetAttributeIDChecked(const FGLTFMaterialPropertyEx& Property)
 {
 	const FGuid AttributeID = GetAttributeID(Property);
 	check(AttributeID != FMaterialAttributeDefinitionMap::GetDefaultID());
 	return AttributeID;
 }
 
-FVector4f FGLTFMaterialUtility::GetPropertyDefaultValue(const FGLTFMaterialPropertyEx& Property)
+FVector4f FGLTFMaterialUtilities::GetPropertyDefaultValue(const FGLTFMaterialPropertyEx& Property)
 {
 	return FMaterialAttributeDefinitionMap::GetDefaultValue(GetAttributeIDChecked(Property));
 }
 
-FVector4f FGLTFMaterialUtility::GetPropertyMask(const FGLTFMaterialPropertyEx& Property)
+FVector4f FGLTFMaterialUtilities::GetPropertyMask(const FGLTFMaterialPropertyEx& Property)
 {
 	switch (FMaterialAttributeDefinitionMap::GetValueType(GetAttributeIDChecked(Property)))
 	{
@@ -76,7 +76,7 @@ FVector4f FGLTFMaterialUtility::GetPropertyMask(const FGLTFMaterialPropertyEx& P
 	}
 }
 
-const FExpressionInput* FGLTFMaterialUtility::GetInputForProperty(const UMaterialInterface* Material, const FGLTFMaterialPropertyEx& Property)
+const FExpressionInput* FGLTFMaterialUtilities::GetInputForProperty(const UMaterialInterface* Material, const FGLTFMaterialPropertyEx& Property)
 {
 	if (Property.IsCustomOutput())
 	{
@@ -95,7 +95,7 @@ const FExpressionInput* FGLTFMaterialUtility::GetInputForProperty(const UMateria
 	return UnderlyingMaterial->GetExpressionInputForProperty(Property.Type);
 }
 
-const UMaterialExpressionCustomOutput* FGLTFMaterialUtility::GetCustomOutputByName(const UMaterialInterface* Material, const FString& FunctionName)
+const UMaterialExpressionCustomOutput* FGLTFMaterialUtilities::GetCustomOutputByName(const UMaterialInterface* Material, const FString& FunctionName)
 {
 	for (const TObjectPtr<UMaterialExpression>& Expression : Material->GetMaterial()->GetExpressions())
 	{
@@ -109,7 +109,7 @@ const UMaterialExpressionCustomOutput* FGLTFMaterialUtility::GetCustomOutputByNa
 	return nullptr;
 }
 
-FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoint& OutputSize, const FGLTFMaterialPropertyEx& Property, const UMaterialInterface* Material, int32 TexCoord, const FGLTFMeshData* MeshData, const FGLTFIndexArray& MeshSectionIndices, bool bFillAlpha, bool bAdjustNormalmaps)
+FGLTFPropertyBakeOutput FGLTFMaterialUtilities::BakeMaterialProperty(const FIntPoint& OutputSize, const FGLTFMaterialPropertyEx& Property, const UMaterialInterface* Material, int32 TexCoord, const FGLTFMeshData* MeshData, const FGLTFIndexArray& MeshSectionIndices, bool bFillAlpha, bool bAdjustNormalmaps)
 {
 	FGLTFMeshRenderData MeshSet;
 	MeshSet.TextureCoordinateBox = { { 0.0f, 0.0f }, { 1.0f, 1.0f } };
@@ -161,12 +161,12 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 	if (bAdjustNormalmaps && IsNormalMap(Property))
 	{
 		// TODO: add support for adjusting normals in baking module instead
-		FGLTFTextureUtility::FlipGreenChannel(*BakedPixels);
+		FGLTFTextureUtilities::FlipGreenChannel(*BakedPixels);
 	}
 
 	bool bFromSRGB = !bIsLinearBake;
 	bool bToSRGB = IsSRGB(Property);
-	FGLTFTextureUtility::TransformColorSpace(*BakedPixels, bFromSRGB, bToSRGB);
+	FGLTFTextureUtilities::TransformColorSpace(*BakedPixels, bFromSRGB, bToSRGB);
 
 	FGLTFPropertyBakeOutput PropertyBakeOutput(Property, PF_B8G8R8A8, BakedPixels, BakedSize, EmissiveScale, !bIsLinearBake);
 
@@ -181,7 +181,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 	return PropertyBakeOutput;
 }
 
-FGLTFJsonTexture* FGLTFMaterialUtility::AddTexture(FGLTFConvertBuilder& Builder, TGLTFSharedArray<FColor>& Pixels, const FIntPoint& TextureSize, bool bIgnoreAlpha, bool bIsNormalMap, const FString& TextureName, TextureAddress TextureAddress, TextureFilter TextureFilter)
+FGLTFJsonTexture* FGLTFMaterialUtilities::AddTexture(FGLTFConvertBuilder& Builder, TGLTFSharedArray<FColor>& Pixels, const FIntPoint& TextureSize, bool bIgnoreAlpha, bool bIsNormalMap, const FString& TextureName, TextureAddress TextureAddress, TextureFilter TextureFilter)
 {
 	// TODO: reuse same texture index when image is the same
 	FGLTFJsonTexture* JsonTexture = Builder.AddTexture();
@@ -192,17 +192,17 @@ FGLTFJsonTexture* FGLTFMaterialUtility::AddTexture(FGLTFConvertBuilder& Builder,
 	return JsonTexture;
 }
 
-FLinearColor FGLTFMaterialUtility::GetMask(const FExpressionInput& ExpressionInput)
+FLinearColor FGLTFMaterialUtilities::GetMask(const FExpressionInput& ExpressionInput)
 {
 	return FLinearColor(ExpressionInput.MaskR, ExpressionInput.MaskG, ExpressionInput.MaskB, ExpressionInput.MaskA);
 }
 
-uint32 FGLTFMaterialUtility::GetMaskComponentCount(const FExpressionInput& ExpressionInput)
+uint32 FGLTFMaterialUtilities::GetMaskComponentCount(const FExpressionInput& ExpressionInput)
 {
 	return ExpressionInput.MaskR + ExpressionInput.MaskG + ExpressionInput.MaskB + ExpressionInput.MaskA;
 }
 
-bool FGLTFMaterialUtility::TryGetTextureCoordinateIndex(const UMaterialExpressionTextureSample* TextureSampler, int32& TexCoord, FGLTFJsonTextureTransform& Transform)
+bool FGLTFMaterialUtilities::TryGetTextureCoordinateIndex(const UMaterialExpressionTextureSample* TextureSampler, int32& TexCoord, FGLTFJsonTextureTransform& Transform)
 {
 	const UMaterialExpression* Expression = TextureSampler->Coordinates.Expression;
 	if (Expression == nullptr)
@@ -228,7 +228,7 @@ bool FGLTFMaterialUtility::TryGetTextureCoordinateIndex(const UMaterialExpressio
 	return false;
 }
 
-void FGLTFMaterialUtility::GetAllTextureCoordinateIndices(const UMaterialInterface* InMaterial, const FGLTFMaterialPropertyEx& InProperty, FGLTFIndexArray& OutTexCoords)
+void FGLTFMaterialUtilities::GetAllTextureCoordinateIndices(const UMaterialInterface* InMaterial, const FGLTFMaterialPropertyEx& InProperty, FGLTFIndexArray& OutTexCoords)
 {
 	FGLTFMaterialAnalysis Analysis;
 	AnalyzeMaterialProperty(InMaterial, InProperty, Analysis);
@@ -243,7 +243,7 @@ void FGLTFMaterialUtility::GetAllTextureCoordinateIndices(const UMaterialInterfa
 	}
 }
 
-void FGLTFMaterialUtility::AnalyzeMaterialProperty(const UMaterialInterface* InMaterial, const FGLTFMaterialPropertyEx& InProperty, FGLTFMaterialAnalysis& OutAnalysis)
+void FGLTFMaterialUtilities::AnalyzeMaterialProperty(const UMaterialInterface* InMaterial, const FGLTFMaterialPropertyEx& InProperty, FGLTFMaterialAnalysis& OutAnalysis)
 {
 	if (GetInputForProperty(InMaterial, InProperty) == nullptr)
 	{
@@ -254,7 +254,7 @@ void FGLTFMaterialUtility::AnalyzeMaterialProperty(const UMaterialInterface* InM
 	UGLTFMaterialAnalyzer::AnalyzeMaterialPropertyEx(InMaterial, InProperty.Type, InProperty.CustomOutput.ToString(), OutAnalysis);
 }
 
-FMaterialShadingModelField FGLTFMaterialUtility::EvaluateShadingModelExpression(const UMaterialInterface* Material)
+FMaterialShadingModelField FGLTFMaterialUtilities::EvaluateShadingModelExpression(const UMaterialInterface* Material)
 {
 	FGLTFMaterialAnalysis Analysis;
 	AnalyzeMaterialProperty(Material, MP_ShadingModel, Analysis);
@@ -270,7 +270,7 @@ FMaterialShadingModelField FGLTFMaterialUtility::EvaluateShadingModelExpression(
 
 #endif
 
-EMaterialShadingModel FGLTFMaterialUtility::GetRichestShadingModel(const FMaterialShadingModelField& ShadingModels)
+EMaterialShadingModel FGLTFMaterialUtilities::GetRichestShadingModel(const FMaterialShadingModelField& ShadingModels)
 {
 	if (ShadingModels.HasShadingModel(MSM_ClearCoat))
 	{
@@ -292,7 +292,7 @@ EMaterialShadingModel FGLTFMaterialUtility::GetRichestShadingModel(const FMateri
 	return ShadingModels.GetFirstShadingModel();
 }
 
-FString FGLTFMaterialUtility::ShadingModelsToString(const FMaterialShadingModelField& ShadingModels)
+FString FGLTFMaterialUtilities::ShadingModelsToString(const FMaterialShadingModelField& ShadingModels)
 {
 	FString Result;
 
@@ -301,7 +301,7 @@ FString FGLTFMaterialUtility::ShadingModelsToString(const FMaterialShadingModelF
 		const EMaterialShadingModel ShadingModel = static_cast<EMaterialShadingModel>(Index);
 		if (ShadingModels.HasShadingModel(ShadingModel))
 		{
-			FString Name = FGLTFNameUtility::GetName(ShadingModel);
+			FString Name = FGLTFNameUtilities::GetName(ShadingModel);
 			Result += Result.IsEmpty() ? Name : TEXT(", ") + Name;
 		}
 	}
@@ -309,7 +309,7 @@ FString FGLTFMaterialUtility::ShadingModelsToString(const FMaterialShadingModelF
 	return Result;
 }
 
-bool FGLTFMaterialUtility::NeedsMeshData(const UMaterialInterface* Material)
+bool FGLTFMaterialUtilities::NeedsMeshData(const UMaterialInterface* Material)
 {
 #if WITH_EDITOR
 	if (Material != nullptr && !FGLTFProxyMaterialUtilities::IsProxyMaterial(Material))
@@ -352,7 +352,7 @@ bool FGLTFMaterialUtility::NeedsMeshData(const UMaterialInterface* Material)
 	return false;
 }
 
-bool FGLTFMaterialUtility::NeedsMeshData(const TArray<const UMaterialInterface*>& Materials)
+bool FGLTFMaterialUtilities::NeedsMeshData(const TArray<const UMaterialInterface*>& Materials)
 {
 #if WITH_EDITOR
 	for (const UMaterialInterface* Material: Materials)

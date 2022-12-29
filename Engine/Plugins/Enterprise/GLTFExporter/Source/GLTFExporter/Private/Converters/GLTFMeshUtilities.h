@@ -14,7 +14,7 @@ struct FStaticMaterial;
 struct FSkeletalMaterial;
 struct FStaticMeshLODResources;
 
-struct FGLTFMeshUtility
+struct FGLTFMeshUtilities
 {
 	static void FullyLoad(const UStaticMesh* InStaticMesh);
 	static void FullyLoad(const USkeletalMesh* InSkeletalMesh);

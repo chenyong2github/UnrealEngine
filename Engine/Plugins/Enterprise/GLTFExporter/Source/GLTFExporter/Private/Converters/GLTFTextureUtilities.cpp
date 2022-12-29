@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Converters/GLTFTextureUtility.h"
+#include "Converters/GLTFTextureUtilities.h"
 #include "Converters/GLTFNormalMapPreview.h"
 #include "Converters/GLTFSimpleTexture2DPreview.h"
 #include "CanvasItem.h"
@@ -14,7 +14,7 @@
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "TextureResource.h"
 
-bool FGLTFTextureUtility::IsAlphaless(EPixelFormat PixelFormat)
+bool FGLTFTextureUtilities::IsAlphaless(EPixelFormat PixelFormat)
 {
 	switch (PixelFormat)
 	{
@@ -34,7 +34,7 @@ bool FGLTFTextureUtility::IsAlphaless(EPixelFormat PixelFormat)
 	}
 }
 
-void FGLTFTextureUtility::FullyLoad(const UTexture* InTexture)
+void FGLTFTextureUtilities::FullyLoad(const UTexture* InTexture)
 {
 	UTexture* Texture = const_cast<UTexture*>(InTexture);
 
@@ -46,7 +46,7 @@ void FGLTFTextureUtility::FullyLoad(const UTexture* InTexture)
 	Texture->WaitForStreaming();
 }
 
-bool FGLTFTextureUtility::IsHDR(const UTexture* Texture)
+bool FGLTFTextureUtilities::IsHDR(const UTexture* Texture)
 {
 	switch (Texture->CompressionSettings)
 	{
@@ -59,12 +59,12 @@ bool FGLTFTextureUtility::IsHDR(const UTexture* Texture)
 	}
 }
 
-bool FGLTFTextureUtility::IsCubemap(const UTexture* Texture)
+bool FGLTFTextureUtilities::IsCubemap(const UTexture* Texture)
 {
 	return Texture->IsA<UTextureCube>() || Texture->IsA<UTextureRenderTargetCube>();
 }
 
-TextureFilter FGLTFTextureUtility::GetDefaultFilter(TextureGroup LODGroup)
+TextureFilter FGLTFTextureUtilities::GetDefaultFilter(TextureGroup LODGroup)
 {
 	const UTextureLODSettings* TextureLODSettings = UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings();
 	const ETextureSamplerFilter Filter = TextureLODSettings->GetTextureLODGroup(LODGroup).Filter;
@@ -80,7 +80,7 @@ TextureFilter FGLTFTextureUtility::GetDefaultFilter(TextureGroup LODGroup)
 	}
 }
 
-int32 FGLTFTextureUtility::GetMipBias(const UTexture* Texture)
+int32 FGLTFTextureUtilities::GetMipBias(const UTexture* Texture)
 {
 	if (const UTexture2D* Texture2D = Cast<UTexture2D>(Texture))
 	{
@@ -90,7 +90,7 @@ int32 FGLTFTextureUtility::GetMipBias(const UTexture* Texture)
 	return Texture->GetCachedLODBias();
 }
 
-FIntPoint FGLTFTextureUtility::GetInGameSize(const UTexture* Texture)
+FIntPoint FGLTFTextureUtilities::GetInGameSize(const UTexture* Texture)
 {
 	const int32 Width = Texture->GetSurfaceWidth();
 	const int32 Height = Texture->GetSurfaceHeight();
@@ -103,7 +103,7 @@ FIntPoint FGLTFTextureUtility::GetInGameSize(const UTexture* Texture)
 	return { InGameWidth, InGameHeight };
 }
 
-UTextureRenderTarget2D* FGLTFTextureUtility::CreateRenderTarget(const FIntPoint& Size, bool bHDR)
+UTextureRenderTarget2D* FGLTFTextureUtilities::CreateRenderTarget(const FIntPoint& Size, bool bHDR)
 {
 	// TODO: instead of PF_FloatRGBA (i.e. RTF_RGBA16f) use PF_A32B32G32R32F (i.e. RTF_RGBA32f) to avoid accuracy loss
 	const EPixelFormat PixelFormat = bHDR ? PF_FloatRGBA : PF_B8G8R8A8;
@@ -120,7 +120,7 @@ UTextureRenderTarget2D* FGLTFTextureUtility::CreateRenderTarget(const FIntPoint&
 	return RenderTarget;
 }
 
-bool FGLTFTextureUtility::DrawTexture(UTextureRenderTarget2D* OutTarget, const UTexture2D* InSource)
+bool FGLTFTextureUtilities::DrawTexture(UTextureRenderTarget2D* OutTarget, const UTexture2D* InSource)
 {
 	FRenderTarget* RenderTarget = OutTarget->GameThread_GetRenderTargetResource();
 	if (RenderTarget == nullptr)
@@ -155,7 +155,7 @@ bool FGLTFTextureUtility::DrawTexture(UTextureRenderTarget2D* OutTarget, const U
 	return true;
 }
 
-bool FGLTFTextureUtility::ReadPixels(const UTextureRenderTarget2D* InRenderTarget, TArray<FColor>& OutPixels)
+bool FGLTFTextureUtilities::ReadPixels(const UTextureRenderTarget2D* InRenderTarget, TArray<FColor>& OutPixels)
 {
 	FTextureRenderTarget2DResource* Resource = static_cast<FTextureRenderTarget2DResource*>(const_cast<UTextureRenderTarget2D*>(InRenderTarget)->GetResource());
 	if (Resource == nullptr)
@@ -168,7 +168,7 @@ bool FGLTFTextureUtility::ReadPixels(const UTextureRenderTarget2D* InRenderTarge
 	return Resource->ReadPixels(OutPixels, ReadSurfaceDataFlags);
 }
 
-void FGLTFTextureUtility::FlipGreenChannel(TArray<FColor>& Pixels)
+void FGLTFTextureUtilities::FlipGreenChannel(TArray<FColor>& Pixels)
 {
 	for (FColor& Pixel: Pixels)
 	{
@@ -176,7 +176,7 @@ void FGLTFTextureUtility::FlipGreenChannel(TArray<FColor>& Pixels)
 	}
 }
 
-void FGLTFTextureUtility::TransformColorSpace(TArray<FColor>& Pixels, bool bFromSRGB, bool bToSRGB)
+void FGLTFTextureUtilities::TransformColorSpace(TArray<FColor>& Pixels, bool bFromSRGB, bool bToSRGB)
 {
 	if (bFromSRGB == bToSRGB)
 	{

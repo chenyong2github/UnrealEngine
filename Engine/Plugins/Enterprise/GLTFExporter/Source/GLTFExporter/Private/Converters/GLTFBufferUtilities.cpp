@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Converters/GLTFBufferUtility.h"
+#include "Converters/GLTFBufferUtilities.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 
-bool FGLTFBufferUtility::HasCPUAccess(const FRawStaticIndexBuffer* IndexBuffer)
+bool FGLTFBufferUtilities::HasCPUAccess(const FRawStaticIndexBuffer* IndexBuffer)
 {
 #if WITH_EDITOR
 	return true;
@@ -12,7 +12,7 @@ bool FGLTFBufferUtility::HasCPUAccess(const FRawStaticIndexBuffer* IndexBuffer)
 #endif
 }
 
-bool FGLTFBufferUtility::HasCPUAccess(const FRawStaticIndexBuffer16or32Interface* IndexBuffer)
+bool FGLTFBufferUtilities::HasCPUAccess(const FRawStaticIndexBuffer16or32Interface* IndexBuffer)
 {
 #if WITH_EDITOR
 	return true;
@@ -21,7 +21,7 @@ bool FGLTFBufferUtility::HasCPUAccess(const FRawStaticIndexBuffer16or32Interface
 #endif
 }
 
-bool FGLTFBufferUtility::HasCPUAccess(const FPositionVertexBuffer* VertexBuffer)
+bool FGLTFBufferUtilities::HasCPUAccess(const FPositionVertexBuffer* VertexBuffer)
 {
 #if WITH_EDITOR
 	return true;
@@ -30,7 +30,7 @@ bool FGLTFBufferUtility::HasCPUAccess(const FPositionVertexBuffer* VertexBuffer)
 #endif
 }
 
-bool FGLTFBufferUtility::HasCPUAccess(const FColorVertexBuffer* VertexBuffer)
+bool FGLTFBufferUtilities::HasCPUAccess(const FColorVertexBuffer* VertexBuffer)
 {
 #if WITH_EDITOR
 	return true;
@@ -39,7 +39,7 @@ bool FGLTFBufferUtility::HasCPUAccess(const FColorVertexBuffer* VertexBuffer)
 #endif
 }
 
-bool FGLTFBufferUtility::HasCPUAccess(const FStaticMeshVertexBuffer* VertexBuffer)
+bool FGLTFBufferUtilities::HasCPUAccess(const FStaticMeshVertexBuffer* VertexBuffer)
 {
 #if WITH_EDITOR
 	return true;
@@ -48,7 +48,7 @@ bool FGLTFBufferUtility::HasCPUAccess(const FStaticMeshVertexBuffer* VertexBuffe
 #endif
 }
 
-bool FGLTFBufferUtility::HasCPUAccess(const FSkinWeightVertexBuffer* VertexBuffer)
+bool FGLTFBufferUtilities::HasCPUAccess(const FSkinWeightVertexBuffer* VertexBuffer)
 {
 #if WITH_EDITOR
 	return true;
@@ -57,17 +57,17 @@ bool FGLTFBufferUtility::HasCPUAccess(const FSkinWeightVertexBuffer* VertexBuffe
 #endif
 }
 
-const void* FGLTFBufferUtility::GetCPUBuffer(const FRawStaticIndexBuffer* IndexBuffer)
+const void* FGLTFBufferUtilities::GetCPUBuffer(const FRawStaticIndexBuffer* IndexBuffer)
 {
 	return IndexBuffer->Is32Bit() ? static_cast<const void*>(IndexBuffer->AccessStream32()) : static_cast<const void*>(IndexBuffer->AccessStream16());
 }
 
-const void* FGLTFBufferUtility::GetCPUBuffer(const FRawStaticIndexBuffer16or32Interface* IndexBuffer)
+const void* FGLTFBufferUtilities::GetCPUBuffer(const FRawStaticIndexBuffer16or32Interface* IndexBuffer)
 {
 	return IndexBuffer->GetResourceDataSize() > 0 ? const_cast<FRawStaticIndexBuffer16or32Interface*>(IndexBuffer)->GetPointerTo(0) : nullptr;
 }
 
-void FGLTFBufferUtility::ReadRHIBuffer(FRHIBuffer* SourceBuffer, TArray<uint8>& OutData)
+void FGLTFBufferUtilities::ReadRHIBuffer(FRHIBuffer* SourceBuffer, TArray<uint8>& OutData)
 {
 	OutData.Empty();
 
