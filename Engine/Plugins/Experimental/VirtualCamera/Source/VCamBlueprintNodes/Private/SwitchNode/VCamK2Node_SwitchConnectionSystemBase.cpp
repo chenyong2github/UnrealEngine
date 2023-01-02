@@ -14,6 +14,7 @@ UVCamK2Node_SwitchConnectionSystemBase::UVCamK2Node_SwitchConnectionSystemBase()
 {
 	FunctionName = TEXT("NotEqual_NameName");
 	FunctionClass = UKismetMathLibrary::StaticClass();
+	AdvancedPinDisplay = ENodeAdvancedPins::Shown;
 }
 
 void UVCamK2Node_SwitchConnectionSystemBase::RefreshPins()
@@ -38,6 +39,25 @@ void UVCamK2Node_SwitchConnectionSystemBase::PostLoad()
 {
 	Super::PostLoad();
 	SetupBlueprintModifiedCallbacks();
+
+	for (UEdGraphPin* Pin : Pins)
+	{
+		if (Pin->Direction == EGPD_Output)
+		{
+			Pin->bAdvancedView = true;
+		}
+	}
+}
+
+void UVCamK2Node_SwitchConnectionSystemBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (PropertyChangedEvent.MemberProperty
+		&& PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UEdGraphNode, AdvancedPinDisplay))
+	{
+		RefreshPins();
+	}
+	
+	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
 void UVCamK2Node_SwitchConnectionSystemBase::GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const
@@ -126,7 +146,8 @@ void UVCamK2Node_SwitchConnectionSystemBase::AddMissingCasePins(const TArray<FNa
 		});
 		if (!bContainsOutputPin)
 		{
-			CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Exec, PinName);
+			UEdGraphPin* Pin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Exec, PinName);
+			Pin->bAdvancedView = true;
 		}
 	}
 }
