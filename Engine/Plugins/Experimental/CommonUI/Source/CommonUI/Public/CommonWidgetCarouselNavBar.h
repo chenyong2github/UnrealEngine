@@ -2,14 +2,13 @@
 
 #pragma once
 
+#include "Components/Widget.h"
+#include "CommonWidgetCarouselNavBar.generated.h"
 
 class UCommonWidgetCarousel;
 class UCommonButtonBase;
 class UCommonButtonGroupBase;
 class SHorizontalBox;
-
-#include "Components/Widget.h"
-#include "CommonWidgetCarouselNavBar.generated.h"
 
 /**
  * A Navigation control for a Carousel
