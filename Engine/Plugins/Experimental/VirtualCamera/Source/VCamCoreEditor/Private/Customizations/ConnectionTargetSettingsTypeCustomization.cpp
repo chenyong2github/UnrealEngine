@@ -73,8 +73,8 @@ namespace UE::VCamCoreEditor::Private
 		
 		const TSharedPtr<IPropertyHandle> ParentHandle = PropertyHandle->GetParentHandle();
 		const bool bIsValidHandle = ParentHandle
-			|| !CastField<FStructProperty>(PropertyHandle->GetProperty())
-			|| CastField<FStructProperty>(PropertyHandle->GetProperty())->Struct == FVCamConnection::StaticStruct();
+			&& CastField<FStructProperty>(PropertyHandle->GetProperty())
+			&& CastField<FStructProperty>(PropertyHandle->GetProperty())->Struct == FVCamConnection::StaticStruct();
 		const TSharedPtr<IPropertyHandle> OptionalVCamConnectionParentStructHandle = bIsValidHandle
 			? ParentHandle
 			: nullptr;

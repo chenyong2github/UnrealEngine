@@ -2,8 +2,13 @@
 
 #include "Util/WidgetTreeUtils.h"
 
-#include "Blueprint/WidgetTree.h"
 #include "UI/VCamWidget.h"
+
+#include "Blueprint/WidgetTree.h"
+
+#if WITH_EDITOR
+#include "BaseWidgetBlueprint.h"
+#endif
 
 namespace UE::VCamCore
 {
@@ -31,4 +36,15 @@ namespace UE::VCamCore
 			});
 		}
 	}
+
+#if WITH_EDITOR
+	UWidgetTree* GetWidgetTreeThroughBlueprintAsset(UUserWidget& Widget)
+	{
+		UObject* Blueprint = Widget.GetClass()->ClassGeneratedBy;
+		UBaseWidgetBlueprint* WidgetBlueprint = Cast<UBaseWidgetBlueprint>(Blueprint);
+		return WidgetBlueprint
+			? WidgetBlueprint->WidgetTree
+			: nullptr;
+	}
+#endif
 }

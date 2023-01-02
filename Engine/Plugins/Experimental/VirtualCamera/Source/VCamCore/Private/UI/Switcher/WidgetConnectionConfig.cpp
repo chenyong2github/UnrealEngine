@@ -2,27 +2,11 @@
 
 #include "UI/Switcher/WidgetConnectionConfig.h"
 
-#include "Blueprint/WidgetTree.h"
 #include "LogVCamCore.h"
 #include "UI/Switcher/VCamStateSwitcherWidget.h"
+#include "Util/WidgetTreeUtils.h"
 
-#if WITH_EDITOR
-#include "BaseWidgetBlueprint.h"
-#endif
-
-namespace UE::VCamCore::Private
-{
-#if WITH_EDITOR
-	static UWidgetTree* GetWidgetTreeThroughBlueprintAsset(UUserWidget* ClassDefaultWidget)
-	{
-		UObject* Blueprint = ClassDefaultWidget->GetClass()->ClassGeneratedBy;
-		UBaseWidgetBlueprint* WidgetBlueprint = Cast<UBaseWidgetBlueprint>(Blueprint);
-		return WidgetBlueprint
-			? WidgetBlueprint->WidgetTree
-			: nullptr;
-	}
-#endif
-}
+#include "Blueprint/WidgetTree.h"
 
 UVCamWidget* FWidgetConnectionConfig::ResolveWidget(UVCamStateSwitcherWidget* OwnerWidget) const
 {
@@ -35,7 +19,7 @@ UVCamWidget* FWidgetConnectionConfig::ResolveWidget(UVCamStateSwitcherWidget* Ow
 #if WITH_EDITOR
 	if (!WidgetTree && OwnerWidget->HasAnyFlags(RF_ClassDefaultObject))
 	{
-		WidgetTree = UE::VCamCore::Private::GetWidgetTreeThroughBlueprintAsset(OwnerWidget);
+		WidgetTree = UE::VCamCore::GetWidgetTreeThroughBlueprintAsset(*OwnerWidget);
 	}
 #endif
 

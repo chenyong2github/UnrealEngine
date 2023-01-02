@@ -32,8 +32,6 @@ namespace UE::VCamCoreEditor::Private
 			// Overwrite bManuallyConfigureConnection because otherwise its EditCondition will hide the property!
 			DummyContainer.Connection.bManuallyConfigureConnection = true;
 			TStructOnScope<FConnectionContainerDummy> StructOnScope(DummyContainer);
-
-			// Object slicing occurs intentionally
 			StructData = MakeShared<TStructOnScope<FConnectionContainerDummy>>(MoveTemp(StructOnScope));
 			AddedConnections.Add(Args.ConnectionName, StructData);
 		}

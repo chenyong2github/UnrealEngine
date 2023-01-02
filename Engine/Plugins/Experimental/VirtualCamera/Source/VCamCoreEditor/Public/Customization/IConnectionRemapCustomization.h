@@ -6,6 +6,7 @@
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
+class IDetailLayoutBuilder;
 class IDetailGroup;
 class UVCamWidget;
 
@@ -26,8 +27,11 @@ namespace UE::VCamCoreEditor
 
 	struct FConnectionRemapCustomizationArgs
 	{
+		/** Use to register custom layouts or add external object / struct data. */
+		IDetailLayoutBuilder& Builder;
 		/** Builder for the group under which to add the widget's data. */
 		IDetailGroup& WidgetGroup;
+		
 		TSharedRef<IConnectionRemapUtils> Utils;
 		TWeakObjectPtr<UVCamWidget> CustomizedWidget;
 		

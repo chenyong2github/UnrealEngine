@@ -324,7 +324,7 @@ namespace UE::VCamCoreEditor::Private
 				[
 					CreateControlWidgets(Widget)
 				];
-			WidgetData->Customization->Customize({ WidgetGroup, WidgetData->RemapUtils.ToSharedRef(), Widget, Private::DisplaySettings });
+			WidgetData->Customization->Customize({ DetailBuilder, WidgetGroup, WidgetData->RemapUtils.ToSharedRef(), Widget, Private::DisplaySettings });
 		}
 	}
 	

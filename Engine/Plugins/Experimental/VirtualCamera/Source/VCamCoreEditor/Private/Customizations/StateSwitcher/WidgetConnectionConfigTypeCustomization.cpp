@@ -15,6 +15,7 @@
 #include "IPropertyUtilities.h"
 #include "Blueprint/WidgetTree.h"
 #include "UObject/PropertyIterator.h"
+#include "Util/WidgetTreeUtils.h"
 
 #define LOCTEXT_NAMESPACE "FWidgetConnectionConfigCustomization"
 
@@ -153,6 +154,7 @@ namespace UE::VCamCoreEditor::Private
 				PropertyItemList.Add(Widget->GetName());
 			}
 		});
+		
 		return PropertyItemList;
 	}
 
@@ -163,11 +165,7 @@ namespace UE::VCamCoreEditor::Private
 			return nullptr;
 		}
 		
-		UObject* Blueprint = ClassDefaultWidget->GetClass()->ClassGeneratedBy;
-		UBaseWidgetBlueprint* WidgetBlueprint = Cast<UBaseWidgetBlueprint>(Blueprint);
-		return WidgetBlueprint
-			? WidgetBlueprint->WidgetTree
-			: nullptr;
+		return VCamCore::GetWidgetTreeThroughBlueprintAsset(*ClassDefaultWidget);
 	}
 
 	void FWidgetConnectionConfigTypeCustomization::CustomizeConnectionTargetsReferenceProperty(

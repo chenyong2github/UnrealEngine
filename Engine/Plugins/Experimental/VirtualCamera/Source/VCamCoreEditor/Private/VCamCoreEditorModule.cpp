@@ -20,6 +20,7 @@
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "Customizations/VCamViewportLockerTypeCustomization.h"
+#include "Customizations/OutputProvider/ConnectionRemapCustomization_StateSwitcher.h"
 #include "Customizations/OutputProvider/ConnectionRemapCustomization_VCamWidget.h"
 #include "Customizations/OutputProvider/OutputProviderTypeCustomization.h"
 #include "Output/VCamOutputViewport.h"
@@ -145,6 +146,10 @@ namespace UE::VCamCoreEditor::Private
 		RegisterConnectionRemapCustomization(
 			UVCamWidget::StaticClass(),
 			FGetConnectionRemappingCustomization::CreateStatic(&FConnectionRemapCustomization_VCamWidget::Make)
+			);
+		RegisterConnectionRemapCustomization(
+			UVCamStateSwitcherWidget::StaticClass(),
+			FGetConnectionRemappingCustomization::CreateStatic(&FConnectionRemapCustomization_StateSwitcher::Make)
 			);
 	}
 

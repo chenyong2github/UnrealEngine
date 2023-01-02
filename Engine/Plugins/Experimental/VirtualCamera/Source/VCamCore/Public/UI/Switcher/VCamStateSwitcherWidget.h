@@ -49,6 +49,8 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
+	FORCEINLINE static FName GetCurrentStatePropertyName() { return GET_MEMBER_NAME_CHECKED(UVCamStateSwitcherWidget, CurrentState); }
+
 protected:
 
 	//~ Begin UUserWidget Interface
