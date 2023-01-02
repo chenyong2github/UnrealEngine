@@ -325,7 +325,7 @@ void GetMaterialPayload(
 	half IOR = DielectricF0RGBToIor(F0);
 	#endif
 #else
-	half IOR = 1;
+	half IOR = 0;
 #endif
 
 	/**
@@ -338,7 +338,11 @@ void GetMaterialPayload(
 	Payload.Specular = Specular;
 	Payload.Roughness = Roughness;
 	Payload.Metallic = Metallic;
+#if MATERIALBLENDING_MODULATE
+	Payload.Opacity = 0.0;
+#else
 	Payload.Opacity = GetMaterialOpacity(PixelMaterialInputs);
+#endif
 
 #if MATERIALBLENDING_MASKED
 	// regular masked mode - binary decision
@@ -348,7 +352,7 @@ void GetMaterialPayload(
 	}
 #endif // MATERIALBLENDING_MASKED
 
-	Payload.Ior = IOR == 0 ? 1.0 : IOR;
+	Payload.Ior = IOR;
 	Payload.CustomData = float4(GetMaterialCustomData0(MaterialParameters), GetMaterialCustomData1(MaterialParameters), 0, 0);
 	
 #if MATERIAL_SHADINGMODEL_CLEAR_COAT

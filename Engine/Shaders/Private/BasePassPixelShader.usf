@@ -864,12 +864,6 @@ void FPixelShaderInOut_MainPS(
 
 	float MaterialAO = GetMaterialAmbientOcclusion(PixelMaterialInputs);
 
-// Opacity for this model is the coverage of the top layer over the transmission surface. Since the
-// underlying material isn't allowed to be metallic, we are scaling the metallic value by the coverage.
-#if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
-	Metallic *= Opacity;
-#endif
-
 	// If we don't use this shading model the color should be black (don't generate shader code for unused data, don't do indirectlighting cache lighting with this color).
 	float3 SubsurfaceColor = 0;
 	// 0..1, SubsurfaceProfileId = int(x * 255)
