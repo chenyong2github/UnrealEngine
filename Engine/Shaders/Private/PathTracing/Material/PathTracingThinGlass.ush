@@ -67,7 +67,7 @@ FMaterialEval RoughThinGlass_EvalMaterial(
 	const float Eta = Payload.Ior;
 	const float F0 = F0RGBToF0(Payload.SpecularColor);
 	const float F90 = saturate(50.0 * F0);
-	const float3 SlabColor = Payload.CustomData.xyz;
+	const float3 SlabColor = Payload.GetTransmittanceColor();
 
 	// transmitted lobe should have slightly less roughness due to the squeeze implied by the IOR (eventually converging to 0.0 as Ior approaches 1.0)
 	const float RoughnessR = Payload.Roughness;
@@ -142,7 +142,7 @@ FMaterialSample RoughThinGlass_SampleMaterial(
 	const float Eta = Payload.Ior;
 	const float F0 = F0RGBToF0(Payload.SpecularColor);
 	const float F90 = saturate(50.0 * F0);
-	const float3 SlabColor = Payload.CustomData.xyz;
+	const float3 SlabColor = Payload.GetTransmittanceColor();
 
 	// transmitted lobe should have slightly less roughness due to the squeeze implied by the IOR (eventually converging to 0.0 as Ior approaches 1.0)
 	const float RoughnessR = Payload.Roughness;

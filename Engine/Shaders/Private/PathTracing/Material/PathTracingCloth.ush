@@ -34,8 +34,8 @@ FMaterialEval Cloth_EvalMaterial(
 	const float VoH = saturate(dot(V, H));
 	const float NoH = saturate(H.z);
 
-	const float3 FuzzColor = Payload.CustomData.xyz;
-	const float Cloth = Payload.CustomData.w;
+	const float3 FuzzColor = Payload.GetClothColor();
+	const float Cloth = Payload.GetClothAmount();
 
 	const FBxDFEnergyTerms Spec = ComputeGGXSpecEnergyTerms(Payload.Roughness, NoV, Payload.SpecularColor);
 	const FBxDFEnergyTerms Fuzz = ComputeClothEnergyTerms(Payload.Roughness, NoV, FuzzColor);
@@ -81,8 +81,8 @@ FMaterialSample Cloth_SampleMaterial(
 
 	const float NoV = saturate(V.z);
 
-	const float3 FuzzColor = Payload.CustomData.xyz;
-	const float Cloth = Payload.CustomData.w;
+	const float3 FuzzColor = Payload.GetClothColor();
+	const float Cloth = Payload.GetClothAmount();
 	const FBxDFEnergyTerms Spec = ComputeGGXSpecEnergyTerms(Payload.Roughness, NoV, Payload.SpecularColor);
 	const FBxDFEnergyTerms Fuzz = ComputeClothEnergyTerms(Payload.Roughness, NoV, FuzzColor);
 

@@ -43,6 +43,24 @@ float3 PayloadDecodeUnitVector(uint Encoded)
 	return OctahedronToUnitVector(2 * OctF - 1);
 }
 
+float3 AdjustShadingNormal(float3 ShadingNormal, float3 GeoNormal, float3 RayDirection)
+{
+	// Clip shading normal in a view dependent way such that the reflection stays above the geometric normal
+	// This introduces a bit of view-dependency to the shading normal but fixes dark artifacts around grazing angles
+
+	float3 D = RayDirection;
+	float3 R = reflect(D, ShadingNormal);
+
+	// https://iquilezles.org/www/articles/dontflip/dontflip.htm
+	float k = dot(R, GeoNormal);
+	if (k < 0.0)
+	{
+		return normalize(normalize(R - k * GeoNormal) - D);
+	}
+	return ShadingNormal;
+}
+
+
 // This payload structure is what we transport between RGS/CHS/AHS programs
 struct FPackedPathTracingPayload : FMinimalPayload
 {
@@ -126,16 +144,16 @@ struct FPathTracingPayload : FMinimalPayload
 	float  Metallic;
 	float  Specular;
 	float  Roughness;
+	float  Anisotropy;
 	float  Ior;
 	uint   ShadingModelID;
 	uint   BlendingMode;
 	uint   Flags;
 	uint   PrimitiveLightingChannelMask;
-	float4 CustomData;
-	float3 CustomVector;
+	float4 CustomData0;
+	float4 CustomData1;
 	float3 WorldTangent;
 	float3 SubsurfaceRadius;
-	float  Anisotropy;
 	float3 TranslatedWorldPos;
 
 	void SetFrontFace() { Flags |= PATH_TRACING_PAYLOAD_OUTPUT_FLAG_FRONT_FACE; }
@@ -146,25 +164,61 @@ struct FPathTracingPayload : FMinimalPayload
 
 
 	// Various ways to interpret CustomData (depending on ShadingModelID)
-	float GetClearCoat() { return CustomData.x; }
-	float GetClearCoatRoughness() { return CustomData.y; }
-	void SetClearCoatRoughness(float ClearCoatRoughness) { CustomData.y = ClearCoatRoughness; }
-	float3 GetClearCoatBottomNormal() { return CustomVector; }
+	// NOTE: This is not always following the same conventions as GetMaterialCustomData0,1()
 
-	uint GetSubsurfaceProfileId() { return uint(CustomData.a * 255.0 + 0.5); }
+	// SHADINGMODELID_CLOTH
+	float3 GetClothColor() { return CustomData0.xyz; }
+	void SetClothColor(float3 ClothColor) { CustomData0.xyz = ClothColor; }
+	float GetClothAmount() { return CustomData0.w; }
+	void SetClothAmount(float ClothAmount) { CustomData0.w = ClothAmount; }
 
-	float3 GetSubsurfaceColor() { return CustomData.xyz; }
-	void SetSubsurfaceColor(float3 SubsurfaceColor) { CustomData.xyz = SubsurfaceColor; }
+	// SHADINGMODELID_CLEAR_COAT
+	float GetClearCoat() { return CustomData0.x; }
+	float GetClearCoatRoughness() { return CustomData0.y; }
+	void SetClearCoat(float ClearCoat) { CustomData0.x = ClearCoat; }
+	void SetClearCoatRoughness(float ClearCoatRoughness) { CustomData0.y = ClearCoatRoughness; }
+	float3 GetClearCoatBottomNormal() { return CustomData1.xyz; }
+	void SetClearCoatBottomNormal(float3 BottomNormal) { CustomData1.xyz = BottomNormal; }
+
+	// SHADINGMODELID_SUBSURFACE_PROFILE and SHADINGMODELID_EYE
+	uint GetSubsurfaceProfileId() { return uint(CustomData0.a * 255.0 + 0.5); }
+
+	// SHADINGMODELID_SUBSURFACE, SHADINGMODELID_TWO_SIDED_FOLIAGE (and SHADINGMODELID_SUBSURFACE_PROFILE, SHADINGMODELID_EYE after decode)
+	float3 GetSubsurfaceColor() { return CustomData0.xyz; }
+	void SetSubsurfaceColor(float3 SubsurfaceColor) { CustomData0.xyz = SubsurfaceColor; }
 	
-	// Steal an unused float3 (the only material with dual specular does not support anisotropy)
-	// Data is encoded as (x: roughness 0, y: roughness 1, z: roughness mix)
-	float3 GetDualRoughnessSpecular() { return WorldTangent; }
-	void SetDualRoughnessSpecular(float3 RoughnessData)
-	{
-		// store data in unused field and compute average roughness
-		WorldTangent = RoughnessData;
-		Roughness = lerp(RoughnessData.x, RoughnessData.y, RoughnessData.z);
-	}
+	// SHADINGMODELID_SUBSURFACE_PROFILE
+	float3 GetDualRoughnessSpecular() { return CustomData1.xyz; }
+	void SetDualRoughnessSpecular(float Roughness0, float Roughness1, float LobeMix) { CustomData1.xyz = float3(Roughness0, Roughness1, LobeMix); }
+
+
+	// SHADINGMODELID_EYE
+	float3 GetEyeCausticNormal() { return CustomData1.xyz; }
+	void SetEyeCausticNormal(float3 CausticNormal) { CustomData1.xyz = CausticNormal; }
+	float GetEyeIrisMask() { return Anisotropy; }
+	float3 GetEyeIrisNormal() { return WorldTangent; }
+	void SetEyeIrisMask(float IrisMask) { Anisotropy = IrisMask; }
+	void SetEyeIrisNormal(float3 IrisNormal) { WorldTangent = IrisNormal; }
+
+	// SHADINGMODELID_HAIR
+	float2 GetHairPrimitiveUV() { return CustomData0.xy; }
+	void SetHairPrimitiveUV(float2 UV) { CustomData0.xy = UV; }
+
+	// SHADINGMODELID_DEFAULT_LIT, SHADINGMODELID_THIN_TRANSLUCENT
+	float3 GetTransmittanceColor() { return CustomData0.xyz; }
+	void SetTransmittanceColor(float3 TransmittanceColor) { CustomData0.xyz = TransmittanceColor; }
+
+	// SHADINGMODELID_SINGLELAYERWATER
+	float3 GetWaterExtinction() { return CustomData0.xyz; }
+	void SetWaterExtinction(float3 SigmaT) { CustomData0.xyz = SigmaT; }
+	float GetWaterPhaseG() { return CustomData0.w; }
+	void SetWaterPhaseG(float G) { CustomData0.w = G; }
+
+	// SHADINGMODELID_MEDIUM
+	float3 GetHGWeight() { return CustomData0.xyz; }
+	float GetHGPhaseG() { return CustomData0.w; }
+	void SetHG(float3 Weight, float G) { CustomData0 = float4(Weight, G); }
+
 
 	bool HasRefraction()
 	{
@@ -200,9 +254,10 @@ struct FPathTracingPayload : FMinimalPayload
 	}
 };
 
-FPackedPathTracingPayload InitPathTracingPayload(bool bIgnoreSkyMaterials)
+FPackedPathTracingPayload InitPathTracingPayload(bool bIgnoreSkyMaterials, float PathRoughness)
 {
 	FPackedPathTracingPayload Output = (FPackedPathTracingPayload)0;
+	Output.SetPathRoughness(PathRoughness);
 	if (bIgnoreSkyMaterials)
 	{
 		Output.SetIgnoreSkyMaterials();
@@ -253,16 +308,18 @@ FPackedPathTracingPayload PackPathTracingPayload(FPathTracingPayload Input)
 
 	Output.PackedData[9] = PayloadEncodeUnitVector(Input.WorldTangent);
 
-	Output.PackedData[10] = f32tof16(Input.CustomVector.x);
-	Output.PackedData[10] |= f32tof16(Input.CustomVector.y) << 16;
-	Output.PackedData[11] = f32tof16(Input.CustomVector.z);
+	Output.PackedData[10] = f32tof16(Input.CustomData0.x);
+	Output.PackedData[10] |= f32tof16(Input.CustomData0.y) << 16;
+	Output.PackedData[11] = f32tof16(Input.CustomData0.z);
+	Output.PackedData[11] |= f32tof16(Input.CustomData0.w) << 16;
 
-	Output.PackedData[11] |= f32tof16(Input.CustomData.x) << 16;
-	Output.PackedData[12] = f32tof16(Input.CustomData.y);
-	Output.PackedData[12] |= f32tof16(Input.CustomData.z) << 16;
-	Output.PackedData[13] = f32tof16(Input.CustomData.w);
-	Output.PackedData[13] |= f32tof16(Input.Ior) << 16;
-	Output.PackedData[14] = 0; // unused
+	Output.PackedData[12] = f32tof16(Input.CustomData1.x);
+	Output.PackedData[12] |= f32tof16(Input.CustomData1.y) << 16;
+	Output.PackedData[13] = f32tof16(Input.CustomData1.z);
+	Output.PackedData[13] |= f32tof16(Input.CustomData1.w) << 16;
+
+	Output.PackedData[14] = f32tof16(Input.Ior);
+	// NOTE: 16 bits left in PackedData[14]
 
 	return Output;
 }
@@ -296,15 +353,17 @@ FPathTracingPayload UnpackPathTracingPayload(FPackedPathTracingPayload Input, FR
 
 	Output.WorldTangent = PayloadDecodeUnitVector(Input.PackedData[9]);
 
-	Output.CustomVector.x = f16tof32(Input.PackedData[10]);
-	Output.CustomVector.y = f16tof32(Input.PackedData[10] >> 16);
-	Output.CustomVector.z = f16tof32(Input.PackedData[11]);
+	Output.CustomData0.x = f16tof32(Input.PackedData[10]);
+	Output.CustomData0.y = f16tof32(Input.PackedData[10] >> 16);
+	Output.CustomData0.z = f16tof32(Input.PackedData[11]);
+	Output.CustomData0.w = f16tof32(Input.PackedData[11] >> 16);
 
-	Output.CustomData.x = f16tof32(Input.PackedData[11] >> 16);
-	Output.CustomData.y = f16tof32(Input.PackedData[12]);
-	Output.CustomData.z = f16tof32(Input.PackedData[12] >> 16);
-	Output.CustomData.w = f16tof32(Input.PackedData[13]);
-	Output.Ior = f16tof32(Input.PackedData[13] >> 16);
+	Output.CustomData1.x = f16tof32(Input.PackedData[12]);
+	Output.CustomData1.y = f16tof32(Input.PackedData[12] >> 16);
+	Output.CustomData1.z = f16tof32(Input.PackedData[13]);
+	Output.CustomData1.w = f16tof32(Input.PackedData[13] >> 16);
+
+	Output.Ior = f16tof32(Input.PackedData[14]);
 
 	Output.TranslatedWorldPos = Ray.Origin + Output.HitT * Ray.Direction;
 

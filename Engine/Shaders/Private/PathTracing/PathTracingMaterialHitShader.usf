@@ -30,6 +30,16 @@
 #include "/Engine/Private/PathTracing/Material/PathTracingFresnel.ush"
 #include "/Engine/Private/PathTracing/Material/PathTracingThinGlass.ush"
 
+float AdjustMaterialRoughness(float Roughness, float PathRoughness)
+{
+	// Modify the payload roughness to minimize difficult caustics
+	// This is inspired by a trick used in the Arnold renderer:
+	//   https://cgg.mff.cuni.cz/~jaroslav/gicourse2010/giai2010-02-marcos_fajardo-slides.pdf (slide 39)
+	//   https://www.arnoldrenderer.com/research/Arnold_TOG2018.pdf (section 4.2)
+	// NOTE: If approximate caustics are disabled, the path roughness passed in here will be 0.0 which effectively turns off this optimization
+	return max(Roughness, PathRoughness);
+}
+
 float GetRefractionIor(FPixelMaterialInputs PixelMaterialInputs)
 {
 #if REFRACTION_ROOT_NODE_OVERRIDES_DEFAULT || STRATA_OPTIMIZED_UNLIT
@@ -149,6 +159,11 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	Payload.WorldGeoNormal = GeoNormalSign * GeoNormal;
 	Payload.WorldNormal = MaterialParameters.WorldNormal;
 	Payload.WorldSmoothNormal = MaterialParameters.TwoSidedSign * TransformTangentNormalToWorld(MaterialParameters.TangentToWorld, float3(0, 0, 1));
+
+	// fix dark edges in reflections from shading normals
+	Payload.WorldNormal       = AdjustShadingNormal(Payload.WorldNormal      , Payload.WorldGeoNormal, WorldRayDirection());
+	Payload.WorldSmoothNormal = AdjustShadingNormal(Payload.WorldSmoothNormal, Payload.WorldGeoNormal, WorldRayDirection());
+
 	Payload.Radiance = GetMaterialEmissive(PixelMaterialInputs);
 #if TWO_SIDED_MATERIAL == 0
 	if (MaterialParameters.TwoSidedSign < 0)
@@ -159,8 +174,8 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 #endif
 	Payload.BaseColor = BaseColor;
 	Payload.Specular = Specular;
-	Payload.Roughness = Roughness;
 	Payload.Metallic = Metallic;
+	Payload.Roughness = Roughness;
 	Payload.Opacity = GetMaterialOpacity(PixelMaterialInputs);
 
 #if MATERIAL_USES_ANISOTROPY
@@ -193,22 +208,28 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 #if MATERIAL_SHADINGMODEL_CLEAR_COAT
 	if (Payload.ShadingModelID == SHADINGMODELID_CLEAR_COAT)
 	{
-    	Payload.CustomData.x = GetMaterialCustomData0(MaterialParameters);
-		Payload.CustomData.y = GetMaterialCustomData1(MaterialParameters);
+		const float ClearCoat = GetMaterialCustomData0(MaterialParameters);
+		const float ClearCoatRoughness = GetMaterialCustomData1(MaterialParameters);
+		Payload.SetClearCoat(ClearCoat);
+		Payload.SetClearCoatRoughness(AdjustMaterialRoughness(ClearCoatRoughness, PackedPayload.GetPathRoughness()));
 #if CLEAR_COAT_BOTTOM_NORMAL
 #if NUM_MATERIAL_OUTPUTS_CLEARCOATBOTTOMNORMAL > 0
 #if MATERIAL_TANGENTSPACENORMAL
-		float3 tempnormal = normalize(TransformTangentVectorToWorld(MaterialParameters.TangentToWorld, ClearCoatBottomNormal0(MaterialParameters)));
+		float3 BottomNormal = normalize(TransformTangentVectorToWorld(MaterialParameters.TangentToWorld, ClearCoatBottomNormal0(MaterialParameters)));
 #else
-		float3 tempnormal = ClearCoatBottomNormal0(MaterialParameters);
+		float3 BottomNormal = ClearCoatBottomNormal0(MaterialParameters);
 #endif
-		Payload.CustomVector = tempnormal;
+		
+		// if we got a custom normal for the clearcoat, adjust it now
+		BottomNormal = AdjustShadingNormal(BottomNormal, Payload.WorldGeoNormal, WorldRayDirection());
+		Payload.SetClearCoatBottomNormal(BottomNormal);
 #else
-		Payload.CustomVector = Payload.WorldNormal;
+		Payload.SetClearCoatBottomNormal(Payload.WorldNormal);
 #endif
 #else
-		Payload.CustomVector = Payload.WorldNormal;
+		Payload.SetClearCoatBottomNormal(Payload.WorldNormal);
 #endif
+		
 	}
 	else
 #endif
@@ -216,8 +237,10 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 #if MATERIAL_SHADINGMODEL_CLOTH
 	if (Payload.ShadingModelID == SHADINGMODELID_CLOTH)
 	{
-		Payload.CustomData = GetMaterialSubsurfaceData(PixelMaterialInputs);
-		Payload.CustomData.a = saturate(GetMaterialCustomData0(MaterialParameters)); // Fuzz
+		const float3 ClothColor = GetMaterialSubsurfaceData(PixelMaterialInputs).rgb;
+		const float Fuzz = saturate(GetMaterialCustomData0(MaterialParameters));
+		Payload.SetClothColor(ClothColor);
+		Payload.SetClothAmount(Fuzz);
 	}
 	else
 #endif
@@ -225,14 +248,32 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 #if MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE || MATERIAL_SHADINGMODEL_SUBSURFACE || MATERIAL_SHADINGMODEL_PREINTEGRATED_SKIN || MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE
 	if (Payload.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE ||
 		Payload.ShadingModelID == SHADINGMODELID_SUBSURFACE ||
-		Payload.ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN ||
-		Payload.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE)
+		Payload.ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN)
 	{
-		Payload.CustomData = GetMaterialSubsurfaceData(PixelMaterialInputs);
+		const float3 SubsurfaceColor = GetMaterialSubsurfaceData(PixelMaterialInputs).rgb;
+		Payload.SetSubsurfaceColor(SubsurfaceColor);
 	}
 	else
 #endif
+#if MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE
+	if (Payload.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE)
+	{
+		Payload.CustomData0 = GetMaterialSubsurfaceData(PixelMaterialInputs);
+		uint ProfileId = Payload.GetProfileId();
 
+		// Decode dual roughness info
+		float Lobe0Roughness = 0;
+		float Lobe1Roughness = 0;
+		float LobeMix = 0;
+
+		GetSubsurfaceProfileDualSpecular(ProfileId, Payload.Roughness, Payload.Opacity, Lobe0Roughness, Lobe1Roughness, LobeMix);
+
+		Lobe0Roughness = AdjustMaterialRoughness(Lobe0Roughness, PackedPayload.GetPathRoughness();
+		Lobe1Roughness = AdjustMaterialRoughness(Lobe1Roughness, PackedPayload.GetPathRoughness();
+		Payload.SetDualRoughnessSpecular(Lobe0Roughness, Lobe1Roughness, LobeMix);
+	}
+	else
+#endif
 #if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 	if (Payload.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER)
 	{
@@ -243,14 +284,14 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 
 		const float3 ScatteringCoeff = max(0.0f, LWCToFloat(GetSingleLayerWaterMaterialOutput0(WaterMaterialParameters)));
 		const float3 AbsorptionCoeff = max(0.0f, LWCToFloat(GetSingleLayerWaterMaterialOutput1(WaterMaterialParameters)));
-		const float PhaseG = clamp(LWCToFloat(GetSingleLayerWaterMaterialOutput2(WaterMaterialParameters)), -1.0f, 1.0f);
+		const float PhaseG = clamp(LWCToFloat(GetSingleLayerWaterMaterialOutput2(WaterMaterialParameters)), -0.99f, 0.99f);
 
 		const float3 WaterExtinction = ScatteringCoeff + AbsorptionCoeff;
 		const float3 WaterAlbedo = ScatteringCoeff / WaterExtinction;
 
-		Payload.BaseColor.xyz = WaterAlbedo;
-		Payload.CustomData.xyz = WaterExtinction;
-		Payload.CustomData.w = PhaseG;
+		Payload.BaseColor = WaterAlbedo;
+		Payload.SetWaterExtinction(WaterExtinction);
+		Payload.SetWaterPhaseG(PhaseG);
 
 		Payload.Ior = DielectricF0ToIor(DielectricSpecularToF0(Specular));
 		Payload.BlendingMode = RAY_TRACING_BLEND_MODE_TRANSLUCENT;
@@ -261,7 +302,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 #if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
 		if (Payload.ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT)
 		{
-			Payload.CustomData.xyz = GetThinTranslucentMaterialOutput0(MaterialParameters);
+			Payload.SetTransmittanceColor(GetThinTranslucentMaterialOutput0(MaterialParameters));
 		}
 		else
 #endif
@@ -271,9 +312,9 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	{
 		// TODO: encode hair specific info
 #if HAIR_STRAND_MESH_FACTORY
-		Payload.CustomData.xy = MaterialParameters.HairPrimitiveUV;
+		Payload.SetHairPrimitiveUV(MaterialParameters.HairPrimitiveUV);
 #else
-		Payload.CustomData.xy = 0.5;
+		Payload.SetHairPrimitiveUV(0.5);
 #endif
 	}
 	else
@@ -285,8 +326,8 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 		// This is all based on logic from ShadingModelsMaterial.ush
 		const float IrisMask     = saturate(GetMaterialCustomData0(MaterialParameters));
 		const float IrisDistance = saturate(GetMaterialCustomData1(MaterialParameters));
-		Payload.Anisotropy = IrisMask;
-		Payload.CustomData.a = GetMaterialSubsurfaceData(PixelMaterialInputs).a; // SubsurfaceProfile (NOTE: this is not used, EyeBxDF leaves Diffuse=0, so does not actually apply SSS?)
+		Payload.SetEyeIrisMask(IrisMask);
+		Payload.CustomData0.a = GetMaterialSubsurfaceData(PixelMaterialInputs).a; // SubsurfaceProfile
 		Payload.Metallic = 0.0;
 #if NUM_MATERIAL_OUTPUTS_GETTANGENTOUTPUT > 0
 		// Blend in the negative intersection normal to create some concavity
@@ -295,10 +336,11 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 		// introduce some concavity, this does the job.
 		const float3 PlaneNormal = normalize(GetTangentOutput0(MaterialParameters));
 		const float3 CausticNormal = normalize(lerp(PlaneNormal, -Payload.WorldNormal, IrisMask * IrisDistance));
-		Payload.CustomVector = CausticNormal;
+		Payload.SetEyeCausticNormal(CausticNormal);
+		// NOTE: calling AdjustShadingNormal on the custom normal does not seem necessary since this is only used for a diffuse calculation
 #else
 		const float3 PlaneNormal = Payload.WorldNormal;
-		Payload.CustomVector = Payload.WorldNormal;
+		Payload.SetEyeCausticNormal(Payload.WorldNormal);
 #endif
 
 #if IRIS_NORMAL // on
@@ -312,10 +354,10 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	#else
 		float3 IrisNormal = PlaneNormal;
 	#endif
-		Payload.WorldTangent = IrisNormal;
+		Payload.SetEyeIrisNormal(IrisNormal);
 #else
 		// IRIS_NORMAL off
-		Payload.WorldTangent = PlaneNormal;
+		Payload.SetEyeIrisNormal(PlaneNormal);
 #endif
 	}
 	else
@@ -326,9 +368,10 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	{
 		// only allow refraction for default lit materials since we need space for the absorption amount
 #if HAVE_GetAbsorptionMediumMaterialOutput0
-		Payload.CustomData.xyz = GetAbsorptionMediumMaterialOutput0(MaterialParameters);
+		Payload.SetTransmittanceColor(GetAbsorptionMediumMaterialOutput0(MaterialParameters));
 #else
-		Payload.CustomData.xyz = 1.0;
+		// Make the glass totally clear if no custom medium is set
+		Payload.SetTransmittanceColor(1.0);
 #endif
 	}
 	else
@@ -337,6 +380,8 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 		// terminal case for the conditionals above
 	}
 
+	// adjust after everything else (because SSS profile case needs to decode the dual spec info from the unmodified roughness)
+	Payload.Roughness = AdjustMaterialRoughness(Payload.Roughness, PackedPayload.GetPathRoughness());
 
 #else // SIMPLIFIED_MATERIAL_SHADER
 
@@ -347,14 +392,14 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 #if MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE
 	if (Payload.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE)
 	{
-		Payload.CustomData = GetMaterialSubsurfaceData(PixelMaterialInputs);
+		Payload.SetSubsurfaceColor(GetMaterialSubsurfaceData(PixelMaterialInputs).rgb);
 	}
 	else
 #endif
 #if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
 	if (Payload.ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT)
 	{
-		Payload.CustomData.xyz = GetThinTranslucentMaterialOutput0(MaterialParameters);
+		Payload.SetTransmittanceColor(GetThinTranslucentMaterialOutput0(MaterialParameters));
 	}
 	else
 #endif

@@ -17,8 +17,8 @@ FMaterialSample Medium_SampleMaterial(
 	float4 RandSample)
 {
 	const float3 RayleighWeight = Payload.BaseColor;
-	const float3 HGWeight = Payload.CustomData.xyz;
-	const float G = Payload.CustomData.w;
+	const float3 HGWeight = Payload.GetHGWeight();
+	const float G = Payload.GetHGPhaseG();
 
 #if USE_UNIFORM_PHASE_FUNCTION
 	const float4 Result = UniformSampleSphere(RandSample.xy);
@@ -49,8 +49,9 @@ FMaterialEval Medium_EvalMaterial(
 )
 {
 	const float3 RayleighWeight = Payload.BaseColor;
-	const float3 HGWeight = Payload.CustomData.xyz;
-	const float G = Payload.CustomData.w;
+	const float3 HGWeight = Payload.GetHGWeight();
+	const float G = Payload.GetHGPhaseG();
+
 #if USE_UNIFORM_PHASE_FUNCTION
 	// simple omni-directional evaluation
 	return CreateMaterialEval(RayleighWeight + HGWeight, 1.0 / (4 * PI));

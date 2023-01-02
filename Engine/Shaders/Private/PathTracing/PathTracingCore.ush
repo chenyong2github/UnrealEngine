@@ -152,14 +152,10 @@ void ApplyDecal(inout FPathTracingPayload HitPayload, FDecalShaderParams Params)
 FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCameraRay, bool bLastBounce, bool bIncludeEmission, uint NumVisibleLights, inout FVolumeSegment VolumeSegment)
 {
 	const uint RayFlags = bIsCameraRay && EnableCameraBackfaceCulling ? RAY_FLAG_CULL_BACK_FACING_TRIANGLES : 0;
-	uint InstanceInclusionMask = 0; 
-	if (bIsCameraRay)
+	uint InstanceInclusionMask = bIsCameraRay ? PATHTRACER_MASK_CAMERA : PATHTRACER_MASK_INDIRECT;
+	if (length2(PathState.Ray.Origin) < Pow2(PATH_TRACING_SKIP_HAIR_DISTANCE))
 	{
-		InstanceInclusionMask = PATHTRACER_MASK_CAMERA | (length2(PathState.Ray.Origin) < Pow2(PATH_TRACING_SKIP_HAIR_DISTANCE) ? PATHTRACER_MASK_HAIR_CAMERA : 0);
-	}
-	else
-	{
-		InstanceInclusionMask = PATHTRACER_MASK_INDIRECT | (length2(PathState.Ray.Origin) < Pow2(PATH_TRACING_SKIP_HAIR_DISTANCE) ? PATHTRACER_MASK_HAIR_INDIRECT : 0);
+		InstanceInclusionMask |= bIsCameraRay ? PATHTRACER_MASK_HAIR_CAMERA : PATHTRACER_MASK_HAIR_INDIRECT;
 	}
 	
 	const uint MissShaderIndex = 0;
@@ -188,7 +184,7 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 		// also avoid noise from hot spots (they can be properly
 		// importance sampled if a capturing skylight is added)
 		const bool bIgnoreSky = !bIsCameraRay;
-		FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(bIgnoreSky);
+		FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(bIgnoreSky, ApproximateCaustics ? PathState.PathRoughness : 0.0);
 		// Trace the ray
 		TraceRay(
 			TLAS,
@@ -390,6 +386,12 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 				CallShader(DecalId, Params);
 
 				ApplyDecal(HitPayload, Params);
+
+				if (ApproximateCaustics)
+				{
+					Payload.Roughness = max(Payload.Roughness, PathState.PathRoughness);
+				}
+				HitPayload.WorldNormal = AdjustShadingNormal(HitPayload.WorldNormal, HitPayload.WorldGeoNormal, PathState.Ray.Direction);
 			}
 		}
 #endif
@@ -538,7 +540,7 @@ struct FProbeResult
 FProbeResult TraceProbeRay(FRayDesc Ray)
 {
 	// Trace a short ray to see if we escaped the surface
-	FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(true);
+	FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(true, 1.0);
 	// TODO: use smaller payload + flag to skip shading work? (only want smooth+geo normals)
 	//       however supporting blockers would require some shading ...
 	const uint RayFlags = 0;
@@ -831,23 +833,6 @@ FPathState CreatePathState(int2 PixelIndex)
 	return Output;
 }
 
-float3 AdjustShadingNormal(float3 ShadingNormal, float3 GeoNormal, float3 RayDirection)
-{
-	// Clip shading normal in a view dependent way such that the reflection stays above the geometric normal
-	// This introduces a bit of view-dependency to the shading normal but fixes dark artifacts around grazing angles
-
-	float3 D = RayDirection;
-	float3 R = reflect(D, ShadingNormal);
-
-	// https://iquilezles.org/www/articles/dontflip/dontflip.htm
-	float k = dot(R, GeoNormal);
-	if (k < 0.0)
-	{
-		return normalize(normalize(R - k * GeoNormal) - D);
-	}
-	return ShadingNormal;
-}
-
 bool PathTracingKernel(inout FPathState PathState, int Bounce)
 {
 	// This array will hold a CDF for light picking
@@ -1000,11 +985,6 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 		return false;
 	}
 
-	// fix dark edges in reflections from shading normals
-	Payload.WorldNormal       = AdjustShadingNormal(Payload.WorldNormal      , Payload.WorldGeoNormal, PathState.Ray.Direction);
-	Payload.WorldSmoothNormal = AdjustShadingNormal(Payload.WorldSmoothNormal, Payload.WorldGeoNormal, PathState.Ray.Direction);
-
-
 #if 0
 	PathState.Radiance = 0.5 * Payload.WorldGeoNormal + 0.5;
 	return false;
@@ -1012,15 +992,6 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 
 	// As soon as the path is blurry enough, we can get away with diffuse sampling only
 	const bool bSimplifySSS = PathState.PathRoughness >= 0.15;
-
-	if (ApproximateCaustics)
-	{
-		// modify the payload roughness to minimize difficult caustics
-		// This is inspired by a trick used in the Arnold renderer:
-		//   https://cgg.mff.cuni.cz/~jaroslav/gicourse2010/giai2010-02-marcos_fajardo-slides.pdf (slide 39)
-		//   https://www.arnoldrenderer.com/research/Arnold_TOG2018.pdf (section 4.2)
-		AdjustMaterialRoughness(Payload, PathState.PathRoughness);
-	}
 
 	// Processing the random walk will (stochastically) move the shading point elsewhere on the surface of the object
 	if (!ProcessSubsurfaceRandomWalk(Payload, PathState.PathThroughput, PathState.RandSequence, PathState.Ray.Direction, bSimplifySSS))
@@ -1204,28 +1175,15 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 	// enlarge roughness based on the chosen lobe roughness
 	PathState.PathRoughness = max(PathState.PathRoughness, MaterialSample.Roughness);
 
-	// update the current extinction if we are crossing a boundary on glass
+	// update the current extinction if we are crossing a boundary on glass or water
 	// summing the local extinction gives a rudimentary way of dealing with overlapping regions
 	// long term we will probably want a stack with priorities
-	if (MaterialSample.PositionBiasSign < 0 && Payload.IsMaterialSolidGlass())
+	if (MaterialSample.PositionBiasSign < 0 && (Payload.IsMaterialSolidGlass() || Payload.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER))
 	{
-		float3 LocalSigmaT = -log(max(Payload.CustomData.xyz, 1e-8f)) * AbsorptionScale;
-		if (Payload.IsFrontFace())
-		{
-			// entering
-			PathState.SigmaT += LocalSigmaT;
-		}
-		else
-		{
-			// exiting
-			PathState.SigmaT -= LocalSigmaT;
-			PathState.SigmaT = max(PathState.SigmaT, 0);
-		}
-	}
-
-	if (MaterialSample.PositionBiasSign < 0 && Payload.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER)
-	{
-		float3 LocalSigmaT = max(Payload.CustomData.xyz, 1e-8f);
+		const float3 LocalSigmaT =
+			Payload.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER ?
+			Payload.GetWaterExtinction() :
+			-log(max(Payload.GetTransmittanceColor(), 1e-8f)) * AbsorptionScale;
 		if (Payload.IsFrontFace())
 		{
 			// entering

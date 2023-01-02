@@ -40,9 +40,9 @@ FMaterialEval Eye_EvalMaterial(
 	const float LobeSelectionPdf = LobeSelectionProb(Payload.DiffuseColor * (1 - Spec.E), Spec.E);
 
 
-	const float IrisMask = Payload.Anisotropy;
-	const float3 IrisNormal = Payload.WorldTangent;
-	const float3 CausticNormal = Payload.CustomVector;
+	const float IrisMask = Payload.GetEyeIrisMask();
+	const float3 IrisNormal = Payload.GetEyeIrisNormal();
+	const float3 CausticNormal = Payload.GetEyeCausticNormal();
 	const float IrisNoL = saturate(dot(IrisNormal, L_World));
 	const float Power = lerp(12, 1, IrisNoL);
 	const float Caustic = 0.8 + 0.2 * (Power + 1) * pow(saturate(dot(CausticNormal, L_World)), Power);
@@ -128,9 +128,9 @@ FMaterialSample Eye_SampleMaterial(
 	float3 OutWeight = 0;
 	float OutPdf = 0;
 
-	const float IrisMask = Payload.Anisotropy;
-	const float3 IrisNormal = Payload.WorldTangent;
-	const float3 CausticNormal = Payload.CustomVector;
+	const float IrisMask = Payload.GetEyeIrisMask();
+	const float3 IrisNormal = Payload.GetEyeIrisNormal();
+	const float3 CausticNormal = Payload.GetEyeCausticNormal();
 	const float IrisNoL = saturate(dot(IrisNormal, L_World));
 	const float Power = lerp(12, 1, IrisNoL);
 	const float Caustic = 0.8 + 0.2 * (Power + 1) * pow(saturate(dot(CausticNormal, L_World)), Power);

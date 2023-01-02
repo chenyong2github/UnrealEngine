@@ -187,7 +187,7 @@ FPathTracingPayload TraceTransparentRay(FRayDesc Ray, bool IsCameraRay, bool Las
 		// also avoid noise from hot spots (they can be properly
 		// importance sampled if a capturing skylight is added)
 		const bool bIgnoreSky = !IsCameraRay;
-		FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(bIgnoreSky);
+		FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(bIgnoreSky, 1.0);
 		// Trace the ray
 		TraceRay(
 			TLAS,
@@ -397,7 +397,6 @@ void PathTracingKernel(
 			Payload.Roughness = 1;
 			Payload.Metallic = 0;
 			Payload.Ior = 1;
-			Payload.CustomData = float4(0, 0, 0, 0);
 			Payload.Opacity = 1;
 			Payload.ShadingModelID = SHADINGMODELID_DEFAULT_LIT;
 			Payload.BlendingMode = RAY_TRACING_BLEND_MODE_OPAQUE;
@@ -541,18 +540,6 @@ void PathTracingKernel(
 			}
 		}
 	#endif
-		
-		// As soon as the path is blurry enough, we can get away with diffuse sampling only
-		const bool bSimplifySSS = PathRoughness >= 0.15;
-
-		if (ApproximateCaustics)
-		{
-			// modify the payload roughness to minimize difficult caustics
-			// This is inspired by a trick used in the Arnold renderer:
-			//   https://cgg.mff.cuni.cz/~jaroslav/gicourse2010/giai2010-02-marcos_fajardo-slides.pdf (slide 39)
-			//   https://www.arnoldrenderer.com/research/Arnold_TOG2018.pdf (section 4.2)
-			AdjustMaterialRoughness(Payload, PathRoughness);
-		}
 		
 		FLightLoopCount LightLoopCount = LightGridLookup(Payload.TranslatedWorldPos);
 
