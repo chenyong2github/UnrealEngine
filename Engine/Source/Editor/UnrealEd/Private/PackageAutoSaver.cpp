@@ -74,6 +74,12 @@ namespace PackageAutoSaverJson
 	/** @return whether the auto-save restore should be enabled (you can force this to true when testing with a debugger attached) */
 	bool IsRestoreEnabled()
 	{
+		// Restore is disabled unless using the BackupAndRestore auto-save method
+		if (GetDefault<UEditorLoadingSavingSettings>()->AutoSaveMethod != EAutoSaveMethod::BackupAndRestore)
+		{
+			return false;
+		}
+
 		// Note: Restore is disabled when running under the debugger, as programmers
 		// like to just kill applications and we don't want this to count as a crash
 		return !FPlatformMisc::IsDebuggerPresent();
@@ -226,12 +232,9 @@ void FPackageAutoSaver::AttemptAutoSave()
 			FScopedSlowTask SlowTask(100.f, NSLOCTEXT("AutoSaveNotify", "PerformingAutoSave_Caption", "Auto-saving out of date packages..."));
 			SlowTask.MakeDialog();
 
-			bAutosaveHandled = true;
-
-			bIsAutoSaving = true;
-			UnrealEdMisc.SetAutosaveState(FUnrealEdMisc::EAutosaveState::Saving);
-
 			GUnrealEd->SaveConfig();
+
+			bAutosaveHandled = true;
 
 			// Make sure the auto-save directory exists before attempting to write the file
 			const FString AutoSaveDir = AutoSaveUtils::GetAutoSaveDir();
@@ -241,30 +244,94 @@ void FPackageAutoSaver::AttemptAutoSave()
 			// Auto-save maps and/or content packages based on user settings.
 			const int32 NewAutoSaveIndex = (AutoSaveIndex + 1) % AutoSaveMaxBackups;
 
-			bool bLevelSaved = false;
-			auto MapsSaveResults = EAutosaveContentPackagesResult::NothingToDo;
-			auto AssetsSaveResults = EAutosaveContentPackagesResult::NothingToDo;
+			EAutosaveContentPackagesResult::Type MapsSaveResults = EAutosaveContentPackagesResult::NothingToDo;
+			EAutosaveContentPackagesResult::Type AssetsSaveResults = EAutosaveContentPackagesResult::NothingToDo;
 
-			SlowTask.EnterProgressFrame(50);
-
-			if (LoadingSavingSettings->bAutoSaveMaps)
+			if (LoadingSavingSettings->AutoSaveMethod == EAutoSaveMethod::BackupAndRestore)
 			{
-				MapsSaveResults = FEditorFileUtils::AutosaveMapEx(AutoSaveDir, NewAutoSaveIndex, false, DirtyMapsForAutoSave);
-				if (MapsSaveResults == EAutosaveContentPackagesResult::Success)
+				bIsAutoSaving = true;
+
+				SlowTask.EnterProgressFrame(50);
+
+				if (LoadingSavingSettings->bAutoSaveMaps)
 				{
-					DirtyMapsForAutoSave.Empty();
+					MapsSaveResults = FEditorFileUtils::AutosaveMapEx(AutoSaveDir, NewAutoSaveIndex, false, DirtyMapsForAutoSave);
+					if (MapsSaveResults == EAutosaveContentPackagesResult::Success)
+					{
+						DirtyMapsForAutoSave.Empty();
+					}
+				}
+
+				SlowTask.EnterProgressFrame(50);
+
+				if (LoadingSavingSettings->bAutoSaveContent)
+				{
+					AssetsSaveResults = FEditorFileUtils::AutosaveContentPackagesEx(AutoSaveDir, NewAutoSaveIndex, false, DirtyContentForAutoSave);
+					if (AssetsSaveResults == EAutosaveContentPackagesResult::Success)
+					{
+						DirtyContentForAutoSave.Empty();
+					}
 				}
 			}
-
-			SlowTask.EnterProgressFrame(50);
-
-			if (LoadingSavingSettings->bAutoSaveContent && UnrealEdMisc.GetAutosaveState() != FUnrealEdMisc::EAutosaveState::Cancelled)
+			else if (LoadingSavingSettings->AutoSaveMethod == EAutoSaveMethod::BackupAndOverwrite)
 			{
-				AssetsSaveResults = FEditorFileUtils::AutosaveContentPackagesEx(AutoSaveDir, NewAutoSaveIndex, false, DirtyContentForAutoSave);
-				if (AssetsSaveResults == EAutosaveContentPackagesResult::Success)
+				// Make a backup copy of any packages we may be about to overwrite
 				{
-					DirtyContentForAutoSave.Empty();
+					auto BackupExistingPackages = [&AutoSaveDir, NewAutoSaveIndex](const TSet<TWeakObjectPtr<UPackage>, TWeakObjectPtrSetKeyFuncs<TWeakObjectPtr<UPackage>>>& PackagesToBackup)
+					{
+						FString PackageFilename;
+						for (const TWeakObjectPtr<UPackage>& PackageToBackup : PackagesToBackup)
+						{
+							if (UPackage* Pkg = PackageToBackup.Get())
+							{
+								PackageFilename.Reset();
+								if (FPackageName::DoesPackageExist(PackageToBackup->GetPathName(), &PackageFilename))
+								{
+									const FString PackageAutoSaveFilename = FEditorFileUtils::GetAutoSaveFilename(Pkg, AutoSaveDir, NewAutoSaveIndex, FPaths::GetExtension(PackageFilename, /*bIncludeDot*/true));
+									IFileManager::Get().Copy(*PackageAutoSaveFilename, *PackageFilename, /*bReplace*/true);
+								}
+							}
+						}
+					};
+				
+					if (LoadingSavingSettings->bAutoSaveMaps)
+					{
+						BackupExistingPackages(DirtyMapsForAutoSave);
+					}
+					if (LoadingSavingSettings->bAutoSaveContent)
+					{
+						BackupExistingPackages(DirtyContentForAutoSave);
+					}
 				}
+
+				// Note: The in-place save does a regular save of dirty packages, so it doesn't set the bIsAutoSaving flag since it functions like a user-initiated save
+				const bool bAutoSaveMaps = LoadingSavingSettings->bAutoSaveMaps && DirtyMapsForAutoSave.Num() > 0;
+				const bool bAutoSaveContent = LoadingSavingSettings->bAutoSaveContent && DirtyContentForAutoSave.Num() > 0;
+
+				const bool bPromptUserForSave = false;
+				const bool bFastSave = false;
+				const bool bNotifyNoPackagesSaved = false;
+				const bool bCanBeDeclined = false;
+
+				bool bPackagesNeededSaving = false;
+				const bool bSuccess = FEditorFileUtils::SaveDirtyPackages(bPromptUserForSave, bAutoSaveMaps, bAutoSaveContent, bFastSave, bNotifyNoPackagesSaved, bCanBeDeclined, &bPackagesNeededSaving);
+				if (bPackagesNeededSaving)
+				{
+					if (bSuccess)
+					{
+						MapsSaveResults = EAutosaveContentPackagesResult::Success;
+						AssetsSaveResults = EAutosaveContentPackagesResult::Success;
+					}
+					else
+					{
+						MapsSaveResults = EAutosaveContentPackagesResult::Failure;
+						AssetsSaveResults = EAutosaveContentPackagesResult::Failure;
+					}
+				}
+			}
+			else
+			{
+				checkf(false, TEXT("Unknown AutoSaveMethod!"));
 			}
 
 			const bool bNothingToDo = (MapsSaveResults == EAutosaveContentPackagesResult::NothingToDo && AssetsSaveResults == EAutosaveContentPackagesResult::NothingToDo);
@@ -290,13 +357,7 @@ void FPackageAutoSaver::AttemptAutoSave()
 			ResetAutoSaveTimer();
 			bDelayingDueToFailedSave = false;
 
-			if (UnrealEdMisc.GetAutosaveState() == FUnrealEdMisc::EAutosaveState::Cancelled)
-			{
-				UE_LOG(PackageAutoSaver, Warning, TEXT("Autosave was cancelled."));
-			}
-
 			bIsAutoSaving = false;
-			UnrealEdMisc.SetAutosaveState(FUnrealEdMisc::EAutosaveState::Inactive);
 		}
 		else
 		{

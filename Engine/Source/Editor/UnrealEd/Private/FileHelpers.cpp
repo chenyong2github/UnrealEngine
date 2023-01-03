@@ -998,7 +998,7 @@ static bool SaveWorld(UWorld* World,
 	return bSuccess;
 }
 
-FString GetAutoSaveFilename(UPackage* const Package, const FString& AutoSavePathRoot, const int32 AutoSaveIndex, const FString& PackageExt)
+FString FEditorFileUtils::GetAutoSaveFilename(UPackage* const Package, const FString& AbsoluteAutosaveDir, const int32 AutoSaveIndex, const FString& PackageExt)
 {
 	// Come up with a meaningful name for the auto-save file
 	const FString PackagePathName = Package->GetPathName();
@@ -1010,11 +1010,11 @@ FString GetAutoSaveFilename(UPackage* const Package, const FString& AutoSavePath
 	const bool bStripRootLeadingSlash = true;
 	if(FPackageName::SplitLongPackageName(PackagePathName, PackageRoot, PackagePath, PackageName, bStripRootLeadingSlash))
 	{
-		AutoSavePath = AutoSavePathRoot / PackageRoot / PackagePath;
+		AutoSavePath = AbsoluteAutosaveDir / PackageRoot / PackagePath;
 	}
 	else
 	{
-		AutoSavePath = AutoSavePathRoot;
+		AutoSavePath = AbsoluteAutosaveDir;
 		PackageName = FPaths::GetBaseFilename(PackagePathName);
 	}
 
@@ -3009,7 +3009,7 @@ EAutosaveContentPackagesResult::Type FEditorFileUtils::AutosaveMapEx(const FStri
 	if ( WorldsArray.Num() > 0 )
 	{
 		FString FinalFilename;
-		for ( int32 WorldIndex = 0 ; WorldIndex < WorldsArray.Num() && FUnrealEdMisc::Get().GetAutosaveState() != FUnrealEdMisc::EAutosaveState::Cancelled ; ++WorldIndex )
+		for ( int32 WorldIndex = 0 ; WorldIndex < WorldsArray.Num(); ++WorldIndex )
 		{
 			UWorld* World = WorldsArray[ WorldIndex ];
 			UPackage* Package = Cast<UPackage>( World->GetOuter() );
@@ -3029,7 +3029,7 @@ EAutosaveContentPackagesResult::Type FEditorFileUtils::AutosaveMapEx(const FStri
 				// Remark the package as being dirty, as saving will have undiritied the package.
 				Package->MarkPackageDirty();
 
-				if( bLevelWasSaved == false && FUnrealEdMisc::Get().GetAutosaveState() != FUnrealEdMisc::EAutosaveState::Cancelled )
+				if( bLevelWasSaved == false )
 				{
 					UE_LOG(LogFileHelpers, Log, TEXT("Editor autosave (incl. sublevels) failed for file '%s' which belongs to world '%s'. Aborting autosave."), *FinalFilename, *EditorContext.World()->GetOutermost()->GetName() );
 					return EAutosaveContentPackagesResult::Failure;

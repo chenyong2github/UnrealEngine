@@ -33,17 +33,6 @@ class UNREALED_API FUnrealEdMisc
 {
 public:
 
-	/** The various autosave states that exist */
-	struct EAutosaveState
-	{
-		enum Type
-		{
-			Inactive,
-			Saving,
-			Cancelled
-		};
-	};
-
 	/** Singleton accessor */
 	static FUnrealEdMisc& Get();
 
@@ -61,26 +50,6 @@ public:
 
 	/** Performs any required cleanup in the case of a fatal error. */
 	virtual void ShutdownAfterError();
-
-	/**
-	 *	Fetches the current state of the autosave in progress
-	 *
-	 *	@return	enum		the current state of the autosave
-	 */
-	EAutosaveState::Type GetAutosaveState() const
-	{
-		return AutosaveState;
-	}
-
-	/**
-	 * Sets the new state for the autosave
-	 *
-	 * @param InState		New state for the autosave
-	 */
-	void SetAutosaveState( const EAutosaveState::Type InState )
-	{
-		AutosaveState = InState;
-	}
 
 	/**
 	 *	Whether or not the map build in progressed was cancelled by the user. 
@@ -315,9 +284,6 @@ private:
 	void SelectActorFromMessageToken(AActor* InActor);
 
 	void PreSaveWorld(class UWorld* World, FObjectPreSaveContext ObjectSaveContext);
-
-	/** The current state of the autosave */
-	EAutosaveState::Type AutosaveState;
 
 	/** Stores whether or not the current map build was cancelled. */
 	bool bCancelBuild;

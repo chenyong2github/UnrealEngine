@@ -209,7 +209,6 @@ namespace UnrealEdMiscDefs
 }
 
 FUnrealEdMisc::FUnrealEdMisc() :
-	AutosaveState( EAutosaveState::Inactive ), 
 	bCancelBuild( false ),
 	bInitialized( false ),
 	bSaveLayoutOnClose( true ),

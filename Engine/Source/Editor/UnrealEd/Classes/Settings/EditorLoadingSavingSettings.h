@@ -20,6 +20,16 @@ namespace ELoadLevelAtStartup
 }
 
 
+UENUM()
+enum class EAutoSaveMethod : uint8
+{
+	/** Autosave to a backup location and offer to restore after an editor crash */
+	BackupAndRestore,
+	/** Autosave in-place, overwriting your existing content after backing up the current file (BETA) */
+	BackupAndOverwrite,
+};
+
+
 /** A filter used by the auto reimport manager to explicitly include/exclude files matching the specified wildcard */
 USTRUCT()
 struct FAutoReimportWildcard
@@ -149,6 +159,10 @@ public:
 	/** Whether to automatically save content packages during an autosave */
 	UPROPERTY(EditAnywhere, config, Category=AutoSave, meta=(DisplayName="Save Content"))
 	uint32 bAutoSaveContent:1;
+
+	/** What method should be used when performing an autosave? */
+	UPROPERTY(EditAnywhere, config, Category=AutoSave, meta=(DisplayName="Save Method"), AdvancedDisplay)
+	EAutoSaveMethod AutoSaveMethod = EAutoSaveMethod::BackupAndRestore;
 
 	/** The time interval after which to auto save */
 	UPROPERTY(EditAnywhere, config, Category=AutoSave, meta=(DisplayName="Frequency in Minutes", ClampMin = "1"))

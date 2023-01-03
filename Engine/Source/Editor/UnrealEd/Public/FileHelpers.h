@@ -308,6 +308,16 @@ public:
 	UNREALED_API static bool SaveLevelAs(ULevel* Level, FString* OutSavedFilename = nullptr);
 
 	/**
+	 * Get the autosave filename for the given package.
+	 * 
+	 * @param	Package						Package to get the autosave filename for.
+	 * @param	AbsoluteAutosaveDir			Autosave directory.
+	 * @param	AutosaveIndex				Integer prepended to autosave filenames.
+	 * @param	PackageExt					Extension to use for the given package. Note: This must include the dot.
+	 */
+	static FString GetAutoSaveFilename(UPackage* const Package, const FString& AbsoluteAutosaveDir, const int32 AutoSaveIndex, const FString& PackageExt);
+
+	/**
 	 * Saves all levels to the specified directory.
 	 *
 	 * @param	AbsoluteAutosaveDir			Autosave directory.
