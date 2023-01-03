@@ -14,6 +14,7 @@ namespace BlackmagicDesign
 		{
 		public:
 			FInputChannelNotificationCallback(FInputChannel* InOwner, IDeckLinkInput* InDeckLinkInput, IDeckLinkStatus* InDeckLinkStatus);
+			virtual ~FInputChannelNotificationCallback() = default;
 
 			HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, LPVOID *ppv);
 

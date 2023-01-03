@@ -72,6 +72,7 @@ namespace BlackmagicDesign
 		{
 		public:
 			FOutputChannelNotificationCallback(FOutputChannel* InOwner, IDeckLinkOutput* InDeckLinkOutput);
+			virtual ~FOutputChannelNotificationCallback() = default;
 
 			HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, LPVOID *ppv);
 
