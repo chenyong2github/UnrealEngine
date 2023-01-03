@@ -144,6 +144,8 @@ FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMe
 	bool bAllSegmentsOpaque = true;
 	bool bAnySegmentsCastShadow = false;
 	bool bAllSegmentsCastShadow = true;
+	bool bAnySegmentsDecal = false;
+	bool bAllSegmentsDecal = true;
 	bool bDoubleSided = false;
 	ERayTracingViewMaskMode MaskMode = SceneProxyRayTracingMaskInfo.MaskMode;
 	Result.Mask = ExtraMask;
@@ -161,12 +163,16 @@ FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMe
 			bAllSegmentsOpaque &= BlendMode == BLEND_Opaque;
 			bAnySegmentsCastShadow |= MeshBatch.CastRayTracedShadow && Material.CastsRayTracedShadows();
 			bAllSegmentsCastShadow &= MeshBatch.CastRayTracedShadow && Material.CastsRayTracedShadows();
+			bAnySegmentsDecal |= Material.IsDeferredDecal();
+			bAllSegmentsDecal &= Material.IsDeferredDecal();
 			bDoubleSided |= MeshBatch.bDisableBackfaceCulling || Material.IsTwoSided();
 		}
 	}
 
 	Result.bForceOpaque = bAllSegmentsOpaque && bAllSegmentsCastShadow;
 	Result.bDoubleSided = bDoubleSided;
+	Result.bAnySegmentsDecal = bAnySegmentsDecal;
+	Result.bAllSegmentsDecal = bAllSegmentsDecal;
 
 	Result.Mask |= bAnySegmentsCastShadow ? ComputeRayTracingInstanceMask(ERayTracingInstanceMaskType::Shadow, MaskMode) : 0;
 
@@ -228,11 +234,9 @@ FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(const FRayTracingIns
 	const TArrayView<const FMeshBatch> MeshBatches = Instance.GetMaterials();
 
 	// add extra mask bit for hair.
-	uint8 ExtraMask = Instance.bThinGeometry ? ComputeRayTracingInstanceMask(ERayTracingInstanceMaskType::HairStrands, MaskInfo.MaskMode) : 0;
+	const uint8 ExtraMask = Instance.bThinGeometry ? ComputeRayTracingInstanceMask(ERayTracingInstanceMaskType::HairStrands, MaskInfo.MaskMode) : 0;
 
-	return BuildRayTracingInstanceMaskAndFlags(
-			MeshBatches, PrimitiveSceneProxy.GetScene().GetFeatureLevel(), 
-			MaskInfo, Instance.InstanceLayer, ExtraMask);
+	return BuildRayTracingInstanceMaskAndFlags(MeshBatches, PrimitiveSceneProxy.GetScene().GetFeatureLevel(), MaskInfo, Instance.InstanceLayer, ExtraMask);
 }
 
 void SetupRayTracingMeshCommandMaskAndStatus(FRayTracingMeshCommand& MeshCommand, const FMeshBatch& MeshBatch, const FPrimitiveSceneProxy& PrimitiveSceneProxy,
@@ -242,7 +246,7 @@ void SetupRayTracingMeshCommandMaskAndStatus(FRayTracingMeshCommand& MeshCommand
 
 	MeshCommand.bCastRayTracedShadows = MeshBatch.CastRayTracedShadow && MaterialResource.CastsRayTracedShadows();
 	MeshCommand.bOpaque = MaterialResource.GetBlendMode() == EBlendMode::BLEND_Opaque && !(VertexFactory->GetType()->SupportsRayTracingProceduralPrimitive() && FDataDrivenShaderPlatformInfo::GetSupportsRayTracingProceduralPrimitive(GMaxRHIShaderPlatform));
-	MeshCommand.bDecal = MaterialResource.GetMaterialDomain() == EMaterialDomain::MD_DeferredDecal;
+	MeshCommand.bDecal = MaterialResource.IsDeferredDecal();
 	MeshCommand.bIsSky = MaterialResource.IsSky();
 	MeshCommand.bTwoSided = MaterialResource.IsTwoSided();
 	MeshCommand.bIsTranslucent = MaterialResource.GetBlendMode() == EBlendMode::BLEND_Translucent;

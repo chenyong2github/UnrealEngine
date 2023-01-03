@@ -15,6 +15,8 @@ struct FRayTracingMaskAndFlags
 		: Mask(0xFF)
 		, bForceOpaque(false)
 		, bDoubleSided(false)
+		, bAnySegmentsDecal(false)
+		, bAllSegmentsDecal(false)
 	{}
 
 	/** Instance mask that can be used to exclude the instance from specific effects (eg. ray traced shadows). */
@@ -25,6 +27,10 @@ struct FRayTracingMaskAndFlags
 
 	/** Whether ray hits should be registered for front and back faces. */
 	uint8 bDoubleSided : 1;
+
+	/** Whether any or all of the segments in the instance are decals. */
+	uint8 bAnySegmentsDecal : 1;
+	uint8 bAllSegmentsDecal : 1;
 };
 
 enum class ERayTracingInstanceLayer : uint8

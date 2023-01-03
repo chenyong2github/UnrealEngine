@@ -682,6 +682,7 @@ struct FRayTracingRelevantPrimitive
 	bool bAllSegmentsOpaque = true;
 	bool bAnySegmentsCastShadow = false;
 	bool bAnySegmentsDecal = false;
+	bool bAllSegmentsDecal = true;
 	bool bTwoSided = false;
 	bool bIsSky = false;
 	bool bAllSegmentsTranslucent = true;
@@ -693,9 +694,10 @@ struct FRayTracingRelevantPrimitive
 		Key ^= bAllSegmentsOpaque ? 0x1ull << 40 : 0x0;
 		Key ^= bAnySegmentsCastShadow ? 0x1ull << 41 : 0x0;
 		Key ^= bAnySegmentsDecal ? 0x1ull << 42 : 0x0;
-		Key ^= bTwoSided ? 0x1ull << 43 : 0x0;
-		Key ^= bIsSky ? 0x1ull << 44 : 0x0;
-		Key ^= bAllSegmentsTranslucent ? 0x1ull << 45 : 0x0;
+		Key ^= bAllSegmentsDecal ? 0x1ull << 43 : 0x0;
+		Key ^= bTwoSided ? 0x1ull << 44 : 0x0;
+		Key ^= bIsSky ? 0x1ull << 45 : 0x0;
+		Key ^= bAllSegmentsTranslucent ? 0x1ull << 46 : 0x0;
 		return Key ^ reinterpret_cast<uint64>(RayTracingGeometryRHI);
 	}
 
@@ -713,12 +715,6 @@ struct FRayTracingRelevantPrimitive
 		UpdateRayTracingMeshCommandMasks(Command, Flags, MaskMode);
 
 		InstanceMask = Command.InstanceMask;
-		bAllSegmentsOpaque = Command.bOpaque;
-		bAnySegmentsCastShadow = Command.bCastRayTracedShadows;
-		bAnySegmentsDecal = Command.bDecal;
-		bTwoSided = Command.bTwoSided;
-		bIsSky = Command.bIsSky;
-		bAllSegmentsTranslucent = Command.bIsTranslucent;
 	}
 };
 
@@ -900,9 +896,8 @@ static void GatherRayTracingRelevantPrimitives(const FScene& Scene, const FViewI
 
 					RelevantPrimitive.CachedRayTracingMeshCommandIndices = SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD[LODIndex];
 					RelevantPrimitive.StateHash = SceneInfo->CachedRayTracingMeshCommandsHashPerLOD[LODIndex];
-
-					ERayTracingViewMaskMode MaskMode = static_cast<ERayTracingViewMaskMode>(Scene.CachedRayTracingMeshCommandsMode);
 					
+					// TODO: Cache these flags to avoid having to loop over the RayTracingMeshCommands
 					for (int32 CommandIndex : RelevantPrimitive.CachedRayTracingMeshCommandIndices)
 					{
 						if (CommandIndex >= 0)
@@ -913,6 +908,7 @@ static void GatherRayTracingRelevantPrimitives(const FScene& Scene, const FViewI
 							RelevantPrimitive.bAllSegmentsOpaque &= RayTracingMeshCommand.bOpaque;
 							RelevantPrimitive.bAnySegmentsCastShadow |= RayTracingMeshCommand.bCastRayTracedShadows;
 							RelevantPrimitive.bAnySegmentsDecal |= RayTracingMeshCommand.bDecal;
+							RelevantPrimitive.bAllSegmentsDecal &= RayTracingMeshCommand.bDecal;
 							RelevantPrimitive.bTwoSided |= RayTracingMeshCommand.bTwoSided;
 							RelevantPrimitive.bIsSky |= RayTracingMeshCommand.bIsSky;
 							RelevantPrimitive.bAllSegmentsTranslucent &= RayTracingMeshCommand.bIsTranslucent;
@@ -923,6 +919,8 @@ static void GatherRayTracingRelevantPrimitives(const FScene& Scene, const FViewI
 							// Do nothing in this case
 						}
 					}
+
+					ERayTracingViewMaskMode MaskMode = static_cast<ERayTracingViewMaskMode>(Scene.CachedRayTracingMeshCommandsMode);
 
 					RelevantPrimitive.UpdateMasks(Flags, MaskMode);
 				}
@@ -1175,6 +1173,17 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 
 					// Autobuild of InstanceMaskAndFlags if the mask and flags are not built
 					UpdateRayTracingInstanceMaskAndFlagsIfNeeded(Instance, *SceneProxy, &ViewFamily);
+
+					if (Instance.MaskAndFlags.bAnySegmentsDecal && !Instance.MaskAndFlags.bAllSegmentsDecal)
+					{
+						// TODO: Warn user meshes with mixed decal segments are not currently supported in ray tracing
+						continue;
+					}
+
+					if (GRayTracingExcludeDecals && Instance.MaskAndFlags.bAnySegmentsDecal)
+					{
+						continue;
+					}
 
 					const uint32 InstanceIndex = RayTracingScene.Instances.Num();
 
@@ -1439,8 +1448,18 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 						continue;
 					}
 					
-					// TODO: support GRayTracingExcludeDecals, but not in the form of RayTracingMeshCommand.bDecal as that requires looping over all cached MDCs
-					// Instead, either make r.RayTracing.ExcludeDecals read only or request a recache of all ray tracing commands during which decals are excluded
+					// TODO: Consider requesting a recache of all ray tracing commands during which decals are excluded
+
+					if (SceneInfo->bCachedRayTracingInstancebAnySegmentsDecal && !SceneInfo->bCachedRayTracingInstancebAllSegmentsDecal)
+					{
+						// TODO: Warn user meshes with mixed decal segments are not currently supported in ray tracing
+						continue;
+					}
+
+					if (GRayTracingExcludeDecals && SceneInfo->bCachedRayTracingInstancebAnySegmentsDecal)
+					{
+						continue;
+					}
 
 					const int32 NewInstanceIndex = RayTracingScene.Instances.Num();
 
@@ -1510,6 +1529,12 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 					if (LODIndex < 0 || !RelevantPrimitive.bStatic)
 					{
 						continue; // skip dynamic primitives and other 
+					}
+
+					if (RelevantPrimitive.bAnySegmentsDecal && !RelevantPrimitive.bAllSegmentsDecal)
+					{
+						// TODO: Warn user meshes with mixed decal segments are not currently supported in ray tracing
+						continue;
 					}
 
 					if ((GRayTracingExcludeDecals && RelevantPrimitive.bAnySegmentsDecal)
