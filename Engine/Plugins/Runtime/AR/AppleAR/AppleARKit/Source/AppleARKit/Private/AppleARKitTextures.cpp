@@ -13,6 +13,7 @@
 #include "HAL/RunnableThread.h"
 #include "GlobalShader.h"
 #include "TextureResource.h"
+#include "Materials/MaterialRenderProxy.h"
 
 #if PLATFORM_APPLE
 	#import <Metal/Metal.h>
