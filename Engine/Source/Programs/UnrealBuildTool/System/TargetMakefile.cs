@@ -629,6 +629,8 @@ namespace UnrealBuildTool
 				// Check if the arguments are different
 				if(!Enumerable.SequenceEqual(Makefile.AdditionalArguments!, Arguments))
 				{
+					Logger.LogDebug("Old command line arguments:\n", string.Join(' ', Makefile.AdditionalArguments!));
+					Logger.LogDebug("New command line arguments:\n", string.Join(' ', Arguments));
 					ReasonNotLoaded = "command line arguments changed";
 					return null;
 				}
