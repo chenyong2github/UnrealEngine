@@ -10,7 +10,7 @@
 UENUM()
 namespace EControlRigDrawHierarchyMode
 {
-	enum Type
+	enum Type : int
 	{
 		/** Draw as axes */
 		Axes,

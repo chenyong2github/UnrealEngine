@@ -13,7 +13,7 @@
 struct FPropertyChangedEvent;
 
 UENUM()
-enum ESwitchMaterialOutputType
+enum ESwitchMaterialOutputType : int
 {
 	TMMOT_Float1,
 	TMMOT_Float2,

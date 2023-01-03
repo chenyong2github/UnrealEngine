@@ -25,7 +25,7 @@ class SWidget;
 
 /** Geometry import type */
 UENUM()
-enum EImportGeometryType
+enum EImportGeometryType : int
 {
 	IGT_3D UMETA(DisplayName = "3D LODs"),
 	IGT_Billboards UMETA(DisplayName = "Billboards"),
@@ -35,7 +35,7 @@ enum EImportGeometryType
 
 /** LOD type **/
 UENUM()
-enum EImportLODType
+enum EImportLODType : int
 {
 	ILT_PaintedFoliage UMETA(DisplayName = "Painted Foliage"),
 	ILT_IndividualActors UMETA(DisplayName = "Individual Actors")
