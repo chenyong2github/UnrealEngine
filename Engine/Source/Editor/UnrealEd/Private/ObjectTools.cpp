@@ -2329,15 +2329,17 @@ namespace ObjectTools
 
 			bool bIsReferenced = false;
 
-			if ( Package != nullptr && bPerformReferenceCheck )
+			// Skip external actor packages when considering whether to clear the transaction buffer, as you should be able to undo deleting an actor (but not an asset)
+			// If an external actor package is kept alive by the transaction buffer then it will be re-marked as "newly created" further down this function
+			if ( Package != nullptr && bPerformReferenceCheck && !Package->GetName().Contains(FPackagePath::GetExternalActorsFolderName()))
 			{
 				bool bIsReferencedByUndo = false;
 				GatherObjectReferencersForDeletion(Package, bIsReferenced, bIsReferencedByUndo);
 
 				// only ref to this object is the transaction buffer, clear the transaction buffer
-				if (!bIsReferenced && bIsReferencedByUndo && GEditor && GEditor->Trans)
+				if (!bIsReferenced && bIsReferencedByUndo && GEditor)
 				{
-					GEditor->Trans->Reset(NSLOCTEXT("UnrealEd", "DeleteSelectedItem", "Delete Selected Item"));
+					GEditor->ResetTransaction(NSLOCTEXT("UnrealEd", "DeleteSelectedItem", "Delete Selected Item"));
 				}
 			}
 
@@ -2515,6 +2517,24 @@ namespace ObjectTools
 				if (SourceControlProvider.Execute(ISourceControlOperation::Create<FDelete>(), SCCFilesToDelete) == ECommandResult::Failed)
 				{
 					UE_LOG(LogObjectTools, Warning, TEXT("SCC failed to open the selected files for deletion."));
+				}
+			}
+		}
+
+		// Ensure that any packages that had their file deleted despite still existing in memory are marked "newly created" again, since they 
+		// no longer have an associated file on disk. This typically happens for OFPA packages that are kept alive by the transaction buffer.
+		for (const FString& PackageFilename : PackageFilesToDelete)
+		{
+			if (!FPaths::FileExists(PackageFilename))
+			{
+				FString PackageName;
+				if (FPackageName::TryConvertFilenameToLongPackageName(PackageFilename, PackageName))
+				{
+					if (UPackage* Package = FindPackage(nullptr, *PackageName))
+					{
+						Package->MarkAsNewlyCreated();
+						Package->SetDirtyFlag(true);
+					}
 				}
 			}
 		}
@@ -3065,9 +3085,9 @@ namespace ObjectTools
 			GatherObjectReferencersForDeletion(ObjectToDelete, bIsReferenced, bIsReferencedByUndo, &Refs, bRequireReferencedProperties);
 
 			// only ref to this object is the transaction buffer, clear the transaction buffer
-			if (!bIsReferenced && bIsReferencedByUndo && GEditor && GEditor->Trans)
+			if (!bIsReferenced && bIsReferencedByUndo && GEditor)
 			{
-				GEditor->Trans->Reset( NSLOCTEXT( "UnrealEd", "DeleteSelectedItem", "Delete Selected Item" ) );
+				GEditor->ResetTransaction( NSLOCTEXT( "UnrealEd", "DeleteSelectedItem", "Delete Selected Item" ) );
 			}
 
 			if ( bIsReferenced )

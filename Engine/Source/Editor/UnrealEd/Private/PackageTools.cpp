@@ -441,8 +441,7 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 				}
 				ObjectsInPackage.Reset();
 
-				PackageBeingUnloaded->bHasBeenFullyLoaded = false;
-				PackageBeingUnloaded->ClearFlags(RF_WasLoaded);
+				PackageBeingUnloaded->MarkAsUnloaded();
 				if ( PackageBeingUnloaded->HasAnyPackageFlags(PKG_ContainsScript) )
 				{
 					bScriptPackageWasUnloaded = true;

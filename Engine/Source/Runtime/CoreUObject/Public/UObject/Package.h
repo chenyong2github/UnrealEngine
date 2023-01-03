@@ -499,6 +499,27 @@ public:
 		return bDirty;
 	}
 
+#if WITH_EDITOR
+	/**
+	* Marks this package as newly created (has no corresponding file on disk).
+	*/
+	void MarkAsNewlyCreated()
+	{
+		MarkAsUnloaded();
+		SetPackageFlags(PKG_NewlyCreated);
+		SetFileSize(0);
+	}
+
+	/**
+	* Marks this package as unloaded.
+	*/
+	void MarkAsUnloaded()
+	{
+		bHasBeenFullyLoaded = false;
+		ClearFlags(RF_WasLoaded);
+	}
+#endif
+
 	/**
 	* Marks this package as being fully loaded.
 	*/
