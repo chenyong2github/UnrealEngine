@@ -20,7 +20,9 @@ UDynamicEntryBoxBase::UDynamicEntryBoxBase(const FObjectInitializer& Initializer
 	, EntryWidgetPool(*this)
 {
 	SetVisibilityInternal(ESlateVisibility::SelfHitTestInvisible);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	EntrySizeRule.SizeRule = ESlateSizeRule::Automatic;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UDynamicEntryBoxBase::ReleaseSlateResources(bool bReleaseChildren)
@@ -35,6 +37,7 @@ void UDynamicEntryBoxBase::ResetInternal(bool bDeleteWidgets)
 {
 	EntryWidgetPool.ReleaseAll(bDeleteWidgets);
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (MyPanelWidget.IsValid())
 	{
 		switch (EntryBoxType)
@@ -55,6 +58,7 @@ void UDynamicEntryBoxBase::ResetInternal(bool bDeleteWidgets)
 			break;
 		}
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 const TArray<UUserWidget*>& UDynamicEntryBoxBase::GetAllEntries() const
@@ -65,6 +69,27 @@ const TArray<UUserWidget*>& UDynamicEntryBoxBase::GetAllEntries() const
 int32 UDynamicEntryBoxBase::GetNumEntries() const
 {
 	return EntryWidgetPool.GetActiveWidgets().Num();
+}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+EDynamicBoxType UDynamicEntryBoxBase::GetBoxType() const
+{
+	return EntryBoxType;
+}
+
+const FVector2D& UDynamicEntryBoxBase::GetEntrySpacing() const
+{
+	return EntrySpacing;
+}
+
+const FSlateChildSize& UDynamicEntryBoxBase::GetEntrySizeRule() const
+{
+	return EntrySizeRule;
+}
+
+const FRadialBoxSettings& UDynamicEntryBoxBase::GetRadialBoxSettings() const
+{
+	return RadialBoxSettings;
 }
 
 void UDynamicEntryBoxBase::RemoveEntryInternal(UUserWidget* EntryWidget)
@@ -126,7 +151,6 @@ void UDynamicEntryBoxBase::SetEntrySpacing(const FVector2D& InEntrySpacing)
 						int32 PatternIdx = CountIdx % SpacingPattern.Num();
 						Spacing += SpacingPattern[PatternIdx];
 					}
-					
 					// Negative padding is no good, so negative spacing is expressed as positive spacing on the opposite side
 					if (Spacing.X >= 0.f)
 					{
@@ -181,7 +205,6 @@ void UDynamicEntryBoxBase::SetEntrySpacing(const FVector2D& InEntrySpacing)
 				FMargin Padding;
 				Padding.Top = bIsHBox || bIsFirstChild ? 0.f : EntrySpacing.Y;
 				Padding.Left = bIsHBox && !bIsFirstChild ? EntrySpacing.X : 0.f;
-
 				SBoxPanel::FSlot& BoxSlot = (*BoxChildren)[ChildIdx];
 				BoxSlot.SetPadding(Padding);
 			}
@@ -202,6 +225,23 @@ void UDynamicEntryBoxBase::SetRadialSettings(const FRadialBoxSettings& InSetting
 	}
 }
 
+EVerticalAlignment UDynamicEntryBoxBase::GetEntryVerticalAlignment() const
+{
+	return EntryVerticalAlignment.GetValue();
+}
+
+EHorizontalAlignment UDynamicEntryBoxBase::GetEntryHorizontalAlignment() const
+{
+	return EntryHorizontalAlignment.GetValue();
+}
+
+int32 UDynamicEntryBoxBase::GetMaxElementSize() const
+{
+	return MaxElementSize;
+}
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 #if WITH_EDITOR
 
 const FText UDynamicEntryBoxBase::GetPaletteCategory()
@@ -210,6 +250,7 @@ const FText UDynamicEntryBoxBase::GetPaletteCategory()
 }
 #endif
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 TSharedRef<SWidget> UDynamicEntryBoxBase::RebuildWidget()
 {
 	TSharedPtr<SWidget> EntryBoxWidget;
@@ -260,6 +301,7 @@ TSharedRef<SWidget> UDynamicEntryBoxBase::RebuildWidget()
 
 	return EntryBoxWidget.ToSharedRef();
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_EDITOR
 void UDynamicEntryBoxBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -273,6 +315,7 @@ void UDynamicEntryBoxBase::PostEditChangeProperty(FPropertyChangedEvent& Propert
 }
 #endif
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void UDynamicEntryBoxBase::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
@@ -285,6 +328,7 @@ void UDynamicEntryBoxBase::SynchronizeProperties()
 	}
 #endif
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 bool UDynamicEntryBoxBase::IsEntryClassValid(TSubclassOf<UUserWidget> InEntryClass) const
 {
@@ -367,6 +411,7 @@ FMargin UDynamicEntryBoxBase::BuildEntryPadding(const FVector2D& DesiredSpacing)
 	return EntryPadding;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void UDynamicEntryBoxBase::AddEntryChild(UUserWidget& ChildWidget)
 {
 	if (EntryBoxType == EDynamicBoxType::Wrap || EntryBoxType == EDynamicBoxType::VerticalWrap)
@@ -458,5 +503,31 @@ void UDynamicEntryBoxBase::AddEntryChild(UUserWidget& ChildWidget)
 		}
 	}
 }
+
+void UDynamicEntryBoxBase::InitEntryBoxType(EDynamicBoxType InEntryBoxType)
+{
+	EntryBoxType = InEntryBoxType;
+}
+
+void UDynamicEntryBoxBase::InitEntrySizeRule(FSlateChildSize InEntrySizeRule)
+{
+	EntrySizeRule = InEntrySizeRule;
+}
+
+void UDynamicEntryBoxBase::InitEntryHorizontalAlignment(EHorizontalAlignment InEntryHorizontalAlignment)
+{
+	EntryHorizontalAlignment = InEntryHorizontalAlignment;
+}
+
+void UDynamicEntryBoxBase::InitEntryVerticalAlignment(EVerticalAlignment InEntryVerticalAlignment)
+{
+	EntryVerticalAlignment = InEntryVerticalAlignment;
+}
+
+void UDynamicEntryBoxBase::InitMaxElementSize(int32 InMaxElementSize)
+{
+	MaxElementSize = InMaxElementSize;
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #undef LOCTEXT_NAMESPACE

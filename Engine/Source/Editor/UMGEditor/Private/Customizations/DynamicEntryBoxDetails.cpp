@@ -33,14 +33,14 @@ void FDynamicEntryBoxBaseDetails::CustomizeDetails(IDetailLayoutBuilder& DetailL
 	IDetailCategoryBuilder& EntryLayoutCategory = DetailLayout.EditCategory(TEXT("EntryLayout"));
 
 	const TAttribute<bool> CanEditAignmentAttribute(this, &FDynamicEntryBoxDetails::CanEditAlignment);
-	EntryLayoutCategory.AddProperty(DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDynamicEntryBoxBase, EntryHorizontalAlignment)))
+	EntryLayoutCategory.AddProperty(DetailLayout.GetProperty(TEXT("EntryHorizontalAlignment")))
 		.IsEnabled(CanEditAignmentAttribute);
-	EntryLayoutCategory.AddProperty(DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDynamicEntryBoxBase, EntryVerticalAlignment)))
+	EntryLayoutCategory.AddProperty(DetailLayout.GetProperty(TEXT("EntryVerticalAlignment")))
 		.IsEnabled(CanEditAignmentAttribute);
 
-	EntryLayoutCategory.AddProperty(DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDynamicEntryBoxBase, MaxElementSize)))
+	EntryLayoutCategory.AddProperty(DetailLayout.GetProperty(TEXT("MaxElementSize")))
 		.IsEnabled(TAttribute<bool>(this, &FDynamicEntryBoxDetails::CanEditMaxElementSize));
-	EntryLayoutCategory.AddProperty(DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDynamicEntryBoxBase, EntrySpacing)))
+	EntryLayoutCategory.AddProperty(DetailLayout.GetProperty(TEXT("EntrySpacing")))
 		.IsEnabled(TAttribute<bool>(this, &FDynamicEntryBoxDetails::CanEditEntrySpacing));
 	EntryLayoutCategory.AddProperty(DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDynamicEntryBoxBase, SpacingPattern)))
 		.IsEnabled(TAttribute<bool>(this, &FDynamicEntryBoxDetails::CanEditSpacingPattern));

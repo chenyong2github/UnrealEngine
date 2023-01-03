@@ -28,28 +28,35 @@ class UMG_API UExpandableArea : public UWidget, public INamedSlotInterface
 
 public:
 
+	UE_DEPRECATED(5.2, "Direct access to Style is deprecated. Please use SetStyle or GetStyle.")
 	UPROPERTY(EditAnywhere, Category = "Style")
 	FExpandableAreaStyle Style;
 
-	UPROPERTY( EditAnywhere, BlueprintReadOnly, Category = "Style" )
+	UE_DEPRECATED(5.2, "Direct access to BorderBrush is deprecated. Please use the getter or setter.")
+	UPROPERTY( EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = "Style" )
 	FSlateBrush BorderBrush;
 
-	UPROPERTY( EditAnywhere, BlueprintReadOnly, Category = "Style" )
+	UE_DEPRECATED(5.2, "Direct access to BorderColor is deprecated. Please use the getter or setter.")
+	UPROPERTY( EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = "Style")
 	FSlateColor BorderColor;
 
 	/**  */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Expansion")
+	UE_DEPRECATED(5.2, "Direct access to bIsExpanded is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "GetIsExpanded", Setter = "SetIsExpanded", BlueprintGetter = "GetIsExpanded", BlueprintSetter = "SetIsExpanded", FieldNotify, Category = "Expansion")
 	bool bIsExpanded;
 
+	UE_DEPRECATED(5.2, "Direct access to MaxHeight is deprecated. Please use the getter or setter.")
 	/** The maximum height of the area */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Expansion")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category="Expansion")
 	float MaxHeight;
 	
-	UPROPERTY( EditAnywhere, BlueprintReadOnly, Category = "Expansion" )
+	UE_DEPRECATED(5.2, "Direct access to HeaderPadding is deprecated. Please use the getter or setter.")
+	UPROPERTY( EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = "Expansion" )
 	FMargin HeaderPadding;
 	
 	/**  */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Expansion")
+	UE_DEPRECATED(5.2, "Direct access to AreaPadding is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category="Expansion")
 	FMargin AreaPadding;
 
 	/** A bindable delegate for the IsChecked. */
@@ -67,6 +74,29 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Expansion")
 	void SetIsExpanded_Animated(bool IsExpanded);
 	
+	const FExpandableAreaStyle& GetStyle() const;
+
+	void SetStyle(const FExpandableAreaStyle& InStyle);
+
+	const FSlateBrush& GetBorderBrush() const;
+
+	void SetBorderBrush(const FSlateBrush& InBorderBrush);
+
+	const FSlateColor& GetBorderColor() const;
+
+	void SetBorderColor(const FSlateColor& InBorderColor);
+
+	float GetMaxHeight() const;
+
+	void SetMaxHeight(float InMaxHeight);
+
+	FMargin GetHeaderPadding() const;
+
+	void SetHeaderPadding(FMargin InHeaderPadding);
+
+	FMargin GetAreaPadding() const;
+	void SetAreaPadding(FMargin InAreaPadding);
+
 	// Begin INamedSlotInterface
 	virtual void GetSlotNames(TArray<FName>& SlotNames) const override;
 	virtual UWidget* GetContentForSlot(FName SlotName) const override;

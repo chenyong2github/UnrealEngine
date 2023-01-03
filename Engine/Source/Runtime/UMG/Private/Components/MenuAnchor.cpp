@@ -18,8 +18,10 @@ UMenuAnchor::UMenuAnchor(const FObjectInitializer& ObjectInitializer)
 	, ShouldDeferPaintingAfterWindowContent(true)
 	, UseApplicationMenuStack(true)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	Placement = MenuPlacement_ComboBox;
 	bFitInWindow = true;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UMenuAnchor::ReleaseSlateResources(bool bReleaseChildren)
@@ -31,6 +33,7 @@ void UMenuAnchor::ReleaseSlateResources(bool bReleaseChildren)
 
 TSharedRef<SWidget> UMenuAnchor::RebuildWidget()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MyMenuAnchor = SNew(SMenuAnchor)
 		.Placement(Placement)
 		.FitInWindow(bFitInWindow)
@@ -38,7 +41,7 @@ TSharedRef<SWidget> UMenuAnchor::RebuildWidget()
 		.OnMenuOpenChanged(BIND_UOBJECT_DELEGATE(FOnIsOpenChanged, HandleMenuOpenChanged))
 		.ShouldDeferPaintingAfterWindowContent(ShouldDeferPaintingAfterWindowContent)
 		.UseApplicationMenuStack(UseApplicationMenuStack);
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	if ( GetChildrenCount() > 0 )
 	{
 		MyMenuAnchor->SetContent(GetContentSlot()->Content ? GetContentSlot()->Content->TakeWidget() : SNullWidget::NullWidget);
@@ -144,13 +147,20 @@ bool UMenuAnchor::IsOpen() const
 	return false;
 }
 
-void UMenuAnchor::SetPlacement(TEnumAsByte<EMenuPlacement> InPlacement)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
+void UMenuAnchor::SetPlacement(EMenuPlacement InPlacement)
 {
 	Placement = InPlacement;
 	if (MyMenuAnchor.IsValid())
 	{
 		return MyMenuAnchor->SetMenuPlacement(Placement);
 	}
+}
+
+EMenuPlacement UMenuAnchor::GetPlacement() const
+{
+	return Placement;
 }
 
 void UMenuAnchor::FitInWindow(bool bFit)
@@ -161,6 +171,33 @@ void UMenuAnchor::FitInWindow(bool bFit)
 		return MyMenuAnchor->SetFitInWindow(bFitInWindow);
 	}
 }
+
+bool UMenuAnchor::IsFitInWindow() const
+{
+	return bFitInWindow;
+}
+
+bool UMenuAnchor::IsDeferPaintingAfterWindowContent() const
+{
+	return ShouldDeferPaintingAfterWindowContent;
+}
+
+bool UMenuAnchor::IsUseApplicationMenuStack() const
+{
+	return UseApplicationMenuStack;
+}
+
+void UMenuAnchor::InitShouldDeferPaintingAfterWindowContent(bool InShouldDeferPaintingAfterWindowContent)
+{
+	ShouldDeferPaintingAfterWindowContent = InShouldDeferPaintingAfterWindowContent;
+}
+
+void UMenuAnchor::InitUseApplicationMenuStack(bool InUseApplicationMenuStack)
+{
+	UseApplicationMenuStack = InUseApplicationMenuStack;
+}
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 bool UMenuAnchor::ShouldOpenDueToClick() const
 {

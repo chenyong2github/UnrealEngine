@@ -45,19 +45,23 @@ public:
 	UPROPERTY(EditAnywhere, Category="Events")
 	FGetUserWidget OnGetUserMenuContentEvent;
 	
+	UE_DEPRECATED(5.2, "Direct access to Placement is deprecated. Please use the getter or setter.")
 	/** The placement location of the summoned widget. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Menu Anchor")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Setter, Getter, BlueprintSetter = "SetPlacement", Category = "Menu Anchor")
 	TEnumAsByte<EMenuPlacement> Placement;
 
+	UE_DEPRECATED(5.2, "Direct access to bFitInWindow is deprecated. Please use the getter or setter.")
 	/** Should the menu anchor attempt to fit the menu inside the window. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Menu Anchor", meta=(ScriptName="ShouldFitInWindow"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Setter = "FitInWindow", Getter = "IsFitInWindow", BlueprintSetter = "FitInWindow", Category = "Menu Anchor", meta = (ScriptName = "ShouldFitInWindow"))
 	bool bFitInWindow;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category = "Menu Anchor")
+	UE_DEPRECATED(5.2, "Direct access to ShouldDeferPaintingAfterWindowContent is deprecated. Please use the getter.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter = "IsDeferPaintingAfterWindowContent", AdvancedDisplay, Category = "Menu Anchor")
 	bool ShouldDeferPaintingAfterWindowContent;
 
+	UE_DEPRECATED(5.2, "Direct access to UseApplicationMenuStack is deprecated. Please use the getter.")
 	/** Does this menu behave like a normal stacked menu? Set it to false to control the menu's lifetime yourself. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category = "Menu Anchor")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Getter = "IsUseApplicationMenuStack", AdvancedDisplay, Category = "Menu Anchor")
 	bool UseApplicationMenuStack;
 
 public:
@@ -69,10 +73,18 @@ public:
 	//TODO UMG Add Set MenuClass
 
 	UFUNCTION(BlueprintCallable, Category = "Menu Anchor")
-	void SetPlacement(TEnumAsByte<EMenuPlacement> InPlacement);
+	void SetPlacement(EMenuPlacement InPlacement);
+
+	EMenuPlacement GetPlacement() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Menu Anchor")
 	void FitInWindow(bool bFit);
+
+	bool IsFitInWindow() const;
+
+	bool IsDeferPaintingAfterWindowContent() const;
+
+	bool IsUseApplicationMenuStack() const;
 
 public:
 
@@ -128,6 +140,13 @@ protected:
 	// UWidget interface
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	// End of UWidget interface
+
+	// Initialize ShouldDeferPaintingAfterWindowContent in the constructor before the SWidget is constructed.
+	void InitShouldDeferPaintingAfterWindowContent(bool InShouldDeferPaintingAfterWindowContent);
+
+	// Initialize UseApplicationMenuStack in the constructor before the SWidget is constructed.
+	void InitUseApplicationMenuStack(bool InUseApplicationMenuStack);
+
 
 protected:
 	TSharedRef<SWidget> HandleGetMenuContent();

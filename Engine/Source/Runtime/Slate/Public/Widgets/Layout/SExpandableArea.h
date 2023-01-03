@@ -18,6 +18,7 @@
 #include "Framework/SlateDelegates.h"
 
 class SBorder;
+class SButton;
 
 /**
  * Represents an expandable area of content            
@@ -110,6 +111,46 @@ public:
 	 */
 	virtual bool IsTitleHovered() const;
 
+	/**
+	 * Sets the max height of the area
+	 */
+	void SetMaxHeight(float InMaxHeight);
+
+	/**
+	 * Sets the color of all borders
+	 */
+	void SetBorderBackgroundColor(const FSlateColor& InBorderColor);
+
+	/**
+	 * Sets the header padding
+	 */
+	void SetHeaderPadding(FMargin InHeaderPadding);
+
+	/**
+	 * Sets the body padding
+	 */
+	void SetAreaPadding(FMargin InAreaPadding);
+
+	/**
+	 * Sets the style of the widget
+	 */
+	void SetStyle(const FExpandableAreaStyle* InStyle);
+
+	/**
+	 * Invalidates the style
+	 */
+	void InvalidateStyle();
+
+	/**
+	 * Invalidates the border brush
+	 */
+	void InvalidateBorderBrush();
+
+	/**
+	 * Sets the brush of all borders
+	 */
+	void SetBorderBrush(const FSlateBrush* InBorderBrush);
+
 protected:
 
 	/**
@@ -147,8 +188,20 @@ protected:
 
 protected:
 
+	/** Style of the Expandable Area */
+	const FExpandableAreaStyle* WidgetStyle;
+
 	/** Border widget for the header area */
 	TSharedPtr<SBorder> TitleBorder;
+
+	/** Border widget if the body style is different from header */
+	TSharedPtr<SBorder> WidgetBorder;
+
+	/** Border widget for the body area */
+	TSharedPtr<SBorder> BodyBorder;
+
+	/** Button for expanding the are */
+	TSharedPtr<SButton> ExpandingButton;
 
 	/** Curved used to simulate a rollout of the section */
 	FCurveSequence RolloutCurve;
@@ -173,4 +226,5 @@ protected:
 
 	/** If true expanding and collapsing the area will animate, otherwise it will expand/collapse instantly */
 	bool bAllowAnimatedTransition;
+
 };
