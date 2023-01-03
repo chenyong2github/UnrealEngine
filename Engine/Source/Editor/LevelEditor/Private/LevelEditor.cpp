@@ -259,7 +259,6 @@ void FLevelEditorModule::StartupModule()
 	FModuleManager::LoadModuleChecked<IMainFrameModule>(MainFrame);
 
 	FModuleManager::LoadModuleChecked<FCommonMenuExtensionsModule>(CommonMenuExtensionsName);
-	FModuleManager::Get().LoadModule(TEXT("LevelAssetEditor"));
 
 	MenuExtensibilityManager = MakeShared<FExtensibilityManager>();
 	ToolBarExtensibilityManager = MakeShared<FExtensibilityManager>();

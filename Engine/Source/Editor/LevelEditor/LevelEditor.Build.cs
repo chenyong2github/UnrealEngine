@@ -119,7 +119,6 @@ public class LevelEditor : ModuleRules
 				"HeadMountedDisplay",
 				"VREditor",
                 "Persona",
-				"LevelAssetEditor",
 				"MergeActors"
 			}
 		);
