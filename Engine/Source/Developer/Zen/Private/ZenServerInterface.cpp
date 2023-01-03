@@ -363,9 +363,6 @@ FServiceSettings::ReadFromConfig()
 			ReadUInt16FromConfig(AutoLaunchConfigSection, TEXT("DesiredPort"), AutoLaunchSettings.DesiredPort, GEngineIni);
 			GConfig->GetBool(AutoLaunchConfigSection, TEXT("ShowConsole"), AutoLaunchSettings.bShowConsole, GEngineIni);
 			GConfig->GetBool(AutoLaunchConfigSection, TEXT("LimitProcessLifetime"), AutoLaunchSettings.bLimitProcessLifetime, GEngineIni);
-
-			// Ensure that the zen data path is inherited by subprocesses
-			FPlatformMisc::SetEnvironmentVar(TEXT("UE-ZenSubprocessDataPath"), *AutoLaunchSettings.DataPath);
 		}
 	}
 	else
@@ -1062,6 +1059,11 @@ FZenServiceInstance::FZenServiceInstance(FStringView InstanceURL)
 	if (InstanceURL.IsEmpty())
 	{
 		Settings.ReadFromConfig();
+		if (Settings.IsAutoLaunch())
+		{
+			// Ensure that the zen data path is inherited by subprocesses
+			FPlatformMisc::SetEnvironmentVar(TEXT("UE-ZenSubprocessDataPath"), *Settings.SettingsVariant.Get<FServiceAutoLaunchSettings>().DataPath);
+		}
 	}
 	else
 	{
