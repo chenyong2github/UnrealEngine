@@ -29,7 +29,7 @@ void FMaterialOverrideNanite::RefreshOverrideMaterial()
 		
 		if (FUObjectThreadContext::Get().IsRoutingPostLoad && !OverrideMaterialRef.IsNull())
 		{
-			UE_LOG(LogMaterial, Warning, TEXT("Attempting to resolve NaniteOverrideMaterial '%s' during PostLoad()."), *OverrideMaterialRef.GetAssetName());
+			UE_LOG(LogMaterial, Display, TEXT("Attempting to resolve NaniteOverrideMaterial '%s' during PostLoad()."), *OverrideMaterialRef.GetAssetName());
 		}
 
 		OverrideMaterial = bEnableOverride && !OverrideMaterialRef.IsNull() ? OverrideMaterialRef.LoadSynchronous() : nullptr;
