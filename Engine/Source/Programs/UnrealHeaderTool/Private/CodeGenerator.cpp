@@ -3107,15 +3107,16 @@ void ExportStandardConstructorsMacro(FOutputDevice& Out, FUnrealClassDefinitionI
 /**
  * Generates constructor definition.
  *
- * @param Out Output device to generate to.
+ * @param OutGeneratedHeaderText Output device for header
+ * @param OutGeneratedCppText Output device for cpp
  * @param Class Class to generate constructor for.
  * @param API API string for this constructor.
  */
-void ExportConstructorDefinition(FOutputDevice& Out, FUnrealClassDefinitionInfo& ClassDef, const TCHAR* API, const TCHAR* ClassCPPName)
+void ExportConstructorDefinition(FOutputDevice& OutGeneratedHeaderText, FOutputDevice& OutGeneratedCppText, FUnrealClassDefinitionInfo& ClassDef, const TCHAR* API, const TCHAR* ClassCPPName)
 {
 	if (!ClassDef.IsConstructorDeclared())
 	{
-		Out.Logf(TEXT("\t/** Standard constructor, called after all reflected properties have been initialized */\r\n"));
+		OutGeneratedHeaderText.Logf(TEXT("\t/** Standard constructor, called after all reflected properties have been initialized */\r\n"));
 
 		// Assume super class has OI constructor, this may not always be true but we should always be able to check this.
 		// In any case, it will default to old behaviour before we even checked this.
@@ -3140,18 +3141,26 @@ void ExportConstructorDefinition(FOutputDevice& Out, FUnrealClassDefinitionInfo&
 		}
 		if (bSuperClassObjectInitializerConstructorDeclared)
 		{
-			Out.Logf(TEXT("\t%s_API %s(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get()) : Super(ObjectInitializer) { };\r\n"), API, ClassCPPName);
+			OutGeneratedHeaderText.Logf(TEXT("\t%s_API %s(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());\r\n"), API, ClassCPPName);
+			if (!ClassDef.UsesGeneratedBodyLegacy())
+			{
+				OutGeneratedCppText.Logf(TEXT("\t%s::%s(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {}\r\n"), ClassCPPName, ClassCPPName);
+			}
 			ClassDef.MarkObjectInitializerConstructorDeclared();
 		}
 		else
 		{
-			Out.Logf(TEXT("\t%s_API %s() { };\r\n"), API, ClassCPPName);
+			OutGeneratedHeaderText.Logf(TEXT("\t%s_API %s();\r\n"), API, ClassCPPName);
+			if (!ClassDef.UsesGeneratedBodyLegacy())
+			{
+				OutGeneratedCppText.Logf(TEXT("\t%s::%s() {}\r\n"), ClassCPPName, ClassCPPName);
+			}
 			ClassDef.MarkDefaultConstructorDeclared();
 		}
 
 		ClassDef.MarkConstructorDeclared();
 	}
-	ExportCopyConstructorDefinition(Out, API, ClassCPPName);
+	ExportCopyConstructorDefinition(OutGeneratedHeaderText, API, ClassCPPName);
 }
 
 /**
@@ -3197,12 +3206,12 @@ void ExportDefaultConstructorCallDefinition(FOutputDevice& Out, FUnrealClassDefi
  * @param Class Class to generate constructor for.
  * @param API API string for this constructor.
  */
-void ExportEnhancedConstructorsMacro(FOutputDevice& Out, FUnrealClassDefinitionInfo& ClassDef, const TCHAR* API, const TCHAR* ClassCPPName)
+void ExportEnhancedConstructorsMacro(FOutputDevice& OutGeneratedHeaderText, FOutputDevice& OutGeneratedCppText, FUnrealClassDefinitionInfo& ClassDef, const TCHAR* API, const TCHAR* ClassCPPName)
 {
-	ExportConstructorDefinition(Out, ClassDef, API, ClassCPPName);
-	ExportVTableHelperCtorAndCaller(Out, ClassDef, API, ClassCPPName);
-	ExportDefaultConstructorCallDefinition(Out, ClassDef, ClassCPPName);
-	ExportDestructorDefinition(Out, ClassDef, API, ClassCPPName);
+	ExportConstructorDefinition(OutGeneratedHeaderText, OutGeneratedCppText, ClassDef, API, ClassCPPName);
+	ExportVTableHelperCtorAndCaller(OutGeneratedHeaderText, ClassDef, API, ClassCPPName);
+	ExportDefaultConstructorCallDefinition(OutGeneratedHeaderText, ClassDef, ClassCPPName);
+	ExportDestructorDefinition(OutGeneratedHeaderText, ClassDef, API, ClassCPPName);
 }
 
 /**
@@ -3221,7 +3230,7 @@ FString GetBuildPath(const FUnrealSourceFile& SourceFile)
 	return Out;
 }
 
-void FNativeClassHeaderGenerator::ExportConstructorsMacros(FOutputDevice& OutGeneratedHeaderText, FOutputDevice& Out, FOutputDevice& StandardUObjectConstructorsMacroCall, FOutputDevice& EnhancedUObjectConstructorsMacroCall, const FString& ConstructorsMacroPrefix, FUnrealClassDefinitionInfo& ClassDef, const TCHAR* APIArg)
+void FNativeClassHeaderGenerator::ExportConstructorsMacros(FOutputDevice& OutGeneratedHeaderText, FOutputDevice& OutGeneratedCppText, FOutputDevice& StandardUObjectConstructorsMacroCall, FOutputDevice& EnhancedUObjectConstructorsMacroCall, const FString& ConstructorsMacroPrefix, FUnrealClassDefinitionInfo& ClassDef, const TCHAR* APIArg)
 {
 	const FString ClassCPPName = ClassDef.GetAlternateNameCPP();
 
@@ -3231,16 +3240,16 @@ void FNativeClassHeaderGenerator::ExportConstructorsMacros(FOutputDevice& OutGen
 	FString EnhMacroName = ConstructorsMacroPrefix + TEXT("_ENHANCED_CONSTRUCTORS");
 
 	ExportStandardConstructorsMacro(StdMacro, ClassDef, APIArg, *ClassCPPName);
-	ExportEnhancedConstructorsMacro(EnhMacro, ClassDef, APIArg, *ClassCPPName);
+	ExportEnhancedConstructorsMacro(EnhMacro, OutGeneratedCppText, ClassDef, APIArg, *ClassCPPName);
 
 	if (!ClassDef.IsCustomVTableHelperConstructorDeclared())
 	{
-		Out.Logf(TEXT("\tDEFINE_VTABLE_PTR_HELPER_CTOR(%s);" LINE_TERMINATOR_ANSI), *ClassCPPName);
+		OutGeneratedCppText.Logf(TEXT("\tDEFINE_VTABLE_PTR_HELPER_CTOR(%s);" LINE_TERMINATOR_ANSI), *ClassCPPName);
 	}
 
 	if (!ClassDef.IsDestructorDeclared())
 	{
-		Out.Logf(TEXT("\t%s::~%s() {}" LINE_TERMINATOR_ANSI), *ClassCPPName, *ClassCPPName);
+		OutGeneratedCppText.Logf(TEXT("\t%s::~%s() {}" LINE_TERMINATOR_ANSI), *ClassCPPName, *ClassCPPName);
 	}
 
 	OutGeneratedHeaderText.Log(Macroize(*StdMacroName, *StdMacro));

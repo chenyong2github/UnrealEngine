@@ -3424,6 +3424,22 @@ public:
 	}
 
 	/**
+	 * Return true if the class uses legacy generated body
+	 */
+	bool UsesGeneratedBodyLegacy() const
+	{
+		return bUsesGeneratedBodyLegacy;
+	}
+
+	/**
+	 * Mark the class as using legacy generated body
+	 */
+	void MarkUsesGeneratedBodyLegacy()
+	{
+		bUsesGeneratedBodyLegacy = true;
+	}
+
+	/**
 	 * Get the generated body access specifier
 	 */
 	EAccessSpecifier GetGeneratedBodyMacroAccessSpecifier() const
@@ -3553,6 +3569,9 @@ private:
 
 	/** True if the class is not to be exported */
 	bool bNoExport = false;
+
+	/** True if the class uses legacy generated body */
+	bool bUsesGeneratedBodyLegacy = false;
 
 	/** True if the class is an interface */
 	bool bIsInterface = false;

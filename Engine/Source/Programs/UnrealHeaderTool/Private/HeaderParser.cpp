@@ -5069,6 +5069,8 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 
 		if (Token.IsIdentifier(TEXT("GENERATED_IINTERFACE_BODY"), ESearchCase::CaseSensitive))
 		{
+			// Due to the way IInterface and UInterface share the same class instance, we don't set the legacy body
+			//ClassDef.MarkUsesGeneratedBodyLegacy();
 			CurrentAccessSpecifier = ACCESS_Public;
 		}
 
@@ -5099,6 +5101,7 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 		if (Token.IsIdentifier(TEXT("GENERATED_UINTERFACE_BODY"), ESearchCase::CaseSensitive))
 		{
 			CurrentAccessSpecifier = ACCESS_Public;
+			ClassDef.MarkUsesGeneratedBodyLegacy();
 		}
 		return true;
 	}
@@ -5120,6 +5123,7 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 		}
 		else
 		{
+			ClassDef.MarkUsesGeneratedBodyLegacy();
 			CurrentAccessSpecifier = ACCESS_Public;
 		}
 

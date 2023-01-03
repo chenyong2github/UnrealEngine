@@ -661,13 +661,14 @@ private:
 	/**
 	 * Exports macros that manages UObject constructors.
 	 * 
-	 * @param	VTableOut								The destination to write vtable helpers to.
+	 * @param	OutGeneratedHeaderText  				The destination to write header code.
+	 * @param	OutGeneratedCppText  					The destination to write cpp code.
 	 * @param	StandardUObjectConstructorsMacroCall	The destination to write standard constructor macros to.
 	 * @param	EnhancedUObjectConstructorsMacroCall	The destination to write enhanced constructor macros to.
 	 * @param	ConstructorsMacroPrefix					Prefix for constructors macro.
 	 * @param	Class									Class for which to export macros.
 	 */
-	static void ExportConstructorsMacros(FOutputDevice& OutGeneratedHeaderText, FOutputDevice& VTableOut, FOutputDevice& StandardUObjectConstructorsMacroCall, FOutputDevice& EnhancedUObjectConstructorsMacroCall, const FString& ConstructorsMacroPrefix, FUnrealClassDefinitionInfo& ClassDef, const TCHAR* APIArg);
+	static void ExportConstructorsMacros(FOutputDevice& OutGeneratedHeaderText, FOutputDevice& OutGeneratedCppText, FOutputDevice& StandardUObjectConstructorsMacroCall, FOutputDevice& EnhancedUObjectConstructorsMacroCall, const FString& ConstructorsMacroPrefix, FUnrealClassDefinitionInfo& ClassDef, const TCHAR* APIArg);
 
 	/**
 	 * Gets string with function return type.
