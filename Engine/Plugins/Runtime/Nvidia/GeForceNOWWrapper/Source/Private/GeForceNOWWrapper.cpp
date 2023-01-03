@@ -166,8 +166,7 @@ GfnRuntimeError GeForceNOWWrapper::IsRunningInCloudSecure(GfnIsRunningInCloudAss
 
 GfnRuntimeError GeForceNOWWrapper::SetupTitle(const FString& InPlatformAppId) const
 {
-	char* PlatformAppId = TCHAR_TO_ANSI(*InPlatformAppId);
-	return GfnSetupTitle(PlatformAppId);
+	return GfnSetupTitle(TCHAR_TO_ANSI(*InPlatformAppId));
 }
 
 GfnRuntimeError GeForceNOWWrapper::NotifyAppReady(bool bSuccess, const FString& InStatus) const
@@ -177,9 +176,7 @@ GfnRuntimeError GeForceNOWWrapper::NotifyAppReady(bool bSuccess, const FString& 
 
 GfnRuntimeError GeForceNOWWrapper::NotifyTitleExited(const FString& InPlatformId, const FString& InPlatformAppId) const
 {
-	char* PlatformId = TCHAR_TO_ANSI(*InPlatformId);
-	char* PlatformAppId = TCHAR_TO_ANSI(*InPlatformAppId);
-	return GfnTitleExited(PlatformId, PlatformAppId);
+	return GfnTitleExited(TCHAR_TO_ANSI(*InPlatformId), TCHAR_TO_ANSI(*InPlatformAppId));
 }
 
 GfnRuntimeError GeForceNOWWrapper::StartStream(StartStreamInput& InStartStreamInput, StartStreamResponse& OutResponse) const
@@ -300,8 +297,7 @@ GfnRuntimeError GeForceNOWWrapper::GetTitlesAvailable(FString& OutAvailableTitle
 
 GfnRuntimeError GeForceNOWWrapper::IsTitleAvailable(const FString& InTitleID, bool& OutbIsAvailable) const
 {
-	char* TitleID = TCHAR_TO_ANSI(*InTitleID);
-	GfnRuntimeError ErrorCode = GfnIsTitleAvailable(TitleID, &OutbIsAvailable);
+	GfnRuntimeError ErrorCode = GfnIsTitleAvailable(TCHAR_TO_ANSI(*InTitleID), &OutbIsAvailable);
 	return ErrorCode;
 }
 
