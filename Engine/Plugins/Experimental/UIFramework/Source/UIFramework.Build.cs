@@ -12,17 +12,18 @@ public class UIFramework : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
+				"ModelViewViewModel",
 				"SlateCore",
 				"Slate",
 				"UMG",
 			}
 		);
 
-        PublicIncludePathModuleNames.AddRange(
-            new string[] {
-            }
-        );
-		
+		PublicIncludePathModuleNames.AddRange(
+			new string[] {
+			}
+		);
+
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{

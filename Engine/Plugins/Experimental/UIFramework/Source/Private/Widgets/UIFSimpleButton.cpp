@@ -6,9 +6,9 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
-#include "Components/UIFSimpleButtonUserWidget.h"
-
+#include "MVVMSubsystem.h"
 #include "Net/UnrealNetwork.h"
+#include "View/MVVMView.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(UIFSimpleButton)
 
@@ -34,9 +34,14 @@ void UUIFrameworkSimpleButton::GetLifetimeReplicatedProps(TArray<FLifetimeProper
 
 void UUIFrameworkSimpleButton::LocalOnUMGWidgetCreated()
 {
-	UUIFrameworkSimpleButtonUserWidget* UserWidget = CastChecked<UUIFrameworkSimpleButtonUserWidget>(LocalGetUMGWidget());
-	UserWidget->TextBlock->SetText(Text);
-	UserWidget->Button->OnClicked.AddUniqueDynamic(this, &ThisClass::HandleClick);
+	UUserWidget* UserWidget = Cast<UUserWidget>(LocalGetUMGWidget());
+	if (ensure(UserWidget))
+	{
+		if (UMVVMView* View = UMVVMSubsystem::GetViewFromUserWidget(UserWidget))
+		{
+			View->SetViewModel(TEXT("Widget"), this);
+		}
+	}
 }
 
 
@@ -45,19 +50,17 @@ void UUIFrameworkSimpleButton::SetText(FText InText)
 	Text = InText;
 	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Text, this);
 	ForceNetUpdate();
+	UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(Text);
 }
 
 
 void UUIFrameworkSimpleButton::OnRep_Text()
 {
-	if (LocalGetUMGWidget())
-	{
-		CastChecked<UUIFrameworkSimpleButtonUserWidget>(LocalGetUMGWidget())->TextBlock->SetText(Text);
-	}
+	UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(Text);
 }
 
 
-void UUIFrameworkSimpleButton::HandleClick()
+void UUIFrameworkSimpleButton::OnClick(FMVVMEventField Field)
 {
 	// todo the click event should send the userid
 	ServerClick(Cast<APlayerController>(GetOuter()));
@@ -66,8 +69,7 @@ void UUIFrameworkSimpleButton::HandleClick()
 
 void UUIFrameworkSimpleButton::ServerClick_Implementation(APlayerController* PlayerController)
 {
-	FUIFrameworkClickEventArgument Argument;
-	Argument.PlayerController = PlayerController;
-	Argument.Sender = this;
-	OnClick.Broadcast(Argument);
+	ClickEvent.PlayerController = PlayerController;
+	ClickEvent.Sender = this;
+	BroadcastFieldValueChanged(ThisClass::FFieldNotificationClassDescriptor::ClickEvent);
 }

@@ -4,6 +4,7 @@
 
 #include "Components/SlateWrapperTypes.h"
 #include "Components/Widget.h"
+#include "MVVMViewModelBase.h"
 #include "Templates/NonNullPointer.h"
 #include "Types/UIFParentWidget.h"
 #include "Types/UIFWidgetId.h"
@@ -37,7 +38,7 @@ public:
  * 
  */
 UCLASS(Abstract, BlueprintType)
-class UIFRAMEWORK_API UUIFrameworkWidget : public UObject
+class UIFRAMEWORK_API UUIFrameworkWidget : public UMVVMViewModelBase
 {
 	GENERATED_BODY()
 
