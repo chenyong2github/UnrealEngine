@@ -1274,6 +1274,9 @@ void FGPUSkinPassthroughVertexFactory::ResetVertexAttributes()
 	for (int32 Index = 0; Index < EVertexAtttribute::NumAttributes; ++Index)
 	{
 		StreamIndices[Index] = -1;
+	}
+	for (int32 Index = 0; Index < EShaderResource::NumShaderResources; ++Index)
+	{
 		SRVs[Index] = nullptr;
 	}
 	UpdatedFrameNumber = ~0U;
