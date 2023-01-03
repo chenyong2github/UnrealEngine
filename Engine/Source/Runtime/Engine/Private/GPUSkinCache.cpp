@@ -1994,9 +1994,9 @@ bool FGPUSkinCache::IsEntryValid(FGPUSkinCacheEntry* SkinCacheEntry, int32 Secti
 	return SkinCacheEntry->IsSectionValid(Section);
 }
 
-const FSkinBatchVertexFactoryUserData* FGPUSkinCache::InternalGetVertexFactoryUserData(FGPUSkinCacheEntry* Entry, int32 Section)
+const FSkinBatchVertexFactoryUserData* FGPUSkinCache::GetVertexFactoryUserData(FGPUSkinCacheEntry* Entry, int32 Section)
 {
-	return &Entry->BatchElementsUserData[Section];
+	return Entry != nullptr ? &Entry->BatchElementsUserData[Section] : nullptr;
 }
 
 void FGPUSkinCache::InvalidateAllEntries()
