@@ -60,9 +60,19 @@ UMotionControllerComponent* UXRDeviceVisualizationComponent::FindParentMotionCon
 }
 
 //=============================================================================
+void UXRDeviceVisualizationComponent::SetIsVisualizationActive(bool bNewVisualizationState)
+{
+	if (bNewVisualizationState != bIsVisualizationActive) 
+	{
+		bIsVisualizationActive = bNewVisualizationState;
+		RefreshMesh();
+	}
+}
+
+//=============================================================================
 bool UXRDeviceVisualizationComponent::CanDeviceBeDisplayed() 
 {
-	return bIsRenderingActive;
+	return bIsRenderingActive && bIsVisualizationActive;
 }
 
 //=============================================================================

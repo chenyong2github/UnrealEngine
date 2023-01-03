@@ -17,6 +17,13 @@ class HEADMOUNTEDDISPLAY_API UXRDeviceVisualizationComponent : public UStaticMes
 {
 	GENERATED_UCLASS_BODY()
 
+	/** Whether the visualization offered by this component is being used. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetIsVisualizationActive, Category = "Visualization")
+	bool bIsVisualizationActive;
+
+	UFUNCTION(BlueprintSetter)
+	void SetIsVisualizationActive(bool bNewVisualizationState);
+
 	/** Determines the source of the desired model. By default, the active XR system(s) will be queried and (if available) will provide a model for the associated device. NOTE: this may fail if there's no default model; use 'Custom' to specify your own. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetDisplayModelSource, Category = "Visualization")
 	FName DisplayModelSource; 
