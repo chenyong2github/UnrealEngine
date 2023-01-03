@@ -101,6 +101,11 @@ namespace UnrealBuildTool
 		public uint EpicSampleNameHash;
 
 		/// <summary>
+		/// Steps to execute before creating rules assemblies in this project
+		/// </summary>
+		public CustomBuildSteps? InitSteps;
+
+		/// <summary>
 		/// Steps to execute before building targets in this project
 		/// </summary>
 		public CustomBuildSteps? PreBuildSteps;
@@ -194,7 +199,8 @@ namespace UnrealBuildTool
 			// Get the sample name hash
 			RawObject.TryGetUnsignedIntegerField("EpicSampleNameHash", out EpicSampleNameHash);
 
-			// Read the pre and post-build steps
+			// Read the init, pre and post-build steps
+			CustomBuildSteps.TryRead(RawObject, "InitSteps", out InitSteps);
 			CustomBuildSteps.TryRead(RawObject, "PreBuildSteps", out PreBuildSteps);
 			CustomBuildSteps.TryRead(RawObject, "PostBuildSteps", out PostBuildSteps);
 		}
@@ -306,6 +312,10 @@ namespace UnrealBuildTool
 			}
 
 			// Write the custom build steps
+			if(InitSteps != null)
+			{
+				InitSteps.Write(Writer, "InitSteps");
+			}
 			if(PreBuildSteps != null)
 			{
 				PreBuildSteps.Write(Writer, "PreBuildSteps");
