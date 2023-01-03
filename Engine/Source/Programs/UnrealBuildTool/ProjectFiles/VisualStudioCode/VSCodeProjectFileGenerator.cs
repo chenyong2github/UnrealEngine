@@ -1561,7 +1561,7 @@ namespace UnrealBuildTool
 
 				foreach (string PathToExclude in PathsToExclude)
 				{
-					OutFile.AppendLine(PathToExclude.Replace('\\', '/').Replace(WorkspaceRootPath, ""));
+					OutFile.AppendLine(PathToExclude.Replace('\\', '/').Replace(WorkspaceRootPath, "/"));
 				}
 			}
 			FileReference.WriteAllText(FileReference.Combine(PrimaryProjectPath, ".ignore"), OutFile.ToString());
