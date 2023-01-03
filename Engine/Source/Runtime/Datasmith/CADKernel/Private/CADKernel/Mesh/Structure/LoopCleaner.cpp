@@ -34,6 +34,11 @@ FLoopCleaner::FLoopCleaner(FIsoTriangulator& Triangulator)
 bool FLoopCleaner::CleanLoops()
 {
 
+	//{
+	//	FPoint2D Point = LoopNodes[36].Get2DPoint(EGridSpace::UniformScaled, Grid);
+	//	LoopNodes[56].Set2DPoint(EGridSpace::UniformScaled, Grid, Point);
+	//}
+
 	FindBestLoopExtremity();
 
 #ifdef DEBUG_CLEAN_LOOPS		
@@ -260,15 +265,15 @@ bool FLoopCleaner::TryToRemoveIntersectionOfTwoConsecutiveIntersectingSegments(c
 	TSegment<FPoint2D> IntersectingSegment2D(IntersectingSegment.GetFirstNode().Get2DPoint(EGridSpace::UniformScaled, Grid), IntersectingSegment.GetSecondNode().Get2DPoint(EGridSpace::UniformScaled, Grid));
 	TSegment<FPoint2D> Segment2D(Segment.GetFirstNode().Get2DPoint(EGridSpace::UniformScaled, Grid), Segment.GetSecondNode().Get2DPoint(EGridSpace::UniformScaled, Grid));
 
-	double IntersectingSegmentSlop = ComputeOrientedSlope(IntersectingSegment2D.Point0, IntersectingSegment2D.Point1, 0);
-	double SegmentSlop = ComputeUnorientedSlope(Segment2D.Point1, Segment2D.Point0, IntersectingSegmentSlop);
-	if (SegmentSlop > 2)
+	double IntersectingSegmentSlope = ComputeOrientedSlope(IntersectingSegment2D.Point0, IntersectingSegment2D.Point1, 0);
+	double SegmentSlope = ComputeUnorientedSlope(Segment2D.Point1, Segment2D.Point0, IntersectingSegmentSlope);
+	if (SegmentSlope > 2)
 	{
-		SegmentSlop = 4 - SegmentSlop;
+		SegmentSlope = 4 - SegmentSlope;
 	}
 
 	// if the segment and IntersectingSegment are parallel, segment are moved inside
-	if (SegmentSlop < 0.01)
+	if (SegmentSlope < 0.01)
 	{
 		double StartPointSquareDistance = SquareDistanceOfPointToSegment(Segment2D.Point0, IntersectingSegment2D.Point0, IntersectingSegment2D.Point1);
 		double EndPointSquareDistance = SquareDistanceOfPointToSegment(Segment2D.Point1, IntersectingSegment2D.Point0, IntersectingSegment2D.Point1);
@@ -296,8 +301,8 @@ bool FLoopCleaner::TryToRemoveIntersectionOfTwoConsecutiveIntersectingSegments(c
 		}
 	}
 
-	double OrientedSlop = ComputeOrientedSlope(IntersectingSegment2D.Point0, Segment.GetFirstNode().Get2DPoint(EGridSpace::UniformScaled, Grid), IntersectingSegmentSlop);
-	if (OrientedSlop >= 0)
+	double OrientedSlope = ComputeOrientedSlope(IntersectingSegment2D.Point0, Segment.GetFirstNode().Get2DPoint(EGridSpace::UniformScaled, Grid), IntersectingSegmentSlope);
+	if (OrientedSlope >= 0)
 	{
 		Node = (FLoopNode*)&Segment.GetSecondNode();
 		PreviousNode = (FLoopNode*)&Segment.GetFirstNode();
@@ -446,13 +451,13 @@ void FLoopCleaner::RemoveIntersectionByMovingOutsideSegmentNodeInside(const FIso
 
 	// Is Second node, the outside node ?
 	{
-		double OrientedSlop = ComputeOrientedSlope(IntersectingPoints[0], IntersectingPoints[1], PointToMove);
+		double OrientedSlope = ComputeOrientedSlope(IntersectingPoints[0], IntersectingPoints[1], PointToMove);
 		if (bIsSameInnerLoop)
 		{
-			OrientedSlop *= -1;
+			OrientedSlope *= -1;
 		}
 
-		if (OrientedSlop > 0)
+		if (OrientedSlope > 0)
 		{
 			PointToMove = Segment.GetFirstNode().Get2DPoint(EGridSpace::UniformScaled, Grid);
 			bFirstNodeIsOutside = true;
@@ -500,248 +505,6 @@ void FLoopCleaner::RemoveIntersectionByMovingOutsideSegmentNodeInside(const FIso
 	}
 #endif
 }
-
-
-#ifdef UNUSED
-bool FLoopCleaner::TryToRemoveSelfIntersectionByMovingTheClosedOusidePoint(const FIsoSegment& Segment0, const FIsoSegment& Segment1)
-{
-	const FIsoNode* Nodes[2][2] = { {nullptr, nullptr}, {nullptr, nullptr} };
-	Nodes[0][0] = &Segment0.GetFirstNode();
-	Nodes[0][1] = &Segment0.GetSecondNode();
-	Nodes[1][0] = &Segment1.GetFirstNode();
-	Nodes[1][1] = &Segment1.GetSecondNode();
-
-	FPoint2D Points[2][2];
-	Points[0][0] = Nodes[0][0]->Get2DPoint(EGridSpace::UniformScaled, Grid);
-	Points[0][1] = Nodes[0][1]->Get2DPoint(EGridSpace::UniformScaled, Grid);
-	Points[1][0] = Nodes[1][0]->Get2DPoint(EGridSpace::UniformScaled, Grid);
-	Points[1][1] = Nodes[1][1]->Get2DPoint(EGridSpace::UniformScaled, Grid);
-
-	int32 ProjectedNodeIndex[2][2] = { { 0, 0 }, { 0, 0 } };
-	FPoint2D ProjectedPoints[2][2];
-	double Distance[2][2] = { { HUGE_VALUE, HUGE_VALUE }, { HUGE_VALUE, HUGE_VALUE } };
-	FPoint2D ProjectedPointsOut[2][2];
-
-	//int32 OtherSegmentIndex = 0;
-	int32 SegmentIndex = 1;
-	int32 OtherSegmentIndex = 0;
-
-	TFunction<void(int32)> ProjectPoint = [&](int32 OtherSegmentNodeIndex)
-	{
-		double Coordinate;
-		ProjectedPoints[OtherSegmentIndex][OtherSegmentNodeIndex] = ProjectPointOnSegment(Points[OtherSegmentIndex][OtherSegmentNodeIndex], Points[SegmentIndex][0], Points[SegmentIndex][1], Coordinate, false);
-		bool bProjectedPoint1IsInside = (Coordinate >= -DOUBLE_SMALL_NUMBER && Coordinate <= 1 + DOUBLE_SMALL_NUMBER);
-		if (bProjectedPoint1IsInside)
-		{
-			Distance[OtherSegmentIndex][OtherSegmentNodeIndex] = ProjectedPoints[OtherSegmentIndex][OtherSegmentNodeIndex].SquareDistance(Points[OtherSegmentIndex][OtherSegmentNodeIndex]);
-		}
-
-#ifdef DEBUG_SELF_CLOSED_OUSIDE_POINT
-		if (bDisplay)
-		{
-			{
-				F3DDebugSession _(TEXT("Segs"));
-				DisplaySegment(Points[SegmentIndex][0], Points[SegmentIndex][1], 0, EVisuProperty::BlueCurve);
-				DisplayPoint(Points[OtherSegmentIndex][OtherSegmentNodeIndex], EVisuProperty::RedPoint);
-				DisplayPoint(ProjectedPoints[OtherSegmentIndex][OtherSegmentNodeIndex], EVisuProperty::RedPoint);
-				Wait(false);
-			}
-		}
-#endif
-	};
-
-	SegmentIndex = 0;
-	OtherSegmentIndex = 1;
-	ProjectPoint(0);
-	ProjectPoint(1);
-	SegmentIndex = 1;
-	OtherSegmentIndex = 0;
-	ProjectPoint(0);
-	ProjectPoint(1);
-
-	TFunction<void(int32, int32)> MoveNode = [&](int32 MoveSegmentIndex, int32 MovePointIndex)
-	{
-		FPoint2D MoveDirection = ProjectedPoints[MoveSegmentIndex][MovePointIndex] - Points[MoveSegmentIndex][MovePointIndex];
-		MoveDirection.Normalize();
-
-		if (MoveDirection.SquareLength() < 0.5)
-		{
-			MoveDirection = Points[MoveSegmentIndex][MovePointIndex == 0 ? 1 : 0] - ProjectedPoints[MoveSegmentIndex][MovePointIndex];
-			MoveDirection.Normalize();
-		}
-
-		MoveDirection *= GeometricTolerance;
-		FPoint2D NewCoordinate = ProjectedPoints[MoveSegmentIndex][MovePointIndex] + MoveDirection;
-
-		FLoopNode& Node = (FLoopNode&) const_cast<FIsoNode&>(*Nodes[MoveSegmentIndex][MovePointIndex]);
-		FLoopNode& PreviousNode = Node.GetPreviousNode();
-		FLoopNode& NextNode = Node.GetNextNode();
-
-		if ((PreviousNode.Get2DPoint(EGridSpace::UniformScaled, Grid).SquareDistance(NewCoordinate) < SquareGeometricTolerance2) ||
-			(NextNode.Get2DPoint(EGridSpace::UniformScaled, Grid).SquareDistance(NewCoordinate) < SquareGeometricTolerance2))
-		{
-			RemoveNodeOfLoop(Node);
-			return;
-		}
-
-		const_cast<FIsoNode&>((*Nodes[MoveSegmentIndex][MovePointIndex])).Set2DPoint(EGridSpace::UniformScaled, Grid, NewCoordinate);
-
-#ifdef DEBUG_SELF_CLOSED_OUSIDE_POINT
-		if (bDisplay)
-		{
-			F3DDebugSession _(TEXT("New Segs"));
-			DisplayPoint(NewCoordinate, EVisuProperty::RedPoint);
-			Display(EGridSpace::UniformScaled, Segment1, 0, EVisuProperty::RedCurve);
-			Display(EGridSpace::UniformScaled, Segment0, 0, EVisuProperty::BlueCurve);
-			Wait(false);
-		}
-#endif
-	};
-
-
-	int32 MoveSegment = 0;
-	int32 MovePoint = 0;
-	double MinDistance = Distance[0][0];
-
-	TFunction<void(int32, int32)> FindNodeToMove = [&](int32 MoveSegmentIndex, int32 MovePointIndex)
-	{
-		if (Distance[MoveSegmentIndex][MovePointIndex] < MinDistance)
-		{
-			MinDistance = Distance[MoveSegmentIndex][MovePointIndex];
-			MoveSegment = MoveSegmentIndex;
-			MovePoint = MovePointIndex;
-		}
-	};
-
-	FindNodeToMove(0, 1);
-	FindNodeToMove(1, 0);
-	FindNodeToMove(1, 1);
-
-	MoveNode(MoveSegment, MovePoint);
-
-	return true;
-}
-
-bool FLoopCleaner::TryToRemoveIntersectionByMovingTheClosedOusidePoint(const FIsoSegment& Segment0, const FIsoSegment& Segment1)
-{
-	// For Inner/outer segment intersecting outer loop (i.e. IntersectingSegment is Outer), the segment has to be moved inside IntersectingSegment
-	// For Inner segment intersecting its loop, the segment has to be moved inside IntersectingSegment but the orientation of the loop is counterclockwise => need to swap orientation
-	// For Inner segment intersecting another inner loop, the segment has to be moved outside the loop but the orientation of the loop is counterclockwise => don't need to swap orientation
-
-	// As the iteration of the segment start from outer loop's segments, Segment can not be from outer loop if IntersectingSegment is not from outer loop
-	int32 SegmentLoopIndex[2];
-	SegmentLoopIndex[0] = Segment0.GetFirstNode().IsALoopNode() ? ((FLoopNode&)Segment0.GetFirstNode()).GetLoopIndex() : 0;
-	SegmentLoopIndex[1] = Segment1.GetFirstNode().IsALoopNode() ? ((FLoopNode&)Segment1.GetFirstNode()).GetLoopIndex() : 0;
-	bool bIsOutLoopSegment = SegmentLoopIndex[0] == 0;
-	bool bIsSameLoop = SegmentLoopIndex[0] == SegmentLoopIndex[1];
-
-	bool bToInside = bIsOutLoopSegment || bIsSameLoop;
-
-	const FIsoNode* Nodes[2][2] = { {nullptr, nullptr}, {nullptr, nullptr} };
-	Nodes[0][0] = &Segment0.GetFirstNode();
-	Nodes[0][1] = &Segment0.GetSecondNode();
-	Nodes[1][0] = &Segment1.GetFirstNode();
-	Nodes[1][1] = &Segment1.GetSecondNode();
-
-	FPoint2D Points[2][2];
-	Points[0][0] = Nodes[0][0]->Get2DPoint(EGridSpace::UniformScaled, Grid);
-	Points[0][1] = Nodes[0][1]->Get2DPoint(EGridSpace::UniformScaled, Grid);
-	Points[1][0] = Nodes[1][0]->Get2DPoint(EGridSpace::UniformScaled, Grid);
-	Points[1][1] = Nodes[1][1]->Get2DPoint(EGridSpace::UniformScaled, Grid);
-
-	int32 ProjectedNodeIndex[2] = { 0, 0 };
-	FPoint2D ProjectedPoints[2];
-	double Distance[2] = { HUGE_VALUE, HUGE_VALUE };
-	int32 OtherSegmentIndex = 0;
-	int32 SegmentIndex = 1;
-
-	TFunction<void(int32)> ProjectInnerPoint = [&](int32 OtherSegmentNodeIndex)
-	{
-		double Coordinate;
-		ProjectedPoints[OtherSegmentIndex] = ProjectPointOnSegment(Points[OtherSegmentIndex][OtherSegmentNodeIndex], Points[SegmentIndex][0], Points[SegmentIndex][1], Coordinate, false);
-		bool bProjectedPoint1IsInside = (Coordinate >= -DOUBLE_SMALL_NUMBER && Coordinate <= 1 + DOUBLE_SMALL_NUMBER);
-		if (bProjectedPoint1IsInside)
-		{
-			Distance[OtherSegmentIndex] = ProjectedPoints[OtherSegmentIndex].Distance(Points[OtherSegmentIndex][OtherSegmentNodeIndex]);
-		}
-
-#ifdef DEBUG_CLOSED_OUSIDE_POINT
-		if (bDisplay)
-		{
-			{
-				F3DDebugSession _(TEXT("Segs"));
-				DisplaySegment(Points[SegmentIndex][0], Points[SegmentIndex][1], 0, EVisuProperty::BlueCurve);
-				DisplayPoint(Points[OtherSegmentIndex][OtherSegmentNodeIndex], EVisuProperty::RedPoint);
-				DisplayPoint(ProjectedPoints[OtherSegmentIndex], EVisuProperty::RedPoint);
-				Wait(false);
-			}
-		}
-#endif
-	};
-
-	TFunction<void()> FindInnerNodeAndProjectIt = [&]()
-	{
-		OtherSegmentIndex = SegmentIndex ? 0 : 1;
-
-		double OrientedSlop = ComputeOrientedSlope(Points[SegmentIndex][0], Points[SegmentIndex][1], Points[OtherSegmentIndex][0]);
-		ProjectedNodeIndex[OtherSegmentIndex] = ((SegmentLoopIndex[0] == 0) == (OrientedSlop < 0)) ? 0 : 1;
-		ProjectInnerPoint(ProjectedNodeIndex[OtherSegmentIndex]);
-	};
-
-	SegmentIndex = 0;
-	FindInnerNodeAndProjectIt();
-	SegmentIndex = 1;
-	FindInnerNodeAndProjectIt();
-
-	if (Distance[0] == HUGE_VALUE && Distance[1] == HUGE_VALUE)
-	{
-		return false;
-	}
-
-	TFunction<void(int32)> MoveNode = [&](int32 MovePointIndex)
-	{
-		FPoint2D MoveDirection = ProjectedPoints[MovePointIndex] - Points[MovePointIndex][ProjectedNodeIndex[MovePointIndex]];
-		MoveDirection.Normalize();
-
-		if (MoveDirection.SquareLength() < 0.5)
-		{
-			MoveDirection = Points[MovePointIndex][ProjectedNodeIndex[MovePointIndex] == 0 ? 1 : 0] - ProjectedPoints[MovePointIndex];
-			MoveDirection.Normalize();
-		}
-
-		MoveDirection *= GeometricTolerance;
-		FPoint2D NewCoordinate = ProjectedPoints[MovePointIndex] + MoveDirection;
-
-		FLoopNode& Node = (FLoopNode&) const_cast<FIsoNode&>(*Nodes[MovePointIndex][ProjectedNodeIndex[MovePointIndex]]);
-		FLoopNode& PreviousNode = Node.GetPreviousNode();
-		FLoopNode& NextNode = Node.GetNextNode();
-
-		if ((PreviousNode.Get2DPoint(EGridSpace::UniformScaled, Grid).SquareDistance(NewCoordinate) < SquareGeometricTolerance2) ||
-			(NextNode.Get2DPoint(EGridSpace::UniformScaled, Grid).SquareDistance(NewCoordinate) < SquareGeometricTolerance2))
-		{
-			RemoveNodeOfLoop(Node);
-			return;
-		}
-
-		const_cast<FIsoNode&>((*Nodes[MovePointIndex][ProjectedNodeIndex[MovePointIndex]])).Set2DPoint(EGridSpace::UniformScaled, Grid, NewCoordinate);
-
-#ifdef DEBUG_CLOSED_OUSIDE_POINT
-		if (bDisplay)
-		{
-			F3DDebugSession _(TEXT("New Segs"));
-			DisplayPoint(NewCoordinate, EVisuProperty::RedPoint);
-			Display(EGridSpace::UniformScaled, Segment1, 0, EVisuProperty::RedCurve);
-			Display(EGridSpace::UniformScaled, Segment0, 0, EVisuProperty::BlueCurve);
-			Wait(false);
-		}
-#endif
-	};
-
-	int32 MovePoint = (Distance[0] < Distance[1]) ? 0 : 1;
-	MoveNode(MovePoint);
-	return true;
-}
-#endif
 
 void FLoopCleaner::FixLoopOrientation()
 {
@@ -1105,10 +868,10 @@ bool FLoopCleaner::RemoveIntersectionsOfSubLoop(int32 IntersectionIndex, int32 I
 				}
 
 
-				double SlopSide0 = ComputeUnorientedSlope(GetPrevious(NodeSide0)->Get2DPoint(EGridSpace::UniformScaled, Grid), NodeSide0->Get2DPoint(EGridSpace::UniformScaled, Grid), GetNext(NodeSide0)->Get2DPoint(EGridSpace::UniformScaled, Grid));
-				double SlopSide1 = ComputeUnorientedSlope(GetPrevious(NodeSide1)->Get2DPoint(EGridSpace::UniformScaled, Grid), NodeSide1->Get2DPoint(EGridSpace::UniformScaled, Grid), GetNext(NodeSide1)->Get2DPoint(EGridSpace::UniformScaled, Grid));
+				double SlopeSide0 = ComputeUnorientedSlope(GetPrevious(NodeSide0)->Get2DPoint(EGridSpace::UniformScaled, Grid), NodeSide0->Get2DPoint(EGridSpace::UniformScaled, Grid), GetNext(NodeSide0)->Get2DPoint(EGridSpace::UniformScaled, Grid));
+				double SlopeSide1 = ComputeUnorientedSlope(GetPrevious(NodeSide1)->Get2DPoint(EGridSpace::UniformScaled, Grid), NodeSide1->Get2DPoint(EGridSpace::UniformScaled, Grid), GetNext(NodeSide1)->Get2DPoint(EGridSpace::UniformScaled, Grid));
 
-				if (SlopSide0 < SlopSide1)
+				if (SlopeSide0 < SlopeSide1)
 				{
 					MoveNodeBehindOther(NodeSide1, NodeSide0);
 				}
@@ -1497,16 +1260,16 @@ bool FLoopCleaner::IsAPinch(const LoopCleanerImpl::FPinchIntersectionContext& Co
 
 bool FLoopCleaner::DisconnectCoincidentNodes(const LoopCleanerImpl::FPinchIntersectionContext& Context)
 {
-	double Slop00 = ComputeSlope(*Context.Points[0][1], *Context.Points[0][0]);
-	double Slop02 = ComputeSlope(*Context.Points[0][1], *Context.Points[0][2]);
-	double Slop10 = ComputeSlope(*Context.Points[1][1], *Context.Points[1][0]);
-	double Slop12 = ComputeSlope(*Context.Points[1][1], *Context.Points[1][2]);
+	double Slope00 = ComputeSlope(*Context.Points[0][1], *Context.Points[0][0]);
+	double Slope02 = ComputeSlope(*Context.Points[0][1], *Context.Points[0][2]);
+	double Slope10 = ComputeSlope(*Context.Points[1][1], *Context.Points[1][0]);
+	double Slope12 = ComputeSlope(*Context.Points[1][1], *Context.Points[1][2]);
 
-	double MediumSlop0 = TransformIntoPositiveSlope((Slop00 + Slop02) * 0.5);
-	double MediumSlop1 = TransformIntoPositiveSlope((Slop10 + Slop12) * 0.5);
+	double MediumSlope0 = TransformIntoPositiveSlope((Slope00 + Slope02) * 0.5);
+	double MediumSlope1 = TransformIntoPositiveSlope((Slope10 + Slope12) * 0.5);
 
-	FPoint2D P1 = SlopeToVector(MediumSlop1);
-	FPoint2D P0 = SlopeToVector(MediumSlop0);
+	FPoint2D P1 = SlopeToVector(MediumSlope1);
+	FPoint2D P0 = SlopeToVector(MediumSlope0);
 	P1.Normalize()*= GeometricTolerance*30;
 	P0.Normalize()*= GeometricTolerance*30;
 
@@ -1670,10 +1433,10 @@ bool FLoopCleaner::TryToSwapSegmentsOrRemoveLoop(const TPair<double, double>& In
 	}
 #endif
 
-	double Slop = ComputeSlope(Segment0_Point0, Segment0_Point1);
-	Slop = ComputeUnorientedSlope(Segment1_Point0, Segment1_Point1, Slop);
+	double Slope = ComputeSlope(Segment0_Point0, Segment0_Point1);
+	Slope = ComputeUnorientedSlope(Segment1_Point0, Segment1_Point1, Slope);
 
-	if (Slop < 2)
+	if (Slope < 2)
 	{
 		FIsoSegment* Segment0 = Segment0_Node0->GetSegmentConnectedTo(Segment0_Node1);
 		FIsoSegment* Segment1 = Segment1_Node0->GetSegmentConnectedTo(Segment1_Node1);
@@ -1747,16 +1510,19 @@ void FLoopCleaner::SwapSubLoopOrientation(int32 FirstSegmentIndex, int32 LastSeg
 
 	TArray<FIsoSegment*> Segments;
 	{
-		int32 SegCount = LastSegmentIndex - FirstSegmentIndex;
-		if (SegCount < 0)
+		int32 SegCount = 0;
+		if (LastSegmentIndex < FirstSegmentIndex)
 		{
-			SegCount = 0;
 			int32 SegIndex = FitSegmentIndex(FirstSegmentIndex);
 			do
 			{
 				SegCount++;
 				SegIndex = NextSegmentIndex(SegIndex);
 			} while (SegIndex != LastSegmentIndex);
+		}
+		else
+		{
+			SegCount = LastSegmentIndex - FirstSegmentIndex;
 		}
 		Segments.Reserve(SegCount);
 	}
@@ -2003,10 +1769,10 @@ bool FLoopCleaner::RemoveOuterNode(const TPair<double, double>& Intersection)
 	const FPoint2D* Point1 = &Node1->Get2DPoint(EGridSpace::UniformScaled, Grid);
 	const FPoint2D* NextPoint = &NextNode->Get2DPoint(EGridSpace::UniformScaled, Grid);
 
-	double Slop0 = ComputeUnorientedSlope(*Point0, *PreviousPoint, *Point1);
-	double Slop1 = ComputeUnorientedSlope(*Point1, *PreviousPoint, *NextPoint);
+	double Slope0 = ComputeUnorientedSlope(*Point0, *PreviousPoint, *Point1);
+	double Slope1 = ComputeUnorientedSlope(*Point1, *PreviousPoint, *NextPoint);
 
-	if (Slop0 < Slop1)
+	if (Slope0 < Slope1)
 	{
 		return RemoveNodeOfLoop(*Node0);
 	}
@@ -2190,25 +1956,25 @@ void FLoopCleaner::FindBestLoopExtremity()
 	FLoopNode* ExtremityNodes[4] = { nullptr, nullptr, nullptr, nullptr };
 
 	FLoopNode* BestNode = nullptr;
-	double OptimalSlop = 9.;
+	double OptimalSlope = 9.;
 	LoopIndex = 0;
 
 	//F3DDebugSession _(TEXT("FindBestLoopExtremity"));
 
 	BestStartNodeOfLoops.Reserve(Grid.GetLoopCount());
 
-	TFunction<void(FLoopNode*)> CompareWithSlopAt = [&](FLoopNode* Node)
+	TFunction<void(FLoopNode*)> CompareWithSlopeAt = [&](FLoopNode* Node)
 	{
 		FLoopNode& PreviousNode = Node->GetPreviousNode();
 		FLoopNode& NextNode = Node->GetNextNode();
-		double Slop = ComputePositiveSlope(Node->Get2DPoint(EGridSpace::UniformScaled, Grid), PreviousNode.Get2DPoint(EGridSpace::UniformScaled, Grid), NextNode.Get2DPoint(EGridSpace::UniformScaled, Grid));
+		double Slope = ComputePositiveSlope(Node->Get2DPoint(EGridSpace::UniformScaled, Grid), PreviousNode.Get2DPoint(EGridSpace::UniformScaled, Grid), NextNode.Get2DPoint(EGridSpace::UniformScaled, Grid));
 
-		//F3DDebugSession A(FString::Printf(TEXT("Node Slop %f"), Slop));
+		//F3DDebugSession A(FString::Printf(TEXT("Node Slope %f"), Slope));
 		//Display(EGridSpace::UniformScaled, *Node, 0, EVisuProperty::RedPoint);
 
-		if ((Slop > OptimalSlop) == (LoopIndex == 0))
+		if ((Slope > OptimalSlope) == (LoopIndex == 0))
 		{
-			OptimalSlop = Slop;
+			OptimalSlope = Slope;
 			BestNode = Node;
 		}
 	};
@@ -2216,11 +1982,11 @@ void FLoopCleaner::FindBestLoopExtremity()
 	TFunction<void()> FindLoopExtremity = [&]()
 	{
 		BestNode = nullptr;
-		OptimalSlop = (LoopIndex == 0) ? -1 : 9.;
+		OptimalSlope = (LoopIndex == 0) ? -1 : 9.;
 
 		for (FLoopNode* Node : ExtremityNodes)
 		{
-			CompareWithSlopAt(Node);
+			CompareWithSlopeAt(Node);
 		}
 		BestStartNodeOfLoops.Add(BestNode);
 
@@ -2320,7 +2086,7 @@ EOrientation FLoopCleaner::GetLoopOrientation(const FLoopNode* StartNode)
 	const FLoopNode* BestNode = nullptr;
 
 	LoopIndex = StartNode->GetLoopIndex();
-	double OptimalSlop = (LoopIndex == 0) ? -1 : 9.;
+	double OptimalSlope = (LoopIndex == 0) ? -1 : 9.;
 
 	double MaxFrontSlope = 4;
 	double MinBackSlope = 4;
@@ -2328,14 +2094,14 @@ EOrientation FLoopCleaner::GetLoopOrientation(const FLoopNode* StartNode)
 #ifdef DEBUG_LOOP_ORIENTATION
 	F3DDebugSession _(Grid.bDisplay, TEXT("GetLoopOrientation"));
 #endif
-	TFunction<void(const FLoopNode*)> CompareWithSlopAt = [&](const FLoopNode* Node)
+	TFunction<void(const FLoopNode*)> CompareWithSlopeAt = [&](const FLoopNode* Node)
 	{
 		FLoopNode& PreviousNode = Node->GetPreviousNode();
 		FLoopNode& NextNode = Node->GetNextNode();
 		double Slope = ComputePositiveSlope(Node->Get2DPoint(EGridSpace::UniformScaled, Grid), PreviousNode.Get2DPoint(EGridSpace::UniformScaled, Grid), NextNode.Get2DPoint(EGridSpace::UniformScaled, Grid));
 
 #ifdef DEBUG_LOOP_ORIENTATION
-		F3DDebugSession A(Grid.bDisplay, FString::Printf(TEXT("Slop %f"), Slope));
+		F3DDebugSession A(Grid.bDisplay, FString::Printf(TEXT("Slope %f"), Slope));
 		Grid.DisplayIsoNode(EGridSpace::UniformScaled, *Node);
 		Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *Node, PreviousNode);
 		Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *Node, NextNode);
@@ -2357,7 +2123,7 @@ EOrientation FLoopCleaner::GetLoopOrientation(const FLoopNode* StartNode)
 
 		for (const FLoopNode* Node : ExtremityNodes)
 		{
-			CompareWithSlopAt(Node);
+			CompareWithSlopeAt(Node);
 		}
 
 		// init for next loop

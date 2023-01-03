@@ -71,6 +71,23 @@ struct FGridChronos
 	}
 };
 
+enum class EPointMarker : uint8
+{
+	None = 0x00u,  // No flags.
+
+	IsInside = 0x01u, 
+	IsCloseToLoop = 0x02u,
+
+	IsInsideAndClose = 0x03u,
+
+	//IsTooCloseToLoop = 0x04u,  // node inside the loop but too close to the loop to be include in the mesh
+	//IsInsideAndTooCloseToLoop = 0x05u,
+
+	All = 0xFFu
+};
+ENUM_CLASS_FLAGS(EPointMarker);
+
+
 class FGrid : public FHaveStates
 {
 protected:
@@ -131,16 +148,10 @@ protected:
 	double MinOfMaxElementSize = 0;
 
 	/**
-	 * Array to flag each points as inside the face (if IsInsideDomain[Index] = 1) or outer
-	 * @see IsNodeInsideFace
+	 * Array to flag each points as inside, close, ... the face 
+	 * @see IsNode..., 
 	 */
-	TArray<char> IsInsideFace;
-
-	/**
-	 * Array to flag each points as close to a loop of the face if IsCloseToLoop[Index] = 1
-	 * @see IsNodeCloseToLoop
-	 */
-	TArray<char> IsCloseToLoop;
+	TArray<EPointMarker> PointMarkers;
 
 	/**
 	 * 2D Coordinate of grid nodes in each space
@@ -249,7 +260,7 @@ protected:
 	 *
 	 * This algorithm is inspired of Bresenham's line algorithm
 	 * The loop is traversed segment by segment
-	 * For each segment, according to the slop of the segment, each cell intersecting the segment is selected (FindIntersectionsCaseSlop_) i.e. each corner node of the cell is flagged IsCloseToLoop (SetCellCloseToLoop)
+	 * For each segment, according to the slop of the segment, each cell intersecting the segment is selected (FindIntersectionsCaseSlope_) i.e. each corner node of the cell is flagged IsCloseToLoop (SetCellCloseToLoop)
 	 * @see SlopeUtils
 	 * @see IsNodeCloseToLoop
 	 * @see ProcessPointCloud (called in ProcessPointClound)
@@ -265,8 +276,7 @@ protected:
 	 *
 	 * @see ProcessPointClound (called in ProcessPointClound)
 	 */
-	void RemovePointsClosedToLoop();
-
+	void RemovePointsCloseToLoop();
 
 	/**
 	 * Gets the cutting coordinates of the existing mesh of bordering edges (loop's edges)
@@ -322,7 +332,7 @@ public:
 	 */
 	const bool IsNodeInsideFace(int32 IndexU, int32 IndexV) const
 	{
-		return IsInsideFace[GobalIndex(IndexU, IndexV)] == 1;
+		return IsNodeInsideFace(GobalIndex(IndexU, IndexV));
 	}
 
 	/**
@@ -330,7 +340,30 @@ public:
 	 */
 	const bool IsNodeInsideFace(int32 Index) const
 	{
-		return IsInsideFace[Index] == 1;
+		return (PointMarkers[Index] & EPointMarker::IsInside) == EPointMarker::IsInside;
+	}
+
+	/**
+	 * @return true if 
+	 */
+	//const bool IsNodeFarFromFace(int32 Index) const
+	//{
+	//	return (PointMarkers[Index] & EPointMarker::IsInsideAndClose) == EPointMarker::None;
+	//}
+
+	const bool IsNodeOusideFace(int32 Index) const
+	{
+		return (PointMarkers[Index] & EPointMarker::IsInside) == EPointMarker::None;
+	}
+
+	const bool IsNodeCloseToButOusideFace(int32 Index) const
+	{
+		return (PointMarkers[Index] & EPointMarker::IsInsideAndClose) == EPointMarker::IsCloseToLoop;
+	}
+
+	void SetNodeInside(int32 Index)
+	{
+		PointMarkers[Index] |= EPointMarker::IsInside;
 	}
 
 	/**
@@ -344,18 +377,62 @@ public:
 	/**
 	 * @return true if the node is close to a loop i.e. the loop cross the space [[IndexU - 1, IndexU + 1], [IndexV - 1, IndexV + 1]]
 	 */
-	const bool IsNodeCloseToLoop(int32 IndexU, int32 IndexV) const
+	const bool IsNodeCloseToLoop(int32 Index) const
 	{
-		return IsCloseToLoop[GobalIndex(IndexU, IndexV)] == 1;
+		return (PointMarkers[Index] & EPointMarker::IsCloseToLoop) == EPointMarker::IsCloseToLoop;
+	}
+
+	/*const bool IsNodeTooCloseToLoop2(int32 IndexU, int32 IndexV) const
+	{
+		return IsNodeTooCloseToLoop2(GobalIndex(IndexU, IndexV));
+	}*/
+
+	//const bool IsNodeTooCloseToLoop2(int32 Index) const
+	//{
+	//	return (PointMarkers[Index] & EPointMarker::IsTooCloseToLoop) == EPointMarker::IsTooCloseToLoop;
+	//}
+
+	void SetCloseToLoop(int32 Index)
+	{
+		PointMarkers[Index] |= EPointMarker::IsCloseToLoop;
+	}
+
+	/*void ResetCloseToAndInsideLoop(int32 Index)
+	{
+		PointMarkers[Index] &= ~EPointMarker::IsInsideAndClose;
+	}*/
+
+	void SetTooCloseToLoop(int32 Index)
+	{
+		//PointMarkers[Index] |= EPointMarker::IsTooCloseToLoop;
+		PointMarkers[Index] &= ~EPointMarker::IsInsideAndClose;
+	}
+
+	void ResetInsideLoop(int32 Index)
+	{
+		PointMarkers[Index] &= ~EPointMarker::IsInside;
 	}
 
 	/**
-	 * @return true if the node is close to a loop i.e. the loop cross the space [[IndexU - 1, IndexU + 1], [IndexV - 1, IndexV + 1]]
+	 * @return true if the node is close to or inside a loop i.e. the loop cross the space [[IndexU - 1, IndexU + 1], [IndexV - 1, IndexV + 1]]
 	 */
-	const bool IsNodeCloseToLoop(int32 Index) const
+	/*const bool IsNodeCloseToOrInsideLoop2(int32 Index) const
 	{
-		return IsCloseToLoop[Index] == 1;
+		return (bool) (PointMarkers[Index] & EPointMarker::IsInsideAndClose);
+	}*/
+
+	const bool IsNodeCloseToAndInsideLoop(int32 Index) const
+	{
+		return (PointMarkers[Index] & EPointMarker::IsInsideAndClose) == EPointMarker::IsInsideAndClose;
 	}
+
+	/**
+	 * @return true if the node is inside the face but not too close to the loop to be meshed
+	 */
+	//const bool IsNodeMeshable(int32 Index) const
+	//{
+	//	return (PointMarkers[Index] & EPointMarker::IsInsideAndTooCloseToLoop) == EPointMarker::IsInside;
+	//}
 
 	/**
 	 * @return the FPoint2D (parametric coordinates) of the point at the Index of the grid in the defined grid space
@@ -641,13 +718,13 @@ public:
 		F3DDebugSession _(Message);
 		for (int32 Index = 0; Index < Points.Num(); ++Index)
 		{
-			if (IsInsideFace[Index])
+			if (IsNodeInsideFace(Index))
 			{
-				DisplayPoint(Points[Index] * DisplayScale, IsCloseToLoop[Index] ? EVisuProperty::BluePoint : EVisuProperty::GreenPoint, Index);
+				DisplayPoint(Points[Index] * DisplayScale, /*IsNodeTooCloseToLoop2(Index) ? EVisuProperty::RedPoint :*/ EVisuProperty::BluePoint, Index);
 			}
 			else
 			{
-				DisplayPoint(Points[Index] * DisplayScale, EVisuProperty::OrangePoint, Index);
+				DisplayPoint(Points[Index] * DisplayScale, IsNodeCloseToLoop(Index) ? EVisuProperty::YellowPoint : EVisuProperty::GreenPoint , Index);
 			}
 		}
 	}

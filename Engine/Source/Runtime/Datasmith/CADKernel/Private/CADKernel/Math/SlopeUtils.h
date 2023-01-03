@@ -36,7 +36,7 @@ constexpr double MinusRightSlope = -2.;
 constexpr double PiSlope = 4.;
 }
 
-typedef TFunction<double(const FPoint2D&, const FPoint2D&, double)> SlopMethod;
+typedef TFunction<double(const FPoint2D&, const FPoint2D&, double)> SlopeMethod;
 
 
 /**
@@ -180,12 +180,12 @@ inline double ComputePositiveSlope(const FPoint2D& StartPoint, const FPoint2D& E
 	return TransformIntoPositiveSlope(Slope);
 }
 
-inline double ClockwiseSlop(const FPoint2D& StartPoint, const FPoint2D& EndPoint, double ReferenceSlope)
+inline double ClockwiseSlope(const FPoint2D& StartPoint, const FPoint2D& EndPoint, double ReferenceSlope)
 {
 	return 8. - ComputePositiveSlope(StartPoint, EndPoint, ReferenceSlope);
 }
 
-inline double CounterClockwiseSlop(const FPoint2D& StartPoint, const FPoint2D& EndPoint, double ReferenceSlope)
+inline double CounterClockwiseSlope(const FPoint2D& StartPoint, const FPoint2D& EndPoint, double ReferenceSlope)
 {
 	return ComputePositiveSlope(StartPoint, EndPoint, ReferenceSlope);
 }

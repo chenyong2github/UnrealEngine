@@ -653,7 +653,7 @@ public:
 	/**
 	 * Compute the edge 2D properties i.e. the mean and standard deviation of the slop of the edge in the parametric space of the carrier surface
 	 */
-	void ComputeEdge2DProperties(FEdge2DProperties& SlopCharacteristics);
+	void ComputeEdge2DProperties(FEdge2DProperties& SlopeCharacteristics);
 
 	void GetExtremities(FSurfacicCurveExtremities& Extremities) const
 	{
@@ -753,17 +753,17 @@ public:
 struct CADKERNEL_API FEdge2DProperties
 {
 	double StandardDeviation = 0;
-	double MediumSlop = 0;
+	double MediumSlope = 0;
 	double Length3D = 0;
 	EIso IsoType = EIso::UndefinedIso;
 	bool bIsMesh = false;
 	double MeshedLength = 0;
 
-	void Add(double InSlop, double InLength)
+	void Add(double InSlope, double InLength)
 	{
-		double Temp = InSlop * InLength;
-		MediumSlop += Temp;
-		Temp *= InSlop;
+		double Temp = InSlope * InLength;
+		MediumSlope += Temp;
+		Temp *= InSlope;
 		StandardDeviation += Temp;
 		Length3D += InLength;
 	}
@@ -771,13 +771,13 @@ struct CADKERNEL_API FEdge2DProperties
 	// Finalize has been done on each Property
 	void Add2(FEdge2DProperties& Property)
 	{
-		StandardDeviation = (FMath::Square(StandardDeviation) + FMath::Square(MediumSlop)) * Length3D + (FMath::Square(Property.StandardDeviation) + FMath::Square(Property.MediumSlop)) * Property.Length3D;
-		MediumSlop = MediumSlop * Length3D + Property.MediumSlop * Property.Length3D;
+		StandardDeviation = (FMath::Square(StandardDeviation) + FMath::Square(MediumSlope)) * Length3D + (FMath::Square(Property.StandardDeviation) + FMath::Square(Property.MediumSlope)) * Property.Length3D;
+		MediumSlope = MediumSlope * Length3D + Property.MediumSlope * Property.Length3D;
 		Length3D += Property.Length3D;
 
-		MediumSlop /= Length3D;
+		MediumSlope /= Length3D;
 		StandardDeviation /= Length3D;
-		StandardDeviation -= FMath::Square(MediumSlop);
+		StandardDeviation -= FMath::Square(MediumSlope);
 		StandardDeviation = sqrt(StandardDeviation);
 	}
 
@@ -785,15 +785,15 @@ struct CADKERNEL_API FEdge2DProperties
 	void Add(FEdge2DProperties& Property)
 	{
 		StandardDeviation += Property.StandardDeviation;
-		MediumSlop += Property.MediumSlop;
+		MediumSlope += Property.MediumSlope;
 		Length3D += Property.Length3D;
 	}
 
 	void Finalize()
 	{
-		MediumSlop /= Length3D;
+		MediumSlope /= Length3D;
 		StandardDeviation /= Length3D;
-		StandardDeviation -= FMath::Square(MediumSlop);
+		StandardDeviation -= FMath::Square(MediumSlope);
 		if (StandardDeviation < 0)
 		{
 			StandardDeviation = 0;
@@ -804,14 +804,14 @@ struct CADKERNEL_API FEdge2DProperties
 		}
 		IsoType = EIso::UndefinedIso;
 
-		if (MediumSlop < 0.2)
+		if (MediumSlope < 0.2)
 		{
 			if (StandardDeviation < 0.1)
 			{
 				IsoType = EIso::IsoU;
 			}
 		}
-		else if (MediumSlop > 1.8)
+		else if (MediumSlope > 1.8)
 		{
 			if (StandardDeviation < 0.1)
 			{

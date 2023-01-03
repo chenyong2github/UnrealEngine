@@ -334,9 +334,9 @@ bool FTopologicalLoop::Orient()
 		// Pic case: the slop is compute between previous and next segment of the extrema 
 		//     if the slop is closed to 0 or 8, it could be pick in self intersecting. We try to recompute the slop a the closed point
 		//          if the slop is still closed to 0 or 8, the pic is not used
-		double Slop = ComputePositiveSlope(LoopSampling[Index], LoopSampling[NextIndex], LoopSampling[PreviousIndex]);
+		double Slope = ComputePositiveSlope(LoopSampling[Index], LoopSampling[NextIndex], LoopSampling[PreviousIndex]);
 
-		if(Slop > 7.9 || Slop < 0.1)
+		if(Slope > 7.9 || Slope < 0.1)
 		{
 			double SquareLengthBefore = LoopSampling[Index].SquareDistance(LoopSampling[PreviousIndex]);
 			double SquareLengthAfter = LoopSampling[Index].SquareDistance(LoopSampling[NextIndex]);
@@ -355,12 +355,12 @@ bool FTopologicalLoop::Orient()
 				}
 			}
 
-			Slop = ComputePositiveSlope(LoopSampling[Index], LoopSampling[NextIndex], LoopSampling[PreviousIndex]);
+			Slope = ComputePositiveSlope(LoopSampling[Index], LoopSampling[NextIndex], LoopSampling[PreviousIndex]);
 
 #ifdef DEBUG_ORIENT
 			if (bDisplayDebug)
 			{
-				F3DDebugSession _(*FString::Printf(TEXT("Fix Pic Node %f"), Slop));
+				F3DDebugSession _(*FString::Printf(TEXT("Fix Pic Node %f"), Slope));
 				DisplayPoint(LoopSampling[Index], EVisuProperty::BluePoint, Index);
 				DisplaySegment(LoopSampling[PreviousIndex], LoopSampling[Index], EVisuProperty::GreenCurve);
 				DisplaySegment(LoopSampling[NextIndex], LoopSampling[Index], EVisuProperty::GreenCurve);
@@ -369,46 +369,46 @@ bool FTopologicalLoop::Orient()
 		}
 
 
-		if (Slop > 7.9 || Slop < 0.1)
+		if (Slope > 7.9 || Slope < 0.1)
 		{
 			UndefinedOrientationCount++;
 		}
-		else if (Slop > 4.2)
+		else if (Slope > 4.2)
 		{
 			WrongOrientationCount++;
 		}
-		else if (Slop < 3.8)
+		else if (Slope < 3.8)
 		{
 			GoodOrientationCount++;
 		}
 		else
 		{
 			// Extrema case: the slop is compute between the next segment and the nearest BBox side 
-			double ReferenceSlop = 0;
+			double ReferenceSlope = 0;
 			if (FMath::IsNearlyEqual(LoopSampling[Index].U, UMin))
 			{
-				ReferenceSlop = 6;
+				ReferenceSlope = 6;
 			}
 			else if (FMath::IsNearlyEqual(LoopSampling[Index].U, UMax))
 			{
-				ReferenceSlop = 2;
+				ReferenceSlope = 2;
 			}
 			else if (FMath::IsNearlyEqual(LoopSampling[Index].V, VMin))
 			{
-				ReferenceSlop = 0;
+				ReferenceSlope = 0;
 			}
 			else if (FMath::IsNearlyEqual(LoopSampling[Index].V, VMax))
 			{
-				ReferenceSlop = 4;
+				ReferenceSlope = 4;
 			}
 
-			Slop = ComputeUnorientedSlope(LoopSampling[Index], LoopSampling[NextIndex], ReferenceSlop);
+			Slope = ComputeUnorientedSlope(LoopSampling[Index], LoopSampling[NextIndex], ReferenceSlope);
 			// slop should be closed to [0, 0.2] or [3.8, 4]
-			if (Slop > 3.8)
+			if (Slope > 3.8)
 			{
 				WrongOrientationCount++;
 			}
-			else if (Slop < 0.2)
+			else if (Slope < 0.2)
 			{
 				GoodOrientationCount++;
 			}
@@ -427,7 +427,7 @@ bool FTopologicalLoop::Orient()
 						DisplaySegment(LoopSampling[NextIndex], LoopSampling[Index], EVisuProperty::YellowCurve);
 					}
 					{
-						F3DDebugSession _(*FString::Printf(TEXT("Node %f"), Slop));
+						F3DDebugSession _(*FString::Printf(TEXT("Node %f"), Slope));
 						DisplayPoint(LoopSampling[Index], EVisuProperty::RedPoint, Index);
 					}
 					Wait();
@@ -454,7 +454,7 @@ bool FTopologicalLoop::Orient()
 				DisplaySegment(LoopSampling[PreviousIndex], LoopSampling[Index], EVisuProperty::YellowCurve);
 			}
 			{
-				F3DDebugSession _(*FString::Printf(TEXT("Node %f"), Slop));
+				F3DDebugSession _(*FString::Printf(TEXT("Node %f"), Slope));
 				DisplayPoint(LoopSampling[Index], EVisuProperty::RedPoint, Index);
 			}
 			Wait();
@@ -822,11 +822,11 @@ void FTopologicalLoop::RemoveDegeneratedEdges()
 		FPoint2D& DegeneratedEdgeExtremity = (bPrevious == (DegeneratedOrientedEdge.Direction == EOrientation::Front)) ? DegeneratedEdgeExtremities[0].Point2D : DegeneratedEdgeExtremities[1].Point2D;
 		FPoint2D& OtherDegeneratedEdgeExtremity = (bPrevious == (DegeneratedOrientedEdge.Direction == EOrientation::Front)) ? DegeneratedEdgeExtremities[1].Point2D : DegeneratedEdgeExtremities[0].Point2D;
 
-		double Slop = ComputeUnorientedSlope(FPoint2D::ZeroPoint, DegeneratedEdgeTangent, NearEdgeTangent);
-		constexpr double FlatSlop = 3.9; // ~175 deg. 
+		double Slope = ComputeUnorientedSlope(FPoint2D::ZeroPoint, DegeneratedEdgeTangent, NearEdgeTangent);
+		constexpr double FlatSlope = 3.9; // ~175 deg. 
 		// a degenerated edge has to be really tangent with its neighbor edge to be merge with it
 		// otherwise it could distort the neighbor edge.
-		if (Slop > FlatSlop)
+		if (Slope > FlatSlope)
 		{
 			NearOrientedEdge.Entity->ExtendTo((bPrevious == (NearOrientedEdge.Direction != EOrientation::Front)), OtherDegeneratedEdgeExtremity, OtherDegeneratedEdgeVertex);
 			DegeneratedEdge->Delete();

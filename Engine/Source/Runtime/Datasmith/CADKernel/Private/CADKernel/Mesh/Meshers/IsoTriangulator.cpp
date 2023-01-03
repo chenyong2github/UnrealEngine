@@ -95,6 +95,7 @@ bool FIsoTriangulator::Triangulate()
 #ifdef DEBUG_ISOTRIANGULATOR
 	DisplayLoops(TEXT("FIsoTrianguler::LoopSegments after fix intersection"), true, false);
 	Grid.DisplayIsoSegments(TEXT("FIsoTrianguler::LoopSegments orientation"), DisplaySpace, LoopSegments, false, true, EVisuProperty::YellowCurve);
+	Grid.DisplayIsoSegments(TEXT("FIsoTrianguler::LoopSegments"), DisplaySpace, LoopSegments, true, false, EVisuProperty::YellowCurve);
 	Wait(false);
 #endif
 
@@ -118,7 +119,7 @@ bool FIsoTriangulator::Triangulate()
 		F3DDebugSession A(bDisplay, TEXT("FIsoTrianguler::FinalInnerSegments"));
 		Grid.DisplayIsoSegments(DisplaySpace, FinalInnerSegments, true, false, EVisuProperty::BlueCurve);
 	}
-	InnerToOuterSegmentsIntersectionTool.Display(TEXT("FIsoTrianguler::IntersectionTool InnerToOutter"));
+	InnerToOuterSegmentsIntersectionTool.Display(TEXT("FIsoTrianguler::IntersectionTool InnerToOuter"), EVisuProperty::RedCurve);
 	Chronos.TriangulateDuration1 = FChrono::Elapse(StartTime);
 #endif
 
@@ -324,24 +325,24 @@ void FIsoTriangulator::BuildLoopSegments()
 
 	for (FIsoSegment* Segment : LoopSegments)
 	{
-		double SegmentSlop = ComputeSlope(Segment->GetFirstNode().Get2DPoint(EGridSpace::UniformScaled, Grid), Segment->GetSecondNode().Get2DPoint(EGridSpace::UniformScaled, Grid));
-		if (SegmentSlop < IsoTriangulatorImpl::MaxSlopeToBeIso)
+		double SegmentSlope = ComputeSlope(Segment->GetFirstNode().Get2DPoint(EGridSpace::UniformScaled, Grid), Segment->GetSecondNode().Get2DPoint(EGridSpace::UniformScaled, Grid));
+		if (SegmentSlope < IsoTriangulatorImpl::MaxSlopeToBeIso)
 		{
 			Segment->SetAsIsoU();
 		}
-		if (SegmentSlop < IsoTriangulatorImpl::LimitValueMax(2.) && SegmentSlop > IsoTriangulatorImpl::LimitValueMin(2.))
+		if (SegmentSlope < IsoTriangulatorImpl::LimitValueMax(2.) && SegmentSlope > IsoTriangulatorImpl::LimitValueMin(2.))
 		{
 			Segment->SetAsIsoV();
 		}
-		if (SegmentSlop < IsoTriangulatorImpl::LimitValueMax(4.) && SegmentSlop > IsoTriangulatorImpl::LimitValueMin(4.))
+		if (SegmentSlope < IsoTriangulatorImpl::LimitValueMax(4.) && SegmentSlope > IsoTriangulatorImpl::LimitValueMin(4.))
 		{
 			Segment->SetAsIsoU();
 		}
-		if (SegmentSlop < IsoTriangulatorImpl::LimitValueMax(6.) && SegmentSlop > IsoTriangulatorImpl::LimitValueMin(6.))
+		if (SegmentSlope < IsoTriangulatorImpl::LimitValueMax(6.) && SegmentSlope > IsoTriangulatorImpl::LimitValueMin(6.))
 		{
 			Segment->SetAsIsoV();
 		}
-		if (SegmentSlop > IsoTriangulatorImpl::LimitValueMin(8.))
+		if (SegmentSlope > IsoTriangulatorImpl::LimitValueMin(8.))
 		{
 			Segment->SetAsIsoU();
 		}
@@ -986,8 +987,8 @@ void FIsoTriangulator::FindSegmentToLinkOuterToInnerLoopNodes(FCell& Cell)
 #endif 
 	};
 
-	const SlopMethod GetSlopAtStartNode = CounterClockwiseSlop;
-	const SlopMethod GetSlopAtEndNode = ClockwiseSlop;
+	const SlopeMethod GetSlopeAtStartNode = CounterClockwiseSlope;
+	const SlopeMethod GetSlopeAtEndNode = ClockwiseSlope;
 	TFunction<void(FIsoSegment*)> FindBestTriangle = [&](FIsoSegment* Segment)
 	{
 		FLoopNode& StartNode = (FLoopNode&)Segment->GetFirstNode();
@@ -1027,16 +1028,16 @@ void FIsoTriangulator::FindSegmentToLinkOuterToInnerLoopNodes(FCell& Cell)
 		// StartMaxSlope and EndMaxSlope are at most equal to 4, because if the slop with candidate node is biggest to 4, the nez triangle will be inverted
 		double StartReferenceSlope = ComputePositiveSlope(StartPoint2D, EndPoint2D, 0);
 
-		double StartMaxSlope = GetSlopAtStartNode(StartPoint2D, PreviousNode.Get2DPoint(EGridSpace::UniformScaled, Grid), StartReferenceSlope);
+		double StartMaxSlope = GetSlopeAtStartNode(StartPoint2D, PreviousNode.Get2DPoint(EGridSpace::UniformScaled, Grid), StartReferenceSlope);
 		StartMaxSlope /= 2.;
 		StartMaxSlope = FMath::Min(StartMaxSlope, 4.);
 
 		double EndReferenceSlope = StartReferenceSlope < 4 ? StartReferenceSlope + 4 : StartReferenceSlope - 4;
-		double EndMaxSlope = GetSlopAtEndNode(EndPoint2D, NextNode.Get2DPoint(EGridSpace::UniformScaled, Grid), EndReferenceSlope);
+		double EndMaxSlope = GetSlopeAtEndNode(EndPoint2D, NextNode.Get2DPoint(EGridSpace::UniformScaled, Grid), EndReferenceSlope);
 		EndMaxSlope /= 2.;
 		EndMaxSlope = FMath::Min(EndMaxSlope, 4.);
 
-		const double MinSlopToNotBeAligned = 0.01;
+		const double MinSlopeToNotBeAligned = 0.01;
 
 		FLoopNode* CandidatNode = nullptr;
 		double MinCriteria = HUGE_VALUE;
@@ -1049,8 +1050,8 @@ void FIsoTriangulator::FindSegmentToLinkOuterToInnerLoopNodes(FCell& Cell)
 			{
 				// Check if the node is inside the sector (X) or outside (Z)
 				const FPoint2D& NodePoint2D = Node->Get2DPoint(EGridSpace::UniformScaled, Grid);
-				double SlopeAtStartNode = GetSlopAtStartNode(StartPoint2D, NodePoint2D, StartReferenceSlope);
-				double SlopeAtEndNode = GetSlopAtEndNode(EndPoint2D, NodePoint2D, EndReferenceSlope);
+				double SlopeAtStartNode = GetSlopeAtStartNode(StartPoint2D, NodePoint2D, StartReferenceSlope);
+				double SlopeAtEndNode = GetSlopeAtEndNode(EndPoint2D, NodePoint2D, EndReferenceSlope);
 
 				if (SlopeAtStartNode <= 0 || SlopeAtStartNode >= StartMaxSlope)
 				{
@@ -1066,7 +1067,7 @@ void FIsoTriangulator::FindSegmentToLinkOuterToInnerLoopNodes(FCell& Cell)
 
 				if (
 					// the candidate triangle is inside the current candidate triangle
-					((SlopeAtStartNode < (CandidateSlopeAtStartNode + MinSlopToNotBeAligned)) && (SlopeAtEndNode < (CandidateSlopeAtEndNode + MinSlopToNotBeAligned))) ||
+					((SlopeAtStartNode < (CandidateSlopeAtStartNode + MinSlopeToNotBeAligned)) && (SlopeAtEndNode < (CandidateSlopeAtEndNode + MinSlopeToNotBeAligned))) ||
 					// or the candidate triangle is better the current candidate triangle and doesn't contain the current candidate triangle
 					((PointCriteria < MinCriteria) && ((SlopeAtStartNode > CandidateSlopeAtStartNode) ^ (SlopeAtEndNode > CandidateSlopeAtEndNode))))
 				{
@@ -1919,8 +1920,8 @@ void FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray<FIsoSegmen
 		return true;
 	};
 
-	const SlopMethod GetSlopAtStartNode = ClockwiseSlop;
-	const SlopMethod GetSlopAtEndNode = CounterClockwiseSlop;
+	const SlopeMethod GetSlopeAtStartNode = ClockwiseSlope;
+	const SlopeMethod GetSlopeAtEndNode = CounterClockwiseSlope;
 
 	TFunction<void(FIsoSegment*, bool)> FindBestTriangle = [&](FIsoSegment* Segment, bool bOrientation)
 	{
@@ -1959,9 +1960,9 @@ void FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray<FIsoSegmen
 		// TODO ? Need to add test to check if the candidate node will not generate flat triangle 
 
 		// PreviousSegment = [A, X0]
-		FIsoSegment* PreviousSegment = FindNextSegment(EGridSpace::UniformScaled, Segment, &StartNode, GetSlopAtStartNode);
+		FIsoSegment* PreviousSegment = FindNextSegment(EGridSpace::UniformScaled, Segment, &StartNode, GetSlopeAtStartNode);
 		// NextSegment = [B, Xn]
-		FIsoSegment* NextSegment = FindNextSegment(EGridSpace::UniformScaled, Segment, &EndNode, GetSlopAtEndNode);
+		FIsoSegment* NextSegment = FindNextSegment(EGridSpace::UniformScaled, Segment, &EndNode, GetSlopeAtEndNode);
 
 		// PreviousNode = X0
 		FIsoNode& PreviousNode = PreviousSegment->GetOtherNode(&StartNode);
@@ -2005,7 +2006,7 @@ void FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray<FIsoSegmen
 
 			// StartMaxSlope and EndMaxSlope are at most equal to 4, because if the slop with candidate node is biggest to 4, the nez triangle will be inverted
 			double StartReferenceSlope = ComputePositiveSlope(StartPoint2D, EndPoint2D, 0);
-			double StartMaxSlope = GetSlopAtStartNode(StartPoint2D, PreviousNode.Get2DPoint(EGridSpace::UniformScaled, Grid), StartReferenceSlope);
+			double StartMaxSlope = GetSlopeAtStartNode(StartPoint2D, PreviousNode.Get2DPoint(EGridSpace::UniformScaled, Grid), StartReferenceSlope);
 			if (&EndNode != &PreviousNode)
 			{
 				// Case of probable auto-intersection cycle at PreviousNode, cancel is preferred 
@@ -2017,7 +2018,7 @@ void FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray<FIsoSegmen
 			StartMaxSlope = FMath::Min(StartMaxSlope, 4.);
 
 			double EndReferenceSlope = StartReferenceSlope < 4 ? StartReferenceSlope + 4 : StartReferenceSlope - 4;
-			double EndMaxSlope = GetSlopAtEndNode(EndPoint2D, NextNode.Get2DPoint(EGridSpace::UniformScaled, Grid), EndReferenceSlope);
+			double EndMaxSlope = GetSlopeAtEndNode(EndPoint2D, NextNode.Get2DPoint(EGridSpace::UniformScaled, Grid), EndReferenceSlope);
 			if (&StartNode != &NextNode)
 			{
 				// Case of probable auto-intersection cycle at PreviousNode, cancel is preferred 
@@ -2029,8 +2030,8 @@ void FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray<FIsoSegmen
 			EndMaxSlope = FMath::Min(EndMaxSlope, 4.);
 
 			double MinCriteria = HUGE_VALUE;
-			const double MinSlopToNotBeAligned = 0.01;
-			const double EpsilonSlop = 0.0001;
+			const double MinSlopeToNotBeAligned = 0.01;
+			const double EpsilonSlope = 0.0001;
 			double CandidateSlopeAtStartNode = 8.;
 			double CandidateSlopeAtEndNode = 8.;
 
@@ -2047,12 +2048,12 @@ void FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray<FIsoSegmen
 
 				// Check if the node is inside the sector (X) or outside (Z)
 				const FPoint2D& NodePoint2D = Node->Get2DPoint(EGridSpace::UniformScaled, Grid);
-				double SlopeAtStartNode = GetSlopAtStartNode(StartPoint2D, NodePoint2D, StartReferenceSlope);
-				double SlopeAtEndNode = GetSlopAtEndNode(EndPoint2D, NodePoint2D, EndReferenceSlope);
+				double SlopeAtStartNode = GetSlopeAtStartNode(StartPoint2D, NodePoint2D, StartReferenceSlope);
+				double SlopeAtEndNode = GetSlopeAtEndNode(EndPoint2D, NodePoint2D, EndReferenceSlope);
 
 				if (Node != &PreviousNode)
 				{
-					if (SlopeAtStartNode <= EpsilonSlop || SlopeAtStartNode >= StartMaxSlope - EpsilonSlop)
+					if (SlopeAtStartNode <= EpsilonSlope || SlopeAtStartNode >= StartMaxSlope - EpsilonSlope)
 					{
 						continue;
 					}
@@ -2060,7 +2061,7 @@ void FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray<FIsoSegmen
 
 				if (Node != &NextNode)
 				{
-					if (SlopeAtEndNode <= EpsilonSlop || SlopeAtEndNode >= EndMaxSlope - EpsilonSlop)
+					if (SlopeAtEndNode <= EpsilonSlope || SlopeAtEndNode >= EndMaxSlope - EpsilonSlope)
 					{
 						continue;
 					}
@@ -2076,12 +2077,12 @@ void FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray<FIsoSegmen
 				}
 #endif
 
-				if (FMath::IsNearlyEqual(SlopeAtStartNode, CandidateSlopeAtStartNode, MinSlopToNotBeAligned) && SlopeAtEndNode > CandidateSlopeAtEndNode)
+				if (FMath::IsNearlyEqual(SlopeAtStartNode, CandidateSlopeAtStartNode, MinSlopeToNotBeAligned) && SlopeAtEndNode > CandidateSlopeAtEndNode)
 				{
 					continue;
 				}
 
-				if (FMath::IsNearlyEqual(SlopeAtEndNode, CandidateSlopeAtEndNode, EpsilonSlop) && SlopeAtStartNode > CandidateSlopeAtStartNode)
+				if (FMath::IsNearlyEqual(SlopeAtEndNode, CandidateSlopeAtEndNode, EpsilonSlope) && SlopeAtStartNode > CandidateSlopeAtStartNode)
 				{
 					continue;
 				}
@@ -2107,7 +2108,7 @@ void FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray<FIsoSegmen
 #endif
 				if (
 					// the candidate triangle is inside the current candidate triangle
-					((SlopeAtStartNode < (CandidateSlopeAtStartNode + MinSlopToNotBeAligned)) && (SlopeAtEndNode < (CandidateSlopeAtEndNode + MinSlopToNotBeAligned)))
+					((SlopeAtStartNode < (CandidateSlopeAtStartNode + MinSlopeToNotBeAligned)) && (SlopeAtEndNode < (CandidateSlopeAtEndNode + MinSlopeToNotBeAligned)))
 					||
 					// the candidate triangle is better the current candidate triangle and doesn't contain the current candidate triangle
 					((PointCriteria < MinCriteria) && ((SlopeAtStartNode > CandidateSlopeAtStartNode) ^ (SlopeAtEndNode > CandidateSlopeAtEndNode))))
@@ -2511,7 +2512,7 @@ bool FIsoTriangulator::FindCycle(FIsoSegment* StartSegment, bool LeftSide, TArra
 
 	for (;;)
 	{
-		Segment = FindNextSegment(EGridSpace::UniformScaled, Segment, Node, ClockwiseSlop);
+		Segment = FindNextSegment(EGridSpace::UniformScaled, Segment, Node, ClockwiseSlope);
 		if (Segment == nullptr)
 		{
 			Cycle.Empty();
@@ -2598,7 +2599,7 @@ bool FIsoTriangulator::FindCycle(FIsoSegment* StartSegment, bool LeftSide, TArra
 static bool bDisplayStar = false;
 #endif
 
-FIsoSegment* FIsoTriangulator::FindNextSegment(EGridSpace Space, const FIsoSegment* StartSegment, const FIsoNode* StartNode, SlopMethod GetSlop) const
+FIsoSegment* FIsoTriangulator::FindNextSegment(EGridSpace Space, const FIsoSegment* StartSegment, const FIsoNode* StartNode, SlopeMethod GetSlope) const
 {
 	const FPoint2D& StartPoint = StartNode->Get2DPoint(Space, Grid);
 	const FPoint2D& EndPoint = (StartNode == &StartSegment->GetFirstNode()) ? StartSegment->GetSecondNode().Get2DPoint(Space, Grid) : StartSegment->GetFirstNode().Get2DPoint(Space, Grid);
@@ -2624,7 +2625,7 @@ FIsoSegment* FIsoTriangulator::FindNextSegment(EGridSpace Space, const FIsoSegme
 	{
 		const FPoint2D& OtherPoint = (StartNode == &Segment->GetFirstNode()) ? Segment->GetSecondNode().Get2DPoint(Space, Grid) : Segment->GetFirstNode().Get2DPoint(Space, Grid);
 
-		double Slope = GetSlop(StartPoint, OtherPoint, ReferenceSlope);
+		double Slope = GetSlope(StartPoint, OtherPoint, ReferenceSlope);
 		if (Slope < SMALL_NUMBER_SQUARE) Slope = 8;
 
 #ifdef DEBUG_FIND_NEXTSEGMENT
@@ -2929,8 +2930,8 @@ void FIsoTriangulator::TryToConnectTwoLoopsWithIsocelesTriangle(FCell& Cell, con
 
 	TFunction<FIsoNode* (FIsoSegment*)> FindBestTriangle = [&](FIsoSegment* Segment) -> FIsoNode*
 	{
-		SlopMethod GetSlopAtStartNode = ClockwiseSlop;
-		SlopMethod GetSlopAtEndNode = CounterClockwiseSlop;
+		SlopeMethod GetSlopeAtStartNode = ClockwiseSlope;
+		SlopeMethod GetSlopeAtEndNode = CounterClockwiseSlope;
 
 		// StartNode = A
 		FIsoNode& StartNode = Segment->GetSecondNode();
@@ -2975,7 +2976,7 @@ void FIsoTriangulator::TryToConnectTwoLoopsWithIsocelesTriangle(FCell& Cell, con
 		double EndReferenceSlope = StartReferenceSlope < 4 ? StartReferenceSlope + 4 : StartReferenceSlope - 4;
 
 		double MinCriteria = HUGE_VALUE;
-		const double MinSlopToNotBeAligned = 0.0001;
+		const double MinSlopeToNotBeAligned = 0.0001;
 		double CandidateSlopeAtStartNode = 8.;
 		double CandidateSlopeAtEndNode = 8.;
 
@@ -2992,18 +2993,18 @@ void FIsoTriangulator::TryToConnectTwoLoopsWithIsocelesTriangle(FCell& Cell, con
 				continue;
 			}
 
-			double SlopeAtStartNode = GetSlopAtStartNode(StartPoint2D, NodePoint2D, StartReferenceSlope);
-			double SlopeAtEndNode = GetSlopAtEndNode(EndPoint2D, NodePoint2D, EndReferenceSlope);
+			double SlopeAtStartNode = GetSlopeAtStartNode(StartPoint2D, NodePoint2D, StartReferenceSlope);
+			double SlopeAtEndNode = GetSlopeAtEndNode(EndPoint2D, NodePoint2D, EndReferenceSlope);
 
 			// check the side of the candidate point accordint to the segment
-			if (SlopeAtStartNode <= MinSlopToNotBeAligned)
+			if (SlopeAtStartNode <= MinSlopeToNotBeAligned)
 			{
 				continue;
 			}
 
 			if (
 				// the candidate triangle is inside the current candidate triangle
-				((SlopeAtStartNode < (CandidateSlopeAtStartNode + MinSlopToNotBeAligned)) && (SlopeAtEndNode < (CandidateSlopeAtEndNode + MinSlopToNotBeAligned)))
+				((SlopeAtStartNode < (CandidateSlopeAtStartNode + MinSlopeToNotBeAligned)) && (SlopeAtEndNode < (CandidateSlopeAtEndNode + MinSlopeToNotBeAligned)))
 				||
 				// the candidate triangle is better than the current candidate triangle and doesn't contain the current candidate triangle
 				((PointCriteria < MinCriteria) && ((SlopeAtStartNode > CandidateSlopeAtStartNode) ^ (SlopeAtEndNode > CandidateSlopeAtEndNode))))

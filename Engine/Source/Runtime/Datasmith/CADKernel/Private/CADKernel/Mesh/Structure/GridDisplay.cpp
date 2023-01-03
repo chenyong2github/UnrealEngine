@@ -309,7 +309,7 @@ void FGrid::DisplayGridPoints(EGridSpace DisplaySpace) const
 		F3DDebugSession _(TEXT("FGrid::FindInnerDomainPoints Inside Point"));
 		for (int32 Index = 0; Index < CuttingSize; ++Index)
 		{
-			if (IsInsideFace[Index])
+			if (IsNodeInsideFace(Index))
 			{
 				DisplayPoint(Points2D[DisplaySpace][Index] * DisplayScale, EVisuProperty::BluePoint, Index);
 				NbNum++;
@@ -322,7 +322,7 @@ void FGrid::DisplayGridPoints(EGridSpace DisplaySpace) const
 		F3DDebugSession _(TEXT("FGrid::FindInnerDomainPoints Outside Point"));
 		for (int32 Index = 0; Index < CuttingSize; ++Index)
 		{
-			if (!IsInsideFace[Index])
+			if (!IsNodeInsideFace(Index))
 			{
 				DisplayPoint(Points2D[DisplaySpace][Index] * DisplayScale, EVisuProperty::OrangePoint, Index);
 			}

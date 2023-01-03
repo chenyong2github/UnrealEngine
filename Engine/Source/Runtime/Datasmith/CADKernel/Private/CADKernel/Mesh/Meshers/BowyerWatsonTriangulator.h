@@ -233,16 +233,16 @@ public:
 					}
 				}
 
-				TArray<TPair<int32, double>> BoundaryVertexToSlop;
+				TArray<TPair<int32, double>> BoundaryVertexToSlope;
 				for (int32 Index : BoundaryVertex)
 				{
 					FPoint2D Vertex = Vertices[Index].Value;
-					double Slop = ComputeSlope(NewVertex, Vertex);
-					BoundaryVertexToSlop.Emplace(Index, Slop);
+					double Slope = ComputeSlope(NewVertex, Vertex);
+					BoundaryVertexToSlope.Emplace(Index, Slope);
 				}
 
 				// Sort the vertex to make the boundary polygon
-				BoundaryVertexToSlop.Sort([](const TPair<int32, double>& Vertex1, const TPair<int32, double>& Vertex2) {return Vertex1.Value < Vertex2.Value; });
+				BoundaryVertexToSlope.Sort([](const TPair<int32, double>& Vertex1, const TPair<int32, double>& Vertex2) {return Vertex1.Value < Vertex2.Value; });
 
 				bool bTriangleHasBeenAdded = true;
 				while (bTriangleHasBeenAdded)
@@ -282,7 +282,7 @@ public:
 #ifdef DEBUG_BOWYERWATSON_STEP_2
 						if (VIndex == StopIndex)
 						{
-							DisplaySelectedTrianglesBoundary(BoundaryVertexToSlop);
+							DisplaySelectedTrianglesBoundary(BoundaryVertexToSlope);
 							{
 								F3DDebugSession A(TEXT("New Sel triangle"));
 								DisplayTriangle(TriangleIndex, EVisuProperty::YellowCurve);
@@ -295,26 +295,26 @@ public:
 						}
 #endif
 
-						double NewVertexSlop = ComputeSlope(NewVertex, CandidateVertex);
+						double NewVertexSlope = ComputeSlope(NewVertex, CandidateVertex);
 
 						int32 StartIndex = -1;
 						int32 EndIndex = 0;
-						for (int32 ApexIndex = 0; ApexIndex < BoundaryVertexToSlop.Num(); ++ApexIndex)
+						for (int32 ApexIndex = 0; ApexIndex < BoundaryVertexToSlope.Num(); ++ApexIndex)
 						{
-							if (NewVertexSlop < BoundaryVertexToSlop[ApexIndex].Value)
+							if (NewVertexSlope < BoundaryVertexToSlope[ApexIndex].Value)
 							{
 								EndIndex = ApexIndex;
 								break;
 							}
 						}
 
-						StartIndex = EndIndex == 0 ? BoundaryVertexToSlop.Num() - 1 : EndIndex - 1;
+						StartIndex = EndIndex == 0 ? BoundaryVertexToSlope.Num() - 1 : EndIndex - 1;
 
-						FPoint2D StartPoint = Vertices[BoundaryVertexToSlop[StartIndex].Key].Value;
+						FPoint2D StartPoint = Vertices[BoundaryVertexToSlope[StartIndex].Key].Value;
 						double SlopeNewStartPlusPi = ComputeSlope(NewVertex, StartPoint) + Slope::RightSlope;
 						double SlopeStartCandidate = ComputePositiveSlope(StartPoint, CandidateVertex, SlopeNewStartPlusPi);
 
-						FPoint2D EndPoint = Vertices[BoundaryVertexToSlop[EndIndex].Key].Value;
+						FPoint2D EndPoint = Vertices[BoundaryVertexToSlope[EndIndex].Key].Value;
 						double SlopeNewEndMinusPi = ComputeSlope(NewVertex, EndPoint) - Slope::RightSlope;
 						double SlopeEndCandidate = ComputePositiveSlope(EndPoint, CandidateVertex, SlopeNewEndMinusPi);
 
@@ -329,13 +329,13 @@ public:
 						if (SlopeStartCandidate > 0 && SlopeStartCandidate < Slope::RightSlope && SlopeEndCandidate > Slope::ThreeRightSlope && SlopeEndCandidate < Slope::FullSlope)
 						{
 							bTriangleHasBeenAdded = true;
-							if (EndIndex == 0 && NewVertexSlop > BoundaryVertexToSlop.Last().Value)
+							if (EndIndex == 0 && NewVertexSlope > BoundaryVertexToSlope.Last().Value)
 							{
-								BoundaryVertexToSlop.Emplace(CandidateVertexIndex, NewVertexSlop);
+								BoundaryVertexToSlope.Emplace(CandidateVertexIndex, NewVertexSlope);
 							}
 							else
 							{
-								BoundaryVertexToSlop.EmplaceAt(EndIndex, CandidateVertexIndex, NewVertexSlop);
+								BoundaryVertexToSlope.EmplaceAt(EndIndex, CandidateVertexIndex, NewVertexSlope);
 							}
 							BoundaryVertex.Add(CandidateVertexIndex);
 							SelectedTriangleIndices.Add(TriangleIndex);

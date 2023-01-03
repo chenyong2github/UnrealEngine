@@ -154,22 +154,25 @@ void FVertexLink::DefineActiveEntity()
 		return;
 	}
 
-	double DistanceSquare = HUGE_VALUE;
+	double MinDistanceSquare = HUGE_VALUE;
 	FTopologicalVertex* ClosedVertex = TwinEntities.HeapTop();
 	for (FTopologicalVertex* Vertex : TwinEntities)
 	{
 		ensureCADKernel(!Vertex->IsDeleted());
 
 		double Square = Vertex->SquareDistance(Barycenter);
-		if (Square < DistanceSquare)
+		if (Square < MinDistanceSquare)
 		{
-			DistanceSquare = Square;
+			MinDistanceSquare = Square;
 			ClosedVertex = Vertex;
 			if (FMath::IsNearlyZero(Square))
 			{
 				break;
 			}
 		}
+#ifdef CADKERNEL_DEV
+		ensureCADKernel(Square < 0.01);
+#endif
 	}
 	ActiveEntity = ClosedVertex;
 }

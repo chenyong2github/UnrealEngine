@@ -123,17 +123,17 @@ void FSurfacicPolyline::ComputeIntersectionsWithIsos(const FLinearBoundary& InBo
 		}
 
 		// if the segment is too parallel to Iso, go to the next one
-		double EdgeLocalSlop = ComputeUnorientedSlope(Points2D[Index], Points2D[Index + 1], 0);
+		double EdgeLocalSlope = ComputeUnorientedSlope(Points2D[Index], Points2D[Index + 1], 0);
 		if (TypeIso == EIso::IsoV)
 		{
-			if (EdgeLocalSlop < 0.1 || EdgeLocalSlop > 3.9)
+			if (EdgeLocalSlope < 0.1 || EdgeLocalSlope > 3.9)
 			{
 				continue;
 			}
 		}
 		else
 		{
-			if (EdgeLocalSlop < 2.1 && EdgeLocalSlop > 1.9)
+			if (EdgeLocalSlope < 2.1 && EdgeLocalSlope > 1.9)
 			{
 				continue;
 			}

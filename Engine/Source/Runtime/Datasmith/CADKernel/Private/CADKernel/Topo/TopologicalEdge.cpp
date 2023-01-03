@@ -1008,12 +1008,12 @@ void FTopologicalEdge::ComputeEdge2DProperties(FEdge2DProperties& EdgeCharacteri
 
 	for (int32 Index = StartIndex; Index <= EndIndex; ++Index)
 	{
-		double Slop = ComputeUnorientedSlope(Polyline2D[Index], Polyline2D[Index + 1], 0);
-		if (Slop > 2.)
+		double Slope = ComputeUnorientedSlope(Polyline2D[Index], Polyline2D[Index + 1], 0);
+		if (Slope > 2.)
 		{
-			Slop = 4. - Slop;
+			Slope = 4. - Slope;
 		}
-		EdgeCharacteristics.Add(Slop, Polyline3D[Index].Distance(Polyline3D[Index + 1]));
+		EdgeCharacteristics.Add(Slope, Polyline3D[Index].Distance(Polyline3D[Index + 1]));
 	}
 }
 

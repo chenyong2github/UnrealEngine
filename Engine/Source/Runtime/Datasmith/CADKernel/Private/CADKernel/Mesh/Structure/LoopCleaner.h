@@ -24,7 +24,7 @@ struct FMesherReport;
 
 namespace LoopCleanerImpl
 {
-typedef TFunction<double(const FPoint2D&, const FPoint2D&, double)> GetSlopMethod;
+typedef TFunction<double(const FPoint2D&, const FPoint2D&, double)> GetSlopeMethod;
 typedef TFunction<FLoopNode* (FLoopNode*)> GetNextNodeMethod;
 typedef TFunction<const FLoopNode* (const FLoopNode*)> GetNextConstNodeMethod;
 typedef TFunction<const FLoopNode* (const FIsoSegment*)> GetSegmentToNodeMethod;
@@ -141,7 +141,6 @@ private:
 	TArray<TPair<double, double>> Intersections;
 	FIntersectionSegmentTool LoopSegmentsIntersectionTool;
 
-
 	const double GeometricTolerance;
 	const double SquareGeometricTolerance;
 	const double SquareGeometricTolerance2;
@@ -211,9 +210,9 @@ private:
 	 */
 	bool CheckAndRemovePick(const FPoint2D& PreviousPoint, const FPoint2D& NodeToRemovePoint, const FPoint2D& NextPoint, FLoopNode& NodeToRemove)
 	{
-		double Slop = ComputeUnorientedSlope(NodeToRemovePoint, PreviousPoint, NextPoint);
+		double Slope = ComputeUnorientedSlope(NodeToRemovePoint, PreviousPoint, NextPoint);
 		bool bRemoveNode = false;
-		if (Slop < 0.1)
+		if (Slope < 0.1)
 		{
 			double SquareDistance1 = SquareDistanceOfPointToSegment(PreviousPoint, NodeToRemovePoint, NextPoint);
 			double SquareDistance2 = SquareDistanceOfPointToSegment(NextPoint, NodeToRemovePoint, PreviousPoint);

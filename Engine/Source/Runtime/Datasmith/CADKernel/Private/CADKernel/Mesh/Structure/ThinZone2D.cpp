@@ -118,15 +118,15 @@ void FThinZone2DFinder::FindClosedSegments()
 			if (MinSquareThickness > SquareDistance)
 			{
 				// check the angle between segments. As they are opposite, the cosAngle as to be close to -1
-				double Slop = Segment->ComputeUnorientedSlopeOf(Candidate);
-				if (Slop < 3.33) // Angle <5Pi/6 (150 deg)
+				double Slope = Segment->ComputeUnorientedSlopeOf(Candidate);
+				if (Slope < 3.33) // Angle <5Pi/6 (150 deg)
 				{
 					continue;
 				}
 
 				// check the angle between segment and Middle-Projection. As they are opposite, the cosAngle as to be close to 0
-				Slop = Segment->ComputeUnorientedSlopeOf(SegmentMiddle, Projection);
-				if (Slop < 1.33) // Angle <Pi/3 (60 deg)
+				Slope = Segment->ComputeUnorientedSlopeOf(SegmentMiddle, Projection);
+				if (Slope < 1.33) // Angle <Pi/3 (60 deg)
 				{
 					continue;
 				}
