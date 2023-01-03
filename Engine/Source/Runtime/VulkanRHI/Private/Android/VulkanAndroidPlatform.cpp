@@ -1481,7 +1481,7 @@ void FVulkanAndroidPlatform::SetupImageMemoryRequirementWorkaround(const FVulkan
 
 	// AFBC workarounds
 	{
-		const VkFormatFeatureFlags FormatFlags = InDevice.GetFormatProperties()[VK_FORMAT_B8G8R8A8_UNORM].optimalTilingFeatures;
+		const VkFormatFeatureFlags FormatFlags = InDevice.GetFormatProperties(VK_FORMAT_B8G8R8A8_UNORM).optimalTilingFeatures;
 
 		VkImage Image0;
 		VkMemoryRequirements Image0Mem;

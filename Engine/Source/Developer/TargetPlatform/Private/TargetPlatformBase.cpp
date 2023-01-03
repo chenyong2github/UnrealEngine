@@ -94,7 +94,10 @@ static FAutoConsoleVariableRef CVarAllowASTCHDRProfile(
 
 bool FTargetPlatformBase::UsesASTCHDR() const
 {
-	return GASTCHDRProfile != 0;
+	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("cook.ASTCTextureCompressor"));
+	const bool bUsesARMCompressor = (CVar ? (CVar->GetInt() != 0) : false);
+	
+	return (bUsesARMCompressor && GASTCHDRProfile != 0);
 }
 
 void FTargetPlatformBase::GetRayTracingShaderFormats(TArray<FName>& OutFormats) const

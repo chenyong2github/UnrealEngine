@@ -837,7 +837,7 @@ void FVulkanDevice::SetupFormats()
 #endif  // UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
 }
 
-const VkFormatProperties& FVulkanDevice::GetFormatProperties(VkFormat InFormat)
+const VkFormatProperties& FVulkanDevice::GetFormatProperties(VkFormat InFormat) const
 {
 	if (InFormat >= 0 && InFormat < VK_FORMAT_RANGE_SIZE)
 	{

@@ -425,10 +425,11 @@ void FVulkanTexture::GenerateImageCreateInfo(
 	}
 
 	FVulkanPlatform::SetImageMemoryRequirementWorkaround(ImageCreateInfo);
-		
+
+	const VkFormatProperties& FormatProperties = InDevice.GetFormatProperties(ImageCreateInfo.format);
 	const VkFormatFeatureFlags FormatFlags = ImageCreateInfo.tiling == VK_IMAGE_TILING_LINEAR ? 
-		InDevice.GetFormatProperties()[ImageCreateInfo.format].linearTilingFeatures : 
-		InDevice.GetFormatProperties()[ImageCreateInfo.format].optimalTilingFeatures;
+		FormatProperties.linearTilingFeatures : 
+		FormatProperties.optimalTilingFeatures;
 
 	if (!VKHasAnyFlags(FormatFlags, VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT))
 	{

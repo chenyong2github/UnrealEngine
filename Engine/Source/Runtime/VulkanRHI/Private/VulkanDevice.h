@@ -339,10 +339,7 @@ public:
 		return DefaultTexture->DefaultView;
 	}
 
-	inline const VkFormatProperties* GetFormatProperties() const
-	{
-		return FormatProperties;
-	}
+	const VkFormatProperties& GetFormatProperties(VkFormat InFormat) const;
 
 	inline VulkanRHI::FDeviceMemoryManager& GetDeviceMemoryManager()
 	{
@@ -509,7 +506,6 @@ public:
 	FGPUTimingCalibrationTimestamp GetCalibrationTimestamp();
 
 private:
-	const VkFormatProperties& GetFormatProperties(VkFormat InFormat);
 	void MapBufferFormatSupport(FPixelFormatInfo& PixelFormatInfo, EPixelFormat UEFormat, VkFormat VulkanFormat);
 	void MapImageFormatSupport(FPixelFormatInfo& PixelFormatInfo, const TArrayView<const VkFormat>& PrioritizedFormats, EPixelFormatCapabilities RequiredCapabilities);
 	void MapFormatSupport(EPixelFormat UEFormat, std::initializer_list<VkFormat> PrioritizedFormats, const VkComponentMapping& ComponentMapping, EPixelFormatCapabilities RequiredCapabilities, int32 BlockBytes);

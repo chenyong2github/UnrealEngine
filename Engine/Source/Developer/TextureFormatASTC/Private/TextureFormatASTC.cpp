@@ -67,7 +67,7 @@ static FAutoConsoleVariableRef CVarDebugWriteDecodedImage(
 #endif
 
 // increment this if you change anything that will affect compression in this file
-#define BASE_ASTC_FORMAT_VERSION 45
+#define BASE_ASTC_FORMAT_VERSION 46
 
 #define MAX_QUALITY_BY_SIZE 4
 #define MAX_QUALITY_BY_SPEED 3
