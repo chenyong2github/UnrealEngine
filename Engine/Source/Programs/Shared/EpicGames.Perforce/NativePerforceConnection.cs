@@ -606,7 +606,7 @@ namespace EpicGames.Perforce
 			int pos = 0;
 
 			List<KeyValuePair<Utf8String, PerforceValue>> rows = new List<KeyValuePair<Utf8String, PerforceValue>>();
-			if (!PerforceOutputExtensions.ParseRecord(inputData, ref pos, rows))
+			if (!PerforceOutput.ParseRecord(inputData, ref pos, rows))
 			{
 				throw new PerforceException("Unable to parse input data as record");
 			}

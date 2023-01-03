@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Buffers.Binary;
 using System.Buffers.Text;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -38,9 +39,9 @@ namespace EpicGames.Perforce
 	}
 
 	/// <summary>
-	/// Wraps a call to a p4.exe child process, and allows reading data from it
+	/// Utility methods for IPerforceOutput
 	/// </summary>
-	public static class PerforceOutputExtensions
+	public static class PerforceOutput
 	{
 		/// <summary>
 		/// String constants for records
@@ -58,6 +59,58 @@ namespace EpicGames.Perforce
 		/// Standard prefix for a returned record: record indicator, string, 4 bytes, 'code', string, [value]
 		/// </summary>
 		static readonly byte[] s_recordPrefix = { (byte)'{', (byte)'s', 4, 0, 0, 0, (byte)'c', (byte)'o', (byte)'d', (byte)'e', (byte)'s' };
+
+		class BufferedPerforceOutput : IPerforceOutput
+		{
+			public ReadOnlyMemory<byte> Data { get; private set; }
+
+			public BufferedPerforceOutput(ReadOnlyMemory<byte> data)
+			{
+				Data = data;
+			}
+
+			public Task<bool> ReadAsync(CancellationToken cancellationToken) => Task.FromResult(Data.Length > 0);
+			public void Discard(int numBytes) => Data = Data.Slice(numBytes);
+			public ValueTask DisposeAsync() => new ValueTask();
+		}
+
+		/// <summary>
+		/// Constructs an <see cref="IPerforceOutput"/> object from a block of data
+		/// </summary>
+		/// <param name="data">Data to construct from</param>
+		/// <returns>Output object</returns>
+		public static IPerforceOutput FromData(ReadOnlyMemory<byte> data) => new BufferedPerforceOutput(data);
+
+		/// <summary>
+		/// Constructs an <see cref="IPerforceOutput"/> object from a response
+		/// </summary>
+		/// <param name="response">Response to construct from</param>
+		/// <returns>Output object</returns>
+		public static IPerforceOutput FromResponse(PerforceResponse response) => FromResponses(new[] { response });
+
+		/// <summary>
+		/// Constructs an <see cref="IPerforceOutput"/> object from a sequence of responses
+		/// </summary>
+		/// <param name="responses">Responses to construct from</param>
+		/// <returns>Output object</returns>
+		public static IPerforceOutput FromResponses(IEnumerable<PerforceResponse> responses)
+		{
+			using ChunkedMemoryWriter writer = new ChunkedMemoryWriter();
+			foreach (PerforceResponse response in responses)
+			{
+				writer.WriteFixedLengthBytes(s_recordPrefix);
+
+				Utf8String code = ReadOnlyUtf8StringConstants.Stat;
+
+				Span<byte> span = writer.GetSpanAndAdvance(code.Length + 4);
+				BinaryPrimitives.WriteInt32LittleEndian(span.Slice(0, 4), code.Length);
+				code.Span.CopyTo(span.Slice(4));
+
+				PerforceReflection.Serialize(response.Data, writer);
+				writer.WriteUInt8((byte)'0');
+			}
+			return FromData(writer.ToByteArray());
+		}
 
 		/// <summary>
 		/// Formats the current contents of the buffer to a string
