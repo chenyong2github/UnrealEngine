@@ -99,13 +99,9 @@ public:
 					return false;
 				}
 
-				extern ENGINE_API bool IsGPUSkinCacheAvailable(EShaderPlatform Platform);
-				bool bSkinCache = IsGPUSkinCacheAvailable(Platform) && (VertexFactoryType == FindVertexFactoryType(FName(TEXT("FGPUSkinPassthroughVertexFactory"), FNAME_Find)));
-					
 				if (
 					VertexFactoryType != FindVertexFactoryType(FName(TEXT("TGPUSkinVertexFactoryDefault"), FNAME_Find)) &&
-					VertexFactoryType != FindVertexFactoryType(FName(TEXT("TGPUSkinVertexFactoryUnlimited"), FNAME_Find)) &&
-					!bSkinCache
+					VertexFactoryType != FindVertexFactoryType(FName(TEXT("TGPUSkinVertexFactoryUnlimited"), FNAME_Find))
 					)
 				{
 					return false;
