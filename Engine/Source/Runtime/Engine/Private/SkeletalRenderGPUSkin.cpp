@@ -1549,7 +1549,7 @@ const FSkinBatchVertexFactoryUserData* FSkeletalMeshObjectGPUSkin::GetVertexFact
 #endif
 	if (Entry != nullptr)
 	{
-		return FGPUSkinCache::GetVertexFactoryUserData(SkinCacheEntry, ChunkIdx);
+		return FGPUSkinCache::GetVertexFactoryUserData(Entry, ChunkIdx);
 	}
 
 	return &LODs[LODIndex].DeformerGeometry.VertexFactoryUserData;
