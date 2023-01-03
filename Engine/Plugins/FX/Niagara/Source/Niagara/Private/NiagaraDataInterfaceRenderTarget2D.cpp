@@ -365,6 +365,7 @@ bool UNiagaraDataInterfaceRenderTarget2D::GetFunctionHLSL(const FNiagaraDataInte
 		(FunctionInfo.DefinitionName == LoadValueFunctionName) ||
 		(FunctionInfo.DefinitionName == SampleValueFunctionName) ||
 		(FunctionInfo.DefinitionName == GetSizeFunctionName) ||
+		(FunctionInfo.DefinitionName == GetNumMipLevelsName) ||
 		(FunctionInfo.DefinitionName == LinearToIndexName) ||
 		(FunctionInfo.DefinitionName == ExecToIndexName) ||
 		(FunctionInfo.DefinitionName == ExecToUnitName))
