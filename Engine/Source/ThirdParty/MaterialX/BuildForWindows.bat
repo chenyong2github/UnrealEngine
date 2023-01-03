@@ -3,10 +3,12 @@ setlocal
 
 set MATERIALX_VERSION=1.38.5
 
+if [%1]==[] goto usage
+
 rem Set as VS2015 for backwards compatibility even though VS2019 is used
 rem when building.
 set COMPILER_VERSION_NAME=VS2015
-set ARCH_NAME=x64
+set ARCH_NAME=%1
 
 set UE_MODULE_LOCATION=%cd%
 
@@ -19,7 +21,7 @@ set INSTALL_LIB_DIR=%COMPILER_VERSION_NAME%\%ARCH_NAME%\lib
 
 set INSTALL_LOCATION=%UE_MODULE_LOCATION%\Deploy\MaterialX-%MATERIALX_VERSION%
 set INSTALL_INCLUDE_LOCATION=%INSTALL_LOCATION%\%INSTALL_INCLUDEDIR%
-set INSTALL_WIN_LOCATION=%INSTALL_LOCATION%\%COMPILER_VERSION_NAME%
+set INSTALL_WIN_LOCATION=%INSTALL_LOCATION%\%COMPILER_VERSION_NAME%\%ARCH_NAME%
 
 if exist %BUILD_LOCATION% (
     rmdir %BUILD_LOCATION% /S /Q)
@@ -32,7 +34,8 @@ mkdir %BUILD_LOCATION%
 pushd %BUILD_LOCATION%
 
 echo Configuring build for MaterialX version %MATERIALX_VERSION%...
-cmake -G "Visual Studio 16 2019" %SOURCE_LOCATION%^
+cmake -G "Visual Studio 17 2022" %SOURCE_LOCATION%^
+    -A %ARCH_NAME%^
     -DCMAKE_INSTALL_PREFIX="%INSTALL_LOCATION%"^
     -DMATERIALX_INSTALL_INCLUDE_PATH="%INSTALL_INCLUDEDIR%"^
     -DMATERIALX_INSTALL_LIB_PATH="%INSTALL_LIB_DIR%"^
@@ -60,5 +63,10 @@ if %errorlevel% neq 0 exit /B %errorlevel%
 popd
 
 echo Done.
+exit /B 0
+
+:usage
+echo Arch: x64 or ARM64
+exit /B 1
 
 endlocal
