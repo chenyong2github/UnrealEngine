@@ -956,10 +956,9 @@ void FInstancedStaticMeshVertexFactory::InitRHI()
 			}
 		}
 
-		// PreSkinPosition is only used when skin cache is on, in which case skinned mesh uses local vertex factory as pass through.
+		// PreSkinPosition attribute is only used for GPUSkinPassthrough variation of local vertex factory.
 		// It is not used by ISM so fill with dummy buffer.
-		extern ENGINE_API bool IsGPUSkinCacheAvailable(EShaderPlatform Platform);
-		if (IsGPUSkinCacheAvailable(GMaxRHIShaderPlatform))
+		if (FLocalVertexFactory::IsGPUSkinPassThroughSupported(GMaxRHIShaderPlatform))
 		{
 			FVertexStreamComponent NullComponent(&GNullVertexBuffer, 0, 0, VET_Float4);
 			Elements.Add(AccessStreamComponent(NullComponent, 14));

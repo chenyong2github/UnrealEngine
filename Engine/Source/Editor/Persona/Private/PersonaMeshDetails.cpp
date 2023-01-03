@@ -5164,8 +5164,6 @@ TSharedRef<SWidget> FPersonaMeshDetails::OnGenerateCustomNameWidgetsForSection(i
 
 TSharedRef<SWidget> FPersonaMeshDetails::OnGenerateCustomSectionWidgetsForSection(int32 LODIndex, int32 SectionIndex)
 {
-	extern ENGINE_API bool IsGPUSkinCacheAvailable(EShaderPlatform Platform);
-
 	TSharedRef<SVerticalBox> SectionWidget = SNew(SVerticalBox);
 	
 	//If we have a chunk section, prevent editing of cloth cast shadow and recompute tangent
@@ -5241,7 +5239,6 @@ TSharedRef<SWidget> FPersonaMeshDetails::OnGenerateCustomSectionWidgetsForSectio
 		.Padding(5, 2, 0, 0)
 		[
 			SNew(SComboButton)
-			.IsEnabled(IsGPUSkinCacheAvailable(GMaxRHIShaderPlatform))
 			.OnGetMenuContent(this, &FPersonaMeshDetails::OnGenerateRecomputeTangentsSetting, LODIndex, SectionIndex)
 			.VAlign(VAlign_Center)
 			.ContentPadding(2.f)

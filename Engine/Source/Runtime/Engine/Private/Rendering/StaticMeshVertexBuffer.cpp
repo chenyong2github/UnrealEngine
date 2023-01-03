@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Rendering/StaticMeshVertexBuffer.h"
-#include "EngineUtils.h"
+
 #include "Components.h"
-#include "GPUSkinCache.h"
+#include "DataDrivenShaderPlatformInfo.h"
+#include "EngineUtils.h"
+#include "LocalVertexFactory.h"
 #include "MeshUVChannelInfo.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "RHIResourceUpdates.h"
@@ -388,7 +390,7 @@ void FStaticMeshVertexBuffer::InitRHI()
 	const bool bHadTangentsData = TangentsData != nullptr;
 	const bool bCreateTangentsSRV = bHadTangentsData && TangentsData->GetAllowCPUAccess();
 	TangentsVertexBuffer.VertexBufferRHI = CreateTangentsRHIBuffer_RenderThread();
-	if (TangentsVertexBuffer.VertexBufferRHI && (bCreateTangentsSRV || RHISupportsManualVertexFetch(GMaxRHIShaderPlatform) || IsGPUSkinCacheAvailable(GMaxRHIShaderPlatform)))
+	if (TangentsVertexBuffer.VertexBufferRHI && (bCreateTangentsSRV || RHISupportsManualVertexFetch(GMaxRHIShaderPlatform) || FLocalVertexFactory::IsGPUSkinPassThroughSupported(GMaxRHIShaderPlatform)))
 	{
 		// When TangentsData is null, this buffer hasn't been streamed in yet. We still need to create a FRHIShaderResourceView which will be
 		// cached in a vertex factory uniform buffer later. The nullptr tells the RHI that the SRV doesn't view on anything yet.

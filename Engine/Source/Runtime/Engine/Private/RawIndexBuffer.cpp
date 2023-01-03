@@ -5,10 +5,12 @@
 =============================================================================*/
 
 #include "RawIndexBuffer.h"
+
+#include "DataDrivenShaderPlatformInfo.h"
 #include "Interfaces/ITargetPlatform.h"
+#include "LocalVertexFactory.h"
 #include "Modules/ModuleManager.h"
 #include "RenderingThread.h"
-#include "DataDrivenShaderPlatformInfo.h"
 #include "RHIResourceUpdates.h"
 
 #if WITH_EDITOR
@@ -326,8 +328,8 @@ FBufferRHIRef FRawStaticIndexBuffer::CreateRHIBuffer_Internal()
 
 	if (GetNumIndices() > 0)
 	{
-		extern ENGINE_API bool DoSkeletalMeshIndexBuffersNeedSRV();
-		bool bSRV = RHISupportsManualVertexFetch(GMaxRHIShaderPlatform) || DoSkeletalMeshIndexBuffersNeedSRV();
+		// Systems that generate data for GPUSkinPassThrough use index buffer as SRV.
+		bool bSRV = RHISupportsManualVertexFetch(GMaxRHIShaderPlatform) || FLocalVertexFactory::IsGPUSkinPassThroughSupported(GMaxRHIShaderPlatform);
 
 		// When bAllowCPUAccess is true, the meshes is likely going to be used for Niagara to spawn particles on mesh surface.
 		// And it can be the case for CPU *and* GPU access: no differenciation today. That is why we create a SRV in this case.
@@ -459,6 +461,17 @@ void FRawStaticIndexBuffer::Discard()
 {
     IndexStorage.SetAllowCPUAccess(false);
     IndexStorage.Discard();
+}
+
+bool FRawStaticIndexBuffer16or32Interface::IsSRVNeeded(bool bAllowCPUAccess) const
+{
+	// Systems that generate data for GPUSkinPassThrough use index buffer as SRV.
+	bool bSRV = RHISupportsManualVertexFetch(GMaxRHIShaderPlatform) || FLocalVertexFactory::IsGPUSkinPassThroughSupported(GMaxRHIShaderPlatform);
+	// When bAllowCPUAccess is true, the meshes is likely going to be used for Niagara to spawn particles on mesh surface.
+	// And it can be the case for CPU *and* GPU access: no differenciation today. That is why we create a SRV in this case.
+	// This also avoid setting lots of states on all the members of all the different buffers used by meshes. Follow up: https://jira.it.epicgames.net/browse/UE-69376.
+	bSRV |= bAllowCPUAccess;
+	return bSRV;
 }
 
 void FRawStaticIndexBuffer16or32Interface::InitRHIForStreaming(FRHIBuffer* IntermediateBuffer, size_t IndexSize, FRHIResourceUpdateBatcher& Batcher)

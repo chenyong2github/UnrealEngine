@@ -3,10 +3,10 @@
 #include "Rendering/PositionVertexBuffer.h"
 
 #include "Components.h"
-
-#include "StaticMeshVertexData.h"
-#include "GPUSkinCache.h"
+#include "DataDrivenShaderPlatformInfo.h"
+#include "LocalVertexFactory.h"
 #include "RHIResourceUpdates.h"
+#include "StaticMeshVertexData.h"
 
 /*-----------------------------------------------------------------------------
 FPositionVertexBuffer
@@ -265,7 +265,7 @@ void FPositionVertexBuffer::InitRHI()
 	if (VertexBufferRHI)
 	{
 		// we have decide to create the SRV based on GMaxRHIShaderPlatform because this is created once and shared between feature levels for editor preview.
-		bool bSRV = RHISupportsManualVertexFetch(GMaxRHIShaderPlatform) || IsGPUSkinCacheAvailable(GMaxRHIShaderPlatform);
+		bool bSRV = RHISupportsManualVertexFetch(GMaxRHIShaderPlatform) || FLocalVertexFactory::IsGPUSkinPassThroughSupported(GMaxRHIShaderPlatform);
 
 		// When bAllowCPUAccess is true, the meshes is likely going to be used for Niagara to spawn particles on mesh surface.
 		// And it can be the case for CPU *and* GPU access: no differenciation today. That is why we create a SRV in this case.

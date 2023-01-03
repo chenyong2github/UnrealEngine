@@ -360,6 +360,8 @@ public:
 	}
 
 protected:
+	ENGINE_API bool IsSRVNeeded(bool bAllowCPUAccess) const;
+
 	/** Similar to Init/ReleaseRHI but only update existing SRV so references to the SRV stays valid */
 	void InitRHIForStreaming(FRHIBuffer* IntermediateBuffer, size_t IndexSize, FRHIResourceUpdateBatcher& Batcher);
 	void ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& Batcher);
@@ -401,7 +403,7 @@ public:
 		const bool bHadIndexData = Num() > 0;
 		IndexBufferRHI = CreateRHIBuffer_RenderThread();
 
-		if (IndexBufferRHI && IsSRVNeeded() && bHadIndexData)
+		if (IndexBufferRHI && IsSRVNeeded(Indices.GetAllowCPUAccess()) && bHadIndexData)
 		{
 			// If the index buffer is a placeholder we still need to create a FRHIShaderResourceView.
 			SRVValue = RHICreateShaderResourceView(FShaderResourceViewInitializer(IndexBufferRHI->GetSize() > 0 ? IndexBufferRHI : nullptr, sizeof(INDEX_TYPE) == 2 ? PF_R16_UINT : PF_R32_UINT));
@@ -516,17 +518,6 @@ private:
 
 	int32 CachedNumIndices;
 
-	bool IsSRVNeeded() const
-	{
-		extern ENGINE_API bool DoSkeletalMeshIndexBuffersNeedSRV();
-		bool bSRV = DoSkeletalMeshIndexBuffersNeedSRV();
-		// When bAllowCPUAccess is true, the meshes is likely going to be used for Niagara to spawn particles on mesh surface.
-		// And it can be the case for CPU *and* GPU access: no differenciation today. That is why we create a SRV in this case.
-		// This also avoid setting lots of states on all the members of all the different buffers used by meshes. Follow up: https://jira.it.epicgames.net/browse/UE-69376.
-		bSRV |= Indices.GetAllowCPUAccess();
-		return bSRV;
-	}
-
 	template <bool bRenderThread>
 	FBufferRHIRef CreateRHIBuffer_Internal()
 	{
@@ -542,7 +533,7 @@ private:
 				Indices.Num(),
 				sizeof(INDEX_TYPE),
 				&Indices,
-				IsSRVNeeded(),
+				IsSRVNeeded(Indices.GetAllowCPUAccess()),
 				bRenderThread
 			);
 		}

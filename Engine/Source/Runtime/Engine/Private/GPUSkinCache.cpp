@@ -263,16 +263,6 @@ ENGINE_API bool GPUSkinCacheNeedsDuplicatedVertices()
 #endif
 }
 
-// We don't have it always enabled as it's not clear if this has a performance cost
-// Call on render thread only!
-// Should only be called if SM5 (compute shaders, atomics) are supported.
-ENGINE_API bool DoSkeletalMeshIndexBuffersNeedSRV()
-{
-	// currently only implemented and tested on Window SM5 (needs Compute, Atomics, SRV for index buffers, UAV for VertexBuffers)
-	//#todo-gpuskin: Enable on PS4 when SRVs for IB exist
-	return IsGPUSkinCacheAvailable(GMaxRHIShaderPlatform);
-}
-
 UE_DEPRECATED(5.0, "This function is no longer in use and will be removed.")
 ENGINE_API bool DoRecomputeSkinTangentsOnGPU_RT()
 {

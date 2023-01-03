@@ -172,7 +172,7 @@ void FLocalVertexFactoryShaderParameters::Bind(const FShaderParameterMap& Parame
 	IsGPUSkinPassThrough.Bind(ParameterMap, TEXT("bIsGPUSkinPassThrough"));
 }
 
-static bool IsGPUSkinPassThroughSupported(EShaderPlatform Platform)
+bool FLocalVertexFactory::IsGPUSkinPassThroughSupported(EShaderPlatform Platform)
 {
 	// Enable the GPUSkin passthrough path if we might use the GPUSkinCache or MeshDeformers.
 	static IMeshDeformerProvider* MeshDeformerProvider = IMeshDeformerProvider::Get();
