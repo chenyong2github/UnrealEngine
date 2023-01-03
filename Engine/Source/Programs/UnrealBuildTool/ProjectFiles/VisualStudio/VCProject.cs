@@ -616,15 +616,30 @@ namespace UnrealBuildTool
 				case CppStandardVersion.Cpp17:
 					return "/std:c++17";
 				case CppStandardVersion.Cpp20:
+					return "/std:c++20";
 				case CppStandardVersion.Latest:
 					return "/std:c++latest";
-				// Will be added when MSVC is feature-complete.
-				// https://docs.microsoft.com/en-us/cpp/build/reference/std-specify-language-standard-version?view=msvc-160
-				// case CppStandardVersion.Cpp20:
-				//	return "/std:c++20";
 				default:
 					throw new BuildException($"Unsupported C++ standard type set: {Version}");
 			}
+		}
+
+		/// <summary>
+		/// Gets compiler switch for specifying in AdditionalOptions in .vcxproj file for coroutines support
+		/// </summary>
+		private string GetEnableCoroutinesArgument()
+		{
+			if (IntelliSenseEnableCoroutines)
+			{
+				if (GetCompilerForIntellisense().IsMSVC())
+				{
+					return "/await:strict";
+				}
+
+				return "-fcoroutines-ts";
+			}
+
+			return string.Empty;
 		}
 
 		HashSet<string>? InvalidConfigPlatformNames;
@@ -1116,8 +1131,8 @@ namespace UnrealBuildTool
 				VCProjectFileContent.AppendLine("    <IncludePath>$(IncludePath){0}</IncludePath>", (SharedIncludeSearchPaths.Length > 0 ? (";" + SharedIncludeSearchPaths) : ""));
 				VCProjectFileContent.AppendLine("    <NMakeForcedIncludes>$(NMakeForcedIncludes)</NMakeForcedIncludes>");
 				VCProjectFileContent.AppendLine("    <NMakeAssemblySearchPath>$(NMakeAssemblySearchPath)</NMakeAssemblySearchPath>");
-				VCProjectFileContent.AppendLine("    <AdditionalOptions>{0}</AdditionalOptions>",
-					GetCppStandardCompileArgument(GetIntelliSenseCppVersion()));
+				VCProjectFileContent.AppendLine("    <AdditionalOptions>{0} {1}</AdditionalOptions>",
+					GetCppStandardCompileArgument(GetIntelliSenseCppVersion()), GetEnableCoroutinesArgument());
 				VCProjectFileContent.AppendLine("  </PropertyGroup>");
 			}
 

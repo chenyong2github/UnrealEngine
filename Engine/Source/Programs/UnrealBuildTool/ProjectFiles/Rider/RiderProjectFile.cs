@@ -764,7 +764,8 @@ namespace UnrealBuildTool
 				bUseStaticCRT = CompileEnvironment.bUseStaticCRT,
 				PrecompiledHeaderAction = CompileEnvironment.PrecompiledHeaderAction.ToString(),
 				PrecompiledHeaderFile = CompileEnvironment.PrecompiledHeaderFile?.ToString(),
-				ForceIncludeFiles = CompileEnvironment.ForceIncludeFiles.Select(Item => Item.ToString()).ToList()
+				ForceIncludeFiles = CompileEnvironment.ForceIncludeFiles.Select(Item => Item.ToString()).ToList(),
+				bEnableCoroutines = CompileEnvironment.bEnableCoroutines
 			};
 
 			if (CurrentTarget!.Platform.IsInGroup(UnrealPlatformGroup.Windows))

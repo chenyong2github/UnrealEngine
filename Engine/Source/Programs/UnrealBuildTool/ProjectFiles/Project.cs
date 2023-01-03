@@ -248,6 +248,15 @@ namespace UnrealBuildTool
 			protected set;
 		}
 
+		/// <summary>
+		/// Information for IntelliSense: whether coroutines are enabled
+		/// </summary>
+		public bool IntelliSenseEnableCoroutines
+		{
+			get;
+			protected set;
+		}
+
 		/// All of the targets in this project.  All non-stub projects must have at least one target.
 		public readonly List<Project> ProjectTargets = new List<Project>();
 
@@ -364,6 +373,7 @@ namespace UnrealBuildTool
 				AddIntelliSenseIncludePaths(BuildEnvironment.UserIncludePaths, CompileEnvironment.UserIncludePaths);
 			}
 
+			SetIntelliSenseEnableCoroutines(CompileEnvironment.bEnableCoroutines);
 			SetIntelliSenseCppVersion(Module.Rules.CppStandard);
 		}
 
@@ -444,6 +454,15 @@ namespace UnrealBuildTool
 					IntelliSenseCppVersion = CppVersion;
 				}
 			}
+		}
+		
+		/// <summary>
+		/// Sets whether coroutines should be enabled or not
+		/// </summary>
+		/// <param name="Value">Should enable them or not</param>
+		public void SetIntelliSenseEnableCoroutines(bool Value)
+		{
+			IntelliSenseEnableCoroutines |= Value;
 		}
 
 		/// <summary>
