@@ -386,6 +386,11 @@ void FOptimusTransientBufferDataProviderProxy::GatherDispatchData(FDispatchSetup
 		return;
 	}
 
+	if (!ensure(InDispatchSetup.NumInvocations == Buffer.Num()))
+	{
+		return;
+	}
+
 	for (int32 InvocationIndex = 0; InvocationIndex < InvocationElementCounts.Num(); ++InvocationIndex)
 	{
 		FTransientBufferDataInterfaceParameters* Parameters =
@@ -422,6 +427,7 @@ void FOptimusPersistentBufferDataProviderProxy::AllocateResources(
 	)
 {
 	BufferPool->GetResourceBuffers(GraphBuilder, ResourceName, LODIndex, ElementStride, RawStride, InvocationElementCounts, Buffers);
+	ensure(Buffers.Num() == InvocationElementCounts.Num());
 	BufferUAVs.Reserve(Buffers.Num());
 	for (FRDGBufferRef BufferRef : Buffers)
 	{
@@ -440,11 +446,11 @@ void FOptimusPersistentBufferDataProviderProxy::GatherDispatchData(
 		return;
 	}
 
-	if (!ensure(Buffers.Num() == InvocationElementCounts.Num()))
+	if (!ensure(InDispatchSetup.NumInvocations == Buffers.Num()))
 	{
 		return;
 	}
-	
+
 	for (int32 InvocationIndex = 0; InvocationIndex < InvocationElementCounts.Num(); ++InvocationIndex)
 	{
 		FPersistentBufferDataInterfaceParameters* Parameters =

@@ -38,8 +38,7 @@ TArray<FName> UOptimusSkinnedMeshComponentSource::GetExecutionDomains() const
 int32 UOptimusSkinnedMeshComponentSource::GetLodIndex(const UActorComponent* InComponent) const
 {
 	const USkinnedMeshComponent* SkinnedMeshComponent = Cast<USkinnedMeshComponent>(InComponent);
-	const FSkeletalMeshObject* SkeletalMeshObject = SkinnedMeshComponent ? SkinnedMeshComponent->MeshObject : nullptr;
-	return SkeletalMeshObject ? SkeletalMeshObject->GetLOD() : 0;
+	return SkinnedMeshComponent ? SkinnedMeshComponent->GetPredictedLODLevel() : 0;
 }
 
 bool UOptimusSkinnedMeshComponentSource::GetComponentElementCountsForExecutionDomain(
