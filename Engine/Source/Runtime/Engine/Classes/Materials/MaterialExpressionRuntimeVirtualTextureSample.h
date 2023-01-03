@@ -90,7 +90,11 @@ class ENGINE_API UMaterialExpressionRuntimeVirtualTextureSample : public UMateri
 	UPROPERTY(EditAnywhere, Category = VirtualTexture, meta = (DisplayName = "Enable adaptive page table"))
 	bool bAdaptive = false;
 
-	/** Enable virtual texture feedback. */
+	/** 
+	 * Enable virtual texture feedback. 
+	 * Disabling this can result in the virtual texture not reaching the correct mip level. 
+	 * It should only be used in cases where we don't care about the correct mip level being resident, or some other process is maintaining the correct level.
+	 */
 	UPROPERTY(EditAnywhere, Category = VirtualTexture)
 	bool bEnableFeedback = true;
 
@@ -117,6 +121,7 @@ protected:
 	virtual void PostLoad() override;
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
 public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
