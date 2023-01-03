@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Containers/Array.h"
+#include "Containers/StringFwd.h"
 #include "Containers/UnrealString.h"
 #include "CoreGlobals.h"
 #include "CoreTypes.h"
@@ -26,16 +27,19 @@ class CORE_API FFeedbackContext
 	: public FOutputDevice
 {
 public:
+	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category) override;
+	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category, double Time) override;
+	virtual void SerializeRecord(const UE::FLogRecord& Record) override;
 
 	/** Ask the user a binary question, returning their answer */
-	virtual bool YesNof( const FText& Question ) { return false; }
+	virtual bool YesNof( const FText& Question );
 	
 	/**
 	 * Whether or not the user has canceled out of the progress dialog
 	 * (i.e. the ongoing slow task or the last one that ran).
 	 * The user cancel flag is reset when starting a new root slow task.
 	 */
-	virtual bool ReceivedUserCancel() { return false; };
+	virtual bool ReceivedUserCancel() { return false; }
 	
 	/** Public const access to the current state of the scope stack */
 	FORCEINLINE const FSlowTaskStack& GetScopeStack() const
@@ -79,18 +83,20 @@ protected:
 	/** Called to check whether we are playing in editor when starting a slow task */
 	virtual bool IsPlayingInEditor() const;
 
+	void FormatLine(FStringBuilderBase& Out, const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category, double Time, ELogVerbosity::Type* OutVerbosity = nullptr) const;
+	void FormatRecordLine(FStringBuilderBase& Out, const UE::FLogRecord& Record, ELogVerbosity::Type* OutVerbosity = nullptr) const;
+
 public:
-	virtual FContextSupplier* GetContext() const { return NULL; }
-	virtual void SetContext( FContextSupplier* InSupplier ) {}
+	virtual FContextSupplier* GetContext() const { return nullptr; }
+	virtual void SetContext(FContextSupplier* InContext) {}
 
 	/** Shows/Closes Special Build Progress dialogs */
 	virtual TWeakPtr<class SBuildProgressWidget> ShowBuildProgressWindow() {return TWeakPtr<class SBuildProgressWidget>();}
 	virtual void CloseBuildProgressWindow() {}
 
-	bool	TreatWarningsAsErrors;
+	bool	TreatWarningsAsErrors = false;
 
 	FFeedbackContext();
-
 	virtual ~FFeedbackContext();
 
 	/** Gets warnings history */
@@ -131,6 +137,9 @@ public:
 	}
 
 private:
+	void AddToHistory(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category, double Time);
+	void AddRecordToHistory(const UE::FLogRecord& Record);
+
 	FFeedbackContext(const FFeedbackContext&);
 	FFeedbackContext& operator=(const FFeedbackContext&);
 
@@ -180,6 +189,11 @@ protected:
 		FScopeLock WarningsAndErrorsLock(&WarningsAndErrorsCritical);
 		Warnings.Add(InWarning);
 	}
+	void AddWarning(FString&& InWarning)
+	{
+		FScopeLock WarningsAndErrorsLock(&WarningsAndErrorsCritical);
+		Warnings.Add(MoveTemp(InWarning));
+	}
 
 	/**
 	* Adds a new error message to errors history.
@@ -189,5 +203,10 @@ protected:
 	{
 		FScopeLock WarningsAndErrorsLock(&WarningsAndErrorsCritical);
 		Errors.Add(InError);
+	}
+	void AddError(FString&& InError)
+	{
+		FScopeLock WarningsAndErrorsLock(&WarningsAndErrorsCritical);
+		Errors.Add(MoveTemp(InError));
 	}
 };

@@ -2,6 +2,7 @@
 
 #include "WindowsNativeFeedbackContext.h"
 #include "HAL/ThreadHeartBeat.h"
+#include "Logging/StructuredLog.h"
 #include "Misc/CoreMisc.h"
 #include "Misc/OutputDeviceHelper.h"
 #include "Misc/OutputDeviceConsole.h"
@@ -29,58 +30,42 @@ FWindowsNativeFeedbackContext::~FWindowsNativeFeedbackContext()
 	DestroySlowTaskWindow();
 }
 
-void FWindowsNativeFeedbackContext::Serialize( const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category )
+void FWindowsNativeFeedbackContext::Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category)
 {
-	// if we set the color for warnings or errors, then reset at the end of the function
-	// note, we have to set the colors directly without using the standard SET_WARN_COLOR macro
-	if( Verbosity==ELogVerbosity::Error || Verbosity==ELogVerbosity::Warning )
-	{
-		if( TreatWarningsAsErrors && Verbosity==ELogVerbosity::Warning )
-		{
-			Verbosity = ELogVerbosity::Error;
-		}
+	Serialize(V, Verbosity, Category, -1.0);
+}
 
-		FString Prefix;
-		if( Context )
-		{
-			Prefix = Context->GetContext() + TEXT(" : ");
-		}
-		FString Format = Prefix + FOutputDeviceHelper::FormatLogLine(Verbosity, Category, V);
-
-		if(Verbosity == ELogVerbosity::Error)
-		{
-			// Only store off the message if running a commandlet.
-			if ( IsRunningCommandlet() )
-			{
-				AddError(Format);
-			}
-		}
-		else
-		{
-			// Only store off the message if running a commandlet.
-			if ( IsRunningCommandlet() )
-			{
-				AddWarning(Format);
-			}
-		}
-	}
-
-	if( GLogConsole && IsRunningCommandlet() && !GLog->IsRedirectingTo(GLogConsole) )
-	{
-		GLogConsole->Serialize( V, Verbosity, Category );
-	}
-	if( !GLog->IsRedirectingTo( this ) )
-	{
-		GLog->Serialize( V, Verbosity, Category );
-	}
+void FWindowsNativeFeedbackContext::Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category, double Time)
+{
+	FFeedbackContext::Serialize(V, Verbosity, Category, Time);
 
 	// Buffer up the output during a slow task so that we can dump it all to the log console if the show log button is clicked
-	if(GIsSlowTask)
+	if (GIsSlowTask)
 	{
 		FScopeLock Lock(&CriticalSection);
-		if(hThread != NULL)
+		if (hThread)
 		{
-			LogOutput += FString(V) + FString("\r\n");
+			LogOutput += V;
+			LogOutput += TEXT("\r\n");
+			SetEvent(hUpdateEvent);
+		}
+	}
+}
+
+void FWindowsNativeFeedbackContext::SerializeRecord(const UE::FLogRecord& Record)
+{
+	FFeedbackContext::SerializeRecord(Record);
+
+	// Buffer up the output during a slow task so that we can dump it all to the log console if the show log button is clicked
+	if (GIsSlowTask)
+	{
+		TStringBuilder<512> Message;
+		Record.FormatMessageTo(Message);
+		Message.Append(TEXTVIEW("\r\n"));
+		FScopeLock Lock(&CriticalSection);
+		if (hThread)
+		{
+			LogOutput += Message.ToView();
 			SetEvent(hUpdateEvent);
 		}
 	}

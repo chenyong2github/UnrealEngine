@@ -4,17 +4,153 @@
 
 #include "CoreTypes.h"
 #include "HAL/PlatformTime.h"
+#include "Logging/StructuredLog.h"
+#include "Misc/App.h"
 #include "Misc/AssertionMacros.h"
+#include "Misc/CoreMisc.h"
+#include "Misc/OutputDeviceConsole.h"
+#include "Misc/OutputDeviceHelper.h"
+#include "Misc/OutputDeviceRedirector.h"
 #include "Misc/SlowTask.h"
+#include "Misc/StringBuilder.h"
 
-FFeedbackContext::FFeedbackContext()
-	: TreatWarningsAsErrors(0)
-{
-}
+FFeedbackContext::FFeedbackContext() = default;
 
 FFeedbackContext::~FFeedbackContext()
 {
 	ensureMsgf(LegacyAPIScopes.Num() == 0, TEXT("EndSlowTask has not been called for %d outstanding tasks"), LegacyAPIScopes.Num());
+}
+
+void FFeedbackContext::Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category)
+{
+	if (IsRunningCommandlet())
+	{
+		if (Verbosity == ELogVerbosity::Error || Verbosity == ELogVerbosity::Warning)
+		{
+			AddToHistory(V, Verbosity, Category, -1.0);
+		}
+		if (GLogConsole && !GLog->IsRedirectingTo(GLogConsole))
+		{
+			GLogConsole->Serialize(V, Verbosity, Category);
+		}
+	}
+	if (!GLog->IsRedirectingTo(this))
+	{
+		GLog->Serialize(V, Verbosity, Category);
+	}
+}
+
+void FFeedbackContext::Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category, double Time)
+{
+	if (IsRunningCommandlet())
+	{
+		if (Verbosity == ELogVerbosity::Error || Verbosity == ELogVerbosity::Warning)
+		{
+			AddToHistory(V, Verbosity, Category, Time);
+		}
+		if (GLogConsole && !GLog->IsRedirectingTo(GLogConsole))
+		{
+			GLogConsole->Serialize(V, Verbosity, Category, Time);
+		}
+	}
+	if (!GLog->IsRedirectingTo(this))
+	{
+		GLog->Serialize(V, Verbosity, Category, Time);
+	}
+}
+
+void FFeedbackContext::SerializeRecord(const UE::FLogRecord& Record)
+{
+	if (IsRunningCommandlet())
+	{
+		const ELogVerbosity::Type Verbosity = Record.GetVerbosity();
+		if (Verbosity == ELogVerbosity::Error || Verbosity == ELogVerbosity::Warning)
+		{
+			AddRecordToHistory(Record);
+		}
+		if (GLogConsole && !GLog->IsRedirectingTo(GLogConsole))
+		{
+			GLogConsole->SerializeRecord(Record);
+		}
+	}
+	if (!GLog->IsRedirectingTo(this))
+	{
+		GLog->SerializeRecord(Record);
+	}
+}
+
+void FFeedbackContext::FormatLine(FStringBuilderBase& Out, const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category, double Time, ELogVerbosity::Type* OutVerbosity) const
+{
+	if (TreatWarningsAsErrors && Verbosity == ELogVerbosity::Warning)
+	{
+		Verbosity = ELogVerbosity::Error;
+	}
+	if (OutVerbosity)
+	{
+		*OutVerbosity = Verbosity;
+	}
+	if (FContextSupplier* Context = GetContext())
+	{
+		Out.Append(Context->GetContext()).Append(TEXTVIEW(" : "));
+	}
+	FOutputDeviceHelper::AppendFormatLogLine(Out, Verbosity, Category, V);
+}
+
+void FFeedbackContext::FormatRecordLine(FStringBuilderBase& Out, const UE::FLogRecord& Record, ELogVerbosity::Type* OutVerbosity) const
+{
+	ELogVerbosity::Type Verbosity = Record.GetVerbosity();
+	if (TreatWarningsAsErrors && Verbosity == ELogVerbosity::Warning)
+	{
+		Verbosity = ELogVerbosity::Error;
+	}
+	if (OutVerbosity)
+	{
+		*OutVerbosity = Verbosity;
+	}
+	if (FContextSupplier* Context = GetContext())
+	{
+		Out.Append(Context->GetContext()).Append(TEXTVIEW(" : "));
+	}
+	FOutputDeviceHelper::AppendFormatLogLine(Out, Verbosity, Record.GetCategory());
+	Record.FormatMessageTo(Out);
+}
+
+void FFeedbackContext::AddToHistory(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category, double Time)
+{
+	TStringBuilder<512> Line;
+	FormatLine(Line, V, Verbosity, Category, Time, &Verbosity);
+	if (Verbosity == ELogVerbosity::Error)
+	{
+		AddError(FString(Line));
+	}
+	else
+	{
+		AddWarning(FString(Line));
+	}
+}
+
+void FFeedbackContext::AddRecordToHistory(const UE::FLogRecord& Record)
+{
+	TStringBuilder<512> Line;
+	ELogVerbosity::Type Verbosity;
+	FormatRecordLine(Line, Record, &Verbosity);
+	if (Verbosity == ELogVerbosity::Warning)
+	{
+		AddWarning(FString(Line));
+	}
+	else if (Verbosity == ELogVerbosity::Error)
+	{
+		AddError(FString(Line));
+	}
+}
+
+bool FFeedbackContext::YesNof(const FText& Question)
+{
+	if (!GIsSilent && !FApp::IsUnattended())
+	{
+		FPlatformMisc::LowLevelOutputDebugString(*Question.ToString());
+	}
+	return false;
 }
 
 void FFeedbackContext::RequestUpdateUI(bool bForceUpdate)

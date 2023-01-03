@@ -13,8 +13,6 @@
 #include "Misc/FeedbackContext.h"
 #include <syslog.h>
 
-class Error;
-
 /**
  * Feedback context implementation for Unix.
  */
@@ -34,88 +32,40 @@ public:
 	, SlowTaskCount( 0 )
 	{}
 
-	void Serialize( const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category )
-	{
-		// if we set the color for warnings or errors, then reset at the end of the function
-		// note, we have to set the colors directly without using the standard SET_WARN_COLOR macro
-		if (Verbosity == ELogVerbosity::Error || Verbosity == ELogVerbosity::Warning)
-		{
-			if (TreatWarningsAsErrors && Verbosity==ELogVerbosity::Warning)
-			{
-				Verbosity = ELogVerbosity::Error;
-			}
+	void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category) override;
+	void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category, double Time) override;
+	void SerializeRecord(const UE::FLogRecord& Record) override;
 
-			FString Prefix;
-			if (Context)
-			{
-				Prefix = Context->GetContext() + TEXT(" : ");
-			}
-			FString Format = Prefix + FOutputDeviceHelper::FormatLogLine(Verbosity, Category, V);
-
-			if (Verbosity == ELogVerbosity::Error)
-			{
-				// Only store off the message if running a commandlet.
-				if (IsRunningCommandlet())
-				{
-					AddError(Format);
-				}
-
-				// send errors (warnings are too spammy) to syslog too (for zabbix etc)
-				syslog(LOG_ERR | LOG_USER, "%s", StringCast< char >(*Format).Get());
-			}
-			else
-			{
-				// Only store off the message if running a commandlet.
-				if ( IsRunningCommandlet() )
-				{
-					AddWarning(Format);
-				}
-			}
-		}
-
-		if( GLogConsole && IsRunningCommandlet() && !GLog->IsRedirectingTo(GLogConsole) )
-		{
-			GLogConsole->Serialize( V, Verbosity, Category );
-		}
-		if( !GLog->IsRedirectingTo( this ) )
-		{
-			GLog->Serialize( V, Verbosity, Category );
-		}
-	}
 	/** Ask the user a binary question, returning their answer */
-	virtual bool YesNof( const FText& Question )
-	{
-		if( ( GIsClient || GIsEditor ) && ( ( GIsSilent != true ) && ( FApp::IsUnattended() != true ) ) )
-		{
-			//return( ::MessageBox( NULL, TempStr, *NSLOCTEXT("Core", "Question", "Question").ToString(), MB_YESNO|MB_TASKMODAL ) == IDYES);
-			STUBBED("+++++++++++++++ UNIXPLATFORMFEEDBACKCONTEXTPRIVATE.H DIALOG BOX PROMPT +++++++++++++++++++");
-			return true;
-		}
-		else
-		{
-			return false;
-		}
-	}
+	bool YesNof(const FText& Question) override;
 
-	void BeginSlowTask( const FText& Task, bool ShowProgressDialog, bool bShowCancelButton=false )
+	void BeginSlowTask(const FText& Task, bool ShowProgressDialog, bool bShowCancelButton=false)
 	{
 		GIsSlowTask = ++SlowTaskCount>0;
 	}
+
 	void EndSlowTask()
 	{
 		check(SlowTaskCount>0);
 		GIsSlowTask = --SlowTaskCount>0;
 	}
-	virtual bool StatusUpdate( int32 Numerator, int32 Denominator, const FText& StatusText )
+
+	bool StatusUpdate(int32 Numerator, int32 Denominator, const FText& StatusText)
 	{
 		return true;
 	}
-	FContextSupplier* GetContext() const
+
+	FContextSupplier* GetContext() const override
 	{
 		return Context;
 	}
-	void SetContext( FContextSupplier* InSupplier )
+
+	void SetContext(FContextSupplier* InSupplier) override
 	{
 		Context = InSupplier;
 	}
+
+private:
+	void LogErrorToSysLog(const TCHAR* V, const FName& Category, double Time) const;
+	void LogErrorRecordToSysLog(const UE::FLogRecord& Record) const;
 };
