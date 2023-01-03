@@ -26,6 +26,18 @@ struct FChannelData
 	bool bIsReadOnly = false;
 };
 
+struct FTraceFileInfo
+{
+	FString FilePath;
+	FDateTime ModifiedTime;
+	bool bIsFromTraceStore;
+
+	bool operator <(const FTraceFileInfo& rhs)
+	{
+		return this->ModifiedTime > rhs.ModifiedTime;
+	}
+};
+
 /**
  *  Status bar widget for Unreal Insights.
  *  Shows buttons to start tracing either to a file or to the trace store and allows saving a snapshot to file.
@@ -108,6 +120,10 @@ private:
 	bool TraceBookmark_CanExecute();
 	void TraceBookmark_Execute();
 
+	void PopulateRecentTracesList();
+
+	void OpenTrace(int32 Index);
+
 private:
 	static const TCHAR* DefaultPreset;
 	static const TCHAR* MemoryPreset;
@@ -129,4 +145,6 @@ private:
 	bool bShouldUpdateChannels = false;
 
 	TSharedPtr<FUICommandList> CommandList;
+
+	TArray<TSharedPtr<FTraceFileInfo>> Traces;
 };

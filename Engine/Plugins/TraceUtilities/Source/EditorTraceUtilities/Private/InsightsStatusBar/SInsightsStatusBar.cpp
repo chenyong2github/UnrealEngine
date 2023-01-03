@@ -451,16 +451,18 @@ void SInsightsStatusBarWidget::Channels_BuildMenu(FMenuBuilder& MenuBuilder)
 void SInsightsStatusBarWidget::Traces_BuildMenu(FMenuBuilder& MenuBuilder)
 {
 	CacheTraceStorePath();
+	PopulateRecentTracesList();
 
-	MenuBuilder.AddWidget(
-		SNew(SBox)
-		.MaxDesiredHeight(400.0f)
-		.MinDesiredWidth(200.0f)
-		.MaxDesiredWidth(270.0f)
-		[
-			SNew(SRecentTracesList, TraceStorePath)
-		],
-		FText(), true);
+	for (int32 Index = 0; Index < Traces.Num(); ++Index)
+	{
+		MenuBuilder.AddMenuEntry(
+			FUIAction(FExecuteAction::CreateSP(this, &SInsightsStatusBarWidget::OpenTrace, Index),
+					  FCanExecuteAction()),
+			SNew(SRecentTracesListEntry, Traces[Index], TraceStorePath),
+			NAME_None,
+			FText::FromString(Traces[Index]->FilePath),
+			EUserInterfaceActionType::Button);
+	}
 }
 
 void SInsightsStatusBarWidget::InitCommandList()
@@ -883,6 +885,41 @@ void SInsightsStatusBarWidget::TraceBookmark_Execute()
 {
 	FString Bookmark = FDateTime::Now().ToString(TEXT("Bookmark_%Y%m%d_%H%M%S"));
 	TRACE_BOOKMARK(*Bookmark);
+}
+
+void SInsightsStatusBarWidget::PopulateRecentTracesList()
+{
+	Traces.Empty();
+	bool bIsFromTraceStore = true;
+	auto Visitor = [this, &bIsFromTraceStore](const TCHAR* Filename, const FFileStatData& StatData)
+	{
+		if (FPaths::GetExtension(Filename) == TEXT("utrace"))
+		{
+			TSharedPtr<FTraceFileInfo> TraceInfo = MakeShared<FTraceFileInfo>();
+			TraceInfo->FilePath = Filename;
+			TraceInfo->ModifiedTime = StatData.ModificationTime;
+			TraceInfo->bIsFromTraceStore = bIsFromTraceStore;
+
+			Traces.Add(TraceInfo);
+		}
+
+		return true;
+	};
+
+	IFileManager::Get().IterateDirectoryStat(*TraceStorePath, Visitor);
+
+	bIsFromTraceStore = false;
+	IFileManager::Get().IterateDirectoryStat(*FPaths::ProfilingDir(), Visitor);
+
+	Algo::SortBy(Traces, [](TSharedPtr<FTraceFileInfo> TraceInfo) { return *TraceInfo; });
+}
+
+void SInsightsStatusBarWidget::OpenTrace(int32 Index)
+{
+	if (Index < Traces.Num())
+	{
+		FUnrealInsightsLauncher::Get()->TryOpenTraceFromDestination(Traces[Index]->FilePath);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

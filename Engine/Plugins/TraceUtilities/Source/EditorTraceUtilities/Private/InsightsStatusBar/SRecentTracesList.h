@@ -5,37 +5,22 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SListView.h"
 
-struct FTraceFileInfo
-{
-	FString FilePath;
-	FDateTime ModifiedTime;
-	bool bIsFromTraceStore;
-
-	bool operator <(const FTraceFileInfo& rhs)
-	{
-		return this->ModifiedTime > rhs.ModifiedTime;
-	}
-};
+struct FTraceFileInfo;
 
 /**
- *  Shows a list of recent traces in a menu.
+ *  A widget that shows an entry in the recent traces submenu.
  */
-class SRecentTracesList : public SCompoundWidget
+class SRecentTracesListEntry : public SCompoundWidget
 {
-	SLATE_BEGIN_ARGS(SRecentTracesList) {}
+	SLATE_BEGIN_ARGS(SRecentTracesListEntry) {}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const FString& InStorePath);
-
-	TSharedRef<ITableRow> OnGenerateRow(TSharedPtr<FTraceFileInfo> Item, const TSharedRef<STableViewBase>& OwnerTable);
+	void Construct(const FArguments& InArgs, TSharedPtr<FTraceFileInfo> InTrace, const FString& InStorePath);
 
 private:
-	void PopulateRecentTracesList();
+	FReply OpenContainingFolder();
 
 private:
-	TSharedPtr<SListView<TSharedPtr<FTraceFileInfo>>> ListView;
-	
-	TArray<TSharedPtr<FTraceFileInfo>> Traces;
-
 	FString StorePath;
+	TSharedPtr<FTraceFileInfo> TraceInfo;
 };
