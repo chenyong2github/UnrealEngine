@@ -265,6 +265,15 @@ void SSourceControlReview::Construct(const FArguments& InArgs)
 	];
 }
 
+SSourceControlReview::~SSourceControlReview()
+{
+	if (GetChangelistDetailsCommand)
+	{
+		ISourceControlModule::Get().GetProvider().CancelOperation(GetChangelistDetailsCommand.ToSharedRef());
+		GetChangelistDetailsCommand.Reset();
+	}
+}
+
 void SSourceControlReview::LoadChangelist(const FString& Changelist)
 {
 	if (!IsLoading())
@@ -280,17 +289,23 @@ void SSourceControlReview::LoadChangelist(const FString& Changelist)
 	ChangelistFiles.Empty();
 
 	//This command runs p4 -describe (or similar for other version controls) to retrieve changelist record information
-	const TSharedRef<FGetChangelistDetails> GetChangelistDetailsCommand = ISourceControlOperation::Create<FGetChangelistDetails>();
+	GetChangelistDetailsCommand = ISourceControlOperation::Create<FGetChangelistDetails>();
 	GetChangelistDetailsCommand->SetChangelistNumber(Changelist);
 
 	ISourceControlModule::Get().GetProvider().Execute(
-		GetChangelistDetailsCommand,
+		GetChangelistDetailsCommand.ToSharedRef(),
 		EConcurrency::Asynchronous,
 		FSourceControlOperationComplete::CreateRaw(this, &SSourceControlReview::OnChangelistLoadComplete, Changelist));
 }
 
 void SSourceControlReview::OnChangelistLoadComplete(const FSourceControlOperationRef& InOperation, ECommandResult::Type InResult, FString Changelist)
 {
+	// this command is cancelled when this widget is destroyed. Exit immediately to avoid touching invalid data
+	if (InResult == ECommandResult::Cancelled)
+	{
+		return;
+	}
+	
 	const TSharedRef<FGetChangelistDetails, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FGetChangelistDetails>(InOperation);
 	const TArray<TMap<FString, FString>>& Record = Operation->GetChangelistDetails();
 	

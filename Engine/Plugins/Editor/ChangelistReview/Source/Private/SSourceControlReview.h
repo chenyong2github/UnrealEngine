@@ -9,6 +9,7 @@
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Input/SEditableTextBox.h"
 
+class FGetChangelistDetails;
 class SSourceControlReviewEntry;
 class SChangelistEditableTextBox;
 class SProgressBar;
@@ -110,6 +111,8 @@ public:
 	/** Constructs the widget */
 	void Construct(const FArguments& InArgs);
 
+	virtual ~SSourceControlReview() override;
+
 	/**
 	 * Pulls up changelist record from source control
 	 * @param Changelist Changelist number to get
@@ -177,6 +180,7 @@ private:
 	uint32 FilesToLoad = 0;
 	uint32 FilesLoaded = 0;
 	TArray<TSharedPtr<FChangelistFileData>> ChangelistFiles;
+	TSharedPtr<FGetChangelistDetails> GetChangelistDetailsCommand;
 	
 	TSharedPtr<SEditableTextBox> ChangelistNumWidget;
 	TSharedPtr<STextBlock> EnterChangelistTextBlock;
