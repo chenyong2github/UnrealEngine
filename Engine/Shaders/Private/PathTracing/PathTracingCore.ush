@@ -53,7 +53,7 @@ uint EnableEmissive;
 uint SamplerType;
 uint VisualizeLightGrid;
 uint VisualizeDecalGrid;
-uint EnableDecals;
+float DecalRoughnessCutoff;
 float MaxPathIntensity;
 float MaxNormalBias;
 float FilterWidth;
@@ -370,7 +370,7 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 		FPathTracingPayload HitPayload = UnpackPathTracingPayloadMaterial(PackedPayload, PathState.Ray);
 
 #if PLATFORM_SUPPORTS_CALLABLE_SHADERS
-		if (EnableDecals && HitPayload.IsDecalReceiver())
+		if (PathState.PathRoughness < DecalRoughnessCutoff && HitPayload.IsDecalReceiver())
 		{
 			const float3 TranslatedWorldPos = HitPayload.TranslatedWorldPos;
 
