@@ -33,7 +33,7 @@ namespace RCWebInterface
 #endif
 
 		// By default, remote control web interface is disabled in -game, packaged game, and on build machines.
-		return !GIsBuildMachine || (!IsRunningCommandlet() && bIsEditor) || FParse::Param(FCommandLine::Get(), TEXT("RCWebInterfaceEnable"));
+		return (!GIsBuildMachine && !IsRunningCommandlet() && bIsEditor) || FParse::Param(FCommandLine::Get(), TEXT("RCWebInterfaceEnable"));
 	}
 }
 
