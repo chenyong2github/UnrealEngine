@@ -152,8 +152,9 @@ namespace UnrealGameSync
 				State.SetLastSyncState(result, context, statusMessage);
 				State.Save(_logger);
 
-				OnUpdateComplete?.Invoke(context, result, statusMessage);
 				_currentUpdate = null;
+
+				OnUpdateComplete?.Invoke(context, result, statusMessage);
 			}
 		}
 
