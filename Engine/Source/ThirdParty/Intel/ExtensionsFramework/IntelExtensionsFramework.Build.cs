@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using UnrealBuildTool;
+using System;
 using System.IO;
+using UnrealBuildTool;
 
 public class IntelExtensionsFramework : ModuleRules
 {
@@ -9,18 +10,20 @@ public class IntelExtensionsFramework : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.Architecture.IndexOf("arm", StringComparison.OrdinalIgnoreCase) == -1)
 		{
-			string IntelExtensionsFrameworkPath = Path.Combine(Target.UEThirdPartySourceDirectory, "Intel", "ExtensionsFramework");
+			string ThirdPartyDir = Path.Combine(Target.UEThirdPartySourceDirectory, "Intel", "ExtensionsFramework");
+			string IncludeDir = ThirdPartyDir;
+			string LibrariesDir = ThirdPartyDir;
 
-			PublicAdditionalLibraries.Add(Path.Combine(IntelExtensionsFrameworkPath, "igdext64.lib"));
-			PublicSystemIncludePaths.Add(IntelExtensionsFrameworkPath);
+			PublicDefinitions.Add("INTEL_EXTENSIONS=1");
+
+			PublicSystemIncludePaths.Add(IncludeDir);
+			PublicAdditionalLibraries.Add(Path.Combine(LibrariesDir, "igdext64.lib"));
 
 			PublicSystemLibraries.Add("shlwapi.lib");
 			PublicSystemLibraries.Add("setupapi.lib");
 			PublicSystemLibraries.Add("cfgmgr32.lib");
-
-			PublicDefinitions.Add("INTEL_EXTENSIONS=1");
 		}
 		else
 		{

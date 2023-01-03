@@ -670,14 +670,14 @@ static bool IsAdapterSupported(const FD3D12Adapter* InAdapter, ERHIFeatureLevel:
 	return AdapterMaxFeatureLevel != ERHIFeatureLevel::Num && AdapterMaxFeatureLevel >= InRequestedFeatureLevel;
 }
 
-#if !PLATFORM_HOLOLENS
+#if D3D12_CORE_ENABLED
 static bool CheckIfAgilitySDKLoaded()
 {
 	const TCHAR* AgilitySDKDllName = TEXT("D3D12Core.dll");
 	HMODULE AgilitySDKDllHandle = ::GetModuleHandle(AgilitySDKDllName);
 	return AgilitySDKDllHandle != NULL;
 }
-#endif // !PLATFORM_HOLOLENS
+#endif
 
 bool FD3D12DynamicRHIModule::IsSupported(ERHIFeatureLevel::Type RequestedFeatureLevel)
 {
@@ -999,7 +999,7 @@ void FD3D12DynamicRHIModule::FindAdapter()
 		ChosenAdapters.Add(NewAdapter);
 	}
 
-#if !PLATFORM_HOLOLENS
+#if D3D12_CORE_ENABLED
 	UE_LOG(LogD3D12RHI, Log, TEXT("DirectX Agility SDK runtime %s."), CheckIfAgilitySDKLoaded() ? TEXT("found") : TEXT("not found"));
 #endif
 

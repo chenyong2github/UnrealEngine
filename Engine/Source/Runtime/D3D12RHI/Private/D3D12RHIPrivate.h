@@ -88,10 +88,6 @@ inline const TCHAR* GetD3DCommandQueueTypeName(ED3D12QueueType QueueType)
 	}
 }
 
-#if !defined(NV_AFTERMATH)
-	#define NV_AFTERMATH 0
-#endif
-
 #if NV_AFTERMATH
 
 	#define GFSDK_Aftermath_WITH_DX12 1
@@ -158,14 +154,6 @@ inline const TCHAR* GetD3DCommandQueueTypeName(ED3D12QueueType QueueType)
 
 #ifndef FD3D12_HEAP_FLAG_CREATE_NOT_ZEROED
 #define FD3D12_HEAP_FLAG_CREATE_NOT_ZEROED D3D12_HEAP_FLAG_CREATE_NOT_ZEROED
-#endif
-
-#ifndef WITH_NV_API
-#define WITH_NV_API 0
-#endif
-
-#ifndef WITH_AMD_AGS
-#define WITH_AMD_AGS 0
 #endif
 
 #if DEBUG_RESOURCE_STATES

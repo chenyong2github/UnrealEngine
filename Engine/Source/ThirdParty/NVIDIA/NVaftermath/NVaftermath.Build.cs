@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-using UnrealBuildTool;
+
 using System;
 using System.IO;
+using UnrealBuildTool;
 
 public class NVAftermath : ModuleRules
 {
@@ -10,7 +11,7 @@ public class NVAftermath : ModuleRules
 	{
 		Type = ModuleType.External;
 
-        if (Target.Platform == UnrealTargetPlatform.Win64)
+        if (Target.Platform == UnrealTargetPlatform.Win64 && Target.Architecture.IndexOf("arm", StringComparison.OrdinalIgnoreCase) == -1)
 		{
 			string ThirdPartyDir = Path.Combine(Target.UEThirdPartySourceDirectory, "NVIDIA", "NVaftermath");
 			string IncludeDir = Path.Combine(ThirdPartyDir, "include");

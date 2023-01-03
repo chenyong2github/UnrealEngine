@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 using System;
+using System.IO;
 using UnrealBuildTool;
 
 public class NVAPI : ModuleRules
@@ -16,19 +18,18 @@ public class NVAPI : ModuleRules
 		bool bCompilingForProject = Target.ProjectFile != null;*/
 		bool bUseNoRedistnvApi = false;//bHaveNoRedistnvApi && bCompilingForProject;
 
-		string nvApiPath = Target.UEThirdPartySourceDirectory + "NVIDIA/nvapi/";
+		string nvApiPath = Path.Combine(Target.UEThirdPartySourceDirectory, "NVIDIA", "nvapi");
 
 		if (bUseNoRedistnvApi)
 		{
-			nvApiPath = System.IO.Path.Combine(EngineDirectory, "Restricted/NoRedist/Source/ThirdParty/NVIDIA/nvapi/");
+			nvApiPath = Path.Combine(EngineDirectory, "Restricted", "NoRedist", "Source", "ThirdParty", "NVIDIA", "nvapi");
 		}
-
-		PublicSystemIncludePaths.Add(nvApiPath);
 
 		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.Architecture.IndexOf("arm", StringComparison.OrdinalIgnoreCase) == -1)
 		{
-			string nvApiLibPath = nvApiPath + "amd64/";
-			PublicAdditionalLibraries.Add(nvApiLibPath + "nvapi64.lib");
+			PublicSystemIncludePaths.Add(nvApiPath);
+
+			PublicAdditionalLibraries.Add(Path.Combine(nvApiPath, "amd64", "nvapi64.lib"));
 			PublicDefinitions.Add("WITH_NVAPI=1");
 		}
 		else

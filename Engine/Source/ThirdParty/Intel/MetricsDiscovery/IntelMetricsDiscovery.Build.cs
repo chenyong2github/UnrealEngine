@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.IO;
 using UnrealBuildTool;
 
 public class IntelMetricsDiscovery : ModuleRules
@@ -8,23 +10,22 @@ public class IntelMetricsDiscovery : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		string IntelMetricsDiscoveryPath = Target.UEThirdPartySourceDirectory + "Intel/MetricsDiscovery/MetricsDiscoveryHelper/";
-		bool bUseDebugBuild = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT);
-		if (Target.bCompileIntelMetricsDiscovery && Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.bCompileIntelMetricsDiscovery && Target.Platform == UnrealTargetPlatform.Win64 && Target.Architecture.IndexOf("arm", StringComparison.OrdinalIgnoreCase) == -1)
 		{
-			string PlatformName = "x64";
-			string BuildType = bUseDebugBuild ? "-md-debug" : "-md-release";
+			string BuildType = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT) ? "-md-debug" : "-md-release";
 
-			PublicSystemIncludePaths.Add(IntelMetricsDiscoveryPath + "build/include/metrics_discovery/");
+			string ThirdPartyDir = Path.Combine(Target.UEThirdPartySourceDirectory, "Intel", "MetricsDiscovery", "MetricsDiscoveryHelper");
+			string IncludeDir = Path.Combine(ThirdPartyDir, "build", "include", "metrics_discovery");
+			string LibrariesDir = Path.Combine(ThirdPartyDir, "build", "lib", "x64" + BuildType);
 
-			string LibDir = IntelMetricsDiscoveryPath + "build/lib/" + PlatformName + BuildType + "/";
-			PublicAdditionalLibraries.Add(LibDir + "metrics_discovery_helper.lib");
+			PublicDefinitions.Add("INTEL_METRICSDISCOVERY=1");
 
-            PublicDefinitions.Add("INTEL_METRICSDISCOVERY=1");
-        }
+			PublicSystemIncludePaths.Add(IncludeDir);
+			PublicAdditionalLibraries.Add(Path.Combine(LibrariesDir, "metrics_discovery_helper.lib"));
+		}
 		else
-        {
-            PublicDefinitions.Add("INTEL_METRICSDISCOVERY=0");
-        }
+		{
+			PublicDefinitions.Add("INTEL_METRICSDISCOVERY=0");
+		}
 	}
 }
