@@ -663,7 +663,7 @@ bool UNiagaraDataInterfaceRenderTargetCube::PerInstanceTickPostSimulate(void* Pe
 			{
 				FRenderTargetCubeRWInstanceData_RenderThread* TargetData = &RT_Proxy->SystemInstancesToProxyData_RT.FindOrAdd(RT_InstanceID);
 				TargetData->Size = RT_InstanceData.Size;
-				TargetData->MipLevels = RT_TargetTexture->GetCurrentMipCount();
+				TargetData->MipLevels = 1;
 				//TargetData->MipMapGeneration = RT_InstanceData.MipMapGeneration;
 			#if WITH_EDITORONLY_DATA
 				TargetData->bPreviewTexture = RT_InstanceData.bPreviewTexture;
@@ -672,6 +672,7 @@ bool UNiagaraDataInterfaceRenderTargetCube::PerInstanceTickPostSimulate(void* Pe
 				TargetData->RenderTarget.SafeRelease();
 				if (RT_TargetTexture)
 				{
+					TargetData->MipLevels = RT_TargetTexture->GetCurrentMipCount();
 					if (FTextureRenderTargetCubeResource* ResourceCube = RT_TargetTexture->GetTextureRenderTargetCubeResource())
 					{
 						TargetData->SamplerStateRHI = ResourceCube->SamplerStateRHI;

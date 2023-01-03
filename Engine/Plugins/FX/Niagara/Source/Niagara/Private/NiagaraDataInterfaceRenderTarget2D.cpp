@@ -755,7 +755,7 @@ bool UNiagaraDataInterfaceRenderTarget2D::PerInstanceTickPostSimulate(void* PerI
 			{
 				FRenderTarget2DRWInstanceData_RenderThread* TargetData = &RT_Proxy->SystemInstancesToProxyData_RT.FindOrAdd(RT_InstanceID);
 				TargetData->Size = RT_InstanceData.Size;
-				TargetData->MipLevels = RT_TargetTexture->GetCurrentMipCount();
+				TargetData->MipLevels = 1;
 				TargetData->MipMapGeneration = RT_InstanceData.MipMapGeneration;
 				TargetData->MipMapGenerationType = RT_InstanceData.MipMapGenerationType;
 			#if WITH_EDITORONLY_DATA
@@ -765,6 +765,7 @@ bool UNiagaraDataInterfaceRenderTarget2D::PerInstanceTickPostSimulate(void* PerI
 				TargetData->TextureRHI.SafeRelease();
 				if (RT_TargetTexture)
 				{
+					TargetData->MipLevels = RT_TargetTexture->GetCurrentMipCount();
 					if (FTextureRenderTarget2DResource* Resource2D = RT_TargetTexture->GetTextureRenderTarget2DResource())
 					{
 						TargetData->SamplerStateRHI = Resource2D->SamplerStateRHI;
