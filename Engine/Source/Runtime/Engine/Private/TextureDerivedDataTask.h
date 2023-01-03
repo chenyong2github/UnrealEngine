@@ -91,6 +91,11 @@ struct FTextureSourceData
 
 	void Init(UTexture& InTexture, TextureMipGenSettings InMipGenSettings, bool bInCubeMap, bool bInTextureArray, bool bInVolumeTexture, bool bAllowAsyncLoading);
 	bool IsValid() const { return bValid; }
+
+	bool HasPayload() const
+	{
+		return AsyncSource.HasPayloadData();
+	}
 	
 	// ImageWrapperModule is not used
 	void GetSourceMips(FTextureSource& Source, IImageWrapperModule* InImageWrapper = nullptr);
