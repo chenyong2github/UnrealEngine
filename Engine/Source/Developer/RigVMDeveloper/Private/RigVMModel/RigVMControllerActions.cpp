@@ -622,18 +622,6 @@ FRigVMRemoveNodeAction::FRigVMRemoveNodeAction(URigVMNode* InNode, URigVMControl
 	{
 		InverseAction.AddAction(FRigVMAddEnumNodeAction(EnumNode), InController);
 	}
-	else if (URigVMArrayNode* ArrayNode = Cast<URigVMArrayNode>(InNode))
-	{
-		InverseAction.AddAction(FRigVMAddArrayNodeAction(ArrayNode), InController);
-		for (URigVMPin* Pin : ArrayNode->GetPins())
-		{
-			if (Pin->GetDirection() == ERigVMPinDirection::Input ||
-				Pin->GetDirection() == ERigVMPinDirection::Visible)
-			{
-				InverseAction.AddAction(FRigVMSetPinDefaultValueAction(Pin, Pin->GetDefaultValue()), InController);
-			}
-		}
-	}
 	else if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(InNode))
 	{
 		InverseAction.AddAction(FRigVMImportNodeFromTextAction(LibraryNode, InController), InController);
@@ -2170,48 +2158,6 @@ bool FRigVMChangeLocalVariableDefaultValueAction::Redo(URigVMController* InContr
 		return false;		
 	}
 	return FRigVMBaseAction::Redo(InController);
-}
-
-FRigVMAddArrayNodeAction::FRigVMAddArrayNodeAction()
-	: OpCode(ERigVMOpCode::Invalid)
-	, CPPType()
-	, CPPTypeObjectPath()
-	, Position(FVector2D::ZeroVector)
-	, NodePath()
-{
-}
-
-FRigVMAddArrayNodeAction::FRigVMAddArrayNodeAction(URigVMArrayNode* InNode)
-	: OpCode(InNode->GetOpCode())
-	, CPPType(InNode->GetCPPType())
-	, CPPTypeObjectPath()
-	, Position(InNode->GetPosition())
-	, NodePath(InNode->GetNodePath())
-{
-	if (InNode->GetCPPTypeObject())
-	{
-		CPPTypeObjectPath = InNode->GetCPPTypeObject()->GetPathName();
-	}
-}
-
-bool FRigVMAddArrayNodeAction::Undo(URigVMController* InController)
-{
-	if (!FRigVMBaseAction::Undo(InController))
-	{
-		return false;
-	}
-	return InController->RemoveNodeByName(*NodePath, false);
-}
-
-bool FRigVMAddArrayNodeAction::Redo(URigVMController* InController)
-{
-#if WITH_EDITOR
-	if (URigVMArrayNode* Node = InController->AddArrayNodeFromObjectPath(OpCode, CPPType, CPPTypeObjectPath, Position, NodePath, false))
-	{
-		return FRigVMBaseAction::Redo(InController);
-	}
-#endif
-	return false;
 }
 
 FRigVMPromoteNodeAction::FRigVMPromoteNodeAction()

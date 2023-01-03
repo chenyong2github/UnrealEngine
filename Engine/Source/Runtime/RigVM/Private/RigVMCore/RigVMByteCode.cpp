@@ -1410,8 +1410,6 @@ FString FRigVMByteCode::DumpToText() const
 			case ERigVMOpCode::BoolTrue:
 			case ERigVMOpCode::Increment:
 			case ERigVMOpCode::Decrement:
-			case ERigVMOpCode::ArrayReset:
-			case ERigVMOpCode::ArrayReverse:
 			{
 				const FRigVMUnaryOp& Op = GetOpAt<FRigVMUnaryOp>(Instruction.ByteCodeIndex);
 				FString ArgContent;
@@ -1459,12 +1457,6 @@ FString FRigVMByteCode::DumpToText() const
 				break;
 			}
 			case ERigVMOpCode::BeginBlock:
-			case ERigVMOpCode::ArrayGetNum:
-			case ERigVMOpCode::ArraySetNum:
-			case ERigVMOpCode::ArrayAppend:
-			case ERigVMOpCode::ArrayClone:
-			case ERigVMOpCode::ArrayRemove:
-			case ERigVMOpCode::ArrayUnion:
 			{
 				const FRigVMBinaryOp& Op = GetOpAt<FRigVMBinaryOp>(Instruction.ByteCodeIndex);
 				FString ArgA, ArgB;
@@ -1472,55 +1464,6 @@ FString FRigVMByteCode::DumpToText() const
 				FRigVMOperand::StaticStruct()->ExportText(ArgB, &Op.ArgB, &Op.ArgB, nullptr, PPF_None, nullptr);
 				Line += FString::Printf(TEXT(", ArgA %s"), *ArgA);
 				Line += FString::Printf(TEXT(", ArgB %s"), *ArgB);
-				break;
-			}
-			case ERigVMOpCode::ArrayAdd:
-			case ERigVMOpCode::ArrayGetAtIndex:
-			case ERigVMOpCode::ArraySetAtIndex:
-			case ERigVMOpCode::ArrayInsert:
-			case ERigVMOpCode::ArrayDifference:
-			case ERigVMOpCode::ArrayIntersection:
-			{
-				const FRigVMTernaryOp& Op = GetOpAt<FRigVMTernaryOp>(Instruction.ByteCodeIndex);
-				FString ArgA, ArgB, ArgC;
-				FRigVMOperand::StaticStruct()->ExportText(ArgA, &Op.ArgA, &Op.ArgA, nullptr, PPF_None, nullptr);
-				FRigVMOperand::StaticStruct()->ExportText(ArgB, &Op.ArgB, &Op.ArgB, nullptr, PPF_None, nullptr);
-				FRigVMOperand::StaticStruct()->ExportText(ArgC, &Op.ArgC, &Op.ArgC, nullptr, PPF_None, nullptr);
-				Line += FString::Printf(TEXT(", ArgA %s"), *ArgA);
-				Line += FString::Printf(TEXT(", ArgB %s"), *ArgB);
-				Line += FString::Printf(TEXT(", ArgC %s"), *ArgC);
-				break;
-			}
-			case ERigVMOpCode::ArrayFind:
-			{
-				const FRigVMQuaternaryOp& Op = GetOpAt<FRigVMQuaternaryOp>(Instruction.ByteCodeIndex);
-				FString ArgA, ArgB, ArgC, ArgD;
-				FRigVMOperand::StaticStruct()->ExportText(ArgA, &Op.ArgA, &Op.ArgA, nullptr, PPF_None, nullptr);
-				FRigVMOperand::StaticStruct()->ExportText(ArgB, &Op.ArgB, &Op.ArgB, nullptr, PPF_None, nullptr);
-				FRigVMOperand::StaticStruct()->ExportText(ArgC, &Op.ArgC, &Op.ArgC, nullptr, PPF_None, nullptr);
-				FRigVMOperand::StaticStruct()->ExportText(ArgD, &Op.ArgD, &Op.ArgD, nullptr, PPF_None, nullptr);
-				Line += FString::Printf(TEXT(", ArgA %s"), *ArgA);
-				Line += FString::Printf(TEXT(", ArgB %s"), *ArgB);
-				Line += FString::Printf(TEXT(", ArgC %s"), *ArgC);
-				Line += FString::Printf(TEXT(", ArgD %s"), *ArgD);
-				break;
-			}
-			case ERigVMOpCode::ArrayIterator:
-			{
-				const FRigVMSenaryOp& Op = GetOpAt<FRigVMSenaryOp>(Instruction.ByteCodeIndex);
-				FString ArgA, ArgB, ArgC, ArgD, ArgE, ArgF;
-				FRigVMOperand::StaticStruct()->ExportText(ArgA, &Op.ArgA, &Op.ArgA, nullptr, PPF_None, nullptr);
-				FRigVMOperand::StaticStruct()->ExportText(ArgB, &Op.ArgB, &Op.ArgB, nullptr, PPF_None, nullptr);
-				FRigVMOperand::StaticStruct()->ExportText(ArgC, &Op.ArgC, &Op.ArgC, nullptr, PPF_None, nullptr);
-				FRigVMOperand::StaticStruct()->ExportText(ArgD, &Op.ArgD, &Op.ArgD, nullptr, PPF_None, nullptr);
-				FRigVMOperand::StaticStruct()->ExportText(ArgE, &Op.ArgE, &Op.ArgE, nullptr, PPF_None, nullptr);
-				FRigVMOperand::StaticStruct()->ExportText(ArgF, &Op.ArgF, &Op.ArgF, nullptr, PPF_None, nullptr);
-				Line += FString::Printf(TEXT(", ArgA %s"), *ArgA);
-				Line += FString::Printf(TEXT(", ArgB %s"), *ArgB);
-				Line += FString::Printf(TEXT(", ArgC %s"), *ArgC);
-				Line += FString::Printf(TEXT(", ArgD %s"), *ArgD);
-				Line += FString::Printf(TEXT(", ArgE %s"), *ArgE);
-				Line += FString::Printf(TEXT(", ArgF %s"), *ArgF);
 				break;
 			}
 			case ERigVMOpCode::InvokeEntry:
@@ -1582,86 +1525,6 @@ uint64 FRigVMByteCode::AddEndBlockOp()
 {
 	FRigVMBaseOp Op(ERigVMOpCode::EndBlock);
 	return AddOp(Op);
-}
-
-uint64 FRigVMByteCode::AddArrayResetOp(FRigVMOperand InArrayArg)
-{
-	return AddOp(FRigVMUnaryOp(ERigVMOpCode::ArrayReset, InArrayArg));
-}
-
-uint64 FRigVMByteCode::AddArrayGetNumOp(FRigVMOperand InArrayArg, FRigVMOperand InNumArg)
-{
-	return AddOp(FRigVMBinaryOp(ERigVMOpCode::ArrayGetNum, InArrayArg, InNumArg));
-}
-
-uint64 FRigVMByteCode::AddArraySetNumOp(FRigVMOperand InArrayArg, FRigVMOperand InNumArg)
-{
-	return AddOp(FRigVMBinaryOp(ERigVMOpCode::ArraySetNum, InArrayArg, InNumArg));
-}
-
-uint64 FRigVMByteCode::AddArrayGetAtIndexOp(FRigVMOperand InArrayArg, FRigVMOperand InIndexArg, FRigVMOperand InElementArg)
-{
-	return AddOp(FRigVMTernaryOp(ERigVMOpCode::ArrayGetAtIndex, InArrayArg, InIndexArg, InElementArg));
-}
-
-uint64 FRigVMByteCode::AddArraySetAtIndexOp(FRigVMOperand InArrayArg, FRigVMOperand InIndexArg, FRigVMOperand InElementArg)
-{
-	return AddOp(FRigVMTernaryOp(ERigVMOpCode::ArraySetAtIndex, InArrayArg, InIndexArg, InElementArg));
-}
-
-uint64 FRigVMByteCode::AddArrayAddOp(FRigVMOperand InArrayArg, FRigVMOperand InElementArg, FRigVMOperand InIndexArg)
-{
-	return AddOp(FRigVMTernaryOp(ERigVMOpCode::ArrayAdd, InArrayArg, InElementArg, InIndexArg));	
-}
-
-uint64 FRigVMByteCode::AddArrayInsertOp(FRigVMOperand InArrayArg, FRigVMOperand InIndexArg, FRigVMOperand InElementArg)
-{
-	return AddOp(FRigVMTernaryOp(ERigVMOpCode::ArrayInsert, InArrayArg, InIndexArg, InElementArg));
-}
-
-uint64 FRigVMByteCode::AddArrayRemoveOp(FRigVMOperand InArrayArg, FRigVMOperand InIndexArg)
-{
-	return AddOp(FRigVMBinaryOp(ERigVMOpCode::ArrayRemove, InArrayArg, InIndexArg));
-}
-
-uint64 FRigVMByteCode::AddArrayFindOp(FRigVMOperand InArrayArg, FRigVMOperand InElementArg, FRigVMOperand InIndexArg, FRigVMOperand InSuccessArg)
-{
-	return AddOp(FRigVMQuaternaryOp(ERigVMOpCode::ArrayFind, InArrayArg, InElementArg, InIndexArg, InSuccessArg));	
-}
-
-uint64 FRigVMByteCode::AddArrayAppendOp(FRigVMOperand InArrayArg, FRigVMOperand InOtherArrayArg)
-{
-	return AddOp(FRigVMBinaryOp(ERigVMOpCode::ArrayAppend, InArrayArg, InOtherArrayArg));
-}
-
-uint64 FRigVMByteCode::AddArrayCloneOp(FRigVMOperand InArrayArg, FRigVMOperand InClonedArrayArg)
-{
-	return AddOp(FRigVMBinaryOp(ERigVMOpCode::ArrayClone, InArrayArg, InClonedArrayArg));
-}
-
-uint64 FRigVMByteCode::AddArrayIteratorOp(FRigVMOperand InArrayArg, FRigVMOperand InElementArg, FRigVMOperand InIndexArg, FRigVMOperand InCountArg, FRigVMOperand InRatioArg, FRigVMOperand InContinueArg)
-{
-	return AddOp(FRigVMSenaryOp(ERigVMOpCode::ArrayIterator, InArrayArg, InElementArg, InIndexArg, InCountArg, InRatioArg, InContinueArg));
-}
-
-uint64 FRigVMByteCode::AddArrayUnionOp(FRigVMOperand InArrayArg, FRigVMOperand InOtherArrayArg)
-{
-	return AddOp(FRigVMBinaryOp(ERigVMOpCode::ArrayUnion, InArrayArg, InOtherArrayArg));
-}
-	
-uint64 FRigVMByteCode::AddArrayDifferenceOp(FRigVMOperand InArrayArg, FRigVMOperand InOtherArrayArg, FRigVMOperand InResultArrayArg)
-{
-	return AddOp(FRigVMTernaryOp(ERigVMOpCode::ArrayDifference, InArrayArg, InOtherArrayArg, InResultArrayArg));
-}
-	
-uint64 FRigVMByteCode::AddArrayIntersectionOp(FRigVMOperand InArrayArg, FRigVMOperand InOtherArrayArg, FRigVMOperand InResultArrayArg)
-{
-	return AddOp(FRigVMTernaryOp(ERigVMOpCode::ArrayIntersection, InArrayArg, InOtherArrayArg, InResultArrayArg));
-}
-	
-uint64 FRigVMByteCode::AddArrayReverseOp(FRigVMOperand InArrayArg)
-{
-	return AddOp(FRigVMUnaryOp(ERigVMOpCode::ArrayReverse, InArrayArg));
 }
 
 uint64 FRigVMByteCode::AddInvokeEntryOp(const FName& InEntryName)

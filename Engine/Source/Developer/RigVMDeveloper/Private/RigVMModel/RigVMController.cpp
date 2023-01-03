@@ -26,8 +26,10 @@
 #include "Engine/UserDefinedStruct.h"
 #include "RigVMFunctions/RigVMDispatch_If.h"
 #include "RigVMFunctions/RigVMDispatch_Select.h"
+#include "RigVMFunctions/RigVMDispatch_Array.h"
 #include "RigVMModel/RigVMClient.h"
 #include "RigVMModel/Nodes/RigVMBranchNode.h"
+#include "RigVMModel/Nodes/RigVMArrayNode.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMController)
 
@@ -615,31 +617,6 @@ TArray<FString> URigVMController::GetAddNodePythonCommands(URigVMNode* Node) con
 				*RerouteNode->GetPins()[0]->GetDefaultValue(),
 				*RigVMPythonUtils::Vector2DToPythonString(RerouteNode->GetPosition()),
 				*NodeName));
-	}
-	else if (const URigVMArrayNode* ArrayNode = Cast<URigVMArrayNode>(Node))
-	{
-		// add_array_node(opcode, cpp_type, cpp_type_object, position=[0.0, 0.0], node_name='', undo=True)
-		if (ArrayNode->GetCPPTypeObject())
-		{
-			static constexpr TCHAR ArrayNodeFormat[] = TEXT("blueprint.get_controller_by_name('%s').add_array_node_from_object_path(%s, '%s', '%s', %s, '%s')");
-			Commands.Add(FString::Printf(ArrayNodeFormat,
-					*GraphName,
-					*RigVMPythonUtils::EnumValueToPythonString<ERigVMOpCode>((int64)ArrayNode->GetOpCode()),
-					*ArrayNode->GetCPPType(),
-					*ArrayNode->GetCPPTypeObject()->GetPathName(),
-					*RigVMPythonUtils::Vector2DToPythonString(ArrayNode->GetPosition()),
-					*NodeName));	
-		}
-		else
-		{
-			static constexpr TCHAR ArrayNodeFormat[] = TEXT("blueprint.get_controller_by_name('%s').add_array_node(%s, '%s', None, %s, '%s')");
-			Commands.Add(FString::Printf(ArrayNodeFormat,
-					*GraphName,
-					*RigVMPythonUtils::EnumValueToPythonString<ERigVMOpCode>((int64)ArrayNode->GetOpCode()),
-					*ArrayNode->GetCPPType(),
-					*RigVMPythonUtils::Vector2DToPythonString(ArrayNode->GetPosition()),
-					*NodeName));	
-		}
 	}
 	else if (const URigVMEnumNode* EnumNode = Cast<URigVMEnumNode>(Node))
 	{
@@ -1898,6 +1875,27 @@ bool URigVMController::UnresolveTemplateNodes(const TArray<URigVMNode*>& InNodes
 					URigVMNode* OtherNode = SourcePin->GetNode() == Node ? TargetPin->GetNode() : SourcePin->GetNode();
 					if (!InNodes.Contains(OtherNode))
 					{
+						const URigVMPin* PinOnNode = SourcePin->GetNode() == Node ? SourcePin : TargetPin;
+						if(PinOnNode->IsExecuteContext())
+						{
+							continue;
+						}
+						
+						if (const URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(Node))
+						{
+							if(const FRigVMTemplate* Template = TemplateNode->GetTemplate())
+							{
+								const URigVMPin* RootPin = PinOnNode->GetRootPin();
+								if(const FRigVMTemplateArgument* Argument = Template->FindArgument(RootPin->GetFName()))
+								{
+									if(Argument->IsSingleton())
+									{
+										continue;
+									}
+								}
+							}
+						}
+						
 						BreakLink(SourcePin, TargetPin, bSetupUndoRedo);
 					}			
 				}
@@ -9329,6 +9327,12 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 
 							if(SourcePin && TargetPin)
 							{
+								if(SourcePin->IsExecuteContext())
+								{
+									NumLinksRemaining--;
+									continue;
+								}
+								
 								const URigVMPin* PinOnTemplateNode = SourcePin->GetNode() == TemplateNode ? SourcePin : TargetPin;
 								if(PinOnTemplateNode->IsRootPin() && PinOnTemplateNode != InPin)
 								{
@@ -13218,7 +13222,7 @@ URigVMEnumNode* URigVMController::AddEnumNode(const FName& InCPPTypeObjectPath, 
 	return Node;
 }
 
-URigVMArrayNode* URigVMController::AddArrayNode(ERigVMOpCode InOpCode, const FString& InCPPType,
+URigVMNode* URigVMController::AddArrayNode(ERigVMOpCode InOpCode, const FString& InCPPType,
 	UObject* InCPPTypeObject, const FVector2D& InPosition, const FString& InNodeName, bool bSetupUndoRedo,
 	bool bPrintPythonCommand)
 {
@@ -13232,311 +13236,84 @@ URigVMArrayNode* URigVMController::AddArrayNode(ERigVMOpCode InOpCode, const FSt
 		return nullptr;
 	}
 
-	// validate the op code
-	bool bIsMutable = false;
-	switch(InOpCode)
+	const FString CPPType = RigVMTypeUtils::IsArrayType(InCPPType) ? RigVMTypeUtils::BaseTypeFromArrayType(InCPPType) : InCPPType;
+	const TRigVMTypeIndex& ElementTypeIndex = FRigVMRegistry::Get().FindOrAddType({*CPPType, InCPPTypeObject});
+	if(ElementTypeIndex == INDEX_NONE)
 	{
-		case ERigVMOpCode::ArrayReset:
-		case ERigVMOpCode::ArrayGetNum: 
-		case ERigVMOpCode::ArraySetNum:
-		case ERigVMOpCode::ArrayGetAtIndex:  
-		case ERigVMOpCode::ArraySetAtIndex:
-		case ERigVMOpCode::ArrayAdd:
-		case ERigVMOpCode::ArrayInsert:
-		case ERigVMOpCode::ArrayRemove:
-		case ERigVMOpCode::ArrayFind:
-		case ERigVMOpCode::ArrayAppend:
-		case ERigVMOpCode::ArrayClone:
-		case ERigVMOpCode::ArrayIterator:
-		case ERigVMOpCode::ArrayUnion:
-		case ERigVMOpCode::ArrayDifference:
-		case ERigVMOpCode::ArrayIntersection:
-		case ERigVMOpCode::ArrayReverse:
-		{
-			break;
-		}
-		default:
-		{
-			ReportErrorf(TEXT("OpCode '%s' is not valid for Array Node."), *StaticEnum<ERigVMOpCode>()->GetNameStringByValue((int64)InOpCode));
-			return nullptr;
-		}
+		return nullptr;
 	}
+	const TRigVMTypeIndex& ArrayTypeIndex = FRigVMRegistry::Get().GetArrayTypeFromBaseTypeIndex(ElementTypeIndex);
 
-	URigVMGraph* Graph = GetGraph();
-	check(Graph);
-
-	if (Graph->IsA<URigVMFunctionLibrary>())
+	const FName FactoryName = FRigVMDispatch_ArrayBase::GetFactoryNameForOpCode(InOpCode);
+	if(FactoryName.IsNone())
 	{
-		ReportError(TEXT("Cannot add array nodes to function library graphs."));
+		ReportErrorf(TEXT("OpCode '%s' is not valid for Array Node."), *StaticEnum<ERigVMOpCode>()->GetNameStringByValue((int64)InOpCode));
 		return nullptr;
 	}
 
-	FString CPPType = InCPPType;
-	if(RigVMTypeUtils::IsArrayType(CPPType))
+	const FRigVMDispatchFactory* Factory = FRigVMRegistry::Get().FindDispatchFactory(FactoryName);
+	if(Factory == nullptr)
 	{
-		CPPType = RigVMTypeUtils::BaseTypeFromArrayType(CPPType);
+		ReportErrorf(TEXT("Cannot find array dispatch '%s'."), *FactoryName.ToString());
+		return nullptr;
 	}
 
-	if (InCPPTypeObject == nullptr)
+	if(bSetupUndoRedo)
 	{
-		InCPPTypeObject = URigVMCompiler::GetScriptStructForCPPType(CPPType);
+		OpenUndoBracket(TEXT("Add Array Node"));
 	}
-	if (InCPPTypeObject == nullptr)
-	{
-		InCPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath<UObject>(CPPType);
-	}
-
-	CPPType = RigVMTypeUtils::PostProcessCPPType(CPPType, InCPPTypeObject);
 	
-	const FString Name = GetValidNodeName(InNodeName.IsEmpty() ? FString(TEXT("ArrayNode")) : InNodeName);
-	URigVMArrayNode* Node = NewObject<URigVMArrayNode>(Graph, *Name);
-	Node->Position = InPosition;
-	Node->OpCode = InOpCode;
+	const FRigVMTemplate* Template = Factory->GetTemplate();
+	URigVMTemplateNode* Node = AddTemplateNode(
+		Template->GetNotation(),
+		InPosition, 
+		InNodeName, 
+		bSetupUndoRedo, 
+		bPrintPythonCommand);
 
-	struct Local
+	if(!FRigVMRegistry::Get().IsWildCardType(ElementTypeIndex))
 	{
-		static URigVMPin* AddPin(URigVMController* InController, URigVMNode* InNode, const FName& InName, ERigVMPinDirection InDirection, bool bIsArray, const FString& InCPPType, UObject* InCPPTypeObject)
+		FName ArgumentNameToResolve = NAME_None;
+		TRigVMTypeIndex TypeIndex = INDEX_NONE;
+		for(int32 Index = 0; Index < Template->NumArguments(); Index++)
 		{
-			URigVMPin* Pin = NewObject<URigVMPin>(InNode, InName);
-			Pin->CPPType = InCPPType;
-			Pin->CPPTypeObject = InCPPTypeObject;
-			if(Pin->CPPTypeObject)
+			const FRigVMTemplateArgument* Argument = Template->GetArgument(Index);
+			if(Argument->IsSingleton())
 			{
-				Pin->CPPTypeObjectPath = *Pin->CPPTypeObject->GetPathName();
+				continue;
 			}
-			if(bIsArray && !RigVMTypeUtils::IsArrayType(Pin->CPPType))
+			if(Argument->GetArrayType() == FRigVMTemplateArgument::EArrayType_SingleValue)
 			{
-				Pin->CPPType = RigVMTypeUtils::ArrayTypeFromBaseType(*Pin->CPPType);
+				ArgumentNameToResolve = Argument->GetName();
+				TypeIndex = ElementTypeIndex;
+				break;
 			}
-			Pin->Direction = InDirection;
-			Pin->bIsDynamicArray = bIsArray;
-			AddNodePin(InNode, Pin);
-
-			if(Pin->Direction != ERigVMPinDirection::Hidden && !bIsArray && !Pin->IsExecuteContext())
+			if(Argument->GetArrayType() == FRigVMTemplateArgument::EArrayType_ArrayValue)
 			{
-				if(UScriptStruct* Struct = Cast<UScriptStruct>(Pin->CPPTypeObject))
-				{
-					FString DefaultValue;
-					InController->CreateDefaultValueForStructIfRequired(Pin->GetScriptStruct(), DefaultValue);
-					{
-						TGuardValue<bool> SuspendNotifications(InController->bSuspendNotifications, true);
-						InController->AddPinsForStruct(Struct, InNode, Pin, InDirection, DefaultValue, true);
-					}
-				}
+				ArgumentNameToResolve = Argument->GetName();
+				TypeIndex = ArrayTypeIndex;
+				break;
 			}
-
-			return Pin;
 		}
-		
-		static URigVMPin* AddExecutePin(URigVMController* InController, URigVMNode* InNode, ERigVMPinDirection InDirection = ERigVMPinDirection::IO, const FName& InName = NAME_None)
+
+		if(!ArgumentNameToResolve.IsNone() && TypeIndex != INDEX_NONE)
 		{
-			const FName PinName = InName.IsNone() ? FRigVMStruct::ExecuteContextName : InName;
-			UScriptStruct* ExecuteContextStruct = FRigVMExecuteContext::StaticStruct();
-			URigVMPin* Pin = AddPin(InController, InNode, PinName, InDirection, false, FString::Printf(TEXT("F%s"), *ExecuteContextStruct->GetName()), ExecuteContextStruct);
-			if(PinName == FRigVMStruct::ExecuteContextName)
+			if(const URigVMPin* Pin = Node->FindPin(ArgumentNameToResolve.ToString()))
 			{
-				Pin->DisplayName = FRigVMStruct::ExecuteName;
+				ResolveWildCardPin(Pin->GetPinPath(), TypeIndex, bSetupUndoRedo, bPrintPythonCommand);
 			}
-			return Pin;
-		}
-
-		static URigVMPin* AddArrayPin(URigVMController* InController, URigVMNode* InNode, ERigVMPinDirection InDirection, const FString& InCPPType, UObject* InCPPTypeObject, const FName& InName = NAME_None)
-		{
-			const FName PinName = InName.IsNone() ? *URigVMArrayNode::ArrayName : InName;
-			return AddPin(InController, InNode, PinName, InDirection, true, InCPPType, InCPPTypeObject);  
-		}
-
-		static URigVMPin* AddElementPin(URigVMController* InController, URigVMNode* InNode, ERigVMPinDirection InDirection, const FString& InCPPType, UObject* InCPPTypeObject)
-		{
-			return AddPin(InController, InNode, *URigVMArrayNode::ElementName, InDirection, false, InCPPType, InCPPTypeObject);  
-		}
-
-		static URigVMPin* AddIndexPin(URigVMController* InController, URigVMNode* InNode, ERigVMPinDirection InDirection)
-		{
-			return AddPin(InController, InNode, *URigVMArrayNode::IndexName, InDirection, false, RigVMTypeUtils::Int32Type, nullptr);  
-		}
-
-		static URigVMPin* AddNumPin(URigVMController* InController, URigVMNode* InNode, ERigVMPinDirection InDirection)
-		{
-			return AddPin(InController, InNode, *URigVMArrayNode::NumName, InDirection, false, RigVMTypeUtils::Int32Type, nullptr);  
-		}
-
-		static URigVMPin* AddCountPin(URigVMController* InController, URigVMNode* InNode, ERigVMPinDirection InDirection)
-		{
-			return AddPin(InController, InNode, *URigVMArrayNode::CountName, InDirection, false, RigVMTypeUtils::Int32Type, nullptr);  
-		}
-
-		static URigVMPin* AddRatioPin(URigVMController* InController, URigVMNode* InNode)
-		{
-			return AddPin(InController, InNode, *URigVMArrayNode::RatioName, ERigVMPinDirection::Output, false, RigVMTypeUtils::FloatType, nullptr);  
-		}
-
-		static URigVMPin* AddContinuePin(URigVMController* InController, URigVMNode* InNode)
-		{
-			return AddPin(InController, InNode, *URigVMArrayNode::ContinueName, ERigVMPinDirection::Hidden, false, RigVMTypeUtils::BoolType, nullptr);
-		}
-
-		static URigVMPin* AddSuccessPin(URigVMController* InController, URigVMNode* InNode)
-		{
-			return AddPin(InController, InNode, *URigVMArrayNode::SuccessName, ERigVMPinDirection::Output, false, RigVMTypeUtils::BoolType, nullptr);  
-		}
-	};
-
-	switch(InOpCode)
-	{
-		case ERigVMOpCode::ArrayReset:
-		case ERigVMOpCode::ArrayReverse:
-		{
-			Local::AddExecutePin(this, Node);
-			Local::AddArrayPin(this, Node, ERigVMPinDirection::IO, CPPType, InCPPTypeObject);
-			break;
-		}
-		case ERigVMOpCode::ArrayGetNum:
-		{
-			Local::AddArrayPin(this, Node, ERigVMPinDirection::Input, CPPType, InCPPTypeObject);
-			Local::AddNumPin(this, Node, ERigVMPinDirection::Output);
-			break;
-		} 
-		case ERigVMOpCode::ArraySetNum:
-		{
-			Local::AddExecutePin(this, Node);
-			Local::AddArrayPin(this, Node, ERigVMPinDirection::IO, CPPType, InCPPTypeObject);
-			Local::AddNumPin(this, Node, ERigVMPinDirection::Input);
-			break;
-		}
-		case ERigVMOpCode::ArrayGetAtIndex:
-		{
-			Local::AddArrayPin(this, Node, ERigVMPinDirection::Input, CPPType, InCPPTypeObject);
-			Local::AddIndexPin(this, Node, ERigVMPinDirection::Input);
-			Local::AddElementPin(this, Node, ERigVMPinDirection::Output, CPPType, InCPPTypeObject);
-			break;
-		}
-		case ERigVMOpCode::ArraySetAtIndex:
-		case ERigVMOpCode::ArrayInsert:
-		{
-			Local::AddExecutePin(this, Node);
-			Local::AddArrayPin(this, Node, ERigVMPinDirection::IO, CPPType, InCPPTypeObject);
-			Local::AddIndexPin(this, Node, ERigVMPinDirection::Input);
-			Local::AddElementPin(this, Node, ERigVMPinDirection::Input, CPPType, InCPPTypeObject);
-			break;
-		}
-		case ERigVMOpCode::ArrayAdd:
-		{
-			Local::AddExecutePin(this, Node);
-			Local::AddArrayPin(this, Node, ERigVMPinDirection::IO, CPPType, InCPPTypeObject);
-			Local::AddElementPin(this, Node, ERigVMPinDirection::Input, CPPType, InCPPTypeObject);
-			Local::AddIndexPin(this, Node, ERigVMPinDirection::Output);
-			break;
-		}
-		case ERigVMOpCode::ArrayFind:
-		{
-			Local::AddArrayPin(this, Node, ERigVMPinDirection::Input, CPPType, InCPPTypeObject);
-			Local::AddElementPin(this, Node, ERigVMPinDirection::Input, CPPType, InCPPTypeObject);
-			Local::AddIndexPin(this, Node, ERigVMPinDirection::Output);
-			Local::AddSuccessPin(this, Node);
-			break;
-		}
-		case ERigVMOpCode::ArrayRemove:
-		{
-			Local::AddExecutePin(this, Node);
-			Local::AddArrayPin(this, Node, ERigVMPinDirection::IO, CPPType, InCPPTypeObject);
-			Local::AddIndexPin(this, Node, ERigVMPinDirection::Input);
-			break;
-		}
-		case ERigVMOpCode::ArrayAppend:
-		case ERigVMOpCode::ArrayUnion:
-		{
-			Local::AddExecutePin(this, Node);
-			Local::AddArrayPin(this, Node, ERigVMPinDirection::IO, CPPType, InCPPTypeObject);
-			Local::AddArrayPin(this, Node, ERigVMPinDirection::Input, CPPType, InCPPTypeObject, *URigVMArrayNode::OtherName);
-			break;
-		}
-		case ERigVMOpCode::ArrayClone:
-		{
-			Local::AddArrayPin(this, Node, ERigVMPinDirection::Input, CPPType, InCPPTypeObject);
-			Local::AddArrayPin(this, Node, ERigVMPinDirection::Output, CPPType, InCPPTypeObject, *URigVMArrayNode::CloneName);
-			break;
-		}
-		case ERigVMOpCode::ArrayIterator:
-		{
-			Local::AddExecutePin(this, Node);
-			Local::AddArrayPin(this, Node, ERigVMPinDirection::Input, CPPType, InCPPTypeObject);
-			Local::AddElementPin(this, Node, ERigVMPinDirection::Output, CPPType, InCPPTypeObject);
-			Local::AddIndexPin(this, Node, ERigVMPinDirection::Output);
-			Local::AddCountPin(this, Node, ERigVMPinDirection::Output);
-			Local::AddRatioPin(this, Node);
-			Local::AddContinuePin(this, Node);
-			Local::AddExecutePin(this, Node, ERigVMPinDirection::Output, *URigVMArrayNode::CompletedName);
-			break;
-		}
-		case ERigVMOpCode::ArrayDifference:
-		case ERigVMOpCode::ArrayIntersection:
-		{
-			Local::AddArrayPin(this, Node, ERigVMPinDirection::Input, CPPType, InCPPTypeObject);
-			Local::AddArrayPin(this, Node, ERigVMPinDirection::Input, CPPType, InCPPTypeObject, *URigVMArrayNode::OtherName);
-			Local::AddArrayPin(this, Node, ERigVMPinDirection::Output, CPPType, InCPPTypeObject, *URigVMArrayNode::ResultName);
-			break;
-		}
-		default:
-		{
-			checkNoEntry();
 		}
 	}
 
-	Graph->Nodes.Add(Node);
-
-	if (!bSuspendNotifications)
+	if(bSetupUndoRedo)
 	{
-		Graph->MarkPackageDirty();
-	}
-
-	FRigVMControllerCompileBracketScope CompileScope(this);
-	FRigVMAddArrayNodeAction Action;
-	if (bSetupUndoRedo)
-	{
-		Action = FRigVMAddArrayNodeAction(Node);
-		Action.Title = FString::Printf(TEXT("Add %s Array Node"), *Node->GetNodeTitle());
-		ActionStack->BeginAction(Action);
-	}
-
-	Notify(ERigVMGraphNotifType::NodeAdded, Node);
-
-	if (bSetupUndoRedo)
-	{
-		ActionStack->EndAction(Action);
-	}
-
-	Node->InitializeFilteredPermutations();
-	if (InCPPType != RigVMTypeUtils::GetWildCardCPPType() && InCPPType != RigVMTypeUtils::GetWildCardArrayCPPType())
-	{
-		URigVMPin* ArrayPin = Node->FindPin(URigVMArrayNode::ArrayName);
-		PrepareTemplatePinForType(ArrayPin, {ArrayPin->GetTypeIndex()}, bSetupUndoRedo);
-		TArray<int32> FilterPermutations = Node->GetFilteredPermutationsIndices();
-		if (FilterPermutations.Num() == 1)
-		{
-			const TArray<FRigVMTemplatePreferredType> NewPreferredPermutationTypes = Node->GetPreferredTypesForPermutation(FilterPermutations[0]);
-			if (bSetupUndoRedo)
-			{
-				ActionStack->AddAction(FRigVMSetPreferredTemplatePermutationsAction(Node, NewPreferredPermutationTypes));
-			}
-			Node->PreferredPermutationPairs = NewPreferredPermutationTypes;
-		}
-	}
-
-	if (bPrintPythonCommand)
-	{
-		TArray<FString> Commands = GetAddNodePythonCommands(Node);
-		for (const FString& Command : Commands)
-		{
-			RigVMPythonUtils::Print(GetGraphOuterName(), 
-				FString::Printf(TEXT("%s"), *Command));
-		}
+		CloseUndoBracket();
 	}
 
 	return Node;
 }
 
-URigVMArrayNode* URigVMController::AddArrayNodeFromObjectPath(ERigVMOpCode InOpCode, const FString& InCPPType,
+URigVMNode* URigVMController::AddArrayNodeFromObjectPath(ERigVMOpCode InOpCode, const FString& InCPPType,
 	const FString& InCPPTypeObjectPath, const FVector2D& InPosition, const FString& InNodeName, bool bSetupUndoRedo,
 	bool bPrintPythonCommand)
 {
@@ -14264,40 +14041,51 @@ void URigVMController::AddPinsForTemplate(const FRigVMTemplate* InTemplate, cons
 	{
 		DispatchContext = DispatchNode->GetDispatchContext();
 	}
-	
-	for (int32 ArgIndex = 0; ArgIndex < InTemplate->NumExecuteArguments(DispatchContext); ArgIndex++)
-    {
-        const FRigVMExecuteArgument* Arg = InTemplate->GetExecuteArgument(ArgIndex, DispatchContext);
-        URigVMPin* Pin = NewObject<URigVMPin>(InNode, Arg->Name);
-        const FRigVMTemplateArgumentType Type = Registry.GetType(Arg->TypeIndex);
-        
-        Pin->CPPType = Type.CPPType.ToString();
-        Pin->CPPTypeObject = Type.CPPTypeObject;
-        if (Pin->CPPTypeObject)
-        {
-        	Pin->CPPTypeObjectPath = *Pin->CPPTypeObject->GetPathName();
-        }
-        Pin->Direction = Arg->Direction;
-        Pin->LastKnownTypeIndex = Arg->TypeIndex;
-        Pin->LastKnownCPPType = Pin->CPPType;
 
-        AddNodePin(InNode, Pin);
-
-		if(Registry.IsArrayType(Arg->TypeIndex))
+	auto AddExecutePins = [InTemplate, InNode, &Registry, &DispatchContext, this](ERigVMPinDirection InPinDirection)
+	{
+		for (int32 ArgIndex = 0; ArgIndex < InTemplate->NumExecuteArguments(DispatchContext); ArgIndex++)
 		{
-			if(const URigVMDispatchNode* DispatchNode = Cast<URigVMDispatchNode>(Pin->GetNode()))
+			const FRigVMExecuteArgument* Arg = InTemplate->GetExecuteArgument(ArgIndex, DispatchContext);
+			if(Arg->Direction != InPinDirection)
 			{
-				if(const FRigVMDispatchFactory* Factory = DispatchNode->GetFactory())
+				continue;
+			}
+			
+			URigVMPin* Pin = NewObject<URigVMPin>(InNode, Arg->Name);
+			const FRigVMTemplateArgumentType Type = Registry.GetType(Arg->TypeIndex);
+	        
+			Pin->CPPType = Type.CPPType.ToString();
+			Pin->CPPTypeObject = Type.CPPTypeObject;
+			if (Pin->CPPTypeObject)
+			{
+				Pin->CPPTypeObjectPath = *Pin->CPPTypeObject->GetPathName();
+			}
+			Pin->Direction = Arg->Direction;
+			Pin->LastKnownTypeIndex = Arg->TypeIndex;
+			Pin->LastKnownCPPType = Pin->CPPType;
+
+			AddNodePin(InNode, Pin);
+
+			if(Registry.IsArrayType(Arg->TypeIndex))
+			{
+				if(const URigVMDispatchNode* DispatchNode = Cast<URigVMDispatchNode>(Pin->GetNode()))
 				{
-					const FString DefaultValue =  Factory->GetArgumentDefaultValue(Pin->GetFName(), Arg->TypeIndex);
-					if(!DefaultValue.IsEmpty())
+					if(const FRigVMDispatchFactory* Factory = DispatchNode->GetFactory())
 					{
-						SetPinDefaultValue(Pin, DefaultValue, true, false, false);
+						const FString DefaultValue =  Factory->GetArgumentDefaultValue(Pin->GetFName(), Arg->TypeIndex);
+						if(!DefaultValue.IsEmpty())
+						{
+							SetPinDefaultValue(Pin, DefaultValue, true, false, false);
+						}
 					}
 				}
 			}
 		}
-    }
+	};
+
+	AddExecutePins(ERigVMPinDirection::IO);
+	AddExecutePins(ERigVMPinDirection::Input);
 
 	for (int32 ArgIndex = 0; ArgIndex < InTemplate->NumArguments(); ArgIndex++)
 	{
@@ -14349,6 +14137,8 @@ void URigVMController::AddPinsForTemplate(const FRigVMTemplate* InTemplate, cons
 			}
 		}
 	}
+
+	AddExecutePins(ERigVMPinDirection::Output);
 }
 
 void URigVMController::ConfigurePinFromProperty(FProperty* InProperty, URigVMPin* InOutPin, ERigVMPinDirection InPinDirection)
@@ -15077,7 +14867,6 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 	URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(InNode);
 	URigVMFunctionReferenceNode* FunctionRefNode = Cast<URigVMFunctionReferenceNode>(InNode);
 	URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(InNode);
-	URigVMArrayNode* ArrayNode = Cast<URigVMArrayNode>(InNode);
 	URigVMDispatchNode* DispatchNode = Cast<URigVMDispatchNode>(InNode);
 
 	FScopeLock Lock(&PinPathCoreRedirectorsLock);
@@ -15432,40 +15221,6 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 		{
 			ApplyPinStates(InNode, ReferencedPinStates);
 		}
-	}
-	else if (ArrayNode)
-	{
-		// PinStates were already saved earlier, and will be applied later, no need to do it here
-	 
-		// since we are replacing existing pins, their names have to be saved
-		// and assigned to the new pins only after we removed old ones	
-		TArray<TTuple<URigVMPin*, FName>> NewRootPinInfos;
-		for (URigVMPin* RootPin : InNode->Pins)
-		{
-			URigVMPin* NewRootPin = NewObject<URigVMPin>(InNode);
-			ConfigurePinFromPin(NewRootPin, RootPin, true);
-			EnsurePinValidity(NewRootPin, false);
-		
-			NewRootPinInfos.Add(TTuple<URigVMPin*, FName>(NewRootPin, RootPin->GetFName()));
-		}
-		
-		RemovePinsDuringRepopulate(InNode, InNode->Pins, bSetupOrphanedPins);
-		
-		for (TTuple<URigVMPin*, FName> NewRootPinInfo : NewRootPinInfos)
-		{
-			RenameObject(NewRootPinInfo.Key, *NewRootPinInfo.Value.ToString(), InNode);
-			AddNodePin(InNode, NewRootPinInfo.Key);
-		}
-		
-		for (URigVMPin* Pin : InNode->Pins)
-		{
-			if (Pin->IsStruct())
-			{
-				TGuardValue<bool> SuspendNotifications(bSuspendNotifications, true);
-				AddPinsForStruct(Pin->GetScriptStruct(), InNode, Pin, Pin->GetDirection(), FString(), false);
-			}
-			Notify(ERigVMGraphNotifType::PinAdded, Pin);
-		}	
 	}
 	else
 	{
@@ -19764,6 +19519,35 @@ void URigVMController::PatchIfSelectNodesOnLoad()
 				}
 			}
 
+			ApplyPinStates(NewNode, PinStates, {}, false);
+			RestoreLinkedPaths(LinkedPaths, {}, {}, false);
+		}
+	}
+}
+
+void URigVMController::PatchArrayNodesOnLoad()
+{
+	if (const URigVMGraph* Graph = GetGraph())
+	{
+		TArray<URigVMNode*> ArrayNodes = Graph->GetNodes().FilterByPredicate([](URigVMNode* Node)
+		{
+			return Node->IsA<UDEPRECATED_RigVMArrayNode>();
+		});
+
+		for(URigVMNode* ModelNode : ArrayNodes)
+		{
+			UDEPRECATED_RigVMArrayNode* ArrayNode = CastChecked<UDEPRECATED_RigVMArrayNode>(ModelNode);
+			TArray<TPair<FString, FString>> LinkedPaths = GetLinkedPinPaths(ArrayNode);
+			const FVector2D NodePosition = ArrayNode->GetPosition();
+			const FString NodeName = ArrayNode->GetName();
+			const FString CPPType = ArrayNode->GetCPPType();
+			UObject* CPPTypeObject = ArrayNode->GetCPPTypeObject();
+			const ERigVMOpCode OpCode = ArrayNode->GetOpCode();
+			TMap<FString, FPinState> PinStates = GetPinStates(ArrayNode, true);
+			
+			RemoveNode(ArrayNode, false, true, false, false);
+
+			URigVMNode* NewNode = AddArrayNode(OpCode, CPPType, CPPTypeObject, NodePosition, NodeName, false, false);
 			ApplyPinStates(NewNode, PinStates, {}, false);
 			RestoreLinkedPaths(LinkedPaths, {}, {}, false);
 		}

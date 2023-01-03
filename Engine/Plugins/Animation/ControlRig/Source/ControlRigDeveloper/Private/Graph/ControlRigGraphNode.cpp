@@ -32,6 +32,7 @@
 #include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
 #include "RigVMModel/Nodes/RigVMCollapseNode.h"
 #include "RigVMModel/Nodes/RigVMInvokeEntryNode.h"
+#include "RigVMModel/Nodes/RigVMDispatchNode.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigGraphNode)
 
@@ -1237,6 +1238,7 @@ bool UControlRigGraphNode::ShowPaletteIconOnNode() const
 			ModelNode->IsA<URigVMFunctionReferenceNode>() ||
 			ModelNode->IsA<URigVMCollapseNode>() ||
 			ModelNode->IsA<URigVMUnitNode>() ||
+			ModelNode->IsA<URigVMDispatchNode>() ||
 			ModelNode->IsLoopNode();
 	}
 	return false;
@@ -1250,7 +1252,6 @@ FSlateIcon UControlRigGraphNode::GetIconAndTint(FLinearColor& OutColor) const
 	static FSlateIcon EventIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.Event_16x");
 	static FSlateIcon EntryReturnIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.Default_16x");
 	static FSlateIcon CollapsedNodeIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.SubGraph_16x");
-	static FSlateIcon ArrayNodeIteratorIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.Macro.ForEach_16x");
 	static FSlateIcon TemplateNodeIcon("ControlRigEditorStyle", "ControlRig.Template");
 
 	if (URigVMNode* ModelNode = GetModelNode())
@@ -1281,24 +1282,18 @@ FSlateIcon UControlRigGraphNode::GetIconAndTint(FLinearColor& OutColor) const
 			return EntryReturnIcon;
 		}
 
-		if (URigVMArrayNode* ArrayNode = Cast<URigVMArrayNode>(ModelNode))
+		const UScriptStruct* MetadataScriptStruct = nullptr;
+		if (const URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(ModelNode))
 		{
-			if(ArrayNode->IsLoopNode())
-			{
-				return ArrayNodeIteratorIcon;
-			}
+			MetadataScriptStruct = UnitNode->GetScriptStruct();
+		}
+		else if (const URigVMDispatchNode* DispatchNode = Cast<URigVMDispatchNode>(ModelNode))
+		{
+			MetadataScriptStruct = DispatchNode->GetFactory()->GetScriptStruct();
 		}
 
-		if (URigVMUnitNode *UnitNode = Cast<URigVMUnitNode>(ModelNode))
+		if(MetadataScriptStruct && MetadataScriptStruct->HasMetaDataHierarchical(FRigVMStruct::IconMetaName))
 		{
-			if(const FRigVMTemplate* Template = UnitNode->GetTemplate())
-			{
-				if(Template->NumPermutations() > 1)
-				{
-					return TemplateNodeIcon;
-				}
-			}
-			
 			FString IconPath;
 			const int32 NumOfIconPathNames = 4;
 			
@@ -1309,31 +1304,40 @@ FSlateIcon UControlRigGraphNode::GetIconAndTint(FLinearColor& OutColor) const
 				NAME_None  // StatusOverlayStyleName
 			};
 
-			if(UnitNode->GetScriptStruct())
+			// icon path format: StyleSetName|StyleName|SmallStyleName|StatusOverlayStyleName
+			// the last two names are optional, see FSlateIcon() for reference
+			MetadataScriptStruct->GetStringMetaDataHierarchical(FRigVMStruct::IconMetaName, &IconPath);
+
+			int32 NameIndex = 0;
+
+			while (!IconPath.IsEmpty() && NameIndex < NumOfIconPathNames)
 			{
-				// icon path format: StyleSetName|StyleName|SmallStyleName|StatusOverlayStyleName
-				// the last two names are optional, see FSlateIcon() for reference
-				UnitNode->GetScriptStruct()->GetStringMetaDataHierarchical(FRigVMStruct::IconMetaName, &IconPath);
+				FString Left;
+				FString Right;
 
-				int32 NameIndex = 0;
-
-				while (!IconPath.IsEmpty() && NameIndex < NumOfIconPathNames)
+				if (!IconPath.Split(TEXT("|"), &Left, &Right))
 				{
-					FString Left;
-					FString Right;
+					Left = IconPath;
+				}
 
-					if (!IconPath.Split(TEXT("|"), &Left, &Right))
-					{
-						Left = IconPath;
-					}
+				IconPathNames[NameIndex] = FName(*Left);
 
-					IconPathNames[NameIndex] = FName(*Left);
+				NameIndex++;
+				IconPath = Right;
+			}
+			
+			return FSlateIcon(IconPathNames[0], IconPathNames[1], IconPathNames[2], IconPathNames[3]);
+		}
 
-					NameIndex++;
-					IconPath = Right;
+		if (const URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(ModelNode))
+		{
+			if(const FRigVMTemplate* Template = TemplateNode->GetTemplate())
+			{
+				if(Template->NumPermutations() > 1)
+				{
+					return TemplateNodeIcon;
 				}
 			}
-			return FSlateIcon(IconPathNames[0], IconPathNames[1], IconPathNames[2], IconPathNames[3]);
 		}
 	}
 

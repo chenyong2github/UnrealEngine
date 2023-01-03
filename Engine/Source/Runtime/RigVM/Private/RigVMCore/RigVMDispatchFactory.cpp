@@ -220,8 +220,8 @@ FString FRigVMDispatchFactory::GetPermutationName(const FRigVMTemplateTypeMap& I
 
 FString FRigVMDispatchFactory::GetPermutationNameImpl(const FRigVMTemplateTypeMap& InTypes) const
 {
-	const FString TypePairStrings = FRigVMTemplate::GetStringFromArgumentTypes(InTypes);
 	static constexpr TCHAR Format[] = TEXT("%s::%s");
+	const FString TypePairStrings = FRigVMTemplate::GetStringFromArgumentTypes(InTypes);
 	return FString::Printf(Format, *GetFactoryName().ToString(), *TypePairStrings);
 }
 

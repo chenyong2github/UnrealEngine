@@ -1685,39 +1685,6 @@ public:
 };
 
 /**
-* An action adding a array node to the graph.
-*/
-USTRUCT()
-struct FRigVMAddArrayNodeAction : public FRigVMBaseAction
-{
-	GENERATED_BODY()
-
-public:
-
-	FRigVMAddArrayNodeAction();
-	FRigVMAddArrayNodeAction(URigVMArrayNode* InNode);
-	virtual ~FRigVMAddArrayNodeAction() {};
-	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMAddArrayNodeAction::StaticStruct(); }
-	virtual bool Undo(URigVMController* InController) override;
-	virtual bool Redo(URigVMController* InController) override;
-
-	UPROPERTY()
-	ERigVMOpCode OpCode;
-	
-	UPROPERTY()
-	FString CPPType;
-
-	UPROPERTY()
-	FString CPPTypeObjectPath;
-
-	UPROPERTY()
-	FVector2D Position;
-
-	UPROPERTY()
-	FString NodePath;
-};
-
-/**
  * An action to promote a function to collapse node or vice versa
  */
 USTRUCT()

@@ -26,7 +26,6 @@ class FRigVMAssignExprAST;
 class FRigVMCopyExprAST;
 class FRigVMCachedValueExprAST;
 class FRigVMExitExprAST;
-class FRigVMArrayExprAST;
 
 class URigVMPin;
 class URigVMLink;
@@ -91,7 +90,6 @@ public:
 		Copy,
 		CachedValue,
 		Exit,
-		Array,
 		Invalid
 	};
 
@@ -315,8 +313,7 @@ inline const FRigVMNodeExprAST* FRigVMExprAST::To() const
 		IsA(EType::InvokeEntry) ||
 		IsA(EType::CallExtern) ||
 		IsA(EType::InlineFunction) ||
-		IsA(EType::NoOp) ||
-		IsA(EType::Array)
+		IsA(EType::NoOp)
 	);
 	return (const FRigVMNodeExprAST*)this;
 }
@@ -451,17 +448,6 @@ inline const FRigVMExitExprAST* FRigVMExprAST::To() const
 {
 	ensure(IsA(EType::Exit));
 	return (const FRigVMExitExprAST*)this;
-}
-
-// specialized cast for type checking
-// for a Array / FRigVMArrayExprAST expression
-// will raise if types are not compatible
-// @return this expression cast to FRigVMArrayExprAST 
-template<>
-inline const FRigVMArrayExprAST* FRigVMExprAST::To() const
-{
-	ensure(IsA(EType::Array));
-	return (const FRigVMArrayExprAST*)this;
 }
 
 /*
@@ -1075,41 +1061,6 @@ private:
 
 	friend class FRigVMParserAST;
 };
-
-/*
-* An abstract syntax tree array expression that can be used to represent
-* any array operation, such as Add, GetNum etc
-* In C++ the array op is the definition: Value[Index] etc
-*/
-class RIGVMDEVELOPER_API FRigVMArrayExprAST : public FRigVMNodeExprAST
-{
-public:
-
-	// virtual destructor
-	virtual ~FRigVMArrayExprAST() {}
-
-	// disable copy constructor
-	FRigVMArrayExprAST(const FRigVMEntryExprAST&) = delete;
-
-	// overload of the type checking mechanism
-	virtual bool IsA(EType InType) const override
-	{
-		return InType == EType::Array;
-	};
-
-protected:
-
-	// default constructor (protected so that only parser can access it)
-	FRigVMArrayExprAST(const FRigVMASTProxy& InProxy)
-		: FRigVMNodeExprAST(EType::Array, InProxy)
-	{
-	}
-
-private:
-
-	friend class FRigVMParserAST;
-};
-
 
 /*
  * The settings to apply during the parse of the abstract syntax tree.

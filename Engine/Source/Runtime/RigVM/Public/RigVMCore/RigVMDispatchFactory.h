@@ -155,6 +155,9 @@ public:
 	// returns the name of the permutation for a given set of types
 	FString GetPermutationName(const FRigVMTemplateTypeMap& InTypes) const;
 
+	// returns true if the dispatch uses the same function ptr for all permutations
+	virtual bool IsSingleton() const { return false; } 
+
 protected:
 
 	// returns the name of the permutation for a given set of types

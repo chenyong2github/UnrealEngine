@@ -182,22 +182,22 @@ enum class ERigVMOpCode : uint8
 	Exit, // exit the execution loop
 	BeginBlock, // begins a new memory slice / block
 	EndBlock, // ends the last memory slice / block
-	ArrayReset, // clears an array and resets its content
-	ArrayGetNum, // reads and returns the size of an array (binary op, in array, out int32) 
-	ArraySetNum, // resizes an array (binary op, in out array, in int32)
-	ArrayGetAtIndex, // returns an array element by index (ternary op, in array, in int32, out element)  
-	ArraySetAtIndex, // sets an array element by index (ternary op, in out array, in int32, in element)
-	ArrayAdd, // adds an element to an array (ternary op, in out array, in element, out int32 index)
-	ArrayInsert, // inserts an element to an array (ternary op, in out array, in int32, in element)
-	ArrayRemove, // removes an element from an array (binary op, in out array, in inindex)
-	ArrayFind, // finds and returns the index of an element (quaternery op, in array, in element, out int32 index, out bool success)
-	ArrayAppend, // appends an array to another (binary op, in out array, in array)
-	ArrayClone, // clones an array (binary op, in array, out array)
-	ArrayIterator, // iterates over an array (senary op, in array, out element, out index, out count, out ratio, out continue)
-	ArrayUnion, // merges two arrays while avoiding duplicates (binary op, in out array, in other array)
-	ArrayDifference, // returns a new array containing elements only found in one array (ternary op, in array, in array, out result)
-	ArrayIntersection, // returns a new array containing elements found in both of the input arrays (ternary op, in array, in array, out result)
-	ArrayReverse, // returns the reverse of the input array (unary op, in out array)
+	ArrayReset, // (DEPRECATED) clears an array and resets its content
+	ArrayGetNum, // (DEPRECATED) reads and returns the size of an array (binary op, in array, out int32) 
+	ArraySetNum, // (DEPRECATED) resizes an array (binary op, in out array, in int32)
+	ArrayGetAtIndex, // (DEPRECATED) returns an array element by index (ternary op, in array, in int32, out element)  
+	ArraySetAtIndex, // (DEPRECATED) sets an array element by index (ternary op, in out array, in int32, in element)
+	ArrayAdd, // (DEPRECATED) adds an element to an array (ternary op, in out array, in element, out int32 index)
+	ArrayInsert, // (DEPRECATED) inserts an element to an array (ternary op, in out array, in int32, in element)
+	ArrayRemove, // (DEPRECATED) removes an element from an array (binary op, in out array, in inindex)
+	ArrayFind, // (DEPRECATED) finds and returns the index of an element (quaternery op, in array, in element, out int32 index, out bool success)
+	ArrayAppend, // (DEPRECATED) appends an array to another (binary op, in out array, in array)
+	ArrayClone, // (DEPRECATED) clones an array (binary op, in array, out array)
+	ArrayIterator, // (DEPRECATED) iterates over an array (senary op, in array, out element, out index, out count, out ratio, out continue)
+	ArrayUnion, // (DEPRECATED) merges two arrays while avoiding duplicates (binary op, in out array, in other array)
+	ArrayDifference, // (DEPRECATED) returns a new array containing elements only found in one array (ternary op, in array, in array, out result)
+	ArrayIntersection, // (DEPRECATED) returns a new array containing elements found in both of the input arrays (ternary op, in array, in array, out result)
+	ArrayReverse, // (DEPRECATED) returns the reverse of the input array (unary op, in out array)
 	InvokeEntry, // invokes an entry from the entry list
 	JumpToBranch, // jumps to a branch based on a name operand
 	Invalid,
@@ -286,8 +286,6 @@ struct RIGVM_API FRigVMUnaryOp : public FRigVMBaseOp
 			uint8(InOpCode) == uint8(ERigVMOpCode::JumpForwardIf) ||
 			uint8(InOpCode) == uint8(ERigVMOpCode::JumpBackwardIf) ||
 			uint8(InOpCode) == uint8(ERigVMOpCode::ChangeType) ||
-			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayReset) ||
-			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayReverse) ||
 			uint8(InOpCode) == uint8(ERigVMOpCode::JumpToBranch)
 		);
 	}
@@ -325,15 +323,6 @@ struct RIGVM_API FRigVMBinaryOp : public FRigVMBaseOp
 		, ArgA(InArgA)
 		, ArgB(InArgB)
 	{
-		ensure(
-			uint8(InOpCode) == uint8(ERigVMOpCode::BeginBlock) ||
-			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayGetNum) ||
-			uint8(InOpCode) == uint8(ERigVMOpCode::ArraySetNum) ||
-			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayAppend) ||
-			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayClone) ||
-			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayRemove) ||
-			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayUnion)
-		);
 	}
 
 	FRigVMOperand ArgA;
@@ -375,14 +364,6 @@ struct RIGVM_API FRigVMTernaryOp : public FRigVMBaseOp
 		, ArgB(InArgB)
 		, ArgC(InArgC)
 	{
-		ensure(
-			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayAdd) ||
-			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayGetAtIndex) ||
-			uint8(InOpCode) == uint8(ERigVMOpCode::ArraySetAtIndex) ||
-			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayInsert) ||
-			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayDifference) ||
-			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayIntersection)
-		);
 	}
 
 	FRigVMOperand ArgA;
@@ -533,9 +514,6 @@ struct RIGVM_API FRigVMSenaryOp : public FRigVMBaseOp
 		, ArgE(InArgE)
 		, ArgF(InArgF)
 	{
-		ensure(
-			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayIterator)
-		);
 	}
 
 	FRigVMOperand ArgA;
@@ -1046,54 +1024,6 @@ public:
 
 	// adds an operator to end the last memory slice
 	uint64 AddEndBlockOp();
-
-	// adds an array reset operator
-	uint64 AddArrayResetOp(FRigVMOperand InArrayArg);
-
-	// adds an array get num operator
-	uint64 AddArrayGetNumOp(FRigVMOperand InArrayArg, FRigVMOperand InNumArg);
-
-	// adds an array set num operator
-	uint64 AddArraySetNumOp(FRigVMOperand InArrayArg, FRigVMOperand InNumArg);
-
-	// adds an array get at index operator
-	uint64 AddArrayGetAtIndexOp(FRigVMOperand InArrayArg, FRigVMOperand InIndexArg, FRigVMOperand InElementArg);
-
-	// adds an array set at index operator
-	uint64 AddArraySetAtIndexOp(FRigVMOperand InArrayArg, FRigVMOperand InIndexArg, FRigVMOperand InElementArg);
-
-	// adds an array add operator
-	uint64 AddArrayAddOp(FRigVMOperand InArrayArg, FRigVMOperand InElementArg, FRigVMOperand InIndexArg);
-
-	// adds an array insert operator
-	uint64 AddArrayInsertOp(FRigVMOperand InArrayArg, FRigVMOperand InIndexArg, FRigVMOperand InElementArg);
-
-	// adds an array remove operator
-	uint64 AddArrayRemoveOp(FRigVMOperand InArrayArg, FRigVMOperand InIndexArg);
-
-	// adds an array find operator
-	uint64 AddArrayFindOp(FRigVMOperand InArrayArg, FRigVMOperand InElementArg, FRigVMOperand InIndexArg, FRigVMOperand InSuccessArg);
-
-	// adds an array append operator
-	uint64 AddArrayAppendOp(FRigVMOperand InArrayArg, FRigVMOperand InOtherArrayArg);
-
-	// adds an array clone operator
-	uint64 AddArrayCloneOp(FRigVMOperand InArrayArg, FRigVMOperand InClonedArrayArg);
-
-	// adds an array iterator operator
-	uint64 AddArrayIteratorOp(FRigVMOperand InArrayArg, FRigVMOperand InElementArg, FRigVMOperand InIndexArg, FRigVMOperand InCountArg, FRigVMOperand InRatioArg, FRigVMOperand InContinueArg);
-
-	// adds an array union operator
-	uint64 AddArrayUnionOp(FRigVMOperand InArrayArg, FRigVMOperand InOtherArrayArg);
-	
-	// adds an array difference operator
-	uint64 AddArrayDifferenceOp(FRigVMOperand InArrayArg, FRigVMOperand InOtherArrayArg, FRigVMOperand InResultArrayArg);
-	
-	// adds an array intersection operator
-	uint64 AddArrayIntersectionOp(FRigVMOperand InArrayArg, FRigVMOperand InOtherArrayArg, FRigVMOperand InResultArrayArg);
-	
-	// adds an array reverse operator
-	uint64 AddArrayReverseOp(FRigVMOperand InArrayArg);
 
 	// adds an invoke entry operator
 	uint64 AddInvokeEntryOp(const FName& InEntryName);

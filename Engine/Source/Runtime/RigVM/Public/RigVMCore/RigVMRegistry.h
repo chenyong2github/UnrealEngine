@@ -228,6 +228,29 @@ public:
 	// Returns a dispatch factory given its static struct (or nullptr)
 	FRigVMDispatchFactory* FindOrAddDispatchFactory(UScriptStruct* InFactoryStruct);
 
+	// Returns a dispatch factory given its static struct (or nullptr)
+	template <
+		typename T,
+		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
+	>
+	FRigVMDispatchFactory* FindOrAddDispatchFactory()
+	{
+		return FindOrAddDispatchFactory(T::StaticStruct());
+	}
+
+	// Returns a dispatch factory's singleton function name if that exists
+	FString FindOrAddSingletonDispatchFunction(UScriptStruct* InFactoryStruct);
+
+	// Returns a dispatch factory's singleton function name if that exists
+	template <
+		typename T,
+		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
+	>
+	FString FindOrAddSingletonDispatchFunction()
+	{
+		return FindOrAddSingletonDispatchFunction(T::StaticStruct());
+	}
+
 	// Returns all dispatch factories
 	const TArray<FRigVMDispatchFactory*>& GetFactories() const;
 

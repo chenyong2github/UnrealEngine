@@ -671,6 +671,7 @@ void FRigVMClient::PatchModelsOnLoad()
 		Controller->PatchDispatchNodesOnLoad();
 		Controller->PatchBranchNodesOnLoad();
 		Controller->PatchIfSelectNodesOnLoad();
+		Controller->PatchArrayNodesOnLoad();
 	}
 }
 

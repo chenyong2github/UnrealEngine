@@ -1465,6 +1465,28 @@ FRigVMDispatchFactory* FRigVMRegistry::FindOrAddDispatchFactory(UScriptStruct* I
 	return (FRigVMDispatchFactory*)RegisterFactory(InFactoryStruct);
 }
 
+FString FRigVMRegistry::FindOrAddSingletonDispatchFunction(UScriptStruct* InFactoryStruct)
+{
+	if(const FRigVMDispatchFactory* Factory = FindOrAddDispatchFactory(InFactoryStruct))
+	{
+		if(Factory->IsSingleton())
+		{
+			if(const FRigVMTemplate* Template = Factory->GetTemplate())
+			{
+				// use the types for the first permutation - since we don't care
+				// for a singleton dispatch
+				const FRigVMTemplateTypeMap TypesForPrimaryPermutation = Template->GetTypesForPermutation(0);
+				const FString Name = Factory->GetPermutationName(TypesForPrimaryPermutation);
+				if(const FRigVMFunction* Function = FindFunction(*Name))
+				{
+					return Function->Name;
+				}
+			}
+		}
+	}
+	return FString();
+}
+
 const TArray<FRigVMDispatchFactory*>& FRigVMRegistry::GetFactories() const
 {
 	return Factories;

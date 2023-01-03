@@ -86,23 +86,6 @@ static constexpr TCHAR RigVM_JumpIfOpFormat[] = TEXT("\tif ({0} == {1}) { goto I
 static constexpr TCHAR RigVM_JumpToBranchFormat[] = TEXT("\tif ({0} == BlockName_{1}) { goto Instruction{2}Label; }");
 static constexpr TCHAR RigVM_BeginBlockOpFormat[] = TEXT("\tBeginSlice({0}, {1});");
 static constexpr TCHAR RigVM_EndBlockOpFormat[] = TEXT("\tEndSlice();");
-static constexpr TCHAR RigVM_ArrayResetOpFormat[] = TEXT("\t{0}.Reset();");
-static constexpr TCHAR RigVM_ArrayGetNumOpFormat[] = TEXT("\t{0} = {1}.Num();");
-static constexpr TCHAR RigVM_ArraySetNumOpFormat[] = TEXT("\tif ({0}) { {1}.SetNum({2}); }");
-static constexpr TCHAR RigVM_ArrayGetAtIndexOpFormat[] = TEXT("\tif ({0}) { {1} = {2}[TemporaryArrayIndex]; }");
-static constexpr TCHAR RigVM_ArraySetAtIndexOpFormat[] = TEXT("\tif ({0}) { {1}[TemporaryArrayIndex] = {2}; }");
-static constexpr TCHAR RigVM_ArrayAddOpFormat[] = TEXT("\tif ({0}) { {1} = {2}.Add({3}); }");
-static constexpr TCHAR RigVM_ArrayNumPlusOneFormat[] = TEXT("{0}.Num() + 1");
-static constexpr TCHAR RigVM_ArrayInsertOpFormat[] = TEXT("\tif ({0}) { {1}.Insert({2}, {3}); }");
-static constexpr TCHAR RigVM_ArrayRemoveOpFormat[] = TEXT("\t{0}.RemoveAt({1});");
-static constexpr TCHAR RigVM_ArrayFindOpFormat[] = TEXT("\t{0} = ArrayOp_Find{1}({2}, {3}, {4});");
-static constexpr TCHAR RigVM_ArrayAppendOpFormat[] = TEXT("\tif ({0} { {1}.Append({2}); }");
-static constexpr TCHAR RigVM_ArrayAppendOpNumFormat[] = TEXT("{0}.Num() + {1}.Num()");
-static constexpr TCHAR RigVM_ArrayIteratorOpFormat[] = TEXT("\t{0} = ArrayOp_Iterator{1}({2}, {3}, {4}, {5}, {6});");
-static constexpr TCHAR RigVM_ArrayUnionOpFormat[] = TEXT("\tArrayOp_Union{0}({1}, {2});");
-static constexpr TCHAR RigVM_ArrayDifferenceOpFormat[] = TEXT("\tArrayOp_Difference{0}({1}, {2});");
-static constexpr TCHAR RigVM_ArrayIntersectionOpFormat[] = TEXT("\tArrayOp_Intersection{0}({1}, {2});");
-static constexpr TCHAR RigVM_ArrayReverseOpFormat[] = TEXT("\tArrayOp_Reverse{0}({1});");
 static constexpr TCHAR RigVM_ReturnFailedFormat[] = TEXT("\treturn ERigVMExecuteResult::Failed;");
 static constexpr TCHAR RigVM_ReturnSucceededFormat[] = TEXT("\treturn ERigVMExecuteResult::Succeeded;");
 static constexpr TCHAR RigVM_CopyrightFormat[] = TEXT("// Copyright Epic Games, Inc. All Rights Reserved.");
@@ -804,7 +787,6 @@ FString FRigVMCodeGenerator::DumpInstructions(const FString& InPrefix, const TAr
 				break;
 			}
 			case ERigVMOpCode::Copy:
-			case ERigVMOpCode::ArrayClone:
 			{
 				const FRigVMBinaryOp& Op = ByteCode.GetOpAt<FRigVMBinaryOp>(Instruction);
 				const FString TargetOperand = GetOperandName(Op.ArgB, false, false);
@@ -915,124 +897,6 @@ FString FRigVMCodeGenerator::DumpInstructions(const FString& InPrefix, const TAr
 			case ERigVMOpCode::EndBlock:
 			{
 				Lines.Add(Prefix + RigVM_EndBlockOpFormat);
-				break;
-			}
-			case ERigVMOpCode::ArrayReset:
-			{
-				const FRigVMUnaryOp& Op = ByteCode.GetOpAt<FRigVMUnaryOp>(Instruction);
-				Lines.Add(Prefix + Format(RigVM_ArrayResetOpFormat, *GetOperandName(Op.Arg, false)));
-				break;
-			}
-			case ERigVMOpCode::ArrayGetNum:
-			{
-				const FRigVMBinaryOp& Op = ByteCode.GetOpAt<FRigVMBinaryOp>(Instruction);
-				Lines.Add(Prefix + Format(RigVM_ArrayGetNumOpFormat, *GetOperandName(Op.ArgB, false), *GetOperandName(Op.ArgA, false)));
-				break;
-			} 
-			case ERigVMOpCode::ArraySetNum:
-			{
-				const FRigVMBinaryOp& Op = ByteCode.GetOpAt<FRigVMBinaryOp>(Instruction);
-				const FString ConditionString = Format(RigVM_IsValidArraySizeFormat, *GetOperandName(Op.ArgB, false));
-				Lines.Add(Prefix + Format(RigVM_ArraySetNumOpFormat, *ConditionString, *GetOperandName(Op.ArgA, false), *GetOperandName(Op.ArgB, false)));
-				break;
-			}
-			case ERigVMOpCode::ArrayGetAtIndex:
-			{
-				const FRigVMTernaryOp& Op = ByteCode.GetOpAt<FRigVMTernaryOp>(Instruction);
-				const FString ConditionString = Format(RigVM_IsValidArrayIndexFormat, *GetOperandCPPBaseType(Op.ArgA), *GetOperandName(Op.ArgA, false));
-				Lines.Add(Prefix + Format(RigVM_TemporaryArrayIndexFormat, *GetOperandName(Op.ArgB, false)));
-				Lines.Add(Prefix + Format(RigVM_ArrayGetAtIndexOpFormat, *ConditionString, *GetOperandName(Op.ArgC, false), *GetOperandName(Op.ArgA, false)));
-				break;
-			}  
-			case ERigVMOpCode::ArraySetAtIndex:
-			{
-				const FRigVMTernaryOp& Op = ByteCode.GetOpAt<FRigVMTernaryOp>(Instruction);
-				const FString ConditionString = Format(RigVM_IsValidArrayIndexFormat,  *GetOperandCPPBaseType(Op.ArgA), *GetOperandName(Op.ArgA, false));
-				Lines.Add(Prefix + Format(RigVM_TemporaryArrayIndexFormat, *GetOperandName(Op.ArgB, false)));
-				Lines.Add(Prefix + Format(RigVM_ArraySetAtIndexOpFormat, *ConditionString, *GetOperandName(Op.ArgA, false), *GetOperandName(Op.ArgC, false), *GetOperandName(Op.ArgC, false)));
-				break;
-			}
-			case ERigVMOpCode::ArrayAdd:
-			{
-				const FRigVMTernaryOp& Op = ByteCode.GetOpAt<FRigVMTernaryOp>(Instruction);
-				const FString NumString = Format(RigVM_ArrayNumPlusOneFormat, *GetOperandName(Op.ArgA, false));
-				const FString ConditionString = Format(RigVM_IsValidArraySizeFormat, *NumString);
-				Lines.Add(Prefix + Format(RigVM_ArrayAddOpFormat, *ConditionString, *GetOperandName(Op.ArgC, false), *GetOperandName(Op.ArgA, false), *GetOperandName(Op.ArgB, false)));
-				break;
-			}
-			case ERigVMOpCode::ArrayInsert:
-			{
-				const FRigVMTernaryOp& Op = ByteCode.GetOpAt<FRigVMTernaryOp>(Instruction);
-				const FString NumString = Format(RigVM_ArrayNumPlusOneFormat, *GetOperandName(Op.ArgA, false));
-				const FString ConditionString = Format(RigVM_IsValidArraySizeFormat, *NumString);
-				Lines.Add(Prefix + Format(RigVM_ArrayInsertOpFormat, *ConditionString, *GetOperandName(Op.ArgA, false), *GetOperandName(Op.ArgC, false), *GetOperandName(Op.ArgB, false)));
-				break;
-			}
-			case ERigVMOpCode::ArrayRemove:
-			{
-				const FRigVMBinaryOp& Op = ByteCode.GetOpAt<FRigVMBinaryOp>(Instruction);
-				Lines.Add(Prefix + Format(RigVM_ArrayRemoveOpFormat, *GetOperandName(Op.ArgA, false), *GetOperandName(Op.ArgB, false)));
-				break;
-			}
-			case ERigVMOpCode::ArrayFind:
-			{
-				const FRigVMQuaternaryOp& Op = ByteCode.GetOpAt<FRigVMQuaternaryOp>(Instruction);
-				const FString ArrayElementCPPType = RigVMTypeUtils::BaseTypeFromArrayType(GetOperandCPPBaseType(Op.ArgA));
-				const FString ElementCPPType = GetOperandCPPType(Op.ArgB);
-				const FString TemplateSuffix = ArrayElementCPPType == ElementCPPType ? Format(RigVM_TemplateOneArgFormat, *ElementCPPType) : FString();
-				Lines.Add(Prefix + Format(RigVM_ArrayFindOpFormat, *GetOperandName(Op.ArgD, false), *TemplateSuffix, *GetOperandName(Op.ArgA, false), *GetOperandName(Op.ArgB, false), *GetOperandName(Op.ArgC, false)));
-				break;
-			}
-			case ERigVMOpCode::ArrayAppend:
-			{
-				const FRigVMBinaryOp& Op = ByteCode.GetOpAt<FRigVMBinaryOp>(Instruction);
-				const FString NumString = Format(RigVM_ArrayAppendOpNumFormat, *GetOperandName(Op.ArgA, false), *GetOperandName(Op.ArgB, false));
-				const FString ConditionString = Format(RigVM_IsValidArraySizeFormat, *NumString);
-				Lines.Add(Prefix + Format(RigVM_ArrayAppendOpFormat, *ConditionString, *GetOperandName(Op.ArgA, false), *GetOperandName(Op.ArgB, false)));
-				break;
-			}
-			case ERigVMOpCode::ArrayIterator:
-			{
-				const FRigVMSenaryOp& Op = ByteCode.GetOpAt<FRigVMSenaryOp>(Instruction);
-				const FString ArrayElementCPPType = RigVMTypeUtils::BaseTypeFromArrayType(GetOperandCPPType(Op.ArgA));
-				const FString ElementCPPType = GetOperandCPPType(Op.ArgB);
-				const FString TemplateSuffix = ArrayElementCPPType == ElementCPPType ? Format(RigVM_TemplateOneArgFormat, *ElementCPPType) : FString();
-				Lines.Add(Prefix + Format(RigVM_ArrayIteratorOpFormat, *GetOperandName(Op.ArgF, false), *TemplateSuffix, *GetOperandName(Op.ArgA, false), *GetOperandName(Op.ArgB, false), *GetOperandName(Op.ArgC, false), *GetOperandName(Op.ArgD, false), *GetOperandName(Op.ArgE, false)));
-				break;
-			}
-			case ERigVMOpCode::ArrayUnion:
-			{
-				const FRigVMBinaryOp& Op = ByteCode.GetOpAt<FRigVMBinaryOp>(Instruction);
-				const FString ElementCPPTypeA = RigVMTypeUtils::BaseTypeFromArrayType(GetOperandCPPType(Op.ArgA));
-				const FString ElementCPPTypeB = RigVMTypeUtils::BaseTypeFromArrayType(GetOperandCPPType(Op.ArgA));
-				const FString TemplateSuffix = ElementCPPTypeA == ElementCPPTypeB ? Format(RigVM_TemplateOneArgFormat, *ElementCPPTypeA) : FString();
-				Lines.Add(Prefix + Format(RigVM_ArrayUnionOpFormat, *TemplateSuffix, *GetOperandName(Op.ArgA, false, false), *GetOperandName(Op.ArgB, false, false)));
-				break;
-			}
-			case ERigVMOpCode::ArrayDifference:
-			{
-				const FRigVMBinaryOp& Op = ByteCode.GetOpAt<FRigVMBinaryOp>(Instruction);
-				const FString ElementCPPTypeA = RigVMTypeUtils::BaseTypeFromArrayType(GetOperandCPPType(Op.ArgA));
-				const FString ElementCPPTypeB = RigVMTypeUtils::BaseTypeFromArrayType(GetOperandCPPType(Op.ArgA));
-				const FString TemplateSuffix = ElementCPPTypeA == ElementCPPTypeB ? Format(RigVM_TemplateOneArgFormat, *ElementCPPTypeA) : FString();
-				Lines.Add(Prefix + Format(RigVM_ArrayDifferenceOpFormat, *TemplateSuffix, *GetOperandName(Op.ArgA, false), *GetOperandName(Op.ArgB, false)));
-				break;
-			}
-			case ERigVMOpCode::ArrayIntersection:
-			{
-				const FRigVMBinaryOp& Op = ByteCode.GetOpAt<FRigVMBinaryOp>(Instruction);
-				const FString ElementCPPTypeA = RigVMTypeUtils::BaseTypeFromArrayType(GetOperandCPPType(Op.ArgA));
-				const FString ElementCPPTypeB = RigVMTypeUtils::BaseTypeFromArrayType(GetOperandCPPType(Op.ArgA));
-				const FString TemplateSuffix = ElementCPPTypeA == ElementCPPTypeB ? Format(RigVM_TemplateOneArgFormat, *ElementCPPTypeA) : FString();
-				Lines.Add(Prefix + Format(RigVM_ArrayIntersectionOpFormat, *TemplateSuffix, *GetOperandName(Op.ArgA, false), *GetOperandName(Op.ArgB, false)));
-				break;
-			}
-			case ERigVMOpCode::ArrayReverse:
-			{
-				const FRigVMUnaryOp& Op = ByteCode.GetOpAt<FRigVMUnaryOp>(Instruction);
-				const FString ElementCPPType = RigVMTypeUtils::BaseTypeFromArrayType(GetOperandCPPType(Op.Arg));
-				const FString TemplateSuffix = Format(RigVM_TemplateOneArgFormat, *ElementCPPType);
-				Lines.Add(Prefix + Format(RigVM_ArrayReverseOpFormat, *TemplateSuffix, *GetOperandName(Op.Arg, false)));
 				break;
 			}
 			case ERigVMOpCode::InvokeEntry:

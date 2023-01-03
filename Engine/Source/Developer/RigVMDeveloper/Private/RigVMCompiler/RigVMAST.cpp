@@ -10,7 +10,6 @@
 #include "RigVMModel/Nodes/RigVMEnumNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
-#include "RigVMModel/Nodes/RigVMArrayNode.h"
 #include "RigVMModel/Nodes/RigVMInvokeEntryNode.h"
 #include "RigVMModel/RigVMGraph.h"
 #include "RigVMModel/RigVMController.h"
@@ -81,10 +80,6 @@ FName FRigVMExprAST::GetTypeName() const
 		case EType::Exit:
 		{
 			return TEXT("[.Exit..]");
-		}
-		case EType::Array:
-		{
-			return TEXT("[Array..]");
 		}
 		case EType::Invalid:
 		{
@@ -584,23 +579,11 @@ bool FRigVMVarExprAST::IsEnumValue() const
 
 bool FRigVMVarExprAST::SupportsSoftLinks() const
 {
-	if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(GetPin()->GetNode()))
+	if (const URigVMNode* Node = Cast<URigVMNode>(GetPin()->GetNode()))
 	{
-		if (UnitNode->IsControlFlowNode())
+		if (Node->IsControlFlowNode())
 		{
-			return !UnitNode->GetControlFlowBlocks().Contains(GetPin()->GetFName());
-		}
-	}
-	else if(URigVMArrayNode* ArrayNode = Cast<URigVMArrayNode>(GetPin()->GetNode()))
-	{
-		// this is still using is loop node - but that's to be deprecated soon
-		if(ArrayNode->IsLoopNode())
-		{
-			if (GetPin()->GetFName() != FRigVMStruct::ExecuteContextName &&
-				GetPin()->GetName() != URigVMArrayNode::CompletedName)
-			{
-				return true;
-			}
+			return !Node->GetControlFlowBlocks().Contains(GetPin()->GetFName());
 		}
 	}
 	return false;
@@ -956,10 +939,6 @@ FRigVMExprAST* FRigVMParserAST::CreateExpressionForNode(const FRigVMASTProxy& In
 		{
 			NodeExpr = MakeExpr<FRigVMNoOpExprAST>(InNodeProxy);
 		}
-		else if (InNodeProxy.IsA<URigVMArrayNode>())
-		{
-			NodeExpr = MakeExpr<FRigVMArrayExprAST>(InNodeProxy);
-		}
 		else if (InNodeProxy.IsA<URigVMInvokeEntryNode>())
 		{
 			NodeExpr = MakeExpr<FRigVMInvokeEntryExprAST>(InNodeProxy);
@@ -1274,8 +1253,7 @@ FRigVMExprAST* FRigVMParserAST::TraverseLink(int32 InLinkIndex, FRigVMExprAST* I
 	{
 		// if this is a copy expression - we should require the copy to use a ref instead
 		if (NodeExpr->IsA(FRigVMExprAST::EType::CallExtern) ||
-			NodeExpr->IsA(FRigVMExprAST::EType::InlineFunction) ||
-			NodeExpr->IsA(FRigVMExprAST::EType::Array))
+			NodeExpr->IsA(FRigVMExprAST::EType::InlineFunction))
 		{
 			for (FRigVMExprAST* ChildExpr : *NodeExpr)
 			{
@@ -1691,9 +1669,9 @@ void FRigVMParserAST::FoldAssignments()
 		}
 
 		// if this node is a loop node - let's skip the folding
-		if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(TargetPin->GetNode()))
+		if (const URigVMNode* ModelNode = TargetPin->GetNode())
 		{
-			if (UnitNode->IsControlFlowNode())
+			if (ModelNode->IsControlFlowNode())
 			{
 				continue;
 			}
@@ -1703,16 +1681,6 @@ void FRigVMParserAST::FoldAssignments()
 		if (Cast<URigVMVariableNode>(SourcePin->GetNode()))
 		{
 			if(SourcePin->RequiresWatch(true))
-			{
-				continue;
-			}
-		}
-		
-		// if this node is an array iterator node - let's skip the folding
-		if (URigVMArrayNode* ArrayNode = Cast<URigVMArrayNode>(TargetPin->GetNode()))
-		{
-			// still using IsLoopNode - but to be deprecated soon 
-			if (ArrayNode->IsLoopNode())
 			{
 				continue;
 			}
@@ -1865,6 +1833,25 @@ bool FRigVMParserAST::FoldConstantValuesToLiterals(TArray<URigVMGraph*> InGraphs
 			for (const int32 LinkIndex : LinkIndices)
 			{
 				const FRigVMASTProxy& SourcePinProxy = Links[LinkIndex].SourceProxy;
+
+				// don't compute values which are also wired to an sub pins
+				bool bHasLinkToSubPin = false;
+				const TArray<int32> CurrentTargetLinkIndices = GetTargetLinkIndices(SourcePinProxy, true);
+				for(int32 TargetLinkIndex : CurrentTargetLinkIndices)
+				{
+					if(!Links[TargetLinkIndex].SegmentPath.IsEmpty())
+					{
+						bHasLinkToSubPin = true;
+						break;
+					}
+				}
+
+				if(bHasLinkToSubPin)
+				{
+					bFoundValidSourcePin = false;
+					break;
+				}
+				
 				URigVMNode* SourceNode = SourcePinProxy.GetSubjectChecked<URigVMPin>()->GetNode();
 				FRigVMASTProxy SourceNodeProxy = SourcePinProxy.GetSibling(SourceNode);
 
@@ -2606,12 +2593,6 @@ FString FRigVMParserAST::DumpDot() const
 				case FRigVMExprAST::EType::NoOp:
 				{
 					Label = TEXT("NoOp");
-					break;
-				}
-				case FRigVMExprAST::EType::Array:
-				{
-					ERigVMOpCode OpCode = CastChecked<URigVMArrayNode>(InExpr->To<FRigVMArrayExprAST>()->GetNode())->GetOpCode();
-					Label = StaticEnum<ERigVMOpCode>()->GetDisplayNameTextByValue((int64)OpCode).ToString();
 					break;
 				}
 				case FRigVMExprAST::EType::Exit:
