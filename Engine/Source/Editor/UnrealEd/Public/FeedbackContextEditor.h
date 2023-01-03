@@ -35,8 +35,6 @@ public:
 
 	FFeedbackContextEditor();
 
-	virtual void Serialize( const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category ) override;
-
 	virtual void StartSlowTask( const FText& Task, bool bShowCancelButton=false ) override;
 	virtual void FinalizeSlowTask( ) override;
 	virtual void ProgressReported( const float TotalProgressInterp, FText DisplayMessage ) override;

@@ -41,7 +41,9 @@ public:
 	void AddWidget(const TSharedRef<SWidget>& Widget);
 
 	/** INotificationWidget and FFeedbackContext overrides */
-	virtual void Serialize( const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category ) override {}
+	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category) override {}
+	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category, double Time) override {}
+	virtual void SerializeRecord(const UE::FLogRecord& Record) override {}
 	virtual void OnSetCompletionState(SNotificationItem::ECompletionState State) override {}
 	virtual TSharedRef<SWidget> AsWidget() override;
 	virtual void StartSlowTask(const FText& Task, bool bShowCancelButton=false) override;

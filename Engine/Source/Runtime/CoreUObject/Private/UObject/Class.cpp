@@ -4186,66 +4186,14 @@ UObject* UClass::CreateDefaultObject()
 	return ClassDefaultObject;
 }
 
-/**
- * Feedback context implementation for windows.
- */
-class FFeedbackContextImportDefaults : public FFeedbackContext
+class FFeedbackContextImportDefaults final : public FFeedbackContext
 {
 	/** Context information for warning and error messages */
 	FContextSupplier*	Context;
 
 public:
-
-	// Constructor.
-	FFeedbackContextImportDefaults()
-		: Context( NULL )
-	{
-		TreatWarningsAsErrors = true;
-	}
-	void Serialize( const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category )
-	{
-		if( Verbosity==ELogVerbosity::Error || Verbosity==ELogVerbosity::Warning )
-		{
-			if( TreatWarningsAsErrors && Verbosity==ELogVerbosity::Warning )
-			{
-				Verbosity = ELogVerbosity::Error;
-			}
-
-			FString Prefix;
-			if( Context )
-			{
-				Prefix = Context->GetContext() + TEXT(" : ");
-			}
-			FString Format = Prefix + FOutputDeviceHelper::FormatLogLine(Verbosity, Category, V);
-
-			if(Verbosity == ELogVerbosity::Error)
-			{
-				AddError(Format);
-			}
-			else
-			{
-				AddWarning(Format);
-			}
-		}
-
-		if (GLogConsole)
-		{
-			GLogConsole->Serialize(V, Verbosity, Category);
-		}
-		if (!GLog->IsRedirectingTo(this))
-		{
-			GLog->Serialize(V, Verbosity, Category);
-		}
-	}
-
-	FContextSupplier* GetContext() const
-	{
-		return Context;
-	}
-	void SetContext( FContextSupplier* InSupplier )
-	{
-		Context = InSupplier;
-	}
+	FContextSupplier* GetContext() const override { return Context; }
+	void SetContext(FContextSupplier* InContext) override { Context = InContext; }
 };
 
 FFeedbackContext& UClass::GetDefaultPropertiesFeedbackContext()

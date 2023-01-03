@@ -398,14 +398,6 @@ FFeedbackContextEditor::FFeedbackContextEditor()
 	
 }
 
-void FFeedbackContextEditor::Serialize( const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category )
-{
-	if( !GLog->IsRedirectingTo( this ) )
-	{
-		GLog->Serialize( V, Verbosity, Category );
-	}
-}
-
 void FFeedbackContextEditor::StartSlowTask( const FText& Task, bool bShowCancelButton )
 {
 	FFeedbackContext::StartSlowTask( Task, bShowCancelButton );

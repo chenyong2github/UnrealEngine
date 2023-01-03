@@ -6,6 +6,7 @@
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
 #include "Internationalization/Internationalization.h"
+#include "Logging/StructuredLog.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/App.h"
@@ -198,7 +199,12 @@ void FAutomationTestFramework::FAutomationTestOutputDevice::Serialize( const TCH
 	}
 }
 
-void FAutomationTestFramework::FAutomationTestMessageFilter::Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category)
+void FAutomationTestFramework::FAutomationTestMessageFilter::Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category)
+{
+	Serialize(V, Verbosity, Category, -1.0);
+}
+
+void FAutomationTestFramework::FAutomationTestMessageFilter::Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category, double Time)
 {
 	// Prevent null dereference if logging happens in async tasks while changing DestinationContext
 	FFeedbackContext* const LocalDestinationContext = DestinationContext.load(std::memory_order_relaxed);
@@ -213,7 +219,30 @@ void FAutomationTestFramework::FAutomationTestMessageFilter::Serialize(const TCH
 				Verbosity = ELogVerbosity::Verbose;
 			}
 		}
-		LocalDestinationContext->Serialize(V, Verbosity, Category);
+		LocalDestinationContext->Serialize(V, Verbosity, Category, Time);
+	}
+}
+
+void FAutomationTestFramework::FAutomationTestMessageFilter::SerializeRecord(const UE::FLogRecord& Record)
+{
+	// Prevent null dereference if logging happens in async tasks while changing DestinationContext
+	FFeedbackContext* const LocalDestinationContext = DestinationContext.load(std::memory_order_relaxed);
+	FAutomationTestBase* const LocalCurTest = CurTest.load(std::memory_order_relaxed);
+	if (LocalDestinationContext)
+	{
+		UE::FLogRecord LocalRecord = Record;
+		const ELogVerbosity::Type Verbosity = LocalRecord.GetVerbosity();
+		FScopeLock Lock(&ActionCS);
+		if ((Verbosity == ELogVerbosity::Warning) || (Verbosity == ELogVerbosity::Error))
+		{
+			TStringBuilder<512> Line;
+			Record.FormatMessageTo(Line);
+			if (LocalCurTest->IsExpectedError(FString(Line)))
+			{
+				LocalRecord.SetVerbosity(ELogVerbosity::Verbose);
+			}
+		}
+		LocalDestinationContext->SerializeRecord(LocalRecord);
 	}
 }
 

@@ -9,6 +9,7 @@
 #include "HAL/FeedbackContextAnsi.h"
 #include "HAL/FileManager.h"
 #include "Interfaces/IPluginManager.h"
+#include "Logging/StructuredLog.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/FileHelper.h"
@@ -84,14 +85,31 @@ public:
 		GWarn = OriginalLog;
 	}
 
-	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category) override
+	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category) override
+	{
+		Serialize(V, Verbosity, Category, -1.0);
+	}
+
+	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category, double Time) override
 	{
 		if (Verbosity == ELogVerbosity::Display && Category != LogVirtualizationTool.GetCategoryName())
 		{
 			Verbosity = ELogVerbosity::Log;
 		}
 
-		FFeedbackContextAnsi::Serialize(V, Verbosity, Category);
+		FFeedbackContextAnsi::Serialize(V, Verbosity, Category, Time);
+	}
+
+	virtual void SerializeRecord(const UE::FLogRecord& Record) override
+	{
+		if (Record.GetVerbosity() == ELogVerbosity::Display && Record.GetCategory() != LogVirtualizationTool.GetCategoryName())
+		{
+			UE::FLogRecord LocalRecord = Record;
+			LocalRecord.SetVerbosity(ELogVerbosity::Log);
+			return FFeedbackContextAnsi::SerializeRecord(LocalRecord);
+		}
+
+		FFeedbackContextAnsi::SerializeRecord(Record);
 	}
 
 private:

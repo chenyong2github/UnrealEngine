@@ -3,6 +3,7 @@
 #include "Commandlets/GatherTextFromAssetsCommandlet.h"
 #include "UObject/Class.h"
 #include "HAL/FileManager.h"
+#include "Logging/StructuredLog.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Paths.h"
@@ -101,6 +102,11 @@ public:
 
 	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category) override
 	{
+		Serialize(V, Verbosity, Category, -1.0);
+	}
+
+	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category, double Time) override
+	{
 		if (Verbosity == ELogVerbosity::Error)
 		{
 			++ErrorCount;
@@ -116,12 +122,49 @@ public:
 		else if (Verbosity == ELogVerbosity::Display)
 		{
 			// Downgrade Display to Log while loading packages
-			OriginalWarningContext->Serialize(V, ELogVerbosity::Log, Category);
+			OriginalWarningContext->Serialize(V, ELogVerbosity::Log, Category, Time);
 		}
 		else
 		{
 			// Pass anything else on to GWarn so that it can handle them appropriately
-			OriginalWarningContext->Serialize(V, Verbosity, Category);
+			OriginalWarningContext->Serialize(V, Verbosity, Category, Time);
+		}
+	}
+
+	virtual void SerializeRecord(const UE::FLogRecord& Record) override
+	{
+		const ELogVerbosity::Type Verbosity = Record.GetVerbosity();
+		if (Verbosity == ELogVerbosity::Error)
+		{
+			++ErrorCount;
+			// Downgrade Error to Log while loading packages to avoid false positives from things searching for "Error:" tokens in the log file
+			UE::FLogRecord LocalRecord = Record;
+			LocalRecord.SetVerbosity(ELogVerbosity::Log);
+			TStringBuilder<512> Line;
+			FormatRecordLine(Line, LocalRecord);
+			FormattedErrorsAndWarningsList.Emplace(Line);
+		}
+		else if (Verbosity == ELogVerbosity::Warning)
+		{
+			++WarningCount;
+			// Downgrade Warning to Log while loading packages to avoid false positives from things searching for "Warning:" tokens in the log file
+			UE::FLogRecord LocalRecord = Record;
+			LocalRecord.SetVerbosity(ELogVerbosity::Log);
+			TStringBuilder<512> Line;
+			FormatRecordLine(Line, LocalRecord);
+			FormattedErrorsAndWarningsList.Emplace(Line);
+		}
+		else if (Verbosity == ELogVerbosity::Display)
+		{
+			// Downgrade Display to Log while loading packages
+			UE::FLogRecord LocalRecord = Record;
+			LocalRecord.SetVerbosity(ELogVerbosity::Log);
+			OriginalWarningContext->SerializeRecord(LocalRecord);
+		}
+		else
+		{
+			// Pass anything else on to GWarn so that it can handle them appropriately
+			OriginalWarningContext->SerializeRecord(Record);
 		}
 	}
 
