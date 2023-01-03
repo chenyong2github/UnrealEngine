@@ -118,7 +118,13 @@ UObjectBase::UObjectBase( EObjectFlags InFlags )
  * @param	InName				name of the new object
  * @param	InObjectArchetype	archetype to assign
  */
-UObjectBase::UObjectBase(UClass* InClass, EObjectFlags InFlags, EInternalObjectFlags InInternalFlags, UObject *InOuter, FName InName, int32 InInternalIndex)
+UObjectBase::UObjectBase(UClass* InClass,
+	EObjectFlags InFlags,
+	EInternalObjectFlags InInternalFlags,
+	UObject *InOuter,
+	FName InName,
+	int32 InInternalIndex,
+	int32 InSerialNumber)
 :	ObjectFlags			(InFlags)
 ,	InternalIndex		(INDEX_NONE)
 ,	ClassPrivate		(InClass)
@@ -126,7 +132,7 @@ UObjectBase::UObjectBase(UClass* InClass, EObjectFlags InFlags, EInternalObjectF
 {
 	check(ClassPrivate);
 	// Add to global table.
-	AddObject(InName, InInternalFlags, InInternalIndex);
+	AddObject(InName, InInternalFlags, InInternalIndex, InSerialNumber);
 	
 #if CSV_PROFILER && CSV_TRACK_UOBJECT_COUNT
 	UObjectStats::IncrementUObjectCount();
@@ -191,7 +197,7 @@ void UObjectBase::DeferredRegister(UClass *UClassStaticClass,const TCHAR* Packag
  *
  * @param Name name to assign to this uobject
  */
-void UObjectBase::AddObject(FName InName, EInternalObjectFlags InSetInternalFlags, int32 InInternalIndex)
+void UObjectBase::AddObject(FName InName, EInternalObjectFlags InSetInternalFlags, int32 InInternalIndex, int32 InSerialNumber)
 {
 	NamePrivate = InName;
 	EInternalObjectFlags InternalFlagsToSet = InSetInternalFlags;
@@ -209,7 +215,7 @@ void UObjectBase::AddObject(FName InName, EInternalObjectFlags InSetInternalFlag
 		InternalFlagsToSet |= EInternalObjectFlags::Native;
 		ObjectFlags &= ~RF_MarkAsNative;
 	}
-	GUObjectArray.AllocateUObjectIndex(this, /* bMergingThreads */ false, InInternalIndex);
+	GUObjectArray.AllocateUObjectIndex(this, InInternalIndex, InSerialNumber);
 	check(InName != NAME_None && InternalIndex >= 0);
 	if (InternalFlagsToSet != EInternalObjectFlags::None)
 	{

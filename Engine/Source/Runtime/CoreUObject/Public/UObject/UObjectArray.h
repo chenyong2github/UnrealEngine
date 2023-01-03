@@ -213,13 +213,6 @@ struct FUObjectItem
 		return !!(GetFlagsInternal() & int32(EInternalObjectFlags::RootSet));
 	}
 
-	FORCEINLINE void ResetSerialNumberAndFlags()
-	{
-		Flags = 0;
-		ClusterRootIndex = 0;
-		SerialNumber = 0;
-	}
-
 #if STATS || ENABLE_STATNAMEDEVENTS_UOBJECT
 	COREUOBJECT_API void CreateStatID() const;
 #endif
@@ -701,8 +694,10 @@ public:
 	 * Adds a uobject to the global array which is used for uobject iteration
 	 *
 	 * @param	Object Object to allocate an index for
+	 * @param	AlreadyAllocatedIndex already allocated internal index to use, negative value means allocate a new index
+	 * @param	SerialNumber serial number to use
 	 */
-	void AllocateUObjectIndex(class UObjectBase* Object, bool bMergingThreads = false, int32 AlreadyAllocatedIndex = -1);
+	void AllocateUObjectIndex(class UObjectBase* Object, int32 AlreadyAllocatedIndex = -1, int32 SerialNumber = 0);
 
 	/**
 	 * Returns a UObject index top to the global uobject array

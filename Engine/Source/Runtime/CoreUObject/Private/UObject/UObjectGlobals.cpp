@@ -3285,6 +3285,7 @@ UObject* StaticAllocateObject
 	checkSlow(TotalSize);
 
 	int32 OldIndex = -1;
+	int32 OldSerialNumber = 0;
 
 	if( Obj == nullptr )
 	{	
@@ -3342,6 +3343,7 @@ UObject* StaticAllocateObject
 		if (!bCreatingCDO && (!bCanRecycleSubobjects || !Obj->IsDefaultSubobject()))
 		{
 			OldIndex = GUObjectArray.ObjectToIndex(Obj);
+			OldSerialNumber = GUObjectArray.GetSerialNumber(OldIndex);
 
 			// Destroy the object.
 			SCOPE_CYCLE_COUNTER(STAT_DestroyObject);
@@ -3406,7 +3408,7 @@ UObject* StaticAllocateObject
 	if (!bSubObject)
 	{
 		FMemory::Memzero((void *)Obj, TotalSize);
-		new ((void *)Obj) UObjectBase(const_cast<UClass*>(InClass), InFlags|RF_NeedInitialization, InternalSetFlags, InOuter, InName, OldIndex);
+		new ((void *)Obj) UObjectBase(const_cast<UClass*>(InClass), InFlags|RF_NeedInitialization, InternalSetFlags, InOuter, InName, OldIndex, OldSerialNumber);
 	}
 	else
 	{
