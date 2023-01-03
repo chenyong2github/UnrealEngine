@@ -1748,9 +1748,7 @@ void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringCont
 	
 	// Skip computing the mask and flags in the renderer since we are using cached values.
 	RayTracingInstance.bInstanceMaskAndFlagsDirty = false;
-	RayTracingInstance.Mask = CachedRayTracingInstanceMaskAndFlags.Mask;
-	RayTracingInstance.bForceOpaque = CachedRayTracingInstanceMaskAndFlags.bForceOpaque;
-	RayTracingInstance.bDoubleSided = CachedRayTracingInstanceMaskAndFlags.bDoubleSided;
+	RayTracingInstance.MaskAndFlags = CachedRayTracingInstanceMaskAndFlags;
 }
 
 ERayTracingPrimitiveFlags FSceneProxy::GetCachedRayTracingInstance(FRayTracingInstance& RayTracingInstance)

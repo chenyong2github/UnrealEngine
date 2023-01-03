@@ -22,12 +22,7 @@ void FRayTracingInstance::BuildInstanceMaskAndFlags(ERHIFeatureLevel::Type Featu
 	uint8 ExtraMask = bThinGeometry ? ComputeRayTracingInstanceMask(ERayTracingInstanceMaskType::HairStrands, MaskInfo.MaskMode) : 0;
 
 	TArrayView<const FMeshBatch> MeshBatches = GetMaterials();
-	FRayTracingMaskAndFlags MaskAndFlags = BuildRayTracingInstanceMaskAndFlags(
-		MeshBatches, FeatureLevel, MaskInfo, InstanceLayer, ExtraMask);
-
-	Mask = MaskAndFlags.Mask;
-	bForceOpaque = bForceOpaque || MaskAndFlags.bForceOpaque;
-	bDoubleSided = bDoubleSided || MaskAndFlags.bDoubleSided;
+	MaskAndFlags = BuildRayTracingInstanceMaskAndFlags(MeshBatches, FeatureLevel, MaskInfo, InstanceLayer, ExtraMask);
 }
 
 FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMeshBatch> MeshBatches, ERHIFeatureLevel::Type FeatureLevel, ERayTracingInstanceLayer InstanceLayer, uint8 ExtraMask)

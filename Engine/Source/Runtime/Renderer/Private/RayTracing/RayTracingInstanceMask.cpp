@@ -230,15 +230,9 @@ FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(const FRayTracingIns
 	// add extra mask bit for hair.
 	uint8 ExtraMask = Instance.bThinGeometry ? ComputeRayTracingInstanceMask(ERayTracingInstanceMaskType::HairStrands, MaskInfo.MaskMode) : 0;
 
-	FRayTracingMaskAndFlags MaskAndFlags =
-		BuildRayTracingInstanceMaskAndFlags(
+	return BuildRayTracingInstanceMaskAndFlags(
 			MeshBatches, PrimitiveSceneProxy.GetScene().GetFeatureLevel(), 
 			MaskInfo, Instance.InstanceLayer, ExtraMask);
-
-	MaskAndFlags.bForceOpaque = MaskAndFlags.bForceOpaque || Instance.bForceOpaque;
-	MaskAndFlags.bDoubleSided = MaskAndFlags.bDoubleSided || Instance.bDoubleSided;
-
-	return MaskAndFlags;
 }
 
 void SetupRayTracingMeshCommandMaskAndStatus(FRayTracingMeshCommand& MeshCommand, const FMeshBatch& MeshBatch, const FPrimitiveSceneProxy& PrimitiveSceneProxy,

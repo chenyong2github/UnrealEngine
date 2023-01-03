@@ -71,17 +71,13 @@ FORCEINLINE void UpdateRayTracingInstanceMaskAndFlagsIfNeeded(FRayTracingInstanc
 	if (Instance.GetMaterials().IsEmpty()) 
 	{
 		// If the material list is empty, explicitly set the mask to 0 so it will not be added in the raytracing scene
-		Instance.Mask = 0; 
+		Instance.MaskAndFlags.Mask = 0; 
 		return; 
 	}
 
 	if (Instance.bInstanceMaskAndFlagsDirty || bForceUpdate)
 	{
-		FRayTracingMaskAndFlags  MaskAndFlags = BuildRayTracingInstanceMaskAndFlags(Instance, PrimitiveSceneProxy, SceneViewFamily);
-
-		Instance.Mask = MaskAndFlags.Mask;
-		Instance.bForceOpaque = MaskAndFlags.bForceOpaque;
-		Instance.bDoubleSided = MaskAndFlags.bDoubleSided;
+		Instance.MaskAndFlags = BuildRayTracingInstanceMaskAndFlags(Instance, PrimitiveSceneProxy, SceneViewFamily);
 
 		// Clean the dirty bit
 		Instance.bInstanceMaskAndFlagsDirty = false;

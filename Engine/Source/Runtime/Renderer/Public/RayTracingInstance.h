@@ -11,14 +11,20 @@ class FRayTracingGeometry;
 
 struct FRayTracingMaskAndFlags
 {
-	/** Instance mask that can be used to exclude the instance from specific effects (eg. ray traced shadows). */
-	uint8 Mask = 0xFF;
+	FRayTracingMaskAndFlags()
+		: Mask(0xFF)
+		, bForceOpaque(false)
+		, bDoubleSided(false)
+	{}
 
-	/** Whether the instance is forced opaque, i.e. anyhit shaders are disabled on this instance */
-	bool bForceOpaque = false;
+	/** Instance mask that can be used to exclude the instance from specific effects (eg. ray traced shadows). */
+	uint8 Mask;
+
+	/** Whether the instance is forced opaque, i.e. anyhit shaders are disabled on this instance. */
+	uint8 bForceOpaque : 1;
 
 	/** Whether ray hits should be registered for front and back faces. */
-	bool bDoubleSided = false;
+	uint8 bDoubleSided : 1;
 };
 
 enum class ERayTracingInstanceLayer : uint8
@@ -64,11 +70,7 @@ struct FRayTracingInstance
 		}
 	}
 
-	/** Whether the instance is forced opaque, i.e. anyhit shaders are disabled on this instance */
-	bool bForceOpaque = false;
-
-	/** Whether ray hits should be registered for front and back faces. */
-	bool bDoubleSided = false;
+	FRayTracingMaskAndFlags MaskAndFlags;
 
 	/** Whether local bounds scale and center translation should be applied to the instance transform. */
 	bool bApplyLocalBoundsTransform = false;
@@ -83,9 +85,6 @@ struct FRayTracingInstance
 	* If caching is used, clean the dirty state by setting it to false so no duplicate update will be performed in the renderer module.
 	*/
 	bool bInstanceMaskAndFlagsDirty = true;
-
-	/** Instance mask that can be used to exclude the instance from specific effects (eg. ray traced shadows). */
-	uint8 Mask = 0xFF;
 
 	/** 
 	* Transforms count. When NumTransforms == 1 we create a single instance. 

@@ -1168,7 +1168,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 						TEXT("Ray tracing material assignment validation failed for geometry '%s'. "
 							"Instance.GetMaterials().Num() = %d, Geometry->Initializer.Segments.Num() = %d, Instance.Mask = 0x%X."),
 						*Geometry->Initializer.DebugName.ToString(), Instance.GetMaterials().Num(),
-						Geometry->Initializer.Segments.Num(), Instance.Mask))
+						Geometry->Initializer.Segments.Num(), Instance.MaskAndFlags.Mask))
 					{
 						continue;
 					}
@@ -1188,13 +1188,14 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 					}					
 
 					RayTracingInstance.DefaultUserData = PrimitiveIndex;
-					RayTracingInstance.Mask = Instance.Mask;
 					RayTracingInstance.bApplyLocalBoundsTransform = Instance.bApplyLocalBoundsTransform;
-					if (Instance.bForceOpaque)
+					RayTracingInstance.Mask = Instance.MaskAndFlags.Mask;
+
+					if (Instance.MaskAndFlags.bForceOpaque)
 					{
 						RayTracingInstance.Flags |= ERayTracingInstanceFlags::ForceOpaque;
 					}
-					if (Instance.bDoubleSided)
+					if (Instance.MaskAndFlags.bDoubleSided)
 					{
 						RayTracingInstance.Flags |= ERayTracingInstanceFlags::TriangleCullDisable;
 					}

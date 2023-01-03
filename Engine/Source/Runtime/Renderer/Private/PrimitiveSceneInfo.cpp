@@ -1036,16 +1036,16 @@ void FPrimitiveSceneInfo::UpdateCachedRayTracingInstance(FPrimitiveSceneInfo* Sc
 		// At this point (in AddToScene()) PrimitiveIndex has been set
 		check(SceneInfo->GetIndex() != INDEX_NONE);
 		SceneInfo->CachedRayTracingInstance.DefaultUserData = (uint32)SceneInfo->GetIndex();
-		SceneInfo->CachedRayTracingInstance.Mask = CachedRayTracingInstance.Mask; // When no cached command is found, InstanceMask == 0 and the instance is effectively filtered out
+		SceneInfo->CachedRayTracingInstance.Mask = CachedRayTracingInstance.MaskAndFlags.Mask; // When no cached command is found, InstanceMask == 0 and the instance is effectively filtered out
 
 		SceneInfo->CachedRayTracingInstance.bApplyLocalBoundsTransform = CachedRayTracingInstance.bApplyLocalBoundsTransform;
 
-		if (CachedRayTracingInstance.bForceOpaque)
+		if (CachedRayTracingInstance.MaskAndFlags.bForceOpaque)
 		{
 			SceneInfo->CachedRayTracingInstance.Flags |= ERayTracingInstanceFlags::ForceOpaque;
 		}
 
-		if (CachedRayTracingInstance.bDoubleSided)
+		if (CachedRayTracingInstance.MaskAndFlags.bDoubleSided)
 		{
 			SceneInfo->CachedRayTracingInstance.Flags |= ERayTracingInstanceFlags::TriangleCullDisable;
 		}

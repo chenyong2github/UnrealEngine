@@ -1926,9 +1926,7 @@ void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGat
 		
 		// Skip computing the mask and flags in the renderer since we are using cached values.
 		RayTracingInstance.bInstanceMaskAndFlagsDirty = false;
-		RayTracingInstance.Mask = CachedRayTracingInstanceMaskAndFlags.Mask;
-		RayTracingInstance.bForceOpaque = CachedRayTracingInstanceMaskAndFlags.bForceOpaque;
-		RayTracingInstance.bDoubleSided = CachedRayTracingInstanceMaskAndFlags.bDoubleSided;
+		RayTracingInstance.MaskAndFlags = CachedRayTracingInstanceMaskAndFlags;
 
 		check(CachedRayTracingMaterials.Num() == RayTracingInstance.GetMaterials().Num());
 		checkf(RayTracingInstance.Geometry->Initializer.Segments.Num() == CachedRayTracingMaterials.Num(), TEXT("Segments/Materials mismatch. Number of segments: %d. Number of Materials: %d. LOD Index: %d"), 
