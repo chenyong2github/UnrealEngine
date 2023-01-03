@@ -7,6 +7,7 @@
 #include "Engine/SkeletalMesh.h"
 
 #include "Animation/MeshDeformerGeometry.h"
+#include "DataDrivenShaderPlatformInfo.h"
 #include "Engine/Blueprint.h"
 #include "Engine/SkeletalMeshSampling.h"
 #include "EngineStats.h"
@@ -42,7 +43,6 @@
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "Engine/AssetUserData.h"
 #include "Animation/NodeMappingContainer.h"
-#include "GPUSkinCache.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "AnimationRuntime.h"
 #include "Animation/AnimSequence.h"

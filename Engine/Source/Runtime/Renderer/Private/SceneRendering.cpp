@@ -3275,7 +3275,6 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 		static auto* CVarSkinCacheOOM = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.SkinCache.SceneMemoryLimitInMB"));
 
 		uint64 GPUSkinCacheExtraRequiredMemory = 0;
-		extern ENGINE_API bool IsGPUSkinCacheAvailable(EShaderPlatform Platform);
 		if (IsGPUSkinCacheAvailable(ShaderPlatform))
 		{
 			if (FGPUSkinCache* SkinCache = Scene->GetGPUSkinCache())

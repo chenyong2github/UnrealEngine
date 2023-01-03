@@ -1360,7 +1360,9 @@ void FGPUSkinPassthroughVertexFactory::BuildStreamIndices()
 
 		FVertexBuffer const* BufferToFind = &DummyVBs[AttributeIndex];
 		
-		// Each TexCoord streams each containing two attributes, so map the second attribute to the first one when searching.
+		// Each TexCoord stream can contain two attributes. 
+		// We always create stream with the dummy VB of the first attribute.
+		// Map the second attribute to the first one when searching.
 		if (AttributeIndex == EVertexAtttribute::VertexTexCoord1 || AttributeIndex == EVertexAtttribute::VertexTexCoord3 ||
 			AttributeIndex == EVertexAtttribute::VertexTexCoord5 || AttributeIndex == EVertexAtttribute::VertexTexCoord7)
 		{
