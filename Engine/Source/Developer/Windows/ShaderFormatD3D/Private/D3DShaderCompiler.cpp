@@ -563,11 +563,12 @@ static bool CompileErrorsContainInternalError(ID3DBlob* Errors)
 {
 	if (Errors)
 	{
-		void* ErrorBuffer = Errors->GetBufferPointer();
-		if (ErrorBuffer)
+		if (void* ErrorBuffer = Errors->GetBufferPointer())
 		{
-			const FStringView ErrorString = ANSI_TO_TCHAR(ErrorBuffer);
-			return ErrorString.Contains(TEXT("internal error:")) || ErrorString.Contains(TEXT("Internal Compiler Error:"));
+			const ANSICHAR* ErrorString = reinterpret_cast<const ANSICHAR*>(ErrorBuffer);
+			return
+				FCStringAnsi::Strstr(ErrorString, "internal error:") != nullptr ||
+				FCStringAnsi::Strstr(ErrorString, "Internal Compiler Error:") != nullptr;
 		}
 	}
 	return false;
