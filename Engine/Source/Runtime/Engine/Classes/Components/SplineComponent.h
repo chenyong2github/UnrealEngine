@@ -320,11 +320,11 @@ public:
 #endif
 	//~ End UPrimitiveComponent Interface.
 
-#if UE_ENABLE_DEBUG_DRAWING
+
 	//~ Begin USceneComponent Interface
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	//~ End USceneComponent Interface
-
+#if UE_ENABLE_DEBUG_DRAWING
 	/** Helper function to draw a vector curve */
 	static void Draw(FPrimitiveDrawInterface* PDI, const FSceneView* View, const FInterpCurveVector& SplineInfo, const FMatrix& LocalToWorld, const FLinearColor& LineColor, uint8 DepthPriorityGroup);
 #endif

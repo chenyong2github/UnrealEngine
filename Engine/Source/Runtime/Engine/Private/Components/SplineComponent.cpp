@@ -1856,14 +1856,10 @@ void USplineComponent::Draw(FPrimitiveDrawInterface* PDI, const FSceneView* View
 		OldKeyPos = NewKeyPos;
 	}
 }
+#endif
 
 FBoxSphereBounds USplineComponent::CalcBounds(const FTransform& LocalToWorld) const
 {
-	if (!bDrawDebug)
-	{
-		// Do as little as possible if not rendering anything
-		return Super::CalcBounds(LocalToWorld);
-	}
 
 #if SPLINE_FAST_BOUNDS_CALCULATION
 	FBox BoundingBox(0);
@@ -1908,8 +1904,6 @@ FBoxSphereBounds USplineComponent::CalcBounds(const FTransform& LocalToWorld) co
 	return FBoxSphereBounds(FBox(Min, Max).TransformBy(LocalToWorld));
 #endif
 }
-
-#endif
 
 #if WITH_EDITOR
 bool USplineComponent::IgnoreBoundsForEditorFocus() const
