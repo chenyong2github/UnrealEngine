@@ -239,6 +239,14 @@ export class Dashboard {
         return this.preferences.get(DashboardPreference.LeftAlignLog) === 'true';
     }
 
+    setShowPreflights(value: boolean | undefined) {
+        this.setPreference(DashboardPreference.ShowPreflights, value ? "true" : "false");
+    }
+
+    get showPreflights(): boolean {
+        return this.preferences.get(DashboardPreference.ShowPreflights) === 'true';
+    }
+
     setCompactViews(value: boolean | undefined) {
         this.setPreference(DashboardPreference.CompactViews, value ? "true" : "false");
     }

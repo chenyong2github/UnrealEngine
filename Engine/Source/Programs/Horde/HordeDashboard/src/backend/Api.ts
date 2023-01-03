@@ -2399,9 +2399,11 @@ export type GetStreamTabResponse = {
 /**Describes a job page */
 export type GetJobsTabResponse = GetStreamTabResponse & {
 
-	/**  Whether to show names on the page */
+	/** Whether to show names on the page */
 	showNames: boolean;
 
+	/** Whether to show preflights */
+	showPreflights?: boolean;
 
 	/** List of templates to show on the page */
 	templates?: string[];
@@ -3008,7 +3010,8 @@ export enum DashboardPreference {
 	ColorRunning = "ColorRunning",
 	LocalCache = "LocalCache",
 	LeftAlignLog = "LeftAlignLog",
-	CompactViews = "CompactViews"
+	CompactViews = "CompactViews",
+	ShowPreflights = "ShowPreflights"
 }
 
 export type DashboardSettings = {

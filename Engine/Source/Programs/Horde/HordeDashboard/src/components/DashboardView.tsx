@@ -361,6 +361,9 @@ const GeneralPanel: React.FC = observer(() => {
                         <Toggle label="24 Hour Clock" inlineLabel={true} defaultChecked={dashboard.display24HourClock} onChange={(ev, checked) => {
                            dashboard.setDisplay24HourClock(checked ? true : false);
                         }} />
+                        <Toggle label="Show All Preflights" inlineLabel={true} defaultChecked={dashboard.showPreflights} onChange={(ev, checked) => {
+                           dashboard.setShowPreflights(checked ? true : false);
+                        }} />
                         <Toggle label="Prefer Compact Views" inlineLabel={true} defaultChecked={dashboard.compactViews} onChange={(ev, checked) => {
                            dashboard.setCompactViews(checked ? true : false);
                         }} />

@@ -340,6 +340,11 @@ namespace Horde.Build.Streams
 		public bool ShowNames { get; set; }
 
 		/// <summary>
+		/// Whether to show all user preflights 
+		/// </summary>
+		public bool? ShowPreflights { get; set; }
+
+		/// <summary>
 		/// Names of jobs to include on this page. If there is only one name specified, the name column does not need to be displayed.
 		/// </summary>
 		public List<string>? JobNames { get; set; }

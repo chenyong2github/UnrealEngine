@@ -550,7 +550,7 @@ const JobList: React.FC<{ tab: string; filter: JobFilterSimple, controller: Call
       return null;
    };
 
-   const forcePreflights = tab?.toLowerCase() === "swarm" || tab?.toLowerCase() === "presubmit" || tab?.toLowerCase() === "services";
+   const forcePreflights = dashboard.showPreflights || !!jobTab?.showPreflights || tab?.toLowerCase() === "swarm" || tab?.toLowerCase() === "presubmit" || tab?.toLowerCase() === "services";
    let preflightStartedByUserId: string | undefined;
 
    if (!forcePreflights && !filter.showOthersPreflights) {
