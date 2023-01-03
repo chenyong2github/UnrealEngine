@@ -16,9 +16,9 @@ namespace UE::VCamCoreEditor::Private
 		switch (ViewportIndex)
 		{
 		case 0: return LOCTEXT("Viewport1", "Viewport 1");
-		case 1: return LOCTEXT("Viewport1", "Viewport 2");
-		case 2: return LOCTEXT("Viewport1", "Viewport 3");
-		case 3: return LOCTEXT("Viewport1", "Viewport 4");
+		case 1: return LOCTEXT("Viewport2", "Viewport 2");
+		case 2: return LOCTEXT("Viewport3", "Viewport 3");
+		case 3: return LOCTEXT("Viewport4", "Viewport 4");
 
 		default:
 			checkNoEntry();

@@ -26,7 +26,7 @@ namespace UE::VCamCoreEditor::Private
 	{
 		UVCamStateSwitcherWidget* StateSwitcherWidget = Cast<UVCamStateSwitcherWidget>(Args.CustomizedWidget);
 		const bool bHasStateSwitcherProperties = ensure(StateSwitcherWidget)
-			|| Algo::AnyOf(StateSwitcherWidget->GetStates(), [StateSwitcherWidget](FName State)
+			&& Algo::AnyOf(StateSwitcherWidget->GetStates(), [StateSwitcherWidget](FName State)
 			{
 				FVCamWidgetConnectionState StateInfo;
 				return StateSwitcherWidget->GetStateInfo(State, StateInfo)

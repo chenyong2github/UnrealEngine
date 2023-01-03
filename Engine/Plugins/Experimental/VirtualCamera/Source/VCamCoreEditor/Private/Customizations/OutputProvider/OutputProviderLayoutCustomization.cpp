@@ -253,7 +253,7 @@ namespace UE::VCamCoreEditor::Private
 		const UVPFullScreenUserWidget* FullScreenUserWidget = CustomizedOutputProvider->GetUMGWidget();
 		UUserWidget* RootWidget = FullScreenUserWidget ? FullScreenUserWidget->GetWidget() : nullptr;
 		UWidgetTree* WidgetTree = RootWidget ? RootWidget->WidgetTree : nullptr;
-		if (!WidgetTree)
+		if (!WidgetTree || !RootWidget) // !RootWidget pointless but maks static analyzer happy
 		{
 			return;
 		}
