@@ -16,6 +16,8 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Editor.h"
 #include "ScopedTransaction.h"
+#include "Framework/Commands/GenericCommands.h"
+#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraHierarchyEditor"
 
@@ -306,6 +308,10 @@ void UNiagaraHierarchyViewModelBase::Initialize()
 		Section->SetFlags(RF_Transactional);
 	}
 
+	UToolMenus* ToolMenus = UToolMenus::Get();
+	UToolMenu* HierarchyMenu = ToolMenus->RegisterMenu("NiagaraHierarchyMenu", NAME_None, EMultiBoxType::Menu);
+	FToolMenuSection& BaseSection = HierarchyMenu->AddSection("Base");
+	
 	SetupCommands();
 
 	HierarchyViewModelRoot = MakeShared<FNiagaraHierarchyRootViewModel>(HierarchyRoot.Get(), this);

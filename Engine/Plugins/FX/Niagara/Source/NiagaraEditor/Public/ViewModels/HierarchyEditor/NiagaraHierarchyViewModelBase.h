@@ -6,6 +6,7 @@
 #include "NiagaraEditorUtilities.h"
 #include "PropertyEditorDelegates.h"
 #include "ViewModels/Stack/NiagaraStackFunctionInput.h"
+#include "ToolMenuSection.h"
 #include "NiagaraHierarchyViewModelBase.generated.h"
 
 UCLASS()
@@ -238,6 +239,17 @@ protected:
 	bool bFromSourceList = false;
 };
 
+UCLASS(BlueprintType)
+class UNiagaraHierarchyMenuContext : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	TArray<TSharedPtr<FNiagaraHierarchyItemViewModelBase>> Items;
+
+	bool bFromHierarchy = false;
+};
+
 UCLASS(Abstract)
 class UNiagaraHierarchyViewModelBase : public UObject, public FEditorUndoClient
 {
@@ -432,6 +444,9 @@ struct NIAGARAEDITOR_API FNiagaraHierarchyItemViewModelBase : TSharedFromThis<FN
 			bRenamePending = true;
 		}
 	}
+
+	/** Override this to register dynamic context menu entries when right clicking a hierarchy item */
+	virtual void PopulateDynamicContextMenuSection(FToolMenuSection& DynamicSection) {}
 
 	/** The UObject we display in the details panel when this item is selected. By default it's the item the view model represents. */
 	virtual UObject* GetDataForEditing() { return ItemBase; }

@@ -17,8 +17,57 @@
 #include "ScopedTransaction.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
+#include "Framework/Commands/GenericCommands.h"
+#include "Framework/Application/MenuStack.h"
+#include "Framework/Application/SlateApplication.h"
+#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraHierarchy"
+
+TSharedRef<SWidget> SummonContextMenu(TArray<TSharedPtr<FNiagaraHierarchyItemViewModelBase>> Items, bool bFromHierarchy)
+{
+	UNiagaraHierarchyMenuContext* MenuContextObject = NewObject<UNiagaraHierarchyMenuContext>();
+	MenuContextObject->Items = Items;
+	MenuContextObject->bFromHierarchy = bFromHierarchy;
+
+	FToolMenuContext MenuContext(MenuContextObject);
+	MenuContext.AppendCommandList(Items[0]->GetHierarchyViewModel()->GetCommands());
+		
+	UToolMenu* Menu = UToolMenus::Get()->GenerateMenu("NiagaraHierarchyMenu", MenuContext);
+	FToolMenuSection* BaseSection = Menu->FindSection("Base");
+
+	if(ensure(BaseSection != nullptr))
+	{
+		if(Items.Num() == 1 && Items[0]->CanRename())
+		{
+			BaseSection->AddMenuEntry(FGenericCommands::Get().Rename);
+		}
+
+		bool bCanDeleteAll = true;
+		for(TSharedPtr<FNiagaraHierarchyItemViewModelBase>& Item : Items)
+		{
+			if(!Item->CanDelete())
+			{
+				bCanDeleteAll = false;
+				break;
+			}
+		}
+
+		if(bCanDeleteAll)
+		{
+			BaseSection->AddMenuEntry(FGenericCommands::Get().Delete);
+		}
+	}
+
+	if(Items.Num() == 1)
+	{
+		FToolMenuSection& DynamicSection = Menu->FindOrAddSection("Dynamic");		
+		Items[0]->PopulateDynamicContextMenuSection(DynamicSection);
+	}	
+		
+	TSharedRef<SWidget> MenuWidget = UToolMenus::Get()->GenerateWidget(Menu);
+	return MenuWidget;
+}
 
 void SNiagaraHierarchyCategory::Construct(const FArguments& InArgs,	TSharedPtr<FNiagaraHierarchyCategoryViewModel> InCategory)
 {
@@ -132,22 +181,18 @@ void SNiagaraHierarchySection::Construct(const FArguments& InArgs, TSharedPtr<FN
 				.DropTargetArgs(OntoDropTargetArgs
 				.Content()
 				[
-					SAssignNew(MenuAnchor, SMenuAnchor)
-					.OnGetMenuContent(this, &SNiagaraHierarchySection::OnGetMenuContent)
+					SNew(SCheckBox)
+					.Visibility(EVisibility::HitTestInvisible)
+					.Style(FAppStyle::Get(), "DetailsView.SectionButton")
+					.OnCheckStateChanged(this, &SNiagaraHierarchySection::OnSectionCheckChanged)
+					.IsChecked(this, &SNiagaraHierarchySection::GetSectionCheckState)
+					.Padding(FMargin(8.f, 4.f))
 					[
-						SNew(SCheckBox)
-						.Visibility(EVisibility::HitTestInvisible)
-						.Style(FAppStyle::Get(), "DetailsView.SectionButton")
-						.OnCheckStateChanged(this, &SNiagaraHierarchySection::OnSectionCheckChanged)
-						.IsChecked(this, &SNiagaraHierarchySection::GetSectionCheckState)
-						.Padding(FMargin(8.f, 4.f))
-						[
-							SAssignNew(InlineEditableTextBlock, SInlineEditableTextBlock)
-							.IsSelected(InArgs._IsSelected)
-							.Text(this, &SNiagaraHierarchySection::GetText)
-							.OnTextCommitted(this, &SNiagaraHierarchySection::OnRenameSection)
-							.OnVerifyTextChanged(this, &SNiagaraHierarchySection::OnVerifySectionRename)
-						]
+						SAssignNew(InlineEditableTextBlock, SInlineEditableTextBlock)
+						.IsSelected(InArgs._IsSelected)
+						.Text(this, &SNiagaraHierarchySection::GetText)
+						.OnTextCommitted(this, &SNiagaraHierarchySection::OnRenameSection)
+						.OnVerifyTextChanged(this, &SNiagaraHierarchySection::OnVerifySectionRename)
 					]
 				])
 			]
@@ -190,6 +235,11 @@ SNiagaraHierarchySection::~SNiagaraHierarchySection()
 void SNiagaraHierarchySection::EnterEditingMode() const
 {
 	InlineEditableTextBlock->EnterEditingMode();
+}
+
+TSharedPtr<FNiagaraHierarchySectionViewModel> SNiagaraHierarchySection::GetSectionViewModel()
+{
+	return SectionViewModel;
 }
 
 bool SNiagaraHierarchySection::OnCanAcceptDrop(TSharedPtr<FDragDropOperation> DragDropOperation, EItemDropZone ItemDropZone) const
@@ -277,8 +327,16 @@ FReply SNiagaraHierarchySection::OnMouseButtonUp(const FGeometry& MyGeometry, co
 	if(SectionViewModel.IsValid())
 	{
 		if(MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
-		{
-			MenuAnchor->SetIsOpen(true);
+		{			
+			// Show menu to choose getter vs setter
+			FSlateApplication::Get().PushMenu(
+				AsShared(),
+				FWidgetPath(),
+				SummonContextMenu({GetSectionViewModel()}, true),
+				FSlateApplication::Get().GetCursorPos(),
+				FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu)
+			);
+				
 			OnSectionActivatedDelegate.ExecuteIfBound(SectionViewModel);
 			return FReply::Handled();
 		}
@@ -305,16 +363,6 @@ void SNiagaraHierarchySection::OnDragLeave(const FDragDropEvent& DragDropEvent)
 	{
 		HierarchyDragDropOp->SetDescription(FText::GetEmpty());
 	}
-}
-
-TSharedRef<SWidget> SNiagaraHierarchySection::OnGetMenuContent() const
-{
-	FMenuBuilder MenuBuilder(true, HierarchyViewModel->GetCommands());
-	
-	MenuBuilder.AddMenuEntry(FGenericCommands::Get().Rename);
-	MenuBuilder.AddMenuEntry(FGenericCommands::Get().Delete);
-
-	return MenuBuilder.MakeWidget();
 }
 
 UNiagaraHierarchySection* SNiagaraHierarchySection::TryGetSectionData() const
@@ -463,6 +511,7 @@ void SNiagaraHierarchy::Construct(const FArguments& InArgs, TObjectPtr<UNiagaraH
 				.OnGenerateRow(this, &SNiagaraHierarchy::GenerateSourceItemRow)
 				.OnGetChildren_UObject(InHierarchyViewModel.Get(), &UNiagaraHierarchyViewModelBase::OnGetChildren)
 				.OnItemToString_Debug_UObject(InHierarchyViewModel.Get(), &UNiagaraHierarchyViewModelBase::OnItemToStringDebug)
+				.OnContextMenuOpening(this, &SNiagaraHierarchy::SummonContextMenuForSelectedRows, false)
 			]
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
@@ -516,6 +565,7 @@ void SNiagaraHierarchy::Construct(const FArguments& InArgs, TObjectPtr<UNiagaraH
 						.OnGenerateRow(this, &SNiagaraHierarchy::GenerateHierarchyItemRow)
 						.OnGetChildren_UObject(InHierarchyViewModel.Get(), &UNiagaraHierarchyViewModelBase::OnGetChildren)
 						.OnItemToString_Debug_UObject(InHierarchyViewModel.Get(), &UNiagaraHierarchyViewModelBase::OnItemToStringDebug)
+						.OnContextMenuOpening(this, &SNiagaraHierarchy::SummonContextMenuForSelectedRows, true)
 					]
 					+ SVerticalBox::Slot()
 					.VAlign(VAlign_Fill)
@@ -597,6 +647,21 @@ FReply SNiagaraHierarchy::OnMouseButtonDown(const FGeometry& MyGeometry, const F
 FReply SNiagaraHierarchy::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	return FReply::Handled().SetUserFocus(AsShared(), EFocusCause::Mouse, true);
+}
+
+TSharedPtr<SWidget> SNiagaraHierarchy::SummonContextMenuForSelectedRows(bool bFromHierarchy) const
+{
+	TArray<TSharedPtr<FNiagaraHierarchyItemViewModelBase>> ViewModels;
+	if(bFromHierarchy)
+	{
+		HierarchyTreeView->GetSelectedItems(ViewModels);
+	}
+	else
+	{
+		SourceTreeView->GetSelectedItems(ViewModels);
+	}
+
+	return SummonContextMenu(ViewModels, bFromHierarchy);
 }
 
 void SNiagaraHierarchy::RefreshSourceView(bool bFullRefresh) const
@@ -736,11 +801,40 @@ bool SNiagaraHierarchy::CanRequestRenameSelectedItem() const
 	return false;
 }
 
-void SNiagaraHierarchy::DeleteSelectedItems()
+void SNiagaraHierarchy::DeleteItems(TArray<TSharedPtr<FNiagaraHierarchyItemViewModelBase>> ItemsToDelete)
 {
 	FScopedTransaction Transaction(LOCTEXT("Transaction_DeleteSelectedItems", "Deleted selected hierarchy items"));
 	HierarchyViewModel->GetHierarchyDataRoot()->Modify();
-	
+
+	bool bAnyItemsDeleted = false;
+	for(TSharedPtr<FNiagaraHierarchyItemViewModelBase>& SelectedItem : ItemsToDelete)
+	{
+		if(SelectedItem->CanDelete())
+		{
+			SelectedItem->Finalize();
+			if(SelectedItem->GetParent().IsValid())
+			{
+				SelectedItem->GetParent().Pin()->SyncToData();
+			}
+
+			bAnyItemsDeleted = true;
+		}
+	}
+
+	if(bAnyItemsDeleted)
+	{
+		RefreshSourceView();
+		RefreshHierarchyView();
+		HierarchyViewModel->OnHierarchyChanged().Broadcast();
+	}
+	else
+	{
+		Transaction.Cancel();
+	}
+}
+
+void SNiagaraHierarchy::DeleteSelectedItems()
+{	
 	TArray<TSharedPtr<FNiagaraHierarchyItemViewModelBase>> SelectedItems = HierarchyTreeView->GetSelectedItems();
 
 	if(SelectedItems.Num() == 0)
@@ -751,19 +845,8 @@ void SNiagaraHierarchy::DeleteSelectedItems()
 			SelectedItems = { ActiveSection };
 		}
 	}
-	
-	for(TSharedPtr<FNiagaraHierarchyItemViewModelBase>& SelectedItem : SelectedItems)
-	{
-		SelectedItem->Finalize();
-		if(SelectedItem->GetParent().IsValid())
-		{
-			SelectedItem->GetParent().Pin()->SyncToData();
-		}
-	}
 
-	RefreshSourceView();
-	RefreshHierarchyView();
-	HierarchyViewModel->OnHierarchyChanged().Broadcast();
+	DeleteItems(SelectedItems);
 }
 
 bool SNiagaraHierarchy::CanDeleteSelectedItems() const

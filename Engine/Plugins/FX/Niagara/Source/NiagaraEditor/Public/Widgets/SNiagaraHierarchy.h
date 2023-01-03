@@ -46,6 +46,8 @@ private:
 	void RequestRenameSelectedItem();
 	bool CanRequestRenameSelectedItem() const;
 
+	void DeleteItems(TArray<TSharedPtr<FNiagaraHierarchyItemViewModelBase>> ItemsToDelete);
+	
 	void DeleteSelectedItems();
 	bool CanDeleteSelectedItems() const;
 
@@ -57,6 +59,8 @@ private:
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 
+	TSharedPtr<SWidget> SummonContextMenuForSelectedRows(bool bFromHierarchy) const;
+	
 	/** This handles the drag & drop at the root level of the hierarchy, i.e. when dragging and dropping a parameter into the "empty" hierarchy */
 	FReply HandleHierarchyRootDrop(const FGeometry&, const FDragDropEvent& DragDropEvent) const;
 	bool CanDropOnRoot(TSharedPtr<FDragDropOperation> DragDropOp) const;
@@ -93,14 +97,13 @@ public:
 
 	void EnterEditingMode() const;
 
+	TSharedPtr<struct FNiagaraHierarchySectionViewModel> GetSectionViewModel();
 private:
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	
 	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual void OnDragLeave(const FDragDropEvent& DragDropEvent) override;
-	
-	TSharedRef<SWidget> OnGetMenuContent() const;
 
 	UNiagaraHierarchySection* TryGetSectionData() const;
 
