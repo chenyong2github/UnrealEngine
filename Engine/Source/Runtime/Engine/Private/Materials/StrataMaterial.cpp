@@ -2,6 +2,7 @@
 
 #include "StrataMaterial.h"
 #include "MaterialCompiler.h"
+#include "Materials/MaterialInterface.h"
 #include "StrataDefinitions.h"
 
 

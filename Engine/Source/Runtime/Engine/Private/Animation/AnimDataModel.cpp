@@ -15,6 +15,7 @@
 
 #if WITH_EDITOR
 #include "Animation/AnimSequenceHelpers.h"
+#include "Animation/AttributesRuntime.h"
 #include "AnimationRuntime.h"
 #include "AnimEncoding.h"
 #include "IAnimationDataControllerModule.h"

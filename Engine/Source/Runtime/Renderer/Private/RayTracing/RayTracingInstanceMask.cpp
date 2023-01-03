@@ -7,6 +7,7 @@
 #include "RayTracingDefinitions.h"
 #include "PathTracingDefinitions.h"
 #include "PrimitiveSceneProxy.h"
+#include "Materials/MaterialRenderProxy.h"
 #include "MeshPassProcessor.h"
 #include "ScenePrivate.h"
 

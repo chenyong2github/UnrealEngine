@@ -3,9 +3,10 @@
 #include "Animation/PoseAsset.h"
 
 #include "Animation/AnimStats.h"
-#include "UObject/FrameworkObjectVersion.h"
 #include "BonePose.h"
+#include "UObject/FrameworkObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 #include "AnimationRuntime.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimSequence.h"

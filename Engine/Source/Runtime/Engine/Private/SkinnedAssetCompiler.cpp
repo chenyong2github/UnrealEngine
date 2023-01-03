@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SkinnedAssetCompiler.h"
+#include "Components/SkinnedMeshComponent.h"
 #include "Engine/SkinnedAsset.h"
 #include "Engine/SkeletalMesh.h" // For AddSkeletalMeshes
 #include "UObject/UnrealType.h"

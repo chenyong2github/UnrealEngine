@@ -8,6 +8,8 @@
 #include "EnhancedInputComponent.h"
 #include "Engine/InputDelegateBinding.h"
 
+#include "UObject/UObjectThreadContext.h"
+
 void UVCamBlueprintModifier::Initialize(UVCamModifierContext* Context, UInputComponent* InputComponent)
 {
 	// Forward the Initialize call to the Blueprint Event

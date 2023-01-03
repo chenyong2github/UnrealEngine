@@ -22,6 +22,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "EngineGlobals.h"
 #include "Misc/FrameValue.h"
 #include "FramePro/FramePro.h"
+#include "Misc/BufferedOutputDevice.h"
 #include "Misc/OutputDeviceArchiveWrapper.h"
 #include "HAL/PlatformFile.h"
 #include "Misc/OutputDeviceFile.h"
