@@ -73,12 +73,7 @@ namespace UnrealBuildTool
 			DirectoryReference ProjectRootFolder = RootPath;
 			List<TargetEntry> FileToTarget = new List<TargetEntry>();
 			foreach (UnrealTargetPlatform Platform in InPlatforms)
-			{
-				if (!IsPlatformInHostGroup(Platform))
-				{
-					continue;
-				}
-				
+			{				
 				foreach (UnrealTargetConfiguration Configuration in InConfigurations)
 				{
 					foreach (ProjectTarget ProjectTarget in ProjectTargets.OfType<ProjectTarget>())
