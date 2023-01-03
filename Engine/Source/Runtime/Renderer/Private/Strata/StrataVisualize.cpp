@@ -2,6 +2,7 @@
 
 #include "Strata.h"
 #include "SceneTextureParameters.h"
+#include "ScenePrivate.h"
 #include "SceneRendering.h"
 #include "ScreenPass.h"
 #include "ShaderCompiler.h"

@@ -9,6 +9,7 @@
 class FScene;
 class FSceneView;
 class FSceneViewFamily;
+class FViewFamilyInfo;
 class FViewInfo;
 
 extern bool ShouldRenderLumenDiffuseGI(const FScene* Scene, const FSceneView& View, bool bSkipTracingDataCheck = false, bool bSkipProjectCheck = false);
