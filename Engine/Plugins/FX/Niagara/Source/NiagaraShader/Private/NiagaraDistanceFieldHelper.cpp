@@ -3,6 +3,8 @@
 #include "NiagaraDistanceFieldHelper.h"
 #include "DistanceFieldLightingShared.h"
 #include "SystemTextures.h"
+#include "ScenePrivate.h"
+#include "SceneRendering.h"
 
 // todo - currently duplicated from SetupGlobalDistanceFieldParameters (GlobalDistanceField.cpp) because of problems getting it properly exported from the dll
 void FNiagaraDistanceFieldHelper::SetGlobalDistanceFieldParameters(const FGlobalDistanceFieldParameterData* OptionalParameterData, FGlobalDistanceFieldParameters2& ShaderParameters)

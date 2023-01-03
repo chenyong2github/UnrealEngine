@@ -6,8 +6,10 @@
 #include "DistanceFieldLightingShared.h"
 #include "LumenSceneData.h"
 #include "IndirectLightRendering.h"
+#include "ReflectionEnvironment.h"
 
 class FLumenCardUpdateContext;
+namespace LumenRadianceCache { class FRadianceCacheInputs; }
 
 class FHemisphereDirectionSampleGenerator
 {

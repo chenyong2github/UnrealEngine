@@ -7,7 +7,10 @@ VirtualShadowMapClipmap.cpp
 #include "VirtualShadowMapClipmap.h"
 #include "CoreMinimal.h"
 #include "HAL/IConsoleManager.h"
+#include "LightSceneInfo.h"
 #include "RendererModule.h"
+#include "ScenePrivate.h"
+#include "SceneRendering.h"
 #include "VirtualShadowMapArray.h"
 #include "VirtualShadowMapCacheManager.h"
 #include "VirtualShadowMapDefinitions.h"
@@ -275,6 +278,14 @@ FViewMatrices FVirtualShadowMapClipmap::GetViewMatrices(int32 ClipmapIndex) cons
 	Initializer.ConstrainedViewRect = FIntRect(0, 0, FVirtualShadowMap::VirtualMaxResolutionXY, FVirtualShadowMap::VirtualMaxResolutionXY);
 
 	return FViewMatrices(Initializer);
+}
+
+int32 FVirtualShadowMapClipmap::GetHZBKey(int32 ClipmapLevelIndex) const
+{
+	int32 AbsoluteClipmapLevel = GetClipmapLevel(ClipmapLevelIndex);		// NOTE: Can be negative!
+	int32 ClipmapLevelKey = AbsoluteClipmapLevel + 128;
+	check(ClipmapLevelKey > 0 && ClipmapLevelKey < 256);
+	return GetLightSceneInfo().Id + (ClipmapLevelKey << 24);
 }
 
 FVirtualShadowMapProjectionShaderData FVirtualShadowMapClipmap::GetProjectionShaderData(int32 ClipmapIndex) const

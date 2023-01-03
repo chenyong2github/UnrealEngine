@@ -23,6 +23,7 @@
 #include "DeferredShadingRenderer.h"
 #include "PostProcess/PostProcessing.h"
 #include "PostProcess/SceneFilterRendering.h"
+#include "DistanceFieldAtlas.h"
 #include "DistanceFieldLightingShared.h"
 #include "DistanceFieldAmbientOcclusion.h"
 #include "PipelineStateCache.h"

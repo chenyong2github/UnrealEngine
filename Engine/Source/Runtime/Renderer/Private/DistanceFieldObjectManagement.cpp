@@ -13,6 +13,7 @@
 #include "GlobalShader.h"
 #include "DeferredShadingRenderer.h"
 #include "ScenePrivate.h"
+#include "DistanceFieldAtlas.h"
 #include "DistanceFieldLightingShared.h"
 #include "DistanceFieldAmbientOcclusion.h"
 #include "ComponentRecreateRenderStateContext.h"
@@ -71,17 +72,6 @@ DECLARE_LLM_MEMORY_STAT(TEXT("DistanceFields"), STAT_DistanceFieldsLLM, STATGROU
 DECLARE_LLM_MEMORY_STAT(TEXT("DistanceFields"), STAT_DistanceFieldsSummaryLLM, STATGROUP_LLM);
 LLM_DEFINE_TAG(DistanceFields, NAME_None, NAME_None, GET_STATFNAME(STAT_DistanceFieldsLLM), GET_STATFNAME(STAT_DistanceFieldsSummaryLLM));
 #endif // ENABLE_LOW_LEVEL_MEM_TRACKER
-
-// Must match equivalent shader defines
-template<> int32 TDistanceFieldObjectBuffers<DFPT_SignedDistanceField>::ObjectDataStride = GDistanceFieldObjectDataStride;
-template<> int32 TDistanceFieldObjectBuffers<DFPT_SignedDistanceField>::ObjectBoundsStride = GDistanceFieldObjectBoundsStride;
-template<> int32 TDistanceFieldObjectBuffers<DFPT_HeightField>::ObjectDataStride = GHeightFieldObjectDataStride;
-template<> int32 TDistanceFieldObjectBuffers<DFPT_HeightField>::ObjectBoundsStride = GHeightFieldObjectBoundsStride;
-
-template <EDistanceFieldPrimitiveType PrimitiveType>
-void TDistanceFieldObjectBuffers<PrimitiveType>::Initialize()
-{
-}
 
 FDistanceFieldObjectBufferParameters DistanceField::SetupObjectBufferParameters(FRDGBuilder& GraphBuilder, const FDistanceFieldSceneData& DistanceFieldSceneData)
 {
@@ -535,11 +525,11 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 			{
 				const uint32 NumDFObjects = NumObjectsInBuffer;
 
-				const uint32 DFObjectDataNumFloat4s = FMath::RoundUpToPowerOfTwo(NumDFObjects * FDistanceFieldObjectBuffers::ObjectDataStride);
+				const uint32 DFObjectDataNumFloat4s = FMath::RoundUpToPowerOfTwo(NumDFObjects * GDistanceFieldObjectDataStride);
 				const uint32 DFObjectDataNumBytes = DFObjectDataNumFloat4s * sizeof(FVector4f);
 				FRDGBuffer* DFObjectDataBuffer = ResizeStructuredBufferIfNeeded(GraphBuilder, ObjectBuffers->Data, DFObjectDataNumBytes, TEXT("DistanceFields.DFObjectData"));
 
-				const uint32 DFObjectBoundsNumFloat4s = FMath::RoundUpToPowerOfTwo(NumDFObjects * FDistanceFieldObjectBuffers::ObjectBoundsStride);
+				const uint32 DFObjectBoundsNumFloat4s = FMath::RoundUpToPowerOfTwo(NumDFObjects * GDistanceFieldObjectBoundsStride);
 				const uint32 DFObjectBoundsNumBytes = DFObjectBoundsNumFloat4s * sizeof(FVector4f);
 				FRDGBuffer* DFObjectBoundsBuffer = ResizeStructuredBufferIfNeeded(GraphBuilder, ObjectBuffers->Bounds, DFObjectBoundsNumBytes, TEXT("DistanceFields.DFObjectBounds"));
 
@@ -549,8 +539,8 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 
 				if (NumDFObjectUploads > 0)
 				{
-					UploadDistanceFieldDataBuffer.Init(GraphBuilder, NumDFObjectUploads, FDistanceFieldObjectBuffers::ObjectDataStride * sizeof(FVector4f), true, TEXT("DistanceFields.DFObjectDataUploadBuffer"));
-					UploadDistanceFieldBoundsBuffer.Init(GraphBuilder, NumDFObjectUploads, FDistanceFieldObjectBuffers::ObjectBoundsStride * sizeof(FVector4f), true, TEXT("DistanceFields.DFObjectBoundsUploadBuffer"));
+					UploadDistanceFieldDataBuffer.Init(GraphBuilder, NumDFObjectUploads, GDistanceFieldObjectDataStride * sizeof(FVector4f), true, TEXT("DistanceFields.DFObjectDataUploadBuffer"));
+					UploadDistanceFieldBoundsBuffer.Init(GraphBuilder, NumDFObjectUploads, GDistanceFieldObjectBoundsStride * sizeof(FVector4f), true, TEXT("DistanceFields.DFObjectBoundsUploadBuffer"));
 
 					const TArray<FPrimitiveBounds>& PrimitiveBounds = Scene->PrimitiveBounds;
 
@@ -724,7 +714,7 @@ void FSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRDGBuilder& GraphBuil
 
 	if (!DistanceFieldSceneData.HeightFieldObjectBuffers)
 	{
-		DistanceFieldSceneData.HeightFieldObjectBuffers = new FHeightFieldObjectBuffers;
+		DistanceFieldSceneData.HeightFieldObjectBuffers = new FDistanceFieldObjectBuffers();
 
 		bUpdateAllEntries = true;
 	}
@@ -749,18 +739,18 @@ void FSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRDGBuilder& GraphBuil
 
 		// Upload height field object data and bounds
 
-		FHeightFieldObjectBuffers*& ObjectBuffers = DistanceFieldSceneData.HeightFieldObjectBuffers;
+		FDistanceFieldObjectBuffers*& ObjectBuffers = DistanceFieldSceneData.HeightFieldObjectBuffers;
 
-		const uint32 HeighFieldObjectDataNumFloat4s = FMath::RoundUpToPowerOfTwo(NumHeightFieldObjects * FHeightFieldObjectBuffers::ObjectDataStride);
+		const uint32 HeighFieldObjectDataNumFloat4s = FMath::RoundUpToPowerOfTwo(NumHeightFieldObjects * GHeightFieldObjectDataStride);
 		const uint32 HeighFieldObjectDataNumBytes = HeighFieldObjectDataNumFloat4s * sizeof(FVector4f);
 		FRDGBuffer* HeightfieldObjectDataBuffer = ResizeStructuredBufferIfNeeded(GraphBuilder, ObjectBuffers->Data, HeighFieldObjectDataNumBytes, TEXT("HeighFieldObjectData"));
 
-		const uint32 HeighFieldObjectBoundsNumFloat4s = FMath::RoundUpToPowerOfTwo(NumHeightFieldObjects * FHeightFieldObjectBuffers::ObjectBoundsStride);
+		const uint32 HeighFieldObjectBoundsNumFloat4s = FMath::RoundUpToPowerOfTwo(NumHeightFieldObjects * GHeightFieldObjectBoundsStride);
 		const uint32 HeighFieldObjectBoundsNumBytes = HeighFieldObjectBoundsNumFloat4s * sizeof(FVector4f);
 		FRDGBuffer* HeightfieldObjectBoundsBuffer = ResizeStructuredBufferIfNeeded(GraphBuilder, ObjectBuffers->Bounds, HeighFieldObjectBoundsNumBytes, TEXT("HeighFieldObjectBounds"));
 
-		DistanceFieldSceneData.UploadHeightFieldDataBuffer.Init(GraphBuilder, NumHeightFieldObjectUploads, FHeightFieldObjectBuffers::ObjectDataStride * sizeof(FVector4f), true, TEXT("HeighFieldObjectDataUploadBuffer"));
-		DistanceFieldSceneData.UploadHeightFieldBoundsBuffer.Init(GraphBuilder, NumHeightFieldObjectUploads, FHeightFieldObjectBuffers::ObjectBoundsStride * sizeof(FVector4f), true, TEXT("HeighFieldObjectBoundsUploadBuffer"));
+		DistanceFieldSceneData.UploadHeightFieldDataBuffer.Init(GraphBuilder, NumHeightFieldObjectUploads, GHeightFieldObjectDataStride * sizeof(FVector4f), true, TEXT("HeighFieldObjectDataUploadBuffer"));
+		DistanceFieldSceneData.UploadHeightFieldBoundsBuffer.Init(GraphBuilder, NumHeightFieldObjectUploads, GHeightFieldObjectBoundsStride * sizeof(FVector4f), true, TEXT("HeighFieldObjectBoundsUploadBuffer"));
 
 		for (uint32 Index = 0; Index < NumHeightFieldObjectUploads; ++Index)
 		{

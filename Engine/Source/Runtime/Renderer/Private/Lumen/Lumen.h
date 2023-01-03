@@ -2,8 +2,14 @@
 
 #pragma once
 
-#include "DistanceFieldLightingShared.h"
+#include "EngineDefines.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "Math/Vector.h"
+
+class FScene;
+class FSceneView;
+class FSceneViewFamily;
+class FViewInfo;
 
 extern bool ShouldRenderLumenDiffuseGI(const FScene* Scene, const FSceneView& View, bool bSkipTracingDataCheck = false, bool bSkipProjectCheck = false);
 extern bool ShouldRenderLumenReflections(const FViewInfo& View, bool bSkipTracingDataCheck = false, bool bSkipProjectCheck = false);

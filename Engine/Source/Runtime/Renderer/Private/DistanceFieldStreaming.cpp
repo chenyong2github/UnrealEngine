@@ -17,6 +17,7 @@
 #include "GlobalShader.h"
 #include "DeferredShadingRenderer.h"
 #include "ScenePrivate.h"
+#include "DistanceFieldAtlas.h"
 #include "DistanceFieldLightingShared.h"
 #include "DistanceFieldAmbientOcclusion.h"
 #include "GlobalDistanceField.h"

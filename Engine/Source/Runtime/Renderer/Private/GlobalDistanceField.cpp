@@ -1,14 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GlobalDistanceField.h"
-#include "DistanceFieldLightingShared.h"
-#include "RendererModule.h"
 #include "ClearQuad.h"
-#include "Engine/VolumeTexture.h"
+#include "DistanceFieldLightingShared.h"
 #include "DynamicMeshBuilder.h"
 #include "DynamicPrimitiveDrawing.h"
-#include "Lumen/Lumen.h"
+#include "Engine/VolumeTexture.h"
 #include "GlobalDistanceFieldHeightfields.h"
+#include "Lumen/Lumen.h"
+#include "RendererModule.h"
+#include "ScenePrivate.h"
 #include "TextureResource.h"
 
 DECLARE_GPU_STAT(GlobalDistanceFieldUpdate);
@@ -450,6 +451,7 @@ int32 GlobalDistanceField::GetMaxPageNum(bool bLumenEnabled, float LumenSceneVie
 
 // For reading back the distance field data
 static FGlobalDistanceFieldReadback* GDFReadbackRequest = nullptr;
+
 void RequestGlobalDistanceFieldReadback(FGlobalDistanceFieldReadback* Readback)
 {
 	if (ensure(GDFReadbackRequest == nullptr))
@@ -458,6 +460,14 @@ void RequestGlobalDistanceFieldReadback(FGlobalDistanceFieldReadback* Readback)
 		ensure(Readback->CallbackThread != ENamedThreads::UnusedAnchor);
 		GDFReadbackRequest = Readback;
 	}
+}
+
+void RequestGlobalDistanceFieldReadback_GameThread(FGlobalDistanceFieldReadback* Readback)
+{
+	ENQUEUE_RENDER_COMMAND(RequestGlobalDistanceFieldReadback)(
+		[Readback](FRHICommandListImmediate& RHICmdList) {
+			RequestGlobalDistanceFieldReadback(Readback);
+		});
 }
 
 void FGlobalDistanceFieldInfo::UpdateParameterData(float MaxOcclusionDistance, bool bLumenEnabled, float LumenSceneViewDistance, FVector PreViewTranslation)

@@ -7,9 +7,14 @@ VirtualShadowMapClipmap.h
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ConvexVolume.h"
+#include "Templates/RefCounting.h"
 #include "VirtualShadowMapProjection.h"
 
 struct FViewMatrices;
+struct FVirtualShadowMapProjectionShaderData;
+class FPrimitiveSceneInfo;
+class FVirtualShadowMap;
 class FVirtualShadowMapArray;
 class FVirtualShadowMapArrayCacheManager;
 class FVirtualShadowMapPerLightCacheEntry;
@@ -54,13 +59,7 @@ public:
 		return LightSceneInfo;
 	}
 
-	int32 GetHZBKey(int32 ClipmapLevelIndex) const
-	{
-		int32 AbsoluteClipmapLevel = GetClipmapLevel(ClipmapLevelIndex);		// NOTE: Can be negative!
-		int32 ClipmapLevelKey = AbsoluteClipmapLevel + 128;
-		check(ClipmapLevelKey > 0 && ClipmapLevelKey < 256);
-		return GetLightSceneInfo().Id + (ClipmapLevelKey << 24);
-	}
+	int32 GetHZBKey(int32 ClipmapLevelIndex) const;
 
 	FVirtualShadowMapProjectionShaderData GetProjectionShaderData(int32 ClipmapIndex) const;
 

@@ -50,6 +50,7 @@
 #include "StaticMeshResources.h"
 #include "ParameterCollection.h"
 #include "DistanceFieldAmbientOcclusion.h"
+#include "DistanceFieldAtlas.h"
 #include "EngineModule.h"
 #include "FXSystem.h"
 #include "DistanceFieldLightingShared.h"

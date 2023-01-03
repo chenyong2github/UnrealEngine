@@ -6,24 +6,20 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RHI.h"
-#include "RenderResource.h"
-#include "ShaderParameters.h"
-#include "RenderUtils.h"
-#include "RHIStaticStates.h"
-#include "DistanceFieldAtlas.h"
-#include "Templates/UniquePtr.h"
-#include "SceneRendering.h"
-#include "ScenePrivate.h"
+#include "CoreTypes.h"
+#include "ShaderParameterMacros.h"
 
+class FDistanceFieldSceneData;
 class FLightSceneProxy;
 class FMaterialRenderProxy;
 class FPrimitiveSceneInfo;
+class FRDGBuffer;
+class FRDGBuilder;
+class FRDGPooledBuffer;
 class FSceneRenderer;
 class FShaderParameterMap;
 class FViewInfo;
-class FDistanceFieldSceneData;
+using FRDGBufferRef = FRDGBuffer*;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogDistanceField, Log, All);
 
@@ -50,37 +46,20 @@ static const int32 GDistanceFieldObjectBoundsStride = 3;
 static const int32 GHeightFieldObjectDataStride = 7;
 static const int32 GHeightFieldObjectBoundsStride = 3;
 
-template <EDistanceFieldPrimitiveType PrimitiveType>
-class TDistanceFieldObjectBuffers
+class FDistanceFieldObjectBuffers
 {
 public:
-
-	static int32 ObjectDataStride;
-	static int32 ObjectBoundsStride;
-
 	TRefCountPtr<FRDGPooledBuffer> Bounds;
 	TRefCountPtr<FRDGPooledBuffer> Data;
 
-	TDistanceFieldObjectBuffers()
-	{
-	}
+	FDistanceFieldObjectBuffers();
+	~FDistanceFieldObjectBuffers();
 
 	void Initialize();
+	void Release();
 
-	void Release()
-	{
-		Bounds = nullptr;
-		Data = nullptr;
-	}
-
-	size_t GetSizeBytes() const
-	{
-		return TryGetSize(Bounds) + TryGetSize(Data);
-	}
+	size_t GetSizeBytes() const;
 };
-
-class FDistanceFieldObjectBuffers : public TDistanceFieldObjectBuffers<DFPT_SignedDistanceField> {};
-class FHeightFieldObjectBuffers : public TDistanceFieldObjectBuffers<DFPT_HeightField> {};
 
 BEGIN_SHADER_PARAMETER_STRUCT(FDistanceFieldObjectBufferParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, SceneObjectBounds)
@@ -134,50 +113,6 @@ extern void AllocateDistanceFieldCulledObjectBuffers(
 	uint32 MaxObjects,
 	FRDGBufferRef& OutObjectIndirectArguments,
 	FDistanceFieldCulledObjectBufferParameters& OutParameters);
-
-class FCPUUpdatedBuffer
-{
-public:
-
-	EPixelFormat Format;
-	int32 Stride;
-	int32 MaxElements;
-
-	// Volatile must be written every frame before use.  Supports multiple writes per frame on PS4, unlike Dynamic.
-	bool bVolatile;
-
-	FBufferRHIRef Buffer;
-	FShaderResourceViewRHIRef BufferSRV;
-
-	FCPUUpdatedBuffer()
-	{
-		Format = PF_A32B32G32R32F;
-		Stride = 1;
-		MaxElements = 0;
-		bVolatile = true;
-	}
-
-	void Initialize()
-	{
-		if (MaxElements > 0 && Stride > 0)
-		{
-			FRHIResourceCreateInfo CreateInfo(TEXT("FCPUUpdatedBuffer"));
-			Buffer = RHICreateVertexBuffer(MaxElements * Stride * GPixelFormats[Format].BlockBytes, (bVolatile ? BUF_Volatile : BUF_Dynamic)  | BUF_ShaderResource, CreateInfo);
-			BufferSRV = RHICreateShaderResourceView(Buffer, GPixelFormats[Format].BlockBytes, Format);
-		}
-	}
-
-	void Release()
-	{
-		Buffer.SafeRelease();
-		BufferSRV.SafeRelease(); 
-	}
-
-	size_t GetSizeBytes() const
-	{
-		return MaxElements * Stride * GPixelFormats[Format].BlockBytes;
-	}
-};
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLightTileIntersectionParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWShadowTileNumCulledObjects)

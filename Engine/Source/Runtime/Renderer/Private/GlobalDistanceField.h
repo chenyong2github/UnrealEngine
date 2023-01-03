@@ -7,6 +7,9 @@
 #include "Delegates/DelegateCombinations.h"
 #include "Async/TaskGraphInterfaces.h"
 
+class FRDGExternalAccessQueue;
+class FGlobalDistanceFieldInfo;
+
 extern int32 GAOGlobalDistanceField;
 
 inline bool UseGlobalDistanceField()
@@ -66,12 +69,6 @@ public:
  *
  * @note: Currently only works with the highest res clipmap on the first updated view in the frame
  **/
-void RENDERER_API RequestGlobalDistanceFieldReadback(FGlobalDistanceFieldReadback* Readback);
+extern void RequestGlobalDistanceFieldReadback(FGlobalDistanceFieldReadback* Readback);
 
-inline void RequestGlobalDistanceFieldReadback_GameThread(FGlobalDistanceFieldReadback* Readback)
-{
-	ENQUEUE_RENDER_COMMAND(RequestGlobalDistanceFieldReadback)(
-		[Readback](FRHICommandListImmediate& RHICmdList) {
-		RequestGlobalDistanceFieldReadback(Readback);
-	});
-}
+void RENDERER_API RequestGlobalDistanceFieldReadback_GameThread(FGlobalDistanceFieldReadback* Readback);

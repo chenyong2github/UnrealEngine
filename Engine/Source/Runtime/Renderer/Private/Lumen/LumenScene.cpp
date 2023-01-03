@@ -131,6 +131,13 @@ static FIntPoint GetDesiredPhysicalAtlasSize(float SurfaceCacheResolution)
 	return GetDesiredPhysicalAtlasSizeInPages(SurfaceCacheResolution) * Lumen::PhysicalPageSize;
 }
 
+FLumenPrimitiveGroupRemoveInfo::FLumenPrimitiveGroupRemoveInfo(const FPrimitiveSceneInfo* InPrimitive, int32 InPrimitiveIndex)
+	: Primitive(InPrimitive)
+	, PrimitiveIndex(InPrimitiveIndex)
+	, LumenPrimitiveGroupIndices(InPrimitive->LumenPrimitiveGroupIndices)
+{
+}
+
 bool FLumenPrimitiveGroup::HasMergedInstances() const
 {
 	bool HasInstancesToMerge = false;

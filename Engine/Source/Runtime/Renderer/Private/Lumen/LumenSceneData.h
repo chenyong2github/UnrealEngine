@@ -6,29 +6,25 @@
 
 #pragma once
 
-// Dependencies.
-
-#include "CoreMinimal.h"
-#include "Engine/EngineTypes.h"
-#include "RHI.h"
-#include "RenderResource.h"
-#include "RenderingThread.h"
-#include "SceneTypes.h"
-#include "UniformBuffer.h"
-#include "LumenSparseSpanArray.h"
-#include "LumenUniqueList.h"
-#include "LumenSurfaceCacheFeedback.h"
+#include "CoreTypes.h"
 #include "Containers/BinaryHeap.h"
-#include "Lumen.h"
+#include "Experimental/Containers/RobinHoodHashTable.h"
+#include "Lumen/Lumen.h"
+#include "Lumen/LumenHeightfields.h"
+#include "Lumen/LumenSparseSpanArray.h"
+#include "Lumen/LumenSurfaceCacheFeedback.h"
+#include "Lumen/LumenUniqueList.h"
 #include "MeshCardRepresentation.h"
-#include "LumenHeightfields.h"
+#include "ShaderParameterMacros.h"
 
-class FMeshCardsBuildData;
+class FDistanceFieldSceneData;
 class FLumenCardBuildData;
 class FLumenCardPassUniformParameters;
-class FPrimitiveSceneInfo;
-class FDistanceFieldSceneData;
 class FLumenCardRenderer;
+class FLumenMeshCards;
+class FLumenViewState;
+class FMeshCardsBuildData;
+class FPrimitiveSceneInfo;
 struct FLumenPageTableEntry;
 
 static constexpr uint32 MaxDistantCards = 8;
@@ -180,11 +176,7 @@ public:
 class FLumenPrimitiveGroupRemoveInfo
 {
 public:
-	FLumenPrimitiveGroupRemoveInfo(const FPrimitiveSceneInfo* InPrimitive, int32 InPrimitiveIndex)
-		: Primitive(InPrimitive)
-		, PrimitiveIndex(InPrimitiveIndex)
-		, LumenPrimitiveGroupIndices(InPrimitive->LumenPrimitiveGroupIndices)
-	{}
+	FLumenPrimitiveGroupRemoveInfo(const FPrimitiveSceneInfo* InPrimitive, int32 InPrimitiveIndex);
 
 	// Must not be dereferenced after creation, the primitive was removed from the scene and deleted
 	// Value of the pointer is still useful for map lookups

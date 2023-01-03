@@ -6,18 +6,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RHIDefinitions.h"
-#include "ShaderBaseClasses.h"
-#include "ShaderParameters.h"
-#include "UniformBuffer.h"
-#include "Math/SHMath.h"
+#include "CoreTypes.h"
+#include "Math/Vector4.h"
+#include "RHIFwd.h"
+#include "ShaderParameterMacros.h"
 
-class FViewInfo;
 class FRDGBuilder;
 class FRDGPooledBuffer;
 class FSkyLightSceneProxy;
+class FViewInfo;
 struct FEngineShowFlags;
+
+template<int32 MaxSHOrder> class TSHVectorRGB;
+typedef TSHVectorRGB<3> FSHVectorRGB3;
 
 extern bool IsReflectionEnvironmentAvailable(ERHIFeatureLevel::Type InFeatureLevel);
 extern bool IsReflectionCaptureAvailable();
@@ -35,7 +36,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FReflectionUniformParameters,)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 extern void SetupReflectionUniformParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, FReflectionUniformParameters& OutParameters);
-TRDGUniformBufferRef<FReflectionUniformParameters> CreateReflectionUniformBuffer(FRDGBuilder& GraphBuilder, const class FViewInfo& View);
+TRDGUniformBufferRef<FReflectionUniformParameters> CreateReflectionUniformBuffer(FRDGBuilder& GraphBuilder, const FViewInfo& View);
 
 RENDERER_API void SetupSkyIrradianceEnvironmentMapConstantsFromSkyIrradiance(FVector4f* OutSkyIrradianceEnvironmentMap, const FSHVectorRGB3 SkyIrradiance);
 

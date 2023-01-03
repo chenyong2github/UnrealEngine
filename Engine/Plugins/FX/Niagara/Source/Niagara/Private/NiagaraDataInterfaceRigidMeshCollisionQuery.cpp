@@ -7,6 +7,7 @@
 #include "Animation/SkeletalMeshActor.h"
 #include "AnimationRuntime.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "DistanceFieldLightingShared.h"
 #include "Engine/Canvas.h"
 #include "EngineUtils.h"
@@ -26,6 +27,7 @@
 #include "NiagaraSystemInstance.h"
 #include "NiagaraSystemSimulation.h"
 #include "PhysicsEngine/PhysicsAsset.h"
+#include "ScenePrivate.h"
 #include "ShaderParameterUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceRigidMeshCollisionQuery)

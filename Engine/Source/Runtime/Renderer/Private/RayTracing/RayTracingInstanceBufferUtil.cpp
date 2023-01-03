@@ -13,6 +13,7 @@
 #include "RenderCore.h"
 #include "ShaderParameterStruct.h"
 #include "GlobalShader.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 #include "Async/ParallelFor.h"
 

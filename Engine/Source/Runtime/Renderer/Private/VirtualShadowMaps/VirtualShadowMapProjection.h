@@ -6,11 +6,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RenderGraphResources.h"
-#include "ScreenSpaceDenoise.h"
+#include "CoreTypes.h"
+#include "Math/MathFwd.h"
+#include "Templates/SharedPointerFwd.h"
 
+class FLightSceneInfo;
+class FRDGBuilder;
+class FRDGTexture;
+class FViewInfo;
+class FVirtualShadowMapArray;
 class FVirtualShadowMapClipmap;
+struct FMinimalSceneTextures;
+using FRDGTextureRef = FRDGTexture*;
 
 struct FTiledVSMProjection
 {

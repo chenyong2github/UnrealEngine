@@ -12,6 +12,8 @@
 #include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraWorldManager.h"
 #include "NiagaraDataInterfaceUtilities.h"
+#include "ScenePrivate.h"
+#include "SceneRendering.h"
 #include "ShaderParameterUtils.h"
 #include "StaticMeshComponentLODInfo.h"
 #include "NiagaraStats.h"

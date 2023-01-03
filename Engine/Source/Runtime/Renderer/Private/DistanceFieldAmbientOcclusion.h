@@ -6,16 +6,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RHI.h"
-#include "RenderResource.h"
-#include "ShaderParameters.h"
-#include "UniformBuffer.h"
-#include "RHIStaticStates.h"
-#include "Shader.h"
-#include "GlobalShader.h"
-#include "PostProcess/SceneRenderTargets.h"
-#include "ScenePrivate.h"
+#include "CoreTypes.h"
+#include "ShaderParameterMacros.h"
+
+class FDistanceFieldCulledObjectBufferParameters;
+class FRDGBuffer;
+class FRDGBuilder;
+class FRDGTexture;
+class FScene;
+class FSceneViewFamily;
+class FViewInfo;
+struct FShaderCompilerEnvironment;
+using FRDGBufferRef = FRDGBuffer*;
+using FRDGTextureRef = FRDGTexture*;
 
 /** Base downsample factor that all distance field AO operations are done at. */
 const int32 GAODownsampleFactor = 2;
@@ -56,15 +59,7 @@ END_SHADER_PARAMETER_STRUCT()
 static const int32 CulledTileDataStride = 2;
 static const int32 ConeTraceObjectsThreadGroupSize = 64;
 
-inline void TileIntersectionModifyCompilationEnvironment(EShaderPlatform Platform, FShaderCompilerEnvironment& OutEnvironment)
-{
-	OutEnvironment.SetDefine(TEXT("CULLED_TILE_DATA_STRIDE"), CulledTileDataStride);
-	extern int32 GDistanceFieldAOTileSizeX;
-	OutEnvironment.SetDefine(TEXT("CULLED_TILE_SIZEX"), GDistanceFieldAOTileSizeX);
-	extern int32 GConeTraceDownsampleFactor;
-	OutEnvironment.SetDefine(TEXT("TRACE_DOWNSAMPLE_FACTOR"), GConeTraceDownsampleFactor);
-	OutEnvironment.SetDefine(TEXT("CONE_TRACE_OBJECTS_THREADGROUP_SIZE"), ConeTraceObjectsThreadGroupSize);
-}
+void TileIntersectionModifyCompilationEnvironment(EShaderPlatform Platform, FShaderCompilerEnvironment& OutEnvironment);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FAOScreenGridParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWScreenGridConeVisibility)
@@ -104,56 +99,10 @@ namespace DistanceField
 	FDFAOUpsampleParameters SetupAOUpsampleParameters(const FViewInfo& View, FRDGTextureRef DistanceFieldAOBentNormal);
 };
 
-class FMaxSizedRWBuffers : public FRenderResource
-{
-public:
-	FMaxSizedRWBuffers()
-	{
-		MaxSize = 0;
-	}
-
-	virtual void InitDynamicRHI()
-	{
-		check(0);
-	}
-
-	virtual void ReleaseDynamicRHI()
-	{
-		check(0);
-	}
-
-	void AllocateFor(int32 InMaxSize)
-	{
-		bool bReallocate = false;
-
-		if (InMaxSize > MaxSize)
-		{
-			MaxSize = InMaxSize;
-			bReallocate = true;
-		}
-
-		if (!IsInitialized())
-		{
-			InitResource();
-		}
-		else if (bReallocate)
-		{
-			UpdateRHI();
-		}
-	}
-
-	int32 GetMaxSize() const { return MaxSize; }
-
-protected:
-	int32 MaxSize;
-};
-
 extern void TrackGPUProgress(FRHICommandListImmediate& RHICmdList, uint32 DebugId);
 
 extern bool ShouldRenderDeferredDynamicSkyLight(const FScene* Scene, const FSceneViewFamily& ViewFamily);
 extern bool ShouldDoReflectionEnvironment(const FScene* Scene, const FSceneViewFamily& ViewFamily);
-
-class FDistanceFieldCulledObjectBufferParameters;
 
 extern void CullObjectsToView(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo& View, const FDistanceFieldAOParameters& Parameters, FDistanceFieldCulledObjectBufferParameters& CulledObjectBuffers);
 extern void BuildTileObjectLists(FRDGBuilder& GraphBuilder,

@@ -91,6 +91,7 @@ class FRHIGPUTextureReadback;
 class FRuntimeVirtualTextureSceneProxy;
 class FLumenSceneData;
 class FVirtualShadowMapArrayCacheManager;
+class FDistanceFieldObjectBuffers;
 struct FHairStrandsInstance;
 struct FPathTracingState;
 class FSparseVolumeTextureViewerSceneProxy;
@@ -1996,19 +1997,19 @@ public:
 		return bCanUse16BitObjectIndices && (NumObjectsInBuffer < (1 << 16));
 	}
 
-	const class FDistanceFieldObjectBuffers* GetCurrentObjectBuffers() const
+	const FDistanceFieldObjectBuffers* GetCurrentObjectBuffers() const
 	{
 		return ObjectBuffers;
 	}
 
-	const class FHeightFieldObjectBuffers* GetHeightFieldObjectBuffers() const
+	const FDistanceFieldObjectBuffers* GetHeightFieldObjectBuffers() const
 	{
 		return HeightFieldObjectBuffers;
 	}
 
 	int32 NumObjectsInBuffer;
-	class FDistanceFieldObjectBuffers* ObjectBuffers;
-	class FHeightFieldObjectBuffers* HeightFieldObjectBuffers;
+	FDistanceFieldObjectBuffers* ObjectBuffers;
+	FDistanceFieldObjectBuffers* HeightFieldObjectBuffers;
 
 	FRDGScatterUploadBuffer UploadHeightFieldDataBuffer;
 	FRDGScatterUploadBuffer UploadHeightFieldBoundsBuffer;
