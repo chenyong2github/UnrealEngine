@@ -23,6 +23,7 @@
 #include "Customizations/OutputProvider/ConnectionRemapCustomization_StateSwitcher.h"
 #include "Customizations/OutputProvider/ConnectionRemapCustomization_VCamWidget.h"
 #include "Customizations/OutputProvider/OutputProviderTypeCustomization.h"
+#include "Customizations/StateSwitcher/VCamStateSwitcherWidgetCustomization.h"
 #include "Output/VCamOutputViewport.h"
 #include "UI/VCamWidget.h"
 #include "UI/Switcher/VCamStateSwitcherWidget.h"
@@ -139,6 +140,10 @@ namespace UE::VCamCoreEditor::Private
 			AVCamBaseActor::StaticClass()->GetFName(),
 			FOnGetDetailCustomizationInstance::CreateStatic(&FVCamBaseActorCustomization::MakeInstance)
 		);
+		PropertyModule.RegisterCustomClassLayout(
+			UVCamStateSwitcherWidget::StaticClass()->GetFName(),
+			FOnGetDetailCustomizationInstance::CreateStatic(&FVCamStateSwitcherWidgetCustomization::MakeInstance)
+			);
 	}
 
 	void FVCamCoreEditorModule::RegisterDefaultConnectionRemappingCustomizations()
@@ -165,6 +170,7 @@ namespace UE::VCamCoreEditor::Private
 		
 		PropertyModule.UnregisterCustomClassLayout(UVCamOutputProviderBase::StaticClass()->GetFName());
 		PropertyModule.UnregisterCustomClassLayout(AVCamBaseActor::StaticClass()->GetFName());
+		PropertyModule.UnregisterCustomClassLayout(UVCamStateSwitcherWidget::StaticClass()->GetFName());
 	}
 }
 

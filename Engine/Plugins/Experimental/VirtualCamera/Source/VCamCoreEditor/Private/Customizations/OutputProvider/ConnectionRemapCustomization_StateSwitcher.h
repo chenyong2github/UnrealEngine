@@ -24,4 +24,3 @@ namespace UE::VCamCoreEditor::Private
 		void AddCurrentStateProperty(const FConnectionRemapCustomizationArgs& Args);
 	};
 }
-

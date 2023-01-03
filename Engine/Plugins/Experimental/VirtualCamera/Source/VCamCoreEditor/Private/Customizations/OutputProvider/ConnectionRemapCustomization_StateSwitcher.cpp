@@ -10,6 +10,8 @@
 #include "Algo/AnyOf.h"
 #include "DetailWidgetRow.h"
 #include "IDetailGroup.h"
+#include "Customization/IConnectionRemapUtils.h"
+#include "Util/SharedPropertyCustomizationUtils.h"
 
 #define LOCTEXT_NAMESPACE "FConnectionRemapCustomization_StateSwitcher"
 
@@ -50,7 +52,8 @@ namespace UE::VCamCoreEditor::Private
 			return;
 		}
 
-		Args.WidgetGroup.AddPropertyRow(CurrentStatePropertyHandle.ToSharedRef());
+		IDetailPropertyRow& PropertyRow = Args.WidgetGroup.AddPropertyRow(CurrentStatePropertyHandle.ToSharedRef());
+		StateSwitcher::CustomizeCurrentState(*StateSwitcherWidget, PropertyRow, CurrentStatePropertyHandle.ToSharedRef(), Args.Utils->GetRegularFont());
 	}
 
 }

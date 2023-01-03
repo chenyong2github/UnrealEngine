@@ -160,12 +160,9 @@ namespace UE::VCamCoreEditor::Private
 
 	TObjectPtr<UWidgetTree> FWidgetConnectionConfigTypeCustomization::GetWidgetTreeThroughBlueprintAsset(UUserWidget* ClassDefaultWidget)
 	{
-		if (!ensure(ClassDefaultWidget->HasAnyFlags(RF_ClassDefaultObject)))
-		{
-			return nullptr;
-		}
-		
-		return VCamCore::GetWidgetTreeThroughBlueprintAsset(*ClassDefaultWidget);
+		return ClassDefaultWidget->HasAnyFlags(RF_ClassDefaultObject)
+			? VCamCore::GetWidgetTreeThroughBlueprintAsset(*ClassDefaultWidget)
+			: nullptr;
 	}
 
 	void FWidgetConnectionConfigTypeCustomization::CustomizeConnectionTargetsReferenceProperty(
