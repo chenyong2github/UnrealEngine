@@ -120,6 +120,27 @@ namespace EpicGames.UHT.Parsers
 							break;
 					}
 
+					if (enumObject.CppForm != UhtEnumCppForm.EnumClass && enumObject.UnderlyingType == UhtEnumUnderlyingType.Unspecified)
+					{
+						UhtIssueBehavior enumUnderlyingTypeBehavior = enumObject.Package.IsPartOfEngine ? topScope.Session.Config!.EngineEnumUnderlyingTypeNotSet
+							: topScope.Session.Config!.NonEngineEnumUnderlyingTypeNotSet;
+
+						string logMessage = $"Underlying type must be specified.";
+						switch (enumUnderlyingTypeBehavior)
+						{
+							case UhtIssueBehavior.AllowSilently:
+								break;
+
+							case UhtIssueBehavior.AllowAndLog:
+								topScope.TokenReader.LogTrace(enumToken.InputLine, logMessage);
+								break;
+
+							default:
+								topScope.TokenReader.LogError(enumToken.InputLine, logMessage);
+								break;
+						}
+					}
+
 					tokenContext.Reset($"UENUM {enumObject.SourceName}");
 
 					topScope.AddModuleRelativePathToMetaData();

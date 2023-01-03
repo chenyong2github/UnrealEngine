@@ -233,8 +233,8 @@ namespace EpicGames.UHT.Types
 		/// <param name="typeStartPos">Starting character position of the type</param>
 		/// <param name="alternativeTypeDesc">Suggested alternate declaration</param>
 		/// <exception cref="UhtIceException">Thrown if the behavior type is unexpected</exception>
-		public static void ConditionalLogPointerUsage(UhtPropertySettings propertySettings, UhtPointerMemberBehavior engineBehavior, UhtPointerMemberBehavior enginePluginBehavior,
-			UhtPointerMemberBehavior nonEngineBehavior, string pointerTypeDesc, IUhtTokenReader tokenReader, int typeStartPos, string? alternativeTypeDesc)
+		public static void ConditionalLogPointerUsage(UhtPropertySettings propertySettings, UhtIssueBehavior engineBehavior, UhtIssueBehavior enginePluginBehavior,
+			UhtIssueBehavior nonEngineBehavior, string pointerTypeDesc, IUhtTokenReader tokenReader, int typeStartPos, string? alternativeTypeDesc)
 		{
 			if (propertySettings.PropertyCategory != UhtPropertyCategory.Member)
 			{
@@ -242,7 +242,7 @@ namespace EpicGames.UHT.Types
 			}
 
 			UhtPackage package = propertySettings.Outer.Package;
-			UhtPointerMemberBehavior behavior = nonEngineBehavior;
+			UhtIssueBehavior behavior = nonEngineBehavior;
 			if (package.IsPartOfEngine)
 			{
 				if (package.IsPlugin)
@@ -255,7 +255,7 @@ namespace EpicGames.UHT.Types
 				}
 			}
 
-			if (behavior == UhtPointerMemberBehavior.AllowSilently)
+			if (behavior == UhtIssueBehavior.AllowSilently)
 			{
 				return;
 			}
@@ -267,7 +267,7 @@ namespace EpicGames.UHT.Types
 
 			switch (behavior)
 			{
-				case UhtPointerMemberBehavior.Disallow:
+				case UhtIssueBehavior.Disallow:
 					if (!String.IsNullOrEmpty(alternativeTypeDesc))
 					{
 						tokenReader.LogError($"{pointerTypeDesc} usage in member declaration detected [[[{type}]]].  This is disallowed for the target/module, consider {alternativeTypeDesc} as an alternative.");
@@ -278,7 +278,7 @@ namespace EpicGames.UHT.Types
 					}
 					break;
 
-				case UhtPointerMemberBehavior.AllowAndLog:
+				case UhtIssueBehavior.AllowAndLog:
 					if (!String.IsNullOrEmpty(alternativeTypeDesc))
 					{
 						tokenReader.LogTrace($"{pointerTypeDesc} usage in member declaration detected [[[{type}]]].  Consider {alternativeTypeDesc} as an alternative.");

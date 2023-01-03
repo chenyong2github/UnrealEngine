@@ -7,23 +7,22 @@ namespace EpicGames.UHT.Utils
 {
 
 	/// <summary>
-	/// Describes how pointers will generate warnings or errors
+	/// Describes whether issues will generate warnings or errors
 	/// </summary>
-	public enum UhtPointerMemberBehavior
+	public enum UhtIssueBehavior
 	{
-
 		/// <summary>
 		/// An error will be generated.
 		/// </summary>
 		Disallow,
 
 		/// <summary>
-		/// Ignore the pointer
+		/// Ignore the issue.
 		/// </summary>
 		AllowSilently,
 
 		/// <summary>
-		/// Log a warning about the pointer
+		/// Log a warning.
 		/// </summary>
 		AllowAndLog,
 	};
@@ -42,32 +41,32 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Pointer warning for native pointers in the engine
 		/// </summary>
-		public UhtPointerMemberBehavior EngineNativePointerMemberBehavior { get; }
+		public UhtIssueBehavior EngineNativePointerMemberBehavior { get; }
 
 		/// <summary>
 		/// Pointer warning for object pointers in the engine
 		/// </summary>
-		public UhtPointerMemberBehavior EngineObjectPtrMemberBehavior { get; }
+		public UhtIssueBehavior EngineObjectPtrMemberBehavior { get; }
 
 		/// <summary>
 		/// Pointer warning for native pointers in engine plugins
 		/// </summary>
-		public UhtPointerMemberBehavior EnginePluginNativePointerMemberBehavior { get; }
+		public UhtIssueBehavior EnginePluginNativePointerMemberBehavior { get; }
 
 		/// <summary>
 		/// Pointer warning for object pointers in engine plugins
 		/// </summary>
-		public UhtPointerMemberBehavior EnginePluginObjectPtrMemberBehavior { get; }
+		public UhtIssueBehavior EnginePluginObjectPtrMemberBehavior { get; }
 
 		/// <summary>
 		/// Pointer warning for native pointers outside the engine
 		/// </summary>
-		public UhtPointerMemberBehavior NonEngineNativePointerMemberBehavior { get; }
+		public UhtIssueBehavior NonEngineNativePointerMemberBehavior { get; }
 
 		/// <summary>
 		/// Pointer warning for object pointers outside the engine
 		/// </summary>
-		public UhtPointerMemberBehavior NonEngineObjectPtrMemberBehavior { get; }
+		public UhtIssueBehavior NonEngineObjectPtrMemberBehavior { get; }
 
 		/// <summary>
 		/// If true, deprecation warnings should be shown
@@ -83,6 +82,26 @@ namespace EpicGames.UHT.Utils
 		/// If true, UInterface properties are enabled in RigVM
 		/// </summary>
 		public bool AreRigVMUInterfaceProeprtiesEnabled { get; }
+
+		/// <summary>
+		/// Behavior for when generated headers aren't properly included in engine code.
+		/// </summary>
+		public UhtIssueBehavior EngineMissingGeneratedHeaderIncludeBehavior { get; }
+
+		/// <summary>
+		/// Behavior for when generated headers aren't properly included in non-engine code.
+		/// </summary>
+		public UhtIssueBehavior NonEngineMissingGeneratedHeaderIncludeBehavior { get; }
+
+		/// <summary>
+		/// Behavior for when enum underlying types aren't set for engine code.
+		/// </summary>
+		public UhtIssueBehavior EngineEnumUnderlyingTypeNotSet { get; }
+
+		/// <summary>
+		/// Behavior for when enum underlying types aren't set for non engine code.
+		/// </summary>
+		public UhtIssueBehavior NonEngineEnumUnderlyingTypeNotSet { get; }
 
 		/// <summary>
 		/// If the token references a remapped identifier, update the value in the token 

@@ -64,32 +64,32 @@ namespace UnrealBuildTool.Modes
 		/// <summary>
 		/// Internal version of pointer warning for native pointers in the engine
 		/// </summary>
-		private readonly UhtPointerMemberBehavior _engineNativePointerMemberBehavior = UhtPointerMemberBehavior.AllowSilently;
+		private readonly UhtIssueBehavior _engineNativePointerMemberBehavior = UhtIssueBehavior.AllowSilently;
 
 		/// <summary>
 		/// Internal version of pointer warning for object pointers in the engine
 		/// </summary>
-		private readonly UhtPointerMemberBehavior _engineObjectPtrMemberBehavior = UhtPointerMemberBehavior.AllowSilently;
+		private readonly UhtIssueBehavior _engineObjectPtrMemberBehavior = UhtIssueBehavior.AllowSilently;
 
 		/// <summary>
 		/// Internal version of pointer warning for native pointers in engine plugins
 		/// </summary>
-		private readonly UhtPointerMemberBehavior _enginePluginNativePointerMemberBehavior = UhtPointerMemberBehavior.AllowSilently;
+		private readonly UhtIssueBehavior _enginePluginNativePointerMemberBehavior = UhtIssueBehavior.AllowSilently;
 
 		/// <summary>
 		/// Internal version of pointer warning for object pointers in engine plugins
 		/// </summary>
-		private readonly UhtPointerMemberBehavior _enginePluginObjectPtrMemberBehavior = UhtPointerMemberBehavior.AllowSilently;
+		private readonly UhtIssueBehavior _enginePluginObjectPtrMemberBehavior = UhtIssueBehavior.AllowSilently;
 
 		/// <summary>
 		/// Internal version of pointer warning for native pointers outside the engine
 		/// </summary>
-		private readonly UhtPointerMemberBehavior _nonEngineNativePointerMemberBehavior = UhtPointerMemberBehavior.AllowSilently;
+		private readonly UhtIssueBehavior _nonEngineNativePointerMemberBehavior = UhtIssueBehavior.AllowSilently;
 
 		/// <summary>
 		/// Internal version of pointer warning for object pointers outside the engine
 		/// </summary>
-		private readonly UhtPointerMemberBehavior _nonEngineObjectPtrMemberBehavior = UhtPointerMemberBehavior.AllowSilently;
+		private readonly UhtIssueBehavior _nonEngineObjectPtrMemberBehavior = UhtIssueBehavior.AllowSilently;
 
 		/// <summary>
 		/// If true, deprecation warnings should be shown
@@ -106,27 +106,47 @@ namespace UnrealBuildTool.Modes
 		/// </summary>
 		private readonly bool _areRigVMUInterfaceProeprtiesEnabled = false;
 
+		/// <summary>
+		/// Internal version of behavior when there is a missing generated header include in the engine code.
+		/// </summary>
+		private readonly UhtIssueBehavior _engineMissingGeneratedHeaderIncludeBehavior = UhtIssueBehavior.AllowSilently;
+
+		/// <summary>
+		/// Internal version of behavior when there is a missing generated header include in non engine code.
+		/// </summary>
+		private readonly UhtIssueBehavior _nonEngineMissingGeneratedHeaderIncludeBehavior = UhtIssueBehavior.AllowSilently;
+
+		/// <summary>
+		/// Internal version of the behavior set when the underlying type of a regular and namespaced enum isn't set in the engine code.
+		/// </summary>
+		private readonly UhtIssueBehavior _engineEnumUnderlyingTypeNotSet = UhtIssueBehavior.AllowSilently;
+
+		/// <summary>
+		/// Internal version of the behavior set when the underlying type of a regular and namespaced enum isn't set in the non engine code.
+		/// </summary>
+		private readonly UhtIssueBehavior _nonEngineEnumUnderlyingTypeNotSet = UhtIssueBehavior.AllowSilently;
+
 		#region IUhtConfig Implementation
 		/// <inheritdoc/>
 		public EGeneratedCodeVersion DefaultGeneratedCodeVersion => this._defaultGeneratedCodeVersion;
 
 		/// <inheritdoc/>
-		public UhtPointerMemberBehavior EngineNativePointerMemberBehavior => this._engineNativePointerMemberBehavior;
+		public UhtIssueBehavior EngineNativePointerMemberBehavior => this._engineNativePointerMemberBehavior;
 
 		/// <inheritdoc/>
-		public UhtPointerMemberBehavior EngineObjectPtrMemberBehavior => this._engineObjectPtrMemberBehavior;
+		public UhtIssueBehavior EngineObjectPtrMemberBehavior => this._engineObjectPtrMemberBehavior;
 
 		/// <inheritdoc/>
-		public UhtPointerMemberBehavior EnginePluginNativePointerMemberBehavior => this._enginePluginNativePointerMemberBehavior;
+		public UhtIssueBehavior EnginePluginNativePointerMemberBehavior => this._enginePluginNativePointerMemberBehavior;
 
 		/// <inheritdoc/>
-		public UhtPointerMemberBehavior EnginePluginObjectPtrMemberBehavior => this._enginePluginObjectPtrMemberBehavior;
+		public UhtIssueBehavior EnginePluginObjectPtrMemberBehavior => this._enginePluginObjectPtrMemberBehavior;
 
 		/// <inheritdoc/>
-		public UhtPointerMemberBehavior NonEngineNativePointerMemberBehavior => this._nonEngineNativePointerMemberBehavior;
+		public UhtIssueBehavior NonEngineNativePointerMemberBehavior => this._nonEngineNativePointerMemberBehavior;
 
 		/// <inheritdoc/>
-		public UhtPointerMemberBehavior NonEngineObjectPtrMemberBehavior => this._nonEngineObjectPtrMemberBehavior;
+		public UhtIssueBehavior NonEngineObjectPtrMemberBehavior => this._nonEngineObjectPtrMemberBehavior;
 
 		/// <summary>
 		/// If true, UObject properties are enabled in RigVM
@@ -142,6 +162,18 @@ namespace UnrealBuildTool.Modes
 		/// If true, deprecation warnings should be shown
 		/// </summary>
 		public bool ShowDeprecations => this._showDeprecations;
+
+		/// <inheritdoc/>
+		public UhtIssueBehavior EngineMissingGeneratedHeaderIncludeBehavior => this._engineMissingGeneratedHeaderIncludeBehavior;
+
+		/// <inheritdoc/>
+		public UhtIssueBehavior NonEngineMissingGeneratedHeaderIncludeBehavior => this._nonEngineMissingGeneratedHeaderIncludeBehavior;
+
+		/// <inheritdoc/>
+		public UhtIssueBehavior EngineEnumUnderlyingTypeNotSet => this._engineEnumUnderlyingTypeNotSet;
+
+		/// <inheritdoc/>
+		public UhtIssueBehavior NonEngineEnumUnderlyingTypeNotSet => this._nonEngineEnumUnderlyingTypeNotSet;
 
 		/// <inheritdoc/>
 		public void RedirectTypeIdentifier(ref UhtToken Token)
@@ -227,15 +259,19 @@ namespace UnrealBuildTool.Modes
 			this._units = GetHashSet("UnrealHeaderTool", "Units", StringViewComparer.OrdinalIgnoreCase);
 			this._delegateParameterCountStrings = GetList("UnrealHeaderTool", "DelegateParameterCountStrings");
 			this._defaultGeneratedCodeVersion = GetGeneratedCodeVersion("UnrealHeaderTool", "DefaultGeneratedCodeVersion", EGeneratedCodeVersion.V1);
-			this._engineNativePointerMemberBehavior = GetPointerMemberBehavior("UnrealHeaderTool", "EngineNativePointerMemberBehavior", UhtPointerMemberBehavior.AllowSilently);
-			this._engineObjectPtrMemberBehavior = GetPointerMemberBehavior("UnrealHeaderTool", "EngineObjectPtrMemberBehavior", UhtPointerMemberBehavior.AllowSilently);
-			this._enginePluginNativePointerMemberBehavior = GetPointerMemberBehavior("UnrealHeaderTool", "EnginePluginNativePointerMemberBehavior", UhtPointerMemberBehavior.AllowSilently);
-			this._enginePluginObjectPtrMemberBehavior = GetPointerMemberBehavior("UnrealHeaderTool", "EnginePluginObjectPtrMemberBehavior", UhtPointerMemberBehavior.AllowSilently);
-			this._nonEngineNativePointerMemberBehavior = GetPointerMemberBehavior("UnrealHeaderTool", "NonEngineNativePointerMemberBehavior", UhtPointerMemberBehavior.AllowSilently);
-			this._nonEngineObjectPtrMemberBehavior = GetPointerMemberBehavior("UnrealHeaderTool", "NonEngineObjectPtrMemberBehavior", UhtPointerMemberBehavior.AllowSilently);
+			this._engineNativePointerMemberBehavior = GetPointerMemberBehavior("UnrealHeaderTool", "EngineNativePointerMemberBehavior", UhtIssueBehavior.AllowSilently);
+			this._engineObjectPtrMemberBehavior = GetPointerMemberBehavior("UnrealHeaderTool", "EngineObjectPtrMemberBehavior", UhtIssueBehavior.AllowSilently);
+			this._enginePluginNativePointerMemberBehavior = GetPointerMemberBehavior("UnrealHeaderTool", "EnginePluginNativePointerMemberBehavior", UhtIssueBehavior.AllowSilently);
+			this._enginePluginObjectPtrMemberBehavior = GetPointerMemberBehavior("UnrealHeaderTool", "EnginePluginObjectPtrMemberBehavior", UhtIssueBehavior.AllowSilently);
+			this._nonEngineNativePointerMemberBehavior = GetPointerMemberBehavior("UnrealHeaderTool", "NonEngineNativePointerMemberBehavior", UhtIssueBehavior.AllowSilently);
+			this._nonEngineObjectPtrMemberBehavior = GetPointerMemberBehavior("UnrealHeaderTool", "NonEngineObjectPtrMemberBehavior", UhtIssueBehavior.AllowSilently);
 			this._areRigVMUObjectProeprtiesEnabled = GetBoolean("UnrealHeaderTool", "AreRigVMUObjectProeprtiesEnabled", false);
 			this._areRigVMUInterfaceProeprtiesEnabled = GetBoolean("UnrealHeaderTool", "AreRigVMUInterfaceProeprtiesEnabled", false);
 			this._showDeprecations = GetBoolean("UnrealHeaderTool", "ShowDeprecations", true);
+			this._engineMissingGeneratedHeaderIncludeBehavior = GetPointerMemberBehavior("UnrealHeaderTool", "EngineMissingGeneratedHeaderIncludeBehavior", UhtIssueBehavior.AllowSilently);
+			this._nonEngineMissingGeneratedHeaderIncludeBehavior = GetPointerMemberBehavior("UnrealHeaderTool", "NonEngineMissingGeneratedHeaderIncludeBehavior", UhtIssueBehavior.AllowSilently);
+			this._engineEnumUnderlyingTypeNotSet = GetPointerMemberBehavior("UnrealHeaderTool", "EngineEnumUnderlyingTypeNotSet", UhtIssueBehavior.AllowSilently);
+			this._nonEngineEnumUnderlyingTypeNotSet = GetPointerMemberBehavior("UnrealHeaderTool", "NonEngineEnumUnderlyingTypeNotSet", UhtIssueBehavior.AllowSilently);
 		}
 
 		private bool GetBoolean(string SectionName, string KeyName, bool bDefault)
@@ -247,11 +283,11 @@ namespace UnrealBuildTool.Modes
 			return bDefault;
 		}
 
-		private UhtPointerMemberBehavior GetPointerMemberBehavior(string SectionName, string KeyName, UhtPointerMemberBehavior Default)
+		private UhtIssueBehavior GetPointerMemberBehavior(string SectionName, string KeyName, UhtIssueBehavior Default)
 		{
 			if (this._ini.TryGetValue(SectionName, KeyName, out string? BehaviorStr))
 			{
-				if (!Enum.TryParse(BehaviorStr, out UhtPointerMemberBehavior Value))
+				if (!Enum.TryParse(BehaviorStr, out UhtIssueBehavior Value))
 				{
 					throw new Exception(string.Format("Unrecognized native pointer member behavior '{0}'", BehaviorStr));
 				}
