@@ -1079,10 +1079,6 @@ struct RIGVMDEVELOPER_API FRigVMParserASTSettings
 	UPROPERTY(EditAnywhere, Category = "AST")
 	bool bFoldLiterals = false;
 
-	// fold / remove unreachable / constant branches
-	UPROPERTY(EditAnywhere, Category = "AST")
-	bool bFoldConstantBranches = false;
-
 	// links to be ignored during the parse
 	UPROPERTY()
 	TArray<TObjectPtr<URigVMLink>> LinksToSkip;
@@ -1098,7 +1094,6 @@ struct RIGVMDEVELOPER_API FRigVMParserASTSettings
 		FRigVMParserASTSettings Settings;
 		Settings.bFoldAssignments = false;
 		Settings.bFoldLiterals = false;
-		Settings.bFoldConstantBranches = false;
 		Settings.ExecuteContextStruct = InExecuteContextStruct ? InExecuteContextStruct : FRigVMExecuteContext::StaticStruct();
 		return Settings;
 	}
@@ -1110,7 +1105,6 @@ struct RIGVMDEVELOPER_API FRigVMParserASTSettings
 		FRigVMParserASTSettings Settings;
 		Settings.bFoldAssignments = true;
 		Settings.bFoldLiterals = true;
-		Settings.bFoldConstantBranches = true;
 		Settings.ExecuteContextStruct = InExecuteContextStruct ? InExecuteContextStruct : FRigVMExecuteContext::StaticStruct();
 		return Settings;
 	}
@@ -1318,9 +1312,6 @@ private:
 
 	// helper function to fold / remove obsolete assignments and reduce assignment chains
 	void FoldAssignments();
-
-	// helper function to fold constant values into literals
-	bool FoldConstantValuesToLiterals(TArray<URigVMGraph*> InGraphs, URigVMController* InController, const TArray<FRigVMExternalVariable>& InExternalVariables);
 
 	// helper function to inline all contributing nodes of the graph
 	void Inline(TArray<URigVMGraph*> InGraphs);
