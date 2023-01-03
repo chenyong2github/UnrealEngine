@@ -105,13 +105,12 @@ public:
 	/**
 	 * Find the skeletal mesh component to apply the deformer on.
 	 * This will return the skeletal mesh component (on this actor) which uses the same skeletal mesh as the passed in ML Deformer asset was trained on.
-	 * If there is no such skeletal mesh component then it will return the first skeletal mesh component it finds.
-	 * In case there is no skeletal mesh component on the actor, a nullptr is returned.
+	 * If there is no such skeletal mesh component then it will return a nullptr.
 	 * @param Asset The ML Deformer asset to search a component for.
 	 * @return The skeletal mesh component that would be the best.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "MLDeformer")
-	USkeletalMeshComponent* FindSkeletalMeshComponent(UMLDeformerAsset* Asset);
+	USkeletalMeshComponent* FindSkeletalMeshComponent(const UMLDeformerAsset* const Asset) const;
 
 	/**
 	 * Get the ML Deformer model instance that this component currently uses.

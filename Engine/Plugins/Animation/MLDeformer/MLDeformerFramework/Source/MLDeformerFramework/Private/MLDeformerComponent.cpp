@@ -154,7 +154,7 @@ void UMLDeformerComponent::BeginDestroy()
 	Super::BeginDestroy();
 }
 
-USkeletalMeshComponent* UMLDeformerComponent::FindSkeletalMeshComponent(UMLDeformerAsset* Asset)
+USkeletalMeshComponent* UMLDeformerComponent::FindSkeletalMeshComponent(const UMLDeformerAsset* const Asset) const
 {
 	USkeletalMeshComponent* ResultingComponent = nullptr;
 	if (Asset != nullptr)
@@ -183,16 +183,6 @@ USkeletalMeshComponent* UMLDeformerComponent::FindSkeletalMeshComponent(UMLDefor
 					}
 				}
 			}
-		}
-	}
-
-	if (ResultingComponent == nullptr)
-	{
-		// Fall back to the first skeletal mesh component.
-		const AActor* Actor = Cast<AActor>(GetOuter());
-		if (Actor)
-		{
-			ResultingComponent = Actor->FindComponentByClass<USkeletalMeshComponent>();
 		}
 	}
 
