@@ -218,6 +218,7 @@ public:
 				OpName += mu::TypeInfo::s_blendModeName[int32(Args.blendType)];
 				OpName += TEXT(" a: ");
 				OpName += mu::TypeInfo::s_blendModeName[int32(Args.blendTypeAlpha)];
+				//OpName += FString::Printf(TEXT(" flags %d"), Args.flags);
 				break;
 			}
 
@@ -2191,11 +2192,13 @@ namespace
 	class TestImageProvider : public mu::ImageParameterGenerator
 	{
 	public:
-		mu::Ptr<mu::Image> GetImage(mu::EXTERNAL_IMAGE_ID id) override
+		mu::Ptr<mu::Image> GetImage(mu::EXTERNAL_IMAGE_ID id, uint8 MipmapsToSkip) override
 		{
 			MUTABLE_CPUPROFILER_SCOPE(TestImageProvider_GetImage);
 
-			const int32 Size = 1024;
+			int32 Size = 1024;
+			Size = FMath::Max(4, Size / (1 << MipmapsToSkip));
+
 			const int32 LODCount = 1;
 			const mu::EImageFormat Format = mu::EImageFormat::IF_RGBA_UBYTE;
 			mu::Ptr<mu::Image> Image = new mu::Image(Size, Size, LODCount, Format);

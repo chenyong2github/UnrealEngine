@@ -113,9 +113,9 @@ mu::EImageFormat GetMutablePixelFormat(EPixelFormat InTextureFormat)
 
 //-------------------------------------------------------------------------------------------------
 
-mu::ImagePtr FUnrealMutableImageProvider::GetImage(mu::EXTERNAL_IMAGE_ID id)
+mu::ImagePtr FUnrealMutableImageProvider::GetImage(mu::EXTERNAL_IMAGE_ID id, uint8 MipmapsToSkip )
 {
-	// Thread: Mutable worker
+	// Thread: worker
 	MUTABLE_CPUPROFILER_SCOPE(FUnrealMutableImageProvider::GetImage);
 
 	// Out Texture

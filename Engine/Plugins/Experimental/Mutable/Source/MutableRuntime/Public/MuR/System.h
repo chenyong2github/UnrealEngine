@@ -70,7 +70,7 @@ namespace mu
         virtual ~ImageParameterGenerator() = default;
 
         //!
-        virtual Ptr<Image> GetImage( EXTERNAL_IMAGE_ID id ) = 0;
+        virtual Ptr<Image> GetImage( EXTERNAL_IMAGE_ID id, uint8 MipmapsToSkip) = 0;
     };
 
 

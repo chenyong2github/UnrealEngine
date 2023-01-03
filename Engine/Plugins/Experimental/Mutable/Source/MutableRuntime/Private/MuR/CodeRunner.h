@@ -102,7 +102,7 @@ namespace  mu
 		void RunCodeImageDesc(FScheduledOp&, const Parameters*, const Model*, uint32 LodMask);
 
 
-        ImagePtr LoadExternalImage( EXTERNAL_IMAGE_ID id );
+        ImagePtr LoadExternalImage( EXTERNAL_IMAGE_ID, uint8 MipmapsToSkip );
 
         //! Heap of intermediate data pushed by some instructions and referred by others.
         //! It is not released until no operations are pending.

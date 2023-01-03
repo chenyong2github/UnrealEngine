@@ -110,7 +110,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    ImagePtr CodeRunner::LoadExternalImage( EXTERNAL_IMAGE_ID id )
+    ImagePtr CodeRunner::LoadExternalImage( EXTERNAL_IMAGE_ID Id, uint8 MipmapsToSkip )
     {
 		MUTABLE_CPUPROFILER_SCOPE(LoadExternalImage);
 
@@ -120,13 +120,16 @@ namespace mu
 
 		if (m_pSystem->m_pImageParameterGenerator)
 		{
-			pResult = m_pSystem->m_pImageParameterGenerator->GetImage(id);
+			pResult = m_pSystem->m_pImageParameterGenerator->GetImage(Id, MipmapsToSkip);
+
 			// Don't cache for now. Need to figure out how to invalidate them.
+			// \TODO: Like constants? attached to a cache level?
 			//m_pSystem->m_externalImages.push_back( pair<EXTERNAL_IMAGE_ID,ImagePtr>(id,pResult) );
 		}
 		else
 		{
 			// Not found and there is no generator!
+			check(false);
 		}
 
 		return pResult;
@@ -2389,8 +2392,11 @@ namespace mu
         {
 			OP::ParameterArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ParameterArgs>(item.At);
 			Ptr<RangeIndex> Index = BuildCurrentOpRangeIndex(item, pParams, pModel, args.variable);
+
 			EXTERNAL_IMAGE_ID id = pParams->GetImageValue(args.variable, Index);
-			ImagePtr pResult = LoadExternalImage(id);
+
+			uint8 MipmapsToSkip = item.ExecutionOptions;
+			ImagePtr pResult = LoadExternalImage(id, MipmapsToSkip);
 			GetMemory().SetImage(item, pResult);
             break;
         }
@@ -5262,7 +5268,8 @@ namespace mu
 			check(item.Stage == 0);
 			OP::ParameterArgs args = program.GetOpArgs<OP::ParameterArgs>(item.At);
 			EXTERNAL_IMAGE_ID id = pParams->GetImageValue(args.variable);
-			ImagePtr pResult = LoadExternalImage(id);
+			uint8 MipsToSkip = item.ExecutionOptions;
+			ImagePtr pResult = LoadExternalImage(id, MipsToSkip);
 			m_heapImageDesc[item.CustomState].m_format = pResult->GetFormat();
 			m_heapImageDesc[item.CustomState].m_size = pResult->GetSize();
 			m_heapImageDesc[item.CustomState].m_lods = pResult->GetLODCount();

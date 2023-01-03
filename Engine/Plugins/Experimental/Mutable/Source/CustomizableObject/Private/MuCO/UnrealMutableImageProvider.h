@@ -18,8 +18,8 @@ class FUnrealMutableImageProvider : public mu::ImageParameterGenerator, public F
 public:
 
 	// mu::ImageParameterGenerator interface
-	// Thread: Mutable
-	mu::ImagePtr GetImage(mu::EXTERNAL_IMAGE_ID id) override;
+	// Thread: worker
+	mu::ImagePtr GetImage(mu::EXTERNAL_IMAGE_ID id, uint8 MipmapsToSkip) override;
 
 	// Own interface
 	// Thread: Game
@@ -42,7 +42,7 @@ private:
 	struct FUnrealMutableImageInfo
 	{
 		FUnrealMutableImageInfo() {}
-		FUnrealMutableImageInfo(mu::ImagePtr InImage, class UTexture2D* InTextureToLoad) : Image(InImage), TextureToLoad(InTextureToLoad) { }
+		FUnrealMutableImageInfo(const mu::ImagePtr& InImage, class UTexture2D* InTextureToLoad) : Image(InImage), TextureToLoad(InTextureToLoad) { }
 
 		mu::ImagePtr Image;
 
