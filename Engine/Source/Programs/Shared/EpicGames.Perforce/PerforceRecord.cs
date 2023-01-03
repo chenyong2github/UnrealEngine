@@ -31,7 +31,7 @@ namespace EpicGames.Perforce
 	/// <summary>
 	/// Wrapper for values returned by Perforce
 	/// </summary>
-	public struct PerforceValue
+	public readonly struct PerforceValue
 	{
 		/// <summary>
 		/// The raw data for the value, including type, size, and payload
@@ -335,7 +335,6 @@ namespace EpicGames.Perforce
 			}
 			return stream.ToArray();
 		}
-
 
 		/// <summary>
 		/// Serializes a list of key/value pairs into binary format.

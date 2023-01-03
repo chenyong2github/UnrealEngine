@@ -28,7 +28,7 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// True if the response is successful
 		/// </summary>
-		public bool Succeeded => !(InternalData is PerforceError);
+		public bool Succeeded => InternalData is not PerforceError;
 
 		/// <summary>
 		/// True if the response is an error

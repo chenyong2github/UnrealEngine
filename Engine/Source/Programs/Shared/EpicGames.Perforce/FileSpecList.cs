@@ -9,7 +9,7 @@ namespace EpicGames.Perforce
 	/// <summary>
 	/// Wrapper for a list of filespecs. Allows implicit conversion from string (a single entry) or list.
 	/// </summary>
-	public struct FileSpecList : IEquatable<FileSpecList>
+	public readonly struct FileSpecList : IEquatable<FileSpecList>
 	{
 		/// <summary>
 		/// Empty filespec list
