@@ -69,6 +69,8 @@ namespace UnrealGameSync
 
 	public static class Utility
 	{
+		public static event Action<Exception>? TraceException;
+
 		static JsonSerializerOptions GetDefaultJsonSerializerOptions()
 		{
 			JsonSerializerOptions options = new JsonSerializerOptions();
@@ -94,8 +96,9 @@ namespace UnrealGameSync
 				obj = LoadJson<T>(file);
 				return true;
 			}
-			catch
+			catch(Exception ex)
 			{
+				TraceException?.Invoke(ex);
 				obj = null;
 				return false;
 			}

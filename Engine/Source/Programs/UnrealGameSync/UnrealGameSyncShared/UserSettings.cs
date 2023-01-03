@@ -561,15 +561,16 @@ namespace UnrealGameSync
 
 		public static bool TryLoad(FileReference configFile, [NotNullWhen(true)] out UserProjectSettings? settings)
 		{
-			if (FileReference.Exists(configFile))
+			if (Utility.TryLoadJson(configFile, out settings))
 			{
-				settings = Utility.LoadJson<UserProjectSettings>(configFile);
 				settings.ConfigFile = configFile;
 				return true;
 			}
-
-			settings = null;
-			return false;
+			else
+			{
+				settings = null;
+				return false;
+			}
 		}
 
 		public bool Save(ILogger logger)

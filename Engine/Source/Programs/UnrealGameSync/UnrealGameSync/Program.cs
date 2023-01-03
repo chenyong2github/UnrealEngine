@@ -185,6 +185,8 @@ namespace UnrealGameSync
 					logger.LogInformation("Application version: {Version}", Assembly.GetExecutingAssembly().GetName().Version);
 					logger.LogInformation("Started at {Time}", DateTime.Now.ToString());
 
+					Utility.TraceException += ex => TraceException(ex, logger);
+
 					string sessionId = Guid.NewGuid().ToString();
 					logger.LogInformation("SessionId: {SessionId}", sessionId);
 
@@ -239,6 +241,15 @@ namespace UnrealGameSync
 					}
 				}
 			}
+		}
+
+		private static void TraceException(Exception ex, ILogger logger)
+		{
+			if (DeploymentSettings.SentryDsn != null)
+			{
+				SentrySdk.CaptureException(ex);
+			}
+			logger.LogError(ex, "Trace exception: {Ex}", ex.ToString());
 		}
 
 		private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs args)
