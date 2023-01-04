@@ -362,8 +362,8 @@ bool FSceneRenderer::RenderCustomDepthPass(
 		FRDGTextureRef CustomDepth = CustomDepthTextures.Depth;
 
 		// TextureView is not supported in GLES, so we can't lookup CustomDepth and CustomStencil from a single texture
-		// Do a copy of the CustomDepthStencil texture if both CustomDepth and CustomStencil are sampled in a shader.
-		if (IsOpenGLPlatform(ShaderPlatform) && Config.bSamplesCustomDepthAndStencil)
+		// Do a copy of the CustomDepthStencil texture if CustomStencil is sampled in a shader.
+		if (IsOpenGLPlatform(ShaderPlatform) && Config.bSamplesCustomStencil)
 		{
 			CustomDepth = GraphBuilder.CreateTexture(CustomDepthTextures.Depth->Desc, TEXT("CustomDepthCopy"));
 			AddCopyTexturePass(GraphBuilder, CustomDepthTextures.Depth, CustomDepth);

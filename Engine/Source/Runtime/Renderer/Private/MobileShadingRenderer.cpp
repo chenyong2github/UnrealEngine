@@ -113,8 +113,8 @@ extern bool IsMobileEyeAdaptationEnabled(const FViewInfo& View);
 struct FMobileCustomDepthStencilUsage
 {
 	bool bUsesCustomDepthStencil = false;
-	// whether both CustomDepth and CustomStencil are sampled as a textures
-	bool bSamplesCustomDepthAndStencil = false;
+	// whether CustomStencil is sampled as a textures
+	bool bSamplesCustomStencil = false;
 };
 
 static FMobileCustomDepthStencilUsage GetCustomDepthStencilUsage(const FViewInfo& View)
@@ -128,10 +128,10 @@ static FMobileCustomDepthStencilUsage GetCustomDepthStencilUsage(const FViewInfo
 		if (CVarMobileCustomDepthForTranslucency.GetValueOnAnyThread() != 0)
 		{
 			CustomDepthStencilUsage.bUsesCustomDepthStencil = View.bUsesCustomDepth || View.bUsesCustomStencil;
-			CustomDepthStencilUsage.bSamplesCustomDepthAndStencil = View.bUsesCustomStencil;
+			CustomDepthStencilUsage.bSamplesCustomStencil = View.bUsesCustomStencil;
 		}
 
-		if (!CustomDepthStencilUsage.bSamplesCustomDepthAndStencil)
+		if (!CustomDepthStencilUsage.bSamplesCustomStencil)
 		{
 			// Find out whether post-process materials use CustomDepth/Stencil lookups
 			const FBlendableManager& BlendableManager = View.FinalPostProcessSettings.BlendableManager;
@@ -154,7 +154,7 @@ static FMobileCustomDepthStencilUsage GetCustomDepthStencilUsage(const FViewInfo
 
 					if (bUsesCustomStencil)
 					{
-						CustomDepthStencilUsage.bSamplesCustomDepthAndStencil |= true;
+						CustomDepthStencilUsage.bSamplesCustomStencil |= true;
 						break;
 					}
 				}
@@ -604,7 +604,7 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 			CustomDepthStencilUsage = GetCustomDepthStencilUsage(Views[ViewIndex]);
 			Views[ViewIndex].bCustomDepthStencilValid = bCouldUseCustomDepthStencil && CustomDepthStencilUsage.bUsesCustomDepthStencil;
 			bShouldRenderCustomDepth |= Views[ViewIndex].bCustomDepthStencilValid;
-			SceneTexturesConfig.bSamplesCustomDepthAndStencil |= bShouldRenderCustomDepth && CustomDepthStencilUsage.bSamplesCustomDepthAndStencil;
+			SceneTexturesConfig.bSamplesCustomStencil |= bShouldRenderCustomDepth && CustomDepthStencilUsage.bSamplesCustomStencil;
 		}
 	}
 	

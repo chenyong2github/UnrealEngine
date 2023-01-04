@@ -116,7 +116,7 @@ struct ENGINE_API FSceneTexturesConfig
 		, bIsUsingGBuffers{}
 		, bKeepDepthContent{ 1 }
 		, bPreciseDepthAux{}
-		, bSamplesCustomDepthAndStencil{}
+		, bSamplesCustomStencil{}
 		, bMemorylessMSAA{}
 		, bSupportsXRTargetManagerDepthAlloc{}
 	{}
@@ -184,8 +184,8 @@ struct ENGINE_API FSceneTexturesConfig
 	// (Mobile) True if SceneDepthAux should use a precise pixel format
 	uint32 bPreciseDepthAux : 1;
 
-	// (Mobile) True if both CustomDepth and CustomStencil are sampled in a shader
-	uint32 bSamplesCustomDepthAndStencil : 1;
+	// (Mobile) True if CustomStencil are sampled in a shader
+	uint32 bSamplesCustomStencil : 1;
 	
 	// (Mobile) True if MSAA targets can be memoryless
 	uint32 bMemorylessMSAA : 1;
