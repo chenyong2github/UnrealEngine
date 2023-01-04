@@ -8,7 +8,7 @@
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "Misc/CoreMisc.h"
-#include "Interfaces/IturnkeySupportModule.h"
+#include "Interfaces/ITurnkeySupportModule.h"
 
 static bool RequiresBuild()
 {
