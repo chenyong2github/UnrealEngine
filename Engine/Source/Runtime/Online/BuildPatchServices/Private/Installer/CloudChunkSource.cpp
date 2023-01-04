@@ -705,6 +705,15 @@ namespace BuildPatchServices
 			Platform->Sleep(0.01f);
 		}
 
+		// Abandon in flight downloads if should abort.
+		if (bShouldAbort)
+		{
+			for (const TPair<int32, FGuid>& InFlightDownload : InFlightDownloads)
+			{
+				DownloadService->RequestAbandon(InFlightDownload.Key);
+			}
+		}
+
 		// Provide final stat values.
 		CloudChunkSourceStat->OnDownloadHealthUpdated(TrackedDownloadHealth);
 		CloudChunkSourceStat->OnSuccessRateUpdated(ChunkSuccessRate.GetOverall());

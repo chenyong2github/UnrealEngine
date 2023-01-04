@@ -190,6 +190,11 @@ namespace BuildPatchServices
 			ExecuteCancelled(RequestId, DownloadDelegates);
 			DownloadDelegates = FDownloadDelegates();
 		}
+
+		void Reset(FDownloadDelegates& DownloadDelegates)
+		{
+			DownloadDelegates = FDownloadDelegates();
+		}
 	}
 
 	class FDownloadService
@@ -219,14 +224,19 @@ namespace BuildPatchServices
 		// IDownloadService interface begin.
 		virtual int32 RequestFile(const FString& FileUri, const FDownloadCompleteDelegate& OnCompleteDelegate, const FDownloadProgressDelegate& OnProgressDelegate) override;
 		virtual void RequestCancel(int32 RequestId) override;
+		virtual void RequestAbandon(int32 RequestId) override;
 		// IDownloadService interface end.
 
 	private:
 		bool Tick(float DeltaTime);
 		void ProcessCancelRequests();
+		void ProcessAbandonRequests();
 		void ProcessNewRequests();
 		void ProcessProgressUpdates();
 		void ProcessCompletedRequests();
+
+		TSet<int32> CancelNewRequests(const TArray<int32>& RequestsIDs);
+		TSet<int32> CancelOngoingRequests(const TArray<int32>& RequestsIDs);
 
 		int32 MakeRequestId();
 		IDownloadServiceStat::FDownloadRecord MakeDownloadRecord(int32 RequestId, FString Uri);
@@ -259,6 +269,9 @@ namespace BuildPatchServices
 
 		FCriticalSection CancelRequestsCS;
 		TArray<int32> CancelRequests;
+
+		FCriticalSection AbandonRequestsCS;
+		TArray<int32> AbandonRequests;
 
 		FCriticalSection ActiveRequestsCS;
 		TMap<int32, TSharedRef<IHttpRequest, ESPMode::ThreadSafe>> ActiveHttpRequests;
@@ -303,6 +316,8 @@ namespace BuildPatchServices
 		, NewRequests()
 		, CancelRequestsCS()
 		, CancelRequests()
+		, AbandonRequestsCS()
+		, AbandonRequests()
 		, ActiveRequestsCS()
 		, ActiveHttpRequests()
 		, ActiveFileRequests()
@@ -373,11 +388,20 @@ namespace BuildPatchServices
 		CancelRequests.Add(RequestId);
 	}
 
+	void FDownloadService::RequestAbandon(int32 RequestId)
+	{
+		// Add the request.
+		FScopeLock ScopeLock(&AbandonRequestsCS);
+		AbandonRequests.Add(RequestId);
+	}
+
 	bool FDownloadService::Tick(float DeltaTime)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FDownloadService_Tick);
 
 		ProcessCancelRequests();
+
+		ProcessAbandonRequests();
 
 		ProcessNewRequests();
 
@@ -397,34 +421,10 @@ namespace BuildPatchServices
 		CancelRequestsCS.Unlock();
 
 		// Cancel new requests that were not processed yet.
-		TSet<int32> UnstartedRequests;
-		NewRequestsCS.Lock();
-		for (const int32& RequestId : FrameCancelRequests)
-		{
-			if (NewRequests.Remove(RequestId) > 0)
-			{
-				UnstartedRequests.Add(RequestId);
-			}
-		}
-		NewRequestsCS.Unlock();
+		TSet<int32> UnstartedRequests = CancelNewRequests(FrameCancelRequests);
 
 		// Cancel ongoing requests.
-		TSet<int32> CancelledRequests;
-		ActiveRequestsCS.Lock();
-		for (const int32& RequestId : FrameCancelRequests)
-		{
-			if (ActiveHttpRequests.Contains(RequestId))
-			{
-				ActiveHttpRequests[RequestId]->CancelRequest();
-				CancelledRequests.Add(RequestId);
-			}
-			if (ActiveFileRequests.Contains(RequestId))
-			{
-				ActiveFileRequests[RequestId]->ShouldCancel = true;
-				CancelledRequests.Add(RequestId);
-			}
-		}
-		ActiveRequestsCS.Unlock();
+		TSet<int32> CancelledRequests = CancelOngoingRequests(FrameCancelRequests);
 
 		// Call and remove delegates for new requests that were canceled.
 		RequestDelegatesCS.Lock();
@@ -433,6 +433,36 @@ namespace BuildPatchServices
 			if (ensureMsgf(RequestDelegates.Contains(RequestId), TEXT("Missing request delegates for %d"), RequestId))
 			{
 				DownloadServiceHelpers::ExecuteCancelledAndReset(RequestId, RequestDelegates[RequestId]);
+				if (UnstartedRequests.Contains(RequestId))
+				{
+					RequestDelegates.Remove(RequestId);
+				}
+			}
+		}
+		RequestDelegatesCS.Unlock();
+	}
+
+	void FDownloadService::ProcessAbandonRequests()
+	{
+		// Grab new abandon requests for this frame.
+		TArray<int32> FrameAbandonRequests;
+		AbandonRequestsCS.Lock();
+		FrameAbandonRequests = MoveTemp(AbandonRequests);
+		AbandonRequestsCS.Unlock();
+
+		// Cancel new requests that were not processed yet.
+		TSet<int32> UnstartedRequests = CancelNewRequests(FrameAbandonRequests);
+
+		// Cancel ongoing requests.
+		TSet<int32> CancelledRequests = CancelOngoingRequests(FrameAbandonRequests);
+
+		// Remove delegates for new requests that were canceled.
+		RequestDelegatesCS.Lock();
+		for (const int32& RequestId : UnstartedRequests.Union(CancelledRequests))
+		{
+			if (ensureMsgf(RequestDelegates.Contains(RequestId), TEXT("Missing request delegates for %d"), RequestId))
+			{
+				DownloadServiceHelpers::Reset(RequestDelegates[RequestId]);
 				if (UnstartedRequests.Contains(RequestId))
 				{
 					RequestDelegates.Remove(RequestId);
@@ -525,6 +555,44 @@ namespace BuildPatchServices
 		{
 			DownloadServiceStat->OnDownloadComplete(MoveTemp(FrameCompletedRequest.Value->DownloadRecord));
 		}
+	}
+
+	TSet<int32> FDownloadService::CancelNewRequests(const TArray<int32>& RequestsIDs)
+	{
+		TSet<int32> UnstartedRequests;
+		NewRequestsCS.Lock();
+		for (const int32& RequestId : RequestsIDs)
+		{
+			if (NewRequests.Remove(RequestId) > 0)
+			{
+				UnstartedRequests.Add(RequestId);
+			}
+		}
+		NewRequestsCS.Unlock();
+
+		return UnstartedRequests;
+	}
+
+	TSet<int32> FDownloadService::CancelOngoingRequests(const TArray<int32>& RequestsIDs)
+	{
+		TSet<int32> CancelledRequests;
+		ActiveRequestsCS.Lock();
+		for (const int32& RequestId : RequestsIDs)
+		{
+			if (ActiveHttpRequests.Contains(RequestId))
+			{
+				ActiveHttpRequests[RequestId]->CancelRequest();
+				CancelledRequests.Add(RequestId);
+			}
+			if (ActiveFileRequests.Contains(RequestId))
+			{
+				ActiveFileRequests[RequestId]->ShouldCancel = true;
+				CancelledRequests.Add(RequestId);
+			}
+		}
+		ActiveRequestsCS.Unlock();
+
+		return CancelledRequests;
 	}
 
 	int32 FDownloadService::MakeRequestId()

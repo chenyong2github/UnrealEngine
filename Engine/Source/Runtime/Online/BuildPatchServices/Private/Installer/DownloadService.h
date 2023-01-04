@@ -82,6 +82,12 @@ namespace BuildPatchServices
 		 * @param RequestId             The id that was returned by the call to RequestFile which should be canceled.
 		 */
 		virtual void RequestCancel(int32 RequestId) = 0;
+
+		/**
+		 *  Requests the abandoning of a requested file (cancelling without calling complete/progress handlers)
+		 * @param RequestId             The id that was returned by the call to RequestFile which should be canceled.
+		 */
+		virtual void RequestAbandon(int32 RequestId) = 0;
 	};
 
 	/**

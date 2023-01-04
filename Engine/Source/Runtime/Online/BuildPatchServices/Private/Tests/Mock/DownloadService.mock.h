@@ -47,6 +47,16 @@ namespace BuildPatchServices
 			RxRequestCancel.Emplace(FStatsCollector::GetSeconds(), RequestId);
 		}
 
+		virtual void RequestAbandon(int32 RequestId) override
+		{
+			FScopeLock ScopeLock(&ThreadLock);
+			if (RequestCancelFunc)
+			{
+				RequestCancelFunc(RequestId);
+			}
+			RxRequestCancel.Emplace(FStatsCollector::GetSeconds(), RequestId);
+		}
+
 	public:
 		FCriticalSection ThreadLock;
 		int32 Count;
