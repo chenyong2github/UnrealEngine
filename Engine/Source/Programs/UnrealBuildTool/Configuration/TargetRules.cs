@@ -1233,6 +1233,7 @@ namespace UnrealBuildTool
 		/// Allows to fine tune optimizations level for speed and\or code size
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
+		[CommandLine("-OptimizationLevel=")]
 		public OptimizationMode OptimizationLevel = OptimizationMode.Speed;
 
 		/// <summary>
