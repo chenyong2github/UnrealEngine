@@ -357,3 +357,58 @@ void DrawSymbolsPS(
 	float3 Color = InColor * (InShadow == 0 ? Alpha : 0);
 	OutColor = float4(Color, Alpha);
 }
+
+
+// --------------------------------------------------------------------------
+// Zoomed output
+
+Texture2D<float4> InTexture;
+RWTexture2D<float4> OutTexture;
+
+uint PixelExtent;
+uint ZoomFactor;
+uint Corner;
+int2 Resolution;
+
+bool IsValid(int2 InCoord)
+{
+	return all(InCoord >= 0) && all(InCoord < Resolution);
+}
+
+[numthreads(8, 8, 1)]
+void DrawZoomCS(int2 DispatchThreadId : SV_DispatchThreadID)
+{	
+	if (any(DispatchThreadId > PixelExtent * 2))
+	{
+		return;
+	}
+
+	const int2 InCoord = DispatchThreadId + ShaderPrintData.CursorCoord - PixelExtent.xx;
+	const int2 Offset = int2(10, 10);
+	const int2 OutMaxPixel = (PixelExtent * 2 + 1) * ZoomFactor;
+
+	int2 OutOffset = Offset;
+	switch(Corner)
+	{
+	case 0: OutOffset = Offset; break;
+	case 1: OutOffset = int2(Resolution.x - Offset.x - OutMaxPixel.x, Offset.y); break;
+	case 2: OutOffset = Resolution - Offset - OutMaxPixel; break;
+	case 3: OutOffset = int2(Offset.x, Resolution.y - Offset.y - OutMaxPixel.y); break;
+	};
+
+	if (IsValid(ShaderPrintData.CursorCoord) && IsValid(InCoord))
+	{
+		const float4 Color = InTexture.Load(uint3(InCoord, 0));
+		for (uint Y=0; Y<ZoomFactor; ++Y)
+		for (uint X=0; X<ZoomFactor; ++X)
+		{
+			const int2 OutCoord = DispatchThreadId * ZoomFactor + int2(X, Y) + OutOffset;
+			const bool bIsBorder = any(OutCoord == OutOffset) || any(OutCoord == OutOffset + OutMaxPixel - 1);
+			if (IsValid(OutCoord))
+			{
+				OutTexture[OutCoord] = bIsBorder ? float4(1,1,0,1) : Color;
+			}
+
+		}
+	}
+}
