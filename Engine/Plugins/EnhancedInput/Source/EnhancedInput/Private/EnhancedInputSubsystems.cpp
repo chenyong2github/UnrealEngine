@@ -224,7 +224,7 @@ bool UEnhancedInputWorldSubsystem::InputKey(const FInputKeyParams& Params)
 		{
 			if (GetDefault<UEnhancedInputDeveloperSettings>()->bShouldLogAllWorldSubsystemInputs)
 			{
-				UE_LOG(LogWorldSubsystemInput, Log, TEXT("EI World Subsystem InputKey : [%s]"), *Params.Key.ToString());
+				UE_LOG(LogWorldSubsystemInput, Log, TEXT("EI %s World Subsystem InputKey : [%s]"), LexToString(GetWorld()->WorldType), *Params.Key.ToString());
 			}
 			return PlayerInput->InputKey(Params);
 		}
