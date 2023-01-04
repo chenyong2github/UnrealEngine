@@ -1680,22 +1680,7 @@ namespace Metasound
 				return;
 			}
 
-			if (UMetasoundEditorGraphInputNode* InputNode = Cast<UMetasoundEditorGraphInputNode>(InNode))
-			{
-				if (IsPlaying())
-				{
-					if (UAudioComponent* PreviewComponent = GEditor->GetPreviewAudioComponent())
-					{
-						FConstNodeHandle NodeHandle = InputNode->GetConstNodeHandle();
-						NodeHandle->IterateConstInputs([ComponentInterface = PreviewComponent](FConstInputHandle Input)
-						{
-							FVertexName VertexName = Input->GetName();
-							ComponentInterface->SetTriggerParameter(VertexName);
-						});
-					}
-				}
-			}
-			else if (UMetasoundEditorGraphExternalNode* ExternalNode = Cast<UMetasoundEditorGraphExternalNode>(InNode))
+			if (UMetasoundEditorGraphExternalNode* ExternalNode = Cast<UMetasoundEditorGraphExternalNode>(InNode))
 			{
 				FConstNodeHandle NodeHandle = ExternalNode->GetConstNodeHandle();
 				FNodeRegistryKey Key = FMetasoundFrontendRegistryContainer::Get()->GetRegistryKey(NodeHandle->GetClassMetadata());

@@ -1932,7 +1932,7 @@ void UMetasoundEditorGraph::ValidateInternal(Metasound::Editor::FGraphValidation
 		// Validate there is only 1 editor node per guid 
 		// Input nodes are currently not 1:1 with their frontend representation
 		// but when they are, they can be validated here as well 
-		if (!Node->IsA<UMetasoundEditorGraphInputNode>())
+		if (!Node->IsA<UMetasoundEditorGraphInputNode>() && !Node->IsA<UMetasoundEditorGraphVariableNode>())
 		{
 			NodeGuids.Add(Node->GetNodeID(), &bNodeIdFound);
 			if (bNodeIdFound)

@@ -25,7 +25,7 @@ namespace Metasound
 		METASOUND_PARAM(InputOutRangeBName, "Out Range B", "The max output value range.");
 		METASOUND_PARAM(InputClampedName, "Clamped", "Whether or not to clamp the input to the specified input range.");
 
-		METASOUND_PARAM(OutputValueName, "Out Value", "Triggers when the envelope is triggered.");
+		METASOUND_PARAM(OutputValueName, "Out Value", "Mapped output value.");
 	}
 
 	namespace MetasoundMapRangeNodePrivate

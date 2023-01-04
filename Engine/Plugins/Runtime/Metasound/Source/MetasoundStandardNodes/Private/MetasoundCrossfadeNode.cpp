@@ -27,7 +27,7 @@ namespace Metasound
 	namespace CrossfadeVertexNames
 	{
 		METASOUND_PARAM(InputCrossfadeValue, "Crossfade Value", "Crossfade value to crossfade across inputs. Output will be the float value between adjacent whole number values.")
-		METASOUND_PARAM(OutputTrigger, "Out", "Triggered when all input triggers have been triggered. Call Reset to reset the state or use \"Auto Reset\"")
+		METASOUND_PARAM(OutputTrigger, "Out", "Output value.")
 
 		const FVertexName GetInputName(uint32 InIndex)
 		{
