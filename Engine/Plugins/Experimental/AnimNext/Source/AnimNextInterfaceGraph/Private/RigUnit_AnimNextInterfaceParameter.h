@@ -17,7 +17,7 @@ struct FRigUnit_AnimNextInterfaceParameter : public FRigUnit_AnimNextInterfaceBa
 	GENERATED_BODY()
 
 protected:
-	static bool GetParameterInternal(FName InName, const FAnimNextInterfaceUnitContext& InContext, void* OutResult);
+	static bool GetParameterInternal(FName InName, const FAnimNextInterfaceExecuteContext& InContext, void* OutResult);
 
 	UPROPERTY(EditAnywhere, Category = "Parameter", meta = (Input))
 	FName Parameter = NAME_None;
@@ -37,8 +37,8 @@ protected:
 	float Result = 0.0f;
 };
 
-/** Unit for reading data interface graph parameter from context */
-USTRUCT(meta = (DisplayName = "Data Interface Parameter", Category = "Parameters", TitleColor = "1 0 0", NodeColor = "1 1 1"))
+/** Unit for reading anim interface graph parameter from context */
+USTRUCT(meta = (DisplayName = "Anim Interface Parameter", Category = "Parameters", TitleColor = "1 0 0", NodeColor = "1 1 1"))
 struct FRigUnit_AnimNextInterfaceParameter_AnimNextInterface : public FRigUnit_AnimNextInterfaceParameter
 {
 	GENERATED_BODY()
@@ -60,7 +60,7 @@ struct FAnimNextInterfaceParameter
 	: Name(NAME_None)
 	{}
 
-	UPROPERTY(EditAnywhere, Category = "Data Interface")
+	UPROPERTY(EditAnywhere, Category = "Anim Interface")
 	FName Name;
 };
 
@@ -74,10 +74,10 @@ struct FAnimNextInterfaceParameter_Float
 		, Value(0.f)
 	{}
 
-	UPROPERTY(EditAnywhere, Category = "Data Interface")
+	UPROPERTY(EditAnywhere, Category = "Anim Interface")
 	FName Name;
 
-	UPROPERTY(EditAnywhere, Category = "Data Interface")
+	UPROPERTY(EditAnywhere, Category = "Anim Interface")
 	float Value;
 };
 
@@ -91,10 +91,10 @@ struct FAnimNextInterfaceParameter_Int
 		, Value(0)
 	{}
 
-	UPROPERTY(EditAnywhere, Category = "Data Interface")
+	UPROPERTY(EditAnywhere, Category = "Anim Interface")
 	FName Name;
 
-	UPROPERTY(EditAnywhere, Category = "Data Interface")
+	UPROPERTY(EditAnywhere, Category = "Anim Interface")
 	int32 Value;
 };
 
@@ -108,10 +108,10 @@ struct FAnimNextInterfaceParameter_Bool
 		, bValue(false)
 	{}
 
-	UPROPERTY(EditAnywhere, Category = "Data Interface")
+	UPROPERTY(EditAnywhere, Category = "Anim Interface")
 	FName Name;
 
-	UPROPERTY(EditAnywhere, Category = "Data Interface")
+	UPROPERTY(EditAnywhere, Category = "Anim Interface")
 	bool bValue;
 };
 
@@ -125,10 +125,10 @@ struct FAnimNextInterfaceParameters1
 		, FloatParam(0.f)
 	{}
 
-	UPROPERTY(EditAnywhere, Category = "Data Interface")
+	UPROPERTY(EditAnywhere, Category = "Anim Interface")
 	FAnimNextInterfaceParameter_Int Param0;
 
-	UPROPERTY(EditAnywhere, Category = "Data Interface")
+	UPROPERTY(EditAnywhere, Category = "Anim Interface")
 	float FloatParam;
 };
 
@@ -137,23 +137,23 @@ struct FAnimNextInterfaceParameter_AnimNextInterface : public FAnimNextInterface
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, Category = "Data Interface")
+	UPROPERTY(EditAnywhere, Category = "Anim Interface")
 	TScriptInterface<IAnimNextInterface> Value = nullptr;
 };
 
-/** Base unit for calling data interfaces from graphs */
-USTRUCT(meta = (DisplayName = "Data Interface", Category = "Execution", TitleColor = "1 0 0", NodeColor = "1 1 1"))
+/** Base unit for calling anim interfaces from graphs */
+USTRUCT(meta = (DisplayName = "Anim Interface", Category = "Execution", TitleColor = "1 0 0", NodeColor = "1 1 1"))
 struct FRigUnit_AnimNextInterface : public FRigUnit_AnimNextInterfaceBase
 {
 	GENERATED_BODY()
 
 protected:
-	UPROPERTY(EditAnywhere, Category = "Data Interface", meta = (Input))
+	UPROPERTY(EditAnywhere, Category = "Anim Interface", meta = (Input))
 	TScriptInterface<IAnimNextInterface> AnimNextInterface = nullptr;
 };
 
-/** Unit for getting a float via a data interface */
-USTRUCT(meta = (DisplayName = "Data Interface Float", Category = "Parameters", TitleColor = "1 0 0", NodeColor = "1 1 1"))
+/** Unit for getting a float via an anim interface */
+USTRUCT(meta = (DisplayName = "Anim Interface Float", Category = "Parameters", TitleColor = "1 0 0", NodeColor = "1 1 1"))
 struct FRigUnit_AnimNextInterface_Float : public FRigUnit_AnimNextInterface
 {
 	GENERATED_BODY()
@@ -162,14 +162,14 @@ struct FRigUnit_AnimNextInterface_Float : public FRigUnit_AnimNextInterface
 	void Execute();
 	
 protected:
-	UPROPERTY(EditAnywhere, Category = "Data Interface", meta = (Input))
+	UPROPERTY(EditAnywhere, Category = "Anim Interface", meta = (Input))
 	TArray<FAnimNextInterfaceParameter_AnimNextInterface> Parameters;
 	
 	UPROPERTY(EditAnywhere, Category = "Result", meta = (Output))
 	float Result = 0.0f;
 };
 
-/** Unit for getting a pose via a data interface */
+/** Unit for getting a pose via an anim interface */
 /*
 USTRUCT(meta=(DisplayName="Get Pose"))
 struct FRigUnit_AnimNextInterface_Pose : public FRigUnit
@@ -190,7 +190,7 @@ protected:
 	FAnimNextInterfaceExecuteContext Result;
 };
 */
-/** Unit for getting a pose via a data interface */
+/** Unit for getting a pose via an anim interface */
 USTRUCT(meta = (DisplayName = "Float Operator", Category = "Operators", TitleColor = "1 0 0", NodeColor = "1 1 1"))
 struct FRigUnit_FloatOperator : public FRigUnit_AnimNextInterfaceBase
 {
@@ -219,7 +219,7 @@ protected:
 	float Result;
 };
 
-/** Unit for getting a pose via a data interface */
+/** Unit for getting a pose via an anim interface */
 USTRUCT(meta = (DisplayName = "Pose Operator", Category = "Operators", TitleColor = "1 0 0", NodeColor = "1 1 1"))
 struct FRigUnit_PoseOperator : public FRigUnit_AnimNextInterfaceBase
 {
@@ -257,7 +257,7 @@ struct FAnimSequenceParameters
 	bool bLoop = 0.0f;
 };
 
-/** Unit for getting a pose via a data interface */
+/** Unit for getting a pose via an anim interface */
 USTRUCT(meta = (DisplayName = "Anim Sequence", Category = "Animation", TitleColor = "1 0 0", NodeColor = "1 1 1"))
 struct FRigUnit_AnimNextInterface_SequencePlayer : public FRigUnit_AnimNextInterfaceBase
 {
@@ -267,17 +267,17 @@ struct FRigUnit_AnimNextInterface_SequencePlayer : public FRigUnit_AnimNextInter
 	void Execute();
 	
 protected:
-	UPROPERTY(EditAnywhere, Category = "Data Interface", meta = (Input))
+	UPROPERTY(EditAnywhere, Category = "Anim Interface", meta = (Input))
 	FAnimSequenceParameters Parameters;
 
-	UPROPERTY(EditAnywhere, Category = "Data Interface", meta = (Input))
+	UPROPERTY(EditAnywhere, Category = "Anim Interface", meta = (Input))
 	TScriptInterface<IAnimNextInterface> Sequence = nullptr;
 	
 	UPROPERTY(EditAnywhere, Transient, DisplayName = "Result", Category = "BeginExecution", meta = (Output))
 	FAnimNextInterfaceExecuteContext Result;
 };
 
-/** Unit for getting a pose via a data interface */
+/** Unit for getting a pose via an anim interface */
 USTRUCT(meta = (DisplayName = "Test Float State - Spring Damper Smoothing", Varying, Category = "Animation", TitleColor = "1 0 0", NodeColor = "1 1 1"))
 struct FRigUnit_TestFloatState : public FRigUnit_AnimNextInterfaceBase
 {

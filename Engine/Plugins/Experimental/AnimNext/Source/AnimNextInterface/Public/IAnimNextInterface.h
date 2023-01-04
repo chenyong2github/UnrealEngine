@@ -19,7 +19,7 @@ class ANIMNEXTINTERFACE_API UAnimNextInterface : public UInterface
 	GENERATED_BODY()
 };
 
-// Empty data interface to support 'any' type
+// Empty anim interface to support 'any' type
 class ANIMNEXTINTERFACE_API IAnimNextInterface
 {
 	GENERATED_BODY()
@@ -65,7 +65,7 @@ private:
 	/** Get data if the types are compatible */
 	bool GetDataIfCompatibleInternal(const UE::AnimNext::Interface::FContext& InContext) const;
 	
-	/** Get a value from a data interface with no dynamic or static type checking. Internal use only. */
+	/** Get a value from an anim interface with no dynamic or static type checking. Internal use only. */
 	bool GetDataRawInternal(const UE::AnimNext::Interface::FContext& InContext) const;
 
 protected:

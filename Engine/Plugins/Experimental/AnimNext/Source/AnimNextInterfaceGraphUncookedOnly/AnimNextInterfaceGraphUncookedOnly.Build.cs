@@ -26,6 +26,11 @@ namespace UnrealBuildTool.Rules
 					"AnimNextInterface",
 					"AnimNextInterfaceGraph",
 					"BlueprintGraph",	// For K2 schema
+					"AnimationCore",
+					"AnimGraph",
+					"Kismet",
+					"Slate",
+					"SlateCore",
 				}
 			);
 

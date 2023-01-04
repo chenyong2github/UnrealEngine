@@ -53,7 +53,7 @@ TSharedPtr<SWidget> FAnimNextInterfaceWidgetFactories::CreateAnimNextInterfaceWi
 	}
 
 
-	// button for replacing data with a different Data Interface class
+	// button for replacing data with a different AnimNext Interface class
 	TSharedPtr<SComboButton> Button = SNew(SComboButton)
 			.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton");
 	

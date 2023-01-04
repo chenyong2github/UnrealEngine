@@ -1,6 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-/** Built in types for data interfaces */
+/** Built in types for anim interfaces */
 
 #ifndef ANIM_NEXT_INTERFACE_TYPE
 #error ANIM_NEXT_INTERFACE_TYPE is not defined!

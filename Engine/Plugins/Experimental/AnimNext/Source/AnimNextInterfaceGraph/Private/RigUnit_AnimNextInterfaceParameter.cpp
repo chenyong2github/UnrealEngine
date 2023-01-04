@@ -9,19 +9,19 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_AnimNextInterfaceParameter)
 
-bool FRigUnit_AnimNextInterfaceParameter::GetParameterInternal(FName InName, const FAnimNextInterfaceUnitContext& InContext, void* OutResult)
+bool FRigUnit_AnimNextInterfaceParameter::GetParameterInternal(FName InName, const FAnimNextInterfaceExecuteContext& InContext, void* OutResult)
 {
 	return true;
 }
 
 FRigUnit_AnimNextInterfaceParameter_Float_Execute()
 {
-	GetParameterInternal(Parameter, ExecuteContext.GetUnitContext(), &Result);
+	GetParameterInternal(Parameter, ExecuteContext, &Result);
 }
 
 FRigUnit_AnimNextInterfaceParameter_AnimNextInterface_Execute()
 {
-	GetParameterInternal(Parameter, ExecuteContext.GetUnitContext(), &Result);
+	GetParameterInternal(Parameter, ExecuteContext, &Result);
 }
 
 FRigUnit_AnimNextInterface_Float_Execute()

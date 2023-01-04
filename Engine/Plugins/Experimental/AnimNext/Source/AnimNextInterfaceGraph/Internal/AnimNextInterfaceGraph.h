@@ -31,6 +31,10 @@ class ANIMNEXTINTERFACEGRAPH_API UAnimNextInterfaceGraph : public UObject, publi
 {
 	GENERATED_BODY()
 
+	// UObject interface
+	virtual void PostRename(UObject* OldOuter, const FName OldName) override;
+	virtual void GetPreloadDependencies(TArray<UObject*>& OutDeps) override;
+
 	// IAnimAnimNextInterface interface
 	virtual FName GetReturnTypeNameImpl() const final override;
 	virtual const UScriptStruct* GetReturnTypeStructImpl() const final override;
@@ -44,6 +48,7 @@ class ANIMNEXTINTERFACEGRAPH_API UAnimNextInterfaceGraph : public UObject, publi
 	friend struct UE::AnimNext::InterfaceGraphUncookedOnly::FUtils;
 	friend class UE::AnimNext::InterfaceGraphEditor::FGraphEditor;
 	friend class UAnimNextInterface_Graph;
+	friend class UAnimGraphNode_AnimNextInterfaceGraph;
 	
 	UPROPERTY()
 	TObjectPtr<URigVM> RigVM;
@@ -51,6 +56,12 @@ class ANIMNEXTINTERFACEGRAPH_API UAnimNextInterfaceGraph : public UObject, publi
 	UPROPERTY()
 	FRigVMRuntimeSettings VMRuntimeSettings;
 	
+	UPROPERTY()
+	FName ReturnTypeName;
+
+	UPROPERTY()
+	TObjectPtr<UScriptStruct> ReturnTypeStruct;
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(VisibleAnywhere, Instanced, Category = "Graph", meta = (ShowInnerProperties))
 	TObjectPtr<UObject> EditorData;

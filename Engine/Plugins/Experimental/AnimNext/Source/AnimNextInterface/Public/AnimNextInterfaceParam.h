@@ -79,7 +79,7 @@ public:
 ENUM_CLASS_FLAGS(FParam::EFlags);
 
 
-// Simple type representation for data interfaces
+// Simple type representation for anim interfaces
 struct ANIMNEXTINTERFACE_API FParamType
 {
 	typedef FParam(*ParamCopyFunction)(const FParam& InSource, void* InMemory, int32 InAllocatedMemory);

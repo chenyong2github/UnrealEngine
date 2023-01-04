@@ -104,7 +104,7 @@ void SActionMenu::Construct(const FArguments& InArgs)
 					.VAlign(VAlign_Center)
 					[
 						SNew(STextBlock)
-						.Text(LOCTEXT("ContextText", "All Data Interface Node Classes"))
+						.Text(LOCTEXT("ContextText", "All AnimNext Interface Node Classes"))
 						.Font(FAppStyle::Get().GetFontStyle("BlueprintEditor.ActionMenu.ContextDescriptionFont"))
 						.ToolTip(IDocumentation::Get()->CreateToolTip(
 							LOCTEXT("ActionMenuContextTextTooltip", "Describes the current context of the action list"),

@@ -19,7 +19,7 @@ enum class EStatePersistence : uint8
 	Permanent,
 };
 
-// Container for data interface state
+// Container for anim interface state
 struct ANIMNEXTINTERFACE_API FState
 {
 	FState(int32 InNumElements = 1)

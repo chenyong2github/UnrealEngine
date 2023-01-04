@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "RigVMCore/RigVMExecuteContext.h"
-#include "RigVMCore/RigVMStruct.h"
+#include "Units/RigUnit.h"
 #include "AnimNextInterfaceUnitContext.h"
 #include "AnimNextInterfaceExecuteContext.generated.h"
 
@@ -35,9 +35,16 @@ struct FAnimNextInterfaceExecuteContext : public FRigVMExecuteContext
 		return *AnimNextInterfaceContext;
 	}
 
-	const FAnimNextInterfaceUnitContext& GetUnitContext() const
+	const FRigUnitContext& GetUnitContext() const
 	{
 		return UnitContext;
+	}
+
+	void SetContextData(const IAnimNextInterface* InInterface, const UE::AnimNext::Interface::FContext& InAnimNextInterfaceContext, bool& bInResult)
+	{
+		Interface = InInterface;
+		AnimNextInterfaceContext = &InAnimNextInterfaceContext;
+		ResultPtr = &bInResult;
 	}
 
 	void SetResult(bool bInResult) const
@@ -67,11 +74,11 @@ private:
 	const UE::AnimNext::Interface::FContext* AnimNextInterfaceContext;
 	const IAnimNextInterface* Interface;
 	bool* ResultPtr;
-	FAnimNextInterfaceUnitContext UnitContext;
+	FRigUnitContext UnitContext;
 };
 
 USTRUCT(meta=(ExecuteContext="FAnimNextInterfaceExecuteContext"))
-struct FRigUnit_AnimNextInterfaceBase : public FRigVMStruct
+struct FRigUnit_AnimNextInterfaceBase : public FRigUnit
 {
 	GENERATED_BODY()
 };

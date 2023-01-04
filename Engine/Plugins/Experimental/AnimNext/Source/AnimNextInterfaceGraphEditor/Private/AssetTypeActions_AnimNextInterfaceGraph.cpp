@@ -27,7 +27,7 @@ const TArray<FText>& FAssetTypeActions_AnimNextInterfaceGraph::GetSubMenus() con
 {
 	static const TArray<FText> SubMenus
 	{
-		LOCTEXT("AnimNextInterfacesSubMenu", "Data Interfaces")
+		LOCTEXT("AnimNextInterfacesSubMenu", "AnimNext")
 	};
 	return SubMenus;
 }

@@ -19,7 +19,7 @@ namespace UE::AnimNext::Interface
 struct FState;
 enum class EStatePersistence : uint8;
 
-// Helper to provide a non-callstack bridge for interfacing with data interface contexts
+// Helper to provide a non-callstack bridge for interfacing with anim interface contexts
 // Declaring one of these on the stack will enable all calls in its scope to access the passed-in context
 // via FThreadContext::Get()
 struct ANIMNEXTINTERFACE_API FThreadContext
@@ -30,7 +30,7 @@ struct ANIMNEXTINTERFACE_API FThreadContext
 	static const FContext& Get();
 };
 
-// Context providing methods for mutating & interrogating the data interface runtime
+// Context providing methods for mutating & interrogating the anim interface runtime
 struct ANIMNEXTINTERFACE_API FContext
 {
 private:

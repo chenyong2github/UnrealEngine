@@ -21,6 +21,7 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"AnimNextInterface",
+					"Engine"
 				}
 			);
 		}

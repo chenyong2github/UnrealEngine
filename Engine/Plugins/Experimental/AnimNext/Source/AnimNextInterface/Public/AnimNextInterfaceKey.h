@@ -11,7 +11,7 @@ class IAnimNextInterface;
 namespace UE::AnimNext::Interface
 {
 
-// Key value for cached data interface state
+// Key value for cached anim interface state
 struct ANIMNEXTINTERFACE_API FInterfaceKey
 {
 	FInterfaceKey(const IAnimNextInterface* InAnimNextInterface)
@@ -28,7 +28,7 @@ struct ANIMNEXTINTERFACE_API FInterfaceKey
 	uint32 Hash = 0;
 };
 
-// Key value for cached data interface state
+// Key value for cached anim interface state
 struct ANIMNEXTINTERFACE_API FInterfaceKeyWithId : FInterfaceKey
 {
 	FInterfaceKeyWithId(const FInterfaceKey& InInterfaceKey, uint32 InId)
@@ -44,7 +44,7 @@ struct ANIMNEXTINTERFACE_API FInterfaceKeyWithId : FInterfaceKey
 	uint32 Id = 0;
 };
 
-// Key value for cached data interface state
+// Key value for cached anim interface state
 struct ANIMNEXTINTERFACE_API FInterfaceKeyWithIdAndStack : FInterfaceKeyWithId
 {
 	FInterfaceKeyWithIdAndStack(const FInterfaceKeyWithId& InInterfaceKey, uint32 InCallStackHash)

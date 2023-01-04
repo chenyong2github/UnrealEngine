@@ -20,6 +20,12 @@ namespace UE::AnimNext::InterfaceGraphEditor
 	class FGraphEditor;
 }
 
+enum class EAnimNextInterfaceGraphLoadType : uint8
+{
+	PostLoad,
+	CheckUserDefinedStructs
+};
+
 UCLASS(MinimalAPI)
 class UAnimNextInterfaceGraph_EditorData : public UObject, public IRigVMClientHost, public IRigVMGraphFunctionHost
 {
@@ -37,7 +43,11 @@ class UAnimNextInterfaceGraph_EditorData : public UObject, public IRigVMClientHo
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
 	virtual bool IsEditorOnly() const override { return true; }
-	
+#if WITH_EDITOR
+	void HandlePackageDone(const FEndLoadPackageContext& Context);
+	void HandlePackageDone();
+#endif // WITH_EDITOR
+
 	// IRigVMClientHost interface
 	virtual FRigVMClient* GetRigVMClient() override;
 	virtual const FRigVMClient* GetRigVMClient() const override;
@@ -55,6 +65,8 @@ class UAnimNextInterfaceGraph_EditorData : public UObject, public IRigVMClientHo
 
 	ANIMNEXTINTERFACEGRAPHUNCOOKEDONLY_API void Initialize(bool bRecompileVM);
 
+	void RefreshAllModels(EAnimNextInterfaceGraphLoadType InLoadType);
+
 	void RecompileVM();
 	
 	void RecompileVMIfRequired();
@@ -66,7 +78,15 @@ class UAnimNextInterfaceGraph_EditorData : public UObject, public IRigVMClientHo
 	ANIMNEXTINTERFACEGRAPHUNCOOKEDONLY_API URigVMGraph* GetVMGraphForEdGraph(const UEdGraph* InGraph) const;
 
 	void CreateEdGraphForCollapseNode(URigVMCollapseNode* InNode);
-	
+
+	void UpdateGraphReturnType();
+
+	FEdGraphPinType FindGraphReturnPinType() const;
+
+	bool IsNodeExecConnected(const UEdGraphNode* Node) const;
+
+	FName GetPinTypeName(const FEdGraphPinType& EdGraphPinType);
+
 	UPROPERTY()
 	TObjectPtr<UAnimNextInterfaceGraph_EdGraph> RootGraph;
 

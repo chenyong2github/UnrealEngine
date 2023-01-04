@@ -52,7 +52,7 @@ public:
 	template<typename ValueType>
 	FHParam AddValue(ValueType* Data, int32 NumElem, FParam::EFlags Flags)
 	{
-		check(ParamFreeIndex < (Parameters.Num() - 1)); // TODO : Growing ?
+		check(ParamFreeIndex < (Parameters.Num())); // TODO : Growing ?
 
 		const int32 ParameterIndex = ParamFreeIndex;
 		ParamFreeIndex++;

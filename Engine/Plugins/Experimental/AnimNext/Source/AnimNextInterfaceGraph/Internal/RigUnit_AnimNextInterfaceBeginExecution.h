@@ -9,7 +9,7 @@
 /**
  * Event for driving the skeleton hierarchy with variables and rig elements
  */
-USTRUCT(meta=(DisplayName="Execute Data Interface", Category="Events", NodeColor="1, 0, 0", Keywords="Begin,Update,Tick,Forward,Event"))
+USTRUCT(meta=(DisplayName="Execute Anim Interface", Category="Events", NodeColor="1, 0, 0", Keywords="Begin,Update,Tick,Forward,Event"))
 struct ANIMNEXTINTERFACEGRAPH_API FRigUnit_AnimNextInterfaceBeginExecution : public FRigUnit_AnimNextInterfaceBase
 {
 	GENERATED_BODY()

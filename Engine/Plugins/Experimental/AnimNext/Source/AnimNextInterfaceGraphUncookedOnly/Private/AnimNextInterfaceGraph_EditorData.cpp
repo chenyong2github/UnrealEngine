@@ -12,6 +12,8 @@
 #include "RigVMModel/RigVMNotifications.h"
 #include "RigVMModel/Nodes/RigVMCollapseNode.h"
 #include "Curves/CurveFloat.h"
+#include "UObject/ObjectSaveContext.h"
+#include "Kismet2/BlueprintEditorUtils.h"
 
 UAnimNextInterfaceGraph_EditorData::UAnimNextInterfaceGraph_EditorData(const FObjectInitializer& ObjectInitializer)
 {
@@ -22,6 +24,7 @@ UAnimNextInterfaceGraph_EditorData::UAnimNextInterfaceGraph_EditorData(const FOb
 		RigVMClient.AddModel(TEXT("RigVMGraph"), false, &ObjectInitializer);
 		RigVMClient.GetOrCreateFunctionLibrary(false, &ObjectInitializer);
 	}
+	RigVMClient.SetExecuteContextStruct(FAnimNextInterfaceExecuteContext::StaticStruct());
 	
 	auto MakeEdGraph = [this, &ObjectInitializer](FName InName) -> UAnimNextInterfaceGraph_EdGraph*
 	{
@@ -93,7 +96,159 @@ void UAnimNextInterfaceGraph_EditorData::PostLoad()
 	Super::PostLoad();
 	
 	Initialize(/*bRecompileVM*/false);
+	RefreshAllModels(EAnimNextInterfaceGraphLoadType::PostLoad);
+
+#if WITH_EDITOR
+	if (GIsEditor)
+	{
+		// delay compilation until the package has been loaded
+		FCoreUObjectDelegates::OnEndLoadPackage.AddUObject(this, &UAnimNextInterfaceGraph_EditorData::HandlePackageDone);
+	}
+#else // !WITH_EDITOR
+	RecompileVMIfRequired();
+#endif // WITH_EDITOR
 }
+
+#if WITH_EDITOR
+void UAnimNextInterfaceGraph_EditorData::HandlePackageDone(const FEndLoadPackageContext& Context)
+{
+	if (!Context.LoadedPackages.Contains(GetPackage()))
+	{
+		return;
+	}
+	HandlePackageDone();
+}
+
+void UAnimNextInterfaceGraph_EditorData::HandlePackageDone()
+{
+	FCoreUObjectDelegates::OnEndLoadPackage.RemoveAll(this);
+
+	RecompileVM();
+}
+
+void UAnimNextInterfaceGraph_EditorData::RefreshAllModels(EAnimNextInterfaceGraphLoadType InLoadType)
+{
+	const bool bIsPostLoad = InLoadType == EAnimNextInterfaceGraphLoadType::PostLoad;
+
+	TGuardValue<bool> IsCompilingGuard(bIsCompiling, true);
+	TGuardValue<bool> ClientIgnoreModificationsGuard(RigVMClient.bIgnoreModelNotifications, true);
+
+	TArray<URigVMGraph*> GraphsToDetach = RigVMClient.GetAllModels(true, false);
+
+	if (ensure(IsInGameThread()))
+	{
+		for (URigVMGraph* GraphToDetach : GraphsToDetach)
+		{
+			URigVMController* Controller = RigVMClient.GetOrCreateController(GraphToDetach);
+			// temporarily disable default value validation during load time, serialized values should always be accepted
+			TGuardValue<bool> PerGraphDisablePinDefaultValueValidation(Controller->bValidatePinDefaults, false);
+			FRigVMControllerNotifGuard NotifGuard(Controller, true);
+			Controller->DetachLinksFromPinObjects();
+			TArray<URigVMNode*> Nodes = GraphToDetach->GetNodes();
+			for (URigVMNode* Node : Nodes)
+			{
+				Controller->RepopulatePinsOnNode(Node, true, true);
+			}
+		}
+		//SetupPinRedirectorsForBackwardsCompatibility();
+	}
+
+	for (URigVMGraph* GraphToDetach : GraphsToDetach)
+	{
+		URigVMController* Controller = RigVMClient.GetOrCreateController(GraphToDetach);
+		// at this stage, allow all links to be reattached,
+		// RecomputeAllTemplateFilteredPermutations() later should break any invalid links
+		FRigVMControllerNotifGuard NotifGuard(Controller, true);
+		Controller->ReattachLinksToPinObjects(true /* follow redirectors */, nullptr, true, true);
+	}
+
+	if (bIsPostLoad)
+	{
+		//PatchTemplateNodesWithPreferredPermutation();
+	}
+
+	TArray<URigVMGraph*> GraphsToClean = RigVMClient.GetAllModels(true, true);
+
+	// Sort from leaf graphs to root
+	TArray<URigVMGraph*> SortedGraphsToClean;
+	SortedGraphsToClean.Reserve(GraphsToClean.Num());
+	while (SortedGraphsToClean.Num() < GraphsToClean.Num())
+	{
+		bool bGraphAdded = false;
+		for (URigVMGraph* Graph : GraphsToClean)
+		{
+			if (SortedGraphsToClean.Contains(Graph))
+			{
+				continue;
+			}
+
+			TArray<URigVMGraph*> ContainedGraphs;
+			for (URigVMNode* Node : Graph->GetNodes())
+			{
+				if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Node))
+				{
+					if (URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(LibraryNode))
+					{
+						if (FunctionReferenceNode->GetReferencedFunctionHeader().LibraryPointer.LibraryNode.GetLongPackageName() != GetPackage()->GetPathName())
+						{
+							continue;
+						}
+						if (URigVMLibraryNode* ReferencedNode = FunctionReferenceNode->LoadReferencedNode())
+						{
+							ContainedGraphs.Add(ReferencedNode->GetContainedGraph());
+							continue;
+						}
+					}
+
+					if (URigVMGraph* ContainedGraph = LibraryNode->GetContainedGraph())
+					{
+						ContainedGraphs.Add(ContainedGraph);
+					}
+				}
+			}
+
+			bool bAllContained = true;
+			for (URigVMGraph* Contained : ContainedGraphs)
+			{
+				if (!SortedGraphsToClean.Contains(Contained))
+				{
+					bAllContained = false;
+					break;
+				}
+			}
+			if (bAllContained)
+			{
+				SortedGraphsToClean.Add(Graph);
+				bGraphAdded = true;
+			}
+		}
+		ensure(bGraphAdded);
+	}
+
+	for (int32 GraphIndex = 0; GraphIndex < SortedGraphsToClean.Num(); GraphIndex++)
+	{
+		URigVMGraph* GraphToClean = SortedGraphsToClean[GraphIndex];
+		URigVMController* Controller = RigVMClient.GetOrCreateController(GraphToClean);
+		TGuardValue<bool> RecomputeGuard(Controller->bSuspendRecomputingOuterTemplateFilters, true);
+		//TGuardValue<bool> GuardEditGraph(GraphToClean->bEditable, true);
+		FRigVMControllerNotifGuard NotifGuard(Controller, true);
+
+		for (URigVMNode* ModelNode : GraphToClean->GetNodes())
+		{
+			Controller->RemoveUnusedOrphanedPins(ModelNode);
+		}
+
+		if (bIsPostLoad)
+		{
+			if (URigVMLibraryNode* LibraryNode = GraphToClean->GetTypedOuter<URigVMLibraryNode>())
+			{
+				Controller->UpdateLibraryTemplate(LibraryNode, false);
+			}
+		}
+	}
+}
+
+#endif // WITH_EDITOR
 
 FRigVMClient* UAnimNextInterfaceGraph_EditorData::GetRigVMClient()
 {
@@ -120,7 +275,7 @@ void UAnimNextInterfaceGraph_EditorData::HandleRigVMGraphAdded(const FRigVMClien
 {
 	if(URigVMGraph* RigVMGraph = InClient->GetModel(InNodePath))
 	{
-		RigVMGraph->SetExecuteContextStruct(FRigVMExecuteContext::StaticStruct());
+		RigVMGraph->SetExecuteContextStruct(FAnimNextInterfaceExecuteContext::StaticStruct());
 	}
 }
 
@@ -266,10 +421,8 @@ void UAnimNextInterfaceGraph_EditorData::HandleModifiedEvent(ERigVMGraphNotifTyp
 	case ERigVMGraphNotifType::PinArraySizeChanged:
 	case ERigVMGraphNotifType::PinDirectionChanged:
 		{
-			if (InGraph)
-			{
-				InGraph->ClearAST();
-			}
+			UpdateGraphReturnType();
+			RecompileVM();
 			break;
 		}
 
@@ -353,3 +506,118 @@ void UAnimNextInterfaceGraph_EditorData::CreateEdGraphForCollapseNode(URigVMColl
 		}
 	}
 }
+
+FEdGraphPinType UAnimNextInterfaceGraph_EditorData::FindGraphReturnPinType() const
+{
+	static const TCHAR* EndExecStr = TEXT("AnimNextInterfaceEndExec");
+	static const FName ResultName = TEXT(".Result");
+
+	const UAnimNextInterfaceGraph_EdGraph* AnimNextInterfaceEdGraph = RootGraph.Get();
+	if (AnimNextInterfaceEdGraph != nullptr)
+	{
+		for (const TObjectPtr<UEdGraphNode>& Node : AnimNextInterfaceEdGraph->Nodes)
+		{
+			if (IsNodeExecConnected(Node))
+			{
+				const FString& NodeName = Node->GetName();
+				if (NodeName.Contains(EndExecStr))
+				{
+					for (const UEdGraphPin* Pin : Node->Pins)
+					{
+						const FString PinName = Pin->PinName.ToString();
+
+						if (PinName.Contains(ResultName.ToString()) && PinName.Contains(EndExecStr))
+						{
+							return Pin->PinType;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return FEdGraphPinType();
+}
+
+bool UAnimNextInterfaceGraph_EditorData::IsNodeExecConnected(const UEdGraphNode* Node) const
+{
+	static const TCHAR* ExecuteContextStr = TEXT(".ExecuteContext");
+
+	for (const UEdGraphPin* Pin : Node->Pins)
+	{
+		const FString PinName = Pin->PinName.ToString();
+
+		if (PinName.Contains(ExecuteContextStr) && Pin->LinkedTo.Num() > 0)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void UAnimNextInterfaceGraph_EditorData::UpdateGraphReturnType()
+{
+	if (UAnimNextInterfaceGraph* Graph = GetTypedOuter<UAnimNextInterfaceGraph>())
+	{
+		FEdGraphPinType GraphReturnPinType = FindGraphReturnPinType();
+		const FName PinTypeName = GetPinTypeName(GraphReturnPinType);
+		if (Graph->ReturnTypeName != PinTypeName || Graph->ReturnTypeStruct != GraphReturnPinType.PinSubCategoryObject)
+		{
+			Graph->Modify();
+			Graph->ReturnTypeName = PinTypeName;
+			Graph->ReturnTypeStruct = TObjectPtr<UScriptStruct>(Cast<UScriptStruct>(GraphReturnPinType.PinSubCategoryObject));
+		}
+	}
+}
+
+FName UAnimNextInterfaceGraph_EditorData::GetPinTypeName(const FEdGraphPinType& EdGraphPinType)
+{
+	FName DataType = EdGraphPinType.PinCategory;
+
+	if (EdGraphPinType.PinCategory == UEdGraphSchema_K2::PC_Real)
+	{
+		if (EdGraphPinType.PinSubCategory == UEdGraphSchema_K2::PC_Float)
+		{
+			DataType = TNameOf<float>::GetName();
+		}
+		else if (EdGraphPinType.PinSubCategory == UEdGraphSchema_K2::PC_Double)
+		{
+			DataType = TNameOf<double>::GetName();
+		}
+		else
+		{
+			ensure(false);
+		}
+	}
+	else if (DataType != NAME_None)
+	{
+		if (DataType == UEdGraphSchema_K2::PC_Struct)
+		{
+			UObject* DataTypeObject = nullptr;
+			DataType = NAME_None;
+			if (UScriptStruct* DataStruct = Cast<UScriptStruct>(EdGraphPinType.PinSubCategoryObject))
+			{
+				DataTypeObject = DataStruct;
+				DataType = *DataStruct->GetStructCPPName();
+			}
+		}
+
+		if (DataType == TEXT("int"))
+		{
+			DataType = TNameOf<int32>::GetName();
+		}
+		else if (DataType == TEXT("name"))
+		{
+			DataType = TNameOf<FName>::GetName();
+		}
+		else if (DataType == TEXT("string"))
+		{
+			DataType = TNameOf<FString>::GetName();;
+		}
+	}
+
+	return DataType;
+}
+
+#undef LOCTEXT_NAMESPACE

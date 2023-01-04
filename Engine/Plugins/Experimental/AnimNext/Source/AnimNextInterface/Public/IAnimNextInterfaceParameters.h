@@ -18,7 +18,7 @@ class ANIMNEXTINTERFACE_API UAnimNextInterfaceParameters : public UInterface
 	GENERATED_BODY()
 };
 
-// Interface representing parameters that can be supplied to a data interface
+// Interface representing parameters that can be supplied to an anim interface
 class ANIMNEXTINTERFACE_API IAnimNextInterfaceParameters
 {
 	GENERATED_BODY()

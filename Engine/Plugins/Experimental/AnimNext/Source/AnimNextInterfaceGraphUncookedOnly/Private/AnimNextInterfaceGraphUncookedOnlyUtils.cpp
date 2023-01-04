@@ -6,7 +6,7 @@
 #include "AnimNextInterfaceGraph_EdGraph.h"
 #include "RigVMCompiler/RigVMCompiler.h"
 #include "RigVMCore/RigVM.h"
-#include "Units/RigUnitContext.h"
+#include "AnimNextInterfaceExecuteContext.h"
 
 namespace UE::AnimNext::InterfaceGraphUncookedOnly
 {
@@ -49,7 +49,7 @@ void FUtils::Compile(UAnimNextInterfaceGraph* InGraph)
 	{
 		if(Compiler->Settings.SurpressErrors)
 		{
-			Compiler->Settings.Reportf(EMessageSeverity::Info, InGraph,TEXT("Compilation Errors may be suppressed for Data Interface Graph: %s. See VM Compile Settings for more Details"), *InGraph->GetName());
+			Compiler->Settings.Reportf(EMessageSeverity::Info, InGraph,TEXT("Compilation Errors may be suppressed for AnimNext Interface Graph: %s. See VM Compile Settings for more Details"), *InGraph->GetName());
 		}
 	}
 
@@ -67,6 +67,7 @@ void FUtils::Compile(UAnimNextInterfaceGraph* InGraph)
 void FUtils::RecreateVM(UAnimNextInterfaceGraph* InGraph)
 {
 	InGraph->RigVM = NewObject<URigVM>(InGraph, TEXT("VM"), RF_NoFlags);
+	InGraph->RigVM->SetContextPublicDataStruct(FAnimNextInterfaceExecuteContext::StaticStruct());
 	
 	// Cooked platforms will load these pointers from disk
 	if (!FPlatformProperties::RequiresCookedData())
