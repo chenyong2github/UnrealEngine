@@ -103,9 +103,31 @@ public:
 		return bIsCacheDefined;
 	}
 
-	void AddWarningMessages(const FString& Message)
+	void LogError(const FString& Message)
 	{
-		WarningMessages.Add(Message);
+		Messages.Emplace(ELogVerbosity::Error, Message);
+	}
+
+	void LogWarning(const FString& Message)
+	{
+		Messages.Emplace(ELogVerbosity::Warning, Message);
+	}
+
+	/** Logs a message to console (and log file) */
+	void LogDisplayMessage(const FString& Message)
+	{
+		Messages.Emplace(ELogVerbosity::Display, Message);
+	}
+
+	/** logs a message to a log file (does not print to console) */
+	void LogMessage(const FString& Message)
+	{
+		Messages.Emplace(ELogVerbosity::Log, Message);
+	}
+
+	void LogVerboseMessage(const FString& Message)
+	{
+		Messages.Emplace(ELogVerbosity::Verbose, Message);
 	}
 
 	void LoadSceneGraphArchive()
@@ -171,9 +193,9 @@ public:
 		return MeshArchiveFile;
 	}
 
-	const TArray<FString>& GetWarningMessages() const
+	const TArray<TPair<uint8, FString>>& GetMessages() const
 	{
-		return WarningMessages;
+		return Messages;
 	}
 
 	const FArchiveSceneGraph& GetSceneGraphArchive() const
@@ -258,7 +280,7 @@ private:
 	FArchiveSceneGraph SceneGraphArchive;
 	TArray<FBodyMesh> BodyMeshes;
 
-	TArray<FString> WarningMessages;
+	TArray<TPair<uint8, FString>> Messages;
 
 	mutable uint32 SceneFileHash = 0;
 	mutable uint32 GeomFileHash = 0;

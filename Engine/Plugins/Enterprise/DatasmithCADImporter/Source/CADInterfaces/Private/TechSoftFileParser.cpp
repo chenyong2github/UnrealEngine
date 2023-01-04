@@ -348,31 +348,31 @@ ECADParsingResult FTechSoftFileParser::Process()
 		{
 		case A3DStatus::A3D_LOAD_FILE_TOO_OLD:
 		{
-			CADFileData.AddWarningMessages(FString::Printf(TEXT("File %s hasn't been loaded because the version is less than the oldest supported version."), *File.GetFileName()));
+			CADFileData.LogWarning(FString::Printf(TEXT("File %s hasn't been loaded because the version is less than the oldest supported version."), *File.GetFileName()));
 			break;
 		}
 
 		case A3DStatus::A3D_LOAD_FILE_TOO_RECENT:
 		{
-			CADFileData.AddWarningMessages(FString::Printf(TEXT("File %s hasn't been loaded because the version is more recent than supported version."), *File.GetFileName()));
+			CADFileData.LogWarning(FString::Printf(TEXT("File %s hasn't been loaded because the version is more recent than supported version."), *File.GetFileName()));
 			break;
 		}
 
 		case A3DStatus::A3D_LOAD_CANNOT_ACCESS_CADFILE:
 		{
-			CADFileData.AddWarningMessages(FString::Printf(TEXT("File %s hasn't been loaded because the input path cannot be opened by the running process for reading."), *File.GetFileName()));
+			CADFileData.LogWarning(FString::Printf(TEXT("File %s hasn't been loaded because the input path cannot be opened by the running process for reading."), *File.GetFileName()));
 			break;
 		}
 
 		case A3DStatus::A3D_LOAD_INVALID_FILE_FORMAT:
 		{
-			CADFileData.AddWarningMessages(FString::Printf(TEXT("File %s hasn't been loaded because the format is not supported."), *File.GetFileName()));
+			CADFileData.LogWarning(FString::Printf(TEXT("File %s hasn't been loaded because the format is not supported."), *File.GetFileName()));
 			break;
 		}
 
 		default:
 		{
-			CADFileData.AddWarningMessages(FString::Printf(TEXT("File %s hasn't been loaded because an error occured while reading the file."), *File.GetFileName()));
+			CADFileData.LogWarning(FString::Printf(TEXT("File %s hasn't been loaded because an error occured while reading the file."), *File.GetFileName()));
 			break;
 		}
 		};
@@ -469,7 +469,7 @@ void FTechSoftFileParser::GenerateBodyMesh(A3DRiRepresentationItem* Representati
 		A3DStatus Status = TechSoftInterface::SewBReps(&Representation, BRepCount, CADLibrary::FImportParameters::GStitchingTolerance, FileUnit, SewData.GetPtr(), &NewBReps, NewBRepCount);
 		if (Status != A3DStatus::A3D_SUCCESS)
 		{
-			CADFileData.AddWarningMessages(TEXT("A body healing failed. A body could be missing."));
+			CADFileData.LogWarning(TEXT("A body healing failed. A body could be missing."));
 		}
 	}
 
@@ -612,13 +612,13 @@ ECADParsingResult FTechSoftFileParser::TraverseModel()
 
 	if(ModelFileData->m_uiPOccurrencesSize == 0)
 	{
-		CADFileData.AddWarningMessages(FString::Printf(TEXT("File %s is empty."), *CADFileData.GetCADFileDescription().GetFileName()));
+		CADFileData.LogWarning(FString::Printf(TEXT("File %s is empty."), *CADFileData.GetCADFileDescription().GetFileName()));
 		return ECADParsingResult::ProcessFailed;
 	}
 
 	if (ModelFileData->m_uiPOccurrencesSize > 1)
 	{
-		CADFileData.AddWarningMessages(FString::Printf(TEXT("File %s has many root components, only the first is loaded."), *CADFileData.GetCADFileDescription().GetFileName()));
+		CADFileData.LogWarning(FString::Printf(TEXT("File %s has many root components, only the first is loaded."), *CADFileData.GetCADFileDescription().GetFileName()));
 	}
 
 	if (IsConfigurationSet(ModelFileData->m_ppPOccurrences[0]))

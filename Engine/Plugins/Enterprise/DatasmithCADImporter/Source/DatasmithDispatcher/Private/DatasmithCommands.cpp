@@ -56,7 +56,7 @@ namespace DatasmithDispatcher
 		Ar << ProcessResult;
 		Ar << SceneGraphFileName;
 		Ar << GeomFileName;
-		Ar << WarningMessages;
+		Ar << Messages;
 	}
 
 	void FImportParametersCommand::SerializeImpl(FArchive& Ar)

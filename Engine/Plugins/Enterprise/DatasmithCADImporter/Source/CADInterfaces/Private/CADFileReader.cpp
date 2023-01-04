@@ -87,7 +87,7 @@ namespace CADLibrary
 			return true;
 		}
 
-		CADFileData.AddWarningMessages(FString::Printf(TEXT("File %s cannot be found."), *File.GetFileName()));
+		CADFileData.LogWarning(FString::Printf(TEXT("File %s cannot be found."), *File.GetFileName()));
 		return false;
 	}
 

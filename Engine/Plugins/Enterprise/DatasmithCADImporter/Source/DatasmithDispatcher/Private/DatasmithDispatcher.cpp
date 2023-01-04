@@ -85,11 +85,35 @@ void FDatasmithDispatcher::AddTask(const CADLibrary::FFileDescriptor& InFileDesc
 	TaskPool[TaskIndex].Index = TaskIndex;
 }
 
-void FDatasmithDispatcher::LogWarningMessages(const TArray<FString>& WarningMessages) const
+void FDatasmithDispatcher::LogMessages(const TArray<TPair<uint8, FString>>& Messages) const
 {
-	for (const FString& WarningMessage : WarningMessages)
+	for (const TPair<uint8, FString>& Message : Messages)
 	{
-		UE_LOG(LogDatasmithDispatcher, Warning, TEXT("%s"), *WarningMessage);
+		switch (Message.Key)
+		{
+		case ELogVerbosity::Fatal:
+			UE_LOG(LogDatasmithDispatcher, Fatal, TEXT("%s"), *Message.Value);
+			break;
+		case ELogVerbosity::Error:
+			UE_LOG(LogDatasmithDispatcher, Error, TEXT("%s"), *Message.Value);
+			break;
+		case ELogVerbosity::Warning:
+			UE_LOG(LogDatasmithDispatcher, Warning, TEXT("%s"), *Message.Value);
+			break;
+		case ELogVerbosity::Display:
+			UE_LOG(LogDatasmithDispatcher, Display, TEXT("%s"), *Message.Value);
+			break;
+		case ELogVerbosity::Log:
+			UE_LOG(LogDatasmithDispatcher, Log, TEXT("%s"), *Message.Value);
+			break;
+		case ELogVerbosity::Verbose:
+			UE_LOG(LogDatasmithDispatcher, Verbose, TEXT("%s"), *Message.Value);
+			break;
+		case ELogVerbosity::VeryVerbose:
+		default:
+			UE_LOG(LogDatasmithDispatcher, VeryVerbose, TEXT("%s"), *Message.Value);
+			break;
+		}
 	}
 }
 

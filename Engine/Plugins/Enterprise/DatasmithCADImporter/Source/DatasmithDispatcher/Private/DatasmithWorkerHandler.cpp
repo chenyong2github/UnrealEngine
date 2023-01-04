@@ -171,6 +171,7 @@ void FDatasmithWorkerHandler::RunInternal()
 
 				if (CurrentTask.IsSet())
 				{
+					UE_LOG(LogDatasmithDispatcher, Log, TEXT("   - Next task: %s"), *CurrentTask->FileDescription.GetFileName());
 					FRunTaskCommand NewTask(CurrentTask.GetValue());
 
 					if (CommandIO.SendCommand(NewTask, Config::SendCommandTimeout_s))
@@ -339,8 +340,11 @@ void FDatasmithWorkerHandler::ProcessCommand(FCompletedTaskCommand& CompletedTas
 	}
 
 	Dispatcher.SetTaskState(CurrentTask->Index, CompletedTaskCommand.ProcessResult);
+
+	UE_LOG(LogDatasmithDispatcher, Log, TEXT("   - Task completed: %s"), *CurrentTask->FileDescription.GetFileName());
+
 	Dispatcher.LinkCTFileToUnrealCacheFile(CurrentTask->FileDescription, CompletedTaskCommand.SceneGraphFileName, CompletedTaskCommand.GeomFileName);
-	Dispatcher.LogWarningMessages(CompletedTaskCommand.WarningMessages);
+	Dispatcher.LogMessages(CompletedTaskCommand.Messages);
 	CurrentTask.Reset();
 
 	if (CompletedTaskCommand.ProcessResult == ETaskState::Unknown)

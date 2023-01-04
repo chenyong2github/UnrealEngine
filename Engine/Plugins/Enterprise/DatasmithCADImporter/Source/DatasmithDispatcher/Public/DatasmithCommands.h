@@ -103,7 +103,7 @@ public:
 	FString SceneGraphFileName;
 	FString GeomFileName;
 	ETaskState ProcessResult = ETaskState::Unknown;
-	TArray<FString> WarningMessages;
+	TArray<TPair<uint8, FString>> Messages;
 };
 
 class FImportParametersCommand : public ICommand

@@ -27,7 +27,7 @@ public:
 
 	void LinkCTFileToUnrealCacheFile(const CADLibrary::FFileDescriptor& CTFileDescription, const FString& UnrealSceneGraphFile, const FString& UnrealGeomFile);
 
-	void LogWarningMessages(const TArray<FString>& Warnings) const;
+	void LogMessages(const TArray<TPair<uint8, FString>>& Warnings) const;
 
 private:
 	void SpawnHandlers();
