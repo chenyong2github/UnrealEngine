@@ -1279,6 +1279,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Texture, AssetRegistrySearchable, AdvancedDisplay)
 	ETextureMipLoadOptions MipLoadOptions;
 
+	/** If the platform supports it, tile the texture when cooking, or keep it linear and tile it when it's actually submitted to the GPU. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Compression, AdvancedDisplay)
+	TEnumAsByte<enum TextureCookPlatformTilingSettings> CookPlatformTilingSettings;
+
 	/** Texture group this texture belongs to */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=LevelOfDetail, meta=(DisplayName="Texture Group"), AssetRegistrySearchable)
 	TEnumAsByte<enum TextureGroup> LODGroup;
@@ -1749,6 +1753,16 @@ public:
 	{
 		return UE::TextureDefines::IsUncompressed(CompressionSettings);
 	}
+
+	/** 
+	 * Checks whether this texture should be tiled to a platform-specific format during cook, or whether the bNotOfflineProcessed flag 
+	 * should be set to true at runtime because it has not been tiled at cook
+	 * 
+	 * @param  TargetPlatform	The platform for which the texture is being cooked and texture group info will be extracted from. 
+	 *                          If null, this info will be extracted from UDeviceProfileManager::Get().GetActiveProfile(), possibly at runtime
+	 * @return true if platform tiling during cook is disabled for this texture 
+	 */
+	ENGINE_API bool IsCookPlatformTilingDisabled(const ITargetPlatform* TargetPlatform) const;
 
 	/**
 	 * Calculates the size of this texture if it had MipCount miplevels streamed in.

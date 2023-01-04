@@ -395,6 +395,18 @@ enum class ETextureColorSpace : uint8
 	TCS_MAX,
 };
 
+UENUM()
+enum TextureCookPlatformTilingSettings : uint8
+{
+	/** Get the tiling setting from the texture's group CookPlatformTilingDisabled setting. By default it's to tile during cook, unless it has been changed in the texture group */
+	TCPTS_FromTextureGroup UMETA(DisplayName = "FromTextureGroup"),
+	/** The texture will be tiled during the cook process if the platform supports it. */
+	TCPTS_Tile UMETA(DisplayName = "Tile during cook"),
+	/** The texture will not be tiled during the cook process, and will be tiled when uploaded to the GPU if the platform supports it. */
+	TCPTS_DoNotTile UMETA(DisplayName = "Do not tile during cook"),
+	TCPTS_MAX,
+};
+
 /** List of chromatic adaptation methods, matching the list in ColorManagementDefines.h. */
 UENUM()
 enum class ETextureChromaticAdaptationMethod : uint8

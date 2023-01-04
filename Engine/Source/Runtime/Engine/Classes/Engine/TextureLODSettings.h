@@ -41,6 +41,7 @@ struct ENGINE_API FTextureLODGroup
 		, VirtualTextureTileCountBias(0)
 		, VirtualTextureTileSizeBias(0)
 		, LossyCompressionAmount(TLCA_Default)
+		, CookPlatformTilingDisabled(false)
 	{
 		SetupGroup();
 	}
@@ -126,6 +127,10 @@ struct ENGINE_API FTextureLODGroup
 	
 	UPROPERTY()
 	TEnumAsByte<enum ETextureLossyCompressionAmount> LossyCompressionAmount;
+
+	/** If true textures with CookPlatformTilingSettings set to TCPTS_FromTextureGroup will not be tiled during cook. They will be tiled when uploaded to the GPU if necessary */
+	UPROPERTY()
+	bool CookPlatformTilingDisabled;
 
 	void SetupGroup();
 

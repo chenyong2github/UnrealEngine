@@ -33,6 +33,8 @@
 #include "ImageCoreUtils.h"
 #include "ImageUtils.h"
 #include "Algo/Unique.h"
+#include "DeviceProfiles/DeviceProfile.h"
+#include "DeviceProfiles/DeviceProfileManager.h"
 
 #if WITH_EDITOR
 #include "DerivedDataBuildVersion.h"
@@ -157,6 +159,7 @@ UTexture::UTexture(const FObjectInitializer& ObjectInitializer)
 	CompressionYCoCg = 0;
 	Downscale = 0.f;
 	DownscaleOptions = ETextureDownscaleOptions::Default;
+	CookPlatformTilingSettings = TextureCookPlatformTilingSettings::TCPTS_FromTextureGroup;
 	Source.SetOwner(this);
 #endif // #if WITH_EDITORONLY_DATA
 
@@ -1040,6 +1043,12 @@ void UTexture::PostLoad()
 
 #endif
 
+	if (IsCookPlatformTilingDisabled(nullptr)) // nullptr TargetPlatform means it will use UDeviceProfileManager::Get().GetActiveProfile() to get the tiling settings
+	{
+		// The texture was not processed/tiled during cook, so it has to be tiled when uploaded to the GPU if necessary
+		bNotOfflineProcessed = true;
+	}
+
 	if( !IsTemplate() )
 	{
 		// The texture will be cached by the cubemap it is contained within on consoles.
@@ -1302,6 +1311,38 @@ TextureMipGenSettings UTexture::GetMipGenSettingsFromString(const TCHAR* InStr, 
 
 	// default for TextureGroup and Texture is different
 	return bTextureGroup ? TMGS_SimpleAverage : TMGS_FromTextureGroup;
+}
+
+bool UTexture::IsCookPlatformTilingDisabled(const ITargetPlatform* TargetPlatform) const
+{
+	if (CookPlatformTilingSettings.GetValue() == TextureCookPlatformTilingSettings::TCPTS_FromTextureGroup)
+	{
+		const UTextureLODSettings* TextureLODSettings = nullptr;
+
+		if (TargetPlatform)
+		{
+			TextureLODSettings = &TargetPlatform->GetTextureLODSettings();
+		}
+		else
+		{
+			TextureLODSettings = UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings();
+
+			if (!TextureLODSettings)
+			{
+				return false;
+			}
+		}
+
+		check(TextureLODSettings);
+
+		checkf(LODGroup < TextureLODSettings->TextureLODGroups.Num(), 
+			TEXT("A texture had passed a bad LODGroup to UTexture::IsCookPlatformTilingDisabled (%d, out of %d groups). The texture name is '%s'."), 
+			LODGroup, TextureLODSettings->TextureLODGroups.Num(), *GetPathName());
+
+		return TextureLODSettings->TextureLODGroups[LODGroup].CookPlatformTilingDisabled;
+	}
+
+	return CookPlatformTilingSettings.GetValue() == TextureCookPlatformTilingSettings::TCPTS_DoNotTile;
 }
 
 void UTexture::SetDeterministicLightingGuid()
