@@ -2,6 +2,7 @@
 
 #include "SSourceControlReview.h"
 
+#include "HAL/FileManager.h"
 #include "ClassIconFinder.h"
 #include "ISourceControlModule.h"
 #include "ISourceControlProvider.h"
