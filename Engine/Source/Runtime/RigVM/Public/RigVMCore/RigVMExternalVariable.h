@@ -9,6 +9,9 @@
 #include "RigVMModule.h"
 #include "RigVMTypeUtils.h"
 #include "UObject/UnrealType.h"
+#if WITH_EDITOR
+#include "EdGraphSchema_K2.h"
+#endif
 #include "RigVMExternalVariable.generated.h"
 
 /**
@@ -646,3 +649,15 @@ inline FArchive& operator<<(FArchive& Ar, FRigVMExternalVariable& Variable)
 	return Ar;
 }
 
+namespace RigVMTypeUtils
+{
+#if WITH_EDITOR
+ 	RIGVM_API FRigVMExternalVariable ExternalVariableFromBPVariableDescription(const FBPVariableDescription& InVariableDescription);
+
+	RIGVM_API FRigVMExternalVariable ExternalVariableFromPinType(const FName& InName, const FEdGraphPinType& InPinType, bool bInPublic = false, bool bInReadonly = false);
+
+	RIGVM_API FRigVMExternalVariable ExternalVariableFromCPPTypePath(const FName& InName, const FString& InCPPTypePath, bool bInPublic = false, bool bInReadonly = false);
+
+	RIGVM_API FRigVMExternalVariable ExternalVariableFromCPPType(const FName& InName, const FString& InCPPType, UObject* InCPPTypeObject, bool bInPublic = false, bool bInReadonly = false);
+#endif
+}

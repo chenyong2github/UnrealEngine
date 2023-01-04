@@ -18,5 +18,16 @@ public class RigVM : ModuleRules
                 "AnimGraphRuntime",
             }
         );
+
+        if (Target.bBuildEditor == true)
+        {
+            PrivateDependencyModuleNames.AddRange(
+                new string[]
+                {
+                    "UnrealEd",
+                    "BlueprintGraph",
+                }
+            );
+        }
     }
 }
