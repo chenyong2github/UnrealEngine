@@ -81,7 +81,7 @@ FEdGraphPinType FControlRigPublicFunctionArg::GetPinType() const
 	
 	if(CPPTypeObjectPath.IsValid())
 	{
-		Variable.TypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath(CPPTypeObjectPath.ToString());
+		Variable.TypeObject = RigVMTypeUtils::FindObjectFromCPPTypeObjectPath(CPPTypeObjectPath.ToString());
 	}
 
 	return RigVMTypeUtils::PinTypeFromExternalVariable(Variable);
@@ -94,7 +94,7 @@ bool FControlRigPublicFunctionData::IsMutable() const
 		if(!Arg.CPPTypeObjectPath.IsNone())
 		{
 			if(UScriptStruct* Struct = Cast<UScriptStruct>(
-				URigVMPin::FindObjectFromCPPTypeObjectPath(Arg.CPPTypeObjectPath.ToString())))
+				RigVMTypeUtils::FindObjectFromCPPTypeObjectPath(Arg.CPPTypeObjectPath.ToString())))
 			{
 				if(Struct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
 				{
@@ -2861,13 +2861,13 @@ bool UControlRigBlueprint::ChangeMemberVariableType(const FName& InName, const F
 		Variable.TypeName = *CPPType;
 		Variable.Size = sizeof(FName);
 	}
-	else if(UScriptStruct* ScriptStruct = URigVMPin::FindObjectFromCPPTypeObjectPath<UScriptStruct>(CPPType))
+	else if(UScriptStruct* ScriptStruct = RigVMTypeUtils::FindObjectFromCPPTypeObjectPath<UScriptStruct>(CPPType))
 	{
 		Variable.TypeName = *RigVMTypeUtils::GetUniqueStructTypeName(ScriptStruct);
 		Variable.TypeObject = ScriptStruct;
 		Variable.Size = ScriptStruct->GetStructureSize();
 	}
-	else if (UEnum* Enum= URigVMPin::FindObjectFromCPPTypeObjectPath<UEnum>(CPPType))
+	else if (UEnum* Enum= RigVMTypeUtils::FindObjectFromCPPTypeObjectPath<UEnum>(CPPType))
 	{
 		Variable.TypeName = *RigVMTypeUtils::CPPTypeFromEnum(Enum);
 		Variable.TypeObject = Enum;
@@ -3176,7 +3176,7 @@ void UControlRigBlueprint::PopulateModelFromGraphForBackwardsCompatibility(UCont
 
 				URigVMNode* ModelNode = nullptr;
 
-				UScriptStruct* UnitStruct = URigVMPin::FindObjectFromCPPTypeObjectPath<UScriptStruct>(StructPath);
+				UScriptStruct* UnitStruct = RigVMTypeUtils::FindObjectFromCPPTypeObjectPath<UScriptStruct>(StructPath);
 				if (UnitStruct && UnitStruct->IsChildOf(FRigVMStruct::StaticStruct()))
 				{ 
 					ModelNode = GetOrCreateController()->AddUnitNode(UnitStruct, FRigUnit::GetMethodName(), NodePosition, PropertyName.ToString(), false);

@@ -438,14 +438,6 @@ public:
 	// Returns true if the pin can be bound to a given variable
 	bool CanBeBoundToVariable(const FRigVMExternalVariable& InExternalVariable, const FString& InSegmentPath = FString()) const;
 
-	// helper function to retrieve an object from a path
-	static UObject* FindObjectFromCPPTypeObjectPath(const FString& InObjectPath);
-	template<class T>
-	static T* FindObjectFromCPPTypeObjectPath(const FString& InObjectPath)
-	{
-		return Cast<T>(FindObjectFromCPPTypeObjectPath(InObjectPath));
-	}
-
 	// Returns true if the pin should not show up on a node, but in the details panel
 	bool ShowInDetailsPanelOnly() const;
 

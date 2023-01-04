@@ -947,18 +947,7 @@ URigVMUnitNode* URigVMController::AddUnitNodeFromStructPath(const FString& InScr
 		return nullptr;
 	}
 
-	UScriptStruct* ScriptStruct = URigVMPin::FindObjectFromCPPTypeObjectPath<UScriptStruct>(InScriptStructPath);
-	if (ScriptStruct == nullptr)
-	{
-		const FCoreRedirectObjectName OldObjectName(InScriptStructPath);
-		const FCoreRedirectObjectName NewObjectName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Struct, OldObjectName);
-		if (OldObjectName != NewObjectName)
-		{
-			ScriptStruct = URigVMPin::FindObjectFromCPPTypeObjectPath<UScriptStruct>(NewObjectName.ToString());
-		}
-		
-	}
-	
+	UScriptStruct* ScriptStruct = RigVMTypeUtils::FindObjectFromCPPTypeObjectPath<UScriptStruct>(InScriptStructPath);
 	if (ScriptStruct == nullptr)
 	{
 		ReportErrorf(TEXT("Cannot find struct for path '%s'."), *InScriptStructPath);
@@ -1176,7 +1165,7 @@ URigVMVariableNode* URigVMController::AddVariableNode(const FName& InVariableNam
 	}
 	if (InCPPTypeObject == nullptr)
 	{
-		InCPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath<UObject>(InCPPType);
+		InCPPTypeObject = RigVMTypeUtils::FindObjectFromCPPTypeObjectPath<UObject>(InCPPType);
 	}
 
 	FString CPPType = RigVMTypeUtils::PostProcessCPPType(InCPPType, InCPPTypeObject);
@@ -1311,7 +1300,7 @@ URigVMVariableNode* URigVMController::AddVariableNodeFromObjectPath(const FName&
 	UObject* CPPTypeObject = nullptr;
 	if (!InCPPTypeObjectPath.IsEmpty())
 	{
-		CPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath<UObject>(InCPPTypeObjectPath);
+		CPPTypeObject = RigVMTypeUtils::FindObjectFromCPPTypeObjectPath<UObject>(InCPPTypeObjectPath);
 		if (CPPTypeObject == nullptr)
 		{
 			ReportErrorf(TEXT("Cannot find cpp type object for path '%s'."), *InCPPTypeObjectPath);
@@ -1702,7 +1691,7 @@ void URigVMController::OnExternalVariableTypeChangedFromObjectPath(const FName& 
 	UObject* CPPTypeObject = nullptr;
 	if (!InCPPTypeObjectPath.IsEmpty())
 	{
-		CPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath<UObject>(InCPPTypeObjectPath);
+		CPPTypeObject = RigVMTypeUtils::FindObjectFromCPPTypeObjectPath<UObject>(InCPPTypeObjectPath);
 		if (CPPTypeObject == nullptr)
 		{
 			ReportErrorf(TEXT("Cannot find cpp type object for path '%s'."), *InCPPTypeObjectPath);
@@ -2220,7 +2209,7 @@ URigVMParameterNode* URigVMController::AddParameterNodeFromObjectPath(const FNam
 	UObject* CPPTypeObject = nullptr;
 	if (!InCPPTypeObjectPath.IsEmpty())
 	{
-		CPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath<UObject>(InCPPTypeObjectPath);
+		CPPTypeObject = RigVMTypeUtils::FindObjectFromCPPTypeObjectPath<UObject>(InCPPTypeObjectPath);
 		if (CPPTypeObject == nullptr)
 		{
 			ReportErrorf(TEXT("Cannot find cpp type object for path '%s'."), *InCPPTypeObjectPath);
@@ -2726,7 +2715,7 @@ URigVMInjectionInfo* URigVMController::AddInjectedNodeFromStructPath(const FStri
 		return nullptr;
 	}
 
-	UScriptStruct* ScriptStruct = URigVMPin::FindObjectFromCPPTypeObjectPath<UScriptStruct>(InScriptStructPath);
+	UScriptStruct* ScriptStruct = RigVMTypeUtils::FindObjectFromCPPTypeObjectPath<UScriptStruct>(InScriptStructPath);
 	if (ScriptStruct == nullptr)
 	{
 		ReportErrorf(TEXT("Cannot find struct for path '%s'."), *InScriptStructPath);
@@ -10089,7 +10078,7 @@ FName URigVMController::AddExposedPin(const FName& InPinName, ERigVMPinDirection
 		}
 		if (CPPTypeObject == nullptr)
 		{
-			CPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath<UObject>(InCPPTypeObjectPath.ToString());
+			CPPTypeObject = RigVMTypeUtils::FindObjectFromCPPTypeObjectPath<UObject>(InCPPTypeObjectPath.ToString());
 		}
 	}
 
@@ -11045,7 +11034,7 @@ bool URigVMController::ChangeExposedPinType(const FName& InPinName, const FStrin
 	UObject* CPPTypeObject = nullptr;
 	if (!InCPPTypeObjectPath.IsNone())
 	{
-		CPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath<UObject>(InCPPTypeObjectPath.ToString());
+		CPPTypeObject = RigVMTypeUtils::FindObjectFromCPPTypeObjectPath<UObject>(InCPPTypeObjectPath.ToString());
 		if(CPPTypeObject)
 		{
 			if(const UScriptStruct* CPPTypeStruct = Cast<UScriptStruct>(CPPTypeObject))
@@ -12008,7 +11997,7 @@ FRigVMGraphVariableDescription URigVMController::AddLocalVariableFromObjectPath(
 	UObject* CPPTypeObject = nullptr;
 	if (!InCPPTypeObjectPath.IsEmpty())
 	{
-		CPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath<UObject>(InCPPTypeObjectPath);
+		CPPTypeObject = RigVMTypeUtils::FindObjectFromCPPTypeObjectPath<UObject>(InCPPTypeObjectPath);
 		if (CPPTypeObject == nullptr)
 		{
 			ReportErrorf(TEXT("Cannot find cpp type object for path '%s'."), *InCPPTypeObjectPath);
@@ -12364,7 +12353,7 @@ bool URigVMController::SetLocalVariableTypeFromObjectPath(const FName& InVariabl
 	UObject* CPPTypeObject = nullptr;
 	if (!InCPPTypeObjectPath.IsEmpty())
 	{
-		CPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath<UObject>(InCPPTypeObjectPath);
+		CPPTypeObject = RigVMTypeUtils::FindObjectFromCPPTypeObjectPath<UObject>(InCPPTypeObjectPath);
 		if (CPPTypeObject == nullptr)
 		{
 			ReportErrorf(TEXT("Cannot find cpp type object for path '%s'."), *InCPPTypeObjectPath);
@@ -12875,7 +12864,7 @@ URigVMNode* URigVMController::AddIfNode(const FString& InCPPType, const FName& I
 	UObject* CPPTypeObject = nullptr;
 	if(!InCPPTypeObjectPath.IsNone())
 	{
-		CPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath<UObject>(InCPPTypeObjectPath.ToString());
+		CPPTypeObject = RigVMTypeUtils::FindObjectFromCPPTypeObjectPath<UObject>(InCPPTypeObjectPath.ToString());
 		if (CPPTypeObject == nullptr)
 		{
 			ReportErrorf(TEXT("Cannot find cpp type object for path '%s'."), *InCPPTypeObjectPath.ToString());
@@ -12937,7 +12926,7 @@ URigVMNode* URigVMController::AddSelectNode(const FString& InCPPType, const FNam
 	UObject* CPPTypeObject = nullptr;
 	if (!InCPPTypeObjectPath.IsNone())
 	{
-		CPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath<UObject>(InCPPTypeObjectPath.ToString());
+		CPPTypeObject = RigVMTypeUtils::FindObjectFromCPPTypeObjectPath<UObject>(InCPPTypeObjectPath.ToString());
 		if (CPPTypeObject == nullptr)
 		{
 			ReportErrorf(TEXT("Cannot find cpp type object for path '%s'."), *InCPPTypeObjectPath.ToString());
@@ -13190,7 +13179,7 @@ URigVMEnumNode* URigVMController::AddEnumNode(const FName& InCPPTypeObjectPath, 
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
-    UObject* CPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath<UObject>(InCPPTypeObjectPath.ToString());
+    UObject* CPPTypeObject = RigVMTypeUtils::FindObjectFromCPPTypeObjectPath<UObject>(InCPPTypeObjectPath.ToString());
 	if (CPPTypeObject == nullptr)
 	{
 		ReportErrorf(TEXT("Cannot find cpp type object for path '%s'."), *InCPPTypeObjectPath.ToString());
@@ -13353,7 +13342,7 @@ URigVMNode* URigVMController::AddArrayNodeFromObjectPath(ERigVMOpCode InOpCode, 
 	UObject* CPPTypeObject = nullptr;
 	if (!InCPPTypeObjectPath.IsEmpty())
 	{
-		CPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath<UObject>(InCPPTypeObjectPath);
+		CPPTypeObject = RigVMTypeUtils::FindObjectFromCPPTypeObjectPath<UObject>(InCPPTypeObjectPath);
 		if (CPPTypeObject == nullptr)
 		{
 			ReportErrorf(TEXT("Cannot find cpp type object for path '%s'."), *InCPPTypeObjectPath);
@@ -16602,7 +16591,7 @@ bool URigVMController::ResolveWildCardPin(const FString& InPinPath, const FStrin
 	UObject* CPPTypeObject = nullptr;
 	if (!InCPPTypeObjectPath.IsNone())
 	{
-		CPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath<UObject>(InCPPTypeObjectPath.ToString());
+		CPPTypeObject = RigVMTypeUtils::FindObjectFromCPPTypeObjectPath<UObject>(InCPPTypeObjectPath.ToString());
 		if (CPPTypeObject == nullptr)
 		{
 			ReportErrorf(TEXT("Cannot find cpp type object for path '%s'."), *InCPPTypeObjectPath.ToString());
@@ -18474,7 +18463,7 @@ bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType,
 		return false;
 	}
 
-	UObject* CPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath(InCPPTypeObjectPath.ToString());
+	UObject* CPPTypeObject = RigVMTypeUtils::FindObjectFromCPPTypeObjectPath(InCPPTypeObjectPath.ToString());
 
 	// always refresh pin type if it is a user defined struct, whose internal layout can change at anytime
 	bool bForceRefresh = false;
@@ -18506,7 +18495,7 @@ bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType,
 		return false;
 	}
 
-	if (FRigVMPropertyDescription::RequiresCPPTypeObject(InCPPType) && !InCPPTypeObject)
+	if (RigVMTypeUtils::RequiresCPPTypeObject(InCPPType) && !InCPPTypeObject)
 	{
 		return false;
 	}
@@ -18968,90 +18957,27 @@ void URigVMController::AddSubPin(URigVMPin* InParentPin, URigVMPin* InPin)
 	InParentPin->SubPins.Add(InPin);
 }
 
-
-static UObject* FindObjectGloballyWithRedirectors(const TCHAR* InObjectName)
-{
-	// Do a global search for the CPP type. Note that searching with ANY_PACKAGE _does not_
-	// apply redirectors. So only if this fails do we apply them manually below.
-	UObject* Object = FindFirstObject<UField>(InObjectName, EFindFirstObjectOptions::EnsureIfAmbiguous);
-	if(Object != nullptr)
-	{
-		return Object;
-	}
-
-	FCoreRedirectObjectName NewObjectName;
-	const bool bFoundRedirect = FCoreRedirects::RedirectNameAndValues(
-		ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Type_Struct | ECoreRedirectFlags::Type_Enum,
-		FCoreRedirectObjectName(InObjectName),
-		NewObjectName,
-		nullptr,
-		ECoreRedirectMatchFlags::AllowPartialMatch); // AllowPartialMatch to allow redirects from one package to another (see /Script/ControlRig.CRFourPointBezier -> /Script/RigVM.RigVMFourPointBezier)
-
-	if (!bFoundRedirect)
-	{
-		return nullptr;
-	}
-
-	const FString RedirectedObjectName = NewObjectName.ObjectName.ToString();
-	UPackage *Package = nullptr;
-	if (!NewObjectName.PackageName.IsNone())
-	{
-		Package = FindPackage(nullptr, *NewObjectName.PackageName.ToString());
-	}
-	if (Package != nullptr)
-	{
-		Object = FindObject<UField>(Package, *RedirectedObjectName);
-	}
-	if (Package == nullptr || Object == nullptr)
-	{
-		// Hail Mary pass.
-		Object = FindFirstObject<UField>(*RedirectedObjectName, EFindFirstObjectOptions::EnsureIfAmbiguous);
-	}
-	return Object;
-}
-
 bool URigVMController::EnsurePinValidity(URigVMPin* InPin, bool bRecursive)
 {
 	check(InPin);
 	
 	// check if the CPPTypeObject is set up correctly.
-	if(FRigVMPropertyDescription::RequiresCPPTypeObject(InPin->GetCPPType()))
+	if(RigVMTypeUtils::RequiresCPPTypeObject(InPin->GetCPPType()))
 	{
 		// GetCPPTypeObject attempts to update pin type information to the latest
 		// without testing for redirector
 		if(InPin->GetCPPTypeObject() == nullptr)
 		{
-			// try to find the CPPTypeObject by name
-			FString CPPType = InPin->IsArray() ? InPin->GetArrayElementCppType() : InPin->GetCPPType();
-
-			UObject* CPPTypeObject = FindObjectGloballyWithRedirectors(*CPPType);
-
-			if (CPPTypeObject == nullptr)
-			{
-				// If we've mistakenly stored the struct type with the 'F', 'U', or 'A' prefixes, we need to strip them
-				// off first. Enums are always named with their prefix intact.
-				if (!CPPType.IsEmpty() && (CPPType[0] == TEXT('F') || CPPType[0] == TEXT('U') || CPPType[0] == TEXT('A')))
-				{
-					CPPType = CPPType.Mid(1);
-				}
-				CPPTypeObject = FindObjectGloballyWithRedirectors(*CPPType);
-			}
-
-			if(CPPTypeObject == nullptr)
-			{
-				const FString Message = FString::Printf(
-					TEXT("%s: Pin '%s' is missing the CPPTypeObject for CPPType '%s'."),
-					*InPin->GetPathName(), *InPin->GetPinPath(), *InPin->GetCPPType());
-				FScriptExceptionHandler::Get().HandleException(ELogVerbosity::Error, *Message, *FString());
-				return false;
-			}
-			
-			InPin->CPPTypeObject = CPPTypeObject;
+			FString CPPType = InPin->GetCPPType();
+			InPin->CPPTypeObject = RigVMTypeUtils::ObjectFromCPPType(CPPType);
+			InPin->CPPType = CPPType;
+		}
+		else
+		{
+			InPin->CPPType = RigVMTypeUtils::PostProcessCPPType(InPin->CPPType, InPin->GetCPPTypeObject());
 		}
 	}
-
-	InPin->CPPType = RigVMTypeUtils::PostProcessCPPType(InPin->CPPType, InPin->GetCPPTypeObject());
-
+	
 	if(bRecursive)
 	{
 		for(URigVMPin* SubPin : InPin->SubPins)

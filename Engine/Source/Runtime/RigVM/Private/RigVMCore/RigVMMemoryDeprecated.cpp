@@ -7,6 +7,7 @@
 #include "UObject/Package.h"
 #include "RigVMModule.h"
 #include "UObject/CoreRedirects.h"
+#include "RigVMTypeUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMMemoryDeprecated)
 
@@ -596,7 +597,7 @@ void FRigVMMemoryContainer::Load(FArchive& Ar)
 
 	for (const FString& ScriptStructPath : ScriptStructPaths)
 	{
-		UScriptStruct* ScriptStruct = FindObject<UScriptStruct>(nullptr, *ScriptStructPath);
+		UScriptStruct* ScriptStruct = RigVMTypeUtils::FindObjectFromCPPTypeObjectPath<UScriptStruct>(*ScriptStructPath);
 
 		// try to find a redirect
 		if (ScriptStruct == nullptr)

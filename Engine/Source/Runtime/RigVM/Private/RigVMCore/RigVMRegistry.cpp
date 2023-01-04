@@ -12,11 +12,7 @@
 #include "UObject/UObjectIterator.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/DelayedAutoRegister.h"
-#include "UObject/CoreRedirects.h"
 
-#if WITH_EDITOR
-#include "UObject/CoreRedirects.h"
-#endif
 
 const FName FRigVMRegistry::TemplateNameMetaName = TEXT("TemplateName");
 
@@ -723,22 +719,10 @@ TRigVMTypeIndex FRigVMRegistry::GetTypeIndexFromCPPType(const FString& InCPPType
 		// If not found, try to find a redirect
 		if (Result == INDEX_NONE)
 		{
-			FCoreRedirectObjectName NewObjectName;
-			const bool bFoundRedirect = FCoreRedirects::RedirectNameAndValues(
-				ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Type_Struct | ECoreRedirectFlags::Type_Enum,
-				FCoreRedirectObjectName(*InCPPType),
-				NewObjectName,
-				nullptr,
-				ECoreRedirectMatchFlags::AllowPartialMatch); // AllowPartialMatch to allow redirects from one package to another (see /Script/ControlRig.CRFourPointBezier -> /Script/RigVM.RigVMFourPointBezier)
-
-			if (!bFoundRedirect)
+			const FString NewCPPType = RigVMTypeUtils::PostProcessCPPType(InCPPType);
+			Result = Types.IndexOfByPredicate([NewCPPType](const FTypeInfo& Info) -> bool
 			{
-				return INDEX_NONE;
-			}
-
-			Result = Types.IndexOfByPredicate([NewObjectName](const FTypeInfo& Info) -> bool
-			{
-				return Info.Type.CPPType == NewObjectName.ObjectName;
+				return Info.Type.CPPType == *NewCPPType;
 			});
 		}
 	}

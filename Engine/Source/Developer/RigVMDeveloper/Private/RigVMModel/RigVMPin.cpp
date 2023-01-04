@@ -838,7 +838,7 @@ bool URigVMPin::IsValidDefaultValue(const FString& InDefaultValue) const
 				return true;
 			}
 			
-			UObject* Object = FindObjectFromCPPTypeObjectPath(Value);
+			UObject* Object = RigVMTypeUtils::FindObjectFromCPPTypeObjectPath(Value);
 			if(Object == nullptr)
 			{
 				return false;
@@ -1051,36 +1051,6 @@ FText URigVMPin::GetToolTipText() const
 		return Node->GetToolTipTextForPin(this);
 	}
 	return FText();
-}
-
-UObject* URigVMPin::FindObjectFromCPPTypeObjectPath(const FString& InObjectPath)
-{
-	if (InObjectPath.IsEmpty())
-	{
-		return nullptr;
-	}
-
-	if (InObjectPath == FName(NAME_None).ToString())
-	{
-		return nullptr;
-	}
-
-	// we do this to avoid ambiguous searches for 
-	// common names such as "transform" or "vector"
-	UPackage* Package = nullptr;
-	FString PackageName;
-	FString CPPTypeObjectName = InObjectPath;
-	if (InObjectPath.Split(TEXT("."), &PackageName, &CPPTypeObjectName))
-	{
-		Package = FindPackage(nullptr, *PackageName);
-	}
-	
-	if (UObject* ObjectWithinPackage = FindObject<UObject>(Package, *CPPTypeObjectName))
-	{
-		return ObjectWithinPackage;
-	}
-
-	return FindFirstObject<UObject>(*InObjectPath, EFindFirstObjectOptions::NativeFirst | EFindFirstObjectOptions::EnsureIfAmbiguous);
 }
 
 URigVMVariableNode* URigVMPin::GetBoundVariableNode() const
@@ -1331,10 +1301,13 @@ void URigVMPin::UpdateTypeInformationIfRequired() const
 		if (CPPTypeObjectPath != NAME_None)
 		{
 			URigVMPin* MutableThis = (URigVMPin*)this;
-			MutableThis->CPPTypeObject = FindObjectFromCPPTypeObjectPath(CPPTypeObjectPath.ToString());
+			MutableThis->CPPTypeObject = RigVMTypeUtils::FindObjectFromCPPTypeObjectPath(CPPTypeObjectPath.ToString());
 			MutableThis->CPPType = RigVMTypeUtils::PostProcessCPPType(CPPType, CPPTypeObject);
-			MutableThis->LastKnownTypeIndex = FRigVMRegistry::Get().FindOrAddType(FRigVMTemplateArgumentType(*CPPType, CPPTypeObject));
-			MutableThis->LastKnownCPPType = MutableThis->CPPType; 
+			if (!MutableThis->CPPType.IsEmpty())
+			{
+				MutableThis->LastKnownTypeIndex = FRigVMRegistry::Get().FindOrAddType(FRigVMTemplateArgumentType(*CPPType, CPPTypeObject));
+				MutableThis->LastKnownCPPType = MutableThis->CPPType;
+			} 
 		}
 	}
 

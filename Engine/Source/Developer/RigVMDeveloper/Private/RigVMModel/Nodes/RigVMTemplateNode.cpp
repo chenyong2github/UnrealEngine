@@ -25,19 +25,32 @@ void FRigVMTemplatePreferredType::UpdateIndexFromString()
 		return;
 	}
 
-	FString Left, Right;
-	verify(TypeString.Split(TEXT(","), &Left, &Right));
+	FString OriginalCPPType, CPPTypeObjectPath;
+	verify(TypeString.Split(TEXT(","), &OriginalCPPType, &CPPTypeObjectPath));
+	FString CPPType = OriginalCPPType;
 
 	UObject* CPPTypeObject = nullptr;
 
 	static const FString NoneString = FName(NAME_None).ToString(); 
-	if(Right != NoneString)
+	if(CPPTypeObjectPath != NoneString)
 	{
-		CPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath(Right);
+		CPPTypeObject = RigVMTypeUtils::FindObjectFromCPPTypeObjectPath(CPPTypeObjectPath);
 	}
 
-	const FRigVMTemplateArgumentType Type(*Left, CPPTypeObject);
+	// If we still haven't found the object, try to find it with the CPPType
+	if (!CPPTypeObject && RigVMTypeUtils::RequiresCPPTypeObject(CPPType))
+	{
+		CPPTypeObject = RigVMTypeUtils::ObjectFromCPPType(CPPType, true);
+	}
+
+	const FRigVMTemplateArgumentType Type(*CPPType, CPPTypeObject);
 	TypeIndex = FRigVMRegistry::Get().FindOrAddType(Type);
+
+	// We might have used redirectors. Update the TypeString with the new information.
+	if (TypeIndex != INDEX_NONE && OriginalCPPType != Type.CPPType.ToString())
+	{
+		UpdateStringFromIndex();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -94,6 +107,7 @@ void URigVMTemplateNode::PostLoad()
 			FString ArgName, CPPType;
 			PreferredPermutation.Split(TEXT(":"), &ArgName, &CPPType);
 
+			CPPType = RigVMTypeUtils::PostProcessCPPType(CPPType);
 			const FRigVMTemplateArgumentType Type = Registry.FindTypeFromCPPType(CPPType);
 			PreferredPermutationPairs.Emplace(*ArgName, Registry.GetTypeIndex(Type));
 		}

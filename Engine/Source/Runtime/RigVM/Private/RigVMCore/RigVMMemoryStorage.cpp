@@ -258,7 +258,7 @@ FRigVMPropertyDescription::FRigVMPropertyDescription(const FName& InName, const 
 	, DefaultValue(InDefaultValue)
 {
 	// sanity check that we have a CPP Type Object for enums, structs and uobjects
-	if(RequiresCPPTypeObject(CPPType))
+	if(RigVMTypeUtils::RequiresCPPTypeObject(CPPType))
 	{
 		checkf(CPPTypeObject != nullptr, TEXT("CPPType '%s' requires the CPPTypeObject to be provided."), *CPPType);
 	}
@@ -371,40 +371,6 @@ FString FRigVMPropertyDescription::GetTailCPPType() const
 	}
 	
 	return TailCPPType;
-}
-
-bool FRigVMPropertyDescription::RequiresCPPTypeObject(const FString& InCPPType)
-{
-	static const TArray<FString> PrefixesRequiringCPPTypeObject = {
-		TEXT("F"), 
-		TEXT("TArray<F"), 
-		TEXT("E"), 
-		TEXT("TArray<E"), 
-		TEXT("U"), 
-		TEXT("TArray<U"),
-		TEXT("TObjectPtr<"), 
-		TEXT("TArray<TObjectPtr<"),
-		TEXT("TScriptInterface<")
-	};
-	static const TArray<FString> CPPTypesNotRequiringCPPTypeObject = {
-		TEXT("FString"), 
-		TEXT("TArray<FString>"), 
-		TEXT("FName"), 
-		TEXT("TArray<FName>") 
-	};
-
-	if(!CPPTypesNotRequiringCPPTypeObject.Contains(InCPPType))
-	{
-		for(const FString& Prefix : PrefixesRequiringCPPTypeObject)
-		{
-			if(InCPPType.StartsWith(Prefix, ESearchCase::CaseSensitive))
-			{
-				return true;
-			}
-		}
-	}
-
-	return false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

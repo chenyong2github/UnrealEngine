@@ -7,6 +7,8 @@
 #include "RigVMCore/RigVMUnknownType.h"
 #include "UObject/Interface.h"
 #include "Engine/UserDefinedStruct.h"
+#include "UObject/CoreRedirects.h"
+#include "UObject/Package.h"
 
 namespace RigVMTypeUtils
 {
@@ -148,42 +150,253 @@ namespace RigVMTypeUtils
 		return WildCardArrayCPPTypeName;
 	}
 
-
-
-	inline FString PostProcessCPPType(const FString& InCPPType, UObject* InCPPTypeObject)
+	static bool RequiresCPPTypeObject(const FString& InCPPType)
 	{
-		FString CPPType = InCPPType;
-	
+		static const TArray<FString> PrefixesRequiringCPPTypeObject = {
+			TEXT("F"), 
+			TEXT("TArray<F"), 
+			TEXT("TArray<TArray<F"), 
+			TEXT("E"), 
+			TEXT("TArray<E"), 
+			TEXT("TArray<TArray<E"), 
+			TEXT("U"), 
+			TEXT("TArray<U"),
+			TEXT("TArray<TArray<U"),
+			TEXT("TObjectPtr<"), 
+			TEXT("TArray<TObjectPtr<"),
+			TEXT("TArray<TArray<TObjectPtr<"),
+			TEXT("TScriptInterface<")
+		};
+		static const TArray<FString> CPPTypesNotRequiringCPPTypeObject = {
+			TEXT("FString"), 
+			TEXT("TArray<FString>"), 
+			TEXT("TArray<TArray<FString>>"), 
+			TEXT("FName"), 
+			TEXT("TArray<FName>"),
+			TEXT("TArray<TArray<FName>>") 
+		};
+
+		if(!CPPTypesNotRequiringCPPTypeObject.Contains(InCPPType))
+		{
+			for(const FString& Prefix : PrefixesRequiringCPPTypeObject)
+			{
+				if(InCPPType.StartsWith(Prefix, ESearchCase::CaseSensitive))
+				{
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	static UObject* FindObjectGlobally(const TCHAR* InObjectName, bool bUseRedirector)
+	{
+		// Do a global search for the CPP type. Note that searching with ANY_PACKAGE _does not_
+		// apply redirectors. So only if this fails do we apply them manually below.
+		UObject* Object = FindFirstObject<UField>(InObjectName, EFindFirstObjectOptions::NativeFirst);
+		if(Object != nullptr)
+		{
+			return Object;
+		}
+
+		// If its an enum, it might be defined as a namespace with the actual enum inside (see ERigVMClampSpatialMode). 
+		FString ObjectNameStr(InObjectName);
+		if (!ObjectNameStr.IsEmpty() && ObjectNameStr[0] == 'E')
+		{
+			FString Left, Right;
+			if (ObjectNameStr.Split(TEXT("::"), &Left, &Right))
+			{
+				ObjectNameStr = Left;
+				Object = FindFirstObject<UField>(*ObjectNameStr, EFindFirstObjectOptions::NativeFirst);
+				if(Object != nullptr)
+				{
+					return Object;
+				}
+			}
+		}
+
+		if (!bUseRedirector)
+		{
+			return nullptr;
+		}
+
+		FCoreRedirectObjectName OldObjectName (ObjectNameStr);
+		FCoreRedirectObjectName NewObjectName;
+		const bool bFoundRedirect = FCoreRedirects::RedirectNameAndValues(
+			ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Type_Struct | ECoreRedirectFlags::Type_Enum,
+			OldObjectName,
+			NewObjectName,
+			nullptr,
+			ECoreRedirectMatchFlags::AllowPartialMatch); // AllowPartialMatch to allow redirects from one package to another (see /Script/ControlRig.CRFourPointBezier -> /Script/RigVM.RigVMFourPointBezier)
+
+		if (!bFoundRedirect)
+		{
+			return nullptr;
+		}
+
+		const FString RedirectedObjectName = NewObjectName.ObjectName.ToString();
+		UPackage *Package = nullptr;
+		if (!NewObjectName.PackageName.IsNone())
+		{
+			Package = FindPackage(nullptr, *NewObjectName.PackageName.ToString());
+		}
+		if (Package != nullptr)
+		{
+			Object = FindObject<UField>(Package, *RedirectedObjectName);
+		}
+		if (Package == nullptr || Object == nullptr)
+		{
+			// Hail Mary pass.
+			Object = FindFirstObject<UField>(*RedirectedObjectName, EFindFirstObjectOptions::NativeFirst);
+		}
+		return Object;
+	}
+
+	static FString CPPTypeFromObject(UObject* InCPPTypeObject)
+	{
 		if (const UClass* Class = Cast<UClass>(InCPPTypeObject))
 		{
 			if (Class->IsChildOf(UInterface::StaticClass()))
 			{
-				CPPType = FString::Printf(RigVMTypeUtils::TScriptInterfaceTemplate, TEXT("I"), *Class->GetName());
+				return FString::Printf(RigVMTypeUtils::TScriptInterfaceTemplate, TEXT("I"), *Class->GetName());
 			}
 			else
 			{
-				CPPType = FString::Printf(RigVMTypeUtils::TObjectPtrTemplate, Class->GetPrefixCPP(), *Class->GetName());
+				return FString::Printf(RigVMTypeUtils::TObjectPtrTemplate, Class->GetPrefixCPP(), *Class->GetName());
 			}
 		}
 		else if (const UScriptStruct* ScriptStruct = Cast<UScriptStruct>(InCPPTypeObject))
 		{
-			CPPType = GetUniqueStructTypeName(ScriptStruct);
+			return GetUniqueStructTypeName(ScriptStruct);
 		}
 		else if (UEnum* Enum = Cast<UEnum>(InCPPTypeObject))
 		{
-			CPPType = RigVMTypeUtils::CPPTypeFromEnum(Enum);
+			return RigVMTypeUtils::CPPTypeFromEnum(Enum);
 		}
 
-		if(CPPType != InCPPType)
+		return FString();
+	}
+
+	// Finds the CPPTypeObject from the CPPType. If not found, tries to use redirectors and modifies the InOutCPPType.
+	static UObject* ObjectFromCPPType(FString& InOutCPPType, bool bUseRedirector = true)
+	{
+		if (!RequiresCPPTypeObject(InOutCPPType))
 		{
-			FString TemplateType = InCPPType;
-			while (RigVMTypeUtils::IsArrayType(TemplateType))
+			return nullptr;
+		}
+
+		// try to find the CPPTypeObject by name
+		FString BaseCPPType = InOutCPPType;
+		while (IsArrayType(BaseCPPType))
+		{
+			BaseCPPType = BaseTypeFromArrayType(BaseCPPType);
+		}
+		FString CPPType = BaseCPPType;
+
+		static const FString PrefixScriptInterface = TScriptInterfacePrefix;
+		if (CPPType.StartsWith(TScriptInterfacePrefix))
+		{
+			// Chop the prefix + the I indicating interface class
+			CPPType = CPPType.RightChop(PrefixScriptInterface.Len() + 1).LeftChop(1);
+		}
+
+		UObject* CPPTypeObject = FindObjectGlobally(*CPPType, bUseRedirector);
+		if (CPPTypeObject == nullptr)
+		{
+			// If we've mistakenly stored the struct type with the 'F', 'U', or 'A' prefixes, we need to strip them
+			// off first. Enums are always named with their prefix intact.
+			if (!CPPType.IsEmpty() && (CPPType[0] == TEXT('F') || CPPType[0] == TEXT('U') || CPPType[0] == TEXT('A')))
 			{
-				CPPType = RigVMTypeUtils::ArrayTypeFromBaseType(CPPType);
-				TemplateType = RigVMTypeUtils::BaseTypeFromArrayType(TemplateType);
-			}		
+				CPPType = CPPType.Mid(1);
+			}
+			CPPTypeObject = RigVMTypeUtils::FindObjectGlobally(*CPPType, bUseRedirector);
+		}
+
+		if(CPPTypeObject == nullptr)
+		{
+			InOutCPPType.Reset();
+			return nullptr;
+		}
+
+		CPPType = CPPTypeFromObject(CPPTypeObject);
+		InOutCPPType.ReplaceInline(*BaseCPPType, *CPPType);
+		return CPPTypeObject;
+	}
+
+	static FString PostProcessCPPType(const FString& InCPPType, UObject* InCPPTypeObject = nullptr)
+	{
+		FString CPPType = InCPPType;
+		if (InCPPTypeObject)
+		{
+			CPPType = CPPTypeFromObject(InCPPTypeObject);	
+			if(CPPType != InCPPType)
+			{
+				FString TemplateType = InCPPType;
+				while (RigVMTypeUtils::IsArrayType(TemplateType))
+				{
+					CPPType = RigVMTypeUtils::ArrayTypeFromBaseType(CPPType);
+					TemplateType = RigVMTypeUtils::BaseTypeFromArrayType(TemplateType);
+				}		
+			}
+		}
+		else if (RequiresCPPTypeObject(CPPType))
+		{
+			// Uses redirectors and updates the CPPType if necessary
+			ObjectFromCPPType(CPPType, true);
 		}
 	
 		return CPPType;
+	}
+
+	// helper function to retrieve an object from a path
+	static UObject* FindObjectFromCPPTypeObjectPath(const FString& InObjectPath)
+	{
+		UObject* Result = nullptr;
+		if (InObjectPath.IsEmpty())
+		{
+			return Result;
+		}
+
+		if (InObjectPath == FName(NAME_None).ToString())
+		{
+			return Result;
+		}
+
+		// we do this to avoid ambiguous searches for 
+		// common names such as "transform" or "vector"
+		UPackage* Package = nullptr;
+		FString PackageName;
+		FString CPPTypeObjectName = InObjectPath;
+		if (InObjectPath.Split(TEXT("."), &PackageName, &CPPTypeObjectName))
+		{
+			Package = FindPackage(nullptr, *PackageName);
+		}
+	
+		if (UObject* ObjectWithinPackage = FindObject<UObject>(Package, *CPPTypeObjectName))
+		{
+			Result = ObjectWithinPackage;
+		}
+
+		if (!Result)
+		{
+			Result = FindFirstObject<UObject>(*InObjectPath, EFindFirstObjectOptions::NativeFirst | EFindFirstObjectOptions::EnsureIfAmbiguous);
+		}
+		if (!Result)
+		{
+			const FCoreRedirectObjectName OldObjectName(InObjectPath);
+			const FCoreRedirectObjectName NewObjectName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Struct, OldObjectName);
+			if (OldObjectName != NewObjectName)
+			{
+				Result = FindObjectFromCPPTypeObjectPath(NewObjectName.ToString());
+			}
+		}
+		return Result;
+	}
+	
+	template<class T>
+	static T* FindObjectFromCPPTypeObjectPath(const FString& InObjectPath)
+	{
+		return Cast<T>(FindObjectFromCPPTypeObjectPath(InObjectPath));
 	}
 }
