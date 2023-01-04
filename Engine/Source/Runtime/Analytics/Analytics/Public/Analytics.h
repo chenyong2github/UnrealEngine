@@ -5,7 +5,6 @@
 #include "AnalyticsBuildType.h"
 #include "AnalyticsProviderConfigurationDelegate.h"
 #include "Containers/UnrealString.h"
-#include "Containers/Map.h"
 #include "CoreGlobals.h"
 #include "CoreMinimal.h"
 #include "Delegates/Delegate.h"
@@ -20,10 +19,6 @@
 ANALYTICS_API DECLARE_LOG_CATEGORY_EXTERN(LogAnalytics, Display, All);
 
 class IAnalyticsProvider;
-struct FAnalyticsEventAttribute;
-
-/** Analytics Event Callback */
-DECLARE_MULTICAST_DELEGATE_OneParam(FAnalyticsEventCallback, TArray<FAnalyticsEventAttribute>&);
 
 /**
  * The public interface for interacting with analytics.
@@ -66,37 +61,6 @@ public:
 	static inline bool IsAvailable()
 	{
 		return FModuleManager::Get().IsModuleLoaded( "Analytics" );
-	}
-
-	TSharedPtr<FAnalyticsEventCallback> GetEventCallback(const FString& EventName)
-	{
-		// Check to see if we already have an event callback registered with this name
-		TSharedPtr<FAnalyticsEventCallback>* CallBackPtr = EventCallbacks.Find(EventName);
-
-		if (CallBackPtr != nullptr)
-		{
-			// Previously registered event callback so return it
-			return *CallBackPtr;
-		}
-
-		// Create and register a new event callback
-		TSharedPtr<FAnalyticsEventCallback> CallBack = MakeShareable(new FAnalyticsEventCallback());
-
-		EventCallbacks.Add(EventName, CallBack);
-
-		return CallBack;
-	}
-
-	void FireEventCallbacks(const FString& EventName, TArray<FAnalyticsEventAttribute>& Attributes)
-	{
-		// Check to see if we already have an event callback registered with this name
-		TSharedPtr<FAnalyticsEventCallback>* CallBackPtr = EventCallbacks.Find(EventName);
-
-		if (CallBackPtr != nullptr)
-		{
-			// There are valid callbacks for this event so fire it
-			(*CallBackPtr)->Broadcast(Attributes);
-		}
 	}
 
 	//--------------------------------------------------------------------------
@@ -229,12 +193,7 @@ public:
 	 */
 	virtual void WriteConfigValueToIni(const FString& IniName, const FString& SectionName, const FString& KeyName, const FString& Value);
 
-
 private:
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
-
-	TMap< FString, TSharedPtr<FAnalyticsEventCallback> > EventCallbacks;
-
 };
-

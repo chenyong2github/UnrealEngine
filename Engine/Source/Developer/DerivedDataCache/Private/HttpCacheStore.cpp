@@ -34,7 +34,6 @@
 #include "Misc/ScopeLock.h"
 #include "Misc/ScopeRWLock.h"
 #include "Misc/StringBuilder.h"
-#include "ProfilingDebugging/CookStats.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Serialization/CompactBinary.h"
@@ -45,8 +44,6 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "String/Find.h"
-#include "Analytics.h"
-#include "AnalyticsEventAttribute.h"
 
 #if PLATFORM_MICROSOFT
 #include "Microsoft/WindowsHWrapper.h"
@@ -335,7 +332,6 @@ private:
 	bool EndIsServiceReady(THttpUniquePtr<IHttpResponse>& Response, TArray64<uint8>& Body);
 	bool AcquireAccessToken(IHttpClient* Client = nullptr);
 	void SetAccessToken(FStringView Token, double RefreshDelay = 0.0);
-	void OnAnalyticsEvent(TArray<FAnalyticsEventAttribute>& Attributes);
 
 	enum class EOperationCategory
 	{
@@ -1618,50 +1614,11 @@ FHttpCacheStore::FHttpCacheStore(const FHttpCacheStoreParams& Params)
 		bIsUsable = true;
 	}
 
-	// Add analytics callbacks for the Loading and Cooking events
-	FAnalytics::Get().GetEventCallback("Core.Loading")->AddRaw(this, &FHttpCacheStore::OnAnalyticsEvent);
-	FAnalytics::Get().GetEventCallback("Core.Cooking")->AddRaw(this, &FHttpCacheStore::OnAnalyticsEvent);
-
 	AnyInstance = this;
-}
-
-void FHttpCacheStore::OnAnalyticsEvent(TArray<FAnalyticsEventAttribute>& Attributes)
-{
-#if ENABLE_COOK_STATS
-	const FString BaseName(TEXTVIEW("CloudDDC."));
-
-	Attributes.Emplace(FString(WriteToString<64>(BaseName, TEXTVIEW("Domain"))), Domain);
-	Attributes.Emplace(FString(WriteToString<64>(BaseName, TEXTVIEW("EffectiveDomain"))), *EffectiveDomain);
-	Attributes.Emplace(FString(WriteToString<64>(BaseName, TEXTVIEW("Namespace"))), Namespace);
-	Attributes.Emplace(FString(WriteToString<64>(BaseName, TEXTVIEW("LoginAttempts"))), LoginAttempts);
-	Attributes.Emplace(FString(WriteToString<64>(BaseName, TEXTVIEW("InteractiveLoginAttempts"))), InteractiveLoginAttempts);
-	Attributes.Emplace(FString(WriteToString<64>(BaseName, TEXTVIEW("FailedLoginAttempts"))), FailedLoginAttempts);
-
-	const int64 GetHits = UsageStats.GetStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter);
-	const int64 GetMisses = UsageStats.GetStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Miss, FCookStats::CallStats::EStatType::Counter);
-	const int64 PutHits = UsageStats.PutStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter);
-	const int64 PutMisses = UsageStats.PutStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Miss, FCookStats::CallStats::EStatType::Counter);
-	const int64 TotalGets = GetHits + GetMisses;
-	const int64 TotalPuts = PutHits + PutMisses;
-
-	Attributes.Emplace(FString(WriteToString<64>(BaseName, TEXTVIEW("GetHits"))), GetHits);
-	Attributes.Emplace(FString(WriteToString<64>(BaseName, TEXTVIEW("GetMisses"))), GetMisses);
-	Attributes.Emplace(FString(WriteToString<64>(BaseName, TEXTVIEW("TotalGets"))), TotalGets);
-	Attributes.Emplace(FString(WriteToString<64>(BaseName, TEXTVIEW("PutHits"))), PutHits);
-	Attributes.Emplace(FString(WriteToString<64>(BaseName, TEXTVIEW("PutMisses"))), TotalPuts);
-	Attributes.Emplace(FString(WriteToString<64>(BaseName, TEXTVIEW("TotalGets"))), TotalPuts);
-#endif
 }
 
 FHttpCacheStore::~FHttpCacheStore()
 {
-	// Remove any callbacks we registered if analytics are still available
-	if (FAnalytics::IsAvailable())
-	{
-		FAnalytics::Get().GetEventCallback("Core.Loading")->RemoveAll(this);
-		FAnalytics::Get().GetEventCallback("Core.Cooking")->RemoveAll(this);
-	}
-
 	if (RefreshAccessTokenHandle.IsValid())
 	{
 		FTSTicker::GetCoreTicker().RemoveTicker(RefreshAccessTokenHandle);
