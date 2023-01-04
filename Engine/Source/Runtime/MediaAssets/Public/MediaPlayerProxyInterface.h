@@ -56,5 +56,25 @@ public:
 	 * Get the media source for a given index.
 	 */
 	virtual UMediaSource* GetMediaSourceFromIndex(int32 Index) const = 0;
+
+	/**
+	 * Close the player.
+	 */
+	virtual void ProxyClose() = 0;
+
+	/**
+	 * Ask if a specific track in the playlist is playing.
+	 */
+	virtual bool ProxyIsPlaylistIndexPlaying(int32 Index) const = 0;
+
+	/**
+	 * Open a specific track in the playlist.
+	 */
+	virtual void ProxyOpenPlaylistIndex(int32 Index) = 0;
+
+	/**
+	 * Set the player to play on open.
+	 */
+	virtual void ProxySetPlayOnOpen(bool bInPlayOnOpen) = 0;
 	
 };

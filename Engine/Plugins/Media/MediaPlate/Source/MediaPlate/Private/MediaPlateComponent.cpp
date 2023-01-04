@@ -218,8 +218,14 @@ UMediaTexture* UMediaPlateComponent::GetMediaTexture()
 
 void UMediaPlateComponent::Open()
 {
+	ProxyOpenPlaylistIndex(0);
+}
+
+void UMediaPlateComponent::ProxyOpenPlaylistIndex(int32 Index)
+{
 	bIsMediaPlatePlaying = true;
 	CurrentRate = bPlayOnOpen ? 1.0f : 0.0f;
+	PlaylistIndex = Index;
 
 	if (IsVisible())
 	{
@@ -229,7 +235,7 @@ void UMediaPlateComponent::Open()
 			UMediaSource* MediaSource = nullptr;
 			if (MediaPlaylist != nullptr)
 			{
-				MediaSource = MediaPlaylist->Get(0);
+				MediaSource = MediaPlaylist->Get(Index);
 			}
 			bIsPlaying = PlayMediaSource(MediaSource, bPlayOnOpen);
 		}
@@ -591,6 +597,21 @@ UMediaSource* UMediaPlateComponent::GetMediaSourceFromIndex(int32 Index) const
 		MediaSource = MediaPlaylist->Get(Index);
 	}
 	return MediaSource;
+}
+
+void UMediaPlateComponent::ProxyClose()
+{
+	Close();
+}
+
+bool UMediaPlateComponent::ProxyIsPlaylistIndexPlaying(int32 Index) const
+{
+	return bIsMediaPlatePlaying && (Index == PlaylistIndex);
+}
+
+void UMediaPlateComponent::ProxySetPlayOnOpen(bool bInPlayOnOpen)
+{
+	bPlayOnOpen = bInPlayOnOpen;
 }
 
 void UMediaPlateComponent::RestartPlayer()

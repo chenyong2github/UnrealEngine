@@ -46,6 +46,16 @@ struct FMediaSectionBaseExecutionToken
 			BaseMediaSource, MediaSourceProxy, MediaSourceProxyIndex);
 	}
 
+	/**
+	 * Returns the index to identify the media source we are using in the proxy.
+	 */
+	int32 GetMediaSourceProxyIndex() const { return MediaSourceProxyIndex; }
+
+	/**
+	 * Tests if we have a media source proxy.
+	 */
+	bool IsMediaSourceProxyValid() const { return MediaSourceProxy.IsValid(); }
+
 private:
 	UMediaSource* BaseMediaSource;
 	FMovieSceneObjectBindingID MediaSourceProxy;
@@ -89,8 +99,17 @@ struct FMediaSectionPreRollExecutionToken
 			{
 				MediaSource->SetCacheSettings(PlayerProxyInterface->GetCacheSettings());
 			}
-			SectionData.SeekOnOpen(StartTime);
-			MediaPlayer->OpenSource(MediaSource);
+			if ((PlayerProxyInterface != nullptr) && (IsMediaSourceProxyValid()))
+			{
+				SectionData.SeekOnOpen(StartTime);
+				int32 PlaylistIndex = GetMediaSourceProxyIndex();
+				PlayerProxyInterface->ProxyOpenPlaylistIndex(PlaylistIndex);
+			}
+			else
+			{
+				SectionData.SeekOnOpen(StartTime);
+				MediaPlayer->OpenSource(MediaSource);
+			}
 		}
 	}
 
@@ -139,7 +158,21 @@ struct FMediaSectionExecutionToken
 		}
 
 		// open the media source if necessary
-		if (MediaPlayer->GetUrl().IsEmpty())
+		if ((PlayerProxyInterface != nullptr) && (IsMediaSourceProxyValid()))
+		{
+			int32 PlaylistIndex = GetMediaSourceProxyIndex();
+			if (PlayerProxyInterface->ProxyIsPlaylistIndexPlaying(PlaylistIndex) == false)
+			{
+				MediaSource->SetCacheSettings(PlayerProxyInterface->GetCacheSettings());
+				SectionData.SeekOnOpen(CurrentTime);
+				// Setup an initial blocking range - MediaFramework will block (even through the opening process) in its next tick...
+				PlayerProxyInterface->ProxyOpenPlaylistIndex(PlaylistIndex);
+				MediaPlayer->SetBlockOnTimeRange(TRange<FTimespan>(CurrentTime, CurrentTime + FrameDuration));
+
+				return;
+			}
+		}
+		else if (MediaPlayer->GetUrl().IsEmpty())
 		{
 			if (PlayerProxyInterface != nullptr)
 			{

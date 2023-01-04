@@ -28,7 +28,18 @@ FMovieSceneMediaData::~FMovieSceneMediaData()
 		// we are just going to open again soon anyway.
 		if ((PlayerProxy == nullptr) || (MediaPlayer->IsLooping() == false))
 		{
-			MediaPlayer->Close();
+			if (PlayerProxy != nullptr)
+			{
+				IMediaPlayerProxyInterface* PlayerProxyInterface = Cast<IMediaPlayerProxyInterface>(PlayerProxy);
+				if (PlayerProxyInterface != nullptr)
+				{
+					PlayerProxyInterface->ProxyClose();
+				}
+			}
+			else
+			{
+				MediaPlayer->Close();
+			}
 		}
 		MediaPlayer->RemoveFromRoot();
 	}
@@ -73,6 +84,12 @@ void FMovieSceneMediaData::Setup(UMediaPlayer* OverrideMediaPlayer, UObject* InP
 	if ((InPlayerProxy != nullptr) && (InPlayerProxy->Implements<UMediaPlayerProxyInterface>()))
 	{
 		PlayerProxy = InPlayerProxy;
+		IMediaPlayerProxyInterface* PlayerProxyInterface = Cast<IMediaPlayerProxyInterface>
+			(PlayerProxy);
+		if (PlayerProxyInterface != nullptr)
+		{
+			PlayerProxyInterface->ProxySetPlayOnOpen(false);
+		}
 	}
 	else
 	{
