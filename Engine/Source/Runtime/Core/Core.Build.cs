@@ -55,12 +55,16 @@ public class Core : ModuleRules
 		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{
 			AddEngineThirdPartyPrivateStaticDependencies(Target,
-				"zlib");
-
-			AddEngineThirdPartyPrivateStaticDependencies(Target, 
 				"IntelTBB",
-				"IntelVTune"
+				"zlib"
 				);
+
+			if (Target.Architecture.IndexOf("arm", StringComparison.OrdinalIgnoreCase) == -1)
+			{
+				AddEngineThirdPartyPrivateStaticDependencies(Target,
+					"IntelVTune"
+					);
+			}
 
 			// We do not want the static analyzer to run on thirdparty code
 			if (Target.StaticAnalyzer == StaticAnalyzer.None) 

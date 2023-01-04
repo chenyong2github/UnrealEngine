@@ -9,11 +9,10 @@
 #include "Containers/Map.h"
 #include "HAL/ThreadSingleton.h"
 
-// VTune header for ITT event tracing
-#include "ittnotify.h"
-
 #if UE_EXTERNAL_PROFILING_ENABLED
 
+// VTune header for ITT event tracing
+#include "ittnotify.h"
 
 /** Per thread TMap for all ITT String Handles */
 struct FVTunePerThreadHandleMap : public TThreadSingleton<FVTunePerThreadHandleMap>

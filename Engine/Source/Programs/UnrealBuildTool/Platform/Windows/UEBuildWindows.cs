@@ -932,6 +932,9 @@ namespace UnrealBuildTool
 					{
 						"OpenImageDenoise"
 					});
+					
+					// VTune does not support ARM
+					Target.GlobalDefinitions.Add("UE_EXTERNAL_PROFILING_ENABLED=0");
 				}
 			}
 
@@ -993,6 +996,11 @@ namespace UnrealBuildTool
 			}
 
 			Target.bCompileISPC = true;
+
+			if (Platform == UnrealTargetPlatform.Win64 && Target.Architecture == "arm64")
+			{
+				Target.bCompileISPC = false; // The version of ISPC we currently use does not support Windows Aarch64
+			}
 
 			// Initialize the VC environment for the target, and set all the version numbers to the concrete values we chose
 			Target.WindowsPlatform.Environment = CreateVCEnvironment(Target);
