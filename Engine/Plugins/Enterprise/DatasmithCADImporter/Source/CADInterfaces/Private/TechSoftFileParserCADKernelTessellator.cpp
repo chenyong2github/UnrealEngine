@@ -73,6 +73,15 @@ void FTechSoftFileParserCADKernelTessellator::SewAndGenerateBodyMeshes()
 	{
 		SewAndMesh(Representations.Value);
 	}
+
+	// Delete unused ArchiveBody
+	for (FArchiveBody& ArchiveBody : SceneGraph.Bodies)
+	{
+		if (ArchiveBody.MeshActorUId == 0 && !ArchiveBody.IsDeleted())
+		{
+			ArchiveBody.Delete();
+		}
+	}
 }
 
 void FTechSoftFileParserCADKernelTessellator::SewAndMesh(TArray<A3DRiRepresentationItem*>& Representations)
@@ -192,15 +201,6 @@ void FTechSoftFileParserCADKernelTessellator::SewAndMesh(TArray<A3DRiRepresentat
 		{
 			FCadId ArchiveBodyId = ArchiveBodyIdOfDeletedRepresentation[Index++];
 			FArchiveBody& ArchiveBody = SceneGraph.GetBody(ArchiveBodyId);
-			ArchiveBody.Delete();
-		}
-	}
-
-	// Delete unused ArchiveBody
-	for (FArchiveBody& ArchiveBody : SceneGraph.Bodies)
-	{
-		if (ArchiveBody.MeshActorUId == 0)
-		{
 			ArchiveBody.Delete();
 		}
 	}
