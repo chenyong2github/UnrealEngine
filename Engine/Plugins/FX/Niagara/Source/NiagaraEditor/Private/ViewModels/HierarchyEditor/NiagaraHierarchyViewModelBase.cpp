@@ -309,8 +309,13 @@ void UNiagaraHierarchyViewModelBase::Initialize()
 	}
 
 	UToolMenus* ToolMenus = UToolMenus::Get();
-	UToolMenu* HierarchyMenu = ToolMenus->RegisterMenu("NiagaraHierarchyMenu", NAME_None, EMultiBoxType::Menu);
-	FToolMenuSection& BaseSection = HierarchyMenu->AddSection("Base");
+
+	FName MenuName("NiagaraHierarchyMenu");
+	if(!ToolMenus->IsMenuRegistered(MenuName))
+	{
+		UToolMenu* HierarchyMenu = ToolMenus->RegisterMenu(MenuName, NAME_None, EMultiBoxType::Menu);
+		HierarchyMenu->AddSection("Base");
+	}
 	
 	SetupCommands();
 
