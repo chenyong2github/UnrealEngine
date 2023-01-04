@@ -100,6 +100,11 @@ void UButton::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
 
+	if (!MyButton.IsValid())
+	{
+		return;
+	}
+
 	MyButton->SetColorAndOpacity( ColorAndOpacity );
 	MyButton->SetBorderBackgroundColor( BackgroundColor );
 }

@@ -109,6 +109,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 void USpinBox::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
+	
+	if (!MySpinBox.IsValid())
+	{
+		return;
+	}
+	
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MySpinBox->SetDelta(Delta);
 	MySpinBox->SetSliderExponent(SliderExponent);

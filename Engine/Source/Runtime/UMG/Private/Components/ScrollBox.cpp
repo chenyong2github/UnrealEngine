@@ -157,6 +157,11 @@ void UScrollBox::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
 
+	if (!MyScrollBox.IsValid())
+	{
+		return;
+	}
+
 	MyScrollBox->SetScrollOffset(DesiredScrollOffset);
 	MyScrollBox->SetOrientation(Orientation);
 	MyScrollBox->SetScrollBarVisibility(UWidget::ConvertSerializedVisibilityToRuntime(ScrollBarVisibility));

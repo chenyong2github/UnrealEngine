@@ -62,6 +62,11 @@ TSharedRef<SWidget> UBorder::RebuildWidget()
 void UBorder::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
+
+	if (!MyBorder.IsValid())
+	{
+		return;
+	}
 	
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TAttribute<FLinearColor> ContentColorAndOpacityBinding = PROPERTY_BINDING(FLinearColor, ContentColorAndOpacity);

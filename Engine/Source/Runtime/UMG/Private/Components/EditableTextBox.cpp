@@ -141,6 +141,11 @@ void UEditableTextBox::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
 
+	if (!MyEditableTextBlock.IsValid())
+	{
+		return;
+	}
+
 	TAttribute<FText> TextBinding = PROPERTY_BINDING(FText, Text);
 	TAttribute<FText> HintTextBinding = PROPERTY_BINDING(FText, HintText);
 

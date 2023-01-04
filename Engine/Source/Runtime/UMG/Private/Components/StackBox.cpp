@@ -107,6 +107,12 @@ TSharedRef<SWidget> UStackBox::RebuildWidget()
 void UStackBox::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
+
+	if (!MyBox.IsValid())
+	{
+		return;
+	}
+
 	MyBox->SetOrientation(Orientation);
 }
 

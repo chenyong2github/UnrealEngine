@@ -74,6 +74,11 @@ void URadialSlider::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
 
+	if (!MyRadialSlider.IsValid())
+	{
+		return;
+	}
+
 	FRichCurve* OurCurve = SliderRange.GetRichCurve();
 	for (int32 i = 0; i < OurCurve->Keys.Num() - 1; i++)
 	{

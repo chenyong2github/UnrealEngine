@@ -110,6 +110,11 @@ void UScaleBox::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
 
+	if (!MyScaleBox.IsValid())
+	{
+		return;
+	}
+	
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MyScaleBox->SetStretchDirection(StretchDirection);
 	MyScaleBox->SetStretch(Stretch);

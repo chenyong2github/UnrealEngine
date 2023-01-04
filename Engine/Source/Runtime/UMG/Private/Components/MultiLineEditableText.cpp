@@ -111,6 +111,11 @@ void UMultiLineEditableText::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
 
+	if (!MyMultiLineEditableText.IsValid())
+	{
+		return;
+	}
+
 	TAttribute<FText> HintTextBinding = PROPERTY_BINDING(FText, HintText);
 
 	MyMultiLineEditableText->SetTextStyle(&WidgetStyle);

@@ -81,6 +81,11 @@ void UThrobber::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
 
+	if (!MyThrobber.IsValid())
+	{
+		return;
+	}
+
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MyThrobber->SetPieceImage(&Image);
 	MyThrobber->InvalidatePieceImage();

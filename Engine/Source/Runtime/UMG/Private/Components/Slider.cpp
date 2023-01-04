@@ -88,6 +88,11 @@ void USlider::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
 
+	if (!MySlider.IsValid())
+	{
+		return;
+	}
+
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TAttribute<float> ValueBinding = PROPERTY_BINDING(float, Value);
 	

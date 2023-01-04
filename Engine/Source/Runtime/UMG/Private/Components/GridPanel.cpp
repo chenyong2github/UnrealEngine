@@ -87,6 +87,11 @@ void UGridPanel::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
 
+	if (!MyGridPanel.IsValid())
+	{
+		return;
+	}
+
 	MyGridPanel->ClearFill();
 
 	for ( int ColumnIndex = 0; ColumnIndex < ColumnFill.Num(); ColumnIndex++ )

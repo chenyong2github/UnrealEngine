@@ -164,6 +164,11 @@ void URetainerBox::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
 
+	if (!MyRetainerWidget.IsValid())
+	{
+		return;
+	}
+	
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MyRetainerWidget->SetRetainedRendering(IsDesignTime() ? false : bRetainRender);
 	MyRetainerWidget->SetEffectMaterial(EffectMaterial);

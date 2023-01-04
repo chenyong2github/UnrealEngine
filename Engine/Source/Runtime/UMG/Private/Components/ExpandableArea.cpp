@@ -287,6 +287,11 @@ void UExpandableArea::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
 
+	if (!MyExpandableArea.IsValid())
+	{
+		return;
+	}
+	
 	MyExpandableArea->SetStyle(&Style);
 	MyExpandableArea->InvalidateStyle();
 	MyExpandableArea->SetExpanded(bIsExpanded);

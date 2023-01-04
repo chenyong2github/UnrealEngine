@@ -89,6 +89,11 @@ void UWrapBox::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
 
+	if (!MyWrapBox.IsValid())
+	{
+		return;
+	}
+
 	MyWrapBox->SetInnerSlotPadding(InnerSlotPadding);
 	MyWrapBox->SetUseAllottedSize(!bExplicitWrapSize);
 	MyWrapBox->SetWrapSize(WrapSize);

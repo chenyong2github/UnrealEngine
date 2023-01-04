@@ -246,6 +246,11 @@ void UInputKeySelector::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
 
+	if (!MyInputKeySelector.IsValid())
+	{
+		return;
+	}
+
 	MyInputKeySelector->SetSelectedKey( SelectedKey );
 	MyInputKeySelector->SetMargin( Margin );
 	MyInputKeySelector->SetButtonStyle( &WidgetStyle );

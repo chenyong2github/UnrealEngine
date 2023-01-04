@@ -129,6 +129,11 @@ void UUniformGridPanel::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
 
+	if (!MyUniformGridPanel.IsValid())
+	{
+		return;
+	}
+
 	MyUniformGridPanel->SetSlotPadding(SlotPadding);
 	MyUniformGridPanel->SetMinDesiredSlotWidth(MinDesiredSlotWidth);
 	MyUniformGridPanel->SetMinDesiredSlotHeight(MinDesiredSlotHeight);

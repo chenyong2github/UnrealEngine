@@ -122,6 +122,10 @@ void UEditableText::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
 
+	if (!MyEditableText.IsValid())
+	{
+		return;
+	}
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 

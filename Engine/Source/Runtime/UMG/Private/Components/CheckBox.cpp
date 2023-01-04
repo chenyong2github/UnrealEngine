@@ -101,6 +101,10 @@ void UCheckBox::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
 
+	if (!MyCheckbox.IsValid())
+	{
+		return;
+	}
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MyCheckbox->SetStyle(&WidgetStyle);

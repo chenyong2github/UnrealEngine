@@ -83,6 +83,11 @@ void UCircularThrobber::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
 
+	if (!MyCircularThrobber.IsValid())
+	{
+		return;
+	}
+
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MyCircularThrobber->SetNumPieces(FMath::Clamp(NumberOfPieces, 1, 25));
 	MyCircularThrobber->SetPeriod(FMath::Max(Period, SCircularThrobber::MinimumPeriodValue));

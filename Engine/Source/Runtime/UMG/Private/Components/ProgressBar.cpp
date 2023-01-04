@@ -79,6 +79,11 @@ void UProgressBar::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
 
+	if (!MyProgressBar.IsValid())
+	{
+		return;
+	}
+
 	TAttribute< TOptional<float> > PercentBinding = OPTIONAL_BINDING_CONVERT(float, Percent, TOptional<float>, ConvertFloatToOptionalFloat);
 	TAttribute<FSlateColor> FillColorAndOpacityBinding = PROPERTY_BINDING(FSlateColor, FillColorAndOpacity);
 
