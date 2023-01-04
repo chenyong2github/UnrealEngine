@@ -411,7 +411,7 @@ protected:
 	void CompileRigVMMethodDeclaration(FUnrealStructDefinitionInfo& StructDef);
 	void ParseRigVMMethodParameters(FUnrealStructDefinitionInfo& StructDef);
 
-	FUnrealClassDefinitionInfo* ParseInterfaceNameDeclaration(FString& DeclaredInterfaceName, FString& RequiredAPIMacroIfPresent);
+	FUnrealClassDefinitionInfo* ParseInterfaceNameDeclaration(FString& DeclaredInterfaceName, FString& RequiredAPIMacroIfPresent, bool bIsNativeInterface);
 	bool TryParseIInterfaceClass();
 
 	bool CompileStatement(TArray<FUnrealFunctionDefinitionInfo*>& DelegatesToFixup);
