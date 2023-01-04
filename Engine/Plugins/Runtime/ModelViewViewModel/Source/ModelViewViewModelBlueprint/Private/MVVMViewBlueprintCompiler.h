@@ -94,10 +94,12 @@ private:
 		FString CategoryName;
 		FString BlueprintSetter;
 		FMVVMConstFieldVariant Field;
+		// If the class is a viewmodel on the userwidget, what is the id of that viewmodel
+		FGuid ViewModelId;
 
 		bool bExposeOnSpawn = false;
 	};
-	TArray<FCompilerUserWidgetPropertyContext> CompilerSourceContexts;
+	TArray<FCompilerUserWidgetPropertyContext> CompilerUserWidgetPropertyContexts;
 
 	/** 
 	 * Describe the data initialize the view's properties/viewmodels.
@@ -127,7 +129,7 @@ private:
 	struct FCompilerBinding
 	{
 		int32 BindingIndex = INDEX_NONE;
-		int32 CompilerSourceContextIndex = INDEX_NONE;
+		int32 UserWidgetPropertyContextIndex = INDEX_NONE;
 		bool bSourceIsUserWidget = false;
 		bool bFieldIdNeeded = false;
 		bool bIsConversionFunctionComplex = false;
