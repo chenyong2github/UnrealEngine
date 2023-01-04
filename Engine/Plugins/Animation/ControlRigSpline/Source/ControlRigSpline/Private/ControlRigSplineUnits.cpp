@@ -20,7 +20,7 @@ FRigUnit_ControlRigSplineFromPoints_Execute()
 	}
 		
 	const TArrayView<const FVector> PointsView(Points.GetData(), Points.Num());
-	Spline.SetControlPoints(PointsView, SplineMode, SamplesPerSegment, Compression, Stretch);
+	Spline.SetControlPoints(PointsView, SplineMode, bClosed, SamplesPerSegment, Compression, Stretch);
 }
 
 FRigUnit_SetSplinePoints_Execute()
@@ -37,14 +37,25 @@ FRigUnit_SetSplinePoints_Execute()
 		return;
 	}	
 
-	if (Points.Num() != Spline.SplineData->GetControlPoints().Num())
+	if (!Spline.SplineData->bClosed)
 	{
-		UE_LOG(LogControlRig, Error, TEXT("Number of input points does not match the number of point in the spline."));
-		return;
+		if (Points.Num() != Spline.SplineData->GetControlPoints().Num())
+		{
+			UE_LOG(LogControlRig, Error, TEXT("Number of input points does not match the number of point in the spline."));
+			return;
+		}
+	}
+	else if(Points.Num() != Spline.SplineData->GetControlPoints().Num() - Spline.GetDegree())
+	{
+		if (Points.Num() != Spline.SplineData->GetControlPoints().Num())
+		{
+			UE_LOG(LogControlRig, Error, TEXT("Number of input points does not match the number of point in the spline."));
+			return;
+		}
 	}
 
 	const TArrayView<const FVector> PointsView(Points.GetData(), Points.Num());
-	Spline.SetControlPoints(PointsView, Spline.SplineData->SplineMode, Spline.SplineData->SamplesPerSegment, Spline.SplineData->Compression, Spline.SplineData->Stretch);
+	Spline.SetControlPoints(PointsView, Spline.SplineData->SplineMode, Spline.SplineData->bClosed, Spline.SplineData->SamplesPerSegment, Spline.SplineData->Compression, Spline.SplineData->Stretch);
 }
 
 FRigUnit_PositionFromControlRigSpline_Execute()
@@ -679,7 +690,7 @@ FRigUnit_FitSplineCurveToChainItemArray_Execute()
 	}
     FControlRigSpline AuxSpline;
 	const TArrayView<const FVector> PointsView(AuxControlPoints.GetData(), AuxControlPoints.Num());
-	AuxSpline.SetControlPoints(PointsView, ESplineType::Hermite, Spline.SplineData->SamplesPerSegment);
+	AuxSpline.SetControlPoints(PointsView, ESplineType::Hermite, false, Spline.SplineData->SamplesPerSegment);
 	
 
 	// 2.-  for each control point in the original spline
@@ -696,7 +707,7 @@ FRigUnit_FitSplineCurveToChainItemArray_Execute()
 	}
 
 	const TArrayView<const FVector> NewPointsView(NewControlPoints.GetData(), NewControlPoints.Num());
-	Spline.SetControlPoints(NewPointsView, Spline.SplineData->SplineMode, Spline.SplineData->SamplesPerSegment, Spline.SplineData->Compression, Spline.SplineData->Stretch);
+	Spline.SetControlPoints(NewPointsView, Spline.SplineData->SplineMode, false, Spline.SplineData->SamplesPerSegment, Spline.SplineData->Compression, Spline.SplineData->Stretch);
 }
 
 FRigUnit_ClosestParameterFromControlRigSpline_Execute()

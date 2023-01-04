@@ -25,6 +25,7 @@ struct CONTROLRIGSPLINE_API FRigUnit_ControlRigSplineFromPoints : public FRigUni
 	FRigUnit_ControlRigSplineFromPoints()
 	{
 		SplineMode = ESplineType::Hermite;
+		bClosed = false;
 		SamplesPerSegment = 16;
 		Compression = 0.f;
 		Stretch = 0.f;
@@ -39,6 +40,9 @@ struct CONTROLRIGSPLINE_API FRigUnit_ControlRigSplineFromPoints : public FRigUni
 
 	UPROPERTY(meta = (Input))
 	ESplineType SplineMode;
+
+	UPROPERTY(meta = (Input))
+	bool bClosed;
 
 	UPROPERTY(meta = (Input))
 	int32 SamplesPerSegment;

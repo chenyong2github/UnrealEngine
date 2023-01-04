@@ -39,17 +39,20 @@ class ControlRigBaseSpline
 protected:
 	TArray<FVector> ControlPoints;
 	uint16 Degree;
+	bool bClosed;
 	
 public:
 
-	ControlRigBaseSpline(const TArrayView<const FVector>& InControlPoints, uint16 InDegree);
+	ControlRigBaseSpline(const TArrayView<const FVector>& InControlPoints, uint16 InDegree, bool bInClosed);
 	virtual ~ControlRigBaseSpline(){}
 	
 	virtual FVector GetPointAtParam(float Param) = 0;
 
-	virtual void SetControlPoints(const TArrayView<const FVector>& InControlPoints) { ControlPoints = InControlPoints; }
+	virtual void SetControlPoints(const TArrayView<const FVector>& InControlPoints);
 
 	TArray<FVector>& GetControlPoints() { return ControlPoints; }
+
+	uint8 GetDegree() const { return Degree; }
 };
 
 class ControlRigBSpline : public ControlRigBaseSpline
@@ -57,8 +60,8 @@ class ControlRigBSpline : public ControlRigBaseSpline
 	TArray<float> KnotVector;
 	
 public:
-	ControlRigBSpline(const TArrayView<const FVector>& InControlPoints, const uint16 InDegree, const bool bInClamped);
-	
+	ControlRigBSpline(const TArrayView<const FVector>& InControlPoints, const uint16 InDegree, const bool bInClosed, const bool bInClamped);
+
 	virtual FVector GetPointAtParam(float Param);
 
 };
@@ -70,7 +73,7 @@ class ControlRigHermite : public ControlRigBaseSpline
 	uint16 NumSegments;
 	
 public:
-	ControlRigHermite(const TArrayView<const FVector>& InControlPoints);
+	ControlRigHermite(const TArrayView<const FVector>& InControlPoints, const bool bInClosed);
 
 	virtual void SetControlPoints(const TArrayView<const FVector>& InControlPoints) override;
 	
@@ -88,6 +91,7 @@ struct CONTROLRIGSPLINE_API FControlRigSplineImpl
 	{
 		SplineMode = ESplineType::BSpline;
 		Spline = nullptr;
+		bClosed = false;
 		SamplesPerSegment = 16;
 	}
 
@@ -101,6 +105,9 @@ struct CONTROLRIGSPLINE_API FControlRigSplineImpl
 
 	// The actual spline
 	ControlRigBaseSpline* Spline;
+
+	// Wether or not the curve is closed
+	bool bClosed;
 
 	// Samples per segment, where segment is the portion between two control points
 	int32 SamplesPerSegment;
@@ -119,6 +126,9 @@ struct CONTROLRIGSPLINE_API FControlRigSplineImpl
 
 	// Returns a reference to the control points that were used to create this spline 
 	TArray<FVector>& GetControlPoints();
+
+	// Returns the degree of the curve
+	uint8 GetDegree() const;
 };
 
 USTRUCT(BlueprintType)
@@ -136,17 +146,25 @@ struct CONTROLRIGSPLINE_API FControlRigSpline
 	TSharedPtr<FControlRigSplineImpl> SplineData;
 
 	/**
+	* Returns the degree of the spline
+	*
+	* @return			The degree of the spline.
+	*/
+	uint8 GetDegree() const;
+
+	/**
 	* Sets the control points in the spline. It will build the spline if needed, or forceRebuild is true,
 	* or will update the points if building from scratch is not necessary. The type of spline to build will
 	* depend on what is set in SplineMode.
 	*
 	* @param InPoints	The control points to set.
 	* @param SplineMode	The type of spline
+	* @param bInClosed	If the spline should be closed
 	* @param SamplesPerSegment The samples to cache for every segment defined between two control rig
 	* @param Compression The allowed length compression (1.f being do not allow compression`). If 0, no restriction wil be applied.
 	* @param Stretch The allowed length stretch (1.f being do not allow stretch). If 0, no restriction wil be applied.
 	*/
-	void SetControlPoints(const TArrayView<const FVector>& InPoints, const ESplineType SplineMode = ESplineType::BSpline, const int32 SamplesPerSegment = 16, const float Compression = 1.f, const float Stretch = 1.f);
+	void SetControlPoints(const TArrayView<const FVector>& InPoints, const ESplineType SplineMode = ESplineType::BSpline, const bool bInClosed = false, const int32 SamplesPerSegment = 16, const float Compression = 1.f, const float Stretch = 1.f);
 
 	/**
 	* Given an InParam float in [0, 1], will return the position of the spline at that point.
